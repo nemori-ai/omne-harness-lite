@@ -1,6 +1,6 @@
 # DSH、Cordis 与完全动态系统
 
-本文记录对 DeepSeek Harness（DSH）及其底层 Cordis 运行时的机制性解读，并将这些机制放回 OMNE 的“完全动态系统”目标中理解。本文只讨论动态运行时、形式化模型和系统演化，不讨论具体 Agent 应用框架的选型。
+本文记录对 DeepSeek Harness（DSH）及其底层 Cordis 运行时的机制性解读，并将这些机制放回 `omne-harness-lite` 的系统目标中理解：构建一个更轻量化、更高性能，同时能够超长期待机、稳定运行并持续进化的 OMNE harness。本文只讨论动态运行时、形式化模型和系统演化，不讨论具体 Agent 应用框架的选型。
 
 ## DSH 的基本思想
 
