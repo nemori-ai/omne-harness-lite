@@ -41,6 +41,7 @@
 omne-harness-lite/
 ├── README.md                     项目介绍与读者入口
 ├── AGENTS.md                     agent 的常驻心智、边界与导航
+├── CLAUDE.md                     Claude Code 入口，通过 @AGENTS.md 复用同级约定
 ├── docs/
 │   ├── README.md                 文档总索引
 │   ├── architecture/             当前系统视图与已确认约束
