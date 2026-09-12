@@ -17,3 +17,7 @@
 副维度关联：[PF-015：制品管理与隔离工作副本](../agent/PF-015-artifact-management-and-isolated-working-copies.md)
 （主维度：智能体）。制品存储不依赖原运行时或宿主机，内容可加载到本机或
 沙盒工作文件系统；并发工作副本、保存及环境回收分别表达。
+
+副维度关联：[PF-016：Agent 开发 Cordis 插件并在线部署装载](../agent/PF-016-agent-developed-cordis-plugins-and-live-deployment.md)
+（主维度：智能体）。插件开发、验证和部署适配实际执行环境，在系统持续服务时
+按声明处理受影响能力；Context/VM 不单独构成权限或安全隔离边界。

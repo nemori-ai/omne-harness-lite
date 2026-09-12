@@ -10,6 +10,7 @@
 - [PF-011：面向未来的复杂日程规划、日历与通知提醒](PF-011-future-planning-calendars-and-reminders.md)
 - [PF-014：运行时发现与按需装载工具、技能](PF-014-runtime-tool-and-skill-discovery-and-loading.md)
 - [PF-015：制品管理与隔离工作副本](PF-015-artifact-management-and-isolated-working-copies.md)
+- [PF-016：Agent 开发 Cordis 插件并在线部署装载](PF-016-agent-developed-cordis-plugins-and-live-deployment.md)
 
 副维度关联：
 

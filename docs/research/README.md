@@ -20,6 +20,7 @@
 - [Session、Run 生命周期与排队输入控制的来源核对](session-run-and-pending-input-sources.md)
 - [DSH 动态能力研究](dsh-cordis-dynamic/README.md)
 - [运行时工具/技能装载与独立制品管理的跨系统来源](dynamic-loading-and-artifact-sources.md)
+- [Agent 开发及在线装载 Cordis 插件：DSH 与 Raven 机制研究](agent-developed-cordis-plugin-sources.md)
 - [Agent 系统评测与 benchmark 驱动迭代](agent-system-evaluation/README.md)
 
 使用方法见[知识流转](../maintenance/knowledge-flow.md)。

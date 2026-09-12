@@ -108,3 +108,10 @@ slash 入口和键盘控制。现有普通输入候选未完整覆盖这些行�
 补充独立于运行时及宿主机的持久制品管理，以及向本机/沙盒加载、隔离工作副本、
 保存确认、并发冲突和发布边界。现有候选未覆盖这些要求；DSH Workspace、旧
 Workspace 存储方案或 Git worktree 均不因来源引用而成为已接受实现。
+
+[PF-016](../../requirements/product/agent/PF-016-agent-developed-cordis-plugins-and-live-deployment.md)
+新增 Agent 开发 Cordis plugin 并在系统不停机期间部署装载的要求，范围含工具、
+技能、服务等；PF-010 中旧官方实现来源限制已据此扩展。候选尚缺开发/部署授权、
+确切候选与验证、生命周期、依赖和在途变更、持久恢复及实际代码执行边界。
+Cordis HMR、DSH 动态 runner 和 Raven 开发反馈仅为[研究依据](../../research/agent-developed-cordis-plugin-sources.md)，
+不构成已选定的部署、沙盒或回退方案。

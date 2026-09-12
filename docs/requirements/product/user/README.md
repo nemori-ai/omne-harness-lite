@@ -48,3 +48,7 @@ Skill 调用继续使用 PF-009 的 slash 入口。
 副维度关联：[PF-015：制品管理与隔离工作副本](../agent/PF-015-artifact-management-and-isolated-working-copies.md)
 （主维度：智能体）。用户的持久工作材料按租户及权限管理，多个会话可同时
 处理而不静默覆盖，保存、冲突、清理和发布结果可辨认。
+
+副维度关联：[PF-016：Agent 开发 Cordis 插件并在线部署装载](../agent/PF-016-agent-developed-cordis-plugins-and-live-deployment.md)
+（主维度：智能体）。用户有效策略决定 Agent 的开发与部署资格、影响范围和
+是否需要 HITL；有权用户可查看插件版本、运行结果并管理启停及变更。

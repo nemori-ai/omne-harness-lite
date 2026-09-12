@@ -125,12 +125,16 @@ C1/C2 记录直接要求及其区分；C3–C7 将源已接受要求中可明确
 |---|---|---|
 | Skill | 可独立定义、发布、引用的技能；有官方与自定义来源 | 定义所有权、使用权益及版本选择分别治理；用户手动调用见 PF-009 |
 | SlashCommand | 可绑定 Skill/Prompt 等上下文的命令定义；有官方与自定义来源 | 独立顶层资产；不包含键盘控制、shell 或系统命令 |
-| Plugin | 组件分发与组合资产；有官方与自定义来源，可包含 tool、skill、command、rules、hooks | 内含成员随相应 Plugin 版本和权利治理；独立外部依赖保留自己的身份与权益 |
+| Plugin | 组件分发与组合资产；有官方与自定义来源，可包含 tool、skill、service、command、rules、hooks | 内含成员随相应 Plugin 版本和权利治理；独立外部依赖保留自己的身份与权益；自定义可执行贡献按 PF-016 治理 |
 | Agent Blueprint / Definition | 智能体静态定义，包括官方 Agent 与 custom Agent | 不是会话或运行实例；引用组件不取得组件所有权；sub-agent 定义仍属这一类 |
-| Tool、Middleware | 原系统组件来源设计以官方实现为当前边界 | 当前不是独立顶层用户资产；使用权限仍需检查，不能从“可安装 Plugin”推导任意自定义可执行代码权限 |
+| Tool、Service、Middleware 等实现 | 原系统 Tool/Middleware 来源边界偏向官方；用户后续新增 PF-016，允许获准 Cordis 插件提供自定义 tool/service 等能力 | 不自动成为独立顶层资产；开发、部署、装载与使用分别受当前权限约束，不能从可安装推导任意执行权限 |
 | Hooks、Rules 等成员 | 可以作为 Plugin 的声明性成员；来源随具体定义及分发材料记录 | 不自动取得独立顶层资产生命周期；自定义可执行扩展的资格与隔离另有设计边界 |
 | 模型档案（model profile） | 源最新要求明确 official 与 user customized 同一表形、同一约束，来源可辨 | 官方原档在公开面只读；用户可管理自己的自定义档案。它不是第五类顶层 Agent 资产；组织共享范围仍须专项明确 |
 | 知识、经验、报告及附件/文件 | 受治理的信息与工作产物，记录实际来源、作者与归属 | 按各自权限和生命周期管理；不强造 official/customized 二分，知识或文件内容也不自动成为指令或权限 |
+
+2026-09-12 后续新增 [PF-016](../agent/PF-016-agent-developed-cordis-plugins-and-live-deployment.md)
+扩展本表的可执行插件来源范围。它是本项目直接要求，不是 omne-next 原有承诺；
+历史来源研究仍保留旧事实。Agent 可开发与部署不意味着可改写官方原件或绕过租户权限。
 
 四类定义的共享、使用和编辑权依各自当前依据判定。“官方原档只读”和
 [PF-006](PF-006-user-settings-and-agent-definition-authorization.md) 的用户覆盖

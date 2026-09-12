@@ -72,6 +72,8 @@ slash 手动调用 Skill 的要求；自动发现不取代该入口。DSH 的斜
 [PF-012](../environment/PF-012-computer-browser-shell-sandbox-and-native-use.md) 拥有
 执行环境，[PF-015](PF-015-artifact-management-and-isolated-working-copies.md) 拥有
 持久制品与工作副本；技能内容、能力定义资产和工作制品保留各自语义。
+[PF-016](PF-016-agent-developed-cordis-plugins-and-live-deployment.md) 进一步允许
+Agent 在权限策略下开发新插件并在线部署；本项继续拥有已有能力的发现与装载。
 [SYS-DYNAMIC](../../system/fully-dynamic-system.md) 提供总约束。
 [Agent 核心候选](../../../proposals/agent-core/README.md#当前需求对应与缺口)尚缺完整
 发现、按需装载与生效变化模型；本轮登记不改变候选接受状态。
