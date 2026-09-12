@@ -18,4 +18,4 @@
 
 每个正式契约至少有入口、版本化 `contract.md` 和 `spec/catalog.json` 中的登记。复杂度实际出现时才增加 Schema、形式模型、场景或验证映射。`spec/archive/` 是历史材料，`docs/proposals/` 是候选材料，均不进入有效目录清单。
 
-正式内容的 metadata 与字段形状以 `tmp/documentation-system-delivery/interfaces.md` 为机器可检查的接口约定。维护者不得另建平行 registry、`current.json` 或运行时注册表来表达目录状态；`catalog.json` 只服务文档发现，不参与 Cordis 的动态解析。
+正式内容的 metadata 与字段形状以[机器可检查的元数据](metadata.md)为准。维护者不得另建平行 registry、`current.json` 或运行时注册表来表达目录状态；`catalog.json` 只服务文档发现，不参与 Cordis 的动态解析。

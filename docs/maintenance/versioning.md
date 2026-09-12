@@ -4,7 +4,7 @@
 
 ## 决定与提案
 
-决定 front matter 必须符合 `interfaces.md`：非空 `scope`、日期、至少一个位于 `docs/proposals/` 或 `docs/research/` 的 `sources`，以及接受记录链接。决定是同一适用范围内研究、提案和决定三者中的最终权威，直到有一项新决定在明确范围内取代它。
+决定 front matter 必须符合[元数据规范](metadata.md)：非空 `scope`、日期、至少一个位于 `docs/proposals/` 或 `docs/research/` 的 `sources`，以及接受记录链接。决定是同一适用范围内研究、提案和决定三者中的最终权威，直到有一项新决定在明确范围内取代它。
 
 提案可为 `draft`、`in-review`、`accepted`、`partially-accepted`、`rejected` 或 `withdrawn`。提案入口记录逐项结果并指向决定或正式规格；其旧正文保持当时的候选身份，不能通过事后改写变成当前规则。研究记录来源版本、观察、推断和未覆盖范围，不能获得政策权威。
 
@@ -14,7 +14,7 @@
 
 ## 契约版本
 
-契约身份采用 `data.<name>`、`capability.<name>` 或 `composition.<name>`；版本使用正整数。`spec/catalog.json` 是唯一的版本、状态、路径与接受依据清单，其形状以 `interfaces.md` 为准。`accepted` 表示可作为新设计依赖；`superseded` 保留精确引用和复现价值；`withdrawn` 不得作为新依赖。`current_version` 是推荐入口，不能自动升级消费者。
+契约身份采用 `data.<name>`、`capability.<name>` 或 `composition.<name>`；版本使用正整数。`spec/catalog.json` 是唯一的版本、状态、路径与接受依据清单，其形状以[元数据规范](metadata.md)为准。`accepted` 表示可作为新设计依赖；`superseded` 保留精确引用和复现价值；`withdrawn` 不得作为新依赖。`current_version` 是推荐入口，不能自动升级消费者。
 
 已发布 `vN/` 的规范正文、Schema、模型和规范场景均冻结。任何实质修改建立新 `vN+1`，并记录澄清、兼容扩展、语义变化或拆分替代；勘误在可变入口登记，若改变规范原文仍发布新版本。`spec/frozen.json` 记录已发布版本目录内所有规范文件的 SHA-256，检查时以 `--baseline <git-ref>` 发现同时修改原件与哈希的尝试。运行证据位于版本目录外，绑定其规格版本与源码提交。
 
