@@ -15,5 +15,8 @@
 [PF-002](environment/PF-002-external-change-response.md)、
 [PF-003](agent/PF-003-tool-execution-observation-and-control.md)、
 [PF-004](agent/PF-004-subagent-delegation-and-supervision.md)、
-[PF-005](agent/PF-005-agent-initiated-human-input-and-approval.md)。编号独立于维度，维护方式归
+[PF-005](agent/PF-005-agent-initiated-human-input-and-approval.md)、
+[PF-006](user/PF-006-user-settings-and-agent-definition-authorization.md)、
+[PF-007](user/PF-007-system-initiated-hitl.md)、
+[PF-008](user/PF-008-unified-decision-pool.md)。编号独立于维度，维护方式归
 [需求维护](../../maintenance/requirements.md#身份与归属)。分类不代表插件、数据模型或部署单元。

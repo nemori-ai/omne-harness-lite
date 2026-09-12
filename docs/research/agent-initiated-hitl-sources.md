@@ -43,6 +43,11 @@ scope: PF-005 主动提问、授权请求、耐久等待、用户答复与接续
 真实提交结果的区分。四个旧 wire 值、Gateway 与 Runtime 的分工仅解释来源，
 本项目仍需定义自己的语言无关契约与装配。
 
+同日用户进一步明确系统 HITL 与统一决策池后，C8/C9 的共享池正文迁由
+[PF-008](../requirements/product/user/PF-008-unified-decision-pool.md) 拥有；旧身份
+保留引用。本表仍记录原始映射，主动请求的内容元素继续归 PF-005.C1/C2，通用池
+要求按新正文维护。补充来源归[用户治理与决策池核对](user-governance-and-decision-pool-sources.md)。
+
 ## 相邻范围与解释边界
 
 - **主动请求与授权门拦截。** 用户本轮指向 agent 主动 HITL；能力使用权限由
@@ -54,6 +59,8 @@ scope: PF-005 主动提问、授权请求、耐久等待、用户答复与接续
 - **暂行定夺。** [相邻要求][tentative] 要求先具备显式登记、领域暂行承载及
   全函数撤销，才能非阻塞执行并等 owner 定夺；它的呈现窗口到期同样不是答案。
   本轮主动问题/批准不会因此普遍取得“先做后批”资格。
+  用户随后确认的 [PF-007](../requirements/product/user/PF-007-system-initiated-hitl.md)
+  登记系统 HITL 与该未来路径；本页的主动请求边界不限制它的独立确认范围。
   [PF-004.C8](../requirements/product/agent/PF-004-subagent-delegation-and-supervision.md#定时派发与授权)
   已登记的定时派发草稿与 owner 激活继续有效；本项没有撤回那些专项条款。
 - **通知与人类决定。** [通知来源][notification] 可以把 owner 带回认证后的请求

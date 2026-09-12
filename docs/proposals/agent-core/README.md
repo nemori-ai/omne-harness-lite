@@ -41,3 +41,11 @@ handoff 与结果新触发等完整语义；后续候选须消费专项继承范
 尚未覆盖请求及答复的精确关联、长期等待、多个请求独立存在、待办池作答、恢复
 接续和批准动作引用；也未定义通用批准与专用权限授予的区别。后续修订须消费
 这些已确认要求；普通聊天不能被候选输入处理策略事后猜成某个请求的答复。
+
+[PF-006](../../requirements/product/user/PF-006-user-settings-and-agent-definition-authorization.md)、
+[PF-007](../../requirements/product/user/PF-007-system-initiated-hitl.md) 与
+[PF-008](../../requirements/product/user/PF-008-unified-decision-pool.md) 补充用户设置、
+定义级授权、系统发起的 HITL 及统一决策池。执行前授权检查尚不足以表达覆盖
+出厂默认值、当前有效授权、耐久阻塞确认、合格动作暂行定夺及跨会话直接答复。
+候选修订须消费这些要求，并保持配置、动作授权、决定后果与集中呈现各自语义；
+此处不接受原系统的编译器、权限表、池存储或运行时分工。

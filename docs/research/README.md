@@ -10,6 +10,7 @@
 - [工具执行状态、过程帧、中断与后台运行的来源核对](tool-execution-sources.md)
 - [Sub-agent 要求的完整继承来源与范围](subagent-requirement-sources.md)
 - [Agent 主动提问、批准与耐久 HITL 流程的来源核对](agent-initiated-hitl-sources.md)
+- [用户设置、定义级授权、系统 HITL 与统一决策池的来源核对](user-governance-and-decision-pool-sources.md)
 - [DSH 动态能力研究](dsh-cordis-dynamic/README.md)
 - [Agent 系统评测与 benchmark 驱动迭代](agent-system-evaluation/README.md)
 
