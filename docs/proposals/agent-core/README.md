@@ -84,3 +84,11 @@ slash 入口和键盘控制。现有普通输入候选未完整覆盖这些行�
 链路和恢复语义；后续候选须分别表达供给、呈现、触发与行动结果，并保持来源
 内容与目标/权限决定的边界。本轮不采用原 SDK、Channel 存储或 State/Inbound
 分工，具体来源范围见[核对记录](../../research/connector-environment-source-sources.md)。
+
+[PF-013](../../requirements/product/user/PF-013-session-run-lifecycle-and-pending-input-control.md)
+补充用户对 Session、精确 Run 及待执行输入的管理。现有候选尚未覆盖归档与运行
+控制的区别、强停及队列 hold、运行中追加消息、整体 interrupt_then_run、按当前
+顺序合批、原位编辑/调序/移除，以及多端恢复。普通 Run 中断会停止自有前后台
+工具，interrupt_then_run 则保留符合条件的后台执行；这与被委派后代的生命周期
+另有区别。后续设计须消费[来源有效修订](../../research/session-run-and-pending-input-sources.md#来源差异与采用边界)，
+不能恢复旧 urgent lane、固定队列项关系或以源候选 pause/retry 冒充已确认能力。

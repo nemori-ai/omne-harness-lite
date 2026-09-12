@@ -16,6 +16,7 @@
 - [组织/个人资产、权益与 official/customized 来源的核对](tenant-asset-and-permission-sources.md)
 - [复杂未来规划、多地日历、闹钟与通知的来源核对](future-planning-calendar-and-notification-sources.md)
 - [Computer、Browser、Shell 与沙盒/本机执行环境的来源核对](computer-browser-shell-environment-sources.md)
+- [Session、Run 生命周期与排队输入控制的来源核对](session-run-and-pending-input-sources.md)
 - [DSH 动态能力研究](dsh-cordis-dynamic/README.md)
 - [Agent 系统评测与 benchmark 驱动迭代](agent-system-evaluation/README.md)
 

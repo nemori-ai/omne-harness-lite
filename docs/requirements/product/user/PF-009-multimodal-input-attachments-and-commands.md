@@ -78,6 +78,9 @@ C1/C2 记录直接要求；C3–C7 按已授权继承方向，补充来源中可
 [PF-010](PF-010-organization-personal-assets-and-permissions.md) 拥有资产类型与
 组织/个人权益；[PF-003](../agent/PF-003-tool-execution-observation-and-control.md)
 拥有单个工具调用的控制，本项的会话/运行快捷键不能暗中改成另一种目标。
+[PF-013](PF-013-session-run-lifecycle-and-pending-input-control.md) 拥有会话/运行
+生命周期、忙时追加、打断后处理及排队编辑/调序；本项的键盘与 slash 入口消费
+这些已定义效果，待发多模态内容的具体可编辑范围仍需共同细化。
 输入内容若用于回答 HITL，仍遵循
 [PF-005](../agent/PF-005-agent-initiated-human-input-and-approval.md) 的请求关联规则。
 

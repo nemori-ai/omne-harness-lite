@@ -22,5 +22,6 @@
 [PF-009](user/PF-009-multimodal-input-attachments-and-commands.md)、
 [PF-010](user/PF-010-organization-personal-assets-and-permissions.md)、
 [PF-011](agent/PF-011-future-planning-calendars-and-reminders.md)、
-[PF-012](environment/PF-012-computer-browser-shell-sandbox-and-native-use.md)。编号独立于维度，维护方式归
+[PF-012](environment/PF-012-computer-browser-shell-sandbox-and-native-use.md)、
+[PF-013](user/PF-013-session-run-lifecycle-and-pending-input-control.md)。编号独立于维度，维护方式归
 [需求维护](../../maintenance/requirements.md#身份与归属)。分类不代表插件、数据模型或部署单元。

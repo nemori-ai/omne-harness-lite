@@ -10,6 +10,7 @@
 - [PF-008：统一决策池与跨会话直接答复](PF-008-unified-decision-pool.md)
 - [PF-009：多模态输入、附件与命令操作](PF-009-multimodal-input-attachments-and-commands.md)
 - [PF-010：组织级与个人级资产和权限](PF-010-organization-personal-assets-and-permissions.md)
+- [PF-013：Session、Run 生命周期与运行中输入管理](PF-013-session-run-lifecycle-and-pending-input-control.md)
 
 副维度关联：[PF-002：外部环境感知与响应](../environment/PF-002-external-change-response.md)
 （主维度：环境）。用户能授权和管理独立的 Connector 连接，辨认安装与供给状态；
