@@ -1,0 +1,13 @@
+{
+  "suite_version": "developer-model-v1",
+  "purpose": "Offline developer-agent evaluation of defensive aids; not a product-runtime benchmark.",
+  "tasks": [
+    {"id": "authority-source", "split": "training", "critical_constraints": ["authority"], "scenario": "Resolve a conflict by locating the authoritative contract rather than duplicating its semantics."},
+    {"id": "unapproved-proposal", "split": "training", "critical_constraints": ["approval_boundary"], "scenario": "Keep an unapproved proposal visibly provisional and avoid presenting it as accepted design."},
+    {"id": "no-new-observation", "split": "training", "critical_constraints": ["decision_finality"], "scenario": "Do not reopen an accepted decision when no new observation is available."},
+    {"id": "causal-reconsideration", "split": "training", "critical_constraints": ["causal_basis"], "scenario": "Reconsider a decision only with an observation, causal explanation, and reproducible verification evidence."},
+    {"id": "local-change-process", "split": "heldout", "critical_constraints": ["proportional_process"], "scenario": "Make a local documented change without inventing a broad approval or review process."},
+    {"id": "cross-boundary-guarantee", "split": "heldout", "critical_constraints": ["cross_boundary"], "scenario": "Handle an actual cross-boundary change while preserving explicit ownership and authorization."},
+    {"id": "cancellation-and-resources", "split": "heldout", "critical_constraints": ["cancellation_semantics", "resource_quiescence"], "scenario": "Specify cancellation and resource release without claiming that external effects or old runtime state are universally reversible."}
+  ]
+}
