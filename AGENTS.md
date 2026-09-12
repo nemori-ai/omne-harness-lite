@@ -4,7 +4,7 @@
 
 ## 项目心智模型
 
-`omne-harness-lite` 是一个更轻量化、更高性能的 OMNE harness 系统，以 DeepSeek 提出的 Cordis 为内核，同时保留和遵循原 `omne-next/omne_harness` 的核心设计理念和最佳实践，旨在提供一个能够超长期待机、稳定运行、持续进化的个人智能助手所需的全部能力。
+`omne-harness-lite` 是一个更轻量化、更高性能的 OMNE harness 系统，以 DeepSeek 提出的 Cordis 为内核，保留和遵循原 `omne-next/omne_harness` 的核心设计理念和最佳实践。目标是实现真正意义上的完全动态系统，产品表现为能够超长期待机、稳定运行、持续进化，并与所服务的组织或个人始终保持利益对齐的智能体系统；功能上继承并进一步发展 `omne-next` 现有或已承诺交付的机制与功能。
 
 内核层复用 Cordis 与 DSH `agent` 原语；Agent Loop、Harness 层、工具协议、治理和其他子系统由本项目自行定义和实现。不要把 DeepSeek Harness 当作本项目的实现，也不要把本项目称为 Cordis Harness。
 
@@ -19,7 +19,7 @@
 - 从第一天起支持租户隔离。受租户所有权约束的关键对象和跨边界操作显式携带租户身份，跨租户访问默认拒绝；沿用 `omne-next/omne_harness` 的双层结构，区分自然人全局身份与租户成员关系。
 - 所有模型请求统一经 OpenRouter 发送。
 
-以上是[当前架构](docs/architecture/README.md)与[已确认系统要求](docs/architecture/constraints.md)的简短投影；具体采用边界、接受状态和未决事项沿这两个入口展开。
+以上是[系统目标与最终状态](docs/requirements/README.md)、[当前架构](docs/architecture/README.md)与[全局要求](docs/requirements/system/constraints.md)的简短投影。系统目标是后续建模、能力定义、设计与产品化的前提和基础；具体采用边界、接受状态和未决事项沿相应入口展开。
 
 ## 研发品味
 
@@ -49,6 +49,7 @@ omne-harness-lite/
 ├── docs/
 │   ├── README.md                 文档总索引
 │   ├── AGENTS.md / CLAUDE.md      文档局部约定与同级引用
+│   ├── requirements/             系统目标、产品三维与全局要求的权威正文
 │   ├── development.md            开发上手、操作与排障导航
 │   ├── architecture/             当前系统视图与已确认约束
 │   ├── architecture-guide/       架构方法、基础概念与设计判断
@@ -86,12 +87,12 @@ omne-harness-lite/
 └── uv.lock                       Python workspace 统一锁文件
 ```
 
-`docs/` 组织设计知识，`spec/` 定义精确承诺，skills 负责按任务导航。架构指南提供方法，当前架构引用决定与规格形成系统视图；目录不直接对应插件、服务、进程或数据库表。上述受维护顶层目录提供局部 `AGENTS.md` 与仅引用同级约定的 `CLAUDE.md`；进入相关目录时按需展开，临时产物与工作树容器不另设约定。
+`docs/requirements/` 维护已确认的目标与要求；`docs/` 其他目录组织设计知识，`spec/` 定义精确承诺，skills 负责按任务导航。架构指南提供方法，当前架构引用决定与规格形成系统视图；目录不直接对应插件、服务、进程或数据库表。上述受维护顶层目录提供局部 `AGENTS.md` 与仅引用同级约定的 `CLAUDE.md`；进入相关目录时按需展开，临时产物与工作树容器不另设约定。
 
 ## 信息权威与演进边界
 
 - 用户明确的新要求优先于历史交接文档和旧讨论。研究提供事实，提案组织候选，决定记录已接受选择，规格落实精确承诺；各自引用其依据，不互相冒充或复制同义定义。
-- 在适用范围内，没有新观测时有效决定是研究、提案、决定三者的最终权威。每份决定至少关联一份提案或研究；推翻必须带有可复现、可验证、可因果解释的强理由，并以新决定明确取代范围。规则归[知识流转](docs/maintenance/knowledge-flow.md)。
+- 在有效需求前提和适用范围内，没有新观测时有效决定是研究、提案、决定三者的最终权威。每份决定至少关联一份提案或研究；推翻必须带有可复现、可验证、可因果解释的强理由，并以新决定明确取代范围。需求变更与消费基线归[需求维护](docs/maintenance/requirements.md)，选择的复议归[知识流转](docs/maintenance/knowledge-flow.md)。
 - 未明确接受的提案、Schema、指南示例和历史原件不能当作正式契约。接受不等于实现或验证完成；当前可采用的契约和精确版本从[规格清单](spec/catalog.json)查找。
 - 已发布规格不可原地覆盖；修改发布新版本，推荐版本不自动升级消费者。归档原件与未接受候选不作为有效契约登记，具体规则见[版本规范](docs/maintenance/versioning.md)。
 - 规格、决定、实现或文档冲突时，先定位语义归属、适用版本和接受依据；如实报告反例，不能静默选用更方便的说法，也不靠改写本文件解决未决架构问题。

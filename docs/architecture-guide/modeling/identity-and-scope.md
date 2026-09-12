@@ -25,7 +25,7 @@
 
 ## 租户边界
 
-遵循[当前租户隔离约束](../../architecture/constraints.md)和双层身份方向。详细身份、成员关系与授权规则从[租户候选](../../proposals/tenant-contracts/README.md) review；接受后沿[规格清单](../../../spec/README.md)复用精确版本。本页不另行规定字段，也不把候选语义当作已接受契约。
+遵循[SYS-TENANT](../../requirements/system/constraints.md#sys-tenant)和双层身份方向；用户多组织协作要求见 [PF-001](../../requirements/product/user/PF-001-tenant-organization-context.md)。详细身份、成员关系与授权规则从[租户候选](../../proposals/tenant-contracts/README.md) review；接受后沿[规格清单](../../../spec/README.md)复用精确版本。本页不另行规定字段，也不把候选语义当作已接受契约。
 
 关键的租户所属对象及跨边界操作必须显式保留租户身份。运行时可以承载经验证的访问上下文，但不得仅凭环境中的“当前租户”替代授权依据；缺失、冲突和跨租户访问按项目原则默认拒绝。
 

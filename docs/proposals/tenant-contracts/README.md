@@ -11,3 +11,14 @@
 | `domain.entity.Membership@1` | [成员关系](v1/contract.md#成员关系) |
 
 未决事项列在正文末尾。任何被接受的部分须进入正式分类和 catalog，并附接受依据；本提案不自行登记。
+
+## 当前需求对应与缺口
+
+需求依据为 [SYS-TENANT](../../requirements/system/constraints.md#sys-tenant) 与
+[PF-001](../../requirements/product/user/PF-001-tenant-organization-context.md)。现有候选提供
+自然人、租户和成员关系的表示输入，尚不能据此声称覆盖组织上下文确定、切换及
+数据、权限、行动空间、流程规范的全部效用。精确 effect 含义仍待展开。
+
+2026-09-12 按 D-004 补充本入口的当前关系，使用本轮需求工作区快照；
+这不是对旧版本的历史追溯声明，也不改变 in-review 状态。接受具体设计前再固定
+所采用的确认条款与 Git 基线。

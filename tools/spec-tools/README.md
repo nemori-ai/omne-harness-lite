@@ -1,6 +1,6 @@
 # omne-harness-lite-spec-tools
 
-开发期 Python 工具包，属于根 uv workspace；负责文档导航、版本化规格、工具环境和
+开发期 Python 工具包，属于根 uv workspace；负责文档导航、需求身份与维度引用、版本化规格、工具环境和
 开发模型评估证据的检查，不是产品运行时依赖。可执行代码、包内格式和测试在此维护；
 被检查的规格仍在 `spec/`，评估政策与公开任务包仍在 `docs/evaluation/`。
 

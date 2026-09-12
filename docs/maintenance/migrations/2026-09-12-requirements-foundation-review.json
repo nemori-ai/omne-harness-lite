@@ -1,0 +1,22 @@
+{
+  "docs/requirements/README.md": "e0d0c542a4f3015311e0b0f326d388531eb9cd88b9598beb84cbc407a895708d",
+  "docs/requirements/system/fully-dynamic-system.md": "852e2c1f7ef0f6723dffc6e23f6fc4b5a91307e34bb00c0816bbbc2ce3645ece",
+  "docs/requirements/system/long-running-and-evolving.md": "cb5d4d180be0bcb06bb01d7240ee09414dd8fbf4de4082a0d4f9dcd2ed6e6615",
+  "docs/requirements/system/constraints.md": "72bee2fc1534d5ab157458227ac3773f82651e90c9cc10bfedb9f2fbe02f995d",
+  "docs/requirements/system/interest-alignment.md": "54b8ad574b0a19495c9fc306ed21e42f4b7c77a6501e30d830b817ead624a00b",
+  "docs/requirements/system/omne-next-continuity.md": "0b882c552a0a58888acb1869ec9bbfbe85fed653206393376bfef2d32d879afb",
+  "docs/requirements/system/README.md": "ad04ecc2dc187b2e9c77775434ac740455179567e7285da00c4c337cda3f6e8b",
+  "docs/requirements/product/README.md": "e8e6f47735d32adf0bec144bf9c6d16d7cc1f0dc31d3e77b630feadba95a1819",
+  "docs/requirements/product/environment/PF-002-external-change-response.md": "ef908ef0cfd08685f2c2731b1885c92c01ce213b86a60f4b16997d5733e84382",
+  "docs/requirements/product/environment/README.md": "16a3c442f19c0e909c42ea49809f6b9f70822e3835191ccda52097c3407f42d6",
+  "docs/requirements/product/user/PF-001-tenant-organization-context.md": "6bc4a68d4e7bbabcc3390d3b2a2fc67f39e10b92c6021b18603574071e125a70",
+  "docs/requirements/product/user/README.md": "185c01d18fd030d77d1e92f8caff76f8c9129178df8aea1d1062bd7c99be2f1a",
+  "docs/requirements/product/agent/README.md": "0c27f1d94ff7462d9e6ce1df64d05b644647054e8d35748f111aae35f17d00f1",
+  "docs/maintenance/requirements.md": "6840973459d90ca5bd2527832cbf7842fad6de6ffef2ffb6a38a6f33bfa4f29a",
+  "docs/maintenance/knowledge-flow.md": "d78b656adb0b53315fdff7ca8eb069ea8cf6705d62fa96464a756687325deb36",
+  "docs/maintenance/versioning.md": "75dab8e4da2c5bae6ece95d92beef4fb9f406725a348c758ee389b538228c61b",
+  "docs/decisions/D-004-requirements-foundation.md": "3f3aeba087e52ec12750c4b8ff12b2a1690e28de0bd3b8b1f65fa0b27db2e95a",
+  "docs/architecture/README.md": "19c79c8550940ad1c13853cabe3e33a293d6ab3f2dfbf982ff7903b941012da9",
+  "docs/architecture/constraints.md": "ca20e132f4269a8035a124aa745336af9302b6231742fbd26d3957ab108d62a3",
+  ".agents/roles/architecture-reviewer/role.md": "f03a731044f6ea16a63d9d8384fc972fe251ddf3c9bae6ffaaa5df19bc119ae0"
+}

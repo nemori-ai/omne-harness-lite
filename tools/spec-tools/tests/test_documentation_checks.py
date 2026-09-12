@@ -236,3 +236,71 @@ def test_frozen_manifest_removal_is_not_a_pass(tmp_path):
     (tmp_path / "spec/frozen.json").unlink()
     result = run(DOCS, tmp_path)
     assert result.returncode == 1 and "frozen.json" in result.stdout
+
+
+def requirement_fixture(root):
+    base(root)
+    write(root / 'docs/requirements/system/constraints.md',
+          '---\nkind: system-requirement\nids: [SYS-TENANT, SYS-DEPLOY]\n---\n# Constraints\n')
+    feature = root / 'docs/requirements/product/user/PF-001-context.md'
+    write(feature, '---\nkind: product-feature\nid: PF-001\nprimary_dimension: user\n'
+          'secondary_dimensions: [agent]\n---\n# Context\n\nConfirmed scope and open questions.\n')
+    for dimension, link in [('user', 'PF-001-context.md'), ('agent', '../user/PF-001-context.md')]:
+        write(root / f'docs/requirements/product/{dimension}/README.md', f'[context]({link})')
+    write(root / 'docs/requirements/product/environment/README.md', '# Environment\n')
+    return feature
+
+
+def test_requirements_accept_one_body_and_primary_secondary_indexes(tmp_path):
+    requirement_fixture(tmp_path)
+    result = run(DOCS, tmp_path)
+    assert result.returncode == 0, result.stdout
+
+
+@pytest.mark.parametrize('kind', ['system', 'product'])
+def test_requirements_reject_duplicate_identity(tmp_path, kind):
+    feature = requirement_fixture(tmp_path)
+    if kind == 'system':
+        write(tmp_path / 'docs/requirements/system/other.md',
+              '---\nkind: system-requirement\nids: [SYS-TENANT]\n---\n# Duplicate\n')
+    else:
+        write(feature.with_name('PF-001-duplicate.md'), feature.read_text())
+    result = run(DOCS, tmp_path)
+    assert result.returncode == 1 and 'duplicate requirement id' in result.stdout
+
+
+@pytest.mark.parametrize(('old', 'new', 'error'), [
+    ('primary_dimension: user', 'primary_dimension: environment', 'primary dimension disagrees'),
+    ('secondary_dimensions: [agent]', 'secondary_dimensions: [user, agent]', 'primary repeated as secondary'),
+    ('secondary_dimensions: [agent]', 'secondary_dimensions: []', 'undeclared requirement dimension reference'),
+    ('id: PF-001', 'id: PF-002', 'filename disagrees with id'),
+    ('secondary_dimensions: [agent]', 'secondary_dimensions: [agent, agent]', 'requirement.schema.json'),
+    ('primary_dimension: user', 'primary_dimension: unknown', 'requirement.schema.json'),
+    ('id: PF-001', 'id: SYS-TENANT', 'requirement.schema.json'),
+    ('kind: product-feature', 'kind: product-feature\nstatus: accepted', 'requirement.schema.json'),
+])
+def test_requirements_reject_invalid_classification_and_metadata(tmp_path, old, new, error):
+    feature = requirement_fixture(tmp_path)
+    write(feature, feature.read_text().replace(old, new))
+    result = run(DOCS, tmp_path)
+    assert result.returncode == 1 and error in result.stdout, result.stdout
+
+
+@pytest.mark.parametrize('dimension', ['user', 'agent'])
+def test_requirements_reject_missing_primary_or_secondary_reference(tmp_path, dimension):
+    requirement_fixture(tmp_path)
+    write(tmp_path / f'docs/requirements/product/{dimension}/README.md', '# Index\n')
+    result = run(DOCS, tmp_path)
+    assert result.returncode == 1 and f'missing requirement dimension reference: {dimension}' in result.stdout
+
+
+def test_requirement_reclassification_preserves_identity_and_updates_references(tmp_path):
+    feature = requirement_fixture(tmp_path)
+    moved = tmp_path / 'docs/requirements/product/environment/PF-001-context.md'
+    write(moved, feature.read_text().replace('primary_dimension: user', 'primary_dimension: environment'))
+    feature.unlink()
+    write(tmp_path / 'docs/requirements/product/user/README.md', '# User\n')
+    write(tmp_path / 'docs/requirements/product/environment/README.md', '[context](PF-001-context.md)')
+    write(tmp_path / 'docs/requirements/product/agent/README.md', '[context](../environment/PF-001-context.md)')
+    result = run(DOCS, tmp_path)
+    assert result.returncode == 0, result.stdout

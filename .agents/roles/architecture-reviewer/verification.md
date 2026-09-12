@@ -49,3 +49,11 @@ Codex 配置 read-only、approval_policy=never，并关闭角色自身的子 age
 未应用原生具名角色配置，不把它当作 Codex 原生加载或沙箱强制验证。
 未运行 Claude Fable 5.1，没有付费 API 探测；两端原生发现/加载仍须在实际会话确认。
 这三题不是长程基准，也不支持模型切换或防御辅助退出决定。
+
+## 需求基础迁移的增量
+
+2026-09-12 按 [D-004](../../../docs/decisions/D-004-requirements-foundation.md) 更新共享正文，
+增加相关需求确认范围、消费快照及覆盖/冲突判断。模型、宿主配置、适配段、只读
+权限和职责不变；两端从源重新生成并核对。此增量的证据归
+[需求迁移记录](../../../docs/maintenance/migrations/2026-09-12-requirements-foundation.md)。
+原三项模拟结果仍只支持原快照，不能当作新增提示的双模型行为测试。

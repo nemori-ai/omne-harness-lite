@@ -2,13 +2,14 @@
 
 本目录规定项目设计材料和语言无关规格的维护方式。它落实
 [D-001](../decisions/D-001-documentation-system.md)、[D-002](../decisions/D-002-decision-authority.md)
-和 [D-003](../decisions/D-003-defensive-evaluation.md)；这些决定在各自范围内且没有新观测时具有最终权威。
+、[D-003](../decisions/D-003-defensive-evaluation.md) 与 [D-004](../decisions/D-004-requirements-foundation.md)；这些决定在有效需求前提和各自范围内且没有新观测时具有最终权威。
 
 首次参与从[贡献指南](../../CONTRIBUTING.md)与[开发指南](../development.md)进入；本目录
 维护它们引用的详细规则，入口分工见[组织规范](organization.md#贡献与开发入口的维护)。
 
 | 规范 | 回答的问题 |
 |---|---|
+| [需求维护](requirements.md) | 目标与特性怎样确认、拆分、引用基线和处理变化？ |
 | [组织与权威](organization.md) | 一项内容归谁、放哪里、怎样避免重复定义？ |
 | [机器可检查的元数据](metadata.md) | 决定、catalog、冻结表和历史归档必须有哪些字段？ |
 | [版本、状态与引用](versioning.md) | 什么可以作为当前依赖，怎样接受、冻结和取代？ |
@@ -20,3 +21,5 @@
 `docs/README.md` 与 `spec/README.md` 是读者入口，本目录不取代具体契约、决定或研究的权威。变更架构边界时，按根 `AGENTS.md` 使用 architecture-design skill 定位当前架构、决定和规格。
 
 已完成迁移的范围与来源去向见[文档体系迁移记录](migrations/2026-09-12-documentation-system.md)。
+
+需求基础的迁移与核对见[需求迁移记录](migrations/2026-09-12-requirements-foundation.md)。

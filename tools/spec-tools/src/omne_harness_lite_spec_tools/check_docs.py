@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check local navigation, decision provenance, frozen versions and historical hashes."""
+"""Check navigation, requirement identities, decision provenance and historical hashes."""
 from __future__ import annotations
 
 import argparse
@@ -16,6 +16,62 @@ ROOTS = ("README.md", "CONTRIBUTING.md", "AGENTS.md", "CLAUDE.md", "docs", "spec
          "tools", "scripts", ".agents", ".claude", ".codex")
 IGNORED_DIRECTORIES = {".git", ".venv", "node_modules", ".dist", "dist", "build",
                        "__pycache__", ".pytest_cache", "tmp", ".worktrees"}
+
+
+def check_requirements(root: Path, errors: list[str]):
+    area = root / "docs/requirements"
+    identities, features = {}, {}
+    dimensions = ("environment", "user", "agent")
+    for section, kind in (("system", "system-requirement"), ("product", "product-feature")):
+        for path in sorted((area / section).rglob("*.md")):
+            if path.name == "README.md":
+                continue
+            data = frontmatter(path)
+            problems = format_errors("requirement.schema.json", data)
+            if problems:
+                errors.extend(f"{path.relative_to(root)}: {p}" for p in problems)
+                continue
+            if data["kind"] != kind:
+                errors.append(f"requirement kind disagrees with directory: {path.relative_to(root)}")
+                continue
+            ids = data["ids"] if section == "system" else [data["id"]]
+            for identity in ids:
+                if identity in identities:
+                    errors.append(f"duplicate requirement id: {identity} in {path.relative_to(root)} "
+                                  f"and {identities[identity].relative_to(root)}")
+                identities[identity] = path
+            if section == "system":
+                continue
+            primary = data["primary_dimension"]
+            secondary = data["secondary_dimensions"]
+            if path.relative_to(area / section).parts[0] != primary:
+                errors.append(f"requirement primary dimension disagrees with directory: {data['id']}")
+            if not path.name.startswith(data["id"] + "-"):
+                errors.append(f"requirement filename disagrees with id: {data['id']}")
+            if primary in secondary:
+                errors.append(f"requirement primary repeated as secondary: {data['id']}")
+            features[path] = (data["id"], {primary, *secondary})
+
+    # Check both directions so a stale index cannot silently invent a secondary dimension.
+    if not (area / "product").exists():
+        return
+    for dimension in dimensions:
+        index = area / "product" / dimension / "README.md"
+        if not index.is_file():
+            errors.append(f"missing requirement dimension index: {dimension}")
+            continue
+        targets = set()
+        for raw in markdown_links(index):
+            try:
+                targets.add(validate_link(index, raw, root))
+            except ValueError:
+                # The general navigation check reports malformed and broken links.
+                continue
+        for path, (identity, declared) in features.items():
+            if dimension in declared and path not in targets:
+                errors.append(f"missing requirement dimension reference: {dimension} -> {identity}")
+            elif dimension not in declared and path in targets:
+                errors.append(f"undeclared requirement dimension reference: {dimension} -> {identity}")
 
 
 def check_decisions(root: Path, errors: list[str]):
@@ -144,6 +200,7 @@ def check(root: Path, baseline=None):
                 validate_link(path, raw, root)
             except ValueError as error:
                 errors.append(f"{path.relative_to(root)}: {error}")
+    check_requirements(root, errors)
     check_decisions(root, errors)
     left, right = root / ".agents/skills", root / ".claude/skills"
     left_files = {p.relative_to(left) for p in left.rglob("*") if p.is_file()}
@@ -171,7 +228,8 @@ def main(argv=None):
     for error in errors:
         print(f"ERROR: {error}")
     if not errors:
-        print(f"PASS: {count} Markdown files; decision provenance, skill mirrors, frozen versions and archive hashes.")
+        print(f"PASS: {count} Markdown files; requirement identities/dimensions, decision provenance, "
+              "skill mirrors, frozen versions and archive hashes.")
     print("NOTE: structural evidence checks do not establish the sufficiency of causal reasoning.")
     return 1 if errors else 0
 

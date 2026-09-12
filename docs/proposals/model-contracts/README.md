@@ -14,3 +14,14 @@
 | `domain.enum.AptitudeTier@1` | [能力声明等级](v1/contract.md#能力声明等级) |
 
 未决事项和 Schema 覆盖缺口在候选正文中明确列出。被接受后才可进入 `spec/{data,capabilities,compositions}` 与 catalog。
+
+## 当前需求对应与缺口
+
+需求依据为 [SYS-LLM](../../requirements/system/constraints.md#sys-llm)，动态变化的
+目标见 [SYS-DYNAMIC](../../requirements/system/fully-dynamic-system.md)。现有候选仅有
+档案和路由数据输入，不能证明所有实际请求统一经 OpenRouter，也未定义动态更新
+对在途工作的完整含义。
+
+2026-09-12 按 D-004 补充本入口的当前关系，使用本轮需求工作区快照；
+这不是对旧版本的历史追溯声明，也不改变 in-review 状态。接受具体设计前再固定
+所采用的确认条款与 Git 基线。

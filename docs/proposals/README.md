@@ -3,6 +3,7 @@
 这里组织候选方案与裁决结果。具体语义未明确接受前不能作为正式契约。
 
 - [文档与规格体系](documentation-system/README.md)：组织与治理方向已接受，原提案保留。
+- [系统目标与产品要求作为设计基础](requirements-foundation/README.md)：组织与追溯规则已接受，见 D-004；历史讨论与评审保留。
 - [Agent 核心](agent-core/README.md)：提示词、工具与执行语义，待 review。
 - [租户契约](tenant-contracts/README.md)：旧模型语义迁移，待逐项确认。
 - [模型契约](model-contracts/README.md)：旧模型语义迁移，待逐项确认。

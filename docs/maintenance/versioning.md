@@ -4,13 +4,20 @@
 
 ## 决定与提案
 
-决定 front matter 必须符合[元数据规范](metadata.md)：非空 `scope`、日期、至少一个位于 `docs/proposals/` 或 `docs/research/` 的 `sources`，以及接受记录链接。决定是同一适用范围内研究、提案和决定三者中的最终权威，直到有一项新决定在明确范围内取代它。
+决定 front matter 必须符合[元数据规范](metadata.md)：非空 `scope`、日期、至少一个位于 `docs/proposals/` 或 `docs/research/` 的 `sources`，以及接受记录链接。决定在有效需求前提和同一适用范围内，是研究、提案和决定三者中的最终权威；新要求改变前提时，先标出冲突部分对新工作的适用性，再按范围形成取代决定，不能继续默认采用冲突选择。
 
 提案可为 `draft`、`in-review`、`accepted`、`partially-accepted`、`rejected` 或 `withdrawn`。提案入口记录逐项结果并指向决定或正式规格；其旧正文保持当时的候选身份，不能通过事后改写变成当前规则。研究记录来源版本、观察、推断和未覆盖范围，不能获得政策权威。
 
 决定可为 `accepted`、`superseded` 或 `withdrawn`。新决定的 `supersedes` 对每个目标写明 `id` 和精确 `scope`。无新观测时，不得以措辞替换、重复讨论、偏好重述或更换执行 agent 推翻有效决定。
 
 要取代决定，`change_basis` 必须有新 `observation`、说明旧前提为何不再成立的 `causal_explanation`，并提供可解析的本地 `reproduction` 与 `verification` 链接。结构检查只能确认这些材料存在；审阅者须判断观测是否新、复现与验证是否对应主张、因果解释是否足以支持范围内的取代。用户的新明确要求、可复现反例、环境变化或失效的事实前提可构成输入变化，仍需记录它如何改变旧判断。
+
+## 需求历史与设计基线
+
+[D-004](../decisions/D-004-requirements-foundation.md) 采用当前需求页与 Git 历史共同维护。
+设计接受时固定需求 ID、确认条款、提交与当时路径，并交付可独立恢复的保留引用；
+具体保留条件与变更处置归[需求维护](requirements.md#基线保留)。旧需求快照可读
+不代表仍符合新要求，旧消费者也不随需求页或推荐版本变化自动升级。
 
 ## 契约版本
 

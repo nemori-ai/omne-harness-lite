@@ -12,6 +12,40 @@
 - [历史原件清单](../../tools/spec-tools/src/omne_harness_lite_spec_tools/formats/archive.schema.json)
 - [形式任务清单](../../tools/spec-tools/src/omne_harness_lite_spec_tools/formats/formal-tasks.schema.json)：执行含义见[验证规范](verification.md)。
 
+## 需求正文
+
+精确结构由[需求元数据 Schema](../../tools/spec-tools/src/omne_harness_lite_spec_tools/formats/requirement.schema.json)定义。
+
+`docs/requirements/system/` 与 `product/` 下除 README.md 外的 Markdown 主正文
+使用 YAML front matter。系统主题可拥有多个独立 SYS-* 条款，产品主正文拥有一个
+PF-NNN 身份；README 只是导航，不登记身份。附件如需独立维护，应先明确其正文
+入口和检查范围，不以无元数据的第二份正文规避唯一性。
+
+```yaml
+kind: system-requirement
+ids: [SYS-TENANT, SYS-DEPLOY]
+```
+
+```yaml
+kind: product-feature
+id: PF-001
+primary_dimension: user
+secondary_dimensions: [agent]
+```
+
+系统正文 `kind` 固定为 `system-requirement`，`ids` 是非空、不重复的 SYS-* 字符串
+列表；身份使用大写字母、数字和连字符。产品 `kind` 固定为 `product-feature`，
+`id` 使用至少三位数字的 PF-NNN，文件名以该 ID 加连字符开头；主、副维度值只能为
+`environment`、`user`、`agent`。`secondary_dimensions` 可为空，不重复且不含主维度。
+字段仅限对应示例所列项；不设整页接受状态。确认依据与条款范围由正文表达。
+
+身份在全部需求主正文中唯一，主维度与 product 下第一层目录一致；主、副维度
+README 必须链接唯一正文。每个维度 README 中指向主正文的链接也必须有相应
+维度声明，副维度关联说明由审阅核对。具体机械实现归
+[文档检查器](../../tools/spec-tools/src/omne_harness_lite_spec_tools/check_docs.py)。
+正文中的跨要求引用不重新登记身份；SYS-REUSE 与 GOV-* 的外部拥有者按
+[系统索引](../requirements/system/README.md)导航，不另复制为需求正文。
+
 ## 决定 front matter
 
 每份 `docs/decisions/D-*.md` 的 YAML front matter 使用以下字段：

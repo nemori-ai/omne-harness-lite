@@ -2,6 +2,9 @@
 
 [文档地图](../README.md) · [设计方法](../architecture-guide/README.md) · [规格入口](../../spec/README.md)
 
+架构设计以[系统目标与最终状态](../requirements/README.md)为前提。这些要求随用户介绍逐步
+完善；本页维护已确认的架构方向及缺口，全局约束正文见[系统要求](../requirements/system/constraints.md)，落实导航见[约束投影](constraints.md)。
+
 ## 目录
 
 - [系统定位](#系统定位)
@@ -9,11 +12,12 @@
 - [动态能力与契约](#动态能力与契约)
 - [部署身份与模型请求](#部署身份与模型请求)
 - [当前设计与未决事项](#当前设计与未决事项)
+- [需求覆盖与缺口](#需求覆盖与缺口)
 - [决定与证据](#决定与证据)
 
 ## 系统定位
 
-`omne-harness-lite` 是一个更轻量化、更高性能的 OMNE harness 系统，以 DeepSeek 提出的 Cordis 为内核，保留原 `omne-next/omne_harness` 的核心设计理念和最佳实践，为超长期待机、稳定运行、持续进化的个人智能助手提供所需能力。
+`omne-harness-lite` 是一个更轻量化、更高性能的 OMNE harness 系统，以 DeepSeek 提出的 Cordis 为内核，保留原 `omne-next/omne_harness` 的核心设计理念和最佳实践。它以完全动态系统为目标，为服务于组织或个人的智能体系统提供能力；产品最终状态、持续利益对齐及功能继承方向以[系统目标](../requirements/README.md)为依据。
 
 当前处于设计和实验性演进阶段，没有正式生产部署。本文描述已确认的设计方向及明确列出的缺口，不将目标当作已经实现的能力。设计保持语言无关，可作为严格验证和跨语言复现的规格依据。
 
@@ -46,12 +50,17 @@ DSH 的具体 Agent Loop、Profile/Bundle 装配和应用策略是参考资料�
 
 从第一天支持租户隔离。受租户所有权约束的关键对象和跨边界操作显式携带租户身份，跨租户访问默认拒绝；全局自然人身份与成员关系按双层租户模型分别表达。当前候选见[租户契约](../proposals/tenant-contracts/README.md)，其 review 状态不因本页引用而改变。
 
+产品要求进一步明确：同一用户可以归属多个组织，组织上下文影响其与 agent
+协作时的数据、权限、行动空间和流程规范等效用（effect）。具体要求统一维护于
+[原生租户隔离与多组织上下文](../requirements/product/user/PF-001-tenant-organization-context.md)。
+
 所有模型请求统一经 OpenRouter。模型档案、一次工作的模型选择和实际请求分别有自己的语义归属；档案数据的存在不证明调用已授权或已准备就绪。[模型契约候选](../proposals/model-contracts/README.md)保留现有定义及缺口。
 
 ## 当前设计与未决事项
 
 | 事项 | 当前归属 |
 |---|---|
+| 需求正文、确认、基线及变更适用性 | [D-004](../decisions/D-004-requirements-foundation.md)及[需求维护](../maintenance/requirements.md) |
 | 组织、身份、版本及接受规则 | [D-001](../decisions/D-001-documentation-system.md)及[维护规范](../maintenance/README.md) |
 | 决定最终权威及有证据的复议 | [D-002](../decisions/D-002-decision-authority.md) |
 | 防御模式适用、退出与开发模型切换前评估 | [D-003](../decisions/D-003-defensive-evaluation.md)及[评估体系](../evaluation/README.md) |
@@ -61,6 +70,24 @@ DSH 的具体 Agent Loop、Profile/Bundle 装配和应用策略是参考资料�
 
 `spec/catalog.json` 是正式接受版本的登记入口，实际覆盖以[规格索引](../../spec/README.md)为准。空白或未形式化部分如实保留，不能靠目录骨架宣称系统设计已经完成。
 
+## 需求覆盖与缺口
+
+当前产品设计仍为候选，正式 catalog 为空。下表是发现缺口的投影；候选自身拥有
+需求对应关系，不能将链接或治理检查通过当作产品能力已交付。
+
+| 上游要求 | 当前对应与尚缺内容 |
+|---|---|
+| [SYS-DYNAMIC](../requirements/system/fully-dynamic-system.md)、[SYS-LONG-RUNNING](../requirements/system/long-running-and-evolving.md) | [Agent 核心候选](../proposals/agent-core/README.md#当前需求对应与缺口)仅覆盖部分执行语义；长期稳定与动态达成判断尚未形成精确承诺 |
+| [SYS-ALIGNMENT](../requirements/system/interest-alignment.md) | 目标已确认，利益对齐含义、冲突处理与验证方式待展开 |
+| [SYS-CONTINUITY](../requirements/system/omne-next-continuity.md) | 已有来源核对，完整继承清单、截止范围和未来承诺处理仍待明确 |
+| [PF-001](../requirements/product/user/PF-001-tenant-organization-context.md) | [租户候选](../proposals/tenant-contracts/README.md#当前需求对应与缺口)有身份输入，协作上下文与四类效用尚需定义 |
+| [PF-002.C1](../requirements/product/environment/PF-002-external-change-response.md#已确认要求) | [Agent 核心候选](../proposals/agent-core/README.md#当前需求对应与缺口)不代表完整环境感知、响应与行动；还没有对应的已接受端到端设计 |
+| 已有 SYS-* 全局要求 | [约束落实索引](constraints.md)逐项导航 |
+
+2026-09-12 迁移核对：D-001、D-002 由 D-004 补充，D-003 保持适用；没有已接受
+业务设计或规格需要因这次整理撤回。未决要求继续限制依赖它们的定稿，新叙述时按
+[需求变更规则](../maintenance/requirements.md#变更与适用性)更新冲突范围及处置。
+
 ## 决定与证据
 
-当前系统要求集中在[系统要求](constraints.md)，其文字展开不另建同义契约。历史讨论和上游事实见[项目基线记录](../research/project-baseline/README.md)与[研究索引](../research/README.md)。改变既有选择须遵循[知识流转](../maintenance/knowledge-flow.md)，无新观测时沿用有效决定。
+当前系统要求正文归[requirements](../requirements/README.md)，本页与[落实索引](constraints.md)仅投影。历史讨论和上游事实见[项目基线记录](../research/project-baseline/README.md)与[研究索引](../research/README.md)。改变既有选择须遵循[知识流转](../maintenance/knowledge-flow.md)，无新观测时沿用有效决定。

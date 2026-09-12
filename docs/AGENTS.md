@@ -1,12 +1,13 @@
 # 设计知识的维护
 
-本目录把观察、候选方案和已接受选择组织为可追溯的设计知识。这里补充根约定在
+本目录维护系统目标与产品要求，并把观察、候选方案和已接受选择组织为可追溯的设计知识。这里补充根约定在
 文档中的落点；完整地图由 [README](README.md) 维护，精确承诺由 [spec/](../spec/README.md) 定义。
 
 ## 内容归属
 
 | 要处理的内容 | 入口与作用 |
 |---|---|
+| 系统目标、产品特性与全局要求 | [需求入口](requirements/README.md)拥有正文，[需求维护](maintenance/requirements.md)解释确认范围、消费基线与变更；架构和决定受已确认要求约束 |
 | 贡献与开发入口 | [贡献指南](../CONTRIBUTING.md)说明交付，[开发指南](development.md)导航操作；详细规则仍归维护文档 |
 | 架构方法、当前系统方向 | [指南](architecture-guide/README.md)提供方法，[当前架构](architecture/README.md)投影已接受选择；不互相代替 |
 | 来源事实与候选取舍 | [research/](research/README.md)保留观察范围，[proposals/](proposals/README.md)承载待审方案 |

@@ -9,7 +9,7 @@
 
 | 层次 | 覆盖 | 不能声称 |
 |---|---|---|
-| `docs-check` | Markdown 本地链接/锚点、文件身份、决定来源、取代字段、冻结基线 | 设计正确或因果理由充分 |
+| `docs-check` | Markdown 本地链接/锚点、需求 ID 唯一性与主副维度引用、决定来源、取代字段、冻结基线 | 设计正确或因果理由充分 |
 | `spec-check` | catalog 结构、正式版本路径及精确引用、Schema 结构；发现并实际执行声明的 TLA+/Alloy 任务 | 未建模部分已经证明 |
 | 实现符合性 | 绑定源码版本的场景、集成测试或运行证据 | 所有实现、配置或部署天然等价 |
 
@@ -63,3 +63,14 @@ YAML 验证依赖，并以 editable 方式安装根开发组引用的 workspace 
 哈希，外层索引仍检查链接。JSON Schema 使用离线注册表解析 `$id`/`$ref`，不联网拉取
 未知定义。校验库行为参考 [Markdown 解析文档](https://markdown-it-py.readthedocs.io/en/latest/using.html)
 与 [JSON Schema 引用文档](https://python-jsonschema.readthedocs.io/en/stable/referencing/)。
+
+## 需求检查与基线证据
+
+[D-004](../decisions/D-004-requirements-foundation.md) 的需求检查核对
+[元数据](metadata.md#需求正文)、身份唯一、主维度目录一致及主副维度索引引用可达。
+它不判定分类是否恰当、引用解释是否充分、用户确认是否忠实或设计是否兑现要求。
+需求覆盖与旧决定适用性由审阅核对。
+
+正式消费基线另按[保留规则](requirements.md#基线保留)验证：交付保留引用后，从
+不含开发分支的独立检出恢复 commit、路径与确认范围。docs-check 不自动联网、
+创建 tag 或声称远端保留完成。本次实测边界见[迁移记录](migrations/2026-09-12-requirements-foundation.md)。

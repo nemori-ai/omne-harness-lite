@@ -4,6 +4,8 @@
 
 - [框架知识治理与防御演化](framework-governance/README.md)
 - [项目既有方向与迁移前记录](project-baseline/README.md)
+- [完全动态系统定义：omne-next 原文与 Git 历史](fully-dynamic-system/README.md)
+- [产品特性：omne-next Harness 与个人版的来源核对](product-feature-sources.md)
 - [DSH 动态能力研究](dsh-cordis-dynamic/README.md)
 - [Agent 系统评测与 benchmark 驱动迭代](agent-system-evaluation/README.md)
 
