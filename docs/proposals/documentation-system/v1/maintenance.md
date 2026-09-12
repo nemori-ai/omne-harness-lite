@@ -1,5 +1,7 @@
 # 维护、版本与引用规范提案
 
+> 历史状态：`proposed`。本页保留方案原稿；当前有效规则见[维护规范](../../../maintenance/README.md)和[D-001](../../../decisions/D-001-documentation-system.md)。
+
 [方案首页](README.md)
 
 ## 目录

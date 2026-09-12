@@ -1,6 +1,6 @@
 # 文档与规格体系重构方案 · 第一版
 
-状态：**proposed，供用户 review**。日期：2026-09-12。
+> 历史状态：本页是 2026-09-12 的 `proposed` 讨论稿，保留其当时措辞、候选和 review 上下文。组织与治理机制已由用户接受；当前有效规则见[提案入口](../README.md)所列决定及[维护规范](../../../maintenance/README.md)。本页不批准任何候选业务模型。
 
 本方案回应用户已经确认的方向：项目采用面向 Cordis 的动态能力组合与显式不变量建模，不再用 DDD 战术分类作为系统建模和目录组织的前提。本文提出目录、权威边界和维护规则，尚未执行现有内容的迁移，也不批准任何具体能力、服务边界或模型。
 
@@ -14,7 +14,7 @@
 | [防御模式的演化](defensive-evolution.md) | 如何积累经验、限定适用范围，并随模型与环境变化精简或退出？ |
 | [现有内容迁移](migration.md) | 现有文件去哪里？怎样保留语义、历史和评审状态？ |
 | [场景检验与取舍](review-cases.md) | 新能力、动态变更和跨服务复用能否被承载？维护代价是什么？ |
-| [社区证据报告](../framework-doc-governance-research/report.zh.md) | DSH、Pi、OpenCode、oh-my 系列与 LangChain 实际提供了哪些做法和证据？ |
+| [社区证据报告](../../../research/framework-governance/README.md) | DSH、Pi、OpenCode、oh-my 系列与 LangChain 实际提供了哪些做法和证据？ |
 
 ## 核心建议
 

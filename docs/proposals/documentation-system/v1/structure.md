@@ -1,5 +1,7 @@
 # 结构与内容归属
 
+> 历史状态：`proposed`。本页保留结构方案及其取舍；当前有效归属规则见[组织与权威](../../../maintenance/organization.md)、[版本规范](../../../maintenance/versioning.md)和[D-001](../../../decisions/D-001-documentation-system.md)。
+
 [方案首页](README.md)
 
 ## 目录
@@ -113,7 +115,7 @@ Research、Proposal 和 Decision 按用途关联，可多对多引用，不要�
 
 ### 能力契约
 
-描述消费者可以依赖的能力：职责、操作、结果、错误、授权、所有权、依赖、生命周期、状态权威及变化规则。使用现有[能力契约描述要点](../../docs/architecture-guide/reference/contract-description.md)，不再创建一套重复的设计方法论。
+描述消费者可以依赖的能力：职责、操作、结果、错误、授权、所有权、依赖、生命周期、状态权威及变化规则。使用现有[能力契约描述要点](../../../architecture-guide/reference/contract-description.md)，不再创建一套重复的设计方法论。
 
 是否单独成项，取决于能否独立解释承诺与边界。一个插件可提供多项能力；一项能力可有多个实现；某项服务也可以满足多个契约。目录不是插件树、运行实例树或部署树。
 
