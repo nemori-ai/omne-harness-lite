@@ -79,7 +79,20 @@ Cordis 的 `inject` 管服务依赖；若多个状态键位于同一个服务注
 “无副作用”在这里应收敛为没有注册泄漏、悬空读取或静默语义漂移，不能承诺删除必需能力后仍照常运行。
 已进入会话历史或已发送给模型的内容也不会因卸载而撤回。
 
-依据与架构讨论见 [动态状态键与提示词绑定](../../../../docs/architecture.md#dynamic-state-keys-and-prompt-bindings-design-discussion)。
+本节承接原 `docs/architecture.md` 的“Dynamic state keys and prompt bindings”设计讨论；
+该讨论随本附件保留为候选内容，不把具体 provider 契约或绑定表示升格为当前架构。
+
+DSH 资料核对固定在 commit `c291e7961a515f6d7af9304e7fd1d257929aef26`：
+
+- [system-prompt service](https://github.com/deepseek-ai/deepseek-harness/blob/c291e7961a515f6d7af9304e7fd1d257929aef26/packages/core/system-prompt/src/index.ts)
+  通过带 disposer 的 scoped effects 注册命名变量和 contexts；未知或无值的已引用变量会使渲染失败。
+- [context package group](https://github.com/deepseek-ai/deepseek-harness/blob/c291e7961a515f6d7af9304e7fd1d257929aef26/packages/context/README.md)
+  是请求上下文贡献者集合，非提示状态键的权威词表。例如
+  [time-context](https://github.com/deepseek-ai/deepseek-harness/blob/c291e7961a515f6d7af9304e7fd1d257929aef26/packages/context/time-context/src/index.ts)
+  注册 session 投影和 pre-step listener 来贡献持久用户角色消息，这与变量注册不同。
+- Cordis 的[服务依赖](https://github.com/deepseek-ai/deepseek-harness/blob/c291e7961a515f6d7af9304e7fd1d257929aef26/docs/cordis-tutorial/03-services.md)
+  和 [effect 生命周期](https://github.com/deepseek-ai/deepseek-harness/blob/c291e7961a515f6d7af9304e7fd1d257929aef26/docs/cordis-tutorial/02-lifecycle-and-effects.md)
+  提供底层机制。只注入含多个键的 registry service 并不表达对每个业务键的依赖；将引用解析为受管理依赖并协调移除仍是本项目的候选责任。
 
 候选渲染语义：只把严格的 `{{alias}}` 当占位符（alias 使用 Schema 中 ASCII 标识语法）；
 遇到未配对或非法的双花括号分隔符拒绝，单独普通花括号是文本。无空白变体、无转义语法；

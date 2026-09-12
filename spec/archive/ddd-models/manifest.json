@@ -1,0 +1,26 @@
+{
+  "format": 1,
+  "files": [
+    {"original":"spec/domain/README.md","path":"domain/README.md","sha256":"1ea2cf77657a89bcdda1aaeb99d6a8d05a72d7fa9ad02ea596ef6c3e582b4ee1"},
+    {"original":"spec/domain/aggregates/README.md","path":"domain/aggregates/README.md","sha256":"9ca73761f0c47777a1400049c86fd07b6fb3985d2d2b78c6c7ccc027f91f3908"},
+    {"original":"spec/domain/aggregates/llm-profile/current.json","path":"domain/aggregates/llm-profile/current.json","sha256":"941391cdb2ce0e0d7e84f90e3a913a6e2de8525b6342d700c991c9cb39d5beff"},
+    {"original":"spec/domain/aggregates/llm-profile/v1/model.md","path":"domain/aggregates/llm-profile/v1/model.md","sha256":"422dbed7c21ec67e47f127343c0a56fae35c9273e11b09e474387ea69d7f032d"},
+    {"original":"spec/domain/aggregates/llm-profile/v1/schema.json","path":"domain/aggregates/llm-profile/v1/schema.json","sha256":"a00661b02217e337b9987056a3b0471b48c6598214c82e98310a7203782cd8e6"},
+    {"original":"spec/domain/aggregates/tenant/current.json","path":"domain/aggregates/tenant/current.json","sha256":"7fa18711cf130ad78b5131fec502ce04283ef929dec442b81a880935bff9fa2e"},
+    {"original":"spec/domain/aggregates/tenant/v1/model.md","path":"domain/aggregates/tenant/v1/model.md","sha256":"5f1cec04ab235d8196094e530f5d5a2c617254d49d70d73342efc62ced64719d"},
+    {"original":"spec/domain/entities/README.md","path":"domain/entities/README.md","sha256":"2262a01ae5f69d4b393a011a59b4fa7e7d666b4cf4ff126a3955fc86e73433b8"},
+    {"original":"spec/domain/entities/membership/v1/model.md","path":"domain/entities/membership/v1/model.md","sha256":"30f46ae552c09b576407d888222cea964d4ad94da036e2db9fcf19ec15510c49"},
+    {"original":"spec/domain/entities/user-account/v1/model.md","path":"domain/entities/user-account/v1/model.md","sha256":"1cd5a53dcb039d00669681830ddfb18871f53c6dcbdd4f56e3749719385a5899"},
+    {"original":"spec/domain/enums/README.md","path":"domain/enums/README.md","sha256":"21fdf79486b2b07b49ca0a503efcf21db40091e0d47e39878c95968b82081f4e"},
+    {"original":"spec/domain/enums/aptitude-tier/v1/model.md","path":"domain/enums/aptitude-tier/v1/model.md","sha256":"97411b1634cb0788eee1f8034e3f8f95640da644bfc7b4a90f5d05e83bfbd97d"},
+    {"original":"spec/domain/enums/model-origin/v1/model.md","path":"domain/enums/model-origin/v1/model.md","sha256":"b9a243645adf24cef518c0ad54da097b3dfa4cc27b56056a32ea4d7ce9f61341"},
+    {"original":"spec/domain/registry.json","path":"domain/registry.json","sha256":"f985581680587a2d9dc7f300e2923136950c58d80dff5a3b6d8a0423c74bba0e"},
+    {"original":"spec/domain/value-objects/README.md","path":"domain/value-objects/README.md","sha256":"7960a9b79e646a0a50feca81e84331155de72e0957a0cdd52e821b2645fa566c"},
+    {"original":"spec/domain/value-objects/model-limits/v1/model.md","path":"domain/value-objects/model-limits/v1/model.md","sha256":"d23fcc2de03b258cbfc05df3cffda91579f70e944d6994ec019b2010e2f8b7bb"},
+    {"original":"spec/domain/value-objects/model-limits/v1/schema.json","path":"domain/value-objects/model-limits/v1/schema.json","sha256":"9e33bbd1d83c7a9d35d83f6160ba44464a5bcb49eb81b531f1c7a5c7cfbe5f94"},
+    {"original":"spec/domain/value-objects/model-modalities/v1/model.md","path":"domain/value-objects/model-modalities/v1/model.md","sha256":"f663188dff1920360d77ee083faa159d6a7eb560e3c2e066691424471f23ea75"},
+    {"original":"spec/domain/value-objects/model-modalities/v1/schema.json","path":"domain/value-objects/model-modalities/v1/schema.json","sha256":"990b7ae1b7cbad55fce396dd8bfca920051503541a74d84f3cc533616a9eaf6d"},
+    {"original":"spec/domain/value-objects/model-routing/v1/model.md","path":"domain/value-objects/model-routing/v1/model.md","sha256":"5da1e9f613a1916ac804eb7d96c1bad7a4b3da5d33a0a2262de62f2277eb84a2"},
+    {"original":"spec/domain/value-objects/model-routing/v1/schema.json","path":"domain/value-objects/model-routing/v1/schema.json","sha256":"f67cacf253343663587c0e0c9ae36988fce2b110b6ffbd79fafd75597f352b25"}
+  ]
+}
