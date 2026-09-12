@@ -23,6 +23,10 @@
 YAML 验证依赖。`make test` 的临时目录为 `tmp/test-runs/`，只用于本仓库测试，
 重跑可清理该目录，不触碰同机其他项目的测试证据。
 
+`make test` 同时覆盖仓库检查器和 [subagent 双端生成器](../../.agents/skills/design-subagents/references/packaging.md)
+的离线测试；不启动目标模型。skill 的两端文件镜像由 `make docs-check` 核对，
+生成角色的行为验证与宿主加载证据见该 skill 的[验证说明](../../.agents/skills/design-subagents/references/validation.md)。
+
 `make spec-tools` 单独检查 Java 11+ 与 `TLA2TOOLS_JAR`、`ALLOY_ANALYZER_JAR`
 所指向的实际 JAR，缺失任一项返回非零。JAR 从
 [TLA+ 官方发行页](https://github.com/tlaplus/tlaplus/releases)和

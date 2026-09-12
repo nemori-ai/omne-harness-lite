@@ -10,4 +10,5 @@ spec-tools:
 	$(MAKE) -C spec check-tools
 
 test:
-	uv run --locked pytest --basetemp=tmp/test-runs
+	mkdir -p tmp
+	PYTHONDONTWRITEBYTECODE=1 uv run --locked pytest --basetemp=tmp/test-runs spec/tools/tests .agents/skills/design-subagents/scripts

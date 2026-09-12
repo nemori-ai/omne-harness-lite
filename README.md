@@ -33,6 +33,7 @@ Cordis 承载动态内核机制；Agent Loop、Harness 层、工具协议、治�
 | 查找精确版本的行为与数据契约 | [规格](spec/README.md) |
 | 维护、发布、复议和迁移资料 | [维护规范](docs/maintenance/README.md) |
 | 调整防御辅助或切换开发主力模型 | [防御模式](docs/defensive-patterns.md)、[开发模型评估](docs/evaluation/README.md) |
+| 为 Codex / Claude Code 编写同职责 subagents | [design-subagents skill](.agents/skills/design-subagents/SKILL.md)：边界、澄清、认知状态、模型适配与双端模板 |
 
 Codex 与 Claude Code 的项目 skills 分别位于 `.agents/skills/` 与
 `.claude/skills/`，内容保持一致，按需导航到同一份权威文档。

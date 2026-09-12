@@ -30,6 +30,7 @@
 - 让状态、所有权、生命周期、失败和副作用显式可见；不依赖隐藏的全局状态或隐式顺序。
 - 外部输出不因被运行时调用就变得可逆；恢复、补偿、幂等和撤销必须区分。
 - 让错误尽早暴露；禁止静默吞错、假成功和无法解释的默认行为。
+- 每个 subagent 都应明确职责、行动边界、必要输入与停止条件；精确任务限定可写路径，关键歧义或必需规格/计划缺失时暂停依赖工作并澄清，持续区分已知、假设与未知。编写方法见 [design-subagents](.agents/skills/design-subagents/SKILL.md)。
 
 这些判断按需展开为 [engineering-taste](.agents/skills/engineering-taste/SKILL.md)、[防御指导](docs/defensive-patterns.md)与[语义归属规则](docs/maintenance/organization.md)。
 
@@ -96,5 +97,6 @@ omne-harness-lite/
 | 调整防御辅助或准备切换开发主力模型 | [防御演化](docs/maintenance/defensive-evolution.md)与[开发模型评估](docs/evaluation/README.md) |
 | 创建、使用、合并或清理工作树 | [worktree-discipline](.agents/skills/worktree-discipline/SKILL.md)；统一使用主检出根的 `.worktrees/`，HUB 与 spoke 不嵌套创建 |
 | 编写、压缩或审查 AGENTS.md | [write-agents-md](.agents/skills/write-agents-md/SKILL.md) |
+| 定义 subagent 职责、两端配置或模型专属提示 | [design-subagents](.agents/skills/design-subagents/SKILL.md)；先确认目标宿主支持，再核对精确模型的官方指导 |
 
 Codex 与 Claude Code 的项目 skills 指向同一套文档，修改时保持两端内容一致。普通局部修改沿已有契约和相关检查完成；只有出现新的边界、保证或取舍，才展开对应设计材料。信息足以支持当前任务时停止扩展阅读，不因调用 skill 而扩大任务或批准范围。完整地图见[文档索引](docs/README.md)与[规格索引](spec/README.md)。

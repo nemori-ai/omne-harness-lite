@@ -1,0 +1,173 @@
+{
+  "checked_at": "2026-09-12T09:39:44.888775+00:00",
+  "codex": {
+    "cli_version": "0.154.0",
+    "evidence": {
+      "kind": "local_host_catalog_cache",
+      "path_hint": "~/.codex/models_cache.json",
+      "fetched_at": "2026-09-12T09:38:13.644986546Z",
+      "client_version": "0.154.0",
+      "sha256": "cb96607fd178f4b462b47062261e8af148efb8bb5072e834a1bd171554b8b1d4",
+      "official_host_docs": "https://developers.openai.com/codex/models"
+    },
+    "models": [
+      {
+        "id": "gpt-6-astra",
+        "host_catalog_visible": true,
+        "effort_values": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max",
+          "ultra"
+        ],
+        "account_execution": "not_tested"
+      },
+      {
+        "id": "gpt-5.6-sol",
+        "host_catalog_visible": true,
+        "effort_values": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max",
+          "ultra"
+        ],
+        "account_execution": "not_tested"
+      },
+      {
+        "id": "gpt-5.6-terra",
+        "host_catalog_visible": true,
+        "effort_values": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max",
+          "ultra"
+        ],
+        "account_execution": "not_tested"
+      },
+      {
+        "id": "gpt-5.6-luna",
+        "host_catalog_visible": true,
+        "effort_values": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ],
+        "account_execution": "not_tested"
+      },
+      {
+        "id": "gpt-5.5",
+        "host_catalog_visible": true,
+        "effort_values": [
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ],
+        "account_execution": "not_tested"
+      },
+      {
+        "id": "gpt-5.3-codex-spark",
+        "host_catalog_visible": true,
+        "effort_values": [
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ],
+        "account_execution": "not_tested"
+      }
+    ]
+  },
+  "claude_code": {
+    "cli_version": "2.1.269",
+    "evidence": {
+      "kind": "official_host_support_and_local_cli_version",
+      "url": "https://code.claude.com/docs/en/model-config",
+      "sections": [
+        "available-models",
+        "model-aliases",
+        "work-with-fable",
+        "fallback-model-chains"
+      ]
+    },
+    "models": [
+      {
+        "id": "claude-fable-5-1",
+        "minimum_cli": "2.1.257",
+        "host_support": "documented",
+        "account_availability": "not_checked",
+        "account_execution": "not_tested"
+      },
+      {
+        "id": "claude-fable-5",
+        "minimum_cli": null,
+        "host_support": "documented",
+        "account_availability": "not_checked",
+        "account_execution": "not_tested"
+      },
+      {
+        "id": "claude-opus-5",
+        "minimum_cli": "2.1.219",
+        "host_support": "documented",
+        "account_availability": "not_checked",
+        "account_execution": "not_tested"
+      },
+      {
+        "id": "claude-opus-4-8",
+        "minimum_cli": "2.1.154",
+        "host_support": "documented",
+        "account_availability": "not_checked",
+        "account_execution": "not_tested"
+      },
+      {
+        "id": "claude-sonnet-5",
+        "minimum_cli": "2.1.197",
+        "host_support": "documented",
+        "account_availability": "not_checked",
+        "account_execution": "not_tested"
+      },
+      {
+        "id": "claude-opus-4-6",
+        "minimum_cli": null,
+        "host_support": "documented",
+        "account_availability": "not_checked",
+        "account_execution": "not_tested"
+      },
+      {
+        "id": "claude-sonnet-4-6",
+        "minimum_cli": null,
+        "host_support": "documented",
+        "account_availability": "not_checked",
+        "account_execution": "not_tested"
+      },
+      {
+        "id": "claude-sonnet-4-5",
+        "minimum_cli": null,
+        "host_support": "documented",
+        "account_availability": "not_checked",
+        "account_execution": "not_tested"
+      },
+      {
+        "id": "claude-haiku-4-5",
+        "minimum_cli": null,
+        "host_support": "documented",
+        "account_availability": "not_checked",
+        "account_execution": "not_tested"
+      }
+    ]
+  },
+  "limitations": [
+    "Not an exhaustive list of all custom provider deployments.",
+    "Codex cache is dated evidence, not a live model invocation.",
+    "Claude model aliases and account availability depend on provider and policy.",
+    "No native role execution was used to validate this model list; independent skill-authoring trials are recorded separately."
+  ]
+}

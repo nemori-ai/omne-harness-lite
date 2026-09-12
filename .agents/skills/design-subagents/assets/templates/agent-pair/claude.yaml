@@ -1,0 +1,6 @@
+# 源 frontmatter；生成器添加分隔符和角色正文后才是完整原生角色文件。
+name: "{{role_name}}"
+description: "{{dispatch_description}}"
+model: inherit
+# 这是只读工具起点。按角色实际职责选择工具及权限；不要给写文档角色误配为只读。
+tools: Read, Glob, Grep

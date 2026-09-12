@@ -1,0 +1,71 @@
+{
+  "checked_at": "2026-09-12",
+  "purpose": "Official source routing and dated observations; not an exhaustive model catalog or host/account availability claim.",
+  "sources": [
+    {
+      "id": "codex-subagents",
+      "url": "https://learn.chatgpt.com/docs/agent-configuration/subagents#custom-agents",
+      "scope": "Codex custom-agent TOML and configuration precedence"
+    },
+    {
+      "id": "claude-subagents",
+      "url": "https://code.claude.com/docs/en/sub-agents",
+      "scope": "Claude Code file format, tools, skills, context and loading"
+    },
+    {
+      "id": "openai-gpt6-astra",
+      "url": "https://developers.openai.com/api/docs/guides/latest-model/gpt-6-astra.md#prompting-best-practices",
+      "scope": "GPT-6 Astra prompting"
+    },
+    {
+      "id": "openai-gpt56",
+      "url": "https://developers.openai.com/api/docs/guides/latest-model/gpt-5.6#prompting-best-practices",
+      "scope": "GPT-5.6 family; verify exact model separately"
+    },
+    {
+      "id": "claude-general",
+      "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices",
+      "scope": "Rolling Claude prompting index; verify the applicable model and section"
+    },
+    {
+      "id": "claude-fable51",
+      "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1",
+      "scope": "Claude Fable 5.1 prompting"
+    },
+    {
+      "id": "claude-opus5",
+      "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5",
+      "scope": "Claude Opus 5 prompting"
+    },
+    {
+      "id": "claude-sonnet5",
+      "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5",
+      "scope": "Claude Sonnet 5 prompting"
+    },
+    {
+      "id": "claude-opus48",
+      "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-4-8",
+      "scope": "Claude Opus 4.8 prompting"
+    },
+    {
+      "id": "codex-model-support",
+      "url": "https://developers.openai.com/codex/models",
+      "scope": "Host support, prior to model-specific guidance"
+    },
+    {
+      "id": "codex-model-enumeration",
+      "url": "https://learn.chatgpt.com/docs/app-server#list-models-modellist",
+      "scope": "Host model enumeration protocol"
+    },
+    {
+      "id": "claude-model-support",
+      "url": "https://code.claude.com/docs/en/model-config",
+      "scope": "Host support and provider-specific resolution"
+    },
+    {
+      "id": "openai-gpt55",
+      "url": "https://developers.openai.com/api/docs/guides/latest-model/gpt-5.5#prompting-best-practices",
+      "scope": "GPT-5.5 prompting after host support confirmation"
+    }
+  ]
+}
