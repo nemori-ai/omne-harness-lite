@@ -7,7 +7,7 @@ import shutil
 import subprocess
 import zipfile
 
-from doc_support import digest
+from .doc_support import digest
 
 
 def main():

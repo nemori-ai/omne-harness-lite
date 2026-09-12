@@ -41,14 +41,19 @@ Codex 与 Claude Code 的项目 skills 分别位于 `.agents/skills/` 与
 
 ## 仓库验证
 
-安装 `uv` 后，在仓库根目录运行；依赖与 Python 环境由 `uv.lock` 和
-`pyproject.toml` 管理，Python 仅用于仓库工具，不决定产品实现语言。
+产品实现以 TypeScript 为主，Python 当前用于独立的
+[spec-tools](tools/spec-tools/README.md) 开发包。产品包、应用、工具和自动化分别归
+`packages/`、`apps/`、`tools/`、`scripts/`，完整分工见[源码布局](docs/maintenance/workspace.md)。
+
+安装 `uv` 后，在仓库根目录运行；根 `pyproject.toml` 与 `uv.lock` 组合 Python 开发环境。
 
 ```sh
-make docs-check
-make spec-check
-make test
+uv sync --locked
+make check
 ```
+
+`make check` 通过 [scripts/check.sh](scripts/check.sh) 顺序运行文档、规格与离线测试检查，
+单项入口见 [scripts/](scripts/README.md)。当前尚无 CI 平台配置或产品发布流水线。
 
 文档结构、引用和 Schema 校验不等于行为证明。TLA+/TLC 与 Alloy 的模型任务
 及 Java/JAR 环境单独声明和检查；`make spec-tools` 报告工具是否齐备。

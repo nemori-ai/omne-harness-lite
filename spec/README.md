@@ -14,7 +14,7 @@
 | [frozen.json](frozen.json) | 已发布规范文件的冻结哈希；配合 Git 基线检查防止覆盖历史 |
 | [archive/](archive/README.md) | 保留原貌的旧组织资料，供来源追溯，不属于有效规格 |
 | [formal-tasks.json](formal-tasks.json) | 显式登记实际模型任务、输入文件和执行命令 |
-| [tools/](tools/) | 本地验证工具；工具本身不是产品架构 |
+| [开发工具包](../tools/spec-tools/README.md) | 独立 workspace 成员中的检查器；不属于产品规格或运行时 |
 
 目前有效清单为空：本轮接受了组织与治理体系，没有替用户批准业务契约。
 已有的[租户](../docs/proposals/tenant-contracts/README.md)、
@@ -40,7 +40,7 @@ TLA+ 表达行为和状态演化的权威规格，Alloy 辅助检查结构约束
 Draft 2020-12 表达跨语言数据契约。有限模型检查、数据验证和实现测试各有边界，
 不能互相冒充或宣称无条件证明。Event-B 暂不引入。
 
-从根目录使用 `make docs-check`、`make spec-check` 和 `make test`。
+从根目录使用 `make check` 组合检查，或按需执行 `make docs-check`、`make spec-check` 和 `make test`。
 实际形式任务与工具就绪情况必须分别报告；没有模型时不声称执行过模型验证。
 安装边界、执行方式、追踪映射与证据要求见
 [验证规范](../docs/maintenance/verification.md)。

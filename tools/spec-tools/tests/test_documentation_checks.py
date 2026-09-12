@@ -5,13 +5,15 @@ import sys
 import shutil
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[3]
-DOCS = ROOT / "spec/tools/check_docs.py"
-SPECS = ROOT / "spec/tools/check_specs.py"
+DOCS = "omne_harness_lite_spec_tools.check_docs"
+SPECS = "omne_harness_lite_spec_tools.check_specs"
 
 
 def run(script, root):
-    return subprocess.run([sys.executable, str(script), "--root", str(root)], text=True, capture_output=True)
+    return subprocess.run([sys.executable, "-m", script, "--root", str(root)], text=True, capture_output=True)
 
 
 def write(path, text):
@@ -30,7 +32,6 @@ def base(tmp_path):
     write(tmp_path / "spec/catalog.json", '{"catalog_version":1,"contracts":[]}')
     write(tmp_path / "spec/frozen.json", '{"format":1,"files":{}}')
     write(tmp_path / "spec/formal-tasks.json", '{"format":1,"tasks":[]}')
-    shutil.copytree(ROOT / "spec/tools/formats", tmp_path / "spec/tools/formats")
 
 
 def test_docs_rejects_bad_link_and_anchor(tmp_path):
@@ -39,6 +40,23 @@ def test_docs_rejects_bad_link_and_anchor(tmp_path):
     result = run(DOCS, tmp_path)
     assert result.returncode == 1
     assert "broken link" in result.stdout and "broken anchor" in result.stdout
+
+
+@pytest.mark.parametrize("area", ["apps", "tools", "scripts", ".codex"])
+def test_source_area_navigation_is_checked(tmp_path, area):
+    base(tmp_path)
+    write(tmp_path / area / "README.md", "[missing](missing.md)")
+    result = run(DOCS, tmp_path)
+    assert result.returncode == 1
+    assert f"{area}/README.md: broken link" in result.stdout
+
+
+def test_dependency_and_build_documentation_is_not_project_navigation(tmp_path):
+    base(tmp_path)
+    for directory in ("tools/check/.venv/lib", "apps/web/node_modules/dependency", "packages/lib/dist"):
+        write(tmp_path / directory / "README.md", "[external package link](missing.md)")
+    result = run(DOCS, tmp_path)
+    assert result.returncode == 0, result.stdout
 
 
 def test_docs_rejects_accepted_decision_without_eligible_source(tmp_path):
@@ -76,7 +94,7 @@ def test_docs_baseline_detects_content_and_manifest_tampering(tmp_path):
     subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@x", "commit", "-qm", "baseline"], cwd=tmp_path, check=True)
     write(tmp_path / "spec/data/x/v1/model.md", "changed")
     write(tmp_path / "spec/frozen.json", json.dumps({"format": 1, "files": {"spec/data/x/v1/model.md": hashlib.sha256(b"changed").hexdigest()}}))
-    result = subprocess.run([sys.executable, str(DOCS), "--root", str(tmp_path), "--baseline", "HEAD"], text=True, capture_output=True)
+    result = subprocess.run([sys.executable, "-m", DOCS, "--root", str(tmp_path), "--baseline", "HEAD"], text=True, capture_output=True)
     assert result.returncode == 1 and "baseline frozen registration changed" in result.stdout
 
 

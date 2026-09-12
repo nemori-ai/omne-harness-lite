@@ -10,6 +10,8 @@
 
 当前处于设计、规格建模与实验性演进阶段，尚未正式上线或对外提供生产服务。接受有明确设计和验证依据的大胆重构，不为旧版本保留未经要求的实现兼容层；历史材料的保留不构成兼容承诺。
 
+仓库按 monorepo 组织，产品实现以 TypeScript 为主，Python 当前用于开发工具。`packages/` 放产品包，`apps/` 放应用装配，`tools/` 放开发工具，`scripts/` 放仓库自动化；源码放在所属成员的 `src/`，跨包使用公开入口。完整归属与各语言 workspace 分工见[源码布局](docs/maintenance/workspace.md)。
+
 站在 DSH Cordis 的视角建模完全动态系统：能力的定义、实现、绑定和组合关系都应能动态演化。可替换能力通过有生命周期、作用域和所有权的插件或服务，以及 Context、依赖注入和类型化事件组合。身份、不变量和状态转移由语言无关契约约束；存储是独立抽象，不按 DDD 战术分类强制切分系统，也不把 Cordis 的运行时对象直接当作数据契约。
 
 - 设计保持编程语言无关，作为未来严格验证和跨语言复现的规格依据。TLA+ 表达行为权威规格，Alloy 辅助验证结构约束，JSON Schema 定义数据契约；实现不能替代规格。
@@ -64,8 +66,12 @@ omne-harness-lite/
 │   ├── catalog.json              契约身份、版本、状态与接受依据的唯一清单
 │   ├── frozen.json               已发布规范文件的冻结哈希
 │   ├── formal-tasks.json         形式模型的实际执行任务
-│   ├── tools/                    仓库验证工具、格式与测试
 │   └── archive/                  历史规格原件与来源记录
+├── packages/                    产品可复用包，以 TS 为主；各成员拥有 src/
+├── apps/                        产品应用与装配入口；各成员拥有 src/
+├── tools/
+│   └── spec-tools/               独立 Python 开发包，含 src/、格式与 tests/
+├── scripts/                     开发与 CI/CD 自动化，check.sh 组合现有检查
 ├── .agents/roles/                subagent 共享正文、源配置与适配依据
 ├── .agents/skills/               Codex 按需指导入口
 ├── .codex/agents/                生成的 Codex 原生 subagents
@@ -73,12 +79,12 @@ omne-harness-lite/
 ├── .claude/skills/               Claude Code 对应入口，与 Codex 保持一致
 ├── .worktrees/                   主检出根下的隔离工作树，Git 忽略
 ├── tmp/                          临时计划、草稿和本地证据，Git 忽略
-├── Makefile                      仓库检查命令入口
-├── pyproject.toml                仓库工具环境与依赖声明
-└── uv.lock                       仓库工具依赖锁定
+├── Makefile                      单项检查与自动化的短命令入口
+├── pyproject.toml                Python 开发 workspace 成员与根开发依赖
+└── uv.lock                       Python workspace 统一锁文件
 ```
 
-`docs/` 组织设计知识，`spec/` 定义精确承诺，skills 负责按任务导航。架构指南提供方法，当前架构引用决定与规格形成系统视图；目录不直接对应插件、服务、进程或数据库表。`spec/tools/` 的实现语言不决定产品实现语言。
+`docs/` 组织设计知识，`spec/` 定义精确承诺，skills 负责按任务导航。架构指南提供方法，当前架构引用决定与规格形成系统视图；目录不直接对应插件、服务、进程或数据库表。上述受维护顶层目录提供局部 `AGENTS.md` 与仅引用同级约定的 `CLAUDE.md`；进入相关目录时按需展开，临时产物与工作树容器不另设约定。
 
 ## 信息权威与演进边界
 
@@ -99,6 +105,7 @@ omne-harness-lite/
 | 完成一次架构设计，已有可识别的待审稿 | 委派 [architecture-reviewer](.agents/roles/README.md) 独立只读评审，提供对象、版本、目标与范围；评审意见不代替接受决定 |
 | 核对 Cordis API、依赖、插件或生命周期 | [cordis-authoritative-docs](.agents/skills/cordis-authoritative-docs/SKILL.md) |
 | 判断过度设计、抽象价值、复用或复杂度 | [engineering-taste](.agents/skills/engineering-taste/SKILL.md) |
+| 放置源码、增加成员或调整开发/CI 入口 | [源码布局与 workspace](docs/maintenance/workspace.md)及目标目录局部约定；具体命令见[验证规范](docs/maintenance/verification.md) |
 | 创建、接受、修改或迁移设计材料 | [维护规范](docs/maintenance/README.md)；候选从[提案入口](docs/proposals/README.md)审阅 |
 | 调整防御辅助或准备切换开发主力模型 | [防御演化](docs/maintenance/defensive-evolution.md)与[开发模型评估](docs/evaluation/README.md) |
 | 创建、使用、合并或清理工作树 | [worktree-discipline](.agents/skills/worktree-discipline/SKILL.md)；统一使用主检出根的 `.worktrees/`，HUB 与 spoke 不嵌套创建 |

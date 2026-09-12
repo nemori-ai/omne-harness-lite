@@ -1,16 +1,21 @@
 [project]
-name = "omne-harness-lite-spec-tools"
+name = "omne-harness-lite"
 version = "0.1.0"
+description = "Development workspace for the omne-harness-lite monorepo"
 requires-python = ">=3.12"
-dependencies = [
-  "jsonschema[format]>=4.23,<5",
-  "PyYAML>=6.0,<7",
-  "markdown-it-py>=3,<5",
-]
+dependencies = []
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["tools/spec-tools"]
+
+[tool.uv.sources]
+omne-harness-lite-spec-tools = { workspace = true }
 
 [dependency-groups]
-dev = ["pytest>=8,<9"]
+dev = ["omne-harness-lite-spec-tools", "pytest>=8,<9", "PyYAML>=6,<7"]
 
 [tool.pytest.ini_options]
-testpaths = ["spec/tools/tests"]
-pythonpath = ["spec/tools"]
+testpaths = ["tools/spec-tools/tests", ".agents/skills/design-subagents/scripts"]

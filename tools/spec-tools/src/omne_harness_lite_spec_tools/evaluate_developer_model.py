@@ -13,10 +13,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 from jsonschema.exceptions import SchemaError
 from jsonschema.validators import validator_for
 
-ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_SCHEMA = ROOT / "docs/evaluation/formats/developer-model-experiment.schema.json"
-SUITE_SCHEMA = ROOT / "docs/evaluation/formats/task-suite.schema.json"
-DEFAULT_SUITE = ROOT / "docs/evaluation/suites/developer-model-v1.json"
+from .doc_support import repository_root
 
 
 @dataclass(frozen=True)
@@ -45,8 +42,15 @@ def verify_artifact(report_path: Path, artifact: dict[str, str], label: str, iss
         issues.append(f"{label} hash does not match")
 
 
-def evaluate(report_path: Path, schema_path: Path = DEFAULT_SCHEMA, suite_path: Path = DEFAULT_SUITE) -> EvaluationResult:
+def evaluate(report_path: Path, schema_path: Path | None = None,
+             suite_path: Path | None = None, *, root: Path | None = None) -> EvaluationResult:
     issues: list[str] = []
+    try:
+        root = root.resolve() if root is not None else repository_root()
+    except ValueError as error:
+        return EvaluationResult("needs-completion", (str(error),))
+    schema_path = schema_path if schema_path is not None else root / "docs/evaluation/formats/developer-model-experiment.schema.json"
+    suite_path = suite_path if suite_path is not None else root / "docs/evaluation/suites/developer-model-v1.json"
     try:
         report = load_json(report_path)
     except (OSError, json.JSONDecodeError) as error:
@@ -99,7 +103,7 @@ def evaluate(report_path: Path, schema_path: Path = DEFAULT_SCHEMA, suite_path: 
     except (OSError, json.JSONDecodeError) as error:
         return EvaluationResult("needs-completion", tuple(issues + [f"heldout suite cannot be read: {error}"]))
     try:
-        suite_validator = Draft202012Validator(load_json(SUITE_SCHEMA))
+        suite_validator = Draft202012Validator(load_json(root / "docs/evaluation/formats/task-suite.schema.json"))
         for label, suite in (("public", fixed_suite), ("heldout", heldout_suite)):
             for error in suite_validator.iter_errors(suite):
                 issues.append(f"{label} task packet {error.json_path}: {error.message}")
@@ -164,10 +168,11 @@ def evaluate(report_path: Path, schema_path: Path = DEFAULT_SCHEMA, suite_path: 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("report", type=Path)
-    parser.add_argument("--schema", type=Path, default=DEFAULT_SCHEMA)
-    parser.add_argument("--suite", type=Path, default=DEFAULT_SUITE)
+    parser.add_argument("--root", type=Path, help="Checkout supplying evaluation policy; otherwise discover from cwd")
+    parser.add_argument("--schema", type=Path)
+    parser.add_argument("--suite", type=Path)
     arguments = parser.parse_args()
-    result = evaluate(arguments.report, arguments.schema, arguments.suite)
+    result = evaluate(arguments.report, arguments.schema, arguments.suite, root=arguments.root)
     print(result.status)
     for issue in result.issues:
         print(f"- {issue}")

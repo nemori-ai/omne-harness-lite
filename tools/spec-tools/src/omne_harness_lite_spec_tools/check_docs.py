@@ -4,14 +4,18 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 from pathlib import Path
 
 import yaml
-from doc_support import (checked_path, digest, format_errors, frontmatter, load_json,
+from .doc_support import (checked_path, digest, format_errors, frontmatter, load_json, repository_root,
                          markdown_links, validate_link)
 
-ROOTS = ("README.md", "AGENTS.md", "docs", "spec", ".agents", ".claude/AGENTS.md", ".claude/skills")
+ROOTS = ("README.md", "AGENTS.md", "CLAUDE.md", "docs", "spec", "packages", "apps",
+         "tools", "scripts", ".agents", ".claude", ".codex")
+IGNORED_DIRECTORIES = {".git", ".venv", "node_modules", ".dist", "dist", "build",
+                       "__pycache__", ".pytest_cache", "tmp", ".worktrees"}
 
 
 def check_decisions(root: Path, errors: list[str]):
@@ -129,7 +133,9 @@ def check(root: Path, baseline=None):
         if path.is_file():
             files.append(path)
         elif path.is_dir():
-            files.extend(path.rglob("*.md"))
+            for directory, children, names in os.walk(path):
+                children[:] = [name for name in children if name not in IGNORED_DIRECTORIES]
+                files.extend(Path(directory) / name for name in names if name.endswith(".md"))
     # Historical sources retain their original relative links. Outer indexes are current.
     files = [p for p in files if not p.is_relative_to(root / "spec/archive/ddd-models/domain")]
     for path in sorted(files):
@@ -154,11 +160,12 @@ def check(root: Path, baseline=None):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[2])
+    parser.add_argument("--root", type=Path, help="Checkout to inspect; otherwise discover from cwd")
     parser.add_argument("--baseline", help="Git ref whose frozen registrations cannot be removed or changed")
     args = parser.parse_args(argv)
     try:
-        errors, count = check(args.root.resolve(), args.baseline)
+        root = args.root.resolve() if args.root else repository_root()
+        errors, count = check(root, args.baseline)
     except (OSError, ValueError, yaml.YAMLError) as error:
         errors, count = [str(error)], 0
     for error in errors:

@@ -1,6 +1,6 @@
 # 防御指导的演化与退出
 
-本规范落实 [D-003](../decisions/D-003-defensive-evaluation.md)。[开发模型评估](../evaluation/README.md)及其[协议](../evaluation/protocol.md)规定模型切换前的离线证据协议；`spec/tools/evaluate_developer_model.py REPORT [--schema SCHEMA]` 只产生 `evidence-ready` 或 `needs-completion` 结论。本页规定防御资产的归属、范围和维护。任何采用、降层或退出均须人工审阅并记录；最终是否切换由用户决定，评估 CLI 不授权模型切换或规则变更。
+本规范落实 [D-003](../decisions/D-003-defensive-evaluation.md)。[开发模型评估](../evaluation/README.md)及其[协议](../evaluation/protocol.md)规定模型切换前的离线证据协议；`omne-evaluate-developer-model REPORT [--schema SCHEMA]` 只产生 `evidence-ready` 或 `needs-completion` 结论。本页规定防御资产的归属、范围和维护。任何采用、降层或退出均须人工审阅并记录；最终是否切换由用户决定，评估 CLI 不授权模型切换或规则变更。
 
 ## 分类与归属
 

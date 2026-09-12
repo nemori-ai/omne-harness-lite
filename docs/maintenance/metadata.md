@@ -6,11 +6,11 @@
 
 ## 格式定义
 
-- [决定](../../spec/tools/formats/decision.schema.json)
-- [规格清单](../../spec/tools/formats/catalog.schema.json)
-- [冻结清单](../../spec/tools/formats/frozen.schema.json)
-- [历史原件清单](../../spec/tools/formats/archive.schema.json)
-- [形式任务清单](../../spec/tools/formats/formal-tasks.schema.json)：执行含义见[验证规范](verification.md)。
+- [决定](../../tools/spec-tools/src/omne_harness_lite_spec_tools/formats/decision.schema.json)
+- [规格清单](../../tools/spec-tools/src/omne_harness_lite_spec_tools/formats/catalog.schema.json)
+- [冻结清单](../../tools/spec-tools/src/omne_harness_lite_spec_tools/formats/frozen.schema.json)
+- [历史原件清单](../../tools/spec-tools/src/omne_harness_lite_spec_tools/formats/archive.schema.json)
+- [形式任务清单](../../tools/spec-tools/src/omne_harness_lite_spec_tools/formats/formal-tasks.schema.json)：执行含义见[验证规范](verification.md)。
 
 ## 决定 front matter
 

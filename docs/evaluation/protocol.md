@@ -66,6 +66,6 @@ CLI 可以检查文件和观察记录，不能证明留出集未被见过、轨�
 评分者需检验产物和副作用，并对模型身份尽可能盲评，报告波动及不确定性。
 如果缺少足以支持精简的证据，保留原辅助的采用状态，不能把零次观测失败等同于内化。
 
-用 `uv run --locked python spec/tools/evaluate_developer_model.py REPORT` 运行检查，
+用 `uv run --locked omne-evaluate-developer-model REPORT` 运行检查，
 保留公开/冻结任务包、分析计划、实际指导及配置、产物/轨迹和报告组成同一证据目录。
 采用记录的操作者文字不能认证人类身份；最后的授权依据仍归有效决定。

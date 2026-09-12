@@ -12,7 +12,7 @@
 | 不能归属单一能力的交互性质 | [compositions/](compositions/README.md)：不因出现多个模块就另建组合契约 |
 | 契约身份、版本、状态和接受依据 | [catalog.json](catalog.json)：唯一发现清单，不是运行时注册表 |
 | 规范冻结与历史原件 | [frozen.json](frozen.json)、[archive/](archive/README.md)：按[版本规则](../docs/maintenance/versioning.md)维护 |
-| 形式任务与检查器 | [formal-tasks.json](formal-tasks.json)登记规范任务，[检查器](tools/check_specs.py)实现检查；职责见[验证规范](../docs/maintenance/verification.md) |
+| 形式任务与检查器 | [formal-tasks.json](formal-tasks.json)登记规范任务，[spec-tools](../tools/spec-tools/README.md)实现检查；职责见[验证规范](../docs/maintenance/verification.md) |
 
 ## 编辑边界
 
@@ -26,5 +26,5 @@
   通过不能盖过冲突。查[规格与证据](../docs/architecture-guide/assurance/specification.md)，
   涉及架构选择时使用 [architecture-design](../.agents/skills/architecture-design/SKILL.md)。
 
-这些规范义务约束契约工件；检查软件在本目录的工具脚本中维护，普通工具修复不因此需要发布
+这些规范义务约束契约工件；检查软件在独立的开发包中，普通工具修复不因此需要发布
 业务契约。按实际变更选择检查，信息充分时停止展开，不为每项规格预建空附件或全部形式模型。

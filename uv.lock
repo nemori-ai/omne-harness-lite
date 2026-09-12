@@ -2,6 +2,12 @@ version = 1
 revision = 3
 requires-python = ">=3.12"
 
+[manifest]
+members = [
+    "omne-harness-lite",
+    "omne-harness-lite-spec-tools",
+]
+
 [[package]]
 name = "arrow"
 version = "1.4.0"
@@ -142,9 +148,30 @@ wheels = [
 ]
 
 [[package]]
-name = "omne-harness-lite-spec-tools"
+name = "omne-harness-lite"
 version = "0.1.0"
 source = { virtual = "." }
+
+[package.dev-dependencies]
+dev = [
+    { name = "omne-harness-lite-spec-tools" },
+    { name = "pytest" },
+    { name = "pyyaml" },
+]
+
+[package.metadata]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "omne-harness-lite-spec-tools", editable = "tools/spec-tools" },
+    { name = "pytest", specifier = ">=8,<9" },
+    { name = "pyyaml", specifier = ">=6,<7" },
+]
+
+[[package]]
+name = "omne-harness-lite-spec-tools"
+version = "0.1.0"
+source = { editable = "tools/spec-tools" }
 dependencies = [
     { name = "jsonschema", extra = ["format"] },
     { name = "markdown-it-py" },
@@ -160,7 +187,7 @@ dev = [
 requires-dist = [
     { name = "jsonschema", extras = ["format"], specifier = ">=4.23,<5" },
     { name = "markdown-it-py", specifier = ">=3,<5" },
-    { name = "pyyaml", specifier = ">=6.0,<7" },
+    { name = "pyyaml", specifier = ">=6,<7" },
 ]
 
 [package.metadata.requires-dev]

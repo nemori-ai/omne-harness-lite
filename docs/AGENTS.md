@@ -13,6 +13,7 @@
 | 新材料、迁移、版本与引用 | [组织归属](maintenance/organization.md)、[版本规则](maintenance/versioning.md)；需要字段形状时再读[元数据](maintenance/metadata.md) |
 | 防御提醒的沉淀与退出 | [当前指导](defensive-patterns.md)与[演化规范](maintenance/defensive-evolution.md)；模型适用性由[评估](evaluation/README.md)提供证据 |
 | 检查入口与验证结论 | [验证规范](maintenance/verification.md)，不从历史提案复制过期命令 |
+| 源码、工具与自动化的分工 | [源码布局](maintenance/workspace.md)拥有归属，文档只引用相关实现与入口 |
 
 ## 修改时守住的边界
 

@@ -15,7 +15,7 @@ from jsonschema.exceptions import SchemaError
 from referencing import Registry, Resource
 from referencing.jsonschema import DRAFT202012
 
-from doc_support import (FORMATS, checked_path, digest, format_errors, frontmatter,
+from .doc_support import (FORMATS, checked_path, digest, format_errors, frontmatter, repository_root,
                          load_json, markdown_links, local_target, validate_link)
 
 DRAFT = "https://json-schema.org/draft/2020-12/schema"
@@ -212,10 +212,11 @@ def check_formal(root, registered, errors):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[2])
+    parser.add_argument("--root", type=Path, help="Checkout to inspect; otherwise discover from cwd")
     args = parser.parse_args(argv)
-    root, errors = args.root.resolve(), []
+    errors = []
     try:
+        root = args.root.resolve() if args.root else repository_root()
         registered, contracts = check_catalog(root, errors)
         schemas = check_schemas(root, registered, errors)
         tasks = check_formal(root, registered, errors)

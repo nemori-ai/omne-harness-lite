@@ -10,6 +10,7 @@
 | [机器可检查的元数据](metadata.md) | 决定、catalog、冻结表和历史归档必须有哪些字段？ |
 | [版本、状态与引用](versioning.md) | 什么可以作为当前依赖，怎样接受、冻结和取代？ |
 | [验证与检查](verification.md) | 哪些检查存在、如何报告证据与覆盖缺口？ |
+| [源码布局与 workspace](workspace.md) | 产品包、应用、工具、脚本与各语言开发环境怎样分工？ |
 | [知识流转](knowledge-flow.md) | 研究、提案、决定和规格如何共同形成可追溯判断？ |
 | [防御演化](defensive-evolution.md) | 怎样维护、评估、简化或退出防御指导？ |
 

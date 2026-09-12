@@ -19,3 +19,6 @@
 每个正式契约至少有入口、版本化 `contract.md` 和 `spec/catalog.json` 中的登记。复杂度实际出现时才增加 Schema、形式模型、场景或验证映射。`spec/archive/` 是历史材料，`docs/proposals/` 是候选材料，均不进入有效目录清单。
 
 正式内容的 metadata 与字段形状以[机器可检查的元数据](metadata.md)为准。维护者不得另建平行 registry、`current.json` 或运行时注册表来表达目录状态；`catalog.json` 只服务文档发现，不参与 Cordis 的动态解析。
+
+产品源码、开发工具与自动化的目录归属由[源码布局与 workspace](workspace.md)维护。
+契约的实现放在所属成员，检查算法放在工具包；文档与规格目录承载它们的依据和证据。

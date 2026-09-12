@@ -1,0 +1,27 @@
+[project]
+name = "omne-harness-lite-spec-tools"
+version = "0.1.0"
+description = "Development-time documentation, specification and evidence checks"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "jsonschema[format]>=4.23,<5",
+  "PyYAML>=6,<7",
+  "markdown-it-py>=3,<5",
+]
+
+[project.scripts]
+omne-docs-check = "omne_harness_lite_spec_tools.check_docs:main"
+omne-spec-check = "omne_harness_lite_spec_tools.check_specs:main"
+omne-spec-tools-check = "omne_harness_lite_spec_tools.check_tool_environment:main"
+omne-evaluate-developer-model = "omne_harness_lite_spec_tools.evaluate_developer_model:main"
+
+[dependency-groups]
+dev = ["pytest>=8,<9"]
+
+[build-system]
+requires = ["uv_build>=0.11.24,<0.12"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

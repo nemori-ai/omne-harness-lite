@@ -23,7 +23,7 @@
 实验报告须符合 [Schema](formats/developer-model-experiment.schema.json)，并用：
 
 ```sh
-uv run --locked python spec/tools/evaluate_developer_model.py path/to/report.json
+uv run --locked omne-evaluate-developer-model path/to/report.json
 ```
 
 命令验证报告和本地证据文件，输出仅有 `evidence-ready` 或

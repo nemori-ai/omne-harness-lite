@@ -4,5 +4,7 @@ __pycache__/
 .venv/
 .dist/
 build/
+dist/
+node_modules/
 tmp/
 /.worktrees/

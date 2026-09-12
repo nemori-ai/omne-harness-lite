@@ -5,9 +5,9 @@ from pathlib import Path
 import tempfile
 import unittest
 
-TOOLS = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(TOOLS))
-from evaluate_developer_model import DEFAULT_SUITE, evaluate, sha256  # noqa: E402
+from omne_harness_lite_spec_tools.evaluate_developer_model import evaluate, sha256
+
+DEFAULT_SUITE = Path(__file__).resolve().parents[3] / "docs/evaluation/suites/developer-model-v1.json"
 
 
 def artifact(directory: Path, name: str, content: str) -> dict:
