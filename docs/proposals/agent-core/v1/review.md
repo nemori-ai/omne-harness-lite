@@ -32,9 +32,10 @@
 | E5 | 一次流式输出后用户取消 | 停止请求与停止完成可区分；已展示前缀可追踪，Run outcome=cancelled |
 | E6 | 重复发送 AdmitInput/相同 slot 提交 | 相同 command_id/slot+input 返回原结果；不同 input 使用同 slot 拒绝 |
 
-## 本次实际验证与后续验证
+## 迁移前验证记录与后续验证
 
-当前仅检查提案文档链接和剩余模型注册索引；三块模型及 Schema 已撤回。
+迁移前曾只检查提案文档链接和剩余模型注册索引；当时三块模型及 Schema 已撤回。
+这段记录不代表当前附件清单；现有[提示词 Schema](system-prompt-profile.schema-notes.md)仍是候选材料。
 以上行为场景是验收设计，**尚未由运行实现执行，也未由 TLA+/Alloy 检查**。
 
 后续形式化分工：TLA+ 检查输入接纳、单活动 Run、epoch 与 retry、终结/取消并发；
@@ -43,11 +44,7 @@ Alloy 检查租户归属、引用闭合、Step/Action 所属关系；JSON Schema
 
 ## 当前验证范围
 
-模型定义已按用户要求撤回，原先对这些 Schema 的校验结果不再描述当前工作区。
-提案内容与验收场景保留供 review，目前可运行：
-
-```sh
-python3 spec/tools/check_agent_core_proposal.py
-```
-
-此命令只检查剩余模型索引与本地文档链接，不验证 Schema、运行行为或形式性质。
+原 `check_agent_core_proposal.py` 已在文档体系迁移中移除。当前检查职责与覆盖边界
+以[验证规范](../../../maintenance/verification.md)为准，命令从根 [Makefile](../../../../Makefile) 获取。
+提案内容与验收场景保留供 review；文档或 Schema 检查通过不改变候选身份，
+也不表示运行行为或形式性质已验证。历史验证结果不自动适用于当前附件和工具版本。
