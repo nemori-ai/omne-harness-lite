@@ -42,6 +42,18 @@ def test_docs_rejects_bad_link_and_anchor(tmp_path):
     assert "broken link" in result.stdout and "broken anchor" in result.stdout
 
 
+def test_contribution_entry_links_and_development_anchors_are_checked(tmp_path):
+    base(tmp_path)
+    write(tmp_path / "docs/development.md", "# Development\n## Setup\n")
+    entry = tmp_path / "CONTRIBUTING.md"
+    write(entry, "[setup](docs/development.md#setup)")
+    assert run(DOCS, tmp_path).returncode == 0
+    write(entry, "[setup](docs/development.md#missing)")
+    result = run(DOCS, tmp_path)
+    assert result.returncode == 1
+    assert "CONTRIBUTING.md: broken anchor" in result.stdout
+
+
 @pytest.mark.parametrize("area", ["apps", "tools", "scripts", ".codex"])
 def test_source_area_navigation_is_checked(tmp_path, area):
     base(tmp_path)

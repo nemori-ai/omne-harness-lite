@@ -6,6 +6,8 @@
 
 | 现在需要什么 | 权威入口 |
 |---|---|
+| 参与研发或准备交付 | [贡献指南](../CONTRIBUTING.md) |
+| 从当前检出开始开发、检查与排障 | [开发指南](development.md) |
 | 了解当前系统方向和已确认边界 | [当前架构](architecture/README.md)、[系统要求](architecture/constraints.md) |
 | 定义能力或评估服务边界 | [架构设计指南](architecture-guide/README.md)、[规格](../spec/README.md) |
 | 确认我们为什么这样选择 | [决定](decisions/README.md) |

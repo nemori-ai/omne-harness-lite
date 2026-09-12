@@ -12,7 +12,7 @@ import yaml
 from .doc_support import (checked_path, digest, format_errors, frontmatter, load_json, repository_root,
                          markdown_links, validate_link)
 
-ROOTS = ("README.md", "AGENTS.md", "CLAUDE.md", "docs", "spec", "packages", "apps",
+ROOTS = ("README.md", "CONTRIBUTING.md", "AGENTS.md", "CLAUDE.md", "docs", "spec", "packages", "apps",
          "tools", "scripts", ".agents", ".claude", ".codex")
 IGNORED_DIRECTORIES = {".git", ".venv", "node_modules", ".dist", "dist", "build",
                        "__pycache__", ".pytest_cache", "tmp", ".worktrees"}

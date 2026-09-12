@@ -43,11 +43,13 @@
 ```text
 omne-harness-lite/
 ├── README.md                     项目介绍与读者入口
+├── CONTRIBUTING.md               贡献范围、可审阅交付与接受入口
 ├── AGENTS.md                     agent 的常驻心智、边界与导航
 ├── CLAUDE.md                     Claude Code 入口，通过 @AGENTS.md 复用同级约定
 ├── docs/
 │   ├── README.md                 文档总索引
 │   ├── AGENTS.md / CLAUDE.md      文档局部约定与同级引用
+│   ├── development.md            开发上手、操作与排障导航
 │   ├── architecture/             当前系统视图与已确认约束
 │   ├── architecture-guide/       架构方法、基础概念与设计判断
 │   ├── research/                 事实观察、来源、证据及局限
@@ -101,6 +103,7 @@ omne-harness-lite/
 
 | 当前任务 | 应用的入口 |
 |---|---|
+| 开始参与、准备环境或整理交付 | [贡献指南](CONTRIBUTING.md)说明范围和交付要求，[开发指南](docs/development.md)导航环境与操作；详细规则继续归各内容所有者 |
 | 架构设计、能力边界或有架构影响的选型 | [architecture-design](.agents/skills/architecture-design/SKILL.md)，导航至[架构指南](docs/architecture-guide/README.md)、相关决定和精确规格 |
 | 完成一次架构设计，已有可识别的待审稿 | 委派 [architecture-reviewer](.agents/roles/README.md) 独立只读评审，提供对象、版本、目标与范围；评审意见不代替接受决定 |
 | 核对 Cordis API、依赖、插件或生命周期 | [cordis-authoritative-docs](.agents/skills/cordis-authoritative-docs/SKILL.md) |

@@ -20,7 +20,7 @@ the modes are the terrain they apply to.
 | Location | `<main-checkout-root>/.worktrees/<semantic-name>` — gitignored; shared by all agents and harnesses |
 | Naming | Semantic campaign / task names (`engram-ddd-phase2`, `harness-tenant`); spoke families share a prefix (`harness-th-*`) |
 | Main checkout | **Stays on `main`, forever.** Feature branches exist only inside worktrees |
-| Setup | Use the repository-specific setup documented by the task; do not assume an implementation language or environment |
+| Setup | Follow the [development guide](../../../docs/development.md) in the actual checkout; Python tooling does not determine the product language |
 | `git stash` | Forbidden, everywhere — worktrees exist so you never need it |
 
 The worktree container belongs to the project's main checkout, including for HUB
@@ -55,19 +55,19 @@ One well-bounded task, one worktree:
 ```bash
 git -C /path/to/main-checkout worktree add .worktrees/<name> -b <branch-name>
 cd /path/to/main-checkout/.worktrees/<name>  # all subsequent paths are THIS tree's
-./scripts/uv_sync_all.sh             # only if Python will be touched
+uv sync --locked                    # prepare this checkout's development tools
 ```
 
-Baseline: if the task touches Python, run a scoped test pass
-(`./scripts/run_tests.sh --targets <pkg> ... > /tmp/<name>-baseline.log 2>&1`) so new
-failures are distinguishable from inherited ones. Docs-only work skips setup and
-baseline. Then the red lines below govern everything until merge.
+Baseline: when behavior changes need comparison, run the relevant checks in this
+checkout so inherited failures can be distinguished. Use the
+[development guide](../../../docs/development.md#修改与验证) and the owning member's
+commands; ordinary document edits need document checks, not unrelated product tests.
+Prepare the local tool environment when the selected checks require it.
 
 ## Mode B — Fan-out (HUB-and-spoke)
 
 The project's signature topology for parallel campaigns. **Prerequisite: a
-roadmap-level plan with an explicit wave structure** (implementation_planning
-Altitude 2). Fan-out without a wave plan is flying blind — the topology mirrors the
+task plan with an explicit wave structure**. Fan-out without a wave plan is flying blind — the topology mirrors the
 plan, never improvises it.
 
 **Topology.** The HUB is an integration worktree on a campaign branch cut from
@@ -89,7 +89,7 @@ added on `main` since HUB creation.
 Verification must cover the actual integrated contents, environment, configuration,
 and full required scope. A still-applicable run on that same integrated state may
 serve the next checkpoint after independent evidence checks under the
-test_driven_development Completion Gate. Spoke results alone never replace HUB
+[verification rules](../../../docs/maintenance/verification.md). Spoke results alone never replace HUB
 integration evidence; changed composition, upstream standards, or missing evidence
 require the affected checks.
 
@@ -112,14 +112,13 @@ require the affected checks.
    spoke once its work and necessary evidence are preserved and its consumers have
    released it. Record any deferred retirement and its release condition.
 5. **Campaign closure** — when all waves are merged and the HUB's final verification
-   is green, close via the github-pr skill. Two shapes, chosen by coupling:
+   is green, prepare the delivery under [CONTRIBUTING.md](../../../CONTRIBUTING.md). Two shapes, chosen by coupling:
    **one consolidated PR from the HUB** when spokes share foundations or only make
    sense together; **per-spoke PRs** when spokes are genuinely independent and
    separately reviewable. Either way, a PR to `main` waits for human review.
    Closure ships the code together with the documents that describe that delivery.
-   Independent formal engineering-knowledge corrections follow the github-pr skill's
-   guidance on value, urgency, coupling, review, and applicable verification when
-   deciding whether to use a separate PR. Temporary scheduling notes stay local;
+   Independent knowledge corrections follow the contribution guide's scope and
+   evidence requirements when deciding whether to use a separate delivery. Temporary scheduling notes stay local;
    batch related changes where appropriate.
 
 Command-level walkthrough: [fanout_playbook.md](references/fanout_playbook.md).
@@ -140,7 +139,9 @@ removing a spoke or HUB:
    Git status does not establish that they have finished. Unknown or active use means
    defer removal of this tree until the consumer releases it.
 3. Preserve needed unique assets in the agreed location outside the retiring tree,
-   normally the main checkout's `docs/plans/` for local task evidence. Verify that
+   normally the main checkout's `tmp/<task>/` for temporary task evidence.
+   Durable research or verification evidence belongs in its owning tracked material
+   under the [organization rules](../../../docs/maintenance/organization.md). Verify that
    the copy is readable and matches the original contents/hash, and update recovery
    references that would otherwise point into the removed tree. A path alone is not
    preservation. Keep the task's existing retention obligations; ignored local storage
@@ -167,9 +168,9 @@ not hypothesis.
    worktree session writes files into the main working tree — a 27-file design-doc
    batch once landed on `main` this way. After creating any file, run `git status` *in
    the worktree* to confirm where it landed.
-2. **Run tests from the worktree's own `.venv`.** Invoking the main checkout's
-   environment resolves the main checkout's (stale) sources — producing false greens
-   that mask real failures.
+2. **Run checks with this worktree's toolchain and sources.** Python checks use its
+   own `.venv`; future TS/JS members use this checkout's declared environment. Using
+   the main checkout's environment can resolve stale sources and mask failures.
 3. **The main checkout never leaves `main`.** No `git checkout <branch>` in the
    primary path, ever; branches live and die in worktrees.
 4. **Dispatched agents prove their position before working** — first action
@@ -180,13 +181,13 @@ not hypothesis.
    update local `main` and apply Retirement Before Removal. At fan-out merge-back,
    apply the same check to the spoke. Keep any tree still needed by an active consumer,
    unpreserved evidence, or the user; record why and when it can be released.
-6. **Long-lived drafts live in the main checkout.** Gitignored files inside a worktree
-   have no git protection — `worktree remove` vaporizes them. Backlogs, design notes,
-   anything that outlives the branch goes in the main checkout's `docs/plans/`.
-   Campaign roadmaps, scheduling charters and dispatch topology are orchestration
-   artifacts of the same kind: they stay in `docs/plans/` or on the HUB branch and are
-   never turned into a PR or filed under `omne_harness/delivery/` — that family owns
-   value commitments and DoD, not session topology.
+6. **Needed drafts survive worktree retirement.** Gitignored files have no git
+   protection. Preserve temporary plans, scheduling state and local evidence outside
+   the retiring tree, normally under the main checkout's `tmp/<task>/`, with explicit
+   retention needs. This is not durable archival storage. Research, proposals and
+   required long-term evidence belong in their owning tracked materials under the
+   [organization rules](../../../docs/maintenance/organization.md); session topology
+   alone is not a business contract or a reason to publish a proposal.
 7. **No `git stash`.** Preserve source work on its worktree branch under the task's
    commit authorization. Legitimate ignored evidence need not become a source commit;
    preserve it under the retention rules above.
@@ -209,12 +210,13 @@ the HUB, integration verification, and anything that touches `main`.
 
 ## Boundaries & Siblings
 
-- **`implementation_planning`** — authors the wave structure Mode B executes; the
-  fan-out's prerequisite, not its product.
-- **`test_driven_development`** — the loop running inside each spoke; red line 2 is
-  where the two skills meet.
-- **`github-pr`** — owns PR mechanics at campaign closure; this skill only decides the
-  closure shape.
+- **Task plan** — supplies the wave structure and acceptance scope Mode B executes;
+  architecture questions route through [architecture-design](../architecture-design/SKILL.md).
+- **[Development guide](../../../docs/development.md)** and
+  **[verification rules](../../../docs/maintenance/verification.md)** — own current
+  setup, check entrypoints and evidence scope.
+- **[Contribution guide](../../../CONTRIBUTING.md)** — owns reviewable delivery;
+  this skill owns the worktree topology and retirement conditions.
 - **Native isolation tools** (`EnterWorktree`, Agent `isolation: "worktree"`) — use
   them only when their destination can follow the project-root `.worktrees/`
   convention. Otherwise use explicit `git worktree add`; Mode B's named-HUB

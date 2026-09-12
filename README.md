@@ -25,6 +25,8 @@ Cordis 承载动态内核机制；Agent Loop、Harness 层、工具协议、治�
 
 | 任务 | 入口 |
 |---|---|
+| 开始参与研发或准备可审阅变更 | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| 配置环境、定位代码、运行检查与排障 | [开发指南](docs/development.md) |
 | 了解项目约定与研发品味 | [AGENTS.md](AGENTS.md) |
 | 定位设计材料 | [文档总索引](docs/README.md) |
 | 做架构设计、能力或服务边界判断 | [架构指南](docs/architecture-guide/README.md)、[architecture-design skill](.agents/skills/architecture-design/SKILL.md) |
@@ -41,19 +43,10 @@ Codex 与 Claude Code 的项目 skills 分别位于 `.agents/skills/` 与
 
 ## 仓库验证
 
-产品实现以 TypeScript 为主，Python 当前用于独立的
-[spec-tools](tools/spec-tools/README.md) 开发包。产品包、应用、工具和自动化分别归
-`packages/`、`apps/`、`tools/`、`scripts/`，完整分工见[源码布局](docs/maintenance/workspace.md)。
-
-安装 `uv` 后，在仓库根目录运行；根 `pyproject.toml` 与 `uv.lock` 组合 Python 开发环境。
-
-```sh
-uv sync --locked
-make check
-```
-
-`make check` 通过 [scripts/check.sh](scripts/check.sh) 顺序运行文档、规格与离线测试检查，
-单项入口见 [scripts/](scripts/README.md)。当前尚无 CI 平台配置或产品发布流水线。
+按[开发指南](docs/development.md#准备可用的检出)准备环境后，`make check` 运行当前
+文档、规格与离线测试检查组合。产品以 TypeScript 为主，Python 当前用于独立的
+[spec-tools](tools/spec-tools/README.md) 开发包；monorepo 分工见
+[源码布局](docs/maintenance/workspace.md)，单项入口见 [scripts/](scripts/README.md)。
 
 文档结构、引用和 Schema 校验不等于行为证明。TLA+/TLC 与 Alloy 的模型任务
 及 Java/JAR 环境单独声明和检查；`make spec-tools` 报告工具是否齐备。

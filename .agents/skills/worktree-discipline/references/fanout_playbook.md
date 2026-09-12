@@ -4,7 +4,9 @@ The Mode B walkthrough, command by command. `<campaign>` is the semantic campaig
 name; `WT=/path/to/main-checkout/.worktrees` throughout. The main checkout
 root is shared by the HUB and all spokes; never derive it from a linked worktree's
 current directory. Every command shown runs against explicit
-paths — never rely on "where the shell happens to be".
+paths — never rely on "where the shell happens to be". Setup and check commands
+follow the [development guide](../../../../docs/development.md); coverage and reuse
+of evidence follow the [verification rules](../../../../docs/maintenance/verification.md).
 
 ## 1. HUB Setup
 
@@ -12,7 +14,7 @@ paths — never rely on "where the shell happens to be".
 # From anywhere — paths are explicit
 git -C /path/to/main-checkout worktree add .worktrees/<campaign> -b worktree-<campaign>
 cd /path/to/main-checkout/.worktrees/<campaign>
-./scripts/uv_sync_all.sh                       # HUB gets its own .venv
+uv sync --locked                              # HUB gets its own development environment
 
 # Land plan-mandated foundation work as ordinary commits on the HUB branch
 git add <files> && git commit -m "chore(<campaign>): HUB setup — <what>"
@@ -50,7 +52,7 @@ First actions, before any other work:
 1. cd /abs/path/.worktrees/<campaign>-<spoke>
 2. git branch --show-current   → MUST print <campaign>-<spoke>; if not, STOP and report
 3. All file Writes/Edits use this worktree's absolute paths.
-4. All test runs use THIS worktree's .venv via ./scripts/run_tests.sh, output to /tmp logs.
+4. Checks use THIS checkout's declared tools and sources; current Python tools use its own .venv. Follow docs/development.md and preserve required output.
 Deadline: commit partial work with a WIP marker if approaching it.
 ```
 
@@ -75,9 +77,8 @@ Non-force removal can delete ignored files too; these checks precede either form
 cd "$WT/<campaign>"
 git merge --no-ff <campaign>-<spoke>      # conflicts resolved HERE, in the HUB
 
-# Integration verification after EVERY merge-back — scoped to the campaign's packages:
-./scripts/run_tests.sh --targets <pkgs> > /tmp/<campaign>-int-<spoke>.log 2>&1
-tail -30 /tmp/<campaign>-int-<spoke>.log
+# Current repository integration checks after merge-back; add member checks as implemented:
+make check
 
 # Only after Retirement Before Removal passes and cleanup is authorized:
 git -C /path/to/main-checkout worktree remove .worktrees/<campaign>-<spoke>
@@ -95,16 +96,16 @@ the next wave does not launch over a red barrier.
 
 ```bash
 cd "$WT/<campaign>"
-./scripts/run_tests.sh --targets <all-campaign-pkgs> > /tmp/<campaign>-final.log 2>&1
-# Plus the quality gates the changes warrant (ruff check + format --check, pyright)
+make check
+# Include any actual product-member checks required by the campaign plan.
 
 git push -u origin "$HUB_BRANCH"
-# → invoke the github-pr skill for PR creation; PRs to main wait for human review
+# Prepare the PR under CONTRIBUTING.md; PRs to main wait for human review.
 ```
 
 The commands show the required verification scope. If the same integrated contents,
 environment, configuration, and full scope already have applicable complete evidence,
-independently check and cite it under the test_driven_development Completion Gate.
+independently check and cite it under the repository's verification rules.
 Do not rerun solely because this is a new checkpoint; do run checks invalidated by
 changes or needed for missing evidence. Spoke-only results do not prove integration.
 

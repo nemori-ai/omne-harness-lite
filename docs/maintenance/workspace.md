@@ -62,6 +62,9 @@ uv 的[workspace 文档](https://docs.astral.sh/uv/concepts/projects/workspaces/
 
 ## 使用与维护
 
+首次准备检出与常见问题见[开发指南](../development.md)，交付要求见
+[贡献指南](../../CONTRIBUTING.md)。本节拥有成员依赖、跨包访问和产物位置的规则。
+
 在根执行 `uv sync --locked` 安装开发环境；`make check` 运行当前完整检查组合。
 单项检查与覆盖解释见[验证规范](verification.md)，工具包使用和构建见
 [spec-tools](../../tools/spec-tools/README.md)，自动化入口见 [scripts](../../scripts/README.md)。

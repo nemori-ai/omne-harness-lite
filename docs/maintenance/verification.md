@@ -19,7 +19,7 @@
 
 可复用验证证据至少记录：契约与模型版本、源码 commit、工具与版本、命令或配置、输入边界/假设和结果。通过、失败、不确定和未覆盖均须如实保留。有限测试或模型检查不能表述为无条件证明。
 
-Markdown 检查覆盖根入口，docs/spec、
+Markdown 检查覆盖根 README、CONTRIBUTING、AGENTS/CLAUDE 入口，docs/spec、
 packages/apps/tools/scripts 和 agent 配置目录；
 跳过依赖目录、构建产物与临时结果。历史原件按归档哈希核对。扩大源码目录时同步
 维护检查范围，避免目录有了入口文档却没有进入引用检查。

@@ -7,6 +7,7 @@
 
 | 要处理的内容 | 入口与作用 |
 |---|---|
+| 贡献与开发入口 | [贡献指南](../CONTRIBUTING.md)说明交付，[开发指南](development.md)导航操作；详细规则仍归维护文档 |
 | 架构方法、当前系统方向 | [指南](architecture-guide/README.md)提供方法，[当前架构](architecture/README.md)投影已接受选择；不互相代替 |
 | 来源事实与候选取舍 | [research/](research/README.md)保留观察范围，[proposals/](proposals/README.md)承载待审方案 |
 | 选择的接受或取代 | [decisions/](decisions/README.md)与[知识流转](maintenance/knowledge-flow.md)；评审意见只是接受输入 |
