@@ -26,5 +26,12 @@
 [PF-013](user/PF-013-session-run-lifecycle-and-pending-input-control.md)、
 [PF-014](agent/PF-014-runtime-tool-and-skill-discovery-and-loading.md)、
 [PF-015](agent/PF-015-artifact-management-and-isolated-working-copies.md)、
-[PF-016](agent/PF-016-agent-developed-cordis-plugins-and-live-deployment.md)。编号独立于维度，维护方式归
+[PF-016](agent/PF-016-agent-developed-cordis-plugins-and-live-deployment.md)、
+[PF-017](agent/PF-017-cross-session-history-and-background-coordination.md)、
+[PF-018](agent/PF-018-selfound-knowledge-and-cognition-use.md)、
+[PF-019](user/PF-019-tenant-subscription-usage-billing-and-budget.md)、
+[PF-020](environment/PF-020-dependency-availability-and-degradation.md)、
+[PF-021](environment/PF-021-multi-machine-deployment-and-assembly.md)、
+[PF-022](agent/PF-022-multimodal-response-and-output.md)、
+[PF-023](user/PF-023-session-model-selection-and-continuity.md)。编号独立于维度，维护方式归
 [需求维护](../../maintenance/requirements.md#身份与归属)。分类不代表插件、数据模型或部署单元。

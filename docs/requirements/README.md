@@ -22,6 +22,11 @@
 同日，用户继续补充[运行时与持久状态解耦、恢复接续及异构适配](system/runtime-state-and-continuity.md)
 的系统目标；其三项确认范围和来源参考在独立正文维护。
 
+后续新增工程全局要求
+[SYS-OBSERVABILITY：全链路可观测与日志完备](system/observability-and-logging.md)，
+并按用户对[个人版查漏结果](../research/personal-edition-requirement-gap-audit.md#2026-09-12-用户处置)
+的裁定更新产品条目；查漏建议、已确认方向和待设计细节分别保留。
+
 跨主题仍待展开的内容从各自拥有者进入：[动态定义的量词](system/fully-dynamic-system.md#待澄清)、
 [产品达成判断](system/long-running-and-evolving.md#待澄清)、
 [利益对齐](system/interest-alignment.md#待澄清)、

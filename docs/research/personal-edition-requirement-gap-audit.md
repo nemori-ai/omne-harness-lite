@@ -1,10 +1,10 @@
 ---
 kind: research
 id: R-personal-edition-requirement-gap-audit
-scope: 个人版正式产品要求与本项目 SYS/PF-001 至 PF-016 的能力比对；缺口待用户确认
+scope: 个人版与 SYS/PF-001 至 PF-016 的固定基线比对；保留原建议及本轮用户对 GAP 的取舍
 ---
 
-# 个人版产品要求的本质比对与待确认缺口
+# 个人版产品要求的本质比对与 GAP 处置
 
 [研究索引](README.md) · [当前产品要求](../requirements/product/README.md) · [系统目标](../requirements/system/README.md)
 
@@ -12,9 +12,30 @@ scope: 个人版正式产品要求与本项目 SYS/PF-001 至 PF-016 的能力�
 `omne-next/omne_harness_product_personal_edition` 作能力层面的比对，识别尚未记录
 的要求并提交确认。随后新增的在线插件开发 PF-016 也纳入本次比对。
 
-**本页所有 GAP、SUP、ENG 条目都是待确认建议，不是已确认产品要求。** 不分配
-新 PF 身份，不改变架构或规格接受状态。SYS-CONTINUITY 的整体继承方向不作为
+**原审计候选与用户后续处置分开保留。** GAP 当前范围以下表及链接的需求正文
+为准；原建议不是新增确认依据。SUP-01～06 与 ENG-01 仍待确认，本轮没有
+整包接受。需求落盘不改变架构或规格接受状态。SYS-CONTINUITY 的整体继承方向不作为
 “每一个具体能力已经落盘”的证据；同样，未建模、未实现与未记录是不同缺口。
+
+## 2026-09-12 用户处置
+
+| 原编号 | 本轮裁定与唯一需求归属 |
+|---|---|
+| GAP-01 | **重新定义并拆为两项**：[PF-017](../requirements/product/agent/PF-017-cross-session-history-and-background-coordination.md) Agent 跨会话历史状态检索及后台通信协调；[PF-018](../requirements/product/agent/PF-018-selfound-knowledge-and-cognition-use.md) 使用 omne-selfound，主要为 Engram/Cognition。原建议的全部自动记忆产品行为不随名称一并接受 |
+| GAP-02 | **并入 PF-017** 的跨会话检索/通信部分，不另建用户因果面板要求 |
+| GAP-03 | **既有能力组合**：[PF-013.C11](../requirements/product/user/PF-013-session-run-lifecycle-and-pending-input-control.md#状态权限与跨端一致性) 补充按发起者等条件过滤检索，结合 Session/Run 生命周期和 [PF-011](../requirements/product/agent/PF-011-future-planning-calendars-and-reminders.md) 面向用户的日程管理；不另立自主总控 PF |
+| GAP-04 | **扩展租户管理**：[PF-019](../requirements/product/user/PF-019-tenant-subscription-usage-billing-and-budget.md) 维护订阅、额度/用量、账单、预算及逐 Agent Step 金额，[PF-010](../requirements/product/user/PF-010-organization-personal-assets-and-permissions.md) 作管理入口引用 |
+| GAP-05 | **本轮暂不纳入**完整安装/认领/运维产品旅程；不撤销既有部署、运行和恢复要求 |
+| GAP-06 | **本轮暂不纳入**用户备份/恢复产品能力；不撤销已有持久状态或制品保存要求 |
+| GAP-07 | **结合 Cordis 细化**为 [PF-020](../requirements/product/environment/PF-020-dependency-availability-and-degradation.md)：按装配及必要/可选依赖判断局部可用性、诚实降级与恢复，保留 OpenRouter 约束 |
+| GAP-08 | **纳入并结合 Cordis 细化**为 [PF-021](../requirements/product/environment/PF-021-multi-machine-deployment-and-assembly.md)：机器接入/撤回、工作落点和逻辑装配与物理部署的区别；首次完整交付仍为单机 |
+| GAP-09 | **新增 Agent 多模态输出** [PF-022](../requirements/product/agent/PF-022-multimodal-response-and-output.md)，主维度智能体；包含模型原生/工具产出、流式回复和受权原件交付 |
+
+同轮另增 [PF-023](../requirements/product/user/PF-023-session-model-selection-and-continuity.md)
+会话级合法模型切换后继续新一轮，以及
+[SYS-OBSERVABILITY](../requirements/system/observability-and-logging.md) 工程全链路
+可观测与日志完备；后者不等于自动接受原 GAP-02 的用户披露方案或 ENG-01 的
+CI/发布要求。补充事实、来源版本和推导边界见[本轮来源核对](requirements-gap-resolution-sources.md)。
 
 ## 比对基线与方法
 
@@ -29,7 +50,7 @@ scope: 个人版正式产品要求与本项目 SYS/PF-001 至 PF-016 的能力�
 宽泛目标而缺相应能力的记为未明确记录。界面样式、库/API、固定默认值、旧工程
 路径和实现缺陷不计作新的能力要求。此处没有评估本项目实现完成度。
 
-## 九项能力的逐项结果
+## 九项能力的逐项结果（原审计基线）
 
 | 来源能力及条款 | 当前本质覆盖 | 尚缺什么 / 本页去向 |
 |---|---|---|
@@ -43,7 +64,10 @@ scope: 个人版正式产品要求与本项目 SYS/PF-001 至 PF-016 的能力�
 | [长期事务陪跑][affair] PEL-1～7 | PF-011.C1/C2/C5 已含结果驱动的非线性重规划、分阶段继续、自唤醒，C8～11 含检查点管理及历史；PF-015 可保存工作材料 | **规划机制已覆盖，事务整体结果部分缺失**：有终点的目标、步骤依赖、整体进度/追问、终结与一并撤下 SUP-03；不把全部日历/自唤醒重复记为新增 |
 | [集中批阅][review] PER-1～6 | PF-007.C6/C7 已完整纳入暂行资格、非阻塞、超时不决定、撤销级联与按类回传；PF-008 集中呈现及直接作答 | **核心机制已覆盖**：PF-008.C4 目前只说“某类支持批量时逐项结算”，尚未承诺必须提供该批量能力；加上完整待办可达、预览和依赖阅读 SUP-04。无需再建独立决定池 |
 
-## 尚未明确记录的能力候选
+## 原审计能力候选（按基线保留）
+
+以下保留提交用户时的建议含义，**当前确认范围以上方处置表为准**；“建议”
+不表示还需对已经裁定的 GAP 再确认，也不把已排除项重新放回产品要求。
 
 ### GAP-01：自动积累、跨会话使用且可解释可纠正的长期记忆
 
@@ -173,11 +197,11 @@ PF-009 明确聚焦输入，PF-003 的流是工具内部帧，PF-015 是工作�
 它属于维护/交付要求，建议单独确认其原则；不作为用户产品 PF，不复制源 Python
 workspace 排除、路径白名单、固定 job 数量/超时、全局标签或发布流程批准机制。
 
-## 差异与建议确认顺序
+## 差异与剩余确认范围
 
-建议先确认 GAP-01～06、GAP-09 和 SUP-01～06 的方向；GAP-07 按本地能力及
-远端降级收窄，GAP-08 明确为未来范围，ENG-01 独立决定。细节可以逐项展开。
-这些建议没有被写入当前 requirements；本次不以“继承”绕过用户要求的确认。
+GAP-01～09 已按本轮裁定分别落盘、合并或暂不纳入。SUP-01～06 和 ENG-01
+尚未得到逐项裁定；新 PF-018 的认知/目标使用不等于已接受 SUP-03 的全部
+用户事务管理旅程，SYS-OBSERVABILITY 也不代替 SUP-05 的具体用户呈现要求。
 
 以下不作为缺口：既有三类 HITL 及暂行撤销、工具前后台及控制、sub-agent、
 输入附件、租户与资产管理、日历及非线性安排，均有对应正文；PF-014～16 的
@@ -194,7 +218,8 @@ provider 暂时缺接口、原系统缺陷及未经接受的扩张，均不转�
 与本地 Git blob 逐字节核对。Provider request 索引部分摘要仍使用早期 draft
 措辞，而 R31/R35 正文已有后续 receipt；本页采用具体文件的处置，R27 保留 draft。
 没有把来源“Accepted”转换成实现/支持状态，没有运行原产品验收。本页是可审阅
-差异清单，不是完整 omne-next 全仓能力继承审计，也没有检索仓外 cognition 实现。
+差异清单，不是完整 omne-next 全仓能力继承审计。原审计没有检索仓外 cognition；
+后续本轮补充读取了 omne-selfound 的要求和概览，具体范围归[来源核对](requirements-gap-resolution-sources.md)。
 
 [map]: https://github.com/nemori-ai/omne-next/blob/6263fed545e48ad9efb5714f3fe76a7c1a0af1b5/omne_harness_product_personal_edition/requirements/capability-map.md
 [requests]: https://github.com/nemori-ai/omne-next/blob/6263fed545e48ad9efb5714f3fe76a7c1a0af1b5/omne_harness_product_personal_edition/requirements/provider-requests/omne_harness/README.md

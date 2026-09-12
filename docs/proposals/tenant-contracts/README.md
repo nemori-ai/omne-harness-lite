@@ -40,3 +40,8 @@
 用户的“超级管理员”不能未经映射就套成源 admin 或平台管理员。管理目录归
 PF-010，配置/授权如何生效归 [PF-006](../../requirements/product/user/PF-006-user-settings-and-agent-definition-authorization.md)，
 需求分篇不预先划分服务、界面或存储。
+
+后续 [PF-019](../../requirements/product/user/PF-019-tenant-subscription-usage-billing-and-budget.md)
+扩展租户管理至订阅、额度/用量、账单与预算，要求逐 Agent Step 的金额统计。
+当前候选未定义财务管理资格、订阅/使用权益/预算分工、计量归因与迟到结算；
+成员身份或资产权益不能代替这些语义，也不因可看租户账目就授予私人会话正文读取权。

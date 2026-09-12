@@ -22,6 +22,14 @@
 档案和路由数据输入，不能证明所有实际请求统一经 OpenRouter，也未定义动态更新
 对在途工作的完整含义。
 
+后续 [PF-023](../../requirements/product/user/PF-023-session-model-selection-and-continuity.md)
+确立会话级合法模型切换：候选读面、耐久模态判据、未知能力、目标窗口的一次
+非破坏压缩、选择不外溢及下一轮接续，尚未在本候选中建模。
+[PF-022](../../requirements/product/agent/PF-022-multimodal-response-and-output.md)
+同时要求模型原生多模态输出与工具结果可交付；档案声明不能证明实际链路具备
+这些能力。逐 Step 金额归 [PF-019](../../requirements/product/user/PF-019-tenant-subscription-usage-billing-and-budget.md)，
+模型选择与费用准入需衔接，不能把 token 限额当货币预算。
+
 2026-09-12 按 D-004 补充本入口的当前关系，使用本轮需求工作区快照；
 这不是对旧版本的历史追溯声明，也不改变 in-review 状态。接受具体设计前再固定
 所采用的确认条款与 Git 基线。

@@ -6,6 +6,11 @@
 
 - [PF-002：外部环境感知与响应](PF-002-external-change-response.md)
 - [PF-012：Computer、Browser、Shell 能力与沙盒／本机使用](PF-012-computer-browser-shell-sandbox-and-native-use.md)
+- [PF-020：依赖可用性、局部离线与诚实降级](PF-020-dependency-availability-and-degradation.md)
+- [PF-021：多机器接入、工作部署与动态装配](PF-021-multi-machine-deployment-and-assembly.md)
+
+副维度关联：[PF-018：使用 omne-selfound 的知识与认知能力](../agent/PF-018-selfound-knowledge-and-cognition-use.md)
+（主维度：智能体）。实际接入依赖匹配的公开契约、服务环境和有效权限；局部后端故障如实呈现。
 
 副维度关联：[PF-011：面向未来的复杂日程规划、日历与通知提醒](../agent/PF-011-future-planning-calendars-and-reminders.md)
 （主维度：智能体）。外部环境、信源、数据源和连接器信号可以引出未来规划与

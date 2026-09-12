@@ -79,6 +79,7 @@ DSH 的具体 Agent Loop、Profile/Bundle 装配和应用策略是参考资料�
 |---|---|
 | [SYS-DYNAMIC](../requirements/system/fully-dynamic-system.md)、[SYS-LONG-RUNNING](../requirements/system/long-running-and-evolving.md) | [Agent 核心候选](../proposals/agent-core/README.md#当前需求对应与缺口)仅覆盖部分执行语义；长期稳定与动态达成判断尚未形成精确承诺 |
 | [SYS-RUNTIME-CONTINUITY](../requirements/system/runtime-state-and-continuity.md) | 新增已确认系统目标；[状态与存储](../architecture-guide/modeling/state-and-storage.md)、[部署边界](../architecture-guide/runtime/distribution.md)提供方法，运行时/持久状态分工、同构恢复和异构装配仍缺完整规格与兑现证据 |
+| [SYS-OBSERVABILITY](../requirements/system/observability-and-logging.md) | 工程全链路及日志完备已确立；[约束落实](constraints.md)投影尚缺的关联、采集、缺口处理及验证责任，不代表已选定观测技术栈 |
 | [SYS-ALIGNMENT](../requirements/system/interest-alignment.md) | 目标已确认，利益对齐含义、冲突处理与验证方式待展开 |
 | [SYS-CONTINUITY](../requirements/system/omne-next-continuity.md) | 已有来源核对，完整继承清单、截止范围和未来承诺处理仍待明确 |
 | [PF-001](../requirements/product/user/PF-001-tenant-organization-context.md) | [租户候选](../proposals/tenant-contracts/README.md#当前需求对应与缺口)有身份输入，协作上下文与四类效用尚需定义 |
@@ -93,10 +94,17 @@ DSH 的具体 Agent Loop、Profile/Bundle 装配和应用策略是参考资料�
 | [PF-010](../requirements/product/user/PF-010-organization-personal-assets-and-permissions.md) | [租户候选](../proposals/tenant-contracts/README.md#当前需求对应与缺口)与 [Agent 核心候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺个人用户/组织超级管理员的资产、设置及权限管理、对象生命周期、角色矩阵和变更影响完整模型；配置生效规则引用 PF-006 |
 | [PF-011](../requirements/product/agent/PF-011-future-planning-calendars-and-reminders.md) | [当前候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺复杂未来规划、多地日历、耐久闹钟与推送的完整设计；执行和/或通知按本轮要求可组合，源旧互斥限制不作为本项目约束 |
 | [PF-012](../requirements/product/environment/PF-012-computer-browser-shell-sandbox-and-native-use.md) | [当前候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺三类 use、沙盒/本机目标授权及共享环境控制的完整定义；部署有效范围由模型能力等级、装配配置、部署默认权限与用户授权共同决定，精确作用规则待设计 |
-| [PF-013](../requirements/product/user/PF-013-session-run-lifecycle-and-pending-input-control.md) | [当前候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺会话目录与生命周期、精确运行控制、不同工具级联效果、忙时输入及可编辑/调序的耐久队列完整设计；单条消息不必对应独立 Run |
+| [PF-013](../requirements/product/user/PF-013-session-run-lifecycle-and-pending-input-control.md) | [当前候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺按发起者等条件过滤的会话目录、生命周期、精确运行控制、不同工具级联效果、忙时输入及可编辑/调序的耐久队列完整设计；与用户日程管理组合，单条消息不必对应独立 Run |
 | [PF-014](../requirements/product/agent/PF-014-runtime-tool-and-skill-discovery-and-loading.md) | [当前候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺工具/技能发现、按需装载、当前授权及能力变化的完整模型；上游注册机制不代替端到端产品能力 |
 | [PF-015](../requirements/product/agent/PF-015-artifact-management-and-isolated-working-copies.md) | [当前候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺独立于运行时及宿主机的制品存储、本机/沙盒加载、隔离工作副本和并发保存模型；Git worktree 仅是可选示例 |
 | [PF-016](../requirements/product/agent/PF-016-agent-developed-cordis-plugins-and-live-deployment.md) | [当前候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺 Agent 在权限策略下开发、验证、在线部署与管理 Cordis 插件的完整模型；已扩展旧官方实现来源边界，内核 HMR 不自动提供租户安全、在途迁移或持久部署 |
+| [PF-017](../requirements/product/agent/PF-017-cross-session-history-and-background-coordination.md) | [Agent 核心候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺跨会话历史检索、后台通信、目标受理及恢复接续的完整模型，父子监督不覆盖全部对等协作 |
+| [PF-018](../requirements/product/agent/PF-018-selfound-knowledge-and-cognition-use.md) | [Agent 核心候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺 selfound 公开能力接入、身份/租户映射、认知与执行事实的契约；不重建同义知识或认知权威 |
+| [PF-019](../requirements/product/user/PF-019-tenant-subscription-usage-billing-and-budget.md) | [租户候选](../proposals/tenant-contracts/README.md#当前需求对应与缺口)尚缺订阅额度/账单/预算与逐 Step 金额归因、迟到费用和并发预算准入，属于 PF-010 下的管理专题 |
+| [PF-020](../requirements/product/environment/PF-020-dependency-availability-and-degradation.md) | 待定义各装配的必要/可选依赖、实际就绪、断连操作边界与恢复；Cordis 服务注册不证明远端可用，OpenRouter 路径保持 |
+| [PF-021](../requirements/product/environment/PF-021-multi-machine-deployment-and-assembly.md) | 待定义多机接入/撤回、逻辑装配与物理部署、实际落点及独占执行所有权；[部署方法](../architecture-guide/runtime/distribution.md)不等于已有集群方案，首版仍为单机 |
+| [PF-022](../requirements/product/agent/PF-022-multimodal-response-and-output.md) | [Agent 核心候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺模型原生/工具产出、流式回复、媒体原件及历史一致交付；输入附件或工具过程流不能替代 |
+| [PF-023](../requirements/product/user/PF-023-session-model-selection-and-continuity.md) | [模型候选](../proposals/model-contracts/README.md#当前需求对应与缺口)与 Agent 核心尚缺候选判定、耐久模态事实、窗口压缩及下一轮模型选择并发语义 |
 | 已有 SYS-* 全局要求 | [约束落实索引](constraints.md)逐项导航 |
 
 2026-09-12 迁移核对：D-001、D-002 由 D-004 补充，D-003 保持适用；没有已接受

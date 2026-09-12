@@ -11,9 +11,27 @@
 - [PF-009：多模态输入、附件与命令操作](PF-009-multimodal-input-attachments-and-commands.md)
 - [PF-010：个人与组织的资产、设置及权限管理](PF-010-organization-personal-assets-and-permissions.md)
 - [PF-013：Session、Run 生命周期与运行中输入管理](PF-013-session-run-lifecycle-and-pending-input-control.md)
+- [PF-019：租户订阅、额度、用量、账单与预算管理](PF-019-tenant-subscription-usage-billing-and-budget.md)
+- [PF-023：会话级合法模型切换与下一轮接续](PF-023-session-model-selection-and-continuity.md)
 
 PF-010 统一维护个人用户、组织超级管理员等主体的管理范围与操作；PF-006
-维护配置覆盖和定义授权的生效规则。管理体验可以连续，需求正文分别保留唯一归属。
+维护配置覆盖和定义授权的生效规则。PF-019 是租户管理下的订阅计费专题；
+PF-023 拥有会话模型切换。管理体验可以连续，需求正文分别保留唯一归属。
+
+副维度关联：[PF-017：跨会话历史状态检索与后台通信协作](../agent/PF-017-cross-session-history-and-background-coordination.md)
+（主维度：智能体）。用户可让 Agent 参考其他获准会话并协调工作，来源与权限边界保留。
+
+副维度关联：[PF-018：使用 omne-selfound 的知识与认知能力](../agent/PF-018-selfound-knowledge-and-cognition-use.md)
+（主维度：智能体）。用户及组织的知识与认知沿有效权限被读取、检查和修订。
+
+副维度关联：[PF-020：依赖可用性、局部离线与诚实降级](../environment/PF-020-dependency-availability-and-degradation.md)
+（主维度：环境）。用户能辨认仍可用、等待、陈旧、未送达和失败，不受影响的本地能力继续工作。
+
+副维度关联：[PF-021：多机器接入、工作部署与动态装配](../environment/PF-021-multi-machine-deployment-and-assembly.md)
+（主维度：环境）。有权用户管理机器接入与承接资格，查看实际装配、就绪和工作落点。
+
+副维度关联：[PF-022：多模态响应与输出](../agent/PF-022-multimodal-response-and-output.md)
+（主维度：智能体）。用户接收逐步回复及实际媒体/文件，并可在获准历史中读回原件。
 
 副维度关联：[PF-002：外部环境感知与响应](../environment/PF-002-external-change-response.md)
 （主维度：环境）。用户能授权和管理独立的 Connector 连接，辨认安装与供给状态；

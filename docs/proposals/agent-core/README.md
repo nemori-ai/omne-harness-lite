@@ -115,3 +115,20 @@ Workspace 存储方案或 Git worktree 均不因来源引用而成为已接受�
 确切候选与验证、生命周期、依赖和在途变更、持久恢复及实际代码执行边界。
 Cordis HMR、DSH 动态 runner 和 Raven 开发反馈仅为[研究依据](../../research/agent-developed-cordis-plugin-sources.md)，
 不构成已选定的部署、沙盒或回退方案。
+
+用户对个人版 GAP 的后续裁定新增以下要求；本候选尚未建模，不能以旧名词的
+相似性视为覆盖：
+
+| 需求 | 候选尚缺的语义 |
+|---|---|
+| [PF-017](../../requirements/product/agent/PF-017-cross-session-history-and-background-coordination.md) | 跨会话历史检索、对等后台通信的权限、受理与恢复；父子监督不替代这些能力 |
+| [PF-018](../../requirements/product/agent/PF-018-selfound-knowledge-and-cognition-use.md) | selfound 公开能力发现/使用、身份映射、知识/认知质量与运行事实的分工 |
+| [PF-019](../../requirements/product/user/PF-019-tenant-subscription-usage-billing-and-budget.md) | Step 与尝试/后台工作/派发树的费用关联，以及租户预算在新消耗准入时的效果 |
+| [PF-020](../../requirements/product/environment/PF-020-dependency-availability-and-degradation.md)、[PF-021](../../requirements/product/environment/PF-021-multi-machine-deployment-and-assembly.md) | 依赖可用性、逻辑装配与物理部署、断连和恢复条件；不将 Cordis 本地服务注入当作集群协议 |
+| [PF-022](../../requirements/product/agent/PF-022-multimodal-response-and-output.md) | 模型原生/工具生成的多模态回复、流式/历史一致及实际原件交付 |
+| [PF-023](../../requirements/product/user/PF-023-session-model-selection-and-continuity.md) | 同一会话的合法模型候选、模态兼容、窗口压缩、下一轮选择与回复模型归因 |
+| [SYS-OBSERVABILITY](../../requirements/system/observability-and-logging.md) | 跨入口、Run/Step、工具/派发、装配与恢复的工程观测关联、日志责任及缺口可见性 |
+
+[PF-013.C11](../../requirements/product/user/PF-013-session-run-lifecycle-and-pending-input-control.md#状态权限与跨端一致性)
+新增按发起者等条件检索会话，结合用户可管理的 PF-011 日程；仍需定义这一
+组合的可见对象及各控制效果，不新增“全局暂停一切”的隐式原语。

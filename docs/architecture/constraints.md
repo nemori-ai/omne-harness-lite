@@ -14,6 +14,7 @@
 | [SYS-DEPLOY](../requirements/system/constraints.md#sys-deploy) | [部署设计方法](../architecture-guide/runtime/distribution.md)，具体边界待逐能力定义 |
 | [SYS-TENANT](../requirements/system/constraints.md#sys-tenant) | [租户候选](../proposals/tenant-contracts/README.md)，多组织协作要求归 PF-001 |
 | [SYS-LLM](../requirements/system/constraints.md#sys-llm) | [模型候选](../proposals/model-contracts/README.md)，数据档案不证明请求兑现 |
+| [SYS-OBSERVABILITY](../requirements/system/observability-and-logging.md) | 工程全链路可观测、关键日志及覆盖缺口的明确要求；跨异步/进程/节点和重建的关联、日志/指标/轨迹责任、受治理读面与验证尚缺完整设计，现有局部状态展示不能代替 |
 | [SYS-EXPERIMENT](../requirements/system/constraints.md#sys-experiment) | [当前阶段](README.md#系统定位)，历史材料不构成实现兼容承诺 |
 
 产品与其他目标覆盖见[当前架构](README.md#需求覆盖与缺口)。这些 ID 不替代精确

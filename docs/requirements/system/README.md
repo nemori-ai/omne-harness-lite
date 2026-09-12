@@ -7,6 +7,7 @@
 | SYS-DYNAMIC | [完全动态系统](fully-dynamic-system.md) |
 | SYS-LONG-RUNNING | [超长期待机、稳定运行与持续进化](long-running-and-evolving.md) |
 | SYS-RUNTIME-CONTINUITY | [运行时与持久状态解耦、恢复接续及异构适配](runtime-state-and-continuity.md) |
+| SYS-OBSERVABILITY | [全链路可观测与日志完备](observability-and-logging.md) |
 | SYS-ALIGNMENT | [与服务对象始终保持利益对齐](interest-alignment.md) |
 | SYS-CONTINUITY | [omne-next 功能继承与发展](omne-next-continuity.md) |
 | SYS-IDENTITY、SYS-KERNEL、SYS-SPEC、SYS-DEPLOY、SYS-TENANT、SYS-LLM、SYS-EXPERIMENT | [跨系统约束](constraints.md) |

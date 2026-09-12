@@ -73,6 +73,10 @@ C6 随后续管理补充记录清除覆盖时的生效边界。
 
 ## 关联与当前覆盖
 
+[PF-023](PF-023-session-model-selection-and-continuity.md) 进一步拥有会话级合法
+模型切换、候选集、模态/窗口检查及下一轮接续；本项维护一般设置与授权求值，
+不复制该专项的模型选择正文。
+
 [PF-001](PF-001-tenant-organization-context.md) 拥有用户多组织上下文效用；
 [PF-010](PF-010-organization-personal-assets-and-permissions.md) 拥有管理范围
 与操作目录，C6 的缺席规则来源及分篇依据见[管理核对](../../../research/tenant-management-sources.md)；

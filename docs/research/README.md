@@ -21,7 +21,8 @@
 - [DSH 动态能力研究](dsh-cordis-dynamic/README.md)
 - [运行时工具/技能装载与独立制品管理的跨系统来源](dynamic-loading-and-artifact-sources.md)
 - [Agent 开发及在线装载 Cordis 插件：DSH 与 Raven 机制研究](agent-developed-cordis-plugin-sources.md)
-- [个人版产品要求本质比对与待确认缺口](personal-edition-requirement-gap-audit.md)
+- [个人版产品要求本质比对与 GAP 处置](personal-edition-requirement-gap-audit.md)
+- [GAP 取舍与跨会话、selfound、租户财务、Cordis、输出及工程观测的来源核对](requirements-gap-resolution-sources.md)
 - [Agent 系统评测与 benchmark 驱动迭代](agent-system-evaluation/README.md)
 
 使用方法见[知识流转](../maintenance/knowledge-flow.md)。

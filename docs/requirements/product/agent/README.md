@@ -11,9 +11,20 @@
 - [PF-014：运行时发现与按需装载工具、技能](PF-014-runtime-tool-and-skill-discovery-and-loading.md)
 - [PF-015：制品管理与隔离工作副本](PF-015-artifact-management-and-isolated-working-copies.md)
 - [PF-016：Agent 开发 Cordis 插件并在线部署装载](PF-016-agent-developed-cordis-plugins-and-live-deployment.md)
+- [PF-017：跨会话历史状态检索与后台通信协作](PF-017-cross-session-history-and-background-coordination.md)
+- [PF-018：使用 omne-selfound 的知识与认知能力](PF-018-selfound-knowledge-and-cognition-use.md)
+- [PF-022：多模态响应与输出](PF-022-multimodal-response-and-output.md)
 
 副维度关联：
 
+- [PF-019：租户订阅、额度、用量、账单与预算管理](../user/PF-019-tenant-subscription-usage-billing-and-budget.md)
+  （主维度：用户）：逐 Agent Step 归因金额，重试、后台调用、恢复与子 Agent 消耗保留真实归集。
+- [PF-020：依赖可用性、局部离线与诚实降级](../environment/PF-020-dependency-availability-and-degradation.md)
+  （主维度：环境）：Agent 按实际依赖、授权和就绪条件工作，断连不伪报成功。
+- [PF-021：多机器接入、工作部署与动态装配](../environment/PF-021-multi-machine-deployment-and-assembly.md)
+  （主维度：环境）：Agent 工作适配获准机器和插件/服务装配，实际执行位置及接续结果可辨。
+- [PF-023：会话级合法模型切换与下一轮接续](../user/PF-023-session-model-selection-and-continuity.md)
+  （主维度：用户）：同一会话保留历史，以合法新模型继续下一轮，能力按新条件生效。
 - [PF-001：原生租户隔离与多组织上下文](../user/PF-001-tenant-organization-context.md)
   （主维度：用户）：智能体与用户协作时，数据、权限、行动空间和流程规范的效用
   随组织上下文生效。
