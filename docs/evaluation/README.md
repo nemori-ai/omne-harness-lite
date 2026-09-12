@@ -13,10 +13,12 @@
 
 ## 运行与结果
 
-固定的第一版开发任务集在 [developer-model-v1.json](suites/developer-model-v1.json)。
-它含训练与留出任务，覆盖权威归属、未批准提案、无新观测的重争论、因果复议、
-局部修改的流程负担，以及跨边界、取消和资源保证。它是评估输入，不是产品
-runtime 基准。
+公开的第一版开发任务包在 [developer-model-v1.json](suites/developer-model-v1.json)。
+每项都含可交给人工或 agent 执行的 prompt、fixture 与可观察 rubric，覆盖权威
+归属、未批准提案、无新观测的重争论、因果复议、局部修改的流程负担，以及跨
+边界、取消和资源保证。它是可调优的公开开发样例，**不是真正的留出集**，也
+不是产品 runtime 基准。真实评估须另存一个未参与辅助或 prompt 调优的冻结检
+验集，记录其文件/hash 和防污染声明。
 
 实验报告须符合 [Schema](formats/developer-model-experiment.schema.json)，并用：
 
@@ -25,10 +27,12 @@ python spec/tools/evaluate_developer_model.py path/to/report.json
 ```
 
 命令验证报告和本地证据文件，输出仅有 `evidence-ready` 或
-`needs-completion`。前者只表示三种处理、训练/留出、重复运行、版本和 hash、
-约束观察、成本及人工记录已齐全；它不计算显著性、不判定哪一方案更好、不授
-权采用、更不切换模型。`needs-completion` 明确缺项、未观察的关键约束、失败
-约束或不可验证证据。真实模型调用、付费调用和模型切换都不在此工具范围内。
+`needs-completion`。前者只表示基线 retain 与候选的 retain/simplify/remove、
+冻结留出、重复运行、可回查版本与配置、约束观察、成本及人工记录已齐全；它
+不计算显著性、不判定哪一方案更好、不授权采用、更不切换模型。违反关键约束
+是完整的负面证据，仍可 evidence-ready，并应由人记录 `do_not_adopt`；未观察
+约束、覆盖或证据缺失才是 `needs-completion`。真实模型调用、付费调用和模型
+切换都不在此工具范围内。
 
 每个报告的 `adoption_record` 必须由人填写为 `undecided`、`adopt` 或
 `do_not_adopt`，并说明限定范围。候选在这些任务上表现良好最多支持“在该范围
