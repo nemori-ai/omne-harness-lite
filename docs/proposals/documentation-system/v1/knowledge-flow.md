@@ -1,8 +1,8 @@
 # 研究、提案、决定与规格的联合使用
 
-[方案首页](README.md) · [社区证据](../framework-doc-governance-research/report.zh.md)
+[方案首页](README.md) · [社区证据](../../../research/framework-governance/README.md)
 
-状态：proposed。本页补充文档之间如何流转、相互支持和被 agent 使用。以下是本项目建议，社区依据见研究报告，尚未成为正式维护规则。
+> 历史状态：`proposed`。本页保留方案形成时的讨论；当前有效规则见[维护规范](../../../maintenance/knowledge-flow.md)及[D-002](../../../decisions/D-002-decision-authority.md)。
 
 ## 目录
 

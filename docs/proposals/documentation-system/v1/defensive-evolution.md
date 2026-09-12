@@ -1,8 +1,8 @@
 # 防御模式的积累、适用与退出
 
-[方案首页](README.md) · [知识流转](knowledge-flow.md) · [社区证据](../framework-doc-governance-research/report.zh.md)
+[方案首页](README.md) · [知识流转](knowledge-flow.md) · [社区证据](../../../research/framework-governance/README.md)
 
-状态：proposed。本页提出持续维护机制，不将现有模式直接删除或改为新约定。
+> 历史状态：`proposed`。本页保留当时的候选机制；当前有效规则见[维护规范](../../../maintenance/defensive-evolution.md)、[开发模型评估](../../../evaluation/README.md)及[D-003](../../../decisions/D-003-defensive-evaluation.md)。
 
 ## 目录
 
@@ -89,7 +89,7 @@
 
 ## 现有文档需要怎样调整
 
-现有[防御性研发模式](../../docs/defensive-patterns.md)将全部条目描述成需要长期保持的原则。建议改为可持续维护的当前指导，并补充归属、范围和证据链接；不把每一段原文都固化为不可变约束。
+现有[防御性研发模式](../../../defensive-patterns.md)将全部条目描述成需要长期保持的原则。建议改为可持续维护的当前指导，并补充归属、范围和证据链接；不把每一段原文都固化为不可变约束。
 
 两处值得在迁移中专门澄清：
 

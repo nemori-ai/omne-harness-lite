@@ -1,0 +1,21 @@
+# 组织、归属与权威
+
+本规范落实 [D-001](../decisions/D-001-documentation-system.md)。每个概念只能有一个权威定义；投影、示例和边界传输形状必须链接其定义并说明映射，不能静默复制语义。
+
+| 内容 | 权威位置 | 其他材料的责任 |
+|---|---|---|
+| 项目方向与红线 | 根 `AGENTS.md` 和已接受架构约束 | 只引用或投影，不另写冲突的要求 |
+| 架构方法 | `docs/architecture-guide/` | skill 负责路由，提案不复制方法论 |
+| 当前系统视图 | `docs/architecture/` | 指向精确决定和规格版本 |
+| 架构选择及适用范围 | `docs/decisions/D-*.md` | 提案保留讨论，研究保留证据 |
+| 候选方案与待决问题 | `docs/proposals/` | 不得作为正式规范依赖 |
+| 观察、来源、推断与局限 | `docs/research/` | 不得授权项目政策 |
+| 可复现的对象、操作和组合承诺 | `spec/**/vN/contract.md` | 模型、Schema、场景和证据就近关联 |
+| 当前防御指导 | `docs/defensive-patterns.md` | 保证回到所属契约，演化规则见本目录 |
+| 事故机制 | 按需建立的 `docs/postmortems/` | 链接促成的规则、决定或测试 |
+
+正式规格依语义分为 `spec/data/`、`spec/capabilities/` 和 `spec/compositions/`。目录不表示插件、进程、数据库表或部署拓扑。数据契约定义可复用的数据含义；能力契约定义可观察的行为、授权、所有权与生命周期；仅当整体性质不能归属一个能力时才使用组合契约。
+
+每个正式契约至少有入口、版本化 `contract.md` 和 `spec/catalog.json` 中的登记。复杂度实际出现时才增加 Schema、形式模型、场景或验证映射。`spec/archive/` 是历史材料，`docs/proposals/` 是候选材料，均不进入有效目录清单。
+
+正式内容的 metadata 与字段形状以 `tmp/documentation-system-delivery/interfaces.md` 为机器可检查的接口约定。维护者不得另建平行 registry、`current.json` 或运行时注册表来表达目录状态；`catalog.json` 只服务文档发现，不参与 Cordis 的动态解析。
