@@ -20,4 +20,6 @@ ids: [SYS-LONG-RUNNING]
 目标在第一版均已完整交付。
 
 相关目标为 [SYS-DYNAMIC](fully-dynamic-system.md) 和 [SYS-ALIGNMENT](interest-alignment.md)。
+[SYS-RUNTIME-CONTINUITY](runtime-state-and-continuity.md)进一步明确运行时与持久状态
+解耦、同构资源恢复接续及异构环境适配的目标。
 [PF-002](../product/environment/PF-002-external-change-response.md) 表达外部变化参与协作的产品要求。

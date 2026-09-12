@@ -19,6 +19,9 @@
 [需求基础提案](../proposals/requirements-foundation/README.md#接受记录)。各正文记录
 具体确认范围，来源补充和未决问题分别标明；没有对未来补充整页预先接受。
 
+同日，用户继续补充[运行时与持久状态解耦、恢复接续及异构适配](system/runtime-state-and-continuity.md)
+的系统目标；其三项确认范围和来源参考在独立正文维护。
+
 跨主题仍待展开的内容从各自拥有者进入：[动态定义的量词](system/fully-dynamic-system.md#待澄清)、
 [产品达成判断](system/long-running-and-evolving.md#待澄清)、
 [利益对齐](system/interest-alignment.md#待澄清)、

@@ -78,6 +78,7 @@ DSH 的具体 Agent Loop、Profile/Bundle 装配和应用策略是参考资料�
 | 上游要求 | 当前对应与尚缺内容 |
 |---|---|
 | [SYS-DYNAMIC](../requirements/system/fully-dynamic-system.md)、[SYS-LONG-RUNNING](../requirements/system/long-running-and-evolving.md) | [Agent 核心候选](../proposals/agent-core/README.md#当前需求对应与缺口)仅覆盖部分执行语义；长期稳定与动态达成判断尚未形成精确承诺 |
+| [SYS-RUNTIME-CONTINUITY](../requirements/system/runtime-state-and-continuity.md) | 新增已确认系统目标；[状态与存储](../architecture-guide/modeling/state-and-storage.md)、[部署边界](../architecture-guide/runtime/distribution.md)提供方法，运行时/持久状态分工、同构恢复和异构装配仍缺完整规格与兑现证据 |
 | [SYS-ALIGNMENT](../requirements/system/interest-alignment.md) | 目标已确认，利益对齐含义、冲突处理与验证方式待展开 |
 | [SYS-CONTINUITY](../requirements/system/omne-next-continuity.md) | 已有来源核对，完整继承清单、截止范围和未来承诺处理仍待明确 |
 | [PF-001](../requirements/product/user/PF-001-tenant-organization-context.md) | [租户候选](../proposals/tenant-contracts/README.md#当前需求对应与缺口)有身份输入，协作上下文与四类效用尚需定义 |
