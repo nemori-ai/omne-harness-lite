@@ -9,11 +9,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from jsonschema import FormatChecker
+from jsonschema import Draft202012Validator, FormatChecker
+from jsonschema.exceptions import SchemaError
 from jsonschema.validators import validator_for
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_SCHEMA = ROOT / "docs/evaluation/formats/developer-model-experiment.schema.json"
+SUITE_SCHEMA = ROOT / "docs/evaluation/formats/task-suite.schema.json"
 DEFAULT_SUITE = ROOT / "docs/evaluation/suites/developer-model-v1.json"
 
 
@@ -33,7 +35,10 @@ def load_json(path: Path) -> Any:
 
 
 def verify_artifact(report_path: Path, artifact: dict[str, str], label: str, issues: list[str]) -> None:
-    path = report_path.parent / artifact["path"]
+    path = (report_path.parent / artifact["path"]).resolve()
+    if not path.is_relative_to(report_path.parent.resolve()):
+        issues.append(f"{label} is outside the evidence directory")
+        return
     if not path.is_file():
         issues.append(f"{label} is missing")
     elif sha256(path) != artifact["sha256"]:
@@ -53,9 +58,12 @@ def evaluate(report_path: Path, schema_path: Path = DEFAULT_SCHEMA, suite_path: 
         return EvaluationResult("needs-completion", (f"evaluation inputs cannot be read: {error}",))
 
     validator_class = validator_for(schema)
-    validator_class.check_schema(schema)
+    try:
+        validator_class.check_schema(schema)
+    except SchemaError as error:
+        return EvaluationResult("needs-completion", (f"invalid report format: {error.message}",))
     validator = validator_class(schema, format_checker=FormatChecker())
-    for error in sorted(validator.iter_errors(report), key=lambda item: list(item.absolute_path)):
+    for error in sorted(validator.iter_errors(report), key=lambda item: item.json_path):
         location = "/".join(str(part) for part in error.absolute_path) or "report"
         issues.append(f"schema {location}: {error.message}")
     if issues:
@@ -72,6 +80,7 @@ def evaluate(report_path: Path, schema_path: Path = DEFAULT_SCHEMA, suite_path: 
     verify_artifact(report_path, report["frozen_heldout_suite"]["artifact"], "frozen heldout suite artifact", issues)
     for label, item in (("baseline configuration", report["baseline"]["configuration"]), ("candidate configuration", report["candidate"]["configuration"])):
         verify_artifact(report_path, item, label, issues)
+    verify_artifact(report_path, report["analysis_plan"]["artifact"], "analysis plan artifact", issues)
     for name, item in report["environment"].items():
         verify_artifact(report_path, item["artifact"], f"{name} artifact", issues)
     for arm in report["arms"]:
@@ -89,13 +98,25 @@ def evaluate(report_path: Path, schema_path: Path = DEFAULT_SCHEMA, suite_path: 
         heldout_suite = load_json(heldout_path)
     except (OSError, json.JSONDecodeError) as error:
         return EvaluationResult("needs-completion", tuple(issues + [f"heldout suite cannot be read: {error}"]))
-    public_tasks = fixed_suite.get("tasks", [])
-    heldout_tasks = heldout_suite.get("tasks", [])
-    if not isinstance(public_tasks, list) or not isinstance(heldout_tasks, list):
-        return EvaluationResult("needs-completion", tuple(issues + ["task suites must contain task arrays"]))
-    required_task_fields = {"id", "split", "critical_constraints", "prompt", "fixture", "rubric"}
-    if any(not isinstance(task, dict) or not required_task_fields <= task.keys() for task in public_tasks + heldout_tasks):
-        return EvaluationResult("needs-completion", tuple(issues + ["task suite contains an incomplete task packet"]))
+    try:
+        suite_validator = Draft202012Validator(load_json(SUITE_SCHEMA))
+        for label, suite in (("public", fixed_suite), ("heldout", heldout_suite)):
+            for error in suite_validator.iter_errors(suite):
+                issues.append(f"{label} task packet {error.json_path}: {error.message}")
+    except (OSError, ValueError) as error:
+        issues.append(f"task packet schema cannot be read: {error}")
+    if issues:
+        return EvaluationResult("needs-completion", tuple(issues))
+    public_tasks = fixed_suite["tasks"]
+    heldout_tasks = heldout_suite["tasks"]
+    if heldout_suite["suite_version"] != report["frozen_heldout_suite"]["id"]:
+        issues.append("heldout suite identity disagrees with the frozen artifact")
+    if any(task["split"] != "training" for task in public_tasks):
+        issues.append("public tasks cannot be declared heldout")
+    for task in public_tasks + heldout_tasks:
+        rubric_ids = [entry["id"] for entry in task["rubric"]]
+        if len(rubric_ids) != len(set(rubric_ids)) or not set(task["critical_constraints"]) <= set(rubric_ids):
+            issues.append(f"task {task['id']} lacks unique observable rubrics for its critical constraints")
     task_specs = {task["id"]: task for task in public_tasks + heldout_tasks}
     if len(task_specs) != len(public_tasks) + len(heldout_tasks):
         issues.append("task ids must be unique across public and heldout suites")
@@ -103,7 +124,8 @@ def evaluate(report_path: Path, schema_path: Path = DEFAULT_SCHEMA, suite_path: 
         issues.append("frozen heldout suite must contain heldout tasks")
     expected = {(task_id, model, arm, repeat) for task_id in task_specs for model, arm in (("baseline", "retain"), ("candidate", "retain"), ("candidate", "simplify"), ("candidate", "remove")) for repeat in range(1, report["repetitions"] + 1)}
     seen: set[tuple[str, str, str, int]] = set()
-    has_violation = False
+    selected_arm = report["adoption_record"]["selected_arm"]
+    selected_violation = False
     for index, run in enumerate(report["task_runs"]):
         task = task_specs.get(run["task_id"])
         key = (run["task_id"], run["model"], run["arm"], run["repeat"])
@@ -129,12 +151,13 @@ def evaluate(report_path: Path, schema_path: Path = DEFAULT_SCHEMA, suite_path: 
             if status == "unobserved" or status is None:
                 issues.append(f"task_runs[{index}] critical constraint {constraint} is unobserved")
             elif status == "violated":
-                has_violation = True
+                if run["model"] == "candidate" and run["arm"] == selected_arm:
+                    selected_violation = True
     missing = expected - seen
     if missing:
         issues.append(f"missing {len(missing)} required task/arm/repeat observations")
-    if has_violation and report["adoption_record"]["decision"] == "adopt":
-        issues.append("a report with violated critical constraints cannot record adopt")
+    if selected_violation and report["adoption_record"]["decision"] == "adopt":
+        issues.append("selected candidate arm violates a critical constraint; adoption record is inconsistent")
     return EvaluationResult("evidence-ready" if not issues else "needs-completion", tuple(issues))
 
 

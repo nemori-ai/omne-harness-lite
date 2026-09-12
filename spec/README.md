@@ -13,6 +13,7 @@
 | [catalog.json](catalog.json) | 唯一的契约 ID、版本、状态、路径、接受依据与推荐版本清单 |
 | [frozen.json](frozen.json) | 已发布规范文件的冻结哈希；配合 Git 基线检查防止覆盖历史 |
 | [archive/](archive/README.md) | 保留原貌的旧组织资料，供来源追溯，不属于有效规格 |
+| [formal-tasks.json](formal-tasks.json) | 显式登记实际模型任务、输入文件和执行命令 |
 | [tools/](tools/) | 本地验证工具；工具本身不是产品架构 |
 
 目前有效清单为空：本轮接受了组织与治理体系，没有替用户批准业务契约。

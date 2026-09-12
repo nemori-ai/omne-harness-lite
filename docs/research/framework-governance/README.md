@@ -28,7 +28,7 @@
 | Oh My Codex | `Yeachan-Heo/oh-my-codex` | `cb955b0d5becbef76d2c1f0096b6e1f238e1e7f7` |
 | Deep Agents | `langchain-ai/deepagents` | `9e7d62ff6e7131505995a706d717e01837aa8617` |
 
-六个非 DSH 仓库的 `metadata.json`、完整文件路径清单和选读原件保存在本报告所在临时目录；DSH 使用先前已固定的只读检出，并再次核对远端 HEAD 相同。官网文章绑定下面列出的页面与发布日期，不能推断文章中考虑的变化已经全部发布。
+采样时六个非 DSH 仓库的 `metadata.json`、文件路径清单和选读原件保存在本机 `tmp/framework-doc-governance-research/`；这些临时文件不属于本报告的阅读前提，复核按本页固定 commit 与具体官方链接重新获取。DSH 使用先前已固定的只读检出，并再次核对远端 HEAD 相同。官网文章绑定下面列出的页面与发布日期，不能推断文章中考虑的变化已经全部发布。
 
 ## DSH：决定与事故有不同归属
 

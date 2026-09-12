@@ -19,6 +19,8 @@ patterns](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/defen
 模型升级、工具或 prompt 变化、失败复发、边界变更和明显成本负担都会触发复
 核。没有新观察不能仅为重辩而推翻已接受决定。
 
+每条指导的稳定身份、来源、适用限制与复核触发见[适用记录](defensive-patterns/catalog.md)。
+
 ## 当前指导
 
 ### 独立事实分别报告

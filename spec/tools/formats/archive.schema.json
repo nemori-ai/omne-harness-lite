@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omne-harness-lite.invalid/tools/archive.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "files"
+  ],
+  "properties": {
+    "format": {
+      "const": 1
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "original",
+          "path",
+          "sha256"
+        ],
+        "properties": {
+          "original": {
+            "type": "string",
+            "pattern": "^spec/domain/"
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^domain/"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      }
+    }
+  }
+}

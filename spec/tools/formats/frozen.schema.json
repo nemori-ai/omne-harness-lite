@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omne-harness-lite.invalid/tools/frozen.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "files"
+  ],
+  "properties": {
+    "format": {
+      "const": 1
+    },
+    "files": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^spec/(data|capabilities|compositions)/[^/]+/v[1-9][0-9]*/.+"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+      }
+    }
+  }
+}

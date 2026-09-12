@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omne-harness-lite.invalid/evaluation/task-suite.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "suite_version",
+    "tasks"
+  ],
+  "properties": {
+    "suite_version": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "purpose": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "split",
+          "critical_constraints",
+          "prompt",
+          "fixture",
+          "rubric"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "\\S"
+          },
+          "split": {
+            "enum": [
+              "training",
+              "heldout"
+            ]
+          },
+          "critical_constraints": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "\\S"
+            }
+          },
+          "prompt": {
+            "type": "string",
+            "pattern": "\\S"
+          },
+          "fixture": {
+            "type": "object",
+            "minProperties": 1
+          },
+          "rubric": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "observable"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "\\S"
+                },
+                "observable": {
+                  "type": "string",
+                  "pattern": "\\S"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

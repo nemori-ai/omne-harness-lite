@@ -1,20 +1,75 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://omne-harness-lite.invalid/tools/catalog.schema.json",
-  "type": "object", "additionalProperties": false,
-  "required": ["catalog_version", "contracts"],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "catalog_version",
+    "contracts"
+  ],
   "properties": {
-    "catalog_version": {"const": 1},
-    "contracts": {"type": "array", "items": {"type": "object", "additionalProperties": false,
-      "required": ["id", "current_version", "versions"], "properties": {
-        "id": {"type": "string", "pattern": "^(data|capability|composition)\\.[a-z][a-z0-9.-]*$"},
-        "current_version": {"type": ["integer", "null"], "minimum": 1},
-        "versions": {"type": "array", "items": {"type": "object", "additionalProperties": false,
-          "required": ["version", "status", "path", "acceptance"], "properties": {
-            "version": {"type": "integer", "minimum": 1}, "status": {"enum": ["accepted", "superseded", "withdrawn"]},
-            "path": {"type": "string", "pattern": "^(data|capabilities|compositions)/.+/v[1-9][0-9]*/contract\\.md$"},
-            "acceptance": {"type": "string", "minLength": 1}
-          }}}
-      }}}
+    "catalog_version": {
+      "const": 1
+    },
+    "contracts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "current_version",
+          "versions"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^(data|capability|composition)\\.[a-z][a-z0-9.-]*$"
+          },
+          "current_version": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "version",
+                "status",
+                "path",
+                "acceptance"
+              ],
+              "properties": {
+                "version": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "status": {
+                  "enum": [
+                    "accepted",
+                    "superseded",
+                    "withdrawn"
+                  ]
+                },
+                "path": {
+                  "type": "string",
+                  "pattern": "^spec/(data|capabilities|compositions)/[^/]+/v[1-9][0-9]*/contract\\.md$"
+                },
+                "acceptance": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "minItems": 1
+          }
+        }
+      }
+    }
   }
 }

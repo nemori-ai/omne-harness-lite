@@ -23,14 +23,14 @@
 实验报告须符合 [Schema](formats/developer-model-experiment.schema.json)，并用：
 
 ```sh
-python spec/tools/evaluate_developer_model.py path/to/report.json
+uv run --locked python spec/tools/evaluate_developer_model.py path/to/report.json
 ```
 
 命令验证报告和本地证据文件，输出仅有 `evidence-ready` 或
 `needs-completion`。前者只表示基线 retain 与候选的 retain/simplify/remove、
 冻结留出、重复运行、可回查版本与配置、约束观察、成本及人工记录已齐全；它
 不计算显著性、不判定哪一方案更好、不授权采用、更不切换模型。违反关键约束
-是完整的负面证据，仍可 evidence-ready，并应由人记录 `do_not_adopt`；未观察
+是完整的负面证据，仍可 evidence-ready；采用记录需明确选择哪种候选处理，不能采用违反关键约束的组。未观察
 约束、覆盖或证据缺失才是 `needs-completion`。真实模型调用、付费调用和模型
 切换都不在此工具范围内。
 

@@ -1,8 +1,16 @@
 # 机器可检查的元数据
 
-本页是决定 front matter、`spec/catalog.json`、`spec/frozen.json` 和
-`spec/archive/ddd-models/manifest.json` 的受版本控制接口约定。它为检查工具提供结构，
+本页说明决定 front matter、`spec/catalog.json`、`spec/frozen.json` 和
+`spec/archive/ddd-models/manifest.json` 的受版本控制接口约定。精确字段形状分别引用下列 Schema；正文解释含义，不维护另一份注册表。它为检查工具提供结构，
 不创建第二份目录清单、运行时注册表或领域模型；具体语义仍以决定和契约正文为准。
+
+## 格式定义
+
+- [决定](../../spec/tools/formats/decision.schema.json)
+- [规格清单](../../spec/tools/formats/catalog.schema.json)
+- [冻结清单](../../spec/tools/formats/frozen.schema.json)
+- [历史原件清单](../../spec/tools/formats/archive.schema.json)
+- [形式任务清单](../../spec/tools/formats/formal-tasks.schema.json)：执行含义见[验证规范](verification.md)。
 
 ## 决定 front matter
 
@@ -64,10 +72,10 @@ change_basis:
 }
 ```
 
-`catalog_version` 为 `1`；`contracts` 为数组。契约 `id` 仅以 `data.`、`capability.` 或
-`composition.` 开头；`current_version` 是正整数或 `null`；每项 `versions` 含正整数
+`catalog_version` 为 `1`；`contracts` 为数组。契约 `id` 以 `data.`、`capability.` 或
+`composition.` 开头，后接小写语义名称；清单中的同一 ID 只出现一次。`current_version` 是正整数或 `null`；每项 `versions` 含正整数
 `version`、`accepted|superseded|withdrawn` 状态、仓库相对 `contract.md` 路径及仓库相对的
-决定或提案 `acceptance` 链接。初始清单可以是空数组：旧模型的 `current` 标记没有逐项
+决定或提案 `acceptance` 链接。来源必须有已接受范围，不能指向待审候选；结构检查仍不代替人工确认接受范围。初始清单可以是空数组：旧模型的 `current` 标记没有逐项
 接受依据，不能据此登记正式版本。
 
 ## 冻结与历史归档
