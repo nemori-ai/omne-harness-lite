@@ -92,3 +92,11 @@ slash 入口和键盘控制。现有普通输入候选未完整覆盖这些行�
 工具，interrupt_then_run 则保留符合条件的后台执行；这与被委派后代的生命周期
 另有区别。后续设计须消费[来源有效修订](../../research/session-run-and-pending-input-sources.md#来源差异与采用边界)，
 不能恢复旧 urgent lane、固定队列项关系或以源候选 pause/retry 冒充已确认能力。
+
+[PF-010](../../requirements/product/user/PF-010-organization-personal-assets-and-permissions.md)
+后续扩展为个人/组织的资产、设置及权限管理；
+[PF-006](../../requirements/product/user/PF-006-user-settings-and-agent-definition-authorization.md)
+继续拥有覆盖及定义授权的生效规则，并补充清除覆盖后的求值边界。现有候选
+尚缺按对象提供的创建/修改/撤销/移除/退役、引用影响与恢复结果，不能用一个
+通用删除或启停动作合并资产定义、选用关系和活动 Run，也不能从统一管理入口
+推导所有设置共用作用域或覆盖顺序。

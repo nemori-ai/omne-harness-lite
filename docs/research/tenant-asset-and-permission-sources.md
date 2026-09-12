@@ -14,6 +14,10 @@ scope: PF-010 组织与个人资产、权益、official/customized 来源及类�
 
 ## 来源与映射
 
+同日后续讨论增加个人用户与组织超级管理员的管理要求，详见
+[管理操作核对](tenant-management-sources.md)和 PF-010.C8–C10。本页继续拥有
+原有类型与权益来源记录；管理动作的补充及 PF-006/PF-010 分工由后续记录说明。
+
 | 来源 | 源接受状态与核对范围 | PF-010 对应 |
 |---|---|---|
 | [按 owner scope 查看资产组合][portfolio] | Accepted · current，2026-07-31；Statement、三关系、Actor/scope、AC-1～8 | C3/C4/C7：四类顶层资产、分组可见、所有权/权益/选用可同时成立、版本与失败诚实 |

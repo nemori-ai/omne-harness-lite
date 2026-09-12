@@ -29,9 +29,9 @@
 - [PF-009：多模态输入、附件与命令操作](../user/PF-009-multimodal-input-attachments-and-commands.md)
   （主维度：用户）：Agent 收到真实、保序的多模态内容与附件，用户通过 slash
   手动调用 Skill，并可用明确目标的键盘命令控制工作。
-- [PF-010：组织级与个人级资产和权限](../user/PF-010-organization-personal-assets-and-permissions.md)
-  （主维度：用户）：Agent 的可用资产与行动权限按当前范围生效；官方/自定义来源、
-  定义所有权、使用权益、选用版本与执行准入分别表达。
+- [PF-010：个人与组织的资产、设置及权限管理](../user/PF-010-organization-personal-assets-and-permissions.md)
+  （主维度：用户）：个人用户与组织超级管理员管理相应范围的资产、设置及权限；
+  Agent 的资产、版本与操作资格使用当前有效依据，管理变更不隐式终止活动运行。
 - [PF-012：Computer、Browser、Shell 能力与沙盒／本机使用](../environment/PF-012-computer-browser-shell-sandbox-and-native-use.md)
   （主维度：环境）：三类 use 都是 Agent 的能力，各自支持沙盒和当前操作系统的
   直接使用；单个部署的有效范围由模型能力等级、装配、默认权限和用户授权共同

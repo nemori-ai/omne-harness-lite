@@ -9,8 +9,11 @@
 - [PF-007：系统发起的 HITL 与动作授权确认](PF-007-system-initiated-hitl.md)
 - [PF-008：统一决策池与跨会话直接答复](PF-008-unified-decision-pool.md)
 - [PF-009：多模态输入、附件与命令操作](PF-009-multimodal-input-attachments-and-commands.md)
-- [PF-010：组织级与个人级资产和权限](PF-010-organization-personal-assets-and-permissions.md)
+- [PF-010：个人与组织的资产、设置及权限管理](PF-010-organization-personal-assets-and-permissions.md)
 - [PF-013：Session、Run 生命周期与运行中输入管理](PF-013-session-run-lifecycle-and-pending-input-control.md)
+
+PF-010 统一维护个人用户、组织超级管理员等主体的管理范围与操作；PF-006
+维护配置覆盖和定义授权的生效规则。管理体验可以连续，需求正文分别保留唯一归属。
 
 副维度关联：[PF-002：外部环境感知与响应](../environment/PF-002-external-change-response.md)
 （主维度：环境）。用户能授权和管理独立的 Connector 连接，辨认安装与供给状态；

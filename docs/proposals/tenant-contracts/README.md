@@ -33,3 +33,10 @@
 补充 Connector 的用户安装归属、个人/组织信源准入及组织要求成员安装。当前
 候选尚未表达这些政策、同意依据和撤回后果；组织要求下的成员安装及内容仍
 独立，不能从共享资产权益推导合并私人账号或代替个人外部授权。
+
+同日 [PF-010.C8–C10](../../requirements/product/user/PF-010-organization-personal-assets-and-permissions.md#已确认要求)
+进一步确认个人用户与组织超级管理员对相应范围资产、设置和权限的管理。
+当前候选仍缺管理动作与角色矩阵、最后最高管理者保护和变更影响规则；本轮
+用户的“超级管理员”不能未经映射就套成源 admin 或平台管理员。管理目录归
+PF-010，配置/授权如何生效归 [PF-006](../../requirements/product/user/PF-006-user-settings-and-agent-definition-authorization.md)，
+需求分篇不预先划分服务、界面或存储。
