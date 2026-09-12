@@ -8,6 +8,8 @@
 - [PF-004：Sub-agent 派发、协作与监督](PF-004-subagent-delegation-and-supervision.md)
 - [PF-005：智能体主动提问、请求授权与答复接续](PF-005-agent-initiated-human-input-and-approval.md)
 - [PF-011：面向未来的复杂日程规划、日历与通知提醒](PF-011-future-planning-calendars-and-reminders.md)
+- [PF-014：运行时发现与按需装载工具、技能](PF-014-runtime-tool-and-skill-discovery-and-loading.md)
+- [PF-015：制品管理与隔离工作副本](PF-015-artifact-management-and-isolated-working-copies.md)
 
 副维度关联：
 

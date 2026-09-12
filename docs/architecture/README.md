@@ -94,6 +94,8 @@ DSH 的具体 Agent Loop、Profile/Bundle 装配和应用策略是参考资料�
 | [PF-011](../requirements/product/agent/PF-011-future-planning-calendars-and-reminders.md) | [当前候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺复杂未来规划、多地日历、耐久闹钟与推送的完整设计；执行和/或通知按本轮要求可组合，源旧互斥限制不作为本项目约束 |
 | [PF-012](../requirements/product/environment/PF-012-computer-browser-shell-sandbox-and-native-use.md) | [当前候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺三类 use、沙盒/本机目标授权及共享环境控制的完整定义；部署有效范围由模型能力等级、装配配置、部署默认权限与用户授权共同决定，精确作用规则待设计 |
 | [PF-013](../requirements/product/user/PF-013-session-run-lifecycle-and-pending-input-control.md) | [当前候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺会话目录与生命周期、精确运行控制、不同工具级联效果、忙时输入及可编辑/调序的耐久队列完整设计；单条消息不必对应独立 Run |
+| [PF-014](../requirements/product/agent/PF-014-runtime-tool-and-skill-discovery-and-loading.md) | [当前候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺工具/技能发现、按需装载、当前授权及能力变化的完整模型；上游注册机制不代替端到端产品能力 |
+| [PF-015](../requirements/product/agent/PF-015-artifact-management-and-isolated-working-copies.md) | [当前候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺独立于运行时及宿主机的制品存储、本机/沙盒加载、隔离工作副本和并发保存模型；Git worktree 仅是可选示例 |
 | 已有 SYS-* 全局要求 | [约束落实索引](constraints.md)逐项导航 |
 
 2026-09-12 迁移核对：D-001、D-002 由 D-004 补充，D-003 保持适用；没有已接受

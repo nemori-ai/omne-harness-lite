@@ -106,6 +106,9 @@ C1/C2 记录直接要求；C3–C7 结合本轮要求、已确认的工具/授�
 HITL。[PF-010](../user/PF-010-organization-personal-assets-and-permissions.md) 与
 [SYS-TENANT](../../system/constraints.md#sys-tenant) 继续约束共享电脑上的租户
 数据与操作权限，物理共享不能变成跨组织借权。
+[PF-014](../agent/PF-014-runtime-tool-and-skill-discovery-and-loading.md) 约束工具/技能
+按需装载与真实环境适配，[PF-015](../agent/PF-015-artifact-management-and-isolated-working-copies.md)
+拥有制品向本机/沙盒的加载、隔离工作副本及持久保存，不以执行环境目录代替存储。
 
 [SYS-RUNTIME-CONTINUITY](../../system/runtime-state-and-continuity.md) 拥有异构
 装配与同构恢复目标，本项提供具体消费场景。操作环境、会话运行时和工具后台

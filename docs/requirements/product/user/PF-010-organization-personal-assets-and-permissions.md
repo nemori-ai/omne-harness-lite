@@ -163,6 +163,9 @@ C1/C2 记录直接要求及其区分；C3–C7 将源已接受要求中可明确
 [PF-002](../environment/PF-002-external-change-response.md) 拥有 Connector 的
 安装与同意边界，[PF-013](PF-013-session-run-lifecycle-and-pending-input-control.md)
 拥有 Session/Run 生命周期，不能以管理资产或撤销权限替代显式运行控制。
+[PF-014](../agent/PF-014-runtime-tool-and-skill-discovery-and-loading.md) 拥有运行时
+工具/技能发现与装载，[PF-015](../agent/PF-015-artifact-management-and-isolated-working-copies.md)
+拥有持久制品和隔离工作副本；资产治理与具体使用、保存流程分别表达。
 
 待明确：超级管理员与其它角色的精确权限矩阵、各类管理操作的契约与界面、
 个人与组织间显式共享/携入及转让条件、哪些模型档案和信息资产采用组织归属

@@ -100,3 +100,11 @@ slash 入口和键盘控制。现有普通输入候选未完整覆盖这些行�
 尚缺按对象提供的创建/修改/撤销/移除/退役、引用影响与恢复结果，不能用一个
 通用删除或启停动作合并资产定义、选用关系和活动 Run，也不能从统一管理入口
 推导所有设置共用作用域或覆盖顺序。
+
+[PF-014](../../requirements/product/agent/PF-014-runtime-tool-and-skill-discovery-and-loading.md)
+补充运行时工具/技能发现与按需装载；候选尚缺摘要发现、完整定义/资源装载、
+实际可执行绑定、当前授权和失效变化的完整语义。
+[PF-015](../../requirements/product/agent/PF-015-artifact-management-and-isolated-working-copies.md)
+补充独立于运行时及宿主机的持久制品管理，以及向本机/沙盒加载、隔离工作副本、
+保存确认、并发冲突和发布边界。现有候选未覆盖这些要求；DSH Workspace、旧
+Workspace 存储方案或 Git worktree 均不因来源引用而成为已接受实现。

@@ -40,3 +40,11 @@ Agent 建立的未来派发工作进行授权、确认激活、查看和逐项�
 副维度关联：[PF-012：Computer、Browser、Shell 能力与沙盒／本机使用](../environment/PF-012-computer-browser-shell-sandbox-and-native-use.md)
 （主维度：环境）。Agent 可以在获准范围内直接操作与用户共享的电脑环境；用户
 能辨认实际目标、观察和中断调用，桌面接管与环境权限保持明确。
+
+副维度关联：[PF-014：运行时发现与按需装载工具、技能](../agent/PF-014-runtime-tool-and-skill-discovery-and-loading.md)
+（主维度：智能体）。能力可见性和使用遵循用户的有效授权与选用范围，手动
+Skill 调用继续使用 PF-009 的 slash 入口。
+
+副维度关联：[PF-015：制品管理与隔离工作副本](../agent/PF-015-artifact-management-and-isolated-working-copies.md)
+（主维度：智能体）。用户的持久工作材料按租户及权限管理，多个会话可同时
+处理而不静默覆盖，保存、冲突、清理和发布结果可辨认。

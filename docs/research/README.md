@@ -19,6 +19,7 @@
 - [Computer、Browser、Shell 与沙盒/本机执行环境的来源核对](computer-browser-shell-environment-sources.md)
 - [Session、Run 生命周期与排队输入控制的来源核对](session-run-and-pending-input-sources.md)
 - [DSH 动态能力研究](dsh-cordis-dynamic/README.md)
+- [运行时工具/技能装载与独立制品管理的跨系统来源](dynamic-loading-and-artifact-sources.md)
 - [Agent 系统评测与 benchmark 驱动迭代](agent-system-evaluation/README.md)
 
 使用方法见[知识流转](../maintenance/knowledge-flow.md)。
