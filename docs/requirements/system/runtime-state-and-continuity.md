@@ -71,3 +71,7 @@ ids: [SYS-RUNTIME-CONTINUITY]
 [Agent 核心候选](../../proposals/agent-core/README.md#当前需求对应与缺口)尚未形成
 兑现 C1–C3 的完整规格；当前没有已接受的业务决定或规格需要因此取代。
 旧需求基线保留其原有范围，新增要求不反向改写旧快照。
+
+后续产品要求 [PF-003.C4–C6](../product/agent/PF-003-tool-execution-observation-and-control.md#已确认要求)
+进一步给出手动或自动转后台的工具工作独立执行、恢复后的运行时重新关联它的
+具体场景。

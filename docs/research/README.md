@@ -7,6 +7,7 @@
 - [完全动态系统定义：omne-next 原文与 Git 历史](fully-dynamic-system/README.md)
 - [产品特性：omne-next Harness 与个人版的来源核对](product-feature-sources.md)
 - [运行时与持久状态、恢复接续及环境适配的来源核对](runtime-state-continuity-sources.md)
+- [工具执行状态、过程帧、中断与后台运行的来源核对](tool-execution-sources.md)
 - [DSH 动态能力研究](dsh-cordis-dynamic/README.md)
 - [Agent 系统评测与 benchmark 驱动迭代](agent-system-evaluation/README.md)
 

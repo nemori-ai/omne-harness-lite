@@ -2,7 +2,7 @@
 
 [产品三维](../README.md)
 
-当前尚无以智能体为主维度的条目；不据此推定其他能力不存在。
+主条目：[PF-003：工具执行可观察、生命周期控制与后台接续](PF-003-tool-execution-observation-and-control.md)。
 
 副维度关联：
 
