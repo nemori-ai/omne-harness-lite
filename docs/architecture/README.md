@@ -82,7 +82,7 @@ DSH 的具体 Agent Loop、Profile/Bundle 装配和应用策略是参考资料�
 | [SYS-ALIGNMENT](../requirements/system/interest-alignment.md) | 目标已确认，利益对齐含义、冲突处理与验证方式待展开 |
 | [SYS-CONTINUITY](../requirements/system/omne-next-continuity.md) | 已有来源核对，完整继承清单、截止范围和未来承诺处理仍待明确 |
 | [PF-001](../requirements/product/user/PF-001-tenant-organization-context.md) | [租户候选](../proposals/tenant-contracts/README.md#当前需求对应与缺口)有身份输入，协作上下文与四类效用尚需定义 |
-| [PF-002.C1](../requirements/product/environment/PF-002-external-change-response.md#已确认要求) | [Agent 核心候选](../proposals/agent-core/README.md#当前需求对应与缺口)不代表完整环境感知、响应与行动；还没有对应的已接受端到端设计 |
+| [PF-002](../requirements/product/environment/PF-002-external-change-response.md) | [当前候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺 Connector 安装授权、供给与生命周期、被动感知及主动响应的完整设计；[租户候选](../proposals/tenant-contracts/README.md#当前需求对应与缺口)也未覆盖信源准入与组织要求安装 |
 | [PF-003](../requirements/product/agent/PF-003-tool-execution-observation-and-control.md) | [工具候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚未完整定义调用状态、按需过程帧、单次中断、手动及自动转后台，以及运行时恢复后的后台调用关联 |
 | [PF-004](../requirements/product/agent/PF-004-subagent-delegation-and-supervision.md) | 已确认完整继承 sub-agent 相关要求；[Agent 核心候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚无完整派发、实时委托授权、监督与定时回流设计；继承范围按[来源有效修订](../research/subagent-requirement-sources.md#来源差异与未决范围)解释 |
 | [PF-005](../requirements/product/agent/PF-005-agent-initiated-human-input-and-approval.md) | [Agent 核心候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚未定义主动提问/批准、专用权限申请、耐久待答、唯一答复、待办池与恢复接续的完整闭环 |
@@ -92,7 +92,7 @@ DSH 的具体 Agent Loop、Profile/Bundle 装配和应用策略是参考资料�
 | [PF-009](../requirements/product/user/PF-009-multimodal-input-attachments-and-commands.md) | [Agent 核心候选](../proposals/agent-core/README.md#当前需求对应与缺口)未完整覆盖多模态内容与附件、Skill 手动 slash 入口、命令发现及键盘控制 |
 | [PF-010](../requirements/product/user/PF-010-organization-personal-assets-and-permissions.md) | [租户候选](../proposals/tenant-contracts/README.md#当前需求对应与缺口)和 [Agent 核心候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺组织/个人资产、权益、角色操作与实际准入的完整模型 |
 | [PF-011](../requirements/product/agent/PF-011-future-planning-calendars-and-reminders.md) | [当前候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺复杂未来规划、多地日历、耐久闹钟与推送的完整设计；执行和/或通知按本轮要求可组合，源旧互斥限制不作为本项目约束 |
-| [PF-012](../requirements/product/environment/PF-012-computer-browser-shell-sandbox-and-native-use.md) | [当前候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺三类 use 能力、沙盒与当前操作系统直接使用、目标授权及共享环境控制的完整定义；沙盒排除宿主不作为全系统禁止本机的限制 |
+| [PF-012](../requirements/product/environment/PF-012-computer-browser-shell-sandbox-and-native-use.md) | [当前候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺三类 use、沙盒/本机目标授权及共享环境控制的完整定义；部署有效范围由模型能力等级、装配配置、部署默认权限与用户授权共同决定，精确作用规则待设计 |
 | 已有 SYS-* 全局要求 | [约束落实索引](constraints.md)逐项导航 |
 
 2026-09-12 迁移核对：D-001、D-002 由 D-004 补充，D-003 保持适用；没有已接受

@@ -15,6 +15,11 @@ scope: 产品特性整理时对 omne-next Harness 与个人版既有材料的核
 
 ## 第二项：外部环境感知与响应
 
+2026-09-12 后续讨论已将 Connector 及相关感知/响应要求拓展到
+[PF-002.C2–C9](../requirements/product/environment/PF-002-external-change-response.md#已确认要求)，
+具体采用范围与来源见[专项核对](connector-environment-source-sources.md)。以下保留
+初次讨论时的观察与补充解释身份，其中当时尚未细化的范围不限制后续明确要求。
+
 核对日期：2026-09-12。来源为本机 `omne-next` 的干净检出，固定提交
 `6263fed545e48ad9efb5714f3fe76a7c1a0af1b5`；下列五份 requirement 的工作区文件
 均已与该提交中的 Git blob 逐字节核对。链接固定至该提交，不使用浮动分支。

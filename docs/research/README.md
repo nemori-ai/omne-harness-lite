@@ -6,6 +6,7 @@
 - [项目既有方向与迁移前记录](project-baseline/README.md)
 - [完全动态系统定义：omne-next 原文与 Git 历史](fully-dynamic-system/README.md)
 - [产品特性：omne-next Harness 与个人版的来源核对](product-feature-sources.md)
+- [Connector 接入、信源供给及感知响应的来源核对](connector-environment-source-sources.md)
 - [运行时与持久状态、恢复接续及环境适配的来源核对](runtime-state-continuity-sources.md)
 - [工具执行状态、过程帧、中断与后台运行的来源核对](tool-execution-sources.md)
 - [Sub-agent 要求的完整继承来源与范围](subagent-requirement-sources.md)
