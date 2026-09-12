@@ -1,61 +1,99 @@
 # `omne-harness-lite` 开发约定
 
+本文件提供项目心智、研发品味、关键边界和阅读地图；具体契约、设计论证、维护流程与工具命令由各自的权威文档维护。
+
 ## 项目心智模型
 
-`omne-harness-lite` 是一个更轻量化、更高性能的 OMNE harness 系统，以
-DeepSeek 提出的 Cordis 为内核，同时保留和遵循原
-`omne-next/omne_harness` 的核心设计理念和最佳实践，旨在提供一个能够超长期
-待机、稳定运行、持续进化的个人智能助手所需的全部能力。Cordis 只提供内核
-机制；Agent Loop、Harness 层、工具协议、治理和其他子系统由本项目自行实现。
-不要把 DeepSeek Harness 当作本项目的实现，也不要把本项目称为 Cordis Harness。
+`omne-harness-lite` 是一个更轻量化、更高性能的 OMNE harness 系统，以 DeepSeek 提出的 Cordis 为内核，同时保留和遵循原 `omne-next/omne_harness` 的核心设计理念和最佳实践，旨在提供一个能够超长期待机、稳定运行、持续进化的个人智能助手所需的全部能力。
 
-当前处于设计阶段。设计应保持编程语言无关，能够作为未来严格验证和跨语言
-复现的规格依据。实现是规格的一个实现，不是规格的替代品。
+内核层复用 Cordis 与 DSH `agent` 原语；Agent Loop、Harness 层、工具协议、治理和其他子系统由本项目自行定义和实现。不要把 DeepSeek Harness 当作本项目的实现，也不要把本项目称为 Cordis Harness。
 
-第一版完整交付是单机系统；设计阶段必须确保关键机制、模块和子系统具备清晰的边界，使其未来可以独立扩展为分布式、异构物理节点和微服务化部署，而不改变领域语义。
+当前处于设计、规格建模与实验性演进阶段，尚未正式上线或对外提供生产服务。接受有明确设计和验证依据的大胆重构，不为旧版本保留未经要求的实现兼容层；历史材料的保留不构成兼容承诺。
 
-从第一天起支持租户隔离；受租户所有权约束的关键对象和操作必须显式携带租户身份，所有跨租户访问默认拒绝。租户建模沿用 `omne-next/omne_harness` 的双层结构，自然人账户身份与租户成员关系分开。所有模型请求统一经 OpenRouter 发送。
+站在 DSH Cordis 的视角建模完全动态系统：能力的定义、实现、绑定和组合关系都应能动态演化。可替换能力通过有生命周期、作用域和所有权的插件或服务，以及 Context、依赖注入和类型化事件组合。身份、不变量和状态转移由语言无关契约约束；存储是独立抽象，不按 DDD 战术分类强制切分系统，也不把 Cordis 的运行时对象直接当作数据契约。
 
-项目目前处于快速迭代和实验性演进阶段，尚未正式上线或对外提供生产服务。只要有明确的设计和验证依据，应接受合理的大胆重构，不为旧版本保留未经要求的实现兼容层。
+- 设计保持编程语言无关，作为未来严格验证和跨语言复现的规格依据。TLA+ 表达行为权威规格，Alloy 辅助验证结构约束，JSON Schema 定义数据契约；实现不能替代规格。
+- 第一版完整交付是单机系统；设计阶段必须确保关键机制、模块和子系统具备清晰的边界，使其未来可以独立扩展为分布式、异构物理节点和微服务化部署，而不改变领域语义。
+- 从第一天起支持租户隔离。受租户所有权约束的关键对象和跨边界操作显式携带租户身份，跨租户访问默认拒绝；沿用 `omne-next/omne_harness` 的双层结构，区分自然人全局身份与租户成员关系。
+- 所有模型请求统一经 OpenRouter 发送。
 
-建模时站在 DSH Cordis 的视角：把可替换能力表达为有生命周期、作用域和所有权的插件或服务，通过 Context、依赖注入和类型化事件组合。系统的定义、绑定和组合本身也应能动态演化；身份、不变量和状态转移由语言无关契约约束，存储是独立抽象，不按 DDD 战术分类强制切分系统。
-
-以上是[当前架构约束](docs/architecture/constraints.md)的简短投影；具体选择和未决范围沿该入口展开。
+以上是[当前架构](docs/architecture/README.md)与[已确认系统要求](docs/architecture/constraints.md)的简短投影；具体采用边界、接受状态和未决事项沿这两个入口展开。
 
 ## 研发品味
 
 - 先保护不变量，再选择抽象；抽象必须隔离真实变化或承载明确契约。
-- 先做最小的正确模型，再按真实需求扩展；不要为想象中的未来预埋框架。
-- 复杂度必须有收益证据。没有可重复的瓶颈测量，不引入优化性复杂度。
-- 让状态、所有权、生命周期、失败和副作用显式可见；不依赖隐藏的全局状态或隐式顺序。
-- 一个概念只保留一个权威来源；规格、实现、测试和文档冲突时先解决归属。
-- 全系统共享同一套语义建模；同一事物的数据和契约必须复用权威定义，即使跨越能力、服务或实现语言也不得无理由重定义。语义确实不同或属于边界投影时，可以使用不同表示并明确映射。
-- 优先组合和直接表达，删除没有独立行为、契约或边界价值的包装层。
+- 先做最小的正确模型，再按真实需求扩展；不为想象中的未来预埋框架。
+- 复杂度必须有收益证据；没有可重复的瓶颈测量，不引入优化性复杂度。
 - 在满足规格、边界和可验证性的前提下，优先复用成熟实现或第三方库；只有现有实现无法满足要求时才从零构建。
-- 外部 emission 不因被运行时调用就变得可逆；恢复、补偿、幂等和撤销必须区分。
+- 同一概念只有一个权威定义，跨能力、服务和实现语言复用；仅在语义确实不同或属于边界投影时采用不同表示，并明确映射。
+- 优先组合和直接表达，删除没有独立行为、契约或边界价值的包装层。
+- 让状态、所有权、生命周期、失败和副作用显式可见；不依赖隐藏的全局状态或隐式顺序。
+- 外部输出不因被运行时调用就变得可逆；恢复、补偿、幂等和撤销必须区分。
 - 让错误尽早暴露；禁止静默吞错、假成功和无法解释的默认行为。
 
-详细的反模式与防御原则见 [`docs/defensive-patterns.md`](docs/defensive-patterns.md)。需要判断设计是否过度、实现是否偏离这些品味时，使用
-[`engineering-taste`](.agents/skills/engineering-taste/SKILL.md) skill。
+这些判断按需展开为 [engineering-taste](.agents/skills/engineering-taste/SKILL.md)、[防御指导](docs/defensive-patterns.md)与[语义归属规则](docs/maintenance/organization.md)。
 
-## 信息来源与边界
+## 项目目录结构
 
-- Cordis 特性、生命周期和 API 语义优先查阅
-  [DeepSeek Harness 官方文档](https://github.com/deepseek-ai/deepseek-harness/tree/master/docs)，并记录具体页面或版本。
-- 官方资料未覆盖的内容必须标记为假设，并通过源码、测试或小型验证补足证据。
-- 不把模型检查、测试通过、论文结论或实现经验表述为无条件的形式化证明。
-- 用户明确的新要求优先于历史交接文档或过时的研究草稿。
-- 在适用范围内，没有新观测时有效决定是研究、提案、决定三者的最终权威；每份决定至少关联一份提案或研究，推翻必须有可复现、可验证、可因果解释的强理由。规则归[知识流转](docs/maintenance/knowledge-flow.md)。
-- 切换开发主力模型前，按[评估规范](docs/evaluation/README.md)判断相关防御辅助是否仍需强制使用；移除辅助不撤销系统保证。
+以下是职责地图，省略专题文件和临时运行产物；各层 `README.md` 负责更细的导航。
 
-## 文档地图
+```text
+omne-harness-lite/
+├── README.md                     项目介绍与读者入口
+├── AGENTS.md                     agent 的常驻心智、边界与导航
+├── docs/
+│   ├── README.md                 文档总索引
+│   ├── architecture/             当前系统视图与已确认约束
+│   ├── architecture-guide/       架构方法、基础概念与设计判断
+│   ├── research/                 事实观察、来源、证据及局限
+│   ├── proposals/                候选设计、取舍与审阅结果
+│   ├── decisions/                已接受的选择、理由与取代关系
+│   ├── maintenance/              组织、版本、知识流转、验证和迁移规范
+│   ├── defensive-patterns.md     当前防御指导正文
+│   ├── defensive-patterns/       指导的稳定编号、范围与复核记录
+│   └── evaluation/               开发模型与防御辅助的评估协议、格式和样例
+├── spec/
+│   ├── README.md                 语言无关规格入口
+│   ├── data/                     共享数据的含义与结构
+│   ├── capabilities/             能力行为、授权、所有权与生命周期
+│   ├── compositions/             跨能力交互与整体性质
+│   ├── catalog.json              契约身份、版本、状态与接受依据的唯一清单
+│   ├── frozen.json               已发布规范文件的冻结哈希
+│   ├── formal-tasks.json         形式模型的实际执行任务
+│   ├── tools/                    仓库验证工具、格式与测试
+│   └── archive/                  历史规格原件与来源记录
+├── .agents/skills/               Codex 按需指导入口
+├── .claude/skills/               Claude Code 对应入口，与 Codex 保持一致
+├── .worktrees/                   主检出根下的隔离工作树，Git 忽略
+├── tmp/                          临时计划、草稿和本地证据，Git 忽略
+├── Makefile                      仓库检查命令入口
+├── pyproject.toml                仓库工具环境与依赖声明
+└── uv.lock                       仓库工具依赖锁定
+```
 
-- [架构设计指南](docs/architecture-guide/README.md)：架构设计与开发中的架构选型，使用 [architecture-design](.agents/skills/architecture-design/SKILL.md) skill 定位相关指南、决策和规格，按需展开。
-- [`docs/`](docs/README.md)：当前架构、研究、提案、决定、维护与评估的总入口。
-- [当前架构](docs/architecture/README.md)：系统视图、约束和待决范围。
-- [`docs/defensive-patterns.md`](docs/defensive-patterns.md)：运行时、并发、生命周期和资源边界的防御性原则。
-- [`spec/`](spec/README.md)：按能力、数据和组合组织的版本化契约、形式模型和验收场景；候选设计归提案，历史归档不代表有效规格。
-- [Cordis 资料 skill](.agents/skills/cordis-authoritative-docs/SKILL.md)：权威资料检索约定。
-- [`write-agents-md`](.agents/skills/write-agents-md/SKILL.md)：需要编写或审查 AGENTS.md 时按需展开的提示治理方法。
+`docs/` 组织设计知识，`spec/` 定义精确承诺，skills 负责按任务导航。架构指南提供方法，当前架构引用决定与规格形成系统视图；目录不直接对应插件、服务、进程或数据库表。`spec/tools/` 的实现语言不决定产品实现语言。
 
-AGENTS.md 只保留项目心智模型、地图、品味、红线和导航；具体领域契约、操作流程和工具命令归其专属文档或 skill。
+## 信息权威与演进边界
+
+- 用户明确的新要求优先于历史交接文档和旧讨论。研究提供事实，提案组织候选，决定记录已接受选择，规格落实精确承诺；各自引用其依据，不互相冒充或复制同义定义。
+- 在适用范围内，没有新观测时有效决定是研究、提案、决定三者的最终权威。每份决定至少关联一份提案或研究；推翻必须带有可复现、可验证、可因果解释的强理由，并以新决定明确取代范围。规则归[知识流转](docs/maintenance/knowledge-flow.md)。
+- 未明确接受的提案、Schema、指南示例和历史原件不能当作正式契约。接受不等于实现或验证完成；当前可采用的契约和精确版本从[规格清单](spec/catalog.json)查找。
+- 已发布规格不可原地覆盖；修改发布新版本，推荐版本不自动升级消费者。归档原件与未接受候选不作为有效契约登记，具体规则见[版本规范](docs/maintenance/versioning.md)。
+- 规格、决定、实现或文档冲突时，先定位语义归属、适用版本和接受依据；如实报告反例，不能静默选用更方便的说法，也不靠改写本文件解决未决架构问题。
+- Cordis 特性、生命周期和 API 语义优先查[官方文档](https://github.com/deepseek-ai/deepseek-harness/tree/master/docs)，记录具体页面和采用版本。资料未覆盖的内容标为假设，通过源码、测试或小型验证补足；上游约定不自动成为本项目约定。
+- 模型检查、测试和实现经验都有范围与前提，不表述为无条件形式化证明。覆盖与工具状态按[验证规范](docs/maintenance/verification.md)如实报告。
+- 切换开发主力模型前，按[评估规范](docs/evaluation/README.md)判断特定防御辅助是否仍需强制使用；精简或移除提醒不撤销系统保证。
+
+## 按任务展开
+
+| 当前任务 | 应用的入口 |
+|---|---|
+| 架构设计、能力边界或有架构影响的选型 | [architecture-design](.agents/skills/architecture-design/SKILL.md)，导航至[架构指南](docs/architecture-guide/README.md)、相关决定和精确规格 |
+| 核对 Cordis API、依赖、插件或生命周期 | [cordis-authoritative-docs](.agents/skills/cordis-authoritative-docs/SKILL.md) |
+| 判断过度设计、抽象价值、复用或复杂度 | [engineering-taste](.agents/skills/engineering-taste/SKILL.md) |
+| 创建、接受、修改或迁移设计材料 | [维护规范](docs/maintenance/README.md)；候选从[提案入口](docs/proposals/README.md)审阅 |
+| 调整防御辅助或准备切换开发主力模型 | [防御演化](docs/maintenance/defensive-evolution.md)与[开发模型评估](docs/evaluation/README.md) |
+| 创建、使用、合并或清理工作树 | [worktree-discipline](.agents/skills/worktree-discipline/SKILL.md)；统一使用主检出根的 `.worktrees/`，HUB 与 spoke 不嵌套创建 |
+| 编写、压缩或审查 AGENTS.md | [write-agents-md](.agents/skills/write-agents-md/SKILL.md) |
+
+Codex 与 Claude Code 的项目 skills 指向同一套文档，修改时保持两端内容一致。普通局部修改沿已有契约和相关检查完成；只有出现新的边界、保证或取舍，才展开对应设计材料。信息足以支持当前任务时停止扩展阅读，不因调用 skill 而扩大任务或批准范围。完整地图见[文档索引](docs/README.md)与[规格索引](spec/README.md)。
