@@ -49,3 +49,12 @@ handoff 与结果新触发等完整语义；后续候选须消费专项继承范
 出厂默认值、当前有效授权、耐久阻塞确认、合格动作暂行定夺及跨会话直接答复。
 候选修订须消费这些要求，并保持配置、动作授权、决定后果与集中呈现各自语义；
 此处不接受原系统的编译器、权限表、池存储或运行时分工。
+
+[PF-009](../../requirements/product/user/PF-009-multimodal-input-attachments-and-commands.md)
+要求保序多模态输入、附件耐久引用、真实模型消费，以及命令发现、Skill 手动
+slash 入口和键盘控制。现有普通输入候选未完整覆盖这些行为，不能把接收文件
+视为模型已读取，或把命令控制等同于聊天文本。
+[PF-010](../../requirements/product/user/PF-010-organization-personal-assets-and-permissions.md)
+补充资产分类、组织共享和个人范围；后续能力组合与调用设计须分别消费来源、
+所有权、权益、版本选择及当前动作权限，不能从 official/customized 标签直接
+推导准入，也不能以用户默认覆盖为由自动借用其它租户资产。

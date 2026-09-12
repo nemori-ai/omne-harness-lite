@@ -8,6 +8,8 @@
 - [PF-006：用户设置、Agent 定义级授权与出厂默认覆盖](PF-006-user-settings-and-agent-definition-authorization.md)
 - [PF-007：系统发起的 HITL 与动作授权确认](PF-007-system-initiated-hitl.md)
 - [PF-008：统一决策池与跨会话直接答复](PF-008-unified-decision-pool.md)
+- [PF-009：多模态输入、附件与命令操作](PF-009-multimodal-input-attachments-and-commands.md)
+- [PF-010：组织级与个人级资产和权限](PF-010-organization-personal-assets-and-permissions.md)
 
 副维度关联：[PF-002：外部环境感知与响应](../environment/PF-002-external-change-response.md)
 （主维度：环境）。环境引发的响应遵循用户所在组织上下文的权限与流程，可以向

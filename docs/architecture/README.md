@@ -89,6 +89,8 @@ DSH 的具体 Agent Loop、Profile/Bundle 装配和应用策略是参考资料�
 | [PF-006](../requirements/product/user/PF-006-user-settings-and-agent-definition-authorization.md) | [当前候选](../proposals/agent-core/README.md#当前需求对应与缺口)缺少用户设置覆盖、定义级授权及实时生效的完整模型 |
 | [PF-007](../requirements/product/user/PF-007-system-initiated-hitl.md) | [当前候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚未定义系统授权确认、耐久等待与合格动作的暂行定夺 |
 | [PF-008](../requirements/product/user/PF-008-unified-decision-pool.md) | [当前候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺统一池的跨会话呈现、直接答复、权限与请求后果关联；PF-005.C8/C9 的通用正文已迁到本项 |
+| [PF-009](../requirements/product/user/PF-009-multimodal-input-attachments-and-commands.md) | [Agent 核心候选](../proposals/agent-core/README.md#当前需求对应与缺口)未完整覆盖多模态内容与附件、Skill 手动 slash 入口、命令发现及键盘控制 |
+| [PF-010](../requirements/product/user/PF-010-organization-personal-assets-and-permissions.md) | [租户候选](../proposals/tenant-contracts/README.md#当前需求对应与缺口)和 [Agent 核心候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺组织/个人资产、权益、角色操作与实际准入的完整模型 |
 | 已有 SYS-* 全局要求 | [约束落实索引](constraints.md)逐项导航 |
 
 2026-09-12 迁移核对：D-001、D-002 由 D-004 补充，D-003 保持适用；没有已接受

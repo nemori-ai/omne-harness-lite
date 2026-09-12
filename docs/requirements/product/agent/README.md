@@ -25,3 +25,9 @@
 - [PF-008：统一决策池与跨会话直接答复](../user/PF-008-unified-decision-pool.md)
   （主维度：用户）：不同会话中的主动请求和系统请求汇入同一池，答复关联原工作，
   并按请求类型驱动接续或其它后果。
+- [PF-009：多模态输入、附件与命令操作](../user/PF-009-multimodal-input-attachments-and-commands.md)
+  （主维度：用户）：Agent 收到真实、保序的多模态内容与附件，用户通过 slash
+  手动调用 Skill，并可用明确目标的键盘命令控制工作。
+- [PF-010：组织级与个人级资产和权限](../user/PF-010-organization-personal-assets-and-permissions.md)
+  （主维度：用户）：Agent 的可用资产与行动权限按当前范围生效；官方/自定义来源、
+  定义所有权、使用权益、选用版本与执行准入分别表达。

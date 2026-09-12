@@ -40,3 +40,6 @@ secondary_dimensions: [agent]
 提供已有身份与成员关系的设计输入，其具体契约仍保持候选状态。
 
 本页不将产品表述中的 effect 等同于某种运行时 Effect 类型或实现机制。
+
+[PF-010](PF-010-organization-personal-assets-and-permissions.md) 进一步拥有组织级
+与个人级的资产、共享权益和角色操作要求；本页保留多组织协作效用的共同前提。

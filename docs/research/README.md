@@ -11,6 +11,8 @@
 - [Sub-agent 要求的完整继承来源与范围](subagent-requirement-sources.md)
 - [Agent 主动提问、批准与耐久 HITL 流程的来源核对](agent-initiated-hitl-sources.md)
 - [用户设置、定义级授权、系统 HITL 与统一决策池的来源核对](user-governance-and-decision-pool-sources.md)
+- [多模态输入、附件、键盘与 slash 命令的来源核对](user-input-and-command-sources.md)
+- [组织/个人资产、权益与 official/customized 来源的核对](tenant-asset-and-permission-sources.md)
 - [DSH 动态能力研究](dsh-cordis-dynamic/README.md)
 - [Agent 系统评测与 benchmark 驱动迭代](agent-system-evaluation/README.md)
 
