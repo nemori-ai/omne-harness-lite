@@ -10,16 +10,12 @@ import argparse, hashlib, json, re, subprocess, sys
 from pathlib import Path
 
 import yaml
+from markdown_it import MarkdownIt
 
 ROOTS = ("README.md", "AGENTS.md", "docs", "spec", ".agents")
-LINK = re.compile(r"(?<!!)\[[^]]*\]\(([^)]+)\)")
-HEADING = re.compile(r"^#{1,6}\s+(.+?)\s*#*\s*$")
 
 def root_path(value: str | None) -> Path:
     return Path(value).resolve() if value else Path(__file__).resolve().parents[2]
-
-def markdown_without_fences(text: str) -> str:
-    return re.sub(r"^```.*?^```[ \t]*$", "", text, flags=re.M | re.S)
 
 def anchor(value: str) -> str:
     value = re.sub(r"`([^`]*)`", r"\1", value).strip().lower()
@@ -27,7 +23,15 @@ def anchor(value: str) -> str:
     return re.sub(r"[ ]+", "-", value)
 
 def headings(path: Path) -> set[str]:
-    return {anchor(m.group(1)) for m in map(HEADING.match, path.read_text(encoding="utf-8").splitlines()) if m}
+    return {anchor(token.content) for token in MarkdownIt().parse(path.read_text(encoding="utf-8")) if token.type == "heading_open"}
+
+def markdown_links(path: Path):
+    for token in MarkdownIt().parse(path.read_text(encoding="utf-8")):
+        if token.type != "inline" or not token.children: continue
+        for child in token.children:
+            if child.type == "link_open":
+                href = dict(child.attrs or {}).get("href")
+                if href: yield href
 
 def local_target(source: Path, target: str, root: Path) -> tuple[Path | None, str | None]:
     target = target.strip().strip("<>")
@@ -63,9 +67,9 @@ def main(argv: list[str] | None = None) -> int:
         path = root / name
         if path.is_file() and path.suffix == ".md": files.append(path)
         elif path.is_dir(): files += list(path.rglob("*.md"))
+    files = [path for path in files if "spec/archive/" not in path.relative_to(root).as_posix()]
     for path in files:
-        text = markdown_without_fences(path.read_text(encoding="utf-8"))
-        for raw in LINK.findall(text):
+        for raw in markdown_links(path):
             target, fragment = local_target(path, raw, root)
             if target is None: continue
             if not target.exists(): errors.append(f"broken link: {path.relative_to(root)} -> {raw}"); continue
@@ -73,19 +77,22 @@ def main(argv: list[str] | None = None) -> int:
                 errors.append(f"broken anchor: {path.relative_to(root)} -> {raw}")
     decisions = root / "docs/decisions"
     if decisions.exists():
-        seen = set()
+        seen = set(); graph = {}
         for path in decisions.glob("D-*.md"):
             data = read_frontmatter(path) or {}
             required = ("kind", "id", "status", "scope", "date", "sources", "acceptance", "supersedes")
-            if any(k not in data for k in required) or data.get("kind") != "decision": errors.append(f"invalid decision metadata: {path.relative_to(root)}"); continue
+            if any(k not in data for k in required) or data.get("kind") != "decision" or data.get("status") not in ("accepted", "superseded", "withdrawn") or not isinstance(data.get("id"), str) or not re.fullmatch(r"D-[0-9]{3,}", data["id"]) or not isinstance(data.get("scope"), str) or not data["scope"].strip() or not isinstance(data.get("date"), __import__("datetime").date) or not isinstance(data.get("acceptance"), str) or not data["acceptance"].strip(): errors.append(f"invalid decision metadata: {path.relative_to(root)}"); continue
             if data["id"] in seen: errors.append(f"duplicate decision id: {data['id']}")
             seen.add(data["id"])
-            if data["status"] == "accepted":
-                sources = data["sources"] if isinstance(data["sources"], list) else []
-                resolved = [local_target(path, str(x), root)[0] for x in sources]
-                if not any(x and x.exists() and ("/docs/proposals/" in str(x) or "/docs/research/" in str(x)) for x in resolved): errors.append(f"accepted decision has no proposal/research source: {data['id']}")
+            sources = data["sources"] if isinstance(data["sources"], list) else []
+            resolved = [local_target(path, str(x), root)[0] for x in sources]
+            if not any(x and x.exists() and ("/docs/proposals/" in str(x) or "/docs/research/" in str(x)) for x in resolved): errors.append(f"decision has no proposal/research source: {data['id']}")
+            acceptance, fragment = local_target(path, data["acceptance"], root)
+            if not acceptance or not acceptance.is_file() or (fragment and anchor(fragment) not in headings(acceptance)): errors.append(f"invalid decision acceptance: {data['id']}")
             for item in data.get("supersedes", []):
                 if not isinstance(item, dict) or not item.get("id") or not item.get("scope"): errors.append(f"invalid supersedes entry: {data['id']}")
+                elif item["id"] == data["id"]: errors.append(f"decision self-supersedes: {data['id']}")
+            graph[data["id"]] = [item.get("id") for item in data.get("supersedes", []) if isinstance(item, dict) and item.get("id")]
             if data.get("supersedes"):
                 basis = data.get("change_basis") or {}
                 for key in ("observation", "causal_explanation", "reproduction", "verification"):
@@ -93,6 +100,14 @@ def main(argv: list[str] | None = None) -> int:
                 for key in ("reproduction", "verification"):
                     target, _ = local_target(path, str(basis.get(key, "")), root)
                     if not target or not target.exists(): errors.append(f"unparseable change_basis.{key}: {data['id']}")
+        for source, targets in graph.items():
+            for target in targets:
+                if target not in graph: errors.append(f"supersedes unknown decision: {source} -> {target}")
+        def reaches(start, node, visited):
+            if node == start: return True
+            return any(reaches(start, next_node, visited | {node}) for next_node in graph.get(node, []) if next_node not in visited)
+        for source, targets in graph.items():
+            if any(reaches(source, target, {source}) for target in targets): errors.append(f"supersedes cycle: {source}")
     for skill in (root / ".agents/skills").glob("*/SKILL.md") if (root / ".agents/skills").exists() else []:
         mirror = root / ".claude/skills" / skill.relative_to(root / ".agents/skills")
         if not mirror.is_file() or mirror.read_bytes() != skill.read_bytes(): errors.append(f"skill mirror differs: {skill.relative_to(root)}")
@@ -109,6 +124,9 @@ def main(argv: list[str] | None = None) -> int:
                 for rel, expected in json.loads(data).get("files", {}).items():
                     path = root / rel
                     if not path.is_file() or sha256(path) != expected: errors.append(f"baseline frozen file changed: {rel}")
+                    if rel not in manifest.get("files", {}): errors.append(f"baseline frozen entry removed: {rel}")
+    elif args.baseline:
+        errors.append("current spec/frozen.json is missing")
     archive = root / "spec/archive/ddd-models/manifest.json"
     if archive.is_file():
         manifest = json.loads(archive.read_text())

@@ -2,6 +2,7 @@ import hashlib
 import json
 import subprocess
 import sys
+import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -28,6 +29,8 @@ def base(tmp_path):
     write(tmp_path / "docs/proposals/p.md", "# Proposal\n")
     write(tmp_path / "spec/catalog.json", '{"catalog_version":1,"contracts":[]}')
     write(tmp_path / "spec/frozen.json", '{"format":1,"files":{}}')
+    write(tmp_path / "spec/formal-tasks.json", '{"format":1,"tasks":[]}')
+    shutil.copytree(ROOT / "spec/tools/formats", tmp_path / "spec/tools/formats")
 
 
 def test_docs_rejects_bad_link_and_anchor(tmp_path):
@@ -80,8 +83,8 @@ def test_docs_baseline_detects_content_and_manifest_tampering(tmp_path):
 def test_specs_rejects_invalid_catalog_and_invalid_example(tmp_path):
     base(tmp_path)
     write(tmp_path / "spec/catalog.json", json.dumps({"catalog_version": 1, "contracts": [{"id": "wrong", "current_version": 2, "versions": [{"version": 1, "status": "accepted", "path": "none.md", "acceptance": "none.md"}]}]}))
-    write(tmp_path / "spec/proposals/x/v1/a.schema.json", json.dumps({"$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "https://example.invalid/a", "type": "object", "required": ["x"]}))
-    write(tmp_path / "spec/proposals/x/v1/a.example.json", "{}")
+    write(tmp_path / "docs/proposals/x/v1/a.schema.json", json.dumps({"$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "https://example.invalid/a", "type": "object", "required": ["x"]}))
+    write(tmp_path / "docs/proposals/x/v1/a.example.json", "{}")
     result = run(SPECS, tmp_path)
     assert result.returncode == 1
-    assert "invalid contract id" in result.stdout and "candidate example invalid" in result.stdout
+    assert "catalog schema" in result.stdout and "schema example invalid" in result.stdout
