@@ -2,7 +2,10 @@
 
 [产品三维](../README.md)
 
-主条目：[PF-003：工具执行可观察、生命周期控制与后台接续](PF-003-tool-execution-observation-and-control.md)。
+主条目：
+
+- [PF-003：工具执行可观察、生命周期控制与后台接续](PF-003-tool-execution-observation-and-control.md)
+- [PF-004：Sub-agent 派发、协作与监督](PF-004-subagent-delegation-and-supervision.md)
 
 副维度关联：
 

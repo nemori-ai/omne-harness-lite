@@ -25,7 +25,13 @@ ids: [SYS-CONTINUITY]
 也不自动成为本项目的设计选择。
 
 逐项确认与存在歧义时的处理归[需求维护](../../maintenance/requirements.md#确认与来源)。
-当前 PF-002 的直接要求和来源补充分开维护。
+PF-002、PF-003 的直接要求和来源补充分开维护。
+
+后续明确的 [PF-004](../product/agent/PF-004-subagent-delegation-and-supervision.md)
+完整继承 `omne-next/omne_harness` 的 sub-agent 相关要求，包含已承诺的未来能力。
+[该项来源清单](../../research/subagent-requirement-sources.md)固定核心全文、相邻
+适用条款和有效补充；它已获得专项继承授权，不再只是可选参考。清单不限定整体
+功能继承范围，源文档中的冲突与后续新增承诺仍分别处理。
 
 ## 待澄清
 
