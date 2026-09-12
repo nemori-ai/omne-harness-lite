@@ -14,5 +14,6 @@
 当前条目按用户介绍顺序编号：[PF-001](user/PF-001-tenant-organization-context.md)、
 [PF-002](environment/PF-002-external-change-response.md)、
 [PF-003](agent/PF-003-tool-execution-observation-and-control.md)、
-[PF-004](agent/PF-004-subagent-delegation-and-supervision.md)。编号独立于维度，维护方式归
+[PF-004](agent/PF-004-subagent-delegation-and-supervision.md)、
+[PF-005](agent/PF-005-agent-initiated-human-input-and-approval.md)。编号独立于维度，维护方式归
 [需求维护](../../maintenance/requirements.md#身份与归属)。分类不代表插件、数据模型或部署单元。

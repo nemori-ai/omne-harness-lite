@@ -70,7 +70,7 @@ Python 工具基类和 wire 字段保持原系统设计身份。
 | [会话 Blueprint 版本接续][version] | Accepted · committed-future；Immutable child and lineage、Permission and execution isolation 中版本 lineage 与派发区别、已受理工作快照和每个 child 独立演进 | C3、C10 |
 | [默认 Agent 选择][default-agent] | Accepted · current；既有 master/sub-agent reference 和 session 不随默认值重绑 | C10 |
 | [根用户会话目录与生命周期][session-directory] | Accepted · current；目录范围和 AC-4 中 sub-agent 不进入顶层列表 | C6 |
-| [人类请求、耐久等待与因果接续][hitl] | Accepted · current；各 sub-agent/Run 可独立等待、owner 作答和因果接续；2026-09-08 amendment 的多个请求并存、独立定位/结算/恢复 | C11 |
+| [人类请求、耐久等待与因果接续][hitl] | Accepted · current；各 sub-agent/Run 可独立等待、owner 作答和因果接续；2026-09-08 amendment 的多个请求并存、独立定位/结算/恢复 | C11；正文现由 [PF-005](../requirements/product/agent/PF-005-agent-initiated-human-input-and-approval.md) 拥有 |
 | [工具执行状态][tool-standing] | Accepted · committed-future；Scope 中派发调用的状态与 child 自己的工具调用归属不同 | C11；PF-003 拥有通用工具观察要求 |
 | [定时结果发布与主题归档][publication] | Accepted · committed-future；定时 sub-agent 结果的 audience/attention/archive、原始报告与 master 交付物分层、回流及发布/归档真实结果 | C7、C11 |
 | [资产候选的隔离评价][evaluation] | Accepted · committed-future；Producer cannot own the judge、AC-1/2：自派 child 属 producer 控制范围，不能充当独立 evaluator 或修改其控制面 | C11 |

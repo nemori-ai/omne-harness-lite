@@ -16,3 +16,7 @@
 副维度关联：[PF-004：Sub-agent 派发、协作与监督](../agent/PF-004-subagent-delegation-and-supervision.md)
 （主维度：智能体）。Owner 能查看完整子智能体树并终止可取消的后代，也能对
 Agent 建立的未来派发工作进行授权、确认激活、查看和逐项终止。
+
+副维度关联：[PF-005：智能体主动提问、请求授权与答复接续](../agent/PF-005-agent-initiated-human-input-and-approval.md)
+（主维度：智能体）。用户能够接收问题、作出批准或拒绝，在会话或跨会话待办池
+中答复；一次性决定与能力权限授予分别表达，等待和答复可跨运行时重建接续。

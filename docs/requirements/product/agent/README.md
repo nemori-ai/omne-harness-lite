@@ -6,6 +6,7 @@
 
 - [PF-003：工具执行可观察、生命周期控制与后台接续](PF-003-tool-execution-observation-and-control.md)
 - [PF-004：Sub-agent 派发、协作与监督](PF-004-subagent-delegation-and-supervision.md)
+- [PF-005：智能体主动提问、请求授权与答复接续](PF-005-agent-initiated-human-input-and-approval.md)
 
 副维度关联：
 
