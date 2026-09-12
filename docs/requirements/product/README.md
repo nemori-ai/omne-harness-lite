@@ -20,5 +20,6 @@
 [PF-007](user/PF-007-system-initiated-hitl.md)、
 [PF-008](user/PF-008-unified-decision-pool.md)、
 [PF-009](user/PF-009-multimodal-input-attachments-and-commands.md)、
-[PF-010](user/PF-010-organization-personal-assets-and-permissions.md)。编号独立于维度，维护方式归
+[PF-010](user/PF-010-organization-personal-assets-and-permissions.md)、
+[PF-011](agent/PF-011-future-planning-calendars-and-reminders.md)。编号独立于维度，维护方式归
 [需求维护](../../maintenance/requirements.md#身份与归属)。分类不代表插件、数据模型或部署单元。

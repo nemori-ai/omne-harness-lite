@@ -48,3 +48,7 @@ secondary_dimensions: [user, agent]
 
 重复变化、失联和恢复时的行为规则仍待明确。来源中的 Channels、Blueprint、State、
 Inbound 等结构不自动成为本项目模型；感知与响应也不自动增加授权。
+
+用户随后明确的 [PF-011](../agent/PF-011-future-planning-calendars-and-reminders.md)
+进一步确认环境/信源/数据源/连接器信号可引出未来规划及调整；该具体范围按
+PF-011 的确认条款生效，不受本页较早来源补充的未确认标记限制。
