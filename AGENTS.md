@@ -45,6 +45,7 @@ omne-harness-lite/
 ├── CLAUDE.md                     Claude Code 入口，通过 @AGENTS.md 复用同级约定
 ├── docs/
 │   ├── README.md                 文档总索引
+│   ├── AGENTS.md / CLAUDE.md      文档局部约定与同级引用
 │   ├── architecture/             当前系统视图与已确认约束
 │   ├── architecture-guide/       架构方法、基础概念与设计判断
 │   ├── research/                 事实观察、来源、证据及局限
@@ -56,6 +57,7 @@ omne-harness-lite/
 │   └── evaluation/               开发模型与防御辅助的评估协议、格式和样例
 ├── spec/
 │   ├── README.md                 语言无关规格入口
+│   ├── AGENTS.md / CLAUDE.md      规格局部约定与同级引用
 │   ├── data/                     共享数据的含义与结构
 │   ├── capabilities/             能力行为、授权、所有权与生命周期
 │   ├── compositions/             跨能力交互与整体性质
@@ -64,7 +66,10 @@ omne-harness-lite/
 │   ├── formal-tasks.json         形式模型的实际执行任务
 │   ├── tools/                    仓库验证工具、格式与测试
 │   └── archive/                  历史规格原件与来源记录
+├── .agents/roles/                subagent 共享正文、源配置与适配依据
 ├── .agents/skills/               Codex 按需指导入口
+├── .codex/agents/                生成的 Codex 原生 subagents
+├── .claude/agents/               生成的 Claude Code 原生 subagents
 ├── .claude/skills/               Claude Code 对应入口，与 Codex 保持一致
 ├── .worktrees/                   主检出根下的隔离工作树，Git 忽略
 ├── tmp/                          临时计划、草稿和本地证据，Git 忽略
@@ -91,6 +96,7 @@ omne-harness-lite/
 | 当前任务 | 应用的入口 |
 |---|---|
 | 架构设计、能力边界或有架构影响的选型 | [architecture-design](.agents/skills/architecture-design/SKILL.md)，导航至[架构指南](docs/architecture-guide/README.md)、相关决定和精确规格 |
+| 完成一次架构设计，已有可识别的待审稿 | 委派 [architecture-reviewer](.agents/roles/README.md) 独立只读评审，提供对象、版本、目标与范围；评审意见不代替接受决定 |
 | 核对 Cordis API、依赖、插件或生命周期 | [cordis-authoritative-docs](.agents/skills/cordis-authoritative-docs/SKILL.md) |
 | 判断过度设计、抽象价值、复用或复杂度 | [engineering-taste](.agents/skills/engineering-taste/SKILL.md) |
 | 创建、接受、修改或迁移设计材料 | [维护规范](docs/maintenance/README.md)；候选从[提案入口](docs/proposals/README.md)审阅 |

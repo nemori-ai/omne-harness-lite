@@ -1,0 +1,9 @@
+name = "architecture-reviewer"
+description = "Independent read-only architecture review after a design or revision is ready for review. Return evidence-backed findings and unresolved questions; do not author designs, apply fixes, or accept decisions. Ordinary wording and link edits do not require this role."
+model = "gpt-6-astra"
+model_reasoning_effort = "xhigh"
+sandbox_mode = "read-only"
+approval_policy = "never"
+
+[agents]
+enabled = false

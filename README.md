@@ -28,6 +28,7 @@ Cordis 承载动态内核机制；Agent Loop、Harness 层、工具协议、治�
 | 了解项目约定与研发品味 | [AGENTS.md](AGENTS.md) |
 | 定位设计材料 | [文档总索引](docs/README.md) |
 | 做架构设计、能力或服务边界判断 | [架构指南](docs/architecture-guide/README.md)、[architecture-design skill](.agents/skills/architecture-design/SKILL.md) |
+| 架构设计完成后的独立评审 | [architecture-reviewer](.agents/roles/README.md)，Codex / Claude Code 同职责只读角色 |
 | 查看已接受的选择及其依据 | [决定](docs/decisions/README.md) |
 | 审阅候选设计、回查研究 | [提案](docs/proposals/README.md)、[研究](docs/research/README.md) |
 | 查找精确版本的行为与数据契约 | [规格](spec/README.md) |
