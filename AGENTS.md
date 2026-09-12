@@ -46,6 +46,7 @@ DeepSeek 提出的 Cordis 为内核，同时保留和遵循原
 
 ## 文档地图
 
+- [架构设计指南](docs/architecture-guide/README.md)：架构设计与开发中的架构选型，使用 [architecture-design](.agents/skills/architecture-design/SKILL.md) skill 定位相关指南、决策和规格，按需展开。
 - [`docs/architecture.md`](docs/architecture.md)：当前架构投影和系统不变量。
 - [`docs/defensive-patterns.md`](docs/defensive-patterns.md)：运行时、并发、生命周期和资源边界的防御性原则。
 - [`spec/`](spec/)：语言无关的 TLA+、Alloy、JSON Schema 和验收场景。

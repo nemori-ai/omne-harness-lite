@@ -1,0 +1,63 @@
+{
+  "registry_version": 1,
+  "models": [
+    {
+      "id": "domain.aggregate.Tenant",
+      "version": 1,
+      "status": "current",
+      "path": "aggregates/tenant/v1/model.md"
+    },
+    {
+      "id": "domain.aggregate.LLMProfile",
+      "version": 1,
+      "status": "current",
+      "path": "aggregates/llm-profile/v1/model.md",
+      "schema": "aggregates/llm-profile/v1/schema.json"
+    },
+    {
+      "id": "domain.value-object.ModelRouting",
+      "version": 1,
+      "status": "current",
+      "path": "value-objects/model-routing/v1/model.md",
+      "schema": "value-objects/model-routing/v1/schema.json"
+    },
+    {
+      "id": "domain.value-object.ModelModalities",
+      "version": 1,
+      "status": "current",
+      "path": "value-objects/model-modalities/v1/model.md",
+      "schema": "value-objects/model-modalities/v1/schema.json"
+    },
+    {
+      "id": "domain.value-object.ModelLimits",
+      "version": 1,
+      "status": "current",
+      "path": "value-objects/model-limits/v1/model.md",
+      "schema": "value-objects/model-limits/v1/schema.json"
+    },
+    {
+      "id": "domain.entity.UserAccount",
+      "version": 1,
+      "status": "current",
+      "path": "entities/user-account/v1/model.md"
+    },
+    {
+      "id": "domain.entity.Membership",
+      "version": 1,
+      "status": "current",
+      "path": "entities/membership/v1/model.md"
+    },
+    {
+      "id": "domain.enum.AptitudeTier",
+      "version": 1,
+      "status": "current",
+      "path": "enums/aptitude-tier/v1/model.md"
+    },
+    {
+      "id": "domain.enum.ModelOrigin",
+      "version": 1,
+      "status": "current",
+      "path": "enums/model-origin/v1/model.md"
+    }
+  ]
+}

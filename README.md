@@ -32,6 +32,7 @@ DeepSeek 提出的 Cordis 为内核，同时保留和遵循原
 ## 文档入口
 
 - [`AGENTS.md`](AGENTS.md)：项目约束、研发品味和导航。
+- [架构设计指南](docs/architecture-guide/README.md)：分层组织的概念、建模原则、动态演化与验证指导。
 - [`docs/architecture.md`](docs/architecture.md)：总体架构、边界和演进目标。
 - [`docs/defensive-patterns.md`](docs/defensive-patterns.md)：运行时和并发防御原则。
 - [`spec/`](spec/)：领域模型、TLA+、Alloy、JSON Schema 和验收场景。

@@ -1,0 +1,245 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.omne-harness-lite.invalid/proposals/system-prompt-profile/v1/schema.json",
+  "title": "SystemPromptProfile — review draft 1",
+  "description": "系统提示词档案的一个内容修订。提案附件，非已接受的领域契约。静态文本原样加载；动态模板仅绑定受限状态契约中的变量。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "tenant_id",
+    "profile_id",
+    "name",
+    "revision",
+    "status",
+    "static_text",
+    "dynamic",
+    "created_at",
+    "updated_at",
+    "published_at",
+    "retired_at"
+  ],
+  "properties": {
+    "tenant_id": {
+      "$ref": "#/$defs/Identifier",
+      "description": "档案所属租户；引用与管理时仍必须验证权限。"
+    },
+    "profile_id": {
+      "$ref": "#/$defs/Identifier",
+      "description": "档案稳定身份；不随内容 revision 改变。"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S",
+      "description": "人可读名称，不作为引用身份。"
+    },
+    "description": {
+      "type": "string",
+      "description": "可选的用途说明，不自动加入系统提示词。"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "内容修订号；区别于本 Schema 的版本。"
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "published",
+        "retired"
+      ],
+      "description": "候选发布生命周期；不是渲染状态。"
+    },
+    "static_text": {
+      "type": "string",
+      "description": "固定纯文本，允许为空；不插值、不规范化、不 trim。即使包含模板分隔符也原样保留。"
+    },
+    "dynamic": {
+      "description": "无动态部分时为 null；否则为受限模板定义。",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/DynamicPart"
+        }
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "published_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "retired_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "draft"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "published_at": {
+            "type": "null"
+          },
+          "retired_at": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "published"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "published_at": {
+            "$ref": "#/$defs/Timestamp"
+          },
+          "retired_at": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "retired"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "published_at": {
+            "$ref": "#/$defs/Timestamp"
+          },
+          "retired_at": {
+            "$ref": "#/$defs/Timestamp"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "Identifier": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "Timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ContextContractRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract_id",
+        "version"
+      ],
+      "description": "引用已由宿主批准的受限上下文状态契约；模板作者不能通过此声明自行增加访问权。",
+      "properties": {
+        "contract_id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "StateBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state_key"
+      ],
+      "description": "将模板局部变量绑定到获准契约中的一个精确状态键。不是表达式或任意对象遍历路径。",
+      "properties": {
+        "state_key": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_.-]*$",
+          "description": "引用由获准状态提供者声明的精确键；档案填写者不能自行注册键。运行时可用集合随提供者生命周期和作用域变化，不是全系统写死的 enum。",
+          "$comment": "pattern 仅校验词法；须另行解析权威契约，并验证键定义、版本、当前作用域的提供者可用性与访问权限。可从确定的注册视图生成 enum 供编辑或离线校验，但它只是快照，不能替代运行时依赖检查。"
+        }
+      }
+    },
+    "DynamicPart": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "context_contract_ref",
+        "template",
+        "variables"
+      ],
+      "properties": {
+        "context_contract_ref": {
+          "$ref": "#/$defs/ContextContractRef"
+        },
+        "template": {
+          "type": "string",
+          "description": "候选语法：{{alias}} 文本插值；无条件、循环、函数调用或模板内 I/O。完整词法校验由语义验证承担。"
+        },
+        "variables": {
+          "type": "object",
+          "description": "键为模板局部别名，值为精确受限状态绑定。允许空对象；所有被引用变量必须声明并获准。",
+          "propertyNames": {
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/StateBinding"
+          }
+        }
+      }
+    },
+    "ProfileRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "profile_id",
+        "revision"
+      ],
+      "description": "多个 Agent 复用同一档案修订时使用的精确引用，不复制档案内容；此引用本身不授权。",
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "profile_id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}

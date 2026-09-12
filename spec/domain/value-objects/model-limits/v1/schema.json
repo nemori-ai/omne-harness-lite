@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://omne-harness-lite.dev/spec/domain/value-object/ModelLimits/v1/schema.json","type":"object","additionalProperties":false,"required":["max_input_tokens","max_output_tokens"],"properties":{"max_input_tokens":{"type":"integer","minimum":1},"max_output_tokens":{"type":"integer","minimum":1}}}
