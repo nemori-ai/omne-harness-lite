@@ -66,3 +66,10 @@ slash 入口和键盘控制。现有普通输入候选未完整覆盖这些行�
 仍按 PF-004 的专项要求建模。源提醒/执行互斥和旧固定时区说法已有明确新要求
 或修订，后续候选应消费 PF-011 的[差异处理](../../research/future-planning-calendar-and-notification-sources.md#来源差异与当前处理)，
 不从旧实现引入调度器、数据模型或通知通道选择。
+
+[PF-012](../../requirements/product/environment/PF-012-computer-browser-shell-sandbox-and-native-use.md)
+要求 Computer、Browser、Shell 三类能力同时具备沙盒与运行时当前操作系统
+直接使用的支持。现有工具执行候选尚未表达这六种产品组合、环境选择、精确目标、
+共享桌面接管、浏览器身份及环境间交接。后续设计应保持沙盒边界，同时支持
+获准本机操作，不能用源沙盒专用的 host 排除收窄本轮要求，也不能把隔离失败
+静默降级为本机执行；具体实现、权限表示与支持矩阵仍待设计。

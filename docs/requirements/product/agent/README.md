@@ -32,3 +32,6 @@
 - [PF-010：组织级与个人级资产和权限](../user/PF-010-organization-personal-assets-and-permissions.md)
   （主维度：用户）：Agent 的可用资产与行动权限按当前范围生效；官方/自定义来源、
   定义所有权、使用权益、选用版本与执行准入分别表达。
+- [PF-012：Computer、Browser、Shell 能力与沙盒／本机使用](../environment/PF-012-computer-browser-shell-sandbox-and-native-use.md)
+  （主维度：环境）：三类 use 都是 Agent 的能力，各自支持沙盒和当前操作系统的
+  直接使用；能力、执行环境与有效授权分别表达。

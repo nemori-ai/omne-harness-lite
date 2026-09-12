@@ -31,3 +31,7 @@ Agent 建立的未来派发工作进行授权、确认激活、查看和逐项�
 副维度关联：[PF-011：面向未来的复杂日程规划、日历与通知提醒](../agent/PF-011-future-planning-calendars-and-reminders.md)
 （主维度：智能体）。用户可表达时间意图、选择日历、管理和终止安排，查看日程
 及结果，并在未来收到系统安排的提醒与通知；仅提醒不要求启动 Agent。
+
+副维度关联：[PF-012：Computer、Browser、Shell 能力与沙盒／本机使用](../environment/PF-012-computer-browser-shell-sandbox-and-native-use.md)
+（主维度：环境）。Agent 可以在获准范围内直接操作与用户共享的电脑环境；用户
+能辨认实际目标、观察和中断调用，桌面接管与环境权限保持明确。
