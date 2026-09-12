@@ -1,50 +1,53 @@
 # omne-harness-lite
 
 `omne-harness-lite` 是一个更轻量化、更高性能的 OMNE harness 系统，以
-DeepSeek 提出的 Cordis 为内核，同时保留和遵循原
-`omne-next/omne_harness` 的核心设计理念和最佳实践。
+DeepSeek 提出的 Cordis 为内核，同时保留和遵循原 `omne-next/omne_harness`
+的核心设计理念和最佳实践，旨在提供一个能够超长期待机、稳定运行、持续进化的
+个人智能助手所需的全部能力。
 
-项目旨在提供一个能够超长期待机、稳定运行、持续进化的个人智能助手所需的
-全部能力。Cordis 提供动态运行时内核机制；Agent Loop、Harness 层、工具协议、
-治理、证据和其他子系统由本项目自行实现。本项目不把 DeepSeek Harness 当作
-自身实现，也不称为 Cordis Harness。
+Cordis 承载动态内核机制；Agent Loop、Harness 层、工具协议、治理和其他子系统
+由本项目自行实现。系统的能力、定义、绑定和组合能够动态演化，并受到明确的
+身份、所有权、生命周期和不变量约束。
 
 ## 当前状态
 
-项目处于设计、规格建模和内核验证阶段，尚未正式上线或对外提供生产服务。
-当前优先建立语言无关的领域契约和可验证的不变量，再逐步实现单机版本。
-在有明确设计和验证依据时，可以进行面向正确性的大胆重构，不为旧版本保留
-未经要求的兼容层。
+项目处于架构设计、规格建模与实验阶段，尚未上线或对外提供生产服务。当前仓库
+提供设计资料、维护规范与验证脚手架；它尚不是可运行的个人助手产品。
+现有租户、模型及 agent-core 设计仍以提案身份供 review；有效契约以
+[`spec/catalog.json`](spec/catalog.json) 为准，目录迁移不会自动批准业务设计。
 
-第一版完整交付是单机系统；设计阶段必须确保关键机制、模块和子系统具备清晰
-边界，使它们未来可以独立扩展为分布式、异构物理节点和微服务化部署，而不改变
-领域语义。从第一天起支持租户隔离，关键聚合根显式携带租户身份，所有模型请求
-统一经 OpenRouter 发送。
+第一版完整交付是单机系统；设计中确保关键边界未来可以独立扩展为分布式、
+异构物理节点和微服务部署，而不改变领域语义。从第一天起支持租户隔离，
+所有模型请求统一经 OpenRouter 发送。允许有依据的大胆重构，不保留未经要求的
+旧版本实现兼容层。详细方向见[当前架构](docs/architecture/README.md)。
 
-## 设计原则
+## 从这里进入
 
-- 站在 DSH Cordis 的视角建模：可替换能力通过插件、服务、Context、依赖和事件组合。
-- 领域语义保持语言无关；Cordis 运行时对象是承载机制，不是领域模型本身。
-- 全系统共享同一套领域建模；同一事物只有一个权威定义，跨 bounded context 不无理由重定义。
-- 先保护不变量和所有权，再选择最小的正确抽象；让生命周期、失败和副作用显式可见。
-- 优先复用满足要求的成熟实现或第三方库，只有现有实现无法满足要求时才从零构建。
+| 任务 | 入口 |
+|---|---|
+| 了解项目约定与研发品味 | [AGENTS.md](AGENTS.md) |
+| 定位设计材料 | [文档总索引](docs/README.md) |
+| 做架构设计、能力或服务边界判断 | [架构指南](docs/architecture-guide/README.md)、[architecture-design skill](.agents/skills/architecture-design/SKILL.md) |
+| 查看已接受的选择及其依据 | [决定](docs/decisions/README.md) |
+| 审阅候选设计、回查研究 | [提案](docs/proposals/README.md)、[研究](docs/research/README.md) |
+| 查找精确版本的行为与数据契约 | [规格](spec/README.md) |
+| 维护、发布、复议和迁移资料 | [维护规范](docs/maintenance/README.md) |
+| 调整防御辅助或切换开发主力模型 | [防御模式](docs/defensive-patterns.md)、[开发模型评估](docs/evaluation/README.md) |
 
-## 文档入口
+Codex 与 Claude Code 的项目 skills 分别位于 `.agents/skills/` 与
+`.claude/skills/`，内容保持一致，按需导航到同一份权威文档。
 
-- [`AGENTS.md`](AGENTS.md)：项目约束、研发品味和导航。
-- [架构设计指南](docs/architecture-guide/README.md)：分层组织的概念、建模原则、动态演化与验证指导。
-- [`docs/architecture.md`](docs/architecture.md)：总体架构、边界和演进目标。
-- [`docs/defensive-patterns.md`](docs/defensive-patterns.md)：运行时和并发防御原则。
-- [`spec/`](spec/)：领域模型、TLA+、Alloy、JSON Schema 和验收场景。
-- [Cordis 权威资料 skill](.agents/skills/cordis-authoritative-docs/SKILL.md)：查阅 DSH 官方资料的约定。
+## 仓库验证
 
-## 规格工具
+安装 `uv` 后，在仓库根目录运行；依赖与 Python 环境由 `uv.lock` 和
+`pyproject.toml` 管理，Python 仅用于仓库工具，不决定产品实现语言。
 
-规格工具链包括 TLA+/TLC、Alloy Analyzer 和 JSON Schema Draft 2020-12。工具只在
-本地具备时运行检查：
-
-```text
+```sh
+make docs-check
 make spec-check
+make test
 ```
 
-工具安装、模型文件和各类规格的职责见 [`spec/README.md`](spec/README.md)。
+文档结构、引用和 Schema 校验不等于行为证明。TLA+/TLC 与 Alloy 的模型任务
+及 Java/JAR 环境单独声明和检查；`make spec-tools` 报告工具是否齐备。
+环境缺失与未建立模型覆盖必须显式报告，详见[验证规范](docs/maintenance/verification.md)。

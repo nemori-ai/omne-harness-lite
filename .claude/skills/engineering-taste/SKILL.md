@@ -82,6 +82,18 @@ For a dynamic `omne-harness-lite` change, preserve the distinctions between:
 If an implementation collapses one of these pairs for convenience, treat that as
 a design risk requiring a precise contract and evidence.
 
+## Defensive guidance also has a cost
+
+A reminder can protect a real guarantee while its wording, repetition, or mandatory
+reading no longer earns its cost for a particular development model. Judge those
+separately: keep the guarantee, measure the aid. A new model name or an error-free
+run with all reminders present cannot show that a reminder is redundant.
+
+When evaluating that tradeoff, use [defensive evolution](../../../docs/maintenance/defensive-evolution.md)
+and the [developer-model evaluation protocol](../../../docs/evaluation/README.md).
+Their bounded evidence can support retention, simplification, or removal; this skill
+does not make any such choice by itself.
+
 ## Boundaries
 
 Cordis-specific facts come from the `cordis-authoritative-docs` skill and the

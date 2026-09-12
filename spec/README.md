@@ -1,24 +1,45 @@
-# `omne-harness-lite` 规格
+# 语言无关规格
 
-本目录保存与实现语言无关的系统规格。规格是设计阶段的契约，未来各语言实现都应依据它复现相同的结构、行为和数据约束。
+规格定义可以跨语言复现的身份、数据、操作、不变量和组合承诺。按被约束的语义
+组织，不按编程语言、DDD 战术类别或验证工具切分系统。
 
-## 目录
+## 入口
 
-- `proposals/agent-core/v1/`：系统提示词、工具与执行层的第一版综合提案，含来源对照、模型导航和 review 场景；尚未作为接受的领域契约。
-- `domain/`：语言无关的领域模型注册表，按枚举、值对象、实体和聚合组织，并以不可变版本保存每个模型；这是领域语义的首要落点。
-- `tla/`：TLA+ 行为、状态迁移、并发和时序不变量。
-- `alloy/`：Alloy 结构关系和有限范围反例模型。
-- `schemas/`：JSON Schema 数据契约，统一使用 Draft 2020-12。
-- `scenarios/`：跨工具、跨实现的验收场景。
-- `traceability/`：领域概念、不变量、形式模型、数据契约和验收场景之间的映射。
+| 目录或清单 | 职责 |
+|---|---|
+| [capabilities/](capabilities/README.md) | 可观察的能力行为、授权、所有权和生命周期 |
+| [data/](data/README.md) | 跨能力复用的数据含义与结构 |
+| [compositions/](compositions/README.md) | 不能归属单一能力的交互关系与整体性质 |
+| [catalog.json](catalog.json) | 唯一的契约 ID、版本、状态、路径、接受依据与推荐版本清单 |
+| [frozen.json](frozen.json) | 已发布规范文件的冻结哈希；配合 Git 基线检查防止覆盖历史 |
+| [archive/](archive/README.md) | 保留原貌的旧组织资料，供来源追溯，不属于有效规格 |
+| [tools/](tools/) | 本地验证工具；工具本身不是产品架构 |
 
-## 工具约定
+目前有效清单为空：本轮接受了组织与治理体系，没有替用户批准业务契约。
+已有的[租户](../docs/proposals/tenant-contracts/README.md)、
+[模型](../docs/proposals/model-contracts/README.md)与
+[agent-core](../docs/proposals/agent-core/v1/README.md)材料从提案入口 review。
+已有 Schema 可以检查，但校验结果不会改变它的提案身份。
 
-- TLA+ 使用官方 TLC 工具；运行环境需要 Java 11 或更高版本。
-- Alloy 使用 Alloy Analyzer；运行环境需要 Java 运行时。
-- JSON Schema 文件以 Draft 2020-12 元模式声明自身；具体 validator 由后续实现和 CI 决定。
-- Event-B/Rodin 暂不属于当前工具链。
+## 一个契约怎样生长
 
-从仓库根目录运行 `make spec-check` 可以检查本机是否具备当前规格工具。工具缺失时，检查会给出安装提示，不会静默跳过。
+一个契约有稳定入口和精确版本，例如 `data/<name>/README.md` 导航到
+`data/<name>/v1/contract.md`。行为或组合契约采用相同约定。
+先明确语义与接受依据，再按需要添加 Schema、TLA+、Alloy、规范场景及验证映射。
+不为每个契约预建一套空附件，目录也不预先决定服务、插件或进程边界。
 
-当前只配置工具边界和目录，不预设 Agent Loop 或其他子系统的实现语言。
+正式规范引用精确版本；同义概念沿权威定义复用。发布后的 `vN/` 文件冻结，
+修改发布新版本，推荐版本不自动升级消费者。运行证据位于版本目录之外，记录
+所验证的契约、实现与工具版本。完整字段和规则由
+[维护规范](../docs/maintenance/README.md)唯一维护。
+
+## 验证职责
+
+TLA+ 表达行为和状态演化的权威规格，Alloy 辅助检查结构约束，JSON Schema
+Draft 2020-12 表达跨语言数据契约。有限模型检查、数据验证和实现测试各有边界，
+不能互相冒充或宣称无条件证明。Event-B 暂不引入。
+
+从根目录使用 `make docs-check`、`make spec-check` 和 `make test`。
+实际形式任务与工具就绪情况必须分别报告；没有模型时不声称执行过模型验证。
+安装边界、执行方式、追踪映射与证据要求见
+[验证规范](../docs/maintenance/verification.md)。
