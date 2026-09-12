@@ -1,0 +1,95 @@
+{
+  "kind": "research-execution-evidence",
+  "executed_on": "2026-09-12",
+  "upstream_repository": "https://github.com/deepseek-ai/deepseek-harness",
+  "test_source_revision": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+  "runtime_source_revision": "not established; wheel distribution version is recorded separately",
+  "environment": {
+    "os": "Linux",
+    "architecture": "x86_64",
+    "python": "3.12.13",
+    "uv": "0.11.24"
+  },
+  "installed_distributions": {
+    "annotated-types": "0.8.0",
+    "deepseek-harness-runtime-bin": "0.1.5rc1",
+    "deepseek-harness-sdk": "0.1.5rc1",
+    "pydantic": "2.13.5",
+    "pydantic_core": "2.46.5",
+    "typing-inspection": "0.4.4",
+    "typing_extensions": "4.16.0"
+  },
+  "source_files": [
+    {
+      "path": "scripts/smoke-python-runtime.py",
+      "sha256": "113e6f1b6e53b2da341ce0e383fa217f2ecc2c879deb4ebdbb8228c2b02ea35d"
+    },
+    {
+      "path": "packages/core/session/src/types.ts",
+      "sha256": "e9dfc1d7bc4b146f954520a9ca2eff8539f3b9c082b5ecfac7ddb9c747501e45"
+    },
+    {
+      "path": "scripts/snapshots/python-sdk-single-exe/minimal/model-visible.json",
+      "sha256": "a2bc3a48fc62e1f82966fb2d1a763a2951e30bc1806efde8c4b4034f2888ddf3"
+    }
+  ],
+  "published_wheels": [
+    {
+      "filename": "deepseek_harness_sdk-0.1.5rc1-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/ee/fa/9b3e2a449f876211fdcbd8082edcf70f0ead08617aa4e064a9bb14372291/deepseek_harness_sdk-0.1.5rc1-py3-none-any.whl",
+      "sha256": "8d9897e97e8a95fd738cb2c3e2c563951d824e43847ec6f3b0fb172c0729b4d8"
+    },
+    {
+      "filename": "deepseek_harness_runtime_bin-0.1.5rc1-py3-none-manylinux_2_28_x86_64.whl",
+      "url": "https://files.pythonhosted.org/packages/bc/ff/632fddc738effdbc8752f02641aba6eaeb96f820367b8cee68397501948d/deepseek_harness_runtime_bin-0.1.5rc1-py3-none-manylinux_2_28_x86_64.whl",
+      "size": 80720547,
+      "sha256": "ad877237382baff4628969a9ebdbfe38486d971b7987c032d0e29775759b5229"
+    }
+  ],
+  "installed_runtime": {
+    "filename": "deepseek-harness-sdk-runtime-linux-x64",
+    "sha256": "6f68ce88d98307533ee8fa58a8125de4dc019ab16fac8b512cec141a2d1961f8",
+    "embedded_metadata": {
+      "name": "deepseek-harness-runtime-bin",
+      "version": "0.0.0-dev"
+    }
+  },
+  "invocation": {
+    "command_template": "<venv>/bin/python <upstream>/scripts/smoke-python-runtime.py --installed-wheel --scenario <scenario>",
+    "working_directory": "outside upstream source directory",
+    "process_timeout_seconds_per_scenario": 120,
+    "model_endpoint": "HTTP loopback with official deterministic MockModel",
+    "real_model_requests": 0,
+    "snapshots_updated": false
+  },
+  "results": [
+    {
+      "scenario": "sdk-default",
+      "exit_code": 0,
+      "seconds": 4.672,
+      "stdout": "smoke-python-runtime: sdk-default passed\n",
+      "stderr": ""
+    },
+    {
+      "scenario": "sdk-minimal",
+      "exit_code": 0,
+      "seconds": 2.248,
+      "stdout": "smoke-python-runtime: sdk-minimal passed\n",
+      "stderr": ""
+    },
+    {
+      "scenario": "sdk-custom",
+      "exit_code": 0,
+      "seconds": 5.065,
+      "stdout": "smoke-python-runtime: sdk-custom passed\n",
+      "stderr": ""
+    }
+  ],
+  "limitations": [
+    "This is a keyless runtime smoke, not a model-quality benchmark.",
+    "No OpenRouter credential was injected; no live provider call was performed.",
+    "Only three named scenarios ran; no upstream all-suite, CI performance budget, or restart test ran.",
+    "Upstream smoke removes its temporary workspace and session logs; this artifact retains process results and source hashes, not raw session traces.",
+    "Durations are one-off observations, not calibrated performance measurements."
+  ]
+}
