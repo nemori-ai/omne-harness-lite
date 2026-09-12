@@ -10,45 +10,45 @@ sys.path.insert(0, str(TOOLS))
 from evaluate_developer_model import DEFAULT_SUITE, evaluate, sha256  # noqa: E402
 
 
-def write_report(tmp_path: Path) -> Path:
-    suite = json.loads(DEFAULT_SUITE.read_text())
-    artifact = tmp_path / "trajectory.txt"
-    artifact.write_text("reviewable local trajectory\n", encoding="utf-8")
-    digest = hashlib.sha256(artifact.read_bytes()).hexdigest()
-    run_data = []
-    for task in suite["tasks"]:
-        for arm in ("retain", "simplify", "remove"):
-            run_data.append({
-                "task_id": task["id"], "split": task["split"], "arm": arm, "repeat": 1,
-                "artifact": {"path": artifact.name, "sha256": digest},
-                "constraint_observations": [
-                    {"id": constraint, "status": "satisfied", "evidence": "trajectory reviewed"}
-                    for constraint in task["critical_constraints"]
-                ],
-                "cost": {"input_tokens": 1, "output_tokens": 1, "duration_ms": 1, "tool_calls": 0, "human_interventions": 0}
-            })
-    digest64 = "a" * 64
+def artifact(directory: Path, name: str, content: str) -> dict:
+    path = directory / name
+    path.write_text(content, encoding="utf-8")
+    return {"path": name, "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+
+
+def write_report(directory: Path) -> Path:
+    public = artifact(directory, "public-suite.json", DEFAULT_SUITE.read_text())
+    heldout_document = {"suite_version": "heldout-v1", "tasks": [{
+        "id": "heldout-authority", "split": "heldout", "critical_constraints": ["authority"],
+        "prompt": "Apply authority resolution to a fresh fixture.", "fixture": {},
+        "rubric": [{"id": "authority", "observable": "Names the authoritative source."}]
+    }]}
+    heldout = artifact(directory, "heldout-suite.json", json.dumps(heldout_document))
+    files = {name: artifact(directory, f"{name}.txt", name) for name in ("base-config", "candidate-config", "reasoning", "harness", "tools", "prompt", "retain", "simplify", "remove", "trajectory")}
+    suites = json.loads(DEFAULT_SUITE.read_text())
+    tasks = suites["tasks"] + heldout_document["tasks"]
+    runs = []
+    for task in tasks:
+        for model, arm in (("baseline", "retain"), ("candidate", "retain"), ("candidate", "simplify"), ("candidate", "remove")):
+            runs.append({"task_id": task["id"], "split": task["split"], "model": model, "arm": arm, "repeat": 1, "artifact": files["trajectory"], "constraint_observations": [{"id": item, "status": "satisfied", "evidence": "reviewed trajectory"} for item in task["critical_constraints"]], "cost": {"input_tokens": 1, "output_tokens": 1, "duration_ms": 1, "tool_calls": 0, "human_interventions": 0}})
     report = {
         "format_version": 1, "report_id": "sample", "evaluation_target": "developer_agent", "report_state": "completed",
-        "suite": {"id": suite["suite_version"], "version": "1", "sha256": sha256(DEFAULT_SUITE)},
-        "baseline": {"provider": "example", "model_id": "base", "revision": "r1", "configuration_sha256": digest64},
-        "candidate": {"provider": "example", "model_id": "candidate", "revision": "r2", "configuration_sha256": digest64},
-        "environment": {key: {"id": key, "version": "v1", "sha256": digest64} for key in ("reasoning", "harness", "tools", "prompt")},
-        "arms": [{"id": arm, "aid_sha256": digest64} for arm in ("retain", "simplify", "remove")],
-        "repetitions": 1, "task_runs": run_data,
+        "public_suite": {"id": suites["suite_version"], "version": "1", "artifact": public},
+        "frozen_heldout_suite": {"id": "heldout-v1", "version": "1", "artifact": heldout, "non_contamination_attestation": "This file was frozen before prompt or aid tuning."},
+        "baseline": {"provider": "example", "model_id": "base", "revision": "r1", "configuration": files["base-config"]},
+        "candidate": {"provider": "example", "model_id": "candidate", "revision": "r2", "configuration": files["candidate-config"]},
+        "environment": {name: {"id": name, "version": "v1", "artifact": files[name]} for name in ("reasoning", "harness", "tools", "prompt")},
+        "arms": [{"id": arm, "pattern_id": "defensive.authority", "aid": files[arm]} for arm in ("retain", "simplify", "remove")],
+        "repetitions": 1, "task_runs": runs,
         "adoption_record": {"decision": "undecided", "recorded_by": "human reviewer", "recorded_on": "2026-09-12", "scope": "sample only", "rationale": "Awaiting human judgement.", "review_triggers": ["model revision changes"]}
     }
-    destination = tmp_path / "report.json"
-    destination.write_text(json.dumps(report), encoding="utf-8")
-    return destination
+    report_path = directory / "report.json"
+    report_path.write_text(json.dumps(report), encoding="utf-8")
+    return report_path
 
 
-def read(path: Path) -> dict:
+def mutate(path: Path) -> dict:
     return json.loads(path.read_text())
-
-
-def write(path: Path, document: dict) -> None:
-    path.write_text(json.dumps(document), encoding="utf-8")
 
 
 class DeveloperModelEvaluationTests(unittest.TestCase):
@@ -56,47 +56,56 @@ class DeveloperModelEvaluationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             self.assertEqual(evaluate(write_report(Path(directory))).status, "evidence-ready")
 
-    def test_missing_comparison_arm_is_rejected(self) -> None:
+    def test_complete_negative_result_is_evidence_ready_for_do_not_adopt(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             report_path = write_report(Path(directory))
-            report = read(report_path)
-            report["arms"] = report["arms"][:2]
-            write(report_path, report)
-            result = evaluate(report_path)
-            self.assertEqual(result.status, "needs-completion")
-            self.assertTrue(result.issues)
+            report = mutate(report_path)
+            report["task_runs"][0]["constraint_observations"][0]["status"] = "violated"
+            report["adoption_record"]["decision"] = "do_not_adopt"
+            report_path.write_text(json.dumps(report), encoding="utf-8")
+            self.assertEqual(evaluate(report_path).status, "evidence-ready")
 
-    def test_tampered_trajectory_is_rejected(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            temp_path = Path(directory)
-            report_path = write_report(temp_path)
-            (temp_path / "trajectory.txt").write_text("tampered", encoding="utf-8")
-            result = evaluate(report_path)
-            self.assertEqual(result.status, "needs-completion")
-            self.assertTrue(any("hash" in issue for issue in result.issues))
-
-    def test_unobserved_critical_constraint_is_rejected(self) -> None:
+    def test_negative_result_cannot_record_adopt(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             report_path = write_report(Path(directory))
-            report = read(report_path)
-            report["task_runs"][0]["constraint_observations"][0]["status"] = "unobserved"
-            write(report_path, report)
-            result = evaluate(report_path)
-            self.assertEqual(result.status, "needs-completion")
-            self.assertTrue(any("critical constraint" in issue for issue in result.issues))
-
-    def test_missing_repeat_observation_is_rejected(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            report_path = write_report(Path(directory))
-            report = read(report_path)
-            report["task_runs"].pop()
-            write(report_path, report)
+            report = mutate(report_path)
+            report["task_runs"][0]["constraint_observations"][0]["status"] = "violated"
+            report["adoption_record"]["decision"] = "adopt"
+            report_path.write_text(json.dumps(report), encoding="utf-8")
             self.assertEqual(evaluate(report_path).status, "needs-completion")
 
-    def test_product_runtime_target_is_rejected_by_the_protocol_schema(self) -> None:
+    def test_unobserved_critical_constraint_is_incomplete(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             report_path = write_report(Path(directory))
-            report = read(report_path)
-            report["evaluation_target"] = "product_runtime_agent"
-            write(report_path, report)
+            report = mutate(report_path)
+            report["task_runs"][0]["constraint_observations"][0]["status"] = "unobserved"
+            report_path.write_text(json.dumps(report), encoding="utf-8")
+            self.assertEqual(evaluate(report_path).status, "needs-completion")
+
+    def test_missing_baseline_run_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            report_path = write_report(Path(directory))
+            report = mutate(report_path)
+            report["task_runs"] = [run for run in report["task_runs"] if not (run["task_id"] == "authority-source" and run["model"] == "baseline")]
+            report_path.write_text(json.dumps(report), encoding="utf-8")
+            self.assertEqual(evaluate(report_path).status, "needs-completion")
+
+    def test_tampered_configuration_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            report_path = write_report(path)
+            (path / "candidate-config.txt").write_text("tampered", encoding="utf-8")
+            self.assertEqual(evaluate(report_path).status, "needs-completion")
+
+    def test_incomplete_frozen_task_packet_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            report_path = write_report(path)
+            report = mutate(report_path)
+            heldout_path = path / report["frozen_heldout_suite"]["artifact"]["path"]
+            heldout = json.loads(heldout_path.read_text())
+            del heldout["tasks"][0]["rubric"]
+            heldout_path.write_text(json.dumps(heldout), encoding="utf-8")
+            report["frozen_heldout_suite"]["artifact"]["sha256"] = sha256(heldout_path)
+            report_path.write_text(json.dumps(report), encoding="utf-8")
             self.assertEqual(evaluate(report_path).status, "needs-completion")
