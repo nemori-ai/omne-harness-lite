@@ -17,11 +17,15 @@ the modes are the terrain they apply to.
 
 | Convention | Value |
 |---|---|
-| Location | `.claude/worktrees/<semantic-name>` — gitignored; never anywhere else |
+| Location | `<main-checkout-root>/.worktrees/<semantic-name>` — gitignored; shared by all agents and harnesses |
 | Naming | Semantic campaign / task names (`engram-ddd-phase2`, `harness-tenant`); spoke families share a prefix (`harness-th-*`) |
 | Main checkout | **Stays on `main`, forever.** Feature branches exist only inside worktrees |
 | Setup | Use the repository-specific setup documented by the task; do not assume an implementation language or environment |
 | `git stash` | Forbidden, everywhere — worktrees exist so you never need it |
+
+The worktree container belongs to the project's main checkout, including for HUB
+and spoke creation. Resolve that root explicitly when already inside a linked
+worktree; do not create a nested `.worktrees/` in the HUB or spoke.
 
 ## Step 0 — Read Your Position
 
@@ -49,8 +53,8 @@ Position determines topology; topology comes from the plan.
 One well-bounded task, one worktree:
 
 ```bash
-git worktree add .claude/worktrees/<name> -b <branch-name>
-cd .claude/worktrees/<name>          # all subsequent paths are THIS tree's
+git -C /path/to/main-checkout worktree add .worktrees/<name> -b <branch-name>
+cd /path/to/main-checkout/.worktrees/<name>  # all subsequent paths are THIS tree's
 ./scripts/uv_sync_all.sh             # only if Python will be touched
 ```
 
@@ -211,6 +215,7 @@ the HUB, integration verification, and anything that touches `main`.
   where the two skills meet.
 - **`github-pr`** — owns PR mechanics at campaign closure; this skill only decides the
   closure shape.
-- **Native isolation tools** (`EnterWorktree`, Agent `isolation: "worktree"`) — prefer
-  them when the harness offers them for ad-hoc single-agent isolation; Mode B's
-  named-HUB topology is deliberate and stays under explicit `git worktree` control.
+- **Native isolation tools** (`EnterWorktree`, Agent `isolation: "worktree"`) — use
+  them only when their destination can follow the project-root `.worktrees/`
+  convention. Otherwise use explicit `git worktree add`; Mode B's named-HUB
+  topology remains under explicit `git worktree` control.

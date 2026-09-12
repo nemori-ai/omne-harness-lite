@@ -1,15 +1,17 @@
 # Fan-out Playbook — Command-Level HUB Lifecycle
 
 The Mode B walkthrough, command by command. `<campaign>` is the semantic campaign
-name; `WT=.claude/worktrees` throughout. Every command shown runs against explicit
+name; `WT=/path/to/main-checkout/.worktrees` throughout. The main checkout
+root is shared by the HUB and all spokes; never derive it from a linked worktree's
+current directory. Every command shown runs against explicit
 paths — never rely on "where the shell happens to be".
 
 ## 1. HUB Setup
 
 ```bash
 # From anywhere — paths are explicit
-git -C /path/to/main-checkout worktree add .claude/worktrees/<campaign> -b worktree-<campaign>
-cd /path/to/main-checkout/.claude/worktrees/<campaign>
+git -C /path/to/main-checkout worktree add .worktrees/<campaign> -b worktree-<campaign>
+cd /path/to/main-checkout/.worktrees/<campaign>
 ./scripts/uv_sync_all.sh                       # HUB gets its own .venv
 
 # Land plan-mandated foundation work as ordinary commits on the HUB branch
@@ -22,11 +24,11 @@ a `feat/<campaign>` style name) is the base for every spoke.
 ## 2. Spoke Creation — fork from the HUB branch
 
 ```bash
-HUB_BRANCH=$(git -C $WT/<campaign> branch --show-current)
+HUB_BRANCH=$(git -C "$WT/<campaign>" branch --show-current)
 
 # Spokes are created in the MAIN checkout's worktree dir, based on the HUB branch:
 git -C /path/to/main-checkout worktree add \
-    .claude/worktrees/<campaign>-<spoke> -b <campaign>-<spoke> "$HUB_BRANCH"
+    .worktrees/<campaign>-<spoke> -b <campaign>-<spoke> "$HUB_BRANCH"
 ```
 
 **Never** `-b <spoke> main` — a spoke based on `main` is blind to every sibling
@@ -45,7 +47,7 @@ The dispatch prompt's mandatory preamble (verbatim discipline, not paraphrase):
 
 ```
 First actions, before any other work:
-1. cd /abs/path/.claude/worktrees/<campaign>-<spoke>
+1. cd /abs/path/.worktrees/<campaign>-<spoke>
 2. git branch --show-current   → MUST print <campaign>-<spoke>; if not, STOP and report
 3. All file Writes/Edits use this worktree's absolute paths.
 4. All test runs use THIS worktree's .venv via ./scripts/run_tests.sh, output to /tmp logs.
@@ -55,8 +57,8 @@ Deadline: commit partial work with a WIP marker if approaching it.
 After the worker reports, the dispatcher independently verifies the landing:
 
 ```bash
-git -C $WT/<campaign>-<spoke> log --oneline -5     # commits exist, on the right branch
-git -C $WT/<campaign>-<spoke> status --short       # nothing stranded unstaged
+git -C "$WT/<campaign>-<spoke>" log --oneline -5     # commits exist, on the right branch
+git -C "$WT/<campaign>-<spoke>" status --short       # nothing stranded unstaged
 git -C /path/to/main-checkout log --oneline -3     # main did NOT move
 ```
 
@@ -70,7 +72,7 @@ Non-force removal can delete ignored files too; these checks precede either form
 ## 4. Merge-Back at Spoke Completion (or Wave Barrier)
 
 ```bash
-cd $WT/<campaign>
+cd "$WT/<campaign>"
 git merge --no-ff <campaign>-<spoke>      # conflicts resolved HERE, in the HUB
 
 # Integration verification after EVERY merge-back — scoped to the campaign's packages:
@@ -78,7 +80,7 @@ git merge --no-ff <campaign>-<spoke>      # conflicts resolved HERE, in the HUB
 tail -30 /tmp/<campaign>-int-<spoke>.log
 
 # Only after Retirement Before Removal passes and cleanup is authorized:
-git -C /path/to/main-checkout worktree remove .claude/worktrees/<campaign>-<spoke>
+git -C /path/to/main-checkout worktree remove .worktrees/<campaign>-<spoke>
 git -C /path/to/main-checkout branch -d <campaign>-<spoke>
 ```
 
@@ -92,7 +94,7 @@ the next wave does not launch over a red barrier.
 ## 5. Campaign Closure
 
 ```bash
-cd $WT/<campaign>
+cd "$WT/<campaign>"
 ./scripts/run_tests.sh --targets <all-campaign-pkgs> > /tmp/<campaign>-final.log 2>&1
 # Plus the quality gates the changes warrant (ruff check + format --check, pyright)
 
@@ -116,7 +118,7 @@ the HUB serves as verification ground rather than PR source.
 ```bash
 git -C /path/to/main-checkout pull                                  # main current
 # Only after Retirement Before Removal passes and cleanup is authorized:
-git -C /path/to/main-checkout worktree remove .claude/worktrees/<campaign>
+git -C /path/to/main-checkout worktree remove .worktrees/<campaign>
 git -C /path/to/main-checkout branch -d "$HUB_BRANCH"
 git -C /path/to/main-checkout remote prune origin
 git -C /path/to/main-checkout worktree list                         # confirm clean
