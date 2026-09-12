@@ -10,3 +10,5 @@
 - [Agent 系统评测与 benchmark 驱动迭代](agent-system-evaluation/README.md)
 
 使用方法见[知识流转](../maintenance/knowledge-flow.md)。
+
+- [需求基线保留与恢复](requirements-baselines/README.md)：需求快照、保留引用及自包含历史包的恢复证据。

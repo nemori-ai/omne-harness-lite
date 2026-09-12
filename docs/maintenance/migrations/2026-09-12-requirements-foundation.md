@@ -67,4 +67,11 @@ TLA+/Alloy 执行任务为 0，明确报告 UNCOVERED，本次不声称完成产
 复核覆盖确认/补充/未决边界、租户共同义务、决定有效前提及共享角色输入与权限。
 检查器代码、测试执行、Git 恢复、生成配置及宿主行为不在此次独立复核范围内。
 
-正式基线保留与恢复证据在基线提交形成后独立记录，避免自引用提交哈希。
+正式基线为 `8688fe36a9d3d23edabd2f8c7a436b73cc15f34c`，保留 tag 为
+`requirements-baseline/2026-09-12-foundation`。其[自包含历史包和恢复记录](../../research/requirements-baselines/README.md)
+在基线之后单独交付，避免自引用提交哈希。仅从包导入 tag 的独立仓库没有开发分支
+或 alternates，清除 reflog 并 GC 后，提交及全部 13 份需求文件仍可恢复且字节一致，
+`git fsck --full` 通过。包随仓库跟踪保存，本轮没有远端推送或合并。
+
+增加基线证据导航后，最终 docs-check 覆盖 186 份 Markdown 并通过；工具代码与
+64 项测试的已验证状态一致。
