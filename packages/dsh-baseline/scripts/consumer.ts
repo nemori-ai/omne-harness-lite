@@ -4,6 +4,14 @@ import Registry, { type Agent } from '@omne-harness-lite/agent/baseline'
 import { createScope, NamedEntries, ScopedLayers, type Scope } from '@omne-harness-lite/agent/scope-baseline'
 import { snapshotJsonValue } from '@omne-harness-lite/dsh-baseline/baseline/values'
 import { deadline } from '@omne-harness-lite/dsh-baseline/baseline/timeout'
+import { createUserMessage } from '@omne-harness-lite/dsh-baseline/baseline/llm'
+import { Session, SessionId } from '@omne-harness-lite/dsh-baseline/baseline/session'
+import { AssistantStreamAttempt, type SourceAssistantStreamFrame } from '@omne-harness-lite/dsh-baseline/baseline/loop'
+import { materializeAppendBatch, assertContiguous } from '@omne-harness-lite/dsh-baseline/baseline/persistence'
+import { writeSyncedFile, appendSyncedBytes, readFirstLine, syncDirectory } from '@omne-harness-lite/dsh-baseline/baseline/jsonl'
+import { mkdtemp, rm, readFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 assert.deepEqual(snapshotJsonValue({ n: 1 }), { n: 1 })
 const abort = new AbortController()
@@ -42,3 +50,33 @@ await detach()
 await scopeOwner.dispose()
 await registry.dispose()
 console.log('PASS: built source helpers, shared agent scope routing and owned store teardown')
+
+// Exercise only source mechanisms: the synchronous Session append is not a
+// target durability acknowledgement, and these bytes are not a DR envelope.
+const session = Session.create(SessionId('artifact-session'))
+const message = createUserMessage({ content: [{ type: 'text', text: 'artifact input' }], source: { kind: 'user' } })
+session.append('user/message', message, { surfaceOp: 'append' })
+const frames: SourceAssistantStreamFrame[] = []
+const attempt = new AssistantStreamAttempt(session.id, 1, () => frames.length + 1, 1, 1, frame => frames.push(frame))
+attempt.start()
+attempt.push({ type: 'text-delta', index: 0, text: 'artifact output' })
+attempt.settle('assistant/attempt', () => session.append('assistant/attempt', { turn: 1, step: 1, stream: attempt.stream }).seq)
+assert.equal(attempt.ended, true)
+assert.equal(frames.at(-1)?.type, 'end')
+assert.deepEqual(session.deriveMessages(), [message])
+const batch = materializeAppendBatch(session.snapshotEvents())
+assertContiguous(session.id, batch, 0)
+const directory = await mkdtemp(join(tmpdir(), 'omne-source-io-'))
+try {
+  const path = join(directory, 'events.jsonl')
+  const first = JSON.stringify(batch[0])
+  const tail = batch.slice(1).map(event => JSON.stringify(event) + '\n').join('')
+  await writeSyncedFile(path, first + '\n')
+  await appendSyncedBytes(path, tail)
+  await syncDirectory(directory)
+  assert.equal(await readFirstLine(path), first)
+  assert.equal(await readFile(path, 'utf8'), first + '\n' + tail)
+} finally {
+  await rm(directory, { recursive: true, force: true })
+}
+console.log('PASS: artifact LLM/Session/Loop/storage helpers and actual file I/O composition')

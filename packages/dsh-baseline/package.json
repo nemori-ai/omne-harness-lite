@@ -24,6 +24,30 @@
     "./baseline/jsonl": {
       "types": "./dist/jsonl/index.d.ts",
       "import": "./dist/jsonl/index.js"
+    },
+    "./baseline/llm": {
+      "types": "./dist/llm/index.d.ts",
+      "import": "./dist/llm/index.js"
+    },
+    "./baseline/media": {
+      "types": "./dist/media/index.d.ts",
+      "import": "./dist/media/index.js"
+    },
+    "./baseline/session": {
+      "types": "./dist/session/index.d.ts",
+      "import": "./dist/session/index.js"
+    },
+    "./baseline/projection": {
+      "types": "./dist/projection/index.d.ts",
+      "import": "./dist/projection/index.js"
+    },
+    "./baseline/persistence": {
+      "types": "./dist/persistence/index.d.ts",
+      "import": "./dist/persistence/index.js"
+    },
+    "./baseline/loop": {
+      "types": "./dist/loop/index.d.ts",
+      "import": "./dist/loop/index.js"
     }
   },
   "files": [
