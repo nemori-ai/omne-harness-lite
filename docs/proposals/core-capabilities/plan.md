@@ -1,5 +1,9 @@
 # 设计工作计划
 
+本轮阶段 1–7 已完成：设计由 [D-008](../../decisions/D-008-core-capabilities.md)
+接受并发布精确规格；随后完成[定向源码 fork 起点](fork/delivery.md)。
+目标提供者与完整产品实现仍按正式契约的实现验收推进。
+
 ## 目标与范围
 
 在 `design/dsh-core-adoption`、基线 `c3563c9` 上完成下列能力族的设计：

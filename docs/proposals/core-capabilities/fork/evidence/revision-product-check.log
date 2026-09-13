@@ -1,0 +1,33 @@
+
+> omne-harness-lite-workspace@ check /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption
+> pnpm -r run check
+
+Scope: 2 of 3 workspace projects
+packages/agent check$ pnpm run build && pnpm run typecheck && vitest run && node scripts/check-package.mjs
+packages/agent check: > @omne-harness-lite/agent@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/packages/agent
+packages/agent check: > node -e "require('node:fs').rmSync('dist', {recursive: true, force: true})" && tsc -p tsconfig.build.json
+packages/agent check: > @omne-harness-lite/agent@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/packages/agent
+packages/agent check: > tsc -p tsconfig.test.json
+packages/agent check:  RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/packages/agent
+packages/agent check:  Test Files  5 passed (5)
+packages/agent check:       Tests  50 passed (50)
+packages/agent check:    Start at  20:18:24
+packages/agent check:    Duration  418ms (transform 370ms, setup 0ms, import 634ms, tests 228ms, environment 1ms)
+packages/agent check: PASS: isolated tarball consumer, ownership, dependency removal, factory removal and initiator
+packages/agent check: PASS: 12 upstream records, 15 artifact files, official Cordis integrity
+packages/agent check: Done
+packages/dsh-baseline check$ pnpm run build && pnpm run typecheck && vitest run && node scripts/check-package.mjs
+packages/dsh-baseline check: > @omne-harness-lite/dsh-baseline@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/packages/dsh-baseline
+packages/dsh-baseline check: > node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/dsh-baseline check: > @omne-harness-lite/dsh-baseline@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/packages/dsh-baseline
+packages/dsh-baseline check: > tsc -p tsconfig.test.json
+packages/dsh-baseline check:  RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/packages/dsh-baseline
+packages/dsh-baseline check:  Test Files  32 passed (32)
+packages/dsh-baseline check:       Tests  616 passed (616)
+packages/dsh-baseline check:    Start at  20:18:40
+packages/dsh-baseline check:    Duration  4.44s (transform 2.72s, setup 0ms, import 6.00s, tests 6.39s, environment 6ms)
+packages/dsh-baseline check: PASS: built source helpers, shared agent scope routing and owned store teardown
+packages/dsh-baseline check: PASS: artifact LLM/Session/Loop/storage helpers and actual file I/O composition
+packages/dsh-baseline check: PASS: artifact prompt/tool contribution, native call and withdrawal
+packages/dsh-baseline check: PASS: 70 source records, 12 subpaths, isolated dual-tarball declarations/runtime
+packages/dsh-baseline check: Done
