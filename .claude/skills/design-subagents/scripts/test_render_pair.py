@@ -117,3 +117,92 @@ def test_unfilled_template_is_not_generated(source):
     (source / "role.md").write_text("你是 {{role_name}}")
     with pytest.raises(ValueError, match="unfilled"):
         renderer.render(source)
+
+
+def test_shared_prompt_is_inlined_and_drift_is_detected(source, tmp_path):
+    common = source.parent / "common.md"
+    common.write_text("你必须取得实施规格与施工计划才能开工。\n")
+    (source / "assembly.toml").write_text('shared_prompt = "../common.md"\n')
+    (source.parent / "task.md").write_text("这是给派发者的任务模板。")
+    outputs = renderer.render(source)
+    codex, _, body = bodies(outputs)
+    assert body == (source / "role.md").read_text().strip() + "\n\n" + common.read_text()
+    assert codex["developer_instructions"] == body
+    assert "任务模板" not in body
+    out = tmp_path / "out"
+    renderer.deliver(outputs, out)
+    common.write_text("新的明确边界。\n")
+    with pytest.raises(ValueError, match="output differs"):
+        renderer.deliver(renderer.render(source), out, check=True)
+
+
+@pytest.mark.parametrize("kind", ["missing", "escape", "symlink", "self", "placeholder"])
+def test_invalid_shared_prompt_cannot_be_silently_omitted(source, tmp_path, kind):
+    common = source.parent / "common.md"
+    target = "../common.md"
+    if kind == "escape":
+        target = "../../outside.md"
+    elif kind == "symlink":
+        common.symlink_to(tmp_path.parent / "outside.md")
+    elif kind == "self":
+        target = "role.md"
+    elif kind == "placeholder":
+        common.write_text("{{required_contract}}")
+    (source / "assembly.toml").write_text(f'shared_prompt = "{target}"\n')
+    with pytest.raises((ValueError, OSError)):
+        renderer.render(source)
+
+
+@pytest.fixture
+def adjustable(source):
+    description = "Implement scoped work. " + renderer.effort_description("high")
+    (source / "codex.toml").write_text(f'name = "bounded-developer"\ndescription = "{description}"\nmodel = "gpt-5.6-sol"\n[agents]\nenabled = false\n')
+    (source / "claude.yaml").write_text(yaml.safe_dump({
+        "name": "bounded-developer", "description": description, "model": "opus",
+        "tools": "Read, Edit, Bash", "permissionMode": "default"}))
+    (source / "assembly.toml").write_text('default_effort = "high"\n')
+    return source
+
+
+def test_adjustable_defaults_and_task_overrides_preserve_prompt_and_permissions(adjustable):
+    before = {p.name: p.read_bytes() for p in adjustable.iterdir()}
+    codex, claude, body = bodies(renderer.render(adjustable))
+    assert "model_reasoning_effort" not in codex
+    assert claude["effort"] == "high"
+    assert renderer.dispatch_settings(adjustable, "codex")["reasoning_effort"] == "high"
+    for effort in ("medium", "high", "xhigh"):
+        settings = renderer.dispatch_settings(adjustable, "codex", effort)
+        assert settings == {"agent_type": "bounded-developer", "model": "gpt-5.6-sol", "reasoning_effort": effort}
+        native = renderer.dispatch_settings(adjustable, "claude", effort)["bounded-developer"]
+        assert native == {**{k: v for k, v in claude.items() if k != "name"},
+                          "tools": ["Read", "Edit", "Bash"], "effort": effort, "prompt": body}
+    assert {p.name: p.read_bytes() for p in adjustable.iterdir()} == before
+
+
+@pytest.mark.parametrize("mutation", ["codex_fixed", "claude_fixed", "description_drift", "unknown_field", "invalid_default"])
+def test_conflicting_or_misleading_dispatch_configuration_fails(adjustable, mutation):
+    if mutation == "codex_fixed":
+        p = adjustable / "codex.toml"
+        p.write_text('model_reasoning_effort = "high"\n' + p.read_text())
+    elif mutation == "claude_fixed":
+        p = adjustable / "claude.yaml"
+        p.write_text(p.read_text() + 'effort: high\n')
+    elif mutation == "description_drift":
+        p = adjustable / "assembly.toml"
+        p.write_text('default_effort = "medium"\n')
+    elif mutation == "unknown_field":
+        p = adjustable / "assembly.toml"
+        p.write_text(p.read_text() + 'surprise = true\n')
+    else:
+        (adjustable / "assembly.toml").write_text('default_effort = "ultra"\n')
+    with pytest.raises(ValueError):
+        renderer.render(adjustable)
+
+
+def test_fixed_role_cannot_be_overridden_and_dispatch_cli_is_json(adjustable, capsys):
+    assert renderer.main(["--source", str(adjustable), "--dispatch", "codex", "--effort", "medium"]) == 0
+    import json
+    assert json.loads(capsys.readouterr().out)["reasoning_effort"] == "medium"
+    (adjustable / "assembly.toml").unlink()
+    with pytest.raises(ValueError, match="does not declare adjustable"):
+        renderer.dispatch_settings(adjustable, "codex", "medium")

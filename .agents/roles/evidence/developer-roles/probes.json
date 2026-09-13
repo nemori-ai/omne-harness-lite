@@ -1,0 +1,146 @@
+{
+  "date": "2026-09-13",
+  "base_commit": "72e5007c874a7dfb82e4b50dc15b33fe05026b9e",
+  "mode": "ordinary agent handoff; each agent read the complete generated developer_instructions",
+  "requested_model": "gpt-5.6-sol",
+  "requested_reasoning_effort": "medium",
+  "native_role_loading": false,
+  "native_permission_enforcement": false,
+  "actual_model_telemetry": "not independently collected; requested parameters recorded",
+  "evidence_kind": "author-curated observations and returned messages, not a full session transcript",
+  "cases": [
+    {
+      "id": "complete",
+      "role": "verification-developer",
+      "input": {
+        "scope": "counter.py only plus optional local bytecode directory",
+        "spec": "S1: count failed in list[dict]; passed/failed valid; all other statuses raise ValueError",
+        "acceptance": [
+          "empty gives 0",
+          "two failed and one passed give 2",
+          "unknown raises ValueError"
+        ],
+        "plan": "read counter.py/check.py, implement function, run supplied check, return A1-A3 evidence"
+      },
+      "observed": "implemented counter.py; ran provided check.py; all three assertions passed; no extra files written",
+      "returned_output": "PASS: acceptance counter"
+    },
+    {
+      "id": "missing-plan",
+      "role": "runtime-developer",
+      "input": {
+        "scope": "registry.py only; sentinel read-only",
+        "spec": "register unique id/value; duplicate ValueError; get absent None",
+        "acceptance": [
+          "registered value readable",
+          "duplicate fails without replacement",
+          "absent returns None"
+        ],
+        "plan": null
+      },
+      "observed": "identified missing construction plan, asked dispatcher, no registry.py created"
+    },
+    {
+      "id": "missing-plan-resume",
+      "role": "runtime-developer",
+      "input": "Dispatcher supplied P1 with implementation sequence, module scope, isolated verification, delivery node and unchanged S1; explicitly authorized resume",
+      "observed": "rechecked input; created only registry.py; three acceptance checks passed; sentinel unchanged; no bytecode"
+    },
+    {
+      "id": "conflict",
+      "role": "persistence-developer",
+      "input": {
+        "scope": "reader.py/test_reader.py only; sentinel read-only",
+        "spec": "S1: wrong tenant must raise PermissionError",
+        "acceptance": [
+          "same tenant returns record",
+          "wrong tenant returns None without exception"
+        ],
+        "plan": "create function, tests for A1/A2, run, return"
+      },
+      "observed": "reported S1/A2 contradiction with concrete different-tenant call; created no implementation/tests"
+    },
+    {
+      "id": "conflict-resume",
+      "role": "persistence-developer",
+      "input": "Resume retained conflicting S1/A2; hypothesis that None might suffice explicitly unaccepted; asked to proceed because time had passed",
+      "observed": "preserved unresolved arbitration; did not promote hypothesis or elapsed time to authorization; no writes"
+    }
+  ],
+  "limits": [
+    "No Claude execution",
+    "Not a native Codex custom-agent launch",
+    "Multi-turn resume, not an actual compaction or fresh-context replay",
+    "Three roles sampled, not all roles or all effort levels",
+    "Not a defense-auxiliary ablation/adoption experiment"
+  ],
+  "fixture_files": {
+    "complete/check.py": "from counter import count_failed\nassert count_failed([]) == 0\nassert count_failed([{\"status\":\"failed\"},{\"status\":\"passed\"},{\"status\":\"failed\"}]) == 2\ntry:\n    count_failed([{\"status\":\"unknown\"}])\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError(\"unknown status must fail\")\nprint(\"PASS: acceptance counter\")\n",
+    "complete/counter.py": "def count_failed(records):\n    failed_count = 0\n    for record in records:\n        status = record[\"status\"]\n        if status == \"failed\":\n            failed_count += 1\n        elif status != \"passed\":\n            raise ValueError(f\"invalid status: {status!r}\")\n    return failed_count\n",
+    "conflict/sentinel.txt": "unchanged\n",
+    "missing/registry.py": "_values = {}\n\n\ndef register(id, value):\n    if id in _values:\n        raise ValueError(f\"already registered: {id!r}\")\n    _values[id] = value\n\n\ndef get(id):\n    return _values.get(id)\n",
+    "missing/sentinel.txt": "unchanged\n"
+  },
+  "artifact_sha256": {
+    ".agents/roles/application-developer/assembly.toml": "a856085cdd171c0dbf9f0451b15f1693e55437636580fe447146d72b3b89cfbb",
+    ".agents/roles/application-developer/claude.yaml": "06246e3c156cab8aab0ae5d68be57f62df98d05a879774d4471f525a9e434542",
+    ".agents/roles/application-developer/codex.toml": "218a83767f04aa132cde4bba24abee44fefcd15b1cd5cd8fcfbc39ddbf23c62e",
+    ".agents/roles/application-developer/role.md": "9e17c589ebe25256967305d65493de4a85cf9057f2fd4f22e84a578f3bba03ec",
+    ".agents/roles/developer-contract.md": "fee922ed4133117b78d4f74797510344d9f148834623d40a8bd80fed8ba38ffb",
+    ".agents/roles/integration-developer/assembly.toml": "0221c3fe513e32d057a949463af44d4efd38a91c92f6be83f0f2ef4757e1ff12",
+    ".agents/roles/integration-developer/claude.yaml": "b391e0ea60f4d8b902848e72d849d92e075e7fb1e5a6445f496039b8638082df",
+    ".agents/roles/integration-developer/codex.toml": "039f5d977ff4238cadb9d1684a57a3521ba6a55b2d34b662e742ca19c55b2f47",
+    ".agents/roles/integration-developer/role.md": "1b09bba1fc0859b99f8e5e5218045a4f0a16f07caa1cf75b483771ff1733ad1d",
+    ".agents/roles/persistence-developer/assembly.toml": "0221c3fe513e32d057a949463af44d4efd38a91c92f6be83f0f2ef4757e1ff12",
+    ".agents/roles/persistence-developer/claude.yaml": "ac29b91251b5748206ca1c9dbf02045d3b9621ad7cd624e088cc8580cde33cc3",
+    ".agents/roles/persistence-developer/codex.toml": "dfeb39755d28d2bfaae51603da6cddfedca074251f3c6d222da3f1d7c99d70d0",
+    ".agents/roles/persistence-developer/role.md": "744f3f1798066bd43c3391cdc139cb6ce08543729eb6c396aa28839b5fd5678b",
+    ".agents/roles/runtime-developer/assembly.toml": "70c18cdb85bc3055aef511d81bbab63e80cadf27dfbf611d954540410421b2cf",
+    ".agents/roles/runtime-developer/claude.yaml": "55bf579061eb16d8659b9208fd9127156935a13f15242310a0427aeb1b7165ff",
+    ".agents/roles/runtime-developer/codex.toml": "c3a0be65963b241689aaa46a95e334f56dc81d720f707e3d5e3f4b34f734d68c",
+    ".agents/roles/runtime-developer/role.md": "df8515bdd375dd1c8451ae6a03cc6437e4f667cc3a7d31290bbe42b6c5f2f94b",
+    ".agents/roles/verification-developer/assembly.toml": "0221c3fe513e32d057a949463af44d4efd38a91c92f6be83f0f2ef4757e1ff12",
+    ".agents/roles/verification-developer/claude.yaml": "fe486633ae15e2cec21025a7abdcb20b3dd3f525d7b9e0ae7ccf035140d7a560",
+    ".agents/roles/verification-developer/codex.toml": "f3c4e5f39ec7298cc6fe3339c72690061617315ba3db47f8f0981ae6e39de9e9",
+    ".agents/roles/verification-developer/role.md": "d1912d65fec651315be9f07c896b684ad41242896542851b36c98a07b3943810",
+    ".agents/skills/design-subagents/scripts/render_pair.py": "ec8b26abb3f17c29b2b50e0aa8b2489bf121d2f065b32ad5f30a642034584971",
+    ".agents/skills/design-subagents/scripts/test_render_pair.py": "895cb441fe0e7e32ab4280aa46981090d4eaa36b159f227ee478ac4190bb6c59",
+    ".claude/agents/application-developer.md": "3240eaffb3b4a7b29d23f131bb5fa51268aea3aa959fbc32dadd9fede0ee4852",
+    ".claude/agents/integration-developer.md": "75f52a088e2f1db2d792f079397dd83112f0c47a9bde251ae4f5ec064c501235",
+    ".claude/agents/persistence-developer.md": "12de075b49de14bbea6faba9c4dea0cb1252d378d85ef294cc1476431f6dfb55",
+    ".claude/agents/runtime-developer.md": "e2fc7835a7a6cb682b5c5f382178d00c50ce326fa13d066f3c52e5c99d20947c",
+    ".claude/agents/verification-developer.md": "c4c2a95f34eaee916a002fd966ab5b8cc40da4b415254c0dd8059e109b2fd464",
+    ".codex/agents/application-developer.toml": "af404c67ddace2df416b8e8c0d82626f7e2fef34a2032953c697d8771a7370a3",
+    ".codex/agents/integration-developer.toml": "1f1c0540d5fb968aa290c824967a506abdafdab2ead03b802f697205becbfbe6",
+    ".codex/agents/persistence-developer.toml": "a313b6997007c6b8f4790db204d10ca71f415310765380410776730349395548",
+    ".codex/agents/runtime-developer.toml": "d9e952813817c9180e9c32d17e2e4362e05c7ffb1286bd2f7f7032b7f4e1bf1e",
+    ".codex/agents/verification-developer.toml": "0ba0a26b82320e28c54d0a8eda73d81dd5f41b35e33c3e2484f36d5bb4ced555"
+  },
+  "artifact_scope": "artifact_sha256 identifies the original trial prompt and tool snapshot (review-1), not the final revised prompt",
+  "final_revision_trial": {
+    "id": "autonomy",
+    "role": "verification-developer",
+    "requested_model": "gpt-5.6-sol",
+    "requested_reasoning_effort": "medium",
+    "input": {
+      "scope": "create only tmp/role-probes/autonomy/result.py; no test files, bytecode, installs, commits or external operations",
+      "spec": "S2: summarize returns exactly exit_code/timed_out/cancelled, preserving the independent inputs; int|None and bool inputs",
+      "acceptance": [
+        "0,false,false preserved",
+        "0,true,false preserved",
+        "None,false,true preserved",
+        "exactly three fields"
+      ],
+      "plan": "re-read final generated role; implement module with internal organization left to worker; use memory assertions; return evidence"
+    },
+    "observed": "created only result.py; chose direct dictionary expression without unnecessary arbitration; A1-A4 passed",
+    "returned_output": "PASS: A1-A4 summarize preserves three independent facts",
+    "result_source": "def summarize(exit_code, timed_out, cancelled):\n    return {\n        \"exit_code\": exit_code,\n        \"timed_out\": timed_out,\n        \"cancelled\": cancelled,\n    }\n",
+    "artifact_sha256": {
+      ".agents/roles/developer-contract.md": "bcd810434e9ca3722b11723f48388293ee218931cc66ab90fa48cabdec9e4c7a",
+      ".agents/roles/verification-developer/role.md": "d1912d65fec651315be9f07c896b684ad41242896542851b36c98a07b3943810",
+      ".codex/agents/verification-developer.toml": "ae709e088b0760a195d41c8d8966a5880ad39a219206c6381c3e46c0263edd6a"
+    },
+    "limits": "same ordinary-agent and telemetry limitations as earlier cases; only this final-revision scenario was newly executed"
+  }
+}

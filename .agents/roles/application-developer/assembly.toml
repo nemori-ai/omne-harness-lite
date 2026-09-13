@@ -1,0 +1,2 @@
+shared_prompt = "../developer-contract.md"
+default_effort = "medium"
