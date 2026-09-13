@@ -574,7 +574,7 @@
       "targets": [
         "src/tools/index.ts"
       ],
-      "changes": "Extracted definition registration/freezing, inherited restriction views, schema projection, native invocation, cancellation-after-quiescence, final content normalization and canonical failure/result materialization; removed PTC/code-runtime/SDK rendering, approval and pre/post/around policy, Agent/Session/Loop coupling, settings, timeout/concurrency policy metadata and host tools."
+      "changes": "Extracted definition registration/freezing, inherited restriction views, schema projection, native invocation, cancellation-after-quiescence, final content normalization and canonical failure/result materialization; removed PTC/code-runtime/SDK rendering, approval and pre/post/around policy, Agent/Session/Loop coupling, settings, timeout/concurrency policy metadata and host tools.; capture the caller-owned invocation header once so post-await cancellation and attribution cannot switch to a reused input object"
     },
     {
       "upstream_path": "packages/core/tools/src/schema.ts",
@@ -637,7 +637,7 @@
       "targets": [
         "tests/tools.spec.ts"
       ],
-      "changes": "Retained native success, detached/frozen definitions, invalid argument/output, body/render/finalizer failure, final content replacement and abort-before-dispatch semantics; removed approval, pre/post/around waterfall, Session context, Loop, timeout/concurrency and PTC cases."
+      "changes": "Retained native success, detached/frozen definitions, invalid argument/output, body/render/finalizer failure, final content replacement and abort-before-dispatch semantics; removed approval, pre/post/around waterfall, Session context, Loop, timeout/concurrency and PTC cases.; add original/replacement AbortSignal alias regression with a deferred real native body"
     }
   ],
   "archive_sha256": "f08cfc86cb05d4186be3319670e2756375cb2788b3d2164dd7f30b885f350860",

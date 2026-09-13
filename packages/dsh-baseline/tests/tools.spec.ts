@@ -135,6 +135,45 @@ describe('source native tool registry baseline', () => {
     }
   })
 
+  it.each(['original', 'replacement'] as const)('keeps the original invocation when a reused input has its %s signal aborted', async (cancelled) => {
+    const ctx = new Context()
+    const fiber = await ctx.plugin(ToolRuntime)
+    const gate = Promise.withResolvers<void>()
+    const original = new AbortController()
+    const replacement = new AbortController()
+    let bodySignal: AbortSignal | undefined
+    const input = {
+      callId: ToolCallId('original'), name: 'echo', arguments: { text: 'original' }, signal: original.signal,
+    }
+    try {
+      ctx.tools.register({
+        ...echo('owned'),
+        async execute(_args, exec) {
+          bodySignal = exec.signal
+          await gate.promise
+          return { text: 'settled' }
+        },
+      })
+      const running = ctx.tools.execute(input)
+      expect(bodySignal).toBe(original.signal)
+      input.callId = ToolCallId('replacement')
+      input.name = 'reused-name'
+      input.arguments.text = 'replacement'
+      input.signal = replacement.signal
+      ;(cancelled === 'original' ? original : replacement).abort('cancelled')
+      gate.resolve()
+      const result = await running
+      if (cancelled === 'original') {
+        expect(result).toMatchObject({ isError: true, error: { info: { code: 'ABORTED' } } })
+      } else {
+        expect(result).toMatchObject({ isError: false, value: { text: 'settled' } })
+      }
+    } finally {
+      gate.resolve()
+      await fiber.dispose()
+    }
+  })
+
   it('applies a captured final content transform once to a normalized failure', async () => {
     const ctx = new Context()
     const fiber = await ctx.plugin(ToolRuntime)

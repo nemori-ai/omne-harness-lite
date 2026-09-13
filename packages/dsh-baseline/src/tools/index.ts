@@ -407,46 +407,48 @@ export class ToolRuntime extends Service {
   }
 
   async execute(input: ToolExecutionInput): Promise<ToolExecutionResult> {
-    const definition = this.get(input.name, input.scope)
+    // Capture caller-owned aliases once; settlement must use the same call and signal as the body.
+    const { callId, name, scope, signal, arguments: suppliedArguments } = input
+    const definition = this.get(name, scope)
     if (definition === undefined) {
-      return input.signal.aborted
+      return signal.aborted
         ? aborted(TOOL_ABORTED_BEFORE_DISPATCH)
-        : failure(new ToolNotFoundError(input.name))
+        : failure(new ToolNotFoundError(name))
     }
     let exec: ToolExecution | undefined
     try {
-      const args = snapshotArguments(input.arguments)
+      const args = snapshotArguments(suppliedArguments)
       exec = Object.freeze({
-        ...input,
+        callId, name, scope, signal,
         arguments: args,
         token: Symbol('dsh.tool.execution') as ToolExecutionToken,
       })
-      if (input.signal.aborted) {
-        return finalizeResult(input.name, definition, exec, aborted(TOOL_ABORTED_BEFORE_DISPATCH))
+      if (signal.aborted) {
+        return finalizeResult(name, definition, exec, aborted(TOOL_ABORTED_BEFORE_DISPATCH))
       }
       const argumentViolations = validateJsonSchemaValue(definition.parameters, args, '')
       if (argumentViolations.length > 0) {
         throw new ToolArgsError(argumentViolations)
       }
       const candidate = await definition.execute(args, exec)
-      const value = snapshotValue(input.name, candidate)
+      const value = snapshotValue(name, candidate)
       const outputViolations = validateJsonSchemaValue(definition.output.schema, value, 'value')
-      if (outputViolations.length > 0) throw new ToolOutputError(input.name, outputViolations)
-      if (input.signal.aborted) return finalizeResult(input.name, definition, exec, aborted(TOOL_ABORTED))
-      const content = project(input.name, 'render', () => definition.output.render(args, value))
+      if (outputViolations.length > 0) throw new ToolOutputError(name, outputViolations)
+      if (signal.aborted) return finalizeResult(name, definition, exec, aborted(TOOL_ABORTED))
+      const content = project(name, 'render', () => definition.output.render(args, value))
       const meta = definition.output.presentationMeta === undefined
         ? undefined
-        : project(input.name, 'presentationMeta', () => definition.output.presentationMeta?.(args, value))
+        : project(name, 'presentationMeta', () => definition.output.presentationMeta?.(args, value))
       const result: ToolExecutionResult = deepFreeze({
         isError: false,
         value,
         content,
         ...(meta === undefined ? {} : { meta }),
       })
-      return finalizeResult(input.name, definition, exec, result)
+      return finalizeResult(name, definition, exec, result)
     } catch (error: unknown) {
       const result = failure(error)
-      return exec === undefined ? result : finalizeResult(input.name, definition, exec, result)
+      return exec === undefined ? result : finalizeResult(name, definition, exec, result)
     }
   }
 }

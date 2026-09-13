@@ -44,11 +44,13 @@ dispose 将 live entry 移除并包含观察者失败。`session/event` 是提�
 `session/flush` 是等待所有监听器的并行 checkpoint，但 Session 本身不据此补造
 耐久完成事实。
 
-Projection registry 的权威定义是按 key 注册的 projection definition；同 key
-只允许兼容的 definition/version。每个 Session 的 cell 保存 fold state、两个交替
+Projection registry 按 key 注册 definition；同 key 只检查 `stateVersion` 一致，
+随后增加引用计数并继续使用首个 definition，不比较函数或 schema 的等价性。
+调用者负责保证同版定义一致。每个 Session 的 cell 保存 fold state、两个交替
 view 槽和最近处理的 inclusive watermark。注册时从可用 Session 历史物化；实时
-事件按严格连续序号推进。checkpoint 只有在 definition key/version、Session
-身份和 watermark 合法时才作为起点，随后仍重放缺失尾部；日志短于 checkpoint
+事件按严格连续序号推进。checkpoint 检查 definition key/version、状态和 watermark
+后作为起点，随后仍重放缺失尾部；它不携带 Session 身份，调用者须将 checkpoint
+绑定到正确的 Session，registry 不替调用者检查这一前提。日志短于 checkpoint
 水位时从头重建。checkpoint 读取成功本身不表示恢复完成。
 
 Persistence 源只定义 provider 交接面。write handle 是单 owner 状态，read handle
@@ -79,7 +81,7 @@ projection state/view 的真实 schema 校验；没有引入 schemastery。
 以下来源不进入活动编译入口：Session invariant companion、crash repair、Typert
 测试与桥、session-format 旧格式链、projection-cache、JSONL provider、migration、
 compression、native/Windows 锁桥、日志上传/遥测/标题插件，以及完整 Loop/Agent。
-JSONL 的选择与路径由整合负责人处理，本纵线不写入。
+普通 JSONL 文件原语另见 [JSONL 切片](jsonl-source.md)，它们也不提供完整存储后端。
 
 未选取部分不是空实现；它们没有公开导出。活动 `session/index.ts`、
 `projection/index.ts`、`persistence/index.ts` 仅导出实际保留的类、函数和类型。

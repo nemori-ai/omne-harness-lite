@@ -46,6 +46,8 @@ schema、output schema 和 definition 被 detached/frozen；同层重名失败�
 等待 promise 完成，再验证和冻结 canonical JSON value，最后运行纯 render/presentationMeta。
 未知工具、参数、输出、render 或 body 异常都返回具名失败结果；已经 abort 的请求不会调用
 body，调用开始后的取消只通过同一个 signal 协作，registry 不把请求受理伪装成外部效果完成。
+本地切片在入口一次捕获 call id、name、scope 和 signal；等待 body 后仍使用这些固定值。
+调用者复用并改写原输入对象，不能把另一次调用的取消状态或名字带入本次结算。
 定义拥有的 `finalizeContent` 在参数固化后对成功、参数错误、body/output/render 错误和取消结果
 各执行一次；它只能替换 content，自身抛错或产生非 JSON content 时转为失败且不递归重试。
 
@@ -72,9 +74,8 @@ presentation 类型。`get`/`schemas`/`register`/`restrict`/`execute` 是 regist
 上游 `invariant.ts`、`ptc.ts`、`py-types.ts`、`ts-types.ts`、`testing.ts` 和完全属于 PTC 扩展的
 `types.ts` 均未导入；没有 `run_code`、SDK renderer、真实环境工具、审批服务或宿主执行入口。
 
-包级 `./baseline/prompt`、`./baseline/tools` exports 和 tarball consumer 由施工计划指定的主代理
-在整合时登记和验证；本 spoke 不修改共享 `package.json`。这里的模块入口已通过本包 dist 路径
-运行，不能据此提前声称最终 package export 已验收。
+包级公开入口为 `./baseline/prompt` 与 `./baseline/tools`；它们与其它模块的实际产物
+消费及贡献撤回验证统一记录于[交付记录](delivery.md)。
 
 ## 保留与未保留的上游测试语义
 
