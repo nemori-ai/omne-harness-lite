@@ -537,7 +537,7 @@
         "content": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/ContentBlock"
+            "$ref": "#/$defs/InputBlock"
           },
           "minItems": 0
         },
@@ -1043,6 +1043,26 @@
           },
           "else": {
             "maxProperties": 1
+          }
+        }
+      ]
+    },
+    "InputBlock": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/ContentBlock"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "text",
+                "image",
+                "audio",
+                "video",
+                "file"
+              ]
+            }
           }
         }
       ]

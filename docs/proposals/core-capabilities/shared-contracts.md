@@ -37,6 +37,10 @@ deferred_receipt 引用尚待答的原 request/call/continuation，表示暂挂�
 核对目标能力，不因此字段便声称已发送。输出原生媒体沿原生路径记载，后续
 模型消费仍重检；失败记录由调用／输出状态表达，不制造假的空媒体块。
 
+普通用户 Input 仅接纳 text/image/audio/video/file；tool_call、tool_result 和
+deferred_receipt 由各自执行／HITL 权威产生，不能经用户输入导入为可信事实。
+粘贴结果说明可作为普通文本，但不改变调用状态或构造可信工具上下文。
+
 `MediaRef={tenantId,mediaId}` 指向不可变字节和已核实的摘要、长度、MIME；文件名
 是元数据，存储地址是提供者私有信息。派生内容使用新 mediaId 并引用来源及处理
 动作，不能用转写结果替换原音频却保留原身份。远端临时 URL 不构成耐久媒体引用。
