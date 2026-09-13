@@ -10,6 +10,9 @@
 来源 Session／Run／调用或独立 WorkRef、kind、不可变内容版本、合法作答者规则、
 状态和后果策略。kind 区分 question、agent_approval、system_approval、
 specialized_consent、provisional_decision。来源及权限不能由自由文本推导。
+question 和 agent_approval 的合法作答者固定为 Session.owner；创建请求不能
+配置成管理员或其他成员。管理员的治理关闭权不包含代答权；该限制在 answer
+处再次强制验证。专属同意和系统批准仍按具体动作的合法授予主体裁决。
 问题说明为何问、答案会影响什么；批准说明真实动作／对象／影响、缺少的授权、
 拒绝后去向及可选决定；系统审批内容从冻结 Action 派生。
 
@@ -21,16 +24,30 @@ Schema 校验，错误答案明确拒绝。请求身份、内容版本及 curren
 匹配，迟到／重复答案返回当前真实结果，不改动其他请求。
 
 **HD-03**：创建阻塞请求时，耐久提交 Action／request 和来源工作等待关系后才
-呈现；相同调用与同一动作不能因通知重试创建多个待办。Run 进入 waiting_human，
-禁止后续模型／工具驱动，但继续接受获准的答复、精确控制和普通排队输入。
+呈现；相同调用与同一动作不能因通知重试创建多个待办。等待绑定一个精确
+continuationId／动作位置；该位置禁止继续，但不把同一逻辑 Run 的独立请求
+合成全部答完的屏障。没有合法就绪接续时 Run 进入 waiting_human，停止普通
+模型／工具驱动，仍接受获准答复、精确控制和普通排队输入。回答 q1 使 q1
+对应接续就绪，q2 仍 pending 也不妨碍 q1 获得串行驱动占位；同一 Session
+同时仍只有一个执行驱动。人类请求不设数量上限，不以工具批次上限变相限制。
 尚未准入的受控动作不执行；同批已准入工作按其所有权继续收口并记录，不回滚
 已发生效果。系统不为等待自动设置答案或超时，热宽限到期只能释放运行资源。
+
+需要返回模型上下文时，将原未完成调用表示为具名 deferred receipt（含原
+request/call 引用），与终态工具结果区分；接续上下文加入已答事实和未答清单，
+不伪造 q2 的答案或成功结果。只有依赖该答案/许可的动作受其等待约束，不能
+要求所有待答请求归零才处理 q1。request、continuation 与依赖动作关系由
+系统权威记录，模型只能提出后续动作，仍经当前工具门。
 
 **HD-04**：等待、请求、动作参数及已发生事实在独立耐久 owner 下存续。Agent
 回收只撤除本地等待器／订阅，不能取消请求；重建从同一 requestId 与等待位置
 恢复。cancel、force_stop、工作终态清理或明确取代在共同提交内关闭对应阻塞
-请求／继续权，迟到答案和恢复不得复活。普通 interrupt 可保留待答事实，但
-设置独立的人工中断阻塞；后来答复不能自行清除该阻塞，须显式 resume。
+请求／继续权，迟到答案和恢复不得复活。普通 interrupt 保留 question 和
+agent_approval 待答事实，但设置全 Run 人工中断阻塞；后来答复不能自行清除
+该阻塞，须显式 resume。随工具取消的 system_approval 同时 cancelled；没有
+实际启动的待批工具不能声称转后台成功。interrupt_then_run 对旧 Run 的此类
+工具请求标 superseded，结算 cancelled_before_execution；独立问题保留在原
+interrupted Run，答复不驱动新 Run，恢复仍受 SR-11 的合法接续检查。
 
 **HD-05**：answer 先认证当前作答者，核对请求特定资格、组织及实际工作状态，
 再原子提交唯一决定和待交付后果。会话 owner 不当然有权代设备 owner、外部
@@ -59,7 +76,8 @@ approve 后权限变硬拒绝或专属资格丢失，记录 approved_but_not_adm
 
 **HD-08**：决定与对应工作在同一协调域时，决定结果和唯一 continuation 意图
 共同提交；不共域时沿 CC-05，以 requestId/outcomeVersion 为目标去重身份。
-continuation 只解除本请求贡献的阻塞，多个请求独立；不越过 interrupt、hold、
+continuation 只解除本请求对应位置的阻塞，多个请求独立并按耐久就绪顺序
+获得驱动；不越过作用于整个 Run／Session 的 interrupt、hold、
 终态、当前租户资格或预算门。目标暂不可达显示 pending_delivery，不要求用户
 重复回答。当前端被关闭或通知丢失时可重新投影并重试同一后果。
 

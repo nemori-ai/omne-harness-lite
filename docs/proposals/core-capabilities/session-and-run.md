@@ -57,11 +57,23 @@ Session open、权限／定义／模型可用方可建立新 Run。队首失权�
 结算且无未知效果后可继续下一项；unknown 和 hold 不可冒充可继续。
 即时 interrupt/cancel/force_stop 不排到目标工作后面执行。
 
+队首 command 由 `takeCommand` 在同一队列/Session 门下领取：核对确切定义、
+参数修订、当前资格和期望 queueRevision，将该项 taken、分配唯一命令执行
+身份和驱动占位，一起耐久提交。命令处理者只消费该身份，效果使用同一
+operation 去重；成功/拒绝/失败/unknown 及后果关联耐久结算，确认安全后
+释放占位再处理后续项。崩溃后查询原命令操作，不重建一次新执行。它与
+text 取批互斥，不把命令文本交模型猜执行；异步效果沿 CC-05 保留责任。
+
+“立即清除等待文本”是即时控制，在受理时固定并结算目标项，不等待轮到
+队首；通过 slash/keyboard 进入时也相同。有序命令若声明在执行阶段清除，
+只清除受理固定集合中届时仍未取批的项，已消费项明确 excluded_taken，
+不追溯撤销执行。声明必须区分这两个时点，不能仅用含糊 clear 布尔值。
+
 ## Run、Step 与执行权
 
 **SR-08**：Run 有 RunRef、固定输入批次／触发依据、modelSelection、定义和
 预算依据、执行 epoch、驱动位置、阻塞集合及状态。状态为 preparing、running、
-waiting、interrupted、completed、failed、cancelled；completed/failed/cancelled
+waiting、interrupted、stopping、completed、failed、cancelled；completed/failed/cancelled
 为逻辑终态。活动驱动占位由 `(SessionRef,RunRef,epoch)` 精确持有；waiting
 也占位，防止普通排队输入越过待答工作。一个 Run 可多次激活不同 AgentRef，
 但新 epoch 必须使旧执行者失去继续提交权。
@@ -72,8 +84,11 @@ Step 是一次已绑定模型请求及返回工具批次的工作单元，或具
 结算等安全边界推进，不序列化调用栈。Run 的模型固定到本次 Run，后续用户
 选择保存在 Session 供下一 Run 使用，不在 Step 之间静默替换。
 
-**SR-09**：驱动仅在有效 Run epoch、live-agent 工作许可、当前业务资格且没有
-阻塞时取得下一个 Step。tool-returned 记录须匹配原 call/attempt；LLM 返回
+**SR-09**：驱动仅在有效 Run epoch、live-agent 工作许可、当前业务资格、没有
+全 Run/Session 控制阻塞，且所选 continuation 的本地前提满足时取得下一个
+Step。其他独立人类请求仍 pending 不阻止已答请求的唯一接续；按耐久就绪
+顺序串行获得同一 Session 驱动，占位不能复制。没有就绪接续时等待，不
+产生无意义的模型轮询。tool-returned 记录须匹配原 call/attempt；LLM 返回
 工具建议不是已执行工具。并发工具结果保留实际完成顺序和模型呈现顺序的
 分别记录，不用完成顺序重写模型建议的关联。Run 可在确认独立后台责任后
 完成；晚到结果继续归原 Step，后续感知为新的输入／上下文事实。
@@ -101,7 +116,9 @@ interrupt 封闭目标新的 Step，终止该 Run 的在途模型观察并请求
 新输入和其他 queued 项仍按确认顺序由 takeBatch 处理，不获得优先通道。
 旧 Run 自然结束则正常排队；已换成另一 Run 时不打断它，新输入仍已受理。
 任何一项停止/交接未知时，复合意图显示 pending/unknown，不能确认完整成功，
-原责任继续阻止新驱动。重试不再次中断后来的 Run，也不恢复新输入的旧版本。
+原责任继续阻止新驱动。尚待批准的工具未执行，不可 detach；原调用结算
+cancelled_before_execution，相关审批 superseded。独立问题保留原 Run 的
+中断阻塞，不能被新输入误消费。重试不再次中断后来的 Run，也不恢复新输入的旧版本。
 用户日后对旧 interrupted Run 显式 resume 仅在 Session 没有活动驱动时可受理，
 并核对中间历史/旧逻辑目标是否仍可合法接续；不相容返回 superseded，不换工作。
 
@@ -110,6 +127,12 @@ interrupt 封闭目标新的 Step，终止该 Run 的在途模型观察并请求
 隔离证据，不修改有效 Run 结果。后续队列等安全停止/隔离依据确定后才准入。
 Session 范围强停还将队列置 hold；仅用户显式 continueQueue 或撤回解除其
 对应状态，不因为清理完成自动启动下一 Run。单 Run 强停不隐含全会话 hold。
+受理强停后 Run 进入 stopping，并持有不可由 resume 清除的终止意图。只有
+全部原执行者确认停止，或已建立覆盖迟到启动及结果提交的有效隔离后，才
+进入 cancelled(reason=force_stopped) 并释放驱动占位。unknown 不等于安全停止；
+不能证实隔离时保留 stopping 和原责任。隔离后仍可能存在的外部效果、费用
+和清理责任独立记录，不能用 cancelled 表示它们已经回滚。继续队列只解除
+hold，不越过 stopping 占位，也不恢复被强停的 Run。
 结构化后代、脱离委托和 handoff 的传播交给 PF-004 专属关系，不从后台工具
 策略推导子 Agent 权限或终止规则。
 

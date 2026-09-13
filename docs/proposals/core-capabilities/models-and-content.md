@@ -35,9 +35,14 @@ unsupported、unknown。官方目录、提供者实测和用户档案声明分�
 
 **MC-04**：请求状态 prepared → admitted → dispatched → settled，settled
 区分 success/partial/failed/cancelled/unknown；未发出与可能已发出分别表达。
-adapter 把系统内容投影到固定 OpenRouter endpoint，生成/解析不使用
+adapter 把系统内容投影到按模态明确选定的 OpenRouter endpoint，生成/解析不使用
 任意用户 baseURL 或直连凭据。标题、压缩、后台推理、重试及多模态生成
 都消费此能力；没有 Session 的系统工作仍有 WorkRef 和租户／费用归因。
+
+本地模型执行 owner 对 dispatch/stop 使用 TL-08 同等的 attempt 接纳账本和
+迟到启动墓碑，在发网之前检查有效 epoch 与取消状态。强停发生在已准入但
+尚未 dispatch 的间隙时，不能凭已耐久许可继续发网；已发网的供应方工作
+按 MC-06 保留未知／费用，隔离本地结果不声称撤回供应方已发生的效果。
 
 **MC-05**：请求经 OpenRouter 的路由必须符合精确允许的 provider 集合和
 参数支持。未授权模型 fallback、自动转写、工具模拟或静默模态丢弃禁止；
@@ -45,6 +50,12 @@ adapter 把系统内容投影到固定 OpenRouter endpoint，生成/解析不使
 模态及预算条件，并记录实际 provider。HTTP redirect 不得转移凭据或模型
 请求到非允许出口。供给动态变化不能改写已绑定请求；旧 adapter 排空
 保留必要依赖，未开始旧请求可明确失效后重新 prepare。
+
+本地受控工具只由本项目调用门执行；不向请求暗加 OpenRouter server tools、
+远端搜索或其他可产生额外动作/收费的自动插件。确需使用时，须有独立的
+授权、费用和效果契约，不能因供应方称为“工具”便绕开本项目系统审批。
+原生 PDF 投送明确选择 native 路径并验证目标支持；供应方默认 OCR/解析
+不能冒充原生消费，获准转换才生成有来源的派生内容与相应费用。
 
 **MC-06**：每次实际请求 attempt 有独立 ID 和计费记录。传输确认未发出
 且政策允许时可发起新 attempt；可能发出后超时、断连或 abort，记录
@@ -144,6 +155,12 @@ Session/selection revision、历史切点、压缩尝试状态及结果；有权
 - [Provider routing](https://openrouter.ai/docs/guides/routing/provider-selection)：
   `require_parameters` 可以排除不支持所需参数的 provider。它参与本项目
   必需参数约束，但不代替租户授权、精确请求记录或端到端模态验证。
+
+- [PDF inputs](https://openrouter.ai/docs/guides/overview/multimodal/pdfs)：供应方
+  对非原生文件模型可能默认解析；本项目必须显式选择原生或获准转换路径。
+- [Image generation](https://openrouter.ai/docs/guides/overview/multimodal/image-generation)：
+  专用图片 API 的能力／流式声明与 Chat Completions 分别核对，仍受同一
+  OpenRouter 出口、内容保存与请求准入契约约束。
 
 本版具体提供者选择项目自有 OpenRouter adapter，首版采用标准 HTTP/SSE
 映射而非引入被 D-006 排除的 DSH DeepSeek/pi-ai adapters；源码 fork 阶段
