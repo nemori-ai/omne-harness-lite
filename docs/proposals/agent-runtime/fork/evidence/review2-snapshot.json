@@ -1,0 +1,19 @@
+{
+  "format": 1,
+  "source_commit": "d5688aea6581722a337e3dd45fd6853398b88a9a",
+  "comparison_base": "292fb2b47a0868d41550f62e28585416619a8c36",
+  "files": [
+    {
+      "path": "packages/agent/UPSTREAM.md",
+      "sha256": "17ca1d79de9fc0c15c279983f6952445f95e2ae8b82fa167f1efb0549c1f3db4"
+    },
+    {
+      "path": "packages/agent/scripts/fixtures/consumer.ts",
+      "sha256": "e95cd187c645835e3ac19008425ffc949a2909052437fba5d41c216e576ff5d9"
+    },
+    {
+      "path": "packages/agent/src/dispatch.ts",
+      "sha256": "7dca4805124a8c61dd8ae7a45bf72e4b5dd6f93bcf7b27e05ff6bc140e862d9c"
+    }
+  ]
+}

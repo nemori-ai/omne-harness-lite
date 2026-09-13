@@ -1,0 +1,3 @@
+uv run --locked omne-docs-check --baseline "b9c7146"
+PASS: 262 Markdown files; requirement identities/dimensions, decision provenance, skill mirrors, frozen versions and archive hashes.
+NOTE: structural evidence checks do not establish the sufficiency of causal reasoning.

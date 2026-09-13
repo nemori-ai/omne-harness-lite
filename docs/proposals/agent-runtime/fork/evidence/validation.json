@@ -1,0 +1,75 @@
+{
+  "format": 1,
+  "source_commit": "292fb2b47a0868d41550f62e28585416619a8c36",
+  "executed_on": "2026-09-13",
+  "source_note": "Full check consumed the candidate source; an extra blank line at dispatch.ts EOF was removed before the product build. No behavior, dependency or formal input changed during the run.",
+  "environment": {
+    "node": "24.18.0",
+    "pnpm": "10.28.1",
+    "npm": "11.16.0",
+    "typescript": "6.0.3",
+    "vitest": "4.1.8",
+    "python": "3.12.13",
+    "pytest": "8.4.2",
+    "java": "21.0.12.1+1",
+    "tla2tools_sha256": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1"
+  },
+  "commands": [
+    {
+      "command": "pnpm install --frozen-lockfile --ignore-scripts",
+      "exit_code": 0,
+      "log": "frozen-install.log"
+    },
+    {
+      "command": "JAVA_BIN=\"$PWD/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java\" TLA2TOOLS_JAR=\"$PWD/tmp/formal-toolchain/tla2tools.jar\" make check BASELINE=b9c7146",
+      "exit_code": 0,
+      "log": "full-check.log"
+    }
+  ],
+  "results": {
+    "markdown_files": 262,
+    "python_tests_passed": 77,
+    "agent_tests_passed": 40,
+    "ported_source_cases": 37,
+    "new_integration_cases": 3,
+    "source_provenance_records": 10,
+    "artifact_files": 13,
+    "isolated_tarball_types_and_runtime": "passed",
+    "formal_tasks_passed": 4,
+    "target_safety_distinct_states": 142476,
+    "target_progress_distinct_states": 86716
+  },
+  "resolved_setup_findings": [
+    "First pre-import check lacked JAVA_BIN; rerun with this worktree copied toolchain passed before import.",
+    "Ambient const enum access is incompatible with verbatimModuleSyntax; tsc build omits it and inlines the official declaration. No Cordis source change.",
+    "Initial package checker mistook optional peer declarations for resolved packages; resolved lock records are now checked.",
+    "pnpm selects a different store on /tmp mount; isolated consumer now explicitly uses the workspace store and succeeds offline."
+  ],
+  "limits": [
+    "Source primitive baseline, not live-agent v1 implementation conformity.",
+    "Trusted fixture, no real Session/Loop/model/tool provider, no OpenRouter request.",
+    "No tenant authorization, incarnation IDs, full runtime drain/recovery/HITL/control product tests.",
+    "TLA inputs unchanged; bounded source and target models are not proof of this TypeScript implementation.",
+    "Linux x64, Node 24 only; no main merge or publication."
+  ],
+  "followup": {
+    "source_commit": "d5688aea6581722a337e3dd45fd6853398b88a9a",
+    "changes": [
+      "Add tarball fixture for a live injected consumer automatically releasing its effect and registry entry on Registry dependency removal.",
+      "Clarify caller-supplied carrier matching precondition; no dispatch algorithm change."
+    ],
+    "command": "make product-check",
+    "exit_code": 0,
+    "log": "product-check-review2.log",
+    "agent_tests_passed": 40,
+    "isolated_tarball_dependency_removal": "passed",
+    "reuse_scope": "Python tools, dependency lock and formal input files unchanged; previous full-check evidence remains applicable to those scopes."
+  },
+  "final_document_check": {
+    "command": "make docs-check BASELINE=b9c7146",
+    "exit_code": 0,
+    "log": "final-docs-check.log",
+    "markdown_files": 262,
+    "scope": "Final review and acceptance records; product source unchanged from followup source_commit."
+  }
+}

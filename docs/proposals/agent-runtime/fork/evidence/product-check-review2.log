@@ -1,0 +1,28 @@
+pnpm run check
+
+> omne-harness-lite-workspace@ check /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-agent-fork
+> pnpm -r run check
+
+
+> @omne-harness-lite/agent@0.0.0 check /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-agent-fork/packages/agent
+> pnpm run build && pnpm run typecheck && vitest run && node scripts/check-package.mjs
+
+
+> @omne-harness-lite/agent@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-agent-fork/packages/agent
+> node -e "require('node:fs').rmSync('dist', {recursive: true, force: true})" && tsc -p tsconfig.build.json
+
+
+> @omne-harness-lite/agent@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-agent-fork/packages/agent
+> tsc -p tsconfig.test.json
+
+
+ RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-agent-fork/packages/agent
+
+
+ Test Files  4 passed (4)
+      Tests  40 passed (40)
+   Start at  09:48:57
+   Duration  430ms (transform 289ms, setup 0ms, import 545ms, tests 203ms, environment 1ms)
+
+PASS: isolated tarball consumer, ownership, dependency removal, factory removal and initiator
+PASS: 10 upstream records, 13 artifact files, official Cordis integrity

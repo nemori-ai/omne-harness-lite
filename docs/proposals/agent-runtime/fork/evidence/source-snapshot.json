@@ -1,0 +1,175 @@
+{
+  "format": 1,
+  "source_commit": "292fb2b47a0868d41550f62e28585416619a8c36",
+  "comparison_base": "b9c7146f3ddf16231caa998e6f3af517ebdf22e4",
+  "files": [
+    {
+      "path": "Makefile",
+      "sha256": "b4b991d65d4caa9b0512ea429426ba12462389b527558b7a748194575d9f42f2"
+    },
+    {
+      "path": "README.md",
+      "sha256": "6cb145945bc42e5132eabc7f86c8460b8dfca26ca9c3b26e6a566067a2c10ae6"
+    },
+    {
+      "path": "docs/architecture/agent-runtime.md",
+      "sha256": "6857accc10331d6dd1f486a6a62c2bfaee9c42fe8356d3d3c03c725d70a026e4"
+    },
+    {
+      "path": "docs/development.md",
+      "sha256": "8b28df085fa017e6a84337a9c62fe06e03e233f2514a696402752f75c5cc38b4"
+    },
+    {
+      "path": "docs/maintenance/verification.md",
+      "sha256": "d5df1c3a2a23b4900be56bf14b3e8349101ea3882763a6c39848425df65b68d7"
+    },
+    {
+      "path": "docs/maintenance/workspace.md",
+      "sha256": "3e77fc692fd629049d20bb853bdf684650ae3fbfb5986dea3e13c6712982037a"
+    },
+    {
+      "path": "docs/proposals/agent-runtime/README.md",
+      "sha256": "fa3d3546d8dd055e6b7778a0fa8365fc3e05ccfa6e013966f959217bdd6d4c4e"
+    },
+    {
+      "path": "docs/proposals/agent-runtime/fork/plan.md",
+      "sha256": "a34388464e4d2caa1477196fdf95f891969e35140b06f4f5609f336b70651584"
+    },
+    {
+      "path": "docs/proposals/agent-runtime/fork/review.md",
+      "sha256": "dedf906e8e78d3700c570b71a027265771421604bb0fe1d6e0b2f4eb6d621d78"
+    },
+    {
+      "path": "package.json",
+      "sha256": "8dcc59e211f02511266e64d3171729d5f16bc12ddb75d8b908f078c8630c0d25"
+    },
+    {
+      "path": "packages/README.md",
+      "sha256": "68d7d903ec49abd74e014f8bc9800c840f7730e4dbd7d0d8d33bf75e45f31984"
+    },
+    {
+      "path": "packages/agent/LICENSE",
+      "sha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be"
+    },
+    {
+      "path": "packages/agent/README.md",
+      "sha256": "0203c3acd52e18593e7e8a14b799b748c2b9491296e8a050717113b2c3c14ae5"
+    },
+    {
+      "path": "packages/agent/UPSTREAM.md",
+      "sha256": "24357c63ebe1f63505196ceae96f5653c727867a47ad8efee1371ae65bebdcd3"
+    },
+    {
+      "path": "packages/agent/package.json",
+      "sha256": "d59e81508fcd3811c751fba026f9b08fa9c2e5d7d237ad360657b368f8cc567b"
+    },
+    {
+      "path": "packages/agent/provenance.json",
+      "sha256": "e92b95a33c5e50236ac61b0700a4d048fa2db6b3ff8c91434aaff6c20429ede1"
+    },
+    {
+      "path": "packages/agent/scripts/check-package.mjs",
+      "sha256": "be2575c19c8bd06988c33869ea2fc7b419cfe2cf36120a5bdb0bc305f09bcafd"
+    },
+    {
+      "path": "packages/agent/scripts/fixtures/consumer.ts",
+      "sha256": "c99bb7451f5d4138575c7323c92f3db429f61b9881db7cad1fd08c4e026bceff"
+    },
+    {
+      "path": "packages/agent/src/dispatch.ts",
+      "sha256": "02ea8e47cc563ba3a8bf8f332e3d9cf233bd4a9cd12b2611160e9a3583da3259"
+    },
+    {
+      "path": "packages/agent/src/index.ts",
+      "sha256": "75c4dacc484ddc926ba410f8abf7be603f3550cb50fad67c87798a601d50a7c7"
+    },
+    {
+      "path": "packages/agent/src/scope.ts",
+      "sha256": "61de79a64244304756182e1fffe20fc2f6804a929763817642fe66b4c014902b"
+    },
+    {
+      "path": "packages/agent/src/types.ts",
+      "sha256": "6091850805bcc065134b0ad4636fda56ed8e1edf97c898631c35716a0cc57758"
+    },
+    {
+      "path": "packages/agent/tests/agent-initiator.spec.ts",
+      "sha256": "a61c8ec6062e5695b1878faff6f4d1417ea58bdadcb9f04e30b53225bcc78105"
+    },
+    {
+      "path": "packages/agent/tests/agent.spec.ts",
+      "sha256": "704f1c30948faf2fb1be09c8c936531733267acb36ef0fcb6743c8bd908302a2"
+    },
+    {
+      "path": "packages/agent/tests/dispatch-integration.spec.ts",
+      "sha256": "4b101644b7cd15878db172601eee1a9334f1d86dbfadeabe7e02241d7338f1b7"
+    },
+    {
+      "path": "packages/agent/tests/scope.spec.ts",
+      "sha256": "8de992e71173fea21933cfe51b8f8613f7c7a1434a3ea17186a8a7546427d3b1"
+    },
+    {
+      "path": "packages/agent/tsconfig.build.json",
+      "sha256": "3f3e0f404a14baf566768a596bfc0f1cac1d3b6a27ac1bea97e6d6ef40dfb0c9"
+    },
+    {
+      "path": "packages/agent/tsconfig.test.json",
+      "sha256": "fb42bfdd796263a76d2ff0686efd37b1777cdce5dd8abbbc3b79cbbb63677f20"
+    },
+    {
+      "path": "packages/agent/upstream/agent/agent-initiator.spec.ts",
+      "sha256": "1eff76b3d6f25e78600de269159853bcde7f252bdf641360fe4de3fdc69e1fcc"
+    },
+    {
+      "path": "packages/agent/upstream/agent/agent.spec.ts",
+      "sha256": "2fcd2548ef073912ecda615de7d35526cc98b721f40ed121edb303dab24d62ca"
+    },
+    {
+      "path": "packages/agent/upstream/agent/dispatch.ts",
+      "sha256": "6dc2702311305b9ecc8c8a932417bb7929f7313722fbb432a899e53d16efc6e0"
+    },
+    {
+      "path": "packages/agent/upstream/agent/index.ts",
+      "sha256": "50f0bb7642b47a0f43322c26ca9c91613cf7c148084342727e372b36d1b0dcc2"
+    },
+    {
+      "path": "packages/agent/upstream/agent/package.json",
+      "sha256": "20c45f04db710d7e965bd65a5d5ae44dc2cccd5d82de74c29be8b01fc446863e"
+    },
+    {
+      "path": "packages/agent/upstream/agent/runtime-types.ts",
+      "sha256": "6680865f221cfda70bcc715910f6a4ca27a97945e5baaace0b249213c8c4bbb5"
+    },
+    {
+      "path": "packages/agent/upstream/agent/types.ts",
+      "sha256": "1ea78487371e0c64719bce27615e16be7efb729d5a45bb514c318d74546b0b0a"
+    },
+    {
+      "path": "packages/agent/upstream/scope/index.ts",
+      "sha256": "074b8f0c3fa2e240effd0a7e65c54be7c14debc1e53bb712334ce20d15affe4a"
+    },
+    {
+      "path": "packages/agent/upstream/scope/scope.spec.ts",
+      "sha256": "4aeba6333b6e1a9d4b4b0dbe171194656ff64ca65fef0598e38c7fd109d9c241"
+    },
+    {
+      "path": "packages/agent/vitest.config.ts",
+      "sha256": "129501cb4c56c4b5b299eb8e0885302ed60aaaab3fd512d5925f368dc09e484d"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "sha256": "3477d598dbd0360d0b2f6045a59c48c69ce298e9c8d1ebadfd8e2f169989542f"
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "sha256": "476d2a34edf0e31cda60f48d0964e9eb21c78075134c30837743542f776f92dd"
+    },
+    {
+      "path": "scripts/README.md",
+      "sha256": "0a9b0085b94b1b98b0b49177668d69d8bce8803a7a32537ad36a4e2da6ad1c64"
+    },
+    {
+      "path": "scripts/check.sh",
+      "sha256": "a08a23c6e074260b79e9269d81ac0bb14b5dd91b810bbe36a45973548a0f97cc"
+    }
+  ]
+}
