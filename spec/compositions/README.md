@@ -6,3 +6,5 @@
   `composition.agent-session-binding v1`，共同发布、撤销和资源释放保证。
 
 其它候选见[提案入口](../../docs/proposals/README.md)，不因组织迁移自动生效。
+
+- [核心工作准入与耐久协调 v1](core-work-coordination/README.md)。

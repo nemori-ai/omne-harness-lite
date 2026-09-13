@@ -8,7 +8,7 @@ from referencing import Registry, Resource
 
 HERE = Path(__file__).resolve().parent
 ROOT = next(p for p in HERE.parents if (p / "spec/catalog.json").exists())
-SCHEMA = HERE.parent / "design/schema.json"
+SCHEMA = ROOT / "spec/data/core-work/v1/schema.json"
 s = json.loads(SCHEMA.read_text())
 i = json.loads((ROOT / "spec/data/agent-runtime-identity/v1/schema.json").read_text())
 Draft202012Validator.check_schema(s)

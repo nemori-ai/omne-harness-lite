@@ -132,3 +132,6 @@ Cordis HMR、DSH 动态 runner 和 Raven 开发反馈仅为[研究依据](../../
 [PF-013.C11](../../requirements/product/user/PF-013-session-run-lifecycle-and-pending-input-control.md#状态权限与跨端一致性)
 新增按发起者等条件检索会话，结合用户可管理的 PF-011 日程；仍需定义这一
 组合的可见对象及各控制效果，不新增“全局暂停一切”的隐式原语。
+
+本批当前接受范围现从 [D-008 核心能力](../core-capabilities/README.md)进入；
+本页历史候选仍保持原来源身份，未覆盖部分不随新决定自动接受。

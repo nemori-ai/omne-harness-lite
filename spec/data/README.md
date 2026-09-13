@@ -4,3 +4,5 @@
 
 本轮 [Agent 运行时共享身份](agent-runtime-identity/README.md)有独立范围与接受依据。
 其他候选见[提案入口](../../docs/proposals/README.md)，不因组织迁移自动生效。
+
+- [共享工作身份、动作与内容 v1](core-work/README.md)。

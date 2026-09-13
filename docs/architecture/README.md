@@ -77,14 +77,15 @@ Agent Loop、Profile/Bundle 装配和应用策略不自动成为本项目契约�
 | 活体 Agent 身份、装配、授权与退出 | [运行时专题](agent-runtime.md)、[D-005](../decisions/D-005-agent-runtime.md)及精确规格 |
 | 共同能力归属、四类提供者与 Session 附着 | [共同边界](runtime-composition.md)、[D-007](../decisions/D-007-runtime-composition.md)及组合 v1 |
 | 本批 DSH 来源集合与依赖裁剪 | [复用边界](dsh-core-adoption.md)与 [D-006](../decisions/D-006-dsh-core-adoption.md)；只接受来源和阶段门槛 |
-| 工具新架构与模型新架构 | [工具候选](../proposals/tool-system/README.md)可继续发展；[设计计划](../proposals/dsh-core-adoption/design-plan.md)要求分别完成新架构、评审与接受 |
+| 本批 Session/Run、工具、授权/HITL、模型/媒体及相邻能力 | [核心能力](core-capabilities.md)与 D-008 已接受目标契约；真实提供者和应用仍待实现验收 |
 | 其它能力的提供者切换政策与行为模型 | 按具体能力继续设计；指南示例不构成批准 |
 
 `spec/catalog.json` 是正式接受版本的登记入口，实际覆盖以[规格索引](../../spec/README.md)为准。空白或未形式化部分如实保留，不能靠目录骨架宣称系统设计已经完成。
 
 ## 需求覆盖与缺口
 
-本轮运行时 v1 的范围见 [D-005](../decisions/D-005-agent-runtime.md)，其余产品设计仍待细化。
+运行时 v1 的范围见 [D-005](../decisions/D-005-agent-runtime.md)，本批新增核心能力范围见
+[D-008](../decisions/D-008-core-capabilities.md)；其它产品设计及实际实现继续推进。
 下表保留整体产品缺口；运行时本轮的逐项覆盖由[消费记录](../proposals/agent-runtime/v1/requirements.md)拥有。候选自身拥有
 需求对应关系，不能将链接或治理检查通过当作产品能力已交付。
 
@@ -95,30 +96,30 @@ Agent Loop、Profile/Bundle 装配和应用策略不自动成为本项目契约�
 | [SYS-OBSERVABILITY](../requirements/system/observability-and-logging.md) | 工程全链路及日志完备已确立；[约束落实](constraints.md)投影尚缺的关联、采集、缺口处理及验证责任，不代表已选定观测技术栈 |
 | [SYS-ALIGNMENT](../requirements/system/interest-alignment.md) | 目标已确认，利益对齐含义、冲突处理与验证方式待展开 |
 | [SYS-CONTINUITY](../requirements/system/omne-next-continuity.md) | 已有来源核对，完整继承清单、截止范围和未来承诺处理仍待明确 |
-| [PF-001](../requirements/product/user/PF-001-tenant-organization-context.md) | [租户候选](../proposals/tenant-contracts/README.md#当前需求对应与缺口)有身份输入，协作上下文与四类效用尚需定义 |
+| [PF-001](../requirements/product/user/PF-001-tenant-organization-context.md) | [D-008 核心能力](core-capabilities.md)已接受租户／成员与定义资产的本轮契约；实际提供者、应用及[相邻范围](../proposals/core-capabilities/requirements.md#相邻边界与未覆盖部分)继续验收，不代表整个特性已交付 |
 | [PF-002](../requirements/product/environment/PF-002-external-change-response.md) | [当前候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺 Connector 安装授权、供给与生命周期、被动感知及主动响应的完整设计；[租户候选](../proposals/tenant-contracts/README.md#当前需求对应与缺口)也未覆盖信源准入与组织要求安装 |
-| [PF-003](../requirements/product/agent/PF-003-tool-execution-observation-and-control.md) | [工具候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚未完整定义调用状态、按需过程帧、单次中断、手动及自动转后台，以及运行时恢复后的后台调用关联 |
+| [PF-003](../requirements/product/agent/PF-003-tool-execution-observation-and-control.md) | [D-008 核心能力](core-capabilities.md)已接受独立调用、后台控制及帧披露的本轮契约；实际提供者、应用及[相邻范围](../proposals/core-capabilities/requirements.md#相邻边界与未覆盖部分)继续验收，不代表整个特性已交付 |
 | [PF-004](../requirements/product/agent/PF-004-subagent-delegation-and-supervision.md) | 已确认完整继承 sub-agent 相关要求；[Agent 核心候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚无完整派发、实时委托授权、监督与定时回流设计；继承范围按[来源有效修订](../research/subagent-requirement-sources.md#来源差异与未决范围)解释 |
-| [PF-005](../requirements/product/agent/PF-005-agent-initiated-human-input-and-approval.md) | [Agent 核心候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚未定义主动提问/批准、专用权限申请、耐久待答、唯一答复、待办池与恢复接续的完整闭环 |
-| [PF-006](../requirements/product/user/PF-006-user-settings-and-agent-definition-authorization.md) | [当前候选](../proposals/agent-core/README.md#当前需求对应与缺口)缺少设置覆盖/清除后的求值、定义级授权及实时生效模型；管理主体与操作目录由 PF-010 拥有 |
-| [PF-007](../requirements/product/user/PF-007-system-initiated-hitl.md) | [当前候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚未定义系统授权确认、耐久等待与合格动作的暂行定夺 |
-| [PF-008](../requirements/product/user/PF-008-unified-decision-pool.md) | [当前候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺统一池的跨会话呈现、直接答复、权限与请求后果关联；PF-005.C8/C9 的通用正文已迁到本项 |
-| [PF-009](../requirements/product/user/PF-009-multimodal-input-attachments-and-commands.md) | [Agent 核心候选](../proposals/agent-core/README.md#当前需求对应与缺口)未完整覆盖多模态内容与附件、Skill 手动 slash 入口、命令发现及键盘控制 |
-| [PF-010](../requirements/product/user/PF-010-organization-personal-assets-and-permissions.md) | [租户候选](../proposals/tenant-contracts/README.md#当前需求对应与缺口)与 [Agent 核心候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺个人用户/组织超级管理员的资产、设置及权限管理、对象生命周期、角色矩阵和变更影响完整模型；配置生效规则引用 PF-006 |
+| [PF-005](../requirements/product/agent/PF-005-agent-initiated-human-input-and-approval.md) | [D-008 核心能力](core-capabilities.md)已接受耐久人类请求与独立接续的本轮契约；实际提供者、应用及[相邻范围](../proposals/core-capabilities/requirements.md#相邻边界与未覆盖部分)继续验收，不代表整个特性已交付 |
+| [PF-006](../requirements/product/user/PF-006-user-settings-and-agent-definition-authorization.md) | [D-008 核心能力](core-capabilities.md)已接受逐字段设置、持续授权及当前判定的本轮契约；实际提供者、应用及[相邻范围](../proposals/core-capabilities/requirements.md#相邻边界与未覆盖部分)继续验收，不代表整个特性已交付 |
+| [PF-007](../requirements/product/user/PF-007-system-initiated-hitl.md) | [D-008 核心能力](core-capabilities.md)已接受声明驱动系统审批及合格暂行协议的本轮契约；实际提供者、应用及[相邻范围](../proposals/core-capabilities/requirements.md#相邻边界与未覆盖部分)继续验收，不代表整个特性已交付 |
+| [PF-008](../requirements/product/user/PF-008-unified-decision-pool.md) | [D-008 核心能力](core-capabilities.md)已接受统一请求池读写与后果交付的本轮契约；实际提供者、应用及[相邻范围](../proposals/core-capabilities/requirements.md#相邻边界与未覆盖部分)继续验收，不代表整个特性已交付 |
+| [PF-009](../requirements/product/user/PF-009-multimodal-input-attachments-and-commands.md) | [D-008 核心能力](core-capabilities.md)已接受内容／媒体、slash 及控制入口的本轮契约；实际提供者、应用及[相邻范围](../proposals/core-capabilities/requirements.md#相邻边界与未覆盖部分)继续验收，不代表整个特性已交付 |
+| [PF-010](../requirements/product/user/PF-010-organization-personal-assets-and-permissions.md) | [D-008 核心能力](core-capabilities.md)已接受租户、资产引用和必要管理接口的本轮契约；实际提供者、应用及[相邻范围](../proposals/core-capabilities/requirements.md#相邻边界与未覆盖部分)继续验收，不代表整个特性已交付 |
 | [PF-011](../requirements/product/agent/PF-011-future-planning-calendars-and-reminders.md) | [当前候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺复杂未来规划、多地日历、耐久闹钟与推送的完整设计；执行和/或通知按本轮要求可组合，源旧互斥限制不作为本项目约束 |
 | [PF-012](../requirements/product/environment/PF-012-computer-browser-shell-sandbox-and-native-use.md) | [当前候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺三类 use、沙盒/本机目标授权及共享环境控制的完整定义；部署有效范围由模型能力等级、装配配置、部署默认权限与用户授权共同决定，精确作用规则待设计 |
-| [PF-013](../requirements/product/user/PF-013-session-run-lifecycle-and-pending-input-control.md) | [当前候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺按发起者等条件过滤的会话目录、生命周期、精确运行控制、不同工具级联效果、忙时输入及可编辑/调序的耐久队列完整设计；与用户日程管理组合，单条消息不必对应独立 Run |
-| [PF-014](../requirements/product/agent/PF-014-runtime-tool-and-skill-discovery-and-loading.md) | [当前候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺工具/技能发现、按需装载、当前授权及能力变化的完整模型；上游注册机制不代替端到端产品能力 |
+| [PF-013](../requirements/product/user/PF-013-session-run-lifecycle-and-pending-input-control.md) | [D-008 核心能力](core-capabilities.md)已接受会话／Run、队列和精确控制的本轮契约；实际提供者、应用及[相邻范围](../proposals/core-capabilities/requirements.md#相邻边界与未覆盖部分)继续验收，不代表整个特性已交付 |
+| [PF-014](../requirements/product/agent/PF-014-runtime-tool-and-skill-discovery-and-loading.md) | [D-008 核心能力](core-capabilities.md)已接受工具和独立 skill 的发现装载的本轮契约；实际提供者、应用及[相邻范围](../proposals/core-capabilities/requirements.md#相邻边界与未覆盖部分)继续验收，不代表整个特性已交付 |
 | [PF-015](../requirements/product/agent/PF-015-artifact-management-and-isolated-working-copies.md) | [当前候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺独立于运行时及宿主机的制品存储、本机/沙盒加载、隔离工作副本和并发保存模型；Git worktree 仅是可选示例 |
 | [PF-016](../requirements/product/agent/PF-016-agent-developed-cordis-plugins-and-live-deployment.md) | [当前候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺 Agent 在权限策略下开发、验证、在线部署与管理 Cordis 插件的完整模型；已扩展旧官方实现来源边界，内核 HMR 不自动提供租户安全、在途迁移或持久部署 |
 | [PF-017](../requirements/product/agent/PF-017-cross-session-history-and-background-coordination.md) | [Agent 核心候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺跨会话历史检索、后台通信、目标受理及恢复接续的完整模型，父子监督不覆盖全部对等协作 |
 | [PF-018](../requirements/product/agent/PF-018-selfound-knowledge-and-cognition-use.md) | [Agent 核心候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺 selfound 公开能力接入、身份/租户映射、认知与执行事实的契约；不重建同义知识或认知权威 |
-| [PF-019](../requirements/product/user/PF-019-tenant-subscription-usage-billing-and-budget.md) | [租户候选](../proposals/tenant-contracts/README.md#当前需求对应与缺口)尚缺订阅额度/账单/预算与逐 Step 金额归因、迟到费用和并发预算准入，属于 PF-010 下的管理专题 |
+| [PF-019](../requirements/product/user/PF-019-tenant-subscription-usage-billing-and-budget.md) | [D-008 核心能力](core-capabilities.md)已接受预算计量、额度与供应方账务关联的本轮契约；实际提供者、应用及[相邻范围](../proposals/core-capabilities/requirements.md#相邻边界与未覆盖部分)继续验收，不代表整个特性已交付 |
 | [PF-020](../requirements/product/environment/PF-020-dependency-availability-and-degradation.md) | 待定义各装配的必要/可选依赖、实际就绪、断连操作边界与恢复；Cordis 服务注册不证明远端可用，OpenRouter 路径保持 |
 | [PF-021](../requirements/product/environment/PF-021-multi-machine-deployment-and-assembly.md) | 待定义多机接入/撤回、逻辑装配与物理部署、实际落点及独占执行所有权；[部署方法](../architecture-guide/runtime/distribution.md)不等于已有集群方案，首版仍为单机 |
-| [PF-022](../requirements/product/agent/PF-022-multimodal-response-and-output.md) | [Agent 核心候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺模型原生/工具产出、流式回复、媒体原件及历史一致交付；输入附件或工具过程流不能替代 |
-| [PF-023](../requirements/product/user/PF-023-session-model-selection-and-continuity.md) | [模型候选](../proposals/model-contracts/README.md#当前需求对应与缺口)与 Agent 核心尚缺候选判定、耐久模态事实、窗口压缩及下一轮模型选择并发语义 |
-| [PF-024](../requirements/product/agent/PF-024-multi-command-tool-definition.md) | [工具候选](../proposals/tool-system/README.md)提出多命令单槽位方案；参数、授权、装配及正式规格尚待接受 |
+| [PF-022](../requirements/product/agent/PF-022-multimodal-response-and-output.md) | [D-008 核心能力](core-capabilities.md)已接受多模态流和持久内容的本轮契约；实际提供者、应用及[相邻范围](../proposals/core-capabilities/requirements.md#相邻边界与未覆盖部分)继续验收，不代表整个特性已交付 |
+| [PF-023](../requirements/product/user/PF-023-session-model-selection-and-continuity.md) | [D-008 核心能力](core-capabilities.md)已接受模型切换、模态连续性与一次压缩的本轮契约；实际提供者、应用及[相邻范围](../proposals/core-capabilities/requirements.md#相邻边界与未覆盖部分)继续验收，不代表整个特性已交付 |
+| [PF-024](../requirements/product/agent/PF-024-multi-command-tool-definition.md) | [D-008 核心能力](core-capabilities.md)已接受多命令单槽位与命令级声明的本轮契约；实际提供者、应用及[相邻范围](../proposals/core-capabilities/requirements.md#相邻边界与未覆盖部分)继续验收，不代表整个特性已交付 |
 | 已有 SYS-* 全局要求 | [约束落实索引](constraints.md)逐项导航 |
 
 2026-09-12 迁移核对：D-001、D-002 由 D-004 补充，D-003 保持适用；没有已接受

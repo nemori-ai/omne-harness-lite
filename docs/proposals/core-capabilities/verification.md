@@ -1,7 +1,7 @@
 # 设计验证与未完成的实现义务
 
-形式工件与 [Schema](design/schema.json) 当前属于本提案待审稿；正式化时迁入
-精确规格版本。实际配置、工件哈希、命令、返回码和日志见
+形式工件与 [Schema](../../../spec/data/core-work/v1/schema.json) 已迁入
+精确规格版本，接受依据为 D-008。实际配置、工件哈希、命令、返回码和日志见
 [运行记录](evidence/model/results.json)，可由 [replay.py](evidence/model/replay.py)
 重放，须提供 JAVA_BIN 和 TLA2TOOLS_JAR。
 
@@ -22,7 +22,7 @@
 Run 完成、越过 hold/安全停止、超额准入、重复计费、跳过暂行父项和模态检查、
 重复压缩。检查是有限状态证据，不是全部产品、无界系统或跨模型 refinement 证明。
 
-[组合场景](design/scenarios.md)列出其它提供者验收条件。真实 JSONL 同步与
+[组合场景](../../../spec/compositions/core-work-coordination/v1/scenarios.md)列出其它提供者验收条件。真实 JSONL 同步与
 损坏恢复、授权屏障、租户隔离、模型/工具网络效果、媒体 GC、预算账务和应用
 答复投影仍待后续实现验收。本轮源码 fork 只检验选定来源的可构建消费起点，
 不会以 fork 测试替代这些目标验收。

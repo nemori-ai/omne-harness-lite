@@ -120,6 +120,181 @@
         "spec/compositions/agent-session-binding/v1/Binding.tla"
       ],
       "timeout_seconds": 120
+    },
+    {
+      "id": "durable-records-v1-Recovery",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/durable-records/v1/Recovery.tla",
+        "spec/capabilities/durable-records/v1/Recovery.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx1g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-metadir",
+        "tmp/formal-runs/core-Recovery",
+        "-config",
+        "spec/capabilities/durable-records/v1/Recovery.cfg",
+        "spec/capabilities/durable-records/v1/Recovery.tla"
+      ],
+      "timeout_seconds": 120
+    },
+    {
+      "id": "core-work-coordination-v1-Admission",
+      "kind": "tla",
+      "artifacts": [
+        "spec/compositions/core-work-coordination/v1/Admission.tla",
+        "spec/compositions/core-work-coordination/v1/Admission.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx1g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-metadir",
+        "tmp/formal-runs/core-Admission",
+        "-config",
+        "spec/compositions/core-work-coordination/v1/Admission.cfg",
+        "spec/compositions/core-work-coordination/v1/Admission.tla"
+      ],
+      "timeout_seconds": 120
+    },
+    {
+      "id": "session-run-v1-QueueControl",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/session-run/v1/QueueControl.tla",
+        "spec/capabilities/session-run/v1/QueueControl.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx1g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-metadir",
+        "tmp/formal-runs/core-QueueControl",
+        "-config",
+        "spec/capabilities/session-run/v1/QueueControl.cfg",
+        "spec/capabilities/session-run/v1/QueueControl.tla"
+      ],
+      "timeout_seconds": 120
+    },
+    {
+      "id": "human-decisions-v1-Decisions",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/human-decisions/v1/Decisions.tla",
+        "spec/capabilities/human-decisions/v1/Decisions.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx1g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-metadir",
+        "tmp/formal-runs/core-Decisions",
+        "-config",
+        "spec/capabilities/human-decisions/v1/Decisions.cfg",
+        "spec/capabilities/human-decisions/v1/Decisions.tla"
+      ],
+      "timeout_seconds": 120
+    },
+    {
+      "id": "human-decisions-v1-Provisional",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/human-decisions/v1/Provisional.tla",
+        "spec/capabilities/human-decisions/v1/Provisional.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx1g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-metadir",
+        "tmp/formal-runs/core-Provisional",
+        "-config",
+        "spec/capabilities/human-decisions/v1/Provisional.cfg",
+        "spec/capabilities/human-decisions/v1/Provisional.tla"
+      ],
+      "timeout_seconds": 120
+    },
+    {
+      "id": "model-execution-v1-ModelSelection",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-execution/v1/ModelSelection.tla",
+        "spec/capabilities/model-execution/v1/ModelSelection.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx1g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-metadir",
+        "tmp/formal-runs/core-ModelSelection",
+        "-config",
+        "spec/capabilities/model-execution/v1/ModelSelection.cfg",
+        "spec/capabilities/model-execution/v1/ModelSelection.tla"
+      ],
+      "timeout_seconds": 120
+    },
+    {
+      "id": "budget-accounting-v1-Budget",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/budget-accounting/v1/Budget.tla",
+        "spec/capabilities/budget-accounting/v1/Budget.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx1g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-metadir",
+        "tmp/formal-runs/core-Budget",
+        "-config",
+        "spec/capabilities/budget-accounting/v1/Budget.cfg",
+        "spec/capabilities/budget-accounting/v1/Budget.tla"
+      ],
+      "timeout_seconds": 120
     }
   ]
 }

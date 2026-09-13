@@ -12,3 +12,5 @@
 - [D-007：运行时共同边界与附着组合](D-007-runtime-composition.md)：状态归属、四类提供者交接及 Agent/Session 组合 v1。
 
 状态以各决定的元数据为准。接受不等于实现或验证完成。
+
+- [D-008：核心能力与共同准入](D-008-core-capabilities.md)。

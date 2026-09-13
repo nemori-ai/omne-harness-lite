@@ -36,6 +36,162 @@
           "acceptance": "docs/decisions/D-007-runtime-composition.md"
         }
       ]
+    },
+    {
+      "id": "data.core-work",
+      "current_version": 1,
+      "versions": [
+        {
+          "version": 1,
+          "status": "accepted",
+          "path": "spec/data/core-work/v1/contract.md",
+          "acceptance": "docs/decisions/D-008-core-capabilities.md"
+        }
+      ]
+    },
+    {
+      "id": "capability.durable-records",
+      "current_version": 1,
+      "versions": [
+        {
+          "version": 1,
+          "status": "accepted",
+          "path": "spec/capabilities/durable-records/v1/contract.md",
+          "acceptance": "docs/decisions/D-008-core-capabilities.md"
+        }
+      ]
+    },
+    {
+      "id": "composition.core-work-coordination",
+      "current_version": 1,
+      "versions": [
+        {
+          "version": 1,
+          "status": "accepted",
+          "path": "spec/compositions/core-work-coordination/v1/contract.md",
+          "acceptance": "docs/decisions/D-008-core-capabilities.md"
+        }
+      ]
+    },
+    {
+      "id": "capability.tenant-governance",
+      "current_version": 1,
+      "versions": [
+        {
+          "version": 1,
+          "status": "accepted",
+          "path": "spec/capabilities/tenant-governance/v1/contract.md",
+          "acceptance": "docs/decisions/D-008-core-capabilities.md"
+        }
+      ]
+    },
+    {
+      "id": "capability.action-authorization",
+      "current_version": 1,
+      "versions": [
+        {
+          "version": 1,
+          "status": "accepted",
+          "path": "spec/capabilities/action-authorization/v1/contract.md",
+          "acceptance": "docs/decisions/D-008-core-capabilities.md"
+        }
+      ]
+    },
+    {
+      "id": "capability.session-run",
+      "current_version": 1,
+      "versions": [
+        {
+          "version": 1,
+          "status": "accepted",
+          "path": "spec/capabilities/session-run/v1/contract.md",
+          "acceptance": "docs/decisions/D-008-core-capabilities.md"
+        }
+      ]
+    },
+    {
+      "id": "capability.human-decisions",
+      "current_version": 1,
+      "versions": [
+        {
+          "version": 1,
+          "status": "accepted",
+          "path": "spec/capabilities/human-decisions/v1/contract.md",
+          "acceptance": "docs/decisions/D-008-core-capabilities.md"
+        }
+      ]
+    },
+    {
+      "id": "capability.tools",
+      "current_version": 1,
+      "versions": [
+        {
+          "version": 1,
+          "status": "accepted",
+          "path": "spec/capabilities/tools/v1/contract.md",
+          "acceptance": "docs/decisions/D-008-core-capabilities.md"
+        }
+      ]
+    },
+    {
+      "id": "capability.model-execution",
+      "current_version": 1,
+      "versions": [
+        {
+          "version": 1,
+          "status": "accepted",
+          "path": "spec/capabilities/model-execution/v1/contract.md",
+          "acceptance": "docs/decisions/D-008-core-capabilities.md"
+        }
+      ]
+    },
+    {
+      "id": "capability.media-content",
+      "current_version": 1,
+      "versions": [
+        {
+          "version": 1,
+          "status": "accepted",
+          "path": "spec/capabilities/media-content/v1/contract.md",
+          "acceptance": "docs/decisions/D-008-core-capabilities.md"
+        }
+      ]
+    },
+    {
+      "id": "capability.budget-accounting",
+      "current_version": 1,
+      "versions": [
+        {
+          "version": 1,
+          "status": "accepted",
+          "path": "spec/capabilities/budget-accounting/v1/contract.md",
+          "acceptance": "docs/decisions/D-008-core-capabilities.md"
+        }
+      ]
+    },
+    {
+      "id": "capability.engineering-observation",
+      "current_version": 1,
+      "versions": [
+        {
+          "version": 1,
+          "status": "accepted",
+          "path": "spec/capabilities/engineering-observation/v1/contract.md",
+          "acceptance": "docs/decisions/D-008-core-capabilities.md"
+        }
+      ]
+    },
+    {
+      "id": "capability.command-input",
+      "current_version": 1,
+      "versions": [
+        {
+          "version": 1,
+          "status": "accepted",
+          "path": "spec/capabilities/command-input/v1/contract.md",
+          "acceptance": "docs/decisions/D-008-core-capabilities.md"
+        }
+      ]
     }
   ]
 }

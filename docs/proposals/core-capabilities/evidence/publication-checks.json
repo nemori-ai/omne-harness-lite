@@ -1,0 +1,19 @@
+{
+  "reviewed_commit": "c966da10f1822542a69e0665c41fb4265bfc3989",
+  "docs_check": {
+    "command": "make docs-check BASELINE=c966da1",
+    "result": "PASS",
+    "markdown_files": 338
+  },
+  "spec_check": {
+    "command": "JAVA_BIN=<recorded-jdk> TLA2TOOLS_JAR=<recorded-jar> make spec-check",
+    "exit_code": 0,
+    "formal_tasks_executed": 12,
+    "log": "docs/proposals/core-capabilities/evidence/spec-publication.log",
+    "log_sha256": "19f8a2a56f31a6f7a7a0b5365ca6ead9652e870d531f4764e48f66612a1e2ffc"
+  },
+  "schema_cases": 21,
+  "existing_frozen_files_unchanged": 12,
+  "byte_identical_artifact_moves": 16,
+  "limitations": "finite models and structure; actual providers not implemented"
+}

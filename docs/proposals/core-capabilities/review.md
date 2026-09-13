@@ -23,3 +23,32 @@
 
 新增审批范围的自动登记、当前判定、耐久等待、合法答复、重检与换代失效无
 已证实矛盾；模式词表和精确协议属于后续设计。后续精确契约及整体组合另行评审。
+
+## 精确协议、模型和数据复核
+
+两位原生 architecture-reviewer 独立只读审阅 `5eeaaae`、`ac78423`、`4315224`，
+最后限定复核固定 `c966da10f1822542a69e0665c41fb4265bfc3989`。职责分别覆盖
+共同提交／租户／授权／HITL 及 Session／工具／模型／媒体／必要相邻能力；
+最终模型按此分工核读。main `466bb26` 已包含。评审未运行工具、不接受设计。
+
+| 发现 | 作者修订及复核结果 |
+|---|---|
+| 多问题被全答屏障阻塞；question/agent_approval 可错误允许管理员作答 | 固定 owner-only、独立 continuation、串行就绪和无就绪时 waiting；Decisions 独立活性及 owner 故障命中；最终复核关闭 |
+| 逻辑准入与 fsync、撤权和未回执完整记录恢复含糊 | CC-03 明确短门位置为准入点、效果等耐久、普通撤权只封后续；Recovery/Admission 覆盖有限交错，文字复核关闭 |
+| 一次批准可能无法补足缺 grant | AU-04 明确仅补原 Action 可授予缺口，不暗建持久 grant、不免硬约束；复核关闭 |
+| start 迟到越过强停，not_found 被当安全停止 | TL-08/MC-04 规定同 attempt 账本、取消墓碑/epoch/恢复顺序；SR-12 保留 stopping，安全停止/隔离才 cancelled 并释放占位；反例及复核关闭 |
+| 队列 command 缺少领取/执行/结算；clear 时点含糊 | SR-07 固定 takeCommand、去重恢复及两种 clear 时点；最终又补实际效果提交权，复核关闭 |
+| 正向 QueueControl 仍允许强停后 Clear 修改队列 | 增 stop 守卫及 CommandHasExecutionRight；stoppedCommand 移除守卫会退出12命中；新正向通过，复核关闭 |
+| 独立 skill 缺少装载路径；待批工具的复合打断出口不明 | TL-03 独立发现/装载/正文消费；HD-04/SR-11 关闭原系统审批，独立问题留原中断 Run；复核关闭 |
+| q1 完成可能连带终结 q2 | SR-09 明确普通 Run 完成须所有接续结算且无 pending；补 CompletionKeepsPending 及反例；复核关闭 |
+| 封闭 ToolDefinition/媒体 Schema 无法编码后台声明和投送意图 | 增 BackgroundDeclaration 的形态、版本化协议、资源、阈值/余量及媒体 delivery；正文和样例同步，复核关闭 |
+| 用户 Input 可伪造 tool_result/deferred_receipt | InputBlock 限定五类用户内容，正文分离事实权威，新增两项注入负例；复核关闭 |
+| QueueControl 覆盖描述过宽 | 限定预置三输入和编辑/领取/clear/hold/stop，排除新到/重排/批次/重试/复合打断；复核关闭 |
+
+最终两位评审在指定范围内均未发现未解决阻断。既有结果核读为 7 个正向模型、
+15 个指定反例、21 个 Schema 样例符合预期；工具由作者运行。真实提供者义务
+及有限验证边界见验证映射，不把检查通过表述为全部产品证明。
+
+作者随后在本轮授权内作接受决定，按编号语义分拆规范、改精确依赖链接，
+不改变上述选择。模型/配置/Schema/场景原字节迁移，发布清单分别记录拆分
+正文与原样移动；接受依据为 D-008，未修改既有冻结版本。
