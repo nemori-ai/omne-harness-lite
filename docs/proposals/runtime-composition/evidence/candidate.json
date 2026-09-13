@@ -1,0 +1,14 @@
+{
+  "format": 1,
+  "base_commit": "c194dc7",
+  "scope": "D-006 work A: common capability boundaries and composition.agent-session-binding v1 candidate; not full subsystem implementation design",
+  "files": {
+    "docs/proposals/runtime-composition/design.md": "0ebe4ff712da657ee357c05e6a571594d0348be5bbc61aaff01fb6ae72f1034b",
+    "docs/proposals/runtime-composition/requirements.md": "8409d71c65761244421c213db0f8c92a2b66dc447aef8aae6a68bce6d792b756",
+    "docs/proposals/runtime-composition/sources.md": "85110ac002ecabfdb162b8545772ca404e98b7306e9f74ab4c1536132f61ad64",
+    "docs/proposals/runtime-composition/candidate/contract.md": "945fa1fe2208a8b0a617939237f661069c4af76ef00b68287975aded2d457a0f",
+    "docs/proposals/runtime-composition/candidate/scenarios.md": "7e1b1a090b57a5bb165a10cb73c717f7ceacda1d7f029a630268e8373bb7ef30",
+    "docs/proposals/runtime-composition/candidate/Binding.tla": "6afc490b3537d3c95b3849a5edc18c47a491b6c8e568bb87ddd7021444071d8e",
+    "docs/proposals/runtime-composition/candidate/Binding.cfg": "00bb09d6bc2d05465bbaa5271ba08cfc500e8ee123d5c5d0eea0c0f7181573d2"
+  }
+}

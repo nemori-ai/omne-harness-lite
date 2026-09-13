@@ -1,0 +1,189 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 15 and seed 5054862516166162218 with 1 worker on 8 cores with 6955MB heap and 64MB offheap memory [pid: 218071] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/docs/proposals/runtime-composition/candidate/Binding.tla
+Parsing file /tmp/tlc-17887056987689808729/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-17887056987689808729/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-17887056987689808729/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Binding
+Linting of module Binding
+Starting... (2026-09-13 17:01:23)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-13 17:01:23.
+Error: Invariant PublicationSafe is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ slot = (s1 :> noAgent)
+/\ epoch = (s1 :> 0)
+/\ agent = ( a1 :>
+      [ phase |-> "fresh",
+        session |-> noSession,
+        tenant |-> noTenant,
+        pending |-> FALSE,
+        resource |-> FALSE,
+        attached |-> FALSE,
+        revision |-> 0,
+        work |-> "none",
+        transferConfirmed |-> FALSE,
+        quiet |-> FALSE,
+        cleanupBlocked |-> FALSE,
+        publication |-> "none" ] @@
+  a2 :>
+      [ phase |-> "fresh",
+        session |-> noSession,
+        tenant |-> noTenant,
+        pending |-> FALSE,
+        resource |-> FALSE,
+        attached |-> FALSE,
+        revision |-> 0,
+        work |-> "none",
+        transferConfirmed |-> FALSE,
+        quiet |-> FALSE,
+        cleanupBlocked |-> FALSE,
+        publication |-> "none" ] )
+/\ access = (s1 :> TRUE)
+/\ attachment = (s1 :> noAgent)
+/\ eligible = (s1 :> TRUE)
+/\ dependency = TRUE
+
+State 2: <Reserve(a1,s1,t1) line 40, col 3 to line 46, col 66 of module Binding>
+/\ slot = (s1 :> a1)
+/\ epoch = (s1 :> 0)
+/\ agent = ( a1 :>
+      [ phase |-> "preparing",
+        session |-> s1,
+        tenant |-> t1,
+        pending |-> TRUE,
+        resource |-> FALSE,
+        attached |-> FALSE,
+        revision |-> 0,
+        work |-> "none",
+        transferConfirmed |-> FALSE,
+        quiet |-> FALSE,
+        cleanupBlocked |-> FALSE,
+        publication |-> "none" ] @@
+  a2 :>
+      [ phase |-> "fresh",
+        session |-> noSession,
+        tenant |-> noTenant,
+        pending |-> FALSE,
+        resource |-> FALSE,
+        attached |-> FALSE,
+        revision |-> 0,
+        work |-> "none",
+        transferConfirmed |-> FALSE,
+        quiet |-> FALSE,
+        cleanupBlocked |-> FALSE,
+        publication |-> "none" ] )
+/\ access = (s1 :> TRUE)
+/\ attachment = (s1 :> noAgent)
+/\ eligible = (s1 :> TRUE)
+/\ dependency = TRUE
+
+State 3: <Invalidate(s1) line 76, col 3 to line 79, col 62 of module Binding>
+/\ slot = (s1 :> a1)
+/\ epoch = (s1 :> 1)
+/\ agent = ( a1 :>
+      [ phase |-> "preparing",
+        session |-> s1,
+        tenant |-> t1,
+        pending |-> TRUE,
+        resource |-> FALSE,
+        attached |-> FALSE,
+        revision |-> 0,
+        work |-> "none",
+        transferConfirmed |-> FALSE,
+        quiet |-> FALSE,
+        cleanupBlocked |-> FALSE,
+        publication |-> "none" ] @@
+  a2 :>
+      [ phase |-> "fresh",
+        session |-> noSession,
+        tenant |-> noTenant,
+        pending |-> FALSE,
+        resource |-> FALSE,
+        attached |-> FALSE,
+        revision |-> 0,
+        work |-> "none",
+        transferConfirmed |-> FALSE,
+        quiet |-> FALSE,
+        cleanupBlocked |-> FALSE,
+        publication |-> "none" ] )
+/\ access = (s1 :> TRUE)
+/\ attachment = (s1 :> noAgent)
+/\ eligible = (s1 :> FALSE)
+/\ dependency = TRUE
+
+State 4: <PrepareReturns(a1) line 51, col 3 to line 56, col 60 of module Binding>
+/\ slot = (s1 :> a1)
+/\ epoch = (s1 :> 1)
+/\ agent = ( a1 :>
+      [ phase |-> "preparing",
+        session |-> s1,
+        tenant |-> t1,
+        pending |-> FALSE,
+        resource |-> TRUE,
+        attached |-> TRUE,
+        revision |-> 0,
+        work |-> "none",
+        transferConfirmed |-> FALSE,
+        quiet |-> FALSE,
+        cleanupBlocked |-> FALSE,
+        publication |-> "none" ] @@
+  a2 :>
+      [ phase |-> "fresh",
+        session |-> noSession,
+        tenant |-> noTenant,
+        pending |-> FALSE,
+        resource |-> FALSE,
+        attached |-> FALSE,
+        revision |-> 0,
+        work |-> "none",
+        transferConfirmed |-> FALSE,
+        quiet |-> FALSE,
+        cleanupBlocked |-> FALSE,
+        publication |-> "none" ] )
+/\ access = (s1 :> TRUE)
+/\ attachment = (s1 :> a1)
+/\ eligible = (s1 :> FALSE)
+/\ dependency = TRUE
+
+State 5: <Publish(a1) line 61, col 3 to line 72, col 72 of module Binding>
+/\ slot = (s1 :> a1)
+/\ epoch = (s1 :> 1)
+/\ agent = ( a1 :>
+      [ phase |-> "ready",
+        session |-> s1,
+        tenant |-> t1,
+        pending |-> FALSE,
+        resource |-> TRUE,
+        attached |-> TRUE,
+        revision |-> 0,
+        work |-> "none",
+        transferConfirmed |-> FALSE,
+        quiet |-> FALSE,
+        cleanupBlocked |-> FALSE,
+        publication |-> "invalid" ] @@
+  a2 :>
+      [ phase |-> "fresh",
+        session |-> noSession,
+        tenant |-> noTenant,
+        pending |-> FALSE,
+        resource |-> FALSE,
+        attached |-> FALSE,
+        revision |-> 0,
+        work |-> "none",
+        transferConfirmed |-> FALSE,
+        quiet |-> FALSE,
+        cleanupBlocked |-> FALSE,
+        publication |-> "none" ] )
+/\ access = (s1 :> TRUE)
+/\ attachment = (s1 :> a1)
+/\ eligible = (s1 :> FALSE)
+/\ dependency = TRUE
+
+98 states generated, 59 distinct states found, 34 states left on queue.
+The depth of the complete state graph search is 5.
+Finished in 00s at (2026-09-13 17:01:23)

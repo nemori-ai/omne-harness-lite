@@ -1,0 +1,24 @@
+{
+  "source_root": "/data/qiwei/repos/omne-harness-lite",
+  "status": "historical handoff and candidates; prior reviews do not accept this design; textual snapshots preserve stale statements for attribution",
+  "files": [
+    {
+      "original": "tmp/context-sessions-handoff-20260913.md",
+      "path": "inputs/context-sessions-handoff-20260913.md.txt",
+      "sha256": "3bbb58dbccb4c0c7e24511b53e3850606eb0bdd08a07f196c7f788a029d4e520",
+      "bytes": 43224
+    },
+    {
+      "original": "tmp/context-sessions-cordis-initial-model-20260913.md",
+      "path": "inputs/context-sessions-cordis-initial-model-20260913.md.txt",
+      "sha256": "8d68b4ea3d2d7464d0835cfc5f0207c93aff2c3d0bae8c4e853f542d9d3a2100",
+      "bytes": 13150
+    },
+    {
+      "original": "tmp/tool-execution-frames-coordination-20260913.md",
+      "path": "inputs/tool-execution-frames-coordination-20260913.md.txt",
+      "sha256": "ed2bc25fa30e0cc9d8039ad29e2b0189bae884446c634fe456dce6593aa66ddd",
+      "bytes": 21154
+    }
+  ]
+}
