@@ -20,6 +20,10 @@
     "./baseline/timeout": {
       "types": "./dist/support/timeout.d.ts",
       "import": "./dist/support/timeout.js"
+    },
+    "./baseline/jsonl": {
+      "types": "./dist/jsonl/index.d.ts",
+      "import": "./dist/jsonl/index.js"
     }
   },
   "files": [

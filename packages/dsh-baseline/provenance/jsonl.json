@@ -1,0 +1,13 @@
+{
+  "files": [
+    {
+      "upstream_path": "packages/session/session-persistence-jsonl/src/index.ts",
+      "snapshot": "upstream/jsonl/index.ts",
+      "sha256": "69931beb012cde8453d46589bb83703552cb7c8e19438e67b3548042882ab861",
+      "targets": [
+        "src/jsonl/index.ts"
+      ],
+      "changes": "Extract ordinary file write/sync/read/rollback methods; caller-owned raw paths and bytes replace Session/format/compression routing; preserve original and close failures together. No runtime full provider, migration, compression, native or Windows bridge imports."
+    }
+  ]
+}
