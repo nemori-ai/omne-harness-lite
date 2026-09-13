@@ -33,5 +33,6 @@
 [PF-020](environment/PF-020-dependency-availability-and-degradation.md)、
 [PF-021](environment/PF-021-multi-machine-deployment-and-assembly.md)、
 [PF-022](agent/PF-022-multimodal-response-and-output.md)、
-[PF-023](user/PF-023-session-model-selection-and-continuity.md)。编号独立于维度，维护方式归
+[PF-023](user/PF-023-session-model-selection-and-continuity.md)、
+[PF-024](agent/PF-024-multi-command-tool-definition.md)。编号独立于维度，维护方式归
 [需求维护](../../maintenance/requirements.md#身份与归属)。分类不代表插件、数据模型或部署单元。

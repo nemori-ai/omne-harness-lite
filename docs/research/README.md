@@ -9,6 +9,8 @@
 - [Connector 接入、信源供给及感知响应的来源核对](connector-environment-source-sources.md)
 - [运行时与持久状态、恢复接续及环境适配的来源核对](runtime-state-continuity-sources.md)
 - [工具执行状态、过程帧、中断与后台运行的来源核对](tool-execution-sources.md)
+- [多命令工具定义的来源核对](multi-command-tool-sources.md)
+- [Cordis 生命周期与工具组合的来源核对](cordis-lifecycle-and-tool-composition.md)
 - [Sub-agent 要求的完整继承来源与范围](subagent-requirement-sources.md)
 - [Agent 主动提问、批准与耐久 HITL 流程的来源核对](agent-initiated-hitl-sources.md)
 - [用户设置、定义级授权、系统 HITL 与统一决策池的来源核对](user-governance-and-decision-pool-sources.md)

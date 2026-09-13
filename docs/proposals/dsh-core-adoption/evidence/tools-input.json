@@ -1,0 +1,79 @@
+{
+  "source_branch": "docs/multi-command-tool-requirement",
+  "source_head": "72e5007c874a7dfb82e4b50dc15b33fe05026b9e",
+  "source_state": "uncommitted workspace snapshot; source unchanged by this task",
+  "copied_at": "2026-09-13",
+  "status": "tool architecture remains draft/unaccepted; confirmed requirement clauses retain their recorded status",
+  "files": [
+    {
+      "path": "docs/proposals/tool-system/README.md",
+      "sha256": "d29e16acae57aba925279a960ca866300b6d5e7af67a239e67d679372422fa41",
+      "bytes": 578
+    },
+    {
+      "path": "docs/proposals/tool-system/v1/README.md",
+      "sha256": "d7606c1d51bd0f045e9ac62140572a7e50e5e78807186abba73a95d100b07368",
+      "bytes": 8265
+    },
+    {
+      "path": "docs/proposals/tool-system/v1/assembly.md",
+      "sha256": "14394ffc6c7b7b0560327d8a68fd480990cbce83bbde7dd17e8488d39df20de7",
+      "bytes": 11761
+    },
+    {
+      "path": "docs/proposals/tool-system/v1/definitions.md",
+      "sha256": "e1cae30bd4cc97f241200bcd846b0eda21e8a28e1baddc08b312e6228f621b2e",
+      "bytes": 9165
+    },
+    {
+      "path": "docs/proposals/tool-system/v1/frames.md",
+      "sha256": "a497bb7a2c217e1b36ed1df1eeed34dcd928fb4ee566fb55ae706c65b58317b4",
+      "bytes": 10214
+    },
+    {
+      "path": "docs/proposals/tool-system/v1/lifecycle.md",
+      "sha256": "d7d541f4cc4d656a1d2d68cd6509f07f00e548250f5e74d643be878c340dd02a",
+      "bytes": 9307
+    },
+    {
+      "path": "docs/proposals/tool-system/v1/review.md",
+      "sha256": "6895d755245619ebc17412626d43fc932bb2c247a5d6c3a1e439a10407148df8",
+      "bytes": 3340
+    },
+    {
+      "path": "docs/proposals/tool-system/v1/runtime.md",
+      "sha256": "4e228afe4f2ae6959d3571498399d18bb705e096f491b54ccc7843cf959d489b",
+      "bytes": 13393
+    },
+    {
+      "path": "docs/proposals/tool-system/v1/validation.md",
+      "sha256": "125e390fc35f79f6a6044070a0564122bbf2481cd850a9e79873dc3996360cc0",
+      "bytes": 11190
+    },
+    {
+      "path": "docs/requirements/product/agent/PF-024-multi-command-tool-definition.md",
+      "sha256": "fc0f24d1f4e48287b836f1cbb2531bf37a984f873fb4aa9af8694c74e6d524ed",
+      "bytes": 4555
+    },
+    {
+      "path": "docs/requirements/product/agent/PF-014-runtime-tool-and-skill-discovery-and-loading.md",
+      "sha256": "21549bf444cf961dd9a46279bbb04bd5028cbeeaf9b0cbc0febd5ae0959a1b00",
+      "bytes": 6861
+    },
+    {
+      "path": "docs/requirements/system/fully-dynamic-system.md",
+      "sha256": "2334233d17ea3234f42c9efe2635d21bd1828d8d82273a353244e73cecf59b69",
+      "bytes": 2028
+    },
+    {
+      "path": "docs/research/multi-command-tool-sources.md",
+      "sha256": "1f4211d521b2e67d5af7c412c28135cb5f25b6e7d965162d3da4c4f62ab05037",
+      "bytes": 5865
+    },
+    {
+      "path": "docs/research/cordis-lifecycle-and-tool-composition.md",
+      "sha256": "622c515318625dc8772d7ed55a9f0bcbc9166c9d09991535e412a2c970a3d940",
+      "bytes": 5179
+    }
+  ]
+}

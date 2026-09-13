@@ -22,6 +22,11 @@ ids: [SYS-DYNAMIC]
 SYS-DYNAMIC 的确认范围，依据[项目基线](../../research/project-baseline/README.md)
 与根开发约定。具体方法见[能力建模](../../architecture-guide/modeling/capabilities.md)。
 
+2026-09-13 用户进一步澄清 C2 的设计含义：从 Cordis 视角考虑能力绑定和依赖，
+应同时考虑相关生命周期、激活产生的效用及卸载后的逆效用撤回；tool–skill
+关系是其中一个例子，同样适用于其它能力关系。具体效用范围、撤回条件与
+在途工作的处置由设计明确，不能仅登记依赖字段或只做一次加载前检查。
+
 ## 待澄清
 
 原定义中“任一结构维度可演化”与“满足全部 MVC-4”的判定关系，以及本项目的
