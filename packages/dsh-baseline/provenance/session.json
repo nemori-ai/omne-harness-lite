@@ -1,0 +1,229 @@
+{
+  "files": [
+    {
+      "upstream_path": "packages/core/session/src/index.ts",
+      "snapshot": "upstream/session/index.ts",
+      "sha256": "688aafe3897fdf6f8dc5da1f7ec57d6af0c8484e6afda06d05ff7ecfb932cc1c",
+      "targets": [
+        "src/session/index.ts"
+      ],
+      "changes": "Rebased package imports and module docs; removed Typert lookup registration, Typert augmentation, excluded crash-repair export, and upstream-internal policy links; retained Session, SessionStore, lifecycle, history, header, sequence, surface, preparation, fork, and flush algorithms."
+    },
+    {
+      "upstream_path": "packages/core/session/src/types.ts",
+      "snapshot": "upstream/session/types.ts",
+      "sha256": "e9dfc1d7bc4b146f954520a9ca2eff8539f3b9c082b5ecfac7ddb9c747501e45",
+      "targets": [
+        "src/session/types.ts"
+      ],
+      "changes": "Rebased brand, JSON value, source-only LLM imports, and module docs; removed Typert remote-error augmentation and upstream-internal migration-policy link; retained source Session event/header/sequence vocabulary without a core-work v1 claim."
+    },
+    {
+      "upstream_path": "packages/core/session/src/surface.ts",
+      "snapshot": "upstream/session/surface.ts",
+      "sha256": "7c40505853c6dfae5cea633c0526ed2ec7b46cdf01c78013360ee9dbe9ebf3da",
+      "targets": [
+        "src/session/surface.ts"
+      ],
+      "changes": "Rebased Message and module docs to local baseline paths and replaced an upstream-internal policy link with a source-status note; surface validation, fold, replacement, watermark, and incremental manager algorithms retained."
+    },
+    {
+      "upstream_path": "packages/core/session/src/request-header.ts",
+      "snapshot": "upstream/session/request-header.ts",
+      "sha256": "abd8ef57c34ad6ddbc21ba83398092f6aff64ac5c0f38efb353cebb04f654ad4",
+      "targets": [
+        "src/session/request-header.ts"
+      ],
+      "changes": "Rebased source-only LLM imports; canonicalization, equality, and latest-header fold retained."
+    },
+    {
+      "upstream_path": "packages/core/session/src/preparation.ts",
+      "snapshot": "upstream/session/preparation.ts",
+      "sha256": "51bcd61f505928fc1d98cc59ecfd5e0a34b3a5cbd3ecb7937caef0da87b7baa5",
+      "targets": [
+        "src/session/preparation.ts"
+      ],
+      "changes": "Retained preparation guard and one-time publication state unchanged."
+    },
+    {
+      "upstream_path": "packages/core/session/src/seq-ranges.ts",
+      "snapshot": "upstream/session/seq-ranges.ts",
+      "sha256": "9f746691995926cb17d3dd19da04871f2355be40c798ed5a8256659e6bf14559",
+      "targets": [
+        "src/session/seq-ranges.ts"
+      ],
+      "changes": "Retained range encode/decode and validation unchanged."
+    },
+    {
+      "upstream_path": "packages/core/session/src/known-event-types.ts",
+      "snapshot": "upstream/session/known-event-types.ts",
+      "sha256": "8d60e002f68a641745ec2416c7c594e7b8f95f08fab1200aaa6a637e365500ca",
+      "targets": [
+        "src/session/known-event-types.ts"
+      ],
+      "changes": "Retained the current source event vocabulary and fail-closed algorithm; replaced the upstream-internal policy link with a source-status note; this is not a target catalog."
+    },
+    {
+      "upstream_path": "packages/session/session-projection/src/index.ts",
+      "snapshot": "upstream/projection/index.ts",
+      "sha256": "2186b62bfd59c0b5ea1413287f34e3a5be79b2162c5e0e2eb2143d7e42fea39f",
+      "targets": [
+        "src/projection/index.ts"
+      ],
+      "changes": "Rebased Session imports and module docs to local baseline paths and removed an upstream proposal authority claim; retained registration, fold, view, watermark, checkpoint, restore, and disposal algorithms."
+    },
+    {
+      "upstream_path": "packages/session/session-projection/src/types.ts",
+      "snapshot": "upstream/projection/types.ts",
+      "sha256": "6ad9530ea5cfc8ff3e73b34413e5757da8091248b0a874c304f5c5a83500f555",
+      "targets": [
+        "src/projection/types.ts"
+      ],
+      "changes": "Retained merge-extensible projection state/view maps unchanged."
+    },
+    {
+      "upstream_path": "packages/session/session-persistence/src/index.ts",
+      "snapshot": "upstream/persistence/index.ts",
+      "sha256": "88d96d49e38c32e86597fbf1e10d3399b2f9a4ead28a5e0bfde9c883e0507cd2",
+      "targets": [
+        "src/persistence/index.ts"
+      ],
+      "changes": "Rebased Session imports; retained provider-neutral Service definition, storage metadata/snapshot types, and abstract lifecycle contract; no backend is supplied."
+    },
+    {
+      "upstream_path": "packages/session/session-persistence/src/errors.ts",
+      "snapshot": "upstream/persistence/errors.ts",
+      "sha256": "caaa07e52ac133e4012ff6f4f920e7cc737dce6dd1083e279e363b993c2524bd",
+      "targets": [
+        "src/persistence/errors.ts"
+      ],
+      "changes": "Rebased Session imports; retained stable persistence error vocabulary and version-refusal diagnostics."
+    },
+    {
+      "upstream_path": "packages/session/session-persistence/src/handle.ts",
+      "snapshot": "upstream/persistence/handle.ts",
+      "sha256": "2fd8b5c5188ffdf5adee78a260b3dd0a9be97e5eb9fcdb5aafae5a8ed5471a31",
+      "targets": [
+        "src/persistence/handle.ts"
+      ],
+      "changes": "Rebased Session imports; retained read/write handle, flush, close, and ownership contract."
+    },
+    {
+      "upstream_path": "packages/session/session-persistence/src/revision.ts",
+      "snapshot": "upstream/persistence/revision.ts",
+      "sha256": "bc860d72f32e17335ee9c7dd74a2a3309053704ff7ebbe377c50e3927c879855",
+      "targets": [
+        "src/persistence/revision.ts"
+      ],
+      "changes": "Rebased brand import; retained opaque revision brand helper."
+    },
+    {
+      "upstream_path": "packages/session/session-persistence/src/storage-contract.ts",
+      "snapshot": "upstream/persistence/storage-contract.ts",
+      "sha256": "062911ece08832418f2fd0dc8fabdd8848897de6b2d97bc7fca54a634e0c99bd",
+      "targets": [
+        "src/persistence/storage-contract.ts"
+      ],
+      "changes": "Rebased Session and JSON snapshot imports; retained version/id/event vocabulary, lossless materialization, corruption mapping, and contiguity checks."
+    },
+    {
+      "upstream_path": "packages/core/session/tests/sequence-types.spec.ts",
+      "snapshot": "upstream/session/tests/sequence-types.spec.ts",
+      "sha256": "ce110ccf376c8b9eb700065260d7e383e6017a90b066e67988b6aede10299e03",
+      "targets": [
+        "tests/session-sequence.spec.ts"
+      ],
+      "changes": "Rebased imports to compiled baseline modules; retained branded position, lineage cut, and restore-boundary coverage."
+    },
+    {
+      "upstream_path": "packages/core/session/tests/seq-ranges.spec.ts",
+      "snapshot": "upstream/session/tests/seq-ranges.spec.ts",
+      "sha256": "4bdc5b6965bb3f4fddbe8a73ba54ebcf1432efb6627b956ecdd670dc3aacbcc2",
+      "targets": [
+        "tests/session-seq-ranges.spec.ts"
+      ],
+      "changes": "Rebased imports to compiled Session output; retained round-trip, compression, and refusal coverage."
+    },
+    {
+      "upstream_path": "packages/core/session/tests/request-header.spec.ts",
+      "snapshot": "upstream/session/tests/request-header.spec.ts",
+      "sha256": "e42c2392193a9ab8027f8783c287c7708a2f28a9732113bd230a20be69d6c90f",
+      "targets": [
+        "tests/session-request-header.spec.ts"
+      ],
+      "changes": "Rebased imports to compiled Session/LLM outputs; retained canonical header and incremental request-context fold coverage."
+    },
+    {
+      "upstream_path": "packages/core/session/tests/derived-cache.spec.ts",
+      "snapshot": "upstream/session/tests/derived-cache.spec.ts",
+      "sha256": "28cfe02005f1d4cfdc29e5606280b1e949213fe05b188d74a1e4906b65012273",
+      "targets": [
+        "tests/session-derived-cache.spec.ts"
+      ],
+      "changes": "Rebased imports to compiled Session/LLM outputs; retained incremental/replacement cache oracle coverage."
+    },
+    {
+      "upstream_path": "packages/core/session/tests/scoped.spec.ts",
+      "snapshot": "upstream/session/tests/scoped.spec.ts",
+      "sha256": "9a6d5b7fe94116034337b02bb6f5d22bdb15acc15e2e76710a79e94b7a19188c",
+      "targets": [
+        "tests/session-scoped.spec.ts"
+      ],
+      "changes": "Rebased Session imports to compiled output and scope to the sole Agent scope-baseline; retained routing, flush, veto, and disposal coverage."
+    },
+    {
+      "upstream_path": "packages/core/session/tests/session.spec.ts",
+      "snapshot": "upstream/session/tests/session.spec.ts",
+      "sha256": "6ce735fcea9601e89263295ac37b15731ad4d1d036aa51b1a44ffd1aeb29ca47",
+      "targets": [
+        "tests/session-lifecycle.spec.ts"
+      ],
+      "changes": "Rebased imports to compiled Session/LLM outputs; retained broad Session history, header, prepare, append, snapshot, lifecycle, and failure coverage."
+    },
+    {
+      "upstream_path": "packages/core/session/tests/surface.spec.ts",
+      "snapshot": "upstream/session/tests/surface.spec.ts",
+      "sha256": "21774c2316191b4ac1f96d3652207a3d6e901073c477581df5ec4e8c750d4c30",
+      "targets": [
+        "tests/session-surface.spec.ts"
+      ],
+      "changes": "Rebased imports to compiled Session/LLM outputs; retained surface append/replace/provenance/protected-head fold coverage."
+    },
+    {
+      "upstream_path": "packages/session/session-projection/tests/registry.spec.ts",
+      "snapshot": "upstream/projection/tests/registry.spec.ts",
+      "sha256": "5da9b44f82dbd7b9627d6278496be7cc3e4206d98161692dcc72253d6bbd9732",
+      "targets": [
+        "tests/projection-registry.spec.ts"
+      ],
+      "changes": "Rebased imports and type augmentations to compiled Session/projection outputs; retained registry, fold, watermark, checkpoint, restore, view, and disposal coverage."
+    },
+    {
+      "upstream_path": "packages/session/session-persistence/tests/storage-contract.spec.ts",
+      "snapshot": "upstream/persistence/tests/storage-contract.spec.ts",
+      "sha256": "09726bddef0e2b31fe104a719e44c88a9dc8584147ce81de8647f4a1c20a1f55",
+      "targets": [
+        "tests/persistence-storage.spec.ts"
+      ],
+      "changes": "Rebased imports to compiled Session/persistence outputs and inlined the small metadata fixture because shared test helpers are outside this spoke's write boundary; retained storage validation and error coverage."
+    },
+    {
+      "upstream_path": "packages/core/session/tests/fork.spec.ts",
+      "snapshot": "upstream/session/tests/fork.spec.ts",
+      "sha256": "d2fe3fcd72e2ed7b10076d449fd4c0f8c1822d56a5d91cf292fe8c51bdeab040",
+      "targets": [
+        "tests/session-fork.spec.ts"
+      ],
+      "changes": "Rebased imports to compiled Session/LLM outputs; retained stable-boundary fork, lineage, and error-code coverage."
+    },
+    {
+      "upstream_path": "packages/core/session/tests/canonical-envelopes.spec.ts",
+      "snapshot": "upstream/session/tests/canonical-envelopes.spec.ts",
+      "sha256": "53bfea1cba9546cc1beed21ba64ee3a95c323b3561b7d2ab97d909a1ad4cc341",
+      "targets": [
+        "tests/session-canonical-envelopes.spec.ts"
+      ],
+      "changes": "Rebased imports to compiled Session/LLM outputs; retained event-envelope, creation-header, listener snapshot, and append rejection coverage."
+    }
+  ]
+}
