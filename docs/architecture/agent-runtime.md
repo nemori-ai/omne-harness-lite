@@ -6,6 +6,11 @@
 本版是内核运行时的设计基线；正式化授权与采用范围见上述提案和
 [D-005](../decisions/D-005-agent-runtime.md)。目标 v1 尚未实现；[定向 fork](../../packages/agent/README.md)提供已固定来源的实验原语基线。
 
+四类提供者的交接已由 [D-007](../decisions/D-007-runtime-composition.md)与
+[Agent/Session 附着组合 v1](../../spec/compositions/agent-session-binding/v1/contract.md)
+具体化，系统职责与依赖方向见[共同边界](runtime-composition.md)。真实提供者
+及完整 Session/Run/模型/工具规格仍须按各专题完成。
+
 ## 系统位置
 
 ```mermaid

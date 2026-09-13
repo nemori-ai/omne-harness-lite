@@ -41,6 +41,8 @@ Agent Loop、Profile/Bundle 装配和应用策略不自动成为本项目契约�
 需核对实际采用版本，[Cordis 映射](../architecture-guide/reference/cordis-mapping.md)提供研究入口。
 
 运行时专题见 [Agent 运行时](agent-runtime.md)，目标契约、源差异和本轮正式化状态由其入口导航。
+跨提供者交接与状态归属见[运行时共同边界](runtime-composition.md)，已由 D-007
+正式化 Agent/Session 附着组合 v1；不代表完整 Session 或产品闭环已实现。
 
 ## 动态能力与契约
 
@@ -73,6 +75,7 @@ Agent Loop、Profile/Bundle 装配和应用策略不自动成为本项目契约�
 | 租户和模型的具体数据与管理行为 | [租户](../proposals/tenant-contracts/README.md)、[模型](../proposals/model-contracts/README.md)候选，保留原始语义和待确认项 |
 | 提示词、工具、Session/Turn/Run/Step | [Agent 核心提案](../proposals/agent-core/README.md)，尚未接受完整契约 |
 | 活体 Agent 身份、装配、授权与退出 | [运行时专题](agent-runtime.md)、[D-005](../decisions/D-005-agent-runtime.md)及精确规格 |
+| 共同能力归属、四类提供者与 Session 附着 | [共同边界](runtime-composition.md)、[D-007](../decisions/D-007-runtime-composition.md)及组合 v1 |
 | 本批 DSH 来源集合与依赖裁剪 | [复用边界](dsh-core-adoption.md)与 [D-006](../decisions/D-006-dsh-core-adoption.md)；只接受来源和阶段门槛 |
 | 工具新架构与模型新架构 | [工具候选](../proposals/tool-system/README.md)可继续发展；[设计计划](../proposals/dsh-core-adoption/design-plan.md)要求分别完成新架构、评审与接受 |
 | 其它能力的提供者切换政策与行为模型 | 按具体能力继续设计；指南示例不构成批准 |

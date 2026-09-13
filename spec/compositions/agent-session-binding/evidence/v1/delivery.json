@@ -1,0 +1,71 @@
+{
+  "format": 1,
+  "status": "passed",
+  "date": "2026-09-13",
+  "reviewed_commit": "adafb2dc1bb8db19e2aac40567feb607aa97bdbe",
+  "frozen_diff_baseline": "04f9668",
+  "checks": [
+    {
+      "command": [
+        "make",
+        "docs-check",
+        "BASELINE=04f9668"
+      ],
+      "exit_code": 0,
+      "log": "spec/compositions/agent-session-binding/evidence/v1/docs-check.log",
+      "log_sha256": "ed716021624732a79edec677e976468ccc9f07c93a3d96de178e35fbfb3b34c6"
+    },
+    {
+      "command": [
+        "make",
+        "spec-check"
+      ],
+      "exit_code": 0,
+      "log": "spec/compositions/agent-session-binding/evidence/v1/spec-check.log",
+      "log_sha256": "78afe2955d29eae3076236790c806afc0e1e15e2863eb3e4649ec263f8574886"
+    }
+  ],
+  "formal_tasks": [
+    {
+      "id": "agent-source-AgentRegistry",
+      "exit_code": 0
+    },
+    {
+      "id": "agent-source-InitiatorScope",
+      "exit_code": 0
+    },
+    {
+      "id": "live-agent-v1-safety",
+      "exit_code": 0
+    },
+    {
+      "id": "live-agent-v1-progress",
+      "exit_code": 0
+    },
+    {
+      "id": "agent-session-binding-v1-safety",
+      "exit_code": 0
+    }
+  ],
+  "formal_task_manifest_sha256": "aa647b0a60c7c2d0322370c412eb8f573053158852ba1f8643b44fc714356892",
+  "tla2tools_sha256": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1",
+  "normative_manifest": "publication.json",
+  "docs_markdown_files": 295,
+  "catalog_contracts": 3,
+  "schemas_checked_including_candidates": 10,
+  "normal_binding_model_distinct_states": 10748,
+  "negative_model_evidence": "docs/proposals/runtime-composition/evidence/model/results.json",
+  "negative_cases_expected_and_observed": 8,
+  "additional_checks": [
+    "Four published normative artifacts byte-identical to reviewed commit",
+    "Eight existing frozen normative artifacts unchanged",
+    "Source-only draft moved out of spec; published candidate directory removed",
+    "Product/tool/automation/dependency inputs identical to 04f9668"
+  ],
+  "not_executed": [
+    "No product or Python-tool tests rerun because their inputs did not change",
+    "No real IAM/Session/Factory/tool/model provider conformance test",
+    "No unbounded liveness or distributed protocol proof"
+  ],
+  "notes": "Checks ran after final-path publication. Negative logs bind unchanged model bytes at their candidate paths; publication.json maps them to the final normative paths. No main merge or remote push."
+}

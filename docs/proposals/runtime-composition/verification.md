@@ -1,7 +1,7 @@
 # 候选验证范围
 
-对象为本提案的 [Binding.tla](candidate/Binding.tla)、[配置](candidate/Binding.cfg)、
-[组合正文](candidate/contract.md)及[场景](candidate/scenarios.md)。模型和正文的
+对象为本提案的 [Binding.tla](../../../spec/compositions/agent-session-binding/v1/Binding.tla)、[配置](../../../spec/compositions/agent-session-binding/v1/Binding.cfg)、
+[组合正文](../../../spec/compositions/agent-session-binding/v1/contract.md)及[场景](../../../spec/compositions/agent-session-binding/v1/scenarios.md)。模型和正文的
 受审字节由[快照清单](evidence/candidate.json)标识；实际命令、工具 JAR 哈希、
 配置、退出码及原始输出见[模型结果](evidence/model/results.json)。
 

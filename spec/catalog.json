@@ -24,6 +24,18 @@
           "acceptance": "docs/decisions/D-005-agent-runtime.md"
         }
       ]
+    },
+    {
+      "id": "composition.agent-session-binding",
+      "current_version": 1,
+      "versions": [
+        {
+          "version": 1,
+          "status": "accepted",
+          "path": "spec/compositions/agent-session-binding/v1/contract.md",
+          "acceptance": "docs/decisions/D-007-runtime-composition.md"
+        }
+      ]
     }
   ]
 }

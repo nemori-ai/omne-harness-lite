@@ -8,6 +8,10 @@
     "spec/capabilities/live-agent/v1/RuntimeMC.tla": "4cae1eb0fad9bd82cec99baf670f6989d8030b0092cf2d20009d496d0ddda015",
     "spec/capabilities/live-agent/v1/RuntimeProgress.cfg": "9145db74f6faf6ca5ed48656bbc9e0d5db2bd3b3526bc0f46b849df145017350",
     "spec/capabilities/live-agent/v1/contract.md": "381b9836f6045344c029125858795acd4f6d8460216c3021c51720d3d092a7b4",
-    "spec/capabilities/live-agent/v1/scenarios.md": "da829bf7e7ab08e4aa3a184c813c178a044c72fa7758ac42653d7c52d9225d1c"
+    "spec/capabilities/live-agent/v1/scenarios.md": "da829bf7e7ab08e4aa3a184c813c178a044c72fa7758ac42653d7c52d9225d1c",
+    "spec/compositions/agent-session-binding/v1/Binding.cfg": "00bb09d6bc2d05465bbaa5271ba08cfc500e8ee123d5c5d0eea0c0f7181573d2",
+    "spec/compositions/agent-session-binding/v1/Binding.tla": "6afc490b3537d3c95b3849a5edc18c47a491b6c8e568bb87ddd7021444071d8e",
+    "spec/compositions/agent-session-binding/v1/contract.md": "7b9c107091c523c72987ab2ffae57a8271f9c2ae23af60c30808479d2fe5dacc",
+    "spec/compositions/agent-session-binding/v1/scenarios.md": "7e1b1a090b57a5bb165a10cb73c717f7ceacda1d7f029a630268e8373bb7ef30"
   }
 }

@@ -30,9 +30,12 @@ Cordis Context 提供服务解析与受管贡献；scope 管理可见性和事�
 
 ## 接下来的设计
 
-[阶段计划](../proposals/dsh-core-adoption/design-plan.md)先明确共享契约与内核映射，
-然后在必需接口接受后并行展开 Session、工具和模型设计，再定稿 Loop/控制/装配
-组合。每个专题分别完成设计评审、接受、来源基线、导入计划和实现验收。
+[阶段计划](../proposals/dsh-core-adoption/design-plan.md)中的 A 已通过
+[D-007](../decisions/D-007-runtime-composition.md)完成共同能力归属和
+[运行附着组合](runtime-composition.md)。接下来展开 Session/持久化设计；工具和
+模型在各自必需接口接受后可并行，再定稿 Loop/控制/装配组合。共享内容和业务
+身份的精确结构仍由所属专题完成，不因归属明确就视为已发布。每个专题分别完成
+设计评审、接受、来源基线、导入计划和实现验收。
 
 工具专题重点覆盖多命令单槽位、必需 skill、精确绑定、独立调用与后台、过程帧、
 HITL 和恢复；模型专题重点覆盖所有用途的 OpenRouter 出口、当前资格与预算、

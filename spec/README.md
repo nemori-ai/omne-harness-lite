@@ -18,6 +18,8 @@
 
 当前已接受并登记共享身份与活体运行时 v1，
 具体采用范围沿 [运行时入口](capabilities/live-agent/README.md)及其决定/接受记录核对。
+跨提供者交接由 [Agent/Session 运行附着组合 v1](compositions/agent-session-binding/README.md)
+补充，保持原已发布契约不变。
 已有的[租户](../docs/proposals/tenant-contracts/README.md)、
 [模型](../docs/proposals/model-contracts/README.md)与
 [agent-core](../docs/proposals/agent-core/v1/README.md)材料从提案入口 review。

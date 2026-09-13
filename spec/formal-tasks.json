@@ -96,6 +96,30 @@
         "spec/capabilities/live-agent/v1/RuntimeMC.tla"
       ],
       "timeout_seconds": 120
+    },
+    {
+      "id": "agent-session-binding-v1-safety",
+      "kind": "tla",
+      "artifacts": [
+        "spec/compositions/agent-session-binding/v1/Binding.tla",
+        "spec/compositions/agent-session-binding/v1/Binding.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-metadir",
+        "tmp/formal-runs/agent-session-binding-v1-safety",
+        "-config",
+        "spec/compositions/agent-session-binding/v1/Binding.cfg",
+        "spec/compositions/agent-session-binding/v1/Binding.tla"
+      ],
+      "timeout_seconds": 120
     }
   ]
 }
