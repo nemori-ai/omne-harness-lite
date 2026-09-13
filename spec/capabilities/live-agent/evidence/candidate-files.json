@@ -1,0 +1,54 @@
+{
+  "revision": "review-4",
+  "base_commit": "2d6eff6f7a0e7db73fb35f3ab5011fcd0a55662d",
+  "files": [
+    {
+      "path": "spec/capabilities/live-agent/README.md",
+      "sha256": "612761d23f1a94a1fad0d4774b5320284660f09a23ed66d016a78c8d2cde934d"
+    },
+    {
+      "path": "spec/capabilities/live-agent/draft/AgentRegistry.cfg",
+      "sha256": "bbebf790ef14d489bd855dc7dccaa285212c7d0280967ad162963fde148e86a3"
+    },
+    {
+      "path": "spec/capabilities/live-agent/draft/AgentRegistry.tla",
+      "sha256": "19755cd0168fab4509b2fd4ca9efdd8d401308153b05c800c98183e127a6ebfe"
+    },
+    {
+      "path": "spec/capabilities/live-agent/draft/InitiatorScope.cfg",
+      "sha256": "a28d75d98c8c7921993dbc7de8fbc57e60c4923f4a26d7cec129306461ea9b55"
+    },
+    {
+      "path": "spec/capabilities/live-agent/draft/InitiatorScope.tla",
+      "sha256": "d833bdbd8084da85d21db1aaeeae75b9fd7b12be08fe5e00263950bb8c81ed57"
+    },
+    {
+      "path": "spec/capabilities/live-agent/draft/contract.md",
+      "sha256": "1cc3201721bdd7ff611a0361803c4a006eff8bb1e64cb2676e34d59de46a008b"
+    },
+    {
+      "path": "spec/capabilities/live-agent/draft/scenarios.md",
+      "sha256": "f53467d996a23f9a6ab72fa432e34670d9a00852848407be30d4f37abab403a5"
+    },
+    {
+      "path": "spec/capabilities/live-agent/source-map.md",
+      "sha256": "94c54366c826ab29cfb7c33fb7ef7fb30c40e0e5e486517b9ce5126236bc136c"
+    },
+    {
+      "path": "spec/capabilities/live-agent/upstream-baseline.json",
+      "sha256": "e00dd36efc868f4b39af2528ed821f4d1cc56b0834846aeecb10bf330bc28264"
+    },
+    {
+      "path": "spec/formal-tasks.json",
+      "sha256": "21f23fecebd61ee3813e9f163e809c7626253e0dc1de1661dd8c880355d684ed"
+    },
+    {
+      "path": "spec/README.md",
+      "sha256": "4fa0fdf83a5b89759fb6ba620677ae8a5b640a570bb3d9b4099b10a2428cd4a8"
+    },
+    {
+      "path": "spec/capabilities/README.md",
+      "sha256": "65e39e812725181329a109c78593f1d8d362986d3338bf7ef11af9328c4113a6"
+    }
+  ]
+}

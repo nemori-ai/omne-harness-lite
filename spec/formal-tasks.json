@@ -1,1 +1,51 @@
-{"format": 1, "tasks": []}
+{
+  "format": 1,
+  "tasks": [
+    {
+      "id": "live-agent-draft-AgentRegistry",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/live-agent/draft/AgentRegistry.tla",
+        "spec/capabilities/live-agent/draft/AgentRegistry.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-metadir",
+        "tmp/formal-runs/AgentRegistry",
+        "-config",
+        "spec/capabilities/live-agent/draft/AgentRegistry.cfg",
+        "spec/capabilities/live-agent/draft/AgentRegistry.tla"
+      ],
+      "timeout_seconds": 120
+    },
+    {
+      "id": "live-agent-draft-InitiatorScope",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/live-agent/draft/InitiatorScope.tla",
+        "spec/capabilities/live-agent/draft/InitiatorScope.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-metadir",
+        "tmp/formal-runs/InitiatorScope",
+        "-config",
+        "spec/capabilities/live-agent/draft/InitiatorScope.cfg",
+        "spec/capabilities/live-agent/draft/InitiatorScope.tla"
+      ],
+      "timeout_seconds": 120
+    }
+  ]
+}
