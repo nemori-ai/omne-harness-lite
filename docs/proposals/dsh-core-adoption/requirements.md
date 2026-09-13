@@ -14,7 +14,7 @@
 | 确认依据及消费条款 | 本次选择如何回应 | 仍须设计或验证的内容 |
 |---|---|---|
 | [全局约束](../../requirements/system/constraints.md)：SYS-KERNEL、SYS-SPEC、SYS-DEPLOY、SYS-TENANT、SYS-LLM、SYS-EXPERIMENT | 官方 Cordis；选择源码后自主维护；语言无关规格；单机先行；租户边界；统一 OpenRouter；不带旧兼容体系 | 具体能力契约、后端平台与运行证据不由范围决定补齐 |
-| [SYS-DYNAMIC](../../requirements/system/fully-dynamic-system.md)：已确认 C1–C4，含 C2 的本轮澄清；[SYS-LONG-RUNNING](../../requirements/system/long-running-and-evolving.md) 已确认目标 | 选 scope、动态注册和实例机制；每项设计处理激活、贡献、撤回、在途占用与版本 | 完全动态、长期稳定的全部达成判据仍需专题设计和测量 |
+| [SYS-DYNAMIC](../../requirements/system/fully-dynamic-system.md)：已确认 C1/C2，含 C2 的本轮澄清；[SYS-LONG-RUNNING](../../requirements/system/long-running-and-evolving.md) 已确认目标 | 选 scope、动态注册和实例机制；每项设计处理激活、贡献、撤回、在途占用与版本 | 完全动态、长期稳定的全部达成判据仍需专题设计和测量 |
 | [SYS-RUNTIME-CONTINUITY.C1–C3](../../requirements/system/runtime-state-and-continuity.md) | Session、投影、持久化、实例和工作驱动分别建模；保留后端替换边界 | 支持的恢复条件、异构范围和独立工作控制不能从日志重放推定 |
 | [PF-003.C1–C6](../../requirements/product/agent/PF-003-tool-execution-observation-and-control.md)、[PF-013.C1–C11](../../requirements/product/user/PF-013-session-run-lifecycle-and-pending-input-control.md) | 纳入工具与 Loop/Session 联合设计；分离单次调用控制、运行控制和耐久输入队列 | 独立执行所有者、后台重新关联、精确目标及 `interrupt_then_run` 的整体意图均待正式规格；排除 jobs 来源不豁免要求 |
 | [PF-014.C1–C6](../../requirements/product/agent/PF-014-runtime-tool-and-skill-discovery-and-loading.md)、[PF-024.C1/C2](../../requirements/product/agent/PF-024-multi-command-tool-definition.md) | 纳入 tools、system-prompt、scope；继续发展已有工具候选 | 多命令参数形状、技能效用、发现/装载、版本和当前权限需新设计；不将 PTC 视为已满足单槽位要求 |
