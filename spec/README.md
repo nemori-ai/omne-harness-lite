@@ -22,6 +22,9 @@
 [agent-core](../docs/proposals/agent-core/v1/README.md)材料从提案入口 review。
 已有 Schema 可以检查，但校验结果不会改变它的提案身份。
 
+依用户本次明确要求，[Live Agent 原语设计基线](capabilities/live-agent/README.md)
+直接在本目录保存待验收草案；它尚未发布或进入有效清单，不改变其他候选的提案流程。
+
 ## 一个契约怎样生长
 
 一个契约有稳定入口和精确版本，例如 `data/<name>/README.md` 导航到

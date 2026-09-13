@@ -1,0 +1,67 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Warning: Please run the Java VM, which executes TLC with a throughput optimized garbage collector, by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 112 and seed -4146419859782904079 with 1 worker on 8 cores with 7824MB heap and 64MB offheap memory [pid: 214536] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-agent-baseline/spec/capabilities/live-agent/draft/InitiatorScope.tla
+Parsing file /tmp/tlc-8178930403283121600/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-agent-baseline/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-8178930403283121600/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-agent-baseline/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-8178930403283121600/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-agent-baseline/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module InitiatorScope
+Linting of module InitiatorScope
+Starting... (2026-09-13 04:30:13)
+Implied-temporal checking--satisfiability problem has 1 branches.
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-13 04:30:13.
+Error: Invariant DrainedBeforeDisposed is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ state = "active"
+/\ draining = FALSE
+/\ excluded = {}
+/\ parent = (r1 :> none @@ r2 :> none @@ r3 :> none)
+/\ used = {}
+/\ settled = {}
+/\ tracked = {}
+
+State 2: <Start(r1,none) line 20, col 5 to line 24, col 55 of module InitiatorScope>
+/\ state = "active"
+/\ draining = FALSE
+/\ excluded = {}
+/\ parent = (r1 :> none @@ r2 :> none @@ r3 :> none)
+/\ used = {r1}
+/\ settled = {}
+/\ tracked = {r1}
+
+State 3: <Close line 34, col 10 to line 35, col 76 of module InitiatorScope>
+/\ state = "closing"
+/\ draining = FALSE
+/\ excluded = {}
+/\ parent = (r1 :> none @@ r2 :> none @@ r3 :> none)
+/\ used = {r1}
+/\ settled = {}
+/\ tracked = {r1}
+
+State 4: <BeginDrain(none) line 38, col 5 to line 43, col 49 of module InitiatorScope>
+/\ state = "closing"
+/\ draining = TRUE
+/\ excluded = {}
+/\ parent = (r1 :> none @@ r2 :> none @@ r3 :> none)
+/\ used = {r1}
+/\ settled = {}
+/\ tracked = {r1}
+
+State 5: <Dispose line 46, col 5 to line 49, col 71 of module InitiatorScope>
+/\ state = "disposed"
+/\ draining = TRUE
+/\ excluded = {}
+/\ parent = (r1 :> none @@ r2 :> none @@ r3 :> none)
+/\ used = {r1}
+/\ settled = {}
+/\ tracked = {r1}
+
+203 states generated, 134 distinct states found, 89 states left on queue.
+The depth of the complete state graph search is 5.
+Finished in 00s at (2026-09-13 04:30:14)
