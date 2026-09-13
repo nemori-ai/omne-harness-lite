@@ -31,11 +31,12 @@
 |---|---|
 | Cordis | 直接使用官方发布包，复用 Context、依赖解析、服务、事件和受管生命周期；具体发布版本在实现前固定 |
 | DSH `agent` | fork 后作为本项目维护的 registry、handle 与运行时原语基础，按本项目目标契约演化；固定上游来源并记录差异 |
-| Agent Loop | 由本项目实现工作驱动、模型与工具交互、终止和结果归属等具体行为 |
+| Agent Loop | 本项目定义并维护工作驱动、模型与工具交互、终止和结果归属；按 D-006 定向复用适合的上游驱动源码 |
 | Harness 及其他子系统 | 由本项目定义和实现工具协议、治理、持久化、证据及演化能力；按契约复用适合的成熟实现 |
 
 上述维护边界来自 [SYS-KERNEL](../requirements/system/constraints.md#sys-kernel)。其他选定
-复用的 DSH 组件同样由本项目 fork 维护；具体包的选用仍需按目标契约评估。DSH 的
+复用的 DSH 组件同样由本项目 fork 维护；本批来源已由 [D-006](../decisions/D-006-dsh-core-adoption.md)
+确定，逐包范围与后续设计见[复用边界](dsh-core-adoption.md)。DSH 的
 Agent Loop、Profile/Bundle 装配和应用策略不自动成为本项目契约。内核 API 与复用边界
 需核对实际采用版本，[Cordis 映射](../architecture-guide/reference/cordis-mapping.md)提供研究入口。
 
@@ -72,6 +73,8 @@ Agent Loop、Profile/Bundle 装配和应用策略不自动成为本项目契约�
 | 租户和模型的具体数据与管理行为 | [租户](../proposals/tenant-contracts/README.md)、[模型](../proposals/model-contracts/README.md)候选，保留原始语义和待确认项 |
 | 提示词、工具、Session/Turn/Run/Step | [Agent 核心提案](../proposals/agent-core/README.md)，尚未接受完整契约 |
 | 活体 Agent 身份、装配、授权与退出 | [运行时专题](agent-runtime.md)、[D-005](../decisions/D-005-agent-runtime.md)及精确规格 |
+| 本批 DSH 来源集合与依赖裁剪 | [复用边界](dsh-core-adoption.md)与 [D-006](../decisions/D-006-dsh-core-adoption.md)；只接受来源和阶段门槛 |
+| 工具新架构与模型新架构 | [工具候选](../proposals/tool-system/README.md)可继续发展；[设计计划](../proposals/dsh-core-adoption/design-plan.md)要求分别完成新架构、评审与接受 |
 | 其它能力的提供者切换政策与行为模型 | 按具体能力继续设计；指南示例不构成批准 |
 
 `spec/catalog.json` 是正式接受版本的登记入口，实际覆盖以[规格索引](../../spec/README.md)为准。空白或未形式化部分如实保留，不能靠目录骨架宣称系统设计已经完成。
@@ -112,6 +115,7 @@ Agent Loop、Profile/Bundle 装配和应用策略不自动成为本项目契约�
 | [PF-021](../requirements/product/environment/PF-021-multi-machine-deployment-and-assembly.md) | 待定义多机接入/撤回、逻辑装配与物理部署、实际落点及独占执行所有权；[部署方法](../architecture-guide/runtime/distribution.md)不等于已有集群方案，首版仍为单机 |
 | [PF-022](../requirements/product/agent/PF-022-multimodal-response-and-output.md) | [Agent 核心候选](../proposals/agent-core/README.md#当前需求对应与缺口)尚缺模型原生/工具产出、流式回复、媒体原件及历史一致交付；输入附件或工具过程流不能替代 |
 | [PF-023](../requirements/product/user/PF-023-session-model-selection-and-continuity.md) | [模型候选](../proposals/model-contracts/README.md#当前需求对应与缺口)与 Agent 核心尚缺候选判定、耐久模态事实、窗口压缩及下一轮模型选择并发语义 |
+| [PF-024](../requirements/product/agent/PF-024-multi-command-tool-definition.md) | [工具候选](../proposals/tool-system/README.md)提出多命令单槽位方案；参数、授权、装配及正式规格尚待接受 |
 | 已有 SYS-* 全局要求 | [约束落实索引](constraints.md)逐项导航 |
 
 2026-09-12 迁移核对：D-001、D-002 由 D-004 补充，D-003 保持适用；没有已接受
