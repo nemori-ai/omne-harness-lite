@@ -580,7 +580,8 @@
           "required": [
             "blockId",
             "kind",
-            "media"
+            "media",
+            "delivery"
           ],
           "properties": {
             "blockId": {
@@ -591,6 +592,12 @@
             },
             "media": {
               "$ref": "#/$defs/MediaRef"
+            },
+            "delivery": {
+              "enum": [
+                "model_native",
+                "agent_attachment"
+              ]
             }
           }
         },
@@ -600,7 +607,8 @@
           "required": [
             "blockId",
             "kind",
-            "media"
+            "media",
+            "delivery"
           ],
           "properties": {
             "blockId": {
@@ -611,6 +619,12 @@
             },
             "media": {
               "$ref": "#/$defs/MediaRef"
+            },
+            "delivery": {
+              "enum": [
+                "model_native",
+                "agent_attachment"
+              ]
             }
           }
         },
@@ -620,7 +634,8 @@
           "required": [
             "blockId",
             "kind",
-            "media"
+            "media",
+            "delivery"
           ],
           "properties": {
             "blockId": {
@@ -631,6 +646,12 @@
             },
             "media": {
               "$ref": "#/$defs/MediaRef"
+            },
+            "delivery": {
+              "enum": [
+                "model_native",
+                "agent_attachment"
+              ]
             }
           }
         },
@@ -640,7 +661,8 @@
           "required": [
             "blockId",
             "kind",
-            "media"
+            "media",
+            "delivery"
           ],
           "properties": {
             "blockId": {
@@ -651,6 +673,12 @@
             },
             "media": {
               "$ref": "#/$defs/MediaRef"
+            },
+            "delivery": {
+              "enum": [
+                "model_native",
+                "agent_attachment"
+              ]
             }
           }
         },
@@ -876,10 +904,7 @@
           ]
         },
         "background": {
-          "enum": [
-            "supported",
-            "unsupported"
-          ]
+          "$ref": "#/$defs/BackgroundDeclaration"
         },
         "requiredSkills": {
           "type": "array",
@@ -920,6 +945,107 @@
           "minItems": 1
         }
       }
+    },
+    "BackgroundDeclaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "supported",
+            "unsupported"
+          ]
+        },
+        "executionOwnerProtocol": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "protocolId",
+            "version"
+          ],
+          "properties": {
+            "protocolId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "requiredResources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "reconnectProtocol": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "protocolId",
+            "version"
+          ],
+          "properties": {
+            "protocolId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "form": {
+          "const": "independent_execution"
+        },
+        "automatic": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "thresholdMs",
+            "stopMarginMs"
+          ],
+          "properties": {
+            "thresholdMs": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "stopMarginMs": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "supported"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "executionOwnerProtocol",
+              "requiredResources",
+              "reconnectProtocol",
+              "form"
+            ]
+          },
+          "else": {
+            "maxProperties": 1
+          }
+        }
+      ]
     }
   }
 }

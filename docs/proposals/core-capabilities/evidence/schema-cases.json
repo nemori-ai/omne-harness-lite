@@ -81,7 +81,8 @@
       "media": {
         "tenantId": "t",
         "mediaId": "m"
-      }
+      },
+      "delivery": "model_native"
     },
     "expected_valid": true,
     "actual_valid": true
@@ -134,5 +135,421 @@
     },
     "expected_valid": false,
     "actual_valid": false
+  },
+  {
+    "id": "media_missing_delivery",
+    "input": {
+      "blockId": "b",
+      "kind": "audio",
+      "media": {
+        "tenantId": "t",
+        "mediaId": "m"
+      }
+    },
+    "expected_valid": false,
+    "actual_valid": false
+  },
+  {
+    "id": "action",
+    "input": {
+      "tenantId": "t",
+      "callId": "c",
+      "attemptId": "a",
+      "owner": {
+        "tenantId": "t",
+        "workId": "w"
+      },
+      "definition": {
+        "definition": {
+          "ownerTenantId": "t",
+          "definitionId": "d"
+        },
+        "version": "v1"
+      },
+      "toolKey": "files",
+      "commandKey": "write",
+      "declarationVersion": "v1",
+      "binding": {
+        "implementationId": "impl",
+        "generation": "g1",
+        "configurationRevision": "r1",
+        "environment": {
+          "tenantId": "t",
+          "kind": "device",
+          "resourceId": "r",
+          "version": "v1"
+        },
+        "parserVersion": "v1"
+      },
+      "params": {
+        "path": "sample"
+      },
+      "resources": [
+        {
+          "tenantId": "t",
+          "kind": "device",
+          "resourceId": "r",
+          "version": "v1"
+        }
+      ],
+      "permissions": [
+        "write"
+      ],
+      "confirmation": "before_effect",
+      "grantorKinds": [
+        "owner"
+      ],
+      "impact": "write sample"
+    },
+    "expected_valid": true,
+    "actual_valid": true
+  },
+  {
+    "id": "action_missing_generation",
+    "input": {
+      "tenantId": "t",
+      "callId": "c",
+      "attemptId": "a",
+      "owner": {
+        "tenantId": "t",
+        "workId": "w"
+      },
+      "definition": {
+        "definition": {
+          "ownerTenantId": "t",
+          "definitionId": "d"
+        },
+        "version": "v1"
+      },
+      "toolKey": "files",
+      "commandKey": "write",
+      "declarationVersion": "v1",
+      "binding": {
+        "implementationId": "impl",
+        "configurationRevision": "r1",
+        "environment": {
+          "tenantId": "t",
+          "kind": "device",
+          "resourceId": "r",
+          "version": "v1"
+        },
+        "parserVersion": "v1"
+      },
+      "params": {
+        "path": "sample"
+      },
+      "resources": [
+        {
+          "tenantId": "t",
+          "kind": "device",
+          "resourceId": "r",
+          "version": "v1"
+        }
+      ],
+      "permissions": [
+        "write"
+      ],
+      "confirmation": "before_effect",
+      "grantorKinds": [
+        "owner"
+      ],
+      "impact": "write sample"
+    },
+    "expected_valid": false,
+    "actual_valid": false
+  },
+  {
+    "id": "provisional_missing_contract",
+    "input": {
+      "tenantId": "t",
+      "callId": "c",
+      "attemptId": "a",
+      "owner": {
+        "tenantId": "t",
+        "workId": "w"
+      },
+      "definition": {
+        "definition": {
+          "ownerTenantId": "t",
+          "definitionId": "d"
+        },
+        "version": "v1"
+      },
+      "toolKey": "files",
+      "commandKey": "write",
+      "declarationVersion": "v1",
+      "binding": {
+        "implementationId": "impl",
+        "generation": "g1",
+        "configurationRevision": "r1",
+        "environment": {
+          "tenantId": "t",
+          "kind": "device",
+          "resourceId": "r",
+          "version": "v1"
+        },
+        "parserVersion": "v1"
+      },
+      "params": {
+        "path": "sample"
+      },
+      "resources": [
+        {
+          "tenantId": "t",
+          "kind": "device",
+          "resourceId": "r",
+          "version": "v1"
+        }
+      ],
+      "permissions": [
+        "write"
+      ],
+      "confirmation": "provisional",
+      "grantorKinds": [
+        "owner"
+      ],
+      "impact": "write sample"
+    },
+    "expected_valid": false,
+    "actual_valid": false
+  },
+  {
+    "id": "tool_definition",
+    "input": {
+      "definition": {
+        "definition": {
+          "ownerTenantId": "t",
+          "definitionId": "d"
+        },
+        "version": "v1"
+      },
+      "toolKey": "files",
+      "commands": [
+        {
+          "commandKey": "write",
+          "inputSchema": {
+            "type": "object"
+          },
+          "outputSchema": true,
+          "authorization": {
+            "version": "v1",
+            "permissions": [
+              "write"
+            ],
+            "resourceResolver": {
+              "resolverId": "path",
+              "version": "v1"
+            },
+            "confirmation": "before_effect",
+            "grantorKinds": [
+              "owner"
+            ],
+            "impactTemplate": "write selected path"
+          },
+          "effect": "write",
+          "cancellation": "supported",
+          "background": {
+            "mode": "supported",
+            "form": "independent_execution",
+            "executionOwnerProtocol": {
+              "protocolId": "executor",
+              "version": "v1"
+            },
+            "requiredResources": [
+              "execution-host"
+            ],
+            "reconnectProtocol": {
+              "protocolId": "inspect",
+              "version": "v1"
+            },
+            "automatic": {
+              "thresholdMs": 1000,
+              "stopMarginMs": 100
+            }
+          },
+          "requiredSkills": [],
+          "environmentCapabilities": [
+            "files"
+          ]
+        }
+      ]
+    },
+    "expected_valid": true,
+    "actual_valid": true
+  },
+  {
+    "id": "tool_missing_authorization",
+    "input": {
+      "definition": {
+        "definition": {
+          "ownerTenantId": "t",
+          "definitionId": "d"
+        },
+        "version": "v1"
+      },
+      "toolKey": "files",
+      "commands": [
+        {
+          "commandKey": "write",
+          "inputSchema": {
+            "type": "object"
+          },
+          "outputSchema": true,
+          "effect": "write",
+          "cancellation": "supported",
+          "background": {
+            "mode": "supported",
+            "form": "independent_execution",
+            "executionOwnerProtocol": {
+              "protocolId": "executor",
+              "version": "v1"
+            },
+            "requiredResources": [
+              "execution-host"
+            ],
+            "reconnectProtocol": {
+              "protocolId": "inspect",
+              "version": "v1"
+            },
+            "automatic": {
+              "thresholdMs": 1000,
+              "stopMarginMs": 100
+            }
+          },
+          "requiredSkills": [],
+          "environmentCapabilities": [
+            "files"
+          ]
+        }
+      ]
+    },
+    "expected_valid": false,
+    "actual_valid": false
+  },
+  {
+    "id": "background_missing_owner",
+    "input": {
+      "definition": {
+        "definition": {
+          "ownerTenantId": "t",
+          "definitionId": "d"
+        },
+        "version": "v1"
+      },
+      "toolKey": "files",
+      "commands": [
+        {
+          "commandKey": "write",
+          "inputSchema": {
+            "type": "object"
+          },
+          "outputSchema": true,
+          "authorization": {
+            "version": "v1",
+            "permissions": [
+              "write"
+            ],
+            "resourceResolver": {
+              "resolverId": "path",
+              "version": "v1"
+            },
+            "confirmation": "before_effect",
+            "grantorKinds": [
+              "owner"
+            ],
+            "impactTemplate": "write selected path"
+          },
+          "effect": "write",
+          "cancellation": "supported",
+          "background": {
+            "mode": "supported"
+          },
+          "requiredSkills": [],
+          "environmentCapabilities": [
+            "files"
+          ]
+        }
+      ]
+    },
+    "expected_valid": false,
+    "actual_valid": false
+  },
+  {
+    "id": "invalid_threshold",
+    "input": {
+      "definition": {
+        "definition": {
+          "ownerTenantId": "t",
+          "definitionId": "d"
+        },
+        "version": "v1"
+      },
+      "toolKey": "files",
+      "commands": [
+        {
+          "commandKey": "write",
+          "inputSchema": {
+            "type": "object"
+          },
+          "outputSchema": true,
+          "authorization": {
+            "version": "v1",
+            "permissions": [
+              "write"
+            ],
+            "resourceResolver": {
+              "resolverId": "path",
+              "version": "v1"
+            },
+            "confirmation": "before_effect",
+            "grantorKinds": [
+              "owner"
+            ],
+            "impactTemplate": "write selected path"
+          },
+          "effect": "write",
+          "cancellation": "supported",
+          "background": {
+            "mode": "supported",
+            "form": "independent_execution",
+            "executionOwnerProtocol": {
+              "protocolId": "executor",
+              "version": "v1"
+            },
+            "requiredResources": [
+              "execution-host"
+            ],
+            "reconnectProtocol": {
+              "protocolId": "inspect",
+              "version": "v1"
+            },
+            "automatic": {
+              "thresholdMs": 0,
+              "stopMarginMs": 100
+            }
+          },
+          "requiredSkills": [],
+          "environmentCapabilities": [
+            "files"
+          ]
+        }
+      ]
+    },
+    "expected_valid": false,
+    "actual_valid": false
+  },
+  {
+    "id": "attachment_delivery",
+    "input": {
+      "blockId": "b",
+      "kind": "file",
+      "media": {
+        "tenantId": "t",
+        "mediaId": "m"
+      },
+      "delivery": "agent_attachment"
+    },
+    "expected_valid": true,
+    "actual_valid": true
   }
 ]

@@ -115,6 +115,10 @@ resume Session 自动重试。清理权随原 owner 保留，不因普通 grant 
 原 call/attempt 可观察／控制／结算时，detach 才确认 background。
 转换只改变关系，不创建新调用、不重启实际工作。重复 detach 返回现状；
 完成与 detach 竞争按原实际结果回答；未支持、已停止和暂不可用具名反馈。
+BackgroundDeclaration 以 form=independent_execution、精确 owner/reconnect
+协议版本和 requiredResources 表达此声明；实际 owner 身份在调用准入时
+绑定。可选 automatic 给出 thresholdMs/stopMarginMs；缺席表示未声明自动
+转换，不影响已支持的手动转换。协议引用须在装载时核实，不能只是任意字符串。
 
 自动转换使用声明阈值、配置上限和 Run 剩余执行预算共同得到有效阈值；
 三者及计时来源记录到调用，阈值必须在预算截止前留出已声明的收口空间，

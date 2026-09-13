@@ -1,0 +1,91 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 16 and seed 1445263092808835366 with 1 worker on 8 cores with 910MB heap and 64MB offheap memory [pid: 139919] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/docs/proposals/core-capabilities/design/QueueControl.tla
+Parsing file /tmp/tlc-17814720827894477432/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-17814720827894477432/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-17814720827894477432/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module QueueControl
+Linting of module QueueControl
+Starting... (2026-09-13 19:19:59)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-13 19:19:59.
+Error: Invariant CommandHasExecutionRight is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ slot = 0
+/\ revision = <<0, 0, 0>>
+/\ safe = FALSE
+/\ badCommandEffect = FALSE
+/\ stop = FALSE
+/\ badClaim = FALSE
+/\ takenRevision = <<0, 0, 0>>
+/\ hold = FALSE
+/\ badRelease = FALSE
+/\ item = <<"queued", "queued", "queued">>
+
+State 2: <Claim(1) line 12, col 3 to line 18, col 75 of module QueueControl>
+/\ slot = 1
+/\ revision = <<0, 0, 0>>
+/\ safe = FALSE
+/\ badCommandEffect = FALSE
+/\ stop = FALSE
+/\ badClaim = FALSE
+/\ takenRevision = <<0, 0, 0>>
+/\ hold = FALSE
+/\ badRelease = FALSE
+/\ item = <<"claimed", "queued", "queued">>
+
+State 3: <Finish line 28, col 11 to line 30, col 108 of module QueueControl>
+/\ slot = 0
+/\ revision = <<0, 0, 0>>
+/\ safe = FALSE
+/\ badCommandEffect = FALSE
+/\ stop = FALSE
+/\ badClaim = FALSE
+/\ takenRevision = <<0, 0, 0>>
+/\ hold = FALSE
+/\ badRelease = FALSE
+/\ item = <<"settled", "queued", "queued">>
+
+State 4: <Claim(2) line 12, col 3 to line 18, col 75 of module QueueControl>
+/\ slot = 2
+/\ revision = <<0, 0, 0>>
+/\ safe = FALSE
+/\ badCommandEffect = FALSE
+/\ stop = FALSE
+/\ badClaim = FALSE
+/\ takenRevision = <<0, 0, 0>>
+/\ hold = FALSE
+/\ badRelease = FALSE
+/\ item = <<"settled", "claimed", "queued">>
+
+State 5: <ForceStop line 31, col 14 to line 33, col 105 of module QueueControl>
+/\ slot = 2
+/\ revision = <<0, 0, 0>>
+/\ safe = FALSE
+/\ badCommandEffect = FALSE
+/\ stop = TRUE
+/\ badClaim = FALSE
+/\ takenRevision = <<0, 0, 0>>
+/\ hold = TRUE
+/\ badRelease = FALSE
+/\ item = <<"settled", "claimed", "queued">>
+
+State 6: <Clear line 23, col 10 to line 27, col 95 of module QueueControl>
+/\ slot = 2
+/\ revision = <<0, 0, 0>>
+/\ safe = FALSE
+/\ badCommandEffect = TRUE
+/\ stop = TRUE
+/\ badClaim = FALSE
+/\ takenRevision = <<0, 0, 0>>
+/\ hold = TRUE
+/\ badRelease = FALSE
+/\ item = <<"settled", "claimed", "removed">>
+
+109 states generated, 64 distinct states found, 26 states left on queue.
+The depth of the complete state graph search is 6.
+Finished in 00s at (2026-09-13 19:19:59)

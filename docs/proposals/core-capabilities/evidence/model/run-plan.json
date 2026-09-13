@@ -145,5 +145,12 @@
     "expected": "CompletionKeepsPending",
     "config": "docs/proposals/core-capabilities/evidence/model/Decisions-earlyComplete.cfg",
     "model": "docs/proposals/core-capabilities/design/Decisions.tla"
+  },
+  {
+    "name": "QueueControl",
+    "mutation": "stoppedCommand",
+    "expected": "CommandHasExecutionRight",
+    "config": "docs/proposals/core-capabilities/evidence/model/QueueControl-stoppedCommand.cfg",
+    "model": "docs/proposals/core-capabilities/design/QueueControl.tla"
   }
 ]

@@ -1,0 +1,7 @@
+{
+  "schema_sha256": "07007fc717db8fc513a3f1614cdc6bbdced50eac7dc1c8f1164752bbce841f35",
+  "cases": 18,
+  "passed": true,
+  "command": "uv run --locked python docs/proposals/core-capabilities/evidence/check-schema.py",
+  "scope": "structural validation only; tenant equality and current grants require behavioral guards"
+}

@@ -222,8 +222,8 @@
       ],
       "exit_code": 0,
       "matched_expectation": true,
-      "model_sha256": "e76d3ca4cb4e68581601a83fa3a64b1444554c5627a08209f027de2bb7f4ba37",
-      "config_sha256": "92fa7e4f28463a52c56403e35dfd8ddd8e07d2b4899fc3b185e25b1c1b7da3b6",
+      "model_sha256": "949d83ea02eef50f73638b4b3f3b6e06b7cd712c18b430000296b865a1b6d2fc",
+      "config_sha256": "1e3965f6849d5c4d8ea427d759a67335755c6dcc4cae8e24eb44fb4144626bcc",
       "log": "docs/proposals/core-capabilities/evidence/model/QueueControl-none.log"
     },
     {
@@ -250,8 +250,8 @@
       ],
       "exit_code": 12,
       "matched_expectation": true,
-      "model_sha256": "e76d3ca4cb4e68581601a83fa3a64b1444554c5627a08209f027de2bb7f4ba37",
-      "config_sha256": "0a48fcd38896fcc3f6f2335884e650ac6428db4890af83d546663bbe220d9182",
+      "model_sha256": "949d83ea02eef50f73638b4b3f3b6e06b7cd712c18b430000296b865a1b6d2fc",
+      "config_sha256": "809319a09cc31a18b9f6a30e5468d6c972affc9b10c6828e859fe76699cfbae6",
       "log": "docs/proposals/core-capabilities/evidence/model/QueueControl-hold.log"
     },
     {
@@ -278,8 +278,8 @@
       ],
       "exit_code": 12,
       "matched_expectation": true,
-      "model_sha256": "e76d3ca4cb4e68581601a83fa3a64b1444554c5627a08209f027de2bb7f4ba37",
-      "config_sha256": "8cd91cfefd3d1506d1ee63b45ec9d70698b1d904fefb2d70f654a055f2596d26",
+      "model_sha256": "949d83ea02eef50f73638b4b3f3b6e06b7cd712c18b430000296b865a1b6d2fc",
+      "config_sha256": "3a7aed7dd38c587960b14a66c4789149b517b4313106e8beaf7012b6602d8e27",
       "log": "docs/proposals/core-capabilities/evidence/model/QueueControl-earlyRelease.log"
     },
     {
@@ -589,6 +589,34 @@
       "model_sha256": "e832652d14fd0a60e19eb8e9ee5630277a70a10549871eaa6d51c4f7134b358a",
       "config_sha256": "4c4efb69f119e0d64d20952f773c010ab47db741f89fc0bcde613d97e7fbd79c",
       "log": "docs/proposals/core-capabilities/evidence/model/Decisions-earlyComplete.log"
+    },
+    {
+      "name": "QueueControl",
+      "mutation": "stoppedCommand",
+      "expected": "CommandHasExecutionRight",
+      "config": "docs/proposals/core-capabilities/evidence/model/QueueControl-stoppedCommand.cfg",
+      "model": "docs/proposals/core-capabilities/design/QueueControl.tla",
+      "command": [
+        "/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java",
+        "-Xmx1g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-metadir",
+        "tmp/formal-runs/core-QueueControl-stoppedCommand",
+        "-config",
+        "docs/proposals/core-capabilities/evidence/model/QueueControl-stoppedCommand.cfg",
+        "docs/proposals/core-capabilities/design/QueueControl.tla"
+      ],
+      "exit_code": 12,
+      "matched_expectation": true,
+      "model_sha256": "949d83ea02eef50f73638b4b3f3b6e06b7cd712c18b430000296b865a1b6d2fc",
+      "config_sha256": "adbf79dbcf0caf065a3c234bb62094c9c5f244f81b196ad848fa87138732d145",
+      "log": "docs/proposals/core-capabilities/evidence/model/QueueControl-stoppedCommand.log"
     }
   ]
 }
