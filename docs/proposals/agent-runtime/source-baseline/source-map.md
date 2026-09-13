@@ -1,6 +1,6 @@
 # 设计基线来源与维护映射
 
-本页把源事实、拟保留语义和未接受的产品政策分开。[契约](draft/contract.md) 是
+本页把源事实、拟保留语义和未接受的产品政策分开。[契约](design/contract.md) 是
 本轮候选的唯一语义正文；上游源码及测试提供观察证据，不自动批准本项目设计。
 
 ## 固定版本
@@ -16,14 +16,14 @@
 
 当前候选使用 OMNE commit `2d6eff6f7a0e7db73fb35f3ab5011fcd0a55662d` 下列文件的
 已确认条款；这不是用户对本候选细节的接受。来源为当时正文所记确认范围，未决条款
-仍然未决。正式发布前按[需求基线保留](../../../docs/maintenance/requirements.md#基线保留)
+仍然未决。正式发布前按[需求基线保留](../../../maintenance/requirements.md#基线保留)
 建立可交付保留引用与恢复证据。
 
 | 需求/约束来源 | 本次覆盖及限制 |
 |---|---|
-| [系统约束](../../../docs/requirements/system/constraints.md) | Cordis 与 DSH agent 的复用方向；本次只建模原语。租户身份默认拒绝和 OpenRouter 统一入口仍约束未来装配，原语本身不兑现它们。 |
-| [运行状态与连续性](../../../docs/requirements/system/runtime-state-and-continuity.md) | 明确 runtime live 状态、因果归因、结构化释放的边界；不声称具备重启恢复、全局状态持久化或无限待机。 |
-| [总体范式](../../../docs/architecture-guide/foundations/paradigm.md)、[基础概念](../../../docs/architecture-guide/foundations/concepts.md) | 以动态能力、作用域、依赖与生命周期建模；不把包目录等同能力/进程，不新增同义 Session/租户数据定义。 |
+| [系统约束](../../../requirements/system/constraints.md) | Cordis 与 DSH agent 的复用方向；本次只建模原语。租户身份默认拒绝和 OpenRouter 统一入口仍约束未来装配，原语本身不兑现它们。 |
+| [运行状态与连续性](../../../requirements/system/runtime-state-and-continuity.md) | 明确 runtime live 状态、因果归因、结构化释放的边界；不声称具备重启恢复、全局状态持久化或无限待机。 |
+| [总体范式](../../../architecture-guide/foundations/paradigm.md)、[基础概念](../../../architecture-guide/foundations/concepts.md) | 以动态能力、作用域、依赖与生命周期建模；不把包目录等同能力/进程，不新增同义 Session/租户数据定义。 |
 | 本轮用户明确要求（2026-09-13） | 先在 spec 保存 dsh-agent 维护基线，每步设计、独立评审、验收后再继续；尚未授权跳过细节验收直接导入源码。 |
 
 以上相对链接导航当前正文，历史含义以固定 commit 的同路径为准。候选接受前若正文
@@ -51,7 +51,7 @@ protocol、util-values 多处用作类型/扩展协议；invariants 由独立附
 实际服务是否必须挂载由访问行为决定，不能从 peer 数量推导。Node 是此上游实现的
 宿主要求；语言无关模型不假定其他语言天然具有同等上下文传播语义。
 
-测试映射见[规范场景](draft/scenarios.md)，实际运行绑定的源码与工具见[证据](evidence/validation.md)。
+测试映射见[规范场景](design/scenarios.md)，实际运行绑定的源码与工具见[证据](evidence/validation.md)。
 `verify-export-jsdoc.spec.ts` 验证上游文档检查器，非原语行为，本轮未运行。
 
 ## 需要显式保留的源差异

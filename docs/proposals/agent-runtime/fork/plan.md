@@ -14,7 +14,7 @@
 [live-agent v1](../../../../spec/capabilities/live-agent/v1/contract.md)，
 需求消费范围沿用[原提案](../v1/requirements.md)固定的
 `f580718295daaec0f42d3262643e95281c493063`，本次不改变需求或冻结规格。
-来源语义见[源 draft](../../../../spec/capabilities/live-agent/draft/contract.md)，
+来源语义见[源 draft](../source-baseline/design/contract.md)，
 目标差异以[已有映射](../v1/source-mapping.md)为准。
 
 本阶段成果是本项目拥有维护权的、能与官方 Cordis 实际发行包组合的源码起点。
@@ -28,7 +28,7 @@
   设计尚未合并 main，因此不能从 main 丢失基线后开工；其他工作树不属于本任务。
 - 上游仓库 `https://github.com/deepseek-ai/deepseek-harness`，commit
   `c291e7961a515f6d7af9304e7fd1d257929aef26`，dsh-agent 源版本 `0.1.5-rc.2`。
-  已保存[文件校验表](../../../../spec/capabilities/live-agent/upstream-baseline.json)。
+  已保存[文件校验表](../source-baseline/upstream-baseline.json)。
 - 直接依赖官方 `@deepseek-ai/cordis@4.0.2`，不复制、别名替换或修改 Cordis。
   npm registry 发行 tarball 的 SHA-512 为
   `asOnXP1TzFSFQlHb1iegDZp0z/8WD1c7YNrwJR/Tx2bzNuMXfcekE/I67Iv6SQXeLB4csxqCngzQKANP7gdw0g==`。

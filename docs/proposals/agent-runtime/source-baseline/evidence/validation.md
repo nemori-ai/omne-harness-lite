@@ -15,7 +15,7 @@
 | 反例敏感性 | 三个故意错误配置分别要求提前删除、旧句柄按 ID 删除、提前失效触发指定不变量；完整结果见[变异记录](mutations.json)。 |
 | 文档结构 | `make docs-check` 通过 232 份 Markdown 的链接、身份、来源、镜像及冻结检查；见[完整输出](docs-check.txt)，不代表设计获准。 |
 
-模型由仓库 [formal-tasks.json](../../../formal-tasks.json) 实际调用 TLC，而非只检查
+模型由仓库 [formal-tasks.json](../../../../../spec/formal-tasks.json) 实际调用 TLC，而非只检查
 文件存在。[完整 spec-check 输出](spec-check.txt) 记录解析、遍历、性质与退出码。
 工具为 TLC 发行 v1.8.0（实际输出 `TLC2 Version 2026.09.12.025210`）、Temurin
 21.0.12.1；下载 URL 与 SHA-256 见[工具清单](toolchain.json)。初次编写时发起者模型的
@@ -49,7 +49,7 @@ pnpm exec vitest run \
 
 该副本使用上游 lockfile、Vitest 配置与源码映射，依赖已安装；它不是 npm 发布包或
 未来 fork 的构建验收。[原始运行输出](upstream-tests.txt)与文件对比一起界定证据范围。
-规范场景逐项对应见[场景表](../draft/scenarios.md)。
+规范场景逐项对应见[场景表](../design/scenarios.md)。
 
 ## 模型抽象及未覆盖范围
 

@@ -2,11 +2,11 @@
   "format": 1,
   "tasks": [
     {
-      "id": "live-agent-draft-AgentRegistry",
+      "id": "agent-source-AgentRegistry",
       "kind": "tla",
       "artifacts": [
-        "spec/capabilities/live-agent/draft/AgentRegistry.tla",
-        "spec/capabilities/live-agent/draft/AgentRegistry.cfg"
+        "docs/proposals/agent-runtime/source-baseline/design/AgentRegistry.tla",
+        "docs/proposals/agent-runtime/source-baseline/design/AgentRegistry.cfg"
       ],
       "command": [
         "${JAVA_BIN}",
@@ -19,17 +19,17 @@
         "-metadir",
         "tmp/formal-runs/AgentRegistry",
         "-config",
-        "spec/capabilities/live-agent/draft/AgentRegistry.cfg",
-        "spec/capabilities/live-agent/draft/AgentRegistry.tla"
+        "docs/proposals/agent-runtime/source-baseline/design/AgentRegistry.cfg",
+        "docs/proposals/agent-runtime/source-baseline/design/AgentRegistry.tla"
       ],
       "timeout_seconds": 120
     },
     {
-      "id": "live-agent-draft-InitiatorScope",
+      "id": "agent-source-InitiatorScope",
       "kind": "tla",
       "artifacts": [
-        "spec/capabilities/live-agent/draft/InitiatorScope.tla",
-        "spec/capabilities/live-agent/draft/InitiatorScope.cfg"
+        "docs/proposals/agent-runtime/source-baseline/design/InitiatorScope.tla",
+        "docs/proposals/agent-runtime/source-baseline/design/InitiatorScope.cfg"
       ],
       "command": [
         "${JAVA_BIN}",
@@ -42,8 +42,8 @@
         "-metadir",
         "tmp/formal-runs/InitiatorScope",
         "-config",
-        "spec/capabilities/live-agent/draft/InitiatorScope.cfg",
-        "spec/capabilities/live-agent/draft/InitiatorScope.tla"
+        "docs/proposals/agent-runtime/source-baseline/design/InitiatorScope.cfg",
+        "docs/proposals/agent-runtime/source-baseline/design/InitiatorScope.tla"
       ],
       "timeout_seconds": 120
     },

@@ -3,7 +3,7 @@
 对象：[capability.live-agent v1](v1/contract.md)及
 [data.agent-runtime-identity v1](../../data/agent-runtime-identity/v1/contract.md)。
 规范场景和形式配置随 v1 冻结，运行输出位于 [evidence/v1](evidence/v1/model-runs.json)。
-上游 [46 项测试和两份源模型](evidence/validation.md)仍只说明固定上游源码基线。
+上游 [46 项测试和两份源模型](../../../docs/proposals/agent-runtime/source-baseline/evidence/validation.md)仍只说明固定上游源码基线。
 
 ## 行为抽象和映射
 

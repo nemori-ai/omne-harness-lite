@@ -5,7 +5,7 @@
 
 ## 范围与统一语言
 
-沿用[架构基础概念](../../../../docs/architecture-guide/foundations/concepts.md)。
+沿用[架构基础概念](../../../../architecture-guide/foundations/concepts.md)。
 本能力维护一个运行时注册表、一个可替换的构造提供者，以及发起者归因边界。
 它同时提供事件分发助手和两个小型计算助手，声明供驱动器实现的 Agent 端口。
 注册表不是持久化存储；运行时引用不是数据契约。
