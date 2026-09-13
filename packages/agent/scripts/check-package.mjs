@@ -10,7 +10,7 @@ const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const repoRoot = resolve(packageRoot, '../..')
 const readJson = async path => JSON.parse(await readFile(path, 'utf8'))
 const provenance = await readJson(join(packageRoot, 'provenance.json'))
-const originalBaseline = await readJson(join(repoRoot, 'spec/capabilities/live-agent/upstream-baseline.json'))
+const originalBaseline = await readJson(join(repoRoot, 'docs/proposals/agent-runtime/source-baseline/upstream-baseline.json'))
 assert.equal(provenance.commit, originalBaseline.commit)
 for (const entry of provenance.files) {
   const bytes = await readFile(join(packageRoot, entry.snapshot))
@@ -20,7 +20,7 @@ for (const entry of provenance.files) {
 }
 const manifest = await readJson(join(packageRoot, 'package.json'))
 assert.equal(manifest.private, true)
-assert.deepEqual(Object.keys(manifest.exports), ['./baseline'])
+assert.deepEqual(Object.keys(manifest.exports), ['./baseline', './scope-baseline'])
 assert.deepEqual(manifest.dependencies, { '@deepseek-ai/cordis': '4.0.2' })
 const lock = await readFile(join(repoRoot, 'pnpm-lock.yaml'), 'utf8')
 assert.ok(lock.includes(provenance.cordis_release.dist.integrity), 'official Cordis integrity missing from lock')

@@ -1,0 +1,48 @@
+{
+  "name": "@omne-harness-lite/dsh-baseline",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "Selectively maintained DSH source mechanisms for subsequent development; not product capability implementations",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "exports": {
+    "./baseline/brand": {
+      "types": "./dist/support/brand.d.ts",
+      "import": "./dist/support/brand.js"
+    },
+    "./baseline/values": {
+      "types": "./dist/support/values.d.ts",
+      "import": "./dist/support/values.js"
+    },
+    "./baseline/timeout": {
+      "types": "./dist/support/timeout.d.ts",
+      "import": "./dist/support/timeout.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md",
+    "UPSTREAM.md",
+    "provenance.json"
+  ],
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "pnpm run build && vitest run",
+    "check": "pnpm run build && pnpm run typecheck && vitest run && node scripts/check-package.mjs"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "4.0.2",
+    "@omne-harness-lite/agent": "workspace:*",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.4",
+    "typescript": "6.0.3",
+    "vitest": "4.1.8"
+  }
+}

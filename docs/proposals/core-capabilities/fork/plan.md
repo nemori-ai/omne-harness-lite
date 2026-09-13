@@ -18,11 +18,13 @@
 源码模块按下表职责划分；它们不是一个内核服务或统一运行状态对象。包作为
 共同来源/构建单元便于在目标实现分化前维护依赖，未来按实现边界拆分，不要求
 每个上游来源对应一个空转发包。现有 `packages/agent` 保留原基线身份，不再
-复制 agent 机制。内核最终归入 core 的选择不由此来源包改变。
+复制 agent 机制；其 scope 原件补齐 store 导出并公开 `./scope-baseline`，新包只
+消费这个唯一活动 scope 的公开入口。独立 scope 拷贝的 Symbol/WeakMap 会导致
+贡献与路由分裂，因此不创建第二份 scope 实现。内核最终归入 core 的选择不由此来源包改变。
 
 | 源与活动目录 | 本次可编译起点 | 源语义与目标差异 |
 |---|---|---|
-| scope → `src/scope/` | 原 scope/index 与 store 的作用域、受管条目、顺序与撤回机制 | 仅可见性/贡献机制，无租户授权；本次不得借它发布目标执行许可 |
+| scope → 现有 `packages/agent/src/scope.ts` 与 `store.ts` | 原 scope/index 与 store 的作用域、受管条目、顺序与撤回机制 | 仅可见性/贡献机制，无租户授权；本次不得借它发布目标执行许可 |
 | brand/util-values/timeout → `src/support/` | 实际被调用的品牌辅助、JSON 快照/冻结和 signal 协作 | 不复制产品身份，不加入 timeout 产品政策；不为未消费辅助扩大框架 |
 | attachment → `src/media/` | brand/types/error 与必要纯请求引用辅助 | 无完整服务或后端；源消息/媒体类型明确只用于 baseline，产品继续用唯一 core-work v1 |
 | llm → `src/llm/` | 消息、流装配/累积、错误与归因、请求配置和必要 adapter 机制 | 删 Typert/crypto/schemastery 耦合；不带任何直连 adapter。自动模态降级/重试政策不作产品承诺；可先只导出已验证的纯机制，未完成 runtime 不假装可用 |
@@ -44,7 +46,7 @@ Node 24、pnpm 10.28.1、TypeScript 6.0.3、Vitest 4.1.8、@types/node 24.13.4
 参数 JSON Schema DSL 的保留算法是源实现，不扩大为产品 JSON Schema 全规范校验器。
 新的普通依赖必须有用途证据，默认用 Node 标准库替代随机/散列辅助。
 
-活动源码只 import 本包明确模块或现有 agent 的公开 baseline；生成声明不含
+活动源码只 import 本包明确模块或现有 agent 的公开 scope-baseline；生成声明不含
 DSH workspace、Typert、PTC 或其它被排除模块。原件在 upstream/ 不编译/不打包，
 LICENSE、README、UPSTREAM、provenance 与 dist 随 tarball。严格类型检查无
 `ts-nocheck`、伪模块声明或任意 any 补洞。保留源测试及有因果说明的删改，增加

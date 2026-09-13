@@ -12,6 +12,10 @@
     "./baseline": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./scope-baseline": {
+      "types": "./dist/scope.d.ts",
+      "import": "./dist/scope.js"
     }
   },
   "files": [

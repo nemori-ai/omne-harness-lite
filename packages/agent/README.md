@@ -33,3 +33,6 @@ isolatedModules，不通过源 alias 或手写枚举数字替代官方发行包�
 这些是受信测试 fixture 下的原语组合验证，不是完整 Agent 产品闭环。
 来源、许可、测试移植与差异见 [UPSTREAM](UPSTREAM.md) 和 [provenance](provenance.json)；
 施工与验收见[计划](../../docs/proposals/agent-runtime/fork/plan.md)。
+
+本批增加 `@omne-harness-lite/agent/scope-baseline`，公开同一份 scope 与受管
+store 原语，供新来源模块共享作用域身份；仍为源基线，不是目标授权边界。

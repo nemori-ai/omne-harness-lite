@@ -59,7 +59,7 @@
       "targets": [
         "src/scope.ts"
       ],
-      "changes": "Internal support source; remove scoped store re-exports only."
+      "changes": "Retain full scope primitive and restore store exports; shared source baseline public subpath, one active scope identity registry"
     },
     {
       "upstream_path": "packages/core/agent/tests/agent.spec.ts",
@@ -96,6 +96,24 @@
         "LICENSE"
       ],
       "changes": "Unchanged DeepSeek copyright and full MIT text."
+    },
+    {
+      "upstream_path": "packages/core/scope/src/store.ts",
+      "snapshot": "upstream/scope/store.ts",
+      "sha256": "e2f6c98e271cbae483393ccd1e5212a255def165a8a591d308efbd827af67278",
+      "targets": [
+        "src/store.ts"
+      ],
+      "changes": "Rebase local imports only; preserve source algorithms and test expectations"
+    },
+    {
+      "upstream_path": "packages/core/scope/tests/store.spec.ts",
+      "snapshot": "upstream/scope/store.spec.ts",
+      "sha256": "3c1e5e3ff4ba50445d140aa0f09dc1e6c5e80cf6244fce628841bdc4e8029ad5",
+      "targets": [
+        "tests/store.spec.ts"
+      ],
+      "changes": "Rebase local imports only; preserve source algorithms and test expectations"
     }
   ],
   "cordis_release": {

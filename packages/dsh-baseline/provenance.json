@@ -1,0 +1,42 @@
+{
+  "format": 1,
+  "repository": "https://github.com/deepseek-ai/deepseek-harness",
+  "commit": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+  "scope": "Selective source baseline only; no D-008 target conformance claim",
+  "files": [
+    {
+      "upstream_path": "packages/util/brand/src/index.ts",
+      "snapshot": "upstream/brand/index.ts",
+      "sha256": "f9d6da858d7308117227dcc2306ce7246b7309b2ae22d413d289cbae51e83e98",
+      "targets": [
+        "src/support/brand.ts"
+      ],
+      "changes": "Unchanged source helper, source-only baseline vocabulary"
+    },
+    {
+      "upstream_path": "packages/util/values/src/index.ts",
+      "snapshot": "upstream/values/index.ts",
+      "sha256": "573c77ba7017fc747f90fdbd5445cfd565db6ff6d53a6b999f6c34ed842bbb8f",
+      "targets": [
+        "src/support/values.ts"
+      ],
+      "changes": "Unchanged source helper, source-only baseline vocabulary"
+    },
+    {
+      "upstream_path": "packages/util/timeout/src/index.ts",
+      "snapshot": "upstream/timeout/index.ts",
+      "sha256": "fdfd67e7d9c0a09668a4101880439f28446a8bf038f060a0bc4d27d941be562c",
+      "targets": [
+        "src/support/timeout.ts"
+      ],
+      "changes": "Unchanged source helper, source-only baseline vocabulary"
+    },
+    {
+      "upstream_path": "LICENSE",
+      "snapshot": "LICENSE",
+      "sha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be",
+      "targets": [],
+      "changes": "Unchanged MIT notice shipped in artifacts"
+    }
+  ]
+}

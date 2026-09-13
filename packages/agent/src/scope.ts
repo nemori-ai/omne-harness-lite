@@ -9,6 +9,9 @@ import type { Context, Fiber } from '@deepseek-ai/cordis'
 import { Context as CordisContext } from '@deepseek-ai/cordis'
 
 
+export { AnonymousEntries, NamedEntries, ScopedLayers } from './store.ts'
+export type { ScopeLayer } from './store.ts'
+
 /** An opaque, identity-compared scope key. */
 export type ScopeKey = object
 
