@@ -1,0 +1,75 @@
+{
+  "format": 1,
+  "requirements_commit": "f580718295daaec0f42d3262643e95281c493063",
+  "design_status": "formal design delivery after independent review-2; no product implementation",
+  "schema_cases": 10,
+  "schema_result": "pass",
+  "model_results": "model-runs.json",
+  "tools": {
+    "tmp/formal-toolchain/tla2tools.jar": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1",
+    "tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java": "999c141a6e620c71aa4230ccb62341a89162f37818753ff006d766bf935dcbe1"
+  },
+  "java_version": "openjdk 21.0.12.1 2026-08-18 LTS\nOpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS)\nOpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)\n",
+  "tlc_version": "TLC2 Version 2026.09.12.025210 (rev: 867aefb)",
+  "unexecuted": [
+    "product implementation",
+    "official Cordis release compatibility",
+    "Alloy",
+    "runtime recovery or interrupt composition"
+  ],
+  "checks": {
+    "make check BASELINE=f580718": {
+      "exit_code": 0,
+      "output": "integration-first.log",
+      "markdown_count": 257,
+      "test_count": 77,
+      "test_seconds": 11.11,
+      "formal_tasks": 4,
+      "scope_note": "First integration used review-1 model (2 tenants/2 sessions/3 incarnations). Schema and tool/test sources remain unchanged; current expanded model and final prose are covered by final docs/spec and review-2 model runs."
+    },
+    "make docs-check BASELINE=f580718 final": {
+      "exit_code": 0,
+      "output": "docs-final.log",
+      "markdown_count": 258
+    },
+    "make spec-check final": {
+      "exit_code": 0,
+      "output": "spec-final.log",
+      "contracts": 2,
+      "schemas": 10,
+      "formal_tasks": 4
+    },
+    "tool tests applicability": "77-test run remains applicable: tools, scripts, renderer and tests unchanged; updated model inputs were rerun by final spec-check.",
+    "post-review delivery docs-check": {
+      "exit_code": 0,
+      "output": "docs-delivery.log",
+      "markdown_count": 258,
+      "scope": "review record, evidence correction, final accepted metadata and same frozen normative files"
+    }
+  },
+  "normative_sha256": {
+    "spec/data/agent-runtime-identity/v1/contract.md": "567c8e57aa0ac9cb467f3338a12f289c2cf98e43e7221d3b70de42e22a72d7fd",
+    "spec/data/agent-runtime-identity/v1/schema.json": "37393c0774f7a71ee6bf663388a2ec27821740f98b19d487b1299d39829aca74",
+    "spec/capabilities/live-agent/v1/Runtime.cfg": "ad174c0667dd1221fd4f39f465bd5b32999a30c35260848d6219f9c52aafcf2b",
+    "spec/capabilities/live-agent/v1/Runtime.tla": "62066c9a628ce54ac1d1da76cdba1b7d1eb3bd3d60fae6c3f0f3ba8093499306",
+    "spec/capabilities/live-agent/v1/RuntimeMC.tla": "4cae1eb0fad9bd82cec99baf670f6989d8030b0092cf2d20009d496d0ddda015",
+    "spec/capabilities/live-agent/v1/RuntimeProgress.cfg": "9145db74f6faf6ca5ed48656bbc9e0d5db2bd3b3526bc0f46b849df145017350",
+    "spec/capabilities/live-agent/v1/contract.md": "381b9836f6045344c029125858795acd4f6d8460216c3021c51720d3d092a7b4",
+    "spec/capabilities/live-agent/v1/scenarios.md": "da829bf7e7ab08e4aa3a184c813c178a044c72fa7758ac42653d7c52d9225d1c"
+  },
+  "model_summary": {
+    "safety_distinct": 142476,
+    "progress_distinct": 86716,
+    "mutants": 4,
+    "mutants_expected_exit": 12,
+    "scope": {
+      "tenants": 2,
+      "sessions": 3,
+      "incarnations": 4,
+      "factory_generations": 2,
+      "work_slots": 1
+    },
+    "source": "model-runs.json"
+  },
+  "source_head": "6aa67d71a8e37bef1c82c25a567da9768de810ca"
+}

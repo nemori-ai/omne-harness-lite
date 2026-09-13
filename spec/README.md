@@ -16,7 +16,8 @@
 | [formal-tasks.json](formal-tasks.json) | 显式登记实际模型任务、输入文件和执行命令 |
 | [开发工具包](../tools/spec-tools/README.md) | 独立 workspace 成员中的检查器；不属于产品规格或运行时 |
 
-目前有效清单为空：本轮接受了组织与治理体系，没有替用户批准业务契约。
+本轮 Agent 运行时正式化工件登记共享身份与活体运行时 v1，
+具体采用范围沿 [运行时入口](capabilities/live-agent/README.md)及其决定/接受记录核对。
 已有的[租户](../docs/proposals/tenant-contracts/README.md)、
 [模型](../docs/proposals/model-contracts/README.md)与
 [agent-core](../docs/proposals/agent-core/v1/README.md)材料从提案入口 review。

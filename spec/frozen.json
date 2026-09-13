@@ -1,4 +1,13 @@
 {
   "format": 1,
-  "files": {}
+  "files": {
+    "spec/data/agent-runtime-identity/v1/contract.md": "567c8e57aa0ac9cb467f3338a12f289c2cf98e43e7221d3b70de42e22a72d7fd",
+    "spec/data/agent-runtime-identity/v1/schema.json": "37393c0774f7a71ee6bf663388a2ec27821740f98b19d487b1299d39829aca74",
+    "spec/capabilities/live-agent/v1/Runtime.cfg": "ad174c0667dd1221fd4f39f465bd5b32999a30c35260848d6219f9c52aafcf2b",
+    "spec/capabilities/live-agent/v1/Runtime.tla": "62066c9a628ce54ac1d1da76cdba1b7d1eb3bd3d60fae6c3f0f3ba8093499306",
+    "spec/capabilities/live-agent/v1/RuntimeMC.tla": "4cae1eb0fad9bd82cec99baf670f6989d8030b0092cf2d20009d496d0ddda015",
+    "spec/capabilities/live-agent/v1/RuntimeProgress.cfg": "9145db74f6faf6ca5ed48656bbc9e0d5db2bd3b3526bc0f46b849df145017350",
+    "spec/capabilities/live-agent/v1/contract.md": "381b9836f6045344c029125858795acd4f6d8460216c3021c51720d3d092a7b4",
+    "spec/capabilities/live-agent/v1/scenarios.md": "da829bf7e7ab08e4aa3a184c813c178a044c72fa7758ac42653d7c52d9225d1c"
+  }
 }

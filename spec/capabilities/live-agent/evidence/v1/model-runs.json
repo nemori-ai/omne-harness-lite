@@ -1,0 +1,150 @@
+{
+  "format": 1,
+  "revision": "review-2",
+  "runs": [
+    {
+      "name": "safety",
+      "config": "spec/capabilities/live-agent/v1/Runtime.cfg",
+      "command": [
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/agent-runtime-v1/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/agent-runtime-v1/tmp/formal-toolchain/tla2tools.jar",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-metadir",
+        "tmp/formal-runs/review2-safety",
+        "-config",
+        "spec/capabilities/live-agent/v1/Runtime.cfg",
+        "spec/capabilities/live-agent/v1/RuntimeMC.tla"
+      ],
+      "exit_code": 0,
+      "expected_exit": 0,
+      "expected_property": null,
+      "matched": true,
+      "output": "safety.log"
+    },
+    {
+      "name": "progress",
+      "config": "spec/capabilities/live-agent/v1/RuntimeProgress.cfg",
+      "command": [
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/agent-runtime-v1/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/agent-runtime-v1/tmp/formal-toolchain/tla2tools.jar",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-metadir",
+        "tmp/formal-runs/review2-progress",
+        "-config",
+        "spec/capabilities/live-agent/v1/RuntimeProgress.cfg",
+        "spec/capabilities/live-agent/v1/RuntimeMC.tla"
+      ],
+      "exit_code": 0,
+      "expected_exit": 0,
+      "expected_property": null,
+      "matched": true,
+      "output": "progress.log"
+    },
+    {
+      "name": "AllowCrossTenant",
+      "config": "spec/capabilities/live-agent/evidence/v1/AllowCrossTenant.cfg",
+      "command": [
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/agent-runtime-v1/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/agent-runtime-v1/tmp/formal-toolchain/tla2tools.jar",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-metadir",
+        "tmp/formal-runs/review2-AllowCrossTenant",
+        "-config",
+        "spec/capabilities/live-agent/evidence/v1/AllowCrossTenant.cfg",
+        "spec/capabilities/live-agent/v1/RuntimeMC.tla"
+      ],
+      "exit_code": 12,
+      "expected_exit": 12,
+      "expected_property": "TenantSafe",
+      "matched": true,
+      "output": "AllowCrossTenant.log"
+    },
+    {
+      "name": "EarlyRemove",
+      "config": "spec/capabilities/live-agent/evidence/v1/EarlyRemove.cfg",
+      "command": [
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/agent-runtime-v1/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/agent-runtime-v1/tmp/formal-toolchain/tla2tools.jar",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-metadir",
+        "tmp/formal-runs/review2-EarlyRemove",
+        "-config",
+        "spec/capabilities/live-agent/evidence/v1/EarlyRemove.cfg",
+        "spec/capabilities/live-agent/v1/RuntimeMC.tla"
+      ],
+      "exit_code": 12,
+      "expected_exit": 12,
+      "expected_property": "Reservation",
+      "matched": true,
+      "output": "EarlyRemove.log"
+    },
+    {
+      "name": "StaleRemove",
+      "config": "spec/capabilities/live-agent/evidence/v1/StaleRemove.cfg",
+      "command": [
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/agent-runtime-v1/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/agent-runtime-v1/tmp/formal-toolchain/tla2tools.jar",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-metadir",
+        "tmp/formal-runs/review2-StaleRemove",
+        "-config",
+        "spec/capabilities/live-agent/evidence/v1/StaleRemove.cfg",
+        "spec/capabilities/live-agent/v1/RuntimeMC.tla"
+      ],
+      "exit_code": 12,
+      "expected_exit": 12,
+      "expected_property": "Reservation",
+      "matched": true,
+      "output": "StaleRemove.log"
+    },
+    {
+      "name": "EarlyProviderDispose",
+      "config": "spec/capabilities/live-agent/evidence/v1/EarlyProviderDispose.cfg",
+      "command": [
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/agent-runtime-v1/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/agent-runtime-v1/tmp/formal-toolchain/tla2tools.jar",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-metadir",
+        "tmp/formal-runs/review2-EarlyProviderDispose",
+        "-config",
+        "spec/capabilities/live-agent/evidence/v1/EarlyProviderDispose.cfg",
+        "spec/capabilities/live-agent/v1/RuntimeMC.tla"
+      ],
+      "exit_code": 12,
+      "expected_exit": 12,
+      "expected_property": "ProviderHeld",
+      "matched": true,
+      "output": "EarlyProviderDispose.log"
+    }
+  ]
+}

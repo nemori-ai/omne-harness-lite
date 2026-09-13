@@ -1,0 +1,41 @@
+{
+  "format": 1,
+  "requirements_commit": "f580718295daaec0f42d3262643e95281c493063",
+  "design_status": "review snapshot, not product implementation",
+  "schema_cases": 10,
+  "schema_result": "pass",
+  "model_results": "model-runs.json",
+  "tools": {
+    "tmp/formal-toolchain/tla2tools.jar": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1",
+    "tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java": "999c141a6e620c71aa4230ccb62341a89162f37818753ff006d766bf935dcbe1"
+  },
+  "java_version": "openjdk 21.0.12.1 2026-08-18 LTS\nOpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS)\nOpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)\n",
+  "tlc_version": "TLC2 Version 2026.09.12.025210 (rev: 867aefb)",
+  "unexecuted": [
+    "product implementation",
+    "official Cordis release compatibility",
+    "Alloy",
+    "runtime recovery or interrupt composition"
+  ],
+  "checks": {
+    "make check BASELINE=f580718": {
+      "exit_code": 0,
+      "output": "integration-first.log",
+      "markdown_count": 257,
+      "test_count": 77,
+      "test_seconds": 11.11,
+      "formal_tasks": 4,
+      "scope_note": "preceded final AR-16 clarification and scope rows; same model/schema/tool/test sources, final docs/spec follow-up required"
+    }
+  },
+  "normative_sha256": {
+    "spec/data/agent-runtime-identity/v1/contract.md": "567c8e57aa0ac9cb467f3338a12f289c2cf98e43e7221d3b70de42e22a72d7fd",
+    "spec/data/agent-runtime-identity/v1/schema.json": "37393c0774f7a71ee6bf663388a2ec27821740f98b19d487b1299d39829aca74",
+    "spec/capabilities/live-agent/v1/Runtime.cfg": "b3a4e90d12dcaf4c04a969741bfcd3d7217371bddaf4ae47458329401acf87e8",
+    "spec/capabilities/live-agent/v1/Runtime.tla": "0ad7c262d520c0daaed453fdfde809b6bdc34b963adde5e264942bfc51f2290d",
+    "spec/capabilities/live-agent/v1/RuntimeMC.tla": "4194576a44e43bf8abba1bf0dc51c28b089021e0cdc57e13c6ad1cbb2d8b6ead",
+    "spec/capabilities/live-agent/v1/RuntimeProgress.cfg": "3a370ee242ed276b38a5c652a217a32dd39578eba7c56dde81d6d056f5aab909",
+    "spec/capabilities/live-agent/v1/contract.md": "17003d54a4e5d2516e35b3d5beae751d9ef74a036ffcc70c6af5bf883e773271",
+    "spec/capabilities/live-agent/v1/scenarios.md": "fb568009ff06bc7bc7726d83d523925c9749aefb1a1dcbc17a2f929d147d9223"
+  }
+}

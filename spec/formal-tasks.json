@@ -46,6 +46,56 @@
         "spec/capabilities/live-agent/draft/InitiatorScope.tla"
       ],
       "timeout_seconds": 120
+    },
+    {
+      "id": "live-agent-v1-safety",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/live-agent/v1/Runtime.tla",
+        "spec/capabilities/live-agent/v1/RuntimeMC.tla",
+        "spec/capabilities/live-agent/v1/Runtime.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-metadir",
+        "tmp/formal-runs/live-agent-v1-safety",
+        "-config",
+        "spec/capabilities/live-agent/v1/Runtime.cfg",
+        "spec/capabilities/live-agent/v1/RuntimeMC.tla"
+      ],
+      "timeout_seconds": 120
+    },
+    {
+      "id": "live-agent-v1-progress",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/live-agent/v1/Runtime.tla",
+        "spec/capabilities/live-agent/v1/RuntimeMC.tla",
+        "spec/capabilities/live-agent/v1/RuntimeProgress.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-metadir",
+        "tmp/formal-runs/live-agent-v1-progress",
+        "-config",
+        "spec/capabilities/live-agent/v1/RuntimeProgress.cfg",
+        "spec/capabilities/live-agent/v1/RuntimeMC.tla"
+      ],
+      "timeout_seconds": 120
     }
   ]
 }

@@ -1,4 +1,29 @@
 {
   "catalog_version": 1,
-  "contracts": []
+  "contracts": [
+    {
+      "id": "data.agent-runtime-identity",
+      "current_version": 1,
+      "versions": [
+        {
+          "version": 1,
+          "status": "accepted",
+          "path": "spec/data/agent-runtime-identity/v1/contract.md",
+          "acceptance": "docs/decisions/D-005-agent-runtime.md"
+        }
+      ]
+    },
+    {
+      "id": "capability.live-agent",
+      "current_version": 1,
+      "versions": [
+        {
+          "version": 1,
+          "status": "accepted",
+          "path": "spec/capabilities/live-agent/v1/contract.md",
+          "acceptance": "docs/decisions/D-005-agent-runtime.md"
+        }
+      ]
+    }
+  ]
 }

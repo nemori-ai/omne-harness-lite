@@ -1,0 +1,123 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 106 and seed 5658290211737050514 with 1 worker on 8 cores with 6955MB heap and 64MB offheap memory [pid: 42152] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/agent-runtime-v1/spec/capabilities/live-agent/v1/RuntimeMC.tla
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/agent-runtime-v1/spec/capabilities/live-agent/v1/Runtime.tla
+Parsing file /tmp/tlc-3532441980532241301/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/.worktrees/agent-runtime-v1/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-3532441980532241301/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/.worktrees/agent-runtime-v1/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-3532441980532241301/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/.worktrees/agent-runtime-v1/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Runtime
+Semantic processing of module RuntimeMC
+Linting of module Runtime
+Linting of module RuntimeMC
+Starting... (2026-09-13 08:58:35)
+Warning: The invariant IdentityConsistent is a constant-level formula (i.e., it contains no variables, primes, or temporal operators) and evaluates to TRUE. To assert constant-level formulas in your spec, use ASSUME ConstInv. If you optionally want to give the assumption a name, write ASSUME YourAssumption == ConstInv instead. See https://explain.tlapl.us/assumptions-and-invariants for additional details.
+(Use the -nowarning option to disable this warning.)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-13 08:58:36.
+Error: Invariant Reservation is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ phase = (a1 :> "new" @@ a2 :> "new" @@ a3 :> "new" @@ b1 :> "new")
+/\ blocked = (a1 :> FALSE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+/\ factory = (a1 :> noFactory @@ a2 :> noFactory @@ a3 :> noFactory @@ b1 :> noFactory)
+/\ current = (sa :> none @@ sb :> none @@ sc :> none)
+/\ provider = (f1 :> "new" @@ f2 :> "new")
+/\ work = (w1 :> noWork)
+/\ resources = (a1 :> FALSE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+/\ published = (a1 :> FALSE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+/\ preparing = (a1 :> FALSE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+
+State 2: <Bind(f1) line 24, col 3 to line 27, col 90 of module Runtime>
+/\ phase = (a1 :> "new" @@ a2 :> "new" @@ a3 :> "new" @@ b1 :> "new")
+/\ blocked = (a1 :> FALSE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+/\ factory = (a1 :> noFactory @@ a2 :> noFactory @@ a3 :> noFactory @@ b1 :> noFactory)
+/\ current = (sa :> none @@ sb :> none @@ sc :> none)
+/\ provider = (f1 :> "live" @@ f2 :> "new")
+/\ work = (w1 :> noWork)
+/\ resources = (a1 :> FALSE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+/\ published = (a1 :> FALSE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+/\ preparing = (a1 :> FALSE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+
+State 3: <Reserve(a1,f1) line 29, col 3 to line 36, col 53 of module Runtime>
+/\ phase = (a1 :> "preparing" @@ a2 :> "new" @@ a3 :> "new" @@ b1 :> "new")
+/\ blocked = (a1 :> FALSE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+/\ factory = (a1 :> f1 @@ a2 :> noFactory @@ a3 :> noFactory @@ b1 :> noFactory)
+/\ current = (sa :> a1 @@ sb :> none @@ sc :> none)
+/\ provider = (f1 :> "live" @@ f2 :> "new")
+/\ work = (w1 :> noWork)
+/\ resources = (a1 :> TRUE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+/\ published = (a1 :> FALSE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+/\ preparing = (a1 :> TRUE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+
+State 4: <Prepared(a1) line 38, col 3 to line 42, col 71 of module Runtime>
+/\ phase = (a1 :> "ready" @@ a2 :> "new" @@ a3 :> "new" @@ b1 :> "new")
+/\ blocked = (a1 :> FALSE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+/\ factory = (a1 :> f1 @@ a2 :> noFactory @@ a3 :> noFactory @@ b1 :> noFactory)
+/\ current = (sa :> a1 @@ sb :> none @@ sc :> none)
+/\ provider = (f1 :> "live" @@ f2 :> "new")
+/\ work = (w1 :> noWork)
+/\ resources = (a1 :> TRUE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+/\ published = (a1 :> TRUE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+/\ preparing = (a1 :> FALSE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+
+State 5: <Close(a1) line 44, col 3 to line 47, col 84 of module Runtime>
+/\ phase = (a1 :> "closing" @@ a2 :> "new" @@ a3 :> "new" @@ b1 :> "new")
+/\ blocked = (a1 :> FALSE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+/\ factory = (a1 :> f1 @@ a2 :> noFactory @@ a3 :> noFactory @@ b1 :> noFactory)
+/\ current = (sa :> a1 @@ sb :> none @@ sc :> none)
+/\ provider = (f1 :> "live" @@ f2 :> "new")
+/\ work = (w1 :> noWork)
+/\ resources = (a1 :> TRUE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+/\ published = (a1 :> TRUE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+/\ preparing = (a1 :> FALSE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+
+State 6: <Release(a1) line 59, col 3 to line 61, col 93 of module Runtime>
+/\ phase = (a1 :> "releasing" @@ a2 :> "new" @@ a3 :> "new" @@ b1 :> "new")
+/\ blocked = (a1 :> FALSE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+/\ factory = (a1 :> f1 @@ a2 :> noFactory @@ a3 :> noFactory @@ b1 :> noFactory)
+/\ current = (sa :> a1 @@ sb :> none @@ sc :> none)
+/\ provider = (f1 :> "live" @@ f2 :> "new")
+/\ work = (w1 :> noWork)
+/\ resources = (a1 :> TRUE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+/\ published = (a1 :> TRUE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+/\ preparing = (a1 :> FALSE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+
+State 7: <Cleanup(a1) line 63, col 3 to line 69, col 64 of module Runtime>
+/\ phase = (a1 :> "disposed" @@ a2 :> "new" @@ a3 :> "new" @@ b1 :> "new")
+/\ blocked = (a1 :> FALSE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+/\ factory = (a1 :> f1 @@ a2 :> noFactory @@ a3 :> noFactory @@ b1 :> noFactory)
+/\ current = (sa :> none @@ sb :> none @@ sc :> none)
+/\ provider = (f1 :> "live" @@ f2 :> "new")
+/\ work = (w1 :> noWork)
+/\ resources = (a1 :> FALSE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+/\ published = (a1 :> TRUE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+/\ preparing = (a1 :> FALSE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+
+State 8: <Reserve(a2,f1) line 29, col 3 to line 36, col 53 of module Runtime>
+/\ phase = (a1 :> "disposed" @@ a2 :> "preparing" @@ a3 :> "new" @@ b1 :> "new")
+/\ blocked = (a1 :> FALSE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+/\ factory = (a1 :> f1 @@ a2 :> f1 @@ a3 :> noFactory @@ b1 :> noFactory)
+/\ current = (sa :> a2 @@ sb :> none @@ sc :> none)
+/\ provider = (f1 :> "live" @@ f2 :> "new")
+/\ work = (w1 :> noWork)
+/\ resources = (a1 :> FALSE @@ a2 :> TRUE @@ a3 :> FALSE @@ b1 :> FALSE)
+/\ published = (a1 :> TRUE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+/\ preparing = (a1 :> FALSE @@ a2 :> TRUE @@ a3 :> FALSE @@ b1 :> FALSE)
+
+State 9: <LateCleanup(a1) line 75, col 3 to line 77, col 91 of module Runtime>
+/\ phase = (a1 :> "disposed" @@ a2 :> "preparing" @@ a3 :> "new" @@ b1 :> "new")
+/\ blocked = (a1 :> FALSE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+/\ factory = (a1 :> f1 @@ a2 :> f1 @@ a3 :> noFactory @@ b1 :> noFactory)
+/\ current = (sa :> none @@ sb :> none @@ sc :> none)
+/\ provider = (f1 :> "live" @@ f2 :> "new")
+/\ work = (w1 :> noWork)
+/\ resources = (a1 :> FALSE @@ a2 :> TRUE @@ a3 :> FALSE @@ b1 :> FALSE)
+/\ published = (a1 :> TRUE @@ a2 :> FALSE @@ a3 :> FALSE @@ b1 :> FALSE)
+/\ preparing = (a1 :> FALSE @@ a2 :> TRUE @@ a3 :> FALSE @@ b1 :> FALSE)
+
+4652 states generated, 2144 distinct states found, 1065 states left on queue.
+The depth of the complete state graph search is 9.
+Finished in 01s at (2026-09-13 08:58:36)

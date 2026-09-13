@@ -1,0 +1,94 @@
+{
+  "schema_sha256": "37393c0774f7a71ee6bf663388a2ec27821740f98b19d487b1299d39829aca74",
+  "cases": [
+    {
+      "name": "session",
+      "value": {
+        "tenantId": "A",
+        "sessionId": "s"
+      },
+      "expected": true,
+      "actual": true
+    },
+    {
+      "name": "agent",
+      "value": {
+        "tenantId": "A",
+        "sessionId": "s",
+        "incarnationId": "epoch-a:1"
+      },
+      "expected": true,
+      "actual": true
+    },
+    {
+      "name": "other-tenant-same-local-id",
+      "value": {
+        "tenantId": "B",
+        "sessionId": "s"
+      },
+      "expected": true,
+      "actual": true
+    },
+    {
+      "name": "opaque-unicode",
+      "value": {
+        "tenantId": "租户",
+        "sessionId": "会话"
+      },
+      "expected": true,
+      "actual": true
+    },
+    {
+      "name": "no-tenant",
+      "value": {
+        "sessionId": "s"
+      },
+      "expected": false,
+      "actual": false
+    },
+    {
+      "name": "empty-tenant",
+      "value": {
+        "tenantId": "",
+        "sessionId": "s"
+      },
+      "expected": false,
+      "actual": false
+    },
+    {
+      "name": "numeric-session",
+      "value": {
+        "tenantId": "A",
+        "sessionId": 1
+      },
+      "expected": false,
+      "actual": false
+    },
+    {
+      "name": "empty-incarnation",
+      "value": {
+        "tenantId": "A",
+        "sessionId": "s",
+        "incarnationId": ""
+      },
+      "expected": false,
+      "actual": false
+    },
+    {
+      "name": "unknown-field",
+      "value": {
+        "tenantId": "A",
+        "sessionId": "s",
+        "permission": "admin"
+      },
+      "expected": false,
+      "actual": false
+    },
+    {
+      "name": "null",
+      "value": null,
+      "expected": false,
+      "actual": false
+    }
+  ]
+}

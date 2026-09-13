@@ -9,3 +9,5 @@
 - [模型契约](model-contracts/README.md)：旧模型语义迁移，待逐项确认。
 
 转化规则见[知识流转](../maintenance/knowledge-flow.md)。
+
+- [Agent 运行时 v1](agent-runtime/README.md)：Cordis 视角的身份、装配和资源生命周期；源基线到目标契约的明确差异。

@@ -39,6 +39,8 @@
 Agent Loop、Profile/Bundle 装配和应用策略不自动成为本项目契约。内核 API 与复用边界
 需核对实际采用版本，[Cordis 映射](../architecture-guide/reference/cordis-mapping.md)提供研究入口。
 
+运行时专题见 [Agent 运行时](agent-runtime.md)，目标契约、源差异和本轮正式化状态由其入口导航。
+
 ## 动态能力与契约
 
 系统需要解释能力、提供者、依赖、作用域和政策在运行中增减与替换，以及这些变化对已有工作、状态和资源的影响。建模从消费者可依赖的保证、所有权、生命周期和组合关系出发，不预设聚合、实体或数据库事务作为所有边界的分类。
@@ -69,19 +71,21 @@ Agent Loop、Profile/Bundle 装配和应用策略不自动成为本项目契约�
 | 防御模式适用、退出与开发模型切换前评估 | [D-003](../decisions/D-003-defensive-evaluation.md)及[评估体系](../evaluation/README.md) |
 | 租户和模型的具体数据与管理行为 | [租户](../proposals/tenant-contracts/README.md)、[模型](../proposals/model-contracts/README.md)候选，保留原始语义和待确认项 |
 | 提示词、工具、Session/Turn/Run/Step | [Agent 核心提案](../proposals/agent-core/README.md)，尚未接受完整契约 |
-| 不变量注册方式、提供者切换政策与正式行为模型 | 按具体能力继续设计；指南示例不构成批准 |
+| 活体 Agent 身份、装配、授权与退出 | [运行时专题](agent-runtime.md)、[D-005](../decisions/D-005-agent-runtime.md)及精确规格 |
+| 其它能力的提供者切换政策与行为模型 | 按具体能力继续设计；指南示例不构成批准 |
 
 `spec/catalog.json` 是正式接受版本的登记入口，实际覆盖以[规格索引](../../spec/README.md)为准。空白或未形式化部分如实保留，不能靠目录骨架宣称系统设计已经完成。
 
 ## 需求覆盖与缺口
 
-当前产品设计仍为候选，正式 catalog 为空。下表是发现缺口的投影；候选自身拥有
+本轮运行时 v1 的范围见 [D-005](../decisions/D-005-agent-runtime.md)，其余产品设计仍待细化。
+下表保留整体产品缺口；运行时本轮的逐项覆盖由[消费记录](../proposals/agent-runtime/v1/requirements.md)拥有。候选自身拥有
 需求对应关系，不能将链接或治理检查通过当作产品能力已交付。
 
 | 上游要求 | 当前对应与尚缺内容 |
 |---|---|
 | [SYS-DYNAMIC](../requirements/system/fully-dynamic-system.md)、[SYS-LONG-RUNNING](../requirements/system/long-running-and-evolving.md) | [Agent 核心候选](../proposals/agent-core/README.md#当前需求对应与缺口)仅覆盖部分执行语义；长期稳定与动态达成判断尚未形成精确承诺 |
-| [SYS-RUNTIME-CONTINUITY](../requirements/system/runtime-state-and-continuity.md) | 新增已确认系统目标；[状态与存储](../architecture-guide/modeling/state-and-storage.md)、[部署边界](../architecture-guide/runtime/distribution.md)提供方法，运行时/持久状态分工、同构恢复和异构装配仍缺完整规格与兑现证据 |
+| [SYS-RUNTIME-CONTINUITY](../requirements/system/runtime-state-and-continuity.md) | 新增已确认系统目标；[状态与存储](../architecture-guide/modeling/state-and-storage.md)、[部署边界](../architecture-guide/runtime/distribution.md)提供方法，[运行时 v1](agent-runtime.md)明确了活体与持久状态的职责分工；同构恢复和异构装配仍缺完整规格与兑现证据 |
 | [SYS-OBSERVABILITY](../requirements/system/observability-and-logging.md) | 工程全链路及日志完备已确立；[约束落实](constraints.md)投影尚缺的关联、采集、缺口处理及验证责任，不代表已选定观测技术栈 |
 | [SYS-ALIGNMENT](../requirements/system/interest-alignment.md) | 目标已确认，利益对齐含义、冲突处理与验证方式待展开 |
 | [SYS-CONTINUITY](../requirements/system/omne-next-continuity.md) | 已有来源核对，完整继承清单、截止范围和未来承诺处理仍待明确 |

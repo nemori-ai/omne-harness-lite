@@ -1,4 +1,18 @@
-# Live Agent 原语设计基线
+# Live Agent 运行时
+
+目标版本为 [capability.live-agent v1](v1/contract.md)，身份引用
+[data.agent-runtime-identity v1](../../data/agent-runtime-identity/v1/contract.md)。
+选择依据见 [D-005](../../../docs/decisions/D-005-agent-runtime.md)，
+本轮设计与接受范围见[提案入口](../../../docs/proposals/agent-runtime/README.md)，
+执行覆盖见[目标验证](verification.md)。设计正式化不意味着已经 fork 或实现。
+
+## 上游源基线的历史入口
+
+以下内容保留先前源基线交付的范围和状态；draft、来源清单、评审与 evidence
+仍只解释当时固定上游，不成为本项目目标 v1 的隐含依赖。原入口内容可在
+源基线提交 bad8af9 查阅；本次只更新当前导航。
+
+### Live Agent 原语设计基线
 
 状态：**待验收草案**，尚未登记为可消费的正式契约，也尚未 fork 产品源码。
 
