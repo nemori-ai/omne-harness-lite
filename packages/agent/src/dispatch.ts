@@ -1,8 +1,8 @@
 /**
  * Agent-scoped dispatch helpers. The fused dispatcher
- * {@link agentEvents} couples the agent subject to its scope carrier, so the
- * scope key and the payload's `agent` cannot diverge; repeat dispatchers (the
- * loop driver) build it once in the agent's constructor and reuse it.
+ * {@link agentEvents} couples the payload subject to its default scope carrier.
+ * A trusted caller supplying a prebuilt carrier must ensure it belongs to the
+ * same agent; this helper does not validate that caller-owned pairing.
  * Copyright (c) 2026 DeepSeek. MIT; see LICENSE and provenance.json.
  */
 
@@ -99,8 +99,9 @@ export function agentCarrier(agent: Agent): Scoped<Agent> {
  * @param ctx - the context to dispatch through (any context of the app).
  * @param agent - the subject agent; also the scope-carrier key.
  * @param carrier - the scope carrier to dispatch through; defaults to
- * {@link agentCarrier} for the agent. Pass a constructor-built carrier to
- * avoid rebuilding it for every dispatch.
+ * {@link agentCarrier} for the agent. A supplied carrier MUST belong to that
+ * same agent; matching is the trusted caller's responsibility. Reuse avoids
+ * rebuilding it for every dispatch.
  * @returns the fused dispatcher.
  */
 export function agentEvents(ctx: Context, agent: Agent, carrier: Scoped<Agent> = agentCarrier(agent)): AgentEventDispatch {

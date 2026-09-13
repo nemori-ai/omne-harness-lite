@@ -37,9 +37,20 @@ assert.deepEqual(events, ['created:fixture', 'disposed:fixture'])
 await provider.dispose()
 await assert.rejects(ctx.agents.create({ sessionId: 'unavailable' }), /no agent factory/)
 const retained = ctx.agents
+let dependencyReleased = false
+await ctx.plugin(Object.assign((inner: Context) => {
+  inner.effect(() => () => { dependencyReleased = true })
+  inner.agents.register({ id: 'dependent', session: { id: 'dependent' }, ctx: inner })
+}, { inject: ['agents'] }))
+assert.equal(dependencyReleased, false)
+assert.ok(retained.get('dependent'))
+// Keep this consumer alive: dependency loss must trigger its own cleanup.
 await registry.dispose()
+assert.equal(dependencyReleased, true)
+assert.equal(retained.get('dependent'), undefined)
+assert.deepEqual(events.slice(-2), ['created:dependent', 'disposed:dependent'])
 assert.throws(() => retained.currentInitiator(), /disposed/)
 for (const path of ['@omne-harness-lite/agent', '@omne-harness-lite/agent/src/index.ts']) {
   await assert.rejects(import(path), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' })
 }
-console.log('PASS: isolated tarball consumer, ownership, factory removal and initiator')
+console.log('PASS: isolated tarball consumer, ownership, dependency removal, factory removal and initiator')

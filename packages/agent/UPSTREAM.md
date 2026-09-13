@@ -16,7 +16,7 @@ dsh-agent 源版本 `0.1.5-rc.2`。本包是选择性源码导入，不是整个
 |---|---|
 | `src/index.ts` | 保留 index 的登记、公告/撤除、factory 追踪和 initiator 算法；去除 Typert 桥接与附属导出，接口引用本包窄类型；工厂 JSDoc 限定为实际委托保证 |
 | `src/types.ts` | 由原 index/types/runtime-types 投影机制必需接口；不复制 Session 日志、Loop/inbox、LLM 或序列化类型，不声称 SessionRef/AgentRef |
-| `src/dispatch.ts` | 保留 emit/serial/waterfall 和 subject/carrier 耦合，改为内部 scope；去除 system-prompt 装配 helper |
+| `src/dispatch.ts` | 保留 emit/serial/waterfall 和 subject/carrier 耦合，改为内部 scope；去除 system-prompt 装配 helper；明确自带 carrier 的匹配前提 |
 | `src/scope.ts` | 复用同 commit 的 scope/index.ts 作为内部辅助，仅删除 store 导出；未建立 scope 产品包或接纳其全部功能 |
 | `tests/agent.spec.ts` | 16 个原测试中保留 14 个；删去 Typert 桥接和 Agent.cancel 类型用例，因为相应接口未导入。身份 fixture 不再实例化 DSH Session；Loop 事件换为测试局部声明 |
 | `tests/agent-initiator.spec.ts` | 保留全部 12 个案例，调整包名及窄身份 fixture |
