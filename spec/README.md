@@ -16,15 +16,16 @@
 | [formal-tasks.json](formal-tasks.json) | 显式登记实际模型任务、输入文件和执行命令 |
 | [开发工具包](../tools/spec-tools/README.md) | 独立 workspace 成员中的检查器；不属于产品规格或运行时 |
 
-本轮 Agent 运行时正式化工件登记共享身份与活体运行时 v1，
+当前已接受并登记共享身份与活体运行时 v1，
 具体采用范围沿 [运行时入口](capabilities/live-agent/README.md)及其决定/接受记录核对。
 已有的[租户](../docs/proposals/tenant-contracts/README.md)、
 [模型](../docs/proposals/model-contracts/README.md)与
 [agent-core](../docs/proposals/agent-core/v1/README.md)材料从提案入口 review。
 已有 Schema 可以检查，但校验结果不会改变它的提案身份。
 
-依用户本次明确要求，[Live Agent 原语设计基线](capabilities/live-agent/README.md)
-直接在本目录保存待验收草案；它尚未发布或进入有效清单，不改变其他候选的提案流程。
+此前依用户要求保存的 [Live Agent 上游源基线](capabilities/live-agent/README.md#上游源基线的历史入口)
+继续作为历史候选和来源材料保留，未整体发布为项目契约。其“待验收”历史表述
+不代表当前已接受的 live-agent v1 状态，也不改变其他候选的提案流程。
 
 ## 一个契约怎样生长
 
