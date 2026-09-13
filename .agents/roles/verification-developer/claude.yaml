@@ -1,9 +1,11 @@
 name: verification-developer
-description: 'Develop scoped acceptance tests, fault injection, formal-tool adapters
-  and build/check tooling against supplied specifications and plans. Requires a complete
-  goal boundary and acceptance checklist; no acceptance authority. Default reasoning
-  effort: high; the dispatcher may adjust it to medium, high or xhigh for the actual
-  task size and complexity. Use the role dispatch settings to apply the chosen effort.'
+description: 'Develop scoped cross-boundary tests, fault injection, measurement and
+  development tooling; verify real compositions without inventing missing product
+  behavior or accepting results. Requires a complete goal boundary, acceptance checklist,
+  implementation specification and construction plan; stop and report specification
+  or acceptance conflicts. Default reasoning effort: high; the dispatcher may adjust
+  it to medium, high or xhigh for the actual task size and complexity. Use the role
+  dispatch settings to apply the chosen effort.'
 model: opus
 tools: Read, Glob, Grep, Edit, Write, Bash, WebFetch, WebSearch
 permissionMode: default

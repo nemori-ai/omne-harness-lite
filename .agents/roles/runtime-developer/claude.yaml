@@ -1,9 +1,0 @@
-name: runtime-developer
-description: 'Implement scoped Cordis and Agent runtime mechanisms, lifecycle, dynamic
-  assembly and run control against supplied specifications and plans. Requires a complete
-  goal boundary and acceptance checklist; escalate contract conflicts. Default reasoning
-  effort: xhigh; the dispatcher may adjust it to medium, high or xhigh for the actual
-  task size and complexity. Use the role dispatch settings to apply the chosen effort.'
-model: opus
-tools: Read, Glob, Grep, Edit, Write, Bash, WebFetch, WebSearch
-permissionMode: default

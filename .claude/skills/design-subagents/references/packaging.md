@@ -75,9 +75,9 @@ Claude Code 也可执行同一工具，或用 `.claude/skills/design-subagents/`
 
 ```sh
 uv run --locked python .agents/skills/design-subagents/scripts/render_pair.py \
-  --source .agents/roles/runtime-developer --dispatch codex --effort high
+  --source .agents/roles/kernel-developer --dispatch codex --effort high
 uv run --locked python .agents/skills/design-subagents/scripts/render_pair.py \
-  --source .agents/roles/runtime-developer --dispatch claude --effort high
+  --source .agents/roles/kernel-developer --dispatch claude --effort high
 ```
 
 省略 `--effort` 时使用源配置默认值。Codex 输出角色、模型和 reasoning_effort，供支持

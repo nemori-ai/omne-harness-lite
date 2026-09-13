@@ -1,0 +1,7 @@
+name = "infrastructure-developer"
+description = "Implement concrete storage, model and execution providers; fulfill resource ownership, durability, cancellation and failure contracts, including actual environment results. Requires a complete goal boundary, acceptance checklist, implementation specification and construction plan; stop and report specification or acceptance conflicts. Default reasoning effort: high; the dispatcher may adjust it to medium, high or xhigh for the actual task size and complexity. Use the role dispatch settings to apply the chosen effort."
+model = "gpt-5.6-sol"
+sandbox_mode = "workspace-write"
+
+[agents]
+enabled = false

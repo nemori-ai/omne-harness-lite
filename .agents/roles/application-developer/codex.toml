@@ -1,5 +1,5 @@
 name = "application-developer"
-description = "Implement scoped application assembly and API, CLI or Web user flows against supplied specifications and plans. Requires a complete goal boundary and acceptance checklist; escalate contract conflicts. Default reasoning effort: medium; the dispatcher may adjust it to medium, high or xhigh for the actual task size and complexity. Use the role dispatch settings to apply the chosen effort."
+description = "Implement application assembly and API, CLI or Web interactions by consuming defined capabilities; leave product state transitions and cross-capability rules with their implementations. Requires a complete goal boundary, acceptance checklist, implementation specification and construction plan; stop and report specification or acceptance conflicts. Default reasoning effort: medium; the dispatcher may adjust it to medium, high or xhigh for the actual task size and complexity. Use the role dispatch settings to apply the chosen effort."
 model = "gpt-5.6-sol"
 sandbox_mode = "workspace-write"
 

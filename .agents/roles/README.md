@@ -6,11 +6,44 @@
 | 角色 | 使用时机与交付 | 定义与配置 |
 |---|---|---|
 | architecture-reviewer | 完成一次架构设计、已有可识别的待审稿后，独立返回有依据的问题和未决事项；只读，不批准或修复 | [共享正文](architecture-reviewer/role.md)、[Codex](../../.codex/agents/architecture-reviewer.toml)、[Claude Code](../../.claude/agents/architecture-reviewer.md) |
-| runtime-developer | 实现内核运行时、Agent 原语、Loop、动态装配与运行控制；默认 xhigh | [专门职责](runtime-developer/role.md)、[Codex](../../.codex/agents/runtime-developer.toml)、[Claude Code](../../.claude/agents/runtime-developer.md) |
-| persistence-developer | 实现状态、日志、持久化和恢复；默认 high | [专门职责](persistence-developer/role.md)、[Codex](../../.codex/agents/persistence-developer.toml)、[Claude Code](../../.claude/agents/persistence-developer.md) |
-| integration-developer | 接入模型、多模态、工具与执行环境提供者；默认 high | [专门职责](integration-developer/role.md)、[Codex](../../.codex/agents/integration-developer.toml)、[Claude Code](../../.claude/agents/integration-developer.md) |
-| application-developer | 实现应用装配和 API/CLI/Web 用户流程；默认 medium | [专门职责](application-developer/role.md)、[Codex](../../.codex/agents/application-developer.toml)、[Claude Code](../../.claude/agents/application-developer.md) |
+| kernel-developer | 实现已明确划入内核的基础原语及生命周期机制；默认 xhigh | [专门职责](kernel-developer/role.md)、[Codex](../../.codex/agents/kernel-developer.toml)、[Claude Code](../../.claude/agents/kernel-developer.md) |
+| capability-developer | 实现能力及能力组合的行为、状态转换和规则；默认 high | [专门职责](capability-developer/role.md)、[Codex](../../.codex/agents/capability-developer.toml)、[Claude Code](../../.claude/agents/capability-developer.md) |
+| infrastructure-developer | 实现具体技术后端与提供者，兑现资源、持久性、取消和失败契约；默认 high | [专门职责](infrastructure-developer/role.md)、[Codex](../../.codex/agents/infrastructure-developer.toml)、[Claude Code](../../.claude/agents/infrastructure-developer.md) |
+| application-developer | 消费能力，实现应用装配和 API/CLI/Web 交互；默认 medium | [专门职责](application-developer/role.md)、[Codex](../../.codex/agents/application-developer.toml)、[Claude Code](../../.claude/agents/application-developer.md) |
 | verification-developer | 开发跨模块验证、故障注入、形式工具适配和构建检查设施；默认 high | [专门职责](verification-developer/role.md)、[Codex](../../.codex/agents/verification-developer.toml)、[Claude Code](../../.claude/agents/verification-developer.md) |
+
+## 架构责任与独立并行
+
+开发角色按架构责任区分，具体任务按能力纵线、交付物与授权范围划定。核心产品语义
+不限于内核；Session、工具、模型和审批等能力及其组合可以承担核心保证。具体内核
+清单仍由[当前架构](../../docs/architecture/README.md)和采用的规格确定，不能根据
+角色名称反向划定包、服务或子系统。跨能力复用本身也不是进入内核的理由。
+
+Cordis 的服务、依赖和生命周期机制支撑运行时组合；逻辑分层继续约束责任与依赖。
+各角色可在自己负责的实现中使用 Cordis，不将所有插件集中给内核开发者。能力可有
+自己的 runtime，后端提供者也须负责实际执行生命周期；基础原语、能力行为和具体
+后端的边界按[能力契约](../../docs/architecture-guide/modeling/capabilities.md)区分。
+存储后端的持久性与能力的恢复接续分别兑现对应契约，不能把读取成功当成工作恢复。
+
+每条纵线可以有多个角色协作，同一角色也可以有多个独立实例。分层的前置关系首先
+体现在采用契约和必要交付上，不强制把五个角色排成流水线，也不要求每条纵线使用
+全部角色。接口确定后，消费者、提供者、交互与验证设施可依计划分别推进；真实组合
+仍需核对实际参与版本和端到端行为。
+
+| 功能纵线示例 | 能力及组合责任 | 具体后端责任 | 应用责任 |
+|---|---|---|---|
+| 工具与 shell | 调用控制、后台关系、恢复后关联原调用 | 执行资源、实际进程状态、控制结果与输出 | 状态呈现、操作提交、过程展示 |
+| Session 恢复 | 从持久事实恢复到合法接续位置，关联未完成工作 | 持久性边界、读取及故障结果 | 恢复状态与操作反馈 |
+| HITL | 耐久待答、合法答复、对应工作接续 | 存储及通知等提供者的真实保证 | 请求呈现、答复提交与状态更新 |
+
+这些是派发归属示例，不接受具体产品协议。内核角色仅在涉及已明确内核机制时参与；
+验证角色按任务实现跨边界场景，各实施者承担自身测试。取消受理不代表实际停止，
+答复提交也不代表已经接续，交接应表达契约要求的事实。
+
+派发者为每份交付物明确写入负责人，为需要组合的功能指定组合交付负责人。后者
+核对交接并完成授权范围内的组合验证，不自动取得其他范围的写权、委派、Git 合并
+或最终接受权。共享接口、Schema、锁文件和装配文件指定单一写入归属；规则与本次
+填写项分别归[共同契约](developer-contract.md)和[派发模板](developer-task.md)。
 
 ## 开发者的提示词与派发
 
@@ -29,9 +62,9 @@ Codex 使用 `gpt-5.6-sol`，Claude Code 使用 `opus`。各角色 description �
 
 ```sh
 uv run --locked python .agents/skills/design-subagents/scripts/render_pair.py \
-  --source .agents/roles/runtime-developer --dispatch codex --effort high
+  --source .agents/roles/kernel-developer --dispatch codex --effort high
 uv run --locked python .agents/skills/design-subagents/scripts/render_pair.py \
-  --source .agents/roles/runtime-developer --dispatch claude --effort high
+  --source .agents/roles/kernel-developer --dispatch claude --effort high
 ```
 
 省略 `--effort` 即选择该角色默认值。命令仅输出 JSON，不发起调用。
