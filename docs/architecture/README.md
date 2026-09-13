@@ -29,12 +29,15 @@
 
 | 部分 | 复用或实现边界 |
 |---|---|
-| Cordis | 复用动态运行时内核机制：Context、依赖解析、服务、事件和受管生命周期 |
-| DSH `agent` | 作为可复用的 Agent 契约、registry 与 handle 所有权基础；具体采用版本和分发方式在实现前固定 |
+| Cordis | 直接使用官方发布包，复用 Context、依赖解析、服务、事件和受管生命周期；具体发布版本在实现前固定 |
+| DSH `agent` | fork 后作为本项目维护的 registry、handle 与运行时原语基础，按本项目目标契约演化；固定上游来源并记录差异 |
 | Agent Loop | 由本项目实现工作驱动、模型与工具交互、终止和结果归属等具体行为 |
 | Harness 及其他子系统 | 由本项目定义和实现工具协议、治理、持久化、证据及演化能力；按契约复用适合的成熟实现 |
 
-DSH 的具体 Agent Loop、Profile/Bundle 装配和应用策略是参考资料，不直接成为本项目实现。内核 API 与复用边界需核对实际采用版本，[Cordis 映射](../architecture-guide/reference/cordis-mapping.md)提供研究入口。
+上述维护边界来自 [SYS-KERNEL](../requirements/system/constraints.md#sys-kernel)。其他选定
+复用的 DSH 组件同样由本项目 fork 维护；具体包的选用仍需按目标契约评估。DSH 的
+Agent Loop、Profile/Bundle 装配和应用策略不自动成为本项目契约。内核 API 与复用边界
+需核对实际采用版本，[Cordis 映射](../architecture-guide/reference/cordis-mapping.md)提供研究入口。
 
 ## 动态能力与契约
 

@@ -22,7 +22,11 @@ architecture/constraints.md 的用户要求，来源范围见[项目基线](../.
 
 内核层复用 Cordis 与 DSH `agent` 原语；Agent Loop、Harness 层、工具协议、治理
 和其他子系统由本项目自行定义和实现。DeepSeek Harness 不作为本项目的实现，
-本项目不称为 Cordis Harness。实际采用的上游版本、分发与实现映射仍需固定。
+本项目不称为 Cordis Harness。实际采用的版本与实现映射仍需固定。
+
+2026-09-13，用户补充确认维护边界：Cordis 直接使用官方发布的包；其他选定复用的
+DSH 组件采用 fork，由本项目自行维护、拓展和二次开发。具体发布版本和导入范围
+仍需逐项确定；这不表示所有 DSH 包都已选定，也不要求一般第三方依赖一并 fork。
 
 ## SYS-SPEC
 

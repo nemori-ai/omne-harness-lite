@@ -29,6 +29,11 @@ ownership, failure, and change visible.
   satisfy the specification, boundary, auditability, and maintenance needs. Build
   from scratch only when reuse cannot meet those requirements or would create a
   more costly boundary.
+- Before choosing an adapter or changing a dependency, identify maintenance
+  ownership and the target contract. For project-maintained forks, evaluate
+  direct changes at the responsible boundary; do not preserve upstream limits
+  merely because they already exist. Apply the project's
+  [reuse judgment](../../../docs/architecture-guide/assurance/judgment.md#复杂度与复用).
 - Keep policy, mechanism, and evidence distinguishable. A wrapper that only
   forwards calls, a service that only renames data, or a test that only mirrors
   implementation has not earned its layer unless it protects an actual boundary.

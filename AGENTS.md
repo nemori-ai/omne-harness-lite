@@ -8,6 +8,8 @@
 
 内核层复用 Cordis 与 DSH `agent` 原语；Agent Loop、Harness 层、工具协议、治理和其他子系统由本项目自行定义和实现。不要把 DeepSeek Harness 当作本项目的实现，也不要把本项目称为 Cordis Harness。
 
+Cordis 直接使用官方发布包，其他选定的 DSH 复用组件由本项目 fork 维护；设计时将这些 fork 视为可按需求与项目契约演化的自有模块。维护边界归 [SYS-KERNEL](docs/requirements/system/constraints.md#sys-kernel)，判断方法见[复杂度与复用](docs/architecture-guide/assurance/judgment.md#复杂度与复用)。
+
 当前处于设计、规格建模与实验性演进阶段，尚未正式上线或对外提供生产服务。接受有明确设计和验证依据的大胆重构，不为旧版本保留未经要求的实现兼容层；历史材料的保留不构成兼容承诺。
 
 仓库按 monorepo 组织，产品实现以 TypeScript 为主，Python 当前用于开发工具。`packages/` 放产品包，`apps/` 放应用装配，`tools/` 放开发工具，`scripts/` 放仓库自动化；源码放在所属成员的 `src/`，跨包使用公开入口。完整归属与各语言 workspace 分工见[源码布局](docs/maintenance/workspace.md)。
