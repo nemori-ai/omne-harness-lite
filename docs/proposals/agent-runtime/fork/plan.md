@@ -1,6 +1,7 @@
 # dsh-agent 定向 fork：实施规格与施工计划
 
-状态：待独立评审；本页定义源码导入阶段的交付边界，不发布新产品契约。
+状态：已完成计划评审，按用户任务授权进入实施；本页定义源码导入阶段的交付边界，不发布新产品契约。
+评审对象与处置见[评审记录](review.md)。
 
 ## 目标、依据与授权
 
@@ -52,6 +53,7 @@
 | `packages/core/agent/src/types.ts`、`runtime-types.ts` | 保存原件作来源；不激活其 Session/LLM/Loop/序列化数据协议。窄运行接口归本包 `src/types.ts`，见下文 |
 | `packages/core/scope/src/index.ts` | 保存原件并在本包内部 `src/scope.ts` 复用其作用域路由/生命周期辅助，删除 store re-export；不导入 scope store/invariant，不新增独立 scope 产品包 |
 | `packages/core/agent/tests/agent.spec.ts`、`agent-initiator.spec.ts` | 保存原件；移植适用测试，替换包名和仅身份用途的 Session fixture，取消 Typert 和取消协议类型测试并逐项记录。Loop 事件换成测试局部事件声明 |
+| `packages/core/scope/tests/scope.spec.ts` | 保存原件，移植全部适用场景：重复/原始 disposer 先调用、精确 disposer、基础 filter、祖先路由方向、环拒绝与受控 rebind |
 | `packages/core/agent/package.json` 与上游根 `LICENSE` | 保存来源 manifest；构建使用本项目 manifest。保留 DeepSeek 原版权与完整 MIT 许可文本，随分发产物携带 |
 | 其余 agent helpers、preset、loop、Session/LLM/Typert 等包 | 不导入、不用其 npm 包顶替，也不实现相同产品能力 |
 

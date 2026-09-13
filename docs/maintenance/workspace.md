@@ -20,11 +20,14 @@
 
 按用途和所有权选择顶层位置，再按实际依赖选择语言与构建工具。独立包不等于
 独立发布、独立进程或独立微服务，也不要求每个 Cordis 插件单独成包。
-只为已明确的实现职责创建成员；`packages/`、`apps/` 当前提供入口，不预置未设计的模块。
+只为已明确的实现职责创建成员；当前 agent 成员提供实验来源基线，`apps/` 尚无产品应用；不预置未设计的模块。
 
 ## 当前可执行代码
 
 ```text
+package.json / pnpm-workspace.yaml     TypeScript workspace 与根聚合命令
+pnpm-lock.yaml                        TypeScript 依赖统一锁文件
+packages/agent/                       自有 agent fork，拥有 src/tests/构建配置
 pyproject.toml                         Python 开发环境聚合，package = false
 uv.lock                                Python workspace 统一锁文件
 tools/spec-tools/
@@ -49,9 +52,10 @@ scripts/check.sh                      本地和 CI 共用的检查编排
 生成器所需 PyYAML。工具包自行声明 jsonschema、Markdown/YAML 解析与构建依赖。
 `tool.uv.workspace.members` 指向 `tools/spec-tools`，`workspace = true` 绑定本地成员。
 
-根 Python 配置只组合开发环境。未来 TS/JS 包的 workspace、依赖和锁文件由其
-包管理器维护，与 uv 并存；增加实际成员时配置相应工具链，不用 Python 元数据
-代替 TS 包的 `package.json`，也不因目录名就把所有工具加入产品依赖。
+根 Python 配置只组合开发环境。TS workspace 由 pnpm 管理，当前显式包含
+`packages/agent`；成员自行声明依赖与构建，根 package.json 聚合命令，pnpm-lock.yaml
+固定依赖树。采用 Node.js 24 与 packageManager 指定的 pnpm，和 uv 独立并存。
+不把所有工具加入产品运行依赖；新增成员时显式更新 workspace 范围。
 
 参考了 `omne-next` 各成员独立声明 pyproject 的做法；
 [DSH workspace](https://github.com/deepseek-ai/deepseek-harness/blob/c291e7961a515f6d7af9304e7fd1d257929aef26/pnpm-workspace.yaml)
@@ -65,7 +69,8 @@ uv 的[workspace 文档](https://docs.astral.sh/uv/concepts/projects/workspaces/
 首次准备检出与常见问题见[开发指南](../development.md)，交付要求见
 [贡献指南](../../CONTRIBUTING.md)。本节拥有成员依赖、跨包访问和产物位置的规则。
 
-在根执行 `uv sync --locked` 安装开发环境；`make check` 运行当前完整检查组合。
+在根执行 `uv sync --locked` 与 `pnpm install --frozen-lockfile --ignore-scripts`
+安装两套开发环境；`make check` 运行当前完整检查组合。
 单项检查与覆盖解释见[验证规范](verification.md)，工具包使用和构建见
 [spec-tools](../../tools/spec-tools/README.md)，自动化入口见 [scripts](../../scripts/README.md)。
 CLI 从当前工作目录定位受检仓库；从外部目录执行时用 `--root` 明确目标。

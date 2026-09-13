@@ -7,4 +7,6 @@
 应用装配见 [apps/](../apps/README.md)，开发检查器见 [tools/](../tools/README.md)。
 源码布局和跨包引用规则由[workspace 规范](../docs/maintenance/workspace.md)维护。
 
-目前尚无产品实现包，具体模块随架构设计与实现任务落地后再登记于此。
+| 成员 | 当前范围 |
+|---|---|
+| [agent](agent/README.md) | dsh-agent 定向 fork 的实验来源基线；可构建及验证，尚未完成目标 live-agent v1，暂不供产品应用消费 |

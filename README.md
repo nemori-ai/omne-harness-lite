@@ -101,19 +101,20 @@ OMNE harness 演进。它的目标是让智能体持续感知环境、协作完�
 |---|---|
 | [docs/requirements/](docs/requirements/README.md) | 系统目标、产品要求与全局约束 |
 | [docs/](docs/README.md) | 当前架构、研究、提案、决定与维护指南 |
-| [spec/](spec/README.md) | 语言无关契约与形式模型入口；当前正式契约清单为空 |
-| [packages/](packages/README.md)、[apps/](apps/README.md) | 产品包与应用装配位置，尚无产品实现成员 |
+| [spec/](spec/README.md) | 语言无关契约与形式模型入口；正式接受范围见 catalog |
+| [packages/](packages/README.md)、[apps/](apps/README.md) | agent 原语 fork 已提供实验基线，尚无完整产品应用 |
 | [tools/spec-tools/](tools/spec-tools/README.md)、[scripts/](scripts/README.md) | Python 开发检查器与仓库自动化 |
 
-当前可以运行仓库检查。按[开发指南](docs/development.md#准备可用的检出)准备 Git、
-Bash、Make 和 uv，在实际工作的检出根目录执行：
+当前可以运行仓库检查和 agent 包验证。按[开发指南](docs/development.md#准备可用的检出)
+准备 Python 与 Node/npm/pnpm 两套环境，在实际工作的检出根目录执行：
 
 ```sh
 uv sync --locked
+pnpm install --frozen-lockfile --ignore-scripts
 make check
 ```
 
-`make check` 执行文档、规格与离线测试检查组合，不调用真实模型。日常文档修改
+`make check` 执行文档、规格、工具测试与产品包检查组合，不调用真实模型。日常文档修改
 可运行 `make docs-check`；形式模型的覆盖、执行与工具环境按[验证规范](docs/maintenance/verification.md)
 分别报告。产品启动入口将在相应应用落地后提供。
 

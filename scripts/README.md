@@ -6,9 +6,9 @@
 
 | 入口 | 作用 |
 |---|---|
-| [check.sh](check.sh) | 定位仓库根，依次运行文档检查、规格检查和测试；任一步失败即停止并返回非零 |
+| [check.sh](check.sh) | 定位仓库根，依次运行文档、规格、Python 工具测试及产品包检查；任一步失败即停止并返回非零 |
 
-安装 Bash、Make、uv 并按[验证规范](../docs/maintenance/verification.md)准备环境后，
+安装 Bash、Make、uv、Node/npm/pnpm 并按[验证规范](../docs/maintenance/verification.md)准备环境后，
 在根执行 `make check` 或 `./scripts/check.sh`。脚本也可通过绝对路径从其他目录调用。
 需要比较冻结基线时使用 `make check BASELINE=<git-ref>` 或
 `BASELINE=<git-ref> ./scripts/check.sh`；脚本不接受位置参数。

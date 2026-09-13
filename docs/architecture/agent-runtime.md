@@ -4,7 +4,7 @@
 精确身份和行为分别归 [data.agent-runtime-identity v1](../../spec/data/agent-runtime-identity/v1/contract.md)
 与 [capability.live-agent v1](../../spec/capabilities/live-agent/v1/contract.md)。
 本版是内核运行时的设计基线；正式化授权与采用范围见上述提案和
-[D-005](../decisions/D-005-agent-runtime.md)。尚未实现或进入源码 fork。
+[D-005](../decisions/D-005-agent-runtime.md)。目标 v1 尚未实现；[定向 fork](../../packages/agent/README.md)提供已固定来源的实验原语基线。
 
 ## 系统位置
 
@@ -75,5 +75,5 @@ activate 报成已经恢复 Run。退役、用户 interrupt、cancel、interrupt
 
 本版规定依赖端口的义务，后续需接受并实现 Session attachment、访问验证和
 驱动的符合性映射。首个产品闭环还需要输入/Run、OpenRouter、工具及存储等能力。
-本轮没有导入产品源码或采用其它 DSH 包；[覆盖与缺口](../proposals/agent-runtime/v1/requirements.md)
+当前 fork 只导入选定 agent 原语及内部 scope 辅助，没有引入其他 DSH 产品子系统；[覆盖与缺口](../proposals/agent-runtime/v1/requirements.md)
 及[验证说明](../../spec/capabilities/live-agent/verification.md)限定当前结论。

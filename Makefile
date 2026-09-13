@@ -1,4 +1,4 @@
-.PHONY: check docs-check spec-check spec-tools test
+.PHONY: check docs-check spec-check spec-tools test product-check
 
 check:
 	./scripts/check.sh
@@ -15,3 +15,6 @@ spec-tools:
 test:
 	mkdir -p tmp
 	PYTHONDONTWRITEBYTECODE=1 uv run --locked pytest --basetemp=tmp/test-runs
+
+product-check:
+	pnpm run check
