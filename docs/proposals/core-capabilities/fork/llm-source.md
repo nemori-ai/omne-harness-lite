@@ -4,7 +4,7 @@
 `c291e7961a515f6d7af9304e7fd1d257929aef26` 中本批实际选取的语言无关行为。
 它是 D-006 定向源码 fork 的维护说明，不是 D-008 产品规格，也不表示目标模型、
 媒体服务或 OpenRouter adapter 已实现。逐文件原件、SHA-256 和活动源码差异由
-`packages/dsh-baseline/provenance/llm.json` 追踪。
+`packages/dsh-baseline/provenance.json` 追踪。
 
 ## 消息与内容快照
 

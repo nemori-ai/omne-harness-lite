@@ -25,6 +25,7 @@ scope: 会话、状态与持久化、工具、租户治理、模型及多模态�
   正式规格导航及保留的来源／取舍；规范正文已分拆迁移，不留并行 draft。
 - [独立评审](review.md)、[验证映射](verification.md)、
   [发布清单](evidence/publication.json)：受审版本、发现处置、有限结果与未实现义务。
+- [定向 fork 交付](fork/delivery.md)：固定来源的本地源码、公开基线入口、裁剪和实际检查。
 
 ## 接受记录
 

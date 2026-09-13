@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { readFile, writeFile, mkdtemp, mkdir, rm, readdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -13,17 +13,29 @@ const manifest = await json(join(root, 'package.json'))
 const provenance = await json(join(root, 'provenance.json'))
 assert.equal(manifest.private, true)
 assert.ok(Object.keys(manifest.exports).every(k => k.startsWith('./baseline/')))
+const coveredSources = new Set()
+assert.equal(new Set(provenance.files.map(entry => entry.snapshot)).size, provenance.files.length)
 for (const entry of provenance.files) {
   assert.equal(createHash('sha256').update(await readFile(join(root, entry.snapshot))).digest('hex'), entry.sha256, entry.snapshot)
-  for (const target of entry.targets) await readFile(join(root, target))
+  for (const target of entry.targets) {
+    await readFile(join(root, target))
+    coveredSources.add(target)
+  }
+}
+for (const entry of provenance.project_files) {
+  assert.ok(entry.purpose.length > 0)
+  await readFile(join(root, entry.path))
+  coveredSources.add(entry.path)
 }
 async function scan(dir) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const path = join(dir, entry.name)
     if (entry.isDirectory()) await scan(path)
     else if (/\.(?:ts|js)$/.test(path)) {
+      const local = relative(root, path).replaceAll('\\', '/')
+      if (local.startsWith('src/')) assert.ok(coveredSources.has(local), `unmapped active source: ${local}`)
       const source = await readFile(path, 'utf8')
-      for (const [, imported] of source.matchAll(/(?:from\s*|import\()\s*['"](@deepseek-ai\/[^'"]+)['"]/g)) {
+      for (const [, imported] of source.matchAll(/(?:from\s*|import\(\s*|import\s+)['"](@deepseek-ai\/[^'"]+)['"]/g)) {
         assert.equal(imported, '@deepseek-ai/cordis', `excluded dependency in ${path}: ${imported}`)
       }
     }

@@ -11,7 +11,7 @@
 |---|---|---|
 | `docs-check` | Markdown 本地链接/锚点、需求 ID 唯一性与主副维度引用、决定来源、取代字段、冻结基线 | 设计正确或因果理由充分 |
 | `spec-check` | catalog 结构、正式版本路径及精确引用、Schema 结构；发现并实际执行声明的 TLA+/Alloy 任务 | 未建模部分已经证明 |
-| `product-check` | 当前 agent 包的构建、严格类型检查、来源测试/组合测试、原件完整性及隔离 tarball 消费 | live-agent v1 或完整智能体产品已经实现 |
+| `product-check` | 当前 agent 与 dsh-baseline 包的构建、严格类型检查、来源测试/组合测试、原件完整性及隔离 tarball 消费 | live-agent v1、D-008 目标能力或完整智能体产品已经实现 |
 | 实现符合性 | 绑定源码版本的场景、集成测试或运行证据 | 所有实现、配置或部署天然等价 |
 
 `make docs-check BASELINE=<git-ref>`（或 `omne-docs-check --baseline <git-ref>`）必须用于审阅已发布规范或冻结表同时变更的提交。`omne-spec-check` 要将结构检查和 TLA+/Alloy 的实际执行分开报告：没有模型任务是明确覆盖缺口，声明了任务却缺少工具或执行失败是失败或未执行，绝不能假通过。提案和 archive 可单独检查，其结果不改变接受状态。
@@ -28,8 +28,10 @@ packages/apps/tools/scripts 和 agent 配置目录；
 原来按工具分类的 `spec/tla/`、`spec/alloy/`、`spec/schemas/` 和 `spec/scenarios/` 不再是有效规格入口；相应工件随其数据、能力或组合契约保存。验收场景与跨工件追踪要求由本规范和契约内的 `verification.md` 承接；已迁移的 agent-core 提案追踪记录见 `docs/proposals/agent-core/v1/traceability.md`，它的候选身份不改变本规范的验证边界。
 
 `make product-check` 调用 pnpm workspace 的 check；当前成员
-[agent](../../packages/agent/README.md)用 TypeScript 构建并针对官方 Cordis 发行物验证，
-测试不使用源码 alias。产物消费者在仓库外用当前 pnpm store 离线安装依赖，
+[agent](../../packages/agent/README.md) 与 [dsh-baseline](../../packages/dsh-baseline/README.md)
+用 TypeScript 构建并针对官方 Cordis 发行物验证，测试不使用源码 alias。
+后者的双产物消费者同时安装当前 agent tarball，核对共享 scope 的路由、继承和撤回。
+产物消费者在仓库外用当前 pnpm store 离线安装依赖，
 运行时和声明消费都必须成功；它不向 npm 发布。
 
 ## 环境与实际执行

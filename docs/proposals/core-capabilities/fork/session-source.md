@@ -22,7 +22,7 @@
 
 原件逐文件保存在 `packages/dsh-baseline/upstream/{session,projection,persistence}`，
 活动实现位于相应的 `src/` 子目录。逐文件原路径、快照哈希、活动目标和裁剪说明
-记录于 `provenance/session.json`。
+记录于包的 `provenance.json`。
 
 ## 状态权威与转换
 

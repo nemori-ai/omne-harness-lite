@@ -6,7 +6,7 @@
 
 | 责任 | 选定主体来源 | 当前状态 |
 |---|---|---|
-| 作用域与活体实例原语 | `dsh-scope`、`dsh-agent` | live-agent v1 已接受；已有 agent 定向源基线，完整目标实现及公共 scope 设计待完成 |
+| 作用域与活体实例原语 | `dsh-scope`、`dsh-agent` | live-agent v1 已接受；agent 定向源基线公开唯一 scope 实现，完整目标实现仍待完成 |
 | 会话事实、状态与存储 | `dsh-session`、`dsh-session-projection`、`dsh-session-persistence`、`dsh-session-persistence-jsonl` | D-008 已接受会话／存储目标契约；具体后端待实现验收 |
 | 工作驱动与上下文装配 | `dsh-agent-loop`、`dsh-system-prompt` | D-008 已接受 Run／队列／装配及恢复目标；待实现验收 |
 | 工具定义与执行 | `dsh-tools` | D-008 已接受新工具架构；旧草案保持来源身份，待实现验收 |
@@ -32,8 +32,9 @@ Cordis Context 提供服务解析与受管贡献；scope 管理可见性和事�
 
 A 的运行附着由 D-007 接受；本批 Session/Run、工具、授权/HITL、模型/媒体、
 持久记录及必要相邻目标现由 [D-008](../decisions/D-008-core-capabilities.md)
-接受，见[核心能力视图](core-capabilities.md)。下阶段按
+接受，见[核心能力视图](core-capabilities.md)。本批已按
 [定向 fork 计划](../proposals/core-capabilities/fork/plan.md)建立本地维护起点，
+实际切片和证据见[源码交付](../proposals/core-capabilities/fork/delivery.md)；
 真实提供者和应用组合仍须完成实现验收，不能把源码选择或源测试当产品保证。
 
 本批没有采用完整 presets、jobs、批准应用、旧格式迁移、模型直连适配器或环境

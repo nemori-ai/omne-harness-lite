@@ -4,7 +4,7 @@ import Registry, { type Agent } from '@omne-harness-lite/agent/baseline'
 import { createScope, NamedEntries, ScopedLayers, type Scope } from '@omne-harness-lite/agent/scope-baseline'
 import { snapshotJsonValue } from '@omne-harness-lite/dsh-baseline/baseline/values'
 import { deadline } from '@omne-harness-lite/dsh-baseline/baseline/timeout'
-import { createUserMessage } from '@omne-harness-lite/dsh-baseline/baseline/llm'
+import { createUserMessage, ToolCallId } from '@omne-harness-lite/dsh-baseline/baseline/llm'
 import { Session, SessionId } from '@omne-harness-lite/dsh-baseline/baseline/session'
 import { AssistantStreamAttempt, type SourceAssistantStreamFrame } from '@omne-harness-lite/dsh-baseline/baseline/loop'
 import { materializeAppendBatch, assertContiguous } from '@omne-harness-lite/dsh-baseline/baseline/persistence'
@@ -12,6 +12,8 @@ import { writeSyncedFile, appendSyncedBytes, readFirstLine, syncDirectory } from
 import { mkdtemp, rm, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { ToolRuntime, defineTool } from '@omne-harness-lite/dsh-baseline/baseline/tools'
+import { SystemPrompt, renderPrompt } from '@omne-harness-lite/dsh-baseline/baseline/prompt'
 
 assert.deepEqual(snapshotJsonValue({ n: 1 }), { n: 1 })
 const abort = new AbortController()
@@ -80,3 +82,33 @@ try {
   await rm(directory, { recursive: true, force: true })
 }
 console.log('PASS: artifact LLM/Session/Loop/storage helpers and actual file I/O composition')
+
+const services = new Context()
+const toolService = await services.plugin(ToolRuntime)
+const promptService = await services.plugin(SystemPrompt, { personaPrefix: '', personaSuffix: '' })
+const contributions = await services.plugin(Object.assign((owned: Context) => {
+  owned.tools.register(defineTool({
+    name: 'echo', description: 'source fixture',
+    parameters: { text: { type: 'string', required: true } },
+    output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] },
+    async execute({ text }) { return text.toUpperCase() },
+  }))
+  owned.systemPrompt.section({ name: 'fixture', order: 0, text: 'Available source tool' })
+  owned.systemPrompt.tools(() => ({ schemas: owned.tools.schemas() }))
+}, { inject: ['tools', 'systemPrompt'] }))
+try {
+  const assembly = await services.systemPrompt.assemble()
+  assert.equal(renderPrompt(assembly), 'Available source tool')
+  assert.deepEqual(assembly.tools.map(tool => tool.name), ['echo'])
+  const result = await services.tools.execute({ callId: ToolCallId('source-call'), name: 'echo', arguments: { text: 'hello' }, signal: new AbortController().signal })
+  assert.equal(result.isError, false)
+  assert.deepEqual(result.content, [{ type: 'text', text: 'HELLO' }])
+  await contributions.dispose()
+  assert.deepEqual(services.tools.schemas(), [])
+  assert.deepEqual((await services.systemPrompt.assemble()).tools, [])
+} finally {
+  await contributions.dispose()
+  await promptService.dispose()
+  await toolService.dispose()
+}
+console.log('PASS: artifact prompt/tool contribution, native call and withdrawal')

@@ -3,7 +3,7 @@
 本页记录固定上游 `deepseek-ai/deepseek-harness@c291e7961a515f6d7af9304e7fd1d257929aef26`
 中选取的 system-prompt/tools 行为，以及本地 source baseline 的裁剪。它是 D-006 的
 来源说明，不是 D-008 产品实现或符合性声明。原件、哈希和活动目标见
-`packages/dsh-baseline/provenance/tools.json`。
+`packages/dsh-baseline/provenance.json`。
 
 ## Prompt 装配
 

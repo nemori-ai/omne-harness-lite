@@ -48,6 +48,14 @@
     "./baseline/loop": {
       "types": "./dist/loop/index.d.ts",
       "import": "./dist/loop/index.js"
+    },
+    "./baseline/prompt": {
+      "types": "./dist/prompt/index.d.ts",
+      "import": "./dist/prompt/index.js"
+    },
+    "./baseline/tools": {
+      "types": "./dist/tools/index.d.ts",
+      "import": "./dist/tools/index.js"
     }
   },
   "files": [

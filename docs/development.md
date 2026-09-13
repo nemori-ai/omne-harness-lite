@@ -66,7 +66,7 @@ make check
 | 本地文档链接、导航与 skill 镜像 | `make docs-check` |
 | 契约登记、Schema 或形式任务 | `make spec-check` |
 | 检查器或 skill 生成器行为 | `make test`，或按下方说明运行相关测试 |
-| agent 包或 TS workspace | `make product-check`；构建、严格类型检查、来源/组合案例与独立产物消费，详见包 README |
+| agent、dsh-baseline 包或 TS workspace | `make product-check`；构建、严格类型检查、来源/组合案例与独立产物消费，详见包 README |
 | 当前检查组合、跨入口改动 | `make check` |
 | 形式工具是否可用 | `make spec-tools` |
 

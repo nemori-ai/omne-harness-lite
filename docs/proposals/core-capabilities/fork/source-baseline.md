@@ -4,6 +4,17 @@
 不登记为目标规格。选取文件由包的 provenance 保存并与官方 archive 核对；
 后续专题的精确切片说明在这里链接。D-008 的产品类型不由这些源类型取代。
 
+| 源机制 | 状态、生命周期、失败边界与裁剪 |
+|---|---|
+| 模型消息、流和有限媒体辅助 | [LLM 与媒体](llm-source.md) |
+| Session、派生投影与持久化接口/校验 | [Session 与存储](session-source.md) |
+| 普通文件读写、同步与截回 | [JSONL 文件原语](jsonl-source.md) |
+| 动态 prompt 贡献、Schema DSL 与 native 工具调用 | [Prompt 与工具](tools-source.md) |
+| 上下文及 assistant 流投影 | [Loop 切片](loop-source.md) |
+
+活动入口及实际验证由[交付记录](delivery.md)汇总；源码和原件对应关系由
+[包来源清单](../../../../packages/dsh-baseline/provenance.json)维护。
+
 ## 公共支撑与 scope
 
 品牌辅助只在类型层区分基础值，运行时不改变字符串或数字，不分配身份。
