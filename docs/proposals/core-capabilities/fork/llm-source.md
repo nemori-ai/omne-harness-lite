@@ -64,3 +64,19 @@ stop 列表。loop 标记使用对象身份的进程内 WeakSet，仅能说明�
 registry、模型发现、重试政策、API key/settings、Typert RPC、schemastery、DSH
 invariant/crypto 及所有直连 provider adapters 也未编译。上游入口原件仅供差异核对，
 因为直接编译它会重新引入明确排除的依赖和未验证的运行时保证。
+
+## 来源测试取舍
+
+消息、BlockAssembler、assistant-stream、adapter failure、call config、归因及图片尺寸
+的来源测试原件均已保存。活动测试只从构建后的 `dist/` 入口消费：除 import 路径和
+本地默认归因身份外，公开行为预期保持不变；另增加空 system、max-token replay、
+中断、错误分类及媒体品牌/错误的聚焦覆盖。Assembler 原测试中通过 `any` 篡改私有
+字段的 invariant 用例被删除，因为它既违反本批严格类型要求，也不观察公开入口。
+
+`service.spec.ts` 原件完整保存，但活动套件只保留其中纯错误基类、分类器和 cause
+渲染用例；其余用例依赖未导入的 LLM runtime、Cordis registry、Typert RPC 和
+adapter 生命周期。`properties.spec.ts` 依赖本包未声明的 fast-check，且相同行为由
+保留的确定性 source tests 覆盖，因此未导入，未以新增依赖扩大闭包。api-key、
+retry-policy、invariant、content、topology 测试随对应未选模块排除；attachment 的
+admission/index 测试随完整服务排除。上述裁剪只界定源 fork 的证据范围，不改变
+D-008 目标验收。
