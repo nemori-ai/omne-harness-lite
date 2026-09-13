@@ -45,6 +45,12 @@ deferred_receipt 引用尚待答的原 request/call/continuation，表示暂挂�
 机密参数以不可变秘密版本引用进入记录；秘密轮换或目标解析变化若改变动作含义，
 产生新动作，不暗中沿用旧批准。准入后实现接收冻结后的同一参数和资源绑定。
 
+Action 的 attemptId 在 proposed 时分配，仅标识此次待准入尝试；实际执行
+身份和执行许可在准入后建立，分配 ID 不代表接纳或执行。换实际尝试产生
+新的 Action 和当前判定，不能借相同 callId 复用旧批准。数据 Schema 固定
+RunRef.session、StepRef.run 等嵌套字段；同一结构内所有 tenant 必须满足
+该操作已核实的归属关系，JSON Schema 的结构验证不代替此动态授权校验。
+
 ## 耐久记录能力
 
 **DR-01**：记录能力提供 `readHead`、`readRange`、`commit`、`lookupOperation`、

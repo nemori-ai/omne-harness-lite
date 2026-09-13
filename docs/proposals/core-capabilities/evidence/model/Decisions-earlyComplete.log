@@ -1,0 +1,52 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 39 and seed 4513883160886446722 with 1 worker on 8 cores with 910MB heap and 64MB offheap memory [pid: 121595] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/docs/proposals/core-capabilities/design/Decisions.tla
+Parsing file /tmp/tlc-3062496867566135897/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-3062496867566135897/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-3062496867566135897/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Decisions
+Linting of module Decisions
+Starting... (2026-09-13 19:14:27)
+Implied-temporal checking--satisfiability problem has 2 branches.
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-13 19:14:27.
+Error: Invariant CompletionKeepsPending is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ completed = FALSE
+/\ interrupted = FALSE
+/\ closed = FALSE
+/\ continued = {}
+/\ badActor = FALSE
+/\ answers = <<"pending", "pending">>
+
+State 2: <Answer(1,"owner") line 10, col 3 to line 14, col 60 of module Decisions>
+/\ completed = FALSE
+/\ interrupted = FALSE
+/\ closed = FALSE
+/\ continued = {}
+/\ badActor = FALSE
+/\ answers = <<"answered", "pending">>
+
+State 3: <Continue(1) line 16, col 3 to line 20, col 68 of module Decisions>
+/\ completed = FALSE
+/\ interrupted = FALSE
+/\ closed = FALSE
+/\ continued = {1}
+/\ badActor = FALSE
+/\ answers = <<"answered", "pending">>
+
+State 4: <CompleteRun line 25, col 16 to line 28, col 81 of module Decisions>
+/\ completed = TRUE
+/\ interrupted = FALSE
+/\ closed = FALSE
+/\ continued = {1}
+/\ badActor = FALSE
+/\ answers = <<"answered", "pending">>
+
+27 states generated, 20 distinct states found, 12 states left on queue.
+The depth of the complete state graph search is 4.
+Finished in 00s at (2026-09-13 19:14:27)

@@ -1,0 +1,63 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 55 and seed 342054548649101553 with 1 worker on 8 cores with 910MB heap and 64MB offheap memory [pid: 121136] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/docs/proposals/core-capabilities/design/QueueControl.tla
+Parsing file /tmp/tlc-3863759403525714653/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-3863759403525714653/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-3863759403525714653/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module QueueControl
+Linting of module QueueControl
+Starting... (2026-09-13 19:14:23)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-13 19:14:24.
+Error: Invariant SafeRelease is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ slot = 0
+/\ revision = <<0, 0, 0>>
+/\ safe = FALSE
+/\ stop = FALSE
+/\ badClaim = FALSE
+/\ takenRevision = <<0, 0, 0>>
+/\ hold = FALSE
+/\ badRelease = FALSE
+/\ item = <<"queued", "queued", "queued">>
+
+State 2: <Claim(1) line 12, col 3 to line 18, col 57 of module QueueControl>
+/\ slot = 1
+/\ revision = <<0, 0, 0>>
+/\ safe = FALSE
+/\ stop = FALSE
+/\ badClaim = FALSE
+/\ takenRevision = <<0, 0, 0>>
+/\ hold = FALSE
+/\ badRelease = FALSE
+/\ item = <<"claimed", "queued", "queued">>
+
+State 3: <ForceStop line 29, col 14 to line 31, col 87 of module QueueControl>
+/\ slot = 1
+/\ revision = <<0, 0, 0>>
+/\ safe = FALSE
+/\ stop = TRUE
+/\ badClaim = FALSE
+/\ takenRevision = <<0, 0, 0>>
+/\ hold = TRUE
+/\ badRelease = FALSE
+/\ item = <<"claimed", "queued", "queued">>
+
+State 4: <Release line 34, col 12 to line 38, col 73 of module QueueControl>
+/\ slot = 0
+/\ revision = <<0, 0, 0>>
+/\ safe = FALSE
+/\ stop = FALSE
+/\ badClaim = FALSE
+/\ takenRevision = <<0, 0, 0>>
+/\ hold = TRUE
+/\ badRelease = TRUE
+/\ item = <<"cancelled", "queued", "queued">>
+
+31 states generated, 21 distinct states found, 11 states left on queue.
+The depth of the complete state graph search is 4.
+Finished in 01s at (2026-09-13 19:14:24)

@@ -1,0 +1,149 @@
+[
+  {
+    "name": "Admission",
+    "mutation": "none",
+    "expected": null,
+    "config": "docs/proposals/core-capabilities/design/Admission.cfg",
+    "model": "docs/proposals/core-capabilities/design/Admission.tla"
+  },
+  {
+    "name": "Admission",
+    "mutation": "authorization",
+    "expected": "AdmissionAuthorized",
+    "config": "docs/proposals/core-capabilities/evidence/model/Admission-authorization.cfg",
+    "model": "docs/proposals/core-capabilities/design/Admission.tla"
+  },
+  {
+    "name": "Admission",
+    "mutation": "durability",
+    "expected": "DurabilityBeforeEffect",
+    "config": "docs/proposals/core-capabilities/evidence/model/Admission-durability.cfg",
+    "model": "docs/proposals/core-capabilities/design/Admission.tla"
+  },
+  {
+    "name": "Admission",
+    "mutation": "lateStart",
+    "expected": "NoLateStartAfterSafeStop",
+    "config": "docs/proposals/core-capabilities/evidence/model/Admission-lateStart.cfg",
+    "model": "docs/proposals/core-capabilities/design/Admission.tla"
+  },
+  {
+    "name": "Decisions",
+    "mutation": "none",
+    "expected": null,
+    "config": "docs/proposals/core-capabilities/design/Decisions.cfg",
+    "model": "docs/proposals/core-capabilities/design/Decisions.tla"
+  },
+  {
+    "name": "Decisions",
+    "mutation": "owner",
+    "expected": "OnlyOwnerAnswers",
+    "config": "docs/proposals/core-capabilities/evidence/model/Decisions-owner.cfg",
+    "model": "docs/proposals/core-capabilities/design/Decisions.tla"
+  },
+  {
+    "name": "Decisions",
+    "mutation": "allAnswers",
+    "expected": "IndependentProgress",
+    "config": "docs/proposals/core-capabilities/evidence/model/Decisions-allAnswers.cfg",
+    "model": "docs/proposals/core-capabilities/design/Decisions.tla"
+  },
+  {
+    "name": "QueueControl",
+    "mutation": "none",
+    "expected": null,
+    "config": "docs/proposals/core-capabilities/design/QueueControl.cfg",
+    "model": "docs/proposals/core-capabilities/design/QueueControl.tla"
+  },
+  {
+    "name": "QueueControl",
+    "mutation": "hold",
+    "expected": "HoldRespected",
+    "config": "docs/proposals/core-capabilities/evidence/model/QueueControl-hold.cfg",
+    "model": "docs/proposals/core-capabilities/design/QueueControl.tla"
+  },
+  {
+    "name": "QueueControl",
+    "mutation": "earlyRelease",
+    "expected": "SafeRelease",
+    "config": "docs/proposals/core-capabilities/evidence/model/QueueControl-earlyRelease.cfg",
+    "model": "docs/proposals/core-capabilities/design/QueueControl.tla"
+  },
+  {
+    "name": "Budget",
+    "mutation": "none",
+    "expected": null,
+    "config": "docs/proposals/core-capabilities/design/Budget.cfg",
+    "model": "docs/proposals/core-capabilities/design/Budget.tla"
+  },
+  {
+    "name": "Budget",
+    "mutation": "overbook",
+    "expected": "NoOverbooking",
+    "config": "docs/proposals/core-capabilities/evidence/model/Budget-overbook.cfg",
+    "model": "docs/proposals/core-capabilities/design/Budget.tla"
+  },
+  {
+    "name": "Budget",
+    "mutation": "duplicate",
+    "expected": "ReceiptIdempotency",
+    "config": "docs/proposals/core-capabilities/evidence/model/Budget-duplicate.cfg",
+    "model": "docs/proposals/core-capabilities/design/Budget.tla"
+  },
+  {
+    "name": "Provisional",
+    "mutation": "none",
+    "expected": null,
+    "config": "docs/proposals/core-capabilities/design/Provisional.cfg",
+    "model": "docs/proposals/core-capabilities/design/Provisional.tla"
+  },
+  {
+    "name": "Provisional",
+    "mutation": "parent",
+    "expected": "DependencyFinalized",
+    "config": "docs/proposals/core-capabilities/evidence/model/Provisional-parent.cfg",
+    "model": "docs/proposals/core-capabilities/design/Provisional.tla"
+  },
+  {
+    "name": "ModelSelection",
+    "mutation": "none",
+    "expected": null,
+    "config": "docs/proposals/core-capabilities/design/ModelSelection.cfg",
+    "model": "docs/proposals/core-capabilities/design/ModelSelection.tla"
+  },
+  {
+    "name": "ModelSelection",
+    "mutation": "modality",
+    "expected": "HistoryCompatible",
+    "config": "docs/proposals/core-capabilities/evidence/model/ModelSelection-modality.cfg",
+    "model": "docs/proposals/core-capabilities/design/ModelSelection.tla"
+  },
+  {
+    "name": "ModelSelection",
+    "mutation": "repeatCompaction",
+    "expected": "AtMostOneCompaction",
+    "config": "docs/proposals/core-capabilities/evidence/model/ModelSelection-repeatCompaction.cfg",
+    "model": "docs/proposals/core-capabilities/design/ModelSelection.tla"
+  },
+  {
+    "name": "Recovery",
+    "mutation": "none",
+    "expected": null,
+    "config": "docs/proposals/core-capabilities/design/Recovery.cfg",
+    "model": "docs/proposals/core-capabilities/design/Recovery.tla"
+  },
+  {
+    "name": "Recovery",
+    "mutation": "earlyAck",
+    "expected": "DurableAck",
+    "config": "docs/proposals/core-capabilities/evidence/model/Recovery-earlyAck.cfg",
+    "model": "docs/proposals/core-capabilities/design/Recovery.tla"
+  },
+  {
+    "name": "Decisions",
+    "mutation": "earlyComplete",
+    "expected": "CompletionKeepsPending",
+    "config": "docs/proposals/core-capabilities/evidence/model/Decisions-earlyComplete.cfg",
+    "model": "docs/proposals/core-capabilities/design/Decisions.tla"
+  }
+]

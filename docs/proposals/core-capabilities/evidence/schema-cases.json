@@ -1,0 +1,138 @@
+[
+  {
+    "id": "deferred",
+    "input": {
+      "blockId": "b",
+      "kind": "deferred_receipt",
+      "call": {
+        "owner": {
+          "tenantId": "t",
+          "workId": "w"
+        },
+        "callId": "c",
+        "attemptId": "a"
+      },
+      "request": {
+        "tenantId": "t",
+        "requestId": "r"
+      },
+      "continuationId": "k",
+      "status": "pending"
+    },
+    "expected_valid": true,
+    "actual_valid": true
+  },
+  {
+    "id": "fake_terminal",
+    "input": {
+      "blockId": "b",
+      "kind": "deferred_receipt",
+      "call": {
+        "owner": {
+          "tenantId": "t",
+          "workId": "w"
+        },
+        "callId": "c",
+        "attemptId": "a"
+      },
+      "request": {
+        "tenantId": "t",
+        "requestId": "r"
+      },
+      "continuationId": "k",
+      "status": "succeeded"
+    },
+    "expected_valid": false,
+    "actual_valid": false
+  },
+  {
+    "id": "missing_request",
+    "input": {
+      "blockId": "b",
+      "kind": "deferred_receipt",
+      "call": {
+        "owner": {
+          "tenantId": "t",
+          "workId": "w"
+        },
+        "callId": "c",
+        "attemptId": "a"
+      },
+      "continuationId": "k",
+      "status": "pending"
+    },
+    "expected_valid": false,
+    "actual_valid": false
+  },
+  {
+    "id": "unknown_block",
+    "input": {
+      "blockId": "b",
+      "kind": "reasoning_invented"
+    },
+    "expected_valid": false,
+    "actual_valid": false
+  },
+  {
+    "id": "media",
+    "input": {
+      "blockId": "b",
+      "kind": "audio",
+      "media": {
+        "tenantId": "t",
+        "mediaId": "m"
+      }
+    },
+    "expected_valid": true,
+    "actual_valid": true
+  },
+  {
+    "id": "url_not_media",
+    "input": {
+      "blockId": "b",
+      "kind": "audio",
+      "media": {
+        "url": "https://example.org/tmp"
+      }
+    },
+    "expected_valid": false,
+    "actual_valid": false
+  },
+  {
+    "id": "exact_money",
+    "input": {
+      "integer": "123456789012345678901234",
+      "scale": 6,
+      "currency": "USD"
+    },
+    "expected_valid": true,
+    "actual_valid": true
+  },
+  {
+    "id": "float_money",
+    "input": {
+      "integer": 0.1,
+      "scale": 6,
+      "currency": "USD"
+    },
+    "expected_valid": false,
+    "actual_valid": false
+  },
+  {
+    "id": "missing_answer",
+    "input": {
+      "request": {
+        "tenantId": "t",
+        "requestId": "r"
+      },
+      "contentVersion": "v",
+      "outcomeVersion": "o",
+      "actor": {
+        "userId": "u"
+      },
+      "outcome": "answer"
+    },
+    "expected_valid": false,
+    "actual_valid": false
+  }
+]

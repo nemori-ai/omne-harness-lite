@@ -69,7 +69,9 @@ approve 后权限变硬拒绝或专属资格丢失，记录 approved_but_not_adm
 
 **HD-07**：reject 结算该调用为 denied_before_execution，产生可信工具结果／
 原因，解除它对应的人类等待，允许同一 Run 在没有其他阻塞且仍有执行权时从
-该结果继续。它不授予执行原动作或自动重试权限，也不必取消整个 Session。
+该结果继续。此处“其他阻塞”仅指该 continuation 的前提和全 Run／Session
+控制阻塞，不含其它独立请求仍 pending。它不授予执行原动作或自动重试权限，
+也不必取消整个 Session。
 模式从 standard 改为 unattended 不猜测人类拒绝；按新规则使请求失去可执行
 后果并显式关闭／取代，保留设置变化原因。已有充分 grant 或改回 standard
 也不自动把 pending 请求标 answered；有权用户可以关闭旧请求后重新请求准入。

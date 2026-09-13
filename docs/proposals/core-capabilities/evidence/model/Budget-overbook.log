@@ -1,0 +1,40 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 109 and seed 2078381289137190008 with 1 worker on 8 cores with 910MB heap and 64MB offheap memory [pid: 121165] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/docs/proposals/core-capabilities/design/Budget.tla
+Parsing file /tmp/tlc-9426413470979323789/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-9426413470979323789/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-9426413470979323789/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Budget
+Linting of module Budget
+Starting... (2026-09-13 19:14:24)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-13 19:14:24.
+Error: Invariant NoOverbooking is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ reservation = {}
+/\ badAdmission = FALSE
+/\ admitted = {}
+/\ charged = {}
+/\ total = 0
+
+State 2: <Reserve(1) line 10, col 15 to line 14, col 45 of module Budget>
+/\ reservation = {1}
+/\ badAdmission = FALSE
+/\ admitted = {1}
+/\ charged = {}
+/\ total = 0
+
+State 3: <Reserve(2) line 10, col 15 to line 14, col 45 of module Budget>
+/\ reservation = {1, 2}
+/\ badAdmission = TRUE
+/\ admitted = {1, 2}
+/\ charged = {}
+/\ total = 0
+
+7 states generated, 5 distinct states found, 2 states left on queue.
+The depth of the complete state graph search is 3.
+Finished in 01s at (2026-09-13 19:14:24)
