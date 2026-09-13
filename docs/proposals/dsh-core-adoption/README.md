@@ -6,6 +6,12 @@
 本轮先固定输入，再接受源码集合与设计门槛。包的选中不等于上游契约的采用，
 也不等于这些能力已经完成设计、导入或实现。
 
+- [源码集合与依赖处理](selection.md)：10 个主体来源、4 个限定支撑来源及排除范围。
+- [设计与施工计划](design-plan.md)：Cordis 边界、tools/LLM 新设计及逐阶段门槛。
+- [需求消费与基线恢复](requirements.md)：确认条款、覆盖和仍缺的产品能力。
+- [必要来源](sources.md)：固定上游、依赖事实及许可边界。
+- [独立评审](review.md)：评审对象、发现处置和验证范围。
+
 ## 已有工具设计输入
 
 [工具候选](../tool-system/README.md)从 `docs/multi-command-tool-requirement` 工作树保存。

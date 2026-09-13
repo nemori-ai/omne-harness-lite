@@ -1,0 +1,341 @@
+{
+  "upstream": "https://github.com/deepseek-ai/deepseek-harness",
+  "commit": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+  "method": "Read package manifests and lexical @deepseek-ai/name references in src/**/*.ts. Lexical references include comments, type declarations and self references; this is not an import graph or complete build dependency closure. Selection authority is ../selection.md.",
+  "packages": [
+    {
+      "name": "@deepseek-ai/dsh-attachment",
+      "path": "packages/attachment/attachment",
+      "version": "0.1.5-rc.2",
+      "manifest_sha256": "f23932ea65174afab9fb35fcb6736e7c3e9e3fb6322630b356de77d6c70be54b",
+      "dependencies": {},
+      "peerDependencies": {
+        "@deepseek-ai/dsh-brand": "workspace:^",
+        "@deepseek-ai/cordis": "workspace:^"
+      },
+      "lexical_source_references": [
+        "@deepseek-ai/cordis",
+        "@deepseek-ai/dsh-attachment",
+        "@deepseek-ai/dsh-brand",
+        "@deepseek-ai/dsh-llm"
+      ]
+    },
+    {
+      "name": "@deepseek-ai/dsh-agent",
+      "path": "packages/core/agent",
+      "version": "0.1.5-rc.2",
+      "manifest_sha256": "20c45f04db710d7e965bd65a5d5ae44dc2cccd5d82de74c29be8b01fc446863e",
+      "dependencies": {},
+      "peerDependencies": {
+        "@deepseek-ai/dsh-invariants": "workspace:^",
+        "@deepseek-ai/dsh-llm": "workspace:^",
+        "@deepseek-ai/dsh-scope": "workspace:^",
+        "@deepseek-ai/dsh-session": "workspace:^",
+        "@deepseek-ai/dsh-session-projection": "workspace:^",
+        "@deepseek-ai/dsh-system-prompt": "workspace:^",
+        "@deepseek-ai/dsh-typert-protocol": "workspace:^",
+        "@deepseek-ai/dsh-util-values": "workspace:^",
+        "@deepseek-ai/cordis": "workspace:^"
+      },
+      "lexical_source_references": [
+        "@deepseek-ai/cordis",
+        "@deepseek-ai/dsh-agent",
+        "@deepseek-ai/dsh-agent-loop",
+        "@deepseek-ai/dsh-invariants",
+        "@deepseek-ai/dsh-llm",
+        "@deepseek-ai/dsh-scope",
+        "@deepseek-ai/dsh-session",
+        "@deepseek-ai/dsh-session-projection",
+        "@deepseek-ai/dsh-system-prompt",
+        "@deepseek-ai/dsh-typert-protocol",
+        "@deepseek-ai/dsh-util-values"
+      ]
+    },
+    {
+      "name": "@deepseek-ai/dsh-agent-loop",
+      "path": "packages/core/agent-loop",
+      "version": "0.1.5-rc.2",
+      "manifest_sha256": "a5d17de0386e7007e95b2389616ae4795e65920f5e6d17e0cbea7b000cfd1d38",
+      "dependencies": {
+        "@deepseek-ai/dsh-brand": "workspace:^",
+        "@deepseek-ai/dsh-util-values": "workspace:^",
+        "@deepseek-ai/schemastery": "workspace:^",
+        "zod": "^4.4.3"
+      },
+      "peerDependencies": {
+        "@deepseek-ai/cordis": "workspace:^",
+        "@deepseek-ai/dsh-agent": "workspace:^",
+        "@deepseek-ai/dsh-invariants": "workspace:^",
+        "@deepseek-ai/dsh-llm": "workspace:^",
+        "@deepseek-ai/dsh-scope": "workspace:^",
+        "@deepseek-ai/dsh-session": "workspace:^",
+        "@deepseek-ai/dsh-session-persistence": "workspace:^",
+        "@deepseek-ai/dsh-session-projection": "workspace:^",
+        "@deepseek-ai/dsh-settings": "workspace:^",
+        "@deepseek-ai/dsh-system-prompt": "workspace:^",
+        "@deepseek-ai/dsh-tools": "workspace:^"
+      },
+      "lexical_source_references": [
+        "@deepseek-ai/cordis",
+        "@deepseek-ai/dsh-agent",
+        "@deepseek-ai/dsh-agent-loop",
+        "@deepseek-ai/dsh-brand",
+        "@deepseek-ai/dsh-invariants",
+        "@deepseek-ai/dsh-llm",
+        "@deepseek-ai/dsh-scope",
+        "@deepseek-ai/dsh-session",
+        "@deepseek-ai/dsh-session-persistence",
+        "@deepseek-ai/dsh-session-projection",
+        "@deepseek-ai/dsh-settings",
+        "@deepseek-ai/dsh-system-prompt",
+        "@deepseek-ai/dsh-tools",
+        "@deepseek-ai/dsh-util-values",
+        "@deepseek-ai/schemastery"
+      ]
+    },
+    {
+      "name": "@deepseek-ai/dsh-scope",
+      "path": "packages/core/scope",
+      "version": "0.1.5-rc.2",
+      "manifest_sha256": "090908a9be29d4a571540e68708fda07ecd7fc273651e409121a207923deb904",
+      "dependencies": {},
+      "peerDependencies": {
+        "@deepseek-ai/dsh-invariants": "workspace:^",
+        "@deepseek-ai/cordis": "workspace:^"
+      },
+      "lexical_source_references": [
+        "@deepseek-ai/cordis",
+        "@deepseek-ai/dsh-invariants",
+        "@deepseek-ai/dsh-scope"
+      ]
+    },
+    {
+      "name": "@deepseek-ai/dsh-session",
+      "path": "packages/core/session",
+      "version": "0.1.5-rc.2",
+      "manifest_sha256": "31152d434ccf1b1f60cf395ece9a0db9c6e991c27f9b7639dae59114294673ba",
+      "dependencies": {
+        "@deepseek-ai/dsh-llm": "workspace:^",
+        "@deepseek-ai/dsh-brand": "workspace:^",
+        "@deepseek-ai/dsh-util-values": "workspace:^"
+      },
+      "peerDependencies": {
+        "@deepseek-ai/dsh-scope": "workspace:^",
+        "@deepseek-ai/cordis": "workspace:^"
+      },
+      "lexical_source_references": [
+        "@deepseek-ai/cordis",
+        "@deepseek-ai/dsh-brand",
+        "@deepseek-ai/dsh-invariants",
+        "@deepseek-ai/dsh-llm",
+        "@deepseek-ai/dsh-scope",
+        "@deepseek-ai/dsh-session",
+        "@deepseek-ai/dsh-typert-protocol",
+        "@deepseek-ai/dsh-util-values"
+      ]
+    },
+    {
+      "name": "@deepseek-ai/dsh-system-prompt",
+      "path": "packages/core/system-prompt",
+      "version": "0.1.5-rc.2",
+      "manifest_sha256": "196f6fa52a40d2947173e842df6a7d690ec49306d9ee0f5fecea006abf2cf03b",
+      "dependencies": {
+        "@deepseek-ai/schemastery": "workspace:^"
+      },
+      "peerDependencies": {
+        "@deepseek-ai/dsh-invariants": "workspace:^",
+        "@deepseek-ai/dsh-llm": "workspace:^",
+        "@deepseek-ai/dsh-scope": "workspace:^",
+        "@deepseek-ai/cordis": "workspace:^"
+      },
+      "lexical_source_references": [
+        "@deepseek-ai/cordis",
+        "@deepseek-ai/dsh-invariants",
+        "@deepseek-ai/dsh-llm",
+        "@deepseek-ai/dsh-scope",
+        "@deepseek-ai/dsh-system-prompt",
+        "@deepseek-ai/schemastery"
+      ]
+    },
+    {
+      "name": "@deepseek-ai/dsh-tools",
+      "path": "packages/core/tools",
+      "version": "0.1.5-rc.2",
+      "manifest_sha256": "f1ec5bf891ebcf8d7c15f2a723f6f0aa0b2d28f809f0e87f444a17015052a521",
+      "dependencies": {
+        "@deepseek-ai/dsh-brand": "workspace:^",
+        "@deepseek-ai/dsh-util-values": "workspace:^",
+        "@deepseek-ai/schemastery": "workspace:^"
+      },
+      "peerDependencies": {
+        "@deepseek-ai/cordis": "workspace:^",
+        "@deepseek-ai/dsh-agent": "workspace:^",
+        "@deepseek-ai/dsh-code-runtime": "workspace:^",
+        "@deepseek-ai/dsh-invariants": "workspace:^",
+        "@deepseek-ai/dsh-llm": "workspace:^",
+        "@deepseek-ai/dsh-scope": "workspace:^",
+        "@deepseek-ai/dsh-session": "workspace:^",
+        "@deepseek-ai/dsh-system-prompt": "workspace:^",
+        "@deepseek-ai/dsh-user-approval": "workspace:^"
+      },
+      "lexical_source_references": [
+        "@deepseek-ai/cordis",
+        "@deepseek-ai/dsh-agent",
+        "@deepseek-ai/dsh-brand",
+        "@deepseek-ai/dsh-code-runtime",
+        "@deepseek-ai/dsh-code-runtime-worker-thread",
+        "@deepseek-ai/dsh-invariants",
+        "@deepseek-ai/dsh-llm",
+        "@deepseek-ai/dsh-scope",
+        "@deepseek-ai/dsh-session",
+        "@deepseek-ai/dsh-system-prompt",
+        "@deepseek-ai/dsh-tool-call-timeout-policy",
+        "@deepseek-ai/dsh-tools",
+        "@deepseek-ai/dsh-user-approval",
+        "@deepseek-ai/dsh-util-values",
+        "@deepseek-ai/schemastery"
+      ]
+    },
+    {
+      "name": "@deepseek-ai/dsh-llm",
+      "path": "packages/llm/llm",
+      "version": "0.1.5-rc.2",
+      "manifest_sha256": "45de84b6e0562dbe9a64f4068d42f133e797f5d86b7b000fc78589757d34689c",
+      "dependencies": {
+        "@deepseek-ai/dsh-util-crypto": "workspace:^",
+        "@deepseek-ai/schemastery": "workspace:^",
+        "zod": "^4.4.3",
+        "@deepseek-ai/dsh-timeout": "workspace:^",
+        "@deepseek-ai/dsh-brand": "workspace:^",
+        "@deepseek-ai/dsh-util-values": "workspace:^",
+        "@deepseek-ai/dsh-typert-protocol": "workspace:^"
+      },
+      "peerDependencies": {
+        "@deepseek-ai/cordis": "workspace:^"
+      },
+      "lexical_source_references": [
+        "@deepseek-ai/cordis",
+        "@deepseek-ai/dsh-attachment",
+        "@deepseek-ai/dsh-brand",
+        "@deepseek-ai/dsh-invariants",
+        "@deepseek-ai/dsh-llm",
+        "@deepseek-ai/dsh-timeout",
+        "@deepseek-ai/dsh-typert-protocol",
+        "@deepseek-ai/dsh-util-crypto",
+        "@deepseek-ai/dsh-util-values",
+        "@deepseek-ai/schemastery"
+      ]
+    },
+    {
+      "name": "@deepseek-ai/dsh-session-persistence",
+      "path": "packages/session/session-persistence",
+      "version": "0.1.5-rc.2",
+      "manifest_sha256": "d77cd5cc28c2c15cda8cbfed2e5ed16c34faa43340bc8d9aeb696d1f995c0614",
+      "dependencies": {
+        "@deepseek-ai/dsh-util-values": "workspace:^"
+      },
+      "peerDependencies": {
+        "@deepseek-ai/cordis": "workspace:^",
+        "@deepseek-ai/dsh-brand": "workspace:^",
+        "@deepseek-ai/dsh-session": "workspace:^",
+        "@deepseek-ai/dsh-timeout": "workspace:^"
+      },
+      "lexical_source_references": [
+        "@deepseek-ai/cordis",
+        "@deepseek-ai/dsh-brand",
+        "@deepseek-ai/dsh-session",
+        "@deepseek-ai/dsh-session-persistence",
+        "@deepseek-ai/dsh-util-values"
+      ]
+    },
+    {
+      "name": "@deepseek-ai/dsh-session-persistence-jsonl",
+      "path": "packages/session/session-persistence-jsonl",
+      "version": "0.1.5-rc.2",
+      "manifest_sha256": "76c91737d04c3226f16b40837b8aceb8558009fc59fc30da92b261b47b7e2191",
+      "dependencies": {
+        "@deepseek-ai/dsh-llm": "workspace:^",
+        "@deepseek-ai/dsh-session-format": "workspace:^",
+        "@deepseek-ai/dsh-session-format-catalog": "workspace:^",
+        "@deepseek-ai/dsh-session-format-v2-to-v3": "workspace:^",
+        "@deepseek-ai/node-addon-system": "workspace:^",
+        "koffi": "^3.1.0",
+        "@deepseek-ai/schemastery": "workspace:^"
+      },
+      "peerDependencies": {
+        "@deepseek-ai/dsh-session": "workspace:^",
+        "@deepseek-ai/dsh-session-persistence": "workspace:^",
+        "@deepseek-ai/cordis": "workspace:^"
+      },
+      "lexical_source_references": [
+        "@deepseek-ai/cordis",
+        "@deepseek-ai/dsh-llm",
+        "@deepseek-ai/dsh-session",
+        "@deepseek-ai/dsh-session-format",
+        "@deepseek-ai/dsh-session-format-catalog",
+        "@deepseek-ai/dsh-session-format-v2-to-v3",
+        "@deepseek-ai/dsh-session-persistence",
+        "@deepseek-ai/dsh-session-persistence-jsonl",
+        "@deepseek-ai/node-addon-system",
+        "@deepseek-ai/schemastery"
+      ]
+    },
+    {
+      "name": "@deepseek-ai/dsh-session-projection",
+      "path": "packages/session/session-projection",
+      "version": "0.1.5-rc.2",
+      "manifest_sha256": "b5ec0c28da7ae18ecb5615c4df96838039efa876d2ea555e107b9eb889b372c0",
+      "dependencies": {
+        "zod": "^4.4.3"
+      },
+      "peerDependencies": {
+        "@deepseek-ai/dsh-session": "workspace:^",
+        "@deepseek-ai/cordis": "workspace:^"
+      },
+      "lexical_source_references": [
+        "@deepseek-ai/cordis",
+        "@deepseek-ai/dsh-session",
+        "@deepseek-ai/dsh-session-projection"
+      ]
+    },
+    {
+      "name": "@deepseek-ai/dsh-brand",
+      "path": "packages/util/brand",
+      "version": "0.1.5-rc.2",
+      "manifest_sha256": "45e8d5d1f69173832122078b508be2faeb8a1b30d3d7deba2dfb8840966195ff",
+      "dependencies": {},
+      "peerDependencies": {
+        "@deepseek-ai/cordis": "workspace:^"
+      },
+      "lexical_source_references": [
+        "@deepseek-ai/dsh-brand"
+      ]
+    },
+    {
+      "name": "@deepseek-ai/dsh-timeout",
+      "path": "packages/util/timeout",
+      "version": "0.1.5-rc.2",
+      "manifest_sha256": "a3e436121ebf78a751d4e47cbc0c363b2a8e8034bf9373368fe813dcef98afa4",
+      "dependencies": {},
+      "peerDependencies": {
+        "@deepseek-ai/cordis": "workspace:^"
+      },
+      "lexical_source_references": [
+        "@deepseek-ai/dsh-timeout"
+      ]
+    },
+    {
+      "name": "@deepseek-ai/dsh-util-values",
+      "path": "packages/util/values",
+      "version": "0.1.5-rc.2",
+      "manifest_sha256": "05830247afd148d1c72cf40d94e4a1b68a154d5cd9340569e089c10288e9d609",
+      "dependencies": {},
+      "peerDependencies": {
+        "@deepseek-ai/cordis": "workspace:^"
+      },
+      "lexical_source_references": [
+        "@deepseek-ai/dsh-util-values"
+      ]
+    }
+  ]
+}
