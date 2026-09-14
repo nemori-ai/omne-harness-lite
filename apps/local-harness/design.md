@@ -154,3 +154,75 @@ A01–11/A17/A18/A19/A26 本地/A28–32
 phase/code，关键审计由业务耐久提交，普通日志失败不覆盖业务结果。
 当前这些组合测试均未运行。交付证据须固定可运行提交、命令、未开放路径与
 残留责任；完整 HD、M1/M2 和扩展功能不包含在本基线范围。
+
+## 治理原组合场景
+
+本表逐字承接 `058c77c` 治理输入的验收切片，迁移快照为 `7e758f21`。它保留
+原 A 编号、刺激和预期，不是新规范或通过声明；各 owner 实现自己的状态转移，
+应用只装配真实提供者并测量组合。完整 HD/模型的未开放部分不计入最小 allow
+节点，也不被记为已完成。
+
+| 验收局部切片 | 必须可观察的反例及结果 |
+|---|---|
+| A01 / TG+AU | 两真实主体/两 tenant；伪造 Principal/TS cast、同 user 多组织、跨 tenant 所有嵌套引用、管理者无正文权。读/list/count/旧回执/订阅均当前授权，无存在性泄漏；正文/财务/精确控制分别有结果 |
+| A02 / TG | 同自然人两个 operation 并发 personal create 恰一 tenant；personal/organization 创建完整落盘后丢回执并重启，同原请求/operation 认回原 tenantId，不用内存映射、不因重分配冲突；同键改 kind/成员仍冲突。两个管理员互撤仍保留一个；remove/re-add 不恢复旧 grant/委托。真实管理创建草稿→发布，重复 publish 同版本、异输入冲突、旧版不可改、official 不能改、fork 不继承 grant |
+| A03 / TG+AU | 实际 issue/select/grant/amend/revoke 建立依据；v1 可用、fork/v2 越界；源权益停用不删除原 Session；撤权排 n+1 阻新调用而 n 等耐久后可继续。撤销再重授都未耐久不越过中间撤销；源不可用 unavailable，不 ask |
+| A11 / AU | 穷举上表模式×确认类型×硬资格×grant×一次决定；当前合法授予者缺失不能 ask。真实 set/clear/readEffective，Session→用户定义→默认；false/null 非法 set 不清除。模式变化不造答案；未耐久放宽不用、收紧立即封闭 |
+| A26 本地 / BG | limit(10) 下 finite(7)→finite(7)、unknown(K=7)→finite(7)、unknown(K=7)→unknown(K=7) 均只有首个 call+reservation 成立，即使 unknown 已显式获准。unknown 部分 C=3/R=4 后贡献仍7，新增 Q=3 可达10、Q=4 拒绝；C=9/R=0 后只剩1。重复/恢复同结果；一项硬预算拒绝不留另一个预留；下调/新增适用预算参与 gate；未知默认拒、零成本需来源依据 |
+| A26 恢复 / BG | 重放同 externalFact/revision 不增费、同键异内容冲突；同 request 两真实收费分别保留；跨周期 late actual 归原 period；unknown/未收到 start 回执不释放；真实墓碑证明未开始才释放；重启后 reserved/negative/unknown 不归零 |
+| A26 币种 / BG | 仅 USD 硬预算而来源已核实 EUR：没有 EUR 姿态时 budget_posture_missing，显式错绑 USD 时 budget_currency_mismatch；实际声明 EUR 姿态后仍检查所有匹配的 EUR 预算，不折算 USD。changeBudget 尝试改 tenant/scope/currency 或替换 periodId 被拒，原 attempt/period 保持原账目 |
+| A28 / 三 owner | 未形成 Action 的拒绝仍有 operation/主体/tenant/阶段和裁剪目标；关键成功/拒绝保存失败时禁止新效果并返回 audit_unavailable/原 unknown；诊断丢弃有 gap，普通通知失败不回滚业务结果 |
+| A05/A08 回归 / 三 owner+P1 | 相同 operation 原回执含业务 denied 也跨重启稳定；异输入冲突、过期修订冲突不随未来状态变成功；fsync 阻塞无效果，失败隔离后不能越过；某 owner publication blocked 保留 committed 与所有未决责任 |
+
+## Agent/Session 原组合场景
+
+本表逐字承接 `cd16f1` 接口的 S01–S18，迁移快照为 `7e758f21`。每项只在实际
+消费的提供者、场景与环境范围验收，当前尚无这些产品符合性结果。S10 的 P1
+机制结果不抵扣真实业务 owner 组合；两进程 writer 排他与多个 AR/SR 调用入口
+分别测量自己的权威。完整 HD/M2 场景保留原范围，不把节点收窄解释为已通过。
+
+| ID / 原验收 | 刺激 → 必须观察的结果与测量 |
+|---|---|
+| S01 / A01 | 两真实凭据/两租户（相同 sessionId）、同租户管理者无正文权；跨 tenant/伪造 caller/delegation、原回执/订阅重放；当前权限撤回与读/activate/Step 同门竞争 → 无存在/计数/正文泄漏，旧 joinedRevision 不复活；不能只测 parseData |
+| S02 / A04 | 同宿主两个 Context/Registry 入口并发 activate 同 Session，另 tenant 同 ID；资源准备在屏障暂停，owner close/attachment revoke 后归还 → 只一占位，另一 tenant 独立，晚到原资源被原 attempt 持有并清理 |
+| S03 / A04/A18 | 实际 Cordis 4.0.2 effect、订阅/计时器/受管任务；activated 抛错/异步拒绝/重入 close，必要 binding 撤除和清理失败后再激活 → 发布不可否决，真实资源未收口前冲突，旧 handle/disposer 不控制新代；Fiber 状态不足以通过 |
+| S04 / A09 | 真实 queue/run/session streams；并发 edit/reorder/withdraw/enqueue 与两个 takeBatch；同 operation 重试及同键异输入，fsync 挡住 → 一个冻结有序 batch/Run/占位；未取批/撤回版本不入上下文，pending 不启动 driver |
+| S05 / A09/A17/A08 | 两个 ready continuation/两个 acquireNextStep，hold→clear 均未耐久、撤权 n+1 与 Step n 同步失败/成功 → 单驱动、正向事实不早用、n 耐久且未精确取消可继续，新位置不能穿过撤销/缺口 |
+| S06 / A17/A16 | 精确 interrupt/cancel/force_stop/resume、stop 与真实成功结果竞争、start 尚在途中/inspect not_found、continueQueue 在 stopping 期间 → 真实 stopped/隔离前不放占位，unknown 独立；旧 epoch 不写有效结果，已成功不被改中断 |
+| S07 / A17/A19 | 真实 journal/工具文件，取批/工具接纳/效果/结果回执各窗口 kill→持锁恢复；重新附着同 Session 并查原 Run/call → 已完成不重复效果，未明 attempt unknown 不重发，新 epoch 拒旧提交；真实调用者当前资格重检 |
+| S08 / A09/SR-13 | 删除可重建投影、错误 Session checkpoint、未知 event/schema、同 key 同版不同贡献、旧撤回器 → 原事实仍在，坏版本依赖入口 unavailable，重建水位可核对，新贡献/权限不被旧对象改变 |
+| S09 / A04/A17/A29 | 自关闭等待、在途准备/移交回执丢失、订阅晚到、A 使用 B 且 A 清理失败、原 TL 独立持有 unknown → 自等待拒绝；未确认移交保留原 owner，确认后可释 Agent；保留失败依赖和 cleanup 可查询 |
+| S10 / A05–08/A28 | 真实多 owner batch 中 SR 或 HD/TL publication 违规、磁盘/审计/诊断同时失败、旧 writer/准备票据 → 不半发布、不提前效果、不丢原 unknown/使用；committed+blocked 不改称未提交，恢复同水位再开放 |
+| S11 / A12/A15/A17 | q1/q2 真 HD 待答，释放 Agent/重启，先答 q1（含 reject）再答 q2，期间 interrupt/hold/cancel → q1 独立耐久串行接续，q2 不被清掉，Run 不提前 completed；答案不清全局阻塞，取消后不复活 |
+| S12 / A18/A29 | 定义/Factory/工具准备换代失败与成功、依赖失联/重现、已准入 pin、旧 provider 清理迟到；100 次等待/关闭/恢复循环 → 无同名跟随，真实任务/订阅/timer/fd 回到基线或逐项具名 retained，等待无模型忙轮询 |
+| S13 / A24/A30–32 | 真实公开 tarball/独立确定性工具消费者跑最小闭环；M2 后实际 wire 中 q2 deferred receipt 与 q1 结果并存 → 无 baseline 绕门，原 call 不重发，未执行的 M1/M2 子场景单列，不由编译/源测试抵扣 |
+| S14 / A09/A17/SR-08/09 | 无工具正常返回、真实 TL 结果后的结算、q1 就绪而 q2 未答、driver throw 与终态竞争 → 原 Step/CallRef 不变，新的模型决策才新 Step；driver 进展/Step/Run 结算经同批，剩余 HD 后果在失败意图同批关闭，停止未知时保留 stopping；重放/旧 claim 不二次推进 |
+| S15 / A03/TG-05 | 同一 DefinitionVersion 下选用 a/b 配置不同，Session 原属 a；准备后 configure/disable/remove a，再同版本重选 c 并重启 → 不借 b/c，不混当前 Run 配置；原 a 被移除后后续使用阻塞，已准入/历史原关联保留 |
+| S16 / A11/A01 | owner 与仅有 emergency_control 的管理者分别 set/clear Session confirmation_mode，准备后撤权或停用；再测 false/null → 只有 owner 的独立设置权可提交，旧候选拒绝，非法值不变 clear，重启恢复 AU 原覆盖/来源，未做模型选择 |
+| S17 / A03/TG-05/PF-010.C10 | TG 先准备空引用清单，SR create/attachment 先占位；反向让 TG disable 先提交；再撤掉 SR inventory/加载缺口 → 前者 TG 重准备并报告新增引用，后者 SR 当前门拒绝；缺来源 unavailable 而非空。已存在引用不级联删除/强停，也不向无正文/元数据权的管理者泄漏内容或存在性 |
+| S18 / A09/A17/TL-07 | 真实 TL proposed 与 SR 原接续联合耐久登记，driver recordStepReturn(await_calls) 交还 claim；尚无 allow/ask 时取原 adjudicate 接续并让当前门直接 deny，在 deny 批耐久后、结果消费前 kill/reopen。另在交还后/裁决 claim 后分别重启，并阻断登记/交还/deny 批的 fsync、丢回执/通知 → 原 Step/CallRef.owner/Action/continuationId 不变，交还后原裁决 ready 可查；重启认回原执行前拒绝结果并按 finish_run 串行结算，无新 Step/attempt/HD 请求、无工具效果（真实文件保持原值/不存在），旧 claim 拒绝、相同操作无第二结果。缺 proposed→SR 绑定拒绝交还/恢复，不以待工具结果永远挂住 |
+
+## 治理组合的装配投影
+
+本表来自 `058c77c`，仅说明既有具名组合的提供者交接；TG/AU/BG 的当前操作
+协议分别归[tenant](../../packages/governance/tenant/design.md)、
+[authorization](../../packages/governance/authorization/design.md)、
+[budget](../../packages/governance/budget/design.md)。SR 行为归
+[Session](../../packages/session/session/design.md)，调用与请求分别归
+[tools](../../packages/tools/tools/design.md)和[human-decisions](../../packages/governance/human-decisions/design.md)。
+应用不实现这些状态转移；未来模型组合只保留已接受契约的接入义务。
+
+| 具名组合 / 提交者 | 各 owner 准备的最小原子关系 |
+|---|---|
+| `owner_change` / TG、AU 或 BG 的管理入口 | 原 owner 状态变化+其审计/确定结果；TG personal 创建含列名 system index 与 tenant 初始成员 |
+| `input_run` / SR | SR 输入/取批/Run 占位；TG/AU 是当前只读资格，SR 保存实际依据/设置值，不能复制 grants 或改预算 |
+| `request_wait` / TL 与 HD 的受信调用组合 | AU ask 判定+HD 原 Action/request+SR/TL 精确等待位置；此时不 reserve 执行预算，不发效果 |
+| `answer_consequence` / HD | HD 唯一决定+SR/TL 唯一接续意图；答复不写 grant、不提前消费执行预算 |
+| `action_execution` / TL | TL 原 call/attempt 准入与执行许可记录+AU allow 依据+HD 精确一次消费（如有）+BG 全部预留；真实资源 owner 提供 ExactUse |
+| `budget_call` / MC | MC 请求/attempt 准入+授权/运行依据+BG 全部预留，执行 owner 保留其精确许可/取消账本；P4 才接真实模型 |
+
+组合者只组装各 owner 冻结片段并提交一次，不提供第二套准入政策。跨不同 owner
+同批的结果由该具名组合者形成明确业务结果（例如 call admitted、request pending），
+分别嵌入各 owner 结果引用；不能拿预算 reserved 当工具已经执行成功。已有 P0
+participants 校验不替代“是否漏写一次消费/预算”的业务完整性检查，P3 必须通过
+真实组合反例验证。
