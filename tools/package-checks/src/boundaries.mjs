@@ -28,10 +28,16 @@ export async function members(repo) {
       child => child.isDirectory() && !child.name.startsWith('.'),
     )) {
       const leaf = join(root, child.name)
-      assert.ok(
-        (await readdir(leaf)).includes('package.json'),
-        `responsibility leaf lacks package.json: ${leaf}`,
-      )
+      const leafEntries = await readdir(leaf, { withFileTypes: true })
+      if (!leafEntries.some(entry => entry.name === 'package.json')) {
+        assert.ok(
+          !leafEntries.some(
+            entry => entry.isDirectory() && ['src', 'tests', 'dist'].includes(entry.name),
+          ),
+          `product source lacks package.json: ${leaf}`,
+        )
+        continue
+      }
       const manifest = JSON.parse(await readFile(join(leaf, 'package.json'), 'utf8'))
       result.push({ kind: 'package', root: leaf, manifest })
     }
@@ -39,10 +45,16 @@ export async function members(repo) {
   for (const entry of await readdir(join(repo, 'apps'), { withFileTypes: true })) {
     if (!entry.isDirectory() || entry.name.startsWith('.')) continue
     const root = join(repo, 'apps', entry.name)
-    assert.ok(
-      (await readdir(root)).includes('package.json'),
-      `application lacks package.json: ${root}`,
-    )
+    const appEntries = await readdir(root, { withFileTypes: true })
+    if (!appEntries.some(candidate => candidate.name === 'package.json')) {
+      assert.ok(
+        !appEntries.some(
+          candidate => candidate.isDirectory() && ['src', 'tests', 'dist'].includes(candidate.name),
+        ),
+        `application source lacks package.json: ${root}`,
+      )
+      continue
+    }
     const manifest = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'))
     result.push({ kind: 'app', root, manifest })
   }
@@ -325,6 +337,28 @@ export function nativeBuildPlan(rootManifest, lock, inventory) {
   }
   assert.ok(allowed.includes('fs-ext'), 'fs-ext requires pnpm.onlyBuiltDependencies allowlisting')
   assert.match(lock, /(?:^|\s)'?fs-ext@2\.1\.1'?:/m, 'lock must contain fs-ext@2.1.1')
+  const lines = lock.split(/\r?\n/)
+  let inFsExt = false
+  let inDependencies = false
+  let exactNan = false
+  for (const line of lines) {
+    if (/^  \S/.test(line)) {
+      inFsExt = /^  '?fs-ext@2\.1\.1'?:$/.test(line)
+      inDependencies = false
+      continue
+    }
+    if (!inFsExt) continue
+    if (/^    dependencies:$/.test(line)) {
+      inDependencies = true
+      continue
+    }
+    if (/^    \S/.test(line)) {
+      inDependencies = false
+      continue
+    }
+    if (inDependencies && /^      nan: 2\.28\.0$/.test(line)) exactNan = true
+  }
+  assert.ok(exactNan, 'fs-ext lock must pin nan to 2.28.0')
   return ['fs-ext']
 }
 

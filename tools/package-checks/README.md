@@ -10,7 +10,9 @@ member's installed dependencies.
 `pnpm --filter @omne-harness-lite/package-checks test` exercises negative boundary cases.
 
 The checker discovers both `packages/<family>/<leaf>` and existing `apps/<app>`
-members. A DSH-derived member keeps its upstream snapshots, original license and
+members by their `package.json`. Design-only package/application directories are not
+workspace members; a directory with `src`, `tests`, or `dist` but no manifest is rejected
+rather than silently skipped. A DSH-derived member keeps its upstream snapshots, original license and
 `UPSTREAM.md`; it may expose `./baseline`, a default target entry, or both. A new
 project-owned member reuses provenance format 1 with `files: []` and `project_files`
 covering every active source, omits invented upstream identity, uses a default public
@@ -42,15 +44,25 @@ the child environment removes ambient preloads and disables the documented
 [global folders](https://nodejs.org/download/release/v24.18.0/docs/api/modules.html#loading-from-the-global-folders).
 Node documents the flag in its
 [command-line API](https://nodejs.org/download/release/v24.18.0/docs/api/cli.html#--no-global-search-paths).
-Other inherited environment, including explicit `CC` and `CXX`, remains available.
+Other inherited environment, including explicit `CC`, `CXX`, and `GCC_EXEC_PREFIX`, remains
+available.
 
 All isolated installs start with `--ignore-scripts --ignore-workspace`. The only
 selective native build currently accepted is an exact `fs-ext@2.1.1` product edge,
 listed as `fs-ext` in the root `pnpm.onlyBuiltDependencies` and present at that exact
-version in the lock. A consumer whose selected closure needs it runs only
+version in the lock with `nan@2.28.0`. A consumer whose selected closure needs it pins
+that same `nan` closure and carries its own `onlyBuiltDependencies: ["fs-ext"]`, then runs only
 `pnpm rebuild fs-ext --pending --ignore-workspace --store-dir ...`, inheriting explicit
-`CC` and `CXX`; the checker rejects missing compiler variables, other native build
-names and version ranges. No compiler path is embedded here.
+`CC`, `CXX`, and `GCC_EXEC_PREFIX` while retaining the Node resolution isolation above.
+After rebuild, a fresh Node process resolves from the installed real path of the product
+package that declares `fs-ext`, loads the addon, checks `flock`, and verifies both native
+dependency versions. Its PASS evidence includes the loaded `.node` real path and SHA-256;
+rebuild exit 0 alone is only an intermediate observation. When several installed products
+resolve the same physical `fs-ext`, the probe verifies the cached `.node` against each
+declaring product's resolver and emits evidence for each declaration. Consumers whose closure
+does not contain `fs-ext` receive no native allowlist and run no rebuild or native probe. The
+checker rejects missing compiler variables, other native build names and version ranges. No
+compiler path is embedded here.
 
 Application discovery is independent of the root command fan-out. When an app exists,
 `pnpm-workspace.yaml` must include `apps/*`, and the root owner must extend build,

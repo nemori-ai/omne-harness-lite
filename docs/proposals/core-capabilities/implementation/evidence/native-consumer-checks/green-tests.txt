@@ -1,0 +1,39 @@
+$ env CC=<gcc-10> CXX=<g++-10> GCC_EXEC_PREFIX=<gcc-prefix> pnpm --filter @omne-harness-lite/package-checks test
+
+> @omne-harness-lite/package-checks@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-native-consumer-checks/tools/package-checks
+> node --test tests/*.test.mjs
+
+✔ finds real import/export/type/augmentation dependencies, ignoring comments and strings (14.379571ms)
+✔ discovers responsibility packages and real application members (58.587667ms)
+✔ classifies baseline, evolved, and project-owned public entries by actual source records (1.711513ms)
+✔ keeps artifact consumers outside repository ancestor dependency resolution (3070.151996ms)
+✔ rejects a sibling worktree scratch that can borrow a common ancestor module (3.458167ms)
+✔ validates DSH source truth separately from project-owned provenance (7.010689ms)
+✔ checks every packed public declaration and maps default exports to valid consumer specifiers (0.89347ms)
+✔ checks project-owned packages and apps through independent tarball consumers with sanitized Node resolution (13314.717212ms)
+✔ permits only the probed fs-ext native rebuild with an exact product and lock version (1.839938ms)
+✔ rejects a no-op native rebuild that exits zero without producing a loadable fs-ext addon (2782.866344ms)
+✔ loads one shared addon for multiple direct native owners and a transitive consumer (29952.19568ms)
+✔ applies existing import guards to project-owned default exports (0.874875ms)
+✔ public imports require a declared runtime edge; development dependencies cannot mask it (0.522131ms)
+✔ relative src and dist penetration and unknown product edges fail (0.58811ms)
+✔ transitive closure excludes unrelated and development members and rejects cycles (0.300772ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 49600.597591
+
+exit: 0
+
+$ env -u GCC_EXEC_PREFIX CC=<gcc-10> CXX=<g++-10> node tools/package-checks/src/check.mjs
+AssertionError [ERR_ASSERTION]: native artifact checks require explicit CC, CXX and GCC_EXEC_PREFIX
+exit: 1
+
+$ pnpm format:check -- tools/package-checks/src/check.mjs tools/package-checks/src/boundaries.mjs tools/package-checks/tests/boundaries.test.mjs
+Checking formatting...
+All matched files use Prettier code style!
+exit: 0
