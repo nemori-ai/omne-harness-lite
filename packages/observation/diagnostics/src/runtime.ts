@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { once } from 'node:events'
 import { close as closeFd, fchmod, open as openFd } from 'node:fs'
 import { chmod, lstat, mkdir, open as openFile, opendir } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import { isAbsolute, join } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { ROOT_CONTEXT, SpanStatusCode, createContextKey, trace } from '@opentelemetry/api'
@@ -10,7 +11,7 @@ import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-ho
 import { TracerProvider } from '@opentelemetry/sdk-trace'
 import type { ReadableSpan, Span as SdkSpan, SpanProcessor } from '@opentelemetry/sdk-trace'
 import pino from 'pino'
-import { SonicBoom } from 'sonic-boom'
+import type { SonicBoom as SonicBoomType, SonicBoomOpts } from 'sonic-boom'
 import type {
   DiagnosticClose,
   DiagnosticContext,
@@ -31,6 +32,7 @@ import type { SafeIdentity, SafePoint } from './projection.js'
 const levels = new Set(['debug', 'info', 'warn', 'error'])
 const levelValue = { debug: 10, info: 20, warn: 30, error: 40 } as const
 const diagnosticFile = /^diagnostic-(?:[0-9a-f]{16}-)?[0-9a-f]{16}\.jsonl$/u
+const SonicBoom = createRequire(import.meta.url)('sonic-boom') as new (options: SonicBoomOpts) => SonicBoomType
 
 type InternalContext = Readonly<{
   identity: SafeIdentity
@@ -179,7 +181,7 @@ class LocalRuntime implements DiagnosticsRuntime {
   private readonly maxActiveSpans: number
   private readonly maxSourceBytes: number
   private readonly idPrefix: string
-  private readonly stream: SonicBoom | null
+  private readonly stream: SonicBoomType | null
   private readonly descriptor: number | null
   private readonly logger: pino.Logger | null
   private readonly manager = new AsyncLocalStorageContextManager().enable()
@@ -204,7 +206,7 @@ class LocalRuntime implements DiagnosticsRuntime {
 
   constructor(
     options: LocalDiagnosticsOptions,
-    stream: SonicBoom | null,
+    stream: SonicBoomType | null,
     descriptor: number | null,
     maxSourceBytes: number,
     failure?: StartupFailure,
@@ -894,7 +896,7 @@ function startupFailure(error: unknown): StartupFailure {
 }
 
 type OpenedStream = Readonly<{
-  stream: SonicBoom
+  stream: SonicBoomType
   descriptor: number
 }>
 
