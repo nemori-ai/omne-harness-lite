@@ -21,7 +21,7 @@ P0 共享接口、原生锁前提、检查器、work-data 与 records 已经评�
 |---|---|---|---|
 | P0 | accepted | 锁前提、共享接口、检查器、work-data/records；HUB 已验证两个目标包与 16 包产物 | 提供 P1 的真实共享端口/codec 和锁测量依据，尚非真实 writer |
 | P1 | in_progress | D-010 施工输入已接受，diagnostics 正在 TDD 实施；真实 writer/准入未实现 | diagnostics D1 交付，再并行实现 jsonl/admission |
-| P2 | design_in_progress | 治理施工输入已接受；AR/SR 稿已交付候选并进入独立评审，产品尚未实施 | P1 的真实共同门与记录提供者；交付本地预算 owner |
+| P2 | design_in_progress | 治理施工输入已接受；AR/SR 四项修订正在独立复核，产品尚未实施 | P1 的真实共同门与记录提供者；交付本地预算 owner |
 | P3 / M1 | planned | 未执行 | P2 当前权限/真实预算/Session/活体，以及 P1 执行账本前提 |
 | P4 | planned | 未执行；用户已指定凭据入口与两个测试模型 | M1 组合、实际路由/价格和受限冒烟配置；离线部分可按依赖提前 |
 | P5 / M2 | planned | 未执行 | 最终组合版本及全部本批验收证据 |
@@ -47,9 +47,9 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 | P0 work-data 实现（accepted） | kernel-developer，`/root/p0_work_data`；定点复核 `/root/review_first_batch`，本任务均已结束 | `dsh-p0-work-data`，已退役 | `18cad69` 经 `6e7f213` 整合，`728d665` 锁定依赖；D1/D2 闭合，HUB 91 项测试与 15 包产物通过 |
 | P0 records 实现（accepted） | infrastructure-developer，`/root/p0_records`；独立复核 `/root/review_first_batch`，本任务均已结束 | `dsh-p0-records`，已退役 | `1a237da`/`c67eb4d` 经 `bbb4a3e` 整合、`c1783fd` 锁定；HUB 17 项测试及 16 包产物通过；独有资产与执行输出已保全 |
 | diagnostics D1 实现 | infrastructure-developer，`/root/diagnostics` | `dsh-diagnostics`，从 `0e80245` 创建 | 消费真实 work-data/records；只写 diagnostics 包与其证据，真实产品通过后开放 jsonl/admission 消费 |
-| Agent/Session 施工接口设计 | 作者 `/root/session_runtime_design` 修订中，独立复核 `/root/review_package_layout` 本轮已结束 | `dsh-session-runtime-design`，从 `de39a86` 创建 | 候选 `746ce47` 的四项交接缺口已进入定点修订；独立复核后固定，产品依赖仍须真实就绪 |
+| Agent/Session 施工接口设计 | 作者 `/root/session_runtime_design` 本轮已结束，独立复核 `/root/review_package_layout` | `dsh-session-runtime-design`，从 `de39a86` 创建 | `a58bc7c` 修订了 `746ce47` 的四项交接缺口，待复核；产品依赖仍须真实就绪 |
 | TS/JS 自动格式化工具（accepted） | verification-developer，`/root/formatting`，已结束 | `dsh-formatting`，已退役 | `99a6988`/`c026140` 已整合，根锁 `d13d66b`；HUB `4a5031d` 的冻结安装和完整 16 包检查通过 |
-| 格式化提示词投影 | `/root/observability_prompts`，本轮负责格式化认知约定 | `dsh-formatting-prompts`，从 `4a5031d` 创建 | 根 AGENTS、研发共享契约及两端生成文件；只投影时机/写权限，操作正文归开发指南 |
+| 格式化提示词投影（accepted） | `/root/observability_prompts`，本轮负责格式化认知约定，已结束 | `dsh-formatting-prompts`，已退役 | `47c60dd` 经 `635a690` 整合；HUB 五角色生成、408 文档与 12 提示词哈希核对通过 |
 
 可观测性工程品味与共享研发提示词已由 `51eaefb` 经 `7d3736c` 整合到 HUB，
 五个角色的两端生成检查和文档检查通过，见[提示词证据](evidence/observability-prompts.json)。
@@ -107,6 +107,10 @@ records 文件，失败输出与完整复验日志均保留；原作者日志也
 编辑器配置显式使用工作区本地 Prettier。共享 Git hooks 未安装：当前 main 尚未
 包含这些脚本，而 hooks 由全部 worktrees 共用；安装器已在独立 Git 实际验证，
 以后从支持该工具的检出显式安装。没有宣称真实编辑器保存或 GitHub 托管 job 已运行。
+
+顶层 AGENTS 和研发共享契约已投影格式化时机与获准文件边界，五角色的十份原生
+定义同步生成，证据见[提示词记录](evidence/formatting-prompts.json)及上述 HUB 汇总。
+这是提示词与生成一致性检查，不声明正在运行的宿主已经动态加载新正文。
 
 ## P2 治理施工输入
 

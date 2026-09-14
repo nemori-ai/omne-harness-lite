@@ -46,5 +46,36 @@
   "limits": [
     "This verifies formatting tooling and mechanically formatted implementation behavior, not M1/M2 or A01-A32 completion.",
     "Hook remains an explicit install command because Git hooks are shared by worktrees and main does not yet include formatting scripts."
-  ]
+  ],
+  "promptProjection": {
+    "authorCommit": "47c60dd5bd76c17f5d8eb267c85e4957d9bd92b0",
+    "hubMergeCommit": "635a690ee5ddfe2bbf41a3df12305cdf2d6d989b",
+    "evidence": "../formatting-prompts.json",
+    "checks": [
+      {
+        "command": ".venv/bin/python .agents/skills/design-subagents/scripts/render_pair.py --source .agents/roles/<role> --output . --check",
+        "roles": [
+          "kernel-developer",
+          "capability-developer",
+          "infrastructure-developer",
+          "application-developer",
+          "verification-developer"
+        ],
+        "exitCode": 0
+      },
+      {
+        "command": "make docs-check BASELINE=ecd234c",
+        "exitCode": 0,
+        "markdownFiles": 408
+      },
+      {
+        "check": "all twelve prompt files match author SHA-256",
+        "result": "pass"
+      }
+    ],
+    "notRun": [
+      "host dynamic loading",
+      "model behavior evaluation"
+    ]
+  }
 }
