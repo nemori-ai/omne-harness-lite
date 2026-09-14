@@ -95,7 +95,7 @@ Context/Registry 不能重新从零发号。发行器是宿主内部直接函数
 | Session 驱动占位 | `null | {run:RunRef, epoch:OpaqueId}`；在 takeBatch 逻辑提交时取得。waiting/stopping 仍占位；等待时没有运行中的 JS driver 也不让普通输入穿过 |
 | Epoch 的执行者 | `null | {agent:AgentRef, workPermitId, driverGeneration}`；这是当前受管关联，不能由磁盘 DTO 得到能力。退役停驻可清除关联但保持 Run 占位；再次驱动原 Run 要新 epoch |
 | Step | `{step:StepRef, createdEpoch, kind:model|auxiliary, requestBinding|null, trigger, status:running|waiting|settled|failed, proposedCalls:CallRef[], presentedOrder:CallRef[]}`；M1 是具名 `auxiliary` 的确定性工具工作，不能伪造模型结果；M2 一个模型决策及其工具批次为一个 Step，新模型决策新 Step |
-| continuation | `{continuationId, run, sourceStep, call:CallRef|null, request:RequestRef|null, localPrerequisites, state:blocked|ready|claimed|settled|closed, readyAt:Position|null, claimedEpoch:OpaqueId|null}`；只能由来源事实建立/转移，q1/q2 各自独立。readyAt 相同以本批记录顺序裁决 |
+| continuation | `{continuationId, run, sourceStep, call:CallRef|null, request:RequestRef|null, callWork:adjudicate|consume_result|null, localPrerequisites, state:blocked|ready|claimed|settled|closed, readyAt:Position|null, claimedEpoch:OpaqueId|null}`；只能由来源事实建立/转移，q1/q2 各自独立；callWork 是 SR 下一项消费责任，非 TL 调用状态，call=null 时才为 null。readyAt 相同以本批记录顺序裁决 |
 | DriverClaim | `{claimId,run,epoch,step,continuationId:null|OpaqueId,kind:new_step|continuation}`；SR 分配的本次串行驱动事实，只一项 activeClaim。旧 Step 可在新 Run epoch 被合法续接，createdEpoch 不改；真实驱动权限还需当前私有句柄/委托和 AR 许可 |
 | Control | `{operation:OperationRef, run, observedEpoch, scope:run|session, kind:interrupt|resume|cancel|force_stop, stage:accepted|applying|settled, effect:ended|stale_target|pending|applied, stopEvidence, remaining}`；请求受理/逻辑权撤销/真实停止/清理/效果质量分别保存 |
 | Hold | `{operation:OperationRef, revision:Counter, reason:explicit|session_force_stop}` 的活动集合；有任一 hold 就不取新批/Step。continueQueue 携带 expected controlRevision 和明确解除的 hold operations，不用过期清空覆盖新 hold |
@@ -143,6 +143,7 @@ SR 记录 owner 固定 `session`，tenant-scoped streams 为具名元组 `sessio
 | `decision_intent_consumed` | `{sourceOperation,step}`；新 Step 消费原 inputs_taken 或已保存 next_decision 意图，与 step_started/driver_claimed 同批，原意图只能消费一次 |
 | `driver_failed` / `run_failure_requested` | `{run,epoch,claimId,step,code,sourceFacts}` / `{run,epoch,failureOperation,exactCalls,exactRequests,remaining}`；SR 将原 Step 标 failed 并保存不可恢复失败/停止意图，和相关 TL/HD 封闭同批；不是任意 driver 自写 failed |
 | `continuation_waiting` / `continuation_ready` / `continuation_claimed` / `continuation_settled` | 精确 continuation 及原 request/call/来源位置、上一状态、claim epoch；ready 的排序用 envelope Position，claimed 与本次 DriverClaim 同批；已有 sourceStep 不重建 |
+| `call_proposed` | `{step,call,continuationId,sourcePosition,sourceOwner,protocolVersion,presentationIndex}`；与 TL 原 proposed/冻结 Action 同批及 continuation_waiting 互指，只登记原调用和等待 step_returned 的裁决责任，不准入效果 |
 | `call_linked` / `result_linked` | `{step,call,sourcePosition,sourceOwner,protocolVersion,presentationIndex,result:ToolResultBlock|null}`；从 TL 真实事实导入，原 call/attempt 唯一关联；迟到隔离事实不能用此事件替换有效结果 |
 | `control_requested` / `control_progressed` | 完整 Control 的合法前后修订、终止意图、已知 stop 事实/剩余责任；force_stop 的 epoch 封闭发生在 accepted 的 logical publication |
 | `hold_set` / `holds_released` | Hold / `{operations,previousControlRevision}`；释放明确目标，清理成功不产生此事件 |
@@ -362,18 +363,58 @@ recordStepReturn/settleContinuation/settleStep 的 nextIntent 由 SR 在**本次
 
 | driver → SR 操作 | SR 裁决、合法转移及同批记录 |
 |---|---|
-| `recordStepReturn` | 输入 `{source,content:TextBlock[],proposedCalls:CallRef[],nextIntent:finish_run|next_decision|await_calls}`。source 是本部署确定性 driver 的受管返回，或 MC 原请求/attempt 的可核实完整终止事实；不接受 driver 自造模型成功/ToolResult。SR 核对 source 的完整调用列表与 TL 已登记 proposedCalls，保存 step_returned + 对应 checkpoint；无工具完整成功才可作为 settleStep 的依据，partial/unknown 不能冒充成功 |
-| `yieldDriver` | 输入 `{reason:await_facts|park,sourceFacts}`。SR 从已持久 call/wait/结果推导 checkpoint；有尚未结束的精确调用可保持 source Step waiting，将正在等待其结果的 continuation 从 claimed 置 blocked。checkpoint_saved + driver_yielded 同批封闭 activeClaim；有别的合法 ready 则可再取 claim，否则 Run waiting。park 另沿 epoch_parked，不能以 yield 免掉 AR 后代责任 |
+| `recordStepReturn` | 输入 `{source,content:TextBlock[],proposedCalls:CallRef[],nextIntent:finish_run|next_decision|await_calls}`。source 是本部署确定性 driver 的受管返回，或 MC 原请求/attempt 的可核实完整终止事实；不接受 driver 自造模型成功/ToolResult。SR 核对 source 的完整调用列表与 TL 已登记 proposedCalls 及同批建立的 SR 原接续；缺任一绑定返回 unavailable(proposal_handoff_incomplete)，不交还 claim。保存 step_returned + 对应 checkpoint，有 proposed 时的交还按下段同批置就绪，其它 nextIntent 不跳过它；无工具完整成功才可作为 settleStep 的依据，partial/unknown 不能冒充成功 |
+| `yieldDriver` | 输入 `{reason:await_facts|park,sourceFacts}`。SR 从已持久 call/wait/结果推导 checkpoint；有尚未结束的精确调用可保持 source Step waiting，将正在等待其结果的 continuation 从 claimed 置 blocked；仍为 proposed 的原调用不能按“等待结果”阻塞，交还裁决 claim 时必须保留原 adjudicate 就绪责任。checkpoint_saved + driver_yielded 同批封闭 activeClaim；有别的合法 ready 则可再取 claim，否则 Run waiting。park 另沿 epoch_parked，不能以 yield 免掉 AR 后代责任 |
 | `settleContinuation` | 输入 `{continuationId,consumedFacts,nextIntent:finish_run|next_decision|await_facts}`。必须是本 claim 的原接续，其所需 HD 后果/原 call 终态已关联且未重复消费；pending/unknown 未经原 owner 明确处置不结算。continuation_settled + checkpoint_saved + driver_yielded 同批；next_decision 只记录下一决策意图，q2 未答仍保留，不顺带关闭它 |
 | `settleStep` | 输入 `{step,sourceFacts,nextIntent}`，SR 检查完整 step_returned、原 proposedCalls 的可信结果/具名独立责任、该 Step 全部 continuation 已结算且无未处理依赖。step_settled + checkpoint_saved 同批；未满足则报告 waiting，不因 driver 函数 return 就 settled。它可和 settleContinuation 在同一 SR 候选批内成立，不要求先提交两次 |
 | `requestRunCompletion` | 输入 `{sourceFacts}`；SR 核对全部 Step/continuation 的完成判据、没有 pending 请求/ready/在途 driver 后代，剩余责任已结算或确认独立持有。可与最后一次 Step/continuation 结算合成一个 owner_change batch，写 run_settled(completed) + driver_yielded（若仍有 claim）+ driver_released；缺任何条件只返回 waiting/blocked，不能取消请求来凑成功 |
 | `reportDriverFailure` | 输入 `{code,sourceFacts}`，由原受管任务的 throw/reject 接管点调用，错误正文不入普通日志。SR 核验失败属于原 claim，保存 driver_failed，按不可恢复失败在同门封闭继续权并和 TL/HD 的精确终止片段提交 run_failure_requested；其余处置见下段。已先 cancel/force_stop 或旧 epoch 只保留迟到失败，不取代已有终止意图 |
 
-每个 proposed call 都有一条原 SR continuation：直接 allow 时由 prepareCallLink
-在调用联合准入中建立（request=null，前提为原调用终态），ask 时由 prepareWait
-建立并增加人类决定前提；以后准入沿用原 ID，不再建一条。prepareResult 使对应
-结果接续 ready，driver claim 原 Step 后才能消费/结算。因此无 HD 的真实工具
-结果同样有进展路径，不依赖模型轮询或虚构审批请求。
+#### proposed 登记到裁决、结果的交接
+
+TL-07 的 proposed 耐久登记先于当前门裁决。本部署由 TL 在登记时调用下表
+prepareProposedCall：门外准备原冻结 Action、CallRef/来源及 SR 候选，同门核对
+TL 来源 stamp、SR 原 new_step claim/Step/委托/AR 许可后，以一次 owner_change
+提交 TL proposed 与 SR call_proposed + continuation_waiting，两 owner 各有唯一
+publication。SR 只在这里为该 CallRef 分配一次 continuationId，初值为
+`blocked, callWork=adjudicate, request=null`，前提是原 Step 的完整 step_returned。
+此批不释放原 claim，不建 attempt/预算预留/执行许可；重复原操作认回同一绑定。
+本域不接受 TL 先单独落 proposed、再靠通知补 SR；缺 SR 提供者登记不可提交。
+
+recordStepReturn（含 await_calls，其它 nextIntent 也不跳过未裁决调用）核对完整
+列表和这些原绑定后，**同批**保存 step_returned、calls_recorded checkpoint、全部
+尚待裁决接续的 continuation_ready
+和 driver_yielded。耐久前不得 claim 这些正向 ready，logical 交还也不放行新效果。
+原 new_step claim 已登记 proposed 但尚未完整返回时，yieldDriver(await_facts)
+拒绝交还，须经 recordStepReturn 完成交接；park 仍保留原交付责任。交还后有
+可认回的 adjudicate 工作，不能只写 waiting，期待尚不存在的审批/执行结果。
+acquireNextStep(continuation) 取得原 Step 的新 claim 后，
+才向 TL 当前门交原调用；以下裁决都消费此 claim，不修改 CallRef.owner/Action。
+
+| TL 当前裁决 | 同一原接续及 claim 的去向 |
+|---|---|
+| allow | action_execution 同批保存 TL 准入/原 attempt 与 SR call_linked、continuation_waiting(callWork=consume_result)、checkpoint、driver_yielded；原接续等待该调用终态，耐久且许可仍有效才可执行 |
+| ask | request_wait 同批保存原 HD 请求/TL waiting 与 SR 原接续的 request/人类决定前提、checkpoint、driver_yielded；不分配另一接续。HD approve 后同一 adjudicate 接续 ready，再取得原 Step claim 重检当前门 |
+| 直接 deny | owner_change 同批保存 TL settled(denied_before_execution)、本次 AU 拒绝审计及 SR result_linked、continuation_ready(callWork=consume_result)、checkpoint、driver_yielded。无 attempt、预算预留或 HD 请求，禁止工具效果；不能把 deny 仅作为 RPC 返回丢弃 |
+
+ask 后的拒绝也必须关联 TL 原执行前终态才可消费结果；HD 决定自身不冒充
+ToolResultBlock。prepareResult 用 TL 发行的执行前终态证据接受直接 deny，不要求
+不存在的 executionEpoch。原结果接续 ready 后再 claim 原 Step，并以
+settleContinuation 消费/结算；q2 独立待答不阻碍此过程。unavailable/prepare_again
+不是 deny，更不是结果；原 proposed/接续/持有责任保留，不能静默结算或忙重试。
+
+恢复按同水位的 TL proposed/终态与 SR 绑定、step_returned/claim 事实重建：
+已交还而未裁决保留原 adjudicate ready；deny 批已耐久则恢复原 consume_result
+ready，丢通知/回执不再裁决或执行。若崩溃时旧 adjudicate claim 尚在且 TL 仍为
+proposed 或已执行前拒绝，recoverRun 用 epoch_replaced 同批封闭旧 claim，并把
+**同一接续**恢复为对应 ready；其它 TL 状态按原等待/执行事实恢复，不能统统置
+就绪。只有当前身份/新 epoch/AR 许可齐备才能再 claim 原 Step。proposed 登记已
+耐久而 step_returned 未耐久时，仍保留原 Step 的完整返回交付责任与 blocked 接续，
+不推断已交还；恢复缺原完整输出或原 Step 的当前受管 claim 时明确 blocked，
+不能用新 Step/伪造完整返回/重发调用填补缺失。
+同域 proposed 缺 SR 绑定是组成/恢复错误，不以新建空接续掩盖；强停、已关闭或
+未解除的全局阻塞照常封闭继续权。所有认回沿原 CallRef/Action/continuationId，
+无效果的执行前 deny 不得恢复出 attempt。
 
 无工具返回且 nextIntent=finish_run：recordStepReturn 在符合条件时必须把
 step_settled/checkpoint/run_settled/driver_yielded/driver_released 合为一次提交，
@@ -417,10 +458,11 @@ S 中独立 q2 已答，模型投影
 
 | 方向与消费端口 | 必需 shape、核验及同批关系 |
 |---|---|
-| TL → SR `prepareCallLink/checkCallLink` | 原 WorkOwner=StepRef、Run/epoch、CallRef、proposed 顺序、精确 Action/来源 owner stamp；核对 SR 当前 DriverClaim.step（可为续接的原 Step）/委托/AR 许可和原 CallRef.owner/Action.owner。TL action_execution 聚合 AU 判定、HD 消费（如有）、BG 预留、TL 调用与 SR link，一次 batch |
-| HD/TL → SR `prepareWait/checkWait` | `{run,epoch,step,call,request,continuationId,action,requestContentVersion,localPrerequisites}`；来源 owner 私有候选证明原 Action/request。`request_wait` 同批持久 request/Action/调用 waiting 与 SR continuation_waiting/checkpoint；耐久前不展示可答请求 |
+| TL → SR `prepareProposedCall/checkProposedCall` | `{run,epoch,claim,call,action,source,presentationIndex}`；TL 私有候选包含冻结 Action/CallRef 与 proposed 记录，source 证明来自原 Step 的受管输出。SR 检查当前 new_step claim、未完整返回的 Step、原 WorkOwner/Action.owner、顺序/去重和 TL stamp；返回原 continuationId、SR 私有记录/publication 候选。一次 owner_change 登记两 owner 原事实，保留 claim；sourcePosition 引用本批 TL proposed，不能由 driver 拼接事实 |
+| TL → SR `prepareCallLink/checkCallLink` | 原 WorkOwner=StepRef、Run/epoch、CallRef、continuationId、精确 Action/来源 owner stamp；核对 SR 当前 adjudicate DriverClaim.step（可为续接的原 Step）/委托/AR 许可和原 CallRef.owner/Action.owner。TL action_execution 聚合 AU 判定、HD 消费（如有）、BG 预留、TL 调用与 SR link/原接续转等待/yield，一次 batch；不得在此首建接续 |
+| HD/TL → SR `prepareWait/checkWait` | `{run,epoch,step,call,request,continuationId,action,requestContentVersion,localPrerequisites}`；来源 owner 私有候选证明原 Action/request。`request_wait` 核对原 adjudicate claim/已登记接续，同批持久 request/Action/调用 waiting 与 SR 原 continuation_waiting/checkpoint/driver_yielded；耐久前不展示可答请求，不首建接续 |
 | HD → SR `prepareConsequence/checkConsequence` | `{request,contentVersion,outcomeVersion,call,continuationId,sourceOperation,outcome}`；HD 当前唯一决定/后果候选，SR 核对原等待与全局终止。`answer_consequence` 同批保存 HD 决定/后果和 SR ready 或具名 closed 结果；approve 不直接启动工具 |
-| TL → SR `prepareResult/checkResult` | `{call,step,sourcePosition,executionEpoch,result:ToolResultBlock,terminalEvidence}`；结果由 TL 原权威认回，引用已耐久原事实或本批拟提交的唯一终态；SR 原绑定匹配后 result_linked，并仅使它依赖的 continuation ready，同批结果确认前不可消费。可同域联合结算；否则 TL 保留具名待交付后果直到 SR 回执 |
+| TL → SR `prepareResult/checkResult` | `{call,step,sourcePosition,result:ToolResultBlock,terminalEvidence}`；terminalEvidence 为 TL 私有事实：`before_execution {proposalRevision,terminalVersion,decisionOperation}` 或 `execution {executionOwner,executionEpoch,terminalVersion}`，分别核对未建立 attempt 的原执行前终态或原执行 owner/epoch。来源是已耐久事实或本批唯一终态；SR 核对已登记原接续后 result_linked + ready(callWork=consume_result)，若是直接 deny 则同批 yield 对应 adjudicate claim；无此 claim 的耐久结果交付不虚构 claim。确认前不可消费，不能把缺执行身份的任意 DTO 当执行前事实；分次交付由 TL 保留具名后果至 SR 回执 |
 | SR → TL/HD `prepareRunControl/checkRunControl` | `{run,observedEpoch,controlOperation,kind:interrupt|cancel|force_stop|driver_failure,scope,exactCalls,exactRequests}`；所有原非终态自有调用由 SR/TL 同门快照确认，TL/HD 各给自己的记录/publication。SR 保存停止或失败意图/阻塞，HD 关闭应关闭请求/后果，TL 封闭未接纳调用；同域一次 owner_change batch |
 | SR → TL `inspectRunCalls/requestStop` | 原 CallRef、执行 owner identity/protocol、原执行 epoch、controlOperation；只查询/停止同一 attempt。异步执行器账本交接沿 CC-05，响应丢失查原操作，SR 保留待交付意图 |
 | TL → SR `prepareStopProgress/checkStopProgress` | `{call,executionEpoch,controlOperation,acceptance,physical,isolation,cleanup,effect,sourcePosition}`；各字段独立，证明覆盖迟到 start/旧结果入口。未知/not_found/本地 abort 无法令 SR 释放占位 |
@@ -431,8 +473,9 @@ S 中独立 q2 已答，模型投影
 同域来源若先已耐久，再独立交 SR，源后果以原 CallRef/终态版本稳定去重，SR 返回
 原 Receipt；不能以“已收到通知”让 TL 删除待交付责任。强停已封闭或终态后的事实
 进入 late_fact_recorded 或原 TL 账目，继续保留外部效果/费用，不更新有效 Run 输出。
-普通热释放/恢复后的独立 TL owner 可以把原 call 的合法结果交给当前 SR：原
-执行 epoch 与当前 Run epoch 分别核验，原调用未被强停/结算取代、结果来源已核实，
+普通热释放/恢复后的独立 TL owner 可以把原 call 的合法结果交给当前 SR：实际
+执行的原 epoch 与当前 Run epoch 分别核验；执行前终态核验原 proposed/决定来源。
+原调用未被强停/结算取代、结果来源已核实，
 当前接收操作按新的 SR 资格同门提交，不能让旧 Agent 回调代行。结果可在无 Agent
 时入账/使接续 ready，取得新 Step 仍须当前 AR 许可；这条事实通道不授新工具执行权。
 HD 的决定后果也使用原 request/outcomeVersion；新 attempt 不能消费旧批准。
@@ -591,10 +634,10 @@ creator-agent 归属不足以实现本稿；直接改其 registry/factory/dispat
 |---|---|
 | R0 共享声明与组合测量，kernel-developer 拥有 `packages/core/agent/src/` 的本稿窄接口及对应测试；capability-developer 顺序交付 `packages/session/session/src/` 数据/事件/纯 fold 与对应测试 | 本稿/治理对应面受审接受；已验证 work-data、最终 records。先让公开编译边界存在，再以错 tenant/非法转移/旧候选/跨包端口错配真正 RED→GREEN；共享接口实际打包、独立消费者编译后才给消费者并行施工。声明通过不开放运行 |
 | R1 agent，kernel-developer 独占 `packages/core/agent/` | 真实 P1 writer/admission/diagnostics、R0；SR attachment/访问提供者未齐时只能完成边界符合性，不能宣称产品激活。按 S02/S03/S09 先双激活/晚到准备 RED，再真实 Cordis 准备/退出 GREEN，补通知重入/自等待/失联 |
-| R2 Session，capability-developer 独占 `packages/session/session/` | 真实 P1、已交付 TG/AU 当前根/管理面、本机身份适配、R0/R1 公共产物。S01/S04/S05/S06：真实 create/enqueue→单 batch/Run→唯一 Step→控制/停驻恢复，逐项 RED→GREEN；交付 SR 的 driver 进展/结算、attachment/RuntimeAccess、AU Session/工作事实及 TG ReferenceInventory；S14–S17 同门组合是相应开放门 |
+| R2 Session，capability-developer 独占 `packages/session/session/` | 真实 P1、已交付 TG/AU 当前根/管理面、本机身份适配、R0/R1 公共产物。S01/S04/S05/S06：真实 create/enqueue→单 batch/Run→唯一 Step→控制/停驻恢复，逐项 RED→GREEN；交付 SR 的 driver 进展/结算、attachment/RuntimeAccess、AU Session/工作事实及 TG ReferenceInventory；S14–S18 同门组合是相应开放门 |
 | R3 persistence，infrastructure-developer 独占 `packages/session/persistence/` | R0 事件/纯 fold、真实 records reader/jsonl；S07/S10 用真实 journal kill/reopen、错误版本/同批缺项 RED→GREEN；不自带写提供者。可与 R1/R2 后续行为并行，恢复安装须等真实 SR 根 |
 | R4 projection，capability-developer 独占 `packages/session/projection/` | R0/R2 的确认事件、权限快照交接；S01/S08 的缺投影/错 checkpoint/撤回/读权改变 RED→GREEN。完整视图不承担授权，直接扩展原 fold，不能等 P3 再补 SR 可读历史 |
-| R5 最小节点装配，application-developer 独占 `apps/local-harness/` 中派定身份/启动/CLI/确定性驱动及普通流程测试；verification-developer 独占另行派定组合/故障测试文件 | 真实 P1、R1–R4、TG/AU/BG 管理/消费产物、真实 TL/local-execution 与资源权限。S01–S10 适用子场景、真实文件闭环及独立 tarball；文档给可启动命令/提交后交接，ask 可保持明确 unavailable。绝不把测试 fixture 放进可交付装配 |
+| R5 最小节点装配，application-developer 独占 `apps/local-harness/` 中派定身份/启动/CLI/确定性驱动及普通流程测试；verification-developer 独占另行派定组合/故障测试文件 | 真实 P1、R1–R4、TG/AU/BG 管理/消费产物、真实 TL/local-execution 与资源权限。S01–S10 适用子场景、S18 的执行前拒绝恢复、真实文件闭环及独立 tarball；文档给可启动命令/提交后交接，ask 可保持明确 unavailable。绝不把测试 fixture 放进可交付装配 |
 | R6 本批后续，原 SR/TL/HD/Loop owner 各自写原包 | 真实 HD/request_wait/answer_consequence 和 TL 停止协议，完成 S06/S11–S13 的完整审批/动态/控制；M2 接实际 MC/OpenRouter/deferred receipt。必要 AR/SR 安全门不延到此阶段才实现 |
 
 R0 是顺序固定共享面，不意味着两作者可同时写 agent/session 公共文件；固定后
@@ -609,7 +652,7 @@ R1/R2 按它并行实现互相需要的注入面，真实 AR+SR 组合是共同�
 | 当前 TG/AU 与对象权限 | TG 当前成员/定义选用/权益和具名 emergency_control；AU busy_input/所需配置及真实 grant；SR 对象政策/委托映射。沿已接受治理接口固定 SR 权限词/实际导出归属，交付 settingsUser/原 acquisition/设置写 current 与引用清单后编译；不通过 preset 表冒充管理路径 |
 | SR 引用清单 | Session 作者实现 TG ReferenceInventory、所有原 Session/Run/attachment 引用、source revision 与同门检查；实际 SR 创建和 TG 退役/停用竞争通过 S17。已开放 SR 时缺提供者为 unavailable，不等 P3 再补无引用判断 |
 | 原定义到 Factory/driver 的装配 | 部署可信定义解码器/Factory owner 提供精确 DefinitionVersion→factoryKey/实现/必要服务/driver 协议，TG 检查实际选用/use；正文不是可执行脚本。缺失/不兼容返回 unavailable，不换默认 Factory |
-| 工具资源/本地执行/预算 | TL/资源 owner 提供真实冻结 Action/当前资源 mayPerform/mayDelegate/精确绑定及调用事实；BG 提供真实本地零计费来源与准入；local-execution 持久接纳/停止账本。最小节点前必须实现 allow、结果恢复、unknown 与迟到停止，不能只交 DTO |
+| 工具资源/本地执行/预算 | TL/资源 owner 提供真实冻结 Action/当前资源 mayPerform/mayDelegate/精确绑定及调用事实；BG 提供真实本地零计费来源与准入；local-execution 持久接纳/停止账本。TL 与 SR 共同交付 proposed 登记、直接 deny 结果和 S18 恢复；最小节点前必须实现 allow、结果恢复、unknown 与迟到停止，不能只交 DTO |
 | HD | HD 作者提供 request/decision/后果权威、同批片段与对原 source 的消费；SR 上表 wait/consequence/control 提供者先就绪。没有真实 HD 时 ask 禁止执行；完整 M1 前须 S11 全部通过 |
 | 模型 | MC/Loop 作者提供模型选择资格、请求/结果/停止事实和真实 M2 驱动；SR 消费与 TL 同等的原 attempt/epoch/停止义务。确定性节点不依赖 MC，模型路径未实现明确 unavailable |
 
@@ -639,6 +682,7 @@ R1/R2 按它并行实现互相需要的注入面，真实 AR+SR 组合是共同�
 | S15 / A03/TG-05 | 同一 DefinitionVersion 下选用 a/b 配置不同，Session 原属 a；准备后 configure/disable/remove a，再同版本重选 c 并重启 → 不借 b/c，不混当前 Run 配置；原 a 被移除后后续使用阻塞，已准入/历史原关联保留 |
 | S16 / A11/A01 | owner 与仅有 emergency_control 的管理者分别 set/clear Session confirmation_mode，准备后撤权或停用；再测 false/null → 只有 owner 的独立设置权可提交，旧候选拒绝，非法值不变 clear，重启恢复 AU 原覆盖/来源，未做模型选择 |
 | S17 / A03/TG-05/PF-010.C10 | TG 先准备空引用清单，SR create/attachment 先占位；反向让 TG disable 先提交；再撤掉 SR inventory/加载缺口 → 前者 TG 重准备并报告新增引用，后者 SR 当前门拒绝；缺来源 unavailable 而非空。已存在引用不级联删除/强停，也不向无正文/元数据权的管理者泄漏内容或存在性 |
+| S18 / A09/A17/TL-07 | 真实 TL proposed 与 SR 原接续联合耐久登记，driver recordStepReturn(await_calls) 交还 claim；尚无 allow/ask 时取原 adjudicate 接续并让当前门直接 deny，在 deny 批耐久后、结果消费前 kill/reopen。另在交还后/裁决 claim 后分别重启，并阻断登记/交还/deny 批的 fsync、丢回执/通知 → 原 Step/CallRef.owner/Action/continuationId 不变，交还后原裁决 ready 可查；重启认回原执行前拒绝结果并按 finish_run 串行结算，无新 Step/attempt/HD 请求、无工具效果（真实文件保持原值/不存在），旧 claim 拒绝、相同操作无第二结果。缺 proposed→SR 绑定拒绝交还/恢复，不以待工具结果永远挂住 |
 
 这些是施工验收输入，当前均 **未执行本稿产品符合性测试**；S10 的 P1 已有机制
 场景也必须在真实业务 owner 接入后验证。两进程 writer 排他沿 A06，两个 AR/SR
@@ -669,3 +713,16 @@ S14–S17 是实施必须测量的场景，本轮没有运行产品测试或以�
 文档/范围检查针对最终本稿运行，日志存 `tmp/session-runtime-design/docs-check-r1-r4.log`；
 实际 `make docs-check BASELINE=de39a86` 通过 404 份 Markdown，`git diff --check`
 及写入范围检查通过。未宣称语言记法可编译，也未自行认定评审通过。
+
+### 对 a58bc7c 复核剩余 R1 的定点修订
+
+本轮 actor `agt-032` 仅补 proposed→裁决→结果交接；R2–R4 及其已复核内容未重写。
+新增 prepareProposedCall 的 TL/SR 同批登记与原接续身份，明确 recordStepReturn
+交还前提/同批 ready、三路裁决消费 claim、执行前 deny 结果证据及恢复来源。
+施工门增加 S18，要求原 Step/Action/CallRef 不变且实际零效果；这些仍是待执行
+产品测量，没有运行产品测试、条件断言或额外上游实验。本稿仍为 proposed，
+交由原 architecture-reviewer 定点复核，不自行接受。
+
+本轮文档/范围检查日志为 `tmp/session-runtime-design/docs-check-proposed-deny.log`；
+实际 `make docs-check BASELINE=de39a86` 通过 404 份 Markdown；`git diff --check`
+及允许路径检查通过，仅本页发生受版本控制的修改。检查不证明产品运行或架构接受。
