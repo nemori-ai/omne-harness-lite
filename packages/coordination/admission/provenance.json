@@ -6,6 +6,18 @@
     {
       "path": "src/index.ts",
       "purpose": "Public admission types and coordinator factory implementation"
+    },
+    {
+      "path": "evidence/provider/README.md",
+      "purpose": "Fixed provider verification scope, results, artifact identity, and limits"
+    },
+    {
+      "path": "evidence/provider/public-consumer.ts",
+      "purpose": "Strict TypeScript packed-package consumer used by the fixed verification"
+    },
+    {
+      "path": "evidence/provider/runtime-consumer.mjs",
+      "purpose": "Default-entry runtime consumer used by the fixed verification"
     }
   ]
 }
