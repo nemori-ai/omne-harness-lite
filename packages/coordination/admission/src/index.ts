@@ -1612,7 +1612,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
     try {
       const context = this.diagnostics.scope(identity)
       const point: DiagnosticPoint = Object.freeze({
-        component: draft.owner === undefined ? 'admission' : `admission:${draft.owner}`,
+        component: 'admission',
         phase: draft.phase,
         code: draft.code,
         level: draft.level,

@@ -466,7 +466,12 @@ describe('strict callback contracts and publication blocking', () => {
       publication: 'blocked',
     })
     await turn()
-    expect(diagnostics.points.some(point => point.phase === 'late_rejection')).toBe(true)
+    const lateRejection = diagnostics.points.find(point => point.phase === 'late_rejection')
+    expect(lateRejection).toMatchObject({
+      component: 'admission',
+      code: 'publish_logical_rejected',
+      position: result.position,
+    })
   })
 
   it('marks a durable publication throw as blocked only after the committed writer result', async () => {
