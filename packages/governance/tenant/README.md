@@ -12,8 +12,10 @@ the public work-data identities instead of copying them. `PermissionScope` remai
 [authorization package](../authorization/design.md#permissionscope).
 
 The same entry exports strict decoders and pure folds for the accepted bootstrap, personal-index,
-tenant-creation, and member-change records. The fold retains consumed join revisions and validates
-the personal-owner and organization-super-admin invariants. It returns frozen copies and does not
+tenant-creation, and member-change records. The fold retains consumed membership joins and validates
+the personal-owner and organization-super-admin invariants. A consumed join is identified by the
+complete `(MembershipRef, joinedRevision)` pair, so different members may carry the same counter
+while a removed member's prior basis cannot revive. The fold returns frozen copies and does not
 adopt caller-owned objects as authority state.
 
 These are consumer contracts. The opaque invocation and access-candidate types prevent ordinary

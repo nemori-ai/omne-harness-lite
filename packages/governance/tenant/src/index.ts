@@ -56,6 +56,7 @@ export type {
   Member,
   MemberRole,
   MemberState,
+  MembershipJoin,
   PersonalTenantClaim,
   Tenant,
   TenantFoldState,

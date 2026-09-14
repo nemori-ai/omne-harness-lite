@@ -1,4 +1,10 @@
-import type { Checked, OpaqueId, UserRef, ValidationIssue } from '@omne-harness-lite/work-data'
+import type {
+  Checked,
+  MembershipRef,
+  OpaqueId,
+  UserRef,
+  ValidationIssue,
+} from '@omne-harness-lite/work-data'
 import type { Counter, OwnedRecord, Principal } from '@omne-harness-lite/records'
 
 export type TenantKind = 'personal' | 'organization'
@@ -6,7 +12,7 @@ export type MemberRole = 'owner' | 'super_admin' | 'member'
 export type MemberState = 'active' | 'suspended' | 'removed'
 
 export type Member = Readonly<{
-  member: Readonly<{ tenantId: OpaqueId; userId: OpaqueId }>
+  member: MembershipRef
   role: MemberRole
   state: MemberState
   revision: Counter
@@ -43,10 +49,12 @@ export type TenantRecordEvent =
       data: Readonly<{ member: Member; previousRevision: Counter; reason: string }>
     }>
 
-/** Derived fold state retains every consumed join revision so a removed identity cannot revive. */
+export type MembershipJoin = Readonly<Pick<Member, 'member' | 'joinedRevision'>>
+
+/** Derived fold state retains every consumed membership join so a removed identity cannot revive. */
 export type TenantFoldState = Readonly<{
   tenant: Tenant
-  usedJoinedRevisions: readonly Counter[]
+  joinHistory: readonly MembershipJoin[]
 }>
 
 class RecordShapeError extends Error {
@@ -369,24 +377,42 @@ function nextCounter(value: Counter): Counter {
 
 function snapshotFoldState(value: TenantFoldState): TenantFoldState {
   const currentTenant = tenant(value.tenant, '/state/tenant')
-  if (!Array.isArray(value.usedJoinedRevisions)) {
-    throw new RecordShapeError('/state/usedJoinedRevisions', 'must be an array')
+  if (!Array.isArray(value.joinHistory)) {
+    throw new RecordShapeError('/state/joinHistory', 'must be an array')
   }
-  const revisions = value.usedJoinedRevisions.map((entry, index) =>
-    counter(entry, `/state/usedJoinedRevisions/${index}`, true),
-  )
-  if (new Set(revisions).size !== revisions.length) {
-    throw new RecordShapeError('/state/usedJoinedRevisions', 'must not contain duplicates')
+  const history = value.joinHistory.map((entry, index) => {
+    const path = `/state/joinHistory/${index}`
+    const object = exactObject(entry, path, ['member', 'joinedRevision'])
+    const reference = exactObject(object.member, `${path}/member`, ['tenantId', 'userId'])
+    const result: MembershipJoin = Object.freeze({
+      member: Object.freeze({
+        tenantId: nonEmptyString(reference.tenantId, `${path}/member/tenantId`),
+        userId: nonEmptyString(reference.userId, `${path}/member/userId`),
+      }),
+      joinedRevision: counter(object.joinedRevision, `${path}/joinedRevision`, true),
+    })
+    if (result.member.tenantId !== currentTenant.tenantId) {
+      throw new RecordShapeError(`${path}/member/tenantId`, 'membership tenant does not match')
+    }
+    return result
+  })
+  const keys = history.map(joinKey)
+  if (new Set(keys).size !== keys.length) {
+    throw new RecordShapeError('/state/joinHistory', 'must not contain duplicates')
   }
   for (const entry of currentTenant.members) {
-    if (!revisions.includes(entry.joinedRevision)) {
-      throw new RecordShapeError('/state/usedJoinedRevisions', 'missing current join revision')
+    if (!keys.includes(joinKey(entry))) {
+      throw new RecordShapeError('/state/joinHistory', 'missing current membership join')
     }
   }
   return Object.freeze({
     tenant: currentTenant,
-    usedJoinedRevisions: Object.freeze(revisions),
+    joinHistory: Object.freeze(history),
   })
+}
+
+function joinKey(value: MembershipJoin): string {
+  return JSON.stringify([value.member.tenantId, value.member.userId, value.joinedRevision])
 }
 
 function applyMemberChange(
@@ -403,7 +429,8 @@ function applyMemberChange(
   const members = [...state.tenant.members]
   const index = members.findIndex(entry => entry.member.userId === changed.member.userId)
   const previous = members[index]
-  const used = new Set(state.usedJoinedRevisions)
+  const used = new Set(state.joinHistory.map(joinKey))
+  const history = [...state.joinHistory]
   if (previous === undefined) {
     if (
       event.data.previousRevision !== '0' ||
@@ -415,11 +442,12 @@ function applyMemberChange(
         'new member must begin active at revision 1 from revision 0',
       )
     }
-    if (used.has(changed.joinedRevision)) {
-      throw new RecordShapeError('/data/member/joinedRevision', 'join revision was already used')
+    if (used.has(joinKey(changed))) {
+      throw new RecordShapeError('/data/member/joinedRevision', 'membership join was already used')
     }
     members.push(changed)
-    used.add(changed.joinedRevision)
+    history.push(Object.freeze({ member: changed.member, joinedRevision: changed.joinedRevision }))
+    used.add(joinKey(changed))
   } else {
     if (
       event.data.previousRevision !== previous.revision ||
@@ -437,14 +465,17 @@ function applyMemberChange(
       if (
         changed.state !== 'active' ||
         changed.joinedRevision === previous.joinedRevision ||
-        used.has(changed.joinedRevision)
+        used.has(joinKey(changed))
       ) {
         throw new RecordShapeError(
           '/data/member/joinedRevision',
           'rejoin requires a new unused join revision',
         )
       }
-      used.add(changed.joinedRevision)
+      history.push(
+        Object.freeze({ member: changed.member, joinedRevision: changed.joinedRevision }),
+      )
+      used.add(joinKey(changed))
     } else if (changed.joinedRevision !== previous.joinedRevision) {
       throw new RecordShapeError(
         '/data/member/joinedRevision',
@@ -459,7 +490,7 @@ function applyMemberChange(
   })
   return Object.freeze({
     tenant: nextTenant,
-    usedJoinedRevisions: Object.freeze([...used]),
+    joinHistory: Object.freeze(history),
   })
 }
 
@@ -479,12 +510,18 @@ export function foldTenantRecords(
         if (state !== null) throw new RecordShapeError('/kind', 'tenant was already created')
         state = Object.freeze({
           tenant: event.data.tenant,
-          usedJoinedRevisions: Object.freeze(
-            event.data.tenant.members.map(entry => entry.joinedRevision),
+          joinHistory: Object.freeze(
+            event.data.tenant.members.map(entry =>
+              Object.freeze({
+                member: entry.member,
+                joinedRevision: entry.joinedRevision,
+              }),
+            ),
           ),
         })
-        if (new Set(state.usedJoinedRevisions).size !== state.usedJoinedRevisions.length) {
-          throw new RecordShapeError('/data/tenant/members', 'join revisions must be unique')
+        const keys = state.joinHistory.map(joinKey)
+        if (new Set(keys).size !== keys.length) {
+          throw new RecordShapeError('/data/tenant/members', 'membership joins must be unique')
         }
         continue
       }

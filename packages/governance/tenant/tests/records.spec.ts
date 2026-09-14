@@ -94,6 +94,29 @@ describe('tenant record decoder and fold', () => {
     expect(Object.isFrozen(folded.value.tenant.members[0])).toBe(true)
   })
 
+  it('scopes join-revision reuse to the complete membership identity', () => {
+    const folded = foldTenantRecords(null, [
+      record('tenant.created', {
+        tenant: {
+          ...organization,
+          members: [
+            organization.members[0],
+            {
+              member: { tenantId: 'tenant-1', userId: 'bob' },
+              role: 'member',
+              state: 'active',
+              revision: '1',
+              joinedRevision: '1',
+              delegatedOperations: [],
+            },
+          ],
+        },
+      }),
+    ])
+
+    expect(folded.ok).toBe(true)
+  })
+
   it('rejects unknown versions, unknown kinds, malformed members, and invalid personal roots', () => {
     expect(decodeTenantRecord(record('tenant.created', { tenant: organization }, '2')).ok).toBe(
       false,

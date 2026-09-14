@@ -194,6 +194,10 @@ joinedRevision 与当前不符即失效，重新加入不会恢复旧依据；�
 核对当前权限交集，不靠 observedRevision 相同或身份相同保持过期资格。
 到期在每次 gate 使用同一受信时间样本核对；异步准备中的未到期不授权稍后提交。
 
+当前纯 fold 的防复活历史按完整 `(MembershipRef, joinedRevision)` 认回；Counter
+只在该成员关系内区分加入代次，不要求不同成员之间全租户唯一。此前按裸 Counter
+拒绝不同成员相同 joinedRevision 是实现过度约束，本次修正不新增业务政策。
+
 ## 共同值与协议的维护归属
 
 本轮维护在独立只读复核后明确实现声明的归属：本包公共类型面拥有 VersionSet、
