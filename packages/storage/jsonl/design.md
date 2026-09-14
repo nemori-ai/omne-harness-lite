@@ -151,6 +151,13 @@ lookupOperation 必须按原 outcome 区分 committed 与 conflict，返回原 R
 证明。not_committed 只证明该存储操作，不证明外部 attempt 无效果。若旧 writer
 仍可追加或独立只读者不能确认当前前缀，返回 unknown/unavailable。
 
+stream revision 遵循 records 的共享批次规则：一个 envelope 对每个被触及 stream
+恰好加一，与该 append 内的 record 数量无关。seq 仍按 envelope 加一，record 在
+append 内保持原顺序。assigned、durable、Receipt、扫描、恢复索引和 writer epoch
+必须调用同一修订算法；不能让排位时接受的 expectedRevision 在同步或重开后换成
+另一种解释。恢复若遇到完整的历史 `+N` 后继链，按 revision gap 拒绝取得可写
+writer 并保留原 journal 字节，不探测双算法、不改写历史文件。
+
 ## writer epoch、锁、恢复与关闭
 
 writer epoch 使用同一 journal 的 records owner 管理批次，不新增需跨文件原子

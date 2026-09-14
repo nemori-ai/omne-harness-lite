@@ -537,7 +537,7 @@ function revisionsAfter(
   return Object.freeze(
     appends.map(append => {
       const key = streamKey(append.stream)
-      const next = (revisions.get(key) ?? 0n) + BigInt(append.records.length)
+      const next = (revisions.get(key) ?? 0n) + 1n
       revisions.set(key, next)
       return Object.freeze({ stream: append.stream, revision: next.toString() })
     }),

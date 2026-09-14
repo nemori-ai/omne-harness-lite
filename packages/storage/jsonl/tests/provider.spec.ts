@@ -323,7 +323,7 @@ describe('durable JSONL provider', () => {
       expect(writer.commit(conflicting.prepared)).toEqual(conflictResult)
 
       const head = await writer.readHead([stream])
-      expect(head).toMatchObject({ status: 'read', value: { streams: [{ revision: '3' }] } })
+      expect(head).toMatchObject({ status: 'read', value: { streams: [{ revision: '2' }] } })
       if (head.status !== 'read') return
       const range = await writer.readRange({
         afterSeq: '1',
