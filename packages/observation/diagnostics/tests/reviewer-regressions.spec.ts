@@ -468,3 +468,120 @@ describe('D1-R6 persisted gap summaries', () => {
     }
   })
 })
+
+describe('D1-R1 shared directory budgets', () => {
+  it('includes an older live generation and its pending span end in the directory byte budget', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'r1-directory-bytes-'))
+    const limits = {
+      maxRecordBytes: 1_024,
+      maxBufferBytes: 2_048,
+      maxFileBytes: 2_000,
+      maxDirectoryBytes: 2_400,
+      maxFiles: 4,
+    } as const
+    const oldCreation = await createLocalDiagnostics(options(directory, 'source-r1-old', limits))
+    expect(oldCreation.status).toBe('created')
+    if (oldCreation.status !== 'created') return
+    const oldRuntime = oldCreation.runtime
+    await waitForCode(directory, 'diagnostic.source_started')
+    const oldContext = oldRuntime.diagnostics.scope(identity())
+    const oldSpan = oldRuntime.diagnostics.startSpan(oldContext, point('r1.old_span'))
+
+    const originalWrite = nodeFs.write as unknown as FlexibleCall
+    let pendingOldSpan: unknown[] | undefined
+    const writeSpy = vi.spyOn(nodeFs, 'write').mockImplementation(((...args: unknown[]) => {
+      if (pendingOldSpan === undefined) {
+        pendingOldSpan = args
+        return undefined
+      }
+      return originalWrite(...args)
+    }) as typeof nodeFs.write)
+    let newRuntime: DiagnosticsRuntime | undefined
+    try {
+      oldSpan.end({ code: 'r1.old_span_done', outcome: 'ok' })
+      await waitFor(oldRuntime, status => status.pendingBytes > 0)
+      const newCreation = await createLocalDiagnostics(options(directory, 'source-r1-new', limits))
+      expect(newCreation.status).toBe('created')
+      if (newCreation.status !== 'created') return
+      newRuntime = newCreation.runtime
+
+      expect(pendingOldSpan).toBeDefined()
+      if (pendingOldSpan !== undefined) originalWrite(...pendingOldSpan)
+      writeSpy.mockRestore()
+      syncBuiltinESMExports()
+      await waitForCode(directory, 'r1.old_span_done')
+
+      const newContext = newRuntime.diagnostics.scope(identity())
+      for (let index = 0; index < 30; index += 1) {
+        oldRuntime.diagnostics.log(oldContext, point(`r1.old.${index}`))
+        newRuntime.diagnostics.log(newContext, point(`r1.new.${index}`))
+      }
+      await waitFor(oldRuntime, status => status.pendingBytes === 0)
+      await waitFor(newRuntime, status => status.pendingBytes === 0)
+
+      const sizes = await Promise.all(
+        (await readdir(directory)).map(async file => (await nodeFsPromises.stat(join(directory, file))).size),
+      )
+      expect(Math.max(...sizes)).toBeLessThanOrEqual(limits.maxFileBytes)
+      expect(sizes.reduce((sum, size) => sum + size, 0)).toBeLessThanOrEqual(
+        limits.maxDirectoryBytes,
+      )
+    } finally {
+      writeSpy.mockRestore()
+      syncBuiltinESMExports()
+      if (pendingOldSpan !== undefined && oldRuntime.inspect().pendingBytes > 0) {
+        originalWrite(...pendingOldSpan)
+      }
+      await oldRuntime.close({ deadlineMs: 1_000 })
+      if (newRuntime !== undefined) await newRuntime.close({ deadlineMs: 1_000 })
+    }
+  })
+
+  it('reserves maxFiles across concurrent factory creation', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'r1-directory-files-'))
+    const originalOpen = nodeFs.open as unknown as FlexibleCall
+    const pendingOpens: unknown[][] = []
+    const opened = new Promise<void>(resolveOpened => {
+      vi.spyOn(nodeFs, 'open').mockImplementation(((...args: unknown[]) => {
+        pendingOpens.push(args)
+        if (pendingOpens.length === 2) {
+          for (const pending of pendingOpens) originalOpen(...pending)
+          resolveOpened()
+        }
+        return undefined
+      }) as typeof nodeFs.open)
+    })
+    syncBuiltinESMExports()
+
+    let runtimes: DiagnosticsRuntime[] = []
+    try {
+      const creations = await Promise.all([
+        createLocalDiagnostics(
+          options(directory, 'source-r1-concurrent-a', {
+            maxFiles: 1,
+          }),
+        ),
+        createLocalDiagnostics(
+          options(directory, 'source-r1-concurrent-b', {
+            maxFiles: 1,
+          }),
+        ),
+        opened,
+      ])
+      runtimes = creations
+        .slice(0, 2)
+        .flatMap(result =>
+          result !== undefined && 'status' in result && result.status === 'created'
+            ? [result.runtime]
+            : [],
+        )
+      expect(runtimes).toHaveLength(2)
+      expect(runtimes.every(subject => subject.inspect().resource === 'held')).toBe(true)
+      expect(await readdir(directory)).toHaveLength(1)
+    } finally {
+      vi.restoreAllMocks()
+      syncBuiltinESMExports()
+      await Promise.all(runtimes.map(subject => subject.close({ deadlineMs: 1_000 })))
+    }
+  })
+})
