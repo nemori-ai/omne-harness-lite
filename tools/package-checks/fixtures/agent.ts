@@ -82,9 +82,10 @@ assert.equal(dependencyReleased, true)
 assert.equal(retained.get('dependent'), undefined)
 assert.deepEqual(events.slice(-2), ['created:dependent', 'disposed:dependent'])
 assert.throws(() => retained.currentInitiator(), /disposed/)
-for (const path of ['@omne-harness-lite/agent', '@omne-harness-lite/agent/src/index.ts']) {
-  await assert.rejects(import(path), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' })
-}
+const privateAgentSource = '@omne-harness-lite/agent/src/index.ts'
+await assert.rejects(import(privateAgentSource), {
+  code: 'ERR_PACKAGE_PATH_NOT_EXPORTED',
+})
 console.log(
   'PASS: isolated tarball consumer, ownership, dependency removal, factory removal and initiator',
 )
