@@ -33,6 +33,22 @@ function admission(
 }
 
 describe('CC-02/03 synchronous admission gate', () => {
+  it('rejects preparation inside the gate before calling the writer', () => {
+    const writer = new ControlledWriter()
+    const prepareOperation = vi.spyOn(writer, 'prepareOperation')
+    const host = createAdmissionCoordinator(writer, new RecordingDiagnostics())
+    let checked: ReturnType<typeof host.coordinator.prepareOperation> | undefined
+
+    host.coordinator.enter(() => {
+      checked = host.coordinator.prepareOperation(operation('prepare-in-gate'), operationInput())
+    })
+
+    expect(checked).toMatchObject({ ok: false })
+    expect(prepareOperation).not.toHaveBeenCalled()
+    expect(host.coordinator.status().phase).toBe('quarantined')
+    expect(writer.quarantines).toHaveLength(1)
+  })
+
   it('proxies pure preparation and invalidates each frame at stack exit', () => {
     const writer = new ControlledWriter()
     const host = createAdmissionCoordinator(writer, new RecordingDiagnostics())

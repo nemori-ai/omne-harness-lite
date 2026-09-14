@@ -485,7 +485,17 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
   }
 
   prepareOperation(operation: OperationRef, input: OperationInput): Checked<PreparedOperation> {
-    const result = this.writer.prepareOperation(operation, input)
+    if (this.currentFrame?.active === true) {
+      this.quarantine('prepare_operation', 'inside_gate', undefined, undefined)
+      return invalidChecked('operation preparation must run outside the admission gate')
+    }
+    let result: ReturnType<RecordPreparation['prepareOperation']>
+    try {
+      result = this.writer.prepareOperation(operation, input)
+    } catch {
+      this.quarantine('prepare_operation', 'writer_throw', undefined, undefined)
+      return invalidChecked('writer failed to prepare the operation')
+    }
     if (!result.ok) return result
     try {
       const token = result.value
@@ -509,7 +519,17 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
   }
 
   prepare(request: Parameters<RecordPreparation['prepare']>[0]): Checked<PreparedCommit> {
-    const result = this.writer.prepare(request)
+    if (this.currentFrame?.active === true) {
+      this.quarantine('prepare_commit', 'inside_gate', undefined, undefined)
+      return invalidChecked('commit preparation must run outside the admission gate')
+    }
+    let result: ReturnType<RecordPreparation['prepare']>
+    try {
+      result = this.writer.prepare(request)
+    } catch {
+      this.quarantine('prepare_commit', 'writer_throw', undefined, undefined)
+      return invalidChecked('writer failed to prepare the commit')
+    }
     if (!result.ok) return result
     try {
       const operationToken = ownData(request, 'operation')
@@ -919,6 +939,13 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
       !samePosition(claim.position, position) ||
       state.retainInvoked
     ) {
+      this.quarantine(
+        'retain_at',
+        'invalid_lifecycle',
+        claim?.operation,
+        claim?.position,
+        claim?.identity,
+      )
       throw new CallbackContractError('retainAt is not valid for this claim')
     }
     state.retainInvoked = true

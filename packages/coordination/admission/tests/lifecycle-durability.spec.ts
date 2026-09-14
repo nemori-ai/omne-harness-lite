@@ -86,6 +86,25 @@ function pending(result: ReturnType<typeof submit>): PendingAdmission {
 }
 
 describe('R2 ExactUse ownership and one-way lifecycle', () => {
+  it('quarantines direct retainAt lifecycle misuse even when trusted gate code catches the throw', () => {
+    const writer = new ControlledWriter()
+    const host = createAdmissionCoordinator(writer, new RecordingDiagnostics())
+    const use = issueUse(host)
+    const position: Position = Object.freeze({
+      coordinationDomain: writer.coordinationDomain,
+      writerEpoch: writer.writerEpoch,
+      commitId: 'never-ranked',
+      seq: '1',
+    })
+
+    host.coordinator.enter(frame => {
+      expect(() => use.retainAt(position, frame)).toThrow(/not valid/i)
+    })
+
+    expect(host.coordinator.status().phase).toBe('quarantined')
+    expect(writer.quarantines).toHaveLength(1)
+  })
+
   it('recognizes the same pending ticket without retaining or releasing its claimed pin twice', () => {
     const writer = new ControlledWriter()
     const host = createAdmissionCoordinator(writer, new RecordingDiagnostics())
@@ -388,6 +407,40 @@ describe('CC-03 ordered logical and durable publication', () => {
     expect(durable).toHaveBeenCalledOnce()
     expect(writer.closeCalls).toBe(1)
     expect(host.coordinator.status().phase).toBe('closed')
+  })
+
+  it('preserves a diagnostic blocked writer close and never opens admission again', async () => {
+    class BlockingCloseWriter extends ControlledWriter {
+      override async closeWriter() {
+        this.closeCalls += 1
+        return Object.freeze({
+          status: 'blocked' as const,
+          watermark: Object.freeze({
+            coordinationDomain: this.coordinationDomain,
+            seq: '0',
+            commitId: null,
+          }),
+          diagnosticId: 'writer-close-blocked',
+          pending: Object.freeze([]),
+          lockHeld: true,
+        })
+      }
+    }
+
+    const writer = new BlockingCloseWriter()
+    const host = createAdmissionCoordinator(writer, new RecordingDiagnostics())
+    const first = host.coordinator.close()
+    const duplicate = host.coordinator.close()
+
+    expect(duplicate).toBe(first)
+    await expect(first).resolves.toMatchObject({
+      status: 'blocked',
+      diagnosticId: 'writer-close-blocked',
+      lockHeld: true,
+    })
+    expect(host.coordinator.status().phase).toBe('closing')
+    expect(() => host.coordinator.enter(() => undefined)).toThrow(/closing/i)
+    expect(writer.closeCalls).toBe(1)
   })
 })
 
