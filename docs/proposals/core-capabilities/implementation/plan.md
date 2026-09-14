@@ -38,6 +38,11 @@ OpenRouter，不另写一套 demo 审批。P5 完成后才接受 M2 及整批。
 | P5 动态、恢复与整批交付 | 目标：最终集成版本符合全部本批标准；验收 A01–32；规格：相同精确依赖及所有已接受实施修订；计划：跨进程故障/动态撤除/模型和工具 unknown，随后对账与独立审阅 | verification-developer：`apps/local-harness/tests/` 中专门指定的组合/压力文件、`tools/package-checks/`；各原 owner 修复自己的实现；派发者作为整合者拥有根配置和本工作包对账 | 真实组合、独立产物、相关模型/静态检查、文档对账都完成；未解决阻断、未执行 A22 或未知被伪报成功时不能接受 M2/整批 |
 
 P0 的探针可放在允许的 `tmp/`，只有经过 TDD 的正式实现才能进入产品包。
+P0 内按实际依赖分别固定共享边界：已独立审阅、且不依赖 records/admission
+未决项的 work-data 子集可先接受为实施输入，再独立完成 TDD、产物与 HUB 验证。
+records/codec 消费该已验证产物；admission 与 jsonl 的联合实施仍须等待各自
+完整接口及前置实现。子集接受的精确提交、范围与证据归[交付对账](delivery.md)，
+不能将部分输入已固定写成整个 P0 或全部共享接口已接受。
 原生依赖/SSE 组件版本选择由实际探针与锁定发行物决定，不要求先移植完整 DSH native 层。
 P0 同时由 verification-developer 在 `tools/package-checks/` 先写失败场景并改造
 现有源基线检查：按实际来源/目标入口分类支持自有包和已交付目标导出，移除

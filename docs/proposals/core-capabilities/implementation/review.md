@@ -47,7 +47,7 @@ package.json 核对：当前检查器限制 baseline/DSH 来源，安装禁用�
 `979d80f39f9da11031845f6e2112567299443ed2` 的 `shared-interfaces.md`，比较
 `e11cc69`。稿件在 `impl/dsh-p0-interfaces`，尚未接受或进入 HUB；范围限
 work-data/records/admission 的共同输入及 data/DR/CC v1、A05–08/A30/A31。
-下列问题均已发回作者修订，**依赖该接口的产品实施尚未放行**。
+下列问题均已发回作者修订，依赖未决 records/admission 接口的产品实施尚未放行。
 
 | ID | 必须修订的缺口与反例 | 状态 |
 |---|---|---|
@@ -62,6 +62,12 @@ work-data/records/admission 的共同输入及 data/DR/CC v1、A05–08/A30/A31�
 反例表述为未编写实现的已发生缺陷。修订可以简化接口，不要求通用状态中心。
 作者须固定修订与实际探针结果后，由同一评审者复核处置。
 
+同一评审者进一步确认 `979d80f` 第 56–234 行的 work-data 子集已在其评审范围内，
+未发现剩余阻断，也不依赖 I1–I5 的最终决定。作者实际逐字核对当前修订的
+「共享值、完整 DTO 与 Schema 消费」整节与该版本相同。主调度据此单独固定
+该子集为实施输入；数据包的真实 Schema/JSON/类型/产物检查仍待实施验收。
+这不接受 records/admission 稿件，也不放行它们的消费者。
+
 ## P0 包检查器实施复核
 
 独立 architecture-reviewer `/root/review_package_layout` 只读核对 `effd764`
@@ -70,9 +76,9 @@ P0 检查职责。该分支尚未进入 HUB，也未因 worker 的绿色结果�
 
 | ID | 已确认问题 | 状态 |
 |---|---|---|
-| K1 | 同一成员多个 exports 使用重复 import binding；默认入口与 baseline 共存会 strict tsc 失败，原真实夹具只覆盖单入口 | 作者已报告实际 TS2300 RED/GREEN，待最终提交与复核 |
-| K2 | consumer 移入 repo/tmp 后，Node/tsc 可沿祖先 node_modules 借到仓库依赖；ignore-workspace 与根包 realpath 检查不提供仓库外隔离 | 作者修订中，要求真实祖先依赖反例 |
-| K3 | 这批固定 DSH 来源的 manifest.license 可改为与已核对 MIT 原件不一致的声明而通过 | 作者修订中 |
+| K1 | 同一成员多个 exports 使用重复 import binding；默认入口与 baseline 共存会 strict tsc 失败，原真实夹具只覆盖单入口 | `f0defde` 已提交每入口唯一 binding 及真实 RED/GREEN，独立复核中 |
+| K2 | consumer 移入 repo/tmp 后，Node/tsc 可沿祖先 node_modules 借到仓库依赖；ignore-workspace 与根包 realpath 检查不提供仓库外隔离 | `f0defde` 已恢复 OS 临时目录并提交 ancestor-only 反例，独立复核中 |
+| K3 | 这批固定 DSH 来源的 manifest.license 可改为与已核对 MIT 原件不一致的声明而通过 | `f0defde` 已提交 MIT 一致性修复及反例，独立复核中 |
 
 新自有包默认 private/UNLICENSED；按实际许可声明支持其它来源不属于本轮缺陷，
 检查器也不授予新许可。原生选择性构建路径的 fixture 通过不代表未来产品 native

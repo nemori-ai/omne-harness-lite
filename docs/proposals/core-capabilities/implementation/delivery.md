@@ -18,7 +18,7 @@ P0 新实施稿与检查器仍有待修订问题，分别见 [review.md](review.
 
 | 任务 | 状态 | 实现/验收证据 | 下一项输入 |
 |---|---|---|---|
-| P0 | in_progress | 锁探针已独立复验并接受；共享接口/检查器独立复核发现缺口，正在修订 | 修订复核闭合、共享边界实现和 HUB 检查器验收 |
+| P0 | in_progress | 锁探针已接受；work-data 子集已固定为实施输入；records/admission 仍修订，检查器修订已送复核 | 共享边界实现、剩余接口修订复核和 HUB 检查器验收 |
 | P1 | planned | 未执行 | P0 的记录/协调接口与真实锁证据 |
 | P2 | planned | 未执行 | P1 的真实共同门与记录提供者；交付本地预算 owner |
 | P3 / M1 | planned | 未执行 | P2 当前权限/真实预算/Session/活体，以及 P1 执行账本前提 |
@@ -41,7 +41,7 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 |---|---|---|---|
 | P0 共享接口稿 | `/root/p0_interfaces` | `dsh-p0-interfaces` | `979d80f` 经独立评审有 I1–I5 待修订，作者已接回；尚未接受或合入 HUB |
 | P0 真实锁探针（accepted） | infrastructure-developer，`/root/p0_lock_probe`，已结束 | `dsh-p0-lock-probe`，已退役 | `f712e025` 经 `04b8dbf` 整合，HUB 全新目录实际复验通过；范围及限制见下文 |
-| P0 包检查器 | verification-developer，`/root/p0_package_checks` | `dsh-p0-package-checks` | `effd764` 独立复核发现 K1–K3，作者正在 TDD 修复；尚未接受或合入 HUB |
+| P0 包检查器 | verification-developer，`/root/p0_package_checks`，已结束本轮修订 | `dsh-p0-package-checks` | `f0defde` 已提交 K1–K3 修复与原始 TDD 证据，独立复核中；尚未接受或合入 HUB |
 
 未标 accepted 的行只表示派发事实。主调度拥有 HUB 整合、根配置、此工作包和最终
 验收；worker 的本地提交、测试绿灯与运行结束均须经端点核验后才能接受。
@@ -56,6 +56,22 @@ inventory 与配额查询不覆盖该 native 执行面，不能移用其外部 C
 native 句柄活性以 collaboration 的实际运行状态为准，持久交付事实以本页及证据为准。
 当前未发现 OpenRouter 环境变量或仓库配置入口；模型/路由、配置路径与费用范围
 已请求用户提供，缺少该输入只阻止依赖它的 A22 实测，不阻止其它研发。
+
+## P0 work-data 的固定实施输入
+
+主调度接受 `979d80f39f9da11031845f6e2112567299443ed2` 中
+`docs/proposals/core-capabilities/implementation/shared-interfaces.md` 的
+「共享值、完整 DTO 与 Schema 消费」整节为 work-data 的实施输入。该节 SHA-256
+为 `147f458a5402394ec3875c0142008f474192296e4e23b495010e8ceeaa0155a9`；
+独立评审范围与未决依赖判断见[评审记录](review.md#p0-共享接口实施稿)。
+同稿的包名/默认公开入口/自有来源元数据只作为该数据包的装配约束；其余
+records/admission 内容继续是未接受候选，不能凭此提前实施。
+
+该子集消费 data.agent-runtime-identity/core-work v1，覆盖全部 DTO、真实 Schema
+资源、Checked、严格 JSON 解析/拷贝/规范编码。它无 records、admission、Cordis
+或业务状态依赖；产品实现、TDD 和独立产物验证仍待交付，不计为 A30/A31 完成。
+共享数据作者只拥有 `packages/core/work-data/` 及其专属证据；根安装/锁和 HUB
+整合仍由主调度负责。后续 records 作者须消费该包已在 HUB 验证的真实公开产物。
 
 ## P0 原生锁前提交付
 
