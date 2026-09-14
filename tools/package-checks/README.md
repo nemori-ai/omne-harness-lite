@@ -29,8 +29,20 @@ public declaration merging. Failure directories are retained and printed; succes
 temporary consumers are removed. These checks do not establish target product conformance.
 Consumers live under the operating system temporary directory. The checker resolves
 both the repository and scratch directory to their real paths and rejects a temporary
-directory inside the repository, so Node and TypeScript cannot satisfy undeclared imports
-from an ancestor workspace `node_modules` directory even when `TMPDIR` points into it.
+directory inside the repository. It also rejects a scratch whose real-path ancestors
+already contain a `node_modules` directory or symbolic link, including a sibling
+worktree scratch below a shared main checkout. Rejected scratch directories are removed;
+the existing ancestor is left untouched.
+
+Type compilation and artifact runtime processes remove `NODE_PATH`, replace inherited
+`NODE_OPTIONS` with `--no-global-search-paths`, and direct Node invocations also pass that
+Node 24 flag explicitly. The scratch check covers the documented
+[`node_modules` ancestor search](https://nodejs.org/download/release/v24.18.0/docs/api/modules.html#loading-from-node_modules-folders);
+the child environment removes ambient preloads and disables the documented
+[global folders](https://nodejs.org/download/release/v24.18.0/docs/api/modules.html#loading-from-the-global-folders).
+Node documents the flag in its
+[command-line API](https://nodejs.org/download/release/v24.18.0/docs/api/cli.html#--no-global-search-paths).
+Other inherited environment, including explicit `CC` and `CXX`, remains available.
 
 All isolated installs start with `--ignore-scripts --ignore-workspace`. The only
 selective native build currently accepted is an exact `fs-ext@2.1.1` product edge,

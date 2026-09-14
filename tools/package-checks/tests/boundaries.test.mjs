@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { test } from 'node:test'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -20,13 +21,28 @@ async function packageLeaf(root, relativePath, name) {
   return leaf
 }
 
-async function ownedMember(repo, relativePath, name, { dependency, baselineAlias = false } = {}) {
+async function ownedMember(repo, relativePath, name, { dependency, baselineAlias = false, runtimeIsolation = false } = {}) {
   const root = join(repo, relativePath)
   await mkdir(join(root, 'src'), { recursive: true })
   await mkdir(join(root, 'dist'), { recursive: true })
-  const source = dependency
-    ? `export { value } from '${dependency}'\n`
-    : 'export const value = 1\n'
+  const source = runtimeIsolation
+    ? `import { createRequire } from 'node:module'
+const load = createRequire(import.meta.url)
+const { globalPaths } = load('node:module')
+let borrowed = false
+try { load(['global', 'only'].join('-')); borrowed = true } catch (error) {
+  if (error.code !== 'MODULE_NOT_FOUND') throw error
+}
+if (borrowed) throw new Error('NODE_PATH dependency leaked into artifact runtime')
+if (process.env.NODE_PATH !== undefined) throw new Error('NODE_PATH reached artifact runtime')
+if (process.env.NODE_OPTIONS !== '--no-global-search-paths') throw new Error('inherited NODE_OPTIONS reached artifact runtime')
+if (globalPaths.length !== 0) throw new Error('Node global search paths remained enabled')
+if (process.env.CC !== 'fixture-cc' || process.env.CXX !== 'fixture-cxx') throw new Error('native compiler environment was removed')
+export const value = 1
+`
+    : dependency
+      ? `export { value } from '${dependency}'\n`
+      : 'export const value = 1\n'
   await writeFile(join(root, 'src/index.ts'), source)
   await writeFile(join(root, 'dist/index.js'), source)
   await writeFile(join(root, 'dist/index.d.ts'), dependency
@@ -147,6 +163,40 @@ test('keeps artifact consumers outside repository ancestor dependency resolution
   assert.ok(failure, 'undeclared ancestor-only dependency unexpectedly resolved')
   assert.match(String(failure.stderr), /ERR_MODULE_NOT_FOUND/)
 
+  await writeFile(join(sandbox, 'require-probe.mjs'), `import { createRequire } from 'node:module'; createRequire(import.meta.url)('ancestor-only')\n`)
+  let requireFailure
+  try {
+    execFileSync(process.execPath, ['require-probe.mjs'], { cwd: sandbox, stdio: ['ignore', 'pipe', 'pipe'] })
+  } catch (error) {
+    requireFailure = error
+  }
+  assert.ok(requireFailure, 'createRequire unexpectedly resolved undeclared ancestor-only dependency')
+  assert.match(String(requireFailure.stderr), /MODULE_NOT_FOUND/)
+
+  await writeFile(join(sandbox, 'package.json'), JSON.stringify({
+    name: 'missing-declaration-control',
+    private: true,
+    type: 'module',
+    devDependencies: { typescript: '6.0.3' },
+  }))
+  const store = execFileSync('pnpm', ['store', 'path'], { encoding: 'utf8' }).trim()
+  execFileSync('pnpm', ['install', '--offline', '--ignore-scripts', '--ignore-workspace', '--store-dir', store], {
+    cwd: sandbox,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
+  await writeFile(join(sandbox, 'missing.d.ts'), "export { borrowed } from 'ancestor-only'\n")
+  await writeFile(join(sandbox, 'tsconfig.json'), JSON.stringify({ compilerOptions: {
+    target: 'ES2024', module: 'NodeNext', strict: true, noEmit: true,
+  }, include: ['missing.d.ts'] }))
+  let declarationFailure
+  try {
+    execFileSync('pnpm', ['exec', 'tsc', '-p', 'tsconfig.json'], { cwd: sandbox, stdio: ['ignore', 'pipe', 'pipe'] })
+  } catch (error) {
+    declarationFailure = error
+  }
+  assert.ok(declarationFailure, 'declaration compiler unexpectedly resolved ancestor-only dependency')
+  assert.match(String(declarationFailure.stdout), /TS2307/)
+
   const repositoryTmp = join(repo, 'tmp')
   await mkdir(repositoryTmp)
   const originalTmpdir = process.env.TMPDIR
@@ -161,19 +211,68 @@ test('keeps artifact consumers outside repository ancestor dependency resolution
     if (originalTmpdir === undefined) delete process.env.TMPDIR
     else process.env.TMPDIR = originalTmpdir
   }
+  assert.ok(rejection, `repo-internal TMPDIR created artifact scratch: ${trappedSandbox}`)
+  assert.match(String(rejection.message), /artifact scratch must be outside repository/)
+  assert.deepEqual(await readdir(repositoryTmp), [], 'rejected repository-local scratch was not removed')
+
+  const linkRoot = await mkdtemp(join(scratchRoot, 'tmp-link-'))
+  t.after(() => rm(linkRoot, { recursive: true, force: true }))
+  const linkedTmp = join(linkRoot, 'inside-repository')
+  await symlink(repositoryTmp, linkedTmp, 'dir')
+  process.env.TMPDIR = linkedTmp
+  rejection = undefined
+  trappedSandbox = undefined
+  try {
+    trappedSandbox = await repositoryCheck.createArtifactScratch(repo)
+  } catch (error) {
+    rejection = error
+  } finally {
+    if (originalTmpdir === undefined) delete process.env.TMPDIR
+    else process.env.TMPDIR = originalTmpdir
+  }
+  assert.ok(rejection, `symlinked repository-local TMPDIR created artifact scratch: ${trappedSandbox}`)
+  assert.match(String(rejection.message), /artifact scratch must be outside repository/)
+  assert.deepEqual(await readdir(repositoryTmp), [], 'rejected symlinked scratch was not removed')
+})
+
+test('rejects a sibling worktree scratch that can borrow a common ancestor module', async t => {
+  const fixture = await mkdtemp(join(tmpdir(), 'omne-worktree-ancestor-'))
+  t.after(() => rm(fixture, { recursive: true, force: true }))
+  const main = join(fixture, 'main')
+  const spoke = join(main, '.worktrees/spoke')
+  const siblingTmp = join(main, 'tmp')
+  const pollutionPackage = join(fixture, 'ancestor-only')
+  await mkdir(join(main, 'node_modules'), { recursive: true })
+  await mkdir(spoke, { recursive: true })
+  await mkdir(siblingTmp)
+  await mkdir(pollutionPackage)
+  await writeFile(join(pollutionPackage, 'package.json'), JSON.stringify({
+    name: 'ancestor-only', type: 'module', exports: './index.js',
+  }))
+  await writeFile(join(pollutionPackage, 'index.js'), 'export const borrowed = true\n')
+  await symlink(pollutionPackage, join(main, 'node_modules/ancestor-only'), 'dir')
+
+  const originalTmpdir = process.env.TMPDIR
+  process.env.TMPDIR = siblingTmp
+  let sandbox
+  let rejection
+  try {
+    sandbox = await repositoryCheck.createArtifactScratch(spoke)
+  } catch (error) {
+    rejection = error
+  } finally {
+    if (originalTmpdir === undefined) delete process.env.TMPDIR
+    else process.env.TMPDIR = originalTmpdir
+  }
   if (rejection) {
-    assert.match(String(rejection.message), /artifact scratch must be outside repository/)
+    assert.match(String(rejection.message), /artifact scratch ancestor contains node_modules/)
+    assert.deepEqual(await readdir(siblingTmp), [], 'rejected sibling scratch was not removed')
     return
   }
 
-  await writeFile(join(trappedSandbox, 'probe.mjs'), source)
-  let trappedFailure
-  try {
-    execFileSync(process.execPath, ['probe.mjs'], { cwd: trappedSandbox, stdio: ['ignore', 'pipe', 'pipe'] })
-  } catch (error) {
-    trappedFailure = error
-  }
-  assert.ok(trappedFailure, 'repo-internal TMPDIR allowed undeclared ancestor-only dependency to resolve')
+  await writeFile(join(sandbox, 'probe.mjs'), "import { borrowed } from 'ancestor-only'; if (!borrowed) throw new Error('missing')\n")
+  execFileSync(process.execPath, ['probe.mjs'], { cwd: sandbox, stdio: ['ignore', 'pipe', 'pipe'] })
+  assert.fail(`sibling worktree scratch borrowed symlinked ancestor-only from ${join(main, 'node_modules')}`)
 })
 
 test('validates DSH source truth separately from project-owned provenance', async t => {
@@ -255,11 +354,11 @@ test('checks every packed public declaration and maps default exports to valid c
   )
 })
 
-test('checks project-owned packages and apps through independent tarball consumers', { timeout: 60_000 }, async t => {
+test('checks project-owned packages and apps through independent tarball consumers with sanitized Node resolution', { timeout: 60_000 }, async t => {
   await mkdir(scratchRoot, { recursive: true })
   const repo = await mkdtemp(join(scratchRoot, 'repository-'))
   t.after(() => rm(repo, { recursive: true, force: true }))
-  await ownedMember(repo, 'packages/core/work-data', '@omne-harness-lite/work-data', { baselineAlias: true })
+  await ownedMember(repo, 'packages/core/work-data', '@omne-harness-lite/work-data', { baselineAlias: true, runtimeIsolation: true })
   await ownedMember(repo, 'apps/local-harness', '@omne-harness-lite/local-harness', { dependency: '@omne-harness-lite/work-data' })
   await writeFile(join(repo, 'package.json'), JSON.stringify({ name: 'fixture-root', private: true, packageManager: 'pnpm@10.28.1' }))
   await writeFile(join(repo, 'pnpm-workspace.yaml'), "packages:\n  - packages/*/*\n  - apps/*\n")
@@ -268,15 +367,65 @@ test('checks project-owned packages and apps through independent tarball consume
     stdio: ['ignore', 'pipe', 'pipe'],
   })
 
-  const output = execFileSync(process.execPath, [checkScript, '--root', repo], {
+  const globalModules = join(repo, 'global-modules')
+  const globalOnly = join(globalModules, 'global-only')
+  await mkdir(globalOnly, { recursive: true })
+  await writeFile(join(globalOnly, 'package.json'), JSON.stringify({ name: 'global-only', main: './index.cjs' }))
+  await writeFile(join(globalOnly, 'index.cjs'), 'module.exports = { borrowed: true }\n')
+  await writeFile(join(repo, 'global-control.cjs'), "if (!require('global-only').borrowed) throw new Error('missing global control')\n")
+  const inheritedEnvironment = { ...process.env, NODE_PATH: globalModules, NODE_OPTIONS: '' }
+  execFileSync(process.execPath, ['global-control.cjs'], {
     cwd: repo,
-    encoding: 'utf8',
+    env: inheritedEnvironment,
     stdio: ['ignore', 'pipe', 'pipe'],
   })
+
+  const preloadMarker = join(repo, 'inherited-preload-ran')
+  const preload = join(repo, 'preload.cjs')
+  await writeFile(preload, `const { appendFileSync } = require('node:fs')
+const relevant = process.cwd().includes('artifact-consumer-') && process.argv.some(value =>
+  value === 'tsc' || /(?:^|[\\/])tsc(?:\\.js)?$/.test(value) || /build[\\/](?:consumer|agent|projection)\\.js$/.test(value))
+if (relevant) appendFileSync(${JSON.stringify(preloadMarker)}, process.argv.join(' ') + '\\n')
+`)
+  const preloadControl = join(repo, 'artifact-consumer-preload-control')
+  await mkdir(preloadControl)
+  await writeFile(join(preloadControl, 'tsc.js'), '')
+  execFileSync(process.execPath, ['tsc.js'], {
+    cwd: preloadControl,
+    env: { ...inheritedEnvironment, NODE_OPTIONS: `--require=${preload}` },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
+  assert.match(await readFile(preloadMarker, 'utf8'), /tsc\.js/)
+  await rm(preloadMarker)
+
+  let output
+  let checkFailure
+  try {
+    output = execFileSync(process.execPath, [checkScript, '--root', repo], {
+      cwd: repo,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: {
+        ...inheritedEnvironment,
+        NODE_OPTIONS: `--require=${preload}`,
+        CC: 'fixture-cc',
+        CXX: 'fixture-cxx',
+      },
+    })
+  } catch (error) {
+    checkFailure = error
+    const retained = String(error.stderr).match(/Failed artifact evidence retained: (.+)/)?.[1]
+    if (retained) await rm(retained, { recursive: true, force: true })
+  }
+  if (checkFailure) {
+    assert.match(String(checkFailure.stderr), /NODE_PATH dependency leaked into artifact runtime/)
+    assert.fail('artifact runtime inherited NODE_PATH from the checker environment')
+  }
   assert.match(output, /PASS: 2 product members/)
   assert.match(output, /isolated local-harness/)
   assert.match(output, /isolated work-data/)
   assert.match(output, /isolated composition/)
+  await assert.rejects(readFile(preloadMarker), { code: 'ENOENT' })
 })
 
 test('permits only the probed fs-ext native rebuild with an exact product and lock version', () => {

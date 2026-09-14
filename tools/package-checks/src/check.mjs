@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { readFile, writeFile, mkdir, mkdtemp, rm, realpath } from 'node:fs/promises'
+import { readFile, writeFile, mkdir, mkdtemp, rm, realpath, lstat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -21,12 +21,26 @@ const script = fileURLToPath(import.meta.url)
 const tool = resolve(dirname(script), '..')
 const defaultRepo = resolve(tool, '../..')
 const json = async path => JSON.parse(await readFile(path, 'utf8'))
-const run = (command, args, cwd, allowScripts = false) => execFileSync(command, args, {
+const run = (command, args, cwd, allowScripts = false, isolateModules = false) => {
+  const env = { ...process.env, npm_config_ignore_scripts: allowScripts ? 'false' : 'true' }
+  if (isolateModules) {
+    delete env.NODE_PATH
+    env.NODE_OPTIONS = '--no-global-search-paths'
+  }
+  return execFileSync(command, args, {
+    cwd,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env,
+  })
+}
+const runArtifactNode = (args, cwd) => run(
+  process.execPath,
+  ['--no-global-search-paths', ...args],
   cwd,
-  encoding: 'utf8',
-  stdio: ['ignore', 'pipe', 'pipe'],
-  env: { ...process.env, npm_config_ignore_scripts: allowScripts ? 'false' : 'true' },
-})
+  false,
+  true,
+)
 
 async function optionalJson(path) {
   try {
@@ -67,14 +81,36 @@ function containsPath(root, candidate) {
   return local === '' || (local !== '..' && !local.startsWith(`..${sep}`) && !isAbsolute(local))
 }
 
+async function moduleAncestor(scratch) {
+  let ancestor = dirname(scratch)
+  while (true) {
+    const modules = join(ancestor, 'node_modules')
+    try {
+      const status = await lstat(modules)
+      if (status.isDirectory() || status.isSymbolicLink()) return modules
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error
+    }
+    const parent = dirname(ancestor)
+    if (parent === ancestor) return undefined
+    ancestor = parent
+  }
+}
+
 export async function createArtifactScratch(repo) {
   const scratch = await mkdtemp(join(tmpdir(), 'omne-package-artifacts-'))
-  const [repositoryRoot, scratchRoot] = await Promise.all([realpath(repo), realpath(scratch)])
-  if (containsPath(repositoryRoot, scratchRoot)) {
+  try {
+    const [repositoryRoot, scratchRoot] = await Promise.all([realpath(repo), realpath(scratch)])
+    if (containsPath(repositoryRoot, scratchRoot)) {
+      assert.fail(`artifact scratch must be outside repository: ${scratchRoot}`)
+    }
+    const modules = await moduleAncestor(scratchRoot)
+    if (modules) assert.fail(`artifact scratch ancestor contains node_modules: ${modules}`)
+    return scratchRoot
+  } catch (error) {
     await rm(scratch, { recursive: true, force: true })
-    assert.fail(`artifact scratch must be outside repository: ${scratchRoot}`)
+    throw error
   }
-  return scratchRoot
 }
 
 export async function checkRepository(repo) {
@@ -194,10 +230,10 @@ export async function checkRepository(repo) {
       for (const file of fixtureFiles) {
         await writeFile(join(consumer, file), await readFile(join(tool, 'fixtures', file)))
       }
-      run('pnpm', ['exec', 'tsc', '-p', 'tsconfig.json'], consumer)
-      process.stdout.write(run(process.execPath, ['build/consumer.js'], consumer))
+      run('pnpm', ['exec', 'tsc', '-p', 'tsconfig.json'], consumer, false, true)
+      process.stdout.write(runArtifactNode(['build/consumer.js'], consumer))
       for (const file of fixtureFiles) {
-        process.stdout.write(run(process.execPath, [`build/${file.replace(/\.ts$/, '.js')}`], consumer))
+        process.stdout.write(runArtifactNode([`build/${file.replace(/\.ts$/, '.js')}`], consumer))
       }
       console.log(`PASS: isolated ${label}, ${selected.size} declared product artifact(s), strict declarations + runtime`)
     }
