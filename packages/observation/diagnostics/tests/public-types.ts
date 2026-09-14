@@ -6,13 +6,20 @@ import type {
   DiagnosticGapReason,
   DiagnosticIdentity,
   DiagnosticPoint,
+  DiagnosticDirectoryClose,
+  DiagnosticDirectoryStatus,
   Diagnostics,
+  DiagnosticsDirectoryCleanup,
   DiagnosticsRuntime,
   DiagnosticSpan,
   DiagnosticStatus,
-  LocalDiagnosticsOptions,
+  LocalDiagnosticSourceOptions,
+  LocalDiagnosticSourceResult,
+  LocalDiagnosticsDirectory,
+  LocalDiagnosticsDirectoryOptions,
+  LocalDiagnosticsDirectoryResult,
 } from '../dist/index.js'
-import { createLocalDiagnostics } from '../dist/index.js'
+import { createLocalDiagnosticsDirectory } from '../dist/index.js'
 
 type EveryPublicType = [
   DiagnosticClose,
@@ -22,16 +29,23 @@ type EveryPublicType = [
   DiagnosticGapReason,
   DiagnosticIdentity,
   DiagnosticPoint,
+  DiagnosticDirectoryClose,
+  DiagnosticDirectoryStatus,
   Diagnostics,
+  DiagnosticsDirectoryCleanup,
   DiagnosticsRuntime,
   DiagnosticSpan,
   DiagnosticStatus,
-  LocalDiagnosticsOptions,
+  LocalDiagnosticSourceOptions,
+  LocalDiagnosticSourceResult,
+  LocalDiagnosticsDirectory,
+  LocalDiagnosticsDirectoryOptions,
+  LocalDiagnosticsDirectoryResult,
 ]
 
 const everyPublicTypeCompiles: EveryPublicType | undefined = undefined
 void everyPublicTypeCompiles
-void createLocalDiagnostics
+void createLocalDiagnosticsDirectory
 
 // @ts-expect-error contexts are opaque handles issued only by a diagnostics instance
 const forgedContext: DiagnosticContext = {}

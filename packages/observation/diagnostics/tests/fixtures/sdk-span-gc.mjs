@@ -2,7 +2,7 @@ import { TracerProvider } from '@opentelemetry/sdk-trace'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createLocalDiagnostics } from '../../dist/index.js'
+import { createLocalDiagnosticsDirectory } from '../../dist/index.js'
 
 const originalGetTracer = TracerProvider.prototype.getTracer
 let sdkSpan
@@ -20,24 +20,29 @@ TracerProvider.prototype.getTracer = function (...args) {
 const directory = await mkdtemp(join(tmpdir(), 'diagnostics-sdk-span-gc-'))
 let retainedContext
 let retainedRuntime
+let retainedOwner
 try {
-  ;({ context: retainedContext, runtime: retainedRuntime } = await exercise())
+  ;({ context: retainedContext, runtime: retainedRuntime, owner: retainedOwner } = await exercise())
 } finally {
   TracerProvider.prototype.getTracer = originalGetTracer
 }
 
 async function exercise() {
-  const result = await createLocalDiagnostics({
+  const directoryResult = await createLocalDiagnosticsDirectory({
+    directory,
+    maxDirectoryBytes: 128 * 1024,
+    maxFiles: 4,
+  })
+  if (directoryResult.status !== 'created') throw new Error('diagnostics directory creation failed')
+  const owner = directoryResult.owner
+  const result = await owner.create({
     instanceId: 'instance-r4-gc',
     sourceId: 'source-r4-gc',
-    directory,
     level: 'debug',
     maxRecordBytes: 8 * 1024,
     maxActiveSpans: 4,
     maxBufferBytes: 16 * 1024,
     maxFileBytes: 64 * 1024,
-    maxDirectoryBytes: 128 * 1024,
-    maxFiles: 4,
   })
   if (result.status !== 'created') throw new Error('diagnostics creation failed')
   const runtime = result.runtime
@@ -55,7 +60,7 @@ async function exercise() {
   const context = publicSpan.context
   publicSpan.end({ code: 'r4.gc_done', outcome: 'ok' })
   publicSpan = undefined
-  return { context, runtime }
+  return { context, runtime, owner }
 }
 
 for (let attempt = 0; attempt < 100; attempt += 1) {
@@ -65,6 +70,7 @@ for (let attempt = 0; attempt < 100; attempt += 1) {
 
 const sdkSpanCollected = sdkSpan?.deref() === undefined
 await retainedRuntime.close({ deadlineMs: 1_000 })
+await retainedOwner.close({ deadlineMs: 1_000 })
 process.stdout.write(
   `${JSON.stringify({
     sdkSpanCollected,

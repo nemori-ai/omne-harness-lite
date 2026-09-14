@@ -1,13 +1,16 @@
 import { createRequire, syncBuiltinESMExports } from 'node:module'
 import { access, chmod, mkdir, mkdtemp, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import { resolve, join } from 'node:path'
-import { beforeAll, describe, expect, it, vi } from 'vitest'
-import { createLocalDiagnostics } from '../dist/index.js'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { createLocalDiagnosticsDirectory } from '../dist/index.js'
 import type {
   DiagnosticIdentity,
   DiagnosticPoint,
   DiagnosticsRuntime,
-  LocalDiagnosticsOptions,
+  LocalDiagnosticSourceOptions,
+  LocalDiagnosticsDirectory,
+  LocalDiagnosticsDirectoryOptions,
+  LocalDiagnosticSourceResult,
 } from '../dist/index.js'
 
 const scratchRoot = resolve(import.meta.dirname, '../../../../tmp/p1-diagnostics/runtime-tests')
@@ -18,11 +21,19 @@ beforeAll(async () => {
   await mkdir(scratchRoot, { recursive: true })
 })
 
+type TestOptions = LocalDiagnosticsDirectoryOptions & LocalDiagnosticSourceOptions
+const owners = new Set<LocalDiagnosticsDirectory>()
+
+afterEach(async () => {
+  await Promise.all([...owners].map(owner => owner.close({ deadlineMs: 1_000 })))
+  owners.clear()
+})
+
 function options(
   directory: string,
   sourceId = 'source-create',
-  overrides: Partial<LocalDiagnosticsOptions> = {},
-): LocalDiagnosticsOptions {
+  overrides: Partial<TestOptions> = {},
+): TestOptions {
   return {
     instanceId: 'instance-test',
     sourceId,
@@ -36,6 +47,36 @@ function options(
     maxFiles: 4,
     ...overrides,
   }
+}
+
+function directoryOptions(options: TestOptions): LocalDiagnosticsDirectoryOptions {
+  return {
+    directory: options.directory,
+    maxDirectoryBytes: options.maxDirectoryBytes,
+    maxFiles: options.maxFiles,
+  }
+}
+
+function sourceOptions(options: TestOptions): LocalDiagnosticSourceOptions {
+  return {
+    instanceId: options.instanceId,
+    sourceId: options.sourceId,
+    level: options.level,
+    maxRecordBytes: options.maxRecordBytes,
+    maxActiveSpans: options.maxActiveSpans,
+    maxBufferBytes: options.maxBufferBytes,
+    maxFileBytes: options.maxFileBytes,
+  }
+}
+
+async function createLocalDiagnostics(options: TestOptions): Promise<LocalDiagnosticSourceResult> {
+  const directory = await createLocalDiagnosticsDirectory(directoryOptions(options))
+  if (directory.status === 'invalid') return directory
+  if (directory.status === 'unavailable') {
+    return Object.freeze({ status: 'unavailable', code: directory.code })
+  }
+  owners.add(directory.owner)
+  return directory.owner.create(sourceOptions(options))
 }
 
 function identity(tenantId: string, userId: string): DiagnosticIdentity {
@@ -63,7 +104,7 @@ async function createdRuntime(directory: string, sourceId: string): Promise<Diag
 }
 
 async function sourceFile(directory: string): Promise<string> {
-  const files = await readdir(directory)
+  const files = (await readdir(directory)).filter(file => file.startsWith('diagnostic-'))
   expect(files).toHaveLength(1)
   return join(directory, files[0]!)
 }
@@ -75,7 +116,7 @@ async function waitForCode(
   const deadline = Date.now() + 1_000
   do {
     const lines: Record<string, unknown>[] = []
-    for (const file of await readdir(directory)) {
+    for (const file of (await readdir(directory)).filter(file => file.startsWith('diagnostic-'))) {
       const text = await readFile(join(directory, file), 'utf8')
       lines.push(
         ...text

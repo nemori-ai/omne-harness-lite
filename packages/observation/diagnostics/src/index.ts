@@ -1,6 +1,6 @@
 import type { OpaqueId, OperationRef } from '@omne-harness-lite/work-data'
 import type { Causality, Counter, Position, Principal, Watermark } from '@omne-harness-lite/records'
-import { createLocalDiagnostics as createLocalDiagnosticsImplementation } from './runtime.js'
+import { createLocalDiagnosticsDirectory as createLocalDiagnosticsDirectoryImplementation } from './runtime.js'
 
 export type DiagnosticIdentity = Readonly<{
   tenantId: OpaqueId | null
@@ -93,25 +93,73 @@ export interface DiagnosticsRuntime {
   close(options: Readonly<{ deadlineMs: number }>): Promise<DiagnosticClose>
 }
 
-export type LocalDiagnosticsOptions = Readonly<{
+export type LocalDiagnosticsDirectoryOptions = Readonly<{
+  directory: string
+  maxDirectoryBytes: number
+  maxFiles: number
+}>
+
+export type LocalDiagnosticSourceOptions = Readonly<{
   instanceId: OpaqueId
   sourceId: OpaqueId
-  directory: string
   level: 'debug' | 'info' | 'warn' | 'error'
   maxRecordBytes: number
   maxActiveSpans: number
   maxBufferBytes: number
   maxFileBytes: number
-  maxDirectoryBytes: number
-  maxFiles: number
 }>
 
-type LocalDiagnosticsResult =
+export type DirectorySourceState = Readonly<{
+  sourceId: OpaqueId | null
+  phase: 'preparing' | 'live' | 'closing' | 'retained'
+  chargedBytes: Counter
+  reservedBytes: Counter
+  resource: 'held' | 'released' | 'unknown'
+}>
+
+export type DiagnosticDirectoryStatus = Readonly<{
+  phase: 'preparing' | 'active' | 'failed' | 'closing' | 'closed'
+  lock: 'held' | 'released' | 'unknown'
+  scan: 'incomplete' | 'complete'
+  chargedBytes: Counter | null
+  reservedBytes: Counter
+  materializedFiles: number
+  reservedFiles: number
+  sources: readonly DirectorySourceState[]
+  lastErrorCode: string | null
+  resource: 'held' | 'released' | 'unknown'
+}>
+
+export type DiagnosticDirectoryClose = Readonly<{
+  status: 'closed' | 'blocked'
+  state: DiagnosticDirectoryStatus
+}>
+
+export interface DiagnosticsDirectoryCleanup {
+  inspect(): DiagnosticDirectoryStatus
+  close(options: Readonly<{ deadlineMs: number }>): Promise<DiagnosticDirectoryClose>
+}
+
+export type LocalDiagnosticSourceResult =
   | Readonly<{ status: 'invalid'; code: string }>
+  | Readonly<{ status: 'unavailable'; code: string }>
   | Readonly<{ status: 'created'; runtime: DiagnosticsRuntime }>
 
-export function createLocalDiagnostics(
-  options: LocalDiagnosticsOptions,
-): Promise<LocalDiagnosticsResult> {
-  return createLocalDiagnosticsImplementation(options)
+export interface LocalDiagnosticsDirectory extends DiagnosticsDirectoryCleanup {
+  create(options: LocalDiagnosticSourceOptions): Promise<LocalDiagnosticSourceResult>
+}
+
+export type LocalDiagnosticsDirectoryResult =
+  | Readonly<{ status: 'invalid'; code: string }>
+  | Readonly<{
+      status: 'unavailable'
+      code: string
+      cleanup: DiagnosticsDirectoryCleanup | null
+    }>
+  | Readonly<{ status: 'created'; owner: LocalDiagnosticsDirectory }>
+
+export function createLocalDiagnosticsDirectory(
+  options: LocalDiagnosticsDirectoryOptions,
+): Promise<LocalDiagnosticsDirectoryResult> {
+  return createLocalDiagnosticsDirectoryImplementation(options)
 }

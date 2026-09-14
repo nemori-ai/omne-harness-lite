@@ -1,0 +1,49 @@
+
+ RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics
+
+ ❯ tests/reviewer-regressions.spec.ts (10 tests | 2 failed | 8 skipped) 55ms
+     × includes an older live generation and its pending span end in the directory byte budget 38ms
+     × reserves maxFiles across concurrent factory creation 14ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/reviewer-regressions.spec.ts > D1-R1 shared directory budgets > includes an older live generation and its pending span end in the directory byte budget
+AssertionError: expected 3356 to be less than or equal to 2400
+ ❯ tests/reviewer-regressions.spec.ts:635:58
+    633|       )
+    634|       expect(Math.max(...sizes)).toBeLessThanOrEqual(limits.maxFileByt…
+    635|       expect(sizes.reduce((sum, size) => sum + size, 0)).toBeLessThanO…
+       |                                                          ^
+    636|         limits.maxDirectoryBytes,
+    637|       )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/reviewer-regressions.spec.ts > D1-R1 shared directory budgets > reserves maxFiles across concurrent factory creation
+AssertionError: expected [ …(2) ] to have a length of 1 but got 2
+
+- Expected
++ Received
+
+- 1
++ 2
+
+ ❯ tests/reviewer-regressions.spec.ts:705:9
+    703|       expect(
+    704|         (await readdir(directory)).filter(file => file.startsWith('dia…
+    705|       ).toHaveLength(1)
+       |         ^
+    706|     } finally {
+    707|       vi.restoreAllMocks()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 8 skipped (10)
+   Start at  08:13:29
+   Duration  424ms (transform 115ms, setup 0ms, import 216ms, tests 55ms, environment 0ms)
+
+undefined
+/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: vitest run tests/reviewer-regressions.spec.ts -t D1-R1

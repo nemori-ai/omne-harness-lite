@@ -3,14 +3,17 @@ import { execFile } from 'node:child_process'
 import { mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { promisify } from 'node:util'
-import { beforeAll, describe, expect, it, vi } from 'vitest'
-import { createLocalDiagnostics } from '../dist/index.js'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { createLocalDiagnosticsDirectory } from '../dist/index.js'
 import type {
   DiagnosticEnd,
   DiagnosticIdentity,
   DiagnosticPoint,
   DiagnosticsRuntime,
-  LocalDiagnosticsOptions,
+  LocalDiagnosticSourceOptions,
+  LocalDiagnosticSourceResult,
+  LocalDiagnosticsDirectory,
+  LocalDiagnosticsDirectoryOptions,
 } from '../dist/index.js'
 
 const scratchRoot = resolve(import.meta.dirname, '../../../../tmp/p1-diagnostics/reviewer-tests')
@@ -20,16 +23,23 @@ const nodeFsPromises = createRequire(import.meta.url)(
 ) as typeof import('node:fs/promises')
 type FlexibleCall = (...args: unknown[]) => unknown
 const execFileAsync = promisify(execFile)
+type TestOptions = LocalDiagnosticsDirectoryOptions & LocalDiagnosticSourceOptions
+const owners = new Set<LocalDiagnosticsDirectory>()
 
 beforeAll(async () => {
   await mkdir(scratchRoot, { recursive: true })
 })
 
+afterEach(async () => {
+  await Promise.all([...owners].map(owner => owner.close({ deadlineMs: 1_000 })))
+  owners.clear()
+})
+
 function options(
   directory: string,
   sourceId: string,
-  overrides: Partial<LocalDiagnosticsOptions> = {},
-): LocalDiagnosticsOptions {
+  overrides: Partial<TestOptions> = {},
+): TestOptions {
   return {
     instanceId: 'instance-review',
     sourceId,
@@ -45,9 +55,39 @@ function options(
   }
 }
 
+function directoryOptions(options: TestOptions): LocalDiagnosticsDirectoryOptions {
+  return {
+    directory: options.directory,
+    maxDirectoryBytes: options.maxDirectoryBytes,
+    maxFiles: options.maxFiles,
+  }
+}
+
+function sourceOptions(options: TestOptions): LocalDiagnosticSourceOptions {
+  return {
+    instanceId: options.instanceId,
+    sourceId: options.sourceId,
+    level: options.level,
+    maxRecordBytes: options.maxRecordBytes,
+    maxActiveSpans: options.maxActiveSpans,
+    maxBufferBytes: options.maxBufferBytes,
+    maxFileBytes: options.maxFileBytes,
+  }
+}
+
+async function createLocalDiagnostics(options: TestOptions): Promise<LocalDiagnosticSourceResult> {
+  const directory = await createLocalDiagnosticsDirectory(directoryOptions(options))
+  if (directory.status === 'invalid') return directory
+  if (directory.status === 'unavailable') {
+    return Object.freeze({ status: 'unavailable', code: directory.code })
+  }
+  owners.add(directory.owner)
+  return directory.owner.create(sourceOptions(options))
+}
+
 async function records(directory: string): Promise<readonly Record<string, unknown>[]> {
   const result: Record<string, unknown>[] = []
-  for (const file of await readdir(directory)) {
+  for (const file of (await readdir(directory)).filter(file => file.startsWith('diagnostic-'))) {
     const text = await readFile(join(directory, file), 'utf8')
     result.push(
       ...text
@@ -536,7 +576,15 @@ describe('D1-R1 shared directory budgets', () => {
       maxDirectoryBytes: 2_400,
       maxFiles: 4,
     } as const
-    const oldCreation = await createLocalDiagnostics(options(directory, 'source-r1-old', limits))
+    const ownerCreation = await createLocalDiagnosticsDirectory(
+      directoryOptions(options(directory, 'source-r1-owner', limits)),
+    )
+    expect(ownerCreation.status).toBe('created')
+    if (ownerCreation.status !== 'created') return
+    owners.add(ownerCreation.owner)
+    const oldCreation = await ownerCreation.owner.create(
+      sourceOptions(options(directory, 'source-r1-old', limits)),
+    )
     expect(oldCreation.status).toBe('created')
     if (oldCreation.status !== 'created') return
     const oldRuntime = oldCreation.runtime
@@ -557,7 +605,9 @@ describe('D1-R1 shared directory budgets', () => {
     try {
       oldSpan.end({ code: 'r1.old_span_done', outcome: 'ok' })
       await waitFor(oldRuntime, status => status.pendingBytes > 0)
-      const newCreation = await createLocalDiagnostics(options(directory, 'source-r1-new', limits))
+      const newCreation = await ownerCreation.owner.create(
+        sourceOptions(options(directory, 'source-r1-new', limits)),
+      )
       expect(newCreation.status).toBe('created')
       if (newCreation.status !== 'created') return
       newRuntime = newCreation.runtime
@@ -598,6 +648,16 @@ describe('D1-R1 shared directory budgets', () => {
 
   it('reserves maxFiles across concurrent factory creation', async () => {
     const directory = await mkdtemp(join(scratchRoot, 'r1-directory-files-'))
+    const ownerCreation = await createLocalDiagnosticsDirectory(
+      directoryOptions(
+        options(directory, 'source-r1-owner', {
+          maxFiles: 1,
+        }),
+      ),
+    )
+    expect(ownerCreation.status).toBe('created')
+    if (ownerCreation.status !== 'created') return
+    owners.add(ownerCreation.owner)
     const originalOpen = nodeFs.open as unknown as FlexibleCall
     const pendingOpens: unknown[][] = []
     const opened = new Promise<void>(resolveOpened => {
@@ -615,15 +675,19 @@ describe('D1-R1 shared directory budgets', () => {
     let runtimes: DiagnosticsRuntime[] = []
     try {
       const creations = await Promise.all([
-        createLocalDiagnostics(
-          options(directory, 'source-r1-concurrent-a', {
-            maxFiles: 1,
-          }),
+        ownerCreation.owner.create(
+          sourceOptions(
+            options(directory, 'source-r1-concurrent-a', {
+              maxFiles: 1,
+            }),
+          ),
         ),
-        createLocalDiagnostics(
-          options(directory, 'source-r1-concurrent-b', {
-            maxFiles: 1,
-          }),
+        ownerCreation.owner.create(
+          sourceOptions(
+            options(directory, 'source-r1-concurrent-b', {
+              maxFiles: 1,
+            }),
+          ),
         ),
         opened,
       ])
@@ -636,7 +700,9 @@ describe('D1-R1 shared directory budgets', () => {
         )
       expect(runtimes).toHaveLength(2)
       expect(runtimes.every(subject => subject.inspect().resource === 'held')).toBe(true)
-      expect(await readdir(directory)).toHaveLength(1)
+      expect(
+        (await readdir(directory)).filter(file => file.startsWith('diagnostic-')),
+      ).toHaveLength(1)
     } finally {
       vi.restoreAllMocks()
       syncBuiltinESMExports()

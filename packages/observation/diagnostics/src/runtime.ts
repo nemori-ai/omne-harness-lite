@@ -21,11 +21,18 @@ import type {
   DiagnosticGapReason,
   DiagnosticIdentity,
   DiagnosticPoint,
+  DiagnosticDirectoryClose,
+  DiagnosticDirectoryStatus,
   Diagnostics,
+  DiagnosticsDirectoryCleanup,
   DiagnosticsRuntime,
   DiagnosticSpan,
   DiagnosticStatus,
-  LocalDiagnosticsOptions,
+  LocalDiagnosticSourceOptions,
+  LocalDiagnosticSourceResult,
+  LocalDiagnosticsDirectory,
+  LocalDiagnosticsDirectoryOptions,
+  LocalDiagnosticsDirectoryResult,
 } from './index.js'
 import { projectEnd, projectIdentity, projectPoint, samePrincipal } from './projection.js'
 import type { SafeIdentity, SafePoint } from './projection.js'
@@ -88,9 +95,7 @@ type StartupFailure = Readonly<{
   reason: 'retention_capacity' | 'write_unavailable'
 }>
 
-type LocalDiagnosticsResult =
-  | Readonly<{ status: 'invalid'; code: string }>
-  | Readonly<{ status: 'created'; runtime: DiagnosticsRuntime }>
+type RuntimeOptions = LocalDiagnosticSourceOptions & LocalDiagnosticsDirectoryOptions
 
 class StartupCleanupFailure extends Error {
   readonly descriptor: number
@@ -124,7 +129,7 @@ function validPositiveInteger(value: unknown): value is number {
   return Number.isSafeInteger(value) && (value as number) > 0
 }
 
-function validateOptions(options: LocalDiagnosticsOptions): string | undefined {
+function validateOptions(options: RuntimeOptions): string | undefined {
   if (options === null || typeof options !== 'object') return 'INVALID_OPTIONS'
   if (
     typeof options.instanceId !== 'string' ||
@@ -164,7 +169,7 @@ function validateOptions(options: LocalDiagnosticsOptions): string | undefined {
   return undefined
 }
 
-function fileName(options: LocalDiagnosticsOptions): string {
+function fileName(options: LocalDiagnosticSourceOptions): string {
   const source = createHash('sha256').update(options.sourceId, 'utf8').digest('hex').slice(0, 16)
   return `diagnostic-${source}.jsonl`
 }
@@ -225,7 +230,7 @@ class LocalRuntime implements DiagnosticsRuntime {
   activeSpanCount = 0
   writeFailed = false
   lastErrorCode: string | null = null
-  private readonly configuredLevel: LocalDiagnosticsOptions['level']
+  private readonly configuredLevel: LocalDiagnosticSourceOptions['level']
   private readonly maxRecordBytes: number
   private readonly maxActiveSpans: number
   private readonly maxSourceBytes: number
@@ -261,7 +266,7 @@ class LocalRuntime implements DiagnosticsRuntime {
   private gapSummaryAttempts = 0n
 
   constructor(
-    options: LocalDiagnosticsOptions,
+    options: RuntimeOptions,
     stream: SonicBoomType | null,
     descriptor: number | null,
     maxSourceBytes: number,
@@ -1033,7 +1038,7 @@ type DirectoryPreparation = Readonly<{
 
 async function prepareDirectory(
   directory: string,
-  options: LocalDiagnosticsOptions,
+  options: RuntimeOptions,
 ): Promise<DirectoryPreparation | null> {
   let entries = 0
   let bytes = 0
@@ -1093,7 +1098,10 @@ type OpenedStream = Readonly<{
   descriptor: number
 }>
 
-async function createStream(path: string, options: LocalDiagnosticsOptions): Promise<OpenedStream> {
+async function createStream(
+  path: string,
+  options: LocalDiagnosticSourceOptions,
+): Promise<OpenedStream> {
   const descriptor = await new Promise<number>((resolve, reject) => {
     openFd(path, 'wx', 0o600, (error, fd) => {
       if (error !== null) reject(error)
@@ -1135,9 +1143,9 @@ async function createStream(path: string, options: LocalDiagnosticsOptions): Pro
   }
 }
 
-export async function createLocalDiagnostics(
-  options: LocalDiagnosticsOptions,
-): Promise<LocalDiagnosticsResult> {
+async function createLocalDiagnostics(
+  options: RuntimeOptions,
+): Promise<LocalDiagnosticSourceResult> {
   const invalid = validateOptions(options)
   if (invalid !== undefined) return Object.freeze({ status: 'invalid', code: invalid })
 
@@ -1180,6 +1188,88 @@ export async function createLocalDiagnostics(
         false,
         retainedHandles,
       ),
+    })
+  }
+}
+
+function validateDirectoryOptions(options: LocalDiagnosticsDirectoryOptions): string | undefined {
+  if (options === null || typeof options !== 'object') return 'INVALID_OPTIONS'
+  if (typeof options.directory !== 'string' || !isAbsolute(options.directory)) {
+    return 'INVALID_DIRECTORY'
+  }
+  if (!validPositiveInteger(options.maxDirectoryBytes)) return 'INVALID_MAX_DIRECTORY_BYTES'
+  if (!validPositiveInteger(options.maxFiles)) return 'INVALID_MAX_FILES'
+  return undefined
+}
+
+class UncoordinatedDirectoryOwner implements LocalDiagnosticsDirectory {
+  private readonly runtimes = new Set<DiagnosticsRuntime>()
+  private phase: DiagnosticDirectoryStatus['phase'] = 'active'
+
+  constructor(private readonly options: LocalDiagnosticsDirectoryOptions) {}
+
+  async create(options: LocalDiagnosticSourceOptions): Promise<LocalDiagnosticSourceResult> {
+    if (this.phase !== 'active') {
+      return Object.freeze({ status: 'unavailable', code: 'DIRECTORY_CLOSING' })
+    }
+    const result = await createLocalDiagnostics({ ...this.options, ...options })
+    if (result.status === 'created') this.runtimes.add(result.runtime)
+    return result
+  }
+
+  inspect(): DiagnosticDirectoryStatus {
+    const resources = [...this.runtimes].map(runtime => runtime.inspect())
+    return Object.freeze({
+      phase: this.phase,
+      lock: this.phase === 'closed' ? 'released' : 'held',
+      scan: 'complete',
+      chargedBytes: resources
+        .reduce((total, state) => total + BigInt(state.writtenBytes), 0n)
+        .toString(),
+      reservedBytes: resources
+        .reduce((total, state) => total + BigInt(state.pendingBytes), 0n)
+        .toString(),
+      materializedFiles: resources.filter(state => state.resource !== 'released').length,
+      reservedFiles: 0,
+      sources: Object.freeze([]),
+      lastErrorCode: null,
+      resource: this.phase === 'closed' ? 'released' : 'held',
+    })
+  }
+
+  async close(options: Readonly<{ deadlineMs: number }>): Promise<DiagnosticDirectoryClose> {
+    if (!validPositiveInteger(options.deadlineMs)) {
+      return Object.freeze({ status: 'blocked', state: this.inspect() })
+    }
+    this.phase = 'closing'
+    const results = await Promise.all(
+      [...this.runtimes].map(runtime => runtime.close({ deadlineMs: options.deadlineMs })),
+    )
+    if (results.some(result => result.status !== 'closed')) {
+      return Object.freeze({ status: 'blocked', state: this.inspect() })
+    }
+    this.phase = 'closed'
+    return Object.freeze({ status: 'closed', state: this.inspect() })
+  }
+}
+
+export async function createLocalDiagnosticsDirectory(
+  options: LocalDiagnosticsDirectoryOptions,
+): Promise<LocalDiagnosticsDirectoryResult> {
+  const invalid = validateDirectoryOptions(options)
+  if (invalid !== undefined) return Object.freeze({ status: 'invalid', code: invalid })
+  try {
+    await mkdir(options.directory, { recursive: true, mode: 0o700 })
+    await chmod(options.directory, 0o700)
+    return Object.freeze({
+      status: 'created',
+      owner: new UncoordinatedDirectoryOwner(options),
+    })
+  } catch (error) {
+    return Object.freeze({
+      status: 'unavailable',
+      code: systemErrorCode(error) ?? 'DIRECTORY_OPEN_FAILED',
+      cleanup: null,
     })
   }
 }
