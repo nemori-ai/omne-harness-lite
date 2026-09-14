@@ -21,7 +21,7 @@ P0 共享接口、原生锁前提、检查器、work-data 与 records 已经评�
 |---|---|---|---|
 | P0 | accepted | 锁前提、共享接口、检查器、work-data/records；HUB 已验证两个目标包与 16 包产物 | 提供 P1 的真实共享端口/codec 和锁测量依据，尚非真实 writer |
 | P1 | in_progress | diagnostics 候选在 HUB 通过现有检查，独立审阅另发现六项问题，正在修复；真实 writer/准入未实现 | D1 反例修复、复核与验收，再并行实现 jsonl/admission |
-| P2 | design_in_progress | 治理与 AR/SR 施工交接已接受；具体 Cordis 装配映射仍待固定，产品尚未实施 | P1 的真实共同门与记录提供者、受审插件映射；交付本地预算 owner |
+| P2 | design_in_progress | 治理与 AR/SR 施工交接已接受；具体 Cordis 提供者映射已按 `61e732b` 派发设计，产品尚未实施 | P1 的真实共同门与记录提供者、受审插件映射；交付本地预算 owner |
 | P3 / M1 | design_in_progress | TL/HD/local-execution 共享接口与 Cordis 映射已按 `8c791b3` 派发设计；产品未执行 | 受审公共交接、P2 当前权限/真实预算/Session/活体，以及 P1 执行账本前提 |
 | P4 | planned | 未执行；用户已指定凭据入口与两个测试模型 | M1 组合、实际路由/价格和受限冒烟配置；离线部分可按依赖提前 |
 | P5 / M2 | planned | 未执行 | 最终组合版本及全部本批验收证据 |
@@ -53,6 +53,7 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 | SSE 组件前置测量（accepted） | verification-developer，`/root/p0_sse_probe`，已结束并释放 | `dsh-p0-sse-probe`，已退役 | `b05e57c` 经 `db106159` 整合，HUB 离线正常 12/12、负控仅 S05 失败；[证据与局限](evidence/p0-sse-probe/README.md#hub-复验与当前采用范围)，未发模型请求、不抵扣 A23/A24 |
 | 规格与 Cordis 映射的维护交接 | `/root/governance_design` 已按用户新分工停止规则写入，主调度整理交接 | `dsh-mapping-governance`，从 `9954b12` 创建，保留未提交候选 | 规范与配套 skills 由另一会话统一收敛；[交接](../design-spec-maintenance-handoff.md)记录缺口、成因与未接受建议，候选不合入 HUB |
 | TL/HD/local-execution 施工交接（设计中） | `/root/session_runtime_design`，本轮为架构设计作者 | `dsh-tool-decision-design`，从 `8c791b3` 创建 | 只写具体接口稿及其证据；含共同批次、原 Action 接续、执行责任和 Cordis 映射，完成后独立审阅；不代替另一会话的维护规范 |
+| P2 提供者与装配映射（设计中） | 原治理设计作者 `/root/governance_design`，本轮为具体技术设计 | `dsh-runtime-provider-design`，从 `61e732b` 创建 | 唯一固定 TG/AU/BG/AR/SR/身份及实际 P1 产物挂载的服务键、依赖和生命周期；与工具稿对齐后独立受审，长期维护规则仍归另一会话 |
 
 可观测性工程品味与共享研发提示词已由 `51eaefb` 经 `7d3736c` 整合到 HUB，
 五个角色的两端生成检查和文档检查通过，见[提示词证据](evidence/observability-prompts.json)。
