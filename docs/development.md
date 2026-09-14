@@ -45,6 +45,24 @@ make check
 正式行为模型的覆盖与 Java/JAR 环境分开报告；详细要求见
 [验证规范](maintenance/verification.md#环境与实际执行)。
 
+TS/JS 格式由根配置和锁定的本地 Prettier 统一处理。检查或格式化整个受维护范围时运行：
+
+```sh
+pnpm format:check
+pnpm format:write
+```
+
+agent 和局部修改应只传入本次有写权限的仓库相对文件，例如
+`pnpm format:write -- packages/model/llm/src/message.ts`。默认范围包括 `packages/`、
+`apps/`、`tools/package-checks/` 和 `scripts/` 下的 TS/JS 源码、测试及所属配置，
+以及格式化工具自己的根配置；不包含 `spec/`、上游原件、provenance、JSONL 黄金文件、
+依赖、构建输出和临时目录。
+
+需要本地提交检查时，在确认没有既有 `pre-commit` hook 后显式运行
+`pnpm format:hook:install`。安装器不会覆盖已有 hook；所安装检查只读取 Git index 中
+已暂存的受维护文件，不 stash、不改工作区或暂存区。编辑器推荐设置使用工作区安装的
+Prettier 和同一根配置，保存时格式化 TS/JS；推荐设置本身不证明宿主执行过保存动作。
+
 ## 定位修改位置
 
 | 要修改的内容 | 入口 |
@@ -68,6 +86,7 @@ make check
 | 本地文档链接、导航与 skill 镜像 | `make docs-check` |
 | 契约登记、Schema 或形式任务 | `make spec-check` |
 | 检查器或 skill 生成器行为 | `make test`，或按下方说明运行相关测试 |
+| TS/JS 源码、测试及所属配置的格式 | `pnpm format:check`；局部写入使用 `pnpm format:write -- <有写权限的文件...>` |
 | 产品职责包或 TS workspace | `make product-check`；构建、严格类型检查、来源/组合案例、依赖边界与逐包独立产物消费，详见各包 README |
 | 当前检查组合、跨入口改动 | `make check` |
 | 形式工具是否可用 | `make spec-tools` |

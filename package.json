@@ -8,6 +8,14 @@
   "scripts": {
     "build": "pnpm -r --filter './packages/**' run build",
     "test": "pnpm run build && pnpm -r run test",
-    "check": "pnpm run build && pnpm -r run typecheck && pnpm -r run test && pnpm --filter @omne-harness-lite/package-checks check"
+    "format:write": "./scripts/format.sh write",
+    "format:check": "./scripts/format.sh check",
+    "format:staged": "./scripts/format.sh staged",
+    "format:hook:install": "./scripts/install-format-hook.sh",
+    "test:format": "./scripts/test-formatting.sh",
+    "check": "pnpm run format:check && pnpm run test:format && pnpm run build && pnpm -r run typecheck && pnpm -r run test && pnpm --filter @omne-harness-lite/package-checks check"
+  },
+  "devDependencies": {
+    "prettier": "3.9.6"
   }
 }

@@ -36,6 +36,18 @@ packages/apps/tools/scripts 和 agent 配置目录；
 的路由/父链/撤回、Session/流/文件读写及通过公开入口扩展 Session 和投影类型。
 这些检查不向 npm 发布，也不代表已兑现目标产品语义。
 
+根 `pnpm format:check` 使用 `package.json` 固定的本地 Prettier 和共享根配置，检查
+受维护 TS/JS 源码、测试及所属配置；`pnpm format:write` 写入同一范围。显式文件参数
+只接受该范围内的仓库相对文件，agent 必须进一步收窄到本次写权限。`spec/`、上游原件、
+provenance、JSONL 黄金文件、依赖、构建输出、生成物和临时目录不在格式化范围。
+根产品检查和独立格式 CI 都调用同一检查入口；CI 只按退出码检查，不写代码或提交。
+
+`pnpm format:staged` 从 Git index 读取已暂存 blob，不用工作区副本推断提交是否合格，
+也不修改 index、工作区或 stash。`pnpm test:format` 在临时独立 Git 仓库验证 RED→write→
+GREEN、幂等、空格路径、排除范围、部分暂存与安装器不覆盖已有 hook。该测试验证仓库
+适配器边界，不证明 Prettier 内部算法；编辑器配置和 workflow 的本地检查也不代表真实
+宿主保存动作或 GitHub 托管运行已经发生。
+
 ## 环境与实际执行
 
 自动化入口需要 Bash、Make；首次使用安装 [uv](https://docs.astral.sh/uv/getting-started/installation/)，运行
