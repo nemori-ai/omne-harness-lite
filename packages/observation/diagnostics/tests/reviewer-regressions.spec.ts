@@ -212,6 +212,10 @@ describe('D1-R2 close recovery after a write-triggered destroy', () => {
       callback?.(Object.assign(new Error('R2_END_WRITE_SECRET'), { code: 'EIO' }), 0)
       firstClose = await closing
       await waitFor(subject, status => status.writeProgress === 'failed')
+      const closeDeadline = Date.now() + 1_000
+      while (closeCalls === 0 && Date.now() < closeDeadline) {
+        await new Promise(resolve => setTimeout(resolve, 5))
+      }
       if (closeCalls > 0) {
         await waitFor(subject, status => status.resource === 'released')
         repeated = await subject.close({ deadlineMs: 1_000 })
@@ -236,8 +240,7 @@ describe('D1-R2 close recovery after a write-triggered destroy', () => {
       status: 'blocked',
       state: { phase: 'closing', writeProgress: 'failed' },
     })
-    expect(closeCalls).toBe(1)
-    expect(openAfterFailure).toBe(false)
+    expect({ closeCalls, openAfterFailure }).toEqual({ closeCalls: 1, openAfterFailure: false })
     expect(repeated).toMatchObject({
       status: 'closed',
       state: { phase: 'closed', resource: 'released' },
