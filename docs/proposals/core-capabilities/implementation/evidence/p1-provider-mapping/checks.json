@@ -1,0 +1,105 @@
+{
+  "baseline": "7af250ee19df1077a5143cac817558caa959a392",
+  "checks": [
+    {
+      "name": "migration",
+      "command": [
+        "python3",
+        "docs/proposals/core-capabilities/implementation/evidence/p1-provider-mapping/check-migration.py"
+      ],
+      "exit_code": 0,
+      "output": "migration-check.json"
+    },
+    {
+      "name": "diff",
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "output": "diff-check.log"
+    },
+    {
+      "name": "docs",
+      "command": [
+        "make",
+        "docs-check",
+        "BASELINE=7af250e"
+      ],
+      "exit_code": 0,
+      "output": "docs-check.log"
+    },
+    {
+      "name": "migration-final",
+      "command": [
+        "python3",
+        "docs/proposals/core-capabilities/implementation/evidence/p1-provider-mapping/check-migration.py"
+      ],
+      "exit_code": 0,
+      "output": "migration-check.json"
+    },
+    {
+      "name": "docs-final",
+      "command": [
+        "make",
+        "docs-check",
+        "BASELINE=7af250e"
+      ],
+      "exit_code": 0,
+      "output": "docs-check-final.log"
+    },
+    {
+      "name": "diff-final",
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "output": "diff-check.log"
+    },
+    {
+      "name": "staged-diff-initial",
+      "command": [
+        "git",
+        "diff",
+        "--cached",
+        "--check"
+      ],
+      "exit_code": 2,
+      "output": "staged-diff-initial.log",
+      "resolution": "Remove extra final blank line from both newly staged design files; rerun below."
+    },
+    {
+      "name": "migration-staged-final",
+      "command": [
+        "python3",
+        "docs/proposals/core-capabilities/implementation/evidence/p1-provider-mapping/check-migration.py"
+      ],
+      "exit_code": 0,
+      "output": "migration-check.json"
+    },
+    {
+      "name": "docs-staged-final",
+      "command": [
+        "make",
+        "docs-check",
+        "BASELINE=7af250e"
+      ],
+      "exit_code": 0,
+      "output": "docs-check-staged.log"
+    },
+    {
+      "name": "staged-diff-final",
+      "command": [
+        "git",
+        "diff",
+        "--cached",
+        "--check"
+      ],
+      "exit_code": 0,
+      "output": "diff-check.log"
+    }
+  ]
+}
