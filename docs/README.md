@@ -15,7 +15,10 @@
 | 查看候选方案与尚未接受的模型 | [提案](proposals/README.md) |
 | 查证上游行为、事实和验证范围 | [研究](research/README.md) |
 | 修改文档、契约、版本或决定 | [维护规则](maintenance/README.md) |
+| 判断知识是否持久化及应进入哪个目录 | [准入与归属](maintenance/organization.md#持久化知识的准入)，目标目录 AGENTS 提供局部投影 |
+| 从需求推导不变量，判断何时需要证明 | [性质推导](architecture-guide/assurance/invariants.md#从目标与需求推导性质)、[组合性质](architecture-guide/assurance/composability.md) |
 | 持续维护规格、具体提供者设计及其实施就绪范围 | [规格维护](maintenance/spec-maintenance.md) |
+| 撰写能解释依赖和验收证据的交付计划 | [交付规划](maintenance/delivery-planning.md) |
 | 放置源码、配置开发环境或接入 CI | [源码布局](maintenance/workspace.md)、[验证规范](maintenance/verification.md) |
 | 判断相关防御指导是否适用 | [防御模式](defensive-patterns.md) |
 | 切换开发主力模型前评估辅助是否仍必要 | [开发模型评估](evaluation/README.md) |

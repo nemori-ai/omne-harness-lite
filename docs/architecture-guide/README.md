@@ -24,7 +24,9 @@
 | 如何停止工作并释放资源？ | [生命周期](runtime/lifecycle.md) |
 | 状态应该由谁保存，什么可以重建？ | [状态与存储](modeling/state-and-storage.md) |
 | 通知、拦截、取消和并发操作有什么语义？ | [交互协议](runtime/interaction.md) |
-| 如何表达、执行和检查一条约束？ | [不变量](assurance/invariants.md) |
+| 怎样从目标/功能需求推导并保护不变量及安全/进展约束？ | [不变量](assurance/invariants.md#从目标与需求推导性质) |
+| 何时需要证明可逆、撤除或交换性？ | [组合性质与证明义务](assurance/composability.md) |
+| 设计是否值得进入提案，怎样衔接决定和交付？ | [提案准入](../maintenance/organization.md#提案的持久化准入)、[知识流转](../maintenance/knowledge-flow.md) |
 | 如何让未来远程实现保持相同含义？ | [部署与分布式边界](runtime/distribution.md) |
 | 如何把设计落为可验证规格？ | [规格与证据](assurance/specification.md) |
 | 能力目的怎样连接服务、插件与 Agent 使用方式？ | [总体范式](foundations/paradigm.md#从目的到可演化的实现)、[能力边界](modeling/capabilities.md) |

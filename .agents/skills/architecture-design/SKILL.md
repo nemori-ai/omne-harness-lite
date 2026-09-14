@@ -43,12 +43,25 @@ description: >
 [implementation-planning](../implementation-planning/SKILL.md) 指导针对性研究、
 成熟成果复用或 fork 的评估，以及可验收的交付规划。
 
+建模或架构设计先从本次目标、功能需求和全局约束
+[导出或引用性质](../../../docs/architecture-guide/assurance/invariants.md#从目标与需求推导性质)：
+不变量、安全与进展要求分别是什么，由谁在何处保护，用什么证据核对。双向检查
+关键需求是否遗漏、性质是否有依据，不从现有接口或测试反推完整需求；关键语义
+不足时指出缺口，不把偏好的机制写成既定不变量。
+
 建模从目的和消费者出发，沿[总体范式](../../../docs/architecture-guide/foundations/paradigm.md#从目的到可演化的实现)
 定义最小充分契约，分别推导服务、插件与 Agent 消费方式。跨能力设计沿
 [完整动作链](../../../docs/architecture-guide/reference/contract-description.md#沿完整动作链核对组合)
 检查责任交接，不把类型、方法或依赖图齐全当作行为已经闭合。
 
 ## 必要时展开
+
+- 准备持久化设计或讨论时，先判断[提案准入](../../../docs/maintenance/organization.md#提案的持久化准入)；
+  当前实现说明、研究事实和临时排期各回其拥有者。提案中的架构设计先于接受，
+  决定与当前视图的关系沿[知识流转](../../../docs/maintenance/knowledge-flow.md#各环节留下什么)。
+- 依赖可逆、撤除、交换性或互不干扰作机制选择时，按
+  [组合性质](../../../docs/architecture-guide/assurance/composability.md)识别证明义务、
+  前提责任和受阻选择；复用既有证据要核对适用性，不把目标要求与已证明结论混同。
 
 - 新增、修订规格或处理模型、提供者映射和消费者影响时，使用
   [spec-maintenance](../spec-maintenance/SKILL.md)；具体版本和维护规则继续归其权威正文。

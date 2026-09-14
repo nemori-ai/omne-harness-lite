@@ -26,10 +26,10 @@
 | 生命周期 | 装载建立什么、撤除或保留什么，谁拥有实例、注册、任务和句柄，何时真正结束？ | [装载效应与资源释放](../runtime/lifecycle.md#装载效应与撤除责任) |
 | 操作 | 接纳、提交、完成和失败分别意味着什么？ | [交互协议](../runtime/interaction.md) |
 | 状态 | 什么是事实，什么需要持久，什么能够重建？ | [状态与存储](../modeling/state-and-storage.md) |
-| 约束 | 哪些关系必须成立，有哪些成立前提和观察边界？ | [不变量](../assurance/invariants.md) |
+| 约束 | 从哪些目标和需求导出不变量及安全/进展性质，谁在什么边界保护它们，覆盖还缺什么？ | [不变量](../assurance/invariants.md) |
 | 演化 | 新定义怎样生效，旧使用和已有状态如何处置？ | [动态演化](../runtime/evolution.md) |
 | 部署 | 哪些本地假设可被替换，远程时保持什么语义？ | [分布式边界](../runtime/distribution.md) |
-| 证据 | 哪些模型和场景支持承诺，哪些部分尚未验证？ | [规格与证据](../assurance/specification.md) |
+| 证据 | 哪些性质触发证明义务，前提由谁兑现，哪些模型、证明和场景支持承诺或仍有缺口？ | [规格与证据](../assurance/specification.md)、[组合性质](../assurance/composability.md) |
 
 ## 沿完整动作链核对组合
 

@@ -18,6 +18,16 @@ ownership, failure, and change visible.
 
 ## Core judgment
 
+- Derive the invariants and relevant safety/progress properties from the task's
+  goals and requirements before judging an abstraction. Check their owners and
+  enforcement points; method names, existing fields and green tests cannot stand
+  in for that derivation. Use the [invariant guide](../../../docs/architecture-guide/assurance/invariants.md#从目标与需求推导性质).
+- Judge a controlled interface by the obligations it centralizes and the invalid
+  actions it excludes. Owned operations can reduce each plugin's cleanup burden;
+  a forwarding layer earns no such claim if callers can bypass its boundary.
+  For shared algebraic guarantees, apply the [proof criteria](../../../docs/architecture-guide/assurance/composability.md)
+  rather than inferring reversibility or independence from the API shape.
+
 - Prefer a concrete implementation until a second real variation or a boundary
   contract makes an abstraction pay for itself.
 - Treat every abstraction as a claim: it says that several things share a stable
