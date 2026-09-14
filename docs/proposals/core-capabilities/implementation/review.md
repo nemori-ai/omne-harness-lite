@@ -123,6 +123,13 @@ parseJson 在 jsonc-parser 完整递归建 AST 后才检查 maxDepth/maxNodes，
 作者已接回，须实际 RED/GREEN，不能用仅抑制 visitor 回调的 false 值代替中止解析。
 本轮 DTO/Schema、数值、冻结、规范编码及产物范围未发现其它阻断；尚未接受实现。
 
+`f586758` 在递归 parser 前加入 scanner 容量检查，原两个小限额的深数组场景
+实际 RED/GREEN 闭合。定点复核仍发现两条路径：畸形 JSON 在期待逗号时可能
+被预检跳过，却被容错 parser 继续递归；调用者允许两万层时，宿主自身的栈容量
+仍未保护。作者继续修订。主调度明确 JsonLimits 是调用者允许的上限，不承诺
+宿主支持任意深度；实现容量必须有依据、明确记录并返回 Checked capacity，
+且不能产生后续公开编码必然崩溃的“已验证”值。不能仅写限制而放任 RangeError。
+
 新自有包默认 private/UNLICENSED；按实际许可声明支持其它来源不属于本轮缺陷，
 检查器也不授予新许可。原生选择性构建路径的 fixture 通过不代表未来产品 native
 依赖已实际加载，仍须在根依赖接入后运行完整隔离消费。整合者在修订复核后再

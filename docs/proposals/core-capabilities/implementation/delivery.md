@@ -42,11 +42,13 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 |---|---|---|---|
 | P0 共享接口稿（accepted） | `/root/p0_interfaces` 与独立复核 `/root/review_first_batch`，本任务均已结束 | `dsh-p0-interfaces`，已退役 | `8f4cfa9` 的 I1–I5 闭合，`33f39cb` 整合及 HUB 探针重跑通过，接受为施工输入 |
 | P0 真实锁探针（accepted） | infrastructure-developer，`/root/p0_lock_probe`，已结束 | `dsh-p0-lock-probe`，已退役 | `f712e025` 经 `04b8dbf` 整合，HUB 全新目录实际复验通过；范围及限制见下文 |
-| P0 包检查器（accepted） | verification-developer，`/root/p0_package_checks`；复核 `/root/review_package_layout`，本任务均已结束 | `dsh-p0-package-checks`，待资产/消费者核对后退役 | `33a57a2` 的 K1–K3 闭合，`d95052c` 整合及 HUB 构建/13 项测试/14 独立与组合产物通过 |
-| P0 work-data 实现 | kernel-developer，`/root/p0_work_data` | `dsh-p0-work-data` | `a8cd57e` 已交 86 项测试与产物证据；独立复核发现深输入容量检查过晚，作者修复中，尚未合入 HUB |
+| P0 包检查器（accepted） | verification-developer，`/root/p0_package_checks`；复核 `/root/review_package_layout`，本任务均已结束 | `dsh-p0-package-checks`，已退役 | `33a57a2` 的 K1–K3 闭合，`d95052c` 整合及 HUB 构建/13 项测试/14 独立与组合产物通过 |
+| P0 work-data 实现 | kernel-developer，`/root/p0_work_data` | `dsh-p0-work-data` | `f586758` 已通过 88 项测试和外部产物；深输入原反例已修，畸形输入和宿主深度容量仍修复，尚未合入 HUB |
 
 可观测性工程品味与共享研发提示词已由 `51eaefb` 经 `7d3736c` 整合到 HUB，
 五个角色的两端生成检查和文档检查通过，见[提示词证据](evidence/observability-prompts.json)。
+提示词 spoke 已退役；其独有验证说明已按哈希保全到 HUB 的
+`tmp/retired-worktrees/observability-prompts/verification.md`，其余生成副本与环境可重建。
 这只交付认知约定，未交付 log/trace 产品设施。DSH、pi 和 OpenCode 固定源码研究
 已完成；`/root/observability_design` 正在 `dsh-observability-design` 将最小 P1 设施
 正式化为待审设计，完整工程观测查询仍按原 P3 责任推进。其它产品设计会话的
@@ -111,6 +113,8 @@ HUB 实际重跑版本/哈希。正式 Schema 未改；产品 JSON 边界、code
 多入口、apps 夹具、真实源码依赖与许可、仓库外及全局解析隔离均按固定范围验证。
 根 workspace 尚无产品 apps 或 work-data 成员；它们后续接入时仍须实际产物验证。
 原生 fs-ext 选择性构建规则已支持，但当前产品未依赖它，实际 addon 加载仍归 P1。
+该 spoke 的作者与评审者已结束，确认无驻留进程；原始证据已进入 HUB，临时目录
+为空，其余仅为可重建安装与 Python 缓存，工作树已退役。
 
 ## 供其他设计会话消费的边界
 
