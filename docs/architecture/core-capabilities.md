@@ -25,4 +25,6 @@ Context／依赖和事件供给运行时组合，不替代租户权限或外部�
 媒体 GC、账务来源和应用组合仍未完成目标验收。D-006 定向 fork 和 D-009
 职责包重组已完成，当前已有 [14 个实际包的源码起点](../proposals/core-capabilities/fork/package-layout-delivery.md)。
 后续按[第一批二次开发工作包](../proposals/core-capabilities/implementation/README.md)
-实现可恢复工具审批与 OpenRouter 文本流程；工作包是待实施范围，尚无目标实现验收结果。
+实现可恢复工具审批与 OpenRouter 文本流程。共享数据 work-data 已完成目标 DTO、
+严格 JSON、Schema 和独立产物验收，见[实际证据](../proposals/core-capabilities/implementation/evidence/p0-work-data/hub-summary.json)；
+它尚不提供记录、准入或 Agent/Session/工具运行闭环。

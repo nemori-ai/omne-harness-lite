@@ -3,22 +3,22 @@
 ## 当前事实
 
 首批二次开发的目标、验收、实施规格和计划已完成文档交付，其原评审发现已闭合。
-P0 共享接口与检查器已经评审、整合和复验，work-data 正在修复一项输入容量问题，见 [review.md](review.md)。用户已授权按完整工作包
-自驱实施；P0 的共享接口设计、原生锁探针和包检查器 TDD 已派发。尚无本批已接受
-产品交付或 OpenRouter 请求；A01–A32 尚未通过，M1/M2 均未交付。
+P0 共享接口、原生锁前提、检查器及 work-data 已经评审、整合和复验，见 [review.md](review.md)。
+用户已授权按完整工作包自驱实施；共享数据是本批首个已接受的目标产品增量，
+records 端口与 codec 是下一项。尚未发起 OpenRouter 请求；A01–A32 尚未完整通过，M1/M2 均未交付。
 
 | 对象 | 已有事实 | 对本批的含义 |
 |---|---|---|
 | D-005/D-007/D-008 | 运行时/组合/核心契约已接受并登记精确版本 | 是实施约束，不是实现通过证据 |
 | D-009 与 `f55e3e0` | 14 个实际职责包及公开消费已落地 | 是二次开发源码起点，不需要重新建单一 baseline 包 |
 | `63b4a95` 的布局交付记录 | 对绑定源码的既有构建/源测试/形式与产物消费结果 | 保留原验证范围，不移用为本批新行为 GREEN |
-| 本工作包 | 两个交付点、32 项验收及 P0–P5 安排 | 供派发固定版本；新路径都是计划，不表述为现有成员 |
+| 本工作包 | 两个交付点、32 项验收及 P0–P5 安排 | 供派发固定版本；work-data 已有目标实现，其余新路径仍是计划 |
 
 ## 实施状态
 
 | 任务 | 状态 | 实现/验收证据 | 下一项输入 |
 |---|---|---|---|
-| P0 | in_progress | 锁探针、共享接口施工输入及检查器已接受；work-data 的容量反例正在修复 | work-data 修复复核/整合，随后 records 共享边界实现 |
+| P0 | in_progress | 锁探针、共享接口施工输入、检查器及 work-data 已接受 | records 端口与 codec 的共享边界实现 |
 | P1 | planned | 未执行 | P0 的记录/协调接口与真实锁证据 |
 | P2 | planned | 未执行 | P1 的真实共同门与记录提供者；交付本地预算 owner |
 | P3 / M1 | planned | 未执行 | P2 当前权限/真实预算/Session/活体，以及 P1 执行账本前提 |
@@ -43,24 +43,24 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 | P0 共享接口稿（accepted） | `/root/p0_interfaces` 与独立复核 `/root/review_first_batch`，本任务均已结束 | `dsh-p0-interfaces`，已退役 | `8f4cfa9` 的 I1–I5 闭合，`33f39cb` 整合及 HUB 探针重跑通过，接受为施工输入 |
 | P0 真实锁探针（accepted） | infrastructure-developer，`/root/p0_lock_probe`，已结束 | `dsh-p0-lock-probe`，已退役 | `f712e025` 经 `04b8dbf` 整合，HUB 全新目录实际复验通过；范围及限制见下文 |
 | P0 包检查器（accepted） | verification-developer，`/root/p0_package_checks`；复核 `/root/review_package_layout`，本任务均已结束 | `dsh-p0-package-checks`，已退役 | `33a57a2` 的 K1–K3 闭合，`d95052c` 整合及 HUB 构建/13 项测试/14 独立与组合产物通过 |
-| P0 work-data 实现 | kernel-developer，`/root/p0_work_data` | `dsh-p0-work-data` | `f586758` 已通过 88 项测试和外部产物；深输入原反例已修，畸形输入和宿主深度容量仍修复，尚未合入 HUB |
+| P0 work-data 实现（accepted） | kernel-developer，`/root/p0_work_data`；定点复核 `/root/review_first_batch`，本任务均已结束 | `dsh-p0-work-data`，待资产核对后退役 | `18cad69` 经 `6e7f213` 整合，`728d665` 锁定依赖；D1/D2 闭合，HUB 91 项测试与 15 包产物通过 |
 
 可观测性工程品味与共享研发提示词已由 `51eaefb` 经 `7d3736c` 整合到 HUB，
 五个角色的两端生成检查和文档检查通过，见[提示词证据](evidence/observability-prompts.json)。
 提示词 spoke 已退役；其独有验证说明已按哈希保全到 HUB 的
 `tmp/retired-worktrees/observability-prompts/verification.md`，其余生成副本与环境可重建。
 这只交付认知约定，未交付 log/trace 产品设施。DSH、pi 和 OpenCode 固定源码研究
-已完成；`/root/observability_design` 正在 `dsh-observability-design` 将最小 P1 设施
-正式化为待审设计，完整工程观测查询仍按原 P3 责任推进。其它产品设计会话的
+已完成；`/root/observability_design` 在 `dsh-observability-design` 已交付 `1c60feb` 候选，
+由 `/root/review_package_layout` 独立评审，尚未接受或合入；完整工程观测查询仍按原 P3 责任推进。其它产品设计会话的
 运行基线优先级见下文与[计划](plan.md#推进方式与交付点)。
 
 未标 accepted 的行只表示派发事实。主调度拥有 HUB 整合、根配置、此工作包和最终
 验收；worker 的本地提交、测试绿灯与运行结束均须经端点核验后才能接受。
-共享数据契约自身已派发实现；records/admission 消费者尚未派发，不使用兄弟
+共享数据目标包已验证；records/admission 消费者尚未派发，不使用兄弟
 任务未落定的类型或临时约定启动联合实现。
 接口出现正式规格反例时先修设计或发布流程，不放宽验收。
-具体反例与处置归[本轮评审](review.md)。共享接口和检查器缺口已经闭合，
-work-data 仍有一项修复；没有改变 M1/M2 范围，也不需要更弱的保证。
+具体反例与处置归[本轮评审](review.md)。共享接口、检查器和 work-data 缺口已经闭合；
+没有改变 M1/M2 范围，也不需要更弱的保证。
 
 本次采用当前会话实际提供的 native collaboration 角色和句柄。外部 `ccm` CLI
 inventory 与配额查询不覆盖该 native 执行面，不能移用其外部 CLI 的准入或额度
@@ -90,9 +90,25 @@ OpenAI gpt-5.6-terra 与 DeepSeek v4.1-flash。文件仅由测试进程加载，
 
 该子集消费 data.agent-runtime-identity/core-work v1，覆盖全部 DTO、真实 Schema
 资源、Checked、严格 JSON 解析/拷贝/规范编码。它无 records、admission、Cordis
-或业务状态依赖；产品实现、TDD 和独立产物验证仍待交付，不计为 A30/A31 完成。
+或业务状态依赖；其产品实现、TDD 和独立产物验证见下节，不计为完整 A30/A31。
 共享数据作者只拥有 `packages/core/work-data/` 及其专属证据；根安装/锁和 HUB
 整合仍由主调度负责。后续 records 作者须消费该包已在 HUB 验证的真实公开产物。
+
+## P0 work-data 产品交付
+
+主调度接受作者 `18cad69` 中产品 `eef1ba1` 的 work-data 增量。D1/D2 定点复核闭合，
+HUB `6e7f213` 整合、`728d665` 锁定 Ajv 8.20.0 与 jsonc-parser 3.3.1；安装禁用脚本，
+未改变原 14 包的依赖版本。[HUB 证据](evidence/p0-work-data/hub-summary.json)保留精确源码、
+锁文件哈希与四份原始日志：15 包构建、work-data 类型检查与 91 项测试、15 个独立
+tarball 消费及全包组合均通过，两份 Schema 源码/产物与冻结哈希一致。
+
+默认公开入口提供 29 个 DataTypes、严格 JSON、不可变快照与规范编码。文本解析在
+递归依赖前检查语法和容量，root-relative 实现深度上限 128 返回 Checked capacity；
+copy/freeze/canonical 的迭代实现不受该文本 parser 的递归深度限制。选值依据和
+RED/GREEN 归作者证据，不表述为任意 V8 环境的栈容量证明。
+
+这使 records 可以开始消费真实数据包，但尚未实现持久 writer、准入、任何运行闭环
+或完整 A30/A31。spoke 的产品和必要验证日志已进入 HUB，临时资产待核对后退役。
 
 ## P0 共享接口施工输入交付
 
@@ -111,7 +127,8 @@ HUB 实际重跑版本/哈希。正式 Schema 未改；产品 JSON 边界、code
 [实际结果](evidence/p0-package-checks/hub-summary.json)及原始压缩日志记录：
 14 包构建、13/13 测试、14 个独立 tarball 消费和全包组合均通过。自有来源、
 多入口、apps 夹具、真实源码依赖与许可、仓库外及全局解析隔离均按固定范围验证。
-根 workspace 尚无产品 apps 或 work-data 成员；它们后续接入时仍须实际产物验证。
+该检查器交付时的根 workspace 尚无产品 apps 或 work-data 成员；后者随后已按上节
+执行实际 15 包产物验证，apps 仍待接入。
 原生 fs-ext 选择性构建规则已支持，但当前产品未依赖它，实际 addon 加载仍归 P1。
 该 spoke 的作者与评审者已结束，确认无驻留进程；原始证据已进入 HUB，临时目录
 为空，其余仅为可重建安装与 Python 缓存，工作树已退役。

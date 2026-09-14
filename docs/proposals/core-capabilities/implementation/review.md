@@ -130,6 +130,12 @@ parseJson 在 jsonc-parser 完整递归建 AST 后才检查 maxDepth/maxNodes，
 宿主支持任意深度；实现容量必须有依据、明确记录并返回 Checked capacity，
 且不能产生后续公开编码必然崩溃的“已验证”值。不能仅写限制而放任 RangeError。
 
+`eef1ba1` 对异常语法状态立即返回 Checked invalid_json，并在文本深度超过 128 时
+返回 capacity；copy/freeze/canonical 保持迭代遍历。独立 reviewer 对该版本及仅含
+证据的 `18cad69` 定点复核，确认 D1/D2 闭合，本范围无剩余阻断。主调度在 HUB
+`728d665` 完成类型检查、91 项测试、15 包构建及独立/组合产物消费；其接受范围
+限于 work-data，见[HUB 证据](evidence/p0-work-data/hub-summary.json)。
+
 新自有包默认 private/UNLICENSED；按实际许可声明支持其它来源不属于本轮缺陷，
 检查器也不授予新许可。原生选择性构建路径的 fixture 通过不代表未来产品 native
 依赖已实际加载，仍须在根依赖接入后运行完整隔离消费。整合者在修订复核后再

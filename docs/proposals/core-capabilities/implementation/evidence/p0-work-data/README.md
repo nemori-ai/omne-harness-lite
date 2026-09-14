@@ -84,9 +84,18 @@ The valid external consumer passed strict `NodeNext` compilation and executed th
 entry. A separate invalid consumer exited `2` with TS2322 for both a missing `AgentRef.incarnationId`
 and a forged `tool_call` `InputBlock`.
 
-## Remaining integration responsibility
+## HUB integration
+
+The root integrated `18cad69` through `6e7f213` and locked the actual workspace dependencies at
+`728d665`. [HUB evidence](hub-summary.json) binds the lock and four compressed raw logs to that
+source: all 15 products built, the work-data typecheck and 91 tests passed, and 15 independent
+tarball consumers plus the full 15-product composition passed. Both built schema hashes match.
+The independent D1/D2 review closed at product `eef1ba1`; its final evidence-only commit does
+not alter that product. This accepts only work-data, not complete A30/A31 or M1/M2.
+
+## Original leaf integration boundary
 
 The leaf manifest declares all runtime and test dependencies, but this spoke did not alter the root
-workspace lock. The HUB owner must update `pnpm-lock.yaml`, install from that lock, run the revised
-package checker against the integrated tarball, and perform the broader product/document gates.
-This evidence does not claim full A30/A31, the model–tool loop, DR behavior, or final acceptance.
+workspace lock. Those integration responsibilities were completed by the root as recorded above.
+The original leaf observations retain their source identity and do not claim full A30/A31,
+the model–tool loop, DR behavior, or final batch acceptance.
