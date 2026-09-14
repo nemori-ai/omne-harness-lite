@@ -1,0 +1,15 @@
+{
+  "name": "omne-p0-sse-probe",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "probe": "node probe.mjs"
+  },
+  "dependencies": {
+    "eventsource-parser": "4.1.0"
+  }
+}
