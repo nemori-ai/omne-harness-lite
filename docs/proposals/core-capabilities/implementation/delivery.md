@@ -47,10 +47,10 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 | P0 work-data 实现（accepted） | kernel-developer，`/root/p0_work_data`；定点复核 `/root/review_first_batch`，本任务均已结束 | `dsh-p0-work-data`，已退役 | `18cad69` 经 `6e7f213` 整合，`728d665` 锁定依赖；D1/D2 闭合，HUB 91 项测试与 15 包产物通过 |
 | P0 records 实现（accepted） | infrastructure-developer，`/root/p0_records`；独立复核 `/root/review_first_batch`，本任务均已结束 | `dsh-p0-records`，已退役 | `1a237da`/`c67eb4d` 经 `bbb4a3e` 整合、`c1783fd` 锁定；HUB 17 项测试及 16 包产物通过；独有资产与执行输出已保全 |
 | diagnostics D1 实现 | infrastructure-developer，`/root/diagnostics` | `dsh-diagnostics`，从 `0e80245` 创建 | 消费真实 work-data/records；只写 diagnostics 包与其证据，真实产品通过后开放 jsonl/admission 消费 |
-| Agent/Session 施工交接（accepted） | 作者 `/root/session_runtime_design` 与独立复核 `/root/review_package_layout` 本任务已结束 | `dsh-session-runtime-design`，从 `de39a86` 创建 | `cd16f1` 的 S-R1–S-R4 闭合，`4e67db6` 整合与 HUB 文档/哈希核验通过；装配映射与产品依赖仍须就绪 |
+| Agent/Session 施工交接（accepted） | 作者 `/root/session_runtime_design` 与独立复核 `/root/review_package_layout` 本任务已结束 | `dsh-session-runtime-design`，已退役 | `cd16f1` 的 S-R1–S-R4 闭合，`4e67db6` 整合与 HUB 文档/哈希核验通过；装配映射与产品依赖仍须就绪 |
 | TS/JS 自动格式化工具（accepted） | verification-developer，`/root/formatting`，已结束 | `dsh-formatting`，已退役 | `99a6988`/`c026140` 已整合，根锁 `d13d66b`；HUB `4a5031d` 的冻结安装和完整 16 包检查通过 |
 | 格式化提示词投影（accepted） | `/root/observability_prompts`，本轮负责格式化认知约定，已结束 | `dsh-formatting-prompts`，已退役 | `47c60dd` 经 `635a690` 整合；HUB 五角色生成、408 文档与 12 提示词哈希核对通过 |
-| SSE 组件前置测量（待验收） | verification-developer，`/root/p0_sse_probe`，已结束 | `dsh-p0-sse-probe`，从 `d938be5` 创建 | 已交付 `b05e57c`，待 HUB 独立复验；未发模型请求、不抵扣 A23/A24 |
+| SSE 组件前置测量（accepted） | verification-developer，`/root/p0_sse_probe`，已结束并释放 | `dsh-p0-sse-probe`，已退役 | `b05e57c` 经 `db106159` 整合，HUB 离线正常 12/12、负控仅 S05 失败；[证据与局限](evidence/p0-sse-probe/README.md#hub-复验与当前采用范围)，未发模型请求、不抵扣 A23/A24 |
 | 规格与 Cordis 映射的维护交接 | `/root/governance_design` 已按用户新分工停止规则写入，主调度整理交接 | `dsh-mapping-governance`，从 `9954b12` 创建，保留未提交候选 | 规范与配套 skills 由另一会话统一收敛；[交接](../design-spec-maintenance-handoff.md)记录缺口、成因与未接受建议，候选不合入 HUB |
 
 可观测性工程品味与共享研发提示词已由 `51eaefb` 经 `7d3736c` 整合到 HUB，
@@ -78,7 +78,8 @@ native 句柄活性以 collaboration 的实际运行状态为准，持久交付�
 P2 的 TG/AU/BG 公共操作/事件/参与者设计已由 `/root/governance_design` 在
 `dsh-governance-design` 从 `4253ee0` 交付，三项评审问题经 `058c77c` 修订并独立
 复核闭合，HUB `01b7f3f` 整合后重跑 33 项设计示例；主调度接受其施工输入，
-范围见下文。该 spoke 暂留供 AR/SR 只读评审消费，评审释放且资产核对后退役。
+范围见下文。治理及 AR/SR spoke 已退役：原十份/九份资产从归档逐项读回核对，
+相关作者与评审已结束并释放消费，进程 cwd/exe/fd 无引用；剩余仅可重建环境。
 P2 产品仍等待 P1，设计探针不抵扣真实准入或恢复验收。
 用户已指定从主检出根 `.env` 的 `OPENROUTER_API_KEY` 直接执行 A22，测试模型为
 OpenAI gpt-5.6-terra 与 DeepSeek v4.1-flash。文件仅由测试进程加载，不打开或输出

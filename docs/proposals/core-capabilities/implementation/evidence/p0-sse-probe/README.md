@@ -53,7 +53,8 @@ WHATWG Last-Modified/ETag、OpenRouter 部署版本响应头，以及 npm/GitHub
 | S11 | 实际连接断开 | 本机 server 写一完整帧和一部分帧后调用 socket destroy；客户端 body 以 `UND_ERR_SOCKET` 拒绝，只产生完整帧 |
 | S12 | AbortSignal 中止 | 第一完整帧后 AbortController 实际中止；客户端拒绝，server 观察 request aborted/socket close，只产生完整帧 |
 
-S11/S12 只绑定 `127.0.0.1` 的随机端口，server 硬限制为两次请求；结果记录服务端实际
+S11/S12 只绑定 `127.0.0.1` 的随机端口；探针只发两次请求，结束时断言实际计数，
+没有另行实现服务器请求准入上限。结果记录服务端实际
 write bytes、socket destroy 调用与 close/aborted 事件，未仅把预期故障写入断言。
 
 测量工具的故障负控用 `--mutate S05-done-marker` 只污染验证视图中的 `[DONE]` 数据。
@@ -125,3 +126,22 @@ git diff --cached --check      -> exit 0
 
 因此本证据不是 A23/A24 通过、真实 OpenRouter 通过、产品 adapter 实现完成、独立架构评审
 或最终接受。选定版本发布较新，本次有限场景不能代替后续锁定依赖的产品集成回归。
+
+## HUB 复验与当前采用范围
+
+主调度在 `db106159687450bfda818282da0b7162426751a6` 的独立临时目录，仅使用
+归档 tarball、禁止网络和安装脚本，复现正常 12/12 与负控仅 S05 失败；两轮各有
+两次实际 loopback 请求。11 份作者清单哈希通过，整合后的文档检查通过 414 份。
+[HUB 汇总](hub-summary.json)、[正常原始结果](hub-result.json)和
+[负控原始结果](hub-negative-control.json)保存绑定版本、命令、环境与结果。
+
+本次接受为 P4 分帧组件的固定可行性输入，产品根依赖尚未接入；MC 终态、费用、
+deferred receipt、长行/缓冲溢出和真实路由继续按原计划实施验证。作者原始结果
+保持原运行身份，当前请求计数说明已按真实源码纠正；没有借此增加探针保证。
+
+作者清点及 HUB 核对确认：20 份非缓存临时文件均与已保全输入/结果内容相同，
+没有其它独有资产；执行者已释放，进程 cwd/exe/fd 无引用，spoke 已退役。
+当时官方网页的原始正文/完整响应头、签名验证原始输出及 attestation JSON
+没有落盘，sources.json 保留的是访问元数据与验证摘要；HUB 没有独立重验该签名
+结论。初次测量和缺锁文件失败也没有原始日志，保留的修正探针与可重建输入只
+支持各自范围。精确组件 tarball、正常/负控和 HUB 实际运行结果仍完整可复现。
