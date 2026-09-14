@@ -95,6 +95,9 @@ export function validateManifest(manifest, provenance) {
     assert.notEqual(manifest.license, 'UNLICENSED', `derived package must retain its license: ${manifest.name}`)
     assert.ok(manifest.files.includes('UPSTREAM.md'), `derived package must distribute UPSTREAM.md: ${manifest.name}`)
   }
+  if (provenance.repository === 'https://github.com/deepseek-ai/deepseek-harness') {
+    assert.equal(manifest.license, 'MIT', `DSH-derived package license must match MIT source: ${manifest.name}`)
+  }
 }
 
 function safeMemberPath(root, path, label) {

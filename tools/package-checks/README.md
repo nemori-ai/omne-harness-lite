@@ -27,6 +27,9 @@ their explicit `./baseline` inputs remain published. Shared fixtures additionall
 scope identity, ownership/disposal, Session/stream/file composition, native tools and
 public declaration merging. Failure directories are retained and printed; successful
 temporary consumers are removed. These checks do not establish target product conformance.
+Consumers live under the operating system temporary directory, outside the repository,
+so Node and TypeScript cannot satisfy undeclared imports from an ancestor workspace
+`node_modules` directory.
 
 All isolated installs start with `--ignore-scripts --ignore-workspace`. The only
 selective native build currently accepted is an exact `fs-ext@2.1.1` product edge,

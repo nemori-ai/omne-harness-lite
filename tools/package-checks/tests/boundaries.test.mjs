@@ -3,9 +3,10 @@ import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { test } from 'node:test'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as boundaryChecks from '../src/boundaries.mjs'
+import * as repositoryCheck from '../src/check.mjs'
 import { members, imports, validateImport, closure } from '../src/boundaries.mjs'
 
 const scratchRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../tmp/p0-package-checks')
@@ -19,7 +20,7 @@ async function packageLeaf(root, relativePath, name) {
   return leaf
 }
 
-async function ownedMember(repo, relativePath, name, { dependency } = {}) {
+async function ownedMember(repo, relativePath, name, { dependency, baselineAlias = false } = {}) {
   const root = join(repo, relativePath)
   await mkdir(join(root, 'src'), { recursive: true })
   await mkdir(join(root, 'dist'), { recursive: true })
@@ -44,7 +45,10 @@ async function ownedMember(repo, relativePath, name, { dependency } = {}) {
     private: true,
     type: 'module',
     license: 'UNLICENSED',
-    exports: { '.': { types: './dist/index.d.ts', import: './dist/index.js' } },
+    exports: Object.fromEntries([
+      ['.', { types: './dist/index.d.ts', import: './dist/index.js' }],
+      ...(baselineAlias ? [['./baseline', { types: './dist/index.d.ts', import: './dist/index.js' }]] : []),
+    ]),
     files: ['dist', 'README.md', 'provenance.json'],
     dependencies: dependency ? { [dependency]: 'workspace:*' } : {},
   }))
@@ -80,7 +84,11 @@ test('discovers responsibility packages and real application members', async t =
 })
 
 test('classifies baseline, evolved, and project-owned public entries by actual source records', () => {
-  const baseline = { files: [{ upstream_path: 'src/index.ts' }], project_files: [] }
+  const baseline = {
+    repository: 'https://github.com/deepseek-ai/deepseek-harness',
+    files: [{ upstream_path: 'src/index.ts' }],
+    project_files: [],
+  }
   const owned = { files: [], project_files: [{ path: 'src/index.ts', purpose: 'owned contract' }] }
   const manifest = (exports, source = owned) => ({
     name: '@omne-harness-lite/example',
@@ -108,6 +116,36 @@ test('classifies baseline, evolved, and project-owned public entries by actual s
     () => boundaryChecks.validateManifest({ ...manifest({ '.': entry }), license: 'MIT' }, owned),
     /declared license requires LICENSE/,
   )
+  assert.throws(
+    () => boundaryChecks.validateManifest({ ...manifest({ './baseline': entry }, baseline), license: 'Apache-2.0' }, baseline),
+    /DSH-derived package license must match MIT source/,
+  )
+})
+
+test('keeps artifact consumers outside repository ancestor dependency resolution', async t => {
+  await mkdir(scratchRoot, { recursive: true })
+  const repo = await mkdtemp(join(scratchRoot, 'ancestor-'))
+  t.after(() => rm(repo, { recursive: true, force: true }))
+  const ancestorModule = join(repo, 'node_modules/ancestor-only')
+  await mkdir(ancestorModule, { recursive: true })
+  await writeFile(join(ancestorModule, 'package.json'), JSON.stringify({ name: 'ancestor-only', type: 'module', exports: './index.js' }))
+  await writeFile(join(ancestorModule, 'index.js'), 'export const borrowed = true\n')
+  const source = "import { borrowed } from 'ancestor-only'; if (!borrowed) throw new Error('missing')\n"
+  await writeFile(join(repo, 'probe.mjs'), source)
+  execFileSync(process.execPath, ['probe.mjs'], { cwd: repo, stdio: ['ignore', 'pipe', 'pipe'] })
+
+  const sandbox = await repositoryCheck.createArtifactScratch()
+  t.after(() => rm(sandbox, { recursive: true, force: true }))
+  assert.ok(relative(repo, sandbox).startsWith('..'), `sandbox must be outside repository: ${sandbox}`)
+  await writeFile(join(sandbox, 'probe.mjs'), source)
+  let failure
+  try {
+    execFileSync(process.execPath, ['probe.mjs'], { cwd: sandbox, stdio: ['ignore', 'pipe', 'pipe'] })
+  } catch (error) {
+    failure = error
+  }
+  assert.ok(failure, 'undeclared ancestor-only dependency unexpectedly resolved')
+  assert.match(String(failure.stderr), /ERR_MODULE_NOT_FOUND/)
 })
 
 test('validates DSH source truth separately from project-owned provenance', async t => {
@@ -193,7 +231,7 @@ test('checks project-owned packages and apps through independent tarball consume
   await mkdir(scratchRoot, { recursive: true })
   const repo = await mkdtemp(join(scratchRoot, 'repository-'))
   t.after(() => rm(repo, { recursive: true, force: true }))
-  await ownedMember(repo, 'packages/core/work-data', '@omne-harness-lite/work-data')
+  await ownedMember(repo, 'packages/core/work-data', '@omne-harness-lite/work-data', { baselineAlias: true })
   await ownedMember(repo, 'apps/local-harness', '@omne-harness-lite/local-harness', { dependency: '@omne-harness-lite/work-data' })
   await writeFile(join(repo, 'package.json'), JSON.stringify({ name: 'fixture-root', private: true, packageManager: 'pnpm@10.28.1' }))
   await writeFile(join(repo, 'pnpm-workspace.yaml'), "packages:\n  - packages/*/*\n  - apps/*\n")

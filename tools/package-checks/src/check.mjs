@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { readFile, writeFile, mkdir, mkdtemp, rm, realpath } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
@@ -61,6 +62,10 @@ function legacyFixturesAvailable(inventory) {
   return required.every(name => inventory.some(member => member.manifest.name === name && './baseline' in member.manifest.exports))
 }
 
+export async function createArtifactScratch() {
+  return mkdtemp(join(tmpdir(), 'omne-package-artifacts-'))
+}
+
 export async function checkRepository(repo) {
   const inventory = await members(repo)
   const workspace = await readFile(join(repo, 'pnpm-workspace.yaml'), 'utf8')
@@ -110,9 +115,7 @@ export async function checkRepository(repo) {
   }
   console.log(`PASS: ${inventory.length} product members, dependency boundaries, ${records} upstream source records`)
 
-  const scratchParent = join(repo, 'tmp', 'p0-package-checks')
-  await mkdir(scratchParent, { recursive: true })
-  const scratch = await mkdtemp(join(scratchParent, 'artifacts-'))
+  const scratch = await createArtifactScratch()
   const tarballs = new Map()
   let passed = false
   try {
@@ -163,9 +166,11 @@ export async function checkRepository(repo) {
           assert.equal(await readFile(join(installed, 'LICENSE'), 'utf8'), await readFile(join(member.root, 'LICENSE'), 'utf8'))
         }
       }
-      const importSource = roots.flatMap((member, index) => Object.keys(member.manifest.exports).map(key =>
-        `import * as m${index} from '${exportSpecifier(member.manifest.name, key)}'; void m${index};`,
-      )).join('\n')
+      let importIndex = 0
+      const importSource = roots.flatMap(member => Object.keys(member.manifest.exports).map(key => {
+        const binding = `m${importIndex++}`
+        return `import * as ${binding} from '${exportSpecifier(member.manifest.name, key)}'; void ${binding};`
+      })).join('\n')
       await writeFile(join(consumer, 'consumer.ts'), `${importSource}\n${fixture}`)
       await writeFile(join(consumer, 'tsconfig.json'), JSON.stringify({ compilerOptions: {
         target: 'ES2024',
