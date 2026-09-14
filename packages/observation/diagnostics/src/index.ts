@@ -106,7 +106,7 @@ export type LocalDiagnosticsOptions = Readonly<{
   maxFiles: number
 }>
 
-export type LocalDiagnosticsResult =
+type LocalDiagnosticsResult =
   | Readonly<{ status: 'invalid'; code: string }>
   | Readonly<{ status: 'created'; runtime: DiagnosticsRuntime }>
 

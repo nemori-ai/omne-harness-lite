@@ -11,7 +11,6 @@ import type {
   DiagnosticSpan,
   DiagnosticStatus,
   LocalDiagnosticsOptions,
-  LocalDiagnosticsResult,
 } from '../dist/index.js'
 import { createLocalDiagnostics } from '../dist/index.js'
 
@@ -28,7 +27,6 @@ type EveryPublicType = [
   DiagnosticSpan,
   DiagnosticStatus,
   LocalDiagnosticsOptions,
-  LocalDiagnosticsResult,
 ]
 
 const everyPublicTypeCompiles: EveryPublicType | undefined = undefined

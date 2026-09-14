@@ -24,7 +24,6 @@ import type {
   DiagnosticSpan,
   DiagnosticStatus,
   LocalDiagnosticsOptions,
-  LocalDiagnosticsResult,
 } from './index.js'
 import { projectEnd, projectIdentity, projectPoint, samePrincipal } from './projection.js'
 import type { SafeIdentity, SafePoint } from './projection.js'
@@ -56,6 +55,10 @@ type StartupFailure = Readonly<{
   code: string
   reason: 'retention_capacity' | 'write_unavailable'
 }>
+
+type LocalDiagnosticsResult =
+  | Readonly<{ status: 'invalid'; code: string }>
+  | Readonly<{ status: 'created'; runtime: DiagnosticsRuntime }>
 
 class StartupCleanupFailure extends Error {
   readonly descriptor: number
