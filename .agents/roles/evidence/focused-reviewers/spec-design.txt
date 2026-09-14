@@ -1,0 +1,8 @@
+试用设计 D-note-r1，候选设计快照；仅供角色试用，不是项目产品契约。
+本次范围是本地租户便笺的替换操作，所有规则在下文；不审便笺的业务价值。
+D1 身份为 (tenant_id, note_id)；两个值均为非空字符串，tenant_id 来自已认证调用者。
+D2 Replace 输入 note_id、expected_revision、body；revision 为从 1 起的整数，body 为字符串。只处理已存在便笺。
+D3 同租户且 expected_revision 等于当前 revision 时，原子替换 body、revision 加 1，返回新 revision；同一旧 revision 的并发调用最多一个成功。
+D4 不存在或不属于当前租户时均返回 NotFound；版本不等返回 Conflict；拒绝不改变任何便笺。错误是无额外字段的枚举值，不泄露异租户存在性。
+D5 已成功替换的事实保留 7 天；此期限是本轮给定业务选择，无需评审长短。到期处置不在 Replace 范围，另由保留策略拥有。
+D6 仅定义业务行为；无独立插件装卸、Agent 技能、后台作业或公开服务键要求。本次不发布 Schema/形式模型，覆盖说明应直说尚未执行模型/产品验证。

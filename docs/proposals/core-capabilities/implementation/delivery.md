@@ -4,7 +4,8 @@
 
 首批二次开发的目标、验收、实施规格和计划已完成文档交付，其原评审发现已闭合。
 P0 共享接口、原生锁前提、检查器、work-data 与 records 已经评审、整合和复验，
-见 [review.md](review.md)。用户已授权按完整工作包自驱实施；两个共享目标包
+见 [review.md](review.md)。用户已将本会话终点改为[最小运行基线](runtime-baseline.md)
+与相应共享设施，交接后停止；两个共享目标包
 已接受，接下来交付 diagnostics 和 P1 真实存储/准入。尚未发起 OpenRouter
 请求；A01–A32 尚未完整通过，M1/M2 均未交付。
 
@@ -20,11 +21,12 @@ P0 共享接口、原生锁前提、检查器、work-data 与 records 已经评�
 | 任务 | 状态 | 实现/验收证据 | 下一项输入 |
 |---|---|---|---|
 | P0 | accepted | 锁前提、共享接口、检查器、work-data/records；HUB 已验证两个目标包与 16 包产物 | 提供 P1 的真实共享端口/codec 和锁测量依据，尚非真实 writer |
-| P1 | in_progress | D-010 施工输入已接受，diagnostics 正在 TDD 实施；真实 writer/准入未实现 | diagnostics D1 交付，再并行实现 jsonl/admission |
-| P2 | design_in_progress | 治理与 AR/SR 施工交接已接受；具体 Cordis 装配映射仍待固定，产品尚未实施 | P1 的真实共同门与记录提供者、受审插件映射；交付本地预算 owner |
-| P3 / M1 | planned | 未执行 | P2 当前权限/真实预算/Session/活体，以及 P1 执行账本前提 |
-| P4 | planned | 未执行；用户已指定凭据入口与两个测试模型 | M1 组合、实际路由/价格和受限冒烟配置；离线部分可按依赖提前 |
-| P5 / M2 | planned | 未执行 | 最终组合版本及全部本批验收证据 |
+| P1 | in_progress | R2–R6 窄复核闭合；R1 两项真实 RED 保留。D-011 接受目录设计，真实 writer/准入未实现 | 原作者实施 R1，并将全部 D1 修复整合验证为同一可消费提交后，才并行实现 jsonl/admission |
+| P2 | design_in_progress | 治理与 AR/SR 施工交接已接受；具体 Cordis 提供者映射已按 `61e732b` 派发设计，产品尚未实施 | P1 的真实共同门与记录提供者、受审插件映射；交付本地预算 owner |
+| P3 / M1 | design_in_progress | TL/HD/local-execution 共享接口与 Cordis 映射已按 `8c791b3` 派发设计；产品未执行 | 受审公共交接、P2 当前权限/真实预算/Session/活体，以及 P1 执行账本前提 |
+| 最小运行基线 | in_progress | P0 已接受，P1/P2/P3 的必要产品仍未齐备；基线尚未交付 | 真实 allow 链路、共享诊断/存储/本地预算、必要故障与独立消费，固定提交后停止 |
+| P4 | deferred | 未执行；已知凭据入口与两个测试模型保留 | 超出本会话终点，等待用户后续规划 |
+| P5 / M2 | deferred | 整批未执行；基线所需故障检查仍必须完成 | 不自动扩展为完整 M1/M2 验收 |
 
 P0 的原生文件锁前提已验收，正式 writer/恢复仍未实现；P4 的待答编码路由兼容性、
 真实 OpenRouter 环境仍待测量。未验证部分不能被记为通过。
@@ -46,12 +48,15 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 | P0 包检查器（accepted） | verification-developer，`/root/p0_package_checks`；复核 `/root/review_package_layout`，本任务均已结束 | `dsh-p0-package-checks`，已退役 | `33a57a2` 的 K1–K3 闭合，`d95052c` 整合及 HUB 构建/13 项测试/14 独立与组合产物通过 |
 | P0 work-data 实现（accepted） | kernel-developer，`/root/p0_work_data`；定点复核 `/root/review_first_batch`，本任务均已结束 | `dsh-p0-work-data`，已退役 | `18cad69` 经 `6e7f213` 整合，`728d665` 锁定依赖；D1/D2 闭合，HUB 91 项测试与 15 包产物通过 |
 | P0 records 实现（accepted） | infrastructure-developer，`/root/p0_records`；独立复核 `/root/review_first_batch`，本任务均已结束 | `dsh-p0-records`，已退役 | `1a237da`/`c67eb4d` 经 `bbb4a3e` 整合、`c1783fd` 锁定；HUB 17 项测试及 16 包产物通过；独有资产与执行输出已保全 |
-| diagnostics D1 实现 | infrastructure-developer，`/root/diagnostics` | `dsh-diagnostics`，从 `0e80245` 创建 | 消费真实 work-data/records；只写 diagnostics 包与其证据，真实产品通过后开放 jsonl/admission 消费 |
+| diagnostics D1 实现（R1 待实施） | infrastructure-developer，`/root/diagnostics` 的 R2–R6 修订轮已结束；原评审者已复核 | `dsh-diagnostics`，产品 `4fa2c74`、证据 `a1be742` | R2–R6 窄复核闭合；R1 真实 RED 保留。原作者接收 D-011/包设计后继续 R1，原生构建与整合仍归主调度 |
+| D1 目录所有权修订（accepted） | 作者 `/root/observability_design` 与独立评审 `/root/review_package_layout` 已完成 | `dsh-diagnostics-directory`，设计迁移 `327735f` 经 `01998d3` 合入 | D-011 采用；HUB 复跑四个机制案例、接口/九份原证据一致；这只开放 R1 施工，不是产品 R1 GREEN |
 | Agent/Session 施工交接（accepted） | 作者 `/root/session_runtime_design` 与独立复核 `/root/review_package_layout` 本任务已结束 | `dsh-session-runtime-design`，已退役 | `cd16f1` 的 S-R1–S-R4 闭合，`4e67db6` 整合与 HUB 文档/哈希核验通过；装配映射与产品依赖仍须就绪 |
 | TS/JS 自动格式化工具（accepted） | verification-developer，`/root/formatting`，已结束 | `dsh-formatting`，已退役 | `99a6988`/`c026140` 已整合，根锁 `d13d66b`；HUB `4a5031d` 的冻结安装和完整 16 包检查通过 |
 | 格式化提示词投影（accepted） | `/root/observability_prompts`，本轮负责格式化认知约定，已结束 | `dsh-formatting-prompts`，已退役 | `47c60dd` 经 `635a690` 整合；HUB 五角色生成、408 文档与 12 提示词哈希核对通过 |
 | SSE 组件前置测量（accepted） | verification-developer，`/root/p0_sse_probe`，已结束并释放 | `dsh-p0-sse-probe`，已退役 | `b05e57c` 经 `db106159` 整合，HUB 离线正常 12/12、负控仅 S05 失败；[证据与局限](evidence/p0-sse-probe/README.md#hub-复验与当前采用范围)，未发模型请求、不抵扣 A23/A24 |
 | 规格与 Cordis 映射的维护交接 | `/root/governance_design` 已按用户新分工停止规则写入，主调度整理交接 | `dsh-mapping-governance`，从 `9954b12` 创建，保留未提交候选 | 规范与配套 skills 由另一会话统一收敛；[交接](../design-spec-maintenance-handoff.md)记录缺口、成因与未接受建议，候选不合入 HUB |
+| TL/HD/local-execution 施工交接（待共同面接受） | 作者 `/root/session_runtime_design` 已停写；`/root/review_first_batch` 已完成定点复核 | `dsh-tool-decision-design`，固定 `0a6e91e` | T-R1/T-R2 及 reader 公共面设计闭合；三包 design.md 已落档，HUB 两组新机制输出与作者逐字一致；产品未实现，待最终 P2 对齐 |
+| P2 提供者与装配映射（评审中） | 作者 `/root/governance_design` 已停写；独立评审 `/root/review_first_batch` | `dsh-runtime-provider-design`，固定候选 `5ffba4b`，已合入新规范 | 固定服务键、依赖、活体资格和生命周期；三个机制探针待端点核验，随后将当前设计放到包/app 所属正文 |
 
 可观测性工程品味与共享研发提示词已由 `51eaefb` 经 `7d3736c` 整合到 HUB，
 五个角色的两端生成检查和文档检查通过，见[提示词证据](evidence/observability-prompts.json)。
@@ -69,12 +74,24 @@ P1 施工输入；正式包已经消费接受后的 records 开始 TDD，完整�
 不使用兄弟任务未落定的类型或临时约定启动联合实现。
 接口出现正式规格反例时先修设计或发布流程，不放宽验收。
 具体反例与处置归[本轮评审](review.md)。共享接口、检查器、work-data/records 缺口已经闭合；
-没有改变 M1/M2 范围，也不需要更弱的保证。
+原 M1/M2 的行为标准不变；当前会话只交付上述基线子集，不降低其已承诺的保证。
 
 本次采用当前会话实际提供的 native collaboration 角色和句柄。外部 `ccm` CLI
 inventory 与配额查询不覆盖该 native 执行面，不能移用其外部 CLI 的准入或额度
-结论。调度账本在 HUB 的 `tmp/dsh-first-batch.board.json`，仅经 `ccm` 更新；
-native 句柄活性以 collaboration 的实际运行状态为准，持久交付事实以本页及证据为准。
+结论。派发、联系与查看 agents 优先使用原生 collaboration 工具；调度账本在 HUB
+的 `tmp/dsh-first-batch.board.json`，`ccm` 仅承接原生工具没有的持久任务记录，
+不替代原生 agent 工具。句柄活性以实际运行状态为准，交付事实以本页及证据为准。
+
+## 主分支指导同步
+
+HUB 已通过 `8c72067` 合入 main `59139bb` 的架构指导、规格维护、计划指导与
+独立 spec/plan reviewer 定义。合并时保留本批研发品味、日志与格式化约定，从
+合并后的角色源重新生成冲突适配文件；八组角色一致性检查及 430 份 Markdown
+检查通过。原始日志在 HUB `tmp/main-59139bb-hub-docs.log`。
+
+`0703f6e` 已将包/app `design.md` 的长期归属、具体装载/撤除责任和按问题选择
+评审角色写入推进计划，430 份文档检查通过。当前候选先闭合实际设计反例，再
+落入所属正文；本次仅改变指导和派发输入，不把检查通过记为产品实现完成。
 P2 的 TG/AU/BG 公共操作/事件/参与者设计已由 `/root/governance_design` 在
 `dsh-governance-design` 从 `4253ee0` 交付，三项评审问题经 `058c77c` 修订并独立
 复核闭合，HUB `01b7f3f` 整合后重跑 33 项设计示例；主调度接受其施工输入，
@@ -229,8 +246,9 @@ HUB 实际重跑版本/哈希。正式 Schema 未改；产品 JSON 边界、code
 
 用户后续设计依赖最小 Agent/Session/工具闭环，因此优先贯通真实记录与准入、
 Agent 活体、Session 输入/Run、工具定义装载及一次受控调用。交接须有真实装配
-和固定公开包版本；它是 M1 内的中间交付点，不省略 M1/M2 的后续审批、恢复与
-模型验收。当前尚未取得该可运行闭环，不能宣称 TS 目标 API 已可用。
+和固定公开包版本；它是本会话最终交付点。Session/Run/call 的重启认回、已完成
+文件效果不重复及未知执行不盲重发，仍是当前硬门；只有超出基线的完整 M1/M2
+审批、恢复与模型场景留待新规划。当前尚未取得该可运行闭环，不能宣称 TS 目标 API 已可用。
 
 现在可并行进行语言无关设计，消费已接受的
 [Agent 活体](../../../../spec/capabilities/live-agent/v1/contract.md)、

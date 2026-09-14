@@ -1,0 +1,53 @@
+{
+  "hubCommit": "1368c52b7255e16e9c2fcde30eebca6f870679f7",
+  "results": [
+    {
+      "sourceCommit": "d4cd27ed33df815179f57af398c8cb6b5444302a",
+      "kind": "directory-mechanism-only",
+      "command": [
+        "node",
+        "tmp/provider-design-hub-review/directory/probe.mjs",
+        "tmp/provider-design-hub-review/directory/run-01"
+      ],
+      "exit": 0,
+      "cases": 4,
+      "stdoutSha256": "d1d14774c2a59cabe482fe1d9bd64b82fb94d120c38bbaba30c6cd88f5a05f18",
+      "notMeasured": [
+        "product D1-R1 GREEN",
+        "Sonic callback/drop integration",
+        "flock integration",
+        "fd close ambiguity",
+        "root owner shutdown",
+        "crash/restart",
+        "native installation"
+      ]
+    },
+    {
+      "sourceCommit": "5ffba4bb55aa9514ebd7f3c2b48f0d26fc9a8e18",
+      "kind": "cordis-mechanism-only",
+      "command": [
+        "node",
+        "tmp/provider-design-hub-review/cordis/cordis-probe.mjs"
+      ],
+      "exit": 0,
+      "checks": 3,
+      "publishedEntrySha256": "1729cdbf8ee40b17c8839e06bf96491490548559e11ef7e411271e0754e751c5",
+      "archiveSha256": "98532324beec1cd62f70ef88f759e19dea8a6e9a0a89fdf530ee9e6f199d4d5d",
+      "stdoutSha256": "3d43c19726c56278025e5868d8fb0ab1b21221d0b8c4bdd640cb7d2632f3206a",
+      "scope": "Cordis mechanisms only; product lifecycle and security remain untested"
+    },
+    {
+      "sourceCommit": "0a6e91ea643497f309f1a69f8adecc8a98751df3",
+      "command": [
+        "node",
+        "tmp/provider-design-hub-review/tool-current/cordis-current-window.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/node_modules/.pnpm/@deepseek-ai+cordis@4.0.2/node_modules/@deepseek-ai/cordis/lib/index.js"
+      ],
+      "exit": 0,
+      "groups": 2,
+      "stdoutSha256": "8159bb03807cf52f9e20f12a799835638d47401e01491651988d3cde75a6e3ef",
+      "matchesAuthorOutput": true,
+      "scope": "Actual native lifecycle/closure observations only; no product admission, claim, permission, execution or durable recovery was tested."
+    }
+  ]
+}

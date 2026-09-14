@@ -1,0 +1,26 @@
+{
+  "inputCommit": "82b2baf7f88bcbe8b089b9c53278135a545169b7",
+  "productRedCommit": "fefb6c5b7ff9b82dc9f1a7648d58409f4a0a165d",
+  "files": [
+    {
+      "path": "probe.mjs",
+      "bytes": 7551,
+      "sha256": "51ed46ba3eeeb633330ae62b1dd0f664a7a5bfabb6af2ef45f4b3de2a6901333"
+    },
+    {
+      "path": "probe-result.json",
+      "bytes": 1652,
+      "sha256": "40c0246643f575d291857bd1f205c55a0b0084abdb22541e8710fad81376e30a"
+    },
+    {
+      "path": "product-red-d1-r1.log",
+      "bytes": 2168,
+      "sha256": "a338708b0d6af5fdfe5fbce845faa298f9a6bd6d5457bdff8a367891d1861cf0"
+    },
+    {
+      "path": "product-red-source.txt",
+      "bytes": 21987,
+      "sha256": "e64ed16d3e56f200f1004bb53888dccab2a8f2111c2ff80bd5ff780611e2d6b1"
+    }
+  ]
+}

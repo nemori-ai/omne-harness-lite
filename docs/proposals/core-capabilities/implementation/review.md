@@ -229,3 +229,124 @@ minLength=0 与实际写进展/失败状态解决低流量触发；移除 scope/
 以关闭状态封闭晚到诊断，不把业务 body 结束归诊断 owner。HUB `9cd78a0` 实际
 重跑原 12 项及新增 7 项探针通过，依据 [D-010](../../../decisions/D-010-shared-diagnostics.md)
 接受 P1 施工选择。真实短门、写泵、停滞状态及完整换代关闭仍归产品 TDD。
+
+## diagnostics D1 实现评审
+
+独立 architecture-reviewer `/root/review_package_layout` 对固定 `66d92a9` 完成
+只读评审；该版本产品源码与 `4b8125e` 相同。HUB 经 `4e0124d` 整合候选、
+`4963b2c` 更新根锁、`46770b9` 机械格式化后，已实际通过现有完整产品检查、
+17 包独立与组合产物消费，以及另行三 tarball 的真实文件/span/close 消费。
+原始日志和消费者资产归[HUB 候选证据](evidence/p1-diagnostics-hub/README.md)。
+这些检查尚未覆盖以下反例，**D1 未接受**。
+
+| 编号 | 优先级与固定源码定位（`66d92a9`） | 反例及修订义务 |
+|---|---|---|
+| D1-R1 | 高；runtime.ts:258、853 | 创建时只按现存物理大小分配余额，后续各实例只累计自身；并存来源和 pending 可重复占用目录预算，并发创建可能超过文件数。验证真实共同字节/文件预算；需要共同 owner 或公共接口选择时先固定设计，不静默禁止已允许的新旧代共存 |
+| D1-R2 | 高；runtime.ts:303、786 | active write EIO 后自动清理的 close 再 EIO，degraded 状态漏记重试责任；Sonic 已 destroyed，重复 close 永久等不到事件。实际测组合故障解除后认回并关闭原 fd |
+| D1-R3 | 高；runtime.ts:821、975 | 旧文件扫描 FileHandle 关闭失败没有交给 degraded runtime，可能虚报 released。实际测扫描句柄未关闭时失败，责任可查、可重试且不能提前 closed |
+| D1-R4 | 重要；runtime.ts:505、580 | 已结束 context 的 native 值仍持 SDK span、processor/runtime，活动表删除不足以证明释放。保留公开关联句柄时验证完整 span 可回收，同时保留父子身份关联 |
+| D1-R5 | 重要；projection.ts:17、runtime.ts:518 | revoked Proxy 可在未保护的 Array.isArray 处抛错；end 提前标记完成导致活动 span 遗留。实际覆盖 log/scope/end、业务原结果/错误不变和关闭责任 |
+| D1-R6 | 重要；runtime.ts:367 | buffer drop 只累积内存缺口，恢复后原件无 gap summary。真实延迟写恢复后检查有界原因/计数/质量摘要，摘要失败不得递归或触发重试风暴 |
+
+这些分别对应 observability.md 的目录总预算、失败资源归属、仅保留身份、
+被动失败及恢复摘要保证。评审者核对了源码与既有日志，没有运行新反例或作接受
+决定。O01 真实业务短门、O07 宿主切换及 O09–O12 按原 D2/D3/P3 责任保留，
+根锁集成也不属于本轮缺陷。
+
+原 infrastructure-developer `/root/diagnostics` 已接回六项修订，spoke 在评审
+结束后仅 fast-forward 到 `46770b9`，复用根锁和格式配置。须保存实际 RED/GREEN，
+不改写旧证据；共同目录责任若要求变更公开接口，先返回具体候选。其余独立修复
+继续执行。完整修订仍须独立复核和 HUB 验收后才开放 jsonl/admission 消费。
+
+原作者随后交付 R2/R3/R5 的 `00dd6e7`、R4/R6 的 `b99752b`，实际定点 GREEN
+分别为 3 项与 4 项；失败原件、GC 测量修正及摘要再次失败的测量保留在源码树
+`evidence/p1-diagnostics/reviewer-remediation/`。最终测试机械格式化后固定
+`1c0923f`，原评审者的定点只读复核已闭合 R2–R5；R6 又发现 close 先于
+write 恢复时漏摘要的交错，作者随后修订。上述源码尚未整合为接受后的 D1。
+
+R1 的 `fefb6c5` 已实际复现两项：旧来源写入挂起期间新来源扫描，恢复后各文件
+各守自身上限，但目录为 3356 字节，超过 2400；两次创建在 fs.open 前均通过
+准备，放行后 maxFiles=1 的目录出现两个 held 来源。它们是保持 RED 的当前
+缺口，不以其失败否定其它独立修复的测量。原观测设计作者按 `82b2baf` 计划
+另行固定显式目录 owner 和公共接口选择，受审后原实施者才能继续 R1。
+
+## P3 工具、审批与执行施工稿评审
+
+作者固定 `e6c0b8c5d1a7cc3b282c809498a241a66ad71b9d` 的六个候选/证据文件，
+交由独立 architecture-reviewer `/root/review_first_batch` 只读审阅。作者尚有
+两份未提交的相邻对齐草稿，评审统一读取固定 Git 内容，不混入工作区修订。
+候选未整合或接受；D01–D12、新 TS 接口、完整 Cordis 与产品组合尚未执行。
+
+主调度实际核对候选和四份作者资产 SHA-256，并在 HUB 的独立临时目录以相同
+固定脚本重跑两个文件/进程窗口：效果前 SIGKILL 后目标不存在；文件/目录 sync
+后、业务结果记录前 SIGKILL，目标保有 21 字节，而两组 marker 都只有
+dispatch-intent。原始输出在 `tmp/p3-tool-decision-review/e6c0b8c-hub-result.json`，
+只证明两个底层窗口，不证明真实 writer、停止墓碑、恢复或恰好一次。
+
+已知待处理的共同面包括：P2 候选 `947885c` 使用受信 host options 注入恢复所需
+reader，不提供冗余 records service；工具稿须按其最终受审公共面对齐。作者还
+报告 Cordis 的 effect 清理可能晚于 Fiber 进入 UNLOADING，稿中依赖 effect
+首段关门的突失窗口须结合固定原始证据核对；待审 host stamp 建议不是已接受
+修复。评审将检查本族具体责任与公共冲突，相邻 P2 提供者的完整映射仍归其
+独立作者，不要求双方重复定义。
+
+原稿评审现已完成，作者正在修订两项：effect disposer 异步执行，不能作为旧
+调用资格的同步撤销屏障；答复/结果/控制交付不能沿用仅属 adjudicate 阶段的
+active claim 前提。前者须在最后门重检原操作代次和必要 provider 当前资格；
+后者须核原绑定及当前接收/控制 owner，不能在 Agent 已释放时阻断合法终态。
+修订与三个包内 design.md 的归属迁移完成后再接受，完整 HD 实现不成为本次
+allow 基线的前置条件。
+
+## D1 目录修订与 R6 定点复核
+
+独立 architecture-reviewer `/root/review_package_layout` 已只读审阅固定
+`d4cd27ed33df815179f57af398c8cb6b5444302a`。显式目录 owner、共同字节/slot
+预留与稳定 flock 在本次范围未发现阻断；8 个来源文件另加一个零字节锁文件
+是须明确接受的采用差异。所有子来源、准备和扫描静止后才关闭锁 fd，最后释放
+未知与仍有活动写入的保有责任不同。四个机制案例不抵扣真实产品 R1 GREEN。
+
+同轮核对 `4fa2c74f4816fe37850a812ca59032cb889d75fd`：结束流之前等待已知
+待写恢复，让有限摘要先于结束标记；RED 确实观察到最终缺摘要，GREEN 覆盖
+原关闭交错、正常恢复及摘要超限，D1-R6 定点缺口闭合。作者曾误报该提交的完整
+SHA，主调度以实际 Git 解析结果纠正，本文只绑定这里列出的真实对象。
+
+R2 证据仍只支持原 close 调用前注入失败、已知 fd 未关闭的情形。当前数字 fd
+重试不能泛化到真实 close 结果未知，R1 接入必须处理这一资源身份前提。目录
+设计需迁入所属包，实际 flock、owner shutdown、原生独立产物及 R1 的产品
+RED→GREEN 仍待交付；只读评审未运行产品检查，也不作接受决定。
+
+## P2 提供者映射评审
+
+独立 architecture-reviewer `/root/review_first_batch` 已只读审阅固定
+`5ffba4bb55aa9514ebd7f3c2b48f0d26fc9a8e18` 及其三组原始机制证据。
+稳定 host、原 mount/link stamp 与最后门中的 Fiber 资格检查明确不依赖异步
+disposer；required inject 无发现环，恢复同水位和部分失败保有边界基本自洽。
+唯一 `omneAdmission` 与可信宿主注入 reader 的归属清楚。
+
+须消歧第 199 行“一次决定不复活”：失效的是旧 DecisionFacts 私有候选/运行
+句柄。未消费、未关闭的耐久批准仍由当前 HD owner 重建私有事实并重检，只能
+用于原 Action；普通 AU/link 重载不自动撤销批准。这是施工文本歧义，尚非
+已执行产品反例。D1 最终创建面、相邻 TL/HD/LE 签名及包/app 正文归属继续闭合；
+三个探针不证明同步撤代、授权或完整产品组合已实现。
+
+## 最小运行基线计划复核
+
+固定 `1368c52` 交给 `/root/review_minimal_plan`，模型与 effort 按仓库角色配置
+为 gpt-5.6-sol/xhigh。当前宿主不识别新 `plan-reviewer` 名称，因此实际使用
+普通原生 agent 加完整生成指令；只读/no-delegation 是任务边界，没有声称继承
+宿主未应用的原生只读配置。评审未写文件或运行产品检查。
+
+发现和处置：缺少当前最小 wave 的具体产物/实现/组合责任，已在计划新增对应
+安排，未交付前置明确保持关闭；交付页“恢复后置”的歧义已限定为超出基线的
+完整场景，Session/Run/call 重启认回、已完成效果不重复和 unknown 不重发仍是
+硬门；R1 与 R2–R6 当前状态已对账；各 P2/P3 owner 负责自身 diagnostics 接入，
+最终验证 owner 负责跨链关联、内容裁剪、失败及关闭的真实组合。新 wave 的
+前置产品提交待实际交付再绑定，不以设计提交冒充可消费产品。
+
+评审确认完整 HD 和 P4/M2 未构成隐含前置，停止条件明确。计划修订不意味着
+产品门已通过；本次四项处置仍交原评审者定点复核，其他设计/规格不重复审计。
+
+工具稿 `0a6e91e` 的 T-R1/T-R2 与 reader 公共面已由原 architecture-reviewer
+定点确认闭合，三个包正文无发现新的迁移矛盾。HUB 核对来源与设计哈希并运行
+其两组新机制探针，stdout 与作者逐字一致，结果见
+[HUB 机制证据](evidence/provider-design-hub/README.md)。真实业务门和执行仍未实现。

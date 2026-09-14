@@ -3,6 +3,10 @@
 本目录维护可跨语言复现的语义承诺及其验证工件。根约定继续适用；这里说明
 编辑规格时如何找到权威版本和所属边界，完整组织见 [README](README.md)。
 
+规格、模型、提供者映射及消费者影响的维护使用
+[spec-maintenance](../.agents/skills/spec-maintenance/SKILL.md)，就绪与交接规则归
+[规格维护](../docs/maintenance/spec-maintenance.md)。
+
 ## 按语义定位
 
 | 内容 | 入口与责任 |

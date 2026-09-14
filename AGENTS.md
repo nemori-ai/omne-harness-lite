@@ -36,6 +36,7 @@ Cordis 直接使用官方发布包，其他选定的 DSH 复用组件由本项�
 - 让错误尽早暴露；禁止静默吞错、假成功和无法解释的默认行为。
 - 可观测性是运行行为的一部分：在真实边界让状态转换、失败与因果链可解释，生产、研发与 debug 共用结构化 log 和 trace 语义并通过配置调节细节。观测责任、关联、内容裁剪和耐久记录边界见[工程观测契约](spec/capabilities/engineering-observation/v1/contract.md)与[全局要求](docs/requirements/system/observability-and-logging.md)。
 - 每个 subagent 都应明确职责、行动边界、必要输入与停止条件；精确任务限定可写路径，关键歧义或必需规格/计划缺失时暂停依赖工作并澄清，持续区分已知、假设与未知。编写方法见 [design-subagents](.agents/skills/design-subagents/SKILL.md)。
+- 使用 Claude Code、Codex 等 harness 官方工具时，优先选择职责匹配的专用工具，例如编辑或补丁工具、subagent 派发与通信工具；只有专用工具不可用或无法满足需要时，才用 shell 等通用工具兜底。通用性不代表效率更高，不因命令行习惯绕过合适的专用工具；与研发 subagents 的[工具使用约定](.agents/roles/developer-contract.md#工具使用)保持一致。
 
 **TS/JS 研发品味：** 追求惯用、直接、可检查的代码，按职责选择函数、普通数据与
 有状态的类，保持抽象和类型复杂度适度。严格类型不能替代运行时校验；异步工作
@@ -117,6 +118,8 @@ omne-harness-lite/
 | 架构设计、能力边界或有架构影响的选型 | [architecture-design](.agents/skills/architecture-design/SKILL.md)，导航至[架构指南](docs/architecture-guide/README.md)、相关决定和精确规格 |
 | 完成一次架构设计，已有可识别的待审稿 | 委派 [architecture-reviewer](.agents/roles/README.md) 独立只读评审，提供对象、版本、目标与范围；评审意见不代替接受决定 |
 | 架构设计后准备 spec 与实施计划，评估技术栈、复用或 fork 路径 | [implementation-planning](.agents/skills/implementation-planning/SKILL.md)，指导针对性调研、实现责任与可验收的交付规划 |
+| 撰写或维护规格、模型，以及提供者映射和消费者影响 | [spec-maintenance](.agents/skills/spec-maintenance/SKILL.md)，沿[规格维护](docs/maintenance/spec-maintenance.md)管理长期正文、就绪范围和变更传播 |
+| 已有规格或施工计划待审稿 | 按[评审分工](.agents/roles/README.md#规格与计划评审派发)委派 spec-reviewer 检查规格表达，或 plan-reviewer 检查实施与调度；二者不代替架构判断和接受 |
 | 核对 Cordis API、依赖、插件或生命周期 | [cordis-authoritative-docs](.agents/skills/cordis-authoritative-docs/SKILL.md) |
 | 判断过度设计、抽象价值、复用或复杂度 | [engineering-taste](.agents/skills/engineering-taste/SKILL.md) |
 | 放置源码、增加成员或调整开发/CI 入口 | [源码布局与 workspace](docs/maintenance/workspace.md)及目标目录局部约定；具体命令见[验证规范](docs/maintenance/verification.md) |
