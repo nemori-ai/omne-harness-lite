@@ -283,6 +283,15 @@ describe('O03 safe projection', () => {
       ...point('projection.overlong'),
       diagnosticId: '界'.repeat(100),
     })
+    runtime.diagnostics.log(context, {
+      ...point('projection.overlong_counter'),
+      position: {
+        coordinationDomain: 'domain-a',
+        writerEpoch: '1',
+        commitId: 'commit-a',
+        seq: '9'.repeat(10_000),
+      },
+    })
 
     const span = runtime.diagnostics.startSpan(context, point('projection.span'))
     span.end({
@@ -321,7 +330,7 @@ describe('O03 safe projection', () => {
       measures: { durationMs: 1.25, queueDepth: 2, pendingBytes: 3, count: 4 },
     })
     const invalidGap = runtime.inspect().gaps.find(gap => gap.reason === 'invalid_projection')
-    expect(BigInt(invalidGap?.count ?? '0')).toBeGreaterThanOrEqual(5n)
+    expect(BigInt(invalidGap?.count ?? '0')).toBeGreaterThanOrEqual(6n)
   })
 })
 
@@ -340,6 +349,7 @@ describe('O02/O04 standard span behavior', () => {
 
     expect(runtime.inspect().activeSpans).toBe(2)
     expect(runtime.inspect().gaps).toContainEqual(expect.objectContaining({ reason: 'span_capacity' }))
+    expect(refused.context).toBe(context)
     refused.end({ code: 'span.refused_done', outcome: 'failed' })
     child.end({ code: 'span.child_done', outcome: 'ok' })
     parent.end({ code: 'span.parent_done', outcome: 'unknown' })
@@ -509,6 +519,48 @@ describe('O04/O05 configuration and local retention boundaries', () => {
     } finally {
       await first.close({ deadlineMs: 1_000 })
     }
+  })
+
+  it('does not let another host instance append the same source generation', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'cross-instance-collision-'))
+    const firstResult = await createLocalDiagnostics(options(directory, 'shared-source', {
+      instanceId: 'instance-a',
+    }))
+    expect(firstResult.status).toBe('created')
+    if (firstResult.status !== 'created') return
+    const collision = await createLocalDiagnostics(options(directory, 'shared-source', {
+      instanceId: 'instance-b',
+    }))
+    expect(collision.status).toBe('created')
+    if (collision.status !== 'created') return
+    expect(collision.runtime.inspect()).toMatchObject({
+      phase: 'degraded',
+      resource: 'released',
+      lastErrorCode: 'SOURCE_EXISTS',
+    })
+    expect(collision.runtime.diagnostics.newId()).not.toBe(firstResult.runtime.diagnostics.newId())
+    await collision.runtime.close({ deadlineMs: 1_000 })
+    await firstResult.runtime.close({ deadlineMs: 1_000 })
+    expect(await readdir(directory)).toHaveLength(1)
+  })
+
+  it('reports an earlier diagnostic source without a clean end as crash-unknown', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'crash-unknown-'))
+    await writeFile(join(directory, 'diagnostic-0000000000000000-deadbeefdeadbeef.jsonl'), `${JSON.stringify({
+      formatVersion: 'omne-diagnostic/1',
+      sourceId: 'old-source',
+      seq: '1',
+      component: 'diagnostics',
+      phase: 'lifecycle',
+      code: 'diagnostic.source_started',
+    })}\n`, { mode: 0o600 })
+    const runtime = await createdRuntime(directory, 'new-source')
+    expect(runtime.inspect().gaps).toContainEqual(expect.objectContaining({
+      reason: 'crash_unknown',
+      count: null,
+      quality: 'unknown',
+    }))
+    await runtime.close({ deadlineMs: 1_000 })
   })
 
   it('writes one ordinary low-traffic record without another log or close trigger', async () => {
