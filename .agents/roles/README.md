@@ -6,6 +6,8 @@
 | 角色 | 使用时机与交付 | 定义与配置 |
 |---|---|---|
 | architecture-reviewer | 完成一次架构设计、已有可识别的待审稿后，独立返回有依据的问题和未决事项；只读，不批准或修复 | [共享正文](architecture-reviewer/role.md)、[Codex](../../.codex/agents/architecture-reviewer.toml)、[Claude Code](../../.claude/agents/architecture-reviewer.md) |
+| spec-reviewer | 针对已给设计检查规格表达的完整性、明确性与规范性；不裁决业务正确性/合理性，不审施工拓扑 | [共享正文](spec-reviewer/role.md)、[Codex](../../.codex/agents/spec-reviewer.toml)、[Claude Code](../../.claude/agents/spec-reviewer.md) |
+| plan-reviewer | 以设计和规格为前提，检查实施可行性、依赖与并行安全、写入及集成归属和验收证据；不重审规格正文 | [共享正文](plan-reviewer/role.md)、[Codex](../../.codex/agents/plan-reviewer.toml)、[Claude Code](../../.claude/agents/plan-reviewer.md) |
 | kernel-developer | 实现已明确划入内核的基础原语及生命周期机制；默认 xhigh | [专门职责](kernel-developer/role.md)、[Codex](../../.codex/agents/kernel-developer.toml)、[Claude Code](../../.claude/agents/kernel-developer.md) |
 | capability-developer | 实现能力及能力组合的行为、状态转换和规则；默认 high | [专门职责](capability-developer/role.md)、[Codex](../../.codex/agents/capability-developer.toml)、[Claude Code](../../.claude/agents/capability-developer.md) |
 | infrastructure-developer | 实现具体技术后端与提供者，兑现资源、持久性、取消和失败契约；默认 high | [专门职责](infrastructure-developer/role.md)、[Codex](../../.codex/agents/infrastructure-developer.toml)、[Claude Code](../../.claude/agents/infrastructure-developer.md) |
@@ -54,6 +56,10 @@ Cordis 的服务、依赖和生命周期机制支撑运行时组合；逻辑分�
 
 实施前必须齐备完整目标边界、验收标准清单、实施规格和施工计划。开发者可在给定
 约束内自主选择方案；发现验收不合理、不可达或必须破坏规格时，停止实施并上报。
+
+实施规格按[设计就绪](../../docs/maintenance/spec-maintenance.md#设计就绪与实施入口)
+覆盖本任务需要的语义、提供者/装配映射与跨能力交接；纯局部内部选择继续由实施者
+自主决定。长期正文与延期义务进入各自拥有者，不由四份输入重新复制一套规格。
 派发者负责归并澄清、协调共享文件和接口、安排集成及接受，不让 worker 自行修改判据。
 角色划分表示专长，不固定包划分或任务数量；租户隔离和自身变更的测试是共同职责。
 
@@ -86,6 +92,33 @@ uv run --locked python .agents/skills/design-subagents/scripts/render_pair.py \
 附上相关需求的确认范围与采用快照；比较修订时再提供比较基线。接受状态可以仍是候选，实施计划不是这个评审角色的前置要求。
 例如：“使用 architecture-reviewer，评审当前检出中指定提案的本轮设计；目标与约束见所附材料，
 范围限于变量提供者撤除和在途使用，仅返回意见。”仅修改链接或文字不触发一次架构评审。
+
+## 规格与计划评审派发
+
+三个 reviewer 按判断对象分工，不能把同一个问题分别计为三轮审计；共同的只读、
+证据和版本纪律不意味着业务职责重叠。
+
+| 判断 | 拥有者 | 典型发现 |
+|---|---|---|
+| 这个设计是否能满足需求与系统保证？ | architecture-reviewer | 政策或边界使系统不变量无法成立 |
+| 既定设计是否被完整、明确、规范地表达？ | spec-reviewer | 设计已承诺拒绝分支，但规格没有定义其结果；同一状态有相互冲突的文字 |
+| 依据这些输入，工作能否安全推进并形成可验收结果？ | plan-reviewer | 两个任务同时定义同一公共接口；消费者先于必要契约开工；真实组合无人负责 |
+
+spec-reviewer 接收规格快照、落实的设计/需求依据和本次范围；不要求附完整施工计划。
+plan-reviewer 接收计划快照、采用的设计/规格、目标与验收边界、必要实现现状和已知
+资源约束；不以所有未来实现细节齐备为审阅前提。修订比较再附比较基线。
+
+规格中缺失定义由 spec-reviewer 说明表达缺口，不代选业务语义；计划消费未决输入
+时由 plan-reviewer 指出受阻任务及依赖条件，不重新审计该规格。需要裁决设计本身
+时交回派发者安排 architecture-reviewer 或设计拥有者处理，两个角色均不得继续委派。
+资料足够的独立评审可以并行，未决输入影响的结论须保留条件；不把三个角色排成
+所有修改必经的流水线。普通错链、文字修正按相关检查完成。
+
+两个新增 reviewer 均固定 Codex `gpt-5.6-sol / xhigh`、Claude Code `opus / xhigh`。
+它们不采用开发者角色的可调默认档位。Codex 设置 read-only 并禁用继续委派；Claude
+只开放 Read、Glob、Grep、WebFetch、WebSearch。权限仍受宿主实际支持与上层配置
+约束，`opus` 的精确解析及实际 effort 须在派发时核对；不支持时报告缺口，不静默换档。
+来源与实测范围见[规格和计划 reviewer 验证记录](focused-reviewer-verification.md)。
 
 ## 生成与宿主加载
 

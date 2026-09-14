@@ -257,3 +257,34 @@ minLength=0 与实际写进展/失败状态解决低流量触发；移除 scope/
 结束后仅 fast-forward 到 `46770b9`，复用根锁和格式配置。须保存实际 RED/GREEN，
 不改写旧证据；共同目录责任若要求变更公开接口，先返回具体候选。其余独立修复
 继续执行。完整修订仍须独立复核和 HUB 验收后才开放 jsonl/admission 消费。
+
+原作者随后交付 R2/R3/R5 的 `00dd6e7`、R4/R6 的 `b99752b`，实际定点 GREEN
+分别为 3 项与 4 项；失败原件、GC 测量修正及摘要再次失败的测量保留在源码树
+`evidence/p1-diagnostics/reviewer-remediation/`。最终测试机械格式化后固定
+`1c0923f`，原评审者正在定点只读复核 R2–R6，尚未闭合或整合该修订。
+
+R1 的 `fefb6c5` 已实际复现两项：旧来源写入挂起期间新来源扫描，恢复后各文件
+各守自身上限，但目录为 3356 字节，超过 2400；两次创建在 fs.open 前均通过
+准备，放行后 maxFiles=1 的目录出现两个 held 来源。它们是保持 RED 的当前
+缺口，不以其失败否定其它独立修复的测量。原观测设计作者按 `82b2baf` 计划
+另行固定显式目录 owner 和公共接口选择，受审后原实施者才能继续 R1。
+
+## P3 工具、审批与执行施工稿评审
+
+作者固定 `e6c0b8c5d1a7cc3b282c809498a241a66ad71b9d` 的六个候选/证据文件，
+交由独立 architecture-reviewer `/root/review_first_batch` 只读审阅。作者尚有
+两份未提交的相邻对齐草稿，评审统一读取固定 Git 内容，不混入工作区修订。
+候选未整合或接受；D01–D12、新 TS 接口、完整 Cordis 与产品组合尚未执行。
+
+主调度实际核对候选和四份作者资产 SHA-256，并在 HUB 的独立临时目录以相同
+固定脚本重跑两个文件/进程窗口：效果前 SIGKILL 后目标不存在；文件/目录 sync
+后、业务结果记录前 SIGKILL，目标保有 21 字节，而两组 marker 都只有
+dispatch-intent。原始输出在 `tmp/p3-tool-decision-review/e6c0b8c-hub-result.json`，
+只证明两个底层窗口，不证明真实 writer、停止墓碑、恢复或恰好一次。
+
+已知待处理的共同面包括：P2 候选 `947885c` 使用受信 host options 注入恢复所需
+reader，不提供冗余 records service；工具稿须按其最终受审公共面对齐。作者还
+报告 Cordis 的 effect 清理可能晚于 Fiber 进入 UNLOADING，稿中依赖 effect
+首段关门的突失窗口须结合固定原始证据核对；待审 host stamp 建议不是已接受
+修复。评审将检查本族具体责任与公共冲突，相邻 P2 提供者的完整映射仍归其
+独立作者，不要求双方重复定义。

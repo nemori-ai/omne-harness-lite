@@ -27,6 +27,8 @@
 | 如何表达、执行和检查一条约束？ | [不变量](assurance/invariants.md) |
 | 如何让未来远程实现保持相同含义？ | [部署与分布式边界](runtime/distribution.md) |
 | 如何把设计落为可验证规格？ | [规格与证据](assurance/specification.md) |
+| 能力目的怎样连接服务、插件与 Agent 使用方式？ | [总体范式](foundations/paradigm.md#从目的到可演化的实现)、[能力边界](modeling/capabilities.md) |
+| 具体提供者设计放哪里，何时足以交给实施？ | [规格维护](../maintenance/spec-maintenance.md)、[Cordis 映射](reference/cordis-mapping.md#核对本项目的具体提供者) |
 | 这个抽象或机制是否值得引入？ | [设计判断](assurance/judgment.md) |
 
 首次设计先读[总体范式](foundations/paradigm.md)和[概念定义](foundations/concepts.md)，然后进入与当前变化相关的专题。普通局部修改沿既有契约完成即可；只有改变边界、所有权、状态权威或可观察行为时，才展开相关设计。参考映射和全部示例无需每次通读。
