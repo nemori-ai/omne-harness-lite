@@ -40,6 +40,9 @@ Agent Loop。它回答三个问题：循环怎么走、一次 Run 中途异步�
 - [invariants.md](invariants.md)：安全与进展不变式，每条标明来源、保护点与证据义务。
 - [review.md](review.md)：2026-09-14 独立只读评审 r1（对象 `bce30a0`），结论"不闭合"，含逐节点
   状态枚举、反例记录、最小 TLA+ 风格模型与冲突清单；逐项处置见该文件末尾，r2 修订据此完成。
+- [review-r2.md](review-r2.md)：2026-09-14 独立只读评审 r2（对象 `439a4da`），结论"有条件闭合"，
+  含 r1 处置核对、新增节点闭合论证、可改写为可运行模块的 TLA+ 模型 `LoopInboundR2`、规格就绪
+  清单与契约影响；逐项处置见该文件末尾，r3 修订据此完成。
 
 ## 裁决记录（2026-09-14，用户）
 
@@ -65,6 +68,28 @@ Agent Loop。它回答三个问题：循环怎么走、一次 Run 中途异步�
 | U-15 | 子代理本质是工具：派发是普通工具调用，前后台、detach 与晚到结算全部沿 TL-10/11，不设独立的子代理结果来源 |
 | U-16 | 规格落点：Inbound 进入 session-run 的新版本；Loop 作为独立的 `capability.run-driver` v1 消费它 |
 
+## 作者裁决（2026-09-14，r3 修订）
+
+评审 r2 留下九处设计取舍。用户授权"针对性地完成优化和补漏后推进决策与规格"，
+以下由作者裁决并在 r3 落入正文；标注"政策级"的条目改变产品可感知行为，接受
+决定前用户可否决。
+
+| 编号 | 取舍 | 裁决 | 落点 |
+|---|---|---|---|
+| A-1（X1） | Yield 的占位语义 | 封闭 epoch、保留占位、Run 状态不变；新运行时实例经 E0 重取；热宽限到期仍有前台工作则按 interrupt 收口并记 `yield_forced` | loop.md E0/E7，I-1，P-1 |
+| A-2（X2） | `waiting_gate` 的机制 | 进入点 E1（依赖）、E3（预算/路由）、E4（预算）、E4A（预算），记 `(gateRef, gateRet)`；`gate_restored` 由预算与依赖可用性能力作为提供者义务推送；显式 resume 保留为人工路径；依赖门只在 Run 级，调用级沿 TL-06 结算 | loop.md E1/E3/E4/E6，I-24 |
+| A-3（X3） | 结算与答复的消费路径 | 单一路径：settled 视图只源自已裁决 arrival，新增 `settling` 阻止值；每种人类请求唯一来源 | loop.md 词表，inbound.md 定义，I-23 |
+| A-4（M1，政策级） | WorkRef 定时派发结果在 master 忙时 | 按派发关系声明 `policy.busy`：缺省 `context`（U-9），PF-004.C7 定时派发为 `queue` | inbound.md 决定表 |
+| A-5（M5，政策级） | 暂行"一次接续"在 Run 存活但不等待时 | `continuation`，`refs = run`：不唤醒进行中的 Step，下一次 E5 判定时作为就绪接续 | inbound.md 决定表，I-13 |
+| A-6（M6） | 缺省串行门与后台/待审批的关系 | 前一个调用的视图不再阻止收束即放行（settled、staged_provisional、detached_background、waiting_approval） | loop.md E4 |
+| A-7（M9） | E4A 与 E1 同时就绪的优先级 | E4A 先于 E1 | loop.md E1/E5 |
+| A-8（M3） | EC 与 IN-01 的分工 | EC 只承接 SR-07 有序命令；上下文装载型命令随文本项走 takeBatch；EC 结算词表与控制语义封闭 | loop.md EC |
+| A-9（M2） | U-15 的适用范围 | 只覆盖结果路由；子 Agent 权限与终止传播沿 SR-12 末段交给 PF-004 | loop.md E4，inbound.md 来源 |
+
+两处产品可感知的后果一并记录：`waiting_gate` 持有占位，该 Session 的普通排队输入
+要等门恢复或用户 interrupt 才能开新 Run（S9）；`failed(context_overflow)` 的 Run 留下
+的后台调用逐个以 trigger 开新 Run，成本有界但不为零（M13）。
+
 ## 与既有材料的关系
 
 - [agent-core v1 执行候选](../agent-core/v1/execution.md)提出的 Session/Turn/Run/Step
@@ -82,7 +107,10 @@ Agent Loop。它回答三个问题：循环怎么走、一次 Run 中途异步�
 - TLA+ 模型的范围：至少覆盖 invariants.md 中标注 TLA+ 的条目；模型文件在接受
   前作为提案附件，接受后随 spec 发布。
 - 规格落点已按 U-16 裁决；session-run 新版本须同时纳入 trigger kind、`takeTrigger`、
-  系统发起的 `interrupt_then_run` 与 `waiting_gate` 状态。
+  系统发起的 `interrupt_then_run`、`waiting_human`/`waiting_gate` 状态、占位与 epoch 的分离，
+  以及 Inbound 正文；受影响的 v1 契约见评审 r2 §7。
+- `gate_restored` 的生产者义务：预算能力（budget-accounting）与依赖可用性能力当前
+  版本无此条款，接受时作为提供者义务登记，或在其下一版本纳入。
 - 多进程部署下旧 epoch 持有者的活性判定（租约或故障接管）：live-agent v1 明言
   未规定，单进程首版不成问题；拆进程前必须补，属本提案之外的后续设计。
 - 模型请求发网前的 dispatched 记录应包含哪些可核实原请求的信息（本地 attemptId、
@@ -91,4 +119,5 @@ Agent Loop。它回答三个问题：循环怎么走、一次 Run 中途异步�
 
 ## 接受记录
 
-尚无。评审 r1 判定修订 `bce30a0` 不闭合；r2 修订已处置全部阻断与重要项，待第二轮评审。
+尚无。评审 r1 判定修订 `bce30a0` 不闭合；评审 r2 判定修订 `439a4da` 有条件闭合；r3 修订
+按上表处置了全部阻断、重要项与建议，可作为决定与规格的依据。
