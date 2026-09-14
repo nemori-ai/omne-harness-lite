@@ -1,5 +1,6 @@
 import { createRequire, syncBuiltinESMExports } from 'node:module'
 import { execFile } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { promisify } from 'node:util'
@@ -9,6 +10,7 @@ import type {
   DiagnosticEnd,
   DiagnosticIdentity,
   DiagnosticPoint,
+  DiagnosticsDirectoryCleanup,
   DiagnosticsRuntime,
   LocalDiagnosticSourceOptions,
   LocalDiagnosticSourceResult,
@@ -26,13 +28,21 @@ const execFileAsync = promisify(execFile)
 type TestOptions = LocalDiagnosticsDirectoryOptions & LocalDiagnosticSourceOptions
 const owners = new Set<LocalDiagnosticsDirectory>()
 const ownersByDirectory = new Map<string, LocalDiagnosticsDirectory>()
+const cleanupsRetainedUntilTestProcessExit: DiagnosticsDirectoryCleanup[] = []
+const ownersRetainedUntilTestProcessExit: LocalDiagnosticsDirectory[] = []
 
 beforeAll(async () => {
   await mkdir(scratchRoot, { recursive: true })
 })
 
 afterEach(async () => {
-  await Promise.all([...owners].map(owner => owner.close({ deadlineMs: 1_000 })))
+  const ownerList = [...owners]
+  const closing = await Promise.all(ownerList.map(owner => owner.close({ deadlineMs: 1_000 })))
+  for (const [index, result] of closing.entries()) {
+    if (result.status === 'blocked' && result.state.resource === 'unknown') {
+      ownersRetainedUntilTestProcessExit.push(ownerList[index]!)
+    }
+  }
   owners.clear()
   ownersByDirectory.clear()
 })
@@ -158,14 +168,16 @@ async function waitFor(
 }
 
 describe('D1-R2 close recovery after a write-triggered destroy', () => {
-  it('retains and retries the fd after write EIO and the destroy close also fails', async () => {
+  it('does not close a reused fd after the underlying source close returned an error', async () => {
     const directory = await mkdtemp(join(scratchRoot, 'r2-write-close-'))
+    const sentinel = join(directory, 'r2-sentinel')
     const subject = await runtime(directory, 'source-r2')
     await waitFor(subject, status => status.pendingBytes === 0)
 
     const originalWrite = nodeFs.write as unknown as FlexibleCall
     const originalClose = nodeFs.close as unknown as FlexibleCall
     let failedDescriptor: number | undefined
+    let reusedDescriptor: number | undefined
     let writeFailed = false
     let closeFailed = false
     const writeSpy = vi.spyOn(nodeFs, 'write').mockImplementation(((...args: unknown[]) => {
@@ -184,7 +196,20 @@ describe('D1-R2 close recovery after a write-triggered destroy', () => {
       failedDescriptor = args[0] as number
       const callback = args.at(-1)
       if (typeof callback !== 'function') throw new Error('unexpected fs.close signature')
-      process.nextTick(() => callback(Object.assign(new Error('R2_CLOSE_SECRET'), { code: 'EIO' })))
+      originalClose(failedDescriptor, (closeError: NodeJS.ErrnoException | null) => {
+        if (closeError !== null) {
+          callback(closeError)
+          return
+        }
+        nodeFs.open(sentinel, 'w', 0o600, (openError, descriptor) => {
+          if (openError !== null) {
+            callback(openError)
+            return
+          }
+          reusedDescriptor = descriptor
+          callback(Object.assign(new Error('R2_CLOSE_SECRET'), { code: 'EIO' }))
+        })
+      })
       return undefined
     }) as typeof nodeFs.close)
     syncBuiltinESMExports()
@@ -194,18 +219,27 @@ describe('D1-R2 close recovery after a write-triggered destroy', () => {
     try {
       subject.diagnostics.log(subject.diagnostics.scope(identity()), point('r2.write_failure'))
       await waitFor(subject, () => closeFailed)
-      beforeRetry = subject.inspect()
+      beforeRetry = await waitFor(subject, status => status.resource === 'unknown')
       writeSpy.mockRestore()
       closeSpy.mockRestore()
       syncBuiltinESMExports()
       retried = await subject.close({ deadlineMs: 100 })
+      expect(reusedDescriptor).toBe(failedDescriptor)
+      if (reusedDescriptor !== undefined) {
+        await new Promise<void>((resolve, reject) => {
+          nodeFs.fstat(reusedDescriptor!, error => {
+            if (error !== null) reject(error)
+            else resolve()
+          })
+        })
+      }
     } finally {
       writeSpy.mockRestore()
       closeSpy.mockRestore()
       syncBuiltinESMExports()
-      if (failedDescriptor !== undefined && retried?.state.resource !== 'released') {
+      if (reusedDescriptor !== undefined) {
         await new Promise<void>(resolve => {
-          originalClose(failedDescriptor, () => resolve())
+          originalClose(reusedDescriptor!, () => resolve())
         })
       }
     }
@@ -217,25 +251,27 @@ describe('D1-R2 close recovery after a write-triggered destroy', () => {
       lastErrorCode: 'EIO',
     })
     expect(retried).toMatchObject({
-      status: 'closed',
-      state: { phase: 'closed', resource: 'released' },
+      status: 'blocked',
+      state: { phase: 'closing', resource: 'unknown' },
     })
   })
 })
 
 describe('D1-R3 scanned source cleanup ownership', () => {
-  it('retains an old FileHandle whose first close fails and closes it on runtime retry', async () => {
+  it('retains an old FileHandle whose close result is unknown without retrying it', async () => {
     const directory = await mkdtemp(join(scratchRoot, 'r3-scan-close-'))
-    const oldPath = join(directory, 'diagnostic-0000000000000001.jsonl')
+    const oldSourceId = 'old-r3'
+    const oldHash = createHash('sha256').update(oldSourceId).digest('hex').slice(0, 16)
+    const oldPath = join(directory, `diagnostic-${oldHash}.jsonl`)
     await writeFile(
       oldPath,
       `${JSON.stringify({
         formatVersion: 'omne-diagnostic/1',
-        sourceId: 'old-r3',
+        sourceId: oldSourceId,
         code: 'diagnostic.source_started',
       })}\n${JSON.stringify({
         formatVersion: 'omne-diagnostic/1',
-        sourceId: 'old-r3',
+        sourceId: oldSourceId,
         code: 'diagnostic.source_closed',
       })}\n`,
       { mode: 0o600 },
@@ -255,30 +291,34 @@ describe('D1-R3 scanned source cleanup ownership', () => {
     })
     syncBuiltinESMExports()
 
-    let result: Awaited<ReturnType<typeof createLocalDiagnostics>>
+    let result: Awaited<ReturnType<typeof createLocalDiagnosticsDirectory>>
     try {
-      result = await createLocalDiagnostics(options(directory, 'source-r3'))
+      result = await createLocalDiagnosticsDirectory(
+        directoryOptions(options(directory, 'source-r3')),
+      )
     } finally {
       openSpy.mockRestore()
       syncBuiltinESMExports()
     }
-    expect(result.status).toBe('created')
-    if (result.status !== 'created' || retained === undefined) return
+    expect(result.status).toBe('unavailable')
+    if (result.status !== 'unavailable' || result.cleanup === null || retained === undefined) return
 
-    let retried: Awaited<ReturnType<DiagnosticsRuntime['close']>> | undefined
     try {
-      expect(result.runtime.inspect()).toMatchObject({
-        phase: 'degraded',
+      expect(result.cleanup.inspect()).toMatchObject({
+        phase: 'closing',
+        lock: 'held',
+        scan: 'incomplete',
         resource: 'unknown',
       })
-      retried = await result.runtime.close({ deadlineMs: 1_000 })
-      expect(retried).toMatchObject({
-        status: 'closed',
-        state: { phase: 'closed', resource: 'released' },
+      const repeated = await result.cleanup.close({ deadlineMs: 1_000 })
+      expect(repeated).toMatchObject({
+        status: 'blocked',
+        state: { lock: 'held', scan: 'incomplete', resource: 'unknown' },
       })
-      await expect(retained.read(Buffer.alloc(1), 0, 1, 0)).rejects.toThrow()
+      await expect(retained.read(Buffer.alloc(1), 0, 1, 0)).resolves.toMatchObject({ bytesRead: 1 })
     } finally {
-      if (retried?.state.resource !== 'released') await retained.close().catch(() => {})
+      await retained.close().catch(() => {})
+      cleanupsRetainedUntilTestProcessExit.push(result.cleanup)
     }
   })
 })
@@ -403,6 +443,12 @@ describe('D1-R6 persisted gap summaries', () => {
       }
       const gap = subject.inspect().gaps.find(item => item.reason === 'buffer_capacity')
       expect(BigInt(gap?.count ?? '0')).toBeGreaterThan(1n)
+      const ownerState = ownersByDirectory.get(directory)?.inspect()
+      expect(ownerState).toBeDefined()
+      expect(BigInt(ownerState?.reservedBytes ?? '0')).toBe(BigInt(subject.inspect().pendingBytes))
+      expect(BigInt(ownerState?.chargedBytes ?? '0')).toBeLessThanOrEqual(
+        BigInt(options(directory, 'source-r6-summary').maxDirectoryBytes),
+      )
       expect(delayed).toBeDefined()
       if (delayed !== undefined) originalWrite(...delayed)
       writeSpy.mockRestore()

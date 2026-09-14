@@ -111,6 +111,7 @@ type SourceBudget = Readonly<{
   release(bytes: number): void
   confirm(bytes: number): void
   closing(): void
+  released(): void
   unknown(code: string): void
   finalize(): Promise<boolean>
 }>
@@ -396,6 +397,7 @@ class LocalRuntime implements DiagnosticsRuntime {
       stream.on('close', () => {
         this.streamClosed = true
         this.resource = 'released'
+        this.budget.released()
       })
     }
     this.provider = new TracerProvider({
@@ -998,7 +1000,7 @@ class ScanCleanupFailure extends Error {
   readonly code: string | undefined
 
   constructor(
-    readonly handle: Dir | FileHandle,
+    readonly handles: readonly (Dir | FileHandle)[],
     cause: unknown,
   ) {
     super('diagnostics scan cleanup result is unknown')
@@ -1056,7 +1058,7 @@ async function scanSource(path: string, size: number, name: string): Promise<Sca
   try {
     await handle.close()
   } catch (error) {
-    throw new ScanCleanupFailure(handle, error)
+    throw new ScanCleanupFailure([handle], error)
   }
   return Object.freeze({ sourceId, clean })
 }
@@ -1085,6 +1087,9 @@ function sourceConfigKey(options: LocalDiagnosticSourceOptions): string {
 
 function sourceFailure(error: unknown): StartupFailure {
   const code = error instanceof StartupCleanupFailure ? error.code : systemErrorCode(error)
+  if (code === 'EEXIST') {
+    return Object.freeze({ code: 'SOURCE_EXISTS', reason: 'write_unavailable' })
+  }
   if (code === 'ENOSPC' || code === 'EDQUOT') {
     return Object.freeze({ code: 'RETENTION_CAPACITY', reason: 'retention_capacity' })
   }
@@ -1112,6 +1117,7 @@ async function sourceMetadata(descriptor: number): Promise<Readonly<{ dev: bigin
 async function createStream(
   path: string,
   options: LocalDiagnosticSourceOptions,
+  materialized: () => void,
   opened: (metadata: Readonly<{ dev: bigint; ino: bigint }>) => void,
 ): Promise<SonicBoomType> {
   const descriptor = await new Promise<number>((resolve, reject) => {
@@ -1120,6 +1126,7 @@ async function createStream(
       else resolve(fd)
     })
   })
+  materialized()
   let metadata: Readonly<{ dev: bigint; ino: bigint }>
   try {
     metadata = await sourceMetadata(descriptor)
@@ -1139,15 +1146,20 @@ async function createStream(
     const released = await closeRawDescriptor(descriptor)
     throw new StartupCleanupFailure(error, !released)
   }
-  return new SonicBoom({
-    fd: descriptor,
-    sync: false,
-    minLength: 0,
-    maxLength: options.maxBufferBytes,
-    maxWrite: 16_384,
-    fsync: false,
-    retryEAGAIN: () => false,
-  })
+  try {
+    return new SonicBoom({
+      fd: descriptor,
+      sync: false,
+      minLength: 0,
+      maxLength: options.maxBufferBytes,
+      maxWrite: 16_384,
+      fsync: false,
+      retryEAGAIN: () => false,
+    })
+  } catch (error) {
+    const released = await closeRawDescriptor(descriptor)
+    throw new StartupCleanupFailure(error, !released)
+  }
 }
 
 async function flockExclusive(descriptor: number): Promise<void> {
@@ -1169,6 +1181,7 @@ class DirectoryOwner implements LocalDiagnosticsDirectory {
   private reservedBytes = 0n
   private crashUnknown = false
   private scanCleanupUnknown = false
+  private readonly retainedScanHandles: (Dir | FileHandle)[] = []
   private lockCloseTask: Promise<boolean> | null = null
   private readonly sources: SourceEntry[] = []
 
@@ -1189,6 +1202,7 @@ class DirectoryOwner implements LocalDiagnosticsDirectory {
 
   markScanCleanupUnknown(error: ScanCleanupFailure): void {
     this.scanCleanupUnknown = true
+    this.retainedScanHandles.push(...error.handles)
     this.fail(error.code === undefined ? 'SCAN_RELEASE_UNKNOWN' : `SCAN_RELEASE_${error.code}`)
   }
 
@@ -1238,14 +1252,23 @@ class DirectoryOwner implements LocalDiagnosticsDirectory {
       try {
         await directoryHandle.close()
       } catch (error) {
-        throw new ScanCleanupFailure(directoryHandle, error)
+        throw new ScanCleanupFailure([directoryHandle], error)
       }
     } catch (error) {
-      if (!(error instanceof ScanCleanupFailure)) {
+      if (
+        !(error instanceof ScanCleanupFailure) ||
+        !error.handles.includes(directoryHandle)
+      ) {
         try {
           await directoryHandle.close()
         } catch (closeError) {
-          throw new ScanCleanupFailure(directoryHandle, closeError)
+          throw new ScanCleanupFailure(
+            [
+              ...(error instanceof ScanCleanupFailure ? error.handles : []),
+              directoryHandle,
+            ],
+            closeError,
+          )
         }
       }
       throw error
@@ -1319,11 +1342,17 @@ class DirectoryOwner implements LocalDiagnosticsDirectory {
   ): Promise<LocalDiagnosticSourceResult> {
     const budget = this.sourceBudget(entry)
     try {
-      const stream = await createStream(entry.path, options, metadata => {
-        entry.materialized = true
-        entry.device = metadata.dev
-        entry.inode = metadata.ino
-      })
+      const stream = await createStream(
+        entry.path,
+        options,
+        () => {
+          entry.materialized = true
+        },
+        metadata => {
+          entry.device = metadata.dev
+          entry.inode = metadata.ino
+        },
+      )
       entry.phase = 'live'
       const runtime = new LocalRuntime(options, stream, budget, undefined, this.crashUnknown)
       entry.runtime = runtime
@@ -1331,12 +1360,49 @@ class DirectoryOwner implements LocalDiagnosticsDirectory {
       return Object.freeze({ status: 'created', runtime })
     } catch (error) {
       if (!entry.materialized) {
-        this.sources.splice(this.sources.indexOf(entry), 1)
         const code = systemErrorCode(error)
         if (code === 'EEXIST') {
           this.fail('SOURCE_COLLISION')
-          return Object.freeze({ status: 'unavailable', code: 'SOURCE_EXISTS' })
+          try {
+            const metadata = await lstat(entry.path, { bigint: true })
+            if (!metadata.isFile()) throw new DirectoryFailure('INVALID_SOURCE_FILE')
+            entry.materialized = true
+            entry.device = metadata.dev
+            entry.inode = metadata.ino
+            entry.chargedBytes = metadata.size
+            this.chargedBytes += metadata.size
+            entry.phase = 'retained'
+            entry.resource = 'released'
+            const runtime = new LocalRuntime(
+              options,
+              null,
+              budget,
+              sourceFailure(error),
+              false,
+              false,
+            )
+            entry.runtime = runtime
+            entry.preparation = null
+            return Object.freeze({ status: 'created', runtime })
+          } catch {
+            entry.materialized = true
+            entry.phase = 'closing'
+            entry.resource = 'unknown'
+            this.fail('SOURCE_COLLISION_UNKNOWN')
+            const runtime = new LocalRuntime(
+              options,
+              null,
+              budget,
+              sourceFailure(error),
+              false,
+              true,
+            )
+            entry.runtime = runtime
+            entry.preparation = null
+            return Object.freeze({ status: 'created', runtime })
+          }
         }
+        this.sources.splice(this.sources.indexOf(entry), 1)
         return Object.freeze({
           status: 'unavailable',
           code: code === undefined ? 'SOURCE_OPEN_FAILED' : `SOURCE_OPEN_${code}`,
@@ -1393,6 +1459,9 @@ class DirectoryOwner implements LocalDiagnosticsDirectory {
       },
       closing: (): void => {
         if (entry.phase === 'live') entry.phase = 'closing'
+      },
+      released: (): void => {
+        entry.resource = 'released'
       },
       unknown: (code: string): void => {
         entry.resource = 'unknown'
