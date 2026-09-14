@@ -14,8 +14,8 @@ Service、Services、Lifecycle 文档与 fiber/reflect/service 源码。采集 m
 `1729cdbf8ee40b17c8839e06bf96491490548559e11ef7e411271e0754e751c5`。
 不据三文件相同推导整个 tarball 等价；既有发行物身份沿 agent/provenance.json。
 
-最终命令 `node tmp/runtime-provider-design/cordis-probe.mjs` 在 Node v24.18.0
-通过三个断言组，原始结果 `cordis-probe-3.log`：
+将归档解到新目录后，原 `cordis-probe.mjs` 在 Node v24.18.0
+通过三个断言组；原始结果为同归档的 `cordis-probe-3.log`：
 
 - 显式恢复 Promise 结束前不 provide，消费者没有进入；发布后进入一次。
 - dispose 调用时同步进入 UNLOADING，effect 尚未执行；随后清理才开始。
@@ -31,8 +31,8 @@ Service、Services、Lifecycle 文档与 fiber/reflect/service 源码。采集 m
 
 本稿候选的生命周期观察、同 gate 撤代和当前授权检查**没有产品实现或组合
 测试**；三项探针只支持相应内核机制选择。RP01–RP07、S01–S18 和 A01–32
-保留为原版本覆盖目录；本会话只执行最小 allow 基线所依赖的真实 P1 与业务
-子场景，不能用本文抵扣产品验证，也不自动继续完整批次。
+保留为原版本覆盖目录；当前最小节点归[应用装配设计](../../../../../../apps/local-harness/design.md)，
+不能用本文抵扣产品验证或推导完整批次已交付。
 
 ## 当前正文迁移与后续来源校正
 

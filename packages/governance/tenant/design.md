@@ -130,7 +130,7 @@ next_admission，引用不默认阻止停用；草稿有 blocksDiscard 则拒绝
 
 ### 管理与消费端口
 
-每项变更使用上一节共同操作外壳；expected 是相关 stream/draft/object 的精确
+每项变更使用[共同操作外壳](#数据边界与共同操作协议)；expected 是相关 stream/draft/object 的精确
 修订，操作结果包含变更对象身份、实际 revision、affectedReferences 和生效边界。
 
 | 端口 | 输入 → owner 结果 / 当前检查 |
@@ -334,5 +334,6 @@ n 的动作；n+1 后的新准入受阻，n 只有在其耐久且执行许可未
 与发行资源。事实仍由其真实 owner 产生，未知不能当空或默认许可。
 
 | 消费者需要的注入 | 最小内容与真实 owner | 必须共同验证的门 |
+|---|---|---|
 | TG/AU/BG 的主体事实 | 前述 AuthenticatedInvocation；本机凭据映射/撤销由身份适配持有，TG 解释成员，SR/AR 解释工作委托 | 伪造 DTO/句柄失败；两主体凭据真实区分；准备后撤凭据先封闭后续 gate；本机 IPC 在 P3 通过前不开放给用户 |
 | TG 引用清单 | 相关已开放 SR/TL owner 提供 `prepareReferences(definition/acquisition/draft)` 与同门 `checkReferences`，带 owner revision 与 ReferenceReport 条目 | 新引用与 discard/retire/disable 使用同门 stamp；未知来源不可当空。部署明确未安装且已封闭引用创建的能力可报告不适用，已开放能力不能省略 |

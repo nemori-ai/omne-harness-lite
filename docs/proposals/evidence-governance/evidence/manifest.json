@@ -1,0 +1,62 @@
+{
+  "scope": "Selected original fixed-review and static-measurement evidence at 424fb79 and limited revision 732856c. The original script records a temporary plan hash; its complete run is not reproducible from this selected archive alone. No plan or generated role preview is included.",
+  "archive": "review-and-checks.tar.gz",
+  "archive_sha256": "44026f2cb71f5028a253adee90df163a65ab8dde3c3e167bfdf47f292a4dd3e4",
+  "members": [
+    {
+      "member": "reviewed-snapshot.json",
+      "bytes": 8394,
+      "sha256": "734126e32574fbd6fa26fea8248538ffc3dd4f06c5335f754311ac4318954a6a"
+    },
+    {
+      "member": "design-review-r2.md",
+      "bytes": 1911,
+      "sha256": "c7303c5a6a1d3a4c3865573efe3b14fbd2a90c4bd2351709be86becd30d642c5"
+    },
+    {
+      "member": "plan-review-r2.md",
+      "bytes": 3074,
+      "sha256": "655975b14c72bcbb5a7d9def217e415a355ac51c8baf110f74a375bbed6ba108"
+    },
+    {
+      "member": "spec-review-r1.md",
+      "bytes": 3360,
+      "sha256": "8548a1dbfa1d3c3e86cc91056803d4308ec33a7736c3918c6113c59719633e71"
+    },
+    {
+      "member": "spec-review-r2.md",
+      "bytes": 1189,
+      "sha256": "0f158d6a1a2bf657c549935050603eb043c6f568382f0ef052d243b47f7d931d"
+    },
+    {
+      "member": "task-probes.md",
+      "bytes": 14246,
+      "sha256": "1caf1a8b68c1b1cfdf5db8371332083c244a752d6443b86db71ea1683a3c173a"
+    },
+    {
+      "member": "static-checks.log",
+      "bytes": 5474,
+      "sha256": "3e76d88b1bed47c7d8b9eb8f0df028c03cb5db32c3976a546ee7c0de2c6df034"
+    },
+    {
+      "member": "projection-checks.json",
+      "bytes": 4017,
+      "sha256": "e5ace21a07eed95e51bce6e01270dca7495e2e3467ab1132f76f22b2bd3f68c8"
+    },
+    {
+      "member": "check_projections.py",
+      "bytes": 2657,
+      "sha256": "ebae7c3d59e388a417ffd521ae4baf51a23d1667aa83dcbbfe51a652cf21afc1"
+    },
+    {
+      "member": "final-checks.json",
+      "bytes": 9577,
+      "sha256": "cb6b5b63ba447c430af36c066778ece3283c67d21ff3e8020b3fcc5e2e1a2604"
+    },
+    {
+      "member": "entry-chains.json",
+      "bytes": 866,
+      "sha256": "58c73146cb38d8700563b93abc2a6aaca880f27b760bcf73830cb684c50bda1d"
+    }
+  ]
+}
