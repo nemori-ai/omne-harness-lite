@@ -30,6 +30,7 @@
     "@opentelemetry/api": "1.9.1",
     "@opentelemetry/context-async-hooks": "2.11.0",
     "@opentelemetry/sdk-trace": "2.11.0",
+    "fs-ext": "2.1.1",
     "pino": "10.3.1",
     "sonic-boom": "4.2.1"
   },
