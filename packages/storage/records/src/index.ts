@@ -684,6 +684,12 @@ export function encodeEnvelope(envelope: CommitEnvelope, limits: CodecLimits): C
   const validEnvelope = validateEnvelope(copied.value, limits)
   if (!validEnvelope.ok) return validEnvelope
   const payload = canonicalJson(validEnvelope.value as unknown as JsonValue)
+  const reparsedPayload = parseJson(payload, {
+    maxBytes: limits.maxPayloadBytes,
+    maxDepth: limits.maxDepth,
+    maxNodes: limits.maxNodes,
+  })
+  if (!reparsedPayload.ok) return prefixFailure(reparsedPayload, '/payload')
   const payloadBytes = Buffer.from(payload, 'utf8')
   const outer: JournalLine = {
     formatVersion: 'core-journal/1',

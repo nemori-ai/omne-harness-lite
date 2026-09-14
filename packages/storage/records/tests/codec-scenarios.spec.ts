@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { canonicalJson } from '@omne-harness-lite/work-data'
+import type { JsonValue } from '@omne-harness-lite/work-data'
 import { describe, expect, it } from 'vitest'
 import type { CommitEnvelope, JournalLine, OperationInput, Principal, StreamRef } from '../dist/index.js'
 import { decodeLine, encodeEnvelope } from '../dist/index.js'
@@ -37,6 +38,12 @@ function resultOk(value: { ok: boolean }): void {
 
 function resultRejected(value: { ok: boolean }): void {
   expect(value.ok).toBe(false)
+}
+
+function nestedArrays(count: number): JsonValue {
+  let value: JsonValue = 0
+  for (let index = 0; index < count; index += 1) value = [value]
+  return value
 }
 
 describe('G02-G05 legal envelope observations', () => {
@@ -257,6 +264,52 @@ describe('G09 and envelope semantic consistency', () => {
     const result = encodeEnvelope(envelope, { ...limits, maxBytes: inputBytes })
     resultOk(result)
     if (result.ok) resultOk(decodeLine(result.value, { ...limits, maxBytes: inputBytes }))
+  })
+
+  it('rejects payload text beyond the parser depth while accepting the adjacent boundary', () => {
+    const deepLimits = { ...limits, maxDepth: 256 }
+    const adjacentEnvelope: CommitEnvelope = {
+      ...cloneEnvelope(),
+      outcome: { status: 'committed', result: nestedArrays(126) },
+    }
+    const adjacent = encodeEnvelope(adjacentEnvelope, deepLimits)
+    expect(adjacent.ok).toBe(true)
+    if (adjacent.ok) {
+      expect(decodeLine(adjacent.value, deepLimits).ok).toBe(true)
+      const repeated = encodeEnvelope(adjacentEnvelope, deepLimits)
+      expect(repeated.ok).toBe(true)
+      if (repeated.ok) {
+        expect(repeated.value).not.toBe(adjacent.value)
+        adjacent.value[0] = 0
+        expect(repeated.value[0]).toBe('{'.charCodeAt(0))
+      }
+    }
+
+    const tooDeep = encodeEnvelope({
+      ...cloneEnvelope(),
+      outcome: { status: 'committed', result: nestedArrays(127) },
+    }, deepLimits)
+    expect(tooDeep).toMatchObject({
+      ok: false,
+      issues: [{ code: 'capacity', path: expect.stringMatching(/^\/payload\//) }],
+    })
+    expect(Object.isFrozen(tooDeep)).toBe(true)
+    if (!tooDeep.ok) {
+      expect(Object.isFrozen(tooDeep.issues)).toBe(true)
+      expect(Object.isFrozen(tooDeep.issues[0])).toBe(true)
+    }
+  })
+
+  it('applies the same adjacent text-parser boundary inside canonicalInput', () => {
+    const deepLimits = { ...limits, maxDepth: 256 }
+    const base = cloneEnvelope()
+    const input = JSON.parse(base.canonicalInput) as OperationInput
+    resultOk(encodeEnvelope(withInput(base, { ...input, arguments: nestedArrays(127) }), deepLimits))
+    const tooDeep = encodeEnvelope(withInput(base, { ...input, arguments: nestedArrays(128) }), deepLimits)
+    expect(tooDeep).toMatchObject({
+      ok: false,
+      issues: [{ code: 'capacity', path: expect.stringMatching(/^\/canonicalInput\//) }],
+    })
   })
 
   it('rejects exact length/hash mismatches, nested unknown fields, empty batches, and invalid use owners', () => {
