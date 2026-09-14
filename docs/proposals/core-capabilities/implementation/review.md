@@ -88,7 +88,7 @@ P0 检查职责。该分支尚未进入 HUB，也未因 worker 的绿色结果�
 | ID | 已确认问题 | 状态 |
 |---|---|---|
 | K1 | 同一成员多个 exports 使用重复 import binding；默认入口与 baseline 共存会 strict tsc 失败，原真实夹具只覆盖单入口 | `f0defde` 每入口唯一 binding、真实 TS2300 RED/GREEN 经独立复核闭合 |
-| K2 | consumer 移入 repo/tmp 后，Node/tsc 可沿祖先 node_modules 借到仓库依赖；ignore-workspace 与根包 realpath 检查不提供仓库外隔离 | `8842f63` 的仓库内 TMPDIR 及有效 RED 已闭合；旁支 worktree 共同祖先和全局搜索仍修复 |
+| K2 | consumer 移入 repo/tmp 后，Node/tsc 可沿祖先 node_modules 借到仓库依赖；ignore-workspace 与根包 realpath 检查不提供仓库外隔离 | `33a57a2` 的五组有限隔离矩阵及有效 RED 已经独立复核闭合 |
 | K3 | 这批固定 DSH 来源的 manifest.license 可改为与已核对 MIT 原件不一致的声明而通过 | `f0defde` 的 MIT 一致性修复及反例经独立复核闭合 |
 
 该次复核已解压原始证据，确认三项声明哈希、format-patch 与 `0587fa2` 的 diff
@@ -103,7 +103,25 @@ createArtifactScratch 函数，未测到祖先污染；绿色默认环境也不�
 消费路径的最终有限检查范围为：干净独立正控、仓库内 TMPDIR（含符号链接）、
 共同祖先污染（含 node_modules 链接）、ESM/CJS/声明缺依赖负控、NODE_PATH
 污染对照。所有消费编译/运行子进程统一禁用环境注入和全局搜索，保留所需
-原生编译环境；不扩展成敌对主机沙盒。作者正在按此范围 TDD 修订。
+原生编译环境；不扩展成敌对主机沙盒。`ca559ee` 的实现已兑现该边界，但其
+tsc preload 探针错误地限定 cwd，未命中实际编译目录；`33a57a2` 修正测量，
+单行撤除实际 tsc 隔离时记录三个消费者的六个 preload 调用并变红，恢复后通过。
+同一评审者确认本轮有限矩阵全部闭合，没有剩余阻断；未重跑测试或接受实现。
+
+主调度在 HUB `d95052c` 整合后实际通过构建、13/13 checker 测试、14 个独立
+tarball 及 14 包组合消费，范围与原始结果见[HUB 证据](evidence/p0-package-checks/hub-summary.json)。
+这些产品仍为源基线，合成自有 package/app 夹具不表示已交付目标应用；真实
+fs-ext 产品依赖尚未接入，不能将 native 选择规则测试当成 addon 加载验证。
+
+## P0 work-data 实现复核
+
+`/root/review_first_batch` 只读复核 `a8cd57e` 相对 `9de28b2`，依据已固定的数据
+子集、两份 data v1 Schema 及 A30/A31 范围，发现一项必须修复的问题：
+parseJson 在 jsonc-parser 完整递归建 AST 后才检查 maxDepth/maxNodes，深输入
+可能先抛 RangeError，绕过 Checked/capacity。反例为两万层数组、100000 字节上限、
+深度 8 和节点 32；评审确认检查顺序及第三方递归源码，未实际运行该反例。
+作者已接回，须实际 RED/GREEN，不能用仅抑制 visitor 回调的 false 值代替中止解析。
+本轮 DTO/Schema、数值、冻结、规范编码及产物范围未发现其它阻断；尚未接受实现。
 
 新自有包默认 private/UNLICENSED；按实际许可声明支持其它来源不属于本轮缺陷，
 检查器也不授予新许可。原生选择性构建路径的 fixture 通过不代表未来产品 native

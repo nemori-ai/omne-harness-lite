@@ -3,7 +3,7 @@
 ## 当前事实
 
 首批二次开发的目标、验收、实施规格和计划已完成文档交付，其原评审发现已闭合。
-P0 共享接口已经评审、整合和复验，检查器的隔离修订正在最终复核，见 [review.md](review.md)。用户已授权按完整工作包
+P0 共享接口与检查器已经评审、整合和复验，work-data 正在修复一项输入容量问题，见 [review.md](review.md)。用户已授权按完整工作包
 自驱实施；P0 的共享接口设计、原生锁探针和包检查器 TDD 已派发。尚无本批已接受
 产品交付或 OpenRouter 请求；A01–A32 尚未通过，M1/M2 均未交付。
 
@@ -18,7 +18,7 @@ P0 共享接口已经评审、整合和复验，检查器的隔离修订正在�
 
 | 任务 | 状态 | 实现/验收证据 | 下一项输入 |
 |---|---|---|---|
-| P0 | in_progress | 锁探针与共享接口施工输入已接受；work-data 正在 TDD；检查器 K2 修订最终复核中 | 共享边界实现和 HUB 检查器验收 |
+| P0 | in_progress | 锁探针、共享接口施工输入及检查器已接受；work-data 的容量反例正在修复 | work-data 修复复核/整合，随后 records 共享边界实现 |
 | P1 | planned | 未执行 | P0 的记录/协调接口与真实锁证据 |
 | P2 | planned | 未执行 | P1 的真实共同门与记录提供者；交付本地预算 owner |
 | P3 / M1 | planned | 未执行 | P2 当前权限/真实预算/Session/活体，以及 P1 执行账本前提 |
@@ -29,7 +29,7 @@ P0 的原生文件锁前提已验收，正式 writer/恢复仍未实现；P4 的
 真实 OpenRouter 环境仍待测量。未验证部分不能被记为通过。
 
 本次已核对现有检查器只允许 baseline/DSH 来源，以及安装默认禁用脚本的事实；
-适配已安排到 P0；HUB 的检查器和安装行为仍是实施起点。开发指南、包索引和当前架构
+检查器已在 P0 完成适配，真实 native 产品依赖尚未接入。开发指南、包索引和当前架构
 已纠正仍将 fork 建立写作下一步或仅介绍 agent 基线的过时投影。
 
 ## 当前执行 wave
@@ -40,18 +40,18 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 
 | 工作 | 执行者与实际句柄 | 独立工作树 | 写入归属与下一关 |
 |---|---|---|---|
-| P0 共享接口稿（accepted） | `/root/p0_interfaces` 与独立复核 `/root/review_first_batch`，均已结束 | `dsh-p0-interfaces`，待释放后退役 | `8f4cfa9` 的 I1–I5 闭合，`33f39cb` 整合及 HUB 探针重跑通过，接受为施工输入 |
+| P0 共享接口稿（accepted） | `/root/p0_interfaces` 与独立复核 `/root/review_first_batch`，本任务均已结束 | `dsh-p0-interfaces`，已退役 | `8f4cfa9` 的 I1–I5 闭合，`33f39cb` 整合及 HUB 探针重跑通过，接受为施工输入 |
 | P0 真实锁探针（accepted） | infrastructure-developer，`/root/p0_lock_probe`，已结束 | `dsh-p0-lock-probe`，已退役 | `f712e025` 经 `04b8dbf` 整合，HUB 全新目录实际复验通过；范围及限制见下文 |
-| P0 包检查器 | verification-developer，`/root/p0_package_checks`；复核 `/root/review_package_layout` | `dsh-p0-package-checks` | K1/K3 已闭合；`ca559ee` 已提交 K2 有限隔离矩阵，最终复核中，尚未接受或合入 HUB |
-| P0 work-data 实现 | kernel-developer，`/root/p0_work_data` | `dsh-p0-work-data` | 消费下述已固定子集，独占数据包与专属证据；TDD 实施中 |
+| P0 包检查器（accepted） | verification-developer，`/root/p0_package_checks`；复核 `/root/review_package_layout`，本任务均已结束 | `dsh-p0-package-checks`，待资产/消费者核对后退役 | `33a57a2` 的 K1–K3 闭合，`d95052c` 整合及 HUB 构建/13 项测试/14 独立与组合产物通过 |
+| P0 work-data 实现 | kernel-developer，`/root/p0_work_data` | `dsh-p0-work-data` | `a8cd57e` 已交 86 项测试与产物证据；独立复核发现深输入容量检查过晚，作者修复中，尚未合入 HUB |
 
 未标 accepted 的行只表示派发事实。主调度拥有 HUB 整合、根配置、此工作包和最终
 验收；worker 的本地提交、测试绿灯与运行结束均须经端点核验后才能接受。
 共享数据契约自身已派发实现；records/admission 消费者尚未派发，不使用兄弟
 任务未落定的类型或临时约定启动联合实现。
 接口出现正式规格反例时先修设计或发布流程，不放宽验收。
-具体反例与处置归[本轮评审](review.md#p0-共享接口实施稿)。共享接口缺口已经闭合，
-检查器有限隔离矩阵待最终复核；没有改变 M1/M2 范围，也不需要更弱的保证。
+具体反例与处置归[本轮评审](review.md)。共享接口和检查器缺口已经闭合，
+work-data 仍有一项修复；没有改变 M1/M2 范围，也不需要更弱的保证。
 
 本次采用当前会话实际提供的 native collaboration 角色和句柄。外部 `ccm` CLI
 inventory 与配额查询不覆盖该 native 执行面，不能移用其外部 CLI 的准入或额度
@@ -93,6 +93,17 @@ HUB `33f39cb` 整合后，使用新依赖目录重跑原 Schema/DTO、声明/受
 [设计验证证据](evidence/p0-shared-interfaces/README.md)保全脚本、锁、原始结果与
 HUB 实际重跑版本/哈希。正式 Schema 未改；产品 JSON 边界、codec、writer、
 准入和真实资源清理仍须按 TDD 实现，不能从设计可行性推导它们已经符合。
+该 spoke 的作者和评审者均已结束，确认无驻留进程，17 份独有探针资产逐项校验
+后保全于上述正式证据；其余 node_modules、Python 环境与缓存可重建，工作树已退役。
+
+## P0 包检查器交付
+
+主调度接受 `33a57a2` 经 HUB `d95052c` 整合后的 P0 检查职责交付。
+[实际结果](evidence/p0-package-checks/hub-summary.json)及原始压缩日志记录：
+14 包构建、13/13 测试、14 个独立 tarball 消费和全包组合均通过。自有来源、
+多入口、apps 夹具、真实源码依赖与许可、仓库外及全局解析隔离均按固定范围验证。
+根 workspace 尚无产品 apps 或 work-data 成员；它们后续接入时仍须实际产物验证。
+原生 fs-ext 选择性构建规则已支持，但当前产品未依赖它，实际 addon 加载仍归 P1。
 
 ## 供其他设计会话消费的边界
 
