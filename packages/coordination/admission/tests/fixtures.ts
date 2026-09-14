@@ -1,6 +1,7 @@
 import type {
   Diagnostics,
   DiagnosticContext,
+  DiagnosticIdentity,
   DiagnosticPoint,
   DiagnosticSpan,
 } from '@omne-harness-lite/diagnostics'
@@ -365,6 +366,7 @@ export class ControlledWriter implements RecordWriter {
 
 export class RecordingDiagnostics implements Diagnostics {
   readonly points: DiagnosticPoint[] = []
+  readonly identities: DiagnosticIdentity[] = []
   onLog: ((point: DiagnosticPoint) => void) | undefined
   throwOnLog = false
   throwOnNewId = false
@@ -377,7 +379,8 @@ export class RecordingDiagnostics implements Diagnostics {
     return id
   }
 
-  scope(): DiagnosticContext {
+  scope(identity: DiagnosticIdentity): DiagnosticContext {
+    this.identities.push(identity)
     return Object.freeze({}) as DiagnosticContext
   }
 
