@@ -11,6 +11,11 @@ returns pending positions before asynchronous I/O, and advances durable receipts
 sync. Recovery validates the complete prefix and preserves an incomplete final fragment before
 truncating it. Complete corrupt lines and unknown formats make acquisition unavailable.
 
+Each committed envelope advances every touched stream revision exactly once, regardless of the
+number of ordered records in that stream append. Assignment, durable receipts, reads, operation
+lookup, and recovery all apply this same rule. A complete predecessor chain written with a
+per-record `+N` revision is rejected as a revision gap and is not rewritten.
+
 The ordinary source primitives remain available at `@omne-harness-lite/jsonl/baseline` and through
 the default entry. They do not independently provide locking, journal validation, or recovery.
 
