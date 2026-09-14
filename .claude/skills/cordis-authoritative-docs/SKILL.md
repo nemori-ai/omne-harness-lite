@@ -60,6 +60,16 @@ architecture, decisions, and contracts; upstream evidence cannot authorize them.
 
 ## Evidence standard
 
+When relying on a formal result, locate its statement, version, observation
+boundary and premises. Identify which premises the runtime supplies, which belong
+to the interface provider or component author, and which remain environmental
+assumptions. Check the actual representation and allowed operations against those
+premises; an API description or disposer signature is not that evidence. The
+[source note](../../../docs/research/cordis-proof-boundaries.md) locates the paper;
+the project's [proof obligations](../../../docs/architecture-guide/assurance/composability.md)
+determine what must be established for a proposed choice, independently of what
+the paper or upstream authors require.
+
 When reporting a Cordis fact, include the official documentation link or the
 exact repository path and revision consulted; apply the same standard to DSH agent
 facts. Distinguish a documented guarantee, a source/test-supported observation at

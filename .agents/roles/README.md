@@ -98,6 +98,12 @@ uv run --locked python .agents/skills/design-subagents/scripts/render_pair.py \
 三个 reviewer 按判断对象分工，不能把同一个问题分别计为三轮审计；共同的只读、
 证据和版本纪律不意味着业务职责重叠。
 
+架构评审核对目标/需求到不变量及安全/进展性质的推导、机制的保护位置和证明
+适用性；规格评审核对给定设计的准确表达；计划评审核对证明、探针和组合验证
+是否有生产者及正确依赖。具体规则归[性质推导](../../docs/architecture-guide/assurance/invariants.md#从目标与需求推导性质)、
+[组合性质](../../docs/architecture-guide/assurance/composability.md)和
+[交付规划](../../docs/maintenance/delivery-planning.md)，不将三种结论互相替代。
+
 | 判断 | 拥有者 | 典型发现 |
 |---|---|---|
 | 这个设计是否能满足需求与系统保证？ | architecture-reviewer | 政策或边界使系统不变量无法成立 |
