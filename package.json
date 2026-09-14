@@ -6,7 +6,7 @@
     "node": ">=24 <25"
   },
   "scripts": {
-    "build": "pnpm -r --filter './packages/**' run build",
+    "build": "pnpm -r --filter './packages/**' --filter './apps/**' run build",
     "test": "pnpm run build && pnpm -r run test",
     "format:write": "./scripts/format.sh write",
     "format:check": "./scripts/format.sh check",
