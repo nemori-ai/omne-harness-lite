@@ -1,0 +1,17 @@
+Command: pnpm run build && pnpm exec vitest run tests/parse-json.spec.ts
+Working directory: packages/core/work-data
+Environment: Node v24.18.0; pnpm 10.28.1; vitest 4.1.8
+Exit: 1
+
+RUN  v4.1.8 packages/core/work-data
+
+FAIL tests/parse-json.spec.ts > A31 strict JSON text parsing > returns a detached frozen value for strict JSON
+AssertionError: expected { ok: false, …(1) } to deeply equal { ok: true, value: { …(2) } }
+Received issue: parseJson is not implemented
+
+Test Files  1 failed (1)
+Tests       18 failed | 4 passed (22)
+
+The four passing cases are strict-syntax rejection paths already returned by the non-behavioral
+stub. The failures demonstrate that valid parsing, decoded-key duplicate detection, numeric support
+classification, and capacity enforcement were absent before the implementation.

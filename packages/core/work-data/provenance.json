@@ -1,0 +1,11 @@
+{
+  "format": 1,
+  "scope": "Project-owned implementation of the accepted data.agent-runtime-identity/core-work v1 work-data boundary",
+  "files": [],
+  "project_files": [
+    {
+      "path": "src/index.ts",
+      "purpose": "Public DTO types and strict JSON/schema validation implementation"
+    }
+  ]
+}
