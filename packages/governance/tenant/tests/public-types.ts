@@ -63,16 +63,34 @@ void evidenceTypeProofs
 
 // @ts-expect-error VersionSet fields are immutable.
 versionSet.definition = definition
+// @ts-expect-error VersionSet fields are immutable.
+versionSet.versions = [opaqueId]
 // @ts-expect-error VersionSet uses an immutable versions array.
 versionSet.versions.push(opaqueId)
 // @ts-expect-error Validity fields are immutable.
 validity.notBefore = instant
+// @ts-expect-error Validity fields are immutable.
+validity.expiresAt = null
+// @ts-expect-error MembershipBasis fields are immutable.
+membershipBasis.member = member
+// @ts-expect-error MembershipBasis fields are immutable.
+membershipBasis.joinedRevision = revision
 // @ts-expect-error MembershipBasis fields are immutable.
 membershipBasis.observedRevision = revision
 // @ts-expect-error EvidenceRef fields are immutable.
+evidence.authority = 'other'
+// @ts-expect-error EvidenceRef fields are immutable.
 evidence.kind = 'other'
+// @ts-expect-error EvidenceRef fields are immutable.
+evidence.id = opaqueId
+// @ts-expect-error EvidenceRef fields are immutable.
+evidence.revision = opaqueId
 // @ts-expect-error Conditions fields are immutable.
 conditions.validity = validity
+// @ts-expect-error Conditions fields are immutable.
+conditions.membership = [membershipBasis]
+// @ts-expect-error Conditions fields are immutable.
+conditions.requiredFacts = [evidence]
 // @ts-expect-error Conditions uses an immutable membership array.
 conditions.membership.push(membershipBasis)
 // @ts-expect-error Conditions uses an immutable evidence array.

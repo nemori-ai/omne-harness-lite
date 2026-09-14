@@ -1,0 +1,30 @@
+environment
+v24.18.0
+pnpm 10.28.1
+TypeScript 6.0.3
+@types/node 24.13.4
+
+RED at dacaf1bae448e38f681070a205220848664cf2b9
+$ pnpm --package=typescript@6.0.3 dlx tsc -p tsconfig.red.json
+red-public-consumer.ts(8,8): error TS2307: Cannot find module '@omne-harness-lite/tenant' or its corresponding type declarations.
+exit 2
+
+GREEN dependency-ordered build
+$ pnpm --filter @omne-harness-lite/tenant... run build
+Scope: 3 of 22 workspace projects
+packages/core/work-data build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json && node scripts/build-schemas.mjs
+packages/core/work-data build: PASS: verified and copied 2 frozen schemas covering 29 DataTypes
+packages/core/work-data build: Done
+packages/storage/records build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/storage/records build: Done
+packages/governance/tenant build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/governance/tenant build: Done
+exit 0
+
+GREEN strict declaration fixture after 2436f52f4c38d2c7031eebe8480eb49609c3fd1f
+$ pnpm --filter @omne-harness-lite/tenant run typecheck
+
+> @omne-harness-lite/tenant@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p2-governance-values/packages/governance/tenant
+> tsc -p tsconfig.test.json
+
+exit 0
