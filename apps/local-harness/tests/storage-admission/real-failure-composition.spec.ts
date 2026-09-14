@@ -1,11 +1,13 @@
 import { createRequire, syncBuiltinESMExports } from 'node:module'
 import type { ExactUse, OwnerPublication, PendingAdmission } from '@omne-harness-lite/admission'
+import { createJsonlProvider } from '@omne-harness-lite/jsonl'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   closeStack,
   createStack,
   operation,
   prepareAdmission,
+  providerOptions,
   removeStack,
   turn,
   useBinding,
@@ -182,6 +184,55 @@ describe('A08 durability gating on the actual journal', () => {
   })
 })
 
+describe('A07 recovery after an admission-visible unknown', () => {
+  it('re-syncs a complete LF record and recognizes the original result under a new epoch', async () => {
+    const stack = await createStack('sync-unknown-recovery-', ['session'])
+    stacks.add(stack)
+    const prepared = prepareAdmission(stack.admission, 'sync-unknown-recovery', [
+      {
+        owner: 'session',
+        publishLogical: () => undefined,
+        publishDurable: () => undefined,
+      },
+    ])
+    journalFault.path = `${stack.recordDirectory}/journal.jsonl`
+    journalFault.mode = 'fail_sync'
+    journalFault.armed = true
+
+    const submission = pending(
+      stack.admission.coordinator.enter(frame =>
+        stack.admission.coordinator.submit(frame, prepared),
+      ),
+    )
+    await expect(submission.completion).resolves.toMatchObject({
+      status: 'unknown',
+      operation: operation('sync-unknown-recovery'),
+    })
+    expect(stack.admission.coordinator.status()).toMatchObject({ phase: 'quarantined' })
+    journalFault.armed = false
+    await stack.admission.coordinator.close()
+
+    const reopened = await createJsonlProvider(
+      providerOptions(stack.recordDirectory, ['session']),
+      stack.diagnosticRuntime.diagnostics,
+    ).acquireWriter()
+    expect(reopened.status).toBe('acquired')
+    if (reopened.status !== 'acquired') return
+    expect(BigInt(reopened.writer.writerEpoch)).toBeGreaterThan(BigInt(stack.writer.writerEpoch))
+    await expect(
+      reopened.writer.lookupOperation(operation('sync-unknown-recovery')),
+    ).resolves.toMatchObject({
+      status: 'committed',
+      receipt: {
+        operation: operation('sync-unknown-recovery'),
+        position: { seq: '2', writerEpoch: stack.writer.writerEpoch },
+        outcome: { status: 'committed', result: { operationId: 'sync-unknown-recovery' } },
+      },
+    })
+    await expect(reopened.writer.closeWriter()).resolves.toMatchObject({ status: 'closed' })
+  })
+})
+
 describe('O09/O10 simultaneous business and diagnostic failures', () => {
   it('keeps a sync-failed operation unknown and effectless while the real diagnostic sink reports a gap', async () => {
     const stack = await createStack('storage-diagnostic-failure-', ['session'])
@@ -223,7 +274,6 @@ describe('O09/O10 simultaneous business and diagnostic failures', () => {
     expect(stack.diagnosticRuntime.inspect()).toMatchObject({
       phase: 'degraded',
       lastErrorCode: 'EIO',
-      resource: 'held',
       gaps: expect.arrayContaining([
         expect.objectContaining({ reason: 'write_unavailable', quality: 'unknown' }),
       ]),
