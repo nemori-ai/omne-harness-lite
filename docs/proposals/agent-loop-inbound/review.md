@@ -355,3 +355,34 @@ U-裁决与契约的冲突（不复议，仅指出后果）：U-10 需限定终�
 未读：`docs/research/agent-loop-events-and-hooks/README.md`（判断未依赖）、`docs/maintenance/spec-maintenance.md`、`docs/maintenance/organization.md`、`spec/capabilities/live-agent/v1/Runtime.tla` 与 `scenarios.md`、`docs/proposals/agent-core/v1/execution.md`、`docs/requirements/system/constraints.md`、PF-001/006/010/012/014/015/016/018/021/022/024、`docs/proposals/core-capabilities/review.md` 与 `requirements.md`。
 
 本评审不构成接受；未验证任何实现；第 4 节模型为评审推导工具，不是提案附件。
+---
+
+## 处置记录（r2 修订，2026-09-14）
+
+用户对评审第 7 节六个政策问题的裁决记为 README 的 U-11～U-16。逐项处置如下；
+"已处置"指 r2 正文已按最小澄清修改，"接受为局限"指写入验证边界而非修改设计。
+
+| 发现 | 处置 | 落点 |
+|---|---|---|
+| B1（G1） | 已处置：E7 按原因分五个终点；E8 转换按终态原因区分，cancelled/级联关闭一律 `closed`（U-11） | loop.md E7/E8，inbound.md 决定表 D 列，I-14 |
+| B2（G2） | 已处置：新增 E4A 与意图 `AdmitApproved`；收束后批准的调用作为 E6 的等待位置（U-12） | loop.md E6/E4A，I-9、I-22 |
+| B3（G3） | 已处置：operationId 按提交种类派生；I-18 改为按 attempt 不重发；两项提供者义务写入恢复一节 | loop.md decide 一节，I-18、I-20 |
+| B4（G4） | 已处置：结算与接续处理同一提交，作为 E8 动作前提 | loop.md E8，inbound.md 终态协调，I-14 |
+| B5（G5、G6） | 已处置：词表补 `proposed_pending_gate`、`detach_in_flight`，staged 优先于 settled；新增 E5W 与意图 `AwaitCalls` | loop.md 封闭词表/E5W，I-9 |
+| M1（G7） | 已处置：E2 判定移到 OpenStep 提交之前的准备阶段；辅助 Step 不消费 arrival；每次准备最多一次 | loop.md E1/E2 |
+| M2（G8） | 已处置：按 U-14 原 Run 先结算，到期 trigger | inbound.md schedule_due 行 |
+| M3（G9） | 已处置：按 U-15 子代理结果只走 `call_settlement`，删除 `subagent_result`/`handoff_result` 来源 | inbound.md 来源枚举 |
+| M4（G10） | 已处置：帧不是 arrival | inbound.md |
+| M5（G11） | 已处置：Session 级裁决者不依赖 Loop；I-21 拆为安全侧与进展侧 | inbound.md 恢复时的裁决，I-21 |
+| M6（G12） | 已处置：按 U-13 走 `waiting_gate`，新增来源 `gate_restored` | loop.md E6，inbound.md |
+| M7（G13） | 已处置：E3 出边封闭表；E2 失败与上界 | loop.md E3/E2 |
+| M8（G14） | 已处置：unknown 进入模型决策，系统侧依赖决定保持阻塞 | loop.md 封闭词表注 |
+| M9（G15） | 已处置：`observedRun` 取引用 Run，否则占位持有 Run | inbound.md arrival 对象 |
+| M10（G16） | 已处置：`Yield` 定义为运行时退役的安全边界释放，Run 状态不变 | loop.md E7 表 |
+| M11（G17） | 已处置：新增 EC 命令处理者路径 | loop.md 拓扑/EC |
+| M12（G20） | 已处置：I-11 收窄为 Step 内顺序 | I-11 |
+| M13 | 已处置：interrupted 的 resume 走 E0 | loop.md E0/接续来源 |
+| S1～S11 | 已处置（S1 删除 `delivered`；S2 前提措辞；S3 恢复表措辞；S4 同提交；S5 I-5 范围；S6 裁决 operationId 从 arrivalId 派生；S7 四种回传策略；S8 SR-13 projection；S9 分区行；S10 P-4 豁免；S11 水位 owner） | 各文件 |
+| 政策问题 1～6 | 用户裁决 U-11～U-16 | README |
+| 证据缺口 | 保留：无 TLC 结果；形式模型在接受前补齐，范围见 invariants.md 证据义务 | invariants.md |
+| 租户维度（PF-017.C3 授权检查时点） | 已处置：受理时检查，不获准不受理也不泄漏存在 | inbound.md arrival 对象 |

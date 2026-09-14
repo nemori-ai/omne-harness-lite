@@ -39,7 +39,7 @@ Agent Loop。它回答三个问题：循环怎么走、一次 Run 中途异步�
   队列消费规则，以及按全部产品/系统要求做的覆盖核对。
 - [invariants.md](invariants.md)：安全与进展不变式，每条标明来源、保护点与证据义务。
 - [review.md](review.md)：2026-09-14 独立只读评审 r1（对象 `bce30a0`），结论"不闭合"，含逐节点
-  状态枚举、反例记录、最小 TLA+ 风格模型与冲突清单；处置状态见该文件。
+  状态枚举、反例记录、最小 TLA+ 风格模型与冲突清单；逐项处置见该文件末尾，r2 修订据此完成。
 
 ## 裁决记录（2026-09-14，用户）
 
@@ -58,6 +58,12 @@ Agent Loop。它回答三个问题：循环怎么走、一次 Run 中途异步�
 | U-8 | 队列内的项随时可撤回；一旦出队启动 Run 就不能撤回，只能对 Run 施加 interrupt 等控制 |
 | U-9 | delegate/spawn 结果到达时 master 非终态但已不在前台等待，作为 `context`；被动订阅内容 Inbound 只记指针与水位，不复制内容 |
 | U-10 | 已终态 Run 的晚到回调作为新 Run 的 trigger 进入循环；事件与 Run 生命周期异步，由 Inbound 统一裁决 |
+| U-11 | U-10 只适用于 `completed`/`failed`；`cancelled`、force_stop 以及 Session 归档/删除级联终止是人主动终止的意图，晚到回调不得复活，接续一律关闭并记录 |
+| U-12 | 收束后才被批准的调用不引入 TL-10 之外的第三种关系：Run 在 E6 以"等待该调用结算"为接续位置 |
+| U-13 | 预算耗尽与依赖缺失进入 `waiting_gate`，由预算/依赖能力的恢复事实唤醒，不需要用户 resume |
+| U-14 | 日程"继续同一件工作"：原 Run 先结算，到期以 trigger 开新 Run |
+| U-15 | 子代理本质是工具：派发是普通工具调用，前后台、detach 与晚到结算全部沿 TL-10/11，不设独立的子代理结果来源 |
+| U-16 | 规格落点：Inbound 进入 session-run 的新版本；Loop 作为独立的 `capability.run-driver` v1 消费它 |
 
 ## 与既有材料的关系
 
@@ -75,9 +81,8 @@ Agent Loop。它回答三个问题：循环怎么走、一次 Run 中途异步�
 - trigger 来源的容量、去抖与合并参数的具体配置面（inbound.md 只定义义务）。
 - TLA+ 模型的范围：至少覆盖 invariants.md 中标注 TLA+ 的条目；模型文件在接受
   前作为提案附件，接受后随 spec 发布。
-- 本提案接受后的规格落点：Loop 语义是否作为 `capability.session-run` 的新版本、
-  独立的 `capability.run-driver`，还是组合契约；Inbound 是否并入 session-run 的
-  队列条款。建议在评审时一并裁决。
+- 规格落点已按 U-16 裁决；session-run 新版本须同时纳入 trigger kind、`takeTrigger`、
+  系统发起的 `interrupt_then_run` 与 `waiting_gate` 状态。
 - 多进程部署下旧 epoch 持有者的活性判定（租约或故障接管）：live-agent v1 明言
   未规定，单进程首版不成问题；拆进程前必须补，属本提案之外的后续设计。
 - 模型请求发网前的 dispatched 记录应包含哪些可核实原请求的信息（本地 attemptId、
@@ -86,4 +91,4 @@ Agent Loop。它回答三个问题：循环怎么走、一次 Run 中途异步�
 
 ## 接受记录
 
-尚无。评审 r1 判定当前修订不闭合，阻断项 B1～B5 处置前不进入接受。
+尚无。评审 r1 判定修订 `bce30a0` 不闭合；r2 修订已处置全部阻断与重要项，待第二轮评审。
