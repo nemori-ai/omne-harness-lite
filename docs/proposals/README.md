@@ -8,6 +8,7 @@
 - [工具系统](tool-system/README.md)：多命令工具、技能依赖、调用与动态装配；已保存独立评审的候选，尚未接受。
 - [DSH 核心能力源码采用范围](dsh-core-adoption/README.md)：本批 fork 集合、依赖处理及分阶段设计边界已接受，见 D-006；子系统完整契约仍须设计。
 - [运行时共同边界与 Session 附着](runtime-composition/README.md)：D-006 工作 A 的共同边界和组合 v1 已接受，见 D-007。
+- [核心能力设计与二次开发](core-capabilities/README.md)：D-008 目标契约和 D-009 职责布局已接受；[首批实施工作包](core-capabilities/implementation/README.md)集中维护四项开工输入、TDD 与交付对账。
 - [租户契约](tenant-contracts/README.md)：旧模型语义迁移，待逐项确认。
 - [模型契约](model-contracts/README.md)：旧模型语义迁移，待逐项确认。
 

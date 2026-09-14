@@ -22,5 +22,7 @@ Session/Run 拥有历史、输入队列、驱动位置与控制；人类请求�
 Context／依赖和事件供给运行时组合，不替代租户权限或外部效果核实。
 
 当前证据是有限模型、反例和结构样例；真实 JSONL、执行隔离、OpenRouter、
-媒体 GC、账务来源和应用组合仍未完成目标验收。下一步按 D-006 及施工计划
-建立本地维护源码起点，继续区分源事实、已接受目标与实现缺口。
+媒体 GC、账务来源和应用组合仍未完成目标验收。D-006 定向 fork 和 D-009
+职责包重组已完成，当前已有 [14 个实际包的源码起点](../proposals/core-capabilities/fork/package-layout-delivery.md)。
+后续按[第一批二次开发工作包](../proposals/core-capabilities/implementation/README.md)
+实现可恢复工具审批与 OpenRouter 文本流程；工作包是待实施范围，尚无目标实现验收结果。
