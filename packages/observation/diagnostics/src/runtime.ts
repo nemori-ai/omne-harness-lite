@@ -380,6 +380,15 @@ class LocalRuntime implements DiagnosticsRuntime {
         this.lastErrorCode = systemErrorCode(error) ?? 'SONIC_ERROR'
         this.addGap('write_unavailable', null, 'unknown')
         if (this.streamCloseStarted) {
+          const closeAlreadyStarted = (stream as SonicBoomType & { destroyed: boolean }).destroyed
+          if (!closeAlreadyStarted) {
+            try {
+              stream.destroy()
+              return
+            } catch {
+              // The fallthrough preserves an unknown release result.
+            }
+          }
           this.resource = 'unknown'
           this.closeOutcomeUnknown = true
           this.budget.unknown('SOURCE_RELEASE_UNKNOWN')
@@ -972,6 +981,7 @@ class LocalRuntime implements DiagnosticsRuntime {
 type ScannedSource = Readonly<{
   sourceId: string | null
   clean: boolean
+  recognized: boolean
 }>
 
 type SourceEntry = {
@@ -1018,7 +1028,7 @@ function validSourceId(value: unknown): value is string {
 }
 
 async function scanSource(path: string, size: number, name: string): Promise<ScannedSource> {
-  if (size === 0) return Object.freeze({ sourceId: null, clean: false })
+  if (size === 0) return Object.freeze({ sourceId: null, clean: false, recognized: false })
   const handle = await openFile(path, 'r')
   let sourceId: string | null = null
   let clean = false
@@ -1060,7 +1070,7 @@ async function scanSource(path: string, size: number, name: string): Promise<Sca
   } catch (error) {
     throw new ScanCleanupFailure([handle], error)
   }
-  return Object.freeze({ sourceId, clean })
+  return Object.freeze({ sourceId, clean, recognized: sourceId !== null })
 }
 
 function validateDirectoryOptions(options: LocalDiagnosticsDirectoryOptions): string | undefined {
@@ -1225,6 +1235,7 @@ class DirectoryOwner implements LocalDiagnosticsDirectory {
           throw new DirectoryFailure('DIRECTORY_BYTE_CAPACITY')
         }
         const scanned = await scanSource(path, Number(size), entry.name)
+        if (!scanned.recognized) throw new DirectoryFailure('UNKNOWN_SOURCE_FILE')
         if (
           scanned.sourceId !== null &&
           this.sources.some(candidate => candidate.sourceId === scanned.sourceId)
