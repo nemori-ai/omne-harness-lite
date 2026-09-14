@@ -872,4 +872,33 @@ describe('O04/O05 bounded output and actual write progress', () => {
     }
     await expect(runtime.close({ deadlineMs: 1_000 })).resolves.toMatchObject({ status: 'closed' })
   })
+
+  it('does not expose an arbitrary backend error code as diagnostic content', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'unsafe-error-code-'))
+    const runtime = await createdRuntime(directory, 'source-unsafe-error-code')
+    await waitForCode(directory, 'diagnostic.source_started')
+    const originalWrite = nodeFs.write as unknown as FlexibleWrite
+    const sentinel = 'SECRET_BACKEND_CODE_SENTINEL'
+    let failed = false
+    const spy = vi.spyOn(nodeFs, 'write').mockImplementation(((...args: unknown[]) => {
+      if (failed) return originalWrite(...args)
+      failed = true
+      const callback = args.at(-1)
+      if (typeof callback !== 'function') throw new Error('unexpected fs.write signature')
+      process.nextTick(() => callback(Object.assign(new Error(sentinel), { code: sentinel }), 0))
+      return undefined
+    }) as typeof nodeFs.write)
+    try {
+      runtime.diagnostics.log(
+        runtime.diagnostics.scope(identity('tenant-a', 'user-a')),
+        point('write.unsafe_error_code', 'error'),
+      )
+      const status = await waitForStatus(runtime, state => state.writeProgress === 'failed')
+      expect(status.lastErrorCode).toBe('SONIC_ERROR')
+    } finally {
+      spy.mockRestore()
+    }
+    await runtime.close({ deadlineMs: 1_000 })
+    expect(await readFile(await sourceFile(directory), 'utf8')).not.toContain(sentinel)
+  })
 })

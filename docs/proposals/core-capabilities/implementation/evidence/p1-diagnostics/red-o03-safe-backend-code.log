@@ -1,0 +1,19 @@
+$ pnpm --filter @omne-harness-lite/diagnostics run typecheck
+exit 0
+
+$ pnpm --filter @omne-harness-lite/diagnostics test -- --reporter=verbose
+
+RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics
+
+FAIL  tests/runtime.spec.ts > O04/O05 bounded output and actual write progress > does not expose an arbitrary backend error code as diagnostic content
+AssertionError: expected 'SECRET_BACKEND_CODE_SENTINEL' to be 'SONIC_ERROR'
+at tests/runtime.spec.ts:897
+
+Test Files  1 failed (1)
+Tests       1 failed | 24 passed (25)
+Duration    808ms
+Exit status 1
+
+The injected fs.write error used the same secret sentinel for its message and nonstandard code.
+The raw message remained outside the file, but the RED proves that lastErrorCode still accepted an
+arbitrary backend string instead of projecting only an enumerated safe system code.
