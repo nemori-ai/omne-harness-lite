@@ -25,14 +25,17 @@ skill 验证脚本实际路径为
 以本工作树 `uv run --locked python` 执行。脚本属于会话环境，复现需取得同一
 内容；它不是本仓库新增的工具。
 
-原始命令/结果与只读返回保存在本工作树 `tmp/evidence-governance/`。
+原始命令/结果与只读返回在工作树清理前，已迁至主检出的
+`tmp/evidence-governance/`，31 个文件逐项通过 SHA-256 一致性核对。
+迁移清单为该目录的 `retirement-manifest.json`；历史命令中的原工作树路径保留
+作为执行环境记录，恢复位置与路径映射见同目录 `retirement.md`。
 `static-checks.log` 保存初次十项 skill 与八对生成检查；`projection-checks.json`
 及 `check_projections.py` 保存输入基线、实际命令、退出状态和配置/目录比较。
 比较排除 Codex `developer_instructions`，保留其他全部 TOML 字段；Claude
 只排除 Markdown 提示正文，完整 YAML frontmatter 与基线比较。
 `reviewed-snapshot.json` 绑定 `424fb79`、逐文件 SHA-256 和实际临时计划哈希；
 后续有限修订可从 `732856c` 恢复。最终文档/差异检查与受影响 skill 复查另存
-`final-checks.json`。这些是当前工作树的临时取证，长期正文仅保留判断所需结果，
+`final-checks.json`。这些是保留在主检出的临时取证，长期正文仅保留判断所需结果，
 不承诺临时环境或外部脚本始终可取得。
 
 ## 目录入口的交付说明

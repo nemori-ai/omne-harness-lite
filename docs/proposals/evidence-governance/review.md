@@ -23,7 +23,7 @@ plan-reviewer 的初稿审阅指出，最终独立表达审阅与场景推演未
 
 2026-09-14，architecture-reviewer、plan-reviewer、spec-reviewer 及独立任务探针
 均以 `424fb79e8e9d289928c945d36177b047c0d6dde1` 为正文快照；比较基线为
-`59139bb`。计划另固定于本工作树 `tmp/evidence-governance/plan.md`，SHA-256
+`59139bb`。计划另固定于原工作树 `tmp/evidence-governance/plan.md`，SHA-256
 为 `8060959d8a6ad4762b82b4161e13ae3734a5a1fbfb1f2099e702862a0a29696c`。
 旧 `design-r2-snapshot.json` 是未包含新增需求的中间记录，不作为本轮对象。
 
