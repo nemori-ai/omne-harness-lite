@@ -32,9 +32,37 @@
     },
     "nativeAddonSha256": "5a480ff04f21754f6c3a8d5efd91b05d9df0ae82a72d71092a215ee2b0ae9a0d"
   },
-  "rootPackageCheck": {
-    "status": "blocked",
-    "reason": "apps/local-harness lacks checker-owned app handling; this spoke also predates checker fixture fix 034c760",
-    "buildStatus": "passed"
+  "rootEndpoint": {
+    "revision": "31197742905a3c66fc3e650c153d65d014372c21",
+    "acceptedScope": "P1 actual JSONL, admission and diagnostics composition only",
+    "command": ["pnpm", "run", "check"],
+    "exitCode": 0,
+    "seconds": 264.14,
+    "checkLog": {
+      "path": "check.log",
+      "sha256": "e17507cf3cd967b49d589e55671d0835ba3001cd9e3c3081e1dba076b6283fe6"
+    },
+    "checks": {
+      "path": "checks.json",
+      "sha256": "244912d743df979150176c615143e43992a0b8789274f3570b48f780d2b9c69f"
+    },
+    "results": {
+      "packageCheckerFixtures": { "passed": 21, "failed": 0, "skipped": 0 },
+      "productMembers": 20,
+      "artifactPackages": 19,
+      "privateAppCarriers": 1,
+      "diagnosticsTests": 52,
+      "admissionTests": 34,
+      "jsonlTests": 27,
+      "carrierTests": 20,
+      "isolatedArtifactComposition": "passed",
+      "tenantArtifactScope": "strict declarations and artifact consumption only",
+      "docsCheckFiles": 493
+    },
+    "replacesHistoricalSpokeGateFailures": [
+      "package-check-red-unbuilt.log",
+      "package-check.log",
+      "root-recursive-test.log"
+    ]
   }
 }
