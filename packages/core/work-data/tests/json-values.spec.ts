@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { runInNewContext } from 'node:vm'
 import { canonicalJson, copyJson, equalJson } from '../dist/index.js'
 
 const limits = { maxBytes: 1_024, maxDepth: 8, maxNodes: 32 }
@@ -70,6 +71,32 @@ describe('A31 strict JSON value snapshots', () => {
     expect(calls).toBe(0)
   })
 
+  it('accepts ordinary objects and dense arrays from another JavaScript realm', () => {
+    const value: unknown = runInNewContext('({ child: { value: 1 }, list: [2, 3] })')
+    expect(copyJson(value, limits)).toMatchObject({ ok: true, value: { child: { value: 1 }, list: [2, 3] } })
+  })
+
+  it('does not invoke an array index accessor', () => {
+    let calls = 0
+    const value = [1]
+    Object.defineProperty(value, '0', {
+      enumerable: true,
+      get() {
+        calls += 1
+        return 2
+      },
+    })
+    expect(copyJson(value, limits).ok).toBe(false)
+    expect(calls).toBe(0)
+  })
+
+  it('copies repeated non-cyclic references as independent JSON subtrees', () => {
+    const shared = { value: 1 }
+    const result = copyJson([shared, shared], limits)
+    expect(result).toMatchObject({ ok: true, value: [{ value: 1 }, { value: 1 }] })
+    if (result.ok) expect((result.value as readonly object[])[0]).not.toBe((result.value as readonly object[])[1])
+  })
+
   it.each([
     ['class instance', new (class Value { value = 1 })()],
     ['date', new Date(0)],
@@ -103,6 +130,14 @@ describe('A31 strict JSON value snapshots', () => {
     expect(copyJson('é', { ...limits, maxBytes: 3 })).toMatchObject({ ok: false, issues: [{ code: 'capacity' }] })
     expect(copyJson({ a: { b: 1 } }, { ...limits, maxDepth: 1 })).toMatchObject({ ok: false, issues: [{ path: '/a/b', code: 'capacity' }] })
     expect(copyJson([0, 1], { ...limits, maxNodes: 2 })).toMatchObject({ ok: false, issues: [{ path: '/1', code: 'capacity' }] })
+  })
+
+  it.each([
+    { ...limits, maxBytes: -1 },
+    { ...limits, maxDepth: 1.5 },
+    { ...limits, maxNodes: Number.MAX_SAFE_INTEGER + 1 },
+  ])('rejects invalid limit objects', (invalidLimits) => {
+    expect(copyJson(null, invalidLimits)).toMatchObject({ ok: false, issues: [{ path: '', code: 'capacity' }] })
   })
 })
 

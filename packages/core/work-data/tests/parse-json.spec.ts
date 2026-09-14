@@ -56,6 +56,28 @@ describe('A31 strict JSON text parsing', () => {
     expect(parseJson(text, limits).ok).toBe(true)
   })
 
+  it.each([
+    String(Number.MAX_SAFE_INTEGER),
+    String(Number.MIN_SAFE_INTEGER),
+    '1e+3',
+    '0e999999999999999999999999',
+  ])('accepts the supported numeric boundary %s', (text) => {
+    expect(parseJson(text, limits).ok).toBe(true)
+  })
+
+  it('reports nested duplicates at an escaped JSON Pointer and treats __proto__ as inert data', () => {
+    expect(parseJson('{"a/b":{"~key":1,"\\u007ekey":2}}', limits)).toMatchObject({
+      ok: false,
+      issues: [{ path: '/a~1b/~0key', code: 'invalid_json' }],
+    })
+    const accepted = parseJson('{"__proto__":{"safe":true}}', limits)
+    expect(accepted.ok).toBe(true)
+    if (accepted.ok) {
+      expect(Object.getPrototypeOf(accepted.value)).toBeNull()
+      expect(Object.prototype.hasOwnProperty.call(accepted.value, '__proto__')).toBe(true)
+    }
+  })
+
   it('enforces raw UTF-8 bytes, root-relative depth and value node count', () => {
     expect(parseJson('"é"', { ...limits, maxBytes: 3 })).toMatchObject({ ok: false, issues: [{ code: 'capacity' }] })
     expect(parseJson('{"a":{"b":1}}', { ...limits, maxDepth: 1 })).toMatchObject({ ok: false, issues: [{ path: '/a/b', code: 'capacity' }] })
