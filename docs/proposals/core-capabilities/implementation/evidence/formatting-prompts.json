@@ -1,0 +1,140 @@
+{
+  "actor": "agt-029",
+  "task": "formatting-prompts",
+  "baseline": "4a5031d38691b8ddd0088e8dd1a1efe48230fd0c",
+  "branch": "docs/dsh-formatting-prompts",
+  "scope": "Root TS/JS taste paragraph, shared developer formatting guidance, five paired native role definitions, and this evidence file.",
+  "authoritative_inputs": [
+    "docs/development.md#修改与验证",
+    "docs/maintenance/verification.md",
+    "scripts/format.sh",
+    "package.json",
+    ".agents/skills/write-agents-md/SKILL.md",
+    ".agents/skills/design-subagents/SKILL.md",
+    ".agents/skills/design-subagents/references/packaging.md"
+  ],
+  "source_snapshot_sha256": {
+    "AGENTS.md": "6acef945ee34d54882ad06dd1ce8b4fea78bbce16bef95828cab134bcc90faca",
+    ".agents/roles/developer-contract.md": "c6fe6525e90eb7e50dce9536a2e99ba3aad9dff9d064c3d55803493465c39ec7",
+    ".codex/agents/kernel-developer.toml": "a79cb1b7e8d7a3f78d2d05ef879c0c33668a78df9c67de03f5822be63464d3e0",
+    ".codex/agents/capability-developer.toml": "ac8b960201f6462a624c7a8d717f93c7375d43de8cb1ae7bf2fb5192ec2275ad",
+    ".codex/agents/infrastructure-developer.toml": "27e173541d0cd08de5bb00837b64b97db657ae786a75b09d5879824cafcf96d3",
+    ".codex/agents/application-developer.toml": "dc1a70b9e7b32185ecd1f47deb4c3df91ea36c391b4af30f8c8a83114f246774",
+    ".codex/agents/verification-developer.toml": "c640b102d02d86e7cb38617d2825e609b6ef74c1c67c6ae53e0be68a9e3869cd",
+    ".claude/agents/kernel-developer.md": "b5a69019bdf86e95a2bc6fd5eb9b440175613d5be5131ecdc1495fd9f3ba8d10",
+    ".claude/agents/capability-developer.md": "75bcf308523411ce677569bd71df07aadb2611956682b7bf23ac07625f04f399",
+    ".claude/agents/infrastructure-developer.md": "cc920eaa67114e368db82e893fa91dd5837f7844608902ab5417e85bf63155e8",
+    ".claude/agents/application-developer.md": "2503410956a74af3af725f55d14ccc8cc2ee5c079114e1f4bf4b46c26219f510",
+    ".claude/agents/verification-developer.md": "719ce5fdd7671c3c4b816ffec966e8ae52fab160f4f37d13cddae3c2f01ef337"
+  },
+  "environment": {
+    "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-formatting-prompts",
+    "python": "CPython 3.12.13",
+    "preparation": "uv sync --locked",
+    "UV_PROJECT_ENVIRONMENT": "/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-formatting-prompts/tmp/formatting-prompts/.venv",
+    "UV_CACHE_DIR": "/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-formatting-prompts/tmp/formatting-prompts/uv-cache",
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  "checks": [
+    {
+      "name": "staged_generation",
+      "roles": [
+        "kernel-developer",
+        "capability-developer",
+        "infrastructure-developer",
+        "application-developer",
+        "verification-developer"
+      ],
+      "argv_template": [
+        "tmp/formatting-prompts/.venv/bin/python",
+        ".agents/skills/design-subagents/scripts/render_pair.py",
+        "--source",
+        ".agents/roles/<role>",
+        "--output",
+        "tmp/formatting-prompts/generated"
+      ],
+      "exit_code": 0,
+      "stdout": "PASS: paired output syntax and source consistency; host loading, permissions and model behavior not tested.\nPASS: paired output syntax and source consistency; host loading, permissions and model behavior not tested.\nPASS: paired output syntax and source consistency; host loading, permissions and model behavior not tested.\nPASS: paired output syntax and source consistency; host loading, permissions and model behavior not tested.\nPASS: paired output syntax and source consistency; host loading, permissions and model behavior not tested.\n"
+    },
+    {
+      "name": "paired_source_consistency",
+      "roles": [
+        "kernel-developer",
+        "capability-developer",
+        "infrastructure-developer",
+        "application-developer",
+        "verification-developer"
+      ],
+      "argv_template": [
+        "tmp/formatting-prompts/.venv/bin/python",
+        ".agents/skills/design-subagents/scripts/render_pair.py",
+        "--source",
+        ".agents/roles/<role>",
+        "--output",
+        ".",
+        "--check"
+      ],
+      "exit_code": 0,
+      "stdout": "PASS: paired output syntax and source consistency; host loading, permissions and model behavior not tested.\nPASS: paired output syntax and source consistency; host loading, permissions and model behavior not tested.\nPASS: paired output syntax and source consistency; host loading, permissions and model behavior not tested.\nPASS: paired output syntax and source consistency; host loading, permissions and model behavior not tested.\nPASS: paired output syntax and source consistency; host loading, permissions and model behavior not tested.\n"
+    },
+    {
+      "name": "documentation_and_whitespace",
+      "command": "make docs-check && git diff --check",
+      "exit_code": 0,
+      "stdout": "uv run --locked omne-docs-check \nPASS: 407 Markdown files; requirement identities/dimensions, decision provenance, skill mirrors, frozen versions and archive hashes.\nNOTE: structural evidence checks do not establish the sufficiency of causal reasoning.\n"
+    },
+    {
+      "name": "scoped_prompt_preservation",
+      "status": "pass",
+      "method": "Reverse only the approved root paragraph and shared formatting bullet edits, including TOML escaping, and compare all twelve prompt files byte-for-byte with git show at the baseline.",
+      "result": "All 12 prompt files retain baseline content outside the scoped formatting changes."
+    },
+    {
+      "name": "command_projection",
+      "status": "pass",
+      "method": "Read the development guide, verification owner and format.sh; assert package.json pins Prettier 3.9.6 and maps format:write/check/staged to the corresponding format.sh mode.",
+      "result": "Development-guide command and fixed Prettier 3.9.6 configuration agree; runtime behavior not rerun."
+    }
+  ],
+  "manual_text_review": [
+    {
+      "scenario": "Ordinary local TS/JS change",
+      "result": "Once the edited files parse, run the shared formatter on the edited, authorized maintained files before tests or commit. No new design or audit process is triggered."
+    },
+    {
+      "scenario": "Incomplete intermediate syntax",
+      "result": "Finish a parseable edit round before formatting; the wording does not require formatting every partial keystroke."
+    },
+    {
+      "scenario": "Whole-repository rewrite temptation",
+      "result": "Explicitly pass only edited and authorized maintained files; formatting is not permission to rewrite siblings or shared root configuration."
+    },
+    {
+      "scenario": "Apparent documentation/implementation conflict",
+      "result": "Reach the existing operation owner and report a concrete conflict; do not invent a second command table or override the existing scope and stop conditions."
+    },
+    {
+      "scenario": "Markdown, generated roles or excluded data",
+      "result": "The maintained-scope requirement avoids adding excluded prompt, specification or generated files to the TS/JS formatter."
+    }
+  ],
+  "prompt_cost_change": {
+    "root_lines": 1,
+    "shared_lines": 2,
+    "shared_markdown_characters": 111
+  },
+  "observations": [
+    {
+      "path": "docs/maintenance/verification.md",
+      "baseline": "4a5031d38691b8ddd0088e8dd1a1efe48230fd0c",
+      "finding": "The opening still says no CI platform configuration, while the formatting section refers to an independent format CI.",
+      "disposition": "Reported to the dispatcher; outside this task's write scope and unrelated to the scoped formatting command projection."
+    }
+  ],
+  "not_run": [
+    "Host discovery/dynamic loading and exact model behavior evaluation.",
+    "Product tests, formatter runtime tests and hosted CI; this task only changes Markdown, generated TOML and documentation evidence outside the maintained TS/JS formatting scope.",
+    "Hook installation or modification, model requests, main-branch changes, merge, push and publication."
+  ],
+  "acceptance_boundary": "These results cover the prompt changes and static checks only; final acceptance and integrated product verification belong to the dispatcher."
+}

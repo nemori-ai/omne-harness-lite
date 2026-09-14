@@ -40,7 +40,8 @@ Cordis 直接使用官方发布包，其他选定的 DSH 复用组件由本项�
 **TS/JS 研发品味：** 追求惯用、直接、可检查的代码，按职责选择函数、普通数据与
 有状态的类，保持抽象和类型复杂度适度。严格类型不能替代运行时校验；异步工作
 必须有明确的所有者、错误去向和释放路径。语法与风格遵循共享工具配置及所属包
-约定，避免个人流派造成分化。研发 subagents 的执行要求见[共享契约](.agents/roles/developer-contract.md#tsjs-研发品味)。
+约定，机械格式交给项目统一工具，避免个人流派造成分化；操作与范围见[开发指南](docs/development.md#修改与验证)。
+研发 subagents 的执行要求见[共享契约](.agents/roles/developer-contract.md#tsjs-研发品味)。
 
 这些判断按需展开为 [engineering-taste](.agents/skills/engineering-taste/SKILL.md)、[防御指导](docs/defensive-patterns.md)与[语义归属规则](docs/maintenance/organization.md)。
 
