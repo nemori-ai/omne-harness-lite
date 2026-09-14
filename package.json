@@ -17,5 +17,10 @@
   },
   "devDependencies": {
     "prettier": "3.9.6"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "fs-ext"
+    ]
   }
 }

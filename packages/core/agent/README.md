@@ -13,6 +13,8 @@
 后续直接修订本包完成目标；本阶段不承诺上游 API 兼容，也不另立产品数据契约。
 本地 `Agent` 类型只表达来源算法所读的身份、Session 身份视图与 Context。
 
+目标提供者、注册与生命周期的当前映射见[设计](design.md)，其接受不代表目标实现已交付。
+
 ## 开发
 
 在仓库根安装依赖后，`pnpm --filter @omne-harness-lite/agent... build` 构建本包及

@@ -168,6 +168,9 @@ importers:
       '@opentelemetry/sdk-trace':
         specifier: 2.11.0
         version: 2.11.0(@opentelemetry/api@1.9.1)
+      fs-ext:
+        specifier: 2.1.1
+        version: 2.1.1
       pino:
         specifier: 10.3.1
         version: 10.3.1
@@ -597,6 +600,10 @@ packages:
       picomatch:
         optional: true
 
+  fs-ext@2.1.1:
+    resolution: {integrity: sha512-/TrISPOFhCkbgIRWK9lzscRzwPCu0PqtCcvMc9jsHKBgZGoqA0VzhspVht5Zu8lxaXjIYIBWILHpRotYkCCcQA==}
+    engines: {node: '>= 8.0.0'}
+
   fsevents@2.3.3:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
@@ -680,6 +687,9 @@ packages:
 
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
+
+  nan@2.28.0:
+    resolution: {integrity: sha512-fTsDz99OTq2sVePhGdp4qQhggZFtKr64ZNVyVajRKtMOkJxYekplBh577PiJB12v/D3s2E5cGtOI45LWp6rnLQ==}
 
   nanoid@3.3.19:
     resolution: {integrity: sha512-Y2tUNy4ouw6tq5oDSKeQYGOyhkUBhNOcGV/02KC+6kd9eDGqdZd++mjMiIDilrBYvjEnCYvVtsuHCuP+okSfug==}
@@ -1065,6 +1075,10 @@ snapshots:
     optionalDependencies:
       picomatch: 4.0.7
 
+  fs-ext@2.1.1:
+    dependencies:
+      nan: 2.28.0
+
   fsevents@2.3.3:
     optional: true
 
@@ -1124,6 +1138,8 @@ snapshots:
   magic-string@0.30.21:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.6.0
+
+  nan@2.28.0: {}
 
   nanoid@3.3.19: {}
 

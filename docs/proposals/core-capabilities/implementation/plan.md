@@ -65,10 +65,23 @@ D1-R1 实施反例要求先闭合目录级资源责任：现有每来源 factory
 | 交付任务与前置版本 | 唯一实现及写入归属 | 本次退出依据与下一消费者 |
 |---|---|---|
 | D1 目录修复与整合 | 原 infrastructure-developer `/root/diagnostics`：`packages/observation/diagnostics/`；产品起点 `a1be742`，设计 `327735f` 加本计划提交中的 D-011 采用；整合者独占根锁/native 安装及对账 | R1 两条真实 RED 和关闭未知资源身份修复；R2–R6 在同一产品提交回归，O01–O08、真实 flock 与 tarball 消费通过；形成唯一 D1 产物后供下行使用 |
-| P1 JSONL 与共同准入 | D1 产物待上行交付；已接受 records `c1783fd`、共享设计 `8f4cfa9`。infrastructure-developer 独占 `packages/storage/jsonl/`，kernel-developer 独占 `packages/coordination/admission/`；不共同写公共入口 | 各自 TDD 及公开包产物，再由明确指定的 verification-developer 在 `apps/local-harness/tests/storage-admission/` 验证真实磁盘/两进程/提交故障/尾部恢复与 O09/O10；整合者接受同一组合提交，不能用两个单包 GREEN 开放业务 |
-| P2 治理、本地费用和运行状态 | P1 组合产物待交付；逻辑稿 `058c77c`、`cd16f1` 已接受，P2 当前提供者正文待本轮原作者固定并受审。capability-developer 分别独占 `packages/governance/{tenant,authorization,budget}/`、`packages/session/{session,projection}/`；kernel-developer 独占 `packages/core/agent/`；infrastructure-developer 独占 `packages/session/persistence/` | 仅实现基线需要的真实身份/对象访问、grant、当前配置、本地预算预留/结算/unknown、唯一活体/Run、文本/结果及恢复；沿 AR/SR 原 R0–R5 切片。公共类型/注册面先由所属 owner 固定并实际可消费，再展开依赖者 |
-| P3 工具与本地执行 | P1 产物及相邻治理/Session 端口待交付；三包设计 `0a6e91e` 已定点复核，最终共同面接受待 P2 对齐。capability-developer 独占 `packages/tools/tools/`，infrastructure-developer 独占 `packages/tools/local-execution/` | 工具稿 T0–T2 的定义自声明、原 Action/attempt、真实 allow 文件效果与原结果/unknown；消费 P2 实际预算/授权。无权限、跨租户、参数/声明不符均不可执行；完整 `human-decisions` 实现及 ask 接续不成为本节点前置 |
+| P1 JSONL 与共同准入 | D1 产物待上行交付；已接受 records `c1783fd`、共享设计 `8f4cfa9`。infrastructure-developer 独占 `packages/storage/jsonl/`，kernel-developer 独占 `packages/coordination/admission/`；不共同写公共入口 | 各自 TDD 及公开包产物，再由明确指定的 verification-developer 创建下述测试载体，在 `apps/local-harness/tests/storage-admission/` 验证真实磁盘/两进程/提交故障/尾部恢复与 O09/O10；整合者接受同一组合提交，不能用两个单包 GREEN 开放业务 |
+| P2 治理、本地费用和运行状态 | P1 组合产物待交付；逻辑稿 `058c77c`、`cd16f1` 及提供者映射 `f98ac926` 已接受为基线施工输入。capability-developer 分别独占 `packages/governance/{tenant,authorization,budget}/`、`packages/session/{session,projection}/`；kernel-developer 独占 `packages/core/agent/`；infrastructure-developer 独占 `packages/session/persistence/` | 仅实现基线需要的真实身份/对象访问、grant、当前配置、本地预算预留/结算/unknown、唯一活体/Run、文本/结果及恢复；沿 AR/SR 原 R0–R5 切片。公共类型/注册面先由所属 owner 固定并实际可消费，再展开依赖者 |
+| P3 工具与本地执行 | P1 产物及相邻治理/Session 端口待交付；`0a6e91e` 与 P2 `f98ac926` 已对齐，TL/LE 基线设计已接受。capability-developer 独占 `packages/tools/tools/`，infrastructure-developer 独占 `packages/tools/local-execution/` | 工具稿 T0–T2 的定义自声明、原 Action/attempt、真实 allow 文件效果与原结果/unknown；消费 P2 实际预算/授权。无权限、跨租户、参数/声明不符均不可执行；完整 `human-decisions` 实现及 ask 接续不成为本节点前置 |
 | 最小应用与独立验收 | 上述 P2/P3 可消费产物待交付；application-developer 独占 `apps/local-harness/src/` 和应用配置，verification-developer 独占 `apps/local-harness/tests/runtime-baseline/` 及本次独立消费者；其它写路径只在具体派发时另行限定 | 按 runtime-baseline 五门，从真实入口走文本→唯一 Run→grant 下的文件调用→原结果；实际重启认回 Session/Run/call，已完成效果不重复、未知不盲重发；公开包独立安装/定义工具/提交/查询，整合者固定提交与运行命令并停止 |
+
+P3 在工具包前先由指定 capability-developer 独占
+`packages/governance/human-decisions/` 中 T0-H 实际被 TL 消费的共享形状、纯 fold
+及其测试；该交付以独立公开消费为门，不能扩展为完整审批实现。随后工具 owner
+消费此固定产物，不复制该定义，具体顺序沿已接受工具稿 T0–T2。
+
+P1 的 verification-developer 同时独占最小测试载体的
+`apps/local-harness/package.json`、`tsconfig.json` 和 `vitest.config.ts`，只建立
+组合测试所需的叶子配置与脚本；不提前实现应用业务或复制包内行为。整合者负责
+根 workspace 发现、锁文件及根检查入口，将该成员纳入实际命令执行。P1 组合
+验收须证明根命令确实发现并运行测试，不能只留下未被执行的文件。该交付接受后，
+叶子配置写权在明确固定的提交移交 application-developer，原验证者继续只拥有
+所派测试目录；两者不同时写配置。当前还没有该载体或配置产物。
 
 P2/P3 各 owner 同时负责本包真实入口、准入/拒绝、结果、失败和退出边界的
 diagnostics 接入，使用同一受限记录面，不另造日志或费用权威。应用提供关联
@@ -175,8 +188,9 @@ P2 的具体提供者映射由另一位设计作者在 `runtime-provider-interfa
 真实共享实现；应用装配者不补业务状态转移。长期正文归属已由上述规范固定，
 本任务完成本批具体技术设计及其必要落档。
 
-当前已发生依赖消费的映射在下一次受审修订中落到长期正文，采用范围、未接受
-选择与尚未实现的部分分别标识，随后作为本任务实施输入：
+当前已发生依赖消费的映射已落到下列长期正文。目录设计采用 D-011，P2 映射
+采用 `f98ac926`，TL/LE 基线采用 `0a6e91e`；完整 HD 保留后续候选。具体接受
+依据分别在原施工入口维护，设计接受与产品前置就绪分别判断：
 
 | 当前设计 | 唯一作者与正文归属 | 进入消费者前的闭合 |
 |---|---|---|

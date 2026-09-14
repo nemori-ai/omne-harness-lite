@@ -1,0 +1,31 @@
+{
+  "task_baseline": "ac4eb3f3148de5a4b2b45589d77d9d9157f39cb6",
+  "source_design": "5ffba4bb55aa9514ebd7f3c2b48f0d26fc9a8e18",
+  "plan": "1368c52b7255e16e9c2fcde30eebca6f870679f7",
+  "governance_semantics": "058c77c",
+  "session_semantics": "cd16f1",
+  "adjacent_provider_and_native_evidence": "0a6e91ea643497f309f1a69f8adecc8a98751df3",
+  "diagnostics_directory_candidate": "d4cd27ed33df815179f57af398c8cb6b5444302a",
+  "status": "migration and clarification candidate; acceptance and product implementation remain pending",
+  "mapping": [
+    {"responsibility": "TG host, service, identity consumption, references, effects", "current_body": "packages/governance/tenant/design.md"},
+    {"responsibility": "AU host, service, fact registrations, current authorization and decision history", "current_body": "packages/governance/authorization/design.md"},
+    {"responsibility": "BG host, service, charge-source registration and retained accounting", "current_body": "packages/governance/budget/design.md"},
+    {"responsibility": "AR Registry, Factory, RuntimeOwner, instance Fiber and resource lifecycle", "current_body": "packages/core/agent/design.md"},
+    {"responsibility": "SR host, service, links, attachment, current work and original result", "current_body": "packages/session/session/design.md"},
+    {"responsibility": "SR read-only recovery process; no plugin or second writer", "current_body": "packages/session/persistence/design.md"},
+    {"responsibility": "SR derived views, contribution and query adapter lifecycle", "current_body": "packages/session/projection/design.md"},
+    {"responsibility": "provider selection, identity/P1/driver mounting, startup and shutdown", "current_body": "apps/local-harness/design.md"}
+  ],
+  "semantic_changes": [],
+  "clarifications": [
+    "Old DecisionFacts private candidates and runtime handles expire. Unconsumed, unclosed durable approval history survives ordinary AU/link reload; current HD may issue new facts for the original Action and recheck current qualifications.",
+    "Capture the exact Fiber inside trusted apply(c), with a fresh mount generation per apply. The PromiseLike object returned by ctx.plugin is not canonicalized to that Fiber merely by symbols.original. Final checks cover all required providers as well as the consumer."
+  ],
+  "service_keys_changed": false,
+  "frozen_specs_changed": false,
+  "product_code_or_manifests_changed": false,
+  "scope_change": "Current-session implementation ends at the real minimal allow runtime handoff; full HD, M1/M2 and additional model or observation features are deferred by the updated user instruction.",
+  "checks": "Migration docs-check/diff/scope raw results remain in tmp/runtime-provider-design/migration-*; no product tests or repeated native probes were run.",
+  "navigation_owner": "Root integrator owns package READMEs, mutable spec entries and global indexes; this task writes only delegated current design bodies and source/evidence."
+}
