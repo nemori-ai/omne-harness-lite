@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { once } from 'node:events'
-import { chmod, lstat, mkdir, open, opendir } from 'node:fs/promises'
+import { close as closeFd, fchmod, open as openFd } from 'node:fs'
+import { chmod, lstat, mkdir, open as openFile, opendir } from 'node:fs/promises'
 import { isAbsolute, join } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { ROOT_CONTEXT, SpanStatusCode, createContextKey, trace } from '@opentelemetry/api'
@@ -726,7 +727,7 @@ class LocalRuntime implements DiagnosticsRuntime {
 
 async function endedCleanly(path: string, size: number, maxRecordBytes: number): Promise<boolean> {
   if (size === 0) return false
-  const handle = await open(path, 'r')
+  const handle = await openFile(path, 'r')
   try {
     const window = Math.min(size, maxRecordBytes + 1)
     const firstBuffer = Buffer.alloc(window)
@@ -803,25 +804,45 @@ function startupFailure(error: unknown): StartupFailure {
 }
 
 async function createStream(path: string, options: LocalDiagnosticsOptions): Promise<SonicBoom> {
-  const reservation = await open(path, 'wx', 0o600)
-  await reservation.close()
-  await chmod(path, 0o600)
-  const stream = new SonicBoom({
-    dest: path,
-    sync: false,
-    minLength: 0,
-    maxLength: options.maxBufferBytes,
-    maxWrite: 16_384,
-    fsync: false,
-    append: true,
-    mode: 0o600,
-    retryEAGAIN: () => false,
+  const descriptor = await new Promise<number>((resolve, reject) => {
+    openFd(path, 'wx', 0o600, (error, fd) => {
+      if (error !== null) reject(error)
+      else resolve(fd)
+    })
   })
-  await Promise.race([
-    once(stream, 'ready'),
-    once(stream, 'error').then(([error]) => Promise.reject(error)),
-  ])
-  return stream
+  let transferred = false
+  try {
+    await new Promise<void>((resolve, reject) => {
+      fchmod(descriptor, 0o600, error => {
+        if (error !== null) reject(error)
+        else resolve()
+      })
+    })
+    const stream = new SonicBoom({
+      fd: descriptor,
+      sync: false,
+      minLength: 0,
+      maxLength: options.maxBufferBytes,
+      maxWrite: 16_384,
+      fsync: false,
+      retryEAGAIN: () => false,
+    })
+    transferred = true
+    await Promise.race([
+      once(stream, 'ready'),
+      once(stream, 'error').then(([error]) => Promise.reject(error)),
+    ])
+    return stream
+  } finally {
+    if (!transferred) {
+      await new Promise<void>((resolve, reject) => {
+        closeFd(descriptor, error => {
+          if (error !== null) reject(error)
+          else resolve()
+        })
+      })
+    }
+  }
 }
 
 export async function createLocalDiagnostics(

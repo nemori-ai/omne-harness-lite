@@ -1,4 +1,4 @@
-import { createRequire } from 'node:module'
+import { createRequire, syncBuiltinESMExports } from 'node:module'
 import { access, chmod, mkdir, mkdtemp, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import { resolve, join } from 'node:path'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
@@ -125,11 +125,13 @@ describe('O05/O06 local source lifecycle', () => {
       observedFlags.push(String(args[1]))
       return originalOpen(...args)
     }) as typeof nodeFs.open)
+    syncBuiltinESMExports()
     try {
       const runtime = await createdRuntime(directory, 'source-exclusive-descriptor')
       await runtime.close({ deadlineMs: 1_000 })
     } finally {
       spy.mockRestore()
+      syncBuiltinESMExports()
     }
     expect(observedFlags).toContain('wx')
     expect(observedFlags).not.toContain('a')
