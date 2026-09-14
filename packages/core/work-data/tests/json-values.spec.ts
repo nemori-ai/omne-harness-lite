@@ -4,6 +4,20 @@ import { canonicalJson, copyJson, equalJson } from '../dist/index.js'
 const limits = { maxBytes: 1_024, maxDepth: 8, maxNodes: 32 }
 
 describe('A31 strict JSON value snapshots', () => {
+  it('deeply freezes Checked success and failure outputs', () => {
+    const success = copyJson({ value: 1 }, limits)
+    expect(success.ok).toBe(true)
+    expect(Object.isFrozen(success)).toBe(true)
+
+    const failure = copyJson({ value: undefined }, limits)
+    expect(failure.ok).toBe(false)
+    expect(Object.isFrozen(failure)).toBe(true)
+    if (!failure.ok) {
+      expect(Object.isFrozen(failure.issues)).toBe(true)
+      expect(Object.isFrozen(failure.issues[0])).toBe(true)
+    }
+  })
+
   it('copies ordinary and null-prototype data into a detached, deeply frozen snapshot', () => {
     const child = Object.assign(Object.create(null) as Record<string, unknown>, { value: 1 })
     const input = { child, list: [true, null] }
