@@ -271,22 +271,27 @@ export type OperationInput = Readonly<{
 }>;
 export type CommitRequest = Readonly<{
   operation: PreparedOperation;
-  appends: readonly StreamAppend[]; result: JsonValue;
+  appends: readonly StreamAppend[]; result: JsonValue; requiredUses: readonly UseRequirement[];
 }>;
+export type UseBinding = Readonly<{
+  owner: string; resourceId: OpaqueId; generation: OpaqueId; epoch: OpaqueId;
+}>;
+export type UseRequirement = Readonly<{ recordOwner: string; binding: UseBinding }>;
 export type Position = Readonly<{
   coordinationDomain: OpaqueId; writerEpoch: Counter; commitId: OpaqueId; seq: Counter;
 }>;
 export type Watermark = Readonly<{
   coordinationDomain: OpaqueId; seq: Counter; commitId: OpaqueId | null;
 }>;
-export type Receipt = Readonly<{
-  position: Position; operation: OperationRef; inputDigest: string; result: JsonValue;
+export type Receipt<Outcome extends RecordedOutcome = RecordedOutcome> = Readonly<{
+  position: Position; operation: OperationRef; inputDigest: string; outcome: Outcome;
   streams: readonly Readonly<{ stream: StreamRef; revision: Counter }>[];
 }>;
 export type CommitEnvelope = Readonly<{
   formatVersion: "core-journal/1"; position: Position; operation: OperationRef;
   inputEncoding: "core-json/1"; canonicalInput: string; inputDigest: string;
-  appends: readonly StreamAppend[]; result: JsonValue;
+  appends: readonly StreamAppend[]; outcome: RecordedOutcome;
+  requiredUses: readonly UseRequirement[];
 }>;
 export type Rejection = Readonly<{
   code: "invalid" | "capacity" | "stale_writer" | "closed" | "wrong_domain" |
@@ -298,10 +303,17 @@ export type RecordConflict =
   | Readonly<{
       kind: "revision"; currents: readonly Readonly<{ stream: StreamRef; revision: Counter }>[];
     }>;
+export type RevisionConflict = Extract<RecordConflict, { kind: "revision" }>;
+export type RecordedOutcome =
+  | Readonly<{ status: "committed"; result: JsonValue }>
+  | Readonly<{ status: "conflict"; conflict: RevisionConflict }>;
+export type CommittedReceipt = Receipt<Extract<RecordedOutcome, { status: "committed" }>>;
+export type ConflictReceipt = Receipt<Extract<RecordedOutcome, { status: "conflict" }>>;
 export type CommitResult =
-  | Readonly<{ status: "committed"; receipt: Receipt }>
-  | Readonly<{ status: "conflict"; conflict: RecordConflict }>
-  | Readonly<{ status: "rejected"; reason: Rejection }>
+  | Readonly<{ status: "committed"; receipt: CommittedReceipt }>
+  | Readonly<{ status: "conflict"; conflict: RevisionConflict; receipt: ConflictReceipt }>
+  | Readonly<{ status: "conflict"; conflict: Extract<RecordConflict, { kind: "operation_input" }>; receipt: null }>
+  | Readonly<{ status: "rejected"; reason: Rejection; receipt: null }>
   | Readonly<{ status: "unavailable"; reason: string }>
   | Readonly<{ status: "unknown"; operation: OperationRef; diagnosticId: OpaqueId }>;
 export type Head = Readonly<{
@@ -313,7 +325,8 @@ export type ReadResult<T> =
   | Readonly<{ status: "rejected"; reason: Rejection }>
   | Readonly<{ status: "unavailable"; reason: string }>;
 export type OperationLookup =
-  | Readonly<{ status: "committed"; receipt: Receipt; watermark: Watermark }>
+  | Readonly<{ status: "committed"; receipt: CommittedReceipt; watermark: Watermark }>
+  | Readonly<{ status: "conflict"; conflict: RevisionConflict; receipt: ConflictReceipt; watermark: Watermark }>
   | Readonly<{ status: "pending_durability"; position: Position; watermark: Watermark }>
   | Readonly<{ status: "not_committed"; verifiedThrough: Watermark }>
   | Readonly<{ status: "unknown"; operation: OperationRef; diagnosticId: OpaqueId }>
@@ -334,17 +347,21 @@ export type PreparedOperation = Readonly<{
 declare const preparedCommitBrand: unique symbol;
 export type PreparedCommit = Readonly<{
   [preparedCommitBrand]: true; operation: OperationRef; canonicalInput: string;
+  owners: readonly string[]; requiredUses: readonly UseRequirement[];
 }>;
 export type PendingCommit = Readonly<{
   status: "pending_durability"; position: Position; operation: OperationRef;
+  disposition: "apply" | "record_conflict";
   completion: Promise<CommitResult>;
 }>;
 export type Submission = PendingCommit | CommitResult;
-export interface RecordWriter extends RecordReader {
-  readonly coordinationDomain: OpaqueId;
-  readonly writerEpoch: Counter;
+export interface RecordPreparation {
   prepareOperation(operation: OperationRef, input: OperationInput): Checked<PreparedOperation>;
   prepare(request: CommitRequest): Checked<PreparedCommit>;
+}
+export interface RecordWriter extends RecordReader, RecordPreparation {
+  readonly coordinationDomain: OpaqueId;
+  readonly writerEpoch: Counter;
   lookupPrepared(operation: PreparedOperation): Submission | Readonly<{ status: "not_seen" }>;
   commit(prepared: PreparedCommit): Submission;
   quarantine(diagnosticId: OpaqueId): void;
@@ -356,10 +373,25 @@ export type CloseResult =
       status: "blocked"; watermark: Watermark; diagnosticId: OpaqueId;
       pending: readonly OperationRef[]; lockHeld: boolean;
     }>;
+export type AcquisitionCleanupState = Readonly<{
+  cleanupId: OpaqueId; coordinationDomain: OpaqueId;
+  phase: "retained" | "releasing" | "released";
+  lock: "held" | "released" | "unknown";
+  diagnosticId: OpaqueId;
+}>;
+export interface AcquisitionCleanup {
+  readonly cleanupId: OpaqueId;
+  inspect(): AcquisitionCleanupState;
+  retryRelease(): Promise<AcquisitionCleanupState>;
+}
 export type AcquireResult =
   | Readonly<{ status: "acquired"; writer: RecordWriter; recovered: Watermark }>
   | Readonly<{ status: "busy" }>
-  | Readonly<{ status: "unavailable"; reason: string; diagnosticId: OpaqueId }>;
+  | Readonly<{
+      status: "unavailable"; reason: string; diagnosticId: OpaqueId;
+      cleanup: Readonly<{ status: "released" }> |
+        Readonly<{ status: "retained"; owner: AcquisitionCleanup }>;
+    }>;
 export interface RecordProvider {
   readonly reader: RecordReader;
   acquireWriter(): Promise<AcquireResult>;
@@ -378,6 +410,12 @@ export type JsonlProviderOptions = Readonly<{
 export declare function createJsonlProvider(options: JsonlProviderOptions): RecordProvider;
 ```
 
+业务能力只持 AdmissionCoordinator，使用其继承的 RecordPreparation 面；coordinator
+保管 writer 并通过同一个 writer 的纯准备实现创建 token，不向业务暴露 commit、
+quarantine、closeWriter 或完整 reader。RecordPreparation 是窄能力边界，不是另建
+一个具有状态的转发服务。后文业务调用示例均使用 coordinator.prepareOperation /
+coordinator.prepare；基础设施测试才可直接持有 RecordWriter。
+
 prepareOperation 只规范化并冻结原操作身份/输入，不要求当前工具实现或其它
 业务资源存在。入口先在门外取得此值，再经短门 lookupPrepared 认回原操作；
 只有 not_seen 才准备新的业务后果。这样已提交重试不会因为新版本装载失败而
@@ -388,14 +426,21 @@ prepareOperation 只规范化并冻结原操作身份/输入，不要求当前�
 伪造 TS cast、反序列化或其它 writer 创建的值均不能通过运行时身份检查。
 最后编码所需的 seq/epoch/commitId 由 writer 在 commit 时填入；大块输入和记录
 已在 prepare 编码，门内只做有界元数据组装，不重复解析大内容。
+prepare 同时从已冻结 appends 计算排序去重的 owners；requiredUses 是具名组合
+明确声明的资源要求，每项 recordOwner 必须在 owners 中，binding 精确元组不得
+重复。该小型元数据和深冻结数组随 opaque token 只读公开，消费者不能自行传入
+另一个 owner 集合。UseBinding/UseRequirement 是 records 的实施数据，admission
+复用；没有 records 反向 import admission。业务 owner 仍须证明自己的记录完整
+表达所需授权/预算/资源，存储不会从工具语义推导漏写的业务事件。
 
 `commit` **同步**返回 Submission；其中 pending 的 completion 才返回 DR-02 的
-最终结果。同步段只查去重/修订/状态、分配连续位置、封闭修订并入队；真实 I/O
+最终结果。同步段先查去重/状态和批次完整性，再比较当前修订；正常批次或需要
+记录的修订冲突都分配连续位置并入队，仅正常批次封闭原业务 stream 修订。真实 I/O
 在退出当前 JS 栈后按序启动，不能在 commit 内调用业务代码或同步写盘。
 单独的基础设施消费者可等待 completion；业务应用只从 admission 取得提交入口，
 不能持 RecordWriter 绕过当前权威。没有多域事务或通用用户插件 hook。
 lookupPrepared 是同一 writer 内同步去重查询，核对对象真实性、operation 与规范
-输入，返回原 pending/结果或同键异输入 conflict；not_seen 不代表跨故障的
+输入，返回原 pending/成功/修订冲突结果或同键异输入 conflict；not_seen 不代表跨故障的
 未提交证明。隔离/关闭时不能返回可继续提交的 not_seen。quarantine 同步关掉新
 提交和未启动写泵，保留已在途 I/O 的核实责任；此方法必须无业务回调、幂等，
 不能假称撤回已耐久记录。所有 completion 对预期 I/O 故障 resolve 具名结果，
@@ -414,6 +459,45 @@ SHA-256 小写十六进制。动态权限查询结果、生成的 commitId/时�
 原用户操作输入；已提交的同输入重试先返回原结果，不再生成对象身份或执行事件。
 PreparedCommit 中 appends/result 是 owner 固定的拟提交后果，pending 重试也只能
 认回第一次内容，不能用相同键替换它们。读取原结果前仍由入口检查当前读取资格。
+
+### 结果何时占用 operation 身份
+
+“创建 PreparedOperation”只证明输入可比较，不是接纳，也不占 operation 去重键。
+以下分界对 commit、lookupPrepared、lookupOperation 和恢复一致适用：
+
+| 情况 | 接纳与回执规则 |
+|---|---|
+| 非法 JSON/Schema、不可信 namespace/主体、伪造 token、非法 owner/数据/超限批次 | prepare 的 Checked 失败，或 commit 返回 rejected 且 receipt=null；没有合法接纳、没有新位置/去重项。修正输入是新的准备，不能拿失败准备证明原对象/效果存在 |
+| writer 关闭、隔离、未获得写权或在途容量暂不可接纳 | 返回 unavailable（兼容入口的 closed/stale_writer 等 rejected 同样 receipt=null），不宣称取得 operation；客户端保留原键并查询，不能据此判断其它旧 attempt 无效果 |
+| 原 operation 已占位，相同规范输入 | 返回原 pending 或耐久终结结果，包括原 revision conflict；不比较新的拟提交 appends/result，也不改写原结果 |
+| 原 operation 已占位，不同规范输入 | 返回 operation_input conflict、receipt=null；它是对冲突重试的拒绝，不取代原键对应的操作或新建第二份结果 |
+| 新的合法 commit，全部 stream 修订匹配 | 入队 disposition=apply；原批次耐久后 committed；业务拒绝也可作为其 owner 的正常审计记录和 result 保存，此时 DR 的存储结果仍为 committed |
+| 新的合法 commit，至少一个 stream 修订不匹配 | **接纳的是本次条件提交的确定冲突结果**，入队 disposition=record_conflict，冻结当时全部不匹配 stream 的 current revision；原业务 appends 全不应用。只在冲突结果耐久后返回 conflict + Receipt |
+| 已占位结果写入/同步未知 | 返回原 operation 的 unknown，停止域；不能当作未接纳释放键。完整有效行恢复并重新同步后，按其 outcome 认回 committed 或 conflict；确认修尾未提交后才可认回 not_committed |
+
+本提供者所有 rejected 都发生在**未接纳**边界，receipt 必为 null；它不产生
+“已接纳后却未保存的最终 rejected”。业务能力的授权拒绝、资格拒绝等由该 owner
+提交普通的拒绝审计事实及确定 result，因而也沿存储 committed 回执耐久去重。
+这种分界不省去业务拒绝的审计义务；无法保存时返回 audit_unavailable。
+同 operation 同输入返回原结果适用于已经接纳的条件提交，不能把无效准备或
+暂不可用当作已有耐久操作；后续提供者若要增加已接纳的 rejected 必须先扩展
+RecordedOutcome 与恢复映射，不能仅向运行时返回新的未保存分支。
+
+修订冲突结果使用 provider-owned stream：namespace=`core.records`、
+owner=`durable-records`、streamId=`operation-outcomes`，scope 沿原操作的 tenant
+或 system。该保留 namespace 不对业务开放；其 current revision 由串行 writer
+取得，固定 kind=`operation.conflict`、version=`"1"`、data 为原 RevisionConflict。
+该 envelope 保存原 operation/canonicalInput、`outcome={status:"conflict",conflict}`、
+`requiredUses=[]`；appends 仅有这个结果记录，绝不混入原业务 appends。
+Receipt.streams 也仅报告实际被写的结果 stream。普通成功 envelope 则保存
+`outcome={status:"committed",result}` 与实际 requiredUses。
+恢复验证冲突 outcome 与此 provider 记录完全相同，并按稳定 operation 键重建结果；
+不能把所有完整行统一映射成 committed。内部结果记录仍服从容量、同步和原子性，
+保存它失败则 unknown/unavailable，绝不提前返回可当作最终事实的 conflict。
+writer 在分配位置前检查正常批次或结果记录所需的实际容量；结果记录也装不下
+则 unavailable、尚未接纳，不先占位置再静默丢掉结果。provider-owned 结果 stream
+由 writer 自己维护修订和耐久索引，不要求业务提交一个虚假的 durable-records
+publication；coordinator 只推进其日志水位，绝不执行原业务 publications/uses。
 
 多 stream 批次须至少有一个 append，每个 records 非空，owner 与 scope 明确，
 不重复 StreamRef。tenantId 非 null 的业务操作只能写属于该租户的业务 stream；
@@ -443,7 +527,8 @@ provider.reader 只读最近被本实例持锁核实/同步的完整前缀，在
 装配给定；缺失/非法 limits 拒绝建立提供者，无隐含不限量队列。队列容量只限制
 在途提交并返回 capacity，不限制已保存人类请求总数或设答复超时。
 
-lookupOperation 的 not_committed 只能来自持锁核实并同步的完整索引及水位；
+lookupOperation 必须按原 outcome 区分 committed 与 conflict，返回原 Receipt，
+不得只建成功操作索引。not_committed 只能来自持锁核实并同步的完整索引及水位；
 有待写项为 pending，有未核实损坏/截尾为 unknown，普通索引 miss 不能作未提交
 证明。not_committed 只证明该存储操作，不证明外部 attempt 无效果。若旧 writer
 仍可追加或独立只读者不能确认当前前缀，返回 unknown/unavailable。
@@ -465,20 +550,24 @@ declare const gateFrameBrand: unique symbol;
 export type GateFrame = Readonly<{ [gateFrameBrand]: true }>;
 export type OwnerPublication = Readonly<{
   owner: string;
-  publishLogical: (position: Position, frame: GateFrame) => void;
-  publishDurable: (receipt: Receipt, frame: GateFrame) => void;
-}>;
-export type UseBinding = Readonly<{
-  owner: string; resourceId: OpaqueId; generation: OpaqueId; epoch: OpaqueId;
+  publishLogical: (position: Position, frame: GateFrame) => undefined;
+  publishDurable: (receipt: Receipt, frame: GateFrame) => undefined;
 }>;
 export type ReleaseResult =
   | Readonly<{ status: "released" }>
   | Readonly<{ status: "retained"; diagnosticId: OpaqueId }>;
 export type ExactUse = Readonly<{
+  [exactUseBrand]: true;
   binding: UseBinding;
-  retainAt: (position: Position, frame: GateFrame) => void;
+  retainAt: (position: Position, frame: GateFrame) => undefined;
   release: (reason: "not_admitted" | "verified_not_committed" | "settled") => Promise<ReleaseResult>;
 }>;
+declare const exactUseBrand: unique symbol;
+export interface ExactUseIssuer {
+  capture(binding: Omit<UseBinding, "owner">, callbacks: Readonly<{
+    retainAt: ExactUse["retainAt"]; release: ExactUse["release"];
+  }>): ExactUse;
+}
 export type PreparedAdmission = Readonly<{
   composition: CompositionKind;
   commit: PreparedCommit;
@@ -487,11 +576,12 @@ export type PreparedAdmission = Readonly<{
 }>;
 export type AdmissionCompletion = Exclude<CommitResult, { status: "committed" }> |
   Readonly<{
-    status: "committed"; receipt: Receipt; publication: "ready" | "blocked";
+    status: "committed"; receipt: CommittedReceipt; publication: "ready" | "blocked";
     diagnosticId?: OpaqueId;
   }>;
 export type PendingAdmission = Readonly<{
   status: "pending_durability"; position: Position; operation: OperationRef;
+  disposition: "apply" | "record_conflict";
   completion: Promise<AdmissionCompletion>;
 }>;
 export type AdmissionResult = PendingAdmission | AdmissionCompletion | AdmissionFailure;
@@ -499,24 +589,48 @@ export type CoordinatorStatus = Readonly<{
   phase: "open" | "closing" | "quarantined" | "closed";
   logical: Watermark; durable: Watermark; diagnosticId?: OpaqueId;
 }>;
-export interface AdmissionCoordinator {
+export interface AdmissionCoordinator extends RecordPreparation {
   enter<T>(work: (frame: GateFrame) => T): T;
   lookupPrepared(frame: GateFrame, operation: PreparedOperation): AdmissionResult | Readonly<{ status: "not_seen" }>;
   submit(frame: GateFrame, prepared: PreparedAdmission): AdmissionResult;
   status(): CoordinatorStatus;
   close(): Promise<CloseResult>;
 }
-export declare function createAdmissionCoordinator(writer: RecordWriter): AdmissionCoordinator;
+export type AdmissionHost = Readonly<{
+  coordinator: AdmissionCoordinator;
+  createUseIssuer: (owner: string) => ExactUseIssuer;
+}>;
+export declare function createAdmissionCoordinator(writer: RecordWriter): AdmissionHost;
 ```
 
 这是**受信内部组合接口**，不交给工具 body、声明 resolver、通知监听器或用户代码。
+createAdmissionCoordinator 的 AdmissionHost 仅由受信装配持有；装配只把 coordinator
+给业务组合，把绑定 owner 的 ExactUseIssuer 给相应生命周期 owner，不把发行能力
+交给其它业务或工具。createUseIssuer 对同一 owner 只绑定一次，输入非空且取自
+装配清单；不提供按任意 owner mint 使用的消费方入口。capture 仅在原生命周期
+owner 已同步扣住资源后包装原 pin；它固定 issuer/owner/binding/函数引用，在本
+coordinator 的私有实例表登记对象身份。submit 同时查实例表与完整元组，不能靠
+symbol 字段、TS cast、拷贝或反序列化伪造 ExactUse。这里没有全局静态注册表；
+coordinator 只保管原 pin 的身份/责任，不代替 owner 取得或清理资源。
 enter 只调用已绑定的受信组合代码；它拒绝重入和 thenable 返回，frame 退出即失效，
 每次 owner 方法/submit 验证 frame 的真实归属与活动性。受信代码不得安排延迟工作
 继续使用 frame。TS 无法证明无 await/无副作用，代码审阅和针对 Promise/重入的
 运行测试是实现义务；检测违规后隔离域并具名报告，不吞异常当作普通拒绝。
 
+每个 publishLogical、publishDurable、retainAt 也必须分别经过同步调用边界，
+返回值**严格为 undefined**；TS 签名使用 `=> undefined`，不能用允许丢弃返回值的
+`=> void`。普通 JS/any 传入的 Promise/thenable 或其它返回值仍由运行时立即拒绝，
+随后隔离域并封闭该 frame；不等待它完成后称发布成功。已产生的 Promise/thenable
+必须接管其拒绝通道，将晚到 reject 关联原 operation/owner/阶段的诊断；不能留下
+unhandled rejection，也不能把晚到 resolve 改成 publication ready。该拒绝观察在
+门外进行，且没有状态发布权。此检查逐个覆盖内层回调，不仅检查 enter 的返回值。
+
+owner 的任何可变状态发布入口都验证活动 frame；回调不得以闭包绕过这些入口
+在未来继续赋值。同步函数暗中启动工作也违反受信 owner 契约；类型/thenable
+检测不声称能证明任意恶意 JS 无副作用，隔离执行插件仍是另一个产品范围。
+
 每次准备先在门外完成外部查询、Schema 校验、资源取得、记录/候选根计算与
-RecordWriter.prepare。进入门后，具名组合按固定顺序调用 owner 的**同步、纯条件
+coordinator.prepare。进入门后，具名组合按固定顺序调用 owner 的**同步、纯条件
 检查**：认证/租户与硬资格 → 对象修订与去重身份 → 定义/绑定/工作 epoch →
 模式/grant/一次决定 → 预算及精确使用可取得性。owner 的精确版本和当前根必须
 匹配准备的候选根；不匹配就退出重准备，不在门内做外部读取或运行 resolver。
@@ -525,10 +639,33 @@ RecordWriter.prepare。进入门后，具名组合按固定顺序调用 owner �
 
 所有检查通过后由生命周期 owner 在同一 frame 内同步取得 ExactUse（只是将已准备
 资源扣住，不执行 I/O）。使用者立即交给本次 PreparedAdmission；submit 成功前
-仍是具名组合的责任。submit 先作 writer 的去重/当前修订判定，只有新 pending
-才调用 retainAt 与全部 publishLogical；duplicate 返回原票据/结果而不重复消费
+仍是具名组合的责任。submit 首先验证 opaque commit 的真实 writer 归属，随后
+验证 publication owner 集合与 PreparedCommit.owners **完全相等且每个恰好一次**；
+空列表、漏预算 owner、多余 owner、重复 owner 都在写入排位前拒绝。它还核对
+ExactUse.binding 的集合与 requiredUses.binding 完全相等、不重复，并核对每个
+运行时使用句柄的真实原 owner/generation/epoch；字符串相同的伪造对象不算有效使用。
+recordOwner 负责将该资源要求与自己的记录对应，资源 owner 可以不同于 recordOwner。
+这些组装错误返回 AdmissionFailure 的 unavailable / owner=admission，并使用
+invalid_participants、invalid_use 或 invalid_snapshot 代码及关联诊断；没有新的
+位置/operation 占位，不能伪装成正常业务授权拒绝后让应用继续效果。
+
+submit 在执行任何 retain/publication、调用 writer.commit 前，捕获本次输入的
+不可变快照：复制并冻结 publications/uses 两个数组，读取并固定 owner/binding
+数据和所有回调函数引用；拒绝 accessor/非法句柄，不保留随后可被改写的描述对象。
+不得冻结调用者数组后继续依赖其可变子对象。真正的生命周期句柄不能深克隆，
+只保留经过归属校验的原身份与当时捕获的方法，未来调用者替换数组/方法/metadata
+不影响本票据。owner 候选根和记录本身由 owner 在准备时深冻结；回调不能捕获
+随后可变的业务快照。coordinator 保管所有使用责任后才开始任何可能失败的回调。
+
+通过上述检查后，submit 作 writer 的去重/当前修订判定，只有新的
+pending 且 disposition=apply 才调用 retainAt 与全部 publishLogical；duplicate
+返回原票据/结果而不重复消费
 批准、预算或使用。未入队时使用在门外按 not_admitted 实际释放；清理失败保留
 owner 的责任记录，不允许假称已释放。
+disposition=record_conflict 时不发布原业务根、不 retain 原使用；coordinator
+在门外请求释放这次临时使用并跟踪实际结果，只有 provider-owned 冲突记录在等待
+耐久。它的 completion 返回带原 Receipt 的 conflict；相同 operation 重试和恢复
+仍返回这个 conflict，不会因业务 stream 后来达到期望修订而改成成功。
 
 publishLogical/publishDurable 只允许安装已经计算好的不可变根/水位及简单责任
 指针；不做用户通知、资源清理、Schema 编译或权限查询。所有 owner 发布在同一
@@ -586,9 +723,9 @@ P1 不发明一个能从任意已提交记录铸造许可的通用 API。
 下面是组合顺序，owner 函数名由其 P2/P3 接口确定，不是新的公开 API。
 
 ```text
-门外：writer.prepareOperation(original operation/input)
+门外：coordinator.prepareOperation(original operation/input)
 enter(frame)：当前读取资格 + lookupPrepared；已知结果立即认回
-门外：仅 not_seen 才解析 Action、准备候选 owner 根/记录/结果；writer.prepare(batch)
+门外：仅 not_seen 才解析 Action、准备候选 owner 根/记录/结果；coordinator.prepare(batch)
 enter(frame)：
   从原 operation 认回已知票据；有结果时走当前读取资格，不生成新后果
   当前 TG/AU/SR/TL/HD/BG 纯检查；核对准备根和精确版本
@@ -597,12 +734,14 @@ enter(frame)：
 门外：
   未准入 => 释放本次新增临时使用；按真实结果返回
   pending => 呈现 pending_durability；等待 coordinator completion
+  conflict + Receipt => 这是已耐久的原条件提交结果；不重用原 operation 改判
   committed + publication ready => 原执行 owner 核对墓碑，接纳精确 attempt
   committed + publication blocked => 保留已提交事实，隔离并恢复本地根；禁止效果
   unknown => 保留责任，只查询原 operation/attempt，不换键重发
 ```
 
-若调用 n 与撤权 n+1 均 pending，writer 依序同步，n 完成时允许启动而所有 n+2
+这里的“调用 n 已准入”只指 disposition=apply，记录拒绝/冲突取得日志位置不会
+产生调用执行权。若调用 n 与撤权 n+1 均 pending，writer 依序同步，n 完成时允许启动而所有 n+2
 新调用已经被 logical 撤销封闭。若 n 的同步失败，n、n+1 都无 committed 回执，
 域隔离；恢复持锁认回完整有效 n/n+1 后，旧 attempt 是否已发出仍由执行 owner
 查询。本页不让存储恢复替执行者决定“再执行一次”。
@@ -643,7 +782,8 @@ operationId=`epoch:<十进制epoch>`；`operationKind="writer.acquire"`、tenant
 target 为 coordinationDomain、arguments 含新 epoch，preconditions 含上一 epoch。
 append 指向 `{namespace:"core.writer",owner:"durable-records",scope:{kind:"system"},
 streamId:"writer-epochs"}`，记录 kind=`writer.epoch`、version=`"1"`、
-data=`{epoch:<字符串>}`，result 同样含 epoch。前置 stream 修订按一般规则加一。
+data=`{epoch:<字符串>}`，outcome 为 committed、其中 result 同样含 epoch，
+requiredUses 为空。前置 stream 修订按一般规则加一。
 所有普通批次必须属于最近一次已出现的 epoch，epoch 批次必须严格加一，恢复
 时不接受普通写入伪造 epoch 事件。`core.writer` namespace 和该 stream 仅 provider
 可写。首次失败而未获 writer 的 acquire 不产生可外传 epoch；完整未回执 epoch
@@ -679,6 +819,23 @@ ext4；默认 g++ 9.4 构建失败，隔离 GCC 10.5 构建/加载通过。实�
 只 allowlist 并 rebuild fs-ext，正式 workspace/独立消费者由整合者复现该路径。
 它是已验证的锁与环境前提，尚不表示正式 writer/codec/恢复/关门协议已实现。
 
+acquire 的所有非成功路径都必须归还资源或交出**同一具名清理责任**。尚未取得
+锁且没有残留资源的 busy/unavailable 不创建 cleanup owner；取锁之后的扫描、
+修尾、epoch write/sync 或资源关闭失败，若已确认完全释放则返回
+`unavailable.cleanup.status="released"`，否则返回 retained 与 AcquisitionCleanup。
+该 runtime owner 保存真实 fd/lock、在途 I/O 和诊断，cleanupId 在本次取得尝试内
+稳定，不因重复 acquire 或 retryRelease 更换；没有把未验证 writer 交给调用者。
+
+retained owner 的 inspect 精确报告 retained/releasing/released 和锁的
+held/released/unknown；调用者不凭一次 release 抛错就猜锁已释放或仍可靠持有。
+retryRelease 只接管并等待原在途 I/O 收口、关闭/释放原资源，不重新恢复/写入
+epoch，不复用失败 attempt 当新 writer。并发/重复 retryRelease 共用一个清理
+过程，最终状态可重复查询；再次失败仍保留相同 owner，不返回假成功。
+provider 在该 owner 未 released 前封闭该域的再次 acquire，并返回同一 retained
+责任（不能仅返回无归属 busy）；确认 released 后新的 acquire 重新持锁扫描，
+完整未回执 epoch 仍按原日志核实。释放成功不把先前 unknown 写入改成未提交。
+进程死亡由 OS 释放 fd，下一进程仍必须正常持锁恢复，不从清理句柄反序列化权利。
+
 提供者串行写，处理短 write 直至完整行，文件 sync 及首次创建文件/目录必要
 sync 完成后才提升 durable 水位。为区分局部失败，测试故障点至少包含写前、
 部分字节、完整 LF 后、file sync 前/后、目录 sync 前/后、回执前。
@@ -690,7 +847,8 @@ sync 完成后才提升 durable 水位。为区分局部失败，测试故障点
 先将故障原件复制到新 evidence 文件、sync 文件与目录，核对已保存内容，再截回
 最后完整行边界并 sync；保全/截回/同步失败均停止恢复。完整 LF 行哪怕只有一个
 坏字节也不截掉；中间断序、摘要错、未知版本、完整无效 epoch 均拒绝写恢复。
-完整有效但未回执的所有批次重新 sync 后成为已提交，lookup 返回原 Receipt。
+完整有效但未回执的所有批次重新 sync 后成为耐久事实，lookup 根据 outcome 返回
+原 committed 或 conflict 及 Receipt；不把存储中的冲突记录误还原为成功调用。
 恢复期间崩溃时保全文件不覆盖；下一次从仍存在的 journal 重复核对，不根据文件名
 或“上次开始修复”标志直接宣称修尾成功。
 
@@ -708,7 +866,7 @@ closeWriter 同步先封闭新提交，异步排空和同步，再释放锁；�
 调用自己的 encode 动态更新期望值。
 
 ```json
-{"byteLength":906,"formatVersion":"core-journal/1","payload":"{\"appends\":[{\"expectedRevision\":\"0\",\"records\":[{\"data\":{\"epoch\":\"1\"},\"kind\":\"writer.epoch\",\"version\":\"1\"}],\"stream\":{\"namespace\":\"core.writer\",\"owner\":\"durable-records\",\"scope\":{\"kind\":\"system\"},\"streamId\":\"writer-epochs\"}}],\"canonicalInput\":\"{\\\"arguments\\\":{\\\"epoch\\\":\\\"1\\\"},\\\"causality\\\":{},\\\"format\\\":\\\"core-operation/1\\\",\\\"operationKind\\\":\\\"writer.acquire\\\",\\\"preconditions\\\":{\\\"previousEpoch\\\":\\\"0\\\"},\\\"principal\\\":{\\\"kind\\\":\\\"system\\\",\\\"systemId\\\":\\\"local-host\\\"},\\\"target\\\":\\\"domain-1\\\",\\\"tenantId\\\":null}\",\"formatVersion\":\"core-journal/1\",\"inputDigest\":\"0479c584729c1c75fff3736735fd2ebcb1648fb6a1b962e30a0e96ea209b923e\",\"inputEncoding\":\"core-json/1\",\"operation\":{\"namespace\":\"core.writer\",\"operationId\":\"epoch:1\",\"principalId\":\"{\\\"kind\\\":\\\"system\\\",\\\"systemId\\\":\\\"local-host\\\"}\"},\"position\":{\"commitId\":\"commit-1\",\"coordinationDomain\":\"domain-1\",\"seq\":\"1\",\"writerEpoch\":\"1\"},\"result\":{\"epoch\":\"1\"}}","sha256":"8ef36ad938cd8123baf4ec87fba60be5d5ec5ba72da404fa604d69f01f4688d8"}
+{"byteLength":957,"formatVersion":"core-journal/1","payload":"{\"appends\":[{\"expectedRevision\":\"0\",\"records\":[{\"data\":{\"epoch\":\"1\"},\"kind\":\"writer.epoch\",\"version\":\"1\"}],\"stream\":{\"namespace\":\"core.writer\",\"owner\":\"durable-records\",\"scope\":{\"kind\":\"system\"},\"streamId\":\"writer-epochs\"}}],\"canonicalInput\":\"{\\\"arguments\\\":{\\\"epoch\\\":\\\"1\\\"},\\\"causality\\\":{},\\\"format\\\":\\\"core-operation/1\\\",\\\"operationKind\\\":\\\"writer.acquire\\\",\\\"preconditions\\\":{\\\"previousEpoch\\\":\\\"0\\\"},\\\"principal\\\":{\\\"kind\\\":\\\"system\\\",\\\"systemId\\\":\\\"local-host\\\"},\\\"target\\\":\\\"domain-1\\\",\\\"tenantId\\\":null}\",\"formatVersion\":\"core-journal/1\",\"inputDigest\":\"0479c584729c1c75fff3736735fd2ebcb1648fb6a1b962e30a0e96ea209b923e\",\"inputEncoding\":\"core-json/1\",\"operation\":{\"namespace\":\"core.writer\",\"operationId\":\"epoch:1\",\"principalId\":\"{\\\"kind\\\":\\\"system\\\",\\\"systemId\\\":\\\"local-host\\\"}\"},\"outcome\":{\"result\":{\"epoch\":\"1\"},\"status\":\"committed\"},\"position\":{\"commitId\":\"commit-1\",\"coordinationDomain\":\"domain-1\",\"seq\":\"1\",\"writerEpoch\":\"1\"},\"requiredUses\":[]}","sha256":"89422b4553ddcb718fa7866d264b9f6f1874b9cc69cb789cdb7d3992cf475928"}
 ```
 
 该样例的 OperationInput 是：
@@ -727,12 +885,23 @@ closeWriter 同步先封闭新提交，异步排空和同步，再释放锁；�
 | G07 不安全整数、非精确数、-0、稀疏数组、undefined、getter、toJSON | 不通过数字舍入/隐式序列化改变输入；指明非法值或实施不支持 |
 | G08 同完整批次删最后 LF / 改中间字节并保留 LF | 前者可保全修尾，后者完整坏行拒绝恢复；不能把任意 parse error 当断尾 |
 | G09 同 operation 同输入但替换拟提交 result；异输入同摘要的受控夹具 | 返回原结果；规范输入异值仍冲突，不仅看 digest；不重建 Run/重复执行 |
+| G10 期望 revision=3、当前=2 的合法条件提交；后来当前=3，同键重试/重启 | 原 conflict 和原回执不变；原业务 appends 从未执行；冲突行未耐久时为 pending/unknown，完整恢复才认回 conflict |
 
-G01 的 payload 为 906 UTF-8 字节，完整物理行为 1235 字节；含 LF 的物理行
-SHA-256 为 `e2c6b07b93cc7c5891141d96ccdc12fa5a96a0ca0b5f007ea93666811b022af5`。
+G01 的 payload 为 957 UTF-8 字节，完整物理行为 1294 字节；含 LF 的物理行
+SHA-256 为 `922232e653e4196bcdda9624769766eb65784c624caf2661f38051543917e63a`。
 G03 不涉及跨租户原子写授权；跨 tenant 的写要先被明确组合范围拒绝。
 G02–G09 的正式固定输入/期望由 records/测量作者在本稿评审固定后落实，并在
 P2/P3 消费前提供实际 codec round-trip 与反例证据。
+
+G10 固定 R3 的条件冲突：session-1 当前修订 2，edit-1 期望 3，第一次提交记录
+冲突。随后另一个操作将 session-1 改为 3，edit-1 同输入重试仍认回下列原冲突，
+不产生原 edit 的业务 appends。完整物理行为 1747 字节（含 LF），SHA-256 为
+`f29ce05cd8e294b61d0e1ffeb6ed79745dcba2792d96bc4dfe0577f07a06fef8`；该字面量只
+表达 seq=4 的冲突行，P1 测试还要建立真实的 epoch/先前 stream 修订前缀。
+
+```json
+{"byteLength":1329,"formatVersion":"core-journal/1","payload":"{\"appends\":[{\"expectedRevision\":\"0\",\"records\":[{\"data\":{\"currents\":[{\"revision\":\"2\",\"stream\":{\"namespace\":\"core\",\"owner\":\"session\",\"scope\":{\"kind\":\"tenant\",\"tenantId\":\"tenant-1\"},\"streamId\":\"session-1\"}}],\"kind\":\"revision\"},\"kind\":\"operation.conflict\",\"version\":\"1\"}],\"stream\":{\"namespace\":\"core.records\",\"owner\":\"durable-records\",\"scope\":{\"kind\":\"tenant\",\"tenantId\":\"tenant-1\"},\"streamId\":\"operation-outcomes\"}}],\"canonicalInput\":\"{\\\"arguments\\\":{\\\"text\\\":\\\"hello\\\"},\\\"causality\\\":{},\\\"format\\\":\\\"core-operation/1\\\",\\\"operationKind\\\":\\\"session.edit\\\",\\\"preconditions\\\":{\\\"expectedRevision\\\":\\\"3\\\"},\\\"principal\\\":{\\\"kind\\\":\\\"user\\\",\\\"user\\\":{\\\"userId\\\":\\\"user-1\\\"}},\\\"target\\\":{\\\"sessionId\\\":\\\"session-1\\\"},\\\"tenantId\\\":\\\"tenant-1\\\"}\",\"formatVersion\":\"core-journal/1\",\"inputDigest\":\"f4c5354196c6d3973f2d68f9fbdb5cfd7e92b94854a1f3f64218964a3a68be69\",\"inputEncoding\":\"core-json/1\",\"operation\":{\"namespace\":\"core\",\"operationId\":\"edit-1\",\"principalId\":\"{\\\"kind\\\":\\\"user\\\",\\\"user\\\":{\\\"userId\\\":\\\"user-1\\\"}}\"},\"outcome\":{\"conflict\":{\"currents\":[{\"revision\":\"2\",\"stream\":{\"namespace\":\"core\",\"owner\":\"session\",\"scope\":{\"kind\":\"tenant\",\"tenantId\":\"tenant-1\"},\"streamId\":\"session-1\"}}],\"kind\":\"revision\"},\"status\":\"conflict\"},\"position\":{\"commitId\":\"commit-4\",\"coordinationDomain\":\"domain-1\",\"seq\":\"4\",\"writerEpoch\":\"1\"},\"requiredUses\":[]}","sha256":"0556331ec651033a80cb0a4a2760db00ca095769cc96c47074ec02c168efed6d"}
+```
 
 ## 分工、TDD 测量与进入消费者的门槛
 
@@ -750,6 +919,12 @@ prepare 与 enter 间撤权导致拒绝、门内已排位的同键重试不二�
 某 owner durable 发布失败后 committed 标明 publication blocked 且禁止效果、unknown 使用
 仍有 owner、settled 清理失败不释放贡献。约束替身保留真实修订/去重/不越缺口
 条件；真正 writer/恢复与资源清理结果必须在组合层交叉验证。
+R1/R2 的正式测试覆盖每个 publication/retain 阶段、遗漏/重复 owner、错配/伪造
+use、submit 后改数组/descriptor/方法引用和异步晚到拒绝；不能只测试外层 enter。
+R3 覆盖原冲突结果在业务修订后来匹配时仍不变、完整无回执冲突行的重启认回，
+以及断尾未提交/完整损坏 unknown 的不同分支。R5 组合注入 acquire 取锁后的
+恢复/epoch sync 失败，再注入 release 失败，观察同一清理 owner、阻止新 acquire、
+重复 retryRelease 和实际 fd/锁释放；只检查对象中有 cleanup 字段不构成通过。
 
 coordinator.close 先同步关新准入，等待已排位票据的记录结论与 owner durable
 发布，再完成 writer 的排空/同步/释放；它不能直接转发 writer.closeWriter 而
@@ -771,18 +946,43 @@ P0 是共享边界的可消费起点；其通过不代表完整 A05–08，更�
 ajv 8.20.0、jsonc-parser 3.3.1、TypeScript 6.0.3，包锁保留在该临时目录。
 `node probe.mjs` 已编译两个原 Schema 的 30 个 `$defs` 引用，核对 DataTypes
 覆盖去重后的 29 个定义；执行 5 个 parser 条件和 2 个 OperationRef 有效/无效
-条件，并生成上述 G01 字面量。`tsc --strict --target ES2024 --module NodeNext
---moduleResolution NodeNext --noEmit interfaces.ts` 对抽取的全部 TS 声明通过。
+条件，并生成上述 G01/G10 字面量。`tsc --strict --target ES2024 --module NodeNext
+--moduleResolution NodeNext --noEmit interfaces.ts type-consumer.ts` 对全部 TS 声明
+及受限消费方通过。消费方能准备/查询/submit，同时 7 条预期类型错误确认其不能
+直接 writer.commit/quarantine、mint 任意 owner、赋入三种 async 回调或伪造 ExactUse。
+`node review-probe.mjs` 对三个同步回调和三个晚到拒绝去向、三个参与者错配、
+四个快照修改条件、两条文档内完整黄金行逐字/长度/摘要核对通过。
 这仅是 Schema/API/样例可行性证据，不是完整严格 JSON 实现、业务状态转移、
 TDD 产品交付、native 构建或耐久性验证。
 
 `make docs-check BASELINE=e11cc69` 通过 393 个 Markdown 文档及其关联检查，
+本轮修订的 `make docs-check BASELINE=979d80f` 同样通过 393 个文档；
 `git diff --check` 通过。Python 环境/安装缓存和探针输出均放本任务允许的 tmp，
 没有修改产品源码、根依赖或正式冻结文件。检查日志为 `docs-check.log`、
-`probe-result.json`、`tsc-result.log`；清理 spoke 前由整合者按交付证据要求保全。
+`docs-check-review.log`、`probe-result.json`、`tsc-result.log`、`review-probe-result.json`；清理 spoke 前由
+整合者按交付证据要求保全。
 
 独立评审重点是：受信 owner publications 是否足够约束半发布/未知；同步排位
 与去重、双视图/普通撤权和精确控制是否吻合 CC；epoch/尾部恢复是否保护 DR；
 共享 DTO/宽对象与完整业务校验是否明确，且本接口没有把业务状态集中到核心。
 所有 P1 真实 writer/联合准入验收仍未执行；native 探针已按上文固定版本和环境
 交付，由主调度验收为 P1 的有效前提，其证据不扩大为正式 writer 验收。
+
+### 独立评审处置
+
+以下处置对应 reviewer 对 `979d80f` 的最终 R1–R5，等待同一 reviewer 复核；
+作者没有自行宣布接受或闭合评审。
+“共享值、完整 DTO 与 Schema 消费”整节与 `979d80f` 逐字一致，段落内容的
+SHA-256 为 `147f458a5402394ec3875c0142008f474192296e4e23b495010e8ceeaa0155a9`；
+本轮只改变 records/admission 实施边界及其说明，work-data 可继续消费原固定子集。
+
+| 项目 | 本稿处置位置与证据 |
+|---|---|
+| R1：参与者与批次/使用闭合、可变列表 | Records 的 PreparedCommit.owners/requiredUses 与提交段的一一校验；受限 ExactUseIssuer 和私有实例归属；submit 先捕获冻结列表/字段/函数。review-probe 的错配与快照条件，正式组合测试仍待 P1 |
+| R2：内层 async 被 void 忽略 | OwnerPublication/ExactUse 改为严格 undefined 返回；每个调用独立守卫、隔离和晚到拒绝诊断，不提前 ready。三个 async 的负向编译检查及三个晚到拒绝实际探针 |
+| R3：失败结果去重/恢复 | “结果何时占用 operation 身份”表；RecordedOutcome/ConflictReceipt/OperationLookup、record_conflict 分支和保留结果 stream；G10 完整字面量及 P1 的 revision2→3/重启验收映射。拒绝明确留在未接纳边界，业务拒绝沿 owner 的耐久审计普通提交 |
+| R4：业务无法合法准备 | RecordPreparation 由 AdmissionCoordinator 提供，调用示例已改；type-consumer 真实编译并禁止获取 writer 的直接写入权 |
+| R5：acquire 失败遗留无 owner | AcquireResult.cleanup + 稳定 AcquisitionCleanup.inspect/retryRelease、并发认回和再次 acquire 封闭；消费类型检查通过，真实双失败/fd/锁结果留给 P1 正式提供者 |
+
+这些临时机制探针用于确认修订可表达、语言行为与黄金字段相符，不是业务实现
+或一次完整 RED/GREEN 交付；P1 仍按工作包先写目标失败测试再实现真实提供者。
