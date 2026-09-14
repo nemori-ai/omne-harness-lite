@@ -46,13 +46,14 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 | P0 包检查器（accepted） | verification-developer，`/root/p0_package_checks`；复核 `/root/review_package_layout`，本任务均已结束 | `dsh-p0-package-checks`，已退役 | `33a57a2` 的 K1–K3 闭合，`d95052c` 整合及 HUB 构建/13 项测试/14 独立与组合产物通过 |
 | P0 work-data 实现（accepted） | kernel-developer，`/root/p0_work_data`；定点复核 `/root/review_first_batch`，本任务均已结束 | `dsh-p0-work-data`，已退役 | `18cad69` 经 `6e7f213` 整合，`728d665` 锁定依赖；D1/D2 闭合，HUB 91 项测试与 15 包产物通过 |
 | P0 records 实现（accepted） | infrastructure-developer，`/root/p0_records`；独立复核 `/root/review_first_batch`，本任务均已结束 | `dsh-p0-records`，已退役 | `1a237da`/`c67eb4d` 经 `bbb4a3e` 整合、`c1783fd` 锁定；HUB 17 项测试及 16 包产物通过；独有资产与执行输出已保全 |
-| diagnostics D1 实现（修订中） | infrastructure-developer，`/root/diagnostics`；独立复核 `/root/review_package_layout` 本轮已结束 | `dsh-diagnostics`，原从 `0e80245` 创建，评审后同步到 HUB `46770b9` | `66d92a9` 候选已整合及验证；D1-R1–R6 未闭合，不开放 jsonl/admission 消费 |
+| diagnostics D1 实现（修订复核中） | infrastructure-developer，`/root/diagnostics`；原评审者 `/root/review_package_layout` | `dsh-diagnostics`，固定受审 `1c0923f` | R2–R6 已有实际 RED/GREEN 与修订，正在独立复核；R1 的目录容量/并发文件数 RED 仍未解决，不开放 jsonl/admission 消费 |
+| D1 目录所有权修订（设计中） | 原观测设计作者 `/root/observability_design` | `dsh-diagnostics-directory`，从 `82b2baf` 创建 | 只写定点候选及证据；显式目录 owner、统一预留、唯一创建/关闭与实际独占前提，完成后独立审阅，不改写原 R1 失败结果 |
 | Agent/Session 施工交接（accepted） | 作者 `/root/session_runtime_design` 与独立复核 `/root/review_package_layout` 本任务已结束 | `dsh-session-runtime-design`，已退役 | `cd16f1` 的 S-R1–S-R4 闭合，`4e67db6` 整合与 HUB 文档/哈希核验通过；装配映射与产品依赖仍须就绪 |
 | TS/JS 自动格式化工具（accepted） | verification-developer，`/root/formatting`，已结束 | `dsh-formatting`，已退役 | `99a6988`/`c026140` 已整合，根锁 `d13d66b`；HUB `4a5031d` 的冻结安装和完整 16 包检查通过 |
 | 格式化提示词投影（accepted） | `/root/observability_prompts`，本轮负责格式化认知约定，已结束 | `dsh-formatting-prompts`，已退役 | `47c60dd` 经 `635a690` 整合；HUB 五角色生成、408 文档与 12 提示词哈希核对通过 |
 | SSE 组件前置测量（accepted） | verification-developer，`/root/p0_sse_probe`，已结束并释放 | `dsh-p0-sse-probe`，已退役 | `b05e57c` 经 `db106159` 整合，HUB 离线正常 12/12、负控仅 S05 失败；[证据与局限](evidence/p0-sse-probe/README.md#hub-复验与当前采用范围)，未发模型请求、不抵扣 A23/A24 |
 | 规格与 Cordis 映射的维护交接 | `/root/governance_design` 已按用户新分工停止规则写入，主调度整理交接 | `dsh-mapping-governance`，从 `9954b12` 创建，保留未提交候选 | 规范与配套 skills 由另一会话统一收敛；[交接](../design-spec-maintenance-handoff.md)记录缺口、成因与未接受建议，候选不合入 HUB |
-| TL/HD/local-execution 施工交接（设计中） | `/root/session_runtime_design`，本轮为架构设计作者 | `dsh-tool-decision-design`，从 `8c791b3` 创建 | 只写具体接口稿及其证据；含共同批次、原 Action 接续、执行责任和 Cordis 映射，完成后独立审阅；不代替另一会话的维护规范 |
+| TL/HD/local-execution 施工交接（评审中） | 作者 `/root/session_runtime_design` 已交候选；独立评审 `/root/review_first_batch` | `dsh-tool-decision-design`，受审固定 `e6c0b8c`；两份未提交对齐草稿保留 | 六份候选/证据文件已固定，主调度核对哈希并重跑两个文件效果崩溃窗口；真实协议仍未实现，P2 服务映射与突失封闭关系待对齐 |
 | P2 提供者与装配映射（设计中） | 原治理设计作者 `/root/governance_design`，本轮为具体技术设计 | `dsh-runtime-provider-design`，从 `61e732b` 创建 | 唯一固定 TG/AU/BG/AR/SR/身份及实际 P1 产物挂载的服务键、依赖和生命周期；与工具稿对齐后独立受审，长期维护规则仍归另一会话 |
 
 可观测性工程品味与共享研发提示词已由 `51eaefb` 经 `7d3736c` 整合到 HUB，
