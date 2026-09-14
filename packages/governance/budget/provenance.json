@@ -1,0 +1,31 @@
+{
+  "format": 1,
+  "scope": "Project-owned exact budget values and pure durable-record decoding and recovery for the accepted budget-accounting v1 boundary",
+  "files": [],
+  "project_files": [
+    {
+      "path": "src/index.ts",
+      "purpose": "Single public entry for exact Money operations, budget record decoding, pure folding, and public data types"
+    },
+    {
+      "path": "src/money.ts",
+      "purpose": "Exact integer Money validation, rescaling, arithmetic, and comparison"
+    },
+    {
+      "path": "src/decoder.ts",
+      "purpose": "Budget-owned v1 record decoder composed with the public durable-record codec"
+    },
+    {
+      "path": "src/ledger.ts",
+      "purpose": "Immutable budget ledger fold, recovery, revision tracking, and attempt exposure projection"
+    },
+    {
+      "path": "src/types.ts",
+      "purpose": "Budget domain, event, ledger, and projection declarations reusing shared public values"
+    },
+    {
+      "path": "src/result.ts",
+      "purpose": "Explicit accepted or rejected result values for validation and recovery"
+    }
+  ]
+}

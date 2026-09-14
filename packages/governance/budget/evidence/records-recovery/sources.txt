@@ -1,0 +1,10 @@
+SHA-256                                                            SOURCE
+05388098aaaa8656219c1d8965d8700f4be4fb76180909117a70f9c704ecd8ff  packages/governance/budget/design.md (accepted f98ac926/058c77c mapping plus current pure implementation projection)
+a5ebc04d1fa5bac9fed8787b9daffd716c16426ee135d0ea89b8ff26f78956a9  spec/capabilities/budget-accounting/v1/contract.md (accepted capability.budget-accounting v1)
+42191b2bfd03b62a7cd0dcc4bf86f99790bdd005f93811ca82200ecad7c93f3c  spec/compositions/core-work-coordination/v1/contract.md (accepted composition.core-work-coordination v1)
+ca59d8275d8a534a2103fb008cf0c6a052a884aef522788cf5f0ce72c36cc4c3  spec/capabilities/durable-records/v1/contract.md (accepted capability.durable-records v1)
+414f93f9cd4a6c0dd1d9b72df146134495098d148e242b1a819e2ed0a1380d75  spec/data/core-work/v1/contract.md (accepted data.core-work v1)
+bac011ad0751434d37d3f164e4d07944c328e7ee36268473c4bd4758b31591e4  packages/governance/tenant/src/index.ts (shared tenant value declarations)
+7950c757f4b1bbb6ed636af2a40cd4a8a5bfb487e64bf639324a4b9d5d4d900a  packages/storage/records/src/index.ts (public codec and record declarations consumed by this slice)
+1dc742b6f2db2fd0dab8ff500d0332dddf613525c2e816d378157444a9bce1c1  docs/proposals/core-capabilities/implementation/shared-interfaces.md (adopted per-batch stream revision rule at lines 275-283)
+d70f23cd4dd51cb9884c749c303f18ba474997fb50a02f07189ce5453827d535  spec/catalog.json (accepted status and version registry)

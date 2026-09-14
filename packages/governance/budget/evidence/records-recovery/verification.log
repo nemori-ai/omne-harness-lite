@@ -1,0 +1,54 @@
+Baseline: 892aa8e6aa711d847049e0ed1dfaed731fe664fa
+Branch: impl/dsh-p2-budget-records
+Environment: Node v24.18.0; pnpm 10.28.1; TypeScript 6.0.3; Vitest 4.1.8
+
+$ pnpm --filter @omne-harness-lite/work-data run build
+PASS: verified and copied 2 frozen schemas covering 29 DataTypes
+exit 0
+
+$ pnpm --filter @omne-harness-lite/records run build
+exit 0
+
+$ pnpm --filter @omne-harness-lite/tenant run build
+exit 0
+
+$ pnpm --filter @omne-harness-lite/budget run build
+exit 0
+
+$ pnpm --filter @omne-harness-lite/budget run typecheck
+exit 0
+
+$ pnpm --filter @omne-harness-lite/budget run test
+Test Files  2 passed (2)
+Tests  20 passed (20)
+exit 0
+
+$ node --input-type=module -e '<targeted package-checker APIs over budget>'
+PASS: budget manifest, provenance, import boundaries, and packed artifact
+exit 0
+
+$ pnpm pack (work-data, records, tenant, budget)
+exit 0 for all four leaves
+
+$ pnpm install --offline --ignore-scripts --ignore-workspace --lockfile=false
+$ NODE_PATH= pnpm exec tsc -p tsconfig.json --traceResolution
+$ NODE_PATH= node dist/public-consumer.js
+{"sum":{"integer":"9007199254741000","scale":2,"currency":"USD"},"throughSeq":"0"}
+exit 0 for install, typecheck, and runtime execution
+
+The repository-wide package checker was not used as evidence for this leaf because unrelated JSONL
+artifact rebuilding requires an explicit C++20 compiler environment, while this worktree only has
+GCC 9.4.0. Its exported validators were run directly over the budget member, including the real
+packed file list. The root lock importer remains intentionally owned by the integration task.
+
+$ uv run --locked omne-docs-check --baseline 892aa8e6aa711d847049e0ed1dfaed731fe664fa
+PASS: 504 Markdown files; requirement identities/dimensions, decision provenance, skill mirrors,
+frozen versions and archive hashes.
+exit 0
+
+$ pnpm exec prettier --check <budget-maintained source, test, config, JSON, README, and evidence files>
+All matched files use Prettier code style!
+exit 0
+
+$ git diff --check
+exit 0

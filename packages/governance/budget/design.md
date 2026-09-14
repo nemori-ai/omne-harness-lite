@@ -1,6 +1,7 @@
 # Budget 提供者设计
 
-状态：`f98ac926` 映射已接受为最小运行基线施工输入；目标包尚未实现。
+状态：`f98ac926` 映射已接受为最小运行基线施工输入；纯数据、记录解码与恢复切片
+已在本包实现，运行 host/plugin 与真实来源组合仍待后续切片。
 [来源入口](../../../docs/proposals/core-capabilities/implementation/runtime-provider-interfaces.md)
 保留历史与证据。当前实施只服务最小 allow 基线的真实本地预算。
 
@@ -13,8 +14,9 @@ BG-05–07、支付/订阅/模型价格与用量接入后置，不借迁移扩�
 
 ## Host、公开入口与插件
 
-候选默认入口 `@omne-harness-lite/budget` 拥有 `createBudgetHost`、`BudgetPlugin`
-和 `registerChargeSourceFacts` 管理面；目标签名待在本包公开源码建立。包只消费
+最终默认入口 `@omne-harness-lite/budget` 将拥有 `createBudgetHost`、`BudgetPlugin`
+和 `registerChargeSourceFacts` 管理面；当前公开入口只提供纯值、记录 decoder/fold
+与账目读面，不发布无运行行为的占位符。包只消费
 TG/data/records/admission/diagnostics 公共入口，不 import 执行或模型实现。
 
 BudgetHost 持有本域分租户的 logical/durable 预算账目、原 operation、来源立场、
@@ -62,7 +64,23 @@ unknown K7 后再 finite U7 或 unknown K7 都拒绝；C3+剩余4 保持已知�
 USD-only 面对 EUR 来源具名拒绝，实际声明对应币种立场后才匹配全部适用预算；
 changeBudget 不改 identity/币种/原 period。并发最后额度、取消早于迟到 start、
 unknown、重复/迟到计量与重启必须观察真实账目及文件执行事实，不能只数 Map。
-当前这些产品测试未运行；完成本地基线后停止，不自动接模型计费或账单框架。
+当前纯记录与恢复反例已运行；真实 P1/TG/身份/执行来源上的 A26 组合仍待后续切片。
+完成本地基线后停止，不自动接模型计费或账单框架。
+
+### 当前纯记录与恢复实现
+
+默认入口的当前实现只解释已保存的 budget `/1` 记录。它复用 records 的完整
+encode/decode 校验和 tenant/data 公共值，逐项核 owner、kind、version、shape、tenant、
+因果、stream 修订及业务修订。按 `shared-interfaces/1`，同一个已提交 batch 令每个被
+触及 stream 的修订加 1；Budget、CostSource 与 MeterFact 的 Counter 分别按自身链校验，
+不能互相代用。
+
+reducer 保留所有 period 身份、原 attempt allocations、来源索引与完整 MeterFact 历史，
+对当前有效组成计算 C，并按 finite U 或 unknown K 计算 `R=max(bound-C,0)`。显式
+reconciled/never_started 事件才释放终态预留；final 组成、Run finish、断连和重启均不
+推导结算。源码入口、命令、反例和公开产物消费见
+[包说明](./README.md)与[记录恢复证据](./evidence/records-recovery/README.md)。这些检查不
+识别 EvidenceRef 的真实权威，不授予 runtime admission，也不证明实际费用或持久化。
 
 ## 实施协议的采用来源
 
