@@ -1,0 +1,6 @@
+name: spec-reviewer
+description: Read-only review of specification completeness, clarity and conformance to project conventions against a supplied design. Does not judge business correctness or design choices, review delivery scheduling, edit files or accept specifications.
+model: opus
+effort: xhigh
+tools: Read, Glob, Grep, WebFetch, WebSearch
+permissionMode: dontAsk

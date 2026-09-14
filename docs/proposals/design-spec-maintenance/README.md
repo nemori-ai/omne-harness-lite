@@ -19,6 +19,10 @@ Agent 工具/技能的消费方式。[交接证据](../../research/design-spec-m
 [效应与清理来源](../../research/design-spec-maintenance/effect-cleanup-sources.md)，
 本轮将装载贡献与撤除/交接、保留事实及完成判据的对应纳入生命周期建模入口。
 
+用户进一步要求新增职责不重叠的 spec-reviewer 与 plan-reviewer：前者只检查既定
+设计的规格表达完整性与规范性，后者评估实施可行性及调度拓扑安全。配置固定为
+Codex `gpt-5.6-sol / xhigh`、Claude Code `opus / xhigh`，不替换已有架构评审角色。
+
 本轮在 D-001 的三类规格与单一权威、D-002 的接受边界和 D-004 的需求基础上补充
 维护衔接，不改写其既有选择，不新增 catalog 或规格身份。这里审阅的是治理与
 方法改动，不接受核心能力分支的产品契约或具体 Cordis 映射。
@@ -37,7 +41,7 @@ Agent 工具/技能的消费方式。[交接证据](../../research/design-spec-m
 | 就绪判断按任务依赖限定 | 区分语义、提供者、装配和实证，延后项有负责产物与受影响消费者；不要求所有未来细节先定稿 |
 | 沿契约与实际消费关系维护 | 语义、映射、公共接口、规范模型和证据变化分别处理，精确消费者不自动升级 |
 | 覆盖与缺口从契约入口可发现 | 复用已有验证说明与证据，不用文档数量或一道检查代表整体完成 |
-| skills 与角色只投影必要职责 | 新增 spec-maintenance，调整 architecture-design 和 implementation-planning，以及实施/评审交接；不新增编排框架或模型配置 |
+| skills 与角色按判断对象投影职责 | 新增 spec-maintenance，调整 architecture-design 和 implementation-planning，以及实施/评审交接；新增上述两类只读 reviewer，不新增编排框架或改变既有角色配置 |
 
 主要正文由[总体范式](../../architecture-guide/foundations/paradigm.md)、
 [能力边界](../../architecture-guide/modeling/capabilities.md)、
@@ -52,7 +56,7 @@ design.md，不移动或改写冻结规格。交接分支仍拥有具体产品�
 
 验收关注：概念和权威分工一致；冻结/版本规则保持；缺口不被总体完成状态吞掉；
 实施输入能定位必要运行责任；普通局部修改保持轻量；跨能力路径可发现责任断点；
-双端 skills 和角色源/生成物一致。验证记录见[本轮验证](verification.md)。
+双端 skills 和角色源/生成物一致；规格表达与实施拓扑评审不重叠，不越权裁决业务或修改材料。验证记录见[本轮验证](verification.md)。
 
 ## 审阅与接受
 
