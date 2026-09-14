@@ -1,0 +1,57 @@
+P0 work-data TDD GREEN: strict preflight and recursive visitor capacity guard
+UTC: 2026-09-14T04:34:51Z through 2026-09-14T04:36:20Z
+RED commit: d85cb21
+GREEN implementation commit: eef1ba1
+Runtime: node v24.18.0
+Package manager: pnpm 10.28.1
+TypeScript: 6.0.3
+Vitest: 4.1.8
+jsonc-parser: 3.3.1
+
+Implementation:
+  - The iterative scanner preflight rejects scanner errors, comments, unknown tokens, mismatched
+    containers, missing separators, trailing separators, extra root values, and incomplete input
+    as Checked invalid_json. It no longer ignores a token that cannot enter the current state.
+  - The preflight returns Checked capacity before jsonc-parser's recursive visitor at root-relative
+    depth 129. The documented implementation limit is 128; caller limits remain ceilings.
+  - Depth 128 still passes parseJson, detached deep freezing, and canonicalJson exact encoding.
+
+Implementation-capacity basis:
+  jsonc-parser 3.3.1 parseValue calls parseArray/parseObject recursively. On this recorded Node
+  v24.18.0 environment, direct public-entry probes passed through depth 6,144 and raised RangeError
+  at depth 8,192. The fixed limit 128 leaves at least a 48x margin relative to the last passing
+  observation and is above the package's ordinary DTO test limit of 24. The runtime observation is
+  evidence for the conservative implementation choice, not a portable V8 stack-size guarantee.
+
+Commands and results:
+  pnpm run build
+    PASS: verified and copied 2 frozen schemas covering 29 DataTypes
+  pnpm run typecheck
+    Exit 0
+  pnpm exec vitest run tests/parse-json.spec.ts --reporter=verbose
+    Test Files  1 passed (1)
+    Tests       32 passed (32)
+  pnpm test
+    Test Files  4 passed (4)
+    Tests       91 passed (91)
+
+Source and dist schema hashes remained byte-identical:
+  37393c0774f7a71ee6bf663388a2ec27821740f98b19d487b1299d39829aca74
+  1c11b06bb94756cfea6f162173c9f4070be71bf44eb09f8ddeb3e199d579c203
+
+Independent artifact:
+  Directory: /tmp/omne-work-data-parser-guard.J5WPSK (outside the repository)
+  Ancestor /tmp/node_modules: absent
+  Install: pnpm install --offline --ignore-workspace --ignore-scripts
+  Strict public consumer compile/runtime: PASS
+  Malformed-deep invalid_json assertion: PASS
+  Caller-allowed-deep implementation capacity assertion: PASS
+  Depth-128 parse/freeze/canonical assertion: PASS
+  Installed package path:
+    /tmp/omne-work-data-parser-guard.J5WPSK/node_modules/.pnpm/@omne-harness-lite+work-data@file+omne-harness-lite-work-data-0.0.0.tgz/node_modules/@omne-harness-lite/work-data
+  Tarball SHA-256:
+    dd1b58f7bc83cadb73983c1c937b509e3071f7fc93e1b35ff7c70ad38d0fe478
+  Installed schema SHA-256 values match the source hashes above.
+
+This evidence covers the P0 work-data leaf only. HUB lock integration, checker rerun, independent
+review closure, broader A30/A31 acceptance, and product composition remain with the root owner.

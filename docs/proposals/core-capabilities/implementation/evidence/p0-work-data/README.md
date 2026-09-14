@@ -27,6 +27,7 @@ authorization policy, model/tool execution, and application composition are outs
 | deeply frozen `Checked` results | `f83c022`; [RED](red-checked-freeze.txt) | `c9c71a0`; [GREEN](green-checked-and-unions.txt) | strict compile and 73 cumulative tests passed |
 | build-time Schema identity/integrity gate | `1c7ec54`; [RED](red-schema-build.txt) | `101efed`; [GREEN](green-schema-build.txt) | valid exact copy and corrupted-source rejection passed |
 | capacity before recursive JSON parsing | `bf90a34`; [RED](red-preparse-capacity.txt) | `42ffa71`; [GREEN](green-preparse-capacity.txt) | strict compile and 88 cumulative tests passed |
+| strict preflight and visitor implementation capacity | `d85cb21`; [RED](red-preparse-guard.txt) | `eef1ba1`; [GREEN](green-preparse-guard.txt) | strict compile and 91 cumulative tests passed |
 
 The union-variant cases added with the last GREEN verify more branches of the already implemented
 exact-`$defs` mechanism. They are conformity coverage rather than an invented new RED.
@@ -50,20 +51,20 @@ sha256sum src/schemas/*.json dist/schemas/*.json
 git diff --check
 ```
 
-The final leaf run reported four test files and 88 passing tests. The increase from the earlier
+The final leaf run reported four test files and 91 passing tests. The increase from the earlier
 TDD row's 73 tests includes conformity coverage for cross-realm plain data, dense array descriptors,
 shared non-cyclic references, limit metadata, number boundaries and escaped duplicate-key paths,
-plus the two pre-recursion capacity regressions recorded above.
+plus the pre-recursion capacity and strict parser-guard regressions recorded above.
 
 ## Independent artifact observation
 
 `pnpm pack --ignore-workspace --json` produced a tarball containing only `dist/index.js`,
 `dist/index.d.ts`, both `dist/schemas/*.json` resources, and package metadata/README/provenance.
 The final observed tarball SHA-256 after the capacity fix was
-`cbfa45529f6a341c00a0b4a3b157d91a88054029ae3d4a1358066a97dd0babd5`.
+`dd1b58f7bc83cadb73983c1c937b509e3071f7fc93e1b35ff7c70ad38d0fe478`.
 
 It was installed under the repository-external directory
-`/tmp/omne-work-data-capacity.VmQjmo`, whose ancestors had no `node_modules`. An earlier pre-final
+`/tmp/omne-work-data-parser-guard.J5WPSK`, whose ancestors had no `node_modules`. An earlier pre-final
 consumer correctly failed its first offline install because the current pnpm store lacked the
 jsonc-parser tarball; this was not counted as GREEN. The authorized environment setup fetched the
 exact declared versions. The final consumer then used
