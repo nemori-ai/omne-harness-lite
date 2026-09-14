@@ -116,6 +116,24 @@ describe('O05/O06 local source lifecycle', () => {
       'diagnostic.source_closed',
     ])
   })
+
+  it('keeps the exclusive creation descriptor instead of reopening the path for append', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'exclusive-descriptor-'))
+    const originalOpen = nodeFs.open as unknown as FlexibleWrite
+    const observedFlags: string[] = []
+    const spy = vi.spyOn(nodeFs, 'open').mockImplementation(((...args: unknown[]) => {
+      observedFlags.push(String(args[1]))
+      return originalOpen(...args)
+    }) as typeof nodeFs.open)
+    try {
+      const runtime = await createdRuntime(directory, 'source-exclusive-descriptor')
+      await runtime.close({ deadlineMs: 1_000 })
+    } finally {
+      spy.mockRestore()
+    }
+    expect(observedFlags).toContain('wx')
+    expect(observedFlags).not.toContain('a')
+  })
 })
 
 describe('O01/O02 passive context behavior', () => {
