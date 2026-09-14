@@ -7,7 +7,7 @@
 [D-010](../../../docs/decisions/D-010-shared-diagnostics.md) 后续增加必需 Diagnostics。
 `2c3aede7` 的归属迁移已通过主调度独立内容核验并接受，依据见
 [迁移采用](../../../docs/proposals/core-capabilities/implementation/shared-interfaces.md#p1-映射迁移的采用)；
-不更改原公开记法或行为，产品仍未交付。
+该迁移当时不更改原公开记法或行为，也未交付产品。
 
 精确承诺沿 [CC v1](../../../spec/compositions/core-work-coordination/v1/contract.md)、
 [DR v1](../../../spec/capabilities/durable-records/v1/contract.md)、
@@ -19,8 +19,13 @@
 
 ## 公开入口、依赖与实际状态
 
-本基线尚无 admission 产品实现。下列声明是已接受、**待实现**的默认公开入口
-`@omne-harness-lite/admission` 记法；迁入包目录不等于已编译 API 或产品通过。
+默认入口 `@omne-harness-lite/admission` 已提供真实 `createAdmissionCoordinator`；
+factory 和所有公开类型的精确签名归[公共源码](src/index.ts)，消费说明归
+[README](README.md)。factory 消费 RecordWriter 与必需 Diagnostics，返回 AdmissionHost。
+最终 admission 输入 `025793abbb7298b1eb86a4ca403e581a0e7a5d7b` 的
+[成员验证](evidence/provider/README.md)与
+[P1 实际组合接受](../../../apps/local-harness/evidence/storage-admission/README.md)
+分别固定提供者与跨包证据。
 已实现的 DTO、Checked 与规范值归
 [work-data 公共源码](../../core/work-data/src/index.ts) 和
 [README](../../core/work-data/README.md)；records 数据、准备/读写端口与回执的精确签名归
@@ -39,7 +44,9 @@ Diagnostics 是 factory 的必需注入，精确消费面与应用管理资源�
 [D-010](../../../docs/decisions/D-010-shared-diagnostics.md) 与
 [D-011](../../../docs/decisions/D-011-diagnostics-directory-ownership.md)。
 本包只消费受限诊断，普通输出在短门外；不取得目录管理面，不把日志写入当作业务审计。
-D1 的 R1/关闭/锁/原生消费者最终产品接受与真实 writer 组合仍待完成。
+D1 的 R1/关闭/锁/原生消费者已按
+[成员证据](../../observation/diagnostics/evidence/directory-owner/README.md)接受；
+与真实 JSONL writer 的组合已按上述 P1 证据独立验收。
 
 ## 业务消费的窄边界
 
@@ -59,87 +66,20 @@ prepareOperation 只规范化并冻结原操作身份/输入，不要求当前�
 本批一个 coordinator 独占一个 writer 的提交能力。业务 owner 保存自己的
 immutable logical/durable 根；coordinator 仅保存有序票据、参与 owner 的发布动作
 与资源责任，不读取它们的业务字段，也不提供任意 key/value 状态或自动事务回滚。
-跨能力组合必须是下列具名关系之一，单 owner 管理变更也经过同一门以建立撤销序。
+跨能力组合采用[公共源码](src/index.ts)中 CompositionKind 的具名关系，
+单 owner 管理变更也经过同一门以建立撤销序。其余公开类型与本页运行映射如下，
+精确声明由源码维护：
 
-```ts
-import type { OpaqueId, OperationRef } from "@omne-harness-lite/work-data";
-import type {
-  Position, Receipt, UseBinding, PreparedCommit, CommitResult, CommittedReceipt,
-  Watermark, RecordPreparation, PreparedOperation, CloseResult, RecordWriter,
-} from "@omne-harness-lite/records";
-import type { Diagnostics } from "@omne-harness-lite/diagnostics";
+| 公开类型 | 本提供者承担的运行责任 |
+|---|---|
+| AdmissionHost、AdmissionCoordinator、GateFrame | 受信装配持有 host，业务经同一 coordinator 在门外准备，在真实活动 frame 内查询与提交 |
+| PreparedAdmission、OwnerPublication | 捕获不可变参与快照，在同一短门发布 logical，按序发布 durable |
+| ExactUseIssuer、ExactUse、ReleaseResult | 绑定真实 owner/pin，保管单次 claim、释放与未决清理责任 |
+| PendingAdmission、AdmissionCompletion、AdmissionResult、AdmissionFailure | 认回原票据/结果，区分耐久提交与 publication ready/blocked |
+| CoordinatorStatus | 暴露关门/隔离阶段和 logical/durable 水位 |
 
-export type CompositionKind = "owner_change" | "input_run" | "action_execution" |
-  "request_wait" | "answer_consequence" | "budget_call" | "content_media";
-export type AdmissionFailure = Readonly<{
-  status: "denied" | "conflict" | "unavailable"; owner: string; code: string;
-}>;
-declare const gateFrameBrand: unique symbol;
-export type GateFrame = Readonly<{ [gateFrameBrand]: true }>;
-export type OwnerPublication = Readonly<{
-  owner: string;
-  publishLogical: (position: Position, frame: GateFrame) => undefined;
-  publishDurable: (receipt: Receipt, frame: GateFrame) => undefined;
-}>;
-export type ReleaseResult =
-  | Readonly<{ status: "released" }>
-  | Readonly<{ status: "retained"; diagnosticId: OpaqueId }>;
-export type ExactUse = Readonly<{
-  [exactUseBrand]: true;
-  binding: UseBinding;
-  retainAt: (position: Position, frame: GateFrame) => undefined;
-  release: (reason: "not_admitted" | "verified_not_committed" | "settled") => Promise<ReleaseResult>;
-}>;
-declare const exactUseBrand: unique symbol;
-export interface ExactUseIssuer {
-  capture(binding: Omit<UseBinding, "owner">, callbacks: Readonly<{
-    retainAt: ExactUse["retainAt"]; release: ExactUse["release"];
-  }>): ExactUse;
-}
-// Private admission bookkeeping; not an exported data contract or resource owner.
-type ExactUseClaim = Readonly<{
-  operation: OperationRef; canonicalInput: string; position: Position;
-}>;
-type ExactUseLifecycle =
-  | Readonly<{ phase: "fresh" }>
-  | Readonly<{ phase: "claimed"; claim: ExactUseClaim; retainInvoked: boolean }>
-  | Readonly<{ phase: "releasing"; claim: ExactUseClaim | null; completion: Promise<ReleaseResult> }>
-  | Readonly<{ phase: "retained"; claim: ExactUseClaim | null; diagnosticId: OpaqueId }>
-  | Readonly<{ phase: "released"; claim: ExactUseClaim | null }>;
-export type PreparedAdmission = Readonly<{
-  composition: CompositionKind;
-  commit: PreparedCommit;
-  publications: readonly OwnerPublication[];
-  uses: readonly ExactUse[];
-}>;
-export type AdmissionCompletion = Exclude<CommitResult, { status: "committed" }> |
-  Readonly<{
-    status: "committed"; receipt: CommittedReceipt; publication: "ready" | "blocked";
-    diagnosticId?: OpaqueId;
-  }>;
-export type PendingAdmission = Readonly<{
-  status: "pending_durability"; position: Position; operation: OperationRef;
-  disposition: "apply" | "record_conflict";
-  completion: Promise<AdmissionCompletion>;
-}>;
-export type AdmissionResult = PendingAdmission | AdmissionCompletion | AdmissionFailure;
-export type CoordinatorStatus = Readonly<{
-  phase: "open" | "closing" | "quarantined" | "closed";
-  logical: Watermark; durable: Watermark; diagnosticId?: OpaqueId;
-}>;
-export interface AdmissionCoordinator extends RecordPreparation {
-  enter<T>(work: (frame: GateFrame) => T): T;
-  lookupPrepared(frame: GateFrame, operation: PreparedOperation): AdmissionResult | Readonly<{ status: "not_seen" }>;
-  submit(frame: GateFrame, prepared: PreparedAdmission): AdmissionResult;
-  status(): CoordinatorStatus;
-  close(): Promise<CloseResult>;
-}
-export type AdmissionHost = Readonly<{
-  coordinator: AdmissionCoordinator;
-  createUseIssuer: (owner: string) => ExactUseIssuer;
-}>;
-export declare function createAdmissionCoordinator(writer: RecordWriter, diagnostics: Diagnostics): AdmissionHost;
-```
+ExactUse 的私有 claim 与生命周期状态由本提供者保存，其不变量见下文；
+它们不成为导出数据契约或第二个资源 owner。
 
 这是**受信内部组合接口**，不交给工具 body、声明 resolver、通知监听器或用户代码。
 createAdmissionCoordinator 的 AdmissionHost 仅由受信装配持有；装配只把 coordinator
@@ -327,31 +267,38 @@ coordinator.close 先同步关新准入，等待已排位票据的记录结论�
 
 ## 实施验收与已有证据的范围
 
-P1 作者消费固定的 data/records 公共产物，先以 A08 的 n/n+1、pending grant、
-预算/决定双消费、publication 失败建立目标失败测试，再落实单门/双视图、
-使用清理与隔离。约束替身不把 TG/AU/BG 业务规则写进共同核心，真实 writer
-组合完成前不能称协调链交付。
+本提供者已消费固定的 data/records 公共产物，实现单门/双视图、使用清理与隔离；
+实际结果归[成员验证](evidence/provider/README.md)。其中 A08 的 n/n+1、pending grant、
+预算/决定双消费由约束 owner 替身表达；TG/AU/BG 业务规则仍由真实 owner 交付。
+以下保留验收判据，各场景的已执行范围以成员和实际组合证据为准。
 
-同步门测试还需覆盖：返回 Promise 不能形成有效提交、通知重入只发生在门外、
+同步门的验收判据还包括：返回 Promise 不能形成有效提交、通知重入只发生在门外、
 prepare 与 enter 间撤权导致拒绝、门内已排位的同键重试不二次扣款/占位、
 某 owner durable 发布失败后 committed 标明 publication blocked 且禁止效果、unknown 使用
 仍有 owner、settled 清理失败不释放贡献。约束替身保留真实修订/去重/不越缺口
 条件；真正 writer/恢复与资源清理结果必须在组合层交叉验证。
 R1/R2 的正式测试覆盖每个 publication/retain 阶段、遗漏/重复 owner、错配/伪造
 use、submit 后改数组/descriptor/方法引用和异步晚到拒绝；不能只测试外层 enter。
-ExactUse 还须覆盖同一 PreparedAdmission 在未耐久前重复 submit（同票据、retain
+ExactUse 的验收判据还包括同一 PreparedAdmission 在未耐久前重复 submit（同票据、retain
 只一次、原 pin 不释放）、同一真实句柄给不同 operation（排位前拒绝）、重复操作
 新取得的临时 pin 仅自身释放，以及 released/retained/releasing 句柄不可再 claim。
 释放并发共用一次 owner 调用；失败/unknown 保留原 claim 与真实资源责任，后续
 合法清理只处理原 pin。不得仅检验 issuer 品牌或相同 binding 就称使用语义通过。
 
-独立组合验证用真实 writer/admission 覆盖 A05–08/A30/A31 的 fsync 阻塞/失败、
+[独立组合验证](../../../apps/local-harness/evidence/storage-admission/README.md)
+已用真实 JSONL writer/admission/D1 覆盖 A05–08/A30/A31 相应切片的 fsync 阻塞/失败、
 关闭重入、旧 frame/旧 writer/异 owner 伪造值，观察用户可见状态及原资源责任。
 JSONL 的[结果/恢复反例](../../storage/jsonl/design.md#实施验收与已有证据的范围)
 保留 R3/R5 的冲突和双重故障，不用类型品牌或模拟 map 代替实际跨边界结果。
 
 原 [P0 设计证据](../../../docs/proposals/core-capabilities/implementation/evidence/p0-shared-interfaces/README.md)
 保持固定版本与字节；claim-probe 的九个内存票据/模拟资源场景只验证可表达的私有协议。
-本轮仅执行[迁移关系与文档检查](../../../docs/proposals/core-capabilities/implementation/evidence/p1-provider-mapping/README.md)，
-没有重做机制探针、TDD 或产品测试。真实共享实现、独立组合、公开产物消费及
-最终接受按[验证规范](../../../docs/maintenance/verification.md)核对实际对象；未运行场景继续保留为实施义务。
+归属迁移当时仅执行[迁移关系与文档检查](../../../docs/proposals/core-capabilities/implementation/evidence/p1-provider-mapping/README.md)，
+没有重做机制探针、TDD 或产品测试。后续 P1 已在固定 HUB
+`31197742905a3c66fc3e650c153d65d014372c21` 接受，实际命令和源码范围归
+[manifest](../../../apps/local-harness/evidence/storage-admission/manifest.json)、
+[checks](../../../apps/local-harness/evidence/storage-admission/checks.json) 与
+[原始输出](../../../apps/local-harness/evidence/storage-admission/check.log)。
+独立五包消费者的提交、关闭、重开结果与全体产物通用检查分别保存。
+这些证据不覆盖后续源码或真实 TG/AU/BG 的 A08 业务 n/n+1 决策；完整
+Agent/Session/工具闭环仍未交付，未运行场景继续保留为实施义务。
