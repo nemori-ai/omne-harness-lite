@@ -20,4 +20,5 @@
 
 转化规则见[知识流转](../maintenance/knowledge-flow.md)。
 
+- [Agent Loop 与 Session Inbound](agent-loop-inbound/README.md)：阶段 E 的 Run 驱动器拓扑、到达账本与循环不变式，draft，2026-09-14 用户裁决记录在内。
 - [Agent 运行时 v1](agent-runtime/README.md)：Cordis 视角的身份、装配和资源生命周期；源基线到目标契约的明确差异。
