@@ -1,0 +1,188 @@
+{
+  "schema": "omne-p0-lock-probe-summary/1",
+  "sourceRevision": "e11cc6990c1354e7baf138cc2f501effc7b413f6",
+  "startedAt": "2026-09-14T03:03:39.111Z",
+  "status": "failed",
+  "scope": {
+    "purpose": "P0 feasibility evidence for Linux native flock and a probe-only synced complete-record round trip",
+    "prerequisitesFor": [
+      "A06",
+      "A07",
+      "A30",
+      "A31"
+    ],
+    "productAcceptanceClaimed": false,
+    "coreJournalCodecClaimed": false,
+    "powerLossDurabilityClaimed": false
+  },
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-lock-probe",
+      "startedAt": "2026-09-14T03:03:39.624Z",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "e11cc6990c1354e7baf138cc2f501effc7b413f6\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "ls-remote",
+        "--refs",
+        "https://github.com/baudehlo/node-fs-ext.git",
+        "refs/tags/v2.1.1"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-lock-probe/tmp/p0-lock-probe/run-node24-fs-ext-2.1.1",
+      "startedAt": "2026-09-14T03:03:39.825Z",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "aded976099c2b06c944f0897a9b004dbf266e234\trefs/tags/v2.1.1\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "pnpm",
+        "install",
+        "--ignore-workspace",
+        "--ignore-scripts",
+        "--store-dir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-lock-probe/tmp/p0-lock-probe/run-node24-fs-ext-2.1.1/.pnpm-store",
+        "--reporter",
+        "append-only"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-lock-probe/tmp/p0-lock-probe/run-node24-fs-ext-2.1.1",
+      "startedAt": "2026-09-14T03:03:40.041Z",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "Progress: resolved 0, reused 0, downloaded 1, added 0\nPackages: +2\n++\nProgress: resolved 2, reused 0, downloaded 2, added 2, done\n\ndependencies:\n+ fs-ext 2.1.1\n\nDone in 630ms using pnpm v10.28.1\n",
+      "stderr": "! Corepack is about to download https://registry.npmjs.org/pnpm/-/pnpm-10.28.1.tgz\n"
+    },
+    {
+      "argv": [
+        "pnpm",
+        "rebuild",
+        "fs-ext",
+        "--pending",
+        "--ignore-workspace",
+        "--store-dir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-lock-probe/tmp/p0-lock-probe/run-node24-fs-ext-2.1.1/.pnpm-store",
+        "--reporter",
+        "append-only"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-lock-probe/tmp/p0-lock-probe/run-node24-fs-ext-2.1.1",
+      "startedAt": "2026-09-14T03:03:41.413Z",
+      "exitCode": 1,
+      "signal": null,
+      "stdout": ".../node_modules/fs-ext install$ node-gyp configure build\n.../node_modules/fs-ext install: gyp info it worked if it ends with ok\n.../node_modules/fs-ext install: gyp info using node-gyp@11.5.0\n.../node_modules/fs-ext install: gyp info using node@24.18.0 | linux | x64\n.../node_modules/fs-ext install: gyp info find Python using Python version 3.8.10 found at \"/usr/bin/python3\"\n.../node_modules/fs-ext install: gyp http GET https://nodejs.org/download/release/v24.18.0/node-v24.18.0-headers.tar.gz\n.../node_modules/fs-ext install: gyp http 200 https://nodejs.org/download/release/v24.18.0/node-v24.18.0-headers.tar.gz\n.../node_modules/fs-ext install: gyp http GET https://nodejs.org/download/release/v24.18.0/SHASUMS256.txt\n.../node_modules/fs-ext install: gyp http 200 https://nodejs.org/download/release/v24.18.0/SHASUMS256.txt\n.../node_modules/fs-ext install: gyp info spawn /usr/bin/python3\n.../node_modules/fs-ext install: gyp info spawn args [\n.../node_modules/fs-ext install: gyp info spawn args '/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-lock-probe/tmp/p0-lock-probe/run-node24-fs-ext-2.1.1/.cache/node/corepack/v1/pnpm/10.28.1/dist/node_modules/node-gyp/gyp/gyp_main.py',\n.../node_modules/fs-ext install: gyp info spawn args 'binding.gyp',\n.../node_modules/fs-ext install: gyp info spawn args '-f',\n.../node_modules/fs-ext install: gyp info spawn args 'make',\n.../node_modules/fs-ext install: gyp info spawn args '-I',\n.../node_modules/fs-ext install: gyp info spawn args '/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-lock-probe/tmp/p0-lock-probe/run-node24-fs-ext-2.1.1/node_modules/.pnpm/fs-ext@file+source+fs-ext-2.1.1.tgz/node_modules/fs-ext/build/config.gypi',\n.../node_modules/fs-ext install: gyp info spawn args '-I',\n.../node_modules/fs-ext install: gyp info spawn args '/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-lock-probe/tmp/p0-lock-probe/run-node24-fs-ext-2.1.1/.cache/node/corepack/v1/pnpm/10.28.1/dist/node_modules/node-gyp/addon.gypi',\n.../node_modules/fs-ext install: gyp info spawn args '-I',\n.../node_modules/fs-ext install: gyp info spawn args '/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-lock-probe/tmp/p0-lock-probe/run-node24-fs-ext-2.1.1/.node-gyp/24.18.0/include/node/common.gypi',\n.../node_modules/fs-ext install: gyp info spawn args '-Dlibrary=shared_library',\n.../node_modules/fs-ext install: gyp info spawn args '-Dvisibility=default',\n.../node_modules/fs-ext install: gyp info spawn args '-Dnode_root_dir=/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-lock-probe/tmp/p0-lock-probe/run-node24-fs-ext-2.1.1/.node-gyp/24.18.0',\n.../node_modules/fs-ext install: gyp info spawn args '-Dnode_gyp_dir=/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-lock-probe/tmp/p0-lock-probe/run-node24-fs-ext-2.1.1/.cache/node/corepack/v1/pnpm/10.28.1/dist/node_modules/node-gyp',\n.../node_modules/fs-ext install: gyp info spawn args '-Dnode_lib_file=/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-lock-probe/tmp/p0-lock-probe/run-node24-fs-ext-2.1.1/.node-gyp/24.18.0/<(target_arch)/node.lib',\n.../node_modules/fs-ext install: gyp info spawn args '-Dmodule_root_dir=/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-lock-probe/tmp/p0-lock-probe/run-node24-fs-ext-2.1.1/node_modules/.pnpm/fs-ext@file+source+fs-ext-2.1.1.tgz/node_modules/fs-ext',\n.../node_modules/fs-ext install: gyp info spawn args '-Dnode_engine=v8',\n.../node_modules/fs-ext install: gyp info spawn args '--depth=.',\n.../node_modules/fs-ext install: gyp info spawn args '--no-parallel',\n.../node_modules/fs-ext install: gyp info spawn args '--generator-output',\n.../node_modules/fs-ext install: gyp info spawn args 'build',\n.../node_modules/fs-ext install: gyp info spawn args '-Goutput_dir=.'\n.../node_modules/fs-ext install: gyp info spawn args ]\n.../node_modules/fs-ext install: gyp info spawn make\n.../node_modules/fs-ext install: gyp info spawn args [ 'BUILDTYPE=Release', '-C', 'build' ]\n.../node_modules/fs-ext install: make: Entering directory '/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-lock-probe/tmp/p0-lock-probe/run-node24-fs-ext-2.1.1/node_modules/.pnpm/fs-ext@file+source+fs-ext-2.1.1.tgz/node_modules/fs-ext/build'\n.../node_modules/fs-ext install:   CXX(target) Release/obj.target/fs_ext/fs-ext.o\n.../node_modules/fs-ext install: g++: error: unrecognized command line option ‘-std=gnu++20’; did you mean ‘-std=gnu++2a’?\n.../node_modules/fs-ext install: make: *** [fs_ext.target.mk:110: Release/obj.target/fs_ext/fs-ext.o] Error 1\n.../node_modules/fs-ext install: make: Leaving directory '/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-lock-probe/tmp/p0-lock-probe/run-node24-fs-ext-2.1.1/node_modules/.pnpm/fs-ext@file+source+fs-ext-2.1.1.tgz/node_modules/fs-ext/build'\n.../node_modules/fs-ext install: gyp ERR! build error \n.../node_modules/fs-ext install: gyp ERR! stack Error: `make` failed with exit code: 2\n.../node_modules/fs-ext install: gyp ERR! stack at ChildProcess.<anonymous> (/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-lock-probe/tmp/p0-lock-probe/run-node24-fs-ext-2.1.1/.cache/node/corepack/v1/pnpm/10.28.1/dist/node_modules/node-gyp/lib/build.js:219:23)\n.../node_modules/fs-ext install: gyp ERR! System Linux 5.15.0-1084-aws\n.../node_modules/fs-ext install: gyp ERR! command \"/data/qiwei/.local/share/fnm/node-versions/v24.18.0/installation/bin/node\" \"/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-lock-probe/tmp/p0-lock-probe/run-node24-fs-ext-2.1.1/.cache/node/corepack/v1/pnpm/10.28.1/dist/node_modules/node-gyp/bin/node-gyp.js\" \"configure\" \"build\"\n.../node_modules/fs-ext install: gyp ERR! cwd /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-lock-probe/tmp/p0-lock-probe/run-node24-fs-ext-2.1.1/node_modules/.pnpm/fs-ext@file+source+fs-ext-2.1.1.tgz/node_modules/fs-ext\n.../node_modules/fs-ext install: gyp ERR! node -v v24.18.0\n.../node_modules/fs-ext install: gyp ERR! node-gyp -v v11.5.0\n.../node_modules/fs-ext install: gyp ERR! not ok \n.../node_modules/fs-ext install: Failed\n ELIFECYCLE  Command failed with exit code 1.\n",
+      "stderr": ""
+    }
+  ],
+  "cleanup": {
+    "managedChildrenRemaining": 0,
+    "actions": []
+  },
+  "environment": {
+    "node": {
+      "version": "v24.18.0",
+      "executable": "/data/qiwei/.local/share/fnm/node-versions/v24.18.0/installation/bin/node",
+      "moduleAbi": "137",
+      "napi": "10",
+      "v8": "13.6.233.17-node.50"
+    },
+    "pnpm": {
+      "argv": [
+        "pnpm",
+        "--version"
+      ],
+      "exitCode": 0,
+      "stdout": "10.28.1",
+      "stderr": ""
+    },
+    "npm": {
+      "argv": [
+        "npm",
+        "--version"
+      ],
+      "exitCode": 0,
+      "stdout": "11.16.0",
+      "stderr": ""
+    },
+    "os": {
+      "platform": "linux",
+      "architecture": "x64",
+      "release": "5.15.0-1084-aws",
+      "version": "#91~20.04.1-Ubuntu SMP Fri May 2 06:59:36 UTC 2025",
+      "machine": "x86_64"
+    },
+    "filesystem": {
+      "statfsTypeDecimal": "61267",
+      "statfsTypeHex": "0xef53",
+      "blockSize": "4096",
+      "blocks": "77261920"
+    },
+    "mount": {
+      "argv": [
+        "findmnt",
+        "-T",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-lock-probe/tmp/p0-lock-probe/run-node24-fs-ext-2.1.1",
+        "-o",
+        "TARGET,SOURCE,FSTYPE,OPTIONS",
+        "-n"
+      ],
+      "exitCode": 0,
+      "stdout": "/data  /dev/nvme1n1 ext4   rw,noatime",
+      "stderr": ""
+    },
+    "uname": {
+      "argv": [
+        "uname",
+        "-a"
+      ],
+      "exitCode": 0,
+      "stdout": "Linux dev-ai-oh-agent-01 5.15.0-1084-aws #91~20.04.1-Ubuntu SMP Fri May 2 06:59:36 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux",
+      "stderr": ""
+    },
+    "compiler": {
+      "argv": [
+        "g++",
+        "--version"
+      ],
+      "exitCode": 0,
+      "stdout": "g++ (Ubuntu 9.4.0-1ubuntu1~20.04.2) 9.4.0\nCopyright (C) 2019 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+      "stderr": ""
+    },
+    "python": {
+      "argv": [
+        "python3",
+        "--version"
+      ],
+      "exitCode": 0,
+      "stdout": "Python 3.8.10",
+      "stderr": ""
+    }
+  },
+  "repositoryHead": {
+    "argv": [
+      "git",
+      "rev-parse",
+      "HEAD"
+    ],
+    "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-lock-probe",
+    "startedAt": "2026-09-14T03:03:39.624Z",
+    "exitCode": 0,
+    "signal": null,
+    "stdout": "e11cc6990c1354e7baf138cc2f501effc7b413f6\n",
+    "stderr": ""
+  },
+  "failure": {
+    "name": "Error",
+    "message": "command failed: pnpm rebuild fs-ext --pending --ignore-workspace --store-dir /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-lock-probe/tmp/p0-lock-probe/run-node24-fs-ext-2.1.1/.pnpm-store --reporter append-only",
+    "stack": "Error: command failed: pnpm rebuild fs-ext --pending --ignore-workspace --store-dir /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-lock-probe/tmp/p0-lock-probe/run-node24-fs-ext-2.1.1/.pnpm-store --reporter append-only\n    at command (file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-lock-probe/docs/proposals/core-capabilities/implementation/evidence/p0-lock-probe/probe.mjs:123:19)\n    at prepareDependency (file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-lock-probe/docs/proposals/core-capabilities/implementation/evidence/p0-lock-probe/probe.mjs:234:5)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async main (file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-lock-probe/docs/proposals/core-capabilities/implementation/evidence/p0-lock-probe/probe.mjs:710:24)\n    at async file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-lock-probe/docs/proposals/core-capabilities/implementation/evidence/p0-lock-probe/probe.mjs:803:3"
+  },
+  "completedAt": "2026-09-14T03:03:44.771Z"
+}
