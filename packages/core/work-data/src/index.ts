@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { Ajv2020 } from 'ajv/dist/2020.js'
 import type { ErrorObject, ValidateFunction } from 'ajv'
-import { parseTree, printParseErrorCode } from 'jsonc-parser'
+import { createScanner, parseTree, printParseErrorCode, SyntaxKind } from 'jsonc-parser'
 import type { Node as JsonNode, ParseError } from 'jsonc-parser'
 
 export type JsonValue = null | boolean | number | string | JsonObject | readonly JsonValue[]
@@ -268,6 +268,27 @@ for (const name of DATA_TYPE_NAMES) {
 
 type PathSegment = string | number
 
+type ScanPath = Readonly<{
+  parent: ScanPath | undefined
+  segment: PathSegment
+}>
+
+type ScanFrame =
+  | {
+      kind: 'array'
+      path: ScanPath | undefined
+      depth: number
+      state: 'firstOrEnd' | 'value' | 'commaOrEnd'
+      nextIndex: number
+    }
+  | {
+      kind: 'object'
+      path: ScanPath | undefined
+      depth: number
+      state: 'firstKeyOrEnd' | 'key' | 'colon' | 'value' | 'commaOrEnd'
+      key: string | undefined
+    }
+
 type Destination =
   | Readonly<{ kind: 'root' }>
   | Readonly<{ kind: 'array'; target: JsonValue[]; index: number }>
@@ -311,6 +332,112 @@ function pointer(path: readonly PathSegment[]): string {
   return path.length === 0
     ? ''
     : `/${path.map(segment => String(segment).replaceAll('~', '~0').replaceAll('/', '~1')).join('/')}`
+}
+
+function scanPointer(path: ScanPath | undefined): string {
+  const segments: PathSegment[] = []
+  for (let current = path; current !== undefined; current = current.parent) {
+    segments.push(current.segment)
+  }
+  segments.reverse()
+  return pointer(segments)
+}
+
+function preflightCapacity(text: string, limits: JsonLimits): Checked<never> | undefined {
+  const scanner = createScanner(text, false)
+  const frames: ScanFrame[] = []
+  let rootState: 'value' | 'done' = 'value'
+  let nodes = 0
+
+  const beginValue = (): Readonly<{ path: ScanPath | undefined; depth: number }> | undefined => {
+    const parent = frames.at(-1)
+    if (parent === undefined) {
+      if (rootState === 'done') return undefined
+      rootState = 'done'
+      return { path: undefined, depth: 0 }
+    }
+    if (parent.kind === 'array') {
+      if (parent.state !== 'firstOrEnd' && parent.state !== 'value') return undefined
+      parent.state = 'commaOrEnd'
+      return {
+        path: { parent: parent.path, segment: parent.nextIndex },
+        depth: parent.depth + 1,
+      }
+    }
+    if (parent.state !== 'value' || parent.key === undefined) return undefined
+    parent.state = 'commaOrEnd'
+    return {
+      path: { parent: parent.path, segment: parent.key },
+      depth: parent.depth + 1,
+    }
+  }
+
+  const enterValue = (): Readonly<{ path: ScanPath | undefined; depth: number }> | Checked<never> | undefined => {
+    const value = beginValue()
+    if (value === undefined) return undefined
+    nodes += 1
+    if (nodes > limits.maxNodes) {
+      return issue('capacity', scanPointer(value.path), `maximum node count ${limits.maxNodes} exceeded`)
+    }
+    if (value.depth > limits.maxDepth) {
+      return issue('capacity', scanPointer(value.path), `maximum depth ${limits.maxDepth} exceeded`)
+    }
+    return value
+  }
+
+  while (true) {
+    const token = scanner.scan()
+    if (token === SyntaxKind.EOF) return undefined
+    if (token >= SyntaxKind.LineCommentTrivia && token <= SyntaxKind.Trivia) continue
+
+    const frame = frames.at(-1)
+    if (token === SyntaxKind.StringLiteral
+      && frame?.kind === 'object'
+      && (frame.state === 'firstKeyOrEnd' || frame.state === 'key')) {
+      frame.key = scanner.getTokenValue()
+      frame.state = 'colon'
+      continue
+    }
+    if (token === SyntaxKind.ColonToken && frame?.kind === 'object' && frame.state === 'colon') {
+      frame.state = 'value'
+      continue
+    }
+    if (token === SyntaxKind.CommaToken && frame?.state === 'commaOrEnd') {
+      if (frame.kind === 'array') {
+        frame.nextIndex += 1
+        frame.state = 'value'
+      } else {
+        frame.key = undefined
+        frame.state = 'key'
+      }
+      continue
+    }
+    if (token === SyntaxKind.CloseBracketToken && frame?.kind === 'array') {
+      frames.pop()
+      continue
+    }
+    if (token === SyntaxKind.CloseBraceToken && frame?.kind === 'object') {
+      frames.pop()
+      continue
+    }
+    if (token === SyntaxKind.OpenBracketToken || token === SyntaxKind.OpenBraceToken) {
+      const value = enterValue()
+      if (value !== undefined && 'ok' in value) return value
+      if (value === undefined) continue
+      frames.push(token === SyntaxKind.OpenBracketToken
+        ? { kind: 'array', path: value.path, depth: value.depth, state: 'firstOrEnd', nextIndex: 0 }
+        : { kind: 'object', path: value.path, depth: value.depth, state: 'firstKeyOrEnd', key: undefined })
+      continue
+    }
+    if (token === SyntaxKind.StringLiteral
+      || token === SyntaxKind.NumericLiteral
+      || token === SyntaxKind.NullKeyword
+      || token === SyntaxKind.TrueKeyword
+      || token === SyntaxKind.FalseKeyword) {
+      const value = enterValue()
+      if (value !== undefined && 'ok' in value) return value
+    }
+  }
 }
 
 function checkedLimits(limits: JsonLimits): Checked<JsonLimits> {
@@ -694,6 +821,8 @@ export function parseJson(text: string, limits: JsonLimits): Checked<JsonValue> 
   if (bytes > limits.maxBytes) {
     return issue('capacity', '', `input byte length ${bytes} exceeds maxBytes ${limits.maxBytes}`)
   }
+  const capacity = preflightCapacity(text, limits)
+  if (capacity !== undefined) return capacity
   const errors: ParseError[] = []
   const root = parseTree(text, errors, {
     disallowComments: true,
