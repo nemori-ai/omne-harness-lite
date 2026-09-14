@@ -35,16 +35,21 @@ The focused GREEN in [focused-green.log](focused-green.log) records 4/4 tests:
 - R3: a two-record stream and a three-record stream each become revision 1.
   One mismatched precondition keeps both business heads at 1 and durably
   advances only the provider conflict-result stream once.
-- R4: close/reopen preserves the first receipt, conflict outcome, event order,
-  and revision heads while the writer epoch advances. A separately appended,
-  complete but unacknowledged multi-record batch is recognized at revision 1.
+- R4: close/reopen recognizes the operations at their expected positions and
+  revisions, recognizes the original conflict outcome, and preserves revision
+  heads while the writer epoch advances. A separately appended, complete but
+  unacknowledged multi-record batch is recognized at revision 1. This fixed
+  source sampled those fields; complete Receipt, business-result, and ordered
+  record comparisons are preserved in the later
+  [recovery-value follow-up](../batch-revision-retry/README.md).
 - R5: a complete multi-record batch followed by an `expectedRevision=2`
   successor is rejected during acquisition, returns released cleanup, and its
   exact journal bytes remain unchanged.
 - R6: same-operation/same-input retries with different proposed appends return
   the original pending object and then the original committed result, without
   another revision increase. Existing tests retain the different-input
-  conflict rule.
+  conflict rule. The later-revision-matches-original-precondition branch is
+  covered by the [revision catch-up follow-up](../batch-revision-retry/README.md).
 
 ## Product checks at the fixed source
 

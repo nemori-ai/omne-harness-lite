@@ -1,0 +1,4 @@
+
+> @omne-harness-lite/jsonl@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-jsonl-batch-revision/packages/storage/jsonl
+> tsc -p tsconfig.test.json
+
