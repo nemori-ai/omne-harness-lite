@@ -55,13 +55,15 @@ TL 和 LE，完整 HD 可不挂，但缺席不能让 ask 绕行 allow。
 P1 沿 [JSONL](../../packages/storage/jsonl/design.md) 与
 [Admission Gate](../../packages/coordination/admission/design.md) 的当前映射选择
 `createJsonlProvider(options, diagnostics)` 与 `createAdmissionCoordinator(writer, diagnostics)`；
-两者产品仍待交付，纯 work-data/records 不插件化。
+两者已提供目标默认入口，纯 work-data/records 不插件化。
 Diagnostics 消费面沿 [D-010](../../docs/decisions/D-010-shared-diagnostics.md)，
 目录 owner 采用 `e2190ad` 的
 [D-011](../../docs/decisions/D-011-diagnostics-directory-ownership.md) 与
 [包设计](../../packages/observation/diagnostics/design.md)。应用按唯一目录 factory
 创建并保有目录/子来源；D1 已按[成员证据](../../packages/observation/diagnostics/evidence/directory-owner/README.md)
-接受，应用只消费该目录 factory。真实 JSONL/admission 和应用组合仍未交付。
+接受，应用只消费该目录 factory。真实 JSONL/admission 的
+[P1 组合证据](evidence/storage-admission/README.md)固定在所列源码与验收范围；
+后续提供者修订沿各成员当前证据复验，不据此推定完整应用已经交付。
 
 ## 身份与宿主装配
 
