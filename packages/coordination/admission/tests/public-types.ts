@@ -65,6 +65,9 @@ declare const operation: OperationRef
 declare const binding: UseBinding
 declare const diagnosticId: OpaqueId
 
+const currentFrame: boolean = (undefined as unknown as AdmissionCoordinator).isCurrentFrame(frame)
+void currentFrame
+
 void [
   frame,
   preparedOperation,

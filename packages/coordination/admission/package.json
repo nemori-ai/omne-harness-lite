@@ -30,6 +30,7 @@
     "@omne-harness-lite/work-data": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness-lite/jsonl": "workspace:*",
     "@types/node": "24.13.4",
     "typescript": "6.0.3",
     "vitest": "4.1.8"
