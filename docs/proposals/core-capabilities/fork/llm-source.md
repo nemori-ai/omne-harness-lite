@@ -4,7 +4,7 @@
 `c291e7961a515f6d7af9304e7fd1d257929aef26` 中本批实际选取的语言无关行为。
 它是 D-006 定向源码 fork 的维护说明，不是 D-008 产品规格，也不表示目标模型、
 媒体服务或 OpenRouter adapter 已实现。逐文件原件、SHA-256 和活动源码差异由
-`packages/dsh-baseline/provenance.json` 追踪。
+`packages/model/llm/provenance.json` 与 `packages/media/content/provenance.json` 追踪。
 
 ## 消息与内容快照
 
@@ -15,9 +15,9 @@
 标识在重新冻结时保持不变。system 空文本投影为空块数组，工具结果固定成为
 user-role 的单个 `tool-result` 块。
 
-活动切片保留上述源消息和内容词汇，但品牌及冻结辅助改为本包 `src/support/`
-中的唯一副本，随机标识使用 Node `randomUUID()`，不带 DSH crypto 依赖。媒体引用
-是本源包的 baseline 类型，不是 `core-work v1` 的 `MediaRef`。源中的插件化消息
+活动切片保留上述源消息和内容词汇，品牌及冻结辅助分别由 `util/brand` 与
+`util/values` 的公开入口提供，随机标识使用 Node `randomUUID()`，不带 DSH crypto 依赖。媒体引用
+由 `media/content` 唯一拥有，是 baseline 类型，不是 `core-work v1` 的 `MediaRef`。源中的插件化消息
 来源扩展点作为 TypeScript 源词汇保留，不赋予租户权限或耐久提交含义。
 
 ## 流装配与紧凑记录

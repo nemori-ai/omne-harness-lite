@@ -20,14 +20,25 @@
 
 按用途和所有权选择顶层位置，再按实际依赖选择语言与构建工具。独立包不等于
 独立发布、独立进程或独立微服务，也不要求每个 Cordis 插件单独成包。
-只为已明确的实现职责创建成员；当前 agent 与 dsh-baseline 成员提供实验来源基线，`apps/` 尚无产品应用；不预置未设计的模块。
+从第一天起采用 `packages/<能力族>/<职责包>/`：第一层只组织相关能力，不是
+workspace 成员；第二层才拥有 package.json、src、依赖、公开入口和测试。
+能力定义、具体提供者、消费扩展在具有独立职责和变化边界时分包；消费者依赖
+能力定义及契约，装配负责选择提供者。不机械地为每个插件或每种角色创建包。
+同源、同批 fork、共同构建或实验阶段都不是聚合不相关职责的理由；来源和
+baseline 状态由各包自己的来源记录与入口表达。共享类型和有身份的运行时原语
+保持唯一拥有者，其他包通过公开入口复用。
+
+该选择及上游参考见 [D-009](../decisions/D-009-package-organization.md)。
+只为已明确且有实际源码的职责创建成员；当前各包提供实验来源基线，成员表归
+[packages 索引](../../packages/README.md)，`apps/` 尚无产品应用，不预置空包。
 
 ## 当前可执行代码
 
 ```text
 package.json / pnpm-workspace.yaml     TypeScript workspace 与根聚合命令
 pnpm-lock.yaml                        TypeScript 依赖统一锁文件
-packages/agent/                       自有 agent fork，拥有 src/tests/构建配置
+packages/<能力族>/<职责包>/           产品成员；如 core/agent、session/projection
+tools/package-checks/                TS workspace 开发成员；来源、依赖及独立产物检查
 pyproject.toml                         Python 开发环境聚合，package = false
 uv.lock                                Python workspace 统一锁文件
 tools/spec-tools/
@@ -52,17 +63,17 @@ scripts/check.sh                      本地和 CI 共用的检查编排
 生成器所需 PyYAML。工具包自行声明 jsonschema、Markdown/YAML 解析与构建依赖。
 `tool.uv.workspace.members` 指向 `tools/spec-tools`，`workspace = true` 绑定本地成员。
 
-根 Python 配置只组合开发环境。TS workspace 由 pnpm 管理，当前显式包含
-`packages/agent`；成员自行声明依赖与构建，根 package.json 聚合命令，pnpm-lock.yaml
+根 Python 配置只组合开发环境。TS workspace 由 pnpm 管理，产品成员范围为
+`packages/*/*`，另显式包含 `tools/package-checks`；成员自行声明依赖与构建，根 package.json 聚合命令，pnpm-lock.yaml
 固定依赖树。采用 Node.js 24 与 packageManager 指定的 pnpm，和 uv 独立并存。
-不把所有工具加入产品运行依赖；新增成员时显式更新 workspace 范围。
+不把工具加入产品运行依赖；新增成员须符合叶子布局，新增其他类别时显式更新 workspace 范围。
 
 参考了 `omne-next` 各成员独立声明 pyproject 的做法；
 [DSH workspace](https://github.com/deepseek-ai/deepseek-harness/blob/c291e7961a515f6d7af9304e7fd1d257929aef26/pnpm-workspace.yaml)
 展示包、应用和其他目录可分别成为成员，而非统一塞入根源码目录。
 uv 的[workspace 文档](https://docs.astral.sh/uv/concepts/projects/workspaces/)说明成员、
 统一锁定与 `--package`；[配置文档](https://docs.astral.sh/uv/concepts/projects/config/#project-packaging)
-说明 `package = false`。这些是组织机制的参考，不直接移植上游的包分组或部署方式。
+说明 `package = false`。采用能力族与职责叶子的组织方法，具体分组与包边界由本项目职责决定。
 
 ## 使用与维护
 

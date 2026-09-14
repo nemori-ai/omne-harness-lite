@@ -26,6 +26,7 @@ scope: 会话、状态与持久化、工具、租户治理、模型及多模态�
 - [独立评审](review.md)、[验证映射](verification.md)、
   [发布清单](evidence/publication.json)：受审版本、发现处置、有限结果与未实现义务。
 - [定向 fork 交付](fork/delivery.md)：固定来源的本地源码、公开基线入口、裁剪和实际检查。
+- [职责包布局](fork/package-layout.md)：D-009 接受的能力族/叶子组织，及其[重组交付](fork/package-layout-delivery.md)。
 
 ## 接受记录
 

@@ -1,5 +1,9 @@
 # dsh-agent 定向 fork：实施规格与施工计划
 
+> 本页记录首次导入的计划边界。后续[职责包布局修订](../../core-capabilities/fork/package-layout.md)
+> 已将 agent 移至 `packages/core/agent`，唯一 scope 移至 `packages/core/scope`；
+> 当前导出和依赖以各包 manifest 为准，本文旧路径与内部 scope 选择保留历史含义。
+
 状态：计划评审、源码导入与有限阶段验收已完成；本页定义源码导入阶段的交付边界，不发布新产品契约。
 评审对象与处置见[评审记录](review.md)。
 

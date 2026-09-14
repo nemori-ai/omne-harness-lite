@@ -1,14 +1,17 @@
 # 本批定向 fork 交付
 
+> 本页记录首次导入的历史交付。后续已按用户要求拆成能力族/职责叶子包，
+> 旧包路径和 scope-baseline 属于当时版本；当前布局与验证见[布局交付](package-layout-delivery.md)。
+
 设计先由 [D-008](../../../decisions/D-008-core-capabilities.md) 正式化；本批源码随后
 按 [施工计划](plan.md)从固定官方修订导入。源基线供后续二次开发，尚未实现
 D-008 的真实授权/HITL、Run、OpenRouter、耐久记录或独立执行提供者。
 
 ## 交付对象
 
-- [agent](../../../../packages/agent/README.md)：保留原 agent 源基线，补齐 scope
+- [agent](../../../../packages/core/agent/README.md)：保留原 agent 源基线，补齐 scope
   store 并公开 `scope-baseline`，所有本批模块共用这一份活动 scope 实现。
-- [dsh-baseline](../../../../packages/dsh-baseline/README.md)：按责任切分模型/媒体、
+- [dsh-baseline](../../../../packages/README.md)：按责任切分模型/媒体、
   Session/投影/持久化、JSONL 文件原语、prompt/工具及 Loop 源算法，全部公开入口
   为 `baseline/*`，没有默认产品入口。
 - [源行为与差异](source-baseline.md)：语言无关的状态、所有权、生命周期、失败边界，

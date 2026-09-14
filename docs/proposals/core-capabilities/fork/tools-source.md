@@ -3,7 +3,7 @@
 本页记录固定上游 `deepseek-ai/deepseek-harness@c291e7961a515f6d7af9304e7fd1d257929aef26`
 中选取的 system-prompt/tools 行为，以及本地 source baseline 的裁剪。它是 D-006 的
 来源说明，不是 D-008 产品实现或符合性声明。原件、哈希和活动目标见
-`packages/dsh-baseline/provenance.json`。
+`packages/tools/tools/provenance.json` 与 `packages/context/system-prompt/provenance.json`。
 
 ## Prompt 装配
 
@@ -61,21 +61,21 @@ body 已 settle 且本地 schema/render 边界通过。
 
 ## 活动入口与未导入部分
 
-`src/prompt/index.ts` 是唯一 prompt 模块入口，活动导出为 `SystemPrompt`（具名及默认）、
+`packages/context/system-prompt/src/index.ts` 是 prompt 模块入口，活动导出为 `SystemPrompt`（具名及默认）、
 `parseSystemPromptConfig`、`renderPrompt`、`renderContextSections`、`renderContextSnapshot`、
 `joinContextSections`、`TOOL_ORDER_REST`、persona section 名称，以及 assembly/config/order/
 contribution 的类型。上游 `invariant.ts` 未导入；上游固定 Harness identity 和具体工具顺序政策
 也未进入活动入口。
 
-`src/tools/index.ts` 是唯一 tools 模块入口，活动导出为 `ToolRuntime`（具名及默认）、
+`packages/tools/tools/src/index.ts` 是 tools 模块入口，活动导出为 `ToolRuntime`（具名及默认）、
 `defineTool`、schema 编译/校验函数、`JsonSchemaError`、`ToolArgsError`、`ToolNotFoundError`、
 `ToolOutputError`、两个 abort code，以及 definition/execution/result/restriction、schema DSL 和纯
 presentation 类型。`get`/`schemas`/`register`/`restrict`/`execute` 是 registry 的活动操作。
 上游 `invariant.ts`、`ptc.ts`、`py-types.ts`、`ts-types.ts`、`testing.ts` 和完全属于 PTC 扩展的
 `types.ts` 均未导入；没有 `run_code`、SDK renderer、真实环境工具、审批服务或宿主执行入口。
 
-包级公开入口为 `./baseline/prompt` 与 `./baseline/tools`；它们与其它模块的实际产物
-消费及贡献撤回验证统一记录于[交付记录](delivery.md)。
+包级公开入口分别为 `@omne-harness-lite/system-prompt/baseline` 与
+`@omne-harness-lite/tools/baseline`；实际产物消费及贡献撤回见[布局交付](package-layout-delivery.md)。
 
 ## 保留与未保留的上游测试语义
 

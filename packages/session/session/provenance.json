@@ -1,0 +1,163 @@
+{
+  "format": 1,
+  "repository": "https://github.com/deepseek-ai/deepseek-harness",
+  "commit": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+  "scope": "In-memory source session history and lifecycle; source baseline only, not target capability conformance",
+  "archive_sha256": "f08cfc86cb05d4186be3319670e2756375cb2788b3d2164dd7f30b885f350860",
+  "files": [
+    {
+      "upstream_path": "LICENSE",
+      "snapshot": "LICENSE",
+      "sha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be",
+      "targets": [
+        "LICENSE"
+      ],
+      "changes": "Unchanged DeepSeek copyright and full MIT text."
+    },
+    {
+      "upstream_path": "packages/core/session/src/index.ts",
+      "snapshot": "upstream/session/index.ts",
+      "sha256": "688aafe3897fdf6f8dc5da1f7ec57d6af0c8484e6afda06d05ff7ecfb932cc1c",
+      "targets": [
+        "src/index.ts"
+      ],
+      "changes": "Rebased package imports and module docs; removed Typert lookup registration, Typert augmentation, excluded crash-repair export, and upstream-internal policy links; retained Session, SessionStore, lifecycle, history, header, sequence, surface, preparation, fork, and flush algorithms. Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/core/session/src/types.ts",
+      "snapshot": "upstream/session/types.ts",
+      "sha256": "e9dfc1d7bc4b146f954520a9ca2eff8539f3b9c082b5ecfac7ddb9c747501e45",
+      "targets": [
+        "src/types.ts"
+      ],
+      "changes": "Rebased brand, JSON value, source-only LLM imports, and module docs; removed Typert remote-error augmentation and upstream-internal migration-policy link; retained source Session event/header/sequence vocabulary without a core-work v1 claim. Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/core/session/src/surface.ts",
+      "snapshot": "upstream/session/surface.ts",
+      "sha256": "7c40505853c6dfae5cea633c0526ed2ec7b46cdf01c78013360ee9dbe9ebf3da",
+      "targets": [
+        "src/surface.ts"
+      ],
+      "changes": "Rebased Message and module docs to local baseline paths and replaced an upstream-internal policy link with a source-status note; surface validation, fold, replacement, watermark, and incremental manager algorithms retained. Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/core/session/src/request-header.ts",
+      "snapshot": "upstream/session/request-header.ts",
+      "sha256": "abd8ef57c34ad6ddbc21ba83398092f6aff64ac5c0f38efb353cebb04f654ad4",
+      "targets": [
+        "src/request-header.ts"
+      ],
+      "changes": "Rebased source-only LLM imports; canonicalization, equality, and latest-header fold retained. Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/core/session/src/preparation.ts",
+      "snapshot": "upstream/session/preparation.ts",
+      "sha256": "51bcd61f505928fc1d98cc59ecfd5e0a34b3a5cbd3ecb7937caef0da87b7baa5",
+      "targets": [
+        "src/preparation.ts"
+      ],
+      "changes": "Retained preparation guard and one-time publication state unchanged. Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/core/session/src/seq-ranges.ts",
+      "snapshot": "upstream/session/seq-ranges.ts",
+      "sha256": "9f746691995926cb17d3dd19da04871f2355be40c798ed5a8256659e6bf14559",
+      "targets": [
+        "src/seq-ranges.ts"
+      ],
+      "changes": "Retained range encode/decode and validation unchanged. Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/core/session/src/known-event-types.ts",
+      "snapshot": "upstream/session/known-event-types.ts",
+      "sha256": "8d60e002f68a641745ec2416c7c594e7b8f95f08fab1200aaa6a637e365500ca",
+      "targets": [
+        "src/known-event-types.ts"
+      ],
+      "changes": "Retained the current source event vocabulary and fail-closed algorithm; replaced the upstream-internal policy link with a source-status note; this is not a target catalog. Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/core/session/tests/sequence-types.spec.ts",
+      "snapshot": "upstream/session/tests/sequence-types.spec.ts",
+      "sha256": "ce110ccf376c8b9eb700065260d7e383e6017a90b066e67988b6aede10299e03",
+      "targets": [
+        "tests/session-sequence.spec.ts"
+      ],
+      "changes": "Rebased imports to compiled baseline modules; retained branded position, lineage cut, and restore-boundary coverage. Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/core/session/tests/seq-ranges.spec.ts",
+      "snapshot": "upstream/session/tests/seq-ranges.spec.ts",
+      "sha256": "4bdc5b6965bb3f4fddbe8a73ba54ebcf1432efb6627b956ecdd670dc3aacbcc2",
+      "targets": [
+        "tests/session-seq-ranges.spec.ts"
+      ],
+      "changes": "Rebased imports to compiled Session output; retained round-trip, compression, and refusal coverage. Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/core/session/tests/request-header.spec.ts",
+      "snapshot": "upstream/session/tests/request-header.spec.ts",
+      "sha256": "e42c2392193a9ab8027f8783c287c7708a2f28a9732113bd230a20be69d6c90f",
+      "targets": [
+        "tests/session-request-header.spec.ts"
+      ],
+      "changes": "Rebased imports to compiled Session/LLM outputs; retained canonical header and incremental request-context fold coverage. Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/core/session/tests/derived-cache.spec.ts",
+      "snapshot": "upstream/session/tests/derived-cache.spec.ts",
+      "sha256": "28cfe02005f1d4cfdc29e5606280b1e949213fe05b188d74a1e4906b65012273",
+      "targets": [
+        "tests/session-derived-cache.spec.ts"
+      ],
+      "changes": "Rebased imports to compiled Session/LLM outputs; retained incremental/replacement cache oracle coverage. Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/core/session/tests/scoped.spec.ts",
+      "snapshot": "upstream/session/tests/scoped.spec.ts",
+      "sha256": "9a6d5b7fe94116034337b02bb6f5d22bdb15acc15e2e76710a79e94b7a19188c",
+      "targets": [
+        "tests/session-scoped.spec.ts"
+      ],
+      "changes": "Rebased Session imports to compiled output and scope to the sole Agent scope-baseline; retained routing, flush, veto, and disposal coverage. Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/core/session/tests/session.spec.ts",
+      "snapshot": "upstream/session/tests/session.spec.ts",
+      "sha256": "6ce735fcea9601e89263295ac37b15731ad4d1d036aa51b1a44ffd1aeb29ca47",
+      "targets": [
+        "tests/session-lifecycle.spec.ts"
+      ],
+      "changes": "Rebased imports to compiled Session/LLM outputs; retained broad Session history, header, prepare, append, snapshot, lifecycle, and failure coverage. Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/core/session/tests/surface.spec.ts",
+      "snapshot": "upstream/session/tests/surface.spec.ts",
+      "sha256": "21774c2316191b4ac1f96d3652207a3d6e901073c477581df5ec4e8c750d4c30",
+      "targets": [
+        "tests/session-surface.spec.ts"
+      ],
+      "changes": "Rebased imports to compiled Session/LLM outputs; retained surface append/replace/provenance/protected-head fold coverage. Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/core/session/tests/fork.spec.ts",
+      "snapshot": "upstream/session/tests/fork.spec.ts",
+      "sha256": "d2fe3fcd72e2ed7b10076d449fd4c0f8c1822d56a5d91cf292fe8c51bdeab040",
+      "targets": [
+        "tests/session-fork.spec.ts"
+      ],
+      "changes": "Rebased imports to compiled Session/LLM outputs; retained stable-boundary fork, lineage, and error-code coverage. Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/core/session/tests/canonical-envelopes.spec.ts",
+      "snapshot": "upstream/session/tests/canonical-envelopes.spec.ts",
+      "sha256": "53bfea1cba9546cc1beed21ba64ee3a95c323b3561b7d2ab97d909a1ad4cc341",
+      "targets": [
+        "tests/session-canonical-envelopes.spec.ts"
+      ],
+      "changes": "Rebased imports to compiled Session/LLM outputs; retained event-envelope, creation-header, listener snapshot, and append rejection coverage. Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    }
+  ],
+  "project_files": []
+}

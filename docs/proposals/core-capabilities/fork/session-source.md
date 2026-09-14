@@ -20,7 +20,7 @@
   revision 类型、稳定错误词汇，以及 header/event 的存储前校验、未知必需事件
   拒绝、JSON 快照和连续序号校验。
 
-原件逐文件保存在 `packages/dsh-baseline/upstream/{session,projection,persistence}`，
+原件逐文件保存在 `packages/session/{session,projection,persistence}/upstream/`，
 活动实现位于相应的 `src/` 子目录。逐文件原路径、快照哈希、活动目标和裁剪说明
 记录于包的 `provenance.json`。
 
@@ -61,11 +61,11 @@ revision 只可在同一 provider 实例和同一 Session 内比较相等性。�
 
 ## 来源依赖与改写
 
-活动源码将上游包引用改为本包相对入口：Session 消息只能来自
-`../llm/index.ts`，品牌与 JSON 值辅助来自 `../support/{brand,values}.ts`。
-Session 的作用域路由只消费 `@omne-harness-lite/agent/scope-baseline`，从而与
+活动源码将上游包引用改为本项目职责包的公开入口：Session 消息来自
+`@omne-harness-lite/llm/baseline`，品牌与 JSON 值辅助来自 brand/values 包的 baseline 入口。
+Session 的作用域路由只消费 `@omne-harness-lite/scope/baseline`，从而与
 Agent 共用同一组 scope Symbol、父链和 WeakMap 状态。Projection 直接消费
-`../session/index.ts`；Persistence 直接消费 Session 与 support 类型。
+`@omne-harness-lite/session/baseline`；Persistence 直接消费 Session 与 brand/values 类型。
 
 Typert lookup/mixin、仅为 Typert 暴露的 type augmentation，以及上游应用插件均被
 删除。Cordis SessionStore、projection registry 和 persistence Service 定义仍保留，

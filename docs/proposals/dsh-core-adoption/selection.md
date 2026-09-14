@@ -82,7 +82,7 @@ Session 提供稳定会话与状态能力，agent 提供活体原语，loop 驱�
 
 `packages/core/` 只放已明确接受的内核原语；agent 的目标归入 core，scope 的公共
 原语在其设计验收后归入 core。其余能力、后端和应用按[源码布局](../../maintenance/workspace.md)
-落实，不能因为属于本批核心产品能力就全部进入内核。当前 `packages/agent` 源基线
+落实，不能因为属于本批核心产品能力就全部进入内核。当前 `packages/core/agent` 源基线
 的位置和用途未因本文件改变。
 
 该集合不允许安装依赖时自动扩张。新增来源、纳入原本排除的子系统、扩大 attachment

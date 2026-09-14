@@ -1,0 +1,33 @@
+{
+  "format": 1,
+  "repository": "https://github.com/deepseek-ai/deepseek-harness",
+  "commit": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+  "scope": "Timer and AbortSignal cooperation primitives; source baseline only, not target capability conformance",
+  "archive_sha256": "f08cfc86cb05d4186be3319670e2756375cb2788b3d2164dd7f30b885f350860",
+  "files": [
+    {
+      "upstream_path": "LICENSE",
+      "snapshot": "LICENSE",
+      "sha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be",
+      "targets": [
+        "LICENSE"
+      ],
+      "changes": "Unchanged DeepSeek copyright and full MIT text."
+    },
+    {
+      "upstream_path": "packages/util/timeout/src/index.ts",
+      "snapshot": "upstream/timeout/index.ts",
+      "sha256": "fdfd67e7d9c0a09668a4101880439f28446a8bf038f060a0bc4d27d941be562c",
+      "targets": [
+        "src/index.ts"
+      ],
+      "changes": "Unchanged source helper, source-only baseline vocabulary Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    }
+  ],
+  "project_files": [
+    {
+      "path": "tests/support.spec.ts",
+      "purpose": "Preserved project-owned baseline export or regression verification, relocated from the 475389d source baseline; no target conformance claim"
+    }
+  ]
+}

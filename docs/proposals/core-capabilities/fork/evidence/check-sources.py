@@ -25,9 +25,13 @@ def main():
     results = []
     with tarfile.open(args.archive, "r:gz") as archive:
         prefix = archive.getmembers()[0].name.split("/", 1)[0]
-        for name in ("agent", "dsh-baseline"):
-            package = root / "packages" / name
-            provenance = json.loads((package / "provenance.json").read_text())
+        manifests = sorted((root / "packages").glob("*/*/provenance.json"))
+        if not manifests:
+            raise ValueError("No responsibility package provenance found")
+        for manifest in manifests:
+            package = manifest.parent
+            name = package.relative_to(root / "packages").as_posix()
+            provenance = json.loads(manifest.read_text())
             if provenance["commit"] != REVISION:
                 raise ValueError("Unexpected source revision in " + name)
             files = []

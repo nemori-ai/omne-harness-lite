@@ -1,0 +1,37 @@
+{
+  "format": 1,
+  "repository": "https://github.com/deepseek-ai/deepseek-harness",
+  "commit": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+  "scope": "Ordinary JSONL file read, sync, append and rollback primitives; source baseline only, not target capability conformance",
+  "archive_sha256": "f08cfc86cb05d4186be3319670e2756375cb2788b3d2164dd7f30b885f350860",
+  "files": [
+    {
+      "upstream_path": "LICENSE",
+      "snapshot": "LICENSE",
+      "sha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be",
+      "targets": [
+        "LICENSE"
+      ],
+      "changes": "Unchanged DeepSeek copyright and full MIT text."
+    },
+    {
+      "upstream_path": "packages/session/session-persistence-jsonl/src/index.ts",
+      "snapshot": "upstream/jsonl/index.ts",
+      "sha256": "69931beb012cde8453d46589bb83703552cb7c8e19438e67b3548042882ab861",
+      "targets": [
+        "src/index.ts"
+      ],
+      "changes": "Extract ordinary file write/sync/read/rollback methods; caller-owned raw paths and bytes replace Session/format/compression routing; preserve original and close failures together. No runtime full provider, migration, compression, native or Windows bridge imports. Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    }
+  ],
+  "project_files": [
+    {
+      "path": "tests/jsonl-failures.spec.ts",
+      "purpose": "Preserved project-owned baseline export or regression verification, relocated from the 475389d source baseline; no target conformance claim"
+    },
+    {
+      "path": "tests/jsonl.spec.ts",
+      "purpose": "Preserved project-owned baseline export or regression verification, relocated from the 475389d source baseline; no target conformance claim"
+    }
+  ]
+}

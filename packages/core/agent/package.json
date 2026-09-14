@@ -1,0 +1,38 @@
+{
+  "name": "@omne-harness-lite/agent",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "Agent registry, factory delegation and initiator primitives; experimental source baseline",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "exports": {
+    "./baseline": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md",
+    "UPSTREAM.md",
+    "provenance.json"
+  ],
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "4.0.2",
+    "@omne-harness-lite/scope": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.4",
+    "typescript": "6.0.3",
+    "vitest": "4.1.8"
+  }
+}

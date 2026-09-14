@@ -4,7 +4,7 @@
 精确身份和行为分别归 [data.agent-runtime-identity v1](../../spec/data/agent-runtime-identity/v1/contract.md)
 与 [capability.live-agent v1](../../spec/capabilities/live-agent/v1/contract.md)。
 本版是内核运行时的设计基线；正式化授权与采用范围见上述提案和
-[D-005](../decisions/D-005-agent-runtime.md)。目标 v1 尚未实现；[定向 fork](../../packages/agent/README.md)提供已固定来源的实验原语基线。
+[D-005](../decisions/D-005-agent-runtime.md)。目标 v1 尚未实现；[定向 fork](../../packages/core/agent/README.md)提供已固定来源的实验原语基线。
 
 四类提供者的交接已由 [D-007](../decisions/D-007-runtime-composition.md)与
 [Agent/Session 附着组合 v1](../../spec/compositions/agent-session-binding/v1/contract.md)

@@ -8,7 +8,73 @@ importers:
 
   .: {}
 
-  packages/agent:
+  packages/agent/loop:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.2
+        version: 4.0.2
+      '@omne-harness-lite/llm':
+        specifier: workspace:*
+        version: link:../../model/llm
+      '@omne-harness-lite/session':
+        specifier: workspace:*
+        version: link:../../session/session
+    devDependencies:
+      '@types/node':
+        specifier: 24.13.4
+        version: 24.13.4
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: 4.1.8
+        version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+
+  packages/context/system-prompt:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.2
+        version: 4.0.2
+      '@omne-harness-lite/llm':
+        specifier: workspace:*
+        version: link:../../model/llm
+      '@omne-harness-lite/scope':
+        specifier: workspace:*
+        version: link:../../core/scope
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@types/node':
+        specifier: 24.13.4
+        version: 24.13.4
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: 4.1.8
+        version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+
+  packages/core/agent:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.2
+        version: 4.0.2
+      '@omne-harness-lite/scope':
+        specifier: workspace:*
+        version: link:../scope
+    devDependencies:
+      '@types/node':
+        specifier: 24.13.4
+        version: 24.13.4
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: 4.1.8
+        version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+
+  packages/core/scope:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.2
@@ -24,14 +90,77 @@ importers:
         specifier: 4.1.8
         version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
 
-  packages/dsh-baseline:
+  packages/media/content:
+    dependencies:
+      '@omne-harness-lite/brand':
+        specifier: workspace:*
+        version: link:../../util/brand
+    devDependencies:
+      '@types/node':
+        specifier: 24.13.4
+        version: 24.13.4
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: 4.1.8
+        version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+
+  packages/model/llm:
+    dependencies:
+      '@omne-harness-lite/brand':
+        specifier: workspace:*
+        version: link:../../util/brand
+      '@omne-harness-lite/media-content':
+        specifier: workspace:*
+        version: link:../../media/content
+      '@omne-harness-lite/values':
+        specifier: workspace:*
+        version: link:../../util/values
+    devDependencies:
+      '@types/node':
+        specifier: 24.13.4
+        version: 24.13.4
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: 4.1.8
+        version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+
+  packages/session/persistence:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.2
         version: 4.0.2
-      '@omne-harness-lite/agent':
+      '@omne-harness-lite/brand':
         specifier: workspace:*
-        version: link:../agent
+        version: link:../../util/brand
+      '@omne-harness-lite/session':
+        specifier: workspace:*
+        version: link:../session
+      '@omne-harness-lite/values':
+        specifier: workspace:*
+        version: link:../../util/values
+    devDependencies:
+      '@types/node':
+        specifier: 24.13.4
+        version: 24.13.4
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: 4.1.8
+        version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+
+  packages/session/projection:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.2
+        version: 4.0.2
+      '@omne-harness-lite/session':
+        specifier: workspace:*
+        version: link:../session
       zod:
         specifier: 4.4.3
         version: 4.4.3
@@ -45,6 +174,113 @@ importers:
       vitest:
         specifier: 4.1.8
         version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+
+  packages/session/session:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.2
+        version: 4.0.2
+      '@omne-harness-lite/brand':
+        specifier: workspace:*
+        version: link:../../util/brand
+      '@omne-harness-lite/llm':
+        specifier: workspace:*
+        version: link:../../model/llm
+      '@omne-harness-lite/scope':
+        specifier: workspace:*
+        version: link:../../core/scope
+      '@omne-harness-lite/values':
+        specifier: workspace:*
+        version: link:../../util/values
+    devDependencies:
+      '@types/node':
+        specifier: 24.13.4
+        version: 24.13.4
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: 4.1.8
+        version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+
+  packages/storage/jsonl:
+    devDependencies:
+      '@types/node':
+        specifier: 24.13.4
+        version: 24.13.4
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: 4.1.8
+        version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+
+  packages/tools/tools:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.2
+        version: 4.0.2
+      '@omne-harness-lite/llm':
+        specifier: workspace:*
+        version: link:../../model/llm
+      '@omne-harness-lite/scope':
+        specifier: workspace:*
+        version: link:../../core/scope
+      '@omne-harness-lite/values':
+        specifier: workspace:*
+        version: link:../../util/values
+    devDependencies:
+      '@types/node':
+        specifier: 24.13.4
+        version: 24.13.4
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: 4.1.8
+        version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+
+  packages/util/brand:
+    devDependencies:
+      '@types/node':
+        specifier: 24.13.4
+        version: 24.13.4
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: 4.1.8
+        version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+
+  packages/util/timeout:
+    devDependencies:
+      '@types/node':
+        specifier: 24.13.4
+        version: 24.13.4
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: 4.1.8
+        version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+
+  packages/util/values:
+    devDependencies:
+      '@types/node':
+        specifier: 24.13.4
+        version: 24.13.4
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: 4.1.8
+        version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+
+  tools/package-checks:
+    dependencies:
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
 
 packages:
 

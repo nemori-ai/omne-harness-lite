@@ -16,7 +16,7 @@
 ## 准备可用的检出
 
 产品以 TypeScript 为主；当前可运行 Python 开发工具、形式验证及
-[agent 来源基线](../packages/agent/README.md)的构建/测试。尚无完整智能体应用或产品启动命令。
+[agent 来源基线](../packages/core/agent/README.md)的构建/测试。尚无完整智能体应用或产品启动命令。
 
 在实际工作的仓库根确认位置和已有改动；隔离规则见
 [worktree-discipline](../.agents/skills/worktree-discipline/SKILL.md)：
@@ -66,7 +66,7 @@ make check
 | 本地文档链接、导航与 skill 镜像 | `make docs-check` |
 | 契约登记、Schema 或形式任务 | `make spec-check` |
 | 检查器或 skill 生成器行为 | `make test`，或按下方说明运行相关测试 |
-| agent、dsh-baseline 包或 TS workspace | `make product-check`；构建、严格类型检查、来源/组合案例与独立产物消费，详见包 README |
+| 产品职责包或 TS workspace | `make product-check`；构建、严格类型检查、来源/组合案例、依赖边界与逐包独立产物消费，详见各包 README |
 | 当前检查组合、跨入口改动 | `make check` |
 | 形式工具是否可用 | `make spec-tools` |
 

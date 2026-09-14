@@ -12,8 +12,9 @@
 | 动态 prompt 贡献、Schema DSL 与 native 工具调用 | [Prompt 与工具](tools-source.md) |
 | 上下文及 assistant 流投影 | [Loop 切片](loop-source.md) |
 
-活动入口及实际验证由[交付记录](delivery.md)汇总；源码和原件对应关系由
-[包来源清单](../../../../packages/dsh-baseline/provenance.json)维护。
+活动入口与当前验证见[布局交付](package-layout-delivery.md)，首次导入的历史结果见
+[原交付记录](delivery.md)；源码和原件对应关系由[各职责包](../../../../packages/README.md)
+自己的 provenance.json 维护。
 
 ## 公共支撑与 scope
 
@@ -29,8 +30,8 @@ scope 将对象身份绑定到一个受管上下文，并建立可检查无环�
 关闭 scope 等待其真实生命周期结束，旧释放不能删除后来登记项。该源机制
 是运行时可见性，不承担租户权限、永久数据或安全执行隔离。
 
-本次复用现有 agent 内的唯一 scope 实现，补齐 store.ts，向新源模块公开
-scope-baseline。不能另外复制同源 Symbol/WeakMap：它会形成两套无法共享
+唯一 scope 实现归 `core/scope`，agent 和其他能力统一消费
+`@omne-harness-lite/scope/baseline`。不能另外复制同源 Symbol/WeakMap：它会形成两套无法共享
 父链和标签的活动状态。既有 agent 源基线的 registry/factory/initiator 语义不变。
 
 上述源行为由固定源码和所保留测试支撑；D-008 另要求精确持久身份、当前授权、

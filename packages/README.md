@@ -1,13 +1,24 @@
 # 产品包
 
-本目录承载产品的可复用实现包，以 TypeScript 为主。每个实际成员拥有自己的
-`package.json`、`src/`、依赖、导出入口与测试；按已明确的职责创建，不按未来
-可能存在的插件、服务或部署节点预建空包。
+从第一天起按 `packages/<能力族>/<职责包>/` 组织。第一层是导航分组，第二层才是实际
+workspace 成员，拥有源码、依赖、公开入口、测试、许可与来源记录。组织规则归
+[workspace 规范](../docs/maintenance/workspace.md)，选择依据归 [D-009](../docs/decisions/D-009-package-organization.md)。
 
-应用装配见 [apps/](../apps/README.md)，开发检查器见 [tools/](../tools/README.md)。
-源码布局和跨包引用规则由[workspace 规范](../docs/maintenance/workspace.md)维护。
+当前 14 个包均为可独立构建和消费的实验来源基线，公开入口统一为各 npm 包的
+`/baseline`；尚未实现完整目标能力。源码来源及迁移见
+[布局方案](../docs/proposals/core-capabilities/fork/package-layout.md)与
+[交付记录](../docs/proposals/core-capabilities/fork/package-layout-delivery.md)。
 
-| 成员 | 当前范围 |
+| 能力族 | 职责包 |
 |---|---|
-| [agent](agent/README.md) | dsh-agent 定向 fork 的实验来源基线；可构建及验证，尚未完成目标 live-agent v1，暂不供产品应用消费 |
-| [dsh-baseline](dsh-baseline/README.md) | 模型/媒体、Session/投影/持久化、prompt/工具及 Loop 的定向源机制，供后续二次开发；通过显式 baseline 子路径消费，与 agent 共用唯一 scope 实现 |
+| [core](core/README.md) | [agent](core/agent/README.md)、[scope](core/scope/README.md) |
+| [util](util/README.md) | [brand](util/brand/README.md)、[values](util/values/README.md)、[timeout](util/timeout/README.md) |
+| [media](media/README.md) | [content](media/content/README.md) |
+| [model](model/README.md) | [llm](model/llm/README.md) |
+| [session](session/README.md) | [session](session/session/README.md)、[projection](session/projection/README.md)、[persistence](session/persistence/README.md) |
+| [storage](storage/README.md) | [jsonl](storage/jsonl/README.md) |
+| [context](context/README.md) | [system-prompt](context/system-prompt/README.md) |
+| [tools](tools/README.md) | [tools](tools/tools/README.md) |
+| [agent](agent/README.md) | [loop](agent/loop/README.md) |
+
+应用装配见 [apps](../apps/README.md)，开发与产物检查见 [tools](../tools/README.md)。
