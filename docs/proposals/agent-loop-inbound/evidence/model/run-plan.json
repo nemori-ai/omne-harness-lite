@@ -1,0 +1,72 @@
+[
+  {
+    "name": "RunDriver",
+    "mutation": "none",
+    "expected": null,
+    "config": "spec/capabilities/run-driver/v1/RunDriver.cfg",
+    "model": "spec/capabilities/run-driver/v1/RunDriverMC.tla"
+  },
+  {
+    "name": "RunDriverSched",
+    "mutation": "none",
+    "expected": null,
+    "config": "spec/capabilities/run-driver/v1/RunDriverSched.cfg",
+    "model": "spec/capabilities/run-driver/v1/RunDriverMC.tla"
+  },
+  {
+    "name": "RunDriverOps",
+    "mutation": "none",
+    "expected": null,
+    "config": "spec/capabilities/run-driver/v1/RunDriverOps.cfg",
+    "model": "spec/capabilities/run-driver/v1/RunDriverMC.tla"
+  },
+  {
+    "name": "RunDriverProgress",
+    "mutation": "none",
+    "expected": null,
+    "config": "spec/capabilities/run-driver/v1/RunDriverProgress.cfg",
+    "model": "spec/capabilities/run-driver/v1/RunDriverMC.tla"
+  },
+  {
+    "name": "RunDriverProgressHuman",
+    "mutation": "none",
+    "expected": null,
+    "config": "spec/capabilities/run-driver/v1/RunDriverProgressHuman.cfg",
+    "model": "spec/capabilities/run-driver/v1/RunDriverMC.tla"
+  },
+  {
+    "name": "RunDriverSchedProgress",
+    "mutation": "none",
+    "expected": null,
+    "config": "spec/capabilities/run-driver/v1/RunDriverSchedProgress.cfg",
+    "model": "spec/capabilities/run-driver/v1/RunDriverMC.tla"
+  },
+  {
+    "name": "RunDriver",
+    "mutation": "sendEarly",
+    "expected": "I18",
+    "config": "docs/proposals/agent-loop-inbound/evidence/model/RunDriver-sendEarly.cfg",
+    "model": "spec/capabilities/run-driver/v1/RunDriverMC.tla"
+  },
+  {
+    "name": "RunDriver",
+    "mutation": "yieldRelease",
+    "expected": "Hist",
+    "config": "docs/proposals/agent-loop-inbound/evidence/model/RunDriver-yieldRelease.cfg",
+    "model": "spec/capabilities/run-driver/v1/RunDriverMC.tla"
+  },
+  {
+    "name": "RunDriver",
+    "mutation": "splitSettle",
+    "expected": "I14",
+    "config": "docs/proposals/agent-loop-inbound/evidence/model/RunDriver-splitSettle.cfg",
+    "model": "spec/capabilities/run-driver/v1/RunDriverMC.tla"
+  },
+  {
+    "name": "RunDriver",
+    "mutation": "settledNotWaiting",
+    "expected": "I23",
+    "config": "docs/proposals/agent-loop-inbound/evidence/model/RunDriver-settledNotWaiting.cfg",
+    "model": "spec/capabilities/run-driver/v1/RunDriverMC.tla"
+  }
+]

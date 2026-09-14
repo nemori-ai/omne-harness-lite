@@ -1,0 +1,33 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 108 and seed 5824883733576078896 with 8 workers on 8 cores with 7282MB heap and 64MB offheap memory [pid: 58951] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-e-loop-inbound/spec/capabilities/run-driver/v1/RunDriverMC.tla
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-e-loop-inbound/spec/capabilities/run-driver/v1/RunDriver.tla
+Parsing file /tmp/tlc-11441845483963955373/TLC.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file /tmp/tlc-11441845483963955373/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-11441845483963955373/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file /tmp/tlc-11441845483963955373/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module RunDriver
+Semantic processing of module TLC
+Semantic processing of module RunDriverMC
+Linting of module RunDriver
+Linting of module RunDriverMC
+Starting... (2026-09-14 15:06:57)
+Implied-temporal checking--satisfiability problem has 2 branches.
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-14 15:06:57.
+Checking 2 branches of temporal properties for the current state space with 68954 total distinct states at (2026-09-14 15:07:00)
+Finished checking temporal properties in 00s at 2026-09-14 15:07:01
+Checking 2 branches of temporal properties for the complete state space with 1945918 total distinct states at (2026-09-14 15:07:39)
+Finished checking temporal properties in 18s at 2026-09-14 15:07:58
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 9.0E-8
+  based on the actual fingerprints:  val = 1.5E-7
+2680174 states generated, 972959 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 28.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 11 and the 95th percentile is 4).
+Finished in 01min 01s at (2026-09-14 15:07:58)

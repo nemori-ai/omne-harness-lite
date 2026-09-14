@@ -19,6 +19,13 @@
 当前已接受并登记共享身份与活体运行时 v1，以及
 [D-008 的核心能力、共享工作数据与共同准入契约](../docs/decisions/D-008-core-capabilities.md)。
 各条款的模型覆盖与未完成实现义务见[核心能力验证范围](../docs/proposals/core-capabilities/verification.md)。
+[D-012](../docs/decisions/D-012-run-driver-and-inbound.md) 接受 Run 驱动器 v1 与 session-run v2
+（Session Inbound），覆盖见[驱动器验证范围](capabilities/run-driver/verification.md)。
+[D-014](../docs/decisions/D-014-session-run-agent-lifecycles.md) 把 session-run v2 拆为
+[session v1](capabilities/session/README.md) 与 [run v1](capabilities/run/README.md)，以
+[生命周期组合 v1](compositions/session-run-agent-lifecycles/README.md) 拥有三条关系与级联，
+发布 [CC v2](compositions/core-work-coordination/README.md) 与只改引用的 run-driver v2；
+覆盖见[生命周期验证范围](compositions/session-run-agent-lifecycles/verification.md)。
 Live Agent 的采用范围沿 [运行时入口](capabilities/live-agent/README.md)及其决定/接受记录核对。
 跨提供者交接由 [Agent/Session 运行附着组合 v1](compositions/agent-session-binding/README.md)
 补充，保持原已发布契约不变。

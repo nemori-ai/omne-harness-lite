@@ -10,3 +10,4 @@
 | [session](session/README.md) | In-memory source session history and lifecycle |
 | [projection](projection/README.md) | Session projection registration and folding |
 | [persistence](persistence/README.md) | Source session storage contracts and handles |
+| [run](run/README.md) | 仅[提供者设计](run/design.md)；`omneRun` 插件与 run 流，D-014 接受，尚无源码 |

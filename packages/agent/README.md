@@ -8,3 +8,4 @@
 | 职责包 | 当前源码范围 |
 |---|---|
 | [loop](loop/README.md) | Source loop context and assistant-stream projections |
+| [run-driver](run-driver/README.md) | 仅[提供者设计](run-driver/design.md)；Factory 贡献、`decide` 与驱动位置 reducer，D-013/D-014 接受，尚无源码 |

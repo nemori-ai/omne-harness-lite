@@ -9,9 +9,9 @@
 
 | 能力 | 自己裁决的事实 | 对相邻能力的交接 |
 |---|---|---|
-| Session | 长期身份、原定义关联、生命周期、历史与会话状态 | 当前资格和精确运行附着；历史读取与存储接口 |
-| Agent 原语 | 活体占位、确切实例、工作账目、资源退出 | 受限操作和工作许可；不拥有整个 Session |
-| 输入/Run 控制 | 耐久输入、取批、运行位置、控制意图和恢复裁决 | 驱动消费合法工作，不以激活代表恢复 |
+| Session | 长期身份、原定义关联、生命周期、历史、耐久队列与 Inbound 到达账本 | 当前资格和精确运行附着；历史读取与存储接口；占位由 Run 状态派生 |
+| Agent 原语 | 活体占位、确切实例、工作账目、资源退出 | 受限操作和工作许可；不拥有整个 Session，对 Run 只是执行权租约 |
+| Run | 状态机、epoch、Step、驱动位置投影、控制受理与恢复兼容证据 | 驱动器消费合法工作，不以激活代表恢复；终态与接续同提交 |
 | 工具执行 | 调用/attempt、过程帧、结果与后台执行 | Session 关联，上下文选择，存储保存；控制有自己的传播规则 |
 | 模型 | 获准请求、实际模型/adapter、流、结果与费用事实 | 统一 OpenRouter；供应商格式投影共享内容 |
 | 上下文装配 | 本次选择的提示词、历史、输入、摘要与贡献 | 形成实际模型内容依据；不成为任意可变会话状态容器 |
@@ -51,7 +51,15 @@ Factory 贡献，不静态注入某个具体 Loop；Factory 的准入在必要�
 
 资格失效阻止旧附着继续准入；必要提供者计划撤除先协作退出再实际卸载。独立
 历史读面不因原模型、工具或 Agent 不在而全部失效。归档落盘、Run 停止和关闭
-运行准入是不同事实，耐久组合沿 [Session/Run v1](../../spec/capabilities/session-run/v1/contract.md)核对。
+运行准入是不同事实，耐久组合沿 [session v1](../../spec/capabilities/session/v1/contract.md) 与
+[run v1](../../spec/capabilities/run/v1/contract.md) 核对。
+
+[D-014](../decisions/D-014-session-run-agent-lifecycles.md) 在本组合之上接受
+[生命周期组合 v1](../../spec/compositions/session-run-agent-lifecycles/v1/contract.md)：附着、
+占位、执行者三条关系各有唯一拥有者；级联只有派生与守卫、同提交共写、提交后反应三种
+形状，同提交的行逐行声明；提交后的事实以 envelope 原样广播一次作为提示，反应者幂等并
+在门内重读。Session、Run 与实例是三个独立插件，互不 required inject，同时改动两者的
+操作由组合者插件一次提交。系统视图见 [Session](session.md) 与 [Run](run.md)。
 
 D-006 工作 A 的共同边界由 D-007 接受，后续本批共享内容、Session/Run、耐久
 记录、工具、模型及相邻能力契约由 [D-008](../decisions/D-008-core-capabilities.md)

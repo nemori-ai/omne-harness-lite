@@ -63,13 +63,19 @@
     },
     {
       "id": "composition.core-work-coordination",
-      "current_version": 1,
+      "current_version": 2,
       "versions": [
         {
           "version": 1,
           "status": "accepted",
           "path": "spec/compositions/core-work-coordination/v1/contract.md",
           "acceptance": "docs/decisions/D-008-core-capabilities.md"
+        },
+        {
+          "version": 2,
+          "status": "accepted",
+          "path": "spec/compositions/core-work-coordination/v2/contract.md",
+          "acceptance": "docs/decisions/D-014-session-run-agent-lifecycles.md"
         }
       ]
     },
@@ -99,13 +105,55 @@
     },
     {
       "id": "capability.session-run",
+      "current_version": null,
+      "versions": [
+        {
+          "version": 1,
+          "status": "superseded",
+          "path": "spec/capabilities/session-run/v1/contract.md",
+          "acceptance": "docs/decisions/D-008-core-capabilities.md"
+        },
+        {
+          "version": 2,
+          "status": "superseded",
+          "path": "spec/capabilities/session-run/v2/contract.md",
+          "acceptance": "docs/decisions/D-012-run-driver-and-inbound.md"
+        }
+      ]
+    },
+    {
+      "id": "capability.session",
       "current_version": 1,
       "versions": [
         {
           "version": 1,
           "status": "accepted",
-          "path": "spec/capabilities/session-run/v1/contract.md",
-          "acceptance": "docs/decisions/D-008-core-capabilities.md"
+          "path": "spec/capabilities/session/v1/contract.md",
+          "acceptance": "docs/decisions/D-014-session-run-agent-lifecycles.md"
+        }
+      ]
+    },
+    {
+      "id": "capability.run",
+      "current_version": 1,
+      "versions": [
+        {
+          "version": 1,
+          "status": "accepted",
+          "path": "spec/capabilities/run/v1/contract.md",
+          "acceptance": "docs/decisions/D-014-session-run-agent-lifecycles.md"
+        }
+      ]
+    },
+    {
+      "id": "composition.session-run-agent-lifecycles",
+      "current_version": 1,
+      "versions": [
+        {
+          "version": 1,
+          "status": "accepted",
+          "path": "spec/compositions/session-run-agent-lifecycles/v1/contract.md",
+          "acceptance": "docs/decisions/D-014-session-run-agent-lifecycles.md"
         }
       ]
     },
@@ -190,6 +238,24 @@
           "status": "accepted",
           "path": "spec/capabilities/command-input/v1/contract.md",
           "acceptance": "docs/decisions/D-008-core-capabilities.md"
+        }
+      ]
+    },
+    {
+      "id": "capability.run-driver",
+      "current_version": 2,
+      "versions": [
+        {
+          "version": 1,
+          "status": "superseded",
+          "path": "spec/capabilities/run-driver/v1/contract.md",
+          "acceptance": "docs/decisions/D-012-run-driver-and-inbound.md"
+        },
+        {
+          "version": 2,
+          "status": "accepted",
+          "path": "spec/capabilities/run-driver/v2/contract.md",
+          "acceptance": "docs/decisions/D-014-session-run-agent-lifecycles.md"
         }
       ]
     }

@@ -5,15 +5,45 @@
 [来源入口](../../../docs/proposals/core-capabilities/implementation/runtime-provider-interfaces.md)
 保留历史、采用范围和检查；当前实施终点为 allow 最小基线。
 
-采用 [SR v1](../../../spec/capabilities/session-run/v1/contract.md)、
+目标契约为 [session v1](../../../spec/capabilities/session/v1/contract.md)、
+[生命周期组合 LC v1](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md)、
 [identity v1](../../../spec/data/agent-runtime-identity/v1/contract.md)、
 [CD v1](../../../spec/data/core-work/v1/contract.md)、
 [CB v1](../../../spec/compositions/agent-session-binding/v1/contract.md)、
-[CC v1](../../../spec/compositions/core-work-coordination/v1/contract.md)、
-[DR v1](../../../spec/capabilities/durable-records/v1/contract.md)。逻辑操作、事件/fold、
-对象权限、Step/DriverClaim 与结果接续已从 `cd16f1` 迁入下文；治理事实沿
-`058c77c` 的[当前治理设计](../../governance/tenant/design.md)。原受审身份归
-[历史输入](../../../docs/proposals/core-capabilities/implementation/session-runtime-interfaces.md)。
+[CC v2](../../../spec/compositions/core-work-coordination/v2/contract.md)、
+[DR v1](../../../spec/capabilities/durable-records/v1/contract.md)（接受依据
+[D-014](../../../docs/decisions/D-014-session-run-agent-lifecycles.md)）。下文从"Host 与服务"起
+是 `f98ac926` 基线对 [SR v1](../../../spec/capabilities/session-run/v1/contract.md) 的映射，
+其中 SR-xx 编号按 [D-014 引用的归属表](../../../docs/proposals/session-run-agent-lifecycles/session.md#2-条款逐句归属)
+读作 SE/RN 条款；Run 形状、Step/DriverClaim、driver 端口与 `checkpoint_saved` 段落已被
+[Run 提供者设计](../run/design.md)取代，保留只为说明基线源码。逻辑操作、事件/fold、
+对象权限已从 `cd16f1` 迁入下文；治理事实沿 `058c77c` 的[当前治理设计](../../governance/tenant/design.md)。
+原受审身份归[历史输入](../../../docs/proposals/core-capabilities/implementation/session-runtime-interfaces.md)。
+
+## D-014 后的插件划分
+
+本包拥有四个插件，Run 另成 [run 包](../run/design.md)；`omneSession` 与 `omneRun`
+互不 required inject（作者裁决 [A-12](../../../docs/proposals/session-run-agent-lifecycles/README.md#作者裁决)），
+凡同时涉及两者的操作落在下面三个宿主级插件。依赖图、广播机制与撤除顺序见
+[提案 Cordis 视角](../../../docs/proposals/session-run-agent-lifecycles/cordis.md)。
+
+| 插件 | 服务键 | required inject | 职责 |
+|---|---|---|---|
+| `SessionPlugin` | `omneSession` | `omneAdmission`、`omneRecords`、`omneDiagnostics`、`omneIdentity`、`omneTenant`、`agents` | session / queue / inbound 三条流的 owner；生命周期、队列、hold、状态贡献注册、附着提供者（`attach` / `guardActivation` / `release`）、Inbound 受理；prepare/check 端口供组合者使用 |
+| `InboundAdjudicatorPlugin` | `omneInboundAdjudicator` | `omneSession`、`omneRun`（读 `waitingPositions` 与 `stateStamp`）、`omneAdmission` | 消费 accepted 的 arrival，一次短提交内按裁决时刻的 Run 状态判意图并写 `arrival_classified`（[SE-12～14](../../../spec/capabilities/session/v1/contract.md)）；启动时扫描全部 Session（[SE-18](../../../spec/capabilities/session/v1/contract.md)），扫描完成是调度者重取的前提 |
+| `SessionSchedulerPlugin` | `omneSessionScheduler` | `omneLifecycleCompositions`、`omneSession`、`omneRun`、`agents`、`omneInboundAdjudicator`（扫描完成信号） | 订阅 `records/committed`，对铃（队列变化、Run 终态、hold 解除、接续/审批就绪、epoch 封闭、门恢复、resume）在门内重读：无占位且队首合格 → 取批/取命令/取 trigger；占位在、执行者空且有可干的事 → 重取；先找 ready 实例再 `agents.activate`。不轮询；开机扫描在裁决扫描之后 |
+| `LifecycleCompositionsPlugin` | `omneLifecycleCompositions` | `omneSession`、`omneRun`、`omneAdmission`、`agents` | 向协调者登记具名组合，每个是一次 batch：`take_batch` / `take_command` / `take_trigger`（队列取用 + Run 建立 + epoch 发行，[LC-04 行 3](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md)）、`run_settle`（Run 终态 + arrival 转换/关闭，行 4）、`session_archive` / `session_delete`（生命周期转移 + 队列与 arrival 关闭 + 前提读 Run，行 1）、`session_force_stop`（hold + Run 控制受理 + epoch 撤销，行 2）、`interrupt_then_run_accept`（新 input + 复合意图，行 11）、`reacquire` |
+
+事件词汇 v2：kind 前缀 `session.`，version `"1"`；候选清单与兑现条款见
+[提案 session.md §4](../../../docs/proposals/session-run-agent-lifecycles/session.md#4-事件词汇-v2候选)。
+去掉 `driver_reserved` / `driver_released` / `epoch_parked`（占位派生）与 `checkpoint_saved`
+（位置是投影，缓存归 [projection](../projection/design.md)）；`step_*`、`driver_claimed` 等
+Run 流事件迁到 run 包。附着资格新增"Session open"与"该 Session 无更早未释放实例"，
+`lifecycle_changed{archived / deleted}` 使资格失效并由 AR 宿主关闭空闲实例（形状 3）。
+
+跨域前提下（[LC-09](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md)）
+裁决门、归档门与取批门带 `omneRun.stateStamp` 的版本戳；首版同域，戳作为守卫输入
+保留但不构成分布证明。
 
 ## Host 与服务
 

@@ -6,6 +6,8 @@
 固定上游的历史 draft 另作来源保留，不将源基线自动作为产品契约。
 其它候选继续从[提案入口](../../docs/proposals/README.md)展开。
 
+- D-014 已接受：[session](session/README.md) v1（Session 身份、生命周期、历史、队列、Inbound）、[run](run/README.md) v1（Run、状态、epoch、Step、控制）与 [run-driver](run-driver/README.md) v2（仅引用变化）；[session-run](session-run/README.md) v1/v2 与 run-driver v1 标为 superseded，保持可引用。
+- D-012 已接受：run-driver v1 与 session-run v2（Inbound 到达账本），现已被 D-014 取代。
 - D-008 已接受的本批能力：[durable-records](durable-records/README.md)、[tenant-governance](tenant-governance/README.md)、[action-authorization](action-authorization/README.md)、[session-run](session-run/README.md)、[human-decisions](human-decisions/README.md)、[tools](tools/README.md)、[model-execution](model-execution/README.md)、[media-content](media-content/README.md)、[budget-accounting](budget-accounting/README.md)、[engineering-observation](engineering-observation/README.md)、[command-input](command-input/README.md)。
 
 能力目录不要求各自复制共享 Schema 或跨能力模型。数据定义沿 `spec/data/` 复用，
