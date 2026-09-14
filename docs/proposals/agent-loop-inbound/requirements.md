@@ -11,7 +11,7 @@
 | [PF-013.C1–C11](../../requirements/product/user/PF-013-session-run-lifecycle-and-pending-input-control.md#已确认要求) | 队列消费（合批、命令与 trigger 分隔、撤回边界）、复合打断、强停晚到结算隔离、有界与保序；落在 session-run v2 SR-04/06/07/11/12/18/19 |
 | [PF-002.C8/C9](../../requirements/product/environment/PF-002-external-change-response.md#已确认要求) | 被动订阅只记指针与水位、永不唤醒；条件触发按获准配置排队或系统发起复合打断；落在 SR-16/17/19 |
 | [PF-003.C1–C6](../../requirements/product/agent/PF-003-tool-execution-observation-and-control.md#已确认要求) | 前台等待、detach 与收束、重建后重连；落在 run-driver RD-09/10/16 |
-| [PF-004.C3/C5/C7](../../requirements/product/agent/PF-004-subagent-delegation-and-supervision.md#已确认要求) | 派发是普通工具调用，结果沿 call_settlement 路由，定时派发忙时排队；终止传播仍归 PF-004 后续设计 |
+| [PF-004.C3/C5/C7](../../requirements/product/agent/PF-004-subagent-delegation-and-supervision.md#已确认要求) | 派发是普通工具调用，结果沿 call_settlement 路由并以发起该调用的 Run 为判定对象，定时派发无发起 Run 而排队触发 master；终止传播仍归 PF-004 后续设计 |
 | [PF-005](../../requirements/product/agent/PF-005-agent-initiated-human-input-and-approval.md#已确认要求)、[PF-007.C7](../../requirements/product/user/PF-007-system-initiated-hitl.md#已确认要求)、[PF-008](../../requirements/product/user/PF-008-unified-decision-pool.md#已确认要求) | 问答型与审批型答复的唯一来源与消费点、收束后批准的 Run 级位置、暂行回传四种策略的落点；落在 SR-16/17、RD-06/11 |
 | [PF-009.C6/C7](../../requirements/product/user/PF-009-multimodal-input-attachments-and-commands.md#已确认要求) | 上下文装载型命令随文本项进入模型、有序命令为命令 Run、keyboard 为即时控制；落在 SR-07、RD-05 |
 | [PF-011.C4/C5/C9/C10](../../requirements/product/agent/PF-011-future-planning-calendars-and-reminders.md#已确认要求) | 到期为 trigger、"继续同一件工作"先结算再触发、取消的原工作不复活、纯通知不进 Inbound；落在 SR-16/17 |

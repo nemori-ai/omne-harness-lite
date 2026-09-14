@@ -535,7 +535,7 @@ P2 == [](~occupied /\ queue # <<>> => <>(occupied))
 | X1 Yield 释放占位 | 采纳 `YieldKeepSlot`：封闭 epoch、保留占位、Run 状态不变，E0 增加"重取"入口；AR-12 前提与 `yield_forced` | loop.md E0/E7，I-1，P-1，README A-1 |
 | X2 waiting_gate 无进入边 | 进入点 E1/E3/E4/E4A，`(gateRef, gateRet)` 为 authoritative 意图，`AwaitGate` 意图；退出三条路；生产者为提供者义务；依赖门限定 Run 级 | loop.md，I-24，README A-2 |
 | X3 双消费路径 | settled 视图只源自已裁决 arrival，新增 `settling`；E7/E0 直接读权威；每种请求唯一来源 | loop.md 词表，inbound.md 定义与来源，I-23，README A-3 |
-| M1 | `policy.busy` 按派发关系声明，定时派发为 `queue` | inbound.md 决定表 |
+| M1 | r3 曾按派发关系声明 `policy.busy`；同日用户裁定统一工具视角，改为以发起该调用的 Run 为判定对象，WorkRef 派发无发起 Run 落 C 列排队 | inbound.md 决定表，README A-4 |
 | M2 | U-15 限定为结果路由 | loop.md E4，inbound.md 来源 |
 | M3 | EC 只承接有序命令；结算词表与控制语义封闭 | loop.md EC |
 | M4 | D 列拆 D1/D2，D2 无 `queue` | inbound.md 决定表 |

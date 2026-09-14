@@ -42,7 +42,7 @@
     "spec/capabilities/budget-accounting/v1/Budget.tla": "a8fee8d032ac15edc0d81d5a7b79bcdde75328e77a741838645fc91e6169601b",
     "spec/capabilities/engineering-observation/v1/contract.md": "c9dada586d1f702b7710ae9819f07eb5ea96ce37eadc8e903b438471dfa1577a",
     "spec/capabilities/command-input/v1/contract.md": "a9d2fbbdaab1f462af1d5acaa11220968924bfc224699d570b3aefd418f24df3",
-    "spec/capabilities/session-run/v2/contract.md": "736ef51f0251f51f95e9eb844539ecb78dd3b935c98ace76485651c33eee023b",
+    "spec/capabilities/session-run/v2/contract.md": "5c93c42180b8e5bd7883241f2b481229638f0d173e05055b707732d385de749f",
     "spec/capabilities/run-driver/v1/contract.md": "37e7830a4e098f1dba90143ab45df4ff8ca5557c9bcd428aee5600f4e4292d7b",
     "spec/capabilities/run-driver/v1/RunDriver.tla": "0c6a797ac227734527ddd11468c7d7bf30ddd0a04e3e3da1e5342e44a36767db",
     "spec/capabilities/run-driver/v1/RunDriverMC.tla": "f6614c6f19f2607e7fcafdf578ea53e4aec3b2d768814567d1cc42edf18ade2b",

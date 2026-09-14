@@ -229,7 +229,8 @@ arrival 具有不复用的 arrivalId（裁决提交的 operationId 从它派生�
 SessionRef（无会话的系统工作用 WorkRef）、source、dedupKey、payloadRef、可选 refs
 （被引用的 Run 等待位置：call/attempt、requestId、continuationId、gateRef，或 `run`）、
 可选 originWork（日程到期引用的原工作）、observedRun（裁决时的 RunRef、epoch、
-状态，只作溯源）、intent、state 与来源 policy。state 为 accepted → classified →
+状态，只作溯源）、intent、state 与来源 policy（有界、去抖与合并参数，以及条件
+触发/跨会话消息的投递偏好；调用结算无来源策略）。state 为 accepted → classified →
 consumed | converted | closed | withdrawn_by_user；closed 附原因
 cancelled_run/isolated/closed_by_archive/closed_by_delete/superseded/refused_capacity/
 refused_origin_cancelled。consumed 由消费它的 Step、批准消费提交或 Run 在同一提交
@@ -252,14 +253,17 @@ human_answer（HD-08 提交的人类决定；问答型承载答复，审批型�
 恢复只以已裁决的 arrival 被驱动器消费；驱动器直接读取工具/人类决定权威只用于
 fold 非结算视图、收口与重连，不据此第二次呈现或解除同一位置。
 
-**SR-17**：裁决按目标 Run 状态分列：A = 存在被 refs 引用且尚在等待该位置的非
-终态 Run；B = Run 非终态但无引用、引用位置已不在等待或 Run 正在运行不等待；
-C = Run 为 completed/failed 或 Session 无 Run；D1 = Run 为 cancelled（含 force_stopped）
-或 stopping 且 Session open；D2 = Session 已 archived/deleted。决定表：
+**SR-17**：裁决按目标 Run 状态分列，判定对象是被 refs 引用的 Run；对
+call_settlement 即发起该调用的 Run，不是当前恰好占位的 Run，WorkRef 下派发的调用
+没有发起 Run。A = 被引用的 Run 非终态且尚在等待该位置；B = 被引用的 Run 非终态但
+已不在该位置等待，或无引用而当前占位 Run 非终态；C = 被引用的 Run 为
+completed/failed，或无引用且 Session 无 Run，或调用没有发起 Run；D1 = 被引用的
+Run 为 cancelled（含 force_stopped）或 stopping 且 Session open；D2 = Session 已
+archived/deleted。调用结算没有来源策略，子代理、handoff 与定时派发一律按此判定。决定表：
 
 | 来源 | A | B | C | D1 | D2 |
 |---|---|---|---|---|---|
-| call_settlement | continuation | 按派发关系声明的 policy.busy：缺省 context；定时派发声明 queue | queue（trigger） | closed(cancelled_run)；目标为 stopping/force_stopped 则 closed(isolated) | closed(closed_by_archive/closed_by_delete) |
+| call_settlement | continuation | context（发起 Run 非终态但不在此位置等待） | queue（trigger：发起 Run 已终态或无发起 Run） | closed(cancelled_run)；发起 Run 为 stopping/force_stopped 则 closed(isolated) | closed(closed_by_archive/closed_by_delete) |
 | provisional_outcome | 一次接续 → continuation；下次运行可感知 → context | 一次接续 → continuation（refs = run，下一次 Step 收束判定时就绪）；下次运行可感知 → context | 一次接续 → queue 并记 converted；下次运行可感知 → context | closed | closed |
 | human_answer | continuation | 不可能；迟到答复按 HD-02 返回当前结果，不生成 | 同左 | 同左 | 同左 |
 | gate_restored | continuation（Run 在 waiting_gate 且 gateRef 匹配） | 不生成 | 不生成 | 不生成 | 不生成 |

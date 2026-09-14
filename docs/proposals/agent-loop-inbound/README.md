@@ -84,7 +84,7 @@ Agent Loop。它回答三个问题：循环怎么走、一次 Run 中途异步�
 | A-1（X1） | Yield 的占位语义 | 封闭 epoch、保留占位、Run 状态不变；新运行时实例经 E0 重取；热宽限到期仍有前台工作则按 interrupt 收口并记 `yield_forced` | loop.md E0/E7，I-1，P-1 |
 | A-2（X2） | `waiting_gate` 的机制 | 进入点 E1（依赖）、E3（预算/路由）、E4（预算）、E4A（预算），记 `(gateRef, gateRet)`；`gate_restored` 由预算与依赖可用性能力作为提供者义务推送；显式 resume 保留为人工路径；依赖门只在 Run 级，调用级沿 TL-06 结算 | loop.md E1/E3/E4/E6，I-24 |
 | A-3（X3） | 结算与答复的消费路径 | 单一路径：settled 视图只源自已裁决 arrival，新增 `settling` 阻止值；每种人类请求唯一来源 | loop.md 词表，inbound.md 定义，I-23 |
-| A-4（M1，政策级） | WorkRef 定时派发结果在 master 忙时 | 按派发关系声明 `policy.busy`：缺省 `context`（U-9），PF-004.C7 定时派发为 `queue` | inbound.md 决定表 |
+| A-4（M1） | WorkRef 定时派发结果在 master 忙时 | 不设忙时策略，统一工具视角：裁决以发起该调用的 Run 为判定对象，发起 Run 非终态 → `context`（U-9），发起 Run 已终态或 WorkRef 无发起 Run → `queue`（U-10、PF-004.C7）。r3 曾引入 `policy.busy`，2026-09-14 用户裁定删除 | inbound.md 决定表；session-run v2 SR-17 |
 | A-5（M5，政策级） | 暂行"一次接续"在 Run 存活但不等待时 | `continuation`，`refs = run`：不唤醒进行中的 Step，下一次 E5 判定时作为就绪接续 | inbound.md 决定表，I-13 |
 | A-6（M6） | 缺省串行门与后台/待审批的关系 | 前一个调用的视图不再阻止收束即放行（settled、staged_provisional、detached_background、waiting_approval） | loop.md E4 |
 | A-7（M9） | E4A 与 E1 同时就绪的优先级 | E4A 先于 E1 | loop.md E1/E5 |
@@ -127,7 +127,8 @@ Agent Loop。它回答三个问题：循环怎么走、一次 Run 中途异步�
 2026-09-14，任务作者在用户"再评最后一轮，并针对性地完成优化和补漏后，就可以
 推进正式的决策、架构设计和 spec 撰写（以及必要的形式化推导和验证）"的授权范围内，
 结合两轮独立只读评审接受本提案的 r3 修订。评审者未代为接受；用户逐条裁决的
-U-1～U-16 是接受前提，作者裁决 A-1～A-9 中标注政策级的两项用户可另行否决。
+U-1～U-16 是接受前提；作者裁决 A-1～A-9 中 A-4 已由用户改为按发起者统一判定，
+A-5 标注政策级，用户可另行否决。
 
 接受对象为 catalog 中以 D-012 为依据的 `capability.run-driver` v1 与
 `capability.session-run` v2；session-run v1 保持冻结。评审 r1 判定修订 `bce30a0`

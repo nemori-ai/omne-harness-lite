@@ -45,10 +45,10 @@ detach、pending gate）、E7 收口的 `inspect` 与 E0 的重连。
 | `payloadRef` | 内容或指向来源事实的引用；被动订阅只记指针与水位（U-9），不复制原件 |
 | `refs` | 可选：本 arrival 引用的 Run 等待位置（call/attempt、requestId、continuationId、`gateRef`），或 `run`（Run 级位置，仅暂行回传使用） |
 | `originWork` | 可选：`schedule_due` 引用的原工作（WorkRef/RunRef），用于装配与 D 列判定；不是等待位置 |
-| `observedRun` | 裁决时的 RunRef、epoch、状态：有 `refs` 取被引用的 Run；无 `refs` 取当前持有占位的 Run，没有则 `none`；只作溯源，不改变 `originWork` 决定的判定 |
+| `observedRun` | 裁决时的 RunRef、epoch、状态：有 `refs` 取被引用的 Run（`call_settlement` 即**发起该调用的 Run**；WorkRef 下派发的调用没有 Run，记 `none`）；无 `refs` 取当前持有占位的 Run，没有则 `none`；只作溯源，不改变 `originWork` 决定的判定 |
 | `intent` | 四种之一 |
 | `state` | `accepted → classified → consumed | converted | closed | withdrawn_by_user`；`closed` 附原因（`cancelled_run`、`isolated`、`closed_by_archive`、`closed_by_delete`、`superseded`、`refused_capacity`、`refused_origin_cancelled`） |
-| `policy` | 来源配置：忙时处理（`busy = context | queue`）、有界与合并参数 |
+| `policy` | 来源配置：有界、去抖与合并参数，以及条件触发/跨会话消息的投递偏好；调用结算没有来源策略，一律按发起者判定 |
 
 `consumed` 由消费它的 Step、E4A 提交或 Run 在同一提交写入；不设 `delivered` 之类
 的非权威中间态（U-2）。意图为 `queue` 的 arrival 与 SR-04 队列项一一对应：队列项
@@ -87,9 +87,15 @@ detach、pending gate）、E7 收口的 `inspect` 与 E0 的重连。
 U-11：D1/D2 都是人主动终止的意图，晚到回调不得恢复。D2 下 Session 不能受理新的
 排队输入（SR-02），因此 D2 列没有 `queue`。
 
+列的判定对象是**被引用的 Run**：对 `call_settlement` 就是发起该调用的 Run，不是
+当前恰好占位的 Run（U-15 的工具视角，2026-09-14 用户确认）。因此已终态 Run 或
+WorkRef 定时派发的调用结算落 C 列排队，哪怕此刻另一个 Run 正在运行；当前活跃
+Run 自己发起、但已不在该位置等待的调用落 B 列。子代理、handoff、定时派发都不
+另设忙时策略。
+
 | 来源 | A | B | C | D1 | D2 |
 |---|---|---|---|---|---|
-| `call_settlement` | `continuation` | 按派发关系声明的 `policy.busy`：缺省 `context`（U-9；SR-09 晚到结果归原 Step，后续感知为新事实）；PF-004.C7 定时派发声明 `queue` | `queue`（trigger，U-10） | `closed(cancelled_run)`；目标 Run 为 `stopping`/`cancelled(force_stopped)` 时 `closed(isolated)`，结算只作 SR-12 的隔离证据 | `closed(closed_by_archive | closed_by_delete)` |
+| `call_settlement` | `continuation` | `context`（发起 Run 非终态但不在此位置等待：U-9；SR-09 晚到结果归原 Step，后续感知为新事实） | `queue`（trigger：发起 Run 已终态，或 WorkRef 派发无发起 Run；U-10、PF-004.C7） | `closed(cancelled_run)`；发起 Run 为 `stopping`/`cancelled(force_stopped)` 时 `closed(isolated)`，结算只作 SR-12 的隔离证据 | `closed(closed_by_archive | closed_by_delete)` |
 | `provisional_outcome` | "一次接续" → `continuation`；"下次运行可感知" → `context` | "一次接续" → `continuation`，`refs = run`：不唤醒进行中的 Step，在下一次 E5 判定时作为就绪接续（M5 裁决，保持 HD-12 的承诺）；"下次运行可感知" → `context` | "一次接续" → `queue` 并记 `converted`；"下次运行可感知" → `context` | `closed` | `closed` |
 | `human_answer` | `continuation`（问答型 → E1；审批型 → E4A） | 不可能（答复必引用请求）；迟到答复按 HD-02 返回当前结果，不生成 arrival | 同左 | 同左 | 同左 |
 | `gate_restored` | `continuation`（Run 在 `waiting_gate` 且 `gateRef` 匹配） | 不生成（门状态在下次准入时重查） | 不生成 | 不生成 | 不生成 |
@@ -172,7 +178,7 @@ arrival（I-21 的安全侧）。
 |---|---|---|
 | PF-002.C8 / C9 | 被动订阅内容；条件触发 | `connector_passive` → `context`；`connector_condition` → `queue` 或系统控制 |
 | PF-003.C1～C6 | 状态、帧、结果、后台回执、重建后重连 | 帧走 TL-12 披露面；结算为 `call_settlement`；重连在 E0 |
-| PF-004.C3 / C5 / C7 | 子结果、子消息、handoff 与定时派发结果 | 派发是工具调用：结果为 `call_settlement`（定时派发忙时 `queue`）；子消息为 `cross_session_message` |
+| PF-004.C3 / C5 / C7 | 子结果、子消息、handoff 与定时派发结果 | 派发是工具调用：结果为 `call_settlement`，定时派发无发起 Run 而落 C 列排队；子消息为 `cross_session_message` |
 | PF-005、PF-007、PF-008 | 人类答复、池内答复、暂行决定 | `human_answer` → HD-08；暂行 → `provisional_outcome` |
 | PF-009 | 文本、附件、slash 命令、keyboard | `queue`（上下文装载型命令随文本项）；keyboard → `control` |
 | PF-011.C4 / C5 / C9 / C10 | 到期执行、继续同一工作、纯通知 | `schedule_due` → `queue`；纯通知不进 Inbound |
