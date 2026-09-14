@@ -1,0 +1,57 @@
+{
+  "actor": "agt-037",
+  "task": "p3-tool-decision-design",
+  "input_commit": "8c791b3a1966afa86b3d60c24fecd3da3f1ea0b9",
+  "branch": "design/dsh-tool-decision",
+  "docs_check": {
+    "command": "make docs-check BASELINE=8c791b3",
+    "exit_code": 0,
+    "markdown_files": 416
+  },
+  "probe": {
+    "command": "node docs/proposals/core-capabilities/implementation/evidence/tool-decision-design/file-journal-window.mjs tmp/tool-decision-design/file-window-run",
+    "exit_code": 0,
+    "scope": "two actual file/process crash windows only; not product protocol validation"
+  },
+  "environment": {
+    "node": "v24.18.0",
+    "os": "Linux 5.15.0-1084-aws x86_64",
+    "filesystem": "ext4"
+  },
+  "allowed_changed_paths": [
+    "docs/proposals/core-capabilities/implementation/evidence/tool-decision-design/README.md",
+    "docs/proposals/core-capabilities/implementation/evidence/tool-decision-design/checks.json",
+    "docs/proposals/core-capabilities/implementation/evidence/tool-decision-design/docs-check.log",
+    "docs/proposals/core-capabilities/implementation/evidence/tool-decision-design/file-journal-window.mjs",
+    "docs/proposals/core-capabilities/implementation/evidence/tool-decision-design/file-window-output.json",
+    "docs/proposals/core-capabilities/implementation/tool-decision-interfaces.md"
+  ],
+  "artifacts": [
+    {
+      "path": "docs/proposals/core-capabilities/implementation/evidence/tool-decision-design/README.md",
+      "sha256": "1252c5303264dcd0cc80376ed837387c2f4ae3c386ae5fa96552e9ade2d17c0a"
+    },
+    {
+      "path": "docs/proposals/core-capabilities/implementation/evidence/tool-decision-design/docs-check.log",
+      "sha256": "2ea27845096f8e770cd101a03f14b14452bbcbf0e5eff0a484a1d20be2b743b5"
+    },
+    {
+      "path": "docs/proposals/core-capabilities/implementation/evidence/tool-decision-design/file-journal-window.mjs",
+      "sha256": "288c4956fc92ff9afd1dd1fabaa22d258361269ce7ef2d529c384f32c1366a38"
+    },
+    {
+      "path": "docs/proposals/core-capabilities/implementation/evidence/tool-decision-design/file-window-output.json",
+      "sha256": "3f3e8abe0c00e277465a0fe0db4750656d0fc63e4a9f2256f6615bae2a16e545"
+    }
+  ],
+  "design_sha256": "ad2ca116d6432923c25b373261eccd980f2f0566af75d72b886188e82499ca39",
+  "not_executed": [
+    "new TypeScript interface compilation",
+    "product TDD and D01-D12",
+    "complete Cordis composition probes",
+    "formal model checks"
+  ],
+  "open_gate": "Independent review/acceptance; shared provider keys must align with the separately owned runtime-provider design.",
+  "diff_check": "passed; staged and unstaged",
+  "scope_check": "passed; only owned candidate and evidence directory"
+}
