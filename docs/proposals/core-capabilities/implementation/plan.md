@@ -91,6 +91,13 @@ P1 当前提供者映射已在 `2c3aede7` 迁到 `packages/storage/jsonl/design.
 冻结规格、业务语义、产品源码和 manifest 无写权；发现新设计选择时交回所属
 设计处理，不能在迁移中静默改义或提前宣布 P1 就绪。
 
+用户要求并行复用旧系统的租户与授权业务经验。原生 explorer 在独立 spoke
+只读 `omne-next/omne_harness` 的 `6263fed`，提取身份/成员/对象归属、授权优先级、
+撤销及重要拒绝案例，区分要求、契约、源码行为与未验证项，并对照当前 TG/AU
+设计。产物归 `docs/research/tenant-authorization-invariants.md`；索引、差异处置与
+消费对账由整合者负责。该研究与 D1/P1 实施独立，不自动接受旧实现或扩展为完整
+HITL；若证据影响当前承诺，按所属设计处理后再更新受影响消费者。
+
 P1 的 verification-developer 同时独占最小测试载体的
 `apps/local-harness/package.json`、`tsconfig.json` 和 `vitest.config.ts`，只建立
 组合测试所需的叶子配置与脚本；不提前实现应用业务或复制包内行为。整合者负责

@@ -21,7 +21,7 @@ P0 共享接口、原生锁前提、检查器、work-data 与 records 已经评�
 | 任务 | 状态 | 实现/验收证据 | 下一项输入 |
 |---|---|---|---|
 | P0 | accepted | 锁前提、共享接口、检查器、work-data/records；HUB 已验证两个目标包与 16 包产物 | 提供 P1 的真实共享端口/codec 和锁测量依据，尚非真实 writer |
-| P1 | in_progress | R2–R6 旧窄复核闭合；R1 两项首次 GREEN 已在 spoke 固定 `b462116`，其它关闭/资源场景仍在施工。真实 writer/准入未实现 | 全部 D1 修复及新目录/锁/关闭故障在同一产物验收后，才并行实现 jsonl/admission |
+| P1 | in_progress | D1 候选 `3ca93e0`/证据 `5cecf7d` 已合入，HUB 50 项测试通过；独立复核仍发现两项产品问题和一项短写测量缺口，原作者正在修复。真实 writer/准入未实现 | 全部 D1 修复及新目录/锁/关闭故障在同一产物验收后，才并行实现 jsonl/admission |
 | P2 | design_accepted | 治理与 AR/SR 施工交接及 `f98ac926` 提供者/应用映射已接受为基线施工输入；产品尚未实施 | P1 的真实共同门与记录提供者；交付本地预算等实际 owner |
 | P3 基线 / 完整 M1 | design_accepted / deferred | `0a6e91e` 的 TL/LE 基线共同面及映射已接受；完整 HD 保留后续候选，产品未执行 | P2 当前权限/真实预算/Session/活体及 P1 执行账本产物 |
 | 最小运行基线 | in_progress | P0 已接受，P1/P2/P3 的必要产品仍未齐备；基线尚未交付 | 真实 allow 链路、共享诊断/存储/本地预算、必要故障与独立消费，固定提交后停止 |
@@ -32,7 +32,8 @@ P0 的原生文件锁前提已验收，正式 writer/恢复仍未实现；P4 的
 真实 OpenRouter 环境仍待测量。未验证部分不能被记为通过。
 
 本次已核对现有检查器只允许 baseline/DSH 来源，以及安装默认禁用脚本的事实；
-检查器已在 P0 完成适配，真实 native 产品依赖尚未接入。开发指南、包索引和当前架构
+检查器已在 P0 完成适配，真实 native 产品依赖已由 `ce73873` 接入，独立消费测量
+正在修复实际加载与共享缓存的判据。开发指南、包索引和当前架构
 已纠正仍将 fork 建立写作下一步或仅介绍 agent 基线的过时投影。
 
 ## 当前执行 wave
@@ -48,7 +49,7 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 | P0 包检查器（accepted） | verification-developer，`/root/p0_package_checks`；复核 `/root/review_package_layout`，本任务均已结束 | `dsh-p0-package-checks`，已退役 | `33a57a2` 的 K1–K3 闭合，`d95052c` 整合及 HUB 构建/13 项测试/14 独立与组合产物通过 |
 | P0 work-data 实现（accepted） | kernel-developer，`/root/p0_work_data`；定点复核 `/root/review_first_batch`，本任务均已结束 | `dsh-p0-work-data`，已退役 | `18cad69` 经 `6e7f213` 整合，`728d665` 锁定依赖；D1/D2 闭合，HUB 91 项测试与 15 包产物通过 |
 | P0 records 实现（accepted） | infrastructure-developer，`/root/p0_records`；独立复核 `/root/review_first_batch`，本任务均已结束 | `dsh-p0-records`，已退役 | `1a237da`/`c67eb4d` 经 `bbb4a3e` 整合、`c1783fd` 锁定；HUB 17 项测试及 16 包产物通过；独有资产与执行输出已保全 |
-| diagnostics D1 实现（R1 实施中） | infrastructure-developer，原生 `/root/diagnostics` 已接回目录任务；R2–R6 原评审者已复核 | `dsh-diagnostics`，任务起点 `9ffbf1f`；`88f01ae` 已合入 HUB 原生配置 | 新目录两项反例从 `408a2508` RED 到 `b462116` GREEN；尚有 9 条旧前提迁移及关闭/锁/重启测量未完成，不是 D1 接受 |
+| diagnostics D1 实现（复核修复中） | infrastructure-developer `/root/diagnostics`；原 architecture-reviewer `/root/review_package_layout` 已完成本轮只读复核 | `dsh-diagnostics`，`5cecf7d` 经 `ff2e7dd` 合入；原作者继续处理新反例 | HUB 构建/类型/50 项测试与 457 份文档检查通过；关闭期间 write EIO、未知来源扫描及短写测量仍未闭合，见[复核](review.md#d1-目录产品的组合复核)，尚未接受 |
 | D1 目录所有权修订（accepted） | 作者 `/root/observability_design` 与独立评审 `/root/review_package_layout` 已完成 | `dsh-diagnostics-directory` 已退役，设计迁移 `327735f` 经 `01998d3` 合入 | D-011 采用；HUB 复跑四个机制案例、接口/九份原证据一致；设计验收不抵扣目录产品验收 |
 | Agent/Session 施工交接（accepted） | 作者 `/root/session_runtime_design` 与独立复核 `/root/review_package_layout` 本任务已结束 | `dsh-session-runtime-design`，已退役 | `cd16f1` 的 S-R1–S-R4 闭合，`4e67db6` 整合与 HUB 文档/哈希核验通过；装配映射与产品依赖仍须就绪 |
 | TS/JS 自动格式化工具（accepted） | verification-developer，`/root/formatting`，已结束 | `dsh-formatting`，已退役 | `99a6988`/`c026140` 已整合，根锁 `d13d66b`；HUB `4a5031d` 的冻结安装和完整 16 包检查通过 |
@@ -57,8 +58,9 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 | 规格与 Cordis 映射的维护交接 | `/root/governance_design` 已按用户新分工停止规则写入，主调度整理交接 | `dsh-mapping-governance`，从 `9954b12` 创建，保留未提交候选 | 规范与配套 skills 由另一会话统一收敛；[交接](../design-spec-maintenance-handoff.md)记录缺口、成因与未接受建议，候选不合入 HUB |
 | TL/LE 基线施工交接（design accepted） | 作者 `/root/session_runtime_design` 与定点复核 `/root/review_first_batch` 本轮已结束 | `dsh-tool-decision-design` 已退役，`0a6e91e` 经 `23020cf` 合入 | T-R1/T-R2、reader 与 P2 共同面闭合；HUB 两组新机制逐字一致，基线设计接受见[施工入口](tool-decision-interfaces.md#接受与验证)。完整 HD 保留后续，产品未实现 |
 | P2 提供者与装配映射（design accepted） | 作者 `/root/governance_design` 与独立复核 `/root/review_first_batch` 本轮已结束 | `dsh-runtime-provider-design` 已退役，`f98ac926` 经 `8ee3af6` 合入 | 七包及应用正文、原代次/批准历史消歧闭合；HUB 三组原机制与两组相邻机制复验通过，接受见[施工入口](runtime-provider-interfaces.md#接受与验证)；产品未实现 |
-| 原生独立消费者测量（实施中） | 原生 verification-developer `/root/native_consumer_checks` | `dsh-native-consumer-checks`，从 `ce73873` 创建 | 只验证/修复 package-checks 的获准 native 构建及实际隔离加载判据；产品、根锁和公共设计无写权；当前尚无验收结果 |
-| P1 提供者映射迁移（accepted） | 复用原生设计作者 `/root/governance_design`，本轮已停写 | `dsh-p1-provider-mapping`，`2c3aede7` 经 `6d4b87c` 合入 | 18 段正文/13 份原证据与全部迁移文件独立核验，HUB 455 份文档检查通过；已接受方案归属迁移，不是 P1 产品交付 |
+| 原生独立消费者测量（实施中） | 原生 verification-developer `/root/native_consumer_checks` | `dsh-native-consumer-checks`，从 `ce73873` 创建 | `10c785e` 已有 14 项测试与 17 包/组合消费结果；随后双产品共享 addon 暴露缓存误拒，修复中。尚未整合接受，产品与根配置无写权 |
+| P1 提供者映射迁移（accepted） | 复用原生设计作者 `/root/governance_design`，本轮已停写 | `dsh-p1-provider-mapping` 已退役，`2c3aede7` 经 `6d4b87c` 合入，`6d9f47a` 接受 | 18 段正文/13 份原证据与全部迁移文件独立核验，HUB 455 份文档检查通过；已接受方案归属迁移，不是 P1 产品交付 |
+| 旧系统租户与授权规则研究（进行中） | 原生 explorer `/root/tenant_auth_research` | `dsh-tenant-auth-research`，从 `ff2e7dd` 创建 | 只读 `omne-next` 固定 `6263fed`，提取语言无关规则、不变量和反例并对照当前设计；研究尚未交付，不自动改变当前契约 |
 
 `e139342` 完成上述提供者设计接受、包/应用导航和 P1 组合测试载体写权安排，
 HUB 文档检查 451 份通过。`ce73873` 随后锁定 `fs-ext@2.1.1`/`nan@2.28.0`，
@@ -73,6 +75,10 @@ HUB 文档检查 451 份通过。`ce73873` 随后锁定 `fs-ext@2.1.1`/`nan@2.28
 恢复位置，共保留 23/30/6 个文件。正式设计和原证据仍由 Git/HUB 持有，可重建
 的 venv/缓存不保留；三个工作树及已合入分支随后按正常 Git 命令退役。历史报告
 中的旧目录应通过该清单或固定 Git 对象恢复，不再视为当前可访问工作树。
+
+P1 映射 spoke 随 `6d9f47a` 接受后退役：原生作者已停止，tracked 工作区干净，
+ignored 资产仅为可重建 `.venv`/缓存，没有任务临时资产；源码及全部正式证据已
+包含在 HUB，再按正常 Git 命令移除工作树及已合入分支。
 
 可观测性工程品味与共享研发提示词已由 `51eaefb` 经 `7d3736c` 整合到 HUB，
 五个角色的两端生成检查和文档检查通过，见[提示词证据](evidence/observability-prompts.json)。

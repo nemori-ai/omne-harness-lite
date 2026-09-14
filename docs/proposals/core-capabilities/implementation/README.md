@@ -21,7 +21,7 @@ HUB 已有两个共享目标包，原 14 包仍处于 fork 基线。
 | P0/P1 固定的公共类型、端口与记录格式 | [共享接口](shared-interfaces.md) |
 | P1 统一日志、trace 与有限诊断资源的施工输入 | [观测设施](observability.md)，接受依据 [D-010](../../../decisions/D-010-shared-diagnostics.md) |
 | P2 租户、当前授权与预算参与者的施工输入 | [治理接口](governance-interfaces.md)，接受范围见[交付对账](delivery.md#p2-治理施工输入) |
-| P2 Agent/Session 与相邻提供者的施工交接 | [受审接口原稿](session-runtime-interfaces.md)，当前接受范围见[交付对账](delivery.md#p2-agentsession-施工输入)；具体 Cordis 装配仍待固定 |
+| P2 Agent/Session 与相邻提供者的施工交接 | [接口来源](session-runtime-interfaces.md)与[提供者映射入口](runtime-provider-interfaces.md)；`f98ac926` 的提供者/装配映射已接受，产品仍待实现，范围见[交付对账](delivery.md#p2-agentsession-施工输入) |
 | 依赖、任务职责、TDD、交付与文档对账 | [推进计划](plan.md) |
 | 其它会话可依赖的首个真实运行节点 | [最小运行基线](runtime-baseline.md)，当前未交付 |
 | 当前事实与每次交付的证据 | [交付对账](delivery.md) |

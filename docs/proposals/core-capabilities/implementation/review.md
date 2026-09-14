@@ -364,3 +364,27 @@ workspace 只发现产品包和现有工具，叶子 package/测试配置的写�
 定点确认闭合，三个包正文无发现新的迁移矛盾。HUB 核对来源与设计哈希并运行
 其两组新机制探针，stdout 与作者逐字一致，结果见
 [HUB 机制证据](evidence/provider-design-hub/README.md)。真实业务门和执行仍未实现。
+
+## D1 目录产品的组合复核
+
+原 architecture-reviewer `/root/review_package_layout` 只读核对产品
+`3ca93e0f945bd95833cc25fed12fd042fa9c183e`，设计依据为 HUB `6d9f47a` 的
+D-010/D-011 与包内正文；证据读至 `5cecf7d`，后者未修改产品源码或测试。
+原 R1 的容量/slot 反例已闭合，R3–R6 未发现本轮组合回归，但仍有下列发现。
+
+| 发现 | 固定源码依据与可区分场景 | 当前处置 |
+|---|---|---|
+| R2 关闭期间 write EIO | `runtime.ts:382–386,911,934–942` 在调用 `end()` 前就置 `streamCloseStarted`，将随后尚未发生实际 close 的 write EIO 当作 raw close unknown；截留写 callback、开始 close、再返回 EIO 时可能永久保有来源 fd/目录锁 | 原作者须先以真实 close 调用数和最终释放刻画 RED，再修复；保留真实 close 后 fd 复用哨兵测试 |
+| R1 未知来源扫描 | `runtime.ts:1020–1063,1227–1250,1270–1271` 接纳匹配文件名但无法识别的头记录；`diagnostic-0000000000000000.jsonl` 内容 `x` 加换行可落成 complete/active，违背 D-011 的未知原件拒绝 | 区分身份可确认但无 clean end 与来源无法辨认；修正原测试不匹配的来源哈希，原件保持不变 |
+| R1 短写测量失效 | `short-write-unknown-child.mjs:41–50` 假定 `fs.write` 的 buffer 签名；Sonic 默认使用 string 签名，夹具实际同步抛错，未执行目标写入，父测试却可由旧 start 记录满足大小断言 | 原作者须先让旧夹具因未发生目标 I/O 而 RED，再观察真实新增的部分字节和 EIO 阶段；原 GREEN 不计为短写覆盖 |
+
+以上由源码与固定日志推导，评审者没有运行产品或测试；原作者已通过原生消息
+接收具体场景，正在同一职责范围内验证和修复。HUB `ff2e7dd` 合入该候选后
+实际构建、类型检查、50 项测试和 457 份文档检查通过；这些 GREEN 没有覆盖
+上述反例，不能用来接受 D1。作者位于仓库 tmp 下的 tarball 消费也不单独证明
+祖先依赖隔离；最终仓库外消费与完整组合仍由 HUB 验收。
+
+原作者已在实际 Git 对象 `2f59c2fdcc02fb729dd98abbb815229b05641113` 固定
+三项 RED：新增写入字节为零、未知头记录错误创建 owner、关闭期间 write EIO
+后的实际 close 调用为零。主调度已读取该对象的原始输出，3 failed / 49 skipped，
+这使上述源码推导成为可复现反例；修复与同版本回归仍待完成。

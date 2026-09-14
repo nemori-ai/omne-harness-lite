@@ -47,8 +47,8 @@ JSONL 存储、共同准入、当前授权、本地预算与基础诊断是上�
 2. records 修订 `1a237da` 经独立复核闭合深度问题，HUB `c1783fd` 的 17 项测试、
    16 包独立/组合产物通过并已接受。随后交付 diagnostics，再并行实现 jsonl/admission。
 3. TG/AU/BG `058c77c` 与 Agent/Session `cd16f1` 的施工接口已按
-   [交付对账](delivery.md)所列范围接受；P2 提供者/装配映射 `5ffba4b` 正独立
-   受审，TL/HD/执行接口正处理评审反例。设计接受不表示 provider 已存在。
+   [交付对账](delivery.md)所列范围接受；P2 提供者/装配映射 `f98ac926` 与 TL/LE
+   基线 `0a6e91e` 已接受。完整 HD 保留后续候选；设计接受不表示 provider 已存在。
 4. P1 真实组合通过后，按固定公共面并行实现治理预算与 Agent/Session；工具与
    执行者按其已固定共享边界接入。应用装配消费真实产物，贯通上述流程。
 
