@@ -201,7 +201,7 @@ next_admission，引用不默认阻止停用；草稿有 blocksDiscard 则拒绝
 | 端口 | 输入 → owner 结果 / 当前检查 |
 |---|---|
 | `bootstrap`（只供部署） | 部署持有的私有引导能力、deploymentId、seedPrincipal → established / already_established；没有公开 HTTP/IPC 方法接纳任意 seedPrincipal |
-| `createTenant` | kind、初始成员（personal 固定当前自然人，organization 显式至少一个 super_admin） → created(tenantId,membership revisions) |
+| `createTenant` | 原请求的 kind、初始成员（personal 固定当前自然人，organization 显式至少一个 super_admin）及显式前置 → created(TG 分配的 tenantId,membership revisions)；分配结果不进入原操作输入 |
 | `addMember/changeMember/removeMember` | tenant、目标 UserRef、角色/状态/显式 delegatedOperations、expected → changed；change 可携带同组织多成员变更，以一个 batch 转移最高资格 |
 | `createDraft/editDraft/publish/discardDraft/retireDefinition/readVersions` | DefinitionRef/种类/内容/精确 draftRevision → created/edited/published/discarded/retired 或带水位版本列表；published 返回 TG 实际分配 DefinitionVersion |
 | `forkDefinition` | 源 DefinitionVersion、新 ownerTenant、内容 → 新 DefinitionRef/origin；源 derive 权、目标创建权同时成立，不复制 grants |
@@ -210,9 +210,24 @@ next_admission，引用不默认阻止停用；草稿有 blocksDiscard 则拒绝
 | `readTenant/readMembership/readDefinition/readEntitlement/readAcquisition` | 当前调用者及精确目标 → 获准字段/水位；管理元数据与定义正文/Session 正文分别检查 |
 | `prepareAccess` / `checkAccess(frame,candidate)`（受信） | `{invocation, tenantId, operation:string, target:JsonValue, definition?:DefinitionVersion, rights?:(use|derive|redistribute)[]}` → TG 私有候选 / ready(basis) 或 denied/unavailable/prepare_again；只判 TG 所有资格，不判 Session 正文 ACL、工具对象权限或预算 |
 
-personal 创建用一个 system-scoped 管理 operation（tenantId=null，target 列名
-实际新 tenant/user），同时追加 system personal index 与 tenant.created；仅
-可信 TG 创建组合获此写 scope，不能让普通工具绕过“只写本租户 stream”。组织
+createTenant 的 personal/organization 两种创建都用 system-scoped 管理 operation：
+`tenantId=null`，`operationKind="tenant.create"`，`target={kind:"tenant_creation",
+tenantKind:personal|organization, creator:Principal}`。Principal 来自当前认证边界，
+arguments 只含原请求的初始成员等创建参数，preconditions 只含原请求显式前置；
+不含 TG 分配的 tenantId、当前索引修订、生成时间或动态权限结果。相同原请求
+在首次 lookupPrepared 前可跨进程重建相同 canonicalInput，无需知道旧 tenantId。
+
+只有 lookupPrepared=not_seen 才分配拟创建 tenantId、准备 tenant stream 与
+成员状态；分配身份进入 tenant.created（personal 还进入 tenant.personal_claimed）
+和确定 result，不补写回 OperationInput.target。submit 再查去重：并发同键准备
+即使各有不同拟分配 ID，也只能认回首次接纳的原票据/结果，其它 ID 未成为业务
+对象。完整无回执批次恢复后从原 operation 的持久 result 返回原 tenantId；
+unknown 时不重分配重试，只有 P1 已核实未提交才可按同一原输入重新准备。
+此规则同样适用于本稿其它由 owner 分配新身份的创建/发布操作。
+
+personal 在该 batch 同时追加 system personal index 与 tenant.created；实际新
+tenantId 在 appends/result 精确列名，只有可信 TG 创建组合获跨这两个 scope 的
+写权，不能让普通工具绕过“只写本租户 stream”。组织
 成员变更在一个 tenant stream 条件提交，两个管理员同时删除不会都成功，重试
 一个已保存冲突也不会在新状态突然成功。
 
@@ -418,12 +433,16 @@ target.toolDefinition 保存且等于 Action.definition，两者与 AU 采用相
 Budget 在 tenant `budget:<budgetId>`，ChargeAttempt 和计量事实在 tenant
 `charge:<chargeAttemptId>`；source 姿态在 tenant `budget-source:<sourceId>`，显式
 记录该来源已启用、采用哪些 tenant 立场、可信 source revision 与撤除状态。
-首次 enableSource 必须存在可用的明确 tenant 预算立场；不存在返回
-budget_posture_missing，不隐藏 unlimited。所有已注册且 scope 匹配的预算均参与，
-消费者不能自选只检查最宽松的一个。新增/变更/停用适用预算更新 BG 的 scope
+首次 enableSource 必须显式绑定同 tenant、同来源币种的可用 tenant 预算立场；
+不存在返回 budget_posture_missing，不能跳过其它币种预算后隐含放行。已绑定的
+tenantPostureBudgetId 或 unknownPermissions 中任一预算币种与来源不相容，返回
+budget_currency_mismatch；币种本身无法核实则 unavailable。所有已注册且 scope
+及 currency 都匹配的预算均参与，消费者不能自选只检查最宽松的一个。同 scope
+的另一币种预算不作跨币种比较，也不代替来源币种的明确立场。
+新增/变更/停用适用预算更新 BG 的 scope
 目录 stamp，使准备阶段漏掉新预算的调用必须重准备。
 
-每个 sourceId 由来源注册权威分配并固定唯一 tenant/provider；源回执不能被重指
+每个 sourceId 由来源注册权威分配并固定唯一 tenant/provider/currency；源回执不能被重指
 另一租户。tenant `meter-source:<sourceId>` 保存事实键与归属/当前修订的唯一
 索引，计量提交同时条件更新它和相应 charge/budget streams；因此将同一 fact
 填到两个不同 attempt 也不能重复记账。unallocated 与后续 cost_attributed 使用
@@ -435,11 +454,19 @@ currency 非空。内部用整数精确换 scale，同币种在共同 scale 上�
 余额，预留/上界/limit 不能负。不同 currency 分组，不自动换汇；同一来源存在
 无法核实币种时 unavailable。数量 unit 独立于 Money，首批不把 tokens 当货币。
 
+changeBudget 只改额度、模式、阈值等政策，不改 budgetId、tenant、scope、currency
+或既有归集身份；其中 period 只经 openPeriod 的既有专用操作演进，不能经普通
+变更换掉旧 periodId。金额、阈值与预留必须和目标 Budget.currency 相同，scale
+仅作精确表示换算。改变币种/归集身份返回 budget_identity_immutable；需要另一
+币种时由显式新预算与新来源关系进入其独立管理路径，不转移、清空或折算旧
+attempt/period。恢复和迟到结算始终保留原 source/Allocation 的币种与归属；
+不相容的来源事实具名报告，不能为了入账改写原金额的 currency。
+
 ### 公开端口与联合准入
 
 | 端口 | 输入 → 结果与责任 |
 |---|---|
-| `createBudget/changeBudget/openPeriod` | 当前管理主体、Scope/金额/mode/period/expected → created/changed/period_opened；记录影响边界，未耐久放宽不可用，普通下调不强停在途 |
+| `createBudget/changeBudget/openPeriod` | 当前管理主体、Scope/金额/mode/period/expected → created/changed/period_opened；changeBudget 不改变币种/归集身份，openPeriod 保留历史归属；记录影响边界，未耐久放宽不可用，普通下调不强停在途 |
 | `enableSource/changeSourcePosture` | 明确来源、tenant 立场与已核实 CostSource、expected → enabled/changed；`allow_unknown_exposure` 只能获准用户在此显式选择，Agent/普通审批无此写权 |
 | `readBudget/readAttempt/readStepCosts` | 财务读权及目标 → 已确认消耗、预留、未决差额、质量、负剩余、未知上界、原周期与水位；不附正文/秘密 |
 | `prepareReservation`（受信） | 真实调用 owner 提供的精确拟准入 target/WorkOwner/subjectDefinition、真实 CostSource 证据 → BG 私有 reservation 候选及其冻结 appends/publication；不预先扣账 |
@@ -454,15 +481,27 @@ budget_call 只提交一份 batch。BG 不自己提前 submit 预留，应用也
 “reserve 成功后再写 call”。候选中的 source/attempt 必须由真实 owner 私有
 证据与准入记录对应；仅给 BG 填一个 `price:0` 不开放调用。
 
-对有限上界 U，在每个适用 hard 预算检查 `已入账费用 + 尚未结算的有限预留 + U
-<= 当前有效 limit`，并在 logical 原子增加 U。soft 同样记录预留和阈值事实但
+对每个按上述 scope/currency 匹配的适用预算及其原周期，先用同币种精确 scale
+表示全部金额，再令 C_a 为 attempt a 当前有效的已知计费组成之和，
+R_a 为其尚未结算的数值预留；R_a 同时包括有限上界留下的预留与 unknown 的
+knownReserve 留下的预留。准入已知暴露 `E=Σ_a(C_a+R_a)`，同一 attempt 只贡献
+一次，已完整结算的费用仍以 R_a=0 留在 E。计算消费 BG 的保守当前视图：新占用/
+费用增加在 logical 立即计入，释放/减费等余额放宽只有 durable 后可用；同一
+attempt 尚有未耐久变化时取其 durable 与各待确认状态中最大的 C_a+R_a，不能
+将多个历史状态重复相加，也不能用尚未耐久的部分结算先腾出余额。
+
+本次新 finite attempt 的 Q=U，新 unknown attempt 的 Q=knownReserve，准备时
+尚无计量，所以准入后候选状态为 `E_after=E+Q`。每个适用 hard 都要求
+`E_after <= 当前有效 limit`，并在同一个 logical 发布中占用 Q；不区分旧预留
+来自 finite 还是 unknown。soft 同样记录预留和阈值事实但
 不以余额拒绝；observe 保留费用/质量。多个适用预算任一个 hard 拒绝都不产生
 call 准入或部分 reservation。新调用与未耐久预算下调交错仍用收紧交集，降低
 后剩余可为负，后续拒绝/告警；旧调用不被 BG 停止。
 
 上界未知且适用 hard 时默认拒绝 bound_unknown。每个适用 hard 的该 source
-都显式允许 unknown 才可准入，至少预留 knownReserve；已知费用/预留触顶仍
-拒绝（即使下一 knownReserve=0），另保留 unknownExposures 的 attempt 集合。
+都显式允许 unknown，且上述包含本次 knownReserve 的 E_after 检查通过才可
+准入；E 已触顶仍拒绝新 unknown（即使下一 knownReserve=0），另保留
+unknownExposures 的 attempt 集合。例外只允许未知上界，不豁免已知金额的余额门。
 不能把 unknown 当 0 或声称 total 上界有限。没有 hard 的 observe/soft 也要
 明确展示未知费用；实际零成本工具必须有真实 CostSource finite(0) 证据和来源
 姿态，不能因“本地工具”默认免费。
@@ -484,9 +523,12 @@ attempt 记录，不能逻辑去重掉实际支出。source 修订链缺失则�
 版本累计。由 estimated 转 actual 要有同组成的修订或显式 corrects 链；独立
 收费事实则相加。令 C 为该 attempt 当前有效的已知计费组成之和，保留其各自
 actual/estimated 质量；有限可兑现上界 U 的未决预留为 `max(U-C,0)`，已知总暴露
-为 `max(C,U)`，不能将已入账部分再算一次预留。未知上界的已知预留 K 使用
+为 `max(C,U)`，作为前述 E 中该 attempt 唯一的 C+R 贡献，不能将已入账部分
+再算一次预留。未知上界的已知预留 K 使用
 `max(K-C,0)`，总已知暴露 `max(C,K)` 外仍有明确未知差额，不能因数值预留耗尽
-移除 unknown 标志。估算不是实际收费，缺价组成不纳入 C 伪装为零。
+移除 unknown 标志；它的 `max(C,K)` 同样进入所有后续 finite/unknown 准入的 E。
+例如 K=7、部分 C=3 时 R=4、贡献仍为7；C=9 时 R=0、贡献为9，均不能再额外
+加原 K 或只计 C。估算不是实际收费，缺价组成不纳入 C 伪装为零。
 final 只有在来源证明该 attempt 所有费用组成完整时才能清除
 剩余预留/未知标志，不能仅凭某一 usage 帧带 finish。实际金额超过 U 如实入账、
 报告 bound_violated 并关闭该来源新的有限保证准入，不压成 U 掩盖外部收费。
@@ -589,11 +631,12 @@ records/admission/work-data 公开产物固定、本文独立评审接受、必�
 | 验收局部切片 | 必须可观察的反例及结果 |
 |---|---|
 | A01 / TG+AU | 两真实主体/两 tenant；伪造 Principal/TS cast、同 user 多组织、跨 tenant 所有嵌套引用、管理者无正文权。读/list/count/旧回执/订阅均当前授权，无存在性泄漏；正文/财务/精确控制分别有结果 |
-| A02 / TG | 同自然人两个 operation 并发 personal create 恰一 tenant；两个管理员互撤仍保留一个；remove/re-add 不恢复旧 grant/委托。真实管理创建草稿→发布，重复 publish 同版本、异输入冲突、旧版不可改、official 不能改、fork 不继承 grant |
+| A02 / TG | 同自然人两个 operation 并发 personal create 恰一 tenant；personal/organization 创建完整落盘后丢回执并重启，同原请求/operation 认回原 tenantId，不用内存映射、不因重分配冲突；同键改 kind/成员仍冲突。两个管理员互撤仍保留一个；remove/re-add 不恢复旧 grant/委托。真实管理创建草稿→发布，重复 publish 同版本、异输入冲突、旧版不可改、official 不能改、fork 不继承 grant |
 | A03 / TG+AU | 实际 issue/select/grant/amend/revoke 建立依据；v1 可用、fork/v2 越界；源权益停用不删除原 Session；撤权排 n+1 阻新调用而 n 等耐久后可继续。撤销再重授都未耐久不越过中间撤销；源不可用 unavailable，不 ask |
 | A11 / AU | 穷举上表模式×确认类型×硬资格×grant×一次决定；当前合法授予者缺失不能 ask。真实 set/clear/readEffective，Session→用户定义→默认；false/null 非法 set 不清除。模式变化不造答案；未耐久放宽不用、收紧立即封闭 |
-| A26 本地 / BG | 两 finite(7) 调用争 limit(10)，只一个 call+reservation 成立；一项硬预算拒绝不留另一个预留；预算下调/并发创建适用预算参与 gate；unknown 上界默认拒，显式例外保留 unknown；有限 0 必须有来源依据 |
+| A26 本地 / BG | limit(10) 下 finite(7)→finite(7)、unknown(K=7)→finite(7)、unknown(K=7)→unknown(K=7) 均只有首个 call+reservation 成立，即使 unknown 已显式获准。unknown 部分 C=3/R=4 后贡献仍7，新增 Q=3 可达10、Q=4 拒绝；C=9/R=0 后只剩1。重复/恢复同结果；一项硬预算拒绝不留另一个预留；下调/新增适用预算参与 gate；未知默认拒、零成本需来源依据 |
 | A26 恢复 / BG | 重放同 externalFact/revision 不增费、同键异内容冲突；同 request 两真实收费分别保留；跨周期 late actual 归原 period；unknown/未收到 start 回执不释放；真实墓碑证明未开始才释放；重启后 reserved/negative/unknown 不归零 |
+| A26 币种 / BG | 仅 USD 硬预算而来源已核实 EUR：没有 EUR 姿态时 budget_posture_missing，显式错绑 USD 时 budget_currency_mismatch；实际声明 EUR 姿态后仍检查所有匹配的 EUR 预算，不折算 USD。changeBudget 尝试改 tenant/scope/currency 或替换 periodId 被拒，原 attempt/period 保持原账目 |
 | A28 / 三 owner | 未形成 Action 的拒绝仍有 operation/主体/tenant/阶段和裁剪目标；关键成功/拒绝保存失败时禁止新效果并返回 audit_unavailable/原 unknown；诊断丢弃有 gap，普通通知失败不回滚业务结果 |
 | A05/A08 回归 / 三 owner+P1 | 相同 operation 原回执含业务 denied 也跨重启稳定；异输入冲突、过期修订冲突不随未来状态变成功；fsync 阻塞无效果，失败隔离后不能越过；某 owner publication blocked 保留 committed 与所有未决责任 |
 
@@ -630,3 +673,25 @@ publication/短门仅更新有界内存状态，日志刷出在门外按 D-010 �
 `tmp/governance-design/`，由主调度在退役前保全。这些只检查文档结构/链接/冻结
 输入，不证明接口可编译、业务语义或 P2 产品符合性。任何必要前提出现正式规格冲突，
 以精确条款、最小交错及受影响入口回传，不修改冻结文件或放宽验收。
+
+### 对 8b75f30 独立评审的修订
+
+本轮只处理原 reviewer 的两项语义反例及币种政策缺口，尚待原 reviewer 复核，
+作者不据此自授接受。它们都可在 TG/BG/CD/DR/CC v1 内修正，不修改冻结契约。
+
+| 评审问题 | 本稿修订与验收 |
+|---|---|
+| unknown 的 knownReserve 未统一参与当前及本次后余额 | E 使用所有 attempt 的 C+剩余数值预留，finite/unknown 都按 E_after 校验；部分结算不重复加原预留、不漏 unknown 数值。A26 增加 limit10 下三种 7+7 拒绝及 C3/R4、C9/R0 场景 |
+| createTenant 首次去重依赖尚未知的 TG 分配 tenantId | 稳定原请求决定 tenant_creation target；分配 ID 只进记录/result。A02 增加 personal/organization 无回执重启认回及同键异输入冲突 |
+| 跨币种立场缺失或预算变更可含糊重指旧账 | 来源币种参与立场及全部适用预算匹配，错绑/缺席具名拒绝；changeBudget 不改币种/归集身份；A26 增加 USD-only/EUR、明确 EUR 姿态和身份变更拒绝 |
+
+使用本 spoke CPython 3.12.13 实际运行
+`.venv/bin/python tmp/governance-design/revision-probe.py`，33 项设计样例通过。
+其中算术/币种样例核对明确的数值期望；创建样例在独立 Python 进程从持久 fixture
+与无 tenantId 的原请求认回结果，改 kind/成员则冲突。该 fixture 仅代表已接纳
+结果，不实现 core-journal/1、锁、fsync、准入并发或产品恢复；规范 JSON 仅覆盖
+探针的 ASCII/整数样例，不替代 work-data。脚本、输入 fixture 和带文档/脚本哈希、
+进程身份、逐项结果及局限的 `revision-probe-result.json` 均在同一 tmp 目录。
+`make docs-check BASELINE=8b75f30` 通过 399 份 Markdown，日志为
+`docs-check-revision.log`；`git diff --check` 通过。产品 TDD、P1/P2/P3 真实组合
+和独立复核仍按上表的接受门执行。
