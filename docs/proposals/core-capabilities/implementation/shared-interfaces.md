@@ -3,7 +3,9 @@
 本稿消费四份开工输入 [scope](scope.md)、[acceptance](acceptance.md)、
 [implementation-spec](implementation-spec.md)、[plan](plan.md) 的
 `e11cc6990c1354e7baf138cc2f501effc7b413f6` 版本。它固定 P0/P1 的 TS 表达与
-`core-journal/1` 实施格式，供独立评审；尚未表示产品实现、验收或正式规格发布。
+`core-journal/1` 实施格式。`8f4cfa9` 的 I1–I5 经独立复核闭合，主调度在 HUB
+整合复验后接受为施工输入，证据见[设计验证](evidence/p0-shared-interfaces/README.md)；
+尚未表示产品实现、验收或正式规格发布。
 精确语义仍归下列已接受 v1，不原地修改其 Schema：
 
 - [data.agent-runtime-identity](../../../../spec/data/agent-runtime-identity/v1/contract.md)

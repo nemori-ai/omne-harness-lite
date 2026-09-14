@@ -45,13 +45,13 @@ package.json 核对：当前检查器限制 baseline/DSH 来源，安装禁用�
 
 独立 architecture-reviewer `/root/review_first_batch` 评审
 `979d80f39f9da11031845f6e2112567299443ed2` 的 `shared-interfaces.md`，比较
-`e11cc69`。稿件在 `impl/dsh-p0-interfaces`，尚未接受或进入 HUB；范围限
+`e11cc69`。初审稿件位于 `impl/dsh-p0-interfaces`，当时尚未接受或进入 HUB；范围限
 work-data/records/admission 的共同输入及 data/DR/CC v1、A05–08/A30/A31。
 下列问题均已发回作者修订，依赖未决 records/admission 接口的产品实施尚未放行。
 
 | ID | 必须修订的缺口与反例 | 状态 |
 |---|---|---|
-| I1 | publications/uses 未与 opaque commit 的记录 owner 形成完整、去重且不可变的对应；提交后修改列表或漏预算 publication，可能 committed 后提前 ready | `199af4c` 的集合/快照/真实性已闭合；ExactUse 单次交接及释放失效仍修订 |
+| I1 | publications/uses 未与 opaque commit 的记录 owner 形成完整、去重且不可变的对应；提交后修改列表或漏预算 publication，可能 committed 后提前 ready | `8f4cfa9` 的集合/快照/真实性及 ExactUse 单次交接、释放失效已闭合 |
 | I2 | thenable 检查仅在外层 enter；内部 publishLogical/publishDurable/retainAt 的 void 返回可忽略 async，导致发布未完成就放行 | `199af4c` 文档层面闭合 |
 | I3 | conflict/rejected 的原操作结果绑定、耐久保存与 lookup/restart 没定义；首次 revision 冲突后同输入重试可能变成功，违反 DR-02 | `199af4c` 文档层面闭合 |
 | I4 | 业务不可持完整 writer，却只有 writer 暴露 prepareOperation/prepare；缺乏真实、受限的准备端口 | `199af4c` 文档层面闭合 |
@@ -68,7 +68,9 @@ not_admitted 释放原票据已经持有的 pin；不同 operation 不能共同�
 区分本次新取得的临时使用和已经移交的原责任。I2–I5 的闭合只指设计表达；
 评审者未执行测试，真实 writer/发布/清理保证仍待产品实现验证。
 作者已提交 `8f4cfa9`，在私有表明确单次 claim、原票据重试、释放中/失败/已释放
-状态与清理边界，并报告九个机制探针通过；同一评审者正在对该项定点复核。
+状态与清理边界。同一评审者完成定点复核，确认 I1 残余反例在文档层面闭合，
+本次范围内没有新阻断。主调度在 `33f39cb` 整合并独立重跑可行性探针后接受
+共享接口为施工输入，具体范围归[设计验证](evidence/p0-shared-interfaces/README.md)。
 公开 API 与 work-data 正文未变；探针不代替正式 TDD 实现和真实资源验证。
 
 同一评审者进一步确认 `979d80f` 第 56–234 行的 work-data 子集已在其评审范围内，

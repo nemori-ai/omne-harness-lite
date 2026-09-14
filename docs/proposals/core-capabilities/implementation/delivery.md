@@ -3,7 +3,7 @@
 ## 当前事实
 
 首批二次开发的目标、验收、实施规格和计划已完成文档交付，其原评审发现已闭合。
-P0 的使用责任修订已送定点复核，检查器仍有一项隔离修订，见 [review.md](review.md)。用户已授权按完整工作包
+P0 共享接口已经评审、整合和复验，检查器的隔离修订正在最终复核，见 [review.md](review.md)。用户已授权按完整工作包
 自驱实施；P0 的共享接口设计、原生锁探针和包检查器 TDD 已派发。尚无本批已接受
 产品交付或 OpenRouter 请求；A01–A32 尚未通过，M1/M2 均未交付。
 
@@ -18,7 +18,7 @@ P0 的使用责任修订已送定点复核，检查器仍有一项隔离修订�
 
 | 任务 | 状态 | 实现/验收证据 | 下一项输入 |
 |---|---|---|---|
-| P0 | in_progress | 锁探针已接受；work-data 已开始 TDD；接口 I2–I5/检查器 K1/K3 闭合，I1/K2 仍修订 | 共享边界实现、剩余修订复核和 HUB 检查器验收 |
+| P0 | in_progress | 锁探针与共享接口施工输入已接受；work-data 正在 TDD；检查器 K2 修订最终复核中 | 共享边界实现和 HUB 检查器验收 |
 | P1 | planned | 未执行 | P0 的记录/协调接口与真实锁证据 |
 | P2 | planned | 未执行 | P1 的真实共同门与记录提供者；交付本地预算 owner |
 | P3 / M1 | planned | 未执行 | P2 当前权限/真实预算/Session/活体，以及 P1 执行账本前提 |
@@ -40,9 +40,9 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 
 | 工作 | 执行者与实际句柄 | 独立工作树 | 写入归属与下一关 |
 |---|---|---|---|
-| P0 共享接口稿 | `/root/p0_interfaces`，已交稿；独立复核 `/root/review_first_batch` | `dsh-p0-interfaces` | `199af4c` 的 I2–I5 闭合，`8f4cfa9` 的 I1 ExactUse 交接修订正在定点复核；除下述 work-data 子集外尚未接受或合入 HUB |
+| P0 共享接口稿（accepted） | `/root/p0_interfaces` 与独立复核 `/root/review_first_batch`，均已结束 | `dsh-p0-interfaces`，待释放后退役 | `8f4cfa9` 的 I1–I5 闭合，`33f39cb` 整合及 HUB 探针重跑通过，接受为施工输入 |
 | P0 真实锁探针（accepted） | infrastructure-developer，`/root/p0_lock_probe`，已结束 | `dsh-p0-lock-probe`，已退役 | `f712e025` 经 `04b8dbf` 整合，HUB 全新目录实际复验通过；范围及限制见下文 |
-| P0 包检查器 | verification-developer，`/root/p0_package_checks` | `dsh-p0-package-checks` | K1/K3 已闭合；`8842f63` 已修复仓库内 TMPDIR，K2 的共同祖先/全局搜索仍修复，尚未接受或合入 HUB |
+| P0 包检查器 | verification-developer，`/root/p0_package_checks`；复核 `/root/review_package_layout` | `dsh-p0-package-checks` | K1/K3 已闭合；`ca559ee` 已提交 K2 有限隔离矩阵，最终复核中，尚未接受或合入 HUB |
 | P0 work-data 实现 | kernel-developer，`/root/p0_work_data` | `dsh-p0-work-data` | 消费下述已固定子集，独占数据包与专属证据；TDD 实施中 |
 
 未标 accepted 的行只表示派发事实。主调度拥有 HUB 整合、根配置、此工作包和最终
@@ -50,8 +50,8 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 共享数据契约自身已派发实现；records/admission 消费者尚未派发，不使用兄弟
 任务未落定的类型或临时约定启动联合实现。
 接口出现正式规格反例时先修设计或发布流程，不放宽验收。
-具体反例与处置归[本轮评审](review.md#p0-共享接口实施稿)。当前是可自主修订的
-实施输入和检查器缺陷，没有改变 M1/M2 范围，也不需要用户替作者选更弱的保证。
+具体反例与处置归[本轮评审](review.md#p0-共享接口实施稿)。共享接口缺口已经闭合，
+检查器有限隔离矩阵待最终复核；没有改变 M1/M2 范围，也不需要更弱的保证。
 
 本次采用当前会话实际提供的 native collaboration 角色和句柄。外部 `ccm` CLI
 inventory 与配额查询不覆盖该 native 执行面，不能移用其外部 CLI 的准入或额度
@@ -76,14 +76,38 @@ OpenAI gpt-5.6-terra 与 DeepSeek v4.1-flash。文件仅由测试进程加载，
 （不含二级标题，保留首尾换行）的 SHA-256
 为 `147f458a5402394ec3875c0142008f474192296e4e23b495010e8ceeaa0155a9`；
 独立评审范围与未决依赖判断见[评审记录](review.md#p0-共享接口实施稿)。
-同稿的包名/默认公开入口/自有来源元数据只作为该数据包的装配约束；其余
-records/admission 内容继续是未接受候选，不能凭此提前实施。
+同稿的包名/默认公开入口/自有来源元数据作为该数据包的装配约束。当时单独
+固定子集是为了先推进无争议的共享数据；其余接口随后按下一节独立接受。
 
 该子集消费 data.agent-runtime-identity/core-work v1，覆盖全部 DTO、真实 Schema
 资源、Checked、严格 JSON 解析/拷贝/规范编码。它无 records、admission、Cordis
 或业务状态依赖；产品实现、TDD 和独立产物验证仍待交付，不计为 A30/A31 完成。
 共享数据作者只拥有 `packages/core/work-data/` 及其专属证据；根安装/锁和 HUB
 整合仍由主调度负责。后续 records 作者须消费该包已在 HUB 验证的真实公开产物。
+
+## P0 共享接口施工输入交付
+
+主调度接受[共享接口](shared-interfaces.md)的 `8f4cfa9` 版本作为 P0/P1 施工输入。
+HUB `33f39cb` 整合后，使用新依赖目录重跑原 Schema/DTO、声明/受限消费者编译、
+内层同步守卫/快照、G01/G10 及九个使用责任机制探针，全部通过。
+[设计验证证据](evidence/p0-shared-interfaces/README.md)保全脚本、锁、原始结果与
+HUB 实际重跑版本/哈希。正式 Schema 未改；产品 JSON 边界、codec、writer、
+准入和真实资源清理仍须按 TDD 实现，不能从设计可行性推导它们已经符合。
+
+## 供其他设计会话消费的边界
+
+用户后续设计依赖最小 Agent/Session/工具闭环，因此优先贯通真实记录与准入、
+Agent 活体、Session 输入/Run、工具定义装载及一次受控调用。交接须有真实装配
+和固定公开包版本；它是 M1 内的中间交付点，不省略 M1/M2 的后续审批、恢复与
+模型验收。当前尚未取得该可运行闭环，不能宣称 TS 目标 API 已可用。
+
+现在可并行进行语言无关设计，消费已接受的
+[Agent 活体](../../../../spec/capabilities/live-agent/v1/contract.md)、
+[Session/Run](../../../../spec/capabilities/session-run/v1/contract.md)、
+[工具生命周期](../../../../spec/capabilities/tools/v1/contract.md)及其精确
+数据依赖；接受身份以[catalog](../../../../spec/catalog.json)为准。
+共享接口只固定 P0/P1 的实施边界，不代替尚未交付的能力包公开 API。
+其他会话遇到语义反例应回传设计和规格所有者，不以 fork 的 baseline 行为反推产品契约。
 
 ## P0 原生锁前提交付
 
