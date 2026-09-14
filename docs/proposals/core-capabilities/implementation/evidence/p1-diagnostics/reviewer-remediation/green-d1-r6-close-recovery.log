@@ -1,0 +1,9 @@
+
+ RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics
+
+
+ Test Files  1 passed (1)
+      Tests  3 passed | 7 skipped (10)
+   Start at  07:29:23
+   Duration  445ms (transform 91ms, setup 0ms, import 188ms, tests 104ms, environment 0ms)
+

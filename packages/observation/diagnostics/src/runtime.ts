@@ -258,6 +258,7 @@ class LocalRuntime implements DiagnosticsRuntime {
   private reportedGapRevision = 0n
   private emittingGapSummary = false
   private gapSummaryAccepted = false
+  private gapSummaryAttempts = 0n
 
   constructor(
     options: LocalDiagnosticsOptions,
@@ -777,6 +778,7 @@ class LocalRuntime implements DiagnosticsRuntime {
     }
     const revision = this.gapRevision
     const seq = this.nextSeq()
+    this.gapSummaryAttempts += 1n
     this.emittingGapSummary = true
     this.gapSummaryAccepted = false
     try {
@@ -949,6 +951,17 @@ class LocalRuntime implements DiagnosticsRuntime {
       } catch {
         return false
       }
+    }
+    if (this.gapRevision !== this.reportedGapRevision) {
+      const attemptsBeforeRecovery = this.gapSummaryAttempts
+      if (this.pendingBytes > 0) {
+        try {
+          await once(this.stream, 'drain')
+        } catch {
+          return false
+        }
+      }
+      if (this.gapSummaryAttempts === attemptsBeforeRecovery) this.emitGapSummary()
     }
     if (!this.closeMarkerAttempted) {
       this.closeMarkerAttempted = true
