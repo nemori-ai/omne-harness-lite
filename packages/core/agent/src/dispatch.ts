@@ -27,13 +27,16 @@ type Return<F> = F extends (...args: never[]) => infer R ? R : never
 export type AgentSubjectEvent = {
   [K in keyof Events]: Events[K] extends (this: Scoped<Agent>, ...args: infer P) => unknown
     ? P extends [infer Payload, ...unknown[]]
-      ? Payload extends { agent: Agent } ? K : never
+      ? Payload extends { agent: Agent }
+        ? K
+        : never
       : never
     : never
 }[keyof Events]
 
 /** The full payload object of one agent-subject event. */
-type PayloadOf<K extends AgentSubjectEvent> = Params<Events[K]> extends [infer Payload, ...unknown[]] ? Payload : never
+type PayloadOf<K extends AgentSubjectEvent> =
+  Params<Events[K]> extends [infer Payload, ...unknown[]] ? Payload : never
 
 /** The event arguments AFTER the payload: the waterfall `next` when present. */
 type Tail<K extends AgentSubjectEvent> = Params<Events[K]> extends [unknown, ...infer R] ? R : never
@@ -66,7 +69,10 @@ export interface AgentEventDispatch {
    * @param payload - the event's payload fields; `agent` is injected.
    * @returns the serial chain's result (the first bail value, if any).
    */
-  serial<K extends AgentSubjectEvent>(name: K, payload: PayloadRest<K>): Promise<Awaited<Return<Events[K]>>>
+  serial<K extends AgentSubjectEvent>(
+    name: K,
+    payload: PayloadRest<K>,
+  ): Promise<Awaited<Return<Events[K]>>>
   /**
    * Around-middleware dispatch (Cordis `waterfall`) in the agent's scope. The
    * declared event parameters already end with the `next` callback, so `rest`
@@ -77,7 +83,11 @@ export interface AgentEventDispatch {
    * @param rest - the event's arguments after the payload (the `next` callback).
    * @returns the waterfall's composed result.
    */
-  waterfall<K extends AgentSubjectEvent>(name: K, payload: PayloadRest<K>, ...rest: Tail<K>): Return<Events[K]>
+  waterfall<K extends AgentSubjectEvent>(
+    name: K,
+    payload: PayloadRest<K>,
+    ...rest: Tail<K>
+  ): Return<Events[K]>
 }
 
 /**
@@ -104,7 +114,11 @@ export function agentCarrier(agent: Agent): Scoped<Agent> {
  * rebuilding it for every dispatch.
  * @returns the fused dispatcher.
  */
-export function agentEvents(ctx: Context, agent: Agent, carrier: Scoped<Agent> = agentCarrier(agent)): AgentEventDispatch {
+export function agentEvents(
+  ctx: Context,
+  agent: Agent,
+  carrier: Scoped<Agent> = agentCarrier(agent),
+): AgentEventDispatch {
   // The ordinary dispatch methods forward through Cordis' variadic mixins. The
   // fused (carrier, name, payload, ...rest) tuple is provably a valid argument
   // list for the matching thisArg overload, but TypeScript cannot relate the
@@ -115,7 +129,7 @@ export function agentEvents(ctx: Context, agent: Agent, carrier: Scoped<Agent> =
     // the fused record is exactly the declared payload. The spread comes
     // first, so a structurally acceptable payload that happens to carry an
     // `agent` field can never override the injected subject.
-    ({ ...payload, agent } as PayloadOf<K>)
+    ({ ...payload, agent }) as PayloadOf<K>
   return {
     emit(name, payload) {
       // Cordis emit invokes callbacks through Array.map: one synchronous throw
@@ -137,12 +151,20 @@ export function agentEvents(ctx: Context, agent: Agent, carrier: Scoped<Agent> =
     },
     async serial(name, payload) {
       // oxlint-disable-next-line typescript/unbound-method -- the events mixin accessor returns a pre-bound function
-      const serial = ctx.serial as (thisArg: Scoped<Agent>, name: string, ...args: unknown[]) => Promise<never>
+      const serial = ctx.serial as (
+        thisArg: Scoped<Agent>,
+        name: string,
+        ...args: unknown[]
+      ) => Promise<never>
       return await serial(carrier, name, fused(payload))
     },
     waterfall(name, payload, ...rest) {
       // oxlint-disable-next-line typescript/unbound-method -- the events mixin accessor returns a pre-bound function
-      const waterfall = ctx.waterfall as (thisArg: Scoped<Agent>, name: string, ...args: unknown[]) => never
+      const waterfall = ctx.waterfall as (
+        thisArg: Scoped<Agent>,
+        name: string,
+        ...args: unknown[]
+      ) => never
       return waterfall(carrier, name, fused(payload), ...rest)
     },
   }

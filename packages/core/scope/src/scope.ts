@@ -8,7 +8,6 @@
 import type { Context, Fiber } from '@deepseek-ai/cordis'
 import { Context as CordisContext } from '@deepseek-ai/cordis'
 
-
 export { AnonymousEntries, NamedEntries, ScopedLayers } from './store.ts'
 export type { ScopeLayer } from './store.ts'
 
@@ -53,7 +52,11 @@ export interface ScopeParentBinding {
 
 /** Cycle-checked write shared by the bind and every rebind. */
 function linkScopeParent(key: ScopeKey, parent: ScopeKey): void {
-  for (let cursor: ScopeKey | undefined = parent; cursor !== undefined; cursor = scopeParents.get(cursor)) {
+  for (
+    let cursor: ScopeKey | undefined = parent;
+    cursor !== undefined;
+    cursor = scopeParents.get(cursor)
+  ) {
     if (cursor === key) throw new Error('dsh-scope: scope parent link would form a cycle')
   }
   scopeParents.set(key, parent)
@@ -72,7 +75,9 @@ function linkScopeParent(key: ScopeKey, parent: ScopeKey): void {
  */
 export function bindScopeParent(key: ScopeKey, parent: ScopeKey): ScopeParentBinding {
   if (scopeParents.has(key)) {
-    throw new Error('dsh-scope: scope key is already bound to a parent; re-linking requires the binding returned by the original bind')
+    throw new Error(
+      'dsh-scope: scope key is already bound to a parent; re-linking requires the binding returned by the original bind',
+    )
   }
   linkScopeParent(key, parent)
   return {
@@ -169,7 +174,9 @@ export function scopeOf(ctx: Context): ScopeKey | undefined {
  * @returns a carrier whose subject remains available only through event arguments.
  */
 export function scopeTarget<T extends object>(base: T, key: ScopeKey | undefined): Scoped<T> {
-  const baseFilter = (base as { [CordisContext.filter]?: (ctx: Context) => boolean })[CordisContext.filter]
+  const baseFilter = (base as { [CordisContext.filter]?: (ctx: Context) => boolean })[
+    CordisContext.filter
+  ]
   const carrier = {
     [CordisContext.filter](ctx: Context): boolean {
       if (baseFilter !== undefined && !baseFilter.call(base, ctx)) return false

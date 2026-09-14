@@ -25,4 +25,3 @@ export type ImageVariantId = Branded<'ImageVariantId'>
 export function ImageVariantId(value: string): ImageVariantId {
   return value as ImageVariantId
 }
-

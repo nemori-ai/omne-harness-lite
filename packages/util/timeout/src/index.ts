@@ -16,7 +16,10 @@ export class TimeoutReason extends Error {
    * @param code Capability-owned timeout code (e.g. `BASH_TIMEOUT`).
    * @param timeoutMs The deadline that elapsed, in milliseconds.
    */
-  constructor(readonly code: string, readonly timeoutMs: number) {
+  constructor(
+    readonly code: string,
+    readonly timeoutMs: number,
+  ) {
     super(`${code} after ${timeoutMs}ms`)
   }
 }
@@ -26,7 +29,9 @@ export const MAX_TIMER_DELAY_MS = 2_147_483_647
 
 function assertTimerDelay(timeoutMs: number, name: string): void {
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0 || timeoutMs > MAX_TIMER_DELAY_MS) {
-    throw new Error(`${name} must be a positive finite number no greater than ${MAX_TIMER_DELAY_MS}`)
+    throw new Error(
+      `${name} must be a positive finite number no greater than ${MAX_TIMER_DELAY_MS}`,
+    )
   }
 }
 
@@ -102,13 +107,17 @@ export function deadline(
   assertTimerDelay(timeoutMs, 'deadline timeoutMs')
 
   const timer = new AbortController()
-  const id = setTimeout(() => { timer.abort(new TimeoutReason(code, timeoutMs)) }, timeoutMs)
+  const id = setTimeout(() => {
+    timer.abort(new TimeoutReason(code, timeoutMs))
+  }, timeoutMs)
   return {
     // AbortSignal.any adopts the reason of whichever source aborts FIRST, so a
     // race resolves to a single cause: timeoutOf() reads TimeoutReason only
     // when the timeout won, and upstream-wins leaves an ordinary abort reason.
     signal: upstream !== undefined ? AbortSignal.any([upstream, timer.signal]) : timer.signal,
-    [Symbol.dispose]() { clearTimeout(id) },
+    [Symbol.dispose]() {
+      clearTimeout(id)
+    },
   }
 }
 
@@ -130,9 +139,8 @@ export function idleWatchdog(
 ): IdleWatchdog {
   assertTimerDelay(timeoutMs, 'idleWatchdog timeoutMs')
   const timeout = new AbortController()
-  const signal = upstream === undefined
-    ? timeout.signal
-    : AbortSignal.any([upstream, timeout.signal])
+  const signal =
+    upstream === undefined ? timeout.signal : AbortSignal.any([upstream, timeout.signal])
   let timer: ReturnType<typeof setTimeout> | undefined
   let outstanding = false
   let disposed = false
@@ -181,7 +189,10 @@ export function idleWatchdog(
  * @param code When provided, only a {@link TimeoutReason} with this exact `code` matches.
  * @returns The matching {@link TimeoutReason}, else `undefined`.
  */
-export function timeoutOf(x: AbortSignal | { reason?: unknown }, code?: string): TimeoutReason | undefined {
+export function timeoutOf(
+  x: AbortSignal | { reason?: unknown },
+  code?: string,
+): TimeoutReason | undefined {
   // AbortSignal.reason is typed `any`; pin it to `unknown` so no `any` leaks and
   // the instanceof narrows cleanly for both a signal and a bare reason carrier.
   const reason: unknown = x.reason

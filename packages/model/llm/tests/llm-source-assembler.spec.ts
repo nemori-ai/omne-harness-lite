@@ -11,7 +11,13 @@ describe('BlockAssembler', () => {
       { type: 'text-delta', index: 1, text: 'Hello' },
       { type: 'text-delta', index: 1, text: ' world' },
       { type: 'block-start', index: 2, blockType: 'tool-call' },
-      { type: 'tool-call-delta', index: 2, id: ToolCallId('call-1'), name: 'echo', argumentsDelta: '{"text":' },
+      {
+        type: 'tool-call-delta',
+        index: 2,
+        id: ToolCallId('call-1'),
+        name: 'echo',
+        argumentsDelta: '{"text":',
+      },
       { type: 'tool-call-delta', index: 2, id: ToolCallId('call-1'), argumentsDelta: '"hi"}' },
       { type: 'usage', usage: { inputTokens: 10, outputTokens: 5 } },
       { type: 'finish', reason: { kind: 'tool-calls' } },
@@ -69,7 +75,6 @@ describe('BlockAssembler', () => {
     expect(() => assembler.blocks()).toThrow('cannot assemble incomplete block of type "video"')
   })
 
-
   it('ignores duplicate block-start for the same index', () => {
     const assembler = new BlockAssembler()
     assembler.push({ type: 'block-start', index: 0, blockType: 'text' })
@@ -84,11 +89,29 @@ describe('BlockAssembler', () => {
   it('ignores tool-call-delta stragglers after block-end', () => {
     const assembler = new BlockAssembler()
     assembler.push({ type: 'block-start', index: 0, blockType: 'tool-call' })
-    assembler.push({ type: 'tool-call-delta', index: 0, id: ToolCallId('c1'), name: 'echo', argumentsDelta: '{}' })
-    assembler.push({ type: 'block-end', index: 0, block: { type: 'tool-call', id: ToolCallId('c1'), name: 'echo', arguments: '{}' } })
+    assembler.push({
+      type: 'tool-call-delta',
+      index: 0,
+      id: ToolCallId('c1'),
+      name: 'echo',
+      argumentsDelta: '{}',
+    })
+    assembler.push({
+      type: 'block-end',
+      index: 0,
+      block: { type: 'tool-call', id: ToolCallId('c1'), name: 'echo', arguments: '{}' },
+    })
     // straggler after block-end — partial.block is set, so early return
-    assembler.push({ type: 'tool-call-delta', index: 0, id: ToolCallId('c1'), name: 'evil', argumentsDelta: 'oops' })
-    expect(assembler.blocks()).toEqual([{ type: 'tool-call', id: ToolCallId('c1'), name: 'echo', arguments: '{}' }])
+    assembler.push({
+      type: 'tool-call-delta',
+      index: 0,
+      id: ToolCallId('c1'),
+      name: 'evil',
+      argumentsDelta: 'oops',
+    })
+    expect(assembler.blocks()).toEqual([
+      { type: 'tool-call', id: ToolCallId('c1'), name: 'echo', arguments: '{}' },
+    ])
   })
 
   it('assembles tool-call with generated id fallback when no id provided', () => {
@@ -191,15 +214,17 @@ describe('BlockAssembler replay metadata', () => {
 describe('assertNever', () => {
   it('throws with diagnostics when a value escapes a closed union at runtime', async () => {
     const { assertNever } = await import('@omne-harness-lite/values/baseline')
-    expect(() => assertNever({ type: 'rogue' } as never, 'test-context'))
-      .toThrow('unreachable variant in test-context: {"type":"rogue"}')
+    expect(() => assertNever({ type: 'rogue' } as never, 'test-context')).toThrow(
+      'unreachable variant in test-context: {"type":"rogue"}',
+    )
     expect(() => assertNever(undefined as never)).toThrow('unreachable variant: undefined')
   })
 
   it('BlockAssembler.push rejects chunks outside the closed StreamChunk union', () => {
     const assembler = new BlockAssembler()
-    expect(() => { assembler.push({ type: 'rogue-chunk' } as unknown as StreamChunk) })
-      .toThrow('unreachable variant in BlockAssembler.push')
+    expect(() => {
+      assembler.push({ type: 'rogue-chunk' } as unknown as StreamChunk)
+    }).toThrow('unreachable variant in BlockAssembler.push')
   })
 })
 
@@ -236,10 +261,26 @@ describe('BlockAssembler.interruptedBlocks', () => {
     assembler.push({ type: 'text-delta', index: 0, text: 'calling' })
     assembler.push({ type: 'block-end', index: 0, block: { type: 'text', text: 'calling' } })
     assembler.push({ type: 'block-start', index: 1, blockType: 'tool-call' })
-    assembler.push({ type: 'tool-call-delta', index: 1, id: ToolCallId('c1'), name: 'read', argumentsDelta: '{"a":1}' })
-    assembler.push({ type: 'block-end', index: 1, block: { type: 'tool-call', id: ToolCallId('c1'), name: 'read', arguments: '{"a":1}' } })
+    assembler.push({
+      type: 'tool-call-delta',
+      index: 1,
+      id: ToolCallId('c1'),
+      name: 'read',
+      argumentsDelta: '{"a":1}',
+    })
+    assembler.push({
+      type: 'block-end',
+      index: 1,
+      block: { type: 'tool-call', id: ToolCallId('c1'), name: 'read', arguments: '{"a":1}' },
+    })
     assembler.push({ type: 'block-start', index: 2, blockType: 'tool-call' })
-    assembler.push({ type: 'tool-call-delta', index: 2, id: ToolCallId('c2'), name: 'read', argumentsDelta: '{"pa' })
+    assembler.push({
+      type: 'tool-call-delta',
+      index: 2,
+      id: ToolCallId('c2'),
+      name: 'read',
+      argumentsDelta: '{"pa',
+    })
     expect(assembler.interruptedBlocks()).toEqual([{ type: 'text', text: 'calling' }])
   })
 
@@ -248,7 +289,11 @@ describe('BlockAssembler.interruptedBlocks', () => {
     assembler.push({ type: 'block-start', index: 0, blockType: 'text' })
     assembler.push({ type: 'text-delta', index: 0, text: '  \n' })
     // A merge-extended block kind this build does not know how to assemble.
-    assembler.push({ type: 'block-start', index: 1, blockType: 'mystery' } as unknown as StreamChunk)
+    assembler.push({
+      type: 'block-start',
+      index: 1,
+      blockType: 'mystery',
+    } as unknown as StreamChunk)
     assembler.push({ type: 'block-start', index: 2, blockType: 'reasoning' })
     expect(assembler.interruptedBlocks()).toEqual([])
   })

@@ -29,7 +29,7 @@ describe('message construction', () => {
     input.content[0]!.text = 'caller mutation'
     expect(message.content).toEqual([{ type: 'text', text: 'original' }])
     expect(() => {
-      (message.content[0] as { text: string }).text = 'observer mutation'
+      ;(message.content[0] as { text: string }).text = 'observer mutation'
     }).toThrow()
   })
 
@@ -85,12 +85,14 @@ describe('message construction', () => {
     expect(message).toMatchObject({
       role: 'user',
       source: { kind: 'tool', callId },
-      content: [{
-        type: 'tool-result',
-        toolCallId: callId,
-        content: [{ type: 'text', text: 'result' }],
-        isError: false,
-      }],
+      content: [
+        {
+          type: 'tool-result',
+          toolCallId: callId,
+          content: [{ type: 'text', text: 'result' }],
+          isError: false,
+        },
+      ],
     })
     expect(message.id).not.toHaveLength(0)
     expect(Object.isFrozen(message)).toBe(true)

@@ -22,10 +22,10 @@ export function canonicalHeader(header: EpochHeader): EpochHeader {
   const adapterDefaults = header.adapterDefaults
   return {
     config: header.config,
-    ...adapterDefaults?.reasoningEffort === true || adapterDefaults?.maxTokens === true
+    ...(adapterDefaults?.reasoningEffort === true || adapterDefaults?.maxTokens === true
       ? { adapterDefaults }
-      : {},
-    ...header.tools !== undefined && header.tools.length > 0 ? { tools: header.tools } : {},
+      : {}),
+    ...(header.tools !== undefined && header.tools.length > 0 ? { tools: header.tools } : {}),
   }
 }
 
@@ -42,10 +42,11 @@ function sameSchema(a: ToolSchema, b: ToolSchema): boolean {
  */
 export function headerEquals(a: EpochHeader, b: EpochHeader): boolean {
   if (
-    !callConfigEquals(a.config, b.config)
-    || a.adapterDefaults?.reasoningEffort !== b.adapterDefaults?.reasoningEffort
-    || a.adapterDefaults?.maxTokens !== b.adapterDefaults?.maxTokens
-  ) return false
+    !callConfigEquals(a.config, b.config) ||
+    a.adapterDefaults?.reasoningEffort !== b.adapterDefaults?.reasoningEffort ||
+    a.adapterDefaults?.maxTokens !== b.adapterDefaults?.maxTokens
+  )
+    return false
   const at = a.tools ?? []
   const bt = b.tools ?? []
   return at.length === bt.length && at.every((tool, i) => sameSchema(tool, bt[i] as ToolSchema))
@@ -60,7 +61,10 @@ export function headerEquals(a: EpochHeader, b: EpochHeader): boolean {
  * @param from - a previously folded state to continue from.
  * @returns the latest canonical header, or undefined when none exists yet.
  */
-export function foldRequestHeader(events: readonly SessionEvent[], from?: EpochHeader): EpochHeader | undefined {
+export function foldRequestHeader(
+  events: readonly SessionEvent[],
+  from?: EpochHeader,
+): EpochHeader | undefined {
   let state = from
   for (const event of events) {
     if (event.type === 'request/header') state = canonicalHeader(event.data.header)

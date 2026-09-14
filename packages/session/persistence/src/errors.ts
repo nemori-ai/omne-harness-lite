@@ -42,7 +42,10 @@ export class SessionReadOnlyError extends Error {
    * @param sessionId - the session the read handle observes.
    * @param operation - the refused mutating operation name.
    */
-  constructor(readonly sessionId: SessionId, operation: string) {
+  constructor(
+    readonly sessionId: SessionId,
+    operation: string,
+  ) {
     super(`session "${sessionId}": ${operation} is not available on a read handle`)
     this.name = 'SessionReadOnlyError'
   }
@@ -70,7 +73,10 @@ export class SessionHandleClosedError extends Error {
    * @param sessionId - the session the closed handle addressed.
    * @param operation - the refused operation name.
    */
-  constructor(readonly sessionId: SessionId, operation: string) {
+  constructor(
+    readonly sessionId: SessionId,
+    operation: string,
+  ) {
     super(`session "${sessionId}": ${operation} on a closed handle`)
     this.name = 'SessionHandleClosedError'
   }
@@ -114,7 +120,10 @@ export class SessionFormatUnsupportedError extends Error {
    *   including the raw-log path when one exists.
    * @param location - the backend's artifact location, when one exists.
    */
-  constructor(message: string, readonly location?: SessionLocation) {
+  constructor(
+    message: string,
+    readonly location?: SessionLocation,
+  ) {
     super(message)
     this.name = 'SessionFormatUnsupportedError'
   }

@@ -25,18 +25,17 @@ describe('A31 strict JSON text parsing', () => {
     if (!result.ok) expect(result.issues[0]?.code).toBe('invalid_json')
   })
 
-  it.each([
-    '{"a":1,"a":2}',
-    '{"a":1,"\\u0061":2}',
-    '{"__proto__":1,"\\u005f_proto__":2}',
-  ])('rejects duplicate decoded object keys: %s', (text) => {
-    const result = parseJson(text, limits)
-    expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.issues[0]).toMatchObject({ code: 'invalid_json' })
-      expect(result.issues[0]?.message).toContain('duplicate')
-    }
-  })
+  it.each(['{"a":1,"a":2}', '{"a":1,"\\u0061":2}', '{"__proto__":1,"\\u005f_proto__":2}'])(
+    'rejects duplicate decoded object keys: %s',
+    text => {
+      const result = parseJson(text, limits)
+      expect(result.ok).toBe(false)
+      if (!result.ok) {
+        expect(result.issues[0]).toMatchObject({ code: 'invalid_json' })
+        expect(result.issues[0]?.message).toContain('duplicate')
+      }
+    },
+  )
 
   it.each([
     ['unsafe integer', '9007199254740992'],
@@ -52,16 +51,19 @@ describe('A31 strict JSON text parsing', () => {
     if (!result.ok) expect(result.issues[0]?.code).toBe('unsupported_number')
   })
 
-  it.each(['1e3', '1000', '1.25', '1.2500', '0.000001', '1e-7'])('accepts exactly represented number token %s', (text) => {
-    expect(parseJson(text, limits).ok).toBe(true)
-  })
+  it.each(['1e3', '1000', '1.25', '1.2500', '0.000001', '1e-7'])(
+    'accepts exactly represented number token %s',
+    text => {
+      expect(parseJson(text, limits).ok).toBe(true)
+    },
+  )
 
   it.each([
     String(Number.MAX_SAFE_INTEGER),
     String(Number.MIN_SAFE_INTEGER),
     '1e+3',
     '0e999999999999999999999999',
-  ])('accepts the supported numeric boundary %s', (text) => {
+  ])('accepts the supported numeric boundary %s', text => {
     expect(parseJson(text, limits).ok).toBe(true)
   })
 
@@ -79,23 +81,35 @@ describe('A31 strict JSON text parsing', () => {
   })
 
   it('enforces raw UTF-8 bytes, root-relative depth and value node count', () => {
-    expect(parseJson('"é"', { ...limits, maxBytes: 3 })).toMatchObject({ ok: false, issues: [{ code: 'capacity' }] })
-    expect(parseJson('{"a":{"b":1}}', { ...limits, maxDepth: 1 })).toMatchObject({ ok: false, issues: [{ path: '/a/b', code: 'capacity' }] })
-    expect(parseJson('[0,1]', { ...limits, maxNodes: 2 })).toMatchObject({ ok: false, issues: [{ path: '/1', code: 'capacity' }] })
+    expect(parseJson('"é"', { ...limits, maxBytes: 3 })).toMatchObject({
+      ok: false,
+      issues: [{ code: 'capacity' }],
+    })
+    expect(parseJson('{"a":{"b":1}}', { ...limits, maxDepth: 1 })).toMatchObject({
+      ok: false,
+      issues: [{ path: '/a/b', code: 'capacity' }],
+    })
+    expect(parseJson('[0,1]', { ...limits, maxNodes: 2 })).toMatchObject({
+      ok: false,
+      issues: [{ path: '/1', code: 'capacity' }],
+    })
   })
 
   it.each([
     ['depth', { maxBytes: 100_000, maxDepth: 8, maxNodes: 32 }, `/${'0/'.repeat(8)}0`],
     ['nodes', { maxBytes: 100_000, maxDepth: 20_000, maxNodes: 32 }, `/${'0/'.repeat(31)}0`],
-  ])('returns a capacity issue before recursive parsing exceeds the stack: %s', (_label, deepLimits, path) => {
-    const depth = 20_000
-    const text = `${'['.repeat(depth)}0${']'.repeat(depth)}`
+  ])(
+    'returns a capacity issue before recursive parsing exceeds the stack: %s',
+    (_label, deepLimits, path) => {
+      const depth = 20_000
+      const text = `${'['.repeat(depth)}0${']'.repeat(depth)}`
 
-    expect(parseJson(text, deepLimits)).toMatchObject({
-      ok: false,
-      issues: [{ path, code: 'capacity' }],
-    })
-  })
+      expect(parseJson(text, deepLimits)).toMatchObject({
+        ok: false,
+        issues: [{ path, code: 'capacity' }],
+      })
+    },
+  )
 
   it('rejects malformed deep JSON before tolerant recursive parsing', () => {
     const text = `[0${'['.repeat(20_000)}0${']'.repeat(20_001)}`
@@ -110,9 +124,17 @@ describe('A31 strict JSON text parsing', () => {
     const depth = 20_000
     const text = `${'['.repeat(depth)}0${']'.repeat(depth)}`
 
-    expect(parseJson(text, { maxBytes: 100_000, maxDepth: depth, maxNodes: depth + 1 })).toMatchObject({
+    expect(
+      parseJson(text, { maxBytes: 100_000, maxDepth: depth, maxNodes: depth + 1 }),
+    ).toMatchObject({
       ok: false,
-      issues: [{ path: `/${'0/'.repeat(128)}0`, code: 'capacity', message: expect.stringContaining('implementation') }],
+      issues: [
+        {
+          path: `/${'0/'.repeat(128)}0`,
+          code: 'capacity',
+          message: expect.stringContaining('implementation'),
+        },
+      ],
     })
   })
 

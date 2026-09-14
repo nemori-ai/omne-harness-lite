@@ -74,4 +74,3 @@ export type ReasoningEffortId = Branded<'ReasoningEffortId'>
 export function ReasoningEffortId(id: string): ReasoningEffortId {
   return brandString<ReasoningEffortId>(id)
 }
-

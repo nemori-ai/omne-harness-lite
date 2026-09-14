@@ -16,10 +16,12 @@ describe('source prompt assembly baseline', () => {
     expect(parseSystemPromptConfig({})).toMatchObject({
       includeRuntimeContext: true,
     })
-    expect(() => parseSystemPromptConfig({ toolOrder: ['echo'] }))
-      .toThrow(`toolOrder must contain the "${TOOL_ORDER_REST}" rest entry`)
-    expect(() => parseSystemPromptConfig({ toolOrder: [TOOL_ORDER_REST, TOOL_ORDER_REST] }))
-      .toThrow(`toolOrder lists "${TOOL_ORDER_REST}" more than once`)
+    expect(() => parseSystemPromptConfig({ toolOrder: ['echo'] })).toThrow(
+      `toolOrder must contain the "${TOOL_ORDER_REST}" rest entry`,
+    )
+    expect(() =>
+      parseSystemPromptConfig({ toolOrder: [TOOL_ORDER_REST, TOOL_ORDER_REST] }),
+    ).toThrow(`toolOrder lists "${TOOL_ORDER_REST}" more than once`)
   })
 
   it('assembles ordered dynamic contributions and strictly renders variables', async () => {
@@ -36,11 +38,16 @@ describe('source prompt assembly baseline', () => {
       ctx.systemPrompt.context({ name: 'runtime', order: 1, text: 'cwd {{cwd}}' })
       ctx.systemPrompt.variable('cwd', () => '/work')
       const parameters = { type: 'object', properties: { text: { type: 'string' } } }
-      ctx.systemPrompt.tools(() => ({ schemas: [{ name: 'echo', description: 'echo', parameters }] }))
+      ctx.systemPrompt.tools(() => ({
+        schemas: [{ name: 'echo', description: 'echo', parameters }],
+      }))
 
       const first = await ctx.systemPrompt.assemble()
       expect(first.sections.map(section => section.name)).toEqual([
-        'deployment:persona-prefix', 'a', 'z', 'deployment:persona-suffix',
+        'deployment:persona-prefix',
+        'a',
+        'z',
+        'deployment:persona-suffix',
       ])
       expect(renderPrompt(first)).toBe('Agent one\n\nfirst\n\nlast')
       expect(renderContextSections(first)).toEqual([{ name: 'runtime', text: 'cwd /work' }])
@@ -58,9 +65,14 @@ describe('source prompt assembly baseline', () => {
     const fiber = await ctx.plugin(SystemPrompt)
     const key = {}
     let scope: Scope | undefined
-    const minter = await ctx.plugin(Object.assign((inner: Context) => {
-      scope = createScope(inner, key)
-    }, { inject: ['systemPrompt'] }))
+    const minter = await ctx.plugin(
+      Object.assign(
+        (inner: Context) => {
+          scope = createScope(inner, key)
+        },
+        { inject: ['systemPrompt'] },
+      ),
+    )
     if (scope === undefined) throw new Error('scope minter did not run')
     try {
       ctx.systemPrompt.section({ name: 'persona', order: 1, text: 'global' })
@@ -80,7 +92,12 @@ describe('source prompt assembly baseline', () => {
     const ctx = new Context()
     const fiber = await ctx.plugin(SystemPrompt)
     try {
-      ctx.systemPrompt.section({ name: 'complete', order: 1, text: 'fixed {{value}}', complete: true })
+      ctx.systemPrompt.section({
+        name: 'complete',
+        order: 1,
+        text: 'fixed {{value}}',
+        complete: true,
+      })
       ctx.systemPrompt.variable('value', () => 'prompt')
       ctx.on('system-prompt/assemble', async (assembly, _context, next) => {
         assembly.sections.push({ name: 'late', text: 'late' })
@@ -89,8 +106,9 @@ describe('source prompt assembly baseline', () => {
       const assembly = await ctx.systemPrompt.assemble()
       expect(assembly.sections).toEqual([{ name: 'complete', text: 'fixed {{value}}' }])
       expect(renderPrompt(assembly)).toBe('fixed prompt')
-      expect(() => renderPrompt({ ...assembly, variables: {} }))
-        .toThrow('unknown prompt variable "{{value}}"')
+      expect(() => renderPrompt({ ...assembly, variables: {} })).toThrow(
+        'unknown prompt variable "{{value}}"',
+      )
     } finally {
       await fiber.dispose()
     }
@@ -103,10 +121,17 @@ describe('source prompt assembly baseline', () => {
     })
     try {
       ctx.systemPrompt.tools(() => ({
-        schemas: ['third', 'first', 'second'].map(name => ({ name, description: name, parameters: {} })),
+        schemas: ['third', 'first', 'second'].map(name => ({
+          name,
+          description: name,
+          parameters: {},
+        })),
       }))
-      expect((await ctx.systemPrompt.assemble()).tools.map(tool => tool.name))
-        .toEqual(['second', 'third', 'first'])
+      expect((await ctx.systemPrompt.assemble()).tools.map(tool => tool.name)).toEqual([
+        'second',
+        'third',
+        'first',
+      ])
     } finally {
       await fiber.dispose()
     }

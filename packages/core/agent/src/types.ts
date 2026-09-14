@@ -14,9 +14,12 @@ export interface Agent {
 }
 
 /** Optional validation/commit hook supplied to an external factory. */
-export interface AgentSetupCommit { commit(): void }
+export interface AgentSetupCommit {
+  commit(): void
+}
 export type AgentSetup = (
-  agentCtx: Context, agent: Agent,
+  agentCtx: Context,
+  agent: Agent,
 ) => AgentSetupCommit | Promise<AgentSetupCommit | void> | void
 
 /** Baseline factory input; no Session creation, seed or model protocol is adopted. */

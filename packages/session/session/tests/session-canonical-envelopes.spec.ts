@@ -1,5 +1,11 @@
 import { Context } from '@deepseek-ai/cordis'
-import { createMessage, createSystemMessage, createToolResultMessage, createUserMessage, ToolCallId } from '@omne-harness-lite/llm/baseline'
+import {
+  createMessage,
+  createSystemMessage,
+  createToolResultMessage,
+  createUserMessage,
+  ToolCallId,
+} from '@omne-harness-lite/llm/baseline'
 import { describe, expect, expectTypeOf, it, vi } from 'vitest'
 import SessionStore, {
   adoptSessionEvent,
@@ -26,41 +32,63 @@ function requestEvent(data: unknown): SessionEvent {
 }
 
 function toolEvent(data: unknown): SessionEvent {
-  return { type: 'tool/result', seq: SessionSeq(0), time: 1, data, surfaceOp: 'append' } as SessionEvent
+  return {
+    type: 'tool/result',
+    seq: SessionSeq(0),
+    time: 1,
+    data,
+    surfaceOp: 'append',
+  } as SessionEvent
 }
 
 function toolData(isError: boolean) {
   return {
-    turn: 1, step: 1,
+    turn: 1,
+    step: 1,
     message: createToolResultMessage({ callId: ToolCallId('tool'), content: [], isError }),
   }
 }
 
 function appendEvent(session: Session, event: SessionEvent) {
   const append = session.append.bind(session) as (
-    type: SessionEvent['type'], data: unknown, metadata?: unknown,
+    type: SessionEvent['type'],
+    data: unknown,
+    metadata?: unknown,
   ) => SessionEvent
   return append(event.type, event.data, {
-    ...event.surfaceOp === undefined ? {} : { surfaceOp: event.surfaceOp },
-    ...event.sourceEventSeqs === undefined ? {} : { sourceEventSeqs: event.sourceEventSeqs },
+    ...(event.surfaceOp === undefined ? {} : { surfaceOp: event.surfaceOp }),
+    ...(event.sourceEventSeqs === undefined ? {} : { sourceEventSeqs: event.sourceEventSeqs }),
   })
 }
 
 const entryPaths: Record<string, (event: SessionEvent) => unknown> = {
   append: (event: SessionEvent) => appendEvent(Session.create(id), event),
   seed: (event: SessionEvent) => Session.create(id, [event]),
-  restore: (event: SessionEvent) => Session.fromRestore(id, [event], { ...header }, SessionLogOffset(0), 'detached'),
+  restore: (event: SessionEvent) =>
+    Session.fromRestore(id, [event], { ...header }, SessionLogOffset(0), 'detached'),
   adopt: adoptSessionEvent,
   snapshot: snapshotSessionEvent,
 }
 
 const invalidData = [
   ...[null, [], 1, 'invalid'].flatMap(data => [
-    { name: 'request data is not an object', event: requestEvent(data), rule: /data must be an object/ },
-    { name: 'request header is not an object', event: requestEvent({ header: data, reason: 'initial' }), rule: /header must be an object/ },
+    {
+      name: 'request data is not an object',
+      event: requestEvent(data),
+      rule: /data must be an object/,
+    },
+    {
+      name: 'request header is not an object',
+      event: requestEvent({ header: data, reason: 'initial' }),
+      rule: /header must be an object/,
+    },
     { name: 'tool data is not an object', event: toolEvent(data), rule: /data must be an object/ },
   ]),
-  { name: 'missing request header', event: requestEvent({ reason: 'initial' }), rule: /header must be an object/ },
+  {
+    name: 'missing request header',
+    event: requestEvent({ reason: 'initial' }),
+    rule: /header must be an object/,
+  },
   ...[{ tools: [] }, { adapterDefaults: {} }].map(optional => ({
     name: 'empty optional request field',
     event: requestEvent({ header: { config, ...optional }, reason: 'initial' }),
@@ -71,10 +99,28 @@ const invalidData = [
     event: requestEvent({ header: { config, system }, reason: 'initial' }),
     rule: /must omit header.system/,
   })),
-  { name: 'successful tool has failure metadata', event: toolEvent({ ...toolData(false), error: failure }), rule: /error requires/ },
-  ...[undefined, null, [], {}, { content: null }, { content: [] }, { content: [null] }, { content: [{ isError: 'true' }] }].map(message => ({
+  {
+    name: 'successful tool has failure metadata',
+    event: toolEvent({ ...toolData(false), error: failure }),
+    rule: /error requires/,
+  },
+  ...[
+    undefined,
+    null,
+    [],
+    {},
+    { content: null },
+    { content: [] },
+    { content: [null] },
+    { content: [{ isError: 'true' }] },
+  ].map(message => ({
     name: 'malformed tool message with failure metadata',
-    event: toolEvent({ turn: 1, step: 1, ...message === undefined ? {} : { message }, error: failure }),
+    event: toolEvent({
+      turn: 1,
+      step: 1,
+      ...(message === undefined ? {} : { message }),
+      error: failure,
+    }),
     rule: /error requires/,
   })),
 ]
@@ -85,7 +131,11 @@ describe('canonical event payload acceptance', () => {
       it.each(invalidData)('rejects $name with a located error', ({ event, rule }) => {
         const input = structuredClone(event)
         let caught: unknown
-        try { accept(input) } catch (error: unknown) { caught = error }
+        try {
+          accept(input)
+        } catch (error: unknown) {
+          caught = error
+        }
         expect(caught).toBeInstanceOf(Error)
         expect(caught).not.toBeInstanceOf(TypeError)
         expect((caught as Error).message).toMatch(rule)
@@ -96,7 +146,15 @@ describe('canonical event payload acceptance', () => {
       it('accepts absent optional fields, nonempty fields, and optional failure identity', () => {
         const events = [
           requestEvent({ header: { config }, reason: 'initial' }),
-          requestEvent({ header: { config, extension: { nested: true }, tools: [{ name: 'tool', description: '', parameters: {} }], adapterDefaults: { maxTokens: true } }, reason: 'initial' }),
+          requestEvent({
+            header: {
+              config,
+              extension: { nested: true },
+              tools: [{ name: 'tool', description: '', parameters: {} }],
+              adapterDefaults: { maxTokens: true },
+            },
+            reason: 'initial',
+          }),
           toolEvent(toolData(false)),
           toolEvent(toolData(true)),
           toolEvent({ ...toolData(true), error: failure }),
@@ -109,10 +167,23 @@ describe('canonical event payload acceptance', () => {
   it('preserves nested header, source, and data extras without normalizing accepted events', () => {
     const message = createSystemMessage('prompt', 'fixture')
     const events: SessionEvent[] = [
-      requestEvent({ header: { config, extra: { nested: [true, null] } }, reason: 'initial', extra: ['retained'] }),
-      { type: 'system/message', seq: SessionSeq(0), time: 1, surfaceOp: 'append', data: {
-        turn: 1, step: 1, message: { ...message, source: { ...message.source, extra: { nested: true } } }, extra: ['retained'],
-      } } as unknown as SessionEvent,
+      requestEvent({
+        header: { config, extra: { nested: [true, null] } },
+        reason: 'initial',
+        extra: ['retained'],
+      }),
+      {
+        type: 'system/message',
+        seq: SessionSeq(0),
+        time: 1,
+        surfaceOp: 'append',
+        data: {
+          turn: 1,
+          step: 1,
+          message: { ...message, source: { ...message.source, extra: { nested: true } } },
+          extra: ['retained'],
+        },
+      } as unknown as SessionEvent,
     ]
     for (const event of events) {
       for (const [path, accept] of Object.entries(entryPaths)) {
@@ -132,11 +203,20 @@ describe('canonical event payload acceptance', () => {
 
   it('adopts an assistant message and freezes its identified message', () => {
     const event: SessionEvent<'assistant/message'> = {
-      type: 'assistant/message', seq: SessionSeq(0), time: 1, surfaceOp: 'append',
-      data: { turn: 1, step: 1, stream: [], message: createMessage({
-        role: 'assistant', content: [{ type: 'text', text: 'answer' }],
-        source: { kind: 'model', provider: 'mock', model: 'mock' },
-      }) },
+      type: 'assistant/message',
+      seq: SessionSeq(0),
+      time: 1,
+      surfaceOp: 'append',
+      data: {
+        turn: 1,
+        step: 1,
+        stream: [],
+        message: createMessage({
+          role: 'assistant',
+          content: [{ type: 'text', text: 'answer' }],
+          source: { kind: 'model', provider: 'mock', model: 'mock' },
+        }),
+      },
     }
     const owned = structuredClone(event)
     expect(adoptSessionEvent(owned)).toBe(owned)
@@ -145,53 +225,69 @@ describe('canonical event payload acceptance', () => {
     expect(snapshotSessionEvent(event)).toEqual(event)
   })
 
-  it.each([null, 'invalid'])('rejects a non-object restored request config (%j)', (config) => {
+  it.each([null, 'invalid'])('rejects a non-object restored request config (%j)', config => {
     const event = requestEvent({ header: { config }, reason: 'initial' })
     expect(() => Session.create(id, [event])).toThrow('lacks provider/model')
-    expect(() => Session.fromRestore(id, [event], { ...header }, SessionLogOffset(0), 'detached'))
-      .toThrow('lacks provider/model')
+    expect(() =>
+      Session.fromRestore(id, [event], { ...header }, SessionLogOffset(0), 'detached'),
+    ).toThrow('lacks provider/model')
   })
 
   it('updates the frozen request-header cache only for accepted snapshots', () => {
     const session = Session.create(id)
-    session.append('request/header', { header: { config, tools: [{ name: 'tool', description: '', parameters: {} }] }, reason: 'initial' })
+    session.append('request/header', {
+      header: { config, tools: [{ name: 'tool', description: '', parameters: {} }] },
+      reason: 'initial',
+    })
     const first = session.requestHeader()
     expect(first).toEqual({ config, tools: [{ name: 'tool', description: '', parameters: {} }] })
     expect(Object.isFrozen(first)).toBe(true)
     expect(session.requestHeader()).toBe(first)
-    expect(() => appendEvent(session, requestEvent({ header: { config, system: '' }, reason: 'change' })))
-      .toThrow(/must omit header.system/)
+    expect(() =>
+      appendEvent(session, requestEvent({ header: { config, system: '' }, reason: 'change' })),
+    ).toThrow(/must omit header.system/)
     expect(session.requestHeader()).toBe(first)
     session.append('request/header', { header: { config }, reason: 'change' })
     expect(session.requestHeader()).toEqual({ config })
     expect(first).toEqual({ config, tools: [{ name: 'tool', description: '', parameters: {} }] })
   })
 
-  it.each(['detached', 'shared-frozen'] as const)('prepares owned restored events without publication (%s)', async (eventState) => {
-    const ctx = new Context()
-    const fiber = ctx.plugin(SessionStore)
-    await fiber
-    try {
-      const event = requestEvent({ header: { config }, reason: 'initial' })
-      const created = vi.fn()
-      ctx.on('session/created', created)
-      const prepared = ctx.sessions.prepare(id, {
-        seed: [event], meta: { ...header }, inheritedEventCount: SessionLogOffset(0), eventState,
-      })
-      expect(prepared.eventAt(SessionSeq(0))).toBe(event)
-      expect(prepared.requestHeader()).toEqual({ config })
-      expect(ctx.sessions.get(id)).toBeUndefined()
-      expect(created).not.toHaveBeenCalled()
-      const invalid = requestEvent({ header: { config, tools: [] }, reason: 'initial' })
-      expect(() => ctx.sessions.prepare(id, {
-        seed: [invalid], meta: { ...header }, inheritedEventCount: SessionLogOffset(0), eventState,
-      })).toThrow(/must omit empty tools/)
-      expect(ctx.sessions.get(id)).toBeUndefined()
-      expect(created).not.toHaveBeenCalled()
-    } finally {
-      await fiber.dispose()
-    }
-  })
+  it.each(['detached', 'shared-frozen'] as const)(
+    'prepares owned restored events without publication (%s)',
+    async eventState => {
+      const ctx = new Context()
+      const fiber = ctx.plugin(SessionStore)
+      await fiber
+      try {
+        const event = requestEvent({ header: { config }, reason: 'initial' })
+        const created = vi.fn()
+        ctx.on('session/created', created)
+        const prepared = ctx.sessions.prepare(id, {
+          seed: [event],
+          meta: { ...header },
+          inheritedEventCount: SessionLogOffset(0),
+          eventState,
+        })
+        expect(prepared.eventAt(SessionSeq(0))).toBe(event)
+        expect(prepared.requestHeader()).toEqual({ config })
+        expect(ctx.sessions.get(id)).toBeUndefined()
+        expect(created).not.toHaveBeenCalled()
+        const invalid = requestEvent({ header: { config, tools: [] }, reason: 'initial' })
+        expect(() =>
+          ctx.sessions.prepare(id, {
+            seed: [invalid],
+            meta: { ...header },
+            inheritedEventCount: SessionLogOffset(0),
+            eventState,
+          }),
+        ).toThrow(/must omit empty tools/)
+        expect(ctx.sessions.get(id)).toBeUndefined()
+        expect(created).not.toHaveBeenCalled()
+      } finally {
+        await fiber.dispose()
+      }
+    },
+  )
 
   it('does not publish rejected appends or seeds or change derived state', async () => {
     const ctx = new Context()
@@ -223,10 +319,14 @@ describe('canonical event payload acceptance', () => {
     }
   })
 
-  it.each([null, [], 1, 'invalid'])('reports malformed restored event envelopes without TypeError (%j)', (value) => {
-    expect(() => Session.fromRestore(id, [value] as never, { ...header }, SessionLogOffset(0), 'detached'))
-      .toThrow('seed event at index 0 has an invalid event envelope')
-  })
+  it.each([null, [], 1, 'invalid'])(
+    'reports malformed restored event envelopes without TypeError (%j)',
+    value => {
+      expect(() =>
+        Session.fromRestore(id, [value] as never, { ...header }, SessionLogOffset(0), 'detached'),
+      ).toThrow('seed event at index 0 has an invalid event envelope')
+    },
+  )
 })
 const invalidOps = [
   { op: 'replace', start: 0, end: 0 },
@@ -240,91 +340,165 @@ const invalidOps = [
 
 function userEvent(): SessionEvent<'user/message'> {
   return {
-    type: 'user/message', seq: SessionSeq(0), time: 1,
-    data: createUserMessage({ content: [], source: { kind: 'user' } }), surfaceOp: 'append',
+    type: 'user/message',
+    seq: SessionSeq(0),
+    time: 1,
+    data: createUserMessage({ content: [], source: { kind: 'user' } }),
+    surfaceOp: 'append',
   }
 }
 
 describe('canonical event-local surface metadata', () => {
   for (const [path, accept] of Object.entries(entryPaths)) {
-    it.each(invalidOps)(path + ' rejects noncanonical replace keys (%j)', (surfaceOp) => {
-      expect(() => accept({ ...userEvent(), surfaceOp } as unknown as SessionEvent)).toThrow(/invalid replace surfaceOp/)
+    it.each(invalidOps)(path + ' rejects noncanonical replace keys (%j)', surfaceOp => {
+      expect(() => accept({ ...userEvent(), surfaceOp } as unknown as SessionEvent)).toThrow(
+        /invalid replace surfaceOp/,
+      )
     })
 
     it(path + ' requires markers and forbids non-surface and assistant provenance', () => {
       const { surfaceOp: _op, ...markerless } = userEvent()
       expect(() => accept(markerless as SessionEvent)).toThrow(/requires a surfaceOp marker/)
-      expect(() => accept({ type: 'turn/start', seq: SessionSeq(0), time: 1, data: { turn: 1 }, surfaceOp: 'append' } as never))
-        .toThrow(/not surface-eligible/)
-      expect(() => accept({ type: 'turn/start', seq: SessionSeq(0), time: 1, data: { turn: 1 }, sourceEventSeqs: [0] } as never))
-        .toThrow(/not surface-eligible/)
+      expect(() =>
+        accept({
+          type: 'turn/start',
+          seq: SessionSeq(0),
+          time: 1,
+          data: { turn: 1 },
+          surfaceOp: 'append',
+        } as never),
+      ).toThrow(/not surface-eligible/)
+      expect(() =>
+        accept({
+          type: 'turn/start',
+          seq: SessionSeq(0),
+          time: 1,
+          data: { turn: 1 },
+          sourceEventSeqs: [0],
+        } as never),
+      ).toThrow(/not surface-eligible/)
       const assistant = {
-        ...userEvent(), type: 'assistant/message', sourceEventSeqs: [0],
-        data: { turn: 1, step: 1, stream: [], message: createMessage({
-          role: 'assistant', content: [], source: { kind: 'model', provider: 'mock', model: 'mock' },
-        }) },
+        ...userEvent(),
+        type: 'assistant/message',
+        sourceEventSeqs: [0],
+        data: {
+          turn: 1,
+          step: 1,
+          stream: [],
+          message: createMessage({
+            role: 'assistant',
+            content: [],
+            source: { kind: 'model', provider: 'mock', model: 'mock' },
+          }),
+        },
       } as unknown as SessionEvent
       expect(() => accept(assistant)).toThrow(/cannot carry sourceEventSeqs/)
     })
   }
 
-  it.each(['extension/event', 'tool/code-dispatch', 'tool/code-dispatch-start'])('retains opaque ignorable %s metadata without deriving messages', (type) => {
-    const event = {
-      type, seq: SessionSeq(0), time: 1, data: { nested: { retained: true } }, ignorable: true,
-      surfaceOp: { opaque: ['not', 'placement'] }, sourceEventSeqs: { opaque: [null, true] },
-    } as unknown as SessionEvent
-    for (const [path, accept] of Object.entries(entryPaths)) {
-      if (path === 'append') continue
-      expect(() => accept(structuredClone(event))).not.toThrow()
-    }
-    const session = Session.create(id, [event])
-    expect(session.eventAt(SessionSeq(0))).toEqual(event)
-    expect(session.surface.nodes).toEqual([])
-    expect(session.deriveMessages()).toEqual([])
-  })
+  it.each(['extension/event', 'tool/code-dispatch', 'tool/code-dispatch-start'])(
+    'retains opaque ignorable %s metadata without deriving messages',
+    type => {
+      const event = {
+        type,
+        seq: SessionSeq(0),
+        time: 1,
+        data: { nested: { retained: true } },
+        ignorable: true,
+        surfaceOp: { opaque: ['not', 'placement'] },
+        sourceEventSeqs: { opaque: [null, true] },
+      } as unknown as SessionEvent
+      for (const [path, accept] of Object.entries(entryPaths)) {
+        if (path === 'append') continue
+        expect(() => accept(structuredClone(event))).not.toThrow()
+      }
+      const session = Session.create(id, [event])
+      expect(session.eventAt(SessionSeq(0))).toEqual(event)
+      expect(session.surface.nodes).toEqual([])
+      expect(session.deriveMessages()).toEqual([])
+    },
+  )
 
-  it.each(['turn/start', 'assistant/attempt', 'request/context', 'session/title', 'tool/ptc-dispatch'])('rejects known log-only %s metadata even when ignorable', (type) => {
+  it.each([
+    'turn/start',
+    'assistant/attempt',
+    'request/context',
+    'session/title',
+    'tool/ptc-dispatch',
+  ])('rejects known log-only %s metadata even when ignorable', type => {
     for (const metadata of [{ surfaceOp: 'append' }, { sourceEventSeqs: [0] }]) {
       const event = {
-        type, seq: SessionSeq(0), time: 1, data: { turn: 1, step: 1, stream: [] }, ignorable: true, ...metadata,
+        type,
+        seq: SessionSeq(0),
+        time: 1,
+        data: { turn: 1, step: 1, stream: [] },
+        ignorable: true,
+        ...metadata,
       } as unknown as SessionEvent
-      for (const accept of Object.values(entryPaths)) expect(() => accept(event)).toThrow(/not surface-eligible/)
+      for (const accept of Object.values(entryPaths))
+        expect(() => accept(event)).toThrow(/not surface-eligible/)
     }
   })
 
   it('requires system placement and preserves system data and provenance on head replacements', () => {
     const session = Session.create(id)
-    const data = { turn: 1, step: 1, message: createSystemMessage('head', 'fixture'), extra: { nested: true } }
+    const data = {
+      turn: 1,
+      step: 1,
+      message: createSystemMessage('head', 'fixture'),
+      extra: { nested: true },
+    }
     const head = session.append('system/message', data, { surfaceOp: 'append' })
-    const next = session.append('system/message', { ...data, message: createSystemMessage('next', 'fixture') }, {
-      surfaceOp: { op: 'replace', startSeq: head.seq, endSeq: head.seq }, sourceEventSeqs: [head.seq],
-    })
+    const next = session.append(
+      'system/message',
+      { ...data, message: createSystemMessage('next', 'fixture') },
+      {
+        surfaceOp: { op: 'replace', startSeq: head.seq, endSeq: head.seq },
+        sourceEventSeqs: [head.seq],
+      },
+    )
     expect(next.data).toEqual({ ...data, message: next.data.message })
     expect(session.surface.nodes).toEqual([next.seq])
     expect(session.deriveMessages()).toEqual([next.data.message])
     const { surfaceOp: _op, ...markerless } = head
-    for (const accept of Object.values(entryPaths)) expect(() => accept(markerless as SessionEvent)).toThrow(/requires a surfaceOp marker/)
+    for (const accept of Object.values(entryPaths))
+      expect(() => accept(markerless as SessionEvent)).toThrow(/requires a surfaceOp marker/)
   })
 
-  it.each([1, 2])('adoption rejects current or future replacement endpoints (%s)', (endpoint) => {
-    const event = { ...userEvent(), seq: SessionSeq(1), surfaceOp: { op: 'replace', startSeq: SessionSeq(endpoint), endSeq: SessionSeq(0) } } as SessionEvent
+  it.each([1, 2])('adoption rejects current or future replacement endpoints (%s)', endpoint => {
+    const event = {
+      ...userEvent(),
+      seq: SessionSeq(1),
+      surfaceOp: { op: 'replace', startSeq: SessionSeq(endpoint), endSeq: SessionSeq(0) },
+    } as SessionEvent
     expect(() => adoptSessionEvent(event)).toThrow(/must reference earlier events/)
     expect(() => snapshotSessionEvent(event)).toThrow(/must reference earlier events/)
   })
 
   it('adoption validates only local metadata, not referenced history or endpoint order', () => {
-    const event: SessionEvent<'user/message'> = { ...userEvent(), seq: SessionSeq(12), surfaceOp: { op: 'replace', startSeq: SessionSeq(11), endSeq: SessionSeq(4) }, sourceEventSeqs: [SessionSeq(11), SessionSeq(4)] }
+    const event: SessionEvent<'user/message'> = {
+      ...userEvent(),
+      seq: SessionSeq(12),
+      surfaceOp: { op: 'replace', startSeq: SessionSeq(11), endSeq: SessionSeq(4) },
+      sourceEventSeqs: [SessionSeq(11), SessionSeq(4)],
+    }
     expect(adoptSessionEvent(event)).toBe(event)
     expect(snapshotSessionEvent(event)).toEqual(event)
   })
 
   it('requires surface intent on event variants and forbids assistant provenance in types', () => {
     expectTypeOf<SurfaceEvent>().toEqualTypeOf<SessionEvent<SurfaceEventType>>()
-    expectTypeOf<Omit<SessionEvent<'user/message'>, 'surfaceOp'>>().not.toExtend<SessionEvent<'user/message'>>()
-    expectTypeOf<{ surfaceOp: 'append'; sourceEventSeqs: SessionSeq[] }>().not.toExtend<SurfaceIntent<'assistant/message'>>()
+    expectTypeOf<Omit<SessionEvent<'user/message'>, 'surfaceOp'>>().not.toExtend<
+      SessionEvent<'user/message'>
+    >()
+    expectTypeOf<{ surfaceOp: 'append'; sourceEventSeqs: SessionSeq[] }>().not.toExtend<
+      SurfaceIntent<'assistant/message'>
+    >()
     expectTypeOf<{ op: 'replace'; start: SessionSeq; end: SessionSeq }>().not.toExtend<SurfaceOp>()
     expectTypeOf<SessionEvent<'system/message'>['surfaceOp']>().toEqualTypeOf<SurfaceOp>()
-    expectTypeOf<SurfaceIntent<'system/message'>['sourceEventSeqs']>().toEqualTypeOf<SessionSeq[] | undefined>()
+    expectTypeOf<SurfaceIntent<'system/message'>['sourceEventSeqs']>().toEqualTypeOf<
+      SessionSeq[] | undefined
+    >()
     expectTypeOf<SessionEvent<'user/message'>['surfaceOp']>().toEqualTypeOf<SurfaceOp>()
     expectTypeOf<SessionEvent<'assistant/message'>['sourceEventSeqs']>().toEqualTypeOf<undefined>()
     expectTypeOf<SessionEvent<'turn/start'>['surfaceOp']>().toEqualTypeOf<undefined>()

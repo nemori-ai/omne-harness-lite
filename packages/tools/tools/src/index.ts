@@ -4,7 +4,12 @@
  * are intentionally outside this module.
  */
 import { Context, Service } from '@deepseek-ai/cordis'
-import { AnonymousEntries, NamedEntries, ScopedLayers, scopeOf } from '@omne-harness-lite/scope/baseline'
+import {
+  AnonymousEntries,
+  NamedEntries,
+  ScopedLayers,
+  scopeOf,
+} from '@omne-harness-lite/scope/baseline'
 import type { ScopeKey, ScopeLayer } from '@omne-harness-lite/scope/baseline'
 import { HarnessError, errorChain } from '@omne-harness-lite/llm/baseline'
 import type { ContentBlock, ToolCallId, ToolSchema } from '@omne-harness-lite/llm/baseline'
@@ -100,7 +105,10 @@ export interface ToolOutputDefinition {
 export interface ToolDefinition extends ToolSchema {
   readonly output: ToolOutputDefinition
   execute(args: unknown, exec: ToolRunContext): Promise<unknown>
-  finalizeContent?(exec: Readonly<ToolExecution>, result: Readonly<ToolExecutionResult>): ContentBlock[] | undefined
+  finalizeContent?(
+    exec: Readonly<ToolExecution>,
+    result: Readonly<ToolExecutionResult>,
+  ): ContentBlock[] | undefined
   presentCall?(args: unknown): ToolCallView | undefined
   presentResult?(args: unknown, result: ToolResult): ToolResultView | undefined
 }
@@ -173,7 +181,10 @@ export class ToolOutputError extends HarnessError {
   readonly violations: string[]
 
   constructor(toolName: string, violations: string[]) {
-    super(`tool "${toolName}" returned invalid output: ${violations.join('; ')}`, 'INVALID_TOOL_OUTPUT')
+    super(
+      `tool "${toolName}" returned invalid output: ${violations.join('; ')}`,
+      'INVALID_TOOL_OUTPUT',
+    )
     this.name = 'ToolOutputError'
     this.violations = violations
   }
@@ -195,9 +206,14 @@ class ToolLayer implements ScopeLayer {
   readonly restrictions = new AnonymousEntries<CompiledRestriction>()
 
   constructor(scope: ScopeKey | undefined) {
-    this.tools = new NamedEntries(name => new Error(scope === undefined
-      ? `tool "${name}" is already registered (register a scoped variant through that scope's Context)`
-      : `tool "${name}" is already registered in this scope`))
+    this.tools = new NamedEntries(
+      name =>
+        new Error(
+          scope === undefined
+            ? `tool "${name}" is already registered (register a scoped variant through that scope's Context)`
+            : `tool "${name}" is already registered in this scope`,
+        ),
+    )
   }
 
   isEmpty(): boolean {
@@ -249,18 +265,28 @@ function snapshotArguments(candidate: unknown): JsonValue {
     if (detached === undefined) throw new Error('not lossless JSON')
     return deepFreeze(detached as JsonValue)
   } catch (error: unknown) {
-    throw new TypeError('tool execution arguments must be losslessly JSON-serializable', { cause: error })
+    throw new TypeError('tool execution arguments must be losslessly JSON-serializable', {
+      cause: error,
+    })
   }
 }
 
 function freezeDefinition(definition: ToolDefinition): ToolDefinition {
   if (definition.name.length === 0) throw new TypeError('tool name must be non-empty')
-  if (typeof definition.description !== 'string') throw new TypeError(`tool "${definition.name}" description must be a string`)
-  if (typeof definition.execute !== 'function') throw new TypeError(`tool "${definition.name}" must declare execute()`)
-  if (typeof definition.output !== 'object' || definition.output === null
-    || typeof definition.output.render !== 'function'
-    || (definition.output.presentationMeta !== undefined && typeof definition.output.presentationMeta !== 'function')) {
-    throw new TypeError(`tool "${definition.name}" must declare output { schema, render, presentationMeta? }`)
+  if (typeof definition.description !== 'string')
+    throw new TypeError(`tool "${definition.name}" description must be a string`)
+  if (typeof definition.execute !== 'function')
+    throw new TypeError(`tool "${definition.name}" must declare execute()`)
+  if (
+    typeof definition.output !== 'object' ||
+    definition.output === null ||
+    typeof definition.output.render !== 'function' ||
+    (definition.output.presentationMeta !== undefined &&
+      typeof definition.output.presentationMeta !== 'function')
+  ) {
+    throw new TypeError(
+      `tool "${definition.name}" must declare output { schema, render, presentationMeta? }`,
+    )
   }
   assertSupportedJsonSchema(definition.parameters)
   assertSupportedJsonSchema(definition.output.schema)
@@ -269,7 +295,9 @@ function freezeDefinition(definition: ToolDefinition): ToolDefinition {
   const output = Object.freeze({
     schema: outputSchema,
     render: definition.output.render,
-    ...(definition.output.presentationMeta === undefined ? {} : { presentationMeta: definition.output.presentationMeta }),
+    ...(definition.output.presentationMeta === undefined
+      ? {}
+      : { presentationMeta: definition.output.presentationMeta }),
   })
   return Object.freeze({
     name: definition.name,
@@ -277,7 +305,9 @@ function freezeDefinition(definition: ToolDefinition): ToolDefinition {
     parameters,
     output,
     execute: definition.execute,
-    ...(definition.finalizeContent === undefined ? {} : { finalizeContent: definition.finalizeContent }),
+    ...(definition.finalizeContent === undefined
+      ? {}
+      : { finalizeContent: definition.finalizeContent }),
     ...(definition.presentCall === undefined ? {} : { presentCall: definition.presentCall }),
     ...(definition.presentResult === undefined ? {} : { presentResult: definition.presentResult }),
   })
@@ -285,9 +315,10 @@ function freezeDefinition(definition: ToolDefinition): ToolDefinition {
 
 function failure(error: unknown): ToolExecutionFailure {
   const message = errorChain(error)
-  const info = error instanceof HarnessError
-    ? { name: error.name, code: error.code }
-    : { name: error instanceof Error ? error.name : 'Error', code: 'UNKNOWN' }
+  const info =
+    error instanceof HarnessError
+      ? { name: error.name, code: error.code }
+      : { name: error instanceof Error ? error.name : 'Error', code: 'UNKNOWN' }
   return deepFreeze({
     isError: true,
     error: { message, info },
@@ -295,7 +326,9 @@ function failure(error: unknown): ToolExecutionFailure {
   })
 }
 
-function aborted(code: typeof TOOL_ABORTED | typeof TOOL_ABORTED_BEFORE_DISPATCH): ToolExecutionFailure {
+function aborted(
+  code: typeof TOOL_ABORTED | typeof TOOL_ABORTED_BEFORE_DISPATCH,
+): ToolExecutionFailure {
   const before = code === TOOL_ABORTED_BEFORE_DISPATCH
   const message = before ? 'tool call aborted before dispatch' : 'tool call aborted'
   return deepFreeze({
@@ -327,7 +360,9 @@ function finalizeResult(
 export class ToolRuntime extends Service {
   private readonly layers = new ScopedLayers(
     scope => new ToolLayer(scope),
-    () => { this.ctx.emit('tools/change') },
+    () => {
+      this.ctx.emit('tools/change')
+    },
   )
 
   constructor(ctx: Context) {
@@ -336,11 +371,9 @@ export class ToolRuntime extends Service {
 
   register(definition: ToolDefinition): () => void {
     const frozen = freezeDefinition(definition)
-    return this.layers.effect(
-      this.ctx,
-      layer => layer.tools.insert(frozen.name, frozen),
-      { label: 'tools.register()' },
-    )
+    return this.layers.effect(this.ctx, layer => layer.tools.insert(frozen.name, frozen), {
+      label: 'tools.register()',
+    })
   }
 
   restrict(filter: ToolRestriction): () => void {
@@ -350,20 +383,20 @@ export class ToolRuntime extends Service {
       throw new Error('tools.restrict({}) is a no-op: pass allow and/or deny')
     }
     const known = this.restrictableNames(scope)
-    const names = [...filter.allow ?? [], ...filter.deny ?? []]
+    const names = [...(filter.allow ?? []), ...(filter.deny ?? [])]
     const unknown = names.filter(name => !known.has(name))
     if (unknown.length > 0) {
-      throw new Error(`tools.restrict() names unknown inherited tool${unknown.length > 1 ? 's' : ''} ${unknown.map(name => `"${name}"`).join(', ')}`)
+      throw new Error(
+        `tools.restrict() names unknown inherited tool${unknown.length > 1 ? 's' : ''} ${unknown.map(name => `"${name}"`).join(', ')}`,
+      )
     }
     const restriction: CompiledRestriction = {
       ...(filter.allow === undefined ? {} : { allow: new Set(filter.allow) }),
       ...(filter.deny === undefined ? {} : { deny: new Set(filter.deny) }),
     }
-    return this.layers.effect(
-      this.ctx,
-      layer => layer.restrictions.append(restriction),
-      { label: 'tools.restrict()' },
-    )
+    return this.layers.effect(this.ctx, layer => layer.restrictions.append(restriction), {
+      label: 'tools.restrict()',
+    })
   }
 
   private inherited(scope: ScopeKey | undefined): Map<string, ToolDefinition> {
@@ -419,7 +452,10 @@ export class ToolRuntime extends Service {
     try {
       const args = snapshotArguments(suppliedArguments)
       exec = Object.freeze({
-        callId, name, scope, signal,
+        callId,
+        name,
+        scope,
+        signal,
         arguments: args,
         token: Symbol('dsh.tool.execution') as ToolExecutionToken,
       })
@@ -436,9 +472,12 @@ export class ToolRuntime extends Service {
       if (outputViolations.length > 0) throw new ToolOutputError(name, outputViolations)
       if (signal.aborted) return finalizeResult(name, definition, exec, aborted(TOOL_ABORTED))
       const content = project(name, 'render', () => definition.output.render(args, value))
-      const meta = definition.output.presentationMeta === undefined
-        ? undefined
-        : project(name, 'presentationMeta', () => definition.output.presentationMeta?.(args, value))
+      const meta =
+        definition.output.presentationMeta === undefined
+          ? undefined
+          : project(name, 'presentationMeta', () =>
+              definition.output.presentationMeta?.(args, value),
+            )
       const result: ToolExecutionResult = deepFreeze({
         isError: false,
         value,

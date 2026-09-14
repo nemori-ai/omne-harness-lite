@@ -1,4 +1,9 @@
-import { brandNumber, brandString, type Branded, type BrandedNumber } from '@omne-harness-lite/brand/baseline'
+import {
+  brandNumber,
+  brandString,
+  type Branded,
+  type BrandedNumber,
+} from '@omne-harness-lite/brand/baseline'
 import type {
   AssistantMessage,
   AssistantStreamRecord,
@@ -52,7 +57,9 @@ export type SessionLogOffset = BrandedNumber<'SessionLogOffset'>
  */
 export function SessionLogOffset(value: number): SessionLogOffset {
   if (!Number.isSafeInteger(value) || value < 0 || Object.is(value, -0)) {
-    throw new TypeError(`SessionLogOffset must be a non-negative safe integer, got ${String(value)}`)
+    throw new TypeError(
+      `SessionLogOffset must be a non-negative safe integer, got ${String(value)}`,
+    )
   }
   return brandNumber<SessionLogOffset>(value)
 }
@@ -180,8 +187,7 @@ export interface RestoredSessionOptions {
 
 /** Inputs accepted while constructing an unpublished Session. */
 export type PrepareSessionOptions =
-  | (CreateSessionOptions & { readonly eventState?: undefined })
-  | RestoredSessionOptions
+  (CreateSessionOptions & { readonly eventState?: undefined }) | RestoredSessionOptions
 
 /** Why an active agent driver was cancelled. */
 export type AgentCancelCause =
@@ -409,10 +415,7 @@ export type SessionEventType = keyof SessionEventMap
  * earlier sources through {@link SessionEvent.sourceEventSeqs}.
  */
 export type SurfaceEventType =
-  | 'system/message'
-  | 'user/message'
-  | 'assistant/message'
-  | 'tool/result'
+  'system/message' | 'user/message' | 'assistant/message' | 'tool/result'
 
 /** A message-producing event carrying its required surface operation. */
 export type SurfaceEvent = SessionEvent<SurfaceEventType>
@@ -430,9 +433,7 @@ export type SurfaceEvent = SessionEvent<SurfaceEventType>
  *   shadowed surface node. Used by compaction; any surface-replacing producer
  *   may use it.
  */
-export type SurfaceOp =
-  | 'append'
-  | { op: 'replace'; startSeq: SessionSeq; endSeq: SessionSeq }
+export type SurfaceOp = 'append' | { op: 'replace'; startSeq: SessionSeq; endSeq: SessionSeq }
 
 /**
  * Surface placement and cited source-event seqs for {@link Session.append}. Required on
@@ -440,13 +441,15 @@ export type SurfaceOp =
  */
 export type SurfaceIntent<T extends SurfaceEventType = SurfaceEventType> = {
   surfaceOp: SurfaceOp
-} & (T extends 'assistant/message' ? {
-  /** Assistant messages embed their provider stream instead of citing source events. */
-  sourceEventSeqs?: never
-} : {
-  /** Complete non-empty set of known earlier source-event seqs. */
-  sourceEventSeqs?: SessionSeq[]
-})
+} & (T extends 'assistant/message'
+  ? {
+      /** Assistant messages embed their provider stream instead of citing source events. */
+      sourceEventSeqs?: never
+    }
+  : {
+      /** Complete non-empty set of known earlier source-event seqs. */
+      sourceEventSeqs?: SessionSeq[]
+    })
 
 /**
  * One immutable entry in the session log.
@@ -480,8 +483,10 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
      * inconvenience) rather than silently resuming a gutted session.
      */
     ignorable?: true
-  } & (K extends SurfaceEventType ? SurfaceIntent<K> : {
-    surfaceOp?: never
-    sourceEventSeqs?: never
-  })
+  } & (K extends SurfaceEventType
+    ? SurfaceIntent<K>
+    : {
+        surfaceOp?: never
+        sourceEventSeqs?: never
+      })
 }[T]

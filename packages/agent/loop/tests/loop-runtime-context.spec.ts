@@ -18,20 +18,30 @@ describe('RuntimeContextProjection', () => {
     const ctx = new Context()
     await ctx.plugin(SessionStore)
     const session = ctx.sessions.create(SessionId('runtime-context-replay'))
-    const retained = session.append('user/message', contextMessage('retained'), { surfaceOp: 'append' })
-    const shadowed = session.append('user/message', contextMessage('shadowed'), { surfaceOp: 'append' })
-    session.append('user/message', createUserMessage({
-      content: [{ type: 'text', text: 'summary' }],
-      source: { kind: 'plugin', plugin: 'test-compaction' },
-    }), {
-      surfaceOp: { op: 'replace', startSeq: shadowed.seq, endSeq: shadowed.seq },
-      sourceEventSeqs: [shadowed.seq],
+    const retained = session.append('user/message', contextMessage('retained'), {
+      surfaceOp: 'append',
     })
+    const shadowed = session.append('user/message', contextMessage('shadowed'), {
+      surfaceOp: 'append',
+    })
+    session.append(
+      'user/message',
+      createUserMessage({
+        content: [{ type: 'text', text: 'summary' }],
+        source: { kind: 'plugin', plugin: 'test-compaction' },
+      }),
+      {
+        surfaceOp: { op: 'replace', startSeq: shadowed.seq, endSeq: shadowed.seq },
+        sourceEventSeqs: [shadowed.seq],
+      },
+    )
 
     const projection = new RuntimeContextProjection(ctx, session)
     expect(session.surface.nodes).toContain(retained.seq)
     expect(projection.project('retained', [])).toBeUndefined()
-    expect(projection.project('next', [{ name: 'sandbox:policy', text: 'policy' }])?.source).toEqual({
+    expect(
+      projection.project('next', [{ name: 'sandbox:policy', text: 'policy' }])?.source,
+    ).toEqual({
       kind: 'plugin',
       plugin: SOURCE,
       form: 'snapshot',

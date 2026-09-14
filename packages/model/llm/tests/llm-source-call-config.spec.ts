@@ -16,17 +16,23 @@ describe('callConfigEquals', () => {
     expect(callConfigEquals(base, base)).toBe(true)
     expect(callConfigEquals(base, { provider: 'x', model: 'm' })).toBe(false)
     expect(callConfigEquals(base, { provider: 'p', model: 'x' })).toBe(false)
-    expect(callConfigEquals({ ...base, reasoningEffort: ReasoningEffortId('high') }, base)).toBe(false)
-    expect(callConfigEquals(
-      { ...base, reasoningEffort: ReasoningEffortId('high') },
-      { ...base, reasoningEffort: ReasoningEffortId('high') },
-    )).toBe(true)
+    expect(callConfigEquals({ ...base, reasoningEffort: ReasoningEffortId('high') }, base)).toBe(
+      false,
+    )
+    expect(
+      callConfigEquals(
+        { ...base, reasoningEffort: ReasoningEffortId('high') },
+        { ...base, reasoningEffort: ReasoningEffortId('high') },
+      ),
+    ).toBe(true)
     expect(callConfigEquals({ ...base, temperature: 0.5 }, base)).toBe(false)
     expect(callConfigEquals({ ...base, maxTokens: 1 }, { ...base, maxTokens: 2 })).toBe(false)
     expect(callConfigEquals({ ...base, stop: ['a'] }, base)).toBe(false)
     expect(callConfigEquals({ ...base, stop: ['a'] }, { ...base, stop: ['a', 'b'] })).toBe(false)
     expect(callConfigEquals({ ...base, stop: ['a'] }, { ...base, stop: ['b'] })).toBe(false)
-    expect(callConfigEquals({ ...base, stop: ['a', 'b'] }, { ...base, stop: ['a', 'b'] })).toBe(true)
+    expect(callConfigEquals({ ...base, stop: ['a', 'b'] }, { ...base, stop: ['a', 'b'] })).toBe(
+      true,
+    )
   })
 })
 
@@ -40,7 +46,9 @@ describe('deepFreeze', () => {
     expect(Object.isFrozen(value.a.b)).toBe(true)
     expect(Object.isFrozen(value.a.b[1])).toBe(true)
     // ESM runs in strict mode: mutation throws rather than silently failing.
-    expect(() => { (value.a.b[1] as { c: string }).c = 'y' }).toThrow(TypeError)
+    expect(() => {
+      ;(value.a.b[1] as { c: string }).c = 'y'
+    }).toThrow(TypeError)
   })
 
   it('never freezes an AbortSignal: the live cancellation channel keeps working', () => {
@@ -49,7 +57,13 @@ describe('deepFreeze', () => {
     expect(Object.isFrozen(request)).toBe(true)
     expect(Object.isFrozen(controller.signal)).toBe(false)
     let fired = false
-    controller.signal.addEventListener('abort', () => { fired = true }, { once: true })
+    controller.signal.addEventListener(
+      'abort',
+      () => {
+        fired = true
+      },
+      { once: true },
+    )
     controller.abort('stop')
     expect(fired).toBe(true)
     expect(controller.signal.aborted).toBe(true)

@@ -36,7 +36,10 @@ describe('JSONL source append failure at real file boundaries', () => {
       fault.rollbackFails = false
       await expect(appendSyncedBytes(path, 'next\n')).rejects.toThrow('injected write failure')
       expect(await readFile(path, 'utf8')).toBe('original\n')
-    } finally { fault.path = ''; await rm(dir, { recursive: true, force: true }) }
+    } finally {
+      fault.path = ''
+      await rm(dir, { recursive: true, force: true })
+    }
   })
   it('retains both failures and does not claim rollback when truncation fails', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'omne-source-jsonl-fault-'))
@@ -47,10 +50,15 @@ describe('JSONL source append failure at real file boundaries', () => {
       fault.rollbackFails = true
       await expect(appendSyncedBytes(path, 'next\n')).rejects.toMatchObject({
         name: 'AggregateError',
-        errors: [expect.objectContaining({ message: 'injected write failure' }),
-                 expect.objectContaining({ message: 'injected rollback failure' })],
+        errors: [
+          expect.objectContaining({ message: 'injected write failure' }),
+          expect.objectContaining({ message: 'injected rollback failure' }),
+        ],
       })
       expect(await readFile(path, 'utf8')).toBe('original\npartial')
-    } finally { fault.path = ''; await rm(dir, { recursive: true, force: true }) }
+    } finally {
+      fault.path = ''
+      await rm(dir, { recursive: true, force: true })
+    }
   })
 })

@@ -3,8 +3,20 @@
 import { HarnessError } from '@omne-harness-lite/llm/baseline'
 import type { ContentBlock } from '@omne-harness-lite/llm/baseline'
 import { deepFreeze, type JsonValue } from '@omne-harness-lite/values/baseline'
-import type { ToolDefinition, ToolExecution, ToolExecutionResult, ToolRunContext, ToolResult } from './index.ts'
-import { assertSupportedJsonSchema, isJsonSchemaRecord, isPlainJsonArray, JsonSchemaError, validateJsonSchemaValue } from './json-schema.ts'
+import type {
+  ToolDefinition,
+  ToolExecution,
+  ToolExecutionResult,
+  ToolRunContext,
+  ToolResult,
+} from './index.ts'
+import {
+  assertSupportedJsonSchema,
+  isJsonSchemaRecord,
+  isPlainJsonArray,
+  JsonSchemaError,
+  validateJsonSchemaValue,
+} from './json-schema.ts'
 import type { JsonSchemaNode, JsonSchemaScalar, ObjectJsonSchema } from './json-schema.ts'
 import type { ToolCallView, ToolResultView } from './presentation.ts'
 
@@ -126,44 +138,54 @@ type InferProperty<P, Depth extends unknown[]> = InferValueAt<P, Depth>
 
 /** Infer an implicit property map into required and optional object keys. */
 type InferProperties<S, Depth extends unknown[]> = Simplify<
-  & { [K in RequiredKeys<S>]: InferProperty<S[K], Depth> }
-  & { [K in Exclude<StringKeyOf<S>, RequiredKeys<S>>]?: InferProperty<S[K], Depth> }
+  { [K in RequiredKeys<S>]: InferProperty<S[K], Depth> } & {
+    [K in Exclude<StringKeyOf<S>, RequiredKeys<S>>]?: InferProperty<S[K], Depth>
+  }
 >
 
 /** Infer an explicit object node, including its declared openness. */
-type InferObject<S extends { additionalProperties: boolean }, Depth extends unknown[]> =
-  S extends { properties: infer P }
-    ? S['additionalProperties'] extends true
-      ? InferProperties<P, Depth> & Record<string, JsonValue>
-      : InferProperties<P, Depth>
-    : S['additionalProperties'] extends true
-      ? Record<string, JsonValue>
-      : Record<string, never>
+type InferObject<S extends { additionalProperties: boolean }, Depth extends unknown[]> = S extends {
+  properties: infer P
+}
+  ? S['additionalProperties'] extends true
+    ? InferProperties<P, Depth> & Record<string, JsonValue>
+    : InferProperties<P, Depth>
+  : S['additionalProperties'] extends true
+    ? Record<string, JsonValue>
+    : Record<string, never>
 
 /** Infer a scalar node's literal constraint before its broad primitive type. */
-type InferScalar<S, Fallback> =
-  S extends { const: infer C } ? C :
-    S extends { enum: readonly (infer E)[] } ? E :
-      Fallback
+type InferScalar<S, Fallback> = S extends { const: infer C }
+  ? C
+  : S extends { enum: readonly (infer E)[] }
+    ? E
+    : Fallback
 
 /** Add one schema-container level to bounded compile-time inference. */
 type NextInferenceDepth<Depth extends unknown[]> = [unknown, ...Depth]
 
 /** Infer one node without recursively checking it against the full author union. */
-type InferValueAt<S, Depth extends unknown[]> =
-  Depth['length'] extends 16 ? JsonValue :
-    S extends { type: 'string' } ? InferScalar<S, string> :
-      S extends { type: 'number' | 'integer' } ? InferScalar<S, number> :
-        S extends { type: 'boolean' } ? InferScalar<S, boolean> :
-          S extends { type: 'null' } ? null :
-            S extends { type: 'array' }
-              ? S extends { items: infer I } ? InferValueAt<I, NextInferenceDepth<Depth>>[] : JsonValue[]
-              : S extends { type: 'object'; additionalProperties: boolean }
-                ? InferObject<S, NextInferenceDepth<Depth>>
-                : S extends { type: 'json' } ? JsonValue :
-                  S extends { oneOf: readonly unknown[] }
-                    ? InferValueAt<S['oneOf'][number], NextInferenceDepth<Depth>>
-                    : never
+type InferValueAt<S, Depth extends unknown[]> = Depth['length'] extends 16
+  ? JsonValue
+  : S extends { type: 'string' }
+    ? InferScalar<S, string>
+    : S extends { type: 'number' | 'integer' }
+      ? InferScalar<S, number>
+      : S extends { type: 'boolean' }
+        ? InferScalar<S, boolean>
+        : S extends { type: 'null' }
+          ? null
+          : S extends { type: 'array' }
+            ? S extends { items: infer I }
+              ? InferValueAt<I, NextInferenceDepth<Depth>>[]
+              : JsonValue[]
+            : S extends { type: 'object'; additionalProperties: boolean }
+              ? InferObject<S, NextInferenceDepth<Depth>>
+              : S extends { type: 'json' }
+                ? JsonValue
+                : S extends { oneOf: readonly unknown[] }
+                  ? InferValueAt<S['oneOf'][number], NextInferenceDepth<Depth>>
+                  : never
 
 /**
  * Infer the TypeScript value accepted by an author-facing value schema. Exact
@@ -190,9 +212,14 @@ function copyAnnotations(source: Record<string, unknown>, target: JsonSchemaNode
 }
 
 /** Reject author-only keys outside one node's declared vocabulary. */
-function assertAuthorKeys(source: Record<string, unknown>, path: string, allowed: readonly string[]): void {
+function assertAuthorKeys(
+  source: Record<string, unknown>,
+  path: string,
+  allowed: readonly string[],
+): void {
   for (const key of Object.keys(source)) {
-    if (!allowed.includes(key)) authorError(`${path}.${key} is not supported by the value schema DSL`)
+    if (!allowed.includes(key))
+      authorError(`${path}.${key} is not supported by the value schema DSL`)
   }
 }
 
@@ -221,22 +248,28 @@ type PropertyMapDestination =
 
 /** Deferred work for stack-safe author-schema compilation. */
 type CompileTask =
-  | { kind: 'value'; input: unknown; path: string; allowRequired: boolean; destination: NodeDestination }
+  | {
+      kind: 'value'
+      input: unknown
+      path: string
+      allowRequired: boolean
+      destination: NodeDestination
+    }
   | { kind: 'property-map'; input: unknown; path: string; destination: PropertyMapDestination }
   | {
-    kind: 'property'
-    property: unknown
-    path: string
-    key: string
-    properties: Record<string, JsonSchemaNode>
-    required: string[]
-  }
+      kind: 'property'
+      property: unknown
+      path: string
+      key: string
+      properties: Record<string, JsonSchemaNode>
+      required: string[]
+    }
   | {
-    kind: 'property-map-tail'
-    compiled: CompiledPropertyMap
-    required: string[]
-    destination: PropertyMapDestination
-  }
+      kind: 'property-map-tail'
+      compiled: CompiledPropertyMap
+      required: string[]
+      destination: PropertyMapDestination
+    }
   | { kind: 'leave'; input: object }
 
 /** Install a compiled node without giving `__proto__` assignment semantics. */
@@ -263,7 +296,10 @@ function assignCompiledNode(destination: NodeDestination, node: JsonSchemaNode):
 }
 
 /** Install a compiled property map at its root or containing object node. */
-function assignCompiledPropertyMap(destination: PropertyMapDestination, compiled: CompiledPropertyMap): void {
+function assignCompiledPropertyMap(
+  destination: PropertyMapDestination,
+  compiled: CompiledPropertyMap,
+): void {
   if (destination.kind === 'root') {
     destination.holder.value = compiled
   } else {
@@ -288,11 +324,13 @@ function runSchemaCompiler(initial: CompileTask): void {
       continue
     }
     if (task.kind === 'property') {
-      if (!isJsonSchemaRecord(task.property)) authorError(`${task.path} must be a value schema object`)
+      if (!isJsonSchemaRecord(task.property))
+        authorError(`${task.path} must be a value schema object`)
       if (Object.hasOwn(task.property, 'required') && task.property.required !== true) {
         authorError(`${task.path}.required must be true when present`)
       }
-      if (Object.hasOwn(task.property, 'required') && task.property.required === true) task.required.push(task.key)
+      if (Object.hasOwn(task.property, 'required') && task.property.required === true)
+        task.required.push(task.key)
       tasks.push({
         kind: 'value',
         input: task.property,
@@ -303,7 +341,8 @@ function runSchemaCompiler(initial: CompileTask): void {
       continue
     }
     if (task.kind === 'property-map') {
-      if (!isJsonSchemaRecord(task.input)) authorError(`${task.path} must be an object of value schemas`)
+      if (!isJsonSchemaRecord(task.input))
+        authorError(`${task.path} must be an object of value schemas`)
       if (seen.has(task.input)) authorError(`${task.path} is circular`)
       seen.add(task.input)
       const compiled: CompiledPropertyMap = { properties: {} }
@@ -340,7 +379,8 @@ function runSchemaCompiler(initial: CompileTask): void {
     if (Object.hasOwn(input, 'oneOf')) {
       assertAuthorKeys(input, path, [...authorKeys, 'oneOf', 'type'])
       if (Object.hasOwn(input, 'type')) authorError(`${path} cannot declare both type and oneOf`)
-      if (!isPlainJsonArray(input.oneOf)) authorError(`${path}.oneOf must be an array of at least two value schemas`)
+      if (!isPlainJsonArray(input.oneOf))
+        authorError(`${path}.oneOf must be an array of at least two value schemas`)
       const branches: JsonSchemaNode[] = []
       node.oneOf = branches
       copyAnnotations(input, node)
@@ -364,7 +404,10 @@ function runSchemaCompiler(initial: CompileTask): void {
         break
       case 'object':
         assertAuthorKeys(input, path, [...authorKeys, 'type', 'properties', 'additionalProperties'])
-        if (!Object.hasOwn(input, 'additionalProperties') || typeof input.additionalProperties !== 'boolean') {
+        if (
+          !Object.hasOwn(input, 'additionalProperties') ||
+          typeof input.additionalProperties !== 'boolean'
+        ) {
           authorError(`${path}.additionalProperties must be explicitly true or false`)
         }
         node.type = 'object'
@@ -402,13 +445,16 @@ function runSchemaCompiler(initial: CompileTask): void {
         node.type = inputType
         copyAnnotations(input, node)
         if (Object.hasOwn(input, 'enum')) {
-          if (!isPlainJsonArray(input.enum)) authorError(`${path}.enum must be a non-empty array of scalar values`)
+          if (!isPlainJsonArray(input.enum))
+            authorError(`${path}.enum must be a non-empty array of scalar values`)
           node.enum = Array.from(input.enum, entry => entry as JsonSchemaScalar)
         }
         if (Object.hasOwn(input, 'const')) node.const = input.const as JsonSchemaScalar
         break
       default:
-        authorError(`${path}.type must be string/number/integer/boolean/null/array/object/json, or use oneOf`)
+        authorError(
+          `${path}.type must be string/number/integer/boolean/null/array/object/json, or use oneOf`,
+        )
     }
   }
 }
@@ -424,7 +470,13 @@ function compilePropertyMap(input: unknown, path: string): CompiledPropertyMap {
 /** Compile one author node without applying any consumer root restriction. */
 function compileValueSchema(input: unknown, path: string): JsonSchemaNode {
   const holder: CompileRoot<JsonSchemaNode> = {}
-  runSchemaCompiler({ kind: 'value', input, path, allowRequired: false, destination: { kind: 'root', holder } })
+  runSchemaCompiler({
+    kind: 'value',
+    input,
+    path,
+    allowRequired: false,
+    destination: { kind: 'root', holder },
+  })
   /* v8 ignore next -- the root task assigns before scheduling any descendants. */
   return holder.value ?? authorError(`${path} did not compile`)
 }
@@ -511,7 +563,10 @@ export interface DefineToolOptions<S extends ParameterSchemaSpec, O extends Valu
    * @param result - complete normalized outcome before materialization.
    * @returns replacement content, or `undefined` to preserve it.
    */
-  finalizeContent?(exec: Readonly<ToolExecution>, result: Readonly<ToolExecutionResult>): ContentBlock[] | undefined
+  finalizeContent?(
+    exec: Readonly<ToolExecution>,
+    result: Readonly<ToolExecutionResult>,
+  ): ContentBlock[] | undefined
   /**
    * Pure pending-state presenter.
    * @param args - typed validated arguments.
@@ -562,11 +617,16 @@ export function defineTool<const S extends ParameterSchemaSpec, const O extends 
       render(args: unknown, value: JsonValue): ContentBlock[] {
         return userRender(args as InferArgs<S>, value as unknown as InferValue<NoInfer<O>>)
       },
-      ...userPresentationMeta !== undefined ? {
-        presentationMeta(args: unknown, value: JsonValue): JsonValue {
-          return userPresentationMeta(args as InferArgs<S>, value as unknown as InferValue<NoInfer<O>>)
-        },
-      } : {},
+      ...(userPresentationMeta !== undefined
+        ? {
+            presentationMeta(args: unknown, value: JsonValue): JsonValue {
+              return userPresentationMeta(
+                args as InferArgs<S>,
+                value as unknown as InferValue<NoInfer<O>>,
+              )
+            },
+          }
+        : {}),
     },
     async execute(args: unknown, exec: ToolRunContext): Promise<JsonValue> {
       const violations = validate(args)

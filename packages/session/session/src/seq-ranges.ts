@@ -7,7 +7,9 @@ import type { SessionSeq as SessionSeqType } from './types.ts'
 export type EncodedSeq = number | [number, number]
 
 function isStrictlyIncreasing(values: readonly SessionSeqType[]): boolean {
-  return values.every((value, index) => index === 0 || value > (values[index - 1] as SessionSeqType))
+  return values.every(
+    (value, index) => index === 0 || value > (values[index - 1] as SessionSeqType),
+  )
 }
 
 /**
@@ -34,14 +36,18 @@ export function encodeSeqRanges(values: readonly SessionSeqType[]): EncodedSeq[]
  * @param maxEntries - largest list permitted by the owning event.
  * @returns the in-memory source sequences.
  */
-export function decodeSeqRanges(value: unknown, maxEntries = Number.MAX_SAFE_INTEGER): SessionSeqType[] {
+export function decodeSeqRanges(
+  value: unknown,
+  maxEntries = Number.MAX_SAFE_INTEGER,
+): SessionSeqType[] {
   if (!Array.isArray(value)) throw new TypeError('sourceEventSeqs must be an array')
   const decoded: SessionSeqType[] = []
   let hasRange = false
   for (const entry of value) {
     if (typeof entry === 'number') {
       assertSeq(entry)
-      if (decoded.length >= maxEntries) throw new TypeError('sourceEventSeqs exceeds its event sequence')
+      if (decoded.length >= maxEntries)
+        throw new TypeError('sourceEventSeqs exceeds its event sequence')
       decoded.push(SessionSeq(entry))
       continue
     }

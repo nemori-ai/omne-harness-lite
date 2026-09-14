@@ -50,14 +50,19 @@ function userMessage(seq: number): SessionEvent {
 describe('assertStoredId', () => {
   it('accepts a bound header and names both ids on a mismatch', () => {
     const m = meta('bound')
-    expect(() => { assertStoredId(m.id, m) }).not.toThrow()
-    expect(() => { assertStoredId(SessionId('requested'), m) })
-      .toThrow('stored session identity mismatch: requested "requested", header contains "bound"')
+    expect(() => {
+      assertStoredId(m.id, m)
+    }).not.toThrow()
+    expect(() => {
+      assertStoredId(SessionId('requested'), m)
+    }).toThrow('stored session identity mismatch: requested "requested", header contains "bound"')
   })
 })
 describe('assertVersion', () => {
   it('accepts the current format version', () => {
-    expect(() => { assertVersion(meta('current')) }).not.toThrow()
+    expect(() => {
+      assertVersion(meta('current'))
+    }).not.toThrow()
   })
 
   it('refuses a newer version with the upgrade direction and the artifact location', () => {
@@ -69,7 +74,9 @@ describe('assertVersion', () => {
       refusal = error
     }
     expect(refusal).toBeInstanceOf(SessionFormatUnsupportedError)
-    expect((refusal as Error).message).toContain('written by a newer harness — upgrade the harness to open it')
+    expect((refusal as Error).message).toContain(
+      'written by a newer harness — upgrade the harness to open it',
+    )
     expect((refusal as Error).message).toContain(`(raw log: ${LOCATION.path})`)
     expect((refusal as SessionFormatUnsupportedError).location).toBe(LOCATION)
   })
@@ -83,7 +90,9 @@ describe('assertVersion', () => {
       refusal = error
     }
     expect(refusal).toBeInstanceOf(SessionFormatUnsupportedError)
-    expect((refusal as Error).message).toBe(sessionFormatVersionRefusal('older', SESSION_FORMAT_VERSION - 1))
+    expect((refusal as Error).message).toBe(
+      sessionFormatVersionRefusal('older', SESSION_FORMAT_VERSION - 1),
+    )
     expect((refusal as Error).message).toContain('this build ships no upgrade path for it')
     expect((refusal as Error).message).not.toContain('raw log')
     expect((refusal as SessionFormatUnsupportedError).location).toBeUndefined()
@@ -92,10 +101,12 @@ describe('assertVersion', () => {
 
 describe('sessionFormatVersionRefusal', () => {
   it('states the direction for newer and older stored versions', () => {
-    expect(sessionFormatVersionRefusal('s', SESSION_FORMAT_VERSION + 1))
-      .toBe(`session "s" uses log format v${SESSION_FORMAT_VERSION + 1}, but this harness reads only v${SESSION_FORMAT_VERSION}: the log was written by a newer harness — upgrade the harness to open it`)
-    expect(sessionFormatVersionRefusal('s', SESSION_FORMAT_VERSION - 1))
-      .toBe(`session "s" uses log format v${SESSION_FORMAT_VERSION - 1}, older than the supported v${SESSION_FORMAT_VERSION}, and this build ships no upgrade path for it`)
+    expect(sessionFormatVersionRefusal('s', SESSION_FORMAT_VERSION + 1)).toBe(
+      `session "s" uses log format v${SESSION_FORMAT_VERSION + 1}, but this harness reads only v${SESSION_FORMAT_VERSION}: the log was written by a newer harness — upgrade the harness to open it`,
+    )
+    expect(sessionFormatVersionRefusal('s', SESSION_FORMAT_VERSION - 1)).toBe(
+      `session "s" uses log format v${SESSION_FORMAT_VERSION - 1}, older than the supported v${SESSION_FORMAT_VERSION}, and this build ships no upgrade path for it`,
+    )
   })
 })
 
@@ -115,7 +126,12 @@ describe('validateStoredEvents', () => {
     const m = meta('extended-reason')
     const events = [
       { type: 'turn/start', seq: 0, time: 1, data: { turn: 1 } },
-      { type: 'turn/end', seq: 1, time: 2, data: { turn: 1, reason: { kind: 'plugin/custom-outcome' } } },
+      {
+        type: 'turn/end',
+        seq: 1,
+        time: 2,
+        data: { turn: 1, reason: { kind: 'plugin/custom-outcome' } },
+      },
     ] as SessionEvent[]
     expect(validateStoredEvents(m, events)).toBe(events)
   })
@@ -219,9 +235,7 @@ describe('validateStoredEvents', () => {
 
 describe('materializeAppendBatch', () => {
   it('returns a detached lossless-JSON snapshot of the batch', () => {
-    const original = [
-      { type: 'turn/start', seq: 0, time: 1, data: { turn: 1 } },
-    ] as SessionEvent[]
+    const original = [{ type: 'turn/start', seq: 0, time: 1, data: { turn: 1 } }] as SessionEvent[]
     const batch = materializeAppendBatch(original)
     expect(batch).not.toBe(original)
     expect(batch).toEqual(original)
@@ -238,13 +252,13 @@ describe('materializeAppendBatch', () => {
     const cyclic: Record<string, unknown> = { type: 'text', text: 'x' }
     cyclic['self'] = cyclic
     const badValues: unknown[] = [
-      1n,                  // BigInt
-      undefined,           // dropped by JSON.stringify
-      Infinity,            // → null
-      () => 0,             // function
-      Symbol('s'),         // symbol
-      new Map(),           // exotic object
-      cyclic,              // circular ref
+      1n, // BigInt
+      undefined, // dropped by JSON.stringify
+      Infinity, // → null
+      () => 0, // function
+      Symbol('s'), // symbol
+      new Map(), // exotic object
+      cyclic, // circular ref
     ]
     for (const bad of badValues) {
       const events = [
@@ -262,23 +276,27 @@ describe('assertContiguous', () => {
       { type: 'turn/start', seq: 6, time: 1, data: { turn: 2 } },
       { type: 'turn/end', seq: 7, time: 2, data: { turn: 2, reason: { kind: 'completed' } } },
     ] as SessionEvent[]
-    expect(() => { assertContiguous(SessionId('ok'), events, 6) }).not.toThrow()
-    expect(() => { assertContiguous(SessionId('ok'), [], 6) }).not.toThrow()
+    expect(() => {
+      assertContiguous(SessionId('ok'), events, 6)
+    }).not.toThrow()
+    expect(() => {
+      assertContiguous(SessionId('ok'), [], 6)
+    }).not.toThrow()
   })
 
   it('names the expected seq for a stale batch and for a mid-batch gap', () => {
-    const stale = [
-      { type: 'turn/start', seq: 0, time: 1, data: { turn: 1 } },
-    ] as SessionEvent[]
-    expect(() => { assertContiguous(SessionId('stale'), stale, 6) })
-      .toThrow('append seq mismatch for "stale": expected 6 at index 0, got 0')
+    const stale = [{ type: 'turn/start', seq: 0, time: 1, data: { turn: 1 } }] as SessionEvent[]
+    expect(() => {
+      assertContiguous(SessionId('stale'), stale, 6)
+    }).toThrow('append seq mismatch for "stale": expected 6 at index 0, got 0')
 
     const gapped = [
       { type: 'turn/start', seq: 6, time: 1, data: { turn: 2 } },
       { type: 'turn/end', seq: 8, time: 2, data: { turn: 2, reason: { kind: 'completed' } } },
     ] as SessionEvent[]
-    expect(() => { assertContiguous(SessionId('gapped'), gapped, 6) })
-      .toThrow('append seq mismatch for "gapped": expected 7 at index 1, got 8')
+    expect(() => {
+      assertContiguous(SessionId('gapped'), gapped, 6)
+    }).toThrow('append seq mismatch for "gapped": expected 7 at index 1, got 8')
   })
 })
 
@@ -304,7 +322,9 @@ describe('error vocabulary', () => {
 
     const lost = new SessionOwnershipLostError(id)
     expect(lost.name).toBe('SessionOwnershipLostError')
-    expect(lost.message).toBe('session "errored": write ownership was lost; close this handle and reopen')
+    expect(lost.message).toBe(
+      'session "errored": write ownership was lost; close this handle and reopen',
+    )
 
     const closed = new SessionHandleClosedError(id, 'flush')
     expect(closed.name).toBe('SessionHandleClosedError')

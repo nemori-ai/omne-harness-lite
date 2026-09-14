@@ -13,7 +13,7 @@ const IMAGE_ADMISSION_ERROR_CODES = [
 ] as const
 
 /** Caller-correctable attachment failure codes raised while admitting image input. */
-export type ImageAdmissionErrorCode = typeof IMAGE_ADMISSION_ERROR_CODES[number]
+export type ImageAdmissionErrorCode = (typeof IMAGE_ADMISSION_ERROR_CODES)[number]
 
 const ATTACHMENT_ERROR_CODES = [
   ...IMAGE_ADMISSION_ERROR_CODES,
@@ -28,7 +28,7 @@ const ATTACHMENT_ERROR_CODES = [
 ] as const
 
 /** Stable attachment failure codes used for protocol error routing. */
-export type AttachmentErrorCode = typeof ATTACHMENT_ERROR_CODES[number]
+export type AttachmentErrorCode = (typeof ATTACHMENT_ERROR_CODES)[number]
 
 /** Runtime membership for structurally compatible errors crossing package boundaries. */
 const IMAGE_ADMISSION_ERROR_CODE_SET: ReadonlySet<string> = new Set(IMAGE_ADMISSION_ERROR_CODES)
@@ -65,10 +65,12 @@ export class AttachmentError extends Error {
  * @returns whether the failure carries a recognized attachment error code.
  */
 export function isAttachmentError(error: unknown): error is AttachmentError {
-  return error instanceof Error
-    && 'code' in error
-    && typeof error.code === 'string'
-    && ATTACHMENT_ERROR_CODE_SET.has(error.code)
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    ATTACHMENT_ERROR_CODE_SET.has(error.code)
+  )
 }
 
 /**
@@ -79,9 +81,10 @@ export function isAttachmentError(error: unknown): error is AttachmentError {
 export function isImageAdmissionError(
   error: unknown,
 ): error is AttachmentError & { readonly code: ImageAdmissionErrorCode } {
-  return error instanceof Error
-    && 'code' in error
-    && typeof error.code === 'string'
-    && IMAGE_ADMISSION_ERROR_CODE_SET.has(error.code)
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    IMAGE_ADMISSION_ERROR_CODE_SET.has(error.code)
+  )
 }
-

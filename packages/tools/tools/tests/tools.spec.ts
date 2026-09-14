@@ -12,7 +12,11 @@ function echo(label: string) {
     description: label,
     parameters: { text: { type: 'string', required: true } },
     output: {
-      schema: { type: 'object', properties: { text: { type: 'string', required: true } }, additionalProperties: false },
+      schema: {
+        type: 'object',
+        properties: { text: { type: 'string', required: true } },
+        additionalProperties: false,
+      },
       render: (_args, value) => [{ type: 'text', text: value.text }],
       presentationMeta: (_args, value) => ({ length: value.text.length }),
     },
@@ -28,9 +32,14 @@ describe('source native tool registry baseline', () => {
     const fiber = await ctx.plugin(ToolRuntime)
     const key = {}
     let scope: Scope | undefined
-    const minter = await ctx.plugin(Object.assign((inner: Context) => {
-      scope = createScope(inner, key)
-    }, { inject: ['tools'] }))
+    const minter = await ctx.plugin(
+      Object.assign(
+        (inner: Context) => {
+          scope = createScope(inner, key)
+        },
+        { inject: ['tools'] },
+      ),
+    )
     if (scope === undefined) throw new Error('scope minter did not run')
     try {
       ctx.tools.register(echo('global'))
@@ -57,7 +66,9 @@ describe('source native tool registry baseline', () => {
       const authoredParameters = definition.parameters as {
         properties: { text: { type: string } }
       }
-      expect(() => { authoredParameters.properties.text.type = 'number' }).toThrow(TypeError)
+      expect(() => {
+        authoredParameters.properties.text.type = 'number'
+      }).toThrow(TypeError)
       const result = await ctx.tools.execute({
         callId: ToolCallId('call-1'),
         name: 'echo',
@@ -91,17 +102,24 @@ describe('source native tool registry baseline', () => {
       const defined = echo('base')
       const base = { ...defined, output: { ...defined.output } }
       if (scenario === 'invalid-output') base.execute = async () => ({ wrong: true })
-      if (scenario === 'body-error') base.execute = async () => { throw new Error('body failed') }
-      if (scenario === 'render-error') base.output.render = () => { throw new Error('render failed') }
+      if (scenario === 'body-error')
+        base.execute = async () => {
+          throw new Error('body failed')
+        }
+      if (scenario === 'render-error')
+        base.output.render = () => {
+          throw new Error('render failed')
+        }
       if (scenario !== 'missing') ctx.tools.register(base)
       const result = await ctx.tools.execute({
         callId: ToolCallId(`call-${scenario}`),
         name: scenario === 'missing' ? 'missing' : 'echo',
-        arguments: scenario === 'invalid-args'
-          ? {}
-          : scenario === 'lossy-args'
-            ? { text: undefined }
-            : { text: 'x' },
+        arguments:
+          scenario === 'invalid-args'
+            ? {}
+            : scenario === 'lossy-args'
+              ? { text: undefined }
+              : { text: 'x' },
         signal: new AbortController().signal,
       })
       expect(result.isError).toBe(true)
@@ -120,59 +138,74 @@ describe('source native tool registry baseline', () => {
       const source = echo('never')
       const definition = {
         ...source,
-        execute: async () => { called = true; return { text: 'never' } },
+        execute: async () => {
+          called = true
+          return { text: 'never' }
+        },
       }
       ctx.tools.register(definition)
       const controller = new AbortController()
       controller.abort(new Error('cancelled'))
       const result = await ctx.tools.execute({
-        callId: ToolCallId('aborted'), name: 'echo', arguments: { text: 'x' }, signal: controller.signal,
+        callId: ToolCallId('aborted'),
+        name: 'echo',
+        arguments: { text: 'x' },
+        signal: controller.signal,
       })
-      expect(result).toMatchObject({ isError: true, error: { info: { code: 'ABORTED_BEFORE_DISPATCH' } } })
+      expect(result).toMatchObject({
+        isError: true,
+        error: { info: { code: 'ABORTED_BEFORE_DISPATCH' } },
+      })
       expect(called).toBe(false)
     } finally {
       await fiber.dispose()
     }
   })
 
-  it.each(['original', 'replacement'] as const)('keeps the original invocation when a reused input has its %s signal aborted', async (cancelled) => {
-    const ctx = new Context()
-    const fiber = await ctx.plugin(ToolRuntime)
-    const gate = Promise.withResolvers<void>()
-    const original = new AbortController()
-    const replacement = new AbortController()
-    let bodySignal: AbortSignal | undefined
-    const input = {
-      callId: ToolCallId('original'), name: 'echo', arguments: { text: 'original' }, signal: original.signal,
-    }
-    try {
-      ctx.tools.register({
-        ...echo('owned'),
-        async execute(_args, exec) {
-          bodySignal = exec.signal
-          await gate.promise
-          return { text: 'settled' }
-        },
-      })
-      const running = ctx.tools.execute(input)
-      expect(bodySignal).toBe(original.signal)
-      input.callId = ToolCallId('replacement')
-      input.name = 'reused-name'
-      input.arguments.text = 'replacement'
-      input.signal = replacement.signal
-      ;(cancelled === 'original' ? original : replacement).abort('cancelled')
-      gate.resolve()
-      const result = await running
-      if (cancelled === 'original') {
-        expect(result).toMatchObject({ isError: true, error: { info: { code: 'ABORTED' } } })
-      } else {
-        expect(result).toMatchObject({ isError: false, value: { text: 'settled' } })
+  it.each(['original', 'replacement'] as const)(
+    'keeps the original invocation when a reused input has its %s signal aborted',
+    async cancelled => {
+      const ctx = new Context()
+      const fiber = await ctx.plugin(ToolRuntime)
+      const gate = Promise.withResolvers<void>()
+      const original = new AbortController()
+      const replacement = new AbortController()
+      let bodySignal: AbortSignal | undefined
+      const input = {
+        callId: ToolCallId('original'),
+        name: 'echo',
+        arguments: { text: 'original' },
+        signal: original.signal,
       }
-    } finally {
-      gate.resolve()
-      await fiber.dispose()
-    }
-  })
+      try {
+        ctx.tools.register({
+          ...echo('owned'),
+          async execute(_args, exec) {
+            bodySignal = exec.signal
+            await gate.promise
+            return { text: 'settled' }
+          },
+        })
+        const running = ctx.tools.execute(input)
+        expect(bodySignal).toBe(original.signal)
+        input.callId = ToolCallId('replacement')
+        input.name = 'reused-name'
+        input.arguments.text = 'replacement'
+        input.signal = replacement.signal
+        ;(cancelled === 'original' ? original : replacement).abort('cancelled')
+        gate.resolve()
+        const result = await running
+        if (cancelled === 'original') {
+          expect(result).toMatchObject({ isError: true, error: { info: { code: 'ABORTED' } } })
+        } else {
+          expect(result).toMatchObject({ isError: false, value: { text: 'settled' } })
+        }
+      } finally {
+        gate.resolve()
+        await fiber.dispose()
+      }
+    },
+  )
 
   it('applies a captured final content transform once to a normalized failure', async () => {
     const ctx = new Context()
@@ -182,7 +215,9 @@ describe('source native tool registry baseline', () => {
       const source = echo('bounded')
       ctx.tools.register({
         ...source,
-        async execute() { throw new Error('body failed') },
+        async execute() {
+          throw new Error('body failed')
+        },
         finalizeContent(exec, result) {
           calls += 1
           expect(exec.name).toBe('echo')
@@ -192,7 +227,10 @@ describe('source native tool registry baseline', () => {
         },
       })
       const result = await ctx.tools.execute({
-        callId: ToolCallId('finalized'), name: 'echo', arguments: { text: 'x' }, signal: new AbortController().signal,
+        callId: ToolCallId('finalized'),
+        name: 'echo',
+        arguments: { text: 'x' },
+        signal: new AbortController().signal,
       })
       expect(result).toMatchObject({
         isError: true,

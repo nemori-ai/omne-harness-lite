@@ -39,10 +39,12 @@ describe('source LLM message construction', () => {
     })
     expect(frozen.id).toBe(id)
 
-    expect(createAssistantMessage({
-      content: [{ type: 'text', text: 'answer' }],
-      source: { provider: 'p', model: 'm', replayState: { request: 1 } },
-    })).toMatchObject({ role: 'assistant', source: { kind: 'model', provider: 'p', model: 'm' } })
+    expect(
+      createAssistantMessage({
+        content: [{ type: 'text', text: 'answer' }],
+        source: { provider: 'p', model: 'm', replayState: { request: 1 } },
+      }),
+    ).toMatchObject({ role: 'assistant', source: { kind: 'model', provider: 'p', model: 'm' } })
 
     expect(createSystemMessage('', 'prompt')).toMatchObject({
       role: 'system',

@@ -18,7 +18,8 @@ import { assertNever, isJsonValue, type JsonValue } from '@omne-harness-lite/val
 export type JsonSchemaScalar = string | number | boolean | null
 
 /** Single-type keywords accepted by the enforced subset. */
-export type JsonSchemaType = 'object' | 'array' | 'string' | 'number' | 'integer' | 'boolean' | 'null'
+export type JsonSchemaType =
+  'object' | 'array' | 'string' | 'number' | 'integer' | 'boolean' | 'null'
 
 /** Scalar-only schema types accepted by literal constraints. */
 type JsonSchemaScalarType = Exclude<JsonSchemaType, 'object' | 'array'>
@@ -84,7 +85,15 @@ const CONSTRAINT_KEYWORDS = new Set([
   'const',
 ])
 const ANNOTATION_KEYWORDS = new Set(['description', 'title', 'default', 'examples'])
-const SCHEMA_TYPES: readonly JsonSchemaType[] = ['object', 'array', 'string', 'number', 'integer', 'boolean', 'null']
+const SCHEMA_TYPES: readonly JsonSchemaType[] = [
+  'object',
+  'array',
+  'string',
+  'number',
+  'integer',
+  'boolean',
+  'null',
+]
 
 /* jscpd:ignore-start -- this realm boundary mirrors the session-owned lossless-JSON intrinsic test */
 /** Whether a realm-owned intrinsic prototype is backed by its native constructor. */
@@ -93,9 +102,11 @@ function hasIntrinsicConstructor(prototype: object, name: 'Array' | 'Object'): b
   const constructor: unknown = descriptor?.value
   if (typeof constructor !== 'function') return false
   try {
-    return constructor.name === name
-      && constructor.prototype === prototype
-      && Function.prototype.toString.call(constructor) === `function ${name}() { [native code] }`
+    return (
+      constructor.name === name &&
+      constructor.prototype === prototype &&
+      Function.prototype.toString.call(constructor) === `function ${name}() { [native code] }`
+    )
   } catch {
     return false
   }
@@ -116,8 +127,9 @@ export function isPlainJsonRecord(value: unknown): value is Record<string, unkno
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
   try {
     const prototype: unknown = Object.getPrototypeOf(value)
-    return prototype === null
-      || typeof prototype === 'object' && isIntrinsicObjectPrototype(prototype)
+    return (
+      prototype === null || (typeof prototype === 'object' && isIntrinsicObjectPrototype(prototype))
+    )
   } catch {
     return false
   }
@@ -128,17 +140,20 @@ function hasPlainArrayPrototype(value: unknown[]): boolean {
   const prototype: unknown = Object.getPrototypeOf(value)
   if (!Array.isArray(prototype) || !hasIntrinsicConstructor(prototype, 'Array')) return false
   const objectPrototype: unknown = Object.getPrototypeOf(prototype)
-  return typeof objectPrototype === 'object'
-    && objectPrototype !== null
-    && isIntrinsicObjectPrototype(objectPrototype)
+  return (
+    typeof objectPrototype === 'object' &&
+    objectPrototype !== null &&
+    isIntrinsicObjectPrototype(objectPrototype)
+  )
 }
 /* jscpd:ignore-end */
 
 /** Return whether a record contains only own enumerable string keys. */
 function hasOnlyEnumerableStringKeys(value: object): boolean {
   try {
-    return Reflect.ownKeys(value)
-      .every(key => typeof key === 'string' && Object.prototype.propertyIsEnumerable.call(value, key))
+    return Reflect.ownKeys(value).every(
+      key => typeof key === 'string' && Object.prototype.propertyIsEnumerable.call(value, key),
+    )
   } catch {
     return false
   }
@@ -161,7 +176,8 @@ export function isJsonSchemaRecord(value: unknown): value is Record<string, unkn
 export function isPlainJsonArray(value: unknown): value is unknown[] {
   if (!Array.isArray(value)) return false
   try {
-    if (!hasPlainArrayPrototype(value) || Reflect.ownKeys(value).length !== value.length + 1) return false
+    if (!hasPlainArrayPrototype(value) || Reflect.ownKeys(value).length !== value.length + 1)
+      return false
     for (let index = 0; index < value.length; index++) {
       if (!Object.hasOwn(value, index)) return false
     }
@@ -179,13 +195,19 @@ function isJsonNumber(value: unknown): value is number {
 /** Whether a scalar is valid for one declared schema type. */
 function scalarMatches(type: JsonSchemaScalarType, value: unknown): value is JsonSchemaScalar {
   switch (type) {
-    case 'string': return typeof value === 'string'
-    case 'number': return isJsonNumber(value)
-    case 'integer': return isJsonNumber(value) && Number.isInteger(value)
-    case 'boolean': return typeof value === 'boolean'
-    case 'null': return value === null
+    case 'string':
+      return typeof value === 'string'
+    case 'number':
+      return isJsonNumber(value)
+    case 'integer':
+      return isJsonNumber(value) && Number.isInteger(value)
+    case 'boolean':
+      return typeof value === 'boolean'
+    case 'null':
+      return value === null
     /* v8 ignore next -- JsonSchemaScalarType is closed; this retains compile-time exhaustiveness. */
-    default: return assertNever(type, 'JsonSchemaType')
+    default:
+      return assertNever(type, 'JsonSchemaType')
   }
 }
 
@@ -197,7 +219,14 @@ type SchemaWalkTask =
   | { kind: 'object-tail'; node: Record<string, unknown>; path: string; properties: unknown }
 
 /** Keywords that are invalid beside `oneOf`. */
-const ONE_OF_SIBLING_KEYWORDS = ['properties', 'required', 'additionalProperties', 'items', 'enum', 'const'] as const
+const ONE_OF_SIBLING_KEYWORDS = [
+  'properties',
+  'required',
+  'additionalProperties',
+  'items',
+  'enum',
+  'const',
+] as const
 
 /** Validate object-only fields after its property schemas have been visited. */
 function checkObjectSchemaTail(
@@ -214,17 +243,26 @@ function checkObjectSchemaTail(
     } else {
       const declared = isJsonSchemaRecord(properties) ? properties : {}
       for (const key of required as string[]) {
-        if (!Object.hasOwn(declared, key)) violations.push(`${path}.required names "${key}" which is not in properties`)
+        if (!Object.hasOwn(declared, key))
+          violations.push(`${path}.required names "${key}" which is not in properties`)
       }
     }
   }
-  if (Object.hasOwn(node, 'additionalProperties') && typeof node.additionalProperties !== 'boolean') {
+  if (
+    Object.hasOwn(node, 'additionalProperties') &&
+    typeof node.additionalProperties !== 'boolean'
+  ) {
     violations.push(`${path}.additionalProperties must be a boolean`)
   }
 }
 
 /** Collect every violation for one raw schema tree without using the JavaScript call stack. */
-function checkSchemaNode(root: unknown, rootPath: string, violations: string[], seen: Set<object>): void {
+function checkSchemaNode(
+  root: unknown,
+  rootPath: string,
+  violations: string[],
+  seen: Set<object>,
+): void {
   const tasks: SchemaWalkTask[] = [{ kind: 'enter', node: root, path: rootPath }]
   for (let task = tasks.pop(); task !== undefined; task = tasks.pop()) {
     if (task.kind === 'leave') {
@@ -233,7 +271,8 @@ function checkSchemaNode(root: unknown, rootPath: string, violations: string[], 
     }
     if (task.kind === 'one-of-tail') {
       for (const key of ONE_OF_SIBLING_KEYWORDS) {
-        if (Object.hasOwn(task.node, key)) violations.push(`${task.path}.${key} is not supported beside oneOf`)
+        if (Object.hasOwn(task.node, key))
+          violations.push(`${task.path}.${key} is not supported beside oneOf`)
       }
       continue
     }
@@ -258,13 +297,16 @@ function checkSchemaNode(root: unknown, rootPath: string, violations: string[], 
       if (CONSTRAINT_KEYWORDS.has(key)) continue
       if (ANNOTATION_KEYWORDS.has(key)) {
         try {
-          if (!isJsonValue(node[key])) violations.push(`${path}.${key} annotation must be lossless JSON data`)
+          if (!isJsonValue(node[key]))
+            violations.push(`${path}.${key} annotation must be lossless JSON data`)
         } catch {
           violations.push(`${path}.${key} annotation must be lossless JSON data`)
         }
         continue
       }
-      violations.push(`${path}.${key} is not a supported keyword (subset: type/oneOf/properties/required/additionalProperties/items/enum/const + annotations)`)
+      violations.push(
+        `${path}.${key} is not a supported keyword (subset: type/oneOf/properties/required/additionalProperties/items/enum/const + annotations)`,
+      )
     }
     if (Object.hasOwn(node, 'description') && typeof node.description !== 'string') {
       violations.push(`${path}.description must be a string`)
@@ -301,9 +343,11 @@ function checkSchemaNode(root: unknown, rootPath: string, violations: string[], 
 
     const type = node.type
     if (typeof type !== 'string' || !(SCHEMA_TYPES as readonly unknown[]).includes(type)) {
-      violations.push(Array.isArray(type)
-        ? `${path}.type must be a single type string (type arrays are not supported)`
-        : `${path}.type must be one of ${SCHEMA_TYPES.join('/')}`)
+      violations.push(
+        Array.isArray(type)
+          ? `${path}.type must be a single type string (type arrays are not supported)`
+          : `${path}.type must be one of ${SCHEMA_TYPES.join('/')}`,
+      )
       continue
     }
     const schemaType = type as JsonSchemaType
@@ -341,7 +385,8 @@ function checkSchemaNode(root: unknown, rootPath: string, violations: string[], 
         break
       }
       case 'array': {
-        if (Object.hasOwn(node, 'items')) tasks.push({ kind: 'enter', node: node.items, path: `${path}.items` })
+        if (Object.hasOwn(node, 'items'))
+          tasks.push({ kind: 'enter', node: node.items, path: `${path}.items` })
         break
       }
       case 'string':
@@ -351,9 +396,10 @@ function checkSchemaNode(root: unknown, rootPath: string, violations: string[], 
       case 'null': {
         const hasEnum = Object.hasOwn(node, 'enum')
         const allowed = hasEnum ? node.enum : undefined
-        const enumValid = isPlainJsonArray(allowed)
-          && allowed.length > 0
-          && allowed.every(entry => scalarMatches(schemaType, entry))
+        const enumValid =
+          isPlainJsonArray(allowed) &&
+          allowed.length > 0 &&
+          allowed.every(entry => scalarMatches(schemaType, entry))
         if (hasEnum && !enumValid) {
           violations.push(`${path}.enum must be a non-empty array of ${schemaType} values`)
         }
@@ -370,7 +416,8 @@ function checkSchemaNode(root: unknown, rootPath: string, violations: string[], 
         break
       }
       /* v8 ignore next -- schemaType was narrowed from the closed SCHEMA_TYPES table above. */
-      default: assertNever(schemaType, 'JsonSchemaType')
+      default:
+        assertNever(schemaType, 'JsonSchemaType')
     }
   }
 }
@@ -397,8 +444,10 @@ export function assertSupportedJsonSchema(schema: unknown): asserts schema is Js
 export function assertObjectJsonSchema(schema: unknown): asserts schema is ObjectJsonSchema {
   const violations: string[] = []
   checkSchemaNode(schema, 'schema', violations, new Set())
-  if (violations.length === 0
-    && (!isJsonSchemaRecord(schema) || !Object.hasOwn(schema, 'type') || schema.type !== 'object')) {
+  if (
+    violations.length === 0 &&
+    (!isJsonSchemaRecord(schema) || !Object.hasOwn(schema, 'type') || schema.type !== 'object')
+  ) {
     violations.push('schema.type must be "object" (structured output is object-rooted)')
   }
   if (violations.length > 0) throw new JsonSchemaError(violations)
@@ -520,26 +569,46 @@ function checkValue(schema: JsonSchemaNode, value: unknown, path: string): strin
           continue
         }
         if (frame.kind === 'oneOf') {
-          finish(frame.matches === 1 ? [] : [`"${diagnosticPath(frame.path)}" must match exactly one oneOf branch (matched ${frame.matches})`])
+          finish(
+            frame.matches === 1
+              ? []
+              : [
+                  `"${diagnosticPath(frame.path)}" must match exactly one oneOf branch (matched ${frame.matches})`,
+                ],
+          )
           continue
         }
         appendViolations(frame.violations, frame.tailViolations)
         if (frame.violations.length > 0) {
           finish(frame.violations)
         } else if (frame.kind === 'object') {
-          finish(safelyIsJsonValue(frame.value) ? [] : [`"${diagnosticPath(frame.path)}" must be a lossless JSON object`])
+          finish(
+            safelyIsJsonValue(frame.value)
+              ? []
+              : [`"${diagnosticPath(frame.path)}" must be a lossless JSON object`],
+          )
         } else {
-          finish(safelyIsJsonValue(frame.value) ? [] : [`"${diagnosticPath(frame.path)}" must be a dense lossless JSON array`])
+          finish(
+            safelyIsJsonValue(frame.value)
+              ? []
+              : [`"${diagnosticPath(frame.path)}" must be a dense lossless JSON array`],
+          )
         }
         continue
       }
 
       const nodeType = Object.hasOwn(frame.node, 'type') ? frame.node.type : undefined
-      frame.catches = !(nodeType !== undefined && !(SCHEMA_TYPES as readonly unknown[]).includes(nodeType))
+      frame.catches = !(
+        nodeType !== undefined && !(SCHEMA_TYPES as readonly unknown[]).includes(nodeType)
+      )
       const oneOf = Object.hasOwn(frame.node, 'oneOf') ? frame.node.oneOf : undefined
       if (oneOf !== undefined) {
         frame.kind = 'oneOf'
-        frame.children = Array.from(oneOf, branch => ({ node: branch, value: frame.value, path: frame.path }))
+        frame.children = Array.from(oneOf, branch => ({
+          node: branch,
+          value: frame.value,
+          path: frame.path,
+        }))
         frame.childIndex = 0
         frame.matches = 0
         frame.phase = 'children'
@@ -556,9 +625,11 @@ function checkValue(schema: JsonSchemaNode, value: unknown, path: string): strin
             finish([`"${diagnosticPath(frame.path)}" must be an object`])
             break
           }
-          const properties = Object.hasOwn(frame.node, 'properties') ? frame.node.properties ?? {} : {}
+          const properties = Object.hasOwn(frame.node, 'properties')
+            ? (frame.node.properties ?? {})
+            : {}
           const violations: string[] = []
-          const required = Object.hasOwn(frame.node, 'required') ? frame.node.required ?? [] : []
+          const required = Object.hasOwn(frame.node, 'required') ? (frame.node.required ?? []) : []
           for (const key of required) {
             if (!Object.hasOwn(frame.value, key) || frame.value[key] === undefined) {
               violations.push(`missing required property "${propertyPath(frame.path, key)}"`)
@@ -567,13 +638,22 @@ function checkValue(schema: JsonSchemaNode, value: unknown, path: string): strin
           const children: ValueChild[] = []
           for (const [key, child] of Object.entries(properties)) {
             if (!Object.hasOwn(frame.value, key) || frame.value[key] === undefined) continue
-            children.push({ node: child, value: frame.value[key], path: propertyPath(frame.path, key) })
+            children.push({
+              node: child,
+              value: frame.value[key],
+              path: propertyPath(frame.path, key),
+            })
           }
           const tailViolations: string[] = []
-          if (Object.hasOwn(frame.node, 'additionalProperties') && frame.node.additionalProperties === false) {
+          if (
+            Object.hasOwn(frame.node, 'additionalProperties') &&
+            frame.node.additionalProperties === false
+          ) {
             for (const key of Object.keys(frame.value)) {
               if (!Object.hasOwn(properties, key)) {
-                tailViolations.push(`"${propertyPath(frame.path, key)}" is not a declared property (additionalProperties: false)`)
+                tailViolations.push(
+                  `"${propertyPath(frame.path, key)}" is not a declared property (additionalProperties: false)`,
+                )
               }
             }
           }
@@ -591,9 +671,12 @@ function checkValue(schema: JsonSchemaNode, value: unknown, path: string): strin
             break
           }
           const items = Object.hasOwn(frame.node, 'items') ? frame.node.items : undefined
-          const children = items === undefined
-            ? []
-            : frame.value.flatMap((entry, index): ValueChild[] => [{ node: items, value: entry, path: `${frame.path}[${index}]` }])
+          const children =
+            items === undefined
+              ? []
+              : frame.value.flatMap((entry, index): ValueChild[] => [
+                  { node: items, value: entry, path: `${frame.path}[${index}]` },
+                ])
           frame.kind = 'array'
           frame.children = children
           frame.childIndex = 0
@@ -602,31 +685,41 @@ function checkValue(schema: JsonSchemaNode, value: unknown, path: string): strin
           break
         }
         case 'string':
-          finish(typeof frame.value === 'string'
-            ? checkScalarValue(frame.node, frame.value, frame.path)
-            : [`"${diagnosticPath(frame.path)}" must be a string`])
+          finish(
+            typeof frame.value === 'string'
+              ? checkScalarValue(frame.node, frame.value, frame.path)
+              : [`"${diagnosticPath(frame.path)}" must be a string`],
+          )
           break
         case 'number':
-          finish(typeof frame.value !== 'number'
-            ? [`"${diagnosticPath(frame.path)}" must be a number`]
-            : !isJsonNumber(frame.value)
-              ? [`"${diagnosticPath(frame.path)}" must be a finite JSON number`]
-              : checkScalarValue(frame.node, frame.value, frame.path))
+          finish(
+            typeof frame.value !== 'number'
+              ? [`"${diagnosticPath(frame.path)}" must be a number`]
+              : !isJsonNumber(frame.value)
+                ? [`"${diagnosticPath(frame.path)}" must be a finite JSON number`]
+                : checkScalarValue(frame.node, frame.value, frame.path),
+          )
           break
         case 'integer':
-          finish(!isJsonNumber(frame.value) || !Number.isInteger(frame.value)
-            ? [`"${diagnosticPath(frame.path)}" must be an integer`]
-            : checkScalarValue(frame.node, frame.value, frame.path))
+          finish(
+            !isJsonNumber(frame.value) || !Number.isInteger(frame.value)
+              ? [`"${diagnosticPath(frame.path)}" must be an integer`]
+              : checkScalarValue(frame.node, frame.value, frame.path),
+          )
           break
         case 'boolean':
-          finish(typeof frame.value === 'boolean'
-            ? checkScalarValue(frame.node, frame.value, frame.path)
-            : [`"${diagnosticPath(frame.path)}" must be a boolean`])
+          finish(
+            typeof frame.value === 'boolean'
+              ? checkScalarValue(frame.node, frame.value, frame.path)
+              : [`"${diagnosticPath(frame.path)}" must be a boolean`],
+          )
           break
         case 'null':
-          finish(frame.value === null
-            ? checkScalarValue(frame.node, frame.value, frame.path)
-            : [`"${diagnosticPath(frame.path)}" must be null`])
+          finish(
+            frame.value === null
+              ? checkScalarValue(frame.node, frame.value, frame.path)
+              : [`"${diagnosticPath(frame.path)}" must be null`],
+          )
           break
         default:
           finish(assertNever(nodeType, 'JsonSchemaType'))
@@ -651,6 +744,10 @@ function checkValue(schema: JsonSchemaNode, value: unknown, path: string): strin
  * @param path - root label used in diagnostics.
  * @returns All violations in walk order; empty means valid.
  */
-export function validateJsonSchemaValue(schema: JsonSchemaNode, value: unknown, path = 'value'): string[] {
+export function validateJsonSchemaValue(
+  schema: JsonSchemaNode,
+  value: unknown,
+  path = 'value',
+): string[] {
   return checkValue(schema, value, path)
 }

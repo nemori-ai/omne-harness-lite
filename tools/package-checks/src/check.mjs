@@ -34,13 +34,8 @@ const run = (command, args, cwd, allowScripts = false, isolateModules = false) =
     env,
   })
 }
-const runArtifactNode = (args, cwd) => run(
-  process.execPath,
-  ['--no-global-search-paths', ...args],
-  cwd,
-  false,
-  true,
-)
+const runArtifactNode = (args, cwd) =>
+  run(process.execPath, ['--no-global-search-paths', ...args], cwd, false, true)
 
 async function optionalJson(path) {
   try {
@@ -54,7 +49,8 @@ async function optionalJson(path) {
 function parseRoot(argv) {
   if (argv.length === 0) return defaultRepo
   if (argv.length === 2 && argv[0] === '--root') return resolve(argv[1])
-  if (argv.length === 1 && argv[0].startsWith('--root=')) return resolve(argv[0].slice('--root='.length))
+  if (argv.length === 1 && argv[0].startsWith('--root='))
+    return resolve(argv[0].slice('--root='.length))
   assert.fail('usage: node src/check.mjs [--root <repository>]')
 }
 
@@ -73,7 +69,11 @@ function legacyFixturesAvailable(inventory) {
     '@omne-harness-lite/tools',
     '@omne-harness-lite/values',
   ]
-  return required.every(name => inventory.some(member => member.manifest.name === name && './baseline' in member.manifest.exports))
+  return required.every(name =>
+    inventory.some(
+      member => member.manifest.name === name && './baseline' in member.manifest.exports,
+    ),
+  )
 }
 
 function containsPath(root, candidate) {
@@ -122,14 +122,22 @@ export async function checkRepository(repo) {
   }
   const lock = await readFile(join(repo, 'pnpm-lock.yaml'), 'utf8')
   for (const [, name] of lock.matchAll(/^  '(@deepseek-ai\/[^']+)':/gm)) {
-    assert.ok(['@deepseek-ai/cordis@4.0.2', '@deepseek-ai/cosmokit@1.8.3'].includes(name), `unexpected resolved package: ${name}`)
+    assert.ok(
+      ['@deepseek-ai/cordis@4.0.2', '@deepseek-ai/cosmokit@1.8.3'].includes(name),
+      `unexpected resolved package: ${name}`,
+    )
   }
   const rootManifest = await json(join(repo, 'package.json'))
   const nativeBuilds = nativeBuildPlan(rootManifest, lock, inventory)
   if (nativeBuilds.length > 0) {
-    assert.ok(process.env.CC && process.env.CXX, 'native artifact checks require explicit CC and CXX')
+    assert.ok(
+      process.env.CC && process.env.CXX,
+      'native artifact checks require explicit CC and CXX',
+    )
   }
-  const dshBaseline = await optionalJson(join(repo, 'docs/proposals/agent-runtime/source-baseline/upstream-baseline.json'))
+  const dshBaseline = await optionalJson(
+    join(repo, 'docs/proposals/agent-runtime/source-baseline/upstream-baseline.json'),
+  )
 
   let records = 0
   const provenances = new Map()
@@ -140,7 +148,10 @@ export async function checkRepository(repo) {
     validateManifest(manifest, provenance)
     await validateProvenance(member, provenance, dshBaseline)
     if (provenance.cordis_release) {
-      assert.ok(lock.includes(provenance.cordis_release.dist.integrity), 'official Cordis integrity')
+      assert.ok(
+        lock.includes(provenance.cordis_release.dist.integrity),
+        'official Cordis integrity',
+      )
     }
     records += provenance.files.length
 
@@ -160,14 +171,18 @@ export async function checkRepository(repo) {
     }
     closure(member, inventory)
   }
-  console.log(`PASS: ${inventory.length} product members, dependency boundaries, ${records} upstream source records`)
+  console.log(
+    `PASS: ${inventory.length} product members, dependency boundaries, ${records} upstream source records`,
+  )
 
   const scratch = await createArtifactScratch(repo)
   const tarballs = new Map()
   let passed = false
   try {
     for (const member of inventory) {
-      const raw = JSON.parse(run('pnpm', ['pack', '--json', '--pack-destination', scratch], member.root))
+      const raw = JSON.parse(
+        run('pnpm', ['pack', '--json', '--pack-destination', scratch], member.root),
+      )
       const packed = Array.isArray(raw) ? raw[0] : raw
       const paths = packed.files.map(file => file.path)
       validatePackedArtifact(member, provenances.get(member), paths)
@@ -178,55 +193,98 @@ export async function checkRepository(repo) {
     async function consume(label, roots, selected, fixture = '', fixtureFiles = [], extras = {}) {
       const consumer = join(scratch, label)
       await mkdir(consumer)
-      const dependencies = Object.fromEntries(roots.map(member => [member.manifest.name, tarballs.get(member.manifest.name)]))
+      const dependencies = Object.fromEntries(
+        roots.map(member => [member.manifest.name, tarballs.get(member.manifest.name)]),
+      )
       // Only the declared transitive closure is available. Unrelated leaves and
       // workspace source links cannot conceal a missing dependency.
-      const overrides = Object.fromEntries([...selected].map(member => [member.manifest.name, tarballs.get(member.manifest.name)]))
-      await writeFile(join(consumer, 'package.json'), JSON.stringify({
-        name: `artifact-consumer-${label}`,
-        private: true,
-        type: 'module',
-        license: 'UNLICENSED',
-        dependencies: { ...dependencies, ...extras },
-        devDependencies: { typescript: '6.0.3', '@types/node': '24.13.4' },
-        pnpm: { overrides },
-      }, null, 2))
-      run('pnpm', ['install', '--offline', '--ignore-scripts', '--ignore-workspace', '--store-dir', store], consumer)
-      const selectedNativeBuilds = nativeBuilds.filter(name => [...selected].some(member => {
-        const dependencies = { ...member.manifest.dependencies, ...member.manifest.optionalDependencies }
-        return name in dependencies
-      }))
+      const overrides = Object.fromEntries(
+        [...selected].map(member => [member.manifest.name, tarballs.get(member.manifest.name)]),
+      )
+      await writeFile(
+        join(consumer, 'package.json'),
+        JSON.stringify(
+          {
+            name: `artifact-consumer-${label}`,
+            private: true,
+            type: 'module',
+            license: 'UNLICENSED',
+            dependencies: { ...dependencies, ...extras },
+            devDependencies: { typescript: '6.0.3', '@types/node': '24.13.4' },
+            pnpm: { overrides },
+          },
+          null,
+          2,
+        ),
+      )
+      run(
+        'pnpm',
+        ['install', '--offline', '--ignore-scripts', '--ignore-workspace', '--store-dir', store],
+        consumer,
+      )
+      const selectedNativeBuilds = nativeBuilds.filter(name =>
+        [...selected].some(member => {
+          const dependencies = {
+            ...member.manifest.dependencies,
+            ...member.manifest.optionalDependencies,
+          }
+          return name in dependencies
+        }),
+      )
       for (const name of selectedNativeBuilds) {
-        run('pnpm', ['rebuild', name, '--pending', '--ignore-workspace', '--store-dir', store], consumer, true)
+        run(
+          'pnpm',
+          ['rebuild', name, '--pending', '--ignore-workspace', '--store-dir', store],
+          consumer,
+          true,
+        )
         console.log(`PASS: selective native rebuild ${name}@2.1.1 with explicit CC/CXX`)
       }
       for (const member of roots) {
         const installed = join(consumer, 'node_modules', member.manifest.name)
         const installedManifest = await json(join(installed, 'package.json'))
-        assert.ok(!JSON.stringify(installedManifest.dependencies).includes('workspace:'), 'pack must rewrite workspace edges')
+        assert.ok(
+          !JSON.stringify(installedManifest.dependencies).includes('workspace:'),
+          'pack must rewrite workspace edges',
+        )
         const installedRoot = await realpath(installed)
         assert.ok(
-          inventory.every(source => installedRoot !== source.root && !installedRoot.startsWith(source.root + '/')),
+          inventory.every(
+            source => installedRoot !== source.root && !installedRoot.startsWith(source.root + '/'),
+          ),
           'consumer resolved workspace source',
         )
         if (member.manifest.license !== 'UNLICENSED') {
-          assert.equal(await readFile(join(installed, 'LICENSE'), 'utf8'), await readFile(join(member.root, 'LICENSE'), 'utf8'))
+          assert.equal(
+            await readFile(join(installed, 'LICENSE'), 'utf8'),
+            await readFile(join(member.root, 'LICENSE'), 'utf8'),
+          )
         }
       }
       let importIndex = 0
-      const importSource = roots.flatMap(member => Object.keys(member.manifest.exports).map(key => {
-        const binding = `m${importIndex++}`
-        return `import * as ${binding} from '${exportSpecifier(member.manifest.name, key)}'; void ${binding};`
-      })).join('\n')
+      const importSource = roots
+        .flatMap(member =>
+          Object.keys(member.manifest.exports).map(key => {
+            const binding = `m${importIndex++}`
+            return `import * as ${binding} from '${exportSpecifier(member.manifest.name, key)}'; void ${binding};`
+          }),
+        )
+        .join('\n')
       await writeFile(join(consumer, 'consumer.ts'), `${importSource}\n${fixture}`)
-      await writeFile(join(consumer, 'tsconfig.json'), JSON.stringify({ compilerOptions: {
-        target: 'ES2024',
-        module: 'NodeNext',
-        strict: true,
-        noEmitOnError: true,
-        outDir: 'build',
-        types: ['node'],
-      }, include: ['*.ts'] }))
+      await writeFile(
+        join(consumer, 'tsconfig.json'),
+        JSON.stringify({
+          compilerOptions: {
+            target: 'ES2024',
+            module: 'NodeNext',
+            strict: true,
+            noEmitOnError: true,
+            outDir: 'build',
+            types: ['node'],
+          },
+          include: ['*.ts'],
+        }),
+      )
       for (const file of fixtureFiles) {
         await writeFile(join(consumer, file), await readFile(join(tool, 'fixtures', file)))
       }
@@ -235,7 +293,9 @@ export async function checkRepository(repo) {
       for (const file of fixtureFiles) {
         process.stdout.write(runArtifactNode([`build/${file.replace(/\.ts$/, '.js')}`], consumer))
       }
-      console.log(`PASS: isolated ${label}, ${selected.size} declared product artifact(s), strict declarations + runtime`)
+      console.log(
+        `PASS: isolated ${label}, ${selected.size} declared product artifact(s), strict declarations + runtime`,
+      )
     }
 
     for (const member of inventory) {

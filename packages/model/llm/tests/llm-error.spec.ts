@@ -14,7 +14,9 @@ describe('source LLM failure mechanisms', () => {
     const wrapped = new HarnessError('fetch failed', 'TRANSPORT', { cause: root })
     expect(isHarnessError(wrapped)).toBe(true)
     expect(errorChain(wrapped)).toBe('fetch failed: connect refused')
-    expect(errorChain(new AggregateError([new Error('a'), new Error('b')], 'all'))).toBe('all [a; b]')
+    expect(errorChain(new AggregateError([new Error('a'), new Error('b')], 'all'))).toBe(
+      'all [a; b]',
+    )
   })
 
   it('classifies explicit context and quota failures without treating rate limits as quota', () => {
@@ -25,7 +27,11 @@ describe('source LLM failure mechanisms', () => {
   })
 
   it('normalizes hostile and foreign adapter failures to immutable safe facts', () => {
-    const hostile = { [Symbol.toPrimitive]: () => { throw new Error('hostile') } }
+    const hostile = {
+      [Symbol.toPrimitive]: () => {
+        throw new Error('hostile')
+      },
+    }
     expect(normalizeLlmFailure(hostile)).toEqual({ message: 'LLM adapter failed', code: 'UNKNOWN' })
 
     const foreign = Object.assign(new Error('provider failed'), {

@@ -15,8 +15,9 @@ class TestLayer implements ScopeLayer {
   readonly anonymous = new AnonymousEntries<string>()
 
   constructor(scope: ScopeKey | undefined) {
-    this.named = new NamedEntries(name =>
-      new Error(`${scope === undefined ? 'global' : 'scoped'} duplicate: ${name}`))
+    this.named = new NamedEntries(
+      name => new Error(`${scope === undefined ? 'global' : 'scoped'} duplicate: ${name}`),
+    )
   }
 
   isEmpty(): boolean {
@@ -27,7 +28,9 @@ class TestLayer implements ScopeLayer {
 /** Mint one active scope for lifecycle tests. */
 async function mintScope(ctx: Context, key: ScopeKey): Promise<Scope> {
   let scope!: Scope
-  await ctx.plugin((inner: Context) => { scope = createScope(inner, key) })
+  await ctx.plugin((inner: Context) => {
+    scope = createScope(inner, key)
+  })
   return scope
 }
 
@@ -43,7 +46,10 @@ describe('NamedEntries', () => {
 
     expect([...values]).toEqual([2])
     expect([...entries.keys()]).toEqual(['a', 'b'])
-    expect([...entries.entries()]).toEqual([['a', 1], ['b', 2]])
+    expect([...entries.entries()]).toEqual([
+      ['a', 1],
+      ['b', 2],
+    ])
     expect(entries.get('a')).toBe(1)
     expect(entries.get('missing')).toBeUndefined()
     expect(entries.has('b')).toBe(true)
@@ -109,13 +115,10 @@ describe('AnonymousEntries', () => {
 describe('ScopedLayers', () => {
   it('constructs global state eagerly while reads stay non-creating and merge named shadows in order', () => {
     const created: Array<ScopeKey | undefined> = []
-    const layers = new ScopedLayers(
-      (scope) => {
-        created.push(scope)
-        return new TestLayer(scope)
-      },
-      vi.fn(),
-    )
+    const layers = new ScopedLayers(scope => {
+      created.push(scope)
+      return new TestLayer(scope)
+    }, vi.fn())
     const key = {}
     layers.global.named.insert('a', 1)
     layers.global.named.insert('shared', 2)
@@ -123,7 +126,10 @@ describe('ScopedLayers', () => {
     expect(created).toEqual([undefined])
     expect(layers.peek(undefined)).toBeUndefined()
     expect(layers.peek(key)).toBeUndefined()
-    expect([...layers.merge(key, layer => layer.named)]).toEqual([['a', 1], ['shared', 2]])
+    expect([...layers.merge(key, layer => layer.named)]).toEqual([
+      ['a', 1],
+      ['shared', 2],
+    ])
     expect(created).toEqual([undefined])
   })
 
@@ -133,37 +139,39 @@ describe('ScopedLayers', () => {
     const scope = await mintScope(ctx, key)
     const changed = vi.fn()
     const created: Array<ScopeKey | undefined> = []
-    const layers = new ScopedLayers(
-      (selected) => {
-        created.push(selected)
-        return new TestLayer(selected)
-      },
-      changed,
-    )
+    const layers = new ScopedLayers(selected => {
+      created.push(selected)
+      return new TestLayer(selected)
+    }, changed)
     layers.global.named.insert('a', 1)
     layers.global.named.insert('shared', 1)
-    const removeNamed = layers.effect(
-      scope.ctx,
-      layer => layer.named.insert('shared', 2),
-      { label: 'test.named', notify: false },
-    )
-    const removeTail = layers.effect(
-      scope.ctx,
-      layer => layer.named.insert('c', 3),
-      { label: 'test.tail', notify: false },
-    )
-    const removeAnonymous = layers.effect(
-      scope.ctx,
-      layer => layer.anonymous.append('kept'),
-      { label: 'test.anonymous', notify: false },
-    )
+    const removeNamed = layers.effect(scope.ctx, layer => layer.named.insert('shared', 2), {
+      label: 'test.named',
+      notify: false,
+    })
+    const removeTail = layers.effect(scope.ctx, layer => layer.named.insert('c', 3), {
+      label: 'test.tail',
+      notify: false,
+    })
+    const removeAnonymous = layers.effect(scope.ctx, layer => layer.anonymous.append('kept'), {
+      label: 'test.anonymous',
+      notify: false,
+    })
 
     expect(created).toEqual([undefined, key])
-    expect([...layers.merge(key, layer => layer.named)]).toEqual([['a', 1], ['shared', 2], ['c', 3]])
+    expect([...layers.merge(key, layer => layer.named)]).toEqual([
+      ['a', 1],
+      ['shared', 2],
+      ['c', 3],
+    ])
     expect(changed).not.toHaveBeenCalled()
     removeNamed()
     expect(layers.peek(key)).toBeDefined()
-    expect([...layers.merge(key, layer => layer.named)]).toEqual([['a', 1], ['shared', 1], ['c', 3]])
+    expect([...layers.merge(key, layer => layer.named)]).toEqual([
+      ['a', 1],
+      ['shared', 1],
+      ['c', 3],
+    ])
     removeTail()
     expect(layers.peek(key)).toBeDefined()
     removeAnonymous()
@@ -180,7 +188,7 @@ describe('ScopedLayers', () => {
     )
     const dispose = layers.effect(
       ctx,
-      (layer) => {
+      layer => {
         events.push('action')
         const undo = layer.named.insert('x', 1)
         return () => {
@@ -218,39 +226,44 @@ describe('ScopedLayers', () => {
     const key = {}
     const scope = await mintScope(ctx, key)
     let failFactory = true
-    const layers = new ScopedLayers(
-      (selected) => {
-        if (selected !== undefined && failFactory) throw new Error('factory failed')
-        return new TestLayer(selected)
-      },
-      vi.fn(),
-    )
+    const layers = new ScopedLayers(selected => {
+      if (selected !== undefined && failFactory) throw new Error('factory failed')
+      return new TestLayer(selected)
+    }, vi.fn())
 
-    expect(() => layers.effect(
-      scope.ctx,
-      layer => layer.named.insert('never', 1),
-      { label: 'store.factory', notify: false },
-    )).toThrow('factory failed')
+    expect(() =>
+      layers.effect(scope.ctx, layer => layer.named.insert('never', 1), {
+        label: 'store.factory',
+        notify: false,
+      }),
+    ).toThrow('factory failed')
     expect(layers.peek(key)).toBeUndefined()
 
     failFactory = false
-    expect(() => layers.effect(
-      scope.ctx,
-      () => { throw new Error('action failed') },
-      { label: 'store.action', notify: false },
-    )).toThrow('action failed')
+    expect(() =>
+      layers.effect(
+        scope.ctx,
+        () => {
+          throw new Error('action failed')
+        },
+        { label: 'store.action', notify: false },
+      ),
+    ).toThrow('action failed')
     expect(layers.peek(key)).toBeUndefined()
 
-    const dispose = layers.effect(
-      scope.ctx,
-      layer => layer.named.insert('kept', 1),
-      { label: 'store.kept', notify: false },
-    )
-    expect(() => layers.effect(
-      scope.ctx,
-      () => { throw new Error('second action failed') },
-      { label: 'store.existing-action', notify: false },
-    )).toThrow('second action failed')
+    const dispose = layers.effect(scope.ctx, layer => layer.named.insert('kept', 1), {
+      label: 'store.kept',
+      notify: false,
+    })
+    expect(() =>
+      layers.effect(
+        scope.ctx,
+        () => {
+          throw new Error('second action failed')
+        },
+        { label: 'store.existing-action', notify: false },
+      ),
+    ).toThrow('second action failed')
     expect(layers.peek(key)?.named.get('kept')).toBe(1)
     dispose()
     await scope.dispose()
@@ -270,17 +283,19 @@ describe('ScopedLayers', () => {
       },
     )
 
-    expect(() => layers.effect(
-      scope.ctx,
-      (layer) => {
-        const undo = layer.named.insert('rollback', 1)
-        return () => {
-          events.push('undo')
-          undo()
-        }
-      },
-      { label: 'store.rollback' },
-    )).toThrow('change failed')
+    expect(() =>
+      layers.effect(
+        scope.ctx,
+        layer => {
+          const undo = layer.named.insert('rollback', 1)
+          return () => {
+            events.push('undo')
+            undo()
+          }
+        },
+        { label: 'store.rollback' },
+      ),
+    ).toThrow('change failed')
 
     expect(events).toEqual(['notify', 'undo', 'notify'])
     expect(layers.peek(key)).toBeUndefined()

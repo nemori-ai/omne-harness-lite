@@ -11,12 +11,7 @@
 import type { Message } from '@omne-harness-lite/llm/baseline'
 import { SessionLogOffset, SessionSeq } from './types.ts'
 import { KNOWN_SESSION_EVENT_TYPES } from './known-event-types.ts'
-import type {
-  SessionEvent,
-  SessionSeqCursor,
-  SurfaceEvent,
-  SurfaceOp,
-} from './types.ts'
+import type { SessionEvent, SessionSeqCursor, SurfaceEvent, SurfaceOp } from './types.ts'
 
 /** Runtime counterpart of the message-producing event union. */
 const SURFACE_EVENT_TYPES = new Set<string>([
@@ -145,7 +140,8 @@ export function validateSessionEventData(
     if (!isRecord(data)) throw new Error(`${subject} data must be an object`)
     const header = data['header']
     if (!isRecord(header)) throw new Error(`${subject} header must be an object`)
-    if (Object.hasOwn(header, 'system')) throw new Error(`${subject} must omit header.system; use system/message`)
+    if (Object.hasOwn(header, 'system'))
+      throw new Error(`${subject} must omit header.system; use system/message`)
     if (Array.isArray(header['tools']) && header['tools'].length === 0) {
       throw new Error(`${subject} must omit empty tools`)
     }
@@ -207,9 +203,7 @@ interface SurfaceReplacePlan extends SurfaceFoldReplacement {
 }
 
 /** One validated surface transition that has not mutated fold state yet. */
-type SurfacePlan =
-  | { kind: 'append'; seq: SessionSeq }
-  | SurfaceReplacePlan
+type SurfacePlan = { kind: 'append'; seq: SessionSeq } | SurfaceReplacePlan
 
 /** Create an empty surface fold state. */
 function createFoldState(): SurfaceFoldState {
@@ -218,22 +212,23 @@ function createFoldState(): SurfaceFoldState {
 
 /** Whether a runtime value is a non-negative safe event sequence. */
 function isEventSeq(value: unknown): value is SessionSeq {
-  return typeof value === 'number'
-    && Number.isSafeInteger(value)
-    && value >= 0
-    && !Object.is(value, -0)
+  return (
+    typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && !Object.is(value, -0)
+  )
 }
 
 /** Whether a runtime value is the exact positional-replacement shape. */
 function isReplaceOp(value: object): value is Extract<SurfaceOp, { op: 'replace' }> {
   const op = value as Record<string, unknown>
-  return Object.keys(op).length === 3
-    && Object.hasOwn(op, 'op')
-    && Object.hasOwn(op, 'startSeq')
-    && Object.hasOwn(op, 'endSeq')
-    && op['op'] === 'replace'
-    && isEventSeq(op['startSeq'])
-    && isEventSeq(op['endSeq'])
+  return (
+    Object.keys(op).length === 3 &&
+    Object.hasOwn(op, 'op') &&
+    Object.hasOwn(op, 'startSeq') &&
+    Object.hasOwn(op, 'endSeq') &&
+    op['op'] === 'replace' &&
+    isEventSeq(op['startSeq']) &&
+    isEventSeq(op['endSeq'])
+  )
 }
 
 /** Validate event-local surface eligibility and return its operation. */
@@ -243,16 +238,22 @@ function surfaceOpOf(event: SessionEvent): SurfaceOp | undefined {
     // Unknown ignorable records retain opaque metadata without affecting history.
     if (!KNOWN_SESSION_EVENT_TYPES.has(event.type) && event.ignorable === true) return
     if (raw.surfaceOp !== undefined) {
-      throw new Error(`session event "${event.type}" is not surface-eligible and cannot carry surfaceOp`)
+      throw new Error(
+        `session event "${event.type}" is not surface-eligible and cannot carry surfaceOp`,
+      )
     }
     if (raw.sourceEventSeqs !== undefined) {
-      throw new Error(`session event "${event.type}" is not surface-eligible and cannot carry sourceEventSeqs`)
+      throw new Error(
+        `session event "${event.type}" is not surface-eligible and cannot carry sourceEventSeqs`,
+      )
     }
     return
   }
   const op = raw.surfaceOp
   if (op === undefined) {
-    throw new Error(`session event "${event.type}" is surface-eligible and requires a surfaceOp marker`)
+    throw new Error(
+      `session event "${event.type}" is surface-eligible and requires a surfaceOp marker`,
+    )
   }
   if (op === 'append') return op
   if (op === null || typeof op !== 'object' || Array.isArray(op)) {
@@ -265,10 +266,7 @@ function surfaceOpOf(event: SessionEvent): SurfaceOp | undefined {
 }
 
 /** Validate cited source-event seqs against prior log entries and the replacement range. */
-function assertProvenance(
-  event: SessionEvent,
-  shadowedSeqs: readonly SessionSeq[],
-): void {
+function assertProvenance(event: SessionEvent, shadowedSeqs: readonly SessionSeq[]): void {
   const raw: unknown = event.sourceEventSeqs
   if (event.type === 'assistant/message' && raw !== undefined) {
     throw new Error('assistant/message embeds its source stream and cannot carry sourceEventSeqs')
@@ -284,7 +282,9 @@ function assertProvenance(
     let nonEarlierSource: SessionSeq | undefined
     for (const source of raw) {
       if (!isEventSeq(source)) {
-        throw new Error(`session event "${event.type}" sourceEventSeqs must densely contain non-negative safe integers`)
+        throw new Error(
+          `session event "${event.type}" sourceEventSeqs must densely contain non-negative safe integers`,
+        )
       }
       sources.add(source)
       if (nonEarlierSource === undefined && source >= event.seq) nonEarlierSource = source
@@ -293,12 +293,16 @@ function assertProvenance(
       throw new Error('sourceEventSeqs must not contain duplicates')
     }
     if (nonEarlierSource !== undefined) {
-      throw new Error(`sourceEventSeqs must reference earlier events: ${nonEarlierSource} >= current seq ${event.seq}`)
+      throw new Error(
+        `sourceEventSeqs must reference earlier events: ${nonEarlierSource} >= current seq ${event.seq}`,
+      )
     }
   }
   const missing = shadowedSeqs.filter(seq => !sources.has(seq))
   if (missing.length > 0) {
-    throw new Error(`surface replace: sourceEventSeqs must include every shadowed surface node; missing ${missing.join(', ')}`)
+    throw new Error(
+      `surface replace: sourceEventSeqs must include every shadowed surface node; missing ${missing.join(', ')}`,
+    )
   }
 }
 
@@ -311,9 +315,10 @@ function assertProvenance(
  */
 export function validateSurfaceMetadata(event: SessionEvent): SurfaceOp | undefined {
   const op = surfaceOpOf(event)
-  if (op !== undefined && op !== 'append'
-    && (op.startSeq >= event.seq || op.endSeq >= event.seq)) {
-    throw new Error(`surface replace at seq ${event.seq}: startSeq and endSeq must reference earlier events`)
+  if (op !== undefined && op !== 'append' && (op.startSeq >= event.seq || op.endSeq >= event.seq)) {
+    throw new Error(
+      `surface replace at seq ${event.seq}: startSeq and endSeq must reference earlier events`,
+    )
   }
   if (op !== undefined) assertProvenance(event, [])
   return op
@@ -333,7 +338,9 @@ function replacementRange(
     throw new Error(`surface replace: end seq ${op.endSeq} not found in surface`)
   }
   if (startIdx > endIdx) {
-    throw new Error(`surface replace: start seq ${op.startSeq} (index ${startIdx}) is after end seq ${op.endSeq} (index ${endIdx})`)
+    throw new Error(
+      `surface replace: start seq ${op.startSeq} (index ${startIdx}) is after end seq ${op.endSeq} (index ${endIdx})`,
+    )
   }
   return {
     startIdx,
@@ -357,7 +364,10 @@ function isDeepEqualJson(a: unknown, b: unknown): boolean {
   const aKeys = Object.keys(a)
   const bRecord = b as Record<string, unknown>
   if (aKeys.length !== Object.keys(b).length) return false
-  return aKeys.every(key => Object.hasOwn(b, key) && isDeepEqualJson((a as Record<string, unknown>)[key], bRecord[key]))
+  return aKeys.every(
+    key =>
+      Object.hasOwn(b, key) && isDeepEqualJson((a as Record<string, unknown>)[key], bRecord[key]),
+  )
 }
 
 /** Restrict a tool-result replacement to one current result's content. */
@@ -409,10 +419,12 @@ function assertSystemHeadRewrite(
   baseSeq: SessionLogOffset,
 ): void {
   if (startIdx !== 0) return
-  const head = events[state.nodes[0] as number - baseSeq]
+  const head = events[(state.nodes[0] as number) - baseSeq]
   if (head?.type !== 'system/message') return
   if (event.type !== 'system/message' || shadowedSeqs.length !== 1) {
-    throw new Error('surface replace: node 0 holds the system prompt and may be rewritten only by a system/message over exactly that node')
+    throw new Error(
+      'surface replace: node 0 holds the system prompt and may be rewritten only by a system/message over exactly that node',
+    )
   }
 }
 
@@ -506,7 +518,8 @@ export class SurfaceManager implements SessionSurface {
   /** Last processed absolute seq. */
   private _lastProcessedSeq: SessionSeqCursor
   /** Candidate already validated by `validateNext`, pending exact log admission. */
-  private _pendingPlan: { event: SessionEvent; expectedSeq: SessionSeq; plan: SurfacePlan | undefined } | undefined
+  private _pendingPlan:
+    { event: SessionEvent; expectedSeq: SessionSeq; plan: SurfacePlan | undefined } | undefined
 
   /**
    * @param log - Contiguous complete log or loaded event window.

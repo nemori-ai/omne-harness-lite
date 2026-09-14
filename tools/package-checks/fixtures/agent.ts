@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 import { Context } from '@deepseek-ai/cordis'
-import AgentRegistry, { type Agent, type AgentFactory, type AgentHandle } from '@omne-harness-lite/agent/baseline'
+import AgentRegistry, {
+  type Agent,
+  type AgentFactory,
+  type AgentHandle,
+} from '@omne-harness-lite/agent/baseline'
 
 // A trusted identity-only fixture. This is not a Session or an Agent Loop.
 const ctx = new Context()
@@ -10,19 +14,40 @@ ctx.on('agent/created', ({ agent }) => void events.push(`created:${agent.id}`))
 ctx.on('agent/disposed', ({ agent }) => void events.push(`disposed:${agent.id}`))
 const factory: AgentFactory = {
   async createAgent(ownerCtx, options) {
-    const agent: Agent = { id: options.sessionId, session: { id: options.sessionId }, ctx: ownerCtx }
+    const agent: Agent = {
+      id: options.sessionId,
+      session: { id: options.sessionId },
+      ctx: ownerCtx,
+    }
     const detach = ownerCtx.agents.register(agent)
-    return { agent, dispose: async () => { await detach() } }
+    return {
+      agent,
+      dispose: async () => {
+        await detach()
+      },
+    }
   },
-  async resume() { throw new Error('persistence is not part of this fixture') },
+  async resume() {
+    throw new Error('persistence is not part of this fixture')
+  },
 }
-const provider = await ctx.plugin(Object.assign((inner: Context) => {
-  inner.agents.setFactory(factory)
-}, { inject: ['agents'] }))
+const provider = await ctx.plugin(
+  Object.assign(
+    (inner: Context) => {
+      inner.agents.setFactory(factory)
+    },
+    { inject: ['agents'] },
+  ),
+)
 let handle!: AgentHandle
-const owner = await ctx.plugin(Object.assign(async (inner: Context) => {
-  handle = await inner.agents.create({ sessionId: 'fixture' })
-}, { inject: ['agents'] }))
+const owner = await ctx.plugin(
+  Object.assign(
+    async (inner: Context) => {
+      handle = await inner.agents.create({ sessionId: 'fixture' })
+    },
+    { inject: ['agents'] },
+  ),
+)
 assert.equal(ctx.agents.get('fixture'), handle.agent)
 const task = ctx.agents.withInitiator(handle.agent, async () => {
   await Promise.resolve()
@@ -38,10 +63,17 @@ await provider.dispose()
 await assert.rejects(ctx.agents.create({ sessionId: 'unavailable' }), /no agent factory/)
 const retained = ctx.agents
 let dependencyReleased = false
-await ctx.plugin(Object.assign((inner: Context) => {
-  inner.effect(() => () => { dependencyReleased = true })
-  inner.agents.register({ id: 'dependent', session: { id: 'dependent' }, ctx: inner })
-}, { inject: ['agents'] }))
+await ctx.plugin(
+  Object.assign(
+    (inner: Context) => {
+      inner.effect(() => () => {
+        dependencyReleased = true
+      })
+      inner.agents.register({ id: 'dependent', session: { id: 'dependent' }, ctx: inner })
+    },
+    { inject: ['agents'] },
+  ),
+)
 assert.equal(dependencyReleased, false)
 assert.ok(retained.get('dependent'))
 // Keep this consumer alive: dependency loss must trigger its own cleanup.
@@ -53,4 +85,6 @@ assert.throws(() => retained.currentInitiator(), /disposed/)
 for (const path of ['@omne-harness-lite/agent', '@omne-harness-lite/agent/src/index.ts']) {
   await assert.rejects(import(path), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' })
 }
-console.log('PASS: isolated tarball consumer, ownership, dependency removal, factory removal and initiator')
+console.log(
+  'PASS: isolated tarball consumer, ownership, dependency removal, factory removal and initiator',
+)

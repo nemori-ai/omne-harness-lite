@@ -24,17 +24,23 @@ describe('source tool schema baseline', () => {
       properties: { path: { type: 'string' }, limit: { type: 'integer' } },
       required: ['path'],
     })
-    expect(validateJsonSchemaValue({ ...schema, additionalProperties: false }, { limit: 1, extra: true }, '')).toEqual([
+    expect(
+      validateJsonSchemaValue(
+        { ...schema, additionalProperties: false },
+        { limit: 1, extra: true },
+        '',
+      ),
+    ).toEqual([
       'missing required property "path"',
       '"extra" is not a declared property (additionalProperties: false)',
     ])
   })
 
   it('rejects unsupported raw JSON Schema rather than accepting ignored keywords', () => {
-    expect(() => assertSupportedJsonSchema({ type: 'string', pattern: '^x$' }))
-      .toThrow(JsonSchemaError)
-    expect(() => assertObjectJsonSchema({ type: 'string' }))
-      .toThrow('schema.type must be "object"')
+    expect(() => assertSupportedJsonSchema({ type: 'string', pattern: '^x$' })).toThrow(
+      JsonSchemaError,
+    )
+    expect(() => assertObjectJsonSchema({ type: 'string' })).toThrow('schema.type must be "object"')
   })
 
   it('walks deep schemas and values without consuming the JavaScript call stack', () => {
@@ -68,9 +74,14 @@ describe('source tool schema baseline', () => {
     const ctx = new Context()
     const fiber = await ctx.plugin(ToolRuntime)
     ctx.tools.register(tool)
-    await expect(ctx.tools.execute({
-      callId: ToolCallId('invalid'), name: 'echo', arguments: {}, signal: new AbortController().signal,
-    })).resolves.toMatchObject({ isError: true, error: { info: { code: 'INVALID_ARGS' } } })
+    await expect(
+      ctx.tools.execute({
+        callId: ToolCallId('invalid'),
+        name: 'echo',
+        arguments: {},
+        signal: new AbortController().signal,
+      }),
+    ).resolves.toMatchObject({ isError: true, error: { info: { code: 'INVALID_ARGS' } } })
     expect(called).toBe(false)
     await fiber.dispose()
   })

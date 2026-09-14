@@ -26,7 +26,9 @@ async function harness(): Promise<{
 /** Fail a lifecycle regression promptly instead of waiting for Vitest's suite timeout. */
 async function promptly<T>(task: Promise<T>): Promise<T> {
   const timeout = Promise.withResolvers<never>()
-  const timer = setTimeout(() => { timeout.reject(new Error('initiator teardown did not settle promptly')) }, 1000)
+  const timer = setTimeout(() => {
+    timeout.reject(new Error('initiator teardown did not settle promptly'))
+  }, 1000)
   try {
     return await Promise.race([task, timeout.promise])
   } finally {
@@ -46,10 +48,12 @@ describe('AgentRegistry initiator scope', () => {
     const { service, dispose } = await harness()
     const initiator = agent('identity')
     const value = { result: true }
-    expect(service.withInitiator(initiator, () => {
-      expect(service.requireInitiator()).toBe(initiator)
-      return value
-    })).toBe(value)
+    expect(
+      service.withInitiator(initiator, () => {
+        expect(service.requireInitiator()).toBe(initiator)
+        return value
+      }),
+    ).toBe(value)
 
     const promise = service.withInitiator(initiator, async () => {
       expect(service.requireInitiator()).toBe(initiator)
@@ -68,14 +72,18 @@ describe('AgentRegistry initiator scope', () => {
     const initiator = agent('overridden-then')
     const release = Promise.withResolvers<boolean>()
     void Object.defineProperty(release.promise, 'then', {
-      value: () => { throw new Error('overridden then called') },
+      value: () => {
+        throw new Error('overridden then called')
+      },
     })
 
     const pending = service.withInitiator(initiator, () => release.promise)
     expect(pending).toBe(release.promise)
 
     let disposed = false
-    const disposal = dispose().then(() => { disposed = true })
+    const disposal = dispose().then(() => {
+      disposed = true
+    })
     await Promise.resolve()
     expect(disposed).toBe(false)
 
@@ -93,7 +101,9 @@ describe('AgentRegistry initiator scope', () => {
     const promise = Promise.resolve()
     const constructor = {}
     Object.defineProperty(constructor, Symbol.species, {
-      get: () => { throw new Error('invalid species') },
+      get: () => {
+        throw new Error('invalid species')
+      },
     })
     void Object.defineProperty(promise, 'constructor', { value: constructor })
 
@@ -108,13 +118,14 @@ describe('AgentRegistry initiator scope', () => {
     const bothStarted = Promise.withResolvers<boolean>()
     const release = Promise.withResolvers<boolean>()
     let starts = 0
-    const run = (initiator: Agent): Promise<void> => service.withInitiator(initiator, async () => {
-      expect(service.requireInitiator()).toBe(initiator)
-      starts += 1
-      if (starts === 2) bothStarted.resolve(true)
-      await release.promise
-      expect(service.requireInitiator()).toBe(initiator)
-    })
+    const run = (initiator: Agent): Promise<void> =>
+      service.withInitiator(initiator, async () => {
+        expect(service.requireInitiator()).toBe(initiator)
+        starts += 1
+        if (starts === 2) bothStarted.resolve(true)
+        await release.promise
+        expect(service.requireInitiator()).toBe(initiator)
+      })
 
     const pending = [run(a), run(b)]
     await bothStarted.promise
@@ -131,7 +142,9 @@ describe('AgentRegistry initiator scope', () => {
 
     service.withInitiator(parent, () => {
       expect(service.requireInitiator()).toBe(parent)
-      service.withInitiator(child, () => { expect(service.requireInitiator()).toBe(child) })
+      service.withInitiator(child, () => {
+        expect(service.requireInitiator()).toBe(child)
+      })
       expect(service.requireInitiator()).toBe(parent)
       service.withoutInitiator(() => {
         expect(service.currentInitiator()).toBeUndefined()
@@ -151,13 +164,19 @@ describe('AgentRegistry initiator scope', () => {
     const asyncError = new Error('async failure')
 
     service.withInitiator(parent, () => {
-      expect(() => service.withInitiator(child, () => { throw syncError })).toThrow(syncError)
+      expect(() =>
+        service.withInitiator(child, () => {
+          throw syncError
+        }),
+      ).toThrow(syncError)
       expect(service.requireInitiator()).toBe(parent)
     })
-    await expect(service.withInitiator(child, async () => {
-      await Promise.resolve()
-      throw asyncError
-    })).rejects.toBe(asyncError)
+    await expect(
+      service.withInitiator(child, async () => {
+        await Promise.resolve()
+        throw asyncError
+      }),
+    ).rejects.toBe(asyncError)
     expect(service.currentInitiator()).toBeUndefined()
     await dispose()
   })
@@ -171,10 +190,14 @@ describe('AgentRegistry initiator scope', () => {
       expect(service.requireInitiator()).toBe(initiator)
     })
     let disposed = false
-    const disposal = dispose().then(() => { disposed = true })
+    const disposal = dispose().then(() => {
+      disposed = true
+    })
     await Promise.resolve()
 
-    expect(() => service.withInitiator(initiator, () => 1)).toThrow('agent initiator scope is disposed')
+    expect(() => service.withInitiator(initiator, () => 1)).toThrow(
+      'agent initiator scope is disposed',
+    )
     expect(() => service.withoutInitiator(() => 1)).toThrow('agent initiator scope is disposed')
     expect(disposed).toBe(false)
     expect(ctx.get('agents')).toBeUndefined()
@@ -189,18 +212,19 @@ describe('AgentRegistry initiator scope', () => {
     const { service, dispose } = await harness()
     const initiator = agent('cross-realm')
     const release = Promise.withResolvers<boolean>()
-    const operation = runInNewContext(
-      '(async () => { await release; inspect() })',
-      {
-        release: release.promise,
-        inspect: () => { expect(service.requireInitiator()).toBe(initiator) },
+    const operation = runInNewContext('(async () => { await release; inspect() })', {
+      release: release.promise,
+      inspect: () => {
+        expect(service.requireInitiator()).toBe(initiator)
       },
-    ) as () => Promise<void>
+    }) as () => Promise<void>
     const pending = service.withInitiator(initiator, operation)
     expect(pending).not.toBeInstanceOf(Promise)
 
     let disposed = false
-    const disposal = dispose().then(() => { disposed = true })
+    const disposal = dispose().then(() => {
+      disposed = true
+    })
     await Promise.resolve()
     expect(disposed).toBe(false)
 
@@ -226,10 +250,12 @@ describe('AgentRegistry initiator scope', () => {
     const child = agent('child-disposer')
     let disposal: Promise<void> | undefined
 
-    const returned = service.withInitiator(parent, () => service.withInitiator(child, () => {
-      disposal = ctx.fiber.dispose()
-      return disposal
-    }))
+    const returned = service.withInitiator(parent, () =>
+      service.withInitiator(child, () => {
+        disposal = ctx.fiber.dispose()
+        return disposal
+      }),
+    )
     expect(returned).toBe(disposal)
 
     await promptly(returned)
@@ -251,7 +277,9 @@ describe('AgentRegistry initiator scope', () => {
       await ctx.fiber.dispose()
     })
     let disposed = false
-    void returned.then(() => { disposed = true })
+    void returned.then(() => {
+      disposed = true
+    })
     await Promise.resolve()
     await Promise.resolve()
     expect(disposed).toBe(false)

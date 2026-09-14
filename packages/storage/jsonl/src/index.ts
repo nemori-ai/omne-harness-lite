@@ -5,9 +5,16 @@
 import { open } from 'node:fs/promises'
 import type { FileHandle } from 'node:fs/promises'
 
-async function closePreserving(handle: FileHandle, failed: boolean, failure: unknown): Promise<void> {
-  try { await handle.close() } catch (closeError) {
-    if (failed) throw new AggregateError([failure, closeError], 'file operation and close both failed')
+async function closePreserving(
+  handle: FileHandle,
+  failed: boolean,
+  failure: unknown,
+): Promise<void> {
+  try {
+    await handle.close()
+  } catch (closeError) {
+    if (failed)
+      throw new AggregateError([failure, closeError], 'file operation and close both failed')
     throw closeError
   }
   if (failed) throw failure
@@ -21,7 +28,10 @@ export async function writeSyncedFile(path: string, content: Buffer | string): P
   try {
     await handle.writeFile(content)
     await handle.sync()
-  } catch (error) { failed = true; failure = error }
+  } catch (error) {
+    failed = true
+    failure = error
+  }
   await closePreserving(handle, failed, failure)
 }
 
@@ -31,7 +41,12 @@ export async function syncDirectory(path: string): Promise<void> {
   const handle = await open(path, 'r')
   let failed = false
   let failure: unknown
-  try { await handle.sync() } catch (error) { failed = true; failure = error }
+  try {
+    await handle.sync()
+  } catch (error) {
+    failed = true
+    failure = error
+  }
   await closePreserving(handle, failed, failure)
 }
 
@@ -42,7 +57,10 @@ async function rollbackAppend(path: string, size: number): Promise<void> {
   try {
     await handle.truncate(size)
     await handle.sync()
-  } catch (error) { failed = true; failure = error }
+  } catch (error) {
+    failed = true
+    failure = error
+  }
   await closePreserving(handle, failed, failure)
 }
 
@@ -71,8 +89,13 @@ export async function appendSyncedBytes(path: string, content: Buffer | string):
       }
       throw error
     }
-  } catch (error) { failed = true; failure = error }
-  try { await close() } catch (closeError) {
+  } catch (error) {
+    failed = true
+    failure = error
+  }
+  try {
+    await close()
+  } catch (closeError) {
     if (failed) throw new AggregateError([failure, closeError], 'append and close both failed')
     throw closeError
   }
@@ -80,7 +103,10 @@ export async function appendSyncedBytes(path: string, content: Buffer | string):
 }
 
 /** Read only a complete newline-terminated first line; does not validate JSON. */
-export async function readFirstLine(path: string, signal?: AbortSignal): Promise<string | undefined> {
+export async function readFirstLine(
+  path: string,
+  signal?: AbortSignal,
+): Promise<string | undefined> {
   signal?.throwIfAborted()
   const handle = await open(path, 'r')
   let failed = false
@@ -105,7 +131,10 @@ export async function readFirstLine(path: string, signal?: AbortSignal): Promise
       }
       chunks.push(Buffer.from(slice))
     }
-  } catch (error) { failed = true; failure = error }
+  } catch (error) {
+    failed = true
+    failure = error
+  }
   await closePreserving(handle, failed, failure)
   return result
 }

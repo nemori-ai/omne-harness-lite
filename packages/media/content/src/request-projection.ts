@@ -19,19 +19,18 @@ export function requestImageDimensions(
   if (scale === 1) return { width, height }
   if (width >= height) {
     let projectedWidth = Math.max(1, Math.floor(width * scale))
-    let projectedHeight = Math.max(1, Math.round(projectedWidth * height / width))
+    let projectedHeight = Math.max(1, Math.round((projectedWidth * height) / width))
     while (projectedWidth * projectedHeight > maxPixels && projectedWidth > 1) {
       projectedWidth -= 1
-      projectedHeight = Math.max(1, Math.round(projectedWidth * height / width))
+      projectedHeight = Math.max(1, Math.round((projectedWidth * height) / width))
     }
     return { width: projectedWidth, height: projectedHeight }
   }
   let projectedHeight = Math.max(1, Math.floor(height * scale))
-  let projectedWidth = Math.max(1, Math.round(projectedHeight * width / height))
+  let projectedWidth = Math.max(1, Math.round((projectedHeight * width) / height))
   while (projectedWidth * projectedHeight > maxPixels && projectedHeight > 1) {
     projectedHeight -= 1
-    projectedWidth = Math.max(1, Math.round(projectedHeight * width / height))
+    projectedWidth = Math.max(1, Math.round((projectedHeight * width) / height))
   }
   return { width: projectedWidth, height: projectedHeight }
 }
-

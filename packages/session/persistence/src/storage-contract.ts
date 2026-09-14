@@ -20,7 +20,10 @@ import {
 } from './errors.ts'
 
 /** Build a format refusal that points at the raw artifact when the backend has one. */
-function unsupported(reason: string, location: SessionLocation | undefined): SessionFormatUnsupportedError {
+function unsupported(
+  reason: string,
+  location: SessionLocation | undefined,
+): SessionFormatUnsupportedError {
   return new SessionFormatUnsupportedError(
     location === undefined ? reason : `${reason} (raw log: ${location.path})`,
     location,
@@ -34,7 +37,9 @@ function unsupported(reason: string, location: SessionLocation | undefined): Ses
  */
 export function assertStoredId(id: SessionId, meta: SessionHeader): void {
   if (meta.id !== id) {
-    throw new Error(`stored session identity mismatch: requested "${id}", header contains "${meta.id}"`)
+    throw new Error(
+      `stored session identity mismatch: requested "${id}", header contains "${meta.id}"`,
+    )
   }
 }
 
@@ -82,8 +87,11 @@ export function validateStoredEvents(
     // full-header "fallback" reason. Everything else retired was a whole type.
     if (event.type === 'request/header') {
       const data: unknown = event.data
-      if (typeof data === 'object' && data !== null
-        && (data as Record<string, unknown>)['reason'] === 'fallback') {
+      if (
+        typeof data === 'object' &&
+        data !== null &&
+        (data as Record<string, unknown>)['reason'] === 'fallback'
+      ) {
         throw unsupported(
           `session "${meta.id}" contains a request/header event (seq ${event.seq}) with the unsupported legacy reason "fallback"; refusing to interpret the log — it was written by a retired pre-release harness`,
           location,
@@ -131,7 +139,9 @@ export function materializeCreateHeader(header: SessionHeader): SessionHeader {
 export function materializeAppendBatch(events: readonly SessionEvent[]): readonly SessionEvent[] {
   const batch = snapshotJsonValue(events)
   if (batch === undefined) {
-    throw new TypeError('session event batch is not losslessly JSON-serializable because it contains non-JSON-serializable data')
+    throw new TypeError(
+      'session event batch is not losslessly JSON-serializable because it contains non-JSON-serializable data',
+    )
   }
   return batch
 }
@@ -142,10 +152,16 @@ export function materializeAppendBatch(events: readonly SessionEvent[]): readonl
  * @param events - the batch, in seq order.
  * @param cursor - the stored next-seq.
  */
-export function assertContiguous(id: SessionId, events: readonly SessionEvent[], cursor: number): void {
+export function assertContiguous(
+  id: SessionId,
+  events: readonly SessionEvent[],
+  cursor: number,
+): void {
   for (const [index, event] of events.entries()) {
     if (event.seq !== cursor + index) {
-      throw new Error(`append seq mismatch for "${id}": expected ${cursor + index} at index ${index}, got ${event.seq}`)
+      throw new Error(
+        `append seq mismatch for "${id}": expected ${cursor + index} at index ${index}, got ${event.seq}`,
+      )
     }
   }
 }

@@ -16,7 +16,9 @@ describe('selected JSONL ordinary file mechanisms', () => {
       await appendSyncedBytes(path, '{"event":1}\n')
       expect(await readFirstLine(path)).toBe(header)
       expect(await readFile(path, 'utf8')).toBe(header + '\n{"event":1}\n')
-    } finally { await rm(dir, { recursive: true, force: true }) }
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
   })
   it('does not treat an incomplete first line as a complete record and propagates cancellation', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'omne-source-jsonl-'))
@@ -28,6 +30,8 @@ describe('selected JSONL ordinary file mechanisms', () => {
       await expect(readFirstLine(path, aborted)).rejects.toThrow('caller stopped reading')
       expect(await readFile(path, 'utf8')).toBe('{"tail":')
       await expect(readFirstLine(join(dir, 'missing'))).rejects.toMatchObject({ code: 'ENOENT' })
-    } finally { await rm(dir, { recursive: true, force: true }) }
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
   })
 })

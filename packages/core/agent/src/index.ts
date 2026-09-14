@@ -9,7 +9,13 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 import { isPromise } from 'node:util/types'
 import { scopeTarget } from '@omne-harness-lite/scope/baseline'
 import type { Scoped } from '@omne-harness-lite/scope/baseline'
-import type { Agent, AgentFactory, AgentHandle, CreateAgentOptions, ResumeAgentOptions } from './types.ts'
+import type {
+  Agent,
+  AgentFactory,
+  AgentHandle,
+  CreateAgentOptions,
+  ResumeAgentOptions,
+} from './types.ts'
 
 export * from './types.ts'
 export type { Scoped } from '@omne-harness-lite/scope/baseline'
@@ -74,15 +80,20 @@ export class AgentRegistry extends Service {
 
   constructor(ctx: Context) {
     super(ctx, 'agents')
-    ctx.on('internal/status', (fiber) => {
+    ctx.on('internal/status', fiber => {
       if (fiber.state === FiberState.UNLOADING && this.hasLifecycleAncestor(fiber)) {
         this.closeInitiators()
       }
     })
-    ctx.effect(function* (this: AgentRegistry) {
-      yield () => this.disposeInitiators()
-      yield () => { this.closeInitiators() }
-    }.bind(this), 'agents.initiatorLifecycle()')
+    ctx.effect(
+      function* (this: AgentRegistry) {
+        yield () => this.disposeInitiators()
+        yield () => {
+          this.closeInitiators()
+        }
+      }.bind(this),
+      'agents.initiatorLifecycle()',
+    )
   }
 
   /**
@@ -164,9 +175,13 @@ export class AgentRegistry extends Service {
       // Avoid stacking two Cordis shadow layers when a caller passes a Service
       // already read through a context. Calls are re-traced through their
       // actual owner context below.
-      const target = (factory as AgentFactory & { [symbols.original]?: AgentFactory })[symbols.original] ?? factory
+      const target =
+        (factory as AgentFactory & { [symbols.original]?: AgentFactory })[symbols.original] ??
+        factory
       this.factory = { target }
-      return () => { this.factory = undefined }
+      return () => {
+        this.factory = undefined
+      }
     }, 'agents.setFactory()')
     // The exact cordis effect disposer (the agents.register() convention): a
     // caller's composite effect can yield it for in-order teardown; the
@@ -228,10 +243,13 @@ export class AgentRegistry extends Service {
    *   while its final turn is still draining.
    */
   register(agent: Agent): () => void {
-    const dispose = this.ctx.effect(function* (this: AgentRegistry) {
-      yield this.enter(agent, undefined)
-      this.announce(agent)
-    }.bind(this), 'agents.register()')
+    const dispose = this.ctx.effect(
+      function* (this: AgentRegistry) {
+        yield this.enter(agent, undefined)
+        this.announce(agent)
+      }.bind(this),
+      'agents.register()',
+    )
     // oxlint-disable-next-line typescript/no-misused-promises -- synchronous cleanup; direct return preserves disposer identity
     return dispose
   }
@@ -311,7 +329,9 @@ export class AgentRegistry extends Service {
       try {
         const returned: unknown = callback(...args)
         void Promise.resolve(returned).catch((error: unknown) => {
-          this.ctx.logger.warn(`agent "${entry.id}": agent/disposed listener rejected: ${String(error)}`)
+          this.ctx.logger.warn(
+            `agent "${entry.id}": agent/disposed listener rejected: ${String(error)}`,
+          )
         })
       } catch (error: unknown) {
         this.ctx.logger.warn(`agent "${entry.id}": agent/disposed listener threw: ${String(error)}`)
@@ -346,7 +366,9 @@ export class AgentRegistry extends Service {
         // observe and report it instead of leaking an unhandled rejection.
         const returned: unknown = callback(...args)
         void Promise.resolve(returned).catch((error: unknown) => {
-          this.ctx.logger.warn(`agent "${entry.id}": agent/created listener rejected: ${String(error)}`)
+          this.ctx.logger.warn(
+            `agent "${entry.id}": agent/created listener rejected: ${String(error)}`,
+          )
         })
       }
     } finally {
@@ -435,8 +457,12 @@ export class AgentRegistry extends Service {
       try {
         void Promise.prototype.then.call(
           result,
-          () => { this.releaseInitiatorRun(run) },
-          () => { this.releaseInitiatorRun(run) },
+          () => {
+            this.releaseInitiatorRun(run)
+          },
+          () => {
+            this.releaseInitiatorRun(run)
+          },
         )
       } catch {
         // A branded Promise may expose a failing @@species. Observer setup did

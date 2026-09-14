@@ -1,7 +1,16 @@
 // Ported from DeepSeek, MIT; source and changes in provenance.json.
 import { describe, expect, expectTypeOf, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { bindScopeParent, carrierKeyOf, createScope, isScopeCarrier, scopeChainOf, scopeOf, scopeParentOf, scopeTarget } from '../dist/scope.js'
+import {
+  bindScopeParent,
+  carrierKeyOf,
+  createScope,
+  isScopeCarrier,
+  scopeChainOf,
+  scopeOf,
+  scopeParentOf,
+  scopeTarget,
+} from '../dist/scope.js'
 import type { Scope, Scoped } from '../dist/scope.js'
 
 declare module '@deepseek-ai/cordis' {
@@ -18,7 +27,9 @@ declare module '@deepseek-ai/cordis' {
 /** Mount a host plugin and mint a scope inside it. */
 async function mintScope(ctx: Context, key: object): Promise<Scope> {
   let scope!: Scope
-  await ctx.plugin((inner: Context) => { scope = createScope(inner, key) })
+  await ctx.plugin((inner: Context) => {
+    scope = createScope(inner, key)
+  })
   return scope
 }
 
@@ -167,8 +178,12 @@ describe('scope parent chain', () => {
     expect(scopeParentOf(preset)).toBeUndefined()
     expect(scopeChainOf(agent)).toEqual([agent, preset])
     expect(scopeChainOf(undefined)).toEqual([])
-    expect(() => { bindScopeParent(preset, agent) }).toThrow(/cycle/)
-    expect(() => { bindScopeParent(preset, preset) }).toThrow(/cycle/)
+    expect(() => {
+      bindScopeParent(preset, agent)
+    }).toThrow(/cycle/)
+    expect(() => {
+      bindScopeParent(preset, preset)
+    }).toThrow(/cycle/)
   })
 
   it('re-links only through the binding held by the original binder', () => {
@@ -190,7 +205,9 @@ describe('scope parent chain', () => {
     const child = { id: 'child' }
     const childBinding = bindScopeParent(child, agent)
     void childBinding
-    expect(() => { binding.rebind(child) }).toThrow(/cycle/)
+    expect(() => {
+      binding.rebind(child)
+    }).toThrow(/cycle/)
   })
 
   it('admits an ancestor-tagged listener for a descendant dispatch, never the reverse', () => {
@@ -203,10 +220,30 @@ describe('scope parent chain', () => {
     const otherScope = createScope(ctx, other)
 
     const seen: string[] = []
-    ctx.on('probe/event' as never, ((): void => { seen.push('untagged') }) as never)
-    presetScope.ctx.on('probe/event' as never, ((): void => { seen.push('preset') }) as never)
-    agentScope.ctx.on('probe/event' as never, ((): void => { seen.push('agent') }) as never)
-    otherScope.ctx.on('probe/event' as never, ((): void => { seen.push('other') }) as never)
+    ctx.on(
+      'probe/event' as never,
+      ((): void => {
+        seen.push('untagged')
+      }) as never,
+    )
+    presetScope.ctx.on(
+      'probe/event' as never,
+      ((): void => {
+        seen.push('preset')
+      }) as never,
+    )
+    agentScope.ctx.on(
+      'probe/event' as never,
+      ((): void => {
+        seen.push('agent')
+      }) as never,
+    )
+    otherScope.ctx.on(
+      'probe/event' as never,
+      ((): void => {
+        seen.push('other')
+      }) as never,
+    )
 
     const emit = ctx as unknown as { emit: (carrier: object, type: string) => void }
     // Dispatch at the AGENT key: its own tag and its ancestor's admit; a

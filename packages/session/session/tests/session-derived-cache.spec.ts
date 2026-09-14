@@ -9,14 +9,22 @@ import { describe, expect, it } from 'vitest'
 import { Session, SessionId } from '../dist/index.js'
 
 function userText(session: Session, text: string): void {
-  session.append('user/message', createUserMessage({
-    content: [{ type: 'text', text }], source: { kind: 'user' },
-  }), { surfaceOp: 'append' })
+  session.append(
+    'user/message',
+    createUserMessage({
+      content: [{ type: 'text', text }],
+      source: { kind: 'user' },
+    }),
+    { surfaceOp: 'append' },
+  )
 }
 
 /** From-scratch oracle: replay the log into a fresh session and derive. */
 function scratch(session: Session): unknown {
-  return Session.create(SessionId(`${session.id}-scratch-${session.seq}`), session.snapshotEvents()).deriveMessages()
+  return Session.create(
+    SessionId(`${session.id}-scratch-${session.seq}`),
+    session.snapshotEvents(),
+  ).deriveMessages()
 }
 
 describe('derived-message cache', () => {
@@ -26,32 +34,42 @@ describe('derived-message cache', () => {
     userText(session, 'one')
     expect(session.deriveMessages()).toEqual(scratch(session))
     userText(session, 'two')
-    session.append('assistant/message', {
-      stream: [],
-      turn: 1, step: 1,
-      message: createMessage({
-        role: 'assistant',
-        content: [{ type: 'text', text: 'reply' }],
-        source: {
-          kind: 'model',
-          ...{ provider: 'mock', model: 'mock' },
-        },
-      }),
-    }, { surfaceOp: 'append' })
+    session.append(
+      'assistant/message',
+      {
+        stream: [],
+        turn: 1,
+        step: 1,
+        message: createMessage({
+          role: 'assistant',
+          content: [{ type: 'text', text: 'reply' }],
+          source: {
+            kind: 'model',
+            ...{ provider: 'mock', model: 'mock' },
+          },
+        }),
+      },
+      { surfaceOp: 'append' },
+    )
     expect(session.deriveMessages()).toEqual(scratch(session))
-    session.append('assistant/message', {
-      stream: [],
-      turn: 1, step: 2,
-      message: createMessage({
-        role: 'assistant',
-        content: [],
-        source: {
-          kind: 'model',
-          ...{ provider: 'mock', model: 'mock' },
-        },
-      }),
-      usage: { inputTokens: 1, outputTokens: 0 },
-    }, { surfaceOp: 'append' })
+    session.append(
+      'assistant/message',
+      {
+        stream: [],
+        turn: 1,
+        step: 2,
+        message: createMessage({
+          role: 'assistant',
+          content: [],
+          source: {
+            kind: 'model',
+            ...{ provider: 'mock', model: 'mock' },
+          },
+        }),
+        usage: { inputTokens: 1, outputTokens: 0 },
+      },
+      { surfaceOp: 'append' },
+    )
     expect(session.deriveMessages()).toEqual(scratch(session))
   })
 
@@ -64,9 +82,17 @@ describe('derived-message cache', () => {
     expect(beforeReplace).toHaveLength(2)
 
     const nodes = session.surface.nodes
-    session.append('user/message', createUserMessage({
-      content: [{ type: 'text', text: 'summary' }], source: { kind: 'plugin', plugin: 'compact' },
-    }), { surfaceOp: { op: 'replace', startSeq: nodes[0]!, endSeq: nodes[1]! }, sourceEventSeqs: [nodes[0]!, nodes[1]!] })
+    session.append(
+      'user/message',
+      createUserMessage({
+        content: [{ type: 'text', text: 'summary' }],
+        source: { kind: 'plugin', plugin: 'compact' },
+      }),
+      {
+        surfaceOp: { op: 'replace', startSeq: nodes[0]!, endSeq: nodes[1]! },
+        sourceEventSeqs: [nodes[0]!, nodes[1]!],
+      },
+    )
 
     expect(session.deriveMessages()).toHaveLength(1)
     expect(session.deriveMessages()).toEqual(scratch(session))
@@ -86,30 +112,41 @@ describe('derived-message cache', () => {
     expect(second[0]).toBe(first[0])
     expect(Object.isFrozen(first[0])).toBe(true)
   })
-
 })
 describe('Session.deriveEventMessage — the per-event projection', () => {
   it('projects one appended event exactly as the full derivation projects its node', () => {
     const session = Session.create(SessionId('per-event'))
     session.append('turn/start', { turn: 1 })
-    const event = session.append('user/message', createUserMessage({
-      content: [{ type: 'text', text: 'hi' }], source: { kind: 'user' },
-    }), { surfaceOp: 'append' })
+    const event = session.append(
+      'user/message',
+      createUserMessage({
+        content: [{ type: 'text', text: 'hi' }],
+        source: { kind: 'user' },
+      }),
+      { surfaceOp: 'append' },
+    )
     // Full and per-event derivation share one projection.
     expect(session.deriveEventMessage(event)).toEqual(session.deriveMessages().at(-1))
   })
 
-  it('reuses the logged event\'s already frozen content', () => {
+  it("reuses the logged event's already frozen content", () => {
     const session = Session.create(SessionId('per-event-clone'))
     session.append('turn/start', { turn: 1 })
-    const event = session.append('user/message', createUserMessage({
-      content: [{ type: 'text', text: 'orig' }], source: { kind: 'user' },
-    }), { surfaceOp: 'append' })
+    const event = session.append(
+      'user/message',
+      createUserMessage({
+        content: [{ type: 'text', text: 'orig' }],
+        source: { kind: 'user' },
+      }),
+      { surfaceOp: 'append' },
+    )
     const message = session.deriveEventMessage(event)!
     expect(message.content).toBe(event.data.content)
     expect(Object.isFrozen(message.content)).toBe(true)
     expect(Object.isFrozen(message.content[0])).toBe(true)
-    expect(() => { (message.content[0] as { text: string }).text = 'mutated' }).toThrow()
+    expect(() => {
+      ;(message.content[0] as { text: string }).text = 'mutated'
+    }).toThrow()
     expect(session.deriveMessages().at(-1)!.content).toEqual([{ type: 'text', text: 'orig' }])
   })
 
@@ -118,18 +155,23 @@ describe('Session.deriveEventMessage — the per-event projection', () => {
     session.append('turn/start', { turn: 1 })
     const boundary = session.append('step/start', { turn: 1, step: 1 })
     expect(session.deriveEventMessage(boundary)).toBeNull()
-    const empty = session.append('assistant/message', {
-      stream: [],
-      turn: 1, step: 1,
-      message: createMessage({
-        role: 'assistant',
-        content: [],
-        source: {
-          kind: 'model',
-          ...{ provider: 'mock', model: 'mock' },
-        },
-      }),
-    }, { surfaceOp: 'append' })
+    const empty = session.append(
+      'assistant/message',
+      {
+        stream: [],
+        turn: 1,
+        step: 1,
+        message: createMessage({
+          role: 'assistant',
+          content: [],
+          source: {
+            kind: 'model',
+            ...{ provider: 'mock', model: 'mock' },
+          },
+        }),
+      },
+      { surfaceOp: 'append' },
+    )
     expect(session.deriveEventMessage(empty)).toBeNull()
   })
 })

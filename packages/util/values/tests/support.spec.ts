@@ -13,5 +13,4 @@ describe('source values baseline', () => {
     const frozen = deepFreeze(copy)
     expect(Object.isFrozen(frozen.items)).toBe(true)
   })
-
 })
