@@ -321,7 +321,7 @@ the finite boundary accepted by review:
 | Repository-local `TMPDIR`, direct and through a symbolic link | Both real paths are rejected, the newly-created scratch is removed, and the repository target remains untouched. |
 | Sibling spoke scratch below a polluted common ancestor | Every real-path ancestor is checked for a directory or symbolic-link `node_modules`; the synthetic main checkout is rejected and the scratch is removed without changing the ancestor. |
 | Clean external consumer missing an ESM, `createRequire`, or declaration dependency | Direct ESM and `createRequire` probes fail module resolution, and strict NodeNext declaration compilation reports `TS2307`. |
-| Inherited Node resolution environment | A raw control loads through `NODE_PATH` and a preload control runs. Artifact type compilation and runtime remove `NODE_PATH`, replace inherited `NODE_OPTIONS` with `--no-global-search-paths`, and direct Node processes also pass the flag. Runtime `globalPaths` is empty; the controlled preload marker is absent. Explicit `CC` and `CXX` survive. |
+| Inherited Node resolution environment | A raw control loads through `NODE_PATH` and a preload control runs. Artifact type compilation and runtime remove `NODE_PATH`, replace inherited `NODE_OPTIONS` with `--no-global-search-paths`, and direct Node processes also pass the flag. Runtime `globalPaths` is empty; the corrected actual-process marker described below is absent. Explicit `CC` and `CXX` survive. |
 
 The Node 24.18.0 command-line documentation defines
 [`--no-global-search-paths`](https://nodejs.org/download/release/v24.18.0/docs/api/cli.html#--no-global-search-paths),
@@ -355,3 +355,37 @@ Source-linked evidence for the finite closure:
 - `0001-fix-close-ambient-artifact-resolution-paths.patch.gz`: exact
   `git format-patch` for `0d8c3b7`; decompressed SHA-256
   `c522ef44e365f53d41d757cb680e81eaa29e0e089b9d5034d4a25d75f8e76957`.
+
+### Type-compiler preload measurement correction
+
+Narrow review of `ca559ee` found that the preload fixture gated marker writes on
+`cwd.includes('artifact-consumer-')`. That string is the generated package name, while
+the actual consumer working directories are `local-harness`, `work-data`, and
+`composition`. The production isolation in `0d8c3b7` was unchanged and review found no
+production defect, but the earlier absence of a type-compiler marker did not establish
+that inherited preloads were removed from actual `tsc` processes.
+
+Fixture commit `703e547` (`test: target actual artifact preload processes`) identifies
+the existing `pnpm exec tsc`, TypeScript binary, and artifact runtime arguments directly.
+It also reports marker contents on failure. With the single production mutation that
+removes `isolateModules` from the existing `tsc` run, the real tarball endpoint completed
+and then failed on marker contents from all six relevant compiler processes: the pnpm
+and TypeScript processes for `local-harness`, `work-data`, and `composition`. Restoring
+the unchanged `0d8c3b7` production line removes the marker; the targeted endpoint and
+complete 13-test suite pass. F1, F3, old-14 artifacts and native loading were not rerun.
+
+Evidence for this measurement correction:
+
+- `f2-tsc-preload-mutation.patch.gz`: exact one-line production mutation against
+  `0d8c3b7`; decompressed SHA-256
+  `cb5479639843716e8829121498df8d87d00740d2bcceae528394e408f1be0012`.
+- `f2-tsc-preload-red.log.gz`: actual mutation RED with all six compiler process
+  invocations; decompressed SHA-256
+  `317985366923f6fa269513de65d453afbe7b0c92d448680d07869df22197099f`.
+- `f2-tsc-preload-green.log.gz`: targeted restored-production GREEN; decompressed
+  SHA-256 `189a2d8149c2ec335bc1c3df1e352b90d0a683a2402b838f6d4930246c3c63c1`.
+- `f2-tsc-preload-full-green.log.gz`: complete 13-test GREEN; decompressed SHA-256
+  `83aafa1dccc21d8f8123f494c0008665017bb85da14e54a801b4d5d27aace9bb`.
+- `f2-tsc-preload-fixture.patch.gz`: exact measurement-only diff against `ca559ee`;
+  decompressed SHA-256
+  `64918d76ef7f3743579d167a6456b2dc3eac4fcb9ff4833ebf7a8721bd2a0220`.
