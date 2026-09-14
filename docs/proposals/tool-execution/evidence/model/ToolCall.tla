@@ -14,9 +14,10 @@
 
    Run states are abstract as in Inbound.tla: none | running (driver inside a
    Step) | waiting (Step settled, a blocking call pending) | interrupted |
-   terminal | cancelled.  The waiting relation of a settled call is kept as its
-   last relation so that the Inbound decision table can tell a blocking
-   settlement (continuation) from a background one (context).
+   terminal (completed or failed) | cancelled.  The waiting relation of a
+   settled call is kept as its last relation so that the Inbound decision table
+   can tell a settlement at the Run's waiting position (continuation) from a
+   background one (context).
 *)
 EXTENDS Naturals, FiniteSets
 
@@ -65,15 +66,17 @@ SettleOne(c, o) ==
 (* ---- stop cascade over a set S of open calls (TL-08/09, PF-013.C4):
    every member gets a fence (tombstone); members without an accepted attempt
    settle cancelled_before_execution now and their human request closes;
-   executing members get a stop request the owner must progress.  When
-   closePending holds, unconsumed continuations/contexts are closed (SE-17). ---- *)
-Cascade(S, closePending) ==
+   executing members get a stop request the owner must progress.  Unconsumed
+   continuations/contexts are kept ("keep"), closed ("close", cancel) or
+   converted to queue items ("queue", terminal Run per SE-17). ---- *)
+Cascade(S, pendingMode) ==
   LET Now == {c \in S : att[c] = "absence"}
       Exec == {c \in S : att[c] /= "absence"}
   IN /\ fence' = [c \in Calls |-> fence[c] \/ c \in S]
      /\ prog' = [c \in Calls |-> IF c \in Now THEN "cancelled" ELSE prog[c]]
      /\ deliv' = [c \in Calls |-> IF c \in Now THEN "settling"
-                                  ELSE IF closePending /\ c \in Pending THEN "closed"
+                                  ELSE IF pendingMode = "close" /\ c \in Pending THEN "closed"
+                                  ELSE IF pendingMode = "queue" /\ c \in Pending THEN "queue"
                                   ELSE deliv[c]]
      /\ ctl' = [c \in Calls |-> IF c \in Exec /\ ctl[c] = "none" THEN "stop_requested" ELSE ctl[c]]
      /\ hd' = [c \in Calls |-> IF c \in Now /\ hd[c] = "open" THEN "closed" ELSE hd[c]]
@@ -163,7 +166,7 @@ StopProgress(c) ==
 \* user stopCall (PF-003.C4); on a human call this withdraws the question
 StopRequest(c) ==
   /\ Open(c) /\ ~fence[c]
-  /\ Cascade({c}, FALSE)
+  /\ Cascade({c}, "keep")
   /\ UNCHANGED <<sess, run, owner, crashes, kind, att, rel>>
 
 (* ================= dimension C: waiting relation (TL-10) ================= *)
@@ -215,21 +218,32 @@ OwnerRecover ==
 
 (* ================= dimension E: settlement delivery via Inbound (SE-14) ================= *)
 
+\* SE-14 column A needs "the Run still waits at this call's position": a call
+\* that blocked the Step (gate pending, foreground, detach in flight) is such a
+\* position while the driver is inside the Step or waiting; a human wait only
+\* becomes the waiting position after the Step settled (waiting_human).  A
+\* background settlement is a context (B) while the Run is active.
+WasBlocking(c) == rel[c] \in {"none", "foreground", "detach_in_flight"}
+RunActive == run \in {"running", "waiting", "interrupted"}
+
 Route(c) ==
-  IF sess = "archived" THEN "closed"                                        \* D2
-  ELSE IF run \in {"waiting", "interrupted"} /\ rel[c] /= "background" THEN "continuation"   \* A
-  ELSE IF run \in {"running", "waiting", "interrupted"} THEN "context"        \* B
-  ELSE IF run \in {"none", "terminal"} THEN "queue"                           \* C
-  ELSE "closed"                                                               \* D1
+  IF sess = "archived" THEN "closed"                                              \* D2
+  ELSE IF WasBlocking(c) /\ RunActive THEN "continuation"                         \* A
+  ELSE IF rel[c] = "human_wait" /\ run \in {"waiting", "interrupted"} THEN "continuation"  \* A
+  ELSE IF RunActive THEN "context"                                                \* B
+  ELSE IF run \in {"none", "terminal"} THEN "queue"                               \* C
+  ELSE "closed"                                                                   \* D1
 
 Adjudicate(c) ==
   /\ deliv[c] = "settling"
   /\ deliv' = [deliv EXCEPT ![c] = Route(c)]
   /\ UNCHANGED <<sess, run, owner, crashes, kind, prog, att, fence, rel, ctl, hd>>
 
-\* the driver takes a continuation (wakes) or a context (at Step start): tool_result written
+\* the driver takes a continuation (wakes a waiting Run or continues the Step)
+\* or a context at Step start; a context never wakes a waiting Run (SE-14)
 Consume(c) ==
-  /\ c \in Pending /\ run \in {"running", "waiting"}
+  /\ c \in Pending
+  /\ IF deliv[c] = "continuation" THEN run \in {"running", "waiting"} ELSE run = "running"
   /\ deliv' = [deliv EXCEPT ![c] = "consumed"]
   /\ run' = "running"
   /\ UNCHANGED <<sess, owner, crashes, kind, prog, att, fence, rel, ctl, hd>>
@@ -249,9 +263,11 @@ RunWait ==
   /\ run' = "waiting"
   /\ UNCHANGED <<sess, owner, crashes, kind, prog, att, fence, rel, ctl, deliv, hd>>
 
-\* RD-13: a confirmed detach frees the waiting position (deferred_receipt placeholder)
+\* RD-11/13: the waiting position is released (detach confirmed, approval
+\* consumed into a background start, request closed): the driver re-evaluates,
+\* consuming any pending context at the next Step start
 RunWake ==
-  /\ run = "waiting" /\ Pending = {} /\ \A c \in Calls : ~Blocking(c)
+  /\ run = "waiting" /\ \A c \in Calls : ~Blocking(c)
   /\ run' = "running"
   /\ UNCHANGED <<sess, owner, crashes, kind, prog, att, fence, rel, ctl, deliv, hd>>
 
@@ -263,12 +279,21 @@ RunComplete ==
   /\ deliv' = [c \in Calls |-> IF c \in Conts THEN "queue" ELSE deliv[c]]
   /\ UNCHANGED <<sess, owner, crashes, kind, prog, att, fence, rel, ctl, hd>>
 
+\* RD-13 / RN-02: an unrecoverable failure closes the Run at once: blocking
+\* calls stop, pending human requests close (decision y), background work is
+\* untouched, unconsumed inputs become queue items (SE-17)
+RunFail ==
+  /\ run \in {"running", "waiting"}
+  /\ run' = "terminal"
+  /\ Cascade({c \in Calls : Open(c) /\ rel[c] /= "background"}, "queue")
+  /\ UNCHANGED <<sess, owner, crashes, kind, att, rel>>
+
 \* LC-04 row 5 / PF-013.C4: every open tool call stops (background too);
 \* human requests are kept and the Run needs an explicit resume (HD-04)
 RunInterrupt ==
   /\ run \in {"running", "waiting"}
   /\ run' = "interrupted"
-  /\ Cascade({c \in Calls : kind[c] = "tool" /\ Open(c)}, FALSE)
+  /\ Cascade({c \in Calls : kind[c] = "tool" /\ Open(c)}, "keep")
   /\ UNCHANGED <<sess, owner, crashes, kind, att, rel>>
 
 RunResume ==
@@ -281,7 +306,7 @@ RunResume ==
 RunCancel ==
   /\ run \in {"running", "waiting", "interrupted"}
   /\ run' = "cancelled"
-  /\ Cascade({c \in Calls : Open(c)}, TRUE)
+  /\ Cascade({c \in Calls : Open(c)}, "close")
   /\ UNCHANGED <<sess, owner, crashes, kind, att, rel>>
 
 \* SE-02 / LC-04 row 1, policy b (decision f): archive leaves background work
@@ -303,7 +328,7 @@ Next ==
        \/ StopRequest(c) \/ Detach(c) \/ DetachConfirm(c) \/ DetachFail(c)
        \/ Answer(c) \/ Adjudicate(c) \/ Consume(c)
   \/ OwnerCrash \/ OwnerRecover
-  \/ RunStart \/ RunWait \/ RunWake \/ RunComplete \/ RunInterrupt \/ RunResume \/ RunCancel
+  \/ RunStart \/ RunWait \/ RunWake \/ RunComplete \/ RunFail \/ RunInterrupt \/ RunResume \/ RunCancel
   \/ Archive
 
 Spec == Init /\ [][Next]_vars
@@ -352,8 +377,10 @@ AttemptAfterAdmission == \A c \in Calls :
 HumanByAnswer == \A c \in Calls :
   kind[c] = "human" => (prog[c] = "succeeded" <=> hd[c] = "answered")
 
-\* SE-17 / RD-10: only background work outlives a completed Run
-TerminalRunOnlyBackground == run = "terminal" => \A c \in Calls : Open(c) => rel[c] = "background"
+\* SE-17 / RD-10 / RN-02: after a terminal Run the only open calls are background
+\* work or calls whose stop the owner has still to progress (failure cascade)
+TerminalRunOnlyBackground == run = "terminal" =>
+  \A c \in Calls : Open(c) => (rel[c] = "background" \/ ctl[c] = "stop_requested")
 
 \* T-10 / SE-14 D2: nothing waits to be consumed in an archived Session
 ArchivedNoPending == sess = "archived" => \A c \in Calls : deliv[c] \notin {"continuation", "context", "queue"}

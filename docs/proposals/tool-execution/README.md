@@ -55,7 +55,7 @@ Agent 向人提问的答复怎样回到工具"没有一处权威正文。本提�
 - [evidence/](evidence/README.md)：调用生命周期 TLA+ 模型（五维、`human` 调用、owner 崩溃、
   归档级联）、安全/进展两配置与一个否定变体、重放脚本与结果；条款覆盖记在
   [tools 验证范围](../../../spec/capabilities/tools/verification.md)。
-- review.md（待用户派发）：独立评审与处置。
+- [review.md](review.md)：2026-09-14 独立评审的发现、处置与转给用户的决定点。
 
 ## 裁决记录（2026-09-14，用户）
 
@@ -65,6 +65,7 @@ Agent 向人提问的答复怎样回到工具"没有一处权威正文。本提�
 | U-39 | 决定点 a～n（临时准备稿的内容已归档为下表）按作者建议拍板 |
 | U-40 | 要像 DeepSeek Harness 那样兼容 Claude Code / Codex 的命令式 hooks 体系；需求落为 [PF-025](../../requirements/product/agent/PF-025-external-hooks-compatibility.md)；决定点 o～v 按作者建议拍板 |
 | U-41 | Agent 发起 HITL 等用户答复时，答复不是普通用户输入，而是该工具的结果，回到工具调用作为返回值；先查 DSH，有则二次开发。据此采纳决定点 w（内建 `human` 工具纳入本轮）与 x（D2 机制；通用工具体中途 interrupt 不纳入首版）；契约措辞缺口随闭环一次发版 |
+| U-42 | 工具帧是耐久的：有持久化与回放机制，与同一 Session 的日志一起 append-only 追加写；帧的数据结构（含让 UI 知道怎么渲染的标识）以 omne-next / omne_harness 的工具帧设计为起点，保证重要特性不丢不漏。据此决定 d 的三等级改为 critical / durable（缺省）/ transient（[frames.md](frames.md#记录等级)） |
 
 ## 作者裁决（用户按建议拍板）
 
@@ -73,7 +74,7 @@ Agent 向人提问的答复怎样回到工具"没有一处权威正文。本提�
 | a | 首版执行 owner 集合 | local-execution 加同进程 shell；browser/sandbox 留候选，PF-012 只作门输入 |
 | b | 后台 owner 进程模型 | 同进程 worker，接受"进程死亡则前台工具 unknown"的边界；独立进程留边界不实现 |
 | c | 定义面是否同轮 | Schema 维度同轮；PF-014.C6 激活/撤回与依赖图另开 |
-| d | 帧记录等级 | critical / replayable / transient 三等级作声明词表，数值留实现；不做跨调用历史合并 |
+| d | 帧记录等级 | critical / durable（缺省）/ transient 三等级作声明词表（U-42 后 replayable 改为 durable：Session 域内 append-only），数值留实现；不做跨调用历史合并 |
 | e | 派发工具关系 | 只固定"派发是一次调用、结果走 call_settlement、终止传播沿 PF-013.C4"；形态归 PF-004 |
 | f | 归档/删除后的后台调用 | 政策 b：归档不动工作；结算到达 archived Session 按 SE-14 D2 列关闭；删除同样关闭并按数据治理处理结果 |
 | g | 是否发 tools v2 | 不单独发；缺口进 [缺口表](lifecycle.md#契约措辞缺口表)，闭环成形后一次发版 |
@@ -90,6 +91,18 @@ Agent 向人提问的答复怎样回到工具"没有一处权威正文。本提�
 hooks 兼容层的决定点 o～v 记在 [hooks 兼容提案](../hooks-compat/README.md#裁决记录)；本提案
 只在 S5/S7 的落点消费它们。
 
+## 评审后新增的决定点（作者建议，待用户确认）
+
+来源见 [review.md](review.md)；ac 由用户 2026-09-14 提出。
+
+| # | 问题 | 作者建议（正文已按此写） |
+|---|---|---|
+| y | Run 不可恢复失败时未答的 `human` 请求 | 关闭请求并结算 `cancelled_before_execution`（RN-02"按具名终止政策关闭剩余请求"），不保留到新 Run |
+| z | `request_approval` 决定与后续动作的绑定 | 请求携带结构化目标 `{toolKey, commandKey, paramsDigest \| resourceRefs}`，approve 产生绑定目标的一次性决定，后续调用准入门按 CD-04 Action 精确比较后消费，不符拒绝并要求新请求 |
+| aa | Run 执行时长预算的拥有者与到期控制 | run v1 下一版让 Run 携带执行截止（Session / 租户政策给定），到期由调度者发 interrupt；在此之前 `keep_waiting` 只靠用户 stop 兜底 |
+| ab | 调用级 `detach` 能否否决定义的 `onLimit: detach` | 不能：取值只剩 `on_start \| auto`，删 `never`（修订决定 j） |
+| ac | 转后台 / 等人后迟到结果怎样进入模型 | 占位沿 RD-09 `deferred_receipt`；迟到结果与答复以新内容块 `system_reminder` 进入到达的 Step，按模型族投影为 user message（Anthropic）或 developer message（OpenAI）；同一块承载 hooks 上下文与系统通知 |
+
 ## 未决项
 
 - PF-004 三种派发关系与子 Session 提问的作答者规则（DSH 拒绝被委派子 agent 提问；我们沿
@@ -97,12 +110,17 @@ hooks 兼容层的决定点 o～v 记在 [hooks 兼容提案](../hooks-compat/RE
 - 多命令的 batch 模式与 shell 词法不纳入；若将来需要，另立需求。
 - 帧的条数/字节/保留期数值、后台调用上限与配额：实现阶段。
 - 出站流侧的帧词表全集与游标编码（U-36）：本提案只给 `tools.frame.<kind>` 前缀。
-- 契约措辞缺口（SE-13 问答答复的来源、RD-09 `waiting_human` 视图、SE-04/13 hooks 词汇、
-  TL-07 预算被拒的措辞）：见 [缺口表](lifecycle.md#契约措辞缺口表)，随闭环一次发版。
+- 契约措辞缺口（SE-13 问答答复的来源、RD-09 `waiting_human` 视图与迟到结果形态、SE-04/13
+  hooks 词汇、TL-07 预算被拒的措辞与 `unavailable`、HD 作为执行 owner、run-driver v3、
+  run v1 执行预算、CD 与 MC 的 `system_reminder`）：见 [缺口表](lifecycle.md#契约措辞缺口表)，
+  随闭环一次发版。
+- 执行 owner 跨协调域（决定 b 留的边界）时，"fence 与 cancelled 结算同提交"不再成立，
+  TL-08 的 owner 账本排序成为 T-3 的唯一保护；届时须补跨域义务（[证据说明](evidence/README.md#抽象与边界)）。
 
 ## 接受记录
 
 尚未接受。波 1（本页、requirements、invariants、lifecycle）、波 2（schema、frames、cordis）
 与波 3 的模型、场景 2026-09-14 完成；形式任务 `tool-execution-call-safety` /
-`tool-execution-call-progress` 已登记。待做：独立评审（用户派发）；接受后提供者设计修订
+`tool-execution-call-progress` 已登记。独立评审 2026-09-14 完成，2 项阻断与 11 项应修已
+按 [review.md](review.md) 处置，新增决定点 y～ac 待用户确认。接受后提供者设计修订
 （[归属表](cordis.md#提供者设计归属与实施入口)）与契约缺口一次发版。

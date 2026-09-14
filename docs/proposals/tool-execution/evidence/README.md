@@ -13,29 +13,47 @@
 |---|---|
 | [ToolCall.tla](model/ToolCall.tla) | 模型正文：调用进展 / attempt 账本 / 等待关系 / 控制 / 结算交付，抽象 Run、Session 与执行 owner，`tool` 与 `human` 两种调用 |
 | [ToolCallMC.tla](model/ToolCallMC.tla) | 对称约减与否定变体 `SpecRedispatch`（恢复时重发已耐久 dispatch_intent 的 attempt） |
-| [ToolCall.cfg](model/ToolCall.cfg) | 安全配置：2 个调用、至多 1 次 owner 崩溃、对称约减 |
+| [ToolCall.cfg](model/ToolCall.cfg) | 安全配置：2 个调用、至多 1 次 owner 崩溃、对称约减；登记为形式任务 |
 | [ToolCallProgress.cfg](model/ToolCallProgress.cfg) | 进展配置：1 个调用、至多 1 次崩溃、公平性假设见模块 `SpecFair`；登记为形式任务 |
-| [ToolCallProgressTwo.cfg](model/ToolCallProgressTwo.cfg) | 进展补充：2 个调用、无崩溃；约 4 分钟，只在重放脚本里跑，不登记为形式任务 |
+| [ToolCallProgressTwo.cfg](model/ToolCallProgressTwo.cfg) | 进展补充：2 个调用、无崩溃；约 3～5 分钟，只在重放脚本里跑，不登记为形式任务 |
 | [ToolCallRedispatch.cfg](model/ToolCallRedispatch.cfg) | 否定配置：期望 `AttemptMonotone` 被违反；不登记为形式任务 |
-| [replay.py](model/replay.py) / [run-plan.json](model/run-plan.json) | 重放三个配置并写 [results.json](model/results.json)（命令、退出码、状态数、模块/配置哈希、日志路径） |
+| [replay.py](model/replay.py) / [run-plan.json](model/run-plan.json) | 重放四个配置并写 [results.json](model/results.json)（命令、退出码、状态数、模块/配置哈希、日志路径；`source_commit` 是重放时的 HEAD，文件身份以哈希为准） |
 
 重放：设置 `JAVA_BIN` 与 `TLA2TOOLS_JAR` 后运行 `python3 docs/proposals/tool-execution/evidence/model/replay.py`。
+形式任务命令带 `-deadlock`：终态状态本无后继，死锁检查关闭；卡住由进展性质检查。
 
 ## 抽象与边界
 
 - 每个调用一个 attempt：崩溃后 owner 以同 attemptId 重发 start（模型里状态不变），不建第二个
   attempt；多 attempt 的政策不在本轮。
-- Run 只有一个等待位置；预算、Step 内容、模型调用、Yield 与实例退役不建模（归 run-driver v2
-  与生命周期组合模型）。
-- 结算后保留最后一次等待关系，供 SE-14 判定 continuation（阻塞调用）与 context（后台调用）。
+- Run 抽象为 none / running / waiting / interrupted / terminal / cancelled，`terminal` 同时代表
+  completed（`RunComplete`，前提无阻塞调用）与不可恢复失败（`RunFail`，级联停止阻塞调用、
+  关闭人类请求、后台继续、未消费输入转 queue）；只有一个等待位置。
+- 结算交付按 SE-14 建模：结算后保留最后一次等待关系；曾阻塞 Step 的调用（门未过、前台、
+  转换中）在 Run 活动时结算 → continuation；`human_wait` 只在 Run 已 waiting / interrupted 时
+  → continuation，Run 仍在 Step 内时 → context；后台 → context；Run 非活动 → queue；归档 → closed。
+  continuation 可在 running 或 waiting 时消费，context 只在 running 时消费，从不唤醒等待中的
+  Run；等待位置被释放（detach 确认、批准变后台、请求关闭）时 `RunWake` 让驱动器重评。
+- `TerminalRunOnlyBackground` 允许终态 Run 下仍有 `stop_requested` 的开放调用（失败级联后
+  owner 尚未回答 stop）。
 - 停止先于 start 时，fence 与 `cancelled_before_execution` 结算在同一提交（转移表），所以
   "fence 之后 owner 迟到 start"在模型里被 `prog = admitted` 的守卫排除，`NoStartAfterFence`
   由提交结构而非 owner 账本单独保护；owner 侧 start 与 fence 的账本排序（TL-08）是提供者
-  验收项，一个只去掉 owner fence 检查的否定变体因此找不到反例，已换成重发变体。
-- 不建模：帧、租户、费用、interrupt_then_run、force_stop 的 epoch 撤销、hooks、`request_approval`
-  决定被后续调用消费、前台上限的计时数值（Detach / StopRequest 作为无标签触发）。
+  验收项，一个只去掉 owner fence 检查的否定变体因此找不到反例，已换成重发变体。将来执行
+  owner 跨协调域（决定 b 留的边界）时该同提交不再成立，owner 账本排序成为唯一保护，须补
+  义务（[未决项](../README.md#未决项)）。
+- 不建模：帧、租户、费用、时间与预算、Yield、interrupt_then_run、force_stop 的 epoch 撤销、
+  hooks、`request_approval` 决定被后续调用消费、占位与迟到结果的投影（Detach / StopRequest
+  作为无标签触发；投影是驱动器的结构性质 T-14）。
 - 登记的进展配置只有 1 个调用：2 个调用加崩溃的活性检查在本机超过 10 分钟，超出"单配置
-  ≤ 1 分钟"的裁决 h；2 个调用、无崩溃的补充配置约 4 分钟通过，只在重放脚本里运行。
+  ≤ 1 分钟"的裁决 h；2 个调用、无崩溃的补充配置约 3～5 分钟通过，只在重放脚本里运行。
 - 公平性：系统动作弱公平；`Consume` 与 `RunStart` 强公平以容忍 interrupt/resume 与
   complete/start 循环；`Decide`（审批）、`Answer`（答复）、`RunResume` 是环境假设，写在
-  `SpecFair` 里而非契约义务。
+  `SpecFair` 里而非契约义务。`RunFail` 与其它控制动作一样无公平性。
+
+## 模型发现
+
+1. 首版 `RunWake` 要求无未消费输入：审批被批准成后台启动、随后该后台调用在 Run 仍
+   waiting 时结算为 context，Run 既不再有阻塞者也不能消费 context，进展性质
+   `SettlementsResolve` 被 TLC 否定；修正为"等待位置释放即重评"（RD-11 的出边），不改契约。
+2. 首版 lateStart 否定变体找不到反例（见上），改用重发变体。

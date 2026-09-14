@@ -1,11 +1,11 @@
 TLC2 Version 2026.09.12.025210 (rev: 867aefb)
-Running breadth-first search Model-Checking with fp 38 and seed 3691422926129947039 with 4 workers on 8 cores with 3641MB heap and 64MB offheap memory [pid: 54694] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Running breadth-first search Model-Checking with fp 92 and seed -4632217548619204902 with 4 workers on 8 cores with 3641MB heap and 64MB offheap memory [pid: 162202] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
 Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/docs/proposals/tool-execution/evidence/model/ToolCallMC.tla
 Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/docs/proposals/tool-execution/evidence/model/ToolCall.tla
-Parsing file /tmp/tlc-7254321931620316076/TLC.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
-Parsing file /tmp/tlc-7254321931620316076/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
-Parsing file /tmp/tlc-7254321931620316076/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
-Parsing file /tmp/tlc-7254321931620316076/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file /tmp/tlc-7073572641165527872/TLC.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file /tmp/tlc-7073572641165527872/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-7073572641165527872/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-7073572641165527872/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
@@ -14,10 +14,10 @@ Semantic processing of module TLC
 Semantic processing of module ToolCallMC
 Linting of module ToolCall
 Linting of module ToolCallMC
-Starting... (2026-09-14 19:54:46)
+Starting... (2026-09-14 20:25:18)
 Computing initial states...
 Computed 2 initial states...
-Finished computing initial states: 4 states generated, with 3 of them distinct at 2026-09-14 19:54:46.
+Finished computing initial states: 4 states generated, with 3 of them distinct at 2026-09-14 20:25:19.
 Error: Action property AttemptMonotone is violated.
 Error: The behavior up to this point is:
 State 1: <Initial predicate>
@@ -27,91 +27,91 @@ State 1: <Initial predicate>
 /\ deliv = (c1 :> "none" @@ c2 :> "none")
 /\ sess = "open"
 /\ fence = (c1 :> FALSE @@ c2 :> FALSE)
-/\ kind = (c1 :> "tool" @@ c2 :> "human")
+/\ kind = (c1 :> "tool" @@ c2 :> "tool")
 /\ rel = (c1 :> "none" @@ c2 :> "none")
 /\ hd = (c1 :> "none" @@ c2 :> "none")
 /\ crashes = 0
 /\ run = "none"
 /\ owner = "alive"
 
-State 2: <RunStart line 241, col 3 to line 244, col 77 of module ToolCall>
+State 2: <RunStart line 255, col 3 to line 258, col 77 of module ToolCall>
 /\ prog = (c1 :> "none" @@ c2 :> "none")
 /\ ctl = (c1 :> "none" @@ c2 :> "none")
 /\ att = (c1 :> "absence" @@ c2 :> "absence")
 /\ deliv = (c1 :> "none" @@ c2 :> "none")
 /\ sess = "open"
 /\ fence = (c1 :> FALSE @@ c2 :> FALSE)
-/\ kind = (c1 :> "tool" @@ c2 :> "human")
+/\ kind = (c1 :> "tool" @@ c2 :> "tool")
 /\ rel = (c1 :> "none" @@ c2 :> "none")
 /\ hd = (c1 :> "none" @@ c2 :> "none")
 /\ crashes = 0
 /\ run = "running"
 /\ owner = "alive"
 
-State 3: <Propose(c1) line 85, col 3 to line 87, col 83 of module ToolCall>
+State 3: <Propose(c1) line 88, col 3 to line 90, col 83 of module ToolCall>
 /\ prog = (c1 :> "proposed" @@ c2 :> "none")
 /\ ctl = (c1 :> "none" @@ c2 :> "none")
 /\ att = (c1 :> "absence" @@ c2 :> "absence")
 /\ deliv = (c1 :> "none" @@ c2 :> "none")
 /\ sess = "open"
 /\ fence = (c1 :> FALSE @@ c2 :> FALSE)
-/\ kind = (c1 :> "tool" @@ c2 :> "human")
+/\ kind = (c1 :> "tool" @@ c2 :> "tool")
 /\ rel = (c1 :> "none" @@ c2 :> "none")
 /\ hd = (c1 :> "none" @@ c2 :> "none")
 /\ crashes = 0
 /\ run = "running"
 /\ owner = "alive"
 
-State 4: <GateAllow(c1,"foreground") line 93, col 3 to line 103, col 74 of module ToolCall>
+State 4: <GateAllow(c1,"foreground") line 96, col 3 to line 106, col 74 of module ToolCall>
 /\ prog = (c1 :> "admitted" @@ c2 :> "none")
 /\ ctl = (c1 :> "none" @@ c2 :> "none")
 /\ att = (c1 :> "absence" @@ c2 :> "absence")
 /\ deliv = (c1 :> "none" @@ c2 :> "none")
 /\ sess = "open"
 /\ fence = (c1 :> FALSE @@ c2 :> FALSE)
-/\ kind = (c1 :> "tool" @@ c2 :> "human")
+/\ kind = (c1 :> "tool" @@ c2 :> "tool")
 /\ rel = (c1 :> "foreground" @@ c2 :> "none")
 /\ hd = (c1 :> "none" @@ c2 :> "none")
 /\ crashes = 0
 /\ run = "running"
 /\ owner = "alive"
 
-State 5: <Start(c1) line 135, col 3 to line 138, col 78 of module ToolCall>
+State 5: <Start(c1) line 138, col 3 to line 141, col 78 of module ToolCall>
 /\ prog = (c1 :> "executing" @@ c2 :> "none")
 /\ ctl = (c1 :> "none" @@ c2 :> "none")
 /\ att = (c1 :> "accepted" @@ c2 :> "absence")
 /\ deliv = (c1 :> "none" @@ c2 :> "none")
 /\ sess = "open"
 /\ fence = (c1 :> FALSE @@ c2 :> FALSE)
-/\ kind = (c1 :> "tool" @@ c2 :> "human")
+/\ kind = (c1 :> "tool" @@ c2 :> "tool")
 /\ rel = (c1 :> "foreground" @@ c2 :> "none")
 /\ hd = (c1 :> "none" @@ c2 :> "none")
 /\ crashes = 0
 /\ run = "running"
 /\ owner = "alive"
 
-State 6: <Dispatch(c1) line 142, col 3 to line 144, col 84 of module ToolCall>
+State 6: <Dispatch(c1) line 145, col 3 to line 147, col 84 of module ToolCall>
 /\ prog = (c1 :> "executing" @@ c2 :> "none")
 /\ ctl = (c1 :> "none" @@ c2 :> "none")
 /\ att = (c1 :> "dispatch_intent" @@ c2 :> "absence")
 /\ deliv = (c1 :> "none" @@ c2 :> "none")
 /\ sess = "open"
 /\ fence = (c1 :> FALSE @@ c2 :> FALSE)
-/\ kind = (c1 :> "tool" @@ c2 :> "human")
+/\ kind = (c1 :> "tool" @@ c2 :> "tool")
 /\ rel = (c1 :> "foreground" @@ c2 :> "none")
 /\ hd = (c1 :> "none" @@ c2 :> "none")
 /\ crashes = 0
 /\ run = "running"
 /\ owner = "alive"
 
-State 7: <OwnerCrash line 199, col 3 to line 201, col 73 of module ToolCall>
+State 7: <OwnerCrash line 202, col 3 to line 204, col 73 of module ToolCall>
 /\ prog = (c1 :> "executing" @@ c2 :> "none")
 /\ ctl = (c1 :> "none" @@ c2 :> "none")
 /\ att = (c1 :> "dispatch_intent" @@ c2 :> "absence")
 /\ deliv = (c1 :> "none" @@ c2 :> "none")
 /\ sess = "open"
 /\ fence = (c1 :> FALSE @@ c2 :> FALSE)
-/\ kind = (c1 :> "tool" @@ c2 :> "human")
+/\ kind = (c1 :> "tool" @@ c2 :> "tool")
 /\ rel = (c1 :> "foreground" @@ c2 :> "none")
 /\ hd = (c1 :> "none" @@ c2 :> "none")
 /\ crashes = 1
@@ -125,13 +125,13 @@ State 8: <OwnerRecoverRedispatch line 11, col 3 to line 16, col 72 of module Too
 /\ deliv = (c1 :> "none" @@ c2 :> "none")
 /\ sess = "open"
 /\ fence = (c1 :> FALSE @@ c2 :> FALSE)
-/\ kind = (c1 :> "tool" @@ c2 :> "human")
+/\ kind = (c1 :> "tool" @@ c2 :> "tool")
 /\ rel = (c1 :> "foreground" @@ c2 :> "none")
 /\ hd = (c1 :> "none" @@ c2 :> "none")
 /\ crashes = 1
 /\ run = "running"
 /\ owner = "alive"
 
-4720 states generated, 2250 distinct states found, 1416 states left on queue.
+6142 states generated, 2638 distinct states found, 1620 states left on queue.
 The depth of the complete state graph search is 8.
-Finished in 01s at (2026-09-14 19:54:47)
+Finished in 00s at (2026-09-14 20:25:19)

@@ -1,7 +1,7 @@
 {
   "java": "/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java",
   "jar_sha256": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1",
-  "source_commit": "2a0fd19cae4b1f013a9b403f1e5d3906dc1a7c16",
+  "source_commit": "ed1ef8bf32062bc4057df600398483157555b5c7",
   "runs": [
     {
       "name": "ToolCall",
@@ -29,9 +29,9 @@
       ],
       "exit_code": 0,
       "matched_expectation": true,
-      "states": "1180245 states generated, 338518 distinct states found, 0 states left on queue.",
+      "states": "1308743 states generated, 326632 distinct states found, 0 states left on queue.",
       "model_sha256": "ae48dc2b9ba7d15af88233ecc13dd6f225689e7a88c43ec65f490c13ee98d5b9",
-      "module_sha256": "fa205f027e78dfe4fc946bf663bb419eef6be884cbf9bc3b607dc1e58e8923e1",
+      "module_sha256": "49a0c3b3471a5508d07b42a17b60d934f68c56b7426c7c12501b418649fa735b",
       "config_sha256": "780fb84af54c06bb802b4fc1456ad31e8b489d6e167c8cd4485aa0c19511e20a",
       "log": "docs/proposals/tool-execution/evidence/model/ToolCall-none.log"
     },
@@ -61,9 +61,9 @@
       ],
       "exit_code": 0,
       "matched_expectation": true,
-      "states": "9693 states generated, 3420 distinct states found, 0 states left on queue.",
+      "states": "10989 states generated, 3424 distinct states found, 0 states left on queue.",
       "model_sha256": "ae48dc2b9ba7d15af88233ecc13dd6f225689e7a88c43ec65f490c13ee98d5b9",
-      "module_sha256": "fa205f027e78dfe4fc946bf663bb419eef6be884cbf9bc3b607dc1e58e8923e1",
+      "module_sha256": "49a0c3b3471a5508d07b42a17b60d934f68c56b7426c7c12501b418649fa735b",
       "config_sha256": "6ffc8e96def0e0a82272dbd37b52f6ac05fea0affa8ea44fed22e416b2927739",
       "log": "docs/proposals/tool-execution/evidence/model/ToolCallProgress-none.log"
     },
@@ -93,9 +93,9 @@
       ],
       "exit_code": 0,
       "matched_expectation": true,
-      "states": "632800 states generated, 201456 distinct states found, 0 states left on queue.",
+      "states": "722272 states generated, 194532 distinct states found, 0 states left on queue.",
       "model_sha256": "ae48dc2b9ba7d15af88233ecc13dd6f225689e7a88c43ec65f490c13ee98d5b9",
-      "module_sha256": "fa205f027e78dfe4fc946bf663bb419eef6be884cbf9bc3b607dc1e58e8923e1",
+      "module_sha256": "49a0c3b3471a5508d07b42a17b60d934f68c56b7426c7c12501b418649fa735b",
       "config_sha256": "96e43c26b5f9d607fb68a22ae8aa02fae00695c29efd6a20f776f96ec07d9cd5",
       "log": "docs/proposals/tool-execution/evidence/model/ToolCallProgressTwo-none.log"
     },
@@ -125,9 +125,9 @@
       ],
       "exit_code": 13,
       "matched_expectation": true,
-      "states": "4720 states generated, 2250 distinct states found, 1416 states left on queue.",
+      "states": "6142 states generated, 2638 distinct states found, 1620 states left on queue.",
       "model_sha256": "ae48dc2b9ba7d15af88233ecc13dd6f225689e7a88c43ec65f490c13ee98d5b9",
-      "module_sha256": "fa205f027e78dfe4fc946bf663bb419eef6be884cbf9bc3b607dc1e58e8923e1",
+      "module_sha256": "49a0c3b3471a5508d07b42a17b60d934f68c56b7426c7c12501b418649fa735b",
       "config_sha256": "315726f01f720e205296130f64fdb138d21dbdd5da0b29304f08b5a7b3adb8df",
       "log": "docs/proposals/tool-execution/evidence/model/ToolCall-redispatch.log"
     }

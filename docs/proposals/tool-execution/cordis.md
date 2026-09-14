@@ -17,8 +17,8 @@ Cordis 事实按 `c291e796` 修订的官方文档核对，项目采用官方包 
 |---|---|---|---|
 | 调用运行时 | `ToolStatePlugin` 提供 `omneToolState`（tools 流 owner、call/attempt/关系/控制的 prepare/check）；`ToolsPlugin` 提供 `omneTools`（discover/load/manifest/propose/adjudicate/stop/detach/帧读面、前台上限计时） | 所有工具经它提议与准入 | 选择执行 owner 集合、前台上限系统值、帧记录策略 |
 | 执行 owner | `LocalExecutionPlugin`（`omneLocalExecution`）、同进程 shell owner（决定 a，新增包候选 `tools/shell-execution`）、HD 作为 `human` 工具的 owner | 文件、shell、人类请求 | 装配哪些 owner 可用 |
-| 内建人类请求工具 | `HumanToolPlugin`（HD 包内）注册 `human` 定义并实现其 ExecutionProvider | `human ask / request_approval / request_consent` | 随 HD 装载 |
-| link 插件 | `ToolAdmissionLinkPlugin`（AU/BG）、`ToolApprovalLinkPlugin`（HD system_approval）、`ToolExecutionLinkPlugin`（每个执行 owner 一份） | 无 | 双端管理能力经受信 options |
+| 内建人类请求工具 | `HumanToolPlugin`（新成员 `packages/tools/human-tool`，同时消费 tools 与 HD 的公开入口）注册 `human` 定义、实现其 ExecutionProvider，并向 HD 登记"请求结算接收器"：HD.answer 的提交经该接收器同批写 `tools.call.settled` 与结算 arrival | `human ask / request_approval / request_consent` | 随 tools 与 HD 装载；HD 不 import TL |
+| link 插件 | `ToolAdmissionLinkPlugin`（AU/BG）、`ToolApprovalLinkPlugin`（HD system_approval）、`ToolExecutionLinkPlugin`（每个执行 owner 一份；inject owner、`omneToolState` 与 `omneSession`，组合 terminal + 结算 + accept 的同批提交） | 无 | 双端管理能力经受信 options |
 | hooks 兼容层 | `hooks-compat` 插件在 S5 登记 TL-13 守卫、在 S7 登记投影选择器（另开提案） | 无 | 按 PF-025 装配 |
 
 ## 插件与服务依赖
@@ -38,10 +38,13 @@ flowchart LR
     PL --> HD[omneHumanDecisions]
     EL1[ToolExecutionLink · local] --> TS
     EL1 --> LE[omneLocalExecution]
+    EL1 --> SES
     EL2[ToolExecutionLink · shell] --> TS
     EL2 --> SH[shell owner]
-    HT[HumanToolPlugin] --> TL
+    EL2 --> SES
+    HT[HumanToolPlugin · tools/human-tool] --> TL
     HT --> HD
+    HT --> SES
     DRV[实例驱动 decide] --> TL
     DRV --> RUN[omneRun · prepareCalls / prepareConsumeDecision]
     HK[hooks-compat] -. 守卫 / 投影选择 .-> TL
@@ -53,7 +56,12 @@ flowchart LR
 prepare/check 端口（[RD-03](../../../spec/capabilities/run-driver/v2/contract.md) 的 commitKind）；
 结算不直接写 Run，而是经 `omneSession.accept{call_settlement}` 进 Inbound（[SE-12](../../../spec/capabilities/session/v1/contract.md)）。
 执行 owner 不 inject `omneTools`：它们只实现 TL 定义的 ExecutionProvider / PermitFacts，
-由各自的 link 插件登记（tools 设计"TL 不 import local-execution"保持）。
+由各自的 link 插件登记（tools 设计"TL 不 import local-execution"保持）。结算同批的组合者是
+link 插件：owner 报 terminal 后由 `ToolExecutionLink` 组合 owner 账本、`omneToolState.
+prepareTerminal/checkTerminal` 与 `omneSession.accept` 成一个提交（[T-2](invariants.md#调用)）。
+`human` 调用的结算同理由 `HumanToolPlugin` 组合，但触发者是 HD.answer：HD v1 下一版增加
+"请求结算接收器"端口（HD 定义、human-tool 实现，与 SystemApprovalSource 同一模式），
+HD.answer 在自己的提交里调用接收器的 prepare/check，仍然是 HD 不 import TL。
 
 ## 装载效应与撤除责任
 
@@ -63,7 +71,7 @@ prepare/check 端口（[RD-03](../../../spec/capabilities/run-driver/v2/contract
 | 定义/声明/handler/skill 的发布单位 | ToolsPlugin 的具名 publication | 同门先关新准入，撤工具与声明索引；已准入调用保留实现闭包排空后 released | 历史 manifest、已准入调用 |
 | 前台上限计时器 | `omneTools` 为每个 foreground 且声明了上限的 attempt 建立（决定 n） | attempt 终态、detach 确认或 stop 时撤；插件卸载时撤全部计时，不发出未到点的 detach | 已耐久的关系事实 |
 | 执行 owner 的 attempt 账本、墓碑、真实 I/O | 各 owner host | 关新 start → 等在途 launch 收口 → 保存墓碑/移交 → 关闭；清理失败保留 retained | 账本、墓碑、终态、待交付后果 |
-| `human` 工具定义与 HD ExecutionProvider | HumanToolPlugin 装载 | 关新提议；未答请求保留在 HD，不因插件卸载关闭 | HD 请求与决定 |
+| `human` 工具定义、ExecutionProvider 与 HD 的结算接收器登记 | HumanToolPlugin 装载 | 关新提议、撤接收器登记；未答请求保留在 HD，不因插件卸载关闭，答复到达而接收器缺席时 HD 记录决定并把结算标 pending，接收器重新登记后补结算 | HD 请求与决定 |
 | 帧生产通道与订阅 | owner / tools 读面 | 撤生产资格并记关闭边界；撤订阅不停止工作 | 已确认的 replayable 帧 |
 | AU/BG/HD/执行 link | 各 link 插件 | 撤本代句柄先关正向使用；不清理已转移给原调用的 pin | 无 |
 | hooks 守卫与投影选择器 | hooks-compat 插件 | 撤登记；进行中的 hook 进程 abort 并 drain | `hooks.run.*` 观察记录 |
@@ -128,8 +136,8 @@ sequenceDiagram
 
 | 上游事件 | 登记点 | 兑现 | 不兑现 |
 |---|---|---|---|
-| `PreToolUse` | `omneTools.registerGuard({site: pre_execute, matcher})`，在 TL-07 门之后、准入之前同步求值 | `permissionDecision: deny \| ask`、退出码 2 → 收紧；`additionalContext` → 下一 Step 投影贡献；多 hook 取最严格 | `allow` 越过 AU；`updatedInput`；`defer` |
-| `PostToolUse` / `PostToolUseFailure` / `PostToolBatch` | `omneTools.registerProjectionSelector({site: post_execute})`，在裁决为 continuation 后、开 Step 前求值 | `additionalContext`；`decision: block` → 该结果不进模型投影，以 `blocked_by_hook{reason}` 占位 | `updatedToolOutput`；改耐久结果 |
+| `PreToolUse` | `omneTools.registerGuard({site: pre_execute, matcher})`，在门外 prepare 阶段、TL-07 门的 AU 求值之后同步求值，结果作为准入 check 的输入（CC-02：门内不跑任意回调）；返回值封闭为 `{tighten: deny \| ask, reason, context?} \| pass` | `permissionDecision: deny \| ask`、退出码 2 → 收紧，ask 的 reason 写入 HD 请求内容；`additionalContext` → 下一 Step 的 `system_reminder{hook_context}`；多 hook 取最严格 | `allow` 越过 AU；`updatedInput`；`defer` |
+| `PostToolUse` / `PostToolUseFailure` | `omneTools.registerProjectionSelector({site: post_execute})`，在结算 arrival 被裁决后、该结果进入任一 Step 投影前求值一次（continuation、context 或 queue 列都适用，closed 不触发）；返回值封闭为 `{exclude: reason} \| {context?}` | `additionalContext` → `system_reminder{hook_context}`；`decision: block` → 该结果不进模型投影，以 `blocked_by_hook{reason}` 占位 | `updatedToolOutput`；改耐久结果；`PostToolBatch`（首版不支持） |
 
 async hook 只能观察与注入上下文；每次运行写 `hooks.run.completed{status, entries}`。
 
@@ -149,7 +157,8 @@ async hook 只能观察与注入上下文；每次运行写 `hooks.run.completed
 |---|---|---|
 | 调用五维状态、转移表、事件三段式重命名、前台计时、守卫与投影选择器 API、帧读面 | [tools 设计](../../../packages/tools/tools/design.md) | 接受后原地修订 |
 | attempt 账本与墓碑、帧 seq/gap、detach unsupported | [local-execution 设计](../../../packages/tools/local-execution/design.md) | 接受后对齐词汇 |
-| `human` 工具定义、五种 kind 的创建入口、ExecutionProvider、答复同批结算 | [HD 设计](../../../packages/governance/human-decisions/design.md) | 接受后扩展 |
+| 五种 kind 的创建入口、请求结算接收器端口、程序化作答者 | [HD 设计](../../../packages/governance/human-decisions/design.md) | 接受后扩展 |
+| `human` 工具定义、ExecutionProvider、接收器实现、`request_approval` 目标绑定 | 新成员 `packages/tools/human-tool` | 设计待开（接受后） |
 | 视图值 `waiting_human`、`human` 调用的 Yield 前提 | [run-driver 设计](../../../packages/agent/run-driver/design.md) | 接受后小修 |
 | 同进程 shell owner | 新包候选 `packages/tools/shell-execution` | 设计待开（决定 a 只定范围） |
 | hooks 兼容层 | 新提案 `docs/proposals/hooks-compat/` 与新包候选 `packages/agent/hooks-compat` | 另开 |

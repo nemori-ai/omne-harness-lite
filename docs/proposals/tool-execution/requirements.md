@@ -19,13 +19,13 @@ HD v1 落实的条款只引用，不复述。
 | [PF-003.C1](../../requirements/product/agent/PF-003-tool-execution-observation-and-control.md#已确认要求) 执行状态可感知 | 五维状态机与读面（[lifecycle.md](lifecycle.md#五个正交维度)）；沿用 TL-07 状态 | T-1、T-3 |
 | PF-003.C2 内部帧按需披露、流式 | 帧事实侧（frames.md，波 2）；沿用 TL-12 | F-1～F-3 |
 | PF-003.C3 单独中断一次调用 | [控制表](lifecycle.md#控制与级联表)：stop 只作用原 call/attempt | T-3 |
-| PF-003.C4 符合声明的调用可手动转后台 | [等待关系维度](lifecycle.md#五个正交维度)、[前台上限与转后台](lifecycle.md#前台上限与自动转后台)；沿用 TL-10 | T-4、T-11 |
+| PF-003.C4 符合声明的调用可手动转后台 | [等待关系维度](lifecycle.md#五个正交维度)、[前台上限与转后台](lifecycle.md#前台上限与自动转后台)；转后台后的占位与迟到结果进入模型的形态见[占位与迟到结果](lifecycle.md#占位与迟到结果的投影)；沿用 TL-10 | T-4、T-11、T-14 |
 | PF-003.C5 自动转后台 | 同上：有效阈值、计时归属、`onLimit` | T-11 |
 | PF-003.C6 恢复后重新关联后台调用 | [恢复窗口](lifecycle.md#恢复窗口)；沿用 TL-11、RD-16 | T-4、T-5 |
 | [PF-005.C1～C3](../../requirements/product/agent/PF-005-agent-initiated-human-input-and-approval.md) 主动提问、一次性批准、能力授权申请 | [内建人类请求工具](lifecycle.md#内建人类请求工具)：`human ask / request_approval / request_consent`，HD 为执行 owner | H-1～H-4、T-9 |
 | PF-005.C4～C9 请求耐久、长期等待、多请求独立、首答胜出、决策池 | 归 HD v1（HD-01～09）；本提案只消费 HD-03 的接续绑定与 HD-08 的同提交 | H-1、H-3 |
-| PF-005.C10 批准与实际动作可追溯，越界重新请求 | 一次性批准作为后续调用过门的一次性证据（[内建人类请求工具](lifecycle.md#内建人类请求工具)） | T-9 |
-| [PF-007.C4～C7](../../requirements/product/user/PF-007-system-initiated-hitl.md) 阻塞请求长期等待、决策池、暂行资格与后果 | 系统审批沿 TL-07 ask 门与 HD-06/07；暂行只作 Schema 声明 `provisional`（schema.md，波 2），承载归 HD-10～12 | T-9 |
+| PF-005.C10 批准与实际动作可追溯，越界重新请求 | `request_approval` 携带结构化目标，approve 产生绑定目标的一次性决定，后续调用准入门按 CD-04 Action 精确比较后消费，不符拒绝并要求新请求（[命令表](lifecycle.md#内建人类请求工具)，决定 z） | T-9 |
+| [PF-007.C4～C7](../../requirements/product/user/PF-007-system-initiated-hitl.md) 阻塞请求长期等待、决策池、暂行资格与后果 | 系统审批沿 TL-07 ask 门与 HD-06/07；暂行不加 Schema 字段，由 AU-03 `authorization.confirmation: provisional` 与 `provisionalContract` 承担（[schema.md](schema.md#维度总表)），承载归 HD-10～12 | T-9 |
 | [PF-013.C4](../../requirements/product/user/PF-013-session-run-lifecycle-and-pending-input-control.md) 运行控制的传播范围与工具处置 | [控制与级联表](lifecycle.md#控制与级联表)逐行落实 interrupt / interrupt_then_run / cancel / force_stop 对三种关系的处置 | T-3、T-4 |
 | [PF-024.C1/C2](../../requirements/product/agent/PF-024-multi-command-tool-definition.md#已确认要求) 多命令范式、单槽位 | 单/多命令统一定义两种投影（schema.md，波 2）；沿用 TL-01 | T-6、T-8 |
 | [PF-022.C2/C5/C6](../../requirements/product/agent/PF-022-multimodal-response-and-output.md#已确认要求) 工具产出可交付、治理覆盖、部分交付如实 | 输出结果三层与媒体引用（schema.md，波 2）；结算时 CT 引用耐久 | T-12 |

@@ -72,7 +72,7 @@ foreground: { limitMs, stopMarginMs, onLimit: detach | stop | keep_waiting }   /
 | `foreground` 取代 `automatic` | TL-10 的 `automatic{thresholdMs, stopMarginMs}` ≡ `foreground{limitMs: thresholdMs, stopMarginMs, onLimit: detach}`；发布下一版时删 `automatic` | 裁决 m、n |
 | `onLimit` 约束 | `detach` 只在 `background.mode = supported` 且 `startModes ∋ foreground` 时合法；`stop` 只在 `stop.capability ≠ unsupported` 时合法；缺席 = `keep_waiting`，Run 执行预算是最终刹车 | TL-08/10 |
 | 有效阈值 | `min(limitMs, 系统上限, Run 剩余预算 − stopMarginMs)`；三值与计时来源在准入时记录到调用；算不出正数时启动前不承诺自动转换 | TL-10 |
-| 调用级 `detach` | 投影时由 tools 包注入保留参数 `detach: never \| on_start \| auto`（单操作投影在顶层，多命令投影与 `command` 同级），只在 `startModes` 含两种方式时出现；`on_start` → `background_from_start`；`auto`（缺省）→ 前台并按 `onLimit` 处理；`never` → 前台且本次把 `onLimit: detach` 降为 `keep_waiting`；越出 `startModes` → 参数校验失败，走 TL-01 的 `invalid_proposal` | 裁决 j |
+| 调用级 `detach` | 投影时由 tools 包注入保留参数 `detach: on_start \| auto`（单操作投影在顶层，多命令投影与 `command` 同级），只在 `startModes` 含两种方式时出现；`on_start` → `background_from_start`；`auto`（缺省）→ 前台并按定义的 `onLimit` 处理；模型不能否决定义或运维声明的自动离场（裁决 ab 取代裁决 j 的 `never`）；越出 `startModes` → 参数校验失败，走 TL-01 的 `invalid_proposal` | 裁决 j、ab |
 | 不可变 | `detach` 剥离后记为调用的 `requestedRelation`，不进 `Action.params`；准入后不改 | [T-6](invariants.md#调用)、[T-13](invariants.md#调用) |
 
 用户手动 `detachCall` 与系统 interrupt_then_run 的转换不经此参数（[转移表](lifecycle.md#转移表)）。
@@ -95,15 +95,17 @@ stop: { capability: cooperative_fence | forced_isolation | unsupported }
 ## 并发
 
 `concurrency: serial | parallel_safe`（缺省 `serial`）。同一 proposeCalls 批内连续的
-`parallel_safe` 调用可同批准入并同时 start；遇到 `serial` 调用时，它等待批内更早的调用全部
-结算后再 start。写回下一 Step 的顺序按模型发出顺序；批内某调用被拒或 Run 被中断时，未
-dispatch 的调用结算为 `cancelled_before_execution` 并写合成结果。首版驱动器可以仍然串行
-执行，声明词表先进定义（裁决 k）；并行 start 的观察与费用仍按每调用记录。
+`parallel_safe` 调用可同批准入并同时 start；`serial` 调用沿 [RD-09](../../../spec/capabilities/run-driver/v2/contract.md)
+的缺省串行：停在 `proposed_pending_gate`，直到批内更早的调用的视图都不再阻止收束（已
+结算、已转后台、waiting_approval 或 waiting_human）才过门，不要求它们全部结算。写回下一
+Step 的顺序按模型发出顺序；批内某调用被拒或 Run 被中断时，未 dispatch 的调用结算为
+`cancelled_before_execution` 并写合成结果。首版驱动器可以仍然串行执行，声明词表先进定义
+（裁决 k）；并行 start 的观察与费用仍按每调用记录。
 
 ## 帧声明
 
 ```text
-frames: [{ kind, payloadSchema, recordLevel: critical | replayable | transient, media: bool, mergeable: bool }]
+frames: [{ kind, payloadSchema, recordLevel: critical | durable | transient, media: bool, render: {kind, version} | null, maxBytes }]
 ```
 
 | 规则 | 内容 |
@@ -111,8 +113,11 @@ frames: [{ kind, payloadSchema, recordLevel: critical | replayable | transient, 
 | 无声明 = 无帧 | 读面返回 `unsupported`；owner 产的未声明 kind 被拒并记诊断 |
 | `kind` | 落到 `tools.frame.<kind>` 命名空间；同一命令内唯一 |
 | `payloadSchema` | 同一 Ajv profile；`media: true` 时 payload 必含 `MediaRef`，帧的耐久性等待 CT 引用 |
-| `recordLevel` | 语义与失败处置见 [frames.md](frames.md#记录等级)；部署策略只能把 `transient` 关闭或把 `replayable` 缩窗，不能把 `critical` 降级 |
-| `mergeable` | 只对 `transient` 合法；合并按声明产生 `merged` 缺口 |
+| `recordLevel` | 缺省 `durable`（与 Session 日志同域 append-only，可回放，[U-42](README.md#裁决记录2026-09-14用户)）；语义与失败处置见 [frames.md](frames.md#记录等级)；部署策略只能关闭 `transient`，不能把 `critical` / `durable` 降级 |
+| `render` | 呈现标识，UI 据此选择组件与版本；语义不依赖它；词表以 omne-next 工具帧设计为起点核对（帧线波 0） |
+| `maxBytes` | 单帧 payload 上限，超出截断并标 `trimmed` |
+
+合并（`mergeable`）没有当前消费者，留到出站流阶段按需引入。
 
 条数、字节与保留期数值归实现阶段（[未决项](README.md#未决项)）。
 
@@ -120,7 +125,7 @@ frames: [{ kind, payloadSchema, recordLevel: critical | replayable | transient, 
 
 ```text
 Result = {
-  outcome: succeeded | failed | denied_before_execution | cancelled_before_execution | interrupted | unknown,
+  outcome: succeeded | failed | denied_before_execution | cancelled_before_execution | unavailable | interrupted | unknown,
   output: JsonValue | null,        // 按 outputSchema 校验；unknown / 拒绝时为 null
   content: ContentBlock[],         // text / image / audio / video / file，每块带 delivery
   error: { code, message, retryable } | null,
@@ -132,10 +137,11 @@ Result = {
 |---|---|---|
 | 真实执行结论 | `outcome`、`error`、`possibleEffect` | journal `tools.call.settled`；恰一次（T-2） |
 | 规范输出数据 | `output`（`outputSchema`）、`content` 中的耐久引用 | Session 保存结果或经选择的引用（TL-12） |
-| 模型投影 | 由驱动器按 MC-11 与 S7 投影选择器从上两层派生；hooks `PostToolUse` block 只影响这一层 | 下一 Step 的 tool_result |
+| 模型投影 | 由驱动器按 MC-11 与 S7 投影选择器从上两层派生；hooks `PostToolUse` block 只影响这一层 | 未占位：该 tool_use 的 tool_result；已占位（deferred_receipt）：到达 Step 的 `system_reminder{late_result}`（[占位与迟到结果](lifecycle.md#占位与迟到结果的投影)） |
 
 `human` 工具的答复走同一形状：`succeeded{output: Answer}`，`content` 空
-（[内建人类请求工具](lifecycle.md#内建人类请求工具)）。
+（[内建人类请求工具](lifecycle.md#内建人类请求工具)）；`unavailable` 只在执行前出现，
+`output` 与 `content` 为空。
 
 ## 发布时检查清单
 
@@ -146,5 +152,5 @@ Result = {
 | `inputSchema` 不含保留参数名 `detach`、`command`、`params` | 发布拒绝 |
 | `onLimit` / `startModes` / `stop.capability` / `background.mode` 互相一致 | 发布拒绝 |
 | `media.inputs[].param` 指向存在的参数且其形状为 `MediaRef` | 发布拒绝 |
-| `frames[].kind` 唯一、`mergeable` 只配 `transient` | 发布拒绝 |
+| `frames[].kind` 唯一 | 发布拒绝 |
 | 执行 owner 核实能兑现 `stop.capability` 与 `background` 协议版本 | 命令 unavailable，不发布半项 |
