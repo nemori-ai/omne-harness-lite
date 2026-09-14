@@ -6,6 +6,10 @@
 研究先核对项目已有的 DSH，再比较实际 TS/JS harness 与具体库，范围限定于
 生产/研发/debug 的关联、秘密裁剪、资源边界和退出，未做性能排行榜。
 
+后续 P1 采用范围归 [D-010](../decisions/D-010-shared-diagnostics.md)，不改写下文
+原研究时点的观察。[证据归档](../proposals/core-capabilities/implementation/evidence/observability-design/README.md)
+保全作者来源/探针和原失败；HUB 独立重跑仍只证明所列机制的可行性。
+
 ## 固定来源
 
 | 对象 | 本次版本与主要官方证据 |

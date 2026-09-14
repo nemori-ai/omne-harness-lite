@@ -19,7 +19,7 @@ records 端口与 codec 已进入 TDD。尚未发起 OpenRouter 请求；A01–A
 | 任务 | 状态 | 实现/验收证据 | 下一项输入 |
 |---|---|---|---|
 | P0 | in_progress | 锁探针、共享接口施工输入、检查器及 work-data 已接受；records 已派发 | records 端口与 codec 的 TDD、复核和实际集成 |
-| P1 | planned | 未执行 | P0 的记录/协调接口与真实锁证据 |
+| P1 | planned | 观测设施 D-010 施工输入已接受，产品未实现 | P0 真实 records 与 diagnostics D1 交付，再并行实现 jsonl/admission |
 | P2 | planned | 未执行 | P1 的真实共同门与记录提供者；交付本地预算 owner |
 | P3 / M1 | planned | 未执行 | P2 当前权限/真实预算/Session/活体，以及 P1 执行账本前提 |
 | P4 | planned | 未执行；用户已指定凭据入口与两个测试模型 | M1 组合、实际路由/价格和受限冒烟配置；离线部分可按依赖提前 |
@@ -51,9 +51,9 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 提示词 spoke 已退役；其独有验证说明已按哈希保全到 HUB 的
 `tmp/retired-worktrees/observability-prompts/verification.md`，其余生成副本与环境可重建。
 这只交付认知约定，未交付 log/trace 产品设施。DSH、pi 和 OpenCode 固定源码研究
-已完成；`/root/observability_design` 在 `dsh-observability-design` 已交付 `1c60feb` 候选，
-经 `/root/review_package_layout` 独立评审后，原作者正在修订短门 I/O、低流量刷出与
-scope 记账上限三项发现，尚未接受或合入；完整工程观测查询仍按原 P3 责任推进。其它产品设计会话的
+已完成；`/root/observability_design` 的 `99fc7a3` 经独立复核闭合三项发现，
+HUB `9cd78a0` 合入后以新安装目录重跑 12+7 项机制探针。主调度依 D-010 接受
+P1 施工输入；正式包仍等待 records 后按 TDD 实现，完整工程观测查询仍归 P3。其它产品设计会话的
 运行基线优先级见下文与[计划](plan.md#推进方式与交付点)。
 
 未标 accepted 的行只表示派发事实。主调度拥有 HUB 整合、根配置、此工作包和最终
@@ -68,6 +68,8 @@ scope 记账上限三项发现，尚未接受或合入；完整工程观测查�
 inventory 与配额查询不覆盖该 native 执行面，不能移用其外部 CLI 的准入或额度
 结论。调度账本在 HUB 的 `tmp/dsh-first-batch.board.json`，仅经 `ccm` 更新；
 native 句柄活性以 collaboration 的实际运行状态为准，持久交付事实以本页及证据为准。
+P2 的 TG/AU/BG 公共操作/事件/参与者设计已由 `/root/governance_design` 在
+`dsh-governance-design` 从 `4253ee0` 并行推进，尚未交付或接受；P2 产品仍等待 P1。
 用户已指定从主检出根 `.env` 的 `OPENROUTER_API_KEY` 直接执行 A22，测试模型为
 OpenAI gpt-5.6-terra 与 DeepSeek v4.1-flash。文件仅由测试进程加载，不打开或输出
 内容，也不复制到证据、提交或提示词。当前尚未加载密钥或发起计费模型请求。
@@ -135,6 +137,16 @@ HUB 实际重跑版本/哈希。正式 Schema 未改；产品 JSON 边界、code
 原生 fs-ext 选择性构建规则已支持，但当前产品未依赖它，实际 addon 加载仍归 P1。
 该 spoke 的作者与评审者已结束，确认无驻留进程；原始证据已进入 HUB，临时目录
 为空，其余仅为可重建安装与 Python 缓存，工作树已退役。
+
+## P1 观测施工输入
+
+[D-010](../../../decisions/D-010-shared-diagnostics.md) 接受一个 diagnostics 包、
+五项精确库依赖、受限日志/trace 面和本地有界输出。jsonl/admission 的 factory
+增加必需 Diagnostics 注入；records/work-data 的数据、端口和格式保持不变。
+[HUB 证据](evidence/observability-design/README.md)保全 38 份作者资产及实际重跑。
+输出时机、低流量刷出、Promise 生命周期三项设计发现已闭合；P1 的 O01–O10
+尚未由产品实现验证，P2 桥和 P3 查询保留各自的验证门，不计为 A28 通过。
+设计 spoke 等独立复核和资产消费者释放后退役，原产品依赖锁没有安装这些候选库。
 
 ## 供其他设计会话消费的边界
 

@@ -28,3 +28,7 @@ Context／依赖和事件供给运行时组合，不替代租户权限或外部�
 实现可恢复工具审批与 OpenRouter 文本流程。共享数据 work-data 已完成目标 DTO、
 严格 JSON、Schema 和独立产物验收，见[实际证据](../proposals/core-capabilities/implementation/evidence/p0-work-data/hub-summary.json)；
 它尚不提供记录、准入或 Agent/Session/工具运行闭环。
+
+[D-010](../decisions/D-010-shared-diagnostics.md)固定 P1 共享日志/trace 设施及
+jsonl/admission 的注入边界；关键审计仍归业务耐久事实。当前通过的是库与机制
+可行性，diagnostics 产品、真实消费组合、Cordis 桥和受治理读面仍按阶段验证。

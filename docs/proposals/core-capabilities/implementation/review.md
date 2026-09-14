@@ -156,3 +156,9 @@ parseJson 在 jsonc-parser 完整递归建 AST 后才检查 maxDepth/maxNodes，
 其余所审的单包保护职责、无环依赖、两处实施注入、身份/内容、普通诊断与耐久
 审计边界及 Cordis 桥的 P2 停止条件未发现阻断。评审未运行产品实现，不构成
 P1 设施、真实关闭/保留、P3 查询或 A28 通过；records 纯共享实现不依赖该候选。
+
+`99fc7a3` 定点复核确认 O-R1–O-R3 设计层面闭合：真实输出只在外层门外启动；
+minLength=0 与实际写进展/失败状态解决低流量触发；移除 scope/Promise 观察并
+以关闭状态封闭晚到诊断，不把业务 body 结束归诊断 owner。HUB `9cd78a0` 实际
+重跑原 12 项及新增 7 项探针通过，依据 [D-010](../../../decisions/D-010-shared-diagnostics.md)
+接受 P1 施工选择。真实短门、写泵、停滞状态及完整换代关闭仍归产品 TDD。

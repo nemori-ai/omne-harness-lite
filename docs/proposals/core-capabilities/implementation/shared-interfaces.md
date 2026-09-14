@@ -6,6 +6,9 @@
 `core-journal/1` 实施格式。`8f4cfa9` 的 I1–I5 经独立复核闭合，主调度在 HUB
 整合复验后接受为施工输入，证据见[设计验证](evidence/p0-shared-interfaces/README.md)；
 尚未表示产品实现、验收或正式规格发布。
+后续 [D-010](../../../decisions/D-010-shared-diagnostics.md) 接受共享诊断施工面；
+本稿仅对两个 P1 factory 增加必需 Diagnostics 注入并补齐依赖方向。work-data、
+records 数据/端口/codec 及 core-journal/1 保持 `8f4cfa9` 语义，历史探针保留原版本范围。
 精确语义仍归下列已接受 v1，不原地修改其 Schema：
 
 - [data.agent-runtime-identity](../../../../spec/data/agent-runtime-identity/v1/contract.md)
@@ -28,6 +31,10 @@ flowchart BT
   admission --> data
   jsonl["storage/jsonl"] --> records
   jsonl --> data
+  diagnostics["observation/diagnostics"] --> records
+  diagnostics --> data
+  jsonl --> diagnostics
+  admission --> diagnostics
   owners["具名业务能力及组合"] --> admission
   owners --> records
   owners --> data
@@ -41,11 +48,14 @@ flowchart BT
 | `packages/storage/records` / `@omne-harness-lite/records` | 默认入口导出下述 DR 端口、批次/回执、实施 envelope 校验与 codec；无文件、锁或业务 reducer |
 | `packages/coordination/admission` / `@omne-harness-lite/admission` | 默认入口提供同步短门、位置与耐久完成、精确使用的责任登记；不实现权限/预算/Session 的状态转移 |
 | `packages/storage/jsonl` / `@omne-harness-lite/jsonl` | 默认目标入口提供真实 writer；现有 `/baseline` 的普通文件行为只按实际迁移消费者保留 |
+| `packages/observation/diagnostics` / `@omne-harness-lite/diagnostics` | 默认入口提供共享结构化日志、标准 trace 上下文、有界输出与管理面；精确接口归[观测施工稿](observability.md) |
 
 不新建「transaction」「event bus」「universal state」包。JSON 值与规范编码放
 work-data，是因为 Action 精确比较、operation 输入和 records 都要使用同一语义；
 物理行和 envelope 的编码归 records。业务事件定义、校验与 reducer 留在各 owner。
-本文 TS 块按同一模块可编译；落包时按上表分开，以公开 import 连接。
+原 `8f4cfa9` 的 TS 块已按同一模块验证可编译；落包按上表分开，以公开 import 连接。
+新增 Diagnostics 仅由 jsonl/admission 从其公共包导入；完整消费编译在 D1 实现后验证，
+records 不导出或 import 该类型。
 
 自有新包使用 `private:true`、`license:"UNLICENSED"`，provenance 为
 `format:1`、非空 scope、`files:[]`、完整覆盖 src 的
@@ -409,7 +419,7 @@ export type JsonlProviderOptions = Readonly<{
   bindings: readonly NamespaceBinding[]; limits: RecordLimits;
 }>;
 // Exported by @omne-harness-lite/jsonl, not by records.
-export declare function createJsonlProvider(options: JsonlProviderOptions): RecordProvider;
+export declare function createJsonlProvider(options: JsonlProviderOptions, diagnostics: Diagnostics): RecordProvider;
 ```
 
 业务能力只持 AdmissionCoordinator，使用其继承的 RecordPreparation 面；coordinator
@@ -612,7 +622,7 @@ export type AdmissionHost = Readonly<{
   coordinator: AdmissionCoordinator;
   createUseIssuer: (owner: string) => ExactUseIssuer;
 }>;
-export declare function createAdmissionCoordinator(writer: RecordWriter): AdmissionHost;
+export declare function createAdmissionCoordinator(writer: RecordWriter, diagnostics: Diagnostics): AdmissionHost;
 ```
 
 这是**受信内部组合接口**，不交给工具 body、声明 resolver、通知监听器或用户代码。

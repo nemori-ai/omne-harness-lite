@@ -48,6 +48,7 @@
 | `model/llm`、`model/openrouter`（新） | 档案/请求/内容流/manifest；唯一网络提供者 | llm 定义消费端口；openrouter 实现协议映射，不反向依赖 Session；不提供用户任意 baseURL |
 | `context/system-prompt`、`agent/loop` | 贡献/skill/历史装配；Run 的模型→工具→等待→接续驱动 | Loop 消费上述能力，不拥有第二份 Session/审批状态；prompt 生成不代替当前准入 |
 | `observation/engineering`（新） | 受控查询/导出/诊断 cursor 与 gaps | 读原事实，不能通过监听器反向裁决业务；业务端消费小型注入观测端口避免循环 |
+| `observation/diagnostics`（新） | D-010 选定的结构化日志、trace 上下文、有界本地输出及资源责任 | 消费 work-data/records；jsonl/admission 及运行 owner 注入其受限记录面，管理面归装配；不代替耐久审计或 engineering 的授权读面 |
 | `media/content`、`util/brand`、`util/values`、`util/timeout` | 既有有限内容/值/计时辅助 | 本批不要求为凑改造覆盖率而修改；目标共享内容归 work-data，冲突源词汇只留明确基线范围 |
 | `apps/local-harness`（新） | 常驻进程、CLI、认证适配、配置、能力装配与入口映射 | 选择提供者，业务转移回所属包；产品组合测试随应用，不能把组合实现塞进测试工具 |
 | `tools/package-checks` | 依赖、来源和独立产物消费检查 | 随新增入口扩展检查，不成为产品运行依赖 |

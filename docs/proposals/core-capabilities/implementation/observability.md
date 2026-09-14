@@ -2,8 +2,9 @@
 
 本稿消费 [scope](scope.md)、[acceptance](acceptance.md)、
 [implementation-spec](implementation-spec.md)、[plan](plan.md) 的 `d95052c`，以及
-[共享实施接口](shared-interfaces.md) 的已接受 `8f4cfa9` 子集。状态为**待独立评审、
-待整合者接受**；本页固定候选施工输入，不宣称产品实现或 A28 完成。
+[共享实施接口](shared-interfaces.md) 的已接受 `8f4cfa9` 子集。P1 施工选择已由
+[D-010](../../../decisions/D-010-shared-diagnostics.md)接受，依据见[接受与验证](#接受与验证)。
+本页固定实施输入，不宣称产品实现或 A28 完成；P2 桥和 P3 查询仍沿各自验证门推进。
 2026-09-14 的新增输入要求生产、研发、debug 共享 log/trace 基础，并优先交出
 其它设计会话所需的最小 Agent/Session/工具运行闭环。
 
@@ -35,7 +36,7 @@ P1 的消费者能用同一注入接口留下 writer/准入的阶段、关联和
 
 ## 依赖、复用与配置
 
-建议增加一个自有包 `@omne-harness-lite/diagnostics`，不再拆 logger/tracer/
+采用一个自有包 `@omne-harness-lite/diagnostics`，不再拆 logger/tracer/
 context/exporter 包。它隔离真实的敏感信息、被动调用、有限资源与生命周期责任，
 不是只为重命名第三方方法。箭头含类型依赖，表示消费公开入口：
 
@@ -64,7 +65,7 @@ records 不 import diagnostics，纯 work-data 不 import Cordis、logger、ALS 
 Watermark；不取得 writer/admission 服务，不调用 records 提交，不产生循环。
 未来从 records 抽离这些投影需要独立真实需求，本次不迁移已接受共享数据。
 
-| 候选精确依赖 | 使用范围及选择理由 |
+| 已选精确依赖 | 使用范围及选择理由 |
 |---|---|
 | `pino@10.3.1` | 结构化 JSON、等级、固定 redaction 配置；不用 worker transport、pretty 输出或自动错误全文 serializer |
 | `sonic-boom@4.2.1` | 显式直接依赖，复用异步文件流的 maxLength/drop/write/error/end/close；不自行再写缓冲队列 |
@@ -245,11 +246,11 @@ owner 的安全 code/phase 和静态源码位置线索，不能隐式序列化 m
 
 ### 消费者签名细化及短门约束
 
-建议在共享实施稿的两个目标 factory 上增加必需的第二参数：
+共享实施稿的两个目标 factory 增加必需的第二参数：
 `createJsonlProvider(options, diagnostics: Diagnostics)` 与
 `createAdmissionCoordinator(writer, diagnostics: Diagnostics)`。这改变**实施注入**，
-不改变 RecordProvider、AdmissionCoordinator、提交格式或正式 v1；须在本稿接受
-后由整合者同步共享稿，消费者不可各自增加不同 logger 参数。
+不改变 RecordProvider、AdmissionCoordinator、提交格式或正式 v1；整合者已同步
+共享稿，消费者不可各自增加不同 logger 参数。Diagnostics 类型从其所属包公开入口导入。
 
 每个 provider 使用创建时绑定的 system scope；请求边界先显式 current/capture，
 异步写泵保存已冻结 context，出队时恢复，不能继承写泵创建者身份。已准备的操作携带的可信 Principal/
@@ -465,7 +466,7 @@ D1/D2 不替代 A28 的业务审计、权限和 P3 查询；M1/M2 的其它 Axx 
 真实源码关系。本文 tmp 的可行性脚本不搬进产品充当 TDD。每段交付同步包 README、
 依赖/配置、四输入投影和 delivery；接受者核对后才更新状态。
 
-## 本次证据与待接受事项
+## 作者检查与评审输入
 
 `tmp/observability-design/` 内实际安装精确发行物并运行 `node probe.mjs`，Node
 `v24.18.0`，12 项可行性/反例通过；具体输出和局限见研究。未读取 .env/密钥，
@@ -499,3 +500,16 @@ ALS.disable 会清空所有调用者 context 的过强断言实际失败，修�
 
 修订后的 `make docs-check BASELINE=1c60feb` 通过同一 398 份 Markdown 及关联
 结构检查，`git diff --check` 通过；日志为 `docs-check-review.log`。
+
+## 接受与验证
+
+`99fc7a3` 相对 `1c60feb` 经同一 architecture-reviewer 定点复核，O-R1–O-R3
+设计缺口闭合，没有新阻断。主调度经 `9cd78a0` 合入后，以独立安装目录重跑
+原 12 项及新增 7 项机制探针，全部通过；[证据](evidence/observability-design/README.md)
+保全 38 份作者资产、来源/锁、原失败和本次结果，原产品依赖锁未改。
+
+[D-010](../../../decisions/D-010-shared-diagnostics.md)接受本稿的 P1 公共面、
+五项直接库依赖、两处 factory 注入及其有限资源/关闭责任，作为 D1/D2 施工输入。
+D1 必须先消费已验证 records 和 work-data，实际实现仍按 O01–O08 进行 TDD；
+D2 再接真实 writer/admission 验证 O09/O10。P2 桥的原生缓存/卸载和 P3 query/export
+保留原独立门；这些待实施范围及 O11/O12 不由机制探针计为产品通过。

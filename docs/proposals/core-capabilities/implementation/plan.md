@@ -33,6 +33,10 @@ OpenRouter，不另写一套 demo 审批。P5 完成后才接受 M2 及整批。
 实现和其它 TS/JS harness 的实际做法，再按工程观测契约固定最小共享设施与接入
 责任。P1 及其后的有状态/副作用边界消费该设施；纯共享数据包不因此增加运行时
 依赖。具体选型、接口和新增包须有受审设计及独占实现者，不由各业务作者各造一套。
+该选择已由 [D-010](../../../decisions/D-010-shared-diagnostics.md) 固定，具体四输入归
+[观测施工稿](observability.md)。records 实现通过后，先由 infrastructure-developer
+交付 diagnostics 的 D1/O01–O08 真实包；P1 jsonl/admission 再消费该产物并行实现，
+共同验证 O09/O10。诊断设施的设计通过不代替共享实现通过。
 
 ## 任务输入与写入归属
 
