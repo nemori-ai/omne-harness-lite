@@ -15,7 +15,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 const fault = vi.hoisted(() => ({
   journal: '',
   armed: false,
-  mode: 'none' as 'none' | 'partial-write' | 'short-write' | 'sync' | 'sync-after',
+  mode: 'none' as 'none' | 'write-before' | 'partial-write' | 'short-write' | 'sync' | 'sync-after',
   writes: 0,
   failed: false,
   lockClose: false,
@@ -94,6 +94,10 @@ vi.mock('node:fs/promises', async importOriginal => {
       writeSpy.mockImplementation(async (buffer, offset, length, position) => {
         if (!fault.armed) return write(buffer, offset, length, position)
         fault.writes += 1
+        if (fault.mode === 'write-before' && !fault.failed) {
+          fault.failed = true
+          throw new Error('injected failure before write progress')
+        }
         if (fault.mode === 'partial-write' && !fault.failed) {
           fault.failed = true
           await write(buffer, offset, Math.max(1, Math.floor(length / 2)), position)
@@ -329,6 +333,43 @@ describe('JSONL durability failure boundaries', () => {
       )
       expect(evidence).toHaveLength(1)
       expect(await readFile(join(directory, evidence[0]!))).toEqual(damaged)
+      expect((await reopened.writer.closeWriter()).status).toBe('closed')
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('returns unknown before write progress and proves not-committed only after recovery', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'omne-jsonl-write-before-'))
+    try {
+      fault.journal = join(directory, 'journal.jsonl')
+      const acquired = await createJsonlProvider(
+        options(directory),
+        diagnostics(true),
+      ).acquireWriter()
+      expect(acquired.status).toBe('acquired')
+      if (acquired.status !== 'acquired') return
+      const prepared = prepare(acquired.writer, 'write-before')
+      fault.mode = 'write-before'
+      fault.armed = true
+      const submission = acquired.writer.commit(prepared)
+      expect(submission.status).toBe('pending_durability')
+      if (submission.status !== 'pending_durability') return
+      await expect(submission.completion).resolves.toMatchObject({
+        status: 'unknown',
+        operation: operation('write-before'),
+      })
+      await expect(acquired.writer.closeWriter()).resolves.toMatchObject({ status: 'blocked' })
+
+      fault.armed = false
+      fault.mode = 'none'
+      fault.failed = false
+      const reopened = await createJsonlProvider(options(directory), diagnostics()).acquireWriter()
+      expect(reopened.status).toBe('acquired')
+      if (reopened.status !== 'acquired') return
+      await expect(
+        reopened.writer.lookupOperation(operation('write-before')),
+      ).resolves.toMatchObject({ status: 'not_committed', verifiedThrough: { seq: '2' } })
       expect((await reopened.writer.closeWriter()).status).toBe('closed')
     } finally {
       await rm(directory, { recursive: true, force: true })
