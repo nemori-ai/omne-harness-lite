@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   closeStack,
   createStack,
+  diagnosticLines,
   operation,
   prepareAdmission,
   providerOptions,
@@ -332,6 +333,108 @@ describe('O09/O10 simultaneous business and diagnostic failures', () => {
     expect(stack.diagnosticRuntime.inspect().gaps).toContainEqual(
       expect.objectContaining({ reason: 'write_unavailable' }),
     )
+    await expect(use.release('not_admitted')).resolves.toMatchObject({ status: 'retained' })
+    expect(release).not.toHaveBeenCalled()
+  })
+})
+
+describe('A05 strict callback ownership on the real writer', () => {
+  it('quarantines a logical publication thenable before I/O and records its late rejection', async () => {
+    const stack = await createStack('logical-thenable-', ['session'])
+    stacks.add(stack)
+    const late = Promise.reject(new Error('late logical rejection'))
+    const prepared = prepareAdmission(stack.admission, 'logical-thenable', [
+      {
+        owner: 'session',
+        publishLogical: (() => late) as unknown as OwnerPublication['publishLogical'],
+        publishDurable: () => undefined,
+      },
+    ])
+
+    const submission = pending(
+      stack.admission.coordinator.enter(frame =>
+        stack.admission.coordinator.submit(frame, prepared),
+      ),
+    )
+    expect(stack.admission.coordinator.status()).toMatchObject({ phase: 'quarantined' })
+    await expect(submission.completion).resolves.toMatchObject({
+      status: 'unknown',
+      operation: operation('logical-thenable'),
+    })
+    await expect(
+      (await import('node:fs/promises'))
+        .readFile(`${stack.recordDirectory}/journal.jsonl`, 'utf8')
+        .then(text => text.split('\n').filter(Boolean)),
+    ).resolves.toHaveLength(1)
+    await closeStack(stack)
+    const lines = await diagnosticLines(stack.diagnosticDirectory)
+    expect(lines).toContainEqual(
+      expect.objectContaining({
+        kind: 'log',
+        tenantId: 'tenant-1',
+        principal: { kind: 'user', user: { userId: 'user-1' } },
+        operation: operation('logical-thenable'),
+        component: expect.stringMatching(/^[a-z][a-z0-9_.-]*$/u),
+        phase: 'late_rejection',
+        code: 'publish_logical_rejected',
+        position: expect.objectContaining({ seq: '2' }),
+      }),
+    )
+    expect(lines).toContainEqual(
+      expect.objectContaining({
+        kind: 'log',
+        tenantId: 'tenant-1',
+        principal: { kind: 'user', user: { userId: 'user-1' } },
+        operation: operation('logical-thenable'),
+        component: 'storage.jsonl',
+        phase: 'durability',
+        code: expect.stringMatching(/^[a-z][a-z0-9_.-]*$/u),
+        position: expect.objectContaining({ seq: '2' }),
+      }),
+    )
+    expect(lines).not.toContainEqual(
+      expect.objectContaining({
+        kind: 'gap',
+        gaps: expect.arrayContaining([expect.objectContaining({ reason: 'invalid_projection' })]),
+      }),
+    )
+  })
+
+  it('retains one claimed use when retainAt returns a thenable and never retries ownership transfer', async () => {
+    const stack = await createStack('retain-thenable-', ['session'])
+    stacks.add(stack)
+    const retainAt = vi.fn((() => Promise.resolve(undefined)) as unknown as ExactUse['retainAt'])
+    const release = vi.fn(async () => ({ status: 'released' as const }))
+    const use = stack.admission.createUseIssuer('execution-owner').capture(useBinding(), {
+      retainAt,
+      release,
+    })
+    const prepared = prepareAdmission(
+      stack.admission,
+      'retain-thenable',
+      [
+        {
+          owner: 'session',
+          publishLogical: () => undefined,
+          publishDurable: () => undefined,
+        },
+      ],
+      { uses: [use] },
+    )
+
+    const submission = pending(
+      stack.admission.coordinator.enter(frame =>
+        stack.admission.coordinator.submit(frame, prepared),
+      ),
+    )
+    expect(retainAt).toHaveBeenCalledOnce()
+    expect(stack.admission.coordinator.status()).toMatchObject({ phase: 'quarantined' })
+    await expect(submission.completion).resolves.toMatchObject({
+      status: 'unknown',
+      operation: operation('retain-thenable'),
+    })
+    expect(retainAt).toHaveBeenCalledOnce()
+    expect(release).not.toHaveBeenCalled()
     await expect(use.release('not_admitted')).resolves.toMatchObject({ status: 'retained' })
     expect(release).not.toHaveBeenCalled()
   })
