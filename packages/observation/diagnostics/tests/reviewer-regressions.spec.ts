@@ -168,6 +168,82 @@ async function waitFor(
 }
 
 describe('D1-R2 close recovery after a write-triggered destroy', () => {
+  it('closes the owned source after a pending write callback fails during end', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'r2-write-end-'))
+    const subject = await runtime(directory, 'source-r2-end')
+    await waitFor(subject, status => status.pendingBytes === 0)
+
+    const originalWrite = nodeFs.write as unknown as FlexibleCall
+    const originalClose = nodeFs.close as unknown as FlexibleCall
+    let callback: FlexibleCall | undefined
+    let sourceDescriptor: number | undefined
+    let closeCalls = 0
+    let openAfterFailure = false
+    let repeated: Awaited<ReturnType<DiagnosticsRuntime['close']>> | undefined
+    const writeSpy = vi.spyOn(nodeFs, 'write').mockImplementation(((...args: unknown[]) => {
+      if (callback !== undefined) return originalWrite(...args)
+      sourceDescriptor = args[0] as number
+      const candidate = args.at(-1)
+      if (typeof candidate !== 'function') throw new Error('unexpected fs.write signature')
+      callback = candidate as FlexibleCall
+      return undefined
+    }) as typeof nodeFs.write)
+    const closeSpy = vi.spyOn(nodeFs, 'close').mockImplementation(((...args: unknown[]) => {
+      closeCalls += 1
+      return originalClose(...args)
+    }) as typeof nodeFs.close)
+    syncBuiltinESMExports()
+
+    let firstClose: Awaited<ReturnType<DiagnosticsRuntime['close']>> | undefined
+    try {
+      subject.diagnostics.log(subject.diagnostics.scope(identity()), point('r2.end_write_failure'))
+      expect(callback).toBeTypeOf('function')
+      const closing = subject.close({ deadlineMs: 1_000 })
+      await waitFor(subject, status => BigInt(status.acceptedCount) >= 3n)
+      expect(closeCalls).toBe(0)
+      if (sourceDescriptor !== undefined) {
+        await new Promise<void>((resolve, reject) => {
+          nodeFs.fstat(sourceDescriptor!, error => {
+            if (error !== null) reject(error)
+            else resolve()
+          })
+        })
+      }
+      callback?.(Object.assign(new Error('R2_END_WRITE_SECRET'), { code: 'EIO' }), 0)
+      firstClose = await closing
+      await waitFor(subject, status => status.writeProgress === 'failed')
+      if (closeCalls > 0) {
+        await waitFor(subject, status => status.resource === 'released')
+        repeated = await subject.close({ deadlineMs: 1_000 })
+      }
+      if (sourceDescriptor !== undefined) {
+        openAfterFailure = await new Promise(resolve => {
+          nodeFs.fstat(sourceDescriptor!, error => resolve(error === null))
+        })
+      }
+    } finally {
+      writeSpy.mockRestore()
+      closeSpy.mockRestore()
+      syncBuiltinESMExports()
+      if (closeCalls === 0 && sourceDescriptor !== undefined) {
+        await new Promise<void>(resolve => {
+          originalClose(sourceDescriptor!, () => resolve())
+        })
+      }
+    }
+
+    expect(firstClose).toMatchObject({
+      status: 'blocked',
+      state: { phase: 'closing', writeProgress: 'failed' },
+    })
+    expect(closeCalls).toBe(1)
+    expect(openAfterFailure).toBe(false)
+    expect(repeated).toMatchObject({
+      status: 'closed',
+      state: { phase: 'closed', resource: 'released' },
+    })
+  })
+
   it('does not close a reused fd after the underlying source close returned an error', async () => {
     const directory = await mkdtemp(join(scratchRoot, 'r2-write-close-'))
     const sentinel = join(directory, 'r2-sentinel')

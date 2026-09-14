@@ -31,14 +31,30 @@ const waitFor = async predicate => {
   throw new Error('short write child timed out')
 }
 await waitFor(status => status.pendingBytes === 0)
+const sourceFile = (await readdir(directory)).find(file => file.startsWith('diagnostic-'))
+if (sourceFile === undefined) throw new Error('source file missing')
+const sourcePath = join(directory, sourceFile)
+const baselineBytes = (await stat(sourcePath)).size
 
 const nodeFs = createRequire(import.meta.url)('node:fs')
 const originalWrite = nodeFs.write
 let shortWrite = false
+let writeCall
 nodeFs.write = (...args) => {
   if (shortWrite) return originalWrite(...args)
   shortWrite = true
   const callback = args.at(-1)
+  const payload = args[1]
+  writeCall = {
+    argumentCount: args.length,
+    payloadKind: Buffer.isBuffer(payload) ? 'buffer' : typeof payload,
+    requestedBytes:
+      typeof payload === 'string'
+        ? Buffer.byteLength(payload, typeof args[2] === 'string' ? args[2] : 'utf8')
+        : Buffer.isBuffer(payload)
+          ? payload.byteLength
+          : 0,
+  }
   const length = args[3]
   if (typeof callback !== 'function' || typeof length !== 'number') {
     throw new Error('unexpected fs.write signature')
@@ -66,9 +82,7 @@ created.runtime.diagnostics.log(context, {
 })
 await waitFor(status => status.writeProgress === 'failed')
 const before = factory.owner.inspect()
-const sourceFile = (await readdir(directory)).find(file => file.startsWith('diagnostic-'))
-if (sourceFile === undefined) throw new Error('source file missing')
-const actualBytes = (await stat(join(directory, sourceFile))).size
+const actualBytes = (await stat(sourcePath)).size
 const close = await created.runtime.close({ deadlineMs: 100 })
 const after = factory.owner.inspect()
 nodeFs.write = originalWrite
@@ -78,6 +92,8 @@ await new Promise((resolve, reject) => {
   process.send?.(
     {
       shortWrite,
+      writeCall,
+      baselineBytes,
       before,
       close,
       after,
