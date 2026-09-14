@@ -1,0 +1,27 @@
+Scope: 4 of 21 workspace projects
+packages/core/work-data build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json && node scripts/build-schemas.mjs
+packages/core/work-data build: PASS: verified and copied 2 frozen schemas covering 29 DataTypes
+packages/core/work-data build: Done
+packages/storage/records build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/storage/records build: Done
+packages/observation/diagnostics build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/observation/diagnostics build: Done
+packages/storage/jsonl build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/storage/jsonl build: Done
+
+> @omne-harness-lite/jsonl@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/packages/storage/jsonl
+> tsc -p tsconfig.test.json
+
+
+> @omne-harness-lite/jsonl@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/packages/storage/jsonl
+> vitest run
+
+
+ RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/packages/storage/jsonl
+
+
+ Test Files  4 passed (4)
+      Tests  27 passed (27)
+   Start at  11:09:34
+   Duration  2.40s (transform 799ms, setup 0ms, import 2.47s, tests 2.56s, environment 1ms)
+
