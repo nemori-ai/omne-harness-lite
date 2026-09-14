@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { test } from 'node:test'
 import { dirname, join, relative, resolve } from 'node:path'
@@ -28,7 +28,7 @@ async function ownedMember(
   repo,
   relativePath,
   name,
-  { dependency, baselineAlias = false, runtimeIsolation = false } = {},
+  { dependency, externalDependencies = {}, baselineAlias = false, runtimeIsolation = false } = {},
 ) {
   const root = join(repo, relativePath)
   await mkdir(join(root, 'src'), { recursive: true })
@@ -45,7 +45,7 @@ if (borrowed) throw new Error('NODE_PATH dependency leaked into artifact runtime
 if (process.env.NODE_PATH !== undefined) throw new Error('NODE_PATH reached artifact runtime')
 if (process.env.NODE_OPTIONS !== '--no-global-search-paths') throw new Error('inherited NODE_OPTIONS reached artifact runtime')
 if (globalPaths.length !== 0) throw new Error('Node global search paths remained enabled')
-if (process.env.CC !== 'fixture-cc' || process.env.CXX !== 'fixture-cxx') throw new Error('native compiler environment was removed')
+if (process.env.CC !== 'fixture-cc' || process.env.CXX !== 'fixture-cxx' || process.env.GCC_EXEC_PREFIX !== 'fixture-gcc-prefix') throw new Error('native compiler environment was removed')
 export const value = 1
 `
     : dependency
@@ -82,7 +82,10 @@ export const value = 1
           : []),
       ]),
       files: ['dist', 'README.md', 'provenance.json'],
-      dependencies: dependency ? { [dependency]: 'workspace:*' } : {},
+      dependencies: {
+        ...(dependency ? { [dependency]: 'workspace:*' } : {}),
+        ...externalDependencies,
+      },
     }),
   )
 }
@@ -111,7 +114,11 @@ test('discovers responsibility packages and real application members', async t =
   const repo = await mkdtemp(join(scratchRoot, 'members-'))
   t.after(() => rm(repo, { recursive: true, force: true }))
   await packageLeaf(repo, 'packages/core/work-data', '@omne-harness-lite/work-data')
+  await mkdir(join(repo, 'packages/governance/authorization'), { recursive: true })
+  await writeFile(join(repo, 'packages/governance/authorization/design.md'), '# Design only\n')
   await packageLeaf(repo, 'apps/local-harness', '@omne-harness-lite/local-harness')
+  await mkdir(join(repo, 'apps/planned-harness'))
+  await writeFile(join(repo, 'apps/planned-harness/design.md'), '# Design only\n')
 
   assert.deepEqual(
     (await members(repo)).map(member => ({
@@ -123,6 +130,13 @@ test('discovers responsibility packages and real application members', async t =
       { kind: 'package', name: '@omne-harness-lite/work-data' },
     ],
   )
+
+  const brokenPackage = join(repo, 'packages/governance/broken')
+  await mkdir(join(brokenPackage, 'src'), { recursive: true })
+  await assert.rejects(members(repo), /product source lacks package.json/)
+  await rm(brokenPackage, { recursive: true })
+  await mkdir(join(repo, 'apps/broken/src'), { recursive: true })
+  await assert.rejects(members(repo), /application source lacks package.json/)
 })
 
 test('classifies baseline, evolved, and project-owned public entries by actual source records', () => {
@@ -566,6 +580,7 @@ if (relevant) appendFileSync(${JSON.stringify(preloadMarker)}, process.argv.join
           NODE_OPTIONS: `--require=${preload}`,
           CC: 'fixture-cc',
           CXX: 'fixture-cxx',
+          GCC_EXEC_PREFIX: 'fixture-gcc-prefix',
         },
       })
     } catch (error) {
@@ -599,12 +614,21 @@ test('permits only the probed fs-ext native rebuild with an exact product and lo
   const member = make('jsonl')
   member.manifest.dependencies['fs-ext'] = '2.1.1'
   const rootManifest = { pnpm: { onlyBuiltDependencies: ['fs-ext'] } }
-  const lock = '  fs-ext@2.1.1:\n'
+  const lock = '  fs-ext@2.1.1:\n    dependencies:\n      nan: 2.28.0\n'
 
   assert.deepEqual(boundaryChecks.nativeBuildPlan(rootManifest, lock, [member]), ['fs-ext'])
-  assert.deepEqual(boundaryChecks.nativeBuildPlan(rootManifest, "  'fs-ext@2.1.1':\n", [member]), [
-    'fs-ext',
-  ])
+  assert.deepEqual(
+    boundaryChecks.nativeBuildPlan(
+      rootManifest,
+      "  'fs-ext@2.1.1':\n    dependencies:\n      nan: 2.28.0\n",
+      [member],
+    ),
+    ['fs-ext'],
+  )
+  assert.throws(
+    () => boundaryChecks.nativeBuildPlan({ pnpm: { onlyBuiltDependencies: [] } }, lock, [member]),
+    /fs-ext requires pnpm.onlyBuiltDependencies allowlisting/,
+  )
   assert.throws(
     () =>
       boundaryChecks.nativeBuildPlan({ pnpm: { onlyBuiltDependencies: ['other-native'] } }, lock, [
@@ -617,7 +641,94 @@ test('permits only the probed fs-ext native rebuild with an exact product and lo
     () => boundaryChecks.nativeBuildPlan(rootManifest, lock, [member]),
     /fs-ext must be pinned to 2.1.1/,
   )
+  member.manifest.dependencies['fs-ext'] = '2.1.1'
+  assert.throws(
+    () =>
+      boundaryChecks.nativeBuildPlan(
+        rootManifest,
+        '  fs-ext@2.1.1:\n    dependencies:\n      nan: 2.27.0\n',
+        [member],
+      ),
+    /fs-ext lock must pin nan to 2.28.0/,
+  )
+  assert.deepEqual(boundaryChecks.nativeBuildPlan(rootManifest, '', [make('records')]), [])
 })
+
+test(
+  'rejects a no-op native rebuild that exits zero without producing a loadable fs-ext addon',
+  { timeout: 60_000 },
+  async t => {
+    await mkdir(scratchRoot, { recursive: true })
+    const repo = await mkdtemp(join(scratchRoot, 'native-no-op-'))
+    t.after(() => rm(repo, { recursive: true, force: true }))
+    await ownedMember(repo, 'packages/observation/diagnostics', '@omne-harness-lite/diagnostics', {
+      externalDependencies: { 'fs-ext': '2.1.1' },
+    })
+    await mkdir(join(repo, 'apps'))
+    await writeFile(
+      join(repo, 'package.json'),
+      JSON.stringify({
+        name: 'fixture-root',
+        private: true,
+        packageManager: 'pnpm@10.28.1',
+        pnpm: { onlyBuiltDependencies: ['fs-ext'] },
+      }),
+    )
+    await writeFile(join(repo, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*/*\n')
+    execFileSync('pnpm', ['install', '--offline', '--ignore-scripts'], {
+      cwd: repo,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+
+    const shimDirectory = join(repo, 'pnpm-shim')
+    const shim = join(shimDirectory, 'pnpm')
+    await mkdir(shimDirectory)
+    await writeFile(
+      shim,
+      `#!/usr/bin/env node
+const { spawnSync } = require('node:child_process')
+const { readFileSync } = require('node:fs')
+const { join } = require('node:path')
+const args = process.argv.slice(2)
+if (args[0] === 'rebuild' && args[1] === 'fs-ext') {
+  const manifest = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8'))
+  if (JSON.stringify(manifest.pnpm.onlyBuiltDependencies) !== JSON.stringify(['fs-ext'])) process.exit(86)
+  if (process.env.NODE_PATH !== undefined || process.env.NODE_OPTIONS !== '--no-global-search-paths') process.exit(87)
+  if (process.env.CC !== 'fault-injected-cc' || process.env.CXX !== 'fault-injected-cxx' || process.env.GCC_EXEC_PREFIX !== 'fault-injected-gcc-prefix') process.exit(88)
+  process.exit(0)
+}
+const result = spawnSync(process.env.REAL_PNPM, args, { env: process.env, stdio: 'inherit' })
+if (result.error) throw result.error
+process.exit(result.status ?? 1)
+`,
+    )
+    await chmod(shim, 0o755)
+    const realPnpm = execFileSync('which', ['pnpm'], { encoding: 'utf8' }).trim()
+
+    let failure
+    try {
+      execFileSync(process.execPath, [checkScript, '--root', repo], {
+        cwd: repo,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: {
+          ...process.env,
+          PATH: `${shimDirectory}:${process.env.PATH}`,
+          REAL_PNPM: realPnpm,
+          CC: 'fault-injected-cc',
+          CXX: 'fault-injected-cxx',
+          GCC_EXEC_PREFIX: 'fault-injected-gcc-prefix',
+        },
+      })
+    } catch (error) {
+      failure = error
+      const retained = String(error.stderr).match(/Failed artifact evidence retained: (.+)/)?.[1]
+      if (retained) await rm(retained, { recursive: true, force: true })
+    }
+    assert.ok(failure, 'checker accepted rebuild exit 0 without loading the native addon')
+    assert.match(String(failure.stderr), /MODULE_NOT_FOUND/)
+  },
+)
 
 test('applies existing import guards to project-owned default exports', () => {
   const owned = name => ({

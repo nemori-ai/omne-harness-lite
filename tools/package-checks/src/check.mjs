@@ -131,8 +131,8 @@ export async function checkRepository(repo) {
   const nativeBuilds = nativeBuildPlan(rootManifest, lock, inventory)
   if (nativeBuilds.length > 0) {
     assert.ok(
-      process.env.CC && process.env.CXX,
-      'native artifact checks require explicit CC and CXX',
+      process.env.CC && process.env.CXX && process.env.GCC_EXEC_PREFIX,
+      'native artifact checks require explicit CC, CXX and GCC_EXEC_PREFIX',
     )
   }
   const dshBaseline = await optionalJson(
@@ -193,6 +193,14 @@ export async function checkRepository(repo) {
     async function consume(label, roots, selected, fixture = '', fixtureFiles = [], extras = {}) {
       const consumer = join(scratch, label)
       await mkdir(consumer)
+      const selectedNativeMembers = [...selected].filter(member => {
+        const dependencies = {
+          ...member.manifest.dependencies,
+          ...member.manifest.optionalDependencies,
+        }
+        return 'fs-ext' in dependencies
+      })
+      const selectedNativeBuilds = selectedNativeMembers.length > 0 ? nativeBuilds : []
       const dependencies = Object.fromEntries(
         roots.map(member => [member.manifest.name, tarballs.get(member.manifest.name)]),
       )
@@ -211,7 +219,15 @@ export async function checkRepository(repo) {
             license: 'UNLICENSED',
             dependencies: { ...dependencies, ...extras },
             devDependencies: { typescript: '6.0.3', '@types/node': '24.13.4' },
-            pnpm: { overrides },
+            pnpm: {
+              overrides: {
+                ...overrides,
+                ...(selectedNativeBuilds.includes('fs-ext') ? { nan: '2.28.0' } : {}),
+              },
+              ...(selectedNativeBuilds.includes('fs-ext')
+                ? { onlyBuiltDependencies: ['fs-ext'] }
+                : {}),
+            },
           },
           null,
           2,
@@ -221,15 +237,8 @@ export async function checkRepository(repo) {
         'pnpm',
         ['install', '--offline', '--ignore-scripts', '--ignore-workspace', '--store-dir', store],
         consumer,
-      )
-      const selectedNativeBuilds = nativeBuilds.filter(name =>
-        [...selected].some(member => {
-          const dependencies = {
-            ...member.manifest.dependencies,
-            ...member.manifest.optionalDependencies,
-          }
-          return name in dependencies
-        }),
+        false,
+        true,
       )
       for (const name of selectedNativeBuilds) {
         run(
@@ -237,8 +246,82 @@ export async function checkRepository(repo) {
           ['rebuild', name, '--pending', '--ignore-workspace', '--store-dir', store],
           consumer,
           true,
+          true,
         )
-        console.log(`PASS: selective native rebuild ${name}@2.1.1 with explicit CC/CXX`)
+        console.log(
+          `INFO: selective native rebuild command completed for ${name}@2.1.1 with explicit CC/CXX/GCC_EXEC_PREFIX`,
+        )
+      }
+      if (selectedNativeMembers.length > 0) {
+        const selectedNames = new Set([...selected].map(member => member.manifest.name))
+        const graph = Object.fromEntries(
+          [...selected].map(member => [
+            member.manifest.name,
+            Object.keys({
+              ...member.manifest.dependencies,
+              ...member.manifest.peerDependencies,
+            }).filter(name => selectedNames.has(name)),
+          ]),
+        )
+        const probe = `import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
+import { existsSync, readFileSync, realpathSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { join } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+const graph = ${JSON.stringify(graph)}
+const targets = new Set(${JSON.stringify(selectedNativeMembers.map(member => member.manifest.name))})
+const visited = new Set()
+const loaded = new Set()
+const evidence = []
+function resolveManifest(name, parentRequire) {
+  for (const directory of parentRequire.resolve.paths(name) ?? []) {
+    const candidate = join(directory, name, 'package.json')
+    if (existsSync(candidate)) return pathToFileURL(realpathSync(candidate))
+  }
+  assert.fail('installed dependency is not resolvable from its declaring package: ' + name)
+}
+function visit(name, manifestUrl) {
+  if (visited.has(name)) return
+  visited.add(name)
+  const installedManifest = pathToFileURL(realpathSync(fileURLToPath(manifestUrl)))
+  const manifest = JSON.parse(readFileSync(installedManifest, 'utf8'))
+  assert.equal(manifest.name, name, 'installed product dependency resolved to the wrong package')
+  const memberRequire = createRequire(installedManifest)
+  if (targets.has(name)) {
+    const fsExtManifest = memberRequire('fs-ext/package.json')
+    assert.equal(fsExtManifest.version, '2.1.1', name + ' loaded the wrong fs-ext version')
+    const cachedBefore = new Set(Object.keys(memberRequire.cache))
+    const addon = memberRequire('fs-ext')
+    assert.equal(typeof addon.flock, 'function', name + ' loaded fs-ext without flock')
+    const binary = Object.keys(memberRequire.cache).find(
+      path => !cachedBefore.has(path) && path.endsWith('/fs_ext.node'),
+    )
+    assert.ok(binary, name + ' loaded fs-ext without a native addon module')
+    const addonPath = realpathSync(binary)
+    const fsExtRequire = createRequire(memberRequire.resolve('fs-ext'))
+    const nanManifest = fsExtRequire('nan/package.json')
+    assert.equal(nanManifest.version, '2.28.0', name + ' loaded the wrong nan version')
+    loaded.add(name)
+    evidence.push({
+      declaredBy: name,
+      addonPath,
+      addonSha256: createHash('sha256').update(readFileSync(addonPath)).digest('hex'),
+    })
+  }
+  for (const dependency of graph[name] ?? []) {
+    visit(dependency, resolveManifest(dependency, memberRequire))
+  }
+}
+const consumerRequire = createRequire(import.meta.url)
+for (const root of ${JSON.stringify(roots.map(member => member.manifest.name))}) {
+  visit(root, resolveManifest(root, consumerRequire))
+}
+assert.deepEqual([...loaded].sort(), [...targets].sort(), 'native product dependency was not loadable from its declaring package')
+console.log('PASS: loaded fs-ext@2.1.1 with flock and nan@2.28.0 ' + JSON.stringify(evidence))
+`
+        await writeFile(join(consumer, 'native-probe.mjs'), probe)
+        process.stdout.write(runArtifactNode(['native-probe.mjs'], consumer))
       }
       for (const member of roots) {
         const installed = join(consumer, 'node_modules', member.manifest.name)
