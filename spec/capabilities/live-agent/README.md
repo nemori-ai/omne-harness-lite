@@ -17,6 +17,9 @@ v1 的状态，源测试和有限模型检查的覆盖也不等于目标实现�
 [Agent/Session 附着组合 v1](../../compositions/agent-session-binding/v1/contract.md)，
 补充本能力的端口义务，未改写冻结的 live-agent v1。
 
+当前实现映射归 [agent 提供者设计](../../../packages/core/agent/design.md)，
+采用范围与尚未实现的义务沿该入口维护；它不取代本页的精确契约。
+
 ## 上游源基线的历史入口
 
 原 `draft/`、源映射及其评审/验证材料已移至

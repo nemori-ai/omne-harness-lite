@@ -75,6 +75,13 @@ P3 在工具包前先由指定 capability-developer 独占
 及其测试；该交付以独立公开消费为门，不能扩展为完整审批实现。随后工具 owner
 消费此固定产物，不复制该定义，具体顺序沿已接受工具稿 T0–T2。
 
+D1 的目录产品实施期间，verification-developer 可以独立验证已固定原生依赖的
+产物安装测量：仅写 `tools/package-checks/` 与 `evidence/native-consumer-checks/`，
+消费 `ce73873` 的真实根锁、批准清单及叶依赖。保留默认禁脚本、真实闭包和仓库外
+解析隔离，只构建获准依赖；通过实际 addon 加载识别 rebuild 空成功，相关负例及
+真实 tarball 消费才是退出依据。这项测量开发不消费尚未完成的目录实现，D1 最终
+整合仍须用修复后的真实产品再次完成独立消费，不能以工具通过代替产品通过。
+
 P1 的 verification-developer 同时独占最小测试载体的
 `apps/local-harness/package.json`、`tsconfig.json` 和 `vitest.config.ts`，只建立
 组合测试所需的叶子配置与脚本；不提前实现应用业务或复制包内行为。整合者负责
