@@ -23,10 +23,12 @@ beforeAll(async () => {
 
 type TestOptions = LocalDiagnosticsDirectoryOptions & LocalDiagnosticSourceOptions
 const owners = new Set<LocalDiagnosticsDirectory>()
+const ownersByDirectory = new Map<string, LocalDiagnosticsDirectory>()
 
 afterEach(async () => {
   await Promise.all([...owners].map(owner => owner.close({ deadlineMs: 1_000 })))
   owners.clear()
+  ownersByDirectory.clear()
 })
 
 function options(
@@ -70,13 +72,18 @@ function sourceOptions(options: TestOptions): LocalDiagnosticSourceOptions {
 }
 
 async function createLocalDiagnostics(options: TestOptions): Promise<LocalDiagnosticSourceResult> {
-  const directory = await createLocalDiagnosticsDirectory(directoryOptions(options))
-  if (directory.status === 'invalid') return directory
-  if (directory.status === 'unavailable') {
-    return Object.freeze({ status: 'unavailable', code: directory.code })
+  let owner = ownersByDirectory.get(options.directory)
+  if (owner === undefined) {
+    const directory = await createLocalDiagnosticsDirectory(directoryOptions(options))
+    if (directory.status === 'invalid') return directory
+    if (directory.status === 'unavailable') {
+      return Object.freeze({ status: 'unavailable', code: directory.code })
+    }
+    owner = directory.owner
+    owners.add(owner)
+    ownersByDirectory.set(options.directory, owner)
   }
-  owners.add(directory.owner)
-  return directory.owner.create(sourceOptions(options))
+  return owner.create(sourceOptions(options))
 }
 
 function identity(tenantId: string, userId: string): DiagnosticIdentity {

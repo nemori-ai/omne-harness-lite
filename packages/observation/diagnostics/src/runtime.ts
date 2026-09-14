@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto'
 import { once } from 'node:events'
-import { close as closeFd, fchmod, open as openFd } from 'node:fs'
-import { chmod, lstat, mkdir, open as openFile, opendir } from 'node:fs/promises'
+import { close as closeFd, constants, fchmod, fstat, open as openFd } from 'node:fs'
+import type { Dir } from 'node:fs'
+import { chmod, lstat, mkdir, open as openFile, opendir, realpath } from 'node:fs/promises'
 import type { FileHandle } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { isAbsolute, join } from 'node:path'
@@ -24,7 +25,6 @@ import type {
   DiagnosticDirectoryClose,
   DiagnosticDirectoryStatus,
   Diagnostics,
-  DiagnosticsDirectoryCleanup,
   DiagnosticsRuntime,
   DiagnosticSpan,
   DiagnosticStatus,
@@ -60,6 +60,15 @@ const diagnosticFile = /^diagnostic-(?:[0-9a-f]{16}-)?[0-9a-f]{16}\.jsonl$/u
 const SonicBoom = createRequire(import.meta.url)('sonic-boom') as new (
   options: SonicBoomOpts,
 ) => SonicBoomType
+const fsExt = createRequire(import.meta.url)('fs-ext') as Readonly<{
+  flock(
+    descriptor: number,
+    flags: 'exnb',
+    callback: (error: NodeJS.ErrnoException | null) => void,
+  ): void
+}>
+const lockFileName = '.diagnostics.lock'
+const scanRecordBytes = 8 * 1_024 + 1
 
 type InternalContext = Readonly<{
   identity: SafeIdentity
@@ -95,26 +104,24 @@ type StartupFailure = Readonly<{
   reason: 'retention_capacity' | 'write_unavailable'
 }>
 
-type RuntimeOptions = LocalDiagnosticSourceOptions & LocalDiagnosticsDirectoryOptions
+type RuntimeOptions = LocalDiagnosticSourceOptions & Readonly<{ directory: string }>
+
+type SourceBudget = Readonly<{
+  reserve(bytes: number): boolean
+  release(bytes: number): void
+  confirm(bytes: number): void
+  closing(): void
+  unknown(code: string): void
+  finalize(): Promise<boolean>
+}>
 
 class StartupCleanupFailure extends Error {
-  readonly descriptor: number
+  readonly cleanupUnknown: boolean
   readonly code: string | undefined
 
-  constructor(descriptor: number, cause: unknown) {
-    super('diagnostics source preparation failed and retained its descriptor')
-    this.descriptor = descriptor
-    this.code = systemErrorCode(cause)
-  }
-}
-
-class ScanCleanupFailure extends Error {
-  readonly handle: FileHandle
-  readonly code: string | undefined
-
-  constructor(handle: FileHandle, cause: unknown) {
-    super('diagnostics source scan failed and retained its file handle')
-    this.handle = handle
+  constructor(cause: unknown, cleanupUnknown: boolean) {
+    super('diagnostics source preparation failed')
+    this.cleanupUnknown = cleanupUnknown
     this.code = systemErrorCode(cause)
   }
 }
@@ -145,16 +152,12 @@ function validateOptions(options: RuntimeOptions): string | undefined {
     /[\u0000-\u001f\u007f]/u.test(options.sourceId)
   )
     return 'INVALID_SOURCE_ID'
-  if (typeof options.directory !== 'string' || !isAbsolute(options.directory))
-    return 'INVALID_DIRECTORY'
   if (!levels.has(options.level)) return 'INVALID_LEVEL'
   for (const key of [
     'maxRecordBytes',
     'maxActiveSpans',
     'maxBufferBytes',
     'maxFileBytes',
-    'maxDirectoryBytes',
-    'maxFiles',
   ] as const) {
     if (!validPositiveInteger(options[key]))
       return `INVALID_${key.replaceAll(/[A-Z]/g, value => `_${value}`).toUpperCase()}`
@@ -165,7 +168,6 @@ function validateOptions(options: RuntimeOptions): string | undefined {
   ) {
     return 'INVALID_RECORD_CAPACITY'
   }
-  if (options.maxFileBytes > options.maxDirectoryBytes) return 'INVALID_FILE_CAPACITY'
   return undefined
 }
 
@@ -233,11 +235,9 @@ class LocalRuntime implements DiagnosticsRuntime {
   private readonly configuredLevel: LocalDiagnosticSourceOptions['level']
   private readonly maxRecordBytes: number
   private readonly maxActiveSpans: number
-  private readonly maxSourceBytes: number
   private readonly idPrefix: string
   private readonly stream: SonicBoomType | null
-  private readonly descriptor: number | null
-  private readonly retainedHandles: FileHandle[]
+  private readonly budget: SourceBudget
   private readonly logger: pino.Logger | null
   private readonly manager = new AsyncLocalStorageContextManager().enable()
   private readonly contextKey = createContextKey('omne-harness-lite diagnostics context')
@@ -250,15 +250,14 @@ class LocalRuntime implements DiagnosticsRuntime {
   private idCounter = 0n
   private emissionSeq: bigint | null = null
   private closeTask: Promise<boolean> | undefined
-  private acceptedSourceBytes = 0
   private outputAvailable = true
   private retentionReached = false
   private streamClosed = false
   private streamCloseStarted = false
-  private closeRetryNeeded = false
+  private closeOutcomeUnknown = false
+  private budgetFinalized = false
   private providerClosed = false
   private closeMarkerAttempted = false
-  private cleanupDescriptorPending: boolean
   private gapRevision = 0n
   private reportedGapRevision = 0n
   private emittingGapSummary = false
@@ -268,17 +267,16 @@ class LocalRuntime implements DiagnosticsRuntime {
   constructor(
     options: RuntimeOptions,
     stream: SonicBoomType | null,
-    descriptor: number | null,
-    maxSourceBytes: number,
+    budget: SourceBudget,
     failure?: StartupFailure,
     crashUnknown = false,
-    retainedHandles: readonly FileHandle[] = [],
+    cleanupUnknown = false,
   ) {
     this.sourceId = options.sourceId
     this.configuredLevel = options.level
     this.maxRecordBytes = options.maxRecordBytes
     this.maxActiveSpans = options.maxActiveSpans
-    this.maxSourceBytes = maxSourceBytes
+    this.budget = budget
     this.idPrefix = createHash('sha256')
       .update(options.instanceId, 'utf8')
       .update('\0')
@@ -286,14 +284,11 @@ class LocalRuntime implements DiagnosticsRuntime {
       .digest('hex')
       .slice(0, 24)
     this.stream = stream
-    this.descriptor = descriptor
-    this.retainedHandles = [...retainedHandles]
-    this.cleanupDescriptorPending = stream === null && descriptor !== null
     if (stream === null) {
       this.logger = null
       this.phase = 'degraded'
-      this.resource =
-        descriptor === null && this.retainedHandles.length === 0 ? 'released' : 'unknown'
+      this.resource = cleanupUnknown ? 'unknown' : 'released'
+      this.closeOutcomeUnknown = cleanupUnknown
       this.writeFailed = true
       this.outputAvailable = false
       this.lastErrorCode = failure?.code ?? 'SOURCE_OPEN_FAILED'
@@ -311,7 +306,7 @@ class LocalRuntime implements DiagnosticsRuntime {
             this.addGap('write_unavailable', seq)
             return true
           }
-          if (this.retentionReached || this.acceptedSourceBytes + bytes > this.maxSourceBytes) {
+          if (this.retentionReached || !this.budget.reserve(bytes)) {
             this.retentionReached = true
             this.phase = this.phase === 'closing' ? 'closing' : 'degraded'
             this.lastErrorCode = 'RETENTION_CAPACITY'
@@ -329,11 +324,11 @@ class LocalRuntime implements DiagnosticsRuntime {
             const writable = stream.write(line)
             if (dropped) {
               this.pendingBytes -= bytes
+              this.budget.release(bytes)
               if (this.pendingBytes === 0) this.lastWriteProgressAt = null
               this.addGap('buffer_capacity', seq)
             } else {
               this.accepted += 1n
-              this.acceptedSourceBytes += bytes
               if (this.emittingGapSummary) this.gapSummaryAccepted = true
             }
             return writable
@@ -370,6 +365,7 @@ class LocalRuntime implements DiagnosticsRuntime {
       )
       stream.on('write', (bytes: number) => {
         this.writtenBytes += BigInt(bytes)
+        this.budget.confirm(bytes)
         this.pendingBytes = Math.max(0, this.pendingBytes - bytes)
         this.lastWriteProgressAt = this.pendingBytes === 0 ? null : performance.now()
       })
@@ -384,7 +380,8 @@ class LocalRuntime implements DiagnosticsRuntime {
         this.addGap('write_unavailable', null, 'unknown')
         if (this.streamCloseStarted) {
           this.resource = 'unknown'
-          this.closeRetryNeeded = true
+          this.closeOutcomeUnknown = true
+          this.budget.unknown('SOURCE_RELEASE_UNKNOWN')
           return
         }
         try {
@@ -392,15 +389,13 @@ class LocalRuntime implements DiagnosticsRuntime {
           stream.destroy()
         } catch {
           this.resource = 'unknown'
-          this.closeRetryNeeded = true
+          this.closeOutcomeUnknown = true
+          this.budget.unknown('SOURCE_RELEASE_UNKNOWN')
         }
       })
       stream.on('close', () => {
         this.streamClosed = true
-        this.closeRetryNeeded = false
         this.resource = 'released'
-        this.pendingBytes = 0
-        this.lastWriteProgressAt = null
       })
     }
     this.provider = new TracerProvider({
@@ -864,6 +859,7 @@ class LocalRuntime implements DiagnosticsRuntime {
     }
     if (this.phase === 'closed') return Object.freeze({ status: 'closed', state: this.inspect() })
     this.phase = 'closing'
+    this.budget.closing()
     if (this.closeTask === undefined) {
       const task = this.finishClose()
       this.closeTask = task
@@ -906,54 +902,19 @@ class LocalRuntime implements DiagnosticsRuntime {
       }
     }
     if (this.stream === null) {
-      if (this.resource === 'released') return true
-      if (this.cleanupDescriptorPending) {
-        if (this.descriptor === null) return false
-        try {
-          await closeDescriptor(this.descriptor)
-          this.cleanupDescriptorPending = false
-        } catch (error) {
-          this.lastErrorCode = systemErrorCode(error) ?? 'SOURCE_CLEANUP_FAILED'
-          this.resource = 'unknown'
-          return false
-        }
-      }
-      while (this.retainedHandles.length > 0) {
-        const handle = this.retainedHandles[0]!
-        try {
-          await handle.close()
-          this.retainedHandles.shift()
-        } catch (error) {
-          this.lastErrorCode = systemErrorCode(error) ?? 'SOURCE_SCAN_CLOSE_FAILED'
-          this.resource = 'unknown'
-          return false
-        }
-      }
-      this.resource = 'released'
-      return true
+      if (this.closeOutcomeUnknown || this.resource !== 'released') return false
+      return this.finalizeBudget()
     }
-    if (this.streamClosed || this.resource === 'released') return true
-    if (this.closeRetryNeeded) {
-      if (this.descriptor === null) return false
-      try {
-        await closeDescriptor(this.descriptor)
-        this.closeRetryNeeded = false
-        this.streamClosed = true
-        this.resource = 'released'
-        this.pendingBytes = 0
-        this.lastWriteProgressAt = null
-        return true
-      } catch (error) {
-        this.lastErrorCode = systemErrorCode(error) ?? 'SONIC_CLOSE_FAILED'
-        this.resource = 'unknown'
-        return false
-      }
-    }
+    if (this.streamClosed || this.resource === 'released') return this.finalizeBudget()
+    if (this.closeOutcomeUnknown) return false
     if (this.streamCloseStarted) {
       try {
         await once(this.stream, 'close')
-        return true
+        return this.finalizeBudget()
       } catch {
+        this.closeOutcomeUnknown = true
+        this.resource = 'unknown'
+        this.budget.unknown('SOURCE_RELEASE_UNKNOWN')
         return false
       }
     }
@@ -977,48 +938,117 @@ class LocalRuntime implements DiagnosticsRuntime {
       this.streamCloseStarted = true
       this.stream.end()
       await closed
-      return true
+      return this.finalizeBudget()
     } catch {
       this.writeFailed = true
       this.lastErrorCode ??= 'SONIC_CLOSE_FAILED'
+      this.closeOutcomeUnknown = true
+      this.resource = 'unknown'
+      this.budget.unknown('SOURCE_RELEASE_UNKNOWN')
+      return false
+    }
+  }
+
+  private async finalizeBudget(): Promise<boolean> {
+    if (this.budgetFinalized) return true
+    try {
+      if (!(await this.budget.finalize())) {
+        this.lastErrorCode = 'SOURCE_FINAL_STAT_FAILED'
+        return false
+      }
+      this.budgetFinalized = true
+      this.pendingBytes = 0
+      this.lastWriteProgressAt = null
+      return true
+    } catch {
+      this.lastErrorCode = 'SOURCE_FINAL_STAT_FAILED'
       return false
     }
   }
 }
 
-async function closeDescriptor(descriptor: number): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
-    closeFd(descriptor, error => {
-      if (error !== null) reject(error)
-      else resolve()
-    })
-  })
+type ScannedSource = Readonly<{
+  sourceId: string | null
+  clean: boolean
+}>
+
+type SourceEntry = {
+  sourceId: string | null
+  configKey: string | null
+  phase: 'preparing' | 'live' | 'closing' | 'retained'
+  chargedBytes: bigint
+  reservedBytes: bigint
+  resource: 'held' | 'released' | 'unknown'
+  materialized: boolean
+  path: string
+  device: bigint | null
+  inode: bigint | null
+  maxFileBytes: bigint
+  runtime: LocalRuntime | null
+  preparation: Promise<LocalDiagnosticSourceResult> | null
 }
 
-async function endedCleanly(path: string, size: number, maxRecordBytes: number): Promise<boolean> {
-  if (size === 0) return false
+class DirectoryFailure extends Error {
+  constructor(readonly code: string) {
+    super(code)
+  }
+}
+
+class ScanCleanupFailure extends Error {
+  readonly code: string | undefined
+
+  constructor(
+    readonly handle: Dir | FileHandle,
+    cause: unknown,
+  ) {
+    super('diagnostics scan cleanup result is unknown')
+    this.code = systemErrorCode(cause)
+  }
+}
+
+function validSourceId(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    value.length > 0 &&
+    Buffer.byteLength(value, 'utf8') <= 256 &&
+    !/[\u0000-\u001f\u007f]/u.test(value)
+  )
+}
+
+async function scanSource(path: string, size: number, name: string): Promise<ScannedSource> {
+  if (size === 0) return Object.freeze({ sourceId: null, clean: false })
   const handle = await openFile(path, 'r')
+  let sourceId: string | null = null
   let clean = false
   try {
-    const window = Math.min(size, maxRecordBytes + 1)
+    const window = Math.min(size, scanRecordBytes)
     const firstBuffer = Buffer.alloc(window)
     const firstRead = await handle.read(firstBuffer, 0, window, 0)
-    const firstLine = firstBuffer
-      .subarray(0, firstRead.bytesRead)
-      .toString('utf8')
-      .split('\n', 1)[0]
+    const firstText = firstBuffer.subarray(0, firstRead.bytesRead).toString('utf8')
+    const newline = firstText.indexOf('\n')
+    if (newline >= 0) {
+      const first = JSON.parse(firstText.slice(0, newline)) as Record<string, unknown>
+      if (
+        first.formatVersion === 'omne-diagnostic/1' &&
+        first.code === 'diagnostic.source_started' &&
+        validSourceId(first.sourceId) &&
+        name.endsWith(
+          `${createHash('sha256').update(first.sourceId, 'utf8').digest('hex').slice(0, 16)}.jsonl`,
+        )
+      ) {
+        sourceId = first.sourceId
+      }
+    }
     const tailBuffer = Buffer.alloc(window)
     const tailRead = await handle.read(tailBuffer, 0, window, Math.max(0, size - window))
-    const tail = tailBuffer.subarray(0, tailRead.bytesRead).toString('utf8').trimEnd()
-    const lastLine = tail.slice(tail.lastIndexOf('\n') + 1)
-    const first = JSON.parse(firstLine) as Record<string, unknown>
+    const tail = tailBuffer.subarray(0, tailRead.bytesRead).toString('utf8')
+    const completeTail = tail.endsWith('\n') ? tail.slice(0, -1) : ''
+    const lastLine = completeTail.slice(completeTail.lastIndexOf('\n') + 1)
     const last = JSON.parse(lastLine) as Record<string, unknown>
     clean =
-      first.formatVersion === 'omne-diagnostic/1' &&
-      first.code === 'diagnostic.source_started' &&
-      typeof first.sourceId === 'string' &&
+      sourceId !== null &&
       last.formatVersion === 'omne-diagnostic/1' &&
-      last.sourceId === first.sourceId &&
+      last.sourceId === sourceId &&
       last.code === 'diagnostic.source_closed'
   } catch {
     clean = false
@@ -1028,168 +1058,7 @@ async function endedCleanly(path: string, size: number, maxRecordBytes: number):
   } catch (error) {
     throw new ScanCleanupFailure(handle, error)
   }
-  return clean
-}
-
-type DirectoryPreparation = Readonly<{
-  maxSourceBytes: number
-  crashUnknown: boolean
-}>
-
-async function prepareDirectory(
-  directory: string,
-  options: RuntimeOptions,
-): Promise<DirectoryPreparation | null> {
-  let entries = 0
-  let bytes = 0
-  let crashUnknown = false
-  const handle = await opendir(directory)
-  try {
-    for await (const entry of handle) {
-      entries += 1
-      if (entries >= options.maxFiles) return null
-      try {
-        const metadata = await lstat(join(directory, entry.name))
-        bytes += metadata.size
-        if (
-          metadata.isFile() &&
-          diagnosticFile.test(entry.name) &&
-          !(await endedCleanly(join(directory, entry.name), metadata.size, options.maxRecordBytes))
-        ) {
-          crashUnknown = true
-        }
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue
-        throw error
-      }
-      if (bytes >= options.maxDirectoryBytes) return null
-    }
-  } finally {
-    await handle.close().catch(() => {})
-  }
-  const remaining = options.maxDirectoryBytes - bytes
-  return remaining >= options.maxRecordBytes
-    ? Object.freeze({ maxSourceBytes: Math.min(options.maxFileBytes, remaining), crashUnknown })
-    : null
-}
-
-function startupFailure(error: unknown): StartupFailure {
-  if (error instanceof ScanCleanupFailure) {
-    return Object.freeze({
-      code:
-        error.code === undefined ? 'SOURCE_SCAN_CLOSE_FAILED' : `SOURCE_SCAN_CLOSE_${error.code}`,
-      reason: 'write_unavailable',
-    })
-  }
-  const code = systemErrorCode(error)
-  if (code === 'EEXIST')
-    return Object.freeze({ code: 'SOURCE_EXISTS', reason: 'write_unavailable' })
-  if (code === 'ENOSPC' || code === 'EDQUOT') {
-    return Object.freeze({ code: 'RETENTION_CAPACITY', reason: 'retention_capacity' })
-  }
-  return Object.freeze({
-    code: code === undefined ? 'SOURCE_OPEN_FAILED' : `SOURCE_OPEN_${code}`,
-    reason: 'write_unavailable',
-  })
-}
-
-type OpenedStream = Readonly<{
-  stream: SonicBoomType
-  descriptor: number
-}>
-
-async function createStream(
-  path: string,
-  options: LocalDiagnosticSourceOptions,
-): Promise<OpenedStream> {
-  const descriptor = await new Promise<number>((resolve, reject) => {
-    openFd(path, 'wx', 0o600, (error, fd) => {
-      if (error !== null) reject(error)
-      else resolve(fd)
-    })
-  })
-  let transferred = false
-  try {
-    await new Promise<void>((resolve, reject) => {
-      fchmod(descriptor, 0o600, error => {
-        if (error !== null) reject(error)
-        else resolve()
-      })
-    })
-    const stream = new SonicBoom({
-      fd: descriptor,
-      sync: false,
-      minLength: 0,
-      maxLength: options.maxBufferBytes,
-      maxWrite: 16_384,
-      fsync: false,
-      retryEAGAIN: () => false,
-    })
-    transferred = true
-    await Promise.race([
-      once(stream, 'ready'),
-      once(stream, 'error').then(([error]) => Promise.reject(error)),
-    ])
-    return Object.freeze({ stream, descriptor })
-  } catch (error) {
-    if (!transferred) {
-      try {
-        await closeDescriptor(descriptor)
-      } catch {
-        throw new StartupCleanupFailure(descriptor, error)
-      }
-    }
-    throw error
-  }
-}
-
-async function createLocalDiagnostics(
-  options: RuntimeOptions,
-): Promise<LocalDiagnosticSourceResult> {
-  const invalid = validateOptions(options)
-  if (invalid !== undefined) return Object.freeze({ status: 'invalid', code: invalid })
-
-  try {
-    await mkdir(options.directory, { recursive: true, mode: 0o700 })
-    await chmod(options.directory, 0o700)
-    const preparation = await prepareDirectory(options.directory, options)
-    if (preparation === null) {
-      return Object.freeze({
-        status: 'created',
-        runtime: new LocalRuntime(options, null, null, 0, {
-          code: 'RETENTION_CAPACITY',
-          reason: 'retention_capacity',
-        }),
-      })
-    }
-    const opened = await createStream(join(options.directory, fileName(options)), options)
-    return Object.freeze({
-      status: 'created',
-      runtime: new LocalRuntime(
-        options,
-        opened.stream,
-        opened.descriptor,
-        preparation.maxSourceBytes,
-        undefined,
-        preparation.crashUnknown,
-      ),
-    })
-  } catch (error) {
-    const descriptor = error instanceof StartupCleanupFailure ? error.descriptor : null
-    const retainedHandles = error instanceof ScanCleanupFailure ? [error.handle] : []
-    return Object.freeze({
-      status: 'created',
-      runtime: new LocalRuntime(
-        options,
-        null,
-        descriptor,
-        0,
-        startupFailure(error),
-        false,
-        retainedHandles,
-      ),
-    })
-  }
+  return Object.freeze({ sourceId, clean })
 }
 
 function validateDirectoryOptions(options: LocalDiagnosticsDirectoryOptions): string | undefined {
@@ -1202,38 +1071,407 @@ function validateDirectoryOptions(options: LocalDiagnosticsDirectoryOptions): st
   return undefined
 }
 
-class UncoordinatedDirectoryOwner implements LocalDiagnosticsDirectory {
-  private readonly runtimes = new Set<DiagnosticsRuntime>()
-  private phase: DiagnosticDirectoryStatus['phase'] = 'active'
+function sourceConfigKey(options: LocalDiagnosticSourceOptions): string {
+  return JSON.stringify([
+    options.instanceId,
+    options.sourceId,
+    options.level,
+    options.maxRecordBytes,
+    options.maxActiveSpans,
+    options.maxBufferBytes,
+    options.maxFileBytes,
+  ])
+}
 
-  constructor(private readonly options: LocalDiagnosticsDirectoryOptions) {}
+function sourceFailure(error: unknown): StartupFailure {
+  const code = error instanceof StartupCleanupFailure ? error.code : systemErrorCode(error)
+  if (code === 'ENOSPC' || code === 'EDQUOT') {
+    return Object.freeze({ code: 'RETENTION_CAPACITY', reason: 'retention_capacity' })
+  }
+  return Object.freeze({
+    code: code === undefined ? 'SOURCE_OPEN_FAILED' : `SOURCE_OPEN_${code}`,
+    reason: 'write_unavailable',
+  })
+}
 
-  async create(options: LocalDiagnosticSourceOptions): Promise<LocalDiagnosticSourceResult> {
-    if (this.phase !== 'active') {
-      return Object.freeze({ status: 'unavailable', code: 'DIRECTORY_CLOSING' })
+async function closeRawDescriptor(descriptor: number): Promise<boolean> {
+  return new Promise(resolve => {
+    closeFd(descriptor, error => resolve(error === null))
+  })
+}
+
+async function sourceMetadata(descriptor: number): Promise<Readonly<{ dev: bigint; ino: bigint }>> {
+  return new Promise((resolve, reject) => {
+    fstat(descriptor, { bigint: true }, (error, stats) => {
+      if (error !== null) reject(error)
+      else resolve(Object.freeze({ dev: stats.dev, ino: stats.ino }))
+    })
+  })
+}
+
+async function createStream(
+  path: string,
+  options: LocalDiagnosticSourceOptions,
+  opened: (metadata: Readonly<{ dev: bigint; ino: bigint }>) => void,
+): Promise<SonicBoomType> {
+  const descriptor = await new Promise<number>((resolve, reject) => {
+    openFd(path, 'wx', 0o600, (error, fd) => {
+      if (error !== null) reject(error)
+      else resolve(fd)
+    })
+  })
+  let metadata: Readonly<{ dev: bigint; ino: bigint }>
+  try {
+    metadata = await sourceMetadata(descriptor)
+  } catch (error) {
+    const released = await closeRawDescriptor(descriptor)
+    throw new StartupCleanupFailure(error, !released)
+  }
+  opened(metadata)
+  try {
+    await new Promise<void>((resolve, reject) => {
+      fchmod(descriptor, 0o600, error => {
+        if (error !== null) reject(error)
+        else resolve()
+      })
+    })
+  } catch (error) {
+    const released = await closeRawDescriptor(descriptor)
+    throw new StartupCleanupFailure(error, !released)
+  }
+  return new SonicBoom({
+    fd: descriptor,
+    sync: false,
+    minLength: 0,
+    maxLength: options.maxBufferBytes,
+    maxWrite: 16_384,
+    fsync: false,
+    retryEAGAIN: () => false,
+  })
+}
+
+async function flockExclusive(descriptor: number): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    fsExt.flock(descriptor, 'exnb', error => {
+      if (error !== null) reject(error)
+      else resolve()
+    })
+  })
+}
+
+class DirectoryOwner implements LocalDiagnosticsDirectory {
+  private phase: DiagnosticDirectoryStatus['phase'] = 'preparing'
+  private scan: DiagnosticDirectoryStatus['scan'] = 'incomplete'
+  private lock: DiagnosticDirectoryStatus['lock'] = 'released'
+  private lockResource: 'held' | 'released' | 'unknown' = 'held'
+  private lastErrorCode: string | null = null
+  private chargedBytes = 0n
+  private reservedBytes = 0n
+  private crashUnknown = false
+  private scanCleanupUnknown = false
+  private lockCloseTask: Promise<boolean> | null = null
+  private readonly sources: SourceEntry[] = []
+
+  constructor(
+    private readonly options: LocalDiagnosticsDirectoryOptions,
+    private readonly directory: string,
+    private lockHandle: FileHandle | null,
+  ) {}
+
+  acquiredLock(): void {
+    this.lock = 'held'
+  }
+
+  fail(code: string): void {
+    this.lastErrorCode = code
+    if (this.phase !== 'closing' && this.phase !== 'closed') this.phase = 'failed'
+  }
+
+  markScanCleanupUnknown(error: ScanCleanupFailure): void {
+    this.scanCleanupUnknown = true
+    this.fail(error.code === undefined ? 'SCAN_RELEASE_UNKNOWN' : `SCAN_RELEASE_${error.code}`)
+  }
+
+  async scanDirectory(): Promise<void> {
+    const directoryHandle = await opendir(this.directory)
+    try {
+      for (;;) {
+        const entry = await directoryHandle.read()
+        if (entry === null) break
+        if (entry.name === lockFileName) continue
+        if (!diagnosticFile.test(entry.name)) throw new DirectoryFailure('UNKNOWN_DIRECTORY_ENTRY')
+        const path = join(this.directory, entry.name)
+        const metadata = await lstat(path, { bigint: true })
+        if (!metadata.isFile()) throw new DirectoryFailure('INVALID_SOURCE_FILE')
+        if (this.sources.length >= this.options.maxFiles) {
+          throw new DirectoryFailure('DIRECTORY_FILE_CAPACITY')
+        }
+        const size = metadata.size
+        if (this.chargedBytes + size > BigInt(this.options.maxDirectoryBytes)) {
+          throw new DirectoryFailure('DIRECTORY_BYTE_CAPACITY')
+        }
+        const scanned = await scanSource(path, Number(size), entry.name)
+        if (
+          scanned.sourceId !== null &&
+          this.sources.some(candidate => candidate.sourceId === scanned.sourceId)
+        ) {
+          throw new DirectoryFailure('DUPLICATE_SOURCE')
+        }
+        this.chargedBytes += size
+        this.sources.push({
+          sourceId: scanned.sourceId,
+          configKey: null,
+          phase: 'retained',
+          chargedBytes: size,
+          reservedBytes: 0n,
+          resource: 'released',
+          materialized: true,
+          path,
+          device: metadata.dev,
+          inode: metadata.ino,
+          maxFileBytes: size,
+          runtime: null,
+          preparation: null,
+        })
+        if (!scanned.clean) this.crashUnknown = true
+      }
+      try {
+        await directoryHandle.close()
+      } catch (error) {
+        throw new ScanCleanupFailure(directoryHandle, error)
+      }
+    } catch (error) {
+      if (!(error instanceof ScanCleanupFailure)) {
+        try {
+          await directoryHandle.close()
+        } catch (closeError) {
+          throw new ScanCleanupFailure(directoryHandle, closeError)
+        }
+      }
+      throw error
     }
-    const result = await createLocalDiagnostics({ ...this.options, ...options })
-    if (result.status === 'created') this.runtimes.add(result.runtime)
-    return result
+    this.scan = 'complete'
+    this.phase = 'active'
+  }
+
+  create(options: LocalDiagnosticSourceOptions): Promise<LocalDiagnosticSourceResult> {
+    const runtimeOptions = { ...options, directory: this.directory }
+    const invalid = validateOptions(runtimeOptions)
+    if (invalid !== undefined)
+      return Promise.resolve(Object.freeze({ status: 'invalid', code: invalid }))
+    if (options.maxFileBytes > this.options.maxDirectoryBytes) {
+      return Promise.resolve(Object.freeze({ status: 'invalid', code: 'INVALID_FILE_CAPACITY' }))
+    }
+    if (this.phase !== 'active') {
+      return Promise.resolve(
+        Object.freeze({
+          status: 'unavailable',
+          code:
+            this.phase === 'closing' || this.phase === 'closed'
+              ? 'DIRECTORY_CLOSING'
+              : 'DIRECTORY_FAILED',
+        }),
+      )
+    }
+    const key = sourceConfigKey(options)
+    const existing = this.sources.find(entry => entry.sourceId === options.sourceId)
+    if (existing !== undefined) {
+      if (existing.configKey === null) {
+        return Promise.resolve(Object.freeze({ status: 'unavailable', code: 'SOURCE_EXISTS' }))
+      }
+      if (existing.configKey !== key) {
+        return Promise.resolve(Object.freeze({ status: 'unavailable', code: 'SOURCE_CONFLICT' }))
+      }
+      if (existing.preparation !== null) return existing.preparation
+      if (existing.runtime !== null) {
+        return Promise.resolve(Object.freeze({ status: 'created', runtime: existing.runtime }))
+      }
+    }
+    const materializedFiles = this.sources.filter(entry => entry.materialized).length
+    const reservedFiles = this.sources.length - materializedFiles
+    if (materializedFiles + reservedFiles >= this.options.maxFiles) {
+      return Promise.resolve(Object.freeze({ status: 'unavailable', code: 'RETENTION_CAPACITY' }))
+    }
+    const entry: SourceEntry = {
+      sourceId: options.sourceId,
+      configKey: key,
+      phase: 'preparing',
+      chargedBytes: 0n,
+      reservedBytes: 0n,
+      resource: 'held',
+      materialized: false,
+      path: join(this.directory, fileName(options)),
+      device: null,
+      inode: null,
+      maxFileBytes: BigInt(options.maxFileBytes),
+      runtime: null,
+      preparation: null,
+    }
+    this.sources.push(entry)
+    const preparation = this.prepareSource(entry, runtimeOptions)
+    entry.preparation = preparation
+    return preparation
+  }
+
+  private async prepareSource(
+    entry: SourceEntry,
+    options: RuntimeOptions,
+  ): Promise<LocalDiagnosticSourceResult> {
+    const budget = this.sourceBudget(entry)
+    try {
+      const stream = await createStream(entry.path, options, metadata => {
+        entry.materialized = true
+        entry.device = metadata.dev
+        entry.inode = metadata.ino
+      })
+      entry.phase = 'live'
+      const runtime = new LocalRuntime(options, stream, budget, undefined, this.crashUnknown)
+      entry.runtime = runtime
+      entry.preparation = null
+      return Object.freeze({ status: 'created', runtime })
+    } catch (error) {
+      if (!entry.materialized) {
+        this.sources.splice(this.sources.indexOf(entry), 1)
+        const code = systemErrorCode(error)
+        if (code === 'EEXIST') {
+          this.fail('SOURCE_COLLISION')
+          return Object.freeze({ status: 'unavailable', code: 'SOURCE_EXISTS' })
+        }
+        return Object.freeze({
+          status: 'unavailable',
+          code: code === undefined ? 'SOURCE_OPEN_FAILED' : `SOURCE_OPEN_${code}`,
+        })
+      }
+      const cleanupUnknown = error instanceof StartupCleanupFailure && error.cleanupUnknown
+      entry.phase = cleanupUnknown ? 'closing' : 'retained'
+      entry.resource = cleanupUnknown ? 'unknown' : 'released'
+      if (cleanupUnknown) this.fail('SOURCE_RELEASE_UNKNOWN')
+      const runtime = new LocalRuntime(
+        options,
+        null,
+        budget,
+        sourceFailure(error),
+        false,
+        cleanupUnknown,
+      )
+      entry.runtime = runtime
+      entry.preparation = null
+      return Object.freeze({ status: 'created', runtime })
+    }
+  }
+
+  private sourceBudget(entry: SourceEntry): SourceBudget {
+    return Object.freeze({
+      reserve: (bytes: number): boolean => {
+        if (entry.resource !== 'held' || entry.phase === 'retained') return false
+        const amount = BigInt(bytes)
+        if (
+          entry.chargedBytes + amount > entry.maxFileBytes ||
+          this.chargedBytes + amount > BigInt(this.options.maxDirectoryBytes)
+        ) {
+          return false
+        }
+        entry.chargedBytes += amount
+        entry.reservedBytes += amount
+        this.chargedBytes += amount
+        this.reservedBytes += amount
+        return true
+      },
+      release: (bytes: number): void => {
+        const amount = BigInt(bytes)
+        const released = amount > entry.reservedBytes ? entry.reservedBytes : amount
+        entry.reservedBytes -= released
+        entry.chargedBytes -= released
+        this.reservedBytes -= released
+        this.chargedBytes -= released
+      },
+      confirm: (bytes: number): void => {
+        const amount = BigInt(bytes)
+        const confirmed = amount > entry.reservedBytes ? entry.reservedBytes : amount
+        entry.reservedBytes -= confirmed
+        this.reservedBytes -= confirmed
+      },
+      closing: (): void => {
+        if (entry.phase === 'live') entry.phase = 'closing'
+      },
+      unknown: (code: string): void => {
+        entry.resource = 'unknown'
+        this.fail(code)
+      },
+      finalize: async (): Promise<boolean> => this.finalizeSource(entry),
+    })
+  }
+
+  private async finalizeSource(entry: SourceEntry): Promise<boolean> {
+    if (!entry.materialized) return entry.resource === 'released'
+    if (entry.resource === 'unknown') return false
+    let metadata: Awaited<ReturnType<typeof lstat>>
+    try {
+      metadata = await lstat(entry.path, { bigint: true })
+    } catch (error) {
+      this.lastErrorCode = systemErrorCode(error) ?? 'SOURCE_FINAL_STAT_FAILED'
+      return false
+    }
+    if (
+      !metadata.isFile() ||
+      entry.device === null ||
+      entry.inode === null ||
+      metadata.dev !== entry.device ||
+      metadata.ino !== entry.inode
+    ) {
+      entry.resource = 'unknown'
+      this.fail('SOURCE_IDENTITY_CHANGED')
+      return false
+    }
+    const previous = entry.chargedBytes
+    const previousReserved = entry.reservedBytes
+    entry.chargedBytes = metadata.size
+    entry.reservedBytes = 0n
+    entry.resource = 'released'
+    entry.phase = 'retained'
+    this.chargedBytes += metadata.size - previous
+    this.reservedBytes -= previousReserved
+    if (
+      metadata.size > entry.maxFileBytes ||
+      this.chargedBytes > BigInt(this.options.maxDirectoryBytes)
+    ) {
+      this.fail('RETENTION_CAPACITY')
+    }
+    return true
   }
 
   inspect(): DiagnosticDirectoryStatus {
-    const resources = [...this.runtimes].map(runtime => runtime.inspect())
+    const materializedFiles = this.sources.filter(entry => entry.materialized).length
+    const reservedFiles = this.sources.length - materializedFiles
+    const resource =
+      this.lockResource === 'unknown' ||
+      this.scanCleanupUnknown ||
+      this.sources.some(entry => entry.resource === 'unknown')
+        ? 'unknown'
+        : this.phase === 'closed' && this.lockResource === 'released'
+          ? 'released'
+          : 'held'
     return Object.freeze({
       phase: this.phase,
-      lock: this.phase === 'closed' ? 'released' : 'held',
-      scan: 'complete',
-      chargedBytes: resources
-        .reduce((total, state) => total + BigInt(state.writtenBytes), 0n)
-        .toString(),
-      reservedBytes: resources
-        .reduce((total, state) => total + BigInt(state.pendingBytes), 0n)
-        .toString(),
-      materializedFiles: resources.filter(state => state.resource !== 'released').length,
-      reservedFiles: 0,
-      sources: Object.freeze([]),
-      lastErrorCode: null,
-      resource: this.phase === 'closed' ? 'released' : 'held',
+      lock: this.lock,
+      scan: this.scan,
+      chargedBytes: this.scan === 'complete' ? String(this.chargedBytes) : null,
+      reservedBytes: String(this.reservedBytes),
+      materializedFiles,
+      reservedFiles,
+      sources: Object.freeze(
+        this.sources.map(entry =>
+          Object.freeze({
+            sourceId: entry.sourceId,
+            phase: entry.phase,
+            chargedBytes: String(entry.chargedBytes),
+            reservedBytes: String(entry.reservedBytes),
+            resource: entry.resource,
+          }),
+        ),
+      ),
+      lastErrorCode: this.lastErrorCode,
+      resource,
     })
   }
 
@@ -1241,16 +1479,89 @@ class UncoordinatedDirectoryOwner implements LocalDiagnosticsDirectory {
     if (!validPositiveInteger(options.deadlineMs)) {
       return Object.freeze({ status: 'blocked', state: this.inspect() })
     }
-    this.phase = 'closing'
-    const results = await Promise.all(
-      [...this.runtimes].map(runtime => runtime.close({ deadlineMs: options.deadlineMs })),
+    if (this.phase === 'closed') return Object.freeze({ status: 'closed', state: this.inspect() })
+    if (this.phase !== 'closing') this.phase = 'closing'
+    const deadline = performance.now() + options.deadlineMs
+    const preparing = this.sources.flatMap(entry =>
+      entry.preparation === null ? [] : [entry.preparation],
     )
-    if (results.some(result => result.status !== 'closed')) {
+    if (
+      !(await settleBefore(
+        Promise.all(preparing).then(() => true),
+        deadline,
+      ))
+    ) {
       return Object.freeze({ status: 'blocked', state: this.inspect() })
     }
-    this.phase = 'closed'
-    return Object.freeze({ status: 'closed', state: this.inspect() })
+    for (const entry of this.sources) {
+      if (entry.runtime === null) continue
+      const remaining = Math.floor(deadline - performance.now())
+      if (remaining <= 0) return Object.freeze({ status: 'blocked', state: this.inspect() })
+      const result = await entry.runtime.close({ deadlineMs: remaining })
+      if (result.status !== 'closed') {
+        return Object.freeze({ status: 'blocked', state: this.inspect() })
+      }
+    }
+    if (this.scanCleanupUnknown || this.sources.some(entry => entry.resource !== 'released')) {
+      return Object.freeze({ status: 'blocked', state: this.inspect() })
+    }
+    if (this.lockHandle === null) {
+      if (this.lockResource === 'released') {
+        this.phase = 'closed'
+        return Object.freeze({ status: 'closed', state: this.inspect() })
+      }
+      return Object.freeze({ status: 'blocked', state: this.inspect() })
+    }
+    if (this.lockCloseTask === null) {
+      const handle = this.lockHandle
+      this.lockHandle = null
+      this.lockCloseTask = handle.close().then(
+        () => {
+          this.lock = 'released'
+          this.lockResource = 'released'
+          return true
+        },
+        error => {
+          this.lock = this.lock === 'held' ? 'unknown' : 'released'
+          this.lockResource = 'unknown'
+          this.lastErrorCode = systemErrorCode(error) ?? 'RELEASE_UNKNOWN'
+          return false
+        },
+      )
+    }
+    const released = await settleBefore(this.lockCloseTask, deadline)
+    if (released) {
+      this.phase = 'closed'
+      return Object.freeze({ status: 'closed', state: this.inspect() })
+    }
+    return Object.freeze({ status: 'blocked', state: this.inspect() })
   }
+}
+
+async function settleBefore(task: Promise<boolean>, deadline: number): Promise<boolean> {
+  const remaining = Math.max(0, deadline - performance.now())
+  let timer: NodeJS.Timeout | undefined
+  const result = await Promise.race([
+    task,
+    new Promise<false>(resolve => {
+      timer = setTimeout(() => resolve(false), remaining)
+    }),
+  ])
+  if (timer !== undefined) clearTimeout(timer)
+  return result
+}
+
+async function closeFailedFactory(
+  owner: DirectoryOwner,
+  code: string,
+): Promise<LocalDiagnosticsDirectoryResult> {
+  owner.fail(code)
+  const closed = await owner.close({ deadlineMs: 1_000 })
+  return Object.freeze({
+    status: 'unavailable',
+    code,
+    cleanup: closed.status === 'closed' ? null : owner,
+  })
 }
 
 export async function createLocalDiagnosticsDirectory(
@@ -1258,13 +1569,11 @@ export async function createLocalDiagnosticsDirectory(
 ): Promise<LocalDiagnosticsDirectoryResult> {
   const invalid = validateDirectoryOptions(options)
   if (invalid !== undefined) return Object.freeze({ status: 'invalid', code: invalid })
+  let directory: string
   try {
     await mkdir(options.directory, { recursive: true, mode: 0o700 })
     await chmod(options.directory, 0o700)
-    return Object.freeze({
-      status: 'created',
-      owner: new UncoordinatedDirectoryOwner(options),
-    })
+    directory = await realpath(options.directory)
   } catch (error) {
     return Object.freeze({
       status: 'unavailable',
@@ -1272,4 +1581,80 @@ export async function createLocalDiagnosticsDirectory(
       cleanup: null,
     })
   }
+  const lockPath = join(directory, lockFileName)
+  try {
+    const existing = await lstat(lockPath, { bigint: true }).catch(error => {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null
+      throw error
+    })
+    if (existing !== null && (!existing.isFile() || existing.isSymbolicLink())) {
+      return Object.freeze({ status: 'unavailable', code: 'INVALID_LOCK_FILE', cleanup: null })
+    }
+  } catch (error) {
+    return Object.freeze({
+      status: 'unavailable',
+      code: systemErrorCode(error) ?? 'LOCK_INSPECT_FAILED',
+      cleanup: null,
+    })
+  }
+  let lockHandle: FileHandle
+  try {
+    lockHandle = await openFile(
+      lockPath,
+      constants.O_RDWR | constants.O_CREAT | constants.O_NOFOLLOW,
+      0o600,
+    )
+  } catch (error) {
+    return Object.freeze({
+      status: 'unavailable',
+      code: systemErrorCode(error) ?? 'LOCK_OPEN_FAILED',
+      cleanup: null,
+    })
+  }
+  const owner = new DirectoryOwner(options, directory, lockHandle)
+  try {
+    await lockHandle.chmod(0o600)
+    const [opened, linked] = await Promise.all([
+      lockHandle.stat({ bigint: true }),
+      lstat(lockPath, { bigint: true }),
+    ])
+    if (
+      !opened.isFile() ||
+      !linked.isFile() ||
+      linked.isSymbolicLink() ||
+      opened.size !== 0n ||
+      linked.size !== 0n ||
+      opened.dev !== linked.dev ||
+      opened.ino !== linked.ino
+    ) {
+      return closeFailedFactory(owner, 'INVALID_LOCK_FILE')
+    }
+    await flockExclusive(lockHandle.fd)
+    owner.acquiredLock()
+    const linkedAfterLock = await lstat(lockPath, { bigint: true })
+    if (
+      !linkedAfterLock.isFile() ||
+      linkedAfterLock.isSymbolicLink() ||
+      linkedAfterLock.size !== 0n ||
+      linkedAfterLock.dev !== opened.dev ||
+      linkedAfterLock.ino !== opened.ino
+    ) {
+      return closeFailedFactory(owner, 'LOCK_IDENTITY_CHANGED')
+    }
+  } catch (error) {
+    const code = systemErrorCode(error)
+    return closeFailedFactory(
+      owner,
+      code === 'EAGAIN' || code === 'EBUSY' ? 'DIRECTORY_BUSY' : (code ?? 'LOCK_FAILED'),
+    )
+  }
+  try {
+    await owner.scanDirectory()
+  } catch (error) {
+    if (error instanceof ScanCleanupFailure) owner.markScanCleanupUnknown(error)
+    const code =
+      error instanceof DirectoryFailure ? error.code : (systemErrorCode(error) ?? 'SCAN_FAILED')
+    return closeFailedFactory(owner, code)
+  }
+  return Object.freeze({ status: 'created', owner })
 }

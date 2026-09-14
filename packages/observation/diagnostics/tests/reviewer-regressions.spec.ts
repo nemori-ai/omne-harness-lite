@@ -25,6 +25,7 @@ type FlexibleCall = (...args: unknown[]) => unknown
 const execFileAsync = promisify(execFile)
 type TestOptions = LocalDiagnosticsDirectoryOptions & LocalDiagnosticSourceOptions
 const owners = new Set<LocalDiagnosticsDirectory>()
+const ownersByDirectory = new Map<string, LocalDiagnosticsDirectory>()
 
 beforeAll(async () => {
   await mkdir(scratchRoot, { recursive: true })
@@ -33,6 +34,7 @@ beforeAll(async () => {
 afterEach(async () => {
   await Promise.all([...owners].map(owner => owner.close({ deadlineMs: 1_000 })))
   owners.clear()
+  ownersByDirectory.clear()
 })
 
 function options(
@@ -76,13 +78,18 @@ function sourceOptions(options: TestOptions): LocalDiagnosticSourceOptions {
 }
 
 async function createLocalDiagnostics(options: TestOptions): Promise<LocalDiagnosticSourceResult> {
-  const directory = await createLocalDiagnosticsDirectory(directoryOptions(options))
-  if (directory.status === 'invalid') return directory
-  if (directory.status === 'unavailable') {
-    return Object.freeze({ status: 'unavailable', code: directory.code })
+  let owner = ownersByDirectory.get(options.directory)
+  if (owner === undefined) {
+    const directory = await createLocalDiagnosticsDirectory(directoryOptions(options))
+    if (directory.status === 'invalid') return directory
+    if (directory.status === 'unavailable') {
+      return Object.freeze({ status: 'unavailable', code: directory.code })
+    }
+    owner = directory.owner
+    owners.add(owner)
+    ownersByDirectory.set(options.directory, owner)
   }
-  owners.add(directory.owner)
-  return directory.owner.create(sourceOptions(options))
+  return owner.create(sourceOptions(options))
 }
 
 async function records(directory: string): Promise<readonly Record<string, unknown>[]> {
@@ -663,10 +670,7 @@ describe('D1-R1 shared directory budgets', () => {
     const opened = new Promise<void>(resolveOpened => {
       vi.spyOn(nodeFs, 'open').mockImplementation(((...args: unknown[]) => {
         pendingOpens.push(args)
-        if (pendingOpens.length === 2) {
-          for (const pending of pendingOpens) originalOpen(...pending)
-          resolveOpened()
-        }
+        resolveOpened()
         return undefined
       }) as typeof nodeFs.open)
     })
@@ -674,32 +678,33 @@ describe('D1-R1 shared directory budgets', () => {
 
     let runtimes: DiagnosticsRuntime[] = []
     try {
-      const creations = await Promise.all([
-        ownerCreation.owner.create(
-          sourceOptions(
-            options(directory, 'source-r1-concurrent-a', {
-              maxFiles: 1,
-            }),
-          ),
+      const first = ownerCreation.owner.create(
+        sourceOptions(
+          options(directory, 'source-r1-concurrent-a', {
+            maxFiles: 1,
+          }),
         ),
-        ownerCreation.owner.create(
-          sourceOptions(
-            options(directory, 'source-r1-concurrent-b', {
-              maxFiles: 1,
-            }),
-          ),
+      )
+      await opened
+      const second = ownerCreation.owner.create(
+        sourceOptions(
+          options(directory, 'source-r1-concurrent-b', {
+            maxFiles: 1,
+          }),
         ),
-        opened,
-      ])
-      runtimes = creations
-        .slice(0, 2)
-        .flatMap(result =>
-          result !== undefined && 'status' in result && result.status === 'created'
-            ? [result.runtime]
-            : [],
-        )
-      expect(runtimes).toHaveLength(2)
-      expect(runtimes.every(subject => subject.inspect().resource === 'held')).toBe(true)
+      )
+      expect(pendingOpens).toHaveLength(1)
+      for (const pending of pendingOpens) originalOpen(...pending)
+      const creations = await Promise.all([first, second])
+      runtimes = creations.flatMap(result => (result.status === 'created' ? [result.runtime] : []))
+      expect(creations).toContainEqual(
+        expect.objectContaining({
+          status: 'unavailable',
+          code: 'RETENTION_CAPACITY',
+        }),
+      )
+      expect(runtimes).toHaveLength(1)
+      expect(runtimes[0]?.inspect().resource).toBe('held')
       expect(
         (await readdir(directory)).filter(file => file.startsWith('diagnostic-')),
       ).toHaveLength(1)
