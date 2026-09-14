@@ -275,10 +275,11 @@ describe('durable JSONL provider', () => {
 
       const conflictRef = { ...operation, operationId: 'conflicting-operation' }
       const conflictInput = { ...input, arguments: { title: 'conflict' } }
+      const originalConflictExpectedRevision = '2'
       const conflicting = await submit(
         conflictRef,
         conflictInput,
-        '3',
+        originalConflictExpectedRevision,
         [{ kind: 'session.renamed', version: '1', data: { title: 'conflict' } }],
         { value: 'never-applied' },
       )
@@ -320,10 +321,13 @@ describe('durable JSONL provider', () => {
       expect(advanceSubmission.status).toBe('pending_durability')
       if (advanceSubmission.status !== 'pending_durability') return
       await advanceSubmission.completion
-      expect(writer.commit(conflicting.prepared)).toEqual(conflictResult)
 
       const head = await writer.readHead([stream])
-      expect(head).toMatchObject({ status: 'read', value: { streams: [{ revision: '2' }] } })
+      expect(head).toMatchObject({
+        status: 'read',
+        value: { streams: [{ revision: originalConflictExpectedRevision }] },
+      })
+      expect(writer.commit(conflicting.prepared)).toEqual(conflictResult)
       if (head.status !== 'read') return
       const range = await writer.readRange({
         afterSeq: '1',
