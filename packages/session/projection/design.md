@@ -6,8 +6,8 @@
 保留历史与证据。
 
 采用 [SR v1](../../../spec/capabilities/session-run/v1/contract.md) SR-13 及
-[Session 接口](../../../docs/proposals/core-capabilities/implementation/session-runtime-interfaces.md)
-`cd16f1` 的状态贡献/投影约定。长期事实、业务授权与可写 Run 归
+[Session 当前设计](../session/design.md#状态贡献投影和可观测性)中的
+状态贡献/投影约定，原采用来源为 `cd16f1`。长期事实、业务授权与可写 Run 归
 [Session](../session/design.md)，本包只拥有可重建的列表/历史/队列/运行视图。
 
 ## 提供与装载效应
