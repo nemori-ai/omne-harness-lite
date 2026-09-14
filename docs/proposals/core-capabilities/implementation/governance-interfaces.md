@@ -1,7 +1,8 @@
-# P2 租户、授权与预算施工接口候选
+# P2 租户、授权与预算施工接口
 
-本稿状态为 **proposed，待独立架构评审与主调度接受**。它是 P2 三个治理 owner 的
-一份施工输入，不是正式规格、产品 API 已发布声明或 P2 完成记录。只开放本批
+本稿经独立架构复核及 HUB 设计探针复验，**已接受为 P2 施工输入**，接受对象为
+`058c77c`，范围与证据见[交付对账](delivery.md#p2-治理施工输入)。它不是正式规格、
+产品 API 已发布声明或 P2 完成记录。只开放本批
 TG-01/02/04/05、AU-01–06、BG-01–04；租户关闭清算、外部订阅/额度/账单、专属
 账号/设备同意、暂行批准和分布式实施均不在本稿施工范围。
 
@@ -24,9 +25,10 @@ TG-01/02/04/05、AU-01–06、BG-01–04；租户关闭清算、外部订阅/额
 [PF-019.C2–C7](../../../requirements/product/user/PF-019-tenant-subscription-usage-billing-and-budget.md#已确认要求)
 及 SYS-TENANT/SYS-OBSERVABILITY；范围限制仍归 scope，不将局部通过映射成完整 PF 交付。
 
-以下标为“候选”的字段、事件名、分包接口与算法是本次实施选择。正式 v1 没有
+以下字段、事件名、分包接口与算法是本次接受的实施选择；局部保留的“候选”表示
+尚须由真实实现兑现的接口记法，不表示已经发布产品 API。正式 v1 没有
 给出的权限词汇、认证证据与资源事实，不从历史候选或 fork baseline 补造。
-当前 records 仅在开发端口/codec，真实 writer/admission 尚未交付；本稿的所有
+当前 records 端口/codec 已由 HUB `0e80245` 接受，真实 writer/admission 尚未交付；本稿的所有
 P1 组合门均待实际执行。业务 owner 的观测注入消费上表 D-010 的受限 Diagnostics；
 records/work-data 不引入诊断依赖，jsonl/admission factory 必须注入它。P2 原生
 Cordis bridge 与 P3 查询仍有独立验证门，不从 D-010 接受推导它们已交付。

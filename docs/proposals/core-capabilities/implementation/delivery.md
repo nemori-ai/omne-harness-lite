@@ -20,8 +20,8 @@ P0 共享接口、原生锁前提、检查器、work-data 与 records 已经评�
 | 任务 | 状态 | 实现/验收证据 | 下一项输入 |
 |---|---|---|---|
 | P0 | accepted | 锁前提、共享接口、检查器、work-data/records；HUB 已验证两个目标包与 16 包产物 | 提供 P1 的真实共享端口/codec 和锁测量依据，尚非真实 writer |
-| P1 | planned | 观测设施 D-010 施工输入已接受，产品未实现 | P0 真实 records 与 diagnostics D1 交付，再并行实现 jsonl/admission |
-| P2 | planned | 未执行 | P1 的真实共同门与记录提供者；交付本地预算 owner |
+| P1 | in_progress | D-010 施工输入已接受，diagnostics 正在 TDD 实施；真实 writer/准入未实现 | diagnostics D1 交付，再并行实现 jsonl/admission |
+| P2 | design_in_progress | 治理施工输入已接受；AR/SR 稿已交付候选并进入独立评审，产品尚未实施 | P1 的真实共同门与记录提供者；交付本地预算 owner |
 | P3 / M1 | planned | 未执行 | P2 当前权限/真实预算/Session/活体，以及 P1 执行账本前提 |
 | P4 | planned | 未执行；用户已指定凭据入口与两个测试模型 | M1 组合、实际路由/价格和受限冒烟配置；离线部分可按依赖提前 |
 | P5 / M2 | planned | 未执行 | 最终组合版本及全部本批验收证据 |
@@ -45,8 +45,9 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 | P0 真实锁探针（accepted） | infrastructure-developer，`/root/p0_lock_probe`，已结束 | `dsh-p0-lock-probe`，已退役 | `f712e025` 经 `04b8dbf` 整合，HUB 全新目录实际复验通过；范围及限制见下文 |
 | P0 包检查器（accepted） | verification-developer，`/root/p0_package_checks`；复核 `/root/review_package_layout`，本任务均已结束 | `dsh-p0-package-checks`，已退役 | `33a57a2` 的 K1–K3 闭合，`d95052c` 整合及 HUB 构建/13 项测试/14 独立与组合产物通过 |
 | P0 work-data 实现（accepted） | kernel-developer，`/root/p0_work_data`；定点复核 `/root/review_first_batch`，本任务均已结束 | `dsh-p0-work-data`，已退役 | `18cad69` 经 `6e7f213` 整合，`728d665` 锁定依赖；D1/D2 闭合，HUB 91 项测试与 15 包产物通过 |
-| P0 records 实现（accepted） | infrastructure-developer，`/root/p0_records`；独立复核 `/root/review_first_batch`，本任务均已结束 | `dsh-p0-records`，待资产核对后退役 | `1a237da`/`c67eb4d` 经 `bbb4a3e` 整合、`c1783fd` 锁定；HUB 17 项测试及 16 包产物通过 |
-| Agent/Session 施工接口设计 | `/root/session_runtime_design` | `dsh-session-runtime-design`，从 `de39a86` 创建 | 只写 AR/SR 施工稿与探针；独立评审后固定，产品依赖仍须真实就绪 |
+| P0 records 实现（accepted） | infrastructure-developer，`/root/p0_records`；独立复核 `/root/review_first_batch`，本任务均已结束 | `dsh-p0-records`，已退役 | `1a237da`/`c67eb4d` 经 `bbb4a3e` 整合、`c1783fd` 锁定；HUB 17 项测试及 16 包产物通过；独有资产与执行输出已保全 |
+| diagnostics D1 实现 | infrastructure-developer，`/root/diagnostics` | `dsh-diagnostics`，从 `0e80245` 创建 | 消费真实 work-data/records；只写 diagnostics 包与其证据，真实产品通过后开放 jsonl/admission 消费 |
+| Agent/Session 施工接口设计 | 作者 `/root/session_runtime_design` 已结束，独立复核 `/root/review_package_layout` | `dsh-session-runtime-design`，从 `de39a86` 创建 | 候选 `746ce47` 只写 AR/SR 施工稿；独立评审后固定，产品依赖仍须真实就绪 |
 | TS/JS 自动格式化 | verification-developer，`/root/formatting` | `dsh-formatting`，从 `de39a86` 创建 | 共享 Prettier 配置/命令、编辑/提交/CI 接入与机械格式；根锁由 HUB 更新 |
 
 可观测性工程品味与共享研发提示词已由 `51eaefb` 经 `7d3736c` 整合到 HUB，
@@ -56,7 +57,7 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 这只交付认知约定，未交付 log/trace 产品设施。DSH、pi 和 OpenCode 固定源码研究
 已完成；`/root/observability_design` 的 `99fc7a3` 经独立复核闭合三项发现，
 HUB `9cd78a0` 合入后以新安装目录重跑 12+7 项机制探针。主调度依 D-010 接受
-P1 施工输入；正式包仍等待 records 后按 TDD 实现，完整工程观测查询仍归 P3。其它产品设计会话的
+P1 施工输入；正式包已经消费接受后的 records 开始 TDD，完整工程观测查询仍归 P3。其它产品设计会话的
 运行基线优先级见下文与[计划](plan.md#推进方式与交付点)。
 
 未标 accepted 的行只表示派发事实。主调度拥有 HUB 整合、根配置、此工作包和最终
@@ -72,8 +73,10 @@ inventory 与配额查询不覆盖该 native 执行面，不能移用其外部 C
 结论。调度账本在 HUB 的 `tmp/dsh-first-batch.board.json`，仅经 `ccm` 更新；
 native 句柄活性以 collaboration 的实际运行状态为准，持久交付事实以本页及证据为准。
 P2 的 TG/AU/BG 公共操作/事件/参与者设计已由 `/root/governance_design` 在
-`dsh-governance-design` 从 `4253ee0` 交付候选 `8b75f30`，正在独立评审；P2 产品
-仍等待 P1；创建幂等、混合预算预留与币种门三项评审问题已由 `058c77c` 修订，待复核。
+`dsh-governance-design` 从 `4253ee0` 交付，三项评审问题经 `058c77c` 修订并独立
+复核闭合，HUB `01b7f3f` 整合后重跑 33 项设计示例；主调度接受其施工输入，
+范围见下文。该 spoke 暂留供 AR/SR 只读评审消费，评审释放且资产核对后退役。
+P2 产品仍等待 P1，设计探针不抵扣真实准入或恢复验收。
 用户已指定从主检出根 `.env` 的 `OPENROUTER_API_KEY` 直接执行 A22，测试模型为
 OpenAI gpt-5.6-terra 与 DeepSeek v4.1-flash。文件仅由测试进程加载，不打开或输出
 内容，也不复制到证据、提交或提示词。当前尚未加载密钥或发起计费模型请求。
@@ -84,6 +87,20 @@ OpenAI gpt-5.6-terra 与 DeepSeek v4.1-flash。文件仅由测试进程加载，
 [`openai/gpt-5.6-terra`](https://openrouter.ai/openai/gpt-5.6-terra) 和
 [`deepseek/deepseek-v4.1-flash`](https://openrouter.ai/deepseek/deepseek-v4.1-flash)。
 这只确认公开目录身份，不证明本地凭据可用、具体路由或 A22 工具往返已通过。
+
+## P2 治理施工输入
+
+主调度接受[治理接口](governance-interfaces.md) 的 `058c77c07ff25e5b93d96b8de1fce63a7a1a2099`
+作为 P2 TG-01/02/04/05、AU-01–06、BG-01–04 的实施选择。受审正文 SHA-256
+为 `029dac10364e35115465b2ad2c7e1ce21583c5aaee864db19e918349359dd42b`；只更新本工作包
+施工输入，不发布新 API 或原地修改正式 v1。创建输入的稳定去重身份、混合已知费用与
+剩余预留、币种及预算归集身份三项已闭合，见[评审](review.md#p2-治理施工稿评审)。
+
+[HUB 汇总](evidence/governance-design/hub-summary.json)与原始结果记录了 CPython 3.12.13
+运行的 33 项设计示例，包括两个独立子进程的预置结果查询。它们只说明受限输入、
+算术及政策示例一致；五项预算身份检查是条件断言，尚未经过实际 changeBudget。
+这不是 TG/BG 产品、并发共同门、锁、fsync 或 DR 恢复验证。完整 author 十份资产
+已按文件哈希保全，后续实施仍须真实 owner、认证/资源权威与 P1 组合的 TDD。
 
 ## P0 work-data 的固定实施输入
 

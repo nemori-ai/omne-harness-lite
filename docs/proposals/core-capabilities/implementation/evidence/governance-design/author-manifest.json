@@ -1,0 +1,56 @@
+{
+  "sourceCommit": "058c77c07ff25e5b93d96b8de1fce63a7a1a2099",
+  "archiveSha256": "0a294db95a01af73bdfd3252015496965da60a749a518cb5ff3aee07d7a71831",
+  "files": [
+    {
+      "path": "docs-check-revision.log",
+      "bytes": 273,
+      "sha256": "4fe905168b936f5b7108f9e67f8d506da3850aab199dd65d50887b4b3b73b5bd"
+    },
+    {
+      "path": "docs-check.log",
+      "bytes": 273,
+      "sha256": "c36ee74ef4f8f0330c71fb7b6d3ffe3788ddd405c296196d3927c9d5f8d87543"
+    },
+    {
+      "path": "revision-probe-fixture/organization-outcome.json",
+      "bytes": 707,
+      "sha256": "c19df5e0bd0ebc53e5986808335c93c9e16798ab6c92068716a395796db4eb36"
+    },
+    {
+      "path": "revision-probe-fixture/organization-request.json",
+      "bytes": 309,
+      "sha256": "eade21db0c25819e2aeebcd7444a4ed8ae4270696fff8203414e2412c00d1c70"
+    },
+    {
+      "path": "revision-probe-fixture/personal-outcome.json",
+      "bytes": 689,
+      "sha256": "cbb662652f56450028eedc9e5df5205760ec6eb0d5dce1d07c0acbb43def6a75"
+    },
+    {
+      "path": "revision-probe-fixture/personal-request.json",
+      "bytes": 303,
+      "sha256": "6cd596d0ca8fd30104561fd0d4f01446d95ebfc1dc9dbe1768c0b3eb7b7b01f9"
+    },
+    {
+      "path": "revision-probe-result.json",
+      "bytes": 6532,
+      "sha256": "c0d417ebee742810a7de608e91a94340c612d24049c0e64280fb66d9695e4c81"
+    },
+    {
+      "path": "revision-probe.py",
+      "bytes": 9169,
+      "sha256": "f1c91ec527c0ed6c83e62083f77a5f3cc50f0c3174227f86e030d4ee95d45cab"
+    },
+    {
+      "path": "revision-verification.json",
+      "bytes": 1031,
+      "sha256": "2b8a94359365b90bbed5fae72f6ddb6018f3e931a8cdfec6bb2798d12e3e360e"
+    },
+    {
+      "path": "verification.json",
+      "bytes": 1171,
+      "sha256": "584b17e25e74bad05040685a5a7b1f673326b585a8b55f1e33b8defcfdcfadef"
+    }
+  ]
+}
