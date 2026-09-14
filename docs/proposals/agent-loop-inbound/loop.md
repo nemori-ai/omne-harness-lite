@@ -60,9 +60,17 @@ flowchart TB
 ## 各节点的义务
 
 **E0 取得驱动。** 以当前 AgentRef 向 session-run 能力申请占位（U-1）：核对 Run 非终态、
-无全 Run/Session 控制阻塞、当前资格与预算门。恢复路径（SR-14、CC-06）在这里
-先对状态为 executing/unknown 的调用向原执行 owner `inspect`/`subscribe`（TL-11），
-再进入 `decide`；不自动重发任何模型或工具请求。
+无全 Run/Session 控制阻塞、当前资格与预算门。恢复路径（SR-14、CC-06）在这里按
+固定顺序完成四步，缺一步都不能进入 `decide`：
+
+1. 取新 epoch，使旧执行者失去提交权（I-3）。
+2. 读完整已提交前缀（DR-03/04）：撕裂尾部截回；完整但未回执的批次按 CC-03 用
+   `lookupOperation` 确认是否已提交。
+3. 裁决所有已受理但尚未裁决的 arrival（见 [Inbound](inbound.md)）；这些裁决在
+   当前 Run 状态下进行，因为此前没有任何裁决被提交。
+4. 折叠驱动位置（U-2），再对状态为 dispatched/executing/unknown 的模型请求与调用
+   按原 attemptId 向原执行 owner `inspect`/`subscribe`（TL-11、MC-06）；核实不了
+   的记 unknown，不自动重发任何模型或工具请求。
 
 **E1 开 Step。** 一个 Step 的输入切点来自且只来自：Run 的启动依据（一批连续
 用户文本、一条 slash command、一项 trigger，三者互斥，U-7）、上一 Step 结束后的
@@ -129,6 +137,43 @@ Run 的已裁决 arrival、pending 请求集合、阻塞集合、预算立场、
 `RequestModel(step)`、`ProposeCalls(step, calls)`、`AwaitContinuation(positions)`、
 `Reattach(calls)`、`Yield(reason)`、`Settle(run)`。每个意图对应一次共同提交或一次
 无副作用的等待；没有"边推进边决定"的中间态。
+
+**operationId 的确定性派生。** 每个意图对应的共同提交，其 operationId 必须从事实
+前缀确定地派生，例如 `f(RunRef, stepId, intentKind, ordinal)`，其中 ordinal 是该
+Step 内同类意图的序号。这样恢复重跑 `decide` 得到的意图会用同一 operationId 提交，
+CC-03/DR-02 的去重会认回崩溃前可能已成功的那次提交，而不是形成第二次模型请求或
+第二次工具派发（I-20）。调用者生成的随机 ID 不满足此要求（CD-01）。
+
+## 非预期退出后的恢复
+
+非预期退出指进程崩溃、OOM 被杀、宿主重启、断电、与执行 owner 的网络分区、存储
+writer 被隔离（DR-04）；共同特征是 Loop 的内存状态消失且不知道最后一次动作走到
+哪一步。预期退出（重试耗尽、cancel、预算耗尽）以已提交终态结束，不在此列。
+
+恢复不是重放日志重新执行，而是 E0 的四步：新 epoch、读前缀、裁决未裁决 arrival、
+折叠位置并核实在途尝试，然后用同一个 `decide` 算出下一步。成立的前提是每个外部
+效果之前都有耐久意图（CC-04、TL-08、MC-03），因此事实前缀落后于世界至多一个在途
+尝试。逐窗口的判定如下；三个窗口的正确答案是 unknown 而不是"恢复成功"。
+
+| 崩溃窗口 | 已耐久 | 恢复判定 | 依据 |
+|---|---|---|---|
+| E0 占位后、开 Step 前 | Run running、占位 | 重新 `OpenStep`，启动依据认回同一批 | SR-06 |
+| E1 切点提交前 | 上一 Step 已收束 | 重算切点；就绪接续与 context 水位都是事实，结果相同 | I-4、I-18 |
+| E3 准入后、dispatch 前 | attempt admitted、预算预留 | 无 dispatched 记录即判定未发出：旧 attempt 结算 cancelled，同 Step 新 attempt | MC-04 |
+| E3 dispatch 后、settle 前 | dispatched 记录 | 记 unknown/partial；有供应方 ID 则查询原请求，否则按政策新 attempt 并保留 unknown 的费用暴露；**已流给用户的前缀不可恢复** | MC-06 |
+| E3/E5/E8 提交时 | 可能已提交 | `lookupOperation` 认回或重做 | CC-03、I-20 |
+| E4 proposed 后、准入前 | call proposed | 重新过门，按当前授权/预算判定 | TL-07 |
+| E4 准入后、owner 确认 start 前 | admitted、许可、attemptId | 同一 attemptId `inspect`；owner 无此 attempt 且许可有效则同 ID 重发 start；owner 与 Loop 同进程死亡且账本不耐久则 unknown | TL-08 |
+| E4/E5 executing 中 | start 回执、帧 | 独立 owner 存活则 `subscribe` 重连同一 attempt；owner 随进程死亡则 unknown，作为标明未知的 `tool_result` 进入下一 Step | TL-11、SR-14 |
+| E6 等待中 | waiting、pending 请求、接续就绪意图 | 重新订阅；答复期间崩溃按 HD-08/CC-05 回执补交付 | HD-04 |
+| E7 收口中途 | stopping/interrupted 意图、取消墓碑 | 逐个 inspect 继续收口；墓碑拒绝迟到 start | TL-08、SR-12 |
+| Inbound 受理后、裁决前 | arrival accepted | E0 第 3 步在当前 Run 状态下裁决 | I-13 |
+| writer 隔离 | 已确认水位前的一切 | Loop 停在水位处，不推进 | DR-04、CC-03 |
+
+三条明确接受的局限：模型流式前缀不可恢复，重连后只能看到"上一次尝试结果未知"；
+同进程前台工具随进程死亡的外部效果只能 unknown；多进程部署下"旧 epoch 持有者
+是否真的死了"没有判定机制，live-agent v1 明言未规定租约与故障接管，单进程首版
+Registry 随进程消失故不成问题，拆进程前必须补。
 
 ## 对 DSH agent-loop 源码的取舍
 

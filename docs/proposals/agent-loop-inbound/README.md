@@ -76,6 +76,11 @@ Agent Loop。它回答三个问题：循环怎么走、一次 Run 中途异步�
 - 本提案接受后的规格落点：Loop 语义是否作为 `capability.session-run` 的新版本、
   独立的 `capability.run-driver`，还是组合契约；Inbound 是否并入 session-run 的
   队列条款。建议在评审时一并裁决。
+- 多进程部署下旧 epoch 持有者的活性判定（租约或故障接管）：live-agent v1 明言
+  未规定，单进程首版不成问题；拆进程前必须补，属本提案之外的后续设计。
+- 模型请求发网前的 dispatched 记录应包含哪些可核实原请求的信息（本地 attemptId、
+  时间、manifest 摘要；供应方请求 ID 只在响应后可得），由 model-execution 的
+  提供者设计确定。
 
 ## 接受记录
 
