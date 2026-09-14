@@ -18,13 +18,19 @@ complete `(MembershipRef, joinedRevision)` pair, so different members may carry 
 while a removed member's prior basis cannot revive. The fold returns frozen copies and does not
 adopt caller-owned objects as authority state.
 
+An internal pure qualification core applies the accepted dual-view rule for the first named
+management operation, `tenant.members`: a durable membership must grant it, and every newer pending
+root must continue to grant the same membership join. This core is covered independently, but the
+public `TenantAccess` runtime remains closed until the admission coordinator can let an owner verify
+the exact active `GateFrame`.
+
 These are consumer contracts. The opaque invocation and access-candidate types prevent ordinary
 structural construction at compile time, while runtime authenticity still depends on the installed
 identity source and tenant host recognizing the exact issued objects in an active `GateFrame`.
 They do not parse or normalize instants, freeze runtime values, recognize evidence authorities, or
 establish identity, current membership, authorization, or budget eligibility by their shape alone.
-The tenant host, plugins, trusted clock, current-fact checks, persistence wiring, and management
-operations remain future implementation work.
+The tenant host, plugins, trusted clock, frame-bound current-fact wiring, persistence wiring, and
+management operations remain future implementation work.
 
 The precise ownership and representation mapping is in the
 [tenant provider design](./design.md#共同值与协议的维护归属). Its adopted language-neutral sources
