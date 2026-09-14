@@ -171,6 +171,8 @@ describe('D1-R2 close recovery after a write-triggered destroy', () => {
   it('closes the owned source after a pending write callback fails during end', async () => {
     const directory = await mkdtemp(join(scratchRoot, 'r2-write-end-'))
     const subject = await runtime(directory, 'source-r2-end')
+    const directoryOwner = ownersByDirectory.get(directory)
+    if (directoryOwner === undefined) throw new Error('directory owner missing')
     await waitFor(subject, status => status.pendingBytes === 0)
 
     const originalWrite = nodeFs.write as unknown as FlexibleCall
@@ -245,6 +247,21 @@ describe('D1-R2 close recovery after a write-triggered destroy', () => {
       status: 'closed',
       state: { phase: 'closed', resource: 'released' },
     })
+    expect(directoryOwner.inspect()).toMatchObject({
+      phase: 'active',
+      lastErrorCode: null,
+      resource: 'held',
+    })
+    const successor = await directoryOwner.create(
+      sourceOptions(options(directory, 'source-r2-successor')),
+    )
+    expect(successor.status).toBe('created')
+    if (successor.status === 'created') {
+      await expect(successor.runtime.close({ deadlineMs: 1_000 })).resolves.toMatchObject({
+        status: 'closed',
+        state: { resource: 'released' },
+      })
+    }
   })
 
   it('does not close a reused fd after the underlying source close returned an error', async () => {
