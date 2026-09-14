@@ -220,11 +220,11 @@ function snapshotPosition(value: unknown): Position {
   const writerEpoch = nonEmptyString(ownData(value, 'writerEpoch'), 'position.writerEpoch')
   const commitId = nonEmptyString(ownData(value, 'commitId'), 'position.commitId')
   const seq = nonEmptyString(ownData(value, 'seq'), 'position.seq')
-  try {
-    if (BigInt(seq) < 0n) throw new SnapshotError('position.seq must be non-negative')
-  } catch (error) {
-    if (error instanceof SnapshotError) throw error
-    throw new SnapshotError('position.seq must be a decimal counter')
+  if (!/^[1-9][0-9]*$/.test(writerEpoch)) {
+    throw new SnapshotError('position.writerEpoch must be a positive canonical counter')
+  }
+  if (!/^[1-9][0-9]*$/.test(seq)) {
+    throw new SnapshotError('position.seq must be a positive canonical counter')
   }
   return Object.freeze({ coordinationDomain, writerEpoch, commitId, seq })
 }
@@ -312,22 +312,51 @@ function snapshotWatermark(position: Position): Watermark {
   })
 }
 
-function observeThenable(value: unknown, rejected: () => void): boolean {
-  if (!isObject(value)) return false
-  let then: unknown
-  try {
-    then = Reflect.get(value, 'then')
-  } catch {
-    rejected()
-    return true
+function captureThenableObserver(value: unknown, rejected: () => void): (() => void) | null {
+  if (!isObject(value)) return null
+  let current: object | null = value
+  const visited = new Set<object>()
+  for (let depth = 0; current !== null && depth < 64; depth += 1) {
+    if (visited.has(current)) return () => rejected()
+    visited.add(current)
+    let descriptor: PropertyDescriptor | undefined
+    try {
+      descriptor = Reflect.getOwnPropertyDescriptor(current, 'then')
+    } catch {
+      return () => rejected()
+    }
+    if (descriptor !== undefined) {
+      if (!('value' in descriptor)) {
+        return () => {
+          Promise.resolve(value).then(
+            () => undefined,
+            () => rejected(),
+          )
+        }
+      }
+      if (typeof descriptor.value !== 'function') return null
+      const then = descriptor.value
+      return () => {
+        let rejectionObserved = false
+        const rejectOnce = (): void => {
+          if (rejectionObserved) return
+          rejectionObserved = true
+          rejected()
+        }
+        try {
+          Reflect.apply(then, value, [() => undefined, rejectOnce])
+        } catch {
+          rejectOnce()
+        }
+      }
+    }
+    try {
+      current = Reflect.getPrototypeOf(current)
+    } catch {
+      return () => rejected()
+    }
   }
-  if (typeof then !== 'function') return false
-  try {
-    Reflect.apply(then, value, [() => undefined, rejected])
-  } catch {
-    rejected()
-  }
-  return true
+  return current === null ? null : () => rejected()
 }
 
 type DiagnosticDraft = Readonly<{
@@ -380,6 +409,7 @@ type UseState = {
   readonly originalRelease: ExactUse['release']
   readonly handle: ExactUse
   phase: 'fresh' | 'claimed' | 'releasing' | 'retained' | 'released'
+  releaseClass: 'not_admitted' | 'claimed' | 'unknown'
   claim: UseClaim | null
   retainInvoked: boolean
   releaseCompletion: Promise<ReleaseResult> | null
@@ -433,13 +463,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
   private readonly uses = new WeakMap<object, UseState>()
   private readonly issuerOwners = new Set<string>()
   private readonly capturedCallbackObjects = new WeakSet<object>()
-  private readonly capturedPins: Array<
-    Readonly<{
-      key: string
-      retainAt: ExactUse['retainAt']
-      release: ExactUse['release']
-    }>
-  > = []
+  private readonly capturedPinCallbacks = new WeakMap<object, WeakMap<object, Set<string>>>()
   private readonly tickets: Ticket[] = []
   private readonly ticketsByOperation = new Map<string, Ticket>()
   private drainIndex = 0
@@ -602,10 +626,23 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
 
     const existing = this.ticketsByOperation.get(operationKey(snapshot.operation))
     if (submission.status !== 'pending_durability') {
-      this.cleanupFresh(snapshot.uses)
       if (existing !== undefined && existing.snapshot.canonicalInput === snapshot.canonicalInput) {
+        this.cleanupFresh(snapshot.uses)
         return existing.final ?? existing.publicPending
       }
+      if (submission.status === 'unknown') {
+        const id = this.quarantine(
+          'ranking',
+          'unknown',
+          snapshot.operation,
+          undefined,
+          snapshot.identity,
+          submission.diagnosticId,
+        )
+        this.retainFreshUnknown(snapshot.uses, id)
+        return submission
+      }
+      this.cleanupFresh(snapshot.uses)
       if (submission.status === 'committed') {
         const id = this.quarantine(
           'ranking',
@@ -630,7 +667,8 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
       if (
         !sameOperation(submission.operation, snapshot.operation) ||
         position.coordinationDomain !== this.writer.coordinationDomain ||
-        position.writerEpoch !== this.writer.writerEpoch
+        position.writerEpoch !== this.writer.writerEpoch ||
+        (submission.disposition !== 'apply' && submission.disposition !== 'record_conflict')
       ) {
         throw new SnapshotError('writer returned mismatched pending identity')
       }
@@ -649,7 +687,8 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
     if (existing !== undefined) {
       if (
         existing.snapshot.canonicalInput !== snapshot.canonicalInput ||
-        !samePosition(existing.writerPending.position, position)
+        !samePosition(existing.writerPending.position, position) ||
+        existing.writerPending.disposition !== submission.disposition
       ) {
         const id = this.quarantine(
           'ranking',
@@ -663,6 +702,22 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
       }
       this.cleanupFresh(snapshot.uses)
       return existing.final ?? existing.publicPending
+    }
+
+    const previous = this.tickets.at(-1)
+    if (
+      previous !== undefined &&
+      BigInt(position.seq) !== BigInt(previous.writerPending.position.seq) + 1n
+    ) {
+      const id = this.quarantine(
+        'ranking',
+        'non_contiguous_position',
+        snapshot.operation,
+        position,
+        snapshot.identity,
+      )
+      this.retainFreshUnknown(snapshot.uses, id)
+      return this.unavailable('writer_failure')
     }
 
     const ticket = this.createTicket(snapshot, submission, position)
@@ -679,6 +734,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
 
     for (const use of snapshot.uses) {
       use.phase = 'claimed'
+      use.releaseClass = 'claimed'
       use.claim = Object.freeze({
         operation: snapshot.operation,
         canonicalInput: snapshot.canonicalInput,
@@ -802,21 +858,21 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
     const retainedCallback = retainAt as ExactUse['retainAt']
     const releaseCallback = release as ExactUse['release']
     const key = bindingKey(binding)
-    if (
-      this.capturedCallbackObjects.has(callbacks) ||
-      this.capturedPins.some(
-        entry =>
-          entry.key === key &&
-          entry.retainAt === retainedCallback &&
-          entry.release === releaseCallback,
-      )
-    ) {
+    let releases = this.capturedPinCallbacks.get(retainedCallback)
+    if (releases === undefined) {
+      releases = new WeakMap<object, Set<string>>()
+      this.capturedPinCallbacks.set(retainedCallback, releases)
+    }
+    let bindings = releases.get(releaseCallback)
+    if (this.capturedCallbackObjects.has(callbacks) || bindings?.has(key) === true) {
       throw new Error('ExactUse pin was already captured')
     }
+    if (bindings === undefined) {
+      bindings = new Set<string>()
+      releases.set(releaseCallback, bindings)
+    }
+    bindings.add(key)
     this.capturedCallbackObjects.add(callbacks)
-    this.capturedPins.push(
-      Object.freeze({ key, retainAt: retainedCallback, release: releaseCallback }),
-    )
 
     let state: UseState | undefined
     const handle = Object.freeze({
@@ -840,6 +896,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
       originalRelease: releaseCallback,
       handle,
       phase: 'fresh',
+      releaseClass: 'not_admitted',
       claim: null,
       retainInvoked: false,
       releaseCompletion: null,
@@ -884,13 +941,20 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
     if (state.phase === 'releasing' || state.phase === 'released') {
       return state.releaseCompletion ?? Promise.resolve(RELEASED)
     }
-    if (state.phase === 'claimed' && reason === 'not_admitted') {
+    const allowed =
+      state.releaseClass === 'not_admitted'
+        ? reason === 'not_admitted'
+        : state.releaseClass === 'claimed'
+          ? reason !== 'not_admitted'
+          : reason === 'verified_not_committed'
+    if (!allowed) {
       const diagnosticId = state.retainedDiagnosticId ?? this.newDiagnosticId()
+      if (state.phase === 'fresh') state.phase = 'retained'
       state.retainedDiagnosticId = diagnosticId
       this.recordDiagnostic({
         diagnosticId,
         phase: 'release_guard',
-        code: 'claimed_not_admitted',
+        code: `${state.releaseClass}_${reason}`,
         level: 'warn',
         identity: state.claim?.identity,
         owner: state.owner,
@@ -899,33 +963,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
       })
       return Promise.resolve(Object.freeze({ status: 'retained', diagnosticId }))
     }
-    if (state.phase === 'fresh' && reason !== 'not_admitted') {
-      const diagnosticId = this.newDiagnosticId()
-      state.phase = 'retained'
-      state.retainedDiagnosticId = diagnosticId
-      this.recordDiagnostic({
-        diagnosticId,
-        phase: 'release_guard',
-        code: 'invalid_fresh_release',
-        level: 'warn',
-        owner: state.owner,
-      })
-      const result: ReleaseResult = Object.freeze({ status: 'retained', diagnosticId })
-      state.releaseCompletion = Promise.resolve(result)
-      return state.releaseCompletion
-    }
-    if (state.phase === 'retained') {
-      const expected = state.claim === null ? 'not_admitted' : reason
-      if (state.claim === null && reason !== expected) {
-        const diagnosticId = state.retainedDiagnosticId ?? this.newDiagnosticId()
-        return Promise.resolve(Object.freeze({ status: 'retained', diagnosticId }))
-      }
-      if (state.claim !== null && reason === 'not_admitted') {
-        const diagnosticId = state.retainedDiagnosticId ?? this.newDiagnosticId()
-        return Promise.resolve(Object.freeze({ status: 'retained', diagnosticId }))
-      }
-    }
-    return this.sealRelease(state, reason, false)
+    return this.sealRelease(state, reason, this.currentFrame?.active === true)
   }
 
   private sealRelease(
@@ -1342,7 +1380,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
   ): void {
     const result = Reflect.apply(callback, undefined, values)
     if (result === undefined) return
-    observeThenable(result, () => {
+    const observer = captureThenableObserver(result, () => {
       const diagnosticId = this.newDiagnosticId()
       this.recordDiagnostic({
         diagnosticId,
@@ -1355,6 +1393,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
         position,
       })
     })
+    if (observer !== null) this.deferUntilFrameExit(observer)
     throw new CallbackContractError(`${phase} must return undefined`)
   }
 
@@ -1374,23 +1413,17 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
     this.currentFrame = state
     try {
       const result = work(frame)
-      let rejected = false
-      let thenable = false
-      try {
-        thenable = observeThenable(result, () => {
-          rejected = true
-          const diagnosticId = this.newDiagnosticId()
-          this.recordDiagnostic({
-            diagnosticId,
-            phase: 'late_rejection',
-            code: 'gate_result_rejected',
-            level: 'error',
-          })
+      const observer = captureThenableObserver(result, () => {
+        const diagnosticId = this.newDiagnosticId()
+        this.recordDiagnostic({
+          diagnosticId,
+          phase: 'late_rejection',
+          code: 'gate_result_rejected',
+          level: 'error',
         })
-      } catch {
-        thenable = true
-      }
-      if (thenable || rejected) {
+      })
+      if (observer !== null) {
+        state.after.push(observer)
         this.quarantine('gate', 'thenable_result', undefined, undefined)
         throw new CallbackContractError('admission gate work returned a thenable')
       }
@@ -1427,6 +1460,14 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
         })
       }
     }
+  }
+
+  private deferUntilFrameExit(action: () => void): void {
+    if (this.currentFrame?.active !== true) {
+      action()
+      return
+    }
+    this.currentFrame.after.push(action)
   }
 
   private validFrame(frame: GateFrame): boolean {
@@ -1473,6 +1514,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
     for (const use of uses) {
       if (use.phase !== 'fresh') continue
       use.phase = 'retained'
+      use.releaseClass = 'unknown'
       use.retainedDiagnosticId = diagnosticId
       use.releaseCompletion = Promise.resolve(Object.freeze({ status: 'retained', diagnosticId }))
     }
@@ -1484,8 +1526,9 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
     operation: OperationRef | undefined,
     position: Position | undefined,
     identity?: DiagnosticIdentity,
+    preferredDiagnosticId?: OpaqueId,
   ): OpaqueId {
-    const diagnosticId = this.diagnosticId ?? this.newDiagnosticId()
+    const diagnosticId = this.diagnosticId ?? preferredDiagnosticId ?? this.newDiagnosticId()
     this.diagnosticId = diagnosticId
     if (this.phase !== 'closed') this.phase = 'quarantined'
     if (!this.writerQuarantined) {

@@ -79,6 +79,37 @@ describe('CC-02/03 synchronous admission gate', () => {
     expect(secondWriter.pumpStarts).toBe(0)
   })
 
+  it('invokes a returned thenable only after its gate frame is inactive', () => {
+    const writer = new ControlledWriter()
+    const host = createAdmissionCoordinator(writer, new RecordingDiagnostics())
+    const prepared = unwrap(
+      host.coordinator.prepareOperation(operation('thenable-outside-gate'), operationInput()),
+    )
+    let captured: Parameters<typeof host.coordinator.lookupPrepared>[0] | undefined
+    let observerLookup: ReturnType<typeof host.coordinator.lookupPrepared> | undefined
+    const thenable = {
+      then(_resolve: () => void, reject: () => void): void {
+        if (captured === undefined) throw new Error('frame was not captured')
+        observerLookup = host.coordinator.lookupPrepared(captured, prepared)
+        reject()
+      },
+    }
+
+    expect(() =>
+      host.coordinator.enter(frame => {
+        captured = frame
+        return thenable
+      }),
+    ).toThrow(/thenable/i)
+
+    expect(observerLookup).toEqual({
+      status: 'unavailable',
+      owner: 'admission',
+      code: 'invalid_frame',
+    })
+    expect(writer.commitInputs).toHaveLength(0)
+  })
+
   it('emits diagnostics only after the frame is closed and preserves a normal assembly failure', () => {
     const writer = new ControlledWriter()
     const diagnostics = new RecordingDiagnostics()

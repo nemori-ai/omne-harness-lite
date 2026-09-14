@@ -8,7 +8,7 @@ import type {
   ReleaseResult,
 } from '../dist/index.js'
 import { createAdmissionCoordinator } from '../dist/index.js'
-import type { CommitResult, Position, UseBinding } from '@omne-harness-lite/records'
+import type { CommitResult, Position, PreparedCommit, UseBinding } from '@omne-harness-lite/records'
 import { describe, expect, it, vi } from 'vitest'
 import {
   ControlledWriter,
@@ -158,6 +158,10 @@ describe('R2 ExactUse ownership and one-way lifecycle', () => {
     const second = fresh.release('not_admitted')
     expect(second).toBe(first)
     expect(ownerRelease).toHaveBeenCalledOnce()
+    expect(submit(host, prepared(host, 'releasing-use', ['records-owner'], [fresh]))).toMatchObject(
+      { status: 'unavailable', code: 'invalid_use' },
+    )
+    expect(writer.commitInputs).toHaveLength(0)
     if (finish === undefined) throw new Error('release did not start')
     finish({ status: 'released' })
     await expect(first).resolves.toEqual({ status: 'released' })
@@ -199,6 +203,63 @@ describe('R2 ExactUse ownership and one-way lifecycle', () => {
 
     await expect(use.release('not_admitted')).resolves.toMatchObject({ status: 'retained' })
     expect(ownerRelease).not.toHaveBeenCalled()
+  })
+
+  it('retains a fresh pin on an immediate unknown until its owner verifies non-commit', async () => {
+    class ImmediateUnknownWriter extends ControlledWriter {
+      override commit(preparedCommit: PreparedCommit): CommitResult {
+        this.commitInputs.push(preparedCommit)
+        return Object.freeze({
+          status: 'unknown',
+          operation: preparedCommit.operation,
+          diagnosticId: 'writer-immediate-unknown',
+        })
+      }
+    }
+
+    const writer = new ImmediateUnknownWriter()
+    const host = createAdmissionCoordinator(writer, new RecordingDiagnostics())
+    const ownerRelease = vi.fn(async () => ({ status: 'released' as const }))
+    const use = issueUse(host, { release: ownerRelease })
+    const result = submit(host, prepared(host, 'immediate-unknown', ['records-owner'], [use]))
+
+    expect(result).toMatchObject({
+      status: 'unknown',
+      operation: operation('immediate-unknown'),
+      diagnosticId: 'writer-immediate-unknown',
+    })
+    await expect(use.release('not_admitted')).resolves.toMatchObject({ status: 'retained' })
+    expect(ownerRelease).not.toHaveBeenCalled()
+    await expect(use.release('verified_not_committed')).resolves.toEqual({ status: 'released' })
+    expect(ownerRelease).toHaveBeenCalledOnce()
+  })
+
+  it('defers a public ExactUse release until the active gate frame has closed', async () => {
+    const writer = new ControlledWriter()
+    const host = createAdmissionCoordinator(writer, new RecordingDiagnostics())
+    const preparedOperation = unwrap(
+      host.coordinator.prepareOperation(operation('release-outside-gate'), operationInput()),
+    )
+    let captured: Parameters<typeof host.coordinator.lookupPrepared>[0] | undefined
+    let releaseLookup: ReturnType<typeof host.coordinator.lookupPrepared> | undefined
+    const ownerRelease = vi.fn(async () => {
+      if (captured === undefined) throw new Error('frame was not captured')
+      releaseLookup = host.coordinator.lookupPrepared(captured, preparedOperation)
+      return { status: 'released' as const }
+    })
+    const use = issueUse(host, { release: ownerRelease })
+    let releaseCompletion: Promise<ReleaseResult> | undefined
+
+    host.coordinator.enter(frame => {
+      captured = frame
+      releaseCompletion = use.release('not_admitted')
+      expect(ownerRelease).not.toHaveBeenCalled()
+    })
+
+    expect(ownerRelease).toHaveBeenCalledOnce()
+    expect(releaseLookup).toMatchObject({ status: 'unavailable', code: 'invalid_frame' })
+    if (releaseCompletion === undefined) throw new Error('release completion was not captured')
+    await expect(releaseCompletion).resolves.toEqual({ status: 'released' })
   })
 
   it('allows only owner-verified settled cleanup and keeps the original claim after failure', async () => {
@@ -441,6 +502,59 @@ describe('strict callback contracts and publication blocking', () => {
     })
     expect(retainAt).toHaveBeenCalledOnce()
     expect(release).not.toHaveBeenCalled()
+  })
+
+  it('preserves a claimed use when retainAt and diagnostics fail together', async () => {
+    const writer = new ControlledWriter()
+    const diagnostics = new RecordingDiagnostics()
+    diagnostics.throwOnLog = true
+    diagnostics.throwOnNewId = true
+    const host = createAdmissionCoordinator(writer, diagnostics)
+    const release = vi.fn(async () => ({ status: 'released' as const }))
+    const retainAt = vi.fn((): undefined => {
+      throw new Error('retain failed')
+    })
+    const use = issueUse(host, { retainAt, release })
+    const result = pending(submit(host, prepared(host, 'retain-double-failure', ['owner'], [use])))
+
+    expect(retainAt).toHaveBeenCalledOnce()
+    expect(host.coordinator.status()).toMatchObject({
+      phase: 'quarantined',
+      diagnosticId: expect.any(String),
+    })
+    writer.settle(0)
+    await expect(result.completion).resolves.toMatchObject({
+      status: 'committed',
+      publication: 'blocked',
+    })
+    expect(release).not.toHaveBeenCalled()
+    await expect(use.release('not_admitted')).resolves.toMatchObject({ status: 'retained' })
+    expect(release).not.toHaveBeenCalled()
+  })
+
+  it('never turns a late-resolving durable publication thenable into ready', async () => {
+    const writer = new ControlledWriter()
+    const host = createAdmissionCoordinator(writer, new RecordingDiagnostics())
+    let resolvePublication: (() => void) | undefined
+    const latePublication = new Promise<void>(resolve => {
+      resolvePublication = resolve
+    })
+    const value = withPublication(prepared(host, 'durable-thenable', ['owner']), {
+      owner: 'owner',
+      publishLogical: () => undefined,
+      publishDurable: (() => latePublication) as unknown as OwnerPublication['publishDurable'],
+    })
+    const result = pending(submit(host, value))
+
+    writer.settle(0)
+    const completion = await result.completion
+    expect(completion).toMatchObject({ status: 'committed', publication: 'blocked' })
+    if (resolvePublication === undefined) throw new Error('publication promise was not initialized')
+    resolvePublication()
+    await turn()
+
+    expect(await result.completion).toBe(completion)
+    expect(completion).toMatchObject({ status: 'committed', publication: 'blocked' })
   })
 
   it('keeps original publication/use responsibility when diagnostics fail at the same time', async () => {
