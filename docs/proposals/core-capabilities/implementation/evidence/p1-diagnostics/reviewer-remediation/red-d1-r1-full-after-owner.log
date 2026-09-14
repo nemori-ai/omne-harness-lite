@@ -1,0 +1,229 @@
+
+> @omne-harness-lite/diagnostics@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics
+> vitest run
+
+
+ RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics
+
+(node:27284) Warning: Closing file descriptor 23 on garbage collection
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:27284) [DEP0137] DeprecationWarning: Closing a FileHandle object on garbage collection is deprecated. Please close FileHandle objects explicitly using FileHandle.prototype.close(). In the future, an error will be thrown if a file descriptor is closed during garbage collection.
+ ❯ tests/runtime.spec.ts (25 tests | 7 failed) 431ms
+     × creates an exclusive protected source and writes clean start/end records 31ms
+     × keeps a failed fd close unknown and retries that same descriptor responsibility 10ms
+     × rejects invalid configuration before creating its directory 4ms
+     × retains an acquired descriptor when source preparation and its first cleanup both fail 5ms
+     × returns a visible degraded runtime when directory retention is already exhausted 6ms
+     × keeps two factory instances and colliding source generations isolated 8ms
+     × does not let another host instance append the same source generation 6ms
+ ❯ tests/reviewer-regressions.spec.ts (10 tests | 2 failed) 771ms
+     × retains and retries the fd after write EIO and the destroy close also fails 44ms
+     × retains an old FileHandle whose first close fails and closes it on runtime retry 6ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 9 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/reviewer-regressions.spec.ts > D1-R2 close recovery after a write-triggered destroy > retains and retries the fd after write EIO and the destroy close also fails
+AssertionError: expected { status: 'blocked', state: { …(13) } } to match object { status: 'closed', state: { …(2) } }
+(11 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "state": {
+-     "phase": "closed",
+-     "resource": "released",
++     "phase": "closing",
++     "resource": "unknown",
+    },
+-   "status": "closed",
++   "status": "blocked",
+  }
+
+ ❯ tests/reviewer-regressions.spec.ts:219:21
+    217|       lastErrorCode: 'EIO',
+    218|     })
+    219|     expect(retried).toMatchObject({
+       |                     ^
+    220|       status: 'closed',
+    221|       state: { phase: 'closed', resource: 'released' },
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/9]⎯
+
+ FAIL  tests/reviewer-regressions.spec.ts > D1-R3 scanned source cleanup ownership > retains an old FileHandle whose first close fails and closes it on runtime retry
+AssertionError: expected 'unavailable' to be 'created' // Object.is equality
+
+Expected: "created"
+Received: "unavailable"
+
+ ❯ tests/reviewer-regressions.spec.ts:265:27
+    263|       syncBuiltinESMExports()
+    264|     }
+    265|     expect(result.status).toBe('created')
+       |                           ^
+    266|     if (result.status !== 'created' || retained === undefined) return
+    267|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/9]⎯
+
+ FAIL  tests/runtime.spec.ts > O05/O06 local source lifecycle > creates an exclusive protected source and writes clean start/end records
+AssertionError: expected [ '.diagnostics.lock', …(1) ] to have a length of 1 but got 2
+
+- Expected
++ Received
+
+- 1
++ 2
+
+ ❯ tests/runtime.spec.ts:167:19
+    165|
+    166|     const files = await readdir(directory)
+    167|     expect(files).toHaveLength(1)
+       |                   ^
+    168|     expect((await stat(directory)).mode & 0o777).toBe(0o700)
+    169|     expect((await stat(join(directory, files[0]!))).mode & 0o777).toBe…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/9]⎯
+
+ FAIL  tests/runtime.spec.ts > O06 close ownership and generation guards > keeps a failed fd close unknown and retries that same descriptor responsibility
+AssertionError: expected { status: 'blocked', state: { …(13) } } to match object { status: 'closed', state: { …(2) } }
+(11 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "state": {
+-     "phase": "closed",
+-     "resource": "released",
++     "phase": "closing",
++     "resource": "unknown",
+    },
+-   "status": "closed",
++   "status": "blocked",
+  }
+
+ ❯ tests/runtime.spec.ts:604:20
+    602|     })
+    603|     const closed = await runtime.close({ deadlineMs: 1_000 })
+    604|     expect(closed).toMatchObject({
+       |                    ^
+    605|       status: 'closed',
+    606|       state: { phase: 'closed', resource: 'released' },
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/9]⎯
+
+ FAIL  tests/runtime.spec.ts > O04/O05 configuration and local retention boundaries > rejects invalid configuration before creating its directory
+AssertionError: promise resolved "undefined" instead of rejecting
+
+- Expected:
+Error {
+  "message": "rejected promise",
+}
+
++ Received:
+undefined
+
+ ❯ tests/runtime.spec.ts:620:36
+    618|     )
+    619|     expect(result).toEqual({ status: 'invalid', code: 'INVALID_MAX_REC…
+    620|     await expect(access(directory)).rejects.toMatchObject({ code: 'ENO…
+       |                                    ^
+    621|   })
+    622|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/9]⎯
+
+ FAIL  tests/runtime.spec.ts > O04/O05 configuration and local retention boundaries > retains an acquired descriptor when source preparation and its first cleanup both fail
+AssertionError: expected { status: 'blocked', state: { …(13) } } to match object { status: 'closed', …(1) }
+(12 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "state": {
+-     "resource": "released",
++     "resource": "unknown",
+    },
+-   "status": "closed",
++   "status": "blocked",
+  }
+
+ ❯ tests/runtime.spec.ts:669:24
+    667|       lastErrorCode: 'SOURCE_OPEN_EIO',
+    668|     })
+    669|     expect(afterRetry).toMatchObject({ status: 'closed', state: { reso…
+       |                        ^
+    670|   })
+    671|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/9]⎯
+
+ FAIL  tests/runtime.spec.ts > O04/O05 configuration and local retention boundaries > returns a visible degraded runtime when directory retention is already exhausted
+AssertionError: expected 'unavailable' to be 'created' // Object.is equality
+
+Expected: "created"
+Received: "unavailable"
+
+ ❯ tests/runtime.spec.ts:685:27
+    683|       }),
+    684|     )
+    685|     expect(result.status).toBe('created')
+       |                           ^
+    686|     if (result.status !== 'created') return
+    687|     expect(result.runtime.inspect()).toMatchObject({
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/9]⎯
+
+ FAIL  tests/runtime.spec.ts > O04/O05 configuration and local retention boundaries > keeps two factory instances and colliding source generations isolated
+AssertionError: expected { sourceId: 'source-first', …(12) } to match object { phase: 'degraded', …(2) }
+(10 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "lastErrorCode": "SOURCE_EXISTS",
+-   "phase": "degraded",
+-   "resource": "released",
++   "lastErrorCode": null,
++   "phase": "active",
++   "resource": "held",
+  }
+
+ ❯ tests/runtime.spec.ts:710:45
+    708|       expect(collision.status).toBe('created')
+    709|       if (collision.status === 'created') {
+    710|         expect(collision.runtime.inspect()).toMatchObject({
+       |                                             ^
+    711|           phase: 'degraded',
+    712|           resource: 'released',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/9]⎯
+
+ FAIL  tests/runtime.spec.ts > O04/O05 configuration and local retention boundaries > does not let another host instance append the same source generation
+AssertionError: expected 'unavailable' to be 'created' // Object.is equality
+
+Expected: "created"
+Received: "unavailable"
+
+ ❯ tests/runtime.spec.ts:747:30
+    745|       }),
+    746|     )
+    747|     expect(collision.status).toBe('created')
+       |                              ^
+    748|     if (collision.status !== 'created') return
+    749|     expect(collision.runtime.inspect()).toMatchObject({
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/9]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  9 failed | 26 passed (35)
+   Start at  08:28:32
+   Duration  1.21s (transform 353ms, setup 0ms, import 573ms, tests 1.20s, environment 0ms)
+
+/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @omne-harness-lite/diagnostics@0.0.0 test: `vitest run`
+Exit status 1

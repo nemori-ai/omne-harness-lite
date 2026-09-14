@@ -7,8 +7,8 @@
 | 范围 | 采用依据及当前状态 |
 |---|---|
 | 被动记录面、身份/内容裁剪、Pino/Sonic/OTel、本地来源及生命周期 | [D-010](../../../docs/decisions/D-010-shared-diagnostics.md) 已接受，原设计修订 `99fc7a3`、接受点 `5e81ee8`；本页汇入其提供者映射，接受不等于完整产品验证通过 |
-| R1 目录 owner、共同字节/slot 预留、稳定 flock 和创建入口迁移 | [D-011](../../../docs/decisions/D-011-diagnostics-directory-ownership.md) 接受受审 `d4cd27e` 及保留同一接口的迁移 `327735f`；这是施工输入，产品和已发布 API 尚未交付 |
-| 实际实现与证据 | 迁移起点 `1ab8635d57829bb8aed7b32506289285ddd5209a` 仍导出旧 factory，R1 真实 RED 未转 GREEN；本次不改产品代码。主调度已确认 R6 `4fa2c74f4816fe37850a812ca59032cb889d75fd` 窄缺口闭合，不据此声称 R1 或整包交付 |
+| R1 目录 owner、共同字节/slot 预留、稳定 flock 和创建入口迁移 | [D-011](../../../docs/decisions/D-011-diagnostics-directory-ownership.md) 接受受审 `d4cd27e` 及保留同一接口的迁移 `327735f`；这是施工输入，当前实现候选仍待主调度组合接受 |
+| 实际实现与证据 | D-011 实施候选已迁移到唯一目录 owner、真实 flock、共同预留和未知关闭结果；RED/GREEN、资源故障与独立产物证据归 [directory owner evidence](../../../docs/proposals/core-capabilities/implementation/evidence/p1-diagnostics/directory-owner/README.md)。主调度后续组合验收，包内绿色不自行接受 P1 |
 
 消费精确正式 [OB v1](../../../spec/capabilities/engineering-observation/v1/contract.md)、
 [CD v1](../../../spec/data/core-work/v1/contract.md)、
@@ -353,10 +353,8 @@ owner.close 同步关 create 入口，加入正在准备的来源并调用所有
 | 原件与重启 | 空/非 clean-end/部分文件保留并计容量；未知文件与非零锁拒绝，锁释放未知的报告与实际再获取分开；重启扫描重建账本，业务因果与原件身份不改 |
 | O08 精确公开消费 | 独立 tarball 安装并显式构建 fs-ext，实际加载/两个 factory 排他；无旧独立创建入口、无 records/work-data 反向依赖 |
 
-
-当前创建入口仍是源码中的旧 factory；按 R1 已接受设计实现后只开放
-`createLocalDiagnosticsDirectory → owner.create`，删除旧入口及重复目录预算参数，
-不保留未上线兼容层。JSONL/admission记录面类型不变；应用和独立消费者必须
+当前实施候选只开放 `createLocalDiagnosticsDirectory → owner.create`，已删除旧入口
+及重复目录预算参数，不保留未上线兼容层。JSONL/admission记录面类型不变；应用和独立消费者必须
 迁移目录 owner 的创建、inspect/close 和退出顺序，不能从私有 sink 绕过它。
 
 [目录修订来源](../../../docs/proposals/core-capabilities/implementation/observability-directory.md)

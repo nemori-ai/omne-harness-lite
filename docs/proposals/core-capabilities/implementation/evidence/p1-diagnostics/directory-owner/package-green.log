@@ -1,0 +1,27 @@
+
+> omne-harness-lite-workspace@ format:check /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics
+> ./scripts/format.sh check -- packages/observation/diagnostics/src/index.ts packages/observation/diagnostics/src/runtime.ts packages/observation/diagnostics/src/projection.ts packages/observation/diagnostics/tests/public-types.ts packages/observation/diagnostics/tests/runtime.spec.ts packages/observation/diagnostics/tests/reviewer-regressions.spec.ts packages/observation/diagnostics/tests/directory-owner.spec.ts packages/observation/diagnostics/tests/fixtures/sdk-span-gc.mjs packages/observation/diagnostics/tests/fixtures/directory-lock-child.mjs packages/observation/diagnostics/tests/fixtures/short-write-unknown-child.mjs
+
+Checking formatting...
+All matched files use Prettier code style!
+
+> @omne-harness-lite/diagnostics@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics
+> node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+
+
+> @omne-harness-lite/diagnostics@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics
+> tsc -p tsconfig.test.json
+
+
+> @omne-harness-lite/diagnostics@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics
+> vitest run
+
+
+ RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics
+
+
+ Test Files  3 passed (3)
+      Tests  50 passed (50)
+   Start at  08:57:40
+   Duration  1.30s (transform 501ms, setup 0ms, import 882ms, tests 1.87s, environment 0ms)
+

@@ -1,13 +1,16 @@
 import { createRequire, syncBuiltinESMExports } from 'node:module'
 import { access, chmod, mkdir, mkdtemp, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import { resolve, join } from 'node:path'
-import { beforeAll, describe, expect, it, vi } from 'vitest'
-import { createLocalDiagnostics } from '../dist/index.js'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { createLocalDiagnosticsDirectory } from '../dist/index.js'
 import type {
   DiagnosticIdentity,
   DiagnosticPoint,
   DiagnosticsRuntime,
-  LocalDiagnosticsOptions,
+  LocalDiagnosticSourceOptions,
+  LocalDiagnosticsDirectory,
+  LocalDiagnosticsDirectoryOptions,
+  LocalDiagnosticSourceResult,
 } from '../dist/index.js'
 
 const scratchRoot = resolve(import.meta.dirname, '../../../../tmp/p1-diagnostics/runtime-tests')
@@ -18,11 +21,28 @@ beforeAll(async () => {
   await mkdir(scratchRoot, { recursive: true })
 })
 
+type TestOptions = LocalDiagnosticsDirectoryOptions & LocalDiagnosticSourceOptions
+const owners = new Set<LocalDiagnosticsDirectory>()
+const ownersByDirectory = new Map<string, LocalDiagnosticsDirectory>()
+const ownersRetainedUntilTestProcessExit: LocalDiagnosticsDirectory[] = []
+
+afterEach(async () => {
+  const ownerList = [...owners]
+  const closing = await Promise.all(ownerList.map(owner => owner.close({ deadlineMs: 1_000 })))
+  for (const [index, result] of closing.entries()) {
+    if (result.status === 'blocked' && result.state.resource === 'unknown') {
+      ownersRetainedUntilTestProcessExit.push(ownerList[index]!)
+    }
+  }
+  owners.clear()
+  ownersByDirectory.clear()
+})
+
 function options(
   directory: string,
   sourceId = 'source-create',
-  overrides: Partial<LocalDiagnosticsOptions> = {},
-): LocalDiagnosticsOptions {
+  overrides: Partial<TestOptions> = {},
+): TestOptions {
   return {
     instanceId: 'instance-test',
     sourceId,
@@ -36,6 +56,41 @@ function options(
     maxFiles: 4,
     ...overrides,
   }
+}
+
+function directoryOptions(options: TestOptions): LocalDiagnosticsDirectoryOptions {
+  return {
+    directory: options.directory,
+    maxDirectoryBytes: options.maxDirectoryBytes,
+    maxFiles: options.maxFiles,
+  }
+}
+
+function sourceOptions(options: TestOptions): LocalDiagnosticSourceOptions {
+  return {
+    instanceId: options.instanceId,
+    sourceId: options.sourceId,
+    level: options.level,
+    maxRecordBytes: options.maxRecordBytes,
+    maxActiveSpans: options.maxActiveSpans,
+    maxBufferBytes: options.maxBufferBytes,
+    maxFileBytes: options.maxFileBytes,
+  }
+}
+
+async function createLocalDiagnostics(options: TestOptions): Promise<LocalDiagnosticSourceResult> {
+  let owner = ownersByDirectory.get(options.directory)
+  if (owner === undefined) {
+    const directory = await createLocalDiagnosticsDirectory(directoryOptions(options))
+    if (directory.status === 'invalid') return directory
+    if (directory.status === 'unavailable') {
+      return Object.freeze({ status: 'unavailable', code: directory.code })
+    }
+    owner = directory.owner
+    owners.add(owner)
+    ownersByDirectory.set(options.directory, owner)
+  }
+  return owner.create(sourceOptions(options))
 }
 
 function identity(tenantId: string, userId: string): DiagnosticIdentity {
@@ -63,7 +118,7 @@ async function createdRuntime(directory: string, sourceId: string): Promise<Diag
 }
 
 async function sourceFile(directory: string): Promise<string> {
-  const files = await readdir(directory)
+  const files = (await readdir(directory)).filter(file => file.startsWith('diagnostic-'))
   expect(files).toHaveLength(1)
   return join(directory, files[0]!)
 }
@@ -75,7 +130,7 @@ async function waitForCode(
   const deadline = Date.now() + 1_000
   do {
     const lines: Record<string, unknown>[] = []
-    for (const file of await readdir(directory)) {
+    for (const file of (await readdir(directory)).filter(file => file.startsWith('diagnostic-'))) {
       const text = await readFile(join(directory, file), 'utf8')
       lines.push(
         ...text
@@ -116,10 +171,14 @@ describe('O05/O06 local source lifecycle', () => {
     expect(closed.state.resource).toBe('released')
 
     const files = await readdir(directory)
-    expect(files).toHaveLength(1)
+    expect(files).toContain('.diagnostics.lock')
+    expect(files.filter(file => file.startsWith('diagnostic-'))).toHaveLength(1)
     expect((await stat(directory)).mode & 0o777).toBe(0o700)
-    expect((await stat(join(directory, files[0]!))).mode & 0o777).toBe(0o600)
-    const lines = (await readFile(join(directory, files[0]!), 'utf8'))
+    expect(await stat(join(directory, '.diagnostics.lock'))).toMatchObject({ size: 0 })
+    expect((await stat(join(directory, '.diagnostics.lock'))).mode & 0o777).toBe(0o600)
+    const source = files.find(file => file.startsWith('diagnostic-'))!
+    expect((await stat(join(directory, source))).mode & 0o777).toBe(0o600)
+    const lines = (await readFile(join(directory, source), 'utf8'))
       .trim()
       .split('\n')
       .map(line => JSON.parse(line) as { code: string })
@@ -521,15 +580,17 @@ describe('O06 close ownership and generation guards', () => {
     }
   })
 
-  it('keeps a failed fd close unknown and retries that same descriptor responsibility', async () => {
+  it('keeps a failed fd close unknown without blindly retrying its numeric identity', async () => {
     const directory = await mkdtemp(join(scratchRoot, 'close-failure-'))
     const runtime = await createdRuntime(directory, 'source-close-failure')
     await waitForCode(directory, 'diagnostic.source_started')
     const originalClose = nodeFs.close as unknown as FlexibleWrite
     let injected = false
+    let descriptor: number | undefined
     const spy = vi.spyOn(nodeFs, 'close').mockImplementation(((...args: unknown[]) => {
       if (injected) return originalClose(...args)
       injected = true
+      descriptor = args[0] as number
       const callback = args.at(-1)
       if (typeof callback !== 'function') throw new Error('unexpected fs.close signature')
       const error = Object.assign(new Error('SECRET_CLOSE_ERROR'), { code: 'EIO' })
@@ -552,24 +613,29 @@ describe('O06 close ownership and generation guards', () => {
         lastErrorCode: 'EIO',
       },
     })
-    const closed = await runtime.close({ deadlineMs: 1_000 })
-    expect(closed).toMatchObject({
-      status: 'closed',
-      state: { phase: 'closed', resource: 'released' },
+    const repeated = await runtime.close({ deadlineMs: 1_000 })
+    expect(repeated).toMatchObject({
+      status: 'blocked',
+      state: { phase: 'closing', resource: 'unknown' },
     })
+    expect(injected).toBe(true)
     expect(await readFile(await sourceFile(directory), 'utf8')).not.toContain('SECRET_CLOSE_ERROR')
+    if (descriptor !== undefined) {
+      await new Promise<void>(resolve => {
+        originalClose(descriptor, () => resolve())
+      })
+    }
   })
 })
 
 describe('O04/O05 configuration and local retention boundaries', () => {
-  it('rejects invalid configuration before creating its directory', async () => {
-    const parent = await mkdtemp(join(scratchRoot, 'invalid-'))
-    const directory = join(parent, 'must-not-exist')
+  it('rejects invalid source configuration before creating a source resource', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'invalid-'))
     const result = await createLocalDiagnostics(
       options(directory, 'source-invalid', { maxRecordBytes: 0 }),
     )
     expect(result).toEqual({ status: 'invalid', code: 'INVALID_MAX_RECORD_BYTES' })
-    await expect(access(directory)).rejects.toMatchObject({ code: 'ENOENT' })
+    expect((await readdir(directory)).filter(file => file.startsWith('diagnostic-'))).toEqual([])
   })
 
   it('retains an acquired descriptor when source preparation and its first cleanup both fail', async () => {
@@ -618,53 +684,40 @@ describe('O04/O05 configuration and local retention boundaries', () => {
       resource: 'unknown',
       lastErrorCode: 'SOURCE_OPEN_EIO',
     })
-    expect(afterRetry).toMatchObject({ status: 'closed', state: { resource: 'released' } })
+    expect(afterRetry).toMatchObject({ status: 'blocked', state: { resource: 'unknown' } })
   })
 
-  it('returns a visible degraded runtime when directory retention is already exhausted', async () => {
+  it('rejects an unknown retained entry instead of treating it as available capacity', async () => {
     const directory = await mkdtemp(join(scratchRoot, 'retention-'))
     await chmod(directory, 0o700)
     await writeFile(join(directory, 'retained-source.jsonl'), 'x'.repeat(1_024), { mode: 0o600 })
-    const result = await createLocalDiagnostics(
-      options(directory, 'source-retention', {
-        maxRecordBytes: 512,
-        maxBufferBytes: 1_024,
-        maxFileBytes: 1_024,
-        maxDirectoryBytes: 1_024,
-        maxFiles: 1,
-      }),
+    const result = await createLocalDiagnosticsDirectory(
+      directoryOptions(
+        options(directory, 'source-retention', {
+          maxRecordBytes: 512,
+          maxBufferBytes: 1_024,
+          maxFileBytes: 1_024,
+          maxDirectoryBytes: 1_024,
+          maxFiles: 1,
+        }),
+      ),
     )
-    expect(result.status).toBe('created')
-    if (result.status !== 'created') return
-    expect(result.runtime.inspect()).toMatchObject({
-      phase: 'degraded',
-      resource: 'released',
-      lastErrorCode: 'RETENTION_CAPACITY',
+    expect(result).toMatchObject({
+      status: 'unavailable',
+      code: 'UNKNOWN_DIRECTORY_ENTRY',
+      cleanup: null,
     })
-    expect(result.runtime.inspect().gaps).toContainEqual(
-      expect.objectContaining({
-        reason: 'retention_capacity',
-      }),
-    )
-    await expect(result.runtime.close({ deadlineMs: 1_000 })).resolves.toMatchObject({
-      status: 'closed',
-    })
-    expect(await readdir(directory)).toEqual(['retained-source.jsonl'])
+    expect(await readdir(directory)).toEqual(['.diagnostics.lock', 'retained-source.jsonl'])
   })
 
-  it('keeps two factory instances and colliding source generations isolated', async () => {
+  it('returns the same source handle and keeps different sources isolated under one owner', async () => {
     const directory = await mkdtemp(join(scratchRoot, 'factories-'))
     const first = await createdRuntime(directory, 'source-first')
     try {
       const collision = await createLocalDiagnostics(options(directory, 'source-first'))
       expect(collision.status).toBe('created')
       if (collision.status === 'created') {
-        expect(collision.runtime.inspect()).toMatchObject({
-          phase: 'degraded',
-          resource: 'released',
-          lastErrorCode: 'SOURCE_EXISTS',
-        })
-        await collision.runtime.close({ deadlineMs: 1_000 })
+        expect(collision.runtime).toBe(first)
       }
 
       const second = await createdRuntime(directory, 'source-second')
@@ -682,7 +735,7 @@ describe('O04/O05 configuration and local retention boundaries', () => {
     }
   })
 
-  it('does not let another host instance append the same source generation', async () => {
+  it('rejects a conflicting configuration for the same source generation', async () => {
     const directory = await mkdtemp(join(scratchRoot, 'cross-instance-collision-'))
     const firstResult = await createLocalDiagnostics(
       options(directory, 'shared-source', {
@@ -696,17 +749,11 @@ describe('O04/O05 configuration and local retention boundaries', () => {
         instanceId: 'instance-b',
       }),
     )
-    expect(collision.status).toBe('created')
-    if (collision.status !== 'created') return
-    expect(collision.runtime.inspect()).toMatchObject({
-      phase: 'degraded',
-      resource: 'released',
-      lastErrorCode: 'SOURCE_EXISTS',
-    })
-    expect(collision.runtime.diagnostics.newId()).not.toBe(firstResult.runtime.diagnostics.newId())
-    await collision.runtime.close({ deadlineMs: 1_000 })
+    expect(collision).toEqual({ status: 'unavailable', code: 'SOURCE_CONFLICT' })
     await firstResult.runtime.close({ deadlineMs: 1_000 })
-    expect(await readdir(directory)).toHaveLength(1)
+    expect((await readdir(directory)).filter(file => file.startsWith('diagnostic-'))).toHaveLength(
+      1,
+    )
   })
 
   it('reports an earlier diagnostic source without a clean end as crash-unknown', async () => {

@@ -1,0 +1,15 @@
+diff --git a/packages/observation/diagnostics/src/runtime.ts b/packages/observation/diagnostics/src/runtime.ts
+--- a/packages/observation/diagnostics/src/runtime.ts
++++ b/packages/observation/diagnostics/src/runtime.ts
+@@ -585,10 +585,7 @@ class LocalRuntime implements DiagnosticsRuntime {
+       return inert
+     }
+     const spanContext = span.spanContext()
+-    const child = this.makeContext(
+-      internal.identity,
+-      trace.setSpanContext(internal.native, spanContext),
+-    )
++    const child = this.makeContext(internal.identity, trace.setSpan(internal.native, span))
+     this.activeSpans.set(spanContext.spanId, {
+       span,
+       context: this.contexts.get(child)!,

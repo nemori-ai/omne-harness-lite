@@ -14,8 +14,9 @@ function object(
   required: readonly string[],
   optional: readonly string[] = [],
 ): Checked<DescriptorMap> {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return invalid
+  if (value === null || typeof value !== 'object') return invalid
   try {
+    if (Array.isArray(value)) return invalid
     const prototype = Object.getPrototypeOf(value)
     if (prototype !== Object.prototype && prototype !== null) return invalid
     if (Object.getOwnPropertySymbols(value).length !== 0) return invalid
