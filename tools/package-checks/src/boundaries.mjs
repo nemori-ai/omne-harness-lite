@@ -171,6 +171,18 @@ export function validateManifest(manifest, provenance) {
   }
 }
 
+export function requiresArtifactChecks(member) {
+  if (member.kind === 'package') return true
+  assert.equal(member.kind, 'app', `unknown product member kind: ${member.kind}`)
+  assert.equal(member.manifest.private, true, `private application: ${member.manifest.name}`)
+  assert.equal(
+    member.manifest.bin,
+    undefined,
+    `unsupported application bin: ${member.manifest.name}`,
+  )
+  return member.manifest.exports !== undefined
+}
+
 function safeMemberPath(root, path, label) {
   assert.equal(typeof path, 'string', `${label} must be a string`)
   const absolute = resolve(root, path)
@@ -394,6 +406,10 @@ export function validateImport(specifier, file, member, inventory, development =
   if (name.startsWith('@omne-harness-lite/'))
     assert.ok(sibling, `unknown product dependency: ${name}`)
   if (sibling) {
+    assert.ok(
+      member.kind !== 'package' || sibling.kind !== 'app',
+      `package cannot depend on application: ${file}: ${specifier}`,
+    )
     const subpath = specifier === name ? '.' : '.' + specifier.slice(name.length)
     assert.ok(subpath in sibling.manifest.exports, `private package subpath: ${file}: ${specifier}`)
     if (name !== member.manifest.name)
@@ -416,6 +432,10 @@ export function closure(member, inventory, visiting = new Set(), result = new Se
     if (!name.startsWith('@omne-harness-lite/')) continue
     const dependency = inventory.find(p => p.manifest.name === name)
     assert.ok(dependency, `unknown product dependency: ${name}`)
+    assert.ok(
+      member.kind !== 'package' || dependency.kind !== 'app',
+      `package cannot depend on application: ${member.manifest.name}: ${name}`,
+    )
     closure(dependency, inventory, visiting, result)
   }
   visiting.delete(member)

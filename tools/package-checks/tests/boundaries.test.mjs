@@ -12,7 +12,7 @@ import { members, imports, validateImport, closure } from '../src/boundaries.mjs
 
 const scratchRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  '../../../tmp/p0-package-checks',
+  '../../../tmp/p1-app-checker/package-checks',
 )
 const checkScript = resolve(dirname(fileURLToPath(import.meta.url)), '../src/check.mjs')
 const sha256 = value => createHash('sha256').update(value).digest('hex')
@@ -88,6 +88,42 @@ export const value = 1
       },
     }),
   )
+}
+
+async function privateAppCarrier(
+  repo,
+  { dependency, directory = 'tests', specifier = dependency, bin } = {},
+) {
+  const root = join(repo, 'apps/local-harness')
+  await mkdir(join(root, directory), { recursive: true })
+  await writeFile(
+    join(root, directory, 'composition.spec.ts'),
+    specifier ? `import { value } from '${specifier}'\nvoid value\n` : 'export {}\n',
+  )
+  await writeFile(
+    join(root, 'package.json'),
+    JSON.stringify({
+      name: '@omne-harness-lite/local-harness',
+      version: '0.0.0',
+      private: true,
+      scripts: { test: 'vitest run' },
+      dependencies: dependency ? { [dependency]: 'workspace:*' } : {},
+      ...(bin ? { bin } : {}),
+    }),
+  )
+  return root
+}
+
+async function prepareFixtureWorkspace(repo) {
+  await writeFile(
+    join(repo, 'package.json'),
+    JSON.stringify({ name: 'fixture-root', private: true, packageManager: 'pnpm@10.28.1' }),
+  )
+  await writeFile(join(repo, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*/*\n  - apps/*\n')
+  execFileSync('pnpm', ['install', '--offline', '--ignore-scripts'], {
+    cwd: repo,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
 }
 
 const make = name => ({
@@ -501,6 +537,95 @@ test('checks every packed public declaration and maps default exports to valid c
         paths,
       ),
     /LICENSE/,
+  )
+})
+
+test(
+  'checks a private test-only application carrier without requiring library artifacts',
+  { timeout: 60_000 },
+  async t => {
+    await mkdir(scratchRoot, { recursive: true })
+    const repo = await mkdtemp(join(scratchRoot, 'application-carrier-'))
+    t.after(() => rm(repo, { recursive: true, force: true }))
+    const dependency = '@omne-harness-lite/work-data'
+    await ownedMember(repo, 'packages/core/work-data', dependency)
+    const app = await privateAppCarrier(repo, { dependency })
+    assert.deepEqual((await readdir(app)).sort(), ['package.json', 'tests'])
+    await prepareFixtureWorkspace(repo)
+
+    const output = execFileSync(process.execPath, [checkScript, '--root', repo], {
+      cwd: repo,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    assert.match(output, /PASS: 2 product members/)
+    assert.match(output, /checked private application carrier local-harness/)
+    assert.match(output, /isolated work-data/)
+    assert.doesNotMatch(output, /isolated local-harness/)
+  },
+)
+
+for (const directory of ['src', 'tests']) {
+  test(`rejects application ${directory} imports that penetrate package source`, async t => {
+    await mkdir(scratchRoot, { recursive: true })
+    const repo = await mkdtemp(join(scratchRoot, `application-${directory}-penetration-`))
+    t.after(() => rm(repo, { recursive: true, force: true }))
+    const dependency = '@omne-harness-lite/work-data'
+    await ownedMember(repo, 'packages/core/work-data', dependency)
+    await privateAppCarrier(repo, {
+      dependency,
+      directory,
+      specifier: '../../../packages/core/work-data/src/index.ts',
+    })
+    await prepareFixtureWorkspace(repo)
+
+    await assert.rejects(repositoryCheck.checkRepository(repo), /cross-package relative import/)
+  })
+}
+
+test('rejects an undeclared application test dependency', async t => {
+  await mkdir(scratchRoot, { recursive: true })
+  const repo = await mkdtemp(join(scratchRoot, 'application-undeclared-dependency-'))
+  t.after(() => rm(repo, { recursive: true, force: true }))
+  const dependency = '@omne-harness-lite/work-data'
+  await ownedMember(repo, 'packages/core/work-data', dependency)
+  await privateAppCarrier(repo, { specifier: dependency })
+  await prepareFixtureWorkspace(repo)
+
+  await assert.rejects(repositoryCheck.checkRepository(repo), /undeclared dependency/)
+})
+
+test('rejects application binaries until executable artifact checks are supported', async t => {
+  await mkdir(scratchRoot, { recursive: true })
+  const repo = await mkdtemp(join(scratchRoot, 'application-bin-'))
+  t.after(() => rm(repo, { recursive: true, force: true }))
+  const dependency = '@omne-harness-lite/work-data'
+  await ownedMember(repo, 'packages/core/work-data', dependency)
+  await privateAppCarrier(repo, { dependency, bin: './bin/local-harness.mjs' })
+  await prepareFixtureWorkspace(repo)
+
+  await assert.rejects(repositoryCheck.checkRepository(repo), /unsupported application bin/)
+})
+
+test('rejects reusable package dependencies on applications', () => {
+  const product = {
+    kind: 'package',
+    root: '/repo/packages/core/product',
+    manifest: {
+      name: '@omne-harness-lite/product',
+      exports: { '.': {} },
+      dependencies: { '@omne-harness-lite/local-harness': 'workspace:*' },
+    },
+  }
+  const application = {
+    kind: 'app',
+    root: '/repo/apps/local-harness',
+    manifest: { name: '@omne-harness-lite/local-harness', dependencies: {} },
+  }
+
+  assert.throws(
+    () => closure(product, [product, application]),
+    /package cannot depend on application/,
   )
 })
 
