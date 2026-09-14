@@ -29,8 +29,8 @@ import { projectEnd, projectIdentity, projectPoint, samePrincipal } from './proj
 import type { SafeIdentity, SafePoint } from './projection.js'
 
 const levels = new Set(['debug', 'info', 'warn', 'error'])
-const emptyContext = Object.freeze({}) as DiagnosticContext
 const levelValue = { debug: 10, info: 20, warn: 30, error: 40 } as const
+const diagnosticFile = /^diagnostic-(?:[0-9a-f]{16}-)?[0-9a-f]{16}\.jsonl$/u
 
 type InternalContext = Readonly<{
   identity: SafeIdentity
@@ -68,8 +68,14 @@ function validPositiveInteger(value: unknown): value is number {
 
 function validateOptions(options: LocalDiagnosticsOptions): string | undefined {
   if (options === null || typeof options !== 'object') return 'INVALID_OPTIONS'
-  if (typeof options.instanceId !== 'string' || options.instanceId.length === 0) return 'INVALID_INSTANCE_ID'
-  if (typeof options.sourceId !== 'string' || options.sourceId.length === 0) return 'INVALID_SOURCE_ID'
+  if (typeof options.instanceId !== 'string'
+    || options.instanceId.length === 0
+    || Buffer.byteLength(options.instanceId, 'utf8') > 256
+    || /[\u0000-\u001f\u007f]/u.test(options.instanceId)) return 'INVALID_INSTANCE_ID'
+  if (typeof options.sourceId !== 'string'
+    || options.sourceId.length === 0
+    || Buffer.byteLength(options.sourceId, 'utf8') > 256
+    || /[\u0000-\u001f\u007f]/u.test(options.sourceId)) return 'INVALID_SOURCE_ID'
   if (typeof options.directory !== 'string' || !isAbsolute(options.directory)) return 'INVALID_DIRECTORY'
   if (!levels.has(options.level)) return 'INVALID_LEVEL'
   for (const key of [
@@ -90,9 +96,8 @@ function validateOptions(options: LocalDiagnosticsOptions): string | undefined {
 }
 
 function fileName(options: LocalDiagnosticsOptions): string {
-  const instance = createHash('sha256').update(options.instanceId, 'utf8').digest('hex').slice(0, 16)
   const source = createHash('sha256').update(options.sourceId, 'utf8').digest('hex').slice(0, 16)
-  return `diagnostic-${instance}-${source}.jsonl`
+  return `diagnostic-${source}.jsonl`
 }
 
 function frozenStatus(runtime: LocalRuntime): DiagnosticStatus {
@@ -154,6 +159,7 @@ class LocalRuntime implements DiagnosticsRuntime {
   private readonly maxRecordBytes: number
   private readonly maxActiveSpans: number
   private readonly maxSourceBytes: number
+  private readonly idPrefix: string
   private readonly stream: SonicBoom | null
   private readonly logger: pino.Logger | null
   private readonly manager = new AsyncLocalStorageContextManager().enable()
@@ -178,12 +184,19 @@ class LocalRuntime implements DiagnosticsRuntime {
     stream: SonicBoom | null,
     maxSourceBytes: number,
     failure?: StartupFailure,
+    crashUnknown = false,
   ) {
     this.sourceId = options.sourceId
     this.configuredLevel = options.level
     this.maxRecordBytes = options.maxRecordBytes
     this.maxActiveSpans = options.maxActiveSpans
     this.maxSourceBytes = maxSourceBytes
+    this.idPrefix = createHash('sha256')
+      .update(options.instanceId, 'utf8')
+      .update('\0')
+      .update(options.sourceId, 'utf8')
+      .digest('hex')
+      .slice(0, 24)
     this.stream = stream
     if (stream === null) {
       this.logger = null
@@ -282,17 +295,14 @@ class LocalRuntime implements DiagnosticsRuntime {
     })
     this.tracer = this.provider.getTracer('@omne-harness-lite/diagnostics', '1')
     if (stream !== null) this.emitMarker('diagnostic.source_started')
+    if (crashUnknown) this.addGap('crash_unknown', null, 'unknown')
 
-    const inertSpan: DiagnosticSpan = Object.freeze({
-      context: emptyContext,
-      end(_result: DiagnosticEnd): void {},
-    })
     this.diagnostics = Object.freeze({
-      newId: () => `${this.sourceId}:${++this.idCounter}`,
+      newId: () => `diagnostic-${this.idPrefix}-${++this.idCounter}`,
       scope: (identity: DiagnosticIdentity, parent?: DiagnosticContext) => this.scope(identity, parent),
       current: () => this.current(),
       log: (context: DiagnosticContext, point: DiagnosticPoint) => this.log(context, point),
-      startSpan: (context: DiagnosticContext, point: DiagnosticPoint) => this.startSpan(context, point, inertSpan),
+      startSpan: (context: DiagnosticContext, point: DiagnosticPoint) => this.startSpan(context, point),
       within: <T>(context: DiagnosticContext, body: () => T): T => this.within(context, body),
     })
   }
@@ -415,13 +425,16 @@ class LocalRuntime implements DiagnosticsRuntime {
   private startSpan(
     context: DiagnosticContext,
     point: DiagnosticPoint,
-    inert: DiagnosticSpan,
   ): DiagnosticSpan {
+    const internal = this.contexts.get(context)
+    const inert: DiagnosticSpan = Object.freeze({
+      context: internal === undefined ? Object.freeze({}) as DiagnosticContext : context,
+      end(_result: DiagnosticEnd): void {},
+    })
     if (this.phase === 'closing' || this.phase === 'closed') {
       this.addGap('closing', this.nextSeq())
       return inert
     }
-    const internal = this.contexts.get(context)
     const projected = projectPoint(point)
     if (internal === undefined || !projected.ok) {
       this.addGap('invalid_projection', this.nextSeq())
@@ -711,9 +724,45 @@ class LocalRuntime implements DiagnosticsRuntime {
   }
 }
 
-async function availableSourceBytes(directory: string, options: LocalDiagnosticsOptions): Promise<number | null> {
+async function endedCleanly(path: string, size: number, maxRecordBytes: number): Promise<boolean> {
+  if (size === 0) return false
+  const handle = await open(path, 'r')
+  try {
+    const window = Math.min(size, maxRecordBytes + 1)
+    const firstBuffer = Buffer.alloc(window)
+    const firstRead = await handle.read(firstBuffer, 0, window, 0)
+    const firstLine = firstBuffer.subarray(0, firstRead.bytesRead).toString('utf8').split('\n', 1)[0]
+    const tailBuffer = Buffer.alloc(window)
+    const tailRead = await handle.read(tailBuffer, 0, window, Math.max(0, size - window))
+    const tail = tailBuffer.subarray(0, tailRead.bytesRead).toString('utf8').trimEnd()
+    const lastLine = tail.slice(tail.lastIndexOf('\n') + 1)
+    const first = JSON.parse(firstLine) as Record<string, unknown>
+    const last = JSON.parse(lastLine) as Record<string, unknown>
+    return first.formatVersion === 'omne-diagnostic/1'
+      && first.code === 'diagnostic.source_started'
+      && typeof first.sourceId === 'string'
+      && last.formatVersion === 'omne-diagnostic/1'
+      && last.sourceId === first.sourceId
+      && last.code === 'diagnostic.source_closed'
+  } catch {
+    return false
+  } finally {
+    await handle.close()
+  }
+}
+
+type DirectoryPreparation = Readonly<{
+  maxSourceBytes: number
+  crashUnknown: boolean
+}>
+
+async function prepareDirectory(
+  directory: string,
+  options: LocalDiagnosticsOptions,
+): Promise<DirectoryPreparation | null> {
   let entries = 0
   let bytes = 0
+  let crashUnknown = false
   const handle = await opendir(directory)
   try {
     for await (const entry of handle) {
@@ -722,6 +771,11 @@ async function availableSourceBytes(directory: string, options: LocalDiagnostics
       try {
         const metadata = await lstat(join(directory, entry.name))
         bytes += metadata.size
+        if (metadata.isFile()
+          && diagnosticFile.test(entry.name)
+          && !await endedCleanly(join(directory, entry.name), metadata.size, options.maxRecordBytes)) {
+          crashUnknown = true
+        }
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue
         throw error
@@ -732,7 +786,9 @@ async function availableSourceBytes(directory: string, options: LocalDiagnostics
     await handle.close().catch(() => {})
   }
   const remaining = options.maxDirectoryBytes - bytes
-  return remaining >= options.maxRecordBytes ? Math.min(options.maxFileBytes, remaining) : null
+  return remaining >= options.maxRecordBytes
+    ? Object.freeze({ maxSourceBytes: Math.min(options.maxFileBytes, remaining), crashUnknown })
+    : null
 }
 
 function startupFailure(error: unknown): StartupFailure {
@@ -777,8 +833,8 @@ export async function createLocalDiagnostics(
   try {
     await mkdir(options.directory, { recursive: true, mode: 0o700 })
     await chmod(options.directory, 0o700)
-    const maxSourceBytes = await availableSourceBytes(options.directory, options)
-    if (maxSourceBytes === null) {
+    const preparation = await prepareDirectory(options.directory, options)
+    if (preparation === null) {
       return Object.freeze({
         status: 'created',
         runtime: new LocalRuntime(options, null, 0, {
@@ -788,7 +844,10 @@ export async function createLocalDiagnostics(
       })
     }
     const stream = await createStream(join(options.directory, fileName(options)), options)
-    return Object.freeze({ status: 'created', runtime: new LocalRuntime(options, stream, maxSourceBytes) })
+    return Object.freeze({
+      status: 'created',
+      runtime: new LocalRuntime(options, stream, preparation.maxSourceBytes, undefined, preparation.crashUnknown),
+    })
   } catch (error) {
     return Object.freeze({
       status: 'created',

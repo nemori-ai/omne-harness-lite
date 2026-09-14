@@ -265,7 +265,7 @@ export function projectIdentity(input: DiagnosticIdentity): Checked<SafeIdentity
 }
 
 function counter(input: unknown, positive = false): Checked<string> {
-  if (typeof input !== 'string' || !/^(0|[1-9][0-9]*)$/u.test(input)) return invalid
+  if (typeof input !== 'string' || input.length > 256 || !/^(0|[1-9][0-9]*)$/u.test(input)) return invalid
   if (positive && input === '0') return invalid
   return valid(input)
 }
