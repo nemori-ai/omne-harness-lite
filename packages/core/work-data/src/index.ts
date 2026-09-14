@@ -1,3 +1,9 @@
+import { readFileSync } from 'node:fs'
+import { Ajv2020 } from 'ajv/dist/2020.js'
+import type { ErrorObject, ValidateFunction } from 'ajv'
+import { parseTree, printParseErrorCode } from 'jsonc-parser'
+import type { Node as JsonNode, ParseError } from 'jsonc-parser'
+
 export type JsonValue = null | boolean | number | string | JsonObject | readonly JsonValue[]
 export type JsonObject = { readonly [key: string]: JsonValue }
 export type OpaqueId = string
@@ -180,6 +186,38 @@ export interface DataTypes {
   InputBlock: InputBlock
 }
 
+const DATA_TYPE_NAMES = [
+  'OpaqueId',
+  'SessionRef',
+  'AgentRef',
+  'UserRef',
+  'MembershipRef',
+  'DefinitionRef',
+  'DefinitionVersion',
+  'RunRef',
+  'StepRef',
+  'WorkRef',
+  'WorkOwner',
+  'MediaRef',
+  'MediaMetadata',
+  'ResourceRef',
+  'SecretRef',
+  'Binding',
+  'Action',
+  'CallRef',
+  'RequestRef',
+  'Money',
+  'OperationRef',
+  'Decision',
+  'Input',
+  'ContentBlock',
+  'AuthorizationDeclaration',
+  'Command',
+  'ToolDefinition',
+  'BackgroundDeclaration',
+  'InputBlock',
+] as const satisfies readonly (keyof DataTypes)[]
+
 export type ValidationIssue = Readonly<{
   path: string
   code: 'invalid_json' | 'schema' | 'unsupported_number' | 'capacity'
@@ -189,6 +227,44 @@ export type Checked<T> =
   | Readonly<{ ok: true; value: T }>
   | Readonly<{ ok: false; issues: readonly ValidationIssue[] }>
 export type JsonLimits = Readonly<{ maxBytes: number; maxDepth: number; maxNodes: number }>
+
+function readSchema(filename: string): Record<string, unknown> {
+  const value: unknown = JSON.parse(readFileSync(new URL(`./schemas/${filename}`, import.meta.url), 'utf8'))
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw new TypeError(`schema resource ${filename} is not an object`)
+  }
+  return value as Record<string, unknown>
+}
+
+const identitySchema = readSchema('agent-runtime-identity.schema.json')
+const coreWorkSchema = readSchema('core-work.schema.json')
+const identitySchemaId = identitySchema.$id
+const coreWorkSchemaId = coreWorkSchema.$id
+if (typeof identitySchemaId !== 'string' || typeof coreWorkSchemaId !== 'string') {
+  throw new TypeError('schema resources must have string $id values')
+}
+
+const ajv = new Ajv2020({
+  allErrors: true,
+  coerceTypes: false,
+  useDefaults: false,
+  removeAdditional: false,
+  strictSchema: true,
+  strictNumbers: true,
+  strictTypes: false,
+  strictRequired: false,
+  allowUnionTypes: true,
+  ownProperties: true,
+})
+ajv.addSchema(identitySchema)
+ajv.addSchema(coreWorkSchema)
+
+const identityTypes = new Set<keyof DataTypes>(['OpaqueId', 'SessionRef', 'AgentRef'])
+const validators = new Map<keyof DataTypes, ValidateFunction>()
+for (const name of DATA_TYPE_NAMES) {
+  const schemaId = identityTypes.has(name) ? identitySchemaId : coreWorkSchemaId
+  validators.set(name, ajv.compile({ $ref: `${schemaId}#/$defs/${name}` }))
+}
 
 type PathSegment = string | number
 
@@ -640,11 +716,43 @@ export function copyJson(value: unknown, limits: JsonLimits): Checked<JsonValue>
 }
 
 export function parseData<K extends keyof DataTypes>(
-  _type: K,
-  _value: unknown,
-  _limits: JsonLimits,
+  type: K,
+  value: unknown,
+  limits: JsonLimits,
 ): Checked<DataTypes[K]> {
-  return issue('invalid_json', '', 'parseData is not implemented')
+  const validator = validators.get(type)
+  if (validator === undefined) return issue('schema', '', `unknown data type: ${String(type)}`)
+  const copied = copyJson(value, limits)
+  if (!copied.ok) return copied
+  if (!validator(copied.value)) {
+    const errors = (validator.errors ?? []).filter(error => error.keyword !== 'if')
+    return {
+      ok: false,
+      issues: errors.map(error => ({
+        path: schemaIssuePath(error),
+        code: 'schema',
+        message: `${error.keyword}: ${error.message ?? 'schema validation failed'}`,
+      })),
+    }
+  }
+  // The validator is compiled from the exact $defs selected by K; this is the
+  // single bridge from its runtime schema proof to the matching static type.
+  return { ok: true, value: copied.value as DataTypes[K] }
+}
+
+function schemaIssuePath(error: ErrorObject): string {
+  if (error.keyword === 'required') {
+    const missing: unknown = error.params.missingProperty
+    if (typeof missing === 'string') return `${error.instancePath}/${missing.replaceAll('~', '~0').replaceAll('/', '~1')}`
+  }
+  if (error.keyword === 'additionalProperties') {
+    const extra: unknown = error.params.additionalProperty
+    if (typeof extra === 'string') return `${error.instancePath}/${extra.replaceAll('~', '~0').replaceAll('/', '~1')}`
+  }
+  if (error.keyword === 'not' && error.schemaPath.includes('/else/not')) {
+    return `${error.instancePath}/answer`
+  }
+  return error.instancePath
 }
 
 export function canonicalJson(value: JsonValue): string {
@@ -664,5 +772,3 @@ export function canonicalJson(value: JsonValue): string {
 export function equalJson(a: JsonValue, b: JsonValue): boolean {
   return canonicalJson(a) === canonicalJson(b)
 }
-import { parseTree, printParseErrorCode } from 'jsonc-parser'
-import type { Node as JsonNode, ParseError } from 'jsonc-parser'

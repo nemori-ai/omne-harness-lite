@@ -6,6 +6,14 @@
     {
       "path": "src/index.ts",
       "purpose": "Public DTO types and strict JSON/schema validation implementation"
+    },
+    {
+      "path": "src/schemas/agent-runtime-identity.schema.json",
+      "purpose": "Byte-identical frozen data.agent-runtime-identity v1 schema resource"
+    },
+    {
+      "path": "src/schemas/core-work.schema.json",
+      "purpose": "Byte-identical frozen data.core-work v1 schema resource"
     }
   ]
 }
