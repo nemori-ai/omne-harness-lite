@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "module": "NodeNext",
+    "strict": true,
+    "noEmit": true,
+    "verbatimModuleSyntax": true,
+    "types": ["node"],
+    "paths": {
+      "@omne-harness-lite/admission": ["../../../coordination/admission/dist/index.d.ts"],
+      "@omne-harness-lite/diagnostics": ["../../../observation/diagnostics/dist/index.d.ts"],
+      "@omne-harness-lite/records": ["../../../storage/records/dist/index.d.ts"],
+      "@omne-harness-lite/work-data": ["../../work-data/dist/index.d.ts"]
+    }
+  },
+  "include": ["public-protocols.ts"]
+}

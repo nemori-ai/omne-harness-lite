@@ -4,11 +4,15 @@
   "private": true,
   "type": "module",
   "license": "MIT",
-  "description": "Agent registry, factory delegation and initiator primitives; experimental source baseline",
+  "description": "Live-agent provider protocols with an experimental DSH source baseline",
   "engines": {
     "node": ">=24 <25"
   },
   "exports": {
+    ".": {
+      "types": "./dist/protocols.d.ts",
+      "import": "./dist/protocols.js"
+    },
     "./baseline": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
@@ -28,6 +32,9 @@
   },
   "dependencies": {
     "@deepseek-ai/cordis": "4.0.2",
+    "@omne-harness-lite/admission": "workspace:*",
+    "@omne-harness-lite/records": "workspace:*",
+    "@omne-harness-lite/work-data": "workspace:*",
     "@omne-harness-lite/scope": "workspace:*"
   },
   "devDependencies": {

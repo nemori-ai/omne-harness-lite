@@ -2,7 +2,8 @@
 
 状态：`f98ac926` 提供者映射已接受为最小运行基线施工输入。
 现有 [src/index.ts](src/index.ts) 与 [src/types.ts](src/types.ts) 是 `/baseline`
-fork；目标默认入口及 AR/CB 产品符合性尚未交付。历史来源、采用范围与证据归
+fork；[src/protocols.ts](src/protocols.ts) 已在默认入口交付本设计的最小公共消费
+协议声明。AgentHost、目标 Registry 运行行为及 AR/CB 产品符合性尚未交付。历史来源、采用范围与证据归
 [原施工入口](../../../docs/proposals/core-capabilities/implementation/runtime-provider-interfaces.md)。
 
 ## 契约、身份与提供方式

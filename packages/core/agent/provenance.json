@@ -3,7 +3,7 @@
   "repository": "https://github.com/deepseek-ai/deepseek-harness",
   "commit": "c291e7961a515f6d7af9304e7fd1d257929aef26",
   "retrieved_on": "2026-09-13",
-  "scope": "Agent registry, factory delegation and initiator primitives; source baseline only, not target capability conformance",
+  "scope": "Project-owned live-agent provider protocol declarations plus the retained Agent registry, factory delegation and initiator source baseline; not target runtime conformance",
   "cordis_release": {
     "name": "@deepseek-ai/cordis",
     "version": "4.0.2",
@@ -120,8 +120,40 @@
   ],
   "project_files": [
     {
+      "path": "src/protocols.ts",
+      "purpose": "Project-owned public provider protocols and immutable live-agent capability snapshots"
+    },
+    {
       "path": "tests/dispatch-integration.spec.ts",
       "purpose": "Preserved project-owned baseline export or regression verification, relocated from the 475389d source baseline; no target conformance claim"
+    },
+    {
+      "path": "evidence/public-protocols/README.md",
+      "purpose": "Fixed public-protocol compilation, package artifact and verification scope"
+    },
+    {
+      "path": "evidence/public-protocols/public-consumer.ts",
+      "purpose": "Strict external TypeScript consumer for SR, Factory, Driver and resource provider protocols"
+    },
+    {
+      "path": "evidence/public-protocols/tsconfig.json",
+      "purpose": "Strict NodeNext compiler configuration used by the external protocol consumer"
+    },
+    {
+      "path": "evidence/public-protocols/red.log",
+      "purpose": "Initial expected failure showing that the target default protocol module was absent"
+    },
+    {
+      "path": "evidence/public-protocols/leaf-verification.log",
+      "purpose": "Final build, strict typecheck and retained baseline test transcript"
+    },
+    {
+      "path": "evidence/public-protocols/consumer-verification.log",
+      "purpose": "Independent packed-package installation and strict consumer transcript"
+    },
+    {
+      "path": "evidence/public-protocols/manifest.json",
+      "purpose": "Hashes binding the verified protocol sources, public artifacts and packed tarball"
     }
   ],
   "source_package": "@deepseek-ai/dsh-agent",
