@@ -504,57 +504,6 @@
         "spec/compositions/session-run-agent-lifecycles/v1/Lifecycles.tla"
       ],
       "timeout_seconds": 300
-    },
-    {
-      "id": "session-run-agent-lifecycles-v1-split",
-      "kind": "tla",
-      "artifacts": [
-        "spec/compositions/session-run-agent-lifecycles/v1/Lifecycles.tla",
-        "spec/compositions/session-run-agent-lifecycles/v1/LifecyclesMC.tla",
-        "spec/compositions/session-run-agent-lifecycles/v1/LifecyclesSplit.cfg"
-      ],
-      "command": [
-        "${JAVA_BIN}",
-        "-Xmx4g",
-        "-XX:+UseParallelGC",
-        "-cp",
-        "${TLA2TOOLS_JAR}",
-        "tlc2.TLC",
-        "-noGenerateSpecTE",
-        "-workers",
-        "4",
-        "-metadir",
-        "tmp/formal-runs/session-run-agent-lifecycles-v1-split",
-        "-config",
-        "spec/compositions/session-run-agent-lifecycles/v1/LifecyclesSplit.cfg",
-        "spec/compositions/session-run-agent-lifecycles/v1/LifecyclesMC.tla"
-      ],
-      "timeout_seconds": 600
-    },
-    {
-      "id": "session-run-agent-lifecycles-v1-split-progress",
-      "kind": "tla",
-      "artifacts": [
-        "spec/compositions/session-run-agent-lifecycles/v1/Lifecycles.tla",
-        "spec/compositions/session-run-agent-lifecycles/v1/LifecyclesSplitProgress.cfg"
-      ],
-      "command": [
-        "${JAVA_BIN}",
-        "-Xmx4g",
-        "-XX:+UseParallelGC",
-        "-cp",
-        "${TLA2TOOLS_JAR}",
-        "tlc2.TLC",
-        "-noGenerateSpecTE",
-        "-workers",
-        "4",
-        "-metadir",
-        "tmp/formal-runs/session-run-agent-lifecycles-v1-split-progress",
-        "-config",
-        "spec/compositions/session-run-agent-lifecycles/v1/LifecyclesSplitProgress.cfg",
-        "spec/compositions/session-run-agent-lifecycles/v1/Lifecycles.tla"
-      ],
-      "timeout_seconds": 300
     }
   ]
 }

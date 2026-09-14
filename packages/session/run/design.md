@@ -94,10 +94,9 @@ prepare/check 端口，返回 CC 的 RecordPreparation；每次 prepare 核对
 [SE-10](../../../spec/capabilities/session/v1/contract.md)）；投影缓存归
 [projection](../projection/design.md)。本包只 fold state、epoch 与 Step 目录。
 
-`epoch_issued.compat` 记录 [RN-08](../../../spec/capabilities/run/v1/contract.md) 的兼容证据：
-所需契约精确版本（session 1、run 1、run-driver 2、tools 1、human-decisions 1、
-model-execution 1）、`driverBinding`、reducer 版本、媒体可达性摘要、在途外部工作引用
-集合。重取时新实例的 Factory 绑定与 reducer 版本必须兼容，形状由
+`run.epoch.issued.compat` 存 [RN-08](../../../spec/capabilities/run/v1/contract.md) 兼容证据中
+声明性的部分（`driverBinding`、消费的契约版本、reducer 版本）；媒体可达性与在途外部
+工作引用是已提交事实，重取时重算核对，不复制进记录。形状由
 [run-driver 设计](../../agent/run-driver/design.md#兼容性声明)固定；不兼容的 Run 保持原
 状态、占位保留，等待用户控制或兼容实现。
 

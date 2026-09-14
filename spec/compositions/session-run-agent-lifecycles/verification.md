@@ -2,9 +2,12 @@
 
 形式工件位于 [v1/](v1/)：`Lifecycles.tla` 建模 Session、Run、Agent 实例三台状态机、
 三条关系（附着、占位、执行者）与级联矩阵中的触发动作，`LifecyclesMC.tla` 提供对称集。
-四个正向配置登记在 [formal-tasks.json](../../formal-tasks.json)；否定变体、重放脚本与
-运行记录位于版本目录外的[提案证据目录](../../../docs/proposals/session-run-agent-lifecycles/evidence/model/results.json)，
-可由 `replay.py` 在提供 JAVA_BIN 与 TLA2TOOLS_JAR 后重放。常量 `SameDomain` 区分
+两个同域配置登记在 [formal-tasks.json](../../formal-tasks.json)，它们守的是首版的义务；
+两个跨域配置只是"边界就绪"的证据，不是首版义务，与否定变体一样由
+[提案证据目录](../../../docs/proposals/session-run-agent-lifecycles/evidence/model/results.json)
+的 `replay.py` 在提供 JAVA_BIN 与 TLA2TOOLS_JAR 后重放（作者判断
+[A-14](../../../docs/proposals/session-run-agent-lifecycles/README.md#作者裁决)：跨域内容现阶段
+不进入提供者设计，也不占每次 spec-check 的时间）。常量 `SameDomain` 区分
 "Session 与 Run 同一协调域"与"跨域（Run 域提交事实并留意图、Session 域按视图工作并
 幂等消费）"，`FreshGate` 表示 Session 的门是否带 Run 域版本戳。
 
@@ -12,8 +15,8 @@
 |---|---|---|
 | Lifecycles.cfg（同域安全） | [LC-02/04/05](v1/contract.md)；提案 [S-2、A-1、A-3、L-1、L-2、L-3](../../../docs/proposals/session-run-agent-lifecycles/invariants.md)、[I-1、I-13、I-14](../../../docs/proposals/agent-loop-inbound/invariants.md)、NoDoubleCreate | 2 Run、2 实例、队列 2、接续 1、epoch ≤ 3、崩溃 ≤ 1；13.6 万状态、2.2 万不同状态、1 秒，通过 |
 | LifecyclesProgress.cfg（同域进展） | LC-06/07；提案 LP-1（LP1a 开新 Run、LP1b 重取）、LP-2（归档后关空闲实例） | 1 Run、2 实例；强公平加在开 Run/重取，弱公平加在激活、关实例、释放；1.3 万状态、2 秒，通过 |
-| LifecyclesSplit.cfg（跨域安全，门带版本戳） | LC-09；I-1、S-2、A-1、L-1、L-3、NoDoubleCreate 与动作性质 ClassifyFresh（裁决只发生在 Run 实际非终态时） | 2 Run、1 实例；1732 万状态、199 万不同状态、36 秒，通过 |
-| LifecyclesSplitProgress.cfg（跨域进展） | LC-09；IntentsDrain（意图最终消费并撤回）、I14Eventually（终态后接续最终为空）、ClassifyFresh | 1 Run、1 实例；4 万状态、4 秒，通过 |
+| LifecyclesSplit.cfg（跨域安全，门带版本戳；证据，不是形式任务） | LC-09；I-1、S-2、A-1、L-1、L-3、NoDoubleCreate 与动作性质 ClassifyFresh（裁决只发生在 Run 实际非终态时） | 2 Run、1 实例；1732 万状态、199 万不同状态、36 秒，通过 |
+| LifecyclesSplitProgress.cfg（跨域进展；证据，不是形式任务） | LC-09；IntentsDrain（意图最终消费并撤回）、I14Eventually（终态后接续最终为空）、ClassifyFresh | 1 Run、1 实例；4 万状态、4 秒，通过 |
 | 否定 LifecyclesSplitStale.cfg（门不带版本戳） | LC-09 的版本戳义务 | 预期 L3 反例：Session 按陈旧视图归档了刚由 create 意图建立的 Run；退出 12，符合预期 |
 
 模型发现（已同步进契约）：对 interrupted 的 Run 做 cancel/force_stop 若经 stopping 会重新

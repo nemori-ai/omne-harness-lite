@@ -51,20 +51,23 @@ Factory 为每个活体实例准备一个实例驱动（D-013 消费方式），
 
 ## 兼容性声明
 
-`epoch_issued.compat`（[RN-08](../../../spec/capabilities/run/v1/contract.md)）的形状由本包固定：
+[RN-08](../../../spec/capabilities/run/v1/contract.md) 规定兼容证据的内容：所需契约版本、
+实现协议、媒体可达性、外部工作原引用、驱动绑定与投影 reducer 版本。本包只决定其中
+哪些**存**在 `run.epoch.issued.compat` 里、哪些在重取时**算**：
 
 ```text
 compat = {
   driverBinding: { driverKey: "omne.run-driver", driverVersion: 1 },
-  contracts: { session: 1, run: 1, "run-driver": 2, tools: 1, "human-decisions": 1, "model-execution": 1 },
-  reducer: { stateKey: "run.driver_position", version: 1 },
-  media: { reachable: [...contentRef], unreachable: [...contentRef] },
-  externalWork: { calls: [...CallRef], attempts: [...AttemptRef], requests: [...RequestRef] }
+  contracts: { run: 1, "run-driver": 2 },
+  reducer: { stateKey: "run.driver_position", version: 1 }
 }
 ```
 
-重取时 Factory 比较自己的 driverKey/version 与 contracts 精确版本；任一不兼容返回
-`incompatible(reason)`，Run 保持原状态、占位派生保留，等待用户控制或兼容实现。
+只存声明性的三项；媒体可达性与在途外部工作（call、attempt、request）是已提交事实，
+重取时从 Run 流与各 owner 读面重算并核对，不复制进记录。Factory 比较自己的
+driverKey/version、消费的契约版本与 reducer 版本；任一不兼容返回 `incompatible(reason)`，
+Run 保持原状态、占位派生保留，等待用户控制或兼容实现。只有一种驱动实现时这三项
+几乎不变，但它们是换实现后不误配的最小依据，不再加字段。
 
 ## 装载效应与撤除责任
 
