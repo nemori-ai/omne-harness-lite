@@ -1,0 +1,40 @@
+{
+  "scope": "P1 actual JSONL, admission and diagnostics composition; A05-A08/A30/A31 slices and O09/O10",
+  "source": {
+    "jsonl": "7152a7192c84fa49c27255bfdb4f9b0e86ad8eb5",
+    "admission": "025793abbb7298b1eb86a4ca403e581a0e7a5d7b",
+    "diagnostics": "7e758f21f8f92c1d46fab194fdaf120239b8e11c",
+    "compositionTests": [
+      "f0a5face58613fdcbfea6285c319f3887fc1054b",
+      "e6370bb77ec901ead01e68dc4b5ec0f452834b77"
+    ]
+  },
+  "environment": {
+    "os": "Linux 5.15.0-1084-aws x86_64",
+    "node": "24.18.0",
+    "moduleAbi": "137",
+    "pnpm": "10.28.1",
+    "typescript": "6.0.3",
+    "vitest": "4.1.8",
+    "fsExt": "2.1.1",
+    "compiler": "GCC 10.5"
+  },
+  "packedConsumer": {
+    "archive": "consumer-artifacts.tar.gz",
+    "archiveSha256": "cd818c219bef9335f185408e3dd75910ba729ec38f3d01f720c64ad5ef6fcd99",
+    "result": "PASS",
+    "tarballSha256": {
+      "@omne-harness-lite/admission": "7b0d8d2f4918429593c8d507514f9dc2899222a71a80a842b42ebd709f0e73e5",
+      "@omne-harness-lite/diagnostics": "3cf5776d3a81169a3e2737ab4dd417fc5bec12e4ba8ba8053d4641ffa9edf15b",
+      "@omne-harness-lite/jsonl": "56e88c8d709830e83e14d5c5049259ae2167592cf1e9d438a50f8906807fda46",
+      "@omne-harness-lite/records": "f39142544115905f9190bf5ab6544300a2c5f91030d4541e5a9b44455720d286",
+      "@omne-harness-lite/work-data": "e95428d21066117289e206a0715725421e9fd52609f0ad3329ead9e41a8acfbb"
+    },
+    "nativeAddonSha256": "5a480ff04f21754f6c3a8d5efd91b05d9df0ae82a72d71092a215ee2b0ae9a0d"
+  },
+  "rootPackageCheck": {
+    "status": "blocked",
+    "reason": "apps/local-harness lacks checker-owned app handling; this spoke also predates checker fixture fix 034c760",
+    "buildStatus": "passed"
+  }
+}

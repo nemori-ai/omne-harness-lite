@@ -1,0 +1,90 @@
+Scope: 20 of 21 workspace projects
+packages/core/scope test$ vitest run
+packages/core/work-data test$ vitest run
+packages/util/timeout test$ vitest run
+packages/util/values test$ vitest run
+packages/core/scope test:  RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p1-composition/packages/core/scope
+packages/util/timeout test:  RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p1-composition/packages/util/timeout
+packages/core/work-data test:  RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p1-composition/packages/core/work-data
+packages/util/values test:  RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p1-composition/packages/util/values
+packages/util/timeout test:  Test Files  1 passed (1)
+packages/util/timeout test:       Tests  1 passed (1)
+packages/util/timeout test:    Start at  11:08:06
+packages/util/timeout test:    Duration  427ms (transform 109ms, setup 0ms, import 134ms, tests 9ms, environment 0ms)
+packages/util/values test:  Test Files  1 passed (1)
+packages/util/values test:       Tests  1 passed (1)
+packages/util/values test:    Start at  11:08:06
+packages/util/values test:    Duration  422ms (transform 92ms, setup 0ms, import 116ms, tests 8ms, environment 0ms)
+packages/util/timeout test: Done
+tools/package-checks test$ node --test tests/*.test.mjs
+packages/util/values test: Done
+packages/core/scope test:  Test Files  2 passed (2)
+packages/core/scope test:       Tests  21 passed (21)
+packages/core/scope test:    Start at  11:08:06
+packages/core/scope test:    Duration  553ms (transform 304ms, setup 0ms, import 425ms, tests 126ms, environment 0ms)
+packages/core/scope test: Done
+packages/core/work-data test:  Test Files  4 passed (4)
+packages/core/work-data test:       Tests  91 passed (91)
+packages/core/work-data test:    Start at  11:08:06
+packages/core/work-data test:    Duration  946ms (transform 463ms, setup 0ms, import 1.82s, tests 462ms, environment 1ms)
+packages/core/work-data test: Done
+tools/package-checks test: ✔ finds real import/export/type/augmentation dependencies, ignoring comments and strings (11.332525ms)
+tools/package-checks test: ✔ discovers responsibility packages and real application members (35.801855ms)
+tools/package-checks test: ✔ classifies baseline, evolved, and project-owned public entries by actual source records (2.356422ms)
+tools/package-checks test: ✔ keeps artifact consumers outside repository ancestor dependency resolution (3143.641856ms)
+tools/package-checks test: ✔ rejects a sibling worktree scratch that can borrow a common ancestor module (3.793872ms)
+tools/package-checks test: ✔ validates DSH source truth separately from project-owned provenance (7.039697ms)
+tools/package-checks test: ✔ checks every packed public declaration and maps default exports to valid consumer specifiers (0.792269ms)
+tools/package-checks test: ✔ checks project-owned packages and apps through independent tarball consumers with sanitized Node resolution (14218.443905ms)
+tools/package-checks test: ✔ permits only the probed fs-ext native rebuild with an exact product and lock version (1.689073ms)
+tools/package-checks test: ✖ rejects a no-op native rebuild that exits zero without producing a loadable fs-ext addon (1047.58396ms)
+tools/package-checks test: ﹣ loads one shared addon for multiple direct native owners and a transitive consumer (0.8502ms) # requires explicit CC, CXX and GCC_EXEC_PREFIX for the real fs-ext build
+tools/package-checks test: ✔ applies existing import guards to project-owned default exports (0.565578ms)
+tools/package-checks test: ✔ public imports require a declared runtime edge; development dependencies cannot mask it (0.397059ms)
+tools/package-checks test: ✔ relative src and dist penetration and unknown product edges fail (0.521414ms)
+tools/package-checks test: ✔ transitive closure excludes unrelated and development members and rejects cycles (0.352026ms)
+tools/package-checks test: ℹ tests 15
+tools/package-checks test: ℹ suites 0
+tools/package-checks test: ℹ pass 13
+tools/package-checks test: ℹ fail 1
+tools/package-checks test: ℹ cancelled 0
+tools/package-checks test: ℹ skipped 1
+tools/package-checks test: ℹ todo 0
+tools/package-checks test: ℹ duration_ms 18948.412594
+tools/package-checks test: ✖ failing tests:
+tools/package-checks test: test at tests/boundaries.test.mjs:657:1
+tools/package-checks test: ✖ rejects a no-op native rebuild that exits zero without producing a loadable fs-ext addon (1047.58396ms)
+tools/package-checks test:   AssertionError [ERR_ASSERTION]: The input did not match the regular expression /MODULE_NOT_FOUND/. Input:
+tools/package-checks test:   
+tools/package-checks test:   'node:internal/modules/run_main:107\n' +
+tools/package-checks test:     '    triggerUncaughtException(\n' +
+tools/package-checks test:     '    ^\n' +
+tools/package-checks test:     '\n' +
+tools/package-checks test:     'AssertionError [ERR_ASSERTION]: fs-ext lock must pin nan to 2.28.0\n' +
+tools/package-checks test:     '    at nativeBuildPlan (file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p1-composition/tools/package-checks/src/boundaries.mjs:361:10)\n' +
+tools/package-checks test:     '    at checkRepository (file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p1-composition/tools/package-checks/src/check.mjs:131:24)\n' +
+tools/package-checks test:     '    at async file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p1-composition/tools/package-checks/src/check.mjs:412:3 {\n' +
+tools/package-checks test:     '  generatedMessage: false,\n' +
+tools/package-checks test:     "  code: 'ERR_ASSERTION',\n" +
+tools/package-checks test:     '  actual: false,\n' +
+tools/package-checks test:     '  expected: true,\n' +
+tools/package-checks test:     "  operator: '==',\n" +
+tools/package-checks test:     "  diff: 'simple'\n" +
+tools/package-checks test:     '}\n' +
+tools/package-checks test:     '\n' +
+tools/package-checks test:     'Node.js v24.18.0\n'
+tools/package-checks test:   
+tools/package-checks test:       at TestContext.<anonymous> (file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p1-composition/tools/package-checks/tests/boundaries.test.mjs:729:12)
+tools/package-checks test:       at async Test.run (node:internal/test_runner/test:1332:7)
+tools/package-checks test:       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+tools/package-checks test:     generatedMessage: true,
+tools/package-checks test:     code: 'ERR_ASSERTION',
+tools/package-checks test:     actual: "node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\nAssertionError [ERR_ASSERTION]: fs-ext lock must pin nan to 2.28.0\n    at nativeBuildPlan (file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p1-composition/tools/package-checks/src/boundaries.mjs:361:10)\n    at checkRepository (file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p1-composition/tools/package-checks/src/check.mjs:131:24)\n    at async file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p1-composition/tools/package-checks/src/check.mjs:412:3 {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: false,\n  expected: true,\n  operator: '==',\n  diff: 'simple'\n}\n\nNode.js v24.18.0\n",
+tools/package-checks test:     expected: /MODULE_NOT_FOUND/,
+tools/package-checks test:     operator: 'match',
+tools/package-checks test:     diff: 'simple'
+tools/package-checks test:   }
+tools/package-checks test: Failed
+/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p1-composition/tools/package-checks:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @omne-harness-lite/package-checks@0.0.0 test: `node --test tests/*.test.mjs`
+Exit status 1
