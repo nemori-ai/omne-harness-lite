@@ -255,6 +255,7 @@ class LocalRuntime implements DiagnosticsRuntime {
   private retentionReached = false
   private streamClosed = false
   private streamCloseStarted = false
+  private streamCleanupStartedAfterWriteError = false
   private closeOutcomeUnknown = false
   private budgetFinalized = false
   private providerClosed = false
@@ -383,9 +384,11 @@ class LocalRuntime implements DiagnosticsRuntime {
           const closeAlreadyStarted = (stream as SonicBoomType & { destroyed: boolean }).destroyed
           if (!closeAlreadyStarted) {
             try {
+              this.streamCleanupStartedAfterWriteError = true
               stream.destroy()
               return
             } catch {
+              this.streamCleanupStartedAfterWriteError = false
               // The fallthrough preserves an unknown release result.
             }
           }
@@ -953,6 +956,7 @@ class LocalRuntime implements DiagnosticsRuntime {
     } catch {
       this.writeFailed = true
       this.lastErrorCode ??= 'SONIC_CLOSE_FAILED'
+      if (this.streamCleanupStartedAfterWriteError && !this.closeOutcomeUnknown) return false
       this.closeOutcomeUnknown = true
       this.resource = 'unknown'
       this.budget.unknown('SOURCE_RELEASE_UNKNOWN')
