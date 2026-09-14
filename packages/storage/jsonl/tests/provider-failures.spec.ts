@@ -1,6 +1,7 @@
 import { appendFile, mkdtemp, readFile, readdir, rm } from 'node:fs/promises'
 import { fork } from 'node:child_process'
 import { tmpdir } from 'node:os'
+import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import type { DiagnosticContext, Diagnostics } from '@omne-harness-lite/diagnostics'
 import type {
@@ -19,6 +20,8 @@ const fault = vi.hoisted(() => ({
   writes: 0,
   failed: false,
   lockClose: false,
+  lockCloseSentinel: false,
+  lockCloseSentinelFailed: false,
   forceClose: null as null | (() => Promise<void>),
   journalClose: false,
   forceJournalClose: null as null | (() => Promise<void>),
@@ -48,6 +51,14 @@ vi.mock('node:fs/promises', async importOriginal => {
         const close = handle.close.bind(handle)
         fault.forceHeldLockClose = close
         vi.spyOn(handle, 'close').mockImplementation(async () => {
+          if (fault.lockCloseSentinel) {
+            if (!fault.lockCloseSentinelFailed) {
+              fault.lockCloseSentinelFailed = true
+              fault.forceClose = close
+              throw new Error('injected lock close failure after wrapper invalidation')
+            }
+            return
+          }
           if (fault.lockClose) {
             fault.forceClose = close
             throw new Error('injected lock close uncertainty')
@@ -126,6 +137,14 @@ vi.mock('node:fs/promises', async importOriginal => {
 import { createJsonlProvider } from '../dist/index.js'
 
 const context = Object.freeze({}) as DiagnosticContext
+const require = createRequire(import.meta.url)
+const fsExt = require('fs-ext') as {
+  flock(
+    descriptor: number,
+    flags: 'exnb' | 'un',
+    callback: (error: NodeJS.ErrnoException | null) => void,
+  ): void
+}
 
 function diagnostics(logThrows = false, codes?: string[]): Diagnostics {
   return {
@@ -229,6 +248,8 @@ afterEach(() => {
   fault.writes = 0
   fault.failed = false
   fault.lockClose = false
+  fault.lockCloseSentinel = false
+  fault.lockCloseSentinelFailed = false
   fault.forceClose = null
   fault.journalClose = false
   fault.forceJournalClose = null
@@ -595,6 +616,58 @@ describe('JSONL durability failure boundaries', () => {
       }
     } finally {
       await fault.forceClose?.().catch(() => undefined)
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('does not wash an unknown real lock into released through FileHandle close idempotence', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'omne-jsonl-lock-close-sentinel-'))
+    let child: ReturnType<typeof fork> | null = null
+    const actualFlock = fsExt.flock.bind(fsExt)
+    const flockSpy = vi.spyOn(fsExt, 'flock').mockImplementation((descriptor, flags, callback) => {
+      if (flags === 'un') {
+        const error = Object.assign(new Error('injected unlock failure'), { code: 'EIO' })
+        callback(error)
+        return
+      }
+      actualFlock(descriptor, flags, callback)
+    })
+    try {
+      await appendFile(join(directory, 'journal.jsonl'), '{"complete":"invalid"}\n')
+      fault.lockCloseSentinel = true
+      const provider = createJsonlProvider(options(directory), diagnostics())
+      const failed = await provider.acquireWriter()
+      expect(failed.status).toBe('unavailable')
+      if (failed.status !== 'unavailable' || failed.cleanup.status !== 'retained') return
+      const owner = failed.cleanup.owner
+      expect(owner.inspect()).toMatchObject({ phase: 'retained', lock: 'unknown' })
+      const retried = await owner.retryRelease()
+
+      child = fork(new URL('./fixtures/lock-worker.mjs', import.meta.url), [directory], {
+        stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
+      })
+      const contender = await childMessage(child)
+      expect({ cleanupId: retried.cleanupId, lock: retried.lock, contender }).toEqual({
+        cleanupId: owner.cleanupId,
+        lock: 'unknown',
+        contender: { status: 'busy' },
+      })
+    } finally {
+      flockSpy.mockRestore()
+      fault.lockCloseSentinel = false
+      await fault.forceClose?.().catch(() => undefined)
+      if (
+        child !== null &&
+        child.exitCode === null &&
+        child.signalCode === null &&
+        child.pid !== undefined
+      ) {
+        try {
+          process.kill(child.pid, 'SIGKILL')
+        } catch {
+          // The child may have exited between the status check and signal.
+        }
+      }
       await rm(directory, { recursive: true, force: true })
     }
   })
