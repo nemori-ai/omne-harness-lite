@@ -110,6 +110,8 @@ type LocalDiagnosticsResult =
   | Readonly<{ status: 'invalid'; code: string }>
   | Readonly<{ status: 'created'; runtime: DiagnosticsRuntime }>
 
-export function createLocalDiagnostics(options: LocalDiagnosticsOptions): Promise<LocalDiagnosticsResult> {
+export function createLocalDiagnostics(
+  options: LocalDiagnosticsOptions,
+): Promise<LocalDiagnosticsResult> {
   return createLocalDiagnosticsImplementation(options)
 }

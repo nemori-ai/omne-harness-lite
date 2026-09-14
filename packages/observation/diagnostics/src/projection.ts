@@ -38,7 +38,8 @@ function value(descriptors: DescriptorMap, key: string): unknown {
 }
 
 function safeString(input: unknown, semantic = false): Checked<string> {
-  if (typeof input !== 'string' || input.length === 0 || Buffer.byteLength(input, 'utf8') > 256) return invalid
+  if (typeof input !== 'string' || input.length === 0 || Buffer.byteLength(input, 'utf8') > 256)
+    return invalid
   if (/[\u0000-\u001f\u007f]/u.test(input)) return invalid
   if (semantic && !/^[a-z][a-z0-9_.-]{0,127}$/u.test(input)) return invalid
   return valid(input)
@@ -64,13 +65,17 @@ function ref(
   return valid(Object.freeze(result))
 }
 
-function operation(input: unknown): Checked<Readonly<{
-  namespace: string
-  principalId: string
-  operationId: string
-}>> {
+function operation(input: unknown): Checked<
+  Readonly<{
+    namespace: string
+    principalId: string
+    operationId: string
+  }>
+> {
   const result = ref(input, ['namespace', 'principalId', 'operationId'])
-  return result.ok ? valid(result.value as { namespace: string; principalId: string; operationId: string }) : invalid
+  return result.ok
+    ? valid(result.value as { namespace: string; principalId: string; operationId: string })
+    : invalid
 }
 
 export type SafePrincipal =
@@ -85,13 +90,17 @@ function principal(input: unknown): Checked<SafePrincipal> {
     const exact = object(input, ['kind', 'user'])
     if (!exact.ok) return invalid
     const user = ref(value(exact.value, 'user'), ['userId'])
-    return user.ok ? valid(Object.freeze({ kind: 'user', user: user.value as { userId: string } })) : invalid
+    return user.ok
+      ? valid(Object.freeze({ kind: 'user', user: user.value as { userId: string } }))
+      : invalid
   }
   if (kind === 'system') {
     const exact = object(input, ['kind', 'systemId'])
     if (!exact.ok) return invalid
     const systemId = safeString(value(exact.value, 'systemId'))
-    return systemId.ok ? valid(Object.freeze({ kind: 'system', systemId: systemId.value })) : invalid
+    return systemId.ok
+      ? valid(Object.freeze({ kind: 'system', systemId: systemId.value }))
+      : invalid
   }
   return invalid
 }
@@ -106,28 +115,34 @@ function user(input: unknown): Checked<Readonly<{ userId: string }>> {
   return result.ok ? valid(result.value as { userId: string }) : invalid
 }
 
-function definition(input: unknown): Checked<Readonly<{
-  definition: Readonly<{ ownerTenantId: string; definitionId: string }>
-  version: string
-}>> {
+function definition(input: unknown): Checked<
+  Readonly<{
+    definition: Readonly<{ ownerTenantId: string; definitionId: string }>
+    version: string
+  }>
+> {
   const shape = object(input, ['definition', 'version'])
   if (!shape.ok) return invalid
   const definitionRef = ref(value(shape.value, 'definition'), ['ownerTenantId', 'definitionId'])
   const version = safeString(value(shape.value, 'version'))
   return definitionRef.ok && version.ok
-    ? valid(Object.freeze({
-        definition: definitionRef.value as { ownerTenantId: string; definitionId: string },
-        version: version.value,
-      }))
+    ? valid(
+        Object.freeze({
+          definition: definitionRef.value as { ownerTenantId: string; definitionId: string },
+          version: version.value,
+        }),
+      )
     : invalid
 }
 
-function resource(input: unknown): Checked<Readonly<{
-  tenantId: string
-  kind: string
-  resourceId: string
-  version: string
-}>> {
+function resource(input: unknown): Checked<
+  Readonly<{
+    tenantId: string
+    kind: string
+    resourceId: string
+    version: string
+  }>
+> {
   const result = ref(input, ['tenantId', 'kind', 'resourceId', 'version'])
   return result.ok
     ? valid(result.value as { tenantId: string; kind: string; resourceId: string; version: string })
@@ -136,7 +151,11 @@ function resource(input: unknown): Checked<Readonly<{
 
 function binding(input: unknown): Checked<Readonly<Record<string, unknown>>> {
   const shape = object(input, [
-    'implementationId', 'generation', 'configurationRevision', 'environment', 'parserVersion',
+    'implementationId',
+    'generation',
+    'configurationRevision',
+    'environment',
+    'parserVersion',
   ])
   if (!shape.ok) return invalid
   const implementationId = safeString(value(shape.value, 'implementationId'))
@@ -144,16 +163,24 @@ function binding(input: unknown): Checked<Readonly<Record<string, unknown>>> {
   const configurationRevision = safeString(value(shape.value, 'configurationRevision'))
   const environment = resource(value(shape.value, 'environment'))
   const parserVersion = safeString(value(shape.value, 'parserVersion'))
-  if (!implementationId.ok || !generation.ok || !configurationRevision.ok || !environment.ok || !parserVersion.ok) {
+  if (
+    !implementationId.ok ||
+    !generation.ok ||
+    !configurationRevision.ok ||
+    !environment.ok ||
+    !parserVersion.ok
+  ) {
     return invalid
   }
-  return valid(Object.freeze({
-    implementationId: implementationId.value,
-    generation: generation.value,
-    configurationRevision: configurationRevision.value,
-    environment: environment.value,
-    parserVersion: parserVersion.value,
-  }))
+  return valid(
+    Object.freeze({
+      implementationId: implementationId.value,
+      generation: generation.value,
+      configurationRevision: configurationRevision.value,
+      environment: environment.value,
+      parserVersion: parserVersion.value,
+    }),
+  )
 }
 
 function work(input: unknown): Checked<Readonly<Record<string, unknown>>> {
@@ -167,10 +194,12 @@ function work(input: unknown): Checked<Readonly<Record<string, unknown>>> {
   const runId = safeString(value(runShape.value, 'runId'))
   const stepId = safeString(value(stepShape.value, 'stepId'))
   if (!sessionRef.ok || !runId.ok || !stepId.ok) return invalid
-  return valid(Object.freeze({
-    run: Object.freeze({ session: sessionRef.value, runId: runId.value }),
-    stepId: stepId.value,
-  }))
+  return valid(
+    Object.freeze({
+      run: Object.freeze({ session: sessionRef.value, runId: runId.value }),
+      stepId: stepId.value,
+    }),
+  )
 }
 
 function ownerTenant(input: Readonly<Record<string, unknown>>): string | undefined {
@@ -197,16 +226,29 @@ function call(input: unknown): Checked<Readonly<Record<string, unknown>>> {
     : invalid
 }
 
-function agent(input: unknown): Checked<Readonly<{ tenantId: string; sessionId: string; incarnationId: string }>> {
+function agent(
+  input: unknown,
+): Checked<Readonly<{ tenantId: string; sessionId: string; incarnationId: string }>> {
   const result = ref(input, ['tenantId', 'sessionId', 'incarnationId'])
   return result.ok
     ? valid(result.value as { tenantId: string; sessionId: string; incarnationId: string })
     : invalid
 }
 
-function causality(input: unknown, tenantId: string | null): Checked<Readonly<Record<string, unknown>>> {
+function causality(
+  input: unknown,
+  tenantId: string | null,
+): Checked<Readonly<Record<string, unknown>>> {
   const keys = [
-    'parentOperation', 'initiator', 'session', 'work', 'call', 'request', 'agent', 'definition', 'binding',
+    'parentOperation',
+    'initiator',
+    'session',
+    'work',
+    'call',
+    'request',
+    'agent',
+    'definition',
+    'binding',
   ] as const
   const shape = object(input, [], keys)
   if (!shape.ok) return invalid
@@ -214,24 +256,36 @@ function causality(input: unknown, tenantId: string | null): Checked<Readonly<Re
   for (const key of keys) {
     if (!(key in shape.value)) continue
     const item = value(shape.value, key)
-    const projected = key === 'parentOperation' ? operation(item)
-      : key === 'initiator' ? principal(item)
-      : key === 'session' ? session(item)
-      : key === 'work' ? work(item)
-      : key === 'call' ? call(item)
-      : key === 'request' ? ref(item, ['tenantId', 'requestId'])
-      : key === 'agent' ? agent(item)
-      : key === 'definition' ? definition(item)
-      : binding(item)
+    const projected =
+      key === 'parentOperation'
+        ? operation(item)
+        : key === 'initiator'
+          ? principal(item)
+          : key === 'session'
+            ? session(item)
+            : key === 'work'
+              ? work(item)
+              : key === 'call'
+                ? call(item)
+                : key === 'request'
+                  ? ref(item, ['tenantId', 'requestId'])
+                  : key === 'agent'
+                    ? agent(item)
+                    : key === 'definition'
+                      ? definition(item)
+                      : binding(item)
     if (!projected.ok) return invalid
     if (tenantId !== null) {
-      const candidate = key === 'session' || key === 'agent' || key === 'request'
-        ? (projected.value as Record<string, unknown>).tenantId
-        : key === 'work'
-          ? ownerTenant(projected.value as Record<string, unknown>)
-          : key === 'call'
-            ? ownerTenant((projected.value as Record<string, unknown>).owner as Record<string, unknown>)
-            : undefined
+      const candidate =
+        key === 'session' || key === 'agent' || key === 'request'
+          ? (projected.value as Record<string, unknown>).tenantId
+          : key === 'work'
+            ? ownerTenant(projected.value as Record<string, unknown>)
+            : key === 'call'
+              ? ownerTenant(
+                  (projected.value as Record<string, unknown>).owner as Record<string, unknown>,
+                )
+              : undefined
       if (candidate !== undefined && candidate !== tenantId) return invalid
     }
     result[key] = projected.value
@@ -252,20 +306,24 @@ export function projectIdentity(input: DiagnosticIdentity): Checked<SafeIdentity
   const tenantValue = value(shape.value, 'tenantId')
   const tenantId = tenantValue === null ? valid(null) : safeString(tenantValue)
   const principalValue = principal(value(shape.value, 'principal'))
-  const operationValue = 'operation' in shape.value ? operation(value(shape.value, 'operation')) : valid(undefined)
+  const operationValue =
+    'operation' in shape.value ? operation(value(shape.value, 'operation')) : valid(undefined)
   if (!tenantId.ok || !principalValue.ok || !operationValue.ok) return invalid
   const causalityValue = causality(value(shape.value, 'causality'), tenantId.value)
   if (!causalityValue.ok) return invalid
-  return valid(Object.freeze({
-    tenantId: tenantId.value,
-    principal: principalValue.value,
-    ...(operationValue.value === undefined ? {} : { operation: operationValue.value }),
-    causality: causalityValue.value,
-  }))
+  return valid(
+    Object.freeze({
+      tenantId: tenantId.value,
+      principal: principalValue.value,
+      ...(operationValue.value === undefined ? {} : { operation: operationValue.value }),
+      causality: causalityValue.value,
+    }),
+  )
 }
 
 function counter(input: unknown, positive = false): Checked<string> {
-  if (typeof input !== 'string' || input.length > 256 || !/^(0|[1-9][0-9]*)$/u.test(input)) return invalid
+  if (typeof input !== 'string' || input.length > 256 || !/^(0|[1-9][0-9]*)$/u.test(input))
+    return invalid
   if (positive && input === '0') return invalid
   return valid(input)
 }
@@ -278,20 +336,24 @@ function position(input: unknown): Checked<Readonly<Record<string, string>>> {
   const commitId = safeString(value(shape.value, 'commitId'))
   const seq = counter(value(shape.value, 'seq'), true)
   return coordinationDomain.ok && writerEpoch.ok && commitId.ok && seq.ok
-    ? valid(Object.freeze({
-        coordinationDomain: coordinationDomain.value,
-        writerEpoch: writerEpoch.value,
-        commitId: commitId.value,
-        seq: seq.value,
-      }))
+    ? valid(
+        Object.freeze({
+          coordinationDomain: coordinationDomain.value,
+          writerEpoch: writerEpoch.value,
+          commitId: commitId.value,
+          seq: seq.value,
+        }),
+      )
     : invalid
 }
 
-function watermark(input: unknown): Checked<Readonly<{
-  coordinationDomain: string
-  seq: string
-  commitId: string | null
-}>> {
+function watermark(input: unknown): Checked<
+  Readonly<{
+    coordinationDomain: string
+    seq: string
+    commitId: string | null
+  }>
+> {
   const shape = object(input, ['coordinationDomain', 'seq', 'commitId'])
   if (!shape.ok) return invalid
   const coordinationDomain = safeString(value(shape.value, 'coordinationDomain'))
@@ -299,7 +361,13 @@ function watermark(input: unknown): Checked<Readonly<{
   const commitValue = value(shape.value, 'commitId')
   const commitId = commitValue === null ? valid(null) : safeString(commitValue)
   return coordinationDomain.ok && seq.ok && commitId.ok
-    ? valid(Object.freeze({ coordinationDomain: coordinationDomain.value, seq: seq.value, commitId: commitId.value }))
+    ? valid(
+        Object.freeze({
+          coordinationDomain: coordinationDomain.value,
+          seq: seq.value,
+          commitId: commitId.value,
+        }),
+      )
     : invalid
 }
 
@@ -343,7 +411,12 @@ export function projectPoint(input: DiagnosticPoint): Checked<SafePoint> {
   const phase = safeString(value(shape.value, 'phase'), true)
   const code = safeString(value(shape.value, 'code'), true)
   const level = value(shape.value, 'level')
-  if (!component.ok || !phase.ok || !code.ok || !['debug', 'info', 'warn', 'error'].includes(level as string)) {
+  if (
+    !component.ok ||
+    !phase.ok ||
+    !code.ok ||
+    !['debug', 'info', 'warn', 'error'].includes(level as string)
+  ) {
     return invalid
   }
   const result: Record<string, unknown> = {
@@ -354,10 +427,14 @@ export function projectPoint(input: DiagnosticPoint): Checked<SafePoint> {
   }
   for (const key of optional) {
     if (!(key in shape.value)) continue
-    const item = key === 'diagnosticId' ? safeString(value(shape.value, key))
-      : key === 'position' ? position(value(shape.value, key))
-      : key === 'measures' ? measures(value(shape.value, key))
-      : watermark(value(shape.value, key))
+    const item =
+      key === 'diagnosticId'
+        ? safeString(value(shape.value, key))
+        : key === 'position'
+          ? position(value(shape.value, key))
+          : key === 'measures'
+            ? measures(value(shape.value, key))
+            : watermark(value(shape.value, key))
     if (!item.ok) return invalid
     result[key] = item.value
   }
@@ -375,7 +452,10 @@ export function projectEnd(input: DiagnosticEnd): Checked<DiagnosticEnd> {
   if (!shape.ok) return invalid
   const code = safeString(value(shape.value, 'code'), true)
   const outcome = value(shape.value, 'outcome')
-  if (!code.ok || !['ok', 'rejected', 'failed', 'cancelled', 'unknown', 'interrupted'].includes(outcome as string)) {
+  if (
+    !code.ok ||
+    !['ok', 'rejected', 'failed', 'cancelled', 'unknown', 'interrupted'].includes(outcome as string)
+  ) {
     return invalid
   }
   return valid(Object.freeze({ code: code.value, outcome: outcome as DiagnosticEnd['outcome'] }))

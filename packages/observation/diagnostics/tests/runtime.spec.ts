@@ -68,13 +68,22 @@ async function sourceFile(directory: string): Promise<string> {
   return join(directory, files[0]!)
 }
 
-async function waitForCode(directory: string, code: string): Promise<readonly Record<string, unknown>[]> {
+async function waitForCode(
+  directory: string,
+  code: string,
+): Promise<readonly Record<string, unknown>[]> {
   const deadline = Date.now() + 1_000
   do {
     const lines: Record<string, unknown>[] = []
     for (const file of await readdir(directory)) {
       const text = await readFile(join(directory, file), 'utf8')
-      lines.push(...text.trim().split('\n').filter(Boolean).map(line => JSON.parse(line) as Record<string, unknown>))
+      lines.push(
+        ...text
+          .trim()
+          .split('\n')
+          .filter(Boolean)
+          .map(line => JSON.parse(line) as Record<string, unknown>),
+      )
     }
     if (lines.some(line => line.code === code)) return lines
     await new Promise(resolve => setTimeout(resolve, 5))
@@ -82,7 +91,10 @@ async function waitForCode(directory: string, code: string): Promise<readonly Re
   throw new Error(`diagnostic code ${code} was not written within 1000ms`)
 }
 
-async function waitForStatus(runtime: DiagnosticsRuntime, predicate: (runtime: ReturnType<DiagnosticsRuntime['inspect']>) => boolean): Promise<ReturnType<DiagnosticsRuntime['inspect']>> {
+async function waitForStatus(
+  runtime: DiagnosticsRuntime,
+  predicate: (runtime: ReturnType<DiagnosticsRuntime['inspect']>) => boolean,
+): Promise<ReturnType<DiagnosticsRuntime['inspect']>> {
   const deadline = Date.now() + 1_000
   do {
     const status = runtime.inspect()
@@ -147,9 +159,11 @@ describe('O01/O02 passive context behavior', () => {
     const returned = Object.freeze({ returned: true })
     expect(runtime.diagnostics.within(context, () => returned)).toBe(returned)
     const marker = new Error('business-marker')
-    expect(() => runtime.diagnostics.within(context, () => {
-      throw marker
-    })).toThrow(marker)
+    expect(() =>
+      runtime.diagnostics.within(context, () => {
+        throw marker
+      }),
+    ).toThrow(marker)
 
     let thenObservers = 0
     const pending = new Promise<never>(() => {})
@@ -190,7 +204,9 @@ describe('O01/O02 passive context behavior', () => {
       expect(runtime.diagnostics.current()).toBe(contextB)
       runtime.diagnostics.log(contextB, point('tenant_b.complete'))
     })
-    expect(await new Promise(resolve => setTimeout(() => resolve(runtime.diagnostics.current()), 0))).toBeNull()
+    expect(
+      await new Promise(resolve => setTimeout(() => resolve(runtime.diagnostics.current()), 0)),
+    ).toBeNull()
     release()
     await Promise.all([workA, workB])
 
@@ -249,10 +265,12 @@ describe('O03 safe projection', () => {
 
     runtime.diagnostics.log(context, unsafePoint)
     expect(getters).toBe(0)
-    expect(runtime.inspect().gaps).toContainEqual(expect.objectContaining({
-      reason: 'invalid_projection',
-      quality: 'counted',
-    }))
+    expect(runtime.inspect().gaps).toContainEqual(
+      expect.objectContaining({
+        reason: 'invalid_projection',
+        quality: 'counted',
+      }),
+    )
     await runtime.close({ deadlineMs: 1_000 })
     const text = await readFile(await sourceFile(directory), 'utf8')
     expect(text).not.toContain('BODY_SENTINEL')
@@ -325,7 +343,12 @@ describe('O03 safe projection', () => {
     runtime.diagnostics.log(context, {
       ...point('projection.accepted'),
       diagnosticId: 'diagnostic-safe',
-      position: { coordinationDomain: 'domain-a', writerEpoch: '1', commitId: 'commit-a', seq: '2' },
+      position: {
+        coordinationDomain: 'domain-a',
+        writerEpoch: '1',
+        commitId: 'commit-a',
+        seq: '2',
+      },
       logical: { coordinationDomain: 'domain-a', seq: '2', commitId: null },
       durable: { coordinationDomain: 'domain-a', seq: '1', commitId: 'commit-b' },
       measures: { durationMs: 1.25, queueDepth: 2, pendingBytes: 3, count: 4 },
@@ -337,14 +360,22 @@ describe('O03 safe projection', () => {
     await runtime.close({ deadlineMs: 1_000 })
     const text = await readFile(await sourceFile(directory), 'utf8')
     expect(text).not.toContain(sentinel)
-    const lines = text.trim().split('\n').map(line => JSON.parse(line) as Record<string, unknown>)
+    const lines = text
+      .trim()
+      .split('\n')
+      .map(line => JSON.parse(line) as Record<string, unknown>)
     expect(lines.find(line => line.kind === 'span')).toMatchObject({
       code: 'diagnostic.invalid_end',
       outcome: 'failed',
     })
     expect(lines.find(line => line.code === 'projection.accepted')).toMatchObject({
       diagnosticId: 'diagnostic-safe',
-      position: { coordinationDomain: 'domain-a', writerEpoch: '1', commitId: 'commit-a', seq: '2' },
+      position: {
+        coordinationDomain: 'domain-a',
+        writerEpoch: '1',
+        commitId: 'commit-a',
+        seq: '2',
+      },
       logical: { coordinationDomain: 'domain-a', seq: '2', commitId: null },
       durable: { coordinationDomain: 'domain-a', seq: '1', commitId: 'commit-b' },
       measures: { durationMs: 1.25, queueDepth: 2, pendingBytes: 3, count: 4 },
@@ -357,18 +388,23 @@ describe('O03 safe projection', () => {
 describe('O02/O04 standard span behavior', () => {
   it('emits bounded parent/child OTel spans and counts span-capacity gaps', async () => {
     const directory = await mkdtemp(join(scratchRoot, 'spans-'))
-    const result = await createLocalDiagnostics(options(directory, 'source-spans', { maxActiveSpans: 2 }))
+    const result = await createLocalDiagnostics(
+      options(directory, 'source-spans', { maxActiveSpans: 2 }),
+    )
     expect(result.status).toBe('created')
     if (result.status !== 'created') return
     const { runtime } = result
     const context = runtime.diagnostics.scope(identity('tenant-a', 'user-a'))
     const parent = runtime.diagnostics.startSpan(context, point('span.parent'))
     const child = runtime.diagnostics.within(parent.context, () =>
-      runtime.diagnostics.startSpan(parent.context, point('span.child')))
+      runtime.diagnostics.startSpan(parent.context, point('span.child')),
+    )
     const refused = runtime.diagnostics.startSpan(context, point('span.refused'))
 
     expect(runtime.inspect().activeSpans).toBe(2)
-    expect(runtime.inspect().gaps).toContainEqual(expect.objectContaining({ reason: 'span_capacity' }))
+    expect(runtime.inspect().gaps).toContainEqual(
+      expect.objectContaining({ reason: 'span_capacity' }),
+    )
     expect(refused.context).toBe(context)
     refused.end({ code: 'span.refused_done', outcome: 'failed' })
     child.end({ code: 'span.child_done', outcome: 'ok' })
@@ -406,10 +442,12 @@ describe('O06 close ownership and generation guards', () => {
 
     let afterCloseCalls = 0
     const marker = Object.freeze({ owner: 'business' })
-    expect(runtime.diagnostics.within(context, () => {
-      afterCloseCalls += 1
-      return marker
-    })).toBe(marker)
+    expect(
+      runtime.diagnostics.within(context, () => {
+        afterCloseCalls += 1
+        return marker
+      }),
+    ).toBe(marker)
     expect(afterCloseCalls).toBe(1)
     span.end({ code: 'close.pending_span_done', outcome: 'cancelled' })
 
@@ -450,8 +488,14 @@ describe('O06 close ownership and generation guards', () => {
         oldRuntime.close({ deadlineMs: 10 }),
         oldRuntime.close({ deadlineMs: 20 }),
       ])
-      expect(first).toMatchObject({ status: 'blocked', state: { phase: 'closing', resource: 'held' } })
-      expect(second).toMatchObject({ status: 'blocked', state: { phase: 'closing', resource: 'held' } })
+      expect(first).toMatchObject({
+        status: 'blocked',
+        state: { phase: 'closing', resource: 'held' },
+      })
+      expect(second).toMatchObject({
+        status: 'blocked',
+        state: { phase: 'closing', resource: 'held' },
+      })
 
       newRuntime = await createdRuntime(directory, 'source-close-write-new')
       const newContext = newRuntime.diagnostics.scope(identity('tenant-b', 'user-b'))
@@ -470,7 +514,8 @@ describe('O06 close ownership and generation guards', () => {
       expect(lines.some(line => line.code === 'close_write.old_late')).toBe(false)
     } finally {
       spy.mockRestore()
-      if (delayed !== undefined && oldRuntime.inspect().resource !== 'released') originalWrite(...delayed)
+      if (delayed !== undefined && oldRuntime.inspect().resource !== 'released')
+        originalWrite(...delayed)
       await oldRuntime.close({ deadlineMs: 1_000 })
       if (newRuntime !== undefined) await newRuntime.close({ deadlineMs: 1_000 })
     }
@@ -520,7 +565,9 @@ describe('O04/O05 configuration and local retention boundaries', () => {
   it('rejects invalid configuration before creating its directory', async () => {
     const parent = await mkdtemp(join(scratchRoot, 'invalid-'))
     const directory = join(parent, 'must-not-exist')
-    const result = await createLocalDiagnostics(options(directory, 'source-invalid', { maxRecordBytes: 0 }))
+    const result = await createLocalDiagnostics(
+      options(directory, 'source-invalid', { maxRecordBytes: 0 }),
+    )
     expect(result).toEqual({ status: 'invalid', code: 'INVALID_MAX_RECORD_BYTES' })
     await expect(access(directory)).rejects.toMatchObject({ code: 'ENOENT' })
   })
@@ -533,13 +580,17 @@ describe('O04/O05 configuration and local retention boundaries', () => {
       descriptor = args[0] as number
       const callback = args.at(-1)
       if (typeof callback !== 'function') throw new Error('unexpected fs.fchmod signature')
-      process.nextTick(() => callback(Object.assign(new Error('SECRET_PREP_ERROR'), { code: 'EIO' })))
+      process.nextTick(() =>
+        callback(Object.assign(new Error('SECRET_PREP_ERROR'), { code: 'EIO' })),
+      )
       return undefined
     }) as typeof nodeFs.fchmod)
     const closeSpy = vi.spyOn(nodeFs, 'close').mockImplementation(((...args: unknown[]) => {
       const callback = args.at(-1)
       if (typeof callback !== 'function') throw new Error('unexpected fs.close signature')
-      process.nextTick(() => callback(Object.assign(new Error('SECRET_CLEANUP_ERROR'), { code: 'EIO' })))
+      process.nextTick(() =>
+        callback(Object.assign(new Error('SECRET_CLEANUP_ERROR'), { code: 'EIO' })),
+      )
       return undefined
     }) as typeof nodeFs.close)
     syncBuiltinESMExports()
@@ -574,13 +625,15 @@ describe('O04/O05 configuration and local retention boundaries', () => {
     const directory = await mkdtemp(join(scratchRoot, 'retention-'))
     await chmod(directory, 0o700)
     await writeFile(join(directory, 'retained-source.jsonl'), 'x'.repeat(1_024), { mode: 0o600 })
-    const result = await createLocalDiagnostics(options(directory, 'source-retention', {
-      maxRecordBytes: 512,
-      maxBufferBytes: 1_024,
-      maxFileBytes: 1_024,
-      maxDirectoryBytes: 1_024,
-      maxFiles: 1,
-    }))
+    const result = await createLocalDiagnostics(
+      options(directory, 'source-retention', {
+        maxRecordBytes: 512,
+        maxBufferBytes: 1_024,
+        maxFileBytes: 1_024,
+        maxDirectoryBytes: 1_024,
+        maxFiles: 1,
+      }),
+    )
     expect(result.status).toBe('created')
     if (result.status !== 'created') return
     expect(result.runtime.inspect()).toMatchObject({
@@ -588,10 +641,14 @@ describe('O04/O05 configuration and local retention boundaries', () => {
       resource: 'released',
       lastErrorCode: 'RETENTION_CAPACITY',
     })
-    expect(result.runtime.inspect().gaps).toContainEqual(expect.objectContaining({
-      reason: 'retention_capacity',
-    }))
-    await expect(result.runtime.close({ deadlineMs: 1_000 })).resolves.toMatchObject({ status: 'closed' })
+    expect(result.runtime.inspect().gaps).toContainEqual(
+      expect.objectContaining({
+        reason: 'retention_capacity',
+      }),
+    )
+    await expect(result.runtime.close({ deadlineMs: 1_000 })).resolves.toMatchObject({
+      status: 'closed',
+    })
     expect(await readdir(directory)).toEqual(['retained-source.jsonl'])
   })
 
@@ -627,14 +684,18 @@ describe('O04/O05 configuration and local retention boundaries', () => {
 
   it('does not let another host instance append the same source generation', async () => {
     const directory = await mkdtemp(join(scratchRoot, 'cross-instance-collision-'))
-    const firstResult = await createLocalDiagnostics(options(directory, 'shared-source', {
-      instanceId: 'instance-a',
-    }))
+    const firstResult = await createLocalDiagnostics(
+      options(directory, 'shared-source', {
+        instanceId: 'instance-a',
+      }),
+    )
     expect(firstResult.status).toBe('created')
     if (firstResult.status !== 'created') return
-    const collision = await createLocalDiagnostics(options(directory, 'shared-source', {
-      instanceId: 'instance-b',
-    }))
+    const collision = await createLocalDiagnostics(
+      options(directory, 'shared-source', {
+        instanceId: 'instance-b',
+      }),
+    )
     expect(collision.status).toBe('created')
     if (collision.status !== 'created') return
     expect(collision.runtime.inspect()).toMatchObject({
@@ -650,20 +711,26 @@ describe('O04/O05 configuration and local retention boundaries', () => {
 
   it('reports an earlier diagnostic source without a clean end as crash-unknown', async () => {
     const directory = await mkdtemp(join(scratchRoot, 'crash-unknown-'))
-    await writeFile(join(directory, 'diagnostic-0000000000000000-deadbeefdeadbeef.jsonl'), `${JSON.stringify({
-      formatVersion: 'omne-diagnostic/1',
-      sourceId: 'old-source',
-      seq: '1',
-      component: 'diagnostics',
-      phase: 'lifecycle',
-      code: 'diagnostic.source_started',
-    })}\n`, { mode: 0o600 })
+    await writeFile(
+      join(directory, 'diagnostic-0000000000000000-deadbeefdeadbeef.jsonl'),
+      `${JSON.stringify({
+        formatVersion: 'omne-diagnostic/1',
+        sourceId: 'old-source',
+        seq: '1',
+        component: 'diagnostics',
+        phase: 'lifecycle',
+        code: 'diagnostic.source_started',
+      })}\n`,
+      { mode: 0o600 },
+    )
     const runtime = await createdRuntime(directory, 'new-source')
-    expect(runtime.inspect().gaps).toContainEqual(expect.objectContaining({
-      reason: 'crash_unknown',
-      count: null,
-      quality: 'unknown',
-    }))
+    expect(runtime.inspect().gaps).toContainEqual(
+      expect.objectContaining({
+        reason: 'crash_unknown',
+        count: null,
+        quality: 'unknown',
+      }),
+    )
     await runtime.close({ deadlineMs: 1_000 })
   })
 
@@ -685,9 +752,11 @@ describe('O04/O05 configuration and local retention boundaries', () => {
 describe('O04/O05 bounded output and actual write progress', () => {
   it('counts a projected record that exceeds the UTF-8 line cap without writing it', async () => {
     const directory = await mkdtemp(join(scratchRoot, 'record-cap-'))
-    const result = await createLocalDiagnostics(options(directory, 'source-record-cap', {
-      maxRecordBytes: 512,
-    }))
+    const result = await createLocalDiagnostics(
+      options(directory, 'source-record-cap', {
+        maxRecordBytes: 512,
+      }),
+    )
     expect(result.status).toBe('created')
     if (result.status !== 'created') return
     const runtime = result.runtime
@@ -700,23 +769,29 @@ describe('O04/O05 bounded output and actual write progress', () => {
     })
     runtime.diagnostics.log(context, point('record_cap.error', 'error'))
     const status = runtime.inspect()
-    expect(status.gaps).toContainEqual(expect.objectContaining({
-      reason: 'buffer_capacity',
-      count: '1',
-      quality: 'counted',
-    }))
+    expect(status.gaps).toContainEqual(
+      expect.objectContaining({
+        reason: 'buffer_capacity',
+        count: '1',
+        quality: 'counted',
+      }),
+    )
     expect(status.droppedCount).toBe('1')
-    expect(BigInt(status.acceptedCount) + BigInt(status.droppedCount)).toBe(BigInt(status.attemptedThrough))
+    expect(BigInt(status.acceptedCount) + BigInt(status.droppedCount)).toBe(
+      BigInt(status.attemptedThrough),
+    )
     expect(await readFile(await sourceFile(directory), 'utf8')).not.toContain('record_cap.error')
     await runtime.close({ deadlineMs: 1_000 })
   })
 
   it('counts repeated warn/error buffer overflow while a real write is delayed', async () => {
     const directory = await mkdtemp(join(scratchRoot, 'buffer-cap-'))
-    const result = await createLocalDiagnostics(options(directory, 'source-buffer-cap', {
-      maxRecordBytes: 1_024,
-      maxBufferBytes: 1_024,
-    }))
+    const result = await createLocalDiagnostics(
+      options(directory, 'source-buffer-cap', {
+        maxRecordBytes: 1_024,
+        maxBufferBytes: 1_024,
+      }),
+    )
     expect(result.status).toBe('created')
     if (result.status !== 'created') return
     const runtime = result.runtime
@@ -743,7 +818,9 @@ describe('O04/O05 bounded output and actual write progress', () => {
       expect(gap?.quality).toBe('counted')
       expect(BigInt(gap?.count ?? '0')).toBeGreaterThan(1n)
       expect(status.droppedCount).toBe(gap?.count)
-      expect(BigInt(status.acceptedCount) + BigInt(status.droppedCount)).toBe(BigInt(status.attemptedThrough))
+      expect(BigInt(status.acceptedCount) + BigInt(status.droppedCount)).toBe(
+        BigInt(status.attemptedThrough),
+      )
       expect(delayed).toBeDefined()
     } finally {
       if (delayed !== undefined) originalWrite(...delayed)
@@ -754,12 +831,14 @@ describe('O04/O05 bounded output and actual write progress', () => {
 
   it('never grows the source past its file budget and counts every later error record', async () => {
     const directory = await mkdtemp(join(scratchRoot, 'file-cap-'))
-    const result = await createLocalDiagnostics(options(directory, 'source-file-cap', {
-      maxRecordBytes: 512,
-      maxBufferBytes: 1_024,
-      maxFileBytes: 1_024,
-      maxDirectoryBytes: 2_048,
-    }))
+    const result = await createLocalDiagnostics(
+      options(directory, 'source-file-cap', {
+        maxRecordBytes: 512,
+        maxBufferBytes: 1_024,
+        maxFileBytes: 1_024,
+        maxDirectoryBytes: 2_048,
+      }),
+    )
     expect(result.status).toBe('created')
     if (result.status !== 'created') return
     const runtime = result.runtime
@@ -793,7 +872,10 @@ describe('O04/O05 bounded output and actual write progress', () => {
     const now = performance.now()
     const clock = vi.spyOn(performance, 'now').mockReturnValue(now)
     try {
-      runtime.diagnostics.log(runtime.diagnostics.scope(identity('tenant-a', 'user-a')), point('write.stalled'))
+      runtime.diagnostics.log(
+        runtime.diagnostics.scope(identity('tenant-a', 'user-a')),
+        point('write.stalled'),
+      )
       clock.mockReturnValue(now + 1_001)
       expect(runtime.inspect()).toMatchObject({
         writeProgress: 'stalled',
@@ -824,19 +906,33 @@ describe('O04/O05 bounded output and actual write progress', () => {
       const fd = args[0]
       const data = args[1]
       const callback = args.at(-1)
-      if (typeof fd !== 'number' || (typeof data !== 'string' && !ArrayBuffer.isView(data)) || typeof callback !== 'function') {
+      if (
+        typeof fd !== 'number' ||
+        (typeof data !== 'string' && !ArrayBuffer.isView(data)) ||
+        typeof callback !== 'function'
+      ) {
         throw new Error('unexpected fs.write signature')
       }
-      const buffer = typeof data === 'string'
-        ? Buffer.from(data)
-        : Buffer.from(data.buffer, data.byteOffset, data.byteLength)
-      return originalWrite(fd, buffer.subarray(0, Math.max(1, Math.floor(buffer.length / 2))), callback)
+      const buffer =
+        typeof data === 'string'
+          ? Buffer.from(data)
+          : Buffer.from(data.buffer, data.byteOffset, data.byteLength)
+      return originalWrite(
+        fd,
+        buffer.subarray(0, Math.max(1, Math.floor(buffer.length / 2))),
+        callback,
+      )
     }) as typeof nodeFs.write)
     try {
-      runtime.diagnostics.log(runtime.diagnostics.scope(identity('tenant-a', 'user-a')), point('write.partial'))
+      runtime.diagnostics.log(
+        runtime.diagnostics.scope(identity('tenant-a', 'user-a')),
+        point('write.partial'),
+      )
       await waitForCode(directory, 'write.partial')
       expect(partialCalls).toBe(1)
-      expect(runtime.inspect().writtenBytes).toBe(String((await stat(await sourceFile(directory))).size))
+      expect(runtime.inspect().writtenBytes).toBe(
+        String((await stat(await sourceFile(directory))).size),
+      )
       expect(runtime.inspect()).toMatchObject({ pendingBytes: 0, writeProgress: 'idle' })
     } finally {
       spy.mockRestore()
@@ -862,19 +958,26 @@ describe('O04/O05 bounded output and actual write progress', () => {
     }) as typeof nodeFs.write)
     const marker = Object.freeze({ business: 'unchanged' })
     try {
-      expect((() => {
-        runtime.diagnostics.log(runtime.diagnostics.scope(identity('tenant-a', 'user-a')), point('write.failed', 'error'))
-        return marker
-      })()).toBe(marker)
+      expect(
+        (() => {
+          runtime.diagnostics.log(
+            runtime.diagnostics.scope(identity('tenant-a', 'user-a')),
+            point('write.failed', 'error'),
+          )
+          return marker
+        })(),
+      ).toBe(marker)
       const failedStatus = await waitForStatus(runtime, state => state.writeProgress === 'failed')
       expect(failedStatus).toMatchObject({
         phase: 'degraded',
         lastErrorCode: 'EIO',
       })
-      expect(failedStatus.gaps).toContainEqual(expect.objectContaining({
-        reason: 'write_unavailable',
-        quality: 'unknown',
-      }))
+      expect(failedStatus.gaps).toContainEqual(
+        expect.objectContaining({
+          reason: 'write_unavailable',
+          quality: 'unknown',
+        }),
+      )
       await waitForStatus(runtime, state => state.resource === 'released')
       expect(await readFile(await sourceFile(directory), 'utf8')).not.toContain(secret)
     } finally {

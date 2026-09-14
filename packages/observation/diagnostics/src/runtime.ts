@@ -31,12 +31,27 @@ import type { SafeIdentity, SafePoint } from './projection.js'
 
 const levels = new Set(['debug', 'info', 'warn', 'error'])
 const systemErrorCodes = new Set([
-  'EACCES', 'EAGAIN', 'EBADF', 'EBUSY', 'EDQUOT', 'EEXIST', 'EFBIG', 'EINTR', 'EIO',
-  'EMFILE', 'ENFILE', 'ENOENT', 'ENOSPC', 'EPERM', 'EROFS',
+  'EACCES',
+  'EAGAIN',
+  'EBADF',
+  'EBUSY',
+  'EDQUOT',
+  'EEXIST',
+  'EFBIG',
+  'EINTR',
+  'EIO',
+  'EMFILE',
+  'ENFILE',
+  'ENOENT',
+  'ENOSPC',
+  'EPERM',
+  'EROFS',
 ])
 const levelValue = { debug: 10, info: 20, warn: 30, error: 40 } as const
 const diagnosticFile = /^diagnostic-(?:[0-9a-f]{16}-)?[0-9a-f]{16}\.jsonl$/u
-const SonicBoom = createRequire(import.meta.url)('sonic-boom') as new (options: SonicBoomOpts) => SonicBoomType
+const SonicBoom = createRequire(import.meta.url)('sonic-boom') as new (
+  options: SonicBoomOpts,
+) => SonicBoomType
 
 type InternalContext = Readonly<{
   identity: SafeIdentity
@@ -58,11 +73,12 @@ type ActiveSpan = {
 }
 
 function systemErrorCode(error: unknown): string | undefined {
-  const code = error !== null
-    && typeof error === 'object'
-    && typeof (error as NodeJS.ErrnoException).code === 'string'
-    ? (error as NodeJS.ErrnoException).code
-    : undefined
+  const code =
+    error !== null &&
+    typeof error === 'object' &&
+    typeof (error as NodeJS.ErrnoException).code === 'string'
+      ? (error as NodeJS.ErrnoException).code
+      : undefined
   return code !== undefined && systemErrorCodes.has(code) ? code : undefined
 }
 
@@ -98,15 +114,22 @@ function validPositiveInteger(value: unknown): value is number {
 
 function validateOptions(options: LocalDiagnosticsOptions): string | undefined {
   if (options === null || typeof options !== 'object') return 'INVALID_OPTIONS'
-  if (typeof options.instanceId !== 'string'
-    || options.instanceId.length === 0
-    || Buffer.byteLength(options.instanceId, 'utf8') > 256
-    || /[\u0000-\u001f\u007f]/u.test(options.instanceId)) return 'INVALID_INSTANCE_ID'
-  if (typeof options.sourceId !== 'string'
-    || options.sourceId.length === 0
-    || Buffer.byteLength(options.sourceId, 'utf8') > 256
-    || /[\u0000-\u001f\u007f]/u.test(options.sourceId)) return 'INVALID_SOURCE_ID'
-  if (typeof options.directory !== 'string' || !isAbsolute(options.directory)) return 'INVALID_DIRECTORY'
+  if (
+    typeof options.instanceId !== 'string' ||
+    options.instanceId.length === 0 ||
+    Buffer.byteLength(options.instanceId, 'utf8') > 256 ||
+    /[\u0000-\u001f\u007f]/u.test(options.instanceId)
+  )
+    return 'INVALID_INSTANCE_ID'
+  if (
+    typeof options.sourceId !== 'string' ||
+    options.sourceId.length === 0 ||
+    Buffer.byteLength(options.sourceId, 'utf8') > 256 ||
+    /[\u0000-\u001f\u007f]/u.test(options.sourceId)
+  )
+    return 'INVALID_SOURCE_ID'
+  if (typeof options.directory !== 'string' || !isAbsolute(options.directory))
+    return 'INVALID_DIRECTORY'
   if (!levels.has(options.level)) return 'INVALID_LEVEL'
   for (const key of [
     'maxRecordBytes',
@@ -116,9 +139,13 @@ function validateOptions(options: LocalDiagnosticsOptions): string | undefined {
     'maxDirectoryBytes',
     'maxFiles',
   ] as const) {
-    if (!validPositiveInteger(options[key])) return `INVALID_${key.replaceAll(/[A-Z]/g, value => `_${value}`).toUpperCase()}`
+    if (!validPositiveInteger(options[key]))
+      return `INVALID_${key.replaceAll(/[A-Z]/g, value => `_${value}`).toUpperCase()}`
   }
-  if (options.maxRecordBytes > options.maxBufferBytes || options.maxRecordBytes > options.maxFileBytes) {
+  if (
+    options.maxRecordBytes > options.maxBufferBytes ||
+    options.maxRecordBytes > options.maxFileBytes
+  ) {
     return 'INVALID_RECORD_CAPACITY'
   }
   if (options.maxFileBytes > options.maxDirectoryBytes) return 'INVALID_FILE_CAPACITY'
@@ -131,9 +158,10 @@ function fileName(options: LocalDiagnosticsOptions): string {
 }
 
 function frozenStatus(runtime: LocalRuntime): DiagnosticStatus {
-  const pendingIdleMs = runtime.pendingBytes > 0 && runtime.lastWriteProgressAt !== null
-    ? Math.max(0, performance.now() - runtime.lastWriteProgressAt)
-    : null
+  const pendingIdleMs =
+    runtime.pendingBytes > 0 && runtime.lastWriteProgressAt !== null
+      ? Math.max(0, performance.now() - runtime.lastWriteProgressAt)
+      : null
   return Object.freeze({
     sourceId: runtime.sourceId,
     phase: runtime.phase,
@@ -285,16 +313,32 @@ class LocalRuntime implements DiagnosticsRuntime {
           }
         },
       }
-      this.logger = pino({
-        base: null,
-        timestamp: false,
-        level: 'debug',
-        formatters: { level: label => ({ level: label }) },
-        redact: {
-          paths: ['error', 'err', 'message', 'stack', 'body', 'secret', 'params', 'headers', 'url', 'query', 'target', 'rawArgs'],
-          remove: true,
+      this.logger = pino(
+        {
+          base: null,
+          timestamp: false,
+          level: 'debug',
+          formatters: { level: label => ({ level: label }) },
+          redact: {
+            paths: [
+              'error',
+              'err',
+              'message',
+              'stack',
+              'body',
+              'secret',
+              'params',
+              'headers',
+              'url',
+              'query',
+              'target',
+              'rawArgs',
+            ],
+            remove: true,
+          },
         },
-      }, destination)
+        destination,
+      )
       stream.on('write', (bytes: number) => {
         this.writtenBytes += BigInt(bytes)
         this.pendingBytes = Math.max(0, this.pendingBytes - bytes)
@@ -341,10 +385,12 @@ class LocalRuntime implements DiagnosticsRuntime {
 
     this.diagnostics = Object.freeze({
       newId: () => `diagnostic-${this.idPrefix}-${++this.idCounter}`,
-      scope: (identity: DiagnosticIdentity, parent?: DiagnosticContext) => this.scope(identity, parent),
+      scope: (identity: DiagnosticIdentity, parent?: DiagnosticContext) =>
+        this.scope(identity, parent),
       current: () => this.current(),
       log: (context: DiagnosticContext, point: DiagnosticPoint) => this.log(context, point),
-      startSpan: (context: DiagnosticContext, point: DiagnosticPoint) => this.startSpan(context, point),
+      startSpan: (context: DiagnosticContext, point: DiagnosticPoint) =>
+        this.startSpan(context, point),
       within: <T>(context: DiagnosticContext, body: () => T): T => this.within(context, body),
     })
   }
@@ -355,16 +401,22 @@ class LocalRuntime implements DiagnosticsRuntime {
   }
 
   gapSnapshot(): readonly DiagnosticGap[] {
-    return [...this.gapState].map(([reason, gap]) => Object.freeze({
-      reason,
-      firstSeq: gap.firstSeq === null ? null : String(gap.firstSeq),
-      lastSeq: gap.lastSeq === null ? null : String(gap.lastSeq),
-      count: gap.count === null ? null : String(gap.count),
-      quality: gap.quality,
-    }))
+    return [...this.gapState].map(([reason, gap]) =>
+      Object.freeze({
+        reason,
+        firstSeq: gap.firstSeq === null ? null : String(gap.firstSeq),
+        lastSeq: gap.lastSeq === null ? null : String(gap.lastSeq),
+        count: gap.count === null ? null : String(gap.count),
+        quality: gap.quality,
+      }),
+    )
   }
 
-  private addGap(reason: DiagnosticGapReason, seq: bigint | null, quality: 'counted' | 'unknown' = 'counted'): void {
+  private addGap(
+    reason: DiagnosticGapReason,
+    seq: bigint | null,
+    quality: 'counted' | 'unknown' = 'counted',
+  ): void {
     const existing = this.gapState.get(reason)
     if (existing === undefined) {
       this.gapState.set(reason, {
@@ -406,9 +458,11 @@ class LocalRuntime implements DiagnosticsRuntime {
     let nativeParent = ROOT_CONTEXT
     if (parent !== undefined) {
       const parentContext = this.contexts.get(parent)
-      if (parentContext === undefined
-        || parentContext.identity.tenantId !== projected.value.tenantId
-        || !samePrincipal(parentContext.identity.principal, projected.value.principal)) {
+      if (
+        parentContext === undefined ||
+        parentContext.identity.tenantId !== projected.value.tenantId ||
+        !samePrincipal(parentContext.identity.principal, projected.value.principal)
+      ) {
         this.addGap('invalid_projection', this.nextSeq())
       } else {
         nativeParent = parentContext.native
@@ -420,8 +474,10 @@ class LocalRuntime implements DiagnosticsRuntime {
   private current(): DiagnosticContext | null {
     if (this.phase === 'closing' || this.phase === 'closed') return null
     const active = this.manager.active().getValue(this.contextKey)
-    return active !== null && typeof active === 'object' && this.contexts.has(active as DiagnosticContext)
-      ? active as DiagnosticContext
+    return active !== null &&
+      typeof active === 'object' &&
+      this.contexts.has(active as DiagnosticContext)
+      ? (active as DiagnosticContext)
       : null
   }
 
@@ -464,13 +520,10 @@ class LocalRuntime implements DiagnosticsRuntime {
     this.emitPoint(seq, internal, projected.value)
   }
 
-  private startSpan(
-    context: DiagnosticContext,
-    point: DiagnosticPoint,
-  ): DiagnosticSpan {
+  private startSpan(context: DiagnosticContext, point: DiagnosticPoint): DiagnosticSpan {
     const internal = this.contexts.get(context)
     const inert: DiagnosticSpan = Object.freeze({
-      context: internal === undefined ? Object.freeze({}) as DiagnosticContext : context,
+      context: internal === undefined ? (Object.freeze({}) as DiagnosticContext) : context,
       end(_result: DiagnosticEnd): void {},
     })
     if (this.phase === 'closing' || this.phase === 'closed') {
@@ -521,7 +574,10 @@ class LocalRuntime implements DiagnosticsRuntime {
     })
   }
 
-  private spanAttributes(identity: SafeIdentity, point: SafePoint): Readonly<Record<string, string | number>> {
+  private spanAttributes(
+    identity: SafeIdentity,
+    point: SafePoint,
+  ): Readonly<Record<string, string | number>> {
     const attributes: Record<string, string | number> = {
       'diagnostic.component': point.component,
       'diagnostic.phase': point.phase,
@@ -530,7 +586,8 @@ class LocalRuntime implements DiagnosticsRuntime {
       'diagnostic.tenant_id': identity.tenantId ?? 'system',
       'diagnostic.principal_kind': identity.principal.kind,
     }
-    if (identity.principal.kind === 'user') attributes['diagnostic.user_id'] = identity.principal.user.userId
+    if (identity.principal.kind === 'user')
+      attributes['diagnostic.user_id'] = identity.principal.user.userId
     else attributes['diagnostic.system_id'] = identity.principal.systemId
     if (identity.operation !== undefined) {
       attributes['diagnostic.operation_namespace'] = identity.operation.namespace
@@ -538,7 +595,8 @@ class LocalRuntime implements DiagnosticsRuntime {
     }
     if (point.diagnosticId !== undefined) attributes['diagnostic.id'] = point.diagnosticId
     if (point.measures !== undefined) {
-      for (const [key, value] of Object.entries(point.measures)) attributes[`diagnostic.measure.${key}`] = value
+      for (const [key, value] of Object.entries(point.measures))
+        attributes[`diagnostic.measure.${key}`] = value
     }
     return attributes
   }
@@ -552,11 +610,12 @@ class LocalRuntime implements DiagnosticsRuntime {
       active.span.setAttribute('diagnostic.end.code', projected.value.code)
       active.span.setAttribute('diagnostic.outcome', projected.value.outcome)
       active.span.setStatus({
-        code: projected.value.outcome === 'ok'
-          ? SpanStatusCode.OK
-          : projected.value.outcome === 'failed'
-            ? SpanStatusCode.ERROR
-            : SpanStatusCode.UNSET,
+        code:
+          projected.value.outcome === 'ok'
+            ? SpanStatusCode.OK
+            : projected.value.outcome === 'failed'
+              ? SpanStatusCode.ERROR
+              : SpanStatusCode.UNSET,
       })
     } else {
       this.addGap('invalid_projection', this.nextSeq())
@@ -579,7 +638,8 @@ class LocalRuntime implements DiagnosticsRuntime {
     if (active === undefined) return
     this.activeSpans.delete(spanContext.spanId)
     this.activeSpanCount = this.activeSpans.size
-    const end = active.end ?? Object.freeze({ code: 'diagnostic.missing_end', outcome: 'failed' as const })
+    const end =
+      active.end ?? Object.freeze({ code: 'diagnostic.missing_end', outcome: 'failed' as const })
     const seq = this.nextSeq()
     this.emitSpan(seq, active.context, active.point, end, span)
     this.notifyActiveZero()
@@ -614,14 +674,18 @@ class LocalRuntime implements DiagnosticsRuntime {
         kind: 'span',
         tenantId: context.identity.tenantId,
         principal: context.identity.principal,
-        ...(context.identity.operation === undefined ? {} : { operation: context.identity.operation }),
+        ...(context.identity.operation === undefined
+          ? {}
+          : { operation: context.identity.operation }),
         causality: context.identity.causality,
         ...point,
         code: end.code,
         outcome: end.outcome,
         traceId: spanContext.traceId,
         spanId: spanContext.spanId,
-        ...(span.parentSpanContext === undefined ? {} : { parentSpanId: span.parentSpanContext.spanId }),
+        ...(span.parentSpanContext === undefined
+          ? {}
+          : { parentSpanId: span.parentSpanContext.spanId }),
       }
       if (point.level === 'debug') this.logger.debug(record)
       else if (point.level === 'info') this.logger.info(record)
@@ -680,13 +744,17 @@ class LocalRuntime implements DiagnosticsRuntime {
         kind: 'log',
         tenantId: context.identity.tenantId,
         principal: context.identity.principal,
-        ...(context.identity.operation === undefined ? {} : { operation: context.identity.operation }),
+        ...(context.identity.operation === undefined
+          ? {}
+          : { operation: context.identity.operation }),
         causality: context.identity.causality,
         ...point,
-        ...(activeSpan === undefined ? {} : {
-          traceId: activeSpan.traceId,
-          spanId: activeSpan.spanId,
-        }),
+        ...(activeSpan === undefined
+          ? {}
+          : {
+              traceId: activeSpan.traceId,
+              spanId: activeSpan.spanId,
+            }),
       }
       if (point.level === 'debug') this.logger.debug(record)
       else if (point.level === 'info') this.logger.info(record)
@@ -825,19 +893,24 @@ async function endedCleanly(path: string, size: number, maxRecordBytes: number):
     const window = Math.min(size, maxRecordBytes + 1)
     const firstBuffer = Buffer.alloc(window)
     const firstRead = await handle.read(firstBuffer, 0, window, 0)
-    const firstLine = firstBuffer.subarray(0, firstRead.bytesRead).toString('utf8').split('\n', 1)[0]
+    const firstLine = firstBuffer
+      .subarray(0, firstRead.bytesRead)
+      .toString('utf8')
+      .split('\n', 1)[0]
     const tailBuffer = Buffer.alloc(window)
     const tailRead = await handle.read(tailBuffer, 0, window, Math.max(0, size - window))
     const tail = tailBuffer.subarray(0, tailRead.bytesRead).toString('utf8').trimEnd()
     const lastLine = tail.slice(tail.lastIndexOf('\n') + 1)
     const first = JSON.parse(firstLine) as Record<string, unknown>
     const last = JSON.parse(lastLine) as Record<string, unknown>
-    return first.formatVersion === 'omne-diagnostic/1'
-      && first.code === 'diagnostic.source_started'
-      && typeof first.sourceId === 'string'
-      && last.formatVersion === 'omne-diagnostic/1'
-      && last.sourceId === first.sourceId
-      && last.code === 'diagnostic.source_closed'
+    return (
+      first.formatVersion === 'omne-diagnostic/1' &&
+      first.code === 'diagnostic.source_started' &&
+      typeof first.sourceId === 'string' &&
+      last.formatVersion === 'omne-diagnostic/1' &&
+      last.sourceId === first.sourceId &&
+      last.code === 'diagnostic.source_closed'
+    )
   } catch {
     return false
   } finally {
@@ -865,9 +938,11 @@ async function prepareDirectory(
       try {
         const metadata = await lstat(join(directory, entry.name))
         bytes += metadata.size
-        if (metadata.isFile()
-          && diagnosticFile.test(entry.name)
-          && !await endedCleanly(join(directory, entry.name), metadata.size, options.maxRecordBytes)) {
+        if (
+          metadata.isFile() &&
+          diagnosticFile.test(entry.name) &&
+          !(await endedCleanly(join(directory, entry.name), metadata.size, options.maxRecordBytes))
+        ) {
           crashUnknown = true
         }
       } catch (error) {
@@ -887,11 +962,15 @@ async function prepareDirectory(
 
 function startupFailure(error: unknown): StartupFailure {
   const code = systemErrorCode(error)
-  if (code === 'EEXIST') return Object.freeze({ code: 'SOURCE_EXISTS', reason: 'write_unavailable' })
+  if (code === 'EEXIST')
+    return Object.freeze({ code: 'SOURCE_EXISTS', reason: 'write_unavailable' })
   if (code === 'ENOSPC' || code === 'EDQUOT') {
     return Object.freeze({ code: 'RETENTION_CAPACITY', reason: 'retention_capacity' })
   }
-  return Object.freeze({ code: code === undefined ? 'SOURCE_OPEN_FAILED' : `SOURCE_OPEN_${code}`, reason: 'write_unavailable' })
+  return Object.freeze({
+    code: code === undefined ? 'SOURCE_OPEN_FAILED' : `SOURCE_OPEN_${code}`,
+    reason: 'write_unavailable',
+  })
 }
 
 type OpenedStream = Readonly<{
