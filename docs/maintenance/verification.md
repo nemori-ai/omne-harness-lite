@@ -37,7 +37,8 @@ packages/apps/tools/scripts 和 agent 配置目录；
 这些检查不向 npm 发布，也不代表已兑现目标产品语义。
 
 根 `pnpm format:check` 使用 `package.json` 固定的本地 Prettier 和共享根配置，检查
-受维护 TS/JS 源码、测试及所属配置；`pnpm format:write` 写入同一范围。显式文件参数
+受维护 `packages/`、`apps/`、`tools/`、`scripts/` TS/JS 源码、测试及所属配置与根
+TS/测试配置；`pnpm format:write` 写入同一范围。显式文件参数
 只接受该范围内的仓库相对文件，agent 必须进一步收窄到本次写权限。`spec/`、上游原件、
 provenance、JSONL 黄金文件、依赖、构建输出、生成物和临时目录不在格式化范围。
 根产品检查和独立格式 CI 都调用同一检查入口；CI 只按退出码检查，不写代码或提交。

@@ -15,11 +15,22 @@ fail() {
     exit 1
 }
 
+node -e '
+  const fs = require("node:fs")
+  const settings = JSON.parse(fs.readFileSync(process.argv[1], "utf8"))
+  const prettierPackage = JSON.parse(fs.readFileSync(process.argv[2], "utf8"))
+  if (settings["prettier.prettierPath"] !== "./node_modules/prettier") process.exit(1)
+  if (settings["prettier.resolveGlobalModules"] !== false) process.exit(1)
+  if (prettierPackage.version !== "3.9.6") process.exit(1)
+' "$repo_root/.vscode/settings.json" "$repo_root/node_modules/prettier/package.json" ||
+    fail "editor settings do not resolve the pinned workspace Prettier"
+
 mkdir -p \
     "$sandbox/scripts" \
     "$sandbox/node_modules/.bin" \
     "$sandbox/packages/demo/src" \
     "$sandbox/packages/demo/upstream" \
+    "$sandbox/tools/ts-helper/src" \
     "$sandbox/spec" \
     "$sandbox/.vscode"
 cp -- "$repo_root/scripts/format.sh" "$sandbox/scripts/format.sh"
@@ -35,8 +46,11 @@ git -C "$sandbox" config user.email formatting-test@example.invalid
 git -C "$sandbox" config user.name "Formatting Test"
 
 printf '%s\n' 'const value={nested:[1,2,3]}' >"$sandbox/packages/demo/src/space name.ts"
+printf '%s\n' 'export const helper={ready:true}' >"$sandbox/tools/ts-helper/src/index.ts"
+printf '%s\n' '{"compilerOptions":{"strict":true}}' >"$sandbox/tsconfig.test.json"
 printf '%s\n' 'const upstream={must:"stay byte-identical"}' >"$sandbox/packages/demo/upstream/original.ts"
 printf '%s\n' 'const specification={must:"stay byte-identical"}' >"$sandbox/spec/ignored.ts"
+printf '%s\n' '{"scripts":{"format:staged":"./scripts/format.sh staged"}}' >"$sandbox/package.json"
 upstream_before="$(sha256sum "$sandbox/packages/demo/upstream/original.ts")"
 spec_before="$(sha256sum "$sandbox/spec/ignored.ts")"
 
@@ -103,6 +117,36 @@ fi
 cmp -s -- "$sandbox/scripts/pre-commit-format" "$hook_path" ||
     fail "installer did not copy the expected hook"
 "$sandbox/scripts/install-format-hook.sh" >/dev/null || fail "reinstalling the same hook failed"
+
+# Exercise the installed hook through Git itself. The first commit must be
+# rejected from the unformatted index even though its worktree copy is clean.
+printf '%s\n' 'const staged={hook:false}' >"$sandbox/packages/demo/src/space name.ts"
+git -C "$sandbox" add "packages/demo/src/space name.ts"
+printf '%s\n' 'const working = { hook: true }' >"$sandbox/packages/demo/src/space name.ts"
+index_before="$(git -C "$sandbox" rev-parse ':packages/demo/src/space name.ts')"
+worktree_before="$(sha256sum "$sandbox/packages/demo/src/space name.ts")"
+if git -C "$sandbox" commit -qm hook-must-reject >/dev/null 2>&1; then
+    fail "Git commit accepted an unformatted staged blob"
+fi
+[[ "$index_before" == "$(git -C "$sandbox" rev-parse ':packages/demo/src/space name.ts')" ]] ||
+    fail "rejected Git commit changed the index"
+[[ "$worktree_before" == "$(sha256sum "$sandbox/packages/demo/src/space name.ts")" ]] ||
+    fail "rejected Git commit changed the worktree"
+
+# A formatted index must commit while a different unformatted worktree copy
+# remains untouched and unstaged.
+printf '%s\n' 'const staged = { hook: true }' >"$sandbox/packages/demo/src/space name.ts"
+git -C "$sandbox" add "packages/demo/src/space name.ts"
+printf '%s\n' 'const working={hook:"preserved"}' >"$sandbox/packages/demo/src/space name.ts"
+worktree_before="$(sha256sum "$sandbox/packages/demo/src/space name.ts")"
+git -C "$sandbox" commit -qm hook-must-allow >/dev/null 2>&1 ||
+    fail "Git commit rejected a formatted staged blob"
+committed_blob="$(git -C "$sandbox" show HEAD:'packages/demo/src/space name.ts')"
+[[ "$committed_blob" == 'const staged = { hook: true }' ]] ||
+    fail "Git commit did not preserve the formatted staged blob"
+[[ "$worktree_before" == "$(sha256sum "$sandbox/packages/demo/src/space name.ts")" ]] ||
+    fail "successful Git commit changed the unstaged worktree copy"
+
 printf '%s\n' '#!/usr/bin/env sh' 'exit 0' >"$hook_path"
 chmod +x "$hook_path"
 hook_before="$(sha256sum "$hook_path")"
@@ -111,4 +155,4 @@ if "$sandbox/scripts/install-format-hook.sh" >/dev/null 2>&1; then
 fi
 [[ "$hook_before" == "$(sha256sum "$hook_path")" ]] || fail "existing hook contents changed"
 
-echo "Formatting scope, idempotence, staged-index, and hook-install tests passed."
+echo "Formatting scope, idempotence, staged-index, real-commit, editor-path, and hook-install tests passed."

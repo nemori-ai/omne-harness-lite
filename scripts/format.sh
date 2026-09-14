@@ -25,15 +25,24 @@ is_format_target() {
         */node_modules/*|*/dist/*|*/tmp/*|*/.worktrees/*|*/generated/*|*/upstream/*|spec/*|*.jsonl)
             return 1
             ;;
-        package.json|pnpm-workspace.yaml|.prettierrc.json|.vscode/settings.json|.vscode/extensions.json|.github/workflows/format.yml)
+        .prettierrc.json|.vscode/settings.json|.vscode/extensions.json|.github/workflows/format.yml)
             return 0
             ;;
-        packages/*|apps/*|tools/package-checks/*|scripts/*)
+        packages/*|apps/*|tools/*|scripts/*)
             case "$name" in
                 *.js|*.jsx|*.cjs|*.mjs|*.ts|*.tsx|package.json|tsconfig*.json|vitest.config.*)
                     return 0
                     ;;
             esac
+            ;;
+        *)
+            if [[ "$path" != */* ]]; then
+                case "$name" in
+                    *.js|*.jsx|*.cjs|*.mjs|*.ts|*.tsx|package.json|pnpm-workspace.yaml|tsconfig*.json|vitest.config.*)
+                        return 0
+                        ;;
+                esac
+            fi
             ;;
     esac
     return 1
