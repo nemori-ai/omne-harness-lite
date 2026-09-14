@@ -33,6 +33,22 @@ function admission(
 }
 
 describe('CC-02/03 synchronous admission gate', () => {
+  it('rejects preparation inside the gate before calling the writer', () => {
+    const writer = new ControlledWriter()
+    const prepareOperation = vi.spyOn(writer, 'prepareOperation')
+    const host = createAdmissionCoordinator(writer, new RecordingDiagnostics())
+    let checked: ReturnType<typeof host.coordinator.prepareOperation> | undefined
+
+    host.coordinator.enter(() => {
+      checked = host.coordinator.prepareOperation(operation('prepare-in-gate'), operationInput())
+    })
+
+    expect(checked).toMatchObject({ ok: false })
+    expect(prepareOperation).not.toHaveBeenCalled()
+    expect(host.coordinator.status().phase).toBe('quarantined')
+    expect(writer.quarantines).toHaveLength(1)
+  })
+
   it('proxies pure preparation and invalidates each frame at stack exit', () => {
     const writer = new ControlledWriter()
     const host = createAdmissionCoordinator(writer, new RecordingDiagnostics())
@@ -77,6 +93,37 @@ describe('CC-02/03 synchronous admission gate', () => {
     expect(second.coordinator.status().phase).toBe('quarantined')
     expect(secondDiagnostics.points.some(point => point.phase === 'late_rejection')).toBe(true)
     expect(secondWriter.pumpStarts).toBe(0)
+  })
+
+  it('invokes a returned thenable only after its gate frame is inactive', () => {
+    const writer = new ControlledWriter()
+    const host = createAdmissionCoordinator(writer, new RecordingDiagnostics())
+    const prepared = unwrap(
+      host.coordinator.prepareOperation(operation('thenable-outside-gate'), operationInput()),
+    )
+    let captured: Parameters<typeof host.coordinator.lookupPrepared>[0] | undefined
+    let observerLookup: ReturnType<typeof host.coordinator.lookupPrepared> | undefined
+    const thenable = {
+      then(_resolve: () => void, reject: () => void): void {
+        if (captured === undefined) throw new Error('frame was not captured')
+        observerLookup = host.coordinator.lookupPrepared(captured, prepared)
+        reject()
+      },
+    }
+
+    expect(() =>
+      host.coordinator.enter(frame => {
+        captured = frame
+        return thenable
+      }),
+    ).toThrow(/thenable/i)
+
+    expect(observerLookup).toEqual({
+      status: 'unavailable',
+      owner: 'admission',
+      code: 'invalid_frame',
+    })
+    expect(writer.commitInputs).toHaveLength(0)
   })
 
   it('emits diagnostics only after the frame is closed and preserves a normal assembly failure', () => {
