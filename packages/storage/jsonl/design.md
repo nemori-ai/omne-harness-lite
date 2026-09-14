@@ -7,7 +7,7 @@
 [D-010](../../../docs/decisions/D-010-shared-diagnostics.md) 增加必需 Diagnostics。
 `2c3aede7` 的归属迁移已通过主调度独立内容核验并接受，依据见
 [迁移采用](../../../docs/proposals/core-capabilities/implementation/shared-interfaces.md#p1-映射迁移的采用)；
-不改变原行为、记法或采用版本，产品仍未交付。
+该迁移当时不改变原行为、记法或采用版本，也未交付产品。
 
 精确承诺沿 [DR v1](../../../spec/capabilities/durable-records/v1/contract.md)、
 [CC v1](../../../spec/compositions/core-work-coordination/v1/contract.md)、
@@ -20,16 +20,15 @@
 
 ## 公开入口、依赖与实际状态
 
-现有 [README](README.md)、[源码](src/index.ts) 仅提供普通 JSONL 的
-`/baseline` 行为，尚未实现本页 writer、锁、恢复或默认目标入口。
-本页 factory 是已接受、**待实现**的声明记法，不是已编译的公开产品 API：
-
-```ts
-import type { JsonlProviderOptions, RecordProvider } from "@omne-harness-lite/records";
-import type { Diagnostics } from "@omne-harness-lite/diagnostics";
-
-export declare function createJsonlProvider(options: JsonlProviderOptions, diagnostics: Diagnostics): RecordProvider;
-```
+默认入口 `@omne-harness-lite/jsonl` 已导出真实 `createJsonlProvider`，具备本页的
+writer、锁和恢复实现；[公共出口](src/index.ts)、[factory 源码](src/provider.ts)
+及 [README](README.md) 分别拥有实际导出、精确签名和消费说明。factory 消费
+JsonlProviderOptions 与必需 Diagnostics，返回 RecordProvider。
+普通文件操作仍从默认入口及 `/baseline` 导出，其自身不提供 writer 的完整保证。
+最终 JSONL 输入 `7152a7192c84fa49c27255bfdb4f9b0e86ad8eb5` 的
+[成员验证](evidence/provider/README.md)与
+[P1 实际组合接受](../../../apps/local-harness/evidence/storage-admission/README.md)
+分别固定提供者与跨包证据。
 
 输入配置、返回端口与结果的精确现有类型归
 [records 公共源码](../records/src/index.ts)，消费说明归其 [README](../records/README.md)；
@@ -58,7 +57,7 @@ Diagnostics 是 factory 的必需注入，精确消费面与关闭管理归
 应用拥有目录与来源的管理责任；本提供者只消费受限诊断，不另建目录 owner，
 不复制其创建/关闭签名。普通诊断沿 D-010 在短门外输出，不承担业务审计。
 D1 的 R1/关闭/锁/原生消费者已由[成员接受证据](../../observation/diagnostics/evidence/directory-owner/README.md)
-核验；这只解除共享诊断前提，JSONL/admission 的 P1 真实组合仍须独立交付和接受。
+核验；JSONL/admission 与 D1 的真实组合已按上述 P1 证据独立验收。
 
 ## 纯准备与同步提交
 
@@ -242,8 +241,8 @@ closeWriter 同步先封闭新提交，异步排空和同步，再释放锁；�
 
 ## 实施验收与已有证据的范围
 
-先消费真实 records 产物与已接受原生锁前提，再实现真实磁盘和两进程的
-A05/A06/A07 去重、冲突、断点、恢复、完整前缀、水位、unknown 与关闭测试。
+真实 records 产物、原生锁、磁盘和两进程的 A05/A06/A07 去重、冲突、断点、恢复、
+完整前缀、水位、unknown 与关闭的实际结果归[成员验证](evidence/provider/README.md)。
 [G01](../records/tests/fixtures/g01.jsonl) 与 [G10](../records/tests/fixtures/g10.jsonl)
 保留原字面量，其余样例/反例见 [codec 场景](../records/tests/codec-scenarios.spec.ts)；
 不能把 codec 通过当作 fsync 或持锁恢复通过。
@@ -253,14 +252,21 @@ R3 覆盖原冲突结果在业务修订后来匹配时仍不变、完整无回�
 恢复/epoch sync 失败，再注入 release 失败，观察同一清理 owner、阻止新 acquire、
 重复 retryRelease 和实际 fd/锁释放；只检查对象中有 cleanup 字段不构成通过。
 
-独立组合验证还须将本提供者与真实 admission 连接，覆盖 A05–08/A30/A31 中的
-fsync 阻塞/失败、关闭重入、旧 writer 和旧 frame；不能用替身接管真实资源清理。
+[独立组合验证](../../../apps/local-harness/evidence/storage-admission/README.md)
+已将本提供者与真实 admission、D1 连接，覆盖 A05–08/A30/A31 相应切片中的
+fsync 阻塞/失败、关闭重入、旧 writer 和旧 frame。
 admission 的[关闭义务](../../coordination/admission/design.md#关闭与失败责任)
 先收口自身待发布责任，再完成本 writer 的排空/同步/释放；应用先处理在途效果。
 
 原 [P0 设计证据](../../../docs/proposals/core-capabilities/implementation/evidence/p0-shared-interfaces/README.md)
 与 `f712e025` / HUB `04b8dbf` 的锁证据保持原版本和环境范围，字节不改。
 前者证明声明/样例/局部机制，后者证明锁及采用环境前提；均不证明本提供者已交付。
-本轮仅执行[迁移关系与文档检查](../../../docs/proposals/core-capabilities/implementation/evidence/p1-provider-mapping/README.md)，
-没有运行新的机制探针、TDD 或产品验证。P1 真实实施、独立组合、公开产物消费与
-最终接受依据[验证规范](../../../docs/maintenance/verification.md)限定实际对象与结果。
+归属迁移当时仅执行[迁移关系与文档检查](../../../docs/proposals/core-capabilities/implementation/evidence/p1-provider-mapping/README.md)，
+没有运行新的机制探针、TDD 或产品验证。后续 P1 已在固定 HUB
+`31197742905a3c66fc3e650c153d65d014372c21` 接受，实际命令和源码范围归
+[manifest](../../../apps/local-harness/evidence/storage-admission/manifest.json)、
+[checks](../../../apps/local-harness/evidence/storage-admission/checks.json) 与
+[原始输出](../../../apps/local-harness/evidence/storage-admission/check.log)。
+独立五包消费者的提交、关闭、重开结果与全体产物通用检查分别保存。
+这些证据不覆盖后续源码、任意文件系统或模拟断电设备缓存；真实 TG/AU/BG
+业务 n/n+1 和完整 Agent/Session/工具闭环仍未交付。

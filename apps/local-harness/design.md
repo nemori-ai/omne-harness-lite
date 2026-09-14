@@ -149,13 +149,16 @@ await/dispose，不能凭 symbols.original 或 uid 当它等于 status 中的实
 
 ## 验证与停止点
 
-应用实施等待真实 P1、上述受审提供者与 TL/LE 默认产物；没有它们不提供伪造
-可运行命令。实际验收引用[A01–A32 原场景](../../docs/proposals/core-capabilities/implementation/acceptance.md)中
+真实 P1 存储/准入与 D1 组合已在固定 HUB
+`31197742905a3c66fc3e650c153d65d014372c21` 按
+[实际组合证据](evidence/storage-admission/README.md)接受。应用仍待上述运行提供者、
+TL/LE 默认产物与最终运行组合交付；P1 测试不代表五门闭环已形成。
+实际验收引用[A01–A32 原场景](../../docs/proposals/core-capabilities/implementation/acceptance.md)中
 A01–11/A17/A18/A19/A26 本地/A28–32
 相关子场景：双凭据隔离、唯一激活/取批、当前撤权、真实文件效果、原结果恢复、
 预算并发/unknown、关闭与旧引用、新会话独立产物消费。诊断记录安全关联与
 phase/code，关键审计由业务耐久提交，普通日志失败不覆盖业务结果。
-当前这些组合测试均未运行。交付证据须固定可运行提交、命令、未开放路径与
+当前最终运行闭环组合测试尚未运行。交付证据须固定可运行提交、命令、未开放路径与
 残留责任；完整 HD、M1/M2 和扩展功能不包含在本基线范围。
 
 ## 运行映射的命题与前提

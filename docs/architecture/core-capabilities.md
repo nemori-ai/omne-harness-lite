@@ -32,6 +32,12 @@ work-data 与 records 端口/codec 已接受，实际范围分别由
 [D-011](../decisions/D-011-diagnostics-directory-ownership.md)固定共享诊断及目录
 所有权的实施选择，当前接口归[diagnostics](../../packages/observation/diagnostics/design.md)。
 D1 共享诊断产品已按[成员证据](../../packages/observation/diagnostics/evidence/directory-owner/README.md)
-接受；真实 JSONL writer、共同准入、Agent/Session/工具运行闭环均未交付；OpenRouter、执行隔离、媒体 GC 和账务来源也没有完整目标验收。
+接受。真实 [JSONL writer](../../packages/storage/jsonl/design.md) 与
+[共同准入](../../packages/coordination/admission/design.md) 已交付，并与 D1 完成
+[P1 实际组合验收](../../apps/local-harness/evidence/storage-admission/README.md)；
+证据固定在 `31197742905a3c66fc3e650c153d65d014372c21`，覆盖 A05–07、A08
+准入/耐久发布及相关诊断、公开产物消费切片，不代表后续源码已通过同一验证。
+真实 TG/AU/BG 的 A08 业务 n/n+1 决策及完整 Agent/Session/工具运行闭环仍未交付；
+OpenRouter、执行隔离、媒体 GC 和账务来源也没有完整目标验收。
 已接受的提供者映射与真实装配责任从[应用设计](../../apps/local-harness/design.md)进入，
 每个成员的设计接受与产品符合性分别核对。

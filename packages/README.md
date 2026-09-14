@@ -4,13 +4,19 @@
 workspace 成员，拥有源码、依赖、公开入口、测试、许可与来源记录。组织规则归
 [workspace 规范](../docs/maintenance/workspace.md)，选择依据归 [D-009](../docs/decisions/D-009-package-organization.md)。
 
-当前 17 个产品包中，14 个为可独立构建和消费的实验来源基线，公开入口为各 npm 包的
-`/baseline`；[work-data](core/work-data/README.md) 与 [records](storage/records/README.md)
+实验来源基线沿各包的 `/baseline` 入口消费；
+[work-data](core/work-data/README.md) 与 [records](storage/records/README.md)
 已交付共享数据及记录端口/单行 codec 的目标默认入口；
 [diagnostics](observation/diagnostics/README.md) 的 D1 共享诊断实现已按
-[成员证据](observation/diagnostics/evidence/directory-owner/README.md)接受；JSONL/admission
-的真实消费组合仍未交付。
-尚未实现完整目标能力。源码来源及迁移见
+[成员证据](observation/diagnostics/evidence/directory-owner/README.md)接受。
+[JSONL](storage/jsonl/README.md) 与 [admission](coordination/admission/README.md)
+已提供真实默认 factory，与 D1 的
+[P1 组合及独立五包消费者](../apps/local-harness/evidence/storage-admission/README.md)
+已在固定 `31197742905a3c66fc3e650c153d65d014372c21` 接受。五包消费者的实际提交、
+关闭与重开证据，与该端点全体产物的通用隔离消费检查分别记录。
+[agent 默认入口](core/agent/README.md) 与 [tenant](governance/tenant/README.md)
+目前只提供协议或共享值声明，不表示目标 host、租户治理或完整 Agent/Session/工具
+运行闭环已交付。源码来源及迁移见
 [布局方案](../docs/proposals/core-capabilities/fork/package-layout.md)与
 [交付记录](../docs/proposals/core-capabilities/fork/package-layout-delivery.md)。
 真实 Agent/Session/工具 allow 闭环及必要共享设施的当前装配归
@@ -29,11 +35,12 @@ workspace 成员，拥有源码、依赖、公开入口、测试、许可与来�
 | [context](context/README.md) | [system-prompt](context/system-prompt/README.md) |
 | [tools](tools/README.md) | [tools](tools/tools/README.md) |
 | [agent](agent/README.md) | [loop](agent/loop/README.md) |
+| coordination | [admission](coordination/admission/README.md)、[提供者设计](coordination/admission/design.md) |
+| governance | [tenant](governance/tenant/README.md)、[提供者设计](governance/tenant/design.md) |
 | observation | [diagnostics](observation/diagnostics/README.md)、[目录与提供者设计](observation/diagnostics/design.md) |
 
 尚未建立 workspace 成员的设计正文也随未来所属包维护：
-[tenant](governance/tenant/design.md)、[authorization](governance/authorization/design.md)、
-[budget](governance/budget/design.md)、[admission](coordination/admission/design.md)、
+[authorization](governance/authorization/design.md)、[budget](governance/budget/design.md)、
 [local-execution](tools/local-execution/design.md)；
 [human-decisions](governance/human-decisions/design.md) 保留后续候选。目录与设计
 出现不等于目标包已经实现，现有 fork 的当前设计从各包 README 进入。
