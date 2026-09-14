@@ -32,7 +32,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 4.1.8
-        version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
 
   packages/context/system-prompt:
     dependencies:
@@ -57,7 +57,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 4.1.8
-        version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
 
   packages/core/agent:
     dependencies:
@@ -76,7 +76,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 4.1.8
-        version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
 
   packages/core/scope:
     dependencies:
@@ -92,7 +92,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 4.1.8
-        version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
 
   packages/core/work-data:
     dependencies:
@@ -111,7 +111,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 4.1.8
-        version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
 
   packages/media/content:
     dependencies:
@@ -127,7 +127,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 4.1.8
-        version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
 
   packages/model/llm:
     dependencies:
@@ -149,7 +149,41 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 4.1.8
-        version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+
+  packages/observation/diagnostics:
+    dependencies:
+      '@omne-harness-lite/records':
+        specifier: workspace:*
+        version: link:../../storage/records
+      '@omne-harness-lite/work-data':
+        specifier: workspace:*
+        version: link:../../core/work-data
+      '@opentelemetry/api':
+        specifier: 1.9.1
+        version: 1.9.1
+      '@opentelemetry/context-async-hooks':
+        specifier: 2.11.0
+        version: 2.11.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/sdk-trace':
+        specifier: 2.11.0
+        version: 2.11.0(@opentelemetry/api@1.9.1)
+      pino:
+        specifier: 10.3.1
+        version: 10.3.1
+      sonic-boom:
+        specifier: 4.2.1
+        version: 4.2.1
+    devDependencies:
+      '@types/node':
+        specifier: 24.13.4
+        version: 24.13.4
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: 4.1.8
+        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
 
   packages/session/persistence:
     dependencies:
@@ -174,7 +208,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 4.1.8
-        version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
 
   packages/session/projection:
     dependencies:
@@ -196,7 +230,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 4.1.8
-        version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
 
   packages/session/session:
     dependencies:
@@ -224,7 +258,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 4.1.8
-        version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
 
   packages/storage/jsonl:
     devDependencies:
@@ -236,7 +270,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 4.1.8
-        version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
 
   packages/storage/records:
     dependencies:
@@ -252,7 +286,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 4.1.8
-        version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
 
   packages/tools/tools:
     dependencies:
@@ -277,7 +311,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 4.1.8
-        version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
 
   packages/util/brand:
     devDependencies:
@@ -289,7 +323,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 4.1.8
-        version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
 
   packages/util/timeout:
     devDependencies:
@@ -301,7 +335,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 4.1.8
-        version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
 
   packages/util/values:
     devDependencies:
@@ -313,7 +347,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 4.1.8
-        version: 4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
+        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4))
 
   tools/package-checks:
     dependencies:
@@ -341,8 +375,43 @@ packages:
   '@jridgewell/sourcemap-codec@1.6.0':
     resolution: {integrity: sha512-T7jf+5zgsZHwNJ4lvQ7/aezbyk0nNX+zJVWpmHA7VYsEx7a7qr5Rg5IbtJFqkgze5Y2sruq1RUY8Q837Od7iFw==}
 
+  '@opentelemetry/api@1.9.1':
+    resolution: {integrity: sha512-gLyJlPHPZYdAk1JENA9LeHejZe1Ti77/pTeFm/nMXmQH/HFZlcS/O2XJB+L8fkbrNSqhdtlvjBVjxwUYanNH5Q==}
+    engines: {node: '>=8.0.0'}
+
+  '@opentelemetry/context-async-hooks@2.11.0':
+    resolution: {integrity: sha512-Tr79DyWI8itsBdg+jH+opjfrwLzX+erk1/ExkIwhWoAVjVrJIn2y5+cGjTC0Vy8fyNIA/y8wuJPZwr1T3xCZeQ==}
+    engines: {node: ^18.19.0 || >=20.6.0}
+    peerDependencies:
+      '@opentelemetry/api': '>=1.0.0 <1.10.0'
+
+  '@opentelemetry/core@2.11.0':
+    resolution: {integrity: sha512-7YP44XH0tV6+Mb54x2YGf84i7yi+31MBZlE8JwvozkxyTvXbSp10X7cI7YE49ChJ3shMJoBmCJF3+1QFBJctGA==}
+    engines: {node: ^18.19.0 || >=20.6.0}
+    peerDependencies:
+      '@opentelemetry/api': '>=1.0.0 <1.10.0'
+
+  '@opentelemetry/resources@2.11.0':
+    resolution: {integrity: sha512-Ie7+8q8MDF4FAEQCKVMTx3ReUvxiIAgIiiW3c9JdmP8+HMcDy20puT+AHjexnExgnbvBxjQ9fjkFDWrikJ2jQA==}
+    engines: {node: ^18.19.0 || >=20.6.0}
+    peerDependencies:
+      '@opentelemetry/api': '>=1.3.0 <1.10.0'
+
+  '@opentelemetry/sdk-trace@2.11.0':
+    resolution: {integrity: sha512-fFnTqGm8/G73GQVnxYi7LXa1ZVYEUvgL6XI1LpvV0bPC7WQ/ZGgKxCSl8FnlZBKto9JHHEFTO6s6CUpvvtwFrA==}
+    engines: {node: ^18.19.0 || >=20.6.0}
+    peerDependencies:
+      '@opentelemetry/api': '>=1.3.0 <1.10.0'
+
+  '@opentelemetry/semantic-conventions@1.43.0':
+    resolution: {integrity: sha512-eSYWTm620tTk45EKSedaUL8MFYI8hW164hIXsgIHyxu3VobUB3fFCu5t0hQby6OoWRPsG1KkKUG2M5UadiLiVg==}
+    engines: {node: '>=14'}
+
   '@oxc-project/types@0.149.0':
     resolution: {integrity: sha512-Efcc+iF0j3Bf67YjEqIqWXbX5XddXoK/Mw4K1/JuXwRCZ8N16VR7iT23nlCc9XrveFVh/E5Rqs2StT0V8v9LdA==}
+
+  '@pinojs/redact@0.4.0':
+    resolution: {integrity: sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg==}
 
   '@rolldown/binding-android-arm-eabi@1.2.8':
     resolution: {integrity: sha512-tN5aztYkKCte4i5SIrrz5yK/HMjEuCqCSCJa418jOV8tZ1cBY3YF2otxB1ktPxzsLA1BeTqwapK0bfjxNvHJVw==}
@@ -488,6 +557,10 @@ packages:
     resolution: {integrity: sha512-Izi8RQcffqCeNVgFigKli1ssklIbpHnCYc6AknXGYoB6grJqyeby7jv12JUQgmTAnIDnbck1uxksT4dzN3PWBA==}
     engines: {node: '>=12'}
 
+  atomic-sleep@1.0.0:
+    resolution: {integrity: sha512-kNOjDqAh7px0XWNI+4QbzoiR/nTkHAWNud2uvnJquD1/x5a7EQZMJT0AczqK0Qn67oY/TTQ1LbUKajZpp3I9tQ==}
+    engines: {node: '>=8.0.0'}
+
   chai@6.2.2:
     resolution: {integrity: sha512-NUPRluOfOiTKBKvWPtSD4PhFvWCqOi0BGStNWs57X9js7XGTprSmFoz5F0tWhR4WPjNeR9jXqdC7/UpSJTnlRg==}
     engines: {node: '>=18'}
@@ -617,6 +690,10 @@ packages:
     resolution: {integrity: sha512-XrsrhT5sybtKI6wakr2SPOlGZWWYbUXZ7a0jT8/QOeAPau+1X/bSegNe5YR75oJmEZQbKningirmGOEJCIk61Q==}
     engines: {node: '>=12.20.0'}
 
+  on-exit-leak-free@2.1.2:
+    resolution: {integrity: sha512-0eJJY6hXLGf1udHwfNftBqH+g73EU4B504nZeKpz1sYRKafAghwxEJunB2O7rDZkL4PGfsMVnTXZ2EjibbqcsA==}
+    engines: {node: '>=14.0.0'}
+
   pathe@2.0.3:
     resolution: {integrity: sha512-WUjGcAqP1gQacoQe+OBJsFA7Ld4DyXuUIjZ5cc75cLHvJ7dtNsTugphxIADwspS+AraAUePCKrSVtPLFj/F88w==}
 
@@ -627,6 +704,16 @@ packages:
     resolution: {integrity: sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA==}
     engines: {node: '>=12'}
 
+  pino-abstract-transport@3.0.0:
+    resolution: {integrity: sha512-wlfUczU+n7Hy/Ha5j9a/gZNy7We5+cXp8YL+X+PG8S0KXxw7n/JXA3c46Y0zQznIJ83URJiwy7Lh56WLokNuxg==}
+
+  pino-std-serializers@7.1.0:
+    resolution: {integrity: sha512-BndPH67/JxGExRgiX1dX0w1FvZck5Wa4aal9198SrRhZjH3GxKQUKIBnYJTdj2HDN3UQAS06HlfcSbQj2OHmaw==}
+
+  pino@10.3.1:
+    resolution: {integrity: sha512-r34yH/GlQpKZbU1BvFFqOjhISRo1MNx1tWYsYvmj6KIRHSPMT2+yHOEb1SG6NMvRoHRF0a07kCOox/9yakl1vg==}
+    hasBin: true
+
   postcss@8.5.28:
     resolution: {integrity: sha512-RRuzqDtt5Y9h3quz5hWhK+TPnsmVs6WwSU6LkJMeY4HstUEDuYTG8UJSdawMRzmzAtV+KEoG8N3Qg2qLy5vM/A==}
     engines: {node: ^10 || ^12 || >=14}
@@ -635,6 +722,19 @@ packages:
     resolution: {integrity: sha512-OpN0zzVdiaiAhxpuuj5efpIS4sY9j7bY6uR5mnj5yPzGkdkjNKSJeUThPb60Jw29QuAZgA4o+/iB49kFiaBX6g==}
     engines: {node: '>=14'}
     hasBin: true
+
+  process-warning@5.1.0:
+    resolution: {integrity: sha512-jQSaVHsPgtyw60e1rQ/A+/ArPEj/S8pS/vFnyGa/gYFXrKk/6RuDkoqVDQ5NI5MmS01698ltlAk0NoDBNLujRw==}
+
+  quick-format-unescaped@4.0.4:
+    resolution: {integrity: sha512-tYC1Q1hgyRuHgloV/YXs2w15unPVh8qfu/qCTfhTYamaw7fyhumKa2yGpdSo87vY32rIclj+4fWYQXUMs9EHvg==}
+
+  real-require@0.2.0:
+    resolution: {integrity: sha512-57frrGM/OCTLqLOAh0mhVA9VBMHd+9U7Zb2THMGdBUoZVOtGbJzjxsYGDJ3A9AYYCP4hn6y1TVbaOfzWtm5GFg==}
+    engines: {node: '>= 12.13.0'}
+
+  real-require@1.0.0:
+    resolution: {integrity: sha512-P4nbQYQfePJxRSmY+v/KINxVucm4NF3p3s7pJveMTtom52FR4YGltUQLB8idDXwDDWW+eYrWDFbuzUnjoWHF7g==}
 
   require-from-string@2.0.2:
     resolution: {integrity: sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw==}
@@ -645,18 +745,33 @@ packages:
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
 
+  safe-stable-stringify@2.5.0:
+    resolution: {integrity: sha512-b3rppTKm9T+PsVCBEOUR46GWI7fdOs00VKZ1+9c1EWDaDMvjQc6tUwuFyIprgGgTcWoVHSKrU8H31ZHA2e0RHA==}
+    engines: {node: '>=10'}
+
   siginfo@2.0.0:
     resolution: {integrity: sha512-ybx0WO1/8bSBLEWXZvEd7gMW3Sn3JFlW3TvX1nREbDLRNQNaeNN8WK0meBwPdAaOI7TtRRRJn/Es1zhrrCHu7g==}
+
+  sonic-boom@4.2.1:
+    resolution: {integrity: sha512-w6AxtubXa2wTXAUsZMMWERrsIRAdrK0Sc+FUytWvYAhBJLyuI4llrMIC1DtlNSdI99EI86KZum2MMq3EAZlF9Q==}
 
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
+
+  split2@4.2.0:
+    resolution: {integrity: sha512-UcjcJOWknrNkF6PLX83qcHM6KHgVKNkV62Y8a5uYDVv9ydGQVwAHMKqHdJje1VTWpljG0WYpCDhrCdAOYH4TWg==}
+    engines: {node: '>= 10.x'}
 
   stackback@0.0.2:
     resolution: {integrity: sha512-1XMJE5fQo1jGH6Y/7ebnwPOBEkIEnT4QF32d5R1+VXdXveM0IBMJt8zfaxX1P3QhVwrYe+576+jkANtSS2mBbw==}
 
   std-env@4.2.0:
     resolution: {integrity: sha512-oCUKSupKTHX53EyjDtuZQ64pjLJ6yYCtpmEw0goYxtjG9KpbRe8KAsl2tBUGU9DyMcJ0RwJ8GqJAFzMXcXW1Rw==}
+
+  thread-stream@4.2.0:
+    resolution: {integrity: sha512-e2zZ96wSChazBsbENf/Pcm/4swHt2cEKQ92rhUjkL9GCKiTDJIaTBenjE/m9DXi0QBmTMDkFDdOomUy20A1tDQ==}
+    engines: {node: '>=20'}
 
   tinybench@2.9.0:
     resolution: {integrity: sha512-0+DUvqWMValLmha6lr4kD8iAMK1HzV0/aKnCtWb9v9641TnP/MFb7Pc2bxoxQjTXAErryXVgUOfv2YqNllqGeg==}
@@ -784,7 +899,35 @@ snapshots:
 
   '@jridgewell/sourcemap-codec@1.6.0': {}
 
+  '@opentelemetry/api@1.9.1': {}
+
+  '@opentelemetry/context-async-hooks@2.11.0(@opentelemetry/api@1.9.1)':
+    dependencies:
+      '@opentelemetry/api': 1.9.1
+
+  '@opentelemetry/core@2.11.0(@opentelemetry/api@1.9.1)':
+    dependencies:
+      '@opentelemetry/api': 1.9.1
+      '@opentelemetry/semantic-conventions': 1.43.0
+
+  '@opentelemetry/resources@2.11.0(@opentelemetry/api@1.9.1)':
+    dependencies:
+      '@opentelemetry/api': 1.9.1
+      '@opentelemetry/core': 2.11.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/semantic-conventions': 1.43.0
+
+  '@opentelemetry/sdk-trace@2.11.0(@opentelemetry/api@1.9.1)':
+    dependencies:
+      '@opentelemetry/api': 1.9.1
+      '@opentelemetry/core': 2.11.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/resources': 2.11.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/semantic-conventions': 1.43.0
+
+  '@opentelemetry/semantic-conventions@1.43.0': {}
+
   '@oxc-project/types@0.149.0': {}
+
+  '@pinojs/redact@0.4.0': {}
 
   '@rolldown/binding-android-arm-eabi@1.2.8':
     optional: true
@@ -898,6 +1041,8 @@ snapshots:
 
   assertion-error@2.0.1: {}
 
+  atomic-sleep@1.0.0: {}
+
   chai@6.2.2: {}
 
   convert-source-map@2.0.0: {}
@@ -984,11 +1129,33 @@ snapshots:
 
   obug@2.2.1: {}
 
+  on-exit-leak-free@2.1.2: {}
+
   pathe@2.0.3: {}
 
   picocolors@1.1.1: {}
 
   picomatch@4.0.7: {}
+
+  pino-abstract-transport@3.0.0:
+    dependencies:
+      split2: 4.2.0
+
+  pino-std-serializers@7.1.0: {}
+
+  pino@10.3.1:
+    dependencies:
+      '@pinojs/redact': 0.4.0
+      atomic-sleep: 1.0.0
+      on-exit-leak-free: 2.1.2
+      pino-abstract-transport: 3.0.0
+      pino-std-serializers: 7.1.0
+      process-warning: 5.1.0
+      quick-format-unescaped: 4.0.4
+      real-require: 0.2.0
+      safe-stable-stringify: 2.5.0
+      sonic-boom: 4.2.1
+      thread-stream: 4.2.0
 
   postcss@8.5.28:
     dependencies:
@@ -997,6 +1164,14 @@ snapshots:
       source-map-js: 1.2.1
 
   prettier@3.9.6: {}
+
+  process-warning@5.1.0: {}
+
+  quick-format-unescaped@4.0.4: {}
+
+  real-require@0.2.0: {}
+
+  real-require@1.0.0: {}
 
   require-from-string@2.0.2: {}
 
@@ -1021,13 +1196,25 @@ snapshots:
       '@rolldown/binding-win32-arm64-msvc': 1.2.8
       '@rolldown/binding-win32-x64-msvc': 1.2.8
 
+  safe-stable-stringify@2.5.0: {}
+
   siginfo@2.0.0: {}
 
+  sonic-boom@4.2.1:
+    dependencies:
+      atomic-sleep: 1.0.0
+
   source-map-js@1.2.1: {}
+
+  split2@4.2.0: {}
 
   stackback@0.0.2: {}
 
   std-env@4.2.0: {}
+
+  thread-stream@4.2.0:
+    dependencies:
+      real-require: 1.0.0
 
   tinybench@2.9.0: {}
 
@@ -1055,7 +1242,7 @@ snapshots:
       '@types/node': 24.13.4
       fsevents: 2.3.3
 
-  vitest@4.1.8(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4)):
+  vitest@4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4)):
     dependencies:
       '@vitest/expect': 4.1.8
       '@vitest/mocker': 4.1.8(vite@8.3.0(@types/node@24.13.4))
@@ -1078,6 +1265,7 @@ snapshots:
       vite: 8.3.0(@types/node@24.13.4)
       why-is-node-running: 2.3.0
     optionalDependencies:
+      '@opentelemetry/api': 1.9.1
       '@types/node': 24.13.4
     transitivePeerDependencies:
       - msw
