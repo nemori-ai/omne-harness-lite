@@ -1,0 +1,60 @@
+import type {
+  AcquisitionCleanup,
+  AcquisitionCleanupState,
+  AcquireResult,
+  Causality,
+  CloseResult,
+  CodecLimits,
+  CommitEnvelope,
+  CommitRequest,
+  CommitResult,
+  ConflictReceipt,
+  Counter,
+  DecodedLine,
+  Head,
+  JournalLine,
+  JsonlProviderOptions,
+  NamespaceBinding,
+  OperationInput,
+  OperationLookup,
+  OwnedRecord,
+  PendingCommit,
+  Position,
+  PreparedCommit,
+  PreparedOperation,
+  Principal,
+  ReadResult,
+  Receipt,
+  RecordConflict,
+  RecordLimits,
+  RecordPreparation,
+  RecordProvider,
+  RecordReader,
+  RecordedOutcome,
+  RecordWriter,
+  Rejection,
+  RevisionConflict,
+  StreamAppend,
+  StreamRef,
+  Submission,
+  UseBinding,
+  UseRequirement,
+  Watermark,
+} from '../dist/index.js'
+
+type EveryPublicType = [
+  AcquisitionCleanup, AcquisitionCleanupState, AcquireResult, Causality, CloseResult, CodecLimits,
+  CommitEnvelope, CommitRequest, CommitResult, ConflictReceipt, Counter, DecodedLine, Head,
+  JournalLine, JsonlProviderOptions, NamespaceBinding, OperationInput, OperationLookup, OwnedRecord,
+  PendingCommit, Position, PreparedCommit, PreparedOperation, Principal, ReadResult<Head>, Receipt,
+  RecordConflict, RecordLimits, RecordPreparation, RecordProvider, RecordReader, RecordedOutcome,
+  RecordWriter, Rejection, RevisionConflict, StreamAppend, StreamRef, Submission, UseBinding,
+  UseRequirement, Watermark,
+]
+
+const everyPublicTypeCompiles: EveryPublicType | undefined = undefined
+void everyPublicTypeCompiles
+
+// @ts-expect-error prepared values are opaque capabilities created by a real writer
+const forgedPrepared: PreparedOperation = { operation: {}, canonicalInput: '{}' }
+void forgedPrepared
