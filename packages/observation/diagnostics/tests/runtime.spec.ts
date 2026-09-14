@@ -15,7 +15,11 @@ beforeAll(async () => {
   await mkdir(scratchRoot, { recursive: true })
 })
 
-function options(directory: string, sourceId = 'source-create'): LocalDiagnosticsOptions {
+function options(
+  directory: string,
+  sourceId = 'source-create',
+  overrides: Partial<LocalDiagnosticsOptions> = {},
+): LocalDiagnosticsOptions {
   return {
     instanceId: 'instance-test',
     sourceId,
@@ -27,6 +31,7 @@ function options(directory: string, sourceId = 'source-create'): LocalDiagnostic
     maxFileBytes: 64 * 1024,
     maxDirectoryBytes: 128 * 1024,
     maxFiles: 4,
+    ...overrides,
   }
 }
 
@@ -190,5 +195,80 @@ describe('O03 safe projection', () => {
     expect(text).not.toContain('BODY_SENTINEL')
     expect(text).not.toContain('SECRET_SENTINEL')
     expect(text).not.toContain('STACK_SENTINEL')
+  })
+})
+
+describe('O02/O04 standard span behavior', () => {
+  it('emits bounded parent/child OTel spans and counts span-capacity gaps', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'spans-'))
+    const result = await createLocalDiagnostics(options(directory, 'source-spans', { maxActiveSpans: 2 }))
+    expect(result.status).toBe('created')
+    if (result.status !== 'created') return
+    const { runtime } = result
+    const context = runtime.diagnostics.scope(identity('tenant-a', 'user-a'))
+    const parent = runtime.diagnostics.startSpan(context, point('span.parent'))
+    const child = runtime.diagnostics.within(parent.context, () =>
+      runtime.diagnostics.startSpan(parent.context, point('span.child')))
+    const refused = runtime.diagnostics.startSpan(context, point('span.refused'))
+
+    expect(runtime.inspect().activeSpans).toBe(2)
+    expect(runtime.inspect().gaps).toContainEqual(expect.objectContaining({ reason: 'span_capacity' }))
+    refused.end({ code: 'span.refused_done', outcome: 'failed' })
+    child.end({ code: 'span.child_done', outcome: 'ok' })
+    parent.end({ code: 'span.parent_done', outcome: 'unknown' })
+    parent.end({ code: 'span.duplicate', outcome: 'failed' })
+    expect(runtime.inspect().activeSpans).toBe(0)
+
+    const lines = await waitForCode(directory, 'span.parent_done')
+    const spanLines = lines.filter(line => line.kind === 'span')
+    expect(spanLines).toHaveLength(2)
+    const parentLine = spanLines.find(line => line.code === 'span.parent_done')
+    const childLine = spanLines.find(line => line.code === 'span.child_done')
+    expect(parentLine?.traceId).toBe(childLine?.traceId)
+    expect(childLine?.parentSpanId).toBe(parentLine?.spanId)
+    expect(parentLine).toMatchObject({ outcome: 'unknown', tenantId: 'tenant-a' })
+    expect(lines.some(line => line.code === 'span.duplicate')).toBe(false)
+    await expect(runtime.close({ deadlineMs: 1_000 })).resolves.toMatchObject({ status: 'closed' })
+  })
+})
+
+describe('O06 close ownership and generation guards', () => {
+  it('blocks on an unfinished span, lets that original span end, and retries the same close responsibility', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'close-span-'))
+    const runtime = await createdRuntime(directory, 'source-close-span')
+    const context = runtime.diagnostics.scope(identity('tenant-a', 'user-a'))
+    const span = runtime.diagnostics.startSpan(context, point('close.pending_span'))
+    expect(runtime.inspect().activeSpans).toBe(1)
+
+    const blocked = await runtime.close({ deadlineMs: 10 })
+    expect(blocked).toMatchObject({
+      status: 'blocked',
+      state: { phase: 'closing', resource: 'held', activeSpans: 1 },
+    })
+    expect(runtime.diagnostics.current()).toBeNull()
+
+    let afterCloseCalls = 0
+    const marker = Object.freeze({ owner: 'business' })
+    expect(runtime.diagnostics.within(context, () => {
+      afterCloseCalls += 1
+      return marker
+    })).toBe(marker)
+    expect(afterCloseCalls).toBe(1)
+    span.end({ code: 'close.pending_span_done', outcome: 'cancelled' })
+
+    const closed = await runtime.close({ deadlineMs: 1_000 })
+    expect(closed).toMatchObject({
+      status: 'closed',
+      state: { phase: 'closed', resource: 'released', activeSpans: 0 },
+    })
+    const beforeLate = await readFile(await sourceFile(directory), 'utf8')
+    runtime.diagnostics.log(context, point('close.late_log'))
+    runtime.diagnostics.startSpan(context, point('close.late_span')).end({
+      code: 'close.late_span_done',
+      outcome: 'ok',
+    })
+    const afterLate = await readFile(await sourceFile(directory), 'utf8')
+    expect(afterLate).toBe(beforeLate)
+    expect(runtime.inspect().gaps).toContainEqual(expect.objectContaining({ reason: 'closing' }))
   })
 })
