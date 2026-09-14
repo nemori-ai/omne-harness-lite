@@ -2,8 +2,9 @@
 
 状态：`f98ac926` 映射已接受为最小运行基线施工输入；本目录现已建立 workspace
 成员及默认公开入口，已实现下文归属的六种共同值声明以及
-`IdentitySource`/`AuthenticatedInvocation` 和 TG 当前资格的窄消费声明。Tenant host、
-插件、身份适配、当前资格运行检查及其它运行行为仍未实现。
+`IdentitySource`/`AuthenticatedInvocation` 和 TG 当前资格的窄消费声明，并有本切片
+bootstrap/personal-index/tenant/member 记录的严格 decoder 与纯 fold。Tenant host、插件、
+身份适配、当前资格运行检查及其它运行行为仍未实现。
 来源、检查与采用边界见[原施工入口](../../../docs/proposals/core-capabilities/implementation/runtime-provider-interfaces.md)。
 
 ## 契约与公开面
@@ -79,7 +80,8 @@ pending publication、冻结完整 durable 水位并确认原资源释放后恢�
 身份/SR/TL link。allow 基线需要 A01–03/A11 的当前资格与 S01/S15–17 相关
 切片：真实双凭据隔离、成员重加不恢复旧权、create 重试认回原 ID、准备后撤权、
 SR 引用与 TG 撤选交错、来源突然失联。仅测内部 Map 次数不能通过。
-当前这些产品测试未运行；[三项 Cordis 机制证据](../../../docs/proposals/core-capabilities/implementation/evidence/runtime-provider-design/README.md)
+当前只有记录 decoder/fold 的本包单元验证；host、管理、真实 P1、身份和 Cordis
+组合尚未运行。[三项 Cordis 机制证据](../../../docs/proposals/core-capabilities/implementation/evidence/runtime-provider-design/README.md)
 只支持内核时序，不证明本 host 已实现。
 
 ## 实施协议的采用来源
@@ -191,6 +193,10 @@ source 只允许独立受信种入能力；公开 create/edit 不接受把 custo
 joinedRevision 与当前不符即失效，重新加入不会恢复旧依据；普通成员修订继续
 核对当前权限交集，不靠 observedRevision 相同或身份相同保持过期资格。
 到期在每次 gate 使用同一受信时间样本核对；异步准备中的未到期不授权稍后提交。
+
+当前纯 fold 的防复活历史按完整 `(MembershipRef, joinedRevision)` 认回；Counter
+只在该成员关系内区分加入代次，不要求不同成员之间全租户唯一。此前按裸 Counter
+拒绝不同成员相同 joinedRevision 是实现过度约束，本次修正不新增业务政策。
 
 ## 共同值与协议的维护归属
 

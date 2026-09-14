@@ -44,3 +44,22 @@ export type {
   TenantAccessPreparation,
   TenantAccessRequest,
 } from './protocols.js'
+
+export {
+  decodeTenantRecord,
+  foldBootstrapRecords,
+  foldPersonalClaims,
+  foldTenantRecords,
+} from './records.js'
+export type {
+  BootstrapEstablished,
+  Member,
+  MemberRole,
+  MemberState,
+  MembershipJoin,
+  PersonalTenantClaim,
+  Tenant,
+  TenantFoldState,
+  TenantKind,
+  TenantRecordEvent,
+} from './records.js'

@@ -11,13 +11,20 @@ protocol exports `IdentitySource`/`AuthenticatedInvocation` and the opaque two-s
 the public work-data identities instead of copying them. `PermissionScope` remains owned by the
 [authorization package](../authorization/design.md#permissionscope).
 
+The same entry exports strict decoders and pure folds for the accepted bootstrap, personal-index,
+tenant-creation, and member-change records. The fold retains consumed membership joins and validates
+the personal-owner and organization-super-admin invariants. A consumed join is identified by the
+complete `(MembershipRef, joinedRevision)` pair, so different members may carry the same counter
+while a removed member's prior basis cannot revive. The fold returns frozen copies and does not
+adopt caller-owned objects as authority state.
+
 These are consumer contracts. The opaque invocation and access-candidate types prevent ordinary
 structural construction at compile time, while runtime authenticity still depends on the installed
 identity source and tenant host recognizing the exact issued objects in an active `GateFrame`.
 They do not parse or normalize instants, freeze runtime values, recognize evidence authorities, or
 establish identity, current membership, authorization, or budget eligibility by their shape alone.
-The tenant host, plugins, trusted clock, parsers, current-fact checks, and governance behavior remain
-future implementation work.
+The tenant host, plugins, trusted clock, current-fact checks, persistence wiring, and management
+operations remain future implementation work.
 
 The precise ownership and representation mapping is in the
 [tenant provider design](./design.md#共同值与协议的维护归属). Its adopted language-neutral sources
