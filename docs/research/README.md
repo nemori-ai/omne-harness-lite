@@ -17,6 +17,7 @@
 - [多模态输入、附件、键盘与 slash 命令的来源核对](user-input-and-command-sources.md)
 - [组织/个人资产、权益与 official/customized 来源的核对](tenant-asset-and-permission-sources.md)
 - [个人与组织的管理操作及 PF-006/PF-010 职责整理](tenant-management-sources.md)
+- [租户与授权的旧系统不变量、源码反例及当前差异](tenant-authorization-invariants.md)
 - [复杂未来规划、多地日历、闹钟与通知的来源核对](future-planning-calendar-and-notification-sources.md)
 - [Computer、Browser、Shell 与沙盒/本机执行环境的来源核对](computer-browser-shell-environment-sources.md)
 - [Session、Run 生命周期与排队输入控制的来源核对](session-run-and-pending-input-sources.md)

@@ -60,7 +60,7 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 | P2 提供者与装配映射（design accepted） | 作者 `/root/governance_design` 与独立复核 `/root/review_first_batch` 本轮已结束 | `dsh-runtime-provider-design` 已退役，`f98ac926` 经 `8ee3af6` 合入 | 七包及应用正文、原代次/批准历史消歧闭合；HUB 三组原机制与两组相邻机制复验通过，接受见[施工入口](runtime-provider-interfaces.md#接受与验证)；产品未实现 |
 | 原生独立消费者测量（accepted） | 原生 verification-developer `/root/native_consumer_checks`，本轮已停写 | `dsh-native-consumer-checks` 已退役，`be9db75` 经 `6f54c75` 合入 | HUB 完整 `pnpm run check`、15 项工具测试（零跳过）、17 包/组合及实际原生加载通过，见[验收](evidence/native-consumer-checks/hub/README.md)；D1 产品仍待接受 |
 | P1 提供者映射迁移（accepted） | 复用原生设计作者 `/root/governance_design`，本轮已停写 | `dsh-p1-provider-mapping` 已退役，`2c3aede7` 经 `6d4b87c` 合入，`6d9f47a` 接受 | 18 段正文/13 份原证据与全部迁移文件独立核验，HUB 455 份文档检查通过；已接受方案归属迁移，不是 P1 产品交付 |
-| 旧系统租户与授权规则研究（进行中） | 原生 explorer `/root/tenant_auth_research` | `dsh-tenant-auth-research`，从 `ff2e7dd` 创建 | 只读 `omne-next` 固定 `6263fed`，提取语言无关规则、不变量和反例并对照当前设计；研究尚未交付，不自动改变当前契约 |
+| 旧系统租户与授权规则研究（已交付） | 原生 explorer `/root/tenant_auth_research`，已停写并释放环境 | `dsh-tenant-auth-research` 已退役，`13b7d18` 经 `ea68d20` 合入 | [语言无关研究](../../../research/tenant-authorization-invariants.md)核对固定 `6263fed` 的 38 处来源，区分要求、源码反例、未运行测试与未知；用于 P2 反例设计，不自动改变当前契约 |
 
 `e139342` 完成上述提供者设计接受、包/应用导航和 P1 组合测试载体写权安排，
 HUB 文档检查 451 份通过。`ce73873` 随后锁定 `fs-ext@2.1.1`/`nan@2.28.0`，
@@ -79,6 +79,11 @@ HUB 文档检查 451 份通过。`ce73873` 随后锁定 `fs-ext@2.1.1`/`nan@2.28
 P1 映射 spoke 随 `6d9f47a` 接受后退役：原生作者已停止，tracked 工作区干净，
 ignored 资产仅为可重建 `.venv`/缓存，没有任务临时资产；源码及全部正式证据已
 包含在 HUB，再按正常 Git 命令移除工作树及已合入分支。
+
+租户与授权研究合入后，主调度逐项核对 38 个固定 Git 来源路径及行段，并确认
+旧仓库仍处于 `6263fed` 且 tracked 干净。HUB 正文与 `13b7d18` 字节一致，
+460 份文档检查通过。研究 spoke 无独有临时资产，作者已释放环境且没有进程
+以该树为 cwd，随后正常退役；未运行旧产品或把研究差异接受为新契约。
 
 可观测性工程品味与共享研发提示词已由 `51eaefb` 经 `7d3736c` 整合到 HUB，
 五个角色的两端生成检查和文档检查通过，见[提示词证据](evidence/observability-prompts.json)。
