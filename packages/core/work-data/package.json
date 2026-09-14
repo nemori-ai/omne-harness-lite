@@ -20,7 +20,7 @@
     "provenance.json"
   ],
   "scripts": {
-    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json && node -e \"require('node:fs').cpSync('src/schemas', 'dist/schemas', {recursive:true})\"",
+    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json && node scripts/build-schemas.mjs",
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run"
   },
