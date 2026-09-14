@@ -117,6 +117,105 @@ describe('tenant record decoder and fold', () => {
     expect(folded.ok).toBe(true)
   })
 
+  it('checks the highest organization role on the complete member-change batch', () => {
+    const withTwoMembers = foldTenantRecords(null, [
+      record('tenant.created', {
+        tenant: {
+          ...organization,
+          members: [
+            organization.members[0],
+            {
+              member: { tenantId: 'tenant-1', userId: 'bob' },
+              role: 'member',
+              state: 'active',
+              revision: '1',
+              joinedRevision: '1',
+              delegatedOperations: [],
+            },
+          ],
+        },
+      }),
+    ])
+    if (!withTwoMembers.ok) throw new Error('expected initial organization')
+
+    const demoteAlice = record('tenant.member_changed', {
+      member: {
+        ...withTwoMembers.value.tenant.members[0],
+        role: 'member',
+        revision: '2',
+      },
+      previousRevision: '1',
+      reason: 'transfer administration',
+    })
+    expect(foldTenantRecords(withTwoMembers.value, [demoteAlice]).ok).toBe(false)
+
+    const promoteBob = record('tenant.member_changed', {
+      member: {
+        ...withTwoMembers.value.tenant.members[1],
+        role: 'super_admin',
+        revision: '2',
+      },
+      previousRevision: '1',
+      reason: 'transfer administration',
+    })
+    const transferred = foldTenantRecords(withTwoMembers.value, [demoteAlice, promoteBob])
+    expect(transferred.ok).toBe(true)
+    if (!transferred.ok) throw new Error('expected atomic administration transfer')
+    expect(
+      transferred.value.tenant.members.map(member => [member.member.userId, member.role]),
+    ).toEqual([
+      ['alice', 'member'],
+      ['bob', 'super_admin'],
+    ])
+  })
+
+  it('keeps a personal tenant bound to its sole creator-owner', () => {
+    const personal = {
+      tenantId: 'personal-1',
+      kind: 'personal',
+      creator: { kind: 'user', user: { userId: 'alice' } },
+      status: 'active',
+      members: [
+        {
+          member: { tenantId: 'personal-1', userId: 'alice' },
+          role: 'owner',
+          state: 'active',
+          revision: '1',
+          joinedRevision: '1',
+          delegatedOperations: [],
+        },
+      ],
+    } as const
+    const created = foldTenantRecords(null, [record('tenant.created', { tenant: personal })])
+    if (!created.ok) throw new Error('expected personal tenant')
+
+    expect(
+      foldTenantRecords(created.value, [
+        record('tenant.member_changed', {
+          member: { ...personal.members[0], role: 'member', revision: '2' },
+          previousRevision: '1',
+          reason: 'replace owner role',
+        }),
+      ]).ok,
+    ).toBe(false)
+    expect(
+      foldTenantRecords(created.value, [
+        record('tenant.member_changed', {
+          member: {
+            member: { tenantId: 'personal-1', userId: 'bob' },
+            role: 'member',
+            state: 'active',
+            revision: '1',
+            joinedRevision: '1',
+            delegatedOperations: [],
+          },
+          previousRevision: '0',
+          reason: 'add second member',
+        }),
+      ]).ok,
+    ).toBe(false)
+  })
+
   it('rejects unknown versions, unknown kinds, malformed members, and invalid personal roots', () => {
     expect(decodeTenantRecord(record('tenant.created', { tenant: organization }, '2')).ok).toBe(
       false,

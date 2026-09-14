@@ -4,7 +4,9 @@
 成员及默认公开入口，已实现下文归属的六种共同值声明以及
 `IdentitySource`/`AuthenticatedInvocation` 和 TG 当前资格的窄消费声明，并有本切片
 bootstrap/personal-index/tenant/member 记录的严格 decoder 与纯 fold。Tenant host、插件、
-身份适配、当前资格运行检查及其它运行行为仍未实现。
+身份适配、当前资格运行检查及其它运行行为仍未实现。首个列名管理操作
+`tenant.members` 的 durable 正向依据与全部 pending 根交集已有纯函数验证，尚未
+越过 GateFrame/P1 组合门宣称公开运行资格成立。
 来源、检查与采用边界见[原施工入口](../../../docs/proposals/core-capabilities/implementation/runtime-provider-interfaces.md)。
 
 ## 契约与公开面
