@@ -475,6 +475,45 @@ describe('O06 close ownership and generation guards', () => {
       if (newRuntime !== undefined) await newRuntime.close({ deadlineMs: 1_000 })
     }
   })
+
+  it('keeps a failed fd close unknown and retries that same descriptor responsibility', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'close-failure-'))
+    const runtime = await createdRuntime(directory, 'source-close-failure')
+    await waitForCode(directory, 'diagnostic.source_started')
+    const originalClose = nodeFs.close as unknown as FlexibleWrite
+    let injected = false
+    const spy = vi.spyOn(nodeFs, 'close').mockImplementation(((...args: unknown[]) => {
+      if (injected) return originalClose(...args)
+      injected = true
+      const callback = args.at(-1)
+      if (typeof callback !== 'function') throw new Error('unexpected fs.close signature')
+      const error = Object.assign(new Error('SECRET_CLOSE_ERROR'), { code: 'EIO' })
+      process.nextTick(() => callback(error))
+      return undefined
+    }) as typeof nodeFs.close)
+    syncBuiltinESMExports()
+    let blocked: Awaited<ReturnType<DiagnosticsRuntime['close']>>
+    try {
+      blocked = await runtime.close({ deadlineMs: 1_000 })
+    } finally {
+      spy.mockRestore()
+      syncBuiltinESMExports()
+    }
+    expect(blocked).toMatchObject({
+      status: 'blocked',
+      state: {
+        phase: 'closing',
+        resource: 'unknown',
+        lastErrorCode: 'EIO',
+      },
+    })
+    const closed = await runtime.close({ deadlineMs: 1_000 })
+    expect(closed).toMatchObject({
+      status: 'closed',
+      state: { phase: 'closed', resource: 'released' },
+    })
+    expect(await readFile(await sourceFile(directory), 'utf8')).not.toContain('SECRET_CLOSE_ERROR')
+  })
 })
 
 describe('O04/O05 configuration and local retention boundaries', () => {
