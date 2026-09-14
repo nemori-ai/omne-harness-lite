@@ -153,6 +153,45 @@ describe('A30/A31 formal schema-backed data parsing', () => {
     expect(Object.isFrozen(input)).toBe(false)
     if (result.ok) expect(result.value).not.toBe(input)
   })
+
+  it.each([
+    ['WorkOwner', work],
+    ['Decision', { request, contentVersion: 'c', outcomeVersion: 'o', actor: user, outcome: 'answer', answer: { text: 'yes' } }],
+    ['Decision', { request, contentVersion: 'c', outcomeVersion: 'o', actor: user, outcome: 'reject' }],
+    ['Action', { ...action, confirmation: 'provisional', provisionalContract: resource }],
+    ['AuthorizationDeclaration', { ...authorization, confirmation: 'provisional', provisionalContract: resource }],
+    ['BackgroundDeclaration', unsupportedBackground],
+    ['BackgroundDeclaration', {
+      mode: 'supported',
+      executionOwnerProtocol: supportedBackground.executionOwnerProtocol,
+      requiredResources: supportedBackground.requiredResources,
+      reconnectProtocol: supportedBackground.reconnectProtocol,
+      form: 'independent_execution',
+    }],
+    ['ContentBlock', { blockId: 'text', kind: 'text', text: '' }],
+    ['ContentBlock', { blockId: 'image', kind: 'image', media, delivery: 'model_native' }],
+    ['ContentBlock', { blockId: 'audio', kind: 'audio', media, delivery: 'agent_attachment' }],
+    ['ContentBlock', { blockId: 'video', kind: 'video', media, delivery: 'model_native' }],
+    ['ContentBlock', { blockId: 'file', kind: 'file', media, delivery: 'agent_attachment' }],
+    ['ContentBlock', { blockId: 'call', kind: 'tool_call', call, action }],
+    ['ContentBlock', { blockId: 'result', kind: 'tool_result', call, outcome: 'unknown', value: null }],
+    ['ContentBlock', { blockId: 'receipt', kind: 'deferred_receipt', call, request, continuationId: 'continuation', status: 'pending' }],
+    ['InputBlock', { blockId: 'image', kind: 'image', media, delivery: 'model_native' }],
+    ['InputBlock', { blockId: 'audio', kind: 'audio', media, delivery: 'model_native' }],
+    ['InputBlock', { blockId: 'video', kind: 'video', media, delivery: 'model_native' }],
+    ['InputBlock', { blockId: 'file', kind: 'file', media, delivery: 'model_native' }],
+  ] satisfies readonly (readonly [keyof DataTypes, unknown])[])('accepts the %s union variant fixed by the formal schema', (name, value) => {
+    expect(parseData(name, value, limits), `${name}: ${JSON.stringify(value)}`).toMatchObject({ ok: true })
+  })
+
+  it('does not coerce schema values, insert defaults, or remove extra properties', () => {
+    const wrongScale = { integer: '100', scale: '2', currency: 'USD' }
+    const extra = { ...session, extra: true }
+    expect(parseData('Money', wrongScale, limits)).toMatchObject({ ok: false, issues: [{ code: 'schema', path: '/scale' }] })
+    expect(parseData('SessionRef', extra, limits)).toMatchObject({ ok: false, issues: [{ code: 'schema', path: '/extra' }] })
+    expect(wrongScale.scale).toBe('2')
+    expect(extra.extra).toBe(true)
+  })
 })
 
 describe('A30 frozen schema resources', () => {

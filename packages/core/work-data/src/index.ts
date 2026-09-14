@@ -295,7 +295,16 @@ function issue(
   path: string,
   message: string,
 ): Checked<never> {
-  return { ok: false, issues: [{ path, code, message }] }
+  return failed([{ path, code, message }])
+}
+
+function passed<T>(value: T): Checked<T> {
+  return Object.freeze({ ok: true, value })
+}
+
+function failed(issues: readonly ValidationIssue[]): Checked<never> {
+  const frozenIssues = Object.freeze(issues.map(entry => Object.freeze({ ...entry })))
+  return Object.freeze({ ok: false, issues: frozenIssues })
 }
 
 function pointer(path: readonly PathSegment[]): string {
@@ -314,7 +323,7 @@ function checkedLimits(limits: JsonLimits): Checked<JsonLimits> {
       return issue('capacity', '', `${name} must be a non-negative safe integer`)
     }
   }
-  return { ok: true, value: limits }
+  return passed(limits)
 }
 
 type Decimal = Readonly<{ negative: boolean; coefficient: string; exponent: bigint }>
@@ -420,7 +429,7 @@ function dataProperties(
     }
     properties.push({ key, value: descriptor.value })
   }
-  return { ok: true, value: properties }
+  return passed(properties)
 }
 
 function arrayItems(
@@ -440,7 +449,7 @@ function arrayItems(
     }
     items[index] = descriptor.value
   }
-  return { ok: true, value: items }
+  return passed(items)
 }
 
 function copyValue(value: unknown, limits: JsonLimits): Checked<JsonValue> {
@@ -543,7 +552,7 @@ function copyValue(value: unknown, limits: JsonLimits): Checked<JsonValue> {
   }
 
   if (root === undefined) return issue('invalid_json', '', 'value is not JSON data')
-  return { ok: true, value: freezeJson(root) }
+  return passed(freezeJson(root))
 }
 
 type EncodeTask =
@@ -675,7 +684,7 @@ function buildTree(text: string, rootNode: JsonNode, limits: JsonLimits): Checke
   }
 
   if (root === undefined) return issue('invalid_json', '', 'JSON input has no value')
-  return { ok: true, value: freezeJson(root) }
+  return passed(freezeJson(root))
 }
 
 export function parseJson(text: string, limits: JsonLimits): Checked<JsonValue> {
@@ -726,18 +735,15 @@ export function parseData<K extends keyof DataTypes>(
   if (!copied.ok) return copied
   if (!validator(copied.value)) {
     const errors = (validator.errors ?? []).filter(error => error.keyword !== 'if')
-    return {
-      ok: false,
-      issues: errors.map(error => ({
+    return failed(errors.map(error => ({
         path: schemaIssuePath(error),
         code: 'schema',
         message: `${error.keyword}: ${error.message ?? 'schema validation failed'}`,
-      })),
-    }
+      })))
   }
   // The validator is compiled from the exact $defs selected by K; this is the
   // single bridge from its runtime schema proof to the matching static type.
-  return { ok: true, value: copied.value as DataTypes[K] }
+  return passed(copied.value as DataTypes[K])
 }
 
 function schemaIssuePath(error: ErrorObject): string {
