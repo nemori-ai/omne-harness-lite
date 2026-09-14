@@ -97,6 +97,7 @@ type QueuedCommit = {
 type ResourceSet = {
   journal: FileHandle | null
   lock: FileHandle | null
+  lockHandleState: 'held' | 'released' | 'unknown'
   lockState: 'held' | 'released' | 'unknown'
   journalState: 'held' | 'released' | 'unknown'
   unknownDescriptor: boolean
@@ -250,7 +251,7 @@ async function closeResources(resources: ResourceSet): Promise<boolean> {
       return false
     }
   }
-  if (resources.lock !== null) {
+  if (resources.lock !== null && resources.lockHandleState === 'held') {
     const handle = resources.lock
     let unlocked = resources.lockState === 'released'
     if (resources.lockState === 'held') {
@@ -264,14 +265,17 @@ async function closeResources(resources: ResourceSet): Promise<boolean> {
     try {
       await handle.close()
       resources.lock = null
+      resources.lockHandleState = 'released'
       resources.lockState = 'released'
     } catch {
+      resources.lockHandleState = 'unknown'
       resources.lockState = unlocked ? 'released' : 'unknown'
       resources.unknownDescriptor = true
     }
   }
   return (
     !resources.unknownDescriptor &&
+    resources.lockHandleState === 'released' &&
     resources.lockState === 'released' &&
     resources.journalState === 'released'
   )
@@ -1471,6 +1475,7 @@ class JsonlProvider implements RecordProvider {
     const resources: ResourceSet = {
       journal: null,
       lock: null,
+      lockHandleState: 'released',
       lockState: 'released',
       journalState: 'released',
       unknownDescriptor: false,
@@ -1489,6 +1494,7 @@ class JsonlProvider implements RecordProvider {
       const lockPath = join(this.domainPath, LOCK_FILE)
       const lock = await openStableFile(lockPath, 'lock', true)
       resources.lock = lock.handle
+      resources.lockHandleState = 'held'
       if (lock.created) await syncOwnedDirectory(this.domainPath, resources)
       try {
         await flock(lock.handle.fd, 'exnb')
@@ -1588,6 +1594,7 @@ class JsonlProvider implements RecordProvider {
       if (error instanceof StableFileValidationError) {
         if (error.kind === 'lock') {
           resources.lock = error.handle
+          resources.lockHandleState = 'held'
           resources.lockState = 'released'
         } else {
           resources.journal = error.handle
