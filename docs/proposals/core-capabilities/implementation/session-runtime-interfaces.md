@@ -15,7 +15,7 @@
 | [AR](../../../../spec/capabilities/live-agent/v1/contract.md)、[CB](../../../../spec/compositions/agent-session-binding/v1/contract.md) | `capability.live-agent@1`、`composition.agent-session-binding@1`；D-005/D-007。catalog 中没有另一个 `cordis-binding` 契约 |
 | [SR](../../../../spec/capabilities/session-run/v1/contract.md)、[DR](../../../../spec/capabilities/durable-records/v1/contract.md)、[CC](../../../../spec/compositions/core-work-coordination/v1/contract.md) | `capability.session-run@1`、`capability.durable-records@1`、`composition.core-work-coordination@1`；D-008 |
 | [TG](../../../../spec/capabilities/tenant-governance/v1/contract.md)、[AU](../../../../spec/capabilities/action-authorization/v1/contract.md)、[TL](../../../../spec/capabilities/tools/v1/contract.md)、[HD](../../../../spec/capabilities/human-decisions/v1/contract.md)、[OB](../../../../spec/capabilities/engineering-observation/v1/contract.md) | catalog 的同名 accepted v1；仅消费当前资格、调用/请求事实与审计义务，不拥有其状态 |
-| 治理施工候选 | `governance-interfaces.md@8b75f30`，从兄弟设计分支按固定 commit 读取；认证、委托、Session 资格及 subjectDefinition 对齐输入，**不是接受依据**。后续治理修订须逐项核对，不消费浮动文件 |
+| 治理施工输入 | `governance-interfaces.md@058c77c`，已由 HUB `4bf0d3c` 接受；本轮以 git show 核对其原文与接受状态，spoke 不 rebase。沿用认证/工作事实、Acquisition、AU 设置及 TG ReferenceInventory；设计示例不证明产品。records 端口/codec 已由 HUB `0e80245` 接受，真实 P1 仍待交付 |
 
 正式身份/版本以上述 [catalog](../../../../spec/catalog.json) 为准。需求沿工作包消费
 范围，相关 [PF-013](../../../requirements/product/user/PF-013-session-run-lifecycle-and-pending-input-control.md)、
@@ -63,7 +63,7 @@ GateFrame/OwnerPublication/ExactUse 来自 admission；不加第二套提交状�
 Input.revision 仍为 CD Schema 的正整数 number，入口另限制在精确安全整数范围；
 itemRevision 就是它，不能换成 Counter 字符串或 Number 化 stream 修订。queue、
 control、stream 修订及排序/序号使用 Counter；输入修订耗尽明确拒绝，不回绕。
-成员依据沿治理候选的 `{member:MembershipRef,joinedRevision:Counter,observedRevision:Counter}`；
+成员依据沿治理已接受输入的 `{member:MembershipRef,joinedRevision:Counter,observedRevision:Counter}`；
 前者区分移除后重加，后者只解释观察，不作为缓存许可。
 身份用无歧义结构值比较；存储键使用 core-json/1 的具名元组规范串，不拼接 tenant
 与 sessionId。namespace 使用部署固定值，OperationRef.principalId 按 Principal 规范串
@@ -89,13 +89,14 @@ Context/Registry 不能重新从零发号。发行器是宿主内部直接函数
 
 | 状态 | 最小 shape 与解释 |
 |---|---|
-| Session | `{session, owner, initiator, source, definition:DefinitionVersion, lifecycle, title, manualTitle, pin, modelChoice, historyThrough, controlRevision, queueRevision}`；tenant/owner/initiator/原 DefinitionRef 不可变。lifecycle 识别 open/archived/deleted，首批新建 open；modelChoice 是 Session 的选择/待生效事实，AU 仅拥有保存覆盖 |
+| Session | `{session, owner, initiator, source, definition:DefinitionVersion, acquisition:{tenantId,acquisitionId}, createdAcquisitionRevision:Counter, lifecycle, title, manualTitle, pin, modelChoice, historyThrough, controlRevision, queueRevision}`；tenant/owner/initiator/原 DefinitionRef 及 acquisition 身份不可变。lifecycle 识别 open/archived/deleted，首批新建 open；modelChoice 是 Session 的选择/待生效事实，AU 仅拥有保存覆盖 |
 | QueueItem | `{input:Input, acceptedOrder:Counter, order:Counter, state:queued|held|taken|withdrawn|closed, acceptedBy:Principal, membershipBasis, takenBy:RunRef|null, closedReason:string|null}`；原输入/编辑关系可追查，busyBehavior 本批仅 queue；held 是全 Session hold 下未取批项的有效状态，原受理状态仍保存 |
-| Run | `{run, batch:Input[], definition, executionChoice, epoch:OpaqueId, phase, checkpoint, blockers, controlRevision, delegationBasis, driverBinding, outstanding}`；phase 完整沿 SR-08，batch 冻结精确修订/原消息顺序。outstanding 只存原调用/请求/接续引用及 SR 消费位置，不复制 TL/HD/BG 状态机 |
+| Run | `{run, batch:Input[], definition, acquisitionBasis, executionChoice, epoch:OpaqueId, phase, checkpoint, blockers, controlRevision, delegationBasis, driverBinding, activeClaim:DriverClaim|null, outstanding}`；phase 完整沿 SR-08，batch 冻结精确修订/原消息顺序。outstanding 只存原调用/请求/接续引用及 SR 消费位置，不复制 TL/HD/BG 状态机 |
 | Session 驱动占位 | `null | {run:RunRef, epoch:OpaqueId}`；在 takeBatch 逻辑提交时取得。waiting/stopping 仍占位；等待时没有运行中的 JS driver 也不让普通输入穿过 |
 | Epoch 的执行者 | `null | {agent:AgentRef, workPermitId, driverGeneration}`；这是当前受管关联，不能由磁盘 DTO 得到能力。退役停驻可清除关联但保持 Run 占位；再次驱动原 Run 要新 epoch |
-| Step | `{step:StepRef, epoch, kind:model|auxiliary, requestBinding|null, trigger, status, proposedCalls:CallRef[], presentedOrder:CallRef[]}`；M1 是具名 `auxiliary` 的确定性工具工作，不能伪造模型结果；M2 一个模型决策及其工具批次为一个 Step，新模型决策新 Step |
+| Step | `{step:StepRef, createdEpoch, kind:model|auxiliary, requestBinding|null, trigger, status:running|waiting|settled|failed, proposedCalls:CallRef[], presentedOrder:CallRef[]}`；M1 是具名 `auxiliary` 的确定性工具工作，不能伪造模型结果；M2 一个模型决策及其工具批次为一个 Step，新模型决策新 Step |
 | continuation | `{continuationId, run, sourceStep, call:CallRef|null, request:RequestRef|null, localPrerequisites, state:blocked|ready|claimed|settled|closed, readyAt:Position|null, claimedEpoch:OpaqueId|null}`；只能由来源事实建立/转移，q1/q2 各自独立。readyAt 相同以本批记录顺序裁决 |
+| DriverClaim | `{claimId,run,epoch,step,continuationId:null|OpaqueId,kind:new_step|continuation}`；SR 分配的本次串行驱动事实，只一项 activeClaim。旧 Step 可在新 Run epoch 被合法续接，createdEpoch 不改；真实驱动权限还需当前私有句柄/委托和 AR 许可 |
 | Control | `{operation:OperationRef, run, observedEpoch, scope:run|session, kind:interrupt|resume|cancel|force_stop, stage:accepted|applying|settled, effect:ended|stale_target|pending|applied, stopEvidence, remaining}`；请求受理/逻辑权撤销/真实停止/清理/效果质量分别保存 |
 | Hold | `{operation:OperationRef, revision:Counter, reason:explicit|session_force_stop}` 的活动集合；有任一 hold 就不取新批/Step。continueQueue 携带 expected controlRevision 和明确解除的 hold operations，不用过期清空覆盖新 hold |
 
@@ -104,6 +105,16 @@ Context/Registry 不能重新从零发号。发行器是宿主内部直接函数
 M1 无模型路径的实施投影；后者须真实 MC 资格。两者固定一个 Run，不能运行中
 互换；模型不可用不影响确定性基线，但不能向缺 MC 的模型 Run 返回可运行。
 同理预算依据由真实 BG 参与第一次实际收费/零计费调用，Run 元数据不铸造预算许可。
+
+Session.acquisition 只是 TG 原 Acquisition 的身份投影，不能按 DefinitionVersion 搜索
+另一条 enabled 选用代替它。create 必须显式给出该 acquisitionId，TG 核对 tenant、
+selected 精确版本、enabled、权益及当时 configuration/revision，创建事件保存原关联。
+Run.acquisitionBasis 保存取批时 TG 的完整不可变 Acquisition 快照；准备 stamp 包含
+原 acquisitionId/revision。恢复/激活/后续准入仍查询**该身份**，removed 后同版本
+重新 select 得到的新 ID 不复活旧 Session，缺失/停用则后续使用明确阻塞，历史保留。
+本批未开放 Session 重选关系；需要改目标时不能偷偷重绑。同 ID 的 configure 按
+下一工作边界生效，当前 Run 沿原配置快照；若变更实例必需装配则先退役/重新激活，
+不能在一个 Run 逐字段吸收。TG 的当前收紧与 TL/AU 资格照常封闭新准入。
 
 checkpoint 使用 `inputs_taken | step_prepared | calls_recorded | waiting | results_linked |
 step_settled` 的具名安全位置，保存原 Step、来源记录位置及未交付后果引用。
@@ -127,8 +138,11 @@ SR 记录 owner 固定 `session`，tenant-scoped streams 为具名元组 `sessio
 | `input_edited` | `{input, previousItemRevision}`；保留原件，必须未 taken，严格下一修订 |
 | `queue_reordered` / `input_withdrawn` | `{orderedInputIds, previousQueueRevision}` / `{inputId,itemRevision,previousQueueRevision}`；完整范围与当前成员一致，不丢新加入者 |
 | `batch_taken` + `run_created` + `driver_reserved` | queue 的 `{run,batch,previousQueueRevision}`、run 初始值、Session 的 `{run,epoch}`；同一 batch，fold 验证成员/修订/顺序、旧占位为空、三者互指 |
-| `step_started` / `checkpoint_saved` | Step 完整初值 / `{run,epoch,checkpoint,sourcePositions}`；匹配当前驱动、合法位置，不能跳过未关联结果 |
-| `continuation_waiting` / `continuation_ready` / `continuation_claimed` / `continuation_settled` | 精确 continuation 及原 request/call/来源位置、上一状态、claim epoch；ready 的排序用 envelope Position，claimed 与本次 Step 同批 |
+| `step_started` / `driver_claimed` / `driver_yielded` | Step 初值 / DriverClaim / `{claimId,run,epoch,checkpoint}`；新 Step 与 claim 同批，续接已有 Step 只写 claim；yield 精确封闭本 claim，不释放 Session 的 Run 占位 |
+| `step_returned` / `checkpoint_saved` / `step_settled` | `{step,claimId,source,content:TextBlock[],proposedCalls,nextIntent}` / `{run,epoch,checkpoint,sourcePositions}` / `{step,claimId,outcome,evidence}`；按下文 driver 端口核实来源/完整性/合法阶段，不能跳过未关联结果 |
+| `decision_intent_consumed` | `{sourceOperation,step}`；新 Step 消费原 inputs_taken 或已保存 next_decision 意图，与 step_started/driver_claimed 同批，原意图只能消费一次 |
+| `driver_failed` / `run_failure_requested` | `{run,epoch,claimId,step,code,sourceFacts}` / `{run,epoch,failureOperation,exactCalls,exactRequests,remaining}`；SR 将原 Step 标 failed 并保存不可恢复失败/停止意图，和相关 TL/HD 封闭同批；不是任意 driver 自写 failed |
+| `continuation_waiting` / `continuation_ready` / `continuation_claimed` / `continuation_settled` | 精确 continuation 及原 request/call/来源位置、上一状态、claim epoch；ready 的排序用 envelope Position，claimed 与本次 DriverClaim 同批；已有 sourceStep 不重建 |
 | `call_linked` / `result_linked` | `{step,call,sourcePosition,sourceOwner,protocolVersion,presentationIndex,result:ToolResultBlock|null}`；从 TL 真实事实导入，原 call/attempt 唯一关联；迟到隔离事实不能用此事件替换有效结果 |
 | `control_requested` / `control_progressed` | 完整 Control 的合法前后修订、终止意图、已知 stop 事实/剩余责任；force_stop 的 epoch 封闭发生在 accepted 的 logical publication |
 | `hold_set` / `holds_released` | Hold / `{operations,previousControlRevision}`；释放明确目标，清理成功不产生此事件 |
@@ -170,12 +184,12 @@ AR 生命周期本身仍没有跨崩溃 activate 幂等承诺；源/结果丢失
 
 ## 当前调用者、对象权限与运行委托
 
-这是待与治理稿共同接受的最小权限政策，不能由方法名自然推出：create 的 owner
+这是本稿待接受、与治理已接受消费面衔接的最小权限政策，不能由方法名自然推出：create 的 owner
 是当前真实 Principal；owner 的 `session.read_metadata/read_content/enqueue/edit_queue/
-control/activate` 逐项明确授予，前提仍为当前认证/TG 资格与对象可用。其他同 tenant
+control/activate/settings.write.confirmation_mode` 逐项明确授予，前提仍为当前认证/TG 资格与对象可用。其他同 tenant
 成员默认无这些权利；`tenant.members` 等管理权不扩大为 Session 读权。
 额外 `session.emergency_control` 是 TG 实际登记、可撤销的独立租户权限，仅允许
-精确 interrupt/cancel/force_stop，不含正文、resume、新工作或隐式代答；本批不新增
+精确 interrupt/cancel/force_stop，不含正文、resume、设置写、新工作或隐式代答；本批不新增
 通用 ACL 编辑服务。未来分享/代建政策缺席时明确不支持。
 
 对象正文权归 SR 判断，TG 提供当前成员/明确紧急控制资格；工具资源权限仍归
@@ -183,7 +197,25 @@ control/activate` 逐项明确授予，前提仍为当前认证/TG 资格与对�
 再查；权限丢失立即关闭该订阅的新披露，事件 payload 不先排入无权客户端缓冲。
 无权与不存在对普通调用者统一 inaccessible；控制回执仅给获权状态/停止信息。
 
-应用的真实身份适配发行治理候选中的 `AuthenticatedInvocation`，每次
+Session 的设置写权与 control/read 独立求值。AU 的
+`setOverride/clearOverride(scope=session(S),settingId=confirmation_mode)` 门外调用 SR
+`prepareSessionFacts`，同门 `checkSessionFacts` 必须返回当前 owner 的
+`settings.write.confirmation_mode`；核对真实 invocation、TG 当前成员、Session open、
+原 acquisition/定义及 SR 权限 stamp，AU 再核对字段/值 Schema、作用域和自己 stream
+的 expectedRevision。只由 AU 一次 owner_change 写 override/审计；SR 是只读参与者，
+不复制保存模式或虚造 publication。hold/interrupted 或历史 Run 终态本身不撤销
+owner 的 Session 设置权；撤权/停用先发生则该旧候选不可提交。
+set 的 standard/confirm/unattended 与 clear 分开，false/null 仍拒绝；生效/来源由
+AU readEffective 按已接受层次计算，变更不伪造 pending 请求的答案。紧急控制者/
+普通管理员不能借控制权改模式。这里不开放 text_model；其 SR/MC 同批选择门不变。
+
+`settingsUser` 从真实被代表的用户取得：本批用户 Session 是 Session.owner.user，
+内部宿主派发/RunDelegation 保持同一用户；不是当前查询者、initiator 或工具参数。
+SR 返回 AU 要求的明确 UserRef；无法核实被代表用户的 system 工作返回 unavailable，
+不猜一个默认用户。Session 设置操作也不因此得到 user_definition/definition_default
+写权，它们继续由 AU 的各自作用域规则判断。
+
+应用的真实身份适配发行治理输入中的 `AuthenticatedInvocation`，每次
 `inspectCurrent(frame)` 核验私有身份、Principal、凭据修订及可用性；撤销/失联的
 当前状态写入口也参加同一 coordinator。Session 消费这一个协议，不再发一种
 Principal DTO 凭证。AR 不 import 应用或治理类型：它声明下面的 RuntimeAccess
@@ -198,10 +230,11 @@ Principal DTO 凭证。AR 不 import 应用或治理类型：它声明下面的 
 Session 资格撤回则封闭尚未准入工作。组织移除后再加入不认回旧 joinedRevision。
 
 SR 发行 `RunDelegation` 活能力：`{principal,tenantId,run,epoch,subjectDefinition,
-sourceOperation,membershipBasis,allowedOperations}`。公开字段仅为解释；真实对象
+sourceOperation,membershipBasis,acquisitionBasis,allowedOperations}`。公开字段仅为解释；真实对象
 必须在 SR 当前表认回，且 Run 当前 epoch/控制/可用性都有效。allowedOperations
 仅为推进该 Run、提议其 Step 工具/模型工作、关联原结果；不含 Session 管理、任意
-其他对象或代表他人。Step 消费委托必须匹配 `StepRef.run` 与 SR 已登记的 Step。
+其他对象或代表他人。Step 消费委托必须匹配 `StepRef.run` 和当前 DriverClaim.step；续接已有 sourceStep
+时不要求它是最新创建的 Step，也不以 Step.createdEpoch 代替当前 claim.epoch。
 AU 的 subjectDefinition 从此和 Session 原定义关系取得；Action.definition 仍是
 TL 工具定义，二者不能因同用 DefinitionVersion 类型而合并。
 
@@ -224,7 +257,7 @@ epoch，不能从日志反序列化原句柄；紧急控制者不能借 resume �
 | RuntimeOwner.registerAttempt/closeAdmission | 由稳定宿主持有；预留前登记 AgentRef/清理责任，close 在同门封闭新尝试。对象不是 ownerId 字符串；调用者取消等待不撤销登记 |
 | FactoryRegistry.select/prepare/check | `{factoryKey,scopeIdentity,implementationVersion}` → `{registrationId,generation,exactVersion,scopeIdentity}` 的精确 FactoryBinding 和私有资源准备；同解析键重复拒绝，缺版本不 fallback |
 | SessionAttachment.prepare | 仅真实 ActivationPermit、精确 SessionRef/选择 → `Attachment`；本批 SR 从已恢复内存根同步建立 held 登记，异步恢复在 activate 前由宿主完成。可替换提供者若异步分配，先登记原 attempt 再 await，丢回执须可 inspect/release 原登记 |
-| SessionAttachment.checkActivation | 同门核对 held、原 AgentRef、provider generation、Session 原 DefinitionVersion、open、当前资格/恢复兼容 stamp；stamp 不含无关标题/历史追加。revoked 永不变回 held |
+| SessionAttachment.checkActivation | 同门核对 held、原 AgentRef、provider generation、Session 原 DefinitionVersion/acquisition 身份、TG 当前原选用及配置适用性、open、当前资格/恢复兼容 stamp；stamp 不含无关标题/历史追加。revoked 永不变回 held |
 | SessionAttachment.release/inspect | 精确 attachmentRegistrationId → released / retained(diagnosticId,remaining)；不归档、不取消 Run、不删 Session。旧释放不能匹配后来 attachment |
 | RuntimeResource.prepare/check/pin/retire | 真实资源先登记给尝试；check/pin 与 retire 共用门，绑定 owner/registration/generation；实例必需、操作必需、可选用途明确。pin 不做 I/O，发行 ExactUse 由资源原 owner 执行 |
 | Driver.requestRetire/awaitQuiescent/releaseResources | 前者只关新工作，后两者返回实际 `quiescent` / `blocked(remaining)` 与 `released` / `retained`；不会把 AbortSignal、清空表或超时作为完成 |
@@ -268,11 +301,12 @@ WorkPermit 不能从 AgentHandle 转出给用户或工具 body。
 
 | 表面 | 输入与结果 |
 |---|---|
-| create | invocation、operationId、tenant、精确 Agent DefinitionVersion/选用；TG 当前 use/选用检查，生成原 Session；AdmissionResult 的已耐久业务结果包含 SessionRef |
+| create | invocation、operationId、tenant、精确 Agent DefinitionVersion 与原 acquisitionId；TG 当前 use/选用检查，生成原 Session；AdmissionResult 的已耐久业务结果包含 SessionRef |
 | read/list/history/queue/run/subscribe | invocation、精确目标、分页/水位；先当前权限，再一致快照。正文与元数据分开，projection 缺失标 rebuilding/unavailable，不把它当不存在 |
 | enqueue/edit/reorder/withdraw | 原 operation、Session、输入/目标、expected queueRevision/itemRevision；text-only、容量/修订/顺序检查；返回原耐久结果及新修订 |
 | takeBatch | 受信宿主派发意图、精确 AgentRef、Session、expected queueRevision；队首连续合格 text、配置批大小、固定顺序；成功创建唯一 Run 并把本批全部 taken |
-| acquireNextStep | 原 RunDelegation、WorkPermit、RunRef/epoch、确切 continuation 或 inputs_taken 触发；原控制/资格及本地前提满足后串行 claimed，返回已耐久 Step，不能重复驱动 |
+| acquireNextStep | 原操作、RunDelegation、WorkPermit、RunRef/epoch、expectedRunRevision、`trigger=new_step(fromCheckpoint,sourceOperation)` 或 `continuation(continuationId)`；SR 按下文取得唯一 DriverClaim，返回已耐久 `{claim,step,checkpoint}`；续接不分配新 Step |
+| driver 进展/结算 | `recordStepReturn/yieldDriver/settleContinuation/settleStep/requestRunCompletion/reportDriverFailure` 只给注册 driver/原收口宿主；输入和裁决见下节，不给 driver append 或 setState |
 | requestControl/readControl | 当前调用者、operationId、精确 RunRef/observedEpoch、kind/scope；重复认回原控制，旧目标 ended/stale_target，不转向新 Run |
 | hold/continueQueue | 当前 owner 权限、operationId、Session、expected controlRevision、明确 hold 集合；只改变 hold，不越过 stopping/待答/失权 |
 | preparePark/recoverRun | 受信退役/恢复 owner、精确 Run/epoch、checkpoint/原工作核实事实；前者停驻并封闭旧执行者，后者按当前资格/兼容性建新 epoch。不是用户传 JSON 即可调用的恢复入口 |
@@ -290,7 +324,7 @@ prepare_again，门外有界重准备；用户 expected 修订冲突保留原值
    stream 的 appends/候选根；AR 准备原资源。模型路径另需要实际 MC 资格，M1
    直接核对确定性 driver。coordinator.prepare 预编码这一整个 batch。
 3. 同一个 enter 内再次去重，依次核验真实调用/派发意图和 TG → SR 对象/队列/
-   control/原定义 → AU 当前所需配置 → AR 精确 ready/attachment/工作/资源及
+   control/原定义/原 acquisition → AU 当前所需配置 → AR 精确 ready/attachment/工作/资源及
    driver 绑定。准备 stamp 变化退出重准备；禁止外部查询、解析、await、通知。
 4. AR 同门 pinWork，交入该 batch 的 requiredUses/uses；submit 一次。
    此 batch 只有 `session` 写记录，所以 publications 恰有一个 session；TG/AU
@@ -310,6 +344,71 @@ stamp 检查后才能 pin/submit。`publishLogical/publishDurable` 严格同步�
 hold→clear 都 pending 时不能让 clear 掩掉 hold。普通撤权 n+1 不改 n 的准入；
 force_stop 可以封闭原执行权，使 n 耐久后仍不能启动。域失败禁止越过水位缺口。
 
+### Driver 向 SR 交付进展与结算
+
+这些是 Session 的真实受信写操作。共同输入为 `{operation,claim:DriverClaim,
+expectedRunRevision,expectedCheckpoint}` 加下表具名数据；
+真实 claim 必须由 SR 私有表认回、等于 activeClaim，绑定同一 Run/当前 epoch/Step、
+注册 driver、RunDelegation 及 AR WorkPermit。方法返回 AdmissionResult，result 只
+报告 SR 实际选择的进展/等待/终态；driver 的 nextIntent 不是状态赋值或完成证据。
+门外核实原事实/准备候选，门内重检全部 stamp/控制，SR 组装一次 batch；正常进展
+用 checkWork，closing 下有限收口用 checkSettlement，force_stop 后只能入隔离证据。
+expectedRunRevision 就是 run(R) stream 修订，不另造未定义的 Step 修订。
+recordStepReturn/settleContinuation/settleStep 的 nextIntent 由 SR 在**本次调用**内
+计算是否同时结算 Step/Run、保存下一意图或进入等待，并同批 yield；不要求 driver
+先交还 claim 再持失效 claim 调结算。requestRunCompletion 是仍持 claim 时的
+无新增输出结算请求。需要新 Step 的意图保存原 sourceOperation/来源位置，只能
+由 new_step 分支同批消费一次；initial inputs_taken 同样只消费一次。
+
+| driver → SR 操作 | SR 裁决、合法转移及同批记录 |
+|---|---|
+| `recordStepReturn` | 输入 `{source,content:TextBlock[],proposedCalls:CallRef[],nextIntent:finish_run|next_decision|await_calls}`。source 是本部署确定性 driver 的受管返回，或 MC 原请求/attempt 的可核实完整终止事实；不接受 driver 自造模型成功/ToolResult。SR 核对 source 的完整调用列表与 TL 已登记 proposedCalls，保存 step_returned + 对应 checkpoint；无工具完整成功才可作为 settleStep 的依据，partial/unknown 不能冒充成功 |
+| `yieldDriver` | 输入 `{reason:await_facts|park,sourceFacts}`。SR 从已持久 call/wait/结果推导 checkpoint；有尚未结束的精确调用可保持 source Step waiting，将正在等待其结果的 continuation 从 claimed 置 blocked。checkpoint_saved + driver_yielded 同批封闭 activeClaim；有别的合法 ready 则可再取 claim，否则 Run waiting。park 另沿 epoch_parked，不能以 yield 免掉 AR 后代责任 |
+| `settleContinuation` | 输入 `{continuationId,consumedFacts,nextIntent:finish_run|next_decision|await_facts}`。必须是本 claim 的原接续，其所需 HD 后果/原 call 终态已关联且未重复消费；pending/unknown 未经原 owner 明确处置不结算。continuation_settled + checkpoint_saved + driver_yielded 同批；next_decision 只记录下一决策意图，q2 未答仍保留，不顺带关闭它 |
+| `settleStep` | 输入 `{step,sourceFacts,nextIntent}`，SR 检查完整 step_returned、原 proposedCalls 的可信结果/具名独立责任、该 Step 全部 continuation 已结算且无未处理依赖。step_settled + checkpoint_saved 同批；未满足则报告 waiting，不因 driver 函数 return 就 settled。它可和 settleContinuation 在同一 SR 候选批内成立，不要求先提交两次 |
+| `requestRunCompletion` | 输入 `{sourceFacts}`；SR 核对全部 Step/continuation 的完成判据、没有 pending 请求/ready/在途 driver 后代，剩余责任已结算或确认独立持有。可与最后一次 Step/continuation 结算合成一个 owner_change batch，写 run_settled(completed) + driver_yielded（若仍有 claim）+ driver_released；缺任何条件只返回 waiting/blocked，不能取消请求来凑成功 |
+| `reportDriverFailure` | 输入 `{code,sourceFacts}`，由原受管任务的 throw/reject 接管点调用，错误正文不入普通日志。SR 核验失败属于原 claim，保存 driver_failed，按不可恢复失败在同门封闭继续权并和 TL/HD 的精确终止片段提交 run_failure_requested；其余处置见下段。已先 cancel/force_stop 或旧 epoch 只保留迟到失败，不取代已有终止意图 |
+
+每个 proposed call 都有一条原 SR continuation：直接 allow 时由 prepareCallLink
+在调用联合准入中建立（request=null，前提为原调用终态），ask 时由 prepareWait
+建立并增加人类决定前提；以后准入沿用原 ID，不再建一条。prepareResult 使对应
+结果接续 ready，driver claim 原 Step 后才能消费/结算。因此无 HD 的真实工具
+结果同样有进展路径，不依赖模型轮询或虚构审批请求。
+
+无工具返回且 nextIntent=finish_run：recordStepReturn 在符合条件时必须把
+step_settled/checkpoint/run_settled/driver_yielded/driver_released 合为一次提交，
+耐久后才向调用者确认完成。工具返回后
+相同算法消费 TL 真实 result_linked；driver 只能提供消费意图，不能改变结果状态。
+正常 checkpoint 的迁移由具体来源约束：inputs_taken→step_prepared 随新 Step，
+完整工具建议关联后→calls_recorded，等待事实→waiting，原结果关联/消费后→
+results_linked，Step 全部前提满足后→step_settled；迟到通知不会绕过中间事实。
+
+不可恢复失败使用 SR 具名终止组合：原 activeClaim/epoch 和引用清单同门封闭，
+SR 的失败意图/continuation closed、HD 对仍待答请求及未应用后果的取消
+(reason=run_failed)、TL 未准入调用封闭/原调用停止意图在**一个** owner_change
+batch 保存。HD 已有答案与已完成接续仍保留，只关闭剩余后果；不得先 run.failed
+再异步猜哪些请求需关闭。需要真实停止/隔离时 Run stopping 保留占位，按原停止
+协议取证后另一批 run_settled(failed)+driver_released；无在途责任可在首批直接
+安全结算。必需 TL/HD 提供者 unavailable 则不宣称联合关闭/失败终态，原 owner
+保留停止意图与责任，封闭效果。driver 抛错不让 detached Promise 静默消失。
+
+### 原 Step 的继续与下一次决策
+
+q1/q2 来自 Step S 时，HD 答复使 q1 接续 ready；acquireNextStep 的 continuation
+分支 **继续 S**，只分配新 DriverClaim，原 CallRef.owner、Action.owner 和 S 的
+createdEpoch 都不改。TL/AU 的当前 Step 检查针对 `activeClaim.step == S`、当前
+claim.epoch/RunDelegation 与原调用绑定，不要求 S 是最后创建的 Step。批准后
+执行原 attempt，等待工具结果可 yield，再由原 TL 结果使同一接续 ready；拒绝
+则消费原 denied_before_execution。两者结算后 q2 仍属于 S，不被标为完成。
+
+若 q1 后需要下一次模型决策，SR 先保存 q1 consumed 事实/next_decision 意图并
+释放 claim，再由 new_step 分支消费原 sourceOperation 的意图创建 S2；它不依赖
+S 中独立 q2 已答，模型投影
+携带 q2 deferred receipt。S 可以因 q2 未完仍为 waiting，**未结算 Step 可以多个，
+可执行 DriverClaim 只有一个**。后来答 q2 仍 claim S，不将原调用改绑 S2；S2
+自己的新工具建议才归 S2。普通无工具返回只产生一个新 Step；恢复/批准/结果
+重放都不凭通知创建新 Step。该分工不允许 driver 把模型建议当作已执行结果。
+
 ## TL/HD 的窄交互与独立接续
 
 下面由 SR 声明必需输入/消费责任；TL/HD 各自拥有状态、具体 provider 协议和发行
@@ -318,14 +417,15 @@ force_stop 可以封闭原执行权，使 n 耐久后仍不能启动。域失败
 
 | 方向与消费端口 | 必需 shape、核验及同批关系 |
 |---|---|
-| TL → SR `prepareCallLink/checkCallLink` | 原 WorkOwner=StepRef、Run/epoch、CallRef、proposed 顺序、精确 Action/来源 owner stamp；核对 SR 当前 Step/委托/AR 许可。TL action_execution 聚合 AU 判定、HD 消费（如有）、BG 预留、TL 调用与 SR link，一次 batch |
+| TL → SR `prepareCallLink/checkCallLink` | 原 WorkOwner=StepRef、Run/epoch、CallRef、proposed 顺序、精确 Action/来源 owner stamp；核对 SR 当前 DriverClaim.step（可为续接的原 Step）/委托/AR 许可和原 CallRef.owner/Action.owner。TL action_execution 聚合 AU 判定、HD 消费（如有）、BG 预留、TL 调用与 SR link，一次 batch |
 | HD/TL → SR `prepareWait/checkWait` | `{run,epoch,step,call,request,continuationId,action,requestContentVersion,localPrerequisites}`；来源 owner 私有候选证明原 Action/request。`request_wait` 同批持久 request/Action/调用 waiting 与 SR continuation_waiting/checkpoint；耐久前不展示可答请求 |
 | HD → SR `prepareConsequence/checkConsequence` | `{request,contentVersion,outcomeVersion,call,continuationId,sourceOperation,outcome}`；HD 当前唯一决定/后果候选，SR 核对原等待与全局终止。`answer_consequence` 同批保存 HD 决定/后果和 SR ready 或具名 closed 结果；approve 不直接启动工具 |
 | TL → SR `prepareResult/checkResult` | `{call,step,sourcePosition,executionEpoch,result:ToolResultBlock,terminalEvidence}`；结果由 TL 原权威认回，引用已耐久原事实或本批拟提交的唯一终态；SR 原绑定匹配后 result_linked，并仅使它依赖的 continuation ready，同批结果确认前不可消费。可同域联合结算；否则 TL 保留具名待交付后果直到 SR 回执 |
-| SR → TL/HD `prepareRunControl/checkRunControl` | `{run,observedEpoch,controlOperation,kind,scope,exactCalls,exactRequests}`；所有原非终态自有调用由 SR/TL 同门快照确认，TL/HD 各给自己的记录/publication。SR 保存停止意图/阻塞，HD 关闭应关闭请求/后果，TL 封闭未接纳调用；同域一次 owner_change batch |
+| SR → TL/HD `prepareRunControl/checkRunControl` | `{run,observedEpoch,controlOperation,kind:interrupt|cancel|force_stop|driver_failure,scope,exactCalls,exactRequests}`；所有原非终态自有调用由 SR/TL 同门快照确认，TL/HD 各给自己的记录/publication。SR 保存停止或失败意图/阻塞，HD 关闭应关闭请求/后果，TL 封闭未接纳调用；同域一次 owner_change batch |
 | SR → TL `inspectRunCalls/requestStop` | 原 CallRef、执行 owner identity/protocol、原执行 epoch、controlOperation；只查询/停止同一 attempt。异步执行器账本交接沿 CC-05，响应丢失查原操作，SR 保留待交付意图 |
 | TL → SR `prepareStopProgress/checkStopProgress` | `{call,executionEpoch,controlOperation,acceptance,physical,isolation,cleanup,effect,sourcePosition}`；各字段独立，证明覆盖迟到 start/旧结果入口。未知/not_found/本地 abort 无法令 SR 释放占位 |
-| SR → AU/TG 的只读工作面 | `prepareWorkFacts/checkWorkFacts(frame,...)` 认回 Session 原定义、owner/输入主体、Run/Step/epoch、委托当前可用性、所需对象权；返回私有当前依据，无批准、工具资源权或预算许可 |
+| SR → AU 的 Session/工作事实（实现 AU ActionFacts） | `prepareSessionFacts/checkSessionFacts` 用于无 Run 的设置/对象操作，`prepareWorkFacts/checkWorkFacts` 用于精确工作；返回 `{session,owner,subjectDefinition,acquisition:TG当前原Acquisition,settingsUser:UserRef,run?,epoch?,controlRevision,operations:明确集合}` 的私有快照/current 结果，附原 Run acquisitionBasis、当前 claim/委托 stamp；正文读、输入写、设置写、控制独立，无批准或资源许可 |
+| SR → TG 的引用清单（实现 TG ReferenceInventory） | `prepareReferences(target)/checkReferences(frame,candidate)`；由 SR 持有具名引用项/完整性和当前修订，含 Session 原定义/acquisition、Run 快照与 attachment 使用；下节固定范围/双视图与交错。缺 provider 不返回空清单 |
 
 普通工具 call/result 关联只给部署信任的 TL owner。公开用户粘贴工具结果是 text。
 同域来源若先已耐久，再独立交 SR，源后果以原 CallRef/终态版本稳定去重，SR 返回
@@ -337,8 +437,8 @@ force_stop 可以封闭原执行权，使 n 耐久后仍不能启动。域失败
 时入账/使接续 ready，取得新 Step 仍须当前 AR 许可；这条事实通道不授新工具执行权。
 HD 的决定后果也使用原 request/outcomeVersion；新 attempt 不能消费旧批准。
 
-SR 从 ready continuation 中按耐久 readyAt、同批记录顺序串行 claim；只有当前
-运行中的一个 Step 能驱动下一动作。q1 已答、q2 未答时 q1 可准入，q2 的阻塞仍在；
+SR 对 ready continuation 与已保存 next_decision 意图按耐久位置、同批记录顺序串行 claim；只有当前
+activeClaim 能驱动下一动作，原 waiting Step 不阻止独立就绪接续。q1 已答、q2 未答时 q1 可准入，q2 的阻塞仍在；
 q1 结束不能 completed。普通 completed 的检查必须同时满足：全部本 Run 接续
 settled、没有 pending 请求/未消费 ready、所有剩余责任已结算或有具名独立接管
 证明；该检查、run_settled 与 driver_released 是同门同批，不能以空 ready 列表
@@ -350,6 +450,45 @@ settled、没有 pending 请求/未消费 ready、所有剩余责任已结算或
 返回 unavailable(human_decisions_unavailable)，不执行、不伪造批准或在内存等答。
 最小节点必须经真实 grant 管理和真实本地预算准入文件工具；这一门必须在最小
 节点前通过。完整 q1/q2、持久审批和 M2 deferred receipt 仍是后续本批必交行为。
+
+### SR 提供给 TG 的引用清单
+
+TG 定义 ReferenceInventory 消费协议，Session 实现它；接口依赖方向为 SR→TG，
+不让 TG import SR 实现，也不把正文历史投影作为判断无引用的权威。
+`prepareReferences(target)` 的 target 为精确 DefinitionRef/DefinitionVersion、
+`{tenantId,acquisitionId}` 或 `{definition,draftRevision}`；门外取得 SR 私有候选，
+含已接受治理形状的 `ReferenceReport={sources:[{owner,revision}],references:
+[{owner,target:ResourceRef,relation,blocksDiscard}],complete}` 与原查询/范围 stamp。
+`checkReferences(frame,candidate)` 同门验证原实例、查询和当前引用根，返回
+ready / prepare_again / unavailable；不在门内全量扫描、调用户函数或查询存储。
+
+| SR 引用项 | ReferenceReport 中的对应与范围 |
+|---|---|
+| 已创建 Session 的原 DefinitionVersion/原 acquisition | owner=session，target 为该 Session 的 ResourceRef，relation=session_definition/session_acquisition；包含仍受保留义务约束的历史，不因没有活体 Agent 丢失 |
+| Run 的 acquisitionBasis/definition/driver 依据 | target 为原 Run 的 ResourceRef，relation=run_definition/run_acquisition；保留准备、等待、停止与历史工作，不能在释放 driver 时删去引用 |
+| SR 当前 held/revoked/releasing attachment | target 为精确 AgentRef 对应 ResourceRef，relation=agent_attachment；释放确实完成才撤回运行引用，blocked 清理仍在；来源是 SR attachment 登记，不推测 AR 目录 |
+| draft | 当前 Session 只允许已发布 DefinitionVersion，SR 不产生 draft 引用；仅在已恢复完整根且相关创建入口受此限制时返回 complete=true 的空项。未来开放 draft 引用需另行实现，缺解析器/未恢复不是空 |
+
+ResourceRef 使用真实 tenant，kind=session/run/agent_runtime，resourceId 分别为
+sessionId/core-json(RunRef)/core-json(AgentRef)，version 为该记录修订或 incarnationId；
+它们只是引用报告的边界投影，不新增业务身份/访问权。以上已发布引用的
+blocksDiscard=false，不使 retire/disable/remove 默认 busy；TG 保留影响/下一准入
+生效边界，原 Session/历史不级联删除，不强停已准入调用。报告给 TG 受信门保留
+完整关系，对外对象/计数再按 SR 当前元数据权裁剪，不借资产管理权泄漏私人对象。
+
+SR 的引用根由本 owner 的耐久事实/待确认候选和 attachment 账目生成，属于必需的
+当前条件依据；不是可落后的查询 projection。每次引用增加/变化在其原同批
+publishLogical 或 attachment 注册的同一门推进 referenceRevision；来源 stamp
+为 provider generation 与 referenceRevision 的规范组合（满足治理 revision 的
+OpaqueId 表达）。pending 引用增加立即可见，撤回仅在对应耐久/真实释放确认后
+从集合消失；恢复从完整 SR 前缀和新 attachment 表重建，再给新的来源 generation。
+
+TG 在 discard/retire/disable/remove 末门检查该 stamp；SR create/运行绑定则检查
+同一原 TG acquisition/定义的当前 stamp。若 SR 新引用先占逻辑位置，TG 旧清单
+必须重准备并报告它；若 TG 先停用/移除，SR 的旧创建候选不能随后借同版本其它
+acquisition 通过。没有第二把互不相关的锁或通知后补清单。provider 缺失、重建
+未完/异常失联为 unavailable/complete=false，不能当无引用；只有部署已封闭
+全部 SR 引用创建且证明此范围不适用时，TG 才可按其已接受规则列为不适用。
 
 ## 控制、退出和恢复
 
@@ -452,7 +591,7 @@ creator-agent 归属不足以实现本稿；直接改其 registry/factory/dispat
 |---|---|
 | R0 共享声明与组合测量，kernel-developer 拥有 `packages/core/agent/src/` 的本稿窄接口及对应测试；capability-developer 顺序交付 `packages/session/session/src/` 数据/事件/纯 fold 与对应测试 | 本稿/治理对应面受审接受；已验证 work-data、最终 records。先让公开编译边界存在，再以错 tenant/非法转移/旧候选/跨包端口错配真正 RED→GREEN；共享接口实际打包、独立消费者编译后才给消费者并行施工。声明通过不开放运行 |
 | R1 agent，kernel-developer 独占 `packages/core/agent/` | 真实 P1 writer/admission/diagnostics、R0；SR attachment/访问提供者未齐时只能完成边界符合性，不能宣称产品激活。按 S02/S03/S09 先双激活/晚到准备 RED，再真实 Cordis 准备/退出 GREEN，补通知重入/自等待/失联 |
-| R2 Session，capability-developer 独占 `packages/session/session/` | 真实 P1、已交付 TG/AU 当前根/管理面、本机身份适配、R0/R1 公共产物。S01/S04/S05/S06：真实 create/enqueue→单 batch/Run→唯一 Step→控制/停驻恢复，逐项 RED→GREEN；交付 SR 的 attachment/RuntimeAccess/TG-AU 工作事实映射 |
+| R2 Session，capability-developer 独占 `packages/session/session/` | 真实 P1、已交付 TG/AU 当前根/管理面、本机身份适配、R0/R1 公共产物。S01/S04/S05/S06：真实 create/enqueue→单 batch/Run→唯一 Step→控制/停驻恢复，逐项 RED→GREEN；交付 SR 的 driver 进展/结算、attachment/RuntimeAccess、AU Session/工作事实及 TG ReferenceInventory；S14–S17 同门组合是相应开放门 |
 | R3 persistence，infrastructure-developer 独占 `packages/session/persistence/` | R0 事件/纯 fold、真实 records reader/jsonl；S07/S10 用真实 journal kill/reopen、错误版本/同批缺项 RED→GREEN；不自带写提供者。可与 R1/R2 后续行为并行，恢复安装须等真实 SR 根 |
 | R4 projection，capability-developer 独占 `packages/session/projection/` | R0/R2 的确认事件、权限快照交接；S01/S08 的缺投影/错 checkpoint/撤回/读权改变 RED→GREEN。完整视图不承担授权，直接扩展原 fold，不能等 P3 再补 SR 可读历史 |
 | R5 最小节点装配，application-developer 独占 `apps/local-harness/` 中派定身份/启动/CLI/确定性驱动及普通流程测试；verification-developer 独占另行派定组合/故障测试文件 | 真实 P1、R1–R4、TG/AU/BG 管理/消费产物、真实 TL/local-execution 与资源权限。S01–S10 适用子场景、真实文件闭环及独立 tarball；文档给可启动命令/提交后交接，ask 可保持明确 unavailable。绝不把测试 fixture 放进可交付装配 |
@@ -467,7 +606,8 @@ R1/R2 按它并行实现互相需要的注入面，真实 AR+SR 组合是共同�
 |---|---|
 | 实际 P1 | records 作者交最终端口/codec，diagnostics 作者交 D1；jsonl/admission 作者交真实双视图/锁/失败/恢复和 O09/O10。A05–08 对真实组合通过前 R1/R2 不开放目标运行 |
 | 可信身份/派发意图 | application-developer 的本机凭据 owner 实现 AuthenticatedInvocation 与同 gate 撤销；SR 实现受限宿主派发意图/RunDelegation。P2 可先交实际模块、P3 再接 IPC；两凭据/撤销/伪造句柄须真实验证，不能把必要身份完全推迟到 P3 |
-| 当前 TG/AU 与对象权限 | TG 当前成员/定义选用/权益和具名 emergency_control；AU busy_input/所需配置及真实 grant；SR 对象政策/委托映射。与治理稿共同接受权限词和各声明的唯一导出归属后编译；不通过 preset 表冒充管理路径 |
+| 当前 TG/AU 与对象权限 | TG 当前成员/定义选用/权益和具名 emergency_control；AU busy_input/所需配置及真实 grant；SR 对象政策/委托映射。沿已接受治理接口固定 SR 权限词/实际导出归属，交付 settingsUser/原 acquisition/设置写 current 与引用清单后编译；不通过 preset 表冒充管理路径 |
+| SR 引用清单 | Session 作者实现 TG ReferenceInventory、所有原 Session/Run/attachment 引用、source revision 与同门检查；实际 SR 创建和 TG 退役/停用竞争通过 S17。已开放 SR 时缺提供者为 unavailable，不等 P3 再补无引用判断 |
 | 原定义到 Factory/driver 的装配 | 部署可信定义解码器/Factory owner 提供精确 DefinitionVersion→factoryKey/实现/必要服务/driver 协议，TG 检查实际选用/use；正文不是可执行脚本。缺失/不兼容返回 unavailable，不换默认 Factory |
 | 工具资源/本地执行/预算 | TL/资源 owner 提供真实冻结 Action/当前资源 mayPerform/mayDelegate/精确绑定及调用事实；BG 提供真实本地零计费来源与准入；local-execution 持久接纳/停止账本。最小节点前必须实现 allow、结果恢复、unknown 与迟到停止，不能只交 DTO |
 | HD | HD 作者提供 request/decision/后果权威、同批片段与对原 source 的消费；SR 上表 wait/consequence/control 提供者先就绪。没有真实 HD 时 ask 禁止执行；完整 M1 前须 S11 全部通过 |
@@ -495,6 +635,10 @@ R1/R2 按它并行实现互相需要的注入面，真实 AR+SR 组合是共同�
 | S11 / A12/A15/A17 | q1/q2 真 HD 待答，释放 Agent/重启，先答 q1（含 reject）再答 q2，期间 interrupt/hold/cancel → q1 独立耐久串行接续，q2 不被清掉，Run 不提前 completed；答案不清全局阻塞，取消后不复活 |
 | S12 / A18/A29 | 定义/Factory/工具准备换代失败与成功、依赖失联/重现、已准入 pin、旧 provider 清理迟到；100 次等待/关闭/恢复循环 → 无同名跟随，真实任务/订阅/timer/fd 回到基线或逐项具名 retained，等待无模型忙轮询 |
 | S13 / A24/A30–32 | 真实公开 tarball/独立确定性工具消费者跑最小闭环；M2 后实际 wire 中 q2 deferred receipt 与 q1 结果并存 → 无 baseline 绕门，原 call 不重发，未执行的 M1/M2 子场景单列，不由编译/源测试抵扣 |
+| S14 / A09/A17/SR-08/09 | 无工具正常返回、真实 TL 结果后的结算、q1 就绪而 q2 未答、driver throw 与终态竞争 → 原 Step/CallRef 不变，新的模型决策才新 Step；driver 进展/Step/Run 结算经同批，剩余 HD 后果在失败意图同批关闭，停止未知时保留 stopping；重放/旧 claim 不二次推进 |
+| S15 / A03/TG-05 | 同一 DefinitionVersion 下选用 a/b 配置不同，Session 原属 a；准备后 configure/disable/remove a，再同版本重选 c 并重启 → 不借 b/c，不混当前 Run 配置；原 a 被移除后后续使用阻塞，已准入/历史原关联保留 |
+| S16 / A11/A01 | owner 与仅有 emergency_control 的管理者分别 set/clear Session confirmation_mode，准备后撤权或停用；再测 false/null → 只有 owner 的独立设置权可提交，旧候选拒绝，非法值不变 clear，重启恢复 AU 原覆盖/来源，未做模型选择 |
+| S17 / A03/TG-05/PF-010.C10 | TG 先准备空引用清单，SR create/attachment 先占位；反向让 TG disable 先提交；再撤掉 SR inventory/加载缺口 → 前者 TG 重准备并报告新增引用，后者 SR 当前门拒绝；缺来源 unavailable 而非空。已存在引用不级联删除/强停，也不向无正文/元数据权的管理者泄漏内容或存在性 |
 
 这些是施工验收输入，当前均 **未执行本稿产品符合性测试**；S10 的 P1 已有机制
 场景也必须在真实业务 owner 接入后验证。两进程 writer 排他沿 A06，两个 AR/SR
@@ -508,3 +652,20 @@ R1/R2 按它并行实现互相需要的注入面，真实 AR+SR 组合是共同�
 环境，未修改根锁。最终提交前对最终文字重跑上述文档/路径检查，日志保留于该 tmp。文档检查只证明结构/引用，不接受架构。
 独立 architecture-reviewer 由整合者安排，重点核对 AR/SR 同门映射、权限/委托、
 停驻与终止差别、TL/HD 多 owner 关系、恢复权及最小节点依赖；本作者不自行接受。
+
+### 对 746ce47 独立评审的定点修订
+
+本轮 actor `agt-028` 仅处理 R1–R4，治理输入更新为已接受 058c77c/HUB 4bf0d3c；
+本稿仍为 proposed，等待原 architecture-reviewer 复核。没有修改正式 v1 或产品。
+
+| 评审项 | 修订定位与最小测量 |
+|---|---|
+| R1：driver 只会取 Step、不会交付或结算 | “Driver 向 SR 交付进展与结算”“原 Step 的继续与下一次决策”，及 step/claim/失败事件；S14 覆盖无工具、真实结果、q1/q2、失败和同批关闭 |
+| R2：遗失原 acquisition | Session/Run shape、其后原选用规则、attachment 和 AU 当前事实；S15 的 a/b/c 同版本与配置/重启反例 |
+| R3：Session 设置写权缺失 | “当前调用者、对象权限与运行委托”的设置写/SettingsUser 段及 AU SessionFacts；S16 覆盖 owner、紧急控制者、撤权、set/clear |
+| R4：缺 TG ReferenceInventory 提供者 | “SR 提供给 TG 的引用清单”、R2 施工/依赖表；S17 覆盖创建/停用顺序、真实来源缺失及披露 |
+
+S14–S17 是实施必须测量的场景，本轮没有运行产品测试或以自写条件断言替代它们。
+文档/范围检查针对最终本稿运行，日志存 `tmp/session-runtime-design/docs-check-r1-r4.log`；
+实际 `make docs-check BASELINE=de39a86` 通过 404 份 Markdown，`git diff --check`
+及写入范围检查通过。未宣称语言记法可编译，也未自行认定评审通过。
