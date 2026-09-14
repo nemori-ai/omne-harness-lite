@@ -110,6 +110,7 @@ omne-harness-lite/
 | 架构设计、能力边界或有架构影响的选型 | [architecture-design](.agents/skills/architecture-design/SKILL.md)，导航至[架构指南](docs/architecture-guide/README.md)、相关决定和精确规格 |
 | 完成一次架构设计，已有可识别的待审稿 | 委派 [architecture-reviewer](.agents/roles/README.md) 独立只读评审，提供对象、版本、目标与范围；评审意见不代替接受决定 |
 | 架构设计后准备 spec 与实施计划，评估技术栈、复用或 fork 路径 | [implementation-planning](.agents/skills/implementation-planning/SKILL.md)，指导针对性调研、实现责任与可验收的交付规划 |
+| 撰写或维护规格、模型，以及提供者映射和消费者影响 | [spec-maintenance](.agents/skills/spec-maintenance/SKILL.md)，沿[规格维护](docs/maintenance/spec-maintenance.md)管理长期正文、就绪范围和变更传播 |
 | 核对 Cordis API、依赖、插件或生命周期 | [cordis-authoritative-docs](.agents/skills/cordis-authoritative-docs/SKILL.md) |
 | 判断过度设计、抽象价值、复用或复杂度 | [engineering-taste](.agents/skills/engineering-taste/SKILL.md) |
 | 放置源码、增加成员或调整开发/CI 入口 | [源码布局与 workspace](docs/maintenance/workspace.md)及目标目录局部约定；具体命令见[验证规范](docs/maintenance/verification.md) |

@@ -19,6 +19,7 @@
 - [Computer、Browser、Shell 与沙盒/本机执行环境的来源核对](computer-browser-shell-environment-sources.md)
 - [Session、Run 生命周期与排队输入控制的来源核对](session-run-and-pending-input-sources.md)
 - [DSH 动态能力研究](dsh-cordis-dynamic/README.md)
+- [架构、规格与提供者设计的维护交接](design-spec-maintenance/README.md)
 - [运行时工具/技能装载与独立制品管理的跨系统来源](dynamic-loading-and-artifact-sources.md)
 - [Agent 开发及在线装载 Cordis 插件：DSH 与 Raven 机制研究](agent-developed-cordis-plugin-sources.md)
 - [个人版产品要求本质比对与 GAP 处置](personal-edition-requirement-gap-audit.md)
