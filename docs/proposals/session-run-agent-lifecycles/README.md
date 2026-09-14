@@ -68,6 +68,11 @@ scope: Session、Run、Agent 实例三台状态机的权威拆分、三条关系
 | U-30 | 工具设计延后 |
 | U-31 | 三个决定点按 [评审 r1](review.md) 的建议推进：D1 拆分并先解决 CC-01 的声明规则（CC v2）；D2 重发 run-driver v2，只改引用并如实记新增依赖；D6 采用备选，新开组合身份引用 CB v1。既接受决定的工件视为已发布，走 superseded，不原地重组 |
 | U-32 | 文档中引用条款、不变式、决定与需求编号时必须给出具体文档链接，不能只写代号 |
+| U-33 | 事件命名一律三段式（接受后追加）：`<流>.<对象>.<事实>`；落点见 [Session 设计](../../../packages/session/session/design.md#事件命名去重键与词汇) |
+| U-34 | 所有事件都带去重键，避免同一事实重复投递或重复消费；落点同上 |
+| U-35 | envelope 与事件数据的 JSON Schema 在实现前具体设计，但统一遵循数据模型与定义风格的最小/最大/最佳实践约定 |
+| U-36 | 通知作用域与出站流协议放到实现阶段设计；现在只划职责、方向与边界，见[出站流候选](../outbound-stream/README.md) |
+| U-37 | 归档后后台调用的存续政策属于工具执行生命周期/状态机（也要级联），写成备忘录，工具设计时捞出讨论：[备忘](../tool-system/v1/session-run-cascade-memo.md) |
 
 ## 作者裁决
 
@@ -75,6 +80,7 @@ scope: Session、Run、Agent 实例三台状态机的权威拆分、三条关系
 |---|---|---|
 | A-12 | Run 是独立插件（服务 `omneRun`）。理由：Run 是独立的状态权威，有自己的流、状态机与消费者；插件边界让这一权威在运行时可见，并使未来把 Run 权威另置协调域时有现成的边界可用（边界就绪，不是已证明可分布，见 [review.md](review.md) 发现 2）；插件代价只是服务键、效应与端口。硬规则：Session 插件与 Run 插件互不 required inject，凡同时涉及两者的操作落在单独的组合者插件里；裁决者、调度者与组合者仍归 `packages/session/session`（同包内的独立插件），不改变 D-013 的包归属 | 是 |
 | A-13 | 占位由 Run 事实派生，不单独记录（lifecycles.md）；SR-08 的"精确持有"由派生关系的唯一性兑现 | 是 |
+| A-14 | 跨协调域的版本戳、意图重投与租约在现阶段属于过度设计：首版同一协调域，Session 门在门内直接读 Run 状态，戳不增加任何保证。[LC-09](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md) 只保留为"跨域部署前必须补的义务清单"，跨域模型只是边界就绪的证据；提供者设计去掉 `stateStamp` 读面与带戳的门（2026-09-14 接受后作者判断，回应用户"是否过度设计"之问） | 是 |
 
 ## 已裁决的三个决定点（U-31）
 
@@ -92,11 +98,14 @@ scope: Session、Run、Agent 实例三台状态机的权威拆分、三条关系
 
 ## 未决项
 
-- 归档后后台调用的停止/存续政策与 TL→Inbound 端口形状（工具设计）。
-- 客户端出站流协议与通知命名空间（U-5）的实现。
-- 多进程部署下旧 epoch 持有者的活性判定；跨协调域部署所需的租约、版本戳与意图重投协议
-  （lifecycles.md 末节只给出预期，不定义协议）。
-- envelope 与事件数据的 JSON Schema（第二个后端或第二种语言复现进入计划时闭合）。
+- 归档后后台调用的停止/存续政策与 TL→Inbound 端口形状：归工具执行生命周期设计，
+  备忘见 [tool-system 备忘](../tool-system/v1/session-run-cascade-memo.md)（U-37）。
+- 客户端出站流协议与通知作用域（U-5）：实现阶段设计，职责/方向/边界见
+  [出站流候选](../outbound-stream/README.md)（U-36）。
+- 多进程部署下旧 epoch 持有者的活性判定（单机首版由 Registry 直接知道，不是问题）；
+  跨协调域部署所需的租约、版本戳与意图重投协议只保留为 [LC-09](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md)
+  的义务清单，不进入首版提供者设计（[A-14](#作者裁决)）。
+- envelope 与事件数据的 JSON Schema：实现前按三段式命名、去重键与数据模型约定具体设计（U-35）。
 - ~~live-agent v1 是否需要新版本~~：规格步骤判断为不需要（[agent.md §4](agent.md#4-live-agent-v1-的影响判断)），
   "会话关闭"落在 AR-11 的"显式退役"由宿主发起，写入 [core/agent 设计](../../../packages/core/agent/design.md#与-sessionrun-的相接点d-014)。
 

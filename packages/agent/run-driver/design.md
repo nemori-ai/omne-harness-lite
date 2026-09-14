@@ -31,13 +31,13 @@ Factory 贡献登记到 `agents`（AR 的 `registerFactory`，[AR-8](../../../sp
 |---|---|---|
 | Factory driverKey / version | `omne.run-driver` / `1` | [D-013 §7](../../../docs/proposals/agent-loop-inbound/cordis.md#7-提供者设计归属与实施入口) 的缺口；写入 `epoch_issued.driverBinding` |
 | 投影 stateKey | `run.driver_position`，`kind: projection`，输入 run 流事件 | [RN-07](../../../spec/capabilities/run/v1/contract.md)、[SE-10](../../../spec/capabilities/session/v1/contract.md) |
-| 订阅接口 | `records/committed` 广播（DR-01 envelope，按租户与 Session 作用域过滤）加 `omneRun.readRun`、`omneSession` 的 Inbound 读面、TL/HD/MC 的非结算读面 | [LC-06](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md)、[RD-02](../../../spec/capabilities/run-driver/v2/contract.md) |
+| 订阅接口 | `records.envelope.committed` 广播（DR-01 envelope，按租户与 Session 作用域过滤）加 `omneRun.readRun`、`omneSession` 的 Inbound 读面、TL/HD/MC 的非结算读面 | [LC-06](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md)、[RD-02](../../../spec/capabilities/run-driver/v2/contract.md) |
 | 提交面 | 单 owner 提交直接用 `omneRun.prepare*`；跨 owner 提交用 `omneLifecycleCompositions` 或 TL/HD/MC 的具名组合 | [RD-03](../../../spec/capabilities/run-driver/v2/contract.md)、[CC-01](../../../spec/compositions/core-work-coordination/v2/contract.md) |
 
 ## 实例驱动的生命周期
 
 Factory 为每个活体实例准备一个实例驱动（D-013 消费方式），在实例 Context 内持有：
-当前 Run 的 view 组合器、`records/committed` 的监听、执行 owner 的订阅、WorkPermit。
+当前 Run 的 view 组合器、`records.envelope.committed` 的监听、执行 owner 的订阅、WorkPermit。
 交付点只有两个（[LC-07](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md)）：
 调度者经受限 Handle 交 Run（新 epoch、新 WorkPermit）；AR 的退出过程调用
 `requestRetire` → 驱动器到安全边界经 `omneRun.prepareYield` 封闭 epoch →

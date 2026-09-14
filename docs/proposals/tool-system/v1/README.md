@@ -38,6 +38,7 @@
 | [动态装配与复用](assembly.md) | Cordis 映射、版本发布、依赖失效、代码边界、DSH fork 范围 |
 | [需求覆盖与验证](validation.md) | 消费范围、组合接口、待验证性质和具体场景 |
 | [评审记录](review.md) | 独立只读评审、发现及修订；不构成接受 |
+| [Session / Run 级联备忘](session-run-cascade-memo.md) | D-014 之后留给工具侧的状态机对齐、归档后后台调用政策与接口义务；备忘，非正文 |
 
 ## 能力边界
 

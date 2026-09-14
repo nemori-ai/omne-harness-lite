@@ -30,20 +30,49 @@
 | 插件 | 服务键 | required inject | 职责 |
 |---|---|---|---|
 | `SessionPlugin` | `omneSession` | `omneAdmission`、`omneRecords`、`omneDiagnostics`、`omneIdentity`、`omneTenant`、`agents` | session / queue / inbound 三条流的 owner；生命周期、队列、hold、状态贡献注册、附着提供者（`attach` / `guardActivation` / `release`）、Inbound 受理；prepare/check 端口供组合者使用 |
-| `InboundAdjudicatorPlugin` | `omneInboundAdjudicator` | `omneSession`、`omneRun`（读 `waitingPositions` 与 `stateStamp`）、`omneAdmission` | 消费 accepted 的 arrival，一次短提交内按裁决时刻的 Run 状态判意图并写 `arrival_classified`（[SE-12～14](../../../spec/capabilities/session/v1/contract.md)）；启动时扫描全部 Session（[SE-18](../../../spec/capabilities/session/v1/contract.md)），扫描完成是调度者重取的前提 |
-| `SessionSchedulerPlugin` | `omneSessionScheduler` | `omneLifecycleCompositions`、`omneSession`、`omneRun`、`agents`、`omneInboundAdjudicator`（扫描完成信号） | 订阅 `records/committed`，对铃（队列变化、Run 终态、hold 解除、接续/审批就绪、epoch 封闭、门恢复、resume）在门内重读：无占位且队首合格 → 取批/取命令/取 trigger；占位在、执行者空且有可干的事 → 重取；先找 ready 实例再 `agents.activate`。不轮询；开机扫描在裁决扫描之后 |
+| `InboundAdjudicatorPlugin` | `omneInboundAdjudicator` | `omneSession`、`omneRun`（读 `waitingPositions`）、`omneAdmission` | 消费 accepted 的 arrival，一次短提交内按裁决时刻的 Run 状态判意图并写 `arrival_classified`（[SE-12～14](../../../spec/capabilities/session/v1/contract.md)）；启动时扫描全部 Session（[SE-18](../../../spec/capabilities/session/v1/contract.md)），扫描完成是调度者重取的前提 |
+| `SessionSchedulerPlugin` | `omneSessionScheduler` | `omneLifecycleCompositions`、`omneSession`、`omneRun`、`agents`、`omneInboundAdjudicator`（扫描完成信号） | 订阅 `records.envelope.committed`，对铃（队列变化、Run 终态、hold 解除、接续/审批就绪、epoch 封闭、门恢复、resume）在门内重读：无占位且队首合格 → 取批/取命令/取 trigger；占位在、执行者空且有可干的事 → 重取；先找 ready 实例再 `agents.activate`。不轮询；开机扫描在裁决扫描之后 |
 | `LifecycleCompositionsPlugin` | `omneLifecycleCompositions` | `omneSession`、`omneRun`、`omneAdmission`、`agents` | 向协调者登记具名组合，每个是一次 batch：`take_batch` / `take_command` / `take_trigger`（队列取用 + Run 建立 + epoch 发行，[LC-04 行 3](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md)）、`run_settle`（Run 终态 + arrival 转换/关闭，行 4）、`session_archive` / `session_delete`（生命周期转移 + 队列与 arrival 关闭 + 前提读 Run，行 1）、`session_force_stop`（hold + Run 控制受理 + epoch 撤销，行 2）、`interrupt_then_run_accept`（新 input + 复合意图，行 11）、`reacquire` |
 
-事件词汇 v2：kind 前缀 `session.`，version `"1"`；候选清单与兑现条款见
-[提案 session.md §4](../../../docs/proposals/session-run-agent-lifecycles/session.md#4-事件词汇-v2候选)。
-去掉 `driver_reserved` / `driver_released` / `epoch_parked`（占位派生）与 `checkpoint_saved`
-（位置是投影，缓存归 [projection](../projection/design.md)）；`step_*`、`driver_claimed` 等
-Run 流事件迁到 run 包。附着资格新增"Session open"与"该 Session 无更早未释放实例"，
-`lifecycle_changed{archived / deleted}` 使资格失效并由 AR 宿主关闭空闲实例（形状 3）。
+### 事件命名、去重键与词汇
 
-跨域前提下（[LC-09](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md)）
-裁决门、归档门与取批门带 `omneRun.stateStamp` 的版本戳；首版同域，戳作为守卫输入
-保留但不构成分布证明。
+事件 kind 一律三段式 `<流>.<对象>.<事实>`（用户裁决
+[U-33](../../../docs/proposals/session-run-agent-lifecycles/README.md#裁决记录2026-09-14用户)）：
+第一段是拥有该事件的流（`session` / `queue` / `inbound` / `run` / `tools` / …），第二段是被
+改变的对象，第三段是已发生的事实（过去分词或结果名），全小写，段内用 `_` 连词，
+version 字符串 `"1"`。进程内广播的 Cordis 事件名同一风格：`records.envelope.committed`。
+
+每条事件都有去重键（用户裁决 U-34），在 [DR-01](../../../spec/capabilities/durable-records/v1/contract.md)
+envelope 之上固定三样：`eventId`（提交者在 prepare 时生成、幂等重试沿用，全局唯一）、
+位置 `(stream, seq)`、产生它的 `operationId`。投递去重：广播可能重复（重装、扫描、
+at-least-once），消费者以 `eventId` 或 `(stream, seq)` 判重。消费去重：凡"消费"一条事实
+的动作自己也是耐久事件并引用被消费事件的 `eventId`（`inbound.arrival.consumed{arrival, by}`、
+`run.approval.consumed{request, call}`），第二次消费在门内被拒。来源级去重是另一层：
+[SE-12](../../../spec/capabilities/session/v1/contract.md) 的 `dedupKey` 让同一外部事实两次到达只
+受理一次。铃驱动的反应可以用 `(stream, seq)` 水位记住已处理位置，但那只是加速，
+权威仍是门内重读。
+
+本包三条流的候选词汇（兑现条款见
+[提案 session.md §4](../../../docs/proposals/session-run-agent-lifecycles/session.md#4-事件词汇-v2候选)，
+这里按三段式改名）：
+
+| 流 | 事件 kind |
+|---|---|
+| session | `session.lifecycle.created` / `.changed{to: archived \| open \| deleted, reason}`、`session.meta.renamed` / `.pinned`、`session.model_choice.set`、`session.hold.set` / `.released`、`session.contribution.registered` / `.withdrawn{stateKey, kind, version}` |
+| queue | `queue.item.enqueued{kind: text \| command \| trigger, arrival?}` / `.edited` / `.withdrawn` / `.closed{reason}`、`queue.order.changed`、`queue.items.taken{kind, items, run, operation}`（[LC-04 行 3](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md) 同提交中队列侧的记录） |
+| inbound | `inbound.arrival.accepted{arrivalId, source, dedupKey, payloadRef, refs, policy}` / `.classified{intent, observedRun}` / `.consumed{by}` / `.converted{item}` / `.closed{reason}` / `.withdrawn` / `.refused{reason: refused_capacity}`、`inbound.context.advanced{watermark, lowerBound}` |
+
+去掉 `driver_reserved` / `driver_released` / `epoch_parked`（占位派生）与 `checkpoint_saved`
+（位置是投影，缓存归 [projection](../projection/design.md)）；Step、epoch 等 Run 流事件归
+[run 包](../run/design.md)。附着资格新增"Session open"与"该 Session 无更早未释放实例"，
+`session.lifecycle.changed{archived / deleted}` 使资格失效并由 AR 宿主关闭空闲实例（形状 3）。
+envelope 与事件数据的 JSON Schema 在实现前按上述约定与 [spec/data](../../../spec/data/README.md)
+的数据模型风格具体设计（用户裁决 U-35）。
+
+跨域义务（[LC-09](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md)：版本戳、
+意图重投、租约）不进入首版提供者设计；首版同一协调域，门内直接读 Run 状态即可。
+真正规划跨域部署时再以新版本契约兑现（作者判断
+[A-14](../../../docs/proposals/session-run-agent-lifecycles/README.md#作者裁决)）。
 
 ## Host 与服务
 

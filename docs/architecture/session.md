@@ -22,7 +22,7 @@ flowchart LR
     F[(session / queue / inbound 三条耐久流)] --> IN
     F --> Q
     F --> LIFE
-    BUS((records/committed)) -. 铃 .-> SCH[调度者]
+    BUS((records.envelope.committed)) -. 铃 .-> SCH[调度者]
     SCH --> COMP
 ```
 

@@ -23,3 +23,4 @@
 - [Agent Loop 与 Session Inbound](agent-loop-inbound/README.md)：阶段 E 的 Run 驱动器拓扑、到达账本与循环不变式；accepted，由 D-012 发布 run-driver v1 与 session-run v2，D-013 接受其 Cordis 视角与提供者边界，两轮评审与用户/作者裁决记录在内。
 - [Agent 运行时 v1](agent-runtime/README.md)：Cordis 视角的身份、装配和资源生命周期；源基线到目标契约的明确差异。
 - [Session、Run 与 Agent 实例：生命周期、关系与级联](session-run-agent-lifecycles/README.md)：三台状态机的权威拆分、三条关系与级联的组合契约、三者的 Cordis 视角与提供者设计；已由 [D-014](../decisions/D-014-session-run-agent-lifecycles.md) 接受（session v1、run v1、生命周期组合 v1、CC v2、run-driver v2），承接并部分取代 D-012/D-013。
+- [出站流与通知作用域：职责、方向与边界](outbound-stream/README.md)：面向客户端的出站流的四层职责、建议方向与实现阶段问题清单；draft，协议本身实现阶段设计（U-36）。

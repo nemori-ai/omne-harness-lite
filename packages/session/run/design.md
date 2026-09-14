@@ -36,12 +36,21 @@ JSONL 只是 DR-04 的一个提供者。
 | Epoch | `{epoch: OpaqueId, driverBinding: {driverKey, driverVersion}, compat, issuedAt, closed: null \| {reason}}` | 耐久；持有者（实例、WorkPermit）不耐久，恢复时不反序列化 |
 | Step | `{step, cutpoint, phase, proposedCalls, admittedCalls, attempts, outcome}` | 只记引用，不复制 TL/HD/MC 状态机 |
 
-状态只由具名提交推进：`created`、`state_changed{from,to,reason}`、`epoch_issued` /
-`epoch_closed`、`step_opened` / `step_settled`、`attempt_ref_recorded`、`calls_proposed` /
-`call_admitted` / `approval_consumed`、`waiting_position_added` / `_removed`、`gate_awaited` /
-`gate_returned`、`control_requested` / `control_progressed`、`settled`、`late_fact_recorded`。
-kind 前缀 `run.`，version `"1"`；不提供任意 setState。占位不是事件：它由 state 派生
-（[LC-02](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md)）。
+状态只由具名提交推进。事件 kind 按三段式 `<流>.<对象>.<事实>`（用户裁决
+[U-33](../../../docs/proposals/session-run-agent-lifecycles/README.md#裁决记录2026-09-14用户)），
+version `"1"`：`run.lifecycle.created{basis, definition, acquisitionBasis, modelSelection, epoch, driverBinding}`
+/ `.settled{state, reason, evidence, remainingIndependent}`、`run.state.changed{from, to, reason}`、
+`run.epoch.issued{epoch, driverBinding, compat}` / `.closed{epoch, reason: yield \| yield_forced \| force_stop \| superseded}`、
+`run.step.opened{step, cutpoint}` / `.settled{step, outcome}`、`run.attempt.recorded{step, attempt, phase}`、
+`run.calls.proposed{step, calls, presentedOrder}`、`run.call.admitted{call, attempt}`、
+`run.approval.consumed{request, call}`、`run.waiting_position.added{position}` / `.removed{position, reason}`、
+`run.gate.awaited{gateRef, gateRet}` / `.returned{gateRef}`、`run.control.requested` / `.progressed`、
+`run.late_fact.recorded{oldEpoch, source, classification}`。不提供任意 setState。占位不是
+事件：它由 state 派生（[LC-02](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md)）。
+
+每条事件带去重键（用户裁决 U-34）：`eventId`、`(stream, seq)` 与 `operationId`，规则同
+[Session 设计](../session/design.md#事件命名去重键与词汇)；`run.approval.consumed` 引用被消费
+决定的 `eventId`，同一决定第二次消费在门内被拒。
 
 ## 提交面
 
@@ -71,8 +80,9 @@ prepare/check 端口，返回 CC 的 RecordPreparation；每次 prepare 核对
 
 `omneRun` 提供 `readRun(run)`（状态、epoch、Step、等待位置、阻塞、控制）、
 `listPlaceholder(session)`（按派生规则返回该 Session 唯一占位 Run 或 null）、
-`waitingPositions(run)`（供裁决者按等待位置判意图）与 `stateStamp(run)`（状态版本戳，
-供 Session 门在跨域前提下带戳，[LC-09](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md)）。
+`waitingPositions(run)`（供裁决者按等待位置判意图）。首版同一协调域，Session 门在
+门内直接读本读面；[LC-09](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md)
+的版本戳读面留到规划跨域部署时再加。
 [RD-02](../../../spec/capabilities/run-driver/v2/contract.md) 的 view 由驱动器自己组合：
 本读面加 Session 的 Inbound 读面加 TL/HD/MC 的非结算视图。读面经当前权限检查，
 服务可见性不授予披露权。

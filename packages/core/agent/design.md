@@ -218,7 +218,7 @@ live-agent v1 不需要新版本。本包据此补四项映射：
 - **资源政策的挂点。** 空闲判定读 `omneRun.readRun`："执行者为空且无可干的事"，不读
   驱动器私有状态；空闲宽限、预热与容量归应用装配与本包的资源政策，回收即显式退役
   （AR-11）。
-- **对 Session 生命周期广播的反应。** 订阅 `records/committed` 中 `session.lifecycle_changed{archived / deleted}`，
+- **对 Session 生命周期广播的反应。** 订阅 `records.envelope.committed` 中 `session.lifecycle.changed{archived / deleted}`，
   关闭该 Session 的空闲实例（形状 3：幂等、门内重读、丢失由开机扫描兜底）；附着资格
   同时增加"Session open"与"该 Session 无更早未释放实例"。
 
