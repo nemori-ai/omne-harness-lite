@@ -3,7 +3,7 @@
 ## 当前事实
 
 首批二次开发的目标、验收、实施规格和计划已完成文档交付，其原评审发现已闭合。
-P0 的 records/admission 仍有一项使用责任修订，检查器仍有一项隔离修订，见 [review.md](review.md)。用户已授权按完整工作包
+P0 的使用责任修订已送定点复核，检查器仍有一项隔离修订，见 [review.md](review.md)。用户已授权按完整工作包
 自驱实施；P0 的共享接口设计、原生锁探针和包检查器 TDD 已派发。尚无本批已接受
 产品交付或 OpenRouter 请求；A01–A32 尚未通过，M1/M2 均未交付。
 
@@ -40,7 +40,7 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 
 | 工作 | 执行者与实际句柄 | 独立工作树 | 写入归属与下一关 |
 |---|---|---|---|
-| P0 共享接口稿 | `/root/p0_interfaces`；独立复核 `/root/review_first_batch` | `dsh-p0-interfaces` | `199af4c` 的 I2–I5 闭合，作者继续修订 I1 ExactUse 交接；除下述 work-data 子集外尚未接受或合入 HUB |
+| P0 共享接口稿 | `/root/p0_interfaces`，已交稿；独立复核 `/root/review_first_batch` | `dsh-p0-interfaces` | `199af4c` 的 I2–I5 闭合，`8f4cfa9` 的 I1 ExactUse 交接修订正在定点复核；除下述 work-data 子集外尚未接受或合入 HUB |
 | P0 真实锁探针（accepted） | infrastructure-developer，`/root/p0_lock_probe`，已结束 | `dsh-p0-lock-probe`，已退役 | `f712e025` 经 `04b8dbf` 整合，HUB 全新目录实际复验通过；范围及限制见下文 |
 | P0 包检查器 | verification-developer，`/root/p0_package_checks` | `dsh-p0-package-checks` | K1/K3 已闭合；`8842f63` 已修复仓库内 TMPDIR，K2 的共同祖先/全局搜索仍修复，尚未接受或合入 HUB |
 | P0 work-data 实现 | kernel-developer，`/root/p0_work_data` | `dsh-p0-work-data` | 消费下述已固定子集，独占数据包与专属证据；TDD 实施中 |
