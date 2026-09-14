@@ -147,12 +147,24 @@ parseJson 在 jsonc-parser 完整递归建 AST 后才检查 maxDepth/maxNodes，
 独立只读评审，发现一项阻断：encode 使用迭代 copyJson 接纳深于 128 的对象，
 decode 的 parseJson 却有文本深度 128 的实施上限。同 limits 可编码成功、随后
 拒绝自己的输出。最小反例是 G01 的 outcome.result 包裹 127 层单元素数组，
-maxDepth=256，其余原夹具容量足够。作者已接回按 TDD 验证并修复；本项尚未闭合。
+maxDepth=256，其余原夹具容量足够。作者 `1a237da` 在编码返回前按同配置验证
+实际 payload，RED 为 1 failed/16 passed，GREEN 为 17 passed；独立定点复核
+确认原阻断闭合，本次范围没有新阻断。
 
 ports、opaque 类型、依赖方向、单行主体/租户/counter 与 G01/G10 字面量的其余
 检查未发现阻断。decoded DTO、Checked/issues 不可变；encode 的 Uint8Array
 为调用者独占的新字节，不要求冻结元素。评审只读源码及证据，没有写文件或运行
-测试；原作者的 15 tests/16 成员产物检查不等于 HUB 接受或 A05–A08 通过。
+测试。主调度在 HUB `c1783fd` 实际通过 17 项测试及 16 包独立/组合产物后接受
+这一 P0 切片，证据见[HUB 汇总](evidence/p0-records/hub-summary.json)；不表示
+A05–A08、真实 writer 或完整 TDD 历史源码均已验证。
+
+## P2 治理施工稿评审
+
+`/root/review_package_layout` 独立只读评审 `8b75f30` 相对 `4253ee0`，指出创建
+去重依赖尚未分配的 tenantId、硬预算没有统一计入 unknown 的已知预留与本次
+新增额，以及币种不匹配/更改预算归集身份尚未明确。原作者 `058c77c` 已定点
+修订，待复核；其它主体/资源当前门、HD 同批消费和定义引用分工未发现新阻断。
+未运行测试、编译或形式工具，候选尚未接受，P2 产品仍等待 P1。
 
 ## 可观测性 P1 候选评审
 

@@ -7,4 +7,5 @@
 
 | 职责包 | 当前源码范围 |
 |---|---|
+| [records](records/README.md) | 已验证的记录端口与严格单行 codec；不提供真实 writer 或耐久恢复 |
 | [jsonl](jsonl/README.md) | Ordinary JSONL file read, sync, append and rollback primitives |

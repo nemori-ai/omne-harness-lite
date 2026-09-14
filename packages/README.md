@@ -4,13 +4,14 @@
 workspace 成员，拥有源码、依赖、公开入口、测试、许可与来源记录。组织规则归
 [workspace 规范](../docs/maintenance/workspace.md)，选择依据归 [D-009](../docs/decisions/D-009-package-organization.md)。
 
-当前 15 个产品包中，14 个为可独立构建和消费的实验来源基线，公开入口为各 npm 包的
-`/baseline`；新增 [work-data](core/work-data/README.md) 已交付共享数据的目标默认入口。
+当前 16 个产品包中，14 个为可独立构建和消费的实验来源基线，公开入口为各 npm 包的
+`/baseline`；[work-data](core/work-data/README.md) 与 [records](storage/records/README.md)
+已交付共享数据及记录端口/单行 codec 的目标默认入口。
 尚未实现完整目标能力。源码来源及迁移见
 [布局方案](../docs/proposals/core-capabilities/fork/package-layout.md)与
 [交付记录](../docs/proposals/core-capabilities/fork/package-layout-delivery.md)。
 接下来的[第一批二次开发](../docs/proposals/core-capabilities/implementation/README.md)
-以可恢复工具审批和 OpenRouter 文本流程组织；除 work-data 外的新增成员仍按计划推进。
+以可恢复工具审批和 OpenRouter 文本流程组织；其它新增成员仍按计划推进。
 
 | 能力族 | 职责包 |
 |---|---|
@@ -19,7 +20,7 @@ workspace 成员，拥有源码、依赖、公开入口、测试、许可与来�
 | [media](media/README.md) | [content](media/content/README.md) |
 | [model](model/README.md) | [llm](model/llm/README.md) |
 | [session](session/README.md) | [session](session/session/README.md)、[projection](session/projection/README.md)、[persistence](session/persistence/README.md) |
-| [storage](storage/README.md) | [jsonl](storage/jsonl/README.md) |
+| [storage](storage/README.md) | [records](storage/records/README.md)、[jsonl](storage/jsonl/README.md) |
 | [context](context/README.md) | [system-prompt](context/system-prompt/README.md) |
 | [tools](tools/README.md) | [tools](tools/tools/README.md) |
 | [agent](agent/README.md) | [loop](agent/loop/README.md) |

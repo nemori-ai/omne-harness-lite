@@ -3,22 +3,23 @@
 ## 当前事实
 
 首批二次开发的目标、验收、实施规格和计划已完成文档交付，其原评审发现已闭合。
-P0 共享接口、原生锁前提、检查器及 work-data 已经评审、整合和复验，见 [review.md](review.md)。
-用户已授权按完整工作包自驱实施；共享数据是本批首个已接受的目标产品增量，
-records 端口与 codec 已进入 TDD。尚未发起 OpenRouter 请求；A01–A32 尚未完整通过，M1/M2 均未交付。
+P0 共享接口、原生锁前提、检查器、work-data 与 records 已经评审、整合和复验，
+见 [review.md](review.md)。用户已授权按完整工作包自驱实施；两个共享目标包
+已接受，接下来交付 diagnostics 和 P1 真实存储/准入。尚未发起 OpenRouter
+请求；A01–A32 尚未完整通过，M1/M2 均未交付。
 
 | 对象 | 已有事实 | 对本批的含义 |
 |---|---|---|
 | D-005/D-007/D-008 | 运行时/组合/核心契约已接受并登记精确版本 | 是实施约束，不是实现通过证据 |
 | D-009 与 `f55e3e0` | 14 个实际职责包及公开消费已落地 | 是二次开发源码起点，不需要重新建单一 baseline 包 |
 | `63b4a95` 的布局交付记录 | 对绑定源码的既有构建/源测试/形式与产物消费结果 | 保留原验证范围，不移用为本批新行为 GREEN |
-| 本工作包 | 两个交付点、32 项验收及 P0–P5 安排 | 供派发固定版本；work-data 已有目标实现，其余新路径仍是计划 |
+| 本工作包 | 两个交付点、32 项验收及 P0–P5 安排 | 供派发固定版本；work-data/records 已有目标实现，其余新路径仍是计划 |
 
 ## 实施状态
 
 | 任务 | 状态 | 实现/验收证据 | 下一项输入 |
 |---|---|---|---|
-| P0 | in_progress | 锁探针、共享接口施工输入、检查器及 work-data 已接受；records 已派发 | records 端口与 codec 的 TDD、复核和实际集成 |
+| P0 | accepted | 锁前提、共享接口、检查器、work-data/records；HUB 已验证两个目标包与 16 包产物 | 提供 P1 的真实共享端口/codec 和锁测量依据，尚非真实 writer |
 | P1 | planned | 观测设施 D-010 施工输入已接受，产品未实现 | P0 真实 records 与 diagnostics D1 交付，再并行实现 jsonl/admission |
 | P2 | planned | 未执行 | P1 的真实共同门与记录提供者；交付本地预算 owner |
 | P3 / M1 | planned | 未执行 | P2 当前权限/真实预算/Session/活体，以及 P1 执行账本前提 |
@@ -44,7 +45,9 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 | P0 真实锁探针（accepted） | infrastructure-developer，`/root/p0_lock_probe`，已结束 | `dsh-p0-lock-probe`，已退役 | `f712e025` 经 `04b8dbf` 整合，HUB 全新目录实际复验通过；范围及限制见下文 |
 | P0 包检查器（accepted） | verification-developer，`/root/p0_package_checks`；复核 `/root/review_package_layout`，本任务均已结束 | `dsh-p0-package-checks`，已退役 | `33a57a2` 的 K1–K3 闭合，`d95052c` 整合及 HUB 构建/13 项测试/14 独立与组合产物通过 |
 | P0 work-data 实现（accepted） | kernel-developer，`/root/p0_work_data`；定点复核 `/root/review_first_batch`，本任务均已结束 | `dsh-p0-work-data`，已退役 | `18cad69` 经 `6e7f213` 整合，`728d665` 锁定依赖；D1/D2 闭合，HUB 91 项测试与 15 包产物通过 |
-| P0 records 实现 | infrastructure-developer，`/root/p0_records` | `dsh-p0-records`，从 `73ac35e` 创建 | 消费真实 work-data 与 `8f4cfa9` 接口；只写 records 端口/codec 及其证据，writer 耐久性仍归 P1 |
+| P0 records 实现（accepted） | infrastructure-developer，`/root/p0_records`；独立复核 `/root/review_first_batch`，本任务均已结束 | `dsh-p0-records`，待资产核对后退役 | `1a237da`/`c67eb4d` 经 `bbb4a3e` 整合、`c1783fd` 锁定；HUB 17 项测试及 16 包产物通过 |
+| Agent/Session 施工接口设计 | `/root/session_runtime_design` | `dsh-session-runtime-design`，从 `de39a86` 创建 | 只写 AR/SR 施工稿与探针；独立评审后固定，产品依赖仍须真实就绪 |
+| TS/JS 自动格式化 | verification-developer，`/root/formatting` | `dsh-formatting`，从 `de39a86` 创建 | 共享 Prettier 配置/命令、编辑/提交/CI 接入与机械格式；根锁由 HUB 更新 |
 
 可观测性工程品味与共享研发提示词已由 `51eaefb` 经 `7d3736c` 整合到 HUB，
 五个角色的两端生成检查和文档检查通过，见[提示词证据](evidence/observability-prompts.json)。
@@ -58,10 +61,10 @@ P1 施工输入；正式包仍等待 records 后按 TDD 实现，完整工程观
 
 未标 accepted 的行只表示派发事实。主调度拥有 HUB 整合、根配置、此工作包和最终
 验收；worker 的本地提交、测试绿灯与运行结束均须经端点核验后才能接受。
-共享数据目标包已验证，records 消费该真实实现开始开发；admission 尚未派发，
+共享数据与 records 目标包已验证；diagnostics 接着消费真实公共面，admission 尚未派发，
 不使用兄弟任务未落定的类型或临时约定启动联合实现。
 接口出现正式规格反例时先修设计或发布流程，不放宽验收。
-具体反例与处置归[本轮评审](review.md)。共享接口、检查器和 work-data 缺口已经闭合；
+具体反例与处置归[本轮评审](review.md)。共享接口、检查器、work-data/records 缺口已经闭合；
 没有改变 M1/M2 范围，也不需要更弱的保证。
 
 本次采用当前会话实际提供的 native collaboration 角色和句柄。外部 `ccm` CLI
@@ -70,8 +73,7 @@ inventory 与配额查询不覆盖该 native 执行面，不能移用其外部 C
 native 句柄活性以 collaboration 的实际运行状态为准，持久交付事实以本页及证据为准。
 P2 的 TG/AU/BG 公共操作/事件/参与者设计已由 `/root/governance_design` 在
 `dsh-governance-design` 从 `4253ee0` 交付候选 `8b75f30`，正在独立评审；P2 产品
-仍等待 P1。records 产品 `00a4b20` 与证据 `316b896` 已交付，独立评审发现深度
-容量不对称，原作者正在修复；尚未合入 HUB 或接受。
+仍等待 P1；创建幂等、混合预算预留与币种门三项评审问题已由 `058c77c` 修订，待复核。
 用户已指定从主检出根 `.env` 的 `OPENROUTER_API_KEY` 直接执行 A22，测试模型为
 OpenAI gpt-5.6-terra 与 DeepSeek v4.1-flash。文件仅由测试进程加载，不打开或输出
 内容，也不复制到证据、提交或提示词。当前尚未加载密钥或发起计费模型请求。
@@ -140,6 +142,18 @@ HUB 实际重跑版本/哈希。正式 Schema 未改；产品 JSON 边界、code
 该 spoke 的作者与评审者已结束，确认无驻留进程；原始证据已进入 HUB，临时目录
 为空，其余仅为可重建安装与 Python 缓存，工作树已退役。
 
+## P0 records 产品交付
+
+主调度接受 `1a237da` 与证据 `c67eb4d`，HUB `bbb4a3e` 合入后在 `c1783fd`
+只新增 records 锁 importer，没有升级既有依赖。实际通过 16 包构建、records
+类型检查和 17 项测试、16 个独立 tarball 及 16 包组合消费，结果归
+[HUB 证据](evidence/p0-records/hub-summary.json)。默认入口只提供 DR 端口/实施值
+与严格单行 codec；writer、跨行恢复、锁产品接入、授权和准入仍属于后续阶段。
+
+深度 129 的编码/解码不对称已实际 RED/GREEN，并经独立定点复核闭合。原作者
+13 份实际 tool 输出及 5 份消费者/产物已保全；初期未提交的 stub 不能精确重建，
+不能以摘要冒称完整历史源码。深度回归可从修复前版本加测试 diff 重现。
+
 ## P1 观测施工输入
 
 [D-010](../../../decisions/D-010-shared-diagnostics.md) 接受一个 diagnostics 包、
@@ -148,7 +162,8 @@ HUB 实际重跑版本/哈希。正式 Schema 未改；产品 JSON 边界、code
 [HUB 证据](evidence/observability-design/README.md)保全 38 份作者资产及实际重跑。
 输出时机、低流量刷出、Promise 生命周期三项设计发现已闭合；P1 的 O01–O10
 尚未由产品实现验证，P2 桥和 P3 查询保留各自的验证门，不计为 A28 通过。
-设计 spoke 等独立复核和资产消费者释放后退役，原产品依赖锁没有安装这些候选库。
+设计 spoke 已退役：38 份原始资产的路径/哈希与正式归档逐项相同，作者与评审
+均已结束，进程 cwd/fd 无引用；剩余只有可重建环境。产品锁尚未安装所选诊断库。
 
 ## 供其他设计会话消费的边界
 

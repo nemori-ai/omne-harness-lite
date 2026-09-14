@@ -165,3 +165,20 @@ PASS: records tarball fixed G01 bytes, parser depth parity, immutable failure an
 随后重新运行完整 package checker，退出码 0；其中 `isolated records`、
 `isolated tarball consumer` 与 16-member `isolated composition` 均通过。此修复只
 闭合单行 codec 自洽性，未扩大到原文列出的 P1 writer、跨行或耐久恢复范围。
+
+## HUB 整合与原始证据保全
+
+`bbb4a3e` 合入修订后，`c1783fd` 只增加 records 的根锁 importer。主调度实际
+执行 16 包构建、records typecheck/17 tests、16 个独立 tarball 和 16 包组合消费，
+均退出 0；[HUB 汇总](hub-summary.json)记录来源、环境、黄金文件和四份压缩日志。
+独立复核已闭合深度反例；本次接受限于 records 端口与单行 codec。
+
+[作者 tool 原始输出](author-tool-output.json.gz)从实际子会话逐行提取 13 个执行
+事件，只含 tool 输出、时间、调用 ID 和原行哈希（不含行尾换行），没有提示词或
+推理内容。它保留中间失败、夹具校正、关键 RED/GREEN 与产物执行。最初未提交
+的 compile-only stub 没有精确源码快照，因此不能声称所有早期失败都可从 Git
+逐字复建；深度回归可从 `316b896` 加 `1a237da` 的测试差异复现。
+
+[产物清单](author-artifacts.json)和[归档](author-artifacts.tar.gz)保全作者的两个
+tarball 与三份消费者文件，已从归档逐项重读核对哈希。它们可用于复查作者
+独立产物行为，不能把同一会话自报当成额外的 HUB 实际运行。

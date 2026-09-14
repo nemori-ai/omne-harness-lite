@@ -38,7 +38,7 @@
 | `core/agent`、`core/scope` | 活体注册/构造/工作许可/退出；唯一 scope 路由 | 演化 agent；scope 只在真实缺口时改。通过注入端口接当前权限/Session，不能反向 import 业务实现 |
 | `core/work-data` | 两个共享 data 契约的 TS 表达、Schema 消费与值校验；已验证目标默认入口 | 只放这些明确共享结构，不收纳各能力状态。原重复身份类型在相应消费者改造时迁到这一拥有者 |
 | `coordination/admission`（新） | 同步短门、有序位置、提交票据、撤销屏障与耐久完成衔接 | 只协调记录/版本/使用关系，不自行判权限、执行工具或拥有全系统业务状态；依赖 records 端口 |
-| `storage/records`（新）、`storage/jsonl` | DR 的受限读写端口/结果与编码检查；JSONL/OS 锁/同步/恢复提供者 | records 不依赖 jsonl 或业务能力；jsonl 不调用用户逻辑。独立端口用于注入真实提供者及故障测量 |
+| `storage/records`、`storage/jsonl` | records 已交付 DR 端口/结果与单行 codec；JSONL/OS 锁/同步/恢复提供者待 P1 | records 不依赖 jsonl 或业务能力；jsonl 不调用用户逻辑。独立端口用于注入真实提供者及故障测量 |
 | `governance/tenant`（新） | TG 的成员、定义版本、权益和选用权威 | 本批管理操作沿该能力；应用不自行写 tenant/definition 状态 |
 | `governance/authorization`（新） | 本批设置 owner、grant、当前 Action 判定与版本化声明解析协议 | 消费 tenant 的当前资格与共同门；不拥有请求/工具执行；解析器作为受信贡献装载 |
 | `governance/human-decisions`（新） | 请求、一次决定、后果意图与统一池索引 | answer 与池同一权威；通过注入的来源端口提交等待/继续意图，不反向 import Loop |

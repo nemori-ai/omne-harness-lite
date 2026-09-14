@@ -27,7 +27,10 @@ Context／依赖和事件供给运行时组合，不替代租户权限或外部�
 后续按[第一批二次开发工作包](../proposals/core-capabilities/implementation/README.md)
 实现可恢复工具审批与 OpenRouter 文本流程。共享数据 work-data 已完成目标 DTO、
 严格 JSON、Schema 和独立产物验收，见[实际证据](../proposals/core-capabilities/implementation/evidence/p0-work-data/hub-summary.json)；
-它尚不提供记录、准入或 Agent/Session/工具运行闭环。
+records 随后完成记录端口与严格单行 codec 的目标默认入口，
+[实际证据](../proposals/core-capabilities/implementation/evidence/p0-records/hub-summary.json)
+覆盖 HUB 的 17 项测试及 16 包独立/组合产物。真实 writer、准入及
+Agent/Session/工具运行闭环尚未交付。
 
 [D-010](../decisions/D-010-shared-diagnostics.md)固定 P1 共享日志/trace 设施及
 jsonl/admission 的注入边界；关键审计仍归业务耐久事实。当前通过的是库与机制
