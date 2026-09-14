@@ -20,6 +20,18 @@
 
 可复用验证证据至少记录：契约与模型版本、源码 commit、工具与版本、命令或配置、输入边界/假设和结果。通过、失败、不确定和未覆盖均须如实保留。有限测试或模型检查不能表述为无条件证明。
 
+Markdown 检查覆盖根 README、CONTRIBUTING、AGENTS/CLAUDE 入口，docs/spec、
+packages/apps/tools/scripts 和 agent 配置目录；
+跳过依赖目录、构建产物与临时结果。历史原件按归档哈希核对。扩大源码目录时同步
+维护检查范围，避免目录有了入口文档却没有进入引用检查。
+
+原来按工具分类的 `spec/tla/`、`spec/alloy/`、`spec/schemas/` 和 `spec/scenarios/` 不再是有效规格入口；相应工件随其数据、能力或组合契约保存。验收场景与跨工件追踪要求由本规范和契约内的 `verification.md` 承接；已迁移的 agent-core 提案追踪记录见 `docs/proposals/agent-core/v1/traceability.md`，它的候选身份不改变本规范的验证边界。
+
+`make product-check` 调用 pnpm workspace 的 check；当前成员
+[agent](../../packages/agent/README.md)用 TypeScript 构建并针对官方 Cordis 发行物验证，
+测试不使用源码 alias。产物消费者在仓库外用当前 pnpm store 离线安装依赖，
+运行时和声明消费都必须成功；它不向 npm 发布。
+
 ## 覆盖的发现入口
 
 从契约的可变 README 应能找到所采用版本的覆盖说明；可就地维护简短说明，或
@@ -28,7 +40,7 @@
 打分，也不要求每条规则生成一套相同附件。
 
 尚未形式化、模型未覆盖、已声明但未执行、执行失败、有限范围通过，以及实现
-尚未存在或真实组合未验证，需要分别表述。某一 Admission 模型通过不能扩展为
+尚未存在或真实组合未验证，需要分别表述。某个准入模型通过不能扩展为
 整份授权、工具生命周期或恢复契约已验证；只有 contract.md 也不自动判为无效。
 正文、模型和实际执行分别承担其证据责任。
 
@@ -41,18 +53,6 @@
 更新可变覆盖说明不改冻结规范；新增或修订规范模型、Schema 和规范场景仍遵循
 [版本规则](versioning.md#契约版本)。实现、契约、装配或假设变化后，旧证据保留
 原范围并标出当前失效部分，不让新入口继续把过往结果投影为当前通过。
-
-Markdown 检查覆盖根 README、CONTRIBUTING、AGENTS/CLAUDE 入口，docs/spec、
-packages/apps/tools/scripts 和 agent 配置目录；
-跳过依赖目录、构建产物与临时结果。历史原件按归档哈希核对。扩大源码目录时同步
-维护检查范围，避免目录有了入口文档却没有进入引用检查。
-
-原来按工具分类的 `spec/tla/`、`spec/alloy/`、`spec/schemas/` 和 `spec/scenarios/` 不再是有效规格入口；相应工件随其数据、能力或组合契约保存。验收场景与跨工件追踪要求由本规范和契约内的 `verification.md` 承接；已迁移的 agent-core 提案追踪记录见 `docs/proposals/agent-core/v1/traceability.md`，它的候选身份不改变本规范的验证边界。
-
-`make product-check` 调用 pnpm workspace 的 check；当前成员
-[agent](../../packages/agent/README.md)用 TypeScript 构建并针对官方 Cordis 发行物验证，
-测试不使用源码 alias。产物消费者在仓库外用当前 pnpm store 离线安装依赖，
-运行时和声明消费都必须成功；它不向 npm 发布。
 
 ## 环境与实际执行
 

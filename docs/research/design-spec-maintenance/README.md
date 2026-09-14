@@ -46,3 +46,6 @@ work-data、Agent/Session 修订和场景状态的记录是该分支的交接事
 
 本轮治理候选与验证范围见[提案](../../proposals/design-spec-maintenance/README.md)。
 研究保存来源及推断，不接受新的公共服务接口、产品语义或历史候选。
+
+用户随后补充的插件装载效应与撤除责任，另见
+[官方机制核对](effect-cleanup-sources.md)；它不属于原交接文档的新增历史结论。

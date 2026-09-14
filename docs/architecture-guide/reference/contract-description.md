@@ -23,7 +23,7 @@
 | 身份与数据 | 使用哪些权威定义，身份在哪个范围有效？ | [身份与作用域](../modeling/identity-and-scope.md) |
 | 组合 | 依赖谁，如何解析，缺失或替换后如何响应？ | [能力依赖](../modeling/capabilities.md) |
 | 可见性与授权 | 谁能发现、读取、执行、修改和撤除？ | [租户隔离](../modeling/identity-and-scope.md) |
-| 生命周期 | 谁拥有实例、注册、任务和句柄，何时真正结束？ | [资源释放](../runtime/lifecycle.md) |
+| 生命周期 | 装载建立什么、撤除或保留什么，谁拥有实例、注册、任务和句柄，何时真正结束？ | [装载效应与资源释放](../runtime/lifecycle.md#装载效应与撤除责任) |
 | 操作 | 接纳、提交、完成和失败分别意味着什么？ | [交互协议](../runtime/interaction.md) |
 | 状态 | 什么是事实，什么需要持久，什么能够重建？ | [状态与存储](../modeling/state-and-storage.md) |
 | 约束 | 哪些关系必须成立，有哪些成立前提和观察边界？ | [不变量](../assurance/invariants.md) |
