@@ -2,14 +2,16 @@
 
 本目录记录 A05–A08、A30/A31 相应切片和 O09/O10 的 verification-developer
 结果。它消费真实 `RecordWriter`、JSONL 文件与原生 flock、`AdmissionCoordinator`
-及 D1 diagnostics；不实现 Agent、Session、治理 owner、模型或工具效果，也不构成
-P1 最终接受。
+及 D1 diagnostics。root 已在固定 HUB `31197742905a3c66fc3e650c153d65d014372c21`
+接受本页列出的 P1 范围；该决定不接受 Agent、Session、治理 owner、模型、工具效果
+或 P2 产品行为。
 
 ## 固定输入与环境
 
 - JSONL 最终输入：`7152a7192c84fa49c27255bfdb4f9b0e86ad8eb5`。
 - admission 最终输入：`025793abbb7298b1eb86a4ca403e581a0e7a5d7b`。
 - diagnostics 已接受输入：`7e758f21f8f92c1d46fab194fdaf120239b8e11c`。
+- 最终 root 集成与接受端点：`31197742905a3c66fc3e650c153d65d014372c21`。
 - 组合测试提交：`f0a5face58613fdcbfea6285c319f3887fc1054b` 与
   `e6370bb77ec901ead01e68dc4b5ec0f452834b77`，以及本目录同批的严格回调场景。
 - Linux 5.15、Node 24.18.0、pnpm 10.28.1、TypeScript 6.0.3、Vitest
@@ -84,24 +86,37 @@ A08 中授权、预算、撤权的业务含义只由精确 owner callback fixtur
 路径指向解开的 tarball，重新生成 lock，继续使用 `--offline --ignore-scripts
 --ignore-workspace`，显式 rebuild `fs-ext` 后再运行 strict tsc 和生成的消费者。
 
-## 根入口状态与限制
+## 固定 root 端点
 
-从仓库根运行 `pnpm -r build` 已通过 20 个可构建成员。随后 package checker 已发现
-`apps/local-harness`，但当前因应用没有 `provenance.json` 以 ENOENT 失败；该文件不在
-本任务写范围，原始结果分别保存在
+root 在固定 HUB `31197742905a3c66fc3e650c153d65d014372c21` 使用 GCC 10.5
+工具链运行 `pnpm run check`，退出 0，耗时 264.14 秒。原始
+[`check.log`](check.log) SHA-256 为
+`e17507cf3cd967b49d589e55671d0835ba3001cd9e3c3081e1dba076b6283fe6`；
+命令、修订、退出码、耗时与编译器环境归 [`checks.json`](checks.json)，SHA-256 为
+`244912d743df979150176c615143e43992a0b8789274f3570b48f780d2b9c69f`。
+本目录两份文件与 root 的 `tmp/p1-hub/full-gate/` 原件逐字相同。
+
+固定执行得到以下结果：
+
+- package checker 的 21 项 fixture 全部通过、0 skip；实际发现 20 个产品成员，包含
+  19 个可打包产品和 1 个私有 `local-harness` 测试 carrier。
+- D1 diagnostics 52/52、admission 34/34、JSONL 27/27、实际 carrier 20/20。
+- 19 个仓库外 artifact 的最终组合、默认公开入口、声明闭包与真实 native GCC10
+  加载均通过；`fs-ext` addon SHA-256 仍为
+  `5a480ff04f21754f6c3a8d5efd91b05d9df0ae82a72d71092a215ee2b0ae9a0d`。
+- tenant 的 strict 独立制品消费通过。该结果只证明本次公开声明、依赖与制品边界，
+  不表示 P2 tenant 治理行为已经实现或接受。
+- root 另运行 docs-check，493 份文档通过；它不是上述 `check.log` 内的产品测试输出。
+
+历史 spoke 的未构建 dist、旧 app checker 与旧 native fixture 失败原件继续保存在
 [`package-check-red-unbuilt.log`](package-check-red-unbuilt.log)、
-[`root-recursive-build.log`](root-recursive-build.log) 和
-[`package-check.log`](package-check.log)。root 需要补齐应用来源记录或调整其拥有的
-检查入口后再运行最终 21-member packed 检查；五包自定义真实消费者不受此缺口影响。
-
-`pnpm -r test` 在本 spoke 缺少 checker fixture 修复 `034c760` 时，还在原生负控处
-先停止：旧 fixture 没有自己的 `nan@2.28.0` override，所以先得到 lock 断言，没到达
-它预期的 `MODULE_NOT_FOUND`。当前 HUB 已在两份 fixture 显式提供该 override，root
-定点复验为 2/2；本 spoke 的原始旧输入输出仍归
-[`root-recursive-test.log`](root-recursive-test.log)。这不抵消同一源码上 admission
-34/34、JSONL 27/27 和 local-harness 20/20 的定点 GREEN；root 仍须在其拥有的
-app checker 修复合入后用递归命令证明实际发现本 carrier。
+[`package-check.log`](package-check.log) 和
+[`root-recursive-test.log`](root-recursive-test.log)，构建原件归
+[`root-recursive-build.log`](root-recursive-build.log)。这些结果绑定旧 spoke 输入，
+已经由 `3119774` 上的固定 root 测量替代，不再是当前 gate 状态。root 的 19-artifact
+通用组合检查不替代本目录五包消费者的真实业务提交、关闭和重开结果；两者各自引用
+自己的原始证据。
 
 本次没有模拟断电设备缓存、任意文件系统或完整治理语义；真实 SIGKILL、flock、
-FileHandle I/O 与重开覆盖只支持已列交错。形式模型、独立架构评审和 root 最终接受
-分别保留原责任。
+FileHandle I/O 与重开覆盖只支持已列交错。真实 TG/AU/BG/AR/SR/TL/LE 与五门最小
+闭环仍未交付；形式模型、独立架构评审和这些后续能力的接受分别保留原责任。
