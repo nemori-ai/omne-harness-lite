@@ -5,7 +5,7 @@
 首批二次开发的目标、验收、实施规格和计划已完成文档交付，其原评审发现已闭合。
 P0 共享接口、原生锁前提、检查器及 work-data 已经评审、整合和复验，见 [review.md](review.md)。
 用户已授权按完整工作包自驱实施；共享数据是本批首个已接受的目标产品增量，
-records 端口与 codec 是下一项。尚未发起 OpenRouter 请求；A01–A32 尚未完整通过，M1/M2 均未交付。
+records 端口与 codec 已进入 TDD。尚未发起 OpenRouter 请求；A01–A32 尚未完整通过，M1/M2 均未交付。
 
 | 对象 | 已有事实 | 对本批的含义 |
 |---|---|---|
@@ -18,7 +18,7 @@ records 端口与 codec 是下一项。尚未发起 OpenRouter 请求；A01–A3
 
 | 任务 | 状态 | 实现/验收证据 | 下一项输入 |
 |---|---|---|---|
-| P0 | in_progress | 锁探针、共享接口施工输入、检查器及 work-data 已接受 | records 端口与 codec 的共享边界实现 |
+| P0 | in_progress | 锁探针、共享接口施工输入、检查器及 work-data 已接受；records 已派发 | records 端口与 codec 的 TDD、复核和实际集成 |
 | P1 | planned | 未执行 | P0 的记录/协调接口与真实锁证据 |
 | P2 | planned | 未执行 | P1 的真实共同门与记录提供者；交付本地预算 owner |
 | P3 / M1 | planned | 未执行 | P2 当前权限/真实预算/Session/活体，以及 P1 执行账本前提 |
@@ -43,7 +43,8 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 | P0 共享接口稿（accepted） | `/root/p0_interfaces` 与独立复核 `/root/review_first_batch`，本任务均已结束 | `dsh-p0-interfaces`，已退役 | `8f4cfa9` 的 I1–I5 闭合，`33f39cb` 整合及 HUB 探针重跑通过，接受为施工输入 |
 | P0 真实锁探针（accepted） | infrastructure-developer，`/root/p0_lock_probe`，已结束 | `dsh-p0-lock-probe`，已退役 | `f712e025` 经 `04b8dbf` 整合，HUB 全新目录实际复验通过；范围及限制见下文 |
 | P0 包检查器（accepted） | verification-developer，`/root/p0_package_checks`；复核 `/root/review_package_layout`，本任务均已结束 | `dsh-p0-package-checks`，已退役 | `33a57a2` 的 K1–K3 闭合，`d95052c` 整合及 HUB 构建/13 项测试/14 独立与组合产物通过 |
-| P0 work-data 实现（accepted） | kernel-developer，`/root/p0_work_data`；定点复核 `/root/review_first_batch`，本任务均已结束 | `dsh-p0-work-data`，待资产核对后退役 | `18cad69` 经 `6e7f213` 整合，`728d665` 锁定依赖；D1/D2 闭合，HUB 91 项测试与 15 包产物通过 |
+| P0 work-data 实现（accepted） | kernel-developer，`/root/p0_work_data`；定点复核 `/root/review_first_batch`，本任务均已结束 | `dsh-p0-work-data`，已退役 | `18cad69` 经 `6e7f213` 整合，`728d665` 锁定依赖；D1/D2 闭合，HUB 91 项测试与 15 包产物通过 |
+| P0 records 实现 | infrastructure-developer，`/root/p0_records` | `dsh-p0-records`，从 `73ac35e` 创建 | 消费真实 work-data 与 `8f4cfa9` 接口；只写 records 端口/codec 及其证据，writer 耐久性仍归 P1 |
 
 可观测性工程品味与共享研发提示词已由 `51eaefb` 经 `7d3736c` 整合到 HUB，
 五个角色的两端生成检查和文档检查通过，见[提示词证据](evidence/observability-prompts.json)。
@@ -51,13 +52,14 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 `tmp/retired-worktrees/observability-prompts/verification.md`，其余生成副本与环境可重建。
 这只交付认知约定，未交付 log/trace 产品设施。DSH、pi 和 OpenCode 固定源码研究
 已完成；`/root/observability_design` 在 `dsh-observability-design` 已交付 `1c60feb` 候选，
-由 `/root/review_package_layout` 独立评审，尚未接受或合入；完整工程观测查询仍按原 P3 责任推进。其它产品设计会话的
+经 `/root/review_package_layout` 独立评审后，原作者正在修订短门 I/O、低流量刷出与
+scope 记账上限三项发现，尚未接受或合入；完整工程观测查询仍按原 P3 责任推进。其它产品设计会话的
 运行基线优先级见下文与[计划](plan.md#推进方式与交付点)。
 
 未标 accepted 的行只表示派发事实。主调度拥有 HUB 整合、根配置、此工作包和最终
 验收；worker 的本地提交、测试绿灯与运行结束均须经端点核验后才能接受。
-共享数据目标包已验证；records/admission 消费者尚未派发，不使用兄弟
-任务未落定的类型或临时约定启动联合实现。
+共享数据目标包已验证，records 消费该真实实现开始开发；admission 尚未派发，
+不使用兄弟任务未落定的类型或临时约定启动联合实现。
 接口出现正式规格反例时先修设计或发布流程，不放宽验收。
 具体反例与处置归[本轮评审](review.md)。共享接口、检查器和 work-data 缺口已经闭合；
 没有改变 M1/M2 范围，也不需要更弱的保证。
@@ -108,7 +110,8 @@ copy/freeze/canonical 的迭代实现不受该文本 parser 的递归深度限�
 RED/GREEN 归作者证据，不表述为任意 V8 环境的栈容量证明。
 
 这使 records 可以开始消费真实数据包，但尚未实现持久 writer、准入、任何运行闭环
-或完整 A30/A31。spoke 的产品和必要验证日志已进入 HUB，临时资产待核对后退役。
+或完整 A30/A31。spoke 的产品和必要验证日志已进入 HUB，作者和 reviewer 均已结束；
+确认工作树洁净、无进程 cwd/fd 引用，忽略资产仅为可重建 dist/node_modules 后已退役。
 
 ## P0 共享接口施工输入交付
 
