@@ -93,6 +93,7 @@ export async function createStack(prefix: string, owners: readonly string[]): Pr
   const directory = await createScratch(prefix)
   const recordDirectory = join(directory, 'records')
   const diagnosticDirectory = join(directory, 'diagnostics')
+  await mkdir(recordDirectory, { recursive: true })
   const diagnostics = await createDiagnostics(diagnosticDirectory, `${prefix}source`)
   const provider = createJsonlProvider(
     providerOptions(recordDirectory, owners),
@@ -105,6 +106,15 @@ export async function createStack(prefix: string, owners: readonly string[]): Pr
     await diagnostics.owner.close({ deadlineMs: 1_000 })
     throw new Error(`writer acquisition failed: ${acquired.status}`)
   }
+  let admission: AdmissionHost
+  try {
+    admission = createAdmissionCoordinator(acquired.writer, diagnostics.runtime.diagnostics)
+  } catch (error) {
+    await acquired.writer.closeWriter()
+    await diagnostics.runtime.close({ deadlineMs: 1_000 })
+    await diagnostics.owner.close({ deadlineMs: 1_000 })
+    throw error
+  }
   return {
     directory,
     recordDirectory,
@@ -112,7 +122,7 @@ export async function createStack(prefix: string, owners: readonly string[]): Pr
     diagnosticOwner: diagnostics.owner,
     diagnosticRuntime: diagnostics.runtime,
     writer: acquired.writer,
-    admission: createAdmissionCoordinator(acquired.writer, diagnostics.runtime.diagnostics),
+    admission,
   }
 }
 
