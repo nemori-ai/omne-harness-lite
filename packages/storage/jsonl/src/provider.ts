@@ -994,8 +994,8 @@ class JsonlWriter implements RecordWriter {
     if (this.pumping) return
     this.pumping = true
     setImmediate(() => {
-      this.pumpTask = this.pump().catch(error => {
-        this.failQueue(error)
+      this.pumpTask = this.pump().catch(() => {
+        this.failQueue()
       })
     })
   }
@@ -1020,14 +1020,14 @@ class JsonlWriter implements RecordWriter {
         const current = this.queue[0]
         if (current === undefined) break
         if (this.phase === 'quarantined' || this.phase === 'blocked') {
-          this.failQueue(new Error('writer quarantined before durability'))
+          this.failQueue()
           break
         }
         try {
           await this.append(current.line)
-        } catch (error) {
+        } catch {
           this.phase = 'quarantined'
-          this.failQueue(error)
+          this.failQueue()
           break
         }
         this.queue.shift()
@@ -1057,8 +1057,7 @@ class JsonlWriter implements RecordWriter {
     }
   }
 
-  private failQueue(error: unknown): void {
-    const reason = systemCode(error) ?? 'JOURNAL_DURABILITY_UNKNOWN'
+  private failQueue(): void {
     for (const queued of this.queue.splice(0)) {
       this.pendingBytes -= queued.line.byteLength
       const result = unknown(queued.data.operation, queued.diagnosticId)
@@ -1068,7 +1067,7 @@ class JsonlWriter implements RecordWriter {
       safeLog(this.diagnostics, diagnosticContext(this.diagnostics, queued.data), {
         component: 'storage.jsonl',
         phase: 'durability',
-        code: reason,
+        code: 'journal_durability_unknown',
         level: 'error',
         diagnosticId: queued.diagnosticId,
         position: queued.envelope.position,

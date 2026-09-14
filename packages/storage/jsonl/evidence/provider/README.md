@@ -19,9 +19,11 @@ The implementation descends from the fixed task start
 - Before `039b158`, `localeCompare` reordered the valid canonical stream sequence `A`, `a`, so a
   revision conflict was synchronously rejected by the records codec. The corrected path preserves
   the already validated JavaScript canonical order and durably records the conflict at sequence 2.
-- The first composition observation against `5b13983` rejected uppercase JSONL diagnostic codes.
-  The provider now emits lowercase D1 semantic codes; its acquire and durable-commit test records
-  `writer_acquired` and `commit_durable` and checks the D1 code grammar.
+- Composition observations against `5b13983` rejected uppercase JSONL success codes, and the later
+  failure probe found the dynamic `EIO`/uppercase fallback path. The provider now uses fixed
+  lowercase D1 semantic codes; tests record `writer_acquired`, `commit_durable`, and
+  `journal_durability_unknown`, including a diagnostics throw during the original storage failure,
+  and check the D1 code grammar.
 - The write-before-progress and same-operation pending replay cases in `2e1c31d` were conformance
   checks over existing behavior. They were not forced to fail: a write-call error remains unknown
   until recovery proves `not_committed`, and duplicate submission returns the same pending object.

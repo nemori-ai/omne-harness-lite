@@ -127,12 +127,13 @@ import { createJsonlProvider } from '../dist/index.js'
 
 const context = Object.freeze({}) as DiagnosticContext
 
-function diagnostics(logThrows = false): Diagnostics {
+function diagnostics(logThrows = false, codes?: string[]): Diagnostics {
   return {
     newId: () => 'diagnostic-fault',
     scope: () => context,
     current: () => null,
-    log: () => {
+    log: (_context, point) => {
+      codes?.push(point.code)
       if (logThrows) throw new Error('injected diagnostics failure')
     },
     startSpan: () => ({ context, end: () => undefined }),
@@ -378,11 +379,12 @@ describe('JSONL durability failure boundaries', () => {
 
   it('recovers a valid complete line whose file sync failed before the receipt', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'omne-jsonl-sync-unknown-'))
+    const codes: string[] = []
     try {
       fault.journal = join(directory, 'journal.jsonl')
       const acquired = await createJsonlProvider(
         options(directory),
-        diagnostics(true),
+        diagnostics(true, codes),
       ).acquireWriter()
       expect(acquired.status).toBe('acquired')
       if (acquired.status !== 'acquired') return
@@ -393,6 +395,8 @@ describe('JSONL durability failure boundaries', () => {
       expect(submission.status).toBe('pending_durability')
       if (submission.status !== 'pending_durability') return
       await expect(submission.completion).resolves.toMatchObject({ status: 'unknown' })
+      expect(codes).toContain('journal_durability_unknown')
+      expect(codes.every(code => /^[a-z][a-z0-9_.-]{0,127}$/u.test(code))).toBe(true)
       await acquired.writer.closeWriter()
 
       fault.armed = false
