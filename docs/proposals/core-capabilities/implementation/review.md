@@ -177,8 +177,8 @@ A05–A08、真实 writer 或完整 TDD 历史源码均已验证。
 
 `/root/review_package_layout` 按 HUB `0e80245` 工作包和治理 `058c77c`，对
 `746ce47` 作独立只读评审，发现以下四项施工交接缺口；原作者已交付 `a58bc7c`
-定点修订。同一评审者确认 S-R2–S-R4 在设计层面闭合，S-R1 部分闭合；
-proposed 到直接 deny 的接续交接仍待原作者修订，不预先记为全部通过。
+定点修订。同一评审者在该轮确认 S-R2–S-R4 在设计层面闭合，S-R1 部分闭合；
+后续 `cd16f1` 修订 proposed 到直接 deny 的接续交接，最终定点复核确认闭合。
 
 | 编号 | 触发与后果 | 必须闭合的交接 |
 |---|---|---|
@@ -199,6 +199,14 @@ deny。原稿只在 allow/ask 建 continuation，结果入口只唤醒已有关�
 解释谁接续已释放 claim 的原 Step。TL-07 允许该直接结算路径，修订须补足登记到
 裁决间的接续责任，恢复后仍认回原 Action 且不得产生工具效果。此次为设计复核，
 新增 S14–S17 也尚未实际执行。
+
+`cd16f1` 的最终独立只读复核确认：TL proposed 与 SR 原 continuation 同批登记；
+完整返回、裁决接续 ready 与 claim 释放同批。直接 deny 同批交付执行前拒绝、
+AU 审计与 SR 原接续，不要求不存在的 executionEpoch。恢复按原耐久事实认回
+adjudicate/consume_result，保持原 Step/CallRef/Action，丢通知不重造工具效果。
+R2–R4 未受破坏，未发现新的阻断。S18 覆盖原反例，但真实组合尚未执行。
+HUB 核对受审哈希并通过文档检查后，接受这一施工交接范围；具体 Cordis 插件
+装配仍有独立设计义务，见[接受证据](evidence/session-runtime-design/README.md)。
 
 ## 可观测性 P1 候选评审
 

@@ -21,7 +21,7 @@ P0 共享接口、原生锁前提、检查器、work-data 与 records 已经评�
 |---|---|---|---|
 | P0 | accepted | 锁前提、共享接口、检查器、work-data/records；HUB 已验证两个目标包与 16 包产物 | 提供 P1 的真实共享端口/codec 和锁测量依据，尚非真实 writer |
 | P1 | in_progress | D-010 施工输入已接受，diagnostics 正在 TDD 实施；真实 writer/准入未实现 | diagnostics D1 交付，再并行实现 jsonl/admission |
-| P2 | design_in_progress | 治理施工输入已接受；AR/SR 四项修订正在独立复核，产品尚未实施 | P1 的真实共同门与记录提供者；交付本地预算 owner |
+| P2 | design_in_progress | 治理与 AR/SR 施工交接已接受；具体 Cordis 装配映射仍待固定，产品尚未实施 | P1 的真实共同门与记录提供者、受审插件映射；交付本地预算 owner |
 | P3 / M1 | planned | 未执行 | P2 当前权限/真实预算/Session/活体，以及 P1 执行账本前提 |
 | P4 | planned | 未执行；用户已指定凭据入口与两个测试模型 | M1 组合、实际路由/价格和受限冒烟配置；离线部分可按依赖提前 |
 | P5 / M2 | planned | 未执行 | 最终组合版本及全部本批验收证据 |
@@ -47,10 +47,11 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 | P0 work-data 实现（accepted） | kernel-developer，`/root/p0_work_data`；定点复核 `/root/review_first_batch`，本任务均已结束 | `dsh-p0-work-data`，已退役 | `18cad69` 经 `6e7f213` 整合，`728d665` 锁定依赖；D1/D2 闭合，HUB 91 项测试与 15 包产物通过 |
 | P0 records 实现（accepted） | infrastructure-developer，`/root/p0_records`；独立复核 `/root/review_first_batch`，本任务均已结束 | `dsh-p0-records`，已退役 | `1a237da`/`c67eb4d` 经 `bbb4a3e` 整合、`c1783fd` 锁定；HUB 17 项测试及 16 包产物通过；独有资产与执行输出已保全 |
 | diagnostics D1 实现 | infrastructure-developer，`/root/diagnostics` | `dsh-diagnostics`，从 `0e80245` 创建 | 消费真实 work-data/records；只写 diagnostics 包与其证据，真实产品通过后开放 jsonl/admission 消费 |
-| Agent/Session 施工接口设计 | 作者 `/root/session_runtime_design` 修订剩余项，独立复核 `/root/review_package_layout` 本轮已结束 | `dsh-session-runtime-design`，从 `de39a86` 创建 | `a58bc7c` 的 S-R2–S-R4 已闭合，S-R1 的 proposed→deny 接续仍待修订；产品依赖仍须真实就绪 |
+| Agent/Session 施工交接（accepted） | 作者 `/root/session_runtime_design` 与独立复核 `/root/review_package_layout` 本任务已结束 | `dsh-session-runtime-design`，从 `de39a86` 创建 | `cd16f1` 的 S-R1–S-R4 闭合，`4e67db6` 整合与 HUB 文档/哈希核验通过；装配映射与产品依赖仍须就绪 |
 | TS/JS 自动格式化工具（accepted） | verification-developer，`/root/formatting`，已结束 | `dsh-formatting`，已退役 | `99a6988`/`c026140` 已整合，根锁 `d13d66b`；HUB `4a5031d` 的冻结安装和完整 16 包检查通过 |
 | 格式化提示词投影（accepted） | `/root/observability_prompts`，本轮负责格式化认知约定，已结束 | `dsh-formatting-prompts`，已退役 | `47c60dd` 经 `635a690` 整合；HUB 五角色生成、408 文档与 12 提示词哈希核对通过 |
-| SSE 组件前置测量 | verification-developer，`/root/p0_sse_probe` | `dsh-p0-sse-probe`，从 `d938be5` 创建 | 只写隔离探针与长期证据；固定成熟分帧库和本机流故障输入，不发模型请求、不抵扣 A23/A24 |
+| SSE 组件前置测量（待验收） | verification-developer，`/root/p0_sse_probe`，已结束 | `dsh-p0-sse-probe`，从 `d938be5` 创建 | 已交付 `b05e57c`，待 HUB 独立复验；未发模型请求、不抵扣 A23/A24 |
+| 规格与 Cordis 映射的维护交接 | `/root/governance_design` 已按用户新分工停止规则写入，主调度整理交接 | `dsh-mapping-governance`，从 `9954b12` 创建，保留未提交候选 | 规范与配套 skills 由另一会话统一收敛；[交接](../design-spec-maintenance-handoff.md)记录缺口、成因与未接受建议，候选不合入 HUB |
 
 可观测性工程品味与共享研发提示词已由 `51eaefb` 经 `7d3736c` 整合到 HUB，
 五个角色的两端生成检查和文档检查通过，见[提示词证据](evidence/observability-prompts.json)。
@@ -126,6 +127,19 @@ records 文件，失败输出与完整复验日志均保留；原作者日志也
 算术及政策示例一致；五项预算身份检查是条件断言，尚未经过实际 changeBudget。
 这不是 TG/BG 产品、并发共同门、锁、fsync 或 DR 恢复验证。完整 author 十份资产
 已按文件哈希保全，后续实施仍须真实 owner、认证/资源权威与 P1 组合的 TDD。
+
+## P2 Agent/Session 施工输入
+
+主调度接受 `session-runtime-interfaces.md@cd16f1` 的 AR/SR 施工交接范围：
+四包职责、唯一激活/驱动、队列与控制、原 acquisition、设置写资格、引用清单、
+TL/HD 同批交接及原 Step 接续。独立评审的四项问题已经闭合，HUB `4e67db6`
+保持受审正文哈希并通过 411 份 Markdown 检查，九份原始资产已逐项保全，见
+[接受证据](evidence/session-runtime-design/README.md)。原稿保留评审时身份。
+
+接受不代表目标 TS API、真实恢复或 R0–R6 已完成；S01–S18 仍待实际产品验证。
+用户指出的具体 Cordis service、dependencies、Fiber 所有权与装配映射缺口仍然
+存在，先明确其长期维护归属，再按实际能力补齐。该缺口不阻止已经固定输入的
+diagnostics 实施，也不能在后续插件消费者派发时被省略。
 
 ## P0 work-data 的固定实施输入
 
