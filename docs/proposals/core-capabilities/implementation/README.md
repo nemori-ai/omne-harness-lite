@@ -18,6 +18,7 @@
 | P0/P1 固定的公共类型、端口与记录格式 | [共享接口](shared-interfaces.md) |
 | P1 统一日志、trace 与有限诊断资源的施工输入 | [观测设施](observability.md)，接受依据 [D-010](../../../decisions/D-010-shared-diagnostics.md) |
 | 依赖、任务职责、TDD、交付与文档对账 | [推进计划](plan.md) |
+| 其它会话可依赖的首个真实运行节点 | [最小运行基线](runtime-baseline.md)，当前未交付 |
 | 当前事实与每次交付的证据 | [交付对账](delivery.md) |
 | 独立评审及处置 | [评审](review.md) |
 

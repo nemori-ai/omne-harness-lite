@@ -141,6 +141,19 @@ parseJson 在 jsonc-parser 完整递归建 AST 后才检查 maxDepth/maxNodes，
 依赖已实际加载，仍须在根依赖接入后运行完整隔离消费。整合者在修订复核后再
 执行 HUB 验证并接受相应 P0 范围，不移用为全部 A30/A31 已完成。
 
+## P0 records 实现复核
+
+`/root/review_first_batch` 对产品 `00a4b20`、证据 `316b896` 相对 `73ac35e`
+独立只读评审，发现一项阻断：encode 使用迭代 copyJson 接纳深于 128 的对象，
+decode 的 parseJson 却有文本深度 128 的实施上限。同 limits 可编码成功、随后
+拒绝自己的输出。最小反例是 G01 的 outcome.result 包裹 127 层单元素数组，
+maxDepth=256，其余原夹具容量足够。作者已接回按 TDD 验证并修复；本项尚未闭合。
+
+ports、opaque 类型、依赖方向、单行主体/租户/counter 与 G01/G10 字面量的其余
+检查未发现阻断。decoded DTO、Checked/issues 不可变；encode 的 Uint8Array
+为调用者独占的新字节，不要求冻结元素。评审只读源码及证据，没有写文件或运行
+测试；原作者的 15 tests/16 成员产物检查不等于 HUB 接受或 A05–A08 通过。
+
 ## 可观测性 P1 候选评审
 
 `/root/review_package_layout` 对 `design/dsh-observability@1c60feb` 的候选设计、

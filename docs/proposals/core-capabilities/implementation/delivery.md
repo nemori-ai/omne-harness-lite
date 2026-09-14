@@ -69,7 +69,9 @@ inventory 与配额查询不覆盖该 native 执行面，不能移用其外部 C
 结论。调度账本在 HUB 的 `tmp/dsh-first-batch.board.json`，仅经 `ccm` 更新；
 native 句柄活性以 collaboration 的实际运行状态为准，持久交付事实以本页及证据为准。
 P2 的 TG/AU/BG 公共操作/事件/参与者设计已由 `/root/governance_design` 在
-`dsh-governance-design` 从 `4253ee0` 并行推进，尚未交付或接受；P2 产品仍等待 P1。
+`dsh-governance-design` 从 `4253ee0` 交付候选 `8b75f30`，正在独立评审；P2 产品
+仍等待 P1。records 产品 `00a4b20` 与证据 `316b896` 已交付，独立评审发现深度
+容量不对称，原作者正在修复；尚未合入 HUB 或接受。
 用户已指定从主检出根 `.env` 的 `OPENROUTER_API_KEY` 直接执行 A22，测试模型为
 OpenAI gpt-5.6-terra 与 DeepSeek v4.1-flash。文件仅由测试进程加载，不打开或输出
 内容，也不复制到证据、提交或提示词。当前尚未加载密钥或发起计费模型请求。
@@ -149,6 +151,9 @@ HUB 实际重跑版本/哈希。正式 Schema 未改；产品 JSON 边界、code
 设计 spoke 等独立复核和资产消费者释放后退役，原产品依赖锁没有安装这些候选库。
 
 ## 供其他设计会话消费的边界
+
+最小节点的具体行为、子场景与交接材料归[运行基线](runtime-baseline.md)，当前
+未交付。Agent/Session 施工接口设计提前并行，产品仍按真实共享实现的依赖推进。
 
 用户后续设计依赖最小 Agent/Session/工具闭环，因此优先贯通真实记录与准入、
 Agent 活体、Session 输入/Run、工具定义装载及一次受控调用。交接须有真实装配
