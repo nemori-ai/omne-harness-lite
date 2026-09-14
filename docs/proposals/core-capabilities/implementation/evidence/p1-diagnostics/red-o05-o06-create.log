@@ -1,0 +1,31 @@
+$ pnpm --filter @omne-harness-lite/work-data run build
+PASS: verified and copied 2 frozen schemas covering 29 DataTypes
+exit 0
+
+$ pnpm --filter @omne-harness-lite/records run build
+exit 0
+
+$ pnpm --filter @omne-harness-lite/diagnostics run build
+exit 0
+
+$ pnpm --filter @omne-harness-lite/diagnostics run typecheck
+exit 0
+
+$ pnpm --filter @omne-harness-lite/diagnostics test -- --reporter=verbose
+
+RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics
+
+FAIL  tests/runtime.spec.ts > O05/O06 local source lifecycle > creates an exclusive protected source and writes clean start/end records
+AssertionError: expected 'invalid' to be 'created' // Object.is equality
+
+Expected: "created"
+Received: "invalid"
+
+Test Files  1 failed (1)
+Tests       1 failed (1)
+Exit status 1
+
+The earlier command attempt failed before the test because the accepted work-data and records
+artifacts had not yet been built in this fresh spoke. That setup failure was corrected by building
+the two public dependencies first; the transcript above is the calibrated RED against the compiled
+`NOT_IMPLEMENTED` diagnostics boundary at commit c67b925.
