@@ -40,7 +40,9 @@
 Agent Loop、Profile/Bundle 装配和应用策略不自动成为本项目契约。内核 API 与复用边界
 需核对实际采用版本，[Cordis 映射](../architecture-guide/reference/cordis-mapping.md)提供研究入口。
 
-运行时专题见 [Agent 运行时](agent-runtime.md)，目标契约、源差异和本轮正式化状态由其入口导航。
+运行时专题见 [Agent 运行时](agent-runtime.md)，目标契约、源差异和本轮正式化状态由其入口导航；
+Agent Loop 已由 [D-012](../decisions/D-012-run-driver-and-inbound.md) 定义为 Run 驱动器，见
+[Run 驱动器与 Inbound](run-driver.md)。
 跨提供者交接与状态归属见[运行时共同边界](runtime-composition.md)，已由 D-007
 正式化 Agent/Session 附着组合 v1；不代表完整 Session 或产品闭环已实现。
 
@@ -75,6 +77,7 @@ Agent Loop、Profile/Bundle 装配和应用策略不自动成为本项目契约�
 | 租户和模型的具体数据与管理行为 | [D-008 核心能力](core-capabilities.md)及精确规格拥有本批已接受范围；旧[租户](../proposals/tenant-contracts/README.md)、[模型](../proposals/model-contracts/README.md)候选只保留其历史与未覆盖部分 |
 | 提示词、工具、Session/Run/Step | [D-008 核心能力](core-capabilities.md)拥有本批目标契约；[Agent 核心候选](../proposals/agent-core/README.md)中的其它语义仍未接受 |
 | 活体 Agent 身份、装配、授权与退出 | [运行时专题](agent-runtime.md)、[D-005](../decisions/D-005-agent-runtime.md)及精确规格 |
+| Agent Loop 的推进、异步到达的裁决、占位与恢复 | [Run 驱动器与 Inbound](run-driver.md)、[D-012](../decisions/D-012-run-driver-and-inbound.md)及 run-driver v1 / session-run v2；通知命名空间、PF-004 完整派发协议与多进程 epoch 活性仍未定 |
 | 共同能力归属、四类提供者与 Session 附着 | [共同边界](runtime-composition.md)、[D-007](../decisions/D-007-runtime-composition.md)及组合 v1 |
 | 本批 DSH 来源集合与依赖裁剪 | [复用边界](dsh-core-adoption.md)与 [D-006](../decisions/D-006-dsh-core-adoption.md)；只接受来源和阶段门槛 |
 | 本批 Session/Run、工具、授权/HITL、模型/媒体及相邻能力 | [核心能力](core-capabilities.md)与 D-008 已接受目标契约；真实提供者和应用仍待实现验收 |

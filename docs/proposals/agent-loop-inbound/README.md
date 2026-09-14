@@ -1,7 +1,7 @@
 ---
 kind: proposal
 id: P-agent-loop-inbound
-status: draft
+status: accepted
 scope: 阶段 E 的 Agent Loop（Run 驱动器）拓扑、Session Inbound 到达账本与循环不变式的候选设计
 ---
 
@@ -17,9 +17,12 @@ Agent Loop。它回答三个问题：循环怎么走、一次 Run 中途异步�
 [六系统循环/事件/hooks 研究](../../research/agent-loop-events-and-hooks/README.md)
 与 DSH agent-loop 的[源基线](../core-capabilities/fork/loop-source.md)。
 
-状态为 draft：2026-09-14 由用户主导的设计讨论形成，尚未经独立评审与接受。
-文中"沿用"指引用已接受契约，"本次提出"指本提案新增的候选语义；后者在接受前
-不是正式依赖。
+2026-09-14 由用户主导的设计讨论形成，经两轮独立评审与 r3 修订后由
+[D-012](../../decisions/D-012-run-driver-and-inbound.md) 接受；精确承诺已发布为
+[run-driver v1](../../../spec/capabilities/run-driver/v1/contract.md) 与
+[session-run v2](../../../spec/capabilities/session-run/v2/contract.md)。文中"沿用"指
+引用已接受契约，"本次提出"指本提案提出并随 D-012 进入规格的语义；本文保留当时
+的候选身份与取舍，不再是正式依赖的落点。
 
 ## 范围
 
@@ -38,6 +41,8 @@ Agent Loop。它回答三个问题：循环怎么走、一次 Run 中途异步�
 - [inbound.md](inbound.md)：到达账本的对象、四种投递意图、裁决决定表、来源枚举、
   队列消费规则，以及按全部产品/系统要求做的覆盖核对。
 - [invariants.md](invariants.md)：安全与进展不变式，每条标明来源、保护点与证据义务。
+- [requirements.md](requirements.md)：需求消费基线、确认条款与相邻缺口；[evidence/](evidence/model/results.json)
+  保存模型运行记录与需求基线恢复记录。
 - [review.md](review.md)：2026-09-14 独立只读评审 r1（对象 `bce30a0`），结论"不闭合"，含逐节点
   状态枚举、反例记录、最小 TLA+ 风格模型与冲突清单；逐项处置见该文件末尾，r2 修订据此完成。
 - [review-r2.md](review-r2.md)：2026-09-14 独立只读评审 r2（对象 `439a4da`），结论"有条件闭合"，
@@ -119,5 +124,20 @@ Agent Loop。它回答三个问题：循环怎么走、一次 Run 中途异步�
 
 ## 接受记录
 
-尚无。评审 r1 判定修订 `bce30a0` 不闭合；评审 r2 判定修订 `439a4da` 有条件闭合；r3 修订
-按上表处置了全部阻断、重要项与建议，可作为决定与规格的依据。
+2026-09-14，任务作者在用户"再评最后一轮，并针对性地完成优化和补漏后，就可以
+推进正式的决策、架构设计和 spec 撰写（以及必要的形式化推导和验证）"的授权范围内，
+结合两轮独立只读评审接受本提案的 r3 修订。评审者未代为接受；用户逐条裁决的
+U-1～U-16 是接受前提，作者裁决 A-1～A-9 中标注政策级的两项用户可另行否决。
+
+接受对象为 catalog 中以 D-012 为依据的 `capability.run-driver` v1 与
+`capability.session-run` v2；session-run v1 保持冻结。评审 r1 判定修订 `bce30a0`
+不闭合，评审 r2 判定修订 `439a4da` 有条件闭合，r3 修订 `6fafacb` 处置了全部阻断、
+重要项与建议；两份评审及处置表保存在本目录。
+
+证据为 RunDriver 有限模型的三个安全配置（核心、调度、提交去重）、三个进展配置
+（调用侧、人类问答侧、调度）与四个否定变体按预期结果通过，每个配置在 8 核上两分钟
+内完整探索；实际命令、退出码与状态数见[运行记录](evidence/model/results.json)。
+模型在改写评审 r2 §5 的过程中暴露并修正了两处提案措辞（收口产生的合成终态属于
+Run 级位置而非 Step 批；批准消费与门判定使用不同的提交种类），已同步进正文。
+一个把全部关注点放在一起的大配置在 30 分钟内未收敛，被有意拆开，调用与问题同时
+存在的活性实例未探索。这些是有限范围证据，不代表实现已存在或真实提供者已验收。

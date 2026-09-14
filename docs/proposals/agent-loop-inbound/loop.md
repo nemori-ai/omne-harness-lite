@@ -295,7 +295,7 @@ Run 的已裁决 arrival（只读 `classified`，I-21）、pending 请求集合�
 **意图到提交的映射与 operationId。** 一个意图可以对应一段固定的提交序列；每次提交
 的 operationId 从事实前缀确定地派生：`f(RunRef, stepId, commitKind, ordinal)`，
 commitKind 是提交种类（如 `open_step`、`admit_attempt`、`dispatch_attempt`、
-`settle_attempt`、`propose_call`、`admit_call`、`settle_step`、`await_gate`、`settle_run`），
+`settle_attempt`、`propose_call`、`admit_call`、`consume_decision`、`settle_step`、`await_gate`、`settle_run`），
 ordinal 是该 Step 内同类提交的序号。恢复重跑 `decide` 得到相同的序列与相同的
 operationId，由 CC-03/DR-02 去重认回崩溃前可能已成功的提交；同 operationId 异输入
 返回 conflict 时，Loop 重读前缀重算而不覆盖（I-20）。Inbound 裁决提交的 operationId

@@ -12,6 +12,12 @@
 [D-008](../decisions/D-008-core-capabilities.md)已接受本批 Session/Run、模型与工具等
 目标契约；[Agent 提供者](../../packages/core/agent/design.md)与
 [Session 提供者](../../packages/session/session/design.md)维护当前映射，真实产品组合仍待验收。
+图中的"驱动能力"由 [D-012](../decisions/D-012-run-driver-and-inbound.md) 具体化为
+[run-driver v1](../../spec/capabilities/run-driver/v1/contract.md)：它在 Session/Run、工具、
+人类决定与模型能力的已提交事实上以纯决策函数推进，异步到达经
+[session-run v2](../../spec/capabilities/session-run/v2/contract.md) 的 Session Inbound 裁决后
+进入；运行时退役只封闭 epoch、保留占位，由 Session 级调度重取。系统视图见
+[Run 驱动器与 Inbound](run-driver.md)。
 
 ## 系统位置
 

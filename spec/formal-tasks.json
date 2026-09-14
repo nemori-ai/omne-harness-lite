@@ -295,6 +295,162 @@
         "spec/capabilities/budget-accounting/v1/Budget.tla"
       ],
       "timeout_seconds": 120
+    },
+    {
+      "id": "run-driver-v1-core",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/run-driver/v1/RunDriver.tla",
+        "spec/capabilities/run-driver/v1/RunDriverMC.tla",
+        "spec/capabilities/run-driver/v1/RunDriver.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx4g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "4",
+        "-metadir",
+        "tmp/formal-runs/run-driver-v1-core",
+        "-config",
+        "spec/capabilities/run-driver/v1/RunDriver.cfg",
+        "spec/capabilities/run-driver/v1/RunDriverMC.tla"
+      ],
+      "timeout_seconds": 300
+    },
+    {
+      "id": "run-driver-v1-sched",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/run-driver/v1/RunDriver.tla",
+        "spec/capabilities/run-driver/v1/RunDriverMC.tla",
+        "spec/capabilities/run-driver/v1/RunDriverSched.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx4g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "4",
+        "-metadir",
+        "tmp/formal-runs/run-driver-v1-sched",
+        "-config",
+        "spec/capabilities/run-driver/v1/RunDriverSched.cfg",
+        "spec/capabilities/run-driver/v1/RunDriverMC.tla"
+      ],
+      "timeout_seconds": 300
+    },
+    {
+      "id": "run-driver-v1-ops",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/run-driver/v1/RunDriver.tla",
+        "spec/capabilities/run-driver/v1/RunDriverMC.tla",
+        "spec/capabilities/run-driver/v1/RunDriverOps.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx4g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "4",
+        "-metadir",
+        "tmp/formal-runs/run-driver-v1-ops",
+        "-config",
+        "spec/capabilities/run-driver/v1/RunDriverOps.cfg",
+        "spec/capabilities/run-driver/v1/RunDriverMC.tla"
+      ],
+      "timeout_seconds": 300
+    },
+    {
+      "id": "run-driver-v1-progress",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/run-driver/v1/RunDriver.tla",
+        "spec/capabilities/run-driver/v1/RunDriverMC.tla",
+        "spec/capabilities/run-driver/v1/RunDriverProgress.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx4g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "4",
+        "-metadir",
+        "tmp/formal-runs/run-driver-v1-progress",
+        "-config",
+        "spec/capabilities/run-driver/v1/RunDriverProgress.cfg",
+        "spec/capabilities/run-driver/v1/RunDriverMC.tla"
+      ],
+      "timeout_seconds": 600
+    },
+    {
+      "id": "run-driver-v1-sched-progress",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/run-driver/v1/RunDriver.tla",
+        "spec/capabilities/run-driver/v1/RunDriverMC.tla",
+        "spec/capabilities/run-driver/v1/RunDriverSchedProgress.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx4g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "4",
+        "-metadir",
+        "tmp/formal-runs/run-driver-v1-sched-progress",
+        "-config",
+        "spec/capabilities/run-driver/v1/RunDriverSchedProgress.cfg",
+        "spec/capabilities/run-driver/v1/RunDriverMC.tla"
+      ],
+      "timeout_seconds": 600
+    },
+    {
+      "id": "run-driver-v1-progress-human",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/run-driver/v1/RunDriver.tla",
+        "spec/capabilities/run-driver/v1/RunDriverMC.tla",
+        "spec/capabilities/run-driver/v1/RunDriverProgressHuman.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx4g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "4",
+        "-metadir",
+        "tmp/formal-runs/run-driver-v1-progress-human",
+        "-config",
+        "spec/capabilities/run-driver/v1/RunDriverProgressHuman.cfg",
+        "spec/capabilities/run-driver/v1/RunDriverMC.tla"
+      ],
+      "timeout_seconds": 600
     }
   ]
 }
