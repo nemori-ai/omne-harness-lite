@@ -229,3 +229,31 @@ minLength=0 与实际写进展/失败状态解决低流量触发；移除 scope/
 以关闭状态封闭晚到诊断，不把业务 body 结束归诊断 owner。HUB `9cd78a0` 实际
 重跑原 12 项及新增 7 项探针通过，依据 [D-010](../../../decisions/D-010-shared-diagnostics.md)
 接受 P1 施工选择。真实短门、写泵、停滞状态及完整换代关闭仍归产品 TDD。
+
+## diagnostics D1 实现评审
+
+独立 architecture-reviewer `/root/review_package_layout` 对固定 `66d92a9` 完成
+只读评审；该版本产品源码与 `4b8125e` 相同。HUB 经 `4e0124d` 整合候选、
+`4963b2c` 更新根锁、`46770b9` 机械格式化后，已实际通过现有完整产品检查、
+17 包独立与组合产物消费，以及另行三 tarball 的真实文件/span/close 消费。
+原始日志和消费者资产归[HUB 候选证据](evidence/p1-diagnostics-hub/README.md)。
+这些检查尚未覆盖以下反例，**D1 未接受**。
+
+| 编号 | 优先级与固定源码定位（`66d92a9`） | 反例及修订义务 |
+|---|---|---|
+| D1-R1 | 高；runtime.ts:258、853 | 创建时只按现存物理大小分配余额，后续各实例只累计自身；并存来源和 pending 可重复占用目录预算，并发创建可能超过文件数。验证真实共同字节/文件预算；需要共同 owner 或公共接口选择时先固定设计，不静默禁止已允许的新旧代共存 |
+| D1-R2 | 高；runtime.ts:303、786 | active write EIO 后自动清理的 close 再 EIO，degraded 状态漏记重试责任；Sonic 已 destroyed，重复 close 永久等不到事件。实际测组合故障解除后认回并关闭原 fd |
+| D1-R3 | 高；runtime.ts:821、975 | 旧文件扫描 FileHandle 关闭失败没有交给 degraded runtime，可能虚报 released。实际测扫描句柄未关闭时失败，责任可查、可重试且不能提前 closed |
+| D1-R4 | 重要；runtime.ts:505、580 | 已结束 context 的 native 值仍持 SDK span、processor/runtime，活动表删除不足以证明释放。保留公开关联句柄时验证完整 span 可回收，同时保留父子身份关联 |
+| D1-R5 | 重要；projection.ts:17、runtime.ts:518 | revoked Proxy 可在未保护的 Array.isArray 处抛错；end 提前标记完成导致活动 span 遗留。实际覆盖 log/scope/end、业务原结果/错误不变和关闭责任 |
+| D1-R6 | 重要；runtime.ts:367 | buffer drop 只累积内存缺口，恢复后原件无 gap summary。真实延迟写恢复后检查有界原因/计数/质量摘要，摘要失败不得递归或触发重试风暴 |
+
+这些分别对应 observability.md 的目录总预算、失败资源归属、仅保留身份、
+被动失败及恢复摘要保证。评审者核对了源码与既有日志，没有运行新反例或作接受
+决定。O01 真实业务短门、O07 宿主切换及 O09–O12 按原 D2/D3/P3 责任保留，
+根锁集成也不属于本轮缺陷。
+
+原 infrastructure-developer `/root/diagnostics` 已接回六项修订，spoke 在评审
+结束后仅 fast-forward 到 `46770b9`，复用根锁和格式配置。须保存实际 RED/GREEN，
+不改写旧证据；共同目录责任若要求变更公开接口，先返回具体候选。其余独立修复
+继续执行。完整修订仍须独立复核和 HUB 验收后才开放 jsonl/admission 消费。

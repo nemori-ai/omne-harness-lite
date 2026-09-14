@@ -27,7 +27,8 @@ scope: 会话、状态与持久化、工具、租户治理、模型及多模态�
   [发布清单](evidence/publication.json)：受审版本、发现处置、有限结果与未实现义务。
 - [定向 fork 交付](fork/delivery.md)：固定来源的本地源码、公开基线入口、裁剪和实际检查。
 - [职责包布局](fork/package-layout.md)：D-009 接受的能力族/叶子组织，及其[重组交付](fork/package-layout-delivery.md)。
-- [第一批二次开发工作包](implementation/README.md)：集中维护目标边界、验收清单、实施规格、TDD 推进计划与交付对账；产品实现尚未开始。
+- [第一批二次开发工作包](implementation/README.md)：集中维护目标边界、验收清单、实施规格、TDD 推进计划与交付对账；共享目标包已开始交付，最小运行基线与完整 M1/M2 尚未交付。
+- [设计与规格维护交接](design-spec-maintenance-handoff.md)：交给规范与技能设计会话的讨论、具体缺口、成因及待确认的长期归属建议；不作为新规范的接受依据。
 
 ## 接受记录
 
