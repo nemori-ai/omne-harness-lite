@@ -10,3 +10,5 @@
 | [brand](brand/README.md) | Nominal type brand helpers |
 | [values](values/README.md) | JSON value validation, snapshots and freezing |
 | [timeout](timeout/README.md) | Timer and AbortSignal cooperation primitives |
+| [xml-format](xml-format/README.md) | 按声明式 schema 把数据对象渲染为面向模型的 XML 文本；移植自 omne_core_v1 |
+| [unix-format](unix-format/README.md) | Unix CLI 风格纯文本渲染：结果信封、段落、表格、键值与行号块；移植自 omne_core_v1 |

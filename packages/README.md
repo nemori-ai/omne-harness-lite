@@ -28,7 +28,7 @@ fold。这些交付尚不包含目标 host、完整租户治理或 Agent/Session
 | 能力族 | 职责包 |
 |---|---|
 | [core](core/README.md) | [agent](core/agent/README.md)、[scope](core/scope/README.md)、[work-data](core/work-data/README.md) |
-| [util](util/README.md) | [brand](util/brand/README.md)、[values](util/values/README.md)、[timeout](util/timeout/README.md) |
+| [util](util/README.md) | [brand](util/brand/README.md)、[values](util/values/README.md)、[timeout](util/timeout/README.md)、[xml-format](util/xml-format/README.md)、[unix-format](util/unix-format/README.md) |
 | [media](media/README.md) | [content](media/content/README.md) |
 | [model](model/README.md) | [llm](model/llm/README.md) |
 | [session](session/README.md) | [session](session/session/README.md)、[projection](session/projection/README.md)、[persistence](session/persistence/README.md)、[run](session/run/README.md)（仅设计） |
