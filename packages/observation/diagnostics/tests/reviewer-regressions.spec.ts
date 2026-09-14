@@ -1,6 +1,8 @@
 import { createRequire, syncBuiltinESMExports } from 'node:module'
+import { execFile } from 'node:child_process'
 import { mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
+import { promisify } from 'node:util'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { createLocalDiagnostics } from '../dist/index.js'
 import type {
@@ -17,12 +19,17 @@ const nodeFsPromises = createRequire(import.meta.url)(
   'node:fs/promises',
 ) as typeof import('node:fs/promises')
 type FlexibleCall = (...args: unknown[]) => unknown
+const execFileAsync = promisify(execFile)
 
 beforeAll(async () => {
   await mkdir(scratchRoot, { recursive: true })
 })
 
-function options(directory: string, sourceId: string): LocalDiagnosticsOptions {
+function options(
+  directory: string,
+  sourceId: string,
+  overrides: Partial<LocalDiagnosticsOptions> = {},
+): LocalDiagnosticsOptions {
   return {
     instanceId: 'instance-review',
     sourceId,
@@ -34,7 +41,36 @@ function options(directory: string, sourceId: string): LocalDiagnosticsOptions {
     maxFileBytes: 64 * 1024,
     maxDirectoryBytes: 128 * 1024,
     maxFiles: 4,
+    ...overrides,
   }
+}
+
+async function records(directory: string): Promise<readonly Record<string, unknown>[]> {
+  const result: Record<string, unknown>[] = []
+  for (const file of await readdir(directory)) {
+    const text = await readFile(join(directory, file), 'utf8')
+    result.push(
+      ...text
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map(line => JSON.parse(line) as Record<string, unknown>),
+    )
+  }
+  return result
+}
+
+async function waitForCode(
+  directory: string,
+  code: string,
+): Promise<readonly Record<string, unknown>[]> {
+  const deadline = Date.now() + 1_000
+  do {
+    const lines = await records(directory)
+    if (lines.some(line => line.code === code)) return lines
+    await new Promise(resolve => setTimeout(resolve, 5))
+  } while (Date.now() < deadline)
+  throw new Error(`diagnostic code ${code} was not written`)
 }
 
 function identity(): DiagnosticIdentity {
@@ -247,5 +283,102 @@ describe('D1-R5 hostile public projection inputs', () => {
     })
     const files = await readdir(directory)
     expect(await readFile(join(directory, files[0]!), 'utf8')).not.toContain('R5_BUSINESS_ERROR')
+  })
+})
+
+describe('D1-R4 ended span context retention', () => {
+  it('lets the SDK span be collected while its public context remains reachable', async () => {
+    const fixture = resolve(import.meta.dirname, 'fixtures/sdk-span-gc.mjs')
+    const { stdout } = await execFileAsync(process.execPath, ['--expose-gc', fixture], {
+      timeout: 5_000,
+    })
+    expect(JSON.parse(stdout) as Record<string, unknown>).toMatchObject({
+      sdkSpanCollected: true,
+      retainedContext: true,
+    })
+  })
+
+  it('starts a correlated child from the immutable identity of an ended parent', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'r4-ended-parent-'))
+    const subject = await runtime(directory, 'source-r4-correlation')
+    const context = subject.diagnostics.scope(identity())
+    const parent = subject.diagnostics.startSpan(context, point('r4.parent'))
+    const endedParentContext = parent.context
+    parent.end({ code: 'r4.parent_done', outcome: 'ok' })
+    const child = subject.diagnostics.startSpan(endedParentContext, point('r4.child'))
+    child.end({ code: 'r4.child_done', outcome: 'ok' })
+    await subject.close({ deadlineMs: 1_000 })
+
+    const lines = await records(directory)
+    const parentRecord = lines.find(line => line.code === 'r4.parent_done')
+    const childRecord = lines.find(line => line.code === 'r4.child_done')
+    expect(childRecord).toMatchObject({
+      traceId: parentRecord?.traceId,
+      parentSpanId: parentRecord?.spanId,
+    })
+  })
+})
+
+describe('D1-R6 persisted gap summaries', () => {
+  it('writes the bounded buffer gap range and count after the real stream recovers', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'r6-summary-'))
+    const creation = await createLocalDiagnostics(
+      options(directory, 'source-r6-summary', {
+        maxRecordBytes: 1_024,
+        maxBufferBytes: 1_024,
+      }),
+    )
+    expect(creation.status).toBe('created')
+    if (creation.status !== 'created') return
+    const subject = creation.runtime
+    await waitForCode(directory, 'diagnostic.source_started')
+
+    const originalWrite = nodeFs.write as unknown as FlexibleCall
+    let delayed: unknown[] | undefined
+    const writeSpy = vi.spyOn(nodeFs, 'write').mockImplementation(((...args: unknown[]) => {
+      if (delayed === undefined) {
+        delayed = args
+        return undefined
+      }
+      return originalWrite(...args)
+    }) as typeof nodeFs.write)
+    try {
+      for (let index = 0; index < 20; index += 1) {
+        subject.diagnostics.log(
+          subject.diagnostics.scope({
+            ...identity(),
+            principal: { kind: 'user', user: { userId: `r6-user-${index}` } },
+          }),
+          point(`r6.buffer.${index}`),
+        )
+      }
+      const gap = subject.inspect().gaps.find(item => item.reason === 'buffer_capacity')
+      expect(BigInt(gap?.count ?? '0')).toBeGreaterThan(1n)
+      expect(delayed).toBeDefined()
+      if (delayed !== undefined) originalWrite(...delayed)
+      writeSpy.mockRestore()
+      syncBuiltinESMExports()
+
+      const lines = await waitForCode(directory, 'diagnostic.gap')
+      const summary = lines.find(line => line.code === 'diagnostic.gap')
+      expect(summary).toMatchObject({
+        component: 'diagnostics',
+        phase: 'gap',
+        gaps: expect.arrayContaining([
+          {
+            reason: 'buffer_capacity',
+            firstSeq: gap?.firstSeq,
+            lastSeq: gap?.lastSeq,
+            count: gap?.count,
+            quality: 'counted',
+          },
+        ]),
+      })
+    } finally {
+      writeSpy.mockRestore()
+      syncBuiltinESMExports()
+      if (delayed !== undefined && subject.inspect().pendingBytes > 0) originalWrite(...delayed)
+      await subject.close({ deadlineMs: 1_000 })
+    }
   })
 })
