@@ -31,3 +31,16 @@ export type Conditions = {
   readonly membership: readonly MembershipBasis[]
   readonly requiredFacts: readonly EvidenceRef[]
 }
+
+export type {
+  AuthenticatedInvocation,
+  IdentityInspection,
+  IdentitySource,
+  TenantAccess,
+  TenantAccessBasis,
+  TenantAccessCandidate,
+  TenantAccessDecision,
+  TenantAccessFailure,
+  TenantAccessPreparation,
+  TenantAccessRequest,
+} from './protocols.js'
