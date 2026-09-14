@@ -52,6 +52,27 @@
     "spec/capabilities/run-driver/v1/RunDriverProgress.cfg": "b864177c2a8e03567919237d0c5192862d066c25708c7e56cf0c90c52308d7ae",
     "spec/capabilities/run-driver/v1/RunDriverProgressHuman.cfg": "fcc26f74b767e719736841ce0bc1f463a97b7e776bfb796c8060f1b88a9bdde5",
     "spec/capabilities/run-driver/v1/RunDriverSchedProgress.cfg": "5c4506ca5709f4697f245638d8b64de9bcb32be7853a69a0e1f24a000bb56547",
-    "spec/capabilities/run-driver/v1/scenarios.md": "7c0eb7a9b73dd701848165a396c7004b42b43454ea70fe2ea0dec709214759fe"
+    "spec/capabilities/run-driver/v1/scenarios.md": "7c0eb7a9b73dd701848165a396c7004b42b43454ea70fe2ea0dec709214759fe",
+    "spec/capabilities/session/v1/contract.md": "efe1fe5a68eb6e62ef20dfc7d02af49025c3739c6f48f877bcb88bee48eeaf4a",
+    "spec/capabilities/run/v1/contract.md": "2b0cdf870d5f9c0e2447219fd2b6d5a03ec8f0b4b642c78ab1ed6e378ec3005c",
+    "spec/compositions/core-work-coordination/v2/contract.md": "18820be811effe1d713faf3ad275bf4d5910cbb8516b09242672cea54b74cf52",
+    "spec/compositions/session-run-agent-lifecycles/v1/contract.md": "684af4049620369972edfa3a8dc1c4ee6677158e62e179fc842e43a6e5281051",
+    "spec/compositions/session-run-agent-lifecycles/v1/scenarios.md": "c91da5df99b0712f64a9b69ed177414d38f35baa13a9634e14ff1980559daedc",
+    "spec/compositions/session-run-agent-lifecycles/v1/Lifecycles.tla": "764c8d0136896f3bb264ad961f46a8a9fa7a882c7c4a3209e35c1041b54e8f91",
+    "spec/compositions/session-run-agent-lifecycles/v1/LifecyclesMC.tla": "686c32566b09449b492b32888806becca7468fcd7e6bf0065ac494bbb271bb94",
+    "spec/compositions/session-run-agent-lifecycles/v1/Lifecycles.cfg": "cd34600836bc38465c1b9b5ec8158d3fbd8f89a3d5f23134b63ada0e1ffec755",
+    "spec/compositions/session-run-agent-lifecycles/v1/LifecyclesProgress.cfg": "5f5df20396644e48938c85ad2b548d4c34bcdbce68fe1a3aad72de6ebd576642",
+    "spec/compositions/session-run-agent-lifecycles/v1/LifecyclesSplit.cfg": "ec977c9b8217b1aeceef7f639768451f9e64a953f2ae470c6b42266b64e4d10b",
+    "spec/compositions/session-run-agent-lifecycles/v1/LifecyclesSplitProgress.cfg": "7e2e48aea4f16e393c82c5bf38c433c2f5c5174b948cdbcbe1e832249a985ec7",
+    "spec/capabilities/run-driver/v2/contract.md": "9ffbfca5a0494cee22fe9bc10c792190c5ac385af987a4e92c3623b4c8707851",
+    "spec/capabilities/run-driver/v2/RunDriver.tla": "0c6a797ac227734527ddd11468c7d7bf30ddd0a04e3e3da1e5342e44a36767db",
+    "spec/capabilities/run-driver/v2/RunDriverMC.tla": "f6614c6f19f2607e7fcafdf578ea53e4aec3b2d768814567d1cc42edf18ade2b",
+    "spec/capabilities/run-driver/v2/RunDriver.cfg": "e1eaf3452d3cade01051ef126031cc8f26072bbfcc73fe6b355de7d8a56a1e75",
+    "spec/capabilities/run-driver/v2/RunDriverSched.cfg": "fcfcebd6aab810728db52e7d2468a06456aed73e102c433498a2d37175c7f128",
+    "spec/capabilities/run-driver/v2/RunDriverOps.cfg": "9346b9ce6cb589b14dc4fc583926594ecdeba34da0d76996a6f13c700ba1ad03",
+    "spec/capabilities/run-driver/v2/RunDriverProgress.cfg": "b864177c2a8e03567919237d0c5192862d066c25708c7e56cf0c90c52308d7ae",
+    "spec/capabilities/run-driver/v2/RunDriverProgressHuman.cfg": "fcc26f74b767e719736841ce0bc1f463a97b7e776bfb796c8060f1b88a9bdde5",
+    "spec/capabilities/run-driver/v2/RunDriverSchedProgress.cfg": "5c4506ca5709f4697f245638d8b64de9bcb32be7853a69a0e1f24a000bb56547",
+    "spec/capabilities/run-driver/v2/scenarios.md": "9ebd9d35fab98ee44d6616bcaad88ec091036d93a522b6a4383f2b198f1cf500"
   }
 }

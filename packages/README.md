@@ -30,18 +30,19 @@ workspace 成员，拥有源码、依赖、公开入口、测试、许可与来�
 | [util](util/README.md) | [brand](util/brand/README.md)、[values](util/values/README.md)、[timeout](util/timeout/README.md) |
 | [media](media/README.md) | [content](media/content/README.md) |
 | [model](model/README.md) | [llm](model/llm/README.md) |
-| [session](session/README.md) | [session](session/session/README.md)、[projection](session/projection/README.md)、[persistence](session/persistence/README.md) |
+| [session](session/README.md) | [session](session/session/README.md)、[projection](session/projection/README.md)、[persistence](session/persistence/README.md)、[run](session/run/README.md)（仅设计） |
 | [storage](storage/README.md) | [records](storage/records/README.md)、[jsonl](storage/jsonl/README.md) |
 | [context](context/README.md) | [system-prompt](context/system-prompt/README.md) |
 | [tools](tools/README.md) | [tools](tools/tools/README.md) |
-| [agent](agent/README.md) | [loop](agent/loop/README.md) |
+| [agent](agent/README.md) | [loop](agent/loop/README.md)、[run-driver](agent/run-driver/README.md)（仅设计） |
 | coordination | [admission](coordination/admission/README.md)、[提供者设计](coordination/admission/design.md) |
 | governance | [tenant](governance/tenant/README.md)、[提供者设计](governance/tenant/design.md) |
 | observation | [diagnostics](observation/diagnostics/README.md)、[目录与提供者设计](observation/diagnostics/design.md) |
 
 尚未建立 workspace 成员的设计正文也随未来所属包维护：
 [authorization](governance/authorization/design.md)、[budget](governance/budget/design.md)、
-[local-execution](tools/local-execution/design.md)；
+[local-execution](tools/local-execution/design.md)、[run](session/run/design.md)、
+[run-driver](agent/run-driver/design.md)；
 [human-decisions](governance/human-decisions/design.md) 保留后续候选。目录与设计
 出现不等于目标包已经实现，现有 fork 的当前设计从各包 README 进入。
 

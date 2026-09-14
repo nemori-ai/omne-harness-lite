@@ -6,11 +6,16 @@
 保留历史与验证边界。
 
 采用 [DR v1](../../../spec/capabilities/durable-records/v1/contract.md)、
-[SR v1](../../../spec/capabilities/session-run/v1/contract.md)、
-[CC v1](../../../spec/compositions/core-work-coordination/v1/contract.md)，恢复语义沿
-[Session 接口](../../../docs/proposals/core-capabilities/implementation/session-runtime-interfaces.md)
-`cd16f1`；当前恢复顺序见下文，状态贡献和 checkpoint 输入归
-[Session](../session/design.md#状态贡献投影和可观测性)。
+[session v1](../../../spec/capabilities/session/v1/contract.md)（恢复顺序 SE-11、裁决扫描 SE-18）、
+[run v1](../../../spec/capabilities/run/v1/contract.md)（RN-08 兼容证据）、
+[CC v2](../../../spec/compositions/core-work-coordination/v2/contract.md)；
+[D-014](../../../docs/decisions/D-014-session-run-agent-lifecycles.md) 前的 session-run v1 映射
+沿 [Session 接口](../../../docs/proposals/core-capabilities/implementation/session-runtime-interfaces.md)
+`cd16f1` 保留为历史。当前恢复顺序见下文；状态贡献输入归
+[Session](../session/design.md#状态贡献投影和可观测性)，投影缓存归
+[projection](../projection/design.md)。`checkpoint` 不再是权威事件
+（用户裁决 [U-23](../../../docs/proposals/session-run-agent-lifecycles/README.md#裁决记录2026-09-14用户)），
+下文的 checkpoint 均指投影缓存。
 
 ## 过程与依赖
 
@@ -60,10 +65,25 @@ allow 基线的子场景：真实 fsync/回执窗口重启、错误 Session chec
 
 ## 恢复顺序与开放边界
 
-恢复顺序固定：P1 持锁扫描并重新同步有效前缀→全部 owner 的 decoder/fold 在同一
-Watermark 装载→SR 校验同批关系、未知事件/状态贡献、定义/配置/驱动协议及环境
-能力→原 TL/HD/模型 owner 核实 call/request/attempt 与停止账本→当前身份/TG/AU/
-对象资格→重新激活 Agent、原 Run 新 epoch/委托/AR 许可→耐久后才继续。
+恢复顺序固定（[SE-11](../../../spec/capabilities/session/v1/contract.md)、
+[提案 session.md §7](../../../docs/proposals/session-run-agent-lifecycles/session.md#7-恢复顺序persistence-设计的输入)）：
+
+1. records 提供者持锁扫描并重新同步有效前缀（DR-03/04）；
+2. 全部 owner 的 decoder 与纯 fold 在同一 Watermark 装载：Session 的 session / queue /
+   inbound 三条流、Run 的 run 流、TL/HD/MC 各自的流；
+3. Session 校验同批关系、未知事件、状态贡献版本、定义/配置与环境能力；
+4. 裁决者扫描全部 Session，把 accepted 而未 classified 的 arrival 在当前 Run 状态下裁决完
+   （[SE-18](../../../spec/capabilities/session/v1/contract.md)）；
+5. 投影重建：驱动位置从 run 流 fold，投影缓存版本与水位相符时加速，否则弃用重建；
+6. TL/HD/MC 各 owner 核实在途 call / request / attempt 与停止账本（RN-08、CC-06）；
+7. 当前身份、TG、AU 与对象资格重新取得；
+8. 调度者对每个 Session 判断：占位 Run 执行者为空且有可干的事 → 经 AR 激活并以新 epoch
+   重取（核对 [RN-08](../../../spec/capabilities/run/v1/contract.md) 兼容证据）；无占位且队首
+   合格 → 开新 Run；
+9. 耐久后才继续；历史读面可在第 3 步后带水位开放。
+
+第 4 步在第 8 步之前是硬顺序。崩溃没有 Yield 事实：epoch 未封闭但 Registry 中无持有者
+与 epoch 已封闭在派生上同为"该重取"（[LC-08](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md)）。
 模型与工具可能已发出但结局不明标 unknown，查询原 attempt；没有未发出证明不
 重发。已完成结果恢复原引用且不重复文件效果；cancelled/deleted/closed 请求不
 复活。AR 目录从空重建，旧 runtime 对象/Context/ExactUse/句柄永不反序列化。

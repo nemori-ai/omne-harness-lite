@@ -2,8 +2,11 @@
 
 本页是 Agent Loop 的系统视图；选择依据见[提案](../proposals/agent-loop-inbound/README.md)
 与 [D-012](../decisions/D-012-run-driver-and-inbound.md)，精确承诺归
-[run-driver v1](../../spec/capabilities/run-driver/v1/contract.md)与
-[session-run v2](../../spec/capabilities/session-run/v2/contract.md)。目标实现尚未开始；
+[run-driver v2](../../spec/capabilities/run-driver/v2/contract.md)（[D-014](../decisions/D-014-session-run-agent-lifecycles.md)
+只改引用：session-run v2 拆为 [session v1](../../spec/capabilities/session/v1/contract.md) 与
+[run v1](../../spec/capabilities/run/v1/contract.md)，占位与执行者关系归
+[生命周期组合 v1](../../spec/compositions/session-run-agent-lifecycles/v1/contract.md)）。
+Session 与 Run 的系统视图分别见 [Session](session.md) 与 [Run](run.md)。目标实现尚未开始；
 DSH agent-loop 的[源基线](../proposals/core-capabilities/fork/loop-source.md)只按
 [取舍表](../proposals/agent-loop-inbound/loop.md#对-dsh-agent-loop-源码的取舍)保留算法思想。
 
@@ -49,8 +52,8 @@ flowchart LR
 由 [D-013](../decisions/D-013-run-driver-cordis-boundary.md) 接受，正文见
 [提案 cordis.md](../proposals/agent-loop-inbound/cordis.md)。驱动器是 Factory 为每个
 活体实例准备并拥有的实例驱动，落在 [运行时共同边界](runtime-composition.md) 四类
-接口之"谁准备和驱动实例"；`decide` 是纯函数，Session 级裁决者与调度者是 session-run
-提供者的宿主级服务。
+接口之"谁准备和驱动实例"；`decide` 是纯函数，Session 级裁决者与调度者是 Session 包内
+不随实例生灭的独立插件（D-014 后的插件划分见 [Session 视图](session.md#cordis-位置)）。
 
 | 效应 | 所有者 | 撤除 | 保留 |
 |---|---|---|---|
@@ -61,9 +64,12 @@ flowchart LR
 | Inbound / 执行 owner 订阅 | 实例 Context effect | 取消订阅，不重判工作 | arrival 与 TL 事实 |
 
 依赖变化不引入新的 Run 状态：实例存续必需绑定的变化走关实例/Yield/重取（换代
-重取须通过 SR-14 兼容证据），操作必需条件的变化走 `waiting_gate`，调用级绑定沿
-TL-06 结算，资格失效由实例关闭与重取门承担。提供者设计建议归
-`packages/agent/run-driver`，服务键与注入等映射待 Session 与工具提供者设计后闭合。
+重取须通过 [RN-08](../../spec/capabilities/run/v1/contract.md) 兼容证据），操作必需条件的
+变化走 `waiting_gate`，调用级绑定沿 [TL-06](../../spec/capabilities/tools/v1/contract.md) 结算，
+资格失效由实例关闭与重取门承担。提供者设计归
+[run-driver 包](../../packages/agent/run-driver/design.md)；对 Session/Run 侧的服务键
+（`omneSession`、`omneRun`、`omneLifecycleCompositions`）与订阅接口（`records/committed`
+广播加各读面）已由 D-014 闭合，工具侧映射待工具提供者设计。
 
 ## 证据与缺口
 

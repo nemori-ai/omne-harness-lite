@@ -7,4 +7,6 @@
 
 其它候选见[提案入口](../../docs/proposals/README.md)，不因组织迁移自动生效。
 
-- [核心工作准入与耐久协调 v1](core-work-coordination/README.md)。
+- [核心工作准入与耐久协调](core-work-coordination/README.md)：v1 由 D-008 接受；v2 由 D-014 接受，只改 CC-01 的原子关系声明规则。
+- [Session、Run 与 Agent 实例的生命周期组合](session-run-agent-lifecycles/README.md)：D-014 接受的
+  `composition.session-run-agent-lifecycles v1`，三条关系、级联三形状、事实广播与 Yield/重取。

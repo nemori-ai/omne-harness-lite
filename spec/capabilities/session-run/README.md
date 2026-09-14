@@ -1,14 +1,17 @@
-# 会话、耐久输入与运行控制
+# 会话、耐久输入与运行控制（已被取代）
 
-当前推荐版本：[v2](v2/contract.md)，接受依据 [D-012](../../../docs/decisions/D-012-run-driver-and-inbound.md)；
-[v1](v1/contract.md)（D-008）保持冻结与可引用，未迁移的消费者继续按 v1。
-v2 新增 Session Inbound（到达账本、四种投递意图、裁决决定表）、trigger 队列项与
-`takeTrigger`、`waiting_human`/`waiting_gate`、占位与 epoch 的分离、系统发起的复合打断；
-驱动器推进规则由 [run-driver v1](../run-driver/README.md) 消费本版定义。
+本能力的 [v2](v2/contract.md)（[D-012](../../../docs/decisions/D-012-run-driver-and-inbound.md)）
+已由 [D-014](../../../docs/decisions/D-014-session-run-agent-lifecycles.md) 拆分为两个新身份：
+[capability.session v1](../session/README.md)（Session 身份与生命周期、历史、队列、复合打断
+受理、会话级 hold、状态贡献注册、恢复顺序、Inbound）与
+[capability.run v1](../run/README.md)（Run、状态、epoch、Step、驱动位置投影、控制、命令 Run
+终态映射、恢复兼容证据）；占位与执行者关系归
+[生命周期组合 v1](../../compositions/session-run-agent-lifecycles/README.md)。逐句归属见
+[提案归属表](../../../docs/proposals/session-run-agent-lifecycles/session.md#2-条款逐句归属)。
+
+[v2](v2/contract.md) 与 [v1](v1/contract.md)（D-008）都保持冻结与可引用，在 catalog 中标为
+superseded；未迁移的消费者继续按其采用的版本，新设计以 session v1 与 run v1 为依赖。
+v1 的 `QueueControl` 模型仍是队列顺序、命令与强停的证据，登记在 formal-tasks 中。
 
 [v1 设计来源与评审](../../../docs/proposals/core-capabilities/README.md)、[v1 验证范围](../../../docs/proposals/core-capabilities/verification.md)；
-[v2 设计来源](../../../docs/proposals/agent-loop-inbound/README.md)、[v2 验证范围](../run-driver/verification.md)（Inbound 段由 run-driver 模型覆盖，队列与强停仍由 v1 的 QueueControl 覆盖）。本版本为目标契约，源码 fork 不表示实现已符合。
-
-当前实现映射见 [Session 提供者](../../../packages/session/session/design.md)、
-[恢复](../../../packages/session/persistence/design.md)及
-[投影](../../../packages/session/projection/design.md)；采用范围与未交付义务随所属正文维护。
+[v2 设计来源](../../../docs/proposals/agent-loop-inbound/README.md)、[v2 验证范围](../run-driver/verification.md)。

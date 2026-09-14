@@ -200,3 +200,27 @@ WorkPermit 不能从 AgentHandle 转出给用户或工具 body。
 各构造一份独占表。实例存续必需 binding 撤除先同步关新使用/关闭使用者，再等
 真实排空后卸载 Cordis；可选工具一旦被某工作 pin，由 TL 的在途政策保护，不
 因此关闭所有 Agent。意外失联封闭相关门并报告原责任，依赖恢复不复活旧尝试。
+
+## 与 Session、Run 的相接点（D-014）
+
+[D-014](../../../docs/decisions/D-014-session-run-agent-lifecycles.md) 把实例的生灭定为
+资源与装配的治理，与 Run 生命周期解耦（[提案 agent.md](../../../docs/proposals/session-run-agent-lifecycles/agent.md)）；
+live-agent v1 不需要新版本。本包据此补四项映射：
+
+- **调度者是激活与交付的唯一发起者。** `omneSessionScheduler`（[Session 设计](../../session/session/design.md#d-014-后的插件划分)）
+  是受信宿主服务，持受限 Handle：要执行 Run 时先查该 Session 是否有 ready 实例，有则经
+  Handle 把 Run 交给它的驱动器（新 epoch、新 WorkPermit，AR-8、
+  [CB-09](../../../spec/compositions/agent-session-binding/v1/contract.md)），没有才 `activate`。
+  用户控制 resume 也经它。
+- **退役端口沿 D-013。** `requestRetire` / `awaitQuiescent` / `releaseResources` 由
+  [run-driver 设计](../../agent/run-driver/design.md#实例驱动的生命周期)兑现；静止判据引用提案
+  [A-3](../../../docs/proposals/session-run-agent-lifecycles/invariants.md#agent-实例)。
+- **资源政策的挂点。** 空闲判定读 `omneRun.readRun`："执行者为空且无可干的事"，不读
+  驱动器私有状态；空闲宽限、预热与容量归应用装配与本包的资源政策，回收即显式退役
+  （AR-11）。
+- **对 Session 生命周期广播的反应。** 订阅 `records/committed` 中 `session.lifecycle_changed{archived / deleted}`，
+  关闭该 Session 的空闲实例（形状 3：幂等、门内重读、丢失由开机扫描兜底）；附着资格
+  同时增加"Session open"与"该 Session 无更早未释放实例"。
+
+崩溃后 Registry 从空重建，不提供任何"恢复实例"的入口；Run 的重取由调度者在裁决扫描
+完成后发起（[LC-08](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md)）。

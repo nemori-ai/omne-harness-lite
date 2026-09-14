@@ -5,10 +5,21 @@
 [来源入口](../../../docs/proposals/core-capabilities/implementation/runtime-provider-interfaces.md)
 保留历史与证据。
 
-采用 [SR v1](../../../spec/capabilities/session-run/v1/contract.md) SR-13 及
+采用 [session v1](../../../spec/capabilities/session/v1/contract.md) SE-10（状态贡献注册）、
+[run v1](../../../spec/capabilities/run/v1/contract.md) RN-07（驱动位置是投影）及
 [Session 当前设计](../session/design.md#状态贡献投影和可观测性)中的
-状态贡献/投影约定，原采用来源为 `cd16f1`。长期事实、业务授权与可写 Run 归
-[Session](../session/design.md)，本包只拥有可重建的列表/历史/队列/运行视图。
+状态贡献/投影约定，原采用来源为 `cd16f1`。长期事实与业务授权归
+[Session](../session/design.md)，可写 Run 归 [Run](../run/design.md)，本包只拥有可重建的
+列表/历史/队列/运行视图。
+
+[D-014](../../../docs/decisions/D-014-session-run-agent-lifecycles.md) 后本包新增两项责任：
+
+- **接受外包 reducer。** [run-driver 包](../../agent/run-driver/design.md)以 stateKey
+  `run.driver_position`、输入 run 流事件、`kind: projection` 注册驱动位置 reducer；本包
+  按同 scope/key 重复拒绝、版本不符拒绝的既有规则登记，视图随 reducer 撤回而 unavailable。
+- **投影缓存。** DSH 式 checkpoint 在本包降级为可选加速：fold 状态加水位，绑定 stateKey、
+  reducer 版本、SessionRef 与源水位；越界、错 Session 或版本不符即弃用重建，不是第二份
+  位置事实（用户裁决 [U-23](../../../docs/proposals/session-run-agent-lifecycles/README.md#裁决记录2026-09-14用户)）。
 
 ## 提供与装载效应
 
