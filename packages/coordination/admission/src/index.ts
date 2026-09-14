@@ -334,6 +334,7 @@ type DiagnosticDraft = Readonly<{
   diagnosticId: OpaqueId
   phase: string
   code: string
+  identity?: DiagnosticIdentity
   owner?: string
   operation?: OperationRef
   position?: Position
@@ -368,6 +369,7 @@ type UseClaim = Readonly<{
   operation: OperationRef
   canonicalInput: string
   position: Position
+  identity: DiagnosticIdentity
 }>
 
 type UseState = {
@@ -515,21 +517,27 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
     if (!isObject(operation) || !this.preparedOperations.has(operation)) {
       return this.assemblyFailure('invalid_snapshot', undefined, undefined, [])
     }
+    const state = this.preparedOperations.get(operation)
+    if (state === undefined) return this.invalidFrame('lookup')
     let submission: ReturnType<RecordWriter['lookupPrepared']>
     try {
       submission = this.writer.lookupPrepared(operation)
     } catch {
-      this.quarantine('lookup', 'writer_throw', undefined, undefined)
+      this.quarantine('lookup', 'writer_throw', state.operation, undefined, state.identity)
       return this.unavailable('writer_failure')
     }
-    const state = this.preparedOperations.get(operation)
-    if (state === undefined) return this.invalidFrame('lookup')
     const ticket = this.ticketsByOperation.get(operationKey(state.operation))
     if (ticket !== undefined && ticket.snapshot.canonicalInput === state.canonicalInput) {
       return ticket.final ?? ticket.publicPending
     }
     if (submission.status === 'pending_durability') {
-      this.quarantine('lookup', 'unowned_pending', state.operation, submission.position)
+      this.quarantine(
+        'lookup',
+        'unowned_pending',
+        state.operation,
+        submission.position,
+        state.identity,
+      )
       return this.unavailable('unowned_pending')
     }
     if (submission.status === 'committed') {
@@ -558,18 +566,36 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
 
     const participantFailure = this.validateParticipants(snapshot)
     if (participantFailure !== null) {
-      return this.assemblyFailure(participantFailure, snapshot.operation, undefined, snapshot.uses)
+      return this.assemblyFailure(
+        participantFailure,
+        snapshot.operation,
+        undefined,
+        snapshot.uses,
+        snapshot.identity,
+      )
     }
     const lifecycleFailure = this.validateUseLifecycles(snapshot)
     if (lifecycleFailure) {
-      return this.assemblyFailure('invalid_use', snapshot.operation, undefined, snapshot.uses)
+      return this.assemblyFailure(
+        'invalid_use',
+        snapshot.operation,
+        undefined,
+        snapshot.uses,
+        snapshot.identity,
+      )
     }
 
     let submission: ReturnType<RecordWriter['commit']>
     try {
       submission = this.writer.commit(snapshot.commit)
     } catch {
-      const id = this.quarantine('ranking', 'writer_throw', snapshot.operation, undefined)
+      const id = this.quarantine(
+        'ranking',
+        'writer_throw',
+        snapshot.operation,
+        undefined,
+        snapshot.identity,
+      )
       this.retainFreshUnknown(snapshot.uses, id)
       return this.unavailable('writer_failure')
     }
@@ -586,6 +612,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
           'unowned_committed',
           snapshot.operation,
           submission.receipt.position,
+          snapshot.identity,
         )
         return Object.freeze({
           status: 'committed',
@@ -613,6 +640,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
         'invalid_writer_submission',
         snapshot.operation,
         undefined,
+        snapshot.identity,
       )
       this.retainFreshUnknown(snapshot.uses, id)
       return this.unavailable('writer_failure')
@@ -628,6 +656,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
           'duplicate_identity_mismatch',
           snapshot.operation,
           position,
+          snapshot.identity,
         )
         this.retainFreshUnknown(snapshot.uses, id)
         return this.unavailable('writer_failure')
@@ -654,6 +683,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
         operation: snapshot.operation,
         canonicalInput: snapshot.canonicalInput,
         position,
+        identity: snapshot.identity,
       })
     }
 
@@ -667,6 +697,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
           snapshot.operation,
           position,
           publication.owner,
+          snapshot.identity,
         )
       }
       this.logical = snapshotWatermark(position)
@@ -677,6 +708,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
         'callback_contract',
         snapshot.operation,
         position,
+        snapshot.identity,
       )
     }
     return ticket.publicPending
@@ -840,6 +872,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
       claim.operation,
       position,
       state.owner,
+      claim.identity,
     )
     return undefined
   }
@@ -859,6 +892,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
         phase: 'release_guard',
         code: 'claimed_not_admitted',
         level: 'warn',
+        identity: state.claim?.identity,
         owner: state.owner,
         operation: state.claim?.operation,
         position: state.claim?.position,
@@ -970,6 +1004,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
       phase: 'release',
       code,
       level: 'error',
+      identity: state.claim?.identity,
       owner: state.owner,
       operation: state.claim?.operation,
       position: state.claim?.position,
@@ -1156,6 +1191,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
           'writer_completion_rejected',
           ticket.snapshot.operation,
           ticket.writerPending.position,
+          ticket.snapshot.identity,
         )
         ticket.writerResult = Object.freeze({
           status: 'unknown',
@@ -1196,6 +1232,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
                 ticket.snapshot.operation,
                 ticket.writerPending.position,
                 publication.owner,
+                ticket.snapshot.identity,
               )
             }
           })
@@ -1205,10 +1242,12 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
             'callback_contract',
             ticket.snapshot.operation,
             ticket.writerPending.position,
+            ticket.snapshot.identity,
           )
           blocked = true
         }
       }
+      if (blocked) this.durabilityGap = true
       if (!blocked) this.durable = snapshotWatermark(ticket.writerPending.position)
       const completion: AdmissionCompletion = Object.freeze({
         status: 'committed',
@@ -1241,6 +1280,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
       validResult.status,
       ticket.snapshot.operation,
       ticket.writerPending.position,
+      ticket.snapshot.identity,
     )
     ticket.final = validResult
     ticket.resolve(validResult)
@@ -1281,6 +1321,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
         'invalid_writer_completion',
         ticket.snapshot.operation,
         ticket.writerPending.position,
+        ticket.snapshot.identity,
       )
       return Object.freeze({
         status: 'unknown',
@@ -1297,6 +1338,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
     operation: OperationRef,
     position: Position,
     owner: string,
+    identity: DiagnosticIdentity,
   ): void {
     const result = Reflect.apply(callback, undefined, values)
     if (result === undefined) return
@@ -1307,6 +1349,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
         phase: 'late_rejection',
         code: `${phase}_rejected`,
         level: 'error',
+        identity,
         owner,
         operation,
         position,
@@ -1400,6 +1443,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
     operation: OperationRef | undefined,
     position: Position | undefined,
     uses: readonly UseState[],
+    identity?: DiagnosticIdentity,
   ): AdmissionFailure {
     this.cleanupFresh(uses)
     const diagnosticId = this.newDiagnosticId()
@@ -1408,6 +1452,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
       phase: 'assembly',
       code,
       level: 'warn',
+      ...(identity === undefined ? {} : { identity }),
       operation,
       position,
     })
@@ -1438,6 +1483,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
     code: string,
     operation: OperationRef | undefined,
     position: Position | undefined,
+    identity?: DiagnosticIdentity,
   ): OpaqueId {
     const diagnosticId = this.diagnosticId ?? this.newDiagnosticId()
     this.diagnosticId = diagnosticId
@@ -1455,6 +1501,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
       phase,
       code,
       level: 'error',
+      ...(identity === undefined ? {} : { identity }),
       operation,
       position,
     })
@@ -1484,13 +1531,14 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
 
   private emitDiagnostic(draft: DiagnosticDraft): void {
     const identity: DiagnosticIdentity =
-      draft.operation === undefined
+      draft.identity ??
+      (draft.operation === undefined
         ? Object.freeze({
             tenantId: null,
             principal: Object.freeze({ kind: 'system', systemId: 'admission' }),
             causality: Object.freeze({}),
           })
-        : parseDiagnosticIdentity(draft.operation, '{}')
+        : parseDiagnosticIdentity(draft.operation, '{}'))
     try {
       const context = this.diagnostics.scope(identity)
       const point: DiagnosticPoint = Object.freeze({

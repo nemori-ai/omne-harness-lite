@@ -357,7 +357,8 @@ describe('strict callback contracts and publication blocking', () => {
 
   it('marks a durable publication throw as blocked only after the committed writer result', async () => {
     const writer = new ControlledWriter()
-    const host = createAdmissionCoordinator(writer, new RecordingDiagnostics())
+    const diagnostics = new RecordingDiagnostics()
+    const host = createAdmissionCoordinator(writer, diagnostics)
     const value = withPublication(
       prepared(host, 'durable-throw', ['owner']),
       publication(
@@ -375,6 +376,52 @@ describe('strict callback contracts and publication blocking', () => {
 
     expect(completion).toMatchObject({ status: 'committed', publication: 'blocked' })
     expect(host.coordinator.status().phase).toBe('quarantined')
+    expect(diagnostics.identities).toContainEqual({
+      tenantId: 'tenant',
+      principal: { kind: 'system', systemId: 'test-system' },
+      operation: value.commit.operation,
+      causality: {},
+    })
+  })
+
+  it('does not publish a later committed ticket across a durable publication gap while closing', async () => {
+    const writer = new ControlledWriter()
+    const host = createAdmissionCoordinator(writer, new RecordingDiagnostics())
+    const laterDurable = vi.fn(() => undefined)
+    const first = withPublication(
+      prepared(host, 'durable-gap-first', ['owner']),
+      publication(
+        'owner',
+        () => undefined,
+        () => {
+          throw new Error('first durable publication failed')
+        },
+      ),
+    )
+    const second = withPublication(
+      prepared(host, 'durable-gap-second', ['owner'], [], '1'),
+      publication('owner', () => undefined, laterDurable),
+    )
+    const firstResult = pending(submit(host, first))
+    const secondResult = pending(submit(host, second))
+
+    writer.settle(0)
+    await expect(firstResult.completion).resolves.toMatchObject({
+      status: 'committed',
+      publication: 'blocked',
+    })
+    const closing = host.coordinator.close()
+    expect(host.coordinator.status().phase).toBe('closing')
+
+    writer.settle(1)
+    await expect(secondResult.completion).resolves.toMatchObject({
+      status: 'committed',
+      publication: 'blocked',
+    })
+    await closing
+
+    expect(laterDurable).not.toHaveBeenCalled()
+    expect(host.coordinator.status().durable.seq).toBe('0')
   })
 
   it('checks retainAt itself for strict undefined and never retries it', async () => {
