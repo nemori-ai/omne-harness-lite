@@ -123,8 +123,9 @@ jq -e '.status == "passed" and .cleanup.managedChildrenRemaining == 0' \
   tmp/p0-lock-probe/replay-summary.json
 ```
 
-已保留本次隔离工具链与两个安装 sandbox，供 HUB 复验；它们均位于
-`tmp/p0-lock-probe/`，没有进入产品包或根锁文件。
+原 spoke 的工具链及 sandbox 曾保留供 HUB 复验。复验完成后，该 spoke 已退役；
+必要临时资产、归档哈希与核对结果归[交付对账](../../delivery.md#p0-原生锁前提交付)。
+HUB 自己的 `tmp/p0-lock-probe/` 保留独立工具链及复验环境，未进入产品包或根锁文件。
 
 ## 后续集成的精确要求和未知
 

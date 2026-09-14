@@ -2,8 +2,8 @@
 
 ## 当前事实
 
-首批二次开发的目标、验收、实施规格和计划已完成文档交付；独立评审及修订复核
-见 [review.md](review.md)，本次受审范围无剩余阻断发现。用户已授权按完整工作包
+首批二次开发的目标、验收、实施规格和计划已完成文档交付，其原评审发现已闭合。
+P0 新实施稿与检查器仍有待修订问题，分别见 [review.md](review.md)。用户已授权按完整工作包
 自驱实施；P0 的共享接口设计、原生锁探针和包检查器 TDD 已派发。尚无本批已接受
 产品交付或 OpenRouter 请求；A01–A32 尚未通过，M1/M2 均未交付。
 
@@ -40,7 +40,7 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 | 工作 | 执行者与实际句柄 | 独立工作树 | 写入归属与下一关 |
 |---|---|---|---|
 | P0 共享接口稿 | `/root/p0_interfaces` | `dsh-p0-interfaces` | `979d80f` 经独立评审有 I1–I5 待修订，作者已接回；尚未接受或合入 HUB |
-| P0 真实锁探针（accepted） | infrastructure-developer，`/root/p0_lock_probe`，已结束 | `dsh-p0-lock-probe` | `f712e025` 经 `04b8dbf` 整合，HUB 全新目录实际复验通过；范围及限制见下文 |
+| P0 真实锁探针（accepted） | infrastructure-developer，`/root/p0_lock_probe`，已结束 | `dsh-p0-lock-probe`，已退役 | `f712e025` 经 `04b8dbf` 整合，HUB 全新目录实际复验通过；范围及限制见下文 |
 | P0 包检查器 | verification-developer，`/root/p0_package_checks` | `dsh-p0-package-checks` | `effd764` 独立复核发现 K1–K3，作者正在 TDD 修复；尚未接受或合入 HUB |
 
 未标 accepted 的行只表示派发事实。主调度拥有 HUB 整合、根配置、此工作包和最终
@@ -75,6 +75,13 @@ SHA-256 的脚本，[实际复验记录](evidence/p0-lock-probe/hub-summary.json
 该整合后的 `make docs-check BASELINE=e11cc69` 通过 393 个 Markdown，
 `git diff --check` 通过；根产品配置/锁文件、发布规格与需求未修改。
 原生编译器与产品安装步骤在 P1 接入实际依赖时再更新开发入口。
+
+锁探针 spoke 在确认执行者已结束、无存活探针进程且没有消费者后退役。
+其必要临时资产保全在 HUB 的 `tmp/retired-worktrees/dsh-p0-lock-probe-assets.tar`，
+SHA-256 为 `9964a2007769621ca6abf3547ed795269658ebbaebba8edb2841cb2fe68b9f3c`；
+退役前 `tar --compare` 逐项核对通过。被排除的依赖缓存、构建输出与临时 Python
+环境可重建，GCC 解包根已有 HUB 独立副本。正式证据仍在本工作包内，旧日志的
+spoke 路径保留为原运行身份，不再表示该工作树仍存在。
 
 ## 设计文档交付证据
 
