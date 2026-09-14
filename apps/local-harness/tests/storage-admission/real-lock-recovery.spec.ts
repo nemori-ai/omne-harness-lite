@@ -214,7 +214,7 @@ describe('A07 real journal recovery boundaries', () => {
       const firstEpoch = first.writer.writerEpoch
       await expect(first.writer.closeWriter()).resolves.toMatchObject({ status: 'closed' })
       const closedJournal = await readFile(join(records, 'journal.jsonl'))
-      expect(first.writer.commit(prepared.value)).toEqual(committed)
+      expect(first.writer.commit(prepared.value)).toMatchObject({ status: 'unavailable' })
       expect(first.writer.commit(latePrepared.value)).toMatchObject({ status: 'unavailable' })
       expect(await readFile(join(records, 'journal.jsonl'))).toEqual(closedJournal)
 
