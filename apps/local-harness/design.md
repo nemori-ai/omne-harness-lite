@@ -1,8 +1,8 @@
 # Local harness 装配设计
 
 状态：`f98ac926` 装配映射及消歧已接受为最小运行基线施工输入。本目录现有
-[workspace 成员](package.json)及 [P1 测试载体](tests/storage-admission/carrier.spec.ts)，
-该载体只检查 Node 主版本；尚无目标应用源码、启动入口或真实运行闭环。来源与迁移记录归
+[workspace 成员](package.json)及 [P1 存储/准入组合测试](tests/storage-admission/real-composition.spec.ts)，
+尚无目标应用源码、启动入口或 Agent/Session/工具真实运行闭环。来源与迁移记录归
 [原施工入口](../../docs/proposals/core-capabilities/implementation/runtime-provider-interfaces.md)。
 采用 `1368c52b7255e16e9c2fcde30eebca6f870679f7` 的
 [最小运行节点选择](../../docs/proposals/core-capabilities/implementation/runtime-baseline.md)：真实身份→Session/Agent→text/唯一 Run→真实授权与
