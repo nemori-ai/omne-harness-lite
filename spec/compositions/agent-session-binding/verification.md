@@ -29,6 +29,17 @@
 模型抽象的是提供者须兑现的原子边界，未证明真实 Cordis/后端已经共同提交，
 也不包含网络租约、持久事务、完整 IAM、所有工具/HITL 移交或无条件活性。
 
+## 当前提供者映射的适用范围
+
+`f98ac926` 的 [SR/CB 对应](../../../packages/session/session/design.md#cb-模型与当前性映射)
+区分 Publish/StartWork 的共同检查、Invalidate/Restore 的旧修订边界，以及只
+允许单向失联的 LoseDependency；重挂/单调关闭仍由真实提供者兑现。
+[应用命题与场景](../../../apps/local-harness/design.md#运行映射的命题与前提)及
+[独立判断原件](../../../apps/local-harness/evidence/runtime-mapping-applicability/README.md)
+记录本次确定性 allow 基线的对应与输入身份。它们不外置新规范，也不是模型
+新增运行或产品结果；AR 的计划退役模型不能补成完整 Cordis 失联—重挂证明。
+实际共同门、原登记/资源保有与逐项释放的符合性仍未验证，接入要求保持。
+
 ## 交付检查
 
 最终路径下的文档/冻结基线和五项形式任务检查结果见[交付记录](evidence/v1/delivery.json)。

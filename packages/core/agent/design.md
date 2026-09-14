@@ -101,6 +101,31 @@ host 本体替换须原账目/资源释放及同水位恢复，不建立第二�
 handle/disposer、清理失败后替换、关闭后同 Session 新激活。观察真实任务/timer/
 资源归零或逐项 retained，不能以 Fiber disposed 或 Map 清空通过。当前未运行。
 
+## 既有模型与控制前提
+
+本节记录 `f98ac926` 已采用映射对 [AR v1 模型](../../../spec/capabilities/live-agent/v1/Runtime.tla)
+的适用范围；[独立判断原件](../../../apps/local-harness/evidence/runtime-mapping-applicability/README.md)
+固定受审 `976149b`，没有产品符合性或实现精化证明。三项组合命题及实际场景归
+[应用对应](../../../apps/local-harness/design.md#运行映射的命题与前提)，不因复用模型省略当前门或顺序清理。
+
+| 模型状态/动作 | 本提供者已有映射及前提 owner | 证据边界 |
+|---|---|---|
+| `current/phase`、`Reserve/Prepared` | AR 以完整 SessionRef 保留唯一占位，原 AgentRef/尝试先登记清理责任；真实 prepare 在门外，AR 末门与 SR 原 attachment 联合复核后才发布 | `Prepared` 合并准备完成与发布；AR 模型不单独表达 Session 当前性和事件重入，不能据其通过省略 CB 共同发布检查 |
+| `provider/factory`、`RetireFactory/DropFactory` | AR 的原 Factory 登记先关新使用、关闭使用者；应用和实际 Factory owner 等原使用/资源解除后才卸载 | 正常模型只在使用者为空后允许 DropFactory；这是计划退役，突发物理丢失不能当成已完成 RetireFactory/排空 |
+| `work/resources`、`Settle/Release/Cleanup` 与失败/旧清理动作 | AR 保有原工作许可、准备和资源账目；SR/TL/LE 确认结算或具名接管后才解除原使用。AR 清理及撤占位只匹配原 AgentRef/registration/generation | 工作槽及资源标记抽象真实工作树和资源；模型 Cleanup 不证明任务、订阅、timer/fd 已清理。失败、未确认移交及晚到准备仍需原 owner 实测 retained，旧清理不得删除新实例 |
+
+挂载身份由受信 apply 的真实 `c.fiber`、host 单调 mount generation、精确登记
+共同辨认；Factory/资源 owner 拥有其原绑定和使用责任，SR 拥有 attachment 当前性。
+AR 的发布、`checkWork` 和使用登记在同一活动 gate 内直接核这些原 provider，
+不只核 consumer 状态或观察器 stamp。应用负责受信挂载及门内不装卸，
+[admission](../../coordination/admission/design.md)负责其同步/重入边界，AR 不在
+纯 check 中触发外部回调。原代一经关闭不能因同名服务或同 Fiber ACTIVE 重现而复活。
+
+突发失联先拒绝相关新发布/工作，原清理能力继续针对原账目收口；不把失效
+观察当作资源释放或原外部效果终止。AR 与 CB 的两个有限模型没有构成完整
+Cordis refinement；上述前提及逐资源结果仍须按实际提供者和装配验证，接入
+产品运行路径前的符合性义务不因本节记录而解除。
+
 ## 实施协议的采用来源
 
 下列状态、记录、端口和算法从已接受的 `cd16f1` Agent/Session 输入迁入，
