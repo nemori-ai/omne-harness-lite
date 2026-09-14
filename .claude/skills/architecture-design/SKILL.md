@@ -28,6 +28,7 @@ description: >
 | 某个概念、操作或不变量的具体含义是什么？ | [规格清单](../../../spec/catalog.json)定位接受依据和精确版本，[规格索引](../../../spec/README.md)解释数据、能力与组合契约的分工；未登记的候选不冒充正式依赖。 |
 | 新发现怎样支持提案或复议已有决定？ | [知识流转](../../../docs/maintenance/knowledge-flow.md)：来源、权威与可因果解释的取代。 |
 | 怎样发布、引用或迁移规格？ | [维护规范](../../../docs/maintenance/README.md)：精确版本、冻结与证据归属。 |
+| 语义、提供者设计、装配和实施就绪如何衔接？ | [规格维护](../../../docs/maintenance/spec-maintenance.md)：长期正文、完成范围、依赖工作和变更传播。 |
 | 应运行哪些检查，结果支持什么结论？ | [验证规范](../../../docs/maintenance/verification.md)说明检查职责与覆盖，[Makefile](../../../Makefile)提供当前命令；提案或研究中的历史命令不代表当前工具。 |
 | 有哪些错误、并发和资源边界需要保护？ | [防御性研发模式](../../../docs/defensive-patterns.md)：相关风险的防御原则。 |
 
@@ -42,8 +43,15 @@ description: >
 [implementation-planning](../implementation-planning/SKILL.md) 指导针对性研究、
 成熟成果复用或 fork 的评估，以及可验收的交付规划。
 
+建模从目的和消费者出发，沿[总体范式](../../../docs/architecture-guide/foundations/paradigm.md#从目的到可演化的实现)
+定义最小充分契约，分别推导服务、插件与 Agent 消费方式。跨能力设计沿
+[完整动作链](../../../docs/architecture-guide/reference/contract-description.md#沿完整动作链核对组合)
+检查责任交接，不把类型、方法或依赖图齐全当作行为已经闭合。
+
 ## 必要时展开
 
+- 新增、修订规格或处理模型、提供者映射和消费者影响时，使用
+  [spec-maintenance](../spec-maintenance/SKILL.md)；具体版本和维护规则继续归其权威正文。
 - 涉及 Cordis API、服务解析、插件或 Fiber 生命周期等实现语义时，使用
   [cordis-authoritative-docs](../cordis-authoritative-docs/SKILL.md) 查权威资料。
   [实现映射](../../../docs/architecture-guide/reference/cordis-mapping.md)可帮助定位，
@@ -53,6 +61,10 @@ description: >
 - 需要核对一份能力设计是否表达充分时，按需读
   [契约描述要点](../../../docs/architecture-guide/reference/contract-description.md)。
   它是描述维度，不要求创建统一模板、框架或一组新模型。
+  交付结论按本次范围区分语义接受、提供者可实施、应用装配和实际证据；关键映射
+  延后时写明负责产物与受影响消费者，不让总状态掩盖缺口。
+- 设计可装卸组件时，沿[装载效应与撤除责任](../../../docs/architecture-guide/runtime/lifecycle.md#装载效应与撤除责任)
+  成对说明贡献、清理/交接和保留范围；不把卸载等同于外部效果回滚。
 - 调整防御辅助或准备切换开发主力模型时，读
   [防御演化](../../../docs/maintenance/defensive-evolution.md)和
   [开发模型评估](../../../docs/evaluation/README.md)。辅助的实验结果不能撤销系统保证。

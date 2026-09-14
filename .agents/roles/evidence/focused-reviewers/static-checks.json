@@ -1,0 +1,47 @@
+{
+  "roles": [
+    {
+      "role": "application-developer",
+      "exit": 0,
+      "output": "PASS: paired output syntax and source consistency; host loading, permissions and model behavior not tested.\n"
+    },
+    {
+      "role": "architecture-reviewer",
+      "exit": 0,
+      "output": "PASS: paired output syntax and source consistency; host loading, permissions and model behavior not tested.\n"
+    },
+    {
+      "role": "capability-developer",
+      "exit": 0,
+      "output": "PASS: paired output syntax and source consistency; host loading, permissions and model behavior not tested.\n"
+    },
+    {
+      "role": "infrastructure-developer",
+      "exit": 0,
+      "output": "PASS: paired output syntax and source consistency; host loading, permissions and model behavior not tested.\n"
+    },
+    {
+      "role": "kernel-developer",
+      "exit": 0,
+      "output": "PASS: paired output syntax and source consistency; host loading, permissions and model behavior not tested.\n"
+    },
+    {
+      "role": "plan-reviewer",
+      "exit": 0,
+      "output": "PASS: paired output syntax and source consistency; host loading, permissions and model behavior not tested.\n"
+    },
+    {
+      "role": "spec-reviewer",
+      "exit": 0,
+      "output": "PASS: paired output syntax and source consistency; host loading, permissions and model behavior not tested.\n"
+    },
+    {
+      "role": "verification-developer",
+      "exit": 0,
+      "output": "PASS: paired output syntax and source consistency; host loading, permissions and model behavior not tested.\n"
+    }
+  ],
+  "fixed_models_effort_permissions": "pass",
+  "existing_six_role_metadata_unchanged": "pass",
+  "limits": "Offline generated configuration checks only."
+}
