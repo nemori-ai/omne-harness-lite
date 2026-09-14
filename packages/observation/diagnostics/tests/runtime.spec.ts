@@ -699,11 +699,14 @@ describe('O04/O05 bounded output and actual write progress', () => {
       causality: { session: { tenantId: long, sessionId: long } },
     })
     runtime.diagnostics.log(context, point('record_cap.error', 'error'))
-    expect(runtime.inspect().gaps).toContainEqual(expect.objectContaining({
+    const status = runtime.inspect()
+    expect(status.gaps).toContainEqual(expect.objectContaining({
       reason: 'buffer_capacity',
       count: '1',
       quality: 'counted',
     }))
+    expect(status.droppedCount).toBe('1')
+    expect(BigInt(status.acceptedCount) + BigInt(status.droppedCount)).toBe(BigInt(status.attemptedThrough))
     expect(await readFile(await sourceFile(directory), 'utf8')).not.toContain('record_cap.error')
     await runtime.close({ deadlineMs: 1_000 })
   })
@@ -735,9 +738,12 @@ describe('O04/O05 bounded output and actual write progress', () => {
           point(`buffer_cap.${index}`, index % 2 === 0 ? 'warn' : 'error'),
         )
       }
-      const gap = runtime.inspect().gaps.find(item => item.reason === 'buffer_capacity')
+      const status = runtime.inspect()
+      const gap = status.gaps.find(item => item.reason === 'buffer_capacity')
       expect(gap?.quality).toBe('counted')
       expect(BigInt(gap?.count ?? '0')).toBeGreaterThan(1n)
+      expect(status.droppedCount).toBe(gap?.count)
+      expect(BigInt(status.acceptedCount) + BigInt(status.droppedCount)).toBe(BigInt(status.attemptedThrough))
       expect(delayed).toBeDefined()
     } finally {
       if (delayed !== undefined) originalWrite(...delayed)
@@ -766,6 +772,10 @@ describe('O04/O05 bounded output and actual write progress', () => {
     const gap = beforeClose.gaps.find(item => item.reason === 'retention_capacity')
     expect(gap?.quality).toBe('counted')
     expect(BigInt(gap?.count ?? '0')).toBeGreaterThan(1n)
+    expect(beforeClose.droppedCount).toBe(gap?.count)
+    expect(BigInt(beforeClose.acceptedCount) + BigInt(beforeClose.droppedCount)).toBe(
+      BigInt(beforeClose.attemptedThrough),
+    )
     await runtime.close({ deadlineMs: 1_000 })
     expect((await stat(await sourceFile(directory))).size).toBeLessThanOrEqual(1_024)
   })

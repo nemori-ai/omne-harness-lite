@@ -1,0 +1,62 @@
+$ pnpm --filter @omne-harness-lite/diagnostics run build
+exit 0
+
+$ pnpm --filter @omne-harness-lite/diagnostics run typecheck
+exit 0
+
+$ pnpm --filter @omne-harness-lite/diagnostics test -- --reporter=verbose
+
+RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics
+Test Files  1 passed (1)
+Tests       25 passed (25)
+Exit status 0
+
+$ pnpm --filter @omne-harness-lite/package-checks check
+PASS: 17 product members, dependency boundaries, 94 upstream source records
+PASS: isolated agent, 2 declared product artifact(s), strict declarations + runtime
+PASS: isolated agent-loop, 7 declared product artifact(s), strict declarations + runtime
+PASS: isolated brand, 1 declared product artifact(s), strict declarations + runtime
+PASS: isolated diagnostics, 3 declared product artifact(s), strict declarations + runtime
+PASS: isolated jsonl, 1 declared product artifact(s), strict declarations + runtime
+PASS: isolated llm, 4 declared product artifact(s), strict declarations + runtime
+PASS: isolated media-content, 2 declared product artifact(s), strict declarations + runtime
+PASS: isolated records, 2 declared product artifact(s), strict declarations + runtime
+PASS: isolated scope, 1 declared product artifact(s), strict declarations + runtime
+PASS: isolated session, 6 declared product artifact(s), strict declarations + runtime
+PASS: isolated session-persistence, 7 declared product artifact(s), strict declarations + runtime
+PASS: isolated session-projection, 7 declared product artifact(s), strict declarations + runtime
+PASS: isolated system-prompt, 6 declared product artifact(s), strict declarations + runtime
+PASS: isolated timeout, 1 declared product artifact(s), strict declarations + runtime
+PASS: isolated tools, 6 declared product artifact(s), strict declarations + runtime
+PASS: isolated values, 1 declared product artifact(s), strict declarations + runtime
+PASS: isolated work-data, 1 declared product artifact(s), strict declarations + runtime
+PASS: built source helpers, shared agent scope routing and owned store teardown
+PASS: artifact LLM/Session/Loop/storage helpers and actual file I/O composition
+PASS: artifact prompt/tool contribution, native call and withdrawal
+PASS: isolated tarball consumer, ownership, dependency removal, factory removal and initiator
+PASS: public Session/projection declaration merging, real fold and owner withdrawal
+PASS: isolated composition, 17 declared product artifact(s), strict declarations + runtime
+exit 0
+
+$ pnpm install --offline --ignore-scripts --ignore-workspace --store-dir /data/qiwei/.local/share/pnpm/store/v10
+Packages: +32
+dependencies:
++ @omne-harness-lite/diagnostics 0.0.0
+Done in 727ms using pnpm v10.28.1
+
+$ pnpm exec tsc -p tsconfig.json
+exit 0
+
+$ node --no-global-search-paths build/consumer.js
+PASS: packed default entry wrote 4 real lines and closed its source
+exit 0
+
+Tarball SHA-256:
+72ad0bc95deeae5b7c252e923dfada05ba47cca9cdbc5b66f0d44660c920b32b  omne-harness-lite-diagnostics-0.0.0.tgz
+6c332570464f2cf403572b0e03477b0e8ec28c65c6008d733ae47daa6292a774  omne-harness-lite-records-0.0.0.tgz
+dd1b58f7bc83cadb73983c1c937b509e3071f7fc93e1b35ff7c70ad38d0fe478  omne-harness-lite-work-data-0.0.0.tgz
+
+The final custom consumer was built under tmp/p1-diagnostics/tarball-consumer-4b8125e from only
+the three tarballs plus their exact third-party dependencies. It imported the diagnostics default
+entry, compiled under strict NodeNext declarations, created a real 0600 file in a 0700 directory,
+wrote source-start/log/span-end/source-close lines, and observed closed/released with zero spans.
