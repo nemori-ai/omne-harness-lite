@@ -7,7 +7,12 @@
  */
 
 import { Context, Service } from '@deepseek-ai/cordis'
-import type { SessionEvent, SessionHeader, SessionId, SessionLogOffset } from '@omne-harness-lite/session/baseline'
+import type {
+  SessionEvent,
+  SessionHeader,
+  SessionId,
+  SessionLogOffset,
+} from '@omne-harness-lite/session/baseline'
 import type { SessionHandle, SessionAccess } from './handle.ts'
 import type { SessionPersistenceRevision } from './revision.ts'
 
@@ -144,7 +149,10 @@ export abstract class SessionPersistence extends Service {
    * @returns a `write` handle owned by the caller; close it to release ownership.
    * @throws {SessionAlreadyExistsError} when the id already exists.
    */
-  abstract create(header: SessionHeader, options?: SessionPersistenceCreateOptions): Promise<SessionHandle>
+  abstract create(
+    header: SessionHeader,
+    options?: SessionPersistenceCreateOptions,
+  ): Promise<SessionHandle>
 
   /**
    * Open an existing stored session.
@@ -159,7 +167,11 @@ export abstract class SessionPersistence extends Service {
    * @throws {SessionPersistenceNotFoundError} when the session does not exist.
    * @throws {SessionAlreadyOwnedError} for `write` when ownership is taken.
    */
-  abstract open(id: SessionId, access: SessionAccess, options?: SessionPersistenceOpenOptions): Promise<SessionHandle>
+  abstract open(
+    id: SessionId,
+    access: SessionAccess,
+    options?: SessionPersistenceOpenOptions,
+  ): Promise<SessionHandle>
 
   /**
    * Flush every active write handle owned by this service instance in one
@@ -188,14 +200,19 @@ export abstract class SessionPersistence extends Service {
    * @param options - optional cancellation.
    * @returns the snapshot, or `undefined` when the session does not exist.
    */
-  abstract stat(id: SessionId, options?: SessionPersistenceStatOptions): Promise<SessionPersistenceSnapshot | undefined>
+  abstract stat(
+    id: SessionId,
+    options?: SessionPersistenceStatOptions,
+  ): Promise<SessionPersistenceSnapshot | undefined>
 
   /**
    * List every stored session visible to this process, in no promised order.
    * @param options - optional cancellation.
    * @returns one snapshot per stored session.
    */
-  abstract list(options?: SessionPersistenceListOptions): Promise<readonly SessionPersistenceSnapshot[]>
+  abstract list(
+    options?: SessionPersistenceListOptions,
+  ): Promise<readonly SessionPersistenceSnapshot[]>
 }
 
 export default SessionPersistence

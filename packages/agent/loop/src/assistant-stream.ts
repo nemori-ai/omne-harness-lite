@@ -24,7 +24,9 @@ export class AssistantStreamAttempt {
   readonly attemptId: LlmAttemptId
 
   /** Whether this started attempt has emitted its terminal frame. */
-  get ended(): boolean { return this.terminal }
+  get ended(): boolean {
+    return this.terminal
+  }
 
   /**
    * @param sessionId - identity embedded only in the Agent-lifecycle-local attempt id.
@@ -75,10 +77,7 @@ export class AssistantStreamAttempt {
    * @param eventType - durable settlement type.
    * @param append - synchronous source-log append returning its seq (not a DR v1 fsync acknowledgement).
    */
-  settle(
-    eventType: 'assistant/message' | 'assistant/attempt',
-    append: () => SessionSeq,
-  ): void {
+  settle(eventType: 'assistant/message' | 'assistant/attempt', append: () => SessionSeq): void {
     let seq: SessionSeq
     try {
       seq = append()

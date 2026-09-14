@@ -17,7 +17,13 @@ describe('source LLM block assembly', () => {
       { type: 'reasoning-delta', index: 0, text: 'think' },
       { type: 'text-delta', index: 1, text: 'Hello' },
       { type: 'text-delta', index: 1, text: ' world' },
-      { type: 'tool-call-delta', index: 2, id: ToolCallId('call-1'), name: 'echo', argumentsDelta: '{' },
+      {
+        type: 'tool-call-delta',
+        index: 2,
+        id: ToolCallId('call-1'),
+        name: 'echo',
+        argumentsDelta: '{',
+      },
       { type: 'tool-call-delta', index: 2, id: ToolCallId('call-1'), argumentsDelta: '}' },
       { type: 'usage', usage: { inputTokens: 10, outputTokens: 5 } },
       { type: 'finish', reason: { kind: 'tool-calls' } },
@@ -62,7 +68,13 @@ describe('source LLM block assembly', () => {
     const assembler = new BlockAssembler()
     assembler.push({ type: 'text-delta', index: 0, text: 'partial' })
     assembler.push({ type: 'reasoning-delta', index: 1, text: '  ' })
-    assembler.push({ type: 'tool-call-delta', index: 2, id: ToolCallId('c'), name: 'read', argumentsDelta: '{}' })
+    assembler.push({
+      type: 'tool-call-delta',
+      index: 2,
+      id: ToolCallId('c'),
+      name: 'read',
+      argumentsDelta: '{}',
+    })
     expect(assembler.interruptedBlocks()).toEqual([{ type: 'text', text: 'partial' }])
   })
 })
@@ -88,7 +100,9 @@ describe('source assistant stream records', () => {
 
   it('validates malformed records at the durable boundary', () => {
     const malformed = [{ type: 'text-chunks', time0: 1, index: 0, dt: [1], texts: ['only'] }]
-    expect(() => expandAssistantStream(malformed as readonly AssistantStreamRecord[])).toThrow(/dt length/)
+    expect(() => expandAssistantStream(malformed as readonly AssistantStreamRecord[])).toThrow(
+      /dt length/,
+    )
   })
 
   it('assembles compact runs without changing assembled output', () => {

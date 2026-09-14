@@ -30,9 +30,7 @@ interface EntryValues<V> {
 export class NamedEntries<V> implements EntryValues<V> {
   private data = new Map<string, V>()
 
-  constructor(
-    private readonly duplicateError: (name: string) => Error,
-  ) {}
+  constructor(private readonly duplicateError: (name: string) => Error) {}
 
   /**
    * Insert one unique name.
@@ -205,10 +203,7 @@ export class ScopedLayers<L extends ScopeLayer> {
    * @param pick - select the named table from a layer.
    * @returns an insertion-ordered effective map.
    */
-  merge<V>(
-    scope: ScopeKey | undefined,
-    pick: (layer: L) => NamedEntries<V>,
-  ): Map<string, V> {
+  merge<V>(scope: ScopeKey | undefined, pick: (layer: L) => NamedEntries<V>): Map<string, V> {
     const merged = new Map(pick(this.global).entries())
     for (const layer of this.chainLayers(scope)) {
       for (const [name, value] of pick(layer).entries()) merged.set(name, value)
@@ -230,37 +225,40 @@ export class ScopedLayers<L extends ScopeLayer> {
   ): () => void {
     const scope = scopeOf(ctx)
     const notify = options.notify ?? true
-    const dispose = ctx.effect(function* (this: ScopedLayers<L>) {
-      let layer: L
-      let created = false
-      if (scope === undefined) {
-        layer = this.global
-      } else {
-        const existing = this.scoped.get(scope)
-        if (existing === undefined) {
-          layer = this.createLayer(scope)
-          this.scoped.set(scope, layer)
-          created = true
+    const dispose = ctx.effect(
+      function* (this: ScopedLayers<L>) {
+        let layer: L
+        let created = false
+        if (scope === undefined) {
+          layer = this.global
         } else {
-          layer = existing
+          const existing = this.scoped.get(scope)
+          if (existing === undefined) {
+            layer = this.createLayer(scope)
+            this.scoped.set(scope, layer)
+            created = true
+          } else {
+            layer = existing
+          }
         }
-      }
 
-      let undo: () => void
-      try {
-        undo = action(layer)
-      } catch (error) {
-        if (scope !== undefined && created && layer.isEmpty()) this.scoped.delete(scope)
-        throw error
-      }
+        let undo: () => void
+        try {
+          undo = action(layer)
+        } catch (error) {
+          if (scope !== undefined && created && layer.isEmpty()) this.scoped.delete(scope)
+          throw error
+        }
 
-      yield () => {
-        undo()
-        if (scope !== undefined && layer.isEmpty()) this.scoped.delete(scope)
+        yield () => {
+          undo()
+          if (scope !== undefined && layer.isEmpty()) this.scoped.delete(scope)
+          if (notify) this.onChange()
+        }
         if (notify) this.onChange()
-      }
-      if (notify) this.onChange()
-    }.bind(this), options.label)
+      }.bind(this),
+      options.label,
+    )
     // oxlint-disable-next-line typescript/no-misused-promises -- exact synchronous disposer preserves Cordis effect identity
     return dispose
   }

@@ -3,7 +3,11 @@ import { normalizeLlmFailure } from '../dist/index.js'
 
 describe('adapter failure normalization', () => {
   it('contains hostile non-Error coercion', () => {
-    const thrown = { [Symbol.toPrimitive]: () => { throw new Error('coercion failed') } }
+    const thrown = {
+      [Symbol.toPrimitive]: () => {
+        throw new Error('coercion failed')
+      },
+    }
     expect(normalizeLlmFailure(thrown)).toEqual({ message: 'LLM adapter failed', code: 'UNKNOWN' })
   })
 
@@ -12,7 +16,9 @@ describe('adapter failure normalization', () => {
     expect(normalizeLlmFailure(null)).toEqual({ message: 'null', code: 'UNKNOWN' })
 
     const error = new Error('provider failed')
-    Object.defineProperty(error, 'failure', { get: () => ({ message: 'ignored', code: 'IGNORED' }) })
+    Object.defineProperty(error, 'failure', {
+      get: () => ({ message: 'ignored', code: 'IGNORED' }),
+    })
     Object.defineProperty(error, 'code', { get: () => 'IGNORED' })
     expect(normalizeLlmFailure(error)).toEqual({ message: 'provider failed', code: 'UNKNOWN' })
 
@@ -20,13 +26,19 @@ describe('adapter failure normalization', () => {
       failure: { message: 'provider failed', code: 'FOREIGN' },
     })
     Object.defineProperty(accessorCode, 'code', { get: () => 'FOREIGN' })
-    expect(normalizeLlmFailure(accessorCode)).toEqual({ message: 'provider failed', code: 'UNKNOWN' })
+    expect(normalizeLlmFailure(accessorCode)).toEqual({
+      message: 'provider failed',
+      code: 'UNKNOWN',
+    })
 
     const primitiveFailure = Object.assign(new Error('provider failed'), {
       failure: null,
       code: 'FOREIGN',
     })
-    expect(normalizeLlmFailure(primitiveFailure)).toEqual({ message: 'provider failed', code: 'UNKNOWN' })
+    expect(normalizeLlmFailure(primitiveFailure)).toEqual({
+      message: 'provider failed',
+      code: 'UNKNOWN',
+    })
   })
 
   it('contains hostile Error property reflection', () => {
@@ -39,12 +51,20 @@ describe('adapter failure normalization', () => {
         return Reflect.getOwnPropertyDescriptor(target, property)
       },
     })
-    expect(normalizeLlmFailure(hostileCode)).toEqual({ message: 'provider failed', code: 'UNKNOWN' })
+    expect(normalizeLlmFailure(hostileCode)).toEqual({
+      message: 'provider failed',
+      code: 'UNKNOWN',
+    })
 
     const hostileFailure = new Proxy(new Error('provider failed'), {
-      getOwnPropertyDescriptor() { throw new Error('failure descriptor failed') },
+      getOwnPropertyDescriptor() {
+        throw new Error('failure descriptor failed')
+      },
     })
-    expect(normalizeLlmFailure(hostileFailure)).toEqual({ message: 'provider failed', code: 'UNKNOWN' })
+    expect(normalizeLlmFailure(hostileFailure)).toEqual({
+      message: 'provider failed',
+      code: 'UNKNOWN',
+    })
   })
 
   it('rejects malformed or accessor-backed failure snapshots', () => {
@@ -55,14 +75,23 @@ describe('adapter failure normalization', () => {
 
     const accessorBacked = new Error('provider failed') as Error & { failure: unknown }
     accessorBacked.failure = Object.defineProperty({}, 'message', {
-      get() { throw new Error('failure getter failed') },
+      get() {
+        throw new Error('failure getter failed')
+      },
     })
-    expect(normalizeLlmFailure(accessorBacked)).toEqual({ message: 'provider failed', code: 'UNKNOWN' })
+    expect(normalizeLlmFailure(accessorBacked)).toEqual({
+      message: 'provider failed',
+      code: 'UNKNOWN',
+    })
   })
 
   it('falls back when an Error message accessor throws', () => {
     const error = new Error('provider failed')
-    Object.defineProperty(error, 'message', { get() { throw new Error('message getter failed') } })
+    Object.defineProperty(error, 'message', {
+      get() {
+        throw new Error('message getter failed')
+      },
+    })
     expect(normalizeLlmFailure(error)).toEqual({ message: 'LLM adapter failed', code: 'UNKNOWN' })
   })
 })

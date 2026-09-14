@@ -19,7 +19,11 @@ describe('source media pure mechanisms', () => {
       width: 2,
       height: 3,
     }
-    const file: FileAttachmentRef = { attachmentId: AttachmentId('sha256:file'), name: 'a.txt', bytes: 4 }
+    const file: FileAttachmentRef = {
+      attachmentId: AttachmentId('sha256:file'),
+      name: 'a.txt',
+      bytes: 4,
+    }
     expect(image.attachmentId).toBe('sha256:image')
     expect(file.name).toBe('a.txt')
     expect(ImageVariantId('variant')).toBe('variant')

@@ -12,7 +12,8 @@ import type { ContentBlock } from '@omne-harness-lite/llm/baseline'
  * provider-neutral vocabulary lets tools describe themselves without depending
  * on a particular client; `other` is the default.
  */
-export type ToolCallKind = 'read' | 'edit' | 'delete' | 'move' | 'search' | 'execute' | 'fetch' | 'other'
+export type ToolCallKind =
+  'read' | 'edit' | 'delete' | 'move' | 'search' | 'execute' | 'fetch' | 'other'
 
 /**
  * A file location a tool reads or modifies, so a capable UI can "follow along" —
@@ -137,7 +138,13 @@ export interface ReadFileLine {
  * `ToolDefinition.presentResult`; omitting the method keeps the pending
  * title and renders the raw result content.
  */
-export type ToolResultView = GenericResultView | TerminalResultView | DiffResultView | SearchResultView | ReadResultView | WebResultView
+export type ToolResultView =
+  | GenericResultView
+  | TerminalResultView
+  | DiffResultView
+  | SearchResultView
+  | ReadResultView
+  | WebResultView
 
 /**
  * The default completed card: an optional replacement title and reformatted

@@ -4,14 +4,16 @@ import { decodeSeqRanges, encodeSeqRanges, SessionSeq } from '../dist/index.js'
 const seqs = (values: readonly number[]) => values.map(SessionSeq)
 
 describe('sourceEventSeqs ranges', () => {
-  it.each([
-    [],
-    [5],
-    [10, 11, 12, 13, 14],
-    [16, 17, 100, 200, 201, 202, 203],
-    [3, 2],
-    [Number.MAX_SAFE_INTEGER - 1, 0, Number.MAX_SAFE_INTEGER - 2],
-  ].map(values => [values]))('round-trips %j', (values) => {
+  it.each(
+    [
+      [],
+      [5],
+      [10, 11, 12, 13, 14],
+      [16, 17, 100, 200, 201, 202, 203],
+      [3, 2],
+      [Number.MAX_SAFE_INTEGER - 1, 0, Number.MAX_SAFE_INTEGER - 2],
+    ].map(values => [values]),
+  )('round-trips %j', values => {
     expect(decodeSeqRanges(encodeSeqRanges(seqs(values)))).toEqual(values)
   })
 
@@ -31,7 +33,12 @@ describe('sourceEventSeqs ranges', () => {
     expect(() => decodeSeqRanges([-1])).toThrow(/non-negative safe integers/)
     expect(() => decodeSeqRanges([[1]])).toThrow(/\[start, end\] pairs/)
     expect(() => decodeSeqRanges([[4, 2]])).toThrow(/start <= end/)
-    expect(() => decodeSeqRanges([[2, 5], [4, 7]])).toThrow(/strictly increasing/)
+    expect(() =>
+      decodeSeqRanges([
+        [2, 5],
+        [4, 7],
+      ]),
+    ).toThrow(/strictly increasing/)
     expect(() => decodeSeqRanges([0], 0)).toThrow(/exceeds its event sequence/)
     expect(() => decodeSeqRanges([[0, 10]], 10)).toThrow(/exceeds its event sequence/)
   })

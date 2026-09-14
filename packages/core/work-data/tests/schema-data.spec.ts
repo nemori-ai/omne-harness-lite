@@ -84,7 +84,13 @@ const valid: { readonly [K in keyof DataTypes]: unknown } = {
   WorkRef: work,
   WorkOwner: step,
   MediaRef: media,
-  MediaMetadata: { media, sha256: 'a'.repeat(64), byteLength: 0, mimeType: 'text/plain', filename: 'file.txt' },
+  MediaMetadata: {
+    media,
+    sha256: 'a'.repeat(64),
+    byteLength: 0,
+    mimeType: 'text/plain',
+    filename: 'file.txt',
+  },
   ResourceRef: resource,
   SecretRef: { kind: 'secret_version', tenantId: 'tenant', secretId: 'secret', version: 'v1' },
   Binding: binding,
@@ -93,8 +99,21 @@ const valid: { readonly [K in keyof DataTypes]: unknown } = {
   RequestRef: request,
   Money: { integer: '-100', scale: 2, currency: 'USD' },
   OperationRef: { namespace: 'session', principalId: 'user', operationId: 'operation' },
-  Decision: { request, contentVersion: 'content-v1', outcomeVersion: 'outcome-v1', actor: user, outcome: 'approve' },
-  Input: { session, inputId: 'input', revision: 0, content: [{ blockId: 'block', kind: 'text', text: 'hello' }], busyBehavior: 'queue', literal: false },
+  Decision: {
+    request,
+    contentVersion: 'content-v1',
+    outcomeVersion: 'outcome-v1',
+    actor: user,
+    outcome: 'approve',
+  },
+  Input: {
+    session,
+    inputId: 'input',
+    revision: 0,
+    content: [{ blockId: 'block', kind: 'text', text: 'hello' }],
+    busyBehavior: 'queue',
+    literal: false,
+  },
   ContentBlock: { blockId: 'block', kind: 'tool_call', call, action },
   AuthorizationDeclaration: authorization,
   Command: command,
@@ -120,13 +139,27 @@ describe('A30/A31 formal schema-backed data parsing', () => {
     ['AgentRef', { tenantId: 'tenant', sessionId: 'session' }, '/incarnationId'],
     ['SessionRef', { ...session, extra: true }, '/extra'],
     ['Money', { integer: '01', scale: 0, currency: 'USD' }, '/integer'],
-    ['Decision', { request, contentVersion: 'c', outcomeVersion: 'o', actor: user, outcome: 'approve', answer: null }, '/answer'],
+    [
+      'Decision',
+      {
+        request,
+        contentVersion: 'c',
+        outcomeVersion: 'o',
+        actor: user,
+        outcome: 'approve',
+        answer: null,
+      },
+      '/answer',
+    ],
     ['BackgroundDeclaration', { mode: 'unsupported', requiredResources: [] }, ''],
     ['Command', { ...command, commandKey: 'help' }, '/commandKey'],
-  ] satisfies readonly (readonly [keyof DataTypes, unknown, string])[])('rejects invalid %s at a stable path', (name, value, path) => {
-    const result = parseData(name, value, limits)
-    expect(result).toMatchObject({ ok: false, issues: [{ code: 'schema', path }] })
-  })
+  ] satisfies readonly (readonly [keyof DataTypes, unknown, string])[])(
+    'rejects invalid %s at a stable path',
+    (name, value, path) => {
+      const result = parseData(name, value, limits)
+      expect(result).toMatchObject({ ok: false, issues: [{ code: 'schema', path }] })
+    },
+  )
 
   it('retains strict JSON rejection before schema validation without invoking an accessor', () => {
     let calls = 0
@@ -137,7 +170,10 @@ describe('A30/A31 formal schema-backed data parsing', () => {
         return 'session'
       },
     })
-    expect(parseData('SessionRef', value, limits)).toMatchObject({ ok: false, issues: [{ code: 'invalid_json', path: '/sessionId' }] })
+    expect(parseData('SessionRef', value, limits)).toMatchObject({
+      ok: false,
+      issues: [{ code: 'invalid_json', path: '/sessionId' }],
+    })
     expect(calls).toBe(0)
   })
 
@@ -156,39 +192,82 @@ describe('A30/A31 formal schema-backed data parsing', () => {
 
   it.each([
     ['WorkOwner', work],
-    ['Decision', { request, contentVersion: 'c', outcomeVersion: 'o', actor: user, outcome: 'answer', answer: { text: 'yes' } }],
-    ['Decision', { request, contentVersion: 'c', outcomeVersion: 'o', actor: user, outcome: 'reject' }],
+    [
+      'Decision',
+      {
+        request,
+        contentVersion: 'c',
+        outcomeVersion: 'o',
+        actor: user,
+        outcome: 'answer',
+        answer: { text: 'yes' },
+      },
+    ],
+    [
+      'Decision',
+      { request, contentVersion: 'c', outcomeVersion: 'o', actor: user, outcome: 'reject' },
+    ],
     ['Action', { ...action, confirmation: 'provisional', provisionalContract: resource }],
-    ['AuthorizationDeclaration', { ...authorization, confirmation: 'provisional', provisionalContract: resource }],
+    [
+      'AuthorizationDeclaration',
+      { ...authorization, confirmation: 'provisional', provisionalContract: resource },
+    ],
     ['BackgroundDeclaration', unsupportedBackground],
-    ['BackgroundDeclaration', {
-      mode: 'supported',
-      executionOwnerProtocol: supportedBackground.executionOwnerProtocol,
-      requiredResources: supportedBackground.requiredResources,
-      reconnectProtocol: supportedBackground.reconnectProtocol,
-      form: 'independent_execution',
-    }],
+    [
+      'BackgroundDeclaration',
+      {
+        mode: 'supported',
+        executionOwnerProtocol: supportedBackground.executionOwnerProtocol,
+        requiredResources: supportedBackground.requiredResources,
+        reconnectProtocol: supportedBackground.reconnectProtocol,
+        form: 'independent_execution',
+      },
+    ],
     ['ContentBlock', { blockId: 'text', kind: 'text', text: '' }],
     ['ContentBlock', { blockId: 'image', kind: 'image', media, delivery: 'model_native' }],
     ['ContentBlock', { blockId: 'audio', kind: 'audio', media, delivery: 'agent_attachment' }],
     ['ContentBlock', { blockId: 'video', kind: 'video', media, delivery: 'model_native' }],
     ['ContentBlock', { blockId: 'file', kind: 'file', media, delivery: 'agent_attachment' }],
     ['ContentBlock', { blockId: 'call', kind: 'tool_call', call, action }],
-    ['ContentBlock', { blockId: 'result', kind: 'tool_result', call, outcome: 'unknown', value: null }],
-    ['ContentBlock', { blockId: 'receipt', kind: 'deferred_receipt', call, request, continuationId: 'continuation', status: 'pending' }],
+    [
+      'ContentBlock',
+      { blockId: 'result', kind: 'tool_result', call, outcome: 'unknown', value: null },
+    ],
+    [
+      'ContentBlock',
+      {
+        blockId: 'receipt',
+        kind: 'deferred_receipt',
+        call,
+        request,
+        continuationId: 'continuation',
+        status: 'pending',
+      },
+    ],
     ['InputBlock', { blockId: 'image', kind: 'image', media, delivery: 'model_native' }],
     ['InputBlock', { blockId: 'audio', kind: 'audio', media, delivery: 'model_native' }],
     ['InputBlock', { blockId: 'video', kind: 'video', media, delivery: 'model_native' }],
     ['InputBlock', { blockId: 'file', kind: 'file', media, delivery: 'model_native' }],
-  ] satisfies readonly (readonly [keyof DataTypes, unknown])[])('accepts the %s union variant fixed by the formal schema', (name, value) => {
-    expect(parseData(name, value, limits), `${name}: ${JSON.stringify(value)}`).toMatchObject({ ok: true })
-  })
+  ] satisfies readonly (readonly [keyof DataTypes, unknown])[])(
+    'accepts the %s union variant fixed by the formal schema',
+    (name, value) => {
+      expect(parseData(name, value, limits), `${name}: ${JSON.stringify(value)}`).toMatchObject({
+        ok: true,
+      })
+    },
+  )
 
   it('does not coerce schema values, insert defaults, or remove extra properties', () => {
     const wrongScale = { integer: '100', scale: '2', currency: 'USD' }
     const extra = { ...session, extra: true }
-    expect(parseData('Money', wrongScale, limits)).toMatchObject({ ok: false, issues: [{ code: 'schema', path: '/scale' }] })
-    expect(parseData('SessionRef', extra, limits)).toMatchObject({ ok: false, issues: [{ code: 'schema', path: '/extra' }] })
+    expect(parseData('Money', wrongScale, limits)).toMatchObject({
+      ok: false,
+      issues: [{ code: 'schema', path: '/scale' }],
+    })
+    expect(parseData('SessionRef', extra, limits)).toMatchObject({
+      ok: false,
+      issues: [{ code: 'schema', path: '/extra' }],
+    })
     expect(wrongScale.scale).toBe('2')
     expect(extra.extra).toBe(true)
   })
@@ -196,19 +275,35 @@ describe('A30/A31 formal schema-backed data parsing', () => {
 
 describe('A30 frozen schema resources', () => {
   it.each([
-    ['agent-runtime-identity.schema.json', '37393c0774f7a71ee6bf663388a2ec27821740f98b19d487b1299d39829aca74'],
+    [
+      'agent-runtime-identity.schema.json',
+      '37393c0774f7a71ee6bf663388a2ec27821740f98b19d487b1299d39829aca74',
+    ],
     ['core-work.schema.json', '1c11b06bb94756cfea6f162173c9f4070be71bf44eb09f8ddeb3e199d579c203'],
-  ])('keeps source and dist %s byte-identical to the formal artifact', async (filename, expected) => {
-    for (const directory of ['src/schemas', 'dist/schemas']) {
-      const bytes = await readFile(new URL(`../${directory}/${filename}`, import.meta.url))
-      expect(createHash('sha256').update(bytes).digest('hex')).toBe(expected)
-    }
-  })
+  ])(
+    'keeps source and dist %s byte-identical to the formal artifact',
+    async (filename, expected) => {
+      for (const directory of ['src/schemas', 'dist/schemas']) {
+        const bytes = await readFile(new URL(`../${directory}/${filename}`, import.meta.url))
+        expect(createHash('sha256').update(bytes).digest('hex')).toBe(expected)
+      }
+    },
+  )
 
   it('packages the exact union of schema $defs consumed by DataTypes', async () => {
-    const identity = JSON.parse(await readFile(new URL('../dist/schemas/agent-runtime-identity.schema.json', import.meta.url), 'utf8')) as JsonObject
-    const core = JSON.parse(await readFile(new URL('../dist/schemas/core-work.schema.json', import.meta.url), 'utf8')) as JsonObject
-    const names = new Set([...Object.keys(identity.$defs as JsonObject), ...Object.keys(core.$defs as JsonObject)])
+    const identity = JSON.parse(
+      await readFile(
+        new URL('../dist/schemas/agent-runtime-identity.schema.json', import.meta.url),
+        'utf8',
+      ),
+    ) as JsonObject
+    const core = JSON.parse(
+      await readFile(new URL('../dist/schemas/core-work.schema.json', import.meta.url), 'utf8'),
+    ) as JsonObject
+    const names = new Set([
+      ...Object.keys(identity.$defs as JsonObject),
+      ...Object.keys(core.$defs as JsonObject),
+    ])
     expect(names.size).toBe(29)
     expect([...names].sort()).toEqual(Object.keys(valid).sort())
   })

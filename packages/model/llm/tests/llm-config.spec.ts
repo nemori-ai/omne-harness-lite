@@ -18,11 +18,15 @@ describe('source request configuration and attribution', () => {
     const base = { provider: 'p', model: 'm' }
     expect(callConfigEquals(base, base)).toBe(true)
     expect(callConfigEquals(base, { ...base, model: 'other' })).toBe(false)
-    expect(callConfigEquals(
-      { ...base, reasoningEffort: ReasoningEffortId('high'), stop: ['a', 'b'] },
-      { ...base, reasoningEffort: ReasoningEffortId('high'), stop: ['a', 'b'] },
-    )).toBe(true)
-    expect(callConfigEquals({ ...base, stop: ['a', 'b'] }, { ...base, stop: ['b', 'a'] })).toBe(false)
+    expect(
+      callConfigEquals(
+        { ...base, reasoningEffort: ReasoningEffortId('high'), stop: ['a', 'b'] },
+        { ...base, reasoningEffort: ReasoningEffortId('high'), stop: ['a', 'b'] },
+      ),
+    ).toBe(true)
+    expect(callConfigEquals({ ...base, stop: ['a', 'b'] }, { ...base, stop: ['b', 'a'] })).toBe(
+      false,
+    )
   })
 
   it('marks only the exact loop request object', () => {
@@ -40,7 +44,8 @@ describe('source request configuration and attribution', () => {
       url: 'https://github.com/deepseek-ai/deepseek-harness',
     })
     expect(attributionHeaders()).toEqual({ 'user-agent': userAgent() })
-    expect(attributionHeaders({ product: 'fork', version: '1', url: 'https://example.test' }))
-      .toEqual({ 'user-agent': 'fork/1 (+https://example.test)' })
+    expect(
+      attributionHeaders({ product: 'fork', version: '1', url: 'https://example.test' }),
+    ).toEqual({ 'user-agent': 'fork/1 (+https://example.test)' })
   })
 })

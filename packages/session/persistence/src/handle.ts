@@ -4,7 +4,13 @@
  * @module @omne-harness-lite/session-persistence/baseline/handle
  */
 
-import type { SessionEvent, SessionHeader, SessionId, SessionLogOffset, SessionSeedEventState } from '@omne-harness-lite/session/baseline'
+import type {
+  SessionEvent,
+  SessionHeader,
+  SessionId,
+  SessionLogOffset,
+  SessionSeedEventState,
+} from '@omne-harness-lite/session/baseline'
 
 /**
  * Log access granted by an open. `write` is read-write: the session's single
@@ -80,7 +86,11 @@ export interface SessionHandle extends AsyncDisposable {
    * @param options - optional cancellation.
    * @returns the caller-owned outer slice plus the ownership state of its event values.
    */
-  read(offset?: number, length?: number, options?: SessionHandleReadOptions): Promise<SessionHandleReadResult>
+  read(
+    offset?: number,
+    length?: number,
+    options?: SessionHandleReadOptions,
+  ): Promise<SessionHandleReadResult>
 
   /**
    * Append a contiguous batch continuing the current logical end. The first

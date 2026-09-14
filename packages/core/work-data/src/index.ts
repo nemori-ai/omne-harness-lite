@@ -62,7 +62,8 @@ export type Action = Readonly<{
   permissions: readonly string[]
   grantorKinds: readonly string[]
   impact: string
-}> & Confirmation
+}> &
+  Confirmation
 export type CallRef = Readonly<{ owner: WorkOwner; callId: OpaqueId; attemptId: OpaqueId }>
 export type RequestRef = Readonly<{ tenantId: OpaqueId; requestId: OpaqueId }>
 export type Money = Readonly<{ integer: string; scale: number; currency: string }>
@@ -76,10 +77,11 @@ export type Decision = Readonly<{
   contentVersion: OpaqueId
   outcomeVersion: OpaqueId
   actor: UserRef
-}> & (
-  | Readonly<{ outcome: 'answer'; answer: JsonValue }>
-  | Readonly<{ outcome: 'approve' | 'reject'; answer?: never }>
-)
+}> &
+  (
+    | Readonly<{ outcome: 'answer'; answer: JsonValue }>
+    | Readonly<{ outcome: 'approve' | 'reject'; answer?: never }>
+  )
 export type TextBlock = Readonly<{ blockId: OpaqueId; kind: 'text'; text: string }>
 export type MediaBlock = Readonly<{
   blockId: OpaqueId
@@ -97,8 +99,13 @@ export type ToolResultBlock = Readonly<{
   blockId: OpaqueId
   kind: 'tool_result'
   call: CallRef
-  outcome: 'succeeded' | 'failed' | 'denied_before_execution' |
-    'cancelled_before_execution' | 'interrupted' | 'unknown'
+  outcome:
+    | 'succeeded'
+    | 'failed'
+    | 'denied_before_execution'
+    | 'cancelled_before_execution'
+    | 'interrupted'
+    | 'unknown'
   value: JsonValue
 }>
 export type DeferredReceiptBlock = Readonly<{
@@ -109,7 +116,8 @@ export type DeferredReceiptBlock = Readonly<{
   continuationId: OpaqueId
   status: 'pending'
 }>
-export type ContentBlock = TextBlock | MediaBlock | ToolCallBlock | ToolResultBlock | DeferredReceiptBlock
+export type ContentBlock =
+  TextBlock | MediaBlock | ToolCallBlock | ToolResultBlock | DeferredReceiptBlock
 export type InputBlock = TextBlock | MediaBlock
 export type Input = Readonly<{
   session: SessionRef
@@ -136,7 +144,8 @@ export type AuthorizationDeclaration = Readonly<{
   resourceResolver: Readonly<{ resolverId: string; version: string }>
   grantorKinds: readonly string[]
   impactTemplate: string
-}> & Confirmation
+}> &
+  Confirmation
 export type Command = Readonly<{
   commandKey: string
   inputSchema: JsonObject | boolean
@@ -224,12 +233,13 @@ export type ValidationIssue = Readonly<{
   message: string
 }>
 export type Checked<T> =
-  | Readonly<{ ok: true; value: T }>
-  | Readonly<{ ok: false; issues: readonly ValidationIssue[] }>
+  Readonly<{ ok: true; value: T }> | Readonly<{ ok: false; issues: readonly ValidationIssue[] }>
 export type JsonLimits = Readonly<{ maxBytes: number; maxDepth: number; maxNodes: number }>
 
 function readSchema(filename: string): Record<string, unknown> {
-  const value: unknown = JSON.parse(readFileSync(new URL(`./schemas/${filename}`, import.meta.url), 'utf8'))
+  const value: unknown = JSON.parse(
+    readFileSync(new URL(`./schemas/${filename}`, import.meta.url), 'utf8'),
+  )
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     throw new TypeError(`schema resource ${filename} is not an object`)
   }
@@ -313,11 +323,7 @@ type CopyTask =
     }>
   | Readonly<{ kind: 'leave'; value: object }>
 
-function issue(
-  code: ValidationIssue['code'],
-  path: string,
-  message: string,
-): Checked<never> {
+function issue(code: ValidationIssue['code'], path: string, message: string): Checked<never> {
   return failed([{ path, code, message }])
 }
 
@@ -351,13 +357,15 @@ function preflightCapacity(text: string, limits: JsonLimits): Checked<never> | u
   const root = { state: 'value' as 'value' | 'done' }
   let nodes = 0
 
-  const invalidToken = (): Checked<never> => issue(
-    'invalid_json',
-    '',
-    `invalid JSON structure at character offset ${scanner.getTokenOffset()}`,
-  )
+  const invalidToken = (): Checked<never> =>
+    issue(
+      'invalid_json',
+      '',
+      `invalid JSON structure at character offset ${scanner.getTokenOffset()}`,
+    )
 
-  const beginValue = (): Readonly<{ path: ScanPath | undefined; depth: number }> | Checked<never> => {
+  const beginValue = ():
+    Readonly<{ path: ScanPath | undefined; depth: number }> | Checked<never> => {
     const parent = frames.at(-1)
     if (parent === undefined) {
       if (root.state === 'done') return invalidToken()
@@ -380,12 +388,17 @@ function preflightCapacity(text: string, limits: JsonLimits): Checked<never> | u
     }
   }
 
-  const enterValue = (): Readonly<{ path: ScanPath | undefined; depth: number }> | Checked<never> => {
+  const enterValue = ():
+    Readonly<{ path: ScanPath | undefined; depth: number }> | Checked<never> => {
     const value = beginValue()
     if ('ok' in value) return value
     nodes += 1
     if (nodes > limits.maxNodes) {
-      return issue('capacity', scanPointer(value.path), `maximum node count ${limits.maxNodes} exceeded`)
+      return issue(
+        'capacity',
+        scanPointer(value.path),
+        `maximum node count ${limits.maxNodes} exceeded`,
+      )
     }
     if (value.depth > limits.maxDepth) {
       return issue('capacity', scanPointer(value.path), `maximum depth ${limits.maxDepth} exceeded`)
@@ -413,9 +426,11 @@ function preflightCapacity(text: string, limits: JsonLimits): Checked<never> | u
     if (token === SyntaxKind.Unknown) return invalidToken()
 
     const frame = frames.at(-1)
-    if (token === SyntaxKind.StringLiteral
-      && frame?.kind === 'object'
-      && (frame.state === 'firstKeyOrEnd' || frame.state === 'key')) {
+    if (
+      token === SyntaxKind.StringLiteral &&
+      frame?.kind === 'object' &&
+      (frame.state === 'firstKeyOrEnd' || frame.state === 'key')
+    ) {
       frame.key = scanner.getTokenValue()
       frame.state = 'colon'
       continue
@@ -437,30 +452,49 @@ function preflightCapacity(text: string, limits: JsonLimits): Checked<never> | u
       continue
     }
     if (token === SyntaxKind.CloseBracketToken) {
-      if (frame?.kind !== 'array'
-        || frame.state !== 'firstOrEnd' && frame.state !== 'commaOrEnd') return invalidToken()
+      if (frame?.kind !== 'array' || (frame.state !== 'firstOrEnd' && frame.state !== 'commaOrEnd'))
+        return invalidToken()
       frames.pop()
       continue
     }
     if (token === SyntaxKind.CloseBraceToken) {
-      if (frame?.kind !== 'object'
-        || frame.state !== 'firstKeyOrEnd' && frame.state !== 'commaOrEnd') return invalidToken()
+      if (
+        frame?.kind !== 'object' ||
+        (frame.state !== 'firstKeyOrEnd' && frame.state !== 'commaOrEnd')
+      )
+        return invalidToken()
       frames.pop()
       continue
     }
     if (token === SyntaxKind.OpenBracketToken || token === SyntaxKind.OpenBraceToken) {
       const value = enterValue()
       if ('ok' in value) return value
-      frames.push(token === SyntaxKind.OpenBracketToken
-        ? { kind: 'array', path: value.path, depth: value.depth, state: 'firstOrEnd', nextIndex: 0 }
-        : { kind: 'object', path: value.path, depth: value.depth, state: 'firstKeyOrEnd', key: undefined })
+      frames.push(
+        token === SyntaxKind.OpenBracketToken
+          ? {
+              kind: 'array',
+              path: value.path,
+              depth: value.depth,
+              state: 'firstOrEnd',
+              nextIndex: 0,
+            }
+          : {
+              kind: 'object',
+              path: value.path,
+              depth: value.depth,
+              state: 'firstKeyOrEnd',
+              key: undefined,
+            },
+      )
       continue
     }
-    if (token === SyntaxKind.StringLiteral
-      || token === SyntaxKind.NumericLiteral
-      || token === SyntaxKind.NullKeyword
-      || token === SyntaxKind.TrueKeyword
-      || token === SyntaxKind.FalseKeyword) {
+    if (
+      token === SyntaxKind.StringLiteral ||
+      token === SyntaxKind.NumericLiteral ||
+      token === SyntaxKind.NullKeyword ||
+      token === SyntaxKind.TrueKeyword ||
+      token === SyntaxKind.FalseKeyword
+    ) {
       const value = enterValue()
       if ('ok' in value) return value
       continue
@@ -489,7 +523,8 @@ function decimal(token: string): Decimal | undefined {
   if (match === null) return undefined
   const fraction = match[3] ?? ''
   let coefficient = `${match[2]}${fraction}`.replace(/^0+/, '')
-  if (coefficient.length === 0) return { negative: match[1] === '-', coefficient: '0', exponent: 0n }
+  if (coefficient.length === 0)
+    return { negative: match[1] === '-', coefficient: '0', exponent: 0n }
   let exponent = BigInt(match[4] ?? '0') - BigInt(fraction.length)
   const trailing = /0+$/.exec(coefficient)?.[0].length ?? 0
   if (trailing > 0) {
@@ -504,11 +539,13 @@ function supportedNumber(token: string, value: unknown): boolean {
   if (Number.isInteger(value) && !Number.isSafeInteger(value)) return false
   const original = decimal(token)
   const encoded = decimal(JSON.stringify(value))
-  return original !== undefined
-    && encoded !== undefined
-    && original.negative === encoded.negative
-    && original.coefficient === encoded.coefficient
-    && original.exponent === encoded.exponent
+  return (
+    original !== undefined &&
+    encoded !== undefined &&
+    original.negative === encoded.negative &&
+    original.coefficient === encoded.coefficient &&
+    original.exponent === encoded.exponent
+  )
 }
 
 function define(target: Record<string, JsonValue>, key: string, value: JsonValue): void {
@@ -540,9 +577,11 @@ function hasIntrinsicConstructor(prototype: object, name: 'Array' | 'Object'): b
   const constructor: unknown = descriptor?.value
   if (typeof constructor !== 'function') return false
   try {
-    return constructor.name === name
-      && constructor.prototype === prototype
-      && Function.prototype.toString.call(constructor) === `function ${name}() { [native code] }`
+    return (
+      constructor.name === name &&
+      constructor.prototype === prototype &&
+      Function.prototype.toString.call(constructor) === `function ${name}() { [native code] }`
+    )
   } catch {
     return false
   }
@@ -554,17 +593,21 @@ function isIntrinsicObjectPrototype(value: object): boolean {
 
 function isPlainObject(value: object): boolean {
   const prototype: unknown = Object.getPrototypeOf(value)
-  return prototype === null
-    || typeof prototype === 'object' && prototype !== null && isIntrinsicObjectPrototype(prototype)
+  return (
+    prototype === null ||
+    (typeof prototype === 'object' && prototype !== null && isIntrinsicObjectPrototype(prototype))
+  )
 }
 
 function isPlainArray(value: unknown[]): boolean {
   const prototype: unknown = Object.getPrototypeOf(value)
   if (!Array.isArray(prototype) || !hasIntrinsicConstructor(prototype, 'Array')) return false
   const objectPrototype: unknown = Object.getPrototypeOf(prototype)
-  return typeof objectPrototype === 'object'
-    && objectPrototype !== null
-    && isIntrinsicObjectPrototype(objectPrototype)
+  return (
+    typeof objectPrototype === 'object' &&
+    objectPrototype !== null &&
+    isIntrinsicObjectPrototype(objectPrototype)
+  )
 }
 
 function dataProperties(
@@ -578,7 +621,11 @@ function dataProperties(
     }
     const descriptor = Object.getOwnPropertyDescriptor(value, key)
     if (descriptor === undefined || !descriptor.enumerable) {
-      return issue('invalid_json', pointer([...path, key]), 'non-enumerable properties are not JSON data')
+      return issue(
+        'invalid_json',
+        pointer([...path, key]),
+        'non-enumerable properties are not JSON data',
+      )
     }
     if (!('value' in descriptor)) {
       return issue('invalid_json', pointer([...path, key]), 'accessor properties are not JSON data')
@@ -588,11 +635,9 @@ function dataProperties(
   return passed(properties)
 }
 
-function arrayItems(
-  value: unknown[],
-  path: readonly PathSegment[],
-): Checked<readonly unknown[]> {
-  if (!isPlainArray(value)) return issue('invalid_json', pointer(path), 'array must use an intrinsic Array prototype')
+function arrayItems(value: unknown[], path: readonly PathSegment[]): Checked<readonly unknown[]> {
+  if (!isPlainArray(value))
+    return issue('invalid_json', pointer(path), 'array must use an intrinsic Array prototype')
   const keys = Reflect.ownKeys(value)
   if (keys.length !== value.length + 1 || !keys.includes('length')) {
     return issue('invalid_json', pointer(path), 'array must be dense and have no extra properties')
@@ -601,7 +646,11 @@ function arrayItems(
   for (let index = 0; index < value.length; index += 1) {
     const descriptor = Object.getOwnPropertyDescriptor(value, String(index))
     if (descriptor === undefined || !descriptor.enumerable || !('value' in descriptor)) {
-      return issue('invalid_json', pointer([...path, index]), 'array item must be an enumerable data property')
+      return issue(
+        'invalid_json',
+        pointer([...path, index]),
+        'array item must be an enumerable data property',
+      )
     }
     items[index] = descriptor.value
   }
@@ -612,13 +661,15 @@ function copyValue(value: unknown, limits: JsonLimits): Checked<JsonValue> {
   let root: JsonValue | undefined
   let nodes = 0
   const ancestors = new Set<object>()
-  const tasks: CopyTask[] = [{
-    kind: 'visit',
-    value,
-    path: [],
-    depth: 0,
-    destination: { kind: 'root' },
-  }]
+  const tasks: CopyTask[] = [
+    {
+      kind: 'visit',
+      value,
+      path: [],
+      depth: 0,
+      destination: { kind: 'root' },
+    },
+  ]
   const assign = (destination: Destination, item: JsonValue): void => {
     if (destination.kind === 'root') root = item
     else if (destination.kind === 'array') destination.target[destination.index] = item
@@ -646,23 +697,40 @@ function copyValue(value: unknown, limits: JsonLimits): Checked<JsonValue> {
       continue
     }
     if (typeof current === 'number') {
-      if (!Number.isFinite(current) || Object.is(current, -0) || Number.isInteger(current) && !Number.isSafeInteger(current)) {
-        return issue('unsupported_number', pointer(task.path), 'number is not a supported finite JSON number')
+      if (
+        !Number.isFinite(current) ||
+        Object.is(current, -0) ||
+        (Number.isInteger(current) && !Number.isSafeInteger(current))
+      ) {
+        return issue(
+          'unsupported_number',
+          pointer(task.path),
+          'number is not a supported finite JSON number',
+        )
       }
       assign(task.destination, current)
       continue
     }
     if (typeof current !== 'object') {
-      return issue('invalid_json', pointer(task.path), `value of type ${typeof current} is not JSON data`)
+      return issue(
+        'invalid_json',
+        pointer(task.path),
+        `value of type ${typeof current} is not JSON data`,
+      )
     }
-    if (ancestors.has(current)) return issue('invalid_json', pointer(task.path), 'cyclic value is not JSON data')
+    if (ancestors.has(current))
+      return issue('invalid_json', pointer(task.path), 'cyclic value is not JSON data')
 
     if (Array.isArray(current)) {
       const source = arrayItems(current, task.path)
       if (!source.ok) return source
       const remaining = limits.maxNodes - nodes
       if (source.value.length > remaining) {
-        return issue('capacity', pointer([...task.path, Math.max(remaining, 0)]), `maximum node count ${limits.maxNodes} exceeded`)
+        return issue(
+          'capacity',
+          pointer([...task.path, Math.max(remaining, 0)]),
+          `maximum node count ${limits.maxNodes} exceeded`,
+        )
       }
       const target: JsonValue[] = new Array(source.value.length)
       assign(task.destination, target)
@@ -681,14 +749,22 @@ function copyValue(value: unknown, limits: JsonLimits): Checked<JsonValue> {
     }
 
     if (!isPlainObject(current)) {
-      return issue('invalid_json', pointer(task.path), 'object must use an intrinsic Object or null prototype')
+      return issue(
+        'invalid_json',
+        pointer(task.path),
+        'object must use an intrinsic Object or null prototype',
+      )
     }
     const source = dataProperties(current, task.path)
     if (!source.ok) return source
     const remaining = limits.maxNodes - nodes
     if (source.value.length > remaining) {
       const blocked = source.value[Math.max(remaining, 0)]
-      return issue('capacity', pointer([...task.path, blocked?.key ?? '']), `maximum node count ${limits.maxNodes} exceeded`)
+      return issue(
+        'capacity',
+        pointer([...task.path, blocked?.key ?? '']),
+        `maximum node count ${limits.maxNodes} exceeded`,
+      )
     }
     const target = Object.create(null) as Record<string, JsonValue>
     assign(task.destination, target)
@@ -696,7 +772,8 @@ function copyValue(value: unknown, limits: JsonLimits): Checked<JsonValue> {
     tasks.push({ kind: 'leave', value: current })
     for (let index = source.value.length - 1; index >= 0; index -= 1) {
       const property = source.value[index]
-      if (property === undefined) return issue('invalid_json', pointer(task.path), 'object property disappeared')
+      if (property === undefined)
+        return issue('invalid_json', pointer(task.path), 'object property disappeared')
       tasks.push({
         kind: 'visit',
         value: property.value,
@@ -712,8 +789,7 @@ function copyValue(value: unknown, limits: JsonLimits): Checked<JsonValue> {
 }
 
 type EncodeTask =
-  | Readonly<{ kind: 'value'; value: JsonValue }>
-  | Readonly<{ kind: 'text'; value: string }>
+  Readonly<{ kind: 'value'; value: JsonValue }> | Readonly<{ kind: 'text'; value: string }>
 
 function encodeJson(value: JsonValue): string {
   const chunks: string[] = []
@@ -728,7 +804,11 @@ function encodeJson(value: JsonValue): string {
     const current = task.value
     if (current === null) {
       chunks.push('null')
-    } else if (typeof current === 'boolean' || typeof current === 'number' || typeof current === 'string') {
+    } else if (
+      typeof current === 'boolean' ||
+      typeof current === 'number' ||
+      typeof current === 'string'
+    ) {
       chunks.push(JSON.stringify(current))
     } else if (Array.isArray(current)) {
       chunks.push('[')
@@ -784,7 +864,11 @@ function buildTree(text: string, rootNode: JsonNode, limits: JsonLimits): Checke
     if (node.type === 'number') {
       const token = text.slice(node.offset, node.offset + node.length)
       if (!supportedNumber(token, node.value)) {
-        return issue('unsupported_number', pointer(task.path), `number token is not supported: ${token}`)
+        return issue(
+          'unsupported_number',
+          pointer(task.path),
+          `number token is not supported: ${token}`,
+        )
       }
       assign(task.destination, node.value as number)
       continue
@@ -795,7 +879,8 @@ function buildTree(text: string, rootNode: JsonNode, limits: JsonLimits): Checke
       assign(task.destination, target)
       for (let index = children.length - 1; index >= 0; index -= 1) {
         const child = children[index]
-        if (child === undefined) return issue('invalid_json', pointer(task.path), 'array node is incomplete')
+        if (child === undefined)
+          return issue('invalid_json', pointer(task.path), 'array node is incomplete')
         tasks.push({
           node: child,
           path: [...task.path, index],
@@ -814,19 +899,29 @@ function buildTree(text: string, rootNode: JsonNode, limits: JsonLimits): Checke
       for (const property of properties) {
         const keyNode = property.children?.[0]
         const valueNode = property.children?.[1]
-        if (property.type !== 'property' || keyNode?.type !== 'string' || typeof keyNode.value !== 'string' || valueNode === undefined) {
+        if (
+          property.type !== 'property' ||
+          keyNode?.type !== 'string' ||
+          typeof keyNode.value !== 'string' ||
+          valueNode === undefined
+        ) {
           return issue('invalid_json', pointer(task.path), 'object property is incomplete')
         }
         const key = keyNode.value
         if (seen.has(key)) {
-          return issue('invalid_json', pointer([...task.path, key]), `duplicate object key: ${JSON.stringify(key)}`)
+          return issue(
+            'invalid_json',
+            pointer([...task.path, key]),
+            `duplicate object key: ${JSON.stringify(key)}`,
+          )
         }
         seen.add(key)
         values.push({ key, node: valueNode })
       }
       for (let index = values.length - 1; index >= 0; index -= 1) {
         const entry = values[index]
-        if (entry === undefined) return issue('invalid_json', pointer(task.path), 'object property is incomplete')
+        if (entry === undefined)
+          return issue('invalid_json', pointer(task.path), 'object property is incomplete')
         tasks.push({
           node: entry.node,
           path: [...task.path, entry.key],
@@ -877,7 +972,11 @@ export function copyJson(value: unknown, limits: JsonLimits): Checked<JsonValue>
   if (!copied.ok) return copied
   const bytes = Buffer.byteLength(encodeJson(copied.value), 'utf8')
   if (bytes > limits.maxBytes) {
-    return issue('capacity', '', `canonical byte length ${bytes} exceeds maxBytes ${limits.maxBytes}`)
+    return issue(
+      'capacity',
+      '',
+      `canonical byte length ${bytes} exceeds maxBytes ${limits.maxBytes}`,
+    )
   }
   return copied
 }
@@ -893,11 +992,13 @@ export function parseData<K extends keyof DataTypes>(
   if (!copied.ok) return copied
   if (!validator(copied.value)) {
     const errors = (validator.errors ?? []).filter(error => error.keyword !== 'if')
-    return failed(errors.map(error => ({
+    return failed(
+      errors.map(error => ({
         path: schemaIssuePath(error),
         code: 'schema',
         message: `${error.keyword}: ${error.message ?? 'schema validation failed'}`,
-      })))
+      })),
+    )
   }
   // The validator is compiled from the exact $defs selected by K; this is the
   // single bridge from its runtime schema proof to the matching static type.
@@ -907,11 +1008,13 @@ export function parseData<K extends keyof DataTypes>(
 function schemaIssuePath(error: ErrorObject): string {
   if (error.keyword === 'required') {
     const missing: unknown = error.params.missingProperty
-    if (typeof missing === 'string') return `${error.instancePath}/${missing.replaceAll('~', '~0').replaceAll('/', '~1')}`
+    if (typeof missing === 'string')
+      return `${error.instancePath}/${missing.replaceAll('~', '~0').replaceAll('/', '~1')}`
   }
   if (error.keyword === 'additionalProperties') {
     const extra: unknown = error.params.additionalProperty
-    if (typeof extra === 'string') return `${error.instancePath}/${extra.replaceAll('~', '~0').replaceAll('/', '~1')}`
+    if (typeof extra === 'string')
+      return `${error.instancePath}/${extra.replaceAll('~', '~0').replaceAll('/', '~1')}`
   }
   if (error.keyword === 'not' && error.schemaPath.includes('/else/not')) {
     return `${error.instancePath}/answer`
@@ -926,7 +1029,9 @@ export function canonicalJson(value: JsonValue): string {
     maxNodes: Number.MAX_SAFE_INTEGER,
   })
   if (!copied.ok) {
-    const error = new TypeError(`invalid JSON value at ${copied.issues[0]?.path || '<root>'}: ${copied.issues[0]?.message ?? 'unknown error'}`)
+    const error = new TypeError(
+      `invalid JSON value at ${copied.issues[0]?.path || '<root>'}: ${copied.issues[0]?.message ?? 'unknown error'}`,
+    )
     error.name = 'InvalidJsonValueError'
     throw error
   }

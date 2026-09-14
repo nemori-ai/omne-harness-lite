@@ -1,7 +1,10 @@
 /** Provider-neutral message and streaming vocabulary selected from dsh-llm. */
 
 import type { Branded } from '@omne-harness-lite/brand/baseline'
-import type { FileAttachmentRef, ImageAttachmentRef } from '@omne-harness-lite/media-content/baseline'
+import type {
+  FileAttachmentRef,
+  ImageAttachmentRef,
+} from '@omne-harness-lite/media-content/baseline'
 import type { ProviderRequestId, ReasoningEffortId, ToolCallId } from './brand.ts'
 import type { Message } from './message.ts'
 
@@ -104,7 +107,13 @@ export type StreamChunk =
   | { type: 'block-start'; index: number; blockType: ContentBlockType }
   | { type: 'text-delta'; index: number; text: string }
   | { type: 'reasoning-delta'; index: number; text: string }
-  | { type: 'tool-call-delta'; index: number; id: ToolCallId; name?: string; argumentsDelta: string }
+  | {
+      type: 'tool-call-delta'
+      index: number
+      id: ToolCallId
+      name?: string
+      argumentsDelta: string
+    }
   | { type: 'block-end'; index: number; block: ContentBlock }
   | { type: 'usage'; usage: TokenUsage }
   | { type: 'finish'; reason: FinishReason; replayState?: ReplayEnvelope }

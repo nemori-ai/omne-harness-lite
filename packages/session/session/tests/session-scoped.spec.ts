@@ -15,14 +15,19 @@ async function mintScope(ctx: Context, name: string): Promise<Scope> {
   let scope!: Scope
   // The scoped context resolves services through the MINTING plugin's
   // dependency chain — the minter must inject what scope holders will reach.
-  await ctx.plugin(Object.assign((inner: Context) => { scope = createScope(inner, { name }) },
-    { inject: ['sessions'] }))
+  await ctx.plugin(
+    Object.assign(
+      (inner: Context) => {
+        scope = createScope(inner, { name })
+      },
+      { inject: ['sessions'] },
+    ),
+  )
   return scope
 }
 
 /** The key a test scope was minted with. */
 function keyOf(scope: Scope): ScopeKey {
-
   return scopeOf(scope.ctx)!
 }
 
@@ -42,11 +47,7 @@ describe('session dispatch carriers', () => {
     const session = scope.ctx.sessions.create()
     session.append('turn/start', { turn: 1 })
 
-    expect(heard).toEqual([
-      `owner-created:${session.id}`,
-      'global:turn/start',
-      'owner:turn/start',
-    ])
+    expect(heard).toEqual([`owner-created:${session.id}`, 'global:turn/start', 'owner:turn/start'])
   })
 
   it('a bare session dispatches subject-less: scoped listeners never hear it', async () => {
@@ -66,9 +67,15 @@ describe('session dispatch carriers', () => {
     const owner = await mintScope(ctx, 'owner')
     const other = await mintScope(ctx, 'other')
     const heard: string[] = []
-    ctx.on('session/disposed', (session) => { heard.push(`global:${session.id}`) })
-    owner.ctx.on('session/disposed', (session) => { heard.push(`owner:${session.id}`) })
-    other.ctx.on('session/disposed', (session) => { heard.push(`other:${session.id}`) })
+    ctx.on('session/disposed', session => {
+      heard.push(`global:${session.id}`)
+    })
+    owner.ctx.on('session/disposed', session => {
+      heard.push(`owner:${session.id}`)
+    })
+    other.ctx.on('session/disposed', session => {
+      heard.push(`other:${session.id}`)
+    })
 
     const session = owner.ctx.sessions.prepare()
     const detach = owner.ctx.sessions.enter(session)
@@ -128,8 +135,12 @@ describe('sessions.flush()', () => {
   it('does not let a synchronous flush failure starve later listeners', async () => {
     const ctx = await mount()
     const flushed: Session[] = []
-    ctx.on('session/flush', () => { throw new Error('disk full') })
-    ctx.on('session/flush', (session) => { flushed.push(session) })
+    ctx.on('session/flush', () => {
+      throw new Error('disk full')
+    })
+    ctx.on('session/flush', session => {
+      flushed.push(session)
+    })
     const session = ctx.sessions.create()
 
     await expect(ctx.sessions.flush(session)).rejects.toThrow('disk full')
@@ -149,7 +160,11 @@ describe('sessions.flush()', () => {
     const session = ctx.sessions.create()
 
     const flushing = ctx.sessions.flush(session)
-    void flushing.finally(() => { settled = true }).catch(() => undefined)
+    void flushing
+      .finally(() => {
+        settled = true
+      })
+      .catch(() => undefined)
     await Promise.resolve()
     expect(slowStarted).toBe(true)
     expect(settled).toBe(false)

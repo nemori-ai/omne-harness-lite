@@ -48,12 +48,13 @@ export interface LlmCallConfigAdapterDefaults {
  */
 export function callConfigEquals(a: LlmCallConfig, b: LlmCallConfig): boolean {
   if (
-    a.provider !== b.provider
-    || a.model !== b.model
-    || a.reasoningEffort !== b.reasoningEffort
-    || a.temperature !== b.temperature
-    || a.maxTokens !== b.maxTokens
-  ) return false
+    a.provider !== b.provider ||
+    a.model !== b.model ||
+    a.reasoningEffort !== b.reasoningEffort ||
+    a.temperature !== b.temperature ||
+    a.maxTokens !== b.maxTokens
+  )
+    return false
   if (a.stop === undefined || b.stop === undefined) return a.stop === b.stop
   return a.stop.length === b.stop.length && a.stop.every((s, i) => s === b.stop?.[i])
 }
@@ -76,4 +77,3 @@ export function markAgentLoopRequest<T extends GenerateOptions>(request: T): T {
 export function isAgentLoopRequest(request: GenerateOptions): boolean {
   return AGENT_LOOP_REQUESTS.has(request)
 }
-

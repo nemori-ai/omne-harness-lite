@@ -83,15 +83,15 @@ export type ContextFormed =
   | { readonly form: 'instructions' }
   | { readonly form: 'catalog' }
   | {
-    readonly form: 'snapshot'
-    /** The named contributions this snapshot assembled, in order. */
-    readonly sections: readonly ContextSnapshotSection[]
-  }
+      readonly form: 'snapshot'
+      /** The named contributions this snapshot assembled, in order. */
+      readonly sections: readonly ContextSnapshotSection[]
+    }
   | {
-    readonly form: 'notice'
-    /** One-line account of what happened, shown without expanding the row. */
-    readonly summary: string
-  }
+      readonly form: 'notice'
+      /** One-line account of what happened, shown without expanding the row. */
+      readonly summary: string
+    }
   | { readonly form: 'relay' }
   | { readonly form: 'recall' }
 
@@ -258,12 +258,13 @@ export interface ToolResultMessageInput {
 export function createToolResultMessage(input: ToolResultMessageInput): ToolResultMessage {
   return createUserMessage({
     source: { kind: 'tool', callId: input.callId },
-    content: [{
-      type: 'tool-result',
-      toolCallId: input.callId,
-      content: input.content,
-      isError: input.isError,
-    }],
+    content: [
+      {
+        type: 'tool-result',
+        toolCallId: input.callId,
+        content: input.content,
+        isError: input.isError,
+      },
+    ],
   })
 }
-

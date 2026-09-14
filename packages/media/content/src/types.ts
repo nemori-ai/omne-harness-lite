@@ -100,16 +100,15 @@ export interface EncodedImageAttachment {
 export type PromptContentPart =
   | { readonly type: 'text'; readonly text: string }
   | {
-    readonly type: 'image'
-    readonly mediaType: ImageMediaType
-    readonly data: string
-    readonly name?: string
-  }
+      readonly type: 'image'
+      readonly mediaType: ImageMediaType
+      readonly data: string
+      readonly name?: string
+    }
 
 /** Host prompt content whose file receipts are resolved and whose image bytes await admission. */
 export type AttachmentAdmissionPart =
-  | PromptContentPart
-  | { readonly type: 'file'; readonly attachment: FileAttachmentRef }
+  PromptContentPart | { readonly type: 'file'; readonly attachment: FileAttachmentRef }
 
 /** Host-admitted prompt content with every attachment represented by its durable reference. */
 export type AdmittedPromptContentPart =
@@ -159,4 +158,3 @@ export interface RequestImageAttachment {
   /** Whether the encoded request version retains an alpha channel. */
   hasAlpha: boolean
 }
-

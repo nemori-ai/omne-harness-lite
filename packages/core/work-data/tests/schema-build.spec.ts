@@ -41,6 +41,8 @@ describe('A30 schema build gate', () => {
     const result = spawnSync(process.execPath, [script, source, target], { encoding: 'utf8' })
     expect(result.status).not.toBe(0)
     expect(result.stderr).toContain('core-work.schema.json SHA-256 mismatch')
-    await expect(readFile(join(target, 'core-work.schema.json'))).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(readFile(join(target, 'core-work.schema.json'))).rejects.toMatchObject({
+      code: 'ENOENT',
+    })
   })
 })
