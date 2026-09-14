@@ -12,9 +12,9 @@ workspace 成员，拥有源码、依赖、公开入口、测试、许可与来�
 尚未实现完整目标能力。源码来源及迁移见
 [布局方案](../docs/proposals/core-capabilities/fork/package-layout.md)与
 [交付记录](../docs/proposals/core-capabilities/fork/package-layout-delivery.md)。
-接下来的[第一批二次开发](../docs/proposals/core-capabilities/implementation/README.md)
-当前交付点为真实 Agent/Session/工具 allow 闭环及必要共享设施，见
-[运行基线](../docs/proposals/core-capabilities/implementation/runtime-baseline.md)。
+真实 Agent/Session/工具 allow 闭环及必要共享设施的当前装配归
+[local-harness 设计](../apps/local-harness/design.md)；
+[首批实施来源](../docs/proposals/core-capabilities/implementation/README.md)保留选择与接受历史。
 完整 HITL 与模型流程留待后续规划。
 
 | 能力族 | 职责包 |

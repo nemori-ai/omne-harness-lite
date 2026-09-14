@@ -1,7 +1,7 @@
 # Cordis 映射与 fork 差异
 
-本页是实现映射依据，不是候选库的完整调研报告。此前包复用与协议调研仍保留在
-主检出 `tmp/dsh-reuse-assessment-20260913/`，本轮没有迁入 research。
+本页保存实现映射所需的固定来源与差异；原算法和核对证据归
+[源基线](../source-baseline/README.md)。
 
 ## 固定来源
 

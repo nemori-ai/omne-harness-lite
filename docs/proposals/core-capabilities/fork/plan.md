@@ -58,23 +58,6 @@ LICENSE、README、UPSTREAM、provenance 与 dist 随 tarball。严格类型检�
 `ts-nocheck`、伪模块声明或任意 any 补洞。保留源测试及有因果说明的删改，增加
 实际消费/资源释放/失败路径检查；不改源预期去声称目标已经兑现。
 
-## 施工顺序与负责人
-
-先由主代理完成公共支撑的源基线、原件/许可、包脚手架和一次构建消费试验。
-通过后按 D-006 的角色派发要求，以同一 HUB commit 建立独立 spoke：
-
-1. capability-developer A 负责 `src/llm/`、`src/media/` 及相应 tests、来源映射与源基线。
-2. capability-developer B 负责 `src/session/`、`src/projection/`、`src/persistence/` 及相应 tests、来源映射与源基线。
-3. capability-developer C 负责 `src/prompt/`、`src/tools/` 及相应 tests、来源映射与源基线。
-4. 主代理负责公共支撑、shared 类型切片的统一归属、根清单/lockfile/公开导出、
-   JSONL 普通机制和 Loop 切片、最终整合与独立 tarball 消费。先合并模型的源类型
-   闭包，再整合依赖它的 Session/tools；共享接口冲突由主代理解决并验证两端。
-
-每个 spoke 的任务消息给出具体可写路径、必需导出与接受标准；不得改其它 spoke
-或共享文件。完整路径/目标/验收/实施规格/计划不足或源前提无法兑现时，上报
-具体冲突，继续可独立工作。不能把其它人的改动回退成自己的旧快照。Spoke 的
-提交/证据先合入 HUB，实际集成检查通过后才计交付；主代理拥有最后接受责任。
-
 ## 验收清单
 
 - 原件与固定官方 archive 的字节匹配；来源包和活动导出一一可追踪，许可保留，

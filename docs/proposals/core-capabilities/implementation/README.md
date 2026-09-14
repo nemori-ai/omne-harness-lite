@@ -1,57 +1,25 @@
-# 第一批核心能力二次开发
+# 首批核心能力的实施选择与接受来源
 
-本工作包将已有 fork 推进为**受租户隔离、可以耐久等待人类批准并在重启后正确接续的文本 Agent 运行流程**。
-先交付不依赖模型的真实工具审批流程，再让真实 OpenRouter 请求消费同一套能力。
-两个交付点描述原完整批次。用户已将本会话终点收窄为
-[最小运行基线](runtime-baseline.md)：交付真实 Agent/Session/工具闭环与相应共享
-设施并完成对账后停止，后续按用户新规划安排；不将基线交付称为完整批次完成。
+首批路线将定向 fork 推进为受租户隔离、可耐久等待人类批准并在重启后接续的
+文本 Agent 流程。原 [M1/M2 范围](scope.md)分别验证真实工具审批和 OpenRouter
+消费；后续收窄的[最小运行节点](runtime-baseline.md)先验证确定性 allow 闭环，
+其通过不等于完整 M1/M2 交付。
 
-这是正在实施的集中工作包；P0 共享接口、原生锁前提、包检查器、work-data 与
-records 端口/codec 已接受。接下来交付 diagnostics，再并行实现真实 jsonl/admission。
-HUB 已有两个共享目标包，原 14 包仍处于 fork 基线。
-本包不把计划、已接受规格、
-有限模型或旧源码测试当作目标实现。设计依据继续归 D-005～D-009 和精确规格，
-本包选择本批覆盖范围、实现方式、验收与施工安排，不原地修改已发布契约。
+本目录保留对长期消费者有意义的路线、接口来源、反例和接受事实。当前提供者
+与装配正文归[包入口](../../../../packages/README.md)及
+[local-harness 设计](../../../../apps/local-harness/design.md)；当前覆盖与未交付范围归
+[核心架构](../../../architecture/core-capabilities.md)，执行进度不在本目录维护。
 
-| 开工输入 | 唯一正文 |
+| 历史判断与证据 | 入口 |
 |---|---|
-| 完整目标边界、需求覆盖与排除项 | [目标与范围](scope.md) |
-| 可判断的验收标准清单 | [验收](acceptance.md) |
-| 实施规格、运行协议与包归属 | [实施规格](implementation-spec.md) |
-| P0/P1 固定的公共类型、端口与记录格式 | [共享接口](shared-interfaces.md) |
-| P1 统一日志、trace 与有限诊断资源的施工输入 | [观测设施](observability.md)，接受依据 [D-010](../../../decisions/D-010-shared-diagnostics.md) |
-| P2 租户、当前授权与预算参与者的施工输入 | [治理接口](governance-interfaces.md)，接受范围见[交付对账](delivery.md#p2-治理施工输入) |
-| P2 Agent/Session 与相邻提供者的施工交接 | [接口来源](session-runtime-interfaces.md)与[提供者映射入口](runtime-provider-interfaces.md)；`f98ac926` 的提供者/装配映射已接受，产品仍待实现，范围见[交付对账](delivery.md#p2-agentsession-施工输入) |
-| 依赖、任务职责、TDD、交付与文档对账 | [推进计划](plan.md) |
-| 其它会话可依赖的首个真实运行节点 | [最小运行基线](runtime-baseline.md)，当前未交付 |
-| 当前事实与每次交付的证据 | [交付对账](delivery.md) |
-| 独立评审及处置 | [评审](review.md) |
+| 路线范围、实现约束和行为场景 | [范围](scope.md)、[实施选择](implementation-spec.md)、[路线理由](plan.md)、[A01–A32](acceptance.md) |
+| 共享数据、记录和准入的原受审输入 | [共享接口来源](shared-interfaces.md) |
+| 共享日志/trace、目录 owner 及反例 | [D-010 来源](observability.md)、[D-011 来源](observability-directory.md) |
+| TG/AU/BG 与 Agent/Session 受审输入 | [治理来源](governance-interfaces.md)、[Session 来源](session-runtime-interfaces.md)、[运行映射来源](runtime-provider-interfaces.md) |
+| 工具、审批与本地执行的范围差异 | [TL/HD/LE 来源](tool-decision-interfaces.md) |
+| 接受身份、原反例与实际结果 | [固定交付记录](delivery.md)、[独立评审](review.md) |
 
-用户本次明确要求：以系统目标、产品需求和功能机制组织首批二次开发；已有设计
-不合理时可推翻或重构；研发采用 TDD；每次交付回到文档核实、更新事实。
-因此，本包允许按证据直接演化自有 fork；产品承诺变化仍需明确取代范围和新规格，
-不能通过修改测试预期消除反例。派发任务须固定本工作包修订及所消费的规格版本，
-从四份输入中摘取具体目标、验收 ID、写路径和前置结果。
-
-## 起点与证据身份
-
-- 工作检出：`.worktrees/dsh-core-adoption`，分支 `design/dsh-core-adoption`。
-- 编写起点：`570000a`；产品布局与实现基线为 `f55e3e053a501623b813b111ee10040ae27b4a32`，
-  其后的 `63b4a95` 保存[布局交付](../fork/package-layout-delivery.md)，再后的变更是 agent 指导。
-- DSH 来源固定为 `c291e7961a515f6d7af9304e7fd1d257929aef26`，
-  14 个职责包、公开 `/baseline` 入口与逐包来源均已落地。
-- 本次需求消费沿[原消费与覆盖](../requirements.md)和其保留快照；本批缩小交付范围，
-  不撤销原确认要求。已核对 `570000a` 的 `docs/requirements/` 与原 `dae2df3`
-  无差异；派发前再次核对后续变化，新要求优先。
-- 旧集成证据只证明其绑定源码的构建、源行为、有限形式检查和产物消费；本批新验收
-  初始均为未执行。工具链沿仓库锁定版本，实际执行环境写入本次交付证据。
-
-初次文档交付止于设计与施工材料。用户后续已明确授权主调度按本工作包自驱实施、
-合理委派、整合与验收；跨包先完成共享契约的设计和实现，再并行开发消费者。
-执行起点固定为 `e11cc6990c1354e7baf138cc2f501effc7b413f6`；当前执行范围及停止
-条件以最小运行基线为准。M1/M2 和 A01–A32 保留原含义，未执行项不伪报通过，
-也不再自动派发超出终点的工作。本地实施授权不包含 main 合并或对外发布。
-
-四份开工输入已完成[独立评审及修订复核](review.md)，本次受审范围无剩余阻断
-发现。P0 共享接口与原生锁的已验证范围归交付对账；正式 writer、路由兼容性和
-目标产品验收仍须按计划实际执行。
+实施起点 `570000a` 消费 D-005～D-009，DSH 来源固定为
+`c291e7961a515f6d7af9304e7fd1d257929aef26`；需求与补充要求的恢复身份继续归
+[原消费记录](../requirements.md)。用户授权按系统目标与产品机制推进二次开发、
+采用 TDD 并对照文档核实交付；这些授权不改变冻结契约或 main 合并权限。

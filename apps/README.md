@@ -7,6 +7,4 @@
 应用目录不自动等于微服务，也不要求为每个接口创建独立应用。完整归属规则见
 [workspace 规范](../docs/maintenance/workspace.md)。目前尚无可启动的产品应用，
 [local-harness 的装配设计](local-harness/design.md)已接受为本次最小运行基线的
-施工输入；测试载体、成员配置及应用实现按
-[实施计划](../docs/proposals/core-capabilities/implementation/plan.md#当前最小闭环实施-wave)
-分阶段交付，当前没有启动命令。
+施工输入；其行为与真实组合义务见该设计的验证范围，当前没有启动命令。

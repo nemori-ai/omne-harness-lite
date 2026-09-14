@@ -354,4 +354,4 @@ JSONL 的[结果/恢复反例](../../storage/jsonl/design.md#实施验收与已�
 保持固定版本与字节；claim-probe 的九个内存票据/模拟资源场景只验证可表达的私有协议。
 本轮仅执行[迁移关系与文档检查](../../../docs/proposals/core-capabilities/implementation/evidence/p1-provider-mapping/README.md)，
 没有重做机制探针、TDD 或产品测试。真实共享实现、独立组合、公开产物消费及
-最终接受按[计划](../../../docs/proposals/core-capabilities/implementation/plan.md)推进，未运行场景继续保留为实施义务。
+最终接受按[验证规范](../../../docs/maintenance/verification.md)核对实际对象；未运行场景继续保留为实施义务。

@@ -127,10 +127,10 @@ npm install --ignore-scripts --no-audit --no-fund --save-exact \
 node probe.mjs
 ```
 
-完整 probe.mjs、probe-result.json、package-lock.json、versions.json、17 份固定
-上游文件及其来源/哈希 manifest 保留在该目录；工作树退休前须由整合者复制并
-核对哈希。registry 版本/实际入口和下列结果保留于本研究，不把本机 tmp 路径
-当成长期公开来源。以下 Cordis 反例可以独立复制运行：
+完整 probe.mjs、probe-result.json、package-lock.json、versions.json、固定上游
+文件及其来源/哈希已由[38 份原件归档](../proposals/core-capabilities/implementation/evidence/observability-design/README.md)
+保留；该入口还区分作者、复核和 HUB 的实际结果。本研究保留 registry 版本、
+实际入口及观察局限。以下 Cordis 反例可以独立复制运行：
 
 ```js
 import assert from 'node:assert/strict';

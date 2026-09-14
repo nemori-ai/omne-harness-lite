@@ -2,8 +2,7 @@
 
 上游固定为 `deepseek-ai/deepseek-harness@c291e7961a515f6d7af9304e7fd1d257929aef26`。
 包 manifest 的版本是 `0.1.5-rc.2`；本轮针对此源码提交，不声明同号 npm 包与源码
-等价。原完整复用/许可调研继续保存在主检出的 `tmp/dsh-reuse-assessment-20260913/`，
-未将其整体正式化进 research。本页只保存采用决定需要的可复核事实与来源入口。
+等价。本页保存采用决定需要的可复核事实与来源入口。
 
 [来源清单](evidence/source-inventory.json)记录 14 个来源包路径、manifest 哈希、
 依赖和源码中的 DeepSeek 名称引用。名称扫描包含注释、自引用和类型声明，不是

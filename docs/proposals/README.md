@@ -10,12 +10,12 @@
 - [性质与证据义务贯通设计和交付](evidence-governance/README.md)：目录准入、需求推导、证明门槛和计划消费的本轮治理候选。
 - [架构设计与规格维护衔接](design-spec-maintenance/README.md)：具体提供者正文、设计就绪与变更传播的本轮治理候选。
 - [系统目标与产品要求作为设计基础](requirements-foundation/README.md)：组织与追溯规则已接受，见 D-004；历史讨论与评审保留。
-- [Agent 核心](agent-core/README.md)：提示词、工具与执行语义，待 review。
-- [工具系统](tool-system/README.md)：多命令工具、技能依赖、调用与动态装配；已保存独立评审的候选，尚未接受。
-- [DSH 核心能力源码采用范围](dsh-core-adoption/README.md)：本批 fork 集合、依赖处理及分阶段设计边界已接受，见 D-006；子系统完整契约仍须设计。
+- [Agent 核心](agent-core/README.md)：提示词、工具与执行历史候选；本批当前接受范围见 [D-008](../decisions/D-008-core-capabilities.md)，未覆盖部分保持候选。
+- [工具系统](tool-system/README.md)：多命令工具、技能依赖、调用与动态装配的历史候选；本批接受范围见 D-008，原建议不整体生效。
+- [DSH 核心能力源码采用范围](dsh-core-adoption/README.md)：本批 fork 集合、依赖处理及分阶段设计边界已接受，见 D-006；后续本批目标契约见 D-008，产品组合仍待验收。
 - [运行时共同边界与 Session 附着](runtime-composition/README.md)：D-006 工作 A 的共同边界和组合 v1 已接受，见 D-007。
-- [核心能力设计与二次开发](core-capabilities/README.md)：D-008 目标契约和 D-009 职责布局已接受；[首批实施工作包](core-capabilities/implementation/README.md)集中维护四项开工输入、TDD 与交付对账。
-- [租户契约](tenant-contracts/README.md)：旧模型语义迁移，待逐项确认。
+- [核心能力设计与二次开发](core-capabilities/README.md)：D-008 目标契约和 D-009 职责布局已接受；[首批实施来源](core-capabilities/implementation/README.md)保留路线和接受证据，当前覆盖从[核心架构](../architecture/core-capabilities.md)进入。
+- [租户契约](tenant-contracts/README.md)：旧模型语义迁移的历史候选；本批当前接受范围见 D-008，其余建议仍待确认。
 - [模型契约](model-contracts/README.md)：旧模型语义迁移，待逐项确认。
 
 转化规则见[知识流转](../maintenance/knowledge-flow.md)。

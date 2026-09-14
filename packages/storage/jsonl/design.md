@@ -261,4 +261,4 @@ admission 的[关闭义务](../../coordination/admission/design.md#关闭与失�
 前者证明声明/样例/局部机制，后者证明锁及采用环境前提；均不证明本提供者已交付。
 本轮仅执行[迁移关系与文档检查](../../../docs/proposals/core-capabilities/implementation/evidence/p1-provider-mapping/README.md)，
 没有运行新的机制探针、TDD 或产品验证。P1 真实实施、独立组合、公开产物消费与
-最终接受仍按[计划](../../../docs/proposals/core-capabilities/implementation/plan.md)推进。
+最终接受依据[验证规范](../../../docs/maintenance/verification.md)限定实际对象与结果。

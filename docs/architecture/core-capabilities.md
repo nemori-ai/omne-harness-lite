@@ -21,17 +21,17 @@ Session/Run 拥有历史、输入队列、驱动位置与控制；人类请求�
 跨域采用耐久意图与目标去重回执，未来拆分必须维持等价语义。Cordis 服务／
 Context／依赖和事件供给运行时组合，不替代租户权限或外部效果核实。
 
-当前证据是有限模型、反例和结构样例；真实 JSONL、执行隔离、OpenRouter、
-媒体 GC、账务来源和应用组合仍未完成目标验收。D-006 定向 fork 和 D-009
-职责包重组已完成，当前已有 [14 个实际包的源码起点](../proposals/core-capabilities/fork/package-layout-delivery.md)。
-后续按[第一批二次开发工作包](../proposals/core-capabilities/implementation/README.md)
-实现可恢复工具审批与 OpenRouter 文本流程。共享数据 work-data 已完成目标 DTO、
-严格 JSON、Schema 和独立产物验收，见[实际证据](../proposals/core-capabilities/implementation/evidence/p0-work-data/hub-summary.json)；
-records 随后完成记录端口与严格单行 codec 的目标默认入口，
-[实际证据](../proposals/core-capabilities/implementation/evidence/p0-records/hub-summary.json)
-覆盖 HUB 的 17 项测试及 16 包独立/组合产物。真实 writer、准入及
-Agent/Session/工具运行闭环尚未交付。
+当前语义证据是[有限模型、反例与结构样例](../proposals/core-capabilities/verification.md)，
+实际提供者和应用组合仍须分别验收。D-006 fork 与 D-009 职责包重组已完成，
+[源码起点证据](../proposals/core-capabilities/fork/package-layout-delivery.md)不等于目标产品。
+work-data 与 records 端口/codec 已接受，实际范围分别由
+[数据证据](../proposals/core-capabilities/implementation/evidence/p0-work-data/hub-summary.json)和
+[记录证据](../proposals/core-capabilities/implementation/evidence/p0-records/hub-summary.json)限定。
 
-[D-010](../decisions/D-010-shared-diagnostics.md)固定 P1 共享日志/trace 设施及
-jsonl/admission 的注入边界；关键审计仍归业务耐久事实。当前通过的是库与机制
-可行性，diagnostics 产品、真实消费组合、Cordis 桥和受治理读面仍按阶段验证。
+[D-010](../decisions/D-010-shared-diagnostics.md)与
+[D-011](../decisions/D-011-diagnostics-directory-ownership.md)固定共享诊断及目录
+所有权的实施选择，当前接口归[diagnostics](../../packages/observation/diagnostics/design.md)。
+D1 产品仍待最终接受，真实 JSONL writer、共同准入、Agent/Session/工具运行闭环
+均未交付；OpenRouter、执行隔离、媒体 GC 和账务来源也没有完整目标验收。
+已接受的提供者映射与真实装配责任从[应用设计](../../apps/local-harness/design.md)进入，
+每个成员的设计接受与产品符合性分别核对。
