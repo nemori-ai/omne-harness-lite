@@ -17,8 +17,9 @@
 
 产品以 TypeScript 为主；当前可运行 Python 开发工具、形式验证及
 [各职责包源码基线](../packages/README.md)的构建/测试。尚无完整智能体应用或产品启动命令。
-目标实现从[第一批二次开发工作包](proposals/core-capabilities/implementation/README.md)
-取得目标、验收、实施规格与 TDD 计划；包基线可运行不代表目标产品已实现。
+目标范围从[当前核心架构](architecture/core-capabilities.md)进入，具体实现映射和
+验证责任由成员设计拥有；[首批实施来源](proposals/core-capabilities/implementation/README.md)
+保留历史路线与接受依据。包基线可运行不代表目标产品已实现。
 
 在实际工作的仓库根确认位置和已有改动；隔离规则见
 [worktree-discipline](../.agents/skills/worktree-discipline/SKILL.md)：

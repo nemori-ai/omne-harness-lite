@@ -8,8 +8,10 @@
 
 四类提供者的交接已由 [D-007](../decisions/D-007-runtime-composition.md)与
 [Agent/Session 附着组合 v1](../../spec/compositions/agent-session-binding/v1/contract.md)
-具体化，系统职责与依赖方向见[共同边界](runtime-composition.md)。真实提供者
-及完整 Session/Run/模型/工具规格仍须按各专题完成。
+具体化，系统职责与依赖方向见[共同边界](runtime-composition.md)。
+[D-008](../decisions/D-008-core-capabilities.md)已接受本批 Session/Run、模型与工具等
+目标契约；[Agent 提供者](../../packages/core/agent/design.md)与
+[Session 提供者](../../packages/session/session/design.md)维护当前映射，真实产品组合仍待验收。
 
 ## 系统位置
 
@@ -78,7 +80,8 @@ stateDiagram-v2
 activate 报成已经恢复 Run。退役、用户 interrupt、cancel、interrupt_then_run
 和 force_stop 仍是不同操作。
 
-本版规定依赖端口的义务，后续需接受并实现 Session attachment、访问验证和
-驱动的符合性映射。首个产品闭环还需要输入/Run、OpenRouter、工具及存储等能力。
+本版规定依赖端口的义务；Session attachment、访问验证和驱动的当前映射见
+[应用装配设计](../../apps/local-harness/design.md)。这些提供者的真实符合性、
+输入/Run、OpenRouter、工具及存储的产品闭环仍需实际验收。
 当前 fork 只导入选定 agent 原语及内部 scope 辅助，没有引入其他 DSH 产品子系统；[覆盖与缺口](../proposals/agent-runtime/v1/requirements.md)
 及[验证说明](../../spec/capabilities/live-agent/verification.md)限定当前结论。

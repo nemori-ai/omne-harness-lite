@@ -86,28 +86,10 @@ question/agent_approval、专属账号/设备同意、暂行执行、detach、�
 来源、许可和有限机制/文件窗口观察见 [设计证据](evidence/tool-decision-design/README.md)。
 未更改冻结 v1；修订只消除实施投影矛盾和补全可观测生命周期屏障。
 
-## 施工顺序、独占范围与真实开放门
+## 历史行为验证范围
 
-此表是未来派发输入，**当前仅授权本稿、三份包 design.md 和专属 evidence/tmp**。每任务同时消费
-本文四输入及整合者固定的本稿接受 commit、真实前置产物版本、自己的验收行；
-源码/签名冲突先报告，不能让应用临时补业务规则或修改冻结 v1。
-本会话到 T2 最小节点结束；T0-H 仅提供实际被 TL 消费的共享形状/纯 fold，
-不先实现完整审批。T3/T4 的完整 HITL/M2 安排保留后续，不构成 T2 的全量前置。
-
-| 增量 / 角色 / 独占未来写路径 | 前置产物和 RED→GREEN 交接 |
-|---|---|
-| T0-H / capability-developer / `packages/governance/human-decisions/` 的公开端口、事件/纯 fold 与测试 | 已接受 AU/SR/records 端口；先固定 SystemApprovalSource/DecisionFacts/事件来源，再以错 tenant、重复 outcome、错误转移的反例验证。真实打包、独立编译消费通过后才给 TL 开工；不把声明全绿当可答 |
-| T0-T / capability-developer / `packages/tools/tools/` 公共端口、Schema/事件/纯 fold 与测试 | T0-H 固定产物及 SR S18；固定 ExecutionProvider/PermitFacts/资源消费端口、移除 llm/baseline 类型依赖。共享完整声明与跨包消费者编译后交 LE；不得让两作者同时改公共文件 |
-| T1-L / infrastructure-developer / `packages/tools/local-execution/` | 真实 P1/诊断、T0-T、TG/AU 当前资源接口；先跑 D06/D07/D09 的真实失败，再交接实际资源管理、accept/stop 墓碑、I/O/fd 收口、恢复和 CostSource。资源权限没交付时不得用 permissive fixture 开工具 |
-| T1-T / 原 TL capability-developer / `packages/tools/tools/` | 真实 P1/TG/AU/BG/SR、T0 与 LE 公开端口；D01–D05/D08 先反例再完整注册/proposed/deny/allow/结果。与 T1-L 可按固定端口并行，但共同真实 composition 才通过开放门 |
-| T2 / application-developer / `apps/local-harness/` 被派定的文件工具/CLI/确定性驱动装配 | 真实 T1、AR/SR/TG/AU/BG/P1/身份产物；D03/D06/D07、SR S18 和最小节点全部适用门通过，给独立 tarball/实际启动和调用命令。ask 未完成则不可执行，交接仍不声称 M1 完成 |
-| 后续 T3-H / 原 HD capability-developer / `packages/governance/human-decisions/`；T3-T / 原 TL owner / 原 tools 包 | 在 T0 固定面上独立实现 HD 管理/恢复/池与 TL 对应 source；D04/D05/D08/D10 的双客户端/q1q2/撤权/控制真实组合全部通过后才开放 M1 ask。保留缺失/关闭 source 的产品结果，不作为本会话最小节点的全量前置 |
-| T4 / application-developer / 原应用入口；verification-developer / 单独派定组合与故障测试文件 | 接实际 Session/池/单次 stop/帧/资源管理；D01–D12、A28–32 和完整 M1 对账。M2 由 MC/Loop owner 消费本稿 manifest/结果/待答接口，在原包实现，不在这里伪造模型通过 |
-
-每个包作者继续负责自己的恢复/失败/生命周期，verification 不补缺失产品行为。
-跨 owner 的 ActionFacts/ReferenceInventory/BG 事实端口由其真实提供者共同验证，
-对邻包必要接口修订归原 owner 单独任务；本稿不能授权改 P1/SR/AU 源码。根配置/
-锁/索引/应用总装配归整合者，不能为并行建第二套类型或服务映射。
+当前公开接口与资源责任沿上表三包设计维护。真实 P1、身份、授权、Session、
+预算与执行提供者齐备后才能验证共同动作链；完整 HD 缺席时 ask 不得执行。
 
 ### 有区分力的实际测量
 
@@ -136,17 +118,9 @@ D08 同时验证上述真实 Cordis keys/inject/资源归属；不能以“插�
 动态失联/退出测量。D07 的有效停止只在列名环境成立；内核 I/O 永不完成或
 原提供者无法核实的情况保持 unknown/retained，不能为通过回归伪造安全证明。
 
-## 尚待交付与作者检查
+## 原作者检查范围
 
-| 缺口 | 责任与开放限制 |
-|---|---|
-| 真实 P1/diagnostics | 各原 provider 作者交付并通过实际 JSONL/admission/诊断组合；本稿不推定其尚未交付行为。没有共同门，T0 可做共享/fold，目标运行不开 |
-| 当前身份、AR/SR、TG/AU/BG | 各原作者交真实管理/当前事实和已接受窄口，应用只接真实凭据；完整插件映射由其原任务继续，不能因本稿列消费键而说全部完成 |
-| 文件资源与执行协议 | T1-L 必须交真实对象权限/同门 stamp、受管 I/O/墓碑/费用依据，TL 的资源端口缺 provider 为 unavailable；不是 app 预置许可责任 |
-| TL/HD 互供与恢复 | T0 固定类型、T1/T3 交真实 source/decision/后果端口及 D03–D10；未交付 HD 时 ask 不能执行，未交付原 source 时请求不可答 |
-| 暂行/专属/后台/模型 | 仍按 scope 排除或后续 MC 任务交付，不由普通批准/本地 I/O 扩充能力声明；无相应真实提供者不能开放 |
-
-作者仅写获准正文和专属 evidence/tmp；检查基线 `b585608`。文档/范围检查与必要
+该次仅修改设计正文与专属证据；检查基线 `b585608`。文档/范围检查与必要
 底层可行性观察记录在[设计证据](evidence/tool-decision-design/README.md)。没有
 运行本稿产品 TDD、形式模型、完整 Cordis 组合或 TS 接口编译；技术候选的接受
 不等于这些验收通过。独立复核及整合者接受范围见上文，本作者不自行接受。

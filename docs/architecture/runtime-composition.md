@@ -51,9 +51,11 @@ Factory 贡献，不静态注入某个具体 Loop；Factory 的准入在必要�
 
 资格失效阻止旧附着继续准入；必要提供者计划撤除先协作退出再实际卸载。独立
 历史读面不因原模型、工具或 Agent 不在而全部失效。归档落盘、Run 停止和关闭
-运行准入是不同事实，由 Session/Run 专题补齐其耐久组合。
+运行准入是不同事实，耐久组合沿 [Session/Run v1](../../spec/capabilities/session-run/v1/contract.md)核对。
 
-D-006 工作 A 的共同边界已落档。接下来完成 Session/持久化专题；工具与模型
-可以推进自身独立设计，交叉接口由语义拥有者统一定稿。Run/Step 和内容/媒体的
-精确结构、耐久输入/控制、工具帧、模型发送和上下文装配仍须各自规格与评审，
-不能把共同归属已明确当作所有施工接口齐备。范围与缺口见[需求映射](../proposals/runtime-composition/requirements.md)。
+D-006 工作 A 的共同边界由 D-007 接受，后续本批共享内容、Session/Run、耐久
+记录、工具、模型及相邻能力契约由 [D-008](../decisions/D-008-core-capabilities.md)
+接受，精确版本归 [catalog](../../spec/catalog.json)。具体提供者和组合映射从
+[应用设计](../../apps/local-harness/design.md)进入；真实 writer、准入和完整运行
+组合仍待验收。D-007 当时范围见[需求映射](../proposals/runtime-composition/requirements.md)，
+后续覆盖与相邻缺口见[核心能力视图](core-capabilities.md)。

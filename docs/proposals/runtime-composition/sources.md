@@ -13,6 +13,6 @@
 源算法的历史观察沿[源基线](../agent-runtime/source-baseline/README.md)。本轮提出的
 共同接口是 OMNE 的设计选择，不声称上游存在同名 API。
 
-Context/Session/过程帧交接与初步候选由[输入快照](evidence/inputs.json)保留。
-完整 DSH 复用及许可报告仍留主检出 tmp，本轮不将其整体复制为正式 research。
+Context/Session 与过程帧的初步候选由[输入快照](evidence/inputs.json)保留；会话
+交接中必要的用户范围与基线差异已提炼至[需求消费](requirements.md#交接与候选的适用性)。
 具体源码选择继续由 [D-006](../../decisions/D-006-dsh-core-adoption.md)拥有，没有新增来源包。

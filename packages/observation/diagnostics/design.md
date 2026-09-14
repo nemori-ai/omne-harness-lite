@@ -19,7 +19,7 @@
 本轮实施目标消费 `1368c52` 的[最小运行基线](../../../docs/proposals/core-capabilities/implementation/runtime-baseline.md)：
 真实最小 Session/Agent/工具闭环随共享设施交接后停止。完整 M1/M2 与 A01–A32
 保留为后续设计/验收目录；本包基础诊断不要求先交付远程观测或完整 query/export。
-四输入与调度归[计划](../../../docs/proposals/core-capabilities/implementation/plan.md)，
+历史路线与接受来源归[首批实施记录](../../../docs/proposals/core-capabilities/implementation/README.md)，
 本页只维护提供者选择及仍需兑现的责任。
 
 ## D-010 已接受的职责与依赖
@@ -362,7 +362,7 @@ write EIO；此时 Sonic 尚未开始 raw close，runtime 只调用一次 `destr
 [证据目录](../../../docs/proposals/core-capabilities/implementation/evidence/observability-directory/README.md)
 保留 d4 的4个机制 case及原始产品 RED；当前真实包 GREEN 归本包
 [directory owner evidence](../../../docs/proposals/core-capabilities/implementation/evidence/p1-diagnostics/directory-owner/README.md)。O01–O08及
-R1新增场景按[验收来源](../../../docs/proposals/core-capabilities/implementation/observability.md#四输入细化tdd-与交接顺序)
+R1新增场景按[验收来源](../../../docs/proposals/core-capabilities/implementation/observability.md#原-o01o12-验收范围)
 和[总体验收](../../../docs/proposals/core-capabilities/implementation/acceptance.md)的基线子集执行，
 O09/O10 由真实消费者组合兑现。R6窄缺口闭合不替代 R1、O08独立产物或组合证据。
 

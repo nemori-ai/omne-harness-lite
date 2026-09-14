@@ -155,19 +155,10 @@ Map 修复上游。Cordis 内置内存 buffer 先于桥接持有原 args，桥�
 这是桥接的**阻断条件**，需向整合者报告并核对官方升级或其它正式映射；不得
 声称本页已解决上游所有缓存行为。P1 的独立诊断提供者不受该桥未完成影响。
 
-## 四输入细化、TDD 与交接顺序
+## 原 O01–O12 验收范围
 
-| 施工任务 | 目标与固定输入 | 先出现的 RED 与必须交付的 GREEN |
-|---|---|---|
-| D1 共享 diagnostics | 本页接受提交、已验证 work-data/records；独占新包及其测试/README | 公开接口缺失编译边界就绪后，真正测量下表 O01–O08。产物与真实本地文件、无环依赖、独立 tarball 消费通过；根配置/锁由整合者维护 |
-| D2 P1 消费者接入 | D1 精确产物与本页 factory 修订；jsonl/admission 各自原作者 | 原 A05–08 故障已有时先刻画保留；新增关联/异常缺口先 RED。O09/O10 以真实 writer、sync 故障、清理 owner 和同步门组合测量 |
-| D3 P2 内核/Session 接入 | D1+D2 的验证输入、AR/CB/SR v1 | O11 的原生桥及租户归因反例；激活/释放/恢复必须使用实际内核，剩余桥风险列明。Agent/Session/工具闭环不等待 P3 collector/仪表盘 |
-| D4 P3 engineering | 原 OB v1、D1 来源格式/失效事实、真实业务审计、当前权限端口 | query/export/cursor/gap/保留/权限的 A28 完整场景；不能将 P1 通过当 OB 已完成 |
-
-D1 的正式实现由独立 infrastructure-developer 承担；D2 的 jsonl 与 admission
-仍由其原作者负责，不另建 logging coordinator。P3 engineering 能力的查询/导出
-业务归单独指定的 capability owner。具体写路径和共享接口接受提交由整合者在
-派发时填定；本作者没有为这些尚未派发任务取得产品代码写权。
+以下行为 ID 保留 D-010 的原验证范围，当前提供者接口归 diagnostics；跨提供者
+消费必须使用实际 writer、准入和业务 owner，不能从单组件通过推定组合通过。
 
 | 场景 | 直接适用的验收刺激与必须观察的结果 |
 |---|---|
@@ -184,14 +175,12 @@ D1 的正式实现由独立 infrastructure-developer 承担；D2 的 jsonl 与 a
 | O11 / A04、A18、A29 | 官方 Cordis 级别过滤/抛错/错误 disposer 原反例；受限单桥 A→B→撤除、root 关闭、两 tenant、raw buffer 暴露反例；旧 exporter 不再到旧资源且未知来源不冒充业务身份 |
 | O12 / A28、A32 | P3 当前权限撤回、相同 ID 无正文权限、采集/存储/索引失败、快照导出和 retention gone；业务审计故障阻止效果，入口拒绝也失败为 audit_unavailable；逐项对账实际覆盖 |
 
-D1/D2 不替代 A28 的业务审计、权限和 P3 查询；M1/M2 的其它 Axx 继续完整交付。
-每项正式行为仍按[计划的 TDD 循环](plan.md#tdd-循环)保留可复查 RED/GREEN 与
-真实源码关系。本文 tmp 的可行性脚本不搬进产品充当 TDD。每段交付同步包 README、
-依赖/配置、四输入投影和 delivery；接受者核对后才更新状态。
+D1/D2 不替代 A28 的业务审计、权限和 P3 查询。相称证据按
+[验证规范](../../../maintenance/verification.md)绑定真实源码与结果；机制探针不充当产品符合性。
 
 ## 作者检查与评审输入
 
-`tmp/observability-design/` 内实际安装精确发行物并运行 `node probe.mjs`，Node
+[原探针归档](evidence/observability-design/README.md)记录精确发行物安装及 `node probe.mjs`，Node
 `v24.18.0`，12 项可行性/反例通过；具体输出和局限见研究。未读取 .env/密钥，
 未调用模型或外部 exporter。它核对第三方 API 和反例，尚未验证正式 diagnostics、
 P1 持久提供者、P2 桥、动态完整关闭或 P3 的 OB 查询/权限。
@@ -212,7 +201,7 @@ Markdown 及关联结构检查；`git diff --check` 通过。检查不等于架�
 触发及积压/失败状态，并删除不存在的公开 flush 声称。O-R3 移除 activeScopes
 和 Promise 结算观察，以原业务 owner + 诊断 generation/关闭守卫约束晚到工作。
 
-`node tmp/observability-design/review-probe.mjs` 在同一 Node/依赖环境通过七项
+归档中的 `review-probe.mjs` 在同一 Node/依赖环境通过七项
 定点检查。两个 minLength 配置各输出 6983 字节，fs.write 在门内启动次数均为
 0；单条 55 字节日志在未 close 下读回；注入 EIO 后健康状态 failed；10000 次
 停滞 Promise 原样返回且没有 then 观察器、没有新增未处理拒绝。首轮关于

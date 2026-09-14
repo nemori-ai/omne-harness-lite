@@ -1,5 +1,8 @@
 # 模型档案契约候选
 
+本页保留历史候选和来源；本批当前接受范围先见 [D-008](../../decisions/D-008-core-capabilities.md)
+及[核心架构](../../architecture/core-capabilities.md)。旧草案未覆盖的部分不随新决定自动接受。
+
 状态：**in-review**。本目录承接历史 LLM 档案和其组成定义的语义；它不是正式规格，不批准模型目录服务、请求执行、会话选择或新字段。
 
 权威候选正文是 [v1/contract.md](v1/contract.md)。四个历史 JSON Schema 仍作为[归档原件](../../../spec/archive/ddd-models/README.md)保留，只有候选附件地位，不能被描述为正式或完整行为验证。
@@ -16,6 +19,8 @@
 未决事项和 Schema 覆盖缺口在候选正文中明确列出。被接受后才可进入 `spec/{data,capabilities,compositions}` 与 catalog。
 
 ## 当前需求对应与缺口
+
+本节保留历史需求补充与当时缺口；当前覆盖以开头所链接的核心架构为准。
 
 需求依据为 [SYS-LLM](../../requirements/system/constraints.md#sys-llm)，动态变化的
 目标见 [SYS-DYNAMIC](../../requirements/system/fully-dynamic-system.md)。现有候选仅有

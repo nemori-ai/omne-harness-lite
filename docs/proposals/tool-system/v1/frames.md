@@ -1,7 +1,7 @@
 # 工具内部过程帧
 
 本页是[候选草案](README.md)的一部分，消费用户指定的主检出
-`tmp/tool-execution-frames-coordination-20260913.md`（2026-09-13，v1）。
+[过程帧协调原件](../../runtime-composition/evidence/inputs/tool-execution-frames-coordination-20260913.md.txt)（2026-09-13，v1）。
 消费时文件 SHA-256：`ed2bc25fa30e0cc9d8039ad29e2b0189bae884446c634fe456dce6593aa66ddd`。
 协调稿及其独立评审均是候选输入；下面的生产、顺序和记录策略是本专题提出的
 具体建议，尚未成为双方接受的协议。临时协调稿不作为运行时依赖。

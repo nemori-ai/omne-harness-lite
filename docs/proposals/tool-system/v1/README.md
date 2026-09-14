@@ -80,16 +80,14 @@ Session、Run、Step、租户与资产等身份引用各自能力的同一权威
 本稿消费的具体条款和未覆盖能力见[覆盖表](validation.md#需求覆盖)。这只是可识别
 的候选工作区快照；正式接受时应固定包含新增条款的完整提交与消费范围。
 
-上游事实依据是本仓库主检出 `tmp/dsh-reuse-assessment-20260913/` 的调研，
-DSH 源码固定为 `c291e7961a515f6d7af9304e7fd1d257929aef26`；对应包元数据
+上游事实依据见下述固定官方来源；DSH 源码为 `c291e7961a515f6d7af9304e7fd1d257929aef26`；对应包元数据
 为 `0.1.5-rc.2`，并未证明同号 npm tarball 与该提交完全相同。关键来源已在
 [复用章节](assembly.md#dsh-复用选择)提供固定链接，临时报告的存在不是设计的运行依赖。
 多命令参考为 `omne-next` 提交 `6263fed545e48ad9efb5714f3fe76a7c1a0af1b5`，
 差异与原 ADR 状态沿[来源核对](../../../research/multi-command-tool-sources.md)。
 按用户进一步澄清重新核对的 Cordis 依赖与 effect 语义见
 [生命周期来源](../../../research/cordis-lifecycle-and-tool-composition.md)。内部过程帧
-同时消费用户指定的主检出 `tmp/tool-execution-frames-coordination-20260913.md`
-v1 协调候选；[过程帧正文](frames.md)拥有本专题的具体建议与待对齐事项。
+同时消费用户指定的[过程帧协调候选原件](../../runtime-composition/evidence/inputs/tool-execution-frames-coordination-20260913.md.txt)；[过程帧正文](frames.md)拥有本专题的具体建议与待对齐事项。
 
 本稿遵循 SYS-KERNEL 的维护边界、单机首交付、租户隔离和 OpenRouter 统一模型
 出口。暂不选择数据库、进程协议、容器方案、Browser/Computer 库或通用工作流

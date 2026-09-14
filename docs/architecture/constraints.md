@@ -8,12 +8,12 @@
 | ID 与正文 | 当前设计对应及缺口 |
 |---|---|
 | [SYS-IDENTITY](../requirements/system/constraints.md#sys-identity) | [系统定位](README.md#系统定位) |
-| [SYS-KERNEL](../requirements/system/constraints.md#sys-kernel) | [内核边界](README.md#内核与自建边界)，上游采用版本仍需固定 |
+| [SYS-KERNEL](../requirements/system/constraints.md#sys-kernel) | [内核边界](README.md#内核与自建边界)采用官方 Cordis 4.0.2；[D-006](../decisions/D-006-dsh-core-adoption.md)限定自有 fork 来源 |
 | [SYS-DYNAMIC](../requirements/system/fully-dynamic-system.md) | [能力建模方法](../architecture-guide/modeling/capabilities.md)，完整达成判断待明确 |
 | [SYS-SPEC](../requirements/system/constraints.md#sys-spec) | [规格与证据方法](../architecture-guide/assurance/specification.md)；已接受身份与精确版本归 [catalog](../../spec/catalog.json)，实现和验证范围分别核对 |
 | [SYS-DEPLOY](../requirements/system/constraints.md#sys-deploy) | [部署设计方法](../architecture-guide/runtime/distribution.md)，具体边界待逐能力定义 |
-| [SYS-TENANT](../requirements/system/constraints.md#sys-tenant) | [租户候选](../proposals/tenant-contracts/README.md)，多组织协作要求归 PF-001 |
-| [SYS-LLM](../requirements/system/constraints.md#sys-llm) | [模型候选](../proposals/model-contracts/README.md)，数据档案不证明请求兑现 |
+| [SYS-TENANT](../requirements/system/constraints.md#sys-tenant) | [D-008](../decisions/D-008-core-capabilities.md)接受本批租户与动作授权契约；[租户提供者](../../packages/governance/tenant/design.md)与[授权提供者](../../packages/governance/authorization/design.md)说明当前映射，产品组合仍待验收 |
+| [SYS-LLM](../requirements/system/constraints.md#sys-llm) | [D-008](../decisions/D-008-core-capabilities.md)接受本批模型/多模态及统一 OpenRouter 出口；[模型规格](../../spec/capabilities/model-execution/v1/contract.md)的真实提供者和请求组合仍待验收 |
 | [SYS-OBSERVABILITY](../requirements/system/observability-and-logging.md) | [工程观测 v1](../../spec/capabilities/engineering-observation/v1/contract.md)约束事实、缺口与受治理读面；[D-010](../decisions/D-010-shared-diagnostics.md)固定 P1 日志/trace 实施选择。产品、跨进程/节点及完整读面仍待分阶段验证 |
 | [SYS-EXPERIMENT](../requirements/system/constraints.md#sys-experiment) | [当前阶段](README.md#系统定位)，历史材料不构成实现兼容承诺 |
 

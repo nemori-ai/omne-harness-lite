@@ -26,7 +26,9 @@ work-data 不反向依赖它；jsonl、admission 及后续业务 owner 消费受
 首批选择 Pino 10.3.1、SonicBoom 4.2.1、OTel API 1.9.1、Trace SDK 与 ALS 2.11.0。
 沿标准 span/context 与成熟输出流构建最小适配，不自建遥测协议、通用队列或
 exporter 框架。DSH 已有机制及 pi/OpenCode 的可借鉴部分、未直接采用的边界归
-[研究](../research/harness-observability.md)。精确 API、容量及 O01–O12 归施工稿。
+[研究](../research/harness-observability.md)。当前 API 与容量归
+[diagnostics 设计](../../packages/observation/diagnostics/design.md)；O01–O12 的原
+验收范围与接受依据保留在[历史选择](../proposals/core-capabilities/implementation/observability.md#接受与验证)。
 
 诊断输出在外层短门之外启动；低流量输出不等待后续日志或关闭。within 保持
 调用者的原返回和错误，不接管其 Promise 生命周期。诊断关闭只证明自身资源

@@ -1,5 +1,8 @@
 # 工具定义、运行时与动态装配
 
+本页为历史候选；本批当前接受范围先见 [D-008](../../decisions/D-008-core-capabilities.md)
+及[核心架构](../../architecture/core-capabilities.md)，其余建议保持候选。
+
 状态：**draft，待讨论，未接受**。当前稿为 [v1 架构草案](v1/README.md)，
 日期 2026-09-13。覆盖普通工具、多命令单槽位工具、tool–skill 必需依赖、
 调用控制与接续，以及基于 Cordis 的动态装配和 DSH fork 复用边界。

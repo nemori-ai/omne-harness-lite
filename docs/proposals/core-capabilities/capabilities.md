@@ -94,17 +94,16 @@ flowchart TD
 
 ## 来源到目标的差异
 
-本轮沿用 D-006 的精确来源 `c291e7961a515f6d7af9304e7fd1d257929aef26`；完整
-复用调研仍在主检出 `tmp/dsh-reuse-assessment-20260913/`。这里只消费与设计有关的
-结论，历史报告中更宽的 fork 建议不扩张已接受来源集合。
+本轮沿用 D-006 的精确来源 `c291e7961a515f6d7af9304e7fd1d257929aef26`。
+下表用已固定的源基线定位实际采用机制及目标差异，不扩张已接受来源集合。
 
-| 已读评估章节 | 可保留的机制 | 必须由本项目设计的差异 |
+| 固定来源与差异拥有者 | 可保留的机制 | 必须由本项目设计的差异 |
 |---|---|---|
-| `context-sessions/04-session-context.md` | 受管提示词贡献、确定排序、来源快照、纯投影 | 三类上下文分离；租户权限、内容与工具一致快照、恢复及贡献撤回 |
-| `context-sessions/05-session-lifecycle-persistence-resume.md` | 连续追加、flush、尾部校验与写失败处理 | 耐久受理、Session/Run 生命周期、独占写入、队列并发；恢复历史不冒充恢复外部工作 |
-| `tools-hitl/tools.md`、`hitl.md` | 工具注册／定义／调用阶段、明确批准结果的参考 | 命令级声明自动登记、独立调用、内部帧、运行中转后台、可恢复请求与统一池；不纳入已排除的 jobs/user-approval 源码 |
-| `multimodal-models/03-多模态输入与输出.md`、`06-模型适配器与运行时.md` | 内容转换、adapter 绑定、请求准备和流处理 | 统一中立内容、原生音频等实际链路、OpenRouter 唯一出口、预算与会话切换；缺失模态不能静默丢块 |
-| `agents-control/10-session-run-interrupt-and-inbox.md` 及会话交接 | 输入身份、取消与 drain 的源码参考 | 耐久队列和修订、整体 interrupt_then_run、精确 Run 与按调用控制 |
+| [Loop/prompt 源基线](fork/loop-source.md) | 受管提示词贡献、确定排序、来源快照、纯投影 | 三类上下文分离；租户权限、内容与工具一致快照、恢复及贡献撤回 |
+| [Session 源基线](fork/session-source.md)、[JSONL 源基线](fork/jsonl-source.md) | 连续追加、flush、尾部校验与写失败处理 | 耐久受理、Session/Run 生命周期、独占写入、队列并发；恢复历史不冒充恢复外部工作 |
+| [工具源基线](fork/tools-source.md)、[历史工具/审批来源](../tool-system/v1/assembly.md) | 工具注册／定义／调用阶段、明确批准结果的参考 | 命令级声明自动登记、独立调用、内部帧、运行中转后台、可恢复请求与统一池；不纳入已排除的 jobs/user-approval 源码 |
+| [模型源基线](fork/llm-source.md) | 内容转换、adapter 绑定、请求准备和流处理 | 统一中立内容、原生音频等实际链路、OpenRouter 唯一出口、预算与会话切换；缺失模态不能静默丢块 |
+| [Loop 源基线](fork/loop-source.md)、[原运行时差异](../agent-runtime/v1/source-mapping.md) | 输入身份、取消与 drain 的源码参考 | 耐久队列和修订、整体 interrupt_then_run、精确 Run 与按调用控制 |
 
 精确上游页面由[D-006 来源](../dsh-core-adoption/sources.md)和
 [工具来源映射](../tool-system/v1/assembly.md)导航。库的 API 与具体 JSONL/OpenRouter
