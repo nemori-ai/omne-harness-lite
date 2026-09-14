@@ -96,4 +96,23 @@ describe('A31 strict JSON text parsing', () => {
       issues: [{ path, code: 'capacity' }],
     })
   })
+
+  it('rejects malformed deep JSON before tolerant recursive parsing', () => {
+    const text = `[0${'['.repeat(20_000)}0${']'.repeat(20_001)}`
+
+    expect(parseJson(text, { maxBytes: 100_000, maxDepth: 8, maxNodes: 32 })).toMatchObject({
+      ok: false,
+      issues: [{ path: '', code: 'invalid_json' }],
+    })
+  })
+
+  it('reports the documented parser implementation depth as capacity', () => {
+    const depth = 20_000
+    const text = `${'['.repeat(depth)}0${']'.repeat(depth)}`
+
+    expect(parseJson(text, { maxBytes: 100_000, maxDepth: depth, maxNodes: depth + 1 })).toMatchObject({
+      ok: false,
+      issues: [{ path: `/${'0/'.repeat(128)}0`, code: 'capacity', message: expect.stringContaining('implementation') }],
+    })
+  })
 })
