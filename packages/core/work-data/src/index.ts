@@ -204,6 +204,16 @@ type TreeTask = Readonly<{
   destination: Destination
 }>
 
+type CopyTask =
+  | Readonly<{
+      kind: 'visit'
+      value: unknown
+      path: readonly PathSegment[]
+      depth: number
+      destination: Destination
+    }>
+  | Readonly<{ kind: 'leave'; value: object }>
+
 function issue(
   code: ValidationIssue['code'],
   path: string,
@@ -282,6 +292,226 @@ function freezeJson(value: JsonValue): JsonValue {
     Object.freeze(current)
   }
   return value
+}
+
+function hasIntrinsicConstructor(prototype: object, name: 'Array' | 'Object'): boolean {
+  const descriptor = Object.getOwnPropertyDescriptor(prototype, 'constructor')
+  const constructor: unknown = descriptor?.value
+  if (typeof constructor !== 'function') return false
+  try {
+    return constructor.name === name
+      && constructor.prototype === prototype
+      && Function.prototype.toString.call(constructor) === `function ${name}() { [native code] }`
+  } catch {
+    return false
+  }
+}
+
+function isIntrinsicObjectPrototype(value: object): boolean {
+  return Object.getPrototypeOf(value) === null && hasIntrinsicConstructor(value, 'Object')
+}
+
+function isPlainObject(value: object): boolean {
+  const prototype: unknown = Object.getPrototypeOf(value)
+  return prototype === null
+    || typeof prototype === 'object' && prototype !== null && isIntrinsicObjectPrototype(prototype)
+}
+
+function isPlainArray(value: unknown[]): boolean {
+  const prototype: unknown = Object.getPrototypeOf(value)
+  if (!Array.isArray(prototype) || !hasIntrinsicConstructor(prototype, 'Array')) return false
+  const objectPrototype: unknown = Object.getPrototypeOf(prototype)
+  return typeof objectPrototype === 'object'
+    && objectPrototype !== null
+    && isIntrinsicObjectPrototype(objectPrototype)
+}
+
+function dataProperties(
+  value: object,
+  path: readonly PathSegment[],
+): Checked<readonly Readonly<{ key: string; value: unknown }>[]> {
+  const properties: Readonly<{ key: string; value: unknown }>[] = []
+  for (const key of Reflect.ownKeys(value)) {
+    if (typeof key !== 'string') {
+      return issue('invalid_json', pointer(path), 'symbol properties are not JSON data')
+    }
+    const descriptor = Object.getOwnPropertyDescriptor(value, key)
+    if (descriptor === undefined || !descriptor.enumerable) {
+      return issue('invalid_json', pointer([...path, key]), 'non-enumerable properties are not JSON data')
+    }
+    if (!('value' in descriptor)) {
+      return issue('invalid_json', pointer([...path, key]), 'accessor properties are not JSON data')
+    }
+    properties.push({ key, value: descriptor.value })
+  }
+  return { ok: true, value: properties }
+}
+
+function arrayItems(
+  value: unknown[],
+  path: readonly PathSegment[],
+): Checked<readonly unknown[]> {
+  if (!isPlainArray(value)) return issue('invalid_json', pointer(path), 'array must use an intrinsic Array prototype')
+  const keys = Reflect.ownKeys(value)
+  if (keys.length !== value.length + 1 || !keys.includes('length')) {
+    return issue('invalid_json', pointer(path), 'array must be dense and have no extra properties')
+  }
+  const items: unknown[] = new Array(value.length)
+  for (let index = 0; index < value.length; index += 1) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, String(index))
+    if (descriptor === undefined || !descriptor.enumerable || !('value' in descriptor)) {
+      return issue('invalid_json', pointer([...path, index]), 'array item must be an enumerable data property')
+    }
+    items[index] = descriptor.value
+  }
+  return { ok: true, value: items }
+}
+
+function copyValue(value: unknown, limits: JsonLimits): Checked<JsonValue> {
+  let root: JsonValue | undefined
+  let nodes = 0
+  const ancestors = new Set<object>()
+  const tasks: CopyTask[] = [{
+    kind: 'visit',
+    value,
+    path: [],
+    depth: 0,
+    destination: { kind: 'root' },
+  }]
+  const assign = (destination: Destination, item: JsonValue): void => {
+    if (destination.kind === 'root') root = item
+    else if (destination.kind === 'array') destination.target[destination.index] = item
+    else define(destination.target, destination.key, item)
+  }
+
+  while (tasks.length > 0) {
+    const task = tasks.pop()
+    if (task === undefined) break
+    if (task.kind === 'leave') {
+      ancestors.delete(task.value)
+      continue
+    }
+    nodes += 1
+    if (nodes > limits.maxNodes) {
+      return issue('capacity', pointer(task.path), `maximum node count ${limits.maxNodes} exceeded`)
+    }
+    if (task.depth > limits.maxDepth) {
+      return issue('capacity', pointer(task.path), `maximum depth ${limits.maxDepth} exceeded`)
+    }
+
+    const current = task.value
+    if (current === null || typeof current === 'boolean' || typeof current === 'string') {
+      assign(task.destination, current)
+      continue
+    }
+    if (typeof current === 'number') {
+      if (!Number.isFinite(current) || Object.is(current, -0) || Number.isInteger(current) && !Number.isSafeInteger(current)) {
+        return issue('unsupported_number', pointer(task.path), 'number is not a supported finite JSON number')
+      }
+      assign(task.destination, current)
+      continue
+    }
+    if (typeof current !== 'object') {
+      return issue('invalid_json', pointer(task.path), `value of type ${typeof current} is not JSON data`)
+    }
+    if (ancestors.has(current)) return issue('invalid_json', pointer(task.path), 'cyclic value is not JSON data')
+
+    if (Array.isArray(current)) {
+      const source = arrayItems(current, task.path)
+      if (!source.ok) return source
+      const remaining = limits.maxNodes - nodes
+      if (source.value.length > remaining) {
+        return issue('capacity', pointer([...task.path, Math.max(remaining, 0)]), `maximum node count ${limits.maxNodes} exceeded`)
+      }
+      const target: JsonValue[] = new Array(source.value.length)
+      assign(task.destination, target)
+      ancestors.add(current)
+      tasks.push({ kind: 'leave', value: current })
+      for (let index = source.value.length - 1; index >= 0; index -= 1) {
+        tasks.push({
+          kind: 'visit',
+          value: source.value[index],
+          path: [...task.path, index],
+          depth: task.depth + 1,
+          destination: { kind: 'array', target, index },
+        })
+      }
+      continue
+    }
+
+    if (!isPlainObject(current)) {
+      return issue('invalid_json', pointer(task.path), 'object must use an intrinsic Object or null prototype')
+    }
+    const source = dataProperties(current, task.path)
+    if (!source.ok) return source
+    const remaining = limits.maxNodes - nodes
+    if (source.value.length > remaining) {
+      const blocked = source.value[Math.max(remaining, 0)]
+      return issue('capacity', pointer([...task.path, blocked?.key ?? '']), `maximum node count ${limits.maxNodes} exceeded`)
+    }
+    const target = Object.create(null) as Record<string, JsonValue>
+    assign(task.destination, target)
+    ancestors.add(current)
+    tasks.push({ kind: 'leave', value: current })
+    for (let index = source.value.length - 1; index >= 0; index -= 1) {
+      const property = source.value[index]
+      if (property === undefined) return issue('invalid_json', pointer(task.path), 'object property disappeared')
+      tasks.push({
+        kind: 'visit',
+        value: property.value,
+        path: [...task.path, property.key],
+        depth: task.depth + 1,
+        destination: { kind: 'object', target, key: property.key },
+      })
+    }
+  }
+
+  if (root === undefined) return issue('invalid_json', '', 'value is not JSON data')
+  return { ok: true, value: freezeJson(root) }
+}
+
+type EncodeTask =
+  | Readonly<{ kind: 'value'; value: JsonValue }>
+  | Readonly<{ kind: 'text'; value: string }>
+
+function encodeJson(value: JsonValue): string {
+  const chunks: string[] = []
+  const tasks: EncodeTask[] = [{ kind: 'value', value }]
+  while (tasks.length > 0) {
+    const task = tasks.pop()
+    if (task === undefined) break
+    if (task.kind === 'text') {
+      chunks.push(task.value)
+      continue
+    }
+    const current = task.value
+    if (current === null) {
+      chunks.push('null')
+    } else if (typeof current === 'boolean' || typeof current === 'number' || typeof current === 'string') {
+      chunks.push(JSON.stringify(current))
+    } else if (Array.isArray(current)) {
+      chunks.push('[')
+      tasks.push({ kind: 'text', value: ']' })
+      for (let index = current.length - 1; index >= 0; index -= 1) {
+        tasks.push({ kind: 'value', value: current[index] as JsonValue })
+        if (index > 0) tasks.push({ kind: 'text', value: ',' })
+      }
+    } else {
+      chunks.push('{')
+      tasks.push({ kind: 'text', value: '}' })
+      const object = current as JsonObject
+      const keys = Object.keys(object).sort()
+      for (let index = keys.length - 1; index >= 0; index -= 1) {
+        const key = keys[index]
+        if (key === undefined) continue
+        tasks.push({ kind: 'value', value: object[key] as JsonValue })
+        tasks.push({ kind: 'text', value: ':' })
+        tasks.push({ kind: 'text', value: JSON.stringify(key) })
+        if (index > 0) tasks.push({ kind: 'text', value: ',' })
+      }
+    }
+  }
+  return chunks.join('')
 }
 
 function buildTree(text: string, rootNode: JsonNode, limits: JsonLimits): Checked<JsonValue> {
@@ -397,8 +627,16 @@ export function parseJson(text: string, limits: JsonLimits): Checked<JsonValue> 
   return buildTree(text, root, limits)
 }
 
-export function copyJson(_value: unknown, _limits: JsonLimits): Checked<JsonValue> {
-  return issue('invalid_json', '', 'copyJson is not implemented')
+export function copyJson(value: unknown, limits: JsonLimits): Checked<JsonValue> {
+  const validLimits = checkedLimits(limits)
+  if (!validLimits.ok) return validLimits
+  const copied = copyValue(value, limits)
+  if (!copied.ok) return copied
+  const bytes = Buffer.byteLength(encodeJson(copied.value), 'utf8')
+  if (bytes > limits.maxBytes) {
+    return issue('capacity', '', `canonical byte length ${bytes} exceeds maxBytes ${limits.maxBytes}`)
+  }
+  return copied
 }
 
 export function parseData<K extends keyof DataTypes>(
@@ -409,12 +647,22 @@ export function parseData<K extends keyof DataTypes>(
   return issue('invalid_json', '', 'parseData is not implemented')
 }
 
-export function canonicalJson(_value: JsonValue): string {
-  throw new TypeError('canonicalJson is not implemented')
+export function canonicalJson(value: JsonValue): string {
+  const copied = copyValue(value, {
+    maxBytes: Number.MAX_SAFE_INTEGER,
+    maxDepth: Number.MAX_SAFE_INTEGER,
+    maxNodes: Number.MAX_SAFE_INTEGER,
+  })
+  if (!copied.ok) {
+    const error = new TypeError(`invalid JSON value at ${copied.issues[0]?.path || '<root>'}: ${copied.issues[0]?.message ?? 'unknown error'}`)
+    error.name = 'InvalidJsonValueError'
+    throw error
+  }
+  return encodeJson(copied.value)
 }
 
-export function equalJson(_a: JsonValue, _b: JsonValue): boolean {
-  return false
+export function equalJson(a: JsonValue, b: JsonValue): boolean {
+  return canonicalJson(a) === canonicalJson(b)
 }
 import { parseTree, printParseErrorCode } from 'jsonc-parser'
 import type { Node as JsonNode, ParseError } from 'jsonc-parser'

@@ -1,0 +1,13 @@
+Command: pnpm run build && pnpm exec vitest run tests/json-values.spec.ts tests/parse-json.spec.ts
+Working directory: packages/core/work-data
+Environment: Node v24.18.0; pnpm 10.28.1; TypeScript 6.0.3; vitest 4.1.8
+Exit: 0
+
+RUN  v4.1.8 packages/core/work-data
+
+Test Files  2 passed (2)
+Tests       39 passed (39)
+
+The run covered ordinary/null prototypes, detached deep freezing, inert __proto__, accessors and
+toJSON without invocation, cycles, sparse/extra/hidden/symbol/lossy data, value limits, fixed
+core-json/1 golden output, UTF-16 key ordering, equality, and named invalid-input failures.
