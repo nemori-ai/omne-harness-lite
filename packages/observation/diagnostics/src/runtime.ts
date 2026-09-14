@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { once } from 'node:events'
-import { chmod, mkdir, open } from 'node:fs/promises'
+import { chmod, lstat, mkdir, open, opendir } from 'node:fs/promises'
 import { isAbsolute, join } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { ROOT_CONTEXT, SpanStatusCode, createContextKey, trace } from '@opentelemetry/api'
@@ -50,6 +50,11 @@ type ActiveSpan = {
   readonly point: SafePoint
   end: DiagnosticEnd | null
 }
+
+type StartupFailure = Readonly<{
+  code: string
+  reason: 'retention_capacity' | 'write_unavailable'
+}>
 
 const invalidIdentity: SafeIdentity = Object.freeze({
   tenantId: null,
@@ -148,8 +153,8 @@ class LocalRuntime implements DiagnosticsRuntime {
   private readonly configuredLevel: LocalDiagnosticsOptions['level']
   private readonly maxRecordBytes: number
   private readonly maxActiveSpans: number
-  private readonly stream: SonicBoom
-  private readonly logger: pino.Logger
+  private readonly stream: SonicBoom | null
+  private readonly logger: pino.Logger | null
   private readonly manager = new AsyncLocalStorageContextManager().enable()
   private readonly contextKey = createContextKey('omne-harness-lite diagnostics context')
   private readonly contexts = new WeakMap<DiagnosticContext, InternalContext>()
@@ -162,65 +167,74 @@ class LocalRuntime implements DiagnosticsRuntime {
   private emissionSeq: bigint | null = null
   private closeTask: Promise<boolean> | undefined
 
-  constructor(options: LocalDiagnosticsOptions, stream: SonicBoom) {
+  constructor(options: LocalDiagnosticsOptions, stream: SonicBoom | null, failure?: StartupFailure) {
     this.sourceId = options.sourceId
     this.configuredLevel = options.level
     this.maxRecordBytes = options.maxRecordBytes
     this.maxActiveSpans = options.maxActiveSpans
     this.stream = stream
-    const destination = {
-      write: (line: string): boolean => {
-        const bytes = Buffer.byteLength(line, 'utf8')
-        const seq = this.emissionSeq
-        if (bytes > this.maxRecordBytes) {
-          this.addGap('buffer_capacity', seq)
-          return true
-        }
-        this.pendingBytes += bytes
-        this.lastWriteProgressAt ??= performance.now()
-        let dropped = false
-        const onDrop = (): void => {
-          dropped = true
-        }
-        stream.once('drop', onDrop)
-        try {
-          const writable = stream.write(line)
-          if (dropped) {
-            this.pendingBytes -= bytes
-            if (this.pendingBytes === 0) this.lastWriteProgressAt = null
-            this.addGap('buffer_capacity', seq)
-          } else {
-            this.accepted += 1n
-          }
-          return writable
-        } finally {
-          stream.off('drop', onDrop)
-        }
-      },
-    }
-    this.logger = pino({
-      base: null,
-      timestamp: false,
-      level: 'debug',
-      formatters: { level: label => ({ level: label }) },
-      redact: {
-        paths: ['error', 'err', 'message', 'stack', 'body', 'secret', 'params', 'headers', 'url', 'query', 'target', 'rawArgs'],
-        remove: true,
-      },
-    }, destination)
-    stream.on('write', (bytes: number) => {
-      this.writtenBytes += BigInt(bytes)
-      this.pendingBytes = Math.max(0, this.pendingBytes - bytes)
-      this.lastWriteProgressAt = this.pendingBytes === 0 ? null : performance.now()
-    })
-    stream.on('error', (error: NodeJS.ErrnoException) => {
-      this.phase = this.phase === 'closing' ? 'closing' : 'degraded'
-      this.writeFailed = true
-      this.lastErrorCode = typeof error.code === 'string' ? error.code : 'SONIC_ERROR'
-    })
-    stream.on('close', () => {
+    if (stream === null) {
+      this.logger = null
+      this.phase = 'degraded'
       this.resource = 'released'
-    })
+      this.writeFailed = true
+      this.lastErrorCode = failure?.code ?? 'SOURCE_OPEN_FAILED'
+      this.addGap(failure?.reason ?? 'write_unavailable', this.nextSeq())
+    } else {
+      const destination = {
+        write: (line: string): boolean => {
+          const bytes = Buffer.byteLength(line, 'utf8')
+          const seq = this.emissionSeq
+          if (bytes > this.maxRecordBytes) {
+            this.addGap('buffer_capacity', seq)
+            return true
+          }
+          this.pendingBytes += bytes
+          this.lastWriteProgressAt ??= performance.now()
+          let dropped = false
+          const onDrop = (): void => {
+            dropped = true
+          }
+          stream.once('drop', onDrop)
+          try {
+            const writable = stream.write(line)
+            if (dropped) {
+              this.pendingBytes -= bytes
+              if (this.pendingBytes === 0) this.lastWriteProgressAt = null
+              this.addGap('buffer_capacity', seq)
+            } else {
+              this.accepted += 1n
+            }
+            return writable
+          } finally {
+            stream.off('drop', onDrop)
+          }
+        },
+      }
+      this.logger = pino({
+        base: null,
+        timestamp: false,
+        level: 'debug',
+        formatters: { level: label => ({ level: label }) },
+        redact: {
+          paths: ['error', 'err', 'message', 'stack', 'body', 'secret', 'params', 'headers', 'url', 'query', 'target', 'rawArgs'],
+          remove: true,
+        },
+      }, destination)
+      stream.on('write', (bytes: number) => {
+        this.writtenBytes += BigInt(bytes)
+        this.pendingBytes = Math.max(0, this.pendingBytes - bytes)
+        this.lastWriteProgressAt = this.pendingBytes === 0 ? null : performance.now()
+      })
+      stream.on('error', (error: NodeJS.ErrnoException) => {
+        this.phase = this.phase === 'closing' ? 'closing' : 'degraded'
+        this.writeFailed = true
+        this.lastErrorCode = typeof error.code === 'string' ? error.code : 'SONIC_ERROR'
+      })
+      stream.on('close', () => {
+        this.resource = 'released'
+      })
+    }
     this.provider = new TracerProvider({
       spanProcessors: [new LocalSpanProcessor(this)],
       spanLimits: {
@@ -231,7 +245,7 @@ class LocalRuntime implements DiagnosticsRuntime {
       },
     })
     this.tracer = this.provider.getTracer('@omne-harness-lite/diagnostics', '1')
-    this.emitMarker('diagnostic.source_started')
+    if (stream !== null) this.emitMarker('diagnostic.source_started')
 
     const inertSpan: DiagnosticSpan = Object.freeze({
       context: emptyContext,
@@ -495,6 +509,10 @@ class LocalRuntime implements DiagnosticsRuntime {
     span: ReadableSpan,
   ): void {
     const spanContext = span.spanContext()
+    if (this.logger === null) {
+      this.addGap('write_unavailable', seq)
+      return
+    }
     try {
       this.emissionSeq = seq
       const record = {
@@ -530,6 +548,10 @@ class LocalRuntime implements DiagnosticsRuntime {
 
   private emitMarker(code: string): void {
     const seq = this.nextSeq()
+    if (this.logger === null) {
+      this.addGap('write_unavailable', seq)
+      return
+    }
     try {
       this.emissionSeq = seq
       this.logger.info({
@@ -553,6 +575,10 @@ class LocalRuntime implements DiagnosticsRuntime {
 
   private emitPoint(seq: bigint, context: InternalContext, point: SafePoint): void {
     const activeSpan = trace.getSpan(context.native)?.spanContext()
+    if (this.logger === null) {
+      this.addGap('write_unavailable', seq)
+      return
+    }
     try {
       this.emissionSeq = seq
       const record = {
@@ -626,6 +652,7 @@ class LocalRuntime implements DiagnosticsRuntime {
       this.lastErrorCode = 'OTEL_CLOSE_FAILED'
       return false
     }
+    if (this.stream === null) return true
     this.emitMarker('diagnostic.source_closed')
     const closed = once(this.stream, 'close')
     try {
@@ -638,6 +665,40 @@ class LocalRuntime implements DiagnosticsRuntime {
       return false
     }
   }
+}
+
+async function hasDirectoryCapacity(directory: string, options: LocalDiagnosticsOptions): Promise<boolean> {
+  let entries = 0
+  let bytes = 0
+  const handle = await opendir(directory)
+  try {
+    for await (const entry of handle) {
+      entries += 1
+      if (entries >= options.maxFiles) return false
+      try {
+        const metadata = await lstat(join(directory, entry.name))
+        bytes += metadata.size
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue
+        throw error
+      }
+      if (bytes + options.maxFileBytes > options.maxDirectoryBytes) return false
+    }
+  } finally {
+    await handle.close().catch(() => {})
+  }
+  return bytes + options.maxFileBytes <= options.maxDirectoryBytes
+}
+
+function startupFailure(error: unknown): StartupFailure {
+  const code = error !== null && typeof error === 'object' && typeof (error as NodeJS.ErrnoException).code === 'string'
+    ? (error as NodeJS.ErrnoException).code
+    : undefined
+  if (code === 'EEXIST') return Object.freeze({ code: 'SOURCE_EXISTS', reason: 'write_unavailable' })
+  if (code === 'ENOSPC' || code === 'EDQUOT') {
+    return Object.freeze({ code: 'RETENTION_CAPACITY', reason: 'retention_capacity' })
+  }
+  return Object.freeze({ code: code === undefined ? 'SOURCE_OPEN_FAILED' : `SOURCE_OPEN_${code}`, reason: 'write_unavailable' })
 }
 
 async function createStream(path: string, options: LocalDiagnosticsOptions): Promise<SonicBoom> {
@@ -668,8 +729,24 @@ export async function createLocalDiagnostics(
   const invalid = validateOptions(options)
   if (invalid !== undefined) return Object.freeze({ status: 'invalid', code: invalid })
 
-  await mkdir(options.directory, { recursive: true, mode: 0o700 })
-  await chmod(options.directory, 0o700)
-  const stream = await createStream(join(options.directory, fileName(options)), options)
-  return Object.freeze({ status: 'created', runtime: new LocalRuntime(options, stream) })
+  try {
+    await mkdir(options.directory, { recursive: true, mode: 0o700 })
+    await chmod(options.directory, 0o700)
+    if (!await hasDirectoryCapacity(options.directory, options)) {
+      return Object.freeze({
+        status: 'created',
+        runtime: new LocalRuntime(options, null, {
+          code: 'RETENTION_CAPACITY',
+          reason: 'retention_capacity',
+        }),
+      })
+    }
+    const stream = await createStream(join(options.directory, fileName(options)), options)
+    return Object.freeze({ status: 'created', runtime: new LocalRuntime(options, stream) })
+  } catch (error) {
+    return Object.freeze({
+      status: 'created',
+      runtime: new LocalRuntime(options, null, startupFailure(error)),
+    })
+  }
 }

@@ -1,0 +1,17 @@
+$ pnpm --filter @omne-harness-lite/diagnostics run build
+exit 0
+
+$ pnpm --filter @omne-harness-lite/diagnostics run typecheck
+exit 0
+
+$ pnpm --filter @omne-harness-lite/diagnostics test -- --reporter=verbose
+
+RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics
+
+Test Files  1 passed (1)
+Tests       10 passed (10)
+Duration    514ms
+Exit status 0
+
+The real filesystem cases include an already-full directory, a colliding exclusive source,
+two live factory instances, and a low-traffic record observed before another log or close.
