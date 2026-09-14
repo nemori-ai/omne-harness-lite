@@ -70,3 +70,7 @@ Skill 调用继续使用 PF-009 的 slash 入口。
 副维度关联：[PF-016：Agent 开发 Cordis 插件并在线部署装载](../agent/PF-016-agent-developed-cordis-plugins-and-live-deployment.md)
 （主维度：智能体）。用户有效策略决定 Agent 的开发与部署资格、影响范围和
 是否需要 HITL；有权用户可查看插件版本、运行结果并管理启停及变更。
+
+副维度关联：[PF-025：兼容外部命令式 hooks 体系](../agent/PF-025-external-hooks-compatibility.md)
+（主维度：智能体）。用户以 Claude Code、Codex 的习惯编写和装配 hook，作为
+租户资产成员管理；每次运行、阻断理由与失败可查，执行主体是装配者。
