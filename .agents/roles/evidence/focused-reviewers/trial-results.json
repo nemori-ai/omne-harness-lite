@@ -1,0 +1,57 @@
+{
+  "date": "2026-09-14",
+  "requested": {
+    "host": "current Codex collaboration surface",
+    "model": "gpt-5.6-sol",
+    "reasoning_effort": "xhigh",
+    "agent_type": "default",
+    "fork_turns": "none"
+  },
+  "actual_runtime_telemetry": "Not independently collected; request parameters and successful returned messages only.",
+  "permissions": "Read-only role instructions handed off; native role sandbox not loaded or independently verified.",
+  "input_manifest_sha256": "a27cf8f5efd0b9801943beca9d209808da782b5a181722bdaef631b88f8631a7",
+  "agents": {
+    "spec": "/root/spec_reviewer_trial",
+    "plan": "/root/plan_reviewer_trial"
+  },
+  "dispatch": {
+    "spec": "Read complete developer_instructions from generated .codex/agents/spec-reviewer.toml before reviewing S-note-r1 against D-note-r1. Read-only scope: completeness/clarity/conventions; no revision baseline. Do not read evaluation records, other reviewer prompts or expected answers. Return result and recovery state.",
+    "plan": "Read complete developer_instructions from generated .codex/agents/plan-reviewer.toml before separately reviewing P-open-r1 and P-bound-r1 in E-note-r1. Adopt declared D-note-r1, B-note-r1, R-note-r1 synthetic premises. Scope: feasibility/topology/ownership/acceptance; no need to choose or rewrite a plan. Do not read expected answers or evaluation records.",
+    "plan_recovery": "Resume the prior P-bound-r1 review state; review only changes in E-note-r2 / P-bound-r2 from plan-recovery.txt and affected dependencies. Keep the full read-only role and return updated state."
+  },
+  "results": {
+    "spec": {
+      "output": "spec-output.txt",
+      "observed_return": "Identified missing input, contradictory state effect and unreachable/latest reference; did not change retention policy or require model artifacts. Also requested explicit NotFound/Conflict applicability based on supplied non-disclosure promise.",
+      "precision_limit": "Output calls the reference clause S7 and coverage/editorial lines S8/S9, conflating file line numbers with clause labels; original reference clause is S6. Findings need owner verification, not automatic acceptance."
+    },
+    "plan": {
+      "output": "plan-output.txt",
+      "observed_return": "Blocked early consumption and overlapping shared-interface writes, and absent real integration ownership; found no blocker in contract-first bounded parallel plan; allowed independent navigation work."
+    },
+    "plan_recovery": {
+      "input": "plan-recovery.txt",
+      "output": "plan-recovery-output.txt",
+      "observed_return": "Stopped reliance on withdrawn interface and old favorable review; routed policy choice to owner; retained independent navigation and unaffected evidence.",
+      "precision_limit": "Output says rework is inevitable; risk/required revalidation is supported, but the exact amount of rework is not proven by this synthetic input."
+    }
+  },
+  "output_preservation": "Returned text copied by dispatcher; plan outputs omit temporary absolute Markdown links and formatting and linearize the small diagram; substantive wording retained. Not a full tool transcript.",
+  "actions_evidence": "Agents reported no writes/tests/delegation. Initial role and fixture hashes were independently rechecked unchanged. No complete tool-action transcript was independently captured; these facts do not prove filesystem enforcement.",
+  "cost_and_latency": "Not independently collected; no benchmark comparison claimed.",
+  "limits": [
+    "Synthetic bounded trials, not real capability implementation",
+    "Recovery is a follow-up with changed premises, not actual compaction or cold start",
+    "Claude native loading/model/effort/permission enforcement not tested",
+    "No broad model comparison or authorization change"
+  ],
+  "sha256": {
+    "plan-output.txt": "eeb5f8c9537c113c45560d6d4f40b7d1e59b58340a511f00766b8b22e46c8d2b",
+    "plan-recovery-output.txt": "347f5bc36e129391bfcf1b23857e288105ee6d1b6841423a4e1ef24b05071f92",
+    "plan-recovery.txt": "12964f3157691d292b1a5b2da741423fc4082d4c489008853d0a835a987f5aca",
+    "plan-samples.txt": "44b839210509a61e1cbbad550c679a1b7a845f0c14039079b65ebcc7c6f3c962",
+    "spec-candidate.txt": "cbdc25d02ab007dec1ce2cb4959157ed0aa4ba291542de53a6577503fe79e106",
+    "spec-design.txt": "326f230114ddc0e503d56afb5091fddcb9514e3ef570b3609f260ffe32efb5a0",
+    "spec-output.txt": "43f83bc0bf14332c8c3706810dbd1636bea81a23bff48c6080cc0f2851aa8503"
+  }
+}

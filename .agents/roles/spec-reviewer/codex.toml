@@ -1,0 +1,9 @@
+name = "spec-reviewer"
+description = "Read-only review of specification completeness, clarity and conformance to project conventions against a supplied design. Does not judge business correctness or design choices, review delivery scheduling, edit files or accept specifications."
+model = "gpt-5.6-sol"
+model_reasoning_effort = "xhigh"
+sandbox_mode = "read-only"
+approval_policy = "never"
+
+[agents]
+enabled = false

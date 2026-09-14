@@ -1,0 +1,6 @@
+name: plan-reviewer
+description: Read-only review of delivery-plan feasibility, dependencies, safe parallel scheduling, ownership and acceptance evidence against supplied contracts. Does not audit specification completeness, redesign business behavior, edit files, execute tasks or accept delivery.
+model: opus
+effort: xhigh
+tools: Read, Glob, Grep, WebFetch, WebSearch
+permissionMode: dontAsk

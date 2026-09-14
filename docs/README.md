@@ -15,6 +15,7 @@
 | 查看候选方案与尚未接受的模型 | [提案](proposals/README.md) |
 | 查证上游行为、事实和验证范围 | [研究](research/README.md) |
 | 修改文档、契约、版本或决定 | [维护规则](maintenance/README.md) |
+| 持续维护规格、具体提供者设计及其实施就绪范围 | [规格维护](maintenance/spec-maintenance.md) |
 | 放置源码、配置开发环境或接入 CI | [源码布局](maintenance/workspace.md)、[验证规范](maintenance/verification.md) |
 | 判断相关防御指导是否适用 | [防御模式](defensive-patterns.md) |
 | 切换开发主力模型前评估辅助是否仍必要 | [开发模型评估](evaluation/README.md) |

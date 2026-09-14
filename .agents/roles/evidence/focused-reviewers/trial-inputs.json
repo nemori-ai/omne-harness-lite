@@ -1,0 +1,21 @@
+{
+  "base": "ceeb21684d714b8cc3d8a9873305620dfd02f463",
+  "requested_model": "gpt-5.6-sol",
+  "requested_effort": "xhigh",
+  "invocation": "ordinary independent agent with complete generated role instructions; not native role loading",
+  "sha256": {
+    ".agents/roles/spec-reviewer/role.md": "28a3c0be37211b363fdc6bbe726856b7d5c169aadec0bbd972df807cf39cc19d",
+    ".agents/roles/spec-reviewer/codex.toml": "c3fd8a27a8a580fbeeacae4773327dd4ad01b97121589ee5833077df447c602a",
+    ".agents/roles/spec-reviewer/claude.yaml": "aa878713f1b6fcd884a6a03be917bc1186e3f0dcf9c2e719f0eec422bed9d0ed",
+    ".codex/agents/spec-reviewer.toml": "d7a3fc14af747f0b155e335992932a492778e6668e9207102e0406761593bb8f",
+    ".claude/agents/spec-reviewer.md": "e716d238e8e38a0a4a56c67083e53bb315a9d59e4ab5fadadec74571382eb63c",
+    ".agents/roles/plan-reviewer/role.md": "312b4dc1b5de2cec57e66405956e0b23c43436fed0c68b2adc59dbbd82b8818a",
+    ".agents/roles/plan-reviewer/codex.toml": "30c114b453c4dc44369535696fbc2d901057f1d824df6382e807b383c738ed2a",
+    ".agents/roles/plan-reviewer/claude.yaml": "c0b2a487ed79f38c59914fb6bc6c3dac7fc34853c91030548fe44e0020967f4a",
+    ".codex/agents/plan-reviewer.toml": "a90065225d20cc4a207e1f01ed186a1ba9e2674fa2584c99395879ac488c0bb0",
+    ".claude/agents/plan-reviewer.md": "2b68dd0b1217e73985c451328e006d4949c6a179c58c134915670f04e1733a16",
+    ".agents/roles/evidence/focused-reviewers/plan-samples.txt": "44b839210509a61e1cbbad550c679a1b7a845f0c14039079b65ebcc7c6f3c962",
+    ".agents/roles/evidence/focused-reviewers/spec-candidate.txt": "cbdc25d02ab007dec1ce2cb4959157ed0aa4ba291542de53a6577503fe79e106",
+    ".agents/roles/evidence/focused-reviewers/spec-design.txt": "326f230114ddc0e503d56afb5091fddcb9514e3ef570b3609f260ffe32efb5a0"
+  }
+}
