@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseJson } from '../dist/index.js'
+import { canonicalJson, parseJson } from '../dist/index.js'
 
 const limits = { maxBytes: 1_024, maxDepth: 8, maxNodes: 32 }
 
@@ -114,5 +114,17 @@ describe('A31 strict JSON text parsing', () => {
       ok: false,
       issues: [{ path: `/${'0/'.repeat(128)}0`, code: 'capacity', message: expect.stringContaining('implementation') }],
     })
+  })
+
+  it('parses, freezes and canonically encodes the implementation depth boundary', () => {
+    const depth = 128
+    const text = `${'['.repeat(depth)}0${']'.repeat(depth)}`
+    const result = parseJson(text, { maxBytes: 1_024, maxDepth: depth, maxNodes: depth + 1 })
+
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(Object.isFrozen(result.value)).toBe(true)
+      expect(canonicalJson(result.value)).toBe(text)
+    }
   })
 })

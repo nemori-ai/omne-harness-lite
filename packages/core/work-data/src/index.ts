@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { Ajv2020 } from 'ajv/dist/2020.js'
 import type { ErrorObject, ValidateFunction } from 'ajv'
-import { createScanner, parseTree, printParseErrorCode, SyntaxKind } from 'jsonc-parser'
+import { createScanner, parseTree, printParseErrorCode, ScanError, SyntaxKind } from 'jsonc-parser'
 import type { Node as JsonNode, ParseError } from 'jsonc-parser'
 
 export type JsonValue = null | boolean | number | string | JsonObject | readonly JsonValue[]
@@ -268,6 +268,8 @@ for (const name of DATA_TYPE_NAMES) {
 
 type PathSegment = string | number
 
+const JSONC_VISITOR_MAX_DEPTH = 128
+
 type ScanPath = Readonly<{
   parent: ScanPath | undefined
   segment: PathSegment
@@ -346,25 +348,31 @@ function scanPointer(path: ScanPath | undefined): string {
 function preflightCapacity(text: string, limits: JsonLimits): Checked<never> | undefined {
   const scanner = createScanner(text, false)
   const frames: ScanFrame[] = []
-  let rootState: 'value' | 'done' = 'value'
+  const root = { state: 'value' as 'value' | 'done' }
   let nodes = 0
 
-  const beginValue = (): Readonly<{ path: ScanPath | undefined; depth: number }> | undefined => {
+  const invalidToken = (): Checked<never> => issue(
+    'invalid_json',
+    '',
+    `invalid JSON structure at character offset ${scanner.getTokenOffset()}`,
+  )
+
+  const beginValue = (): Readonly<{ path: ScanPath | undefined; depth: number }> | Checked<never> => {
     const parent = frames.at(-1)
     if (parent === undefined) {
-      if (rootState === 'done') return undefined
-      rootState = 'done'
+      if (root.state === 'done') return invalidToken()
+      root.state = 'done'
       return { path: undefined, depth: 0 }
     }
     if (parent.kind === 'array') {
-      if (parent.state !== 'firstOrEnd' && parent.state !== 'value') return undefined
+      if (parent.state !== 'firstOrEnd' && parent.state !== 'value') return invalidToken()
       parent.state = 'commaOrEnd'
       return {
         path: { parent: parent.path, segment: parent.nextIndex },
         depth: parent.depth + 1,
       }
     }
-    if (parent.state !== 'value' || parent.key === undefined) return undefined
+    if (parent.state !== 'value' || parent.key === undefined) return invalidToken()
     parent.state = 'commaOrEnd'
     return {
       path: { parent: parent.path, segment: parent.key },
@@ -372,9 +380,9 @@ function preflightCapacity(text: string, limits: JsonLimits): Checked<never> | u
     }
   }
 
-  const enterValue = (): Readonly<{ path: ScanPath | undefined; depth: number }> | Checked<never> | undefined => {
+  const enterValue = (): Readonly<{ path: ScanPath | undefined; depth: number }> | Checked<never> => {
     const value = beginValue()
-    if (value === undefined) return undefined
+    if ('ok' in value) return value
     nodes += 1
     if (nodes > limits.maxNodes) {
       return issue('capacity', scanPointer(value.path), `maximum node count ${limits.maxNodes} exceeded`)
@@ -382,13 +390,27 @@ function preflightCapacity(text: string, limits: JsonLimits): Checked<never> | u
     if (value.depth > limits.maxDepth) {
       return issue('capacity', scanPointer(value.path), `maximum depth ${limits.maxDepth} exceeded`)
     }
+    if (value.depth > JSONC_VISITOR_MAX_DEPTH) {
+      return issue(
+        'capacity',
+        scanPointer(value.path),
+        `jsonc-parser visitor implementation maximum depth ${JSONC_VISITOR_MAX_DEPTH} exceeded`,
+      )
+    }
     return value
   }
 
   while (true) {
     const token = scanner.scan()
-    if (token === SyntaxKind.EOF) return undefined
-    if (token >= SyntaxKind.LineCommentTrivia && token <= SyntaxKind.Trivia) continue
+    if (scanner.getTokenError() !== ScanError.None) return invalidToken()
+    if (token === SyntaxKind.EOF) {
+      return frames.length === 0 && root.state === 'done' ? undefined : invalidToken()
+    }
+    if (token === SyntaxKind.LineCommentTrivia || token === SyntaxKind.BlockCommentTrivia) {
+      return invalidToken()
+    }
+    if (token === SyntaxKind.LineBreakTrivia || token === SyntaxKind.Trivia) continue
+    if (token === SyntaxKind.Unknown) return invalidToken()
 
     const frame = frames.at(-1)
     if (token === SyntaxKind.StringLiteral
@@ -398,11 +420,13 @@ function preflightCapacity(text: string, limits: JsonLimits): Checked<never> | u
       frame.state = 'colon'
       continue
     }
-    if (token === SyntaxKind.ColonToken && frame?.kind === 'object' && frame.state === 'colon') {
+    if (token === SyntaxKind.ColonToken) {
+      if (frame?.kind !== 'object' || frame.state !== 'colon') return invalidToken()
       frame.state = 'value'
       continue
     }
-    if (token === SyntaxKind.CommaToken && frame?.state === 'commaOrEnd') {
+    if (token === SyntaxKind.CommaToken) {
+      if (frame?.state !== 'commaOrEnd') return invalidToken()
       if (frame.kind === 'array') {
         frame.nextIndex += 1
         frame.state = 'value'
@@ -412,18 +436,21 @@ function preflightCapacity(text: string, limits: JsonLimits): Checked<never> | u
       }
       continue
     }
-    if (token === SyntaxKind.CloseBracketToken && frame?.kind === 'array') {
+    if (token === SyntaxKind.CloseBracketToken) {
+      if (frame?.kind !== 'array'
+        || frame.state !== 'firstOrEnd' && frame.state !== 'commaOrEnd') return invalidToken()
       frames.pop()
       continue
     }
-    if (token === SyntaxKind.CloseBraceToken && frame?.kind === 'object') {
+    if (token === SyntaxKind.CloseBraceToken) {
+      if (frame?.kind !== 'object'
+        || frame.state !== 'firstKeyOrEnd' && frame.state !== 'commaOrEnd') return invalidToken()
       frames.pop()
       continue
     }
     if (token === SyntaxKind.OpenBracketToken || token === SyntaxKind.OpenBraceToken) {
       const value = enterValue()
-      if (value !== undefined && 'ok' in value) return value
-      if (value === undefined) continue
+      if ('ok' in value) return value
       frames.push(token === SyntaxKind.OpenBracketToken
         ? { kind: 'array', path: value.path, depth: value.depth, state: 'firstOrEnd', nextIndex: 0 }
         : { kind: 'object', path: value.path, depth: value.depth, state: 'firstKeyOrEnd', key: undefined })
@@ -435,8 +462,10 @@ function preflightCapacity(text: string, limits: JsonLimits): Checked<never> | u
       || token === SyntaxKind.TrueKeyword
       || token === SyntaxKind.FalseKeyword) {
       const value = enterValue()
-      if (value !== undefined && 'ok' in value) return value
+      if ('ok' in value) return value
+      continue
     }
+    return invalidToken()
   }
 }
 

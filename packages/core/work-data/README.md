@@ -9,7 +9,10 @@ The entry exports the complete DTO projection and `Checked`, `JsonLimits`, `pars
 not grant membership, authorization, read, write, control, or execution rights.
 
 `parseJson` rejects non-JSON syntax, duplicate decoded keys, unsupported numeric round trips, and
-capacity violations. `copyJson` accepts only ordinary or null-prototype objects and intrinsic dense
+capacity violations. It caps root-relative text depth at 128 before the recursive
+`jsonc-parser@3.3.1` visitor runs; caller limits are ceilings and values above 128 do not promise
+deeper text parsing. Crossing that implementation limit returns a `capacity` issue. `copyJson`
+accepts only ordinary or null-prototype objects and intrinsic dense
 arrays with enumerable data properties; it never invokes accessors or `toJSON`. Successful values
 and all `Checked` results are detached and deeply frozen. Paths use JSON Pointer. The root has depth
 zero, every JSON value counts as one node, `parseJson.maxBytes` counts the input's UTF-8 bytes, and
