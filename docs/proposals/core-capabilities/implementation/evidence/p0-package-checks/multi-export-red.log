@@ -1,0 +1,64 @@
+$ node --test --test-name-pattern='checks project-owned packages and apps' tests/boundaries.test.mjs
+exit_code=1
+✖ checks project-owned packages and apps through independent tarball consumers (9225.809787ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9596.40788
+
+✖ failing tests:
+
+test at tests/boundaries.test.mjs:195:1
+✖ checks project-owned packages and apps through independent tarball consumers (9225.809787ms)
+  Error: Command failed: /data/qiwei/.local/share/fnm/node-versions/v24.18.0/installation/bin/node /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-package-checks/tools/package-checks/src/check.mjs --root /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-package-checks/tmp/p0-package-checks/repository-md4Vpy
+  consumer.ts(1,13): error TS2300: Duplicate identifier 'm0'.
+  consumer.ts(2,13): error TS2300: Duplicate identifier 'm0'.
+  Failed artifact evidence retained: /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-package-checks/tmp/p0-package-checks/repository-md4Vpy/tmp/p0-package-checks/artifacts-CWkqbk
+  node:internal/errors:985
+    const err = new Error(message);
+                ^
+  
+  Error: Command failed: pnpm exec tsc -p tsconfig.json
+      at genericNodeError (node:internal/errors:985:15)
+      at wrappedFn (node:internal/errors:539:14)
+      at checkExecSyncError (node:child_process:925:11)
+      at execFileSync (node:child_process:961:15)
+      at run (file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-package-checks/tools/package-checks/src/check.mjs:23:59)
+      at consume (file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-package-checks/tools/package-checks/src/check.mjs:181:7)
+      at async checkRepository (file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-package-checks/tools/package-checks/src/check.mjs:190:7)
+      at async file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-package-checks/tools/package-checks/src/check.mjs:217:3 {
+    status: 1,
+    signal: null,
+    output: [
+      null,
+      "consumer.ts(1,13): error TS2300: Duplicate identifier 'm0'.\n" +
+        "consumer.ts(2,13): error TS2300: Duplicate identifier 'm0'.\n",
+      ''
+    ],
+    pid: 137773,
+    stdout: "consumer.ts(1,13): error TS2300: Duplicate identifier 'm0'.\n" +
+      "consumer.ts(2,13): error TS2300: Duplicate identifier 'm0'.\n",
+    stderr: ''
+  }
+  
+  Node.js v24.18.0
+  
+      at genericNodeError (node:internal/errors:985:15)
+      at wrappedFn (node:internal/errors:539:14)
+      at checkExecSyncError (node:child_process:925:11)
+      at execFileSync (node:child_process:961:15)
+      at TestContext.<anonymous> (file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-package-checks/tools/package-checks/tests/boundaries.test.mjs:208:18)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    status: 1,
+    signal: null,
+    output: [ null, 'PASS: 2 product members, dependency boundaries, 0 upstream source records\nPASS: isolated local-harness, 2 declared product artifact(s), strict declarations + runtime\n', `consumer.ts(1,13): error TS2300: Duplicate identifier 'm0'.\nconsumer.ts(2,13): error TS2300: Duplicate identifier 'm0'.\nFailed artifact evidence retained: /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-package-checks/tmp/p0-package-checks/repository-md4Vpy/tmp/p0-package-checks/artifacts-CWkqbk\nnode:internal/errors:985\n  const err = new Error(message);\n              ^\n\nError: Command failed: pnpm exec tsc -p tsconfig.json\n    at genericNodeError (node:internal/errors:985:15)\n    at wrappedFn (node:internal/errors:539:14)\n    at checkExecSyncError (node:child_process:925:11)\n    at execFileSync (node:child_process:961:15)\n    at run (file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-package-checks/tools/package-checks/src/check.mjs:23:59)\n    at consume (file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-package-checks/tools/package-checks/src/check.mjs:181:7)\n    at async checkRepository (file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-package-checks/tools/package-checks/src/check.mjs:190:7)\n    at async file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-package-checks/tools/package-checks/src/check.mjs:217:3 {\n  status: 1,\n  signal: null,\n  output: [\n    null,\n    "consumer.ts(1,13): error TS2300: Duplicate identifier 'm0'.\\n" +\n      "consumer.ts(2,13): error TS2300: Duplicate identifier 'm0'.\\n",\n    ''\n  ],\n  pid: 137773,\n  stdout: "consumer.ts(1,13): error TS2300: Duplicate identifier 'm0'.\\n" +\n    "consumer.ts(2,13): error TS2300: Duplicate identifier 'm0'.\\n",\n  stderr: ''\n}\n\nNode.js v24.18.0\n` ],
+    pid: 137355,
+    stdout: 'PASS: 2 product members, dependency boundaries, 0 upstream source records\nPASS: isolated local-harness, 2 declared product artifact(s), strict declarations + runtime\n',
+    stderr: `consumer.ts(1,13): error TS2300: Duplicate identifier 'm0'.\nconsumer.ts(2,13): error TS2300: Duplicate identifier 'm0'.\nFailed artifact evidence retained: /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-package-checks/tmp/p0-package-checks/repository-md4Vpy/tmp/p0-package-checks/artifacts-CWkqbk\nnode:internal/errors:985\n  const err = new Error(message);\n              ^\n\nError: Command failed: pnpm exec tsc -p tsconfig.json\n    at genericNodeError (node:internal/errors:985:15)\n    at wrappedFn (node:internal/errors:539:14)\n    at checkExecSyncError (node:child_process:925:11)\n    at execFileSync (node:child_process:961:15)\n    at run (file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-package-checks/tools/package-checks/src/check.mjs:23:59)\n    at consume (file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-package-checks/tools/package-checks/src/check.mjs:181:7)\n    at async checkRepository (file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-package-checks/tools/package-checks/src/check.mjs:190:7)\n    at async file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-package-checks/tools/package-checks/src/check.mjs:217:3 {\n  status: 1,\n  signal: null,\n  output: [\n    null,\n    "consumer.ts(1,13): error TS2300: Duplicate identifier 'm0'.\\n" +\n      "consumer.ts(2,13): error TS2300: Duplicate identifier 'm0'.\\n",\n    ''\n  ],\n  pid: 137773,\n  stdout: "consumer.ts(1,13): error TS2300: Duplicate identifier 'm0'.\\n" +\n    "consumer.ts(2,13): error TS2300: Duplicate identifier 'm0'.\\n",\n  stderr: ''\n}\n\nNode.js v24.18.0\n`
+  }
+

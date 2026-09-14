@@ -1,0 +1,27 @@
+$ pnpm --filter @omne-harness-lite/package-checks test
+exit_code=0
+
+> @omne-harness-lite/package-checks@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p0-package-checks/tools/package-checks
+> node --test tests/*.test.mjs
+
+✔ finds real import/export/type/augmentation dependencies, ignoring comments and strings (11.018471ms)
+✔ discovers responsibility packages and real application members (30.986184ms)
+✔ classifies baseline, evolved, and project-owned public entries by actual source records (2.501336ms)
+✔ keeps artifact consumers outside repository ancestor dependency resolution (83.091532ms)
+✔ validates DSH source truth separately from project-owned provenance (8.576559ms)
+✔ checks every packed public declaration and maps default exports to valid consumer specifiers (1.025644ms)
+✔ checks project-owned packages and apps through independent tarball consumers (12890.267534ms)
+✔ permits only the probed fs-ext native rebuild with an exact product and lock version (1.259864ms)
+✔ applies existing import guards to project-owned default exports (0.692172ms)
+✔ public imports require a declared runtime edge; development dependencies cannot mask it (0.505669ms)
+✔ relative src and dist penetration and unknown product edges fail (0.584184ms)
+✔ transitive closure excludes unrelated and development members and rejects cycles (0.285808ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13397.749666
+

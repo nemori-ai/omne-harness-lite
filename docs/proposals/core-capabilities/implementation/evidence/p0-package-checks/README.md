@@ -215,3 +215,48 @@ the integrated root must rerun this checker with its accepted compiler environme
   probe-approved explicit compiler environment. No GCC path is encoded in the tool.
 - Fixed official archive download/comparison and real native fs-ext loading are separate
   evidence surfaces and are not claimed by this result.
+
+## Post-review F1-F3 correction
+
+Independent review of `effd764` found three A30 blockers. Commit `0587fa2`
+(`fix: isolate package artifact consumers`) addresses all three without changing the
+accepted manifest/provenance format or the native-support claim.
+
+| Finding | RED observation | Correction and GREEN |
+|---|---|---|
+| F1: multiple exports reused one generated TypeScript binding | A real project-owned package was changed to publish `.` and `./baseline`; strict tsc reported `TS2300: Duplicate identifier 'm0'` on consumer lines 1 and 2. | The generator now increments one binding index per public entry. The same pack/install/tsc/runtime endpoint passed. |
+| F2: repo-local scratch could borrow ancestor workspace dependencies | A fake `ancestor-only` package was loadable from the fixture repository. The checker had no repository-external scratch constructor, so its earlier location did not exclude ancestor resolution. | `createArtifactScratch()` uses `os.tmpdir()`. The positive repository control still loads; the actual sandbox probe fails with `ERR_MODULE_NOT_FOUND`. The checker uses this same constructor. |
+| F3: DSH license metadata could disagree with the checked original | A DSH-identified derived manifest changed from MIT to Apache-2.0 and `validateManifest` did not reject it. | Manifests whose provenance repository is the fixed DeepSeek Harness source must declare MIT. The mismatch now fails while project-owned `UNLICENSED` and separately substantiated non-DSH licensing remain unaffected. |
+
+Raw and source-linked evidence:
+
+- `multi-export-red.log` / `multi-export-green.log`: F1 endpoint output.
+- `f2-f3-red.log`, `f3-dsh-license-red.log`, and `f2-f3-green.log`: F2/F3
+  failure and correction output. The dedicated F3 log contains the final DSH repository
+  identity in the fixture.
+- `review-blockers-final-red.patch`: final test-only F1-F3 change against reviewed
+  commit `effd764`.
+- `0001-fix-isolate-package-artifact-consumers.patch`: `git format-patch` output for
+  implementation commit `0587fa2`, including source, test and tool documentation.
+- `review-blockers-full-green.log`: complete 12-test result after the final source edit.
+- `review-old14-prep.log` / `review-old14-green.log`: locked install, 14-package build,
+  all 14 individual artifact consumers and the full existing composition after F1-F3.
+
+The implementation patch SHA-256 is
+`1d75fe469fb2cae208c36ea78b7f80960779f3221885f94f103e63a17ca9c3f9`.
+The full-suite log SHA-256 is
+`ee7a6ed28fc04ddaff1b320c0b124249830641cdb2b56682b6a93e0606ab0f97`;
+the current 14-package endpoint log SHA-256 is
+`ddc6ea883fb9c91b0b16edeaf405a6b28fd5c8d88bad64420dd6ae9612bc1709`.
+
+The earlier repo-local mirror run remains evidence for package behavior at `effd764`,
+but it did not prove ancestor module isolation. The post-review run copied the source
+and locked workspace to `/tmp/omne-package-check-real-61ITorls`; the checker then used
+separate `/tmp/omne-package-artifacts-*` consumers, and F2 independently demonstrated
+that repository-only dependencies cannot resolve there. The fixture directory is
+rebuildable and is removed after the tracked raw evidence is preserved.
+
+Real native fs-ext loading remains outside this correction: no accepted product member
+or lock in this branch contains fs-ext. The selective-build guard is unchanged, and the
+integrated P1 root must supply the exact dependency, lock and explicit compiler environment
+before that path can be reported as executed.
