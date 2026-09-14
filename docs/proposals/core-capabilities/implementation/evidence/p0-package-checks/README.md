@@ -230,19 +230,20 @@ accepted manifest/provenance format or the native-support claim.
 
 Raw and source-linked evidence:
 
-- `multi-export-red.log` / `multi-export-green.log`: F1 endpoint output.
-- `f2-f3-red.log`, `f3-dsh-license-red.log`, and `f2-f3-green.log`: F2/F3
+- `multi-export-red.log.gz` / `multi-export-green.log.gz`: F1 endpoint output.
+- `f2-f3-red.log.gz`, `f3-dsh-license-red.log.gz`, and `f2-f3-green.log.gz`: F2/F3
   failure and correction output. The dedicated F3 log contains the final DSH repository
   identity in the fixture.
-- `review-blockers-final-red.patch`: final test-only F1-F3 change against reviewed
+- `review-blockers-final-red.patch.gz`: final test-only F1-F3 change against reviewed
   commit `effd764`.
-- `0001-fix-isolate-package-artifact-consumers.patch`: `git format-patch` output for
+- `0001-fix-isolate-package-artifact-consumers.patch.gz`: `git format-patch` output for
   implementation commit `0587fa2`, including source, test and tool documentation.
-- `review-blockers-full-green.log`: complete 12-test result after the final source edit.
-- `review-old14-prep.log` / `review-old14-green.log`: locked install, 14-package build,
+- `review-blockers-full-green.log.gz`: complete 12-test result after the final source edit.
+- `review-old14-prep.log.gz` / `review-old14-green.log.gz`: locked install, 14-package build,
   all 14 individual artifact consumers and the full existing composition after F1-F3.
 
-The implementation patch SHA-256 is
+The SHA-256 values below apply to the exact decompressed contents. The implementation
+patch SHA-256 is
 `1d75fe469fb2cae208c36ea78b7f80960779f3221885f94f103e63a17ca9c3f9`.
 The full-suite log SHA-256 is
 `ee7a6ed28fc04ddaff1b320c0b124249830641cdb2b56682b6a93e0606ab0f97`;
