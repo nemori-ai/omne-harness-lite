@@ -18,7 +18,7 @@
 
 | 任务 | 状态 | 实现/验收证据 | 下一项输入 |
 |---|---|---|---|
-| P0 | in_progress | 锁探针已独立复验并接受；共享接口与检查器仍在实施 | 共享接口受审版本、共享边界实现和检查器 RED/GREEN |
+| P0 | in_progress | 锁探针已独立复验并接受；共享接口/检查器独立复核发现缺口，正在修订 | 修订复核闭合、共享边界实现和 HUB 检查器验收 |
 | P1 | planned | 未执行 | P0 的记录/协调接口与真实锁证据 |
 | P2 | planned | 未执行 | P1 的真实共同门与记录提供者；交付本地预算 owner |
 | P3 / M1 | planned | 未执行 | P2 当前权限/真实预算/Session/活体，以及 P1 执行账本前提 |
@@ -39,14 +39,16 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 
 | 工作 | 执行者与实际句柄 | 独立工作树 | 写入归属与下一关 |
 |---|---|---|---|
-| P0 共享接口稿 | `/root/p0_interfaces` | `dsh-p0-interfaces` | 仅 `shared-interfaces.md` 与任务临时文件；给出 work-data/records/admission 完整接口，独立评审后实施 |
+| P0 共享接口稿 | `/root/p0_interfaces` | `dsh-p0-interfaces` | `979d80f` 经独立评审有 I1–I5 待修订，作者已接回；尚未接受或合入 HUB |
 | P0 真实锁探针（accepted） | infrastructure-developer，`/root/p0_lock_probe`，已结束 | `dsh-p0-lock-probe` | `f712e025` 经 `04b8dbf` 整合，HUB 全新目录实际复验通过；范围及限制见下文 |
-| P0 包检查器 | verification-developer，`/root/p0_package_checks` | `dsh-p0-package-checks` | `tools/package-checks/` 与对应证据；目标入口/自有来源的 RED/GREEN 和反例，不写产品包或根锁文件 |
+| P0 包检查器 | verification-developer，`/root/p0_package_checks` | `dsh-p0-package-checks` | `effd764` 独立复核发现 K1–K3，作者正在 TDD 修复；尚未接受或合入 HUB |
 
 未标 accepted 的行只表示派发事实。主调度拥有 HUB 整合、根配置、此工作包和最终
 验收；worker 的本地提交、测试绿灯与运行结束均须经端点核验后才能接受。
 共享接口的消费者尚未派发，不使用兄弟任务未落定的类型或临时约定启动联合实现。
 接口出现正式规格反例时先修设计或发布流程，不放宽验收。
+具体反例与处置归[本轮评审](review.md#p0-共享接口实施稿)。当前是可自主修订的
+实施输入和检查器缺陷，没有改变 M1/M2 范围，也不需要用户替作者选更弱的保证。
 
 本次采用当前会话实际提供的 native collaboration 角色和句柄。外部 `ccm` CLI
 inventory 与配额查询不覆盖该 native 执行面，不能移用其外部 CLI 的准入或额度

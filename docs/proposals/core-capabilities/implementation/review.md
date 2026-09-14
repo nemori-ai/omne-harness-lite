@@ -40,3 +40,41 @@ package.json 核对：当前检查器限制 baseline/DSH 来源，安装禁用�
 这次复核仍未运行检查、探针或形式工具，没有接受设计或实现。原生锁、路由
 兼容性和真实模型环境保持未验证；A01–A32 保持待实施，既有 Cordis API 映射
 本轮没有重新核验。文档实际检查由作者执行，证据归[交付对账](delivery.md)。
+
+## P0 共享接口实施稿
+
+独立 architecture-reviewer `/root/review_first_batch` 评审
+`979d80f39f9da11031845f6e2112567299443ed2` 的 `shared-interfaces.md`，比较
+`e11cc69`。稿件在 `impl/dsh-p0-interfaces`，尚未接受或进入 HUB；范围限
+work-data/records/admission 的共同输入及 data/DR/CC v1、A05–08/A30/A31。
+下列问题均已发回作者修订，**依赖该接口的产品实施尚未放行**。
+
+| ID | 必须修订的缺口与反例 | 状态 |
+|---|---|---|
+| I1 | publications/uses 未与 opaque commit 的记录 owner 形成完整、去重且不可变的对应；提交后修改列表或漏预算 publication，可能 committed 后提前 ready | 作者修订中 |
+| I2 | thenable 检查仅在外层 enter；内部 publishLogical/publishDurable/retainAt 的 void 返回可忽略 async，导致发布未完成就放行 | 作者修订中 |
+| I3 | conflict/rejected 的原操作结果绑定、耐久保存与 lookup/restart 没定义；首次 revision 冲突后同输入重试可能变成功，违反 DR-02 | 作者修订中 |
+| I4 | 业务不可持完整 writer，却只有 writer 暴露 prepareOperation/prepare；缺乏真实、受限的准备端口 | 作者修订中 |
+| I5 | acquire 已持锁后恢复/epoch 同步失败且 release 失败，无残留清理 owner/状态/重试出口 | 作者修订中 |
+
+共享身份/Schema、规范输入比较、双视图、普通撤权顺序及单 journal epoch/连续
+前缀恢复主方案未发现直接冲突。评审没有运行复现、测试或形式工具，不把设计
+反例表述为未编写实现的已发生缺陷。修订可以简化接口，不要求通用状态中心。
+作者须固定修订与实际探针结果后，由同一评审者复核处置。
+
+## P0 包检查器实施复核
+
+独立 architecture-reviewer `/root/review_package_layout` 只读核对 `effd764`
+（实现 `2000c27`）相对 `e11cc69` 的检查器、测试与证据，范围限 A30/A31 的
+P0 检查职责。该分支尚未进入 HUB，也未因 worker 的绿色结果获接受。
+
+| ID | 已确认问题 | 状态 |
+|---|---|---|
+| K1 | 同一成员多个 exports 使用重复 import binding；默认入口与 baseline 共存会 strict tsc 失败，原真实夹具只覆盖单入口 | 作者已报告实际 TS2300 RED/GREEN，待最终提交与复核 |
+| K2 | consumer 移入 repo/tmp 后，Node/tsc 可沿祖先 node_modules 借到仓库依赖；ignore-workspace 与根包 realpath 检查不提供仓库外隔离 | 作者修订中，要求真实祖先依赖反例 |
+| K3 | 这批固定 DSH 来源的 manifest.license 可改为与已核对 MIT 原件不一致的声明而通过 | 作者修订中 |
+
+新自有包默认 private/UNLICENSED；按实际许可声明支持其它来源不属于本轮缺陷，
+检查器也不授予新许可。原生选择性构建路径的 fixture 通过不代表未来产品 native
+依赖已实际加载，仍须在根依赖接入后运行完整隔离消费。整合者在修订复核后再
+执行 HUB 验证并接受相应 P0 范围，不移用为全部 A30/A31 已完成。
