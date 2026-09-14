@@ -381,4 +381,90 @@ describe('D1-R6 persisted gap summaries', () => {
       await subject.close({ deadlineMs: 1_000 })
     }
   })
+
+  it('keeps a failed oversized summary bounded without scheduling retries', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'r6-summary-failure-'))
+    const creation = await createLocalDiagnostics(
+      options(directory, 'source-r6-summary-failure', {
+        level: 'error',
+        maxRecordBytes: 512,
+        maxBufferBytes: 512,
+        maxActiveSpans: 1,
+      }),
+    )
+    expect(creation.status).toBe('created')
+    if (creation.status !== 'created') return
+    const subject = creation.runtime
+    await waitForCode(directory, 'diagnostic.source_started')
+    const context = subject.diagnostics.scope({
+      tenantId: null,
+      principal: { kind: 'system', systemId: 'r6' },
+      causality: {},
+    })
+    subject.diagnostics.log(context, {
+      component: 'd',
+      phase: 'p',
+      code: 'r6.level',
+      level: 'warn',
+    })
+    subject.diagnostics.log(context, {} as DiagnosticPoint)
+    const active = subject.diagnostics.startSpan(context, {
+      component: 'd',
+      phase: 'p',
+      code: 'r6.active',
+      level: 'error',
+    })
+    subject.diagnostics.startSpan(context, {
+      component: 'd',
+      phase: 'p',
+      code: 'r6.capacity',
+      level: 'error',
+    })
+
+    const originalWrite = nodeFs.write as unknown as FlexibleCall
+    let delayed: unknown[] | undefined
+    const writeSpy = vi.spyOn(nodeFs, 'write').mockImplementation(((...args: unknown[]) => {
+      if (delayed === undefined) {
+        delayed = args
+        return undefined
+      }
+      return originalWrite(...args)
+    }) as typeof nodeFs.write)
+    try {
+      for (let index = 0; index < 8; index += 1) {
+        subject.diagnostics.log(context, {
+          component: 'd',
+          phase: 'p',
+          code: `r6.e${index}`,
+          level: 'error',
+        })
+      }
+      const beforeRecovery = subject.inspect()
+      const beforeBufferGap = beforeRecovery.gaps.find(gap => gap.reason === 'buffer_capacity')
+      expect(BigInt(beforeBufferGap?.count ?? '0')).toBeGreaterThan(0n)
+      expect(delayed).toBeDefined()
+      if (delayed !== undefined) originalWrite(...delayed)
+      writeSpy.mockRestore()
+      syncBuiltinESMExports()
+      const afterRecovery = await waitFor(subject, status => status.pendingBytes === 0)
+      expect(BigInt(afterRecovery.attemptedThrough)).toBeGreaterThan(
+        BigInt(beforeRecovery.attemptedThrough),
+      )
+      expect(
+        BigInt(
+          afterRecovery.gaps.find(gap => gap.reason === 'buffer_capacity')?.count ?? '0',
+        ),
+      ).toBeGreaterThan(BigInt(beforeBufferGap?.count ?? '0'))
+
+      await new Promise(resolve => setTimeout(resolve, 50))
+      expect(subject.inspect().attemptedThrough).toBe(afterRecovery.attemptedThrough)
+      expect((await records(directory)).some(line => line.code === 'diagnostic.gap')).toBe(false)
+    } finally {
+      writeSpy.mockRestore()
+      syncBuiltinESMExports()
+      if (delayed !== undefined && subject.inspect().pendingBytes > 0) originalWrite(...delayed)
+      active.end({ code: 'r6.active_done', outcome: 'cancelled' })
+      await subject.close({ deadlineMs: 1_000 })
+    }
+  })
 })

@@ -1,0 +1,29 @@
+
+ RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics
+
+ ❯ tests/reviewer-regressions.spec.ts (7 tests | 1 failed | 6 skipped) 33ms
+     × keeps a failed oversized summary bounded without scheduling retries 29ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/reviewer-regressions.spec.ts > D1-R6 persisted gap summaries > keeps a failed oversized summary bounded without scheduling retries
+AssertionError: expected 12 to be greater than 12
+ ❯ tests/reviewer-regressions.spec.ts:450:54
+    448|       syncBuiltinESMExports()
+    449|       const afterRecovery = await waitFor(subject, status => status.pe…
+    450|       expect(BigInt(afterRecovery.attemptedThrough)).toBeGreaterThan(
+       |                                                      ^
+    451|         BigInt(beforeRecovery.attemptedThrough),
+    452|       )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 6 skipped (7)
+   Start at  07:12:04
+   Duration  399ms (transform 125ms, setup 0ms, import 221ms, tests 33ms, environment 0ms)
+
+undefined
+/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: vitest run tests/reviewer-regressions.spec.ts -t keeps a failed oversized summary
