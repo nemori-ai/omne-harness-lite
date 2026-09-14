@@ -126,7 +126,9 @@ describe('D1-R2 close recovery after a write-triggered destroy', () => {
       writeFailed = true
       const callback = args.at(-1)
       if (typeof callback !== 'function') throw new Error('unexpected fs.write signature')
-      process.nextTick(() => callback(Object.assign(new Error('R2_WRITE_SECRET'), { code: 'EIO' }), 0))
+      process.nextTick(() =>
+        callback(Object.assign(new Error('R2_WRITE_SECRET'), { code: 'EIO' }), 0),
+      )
       return undefined
     }) as typeof nodeFs.write)
     const closeSpy = vi.spyOn(nodeFs, 'close').mockImplementation(((...args: unknown[]) => {
@@ -451,9 +453,7 @@ describe('D1-R6 persisted gap summaries', () => {
         BigInt(beforeRecovery.attemptedThrough),
       )
       expect(
-        BigInt(
-          afterRecovery.gaps.find(gap => gap.reason === 'buffer_capacity')?.count ?? '0',
-        ),
+        BigInt(afterRecovery.gaps.find(gap => gap.reason === 'buffer_capacity')?.count ?? '0'),
       ).toBeGreaterThan(BigInt(beforeBufferGap?.count ?? '0'))
 
       await new Promise(resolve => setTimeout(resolve, 50))
@@ -520,7 +520,9 @@ describe('D1-R1 shared directory budgets', () => {
       await waitFor(newRuntime, status => status.pendingBytes === 0)
 
       const sizes = await Promise.all(
-        (await readdir(directory)).map(async file => (await nodeFsPromises.stat(join(directory, file))).size),
+        (await readdir(directory)).map(
+          async file => (await nodeFsPromises.stat(join(directory, file))).size,
+        ),
       )
       expect(Math.max(...sizes)).toBeLessThanOrEqual(limits.maxFileBytes)
       expect(sizes.reduce((sum, size) => sum + size, 0)).toBeLessThanOrEqual(
