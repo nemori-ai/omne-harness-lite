@@ -61,3 +61,20 @@ remains RED until the separately reviewed directory-owner public design is accep
 a fixed implementation input. The package-wide test command therefore remains expected to fail only
 on the two D1-R1 tests at this checkpoint; [verification-r2-r6.log](verification-r2-r6.log) records
 the green subset and unchanged package tests.
+
+## D-011 follow-up
+
+The checkpoint above remains the historical `4fa2c74f4816fe37850a812ca59032cb889d75fd`
+result. D-011 subsequently accepted the explicit directory owner and the rule that an arbitrary raw
+close error cannot justify retrying a numeric fd. The follow-up starts at
+`9ffbf1f4b7b5c23c066881722476110dd38fcf88`; its first owner-API RED is
+`408a2508dc83d1677abbfbc171681b234acddb55`, its first two-case GREEN is
+`b4621160fdd835a3f8f380f4ee633bdedaa137bb`, and the product-code candidate is
+`3ca93e0f945bd95833cc25fed12fd042fa9c183e`.
+
+[red-d1-r1-full-after-owner.log](red-d1-r1-full-after-owner.log) preserves the nine failures observed
+after introducing the owner and before migrating old premises. Their clause-by-clause classification,
+the new fd-reuse close test, final 50-test package run, native build, resource cases, and packed public
+consumer are recorded in [directory-owner evidence](../directory-owner/README.md). The D-011 result
+supersedes this section's old R1 status and narrows the old R2/R3 retry claims; it does not rewrite the
+historical logs or constitute final HUB acceptance.

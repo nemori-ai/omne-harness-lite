@@ -1,5 +1,10 @@
 # P1 D1 shared diagnostics evidence
 
+> This page preserves the initial D-010 implementation checkpoint. The accepted D-011 directory
+> owner, shared-budget, native-lock, and close-identity follow-up is recorded in
+> [directory-owner evidence](directory-owner/README.md); it supersedes this page's old public factory
+> and independent-directory-budget descriptions without changing the raw historical results.
+
 This directory records implementation evidence for the project-owned
 `@omne-harness-lite/diagnostics` package. The product revision is
 `4b8125eb953c97893bdeeeeafac3fb77d276d208`, based on implementation input revision
