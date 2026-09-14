@@ -25,7 +25,9 @@ only bounds that caller's wait, while the runtime keeps the original spans, outp
 responsibility until it can report a real close. The owner seals new creates, joins source
 preparation and close, reconciles final file sizes, and releases its lock last. A raw close result
 that cannot prove which resource remains is reported as `unknown` and is never retried by numeric
-file descriptor.
+file descriptor. If a pending write fails during `end`, the runtime explicitly starts Sonic cleanup
+and waits for the actual close result. A successful close isolates that source failure from the
+directory owner so another source can still be created; a later raw-close error remains unknown.
 
 `within` calls the body once and returns its exact value, throw, or Promise identity. It does not
 inspect Promise settlement or keep a list of business scopes. The synchronous recording methods

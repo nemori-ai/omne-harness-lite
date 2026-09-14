@@ -181,7 +181,7 @@ D-011 把 `maxFiles` 精确定义为**来源文件数**，固定零字节控制�
 
 ## R1 设计：单一公共创建与管理面
 
-以下为已接受但尚未实现的 TypeScript 实施面，复用当前公开 `OpaqueId`、`Counter`、
+以下为已接受并由当前候选实现的 TypeScript 实施面，复用当前公开 `OpaqueId`、`Counter`、
 `DiagnosticsRuntime`、`DiagnosticStatus`；不是新的持久 DTO/Schema。原记录面
 `Diagnostics`、span/context/identity 和裁剪规则不变。
 
@@ -312,13 +312,13 @@ owner.close 同步关 create 入口，加入正在准备的来源并调用所有
 报告未知与仍有写入责任的 blocked，不引入额外持久协调协议伪造保证。此边界
 及零字节锁目录项已随 d4cd27e 受审，并由 D-011 明确接受。
 
-与 D1-R2 的区别有可核对来源：`fefb6c5` 的 R2 注入在调用 originalClose **前**
-直接回调 EIO，测试中的原 fd 因而确定仍保有。它支持该已知前置失败的 close
-重试，不能证明实际 syscall close 的任意错误也保留同一个 fd。真实结果未知
-不根据数值 fd 的当前可用性猜测身份，不盲重试；inspect/close 保留 unknown，
-重试只针对能证实仍由原 handle 拥有且尚未完成的清理。这个区分同样适用于
-扫描和来源 fd；对 R2 产品处理的影响已交回原实施者与主调度核对，本稿不替其
-补丁作接受判断，也不将模拟错误推广成操作系统保证。
+D1-R2 的当前产品验证区分两个实际边界。真实底层 close 完成后再回调 EIO 的
+用例令同一数字 fd 被 sentinel 复用；runtime 保留 unknown 且不重试数字 fd，
+所以不会误关新资源。另一个用例在 `stream.end()` 等待 pending write 时返回
+write EIO；此时 Sonic 尚未开始 raw close，runtime 只调用一次 `destroy()` 发起
+原资源清理。随后的真实 close 成功令来源释放，普通来源失败不把目录 owner
+标成 `SOURCE_RELEASE_UNKNOWN`，同 owner 可继续创建独立来源；若 raw close
+随后报错，仍转入 unknown。两者都不把模拟错误推广成任意操作系统保证。
 
 装载与撤除逐项对应如下，遵循[生命周期指南](../../../docs/architecture-guide/runtime/lifecycle.md)
 的责任划分；实例退出不恢复目录装载前快照：
@@ -338,9 +338,9 @@ owner.close 同步关 create 入口，加入正在准备的来源并调用所有
 
 ## 验证范围与未关闭义务
 
-已有原语保证限于 P0 的实际锁语义及原观测证据的 Sonic/OTel/Pino 行为。共享
-账本、fd 转交、同源 create 合并、owner 关闭及真实装配是**新增产品责任**；
-本次小探针只验证有界记账与真实文件交错可以成立，不抵扣下列产品 TDD。
+原语依据限于 P0 的实际锁语义及原观测证据的 Sonic/OTel/Pino 行为。共享
+账本、fd 转交、同源 create 合并和 owner 关闭由当前产品候选承担，并按下列
+场景完成包内 TDD；这些结果不替代 HUB 的真实消费者组合接受。
 
 | 最低新增场景 | 必须可观察的结果 |
 |---|---|
@@ -360,7 +360,8 @@ owner.close 同步关 create 入口，加入正在准备的来源并调用所有
 [目录修订来源](../../../docs/proposals/core-capabilities/implementation/observability-directory.md)
 记录固定 RED、选型比较及已接受差异；
 [证据目录](../../../docs/proposals/core-capabilities/implementation/evidence/observability-directory/README.md)
-保留 d4 的4个机制 case及原始产品 RED，后者仍需真实包 GREEN。O01–O08及
+保留 d4 的4个机制 case及原始产品 RED；当前真实包 GREEN 归本包
+[directory owner evidence](../../../docs/proposals/core-capabilities/implementation/evidence/p1-diagnostics/directory-owner/README.md)。O01–O08及
 R1新增场景按[验收来源](../../../docs/proposals/core-capabilities/implementation/observability.md#四输入细化tdd-与交接顺序)
 和[总体验收](../../../docs/proposals/core-capabilities/implementation/acceptance.md)的基线子集执行，
 O09/O10 由真实消费者组合兑现。R6窄缺口闭合不替代 R1、O08独立产物或组合证据。

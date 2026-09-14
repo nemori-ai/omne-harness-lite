@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { createRequire, syncBuiltinESMExports } from 'node:module'
 import { access, chmod, mkdir, mkdtemp, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import { resolve, join } from 'node:path'
@@ -710,6 +711,21 @@ describe('O04/O05 configuration and local retention boundaries', () => {
     expect(await readdir(directory)).toEqual(['.diagnostics.lock', 'retained-source.jsonl'])
   })
 
+  it('rejects a matching source filename without a valid package header', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'unknown-source-'))
+    const unknown = join(directory, 'diagnostic-0000000000000000.jsonl')
+    await writeFile(unknown, 'x\n', { mode: 0o600 })
+    const result = await createLocalDiagnosticsDirectory(
+      directoryOptions(options(directory, 'source-after-unknown')),
+    )
+    expect(result).toMatchObject({
+      status: 'unavailable',
+      code: 'UNKNOWN_SOURCE_FILE',
+      cleanup: null,
+    })
+    expect(await readFile(unknown, 'utf8')).toBe('x\n')
+  })
+
   it('returns the same source handle and keeps different sources isolated under one owner', async () => {
     const directory = await mkdtemp(join(scratchRoot, 'factories-'))
     const first = await createdRuntime(directory, 'source-first')
@@ -758,11 +774,13 @@ describe('O04/O05 configuration and local retention boundaries', () => {
 
   it('reports an earlier diagnostic source without a clean end as crash-unknown', async () => {
     const directory = await mkdtemp(join(scratchRoot, 'crash-unknown-'))
+    const oldSourceId = 'old-source'
+    const oldHash = createHash('sha256').update(oldSourceId).digest('hex').slice(0, 16)
     await writeFile(
-      join(directory, 'diagnostic-0000000000000000-deadbeefdeadbeef.jsonl'),
+      join(directory, `diagnostic-${oldHash}.jsonl`),
       `${JSON.stringify({
         formatVersion: 'omne-diagnostic/1',
-        sourceId: 'old-source',
+        sourceId: oldSourceId,
         seq: '1',
         component: 'diagnostics',
         phase: 'lifecycle',

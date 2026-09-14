@@ -371,6 +371,13 @@ describe('D1-R1 directory ownership and resource identity', () => {
     const [message] = (await once(child, 'message')) as [
       Readonly<{
         shortWrite: boolean
+        closeUnknown: boolean
+        writeCall: Readonly<{
+          argumentCount: number
+          payloadKind: string
+          requestedBytes: number
+        }>
+        baselineBytes: number
         actualBytes: number
         before: Readonly<{ chargedBytes: string | null; reservedBytes: string }>
         close: Readonly<{ status: string }>
@@ -378,6 +385,12 @@ describe('D1-R1 directory ownership and resource identity', () => {
       }>,
     ]
     expect(message.shortWrite).toBe(true)
+    expect(message.closeUnknown).toBe(true)
+    expect(message.writeCall).toMatchObject({ argumentCount: 3, payloadKind: 'string' })
+    expect(message.writeCall.requestedBytes).toBeGreaterThan(0)
+    const addedBytes = message.actualBytes - message.baselineBytes
+    expect(addedBytes).toBeGreaterThan(0)
+    expect(addedBytes).toBeLessThan(message.writeCall.requestedBytes)
     expect(message.close.status).toBe('blocked')
     expect(BigInt(message.before.reservedBytes)).toBeGreaterThan(0n)
     expect(BigInt(message.after.reservedBytes)).toBeGreaterThan(0n)

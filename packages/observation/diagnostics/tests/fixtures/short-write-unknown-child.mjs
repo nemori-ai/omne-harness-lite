@@ -31,25 +31,60 @@ const waitFor = async predicate => {
   throw new Error('short write child timed out')
 }
 await waitFor(status => status.pendingBytes === 0)
+const sourceFile = (await readdir(directory)).find(file => file.startsWith('diagnostic-'))
+if (sourceFile === undefined) throw new Error('source file missing')
+const sourcePath = join(directory, sourceFile)
+const baselineBytes = (await stat(sourcePath)).size
 
 const nodeFs = createRequire(import.meta.url)('node:fs')
 const originalWrite = nodeFs.write
+const originalClose = nodeFs.close
 let shortWrite = false
+let closeUnknown = false
+let writeCall
 nodeFs.write = (...args) => {
   if (shortWrite) return originalWrite(...args)
   shortWrite = true
   const callback = args.at(-1)
-  const length = args[3]
-  if (typeof callback !== 'function' || typeof length !== 'number') {
+  const payload = args[1]
+  writeCall = {
+    argumentCount: args.length,
+    payloadKind: Buffer.isBuffer(payload) ? 'buffer' : typeof payload,
+    requestedBytes:
+      typeof payload === 'string'
+        ? Buffer.byteLength(payload, typeof args[2] === 'string' ? args[2] : 'utf8')
+        : Buffer.isBuffer(payload)
+          ? payload.byteLength
+          : 0,
+  }
+  if (
+    typeof callback !== 'function' ||
+    args.length !== 3 ||
+    (typeof payload !== 'string' && !Buffer.isBuffer(payload))
+  ) {
     throw new Error('unexpected fs.write signature')
   }
-  const partialArgs = [...args]
-  partialArgs[3] = Math.max(1, Math.floor(length / 2))
-  partialArgs[partialArgs.length - 1] = (error, written) => {
+  const bytes = Buffer.isBuffer(payload)
+    ? payload
+    : Buffer.from(payload, typeof args[2] === 'string' ? args[2] : 'utf8')
+  const partial = bytes.subarray(0, Math.max(1, Math.floor(bytes.byteLength / 2)))
+  return originalWrite(args[0], partial, 0, partial.byteLength, null, (error, written) => {
     if (error !== null) callback(error, written)
     else callback(Object.assign(new Error('SHORT_WRITE_SECRET'), { code: 'EIO' }), written)
+  })
+}
+nodeFs.close = (...args) => {
+  if (closeUnknown) return originalClose(...args)
+  closeUnknown = true
+  const descriptor = args[0]
+  const callback = args.at(-1)
+  if (typeof descriptor !== 'number' || typeof callback !== 'function') {
+    throw new Error('unexpected fs.close signature')
   }
-  return originalWrite(...partialArgs)
+  return originalClose(descriptor, error => {
+    if (error !== null) callback(error)
+    else callback(Object.assign(new Error('SHORT_CLOSE_SECRET'), { code: 'EIO' }))
+  })
 }
 syncBuiltinESMExports()
 
@@ -66,18 +101,20 @@ created.runtime.diagnostics.log(context, {
 })
 await waitFor(status => status.writeProgress === 'failed')
 const before = factory.owner.inspect()
-const sourceFile = (await readdir(directory)).find(file => file.startsWith('diagnostic-'))
-if (sourceFile === undefined) throw new Error('source file missing')
-const actualBytes = (await stat(join(directory, sourceFile))).size
+const actualBytes = (await stat(sourcePath)).size
 const close = await created.runtime.close({ deadlineMs: 100 })
 const after = factory.owner.inspect()
 nodeFs.write = originalWrite
+nodeFs.close = originalClose
 syncBuiltinESMExports()
 
 await new Promise((resolve, reject) => {
   process.send?.(
     {
       shortWrite,
+      closeUnknown,
+      writeCall,
+      baselineBytes,
       before,
       close,
       after,
