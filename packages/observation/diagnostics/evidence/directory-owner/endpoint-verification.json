@@ -1,0 +1,25 @@
+{
+  "ancestors_verified": {
+    "product": "b493b2937dff3db3f872677d38a532450f505714",
+    "author_evidence": "2f0159f2b16babf3d93f4bcac4b64f87f3caef50",
+    "governance": "443258437e60e3f338fcb7238de44dc5d1566cba"
+  },
+  "diagnostics": {
+    "tarball_sha256": "659c029e79c91e467dcffc57de09b9fb47e88e0f95a3569bcc9f6e5d7f64c5c9",
+    "dist_files_equal_to_hub": 6
+  },
+  "records": {
+    "tarball_sha256": "f39142544115905f9190bf5ab6544300a2c5f91030d4541e5a9b44455720d286",
+    "dist_files_equal_to_hub": 2
+  },
+  "work-data": {
+    "tarball_sha256": "e95428d21066117289e206a0715725421e9fd52609f0ad3329ead9e41a8acfbb",
+    "dist_files_equal_to_hub": 4
+  },
+  "source_head": "7e758f21f8f92c1d46fab194fdaf120239b8e11c",
+  "effects_bytes": 1433,
+  "actual_output_matches_recorded": true,
+  "correlation_verified": true,
+  "addon_sha256": "5a480ff04f21754f6c3a8d5efd91b05d9df0ae82a72d71092a215ee2b0ae9a0d",
+  "all_final_commands_exit_zero": true
+}
