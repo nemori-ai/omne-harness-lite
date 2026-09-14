@@ -1255,18 +1255,12 @@ class DirectoryOwner implements LocalDiagnosticsDirectory {
         throw new ScanCleanupFailure([directoryHandle], error)
       }
     } catch (error) {
-      if (
-        !(error instanceof ScanCleanupFailure) ||
-        !error.handles.includes(directoryHandle)
-      ) {
+      if (!(error instanceof ScanCleanupFailure) || !error.handles.includes(directoryHandle)) {
         try {
           await directoryHandle.close()
         } catch (closeError) {
           throw new ScanCleanupFailure(
-            [
-              ...(error instanceof ScanCleanupFailure ? error.handles : []),
-              directoryHandle,
-            ],
+            [...(error instanceof ScanCleanupFailure ? error.handles : []), directoryHandle],
             closeError,
           )
         }
@@ -1363,6 +1357,7 @@ class DirectoryOwner implements LocalDiagnosticsDirectory {
         const code = systemErrorCode(error)
         if (code === 'EEXIST') {
           this.fail('SOURCE_COLLISION')
+          entry.sourceId = null
           try {
             const metadata = await lstat(entry.path, { bigint: true })
             if (!metadata.isFile()) throw new DirectoryFailure('INVALID_SOURCE_FILE')

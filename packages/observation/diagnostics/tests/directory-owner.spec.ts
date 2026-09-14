@@ -1,4 +1,5 @@
 import { fork } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { once } from 'node:events'
 import { createRequire, syncBuiltinESMExports } from 'node:module'
 import {
@@ -220,6 +221,32 @@ describe('D1-R1 directory ownership and resource identity', () => {
     syncBuiltinESMExports()
     const retried = await subject.create(source('retry-source'))
     expect(retried.status).toBe('created')
+  })
+
+  it('retains an unexplained open collision without assigning the requested source identity', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'collision-'))
+    const subject = await owner(directory)
+    const sourceId = 'collision-source'
+    const digest = createHash('sha256').update(sourceId).digest('hex').slice(0, 16)
+    await writeFile(join(directory, `diagnostic-${digest}.jsonl`), 'external-collision', {
+      mode: 0o600,
+    })
+    const collision = await subject.create(source(sourceId))
+    expect(collision.status).toBe('created')
+    if (collision.status !== 'created') return
+    expect(collision.runtime.inspect()).toMatchObject({
+      phase: 'degraded',
+      resource: 'released',
+      lastErrorCode: 'SOURCE_EXISTS',
+    })
+    expect(subject.inspect()).toMatchObject({
+      phase: 'failed',
+      materializedFiles: 1,
+      sources: [expect.objectContaining({ sourceId: null, chargedBytes: '18' })],
+    })
+    await expect(collision.runtime.close({ deadlineMs: 1_000 })).resolves.toMatchObject({
+      status: 'closed',
+    })
   })
 
   it('keeps a materialized slot after configuration failure until the degraded source closes', async () => {
