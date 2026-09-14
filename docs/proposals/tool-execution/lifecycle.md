@@ -168,3 +168,4 @@ TL-10 第二段已定：有效阈值由声明阈值、系统上限、Run 剩余�
 | [SE-04](../../../spec/capabilities/session/v1/contract.md) closed 词表、SE-13 来源枚举 | hooks 兼容层需要 `closed_by_guard` 与 `hook_continuation` | 随 hooks 提案一并进入 |
 | [TL-10](../../../spec/capabilities/tools/v1/contract.md) 前台上限 | 缺 `onLimit` 与计时归属 | 下一版补声明字段 |
 | [TL-01](../../../spec/capabilities/tools/v1/contract.md) 投影 | 单操作工具去掉 `command` 层（决定 i）未写明 | 下一版补两种投影 |
+| [CD-03/04](../../../spec/data/core-work/v1/contract.md) `Command` / `BackgroundDeclaration` | 缺 `foreground`、`startModes`、`concurrency`、`media`、`frames`、结果形状；`cancellation` 只有二值；`automatic` 与 `foreground` 重叠 | 按 [schema.md 维度总表](schema.md#维度总表)一次进入下一版，删 `automatic` |

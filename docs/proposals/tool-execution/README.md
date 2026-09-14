@@ -44,11 +44,13 @@ Agent 向人提问的答复怎样回到工具"没有一处权威正文。本提�
   性质（TP），每条标来源、保护点与证据义务。
 - [lifecycle.md](lifecycle.md)：五维状态机、转移表、内建人类请求工具、前台上限、控制
   与级联表、恢复窗口、契约措辞缺口表。
-- schema.md（波 2）：Schema 维度总表、单/多命令投影、多模态引用、后台与调用级参数、
-  并发、停止能力、效果与暂行、帧声明、环境；tools 设计的 Ajv profile 引用。
-- frames.md（波 2）：帧事实侧与读面；与出站流的依赖方向。
-- cordis.md（波 2）：插件与服务、装载效应与撤除、依赖变化政策、与 Run/Session/HD 的
-  端口、hooks 兼容层在 S5/S7 的落点。
+- [schema.md](schema.md)：维度总表（沿用 CD/TL/AU 已定字段，只补无落点的维度）、单/多
+  命令投影、多模态引用、前台上限与调用级 `detach`、停止能力、并发、帧声明、结果形状、
+  发布时检查清单。
+- [frames.md](frames.md)：帧身份与顺序、三记录等级、缺口词表、媒体帧、读面、与出站流的
+  依赖方向、崩溃恢复。
+- [cordis.md](cordis.md)：消费方式、插件与服务依赖图、装载效应与撤除、四类接口对接与
+  时序、依赖变化政策、hooks 兼容层在 S5/S7 的落点、提供者设计归属。
 - evidence/（波 3）：调用状态机 TLA+ 模型（含 `human` 调用种类）与运行记录；场景。
 - review.md（波 3）：独立评审与处置。
 
@@ -97,4 +99,5 @@ hooks 兼容层的决定点 o～v 随 hooks 兼容提案（`docs/proposals/hooks
 
 ## 接受记录
 
-尚未接受。波 1（本页、requirements、invariants、lifecycle）2026-09-14 完成；波 2/3 待续。
+尚未接受。波 1（本页、requirements、invariants、lifecycle）与波 2（schema、frames、cordis）
+2026-09-14 完成；波 3（形式模型、场景、提供者设计修订、评审）待续。
