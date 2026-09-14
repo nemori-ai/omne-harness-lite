@@ -1,7 +1,8 @@
 # Local harness 装配设计
 
-状态：`f98ac926` 装配映射及消歧已接受为最小运行基线施工输入；本目录没有可运行的
-目标应用，也没有新 workspace 成员或启动命令。来源与迁移记录归
+状态：`f98ac926` 装配映射及消歧已接受为最小运行基线施工输入。本目录现有
+[workspace 成员](package.json)及 [P1 测试载体](tests/storage-admission/carrier.spec.ts)，
+该载体只检查 Node 主版本；尚无目标应用源码、启动入口或真实运行闭环。来源与迁移记录归
 [原施工入口](../../docs/proposals/core-capabilities/implementation/runtime-provider-interfaces.md)。
 采用 `1368c52b7255e16e9c2fcde30eebca6f870679f7` 的
 [最小运行节点选择](../../docs/proposals/core-capabilities/implementation/runtime-baseline.md)：真实身份→Session/Agent→text/唯一 Run→真实授权与
@@ -156,6 +157,45 @@ A01–11/A17/A18/A19/A26 本地/A28–32
 phase/code，关键审计由业务耐久提交，普通日志失败不覆盖业务结果。
 当前这些组合测试均未运行。交付证据须固定可运行提交、命令、未开放路径与
 残留责任；完整 HD、M1/M2 和扩展功能不包含在本基线范围。
+
+## 运行映射的命题与前提
+
+本节沿 `f98ac926` 已采用协议记录 F3 的证据适用性。独立只读判断对象为
+`976149b`，原返回及逐文件身份见[评审证据](evidence/runtime-mapping-applicability/README.md)。
+本次没有重选机制；以下是 CB-03/06/07/10–14、AR-8/10–16 的既有命题和控制
+位置，当前符合性仍待真实提供者与本应用组合验证。
+
+| 命题 | 强制位置与前提 owner |
+|---|---|
+| 新发布/工作不能穿过原必要依赖的失效点 | AR 联合发布/工作门与 SR 具名准入直接核原 mount/link/provider；身份/TG/AU 等事实由各自 owner 当前核对。应用登记真实挂载并限制受信组合的调用；[admission](../../packages/coordination/admission/design.md)拒绝重入/异步 frame，owner 的纯 check 不调用装卸或任意回调 |
+| 重新挂载不能复活旧许可 | AR/SR 及实际贡献 owner 绑定真实 Fiber、精确 registration 和新的 mount generation；原代关闭单调，原 attachment revoked 不回 held。应用重挂服务面复用原 host，不能用新同名服务或再次 ACTIVE 复活旧闭包 |
+| 原清理只作用原登记，责任未解除前保留占位 | AR 保有原尝试/工作/资源与 SessionRef 占位，SR 保有 attachment/Run/控制/接续；TL/LE 独立保有其原事实。应用按原 owner 顺序关闭并持有尚 retained 的清理能力，真实释放或确认接管前不卸载其仍需依赖 |
+
+模型动作和实现步骤的对应分别归 [AR](../../packages/core/agent/design.md#既有模型与控制前提)
+与 [SR](../../packages/session/session/design.md#cb-模型与当前性映射)：AR RetireFactory
+只覆盖计划退役；CB LoseDependency 是单向失联，Invalidate/Restore 只说明资格
+恢复不复活旧修订，Publish/StartWork 的共同原子边界仍由实现兑现。
+[固定 Cordis 探针](../../docs/proposals/core-capabilities/implementation/evidence/tool-decision-design/README.md#t-r1同步状态延后清理和旧句柄)
+观察到 provider 先失效、consumer 暂仍 ACTIVE、较早观察器重入及同 Fiber 重现的
+旧闭包；所以不能只等观察器 stamp 或 disposer 关门。原模型绿色和探针成功均
+不证明产品末门、单调关闭、结果接续或逐资源清理，也没有组成完整 Cordis refinement。
+
+本基线相关的实际验证义务如下。原 A 编号见[验收来源](../../docs/proposals/core-capabilities/implementation/acceptance.md#m1真实可恢复的系统审批)，
+S 编号见下方[原组合场景](#agentsession-原组合场景)，D08 见
+[工具历史场景](../../docs/proposals/core-capabilities/implementation/tool-decision-interfaces.md#历史行为验证范围)。
+引用 M1 来源只识别原场景，本轮只消费确定性 allow 的依赖切片；完整 HD/M1/M2 仍后置。
+
+| 相关刺激 | 本基线可观察判据与实际 owner |
+|---|---|
+| A04/S03：双 Context 激活、准备晚到、activated 抛错/异步拒绝/重入 close | AR 保留唯一占位及已发布事实；晚到资源回原尝试，SR 原 attachment 不被偷换。真实准备/任务、订阅及计时器未收口时再激活仍冲突，不能只看 Fiber disposed |
+| A18/D08：provider 已 UNLOADING，较早监听器用旧闭包重入，consumer 暂仍 ACTIVE | AR/SR 末门及本基线 [TL](../../packages/tools/tools/design.md)/[LE](../../packages/tools/local-execution/design.md)原准入/执行门拒绝新操作；观察器未推进 stamp 也不得穿入。已准入工作与 pin 留原 owner，不因操作 Fiber 卸载丢任务；未装完整 HD 不伪造其通过 |
+| A18/S12/D08：新代准备失败/晚到、依赖失联后同 Fiber 重现、旧 disposer 迟到 | 合法旧选择仅在其前提仍成立时保留；新挂载用新代，旧句柄不跟随，旧清理不删新登记。AR/SR/TL/LE 各核自身真实工作/资源；应用按原 S12 循环检查任务、订阅、timer/fd 回到基线或逐项具名 retained |
+| A04/S09/S12：清理失败后再激活、自等待/取消等待、移交回执丢失、订阅晚到、A 使用 B 且 A 清理失败 | AR 拒绝自等待并保留原占位/依赖；SR/TL/LE 核原结算或接管证据，未确认不减责任。应用保有原 cleanup 并查询 remaining，实际 fd/订阅/timer/任务由持有它们的 owner 释放或报告 retained，超时和 Map 清空不作成功 |
+
+上述判据须固定实际源码、装配、刺激和结果，未持有的资源种类说明不适用。
+当前均未执行；有限循环或端到端通过也只覆盖所列环境和交错，不推论任意插件。
+独立判断未发现本次需新增模型或机器证明的事实；若实现映射允许既有模型无法
+解释的新交错，须针对受影响命题重新判断，不能用本说明豁免原符合性接入门。
 
 ## 治理原组合场景
 

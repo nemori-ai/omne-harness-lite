@@ -112,6 +112,31 @@ epoch、依赖失联、投影与真实资源清理。S11/S13 的完整 HD/M2 部
 本稿没有运行这些产品符合性测试；共享诊断只记录安全阶段/关联，关键审计仍
 在原耐久批，普通日志失败不能覆盖业务结果。
 
+## CB 模型与当前性映射
+
+`f98ac926` 已采用的挂载、link 和工作协议对
+[CB v1 Binding 模型](../../../spec/compositions/agent-session-binding/v1/Binding.tla)
+有以下有限对应；[独立判断及输入身份](../../../apps/local-harness/evidence/runtime-mapping-applicability/README.md)
+不表示本包真实符合性已通过。业务事实、运行资格与资源清理分别由原 owner 维护。
+
+| 模型动作/状态 | SR 与实际参与者兑现的位置 | 尚未由模型证明的部分 |
+|---|---|---|
+| `Publish`、`StartWork/Current` | SR `checkActivation` 与 AR 发布联合核原 attachment/Session 资格；SR 新 Run/Step 的具名准入与 AR `checkWork` 同门检查原挂载、link、必要 provider 和当前 epoch/WorkPermit | 模型把联合条件检查抽象为原子动作；真实 gate、运行时身份/TG/AU 根及持久 ready 仍须产品证据，不能用分散的旧快照替代 |
+| `Invalidate/Restore`、`epoch/revision` | SR 拥有原 attachment 的 held/revoked 状态及当前资格修订；已撤销附着不回 held，新恢复资格重新取得合法许可 | 模型 Restore 只恢复 eligible，不回退 epoch；这检查 Session 资格恢复不复活旧 revision，不是对所有 host/mount 代次或完整故障恢复的证明 |
+| `LoseDependency` | 原必要 provider 失效时，SR 末门直接核其真实状态/原代；宿主观察另调用 SR 同门封闭本次 mount/link | 模型 dependency 只从 TRUE 变 FALSE，没有重挂动作。失联后同 Fiber 重现仍须新 mount generation 和原代单调关闭，不能把 LoseDependency 当完整失联—重挂模型 |
+| `PrepareReturns`、移交/清理/移除动作 | 晚到准备回原尝试；SR 保有原 Run/控制/接续及 attachment，AR 保有实例工作/资源；TL/LE 的独立事实由其原 owner 确认。SR 仅在 AR 真实 release 后撤原引用 | 确认移交、quiescent、资源释放均是需要实际兑现的前提；未确认或清理未知继续具名 retained，不以通知、Promise 结束或旧 disposer 代替 |
+
+SR 受信 apply 与两端登记绑定真实 host/source/Fiber/mount/registration/generation，
+同 Fiber 重挂不复用旧代。纯 check 不递归调用 AU 判定或 AR 激活，不装卸插件、
+触发任意回调或在未来继续使用 frame；[admission](../../coordination/admission/design.md)
+和受信组合者分别兑现活动 frame/禁止重入及调用约束。较早观察器重入时，即使
+SR consumer 仍 ACTIVE、关闭 stamp 未推进，末门也须检查原必要 provider，不能放行。
+
+这些约束维持 CB-03/06/07/10–14 的既有保护位置，没有新增共同状态或服务。
+AR 的计划退役模型不补足 CB 缺少的重挂动作，两模型不能拼成完整 Cordis 精化证明。
+[应用场景](../../../apps/local-harness/design.md#运行映射的命题与前提)将 S03/S09/S12
+及 A04/A18/D08 的本基线依赖落到真实 owner；相应符合性当前未验证。
+
 ## 实施协议的采用来源
 
 下列状态、记录、端口和算法从已接受的 `cd16f1` Agent/Session 输入迁入，
