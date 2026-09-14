@@ -525,6 +525,51 @@ describe('O04/O05 configuration and local retention boundaries', () => {
     await expect(access(directory)).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
+  it('retains an acquired descriptor when source preparation and its first cleanup both fail', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'prepare-failure-'))
+    const originalClose = nodeFs.close as unknown as FlexibleWrite
+    let descriptor: number | undefined
+    const fchmodSpy = vi.spyOn(nodeFs, 'fchmod').mockImplementation(((...args: unknown[]) => {
+      descriptor = args[0] as number
+      const callback = args.at(-1)
+      if (typeof callback !== 'function') throw new Error('unexpected fs.fchmod signature')
+      process.nextTick(() => callback(Object.assign(new Error('SECRET_PREP_ERROR'), { code: 'EIO' })))
+      return undefined
+    }) as typeof nodeFs.fchmod)
+    const closeSpy = vi.spyOn(nodeFs, 'close').mockImplementation(((...args: unknown[]) => {
+      const callback = args.at(-1)
+      if (typeof callback !== 'function') throw new Error('unexpected fs.close signature')
+      process.nextTick(() => callback(Object.assign(new Error('SECRET_CLEANUP_ERROR'), { code: 'EIO' })))
+      return undefined
+    }) as typeof nodeFs.close)
+    syncBuiltinESMExports()
+    let result: Awaited<ReturnType<typeof createLocalDiagnostics>> | undefined
+    try {
+      result = await createLocalDiagnostics(options(directory, 'source-prepare-failure'))
+    } finally {
+      fchmodSpy.mockRestore()
+      closeSpy.mockRestore()
+      syncBuiltinESMExports()
+    }
+    expect(result).toBeDefined()
+    if (result === undefined) return
+    expect(result.status).toBe('created')
+    if (result.status !== 'created') return
+    const beforeRetry = result.runtime.inspect()
+    const afterRetry = await result.runtime.close({ deadlineMs: 1_000 })
+    if (descriptor !== undefined) {
+      await new Promise<void>(resolve => {
+        ;(originalClose as FlexibleWrite)(descriptor, () => resolve())
+      })
+    }
+    expect(beforeRetry).toMatchObject({
+      phase: 'degraded',
+      resource: 'unknown',
+      lastErrorCode: 'SOURCE_OPEN_EIO',
+    })
+    expect(afterRetry).toMatchObject({ status: 'closed', state: { resource: 'released' } })
+  })
+
   it('returns a visible degraded runtime when directory retention is already exhausted', async () => {
     const directory = await mkdtemp(join(scratchRoot, 'retention-'))
     await chmod(directory, 0o700)

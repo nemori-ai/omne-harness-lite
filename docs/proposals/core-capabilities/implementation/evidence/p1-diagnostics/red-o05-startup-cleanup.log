@@ -1,0 +1,19 @@
+$ pnpm --filter @omne-harness-lite/diagnostics run typecheck
+exit 0
+
+$ pnpm --filter @omne-harness-lite/diagnostics test -- --reporter=verbose
+
+RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics
+
+FAIL  tests/runtime.spec.ts > O04/O05 configuration and local retention boundaries > retains an acquired descriptor when source preparation and its first cleanup both fail
+AssertionError: expected degraded resource unknown, received degraded resource released
+at tests/runtime.spec.ts:565
+
+Test Files  1 failed (1)
+Tests       1 failed | 23 passed (24)
+Duration    737ms
+Exit status 1
+
+The test injects EIO first into fchmod after wx has returned a descriptor and then into the first
+close cleanup callback. The factory correctly remained created/degraded, but the RED proves that
+it discarded the acquired descriptor responsibility and incorrectly reported it released.
