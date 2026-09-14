@@ -18,15 +18,15 @@
 
 | 任务 | 状态 | 实现/验收证据 | 下一项输入 |
 |---|---|---|---|
-| P0 | in_progress | 以 `e11cc69` 为输入派发下表三个独立任务；未接受其结果 | 共享接口受审版本、真实探针结果和检查器 RED/GREEN |
+| P0 | in_progress | 锁探针已独立复验并接受；共享接口与检查器仍在实施 | 共享接口受审版本、共享边界实现和检查器 RED/GREEN |
 | P1 | planned | 未执行 | P0 的记录/协调接口与真实锁证据 |
 | P2 | planned | 未执行 | P1 的真实共同门与记录提供者；交付本地预算 owner |
 | P3 / M1 | planned | 未执行 | P2 当前权限/真实预算/Session/活体，以及 P1 执行账本前提 |
 | P4 | planned | 未执行 | M1 组合、模型/路由/凭据和费用授权；离线部分可按依赖提前 |
 | P5 / M2 | planned | 未执行 | 最终组合版本及全部本批验收证据 |
 
-P0 的原生文件锁、P4 的待答编码路由兼容性、真实 OpenRouter 环境为明确测量项，
-当前未验收。可按计划先完成不依赖它们的工作；未验证部分不能被记为通过。
+P0 的原生文件锁前提已验收，正式 writer/恢复仍未实现；P4 的待答编码路由兼容性、
+真实 OpenRouter 环境仍待测量。未验证部分不能被记为通过。
 
 本次已核对现有检查器只允许 baseline/DSH 来源，以及安装默认禁用脚本的事实；
 适配已安排到 P0；HUB 的检查器和安装行为仍是实施起点。开发指南、包索引和当前架构
@@ -40,10 +40,10 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 | 工作 | 执行者与实际句柄 | 独立工作树 | 写入归属与下一关 |
 |---|---|---|---|
 | P0 共享接口稿 | `/root/p0_interfaces` | `dsh-p0-interfaces` | 仅 `shared-interfaces.md` 与任务临时文件；给出 work-data/records/admission 完整接口，独立评审后实施 |
-| P0 真实锁探针 | infrastructure-developer，`/root/p0_lock_probe` | `dsh-p0-lock-probe` | 仅探针与 `evidence/p0-lock-probe/`；核对 Node/Linux、精确依赖、双进程/暂停/死亡/释放/sync，不代替产品验收 |
+| P0 真实锁探针（accepted） | infrastructure-developer，`/root/p0_lock_probe`，已结束 | `dsh-p0-lock-probe` | `f712e025` 经 `04b8dbf` 整合，HUB 全新目录实际复验通过；范围及限制见下文 |
 | P0 包检查器 | verification-developer，`/root/p0_package_checks` | `dsh-p0-package-checks` | `tools/package-checks/` 与对应证据；目标入口/自有来源的 RED/GREEN 和反例，不写产品包或根锁文件 |
 
-以上是派发事实，不是完成证据。主调度拥有 HUB 整合、根配置、此工作包和最终
+未标 accepted 的行只表示派发事实。主调度拥有 HUB 整合、根配置、此工作包和最终
 验收；worker 的本地提交、测试绿灯与运行结束均须经端点核验后才能接受。
 共享接口的消费者尚未派发，不使用兄弟任务未落定的类型或临时约定启动联合实现。
 接口出现正式规格反例时先修设计或发布流程，不放宽验收。
@@ -54,6 +54,25 @@ inventory 与配额查询不覆盖该 native 执行面，不能移用其外部 C
 native 句柄活性以 collaboration 的实际运行状态为准，持久交付事实以本页及证据为准。
 当前未发现 OpenRouter 环境变量或仓库配置入口；模型/路由、配置路径与费用范围
 已请求用户提供，缺少该输入只阻止依赖它的 A22 实测，不阻止其它研发。
+
+## P0 原生锁前提交付
+
+已接受 `f712e025ab724bfa0f846be83029430f41350279` 的探针交付；HUB 整合版本
+`04b8dbf5f3490b2cd17435b8ebf5a0b9fbe0e0ae` 使用自身全新安装目录重跑同一
+SHA-256 的脚本，[实际复验记录](evidence/p0-lock-probe/hub-summary.json)保存
+源码版本、命令、构建、具体进程/inode、四类锁场景、七处同步和精确记录往返；
+受管子进程最终为 0。六份编译器归档均与[固定哈希](evidence/p0-lock-probe/toolchain.json)
+一致，工具链仅解包到任务 tmp，未修改宿主系统。
+
+实际采用输入与限制归[探针说明](evidence/p0-lock-probe/README.md)：
+`fs-ext@2.1.1`、Node `v24.18.0`、pnpm `10.28.1`、Linux/ext4；默认 g++ 9.4
+真实失败，GCC 10.5 成功。依赖脚本默认禁用后只显式构建 fs-ext，并实际加载 addon。
+本结果只接受 P0 可行性前提，不将 probe-only JSON 行改称 `core-journal/1`，
+也不接受 A06/A07/A30/A31 的完整产品符合性或断电保证。
+
+该整合后的 `make docs-check BASELINE=e11cc69` 通过 393 个 Markdown，
+`git diff --check` 通过；根产品配置/锁文件、发布规格与需求未修改。
+原生编译器与产品安装步骤在 P1 接入实际依赖时再更新开发入口。
 
 ## 设计文档交付证据
 

@@ -84,6 +84,10 @@ inode、同步边界和以下结果：
 
 ## 精确复现
 
+HUB 在整合版本 `04b8dbf5f3490b2cd17435b8ebf5a0b9fbe0e0ae` 的全新目录独立
+重跑通过，见 [hub-summary.json](hub-summary.json)。脚本与上面的 worker 运行
+哈希相同；再次安装、显式构建、真实锁场景、同步和清理均实际执行。
+
 在指定 worktree/分支或包含本提交的后继检出中执行。每次给探针一个不存在的 fresh
 sandbox 路径；探针拒绝复用旧目录，避免把旧 addon 或 inode 当作本次结果。
 
