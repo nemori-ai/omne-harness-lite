@@ -30,6 +30,10 @@ import { projectEnd, projectIdentity, projectPoint, samePrincipal } from './proj
 import type { SafeIdentity, SafePoint } from './projection.js'
 
 const levels = new Set(['debug', 'info', 'warn', 'error'])
+const systemErrorCodes = new Set([
+  'EACCES', 'EAGAIN', 'EBADF', 'EBUSY', 'EDQUOT', 'EEXIST', 'EFBIG', 'EINTR', 'EIO',
+  'EMFILE', 'ENFILE', 'ENOENT', 'ENOSPC', 'EPERM', 'EROFS',
+])
 const levelValue = { debug: 10, info: 20, warn: 30, error: 40 } as const
 const diagnosticFile = /^diagnostic-(?:[0-9a-f]{16}-)?[0-9a-f]{16}\.jsonl$/u
 const SonicBoom = createRequire(import.meta.url)('sonic-boom') as new (options: SonicBoomOpts) => SonicBoomType
@@ -53,6 +57,15 @@ type ActiveSpan = {
   end: DiagnosticEnd | null
 }
 
+function systemErrorCode(error: unknown): string | undefined {
+  const code = error !== null
+    && typeof error === 'object'
+    && typeof (error as NodeJS.ErrnoException).code === 'string'
+    ? (error as NodeJS.ErrnoException).code
+    : undefined
+  return code !== undefined && systemErrorCodes.has(code) ? code : undefined
+}
+
 type StartupFailure = Readonly<{
   code: string
   reason: 'retention_capacity' | 'write_unavailable'
@@ -69,11 +82,7 @@ class StartupCleanupFailure extends Error {
   constructor(descriptor: number, cause: unknown) {
     super('diagnostics source preparation failed and retained its descriptor')
     this.descriptor = descriptor
-    this.code = cause !== null
-      && typeof cause === 'object'
-      && typeof (cause as NodeJS.ErrnoException).code === 'string'
-      ? (cause as NodeJS.ErrnoException).code
-      : undefined
+    this.code = systemErrorCode(cause)
   }
 }
 
@@ -295,7 +304,7 @@ class LocalRuntime implements DiagnosticsRuntime {
         this.phase = this.phase === 'closing' ? 'closing' : 'degraded'
         this.writeFailed = true
         this.outputAvailable = false
-        this.lastErrorCode = typeof error.code === 'string' ? error.code : 'SONIC_ERROR'
+        this.lastErrorCode = systemErrorCode(error) ?? 'SONIC_ERROR'
         this.addGap('write_unavailable', null, 'unknown')
         if (this.phase === 'closing' && this.streamCloseStarted) {
           this.resource = 'unknown'
@@ -752,11 +761,7 @@ class LocalRuntime implements DiagnosticsRuntime {
         this.resource = 'released'
         return true
       } catch (error) {
-        this.lastErrorCode = error !== null
-          && typeof error === 'object'
-          && typeof (error as NodeJS.ErrnoException).code === 'string'
-          ? (error as NodeJS.ErrnoException).code!
-          : 'SOURCE_CLEANUP_FAILED'
+        this.lastErrorCode = systemErrorCode(error) ?? 'SOURCE_CLEANUP_FAILED'
         this.resource = 'unknown'
         return false
       }
@@ -773,11 +778,7 @@ class LocalRuntime implements DiagnosticsRuntime {
         this.lastWriteProgressAt = null
         return true
       } catch (error) {
-        this.lastErrorCode = error !== null
-          && typeof error === 'object'
-          && typeof (error as NodeJS.ErrnoException).code === 'string'
-          ? (error as NodeJS.ErrnoException).code!
-          : 'SONIC_CLOSE_FAILED'
+        this.lastErrorCode = systemErrorCode(error) ?? 'SONIC_CLOSE_FAILED'
         this.resource = 'unknown'
         return false
       }
@@ -885,9 +886,7 @@ async function prepareDirectory(
 }
 
 function startupFailure(error: unknown): StartupFailure {
-  const code = error !== null && typeof error === 'object' && typeof (error as NodeJS.ErrnoException).code === 'string'
-    ? (error as NodeJS.ErrnoException).code
-    : undefined
+  const code = systemErrorCode(error)
   if (code === 'EEXIST') return Object.freeze({ code: 'SOURCE_EXISTS', reason: 'write_unavailable' })
   if (code === 'ENOSPC' || code === 'EDQUOT') {
     return Object.freeze({ code: 'RETENTION_CAPACITY', reason: 'retention_capacity' })
