@@ -47,8 +47,9 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 | P0 work-data 实现（accepted） | kernel-developer，`/root/p0_work_data`；定点复核 `/root/review_first_batch`，本任务均已结束 | `dsh-p0-work-data`，已退役 | `18cad69` 经 `6e7f213` 整合，`728d665` 锁定依赖；D1/D2 闭合，HUB 91 项测试与 15 包产物通过 |
 | P0 records 实现（accepted） | infrastructure-developer，`/root/p0_records`；独立复核 `/root/review_first_batch`，本任务均已结束 | `dsh-p0-records`，已退役 | `1a237da`/`c67eb4d` 经 `bbb4a3e` 整合、`c1783fd` 锁定；HUB 17 项测试及 16 包产物通过；独有资产与执行输出已保全 |
 | diagnostics D1 实现 | infrastructure-developer，`/root/diagnostics` | `dsh-diagnostics`，从 `0e80245` 创建 | 消费真实 work-data/records；只写 diagnostics 包与其证据，真实产品通过后开放 jsonl/admission 消费 |
-| Agent/Session 施工接口设计 | 作者 `/root/session_runtime_design` 已结束，独立复核 `/root/review_package_layout` | `dsh-session-runtime-design`，从 `de39a86` 创建 | 候选 `746ce47` 只写 AR/SR 施工稿；独立评审后固定，产品依赖仍须真实就绪 |
-| TS/JS 自动格式化 | verification-developer，`/root/formatting` | `dsh-formatting`，从 `de39a86` 创建 | 共享 Prettier 配置/命令、编辑/提交/CI 接入与机械格式；根锁由 HUB 更新 |
+| Agent/Session 施工接口设计 | 作者 `/root/session_runtime_design` 修订中，独立复核 `/root/review_package_layout` 本轮已结束 | `dsh-session-runtime-design`，从 `de39a86` 创建 | 候选 `746ce47` 的四项交接缺口已进入定点修订；独立复核后固定，产品依赖仍须真实就绪 |
+| TS/JS 自动格式化工具（accepted） | verification-developer，`/root/formatting`，已结束 | `dsh-formatting`，已退役 | `99a6988`/`c026140` 已整合，根锁 `d13d66b`；HUB `4a5031d` 的冻结安装和完整 16 包检查通过 |
+| 格式化提示词投影 | `/root/observability_prompts`，本轮负责格式化认知约定 | `dsh-formatting-prompts`，从 `4a5031d` 创建 | 根 AGENTS、研发共享契约及两端生成文件；只投影时机/写权限，操作正文归开发指南 |
 
 可观测性工程品味与共享研发提示词已由 `51eaefb` 经 `7d3736c` 整合到 HUB，
 五个角色的两端生成检查和文档检查通过，见[提示词证据](evidence/observability-prompts.json)。
@@ -87,6 +88,25 @@ OpenAI gpt-5.6-terra 与 DeepSeek v4.1-flash。文件仅由测试进程加载，
 [`openai/gpt-5.6-terra`](https://openrouter.ai/openai/gpt-5.6-terra) 和
 [`deepseek/deepseek-v4.1-flash`](https://openrouter.ai/deepseek/deepseek-v4.1-flash)。
 这只确认公开目录身份，不证明本地凭据可用、具体路由或 A22 工具往返已通过。
+
+## TS/JS 格式化工具交付
+
+共享工具固定为本地 `prettier@3.9.6`，源提交 `99a6988`、作者证据 `c026140`；
+根锁由 `d13d66b` 更新，未改变原有依赖版本。作者独立机械提交格式化 102 个
+受维护文件；HUB `4a5031d` 再格式化在其基线之后整合的四个 records 文件。
+Schema、JSONL 黄金数据、上游原件与 provenance 均不在机械修改范围。
+
+[HUB 证据](evidence/formatting/hub-summary.json)记录冻结安装与 `pnpm check` 实际
+通过：共享格式检查、临时 Git 的真实提交 hook、构建/严格类型/包测试、检查器
+测试、16 个独立 tarball 与实际组合消费。初次 HUB 格式失败只涉及上述四个新增
+records 文件，失败输出与完整复验日志均保留；原作者日志也已核对哈希。
+这证明格式工具及本次机械改动的验证范围，不证明 M1/M2 或完整目标能力已实现。
+
+命令与范围归[开发指南](../../../development.md)。agent 只对自己获准修改的文件
+执行 `format:write`；提交检查读取 index 并保留部分暂存状态，CI 只检查不改提交。
+编辑器配置显式使用工作区本地 Prettier。共享 Git hooks 未安装：当前 main 尚未
+包含这些脚本，而 hooks 由全部 worktrees 共用；安装器已在独立 Git 实际验证，
+以后从支持该工具的检出显式安装。没有宣称真实编辑器保存或 GitHub 托管 job 已运行。
 
 ## P2 治理施工输入
 

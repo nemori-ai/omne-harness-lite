@@ -4,8 +4,10 @@
 
 组合入口 `make check` 调用 [scripts/check.sh](../../scripts/check.sh)，依次执行文档检查、
 规格检查、Python 工具测试和产品包检查，任一步失败即停止。该脚本也支持从其他工作目录通过绝对路径调用，
-供本地与未来 CI 共用；`make check BASELINE=<git-ref>` 将基线传给文档检查。
-当前尚无 CI 平台配置或产品发布流水线，自动化职责见 [scripts/](../../scripts/README.md)。
+供本地与 CI 共用；`make check BASELINE=<git-ref>` 将基线传给文档检查。
+当前已配置独立的 [TS/JS 格式检查 workflow](../../.github/workflows/format.yml)，
+尚无完整检查或产品发布流水线；配置存在不代表托管任务已经运行。
+自动化职责见 [scripts/](../../scripts/README.md)。
 
 | 层次 | 覆盖 | 不能声称 |
 |---|---|---|

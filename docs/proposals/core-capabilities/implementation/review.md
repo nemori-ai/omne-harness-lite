@@ -173,6 +173,23 @@ A05–A08、真实 writer 或完整 TDD 历史源码均已验证。
 五项身份不可变检查仍只是条件断言，独立进程也只查询预写 fixture；P2 产品
 与真实 P1 组合仍未通过，不能以这些结果宣称耐久恢复或预算 owner 已实现。
 
+## P2 Agent/Session 施工稿评审
+
+`/root/review_package_layout` 按 HUB `0e80245` 工作包和治理 `058c77c`，对
+`746ce47` 作独立只读评审，发现以下四项施工交接缺口，已交原作者定点修订。
+
+| 编号 | 触发与后果 | 必须闭合的交接 |
+|---|---|---|
+| S-R1，高 | driver 取得 Step 后正常完成或抛错，没有受限提交入口结算 Step/Run 与剩余请求；q1 接续也未明确原 Step 身份 | 由 SR 裁决正常/失败/下一步输入及同批关系；守住原 CallRef.owner/Action，不能由应用补业务提交 |
+| S-R2，高 | Session 只保存 DefinitionVersion，同版本多选用或移除后重选时无法认回原选用 | 持久保存 acquisition，向当前资格门提供原关系；不得静默借用另一份有效选用 |
+| S-R3，重要 | owner 的读取、输入、控制权限没有明确涵盖 Session 设置写入，AU 无法解释 confirmation_mode 变更 | 明确设置写资格及当前检查；紧急控制者不能借控制权修改设置 |
+| S-R4，重要 | TG 停用/移除选用时没有 SR 的 prepareReferences/checkReferences 提供者 | 固定引用项、修订和共同门；验证创建引用与停用交错，缺席提供者不等于空清单 |
+
+这些分别关联 SR-08/09、HD-04、TG-05、AU-01、A03/A11 和 PF-010.C10。
+其余受审四包依赖、唯一激活、退役/强停、旧 epoch 围栏与 TL 合法结果通道未见
+直接阻断。现有作者文档检查通过 404 份 Markdown；评审未运行测试、探针或形式
+工具，也不作接受决定。R0–R6、S01–S13 与真实产品组合仍是待执行验收。
+
 ## 可观测性 P1 候选评审
 
 `/root/review_package_layout` 对 `design/dsh-observability@1c60feb` 的候选设计、
