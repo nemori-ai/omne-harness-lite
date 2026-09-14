@@ -1,6 +1,7 @@
+import { createRequire } from 'node:module'
 import { access, chmod, mkdir, mkdtemp, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import { resolve, join } from 'node:path'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { createLocalDiagnostics } from '../dist/index.js'
 import type {
   DiagnosticIdentity,
@@ -10,6 +11,8 @@ import type {
 } from '../dist/index.js'
 
 const scratchRoot = resolve(import.meta.dirname, '../../../../tmp/p1-diagnostics/runtime-tests')
+const nodeFs = createRequire(import.meta.url)('node:fs') as typeof import('node:fs')
+type FlexibleWrite = (...args: unknown[]) => unknown
 
 beforeAll(async () => {
   await mkdir(scratchRoot, { recursive: true })
@@ -77,6 +80,16 @@ async function waitForCode(directory: string, code: string): Promise<readonly Re
     await new Promise(resolve => setTimeout(resolve, 5))
   } while (Date.now() < deadline)
   throw new Error(`diagnostic code ${code} was not written within 1000ms`)
+}
+
+async function waitForStatus(runtime: DiagnosticsRuntime, predicate: (runtime: ReturnType<DiagnosticsRuntime['inspect']>) => boolean): Promise<ReturnType<DiagnosticsRuntime['inspect']>> {
+  const deadline = Date.now() + 1_000
+  do {
+    const status = runtime.inspect()
+    if (predicate(status)) return status
+    await new Promise(resolve => setTimeout(resolve, 5))
+  } while (Date.now() < deadline)
+  throw new Error('diagnostics status did not reach the expected state within 1000ms')
 }
 
 describe('O05/O06 local source lifecycle', () => {
@@ -351,5 +364,197 @@ describe('O04/O05 configuration and local retention boundaries', () => {
     })
     expect(runtime.inspect().resource).toBe('held')
     await runtime.close({ deadlineMs: 1_000 })
+  })
+})
+
+describe('O04/O05 bounded output and actual write progress', () => {
+  it('counts a projected record that exceeds the UTF-8 line cap without writing it', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'record-cap-'))
+    const result = await createLocalDiagnostics(options(directory, 'source-record-cap', {
+      maxRecordBytes: 512,
+    }))
+    expect(result.status).toBe('created')
+    if (result.status !== 'created') return
+    const runtime = result.runtime
+    const long = '界'.repeat(80)
+    const context = runtime.diagnostics.scope({
+      tenantId: long,
+      principal: { kind: 'user', user: { userId: long } },
+      operation: { namespace: long, principalId: long, operationId: long },
+      causality: { session: { tenantId: long, sessionId: long } },
+    })
+    runtime.diagnostics.log(context, point('record_cap.error', 'error'))
+    expect(runtime.inspect().gaps).toContainEqual(expect.objectContaining({
+      reason: 'buffer_capacity',
+      count: '1',
+      quality: 'counted',
+    }))
+    expect(await readFile(await sourceFile(directory), 'utf8')).not.toContain('record_cap.error')
+    await runtime.close({ deadlineMs: 1_000 })
+  })
+
+  it('counts repeated warn/error buffer overflow while a real write is delayed', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'buffer-cap-'))
+    const result = await createLocalDiagnostics(options(directory, 'source-buffer-cap', {
+      maxRecordBytes: 1_024,
+      maxBufferBytes: 1_024,
+    }))
+    expect(result.status).toBe('created')
+    if (result.status !== 'created') return
+    const runtime = result.runtime
+    await waitForCode(directory, 'diagnostic.source_started')
+
+    const originalWrite = nodeFs.write as unknown as FlexibleWrite
+    let delayed: unknown[] | undefined
+    const spy = vi.spyOn(nodeFs, 'write').mockImplementation(((...args: unknown[]) => {
+      if (delayed === undefined) {
+        delayed = args
+        return undefined
+      }
+      return originalWrite(...args)
+    }) as typeof nodeFs.write)
+    try {
+      for (let index = 0; index < 20; index += 1) {
+        runtime.diagnostics.log(
+          runtime.diagnostics.scope(identity('tenant-a', `user-${index}`)),
+          point(`buffer_cap.${index}`, index % 2 === 0 ? 'warn' : 'error'),
+        )
+      }
+      const gap = runtime.inspect().gaps.find(item => item.reason === 'buffer_capacity')
+      expect(gap?.quality).toBe('counted')
+      expect(BigInt(gap?.count ?? '0')).toBeGreaterThan(1n)
+      expect(delayed).toBeDefined()
+    } finally {
+      if (delayed !== undefined) originalWrite(...delayed)
+      spy.mockRestore()
+      await runtime.close({ deadlineMs: 1_000 })
+    }
+  })
+
+  it('never grows the source past its file budget and counts every later error record', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'file-cap-'))
+    const result = await createLocalDiagnostics(options(directory, 'source-file-cap', {
+      maxRecordBytes: 512,
+      maxBufferBytes: 1_024,
+      maxFileBytes: 1_024,
+      maxDirectoryBytes: 2_048,
+    }))
+    expect(result.status).toBe('created')
+    if (result.status !== 'created') return
+    const runtime = result.runtime
+    const context = runtime.diagnostics.scope(identity('tenant-a', 'user-a'))
+    for (let index = 0; index < 20; index += 1) {
+      runtime.diagnostics.log(context, point(`file_cap.${index}`, 'error'))
+    }
+    await waitForStatus(runtime, state => state.pendingBytes === 0)
+    const beforeClose = runtime.inspect()
+    const gap = beforeClose.gaps.find(item => item.reason === 'retention_capacity')
+    expect(gap?.quality).toBe('counted')
+    expect(BigInt(gap?.count ?? '0')).toBeGreaterThan(1n)
+    await runtime.close({ deadlineMs: 1_000 })
+    expect((await stat(await sourceFile(directory))).size).toBeLessThanOrEqual(1_024)
+  })
+
+  it('reports a delayed real fs.write as stalled and resumes from actual callback progress', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'stalled-'))
+    const runtime = await createdRuntime(directory, 'source-stalled')
+    await waitForCode(directory, 'diagnostic.source_started')
+    const originalWrite = nodeFs.write as unknown as FlexibleWrite
+    let delayed: unknown[] | undefined
+    const spy = vi.spyOn(nodeFs, 'write').mockImplementation(((...args: unknown[]) => {
+      delayed = args
+      return undefined
+    }) as typeof nodeFs.write)
+    const now = performance.now()
+    const clock = vi.spyOn(performance, 'now').mockReturnValue(now)
+    try {
+      runtime.diagnostics.log(runtime.diagnostics.scope(identity('tenant-a', 'user-a')), point('write.stalled'))
+      clock.mockReturnValue(now + 1_001)
+      expect(runtime.inspect()).toMatchObject({
+        writeProgress: 'stalled',
+        resource: 'held',
+      })
+      expect(runtime.inspect().pendingIdleMs).toBeGreaterThanOrEqual(1_000)
+      expect(delayed).toBeDefined()
+      clock.mockRestore()
+      if (delayed !== undefined) originalWrite(...delayed)
+      await waitForCode(directory, 'write.stalled')
+      expect(runtime.inspect()).toMatchObject({ writeProgress: 'idle', pendingBytes: 0 })
+    } finally {
+      clock.mockRestore()
+      spy.mockRestore()
+      await runtime.close({ deadlineMs: 1_000 })
+    }
+  })
+
+  it('tracks partial fs.write callbacks through the complete readable line boundary', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'partial-'))
+    const runtime = await createdRuntime(directory, 'source-partial')
+    await waitForCode(directory, 'diagnostic.source_started')
+    const originalWrite = nodeFs.write as unknown as FlexibleWrite
+    let partialCalls = 0
+    const spy = vi.spyOn(nodeFs, 'write').mockImplementation(((...args: unknown[]) => {
+      if (partialCalls > 0) return originalWrite(...args)
+      partialCalls += 1
+      const fd = args[0]
+      const data = args[1]
+      const callback = args.at(-1)
+      if (typeof fd !== 'number' || (typeof data !== 'string' && !ArrayBuffer.isView(data)) || typeof callback !== 'function') {
+        throw new Error('unexpected fs.write signature')
+      }
+      const buffer = typeof data === 'string'
+        ? Buffer.from(data)
+        : Buffer.from(data.buffer, data.byteOffset, data.byteLength)
+      return originalWrite(fd, buffer.subarray(0, Math.max(1, Math.floor(buffer.length / 2))), callback)
+    }) as typeof nodeFs.write)
+    try {
+      runtime.diagnostics.log(runtime.diagnostics.scope(identity('tenant-a', 'user-a')), point('write.partial'))
+      await waitForCode(directory, 'write.partial')
+      expect(partialCalls).toBe(1)
+      expect(runtime.inspect().writtenBytes).toBe(String((await stat(await sourceFile(directory))).size))
+      expect(runtime.inspect()).toMatchObject({ pendingBytes: 0, writeProgress: 'idle' })
+    } finally {
+      spy.mockRestore()
+      await runtime.close({ deadlineMs: 1_000 })
+    }
+  })
+
+  it('contains a real EIO callback, exposes the safe code, and releases that stream', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'write-error-'))
+    const runtime = await createdRuntime(directory, 'source-write-error')
+    await waitForCode(directory, 'diagnostic.source_started')
+    const originalWrite = nodeFs.write as unknown as FlexibleWrite
+    let failed = false
+    const secret = 'SECRET_ERROR_MESSAGE_MUST_NOT_LEAK'
+    const spy = vi.spyOn(nodeFs, 'write').mockImplementation(((...args: unknown[]) => {
+      if (failed) return originalWrite(...args)
+      failed = true
+      const callback = args.at(-1)
+      if (typeof callback !== 'function') throw new Error('unexpected fs.write signature')
+      const error = Object.assign(new Error(secret), { code: 'EIO' })
+      process.nextTick(() => callback(error, 0))
+      return undefined
+    }) as typeof nodeFs.write)
+    const marker = Object.freeze({ business: 'unchanged' })
+    try {
+      expect((() => {
+        runtime.diagnostics.log(runtime.diagnostics.scope(identity('tenant-a', 'user-a')), point('write.failed', 'error'))
+        return marker
+      })()).toBe(marker)
+      const failedStatus = await waitForStatus(runtime, state => state.writeProgress === 'failed')
+      expect(failedStatus).toMatchObject({
+        phase: 'degraded',
+        lastErrorCode: 'EIO',
+      })
+      expect(failedStatus.gaps).toContainEqual(expect.objectContaining({
+        reason: 'write_unavailable',
+        quality: 'unknown',
+      }))
+      await waitForStatus(runtime, state => state.resource === 'released')
+      expect(await readFile(await sourceFile(directory), 'utf8')).not.toContain(secret)
+    } finally {
+      spy.mockRestore()
+    }
+    await expect(runtime.close({ deadlineMs: 1_000 })).resolves.toMatchObject({ status: 'closed' })
   })
 })
