@@ -84,3 +84,11 @@ admission publication/ExactUse 以及公开产物独立消费仍按原验收推�
 仅用于 docs-check；没有创建本任务 tmp 资产。临时资产清单见
 [assets.json](assets.json)。本轮没有安装产品依赖或改变锁文件。
 证据中的提交身份以基线和 Git 提交本身定位，作者不自行记为已接受。
+
+## HUB 核验与采用
+
+主调度从固定提交独立运行原迁移脚本，并在合入后的 HUB 逐字节核对全部来源
+文件，[hub-verification.json](hub-verification.json)记录 18 段/13 份原证据及
+13 个迁移文件的核验范围。[HUB 文档日志](hub-docs-check.log)保留实际 455 份
+文档检查结果。归属迁移的正式采用见[共享稿](../../shared-interfaces.md#p1-映射迁移的采用)，
+仍不表示真实 JSONL/admission 已实现或已通过组合验收。

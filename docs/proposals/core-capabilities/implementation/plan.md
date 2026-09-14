@@ -82,9 +82,9 @@ D1 的目录产品实施期间，verification-developer 可以独立验证已固
 真实 tarball 消费才是退出依据。这项测量开发不消费尚未完成的目录实现，D1 最终
 整合仍须用修复后的真实产品再次完成独立消费，不能以工具通过代替产品通过。
 
-P1 产品派发前，设计作者将已接受共享稿中的 JSONL 和 admission 当前提供者
-映射分别迁到 `packages/storage/jsonl/design.md` 与
-`packages/coordination/admission/design.md`。只迁移既定技术责任、签名和验收
+P1 当前提供者映射已在 `2c3aede7` 迁到 `packages/storage/jsonl/design.md` 与
+`packages/coordination/admission/design.md`，按[共享稿的采用记录](shared-interfaces.md#p1-映射迁移的采用)
+进入后续四输入。该任务只迁移既定技术责任、签名和验收
 义务：records/work-data 的已实现公共源码保持权威，原共享稿保留来源、接受范围
 与导航，不出现第二份独立演化的接口。该准备可与 D1 修复并行，作者仅写两个
 设计正文、共享稿及专属 `evidence/p1-provider-mapping/`；根索引和对账归整合者。

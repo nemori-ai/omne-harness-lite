@@ -8,6 +8,9 @@ of the accepted product capability contracts. Public entry: `@omne-harness-lite/
 Build in the repository with `pnpm --filter @omne-harness-lite/jsonl... build`; tests use compiled
 artifacts. Dependencies belong to this manifest; consumers use exported package entries.
 
+The accepted target writer, lock and recovery mapping is maintained in [design.md](design.md);
+the target provider remains unimplemented.
+
 See [source scope](../../../docs/proposals/core-capabilities/fork/jsonl-source.md),
 [package layout](../../../docs/proposals/core-capabilities/fork/package-layout.md),
 and [provenance](provenance.json). Original MIT notice is retained in [LICENSE](LICENSE).

@@ -32,7 +32,8 @@ workspace 成员，拥有源码、依赖、公开入口、测试、许可与来�
 
 尚未建立 workspace 成员的设计正文也随未来所属包维护：
 [tenant](governance/tenant/design.md)、[authorization](governance/authorization/design.md)、
-[budget](governance/budget/design.md)、[local-execution](tools/local-execution/design.md)；
+[budget](governance/budget/design.md)、[admission](coordination/admission/design.md)、
+[local-execution](tools/local-execution/design.md)；
 [human-decisions](governance/human-decisions/design.md) 保留后续候选。目录与设计
 出现不等于目标包已经实现，现有 fork 的当前设计从各包 README 进入。
 

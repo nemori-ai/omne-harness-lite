@@ -5,7 +5,9 @@
 `7af250ee19df1077a5143cac817558caa959a392` 的相关正文；
 原 `8f4cfa9` 已接受为施工输入，
 [D-010](../../../docs/decisions/D-010-shared-diagnostics.md) 后续增加必需 Diagnostics。
-本次仅迁移归属，尚待独立复核与整合接受，不更改原公开记法或行为。
+`2c3aede7` 的归属迁移已通过主调度独立内容核验并接受，依据见
+[迁移采用](../../../docs/proposals/core-capabilities/implementation/shared-interfaces.md#p1-映射迁移的采用)；
+不更改原公开记法或行为，产品仍未交付。
 
 精确承诺沿 [CC v1](../../../spec/compositions/core-work-coordination/v1/contract.md)、
 [DR v1](../../../spec/capabilities/durable-records/v1/contract.md)、

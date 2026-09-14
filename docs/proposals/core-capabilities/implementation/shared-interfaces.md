@@ -22,10 +22,22 @@ records 数据/端口/codec 及 core-journal/1 保持 `8f4cfa9` 语义，历史�
 
 本次提供者正文迁移以 `7af250ee19df1077a5143cac817558caa959a392` 为固定来源，
 仅将 JSONL/admission 的当前实施映射归入所属包，本稿保留共享数据、records、
-codec、黄金样例与原评审记录。迁移尚待复核与整合接受，未宣称产品交付。
+codec、黄金样例与原评审记录。迁移已按下述内容核验接受，未宣称产品交付。
 [JSONL 当前设计](../../../../packages/storage/jsonl/design.md) 与 [admission 当前设计](../../../../packages/coordination/admission/design.md)
 各自拥有后续映射维护；本页相关章节仅导航，不再维护第二份 factory/协调接口。
 [迁移对应与检查](evidence/p1-provider-mapping/README.md)逐项保留来源范围。
+
+### P1 映射迁移的采用
+
+主调度接受 `2c3aede7c9b33d381b266bbfbef0ad8d8dec7959` 的归属迁移，已通过
+`6d4b87cf75b130f271c1987e61ccb1c55a33549c` 合入 HUB。原方案继续采用既有
+`8f4cfa9`/D-010 的接受依据，没有新的语义选择；本次不重复原架构审阅或机制实验。
+主调度独立运行固定源的迁移核验，18 段内容保持所列同义表达关系，13 份原证据
+字节不变；合入后再逐字节核对全部 13 个来源文件并通过 455 份文档检查，见
+[HUB 核验](evidence/p1-provider-mapping/hub-verification.json)。
+factory/短门/资源管理仍待实际实现，D1、P1 组合及原验收前置保持关闭。
+
+### 现有共享数据实现
 
 work-data 与 records 已有公开产品实现，精确签名分别引用
 [work-data 源码](../../../../packages/core/work-data/src/index.ts) /

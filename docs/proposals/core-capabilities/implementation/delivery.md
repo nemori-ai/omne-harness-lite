@@ -58,6 +58,7 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 | TL/LE 基线施工交接（design accepted） | 作者 `/root/session_runtime_design` 与定点复核 `/root/review_first_batch` 本轮已结束 | `dsh-tool-decision-design` 已退役，`0a6e91e` 经 `23020cf` 合入 | T-R1/T-R2、reader 与 P2 共同面闭合；HUB 两组新机制逐字一致，基线设计接受见[施工入口](tool-decision-interfaces.md#接受与验证)。完整 HD 保留后续，产品未实现 |
 | P2 提供者与装配映射（design accepted） | 作者 `/root/governance_design` 与独立复核 `/root/review_first_batch` 本轮已结束 | `dsh-runtime-provider-design` 已退役，`f98ac926` 经 `8ee3af6` 合入 | 七包及应用正文、原代次/批准历史消歧闭合；HUB 三组原机制与两组相邻机制复验通过，接受见[施工入口](runtime-provider-interfaces.md#接受与验证)；产品未实现 |
 | 原生独立消费者测量（实施中） | 原生 verification-developer `/root/native_consumer_checks` | `dsh-native-consumer-checks`，从 `ce73873` 创建 | 只验证/修复 package-checks 的获准 native 构建及实际隔离加载判据；产品、根锁和公共设计无写权；当前尚无验收结果 |
+| P1 提供者映射迁移（accepted） | 复用原生设计作者 `/root/governance_design`，本轮已停写 | `dsh-p1-provider-mapping`，`2c3aede7` 经 `6d4b87c` 合入 | 18 段正文/13 份原证据与全部迁移文件独立核验，HUB 455 份文档检查通过；已接受方案归属迁移，不是 P1 产品交付 |
 
 `e139342` 完成上述提供者设计接受、包/应用导航和 P1 组合测试载体写权安排，
 HUB 文档检查 451 份通过。`ce73873` 随后锁定 `fs-ext@2.1.1`/`nan@2.28.0`，
