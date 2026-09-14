@@ -1,125 +1,218 @@
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { readFile, writeFile, mkdir, mkdtemp, rm, realpath } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { dirname, join, relative, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { members, files, imports, validateImport, closure } from './boundaries.mjs'
+import {
+  members,
+  files,
+  imports,
+  validateImport,
+  closure,
+  validateManifest,
+  validateProvenance,
+  validatePackedArtifact,
+  exportSpecifier,
+  nativeBuildPlan,
+} from './boundaries.mjs'
 
-const tool = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const repo = resolve(tool, '../..')
+const script = fileURLToPath(import.meta.url)
+const tool = resolve(dirname(script), '..')
+const defaultRepo = resolve(tool, '../..')
 const json = async path => JSON.parse(await readFile(path, 'utf8'))
-const hash = bytes => createHash('sha256').update(bytes).digest('hex')
-const inventory = await members(repo)
-const baseline = await json(join(repo, 'docs/proposals/agent-runtime/source-baseline/upstream-baseline.json'))
-const lock = await readFile(join(repo, 'pnpm-lock.yaml'), 'utf8')
-assert.ok((await readFile(join(repo, 'pnpm-workspace.yaml'), 'utf8')).includes('packages/*/*'))
-for (const [, name] of lock.matchAll(/^  '(@deepseek-ai\/[^']+)':/gm)) {
-  assert.ok(['@deepseek-ai/cordis@4.0.2', '@deepseek-ai/cosmokit@1.8.3'].includes(name), `unexpected resolved package: ${name}`)
+const run = (command, args, cwd, allowScripts = false) => execFileSync(command, args, {
+  cwd,
+  encoding: 'utf8',
+  stdio: ['ignore', 'pipe', 'pipe'],
+  env: { ...process.env, npm_config_ignore_scripts: allowScripts ? 'false' : 'true' },
+})
+
+async function optionalJson(path) {
+  try {
+    return await json(path)
+  } catch (error) {
+    if (error.code === 'ENOENT') return undefined
+    throw error
+  }
 }
 
-let records = 0
-for (const member of inventory) {
-  const { root, manifest } = member
-  assert.equal(manifest.private, true)
-  assert.deepEqual(Object.keys(manifest.exports), ['./baseline'])
-  const provenance = await json(join(root, 'provenance.json'))
-  assert.equal(provenance.commit, baseline.commit)
-  assert.equal(new Set(provenance.files.map(e => e.snapshot)).size, provenance.files.length)
-  if (provenance.cordis_release) assert.ok(lock.includes(provenance.cordis_release.dist.integrity), 'official Cordis integrity')
-  const covered = new Set()
-  for (const entry of provenance.files) {
-    assert.equal(hash(await readFile(join(root, entry.snapshot))), entry.sha256, entry.snapshot)
-    const earlier = baseline.files.find(e => e.path === entry.upstream_path)
-    if (earlier) assert.equal(entry.sha256, earlier.sha256, entry.upstream_path)
-    for (const target of entry.targets) {
-      await readFile(join(root, target))
-      covered.add(target)
-    }
-    records++
-  }
-  for (const entry of provenance.project_files ?? []) {
-    assert.ok(entry.purpose.length > 0)
-    await readFile(join(root, entry.path))
-    covered.add(entry.path)
-  }
-  assert.ok(provenance.files.some(e => e.upstream_path === 'LICENSE' && e.snapshot === 'LICENSE'), `MIT provenance: ${root}`)
-  for (const directory of ['src', 'dist', 'tests']) {
-    let paths
-    try { paths = await files(join(root, directory)) }
-    catch (error) { if (directory === 'tests' && error.code === 'ENOENT') continue; throw error }
-    if (directory === 'src') assert.ok(paths.some(p => p.endsWith('.ts')), `empty product package: ${root}`)
-    for (const file of paths.filter(p => /\.(ts|js|mjs)$/.test(p))) {
-      if (directory === 'src') assert.ok(covered.has(relative(root, file)), `unmapped active source: ${file}`)
-      for (const specifier of imports(await readFile(file, 'utf8'), file)) validateImport(specifier, file, member, inventory, directory === 'tests')
-    }
-  }
-  closure(member, inventory)
+function parseRoot(argv) {
+  if (argv.length === 0) return defaultRepo
+  if (argv.length === 2 && argv[0] === '--root') return resolve(argv[1])
+  if (argv.length === 1 && argv[0].startsWith('--root=')) return resolve(argv[0].slice('--root='.length))
+  assert.fail('usage: node src/check.mjs [--root <repository>]')
 }
-console.log(`PASS: ${inventory.length} responsibility leaves, dependency boundaries, ${records} source records`)
 
-const scratch = await mkdtemp(join(tmpdir(), 'omne-package-artifacts-'))
-const run = (command, args, cwd) => execFileSync(command, args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
-const tarballs = new Map()
-let passed = false
-try {
-  for (const { root, manifest } of inventory) {
-    const raw = JSON.parse(run('pnpm', ['pack', '--json', '--pack-destination', scratch], root))
-    const packed = Array.isArray(raw) ? raw[0] : raw
-    const paths = packed.files.map(f => f.path)
-    for (const path of paths) assert.ok(path.startsWith('dist/') || ['package.json', 'LICENSE', 'README.md', 'UPSTREAM.md', 'provenance.json'].includes(path), `artifact contains non-distribution file: ${path}`)
-    for (const entry of Object.values(manifest.exports)) {
-      for (const path of [entry.types, entry.import]) assert.ok(paths.includes(path.slice(2)), `missing public artifact: ${path}`)
-    }
-    for (const path of ['LICENSE','README.md','UPSTREAM.md','provenance.json']) assert.ok(paths.includes(path))
-    tarballs.set(manifest.name, `file:${resolve(scratch, packed.filename)}`)
+function legacyFixturesAvailable(inventory) {
+  const required = [
+    '@omne-harness-lite/agent',
+    '@omne-harness-lite/agent-loop',
+    '@omne-harness-lite/jsonl',
+    '@omne-harness-lite/llm',
+    '@omne-harness-lite/scope',
+    '@omne-harness-lite/session',
+    '@omne-harness-lite/session-persistence',
+    '@omne-harness-lite/session-projection',
+    '@omne-harness-lite/system-prompt',
+    '@omne-harness-lite/timeout',
+    '@omne-harness-lite/tools',
+    '@omne-harness-lite/values',
+  ]
+  return required.every(name => inventory.some(member => member.manifest.name === name && './baseline' in member.manifest.exports))
+}
+
+export async function checkRepository(repo) {
+  const inventory = await members(repo)
+  const workspace = await readFile(join(repo, 'pnpm-workspace.yaml'), 'utf8')
+  assert.ok(workspace.includes('packages/*/*'), 'workspace must discover responsibility packages')
+  if (inventory.some(member => member.kind === 'app')) {
+    assert.ok(workspace.includes('apps/*'), 'workspace must discover applications')
   }
-  const store = dirname(run('pnpm', ['store', 'path'], repo).trim())
-  async function consume(label, roots, selected, fixture = '', extras = {}) {
-    const consumer = join(scratch, label)
-    await mkdir(consumer)
-    const dependencies = Object.fromEntries(roots.map(p => [p.manifest.name, tarballs.get(p.manifest.name)]))
-    // Only the declared transitive closure is available. Unrelated leaves and
-    // workspace source links cannot conceal a missing dependency.
-    const overrides = Object.fromEntries([...selected].map(p => [p.manifest.name, tarballs.get(p.manifest.name)]))
-    await writeFile(join(consumer, 'package.json'), JSON.stringify({
-      name: 'artifact-consumer-' + label, private: true, type: 'module',
-      dependencies: { ...dependencies, ...extras },
-      devDependencies: { typescript: '6.0.3', '@types/node': '24.13.4' },
-      pnpm: { overrides },
-    }, null, 2))
-    run('pnpm', ['install', '--offline', '--ignore-scripts', '--store-dir', store], consumer)
-    for (const member of roots) {
-      const installed = join(consumer, 'node_modules', member.manifest.name)
-      assert.equal(await readFile(join(installed, 'LICENSE'), 'utf8'), await readFile(join(member.root, 'LICENSE'), 'utf8'))
-      const manifest = await json(join(installed, 'package.json'))
-      assert.ok(!JSON.stringify(manifest.dependencies).includes('workspace:'), 'pack must rewrite workspace edges')
-      assert.ok(!(await realpath(installed)).startsWith(repo + '/'), 'consumer resolved workspace source')
-    }
-    const imports = roots.flatMap((p, n) => Object.keys(p.manifest.exports).map(key => `import * as m${n} from '${p.manifest.name}/${key.slice(2)}'; void m${n};`)).join('\n')
-    await writeFile(join(consumer, 'consumer.ts'), imports + '\n' + fixture)
-    await writeFile(join(consumer, 'tsconfig.json'), JSON.stringify({ compilerOptions: {
-      target: 'ES2024', module: 'NodeNext', strict: true, noEmitOnError: true, outDir: 'build', types: ['node'],
-    }, include: ['*.ts'] }))
-    if (label === 'composition') {
-      for (const file of ['agent.ts', 'projection.ts']) await writeFile(join(consumer, file), await readFile(join(tool, 'fixtures', file)))
-    }
-    run('pnpm', ['exec', 'tsc', '-p', 'tsconfig.json'], consumer)
-    process.stdout.write(run(process.execPath, ['build/consumer.js'], consumer))
-    if (label === 'composition') {
-      for (const file of ['agent', 'projection']) process.stdout.write(run(process.execPath, [`build/${file}.js`], consumer))
-    }
-    console.log(`PASS: isolated ${label}, ${selected.size} declared product artifact(s), strict declarations + runtime`)
+  const lock = await readFile(join(repo, 'pnpm-lock.yaml'), 'utf8')
+  for (const [, name] of lock.matchAll(/^  '(@deepseek-ai\/[^']+)':/gm)) {
+    assert.ok(['@deepseek-ai/cordis@4.0.2', '@deepseek-ai/cosmokit@1.8.3'].includes(name), `unexpected resolved package: ${name}`)
   }
-  for (const member of inventory) await consume(member.manifest.name.split('/')[1], [member], closure(member, inventory))
-  await consume('composition', inventory, new Set(inventory), await readFile(join(tool, 'fixtures/composition.ts'), 'utf8'), { '@deepseek-ai/cordis': '4.0.2', zod: '4.4.3' })
-  passed = true
-} catch (error) {
-  if (error.stdout) process.stderr.write(String(error.stdout))
-  if (error.stderr) process.stderr.write(String(error.stderr))
-  console.error(`Failed artifact evidence retained: ${scratch}`)
-  throw error
-} finally {
-  if (passed) await rm(scratch, { recursive: true, force: true })
+  const rootManifest = await json(join(repo, 'package.json'))
+  const nativeBuilds = nativeBuildPlan(rootManifest, lock, inventory)
+  if (nativeBuilds.length > 0) {
+    assert.ok(process.env.CC && process.env.CXX, 'native artifact checks require explicit CC and CXX')
+  }
+  const dshBaseline = await optionalJson(join(repo, 'docs/proposals/agent-runtime/source-baseline/upstream-baseline.json'))
+
+  let records = 0
+  const provenances = new Map()
+  for (const member of inventory) {
+    const { root, manifest } = member
+    const provenance = await json(join(root, 'provenance.json'))
+    provenances.set(member, provenance)
+    validateManifest(manifest, provenance)
+    await validateProvenance(member, provenance, dshBaseline)
+    if (provenance.cordis_release) {
+      assert.ok(lock.includes(provenance.cordis_release.dist.integrity), 'official Cordis integrity')
+    }
+    records += provenance.files.length
+
+    for (const directory of ['src', 'dist', 'tests']) {
+      let paths
+      try {
+        paths = await files(join(root, directory))
+      } catch (error) {
+        if (directory === 'tests' && error.code === 'ENOENT') continue
+        throw error
+      }
+      for (const file of paths.filter(path => /\.(?:ts|js|mjs|cts|mts)$/.test(path))) {
+        for (const specifier of imports(await readFile(file, 'utf8'), file)) {
+          validateImport(specifier, file, member, inventory, directory === 'tests')
+        }
+      }
+    }
+    closure(member, inventory)
+  }
+  console.log(`PASS: ${inventory.length} product members, dependency boundaries, ${records} upstream source records`)
+
+  const scratchParent = join(repo, 'tmp', 'p0-package-checks')
+  await mkdir(scratchParent, { recursive: true })
+  const scratch = await mkdtemp(join(scratchParent, 'artifacts-'))
+  const tarballs = new Map()
+  let passed = false
+  try {
+    for (const member of inventory) {
+      const raw = JSON.parse(run('pnpm', ['pack', '--json', '--pack-destination', scratch], member.root))
+      const packed = Array.isArray(raw) ? raw[0] : raw
+      const paths = packed.files.map(file => file.path)
+      validatePackedArtifact(member, provenances.get(member), paths)
+      tarballs.set(member.manifest.name, `file:${resolve(scratch, packed.filename)}`)
+    }
+
+    const store = run('pnpm', ['store', 'path'], repo).trim()
+    async function consume(label, roots, selected, fixture = '', fixtureFiles = [], extras = {}) {
+      const consumer = join(scratch, label)
+      await mkdir(consumer)
+      const dependencies = Object.fromEntries(roots.map(member => [member.manifest.name, tarballs.get(member.manifest.name)]))
+      // Only the declared transitive closure is available. Unrelated leaves and
+      // workspace source links cannot conceal a missing dependency.
+      const overrides = Object.fromEntries([...selected].map(member => [member.manifest.name, tarballs.get(member.manifest.name)]))
+      await writeFile(join(consumer, 'package.json'), JSON.stringify({
+        name: `artifact-consumer-${label}`,
+        private: true,
+        type: 'module',
+        license: 'UNLICENSED',
+        dependencies: { ...dependencies, ...extras },
+        devDependencies: { typescript: '6.0.3', '@types/node': '24.13.4' },
+        pnpm: { overrides },
+      }, null, 2))
+      run('pnpm', ['install', '--offline', '--ignore-scripts', '--ignore-workspace', '--store-dir', store], consumer)
+      const selectedNativeBuilds = nativeBuilds.filter(name => [...selected].some(member => {
+        const dependencies = { ...member.manifest.dependencies, ...member.manifest.optionalDependencies }
+        return name in dependencies
+      }))
+      for (const name of selectedNativeBuilds) {
+        run('pnpm', ['rebuild', name, '--pending', '--ignore-workspace', '--store-dir', store], consumer, true)
+        console.log(`PASS: selective native rebuild ${name}@2.1.1 with explicit CC/CXX`)
+      }
+      for (const member of roots) {
+        const installed = join(consumer, 'node_modules', member.manifest.name)
+        const installedManifest = await json(join(installed, 'package.json'))
+        assert.ok(!JSON.stringify(installedManifest.dependencies).includes('workspace:'), 'pack must rewrite workspace edges')
+        const installedRoot = await realpath(installed)
+        assert.ok(
+          inventory.every(source => installedRoot !== source.root && !installedRoot.startsWith(source.root + '/')),
+          'consumer resolved workspace source',
+        )
+        if (member.manifest.license !== 'UNLICENSED') {
+          assert.equal(await readFile(join(installed, 'LICENSE'), 'utf8'), await readFile(join(member.root, 'LICENSE'), 'utf8'))
+        }
+      }
+      const importSource = roots.flatMap((member, index) => Object.keys(member.manifest.exports).map(key =>
+        `import * as m${index} from '${exportSpecifier(member.manifest.name, key)}'; void m${index};`,
+      )).join('\n')
+      await writeFile(join(consumer, 'consumer.ts'), `${importSource}\n${fixture}`)
+      await writeFile(join(consumer, 'tsconfig.json'), JSON.stringify({ compilerOptions: {
+        target: 'ES2024',
+        module: 'NodeNext',
+        strict: true,
+        noEmitOnError: true,
+        outDir: 'build',
+        types: ['node'],
+      }, include: ['*.ts'] }))
+      for (const file of fixtureFiles) {
+        await writeFile(join(consumer, file), await readFile(join(tool, 'fixtures', file)))
+      }
+      run('pnpm', ['exec', 'tsc', '-p', 'tsconfig.json'], consumer)
+      process.stdout.write(run(process.execPath, ['build/consumer.js'], consumer))
+      for (const file of fixtureFiles) {
+        process.stdout.write(run(process.execPath, [`build/${file.replace(/\.ts$/, '.js')}`], consumer))
+      }
+      console.log(`PASS: isolated ${label}, ${selected.size} declared product artifact(s), strict declarations + runtime`)
+    }
+
+    for (const member of inventory) {
+      await consume(member.manifest.name.split('/')[1], [member], closure(member, inventory))
+    }
+    if (legacyFixturesAvailable(inventory)) {
+      await consume(
+        'composition',
+        inventory,
+        new Set(inventory),
+        await readFile(join(tool, 'fixtures/composition.ts'), 'utf8'),
+        ['agent.ts', 'projection.ts'],
+        { '@deepseek-ai/cordis': '4.0.2', zod: '4.4.3' },
+      )
+    } else {
+      await consume('composition', inventory, new Set(inventory))
+    }
+    passed = true
+    return { members: inventory.length, upstreamRecords: records }
+  } catch (error) {
+    if (error.stdout) process.stderr.write(String(error.stdout))
+    if (error.stderr) process.stderr.write(String(error.stderr))
+    console.error(`Failed artifact evidence retained: ${scratch}`)
+    throw error
+  } finally {
+    if (passed) await rm(scratch, { recursive: true, force: true })
+  }
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === script) {
+  await checkRepository(parseRoot(process.argv.slice(2)))
 }
