@@ -15,6 +15,7 @@ import {
   validatePackedArtifact,
   exportSpecifier,
   nativeBuildPlan,
+  requiresArtifactChecks,
 } from './boundaries.mjs'
 
 const script = fileURLToPath(import.meta.url)
@@ -141,26 +142,31 @@ export async function checkRepository(repo) {
 
   let records = 0
   const provenances = new Map()
+  const artifactMembers = []
   for (const member of inventory) {
     const { root, manifest } = member
-    const provenance = await json(join(root, 'provenance.json'))
-    provenances.set(member, provenance)
-    validateManifest(manifest, provenance)
-    await validateProvenance(member, provenance, dshBaseline)
-    if (provenance.cordis_release) {
-      assert.ok(
-        lock.includes(provenance.cordis_release.dist.integrity),
-        'official Cordis integrity',
-      )
+    const artifactMember = requiresArtifactChecks(member)
+    if (artifactMember) {
+      artifactMembers.push(member)
+      const provenance = await json(join(root, 'provenance.json'))
+      provenances.set(member, provenance)
+      validateManifest(manifest, provenance)
+      await validateProvenance(member, provenance, dshBaseline)
+      if (provenance.cordis_release) {
+        assert.ok(
+          lock.includes(provenance.cordis_release.dist.integrity),
+          'official Cordis integrity',
+        )
+      }
+      records += provenance.files.length
     }
-    records += provenance.files.length
 
     for (const directory of ['src', 'dist', 'tests']) {
       let paths
       try {
         paths = await files(join(root, directory))
       } catch (error) {
-        if (directory === 'tests' && error.code === 'ENOENT') continue
+        if (error.code === 'ENOENT' && (directory === 'tests' || !artifactMember)) continue
         throw error
       }
       for (const file of paths.filter(path => /\.(?:ts|js|mjs|cts|mts)$/.test(path))) {
@@ -169,7 +175,12 @@ export async function checkRepository(repo) {
         }
       }
     }
-    closure(member, inventory)
+    const dependencies = closure(member, inventory)
+    if (!artifactMember) {
+      console.log(
+        `PASS: checked private application carrier ${manifest.name.split('/')[1]}, ${dependencies.size - 1} declared product dependency(s)`,
+      )
+    }
   }
   console.log(
     `PASS: ${inventory.length} product members, dependency boundaries, ${records} upstream source records`,
@@ -179,7 +190,7 @@ export async function checkRepository(repo) {
   const tarballs = new Map()
   let passed = false
   try {
-    for (const member of inventory) {
+    for (const member of artifactMembers) {
       const raw = JSON.parse(
         run('pnpm', ['pack', '--json', '--pack-destination', scratch], member.root),
       )
@@ -381,20 +392,20 @@ console.log('PASS: loaded fs-ext@2.1.1 with flock and nan@2.28.0 ' + JSON.string
       )
     }
 
-    for (const member of inventory) {
+    for (const member of artifactMembers) {
       await consume(member.manifest.name.split('/')[1], [member], closure(member, inventory))
     }
     if (legacyFixturesAvailable(inventory)) {
       await consume(
         'composition',
-        inventory,
-        new Set(inventory),
+        artifactMembers,
+        new Set(artifactMembers),
         await readFile(join(tool, 'fixtures/composition.ts'), 'utf8'),
         ['agent.ts', 'projection.ts'],
         { '@deepseek-ai/cordis': '4.0.2', zod: '4.4.3' },
       )
     } else {
-      await consume('composition', inventory, new Set(inventory))
+      await consume('composition', artifactMembers, new Set(artifactMembers))
     }
     passed = true
     return { members: inventory.length, upstreamRecords: records }

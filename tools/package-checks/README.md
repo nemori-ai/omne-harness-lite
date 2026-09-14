@@ -8,11 +8,21 @@ After building, `pnpm --filter @omne-harness-lite/package-checks check` runs it 
 From another directory, invoke `node src/check.mjs --root <repository>` with this
 member's installed dependencies.
 `pnpm --filter @omne-harness-lite/package-checks test` exercises negative boundary cases.
+The [application member evidence](evidence/application-members/README.md) records the
+carrier RED/GREEN, native regression environment, and real-repository limitation.
 
 The checker discovers both `packages/<family>/<leaf>` and existing `apps/<app>`
 members by their `package.json`. Design-only package/application directories are not
 workspace members; a directory with `src`, `tests`, or `dist` but no manifest is rejected
-rather than silently skipped. A DSH-derived member keeps its upstream snapshots, original license and
+rather than silently skipped. Product packages and applications that declare public
+`exports` follow the distribution checks below. A private application with no public
+exports remains in the inventory as a build/test carrier: its existing `src`, `dist`, and
+`tests` imports, declared dependencies, and product closure are checked, but it is not
+required to invent package provenance, source, exports, or a tarball. Application `bin`
+entries are rejected as unsupported until executable artifact checks exist. A reusable
+product package cannot depend on an application.
+
+A DSH-derived member keeps its upstream snapshots, original license and
 `UPSTREAM.md`; it may expose `./baseline`, a default target entry, or both. A new
 project-owned member reuses provenance format 1 with `files: []` and `project_files`
 covering every active source, omits invented upstream identity, uses a default public
@@ -20,12 +30,12 @@ entry, and may remain `UNLICENSED` without copying a DSH license. Declaring anot
 license requires distributing its actual `LICENSE` file.
 
 The checker validates provenance and public dependency edges (including declarations
-and type imports), rejects cycles, packs every discovered member, and installs each
+and type imports), rejects cycles, packs every distributable member, and installs each
 one with only its declared transitive product artifacts in an isolated consumer.
 Every declared export must provide strict TypeScript declarations and a runnable ESM
-entry in the tarball. A final consumer imports every selected member, including new
-packages and applications; source-baseline behavior fixtures run only while all of
-their explicit `./baseline` inputs remain published. Shared fixtures additionally exercise
+entry in the tarball. A final consumer imports every selected distributable member,
+including new packages and applications with exports; source-baseline behavior fixtures
+run only while all of their explicit `./baseline` inputs remain published. Shared fixtures additionally exercise
 scope identity, ownership/disposal, Session/stream/file composition, native tools and
 public declaration merging. Failure directories are retained and printed; successful
 temporary consumers are removed. These checks do not establish target product conformance.
