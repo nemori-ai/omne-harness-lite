@@ -1,0 +1,32 @@
+{
+  "base_revision": "eb69199e1be4e61928559054852a277008af5bc6",
+  "product_revision": "76c7bdb35ad5f3aa2f8456aa680bc7c95b31f3da",
+  "commands": [
+    "pnpm --filter @omne-harness-lite/jsonl... run build",
+    "pnpm --filter @omne-harness-lite/jsonl run typecheck",
+    "pnpm --filter @omne-harness-lite/jsonl test",
+    "make docs-check"
+  ],
+  "results": {
+    "build": "pass",
+    "typecheck": "pass",
+    "test": "5 files, 31 tests passed",
+    "docs_check": "503 Markdown files passed"
+  },
+  "artifacts": {
+    "red.log": "d8cdb08ab5507fd21cfdaaafd2e9024c87ab247e6766f5b05bde77be985a65b5",
+    "focused-green.log": "51611ae0c6a1772e9b361140f99794b9c33a874e2f224299dff598056116bb0c",
+    "final-build.log": "b6e68ef1666ed4b80513371c460de916e9fd8c7c4c984943cd07ca724a910d9d",
+    "final-typecheck.log": "08aa22f917a3321c5f1af914de2ba9549f6324344d257a7ada1e1ddf88a6269e",
+    "final-test.log": "24f2498d81773965f4055069da5101c696c7f8218c05daab716a251f9fcb2f87",
+    "final-docs-check.log": "335d561bd1b4b6ce96a8416cb3f0e34003c26d6e923cf1d15bf350834ceb5b69"
+  },
+  "environment": {
+    "node": "24.18.0",
+    "pnpm": "10.28.1",
+    "kernel": "Linux 5.15.0-1084-aws x86_64",
+    "filesystem": "ext2/ext3",
+    "native_dependency": "fs-ext 2.1.1",
+    "compiler": "gcc-10 10.5.0"
+  }
+}
