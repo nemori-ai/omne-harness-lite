@@ -467,6 +467,63 @@ describe('D1-R6 persisted gap summaries', () => {
       await subject.close({ deadlineMs: 1_000 })
     }
   })
+
+  it('writes the gap summary before clean end when close starts before write recovery', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'r6-close-recovery-'))
+    const creation = await createLocalDiagnostics(
+      options(directory, 'source-r6-close-recovery', {
+        maxRecordBytes: 1_024,
+        maxBufferBytes: 1_024,
+      }),
+    )
+    expect(creation.status).toBe('created')
+    if (creation.status !== 'created') return
+    const subject = creation.runtime
+    await waitForCode(directory, 'diagnostic.source_started')
+
+    const originalWrite = nodeFs.write as unknown as FlexibleCall
+    let delayed: unknown[] | undefined
+    const writeSpy = vi.spyOn(nodeFs, 'write').mockImplementation(((...args: unknown[]) => {
+      if (delayed === undefined) {
+        delayed = args
+        return undefined
+      }
+      return originalWrite(...args)
+    }) as typeof nodeFs.write)
+    let closed: Awaited<ReturnType<DiagnosticsRuntime['close']>> | undefined
+    try {
+      const context = subject.diagnostics.scope(identity())
+      for (let index = 0; index < 20; index += 1) {
+        subject.diagnostics.log(context, point(`r6.close_buffer.${index}`))
+      }
+      expect(
+        BigInt(subject.inspect().gaps.find(gap => gap.reason === 'buffer_capacity')?.count ?? '0'),
+      ).toBeGreaterThan(1n)
+      expect(delayed).toBeDefined()
+
+      const closing = subject.close({ deadlineMs: 1_000 })
+      await new Promise(resolve => setImmediate(resolve))
+      if (delayed !== undefined) originalWrite(...delayed)
+      writeSpy.mockRestore()
+      syncBuiltinESMExports()
+      closed = await closing
+      expect(closed).toMatchObject({
+        status: 'closed',
+        state: { phase: 'closed', resource: 'released' },
+      })
+
+      const lines = await records(directory)
+      const summaryIndex = lines.findIndex(line => line.code === 'diagnostic.gap')
+      const endIndex = lines.findIndex(line => line.code === 'diagnostic.source_closed')
+      expect(summaryIndex).toBeGreaterThanOrEqual(0)
+      expect(endIndex).toBeGreaterThan(summaryIndex)
+    } finally {
+      writeSpy.mockRestore()
+      syncBuiltinESMExports()
+      if (delayed !== undefined && closed?.state.resource !== 'released') originalWrite(...delayed)
+      await subject.close({ deadlineMs: 1_000 })
+    }
+  })
 })
 
 describe('D1-R1 shared directory budgets', () => {
