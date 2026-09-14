@@ -1,0 +1,19 @@
+$ pnpm --filter @omne-harness-lite/diagnostics run build
+exit 0
+
+$ pnpm --filter @omne-harness-lite/diagnostics run typecheck
+exit 0
+
+$ pnpm --filter @omne-harness-lite/diagnostics test -- --reporter=verbose
+
+RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics
+
+Test Files  1 passed (1)
+Tests       16 passed (16)
+Duration    537ms
+Exit status 0
+
+The write tests use SonicBoom 4.2.1 against real local files. They intercept only the Node
+fs.write callback to reproduce a delayed write, a partial write, and EIO. The partial case then
+uses the original fs.write for both the first fragment and remainder and checks writtenBytes
+against the real file size. The EIO case checks safe-code-only failure state and actual fd release.

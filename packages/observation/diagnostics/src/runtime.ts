@@ -153,6 +153,7 @@ class LocalRuntime implements DiagnosticsRuntime {
   private readonly configuredLevel: LocalDiagnosticsOptions['level']
   private readonly maxRecordBytes: number
   private readonly maxActiveSpans: number
+  private readonly maxSourceBytes: number
   private readonly stream: SonicBoom | null
   private readonly logger: pino.Logger | null
   private readonly manager = new AsyncLocalStorageContextManager().enable()
@@ -166,18 +167,30 @@ class LocalRuntime implements DiagnosticsRuntime {
   private idCounter = 0n
   private emissionSeq: bigint | null = null
   private closeTask: Promise<boolean> | undefined
+  private acceptedSourceBytes = 0
+  private outputAvailable = true
+  private retentionReached = false
+  private streamClosed = false
+  private streamCloseStarted = false
 
-  constructor(options: LocalDiagnosticsOptions, stream: SonicBoom | null, failure?: StartupFailure) {
+  constructor(
+    options: LocalDiagnosticsOptions,
+    stream: SonicBoom | null,
+    maxSourceBytes: number,
+    failure?: StartupFailure,
+  ) {
     this.sourceId = options.sourceId
     this.configuredLevel = options.level
     this.maxRecordBytes = options.maxRecordBytes
     this.maxActiveSpans = options.maxActiveSpans
+    this.maxSourceBytes = maxSourceBytes
     this.stream = stream
     if (stream === null) {
       this.logger = null
       this.phase = 'degraded'
       this.resource = 'released'
       this.writeFailed = true
+      this.outputAvailable = false
       this.lastErrorCode = failure?.code ?? 'SOURCE_OPEN_FAILED'
       this.addGap(failure?.reason ?? 'write_unavailable', this.nextSeq())
     } else {
@@ -187,6 +200,17 @@ class LocalRuntime implements DiagnosticsRuntime {
           const seq = this.emissionSeq
           if (bytes > this.maxRecordBytes) {
             this.addGap('buffer_capacity', seq)
+            return true
+          }
+          if (!this.outputAvailable) {
+            this.addGap('write_unavailable', seq)
+            return true
+          }
+          if (this.retentionReached || this.acceptedSourceBytes + bytes > this.maxSourceBytes) {
+            this.retentionReached = true
+            this.phase = this.phase === 'closing' ? 'closing' : 'degraded'
+            this.lastErrorCode = 'RETENTION_CAPACITY'
+            this.addGap('retention_capacity', seq)
             return true
           }
           this.pendingBytes += bytes
@@ -204,6 +228,7 @@ class LocalRuntime implements DiagnosticsRuntime {
               this.addGap('buffer_capacity', seq)
             } else {
               this.accepted += 1n
+              this.acceptedSourceBytes += bytes
             }
             return writable
           } finally {
@@ -229,10 +254,21 @@ class LocalRuntime implements DiagnosticsRuntime {
       stream.on('error', (error: NodeJS.ErrnoException) => {
         this.phase = this.phase === 'closing' ? 'closing' : 'degraded'
         this.writeFailed = true
+        this.outputAvailable = false
         this.lastErrorCode = typeof error.code === 'string' ? error.code : 'SONIC_ERROR'
+        this.addGap('write_unavailable', null, 'unknown')
+        try {
+          this.streamCloseStarted = true
+          stream.destroy()
+        } catch {
+          this.resource = 'unknown'
+        }
       })
       stream.on('close', () => {
+        this.streamClosed = true
         this.resource = 'released'
+        this.pendingBytes = 0
+        this.lastWriteProgressAt = null
       })
     }
     this.provider = new TracerProvider({
@@ -652,7 +688,15 @@ class LocalRuntime implements DiagnosticsRuntime {
       this.lastErrorCode = 'OTEL_CLOSE_FAILED'
       return false
     }
-    if (this.stream === null) return true
+    if (this.stream === null || this.streamClosed || this.resource === 'released') return true
+    if (this.streamCloseStarted) {
+      try {
+        await once(this.stream, 'close')
+        return true
+      } catch {
+        return false
+      }
+    }
     this.emitMarker('diagnostic.source_closed')
     const closed = once(this.stream, 'close')
     try {
@@ -667,14 +711,14 @@ class LocalRuntime implements DiagnosticsRuntime {
   }
 }
 
-async function hasDirectoryCapacity(directory: string, options: LocalDiagnosticsOptions): Promise<boolean> {
+async function availableSourceBytes(directory: string, options: LocalDiagnosticsOptions): Promise<number | null> {
   let entries = 0
   let bytes = 0
   const handle = await opendir(directory)
   try {
     for await (const entry of handle) {
       entries += 1
-      if (entries >= options.maxFiles) return false
+      if (entries >= options.maxFiles) return null
       try {
         const metadata = await lstat(join(directory, entry.name))
         bytes += metadata.size
@@ -682,12 +726,13 @@ async function hasDirectoryCapacity(directory: string, options: LocalDiagnostics
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue
         throw error
       }
-      if (bytes + options.maxFileBytes > options.maxDirectoryBytes) return false
+      if (bytes >= options.maxDirectoryBytes) return null
     }
   } finally {
     await handle.close().catch(() => {})
   }
-  return bytes + options.maxFileBytes <= options.maxDirectoryBytes
+  const remaining = options.maxDirectoryBytes - bytes
+  return remaining >= options.maxRecordBytes ? Math.min(options.maxFileBytes, remaining) : null
 }
 
 function startupFailure(error: unknown): StartupFailure {
@@ -732,21 +777,22 @@ export async function createLocalDiagnostics(
   try {
     await mkdir(options.directory, { recursive: true, mode: 0o700 })
     await chmod(options.directory, 0o700)
-    if (!await hasDirectoryCapacity(options.directory, options)) {
+    const maxSourceBytes = await availableSourceBytes(options.directory, options)
+    if (maxSourceBytes === null) {
       return Object.freeze({
         status: 'created',
-        runtime: new LocalRuntime(options, null, {
+        runtime: new LocalRuntime(options, null, 0, {
           code: 'RETENTION_CAPACITY',
           reason: 'retention_capacity',
         }),
       })
     }
     const stream = await createStream(join(options.directory, fileName(options)), options)
-    return Object.freeze({ status: 'created', runtime: new LocalRuntime(options, stream) })
+    return Object.freeze({ status: 'created', runtime: new LocalRuntime(options, stream, maxSourceBytes) })
   } catch (error) {
     return Object.freeze({
       status: 'created',
-      runtime: new LocalRuntime(options, null, startupFailure(error)),
+      runtime: new LocalRuntime(options, null, 0, startupFailure(error)),
     })
   }
 }
