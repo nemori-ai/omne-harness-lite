@@ -671,7 +671,7 @@ test(
         name: 'fixture-root',
         private: true,
         packageManager: 'pnpm@10.28.1',
-        pnpm: { onlyBuiltDependencies: ['fs-ext'] },
+        pnpm: { onlyBuiltDependencies: ['fs-ext'], overrides: { nan: '2.28.0' } },
       }),
     )
     await writeFile(join(repo, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*/*\n')
@@ -761,7 +761,7 @@ test(
         name: 'fixture-root',
         private: true,
         packageManager: 'pnpm@10.28.1',
-        pnpm: { onlyBuiltDependencies: ['fs-ext'] },
+        pnpm: { onlyBuiltDependencies: ['fs-ext'], overrides: { nan: '2.28.0' } },
       }),
     )
     await writeFile(join(repo, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*/*\n  - apps/*\n')
