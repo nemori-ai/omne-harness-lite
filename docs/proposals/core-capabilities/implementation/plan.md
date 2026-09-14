@@ -55,6 +55,33 @@ D1-R1 实施反例要求先闭合目录级资源责任：现有每来源 factory
 新的实现选择不能原地改变正式 OB 语义。任务只写上述候选、专属证据和 tmp，
 主调度负责接受依据、公共输入及消费者的对账。
 
+## 当前最小闭环实施 wave
+
+本节是当前执行安排，后面的 P0–P5 表只保留原完整批次分工。所列“待交付”是
+未满足的具体输入，不是允许先用替身开工；实际派发同时固定本计划提交、所属
+设计提交和每个已通过验收的前置产物提交。下一层仅在这些版本真实存在并完成
+相应验收后开放，不用未来分支名或作者预计替代产物。
+
+| 交付任务与前置版本 | 唯一实现及写入归属 | 本次退出依据与下一消费者 |
+|---|---|---|
+| D1 目录修复与整合 | 原 infrastructure-developer `/root/diagnostics`：`packages/observation/diagnostics/`；产品起点 `a1be742`，设计 `327735f` 加本计划提交中的 D-011 采用；整合者独占根锁/native 安装及对账 | R1 两条真实 RED 和关闭未知资源身份修复；R2–R6 在同一产品提交回归，O01–O08、真实 flock 与 tarball 消费通过；形成唯一 D1 产物后供下行使用 |
+| P1 JSONL 与共同准入 | D1 产物待上行交付；已接受 records `c1783fd`、共享设计 `8f4cfa9`。infrastructure-developer 独占 `packages/storage/jsonl/`，kernel-developer 独占 `packages/coordination/admission/`；不共同写公共入口 | 各自 TDD 及公开包产物，再由明确指定的 verification-developer 在 `apps/local-harness/tests/storage-admission/` 验证真实磁盘/两进程/提交故障/尾部恢复与 O09/O10；整合者接受同一组合提交，不能用两个单包 GREEN 开放业务 |
+| P2 治理、本地费用和运行状态 | P1 组合产物待交付；逻辑稿 `058c77c`、`cd16f1` 已接受，P2 当前提供者正文待本轮原作者固定并受审。capability-developer 分别独占 `packages/governance/{tenant,authorization,budget}/`、`packages/session/{session,projection}/`；kernel-developer 独占 `packages/core/agent/`；infrastructure-developer 独占 `packages/session/persistence/` | 仅实现基线需要的真实身份/对象访问、grant、当前配置、本地预算预留/结算/unknown、唯一活体/Run、文本/结果及恢复；沿 AR/SR 原 R0–R5 切片。公共类型/注册面先由所属 owner 固定并实际可消费，再展开依赖者 |
+| P3 工具与本地执行 | P1 产物及相邻治理/Session 端口待交付；三包设计 `0a6e91e` 已定点复核，最终共同面接受待 P2 对齐。capability-developer 独占 `packages/tools/tools/`，infrastructure-developer 独占 `packages/tools/local-execution/` | 工具稿 T0–T2 的定义自声明、原 Action/attempt、真实 allow 文件效果与原结果/unknown；消费 P2 实际预算/授权。无权限、跨租户、参数/声明不符均不可执行；完整 `human-decisions` 实现及 ask 接续不成为本节点前置 |
+| 最小应用与独立验收 | 上述 P2/P3 可消费产物待交付；application-developer 独占 `apps/local-harness/src/` 和应用配置，verification-developer 独占 `apps/local-harness/tests/runtime-baseline/` 及本次独立消费者；其它写路径只在具体派发时另行限定 | 按 runtime-baseline 五门，从真实入口走文本→唯一 Run→grant 下的文件调用→原结果；实际重启认回 Session/Run/call，已完成效果不重复、未知不盲重发；公开包独立安装/定义工具/提交/查询，整合者固定提交与运行命令并停止 |
+
+P2/P3 各 owner 同时负责本包真实入口、准入/拒绝、结果、失败和退出边界的
+diagnostics 接入，使用同一受限记录面，不另造日志或费用权威。应用提供关联
+上下文并持有目录管理面；最终验证 owner 读取真实输出，核对跨 Agent/Session/
+工具链关联、内容裁剪、失败可见和资源关闭。完整 query/export 或 Cordis logger
+桥不代替这些测量，也不是本次全量前置。费用结算由预算 owner 验证，日志不充当
+金额或耐久结算依据。
+
+整合者负责各共享边界版本冻结、消费者更新、HUB 组合验证和文档对账。P1 前置
+不齐只阻止依赖它的产品实施，当前映射修订可以完成；后续成员的细分派发须沿
+已固定正文，不在本表预造尚不存在的 TS API。基线所需故障/恢复验收由最后一行
+承担，不能因完整 P5 后置而漏掉；完整 HD、P4、M2 与完整 P5 不再自动派发。
+
 ## 任务输入与写入归属
 
 以下路径相对工作树根。每份实际派发固定本包 commit、所消费规格版本、验收 ID、

@@ -1,8 +1,8 @@
 # D1 目录修订的来源与采用交接
 
 当前提供者设计归 [diagnostics/design.md](../../../../packages/observation/diagnostics/design.md)。
-本页保留 R1 反例、选型比较、受审来源和待接受差异，不再拥有第二套当前接口、
-账本或关闭规则。已实现签名由包公开源码维护，尚未实现的目录候选签名只在包
+本页保留 R1 反例、选型比较、受审来源和采用差异，不再拥有第二套当前接口、
+账本或关闭规则。已实现签名由包公开源码维护，尚未实现的目录目标签名只在包
 design 中维护；消费者采用必须固定该正文的 Git 修订。
 
 ## 来源、审阅与状态
@@ -16,7 +16,7 @@ design 中维护；消费者采用必须固定该正文的 Git 修订。
   [CC](../../../../spec/compositions/core-work-coordination/v1/contract.md) v1。
 - R1 完整受审稿：`d4cd27ed33df815179f57af398c8cb6b5444302a`，原四输入为
   `82b2baf7f88bcbe8b089b9c53278135a545169b7`；Git 保留迁移前全文。
-  主调度已确认独立评审无阻断，尚待主调度接受，作者不自授采用。
+  独立评审无阻断，主调度已按下文证据通过 D-011 接受提供者修订；产品仍未通过。
 - 本次归属迁移起点 `1ab8635d57829bb8aed7b32506289285ddd5209a`，包含
   `1368c52` 的[计划归属](plan.md#任务输入与写入归属)与
   [最小运行基线](runtime-baseline.md)。本会话完成真实基线交接后停止；
@@ -50,9 +50,9 @@ fs-ext@2.1.1 的同进程/跨进程排他、SIGSTOP/SIGKILL及稳定 inode，本
 逐条动态额度可让新旧来源共享余额；均分、每次开后复扫、隐式全局表和禁止
 新旧来源并存都不能替代所需保证。具体算法、公共面和生命周期只归包 design。
 
-## 待接受差异及整合义务
+## 采用差异及整合义务
 
-相对 D-010 原采用，本次仍须明确接受的差异为：
+相对 D-010 原采用，D-011 接受的差异为：
 
 1. 统一目录 owner 创建多个来源、同步预留 slot/编码字节，以唯一
    createLocalDiagnosticsDirectory → owner.create 取代独立来源 factory；
@@ -69,12 +69,24 @@ fs-ext@2.1.1 的同进程/跨进程排他、SIGSTOP/SIGKILL及稳定 inode，本
 撤除与原件保留责任已一并迁入包设计；实际产品 RED/GREEN、O01–O08/R1 和
 公开产物/消费者验证仍由原 D1 实施者及主调度完成。
 
-主调度后续对账 D-010 的限定采用、observability.md 的提供者映射/旧 factory
-导航、implementation-spec/runtime-baseline/plan/delivery、包 README/契约可变
-入口、根依赖及 native构建 allowlist；应用设计引用包正文并承担挂载/退出。
+主调度已通过 D-011 对账限定采用、observability.md 的提供者映射/旧 factory
+导航、implementation-spec/plan/delivery、包 README/契约可变入口。根依赖及
+native构建 allowlist 随产品整合交付；应用设计引用包正文并承担挂载/退出。
 jsonl/admission 的记录面注入类型保持原义，创建者和独立消费者迁移目录管理面。
 P3工程查询和保留仍属原 owner，不因本次目录修订增成本会话硬门。
 
 [本次迁移检查](evidence/observability-directory/migration.md)记录具体移动范围、
 未改的历史资产、真实 docs/diff/scope 结果与未测量范围。它不替代主调度采用、
 产品测试或正式规格发布。
+
+## 采用与验证
+
+主调度通过 [D-011](../../../decisions/D-011-diagnostics-directory-ownership.md)
+接受上述三项提供者修订。固定技术稿 `d4cd27e` 已独立审阅；HUB `1368c52`
+核对原 manifest 并重跑四个机制案例通过，见
+[HUB 证据](evidence/provider-design-hub/README.md)。`327735f` 归属迁移经实际
+核对，唯一目录接口块及九份原证据逐字不变，已通过 `01998d3` 整合。
+
+这个接受只固定 R1 施工输入。R1 真实 RED、raw fd 未知后的资源身份、真实
+flock/owner 关闭、O01–O08 及独立消费者仍由原实施者交付后在 HUB 验证；
+下游不能因为本设计已接受就使用尚未实现的目录 owner。

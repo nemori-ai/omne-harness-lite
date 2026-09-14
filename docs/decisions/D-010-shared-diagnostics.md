@@ -13,6 +13,11 @@ supersedes: []
 
 # D-010：共享诊断设施与真实边界的观测责任
 
+目录创建、八文件额度解释和关闭失败重试的实现前提，已由
+[D-011](D-011-diagnostics-directory-ownership.md)限定取代；本决定其余选择继续有效。
+当前提供者正文归 [diagnostics/design.md](../../packages/observation/diagnostics/design.md)，
+原施工稿保留消费者交接、验收与历史来源。
+
 采用一个自有 `packages/observation/diagnostics` 包，统一结构化日志、标准 trace
 上下文、内容裁剪、有界本地输出及其生命周期。它承载实际保护责任，records 和
 work-data 不反向依赖它；jsonl、admission 及后续业务 owner 消费受限记录面，

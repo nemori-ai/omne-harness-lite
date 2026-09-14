@@ -7,7 +7,7 @@
 | 范围 | 采用依据及当前状态 |
 |---|---|
 | 被动记录面、身份/内容裁剪、Pino/Sonic/OTel、本地来源及生命周期 | [D-010](../../../docs/decisions/D-010-shared-diagnostics.md) 已接受，原设计修订 `99fc7a3`、接受点 `5e81ee8`；本页汇入其提供者映射，接受不等于完整产品验证通过 |
-| R1 目录 owner、共同字节/slot 预留、稳定 flock 和创建入口迁移 | 受审 `d4cd27ed33df815179f57af398c8cb6b5444302a`，主调度交接确认独立评审无阻断；仍待主调度接受，本页“R1 候选”各节不是已发布 API |
+| R1 目录 owner、共同字节/slot 预留、稳定 flock 和创建入口迁移 | [D-011](../../../docs/decisions/D-011-diagnostics-directory-ownership.md) 接受受审 `d4cd27e` 及保留同一接口的迁移 `327735f`；这是施工输入，产品和已发布 API 尚未交付 |
 | 实际实现与证据 | 迁移起点 `1ab8635d57829bb8aed7b32506289285ddd5209a` 仍导出旧 factory，R1 真实 RED 未转 GREEN；本次不改产品代码。主调度已确认 R6 `4fa2c74f4816fe37850a812ca59032cb889d75fd` 窄缺口闭合，不据此声称 R1 或整包交付 |
 
 消费精确正式 [OB v1](../../../spec/capabilities/engineering-observation/v1/contract.md)、
@@ -91,7 +91,7 @@ OTel、缓存前裁剪，Pino 固定 redaction 仅作第二道保护。身份超
 | 记录与 span | 最终 UTF-8 行 ≤8 KiB；活动 span ≤256；每 span ≤32 属性、字符串≤256 字符、8 事件、4 links；记录面不开放任意 OTel 字段 |
 | Sonic | `sync:false,minLength:0,maxLength:1048576,maxWrite:16384,fsync:false,retryEAGAIN:()=>false` |
 | 来源文件 | 目录0700/文件0600；部署生成 source generation，路径不取 tenant 或调用者输入；每来源≤8 MiB |
-| 目录总量 | 64 MiB，含旧代和未确认写入；R1 候选明确为8个来源文件加1个零字节稳定锁文件，见下文，尚待采用 |
+| 目录总量 | 64 MiB，含旧代和未确认写入；D-011 明确为8个来源文件加1个零字节稳定锁文件，产品仍须验证 |
 
 这些是有界资源配置，不是性能测量结论。内部行格式 `omne-diagnostic/1`
 不另登记业务 Schema；log 与 span 结束经同一 Pino/Sonic 流，不缓存已结束 span。
@@ -143,9 +143,9 @@ point加省略计数；JSONL至多一个门外回调，省略以安全 diagnosti
 Position/水位及旧代归因复用原公开数据。普通诊断故障不自动调用 writer.quarantine，
 业务结果与诊断关闭结果由应用分别报告。
 
-## R1 候选：唯一目录 owner
+## R1 设计：唯一目录 owner
 
-本节为受审但待接受的 R1 选择。`diagnostics` 候选直接增加精确依赖 `fs-ext@2.1.1`；依赖方向仍为 diagnostics →
+本节为 D-011 接受的 R1 选择。`diagnostics` 目标增加精确依赖 `fs-ext@2.1.1`；依赖方向仍为 diagnostics →
 work-data/records 的公开类型及日志/trace 库，不取得 writer 服务。D1 装配顺序为：
 取得目录 owner → 创建来源 runtime → 把记录面注入 JSONL/admission。关闭顺序为
 业务消费者停止产生诊断 → 子 runtime 收口 → 目录 owner 释放锁。目录初始化
@@ -172,16 +172,16 @@ lock 不防护绕过库直接写目录的外部程序、敌对文件替换或 NF
 删除来源文件。P3 保留策略仍由 engineering 拥有，未来必须与这个 owner 协调
 或在其释放后取得同一锁；D1 不预增删除接口。
 
-候选把 `maxFiles` 精确定义为**来源文件数**，固定零字节控制锁文件另占一个
+D-011 把 `maxFiles` 精确定义为**来源文件数**，固定零字节控制锁文件另占一个
 目录项；因此默认是 8 个来源文件加 1 个锁文件，目录总字节仍最多 64 MiB。
 锁文件必须长度 0，非零时拒绝开放且保留原件，不截断。其字节实际为 0，不另
 借隐藏空间。未知文件、子目录、符号链接或不能辨认的来源文件导致扫描失败并
 保留原件，不把它们忽略为可用余额。这一固定元数据项是原稿额度措辞需要明确
-接受的实现修订，不能把既有“8 文件”悄悄当作任意额外文件许可。
+接受的实现修订；接受依据为 D-011，不能把既有“8 文件”当作任意额外文件许可。
 
-## R1 候选：单一公共创建与管理面
+## R1 设计：单一公共创建与管理面
 
-以下为待接受的 TypeScript 实施面，复用当前公开 `OpaqueId`、`Counter`、
+以下为已接受但尚未实现的 TypeScript 实施面，复用当前公开 `OpaqueId`、`Counter`、
 `DiagnosticsRuntime`、`DiagnosticStatus`；不是新的持久 DTO/Schema。原记录面
 `Diagnostics`、span/context/identity 和裁剪规则不变。
 
@@ -248,7 +248,7 @@ declare function createLocalDiagnosticsDirectory(
 上限约束，不为重复调用保存调用者任务。失败准备若已有文件或未释放 fd，返回
 created 的 degraded runtime 供 inspect/close，且由目录 owner 持有同一责任。
 
-## R1 候选：字节、slot 与失败记账
+## R1 设计：字节、slot 与失败记账
 
 私有目录账本不进持久数据，不向消费者暴露 reserve/commit 操作。对完成扫描的
 owner 始终保持：`chargedBytes = 已确认物理字节 + 尚不能排除的预留字节`，
@@ -278,7 +278,7 @@ drop 与关闭边界，避免重计、过早释放及 `stream.write` 已同步�
 `retention_capacity` 缺口，不覆盖业务结果。单来源 runtime.close 只关闭本来源，
 不释放目录锁，也不把该文件的物理容量还给其他来源。
 
-## R1 候选：初始化、关闭与责任保留
+## R1 设计：初始化、关闭与责任保留
 
 扫描顺序执行，最多同时拥有锁 fd、一个目录扫描 handle 和一个旧文件检查 fd；
 扫描关闭失败即停止展开，保留准确 handle/阶段。创建 slot 限制并发 source
@@ -310,7 +310,7 @@ owner.close 同步关 create 入口，加入正在准备的来源并调用所有
 判断排他：若旧 fd 真未释放则拒绝，若已释放则可取得。仅 flock 无法让一个
 **已经静止但锁释放结果未知**的旧报告同时强制阻止新 owner；本稿显式区分这个
 报告未知与仍有写入责任的 blocked，不引入额外持久协调协议伪造保证。此边界
-及零字节锁目录项已随 d4cd27e 受审，仍待主调度明确接受。
+及零字节锁目录项已随 d4cd27e 受审，并由 D-011 明确接受。
 
 与 D1-R2 的区别有可核对来源：`fefb6c5` 的 R2 注入在调用 originalClose **前**
 直接回调 EIO，测试中的原 fd 因而确定仍保有。它支持该已知前置失败的 close
@@ -354,13 +354,13 @@ owner.close 同步关 create 入口，加入正在准备的来源并调用所有
 | O08 精确公开消费 | 独立 tarball 安装并显式构建 fs-ext，实际加载/两个 factory 排他；无旧独立创建入口、无 records/work-data 反向依赖 |
 
 
-当前创建入口仍是源码中的旧 factory；R1 接受并实现后只开放
+当前创建入口仍是源码中的旧 factory；按 R1 已接受设计实现后只开放
 `createLocalDiagnosticsDirectory → owner.create`，删除旧入口及重复目录预算参数，
 不保留未上线兼容层。JSONL/admission记录面类型不变；应用和独立消费者必须
 迁移目录 owner 的创建、inspect/close 和退出顺序，不能从私有 sink 绕过它。
 
 [目录修订来源](../../../docs/proposals/core-capabilities/implementation/observability-directory.md)
-记录固定 RED、选型比较及待接受差异；
+记录固定 RED、选型比较及已接受差异；
 [证据目录](../../../docs/proposals/core-capabilities/implementation/evidence/observability-directory/README.md)
 保留 d4 的4个机制 case及原始产品 RED，后者仍需真实包 GREEN。O01–O08及
 R1新增场景按[验收来源](../../../docs/proposals/core-capabilities/implementation/observability.md#四输入细化tdd-与交接顺序)

@@ -4,7 +4,8 @@
 [implementation-spec](implementation-spec.md)、[plan](plan.md) 的 `d95052c`，以及
 [共享实施接口](shared-interfaces.md) 的已接受 `8f4cfa9` 子集。P1 施工选择已由
 [D-010](../../../decisions/D-010-shared-diagnostics.md)接受，依据见[接受与验证](#接受与验证)。
-本页固定实施输入，不宣称产品实现或 A28 完成；P2 桥和 P3 查询仍沿各自验证门推进。
+本页保留消费者实施输入、验收与历史依据；提供者当前正文归包设计，D-011
+限定修订目录创建/额度/关闭前提。P2 桥和 P3 查询不作为本次基线的全量前置。
 2026-09-14 的新增输入要求生产、研发、debug 共享 log/trace 基础，并优先交出
 其它设计会话所需的最小 Agent/Session/工具运行闭环。
 
@@ -12,7 +13,8 @@
 [CD v1](../../../../spec/data/core-work/v1/contract.md)、
 [CC v1](../../../../spec/compositions/core-work-coordination/v1/contract.md) 及
 [SYS-OBSERVABILITY.C1–C7](../../../requirements/system/observability-and-logging.md)。
-本次不改变冻结规格、业务授权/状态/审计语义或 M1/M2 的 A01–A32 范围。
+本次不改变冻结规格及业务授权/状态/审计语义；本会话范围按最小运行基线收口，
+完整 M1/M2 的 A01–A32 保留原含义并后置。
 选型事实和实际探针归[研究记录](../../../research/harness-observability.md)。
 
 ## 目标、范围与沿用边界
@@ -36,213 +38,23 @@ P1 的消费者能用同一注入接口留下 writer/准入的阶段、关联和
 
 ## 依赖、复用与配置
 
-采用一个自有包 `@omne-harness-lite/diagnostics`，不再拆 logger/tracer/
-context/exporter 包。它隔离真实的敏感信息、被动调用、有限资源与生命周期责任，
-不是只为重命名第三方方法。箭头含类型依赖，表示消费公开入口：
-
-```mermaid
-flowchart BT
-  records["storage/records：纯接口与codec"] --> data["core/work-data：纯数据"]
-  diagnostics["observation/diagnostics"] --> records
-  diagnostics --> data
-  diagnostics --> libs["Pino / SonicBoom / OTel API、Trace SDK、ALS"]
-  jsonl["storage/jsonl"] --> records
-  jsonl --> diagnostics
-  admission["coordination/admission"] --> records
-  admission --> diagnostics
-  owners["P2/P3/P4 业务与运行owner"] --> admission
-  owners --> diagnostics
-  engineering["observation/engineering"] --> records
-  engineering --> diagnostics
-  app["应用装配"] --> diagnostics
-  app --> engineering
-  app --> owners
-  app --> jsonl
-```
-
-records 不 import diagnostics，纯 work-data 不 import Cordis、logger、ALS 或
-业务服务。diagnostics 的 records 类型依赖只复用 Principal/Causality/Position/
-Watermark；不取得 writer/admission 服务，不调用 records 提交，不产生循环。
-未来从 records 抽离这些投影需要独立真实需求，本次不迁移已接受共享数据。
-
-| 已选精确依赖 | 使用范围及选择理由 |
-|---|---|
-| `pino@10.3.1` | 结构化 JSON、等级、固定 redaction 配置；不用 worker transport、pretty 输出或自动错误全文 serializer |
-| `sonic-boom@4.2.1` | 显式直接依赖，复用异步文件流的 maxLength/drop/write/error/end/close；不自行再写缓冲队列 |
-| `@opentelemetry/api@1.9.1` | 标准 span/context 类型与关联；不自造 span ID、span 树或传播协议 |
-| `@opentelemetry/sdk-trace@2.11.0` | `TracerProvider` 创建 span、时间/状态/限制；本地 `SpanProcessor` 只将已结束 span 投影为安全日志 |
-| `@opentelemetry/context-async-hooks@2.11.0` | 每个诊断运行实例显式拥有 ALS manager；不用进程全局 current span |
-
-实际安装/入口/异步探针已通过；SDK `sdk-trace-base@2.11.0` 是包装该 Trace SDK
-并读取环境默认值的兼容入口，本候选直接使用 `sdk-trace`。这不是引入全部 DSH、
-Effect 或 pi telemetry。OTel Logs API/SDK 仍为 Development，本批已有具体本地
-日志需要，不再叠加第二个 logs SDK。以后接外部 OTLP 可用官方 exporter/Batch
-processor，但必须另验交付、权限及缺口，不能在 P1 预造 exporter 插件框架。
-
-应用装配显式创建 diagnostics runtime，再注入实际消费者。创建者独占配置、
-close 和状态查询；业务只拿记录面。没有隐藏单例、从环境自动发现 endpoint、
-为缺失依赖自动装一个静默 no-op，或把每条日志交给任意 listener。测试的可控
-提供者必须明确标识，实际装配必须使用真实本地提供者。
-
-生产/研发/debug 使用同一记录结构和裁剪：默认等级 info，debug 只增加具名
-阶段细节；console pretty 只允许离线展示已裁剪记录，不产生第二份全文。配置
-由受信装配解析为冻结值，非法配置在发布前具名失败，不部分生效。P1 固定初始
-值：单条编码上限 8 KiB；最多 256 个活动 span；span 最多 32 属性、每字符串
-256 字符、8 事件、4 links；SonicBoom `sync:false,minLength:0,maxLength:1048576,
-maxWrite:16384,fsync:false,retryEAGAIN:()=>false`。这些是保守容量预算，不是性能
-测量结论；测试使用更小值触发边界。公共记录面不开放任意 OTel 属性/事件写入，
-最后 UTF-8 字节检查仍有效，不能只依赖 SDK 的字符裁剪。
-
-本地目录由宿主管理，0700 目录/0600 文件，使用部署生成的 source generation
-命名，路径不取 tenant ID 或调用者输入。P1 每文件最多 8 MiB、诊断目录总预算
-64 MiB/8 文件；预算含旧 generation 和未确认部分写入，超限停止接收文件输出、
-报告 retention_capacity，不删除原件或继续开新文件。P1 无自动保留回收服务；
-P3 engineering 才依据保留策略回收已关闭来源并使后续 generation 可写。启动时
-预算/旧文件无法核对也显式 degraded。此有界失效模式允许 P1 开工；完整长时间
-保留和查询仍是 M1 前的 P3 义务。
+当前依赖、资源配置、来源格式与输出实现由
+[diagnostics/design.md](../../../../packages/observation/diagnostics/design.md)维护。
+原 `99fc7a3` 的完整提供者稿保留在 Git；其 D-010 选择继续有效，目录创建与共同
+容量的采用变化见 [D-011](../../../decisions/D-011-diagnostics-directory-ownership.md)。
+本页保留消费者交接、验收与历史依据，不维护另一份包接口或提供者实现规则。
 
 ## P1 公共消费面
 
-以下 TS 是运行时实施投影，**不是新的持久 DTO/Schema**。从共享包直接 import
-权威类型；DiagnosticContext/Span 不得序列化，也不授予任何身份或读取权限。
-事件 code/phase 由所在 owner 以静态常量定义；新增业务 kind 不登记到 diagnostics。
+记录面 `Diagnostics` 及不透明 context/span、受信管理面和已实现类型的精确
+签名引用 [diagnostics 公开源码](../../../../packages/observation/diagnostics/src/index.ts)。
+当前目录创建和关闭责任归包设计；目标是唯一目录 owner 创建多个来源，源码中
+尚未迁移的 `createLocalDiagnostics` 只代表当前未接受产品的旧实现，不能成为新
+消费者的施工输入。记录面不授予身份、执行权或审计披露权。
 
-```ts
-import type { OpaqueId, OperationRef } from '@omne-harness-lite/work-data';
-import type {
-  Principal, Causality, Position, Watermark,
-} from '@omne-harness-lite/records';
-
-export type DiagnosticIdentity = Readonly<{
-  tenantId: OpaqueId | null;
-  principal: Principal;
-  operation?: OperationRef;
-  causality: Causality;
-}>;
-export type DiagnosticPoint = Readonly<{
-  component: string; phase: string; code: string;
-  level: 'debug' | 'info' | 'warn' | 'error';
-  diagnosticId?: OpaqueId;
-  position?: Position;
-  logical?: Watermark; durable?: Watermark;
-  measures?: Readonly<{
-    durationMs?: number; queueDepth?: number; pendingBytes?: number; count?: number;
-  }>;
-}>;
-declare const diagnosticContextBrand: unique symbol;
-export type DiagnosticContext = Readonly<{ [diagnosticContextBrand]: true }>;
-export type DiagnosticEnd = Readonly<{
-  code: string;
-  outcome: 'ok' | 'rejected' | 'failed' | 'cancelled' | 'unknown' | 'interrupted';
-}>;
-export interface DiagnosticSpan {
-  readonly context: DiagnosticContext;
-  end(result: DiagnosticEnd): void;
-}
-export interface Diagnostics {
-  newId(): OpaqueId;
-  scope(identity: DiagnosticIdentity, parent?: DiagnosticContext): DiagnosticContext;
-  current(): DiagnosticContext | null;
-  log(context: DiagnosticContext, point: DiagnosticPoint): void;
-  startSpan(context: DiagnosticContext, point: DiagnosticPoint): DiagnosticSpan;
-  within<T>(context: DiagnosticContext, body: () => T): T;
-}
-```
-
-管理面只给受信装配，和上述消费面分开。来源 seq/counter 复用 records 的
-Counter 表达；失效快照不成为持久审计 DTO。P1 固定以下最小管理入口，P3 的
-受治理 query/export 不从这里取得权限：
-
-```ts
-import type { Counter } from '@omne-harness-lite/records';
-export type DiagnosticGapReason =
-  | 'level_excluded' | 'buffer_capacity' | 'span_capacity' | 'invalid_projection'
-  | 'write_unavailable' | 'retention_capacity' | 'closing' | 'crash_unknown';
-export type DiagnosticGap = Readonly<{
-  reason: DiagnosticGapReason;
-  firstSeq: Counter | null; lastSeq: Counter | null;
-  count: Counter | null; quality: 'counted' | 'unknown';
-}>;
-export type DiagnosticStatus = Readonly<{
-  sourceId: OpaqueId; phase: 'active' | 'degraded' | 'closing' | 'closed';
-  attemptedThrough: Counter; acceptedCount: Counter; droppedCount: Counter;
-  pendingBytes: number; writtenBytes: Counter; activeSpans: number;
-  writeProgress: 'idle' | 'pending' | 'stalled' | 'failed';
-  pendingIdleMs: number | null;
-  gaps: readonly DiagnosticGap[]; lastErrorCode: string | null;
-  resource: 'held' | 'released' | 'unknown';
-}>;
-export type DiagnosticClose = Readonly<{
-  status: 'closed' | 'blocked'; state: DiagnosticStatus;
-}>;
-export interface DiagnosticsRuntime {
-  readonly diagnostics: Diagnostics;
-  inspect(): DiagnosticStatus;
-  close(options: Readonly<{ deadlineMs: number }>): Promise<DiagnosticClose>;
-}
-export type LocalDiagnosticsOptions = Readonly<{
-  instanceId: OpaqueId; sourceId: OpaqueId; directory: string;
-  level: 'debug' | 'info' | 'warn' | 'error';
-  maxRecordBytes: number; maxActiveSpans: number; maxBufferBytes: number;
-  maxFileBytes: number; maxDirectoryBytes: number; maxFiles: number;
-}>;
-export declare function createLocalDiagnostics(options: LocalDiagnosticsOptions): Promise<
-  | Readonly<{ status: 'invalid'; code: string }>
-  | Readonly<{ status: 'created'; runtime: DiagnosticsRuntime }>
->;
-```
-
-配置校验在取得资源前完成，invalid 没有资源；打开/准备失败仍以 created 返回
-可 inspect 的 degraded runtime，保留实际取得资源的清理责任。是否允许仅普通
-诊断降级的宿主启动由装配显式展示，关键审计的准入门不因此放宽。sourceId 由
-装配分配不复用，文件采用独占创建，冲突不能追加到旧来源。inspect 返回冻结
-快照；资源 held/unknown 时即使 deadline 到期也不能返回 closed。重复 close
-就是认回原关闭并重试原责任，不另建立关闭任务。
-
-`scope` 按可信入口已经核对的 identity 建立冻结快照；parent 默认为 ROOT。
-`current` 只读取本实例的 ALS context，实例 closing/closed 时返回 null；供不能
-修改既有业务参数的内部适配边界显式 capture，再传给 scope；它不读取全局 OTel 或 DSH initiator。parent 与新
-identity 的 tenant/主体归属必须匹配；不匹配时新建根并登记关联缺口，业务因果
-继续沿权威 Causality，不能把错误 ambient context 当授权。原数据类型的租户、来源
-及完整性校验复用原权威。用户传来的 tenant/operation/parent 不能通过这个函数
-升级为可信值。认证前拒绝使用部署的 system principal 和本次入口 operation，
-标记未经认证阶段；认证后但目标无权访问时只保留已核实主体、入口/阶段和被
-裁剪的目标类别，不把未核实的目标身份伪装为可信 tenant。没有 Session 的工作
-沿现有 system/WorkOwner 表达，不制造假的 Run。
-
-每条日志包括 source generation、单调递增的来源 seq、观测时间、component/
-phase/code/level、适用的上述关联及可选 traceId/spanId。业务时间戳、来源 seq、
-commit.seq 和业务因果关系分别解释；来源 seq 不是 records 的耐久水位。
-`newId` 在来源实例内使用独立递增标识及宿主已分配的唯一实例身份，初始化失败
-在发布前报错。返回 ID 不依赖磁盘写入成功。
-
-`log/startSpan/end/scope` 都是有界、同步、被动记录操作：投影或后端错误计入
-固定容量健康状态，不抛出到业务、不调用 listener、不递归记录故障。失效的
-startSpan 返回可安全 end 的惰性句柄，仍保留原 scope 的显式传递；丢失记入 gap。
-无效 identity 则只建立带 invalid_projection 的安全 system context，不能在返回
-句柄中保留被拒绝的原对象或把它当有效业务关联。
-`within` 只在私有 ALS manager.with 内运行 body，保持 body 的原返回值、Promise、
-同步 throw 或异步 rejection；不能把 throw 改成正常返回，也不能强制异步化
-admission 的短门。上下文激活在 body 尚未被调用时失败，才可用显式参数执行
-body 一次并记诊断失效；不能捕获 body 的 throw 后再调用一次。within 不读取
-返回值的 then、不挂结算观察器、不登记 activeScopes 或保留 Promise 集合；只
-使用 ALS.with 的词法调用边界，原样返回结果。context 是调用者持有的不可变
-值/句柄，真实性校验可以使用 WeakMap，诊断器不另外用强引用表枚举所有 scope。
-因此没有需要另设配额的诊断 scope 任务；尚未完成的 body/Promise 及其异步
-资源仍归原业务 owner 的准入和清理控制，不能转移给 diagnostics。
-
-startSpan 用 `tracer.startSpan(name,options,explicitParent)`；子 context 是原
-scope 加 OTel 的 native context。调用者在真实阶段结束时 end，所有终结路径
-都要覆盖。end 重复调用不增第二个终态，结束后不再在 provider 活动表保有 SDK
-span 或导出回调；context 后续只保留不可变 span identity。已经开始的调用者
-异步资源仍可能持有原 native context，这份引用沿调用者真实生命周期释放；
-无界的人类等待、Session 存在期和整个宿主寿命不保持一个活动 span。等待事实
-由业务记录承载，诊断 span 只测一次准备/排队/写入/恢复/调用阶段。
-
-OTel span 的 error/ok 仅表达该测量阶段；业务预期 rejection/unknown 必须显式
-标记原 outcome，不能以 Promise resolve 推导业务成功。默认不调用
-`recordException(error)`；异常的原值仍由业务错误通道返回。诊断只保留所在
-owner 的安全 code/phase 和静态源码位置线索，不能隐式序列化 message/stack/cause。
+目录 owner 修订固定前后的类型与设计原件分别保留在 Git，迁移依据归
+[目录来源与采用](observability-directory.md)。具体调用签名以产品交付时的精确
+公开产物为准；没有真实共享实现时不借本页的文字开放消费者。
 
 ### 消费者签名细化及短门约束
 
@@ -306,106 +118,17 @@ seq、起止/缺口标记、文件保留预算、已关闭/未完成状态、`di
 
 ## 身份、异步 parent、恢复与内容
 
-进程内排队显式捕获 DiagnosticContext，并由实际执行 owner 在出队时
-`within(captured, work)`；调用链显式传 scope/child context，不靠“当前是谁”
-推断业务身份。不同操作并发时不共用可变 identity。只有具有同一已核实归属的
-原工作可沿同一 context；换 tenant/可信主体需在权威边界新建 scope。
-
-共享 timer、文件流、采集器和 provider 初始化在 ROOT_CONTEXT 及 DSH initiator
-为空的受信宿主启动位置创建；不能在第一位调用者的请求 ALS 内注册后永久继承
-其归因。出口采用显式 scope，不把 DSH `ctx.agent.initiator` 当持久身份或准入权。
-任意 Promise/队列桥必须核对 capture/restore；P1 不注册 OTel 全局 manager/provider，
-不自动劫持 fs/http，也不输出未经审查的 baggage。
-
-跨进程/网络仍首先传 CD-02 的显式主体/tenant/operation/因果数据并在目标重检。
-未来如需额外 trace carrier，使用标准 W3C Trace Context/官方 OTel propagator，
-不能以外来 trace parent 授权或默认接受其采样位；本次未实现该传输入口。
-恢复依据原业务事实建立**新的**运行实例和 span，继续关联原 work/attempt/
-parentOperation；不反序列化 Context、Span、ALS、AbortSignal 或执行句柄。若旧
-trace 可合法读取，可在提供者映射为 link；没有旧 trace 时业务因果仍可诊断。
-
-日志/trace 的默认结构没有 prompt、模型响应、工具参数/结果正文、HTTP headers、
-URL query、密钥、任意 target 或 Error 对象槽位。正文诊断需要沿原对象权限读取，
-不能通过 debug 模式获得旁路。SecretRef 也只在原权威认可的关联投影里使用，
-永远不解引用密钥。Pino redaction 作为防误接的固定 allowlist 后第二道保护，
-路径由代码/可信配置固定，不接受用户表达式；它不能删除任意自由文本中的秘密。
-
-投影只读自有数据属性，拒绝 getter/toJSON/循环/未知键和超限；失败留安全 code
-与 gap，不尝试 inspect 原对象。记录先裁剪/限长再进入 Pino、OTel 或缓存。过长
-身份不能截成另一有效身份，应标关联不可记录及 gap，原业务身份/结果保持完整。
-宿主内部诊断文件是受信运维来源；P3 不能直接把其读取能力交用户。query/export
-按当前主体/tenant/内容分类/对象权限逐项裁剪；仅有关联 ID 不等于有正文权。
+提供者如何裁剪身份/内容、维护 parent、恢复后建立新 trace，统一归
+[包内设计](../../../../packages/observation/diagnostics/design.md)。消费者在可信入口
+核对身份后传入关联；恢复保留业务因果，不把运行 context 序列化成工作许可。
 
 ## 有限资源、缺口与关闭
 
-候选本地行格式为 `omne-diagnostic/1`，只用于此实现，不登记成新业务 Schema。
-log 行及 span 结束行均经同一 Pino/Sonic 流：span 由一个本地 SpanProcessor
-同步投影，不另缓存已结束 span，不实现 exporter 注册、重试或网络协议。span
-限制和活动数量一起生效；达到数量预算后不再创建 SDK span，body 照常运行，
-原业务因果仍存在，缺失计入 span_capacity。
-
-输出状态区分 active、degraded、closing、closed；至少提供 source generation、
-最后尝试 seq、已接收/丢弃计数、待写字节、最后确认写入字节边界、活动 span 数、
-最后安全错误码和剩余关闭责任。Sonic `drop` 同步回报具体行，write 回报实际
-写入字节；适配器据此核对可读取的完整行边界，不能以 logger 返回或 flush 请求
-当耐久确认。所有来源水位都注明质量；`fsync:false` 的诊断文件没有 DR 回执保证。
-
-运行中采用 `minLength:0`：流空闲时，一条短日志就在门外的 log 调用中开始
-异步 fs.write；流忙时进入已有有限缓冲，前一写入回调继续排空余量。没有等待
-下一条日志/close 的 4 KiB 门槛，也不新增 periodicFlush timer 或公共 flush。
-这不承诺硬实时写完：文件可读范围以实际 write 回调/完整行核对为准。inspect
-给出 pendingIdleMs 和 writeProgress；有待写字节时，用单调时间计算自最近一次
-write 进展起的等待（首次待写从入流计时），每次真实进展重置、排空后为 null。
-有待写且超过 1000 ms 无进展时为 stalled；持续有进展不因队列非空就报停滞。
-这是一项可查询的积压状态，不是取消 I/O 或认定丢失。实际 error 进入 failed/degraded 并保存安全错误码
-及原资源责任；恢复进度与剩余字节分别可查。没有额外健康轮询任务，低流量
-验收在无后续日志、未 close 下等待实际 write 并读回；本次环境的观察期限为
-1000 ms，不把一次测量扩成所有 OS/负载下的时限保证。
-
-缺口原因至少分等级排除、容量/活动 span 限制、非法投影、写入不可用、保留容量、
-关闭中未结尾、异常进程退出；计数包括 warn/error 的普通诊断丢失。P1 不做随机
-采样，未来加入必须记录政策/来源范围。每个固定原因只保存一份有界聚合：观察
-区间、first/last seq、已知丢弃数及范围质量；合并区间只能说“其中有缺口”，不能
-声称区间每条都丢了。统计不以 tenant/run/任意事件文本做无限 key。
-
-失效状态独立存于 runtime 的固定容量槽位，更新它不再调用 logger。流恢复可写
-时追加一份 gap summary；仍失败时只保留状态，不制造重试任务风暴。进程崩溃
-可能同时丢失尾部诊断和内存计数，下一次来源核对必须报 crash_unknown，不能
-补造精确丢弃数量；没有 clean end 也不能推断业务仍运行。P3 checkpoint 保留其
-已确认范围，不从本地若干成功 span 补全未观察的链路。
-
-来源范围可能包含多个 tenant。原始来源统计仅向获准运维主体开放；普通 tenant
-查询不能泄漏其他 tenant 的计数/ID，无法安全分摊的全源 gap 应返回该 tenant
-覆盖未知而不附全源数量。P3 的索引/过滤验证承担最终不泄漏保证。
-
-诊断文件错误只令此输出 degraded，封闭受影响的流并保留 fd/未写内容的已知
-责任；不能自动调用业务 writer.quarantine。业务关键审计保存失败则由原 owner
-按 OB-02/CC-07 隔离并阻止依赖它的新效果，连拒绝审计也保存不了时返回
-`audit_unavailable` 并尽力记录最小诊断。两种失效可以同时存在，返回值都如实保留。
-
-关闭由应用先停止/结算或明确隔离业务生产者，完成关键终态记录与 records 关闭，
-再关闭 diagnostics。诊断 owner 同步关新 scope/span；现有 span 持其原 generation，
-end 可继续写入原流。随后等待有限活动 span 清零、SDK forceFlush、Sonic.end 的
-finish/close，关闭自己的等待计时器并 disable ALS manager；不等待任意 within
-返回的 Promise，也不能以调用 destroy 代替真实输出收口。
-
-closed 只表示此诊断实例拥有的输出/活动 span/管理资源已释放，不表示调用者
-body 已停止。尚未结算的调用者、其错误通道及捕获的 native context 继续由原
-业务 owner 负责；应用不能借 diagnostics.close 绕过原停止/隔离协议。实际探针
-显示 disable 后旧续体仍可能读到原 native context，因此公开 current 在
-closing/closed 返回 null，within 在这两个状态直接运行 body 一次、不再激活
-manager；所有 log/startSpan/end 在访问后端前检查原 generation/关闭状态，
-晚到调用不能碰已释放的流或改投新代，必要缺口只更新有界状态。仅依赖 ALS.disable
-不能作为旧引用失效证明。
-
-重复关闭/重试认回同一关闭责任；deadline 只结束等待，未完成 I/O、活动 span
-或 fd 仍由原诊断 owner 持有，并返回 blocked/剩余责任。不得用 finally 的关闭
-异常覆盖原业务失败；应用报告业务结论和诊断关闭结论两个独立字段。
-
-更换配置/提供者先准备并验证新 generation，原子切换新工作注入，再排空旧代；
-准备失败保留旧代，旧句柄不能写入新代。只有当前代及至多一个待清理旧代，旧代
-未释放时拒绝再次更换，避免 quarantine 列表无限增长。旧 provider 的失败释放
-不得误关新流。P1 固定这项生命周期测试；它不要求无间断迁移或自动远程后端。
+来源、目录额度、gap summary、关闭与残留资源的当前规则归同一包设计，
+[D-011](../../../decisions/D-011-diagnostics-directory-ownership.md)固定目录修订的采用范围。
+消费者保有自己业务工作的责任；诊断 deadline 只限制调用者等待，未知释放不可
+虚报成功，真实 raw fd 关闭未知不可盲重试。应用持有目录管理面，先确认子来源、
+准备和扫描静止并完成资源核对，再关闭最后锁 fd。
 
 ### Cordis 输入桥的独立边界
 

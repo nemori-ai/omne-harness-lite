@@ -5,6 +5,12 @@ entry exports the passive `Diagnostics` recording surface, opaque context and sp
 trusted `DiagnosticsRuntime` management surface, `LocalDiagnosticsOptions`, and
 `createLocalDiagnostics`.
 
+The current implementation has known directory-wide capacity and ownership defects and is not
+accepted for downstream use. The adopted replacement is documented in [design.md](design.md)
+under D-011: one directory owner creates all sources. Its factory, locking, shared reservations,
+and close behavior still require implementation and product verification; the old export above
+describes the current code, not the interface for new consumers.
+
 The local factory uses a private OpenTelemetry `TracerProvider` and
 `AsyncLocalStorageContextManager`; it does not register a global provider or context manager.
 Completed spans and structured log points pass through the same Pino 10.3.1 and SonicBoom 4.2.1
