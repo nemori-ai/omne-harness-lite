@@ -20,7 +20,9 @@ allowlisted native build path. Supported P1 evidence is Linux 5.15 on a local ex
 Node 24.18, and GCC 10; network filesystems and Windows are outside this provider's current scope.
 
 The accepted writer, lock, recovery, failure, and cleanup mapping is maintained in
-[design.md](design.md). Application composition and admission remain separate responsibilities.
+[design.md](design.md). Package verification is recorded in
+[evidence/provider/README.md](evidence/provider/README.md). Application composition and admission
+remain separate responsibilities.
 
 See [source scope](../../../docs/proposals/core-capabilities/fork/jsonl-source.md),
 [package layout](../../../docs/proposals/core-capabilities/fork/package-layout.md),
