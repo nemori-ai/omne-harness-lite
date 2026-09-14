@@ -1,0 +1,100 @@
+---
+kind: proposal
+id: P-tool-execution
+status: draft
+scope: 工具调用的完整生命周期（五维状态机、转移、级联、前台上限、内建人类请求工具）、工具 Schema 维度、内部帧的事实侧、与 Session/Run/HD 的接头及 Cordis 视角；消费 tool-system v1 候选的可用部分，不发新契约直到闭环成形
+---
+
+# 工具执行：调用生命周期、Schema 与帧
+
+[提案索引](../README.md) · [tools v1](../../../spec/capabilities/tools/v1/contract.md) · [run-driver v2](../../../spec/capabilities/run-driver/v2/contract.md) · [session v1](../../../spec/capabilities/session/v1/contract.md) · [human-decisions v1](../../../spec/capabilities/human-decisions/v1/contract.md) · [生命周期组合 LC v1](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md) · [工具系统 v1 草案](../tool-system/README.md) · [级联备忘](../tool-system/v1/session-run-cascade-memo.md)
+
+本提案承接 [D-014](../../decisions/D-014-session-run-agent-lifecycles.md)：Session、Run、
+实例三台状态机与它们的级联已经接受，工具调用是级联矩阵里唯一还没有自己一台完整
+状态机的对象。[tools v1](../../../spec/capabilities/tools/v1/contract.md)（D-008）定义了
+调用/attempt、后台、停止、绑定撤回与帧的条款，[run-driver v2](../../../spec/capabilities/run-driver/v2/contract.md)
+定义了驱动器怎样看调用的结算视图，但"一次调用从提议到结算的每个转移由谁在哪个
+提交里写什么、Run/Session/实例的每个级联触发对调用做什么、前台上限怎样转后台、
+Agent 向人提问的答复怎样回到工具"没有一处权威正文。本提案把这些放在一个视角下
+设计，接受后各归其位：语义缺口进 tools/session/run-driver 的下一版契约（闭环成形后
+一次发版，不单独为工具发版），提供者设计原地修订
+[tools](../../../packages/tools/tools/design.md) 与 [local-execution](../../../packages/tools/local-execution/design.md)，
+系统视图修订 [核心能力](../../architecture/core-capabilities.md) 的工具段。
+
+## 范围
+
+- 在范围内：调用的五个正交维度（进展、attempt 账本、等待关系、控制、结算交付）的
+  状态集合与转移；每个转移的提交面与同批伙伴；LC-04 每个触发对前台/后台/转换中调用
+  的级联列；前台上限与自动转后台；内建人类请求工具 `human`（问题、一次性批准、能力
+  授权申请）及"答复作为工具返回值"；工具 Schema 的维度总表（多模态、单/多命令范式、
+  后台声明与调用级 detach 参数、并发、停止能力、效果与暂行、帧声明、环境）；内部帧的
+  事实侧（身份、序号、缺口、记录等级、读面）；与 Run/Session/HD/AU/BG 的接头；Cordis
+  视角（插件、服务键、装载效应与撤除、依赖变化政策）；Claude Code / Codex hooks 在
+  S5/S7 两个站点的落点；候选性质与形式模型。
+- 不在范围内：PF-014.C6 必需 skill 的完整激活/撤回生命周期与 PF-024 之外的装配
+  （[definitions.md](../tool-system/v1/definitions.md)、[assembly.md](../tool-system/v1/assembly.md)
+  保留候选）；PF-004 派发形态；PF-012 六种环境组合与 Browser/Computer 选型（只作门
+  输入）；出站流协议、游标编码与传输（U-36）；帧的保留数值；工具体中途 `interrupt()`
+  式的通用可恢复暂停（用户裁决不纳入首版）；JSON Schema 本身（U-35）。
+
+## 文件
+
+- [requirements.md](requirements.md)：需求工作区快照与按要求的覆盖表。
+- [invariants.md](invariants.md)：调用（T）、人类请求工具（H）、帧（F）的安全性质与进展
+  性质（TP），每条标来源、保护点与证据义务。
+- [lifecycle.md](lifecycle.md)：五维状态机、转移表、内建人类请求工具、前台上限、控制
+  与级联表、恢复窗口、契约措辞缺口表。
+- schema.md（波 2）：Schema 维度总表、单/多命令投影、多模态引用、后台与调用级参数、
+  并发、停止能力、效果与暂行、帧声明、环境；tools 设计的 Ajv profile 引用。
+- frames.md（波 2）：帧事实侧与读面；与出站流的依赖方向。
+- cordis.md（波 2）：插件与服务、装载效应与撤除、依赖变化政策、与 Run/Session/HD 的
+  端口、hooks 兼容层在 S5/S7 的落点。
+- evidence/（波 3）：调用状态机 TLA+ 模型（含 `human` 调用种类）与运行记录；场景。
+- review.md（波 3）：独立评审与处置。
+
+## 裁决记录（2026-09-14，用户）
+
+| 编号 | 裁决 |
+|---|---|
+| U-38 | 工具设计范围追加：工具执行生命周期/状态机；tool schema 含多模态能力、传统与多命令范式、是否后台、前台超时未完成转后台；级联备忘条目；工具内部帧（依赖流式帧公共契约，事实侧先定） |
+| U-39 | 决定点 a～n（临时准备稿的内容已归档为下表）按作者建议拍板 |
+| U-40 | 要像 DeepSeek Harness 那样兼容 Claude Code / Codex 的命令式 hooks 体系；需求落为 [PF-025](../../requirements/product/agent/PF-025-external-hooks-compatibility.md)；决定点 o～v 按作者建议拍板 |
+| U-41 | Agent 发起 HITL 等用户答复时，答复不是普通用户输入，而是该工具的结果，回到工具调用作为返回值；先查 DSH，有则二次开发。据此采纳决定点 w（内建 `human` 工具纳入本轮）与 x（D2 机制；通用工具体中途 interrupt 不纳入首版）；契约措辞缺口随闭环一次发版 |
+
+## 作者裁决（用户按建议拍板）
+
+| # | 问题 | 采纳的选择 |
+|---|---|---|
+| a | 首版执行 owner 集合 | local-execution 加同进程 shell；browser/sandbox 留候选，PF-012 只作门输入 |
+| b | 后台 owner 进程模型 | 同进程 worker，接受"进程死亡则前台工具 unknown"的边界；独立进程留边界不实现 |
+| c | 定义面是否同轮 | Schema 维度同轮；PF-014.C6 激活/撤回与依赖图另开 |
+| d | 帧记录等级 | critical / replayable / transient 三等级作声明词表，数值留实现；不做跨调用历史合并 |
+| e | 派发工具关系 | 只固定"派发是一次调用、结果走 call_settlement、终止传播沿 PF-013.C4"；形态归 PF-004 |
+| f | 归档/删除后的后台调用 | 政策 b：归档不动工作；结算到达 archived Session 按 SE-14 D2 列关闭；删除同样关闭并按数据治理处理结果 |
+| g | 是否发 tools v2 | 不单独发；缺口进 [缺口表](lifecycle.md#契约措辞缺口表)，闭环成形后一次发版 |
+| h | 调用状态机 TLA+ | 建一个，单配置 ≤ 1 分钟，含 admit / dispatch / settle / stop / background / Inbound 交接 / 归档级联 / `human` 调用 |
+| i | 单操作工具的投影 | 去掉 `command` 层：顶层 Schema 即该命令输入；多命令才 `{command, params}`（可选 `oneOf`） |
+| j | 调用级 `detach: never \| on_start \| auto` | 开放给模型，受定义 `startModes` 子集约束 |
+| k | 并发声明 `concurrency: serial \| parallel_safe` | 纳入声明词表；驱动器首版可仍串行执行 |
+| l | 多模态 | 工具输入/输出媒体一律用内容引用（CT），模型投影按 MC-11 交集选择；不建第二个图片库 |
+| m | 前台上限 `onLimit` 缺省 | keep_waiting，Run 预算是最终刹车；工具可声明 stop 或 detach |
+| n | 计时与转换决定归属 | 调用运行时（tools 包）；驱动器不持计时器，执行 owner 只兑现 detach |
+| w | 内建人类请求工具 | 纳入：多命令工具 `human`（ask / request_approval / request_consent），HD 为执行 owner |
+| x | 答复回到工具的机制 | D2：调用停在 `waiting_human` 视图不阻止收束与 Yield，答复由 HD 在同一提交结算调用，结算作接续开 Step；通用工具体中途 interrupt 不纳入首版 |
+
+hooks 兼容层的决定点 o～v 随 hooks 兼容提案（`docs/proposals/hooks-compat/`，待建）记录；
+本提案只在 S5/S7 的落点消费它们。
+
+## 未决项
+
+- PF-004 三种派发关系与子 Session 提问的作答者规则（DSH 拒绝被委派子 agent 提问；我们沿
+  HD-01 作答者固定为 Session.owner，子 Session 的 owner 由 PF-004 设计决定）。
+- 多命令的 batch 模式与 shell 词法不纳入；若将来需要，另立需求。
+- 帧的条数/字节/保留期数值、后台调用上限与配额：实现阶段。
+- 出站流侧的帧词表全集与游标编码（U-36）：本提案只给 `tools.frame.<kind>` 前缀。
+- 契约措辞缺口（SE-13 问答答复的来源、RD-09 `waiting_human` 视图、SE-04/13 hooks 词汇、
+  TL-07 预算被拒的措辞）：见 [缺口表](lifecycle.md#契约措辞缺口表)，随闭环一次发版。
+
+## 接受记录
+
+尚未接受。波 1（本页、requirements、invariants、lifecycle）2026-09-14 完成；波 2/3 待续。
