@@ -37,10 +37,16 @@ Python 范围由 [pyproject.toml](../pyproject.toml) 声明，uv 管理解释器
 ```sh
 uv sync --locked
 pnpm install --frozen-lockfile --ignore-scripts
+pnpm --filter @omne-harness-lite/diagnostics rebuild fs-ext
 make check
 ```
 
-前两条依据锁文件安装开发环境；第三条执行文档、规格、工具测试与产品包检查组合，
+安装依据锁文件且禁用依赖脚本；随后只构建已列入允许清单的 `fs-ext`。
+原生构建需要适配 Node 24 的 C++20 编译器及 node-gyp 环境；本机 GCC 10 的
+实际设置与失败/成功边界见[原生接入证据](proposals/core-capabilities/implementation/evidence/p1-diagnostics-hub/native-dependency/README.md)。
+必须指定消费它的 diagnostics 成员，根目录无成员选择的 rebuild 退出 0 不证明
+addon 已生成；安装后以该成员实际加载结果判断。
+最后一条执行文档、规格、工具测试与产品包检查组合，
 不调用真实模型。已有环境时，日常修改按受影响范围选择检查即可。
 正式行为模型的覆盖与 Java/JAR 环境分开报告；详细要求见
 [验证规范](maintenance/verification.md#环境与实际执行)。
