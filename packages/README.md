@@ -14,9 +14,10 @@ workspace 成员，拥有源码、依赖、公开入口、测试、许可与来�
 [P1 组合及独立五包消费者](../apps/local-harness/evidence/storage-admission/README.md)
 已在固定 `31197742905a3c66fc3e650c153d65d014372c21` 接受。五包消费者的实际提交、
 关闭与重开证据，与该端点全体产物的通用隔离消费检查分别记录。
-[agent 默认入口](core/agent/README.md) 与 [tenant](governance/tenant/README.md)
-目前只提供协议或共享值声明，不表示目标 host、租户治理或完整 Agent/Session/工具
-运行闭环已交付。源码来源及迁移见
+[agent 默认入口](core/agent/README.md)目前提供协议声明；
+[tenant](governance/tenant/README.md)提供共享值、身份消费协议及纯成员记录解码与
+fold。这些交付尚不包含目标 host、完整租户治理或 Agent/Session/工具运行闭环。
+源码来源及迁移见
 [布局方案](../docs/proposals/core-capabilities/fork/package-layout.md)与
 [交付记录](../docs/proposals/core-capabilities/fork/package-layout-delivery.md)。
 真实 Agent/Session/工具 allow 闭环及必要共享设施的当前装配归
