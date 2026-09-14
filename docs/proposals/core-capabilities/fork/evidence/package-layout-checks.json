@@ -1,0 +1,75 @@
+{
+  "source_revision": "f55e3e053a501623b813b111ee10040ae27b4a32",
+  "comparison_baseline": "475389d",
+  "completed_at": "2026-09-14T00:59:11.966513+00:00",
+  "result": "pass",
+  "commands": [
+    {
+      "command": "make check BASELINE=475389d",
+      "environment": {
+        "JAVA_BIN": "/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java",
+        "TLA2TOOLS_JAR": "/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar"
+      },
+      "exit_code": 0,
+      "log": "package-layout-integration-check.log",
+      "sha256": "c3e661ace90aa32ac71aa9d4e0d9bcccd3577650b02702e1c66bc2b89ae0c72f"
+    },
+    {
+      "command": "python3 docs/proposals/core-capabilities/fork/evidence/check-sources.py /data/qiwei/repos/omne-harness-lite/tmp/dsh-reuse-assessment-20260913/upstream.tar.gz",
+      "exit_code": 0,
+      "output": "package-layout-source-check.json",
+      "sha256": "29b41c9952a0e853642534d74769045600881ad051ea9599dcb314542414dc67"
+    },
+    {
+      "command": "make docs-check BASELINE=475389d",
+      "scope": "Final documentation/evidence edits after the source revision; product and specification inputs unchanged",
+      "exit_code": 0,
+      "log": "package-layout-documentation-check.log",
+      "sha256": "83282f11353ee912b9ab05fec3b6d82738e11972d9a31d7d200c2f1de084ddfb"
+    }
+  ],
+  "toolchain": {
+    "node": "24.18.0",
+    "pnpm": "10.28.1",
+    "typescript": "6.0.3",
+    "vitest": "4.1.8",
+    "python": "3.12.13 (uv locked environment)",
+    "pytest": "8.4.2",
+    "cordis": "4.0.2",
+    "tla2tools_sha256": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1"
+  },
+  "coverage": {
+    "markdown_files": 385,
+    "catalog_contracts": 16,
+    "schemas": 11,
+    "formal_tasks": 12,
+    "python_tests": 77,
+    "source_behavior_tests": 666,
+    "boundary_checker_tests": 4,
+    "individual_artifact_consumers": 14,
+    "composition_consumers": 1,
+    "source_provenance_records": 94,
+    "distinct_upstream_files": 80,
+    "source_tests_by_package": {
+      "packages/util/timeout": 1,
+      "packages/storage/jsonl": 4,
+      "packages/util/values": 1,
+      "packages/core/scope": 21,
+      "packages/media/content": 9,
+      "packages/core/agent": 29,
+      "packages/model/llm": 95,
+      "packages/context/system-prompt": 5,
+      "packages/session/session": 427,
+      "packages/tools/tools": 17,
+      "packages/session/persistence": 18,
+      "packages/agent/loop": 11,
+      "packages/session/projection": 28
+    }
+  },
+  "limits": [
+    "Existing source mechanisms only; no target product capability conformance claim.",
+    "Model checking remains bounded to the registered task inputs.",
+    "Original source/target algorithm differences and JSONL failure-injection limits remain in the source-baseline documents.",
+    "Only documentation, evidence and final verification records change after this source revision; frozen specifications and product/build/test inputs remain unchanged."
+  ]
+}
