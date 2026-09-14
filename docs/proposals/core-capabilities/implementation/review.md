@@ -280,7 +280,7 @@ R1 的 `fefb6c5` 已实际复现两项：旧来源写入挂起期间新来源扫
 主调度实际核对候选和四份作者资产 SHA-256，并在 HUB 的独立临时目录以相同
 固定脚本重跑两个文件/进程窗口：效果前 SIGKILL 后目标不存在；文件/目录 sync
 后、业务结果记录前 SIGKILL，目标保有 21 字节，而两组 marker 都只有
-dispatch-intent。原始输出在 `tmp/p3-tool-decision-review/e6c0b8c-hub-result.json`，
+dispatch-intent。原始输出见[独立 HUB 运行身份](evidence/tool-decision-design/README.md#原-e6-候选的独立-hub-运行)，
 只证明两个底层窗口，不证明真实 writer、停止墓碑、恢复或恰好一次。
 
 已知待处理的共同面包括：P2 候选 `947885c` 使用受信 host options 注入恢复所需

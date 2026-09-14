@@ -51,14 +51,16 @@ TL/HD/LE 提供者由其原作者唯一维护，当前共同消费快照为
 这里不复制它们的服务/状态协议。allow 基线选真实
 TL 和 LE，完整 HD 可不挂，但缺席不能让 ask 绕行 allow。
 
-P1 沿[共享接口](../../docs/proposals/core-capabilities/implementation/shared-interfaces.md)
-选择实际 `createJsonlProvider(options, diagnostics)` 与
-`createAdmissionCoordinator(writer, diagnostics)`，纯 work-data/records 不插件化。
+P1 沿 [JSONL](../../packages/storage/jsonl/design.md) 与
+[Admission Gate](../../packages/coordination/admission/design.md) 的当前映射选择
+`createJsonlProvider(options, diagnostics)` 与 `createAdmissionCoordinator(writer, diagnostics)`；
+两者产品仍待交付，纯 work-data/records 不插件化。
 Diagnostics 消费面沿 [D-010](../../docs/decisions/D-010-shared-diagnostics.md)，
 目录 owner 采用 `e2190ad` 的
 [D-011](../../docs/decisions/D-011-diagnostics-directory-ownership.md) 与
 [包设计](../../packages/observation/diagnostics/design.md)。应用按唯一目录 factory
-创建并保有目录/子来源；实际实现仍待 D1 通过，不能消费尚未接受的旧来源 factory。
+创建并保有目录/子来源；D1 已按[成员证据](../../packages/observation/diagnostics/evidence/directory-owner/README.md)
+接受，应用只消费该目录 factory。真实 JSONL/admission 和应用组合仍未交付。
 
 ## 身份与宿主装配
 
@@ -167,7 +169,7 @@ phase/code，关键审计由业务耐久提交，普通日志失败不覆盖业�
 | A01 / TG+AU | 两真实主体/两 tenant；伪造 Principal/TS cast、同 user 多组织、跨 tenant 所有嵌套引用、管理者无正文权。读/list/count/旧回执/订阅均当前授权，无存在性泄漏；正文/财务/精确控制分别有结果 |
 | A02 / TG | 同自然人两个 operation 并发 personal create 恰一 tenant；personal/organization 创建完整落盘后丢回执并重启，同原请求/operation 认回原 tenantId，不用内存映射、不因重分配冲突；同键改 kind/成员仍冲突。两个管理员互撤仍保留一个；remove/re-add 不恢复旧 grant/委托。真实管理创建草稿→发布，重复 publish 同版本、异输入冲突、旧版不可改、official 不能改、fork 不继承 grant |
 | A03 / TG+AU | 实际 issue/select/grant/amend/revoke 建立依据；v1 可用、fork/v2 越界；源权益停用不删除原 Session；撤权排 n+1 阻新调用而 n 等耐久后可继续。撤销再重授都未耐久不越过中间撤销；源不可用 unavailable，不 ask |
-| A11 / AU | 穷举上表模式×确认类型×硬资格×grant×一次决定；当前合法授予者缺失不能 ask。真实 set/clear/readEffective，Session→用户定义→默认；false/null 非法 set 不清除。模式变化不造答案；未耐久放宽不用、收紧立即封闭 |
+| A11 / AU | 穷举[授权模式表](../../packages/governance/authorization/design.md#声明解析与最小-action-端口)中的模式×确认类型×硬资格×grant×一次决定；当前合法授予者缺失不能 ask。真实 set/clear/readEffective，Session→用户定义→默认；false/null 非法 set 不清除。模式变化不造答案；未耐久放宽不用、收紧立即封闭 |
 | A26 本地 / BG | limit(10) 下 finite(7)→finite(7)、unknown(K=7)→finite(7)、unknown(K=7)→unknown(K=7) 均只有首个 call+reservation 成立，即使 unknown 已显式获准。unknown 部分 C=3/R=4 后贡献仍7，新增 Q=3 可达10、Q=4 拒绝；C=9/R=0 后只剩1。重复/恢复同结果；一项硬预算拒绝不留另一个预留；下调/新增适用预算参与 gate；未知默认拒、零成本需来源依据 |
 | A26 恢复 / BG | 重放同 externalFact/revision 不增费、同键异内容冲突；同 request 两真实收费分别保留；跨周期 late actual 归原 period；unknown/未收到 start 回执不释放；真实墓碑证明未开始才释放；重启后 reserved/negative/unknown 不归零 |
 | A26 币种 / BG | 仅 USD 硬预算而来源已核实 EUR：没有 EUR 姿态时 budget_posture_missing，显式错绑 USD 时 budget_currency_mismatch；实际声明 EUR 姿态后仍检查所有匹配的 EUR 预算，不折算 USD。changeBudget 尝试改 tenant/scope/currency 或替换 periodId 被拒，原 attempt/period 保持原账目 |

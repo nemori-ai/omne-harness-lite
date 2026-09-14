@@ -18,8 +18,5 @@
 pack/install/build/load 的测试夹具，不表示 JSONL 目标 writer 已实现。D1 后续
 产品修改仍须在最终整合状态重新执行受影响的包与产物验收。
 
-作者停止且源码/证据均合入后，核对其工作树干净、无独有 ignored 临时资产、无
-进程以该树为 cwd，再正常移除 `dsh-native-consumer-checks` 及已合入分支。
-原失败消费者 `/tmp/omne-package-artifacts-IKcSqD` 和
-`/tmp/omne-package-artifacts-JZgfCE` 位于该树外，已确认仍保留；其固定记录归
-[作者证据](../README.md)，不把工作树退役等同于删除这些失败原件。
+失败消费者的输入、原生加载反例与结果范围归[作者证据](../README.md)。
+本记录引用固定脚本、日志和 manifest，不要求原临时消费者目录继续存在。

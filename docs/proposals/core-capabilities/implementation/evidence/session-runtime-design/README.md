@@ -12,13 +12,12 @@ proposed 到直接 deny 的同批接续、原选用身份、Session 设置写权
 评审者没有运行测试、编译、探针或形式工具，也没有作接受决定。
 
 主调度核对合入内容及受审哈希，在 HUB 实际运行
-`make docs-check BASELINE=9954b12`，通过 411 份 Markdown；
-[原始日志](hub-docs-check.log)只证明结构检查，不能替代运行行为验证。
-[作者清单](author-manifest.json)中的九份原始检查/修订资产均已保全于
-`author-artifacts.tar.gz`，逐项从归档读回核对 SHA-256 通过；归档 SHA-256 为
-`fa696f0a87b3c396b1bc649b0a8294b8eb8786a2fae7d34e1d85cf8546c28aeb`。
+`make docs-check BASELINE=9954b12`，通过 411 份 Markdown，只证明结构检查，
+不能替代运行行为验证。作者的九份修订脚本、静态检查与环境准备输出属于该次
+施工过程，不是产品或机制测量；本页保留判断所需的受审身份、具体发现及结果。
 
 这次接受只固定 AR/SR 及相邻提供者的施工交接，不交付公开产品 API。
 S01–S18、R0–R6 和真实 writer/准入/工具/审批组合仍待实现与 TDD；
-具体 Cordis service、插件注入及 Fiber 装配映射仍需按长期维护归属完成，
-不因本次接口稿通过而认定全部运行时设计或最小运行闭环已交付。
+后续 Cordis service、插件注入及 Fiber 装配映射另有
+[提供者接受记录](../../runtime-provider-interfaces.md)，本次接口稿通过不表示
+全部运行时产品或最小运行闭环已交付。

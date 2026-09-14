@@ -255,6 +255,7 @@ publication 与拒绝审计；grant/设置的所有未耐久收紧立即封闭�
 检查由真实提供者拥有，数据形状不授予资格。
 
 | 消费者需要的注入 | 最小内容与真实 owner | 必须共同验证的门 |
+|---|---|---|
 | TG/AU/BG 的主体事实 | 前述 AuthenticatedInvocation；本机凭据映射/撤销由身份适配持有，TG 解释成员，SR/AR 解释工作委托 | 伪造 DTO/句柄失败；两主体凭据真实区分；准备后撤凭据先封闭后续 gate；本机 IPC 在 P3 通过前不开放给用户 |
 | AU 的 Session/工作事实 | SR 提供 `{session, owner, subjectDefinition:DefinitionVersion, acquisition, settingsUser:UserRef, run?, epoch?, controlRevision, operations:明确集合}` 的私有快照/current 检查；正文读、输入写、设置写、精确控制独立 | 同租户 super_admin 可管理预算但读不到私人正文；读取权限不自动允许 control；旧 epoch/终态/held 不支持新动作；同 Plugin 的不同 Agent 定义不能借 grant |
 | AU 的绑定/环境/对象事实 | TL 的精确注册/Command/Binding、对象 owner 的 ResourceRef/权限/可授予上限/硬限制及其当前根；资源真实存在与可用性归这些 owner | 换参数/秘密版本/环境/实现/解析器必成新 Action；声明 none 仍需 read 权；无环境授权 owner 则 unavailable，不能以“可信工具”推导用户有权 |

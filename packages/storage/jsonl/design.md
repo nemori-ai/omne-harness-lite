@@ -57,12 +57,13 @@ Diagnostics 是 factory 的必需注入，精确消费面与关闭管理归
 [D-011](../../../docs/decisions/D-011-diagnostics-directory-ownership.md)。
 应用拥有目录与来源的管理责任；本提供者只消费受限诊断，不另建目录 owner，
 不复制其创建/关闭签名。普通诊断沿 D-010 在短门外输出，不承担业务审计。
-D1 的 R1/关闭/锁/原生消费者最终产品接受仍是 P1 实际消费前提；本次迁移不表示该门已通过。
+D1 的 R1/关闭/锁/原生消费者已由[成员接受证据](../../observation/diagnostics/evidence/directory-owner/README.md)
+核验；这只解除共享诊断前提，JSONL/admission 的 P1 真实组合仍须独立交付和接受。
 
 ## 纯准备与同步提交
 
 原操作的 namespace、Principal 编码、canonicalInput 与跨租户/多 stream 数据边界
-继续引用[共享 records 边界](../../../docs/proposals/core-capabilities/implementation/shared-interfaces.md#records-的批次身份和读取边界)。
+继续引用 [records 公共源码](../records/src/index.ts) 与其 [消费说明](../records/README.md)。
 本提供者据此实施以下行为。
 
 `prepare` 是无 I/O 的批次验证、冻结和预编码，在短门外调用。它不占修订/seq、
@@ -243,8 +244,9 @@ closeWriter 同步先封闭新提交，异步排空和同步，再释放锁；�
 
 先消费真实 records 产物与已接受原生锁前提，再实现真实磁盘和两进程的
 A05/A06/A07 去重、冲突、断点、恢复、完整前缀、水位、unknown 与关闭测试。
-[共享黄金样例](../../../docs/proposals/core-capabilities/implementation/shared-interfaces.md#黄金样例与反例)
-保留 G01–G10 原字面量；不能把 codec 通过当作 fsync 或持锁恢复通过。
+[G01](../records/tests/fixtures/g01.jsonl) 与 [G10](../records/tests/fixtures/g10.jsonl)
+保留原字面量，其余样例/反例见 [codec 场景](../records/tests/codec-scenarios.spec.ts)；
+不能把 codec 通过当作 fsync 或持锁恢复通过。
 
 R3 覆盖原冲突结果在业务修订后来匹配时仍不变、完整无回执冲突行的重启认回，
 以及断尾未提交/完整损坏 unknown 的不同分支。R5 组合注入 acquire 取锁后的

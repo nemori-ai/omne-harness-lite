@@ -2,7 +2,7 @@
 
 状态：**最小基线所需 TL/LE 设计已接受为施工输入；完整 HD 保留后续候选**。
 产品仍未交付。本入口
-维护范围、来源、采用快照、正文导航与施工安排，不另存公开接口/生命周期正文。
+保留范围选择、来源、采用快照与正文导航，不另存公开接口/生命周期正文或当前施工安排。
 历史原稿完整保存在 `e6c0b8c5d1a7cc3b282c809498a241a66ad71b9d`，本次修订
 消费新维护规范与计划 `0703f6e`，不改变已接受正式 v1。
 
@@ -32,10 +32,10 @@ SIGKILL 窗口也在 HUB 复验，只有底层效果窗口的观察范围。作�
 
 | 输入 | 固定版本与消费范围 |
 |---|---|
-| 目标 | 原 `8c791b3a1966afa86b3d60c24fecd3da3f1ea0b9` 的 [scope](scope.md)、[runtime-baseline](runtime-baseline.md)；按用户后续收窄，本会话到真实 Agent/Session/工具最小闭环即停止，完整 HITL/M2 后置 |
+| 目标 | 原 `8c791b3a1966afa86b3d60c24fecd3da3f1ea0b9` 的 [scope](scope.md)、[runtime-baseline](runtime-baseline.md)；用户后续收窄为真实 Agent/Session/工具最小闭环，完整 HITL/M2 后置；当前行为范围归应用设计 |
 | 验收 | 同提交 [acceptance](acceptance.md)：A10–20、A26 本地子场景、A28–32，及其 A01–09 前提；SR S18 的 proposed→直接 deny→原 Step 恢复必须贯通 |
 | 规格与共享面 | 同提交 [implementation-spec](implementation-spec.md)、[shared-interfaces](shared-interfaces.md)、D-010 [observability](observability.md)；治理受审源 `058c77c`、SR 受审源 `cd16f1`，采用本树 [治理](governance-interfaces.md)及 [SR](session-runtime-interfaces.md)正文和接受范围 |
-| 计划 | 原基线提前 P3 段，加 `plan.md@0703f6e` 的长期正文迁入段；本次检查基线 `b585608`；施工安排见下文 |
+| 计划 | 原基线提前 P3 段，加 `plan.md@0703f6e` 的长期正文迁入段；当次检查基线 `b585608`，此处仅记录历史施工输入 |
 
 正式身份从 [catalog](../../../../spec/catalog.json)定位：`data.agent-runtime-identity@1`
 经 D-005，`data.core-work@1` 经 D-008；`capability.live-agent@1` 经 D-005，
@@ -47,8 +47,8 @@ SIGKILL 窗口也在 HUB 复验，只有底层效果窗口的观察范围。作�
 沿这些精确契约，不把实施事件或 TypeScript 记法升格为冻结规格。
 
 work-data/records 已有真实产物；P1 writer/admission 及业务 owner 尚须真实交付。
-D1 diagnostics 候选正在独立验收，本稿仅消费已接受的 Diagnostics/factory 注入
-接口。runtime-baseline 中历史实施状态不取代后续接受记录，也不证明节点已运行。
+D1 diagnostics 已有[成员接受证据](../../../../packages/observation/diagnostics/evidence/directory-owner/README.md)，
+只解除共享诊断前提；历史实施状态不取代后续产品接受，也不证明最小节点已运行。
 三包正文的 shape/方法/事件是语言无关施工记法，**不是已编译 TS 模块**。
 
 本次运行目标是部署信任的工具、Linux 本地文件和前台关系，尽量组合共用
@@ -66,15 +66,14 @@ question/agent_approval、专属账号/设备同意、暂行执行、detach、�
 | [human-decisions](../../../../packages/governance/human-decisions/design.md) | 请求/唯一答案/后果、答复组合、SystemApprovalSource/DecisionFacts、HD 插件/资源 | e6 的 HD 状态/操作/ask 配合、暂行和专属边界；双入口仍同一 owner |
 | [local-execution](../../../../packages/tools/local-execution/design.md) | 真实对象权限、accept/start/stop/inspect/墓碑、文件 I/O/费用/帧及 LE 插件 | e6 的执行状态/资源/生命周期；read/write 限于本提供者 |
 
-这三份正文作为本次同一 Git 修订的候选快照交付。已有签名归公共源码，待实现
-符号明确为候选；目录中出现 design.md 不证明包 member/API 存在。后续实施
-四输入必须固定经审阅/接受的整份修订，不只引用浮动路径。包 README/spec
-可变入口、应用/总索引及接受记录由整合者补导航，本作者没有这些写入权限。
+这三份正文最初以同一 Git 修订交付，接受范围以上方记录为准。已有签名归
+公共源码，待实现符号不冒充可编译 API；目录中出现 design.md 不证明包 member
+存在。后续消费者仍须固定经审阅/接受的修订，不能只凭浮动路径推定接受。
 
-相邻提供者选用 `runtime-provider-interfaces.md@5ffba4bb55aa9514ebd7f3c2b48f0d26fc9a8e18`
-及其 evidence 的固定版本，**仍未接受**。共同面为唯一 omneAdmission 准备面与
-各包受信 host options 的真实 RecordReader；P2 service/provider/应用装配仍归
-原作者。共同面最终复核及 P1 真实组合通过前，不据候选开放实施。
+相邻提供者的初次候选是 `5ffba4bb55aa9514ebd7f3c2b48f0d26fc9a8e18`，当时未接受；
+当前采用 `f98ac926` 已接受的[提供者映射](runtime-provider-interfaces.md)。
+共同面仍为唯一 omneAdmission 准备面与各包受信 host options 的真实 RecordReader；
+P2 生命周期归相应成员，应用拥有装配。提供者设计接受不表示 P1 真实组合已通过。
 
 ## 本轮审阅处置
 

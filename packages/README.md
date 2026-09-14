@@ -7,8 +7,9 @@ workspace 成员，拥有源码、依赖、公开入口、测试、许可与来�
 当前 17 个产品包中，14 个为可独立构建和消费的实验来源基线，公开入口为各 npm 包的
 `/baseline`；[work-data](core/work-data/README.md) 与 [records](storage/records/README.md)
 已交付共享数据及记录端口/单行 codec 的目标默认入口；
-[diagnostics](observation/diagnostics/README.md) 的目标实现正在修复和验收，尚不可作为
-已接受的共享产品消费。
+[diagnostics](observation/diagnostics/README.md) 的 D1 共享诊断实现已按
+[成员证据](observation/diagnostics/evidence/directory-owner/README.md)接受；JSONL/admission
+的真实消费组合仍未交付。
 尚未实现完整目标能力。源码来源及迁移见
 [布局方案](../docs/proposals/core-capabilities/fork/package-layout.md)与
 [交付记录](../docs/proposals/core-capabilities/fork/package-layout-delivery.md)。
