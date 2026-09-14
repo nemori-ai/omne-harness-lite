@@ -383,7 +383,7 @@ test('checks project-owned packages and apps through independent tarball consume
   const preloadMarker = join(repo, 'inherited-preload-ran')
   const preload = join(repo, 'preload.cjs')
   await writeFile(preload, `const { appendFileSync } = require('node:fs')
-const relevant = process.cwd().includes('artifact-consumer-') && process.argv.some(value =>
+const relevant = process.argv.some(value =>
   value === 'tsc' || /(?:^|[\\/])tsc(?:\\.js)?$/.test(value) || /build[\\/](?:consumer|agent|projection)\\.js$/.test(value))
 if (relevant) appendFileSync(${JSON.stringify(preloadMarker)}, process.argv.join(' ') + '\\n')
 `)
@@ -425,7 +425,13 @@ if (relevant) appendFileSync(${JSON.stringify(preloadMarker)}, process.argv.join
   assert.match(output, /isolated local-harness/)
   assert.match(output, /isolated work-data/)
   assert.match(output, /isolated composition/)
-  await assert.rejects(readFile(preloadMarker), { code: 'ENOENT' })
+  let inheritedPreload
+  try {
+    inheritedPreload = await readFile(preloadMarker, 'utf8')
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error
+  }
+  assert.equal(inheritedPreload, undefined, `inherited preload ran in artifact subprocess: ${inheritedPreload}`)
 })
 
 test('permits only the probed fs-ext native rebuild with an exact product and lock version', () => {
