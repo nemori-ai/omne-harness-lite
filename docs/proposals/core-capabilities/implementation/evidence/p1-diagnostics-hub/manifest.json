@@ -1,0 +1,111 @@
+{
+  "sourceCommit": "46770b9d739c14b6506008326fee7c741da57d81",
+  "status": "candidate_not_accepted",
+  "archive": {
+    "path": "artifacts.tar.gz",
+    "bytes": 44552,
+    "sha256": "21681bf9abd9de91086ed57ac228b33103fb0c9ba3fc38aa622b7e5965305c39"
+  },
+  "assets": [
+    {
+      "path": "tmp/p1-diagnostics-hub-check.log",
+      "bytes": 17800,
+      "sha256": "3657dd21285bc3bc918a66a6af10e6cf7d25b1d918b2ae4959e5f4de59658987"
+    },
+    {
+      "path": "tmp/p1-diagnostics-hub-consumer/actual-output/diagnostic-4fdd3d41853aa232.jsonl",
+      "bytes": 1799,
+      "sha256": "6e60d5d6cc553e3db80cd4caa368b651ac6226d73987dc11a8408740ae352587"
+    },
+    {
+      "path": "tmp/p1-diagnostics-hub-consumer/consumer.ts",
+      "bytes": 2672,
+      "sha256": "55461a2aae9265e3cf9280e3fe0359e13af8707c252c894ebc5981608ae71cd0"
+    },
+    {
+      "path": "tmp/p1-diagnostics-hub-consumer/diagnostics-pack.log",
+      "bytes": 356,
+      "sha256": "57b3f07bd8eb3da9afd68fc11feddfd2159debd4b4ee82ca22bcc546e06b95db"
+    },
+    {
+      "path": "tmp/p1-diagnostics-hub-consumer/install.log",
+      "bytes": 355,
+      "sha256": "58bcd8fb17ce683d5029e5b4b45388e5c4ece5842b4de3299537b2b76f7a3640"
+    },
+    {
+      "path": "tmp/p1-diagnostics-hub-consumer/package.json",
+      "bytes": 801,
+      "sha256": "f1f2dd1496402694f94f68cda131c4660041c0a6198b6def95bf0d58f597833f"
+    },
+    {
+      "path": "tmp/p1-diagnostics-hub-consumer/pnpm-lock.yaml",
+      "bytes": 10448,
+      "sha256": "be4cd9f831f8373f50fba9454a9a364fe7d099b183ee5f6171bd92a27094dba0"
+    },
+    {
+      "path": "tmp/p1-diagnostics-hub-consumer/records-pack.log",
+      "bytes": 274,
+      "sha256": "19d703eb1e5180275bb5e30711a749714b0dfb81faef846d4b321c3f2be913b2"
+    },
+    {
+      "path": "tmp/p1-diagnostics-hub-consumer/runtime.log",
+      "bytes": 68,
+      "sha256": "bfbd329a43096954ac4f72ce42c8b9cf416d2a008adef6055adf6f9ad5cb2f04"
+    },
+    {
+      "path": "tmp/p1-diagnostics-hub-consumer/tsconfig.json",
+      "bytes": 203,
+      "sha256": "663d736666842158eed5aef2ea3c7070e3b3181545295d165e381a540b691f54"
+    },
+    {
+      "path": "tmp/p1-diagnostics-hub-consumer/typecheck.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "tmp/p1-diagnostics-hub-consumer/work-data-pack.log",
+      "bytes": 361,
+      "sha256": "333b990e1c62c809d2d8d2f2074ac3ae55eae3c567fb908f01d2132bb06264de"
+    },
+    {
+      "path": "tmp/p1-diagnostics-hub-docs.log",
+      "bytes": 273,
+      "sha256": "2ea27845096f8e770cd101a03f14b14452bbcbf0e5eff0a484a1d20be2b743b5"
+    },
+    {
+      "path": "tmp/p1-diagnostics-hub-format-corrected.log",
+      "bytes": 1159,
+      "sha256": "8aa7c9aaa9c8f00e54a75ee593468a2bf78361c2dec9304512208759e1679985"
+    },
+    {
+      "path": "tmp/p1-diagnostics-hub-format.log",
+      "bytes": 801,
+      "sha256": "cbbf7f3150d1012563f5f6a88051703cafdd7e989b796f5441711195f82a4be1"
+    },
+    {
+      "path": "tmp/p1-diagnostics-hub-install.log",
+      "bytes": 276,
+      "sha256": "5fd80fa4a7128ee48381ada7321a157ff2706ccb03e25c3f2f95fa36b55cd775"
+    },
+    {
+      "path": "tmp/p1-diagnostics-hub-lock.log",
+      "bytes": 183,
+      "sha256": "e39de1877bdc36160c7231e2f3c9ceb9b6c6d52df28adaa82b809b6a9ada12fd"
+    },
+    {
+      "path": "tmp/p1-diagnostics-hub-tarballs/omne-harness-lite-diagnostics-0.0.0.tgz",
+      "bytes": 13148,
+      "sha256": "7cac14556070d63c03bdea00e5f994412fd0f6dcd1efffff77b525fb4162f0cd"
+    },
+    {
+      "path": "tmp/p1-diagnostics-hub-tarballs/omne-harness-lite-records-0.0.0.tgz",
+      "bytes": 7720,
+      "sha256": "f39142544115905f9190bf5ab6544300a2c5f91030d4541e5a9b44455720d286"
+    },
+    {
+      "path": "tmp/p1-diagnostics-hub-tarballs/omne-harness-lite-work-data-0.0.0.tgz",
+      "bytes": 12211,
+      "sha256": "e95428d21066117289e206a0715725421e9fd52609f0ad3329ead9e41a8acfbb"
+    }
+  ]
+}

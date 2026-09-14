@@ -1,0 +1,20 @@
+$ pnpm --filter @omne-harness-lite/diagnostics run build
+exit 0
+
+$ pnpm --filter @omne-harness-lite/diagnostics run typecheck
+exit 0
+
+$ pnpm --filter @omne-harness-lite/diagnostics test -- --reporter=verbose
+
+RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics
+
+Test Files  1 passed (1)
+Tests       19 passed (19)
+Duration    734ms
+Exit status 0
+
+This regression expansion adds 10,000 unresolved Promises with hostile then getters, a complete
+unsafe-input matrix, fixed accepted Position/Watermark/measures projection, concurrent close
+deadlines around a delayed real fs.write, and a newer live factory while the old generation closes.
+The minimum ALS/projection and close behaviors were established by the earlier calibrated RED
+rounds; these larger counterexamples passed without a production-code change.

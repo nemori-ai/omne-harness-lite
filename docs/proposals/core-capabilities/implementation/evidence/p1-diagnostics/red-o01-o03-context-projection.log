@@ -1,0 +1,25 @@
+$ pnpm --filter @omne-harness-lite/diagnostics run build
+exit 0
+
+$ pnpm --filter @omne-harness-lite/diagnostics run typecheck
+exit 0
+
+$ pnpm --filter @omne-harness-lite/diagnostics test -- --reporter=verbose
+
+RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics
+
+FAIL  tests/runtime.spec.ts > O01/O02 passive context behavior > keeps two tenant contexts isolated across interleaved asynchronous work and root timers
+AssertionError: expected null to be {} // Object.is equality
+at tests/runtime.spec.ts:145:45
+
+FAIL  tests/runtime.spec.ts > O03 safe projection > does not invoke getters or retain unknown body/error fields and reports invalid projection
+AssertionError: expected [] to deep equally contain ObjectContaining{…}
+at tests/runtime.spec.ts:184:36
+
+Test Files  1 failed (1)
+Tests       2 failed | 2 passed (4)
+Exit status 1
+
+The body result/throw/Promise identity test passed against the minimal lexical fallback and is
+recorded as an existing boundary observation. The two failures above are the intended RED for
+real per-instance ALS context isolation and safe projection/gap accounting.
