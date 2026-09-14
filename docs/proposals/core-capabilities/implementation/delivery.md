@@ -3,7 +3,7 @@
 ## 当前事实
 
 首批二次开发的目标、验收、实施规格和计划已完成文档交付，其原评审发现已闭合。
-P0 新实施稿与检查器仍有待修订问题，分别见 [review.md](review.md)。用户已授权按完整工作包
+P0 的 records/admission 修订稿正在复核，检查器仍有一项隔离问题，见 [review.md](review.md)。用户已授权按完整工作包
 自驱实施；P0 的共享接口设计、原生锁探针和包检查器 TDD 已派发。尚无本批已接受
 产品交付或 OpenRouter 请求；A01–A32 尚未通过，M1/M2 均未交付。
 
@@ -18,11 +18,11 @@ P0 新实施稿与检查器仍有待修订问题，分别见 [review.md](review.
 
 | 任务 | 状态 | 实现/验收证据 | 下一项输入 |
 |---|---|---|---|
-| P0 | in_progress | 锁探针已接受；work-data 子集已固定为实施输入；records/admission 仍修订，检查器修订已送复核 | 共享边界实现、剩余接口修订复核和 HUB 检查器验收 |
+| P0 | in_progress | 锁探针已接受；work-data 已开始 TDD；records/admission 修订复核中，检查器 K1/K3 闭合、K2 仍修复 | 共享边界实现、剩余接口修订复核和 HUB 检查器验收 |
 | P1 | planned | 未执行 | P0 的记录/协调接口与真实锁证据 |
 | P2 | planned | 未执行 | P1 的真实共同门与记录提供者；交付本地预算 owner |
 | P3 / M1 | planned | 未执行 | P2 当前权限/真实预算/Session/活体，以及 P1 执行账本前提 |
-| P4 | planned | 未执行 | M1 组合、模型/路由/凭据和费用授权；离线部分可按依赖提前 |
+| P4 | planned | 未执行；用户已指定凭据入口与两个测试模型 | M1 组合、实际路由/价格和受限冒烟配置；离线部分可按依赖提前 |
 | P5 / M2 | planned | 未执行 | 最终组合版本及全部本批验收证据 |
 
 P0 的原生文件锁前提已验收，正式 writer/恢复仍未实现；P4 的待答编码路由兼容性、
@@ -35,17 +35,20 @@ P0 的原生文件锁前提已验收，正式 writer/恢复仍未实现；P4 的
 ## 当前执行 wave
 
 HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 main 全部提交。
-三个 spoke 均从该 HUB 起点创建，位置都在主检出根的 `.worktrees/` 下。
+最初三个 spoke 从该 HUB 起点创建；work-data 在子集固定后从 `9de28b2` 创建。
+位置都在主检出根的 `.worktrees/` 下。
 
 | 工作 | 执行者与实际句柄 | 独立工作树 | 写入归属与下一关 |
 |---|---|---|---|
-| P0 共享接口稿 | `/root/p0_interfaces` | `dsh-p0-interfaces` | `979d80f` 经独立评审有 I1–I5 待修订，作者已接回；尚未接受或合入 HUB |
+| P0 共享接口稿 | `/root/p0_interfaces`，已交修订；复核 `/root/review_first_batch` | `dsh-p0-interfaces` | `199af4c` 已提交 I1–I5 处置，独立复核中；除下述 work-data 子集外尚未接受或合入 HUB |
 | P0 真实锁探针（accepted） | infrastructure-developer，`/root/p0_lock_probe`，已结束 | `dsh-p0-lock-probe`，已退役 | `f712e025` 经 `04b8dbf` 整合，HUB 全新目录实际复验通过；范围及限制见下文 |
-| P0 包检查器 | verification-developer，`/root/p0_package_checks`，已结束本轮修订 | `dsh-p0-package-checks` | `f0defde` 已提交 K1–K3 修复与原始 TDD 证据，独立复核中；尚未接受或合入 HUB |
+| P0 包检查器 | verification-developer，`/root/p0_package_checks` | `dsh-p0-package-checks` | `f0defde` 的 K1/K3 独立复核闭合；K2 的 TMPDIR 仓库内反例已返修，尚未接受或合入 HUB |
+| P0 work-data 实现 | kernel-developer，`/root/p0_work_data` | `dsh-p0-work-data` | 消费下述已固定子集，独占数据包与专属证据；TDD 实施中 |
 
 未标 accepted 的行只表示派发事实。主调度拥有 HUB 整合、根配置、此工作包和最终
 验收；worker 的本地提交、测试绿灯与运行结束均须经端点核验后才能接受。
-共享接口的消费者尚未派发，不使用兄弟任务未落定的类型或临时约定启动联合实现。
+共享数据契约自身已派发实现；records/admission 消费者尚未派发，不使用兄弟
+任务未落定的类型或临时约定启动联合实现。
 接口出现正式规格反例时先修设计或发布流程，不放宽验收。
 具体反例与处置归[本轮评审](review.md#p0-共享接口实施稿)。当前是可自主修订的
 实施输入和检查器缺陷，没有改变 M1/M2 范围，也不需要用户替作者选更弱的保证。
@@ -54,14 +57,23 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 inventory 与配额查询不覆盖该 native 执行面，不能移用其外部 CLI 的准入或额度
 结论。调度账本在 HUB 的 `tmp/dsh-first-batch.board.json`，仅经 `ccm` 更新；
 native 句柄活性以 collaboration 的实际运行状态为准，持久交付事实以本页及证据为准。
-当前未发现 OpenRouter 环境变量或仓库配置入口；模型/路由、配置路径与费用范围
-已请求用户提供，缺少该输入只阻止依赖它的 A22 实测，不阻止其它研发。
+用户已指定从主检出根 `.env` 的 `OPENROUTER_API_KEY` 直接执行 A22，测试模型为
+OpenAI gpt-5.6-terra 与 DeepSeek v4.1-flash。文件仅由测试进程加载，不打开或输出
+内容，也不复制到证据、提交或提示词。当前尚未加载密钥或发起计费模型请求。
+这份授权覆盖本批必要冒烟；用户未指定数值费用上限，不虚构已确认额度。主调度
+在执行前固定合成测试数据、请求次数/输出上限及按实际路由价格计算的预算，
+不无限重试或改用其他模型；需要明显扩大测试费用或范围时再返回用户。
+已从 OpenRouter 公开页面核对模型标识
+[`openai/gpt-5.6-terra`](https://openrouter.ai/openai/gpt-5.6-terra) 和
+[`deepseek/deepseek-v4.1-flash`](https://openrouter.ai/deepseek/deepseek-v4.1-flash)。
+这只确认公开目录身份，不证明本地凭据可用、具体路由或 A22 工具往返已通过。
 
 ## P0 work-data 的固定实施输入
 
 主调度接受 `979d80f39f9da11031845f6e2112567299443ed2` 中
 `docs/proposals/core-capabilities/implementation/shared-interfaces.md` 的
-「共享值、完整 DTO 与 Schema 消费」整节为 work-data 的实施输入。该节 SHA-256
+「共享值、完整 DTO 与 Schema 消费」整节为 work-data 的实施输入。该节正文
+（不含二级标题，保留首尾换行）的 SHA-256
 为 `147f458a5402394ec3875c0142008f474192296e4e23b495010e8ceeaa0155a9`；
 独立评审范围与未决依赖判断见[评审记录](review.md#p0-共享接口实施稿)。
 同稿的包名/默认公开入口/自有来源元数据只作为该数据包的装配约束；其余

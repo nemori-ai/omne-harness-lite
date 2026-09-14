@@ -51,11 +51,11 @@ work-data/records/admission 的共同输入及 data/DR/CC v1、A05–08/A30/A31�
 
 | ID | 必须修订的缺口与反例 | 状态 |
 |---|---|---|
-| I1 | publications/uses 未与 opaque commit 的记录 owner 形成完整、去重且不可变的对应；提交后修改列表或漏预算 publication，可能 committed 后提前 ready | 作者修订中 |
-| I2 | thenable 检查仅在外层 enter；内部 publishLogical/publishDurable/retainAt 的 void 返回可忽略 async，导致发布未完成就放行 | 作者修订中 |
-| I3 | conflict/rejected 的原操作结果绑定、耐久保存与 lookup/restart 没定义；首次 revision 冲突后同输入重试可能变成功，违反 DR-02 | 作者修订中 |
-| I4 | 业务不可持完整 writer，却只有 writer 暴露 prepareOperation/prepare；缺乏真实、受限的准备端口 | 作者修订中 |
-| I5 | acquire 已持锁后恢复/epoch 同步失败且 release 失败，无残留清理 owner/状态/重试出口 | 作者修订中 |
+| I1 | publications/uses 未与 opaque commit 的记录 owner 形成完整、去重且不可变的对应；提交后修改列表或漏预算 publication，可能 committed 后提前 ready | `199af4c` 修订复核中 |
+| I2 | thenable 检查仅在外层 enter；内部 publishLogical/publishDurable/retainAt 的 void 返回可忽略 async，导致发布未完成就放行 | `199af4c` 修订复核中 |
+| I3 | conflict/rejected 的原操作结果绑定、耐久保存与 lookup/restart 没定义；首次 revision 冲突后同输入重试可能变成功，违反 DR-02 | `199af4c` 修订复核中 |
+| I4 | 业务不可持完整 writer，却只有 writer 暴露 prepareOperation/prepare；缺乏真实、受限的准备端口 | `199af4c` 修订复核中 |
+| I5 | acquire 已持锁后恢复/epoch 同步失败且 release 失败，无残留清理 owner/状态/重试出口 | `199af4c` 修订复核中 |
 
 共享身份/Schema、规范输入比较、双视图、普通撤权顺序及单 journal epoch/连续
 前缀恢复主方案未发现直接冲突。评审没有运行复现、测试或形式工具，不把设计
@@ -76,9 +76,15 @@ P0 检查职责。该分支尚未进入 HUB，也未因 worker 的绿色结果�
 
 | ID | 已确认问题 | 状态 |
 |---|---|---|
-| K1 | 同一成员多个 exports 使用重复 import binding；默认入口与 baseline 共存会 strict tsc 失败，原真实夹具只覆盖单入口 | `f0defde` 已提交每入口唯一 binding 及真实 RED/GREEN，独立复核中 |
-| K2 | consumer 移入 repo/tmp 后，Node/tsc 可沿祖先 node_modules 借到仓库依赖；ignore-workspace 与根包 realpath 检查不提供仓库外隔离 | `f0defde` 已恢复 OS 临时目录并提交 ancestor-only 反例，独立复核中 |
-| K3 | 这批固定 DSH 来源的 manifest.license 可改为与已核对 MIT 原件不一致的声明而通过 | `f0defde` 已提交 MIT 一致性修复及反例，独立复核中 |
+| K1 | 同一成员多个 exports 使用重复 import binding；默认入口与 baseline 共存会 strict tsc 失败，原真实夹具只覆盖单入口 | `f0defde` 每入口唯一 binding、真实 TS2300 RED/GREEN 经独立复核闭合 |
+| K2 | consumer 移入 repo/tmp 后，Node/tsc 可沿祖先 node_modules 借到仓库依赖；ignore-workspace 与根包 realpath 检查不提供仓库外隔离 | `f0defde` 默认 OS 临时目录仍受 TMPDIR 覆盖；仓库内 TMPDIR 反例及真正触达污染行为的 RED 已返修 |
+| K3 | 这批固定 DSH 来源的 manifest.license 可改为与已核对 MIT 原件不一致的声明而通过 | `f0defde` 的 MIT 一致性修复及反例经独立复核闭合 |
+
+该次复核已解压原始证据，确认三项声明哈希、format-patch 与 `0587fa2` 的 diff
+一致，日志支持 12/12 及 14 个独立与组合消费者成功。K2 的旧 RED 停在缺少
+createArtifactScratch 函数，未测到祖先污染；绿色默认环境也不能覆盖被检仓库
+内 TMPDIR。作者须针对该已有入口补足实际路径保证和有效反例，不能以换路径
+名称代替隔离。上述证据核对没有运行测试或接受实现。
 
 新自有包默认 private/UNLICENSED；按实际许可声明支持其它来源不属于本轮缺陷，
 检查器也不授予新许可。原生选择性构建路径的 fixture 通过不代表未来产品 native
