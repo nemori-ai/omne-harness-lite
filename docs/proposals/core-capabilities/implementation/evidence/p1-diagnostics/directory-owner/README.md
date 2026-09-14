@@ -42,7 +42,7 @@ No observed failure in that run required weakening a D-010 output or context gua
 tests add stronger resource-identity observations before the package is considered GREEN.
 
 The original short-write fixture treated `fs.write` argument 3 as a numeric length. SonicBoom 4.2.1
-actually called `fs.write(fd, string, encoding, callback)`, so the fixture synchronously threw and
+actually called `fs.write(fd, string, callback)`, so the fixture synchronously threw and
 wrote no new bytes. The old assertion then counted the existing `diagnostic.source_started` record as
 physical progress. [Measurement RED](red-measurement-corrections.log) captures that mismatch. The
 corrected child records the actual overload, writes half of its encoded payload through the real
