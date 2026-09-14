@@ -18,3 +18,4 @@
 - [D-010：共享诊断设施与观测责任](D-010-shared-diagnostics.md)：P1 的日志/trace 复用、注入、有限资源与业务事实边界；后续桥接和查询仍须独立验证。
 - [D-011：诊断目录的共同所有权](D-011-diagnostics-directory-ownership.md)：根据真实目录竞争反例，限定修订创建入口、共同容量与关闭未知前提；其余 D-010 选择保留。
 - [D-012：Run 驱动器与 Session Inbound](D-012-run-driver-and-inbound.md)：Agent Loop 作为可重建的 Run 驱动器、异步到达的统一裁决、占位与 epoch 分离；接受 run-driver v1 与 session-run v2。
+- [D-013：Run 驱动器的 Cordis 视角与提供者边界](D-013-run-driver-cordis-boundary.md)：实例驱动的消费方式、装载效应与撤除责任、四类接口对接、依赖变化政策与包归属；补充 D-012。

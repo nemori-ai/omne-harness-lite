@@ -48,7 +48,11 @@ CC-03/DR-02 去重认回；同 ID 异输入返回 conflict 时重读前缀重算
 Session 级裁决者把本 Session 未裁决的 arrival 裁决完（SR-21）；(4) 折叠驱动位置，对
 dispatched/executing/unknown 的模型请求与调用按原 attemptId 向原 owner
 inspect/subscribe（TL-11、MC-06），核实不了的记 unknown 且不重发。前提是无全
-Run/Session 控制阻塞，不要求阻塞集合为空（HD-04）。
+Run/Session 控制阻塞，不要求阻塞集合为空（HD-04）。resume 与重取还须通过 SR-14
+的恢复兼容证据，其中包含 Run 记录的驱动绑定与投影 reducer 版本；驱动器实现换代后
+不兼容的 Run 保持原状态并保留占位，等待用户控制或兼容实现，不自动迁移。附着
+资格或授权失效时不新增等待种类：联合准入被拒即停在安全边界，由实例关闭与重取
+门承担（CB-06、AR-16）。
 
 **RD-05**：basis 为 command 的 Run 只由 SR-07 的命令处理者结算，不经模型与工具
 批；上下文装载型命令随 text 项进入模型输入（SR-07）。命令 Run 的结算映射与
