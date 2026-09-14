@@ -51,8 +51,11 @@ Agent 向人提问的答复怎样回到工具"没有一处权威正文。本提�
   依赖方向、崩溃恢复。
 - [cordis.md](cordis.md)：消费方式、插件与服务依赖图、装载效应与撤除、四类接口对接与
   时序、依赖变化政策、hooks 兼容层在 S5/S7 的落点、提供者设计归属。
-- evidence/（波 3）：调用状态机 TLA+ 模型（含 `human` 调用种类）与运行记录；场景。
-- review.md（波 3）：独立评审与处置。
+- [scenarios.md](scenarios.md)：TS-01～TS-17 验收路径，各标模型动作/性质与模型外验收。
+- [evidence/](evidence/README.md)：调用生命周期 TLA+ 模型（五维、`human` 调用、owner 崩溃、
+  归档级联）、安全/进展两配置与一个否定变体、重放脚本与结果；条款覆盖记在
+  [tools 验证范围](../../../spec/capabilities/tools/verification.md)。
+- review.md（待用户派发）：独立评审与处置。
 
 ## 裁决记录（2026-09-14，用户）
 
@@ -84,8 +87,8 @@ Agent 向人提问的答复怎样回到工具"没有一处权威正文。本提�
 | w | 内建人类请求工具 | 纳入：多命令工具 `human`（ask / request_approval / request_consent），HD 为执行 owner |
 | x | 答复回到工具的机制 | D2：调用停在 `waiting_human` 视图不阻止收束与 Yield，答复由 HD 在同一提交结算调用，结算作接续开 Step；通用工具体中途 interrupt 不纳入首版 |
 
-hooks 兼容层的决定点 o～v 随 hooks 兼容提案（`docs/proposals/hooks-compat/`，待建）记录；
-本提案只在 S5/S7 的落点消费它们。
+hooks 兼容层的决定点 o～v 记在 [hooks 兼容提案](../hooks-compat/README.md#裁决记录)；本提案
+只在 S5/S7 的落点消费它们。
 
 ## 未决项
 
@@ -99,5 +102,7 @@ hooks 兼容层的决定点 o～v 随 hooks 兼容提案（`docs/proposals/hooks
 
 ## 接受记录
 
-尚未接受。波 1（本页、requirements、invariants、lifecycle）与波 2（schema、frames、cordis）
-2026-09-14 完成；波 3（形式模型、场景、提供者设计修订、评审）待续。
+尚未接受。波 1（本页、requirements、invariants、lifecycle）、波 2（schema、frames、cordis）
+与波 3 的模型、场景 2026-09-14 完成；形式任务 `tool-execution-call-safety` /
+`tool-execution-call-progress` 已登记。待做：独立评审（用户派发）；接受后提供者设计修订
+（[归属表](cordis.md#提供者设计归属与实施入口)）与契约缺口一次发版。

@@ -147,9 +147,9 @@ async hook 只能观察与注入上下文；每次运行写 `hooks.run.completed
 
 | 内容 | 落点 | 修订 |
 |---|---|---|
-| 调用五维状态、转移表、事件三段式重命名、前台计时、守卫与投影选择器 API、帧读面 | [tools 设计](../../../packages/tools/tools/design.md) | 原地修订（波 3） |
-| attempt 账本与墓碑、帧 seq/gap、detach unsupported | [local-execution 设计](../../../packages/tools/local-execution/design.md) | 对齐词汇（波 3） |
-| `human` 工具定义、五种 kind 的创建入口、ExecutionProvider、答复同批结算 | [HD 设计](../../../packages/governance/human-decisions/design.md) | 扩展（波 3） |
-| 视图值 `waiting_human`、`human` 调用的 Yield 前提 | [run-driver 设计](../../../packages/agent/run-driver/design.md) | 小修（波 3） |
+| 调用五维状态、转移表、事件三段式重命名、前台计时、守卫与投影选择器 API、帧读面 | [tools 设计](../../../packages/tools/tools/design.md) | 接受后原地修订 |
+| attempt 账本与墓碑、帧 seq/gap、detach unsupported | [local-execution 设计](../../../packages/tools/local-execution/design.md) | 接受后对齐词汇 |
+| `human` 工具定义、五种 kind 的创建入口、ExecutionProvider、答复同批结算 | [HD 设计](../../../packages/governance/human-decisions/design.md) | 接受后扩展 |
+| 视图值 `waiting_human`、`human` 调用的 Yield 前提 | [run-driver 设计](../../../packages/agent/run-driver/design.md) | 接受后小修 |
 | 同进程 shell owner | 新包候选 `packages/tools/shell-execution` | 设计待开（决定 a 只定范围） |
 | hooks 兼容层 | 新提案 `docs/proposals/hooks-compat/` 与新包候选 `packages/agent/hooks-compat` | 另开 |

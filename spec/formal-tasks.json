@@ -556,6 +556,60 @@
         "docs/proposals/session-run-agent-lifecycles/evidence/model/InboundMC.tla"
       ],
       "timeout_seconds": 120
+    },
+    {
+      "id": "tool-execution-call-safety",
+      "kind": "tla",
+      "artifacts": [
+        "docs/proposals/tool-execution/evidence/model/ToolCall.tla",
+        "docs/proposals/tool-execution/evidence/model/ToolCallMC.tla",
+        "docs/proposals/tool-execution/evidence/model/ToolCall.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx4g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "4",
+        "-deadlock",
+        "-metadir",
+        "tmp/formal-runs/tool-execution-call-safety",
+        "-config",
+        "docs/proposals/tool-execution/evidence/model/ToolCall.cfg",
+        "docs/proposals/tool-execution/evidence/model/ToolCallMC.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "tool-execution-call-progress",
+      "kind": "tla",
+      "artifacts": [
+        "docs/proposals/tool-execution/evidence/model/ToolCall.tla",
+        "docs/proposals/tool-execution/evidence/model/ToolCallMC.tla",
+        "docs/proposals/tool-execution/evidence/model/ToolCallProgress.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx4g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "4",
+        "-deadlock",
+        "-metadir",
+        "tmp/formal-runs/tool-execution-call-progress",
+        "-config",
+        "docs/proposals/tool-execution/evidence/model/ToolCallProgress.cfg",
+        "docs/proposals/tool-execution/evidence/model/ToolCallMC.tla"
+      ],
+      "timeout_seconds": 120
     }
   ]
 }
