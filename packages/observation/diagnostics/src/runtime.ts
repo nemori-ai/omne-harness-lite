@@ -162,6 +162,7 @@ class LocalRuntime implements DiagnosticsRuntime {
   private readonly maxSourceBytes: number
   private readonly idPrefix: string
   private readonly stream: SonicBoom | null
+  private readonly descriptor: number | null
   private readonly logger: pino.Logger | null
   private readonly manager = new AsyncLocalStorageContextManager().enable()
   private readonly contextKey = createContextKey('omne-harness-lite diagnostics context')
@@ -179,10 +180,14 @@ class LocalRuntime implements DiagnosticsRuntime {
   private retentionReached = false
   private streamClosed = false
   private streamCloseStarted = false
+  private closeRetryNeeded = false
+  private providerClosed = false
+  private closeMarkerAttempted = false
 
   constructor(
     options: LocalDiagnosticsOptions,
     stream: SonicBoom | null,
+    descriptor: number | null,
     maxSourceBytes: number,
     failure?: StartupFailure,
     crashUnknown = false,
@@ -199,6 +204,7 @@ class LocalRuntime implements DiagnosticsRuntime {
       .digest('hex')
       .slice(0, 24)
     this.stream = stream
+    this.descriptor = descriptor
     if (stream === null) {
       this.logger = null
       this.phase = 'degraded'
@@ -271,6 +277,11 @@ class LocalRuntime implements DiagnosticsRuntime {
         this.outputAvailable = false
         this.lastErrorCode = typeof error.code === 'string' ? error.code : 'SONIC_ERROR'
         this.addGap('write_unavailable', null, 'unknown')
+        if (this.phase === 'closing' && this.streamCloseStarted) {
+          this.resource = 'unknown'
+          this.closeRetryNeeded = true
+          return
+        }
         try {
           this.streamCloseStarted = true
           stream.destroy()
@@ -280,6 +291,7 @@ class LocalRuntime implements DiagnosticsRuntime {
       })
       stream.on('close', () => {
         this.streamClosed = true
+        this.closeRetryNeeded = false
         this.resource = 'released'
         this.pendingBytes = 0
         this.lastWriteProgressAt = null
@@ -671,10 +683,17 @@ class LocalRuntime implements DiagnosticsRuntime {
     }
     if (this.phase === 'closed') return Object.freeze({ status: 'closed', state: this.inspect() })
     this.phase = 'closing'
-    this.closeTask ??= this.finishClose()
+    if (this.closeTask === undefined) {
+      const task = this.finishClose()
+      this.closeTask = task
+      void task.then(completed => {
+        if (!completed && this.closeTask === task) this.closeTask = undefined
+      })
+    }
+    const closeTask = this.closeTask
     let timer: NodeJS.Timeout | undefined
     const completed = await Promise.race([
-      this.closeTask,
+      closeTask,
       new Promise<false>(resolve => {
         timer = setTimeout(() => resolve(false), options.deadlineMs)
       }),
@@ -694,15 +713,38 @@ class LocalRuntime implements DiagnosticsRuntime {
         this.activeZeroWaiter = resolve
       })
     }
-    try {
-      await this.provider.forceFlush()
-      await this.provider.shutdown()
-    } catch {
-      this.writeFailed = true
-      this.lastErrorCode = 'OTEL_CLOSE_FAILED'
-      return false
+    if (!this.providerClosed) {
+      try {
+        await this.provider.forceFlush()
+        await this.provider.shutdown()
+        this.providerClosed = true
+      } catch {
+        this.writeFailed = true
+        this.lastErrorCode = 'OTEL_CLOSE_FAILED'
+        return false
+      }
     }
     if (this.stream === null || this.streamClosed || this.resource === 'released') return true
+    if (this.closeRetryNeeded) {
+      if (this.descriptor === null) return false
+      try {
+        await closeDescriptor(this.descriptor)
+        this.closeRetryNeeded = false
+        this.streamClosed = true
+        this.resource = 'released'
+        this.pendingBytes = 0
+        this.lastWriteProgressAt = null
+        return true
+      } catch (error) {
+        this.lastErrorCode = error !== null
+          && typeof error === 'object'
+          && typeof (error as NodeJS.ErrnoException).code === 'string'
+          ? (error as NodeJS.ErrnoException).code!
+          : 'SONIC_CLOSE_FAILED'
+        this.resource = 'unknown'
+        return false
+      }
+    }
     if (this.streamCloseStarted) {
       try {
         await once(this.stream, 'close')
@@ -711,9 +753,13 @@ class LocalRuntime implements DiagnosticsRuntime {
         return false
       }
     }
-    this.emitMarker('diagnostic.source_closed')
+    if (!this.closeMarkerAttempted) {
+      this.closeMarkerAttempted = true
+      this.emitMarker('diagnostic.source_closed')
+    }
     const closed = once(this.stream, 'close')
     try {
+      this.streamCloseStarted = true
       this.stream.end()
       await closed
       return true
@@ -723,6 +769,15 @@ class LocalRuntime implements DiagnosticsRuntime {
       return false
     }
   }
+}
+
+async function closeDescriptor(descriptor: number): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    closeFd(descriptor, error => {
+      if (error !== null) reject(error)
+      else resolve()
+    })
+  })
 }
 
 async function endedCleanly(path: string, size: number, maxRecordBytes: number): Promise<boolean> {
@@ -803,7 +858,12 @@ function startupFailure(error: unknown): StartupFailure {
   return Object.freeze({ code: code === undefined ? 'SOURCE_OPEN_FAILED' : `SOURCE_OPEN_${code}`, reason: 'write_unavailable' })
 }
 
-async function createStream(path: string, options: LocalDiagnosticsOptions): Promise<SonicBoom> {
+type OpenedStream = Readonly<{
+  stream: SonicBoom
+  descriptor: number
+}>
+
+async function createStream(path: string, options: LocalDiagnosticsOptions): Promise<OpenedStream> {
   const descriptor = await new Promise<number>((resolve, reject) => {
     openFd(path, 'wx', 0o600, (error, fd) => {
       if (error !== null) reject(error)
@@ -832,15 +892,10 @@ async function createStream(path: string, options: LocalDiagnosticsOptions): Pro
       once(stream, 'ready'),
       once(stream, 'error').then(([error]) => Promise.reject(error)),
     ])
-    return stream
+    return Object.freeze({ stream, descriptor })
   } finally {
     if (!transferred) {
-      await new Promise<void>((resolve, reject) => {
-        closeFd(descriptor, error => {
-          if (error !== null) reject(error)
-          else resolve()
-        })
-      })
+      await closeDescriptor(descriptor)
     }
   }
 }
@@ -858,21 +913,28 @@ export async function createLocalDiagnostics(
     if (preparation === null) {
       return Object.freeze({
         status: 'created',
-        runtime: new LocalRuntime(options, null, 0, {
+        runtime: new LocalRuntime(options, null, null, 0, {
           code: 'RETENTION_CAPACITY',
           reason: 'retention_capacity',
         }),
       })
     }
-    const stream = await createStream(join(options.directory, fileName(options)), options)
+    const opened = await createStream(join(options.directory, fileName(options)), options)
     return Object.freeze({
       status: 'created',
-      runtime: new LocalRuntime(options, stream, preparation.maxSourceBytes, undefined, preparation.crashUnknown),
+      runtime: new LocalRuntime(
+        options,
+        opened.stream,
+        opened.descriptor,
+        preparation.maxSourceBytes,
+        undefined,
+        preparation.crashUnknown,
+      ),
     })
   } catch (error) {
     return Object.freeze({
       status: 'created',
-      runtime: new LocalRuntime(options, null, 0, startupFailure(error)),
+      runtime: new LocalRuntime(options, null, null, 0, startupFailure(error)),
     })
   }
 }
