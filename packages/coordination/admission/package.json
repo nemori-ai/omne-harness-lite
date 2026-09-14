@@ -16,7 +16,6 @@
   },
   "files": [
     "dist",
-    "evidence",
     "README.md",
     "provenance.json"
   ],
