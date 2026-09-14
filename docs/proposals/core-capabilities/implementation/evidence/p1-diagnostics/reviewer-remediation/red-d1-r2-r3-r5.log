@@ -1,0 +1,96 @@
+
+ RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics
+
+ ❯ tests/reviewer-regressions.spec.ts (3 tests | 3 failed) 147ms
+     × retains and retries the fd after write EIO and the destroy close also fails 133ms
+     × retains an old FileHandle whose first close fails and closes it on runtime retry 5ms
+     × contains revoked Proxies at scope, log, and end without changing business identity 6ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/reviewer-regressions.spec.ts > D1-R2 close recovery after a write-triggered destroy > retains and retries the fd after write EIO and the destroy close also fails
+AssertionError: expected { sourceId: 'source-r2', …(12) } to match object { phase: 'degraded', …(3) }
+(9 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "lastErrorCode": "EIO",
+    "phase": "degraded",
+-   "resource": "unknown",
++   "resource": "held",
+    "writeProgress": "failed",
+  }
+
+ ❯ tests/reviewer-regressions.spec.ts:128:25
+    126|     }
+    127|
+    128|     expect(beforeRetry).toMatchObject({
+       |                         ^
+    129|       phase: 'degraded',
+    130|       resource: 'unknown',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  tests/reviewer-regressions.spec.ts > D1-R3 scanned source cleanup ownership > retains an old FileHandle whose first close fails and closes it on runtime retry
+AssertionError: expected { sourceId: 'source-r3', …(12) } to match object { phase: 'degraded', …(1) }
+(11 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "phase": "degraded",
+-   "resource": "unknown",
++   "resource": "released",
+  }
+
+ ❯ tests/reviewer-regressions.spec.ts:185:40
+    183|     let retried: Awaited<ReturnType<DiagnosticsRuntime['close']>> | un…
+    184|     try {
+    185|       expect(result.runtime.inspect()).toMatchObject({
+       |                                        ^
+    186|         phase: 'degraded',
+    187|         resource: 'unknown',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  tests/reviewer-regressions.spec.ts > D1-R5 hostile public projection inputs > contains revoked Proxies at scope, log, and end without changing business identity
+AssertionError: expected [ …(3) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   TypeError {
++     "message": "Cannot perform 'IsArray' on a proxy that has been revoked",
++   },
++   TypeError {
++     "message": "Cannot perform 'IsArray' on a proxy that has been revoked",
++   },
++   TypeError {
++     "message": "Cannot perform 'IsArray' on a proxy that has been revoked",
++   },
++ ]
+
+ ❯ tests/reviewer-regressions.spec.ts:239:22
+    237|       }),
+    238|     ).toThrow(businessError)
+    239|     expect(failures).toEqual([])
+       |                      ^
+    240|     expect(subject.inspect()).toMatchObject({ activeSpans: 0 })
+    241|     expect(subject.inspect().gaps).toContainEqual(
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed (3)
+   Start at  07:04:27
+   Duration  514ms (transform 93ms, setup 0ms, import 188ms, tests 147ms, environment 0ms)
+
+undefined
+/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: vitest run tests/reviewer-regressions.spec.ts
