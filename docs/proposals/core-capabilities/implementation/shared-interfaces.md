@@ -568,6 +568,16 @@ export interface ExactUseIssuer {
     retainAt: ExactUse["retainAt"]; release: ExactUse["release"];
   }>): ExactUse;
 }
+// Private admission bookkeeping; not an exported data contract or resource owner.
+type ExactUseClaim = Readonly<{
+  operation: OperationRef; canonicalInput: string; position: Position;
+}>;
+type ExactUseLifecycle =
+  | Readonly<{ phase: "fresh" }>
+  | Readonly<{ phase: "claimed"; claim: ExactUseClaim; retainInvoked: boolean }>
+  | Readonly<{ phase: "releasing"; claim: ExactUseClaim | null; completion: Promise<ReleaseResult> }>
+  | Readonly<{ phase: "retained"; claim: ExactUseClaim | null; diagnosticId: OpaqueId }>
+  | Readonly<{ phase: "released"; claim: ExactUseClaim | null }>;
 export type PreparedAdmission = Readonly<{
   composition: CompositionKind;
   commit: PreparedCommit;
@@ -611,7 +621,10 @@ createAdmissionCoordinator 的 AdmissionHost 仅由受信装配持有；装配�
 owner 已同步扣住资源后包装原 pin；它固定 issuer/owner/binding/函数引用，在本
 coordinator 的私有实例表登记对象身份。submit 同时查实例表与完整元组，不能靠
 symbol 字段、TS cast、拷贝或反序列化伪造 ExactUse。这里没有全局静态注册表；
-coordinator 只保管原 pin 的身份/责任，不代替 owner 取得或清理资源。
+coordinator 只保管原 pin 的身份/责任，不代替 owner 取得或清理资源。capture 返回
+包装后的 retainAt/release，原 owner 回调只留在私有表；所有调用必须经过下述
+单次交接/释放守卫，不能把原始 release 函数直接作为公开句柄的方法。包装内部
+调用 retainAt 原回调时也执行严格 undefined 检查，不能重新引入丢弃 Promise 的漏洞。
 enter 只调用已绑定的受信组合代码；它拒绝重入和 thenable 返回，frame 退出即失效，
 每次 owner 方法/submit 验证 frame 的真实归属与活动性。受信代码不得安排延迟工作
 继续使用 frame。TS 无法证明无 await/无副作用，代码审阅和针对 Promise/重入的
@@ -658,14 +671,43 @@ submit 在执行任何 retain/publication、调用 writer.commit 前，捕获本
 随后可变的业务快照。coordinator 保管所有使用责任后才开始任何可能失败的回调。
 
 通过上述检查后，submit 作 writer 的去重/当前修订判定，只有新的
-pending 且 disposition=apply 才调用 retainAt 与全部 publishLogical；duplicate
-返回原票据/结果而不重复消费
-批准、预算或使用。未入队时使用在门外按 not_admitted 实际释放；清理失败保留
-owner 的责任记录，不允许假称已释放。
+pending 且 disposition=apply 才在同一短门把全部 fresh 使用一次性绑定到原
+operation、规范输入与精确 Position，然后调用 retainAt 与全部 publishLogical。
+任一使用已经归另一票据、正在释放、释放失败待处理或已释放，都在新的写入排位
+前拒绝；不能因句柄 authentic 且 binding 相同就再次 claim。
+
+duplicate 返回原票据/结果，不重复消费批准、预算或使用。同一 PreparedAdmission
+在未耐久前再次 submit，原 claim 的 operation/规范输入/Position 全相同，因此
+只认回票据，**绝不 release 原票据已持有的 pin**。若重试另外取得了 fresh pin，
+这些 pin 没有转移给原票据，只清理本次快照中 fresh 且最终未被本次新票据 claim
+的项；不清理其它票据拥有的项。无论重复、拒绝还是组装失败，都不能将传入 uses
+数组整体当作“本次可释放资源”。从 lookupPrepared 认回旧结果不需要使用句柄；
+把 released 句柄再传 submit 是非法使用，不影响单独查询原操作结果。
+
+需要清理的 fresh 项在当前短门内先转为 releasing，禁止下一次 submit 抢先 claim；
+只有实际 owner 的异步释放调用排到门外。其 not_admitted 成功后成为 released，
+失败则 retained 并保留 owner 的诊断/清理责任，不回到 fresh、不允许假称已释放。
 disposition=record_conflict 时不发布原业务根、不 retain 原使用；coordinator
-在门外请求释放这次临时使用并跟踪实际结果，只有 provider-owned 冲突记录在等待
+仅按相同规则封闭并在门外释放本次未转移的 fresh 使用，只有 provider-owned 冲突记录在等待
 耐久。它的 completion 返回带原 Receipt 的 conflict；相同 operation 重试和恢复
 仍返回这个 conflict，不会因业务 stream 后来达到期望修订而改成成功。
+
+| ExactUse 私有生命周期 | 允许的转移与不变量 |
+|---|---|
+| fresh | 原生命周期 owner 已扣住、尚未转移的一个 pin；只能 claim 到一份新 apply 票据，或封闭后按 not_admitted 清理。owner 对同一个实际 pin 只 capture 一次，不能重新包装旧 pin 来制造 fresh |
+| claimed | 永久保留原 operation/规范输入/Position；retainAt 最多调用一次，调用前即记 retainInvoked，抛错/异步误用也不自动重试。同票据重复只认回，不再 retain；不同票据拒绝，不能覆盖 claim |
+| releasing | 已同步封闭后等待原 owner 释放；并发 release 共享该次 completion，不重复调用 owner，不允许 claim。not_admitted 不能作用于已有 claim；原因字符串本身不是释放证明 |
+| retained | 释放失败或无法确认释放，保留原 claim（若有）与 owner 责任；禁止复用。后续 release 只可重试原资源的合法清理，不得以不同 operation 换走责任 |
+| released | 终态，保留失效标记/原 claim，永不重新 claim 或 retain；重复 release 只返回已确认结果。新工作须由真实 owner 重新取得新 pin，再 capture 新句柄 |
+
+有 claim 的使用只允许在原 owner 持有该工作真实 settled 或 verified_not_committed
+依据时开始释放；存储/效果 unknown 不授权释放。缺少依据的 release 返回 retained
+诊断并保留原 claim，不触发实际资源释放：claimed 上的 not_admitted 由包装守卫
+直接拒绝、状态仍为 claimed；settled/verified_not_committed 的实际证明由原 owner
+在回调中先核对，拒绝或释放失败返回 retained 后，表项转 retained，绝不清除 claim。
+原 owner 的 throw/reject 或无法确认释放同样有诊断并停在 retained；不能将错误
+吞掉后转 released。coordinator 跟踪 claim、释放调用和结果以封闭句柄；是否安全释放及
+真正关闭资源仍由原生命周期 owner 的事实与回调兑现，不建立第二份资源所有者。
 
 publishLogical/publishDurable 只允许安装已经计算好的不可变根/水位及简单责任
 指针；不做用户通知、资源清理、Schema 编译或权限查询。所有 owner 发布在同一
@@ -732,7 +774,7 @@ enter(frame)：
   同步取得原工具/执行 owner 的 ExactUse
   submit(frame, action_execution + prepared batch + owner publications + uses)
 门外：
-  未准入 => 释放本次新增临时使用；按真实结果返回
+  未准入/重复 => 仅清理本次 fresh 且未转移的临时使用；原票据的 claim 不动
   pending => 呈现 pending_durability；等待 coordinator completion
   conflict + Receipt => 这是已耐久的原条件提交结果；不重用原 operation 改判
   committed + publication ready => 原执行 owner 核对墓碑，接纳精确 attempt
@@ -921,6 +963,11 @@ prepare 与 enter 间撤权导致拒绝、门内已排位的同键重试不二�
 条件；真正 writer/恢复与资源清理结果必须在组合层交叉验证。
 R1/R2 的正式测试覆盖每个 publication/retain 阶段、遗漏/重复 owner、错配/伪造
 use、submit 后改数组/descriptor/方法引用和异步晚到拒绝；不能只测试外层 enter。
+ExactUse 还须覆盖同一 PreparedAdmission 在未耐久前重复 submit（同票据、retain
+只一次、原 pin 不释放）、同一真实句柄给不同 operation（排位前拒绝）、重复操作
+新取得的临时 pin 仅自身释放，以及 released/retained/releasing 句柄不可再 claim。
+释放并发共用一次 owner 调用；失败/unknown 保留原 claim 与真实资源责任，后续
+合法清理只处理原 pin。不得仅检验 issuer 品牌或相同 binding 就称使用语义通过。
 R3 覆盖原冲突结果在业务修订后来匹配时仍不变、完整无回执冲突行的重启认回，
 以及断尾未提交/完整损坏 unknown 的不同分支。R5 组合注入 acquire 取锁后的
 恢复/epoch sync 失败，再注入 release 失败，观察同一清理 owner、阻止新 acquire、
@@ -952,15 +999,21 @@ ajv 8.20.0、jsonc-parser 3.3.1、TypeScript 6.0.3，包锁保留在该临时目
 直接 writer.commit/quarantine、mint 任意 owner、赋入三种 async 回调或伪造 ExactUse。
 `node review-probe.mjs` 对三个同步回调和三个晚到拒绝去向、三个参与者错配、
 四个快照修改条件、两条文档内完整黄金行逐字/长度/摘要核对通过。
+`node claim-probe.mjs` 对单次交接的 9 个机制场景通过：原 pending 票据重复、
+跨 operation 拒绝、只清理重试新 pin、releasing/released 不可 claim、claimed
+拒绝 not_admitted、unknown 保留责任、释放失败、并发释放合并和释放后的旧结果查询。
+该探针使用内存票据与模拟资源 owner，仅核对私有状态协议；真实资源收口仍待 P1。
 这仅是 Schema/API/样例可行性证据，不是完整严格 JSON 实现、业务状态转移、
 TDD 产品交付、native 构建或耐久性验证。
 
 `make docs-check BASELINE=e11cc69` 通过 393 个 Markdown 文档及其关联检查，
 本轮修订的 `make docs-check BASELINE=979d80f` 同样通过 393 个文档；
+单次交接修订的 `make docs-check BASELINE=199af4c` 同样通过 393 个文档；
 `git diff --check` 通过。Python 环境/安装缓存和探针输出均放本任务允许的 tmp，
 没有修改产品源码、根依赖或正式冻结文件。检查日志为 `docs-check.log`、
 `docs-check-review.log`、`probe-result.json`、`tsc-result.log`、`review-probe-result.json`；清理 spoke 前由
 整合者按交付证据要求保全。
+单次交接的结果另在 `claim-probe-result.json` 与 `docs-check-use.log`。
 
 独立评审重点是：受信 owner publications 是否足够约束半发布/未知；同步排位
 与去重、双视图/普通撤权和精确控制是否吻合 CC；epoch/尾部恢复是否保护 DR；
@@ -970,15 +1023,16 @@ TDD 产品交付、native 构建或耐久性验证。
 
 ### 独立评审处置
 
-以下处置对应 reviewer 对 `979d80f` 的最终 R1–R5，等待同一 reviewer 复核；
-作者没有自行宣布接受或闭合评审。
+以下处置对应 reviewer 对 `979d80f` 的最终 R1–R5。该 reviewer 定点复核
+`199af4c` 后确认 R2–R5 文档层面闭合，R1 仅余真实 ExactUse 的单次交接与释放
+后失效反例；本次只修订该残余，等待复核。作者没有自行宣布整体接受或闭合评审。
 “共享值、完整 DTO 与 Schema 消费”整节与 `979d80f` 逐字一致，段落内容的
 SHA-256 为 `147f458a5402394ec3875c0142008f474192296e4e23b495010e8ceeaa0155a9`；
 本轮只改变 records/admission 实施边界及其说明，work-data 可继续消费原固定子集。
 
 | 项目 | 本稿处置位置与证据 |
 |---|---|
-| R1：参与者与批次/使用闭合、可变列表 | Records 的 PreparedCommit.owners/requiredUses 与提交段的一一校验；受限 ExactUseIssuer 和私有实例归属；submit 先捕获冻结列表/字段/函数。review-probe 的错配与快照条件，正式组合测试仍待 P1 |
+| R1：参与者与批次/使用闭合、可变列表 | Records 的 PreparedCommit.owners/requiredUses 与提交段的一一校验；受限 ExactUseIssuer 和私有实例归属；submit 先捕获冻结列表/字段/函数。残余修订增加 ExactUseLifecycle 与原 operation/输入/Position 的单次 claim、原票据和临时 pin 的清理分界、释放守卫与永久失效；claim-probe 的 9 个场景通过，正式组合测试仍待 P1 |
 | R2：内层 async 被 void 忽略 | OwnerPublication/ExactUse 改为严格 undefined 返回；每个调用独立守卫、隔离和晚到拒绝诊断，不提前 ready。三个 async 的负向编译检查及三个晚到拒绝实际探针 |
 | R3：失败结果去重/恢复 | “结果何时占用 operation 身份”表；RecordedOutcome/ConflictReceipt/OperationLookup、record_conflict 分支和保留结果 stream；G10 完整字面量及 P1 的 revision2→3/重启验收映射。拒绝明确留在未接纳边界，业务拒绝沿 owner 的耐久审计普通提交 |
 | R4：业务无法合法准备 | RecordPreparation 由 AdmissionCoordinator 提供，调用示例已改；type-consumer 真实编译并禁止获取 writer 的直接写入权 |
