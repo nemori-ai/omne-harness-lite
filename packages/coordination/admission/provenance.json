@@ -1,0 +1,11 @@
+{
+  "format": 1,
+  "scope": "Project-owned implementation of synchronous core-work admission coordination and exact-use ownership",
+  "files": [],
+  "project_files": [
+    {
+      "path": "src/index.ts",
+      "purpose": "Public admission types and coordinator factory implementation"
+    }
+  ]
+}
