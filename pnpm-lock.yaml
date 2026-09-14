@@ -114,9 +114,18 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 4.0.2
         version: 4.0.2
+      '@omne-harness-lite/admission':
+        specifier: workspace:*
+        version: link:../../coordination/admission
+      '@omne-harness-lite/records':
+        specifier: workspace:*
+        version: link:../../storage/records
       '@omne-harness-lite/scope':
         specifier: workspace:*
         version: link:../scope
+      '@omne-harness-lite/work-data':
+        specifier: workspace:*
+        version: link:../work-data
     devDependencies:
       '@types/node':
         specifier: 24.13.4
