@@ -10,6 +10,10 @@
     {
       "path": "src/runtime.ts",
       "purpose": "Local Pino, SonicBoom and OpenTelemetry diagnostics provider implementation"
+    },
+    {
+      "path": "src/projection.ts",
+      "purpose": "Getter-free bounded projection of accepted diagnostic identity and point fields"
     }
   ]
 }

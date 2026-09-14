@@ -2,12 +2,18 @@ import { createHash } from 'node:crypto'
 import { once } from 'node:events'
 import { chmod, mkdir, open } from 'node:fs/promises'
 import { isAbsolute, join } from 'node:path'
+import { performance } from 'node:perf_hooks'
+import { ROOT_CONTEXT, createContextKey, trace } from '@opentelemetry/api'
+import type { Context } from '@opentelemetry/api'
+import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks'
 import pino from 'pino'
 import { SonicBoom } from 'sonic-boom'
 import type {
   DiagnosticClose,
   DiagnosticContext,
   DiagnosticEnd,
+  DiagnosticGap,
+  DiagnosticGapReason,
   DiagnosticIdentity,
   DiagnosticPoint,
   Diagnostics,
@@ -17,9 +23,30 @@ import type {
   LocalDiagnosticsOptions,
   LocalDiagnosticsResult,
 } from './index.js'
+import { projectIdentity, projectPoint, samePrincipal } from './projection.js'
+import type { SafeIdentity, SafePoint } from './projection.js'
 
 const levels = new Set(['debug', 'info', 'warn', 'error'])
 const emptyContext = Object.freeze({}) as DiagnosticContext
+const levelValue = { debug: 10, info: 20, warn: 30, error: 40 } as const
+
+type InternalContext = Readonly<{
+  identity: SafeIdentity
+  native: Context
+}>
+
+type MutableGap = {
+  firstSeq: bigint | null
+  lastSeq: bigint | null
+  count: bigint | null
+  quality: 'counted' | 'unknown'
+}
+
+const invalidIdentity: SafeIdentity = Object.freeze({
+  tenantId: null,
+  principal: Object.freeze({ kind: 'system', systemId: 'diagnostics-invalid' }),
+  causality: Object.freeze({}),
+})
 
 function validPositiveInteger(value: unknown): value is number {
   return Number.isSafeInteger(value) && (value as number) > 0
@@ -55,6 +82,9 @@ function fileName(options: LocalDiagnosticsOptions): string {
 }
 
 function frozenStatus(runtime: LocalRuntime): DiagnosticStatus {
+  const pendingIdleMs = runtime.pendingBytes > 0 && runtime.lastWriteProgressAt !== null
+    ? Math.max(0, performance.now() - runtime.lastWriteProgressAt)
+    : null
   return Object.freeze({
     sourceId: runtime.sourceId,
     phase: runtime.phase,
@@ -63,10 +93,16 @@ function frozenStatus(runtime: LocalRuntime): DiagnosticStatus {
     droppedCount: String(runtime.dropped),
     pendingBytes: runtime.pendingBytes,
     writtenBytes: String(runtime.writtenBytes),
-    activeSpans: 0,
-    writeProgress: runtime.writeFailed ? 'failed' : runtime.pendingBytes > 0 ? 'pending' : 'idle',
-    pendingIdleMs: runtime.pendingBytes > 0 ? 0 : null,
-    gaps: Object.freeze([]),
+    activeSpans: runtime.activeSpanCount,
+    writeProgress: runtime.writeFailed
+      ? 'failed'
+      : pendingIdleMs !== null && pendingIdleMs >= 1_000
+        ? 'stalled'
+        : runtime.pendingBytes > 0
+          ? 'pending'
+          : 'idle',
+    pendingIdleMs,
+    gaps: Object.freeze(runtime.gapSnapshot()),
     lastErrorCode: runtime.lastErrorCode,
     resource: runtime.resource,
   })
@@ -82,19 +118,37 @@ class LocalRuntime implements DiagnosticsRuntime {
   dropped = 0n
   pendingBytes = 0
   writtenBytes = 0n
+  lastWriteProgressAt: number | null = null
+  activeSpanCount = 0
   writeFailed = false
   lastErrorCode: string | null = null
+  private readonly configuredLevel: LocalDiagnosticsOptions['level']
+  private readonly maxRecordBytes: number
   private readonly stream: SonicBoom
   private readonly logger: pino.Logger
+  private readonly manager = new AsyncLocalStorageContextManager().enable()
+  private readonly contextKey = createContextKey('omne-harness-lite diagnostics context')
+  private readonly contexts = new WeakMap<DiagnosticContext, InternalContext>()
+  private readonly gapState = new Map<DiagnosticGapReason, MutableGap>()
+  private idCounter = 0n
+  private emissionSeq: bigint | null = null
   private closeTask: Promise<boolean> | undefined
 
-  constructor(sourceId: string, stream: SonicBoom) {
-    this.sourceId = sourceId
+  constructor(options: LocalDiagnosticsOptions, stream: SonicBoom) {
+    this.sourceId = options.sourceId
+    this.configuredLevel = options.level
+    this.maxRecordBytes = options.maxRecordBytes
     this.stream = stream
     const destination = {
       write: (line: string): boolean => {
         const bytes = Buffer.byteLength(line, 'utf8')
+        const seq = this.emissionSeq
+        if (bytes > this.maxRecordBytes) {
+          this.addGap('buffer_capacity', seq)
+          return true
+        }
         this.pendingBytes += bytes
+        this.lastWriteProgressAt ??= performance.now()
         let dropped = false
         const onDrop = (): void => {
           dropped = true
@@ -104,7 +158,8 @@ class LocalRuntime implements DiagnosticsRuntime {
           const writable = stream.write(line)
           if (dropped) {
             this.pendingBytes -= bytes
-            this.dropped += 1n
+            if (this.pendingBytes === 0) this.lastWriteProgressAt = null
+            this.addGap('buffer_capacity', seq)
           } else {
             this.accepted += 1n
           }
@@ -114,10 +169,20 @@ class LocalRuntime implements DiagnosticsRuntime {
         }
       },
     }
-    this.logger = pino({ base: null, timestamp: false }, destination)
+    this.logger = pino({
+      base: null,
+      timestamp: false,
+      level: 'debug',
+      formatters: { level: label => ({ level: label }) },
+      redact: {
+        paths: ['error', 'err', 'message', 'stack', 'body', 'secret', 'params', 'headers', 'url', 'query', 'target', 'rawArgs'],
+        remove: true,
+      },
+    }, destination)
     stream.on('write', (bytes: number) => {
       this.writtenBytes += BigInt(bytes)
       this.pendingBytes = Math.max(0, this.pendingBytes - bytes)
+      this.lastWriteProgressAt = this.pendingBytes === 0 ? null : performance.now()
     })
     stream.on('error', (error: NodeJS.ErrnoException) => {
       this.phase = this.phase === 'closing' ? 'closing' : 'degraded'
@@ -134,22 +199,138 @@ class LocalRuntime implements DiagnosticsRuntime {
       end(_result: DiagnosticEnd): void {},
     })
     this.diagnostics = Object.freeze({
-      newId: () => `${sourceId}:${++this.attempted}`,
-      scope: (_identity: DiagnosticIdentity, _parent?: DiagnosticContext) => emptyContext,
-      current: () => null,
-      log: (_context: DiagnosticContext, _point: DiagnosticPoint) => {},
+      newId: () => `${this.sourceId}:${++this.idCounter}`,
+      scope: (identity: DiagnosticIdentity, parent?: DiagnosticContext) => this.scope(identity, parent),
+      current: () => this.current(),
+      log: (context: DiagnosticContext, point: DiagnosticPoint) => this.log(context, point),
       startSpan: (_context: DiagnosticContext, _point: DiagnosticPoint) => inertSpan,
-      within: <T>(_context: DiagnosticContext, body: () => T): T => body(),
+      within: <T>(context: DiagnosticContext, body: () => T): T => this.within(context, body),
     })
   }
 
-  private emitMarker(code: string): void {
+  private nextSeq(): bigint {
     this.attempted += 1n
+    return this.attempted
+  }
+
+  gapSnapshot(): readonly DiagnosticGap[] {
+    return [...this.gapState].map(([reason, gap]) => Object.freeze({
+      reason,
+      firstSeq: gap.firstSeq === null ? null : String(gap.firstSeq),
+      lastSeq: gap.lastSeq === null ? null : String(gap.lastSeq),
+      count: gap.count === null ? null : String(gap.count),
+      quality: gap.quality,
+    }))
+  }
+
+  private addGap(reason: DiagnosticGapReason, seq: bigint | null, quality: 'counted' | 'unknown' = 'counted'): void {
+    const existing = this.gapState.get(reason)
+    if (existing === undefined) {
+      this.gapState.set(reason, {
+        firstSeq: seq,
+        lastSeq: seq,
+        count: quality === 'counted' ? 1n : null,
+        quality,
+      })
+    } else {
+      if (existing.firstSeq === null) existing.firstSeq = seq
+      if (seq !== null) existing.lastSeq = seq
+      if (existing.quality === 'counted' && quality === 'counted' && existing.count !== null) {
+        existing.count += 1n
+      } else {
+        existing.quality = 'unknown'
+        existing.count = null
+      }
+    }
+    if (quality === 'counted') this.dropped += 1n
+  }
+
+  private makeContext(identity: SafeIdentity, parent: Context): DiagnosticContext {
+    const context = Object.freeze({}) as DiagnosticContext
+    const native = parent.setValue(this.contextKey, context)
+    this.contexts.set(context, Object.freeze({ identity, native }))
+    return context
+  }
+
+  private scope(identity: DiagnosticIdentity, parent?: DiagnosticContext): DiagnosticContext {
+    if (this.phase === 'closing' || this.phase === 'closed') {
+      this.addGap('closing', this.nextSeq())
+      return this.makeContext(invalidIdentity, ROOT_CONTEXT)
+    }
+    const projected = projectIdentity(identity)
+    if (!projected.ok) {
+      this.addGap('invalid_projection', this.nextSeq())
+      return this.makeContext(invalidIdentity, ROOT_CONTEXT)
+    }
+    let nativeParent = ROOT_CONTEXT
+    if (parent !== undefined) {
+      const parentContext = this.contexts.get(parent)
+      if (parentContext === undefined
+        || parentContext.identity.tenantId !== projected.value.tenantId
+        || !samePrincipal(parentContext.identity.principal, projected.value.principal)) {
+        this.addGap('invalid_projection', this.nextSeq())
+      } else {
+        nativeParent = parentContext.native
+      }
+    }
+    return this.makeContext(projected.value, nativeParent)
+  }
+
+  private current(): DiagnosticContext | null {
+    if (this.phase === 'closing' || this.phase === 'closed') return null
+    const active = this.manager.active().getValue(this.contextKey)
+    return active !== null && typeof active === 'object' && this.contexts.has(active as DiagnosticContext)
+      ? active as DiagnosticContext
+      : null
+  }
+
+  private within<T>(context: DiagnosticContext, body: () => T): T {
+    if (this.phase === 'closing' || this.phase === 'closed') return body()
+    const internal = this.contexts.get(context)
+    if (internal === undefined) {
+      this.addGap('invalid_projection', this.nextSeq())
+      return body()
+    }
+    let bodyCalled = false
     try {
+      return this.manager.with(internal.native, () => {
+        bodyCalled = true
+        return body()
+      })
+    } catch (error) {
+      if (bodyCalled) throw error
+      this.addGap('write_unavailable', this.nextSeq())
+      return body()
+    }
+  }
+
+  private log(context: DiagnosticContext, point: DiagnosticPoint): void {
+    const seq = this.nextSeq()
+    if (this.phase === 'closing' || this.phase === 'closed') {
+      this.addGap('closing', seq)
+      return
+    }
+    const internal = this.contexts.get(context)
+    const projected = projectPoint(point)
+    if (internal === undefined || !projected.ok) {
+      this.addGap('invalid_projection', seq)
+      return
+    }
+    if (levelValue[projected.value.level] < levelValue[this.configuredLevel]) {
+      this.addGap('level_excluded', seq)
+      return
+    }
+    this.emitPoint(seq, internal, projected.value)
+  }
+
+  private emitMarker(code: string): void {
+    const seq = this.nextSeq()
+    try {
+      this.emissionSeq = seq
       this.logger.info({
         formatVersion: 'omne-diagnostic/1',
         sourceId: this.sourceId,
-        seq: String(this.attempted),
+        seq: String(seq),
         observedAt: new Date().toISOString(),
         component: 'diagnostics',
         phase: 'lifecycle',
@@ -159,6 +340,43 @@ class LocalRuntime implements DiagnosticsRuntime {
       this.phase = this.phase === 'closing' ? 'closing' : 'degraded'
       this.writeFailed = true
       this.lastErrorCode = 'PINO_WRITE_FAILED'
+      this.addGap('write_unavailable', seq)
+    } finally {
+      this.emissionSeq = null
+    }
+  }
+
+  private emitPoint(seq: bigint, context: InternalContext, point: SafePoint): void {
+    const activeSpan = trace.getSpan(context.native)?.spanContext()
+    try {
+      this.emissionSeq = seq
+      const record = {
+        formatVersion: 'omne-diagnostic/1',
+        sourceId: this.sourceId,
+        seq: String(seq),
+        observedAt: new Date().toISOString(),
+        kind: 'log',
+        tenantId: context.identity.tenantId,
+        principal: context.identity.principal,
+        ...(context.identity.operation === undefined ? {} : { operation: context.identity.operation }),
+        causality: context.identity.causality,
+        ...point,
+        ...(activeSpan === undefined ? {} : {
+          traceId: activeSpan.traceId,
+          spanId: activeSpan.spanId,
+        }),
+      }
+      if (point.level === 'debug') this.logger.debug(record)
+      else if (point.level === 'info') this.logger.info(record)
+      else if (point.level === 'warn') this.logger.warn(record)
+      else this.logger.error(record)
+    } catch {
+      this.phase = this.phase === 'closing' ? 'closing' : 'degraded'
+      this.writeFailed = true
+      this.lastErrorCode = 'PINO_WRITE_FAILED'
+      this.addGap('write_unavailable', seq)
+    } finally {
+      this.emissionSeq = null
     }
   }
 
@@ -183,6 +401,7 @@ class LocalRuntime implements DiagnosticsRuntime {
     if (timer !== undefined) clearTimeout(timer)
     if (completed && this.resource === 'released') {
       this.phase = 'closed'
+      this.manager.disable()
       return Object.freeze({ status: 'closed', state: this.inspect() })
     }
     return Object.freeze({ status: 'blocked', state: this.inspect() })
@@ -234,5 +453,5 @@ export async function createLocalDiagnostics(
   await mkdir(options.directory, { recursive: true, mode: 0o700 })
   await chmod(options.directory, 0o700)
   const stream = await createStream(join(options.directory, fileName(options)), options)
-  return Object.freeze({ status: 'created', runtime: new LocalRuntime(options.sourceId, stream) })
+  return Object.freeze({ status: 'created', runtime: new LocalRuntime(options, stream) })
 }
