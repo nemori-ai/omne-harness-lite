@@ -3,9 +3,11 @@ import { once } from 'node:events'
 import { chmod, mkdir, open } from 'node:fs/promises'
 import { isAbsolute, join } from 'node:path'
 import { performance } from 'node:perf_hooks'
-import { ROOT_CONTEXT, createContextKey, trace } from '@opentelemetry/api'
-import type { Context } from '@opentelemetry/api'
+import { ROOT_CONTEXT, SpanStatusCode, createContextKey, trace } from '@opentelemetry/api'
+import type { Context, Span as ApiSpan, Tracer } from '@opentelemetry/api'
 import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks'
+import { TracerProvider } from '@opentelemetry/sdk-trace'
+import type { ReadableSpan, Span as SdkSpan, SpanProcessor } from '@opentelemetry/sdk-trace'
 import pino from 'pino'
 import { SonicBoom } from 'sonic-boom'
 import type {
@@ -23,7 +25,7 @@ import type {
   LocalDiagnosticsOptions,
   LocalDiagnosticsResult,
 } from './index.js'
-import { projectIdentity, projectPoint, samePrincipal } from './projection.js'
+import { projectEnd, projectIdentity, projectPoint, samePrincipal } from './projection.js'
 import type { SafeIdentity, SafePoint } from './projection.js'
 
 const levels = new Set(['debug', 'info', 'warn', 'error'])
@@ -40,6 +42,13 @@ type MutableGap = {
   lastSeq: bigint | null
   count: bigint | null
   quality: 'counted' | 'unknown'
+}
+
+type ActiveSpan = {
+  readonly span: ApiSpan
+  readonly context: InternalContext
+  readonly point: SafePoint
+  end: DiagnosticEnd | null
 }
 
 const invalidIdentity: SafeIdentity = Object.freeze({
@@ -108,6 +117,20 @@ function frozenStatus(runtime: LocalRuntime): DiagnosticStatus {
   })
 }
 
+class LocalSpanProcessor implements SpanProcessor {
+  constructor(private readonly runtime: LocalRuntime) {}
+
+  onStart(_span: SdkSpan, _parentContext: Context): void {}
+
+  onEnd(span: ReadableSpan): void {
+    this.runtime.finishSpan(span)
+  }
+
+  async forceFlush(): Promise<void> {}
+
+  async shutdown(): Promise<void> {}
+}
+
 class LocalRuntime implements DiagnosticsRuntime {
   readonly diagnostics: Diagnostics
   readonly sourceId: string
@@ -124,12 +147,17 @@ class LocalRuntime implements DiagnosticsRuntime {
   lastErrorCode: string | null = null
   private readonly configuredLevel: LocalDiagnosticsOptions['level']
   private readonly maxRecordBytes: number
+  private readonly maxActiveSpans: number
   private readonly stream: SonicBoom
   private readonly logger: pino.Logger
   private readonly manager = new AsyncLocalStorageContextManager().enable()
   private readonly contextKey = createContextKey('omne-harness-lite diagnostics context')
   private readonly contexts = new WeakMap<DiagnosticContext, InternalContext>()
   private readonly gapState = new Map<DiagnosticGapReason, MutableGap>()
+  private readonly provider: TracerProvider
+  private readonly tracer: Tracer
+  private readonly activeSpans = new Map<string, ActiveSpan>()
+  private activeZeroWaiter: (() => void) | undefined
   private idCounter = 0n
   private emissionSeq: bigint | null = null
   private closeTask: Promise<boolean> | undefined
@@ -138,6 +166,7 @@ class LocalRuntime implements DiagnosticsRuntime {
     this.sourceId = options.sourceId
     this.configuredLevel = options.level
     this.maxRecordBytes = options.maxRecordBytes
+    this.maxActiveSpans = options.maxActiveSpans
     this.stream = stream
     const destination = {
       write: (line: string): boolean => {
@@ -192,6 +221,16 @@ class LocalRuntime implements DiagnosticsRuntime {
     stream.on('close', () => {
       this.resource = 'released'
     })
+    this.provider = new TracerProvider({
+      spanProcessors: [new LocalSpanProcessor(this)],
+      spanLimits: {
+        attributeCountLimit: 32,
+        attributeValueLengthLimit: 256,
+        eventCountLimit: 8,
+        linkCountLimit: 4,
+      },
+    })
+    this.tracer = this.provider.getTracer('@omne-harness-lite/diagnostics', '1')
     this.emitMarker('diagnostic.source_started')
 
     const inertSpan: DiagnosticSpan = Object.freeze({
@@ -203,7 +242,7 @@ class LocalRuntime implements DiagnosticsRuntime {
       scope: (identity: DiagnosticIdentity, parent?: DiagnosticContext) => this.scope(identity, parent),
       current: () => this.current(),
       log: (context: DiagnosticContext, point: DiagnosticPoint) => this.log(context, point),
-      startSpan: (_context: DiagnosticContext, _point: DiagnosticPoint) => inertSpan,
+      startSpan: (context: DiagnosticContext, point: DiagnosticPoint) => this.startSpan(context, point, inertSpan),
       within: <T>(context: DiagnosticContext, body: () => T): T => this.within(context, body),
     })
   }
@@ -323,6 +362,172 @@ class LocalRuntime implements DiagnosticsRuntime {
     this.emitPoint(seq, internal, projected.value)
   }
 
+  private startSpan(
+    context: DiagnosticContext,
+    point: DiagnosticPoint,
+    inert: DiagnosticSpan,
+  ): DiagnosticSpan {
+    if (this.phase === 'closing' || this.phase === 'closed') {
+      this.addGap('closing', this.nextSeq())
+      return inert
+    }
+    const internal = this.contexts.get(context)
+    const projected = projectPoint(point)
+    if (internal === undefined || !projected.ok) {
+      this.addGap('invalid_projection', this.nextSeq())
+      return inert
+    }
+    if (levelValue[projected.value.level] < levelValue[this.configuredLevel]) {
+      this.addGap('level_excluded', this.nextSeq())
+      return inert
+    }
+    if (this.activeSpans.size >= this.maxActiveSpans) {
+      this.addGap('span_capacity', this.nextSeq())
+      return inert
+    }
+    let span: ApiSpan
+    try {
+      span = this.tracer.startSpan(
+        `${projected.value.component}.${projected.value.phase}`,
+        { attributes: this.spanAttributes(internal.identity, projected.value) },
+        internal.native,
+      )
+    } catch {
+      this.addGap('write_unavailable', this.nextSeq())
+      return inert
+    }
+    const spanContext = span.spanContext()
+    const child = this.makeContext(internal.identity, trace.setSpan(internal.native, span))
+    this.activeSpans.set(spanContext.spanId, {
+      span,
+      context: this.contexts.get(child)!,
+      point: projected.value,
+      end: null,
+    })
+    this.activeSpanCount = this.activeSpans.size
+    let ended = false
+    return Object.freeze({
+      context: child,
+      end: (result: DiagnosticEnd): void => {
+        if (ended) return
+        ended = true
+        this.endSpan(spanContext.spanId, result)
+      },
+    })
+  }
+
+  private spanAttributes(identity: SafeIdentity, point: SafePoint): Readonly<Record<string, string | number>> {
+    const attributes: Record<string, string | number> = {
+      'diagnostic.component': point.component,
+      'diagnostic.phase': point.phase,
+      'diagnostic.code': point.code,
+      'diagnostic.level': point.level,
+      'diagnostic.tenant_id': identity.tenantId ?? 'system',
+      'diagnostic.principal_kind': identity.principal.kind,
+    }
+    if (identity.principal.kind === 'user') attributes['diagnostic.user_id'] = identity.principal.user.userId
+    else attributes['diagnostic.system_id'] = identity.principal.systemId
+    if (identity.operation !== undefined) {
+      attributes['diagnostic.operation_namespace'] = identity.operation.namespace
+      attributes['diagnostic.operation_id'] = identity.operation.operationId
+    }
+    if (point.diagnosticId !== undefined) attributes['diagnostic.id'] = point.diagnosticId
+    if (point.measures !== undefined) {
+      for (const [key, value] of Object.entries(point.measures)) attributes[`diagnostic.measure.${key}`] = value
+    }
+    return attributes
+  }
+
+  private endSpan(spanId: string, result: DiagnosticEnd): void {
+    const active = this.activeSpans.get(spanId)
+    if (active === undefined) return
+    const projected = projectEnd(result)
+    if (projected.ok) {
+      active.end = projected.value
+      active.span.setAttribute('diagnostic.end.code', projected.value.code)
+      active.span.setAttribute('diagnostic.outcome', projected.value.outcome)
+      active.span.setStatus({
+        code: projected.value.outcome === 'ok'
+          ? SpanStatusCode.OK
+          : projected.value.outcome === 'failed'
+            ? SpanStatusCode.ERROR
+            : SpanStatusCode.UNSET,
+      })
+    } else {
+      this.addGap('invalid_projection', this.nextSeq())
+      active.end = Object.freeze({ code: 'diagnostic.invalid_end', outcome: 'failed' })
+      active.span.setStatus({ code: SpanStatusCode.ERROR })
+    }
+    try {
+      active.span.end()
+    } catch {
+      this.activeSpans.delete(spanId)
+      this.activeSpanCount = this.activeSpans.size
+      this.addGap('write_unavailable', this.nextSeq())
+      this.notifyActiveZero()
+    }
+  }
+
+  finishSpan(span: ReadableSpan): void {
+    const spanContext = span.spanContext()
+    const active = this.activeSpans.get(spanContext.spanId)
+    if (active === undefined) return
+    this.activeSpans.delete(spanContext.spanId)
+    this.activeSpanCount = this.activeSpans.size
+    const end = active.end ?? Object.freeze({ code: 'diagnostic.missing_end', outcome: 'failed' as const })
+    const seq = this.nextSeq()
+    this.emitSpan(seq, active.context, active.point, end, span)
+    this.notifyActiveZero()
+  }
+
+  private notifyActiveZero(): void {
+    if (this.activeSpans.size !== 0 || this.activeZeroWaiter === undefined) return
+    const resolve = this.activeZeroWaiter
+    this.activeZeroWaiter = undefined
+    resolve()
+  }
+
+  private emitSpan(
+    seq: bigint,
+    context: InternalContext,
+    point: SafePoint,
+    end: DiagnosticEnd,
+    span: ReadableSpan,
+  ): void {
+    const spanContext = span.spanContext()
+    try {
+      this.emissionSeq = seq
+      const record = {
+        formatVersion: 'omne-diagnostic/1',
+        sourceId: this.sourceId,
+        seq: String(seq),
+        observedAt: new Date().toISOString(),
+        kind: 'span',
+        tenantId: context.identity.tenantId,
+        principal: context.identity.principal,
+        ...(context.identity.operation === undefined ? {} : { operation: context.identity.operation }),
+        causality: context.identity.causality,
+        ...point,
+        code: end.code,
+        outcome: end.outcome,
+        traceId: spanContext.traceId,
+        spanId: spanContext.spanId,
+        ...(span.parentSpanContext === undefined ? {} : { parentSpanId: span.parentSpanContext.spanId }),
+      }
+      if (point.level === 'debug') this.logger.debug(record)
+      else if (point.level === 'info') this.logger.info(record)
+      else if (point.level === 'warn') this.logger.warn(record)
+      else this.logger.error(record)
+    } catch {
+      this.phase = this.phase === 'closing' ? 'closing' : 'degraded'
+      this.writeFailed = true
+      this.lastErrorCode = 'PINO_WRITE_FAILED'
+      this.addGap('write_unavailable', seq)
+    } finally {
+      this.emissionSeq = null
+    }
+  }
+
   private emitMarker(code: string): void {
     const seq = this.nextSeq()
     try {
@@ -408,6 +613,19 @@ class LocalRuntime implements DiagnosticsRuntime {
   }
 
   private async finishClose(): Promise<boolean> {
+    if (this.activeSpans.size > 0) {
+      await new Promise<void>(resolve => {
+        this.activeZeroWaiter = resolve
+      })
+    }
+    try {
+      await this.provider.forceFlush()
+      await this.provider.shutdown()
+    } catch {
+      this.writeFailed = true
+      this.lastErrorCode = 'OTEL_CLOSE_FAILED'
+      return false
+    }
     this.emitMarker('diagnostic.source_closed')
     const closed = once(this.stream, 'close')
     try {

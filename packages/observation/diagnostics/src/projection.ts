@@ -1,4 +1,4 @@
-import type { DiagnosticIdentity, DiagnosticPoint } from './index.js'
+import type { DiagnosticEnd, DiagnosticIdentity, DiagnosticPoint } from './index.js'
 
 type DescriptorMap = Record<string, PropertyDescriptor>
 type Checked<T> = Readonly<{ ok: true; value: T }> | Readonly<{ ok: false }>
@@ -368,4 +368,15 @@ export function samePrincipal(left: SafePrincipal, right: SafePrincipal): boolea
   return left.kind === 'system'
     ? right.kind === 'system' && left.systemId === right.systemId
     : right.kind === 'user' && left.user.userId === right.user.userId
+}
+
+export function projectEnd(input: DiagnosticEnd): Checked<DiagnosticEnd> {
+  const shape = object(input, ['code', 'outcome'])
+  if (!shape.ok) return invalid
+  const code = safeString(value(shape.value, 'code'), true)
+  const outcome = value(shape.value, 'outcome')
+  if (!code.ok || !['ok', 'rejected', 'failed', 'cancelled', 'unknown', 'interrupted'].includes(outcome as string)) {
+    return invalid
+  }
+  return valid(Object.freeze({ code: code.value, outcome: outcome as DiagnosticEnd['outcome'] }))
 }
