@@ -1,0 +1,11 @@
+{
+  "format": 1,
+  "scope": "Project-owned shared TypeScript value declarations for the accepted tenant-governance v1 boundary",
+  "files": [],
+  "project_files": [
+    {
+      "path": "src/index.ts",
+      "purpose": "Default public entry for tenant-owned shared value declarations"
+    }
+  ]
+}
