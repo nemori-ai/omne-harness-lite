@@ -1,0 +1,19 @@
+$ pnpm --filter @omne-harness-lite/diagnostics run build
+exit 0
+
+$ pnpm --filter @omne-harness-lite/diagnostics run typecheck
+exit 0
+
+$ pnpm --filter @omne-harness-lite/diagnostics test -- --reporter=verbose
+
+RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics
+
+Test Files  1 passed (1)
+Tests       21 passed (21)
+Duration    686ms
+Exit status 0
+
+The source check reads at most maxRecordBytes + 1 bytes from each end of each file admitted by
+the configured directory/file-count budget. It reports an aggregate unknown-quality crash gap;
+it does not infer that the earlier business owner remains active. Source filenames key exclusivity
+to the source generation, while generated diagnostic IDs incorporate the trusted instance identity.

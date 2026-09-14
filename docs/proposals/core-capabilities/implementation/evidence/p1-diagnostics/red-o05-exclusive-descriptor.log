@@ -1,0 +1,19 @@
+$ pnpm --filter @omne-harness-lite/diagnostics run typecheck
+exit 0
+
+$ pnpm --filter @omne-harness-lite/diagnostics test -- --reporter=verbose
+
+RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics
+
+FAIL  tests/runtime.spec.ts > O05/O06 local source lifecycle > keeps the exclusive creation descriptor instead of reopening the path for append
+AssertionError: expected observed open flags [ 'a' ] to include 'wx'
+at tests/runtime.spec.ts:134
+
+Test Files  1 failed (1)
+Tests       1 failed | 21 passed (22)
+Duration    762ms
+Exit status 1
+
+The test instruments the real node:fs open boundary used by SonicBoom. The RED proves that the
+initial implementation closed its exclusive reservation and reopened the path with append flags,
+leaving a path-replacement interval before the writer acquired its descriptor.
