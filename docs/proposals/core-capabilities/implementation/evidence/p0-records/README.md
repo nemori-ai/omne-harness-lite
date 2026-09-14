@@ -119,3 +119,49 @@ work-data tarball override 满足这个尚未发布的 private 依赖。
 - A05–A08、完整 DR、跨行连续性、owner 授权、writer epoch 获取、去重/冲突恢复、
   fsync/部分写入/崩溃/锁与 admission 仍归 P1 及组合验证，均未在本增量宣称通过。
 - 实现完成和上述检查通过不构成独立评审或最终 accepted；接受权仍归主调度协调者。
+
+## 独立评审后的 parser capacity 修复
+
+独立 reviewer 针对固定产品 `00a4b20` 发现 encode/decode 的可复现不对称：将 G01
+的 `outcome.result` 换成 127 层单元素数组包裹的 `0`，使用
+`maxDepth=256`、`maxNodes=512`、`maxPayloadBytes=4096`、`maxLineBytes=8192`，
+对象复制和 canonical 编码会接受该值，但 work-data 的严格文本 parser 在标量叶
+深度 129 处按其已接受的实现上限返回 capacity。因此 encode 可能成功返回一行，
+而同 limits 的 decode 拒绝该行。
+
+修复提交为 `1a237da`（`fix(records): keep encode within parser capacity`）。先加入
+边界测试并实际运行，结果为 `1 failed | 16 passed`：126 层结果的标量叶深度为
+128，encode 与随后 decode 均成功；127 层时测试要求受控 capacity，原实现却返回
+`ok:true`。`canonicalInput.arguments` 的相邻 127/128 层测试确认该内层路径已经由
+现有 `validateEnvelope` 通过同一 parser 正确守住，无需另改。生成的外层对象深度
+固定且比合法 envelope 更浅，没有同类受影响的深度路径。
+
+最小修复是在 canonical payload 生成后，用公开 work-data `parseJson` 与 decode
+相同的 `maxPayloadBytes/maxDepth/maxNodes` 重新核对文本可解析性；失败原样映射为
+前缀 `/payload` 的深冻结 `Checked` capacity。没有复制 parser、调大实现上限、
+修改规格或改变公开接口。测试同时确认相邻成功路径仍可 decode，两次 encode
+各自返回调用者独占、彼此无别名的 `Uint8Array`；字节元素允许调用者修改，修改
+一份不会影响另一份。最终受影响检查为：
+
+```text
+pnpm --filter @omne-harness-lite/records build
+  exit 0
+pnpm --filter @omne-harness-lite/records typecheck
+  exit 0
+pnpm --filter @omne-harness-lite/records test
+  Test Files  2 passed (2)
+  Tests       17 passed (17)
+```
+
+`1a237da` 的 records tarball SHA-256 为
+`6c332570464f2cf403572b0e03477b0e8ec28c65c6008d733ae47daa6292a774`。使用
+`--ignore-workspace --lockfile=false --ignore-scripts --force` 从该 tarball 重新安装
+隔离 consumer 后，公开类型检查和运行验证通过：
+
+```text
+PASS: records tarball fixed G01 bytes, parser depth parity, immutable failure and owned bytes
+```
+
+随后重新运行完整 package checker，退出码 0；其中 `isolated records`、
+`isolated tarball consumer` 与 16-member `isolated composition` 均通过。此修复只
+闭合单行 codec 自洽性，未扩大到原文列出的 P1 writer、跨行或耐久恢复范围。
