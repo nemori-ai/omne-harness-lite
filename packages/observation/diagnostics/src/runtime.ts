@@ -57,6 +57,21 @@ type StartupFailure = Readonly<{
   reason: 'retention_capacity' | 'write_unavailable'
 }>
 
+class StartupCleanupFailure extends Error {
+  readonly descriptor: number
+  readonly code: string | undefined
+
+  constructor(descriptor: number, cause: unknown) {
+    super('diagnostics source preparation failed and retained its descriptor')
+    this.descriptor = descriptor
+    this.code = cause !== null
+      && typeof cause === 'object'
+      && typeof (cause as NodeJS.ErrnoException).code === 'string'
+      ? (cause as NodeJS.ErrnoException).code
+      : undefined
+  }
+}
+
 const invalidIdentity: SafeIdentity = Object.freeze({
   tenantId: null,
   principal: Object.freeze({ kind: 'system', systemId: 'diagnostics-invalid' }),
@@ -208,7 +223,7 @@ class LocalRuntime implements DiagnosticsRuntime {
     if (stream === null) {
       this.logger = null
       this.phase = 'degraded'
-      this.resource = 'released'
+      this.resource = descriptor === null ? 'released' : 'unknown'
       this.writeFailed = true
       this.outputAvailable = false
       this.lastErrorCode = failure?.code ?? 'SOURCE_OPEN_FAILED'
@@ -724,7 +739,24 @@ class LocalRuntime implements DiagnosticsRuntime {
         return false
       }
     }
-    if (this.stream === null || this.streamClosed || this.resource === 'released') return true
+    if (this.stream === null) {
+      if (this.resource === 'released') return true
+      if (this.descriptor === null) return false
+      try {
+        await closeDescriptor(this.descriptor)
+        this.resource = 'released'
+        return true
+      } catch (error) {
+        this.lastErrorCode = error !== null
+          && typeof error === 'object'
+          && typeof (error as NodeJS.ErrnoException).code === 'string'
+          ? (error as NodeJS.ErrnoException).code!
+          : 'SOURCE_CLEANUP_FAILED'
+        this.resource = 'unknown'
+        return false
+      }
+    }
+    if (this.streamClosed || this.resource === 'released') return true
     if (this.closeRetryNeeded) {
       if (this.descriptor === null) return false
       try {
@@ -893,10 +925,15 @@ async function createStream(path: string, options: LocalDiagnosticsOptions): Pro
       once(stream, 'error').then(([error]) => Promise.reject(error)),
     ])
     return Object.freeze({ stream, descriptor })
-  } finally {
+  } catch (error) {
     if (!transferred) {
-      await closeDescriptor(descriptor)
+      try {
+        await closeDescriptor(descriptor)
+      } catch {
+        throw new StartupCleanupFailure(descriptor, error)
+      }
     }
+    throw error
   }
 }
 
@@ -932,9 +969,10 @@ export async function createLocalDiagnostics(
       ),
     })
   } catch (error) {
+    const descriptor = error instanceof StartupCleanupFailure ? error.descriptor : null
     return Object.freeze({
       status: 'created',
-      runtime: new LocalRuntime(options, null, null, 0, startupFailure(error)),
+      runtime: new LocalRuntime(options, null, descriptor, 0, startupFailure(error)),
     })
   }
 }
