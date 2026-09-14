@@ -267,7 +267,7 @@ export async function checkRepository(repo) {
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 const graph = ${JSON.stringify(graph)}
 const targets = new Set(${JSON.stringify(selectedNativeMembers.map(member => member.manifest.name))})
@@ -291,15 +291,15 @@ function visit(name, manifestUrl) {
   if (targets.has(name)) {
     const fsExtManifest = memberRequire('fs-ext/package.json')
     assert.equal(fsExtManifest.version, '2.1.1', name + ' loaded the wrong fs-ext version')
-    const cachedBefore = new Set(Object.keys(memberRequire.cache))
+    const fsExtEntry = realpathSync(memberRequire.resolve('fs-ext'))
     const addon = memberRequire('fs-ext')
     assert.equal(typeof addon.flock, 'function', name + ' loaded fs-ext without flock')
+    const addonPath = realpathSync(join(dirname(fsExtEntry), 'build', 'Release', 'fs_ext.node'))
     const binary = Object.keys(memberRequire.cache).find(
-      path => !cachedBefore.has(path) && path.endsWith('/fs_ext.node'),
+      path => path.endsWith('/fs_ext.node') && realpathSync(path) === addonPath,
     )
-    assert.ok(binary, name + ' loaded fs-ext without a native addon module')
-    const addonPath = realpathSync(binary)
-    const fsExtRequire = createRequire(memberRequire.resolve('fs-ext'))
+    assert.ok(binary, name + ' loaded fs-ext without its resolved native addon module')
+    const fsExtRequire = createRequire(fsExtEntry)
     const nanManifest = fsExtRequire('nan/package.json')
     assert.equal(nanManifest.version, '2.28.0', name + ' loaded the wrong nan version')
     loaded.add(name)

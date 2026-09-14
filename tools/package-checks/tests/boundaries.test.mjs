@@ -730,6 +730,75 @@ process.exit(result.status ?? 1)
   },
 )
 
+const nativeCompilerAvailable = Boolean(
+  process.env.CC && process.env.CXX && process.env.GCC_EXEC_PREFIX,
+)
+
+test(
+  'loads one shared addon for multiple direct native owners and a transitive consumer',
+  {
+    timeout: 120_000,
+    skip: nativeCompilerAvailable
+      ? false
+      : 'requires explicit CC, CXX and GCC_EXEC_PREFIX for the real fs-ext build',
+  },
+  async t => {
+    await mkdir(scratchRoot, { recursive: true })
+    const repo = await mkdtemp(join(scratchRoot, 'native-shared-'))
+    t.after(() => rm(repo, { recursive: true, force: true }))
+    await ownedMember(repo, 'packages/observation/diagnostics', '@omne-harness-lite/diagnostics', {
+      externalDependencies: { 'fs-ext': '2.1.1' },
+    })
+    await ownedMember(repo, 'packages/storage/jsonl', '@omne-harness-lite/jsonl', {
+      externalDependencies: { 'fs-ext': '2.1.1' },
+    })
+    await ownedMember(repo, 'apps/local-harness', '@omne-harness-lite/local-harness', {
+      dependency: '@omne-harness-lite/diagnostics',
+    })
+    await writeFile(
+      join(repo, 'package.json'),
+      JSON.stringify({
+        name: 'fixture-root',
+        private: true,
+        packageManager: 'pnpm@10.28.1',
+        pnpm: { onlyBuiltDependencies: ['fs-ext'] },
+      }),
+    )
+    await writeFile(join(repo, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*/*\n  - apps/*\n')
+    execFileSync('pnpm', ['install', '--offline', '--ignore-scripts'], {
+      cwd: repo,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+
+    const output = execFileSync(process.execPath, [checkScript, '--root', repo], {
+      cwd: repo,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: process.env,
+    })
+    assert.match(
+      output,
+      /"declaredBy":"@omne-harness-lite\/diagnostics"[^\n]+\nPASS: isolated local-harness, 2 declared product artifact\(s\)/,
+      'transitive native owner was not traversed from the application root',
+    )
+    const nativeLines = output
+      .split('\n')
+      .filter(line => line.startsWith('PASS: loaded fs-ext@2.1.1'))
+    const compositionEvidence = JSON.parse(
+      nativeLines.at(-1).slice(nativeLines.at(-1).indexOf('[')),
+    )
+    assert.deepEqual(
+      compositionEvidence.map(entry => entry.declaredBy),
+      ['@omne-harness-lite/diagnostics', '@omne-harness-lite/jsonl'],
+    )
+    assert.equal(
+      new Set(compositionEvidence.map(entry => entry.addonPath)).size,
+      1,
+      'direct native owners did not share the resolved fs-ext addon',
+    )
+  },
+)
+
 test('applies existing import guards to project-owned default exports', () => {
   const owned = name => ({
     kind: 'package',

@@ -57,10 +57,12 @@ that same `nan` closure and carries its own `onlyBuiltDependencies: ["fs-ext"]`,
 After rebuild, a fresh Node process resolves from the installed real path of the product
 package that declares `fs-ext`, loads the addon, checks `flock`, and verifies both native
 dependency versions. Its PASS evidence includes the loaded `.node` real path and SHA-256;
-rebuild exit 0 alone is only an intermediate observation. Consumers whose closure does not
-contain `fs-ext` receive no native allowlist and run no rebuild or native probe. The checker
-rejects missing compiler variables, other native build names and version ranges. No compiler
-path is embedded here.
+rebuild exit 0 alone is only an intermediate observation. When several installed products
+resolve the same physical `fs-ext`, the probe verifies the cached `.node` against each
+declaring product's resolver and emits evidence for each declaration. Consumers whose closure
+does not contain `fs-ext` receive no native allowlist and run no rebuild or native probe. The
+checker rejects missing compiler variables, other native build names and version ranges. No
+compiler path is embedded here.
 
 Application discovery is independent of the root command fan-out. When an app exists,
 `pnpm-workspace.yaml` must include `apps/*`, and the root owner must extend build,
