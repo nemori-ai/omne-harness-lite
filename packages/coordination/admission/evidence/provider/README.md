@@ -22,9 +22,11 @@ reproduction dependency.
 `pnpm pack` produced `omne-harness-lite-admission-0.0.0.tgz` with SHA-256
 `7b0d8d2f4918429593c8d507514f9dc2899222a71a80a842b42ebd709f0e73e5`. The artifact contained
 the compiled default entry and declaration, package metadata, README, and provenance. The fixed
-file list and hash are in [artifact.txt](artifact.txt). Evidence was added to the package release
-list after that fixed artifact was measured, so a later package at the evidence commit necessarily
-has a different hash.
+file list and hash are in [artifact.txt](artifact.txt). These verification records are maintained
+in the source repository. The current distribution follows the existing product artifact boundary
+and contains compiled entries, package metadata, README, and provenance; it excludes verification
+sources and logs. The temporary evidence-inclusive artifact at `deabdb1` had a different hash and
+is not the final distribution accepted by the repository checker.
 
 An isolated consumer installed the admission, diagnostics, records, and work-data tarballs at
 version `0.0.0` with lifecycle scripts disabled. Its strict TypeScript check passed, then its
