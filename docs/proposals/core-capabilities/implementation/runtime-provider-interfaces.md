@@ -2,7 +2,7 @@
 
 本文保留本次提供者设计的来源、范围、评审与实施导航。具体插件、服务、host、
 当前资格和资源映射已经迁入下表的所属包/应用正文，不在施工稿维护第二份接口。
-迁移及评审消歧仍为候选，尚待主调度接受；文件落入包目录不表示目标产品已实现。
+迁移及评审消歧已接受为最小运行基线的施工输入；目标产品尚未实现。
 
 ## 来源、范围与接受状态
 
@@ -61,20 +61,35 @@ AU/link 重载不自动取消批准；一次批准不变成持久 grant。本修
 只依赖 effect、symbols.original 或消费者 ACTIVE。此次复用固定证据，未重跑
 无变化机制，也未将其称为业务当前检查或产品组合测试。
 
-诊断目录 owner 的固定候选 `d4cd27ed33df815179f57af398c8cb6b5444302a`
-已独立受审无阻断，但最终创建/关闭 factory 采用仍 pending。其唯一正文归
-观测作者，本应用设计只引用精确候选及保有责任，不复制或编造最终签名。
+诊断目录 owner 已由 [D-011](../../../decisions/D-011-diagnostics-directory-ownership.md)
+在 `e2190ad0f9df571eb7e6fb5d36099cf3af589a73` 接受，当前创建/关闭设计归
+[diagnostics](../../../../packages/observation/diagnostics/design.md)。实际目录修复
+仍待产品验收；应用消费这个已接受设计及随后交付的真实公共入口。
+
+## 接受与验证
+
+主调度接受 `f98ac92650beb46bb1e4bc993995e21800a300a2` 的七个包及应用映射，
+范围为本页列出的最小运行基线。该提交经 `8ee3af6fbec592780aa139219d338a16454501d7`
+合入 HUB；原 architecture-reviewer `/root/review_first_batch` 定点复核已确认
+AU 历史批准与旧私有候选的消歧闭合，原代次/必要 provider 当前检查与工具稿
+`0a6e91e` 一致，未发现新的迁移阻断。详见[复核记录](review.md#p2-提供者映射评审)。
+
+HUB 核对固定来源并复跑三组原 Cordis 探针及两组工具当前资格机制探针，原始
+输出与作者相同，见[机制证据](evidence/provider-design-hub/README.md)。合入后
+`make docs-check BASELINE=e2190ad` 通过 451 份文档；这些结果只支持设计采用，
+不证明业务门、恢复或应用已实现。完整 HD、模型与超出基线的部分仍保留后续，
+本次没有发布或修改正式 v1，也没有开放依赖未交付产品的实施路径。
 
 ## 实施推进与未关闭义务
 
 实际安排归 [plan](plan.md)，目标/停止条件归基线页。实施依赖不因正文迁移消失：
 
-1. 先完成 diagnostics 目录采用与真实 P1 records/jsonl/admission 组合，保留
+1. 先完成 diagnostics 目录产品修复与真实 P1 records/jsonl/admission 组合，保留
    唯一 writer/coordinator、双视图、真实锁和同步 publication 的实际证据。
 2. 原 TG/AU/BG、AR/SR、恢复/投影 owner 消费各自当前设计快照和默认公共面；
    在已固定类型上并行，真实身份/当前来源缺失时依赖路径不得 GREEN。
-3. 与工具作者 `0a6e91e` 的 TL/HD/LE 当前稿完成共同端口对齐，实际 allow 链
-   消费真实 TL/LE/资源权限/费用来源。完整 HD 实施不作为本会话前置。
+3. 按已对齐的工具稿 `0a6e91e` 实现共同端口，实际 allow 链消费真实
+   TL/LE/资源权限/费用来源。完整 HD 实施不作为本会话前置。
 4. 应用按自己的装配正文验证基线的 A01–09/A11/A17/A18/A26 本地及 A28–32
    相关子场景，包含真实撤权/失联、双 Context 唯一性、原结果恢复、预算并发/
    unknown 和清理残留。具体 owner 的测量义务随包正文维护，不用内部 Map

@@ -1,6 +1,6 @@
 # Session 提供者设计
 
-状态：受审 `5ffba4b` 的当前映射迁移候选，尚待接受。现有
+状态：`f98ac926` 映射已接受为最小运行基线施工输入。现有
 [src/index.ts](src/index.ts) 为 `/baseline`，目标默认入口及真实 SR 产品尚未交付。
 [来源入口](../../../docs/proposals/core-capabilities/implementation/runtime-provider-interfaces.md)
 保留历史、采用范围和检查；当前实施终点为 allow 最小基线。

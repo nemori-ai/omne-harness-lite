@@ -1,6 +1,6 @@
 # Authorization 提供者设计
 
-状态：受审 `5ffba4b` 的映射迁移及评审消歧候选，尚待接受；目标包尚未实现。
+状态：`f98ac926` 映射及评审消歧已接受为最小运行基线施工输入；目标包尚未实现。
 [来源入口](../../../docs/proposals/core-capabilities/implementation/runtime-provider-interfaces.md)
 保留完整历史修订与检查。当前服务于 allow 最小基线，完整 HD 运行后置。
 

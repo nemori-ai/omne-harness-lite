@@ -8,6 +8,9 @@ of the accepted product capability contracts. Public entry: `@omne-harness-lite/
 Build in the repository with `pnpm --filter @omne-harness-lite/session-persistence... build`; tests use compiled
 artifacts. Dependencies belong to this manifest; consumers use exported package entries.
 
+The accepted baseline implementation design is maintained in [design.md](design.md);
+the target recovery implementation remains unimplemented.
+
 See [source scope](../../../docs/proposals/core-capabilities/fork/session-source.md),
 [package layout](../../../docs/proposals/core-capabilities/fork/package-layout.md),
 and [provenance](provenance.json). Original MIT notice is retained in [LICENSE](LICENSE).

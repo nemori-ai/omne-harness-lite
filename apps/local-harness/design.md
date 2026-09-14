@@ -1,6 +1,6 @@
 # Local harness 装配设计
 
-状态：受审 `5ffba4b` 的当前装配迁移/消歧候选，尚待接受；本目录没有可运行的
+状态：`f98ac926` 装配映射及消歧已接受为最小运行基线施工输入；本目录没有可运行的
 目标应用，也没有新 workspace 成员或启动命令。来源与迁移记录归
 [原施工入口](../../docs/proposals/core-capabilities/implementation/runtime-provider-interfaces.md)。
 采用计划 `1368c52b7255e16e9c2fcde30eebca6f870679f7` 的
@@ -26,18 +26,20 @@
 
 TL/HD/LE 提供者由其原作者唯一维护，当前共同消费快照为
 `0a6e91ea643497f309f1a69f8adecc8a98751df3` 下的
-`packages/tools/tools/design.md`、`packages/governance/human-decisions/design.md`、
-`packages/tools/local-execution/design.md`。本树未合入这些正文时按固定 Git 对象
-核对，整合者同次完成导航；这里不复制它们的服务/状态协议。allow 基线选真实
+[tools](../../packages/tools/tools/design.md)、
+[human-decisions](../../packages/governance/human-decisions/design.md)、
+[local-execution](../../packages/tools/local-execution/design.md)。正文已合入；
+这里不复制它们的服务/状态协议。allow 基线选真实
 TL 和 LE，完整 HD 可不挂，但缺席不能让 ask 绕行 allow。
 
 P1 沿[共享接口](../../docs/proposals/core-capabilities/implementation/shared-interfaces.md)
 选择实际 `createJsonlProvider(options, diagnostics)` 与
 `createAdmissionCoordinator(writer, diagnostics)`，纯 work-data/records 不插件化。
-Diagnostics 消费面沿 [D-010](../../docs/decisions/D-010-shared-diagnostics.md)。
-目录 owner 候选固定为 `d4cd27ed33df815179f57af398c8cb6b5444302a` 的
-`observability-directory.md`；已独立受审无阻断，但最终 factory 采用仍 pending。
-应用按其最终受审面创建并保有目录/子来源，不复制或猜测旧创建/关闭签名。
+Diagnostics 消费面沿 [D-010](../../docs/decisions/D-010-shared-diagnostics.md)，
+目录 owner 采用 `e2190ad` 的
+[D-011](../../docs/decisions/D-011-diagnostics-directory-ownership.md) 与
+[包设计](../../packages/observation/diagnostics/design.md)。应用按唯一目录 factory
+创建并保有目录/子来源；实际实现仍待 D1 通过，不能消费尚未接受的旧来源 factory。
 
 ## 身份与宿主装配
 
