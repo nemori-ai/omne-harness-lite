@@ -21,7 +21,7 @@ P0 共享接口、原生锁前提、检查器、work-data 与 records 已经评�
 | 任务 | 状态 | 实现/验收证据 | 下一项输入 |
 |---|---|---|---|
 | P0 | accepted | 锁前提、共享接口、检查器、work-data/records；HUB 已验证两个目标包与 16 包产物 | 提供 P1 的真实共享端口/codec 和锁测量依据，尚非真实 writer |
-| P1 | in_progress | D1 候选 `3ca93e0`/证据 `5cecf7d` 已合入，HUB 50 项测试通过；独立复核仍发现两项产品问题和一项短写测量缺口，原作者正在修复。真实 writer/准入未实现 | 全部 D1 修复及新目录/锁/关闭故障在同一产物验收后，才并行实现 jsonl/admission |
+| P1 | in_progress | D1 候选 `3ca93e0`/证据 `5cecf7d` 已合入，HUB 50 项测试通过；后续 `a6ee977` 已闭合未知头和短写测量，write EIO 收口后的目录失败状态仍待修复。真实 writer/准入未实现 | 全部 D1 修复及新目录/锁/关闭故障在同一产物验收后，才并行实现 jsonl/admission |
 | P2 | design_accepted | 治理与 AR/SR 施工交接及 `f98ac926` 提供者/应用映射已接受为基线施工输入；产品尚未实施 | P1 的真实共同门与记录提供者；交付本地预算等实际 owner |
 | P3 基线 / 完整 M1 | design_accepted / deferred | `0a6e91e` 的 TL/LE 基线共同面及映射已接受；完整 HD 保留后续候选，产品未执行 | P2 当前权限/真实预算/Session/活体及 P1 执行账本产物 |
 | 最小运行基线 | in_progress | P0 已接受，P1/P2/P3 的必要产品仍未齐备；基线尚未交付 | 真实 allow 链路、共享诊断/存储/本地预算、必要故障与独立消费，固定提交后停止 |
@@ -33,7 +33,7 @@ P0 的原生文件锁前提已验收，正式 writer/恢复仍未实现；P4 的
 
 本次已核对现有检查器只允许 baseline/DSH 来源，以及安装默认禁用脚本的事实；
 检查器已在 P0 完成适配，真实 native 产品依赖已由 `ce73873` 接入，独立消费测量
-正在修复实际加载与共享缓存的判据。开发指南、包索引和当前架构
+已完成实际加载与共享缓存的判据修复并经 HUB 验收。开发指南、包索引和当前架构
 已纠正仍将 fork 建立写作下一步或仅介绍 agent 基线的过时投影。
 
 ## 当前执行 wave
@@ -58,7 +58,7 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 | 规格与 Cordis 映射的维护交接 | `/root/governance_design` 已按用户新分工停止规则写入，主调度整理交接 | `dsh-mapping-governance`，从 `9954b12` 创建，保留未提交候选 | 规范与配套 skills 由另一会话统一收敛；[交接](../design-spec-maintenance-handoff.md)记录缺口、成因与未接受建议，候选不合入 HUB |
 | TL/LE 基线施工交接（design accepted） | 作者 `/root/session_runtime_design` 与定点复核 `/root/review_first_batch` 本轮已结束 | `dsh-tool-decision-design` 已退役，`0a6e91e` 经 `23020cf` 合入 | T-R1/T-R2、reader 与 P2 共同面闭合；HUB 两组新机制逐字一致，基线设计接受见[施工入口](tool-decision-interfaces.md#接受与验证)。完整 HD 保留后续，产品未实现 |
 | P2 提供者与装配映射（design accepted） | 作者 `/root/governance_design` 与独立复核 `/root/review_first_batch` 本轮已结束 | `dsh-runtime-provider-design` 已退役，`f98ac926` 经 `8ee3af6` 合入 | 七包及应用正文、原代次/批准历史消歧闭合；HUB 三组原机制与两组相邻机制复验通过，接受见[施工入口](runtime-provider-interfaces.md#接受与验证)；产品未实现 |
-| 原生独立消费者测量（实施中） | 原生 verification-developer `/root/native_consumer_checks` | `dsh-native-consumer-checks`，从 `ce73873` 创建 | `10c785e` 已有 14 项测试与 17 包/组合消费结果；随后双产品共享 addon 暴露缓存误拒，修复中。尚未整合接受，产品与根配置无写权 |
+| 原生独立消费者测量（accepted） | 原生 verification-developer `/root/native_consumer_checks`，本轮已停写 | `dsh-native-consumer-checks` 已退役，`be9db75` 经 `6f54c75` 合入 | HUB 完整 `pnpm run check`、15 项工具测试（零跳过）、17 包/组合及实际原生加载通过，见[验收](evidence/native-consumer-checks/hub/README.md)；D1 产品仍待接受 |
 | P1 提供者映射迁移（accepted） | 复用原生设计作者 `/root/governance_design`，本轮已停写 | `dsh-p1-provider-mapping` 已退役，`2c3aede7` 经 `6d4b87c` 合入，`6d9f47a` 接受 | 18 段正文/13 份原证据与全部迁移文件独立核验，HUB 455 份文档检查通过；已接受方案归属迁移，不是 P1 产品交付 |
 | 旧系统租户与授权规则研究（进行中） | 原生 explorer `/root/tenant_auth_research` | `dsh-tenant-auth-research`，从 `ff2e7dd` 创建 | 只读 `omne-next` 固定 `6263fed`，提取语言无关规则、不变量和反例并对照当前设计；研究尚未交付，不自动改变当前契约 |
 

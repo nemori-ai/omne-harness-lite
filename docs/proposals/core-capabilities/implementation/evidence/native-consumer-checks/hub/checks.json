@@ -1,0 +1,14 @@
+{
+  "integratedCommit": "6f54c75b4c28373fc30893ca1e63c2e48f98871e",
+  "command": [
+    "pnpm",
+    "run",
+    "check"
+  ],
+  "compilerEnvironment": {
+    "CC": "/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/tmp/p0-lock-probe/gcc10-root/usr/bin/gcc-10",
+    "CXX": "/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/tmp/p0-lock-probe/gcc10-root/usr/bin/g++-10",
+    "GCC_EXEC_PREFIX": "/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/tmp/p0-lock-probe/gcc10-root/usr/lib/gcc/"
+  },
+  "exitCode": 0
+}
