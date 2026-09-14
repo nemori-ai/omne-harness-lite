@@ -8,11 +8,11 @@
 ```mermaid
 flowchart LR
   P0["P0 固定接口与测量入口"] --> P1["P1 真实记录与共同准入"]
-  P1 --> P2["P2 租户 Session 与活体"]
+  P1 --> P2["P2 治理预算 Session 与活体"]
   P1 --> P3a["P3 工具与执行提供者"]
   P2 --> P3b["P3 系统审批与本地应用 M1"]
   P3a --> P3b
-  P1 --> P4a["P4 模型传输与预算"]
+  P2 --> P4a["P4 模型传输与计量接入"]
   P3b --> P4b["P4 文本 Agent Loop M2 候选"]
   P4a --> P4b
   P4b --> P5["P5 故障组合与整批接受"]
@@ -32,13 +32,20 @@ OpenRouter，不另写一套 demo 审批。P5 完成后才接受 M2 及整批。
 |---|---|---|---|
 | P0 接口与测量起点 | 目标：让后续任务共享可编译、可校验、无环的边界；验收 A30/31；规格：共享数据、记录/协调端口及实施格式；计划：先实际环境探针再锁定消费者输入 | kernel-developer 负责 `packages/core/work-data/` 与 coordination 纯接口；infrastructure-developer 负责 records/锁可行性探针；verification-developer 负责真实进程/磁盘/传输断点夹具。每次派发进一步分开具体文件，公共入口只有一个写入负责人 | 两进程锁/暂停/死亡探针及最小记录 round-trip 有实际结果；Schema/接口/字段类型/错误结果/依赖图在可读提交固定。未验证的原生锁或相互冲突接口阻止其消费者，不能靠 mock 放行 |
 | P1 记录与联合准入 | 目标：真实持久的有序协调域；验收 A05–08、A28 的提交部分；规格：DR/CC、记录格式与 writer；计划：失败回执/尾部恢复/撤权顺序逐条 TDD | infrastructure-developer：`packages/storage/records/`、`packages/storage/jsonl/`；kernel-developer：`packages/coordination/admission/` 的短门/位置/精确使用；verification-developer：该组合的故障夹具。共同提交的业务规则由后续 capability owner 提供 | 真实磁盘+两进程+故障重启符合，不只串行 happy path；在批准/Session 写入接入前固定共同门与事件批次端口 |
-| P2 租户、Session 与活体 | 目标：受权文本输入能成为唯一可恢复工作；验收 A01–04/A09/A17 中适用部分；规格：TG/AU/SR/AR/CB；计划：治理与运行准备可并行，最终真实附着组合验收 | capability-developer：`packages/governance/tenant/`、`packages/governance/authorization/`、`packages/session/session/`、`packages/session/projection/`；infrastructure-developer：`packages/session/persistence/`；kernel-developer：`packages/core/agent/`，scope 只有有证据缺口才派写入 | 两主体/两租户真实入口隔离，唯一激活/驱动，输入竞态与退出真实收口；发现 AR/CB 无法接入则先提出契约反例，不由应用绕过 |
-| P3 工具审批与 M1 | 目标：定义自声明的真实工具经系统审批后执行/拒绝，重启仍能处理；验收 A10–20 及 A01–09/A28–32 的 M1 回归；规格：TL/AU/HD、独立执行与控制；计划：执行者和请求权威按既定端口并行，组合者接真实实现 | capability-developer：`packages/tools/tools/`、`packages/governance/human-decisions/`；infrastructure-developer：`packages/tools/local-execution/`；application-developer：`apps/local-harness/` 的本机凭据/CLI/确定性驱动装配；观测能力单独指定 `packages/observation/engineering/` 的负责人 | A12/A15/A16/A19 不可只留单测；Session/池双入口与实际文件效果通过，状态对账完成才记 M1 已交付 |
-| P4 文本模型与 Loop | 目标：真实 OpenRouter 工具建议进入 M1 同一条路径；验收 A21–27，并回归 M1 受影响项；规格：MC/BG/CD、上下文/待答编码；计划：离线协议先 RED/GREEN，再真实模型联调 | capability-developer：`packages/model/llm/`、`packages/governance/budget/`、`packages/context/system-prompt/`、`packages/agent/loop/`；infrastructure-developer：`packages/model/openrouter/`；application-developer：`apps/local-harness/` 的文本入口和装配 | 模型/预算/Loop 组合真实，A24 不可退化全答屏障，A22 无凭据/费用授权时保持未执行；明确阻塞该项而继续独立离线工作 |
+| P2 治理预算、Session 与活体 | 目标：受权文本输入能成为唯一可恢复工作，工具所需预算参与者真实可用；验收 A01–04/A09/A11/A17 及 A26 本地子场景；规格：TG/AU/BG-01–04/SR/AR/CB；计划：治理/预算/运行准备按端口并行，最终真实组合验收 | capability-developer：`packages/governance/tenant/`、`packages/governance/authorization/`、`packages/governance/budget/`、`packages/session/session/`、`packages/session/projection/`；infrastructure-developer：`packages/session/persistence/`；kernel-developer：`packages/core/agent/`，scope 只有有证据缺口才派写入 | 两主体/两租户真实入口隔离，grant/设置/预算实际提交和恢复，唯一激活/驱动，输入竞态与退出真实收口；正式契约无法接入时提出反例，不由应用绕过 |
+| P3 工具审批与 M1 | 目标：定义自声明的真实工具经系统审批后执行/拒绝，重启仍能处理；验收 A10–20、A26 本地子场景及 A01–09/A28–32 的 M1 回归；规格：TL/AU/HD/BG、独立执行与控制；计划：执行者和请求权威按既定端口并行，组合者接真实实现 | capability-developer：`packages/tools/tools/`、`packages/governance/human-decisions/`；infrastructure-developer：`packages/tools/local-execution/`；application-developer：`apps/local-harness/` 的本机凭据/CLI/确定性驱动装配；观测能力单独指定 `packages/observation/engineering/` 的负责人 | A12/A15/A16/A19 不可只留单测；Session/池双入口、单次调用读控与真实文件效果通过，消费 P2 真实预算 owner，状态对账完成才记 M1 已交付 |
+| P4 文本模型与 Loop | 目标：真实 OpenRouter 工具建议进入 M1 同一条路径；验收 A21–27，并回归 M1 受影响项；规格：MC/BG/CD、上下文/待答编码；计划：离线协议先 RED/GREEN，再真实模型联调 | capability-developer：`packages/model/llm/`、`packages/context/system-prompt/`、`packages/agent/loop/`；预算原 owner 在 `packages/governance/budget/` 负责新增价格/计量事实接入；infrastructure-developer：`packages/model/openrouter/`；application-developer：`apps/local-harness/` 的文本入口和装配 | 模型/既有预算/Loop 组合真实，A24 不可退化全答屏障，A22 无凭据/费用授权时保持未执行；明确阻塞该项而继续独立离线工作 |
 | P5 动态、恢复与整批交付 | 目标：最终集成版本符合全部本批标准；验收 A01–32；规格：相同精确依赖及所有已接受实施修订；计划：跨进程故障/动态撤除/模型和工具 unknown，随后对账与独立审阅 | verification-developer：`apps/local-harness/tests/` 中专门指定的组合/压力文件、`tools/package-checks/`；各原 owner 修复自己的实现；派发者作为整合者拥有根配置和本工作包对账 | 真实组合、独立产物、相关模型/静态检查、文档对账都完成；未解决阻断、未执行 A22 或未知被伪报成功时不能接受 M2/整批 |
 
 P0 的探针可放在允许的 `tmp/`，只有经过 TDD 的正式实现才能进入产品包。
 原生依赖/SSE 组件版本选择由实际探针与锁定发行物决定，不要求先移植完整 DSH native 层。
+P0 同时由 verification-developer 在 `tools/package-checks/` 先写失败场景并改造
+现有源基线检查：按实际来源/目标入口分类支持自有包和已交付目标导出，移除
+“所有包必须仅导出 ./baseline 且同属 DSH commit”的失效前提。保留原件/许可/
+源码映射、真实 imports、无环依赖和独立 tarball 消费检查；不能简单跳过新增包。
+整合者负责安装规则：默认禁用依赖脚本，只对已核对并锁定的原生依赖执行必要
+构建；隔离消费者须复现同一安装并实际加载，不能因为 `--ignore-scripts` 安装
+退出 0 就认定 native 可用。P5 再扩展组合场景，而不是到 P5 才允许新包通过检查。
 P2/P3/P4 表中列出的职责范围需要进一步切成互不争写的任务；它们不是授权一个
 agent 独占所有列出的包。应用测试由应用者维护普通流程，验证者只写派发明确
 分给自己的跨边界测试文件；不得同时修改同一文件。

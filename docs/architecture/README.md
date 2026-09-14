@@ -72,8 +72,8 @@ Agent Loop、Profile/Bundle 装配和应用策略不自动成为本项目契约�
 | 组织、身份、版本及接受规则 | [D-001](../decisions/D-001-documentation-system.md)及[维护规范](../maintenance/README.md) |
 | 决定最终权威及有证据的复议 | [D-002](../decisions/D-002-decision-authority.md) |
 | 防御模式适用、退出与开发模型切换前评估 | [D-003](../decisions/D-003-defensive-evaluation.md)及[评估体系](../evaluation/README.md) |
-| 租户和模型的具体数据与管理行为 | [租户](../proposals/tenant-contracts/README.md)、[模型](../proposals/model-contracts/README.md)候选，保留原始语义和待确认项 |
-| 提示词、工具、Session/Turn/Run/Step | [Agent 核心提案](../proposals/agent-core/README.md)，尚未接受完整契约 |
+| 租户和模型的具体数据与管理行为 | [D-008 核心能力](core-capabilities.md)及精确规格拥有本批已接受范围；旧[租户](../proposals/tenant-contracts/README.md)、[模型](../proposals/model-contracts/README.md)候选只保留其历史与未覆盖部分 |
+| 提示词、工具、Session/Run/Step | [D-008 核心能力](core-capabilities.md)拥有本批目标契约；[Agent 核心候选](../proposals/agent-core/README.md)中的其它语义仍未接受 |
 | 活体 Agent 身份、装配、授权与退出 | [运行时专题](agent-runtime.md)、[D-005](../decisions/D-005-agent-runtime.md)及精确规格 |
 | 共同能力归属、四类提供者与 Session 附着 | [共同边界](runtime-composition.md)、[D-007](../decisions/D-007-runtime-composition.md)及组合 v1 |
 | 本批 DSH 来源集合与依赖裁剪 | [复用边界](dsh-core-adoption.md)与 [D-006](../decisions/D-006-dsh-core-adoption.md)；只接受来源和阶段门槛 |

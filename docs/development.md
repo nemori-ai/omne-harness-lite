@@ -16,7 +16,9 @@
 ## 准备可用的检出
 
 产品以 TypeScript 为主；当前可运行 Python 开发工具、形式验证及
-[agent 来源基线](../packages/core/agent/README.md)的构建/测试。尚无完整智能体应用或产品启动命令。
+[各职责包源码基线](../packages/README.md)的构建/测试。尚无完整智能体应用或产品启动命令。
+目标实现从[第一批二次开发工作包](proposals/core-capabilities/implementation/README.md)
+取得目标、验收、实施规格与 TDD 计划；包基线可运行不代表目标产品已实现。
 
 在实际工作的仓库根确认位置和已有改动；隔离规则见
 [worktree-discipline](../.agents/skills/worktree-discipline/SKILL.md)：

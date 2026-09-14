@@ -8,6 +8,8 @@ workspace 成员，拥有源码、依赖、公开入口、测试、许可与来�
 `/baseline`；尚未实现完整目标能力。源码来源及迁移见
 [布局方案](../docs/proposals/core-capabilities/fork/package-layout.md)与
 [交付记录](../docs/proposals/core-capabilities/fork/package-layout-delivery.md)。
+接下来的[第一批二次开发](../docs/proposals/core-capabilities/implementation/README.md)
+以可恢复工具审批和 OpenRouter 文本流程组织；其中的新成员路径仍是计划，尚未创建。
 
 | 能力族 | 职责包 |
 |---|---|
