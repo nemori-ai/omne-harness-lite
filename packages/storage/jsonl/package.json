@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "license": "MIT",
-  "description": "Ordinary JSONL file read, sync, append and rollback primitives; experimental source baseline",
+  "description": "Durable local core-journal provider with JSONL recovery and stable writer locking",
   "engines": {
     "node": ">=24 <25"
   },
@@ -26,7 +26,12 @@
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@omne-harness-lite/diagnostics": "workspace:*",
+    "@omne-harness-lite/records": "workspace:*",
+    "@omne-harness-lite/work-data": "workspace:*",
+    "fs-ext": "2.1.1"
+  },
   "devDependencies": {
     "@types/node": "24.13.4",
     "typescript": "6.0.3",

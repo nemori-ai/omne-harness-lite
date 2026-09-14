@@ -12,6 +12,10 @@
 [治理接口](../../../docs/proposals/core-capabilities/implementation/governance-interfaces.md)
 受审源 `058c77c`、[SR 接口](../../../docs/proposals/core-capabilities/implementation/session-runtime-interfaces.md)
 受审源 `cd16f1` 的已接受范围保持。以下形状/事件是实施投影，不另立语义规格。
+
+当前协议从 [TG](../../governance/tenant/design.md)、[AU](../../governance/authorization/design.md)、
+[BG](../../governance/budget/design.md) 与 [Session](../../session/session/design.md)消费；
+以上历史稿只固定受审来源。
 相邻 P2 提供者消费 `runtime-provider-interfaces.md@5ffba4bb55aa9514ebd7f3c2b48f0d26fc9a8e18`
 候选及其固定机制证据；该稿尚未接受，完整 P2 生命周期仍归原作者。
 

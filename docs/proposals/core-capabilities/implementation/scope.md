@@ -1,8 +1,8 @@
 # 目标与范围
 
-本页保留原完整批次的产品边界。本会话按用户最新要求只执行
-[最小运行基线](runtime-baseline.md)及其共享设施，交接后停止；下述完整 HITL
-和 OpenRouter 目标留待新规划。收窄的是本次执行终点，已确认需求及规格含义不变。
+本页保留原 M1/M2 路线的范围及排除理由。后续[最小节点选择](runtime-baseline.md)
+收窄交付节点，完整 HITL/OpenRouter 范围与已确认要求仍保留；当前装配与实际
+覆盖归[local-harness 设计](../../../../apps/local-harness/design.md)，本页不维护排期。
 
 ## 要交付的结果
 

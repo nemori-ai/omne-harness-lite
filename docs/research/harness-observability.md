@@ -115,7 +115,8 @@ SonicBoom 的 maxLength 以 UTF-8 字节计，溢出同步产生 drop；write �
 
 ## 实际探针与复现
 
-本次隔离目录为工作树 `tmp/observability-design/`。命令使用 Node `v24.18.0`，
+本次在隔离目录测量，原输入与输出沿[归档入口](../proposals/core-capabilities/implementation/evidence/observability-design/README.md)恢复。
+命令使用 Node `v24.18.0`，
 所有文件/模型哨兵是合成数据，没有 .env、密钥、真实模型或外部 exporter。
 正式产品源码/根锁文件未改动；安装禁用 scripts。
 
@@ -216,8 +217,8 @@ root 注册桥给出限定映射和阻断条件，P3 才完成 engineering 读�
 
 对候选 `1c60feb` 的 O-R1–O-R3 反馈揭示了原设计三个具体缺口。以下修订证据
 继续使用前述 Node `v24.18.0`、SonicBoom `4.2.1`、Pino `10.3.1` 和 ALS `2.11.0`，
-没有重新选型或扩大产品范围。新脚本为 `tmp/observability-design/review-probe.mjs`，
-输出为 `review-probe-result.json`；命令 `node tmp/observability-design/review-probe.mjs`
+没有重新选型或扩大产品范围。归档中的脚本为 `review-probe.mjs`，
+输出为 `review-probe-result.json`；在恢复目录执行 `node review-probe.mjs`
 实际 exit 0。它只测具体机制，未运行尚不存在的产品 consumer。
 
 **O-R1：异步输出不保证门外启动。** 精确 Sonic 源码的 write 在达到 minLength

@@ -9,7 +9,8 @@
 [SR v1](../../../spec/capabilities/session-run/v1/contract.md)、
 [CC v1](../../../spec/compositions/core-work-coordination/v1/contract.md)，恢复语义沿
 [Session 接口](../../../docs/proposals/core-capabilities/implementation/session-runtime-interfaces.md)
-`cd16f1` 的“控制、退出和恢复”“状态贡献、投影和可观测性”。
+`cd16f1`；当前恢复顺序见下文，状态贡献和 checkpoint 输入归
+[Session](../session/design.md#状态贡献投影和可观测性)。
 
 ## 过程与依赖
 
@@ -49,3 +50,25 @@
 allow 基线的子场景：真实 fsync/回执窗口重启、错误 Session checkpoint、未知
 版本、缺参与 owner、完整同批关系与原已完成结果。原效果不重发、unknown 不
 归成功。当前没有这些产品恢复测量；源算法测试及文档迁移不抵扣。
+
+## 实施协议的采用来源
+
+下列状态、记录、端口和算法从已接受的 `cd16f1` Agent/Session 输入迁入，
+迁移源快照为 `7e758f21f8f92c1d46fab194fdaf120239b8e11c`。
+原稿只保留受审/接受和取舍历史；本页拥有所列当前提供者设计，语言无关承诺
+仍归所采用的精确 spec。接口记法不等于已经存在或发布的产品 API。
+
+## 恢复顺序与开放边界
+
+恢复顺序固定：P1 持锁扫描并重新同步有效前缀→全部 owner 的 decoder/fold 在同一
+Watermark 装载→SR 校验同批关系、未知事件/状态贡献、定义/配置/驱动协议及环境
+能力→原 TL/HD/模型 owner 核实 call/request/attempt 与停止账本→当前身份/TG/AU/
+对象资格→重新激活 Agent、原 Run 新 epoch/委托/AR 许可→耐久后才继续。
+模型与工具可能已发出但结局不明标 unknown，查询原 attempt；没有未发出证明不
+重发。已完成结果恢复原引用且不重复文件效果；cancelled/deleted/closed 请求不
+复活。AR 目录从空重建，旧 runtime 对象/Context/ExactUse/句柄永不反序列化。
+
+有权历史读面可以在效果核实未完时开放，但必须带已验证水位/availability；坏前缀
+不能靠“projection 还能显示”通过。session/persistence 只读获准 namespace/owner 的
+envelopes，缺 TL/HD decoder 时不能声称整个域恢复完毕，实际入口按依赖关闭。
+完整安全前缀与 schema/业务转移不一致是恢复错误，不是投影丢失可默认修复。

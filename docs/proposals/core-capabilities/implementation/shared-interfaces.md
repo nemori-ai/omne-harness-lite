@@ -577,30 +577,19 @@ G10 固定 R3 的条件冲突：session-1 当前修订 2，edit-1 期望 3，第
 {"byteLength":1329,"formatVersion":"core-journal/1","payload":"{\"appends\":[{\"expectedRevision\":\"0\",\"records\":[{\"data\":{\"currents\":[{\"revision\":\"2\",\"stream\":{\"namespace\":\"core\",\"owner\":\"session\",\"scope\":{\"kind\":\"tenant\",\"tenantId\":\"tenant-1\"},\"streamId\":\"session-1\"}}],\"kind\":\"revision\"},\"kind\":\"operation.conflict\",\"version\":\"1\"}],\"stream\":{\"namespace\":\"core.records\",\"owner\":\"durable-records\",\"scope\":{\"kind\":\"tenant\",\"tenantId\":\"tenant-1\"},\"streamId\":\"operation-outcomes\"}}],\"canonicalInput\":\"{\\\"arguments\\\":{\\\"text\\\":\\\"hello\\\"},\\\"causality\\\":{},\\\"format\\\":\\\"core-operation/1\\\",\\\"operationKind\\\":\\\"session.edit\\\",\\\"preconditions\\\":{\\\"expectedRevision\\\":\\\"3\\\"},\\\"principal\\\":{\\\"kind\\\":\\\"user\\\",\\\"user\\\":{\\\"userId\\\":\\\"user-1\\\"}},\\\"target\\\":{\\\"sessionId\\\":\\\"session-1\\\"},\\\"tenantId\\\":\\\"tenant-1\\\"}\",\"formatVersion\":\"core-journal/1\",\"inputDigest\":\"f4c5354196c6d3973f2d68f9fbdb5cfd7e92b94854a1f3f64218964a3a68be69\",\"inputEncoding\":\"core-json/1\",\"operation\":{\"namespace\":\"core\",\"operationId\":\"edit-1\",\"principalId\":\"{\\\"kind\\\":\\\"user\\\",\\\"user\\\":{\\\"userId\\\":\\\"user-1\\\"}}\"},\"outcome\":{\"conflict\":{\"currents\":[{\"revision\":\"2\",\"stream\":{\"namespace\":\"core\",\"owner\":\"session\",\"scope\":{\"kind\":\"tenant\",\"tenantId\":\"tenant-1\"},\"streamId\":\"session-1\"}}],\"kind\":\"revision\"},\"status\":\"conflict\"},\"position\":{\"commitId\":\"commit-4\",\"coordinationDomain\":\"domain-1\",\"seq\":\"4\",\"writerEpoch\":\"1\"},\"requiredUses\":[]}","sha256":"0556331ec651033a80cb0a4a2760db00ca095769cc96c47074ec02c168efed6d"}
 ```
 
-## 分工、TDD 测量与进入消费者的门槛
+## 已实现公共面与原证据的范围
 
-| 次序 / 归属 | 输入与应先得到的 RED | GREEN 与证据范围 |
-|---|---|---|
-| P0 work-data 作者 | 本页全部 DTO/Schema 映射；多余键/嵌套 tenant 数据不等于授权；宽对象、数值精度、重复键、不可变快照 | TS 公开消费者与两份 Schema 一致，严格 JSON 黄金值；正式 Schema 哈希与 tarball 中资源核对。结构通过不宣称 A01/A10/A14 完成 |
-| P0 records 作者 | 本页 envelope/ports/codec；字面量 G01–G09、非法 shape/seq/修订/owner；两 stream 及固定回执 | codec 独立黄金 round-trip、跨包可编译、完整字节证据；不是 DR 耐久实现验收 |
-| P0 原生探针作者 | 独立既定任务，真实锁竞争/暂停/死亡/释放及 Node 构建 | 明确锁定 native 发行物、OS/FS/构建命令与实际证据；mock 不能放行 P1 writer |
-| P1 jsonl 作者 | [提供者实施验收](../../../../packages/storage/jsonl/design.md#实施验收与已有证据的范围) | 真实 writer/恢复/锁与公开产物仍待交付 |
-| P1 admission 作者 | [提供者实施验收](../../../../packages/coordination/admission/design.md#实施验收与已有证据的范围) | 真实短门/双视图/使用及联合产物仍待交付 |
-| P1 独立组合验证作者 | 原 writer/admission 真产物；fsync 阻塞/失败、关闭重入、旧 frame/旧 writer/异 owner 伪造值 | A05–08/A30/A31 的联合证据；P2 前接口和文档对账到实际 commit |
+work-data 的当前 DTO/Schema 消费、严格 JSON 与不可变值归
+[公开源码](../../../../packages/core/work-data/src/index.ts)；records 的当前端口与
+core-journal 单行 codec 归[公开源码](../../../../packages/storage/records/src/index.ts)。
+上文共享接口代码块、格式选择与 G01/G10 字面量保留原受审身份，用于解释单行
+表示、条件冲突与固定黄金值；不在此继续演进精确签名。实际 P0 结果分别归
+[数据证据](evidence/p0-work-data/README.md)与[记录证据](evidence/p0-records/README.md)。
 
-原同步门/R1/R2/ExactUse 反例与 coordinator.close 义务已迁到
-[admission 验收](../../../../packages/coordination/admission/design.md#实施验收与已有证据的范围)和
-[关闭责任](../../../../packages/coordination/admission/design.md#关闭与失败责任)；R3/R5 的去重恢复与 acquire 双重失败
-已迁到 [JSONL 验收](../../../../packages/storage/jsonl/design.md#实施验收与已有证据的范围)。
-原场景义务继续有效；当前真实产品推进顺序与最终停止点沿
-[plan](plan.md) 和 [runtime-baseline](runtime-baseline.md)。
-
-P0 是共享边界的可消费起点；其通过不代表完整 A05–08，更不代表 A01–32 全部通过。
-根 workspace、锁文件、原检查器/包索引和工作包状态由整合者维护；作者只按派发
-写各自成员与证据，不以临时 alias、手抄相同 DTO 或源码路径 import 解开并行依赖。
-本稿形成后由主调度安排独立只读评审；有阻断项先修订本稿，固定接口提交后再
-并行派发产品实现。业务事件 kind/version/schema 与具体组合在相应 P2/P3/P4 任务
-开工前由其 owner 固定；P1 不预造整个系统的事件目录。
+同步门/ExactUse/关闭及 R1/R2 反例归[admission](../../../../packages/coordination/admission/design.md)，
+R3/R5 去重恢复与 acquire 双重失败归[JSONL](../../../../packages/storage/jsonl/design.md)。
+这些设计证据不等于真实 writer/准入/业务组合已通过；应用组合与范围沿
+[local-harness](../../../../apps/local-harness/design.md)。
 
 ## 本稿的实际检查与待审范围
 
@@ -608,9 +597,9 @@ P0 是共享边界的可消费起点；其通过不代表完整 A05–08，更�
 不是本次迁移执行结果。原始证据字节不动，本轮结果另见
 [迁移检查](evidence/p1-provider-mapping/README.md)。
 
-隔离探针位于本 spoke 的 `tmp/p0-interfaces/`，未进入产品包。实际 Node 为
+隔离探针与包锁已由[原件归档](evidence/p0-shared-interfaces/README.md)保留，未进入产品包。实际 Node 为
 `v24.18.0`；以 `npm install --ignore-scripts --no-audit --no-fund` 安装精确
-ajv 8.20.0、jsonc-parser 3.3.1、TypeScript 6.0.3，包锁保留在该临时目录。
+ajv 8.20.0、jsonc-parser 3.3.1、TypeScript 6.0.3。
 `node probe.mjs` 已编译两个原 Schema 的 30 个 `$defs` 引用，核对 DataTypes
 覆盖去重后的 29 个定义；执行 5 个 parser 条件和 2 个 OperationRef 有效/无效
 条件，并生成上述 G01/G10 字面量。`tsc --strict --target ES2024 --module NodeNext
