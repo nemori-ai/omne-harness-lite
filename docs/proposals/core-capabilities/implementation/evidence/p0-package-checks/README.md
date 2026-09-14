@@ -300,3 +300,58 @@ Real native fs-ext loading remains outside this correction: no accepted product 
 or lock in this branch contains fs-ext. The selective-build guard is unchanged, and the
 integrated P1 root must supply the exact dependency, lock and explicit compiler environment
 before that path can be reported as executed.
+
+### F2 finite ambient-resolution closure
+
+A final follow-up review identified a worktree-shaped case outside the repository
+containment fixed by `a41e9b3`: `TMPDIR=<main-checkout>/tmp` is outside a checked spoke,
+but Node can still walk from that scratch to the common main ancestor's `node_modules`.
+The test-only matrix is based on evidence head `8842f63` and source commit `a41e9b3`.
+Its synthetic main checkout contained `node_modules/ancestor-only` as a symbolic link;
+the old scratch entry created a sibling consumer that loaded the linked package, and
+the behavioral RED failed only after that import succeeded. A second real endpoint RED
+showed an installed tarball runtime borrowing `global-only` from a controlled `NODE_PATH`.
+
+Implementation commit `0d8c3b7` (`fix: close ambient artifact resolution paths`) applies
+the finite boundary accepted by review:
+
+| Matrix case | Observable result at `0d8c3b7` |
+|---|---|
+| Clean repository-external consumer with declared product edges | The real project-owned package/app tarball endpoint installs, compiles and runs each member and their composition. |
+| Repository-local `TMPDIR`, direct and through a symbolic link | Both real paths are rejected, the newly-created scratch is removed, and the repository target remains untouched. |
+| Sibling spoke scratch below a polluted common ancestor | Every real-path ancestor is checked for a directory or symbolic-link `node_modules`; the synthetic main checkout is rejected and the scratch is removed without changing the ancestor. |
+| Clean external consumer missing an ESM, `createRequire`, or declaration dependency | Direct ESM and `createRequire` probes fail module resolution, and strict NodeNext declaration compilation reports `TS2307`. |
+| Inherited Node resolution environment | A raw control loads through `NODE_PATH` and a preload control runs. Artifact type compilation and runtime remove `NODE_PATH`, replace inherited `NODE_OPTIONS` with `--no-global-search-paths`, and direct Node processes also pass the flag. Runtime `globalPaths` is empty; the controlled preload marker is absent. Explicit `CC` and `CXX` survive. |
+
+The Node 24.18.0 command-line documentation defines
+[`--no-global-search-paths`](https://nodejs.org/download/release/v24.18.0/docs/api/cli.html#--no-global-search-paths),
+and the module documentation records both the
+[`node_modules` ancestor walk](https://nodejs.org/download/release/v24.18.0/docs/api/modules.html#loading-from-node_modules-folders)
+and [global folders](https://nodejs.org/download/release/v24.18.0/docs/api/modules.html#loading-from-the-global-folders).
+This result covers the current direct Node and NodeNext/tsc artifact chain. It does not
+claim containment against hostile loaders or a hostile host. The unchanged old-14
+artifact endpoint and real native fs-ext loading were not rerun in this follow-up and
+remain root integration work.
+
+Source-linked evidence for the finite closure:
+
+- `f2-ancestor-red.log.gz`: sibling worktree/common-ancestor behavioral RED;
+  decompressed SHA-256
+  `11033a7bb5d00a25b8377d9d0d138d1065fe112ba89bdb43f0e4790771fd80c5`.
+- `f2-node-env-red.log.gz`: real tarball runtime `NODE_PATH` RED; decompressed
+  SHA-256 `bbcd8010983415de3d59d4c5d8efa7d20de5cfe4f13dbde61125a6231d27be31`.
+- `f2-isolation-matrix-red.patch.gz`: exact test-only matrix against `8842f63`;
+  decompressed SHA-256
+  `e4dbb4285b75df30114021e51473166436065bb118efe7d2e77e684e50b20c2d`.
+- `f2-isolation-matrix-green.log.gz`: the three affected scenarios at `0d8c3b7`;
+  decompressed SHA-256
+  `5bd6eb39efbf7946a818f97405373aef0199e92dc3da0d2fddd2c995cc7febf3`.
+- `f2-isolation-full-green.log.gz`: complete 13-test package-check suite;
+  decompressed SHA-256
+  `dd132aa6f6cd8d0aaa2a921170913fac8a1cb8856045c6a421443c672c4f779c`.
+- `f2-isolation-static-green.log.gz`: syntax, 393-file documentation and baseline
+  diff checks; decompressed SHA-256
+  `ff651217bdedcde398e6feea423c9f575f8b147f12f44000f58c067012d9892b`.
+- `0001-fix-close-ambient-artifact-resolution-paths.patch.gz`: exact
+  `git format-patch` for `0d8c3b7`; decompressed SHA-256
+  `c522ef44e365f53d41d757cb680e81eaa29e0e089b9d5034d4a25d75f8e76957`.
