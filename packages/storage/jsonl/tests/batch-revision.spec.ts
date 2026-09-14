@@ -229,7 +229,8 @@ describe('one stream revision per committed batch', () => {
         status: 'committed',
         receipt: { streams: [{ stream: sessionStream, revision: '1' }] },
       })
-      await expect(secondSubmission.completion).resolves.toMatchObject({
+      const secondResult = await secondSubmission.completion
+      expect(secondResult).toMatchObject({
         status: 'committed',
         receipt: { streams: [{ stream: sessionStream, revision: '2' }] },
       })
@@ -244,17 +245,54 @@ describe('one stream revision per committed batch', () => {
       expect(reopened.status).toBe('acquired')
       if (reopened.status !== 'acquired') return
       expect(reopened.writer.writerEpoch).toBe('2')
-      await expect(reopened.writer.lookupOperation(firstRef)).resolves.toMatchObject({
-        status: 'committed',
-        receipt: { position: { seq: '2' }, streams: [{ revision: '1' }] },
-      })
-      await expect(reopened.writer.lookupOperation(secondRef)).resolves.toMatchObject({
-        status: 'committed',
-        receipt: { position: { seq: '3' }, streams: [{ revision: '2' }] },
-      })
-      await expect(reopened.writer.readHead([sessionStream, epochStream])).resolves.toMatchObject({
+      const recoveredFirst = await reopened.writer.lookupOperation(firstRef)
+      expect(recoveredFirst).toMatchObject(firstResult)
+      expect(recoveredFirst.status).toBe('committed')
+      expect(firstResult.status).toBe('committed')
+      if (recoveredFirst.status !== 'committed' || firstResult.status !== 'committed') return
+      expect(recoveredFirst.receipt).toEqual(firstResult.receipt)
+
+      const recoveredSecond = await reopened.writer.lookupOperation(secondRef)
+      expect(recoveredSecond).toMatchObject(secondResult)
+      expect(recoveredSecond.status).toBe('committed')
+      expect(secondResult.status).toBe('committed')
+      if (recoveredSecond.status !== 'committed' || secondResult.status !== 'committed') return
+      expect(recoveredSecond.receipt).toEqual(secondResult.receipt)
+
+      const recoveredHead = await reopened.writer.readHead([sessionStream, epochStream])
+      expect(recoveredHead).toMatchObject({
         status: 'read',
         value: { streams: [{ revision: '2' }, { revision: '2' }] },
+      })
+      if (recoveredHead.status !== 'read') return
+      const recoveredRange = await reopened.writer.readRange({
+        afterSeq: '1',
+        through: recoveredHead.value.watermark,
+        limit: 10,
+      })
+      expect(recoveredRange.status).toBe('read')
+      if (recoveredRange.status !== 'read') return
+      expect(recoveredRange.value.envelopes[0]?.appends).toEqual([
+        {
+          stream: sessionStream,
+          expectedRevision: '0',
+          records: records(2, 'first'),
+        },
+      ])
+      expect(recoveredRange.value.envelopes[0]?.outcome).toEqual({
+        status: 'committed',
+        result: { value: 'first' },
+      })
+      expect(recoveredRange.value.envelopes[1]?.appends).toEqual([
+        {
+          stream: sessionStream,
+          expectedRevision: '1',
+          records: records(1, 'second'),
+        },
+      ])
+      expect(recoveredRange.value.envelopes[1]?.outcome).toEqual({
+        status: 'committed',
+        result: { value: 'second' },
       })
       expect((await reopened.writer.closeWriter()).status).toBe('closed')
     } finally {
@@ -269,9 +307,10 @@ describe('one stream revision per committed batch', () => {
       const acquired = await createJsonlProvider(configured, diagnostics).acquireWriter()
       expect(acquired.status).toBe('acquired')
       if (acquired.status !== 'acquired') return
+      const appliedRef = operation('multi-stream-many-records')
       const applied = prepare(
         acquired.writer,
-        operation('multi-stream-many-records'),
+        appliedRef,
         input('multi-stream-many-records'),
         [
           {
@@ -290,7 +329,8 @@ describe('one stream revision per committed batch', () => {
       const appliedSubmission = acquired.writer.commit(applied)
       expect(appliedSubmission.status).toBe('pending_durability')
       if (appliedSubmission.status !== 'pending_durability') return
-      await expect(appliedSubmission.completion).resolves.toMatchObject({
+      const appliedResult = await appliedSubmission.completion
+      expect(appliedResult).toMatchObject({
         status: 'committed',
         receipt: {
           streams: [
@@ -354,14 +394,48 @@ describe('one stream revision per committed batch', () => {
       const reopened = await createJsonlProvider(configured, diagnostics).acquireWriter()
       expect(reopened.status).toBe('acquired')
       if (reopened.status !== 'acquired') return
-      await expect(reopened.writer.lookupOperation(conflictRef)).resolves.toMatchObject(
-        conflictResult,
-      )
-      await expect(
-        reopened.writer.readHead([approvalStream, sessionStream]),
-      ).resolves.toMatchObject({
+      const recoveredApplied = await reopened.writer.lookupOperation(appliedRef)
+      expect(recoveredApplied).toMatchObject(appliedResult)
+      expect(recoveredApplied.status).toBe('committed')
+      expect(appliedResult.status).toBe('committed')
+      if (recoveredApplied.status !== 'committed' || appliedResult.status !== 'committed') return
+      expect(recoveredApplied.receipt).toEqual(appliedResult.receipt)
+
+      const recoveredConflict = await reopened.writer.lookupOperation(conflictRef)
+      expect(recoveredConflict).toMatchObject(conflictResult)
+      expect(recoveredConflict.status).toBe('conflict')
+      expect(conflictResult.status).toBe('conflict')
+      if (recoveredConflict.status !== 'conflict' || conflictResult.status !== 'conflict') return
+      expect(recoveredConflict.receipt).toEqual(conflictResult.receipt)
+
+      const recoveredHead = await reopened.writer.readHead([approvalStream, sessionStream])
+      expect(recoveredHead).toMatchObject({
         status: 'read',
         value: { streams: [{ revision: '1' }, { revision: '1' }] },
+      })
+      if (recoveredHead.status !== 'read') return
+      const recoveredRange = await reopened.writer.readRange({
+        afterSeq: '1',
+        through: recoveredHead.value.watermark,
+        limit: 10,
+      })
+      expect(recoveredRange.status).toBe('read')
+      if (recoveredRange.status !== 'read') return
+      expect(recoveredRange.value.envelopes[0]?.appends).toEqual([
+        {
+          stream: approvalStream,
+          expectedRevision: '0',
+          records: records(2, 'approval'),
+        },
+        {
+          stream: sessionStream,
+          expectedRevision: '0',
+          records: records(3, 'session'),
+        },
+      ])
+      expect(recoveredRange.value.envelopes[0]?.outcome).toEqual({
+        status: 'committed',
+        result: { value: 'multi' },
       })
       expect((await reopened.writer.closeWriter()).status).toBe('closed')
     } finally {
@@ -377,25 +451,38 @@ describe('one stream revision per committed batch', () => {
       expect(initialized.status).toBe('acquired')
       if (initialized.status !== 'acquired') return
       expect((await initialized.writer.closeWriter()).status).toBe('closed')
-      await appendFile(
-        join(directory, 'journal.jsonl'),
-        encode(legacyEnvelope('2', 'unacknowledged-multi', '0', 2), configured),
-      )
+      const unacknowledged = legacyEnvelope('2', 'unacknowledged-multi', '0', 2)
+      await appendFile(join(directory, 'journal.jsonl'), encode(unacknowledged, configured))
 
       const reopened = await createJsonlProvider(configured, diagnostics).acquireWriter()
       expect(reopened.status).toBe('acquired')
       if (reopened.status !== 'acquired') return
       expect(reopened.writer.writerEpoch).toBe('2')
-      await expect(
-        reopened.writer.lookupOperation(operation('unacknowledged-multi')),
-      ).resolves.toMatchObject({
+      const recoveredOperation = await reopened.writer.lookupOperation(unacknowledged.operation)
+      expect(recoveredOperation).toMatchObject({
         status: 'committed',
-        receipt: { position: { seq: '2' }, streams: [{ revision: '1' }] },
+        receipt: {
+          position: unacknowledged.position,
+          operation: unacknowledged.operation,
+          inputDigest: unacknowledged.inputDigest,
+          outcome: unacknowledged.outcome,
+          streams: [{ stream: sessionStream, revision: '1' }],
+        },
       })
-      await expect(reopened.writer.readHead([sessionStream, epochStream])).resolves.toMatchObject({
+      const recoveredHead = await reopened.writer.readHead([sessionStream, epochStream])
+      expect(recoveredHead).toMatchObject({
         status: 'read',
         value: { streams: [{ revision: '1' }, { revision: '2' }] },
       })
+      if (recoveredHead.status !== 'read') return
+      const recoveredRange = await reopened.writer.readRange({
+        afterSeq: '1',
+        through: recoveredHead.value.watermark,
+        limit: 10,
+      })
+      expect(recoveredRange.status).toBe('read')
+      if (recoveredRange.status !== 'read') return
+      expect(recoveredRange.value.envelopes[0]).toEqual(unacknowledged)
       expect((await reopened.writer.closeWriter()).status).toBe('closed')
     } finally {
       await rm(directory, { recursive: true, force: true })
