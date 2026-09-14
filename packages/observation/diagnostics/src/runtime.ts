@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { once } from 'node:events'
 import { close as closeFd, fchmod, open as openFd } from 'node:fs'
 import { chmod, lstat, mkdir, open as openFile, opendir } from 'node:fs/promises'
+import type { FileHandle } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { isAbsolute, join } from 'node:path'
 import { performance } from 'node:perf_hooks'
@@ -98,6 +99,17 @@ class StartupCleanupFailure extends Error {
   constructor(descriptor: number, cause: unknown) {
     super('diagnostics source preparation failed and retained its descriptor')
     this.descriptor = descriptor
+    this.code = systemErrorCode(cause)
+  }
+}
+
+class ScanCleanupFailure extends Error {
+  readonly handle: FileHandle
+  readonly code: string | undefined
+
+  constructor(handle: FileHandle, cause: unknown) {
+    super('diagnostics source scan failed and retained its file handle')
+    this.handle = handle
     this.code = systemErrorCode(cause)
   }
 }
@@ -220,6 +232,7 @@ class LocalRuntime implements DiagnosticsRuntime {
   private readonly idPrefix: string
   private readonly stream: SonicBoomType | null
   private readonly descriptor: number | null
+  private readonly retainedHandles: FileHandle[]
   private readonly logger: pino.Logger | null
   private readonly manager = new AsyncLocalStorageContextManager().enable()
   private readonly contextKey = createContextKey('omne-harness-lite diagnostics context')
@@ -240,6 +253,7 @@ class LocalRuntime implements DiagnosticsRuntime {
   private closeRetryNeeded = false
   private providerClosed = false
   private closeMarkerAttempted = false
+  private cleanupDescriptorPending: boolean
 
   constructor(
     options: LocalDiagnosticsOptions,
@@ -248,6 +262,7 @@ class LocalRuntime implements DiagnosticsRuntime {
     maxSourceBytes: number,
     failure?: StartupFailure,
     crashUnknown = false,
+    retainedHandles: readonly FileHandle[] = [],
   ) {
     this.sourceId = options.sourceId
     this.configuredLevel = options.level
@@ -262,10 +277,13 @@ class LocalRuntime implements DiagnosticsRuntime {
       .slice(0, 24)
     this.stream = stream
     this.descriptor = descriptor
+    this.retainedHandles = [...retainedHandles]
+    this.cleanupDescriptorPending = stream === null && descriptor !== null
     if (stream === null) {
       this.logger = null
       this.phase = 'degraded'
-      this.resource = descriptor === null ? 'released' : 'unknown'
+      this.resource =
+        descriptor === null && this.retainedHandles.length === 0 ? 'released' : 'unknown'
       this.writeFailed = true
       this.outputAvailable = false
       this.lastErrorCode = failure?.code ?? 'SOURCE_OPEN_FAILED'
@@ -350,7 +368,7 @@ class LocalRuntime implements DiagnosticsRuntime {
         this.outputAvailable = false
         this.lastErrorCode = systemErrorCode(error) ?? 'SONIC_ERROR'
         this.addGap('write_unavailable', null, 'unknown')
-        if (this.phase === 'closing' && this.streamCloseStarted) {
+        if (this.streamCloseStarted) {
           this.resource = 'unknown'
           this.closeRetryNeeded = true
           return
@@ -360,6 +378,7 @@ class LocalRuntime implements DiagnosticsRuntime {
           stream.destroy()
         } catch {
           this.resource = 'unknown'
+          this.closeRetryNeeded = true
         }
       })
       stream.on('close', () => {
@@ -568,8 +587,8 @@ class LocalRuntime implements DiagnosticsRuntime {
       context: child,
       end: (result: DiagnosticEnd): void => {
         if (ended) return
-        ended = true
         this.endSpan(spanContext.spanId, result)
+        ended = true
       },
     })
   }
@@ -604,7 +623,12 @@ class LocalRuntime implements DiagnosticsRuntime {
   private endSpan(spanId: string, result: DiagnosticEnd): void {
     const active = this.activeSpans.get(spanId)
     if (active === undefined) return
-    const projected = projectEnd(result)
+    let projected: ReturnType<typeof projectEnd>
+    try {
+      projected = projectEnd(result)
+    } catch {
+      projected = Object.freeze({ ok: false })
+    }
     if (projected.ok) {
       active.end = projected.value
       active.span.setAttribute('diagnostic.end.code', projected.value.code)
@@ -823,16 +847,30 @@ class LocalRuntime implements DiagnosticsRuntime {
     }
     if (this.stream === null) {
       if (this.resource === 'released') return true
-      if (this.descriptor === null) return false
-      try {
-        await closeDescriptor(this.descriptor)
-        this.resource = 'released'
-        return true
-      } catch (error) {
-        this.lastErrorCode = systemErrorCode(error) ?? 'SOURCE_CLEANUP_FAILED'
-        this.resource = 'unknown'
-        return false
+      if (this.cleanupDescriptorPending) {
+        if (this.descriptor === null) return false
+        try {
+          await closeDescriptor(this.descriptor)
+          this.cleanupDescriptorPending = false
+        } catch (error) {
+          this.lastErrorCode = systemErrorCode(error) ?? 'SOURCE_CLEANUP_FAILED'
+          this.resource = 'unknown'
+          return false
+        }
       }
+      while (this.retainedHandles.length > 0) {
+        const handle = this.retainedHandles[0]!
+        try {
+          await handle.close()
+          this.retainedHandles.shift()
+        } catch (error) {
+          this.lastErrorCode = systemErrorCode(error) ?? 'SOURCE_SCAN_CLOSE_FAILED'
+          this.resource = 'unknown'
+          return false
+        }
+      }
+      this.resource = 'released'
+      return true
     }
     if (this.streamClosed || this.resource === 'released') return true
     if (this.closeRetryNeeded) {
@@ -889,6 +927,7 @@ async function closeDescriptor(descriptor: number): Promise<void> {
 async function endedCleanly(path: string, size: number, maxRecordBytes: number): Promise<boolean> {
   if (size === 0) return false
   const handle = await openFile(path, 'r')
+  let clean = false
   try {
     const window = Math.min(size, maxRecordBytes + 1)
     const firstBuffer = Buffer.alloc(window)
@@ -903,19 +942,22 @@ async function endedCleanly(path: string, size: number, maxRecordBytes: number):
     const lastLine = tail.slice(tail.lastIndexOf('\n') + 1)
     const first = JSON.parse(firstLine) as Record<string, unknown>
     const last = JSON.parse(lastLine) as Record<string, unknown>
-    return (
+    clean =
       first.formatVersion === 'omne-diagnostic/1' &&
       first.code === 'diagnostic.source_started' &&
       typeof first.sourceId === 'string' &&
       last.formatVersion === 'omne-diagnostic/1' &&
       last.sourceId === first.sourceId &&
       last.code === 'diagnostic.source_closed'
-    )
   } catch {
-    return false
-  } finally {
-    await handle.close()
+    clean = false
   }
+  try {
+    await handle.close()
+  } catch (error) {
+    throw new ScanCleanupFailure(handle, error)
+  }
+  return clean
 }
 
 type DirectoryPreparation = Readonly<{
@@ -961,6 +1003,13 @@ async function prepareDirectory(
 }
 
 function startupFailure(error: unknown): StartupFailure {
+  if (error instanceof ScanCleanupFailure) {
+    return Object.freeze({
+      code:
+        error.code === undefined ? 'SOURCE_SCAN_CLOSE_FAILED' : `SOURCE_SCAN_CLOSE_${error.code}`,
+      reason: 'write_unavailable',
+    })
+  }
   const code = systemErrorCode(error)
   if (code === 'EEXIST')
     return Object.freeze({ code: 'SOURCE_EXISTS', reason: 'write_unavailable' })
@@ -1053,9 +1102,18 @@ export async function createLocalDiagnostics(
     })
   } catch (error) {
     const descriptor = error instanceof StartupCleanupFailure ? error.descriptor : null
+    const retainedHandles = error instanceof ScanCleanupFailure ? [error.handle] : []
     return Object.freeze({
       status: 'created',
-      runtime: new LocalRuntime(options, null, descriptor, 0, startupFailure(error)),
+      runtime: new LocalRuntime(
+        options,
+        null,
+        descriptor,
+        0,
+        startupFailure(error),
+        false,
+        retainedHandles,
+      ),
     })
   }
 }
