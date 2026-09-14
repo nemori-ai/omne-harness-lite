@@ -134,7 +134,7 @@ test('keeps artifact consumers outside repository ancestor dependency resolution
   await writeFile(join(repo, 'probe.mjs'), source)
   execFileSync(process.execPath, ['probe.mjs'], { cwd: repo, stdio: ['ignore', 'pipe', 'pipe'] })
 
-  const sandbox = await repositoryCheck.createArtifactScratch()
+  const sandbox = await repositoryCheck.createArtifactScratch(repo)
   t.after(() => rm(sandbox, { recursive: true, force: true }))
   assert.ok(relative(repo, sandbox).startsWith('..'), `sandbox must be outside repository: ${sandbox}`)
   await writeFile(join(sandbox, 'probe.mjs'), source)
@@ -146,6 +146,34 @@ test('keeps artifact consumers outside repository ancestor dependency resolution
   }
   assert.ok(failure, 'undeclared ancestor-only dependency unexpectedly resolved')
   assert.match(String(failure.stderr), /ERR_MODULE_NOT_FOUND/)
+
+  const repositoryTmp = join(repo, 'tmp')
+  await mkdir(repositoryTmp)
+  const originalTmpdir = process.env.TMPDIR
+  process.env.TMPDIR = repositoryTmp
+  let trappedSandbox
+  let rejection
+  try {
+    trappedSandbox = await repositoryCheck.createArtifactScratch(repo)
+  } catch (error) {
+    rejection = error
+  } finally {
+    if (originalTmpdir === undefined) delete process.env.TMPDIR
+    else process.env.TMPDIR = originalTmpdir
+  }
+  if (rejection) {
+    assert.match(String(rejection.message), /artifact scratch must be outside repository/)
+    return
+  }
+
+  await writeFile(join(trappedSandbox, 'probe.mjs'), source)
+  let trappedFailure
+  try {
+    execFileSync(process.execPath, ['probe.mjs'], { cwd: trappedSandbox, stdio: ['ignore', 'pipe', 'pipe'] })
+  } catch (error) {
+    trappedFailure = error
+  }
+  assert.ok(trappedFailure, 'repo-internal TMPDIR allowed undeclared ancestor-only dependency to resolve')
 })
 
 test('validates DSH source truth separately from project-owned provenance', async t => {

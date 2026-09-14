@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { readFile, writeFile, mkdir, mkdtemp, rm, realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   members,
@@ -62,8 +62,19 @@ function legacyFixturesAvailable(inventory) {
   return required.every(name => inventory.some(member => member.manifest.name === name && './baseline' in member.manifest.exports))
 }
 
-export async function createArtifactScratch() {
-  return mkdtemp(join(tmpdir(), 'omne-package-artifacts-'))
+function containsPath(root, candidate) {
+  const local = relative(root, candidate)
+  return local === '' || (local !== '..' && !local.startsWith(`..${sep}`) && !isAbsolute(local))
+}
+
+export async function createArtifactScratch(repo) {
+  const scratch = await mkdtemp(join(tmpdir(), 'omne-package-artifacts-'))
+  const [repositoryRoot, scratchRoot] = await Promise.all([realpath(repo), realpath(scratch)])
+  if (containsPath(repositoryRoot, scratchRoot)) {
+    await rm(scratch, { recursive: true, force: true })
+    assert.fail(`artifact scratch must be outside repository: ${scratchRoot}`)
+  }
+  return scratchRoot
 }
 
 export async function checkRepository(repo) {
@@ -115,7 +126,7 @@ export async function checkRepository(repo) {
   }
   console.log(`PASS: ${inventory.length} product members, dependency boundaries, ${records} upstream source records`)
 
-  const scratch = await createArtifactScratch()
+  const scratch = await createArtifactScratch(repo)
   const tarballs = new Map()
   let passed = false
   try {
