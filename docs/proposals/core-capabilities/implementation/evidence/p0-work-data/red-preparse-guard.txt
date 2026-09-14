@@ -1,0 +1,33 @@
+P0 work-data TDD RED: malformed and caller-allowed deep JSON still reach recursion
+UTC: 2026-09-14T04:26:12Z
+Baseline implementation commit: f586758
+Runtime: node v24.18.0
+Package manager: pnpm 10.28.1
+jsonc-parser: 3.3.1
+
+Command:
+  cd packages/core/work-data
+  pnpm exec vitest run tests/parse-json.spec.ts --reporter=verbose
+
+Fixtures and observations:
+  1. '[0' + '[' repeated 20,000 + '0' + ']' repeated 20,001,
+     maxBytes=100,000, maxDepth=8, maxNodes=32
+     Expected: Checked invalid_json
+     Observed: RangeError: Maximum call stack size exceeded
+       at scanner.scanNext
+       at parser.parseArray / parser.parseValue
+
+  2. '[' repeated 20,000 + '0' + ']' repeated 20,000,
+     maxBytes=100,000, maxDepth=20,000, maxNodes=20,001
+     Expected: Checked capacity at the documented recursive visitor implementation limit
+     Observed: RangeError: Maximum call stack size exceeded
+       at parser.onArrayBegin
+       at parser.parseArray / parser.parseValue
+
+Result:
+  Test Files  1 failed (1)
+  Tests       2 failed | 29 passed (31)
+  Exit status 1
+
+Both failures are missing target behavior on the existing public entry. The fixtures, dependency,
+and preceding 29 strict JSON tests ran successfully in the same process.

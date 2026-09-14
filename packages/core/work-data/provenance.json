@@ -1,0 +1,23 @@
+{
+  "format": 1,
+  "scope": "Project-owned implementation of the accepted data.agent-runtime-identity/core-work v1 work-data boundary",
+  "files": [],
+  "project_files": [
+    {
+      "path": "src/index.ts",
+      "purpose": "Public DTO types and strict JSON/schema validation implementation"
+    },
+    {
+      "path": "src/schemas/agent-runtime-identity.schema.json",
+      "purpose": "Byte-identical frozen data.agent-runtime-identity v1 schema resource"
+    },
+    {
+      "path": "src/schemas/core-work.schema.json",
+      "purpose": "Byte-identical frozen data.core-work v1 schema resource"
+    },
+    {
+      "path": "scripts/build-schemas.mjs",
+      "purpose": "Build-time frozen schema hash, identity, definition-map, and exact-copy gate"
+    }
+  ]
+}

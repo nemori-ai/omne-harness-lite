@@ -1,0 +1,20 @@
+Command: pnpm run build && pnpm exec vitest run tests/json-values.spec.ts
+Working directory: packages/core/work-data
+Environment: Node v24.18.0; pnpm 10.28.1; vitest 4.1.8
+Exit: 1
+
+RUN  v4.1.8 packages/core/work-data
+
+FAIL strict JSON value snapshots > copies ordinary and null-prototype data into a detached, deeply frozen snapshot
+Received issue: copyJson is not implemented
+FAIL core-json/1 canonical encoding > matches fixed golden strings with UTF-16 key order and JSON escaping
+TypeError: canonicalJson is not implemented
+FAIL core-json/1 canonical encoding > compares JSON structure independently of object insertion order
+AssertionError: expected false to be true
+
+Test Files  1 failed (1)
+Tests       6 failed | 11 passed (17)
+
+The eleven passing cases are rejection cases already handled by the non-behavioral stub. The six
+failures establish that accepted copies, detached/frozen output, capacity classification, canonical
+golden encoding, structural equality, and the named programming error were absent.

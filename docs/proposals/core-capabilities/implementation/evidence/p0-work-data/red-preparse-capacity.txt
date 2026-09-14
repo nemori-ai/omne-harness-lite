@@ -1,0 +1,34 @@
+P0 work-data TDD RED: capacity is checked after recursive JSON parsing
+UTC: 2026-09-14T04:18:18Z
+Baseline implementation commit: a8cd57ee8b7afb184687d5847f28f8e8d84dea0a
+Runtime: node v24.13.0
+Package manager: pnpm 10.32.1
+jsonc-parser: 3.3.1
+
+Command:
+  cd packages/core/work-data
+  pnpm exec vitest run tests/parse-json.spec.ts --reporter=verbose
+
+Fixture (run for both cases):
+  text = '[' repeated 20,000 + '0' + ']' repeated 20,000
+  maxBytes = 100,000
+
+Expected:
+  Checked failure with code=capacity before recursive parsing.
+
+Observed:
+  FAIL depth: maxDepth=8, maxNodes=32
+    RangeError: Maximum call stack size exceeded
+    at parseArray (.../jsonc-parser/lib/umd/impl/parser.js:565:13)
+    at parseValue (.../jsonc-parser/lib/umd/impl/parser.js:610:28)
+  FAIL nodes: maxDepth=20,000, maxNodes=32
+    RangeError: Maximum call stack size exceeded
+    at parseArray (.../jsonc-parser/lib/umd/impl/parser.js:565:13)
+    at parseValue (.../jsonc-parser/lib/umd/impl/parser.js:610:28)
+
+Result:
+  Test Files  1 failed (1)
+  Tests       2 failed | 27 passed (29)
+  Exit status 1
+
+The failure is the missing target behavior, not an environment, syntax, or fixture failure.
