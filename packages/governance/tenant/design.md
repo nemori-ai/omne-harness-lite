@@ -1,8 +1,9 @@
 # Tenant 提供者设计
 
 状态：`f98ac926` 映射已接受为最小运行基线施工输入；本目录现已建立 workspace
-成员及默认公开入口，但只实现下文归属的六种共同值声明。Tenant host、插件、身份适配、
-当前资格检查及其它运行行为仍未实现。
+成员及默认公开入口，已实现下文归属的六种共同值声明以及
+`IdentitySource`/`AuthenticatedInvocation` 和 TG 当前资格的窄消费声明。Tenant host、
+插件、身份适配、当前资格运行检查及其它运行行为仍未实现。
 来源、检查与采用边界见[原施工入口](../../../docs/proposals/core-capabilities/implementation/runtime-provider-interfaces.md)。
 
 ## 契约与公开面
@@ -16,10 +17,9 @@ TG-01/02/04/05、[CC v1](../../../spec/compositions/core-work-coordination/v1/co
 
 候选默认公开入口 `@omne-harness-lite/tenant` 拥有 `createTenantHost`、
 `TenantPlugin`、`IdentitySource`/`AuthenticatedInvocation` 消费协议及
-`registerReferenceSource` 管理面。精确签名在所属公开源码建立后以其为准；当前目标源码
-只导出 VersionSet、Instant/Validity、MembershipBasis、EvidenceRef、Conditions，
-尚无上述 host、插件、身份协议或管理面的可调用实现。跨包数据直接用
-work-data/records 的公共类型。
+`registerReferenceSource` 管理面。共同值及身份/TG 当前资格消费声明的精确签名现归
+[默认公开源码](./src/index.ts)；当前尚无 host、插件或管理面的可调用实现。跨包数据
+直接用 work-data/records/admission 的公共类型。
 
 TenantHost 是本域 TG 状态权威，按 tenant 分区维护原 logical/durable 根及当前
 引用来源，不输出可变根。应用只创建一次并保有恢复/关闭面；对同一 coordinator
