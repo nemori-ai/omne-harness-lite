@@ -74,5 +74,5 @@ metadata.md 的 catalog 形状；`packages/core/agent`、persistence、projectio
 | 4 | 采纳：[session.md §2](session.md#2-条款逐句归属) 给出逐句条款归属表，含 SR-07/09/11/12 的拆分 | 已闭合（波 2） |
 | 5 | 采纳：用户裁决 D6 新组合身份 `composition.session-run-agent-lifecycles` v1，引用 [CB v1](../../../spec/compositions/agent-session-binding/v1/contract.md) | 已闭合（D-014） |
 | 6 | 采纳：[run-driver v2](../../../spec/capabilities/run-driver/v2/contract.md) 如实记对生命周期组合 v1 的新增依赖 | 已闭合（D-014） |
-| 7 | 采纳：裁决者、调度者与组合者留在 `packages/session/session`（同包内独立插件），不取代 D-013 归属；扫描先于重取的排序归调度者插件，写入 [cordis.md](cordis.md#2-插件与服务依赖) 与 [Session 设计](../../../packages/session/session/design.md#d-014-后的插件划分) | 已闭合（波 2/3d） |
+| 7 | 采纳：裁决者、调度者与组合者留在 `packages/session/session`（同包内独立插件），不取代 D-013 归属；扫描先于重取的排序归调度者插件，写入 [cordis.md](cordis.md#2-插件与服务依赖) 与 [Session 设计](../../../packages/session/session/design.md#1-插件与服务) | 已闭合（波 2/3d） |
 | §4a | 采纳：FALSE 配置为只含形状 2 三行加陈旧读、旧执行者迟到提交、SR-21 等待的独立小模型；TRUE 配置只作回归 | 已修订 lifecycles.md 末节 |

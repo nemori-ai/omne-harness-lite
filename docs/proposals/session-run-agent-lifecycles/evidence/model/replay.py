@@ -1,5 +1,6 @@
 """Replay the bounded positive and deliberate negative TLC configurations for the
-session-run-agent-lifecycles composition v1 (Lifecycles.tla)."""
+session-run-agent-lifecycles composition v1 (Lifecycles.tla) and the Session
+Inbound evidence model (Inbound.tla, capability.session v1 SE-12..18)."""
 import hashlib
 import json
 import os
@@ -35,7 +36,7 @@ def run(r):
     return {**r, "command": cmd, "exit_code": result.returncode, "matched_expectation": ok,
             "states": stats[-1] if stats else None,
             "model_sha256": hashlib.sha256((ROOT / r["model"]).read_bytes()).hexdigest(),
-            "module_sha256": hashlib.sha256((ROOT / MODULE).read_bytes()).hexdigest(),
+            "module_sha256": hashlib.sha256((ROOT / r.get("module", MODULE)).read_bytes()).hexdigest(),
             "config_sha256": hashlib.sha256((ROOT / r["config"]).read_bytes()).hexdigest(),
             "log": str(log.relative_to(ROOT))}
 

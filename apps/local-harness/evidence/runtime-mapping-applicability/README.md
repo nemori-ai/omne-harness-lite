@@ -15,7 +15,7 @@
 精确代次、单调关闭、顺序排空及 retained，没有因共享代数保证而省略这些控制。
 它同时指出三命题的模型适用记录缺失，以及真实提供者符合性尚未验证。
 本次按该判断补记现有 [AR 对应](../../../../packages/core/agent/design.md#既有模型与控制前提)、
-[SR 对应](../../../../packages/session/session/design.md#cb-模型与当前性映射)和
+[SR 对应](../../../../packages/session/session/design.md#13-装载效应撤除责任与依赖政策)和
 [应用命题/场景](../../design.md#运行映射的命题与前提)；契约的可变
 [AR verification](../../../../spec/capabilities/live-agent/verification.md#当前提供者映射的适用范围)
 与 [CB verification](../../../../spec/compositions/agent-session-binding/verification.md#当前提供者映射的适用范围)

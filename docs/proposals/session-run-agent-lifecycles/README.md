@@ -43,7 +43,9 @@ scope: Session、Run、Agent 实例三台状态机的权威拆分、三条关系
   （不需要新版本）、对 `packages/core/agent` 设计的要求。
 - [cordis.md](cordis.md)：三插件与组合者的消费方式、服务依赖图、事实广播机制、装载效应与撤除、
   四类接口对接、依赖变化政策、性质/证据/义务表、提供者设计归属。
-- evidence/：模型运行记录（波 3）。
+- evidence/model/：模型运行记录（波 3）与 Session Inbound 证据模型 `Inbound.tla`（受理、
+  去重、容量、意图路由、消费、转换、扫描；登记为形式任务，覆盖见
+  [session 验证范围](../../../spec/capabilities/session/verification.md)）。
 
 ## 裁决记录（2026-09-14，用户）
 
@@ -68,7 +70,7 @@ scope: Session、Run、Agent 实例三台状态机的权威拆分、三条关系
 | U-30 | 工具设计延后 |
 | U-31 | 三个决定点按 [评审 r1](review.md) 的建议推进：D1 拆分并先解决 CC-01 的声明规则（CC v2）；D2 重发 run-driver v2，只改引用并如实记新增依赖；D6 采用备选，新开组合身份引用 CB v1。既接受决定的工件视为已发布，走 superseded，不原地重组 |
 | U-32 | 文档中引用条款、不变式、决定与需求编号时必须给出具体文档链接，不能只写代号 |
-| U-33 | 事件命名一律三段式（接受后追加）：`<流>.<对象>.<事实>`；落点见 [Session 设计](../../../packages/session/session/design.md#事件命名去重键与词汇) |
+| U-33 | 事件命名一律三段式（接受后追加）：`<流>.<对象>.<事实>`；落点见 [Session 设计](../../../packages/session/session/design.md#24-事件命名去重键与词汇) |
 | U-34 | 所有事件都带去重键，避免同一事实重复投递或重复消费；落点同上 |
 | U-35 | envelope 与事件数据的 JSON Schema 在实现前具体设计，但统一遵循数据模型与定义风格的最小/最大/最佳实践约定 |
 | U-36 | 通知作用域与出站流协议放到实现阶段设计；现在只划职责、方向与边界，见[出站流候选](../outbound-stream/README.md) |
@@ -123,8 +125,18 @@ D2 run-driver v2 只改引用并如实记新增的组合契约依赖，D6 新组
 接受的是目标设计与有限验证工件：[Lifecycles 模型](../../../spec/compositions/session-run-agent-lifecycles/verification.md)
 四个配置通过、否定变体如期反例；run-driver v2 六个配置是 v1 的逐字节副本。系统视图见
 [Session](../../architecture/session.md)、[Run](../../architecture/run.md)；提供者映射见
-[session](../../../packages/session/session/design.md#d-014-后的插件划分)、
+[session](../../../packages/session/session/design.md#1-插件与服务)、
 [run](../../../packages/session/run/design.md)、[run-driver](../../../packages/agent/run-driver/design.md)、
 [persistence](../../../packages/session/persistence/design.md)、[projection](../../../packages/session/projection/design.md)、
 [core/agent](../../../packages/core/agent/design.md#与-sessionrun-的相接点d-014)。上面"未决项"
 中未划去的各条是接受时明确保留的未完成义务；任何提供者实现与崩溃注入验收尚未开始。
+
+提供者设计的完成范围（2026-09-14 补齐）：[Session 提供者设计](../../../packages/session/session/design.md)
+整体重写为设计级完整正文，覆盖插件与服务、三条流与事件、生命周期状态机、队列/控制/
+Inbound 原语、意图路由（裁决者算法）、调度者判定、具名组合、附着与资格、权限与委托、
+装载效应与依赖政策、与工具/人类决定端口的受理侧形状；Inbound 证据模型两个配置通过；
+[session](../../../spec/capabilities/session/verification.md) 与
+[run](../../../spec/capabilities/run/verification.md) 的验证范围页逐条对应条款并列出未覆盖项。
+[Run](../../../packages/session/run/design.md)、[run-driver](../../../packages/agent/run-driver/design.md)
+与 [core/agent](../../../packages/core/agent/design.md) 的提供者设计维持此前范围。工具侧
+调用方式与后台调用存续政策仍归工具设计（U-37）。

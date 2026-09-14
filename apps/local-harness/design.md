@@ -177,7 +177,7 @@ phase/code，关键审计由业务耐久提交，普通日志失败不覆盖业�
 | 原清理只作用原登记，责任未解除前保留占位 | AR 保有原尝试/工作/资源与 SessionRef 占位，SR 保有 attachment/Run/控制/接续；TL/LE 独立保有其原事实。应用按原 owner 顺序关闭并持有尚 retained 的清理能力，真实释放或确认接管前不卸载其仍需依赖 |
 
 模型动作和实现步骤的对应分别归 [AR](../../packages/core/agent/design.md#既有模型与控制前提)
-与 [SR](../../packages/session/session/design.md#cb-模型与当前性映射)：AR RetireFactory
+与 [SR](../../packages/session/session/design.md#13-装载效应撤除责任与依赖政策)：AR RetireFactory
 只覆盖计划退役；CB LoseDependency 是单向失联，Invalidate/Restore 只说明资格
 恢复不复活旧修订，Publish/StartWork 的共同原子边界仍由实现兑现。
 [固定 Cordis 探针](../../docs/proposals/core-capabilities/implementation/evidence/tool-decision-design/README.md#t-r1同步状态延后清理和旧句柄)

@@ -9,7 +9,7 @@
 [CC v1](../../../spec/compositions/core-work-coordination/v1/contract.md)、
 [DR v1](../../../spec/capabilities/durable-records/v1/contract.md)。设置/grant/声明、
 四值矩阵及事件见下文，采用 `058c77c`；Session 权限事实归
-[Session 当前设计](../../session/session/design.md#当前调用者对象权限与运行委托)。
+[Session 当前设计](../../session/session/design.md#11-当前调用者对象权限与运行委托)。
 
 ## 提供与依赖
 
@@ -47,7 +47,7 @@ apply 捕获真实 `c.fiber` 与 host 的 mount generation，service 闭包绑�
 | `registerResourceFacts` | 真实资源 owner 的对象权、硬限制、可授予上限和当前根；缺失不是默认具有资源权 |
 | `registerDecisionFacts` | HD 的原决定、消费/关闭状态和 grantorBasis；AU 核当前硬资格，HD 核原决定和消费，两者由具名组合分别准备/同门检查 |
 
-[SR link](../../session/session/design.md#链接与当前资格) 同时把 SessionFacts 登记给
+[SR link](../../session/session/design.md#10-链接与当前资格) 同时把 SessionFacts 登记给
 AU、把 AU 当前配置面登记给 SR；工具/资源/HD 的 link 由其原 owner 实现。
 各方门外准备、同一 coordinator.enter 登记双方精确 host/source/registration/
 generation/范围与 stamp，最后门外通知；LOADING 只持 held，不能半边开放。

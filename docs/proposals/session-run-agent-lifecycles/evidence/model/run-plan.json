@@ -33,5 +33,21 @@
     "expected": "L3",
     "config": "docs/proposals/session-run-agent-lifecycles/evidence/model/LifecyclesSplitStale.cfg",
     "model": "spec/compositions/session-run-agent-lifecycles/v1/LifecyclesMC.tla"
+  },
+  {
+    "name": "Inbound",
+    "mutation": "none",
+    "expected": null,
+    "config": "docs/proposals/session-run-agent-lifecycles/evidence/model/Inbound.cfg",
+    "model": "docs/proposals/session-run-agent-lifecycles/evidence/model/InboundMC.tla",
+    "module": "docs/proposals/session-run-agent-lifecycles/evidence/model/Inbound.tla"
+  },
+  {
+    "name": "InboundProgress",
+    "mutation": "none",
+    "expected": null,
+    "config": "docs/proposals/session-run-agent-lifecycles/evidence/model/InboundProgress.cfg",
+    "model": "docs/proposals/session-run-agent-lifecycles/evidence/model/InboundMC.tla",
+    "module": "docs/proposals/session-run-agent-lifecycles/evidence/model/Inbound.tla"
   }
 ]

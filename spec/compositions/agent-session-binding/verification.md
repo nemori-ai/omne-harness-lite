@@ -31,7 +31,7 @@
 
 ## 当前提供者映射的适用范围
 
-`f98ac926` 的 [SR/CB 对应](../../../packages/session/session/design.md#cb-模型与当前性映射)
+`f98ac926` 的 [SR/CB 对应](../../../packages/session/session/design.md#13-装载效应撤除责任与依赖政策)
 区分 Publish/StartWork 的共同检查、Invalidate/Restore 的旧修订边界，以及只
 允许单向失联的 LoseDependency；重挂/单调关闭仍由真实提供者兑现。
 [应用命题与场景](../../../apps/local-harness/design.md#运行映射的命题与前提)及

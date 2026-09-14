@@ -37,7 +37,7 @@ AgentHost 拥有唯一规范 SessionRef→活体占位、Factory 贡献、原尝
 
 包依赖只消费 data/records/admission/diagnostics 与自有 scope 的公开入口；AR
 声明所需窄协议，不 import Session/TG 实现。SR 的
-[SessionAgentLinkPlugin](../../session/session/design.md#链接与当前资格) 实现访问/
+[SessionAgentLinkPlugin](../../session/session/design.md#10-链接与当前资格) 实现访问/
 attachment，并把 AR 工作/结算面回接 SR，避免相互 required inject。
 Factory 的实际 inject 由其提供者声明；实例执行只用已捕获的完整原绑定，不逐次
 ctx.get 同名新服务。依赖已 pin 后的工作存续责任与插件注入图分开。
@@ -207,7 +207,7 @@ WorkPermit 不能从 AgentHandle 转出给用户或工具 body。
 资源与装配的治理，与 Run 生命周期解耦（[提案 agent.md](../../../docs/proposals/session-run-agent-lifecycles/agent.md)）；
 live-agent v1 不需要新版本。本包据此补四项映射：
 
-- **调度者是激活与交付的唯一发起者。** `omneSessionScheduler`（[Session 设计](../../session/session/design.md#d-014-后的插件划分)）
+- **调度者是激活与交付的唯一发起者。** `omneSessionScheduler`（[Session 设计](../../session/session/design.md#1-插件与服务)）
   是受信宿主服务，持受限 Handle：要执行 Run 时先查该 Session 是否有 ready 实例，有则经
   Handle 把 Run 交给它的驱动器（新 epoch、新 WorkPermit，AR-8、
   [CB-09](../../../spec/compositions/agent-session-binding/v1/contract.md)），没有才 `activate`。

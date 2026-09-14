@@ -7,7 +7,7 @@
 
 采用 [session v1](../../../spec/capabilities/session/v1/contract.md) SE-10（状态贡献注册）、
 [run v1](../../../spec/capabilities/run/v1/contract.md) RN-07（驱动位置是投影）及
-[Session 当前设计](../session/design.md#状态贡献投影和可观测性)中的
+[Session 当前设计](../session/design.md#15-恢复投影与可观测性)中的
 状态贡献/投影约定，原采用来源为 `cd16f1`。长期事实与业务授权归
 [Session](../session/design.md)，可写 Run 归 [Run](../run/design.md)，本包只拥有可重建的
 列表/历史/队列/运行视图。

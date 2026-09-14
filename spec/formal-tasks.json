@@ -504,6 +504,58 @@
         "spec/compositions/session-run-agent-lifecycles/v1/Lifecycles.tla"
       ],
       "timeout_seconds": 300
+    },
+    {
+      "id": "session-v1-inbound-safety",
+      "kind": "tla",
+      "artifacts": [
+        "docs/proposals/session-run-agent-lifecycles/evidence/model/Inbound.tla",
+        "docs/proposals/session-run-agent-lifecycles/evidence/model/InboundMC.tla",
+        "docs/proposals/session-run-agent-lifecycles/evidence/model/Inbound.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx4g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "4",
+        "-metadir",
+        "tmp/formal-runs/session-v1-inbound-safety",
+        "-config",
+        "docs/proposals/session-run-agent-lifecycles/evidence/model/Inbound.cfg",
+        "docs/proposals/session-run-agent-lifecycles/evidence/model/InboundMC.tla"
+      ],
+      "timeout_seconds": 120
+    },
+    {
+      "id": "session-v1-inbound-progress",
+      "kind": "tla",
+      "artifacts": [
+        "docs/proposals/session-run-agent-lifecycles/evidence/model/Inbound.tla",
+        "docs/proposals/session-run-agent-lifecycles/evidence/model/InboundMC.tla",
+        "docs/proposals/session-run-agent-lifecycles/evidence/model/InboundProgress.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx4g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "4",
+        "-metadir",
+        "tmp/formal-runs/session-v1-inbound-progress",
+        "-config",
+        "docs/proposals/session-run-agent-lifecycles/evidence/model/InboundProgress.cfg",
+        "docs/proposals/session-run-agent-lifecycles/evidence/model/InboundMC.tla"
+      ],
+      "timeout_seconds": 120
     }
   ]
 }

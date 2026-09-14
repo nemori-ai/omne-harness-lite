@@ -12,7 +12,7 @@
 [D-014](../../../docs/decisions/D-014-session-run-agent-lifecycles.md) 前的 session-run v1 映射
 沿 [Session 接口](../../../docs/proposals/core-capabilities/implementation/session-runtime-interfaces.md)
 `cd16f1` 保留为历史。当前恢复顺序见下文；状态贡献输入归
-[Session](../session/design.md#状态贡献投影和可观测性)，投影缓存归
+[Session](../session/design.md#15-恢复投影与可观测性)，投影缓存归
 [projection](../projection/design.md)。`checkpoint` 不再是权威事件
 （用户裁决 [U-23](../../../docs/proposals/session-run-agent-lifecycles/README.md#裁决记录2026-09-14用户)），
 下文的 checkpoint 均指投影缓存。

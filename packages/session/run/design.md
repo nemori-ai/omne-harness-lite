@@ -20,7 +20,7 @@ session-run v1 基线的映射，目标 Run 提供者以本页为准。
 `omneAdmission`（CC v2 协调者）、`omneRecords`（DR writer/reader 的受限面）、
 `omneDiagnostics`、`omneIdentity`、`omneTenant`、`agents`（AR 的 `checkWork`）。
 **不 inject `omneSession`**（作者裁决 [A-12](../../../docs/proposals/session-run-agent-lifecycles/README.md#作者裁决)）：
-凡需要同时改 Session 与 Run 的操作由 [Session 包的组合者](../session/design.md#d-014-后的插件划分)
+凡需要同时改 Session 与 Run 的操作由 [Session 包的组合者](../session/design.md#1-插件与服务)
 注入双方端口后一次 batch 提交。options 接 [persistence](../persistence/design.md) 恢复
 校验后的 run 流 fold 结果与水位；先校验再 provide，坏前缀不默认空。
 
@@ -49,7 +49,7 @@ version `"1"`：`run.lifecycle.created{basis, definition, acquisitionBasis, mode
 事件：它由 state 派生（[LC-02](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md)）。
 
 每条事件带去重键（用户裁决 U-34）：`eventId`、`(stream, seq)` 与 `operationId`，规则同
-[Session 设计](../session/design.md#事件命名去重键与词汇)；`run.approval.consumed` 引用被消费
+[Session 设计](../session/design.md#24-事件命名去重键与词汇)；`run.approval.consumed` 引用被消费
 决定的 `eventId`，同一决定第二次消费在门内被拒。
 
 ## 提交面
