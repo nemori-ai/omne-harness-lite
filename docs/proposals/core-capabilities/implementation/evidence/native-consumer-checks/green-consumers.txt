@@ -5,7 +5,7 @@ PASS: isolated agent, 2 declared product artifact(s), strict declarations + runt
 PASS: isolated agent-loop, 7 declared product artifact(s), strict declarations + runtime
 PASS: isolated brand, 1 declared product artifact(s), strict declarations + runtime
 INFO: selective native rebuild command completed for fs-ext@2.1.1 with explicit CC/CXX/GCC_EXEC_PREFIX
-PASS: loaded fs-ext@2.1.1 with flock and nan@2.28.0 [{"declaredBy":"@omne-harness-lite/diagnostics","addonPath":"/tmp/omne-package-artifacts-XOXEOq/diagnostics/node_modules/.pnpm/fs-ext@2.1.1/node_modules/fs-ext/build/Release/fs_ext.node","addonSha256":"5a480ff04f21754f6c3a8d5efd91b05d9df0ae82a72d71092a215ee2b0ae9a0d"}]
+PASS: loaded fs-ext@2.1.1 with flock and nan@2.28.0 [{"declaredBy":"@omne-harness-lite/diagnostics","addonPath":"/tmp/omne-package-artifacts-SIWJQR/diagnostics/node_modules/.pnpm/fs-ext@2.1.1/node_modules/fs-ext/build/Release/fs_ext.node","addonSha256":"5a480ff04f21754f6c3a8d5efd91b05d9df0ae82a72d71092a215ee2b0ae9a0d"}]
 PASS: isolated diagnostics, 3 declared product artifact(s), strict declarations + runtime
 PASS: isolated jsonl, 1 declared product artifact(s), strict declarations + runtime
 PASS: isolated llm, 4 declared product artifact(s), strict declarations + runtime
@@ -21,7 +21,7 @@ PASS: isolated tools, 6 declared product artifact(s), strict declarations + runt
 PASS: isolated values, 1 declared product artifact(s), strict declarations + runtime
 PASS: isolated work-data, 1 declared product artifact(s), strict declarations + runtime
 INFO: selective native rebuild command completed for fs-ext@2.1.1 with explicit CC/CXX/GCC_EXEC_PREFIX
-PASS: loaded fs-ext@2.1.1 with flock and nan@2.28.0 [{"declaredBy":"@omne-harness-lite/diagnostics","addonPath":"/tmp/omne-package-artifacts-XOXEOq/composition/node_modules/.pnpm/fs-ext@2.1.1/node_modules/fs-ext/build/Release/fs_ext.node","addonSha256":"5a480ff04f21754f6c3a8d5efd91b05d9df0ae82a72d71092a215ee2b0ae9a0d"}]
+PASS: loaded fs-ext@2.1.1 with flock and nan@2.28.0 [{"declaredBy":"@omne-harness-lite/diagnostics","addonPath":"/tmp/omne-package-artifacts-SIWJQR/composition/node_modules/.pnpm/fs-ext@2.1.1/node_modules/fs-ext/build/Release/fs_ext.node","addonSha256":"5a480ff04f21754f6c3a8d5efd91b05d9df0ae82a72d71092a215ee2b0ae9a0d"}]
 PASS: built source helpers, shared agent scope routing and owned store teardown
 PASS: artifact LLM/Session/Loop/storage helpers and actual file I/O composition
 PASS: artifact prompt/tool contribution, native call and withdrawal
