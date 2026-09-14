@@ -1,0 +1,49 @@
+
+ RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics
+
+ ❯ tests/reviewer-regressions.spec.ts (9 tests | 2 failed | 7 skipped) 54ms
+     × includes an older live generation and its pending span end in the directory byte budget 39ms
+     × reserves maxFiles across concurrent factory creation 12ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/reviewer-regressions.spec.ts > D1-R1 shared directory budgets > includes an older live generation and its pending span end in the directory byte budget
+AssertionError: expected 3356 to be less than or equal to 2400
+ ❯ tests/reviewer-regressions.spec.ts:526:58
+    524|       )
+    525|       expect(Math.max(...sizes)).toBeLessThanOrEqual(limits.maxFileByt…
+    526|       expect(sizes.reduce((sum, size) => sum + size, 0)).toBeLessThanO…
+       |                                                          ^
+    527|         limits.maxDirectoryBytes,
+    528|       )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/reviewer-regressions.spec.ts > D1-R1 shared directory budgets > reserves maxFiles across concurrent factory creation
+AssertionError: expected [ …(2) ] to have a length of 1 but got 2
+
+- Expected
++ Received
+
+- 1
++ 2
+
+ ❯ tests/reviewer-regressions.spec.ts:580:40
+    578|       expect(runtimes).toHaveLength(2)
+    579|       expect(runtimes.every(subject => subject.inspect().resource === …
+    580|       expect(await readdir(directory)).toHaveLength(1)
+       |                                        ^
+    581|     } finally {
+    582|       vi.restoreAllMocks()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 7 skipped (9)
+   Start at  07:17:48
+   Duration  437ms (transform 132ms, setup 0ms, import 232ms, tests 54ms, environment 0ms)
+
+undefined
+/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: vitest run tests/reviewer-regressions.spec.ts -t D1-R1

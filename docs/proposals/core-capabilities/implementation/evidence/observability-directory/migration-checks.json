@@ -1,0 +1,97 @@
+{
+  "inputCommit": "1ab8635d57829bb8aed7b32506289285ddd5209a",
+  "branch": "design/dsh-diagnostics-directory",
+  "status": "passed",
+  "candidateDirectoryTypeBlockIdentical": true,
+  "oldDirectoryProposalHasNoInterfaceCopy": true,
+  "originalEvidenceUnchanged": [
+    {
+      "path": "docs/proposals/core-capabilities/implementation/evidence/observability-directory/README.md",
+      "sha256": "7037417ebeca95e49f0879bd6ac491087176e39b55dfba738a4b30f8607e1b8a",
+      "unchanged": true
+    },
+    {
+      "path": "docs/proposals/core-capabilities/implementation/evidence/observability-directory/diff-check.log",
+      "sha256": "c7945a12f73cd3557787041abdac755bdd2da1320f6cde3ddc4b0c644dcc8beb",
+      "unchanged": true
+    },
+    {
+      "path": "docs/proposals/core-capabilities/implementation/evidence/observability-directory/docs-check-initial.log",
+      "sha256": "2e3625307b9c21a087fc77bf48a667479548f0f0d9386f09793d692253ec8252",
+      "unchanged": true
+    },
+    {
+      "path": "docs/proposals/core-capabilities/implementation/evidence/observability-directory/docs-check.log",
+      "sha256": "34711f0e46b3a0b49e2774699553e640b34d5e8d08fe4e4dcb06626da8625a94",
+      "unchanged": true
+    },
+    {
+      "path": "docs/proposals/core-capabilities/implementation/evidence/observability-directory/manifest.json",
+      "sha256": "90081ae8d512c27edebebf1e0dbd135c1e557e47c8e67a223eee169cdb31867d",
+      "unchanged": true
+    },
+    {
+      "path": "docs/proposals/core-capabilities/implementation/evidence/observability-directory/probe-result.json",
+      "sha256": "40c0246643f575d291857bd1f205c55a0b0084abdb22541e8710fad81376e30a",
+      "unchanged": true
+    },
+    {
+      "path": "docs/proposals/core-capabilities/implementation/evidence/observability-directory/probe.mjs",
+      "sha256": "51ed46ba3eeeb633330ae62b1dd0f664a7a5bfabb6af2ef45f4b3de2a6901333",
+      "unchanged": true
+    },
+    {
+      "path": "docs/proposals/core-capabilities/implementation/evidence/observability-directory/product-red-d1-r1.log",
+      "sha256": "a338708b0d6af5fdfe5fbce845faa298f9a6bd6d5457bdff8a367891d1861cf0",
+      "unchanged": true
+    },
+    {
+      "path": "docs/proposals/core-capabilities/implementation/evidence/observability-directory/product-red-source.txt",
+      "sha256": "e64ed16d3e56f200f1004bb53888dccab2a8f2111c2ff80bd5ff780611e2d6b1",
+      "unchanged": true
+    }
+  ],
+  "changedPaths": [
+    "docs/proposals/core-capabilities/implementation/evidence/observability-directory/migration-checks.json",
+    "docs/proposals/core-capabilities/implementation/evidence/observability-directory/migration-docs-check.log",
+    "docs/proposals/core-capabilities/implementation/evidence/observability-directory/migration.md",
+    "docs/proposals/core-capabilities/implementation/observability-directory.md",
+    "packages/observation/diagnostics/design.md"
+  ],
+  "checks": [
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--cached",
+        "--check"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "notRun": [
+    "product tests",
+    "mechanism probes",
+    "native installation/locking",
+    "model/exporter requests"
+  ],
+  "docsCheck": {
+    "command": "make docs-check BASELINE=1ab8635",
+    "exitCode": 0,
+    "markdownFiles": 434,
+    "environment": "tmp/observability-directory/venv",
+    "log": "migration-docs-check.log"
+  }
+}
