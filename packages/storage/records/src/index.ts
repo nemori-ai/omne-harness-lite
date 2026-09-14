@@ -16,13 +16,18 @@ import type {
   ValidationIssue,
   WorkOwner,
 } from '@omne-harness-lite/work-data'
-import { canonicalJson, copyJson, equalJson, parseData, parseJson } from '@omne-harness-lite/work-data'
+import {
+  canonicalJson,
+  copyJson,
+  equalJson,
+  parseData,
+  parseJson,
+} from '@omne-harness-lite/work-data'
 import { createHash } from 'node:crypto'
 
 export type Counter = string
 export type Principal =
-  | Readonly<{ kind: 'user'; user: UserRef }>
-  | Readonly<{ kind: 'system'; systemId: OpaqueId }>
+  Readonly<{ kind: 'user'; user: UserRef }> | Readonly<{ kind: 'system'; systemId: OpaqueId }>
 export type StreamRef = Readonly<{
   namespace: OpaqueId
   owner: OpaqueId
@@ -104,13 +109,19 @@ export type CommitEnvelope = Readonly<{
   requiredUses: readonly UseRequirement[]
 }>
 export type Rejection = Readonly<{
-  code: 'invalid' | 'capacity' | 'stale_writer' | 'closed' | 'wrong_domain' |
-    'namespace_denied' | 'invalid_owner' | 'unsupported_format'
+  code:
+    | 'invalid'
+    | 'capacity'
+    | 'stale_writer'
+    | 'closed'
+    | 'wrong_domain'
+    | 'namespace_denied'
+    | 'invalid_owner'
+    | 'unsupported_format'
   message: string
 }>
 export type RecordConflict =
-  | Readonly<{ kind: 'operation_input'; operation: OperationRef }>
-  | RevisionConflict
+  Readonly<{ kind: 'operation_input'; operation: OperationRef }> | RevisionConflict
 export type CommittedReceipt = Receipt<Extract<RecordedOutcome, { status: 'committed' }>>
 export type ConflictReceipt = Receipt<Extract<RecordedOutcome, { status: 'conflict' }>>
 export type CommitResult =
@@ -148,16 +159,22 @@ export type OperationLookup =
 
 export interface RecordReader {
   readHead(streams: readonly StreamRef[]): Promise<ReadResult<Head>>
-  readRange(query: Readonly<{
-    afterSeq: Counter
-    through: Watermark
-    limit: number
-  }>): Promise<ReadResult<Readonly<{
-    envelopes: readonly CommitEnvelope[]
-    through: Watermark
-    nextAfterSeq: Counter
-    complete: boolean
-  }>>>
+  readRange(
+    query: Readonly<{
+      afterSeq: Counter
+      through: Watermark
+      limit: number
+    }>,
+  ): Promise<
+    ReadResult<
+      Readonly<{
+        envelopes: readonly CommitEnvelope[]
+        through: Watermark
+        nextAfterSeq: Counter
+        complete: boolean
+      }>
+    >
+  >
   lookupOperation(operation: OperationRef): Promise<OperationLookup>
 }
 
@@ -229,8 +246,9 @@ export type AcquireResult =
       status: 'unavailable'
       reason: string
       diagnosticId: OpaqueId
-      cleanup: Readonly<{ status: 'released' }> |
-        Readonly<{ status: 'retained'; owner: AcquisitionCleanup }>
+      cleanup:
+        | Readonly<{ status: 'released' }>
+        | Readonly<{ status: 'retained'; owner: AcquisitionCleanup }>
     }>
 export interface RecordProvider {
   readonly reader: RecordReader
@@ -243,20 +261,22 @@ export type JournalLine = Readonly<{
   byteLength: number
   sha256: string
 }>
-export type CodecLimits = JsonLimits & Readonly<{
-  maxLineBytes: number
-  maxPayloadBytes: number
-}>
+export type CodecLimits = JsonLimits &
+  Readonly<{
+    maxLineBytes: number
+    maxPayloadBytes: number
+  }>
 export type DecodedLine = Readonly<{
   envelope: CommitEnvelope
   payload: string
   byteLength: number
   sha256: string
 }>
-export type RecordLimits = CodecLimits & Readonly<{
-  maxPendingCommits: number
-  maxPendingBytes: number
-}>
+export type RecordLimits = CodecLimits &
+  Readonly<{
+    maxPendingCommits: number
+    maxPendingBytes: number
+  }>
 export type NamespaceBinding = Readonly<{
   namespace: string
   owners: readonly string[]
@@ -278,11 +298,7 @@ function failures<T>(issues: readonly ValidationIssue[]): Checked<T> {
   })
 }
 
-function failed<T>(
-  code: ValidationIssue['code'],
-  message: string,
-  path = '',
-): Checked<T> {
+function failed<T>(code: ValidationIssue['code'], message: string, path = ''): Checked<T> {
   return failures([{ path, code, message }])
 }
 
@@ -295,9 +311,17 @@ function validLimit(value: unknown): value is number {
 }
 
 function validateLimits(limits: CodecLimits): Checked<CodecLimits> {
-  if (limits === null || typeof limits !== 'object') return failed('capacity', 'limits must be an object')
-  for (const name of ['maxBytes', 'maxDepth', 'maxNodes', 'maxLineBytes', 'maxPayloadBytes'] as const) {
-    if (!validLimit(limits[name])) return failed('capacity', `${name} must be a non-negative safe integer`)
+  if (limits === null || typeof limits !== 'object')
+    return failed('capacity', 'limits must be an object')
+  for (const name of [
+    'maxBytes',
+    'maxDepth',
+    'maxNodes',
+    'maxLineBytes',
+    'maxPayloadBytes',
+  ] as const) {
+    if (!validLimit(limits[name]))
+      return failed('capacity', `${name} must be a non-negative safe integer`)
   }
   return passed(limits)
 }
@@ -312,10 +336,12 @@ function pointer(path: string, segment: string | number): string {
 }
 
 function prefixFailure(result: CheckFailure, path: string): CheckFailure {
-  return failures(result.issues.map(entry => ({
-    ...entry,
-    path: `${path}${entry.path}`,
-  }))) as CheckFailure
+  return failures(
+    result.issues.map(entry => ({
+      ...entry,
+      path: `${path}${entry.path}`,
+    })),
+  ) as CheckFailure
 }
 
 function objectShape(
@@ -329,16 +355,18 @@ function objectShape(
   }
   const allowed = new Set([...required, ...optional])
   for (const key of Object.keys(value)) {
-    if (!allowed.has(key)) return failed('schema', 'unknown field', pointer(path, key)) as CheckFailure
+    if (!allowed.has(key))
+      return failed('schema', 'unknown field', pointer(path, key)) as CheckFailure
   }
   for (const key of required) {
-    if (!Object.hasOwn(value, key)) return failed('schema', 'required field is missing', pointer(path, key)) as CheckFailure
+    if (!Object.hasOwn(value, key))
+      return failed('schema', 'required field is missing', pointer(path, key)) as CheckFailure
   }
   return undefined
 }
 
 function arrayValue(value: JsonValue, path: string): readonly JsonValue[] | CheckFailure {
-  return Array.isArray(value) ? value : failed('schema', 'must be an array', path) as CheckFailure
+  return Array.isArray(value) ? value : (failed('schema', 'must be an array', path) as CheckFailure)
 }
 
 function isFailure(value: unknown): value is CheckFailure {
@@ -348,27 +376,32 @@ function isFailure(value: unknown): value is CheckFailure {
 function nonEmptyString(value: JsonValue, path: string): CheckFailure | undefined {
   return typeof value === 'string' && value.length > 0
     ? undefined
-    : failed('schema', 'must be a non-empty string', path) as CheckFailure
+    : (failed('schema', 'must be a non-empty string', path) as CheckFailure)
 }
 
 function literalString(value: JsonValue, expected: string, path: string): CheckFailure | undefined {
   return value === expected
     ? undefined
-    : failed('schema', `must equal ${JSON.stringify(expected)}`, path) as CheckFailure
+    : (failed('schema', `must equal ${JSON.stringify(expected)}`, path) as CheckFailure)
 }
 
 function counter(value: JsonValue, path: string, positive = false): CheckFailure | undefined {
   if (typeof value !== 'string' || !/^(0|[1-9][0-9]*)$/.test(value)) {
-    return failed('schema', 'must be a canonical non-negative decimal counter', path) as CheckFailure
+    return failed(
+      'schema',
+      'must be a canonical non-negative decimal counter',
+      path,
+    ) as CheckFailure
   }
-  if (positive && value === '0') return failed('schema', 'must be greater than zero', path) as CheckFailure
+  if (positive && value === '0')
+    return failed('schema', 'must be greater than zero', path) as CheckFailure
   return undefined
 }
 
 function digestString(value: JsonValue, path: string): CheckFailure | undefined {
   return typeof value === 'string' && /^[0-9a-f]{64}$/.test(value)
     ? undefined
-    : failed('schema', 'must be a lowercase hexadecimal SHA-256 digest', path) as CheckFailure
+    : (failed('schema', 'must be a lowercase hexadecimal SHA-256 digest', path) as CheckFailure)
 }
 
 function dataType<K extends keyof DataTypes>(
@@ -381,7 +414,11 @@ function dataType<K extends keyof DataTypes>(
   return result.ok ? undefined : prefixFailure(result, path)
 }
 
-function validatePrincipal(value: JsonValue, limits: CodecLimits, path: string): CheckFailure | undefined {
+function validatePrincipal(
+  value: JsonValue,
+  limits: CodecLimits,
+  path: string,
+): CheckFailure | undefined {
   const initial = objectShape(value, path, ['kind'], ['user', 'systemId'])
   if (initial !== undefined) return initial
   const object = value as JsonObject
@@ -396,14 +433,26 @@ function validatePrincipal(value: JsonValue, limits: CodecLimits, path: string):
   return failed('schema', 'unknown principal kind', pointer(path, 'kind')) as CheckFailure
 }
 
-function validateCausality(value: JsonValue, limits: CodecLimits, path: string): CheckFailure | undefined {
+function validateCausality(
+  value: JsonValue,
+  limits: CodecLimits,
+  path: string,
+): CheckFailure | undefined {
   const optional = [
-    'parentOperation', 'initiator', 'session', 'work', 'call', 'request', 'agent', 'definition', 'binding',
+    'parentOperation',
+    'initiator',
+    'session',
+    'work',
+    'call',
+    'request',
+    'agent',
+    'definition',
+    'binding',
   ] as const
   const shape = objectShape(value, path, [], optional)
   if (shape !== undefined) return shape
   const object = value as JsonObject
-  const checks: readonly [typeof optional[number], keyof DataTypes | 'Principal'][] = [
+  const checks: readonly [(typeof optional)[number], keyof DataTypes | 'Principal'][] = [
     ['parentOperation', 'OperationRef'],
     ['initiator', 'Principal'],
     ['session', 'SessionRef'],
@@ -417,9 +466,10 @@ function validateCausality(value: JsonValue, limits: CodecLimits, path: string):
   for (const [key, type] of checks) {
     const item = object[key]
     if (item === undefined) continue
-    const problem = type === 'Principal'
-      ? validatePrincipal(item, limits, pointer(path, key))
-      : dataType(type, item, limits, pointer(path, key))
+    const problem =
+      type === 'Principal'
+        ? validatePrincipal(item, limits, pointer(path, key))
+        : dataType(type, item, limits, pointer(path, key))
     if (problem !== undefined) return problem
   }
   return undefined
@@ -428,34 +478,48 @@ function validateCausality(value: JsonValue, limits: CodecLimits, path: string):
 function validateOperationInput(value: JsonValue, limits: CodecLimits): CheckFailure | undefined {
   const path = '/canonicalInput'
   const shape = objectShape(value, path, [
-    'format', 'operationKind', 'tenantId', 'principal', 'target', 'arguments', 'preconditions', 'causality',
+    'format',
+    'operationKind',
+    'tenantId',
+    'principal',
+    'target',
+    'arguments',
+    'preconditions',
+    'causality',
   ])
   if (shape !== undefined) return shape
   const object = value as JsonObject
-  return literalString(object.format as JsonValue, 'core-operation/1', pointer(path, 'format'))
-    ?? nonEmptyString(object.operationKind as JsonValue, pointer(path, 'operationKind'))
-    ?? (object.tenantId === null ? undefined : nonEmptyString(object.tenantId as JsonValue, pointer(path, 'tenantId')))
-    ?? validatePrincipal(object.principal as JsonValue, limits, pointer(path, 'principal'))
-    ?? validateCausality(object.causality as JsonValue, limits, pointer(path, 'causality'))
+  return (
+    literalString(object.format as JsonValue, 'core-operation/1', pointer(path, 'format')) ??
+    nonEmptyString(object.operationKind as JsonValue, pointer(path, 'operationKind')) ??
+    (object.tenantId === null
+      ? undefined
+      : nonEmptyString(object.tenantId as JsonValue, pointer(path, 'tenantId'))) ??
+    validatePrincipal(object.principal as JsonValue, limits, pointer(path, 'principal')) ??
+    validateCausality(object.causality as JsonValue, limits, pointer(path, 'causality'))
+  )
 }
 
 function validatePosition(value: JsonValue, path: string): CheckFailure | undefined {
   const shape = objectShape(value, path, ['coordinationDomain', 'writerEpoch', 'commitId', 'seq'])
   if (shape !== undefined) return shape
   const object = value as JsonObject
-  return nonEmptyString(object.coordinationDomain as JsonValue, pointer(path, 'coordinationDomain'))
-    ?? counter(object.writerEpoch as JsonValue, pointer(path, 'writerEpoch'), true)
-    ?? nonEmptyString(object.commitId as JsonValue, pointer(path, 'commitId'))
-    ?? counter(object.seq as JsonValue, pointer(path, 'seq'), true)
+  return (
+    nonEmptyString(object.coordinationDomain as JsonValue, pointer(path, 'coordinationDomain')) ??
+    counter(object.writerEpoch as JsonValue, pointer(path, 'writerEpoch'), true) ??
+    nonEmptyString(object.commitId as JsonValue, pointer(path, 'commitId')) ??
+    counter(object.seq as JsonValue, pointer(path, 'seq'), true)
+  )
 }
 
 function validateStream(value: JsonValue, path: string): CheckFailure | undefined {
   const shape = objectShape(value, path, ['namespace', 'owner', 'scope', 'streamId'])
   if (shape !== undefined) return shape
   const object = value as JsonObject
-  const strings = nonEmptyString(object.namespace as JsonValue, pointer(path, 'namespace'))
-    ?? nonEmptyString(object.owner as JsonValue, pointer(path, 'owner'))
-    ?? nonEmptyString(object.streamId as JsonValue, pointer(path, 'streamId'))
+  const strings =
+    nonEmptyString(object.namespace as JsonValue, pointer(path, 'namespace')) ??
+    nonEmptyString(object.owner as JsonValue, pointer(path, 'owner')) ??
+    nonEmptyString(object.streamId as JsonValue, pointer(path, 'streamId'))
   if (strings !== undefined) return strings
   const scope = object.scope as JsonValue
   const scopeShape = objectShape(scope, pointer(path, 'scope'), ['kind'], ['tenantId'])
@@ -463,13 +527,23 @@ function validateStream(value: JsonValue, path: string): CheckFailure | undefine
   const scopeObject = scope as JsonObject
   if (scopeObject.kind === 'system') return objectShape(scope, pointer(path, 'scope'), ['kind'])
   if (scopeObject.kind !== 'tenant') {
-    return failed('schema', 'unknown stream scope kind', pointer(pointer(path, 'scope'), 'kind')) as CheckFailure
+    return failed(
+      'schema',
+      'unknown stream scope kind',
+      pointer(pointer(path, 'scope'), 'kind'),
+    ) as CheckFailure
   }
-  return objectShape(scope, pointer(path, 'scope'), ['kind', 'tenantId'])
-    ?? nonEmptyString(scopeObject.tenantId as JsonValue, pointer(pointer(path, 'scope'), 'tenantId'))
+  return (
+    objectShape(scope, pointer(path, 'scope'), ['kind', 'tenantId']) ??
+    nonEmptyString(scopeObject.tenantId as JsonValue, pointer(pointer(path, 'scope'), 'tenantId'))
+  )
 }
 
-function validateRevisionConflict(value: JsonValue, limits: CodecLimits, path: string): CheckFailure | undefined {
+function validateRevisionConflict(
+  value: JsonValue,
+  limits: CodecLimits,
+  path: string,
+): CheckFailure | undefined {
   const shape = objectShape(value, path, ['kind', 'currents'])
   if (shape !== undefined) return shape
   const object = value as JsonObject
@@ -477,7 +551,12 @@ function validateRevisionConflict(value: JsonValue, limits: CodecLimits, path: s
   if (kind !== undefined) return kind
   const currents = arrayValue(object.currents as JsonValue, pointer(path, 'currents'))
   if (isFailure(currents)) return currents
-  if (currents.length === 0) return failed('schema', 'must contain at least one current revision', pointer(path, 'currents')) as CheckFailure
+  if (currents.length === 0)
+    return failed(
+      'schema',
+      'must contain at least one current revision',
+      pointer(path, 'currents'),
+    ) as CheckFailure
   let previous: string | undefined
   for (let index = 0; index < currents.length; index += 1) {
     const currentPath = pointer(pointer(path, 'currents'), index)
@@ -485,34 +564,50 @@ function validateRevisionConflict(value: JsonValue, limits: CodecLimits, path: s
     const currentShape = objectShape(current, currentPath, ['stream', 'revision'])
     if (currentShape !== undefined) return currentShape
     const currentObject = current as JsonObject
-    const problem = validateStream(currentObject.stream as JsonValue, pointer(currentPath, 'stream'))
-      ?? counter(currentObject.revision as JsonValue, pointer(currentPath, 'revision'))
+    const problem =
+      validateStream(currentObject.stream as JsonValue, pointer(currentPath, 'stream')) ??
+      counter(currentObject.revision as JsonValue, pointer(currentPath, 'revision'))
     if (problem !== undefined) return problem
     const key = canonicalJson(currentObject.stream as JsonValue)
     if (previous !== undefined && key <= previous) {
-      return failed('schema', 'current revisions must use unique canonical stream order', currentPath) as CheckFailure
+      return failed(
+        'schema',
+        'current revisions must use unique canonical stream order',
+        currentPath,
+      ) as CheckFailure
     }
     previous = key
   }
   return undefined
 }
 
-function validateOutcome(value: JsonValue, limits: CodecLimits, path: string): CheckFailure | undefined {
+function validateOutcome(
+  value: JsonValue,
+  limits: CodecLimits,
+  path: string,
+): CheckFailure | undefined {
   const initial = objectShape(value, path, ['status'], ['result', 'conflict'])
   if (initial !== undefined) return initial
   const object = value as JsonObject
   if (object.status === 'committed') return objectShape(value, path, ['status', 'result'])
   if (object.status === 'conflict') {
-    return objectShape(value, path, ['status', 'conflict'])
-      ?? validateRevisionConflict(object.conflict as JsonValue, limits, pointer(path, 'conflict'))
+    return (
+      objectShape(value, path, ['status', 'conflict']) ??
+      validateRevisionConflict(object.conflict as JsonValue, limits, pointer(path, 'conflict'))
+    )
   }
-  return failed('schema', 'unknown recorded outcome status', pointer(path, 'status')) as CheckFailure
+  return failed(
+    'schema',
+    'unknown recorded outcome status',
+    pointer(path, 'status'),
+  ) as CheckFailure
 }
 
 function validateAppends(value: JsonValue, path: string): CheckFailure | undefined {
   const appends = arrayValue(value, path)
   if (isFailure(appends)) return appends
-  if (appends.length === 0) return failed('schema', 'must contain at least one append', path) as CheckFailure
+  if (appends.length === 0)
+    return failed('schema', 'must contain at least one append', path) as CheckFailure
   let previous: string | undefined
   for (let index = 0; index < appends.length; index += 1) {
     const appendPath = pointer(path, index)
@@ -520,32 +615,47 @@ function validateAppends(value: JsonValue, path: string): CheckFailure | undefin
     const shape = objectShape(append, appendPath, ['stream', 'expectedRevision', 'records'])
     if (shape !== undefined) return shape
     const object = append as JsonObject
-    const streamProblem = validateStream(object.stream as JsonValue, pointer(appendPath, 'stream'))
-      ?? counter(object.expectedRevision as JsonValue, pointer(appendPath, 'expectedRevision'))
+    const streamProblem =
+      validateStream(object.stream as JsonValue, pointer(appendPath, 'stream')) ??
+      counter(object.expectedRevision as JsonValue, pointer(appendPath, 'expectedRevision'))
     if (streamProblem !== undefined) return streamProblem
     const key = canonicalJson(object.stream as JsonValue)
     if (previous !== undefined && key <= previous) {
-      return failed('schema', 'appends must use unique canonical stream order', appendPath) as CheckFailure
+      return failed(
+        'schema',
+        'appends must use unique canonical stream order',
+        appendPath,
+      ) as CheckFailure
     }
     previous = key
     const records = arrayValue(object.records as JsonValue, pointer(appendPath, 'records'))
     if (isFailure(records)) return records
-    if (records.length === 0) return failed('schema', 'must contain at least one record', pointer(appendPath, 'records')) as CheckFailure
+    if (records.length === 0)
+      return failed(
+        'schema',
+        'must contain at least one record',
+        pointer(appendPath, 'records'),
+      ) as CheckFailure
     for (let recordIndex = 0; recordIndex < records.length; recordIndex += 1) {
       const recordPath = pointer(pointer(appendPath, 'records'), recordIndex)
       const record = records[recordIndex] as JsonValue
       const recordShape = objectShape(record, recordPath, ['kind', 'version', 'data'])
       if (recordShape !== undefined) return recordShape
       const recordObject = record as JsonObject
-      const recordProblem = nonEmptyString(recordObject.kind as JsonValue, pointer(recordPath, 'kind'))
-        ?? nonEmptyString(recordObject.version as JsonValue, pointer(recordPath, 'version'))
+      const recordProblem =
+        nonEmptyString(recordObject.kind as JsonValue, pointer(recordPath, 'kind')) ??
+        nonEmptyString(recordObject.version as JsonValue, pointer(recordPath, 'version'))
       if (recordProblem !== undefined) return recordProblem
     }
   }
   return undefined
 }
 
-function validateRequiredUses(value: JsonValue, owners: ReadonlySet<string>, path: string): CheckFailure | undefined {
+function validateRequiredUses(
+  value: JsonValue,
+  owners: ReadonlySet<string>,
+  path: string,
+): CheckFailure | undefined {
   const uses = arrayValue(value, path)
   if (isFailure(uses)) return uses
   const bindings = new Set<string>()
@@ -555,13 +665,25 @@ function validateRequiredUses(value: JsonValue, owners: ReadonlySet<string>, pat
     const shape = objectShape(use, usePath, ['recordOwner', 'binding'])
     if (shape !== undefined) return shape
     const object = use as JsonObject
-    const ownerProblem = nonEmptyString(object.recordOwner as JsonValue, pointer(usePath, 'recordOwner'))
+    const ownerProblem = nonEmptyString(
+      object.recordOwner as JsonValue,
+      pointer(usePath, 'recordOwner'),
+    )
     if (ownerProblem !== undefined) return ownerProblem
     if (!owners.has(object.recordOwner as string)) {
-      return failed('schema', 'recordOwner must own an append in this envelope', pointer(usePath, 'recordOwner')) as CheckFailure
+      return failed(
+        'schema',
+        'recordOwner must own an append in this envelope',
+        pointer(usePath, 'recordOwner'),
+      ) as CheckFailure
     }
     const bindingPath = pointer(usePath, 'binding')
-    const bindingShape = objectShape(object.binding as JsonValue, bindingPath, ['owner', 'resourceId', 'generation', 'epoch'])
+    const bindingShape = objectShape(object.binding as JsonValue, bindingPath, [
+      'owner',
+      'resourceId',
+      'generation',
+      'epoch',
+    ])
     if (bindingShape !== undefined) return bindingShape
     const binding = object.binding as JsonObject
     for (const key of ['owner', 'resourceId', 'generation', 'epoch'] as const) {
@@ -569,7 +691,8 @@ function validateRequiredUses(value: JsonValue, owners: ReadonlySet<string>, pat
       if (problem !== undefined) return problem
     }
     const key = canonicalJson(binding as JsonValue)
-    if (bindings.has(key)) return failed('schema', 'binding tuple must be unique', bindingPath) as CheckFailure
+    if (bindings.has(key))
+      return failed('schema', 'binding tuple must be unique', bindingPath) as CheckFailure
     bindings.add(key)
   }
   return undefined
@@ -577,49 +700,89 @@ function validateRequiredUses(value: JsonValue, owners: ReadonlySet<string>, pat
 
 function streamScopeTenant(stream: JsonValue): string | null {
   const scope = (stream as JsonObject).scope as JsonObject
-  return scope.kind === 'tenant' ? scope.tenantId as string : null
+  return scope.kind === 'tenant' ? (scope.tenantId as string) : null
 }
 
-function validateConflictEnvelope(envelope: JsonObject, input: JsonObject): CheckFailure | undefined {
+function validateConflictEnvelope(
+  envelope: JsonObject,
+  input: JsonObject,
+): CheckFailure | undefined {
   const outcome = envelope.outcome as JsonObject
   if (outcome.status !== 'conflict') return undefined
   const uses = envelope.requiredUses as readonly JsonValue[]
-  if (uses.length !== 0) return failed('schema', 'conflict envelope must not require uses', '/requiredUses') as CheckFailure
+  if (uses.length !== 0)
+    return failed(
+      'schema',
+      'conflict envelope must not require uses',
+      '/requiredUses',
+    ) as CheckFailure
   const appends = envelope.appends as readonly JsonValue[]
-  if (appends.length !== 1) return failed('schema', 'conflict envelope must have one provider-owned append', '/appends') as CheckFailure
+  if (appends.length !== 1)
+    return failed(
+      'schema',
+      'conflict envelope must have one provider-owned append',
+      '/appends',
+    ) as CheckFailure
   const append = appends[0] as JsonObject
   const stream = append.stream as JsonObject
   const scope = stream.scope as JsonObject
   const expectedTenant = input.tenantId as string | null
-  if (stream.namespace !== 'core.records' || stream.owner !== 'durable-records'
-    || stream.streamId !== 'operation-outcomes'
-    || expectedTenant === null && scope.kind !== 'system'
-    || expectedTenant !== null && (scope.kind !== 'tenant' || scope.tenantId !== expectedTenant)) {
-    return failed('schema', 'conflict outcome must use its provider-owned outcome stream', '/appends/0/stream') as CheckFailure
+  if (
+    stream.namespace !== 'core.records' ||
+    stream.owner !== 'durable-records' ||
+    stream.streamId !== 'operation-outcomes' ||
+    (expectedTenant === null && scope.kind !== 'system') ||
+    (expectedTenant !== null && (scope.kind !== 'tenant' || scope.tenantId !== expectedTenant))
+  ) {
+    return failed(
+      'schema',
+      'conflict outcome must use its provider-owned outcome stream',
+      '/appends/0/stream',
+    ) as CheckFailure
   }
   const records = append.records as readonly JsonValue[]
-  if (records.length !== 1) return failed('schema', 'conflict append must contain one outcome record', '/appends/0/records') as CheckFailure
+  if (records.length !== 1)
+    return failed(
+      'schema',
+      'conflict append must contain one outcome record',
+      '/appends/0/records',
+    ) as CheckFailure
   const record = records[0] as JsonObject
-  if (record.kind !== 'operation.conflict' || record.version !== '1'
-    || !equalJson(record.data as JsonValue, outcome.conflict as JsonValue)) {
-    return failed('schema', 'conflict record must exactly match the recorded outcome', '/appends/0/records/0') as CheckFailure
+  if (
+    record.kind !== 'operation.conflict' ||
+    record.version !== '1' ||
+    !equalJson(record.data as JsonValue, outcome.conflict as JsonValue)
+  ) {
+    return failed(
+      'schema',
+      'conflict record must exactly match the recorded outcome',
+      '/appends/0/records/0',
+    ) as CheckFailure
   }
   return undefined
 }
 
 function validateEnvelope(value: JsonValue, limits: CodecLimits): Checked<CommitEnvelope> {
   const shape = objectShape(value, '', [
-    'formatVersion', 'position', 'operation', 'inputEncoding', 'canonicalInput', 'inputDigest',
-    'appends', 'outcome', 'requiredUses',
+    'formatVersion',
+    'position',
+    'operation',
+    'inputEncoding',
+    'canonicalInput',
+    'inputDigest',
+    'appends',
+    'outcome',
+    'requiredUses',
   ])
   if (shape !== undefined) return shape
   const envelope = value as JsonObject
-  const headerProblem = literalString(envelope.formatVersion as JsonValue, 'core-journal/1', '/formatVersion')
-    ?? validatePosition(envelope.position as JsonValue, '/position')
-    ?? dataType('OperationRef', envelope.operation as JsonValue, limits, '/operation')
-    ?? literalString(envelope.inputEncoding as JsonValue, 'core-json/1', '/inputEncoding')
-    ?? nonEmptyString(envelope.canonicalInput as JsonValue, '/canonicalInput')
-    ?? digestString(envelope.inputDigest as JsonValue, '/inputDigest')
+  const headerProblem =
+    literalString(envelope.formatVersion as JsonValue, 'core-journal/1', '/formatVersion') ??
+    validatePosition(envelope.position as JsonValue, '/position') ??
+    dataType('OperationRef', envelope.operation as JsonValue, limits, '/operation') ??
+    literalString(envelope.inputEncoding as JsonValue, 'core-json/1', '/inputEncoding') ??
+    nonEmptyString(envelope.canonicalInput as JsonValue, '/canonicalInput') ??
+    digestString(envelope.inputDigest as JsonValue, '/inputDigest')
   if (headerProblem !== undefined) return headerProblem
 
   const canonicalInput = envelope.canonicalInput as string
@@ -639,12 +802,19 @@ function validateEnvelope(value: JsonValue, limits: CodecLimits): Checked<Commit
     return failed('schema', 'must equal the canonical principal identity', '/operation/principalId')
   }
 
-  const appendProblem = validateAppends(envelope.appends as JsonValue, '/appends')
-    ?? validateOutcome(envelope.outcome as JsonValue, limits, '/outcome')
+  const appendProblem =
+    validateAppends(envelope.appends as JsonValue, '/appends') ??
+    validateOutcome(envelope.outcome as JsonValue, limits, '/outcome')
   if (appendProblem !== undefined) return appendProblem
   const appends = envelope.appends as readonly JsonValue[]
-  const owners = new Set(appends.map(append => ((append as JsonObject).stream as JsonObject).owner as string))
-  const useProblem = validateRequiredUses(envelope.requiredUses as JsonValue, owners, '/requiredUses')
+  const owners = new Set(
+    appends.map(append => ((append as JsonObject).stream as JsonObject).owner as string),
+  )
+  const useProblem = validateRequiredUses(
+    envelope.requiredUses as JsonValue,
+    owners,
+    '/requiredUses',
+  )
   if (useProblem !== undefined) return useProblem
 
   const tenantId = input.tenantId as string | null
@@ -652,7 +822,11 @@ function validateEnvelope(value: JsonValue, limits: CodecLimits): Checked<Commit
     const stream = (appends[index] as JsonObject).stream as JsonValue
     const streamTenant = streamScopeTenant(stream)
     if (tenantId === null ? streamTenant !== null : streamTenant !== tenantId) {
-      return failed('schema', 'stream scope must match the operation tenant', `/appends/${index}/stream/scope`)
+      return failed(
+        'schema',
+        'stream scope must match the operation tenant',
+        `/appends/${index}/stream/scope`,
+      )
     }
   }
   const outcome = envelope.outcome as JsonObject
@@ -663,7 +837,11 @@ function validateEnvelope(value: JsonValue, limits: CodecLimits): Checked<Commit
       const stream = (currents[index] as JsonObject).stream as JsonValue
       const streamTenant = streamScopeTenant(stream)
       if (tenantId === null ? streamTenant !== null : streamTenant !== tenantId) {
-        return failed('schema', 'conflict stream scope must match the operation tenant', `/outcome/conflict/currents/${index}/stream/scope`)
+        return failed(
+          'schema',
+          'conflict stream scope must match the operation tenant',
+          `/outcome/conflict/currents/${index}/stream/scope`,
+        )
       }
     }
   }
@@ -699,7 +877,10 @@ export function encodeEnvelope(envelope: CommitEnvelope, limits: CodecLimits): C
   }
   const line = Buffer.from(`${canonicalJson(outer)}\n`, 'utf8')
   if (line.byteLength > limits.maxLineBytes) {
-    return failed('capacity', `line byte length ${line.byteLength} exceeds maxLineBytes ${limits.maxLineBytes}`)
+    return failed(
+      'capacity',
+      `line byte length ${line.byteLength} exceeds maxLineBytes ${limits.maxLineBytes}`,
+    )
   }
   return passed(new Uint8Array(line))
 }
@@ -707,9 +888,13 @@ export function encodeEnvelope(envelope: CommitEnvelope, limits: CodecLimits): C
 export function decodeLine(completeLine: Uint8Array, limits: CodecLimits): Checked<DecodedLine> {
   const checkedLimits = validateLimits(limits)
   if (!checkedLimits.ok) return checkedLimits
-  if (!(completeLine instanceof Uint8Array)) return failed('invalid_json', 'completeLine must be a Uint8Array')
+  if (!(completeLine instanceof Uint8Array))
+    return failed('invalid_json', 'completeLine must be a Uint8Array')
   if (completeLine.byteLength > limits.maxLineBytes) {
-    return failed('capacity', `line byte length ${completeLine.byteLength} exceeds maxLineBytes ${limits.maxLineBytes}`)
+    return failed(
+      'capacity',
+      `line byte length ${completeLine.byteLength} exceeds maxLineBytes ${limits.maxLineBytes}`,
+    )
   }
   if (completeLine.byteLength === 0 || completeLine.at(-1) !== 0x0a) {
     return failed('invalid_json', 'complete line must end with one LF')
@@ -737,25 +922,38 @@ export function decodeLine(completeLine: Uint8Array, limits: CodecLimits): Check
   if (canonicalJson(outerResult.value) !== text) {
     return failed('schema', 'outer journal line must use canonical core-json/1 encoding')
   }
-  const outerShape = objectShape(outerResult.value, '', ['formatVersion', 'payload', 'byteLength', 'sha256'])
+  const outerShape = objectShape(outerResult.value, '', [
+    'formatVersion',
+    'payload',
+    'byteLength',
+    'sha256',
+  ])
   if (outerShape !== undefined) return outerShape
   const outer = outerResult.value as JsonObject
-  const outerProblem = literalString(outer.formatVersion as JsonValue, 'core-journal/1', '/formatVersion')
-    ?? nonEmptyString(outer.payload as JsonValue, '/payload')
-    ?? (typeof outer.byteLength === 'number' && Number.isSafeInteger(outer.byteLength) && outer.byteLength >= 0
+  const outerProblem =
+    literalString(outer.formatVersion as JsonValue, 'core-journal/1', '/formatVersion') ??
+    nonEmptyString(outer.payload as JsonValue, '/payload') ??
+    (typeof outer.byteLength === 'number' &&
+    Number.isSafeInteger(outer.byteLength) &&
+    outer.byteLength >= 0
       ? undefined
-      : failed('schema', 'must be a non-negative safe integer', '/byteLength') as CheckFailure)
-    ?? digestString(outer.sha256 as JsonValue, '/sha256')
+      : (failed('schema', 'must be a non-negative safe integer', '/byteLength') as CheckFailure)) ??
+    digestString(outer.sha256 as JsonValue, '/sha256')
   if (outerProblem !== undefined) return outerProblem
   const payload = outer.payload as string
   const payloadBytes = Buffer.from(payload, 'utf8')
   if (payloadBytes.byteLength > limits.maxPayloadBytes) {
-    return failed('capacity', `payload byte length ${payloadBytes.byteLength} exceeds maxPayloadBytes ${limits.maxPayloadBytes}`, '/payload')
+    return failed(
+      'capacity',
+      `payload byte length ${payloadBytes.byteLength} exceeds maxPayloadBytes ${limits.maxPayloadBytes}`,
+      '/payload',
+    )
   }
   if (payloadBytes.byteLength !== outer.byteLength) {
     return failed('schema', 'does not match payload UTF-8 byte length', '/byteLength')
   }
-  if (sha256(payloadBytes) !== outer.sha256) return failed('schema', 'does not match payload', '/sha256')
+  if (sha256(payloadBytes) !== outer.sha256)
+    return failed('schema', 'does not match payload', '/sha256')
   const payloadResult = parseJson(payload, {
     maxBytes: limits.maxPayloadBytes,
     maxDepth: limits.maxDepth,
@@ -767,10 +965,12 @@ export function decodeLine(completeLine: Uint8Array, limits: CodecLimits): Check
   }
   const envelope = validateEnvelope(payloadResult.value, limits)
   if (!envelope.ok) return envelope
-  return passed(Object.freeze({
-    envelope: envelope.value,
-    payload,
-    byteLength: outer.byteLength as number,
-    sha256: outer.sha256 as string,
-  }))
+  return passed(
+    Object.freeze({
+      envelope: envelope.value,
+      payload,
+      byteLength: outer.byteLength as number,
+      sha256: outer.sha256 as string,
+    }),
+  )
 }
