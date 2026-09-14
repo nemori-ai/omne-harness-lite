@@ -3,8 +3,9 @@
 ## 当前事实
 
 首批二次开发的目标、验收、实施规格和计划已完成文档交付；独立评审及修订复核
-见 [review.md](review.md)，本次受审范围无剩余阻断发现。尚未启动本批产品改造、RED/GREEN、真实磁盘故障验收或
-OpenRouter 请求；A01–A32 均为 planned，M1/M2 均未交付。
+见 [review.md](review.md)，本次受审范围无剩余阻断发现。用户已授权按完整工作包
+自驱实施；P0 的共享接口设计、原生锁探针和包检查器 TDD 已派发。尚无本批已接受
+产品交付或 OpenRouter 请求；A01–A32 尚未通过，M1/M2 均未交付。
 
 | 对象 | 已有事实 | 对本批的含义 |
 |---|---|---|
@@ -17,7 +18,7 @@ OpenRouter 请求；A01–A32 均为 planned，M1/M2 均未交付。
 
 | 任务 | 状态 | 实现/验收证据 | 下一项输入 |
 |---|---|---|---|
-| P0 | planned | 未执行 | 固定受审工作包版本与实际实施授权 |
+| P0 | in_progress | 以 `e11cc69` 为输入派发下表三个独立任务；未接受其结果 | 共享接口受审版本、真实探针结果和检查器 RED/GREEN |
 | P1 | planned | 未执行 | P0 的记录/协调接口与真实锁证据 |
 | P2 | planned | 未执行 | P1 的真实共同门与记录提供者；交付本地预算 owner |
 | P3 / M1 | planned | 未执行 | P2 当前权限/真实预算/Session/活体，以及 P1 执行账本前提 |
@@ -25,13 +26,36 @@ OpenRouter 请求；A01–A32 均为 planned，M1/M2 均未交付。
 | P5 / M2 | planned | 未执行 | 最终组合版本及全部本批验收证据 |
 
 P0 的原生文件锁、P4 的待答编码路由兼容性、真实 OpenRouter 环境为明确测量项，
-当前未验证。可按计划先完成不依赖它们的工作；未验证部分不能被记为通过。
+当前未验收。可按计划先完成不依赖它们的工作；未验证部分不能被记为通过。
 
 本次已核对现有检查器只允许 baseline/DSH 来源，以及安装默认禁用脚本的事实；
-适配已安排到 P0，检查器和安装行为本次没有修改。开发指南、包索引和当前架构
+适配已安排到 P0；HUB 的检查器和安装行为仍是实施起点。开发指南、包索引和当前架构
 已纠正仍将 fork 建立写作下一步或仅介绍 agent 基线的过时投影。
 
-## 本次文档交付证据
+## 当前执行 wave
+
+HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 main 全部提交。
+三个 spoke 均从该 HUB 起点创建，位置都在主检出根的 `.worktrees/` 下。
+
+| 工作 | 执行者与实际句柄 | 独立工作树 | 写入归属与下一关 |
+|---|---|---|---|
+| P0 共享接口稿 | `/root/p0_interfaces` | `dsh-p0-interfaces` | 仅 `shared-interfaces.md` 与任务临时文件；给出 work-data/records/admission 完整接口，独立评审后实施 |
+| P0 真实锁探针 | infrastructure-developer，`/root/p0_lock_probe` | `dsh-p0-lock-probe` | 仅探针与 `evidence/p0-lock-probe/`；核对 Node/Linux、精确依赖、双进程/暂停/死亡/释放/sync，不代替产品验收 |
+| P0 包检查器 | verification-developer，`/root/p0_package_checks` | `dsh-p0-package-checks` | `tools/package-checks/` 与对应证据；目标入口/自有来源的 RED/GREEN 和反例，不写产品包或根锁文件 |
+
+以上是派发事实，不是完成证据。主调度拥有 HUB 整合、根配置、此工作包和最终
+验收；worker 的本地提交、测试绿灯与运行结束均须经端点核验后才能接受。
+共享接口的消费者尚未派发，不使用兄弟任务未落定的类型或临时约定启动联合实现。
+接口出现正式规格反例时先修设计或发布流程，不放宽验收。
+
+本次采用当前会话实际提供的 native collaboration 角色和句柄。外部 `ccm` CLI
+inventory 与配额查询不覆盖该 native 执行面，不能移用其外部 CLI 的准入或额度
+结论。调度账本在 HUB 的 `tmp/dsh-first-batch.board.json`，仅经 `ccm` 更新；
+native 句柄活性以 collaboration 的实际运行状态为准，持久交付事实以本页及证据为准。
+当前未发现 OpenRouter 环境变量或仓库配置入口；模型/路由、配置路径与费用范围
+已请求用户提供，缺少该输入只阻止依赖它的 A22 实测，不阻止其它研发。
+
+## 设计文档交付证据
 
 设计修订 `4e63b54` 经首轮评审；`f6df75b` 处理预算依赖、单次工具读控和实际
 授权/设置管理验收；`00f7fb7` 消除设置有效值与未知停止结果的两处歧义。
