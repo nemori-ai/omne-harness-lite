@@ -26,8 +26,10 @@ Node 24.18, and GCC 10; network filesystems and Windows are outside this provide
 
 The accepted writer, lock, recovery, failure, and cleanup mapping is maintained in
 [design.md](design.md). Package verification is recorded in
-[evidence/provider/README.md](evidence/provider/README.md). The accepted P1 composition with admission
-and D1, including the final five-package consumer, is recorded in
+[evidence/provider/README.md](evidence/provider/README.md); the later per-batch stream revision
+correction and R1–R6 results are recorded in
+[evidence/batch-revision/README.md](evidence/batch-revision/README.md). The accepted P1 composition
+with admission and D1, including the final five-package consumer, is recorded in
 [application evidence](../../../apps/local-harness/evidence/storage-admission/README.md) at the fixed
 HUB revision `31197742905a3c66fc3e650c153d65d014372c21`. It covers the storage/admission slice;
 governance decisions and the complete Agent/Session/tool runtime remain undelivered.

@@ -1,0 +1,10 @@
+Scope: 4 of 22 workspace projects
+packages/core/work-data build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json && node scripts/build-schemas.mjs
+packages/core/work-data build: PASS: verified and copied 2 frozen schemas covering 29 DataTypes
+packages/core/work-data build: Done
+packages/storage/records build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/storage/records build: Done
+packages/observation/diagnostics build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/observation/diagnostics build: Done
+packages/storage/jsonl build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/storage/jsonl build: Done
