@@ -10,3 +10,6 @@ service, global registry, business authorization policy, or storage implementati
 Build with `pnpm run build`, then run `pnpm run typecheck` and `pnpm test` from this leaf. Package
 tests use a constraint-preserving writer double; the final JSONL/admission composition and packed
 consumer are separate integration obligations.
+
+The fixed provider verification, packed-consumer result, artifact hash, covered invariants, and
+remaining real-composition obligations are recorded in [evidence/provider](evidence/provider/README.md).

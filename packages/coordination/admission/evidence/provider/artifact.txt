@@ -1,0 +1,7 @@
+SHA256 7b0d8d2f4918429593c8d507514f9dc2899222a71a80a842b42ebd709f0e73e5  omne-harness-lite-admission-0.0.0.tgz
+
+package/dist/index.js
+package/package.json
+package/provenance.json
+package/README.md
+package/dist/index.d.ts
