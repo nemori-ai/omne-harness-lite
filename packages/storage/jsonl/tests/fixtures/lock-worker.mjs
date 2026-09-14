@@ -8,7 +8,7 @@ const diagnostics = {
   scope: () => context,
   current: () => null,
   log: (_context, point) => {
-    if (crashBeforeReceipt && point.code === 'COMMIT_DURABLE') process.kill(process.pid, 'SIGKILL')
+    if (crashBeforeReceipt && point.code === 'commit_durable') process.kill(process.pid, 'SIGKILL')
   },
   startSpan: () => ({ context, end: () => undefined }),
   within: (_context, body) => body(),
