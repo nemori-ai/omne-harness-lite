@@ -78,6 +78,56 @@ const input: OperationInput = {
 }
 
 describe('durable JSONL provider', () => {
+  it('emits diagnostics with D1 semantic codes at acquire and durable commit boundaries', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'omne-jsonl-diagnostics-'))
+    const codes: string[] = []
+    const recording: Diagnostics = {
+      ...diagnostics,
+      log: (_context, point) => {
+        codes.push(point.code)
+      },
+    }
+    try {
+      const acquired = await createJsonlProvider(options(directory), recording).acquireWriter()
+      expect(acquired.status).toBe('acquired')
+      if (acquired.status !== 'acquired') return
+      const preparedOperation = acquired.writer.prepareOperation(
+        { ...operation, operationId: 'diagnostic-boundaries' },
+        input,
+      )
+      expect(preparedOperation.ok).toBe(true)
+      if (!preparedOperation.ok) return
+      const prepared = acquired.writer.prepare({
+        operation: preparedOperation.value,
+        appends: [
+          {
+            stream: {
+              namespace: 'core',
+              owner: 'session',
+              scope: { kind: 'tenant', tenantId: 'tenant-1' },
+              streamId: 'diagnostic-session',
+            },
+            expectedRevision: '0',
+            records: [{ kind: 'session.created', version: '1', data: {} }],
+          },
+        ],
+        result: {},
+        requiredUses: [],
+      })
+      expect(prepared.ok).toBe(true)
+      if (!prepared.ok) return
+      const submission = acquired.writer.commit(prepared.value)
+      expect(submission.status).toBe('pending_durability')
+      if (submission.status !== 'pending_durability') return
+      await expect(submission.completion).resolves.toMatchObject({ status: 'committed' })
+      expect((await acquired.writer.closeWriter()).status).toBe('closed')
+      expect(codes).toEqual(['writer_acquired', 'commit_durable'])
+      expect(codes.every(code => /^[a-z][a-z0-9_.-]{0,127}$/u.test(code))).toBe(true)
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
   it('acquires an epoch, persists one commit, deduplicates it, and recovers it', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'omne-jsonl-provider-'))
     try {
@@ -439,6 +489,56 @@ describe('durable JSONL provider', () => {
       expect(
         (await readFile(join(directory, 'journal.jsonl'), 'utf8')).split('\n').filter(Boolean),
       ).toHaveLength(2)
+      expect((await acquired.writer.closeWriter()).status).toBe('closed')
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('persists revision conflicts in codec canonical order without locale collation', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'omne-jsonl-conflict-order-'))
+    try {
+      const acquired = await createJsonlProvider(options(directory), diagnostics).acquireWriter()
+      expect(acquired.status).toBe('acquired')
+      if (acquired.status !== 'acquired') return
+      const preparedOperation = acquired.writer.prepareOperation(
+        { ...operation, operationId: 'canonical-conflict-order' },
+        { ...input, arguments: { streams: ['A', 'a'] } },
+      )
+      expect(preparedOperation.ok).toBe(true)
+      if (!preparedOperation.ok) return
+      const streams = ['A', 'a'].map(streamId => ({
+        namespace: 'core',
+        owner: 'session',
+        scope: { kind: 'tenant' as const, tenantId: 'tenant-1' },
+        streamId,
+      }))
+      const prepared = acquired.writer.prepare({
+        operation: preparedOperation.value,
+        appends: streams.map(stream => ({
+          stream,
+          expectedRevision: '1',
+          records: [{ kind: 'session.changed', version: '1', data: {} }],
+        })),
+        result: { applied: false },
+        requiredUses: [],
+      })
+      expect(prepared.ok).toBe(true)
+      if (!prepared.ok) return
+      const submission = acquired.writer.commit(prepared.value)
+      expect(submission.status).toBe('pending_durability')
+      if (submission.status !== 'pending_durability') return
+      await expect(submission.completion).resolves.toMatchObject({
+        status: 'conflict',
+        conflict: {
+          kind: 'revision',
+          currents: [
+            { stream: streams[0], revision: '0' },
+            { stream: streams[1], revision: '0' },
+          ],
+        },
+        receipt: { position: { seq: '2' } },
+      })
       expect((await acquired.writer.closeWriter()).status).toBe('closed')
     } finally {
       await rm(directory, { recursive: true, force: true })

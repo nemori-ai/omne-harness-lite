@@ -46,7 +46,6 @@ import type {
   OperationRef,
   ValidationIssue,
 } from '@omne-harness-lite/work-data'
-import { syncDirectory, writeSyncedFile } from './file-ops.js'
 
 const require = createRequire(import.meta.url)
 const fsExt = require('fs-ext') as Readonly<{
@@ -101,6 +100,7 @@ type ResourceSet = {
   lockState: 'held' | 'released' | 'unknown'
   journalState: 'held' | 'released' | 'unknown'
   unknownDescriptor: boolean
+  readonly unknownHandles: FileHandle[]
 }
 
 function passed<T>(value: T): Checked<T> {
@@ -237,47 +237,94 @@ function systemCode(error: unknown): string | undefined {
 }
 
 async function closeResources(resources: ResourceSet): Promise<boolean> {
-  let certain = true
+  if (resources.unknownDescriptor && resources.lockState === 'held') return false
   if (resources.journal !== null && resources.journalState === 'held') {
     const handle = resources.journal
-    resources.journal = null
     try {
       await handle.close()
+      resources.journal = null
       resources.journalState = 'released'
     } catch {
       resources.journalState = 'unknown'
       resources.unknownDescriptor = true
-      certain = false
+      return false
     }
   }
   if (resources.lock !== null) {
     const handle = resources.lock
-    resources.lock = null
     let unlocked = resources.lockState === 'released'
     if (resources.lockState === 'held') {
       try {
         await flock(handle.fd, 'un')
         unlocked = true
       } catch {
-        certain = false
+        unlocked = false
       }
     }
     try {
       await handle.close()
+      resources.lock = null
       resources.lockState = 'released'
-      certain = resources.journalState !== 'unknown'
     } catch {
       resources.lockState = unlocked ? 'released' : 'unknown'
       resources.unknownDescriptor = true
-      certain = false
     }
   }
   return (
-    certain &&
     !resources.unknownDescriptor &&
     resources.lockState === 'released' &&
-    resources.journalState !== 'unknown'
+    resources.journalState === 'released'
   )
+}
+
+function retainUnknownHandle(resources: ResourceSet, handle: FileHandle): void {
+  resources.unknownDescriptor = true
+  resources.unknownHandles.push(handle)
+}
+
+async function closeTemporary(
+  resources: ResourceSet,
+  handle: FileHandle,
+  failure: unknown | undefined,
+): Promise<void> {
+  try {
+    await handle.close()
+  } catch (closeError) {
+    retainUnknownHandle(resources, handle)
+    if (failure !== undefined) {
+      throw new AggregateError([failure, closeError], 'temporary I/O and close both failed')
+    }
+    throw closeError
+  }
+  if (failure !== undefined) throw failure
+}
+
+async function syncOwnedDirectory(path: string, resources: ResourceSet): Promise<void> {
+  if (process.platform === 'win32') throw new Error('directory sync is POSIX-only')
+  const handle = await open(path, 'r')
+  let failure: unknown | undefined
+  try {
+    await handle.sync()
+  } catch (error) {
+    failure = error
+  }
+  await closeTemporary(resources, handle, failure)
+}
+
+async function writeOwnedEvidence(
+  path: string,
+  content: Buffer,
+  resources: ResourceSet,
+): Promise<void> {
+  const handle = await open(path, 'wx', 0o600)
+  let failure: unknown | undefined
+  try {
+    await handle.writeFile(content)
+    await handle.sync()
+  } catch (error) {
+    failure = error
+  }
+  await closeTemporary(resources, handle, failure)
 }
 
 class StableFileValidationError extends Error {
@@ -797,6 +844,7 @@ class JsonlWriter implements RecordWriter {
     const data = this.preparedCommits.get(prepared as object)
     if (data === undefined)
       return rejected('invalid', 'prepared commit was not issued by this writer')
+    if (this.phase !== 'open') return unavailable('writer is not accepting submissions')
     const key = operationKey(data.operation)
     const existing = this.operations.get(key)
     if (existing !== undefined) {
@@ -811,7 +859,6 @@ class JsonlWriter implements RecordWriter {
             receipt: null,
           })
     }
-    if (this.phase !== 'open') return unavailable('writer is not accepting submissions')
     if (this.queue.length >= this.options.limits.maxPendingCommits) {
       return rejected('capacity', 'pending commit count limit reached')
     }
@@ -830,7 +877,6 @@ class JsonlWriter implements RecordWriter {
           revision: (this.assignedRevisions.get(streamKey(append.stream)) ?? 0n).toString(),
         }),
       )
-      .sort((left, right) => streamKey(left.stream).localeCompare(streamKey(right.stream)))
     const conflict: RevisionConflict | undefined =
       mismatches.length === 0
         ? undefined
@@ -997,7 +1043,7 @@ class JsonlWriter implements RecordWriter {
         safeLog(this.diagnostics, diagnosticContext(this.diagnostics, current.data), {
           component: 'storage.jsonl',
           phase: 'durability',
-          code: 'COMMIT_DURABLE',
+          code: 'commit_durable',
           level: 'info',
           position: current.envelope.position,
           logical: this.logicalWatermark(),
@@ -1039,7 +1085,7 @@ class JsonlWriter implements RecordWriter {
       safeLog(this.diagnostics, diagnosticContext(this.diagnostics), {
         component: 'storage.jsonl',
         phase: 'control',
-        code: 'WRITER_QUARANTINED',
+        code: 'writer_quarantined',
         level: 'error',
         diagnosticId,
         logical: this.logicalWatermark(),
@@ -1238,22 +1284,27 @@ async function preserveAndRepairTail(
   directory: string,
   original: Buffer,
   completeBytes: number,
+  resources: ResourceSet,
 ): Promise<void> {
   const evidence = join(directory, `journal.recovery-${randomUUID()}.jsonl`)
-  await writeSyncedFile(evidence, original)
-  await syncDirectory(directory)
+  await writeOwnedEvidence(evidence, original, resources)
+  await syncOwnedDirectory(directory, resources)
   const preserved = await readFile(evidence)
   if (!preserved.equals(original)) throw new Error('recovery evidence verification failed')
   await handle.truncate(completeBytes)
   await handle.sync()
 }
 
-async function scanJournal(handle: FileHandle, options: JsonlProviderOptions): Promise<ScanResult> {
+async function scanJournal(
+  handle: FileHandle,
+  options: JsonlProviderOptions,
+  resources: ResourceSet,
+): Promise<ScanResult> {
   const bytes = await handle.readFile()
   const lastLf = bytes.lastIndexOf(0x0a)
   const completeBytes = lastLf < 0 ? 0 : lastLf + 1
   if (completeBytes !== bytes.byteLength) {
-    await preserveAndRepairTail(handle, options.directory, bytes, completeBytes)
+    await preserveAndRepairTail(handle, options.directory, bytes, completeBytes, resources)
   }
   const complete = bytes.subarray(0, completeBytes)
   const envelopes: CommitEnvelope[] = []
@@ -1424,6 +1475,7 @@ class JsonlProvider implements RecordProvider {
       lockState: 'released',
       journalState: 'released',
       unknownDescriptor: false,
+      unknownHandles: [],
     }
     let lockAcquired = false
     const diagnosticId = safeDiagnosticId(this.diagnostics)
@@ -1438,7 +1490,7 @@ class JsonlProvider implements RecordProvider {
       const lockPath = join(this.domainPath, LOCK_FILE)
       const lock = await openStableFile(lockPath, 'lock', true)
       resources.lock = lock.handle
-      if (lock.created) await syncDirectory(this.domainPath)
+      if (lock.created) await syncOwnedDirectory(this.domainPath, resources)
       try {
         await flock(lock.handle.fd, 'exnb')
         lockAcquired = true
@@ -1471,8 +1523,8 @@ class JsonlProvider implements RecordProvider {
       const journal = await openStableFile(join(this.domainPath, JOURNAL_FILE), 'journal')
       resources.journal = journal.handle
       resources.journalState = 'held'
-      if (lock.created || journal.created) await syncDirectory(this.domainPath)
-      const scan = await scanJournal(journal.handle, this.options)
+      await syncOwnedDirectory(this.domainPath, resources)
+      const scan = await scanJournal(journal.handle, this.options, resources)
       const nextEpoch = scan.epoch + 1n
       const epoch = epochEnvelope(
         this.options.coordinationDomain,
@@ -1501,7 +1553,7 @@ class JsonlProvider implements RecordProvider {
         offset += write.bytesWritten
       }
       await journal.handle.sync()
-      if (journal.created) await syncDirectory(this.domainPath)
+      if (journal.created) await syncOwnedDirectory(this.domainPath, resources)
       const revisions = new Map(scan.revisions)
       revisionsAfter(revisions, epoch.appends)
       const writer = new JsonlWriter(
@@ -1520,7 +1572,7 @@ class JsonlProvider implements RecordProvider {
       safeLog(this.diagnostics, diagnosticContext(this.diagnostics), {
         component: 'storage.jsonl',
         phase: 'acquire',
-        code: 'WRITER_ACQUIRED',
+        code: 'writer_acquired',
         level: 'info',
         durable: watermark(this.options.coordinationDomain, scan.seq + 1n, epoch.position.commitId),
       })
@@ -1550,7 +1602,7 @@ class JsonlProvider implements RecordProvider {
         safeLog(this.diagnostics, diagnosticContext(this.diagnostics), {
           component: 'storage.jsonl',
           phase: 'acquire',
-          code: systemCode(error) ?? 'ACQUIRE_FAILED',
+          code: 'acquire_failed',
           level: 'error',
           diagnosticId,
         })
@@ -1576,7 +1628,7 @@ class JsonlProvider implements RecordProvider {
       safeLog(this.diagnostics, diagnosticContext(this.diagnostics), {
         component: 'storage.jsonl',
         phase: 'acquire_cleanup',
-        code: 'ACQUISITION_CLEANUP_RETAINED',
+        code: 'acquisition_cleanup_retained',
         level: 'error',
         diagnosticId,
       })
