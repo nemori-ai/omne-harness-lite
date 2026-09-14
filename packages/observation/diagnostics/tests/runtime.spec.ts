@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, readdir, stat } from 'node:fs/promises'
+import { access, chmod, mkdir, mkdtemp, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import { resolve, join } from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { createLocalDiagnostics } from '../dist/index.js'
@@ -66,11 +66,13 @@ async function sourceFile(directory: string): Promise<string> {
 }
 
 async function waitForCode(directory: string, code: string): Promise<readonly Record<string, unknown>[]> {
-  const path = await sourceFile(directory)
   const deadline = Date.now() + 1_000
   do {
-    const text = await readFile(path, 'utf8')
-    const lines = text.trim().split('\n').filter(Boolean).map(line => JSON.parse(line) as Record<string, unknown>)
+    const lines: Record<string, unknown>[] = []
+    for (const file of await readdir(directory)) {
+      const text = await readFile(join(directory, file), 'utf8')
+      lines.push(...text.trim().split('\n').filter(Boolean).map(line => JSON.parse(line) as Record<string, unknown>))
+    }
     if (lines.some(line => line.code === code)) return lines
     await new Promise(resolve => setTimeout(resolve, 5))
   } while (Date.now() < deadline)
@@ -270,5 +272,84 @@ describe('O06 close ownership and generation guards', () => {
     const afterLate = await readFile(await sourceFile(directory), 'utf8')
     expect(afterLate).toBe(beforeLate)
     expect(runtime.inspect().gaps).toContainEqual(expect.objectContaining({ reason: 'closing' }))
+  })
+})
+
+describe('O04/O05 configuration and local retention boundaries', () => {
+  it('rejects invalid configuration before creating its directory', async () => {
+    const parent = await mkdtemp(join(scratchRoot, 'invalid-'))
+    const directory = join(parent, 'must-not-exist')
+    const result = await createLocalDiagnostics(options(directory, 'source-invalid', { maxRecordBytes: 0 }))
+    expect(result).toEqual({ status: 'invalid', code: 'INVALID_MAX_RECORD_BYTES' })
+    await expect(access(directory)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('returns a visible degraded runtime when directory retention is already exhausted', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'retention-'))
+    await chmod(directory, 0o700)
+    await writeFile(join(directory, 'retained-source.jsonl'), 'x'.repeat(1_024), { mode: 0o600 })
+    const result = await createLocalDiagnostics(options(directory, 'source-retention', {
+      maxRecordBytes: 512,
+      maxBufferBytes: 1_024,
+      maxFileBytes: 1_024,
+      maxDirectoryBytes: 1_024,
+      maxFiles: 1,
+    }))
+    expect(result.status).toBe('created')
+    if (result.status !== 'created') return
+    expect(result.runtime.inspect()).toMatchObject({
+      phase: 'degraded',
+      resource: 'released',
+      lastErrorCode: 'RETENTION_CAPACITY',
+    })
+    expect(result.runtime.inspect().gaps).toContainEqual(expect.objectContaining({
+      reason: 'retention_capacity',
+    }))
+    await expect(result.runtime.close({ deadlineMs: 1_000 })).resolves.toMatchObject({ status: 'closed' })
+    expect(await readdir(directory)).toEqual(['retained-source.jsonl'])
+  })
+
+  it('keeps two factory instances and colliding source generations isolated', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'factories-'))
+    const first = await createdRuntime(directory, 'source-first')
+    try {
+      const collision = await createLocalDiagnostics(options(directory, 'source-first'))
+      expect(collision.status).toBe('created')
+      if (collision.status === 'created') {
+        expect(collision.runtime.inspect()).toMatchObject({
+          phase: 'degraded',
+          resource: 'released',
+          lastErrorCode: 'SOURCE_EXISTS',
+        })
+        await collision.runtime.close({ deadlineMs: 1_000 })
+      }
+
+      const second = await createdRuntime(directory, 'source-second')
+      const firstContext = first.diagnostics.scope(identity('tenant-a', 'user-a'))
+      const secondContext = second.diagnostics.scope(identity('tenant-b', 'user-b'))
+      first.diagnostics.log(firstContext, point('factory.first'))
+      second.diagnostics.log(secondContext, point('factory.second'))
+      await waitForCode(directory, 'factory.first')
+      await waitForCode(directory, 'factory.second')
+      await second.close({ deadlineMs: 1_000 })
+      first.diagnostics.log(firstContext, point('factory.first_after_second_close'))
+      await waitForCode(directory, 'factory.first_after_second_close')
+    } finally {
+      await first.close({ deadlineMs: 1_000 })
+    }
+  })
+
+  it('writes one ordinary low-traffic record without another log or close trigger', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'low-traffic-'))
+    const runtime = await createdRuntime(directory, 'source-low-traffic')
+    const context = runtime.diagnostics.scope(identity('tenant-a', 'user-a'))
+    runtime.diagnostics.log(context, point('low_traffic.single', 'error'))
+    const lines = await waitForCode(directory, 'low_traffic.single')
+    expect(lines.find(line => line.code === 'low_traffic.single')).toMatchObject({
+      level: 'error',
+      tenantId: 'tenant-a',
+    })
+    expect(runtime.inspect().resource).toBe('held')
+    await runtime.close({ deadlineMs: 1_000 })
   })
 })
