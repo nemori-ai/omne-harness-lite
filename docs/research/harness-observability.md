@@ -207,3 +207,55 @@ Sonic 试验不证明配置换代、磁盘保留、部分写失败、长时间�
 因此候选选择 Pino/Sonic/OTel 的直接组合，P1 不依赖 Cordis 日志桥，P2 对单个
 root 注册桥给出限定映射和阻断条件，P3 才完成 engineering 读面。完整选择、
 成本和接受问题归候选稿，研究本身不授权新增包、升级根依赖或接受该方案。
+
+## 独立评审后的定点证据
+
+对候选 `1c60feb` 的 O-R1–O-R3 反馈揭示了原设计三个具体缺口。以下修订证据
+继续使用前述 Node `v24.18.0`、SonicBoom `4.2.1`、Pino `10.3.1` 和 ALS `2.11.0`，
+没有重新选型或扩大产品范围。新脚本为 `tmp/observability-design/review-probe.mjs`，
+输出为 `review-probe-result.json`；命令 `node tmp/observability-design/review-probe.mjs`
+实际 exit 0。它只测具体机制，未运行尚不存在的产品 consumer。
+
+**O-R1：异步输出不保证门外启动。** 精确 Sonic 源码的 write 在达到 minLength
+后同栈调用 `_actualWrite`，继而调用 fs.write。探针仅在自己的独立进程暂时包住
+Node fs.write 记录调用时的门标记，真正写入仍交原 fs.write。直接在标记门内
+向 `minLength:4096` 流输出超过 4096 字节的日志，实际观察到一次门内 I/O 启动。
+这是原“write 只入 buffer”说法的反例，不能以回调异步消除。
+
+修订模型的门内只有最多 16 个固定字段 point 和一个省略计数；退出标记门后
+才调用 Pino。分别使用 minLength=4096 与修订后的 0，每轮实际写入 6983 字节、
+省略 3 条，门内 fs.write 调用数均为 0。测量使用词法门标记，证明先退出再输出
+的组合形状；正式 admission 外层 frame 及 jsonl 写泵还须在产品测试中替换此
+标记，尤其不能把内层 submit 返回误当外层 enter 已结束。
+
+**O-R2：单条低流量日志必须主动开始写入。** 候选不再依赖 4 KiB 门槛，固定
+minLength=0。真实文件流只收到一条 55 字节 error 日志；没有后续日志和 close，
+在 write 事件后 readFile 读回原 code。最终探针该次耗时 0.374 ms，观察期限
+1000 ms。它不是 OS/负载无关时限承诺，实际停滞要按 pending age/写入进度报告。
+另在 fs.write 的可控故障点回调 EIO，实际 Sonic error 事件令试验健康状态变为
+failed、lastErrorCode=EIO。故障是合成 I/O 注入，不声称磁盘发生了真实硬件错误。
+
+这项选择只取消未有性能依据的缓冲门槛；流忙时仍使用 Sonic 的有界缓冲。
+没有新增 periodicFlush、轮询、公开 flush API 或第二个输出框架。调用 fs.write、
+收到 write 回调和取得 DR 耐久回执依旧是不同结论。
+
+**O-R3：诊断不接管调用者 Promise。** 原 activeScopes/settlement observers
+没有独立必需保证且无容量界限，修订模型仅委托真实 ALS.with。10000 次 body
+返回同一个永不结算 Promise，逐次保持原对象；该 Promise 的 then getter
+计数始终为 0。这里没有“超过 scope 限制后丢弃 body”的机制，因为不再创建
+诊断 scope 任务或观察器；活动 span 的独立上限仍保留。原同步 throw 对象及
+已由调用者处理的原 rejection 对象也不被替换，新增 unhandledRejection 为 0。
+这没有证明调用者自己创建的无限业务任务资源有界，其并发/清理仍归原 owner。
+
+首轮探针还作了过强假设：manager.disable 后，之前已开始 body 的 await 续体
+应从底层 manager 看到 ROOT_CONTEXT。真实结果仍看到旧 context，脚本 exit 1；
+失败脚本 `review-probe-before-r3.mjs` 和 stderr 保留，没有改写为通过事实。
+修订后的测量保持这个观察，以诊断实例的关闭状态封闭公开 current（返回 null）
+及晚到输出；within 在关闭状态直接返回 body 的原值。诊断关闭时 caller owner
+仍为 running，后来调用者主动解除等待才成为 settled；晚到记录被抑制一次，
+没有访问新代或已关闭流。原生上下文引用可能继续随调用者异步资源存在，不可
+用 disable 或诊断 closed 假称已取消业务工作。
+
+这七项检查补足了三个反馈的机制输入，尚不证明完整 generation 守卫、真实
+资源清理、敏感信息投影或所有消费者已实现。候选修订仍需独立定点复核与整合者
+接受；正式 v1、业务审计责任及 P1/P2/P3 的既定分界不变。

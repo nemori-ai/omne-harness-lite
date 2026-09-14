@@ -79,7 +79,7 @@ Effect 或 pi telemetry。OTel Logs API/SDK 仍为 Development，本批已有具
 processor，但必须另验交付、权限及缺口，不能在 P1 预造 exporter 插件框架。
 
 应用装配显式创建 diagnostics runtime，再注入实际消费者。创建者独占配置、
-flush、close 和状态查询；业务只拿记录面。没有隐藏单例、从环境自动发现 endpoint、
+close 和状态查询；业务只拿记录面。没有隐藏单例、从环境自动发现 endpoint、
 为缺失依赖自动装一个静默 no-op，或把每条日志交给任意 listener。测试的可控
 提供者必须明确标识，实际装配必须使用真实本地提供者。
 
@@ -87,7 +87,7 @@ flush、close 和状态查询；业务只拿记录面。没有隐藏单例、从
 阶段细节；console pretty 只允许离线展示已裁剪记录，不产生第二份全文。配置
 由受信装配解析为冻结值，非法配置在发布前具名失败，不部分生效。P1 固定初始
 值：单条编码上限 8 KiB；最多 256 个活动 span；span 最多 32 属性、每字符串
-256 字符、8 事件、4 links；SonicBoom `sync:false,minLength:4096,maxLength:1048576,
+256 字符、8 事件、4 links；SonicBoom `sync:false,minLength:0,maxLength:1048576,
 maxWrite:16384,fsync:false,retryEAGAIN:()=>false`。这些是保守容量预算，不是性能
 测量结论；测试使用更小值触发边界。公共记录面不开放任意 OTel 属性/事件写入，
 最后 UTF-8 字节检查仍有效，不能只依赖 SDK 的字符裁剪。
@@ -165,7 +165,9 @@ export type DiagnosticGap = Readonly<{
 export type DiagnosticStatus = Readonly<{
   sourceId: OpaqueId; phase: 'active' | 'degraded' | 'closing' | 'closed';
   attemptedThrough: Counter; acceptedCount: Counter; droppedCount: Counter;
-  pendingBytes: number; writtenBytes: Counter; activeSpans: number; activeScopes: number;
+  pendingBytes: number; writtenBytes: Counter; activeSpans: number;
+  writeProgress: 'idle' | 'pending' | 'stalled' | 'failed';
+  pendingIdleMs: number | null;
   gaps: readonly DiagnosticGap[]; lastErrorCode: string | null;
   resource: 'held' | 'released' | 'unknown';
 }>;
@@ -197,8 +199,8 @@ export declare function createLocalDiagnostics(options: LocalDiagnosticsOptions)
 就是认回原关闭并重试原责任，不另建立关闭任务。
 
 `scope` 按可信入口已经核对的 identity 建立冻结快照；parent 默认为 ROOT。
-`current` 只读取本实例的 ALS context，供不能修改既有业务参数的内部适配边界
-显式 capture，再传给 scope；它不读取全局 OTel 或 DSH initiator。parent 与新
+`current` 只读取本实例的 ALS context，实例 closing/closed 时返回 null；供不能
+修改既有业务参数的内部适配边界显式 capture，再传给 scope；它不读取全局 OTel 或 DSH initiator。parent 与新
 identity 的 tenant/主体归属必须匹配；不匹配时新建根并登记关联缺口，业务因果
 继续沿权威 Causality，不能把错误 ambient context 当授权。原数据类型的租户、来源
 及完整性校验复用原权威。用户传来的 tenant/operation/parent 不能通过这个函数
@@ -220,14 +222,19 @@ startSpan 返回可安全 end 的惰性句柄，仍保留原 scope 的显式传�
 句柄中保留被拒绝的原对象或把它当有效业务关联。
 `within` 只在私有 ALS manager.with 内运行 body，保持 body 的原返回值、Promise、
 同步 throw 或异步 rejection；不能把 throw 改成正常返回，也不能强制异步化
-admission 的短门。上下文激活在 body 尚未被调用时失败，才可用显式参数执行 body 一次并记诊断
-失效；不能捕获 body 的 throw 后再调用一次。within 登记实际回调/Promise 的
-活动 scope，观察原 Promise 的结算但返回原 Promise，所有观察器错误内部接管。
+admission 的短门。上下文激活在 body 尚未被调用时失败，才可用显式参数执行
+body 一次并记诊断失效；不能捕获 body 的 throw 后再调用一次。within 不读取
+返回值的 then、不挂结算观察器、不登记 activeScopes 或保留 Promise 集合；只
+使用 ALS.with 的词法调用边界，原样返回结果。context 是调用者持有的不可变
+值/句柄，真实性校验可以使用 WeakMap，诊断器不另外用强引用表枚举所有 scope。
+因此没有需要另设配额的诊断 scope 任务；尚未完成的 body/Promise 及其异步
+资源仍归原业务 owner 的准入和清理控制，不能转移给 diagnostics。
 
 startSpan 用 `tracer.startSpan(name,options,explicitParent)`；子 context 是原
 scope 加 OTel 的 native context。调用者在真实阶段结束时 end，所有终结路径
-都要覆盖。end 重复调用不增第二个终态，结束后不再在 provider 活动表保有 SDK span 或导出回调；context 后续只保留
-不可变 span identity。已经进入的 ALS 回调仍有生命周期登记，直至它实际退出；
+都要覆盖。end 重复调用不增第二个终态，结束后不再在 provider 活动表保有 SDK
+span 或导出回调；context 后续只保留不可变 span identity。已经开始的调用者
+异步资源仍可能持有原 native context，这份引用沿调用者真实生命周期释放；
 无界的人类等待、Session 存在期和整个宿主寿命不保持一个活动 span。等待事实
 由业务记录承载，诊断 span 只测一次准备/排队/写入/恢复/调用阶段。
 
@@ -250,11 +257,24 @@ Causality/OperationRef 用来建立操作 scope。从 PreparedOperation 取得�
 records 已有的冻结规范输入/验证入口，不从任意日志字符串恢复。diagnostics
 本身不解析业务 Action 或 OperationInput 来决定授权。
 
-短门内只更新有界状态、分配诊断 ID 并收集固定字段；Sonic 的 write 只入已有
-有界缓冲，实际 I/O 异步开始。大对象投影、动态字段解析、文件 open/flush、等待
-span 结束、任意回调都在门外。若需要创建 scope，在准备边界完成；late rejection
-只用原冻结关联和 code，由原 admission owner 接管，在门外被动记录。诊断器
-失败不改变 publication blocked、quarantine 或旧 use 的释放责任。
+短门内只更新消费者自己的有界元数据、分配纯诊断 ID 并收集固定字段；不得调用
+Diagnostics.log/startSpan/end、Pino 或 Sonic.write。Sonic 的异步模式只说明写入
+回调异步：4.2.1 达到 minLength 后会在同一调用栈开始 fs.write，不能拿它充当
+门外调度保证。scope 准备、大对象投影、序列化和所有真实输出都在门外。
+
+admission 的元数据归外层 enter 调用：frame 先失效并退出门，再在受保护的
+finally 中输出，保持 enter 的原返回值/throw；内层 submit/callback 返回不算
+已退出外层门。jsonl.commit 可能被这个门调用，它只收集自己的结果/故障元数据，
+由既有写泵的门外调度段处理；即使没有业务待写或已隔离，诊断段也可收口，不能
+为诊断重新开放业务写入。每个消费者至多保留 16 个待输出的固定大小 point 和
+一个省略计数；jsonl 至多排定一个门外处理回调，不为每次拒绝创建微任务。溢出
+合并为 `diagnostic.gate_capacity` + measures.count 的安全摘要，出门后经同一
+日志面输出；未分配来源 seq 的省略不补造连续水位。它是所属消费者的短暂字段
+收集，不新增公共日志排队 API、通用队列或第二个后台输出框架。
+
+late rejection 只用原冻结关联和 code，由原 admission owner 接管，在门外
+被动记录。诊断器失败不改变 publication blocked、quarantine 或旧 use 的释放
+责任；消费者的门外输出也不能将原同步结果改成 Promise。
 
 ## 真实接入责任与最小测量
 
@@ -329,6 +349,18 @@ log 行及 span 结束行均经同一 Pino/Sonic 流：span 由一个本地 Span
 写入字节；适配器据此核对可读取的完整行边界，不能以 logger 返回或 flush 请求
 当耐久确认。所有来源水位都注明质量；`fsync:false` 的诊断文件没有 DR 回执保证。
 
+运行中采用 `minLength:0`：流空闲时，一条短日志就在门外的 log 调用中开始
+异步 fs.write；流忙时进入已有有限缓冲，前一写入回调继续排空余量。没有等待
+下一条日志/close 的 4 KiB 门槛，也不新增 periodicFlush timer 或公共 flush。
+这不承诺硬实时写完：文件可读范围以实际 write 回调/完整行核对为准。inspect
+给出 pendingIdleMs 和 writeProgress；有待写字节时，用单调时间计算自最近一次
+write 进展起的等待（首次待写从入流计时），每次真实进展重置、排空后为 null。
+有待写且超过 1000 ms 无进展时为 stalled；持续有进展不因队列非空就报停滞。
+这是一项可查询的积压状态，不是取消 I/O 或认定丢失。实际 error 进入 failed/degraded 并保存安全错误码
+及原资源责任；恢复进度与剩余字节分别可查。没有额外健康轮询任务，低流量
+验收在无后续日志、未 close 下等待实际 write 并读回；本次环境的观察期限为
+1000 ms，不把一次测量扩成所有 OS/负载下的时限保证。
+
 缺口原因至少分等级排除、容量/活动 span 限制、非法投影、写入不可用、保留容量、
 关闭中未结尾、异常进程退出；计数包括 warn/error 的普通诊断丢失。P1 不做随机
 采样，未来加入必须记录政策/来源范围。每个固定原因只保存一份有界聚合：观察
@@ -352,11 +384,22 @@ log 行及 span 结束行均经同一 Pino/Sonic 流：span 由一个本地 Span
 
 关闭由应用先停止/结算或明确隔离业务生产者，完成关键终态记录与 records 关闭，
 再关闭 diagnostics。诊断 owner 同步关新 scope/span；现有 span 持其原 generation，
-end 可继续写入原流。随后等待活动 span/within scope 清零、SDK forceFlush、Sonic.end 的
-finish/close 及 timer/ALS 释放；不能只等待 logger.flush 或调用 destroy 即报关闭。
-重复关闭/重试认回同一关闭责任；deadline 只结束等待，未完成 I/O、活动 scope
-或 fd 仍由原 owner 持有，并返回 blocked/剩余责任。不得用 finally 的关闭异常
-覆盖原业务失败；应用报告业务结论和诊断关闭结论两个独立字段。
+end 可继续写入原流。随后等待有限活动 span 清零、SDK forceFlush、Sonic.end 的
+finish/close，关闭自己的等待计时器并 disable ALS manager；不等待任意 within
+返回的 Promise，也不能以调用 destroy 代替真实输出收口。
+
+closed 只表示此诊断实例拥有的输出/活动 span/管理资源已释放，不表示调用者
+body 已停止。尚未结算的调用者、其错误通道及捕获的 native context 继续由原
+业务 owner 负责；应用不能借 diagnostics.close 绕过原停止/隔离协议。实际探针
+显示 disable 后旧续体仍可能读到原 native context，因此公开 current 在
+closing/closed 返回 null，within 在这两个状态直接运行 body 一次、不再激活
+manager；所有 log/startSpan/end 在访问后端前检查原 generation/关闭状态，
+晚到调用不能碰已释放的流或改投新代，必要缺口只更新有界状态。仅依赖 ALS.disable
+不能作为旧引用失效证明。
+
+重复关闭/重试认回同一关闭责任；deadline 只结束等待，未完成 I/O、活动 span
+或 fd 仍由原诊断 owner 持有，并返回 blocked/剩余责任。不得用 finally 的关闭
+异常覆盖原业务失败；应用报告业务结论和诊断关闭结论两个独立字段。
 
 更换配置/提供者先准备并验证新 generation，原子切换新工作注入，再排空旧代；
 准备失败保留旧代，旧句柄不能写入新代。只有当前代及至多一个待清理旧代，旧代
@@ -404,12 +447,12 @@ D1 的正式实现由独立 infrastructure-developer 承担；D2 的 jsonl 与 a
 
 | 场景 | 直接适用的验收刺激与必须观察的结果 |
 |---|---|
-| O01 / A28、A31 | 后端 write/processor/projection 抛错或失败；业务正常返回、同步 throw、异步 rejection、短门严格同步各自保持原结果/身份；body 仅运行一次；独立健康状态报告故障 |
+| O01 / A28、A31 | 后端 write/processor/projection 抛错或失败；业务正常返回、同步 throw、异步 rejection 各自保持原结果/身份；跨 4 KiB 输出及内层 submit 退出仍不在外层门内启动 fs.write，门外输出后返回仍严格同步；body 仅运行一次，健康状态独立 |
 | O02 / A01、A28 | 两 tenant 异步穿插、排队出队、root timer、旧 parent 恢复；来源不串租户、共享任务无调用者 initiator，新运行 epoch 仍能关联原 work/attempt |
 | O03 / A28 | 嵌套/循环/getter/toJSON、超长字段、SECRET/BODY 哨兵分别送入 scope/log/span/error 边界；真实文件、OTel 属性及缓存不含原文，投影失效显式可见；debug 不放宽 |
 | O04 / A28 | 持续写超过单条/活动 span/缓冲/磁盘/文件数预算，含 warn/error；内存资源有界，实际写入和 drop/gap 对得上；编码字节与字符差异被覆盖，不只断言配置值 |
-| O05 / A28 | 写前/部分写/close 前失败、重启无 clean end、保留容量耗尽；读者只能声明实际确认范围，不能将 drop 或未写 span 算已保存；关键业务回执保持独立 |
-| O06 / A29 | 活动 span 未结束、磁盘回调迟到、关闭失败/重复关闭/超时；原 owner 仍可 inspect/retry，实际 fd/timer/ALS 收口才 closed；无递归重试或 listener 放大 |
+| O05 / A28 | 单条短失败日志无后续流量/无 close 即可在实际 write 后读到；阻塞/失败时 pending age、stalled/failed 可查。写前/部分写/close 前失败、重启无 clean end、保留容量耗尽只能声明实际确认范围，关键业务回执保持独立 |
+| O06 / A29 | 活动 span 未结束、磁盘回调迟到、关闭失败/重复关闭/超时；原 owner 可 inspect/retry。大量零 span 停滞 Promise 不生成诊断观察器/任务表；关闭不伪造 body 结束，旧 current/输出受原实例状态封闭，无新增未处理拒绝 |
 | O07 / A18、A29 | 新代准备失败、成功切换、旧代关闭失败、旧句柄迟到和再次更换；新工作归新代，旧失败不关新资源，同时代数保持有界 |
 | O08 / A30 | 独立安装精确产物，用公开入口消费；work-data/records 无日志反向依赖，目标包不从源码路径偷 import；配置和来源/许可可追溯 |
 | O09 / A05–08、A28 | 真实磁盘 fsync 失败且诊断输出同时失败；业务仍 unknown/quarantined、关联原 operation/Position，未完成 cleanup 仍具名；新效果不越耐久缺口 |
@@ -436,3 +479,23 @@ Markdown 及关联结构检查；`git diff --check` 通过。检查不等于架�
 交付分界与受限 Cordis 桥。沿用业务审计/CD/CC 的部分不重新表决。库性能、实际
 100 次资源循环、跨进程 trace carrier、完整保留查询均未被本次探针验证；没有
 证据支持扩成 collector/仪表盘平台或修改正式数据 Schema。
+
+### 独立评审修订 O-R1–O-R3
+
+本节处理对 `1c60feb` 的三项反馈，不重开其它选择。O-R1 的同栈 I/O 反例由
+真实 Sonic/fs.write 探针复现；修改为消费者在短门内只收集有界字段，外层门退出
+或既有门外写泵才输出。O-R2 去掉 minLength=4096，固定 0，补足低流量的写入
+触发及积压/失败状态，并删除不存在的公开 flush 声称。O-R3 移除 activeScopes
+和 Promise 结算观察，以原业务 owner + 诊断 generation/关闭守卫约束晚到工作。
+
+`node tmp/observability-design/review-probe.mjs` 在同一 Node/依赖环境通过七项
+定点检查。两个 minLength 配置各输出 6983 字节，fs.write 在门内启动次数均为
+0；单条 55 字节日志在未 close 下读回；注入 EIO 后健康状态 failed；10000 次
+停滞 Promise 原样返回且没有 then 观察器、没有新增未处理拒绝。首轮关于
+ALS.disable 会清空所有调用者 context 的过强断言实际失败，修订后以公开关闭
+守卫验证，原失败保留。详细事实及局限见研究的“独立评审后的定点证据”。
+这些仍是机制可行性探针；正式 consumer、关闭/故障组合与产品 TDD 尚待实施，
+本作者不自行认定评审闭合或接受。
+
+修订后的 `make docs-check BASELINE=1c60feb` 通过同一 398 份 Markdown 及关联
+结构检查，`git diff --check` 通过；日志为 `docs-check-review.log`。
