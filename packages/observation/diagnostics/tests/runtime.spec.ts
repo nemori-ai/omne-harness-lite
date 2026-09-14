@@ -182,6 +182,34 @@ describe('O01/O02 passive context behavior', () => {
     expect(runtime.diagnostics.current()).toBeNull()
     await expect(runtime.close({ deadlineMs: 1_000 })).resolves.toMatchObject({ status: 'closed' })
   })
+
+  it('does not observe or wait for a large set of unresolved business Promises', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'pending-promises-'))
+    const runtime = await createdRuntime(directory, 'source-pending-promises')
+    const context = runtime.diagnostics.scope(identity('tenant-a', 'user-a'))
+    let thenObservers = 0
+    const pending: Promise<never>[] = []
+    for (let index = 0; index < 10_000; index += 1) {
+      const promise = new Promise<never>(() => {})
+      Object.defineProperty(promise, 'then', {
+        configurable: true,
+        get() {
+          thenObservers += 1
+          throw new Error('diagnostics must not inspect business Promise settlement')
+        },
+      })
+      pending.push(promise)
+      expect(runtime.diagnostics.within(context, () => promise)).toBe(promise)
+    }
+    expect(thenObservers).toBe(0)
+    expect(runtime.inspect().activeSpans).toBe(0)
+    await expect(runtime.close({ deadlineMs: 1_000 })).resolves.toMatchObject({
+      status: 'closed',
+      state: { activeSpans: 0, resource: 'released' },
+    })
+    expect(pending).toHaveLength(10_000)
+    expect(thenObservers).toBe(0)
+  })
 })
 
 describe('O03 safe projection', () => {
@@ -210,6 +238,90 @@ describe('O03 safe projection', () => {
     expect(text).not.toContain('BODY_SENTINEL')
     expect(text).not.toContain('SECRET_SENTINEL')
     expect(text).not.toContain('STACK_SENTINEL')
+  })
+
+  it('rejects overlong/getter/toJSON/cyclic inputs and emits only fixed accepted fields', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'projection-matrix-'))
+    const runtime = await createdRuntime(directory, 'source-projection-matrix')
+    const context = runtime.diagnostics.scope(identity('tenant-a', 'user-a'))
+    let getters = 0
+    let toJsonCalls = 0
+    const sentinel = 'SECRET_MATRIX_SENTINEL'
+
+    const getterIdentity = {
+      tenantId: 'tenant-a',
+      get principal() {
+        getters += 1
+        return { kind: 'system', systemId: sentinel }
+      },
+      causality: {},
+    } as unknown as DiagnosticIdentity
+    const invalidContext = runtime.diagnostics.scope(getterIdentity)
+    runtime.diagnostics.log(invalidContext, point('projection.invalid_context'))
+
+    const cyclic: Record<string, unknown> = { ...point('projection.cyclic') }
+    cyclic.body = cyclic
+    const unsafe = {
+      ...point('projection.unsafe'),
+      body: sentinel,
+      error: { message: sentinel, stack: sentinel },
+      message: sentinel,
+      rawArgs: [sentinel],
+      headers: { authorization: sentinel },
+      url: `https://invalid.example/?token=${sentinel}`,
+      query: sentinel,
+      target: sentinel,
+      secret: sentinel,
+      toJSON() {
+        toJsonCalls += 1
+        return { secret: sentinel }
+      },
+    } as DiagnosticPoint
+    runtime.diagnostics.log(context, unsafe)
+    runtime.diagnostics.log(context, cyclic as DiagnosticPoint)
+    runtime.diagnostics.log(context, {
+      ...point('projection.overlong'),
+      diagnosticId: '界'.repeat(100),
+    })
+
+    const span = runtime.diagnostics.startSpan(context, point('projection.span'))
+    span.end({
+      get code() {
+        getters += 1
+        return sentinel
+      },
+      outcome: 'failed',
+    })
+
+    runtime.diagnostics.log(context, {
+      ...point('projection.accepted'),
+      diagnosticId: 'diagnostic-safe',
+      position: { coordinationDomain: 'domain-a', writerEpoch: '1', commitId: 'commit-a', seq: '2' },
+      logical: { coordinationDomain: 'domain-a', seq: '2', commitId: null },
+      durable: { coordinationDomain: 'domain-a', seq: '1', commitId: 'commit-b' },
+      measures: { durationMs: 1.25, queueDepth: 2, pendingBytes: 3, count: 4 },
+    })
+
+    expect(getters).toBe(0)
+    expect(toJsonCalls).toBe(0)
+    await waitForCode(directory, 'projection.accepted')
+    await runtime.close({ deadlineMs: 1_000 })
+    const text = await readFile(await sourceFile(directory), 'utf8')
+    expect(text).not.toContain(sentinel)
+    const lines = text.trim().split('\n').map(line => JSON.parse(line) as Record<string, unknown>)
+    expect(lines.find(line => line.kind === 'span')).toMatchObject({
+      code: 'diagnostic.invalid_end',
+      outcome: 'failed',
+    })
+    expect(lines.find(line => line.code === 'projection.accepted')).toMatchObject({
+      diagnosticId: 'diagnostic-safe',
+      position: { coordinationDomain: 'domain-a', writerEpoch: '1', commitId: 'commit-a', seq: '2' },
+      logical: { coordinationDomain: 'domain-a', seq: '2', commitId: null },
+      durable: { coordinationDomain: 'domain-a', seq: '1', commitId: 'commit-b' },
+      measures: { durationMs: 1.25, queueDepth: 2, pendingBytes: 3, count: 4 },
+    })
+    const invalidGap = runtime.inspect().gaps.find(gap => gap.reason === 'invalid_projection')
+    expect(BigInt(invalidGap?.count ?? '0')).toBeGreaterThanOrEqual(5n)
   })
 })
 
@@ -285,6 +397,53 @@ describe('O06 close ownership and generation guards', () => {
     const afterLate = await readFile(await sourceFile(directory), 'utf8')
     expect(afterLate).toBe(beforeLate)
     expect(runtime.inspect().gaps).toContainEqual(expect.objectContaining({ reason: 'closing' }))
+  })
+
+  it('keeps one delayed close responsibility across concurrent deadlines and releases no newer source', async () => {
+    const directory = await mkdtemp(join(scratchRoot, 'close-write-'))
+    const oldRuntime = await createdRuntime(directory, 'source-close-write-old')
+    await waitForCode(directory, 'diagnostic.source_started')
+    const originalWrite = nodeFs.write as unknown as FlexibleWrite
+    let delayed: unknown[] | undefined
+    const spy = vi.spyOn(nodeFs, 'write').mockImplementation(((...args: unknown[]) => {
+      if (delayed === undefined) {
+        delayed = args
+        return undefined
+      }
+      return originalWrite(...args)
+    }) as typeof nodeFs.write)
+    let newRuntime: DiagnosticsRuntime | undefined
+    try {
+      const oldContext = oldRuntime.diagnostics.scope(identity('tenant-a', 'user-a'))
+      oldRuntime.diagnostics.log(oldContext, point('close_write.old_pending'))
+      const [first, second] = await Promise.all([
+        oldRuntime.close({ deadlineMs: 10 }),
+        oldRuntime.close({ deadlineMs: 20 }),
+      ])
+      expect(first).toMatchObject({ status: 'blocked', state: { phase: 'closing', resource: 'held' } })
+      expect(second).toMatchObject({ status: 'blocked', state: { phase: 'closing', resource: 'held' } })
+
+      newRuntime = await createdRuntime(directory, 'source-close-write-new')
+      const newContext = newRuntime.diagnostics.scope(identity('tenant-b', 'user-b'))
+      newRuntime.diagnostics.log(newContext, point('close_write.new_live'))
+      await waitForCode(directory, 'close_write.new_live')
+
+      if (delayed !== undefined) originalWrite(...delayed)
+      await expect(oldRuntime.close({ deadlineMs: 1_000 })).resolves.toMatchObject({
+        status: 'closed',
+        state: { resource: 'released' },
+      })
+      expect(newRuntime.inspect()).toMatchObject({ phase: 'active', resource: 'held' })
+      oldRuntime.diagnostics.log(oldContext, point('close_write.old_late'))
+      newRuntime.diagnostics.log(newContext, point('close_write.new_after_old_close'))
+      const lines = await waitForCode(directory, 'close_write.new_after_old_close')
+      expect(lines.some(line => line.code === 'close_write.old_late')).toBe(false)
+    } finally {
+      spy.mockRestore()
+      if (delayed !== undefined && oldRuntime.inspect().resource !== 'released') originalWrite(...delayed)
+      await oldRuntime.close({ deadlineMs: 1_000 })
+      if (newRuntime !== undefined) await newRuntime.close({ deadlineMs: 1_000 })
+    }
   })
 })
 
