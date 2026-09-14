@@ -165,6 +165,7 @@ describe('durable JSONL provider', () => {
       expect(submission.status).toBe('pending_durability')
       if (submission.status !== 'pending_durability') return
       expect(submission.position.seq).toBe('2')
+      expect(acquired.writer.commit(prepared.value)).toBe(submission)
       const committed = await submission.completion
       expect(committed.status).toBe('committed')
       expect(acquired.writer.commit(prepared.value)).toEqual(committed)
