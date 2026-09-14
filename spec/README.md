@@ -16,13 +16,16 @@
 | [formal-tasks.json](formal-tasks.json) | 显式登记实际模型任务、输入文件和执行命令 |
 | [开发工具包](../tools/spec-tools/README.md) | 独立 workspace 成员中的检查器；不属于产品规格或运行时 |
 
-当前已接受并登记共享身份与活体运行时 v1，
-具体采用范围沿 [运行时入口](capabilities/live-agent/README.md)及其决定/接受记录核对。
+当前已接受并登记共享身份与活体运行时 v1，以及
+[D-008 的核心能力、共享工作数据与共同准入契约](../docs/decisions/D-008-core-capabilities.md)。
+各条款的模型覆盖与未完成实现义务见[核心能力验证范围](../docs/proposals/core-capabilities/verification.md)。
+Live Agent 的采用范围沿 [运行时入口](capabilities/live-agent/README.md)及其决定/接受记录核对。
 跨提供者交接由 [Agent/Session 运行附着组合 v1](compositions/agent-session-binding/README.md)
 补充，保持原已发布契约不变。
-已有的[租户](../docs/proposals/tenant-contracts/README.md)、
+此前的[租户](../docs/proposals/tenant-contracts/README.md)、
 [模型](../docs/proposals/model-contracts/README.md)与
-[agent-core](../docs/proposals/agent-core/v1/README.md)材料从提案入口 review。
+[agent-core](../docs/proposals/agent-core/v1/README.md)材料仍保留各自的提案身份，
+从提案入口核对；不取代 catalog 登记的现行契约。
 已有 Schema 可以检查，但校验结果不会改变它的提案身份。
 
 此前依用户要求保存的 [Live Agent 上游源基线](capabilities/live-agent/README.md#上游源基线的历史入口)
