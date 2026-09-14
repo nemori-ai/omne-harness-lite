@@ -3,7 +3,7 @@
 ## 当前事实
 
 首批二次开发的目标、验收、实施规格和计划已完成文档交付，其原评审发现已闭合。
-P0 的 records/admission 修订稿正在复核，检查器仍有一项隔离问题，见 [review.md](review.md)。用户已授权按完整工作包
+P0 的 records/admission 仍有一项使用责任修订，检查器仍有一项隔离修订，见 [review.md](review.md)。用户已授权按完整工作包
 自驱实施；P0 的共享接口设计、原生锁探针和包检查器 TDD 已派发。尚无本批已接受
 产品交付或 OpenRouter 请求；A01–A32 尚未通过，M1/M2 均未交付。
 
@@ -18,7 +18,7 @@ P0 的 records/admission 修订稿正在复核，检查器仍有一项隔离问�
 
 | 任务 | 状态 | 实现/验收证据 | 下一项输入 |
 |---|---|---|---|
-| P0 | in_progress | 锁探针已接受；work-data 已开始 TDD；records/admission 修订复核中，检查器 K1/K3 闭合、K2 仍修复 | 共享边界实现、剩余接口修订复核和 HUB 检查器验收 |
+| P0 | in_progress | 锁探针已接受；work-data 已开始 TDD；接口 I2–I5/检查器 K1/K3 闭合，I1/K2 仍修订 | 共享边界实现、剩余修订复核和 HUB 检查器验收 |
 | P1 | planned | 未执行 | P0 的记录/协调接口与真实锁证据 |
 | P2 | planned | 未执行 | P1 的真实共同门与记录提供者；交付本地预算 owner |
 | P3 / M1 | planned | 未执行 | P2 当前权限/真实预算/Session/活体，以及 P1 执行账本前提 |
@@ -40,9 +40,9 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 
 | 工作 | 执行者与实际句柄 | 独立工作树 | 写入归属与下一关 |
 |---|---|---|---|
-| P0 共享接口稿 | `/root/p0_interfaces`，已交修订；复核 `/root/review_first_batch` | `dsh-p0-interfaces` | `199af4c` 已提交 I1–I5 处置，独立复核中；除下述 work-data 子集外尚未接受或合入 HUB |
+| P0 共享接口稿 | `/root/p0_interfaces`；独立复核 `/root/review_first_batch` | `dsh-p0-interfaces` | `199af4c` 的 I2–I5 闭合，作者继续修订 I1 ExactUse 交接；除下述 work-data 子集外尚未接受或合入 HUB |
 | P0 真实锁探针（accepted） | infrastructure-developer，`/root/p0_lock_probe`，已结束 | `dsh-p0-lock-probe`，已退役 | `f712e025` 经 `04b8dbf` 整合，HUB 全新目录实际复验通过；范围及限制见下文 |
-| P0 包检查器 | verification-developer，`/root/p0_package_checks` | `dsh-p0-package-checks` | `f0defde` 的 K1/K3 独立复核闭合；K2 的 TMPDIR 仓库内反例已返修，尚未接受或合入 HUB |
+| P0 包检查器 | verification-developer，`/root/p0_package_checks` | `dsh-p0-package-checks` | K1/K3 已闭合；`8842f63` 已修复仓库内 TMPDIR，K2 的共同祖先/全局搜索仍修复，尚未接受或合入 HUB |
 | P0 work-data 实现 | kernel-developer，`/root/p0_work_data` | `dsh-p0-work-data` | 消费下述已固定子集，独占数据包与专属证据；TDD 实施中 |
 
 未标 accepted 的行只表示派发事实。主调度拥有 HUB 整合、根配置、此工作包和最终

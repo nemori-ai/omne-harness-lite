@@ -51,16 +51,22 @@ work-data/records/admission 的共同输入及 data/DR/CC v1、A05–08/A30/A31�
 
 | ID | 必须修订的缺口与反例 | 状态 |
 |---|---|---|
-| I1 | publications/uses 未与 opaque commit 的记录 owner 形成完整、去重且不可变的对应；提交后修改列表或漏预算 publication，可能 committed 后提前 ready | `199af4c` 修订复核中 |
-| I2 | thenable 检查仅在外层 enter；内部 publishLogical/publishDurable/retainAt 的 void 返回可忽略 async，导致发布未完成就放行 | `199af4c` 修订复核中 |
-| I3 | conflict/rejected 的原操作结果绑定、耐久保存与 lookup/restart 没定义；首次 revision 冲突后同输入重试可能变成功，违反 DR-02 | `199af4c` 修订复核中 |
-| I4 | 业务不可持完整 writer，却只有 writer 暴露 prepareOperation/prepare；缺乏真实、受限的准备端口 | `199af4c` 修订复核中 |
-| I5 | acquire 已持锁后恢复/epoch 同步失败且 release 失败，无残留清理 owner/状态/重试出口 | `199af4c` 修订复核中 |
+| I1 | publications/uses 未与 opaque commit 的记录 owner 形成完整、去重且不可变的对应；提交后修改列表或漏预算 publication，可能 committed 后提前 ready | `199af4c` 的集合/快照/真实性已闭合；ExactUse 单次交接及释放失效仍修订 |
+| I2 | thenable 检查仅在外层 enter；内部 publishLogical/publishDurable/retainAt 的 void 返回可忽略 async，导致发布未完成就放行 | `199af4c` 文档层面闭合 |
+| I3 | conflict/rejected 的原操作结果绑定、耐久保存与 lookup/restart 没定义；首次 revision 冲突后同输入重试可能变成功，违反 DR-02 | `199af4c` 文档层面闭合 |
+| I4 | 业务不可持完整 writer，却只有 writer 暴露 prepareOperation/prepare；缺乏真实、受限的准备端口 | `199af4c` 文档层面闭合 |
+| I5 | acquire 已持锁后恢复/epoch 同步失败且 release 失败，无残留清理 owner/状态/重试出口 | `199af4c` 文档层面闭合 |
 
 共享身份/Schema、规范输入比较、双视图、普通撤权顺序及单 journal epoch/连续
 前缀恢复主方案未发现直接冲突。评审没有运行复现、测试或形式工具，不把设计
 反例表述为未编写实现的已发生缺陷。修订可以简化接口，不要求通用状态中心。
 作者须固定修订与实际探针结果后，由同一评审者复核处置。
+
+对 `199af4c` 的定点复核剩余反例：原票据尚未耐久时重复 submit，不能用
+not_admitted 释放原票据已经持有的 pin；不同 operation 不能共同占用同一次
+取得的 ExactUse，已释放句柄也不能再提交。作者须补最小 claim/release 生命周期，
+区分本次新取得的临时使用和已经移交的原责任。I2–I5 的闭合只指设计表达；
+评审者未执行测试，真实 writer/发布/清理保证仍待产品实现验证。
 
 同一评审者进一步确认 `979d80f` 第 56–234 行的 work-data 子集已在其评审范围内，
 未发现剩余阻断，也不依赖 I1–I5 的最终决定。作者实际逐字核对当前修订的
@@ -77,7 +83,7 @@ P0 检查职责。该分支尚未进入 HUB，也未因 worker 的绿色结果�
 | ID | 已确认问题 | 状态 |
 |---|---|---|
 | K1 | 同一成员多个 exports 使用重复 import binding；默认入口与 baseline 共存会 strict tsc 失败，原真实夹具只覆盖单入口 | `f0defde` 每入口唯一 binding、真实 TS2300 RED/GREEN 经独立复核闭合 |
-| K2 | consumer 移入 repo/tmp 后，Node/tsc 可沿祖先 node_modules 借到仓库依赖；ignore-workspace 与根包 realpath 检查不提供仓库外隔离 | `f0defde` 默认 OS 临时目录仍受 TMPDIR 覆盖；仓库内 TMPDIR 反例及真正触达污染行为的 RED 已返修 |
+| K2 | consumer 移入 repo/tmp 后，Node/tsc 可沿祖先 node_modules 借到仓库依赖；ignore-workspace 与根包 realpath 检查不提供仓库外隔离 | `8842f63` 的仓库内 TMPDIR 及有效 RED 已闭合；旁支 worktree 共同祖先和全局搜索仍修复 |
 | K3 | 这批固定 DSH 来源的 manifest.license 可改为与已核对 MIT 原件不一致的声明而通过 | `f0defde` 的 MIT 一致性修复及反例经独立复核闭合 |
 
 该次复核已解压原始证据，确认三项声明哈希、format-patch 与 `0587fa2` 的 diff
@@ -85,6 +91,14 @@ P0 检查职责。该分支尚未进入 HUB，也未因 worker 的绿色结果�
 createArtifactScratch 函数，未测到祖先污染；绿色默认环境也不能覆盖被检仓库
 内 TMPDIR。作者须针对该已有入口补足实际路径保证和有效反例，不能以换路径
 名称代替隔离。上述证据核对没有运行测试或接受实现。
+
+`8842f63` 已通过真实路径拒绝仓库内 TMPDIR，新的 RED 在实际借用祖先包后
+按隔离断言失败，修复及证据经独立复核。剩余边界是 scratch 位于 worktree
+外却与它共享含 node_modules 的祖先，以及 NODE_PATH/Node 全局搜索。当前
+消费路径的最终有限检查范围为：干净独立正控、仓库内 TMPDIR（含符号链接）、
+共同祖先污染（含 node_modules 链接）、ESM/CJS/声明缺依赖负控、NODE_PATH
+污染对照。所有消费编译/运行子进程统一禁用环境注入和全局搜索，保留所需
+原生编译环境；不扩展成敌对主机沙盒。作者正在按此范围 TDD 修订。
 
 新自有包默认 private/UNLICENSED；按实际许可声明支持其它来源不属于本轮缺陷，
 检查器也不授予新许可。原生选择性构建路径的 fixture 通过不代表未来产品 native
