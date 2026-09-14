@@ -38,6 +38,10 @@ description: >
 选型应针对已明确的契约比较候选实现。项目资料决定需要什么保证；候选库的
 官方资料、源码和验证说明其是否能兑现，二者不能相互替代。
 
+能力架构形成后，准备 spec 与实施计划时，使用
+[implementation-planning](../implementation-planning/SKILL.md) 指导针对性研究、
+成熟成果复用或 fork 的评估，以及可验收的交付规划。
+
 ## 必要时展开
 
 - 涉及 Cordis API、服务解析、插件或 Fiber 生命周期等实现语义时，使用
