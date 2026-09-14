@@ -62,6 +62,10 @@ records/codec 消费该已验证产物；admission 与 jsonl 的联合实施仍�
 完整接口及前置实现。子集接受的精确提交、范围与证据归[交付对账](delivery.md)，
 不能将部分输入已固定写成整个 P0 或全部共享接口已接受。
 原生依赖/SSE 组件版本选择由实际探针与锁定发行物决定，不要求先移植完整 DSH native 层。
+P0 的 SSE 组件测量可与 diagnostics 实施独立推进：verification-developer 只在
+专属探针与证据目录验证成熟解析库的真实分帧、分块 UTF-8、注释、usage 尾帧和
+断连/取消输入，固定版本与原始事件。它不实现 MC owner、不加载模型凭据，
+也不把分帧通过写成 A23/A24 或路由兼容性通过；实际适配与结算仍归 P4。
 P0 同时由 verification-developer 在 `tools/package-checks/` 先写失败场景并改造
 现有源基线检查：按实际来源/目标入口分类支持自有包和已交付目标导出，移除
 “所有包必须仅导出 ./baseline 且同属 DSH commit”的失效前提。保留原件/许可/
