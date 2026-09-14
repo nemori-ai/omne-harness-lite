@@ -83,4 +83,17 @@ describe('A31 strict JSON text parsing', () => {
     expect(parseJson('{"a":{"b":1}}', { ...limits, maxDepth: 1 })).toMatchObject({ ok: false, issues: [{ path: '/a/b', code: 'capacity' }] })
     expect(parseJson('[0,1]', { ...limits, maxNodes: 2 })).toMatchObject({ ok: false, issues: [{ path: '/1', code: 'capacity' }] })
   })
+
+  it.each([
+    ['depth', { maxBytes: 100_000, maxDepth: 8, maxNodes: 32 }, `/${'0/'.repeat(8)}0`],
+    ['nodes', { maxBytes: 100_000, maxDepth: 20_000, maxNodes: 32 }, `/${'0/'.repeat(31)}0`],
+  ])('returns a capacity issue before recursive parsing exceeds the stack: %s', (_label, deepLimits, path) => {
+    const depth = 20_000
+    const text = `${'['.repeat(depth)}0${']'.repeat(depth)}`
+
+    expect(parseJson(text, deepLimits)).toMatchObject({
+      ok: false,
+      issues: [{ path, code: 'capacity' }],
+    })
+  })
 })
