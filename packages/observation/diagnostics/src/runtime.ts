@@ -254,6 +254,10 @@ class LocalRuntime implements DiagnosticsRuntime {
   private providerClosed = false
   private closeMarkerAttempted = false
   private cleanupDescriptorPending: boolean
+  private gapRevision = 0n
+  private reportedGapRevision = 0n
+  private emittingGapSummary = false
+  private gapSummaryAccepted = false
 
   constructor(
     options: LocalDiagnosticsOptions,
@@ -324,6 +328,7 @@ class LocalRuntime implements DiagnosticsRuntime {
             } else {
               this.accepted += 1n
               this.acceptedSourceBytes += bytes
+              if (this.emittingGapSummary) this.gapSummaryAccepted = true
             }
             return writable
           } finally {
@@ -361,6 +366,9 @@ class LocalRuntime implements DiagnosticsRuntime {
         this.writtenBytes += BigInt(bytes)
         this.pendingBytes = Math.max(0, this.pendingBytes - bytes)
         this.lastWriteProgressAt = this.pendingBytes === 0 ? null : performance.now()
+      })
+      stream.on('drain', () => {
+        this.emitGapSummary()
       })
       stream.on('error', (error: NodeJS.ErrnoException) => {
         this.phase = this.phase === 'closing' ? 'closing' : 'degraded'
@@ -455,6 +463,7 @@ class LocalRuntime implements DiagnosticsRuntime {
       }
     }
     if (quality === 'counted') this.dropped += 1n
+    this.gapRevision += 1n
   }
 
   private makeContext(identity: SafeIdentity, parent: Context): DiagnosticContext {
@@ -574,7 +583,10 @@ class LocalRuntime implements DiagnosticsRuntime {
       return inert
     }
     const spanContext = span.spanContext()
-    const child = this.makeContext(internal.identity, trace.setSpan(internal.native, span))
+    const child = this.makeContext(
+      internal.identity,
+      trace.setSpanContext(internal.native, spanContext),
+    )
     this.activeSpans.set(spanContext.spanId, {
       span,
       context: this.contexts.get(child)!,
@@ -749,6 +761,47 @@ class LocalRuntime implements DiagnosticsRuntime {
       this.addGap('write_unavailable', seq)
     } finally {
       this.emissionSeq = null
+    }
+  }
+
+  private emitGapSummary(): void {
+    if (
+      this.logger === null ||
+      this.emittingGapSummary ||
+      this.gapRevision === this.reportedGapRevision ||
+      !this.outputAvailable ||
+      this.retentionReached ||
+      this.phase === 'closed'
+    ) {
+      return
+    }
+    const revision = this.gapRevision
+    const seq = this.nextSeq()
+    this.emittingGapSummary = true
+    this.gapSummaryAccepted = false
+    try {
+      this.emissionSeq = seq
+      this.logger.warn({
+        formatVersion: 'omne-diagnostic/1',
+        sourceId: this.sourceId,
+        seq: String(seq),
+        observedAt: new Date().toISOString(),
+        kind: 'gap',
+        component: 'diagnostics',
+        phase: 'gap',
+        code: 'diagnostic.gap',
+        gaps: this.gapSnapshot(),
+      })
+      if (this.gapSummaryAccepted) this.reportedGapRevision = revision
+    } catch {
+      this.phase = this.phase === 'closing' ? 'closing' : 'degraded'
+      this.writeFailed = true
+      this.lastErrorCode = 'PINO_WRITE_FAILED'
+      this.addGap('write_unavailable', seq)
+    } finally {
+      this.emissionSeq = null
+      this.gapSummaryAccepted = false
+      this.emittingGapSummary = false
     }
   }
 

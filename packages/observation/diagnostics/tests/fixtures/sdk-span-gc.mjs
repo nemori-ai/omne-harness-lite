@@ -18,10 +18,15 @@ TracerProvider.prototype.getTracer = function (...args) {
 }
 
 const directory = await mkdtemp(join(tmpdir(), 'diagnostics-sdk-span-gc-'))
-let runtime
-let publicSpan
 let retainedContext
+let retainedRuntime
 try {
+  ;({ context: retainedContext, runtime: retainedRuntime } = await exercise())
+} finally {
+  TracerProvider.prototype.getTracer = originalGetTracer
+}
+
+async function exercise() {
   const result = await createLocalDiagnostics({
     instanceId: 'instance-r4-gc',
     sourceId: 'source-r4-gc',
@@ -35,36 +40,35 @@ try {
     maxFiles: 4,
   })
   if (result.status !== 'created') throw new Error('diagnostics creation failed')
-  runtime = result.runtime
+  const runtime = result.runtime
   const root = runtime.diagnostics.scope({
     tenantId: 'tenant-r4',
     principal: { kind: 'user', user: { userId: 'user-r4' } },
     causality: {},
   })
-  publicSpan = runtime.diagnostics.startSpan(root, {
+  let publicSpan = runtime.diagnostics.startSpan(root, {
     component: 'diagnostics.review',
     phase: 'runtime',
     code: 'r4.gc',
     level: 'info',
   })
-  retainedContext = publicSpan.context
+  const context = publicSpan.context
   publicSpan.end({ code: 'r4.gc_done', outcome: 'ok' })
   publicSpan = undefined
-  await runtime.close({ deadlineMs: 1_000 })
-  runtime = undefined
-} finally {
-  TracerProvider.prototype.getTracer = originalGetTracer
+  return { context, runtime }
 }
 
-for (let attempt = 0; attempt < 100 && sdkSpan?.deref() !== undefined; attempt += 1) {
+for (let attempt = 0; attempt < 100; attempt += 1) {
   globalThis.gc()
   await new Promise(resolve => setImmediate(resolve))
 }
 
+const sdkSpanCollected = sdkSpan?.deref() === undefined
+await retainedRuntime.close({ deadlineMs: 1_000 })
 process.stdout.write(
   `${JSON.stringify({
-    sdkSpanCollected: sdkSpan?.deref() === undefined,
+    sdkSpanCollected,
     retainedContext: retainedContext !== undefined,
   })}\n`,
 )
-if (sdkSpan?.deref() !== undefined) process.exitCode = 1
+if (!sdkSpanCollected) process.exitCode = 1
