@@ -225,7 +225,7 @@ accepted manifest/provenance format or the native-support claim.
 | Finding | RED observation | Correction and GREEN |
 |---|---|---|
 | F1: multiple exports reused one generated TypeScript binding | A real project-owned package was changed to publish `.` and `./baseline`; strict tsc reported `TS2300: Duplicate identifier 'm0'` on consumer lines 1 and 2. | The generator now increments one binding index per public entry. The same pack/install/tsc/runtime endpoint passed. |
-| F2: repo-local scratch could borrow ancestor workspace dependencies | A fake `ancestor-only` package was loadable from the fixture repository. The checker had no repository-external scratch constructor, so its earlier location did not exclude ancestor resolution. | `createArtifactScratch()` uses `os.tmpdir()`. The positive repository control still loads; the actual sandbox probe fails with `ERR_MODULE_NOT_FOUND`. The checker uses this same constructor. |
+| F2: repo-local scratch could borrow ancestor workspace dependencies | A fake `ancestor-only` package was loadable from the fixture repository. The original correction proved default `os.tmpdir()` isolation but did not cover an environment override that put `TMPDIR` inside the checked repository. | `createArtifactScratch(repo)` resolves both paths and rejects a scratch directory contained by the repository. The default external sandbox still rejects the undeclared import with `ERR_MODULE_NOT_FOUND`; `TMPDIR=<repo>/tmp` now fails with an explicit isolation diagnostic. |
 | F3: DSH license metadata could disagree with the checked original | A DSH-identified derived manifest changed from MIT to Apache-2.0 and `validateManifest` did not reject it. | Manifests whose provenance repository is the fixed DeepSeek Harness source must declare MIT. The mismatch now fails while project-owned `UNLICENSED` and separately substantiated non-DSH licensing remain unaffected. |
 
 Raw and source-linked evidence:
@@ -253,9 +253,48 @@ the current 14-package endpoint log SHA-256 is
 The earlier repo-local mirror run remains evidence for package behavior at `effd764`,
 but it did not prove ancestor module isolation. The post-review run copied the source
 and locked workspace to `/tmp/omne-package-check-real-61ITorls`; the checker then used
-separate `/tmp/omne-package-artifacts-*` consumers, and F2 independently demonstrated
-that repository-only dependencies cannot resolve there. The fixture directory is
-rebuildable and is removed after the tracked raw evidence is preserved.
+separate `/tmp/omne-package-artifacts-*` consumers. The default-path F2 control proved
+that repository-only dependencies cannot resolve there. The follow-up below covers a
+repository-local `TMPDIR` override. The fixture directory is rebuildable and is removed
+after the tracked raw evidence is preserved.
+
+### F2 `TMPDIR` containment follow-up
+
+Independent follow-up review identified that `os.tmpdir()` follows `TMPDIR`; source
+commit `0587fa2` therefore still created a consumer below the checked repository when
+the environment set `TMPDIR=<repo>/tmp`. The test-only patch was applied on evidence
+head `f0defde5b300763373529934897530508f79fd28`, whose checker source was unchanged from
+`0587fa2`. Its real positive control loaded a repository-only `ancestor-only` module,
+the default external scratch failed that import with `ERR_MODULE_NOT_FOUND`, and the
+repository-local scratch incorrectly loaded it. The RED consequently failed with
+`repo-internal TMPDIR allowed undeclared ancestor-only dependency to resolve`; it did
+not fail because an API was absent.
+
+Implementation commit `a41e9b3` (`fix: reject repository-local artifact scratch`)
+passes the checked repository into the existing scratch constructor. After creation,
+the constructor resolves both paths through `realpath`, removes the scratch and fails
+with `artifact scratch must be outside repository` when the scratch is contained by
+the repository. The default external positive/negative controls and the poisoned
+`TMPDIR` rejection pass in the same test. All 12 package-check tests pass. Per the
+follow-up review scope, the unchanged old-14 artifact endpoint was not rerun here and
+remains for root integration acceptance.
+
+Source-linked evidence added for this correction:
+
+- `f2-tmpdir-red.patch.gz`: exact test-only diff against `f0defde`; decompressed
+  SHA-256 `9a13f0918d6e56e213fc6258b0c889e93c3f26ca4fb94885b0f9bf4797d520f6`.
+- `f2-tmpdir-red.log.gz`: targeted behavioral RED; decompressed SHA-256
+  `4c946ffc821f88633009fe162279717b047385d7d2b811af1bb3c7110256f353`.
+- `f2-tmpdir-green.log.gz`: targeted GREEN; decompressed SHA-256
+  `d9528b0eb4a44fc42237a6f26ff832d909b91894bc73d3df512e8c97efb44513`.
+- `f2-tmpdir-full-green.log.gz`: complete 12-test GREEN; decompressed SHA-256
+  `38607d5e23e775ac54936709fc3960e6a3b2ecad8e1a552b5da109d8ed9e0c10`.
+- `f2-tmpdir-static-green.log.gz`: syntax checks, 393-file documentation check and
+  baseline diff check; decompressed SHA-256
+  `ff651217bdedcde398e6feea423c9f575f8b147f12f44000f58c067012d9892b`.
+- `0001-fix-reject-repository-local-artifact-scratch.patch.gz`: exact
+  `git format-patch` for `a41e9b3`; decompressed SHA-256
+  `1e5b2ba96203bffa920373cf95068cbb755e5b1fa93b736fd3d76a4b5db74999`.
 
 Real native fs-ext loading remains outside this correction: no accepted product member
 or lock in this branch contains fs-ext. The selective-build guard is unchanged, and the
