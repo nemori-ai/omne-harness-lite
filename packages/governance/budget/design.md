@@ -240,5 +240,6 @@ emitted 回执也不能证明未发出；恢复与原执行 owner 对账，未�
 文档共用不授予 TG 预算求值、共同提交或释放权，不新增运行入口。
 
 | 消费者需要的注入 | 最小内容与真实 owner | 必须共同验证的门 |
+|---|---|---|
 | TG/AU/BG 的主体事实 | 前述 AuthenticatedInvocation；本机凭据映射/撤销由身份适配持有，TG 解释成员，SR/AR 解释工作委托 | 伪造 DTO/句柄失败；两主体凭据真实区分；准备后撤凭据先封闭后续 gate；本机 IPC 在 P3 通过前不开放给用户 |
 | BG 费用来源与执行事实 | TL/local-execution、后续 MC/OpenRouter 提供 CostSource、精确 target、start 墓碑、计量来源；证据引用经原 owner 认回，不能用户提交就可信 | 实际零费依据、并发最后额度、取消早于迟到 start、效果未知及迟到收费；缺 usage 不归零 |

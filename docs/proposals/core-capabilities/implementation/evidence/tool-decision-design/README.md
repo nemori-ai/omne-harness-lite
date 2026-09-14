@@ -73,6 +73,16 @@ node docs/proposals/core-capabilities/implementation/evidence/tool-decision-desi
 ext4。脚本退出 0：效果前终止时目标不存在；效果同步后终止时目标为 21 字节，
 两组业务 marker 均仍只有 dispatch-intent。未在其它文件系统或断电条件验证。
 
+## 原 e6 候选的独立 HUB 运行
+
+独立 HUB 对象是 `e6c0b8c5d1a7cc3b282c809498a241a66ad71b9d`，当时实际运行
+该版本的 `file-journal-window.mjs`，3199 bytes、SHA-256
+`288c4956fc92ff9afd1dd1fabaa22d258361269ce7ef2d529c384f32c1366a38`。
+[原 HUB 输出](e6c0b8c-hub-result.json)为 693 bytes，SHA-256
+`3f3e8abe0c00e277465a0fe0db4750656d0fc63e4a9f2256f6615bae2a16e545`。
+本次只保全原字节，没有重跑或替换历史测量；输出恰与作者文件窗口结果相同，
+仍分别保留作者与独立运行身份。支持范围只限上述两个文件/进程窗口。
+
 ## 文档检查
 
 原 e6 运行 `make docs-check BASELINE=8c791b3`，实际通过 416 份 Markdown。

@@ -96,8 +96,8 @@ pnpm --ignore-workspace test
 ```
 
 隔离 consumer 验证公开 DR port/opaque token 类型可编译、G01 编码的固定物理长度与
-SHA-256、解码及深冻结。实际 tarball 保存在 spoke 的忽略目录
-`tmp/p0-records/tarballs/` 供整合前复核：
+SHA-256、解码及深冻结。当时两份 tarball 的实际摘要如下；最终修订的产物保全
+见本页[HUB 整合与原始证据保全](#hub-整合与原始证据保全)，不依赖原工作目录：
 
 - records：`f34289b5d28b313e3fff7578afd7ca6250ef3784da30ac013b6f4ec4fc8ec0f0`
 - work-data：`dd1b58f7bc83cadb73983c1c937b509e3071f7fc93e1b35ff7c70ad38d0fe478`

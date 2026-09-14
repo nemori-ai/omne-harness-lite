@@ -7,8 +7,8 @@
 | 范围 | 采用依据及当前状态 |
 |---|---|
 | 被动记录面、身份/内容裁剪、Pino/Sonic/OTel、本地来源及生命周期 | [D-010](../../../docs/decisions/D-010-shared-diagnostics.md) 已接受，原设计修订 `99fc7a3`、接受点 `5e81ee8`；本页汇入其提供者映射，接受不等于完整产品验证通过 |
-| R1 目录 owner、共同字节/slot 预留、稳定 flock 和创建入口迁移 | [D-011](../../../docs/decisions/D-011-diagnostics-directory-ownership.md) 接受受审 `d4cd27e` 及保留同一接口的迁移 `327735f`；这是施工输入，当前实现候选仍待主调度组合接受 |
-| 实际实现与证据 | D-011 实施候选已迁移到唯一目录 owner、真实 flock、共同预留和未知关闭结果；RED/GREEN、资源故障与独立产物证据归 [directory owner evidence](../../../docs/proposals/core-capabilities/implementation/evidence/p1-diagnostics/directory-owner/README.md)。主调度后续组合验收，包内绿色不自行接受 P1 |
+| R1 目录 owner、共同字节/slot 预留、稳定 flock 和创建入口迁移 | [D-011](../../../docs/decisions/D-011-diagnostics-directory-ownership.md) 接受受审 `d4cd27e` 及保留同一接口的迁移 `327735f`；提供者设计与实际 D1 产品分别按下行证据接受 |
+| 实际实现与证据 | D1 的 `7e758f21` 已由主调度按[成员验收证据](evidence/directory-owner/README.md)接受，包含真实目录/原生锁/资源故障和独立产物消费；JSONL/admission O09/O10、整个 P1 与运行闭环仍未交付 |
 
 消费精确正式 [OB v1](../../../spec/capabilities/engineering-observation/v1/contract.md)、
 [CD v1](../../../spec/data/core-work/v1/contract.md)、
@@ -17,7 +17,7 @@
 直接来自 work-data/records，定义以其公开入口与正式契约为准。
 
 本轮实施目标消费 `1368c52` 的[最小运行基线](../../../docs/proposals/core-capabilities/implementation/runtime-baseline.md)：
-真实最小 Session/Agent/工具闭环随共享设施交接后停止。完整 M1/M2 与 A01–A32
+真实最小 Session/Agent/工具闭环的当前装配归[应用设计](../../../apps/local-harness/design.md)。完整 M1/M2 与 A01–A32
 保留为后续设计/验收目录；本包基础诊断不要求先交付远程观测或完整 query/export。
 历史路线与接受来源归[首批实施记录](../../../docs/proposals/core-capabilities/implementation/README.md)，
 本页只维护提供者选择及仍需兑现的责任。

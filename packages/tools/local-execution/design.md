@@ -14,8 +14,9 @@
 当前协议从 [TG](../../governance/tenant/design.md)、[AU](../../governance/authorization/design.md)、
 [BG](../../governance/budget/design.md) 与 [Session](../../session/session/design.md)消费；
 以上历史稿只固定受审来源。
-相邻 P2 提供者消费 `runtime-provider-interfaces.md@5ffba4bb55aa9514ebd7f3c2b48f0d26fc9a8e18`
-候选及其固定机制证据；该稿尚未接受，完整 P2 生命周期仍归原作者。
+相邻 P2 的历史候选是 `5ffba4bb55aa9514ebd7f3c2b48f0d26fc9a8e18`；当前消费
+`f98ac926` 已接受的[提供者映射](../../../docs/proposals/core-capabilities/implementation/runtime-provider-interfaces.md)
+及其成员设计。固定机制证据只支持所列观察，完整 P2 生命周期产品仍待交付。
 
 ## 公开入口与记录权威
 

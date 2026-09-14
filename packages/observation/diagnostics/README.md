@@ -40,3 +40,8 @@ a general telemetry or retry queue, a governed query API, a Cordis logger bridge
 host's generation-switch coordinator. The JSONL and admission packages consume this entry at their
 own real boundaries; their fsync, admission, publication, and host-switch behavior is outside this
 package.
+
+The D1 implementation at `7e758f21f8f92c1d46fab194fdaf120239b8e11c` is accepted within the
+[recorded verification scope](evidence/directory-owner/README.md). The [current design](design.md)
+owns its provider mapping. JSONL/admission integration and the complete runtime remain separate,
+uncompleted acceptance obligations.
