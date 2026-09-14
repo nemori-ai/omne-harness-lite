@@ -47,9 +47,10 @@ HUB 为 `design/dsh-core-adoption`；本 wave 起点 `e11cc69` 已包含当时 m
 | P0 work-data 实现（accepted） | kernel-developer，`/root/p0_work_data`；定点复核 `/root/review_first_batch`，本任务均已结束 | `dsh-p0-work-data`，已退役 | `18cad69` 经 `6e7f213` 整合，`728d665` 锁定依赖；D1/D2 闭合，HUB 91 项测试与 15 包产物通过 |
 | P0 records 实现（accepted） | infrastructure-developer，`/root/p0_records`；独立复核 `/root/review_first_batch`，本任务均已结束 | `dsh-p0-records`，已退役 | `1a237da`/`c67eb4d` 经 `bbb4a3e` 整合、`c1783fd` 锁定；HUB 17 项测试及 16 包产物通过；独有资产与执行输出已保全 |
 | diagnostics D1 实现 | infrastructure-developer，`/root/diagnostics` | `dsh-diagnostics`，从 `0e80245` 创建 | 消费真实 work-data/records；只写 diagnostics 包与其证据，真实产品通过后开放 jsonl/admission 消费 |
-| Agent/Session 施工接口设计 | 作者 `/root/session_runtime_design` 本轮已结束，独立复核 `/root/review_package_layout` | `dsh-session-runtime-design`，从 `de39a86` 创建 | `a58bc7c` 修订了 `746ce47` 的四项交接缺口，待复核；产品依赖仍须真实就绪 |
+| Agent/Session 施工接口设计 | 作者 `/root/session_runtime_design` 修订剩余项，独立复核 `/root/review_package_layout` 本轮已结束 | `dsh-session-runtime-design`，从 `de39a86` 创建 | `a58bc7c` 的 S-R2–S-R4 已闭合，S-R1 的 proposed→deny 接续仍待修订；产品依赖仍须真实就绪 |
 | TS/JS 自动格式化工具（accepted） | verification-developer，`/root/formatting`，已结束 | `dsh-formatting`，已退役 | `99a6988`/`c026140` 已整合，根锁 `d13d66b`；HUB `4a5031d` 的冻结安装和完整 16 包检查通过 |
 | 格式化提示词投影（accepted） | `/root/observability_prompts`，本轮负责格式化认知约定，已结束 | `dsh-formatting-prompts`，已退役 | `47c60dd` 经 `635a690` 整合；HUB 五角色生成、408 文档与 12 提示词哈希核对通过 |
+| SSE 组件前置测量 | verification-developer，`/root/p0_sse_probe` | `dsh-p0-sse-probe`，从 `d938be5` 创建 | 只写隔离探针与长期证据；固定成熟分帧库和本机流故障输入，不发模型请求、不抵扣 A23/A24 |
 
 可观测性工程品味与共享研发提示词已由 `51eaefb` 经 `7d3736c` 整合到 HUB，
 五个角色的两端生成检查和文档检查通过，见[提示词证据](evidence/observability-prompts.json)。

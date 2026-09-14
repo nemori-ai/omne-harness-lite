@@ -177,7 +177,8 @@ A05–A08、真实 writer 或完整 TDD 历史源码均已验证。
 
 `/root/review_package_layout` 按 HUB `0e80245` 工作包和治理 `058c77c`，对
 `746ce47` 作独立只读评审，发现以下四项施工交接缺口；原作者已交付 `a58bc7c`
-定点修订，当前等待同一评审者复核，不预先记为闭合。
+定点修订。同一评审者确认 S-R2–S-R4 在设计层面闭合，S-R1 部分闭合；
+proposed 到直接 deny 的接续交接仍待原作者修订，不预先记为全部通过。
 
 | 编号 | 触发与后果 | 必须闭合的交接 |
 |---|---|---|
@@ -190,6 +191,14 @@ A05–A08、真实 writer 或完整 TDD 历史源码均已验证。
 其余受审四包依赖、唯一激活、退役/强停、旧 epoch 围栏与 TL 合法结果通道未见
 直接阻断。现有作者文档检查通过 404 份 Markdown；评审未运行测试、探针或形式
 工具，也不作接受决定。R0–R6、S01–S13 与真实产品组合仍是待执行验收。
+
+`a58bc7c` 已明确原 Step/CallRef/Action 不换绑、唯一 DriverClaim、失败同批后果、
+原 acquisition/设置权限与 ReferenceInventory。剩余 S-R1 的反例是：TL 已登记
+proposed，driver 以 await_calls 交还 claim，此时尚未 allow/ask；随后当前门直接
+deny。原稿只在 allow/ask 建 continuation，结果入口只唤醒已有关联，因此不能
+解释谁接续已释放 claim 的原 Step。TL-07 允许该直接结算路径，修订须补足登记到
+裁决间的接续责任，恢复后仍认回原 Action 且不得产生工具效果。此次为设计复核，
+新增 S14–S17 也尚未实际执行。
 
 ## 可观测性 P1 候选评审
 

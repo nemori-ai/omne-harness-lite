@@ -77,6 +77,45 @@
         "fork_turns": "none",
         "reasoning_effort": "high"
       }
+    },
+    {
+      "source_line": 5748,
+      "timestamp": "2026-09-14T05:20:54.737Z",
+      "tool": "spawn_agent",
+      "call_id": "call_760x51FDKKnZ3e7RJfhroEER",
+      "source_event_sha256": "2f6b959f9500b0317ca604969a0ac3c36b04b79dadac8f44ec310fc1ba78cbd9",
+      "arguments": {
+        "task_name": "formatting",
+        "agent_type": "verification-developer",
+        "fork_turns": "none",
+        "reasoning_effort": "high"
+      }
+    },
+    {
+      "source_line": 6015,
+      "timestamp": "2026-09-14T05:33:07.269Z",
+      "tool": "spawn_agent",
+      "call_id": "call_vJ2aomxMQhpMFBoJI80jP5I7",
+      "source_event_sha256": "997c1c0b7045b2eadb9bd8c3b102b380fc3b3c888c0e6523a3a49c285e33cdd8",
+      "arguments": {
+        "task_name": "diagnostics",
+        "agent_type": "infrastructure-developer",
+        "fork_turns": "none",
+        "reasoning_effort": "xhigh"
+      }
+    },
+    {
+      "source_line": 6732,
+      "timestamp": "2026-09-14T06:02:43.078Z",
+      "tool": "spawn_agent",
+      "call_id": "call_4q4qMJa4TSTV5R3tmgUMJZwo",
+      "source_event_sha256": "3f1062b87c298eb2a9dd17e72a1f76dbcfdc3c0e36587338da1d2daebb4fd4e3",
+      "arguments": {
+        "task_name": "p0_sse_probe",
+        "agent_type": "verification-developer",
+        "fork_turns": "none",
+        "reasoning_effort": "high"
+      }
     }
   ]
 }
