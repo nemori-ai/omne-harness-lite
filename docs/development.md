@@ -123,6 +123,9 @@ PYTHONDONTWRITEBYTECODE=1 uv run --locked pytest tools/spec-tools/tests/test_doc
   通过 `make docs-check` 核对镜像；技能自带的脚本和测试继续随技能维护。
 - 架构任务使用 [architecture-design](../.agents/skills/architecture-design/SKILL.md)，
   核对 Cordis/DSH 原语时沿 [cordis-authoritative-docs](../.agents/skills/cordis-authoritative-docs/SKILL.md) 查证。
+- 架构设计后准备 spec 与实施计划，使用
+  [implementation-planning](../.agents/skills/implementation-planning/SKILL.md)，
+  研究技术路径、评估成熟成果复用或 fork，并规划可验收的交付增量。
 - Subagent 的共享正文、宿主适配和生成入口由[角色索引](../.agents/roles/README.md)维护。
   修改角色先使用 [design-subagents](../.agents/skills/design-subagents/SKILL.md)，再生成原生文件；
   文件一致性、宿主加载与模型行为分别验证，普通检查不隐式启动模型评估。
