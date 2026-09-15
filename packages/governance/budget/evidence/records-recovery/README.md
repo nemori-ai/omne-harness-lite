@@ -37,6 +37,34 @@ files, including the per-batch stream revision rule, are fixed by [sources.txt](
    later boundary REDs are preserved in [red-green.log](red-green.log). The packed file list and
    digest are in [artifact.txt](artifact.txt).
 
+## Integration into the HUB (2026-09-15)
+
+The slice was cherry-picked from spoke branch `impl/dsh-p2-budget-records` (`d399e0e` plus the
+fix commit `7ae9fb2`) onto `design/dsh-core-adoption` after the first-batch triage review. The fix
+commit changed three things the review flagged and recorded four interpretation policies in
+`design.md`:
+
+1. Results use the shared `Checked` / `ValidationIssue` shape from work-data; the budget failure
+   category is the message prefix and only `capacity` maps to the shared `capacity` code. The
+   `BudgetResult` / `BudgetIssueCode` public types are gone; the recovery tests assert the prefix.
+2. `validateMoney` validates structure with the shared `Money` schema (`parseData('Money')`) and
+   only adds the arithmetic constraints. The schema admits `"-0"`; the accepted copy is `"0"`.
+3. Ledger arrays sort by code-unit order on canonical JSON instead of `localeCompare`.
+
+Re-run at HUB commit `4f60709` from the leaf: `pnpm run build` (0 errors), `pnpm run typecheck`
+(0 errors), `pnpm run test` (2 files, 20 tests passed); raw output in
+[integration.log](integration.log). The root `pnpm-lock.yaml` gained the `packages/governance/budget`
+importer (three workspace links and the three pinned dev dependencies). [sources.txt](sources.txt)
+was re-recorded: `tenant/src/index.ts` and `spec/catalog.json` had changed by unrelated additions
+since the leaf run, and the two work-data sources now consumed directly were added.
+
+Not re-run at integration: the packed public-consumer verification (item 5 above; the tenant
+tarball's dependency graph has grown since the leaf run, so its override list must be recomputed)
+and the repository-wide `pnpm run check` including the package checker (needs the native
+`fs-ext` rebuild environment). Both remain obligations before the package is cited as verified in
+the integrated tree; [artifact.txt](artifact.txt) and [consumer-verification.log](consumer-verification.log)
+still describe the leaf run at baseline `892aa8e`.
+
 ## Evidence boundary
 
 The fixtures use structurally valid test evidence and cost facts. They do not recognize an evidence
