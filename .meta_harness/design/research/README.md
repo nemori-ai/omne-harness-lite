@@ -18,7 +18,28 @@
 
 ## 当前主题
 
-本节按实际子目录链接 topic README，并标明调查对象、版本和供读者判断适用性的范围；空索引表示上下文缺口，不表示没有事实问题。
+### 系统定义与运行边界
+
+- [完全动态系统：当前定义来源](fully-dynamic-system/README.md)
+- [运行时与持久状态、恢复接续及环境适配](runtime-state-continuity-sources/README.md)
+- [Connector 与外部环境信源](connector-environment-source-sources/README.md)
+
+### 产品机制来源
+
+- [Computer、Browser、Shell 与执行环境](computer-browser-shell-environment-sources/README.md)
+- [运行时能力装载与制品管理](dynamic-loading-and-artifact-sources/README.md)
+- [未来规划、日历与通知](future-planning-calendar-and-notification-sources/README.md)
+- [Sub-agent 要求的继承来源与范围](subagent-requirement-sources/README.md)
+- [用户设置、系统 HITL 与决策池](user-governance-and-decision-pool-sources/README.md)
+- [用户输入与命令](user-input-and-command-sources/README.md)
+
+### 需求来源与缺口核对
+
+- [产品特性的既有来源](product-feature-sources/README.md)
+- [GAP 取舍与新增要求](requirements-gap-resolution-sources/README.md)
+- [个人版产品要求的本质比对与 GAP 处置](personal-edition-requirement-gap-audit/README.md)
+
+每个 topic 入口标明调查对象、版本与范围；先沿当前判断进入对应 topic，再按其阅读地图取得证据与局限。
 
 判断方法按需读 [手册对应页](../../agents/skills/harness-design-handbook/canonical/references/design-decisions.md)。
 返回 [系统设计链](../README.md)。
