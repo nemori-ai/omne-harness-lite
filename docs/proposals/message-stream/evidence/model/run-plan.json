@@ -8,6 +8,14 @@
   "module": "docs/proposals/message-stream/evidence/model/Cursor.tla"
  },
  {
+  "name": "CursorThree",
+  "mutation": "none",
+  "expected": null,
+  "config": "docs/proposals/message-stream/evidence/model/CursorThree.cfg",
+  "model": "docs/proposals/message-stream/evidence/model/CursorMC.tla",
+  "module": "docs/proposals/message-stream/evidence/model/Cursor.tla"
+ },
+ {
   "name": "CursorTwo",
   "mutation": "none",
   "expected": null,
@@ -20,6 +28,14 @@
   "mutation": "none",
   "expected": null,
   "config": "docs/proposals/message-stream/evidence/model/CursorProgress.cfg",
+  "model": "docs/proposals/message-stream/evidence/model/CursorMC.tla",
+  "module": "docs/proposals/message-stream/evidence/model/Cursor.tla"
+ },
+ {
+  "name": "CursorProgressFull",
+  "mutation": "none",
+  "expected": null,
+  "config": "docs/proposals/message-stream/evidence/model/CursorProgressFull.cfg",
   "model": "docs/proposals/message-stream/evidence/model/CursorMC.tla",
   "module": "docs/proposals/message-stream/evidence/model/Cursor.tla"
  },

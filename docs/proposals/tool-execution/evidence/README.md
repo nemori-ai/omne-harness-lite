@@ -42,18 +42,20 @@
   验收项，一个只去掉 owner fence 检查的否定变体因此找不到反例，已换成重发变体。将来执行
   owner 跨协调域（决定 b 留的边界）时该同提交不再成立，owner 账本排序成为唯一保护，须补
   义务（[未决项](../README.md#未决项)）。
-- interrupt_then_run 建模为 `RunInterruptThenRun`（2026-09-15 补，候选政策决定点 af）：一步内
-  未启动调用取消、前台调用按非确定选择转后台或 stop、后台与人类请求保留、旧 Run 的等待
-  位置整体释放（continuation 改判 context、幸存开放调用一律 background），新 Run 立即
-  running；模型只有一个 Run 槽位，所以旧 Run 的 `interrupted{supersededByInput}` 状态不单独
-  表示，由 `SupersedeReleasesPositions` / `SupersedeKeepsWork` 两条动作性质表达它的效应。
-- 等待期间的排队用户输入（PF-013.C5 的 2026-09-15 补充，候选政策决定点 aj）建模为
+- interrupt_then_run 建模为 `RunInterruptThenRun`（2026-09-15 补，作者裁决 3）：一步内
+  未启动调用取消、前台调用按非确定选择转后台或 stop、后台与开放人类请求保留、旧 Run 的
+  等待登记整簿注销（continuation 改判 context、幸存开放调用一律 background），新 Run 立即
+  running；模型只有一个 Run 槽位，所以旧 Run 的终态 `superseded` 不单独表示，由
+  `SupersedeReleasesPositions` / `SupersedeKeepsWork` 两条动作性质表达它的效应。
+- 等待登记簿（U-59）不另建模：`rel[c]` 就是登记簿在调用上的投影，`Blocking(c)` = 该调用有
+  开放登记，`Route` 的 A 列 = "到达注销了活动 Run 的开放登记"；两者行为等价。
+- 等待期间的排队用户输入（PF-013.C5 的 2026-09-15 补充，作者裁决 7）建模为
   `RunSteer`：waiting → running，不改任何调用；队列本身不建模，动作无公平性（用户可能
   永远不说话）。它让"Run 在等待中被用户文本唤醒、前台调用仍开放、随后结算按 A 列进
   continuation"的交错进入状态空间，既有不变式与进展性质在其上继续检查。
 - 不建模：帧、租户、费用、时间与预算、Yield、force_stop 的 epoch 撤销、hooks、
   `request_approval` 决定被后续调用消费、占位与迟到结果的投影（Detach / StopRequest 作为
-  无标签触发；投影是驱动器的结构性质 T-14）、停止未知的可见状态（决定点 ae 的界面部分）。
+  无标签触发；投影是驱动器的结构性质 T-14）、停止未知的可见状态（作者裁决 2 的界面部分）。
 - 登记的进展配置只有 1 个调用：2 个调用加崩溃的活性检查在本机超过 10 分钟，超出"单配置
   ≤ 1 分钟"的裁决 h；2 个调用、无崩溃的补充配置约 3～5 分钟通过，只在重放脚本里运行。
 - 公平性：系统动作弱公平；`Consume` 与 `RunStart` 强公平以容忍 interrupt/resume 与

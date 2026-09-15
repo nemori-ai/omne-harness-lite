@@ -71,7 +71,7 @@ LangChain `content_and_artifact` 那样的第二通道；上游 DSH 的做法是
 与 [PF-022.C5](../../requirements/product/agent/PF-022-multimodal-response-and-output.md)（消息内容 ≠ 制品），
 但规格层没有任何制品契约。
 
-本提案首版的候选（决定点 ai，[README](README.md#确认报告后的决定点待用户2026-09-15)）：
+本提案首版（[作者裁决 6](README.md#作者裁决2026-09-15按用户工作风格)：先做最小正确模型，制品对象等第二个用例）：
 
 | 规则 | 内容 | 依据 |
 |---|---|---|

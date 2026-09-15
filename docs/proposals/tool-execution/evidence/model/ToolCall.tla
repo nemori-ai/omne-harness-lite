@@ -320,7 +320,8 @@ RunResume ==
   /\ UNCHANGED <<sess, owner, crashes, kind, prog, att, fence, rel, ctl, deliv, hd>>
 
 \* LC-04 row 8 / RN-04 / SE-08 with the candidate policy of lifecycle.md
-\* (interrupt_then_run, decision points af/ag): the new input supersedes the
+\* (interrupt_then_run, author rulings 3/4; the old Run ends in the terminal
+\* state `superseded`, not represented separately here): the new input supersedes the
 \* Run in one commit.  Not-yet-started calls are cancelled; an executing
 \* foreground tool call either detaches (D) and keeps running as background
 \* work, or stops; already-background calls keep running; human requests are
