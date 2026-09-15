@@ -43,8 +43,18 @@ holder 只能是本 Run 提议并耐久登记的调用，或本 Run 进入的门
 的依赖门为 null；`ret` 只有门有，等于已耐久的 `run.gate.awaited` 的 gateRet，门只能由匹配
 的 `gate_restored` 接续（[SE-13](../../session/v2/contract.md)）放行并返回该值。人类请求不
 独立登记，附属于承载它的调用——系统审批附属于等审批的那个调用，问题与 Agent 发起的
-批准附属于内建 `human` 调用（[TL-07](../../tools/v2/contract.md)、[HD-03](../../human-decisions/v2/contract.md)）——
+批准附属于内建 `human` 调用（[TL-16/17](../../tools/v2/contract.md)、[HD-03](../../human-decisions/v2/contract.md)）——
 一次等待只有一条登记。串行门是 Step 内的派发顺序，驱动器 Yield 是 epoch 交接，都不登记。
+
+Run 拥有 `run.*` 命名空间下的耐久事实名，本版的封闭清单：`run.lifecycle.created`、
+`run.state.changed{to}`（RN-02 的每次状态转移一条）、`run.control.requested{kind}` 与
+`run.control.progressed{result}`（RN-03/05）、`run.epoch.closed`（epoch 交接与撤销，RN-02/05）、`run.gate.awaited`、
+`run.wait.claimed` 与 `run.wait.released`（本条）、`run.calls.proposed{calls}`（提议批的 Run 侧
+准备，与 `tools.call.proposed` 同批）、`run.call.admitted{call}`（准入的 Run 侧登记）与
+`run.approval.consumed{call, answer}`（消费一条批准答复，引用被消费答复的 eventId），三者的
+提交伙伴归 [TL-15](../../tools/v2/contract.md)。Step 事实 `run.step.opened` 与 `run.step.settled`
+在同一命名空间，由驱动器提交、归 [RD-08](../../run-driver/v3/contract.md) 定义。消费者引用
+这些名字时以本清单为准，不另起同义事实。
 
 登记与注销各是一条耐久事实：`run.wait.claimed{holder, kind, since}` 与
 `run.wait.released{holder, outcome}`，`outcome ∈ settled | detached | passed | superseded |
@@ -61,7 +71,7 @@ stopping 的提交（`cancelled`，RN-05）。结算到达已受理而尚未裁�
 Run 处于 waiting 当且仅当当前 Step 已收束且等待登记簿非空；Step 收束的判据（本 Step 的
 attempt 已结算且其调用提议已耐久登记）归 [RD-09/10](../../run-driver/v3/contract.md)。
 "等人 / 等工具 / 等门"不是独立状态，只是 `waitingFor` 对登记项的分类投影；调用上的前台、
-转换中与后台等待关系（[TL-10](../../tools/v2/contract.md)）同样是本登记簿的按调用投影，不是
+转换中与后台等待关系（词表归 [TL-14](../../tools/v2/contract.md) 维度 C，投影规则归 TL-16）同样是本登记簿的按调用投影，不是
 第二份权威。
 
 执行 epoch 表示"当前哪个执行者可以提交"：同一 Run 同一时刻至多一个未封闭的
@@ -109,7 +119,7 @@ waiting。q1 的接续完成而 q2 未答时，承载 q2 的 `human` 调用仍�
 调用（proposed、waiting_approval，其审批请求在同一提交关闭），已准入的调用与未答的人类
 请求保留，由各自的执行 owner 继续（[TL-07/08](../../tools/v2/contract.md)）；failed 的终态
 提交整簿注销等待登记（`failed`），其后到达的结算与答复按
-[SE-14](../../session/v2/contract.md) 的 C 列成为 queue 的 trigger 项，由新 Run 接上。所有终态
+[SE-14](../../session/v2/contract.md) 的判定顺序裁决：Session 另有活动 Run 则为 context（B 列），否则成为 queue 的 trigger 项（C 列），由新 Run 接上。所有终态
 都保留原因及已完成接续。
 
 ## 控制
@@ -165,7 +175,7 @@ RN-03 记入控制结果的 `partial{unknown: K}`。
 （[LC-04 行 4](../../../compositions/session-run-agent-lifecycles/v2/contract.md)）：整簿注销
 等待登记（`superseded`）；把指向本 Run 的未消费 continuation 改判为 context
 （[SE-17](../../session/v2/contract.md)），它们按水位在下一个开 Step 的 Run 可见，不转
-trigger、不唤醒等待中的 Run；把一份被保留的工作清单作为 `origin: system`、意图为 context
+trigger、不唤醒等待中的 Run；把一份被保留的工作清单作为 `source: system`、意图为 context
 的到达受理进 Inbound（[SE-13/14](../../session/v2/contract.md)），由本 Session 下一个有模型
 Step 的 Run 在切点恰消费一次。清单列出转后台的调用、保持后台的调用、停止未确认的调用、
 未答的人类请求，以及本 Run 在该提交里自行取消的未启动调用——它们没有执行 owner 的结算
@@ -256,6 +266,7 @@ Yield 事实时，"epoch 未封闭但无实例持有"与"epoch 已封闭"在恢�
 | RN-01 | 语义变化 | 状态集合删 waiting_human / waiting_gate、加终态 `superseded`；"等人/等工具/等门"改为 `waitingFor` 投影；Run waiting ⇔ Step 已收束且登记簿非空 | 作者裁决 3/9 |
 | RN-01 | 澄清 | 阻塞集合与等待登记簿的分工；占位派生改为按状态与终止受理记录（配合 RN-03 的升级路径） | 本批次作者裁决（[差异说明](#未由来源直接给出的表达)） |
 | RN-01 | 兼容扩展 | Run 字段加 `supplement`（取入既有 Run 的后续批） | 作者裁决 7 |
+| RN-01 | 兼容扩展 | `run.*` 命名空间耐久事实名的封闭清单（含 `run.calls.proposed`、`run.call.admitted`、`run.approval.consumed`），Step 事实归 RD-08 | 规格评审 2026-09-15 指出 tools v2 引用的 `run.*` 事实没有拥有者 |
 | RN-02 | 语义变化 | 就绪接续词表：删"问答型人类答复"，`human` 调用的答复经调用结算到达 | U-44、缺口表 SE-13 行 |
 | RN-02 | 语义变化 | 完成条件按登记簿陈述；不可恢复失败只结算未准入调用，已准入调用与未答请求保留，终态整簿注销并按 SE-14 C 列接上 | U-43 |
 | RN-02 | 兼容扩展 | `supplement` 批与开下一 Step 同提交，basis 不变 | 作者裁决 7 |
@@ -263,7 +274,7 @@ Yield 事实时，"epoch 未封闭但无实例持有"与"epoch 已封闭"在恢�
 | RN-03 | 语义变化 | 安全收口写明 `unknown` 计入、无系统级超时、无"收口中"状态；interrupted 保留等待登记簿 | 作者裁决 2 |
 | RN-03 | 语义变化 | interrupted 上的 force_stop 在存在可升级 unknown 调用时经 stopping；该 stopping 不重新占位 | 作者裁决 10/14 |
 | RN-03 | 澄清 | resume 的目标状态词表随 RN-01 收敛；`superseded` 返回 superseded；Yield 不改登记簿 | 作者裁决 3/13 |
-| RN-04 | 语义变化 | 旧 Run 终态由 interrupted 改为新终态 `superseded`；终态提交整簿注销、未消费 continuation 改判 context、被保留工作清单作 `origin: system` 的 context 到达同批受理；不可 resume，删"核对旧逻辑目标是否仍可合法接续" | 作者裁决 3/4/12 |
+| RN-04 | 语义变化 | 旧 Run 终态由 interrupted 改为新终态 `superseded`；终态提交整簿注销、未消费 continuation 改判 context、被保留工作清单作 `source: system` 的 context 到达同批受理；不可 resume，删"核对旧逻辑目标是否仍可合法接续" | 作者裁决 3/4/12 |
 | RN-04 | 语义变化 | 未答请求的答复按登记簿路由，不再"保留原 Run 的中断阻塞" | 作者裁决 3、缺口表 HD-04 行 |
 | RN-05 | 语义变化 | force_stop 受理提交整簿注销；stopping 只等声明 `forced_isolation` 的 owner 回答，其余 unknown 调用记 `isolation: unverified` 且不阻止终态（取代 v1"不能证实隔离时保留 stopping"） | 作者裁决 14 |
 | RN-05 | 兼容扩展 | 控制记录对每个 unknown 调用记 `isolation: isolated \| unverified` | 缺口表 RN-05 行 |

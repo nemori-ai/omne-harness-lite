@@ -91,7 +91,7 @@ payload, payloadRef}`。`position = {domain, seq}` 是产生该帧的提交在�
 **MS-06**：每帧带 `dedupKey`，同一事实至多投递一次到同一订阅。事实帧在一个订阅内按
 `(position.seq, batch.index)` 字典序严格单调，同一批内 `index` 从 1 连续到 `count`，`seq` 之间
 允许跳号（别的 Session 的提交占用了序号）；瞬态帧在其 owner 的 `ephemeral.seq` 上严格单调。
-事实帧的 `dedupKey` 是事实的 eventId（[SE-12](../../session/v2/contract.md)），瞬态帧的
+事实帧的 `dedupKey` 是事实的 eventId（[DR-01](../../durable-records/v2/contract.md)），瞬态帧的
 `dedupKey` 是 `"<issuer>:<epoch>:<seq>"`，`issuer` 是 owner 或代发的观察者（MS-24），控制帧的
 `dedupKey` 由服务端生成。客户端发现 `(seq, index)` 倒退、同批 `index` 跳号，或同批未收齐就收到
 更大的 `seq`，视为服务端错误：关流并以游标重订阅，服务端对该订阅以 `resync_required` 处置。
@@ -138,7 +138,7 @@ Session 使用一律无效（[SYS-TENANT](../../../../docs/requirements/system/c
 {batches, completeTo}`（[SE-10](../../session/v2/contract.md)）返回该 Session 作用域内序号落在
 左开右闭区间 `(after, min(to, completeTo)]` 的全部已提交事实，按提交分组，组内按
 [DR-01](../../durable-records/v2/contract.md) 的批内记录顺序；投影为事实提示帧后按 `(seq, index)`
-投递。服务端为每个存续订阅记一个已推送水位 `sent = (seq, index)`，即最后推出的那一帧的位置，
+投递。服务端为每个存续订阅记一个已推送水位 `sent = (seq, batch.index)`（`batch.index` 是订阅局部的批内推送序，不是 SE-03 位置里的耐久序 `index`），即最后推出的那一帧的位置，
 整批推完时 `index = count`。每次听到 `records.envelope.committed` 广播都从 `sent` 而不是从广播自带
 的序号推送该作用域内 `(sent, min(now, completeTo)]` 的事实，所以丢失广播不留洞；没有后继广播
 时由周期对账（`sent` 低于 `completeTo` 即再推一次）补上。水位**永不越过** `completeTo`：投影没

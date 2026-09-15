@@ -12,7 +12,7 @@
 
 | 文件 | 内容 | 登记 |
 |---|---|---|
-| [ToolCall.tla](v2/ToolCall.tla) | 模型正文：五个维度，抽象 Run、Session 与执行 owner，`tool` 与 `human` 两种调用 | 形式任务 `tool-execution-call-safety`、`tool-execution-call-progress` 的模块 |
+| [ToolCall.tla](v2/ToolCall.tla) | 模型正文：五个维度，抽象 Run、Session 与执行 owner，`tool` 与 `human` 两种调用 | 形式任务 `tool-execution-call-safety`、`tool-execution-call-progress` 的模块（两个任务的 artifacts 随 D-015 发布从提案证据目录改指本目录；提案证据目录里的同名文件是接受前的原件） |
 | [ToolCallMC.tla](v2/ToolCallMC.tla) | 对称约减与否定变体 `SpecRedispatch`（恢复时重发已耐久 dispatch_intent 的 attempt） | 同上的入口模块 |
 | [ToolCall.cfg](v2/ToolCall.cfg) | 安全配置：2 个调用、至多 1 次 owner 崩溃、对称约减 | `tool-execution-call-safety` |
 | [ToolCallProgress.cfg](v2/ToolCallProgress.cfg) | 进展配置：1 个调用、至多 1 次崩溃，公平性假设写在模块的 `SpecFair` | `tool-execution-call-progress` |

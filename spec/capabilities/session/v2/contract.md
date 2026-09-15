@@ -56,7 +56,7 @@ classified 而未消费的 arrival 在同一提交 closed
 历史审计能保留旧输入版本，普通模型上下文不得使用已撤回／未取批版本。
 
 历史的读面形状是 `Message` 记录，它从本 Session 各耐久流的已提交事实**派生**，不是
-另一条耐久流。每条 `Message` 的身份从产生它的事实的 `eventId` 与 `ordinal` 确定地派生，
+另一条耐久流。每条 `Message` 的身份从产生它的事实的 `eventId`（[DR-01](../../durable-records/v2/contract.md)）与 `ordinal` 确定地派生，
 不另发号；位置为 `{domain, seq, index, ordinal}`——协调域的提交序号、该事实在其提交内的
 耐久序（[DR-01](../../durable-records/v2/contract.md)）、同一事实派生多条时按事实内顺序
 编号的序数。历史顺序是 `(seq, index, ordinal)` 的字典序，跨重建稳定，同批两条事实各自
@@ -299,10 +299,10 @@ continuation（使当前非终态 Run 的某个等待位置或 Run 本身就绪�
 即发起该调用的 Run，WorkRef 下派发的调用没有发起 Run。判定顺序固定：Session 非 open →
 D2；否则发起 Run 为 cancelled（含 force_stopped）或 stopping → D1；否则 holder 在其发起
 Run（running / waiting / interrupted）上有开放登记（[RN-01](../../run/v2/contract.md) 的等待
-登记簿）→ A；否则发起 Run 为 running / waiting / interrupted，或无引用而 Session 另有活动
-Run → B；否则（发起 Run 为 completed / failed / superseded，或不存在，且 Session 无活动
-Run）→ C。A 列是一次查表，不再从调用视图、请求集合与门集合各自推导；判为 continuation
-的提交与该登记的注销（`run.wait.released{holder, settled}`）是同一提交。调用结算没有来源
+登记簿）→ A；否则发起 Run 为 running / waiting / interrupted，或 Session 另有活动 Run → B；
+否则 → C（此时发起 Run 为 completed / failed / superseded 或不存在，且 Session 没有活动 Run）。
+`hook_continuation` 与 `connector_condition` 不走这一顺序，按各自行的固定意图受理。A 列是一次查表，不再从调用视图、请求集合与门集合各自推导；判为 continuation
+的提交与该登记的注销（`run.wait.released{holder, outcome: settled}`）是同一提交。调用结算没有来源
 策略，子代理、handoff 与定时派发一律按此判定。决定表：
 
 | 来源 | A | B | C | D1 | D2 |
@@ -317,7 +317,7 @@ Run）→ C。A 列是一次查表，不再从调用视图、请求集合与门�
 | cross_session_message | 按目标权限与配置：queue 或 context；绝不自动打断 | 同左 | queue | queue | 不受理 |
 | user_text / user_command | queue；或 interrupt_then_run = control + queue | 同左 | queue | queue | 不受理 |
 | system | 不适用（无 refs，不引用等待位置） | context | context（无活动 Run 时只等待，不转 queue、不触发 Run） | 不适用 | closed(closed_by_archive/closed_by_delete) |
-| hook_continuation | 不生成（续跑只在 Run 已 completed 后受理） | 不生成 | queue（trigger 项，一项一 Run；判定依据为 originWork，即触发它的已完成 Run） | 不生成（cancelled / stopping / superseded 不触发续跑） | closed(closed_by_archive/closed_by_delete) |
+| hook_continuation | 不生成（续跑只在 Run 已 completed 后受理） | queue（意图恒为 queue，不因 Session 另有活动 Run 改判） | queue（trigger 项，一项一 Run；判定依据为 originWork，即触发它的已完成 Run） | 不生成（cancelled / stopping / superseded 不触发续跑） | closed(closed_by_archive/closed_by_delete) |
 
 每个 arrival 恰被裁决一次；其后它的意图只由 SE-17 的 Run 终态处理改写，不存在第二次
 裁决。continuation 只在 A 列判出，因此只指向裁决时非终态、且该 holder 仍在其登记簿上的
@@ -364,7 +364,7 @@ continuation 转为 queue 的 trigger 项并记 converted；终态为 `supersede
 （[LC-04 行 4](../../../compositions/session-run-agent-lifecycles/v2/contract.md)），Run 侧归
 [RN-09](../../run/v2/contract.md)。Run 终态后不存在指向它的 classified 且未消费的
 continuation。结算后到达者按 SE-14 的判定顺序裁决：holder 已无开放登记，发起 Run 终态
-则按 C 列、被停则按 D1 列、Session 非 open 则按 D2 列。failed(context_overflow) 的 Run
+则按 Session 是否另有活动 Run 落 B 列或 C 列、被停则按 D1 列、Session 非 open 则按 D2 列。failed(context_overflow) 的 Run
 留下的后台调用会逐个以 trigger 开新 Run，数量受其已准入调用数约束，是本版接受的代价。
 
 **SE-18**：受理与裁决是两次提交。非预期退出可能留下 accepted 而未 classified 的

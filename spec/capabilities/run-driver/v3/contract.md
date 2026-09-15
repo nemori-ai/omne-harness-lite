@@ -55,7 +55,7 @@ commitKind 不共用 operationId。恢复重跑与崩溃前那次提交使用同
 [CC-03](../../../compositions/core-work-coordination/v2/contract.md)/[DR-02](../../durable-records/v2/contract.md)
 去重认回；同 ID 异输入返回 conflict 时重读前缀重算，不覆盖。Inbound 裁决、
 `take*`/调度与重取的 operationId 由 [SE-06/15](../../session/v2/contract.md) 与
-[RN-08](../../run/v2/contract.md) 各自派生，取入既有 Run 的批沿 SE-15 派生。
+[RN-08](../../run/v2/contract.md) 各自派生，取入既有 Run 的批沿 SE-06 派生。
 
 ## 取得驱动与命令
 
@@ -96,7 +96,7 @@ context 水位内的系统通知（RD-06）。
 | 本 Run 尚无 `tool_result` 的 tool_use 的占位 | `deferred_receipt{call, reason, notice}`，`reason` 沿 [CD v2](../../../data/core-work/v2/contract.md) 的封闭六值 | RD-09/10 |
 | 已占位调用的晚到结果或人类答复 | `system_reminder{late_result \| human_answer, ref}`，只引用已耐久的结果，不复制正文 | [SE-13/16](../../session/v2/contract.md)、[CD v2](../../../data/core-work/v2/contract.md) |
 | 系统通知（被越过 Run 的被保留工作清单、续跑刹车、前台上限等） | `system_reminder{system_notice}`，正文在切点内 | [SE-13/14](../../session/v2/contract.md) |
-| 外部 hooks 兼容层在准备阶段贡献的上下文 | `system_reminder{hook_context}`，正文在切点内 | [HK-1](../../external-hooks/v1/contract.md) |
+| 外部 hooks 兼容层在准备阶段贡献的上下文 | `system_reminder{hook_context}`，正文在切点内 | [HK-02](../../external-hooks/v1/contract.md) |
 
 审批型 human_answer 不进入切点，只由 RD-11 消费；两者同时就绪时先消费批准再开 Step。
 多条 `system_reminder` 在同一 Step 的输入里排在新用户文本之前；`system_notice` 类系统
@@ -140,7 +140,7 @@ call_settlement 进入。
 调用的结算视图是封闭词表，settled 只源自指向该调用的已裁决 call_settlement
 arrival（[SE-13](../../session/v2/contract.md)），其余值从工具/人类决定权威的状态 fold。
 "登记开放"即该调用在等待登记簿上仍有开放登记；"前台"是登记关系为 `foreground` 或
-`detach_in_flight` 的投影（[TL-10](../../tools/v2/contract.md)）：
+`detach_in_flight` 的投影（词表归 [TL-14](../../tools/v2/contract.md) 维度 C，投影规则归 TL-16）：
 
 | 视图值 | 来源 | 进入下一 Step 的块 | 登记与关系 |
 |---|---|---|---|
@@ -166,10 +166,10 @@ arrival（[SE-13](../../session/v2/contract.md)），其余值从工具/人类�
 
 下一 Step 的切点必须为上一 Step 的每个 tool_use 恰给一个块（RD-09 的第三列）。
 驱动器缺省以 AwaitBatch 等到本批的前台登记全部注销再开下一 Step，使同批结果一起
-呈现；只有三种情况提前开：审批就绪（RD-11）、门恢复（RD-12）、队首合格文本取入
-（RD-18）。占位的首次呈现本身是可喂给模型的新内容，使模型能就"继续推进还是停下来
-等"决策，因此某个 tool_use 首次需要占位即开 Step；已呈现过占位的 tool_use 不再触发
-开 Step。
+呈现；只有四种情况提前开：审批就绪（RD-11）、门恢复（RD-12）、队首合格文本取入
+（RD-18）、占位首次呈现。占位的首次呈现本身是可喂给模型的新内容，使模型能就"继续
+推进还是停下来等"决策，因此某个 tool_use 首次需要占位即开 Step；已呈现过占位的
+tool_use 不再触发开 Step。
 
 收束后按顺序判定：完成条件成立（[RN-02](../../run/v2/contract.md)）→ 结算 Run；有审批
 就绪 → RD-11；有模型可消费的接续或首次占位 → 开新 Step；有队首合格文本 → 取入并开
@@ -295,7 +295,7 @@ hook，模型归 Run 固定；工具前只有 TL-07 门与 TL-13 守卫且守卫
 工具后只能选择进入模型的投影，不改耐久结果；停止边界只有
 [RN-02](../../run/v2/contract.md) 完成条件，没有"阻止停止"的 hook；压缩是 MC-10 的辅助
 Step。扩展点贡献的上下文正文只能以 `system_reminder{hook_context}` 进入切点（RD-06），
-不改写任何已耐久的输入、参数或结果（[HK-1](../../external-hooks/v1/contract.md)）。
+不改写任何已耐久的输入、参数或结果（[HK-02](../../external-hooks/v1/contract.md)，S1 守卫协议见 HK-07）。
 
 ## 等待期间取入排队文本
 
@@ -347,7 +347,7 @@ RD-10 的合批规则），因此这是合批规则的提前开启形态；同�
 hooks 适配到这些站点，不另定义站点，也不获得本表之外的权力。任何站点都不能阻止
 Run 结算（RD-17）。本版不开放的站点没有登记入口，尝试登记被拒绝并记录为不支持。
 
-## 与 v2 的差异
+## 与上一版的差异
 
 | 条款 | 性质 | 内容 | 来源裁决 |
 |---|---|---|---|
@@ -355,11 +355,11 @@ Run 结算（RD-17）。本版不开放的站点没有登记入口，尝试登�
 | RD-06 | 兼容扩展 | 切点来源由三类扩展为六类表：补充批、占位、`system_reminder{late_result \| human_answer}`、`system_reminder{system_notice}`、`system_reminder{hook_context}`；删除"问答型 human_answer"作为就绪接续；守卫在准备阶段求值 | 作者裁决 4、7、作者裁决 12、作者裁决 19 |
 | RD-08 | 兼容扩展 | 增 `run.step.settled{outcome}` 两值与 `invalid_proposal{reasons}` 的收口与耐久来源；门等待改为登记表述 | 作者裁决 18 |
 | RD-09 | 语义变化 | 结算视图表的第四列由"阻止收束"改为登记与关系；新增 `waiting_human` 视图；每个视图值给出恰一个块；晚到结果与答复以 `system_reminder` 呈现；问答型请求附属于内建 `human` 调用 | 作者裁决 8、9、U-44、U-46 |
-| RD-10 | 语义变化 | Step 收束 = attempt 已结算且提议已登记；原"阻止收束"改为开下一 Step 的合批规则（每个 tool_use 恰一个块、缺省等本批前台登记注销、三种提前开）；占位首次呈现即开 Step，已呈现不再触发；补自然完成的判定基准；判定顺序增"队首合格文本" | 作者裁决 9、作者裁决 7 |
+| RD-10 | 语义变化 | Step 收束 = attempt 已结算且提议已登记；原"阻止收束"改为开下一 Step 的合批规则（每个 tool_use 恰一个块、缺省等本批前台登记注销、四种提前开）；占位首次呈现即开 Step，已呈现不再触发；补自然完成的判定基准；判定顺序增"队首合格文本" | 作者裁决 9、作者裁决 7 |
 | RD-11 | 语义变化 | 等待状态收敛为 `waiting` + `waitingFor` 投影；唤醒集合 = 任何注销 + 队首合格文本；出边增取入文本；批准消费的位置表述改为登记 | 作者裁决 7、8、U-59 |
 | RD-12 | 语义变化 | `waiting_gate` 不再是 Run 状态：门在登记簿登记 `(gateRef, gateRet)`，放行即注销；补"前提门未恢复时不取入补充批" | §2.6 词表、作者裁决 7 |
 | RD-13 | 语义变化 | 收口只覆盖停止类操作；interrupt_then_run 终点改为 `superseded` 并整簿注销；force_stop 在受理提交整簿注销；新增一段：不可恢复失败只处置未准入调用，已准入调用与未答请求继续（U-43） | U-43、作者裁决 2、3、作者裁决 10 |
 | RD-14 | 澄清 | Yield 前提改按登记簿陈述：`foreground` / `detach_in_flight` / 已过门未 start 阻止；`human_wait`、未过门与门不阻止；Yield 不注销登记 | 作者裁决 17 |
 | RD-17 | 兼容扩展 | 新增受理后取用前的守卫：只能关闭项、由取用者在准备阶段求值、fail-open 且幂等；hooks 贡献的正文只能以 `system_reminder{hook_context}` 进入 | hooks RD-17 行、S1 守卫协议 |
 | RD-18 | 新增 | 等待期间取入排队文本：空闲点、取批形态、切点内容、次序、前台语义、basis 与 supplement | 作者裁决 7、[PF-013 变更记录](../../../../docs/requirements/product/user/PF-013-session-run-lifecycle-and-pending-input-control.md#变更记录) |
-| RD-19 | 新增 | Agent Loop 扩展点站点的封闭枚举：四种扩展点、S0～S9 与四条旁路的循环位置、归属与权力上界、本版不开放的站点 | hooks 提案站点与权力表、HK-1 权力上界 |
+| RD-19 | 新增 | Agent Loop 扩展点站点的封闭枚举：四种扩展点、S0～S9 与四条旁路的循环位置、归属与权力上界、本版不开放的站点 | hooks 提案站点与权力表、hooks 提案性质 HK-1（权力上界） |

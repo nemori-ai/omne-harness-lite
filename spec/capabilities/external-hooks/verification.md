@@ -24,7 +24,7 @@ run-driver v3 与 human-decisions v2，并由那些契约的模型覆盖。为�
 
 | 性质 | 内容 | 保护点（条款） | 证据现状 |
 |---|---|---|---|
-| HK-1 | 权力上界：兼容层的效果只能是关闭队列项、收紧门（deny / ask）、排除模型投影、注入下一 Step 的 `system_reminder{hook_context}`、入队 trigger、有资格的程序化作答；没有改写耐久输入 / 参数 / 结果或阻止 Run 结算的路径 | HK-02、HK-04、HK-05 | 间接：run-driver v3 场景 S20（可改写站点）与 tools v2 的参数冻结性质 T-6（[提案不变式](../../../docs/proposals/tool-execution/invariants.md#调用)）。欠：适配器只调用扩展点封闭 API 的结构检查；每站点一个"越权字段被记为 unsupported"的实现测试，至少含 S1 的 `suppressOriginalPrompt` 与 S8 的"阻止结算" |
+| HK-1 | 权力上界：兼容层的效果只能是关闭队列项、收紧门（deny / ask）、排除模型投影、注入下一 Step 的 `system_reminder{hook_context}`、入队 trigger、有资格的程序化作答；没有改写耐久输入 / 参数 / 结果或阻止 Run 结算的路径 | HK-02、HK-04、HK-05 | 间接：run-driver v3 场景 S25（守卫只能关闭）与 tools v2 的参数冻结性质 T-6（[提案不变式](../../../docs/proposals/tool-execution/invariants.md#调用)）。欠：适配器只调用扩展点封闭 API 的结构检查；每站点一个"越权字段被记为 unsupported"的实现测试，至少含 S1 的 `suppressOriginalPrompt` 与 S8 的"阻止结算" |
 | HK-2 | 逐项可查：上游两家的每个事件、决定字段、输入字段与配置字段在 HK-09、HK-10、HK-13、HK-14 中恰有一种状态；配置中出现不支持项时写 `hooks.config.unsupported`，不静默 | HK-03、HK-08～HK-14 | 欠：映射表对照上游目录快照的检查（Claude Agent SDK `0.3.270` 的 33 个事件与 `SyncHookJSONOutput` 字段、Codex `d77ebc7` 的 schema）；配置装载测试。快照出处见下节 |
 | HK-3 | 失败不静默：每次 hook 运行恰写一条 `hooks.run.completed`；阻断理由对用户与模型都可见；命令级失败不阻断但可查；守卫提供者不可用时不 ready，不出现无守卫放行 | HK-05、HK-15、HK-17 | 规范场景 HS-05、HS-10。欠：崩溃、超时、非法 JSON 的单测；ready 条件的装配测试 |
 | HK-4 | 刹车：同一 Session 连续由 `hook_continuation` 触发的 Run 数不超过上限；达到上限的那次 `stop_hook_active = true` 已给出；观察者重跑不产生第二个 trigger | HK-16 | 规范场景 HS-06、HS-09；去重与幂等依赖 session v2 的 `hook_continuation` 来源定义与 LC v2 的观察者幂等义务。欠：计数在归档与恢复之后由 fold 重建的测试 |

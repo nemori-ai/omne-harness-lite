@@ -3,8 +3,8 @@
 本契约身份为 `capability.tools`，版本 2。与 [v1](../v1/contract.md) 的差异性质是**语义变化**：
 调用的五个正交维度、转移的提交面、等待关系的权威归属、内建人类请求工具、前台上限的
 执行归属、帧的耐久性与结果的三层投影在本版首次成为规范正文；TL-07 的终态词表、TL-09 的
-停止词表、TL-10 的前台声明、TL-11 的单调用强停、TL-12 的帧耐久性按新语义改写，其余条款
-保留 v1 编号与原文。接受依据为
+停止词表、TL-10 的前台声明、TL-11 的单调用强停、TL-12 的帧耐久性按新语义改写，其余变更
+逐条见文末差异表，未列入差异表的条款保留 v1 编号与原文。接受依据为
 [决定 D-015](../../../../docs/decisions/D-015-tool-execution-message-stream-and-hooks.md)；v1
 保持冻结与可引用，未迁移的消费者继续按 v1，本版不提供兼容层。
 
@@ -45,8 +45,8 @@ configuration revision。每条命令有稳定 commandKey、输入/输出 JSON S
 剥掉的 `command` 与保留参数不进入 `Action.params`；调用、过程、费用与审计仍定位到
 具体 commandKey。
 
-发布一个工具入口时下列检查全部通过才发布，不发布半项：命令 Schema 完整落在声明的
-校验 profile 内；`single` 只用于单命令工具；`help` 不注册业务 handler；`oneOf` 的分支
+发布一个工具入口时下列检查全部通过才发布，不发布半项：命令的输入与输出 Schema（形状归
+[CD-05](../../../data/core-work/v2/contract.md) 的 `Command`）能被本能力的校验器完整编译，不含它不支持的关键字；`single` 只用于单命令工具；`help` 不注册业务 handler；`oneOf` 的分支
 数在 manifest 预算内，超出回落 `compact`；命令的输入 Schema 不声明保留参数名
 `detach`、`command`、`params`；`foreground.onLimit`、`background.startModes`、
 `stop.capability` 与 `background.mode` 互相一致（TL-08、TL-10）；`media.inputs` 的每个
@@ -184,7 +184,7 @@ requiredResources 表达此声明；实际 owner 身份在调用准入时绑定�
 有效阈值是 `min(声明 limitMs, 系统上限)`；两个来源值与计时来源在准入时记录到调用。
 计时使用单调执行时长，等待人类的时间不计为工具执行，状态恢复不得把已过阈值时长
 清零。单次手动或自动转换失败保持原关系并报告原因；只有复合打断
-（[LC-04 行 8](../../../compositions/session-run-agent-lifecycles/v2/contract.md)）明确要求转换
+（[RN-04](../../run/v2/contract.md)，受理形状见 [LC-04 行 8](../../../compositions/session-run-agent-lifecycles/v2/contract.md)）明确要求转换
 失败后中断，不能把此复合政策扩成所有手动转换的默认。`keep_waiting` 的调用只由工具
 自然结束或用户停止结束：本契约不承认 Run 级执行预算或收口余量作为工具的刹车
 （[PF-013](../../../../docs/requirements/product/user/PF-013-session-run-lifecycle-and-pending-input-control.md)）。
@@ -249,7 +249,7 @@ payload 超过声明的单帧上限被截断）、`expired`（超出保留期）
 原工具插件或实例仍在内存；向客户端的传输、重连补齐与合并游标归
 [message-stream v1](../../message-stream/v1/contract.md)，本契约只定事实侧与读面。本能力
 另按 [SE-10](../../session/v2/contract.md) 注册 `calls` 快照贡献：给定主体与投影水位 `asOf`，
-返回该主体有 SR 正文读权的活跃调用视图（进展、关系、帧水位），裁剪规则由本贡献自带，
+返回该主体有正文读权（[SE-20](../../session/v2/contract.md) 的 `read_content`）的活跃调用视图（进展、关系、帧水位），裁剪规则由本贡献自带，
 projection 只在同一 fold 水位上调用它、不自带调用的可见范围规则。终态、
 调用引用及可供历史取得的结果须耐久。Session 保存结果或经过选择的内容引用，模型装配
 只消费明确选择的投影，不得把用户展开所有帧等同于向模型注入全量输出。
@@ -301,7 +301,7 @@ eventId、`(stream, seq)` 与 operationId，结算 arrival 的来源级 dedupKey
 | admitted → settled{cancelled_before_execution} | stop 先于 start | 墓碑与结算在同一提交；owner 迟到的 start 被墓碑拒绝 |
 | admitted → settled{unavailable} | 恢复判定 | start 回执丢失、按恢复政策 inspect 仍不可用（TL-07） |
 | executing → settled | 执行 owner 的终态 | `execution.attempt.terminal` + `tools.call.settled{outcome}` + `inbound.arrival.accepted{call_settlement, dedupKey=(call, attempt)}` 在同一提交；跨协调域沿 [CC-05](../../../compositions/core-work-coordination/v2/contract.md) |
-| settling → 结算视图 | Inbound 裁决者 | `inbound.arrival.classified{continuation \| context \| queue \| closed}`；裁决为 continuation 的提交同批注销该调用的等待登记 |
+| settling → 裁决结果 {continuation \| context \| queue \| closed} | Inbound 裁决者 | `inbound.arrival.classified{continuation \| context \| queue \| closed}`；裁决为 continuation 的提交同批注销该调用的等待登记 |
 | 任一 → stop_requested | 用户单次停止或 Run 收口 | `tools.control.requested` + `execution.stop.fenced` 同批；先于 start 也先建墓碑 |
 | stop_requested → stop_progressed | 执行 owner | `execution.stop.progressed{physical, cleanup, effect}` → `tools.control.progressed`（TL-09） |
 | foreground → detach_in_flight → detached_background | 用户转后台、前台上限到点或复合打断 | `tools.relation.detach_requested`，owner 确认不再依赖 Agent 临时资源后 `tools.relation.detached`，确认提交同批注销该调用的等待登记；启动即后台的调用在准入提交注销 |

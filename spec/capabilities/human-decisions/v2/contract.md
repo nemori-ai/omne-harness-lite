@@ -39,6 +39,14 @@ Schema 校验，错误答案明确拒绝。请求身份、内容版本及 curren
 匹配，迟到／重复答案返回当前真实结果，不改动其他请求；迟到答复不再产生
 结算到达，也不重新打开已关闭的继续权。
 
+本能力拥有 `hd.*` 命名空间下的三条耐久事实：`hd.request.created{request, kind, call}`
+（请求创建，`kind ∈ system_approval | question | agent_approval`，`call` 是它附属的调用；与
+调用的准入或等待在同一提交，见 HD-03 与 [TL-15](../../tools/v2/contract.md)）、
+`hd.decision.recorded{request, outcome, by}`（首个合法答复或程序化作答被记录，与承载调用的
+结算或批准消费同批，HD-06）、`hd.request.closed{request, reason}`（`reason ∈ answered |
+cancelled | superseded`，与请求终态转移同一提交）。消费者（tools v2、session v2、
+message-stream v1）引用这三个名字，不另起同义事实。
+
 **HD-03**：创建阻塞请求时，耐久提交 Action／request 和来源工作等待关系后才
 呈现；相同调用与同一动作不能因通知重试创建多个待办。请求不在
 [run v2](../../run/v2/contract.md) 的等待登记簿上独立登记：每个阻塞请求附属于
@@ -212,6 +220,7 @@ Schema 校验：`ask_user` 的选项标签即答案值，自定义答案覆盖�
 
 | 条款 | 性质 | 来源裁决 |
 |---|---|---|
+| HD-02 | 兼容扩展：本能力拥有的三条耐久事实名 `hd.request.created / hd.decision.recorded / hd.request.closed` 及其载荷 | 规格评审 2026-09-15 指出 tools v2 与 message-stream v1 引用的 `hd.*` 事实没有拥有者 |
 | HD-02 | 澄清：迟到／重复答复不再产生结算到达，也不重开已关闭的继续权 | 工具执行提案契约措辞缺口表 HD 行；同提案不变式 H-3 |
 | HD-03 | 语义变化：请求不独立登记而附属于调用；`waiting_human` 不再是 Run 状态，收成等待登记簿的投影；占位块改用 CD v2 的 `deferred_receipt` 与其原因词表 | 工具执行提案第二轮作者裁决 8、9；用户裁决 U-59 |
 | HD-04 | 语义变化：删去“独立问题保留原 Run、答复不驱动新 Run”，改为按等待登记簿与入站裁决路由；interrupt_then_run 使旧 Run 进终态 `superseded` 并整簿注销；Run 不可恢复失败保留已准入调用与未答请求；单次 `stopCall` 撤回问题 | 工具执行提案作者裁决 3、第二轮作者裁决 8；用户裁决 U-43 |

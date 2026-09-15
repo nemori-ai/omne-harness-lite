@@ -34,4 +34,4 @@
 | S22 占位首次呈现即开 Step | 批内唯一调用转后台（或等审批、等人）、没有别的可喂给模型的内容；驱动器开下一 Step，切点只有该 tool_use 的 `deferred_receipt`，模型据此决定继续推进还是停下来等；该占位已呈现过则不再触发开 Step | RD-09/10；CD v2 | `OpenStep` 的 `NeedPh # {}` 分支与 `MarkShown`；I9 |
 | S23 晚到结果恰一次 | 调用已占位后其结算被裁决为 continuation；结果以 `system_reminder{late_result, ref}` 进入到达的 Step，只引用已耐久结果、不复制正文；同一调用不再出现第二个 `tool_result` | RD-06/09 | `NoDouble`；投影验收 |
 | S24 无效提议收口 | attempt 成功但整份提议不能形成合法 Action；tools 不登记任何 proposed，Step 以 `run.step.settled{invalid_proposal{reasons}}` 收口；被拒片段带 `rejected{reason}` 与原始参数进历史；本 Step 不新增等待登记 | RD-08；TL-01 | `InvalidProposal`（`AllowInvalid = TRUE`）；I26 |
-| S25 守卫只能关闭 | 受理成功的队列项在取用前被守卫判为 close：同一 take 门内提交 `queue.item.closed{closed_by_guard}` 与 `inbound.arrival.closed{closed_by_guard}`，继续下一队首；守卫超时或输出非法一律放行并记录；守卫尝试改写文本、参数或阻止 Run 结算均被拒 | RD-17；SE-12；HK-1 | 未建模（守卫不建模）；提供者验收 |
+| S25 守卫只能关闭 | 受理成功的队列项在取用前被守卫判为 close：同一 take 门内提交 `queue.item.closed{closed_by_guard}` 与 `inbound.arrival.closed{closed_by_guard}`，继续下一队首；守卫超时或输出非法一律放行并记录；守卫尝试改写文本、参数或阻止 Run 结算均被拒 | RD-17；SE-12；HK-02、HK-07 | 未建模（守卫不建模）；提供者验收 |

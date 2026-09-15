@@ -71,7 +71,7 @@
 | [MS-05](v1/contract.md) 呈现标识 | 无模型；Schema 检查与词表核对（待） | 全部 |
 | [MS-06](v1/contract.md) 顺序与去重 | `BufferOrdered`、`DeliverOnce`、`Monotone` | 去重键的形状；客户端对乱序的自我保护（场景 MSS-12） |
 | [MS-07](v1/contract.md) 游标内容与编码 | 模型的游标是单个序号（单协调域） | 不透明编码与版本、可见范围版本字段、多域形状 |
-| [MS-08](v1/contract.md) 整批安装完成才推进 | `CursorComplete`、`AtMostOnePartial` | 正文安装（模型以"收齐最后一个单元"为推进条件），由场景 MSS-01、MS-05 与客户端单测承担 |
+| [MS-08](v1/contract.md) 整批安装完成才推进 | `CursorComplete`、`AtMostOnePartial` | 正文安装（模型以"收齐最后一个单元"为推进条件），由场景 MSS-01、MSS-05 与客户端单测承担 |
 | [MS-09](v1/contract.md) 可见范围版本 | 未建模 | 全部；由场景 MSS-08 与授权单测承担 |
 | [MS-10](v1/contract.md) 订阅与 `stream.opened` | `Subscribe` 的两个分支（`cursor ≥ floor` / `< floor`） | `target` 与 `resumable` 的字段区分、基线各项的读权核对、同步切 |
 | [MS-11](v1/contract.md) 增量补齐与服务端水位 | `CursorComplete`、`SentComplete`、`SentWithinProjection`、`Reconcile`、`ForceResync`；否定变体 `SpecNoFill` / `SpecBuffered` | 分页读取的真实实现、投影重建（模型里投影只是滞后） |
@@ -82,7 +82,7 @@
 | [MS-16](v1/contract.md) 多客户端 | `CursorTwo.cfg`（补充配置，逐订阅的 `DeliverOnce` 与 `NoForeignDelivery`） | 登记配置只有一个订阅 |
 | [MS-17](v1/contract.md) 背压 | 事实队列与瞬态环分开、水位停在批内、`CommitFact` 不受缓冲约束 | 阈值与断开参数（装配）；对 owner 无背压由负载单测承担 |
 | [MS-18](v1/contract.md) 不进流的清单 | 无模型 | 全部；由 Schema 检查、提供者验收与[工程观测](../engineering-observation/v1/contract.md)读面承担 |
-| [MS-19](v1/contract.md) 归档与删除 | 无模型 | 全部；场景 MSS-11、MS-14 |
+| [MS-19](v1/contract.md) 归档与删除 | 无模型 | 全部；场景 MSS-11、MSS-14 |
 | [MS-20](v1/contract.md) 三种瞬态帧 | `StartAttempt`、`Chunk`、`EndCommitted`、`Abandon`（无真实 attempt 身份与 `purpose`） | 字段形状、`purpose` 分流、`startedAfter` |
 | [MS-21](v1/contract.md) 公开投影 | 未建模 | 全部；由 model-execution 提供者单测承担 |
 | [MS-22](v1/contract.md) 瞬态与耐久的接头 | `EndedAfterCommit`、`DraftCurrent` | "提交后、终止帧前"的独立窗口；原子替换草稿（客户端单测） |

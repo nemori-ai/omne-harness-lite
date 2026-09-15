@@ -77,8 +77,9 @@ staged_provisional | foreground_pending`。模型适配器须保持占位与结�
 Action。`tool_result{call, outcome, value}` 的 `value` 是 CD-05 的 `Result`，其 `content` 是嵌套的
 内容块序列（限 text/image/audio/video/file），与块的 `outcome` 取同一结论词。投影选择器
 （[TL-13](../../../capabilities/tools/v2/contract.md)）只能在模型投影里把 `value` 换成
-`blocked_by_hook{reason}`（[external-hooks v1](../../../capabilities/external-hooks/v1/contract.md)
-的 S7 结果），耐久的 `tool_result` 块与历史呈现不变；`blocked_by_hook` 只是投影值，不是本
+`blocked_by_hook{reason}`（S7 站点上任一投影选择器排除结果时的投影值，站点归
+[RD-19](../../../capabilities/run-driver/v3/contract.md)，[external-hooks v1](../../../capabilities/external-hooks/v1/contract.md)
+是其消费者之一），耐久的 `tool_result` 块与历史呈现不变；`blocked_by_hook` 只是投影值，不是本
 契约的耐久形状。
 
 一次输出被截断或部分失败时，完整且已耐久的块照常保留，被截断的文本与推理块保留已流出

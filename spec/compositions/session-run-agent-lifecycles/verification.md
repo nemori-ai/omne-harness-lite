@@ -35,7 +35,7 @@ v2 在 v1 模型上改动 23 行（`diff` 计数）：
 
 | 配置 | 规范映射 | 有限范围与结果 | v1 对照 |
 |---|---|---|---|
-| Lifecycles.cfg（同域安全） | [LC-02/04/05](v2/contract.md)；S-2、A-1、A-3、L-1、L-2、L-3、[I-1、I-13、I-14](../../../docs/decisions/D-012-run-driver-and-inbound.md)、NoDoubleCreate | 2 Run、2 实例、队列 2、接续 1、epoch ≤ 3、崩溃 ≤ 1；179,563 状态、28,788 不同状态、深度 25、2 秒，通过 | v1 135,931 / 22,452 |
+| Lifecycles.cfg（同域安全） | [LC-02/04/05](v2/contract.md)；S-2、A-1、A-3、L-1、L-3（提案性质编号，对应 .cfg 的 S2/A1/A3/L1/L3）、[I-1、I-13、I-14](../../../docs/decisions/D-012-run-driver-and-inbound.md)、NoDoubleCreate | 2 Run、2 实例、队列 2、接续 1、epoch ≤ 3、崩溃 ≤ 1；179,563 状态、28,788 不同状态、深度 25、2 秒，通过 | v1 135,931 / 22,452 |
 | LifecyclesProgress.cfg（同域进展） | LC-06/07；LP1a（开新 Run）、LP1b（重取）、LP2（归档后关空闲实例） | 1 Run、2 实例；14,053 状态、2,652 不同状态、深度 16、2 秒，通过 | v1 12,577 / 2,412 |
 | LifecyclesSplit.cfg（跨域安全，门带版本戳；证据，不是形式任务） | LC-09；I-1、S-2、A-1、L-1、L-3、NoDoubleCreate 与动作性质 ClassifyFresh | 2 Run、1 实例；17,319,045 状态、1,989,480 不同状态、深度 33、63 秒，通过 | v1 17,319,045 / 1,989,480（相同） |
 | LifecyclesSplitProgress.cfg（跨域进展；证据，不是形式任务） | LC-09；IntentsDrain、I14Eventually、ClassifyFresh | 1 Run、1 实例；39,671 状态、6,576 不同状态、深度 17、5 秒，通过 | v1 39,671 / 6,576（相同） |

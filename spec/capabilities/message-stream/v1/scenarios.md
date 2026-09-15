@@ -3,7 +3,7 @@
 本表是规范场景，不是已执行的实现测试；模型覆盖与有限范围见[验证说明](../verification.md)。
 事实帧写 `s:<seq>`，瞬态帧写 `~<owner>/e<epoch>#<seq>`，控制帧无位置。场景编号用前缀 `MSS`
 （MSS-01～MSS-17，沿提案的 MS-01～MS-17 顺序），与[契约](contract.md)的条款编号 MS-xx 不共用含义：引用时写
-"场景 MS-xx"或"条款 MS-xx"。"模型动作 / 性质"列指 [Cursor.tla](Cursor.tla) 的动作与性质，
+"场景 MSS-xx"或"条款 MS-xx"。"模型动作 / 性质"列指 [Cursor.tla](Cursor.tla) 的动作与性质，
 "模型外验收"列是提供者、投影或客户端须另行兑现的部分。
 
 | 编号 | 场景与客户端看到的路径 | 条款 | 模型动作 / 性质 | 模型外验收 |
@@ -26,5 +26,5 @@
 | MSS-16 | 模型执行来源消失而进程未崩溃：活跃 attempt `A` 正在流出、消费者已见 k 个 chunk → 读面失联或服务撤回 → 代发 `~A/e0#k ended{abandoned, reason: source_lost, observer: message_stream}` 并在账上关闭 `A` → 客户端草稿标 `unconfirmed` → 来源恢复后 owner 迟到的 `chunk#k+1` 与 owner 的 `ended` 被丢弃 → 随后 `s:` attempt 结算事实（`unknown \| partial`）或 `run.state.changed{failed}` 到达 → 客户端按位置读消息收尾 | MS-13、MS-23、MS-24 | Abandon；DraftCurrent、GapMarked、AttemptsSettle | 谁发现来源消失（读面调用失败或服务撤回通知）；代发后同 attempt 的帧一律丢弃；重装载时读基线并按 `pub` 与 `version` 接帧（同步切验收） |
 | MSS-17 | 流中途中断，唯一文本块尚未 `block-end`：`started{purpose: reply}` → `text-delta` × n → 供应方超时 → `s:` attempt 结算（`partial`，内容保留文本前缀，缺失清单记该块截断）→ `ended{committed, settled: partial, position}` → 客户端以派生消息替换草稿：显示前缀并标"未完成" | MS-20、MS-22 | 事实序列 | 缺失标记表示"不完整"而非"缺席"（投影验收）；`purpose ≠ reply` 的 attempt 不产生草稿（同一验收） |
 
-MS-01、MS-02、MS-08 的替身要求（`index = 0`、空 delta、两个不同租户的主体）是验收清单，
+MSS-01、MSS-02、MSS-08 的替身要求（`index = 0`、空 delta、两个不同租户的主体）是验收清单，
 不是模型性质。

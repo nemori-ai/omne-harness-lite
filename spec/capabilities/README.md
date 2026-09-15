@@ -6,6 +6,7 @@
 固定上游的历史 draft 另作来源保留，不将源基线自动作为产品契约。
 其它候选继续从[提案入口](../../docs/proposals/README.md)展开。
 
+- D-015 已接受：[tools](tools/README.md) v2（五维调用状态机、停止词表、前台上限、内建 `human` 工具、帧）、[run](run/README.md) v2（等待登记簿、`superseded`）、[session](session/README.md) v2（登记簿裁决、系统来源、取入既有 Run、历史派生表）、[run-driver](run-driver/README.md) v3（Step 收束与合批、切点来源、受理后守卫）、[human-decisions](human-decisions/README.md) v2、[model-execution](model-execution/README.md) v2、[durable-records](durable-records/README.md) v2、[media-content](media-content/README.md) v2，以及新能力 [message-stream](message-stream/README.md) v1（出站流）与 [external-hooks](external-hooks/README.md) v1（命令式 hooks 兼容层）；旧版本冻结可引用。
 - D-014 已接受：[session](session/README.md) v1（Session 身份、生命周期、历史、队列、Inbound）、[run](run/README.md) v1（Run、状态、epoch、Step、控制）与 [run-driver](run-driver/README.md) v2（仅引用变化）；[session-run](session-run/README.md) v1/v2 与 run-driver v1 标为 superseded，保持可引用。
 - D-012 已接受：run-driver v1 与 session-run v2（Inbound 到达账本），现已被 D-014 取代。
 - D-008 已接受的本批能力：[durable-records](durable-records/README.md)、[tenant-governance](tenant-governance/README.md)、[action-authorization](action-authorization/README.md)、[session-run](session-run/README.md)、[human-decisions](human-decisions/README.md)、[tools](tools/README.md)、[model-execution](model-execution/README.md)、[media-content](media-content/README.md)、[budget-accounting](budget-accounting/README.md)、[engineering-observation](engineering-observation/README.md)、[command-input](command-input/README.md)。

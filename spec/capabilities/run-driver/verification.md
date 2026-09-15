@@ -16,12 +16,12 @@ v3 的模型按等待登记簿重写：问答型人类请求并入调用（`HIds
 
 | 配置 | 规范映射 | 有限范围与刻意未覆盖项 | 本次运行 |
 |---|---|---|---|
-| RunDriver.cfg（核心） | RD-04/06/08/09/10/11/12/13/16/18；SE-12/13/14/18、RN-01/02；I1、I9、I13、I14、I18、I21s、I22、I23、I24、I25、I26、NoDouble | 单 Run、2 arrival、1 调用、2 Step、1 attempt、1 次空闲点取入、允许 invalid_proposal；崩溃、Yield、门丢失、用户控制各至多一次；E7 收口原子 | 完整探索退出 0，5,754,253 states generated / 1,902,109 distinct，71 s |
+| RunDriver.cfg（核心） | RD-04/06/08/09/10/11/12/13/16/18；SE-12/13/14/18、RN-01/02；I1、I9、I13、I14、I18、I21s、I22、I23、I24、I25、I26、NoDouble、Hist | 单 Run、2 arrival、1 调用、2 Step、1 attempt、1 次空闲点取入、允许 invalid_proposal；崩溃、Yield、门丢失、用户控制各至多一次；E7 收口原子 | 完整探索退出 0，5,754,253 states generated / 1,902,109 distinct，71 s |
 | RunDriverSched.cfg（调度） | RD-04/13/14/15；SE-06/15/17、RN-09；I1、Hist、I14、I13、I22 | 2 Run、1 Step、2 arrival、1 调用、无 human 调用、不取入文本；覆盖 Yield 重取、trigger 取项、终态时接续转换/关闭与整簿注销 | 完整探索退出 0，10,118,241 states generated / 3,349,516 distinct，160 s（与另一配置并行 4 workers） |
 | RunDriverOps.cfg（提交去重） | RD-03；I20、I18 | 单 Run、2 Step、2 attempt、1 arrival、1 调用，记录提交集合；同一 operationId 不出现异输入 | 完整探索退出 0，6,519,508 states generated / 2,015,450 distinct，155 s（与另一配置并行 4 workers） |
-| RunDriverProgress.cfg | P-1（调用结算与批准最终被消费）、P-1g（门恢复最终返回或 Run 离开可推进状态）、P-1y（Yield 后最终重取）、P-1w（登记簿空了不停在 waiting） | 单 Run、2 Step、2 arrival、1 普通调用、无 human 调用、不取入文本；弱公平加在裁决、开 Step、门进入/唤醒、批准消费、恢复、重取与完成结算上；Step 数达上限时 P-1 与 P-1w 的前提排除 | 完整探索退出 0，4,346,962 states generated / 1,521,699 distinct，324 s |
-| RunDriverProgressHuman.cfg | 内建 `human` 调用一侧：P-1（答复经 call_settlement 最终被消费）、P-1g、P-1y、P-1w；同时检查核心配置的全部安全不变式 | 单 Run、2 Step、2 arrival、1 个 `human` 调用（`HIds = CIds`，因此没有审批门分支） | 完整探索退出 0，2,383,610 states generated / 815,849 distinct，319 s（与另一配置并行 4 workers） |
-| RunDriverSchedProgress.cfg | P-1y、P-2（无占位且有队列项最终开 Run） | 2 Run、1 Step、2 arrival、无调用；Run 数达上限时 P-2 前提排除 | 完整探索退出 0，2,526,890 states generated / 888,835 distinct，69 s |
+| RunDriverProgress.cfg | P1（调用结算与批准最终被消费）、P1g（门恢复最终返回或 Run 离开可推进状态）、P1y（Yield 后最终重取）、P1w（登记簿空了不停在 waiting） | 单 Run、2 Step、2 arrival、1 普通调用、无 human 调用、不取入文本；弱公平加在裁决、开 Step、门进入/唤醒、批准消费、恢复、重取与完成结算上；Step 数达上限时 P1 与 P1w 的前提排除 | 完整探索退出 0，4,346,962 states generated / 1,521,699 distinct，324 s |
+| RunDriverProgressHuman.cfg | 内建 `human` 调用一侧：P1（答复经 call_settlement 最终被消费）、P1g、P1y、P1w；同时检查核心配置的全部安全不变式 | 单 Run、2 Step、2 arrival、1 个 `human` 调用（`HIds = CIds`，因此没有审批门分支） | 完整探索退出 0，2,383,610 states generated / 815,849 distinct，319 s（与另一配置并行 4 workers） |
+| RunDriverSchedProgress.cfg | P1y、P2（无占位且有队列项最终开 Run） | 2 Run、1 Step、2 arrival、无调用；Run 数达上限时 P2 前提排除 | 完整探索退出 0，2,526,890 states generated / 888,835 distinct，69 s |
 
 不变式与条款的对应：I1（占位与 Run 状态一致，LC-02）、Hist（被越过的 Run 只能是终态或
 interrupted）、I9（进入切点的结算其登记已注销，RD-09/10）、I13（continuation 只指向活动且
