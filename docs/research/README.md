@@ -33,6 +33,7 @@
 - [端到端多模态 Harness：2026 年系统设计与工程实践](multimodal-harness-2026/README.md)
 - [六个 Agent 系统的循环、事件与 hooks：DSH、Claude Code、Codex、pi、OpenCode、LangChain/deepagents](agent-loop-events-and-hooks/README.md)
 - [客户端消息流：消息模型、增量协议与断线后的同一事实](client-message-stream/README.md)：DSH、OpenRouter、Codex、OpenCode、pi 与 omne-next 的流层核对
+- [提案、备选方案与决策流程：15 个开源与 agent 框架的做法](proposal-processes/README.md)：RFC/PEP/KEP/ADR 等对备选方案的要求与兑现率、阶段门、机器可核对的形状，以及对本项目提案框架骨架的对照。
 
 使用方法见[知识流转](../maintenance/knowledge-flow.md)。
 
