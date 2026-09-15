@@ -1,0 +1,348 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://meta-harness.invalid/evaluation/developer-model-experiment.schema.json",
+  "title": "Developer model defensive-aid experiment",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format_version",
+    "report_id",
+    "evaluation_target",
+    "report_state",
+    "public_suite",
+    "frozen_heldout_suite",
+    "baseline",
+    "candidate",
+    "environment",
+    "arms",
+    "repetitions",
+    "task_runs",
+    "adoption_record",
+    "analysis_plan"
+  ],
+  "properties": {
+    "format_version": {
+      "const": 1
+    },
+    "report_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evaluation_target": {
+      "const": "developer_agent"
+    },
+    "report_state": {
+      "enum": ["draft", "completed"]
+    },
+    "public_suite": {
+      "$ref": "#/$defs/versionedArtifact"
+    },
+    "frozen_heldout_suite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "artifact", "non_contamination_attestation"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "artifact": {
+          "$ref": "#/$defs/artifact"
+        },
+        "non_contamination_attestation": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "baseline": {
+      "$ref": "#/$defs/model"
+    },
+    "candidate": {
+      "$ref": "#/$defs/model"
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reasoning", "harness", "tools", "prompt"],
+      "properties": {
+        "reasoning": {
+          "$ref": "#/$defs/versionedArtifact"
+        },
+        "harness": {
+          "$ref": "#/$defs/versionedArtifact"
+        },
+        "tools": {
+          "$ref": "#/$defs/versionedArtifact"
+        },
+        "prompt": {
+          "$ref": "#/$defs/versionedArtifact"
+        }
+      }
+    },
+    "arms": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "$ref": "#/$defs/arm"
+      }
+    },
+    "repetitions": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "task_runs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/taskRun"
+      }
+    },
+    "adoption_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision",
+        "recorded_by",
+        "recorded_on",
+        "scope",
+        "rationale",
+        "review_triggers",
+        "selected_arm"
+      ],
+      "properties": {
+        "decision": {
+          "enum": ["undecided", "adopt", "do_not_adopt"]
+        },
+        "recorded_by": {
+          "type": "string",
+          "minLength": 1
+        },
+        "recorded_on": {
+          "type": "string",
+          "format": "date"
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        },
+        "review_triggers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "selected_arm": {
+          "enum": [null, "retain", "simplify", "remove"]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "decision": {
+                "const": "adopt"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "selected_arm": {
+                "enum": ["retain", "simplify", "remove"]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "analysis_plan": {
+      "$ref": "#/$defs/versionedArtifact"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*\\.\\.)"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "versionedArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "artifact"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "artifact": {
+          "$ref": "#/$defs/artifact"
+        }
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "model_id", "revision", "configuration"],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "configuration": {
+          "$ref": "#/$defs/artifact"
+        }
+      }
+    },
+    "arm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "pattern_id", "aid"],
+      "properties": {
+        "id": {
+          "enum": ["retain", "simplify", "remove"]
+        },
+        "pattern_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "aid": {
+          "$ref": "#/$defs/artifact"
+        }
+      }
+    },
+    "constraintObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "status", "evidence"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": ["satisfied", "violated", "unobserved"]
+        },
+        "evidence": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "cost": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input_tokens",
+        "output_tokens",
+        "duration_ms",
+        "tool_calls",
+        "human_interventions"
+      ],
+      "properties": {
+        "input_tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "output_tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tool_calls": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "human_interventions": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "taskRun": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_id",
+        "split",
+        "model",
+        "arm",
+        "repeat",
+        "artifact",
+        "constraint_observations",
+        "cost"
+      ],
+      "properties": {
+        "task_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "split": {
+          "enum": ["training", "heldout"]
+        },
+        "model": {
+          "enum": ["baseline", "candidate"]
+        },
+        "arm": {
+          "enum": ["retain", "simplify", "remove"]
+        },
+        "repeat": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "artifact": {
+          "$ref": "#/$defs/artifact"
+        },
+        "constraint_observations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/constraintObservation"
+          }
+        },
+        "cost": {
+          "$ref": "#/$defs/cost"
+        }
+      }
+    }
+  }
+}

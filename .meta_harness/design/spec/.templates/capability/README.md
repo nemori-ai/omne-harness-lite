@@ -5,9 +5,14 @@
 
 {{稳定身份、用途与消费范围的简述；规范含义归精确版本正文。}}
 
-- 稳定身份：{{实际身份，文件位置不代替语义身份}}
+- 契约坐标：{{baseline_id、contract_id、version；文件位置不代替三元组身份}}
 - 版本与采用状态：{{实际 catalog/接受依据及消费者精确采用；缺失则如实记录}}
+- catalog 映射：{{family/topic/contract_path/resources；依赖列 coordinate/clauses/rebase_relation}}
 - 提供者/装配映射：{{实际设计入口；候选与已实现分开}}
+
+## 准入核对
+
+{{独立能力责任、稳定身份、版本、依赖与接受状态；责任仍可由现有能力拥有时停止新增 topic。}}
 
 ## 按当前问题展开
 

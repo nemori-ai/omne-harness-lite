@@ -285,11 +285,7 @@
   "completeness_review": {
     "basis": "用户要求按新设计模型选择性吸纳、优化增删；不机械搬入全部旧内容",
     "record": "completeness-review.md",
-    "method_gaps_closed": [
-      "design-decisions",
-      "spec-evolution",
-      "delivery-planning"
-    ],
+    "method_gaps_closed": ["design-decisions", "spec-evolution", "delivery-planning"],
     "authority_switch": "deferred"
   },
   "capability_model_revision": {
@@ -298,5 +294,15 @@
     "supersedes": "原 S2 固定变化轴与前轮三个空间的能力分解解释；不取代原始资料的历史身份。",
     "runtime_owner": "canonical/references/decompose.md",
     "unchanged_scope": "生命周期、状态/身份、组合证明、规格版本与来源核对方法继续适用；不迁移产品资料或切换入口。"
+  },
+  "p1_method_admission_revision": {
+    "baseline": "e3573ca72d18bfe7ddd002df5025551b51eede46",
+    "record": "p1-method-admission.md",
+    "portable_admission_owner": "canonical/references/information-packages.md",
+    "workspace_policy_owner": "../../../../design/README.md",
+    "template_owner": "../../../../design/{family}/.templates/",
+    "method_governance_owner": "../../../../method/governance/README.md",
+    "developer_model_evaluation": "../../../evaluation/developer-model/README.md",
+    "boundary": "Only reusable current rules and evaluation protocol were integrated; product topics, one-off plans, historic snapshots and unaccepted method proposals were not imported."
   }
 }

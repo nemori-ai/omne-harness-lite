@@ -36,14 +36,14 @@
 
 ## 运行资源的组织
 
-| 层 | 拥有的判断 |
-|---|---|
-| [SKILL.md](../canonical/SKILL.md) | 现有能力承载、能力基演化与插件投影的心智，终点与按需入口 |
-| intake / decompose / define / project / handoff | S1–S8 阶段问题、产出、停止点与返回路线 |
-| design-decisions / spec-evolution / delivery-planning | 条件加载的选择、规格演进与交付规划 |
-| source-check / workspace-context | 版本取证与内部实际输入/产物位置 |
-| [topics](../canonical/references/topics.md) | 从具体问题直达参考页 |
-| architecture | 独立专题与五个示例；每页有读取条件与应带回的判断 |
+| 层                                                    | 拥有的判断                                               |
+| ----------------------------------------------------- | -------------------------------------------------------- |
+| [SKILL.md](../canonical/SKILL.md)                     | 现有能力承载、能力基演化与插件投影的心智，终点与按需入口 |
+| intake / decompose / define / project / handoff       | S1–S8 阶段问题、产出、停止点与返回路线                   |
+| design-decisions / spec-evolution / delivery-planning | 条件加载的选择、规格演进与交付规划                       |
+| source-check / workspace-context                      | 版本取证与内部实际输入/产物位置                          |
+| [topics](../canonical/references/topics.md)           | 从具体问题直达参考页                                     |
+| architecture                                          | 独立专题与五个示例；每页有读取条件与应带回的判断         |
 
 原 18 个实质主题均有独立价值，因此保留主题，但重写职责、压缩重复正文并补充小需求完整示例。
 原 7 个索引由阶段/专题路由替代，源目录 AGENTS/CLAUDE 不复制进运行包。
@@ -51,13 +51,15 @@
 
 canonical 是本草稿的运行资源源，.design 不分发；两端按显式 copy 包含所有 references。
 method/guide 保留 C 骨架，当前不再维护一套重复正文。
-模板由各 design family 拥有，skill 只导航实际工作区入口；不将模板副本分发进技能包。
+模板由各 design family 拥有；skill 的 [information-packages](../canonical/references/information-packages.md)
+携带可独立使用的准入与停止地图，实际文件形状仍从工作区本地模板取得，不复制模板正文。
 
 ## 后续实际工作
 
 选择性方法整合与旧入口切换是不同动作。后续仍需导入具体系统的设计材料和采用基线，
 接入真实产品登记/验证工具与实现映射；skills/roles 的源与根入口已在后续迁移中接续。
-角色定义、工作树操作、宿主编排及模型/防御评估流程不属于本手册，不要求以后机械吸纳。
+角色定义、工作树操作、宿主编排及模型/防御评估流程不属于本手册。后者已迁入 agent 评估区，
+只在防御辅助采用任务中按自身协议加载，不扩张普通设计流程。
 
 本轮验证覆盖官方元数据校验、链接/可达性、自包含阅读、独立只读复核和两端编译；
 真实结果、历史证据局限及未覆盖范围见[验证记录](validation.md)。

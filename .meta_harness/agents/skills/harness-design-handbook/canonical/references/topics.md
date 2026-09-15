@@ -5,60 +5,61 @@
 
 ## 基础与能力分解
 
-| 遇到的问题 | 读哪页 | 应带回的判断 |
-|---|---|---|
-| 不了解能力体系怎样承载需求并动态演化 | [总体范式](architecture/foundations/paradigm.md) | 能力增长、合法结构与合法变迁 |
-| 能力维度/能力基/服务/实例等词含义冲突 | [基础概念](architecture/foundations/concepts.md) | 本次设计采用的统一词汇 |
-| 不知道现有能力能否承载，或是否需要新增 | [覆盖与演化](decompose.md) | 覆盖依据、剩余责任及所选变化 |
-| 不确定维度是否正交、怎样划插件边界 | [能力边界](architecture/modeling/capabilities.md) | 责任与变化隔离、显式依赖和独立插件 |
-| 持久身份、运行代际、租户权限混在一起 | [身份与作用域](architecture/modeling/identity-and-scope.md) | 身份传递、可见范围和实际授权门 |
-| 不知道什么是权威、什么可重建或该持久化 | [状态与存储](architecture/modeling/state-and-storage.md) | 写入权、事实/投影与耐久边界 |
+| 遇到的问题                             | 读哪页                                                      | 应带回的判断                       |
+| -------------------------------------- | ----------------------------------------------------------- | ---------------------------------- |
+| 不了解能力体系怎样承载需求并动态演化   | [总体范式](architecture/foundations/paradigm.md)            | 能力增长、合法结构与合法变迁       |
+| 能力维度/能力基/服务/实例等词含义冲突  | [基础概念](architecture/foundations/concepts.md)            | 本次设计采用的统一词汇             |
+| 不知道现有能力能否承载，或是否需要新增 | [覆盖与演化](decompose.md)                                  | 覆盖依据、剩余责任及所选变化       |
+| 不确定维度是否正交、怎样划插件边界     | [能力边界](architecture/modeling/capabilities.md)           | 责任与变化隔离、显式依赖和独立插件 |
+| 持久身份、运行代际、租户权限混在一起   | [身份与作用域](architecture/modeling/identity-and-scope.md) | 身份传递、可见范围和实际授权门     |
+| 不知道什么是权威、什么可重建或该持久化 | [状态与存储](architecture/modeling/state-and-storage.md)    | 写入权、事实/投影与耐久边界        |
 
 返回[能力覆盖与演化](decompose.md)；已有承载结论时直接继续当前设计。
 
 ## 行为、变化与部署
 
-| 遇到的问题 | 读哪页 | 应带回的判断 |
-|---|---|---|
-| 部分初始化、停止、清理和晚到结果无法闭合 | [生命周期](architecture/runtime/lifecycle.md) | 每项资源的拥有者、释放/交接与静止条件 |
-| 通知、拦截、并发、取消或未知结果含义不清 | [交互协议](architecture/runtime/interaction.md) | 决策/提交阶段、顺序及失败结果 |
-| 定义更新、绑定、提供者替换与在途工作冲突 | [动态演化](architecture/runtime/evolution.md) | 生效边界、旧引用与接续政策 |
-| 将来跨进程是否会改变当前语义 | [部署边界](architecture/runtime/distribution.md) | 身份、授权、失败和协调范围；当前必要设计 |
+| 遇到的问题                               | 读哪页                                           | 应带回的判断                             |
+| ---------------------------------------- | ------------------------------------------------ | ---------------------------------------- |
+| 部分初始化、停止、清理和晚到结果无法闭合 | [生命周期](architecture/runtime/lifecycle.md)    | 每项资源的拥有者、释放/交接与静止条件    |
+| 通知、拦截、并发、取消或未知结果含义不清 | [交互协议](architecture/runtime/interaction.md)  | 决策/提交阶段、顺序及失败结果            |
+| 定义更新、绑定、提供者替换与在途工作冲突 | [动态演化](architecture/runtime/evolution.md)    | 生效边界、旧引用与接续政策               |
+| 将来跨进程是否会改变当前语义             | [部署边界](architecture/runtime/distribution.md) | 身份、授权、失败和协调范围；当前必要设计 |
 
 语义问题返回[契约与动作链](define.md)，具体实现问题返回[提供者投影](project.md)。
 
 ## 性质、证据与判断
 
-| 遇到的问题 | 读哪页 | 应带回的判断 |
-|---|---|---|
-| 不知道从要求推什么性质、谁应保护 | [不变量与进展](architecture/assurance/invariants.md) | 来源、观察范围、保护点与前提 |
-| 依赖可逆/交换/互不干扰，或省略并发控制 | [组合性质](architecture/assurance/composability.md) | 证明义务、前提责任和受阻消费 |
-| 不知道选 Schema、结构/行为模型还是场景 | [规格与证据](architecture/assurance/specification.md) | 最小充分表达与证据覆盖范围 |
-| 怀疑抽象、包装或复杂度不值得 | [架构判断](architecture/assurance/judgment.md) | 真实责任、复用差距与删除/保留理由 |
+| 遇到的问题                             | 读哪页                                                | 应带回的判断                      |
+| -------------------------------------- | ----------------------------------------------------- | --------------------------------- |
+| 不知道从要求推什么性质、谁应保护       | [不变量与进展](architecture/assurance/invariants.md)  | 来源、观察范围、保护点与前提      |
+| 依赖可逆/交换/互不干扰，或省略并发控制 | [组合性质](architecture/assurance/composability.md)   | 证明义务、前提责任和受阻消费      |
+| 不知道选 Schema、结构/行为模型还是场景 | [规格与证据](architecture/assurance/specification.md) | 最小充分表达与证据覆盖范围        |
+| 怀疑抽象、包装或复杂度不值得           | [架构判断](architecture/assurance/judgment.md)        | 真实责任、复用差距与删除/保留理由 |
 
 返回[定义](define.md)或[交付](handoff.md)；专题关注点用于检查契约，不预先决定能力维度。
 
 ## 映射核对与示例
 
-| 当前需要 | 读哪页 | 应带回的判断 |
-|---|---|---|
-| 检查候选设计是否漏了关键语义或交接 | [契约描述要点](architecture/reference/contract-description.md) | 缺哪项承诺、缺口由谁闭合 |
-| 不确定 Cordis 机制能承担哪部分保证 | [Cordis 映射](architecture/reference/cordis-mapping.md) | 历史机制边界与待按采用版本核对的主张 |
-| 想看从一句要求到投影和交付的完整小例子 | [队列读面](architecture/examples/queue-view.md) | 如何复用已有承诺，并在最小必要范围走通 S1–S8 |
-| 想看新维度怎样从现有能力的覆盖缺口产生 | [可靠投递](architecture/examples/delivery-growth.md) | 剩余责任、正交边界、新插件及与既有能力的组合 |
-| 需要演示动态定义怎样与调用绑定 | [提示词变量](architecture/examples/prompt-bindings.md) | 声明/发布/绑定/撤除与历史的区别 |
-| 需要演示模型变化如何影响一次调用 | [模型切换](architecture/examples/model-switch.md) | 工作边界、代际、结果归属和取消限度 |
-| 需要演示存储替换的写权与耐久责任 | [存储替换](architecture/examples/storage-replacement.md) | 排空等候选政策的条件、失败与保留范围 |
+| 当前需要                               | 读哪页                                                         | 应带回的判断                                 |
+| -------------------------------------- | -------------------------------------------------------------- | -------------------------------------------- |
+| 检查候选设计是否漏了关键语义或交接     | [契约描述要点](architecture/reference/contract-description.md) | 缺哪项承诺、缺口由谁闭合                     |
+| 不确定 Cordis 机制能承担哪部分保证     | [Cordis 映射](architecture/reference/cordis-mapping.md)        | 历史机制边界与待按采用版本核对的主张         |
+| 想看从一句要求到投影和交付的完整小例子 | [队列读面](architecture/examples/queue-view.md)                | 如何复用已有承诺，并在最小必要范围走通 S1–S8 |
+| 想看新维度怎样从现有能力的覆盖缺口产生 | [可靠投递](architecture/examples/delivery-growth.md)           | 剩余责任、正交边界、新插件及与既有能力的组合 |
+| 需要演示动态定义怎样与调用绑定         | [提示词变量](architecture/examples/prompt-bindings.md)         | 声明/发布/绑定/撤除与历史的区别              |
+| 需要演示模型变化如何影响一次调用       | [模型切换](architecture/examples/model-switch.md)              | 工作边界、代际、结果归属和取消限度           |
+| 需要演示存储替换的写权与耐久责任       | [存储替换](architecture/examples/storage-replacement.md)       | 排空等候选政策的条件、失败与保留范围         |
 
 示例只有解释用途，不替代本次要求、已接受决定或真实实现。
 发现上游行为主张需要采用依据时读[来源核对](source-check.md)，解决后返回[提供者投影](project.md)。
 
 ## 选择、规格与交付
 
-| 当前问题 | 读哪页 | 应带回的判断 |
-|---|---|---|
-| 如何比较、持久化、接受或复议候选？ | [设计选择](design-decisions.md) | 有效基线、证据与接受/取代范围 |
-| 该改 spec 还是实现映射，要不要升版？ | [规格演进](spec-evolution.md) | 语义差异、冻结边界与消费者传播 |
-| 怎样把设计交给实施并组织验证？ | [交付规划](delivery-planning.md) | 真实依赖、写入/组合责任与证据完成时点 |
+| 当前问题                                  | 读哪页                                | 应带回的判断                          |
+| ----------------------------------------- | ------------------------------------- | ------------------------------------- |
+| 这份材料应进哪个 family，还是留在任务区？ | [信息包准入](information-packages.md) | 持续消费者、唯一拥有者与停止位置      |
+| 如何比较、持久化、接受或复议候选？        | [设计选择](design-decisions.md)       | 有效基线、证据与接受/取代范围         |
+| 该改 spec 还是实现映射，要不要升版？      | [规格演进](spec-evolution.md)         | 语义差异、冻结边界与消费者传播        |
+| 怎样把设计交给实施并组织验证？            | [交付规划](delivery-planning.md)      | 真实依赖、写入/组合责任与证据完成时点 |
 
 回到[交付页](handoff.md)汇总本次就绪范围；这些分支不要求每项任务执行发布或施工。
