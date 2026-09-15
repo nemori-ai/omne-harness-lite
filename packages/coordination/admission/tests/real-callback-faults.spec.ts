@@ -324,6 +324,7 @@ describe('F9-F10 monotonic durable-publication faults with real JSONL and D1', (
         position: submission.position,
       },
     })
+    if (completion.status !== 'committed') throw new Error('expected a committed completion')
     expect(durableB).not.toHaveBeenCalled()
     expect(stack.admission.coordinator.status()).toMatchObject({
       phase: 'quarantined',

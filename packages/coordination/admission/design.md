@@ -77,6 +77,7 @@ immutable logical/durable 根；coordinator 仅保存有序票据、参与 owner
 | 公开类型 | 本提供者承担的运行责任 |
 |---|---|
 | AdmissionHost、AdmissionCoordinator、GateFrame | 受信装配持有 host，业务经同一 coordinator 在门外准备，在真实活动 frame 内查询与提交 |
+| AdmissionCoordinator.isCurrentFrame | 纯查询：传入对象是否恰为本 coordinator 此刻持有的活动 frame；只比较对象同一性与活动标志，不读输入、不看 phase、不授予任何许可 |
 | PreparedAdmission、OwnerPublication | 捕获不可变参与快照，在同一短门发布 logical，按序发布 durable |
 | ExactUseIssuer、ExactUse、ReleaseResult | 绑定真实 owner/pin，保管单次 claim、释放与未决清理责任 |
 | PendingAdmission、AdmissionCompletion、AdmissionResult、AdmissionFailure | 认回原票据/结果，区分耐久提交与 publication ready/blocked |
@@ -98,7 +99,10 @@ coordinator 只保管原 pin 的身份/责任，不代替 owner 取得或清理�
 单次交接/释放守卫，不能把原始 release 函数直接作为公开句柄的方法。包装内部
 调用 retainAt 原回调时也执行严格 undefined 检查，不能重新引入丢弃 Promise 的漏洞。
 enter 只调用已绑定的受信组合代码；它拒绝重入和 thenable 返回，frame 退出即失效，
-每次 owner 方法/submit 验证 frame 的真实归属与活动性。受信代码不得安排延迟工作
+每次 owner 方法/submit 验证 frame 的真实归属与活动性。owner 的状态入口用公开的
+isCurrentFrame 做同一认回：公共认回是精确对象与活动性，不含 phase、不授予业务许可；
+closing 期合法的 durable 发布 frame 仍为 current，捕获重入后的栈内 frame 也可为 current，
+业务可用性另由 owner 与 coordinator 的 open/故障事实决定。受信代码不得安排延迟工作
 继续使用 frame。TS 无法证明无 await/无副作用，代码审阅和针对 Promise/重入的
 运行测试是实现义务；检测违规后隔离域并具名报告，不吞异常当作普通拒绝。
 
@@ -185,7 +189,11 @@ publishLogical/publishDurable 只允许安装已经计算好的不可变根/水�
 指针；不做用户通知、资源清理、Schema 编译或权限查询。所有 owner 发布在同一
 短门内完成，外部读取也经该门读取一致快照，不能观察半批发布。任何 publication
 或 retainAt 抛错都是内部缺陷：立刻隔离 coordinator/writer，当前/后续票据按
-实际写入分类，禁止效果，保留占位与资源；不能靠通用 undo 猜测回滚。
+实际写入分类，禁止效果，保留占位与资源；不能靠通用 undo 猜测回滚。隔离是
+单调事实：回调捕获了自己触发的重入或其它故障后正常返回、或在回调内调用 close，
+都不能清除它；每个 retainAt/publishLogical/publishDurable 调用前后复查该事实，
+已知故障后本票据后续回调不再运行，logical/durable 成功标记与水位不推进，
+已提交票据按 blocked 完成（[K 修复证据](evidence/current-frame/README.md)）。
 writer 已 committed 的记录仍返回 committed，附 `publication:"blocked"` 和诊断；
 未能核实的记录返回 unknown。不得把已耐久事实因本地发布失败改称未提交。
 正常拒绝应发生在纯检查阶段，不能把 throw 作为某一 owner 的 veto 协议。

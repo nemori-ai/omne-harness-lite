@@ -100,6 +100,12 @@ export type CoordinatorStatus = Readonly<{
 
 export interface AdmissionCoordinator extends RecordPreparation {
   enter<T>(work: (frame: GateFrame) => T): T
+  /**
+   * Pure query: is `frame` exactly the object this coordinator currently holds as its active gate
+   * frame? Compares identity and the active flag only; it does not read the input, does not look
+   * at the coordinator phase, and grants no identity, eligibility, or publication permission.
+   */
+  isCurrentFrame(frame: GateFrame): boolean
   lookupPrepared(
     frame: GateFrame,
     operation: PreparedOperation,
@@ -544,11 +550,15 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
     return this.withFrame(work)
   }
 
+  isCurrentFrame(frame: GateFrame): boolean {
+    return this.currentFrame?.active === true && this.currentFrame.frame === frame
+  }
+
   lookupPrepared(
     frame: GateFrame,
     operation: PreparedOperation,
   ): AdmissionResult | Readonly<{ status: 'not_seen' }> {
-    if (!this.validFrame(frame)) return this.invalidFrame('lookup')
+    if (!this.isCurrentFrame(frame)) return this.invalidFrame('lookup')
     if (!isObject(operation) || !this.preparedOperations.has(operation)) {
       return this.assemblyFailure('invalid_snapshot', undefined, undefined, [])
     }
@@ -586,7 +596,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
   }
 
   submit(frame: GateFrame, prepared: PreparedAdmission): AdmissionResult {
-    if (!this.validFrame(frame)) return this.invalidFrame('submit')
+    if (!this.isCurrentFrame(frame)) return this.invalidFrame('submit')
     if (this.phase !== 'open') return this.unavailable(this.phase)
 
     let snapshot: AdmissionSnapshot
@@ -823,7 +833,6 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
             lockHeld: true,
           })
           this.closeResult = result
-          this.phase = 'closing'
           return result
         },
       )
@@ -919,7 +928,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
   }
 
   private retainUse(state: UseState, position: Position, frame: GateFrame): undefined {
-    if (!this.validFrame(frame)) {
+    if (!this.isCurrentFrame(frame)) {
       this.invalidFrame('retain_at')
       throw new CallbackContractError('retainAt used an invalid frame')
     }
@@ -939,6 +948,8 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
       )
       throw new CallbackContractError('retainAt is not valid for this claim')
     }
+    // A pin whose retain never ran keeps retainInvoked=false; the fault stops it before marking.
+    this.stopAfterKnownFault('retain_at')
     state.retainInvoked = true
     this.invokeStrict(
       state.originalRetainAt,
@@ -1273,12 +1284,14 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
   private finishTicket(ticket: Ticket, result: CommitResult): void {
     const validResult = this.validateWriterCompletion(ticket, result)
     if (validResult.status === 'committed') {
-      let blocked =
+      // Evaluated before the durable callbacks to decide whether they may run, and again after
+      // them from the monotonic fault fact so a fault caught inside a callback cannot report ready.
+      const publicationBlocked = (): boolean =>
         ticket.blockedDiagnosticId !== null ||
         !ticket.logicalReady ||
         this.durabilityGap ||
-        this.phase === 'quarantined'
-      if (!blocked && ticket.writerPending.disposition === 'apply') {
+        this.writerQuarantined
+      if (!publicationBlocked() && ticket.writerPending.disposition === 'apply') {
         try {
           this.withFrame(frame => {
             for (const publication of ticket.snapshot.publications) {
@@ -1301,9 +1314,9 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
             ticket.writerPending.position,
             ticket.snapshot.identity,
           )
-          blocked = true
         }
       }
+      const blocked = publicationBlocked()
       if (blocked) this.durabilityGap = true
       if (!blocked) this.durable = snapshotWatermark(ticket.writerPending.position)
       const completion: AdmissionCompletion = Object.freeze({
@@ -1397,23 +1410,40 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
     owner: string,
     identity: DiagnosticIdentity,
   ): void {
+    this.stopAfterKnownFault(phase)
     const result = Reflect.apply(callback, undefined, values)
-    if (result === undefined) return
-    const observer = captureThenableObserver(result, () => {
-      const diagnosticId = this.newDiagnosticId()
-      this.recordDiagnostic({
-        diagnosticId,
-        phase: 'late_rejection',
-        code: `${phase}_rejected`,
-        level: 'error',
-        identity,
-        owner,
-        operation,
-        position,
+    if (result !== undefined) {
+      // Take over the rejection channel of whatever was returned before raising any fault, so a
+      // late rejection stays attributed to this owner, operation, position, and phase.
+      const observer = captureThenableObserver(result, () => {
+        const diagnosticId = this.newDiagnosticId()
+        this.recordDiagnostic({
+          diagnosticId,
+          phase: 'late_rejection',
+          code: `${phase}_rejected`,
+          level: 'error',
+          identity,
+          owner,
+          operation,
+          position,
+        })
       })
-    })
-    if (observer !== null) this.deferUntilFrameExit(observer)
-    throw new CallbackContractError(`${phase} must return undefined`)
+      if (observer !== null) this.deferUntilFrameExit(observer)
+      throw new CallbackContractError(`${phase} must return undefined`)
+    }
+    // The callback may have caught a reentry or other fault that already quarantined the domain.
+    this.stopAfterKnownFault(phase)
+  }
+
+  /**
+   * `writerQuarantined` is the monotonic fault fact: set by the first quarantine, never cleared by
+   * close(), by a callback catching its own error, or by a normal return. Once it is set no further
+   * retain/logical/durable callback runs and no success mark or watermark advances.
+   */
+  private stopAfterKnownFault(phase: string): void {
+    if (this.writerQuarantined) {
+      throw new CallbackContractError(`${phase} cannot continue after a known fault`)
+    }
   }
 
   private withFrame<T>(work: (frame: GateFrame) => T): T {
@@ -1489,10 +1519,6 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
     this.currentFrame.after.push(action)
   }
 
-  private validFrame(frame: GateFrame): boolean {
-    return this.currentFrame?.active === true && this.currentFrame.frame === frame
-  }
-
   private invalidFrame(phase: string): AdmissionFailure {
     this.quarantine(phase, 'invalid_frame', undefined, undefined)
     return this.unavailable('invalid_frame')
@@ -1549,7 +1575,9 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
   ): OpaqueId {
     const diagnosticId = this.diagnosticId ?? preferredDiagnosticId ?? this.newDiagnosticId()
     this.diagnosticId = diagnosticId
-    if (this.phase !== 'closed') this.phase = 'quarantined'
+    // The phase label follows the lifecycle: an open domain shows the fault, a closing one keeps
+    // reporting closing. The fault itself is the monotonic writerQuarantined fact plus diagnosticId.
+    if (this.phase === 'open') this.phase = 'quarantined'
     if (!this.writerQuarantined) {
       this.writerQuarantined = true
       try {
