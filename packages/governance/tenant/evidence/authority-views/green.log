@@ -1,0 +1,22 @@
+v24.18.0
+10.28.1
+
+> @omne-harness-lite/tenant@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p2-tenant-membership/packages/governance/tenant
+> vitest run
+
+
+ RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p2-tenant-membership/packages/governance/tenant
+
+
+ Test Files  2 passed (2)
+      Tests  12 passed (12)
+   Start at  12:31:40
+   Duration  316ms (transform 181ms, setup 0ms, import 236ms, tests 21ms, environment 0ms)
+
+
+> @omne-harness-lite/tenant@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p2-tenant-membership/packages/governance/tenant
+> node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+
+
+> @omne-harness-lite/tenant@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p2-tenant-membership/packages/governance/tenant
+> tsc -p tsconfig.test.json

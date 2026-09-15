@@ -1,0 +1,19 @@
+$ pnpm --filter @omne-harness-lite/diagnostics run typecheck
+exit 0
+
+$ pnpm --filter @omne-harness-lite/diagnostics test -- --reporter=verbose
+
+RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics
+
+FAIL  tests/runtime.spec.ts > O06 close ownership and generation guards > keeps a failed fd close unknown and retries that same descriptor responsibility
+AssertionError: expected blocked resource unknown, received blocked resource held
+at tests/runtime.spec.ts:502
+
+Test Files  1 failed (1)
+Tests       1 failed | 22 passed (23)
+Duration    730ms
+Exit status 1
+
+The test injects one EIO callback at the real node:fs close used by SonicBoom. No close occurred
+for that callback. The RED shows that the implementation exposed the safe code but did not yet
+distinguish an uncertain descriptor release or make a later close call retry that responsibility.

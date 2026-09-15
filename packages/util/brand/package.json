@@ -1,0 +1,33 @@
+{
+  "name": "@omne-harness-lite/brand",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "Nominal type brand helpers; experimental source baseline",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "exports": {
+    "./baseline": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md",
+    "UPSTREAM.md",
+    "provenance.json"
+  ],
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "24.13.4",
+    "typescript": "6.0.3",
+    "vitest": "4.1.8"
+  }
+}

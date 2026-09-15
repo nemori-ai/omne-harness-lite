@@ -1,2 +1,4 @@
 packages:
-  - packages/agent
+  - packages/*/*
+  - apps/*
+  - tools/package-checks

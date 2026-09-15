@@ -1,0 +1,149 @@
+
+ RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-jsonl-batch-revision/packages/storage/jsonl
+
+(node:1764) Warning: Closing file descriptor 23 on garbage collection
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1764) [DEP0137] DeprecationWarning: Closing a FileHandle object on garbage collection is deprecated. Please close FileHandle objects explicitly using FileHandle.prototype.close(). In the future, an error will be thrown if a file descriptor is closed during garbage collection.
+(node:1764) Warning: Closing file descriptor 22 on garbage collection
+ ❯ tests/batch-revision.spec.ts (4 tests | 4 failed) 131ms
+     × assigns +1 before I/O, replays one pending result, and recovers exact receipts 47ms
+     × advances every touched stream once and leaves all business streams unchanged on conflict 23ms
+     × recognizes one complete unacknowledged multi-record batch with revision one 30ms
+     × refuses a complete legacy +N predecessor chain without changing its bytes 29ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/batch-revision.spec.ts > one stream revision per committed batch > assigns +1 before I/O, replays one pending result, and recovers exact receipts
+AssertionError: expected { status: 'pending_durability', …(4) } to match object { status: 'pending_durability', …(2) }
+(5 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "disposition": "apply",
++   "disposition": "record_conflict",
+    "position": {
+      "seq": "3",
+    },
+    "status": "pending_durability",
+  }
+
+ ❯ tests/batch-revision.spec.ts:216:32
+    214|       expect(acquired.writer.commit(changedProposal)).toBe(firstSubmis…
+    215|       const secondSubmission = acquired.writer.commit(second)
+    216|       expect(secondSubmission).toMatchObject({
+       |                                ^
+    217|         status: 'pending_durability',
+    218|         disposition: 'apply',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  tests/batch-revision.spec.ts > one stream revision per committed batch > advances every touched stream once and leaves all business streams unchanged on conflict
+AssertionError: expected { status: 'committed', …(1) } to match object { status: 'committed', …(1) }
+(13 matching properties omitted from actual)
+
+- Expected
++ Received
+
+@@ -1,10 +1,10 @@
+  {
+    "receipt": {
+      "streams": [
+        {
+-         "revision": "1",
++         "revision": "2",
+          "stream": {
+            "namespace": "core",
+            "owner": "approval",
+            "scope": {
+              "kind": "tenant",
+@@ -12,11 +12,11 @@
+            },
+            "streamId": "approval-1",
+          },
+        },
+        {
+-         "revision": "1",
++         "revision": "3",
+          "stream": {
+            "namespace": "core",
+            "owner": "session",
+            "scope": {
+              "kind": "tenant",
+
+ ❯ tests/batch-revision.spec.ts:293:49
+    291|       expect(appliedSubmission.status).toBe('pending_durability')
+    292|       if (appliedSubmission.status !== 'pending_durability') return
+    293|       await expect(appliedSubmission.completion).resolves.toMatchObjec…
+       |                                                 ^
+    294|         status: 'committed',
+    295|         receipt: {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  tests/batch-revision.spec.ts > one stream revision per committed batch > recognizes one complete unacknowledged multi-record batch with revision one
+AssertionError: expected { status: 'committed', …(2) } to match object { status: 'committed', …(1) }
+(17 matching properties omitted from actual)
+
+- Expected
++ Received
+
+@@ -3,11 +3,11 @@
+      "position": {
+        "seq": "2",
+      },
+      "streams": [
+        {
+-         "revision": "1",
++         "revision": "2",
+        },
+      ],
+    },
+    "status": "committed",
+  }
+
+ ❯ tests/batch-revision.spec.ts:389:8
+    387|       await expect(
+    388|         reopened.writer.lookupOperation(operation('unacknowledged-mult…
+    389|       ).resolves.toMatchObject({
+       |        ^
+    390|         status: 'committed',
+    391|         receipt: { position: { seq: '2' }, streams: [{ revision: '1' }…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  tests/batch-revision.spec.ts > one stream revision per committed batch > refuses a complete legacy +N predecessor chain without changing its bytes
+AssertionError: expected { status: 'acquired', …(2) } to match object { status: 'unavailable', …(1) }
+(28 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "cleanup": {
+-     "status": "released",
+-   },
+-   "status": "unavailable",
++   "status": "acquired",
+  }
+
+ ❯ tests/batch-revision.spec.ts:422:22
+    420|
+    421|       const failed = await createJsonlProvider(configured, diagnostics…
+    422|       expect(failed).toMatchObject({
+       |                      ^
+    423|         status: 'unavailable',
+    424|         cleanup: { status: 'released' },
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed (4)
+   Start at  12:24:26
+   Duration  851ms (transform 182ms, setup 0ms, import 465ms, tests 131ms, environment 0ms)
+
+undefined
+/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-jsonl-batch-revision/packages/storage/jsonl:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: vitest run tests/batch-revision.spec.ts

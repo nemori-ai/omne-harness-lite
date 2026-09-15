@@ -1,0 +1,25 @@
+product revision: 4b8125eb953c97893bdeeeeafac3fb77d276d208
+implementation baseline: 0e80245bf262b13d466b9ec18bec6f9bdf7eea65
+D-010 revision: 5e81ee83e791d3aafffd88da2e418ff91b11b068
+work-data revisions: eef1ba1ba9b54a99727be7da3d1d4e1f7756bfbf, 18cad692b8470a516b67f050973e4303a1ed8ccd
+records revisions: 1a237dad4543db16e02cd4ed2ef09340baaa1737, c67eb4d0b1f2ef580650619941a764d175ec5489
+
+Node.js: v24.18.0
+pnpm: 10.28.1
+OS: Linux 5.15.0-1084-aws x86_64 GNU/Linux
+filesystem: ext2/ext3, block size 4096
+
+production dependency resolution:
+@omne-harness-lite/records link:../../storage/records
+@omne-harness-lite/work-data link:../../core/work-data
+@opentelemetry/api 1.9.1
+@opentelemetry/context-async-hooks 2.11.0
+@opentelemetry/sdk-trace 2.11.0
+pino 10.3.1
+sonic-boom 4.2.1
+
+Local dependency preparation used:
+pnpm install --ignore-scripts --lockfile=false
+
+No install script, external exporter, model, service, or .env input was used. The final artifact
+consumer installed with --offline --ignore-scripts --ignore-workspace and an explicit pnpm store.

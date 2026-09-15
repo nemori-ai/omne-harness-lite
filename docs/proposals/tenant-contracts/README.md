@@ -1,5 +1,8 @@
 # 租户契约候选
 
+本页保留历史候选和来源；本批当前接受范围先见 [D-008](../../decisions/D-008-core-capabilities.md)
+及[核心架构](../../architecture/core-capabilities.md)。旧草案未覆盖的部分不随新决定自动接受。
+
 状态：**in-review**。本目录承接旧 DDD 模型中的租户、自然人身份和成员关系语义，供逐项 review；它不是正式 `spec/` 契约，也不定义服务、存储或执行边界。
 
 权威候选正文是 [v1/contract.md](v1/contract.md)。原件及 SHA-256 在 [DDD 模型归档](../../../spec/archive/ddd-models/README.md)；迁移组织与“不因 `current` 推断接受”的依据在[迁移提案](../documentation-system/v1/migration.md#九项旧模型的语义去向)。
@@ -13,6 +16,8 @@
 未决事项列在正文末尾。任何被接受的部分须进入正式分类和 catalog，并附接受依据；本提案不自行登记。
 
 ## 当前需求对应与缺口
+
+本节保留历史需求补充与当时缺口；当前覆盖以开头所链接的核心架构为准。
 
 需求依据为 [SYS-TENANT](../../requirements/system/constraints.md#sys-tenant) 与
 [PF-001](../../requirements/product/user/PF-001-tenant-organization-context.md)。现有候选提供
@@ -45,3 +50,6 @@ PF-010，配置/授权如何生效归 [PF-006](../../requirements/product/user/P
 扩展租户管理至订阅、额度/用量、账单与预算，要求逐 Agent Step 的金额统计。
 当前候选未定义财务管理资格、订阅/使用权益/预算分工、计量归因与迟到结算；
 成员身份或资产权益不能代替这些语义，也不因可看租户账目就授予私人会话正文读取权。
+
+本批当前接受范围现从 [D-008 核心能力](../core-capabilities/README.md)进入；
+本页历史候选仍保持原来源身份，未覆盖部分不随新决定自动接受。

@@ -1,0 +1,155 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 95 and seed -75537232418411984 with 4 workers on 8 cores with 3641MB heap and 64MB offheap memory [pid: 105555] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/docs/proposals/message-stream/evidence/model/CursorMC.tla
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/docs/proposals/message-stream/evidence/model/Cursor.tla
+Parsing file /tmp/tlc-6367817170871742413/TLC.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file /tmp/tlc-6367817170871742413/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-6367817170871742413/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file /tmp/tlc-6367817170871742413/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Cursor
+Semantic processing of module TLC
+Semantic processing of module CursorMC
+Linting of module Cursor
+Linting of module CursorMC
+Starting... (2026-09-15 06:30:36)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-15 06:30:36.
+Error: Invariant CursorComplete is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ epoch = 0
+/\ att = [idx |-> 0, epoch |-> 0, state |-> "none"]
+/\ floor = 0
+/\ delivered = (c1 :> {})
+/\ sub = (c1 :> "closed")
+/\ pend = (c1 :> FALSE)
+/\ disc = 0
+/\ pv = 0
+/\ draft = (c1 :> [idx |-> 0, epoch |-> 0, live |-> FALSE])
+/\ tbuf = (c1 :> <<>>)
+/\ gap = (c1 :> FALSE)
+/\ cursor = (c1 :> 0)
+/\ buf = (c1 :> <<>>)
+/\ sent = (c1 :> [seq |-> 0, idx |-> 0])
+/\ crashes = 0
+/\ facts = <<>>
+
+State 2: <CommitFact("s") line 122, col 3 to line 123, col 114 of module Cursor>
+/\ epoch = 0
+/\ att = [idx |-> 0, epoch |-> 0, state |-> "none"]
+/\ floor = 0
+/\ delivered = (c1 :> {})
+/\ sub = (c1 :> "closed")
+/\ pend = (c1 :> FALSE)
+/\ disc = 0
+/\ pv = 0
+/\ draft = (c1 :> [idx |-> 0, epoch |-> 0, live |-> FALSE])
+/\ tbuf = (c1 :> <<>>)
+/\ gap = (c1 :> FALSE)
+/\ cursor = (c1 :> 0)
+/\ buf = (c1 :> <<>>)
+/\ sent = (c1 :> [seq |-> 0, idx |-> 0])
+/\ crashes = 0
+/\ facts = <<[scope |-> "s", n |-> 1, kind |-> "fact"]>>
+
+State 3: <CommitFact("s") line 122, col 3 to line 123, col 114 of module Cursor>
+/\ epoch = 0
+/\ att = [idx |-> 0, epoch |-> 0, state |-> "none"]
+/\ floor = 0
+/\ delivered = (c1 :> {})
+/\ sub = (c1 :> "closed")
+/\ pend = (c1 :> FALSE)
+/\ disc = 0
+/\ pv = 0
+/\ draft = (c1 :> [idx |-> 0, epoch |-> 0, live |-> FALSE])
+/\ tbuf = (c1 :> <<>>)
+/\ gap = (c1 :> FALSE)
+/\ cursor = (c1 :> 0)
+/\ buf = (c1 :> <<>>)
+/\ sent = (c1 :> [seq |-> 0, idx |-> 0])
+/\ crashes = 0
+/\ facts = << [scope |-> "s", n |-> 1, kind |-> "fact"],
+   [scope |-> "s", n |-> 1, kind |-> "fact"] >>
+
+State 4: <Project({}) line 146, col 3 to line 153, col 106 of module Cursor>
+/\ epoch = 0
+/\ att = [idx |-> 0, epoch |-> 0, state |-> "none"]
+/\ floor = 0
+/\ delivered = (c1 :> {})
+/\ sub = (c1 :> "closed")
+/\ pend = (c1 :> FALSE)
+/\ disc = 0
+/\ pv = 1
+/\ draft = (c1 :> [idx |-> 0, epoch |-> 0, live |-> FALSE])
+/\ tbuf = (c1 :> <<>>)
+/\ gap = (c1 :> FALSE)
+/\ cursor = (c1 :> 0)
+/\ buf = (c1 :> <<>>)
+/\ sent = (c1 :> [seq |-> 0, idx |-> 0])
+/\ crashes = 0
+/\ facts = << [scope |-> "s", n |-> 1, kind |-> "fact"],
+   [scope |-> "s", n |-> 1, kind |-> "fact"] >>
+
+State 5: <Project({}) line 146, col 3 to line 153, col 106 of module Cursor>
+/\ epoch = 0
+/\ att = [idx |-> 0, epoch |-> 0, state |-> "none"]
+/\ floor = 0
+/\ delivered = (c1 :> {})
+/\ sub = (c1 :> "closed")
+/\ pend = (c1 :> FALSE)
+/\ disc = 0
+/\ pv = 2
+/\ draft = (c1 :> [idx |-> 0, epoch |-> 0, live |-> FALSE])
+/\ tbuf = (c1 :> <<>>)
+/\ gap = (c1 :> FALSE)
+/\ cursor = (c1 :> 0)
+/\ buf = (c1 :> <<>>)
+/\ sent = (c1 :> [seq |-> 0, idx |-> 0])
+/\ crashes = 0
+/\ facts = << [scope |-> "s", n |-> 1, kind |-> "fact"],
+   [scope |-> "s", n |-> 1, kind |-> "fact"] >>
+
+State 6: <SubscribeBuffered(c1) line 42, col 3 to line 50, col 67 of module CursorMC>
+/\ epoch = 0
+/\ att = [idx |-> 0, epoch |-> 0, state |-> "none"]
+/\ floor = 0
+/\ delivered = (c1 :> {})
+/\ sub = (c1 :> "open")
+/\ pend = (c1 :> FALSE)
+/\ disc = 0
+/\ pv = 2
+/\ draft = (c1 :> [idx |-> 0, epoch |-> 0, live |-> FALSE])
+/\ tbuf = (c1 :> <<>>)
+/\ gap = (c1 :> FALSE)
+/\ cursor = (c1 :> 0)
+/\ buf = (c1 :> <<[seq |-> 2, type |-> "fact", idx |-> 1]>>)
+/\ sent = (c1 :> [seq |-> 2, idx |-> 1])
+/\ crashes = 0
+/\ facts = << [scope |-> "s", n |-> 1, kind |-> "fact"],
+   [scope |-> "s", n |-> 1, kind |-> "fact"] >>
+
+State 7: <DeliverFact(c1) line 235, col 3 to line 240, col 97 of module Cursor>
+/\ epoch = 0
+/\ att = [idx |-> 0, epoch |-> 0, state |-> "none"]
+/\ floor = 0
+/\ delivered = (c1 :> {<<2, 1>>})
+/\ sub = (c1 :> "open")
+/\ pend = (c1 :> FALSE)
+/\ disc = 0
+/\ pv = 2
+/\ draft = (c1 :> [idx |-> 0, epoch |-> 0, live |-> FALSE])
+/\ tbuf = (c1 :> <<>>)
+/\ gap = (c1 :> FALSE)
+/\ cursor = (c1 :> 2)
+/\ buf = (c1 :> <<>>)
+/\ sent = (c1 :> [seq |-> 2, idx |-> 1])
+/\ crashes = 0
+/\ facts = << [scope |-> "s", n |-> 1, kind |-> "fact"],
+   [scope |-> "s", n |-> 1, kind |-> "fact"] >>
+
+450 states generated, 241 distinct states found, 102 states left on queue.
+The depth of the complete state graph search is 8.
+Finished in 00s at (2026-09-15 06:30:36)

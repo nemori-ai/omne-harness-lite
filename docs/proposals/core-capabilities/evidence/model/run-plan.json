@@ -1,0 +1,156 @@
+[
+  {
+    "name": "Admission",
+    "mutation": "none",
+    "expected": null,
+    "config": "spec/compositions/core-work-coordination/v1/Admission.cfg",
+    "model": "spec/compositions/core-work-coordination/v1/Admission.tla"
+  },
+  {
+    "name": "Admission",
+    "mutation": "authorization",
+    "expected": "AdmissionAuthorized",
+    "config": "docs/proposals/core-capabilities/evidence/model/Admission-authorization.cfg",
+    "model": "spec/compositions/core-work-coordination/v1/Admission.tla"
+  },
+  {
+    "name": "Admission",
+    "mutation": "durability",
+    "expected": "DurabilityBeforeEffect",
+    "config": "docs/proposals/core-capabilities/evidence/model/Admission-durability.cfg",
+    "model": "spec/compositions/core-work-coordination/v1/Admission.tla"
+  },
+  {
+    "name": "Admission",
+    "mutation": "lateStart",
+    "expected": "NoLateStartAfterSafeStop",
+    "config": "docs/proposals/core-capabilities/evidence/model/Admission-lateStart.cfg",
+    "model": "spec/compositions/core-work-coordination/v1/Admission.tla"
+  },
+  {
+    "name": "Decisions",
+    "mutation": "none",
+    "expected": null,
+    "config": "spec/capabilities/human-decisions/v1/Decisions.cfg",
+    "model": "spec/capabilities/human-decisions/v1/Decisions.tla"
+  },
+  {
+    "name": "Decisions",
+    "mutation": "owner",
+    "expected": "OnlyOwnerAnswers",
+    "config": "docs/proposals/core-capabilities/evidence/model/Decisions-owner.cfg",
+    "model": "spec/capabilities/human-decisions/v1/Decisions.tla"
+  },
+  {
+    "name": "Decisions",
+    "mutation": "allAnswers",
+    "expected": "IndependentProgress",
+    "config": "docs/proposals/core-capabilities/evidence/model/Decisions-allAnswers.cfg",
+    "model": "spec/capabilities/human-decisions/v1/Decisions.tla"
+  },
+  {
+    "name": "QueueControl",
+    "mutation": "none",
+    "expected": null,
+    "config": "spec/capabilities/session-run/v1/QueueControl.cfg",
+    "model": "spec/capabilities/session-run/v1/QueueControl.tla"
+  },
+  {
+    "name": "QueueControl",
+    "mutation": "hold",
+    "expected": "HoldRespected",
+    "config": "docs/proposals/core-capabilities/evidence/model/QueueControl-hold.cfg",
+    "model": "spec/capabilities/session-run/v1/QueueControl.tla"
+  },
+  {
+    "name": "QueueControl",
+    "mutation": "earlyRelease",
+    "expected": "SafeRelease",
+    "config": "docs/proposals/core-capabilities/evidence/model/QueueControl-earlyRelease.cfg",
+    "model": "spec/capabilities/session-run/v1/QueueControl.tla"
+  },
+  {
+    "name": "Budget",
+    "mutation": "none",
+    "expected": null,
+    "config": "spec/capabilities/budget-accounting/v1/Budget.cfg",
+    "model": "spec/capabilities/budget-accounting/v1/Budget.tla"
+  },
+  {
+    "name": "Budget",
+    "mutation": "overbook",
+    "expected": "NoOverbooking",
+    "config": "docs/proposals/core-capabilities/evidence/model/Budget-overbook.cfg",
+    "model": "spec/capabilities/budget-accounting/v1/Budget.tla"
+  },
+  {
+    "name": "Budget",
+    "mutation": "duplicate",
+    "expected": "ReceiptIdempotency",
+    "config": "docs/proposals/core-capabilities/evidence/model/Budget-duplicate.cfg",
+    "model": "spec/capabilities/budget-accounting/v1/Budget.tla"
+  },
+  {
+    "name": "Provisional",
+    "mutation": "none",
+    "expected": null,
+    "config": "spec/capabilities/human-decisions/v1/Provisional.cfg",
+    "model": "spec/capabilities/human-decisions/v1/Provisional.tla"
+  },
+  {
+    "name": "Provisional",
+    "mutation": "parent",
+    "expected": "DependencyFinalized",
+    "config": "docs/proposals/core-capabilities/evidence/model/Provisional-parent.cfg",
+    "model": "spec/capabilities/human-decisions/v1/Provisional.tla"
+  },
+  {
+    "name": "ModelSelection",
+    "mutation": "none",
+    "expected": null,
+    "config": "spec/capabilities/model-execution/v1/ModelSelection.cfg",
+    "model": "spec/capabilities/model-execution/v1/ModelSelection.tla"
+  },
+  {
+    "name": "ModelSelection",
+    "mutation": "modality",
+    "expected": "HistoryCompatible",
+    "config": "docs/proposals/core-capabilities/evidence/model/ModelSelection-modality.cfg",
+    "model": "spec/capabilities/model-execution/v1/ModelSelection.tla"
+  },
+  {
+    "name": "ModelSelection",
+    "mutation": "repeatCompaction",
+    "expected": "AtMostOneCompaction",
+    "config": "docs/proposals/core-capabilities/evidence/model/ModelSelection-repeatCompaction.cfg",
+    "model": "spec/capabilities/model-execution/v1/ModelSelection.tla"
+  },
+  {
+    "name": "Recovery",
+    "mutation": "none",
+    "expected": null,
+    "config": "spec/capabilities/durable-records/v1/Recovery.cfg",
+    "model": "spec/capabilities/durable-records/v1/Recovery.tla"
+  },
+  {
+    "name": "Recovery",
+    "mutation": "earlyAck",
+    "expected": "DurableAck",
+    "config": "docs/proposals/core-capabilities/evidence/model/Recovery-earlyAck.cfg",
+    "model": "spec/capabilities/durable-records/v1/Recovery.tla"
+  },
+  {
+    "name": "Decisions",
+    "mutation": "earlyComplete",
+    "expected": "CompletionKeepsPending",
+    "config": "docs/proposals/core-capabilities/evidence/model/Decisions-earlyComplete.cfg",
+    "model": "spec/capabilities/human-decisions/v1/Decisions.tla"
+  },
+  {
+    "name": "QueueControl",
+    "mutation": "stoppedCommand",
+    "expected": "CommandHasExecutionRight",
+    "config": "docs/proposals/core-capabilities/evidence/model/QueueControl-stoppedCommand.cfg",
+    "model": "spec/capabilities/session-run/v1/QueueControl.tla"
+  }
+]

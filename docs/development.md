@@ -16,7 +16,10 @@
 ## 准备可用的检出
 
 产品以 TypeScript 为主；当前可运行 Python 开发工具、形式验证及
-[agent 来源基线](../packages/agent/README.md)的构建/测试。尚无完整智能体应用或产品启动命令。
+[各职责包源码基线](../packages/README.md)的构建/测试。尚无完整智能体应用或产品启动命令。
+目标范围从[当前核心架构](architecture/core-capabilities.md)进入，具体实现映射和
+验证责任由成员设计拥有；[首批实施来源](proposals/core-capabilities/implementation/README.md)
+保留历史路线与接受依据。包基线可运行不代表目标产品已实现。
 
 在实际工作的仓库根确认位置和已有改动；隔离规则见
 [worktree-discipline](../.agents/skills/worktree-discipline/SKILL.md)：
@@ -35,13 +38,40 @@ Python 范围由 [pyproject.toml](../pyproject.toml) 声明，uv 管理解释器
 ```sh
 uv sync --locked
 pnpm install --frozen-lockfile --ignore-scripts
+pnpm --filter @omne-harness-lite/diagnostics rebuild fs-ext
 make check
 ```
 
-前两条依据锁文件安装开发环境；第三条执行文档、规格、工具测试与产品包检查组合，
+安装依据锁文件且禁用依赖脚本；随后只构建已列入允许清单的 `fs-ext`。
+原生构建需要适配 Node 24 的 C++20 编译器及 node-gyp 环境；本机 GCC 10 的
+实际设置与失败/成功边界见[原生接入证据](proposals/core-capabilities/implementation/evidence/p1-diagnostics-hub/native-dependency/README.md)。
+必须指定消费它的 diagnostics 成员，根目录无成员选择的 rebuild 退出 0 不证明
+addon 已生成；安装后以该成员实际加载结果判断。
+最后一条执行文档、规格、工具测试与产品包检查组合，
 不调用真实模型。已有环境时，日常修改按受影响范围选择检查即可。
 正式行为模型的覆盖与 Java/JAR 环境分开报告；详细要求见
 [验证规范](maintenance/verification.md#环境与实际执行)。
+
+TS/JS 格式由根配置和锁定的本地 Prettier 统一处理。检查或格式化整个受维护范围时运行：
+
+```sh
+pnpm format:check
+pnpm format:write
+```
+
+agent 和局部修改应只传入本次有写权限的仓库相对文件，例如
+`pnpm format:write -- packages/model/llm/src/message.ts`。默认范围包括 `packages/`、
+`apps/`、`tools/` 和 `scripts/` 下的 TS/JS 源码、测试及所属配置，以及根 TS/测试配置和
+格式化工具自己的根配置；不包含 `spec/`、上游原件、provenance、JSONL 黄金文件、
+依赖、构建输出和临时目录。
+
+需要本地提交检查时，在确认没有既有 `pre-commit` hook 后显式运行
+`pnpm format:hook:install`。安装器不会覆盖已有 hook；所安装检查只读取 Git index 中
+已暂存的受维护文件，不 stash、不改工作区或暂存区。编辑器推荐设置使用工作区安装的
+[Prettier VS Code 扩展](https://github.com/prettier/prettier-vscode#prettier-resolution)的
+workspace 设置显式指向 `./node_modules/prettier`，并使用同一根配置保存时格式化 TS/JS；
+缺少本地安装时该路径加载失败，不改用扩展内置版本。该设置在未信任 workspace 中被
+扩展禁用，推荐设置本身也不证明宿主执行过保存动作。
 
 ## 定位修改位置
 
@@ -66,7 +96,8 @@ make check
 | 本地文档链接、导航与 skill 镜像 | `make docs-check` |
 | 契约登记、Schema 或形式任务 | `make spec-check` |
 | 检查器或 skill 生成器行为 | `make test`，或按下方说明运行相关测试 |
-| agent 包或 TS workspace | `make product-check`；构建、严格类型检查、来源/组合案例与独立产物消费，详见包 README |
+| TS/JS 源码、测试及所属配置的格式 | `pnpm format:check`；局部写入使用 `pnpm format:write -- <有写权限的文件...>` |
+| 产品职责包或 TS workspace | `make product-check`；构建、严格类型检查、来源/组合案例、依赖边界与逐包独立产物消费，详见各包 README |
 | 当前检查组合、跨入口改动 | `make check` |
 | 形式工具是否可用 | `make spec-tools` |
 

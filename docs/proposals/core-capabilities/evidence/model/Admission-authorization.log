@@ -1,0 +1,53 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 53 and seed 902384778700584266 with 1 worker on 8 cores with 910MB heap and 64MB offheap memory [pid: 139140] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/docs/proposals/core-capabilities/design/Admission.tla
+Parsing file /tmp/tlc-4854137756334104068/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Semantic processing of module Naturals
+Semantic processing of module Admission
+Linting of module Admission
+Starting... (2026-09-13 19:19:53)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-13 19:19:53.
+Error: Invariant AdmissionAuthorized is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+s = [ published |-> FALSE,
+  generation |-> 0,
+  member |-> TRUE,
+  grant |-> FALSE,
+  mode |-> "standard",
+  decision |-> "pending",
+  decisionDurable |-> FALSE,
+  admitted |-> FALSE,
+  durable |-> FALSE,
+  witness |-> FALSE,
+  cancelled |-> FALSE,
+  tombstone |-> FALSE,
+  started |-> FALSE,
+  ended |-> FALSE,
+  safe |-> FALSE,
+  badDurability |-> FALSE,
+  badLateStart |-> FALSE ]
+
+State 2: <Admit line 30, col 10 to line 32, col 64 of module Admission>
+s = [ published |-> FALSE,
+  generation |-> 0,
+  member |-> TRUE,
+  grant |-> FALSE,
+  mode |-> "standard",
+  decision |-> "pending",
+  decisionDurable |-> FALSE,
+  admitted |-> TRUE,
+  durable |-> FALSE,
+  witness |-> FALSE,
+  cancelled |-> FALSE,
+  tombstone |-> FALSE,
+  started |-> FALSE,
+  ended |-> FALSE,
+  safe |-> FALSE,
+  badDurability |-> FALSE,
+  badLateStart |-> FALSE ]
+
+8 states generated, 8 distinct states found, 6 states left on queue.
+The depth of the complete state graph search is 2.
+Finished in 01s at (2026-09-13 19:19:53)

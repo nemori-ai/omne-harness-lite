@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "contractBasis": [
+    "acceptance.md A23 (partial prerequisite measurement only)",
+    "acceptance.md A24 evidence boundary",
+    "model-execution v1 MC-04 and MC-06",
+    "implementation-spec.md lines 196-227"
+  ],
+  "componentBoundary": {
+    "pipelineMust": [
+      "Use Node's streaming UTF-8 decoder before eventsource-parser so a code point split across byte chunks is preserved",
+      "Propagate transport rejection or abort separately from framed SSE events"
+    ],
+    "componentMust": [
+      "Frame decoded SSE fields and event boundaries according to the WHATWG event-stream grammar",
+      "Deliver data payloads exactly enough for a separate protocol adapter to interpret"
+    ],
+    "componentNeedNot": [
+      "Decode transport bytes or detect socket/AbortSignal failure",
+      "Parse data payloads as JSON",
+      "Interpret OpenRouter finish_reason, usage, error, or [DONE] semantics",
+      "Classify MC-04 terminal state",
+      "Perform MC-06 accounting, retry, cancellation, or unknown-effect policy"
+    ]
+  },
+  "scenarios": [
+    {
+      "id": "S01-single-byte-utf8",
+      "input": "Valid SSE with Chinese and emoji JSON data, delivered one byte at a time",
+      "expected": "One event; data equals the original decoded payload exactly"
+    },
+    {
+      "id": "S02-arbitrary-byte-utf8",
+      "input": "Same multibyte UTF-8 payload split at fixed non-code-point byte offsets",
+      "expected": "Same event as the unsplit reference"
+    },
+    {
+      "id": "S03-line-fields-comments",
+      "input": "CRLF and LF line endings, comment, and repeated data fields",
+      "expected": "Comment is surfaced through onComment; data lines join with LF"
+    },
+    {
+      "id": "S04-multiple-events-one-chunk",
+      "input": "Two complete data events in one transport chunk",
+      "expected": "Two events in source order"
+    },
+    {
+      "id": "S05-done-marker",
+      "input": "A data frame whose payload is [DONE]",
+      "expected": "Parser surfaces literal [DONE]; it does not assign protocol meaning"
+    },
+    {
+      "id": "S06-finish-usage-tail-repeat",
+      "input": "A finish_reason JSON frame, usage tail frame, and repeated finish frame",
+      "expected": "All three data payloads are surfaced in order without deduplication or settlement"
+    },
+    {
+      "id": "S07-invalid-json",
+      "input": "Syntactically valid SSE containing invalid JSON text",
+      "expected": "Parser surfaces the payload; JSON validation remains the adapter's responsibility"
+    },
+    {
+      "id": "S08-error-frame",
+      "input": "SSE data payload containing an OpenRouter-style error object",
+      "expected": "Parser surfaces the payload; error classification remains the adapter's responsibility"
+    },
+    {
+      "id": "S09-incomplete-event-eof",
+      "input": "A data field without a blank-line event terminator, then EOF",
+      "expected": "No event is emitted at EOF"
+    },
+    {
+      "id": "S10-no-finish-eof",
+      "input": "One complete JSON data event without a protocol finish marker, then EOF",
+      "expected": "One event is framed, but no finish inference is available from the component"
+    },
+    {
+      "id": "S11-http-disconnect",
+      "input": "Loopback HTTP response writes one complete event and part of a second, then destroys its socket",
+      "expected": "Fetch body iteration rejects; server socket destruction is observed; only the complete event is emitted"
+    },
+    {
+      "id": "S12-abort-signal",
+      "input": "Loopback HTTP response writes one complete event, waits, and the client aborts its fetch",
+      "expected": "Fetch body iteration rejects with abort; server observes request/socket closure; only the complete event is emitted"
+    }
+  ]
+}

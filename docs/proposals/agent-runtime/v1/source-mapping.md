@@ -1,7 +1,7 @@
 # Cordis 映射与 fork 差异
 
-本页是实现映射依据，不是候选库的完整调研报告。此前包复用与协议调研仍保留在
-主检出 `tmp/dsh-reuse-assessment-20260913/`，本轮没有迁入 research。
+本页保存实现映射所需的固定来源与差异；原算法和核对证据归
+[源基线](../source-baseline/README.md)。
 
 ## 固定来源
 
@@ -17,7 +17,7 @@ vendor Cordis 为 `@deepseek-ai/cordis 4.0.2`。这些是被检查源码的版�
 | [生命周期与 effects](https://github.com/deepseek-ai/deepseek-harness/blob/c291e7961a515f6d7af9304e7fd1d257929aef26/docs/cordis-tutorial/02-lifecycle-and-effects.md) | 受管注册随 owner 撤除；异步 disposer 可并发发起。本项目把有依赖顺序的排空、释放、撤登记放进一个明确等待的退出过程 |
 | [Service API](https://github.com/deepseek-ai/deepseek-harness/blob/c291e7961a515f6d7af9304e7fd1d257929aef26/docs/cordis-api/service.md) | Service 名称与提供者注册/撤除；不能据此把“能解析到服务”解释为“其内部某条目和远端资源可用” |
 | [事件 API](https://github.com/deepseek-ai/deepseek-harness/blob/c291e7961a515f6d7af9304e7fd1d257929aef26/docs/cordis-api/events.md) | scope/subject 及通知/拦截可组合；租户授权和业务事实提交仍由本项目边界负责 |
-| [源原语基线](../../../../spec/capabilities/live-agent/draft/contract.md)与[源码映射](../../../../spec/capabilities/live-agent/source-map.md) | 固定上游 Registry/Handle/Factory、initiator 及辅助入口的实际规则；其既有测试只覆盖该源码配置 |
+| [源原语基线](../source-baseline/design/contract.md)与[源码映射](../source-baseline/source-map.md) | 固定上游 Registry/Handle/Factory、initiator 及辅助入口的实际规则；其既有测试只覆盖该源码配置 |
 
 以上映射中的“本项目”是设计选择，不是 Cordis 官方保证。提供者撤除前的协作排空
 需要 OMNE 生命周期所有者参与，不能假定任意直接 HMR 都已遵循它。若 Cordis

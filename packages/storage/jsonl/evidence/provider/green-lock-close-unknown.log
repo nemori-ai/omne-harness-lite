@@ -1,0 +1,6 @@
+ RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p1-jsonl/packages/storage/jsonl
+
+ Test Files  1 passed (1)
+      Tests  1 passed | 14 skipped (15)
+   Start at  11:07:35
+   Duration  947ms (transform 242ms, setup 0ms, import 501ms, tests 299ms, environment 0ms)

@@ -1,0 +1,33 @@
+$ pnpm --filter @omne-harness-lite/diagnostics run build
+exit 0
+
+$ pnpm --filter @omne-harness-lite/diagnostics run typecheck
+exit 0
+
+$ pnpm --filter @omne-harness-lite/diagnostics test -- --reporter=verbose
+
+RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics
+
+FAIL  tests/runtime.spec.ts > O03 safe projection > rejects overlong/getter/toJSON/cyclic inputs and emits only fixed accepted fields
+AssertionError: expected invalid_projection count 5 to be at least 6
+at tests/runtime.spec.ts:333
+
+FAIL  tests/runtime.spec.ts > O02/O04 standard span behavior > emits bounded parent/child OTel spans and counts span-capacity gaps
+AssertionError: expected refused.context to be the original context
+at tests/runtime.spec.ts:352
+
+FAIL  tests/runtime.spec.ts > O04/O05 configuration and local retention boundaries > does not let another host instance append the same source generation
+AssertionError: expected degraded/released/SOURCE_EXISTS, received active/held/null
+at tests/runtime.spec.ts:536
+
+FAIL  tests/runtime.spec.ts > O04/O05 configuration and local retention boundaries > reports an earlier diagnostic source without a clean end as crash-unknown
+AssertionError: expected crash_unknown gap with unknown quality, received []
+at tests/runtime.spec.ts:558
+
+Test Files  1 failed (1)
+Tests       4 failed | 17 passed (21)
+Duration    748ms
+Exit status 1
+
+These are calibrated RED results for bounded Counter projection, inert-span context continuity,
+source exclusivity across host instance IDs, and bounded reconciliation of an unclean older source.

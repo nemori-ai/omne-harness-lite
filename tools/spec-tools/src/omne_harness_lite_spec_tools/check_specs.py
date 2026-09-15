@@ -167,13 +167,24 @@ def check_schemas(root, registered, errors):
     return len(paths)
 
 
-def check_formal(root, registered, errors):
+def changed_paths(root, baseline):
+    """Repository-relative paths whose content differs from *baseline* (tracked diffs plus untracked files)."""
+    diff = subprocess.run(["git", "diff", "--name-only", baseline, "--"], cwd=root, text=True,
+                          capture_output=True, check=True).stdout
+    untracked = subprocess.run(["git", "ls-files", "--others", "--exclude-standard"], cwd=root,
+                               text=True, capture_output=True, check=True).stdout
+    return {line.strip() for line in (diff + untracked).splitlines() if line.strip()}
+
+
+def check_formal(root, registered, errors, formal="all", baseline="main"):
     data = load_json(root / "spec/formal-tasks.json")
     problems = format_errors("formal-tasks.schema.json", data)
     errors.extend(problems)
     if problems:
         return 0
     covered, ids = set(), set()
+    changed = changed_paths(root, baseline) if formal == "changed" else None
+    executed = 0
     for task in data["tasks"]:
         if task["id"] in ids:
             errors.append(f"duplicate formal task: {task['id']}")
@@ -186,6 +197,9 @@ def check_formal(root, registered, errors):
         if not any(p.suffix == extension for p in artifacts):
             errors.append(f"formal task has no {extension} model: {task['id']}")
         covered.update(artifacts)
+        if formal == "none" or (changed is not None and not any(item in changed for item in task["artifacts"])):
+            print(f"FORMAL {task['id']}: skipped ({'formal=none' if formal == 'none' else 'artifacts unchanged since ' + baseline})")
+            continue
         command = [os.path.expandvars(part) for part in task["command"]]
         if any(re.search(r"\$\{?[A-Za-z_]", part) for part in command):
             errors.append(f"formal task environment variable is unset: {task['id']}")
@@ -193,6 +207,7 @@ def check_formal(root, registered, errors):
             errors.append(f"formal task tool missing: {task['id']} -> {command[0]}")
         if errors:
             continue
+        executed += 1
         try:
             result = subprocess.run(command, cwd=root, text=True, capture_output=True,
                                     timeout=task.get("timeout_seconds", 60))
@@ -207,19 +222,25 @@ def check_formal(root, registered, errors):
             errors.append(f"formal model has no declared task: {path.relative_to(root)}")
     if not data["tasks"]:
         print("UNCOVERED: no TLA+/Alloy execution tasks declared; behavior/structure model coverage is absent.")
+    if formal != "all":
+        print(f"NOTE: formal={formal}: executed {executed} of {len(data['tasks'])} tasks; a release gate runs all.")
     return len(data["tasks"])
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, help="Checkout to inspect; otherwise discover from cwd")
+    parser.add_argument("--formal", choices=["all", "changed", "none"], default="all",
+                        help="Which declared formal tasks to execute: all (release gate), "
+                             "changed (only tasks whose artifacts differ from --baseline or are untracked), none")
+    parser.add_argument("--baseline", default="main", help="git ref for --formal changed (default: main)")
     args = parser.parse_args(argv)
     errors = []
     try:
         root = args.root.resolve() if args.root else repository_root()
         registered, contracts = check_catalog(root, errors)
         schemas = check_schemas(root, registered, errors)
-        tasks = check_formal(root, registered, errors)
+        tasks = check_formal(root, registered, errors, args.formal, args.baseline)
         print(f"INFO: catalog contracts={len(contracts)}; schemas={schemas}; formal tasks={tasks}.")
     except (OSError, ValueError, TypeError, SchemaError) as error:
         errors.append(str(error))

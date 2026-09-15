@@ -1,0 +1,28 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 92 and seed 5880041423289382855 with 4 workers on 8 cores with 3641MB heap and 64MB offheap memory [pid: 196276] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/spec/compositions/session-run-agent-lifecycles/v1/LifecyclesMC.tla
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/spec/compositions/session-run-agent-lifecycles/v1/Lifecycles.tla
+Parsing file /tmp/tlc-4598363026325679005/TLC.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file /tmp/tlc-4598363026325679005/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-4598363026325679005/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-4598363026325679005/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Lifecycles
+Semantic processing of module TLC
+Semantic processing of module LifecyclesMC
+Linting of module Lifecycles
+Linting of module LifecyclesMC
+Starting... (2026-09-14 18:18:37)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-14 18:18:37.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 1.4E-10
+  based on the actual fingerprints:  val = 5.0E-11
+135931 states generated, 22452 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 25.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 10 and the 95th percentile is 4).
+Finished in 02s at (2026-09-14 18:18:39)

@@ -3,7 +3,7 @@
 对象：[capability.live-agent v1](v1/contract.md)及
 [data.agent-runtime-identity v1](../../data/agent-runtime-identity/v1/contract.md)。
 规范场景和形式配置随 v1 冻结，运行输出位于 [evidence/v1](evidence/v1/model-runs.json)。
-上游 [46 项测试和两份源模型](evidence/validation.md)仍只说明固定上游源码基线。
+上游 [46 项测试和两份源模型](../../../docs/proposals/agent-runtime/source-baseline/evidence/validation.md)仍只说明固定上游源码基线。
 
 ## 行为抽象和映射
 
@@ -31,6 +31,17 @@ prepared 合并准备完成与发布；未发布失败由 Close 表达。资源�
 owned 标记；published 是已发布事实而非事件队列。永久故障不保证进展，正常
 Cleanup 表示提供者已经实际完成且安全的清理，不能仅因它在模型可执行就允许
 实现强制释放。AR-3/9/14/17、AR-16 可选贡献的工作级撤除及信任前提等超出模型的语义按场景映射后续实现证据。
+
+## 当前提供者映射的适用范围
+
+`f98ac926` 的 [AR 提供者对应](../../../packages/core/agent/design.md#既有模型与控制前提)
+说明唯一占位、计划 Factory 退役及清理动作如何由实际 owner 兑现；
+[应用命题与场景](../../../apps/local-harness/design.md#运行映射的命题与前提)记录末门、
+不复活旧代和原登记清理的组合义务。独立判断及受审 `976149b` 的输入身份归
+[映射证据](../../../apps/local-harness/evidence/runtime-mapping-applicability/README.md)。
+这些是可变实现映射与未验证范围，不增加 v1 规范；突发物理丢失不等同模型
+RetireFactory，实际逐资源释放及 AR/CB/Cordis 组合尚未验证，不能由两份有限
+模型推导完整实现精化。产品接入前的真实符合性要求保持。
 
 ## 执行与进展前提
 

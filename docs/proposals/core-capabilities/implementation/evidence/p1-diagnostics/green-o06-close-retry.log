@@ -1,0 +1,19 @@
+$ pnpm --filter @omne-harness-lite/diagnostics run build
+exit 0
+
+$ pnpm --filter @omne-harness-lite/diagnostics run typecheck
+exit 0
+
+$ pnpm --filter @omne-harness-lite/diagnostics test -- --reporter=verbose
+
+RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics
+
+Test Files  1 passed (1)
+Tests       23 passed (23)
+Duration    747ms
+Exit status 0
+
+The first injected close EIO returns blocked with resource unknown. The runtime keeps the original
+descriptor number and the already-finished provider state; after fault removal, a repeated close
+retries only that remaining descriptor responsibility and returns closed after its real callback.
+It does not relabel the earlier write acceptance or close request as fd release.

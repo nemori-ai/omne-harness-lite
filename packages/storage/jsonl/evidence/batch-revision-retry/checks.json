@@ -1,0 +1,22 @@
+{
+  "source_revision": "84ce95c1faf6ace1059662e55d388291aadba934",
+  "product_revision": "76c7bdb35ad5f3aa2f8456aa680bc7c95b31f3da",
+  "commands": [
+    "pnpm --filter @omne-harness-lite/jsonl run typecheck",
+    "pnpm --filter @omne-harness-lite/jsonl exec vitest run tests/provider.spec.ts -t 'keeps the first accepted result for equal input and durably records revision conflicts'",
+    "pnpm --filter @omne-harness-lite/jsonl exec vitest run tests/batch-revision.spec.ts",
+    "pnpm --filter @omne-harness-lite/jsonl test"
+  ],
+  "results": {
+    "typecheck": "pass",
+    "matching_revision": "1 test passed, 7 skipped",
+    "r1_r6": "4 tests passed",
+    "package": "5 files, 31 tests passed"
+  },
+  "artifacts": {
+    "typecheck.log": "08aa22f917a3321c5f1af914de2ba9549f6324344d257a7ada1e1ddf88a6269e",
+    "matching-focused.log": "f810e3de1df709a0cdaa7b052797ca28ad6bfc9841f8796e38068f2161c8a763",
+    "r4-focused.log": "bbc60971d11b413741587c244b965b4e0baf3c3d015686d9d1241744cd663602",
+    "package-test.log": "b7abaac599550a394f1bcc299938f5be3909f907bdff689299c01a5ad720730a"
+  }
+}

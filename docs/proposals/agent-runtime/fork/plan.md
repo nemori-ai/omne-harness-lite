@@ -1,5 +1,9 @@
 # dsh-agent 定向 fork：实施规格与施工计划
 
+> 本页保留首次导入选择、F-01–F-08 验收边界与停止扩围条件，供重建已验收 fork 范围。后续[职责包布局修订](../../core-capabilities/fork/package-layout.md)
+> 已将 agent 移至 `packages/core/agent`，唯一 scope 移至 `packages/core/scope`；
+> 当前导出和依赖以各包 manifest 为准，本文旧路径与内部 scope 选择保留历史含义。
+
 状态：计划评审、源码导入与有限阶段验收已完成；本页定义源码导入阶段的交付边界，不发布新产品契约。
 评审对象与处置见[评审记录](review.md)。
 
@@ -14,7 +18,7 @@
 [live-agent v1](../../../../spec/capabilities/live-agent/v1/contract.md)，
 需求消费范围沿用[原提案](../v1/requirements.md)固定的
 `f580718295daaec0f42d3262643e95281c493063`，本次不改变需求或冻结规格。
-来源语义见[源 draft](../../../../spec/capabilities/live-agent/draft/contract.md)，
+来源语义见[源 draft](../source-baseline/design/contract.md)，
 目标差异以[已有映射](../v1/source-mapping.md)为准。
 
 本阶段成果是本项目拥有维护权的、能与官方 Cordis 实际发行包组合的源码起点。
@@ -23,12 +27,10 @@
 
 ## 固定输入
 
-- 工作分支 `feat/dsh-agent-fork`，主检出 `.worktrees/dsh-agent-fork/`；
-  基于 `spec/agent-runtime-v1` 的 `b9c7146f3ddf16231caa998e6f3af517ebdf22e4`。
-  设计尚未合并 main，因此不能从 main 丢失基线后开工；其他工作树不属于本任务。
+- 当时设计输入固定为 `b9c7146f3ddf16231caa998e6f3af517ebdf22e4`。
 - 上游仓库 `https://github.com/deepseek-ai/deepseek-harness`，commit
   `c291e7961a515f6d7af9304e7fd1d257929aef26`，dsh-agent 源版本 `0.1.5-rc.2`。
-  已保存[文件校验表](../../../../spec/capabilities/live-agent/upstream-baseline.json)。
+  已保存[文件校验表](../source-baseline/upstream-baseline.json)。
 - 直接依赖官方 `@deepseek-ai/cordis@4.0.2`，不复制、别名替换或修改 Cordis。
   npm registry 发行 tarball 的 SHA-512 为
   `asOnXP1TzFSFQlHb1iegDZp0z/8WD1c7YNrwJR/Tx2bzNuMXfcekE/I67Iv6SQXeLB4csxqCngzQKANP7gdw0g==`。
@@ -117,16 +119,7 @@ AgentRef 或正式 Session 数据模型，也不设第二份产品身份权威�
 | F-07 仓库完整性 | 文档链接与冻结基线检查、既有工具测试、相关规格检查通过；main 及其他工作树未改；所有变更仅落本工作分支 |
 | F-08 独立审阅 | 实施前计划评审的问题已处置；交付审阅绑定具体源码与验证证据；作者按任务授权记录阶段验收，不冒充用户逐项预先选定 |
 
-## 施工顺序、责任与停止条件
-
-本任务由主 agent 负责全部写入、依赖锁文件和集成；独立 architecture-reviewer
-负责只读审阅。这一步依赖边界紧密，不为并行而把单个锁文件或源码抽取拆给多个开发者。
-
-1. 固定本计划快照并独立审阅；准备期允许在 tmp 核对发行包和依赖，但不先导入产品源码。
-2. 处置审阅问题并记录进入实施的依据，再导入原件、MIT 文本、可追踪差异和窄接口。
-3. 建立最小 workspace、构建和回归；以实际发行 Cordis 修复有证据的兼容差异。
-4. 追加必要组合场景和 tarball 独立消费；同步文档，执行验收清单。
-5. 对实际交付作独立评审，修正问题、补跑受影响检查，记录验收与剩余目标差距，提交工作分支。
+## 停止扩围边界
 
 若实际发行 Cordis 缺少必要行为、必须修改官方包、必须接受另一个 DSH 子系统，
 或需破坏目标规格才能让导入成立，停止依赖实施并回到设计/派发者；不得静默扩大范围。

@@ -1,0 +1,23 @@
+
+> @omne-harness-lite/package-checks@0.0.0 check /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p1-composition/tools/package-checks
+> node src/check.mjs
+
+node:internal/fs/promises:956
+  const result = await PromisePrototypeThen(
+                 ^
+
+Error: ENOENT: no such file or directory, scandir '/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p1-composition/packages/core/agent/dist'
+    at async readdir (node:internal/fs/promises:956:18)
+    at async files (file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p1-composition/tools/package-checks/src/boundaries.mjs:9:23)
+    at async checkRepository (file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p1-composition/tools/package-checks/src/check.mjs:161:17)
+    at async file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p1-composition/tools/package-checks/src/check.mjs:412:3 {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p1-composition/packages/core/agent/dist'
+}
+
+Node.js v24.18.0
+/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p1-composition/tools/package-checks:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @omne-harness-lite/package-checks@0.0.0 check: `node src/check.mjs`
+Exit status 1

@@ -1,0 +1,30 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 48 and seed 5784671786372838282 with 4 workers on 8 cores with 3641MB heap and 64MB offheap memory [pid: 196662] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/spec/compositions/session-run-agent-lifecycles/v1/LifecyclesMC.tla
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/spec/compositions/session-run-agent-lifecycles/v1/Lifecycles.tla
+Parsing file /tmp/tlc-11812627527817714053/TLC.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file /tmp/tlc-11812627527817714053/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-11812627527817714053/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-11812627527817714053/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Lifecycles
+Semantic processing of module TLC
+Semantic processing of module LifecyclesMC
+Linting of module Lifecycles
+Linting of module LifecyclesMC
+Starting... (2026-09-14 18:18:41)
+Warning: The set Instances has been defined to be a symmetry set but contains less than two elements.
+(Use the -nowarning option to disable this warning.)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-14 18:18:41.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 1.7E-6
+  based on the actual fingerprints:  val = 7.3E-8
+17319045 states generated, 1989480 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 33.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 11 and the 95th percentile is 3).
+Finished in 38s at (2026-09-14 18:19:19)

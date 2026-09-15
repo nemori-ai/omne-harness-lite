@@ -1,0 +1,86 @@
+{
+  "source_commit": "b05e57c53fd428362a6b73f5d47c11510257f278",
+  "hub_commit": "db106159687450bfda818282da0b7162426751a6",
+  "environment": {
+    "node": "v24.18.0",
+    "platform": "linux",
+    "arch": "x64"
+  },
+  "component": {
+    "name": "eventsource-parser",
+    "version": "4.1.0",
+    "license": "MIT",
+    "engines": {
+      "node": ">=22.12"
+    },
+    "runtimeDependencies": {},
+    "npmTarballSha256": "95ce328c5c063b57c3da7cabc6ae0b54ebab4f054b57b7cb13ba6b5ac2b7241f",
+    "packageLockSha256": "a71aa861b07f0d8d6dda07870a350a7b19b8e2bd67b3dc6f2c3c887ccfd8ed81"
+  },
+  "install": {
+    "network": "offline",
+    "dependency_scripts": "disabled",
+    "exit_code": 0,
+    "command": [
+      "npm",
+      "install",
+      "--offline",
+      "--ignore-scripts",
+      "--no-save",
+      "--package-lock=false",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/tmp/p0-sse-hub/eventsource-parser-4.1.0.tgz",
+      "--prefix",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/tmp/p0-sse-hub",
+      "--no-audit",
+      "--no-fund"
+    ]
+  },
+  "normal": {
+    "command": [
+      "node",
+      "probe.mjs",
+      "--output",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/tmp/p0-sse-hub/normal-result.json"
+    ],
+    "exit_code": 0,
+    "passed": 12,
+    "total": 12,
+    "requests": 2
+  },
+  "negative": {
+    "command": [
+      "node",
+      "probe.mjs",
+      "--mutate",
+      "S05-done-marker",
+      "--output",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/tmp/p0-sse-hub/negative-result.json"
+    ],
+    "exit_code": 1,
+    "failed": [
+      "S05-done-marker"
+    ],
+    "requests": 2
+  },
+  "docs": {
+    "command": "make docs-check BASELINE=ce8beba",
+    "exit_code": 0,
+    "markdown_files": 414
+  },
+  "author_manifest_verified": 11,
+  "artifacts": {
+    "probe.mjs": "6c2e4f1bbb9bb8a9a80ac6869f012a82a4f066b0cc30f982b1d411358aae0e3c",
+    "scenario-spec.json": "f3cfd0897cefaad0de79ca116846a0590e9f0f187a7da6f2acd32d592120032a",
+    "hub-result.json": "8439c078fbed7ac44f14b974435b54f4b8213fd83b96c3109be694d64d18a98a",
+    "hub-negative-control.json": "65f56c13764d10aa9e73c16e39071e92f327a73aa5537241f7eb36e1b23d8a66",
+    "hub-install.log": "4d053b7fc217f8b5e2f5b5d2ce0b83cebf1c230757be6a547fdd38ddb185b36a",
+    "hub-docs-check.log": "c399fdeadf06552820796b531119baf10c2c826df7dd31d6ca91c975278b6307"
+  },
+  "limitations": [
+    "Finite P0 framing feasibility only; A23/A24 remain unexecuted product acceptance",
+    "Loopback request count is asserted after execution, not a server admission limit",
+    "No model API request, credential read, product dependency integration, or real provider accounting",
+    "maxBufferSize overflow and malformed UTF-8 product policy remain P4 responsibilities"
+  ],
+  "run_directory": "/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/tmp/p0-sse-hub"
+}

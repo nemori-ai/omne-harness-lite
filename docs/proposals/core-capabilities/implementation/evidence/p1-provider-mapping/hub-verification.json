@@ -1,0 +1,62 @@
+{
+  "sourceCommit": "2c3aede7c9b33d381b266bbfbef0ad8d8dec7959",
+  "integratedCommit": "6d4b87cf75b130f271c1987e61ccb1c55a33549c",
+  "sourceMigrationCheckExitCode": 0,
+  "verifiedSourceFiles": [
+    {
+      "path": "docs/proposals/core-capabilities/implementation/evidence/p1-provider-mapping/README.md",
+      "sha256": "4689d11472c6544a1e406fb3b71ea1d4d82de29c7713fad3ed22f04d66bfbd3d"
+    },
+    {
+      "path": "docs/proposals/core-capabilities/implementation/evidence/p1-provider-mapping/assets.json",
+      "sha256": "b312c8edad40c71e30007b260ad3d4675f39b3e87b4535230483c5d83776ef00"
+    },
+    {
+      "path": "docs/proposals/core-capabilities/implementation/evidence/p1-provider-mapping/check-migration.py",
+      "sha256": "a0b52120da53bff4c2f7084e44746e87fa1b65d051c58eae86ca7d54f90101e7"
+    },
+    {
+      "path": "docs/proposals/core-capabilities/implementation/evidence/p1-provider-mapping/checks.json",
+      "sha256": "b4bc4a4961492671ab76e2215a2144a5ba5183eeb9127bf0aad32bb769752cd2"
+    },
+    {
+      "path": "docs/proposals/core-capabilities/implementation/evidence/p1-provider-mapping/diff-check.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/proposals/core-capabilities/implementation/evidence/p1-provider-mapping/docs-check-final.log",
+      "sha256": "50f83c206c0cf5a2a2fd028f22b26874958a4dc5b25335216553f3e10a01c3c7"
+    },
+    {
+      "path": "docs/proposals/core-capabilities/implementation/evidence/p1-provider-mapping/docs-check-staged.log",
+      "sha256": "50f83c206c0cf5a2a2fd028f22b26874958a4dc5b25335216553f3e10a01c3c7"
+    },
+    {
+      "path": "docs/proposals/core-capabilities/implementation/evidence/p1-provider-mapping/docs-check.log",
+      "sha256": "db3bfc706fc64dba9629ff97bcb2b0548a01cc06db457b091d4ca3b21f4c0092"
+    },
+    {
+      "path": "docs/proposals/core-capabilities/implementation/evidence/p1-provider-mapping/migration-check.json",
+      "sha256": "f416f087211e4150af53907d12df2270d56777e8456f2e2788be2e8905f3f5bc"
+    },
+    {
+      "path": "docs/proposals/core-capabilities/implementation/evidence/p1-provider-mapping/staged-diff-initial.log",
+      "sha256": "860dfa360a9dfa093d2aeac4cb39ebcd4770306cc48425821c26e695eec4af56"
+    },
+    {
+      "path": "docs/proposals/core-capabilities/implementation/shared-interfaces.md",
+      "sha256": "8d73469d905fc41f230586b39a4df3b02086051ba4b63b51dd749a86c9c8ba03"
+    },
+    {
+      "path": "packages/coordination/admission/design.md",
+      "sha256": "09ea62315f5360cd5c4aba808e1214d33bc4c4c63556abb799281408fd29e55b"
+    },
+    {
+      "path": "packages/storage/jsonl/design.md",
+      "sha256": "57cd77657abdde8ac271d97038dadc758bcd16cc4c227ac5695b7cdd17850d62"
+    }
+  ],
+  "segments": 18,
+  "unchangedOriginalEvidenceFiles": 13,
+  "scope": "documentation migration only; original branch/content check independently rerun, all source files byte-verified in HUB; no product tests"
+}

@@ -4,7 +4,29 @@
 精确身份和行为分别归 [data.agent-runtime-identity v1](../../spec/data/agent-runtime-identity/v1/contract.md)
 与 [capability.live-agent v1](../../spec/capabilities/live-agent/v1/contract.md)。
 本版是内核运行时的设计基线；正式化授权与采用范围见上述提案和
-[D-005](../decisions/D-005-agent-runtime.md)。目标 v1 尚未实现；[定向 fork](../../packages/agent/README.md)提供已固定来源的实验原语基线。
+[D-005](../decisions/D-005-agent-runtime.md)。目标 v1 尚未实现；[定向 fork](../../packages/core/agent/README.md)提供已固定来源的实验原语基线。
+
+四类提供者的交接已由 [D-007](../decisions/D-007-runtime-composition.md)与
+[Agent/Session 附着组合 v1](../../spec/compositions/agent-session-binding/v1/contract.md)
+具体化，系统职责与依赖方向见[共同边界](runtime-composition.md)。
+[D-008](../decisions/D-008-core-capabilities.md)已接受本批 Session/Run、模型与工具等
+目标契约；[Agent 提供者](../../packages/core/agent/design.md)与
+[Session 提供者](../../packages/session/session/design.md)维护当前映射，真实产品组合仍待验收。
+图中的"驱动能力"由 [D-012](../decisions/D-012-run-driver-and-inbound.md) 具体化为
+Run 驱动器（当前版本 [run-driver v2](../../spec/capabilities/run-driver/v2/contract.md)）：它在
+Session、Run、工具、人类决定与模型能力的已提交事实上以纯决策函数推进，异步到达经
+[session v1](../../spec/capabilities/session/v1/contract.md) 的 Session Inbound 裁决后
+进入；运行时退役只封闭 epoch、保留占位，由 Session 级调度重取。驱动器作为 Factory
+准备并拥有的实例驱动如何对接 AR-8～16 与附着组合 CB-08～14，由
+[D-013](../decisions/D-013-run-driver-cordis-boundary.md) 接受。系统视图见
+[Run 驱动器与 Inbound](run-driver.md)。
+
+[D-014](../decisions/D-014-session-run-agent-lifecycles.md) 把三个对象的关系定成三条：实例
+附着于 Session（[CB-04～07](../../spec/compositions/agent-session-binding/v1/contract.md)），
+Session 对 Run 的占位由 Run 状态派生，Run 对实例只是 epoch 加 WorkPermit 的执行权租约
+（[LC-01～03](../../spec/compositions/session-run-agent-lifecycles/v1/contract.md)）。因此实例
+的生灭是资源与装配的治理：Run 结束实例可以还在，实例退役 Run 只封闭 epoch 等待重取；
+live-agent v1 不需要新版本。Session 与 Run 的系统视图见 [Session](session.md) 与 [Run](run.md)。
 
 ## 系统位置
 
@@ -59,6 +81,9 @@ stateDiagram-v2
 失败/未知以退出阶段上的阻塞和残留记录表达，不能把清理失败伪装成 disposed。
 实际 idle/running 由驱动维护；ready 的实例可以没有活动 Run，closing 的实例
 仍可能收尾，二者不是同一条状态轴。完成原退出后，才可为原 Session 激活新代际。
+实例与 Run 只在两个点相接：调度者要执行 Run 时先找 ready 实例再激活；实例要退役而
+Run 在执行时驱动器到安全边界 Yield（[LC-07](../../spec/compositions/session-run-agent-lifecycles/v1/contract.md)）。
+空闲宽限、预热与容量是应用装配与 AR 提供者的资源政策，不是 Session 或 Run 语义。
 
 新工作采用实际、稳定的绑定；模型/工具等能力配置按其业务边界生效。替换驱动
 或必要提供者时，只关闭受影响实例并完成释放；其他装配不必停止。
@@ -73,7 +98,8 @@ stateDiagram-v2
 activate 报成已经恢复 Run。退役、用户 interrupt、cancel、interrupt_then_run
 和 force_stop 仍是不同操作。
 
-本版规定依赖端口的义务，后续需接受并实现 Session attachment、访问验证和
-驱动的符合性映射。首个产品闭环还需要输入/Run、OpenRouter、工具及存储等能力。
+本版规定依赖端口的义务；Session attachment、访问验证和驱动的当前映射见
+[应用装配设计](../../apps/local-harness/design.md)。这些提供者的真实符合性、
+输入/Run、OpenRouter、工具及存储的产品闭环仍需实际验收。
 当前 fork 只导入选定 agent 原语及内部 scope 辅助，没有引入其他 DSH 产品子系统；[覆盖与缺口](../proposals/agent-runtime/v1/requirements.md)
 及[验证说明](../../spec/capabilities/live-agent/verification.md)限定当前结论。

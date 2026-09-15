@@ -1,0 +1,91 @@
+{
+  "format": 1,
+  "repository": "https://github.com/deepseek-ai/deepseek-harness",
+  "commit": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+  "scope": "Source tool definitions, schemas, contributions and native invocation; source baseline only, not target capability conformance",
+  "archive_sha256": "f08cfc86cb05d4186be3319670e2756375cb2788b3d2164dd7f30b885f350860",
+  "files": [
+    {
+      "upstream_path": "LICENSE",
+      "snapshot": "LICENSE",
+      "sha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be",
+      "targets": [
+        "LICENSE"
+      ],
+      "changes": "Unchanged DeepSeek copyright and full MIT text."
+    },
+    {
+      "upstream_path": "packages/core/tools/src/index.ts",
+      "snapshot": "upstream/tools/index.ts",
+      "sha256": "cc8d54b6a0d6005a26871e84ce3390ba0bbd7fa61a8c65d4b9cc2fbd86126ac2",
+      "targets": [
+        "src/index.ts"
+      ],
+      "changes": "Extracted definition registration/freezing, inherited restriction views, schema projection, native invocation, cancellation-after-quiescence, final content normalization and canonical failure/result materialization; removed PTC/code-runtime/SDK rendering, approval and pre/post/around policy, Agent/Session/Loop coupling, settings, timeout/concurrency policy metadata and host tools.; capture the caller-owned invocation header once so post-await cancellation and attribution cannot switch to a reused input object Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/core/tools/src/schema.ts",
+      "snapshot": "upstream/tools/schema.ts",
+      "sha256": "be6e4b3fa18fe633c6c83ed4f9072da5a2a203f64bf0b70c9066fd58b0e2c897",
+      "targets": [
+        "src/schema.ts"
+      ],
+      "changes": "Kept JSON-value authoring DSL, iterative compilation, inference, defineTool argument guards, final content transform and soft replay presenters; redirected shared types, removed unconsumed timeout/concurrency options and deep-froze completed definitions. Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/core/tools/src/json-schema.ts",
+      "snapshot": "upstream/tools/json-schema.ts",
+      "sha256": "13deffdfd34539e23706b0fde235991da45b2f07c5c18dbbf3ca734c1da0c788",
+      "targets": [
+        "src/json-schema.ts"
+      ],
+      "changes": "Kept the enforced JSON Schema subset and stack-safe schema/value walks unchanged apart from local shared-type imports. Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/core/tools/src/presentation.ts",
+      "snapshot": "upstream/tools/presentation.ts",
+      "sha256": "2e729538403ef924430187df13ec5e140de95e0ea41a8225093dba644c1f2b6a",
+      "targets": [
+        "src/presentation.ts"
+      ],
+      "changes": "Kept provider-neutral pure call/result presentation vocabulary; redirected ContentBlock to the local LLM source baseline and imported no concrete UI or host tool. Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/core/tools/tests/schema.spec.ts",
+      "snapshot": "upstream/tools/schema.spec.ts",
+      "sha256": "7b376ccdd44a3fef6e6f417b347357b5ad003534bf2f67962a5a36d69bdf02c0",
+      "targets": [
+        "tests/tools-schema.spec.ts"
+      ],
+      "changes": "Retained required/optional inference, parameter compilation and fail-before-body behavior; reduced exhaustive author-form cases to the selected public boundary. Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/core/tools/tests/json-schema.spec.ts",
+      "snapshot": "upstream/tools/json-schema.spec.ts",
+      "sha256": "0fe30c753e0328ae7b48ca14cbbe9664809f836451feb4df4a25292513a25de8",
+      "targets": [
+        "tests/tools-schema.spec.ts"
+      ],
+      "changes": "Retained unsupported-keyword rejection, object-root guard, aggregated diagnostics and deep stack-safe validation; omitted redundant exhaustive hostile-object cases. Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/core/tools/tests/scoped.spec.ts",
+      "snapshot": "upstream/tools/scoped.spec.ts",
+      "sha256": "2da6c1615592bb5b523b9bf71972faaffaa391a39e09335b40157592c049586e",
+      "targets": [
+        "tests/tools.spec.ts"
+      ],
+      "changes": "Retained global/scoped shadowing, inherited restrictions, own-definition exemption and Cordis owner disposal; removed Agent/Session, PTC mode and policy event fixtures. Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/core/tools/tests/tools.spec.ts",
+      "snapshot": "upstream/tools/tools.spec.ts",
+      "sha256": "c81cb60e5adbb3441e7ef35e39aec12ab49ff6b238a8d123d431c8efb12c8153",
+      "targets": [
+        "tests/tools.spec.ts"
+      ],
+      "changes": "Retained native success, detached/frozen definitions, invalid argument/output, body/render/finalizer failure, final content replacement and abort-before-dispatch semantics; removed approval, pre/post/around waterfall, Session context, Loop, timeout/concurrency and PTC cases.; add original/replacement AbortSignal alias regression with a deferred real native body Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    }
+  ],
+  "project_files": []
+}

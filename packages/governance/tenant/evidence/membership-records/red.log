@@ -1,0 +1,60 @@
+$ pnpm --filter @omne-harness-lite/tenant test
+
+> @omne-harness-lite/tenant@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p2-tenant-membership/packages/governance/tenant
+> vitest run
+
+
+ RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p2-tenant-membership/packages/governance/tenant
+
+ ❯ tests/records.spec.ts (3 tests | 3 failed) 7ms
+     × decodes and freezes a valid organization root without adopting caller objects 5ms
+     × rejects unknown versions, unknown kinds, malformed members, and invalid personal roots 1ms
+     × applies a valid member update and rejects revision or joined-revision resurrection 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/records.spec.ts > tenant record decoder and fold > decodes and freezes a valid organization root without adopting caller objects
+TypeError: decodeTenantRecord is not a function
+ ❯ tests/records.spec.ts:30:21
+     28|     const input = record('tenant.created', { tenant: organization })
+     29|
+     30|     const decoded = decodeTenantRecord(input)
+       |                     ^
+     31|     expect(decoded.ok).toBe(true)
+     32|     if (!decoded.ok) throw new Error('expected the record to decode')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  tests/records.spec.ts > tenant record decoder and fold > rejects unknown versions, unknown kinds, malformed members, and invalid personal roots
+TypeError: decodeTenantRecord is not a function
+ ❯ tests/records.spec.ts:45:12
+     43|
+     44|   it('rejects unknown versions, unknown kinds, malformed members, and …
+     45|     expect(decodeTenantRecord(record('tenant.created', { tenant: organ…
+       |            ^
+     46|       false,
+     47|     )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  tests/records.spec.ts > tenant record decoder and fold > applies a valid member update and rejects revision or joined-revision resurrection
+TypeError: foldTenantRecords is not a function
+ ❯ tests/records.spec.ts:80:21
+     78|
+     79|   it('applies a valid member update and rejects revision or joined-rev…
+     80|     const created = foldTenantRecords(null, [record('tenant.created', …
+       |                     ^
+     81|     if (!created.ok) throw new Error('expected initial organization')
+     82|     const bob = {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed (3)
+   Start at  12:04:11
+   Duration  215ms (transform 30ms, setup 0ms, import 43ms, tests 7ms, environment 0ms)
+
+/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p2-tenant-membership/packages/governance/tenant:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @omne-harness-lite/tenant@0.0.0 test: `vitest run`
+Exit status 1

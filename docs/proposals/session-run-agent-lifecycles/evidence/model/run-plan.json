@@ -1,0 +1,53 @@
+[
+  {
+    "name": "Lifecycles",
+    "mutation": "none",
+    "expected": null,
+    "config": "spec/compositions/session-run-agent-lifecycles/v1/Lifecycles.cfg",
+    "model": "spec/compositions/session-run-agent-lifecycles/v1/LifecyclesMC.tla"
+  },
+  {
+    "name": "LifecyclesProgress",
+    "mutation": "none",
+    "expected": null,
+    "config": "spec/compositions/session-run-agent-lifecycles/v1/LifecyclesProgress.cfg",
+    "model": "spec/compositions/session-run-agent-lifecycles/v1/Lifecycles.tla"
+  },
+  {
+    "name": "LifecyclesSplit",
+    "mutation": "none",
+    "expected": null,
+    "config": "spec/compositions/session-run-agent-lifecycles/v1/LifecyclesSplit.cfg",
+    "model": "spec/compositions/session-run-agent-lifecycles/v1/LifecyclesMC.tla"
+  },
+  {
+    "name": "LifecyclesSplitProgress",
+    "mutation": "none",
+    "expected": null,
+    "config": "spec/compositions/session-run-agent-lifecycles/v1/LifecyclesSplitProgress.cfg",
+    "model": "spec/compositions/session-run-agent-lifecycles/v1/Lifecycles.tla"
+  },
+  {
+    "name": "LifecyclesSplit",
+    "mutation": "staleGate",
+    "expected": "L3",
+    "config": "docs/proposals/session-run-agent-lifecycles/evidence/model/LifecyclesSplitStale.cfg",
+    "model": "spec/compositions/session-run-agent-lifecycles/v1/LifecyclesMC.tla"
+  },
+  {
+    "name": "Inbound",
+    "mutation": "none",
+    "expected": null,
+    "config": "docs/proposals/session-run-agent-lifecycles/evidence/model/Inbound.cfg",
+    "model": "docs/proposals/session-run-agent-lifecycles/evidence/model/InboundMC.tla",
+    "module": "docs/proposals/session-run-agent-lifecycles/evidence/model/Inbound.tla"
+  },
+  {
+    "name": "InboundProgress",
+    "mutation": "none",
+    "expected": null,
+    "config": "docs/proposals/session-run-agent-lifecycles/evidence/model/InboundProgress.cfg",
+    "model": "docs/proposals/session-run-agent-lifecycles/evidence/model/InboundMC.tla",
+    "module": "docs/proposals/session-run-agent-lifecycles/evidence/model/Inbound.tla"
+  }
+]

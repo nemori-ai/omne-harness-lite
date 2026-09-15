@@ -1,0 +1,73 @@
+{
+  "format": 1,
+  "repository": "https://github.com/deepseek-ai/deepseek-harness",
+  "commit": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+  "scope": "Source loop context and assistant-stream projections; source baseline only, not target capability conformance",
+  "archive_sha256": "f08cfc86cb05d4186be3319670e2756375cb2788b3d2164dd7f30b885f350860",
+  "files": [
+    {
+      "upstream_path": "LICENSE",
+      "snapshot": "LICENSE",
+      "sha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be",
+      "targets": [
+        "LICENSE"
+      ],
+      "changes": "Unchanged DeepSeek copyright and full MIT text."
+    },
+    {
+      "upstream_path": "packages/core/agent-loop/src/runtime-context.ts",
+      "snapshot": "upstream/loop/runtime-context.ts",
+      "sha256": "5813738fff54d6282b31647f12623214692cd08d4d8559706487a47a578b1fe2",
+      "targets": [
+        "src/runtime-context.ts"
+      ],
+      "changes": "Retain projection algorithms; rebase source imports and local prompt provenance marker Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/core/agent-loop/src/assistant-stream.ts",
+      "snapshot": "upstream/loop/assistant-stream.ts",
+      "sha256": "120d2bec5efeec2aa54bf0e4261a45282936272d610dbbab21eee36b902629de",
+      "targets": [
+        "src/assistant-stream.ts"
+      ],
+      "changes": "Retain accumulation and process-local frames; rebase imports and narrow frame type; source callback is not target fsync Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/core/agent/src/runtime-types.ts",
+      "snapshot": "upstream/loop/runtime-types.ts",
+      "sha256": "6680865f221cfda70bcc715910f6a4ca27a97945e5baaace0b249213c8c4bbb5",
+      "targets": [
+        "src/frame.ts"
+      ],
+      "changes": "Extract only process-local AssistantStreamFrame value union; no Agent augmentation Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/core/agent-loop/tests/system-prompt-projection.spec.ts",
+      "snapshot": "upstream/loop/system-prompt-projection.spec.ts",
+      "sha256": "cf64519e1b37072d929c5b97592aa2da60696d4de8781d90ac233450ae01dc07",
+      "targets": [
+        "tests/loop-system-prompt.spec.ts"
+      ],
+      "changes": "Preserve source assertions against compiled local Session/LLM; rebase imports and local prompt marker Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/core/agent-loop/tests/runtime-context.spec.ts",
+      "snapshot": "upstream/loop/runtime-context.spec.ts",
+      "sha256": "e3e4cdddc2d7f73915afe79fa2bd19715c7f57b11c7ac662d4e31752734b2ba9",
+      "targets": [
+        "tests/loop-runtime-context.spec.ts"
+      ],
+      "changes": "Preserve source assertions against compiled local Session/LLM; rebase imports and local prompt marker Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    }
+  ],
+  "project_files": [
+    {
+      "path": "src/index.ts",
+      "purpose": "Preserved project-owned baseline export or regression verification, relocated from the 475389d source baseline; no target conformance claim"
+    },
+    {
+      "path": "tests/loop-assistant-stream.spec.ts",
+      "purpose": "Preserved project-owned baseline export or regression verification, relocated from the 475389d source baseline; no target conformance claim"
+    }
+  ]
+}

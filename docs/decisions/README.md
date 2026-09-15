@@ -8,5 +8,16 @@
 - [D-004：系统目标与产品要求作为设计基础](D-004-requirements-foundation.md)：补充 D-001 的内容归属和 D-002 的有效前提，未撤销旧选择。
 
 - [D-005：Agent 运行时](D-005-agent-runtime.md)：最小身份、租户入口、动态装配与退出边界。
+- [D-006：本批 DSH 源码采用](D-006-dsh-core-adoption.md)：10 个主体与 4 个限定支撑来源、依赖裁剪及逐专题设计门槛。
+- [D-007：运行时共同边界与附着组合](D-007-runtime-composition.md)：状态归属、四类提供者交接及 Agent/Session 组合 v1。
 
 状态以各决定的元数据为准。接受不等于实现或验证完成。
+
+- [D-008：核心能力与共同准入](D-008-core-capabilities.md)。
+- [D-009：按能力族和职责分包](D-009-package-organization.md)：从第一天采用能力族目录与实际职责叶子包，来源/构建批次不作为聚包理由。
+- [D-010：共享诊断设施与观测责任](D-010-shared-diagnostics.md)：P1 的日志/trace 复用、注入、有限资源与业务事实边界；后续桥接和查询仍须独立验证。
+- [D-011：诊断目录的共同所有权](D-011-diagnostics-directory-ownership.md)：根据真实目录竞争反例，限定修订创建入口、共同容量与关闭未知前提；其余 D-010 选择保留。
+- [D-012：Run 驱动器与 Session Inbound](D-012-run-driver-and-inbound.md)：Agent Loop 作为可重建的 Run 驱动器、异步到达的统一裁决、占位与 epoch 分离；接受 run-driver v1 与 session-run v2。
+- [D-013：Run 驱动器的 Cordis 视角与提供者边界](D-013-run-driver-cordis-boundary.md)：实例驱动的消费方式、装载效应与撤除责任、四类接口对接、依赖变化政策与包归属；补充 D-012。
+- [D-014：Session、Run 与 Agent 实例的生命周期、关系与级联](D-014-session-run-agent-lifecycles.md)：session-run v2 拆为 session v1 与 run v1，三条关系与级联归生命周期组合 v1，CC v2 声明规则，run-driver v2 引用迁移，三者为独立插件；部分取代 D-012/D-013 的工件身份。
+- [D-015：工具执行闭环、消息流与外部 hooks 兼容](D-015-tool-execution-message-stream-and-hooks.md)：等待登记簿、`superseded` 终态、五维调用状态机与封闭停止词表、答复作为工具返回值、Step 收束与合批规则、单一消息模型与出站流、命令式 hooks 兼容层；一次发布 tools/HD/run/session/MC/DR/CT/CD 下一版、run-driver v3、生命周期组合 v2 与新契约 message-stream v1、external-hooks v1；部分取代 D-008 / D-014 的工件身份。

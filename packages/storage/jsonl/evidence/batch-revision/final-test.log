@@ -1,0 +1,13 @@
+
+> @omne-harness-lite/jsonl@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-jsonl-batch-revision/packages/storage/jsonl
+> vitest run
+
+
+ RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-jsonl-batch-revision/packages/storage/jsonl
+
+
+ Test Files  5 passed (5)
+      Tests  31 passed (31)
+   Start at  12:30:01
+   Duration  2.65s (transform 1.10s, setup 0ms, import 3.69s, tests 2.88s, environment 1ms)
+

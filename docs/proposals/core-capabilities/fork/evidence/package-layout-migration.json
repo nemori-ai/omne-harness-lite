@@ -1,0 +1,428 @@
+{
+  "baseline": "475389d",
+  "files": [
+    {
+      "before": "packages/agent/src/dispatch.ts",
+      "after": "packages/core/agent/src/dispatch.ts",
+      "before_sha256": "7dca4805124a8c61dd8ae7a45bf72e4b5dd6f93bcf7b27e05ff6bc140e862d9c"
+    },
+    {
+      "before": "packages/agent/src/scope.ts",
+      "after": "packages/core/scope/src/scope.ts",
+      "before_sha256": "bef94b8dc54627f763c1328ee2f1a91b69cb775fc4fd2d75325ea165798eaba6"
+    },
+    {
+      "before": "packages/agent/src/store.ts",
+      "after": "packages/core/scope/src/store.ts",
+      "before_sha256": "230f3b7301394d744bba39d708134ae03b7418e0b8a80403a01d633e2064dd4a"
+    },
+    {
+      "before": "packages/agent/src/types.ts",
+      "after": "packages/core/agent/src/types.ts",
+      "before_sha256": "6091850805bcc065134b0ad4636fda56ed8e1edf97c898631c35716a0cc57758"
+    },
+    {
+      "before": "packages/agent/src/index.ts",
+      "after": "packages/core/agent/src/index.ts",
+      "before_sha256": "75c4dacc484ddc926ba410f8abf7be603f3550cb50fad67c87798a601d50a7c7"
+    },
+    {
+      "before": "packages/dsh-baseline/src/llm/message.ts",
+      "after": "packages/model/llm/src/message.ts",
+      "before_sha256": "a0b2c338a35058d036aba6fb0e6420347523845aeea50912b6b8270d079a1422"
+    },
+    {
+      "before": "packages/dsh-baseline/src/llm/attribution.ts",
+      "after": "packages/model/llm/src/attribution.ts",
+      "before_sha256": "ccc6d809dfab93e89466aae404b2f5b6f095d8178576c787c94ebe4ec84fa619"
+    },
+    {
+      "before": "packages/dsh-baseline/src/llm/adapter-failure.ts",
+      "after": "packages/model/llm/src/adapter-failure.ts",
+      "before_sha256": "bad78acd68fdc4795c388f7835c51420aef85f19bfb4b350c5b96f10433d48f1"
+    },
+    {
+      "before": "packages/dsh-baseline/src/llm/assembler.ts",
+      "after": "packages/model/llm/src/assembler.ts",
+      "before_sha256": "215cff9c53291206f0b37e4ea0215bc3f83f702eb8d2e490d5d4b174694de289"
+    },
+    {
+      "before": "packages/dsh-baseline/src/llm/brand.ts",
+      "after": "packages/model/llm/src/brand.ts",
+      "before_sha256": "aac77d01af46499058d6555b3a3b74895148f52e2304fa0ebd40fe5942009a32"
+    },
+    {
+      "before": "packages/dsh-baseline/src/llm/assistant-stream.ts",
+      "after": "packages/model/llm/src/assistant-stream.ts",
+      "before_sha256": "fb247e126cfa3581a29127a1e9dbf4563d57c8109cd274ac88bd1a7e1c67b5d3"
+    },
+    {
+      "before": "packages/dsh-baseline/src/llm/call-config.ts",
+      "after": "packages/model/llm/src/call-config.ts",
+      "before_sha256": "c3116998578a3189f93d6627c266c849d56de613eabcff41e515ddfdd8cd0768"
+    },
+    {
+      "before": "packages/dsh-baseline/src/llm/types.ts",
+      "after": "packages/model/llm/src/types.ts",
+      "before_sha256": "9133af9f203cd5d17b1f8b0f1d5b70f1f2d7a98be92e68cd8c9374a295a853d5"
+    },
+    {
+      "before": "packages/dsh-baseline/src/llm/index.ts",
+      "after": "packages/model/llm/src/index.ts",
+      "before_sha256": "5a4b9639ca6be9266976bfda0893132e1eb185ad09af020893270f9c5c5ed852"
+    },
+    {
+      "before": "packages/dsh-baseline/src/llm/error.ts",
+      "after": "packages/model/llm/src/error.ts",
+      "before_sha256": "6233810826ab804fb3a9ff922cff66b8962780cc2885277cea39b17b6859b865"
+    },
+    {
+      "before": "packages/dsh-baseline/src/persistence/handle.ts",
+      "after": "packages/session/persistence/src/handle.ts",
+      "before_sha256": "4eb9ccd6f76703cfea4d7b00d942ade4f3b02731696eefe78031c6705725f7e1"
+    },
+    {
+      "before": "packages/dsh-baseline/src/persistence/errors.ts",
+      "after": "packages/session/persistence/src/errors.ts",
+      "before_sha256": "70053ae078b0caee306003b068eee8c8f7e8183294de94b0a7f339727cee3fbf"
+    },
+    {
+      "before": "packages/dsh-baseline/src/persistence/revision.ts",
+      "after": "packages/session/persistence/src/revision.ts",
+      "before_sha256": "3066b87f4750b96c6a2dfca1efd802249f7d030fc0c1247c147fd68fb1ece0e9"
+    },
+    {
+      "before": "packages/dsh-baseline/src/persistence/storage-contract.ts",
+      "after": "packages/session/persistence/src/storage-contract.ts",
+      "before_sha256": "927b82d24fbd2e47ed712a094c98586a5d9ae864594f4abe06b5c24ce4f1e280"
+    },
+    {
+      "before": "packages/dsh-baseline/src/persistence/index.ts",
+      "after": "packages/session/persistence/src/index.ts",
+      "before_sha256": "7ad3be17392da1639ffefe101de05cf5f02bdbe60a1978517535584c771499f9"
+    },
+    {
+      "before": "packages/dsh-baseline/src/media/brand.ts",
+      "after": "packages/media/content/src/brand.ts",
+      "before_sha256": "efd676e46fe802b8d3d23d133b34ddd63b72604985c93817185ce27e3fa7c84c"
+    },
+    {
+      "before": "packages/dsh-baseline/src/media/types.ts",
+      "after": "packages/media/content/src/types.ts",
+      "before_sha256": "a106e06db71868b526d0552318c9f006601831e8624aa5e2dd4874a2f1e40da4"
+    },
+    {
+      "before": "packages/dsh-baseline/src/media/index.ts",
+      "after": "packages/media/content/src/index.ts",
+      "before_sha256": "9c563cefe1716f4b887f8d4f8382976464df958360127b714878b6e2155a499f"
+    },
+    {
+      "before": "packages/dsh-baseline/src/media/request-projection.ts",
+      "after": "packages/media/content/src/request-projection.ts",
+      "before_sha256": "2bb87d56646a4066104a9f43a66b5518a406dba4f9b3b279568c1d0ac14aff9e"
+    },
+    {
+      "before": "packages/dsh-baseline/src/media/error.ts",
+      "after": "packages/media/content/src/error.ts",
+      "before_sha256": "aaeae85c04129369e3e2f0c3e71eb34fb6b66bebce6d380e60070f8ab3944fdc"
+    },
+    {
+      "before": "packages/dsh-baseline/src/support/values.ts",
+      "after": "packages/util/values/src/index.ts",
+      "before_sha256": "573c77ba7017fc747f90fdbd5445cfd565db6ff6d53a6b999f6c34ed842bbb8f"
+    },
+    {
+      "before": "packages/dsh-baseline/src/support/brand.ts",
+      "after": "packages/util/brand/src/index.ts",
+      "before_sha256": "f9d6da858d7308117227dcc2306ce7246b7309b2ae22d413d289cbae51e83e98"
+    },
+    {
+      "before": "packages/dsh-baseline/src/support/timeout.ts",
+      "after": "packages/util/timeout/src/index.ts",
+      "before_sha256": "fdfd67e7d9c0a09668a4101880439f28446a8bf038f060a0bc4d27d941be562c"
+    },
+    {
+      "before": "packages/dsh-baseline/src/tools/json-schema.ts",
+      "after": "packages/tools/tools/src/json-schema.ts",
+      "before_sha256": "e32b7e2c8242491ba5e800af2379e91db926bd23499ce98e34ca699b412a9072"
+    },
+    {
+      "before": "packages/dsh-baseline/src/tools/schema.ts",
+      "after": "packages/tools/tools/src/schema.ts",
+      "before_sha256": "63298c375a5fdefc35ebd6ba4eb3bc209369f0d5f58882a57a4bb48ed2efd4d2"
+    },
+    {
+      "before": "packages/dsh-baseline/src/tools/presentation.ts",
+      "after": "packages/tools/tools/src/presentation.ts",
+      "before_sha256": "b36cbd8d171ecc2d9921069ca4be7ef0bea9b64cfc82dc1a409eef42a268d57e"
+    },
+    {
+      "before": "packages/dsh-baseline/src/tools/index.ts",
+      "after": "packages/tools/tools/src/index.ts",
+      "before_sha256": "05246a3f74f089e1a867d5dfcc6246e319f37a3b0ddea63fad104a37e97b4389"
+    },
+    {
+      "before": "packages/dsh-baseline/src/session/known-event-types.ts",
+      "after": "packages/session/session/src/known-event-types.ts",
+      "before_sha256": "71e37d62dc57ec138e39dfeb561770be6e135cfaf89c0bd7fab76ee3545667df"
+    },
+    {
+      "before": "packages/dsh-baseline/src/session/seq-ranges.ts",
+      "after": "packages/session/session/src/seq-ranges.ts",
+      "before_sha256": "9f746691995926cb17d3dd19da04871f2355be40c798ed5a8256659e6bf14559"
+    },
+    {
+      "before": "packages/dsh-baseline/src/session/types.ts",
+      "after": "packages/session/session/src/types.ts",
+      "before_sha256": "371dd96230141d965fd775ea5b64739ed10a76f330f6c5a59ce8bf0da35dc9ea"
+    },
+    {
+      "before": "packages/dsh-baseline/src/session/index.ts",
+      "after": "packages/session/session/src/index.ts",
+      "before_sha256": "ab33955386c9b433b33b54bcd79ec19b892ea393bad5478768f082a0b9e6f417"
+    },
+    {
+      "before": "packages/dsh-baseline/src/session/preparation.ts",
+      "after": "packages/session/session/src/preparation.ts",
+      "before_sha256": "8f81b442174bf6fea58e42b3a021884885638246994c646bc42c380b625384c3"
+    },
+    {
+      "before": "packages/dsh-baseline/src/session/request-header.ts",
+      "after": "packages/session/session/src/request-header.ts",
+      "before_sha256": "e49f9ee08b05fbd88224d0fded889d2113c4106aae0932cbabef4678958133fa"
+    },
+    {
+      "before": "packages/dsh-baseline/src/session/surface.ts",
+      "after": "packages/session/session/src/surface.ts",
+      "before_sha256": "eb79d245dcfc914381c43b54762da819fea8d4713e02a1a32016f3af2ebe4cf5"
+    },
+    {
+      "before": "packages/dsh-baseline/src/projection/types.ts",
+      "after": "packages/session/projection/src/types.ts",
+      "before_sha256": "4e073fc85dfaf2afe677d8bcfa685fe59a28c642c12246f941ff4cc75b3e2b31"
+    },
+    {
+      "before": "packages/dsh-baseline/src/projection/index.ts",
+      "after": "packages/session/projection/src/index.ts",
+      "before_sha256": "2ce5e8650293dd5737a22333e70fa1ada328b3a71977d6bbc849efc5989d53d8"
+    },
+    {
+      "before": "packages/dsh-baseline/src/prompt/index.ts",
+      "after": "packages/context/system-prompt/src/index.ts",
+      "before_sha256": "dfc600643ee7d0714e3c6288ff36074d2261db2876b39cd3f385ba95e79bf6c9"
+    },
+    {
+      "before": "packages/dsh-baseline/src/loop/frame.ts",
+      "after": "packages/agent/loop/src/frame.ts",
+      "before_sha256": "1dac8f29f36d2200ff12ccbd9168d8aec767b5a1aec3835f46f886a3eb6c2485"
+    },
+    {
+      "before": "packages/dsh-baseline/src/loop/runtime-context.ts",
+      "after": "packages/agent/loop/src/runtime-context.ts",
+      "before_sha256": "a55066cb582fb110265aceac32e10f649a2c8e982376a5b5ad193edd9686a84c"
+    },
+    {
+      "before": "packages/dsh-baseline/src/loop/assistant-stream.ts",
+      "after": "packages/agent/loop/src/assistant-stream.ts",
+      "before_sha256": "af581d6cd8130b5a037c89859c518e4825108f82282e3a1a7d06adc5afb27823"
+    },
+    {
+      "before": "packages/dsh-baseline/src/loop/index.ts",
+      "after": "packages/agent/loop/src/index.ts",
+      "before_sha256": "d992e2056ef7ef6aaa07cf808dc3898863af7051318e3f5fc1875166f355ee4a"
+    },
+    {
+      "before": "packages/dsh-baseline/src/jsonl/index.ts",
+      "after": "packages/storage/jsonl/src/index.ts",
+      "before_sha256": "497e6595927e55b6940bcb2e87c686269d09578a9ac84136c0ca1c2e564bd8a6"
+    },
+    {
+      "before": "packages/agent/tests/agent-initiator.spec.ts",
+      "after": "packages/core/agent/tests/agent-initiator.spec.ts",
+      "before_sha256": "a61c8ec6062e5695b1878faff6f4d1417ea58bdadcb9f04e30b53225bcc78105"
+    },
+    {
+      "before": "packages/agent/tests/agent.spec.ts",
+      "after": "packages/core/agent/tests/agent.spec.ts",
+      "before_sha256": "704f1c30948faf2fb1be09c8c936531733267acb36ef0fcb6743c8bd908302a2"
+    },
+    {
+      "before": "packages/agent/tests/dispatch-integration.spec.ts",
+      "after": "packages/core/agent/tests/dispatch-integration.spec.ts",
+      "before_sha256": "4b101644b7cd15878db172601eee1a9334f1d86dbfadeabe7e02241d7338f1b7"
+    },
+    {
+      "before": "packages/agent/tests/store.spec.ts",
+      "after": "packages/core/scope/tests/store.spec.ts",
+      "before_sha256": "49278bd11c48d53c4b119a953c4f0934c1708e8c5e9e53dbe1faedd619ea85bf"
+    },
+    {
+      "before": "packages/agent/tests/scope.spec.ts",
+      "after": "packages/core/scope/tests/scope.spec.ts",
+      "before_sha256": "8de992e71173fea21933cfe51b8f8613f7c7a1434a3ea17186a8a7546427d3b1"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/session-scoped.spec.ts",
+      "after": "packages/session/session/tests/session-scoped.spec.ts",
+      "before_sha256": "ae07a878705b975fa544cf94adb176071f9a968a1be4a48d418b47546561f7d8"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/jsonl-failures.spec.ts",
+      "after": "packages/storage/jsonl/tests/jsonl-failures.spec.ts",
+      "before_sha256": "08bda9e17edd81837725c2bd6807daf88d37c3c14337eeaaf7215283337b7f20"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/llm-source-call-config.spec.ts",
+      "after": "packages/model/llm/tests/llm-source-call-config.spec.ts",
+      "before_sha256": "4307415edda5d84af7d34cbf2e1b91a469926d473c9e61188a3a77868ef7130b"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/llm-config.spec.ts",
+      "after": "packages/model/llm/tests/llm-config.spec.ts",
+      "before_sha256": "9ab3e1c9d4ab649ad345bf9aaf008b380fd302b64995929b86cfa397065aced9"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/session-seq-ranges.spec.ts",
+      "after": "packages/session/session/tests/session-seq-ranges.spec.ts",
+      "before_sha256": "58208851d2bc6782f458ff16753082fc47d03c11d5df232b9f159249086f4851"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/projection-registry.spec.ts",
+      "after": "packages/session/projection/tests/projection-registry.spec.ts",
+      "before_sha256": "5574154b9498d7eaffb238b60d3e76b714b09f1a2d19e4ef802d252c1c9533fc"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/tools.spec.ts",
+      "after": "packages/tools/tools/tests/tools.spec.ts",
+      "before_sha256": "f25e7a991bccc914ec9642fabeca4e4e7e839b0fe8d3ce76cf4177be22d79a55"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/session-canonical-envelopes.spec.ts",
+      "after": "packages/session/session/tests/session-canonical-envelopes.spec.ts",
+      "before_sha256": "3891c1861ca17145c5250263640bc8f178ca436f732e27ab588214c8ba9febb4"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/loop-runtime-context.spec.ts",
+      "after": "packages/agent/loop/tests/loop-runtime-context.spec.ts",
+      "before_sha256": "9205ae25719c73e0b6ff900e67092d506b52001a97082d7ddf3624959e5b097d"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/llm-stream.spec.ts",
+      "after": "packages/model/llm/tests/llm-stream.spec.ts",
+      "before_sha256": "21a88b57544bec13ecc01e1fe1b86d76724368b3fdfeb0a5c4e0055d19ec564c"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/llm-source-assistant-stream.spec.ts",
+      "after": "packages/model/llm/tests/llm-source-assistant-stream.spec.ts",
+      "before_sha256": "97998bed9f1e6b8b5dbb0f2ce1186862e4cd1abd76c22cf9eaca9b76b82aca7a"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/session-derived-cache.spec.ts",
+      "after": "packages/session/session/tests/session-derived-cache.spec.ts",
+      "before_sha256": "e770695da6125e0b69a6043d76e0a59c6dea066f58e0f10d569c2c563f18a4ef"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/loop-assistant-stream.spec.ts",
+      "after": "packages/agent/loop/tests/loop-assistant-stream.spec.ts",
+      "before_sha256": "ffafe738dfcd2ef136d27f7d498e1926977369906ce89cebfa928a04f732d438"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/llm-message.spec.ts",
+      "after": "packages/model/llm/tests/llm-message.spec.ts",
+      "before_sha256": "cbd616ab345c26c6f080afffa4acae91be54166a7f0ed07203e651e53258442e"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/session-fork.spec.ts",
+      "after": "packages/session/session/tests/session-fork.spec.ts",
+      "before_sha256": "6a98189130afcf637b7b08b35dbbc07eec1ac2ac46f7c1cb057c14b27d9990ba"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/persistence-storage.spec.ts",
+      "after": "packages/session/persistence/tests/persistence-storage.spec.ts",
+      "before_sha256": "53e2e5214ef54c2daf62529aaacb9ec6cbde09ce45eb9c1c167c55d896727332"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/llm-error.spec.ts",
+      "after": "packages/model/llm/tests/llm-error.spec.ts",
+      "before_sha256": "5e85beec9d42b4ef6ed4335fe58a1b96d01f556230cd27c9226b79905ecb4b5e"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/session-lifecycle.spec.ts",
+      "after": "packages/session/session/tests/session-lifecycle.spec.ts",
+      "before_sha256": "446022c24604db120ee9a39f62ba230f9ac7115773b4424cc53348e179de67ee"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/tools-schema.spec.ts",
+      "after": "packages/tools/tools/tests/tools-schema.spec.ts",
+      "before_sha256": "eabe26d1d3249782477ccd22f753f0b59c0c7651ab556c25e868f303a577893a"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/session-surface.spec.ts",
+      "after": "packages/session/session/tests/session-surface.spec.ts",
+      "before_sha256": "1ace9a848fb4049b0b38f9cec641538c3d65d318032d96e0430470e955681465"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/loop-system-prompt.spec.ts",
+      "after": "packages/agent/loop/tests/loop-system-prompt.spec.ts",
+      "before_sha256": "8fa2a7b0d16b852bb18c113f035aca7e71bb294b2c59908e835072771ab83858"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/prompt.spec.ts",
+      "after": "packages/context/system-prompt/tests/prompt.spec.ts",
+      "before_sha256": "18adda33cf40b66fec032d664ae64f400936914f2285c220ae515e1c50cb0735"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/media-pure.spec.ts",
+      "after": "packages/media/content/tests/media-pure.spec.ts",
+      "before_sha256": "3bff0940ea53d31736eefee791fae67ecdd899068d0146ce8706a37deda5ff29"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/llm-source-message.spec.ts",
+      "after": "packages/model/llm/tests/llm-source-message.spec.ts",
+      "before_sha256": "bf6b63aa9ad4100f93833801f81a93a7fed09b33a64453fef6fec11690674f56"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/media-source-request-projection.spec.ts",
+      "after": "packages/media/content/tests/media-source-request-projection.spec.ts",
+      "before_sha256": "9edcc3504acb342a85aa5362e2f595cf95662f49ed8c668adaa47f1aa0100195"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/llm-source-attribution.spec.ts",
+      "after": "packages/model/llm/tests/llm-source-attribution.spec.ts",
+      "before_sha256": "0784adea12cea95f4bc19cd5de5d252fb2f0e67cac6b5356d352ef01ce6b35d6"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/session-sequence.spec.ts",
+      "after": "packages/session/session/tests/session-sequence.spec.ts",
+      "before_sha256": "287f1d22adb7b51eab0321694aa4caa43aa48c615b8dda85df4be106f1e211e5"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/jsonl.spec.ts",
+      "after": "packages/storage/jsonl/tests/jsonl.spec.ts",
+      "before_sha256": "f61d385e1decdb98a134d78430d33ac2058f7c9a5c2e147e033cce1a11099f89"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/session-request-header.spec.ts",
+      "after": "packages/session/session/tests/session-request-header.spec.ts",
+      "before_sha256": "e859a0c414526aa3d65c8343f98340f9779e5cd3efaf219342cf7ed59320e259"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/llm-source-adapter-failure.spec.ts",
+      "after": "packages/model/llm/tests/llm-source-adapter-failure.spec.ts",
+      "before_sha256": "87b7df6a20633859c76912d8835988de69775c416fa2aa33c9ca90c3262332b5"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/llm-source-assembler.spec.ts",
+      "after": "packages/model/llm/tests/llm-source-assembler.spec.ts",
+      "before_sha256": "98733b503d03039a865ae7b62184e3aa88630e9517af94a5019eaea7da63b9a1"
+    },
+    {
+      "before": "packages/dsh-baseline/tests/support.spec.ts",
+      "after": [
+        "packages/util/values/tests/support.spec.ts",
+        "packages/util/timeout/tests/support.spec.ts"
+      ],
+      "before_sha256": "fbbf97153bd0ed97c7eb72b82e75a8b4725d6895538dbbb7d1063226f457b962"
+    }
+  ]
+}

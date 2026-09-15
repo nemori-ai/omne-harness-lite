@@ -1,0 +1,81 @@
+{
+  "sourceCommit": "99a6988",
+  "authorEvidenceCommit": "c026140",
+  "hubProductCommit": "4a5031d",
+  "hubEvidenceMerge": "cb203c5ad7b1c09f1f53714b41223cf302055b87",
+  "lockCommit": "d13d66b",
+  "lockSha256": "dd96ecd73f9015a8f46c061a5effa020694c7721b1bc8f22d9c4ff0ac691d95d",
+  "prettier": "3.9.6",
+  "commands": [
+    {
+      "command": "pnpm install --ignore-scripts",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm format:check",
+      "exitCode": 1,
+      "expected": "four records files integrated after formatter spoke baseline require format"
+    },
+    {
+      "command": "pnpm format:write -- packages/storage/records/src/index.ts packages/storage/records/tests/codec-golden.spec.ts packages/storage/records/tests/codec-scenarios.spec.ts packages/storage/records/tests/public-types.ts",
+      "exitCode": 0,
+      "commit": "4a5031d"
+    },
+    {
+      "command": "pnpm install --frozen-lockfile --ignore-scripts",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm check",
+      "exitCode": 0,
+      "coverage": "format, real temporary Git commit hook, 16-package build/typecheck/tests, checker tests, 16 isolated tarballs and actual composition"
+    }
+  ],
+  "logs": {
+    "hub-install.log.gz": "712694ea18dea64dc993a23a51a11a99e88034c75af1347f83b4483667ad72cc",
+    "hub-frozen-install.log.gz": "fc8b96a772a4c2547ede3c8efa85cde1a3c6008cc9c82bcd9d43f6163c0d8ca8",
+    "hub-initial-check.log.gz": "abc5a1305d03570b22fcf30efa5f7ce334b04b10710f69722aaa7094e65cfd19",
+    "hub-product-check.log.gz": "223d5d2d5020b3acd787e69fc73af61aed24a9b48a108fa4e8781178f7985a79"
+  },
+  "unverified": [
+    "actual editor save action",
+    "GitHub-hosted workflow execution",
+    "shared repository hook installation",
+    "full formal checks; no formal source changed"
+  ],
+  "limits": [
+    "This verifies formatting tooling and mechanically formatted implementation behavior, not M1/M2 or A01-A32 completion.",
+    "Hook remains an explicit install command because Git hooks are shared by worktrees and main does not yet include formatting scripts."
+  ],
+  "promptProjection": {
+    "authorCommit": "47c60dd5bd76c17f5d8eb267c85e4957d9bd92b0",
+    "hubMergeCommit": "635a690ee5ddfe2bbf41a3df12305cdf2d6d989b",
+    "evidence": "../formatting-prompts.json",
+    "checks": [
+      {
+        "command": ".venv/bin/python .agents/skills/design-subagents/scripts/render_pair.py --source .agents/roles/<role> --output . --check",
+        "roles": [
+          "kernel-developer",
+          "capability-developer",
+          "infrastructure-developer",
+          "application-developer",
+          "verification-developer"
+        ],
+        "exitCode": 0
+      },
+      {
+        "command": "make docs-check BASELINE=ecd234c",
+        "exitCode": 0,
+        "markdownFiles": 408
+      },
+      {
+        "check": "all twelve prompt files match author SHA-256",
+        "result": "pass"
+      }
+    ],
+    "notRun": [
+      "host dynamic loading",
+      "model behavior evaluation"
+    ]
+  }
+}

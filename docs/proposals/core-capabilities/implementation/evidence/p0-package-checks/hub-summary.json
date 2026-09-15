@@ -1,0 +1,44 @@
+{
+  "hubIntegration": "d95052c35172bf4a315c349ceba0ab1ea3867a36",
+  "sourceRevision": "33a57a2",
+  "checks": [
+    {
+      "command": "pnpm run build",
+      "exitCode": 0,
+      "productMembers": 14
+    },
+    {
+      "command": "pnpm --filter @omne-harness-lite/package-checks test",
+      "exitCode": 0,
+      "passed": 13,
+      "failed": 0
+    },
+    {
+      "command": "pnpm --filter @omne-harness-lite/package-checks check",
+      "exitCode": 0,
+      "individualArtifacts": 14,
+      "compositionArtifacts": 14
+    }
+  ],
+  "sourceSha256": {
+    "tools/package-checks/src/check.mjs": "3bcabc7d1183cb32e0f65db00b83ec8d0f144a52c12e8a2d23e9124148798974",
+    "tools/package-checks/src/boundaries.mjs": "6a1019f77d018447f773f5850bf3b2a0473f462c502a8982c928b3a846b2c073",
+    "tools/package-checks/tests/boundaries.test.mjs": "4a78b3ba46ac13698763ed772b00d489658183a3b349ac78734be7f7d0a4259d",
+    "pnpm-lock.yaml": "483b8753a01c6faff5a2f31d14903624983f20d200583f8b0050f9fbf78d8f66"
+  },
+  "logs": {
+    "hub-build.log.gz": {
+      "uncompressedSha256": "bdc869c5efa1e201f6fee770873acbf1e0ed5e03e4b0feba021e77a6b7d9816e",
+      "bytes": 2550
+    },
+    "hub-test.log.gz": {
+      "uncompressedSha256": "1b529732e5696ea2fde26a2e7cb1d5c03bace4e3da688f0abbb028dfb00a10b6",
+      "bytes": 1555
+    },
+    "hub-artifacts.log.gz": {
+      "uncompressedSha256": "746231a0fea93e33e3c17370ac8760c310d4379bc4195b8fe83b39a213776685",
+      "bytes": 1957
+    }
+  },
+  "scope": "P0 checker real HUB replay over 14 source-baseline products and synthetic owned package/app fixtures. No target work-data package integrated yet, no native fs-ext product load, no A30/A31 overall or M1/M2 acceptance."
+}

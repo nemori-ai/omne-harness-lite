@@ -1,0 +1,21 @@
+
+> @omne-harness-lite/admission@0.0.0 build <worktree>/packages/coordination/admission
+> node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+
+
+> @omne-harness-lite/admission@0.0.0 typecheck <worktree>/packages/coordination/admission
+> tsc -p tsconfig.test.json
+
+
+> @omne-harness-lite/admission@0.0.0 test <worktree>/packages/coordination/admission
+> vitest run
+
+
+ RUN  v4.1.8 <worktree>/packages/coordination/admission
+
+
+ Test Files  5 passed (5)
+      Tests  52 passed (52)
+   Start at  08:50:41
+   Duration  1.16s (transform 862ms, setup 0ms, import 1.58s, tests 388ms, environment 1ms)
+

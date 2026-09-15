@@ -1,0 +1,310 @@
+uv run --locked omne-spec-check
+FORMAL agent-source-AgentRegistry: exit=0; command=['/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java', '-cp', '/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar', 'tlc2.TLC', '-noGenerateSpecTE', '-workers', '1', '-metadir', 'tmp/formal-runs/AgentRegistry', '-config', 'docs/proposals/agent-runtime/source-baseline/design/AgentRegistry.cfg', 'docs/proposals/agent-runtime/source-baseline/design/AgentRegistry.tla']
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Warning: Please run the Java VM, which executes TLC with a throughput optimized garbage collector, by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 43 and seed -690598025156166075 with 1 worker on 8 cores with 7824MB heap and 64MB offheap memory [pid: 174944] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/docs/proposals/agent-runtime/source-baseline/design/AgentRegistry.tla
+Parsing file /tmp/tlc-9662971944220346033/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-9662971944220346033/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-9662971944220346033/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module AgentRegistry
+Linting of module AgentRegistry
+Starting... (2026-09-13 19:31:13)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-13 19:31:13.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 1.3E-11
+34879 states generated, 8881 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 13.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 6 and the 95th percentile is 4).
+Finished in 01s at (2026-09-13 19:31:13)
+
+FORMAL agent-source-InitiatorScope: exit=0; command=['/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java', '-cp', '/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar', 'tlc2.TLC', '-noGenerateSpecTE', '-workers', '1', '-metadir', 'tmp/formal-runs/InitiatorScope', '-config', 'docs/proposals/agent-runtime/source-baseline/design/InitiatorScope.cfg', 'docs/proposals/agent-runtime/source-baseline/design/InitiatorScope.tla']
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Warning: Please run the Java VM, which executes TLC with a throughput optimized garbage collector, by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 47 and seed -3752281288488944152 with 1 worker on 8 cores with 7824MB heap and 64MB offheap memory [pid: 175050] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/docs/proposals/agent-runtime/source-baseline/design/InitiatorScope.tla
+Parsing file /tmp/tlc-13548239569538059530/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-13548239569538059530/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-13548239569538059530/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module InitiatorScope
+Linting of module InitiatorScope
+Starting... (2026-09-13 19:31:14)
+Implied-temporal checking--satisfiability problem has 1 branches.
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-13 19:31:14.
+Progress(10) at 2026-09-13 19:31:14: 2,742 states generated, 1,226 distinct states found, 0 states left on queue.
+Checking temporal properties for the complete state space with 1226 total distinct states at (2026-09-13 19:31:14)
+Finished checking temporal properties in 00s at 2026-09-13 19:31:14
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 1.0E-13
+2742 states generated, 1226 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 10.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 6 and the 95th percentile is 4).
+Finished in 01s at (2026-09-13 19:31:14)
+
+FORMAL live-agent-v1-safety: exit=0; command=['/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java', '-XX:+UseParallelGC', '-cp', '/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar', 'tlc2.TLC', '-noGenerateSpecTE', '-workers', '1', '-metadir', 'tmp/formal-runs/live-agent-v1-safety', '-config', 'spec/capabilities/live-agent/v1/Runtime.cfg', 'spec/capabilities/live-agent/v1/RuntimeMC.tla']
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 48 and seed 7820193968592798471 with 1 worker on 8 cores with 6955MB heap and 64MB offheap memory [pid: 175154] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/spec/capabilities/live-agent/v1/RuntimeMC.tla
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/spec/capabilities/live-agent/v1/Runtime.tla
+Parsing file /tmp/tlc-10572074925258344111/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-10572074925258344111/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-10572074925258344111/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Runtime
+Semantic processing of module RuntimeMC
+Linting of module Runtime
+Linting of module RuntimeMC
+Starting... (2026-09-13 19:31:15)
+Warning: The invariant IdentityConsistent is a constant-level formula (i.e., it contains no variables, primes, or temporal operators) and evaluates to TRUE. To assert constant-level formulas in your spec, use ASSUME ConstInv. If you optionally want to give the assumption a name, write ASSUME YourAssumption == ConstInv instead. See https://explain.tlapl.us/assumptions-and-invariants for additional details.
+(Use the -nowarning option to disable this warning.)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-13 19:31:15.
+Progress(18) at 2026-09-13 19:31:18: 231,011 states generated (231,011 s/min), 66,366 distinct states found (66,366 ds/min), 14,540 states left on queue.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 3.7E-9
+  based on the actual fingerprints:  val = 3.9E-10
+626881 states generated, 142476 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 25.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 7 and the 95th percentile is 3).
+Finished in 07s at (2026-09-13 19:31:22)
+
+FORMAL live-agent-v1-progress: exit=0; command=['/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java', '-XX:+UseParallelGC', '-cp', '/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar', 'tlc2.TLC', '-noGenerateSpecTE', '-workers', '1', '-metadir', 'tmp/formal-runs/live-agent-v1-progress', '-config', 'spec/capabilities/live-agent/v1/RuntimeProgress.cfg', 'spec/capabilities/live-agent/v1/RuntimeMC.tla']
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 125 and seed -6716690201447535790 with 1 worker on 8 cores with 6955MB heap and 64MB offheap memory [pid: 175796] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/spec/capabilities/live-agent/v1/RuntimeMC.tla
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/spec/capabilities/live-agent/v1/Runtime.tla
+Parsing file /tmp/tlc-17378410079788600908/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-17378410079788600908/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-17378410079788600908/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Runtime
+Semantic processing of module RuntimeMC
+Linting of module Runtime
+Linting of module RuntimeMC
+Starting... (2026-09-13 19:31:22)
+Warning: The invariant IdentityConsistent is a constant-level formula (i.e., it contains no variables, primes, or temporal operators) and evaluates to TRUE. To assert constant-level formulas in your spec, use ASSUME ConstInv. If you optionally want to give the assumption a name, write ASSUME YourAssumption == ConstInv instead. See https://explain.tlapl.us/assumptions-and-invariants for additional details.
+(Use the -nowarning option to disable this warning.)
+Implied-temporal checking--satisfiability problem has 6 branches.
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-13 19:31:22.
+Checking 6 branches of temporal properties for the current state space with 39972 total distinct states at (2026-09-13 19:31:25)
+Finished checking temporal properties in 00s at 2026-09-13 19:31:26
+Progress(11) at 2026-09-13 19:31:26: 17,212 states generated (17,212 s/min), 6,663 distinct states found (6,663 ds/min), 2,464 states left on queue.
+Progress(25) at 2026-09-13 19:32:02: 336,529 states generated, 86,716 distinct states found, 0 states left on queue.
+Checking 6 branches of temporal properties for the complete state space with 520296 total distinct states at (2026-09-13 19:32:02)
+Finished checking temporal properties in 08s at 2026-09-13 19:32:10
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 1.2E-9
+  based on the actual fingerprints:  val = 2.9E-9
+336529 states generated, 86716 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 25.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 7 and the 95th percentile is 3).
+Finished in 48s at (2026-09-13 19:32:11)
+
+FORMAL agent-session-binding-v1-safety: exit=0; command=['/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java', '-XX:+UseParallelGC', '-cp', '/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar', 'tlc2.TLC', '-noGenerateSpecTE', '-workers', '1', '-metadir', 'tmp/formal-runs/agent-session-binding-v1-safety', '-config', 'spec/compositions/agent-session-binding/v1/Binding.cfg', 'spec/compositions/agent-session-binding/v1/Binding.tla']
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 24 and seed -7816061366108492827 with 1 worker on 8 cores with 6955MB heap and 64MB offheap memory [pid: 179480] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/spec/compositions/agent-session-binding/v1/Binding.tla
+Parsing file /tmp/tlc-15859897713573164009/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-15859897713573164009/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-15859897713573164009/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Binding
+Linting of module Binding
+Starting... (2026-09-13 19:32:11)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-13 19:32:11.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 1.0E-11
+28723 states generated, 10748 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 31.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 6 and the 95th percentile is 2).
+Finished in 01s at (2026-09-13 19:32:12)
+
+FORMAL durable-records-v1-Recovery: exit=0; command=['/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java', '-Xmx1g', '-XX:+UseParallelGC', '-cp', '/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar', 'tlc2.TLC', '-noGenerateSpecTE', '-workers', '1', '-metadir', 'tmp/formal-runs/core-Recovery', '-config', 'spec/capabilities/durable-records/v1/Recovery.cfg', 'spec/capabilities/durable-records/v1/Recovery.tla']
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 111 and seed 8162429786853053993 with 1 worker on 8 cores with 910MB heap and 64MB offheap memory [pid: 179531] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/spec/capabilities/durable-records/v1/Recovery.tla
+Parsing file /tmp/tlc-15243504872779903042/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Semantic processing of module Naturals
+Semantic processing of module Recovery
+Linting of module Recovery
+Starting... (2026-09-13 19:32:12)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-13 19:32:12.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 9.8E-19
+19 states generated, 18 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 7.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 4 and the 95th percentile is 4).
+Finished in 00s at (2026-09-13 19:32:12)
+
+FORMAL core-work-coordination-v1-Admission: exit=0; command=['/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java', '-Xmx1g', '-XX:+UseParallelGC', '-cp', '/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar', 'tlc2.TLC', '-noGenerateSpecTE', '-workers', '1', '-metadir', 'tmp/formal-runs/core-Admission', '-config', 'spec/compositions/core-work-coordination/v1/Admission.cfg', 'spec/compositions/core-work-coordination/v1/Admission.tla']
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 43 and seed -1352634796962498622 with 1 worker on 8 cores with 910MB heap and 64MB offheap memory [pid: 179561] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/spec/compositions/core-work-coordination/v1/Admission.tla
+Parsing file /tmp/tlc-11311065180652989282/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Semantic processing of module Naturals
+Semantic processing of module Admission
+Linting of module Admission
+Starting... (2026-09-13 19:32:13)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-13 19:32:13.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 3.5E-13
+5628 states generated, 1608 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 15.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 7 and the 95th percentile is 2).
+Finished in 00s at (2026-09-13 19:32:13)
+
+FORMAL session-run-v1-QueueControl: exit=0; command=['/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java', '-Xmx1g', '-XX:+UseParallelGC', '-cp', '/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar', 'tlc2.TLC', '-noGenerateSpecTE', '-workers', '1', '-metadir', 'tmp/formal-runs/core-QueueControl', '-config', 'spec/capabilities/session-run/v1/QueueControl.cfg', 'spec/capabilities/session-run/v1/QueueControl.tla']
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 57 and seed -6362894312982815706 with 1 worker on 8 cores with 910MB heap and 64MB offheap memory [pid: 179645] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/spec/capabilities/session-run/v1/QueueControl.tla
+Parsing file /tmp/tlc-8778292647901925534/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-8778292647901925534/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-8778292647901925534/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module QueueControl
+Linting of module QueueControl
+Starting... (2026-09-13 19:32:14)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-13 19:32:14.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 9.3E-15
+877 states generated, 584 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 19.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 4 and the 95th percentile is 2).
+Finished in 00s at (2026-09-13 19:32:14)
+
+FORMAL human-decisions-v1-Decisions: exit=0; command=['/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java', '-Xmx1g', '-XX:+UseParallelGC', '-cp', '/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar', 'tlc2.TLC', '-noGenerateSpecTE', '-workers', '1', '-metadir', 'tmp/formal-runs/core-Decisions', '-config', 'spec/capabilities/human-decisions/v1/Decisions.cfg', 'spec/capabilities/human-decisions/v1/Decisions.tla']
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 14 and seed -6439963347251396608 with 1 worker on 8 cores with 910MB heap and 64MB offheap memory [pid: 179702] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/spec/capabilities/human-decisions/v1/Decisions.tla
+Parsing file /tmp/tlc-12198349991994168468/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-12198349991994168468/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-12198349991994168468/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Decisions
+Linting of module Decisions
+Starting... (2026-09-13 19:32:14)
+Implied-temporal checking--satisfiability problem has 2 branches.
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-13 19:32:15.
+Progress(8) at 2026-09-13 19:32:15: 64 states generated, 40 distinct states found, 0 states left on queue.
+Checking 2 branches of temporal properties for the complete state space with 80 total distinct states at (2026-09-13 19:32:15)
+Finished checking temporal properties in 00s at 2026-09-13 19:32:15
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 5.2E-17
+64 states generated, 40 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 8.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 4 and the 95th percentile is 4).
+Finished in 00s at (2026-09-13 19:32:15)
+
+FORMAL human-decisions-v1-Provisional: exit=0; command=['/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java', '-Xmx1g', '-XX:+UseParallelGC', '-cp', '/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar', 'tlc2.TLC', '-noGenerateSpecTE', '-workers', '1', '-metadir', 'tmp/formal-runs/core-Provisional', '-config', 'spec/capabilities/human-decisions/v1/Provisional.cfg', 'spec/capabilities/human-decisions/v1/Provisional.tla']
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 81 and seed 6456393011125920789 with 1 worker on 8 cores with 910MB heap and 64MB offheap memory [pid: 179780] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/spec/capabilities/human-decisions/v1/Provisional.tla
+Parsing file /tmp/tlc-17744297588551891050/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Semantic processing of module Naturals
+Semantic processing of module Provisional
+Linting of module Provisional
+Starting... (2026-09-13 19:32:15)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-13 19:32:15.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 1.7E-17
+36 states generated, 22 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 5.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 4 and the 95th percentile is 3).
+Finished in 00s at (2026-09-13 19:32:15)
+
+FORMAL model-execution-v1-ModelSelection: exit=0; command=['/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java', '-Xmx1g', '-XX:+UseParallelGC', '-cp', '/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar', 'tlc2.TLC', '-noGenerateSpecTE', '-workers', '1', '-metadir', 'tmp/formal-runs/core-ModelSelection', '-config', 'spec/capabilities/model-execution/v1/ModelSelection.cfg', 'spec/capabilities/model-execution/v1/ModelSelection.tla']
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 43 and seed 7539094865244514158 with 1 worker on 8 cores with 910MB heap and 64MB offheap memory [pid: 179835] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/spec/capabilities/model-execution/v1/ModelSelection.tla
+Parsing file /tmp/tlc-12345307158287597255/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Semantic processing of module Naturals
+Semantic processing of module ModelSelection
+Linting of module ModelSelection
+Starting... (2026-09-13 19:32:16)
+Computing initial states...
+Computed 2 initial states...
+Computed 4 initial states...
+Computed 8 initial states...
+Computed 16 initial states...
+Finished computing initial states: 18 distinct states generated at 2026-09-13 19:32:16.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 7.2E-18
+37 states generated, 33 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 4.
+The average outdegree of the complete state graph is 0 (minimum is 0, the maximum 1 and the 95th percentile is 1).
+Finished in 00s at (2026-09-13 19:32:16)
+
+FORMAL budget-accounting-v1-Budget: exit=0; command=['/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java', '-Xmx1g', '-XX:+UseParallelGC', '-cp', '/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar', 'tlc2.TLC', '-noGenerateSpecTE', '-workers', '1', '-metadir', 'tmp/formal-runs/core-Budget', '-config', 'spec/capabilities/budget-accounting/v1/Budget.cfg', 'spec/capabilities/budget-accounting/v1/Budget.tla']
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 4 and seed 6208256588584748074 with 1 worker on 8 cores with 910MB heap and 64MB offheap memory [pid: 179865] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/spec/capabilities/budget-accounting/v1/Budget.tla
+Parsing file /tmp/tlc-5401442218379262997/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-5401442218379262997/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-5401442218379262997/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Budget
+Linting of module Budget
+Starting... (2026-09-13 19:32:16)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-13 19:32:16.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 0.0
+5 states generated, 5 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 3.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 2 and the 95th percentile is 2).
+Finished in 00s at (2026-09-13 19:32:16)
+
+INFO: catalog contracts=16; schemas=11; formal tasks=12.

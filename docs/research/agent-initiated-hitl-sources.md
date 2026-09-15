@@ -18,7 +18,7 @@ scope: PF-005 主动提问、授权请求、耐久等待、用户答复与接续
 | 来源 | 源接受范围 / 本次核对章节 | PF-005 对应 |
 |---|---|---|
 | [Agent 发起人类请求、耐久等待与因果接续][human] | Accepted · current，2026-08-04；Statement、等待/答复规则、AC-1～11 与 2026-08-28、08-31、09-01、09-08 有效补充 | C1～C9：两类请求、授权区分、先登记再呈现、长期等待、owner 答复、单次接续、待办池和可答性 |
-| [一次性批准的预承诺与动作引用][citation] | Accepted · committed-future，2026-08-28；Statement、AC-1～3 及未批准扩展边界 | C10：权威批准引用、owner 可核查、超范围重新请求、缺失不推断 |
+| [一次性批准的预承诺与动作引用][citation] | Accepted · committed-future，2026-08-28；Statement、AC-1～3 及未批准扩展边界 | C10：owner 可在历史核查、超范围重新请求；权威批准引用与缺失不推断两句自 2026-09-15 起不纳入（[PF-005 变更记录](../requirements/product/agent/PF-005-agent-initiated-human-input-and-approval.md#变更记录)） |
 | [受治理能力发现与调用][official] | Accepted · current；OHC-2/3 中专用 consent、可授予 scope、实时授权与拒绝边界 | C3：主动申请能力授权，不把普通 HITL 答案冒充权限授予 |
 | [设备能力使用授权][device] | Accepted · current，2026-07-30，含后续范围澄清；Statement 与 Effective-state semantics | C3 的设备示例：agent 可申请，设备 owner 裁决，目标从发起会话权威派生，模式与范围分别表达 |
 | [Agent 通知的耐久事实与授权送达][notification] | Accepted · current，2026-08-04；Statement、AC-3/5/6 中 actionable request 的通知投影 | C4、C8：同一请求的通知不另造答案/等待事实；送达失败不关闭等待，完整敏感内容须经认证 |
@@ -26,7 +26,8 @@ scope: PF-005 主动提问、授权请求、耐久等待、用户答复与接续
 
 首行核心要求的有效产品条款及修订用于本轮已授权的 HITL 映射，不能只摘开头
 而丢掉后续确认。C10 按 [SYS-CONTINUITY](../requirements/system/omne-next-continuity.md)
-的已承诺功能继承方向登记，保留其 future 身份。其它来源只在表中所列适用范围
+的已承诺功能继承方向登记，保留其 future 身份；其中权威批准引用与缺失不推断两句
+2026-09-15 由用户裁定暂不继承，未来需要时另作能力登记。其它来源只在表中所列适用范围
 补充映射，未把这些相邻能力全文一并确认为本项正文。
 
 ## 必须随正文读取的修订

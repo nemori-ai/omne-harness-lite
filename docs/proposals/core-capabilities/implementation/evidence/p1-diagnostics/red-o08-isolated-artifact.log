@@ -1,0 +1,27 @@
+$ pnpm run build
+exit 0
+
+$ pnpm --filter @omne-harness-lite/package-checks check
+
+PASS: 17 product members, dependency boundaries, 94 upstream source records
+PASS: isolated agent, 2 declared product artifact(s), strict declarations + runtime
+PASS: isolated agent-loop, 7 declared product artifact(s), strict declarations + runtime
+PASS: isolated brand, 1 declared product artifact(s), strict declarations + runtime
+
+file:///tmp/omne-package-artifacts-Smg90v/diagnostics/node_modules/.pnpm/@omne-harness-lite+diagnostics@file+..+omne-harness-lite-diagnostics-0.0.0.tgz/node_modules/@omne-harness-lite/diagnostics/dist/runtime.js:11
+import { SonicBoom } from 'sonic-boom';
+         ^^^^^^^^^
+SyntaxError: The requested module 'sonic-boom' does not provide an export named 'SonicBoom'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:327:21)
+
+Node.js v24.18.0
+Failed artifact evidence retained: /tmp/omne-package-artifacts-Smg90v
+Exit status 1
+
+The full repository build and check ran from the clean HEAD archive at
+tmp/p1-diagnostics/package-check-repo-b218d59. Its dependency links point at the spoke's installed
+pnpm store, but every source, dist output, pack, install, declaration compile, and runtime import
+under check belongs to that isolated archive or the checker's external artifact scratch. The RED
+shows a real packed-artifact-only failure: workspace resolution tolerated the TypeScript named
+import, while Node's isolated ESM loader correctly rejected that named import from SonicBoom's CJS
+entry.

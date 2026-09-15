@@ -1,0 +1,186 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 16 and seed 8167212105839207522 with 1 worker on 8 cores with 910MB heap and 64MB offheap memory [pid: 139144] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/docs/proposals/core-capabilities/design/Admission.tla
+Parsing file /tmp/tlc-12504884747809080492/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Semantic processing of module Naturals
+Semantic processing of module Admission
+Linting of module Admission
+Starting... (2026-09-13 19:19:53)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-13 19:19:53.
+Error: Invariant NoLateStartAfterSafeStop is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+s = [ published |-> FALSE,
+  generation |-> 0,
+  member |-> TRUE,
+  grant |-> FALSE,
+  mode |-> "standard",
+  decision |-> "pending",
+  decisionDurable |-> FALSE,
+  admitted |-> FALSE,
+  durable |-> FALSE,
+  witness |-> FALSE,
+  cancelled |-> FALSE,
+  tombstone |-> FALSE,
+  started |-> FALSE,
+  ended |-> FALSE,
+  safe |-> FALSE,
+  badDurability |-> FALSE,
+  badLateStart |-> FALSE ]
+
+State 2: <Publish line 16, col 12 to line 17, col 48 of module Admission>
+s = [ published |-> TRUE,
+  generation |-> 0,
+  member |-> TRUE,
+  grant |-> FALSE,
+  mode |-> "standard",
+  decision |-> "pending",
+  decisionDurable |-> FALSE,
+  admitted |-> FALSE,
+  durable |-> FALSE,
+  witness |-> FALSE,
+  cancelled |-> FALSE,
+  tombstone |-> FALSE,
+  started |-> FALSE,
+  ended |-> FALSE,
+  safe |-> FALSE,
+  badDurability |-> FALSE,
+  badLateStart |-> FALSE ]
+
+State 3: <Grant line 21, col 10 to line 21, col 54 of module Admission>
+s = [ published |-> TRUE,
+  generation |-> 0,
+  member |-> TRUE,
+  grant |-> TRUE,
+  mode |-> "standard",
+  decision |-> "pending",
+  decisionDurable |-> FALSE,
+  admitted |-> FALSE,
+  durable |-> FALSE,
+  witness |-> FALSE,
+  cancelled |-> FALSE,
+  tombstone |-> FALSE,
+  started |-> FALSE,
+  ended |-> FALSE,
+  safe |-> FALSE,
+  badDurability |-> FALSE,
+  badLateStart |-> FALSE ]
+
+State 4: <Admit line 30, col 10 to line 32, col 64 of module Admission>
+s = [ published |-> TRUE,
+  generation |-> 0,
+  member |-> TRUE,
+  grant |-> TRUE,
+  mode |-> "standard",
+  decision |-> "pending",
+  decisionDurable |-> FALSE,
+  admitted |-> TRUE,
+  durable |-> FALSE,
+  witness |-> TRUE,
+  cancelled |-> FALSE,
+  tombstone |-> FALSE,
+  started |-> FALSE,
+  ended |-> FALSE,
+  safe |-> FALSE,
+  badDurability |-> FALSE,
+  badLateStart |-> FALSE ]
+
+State 5: <Sync line 33, col 9 to line 34, col 43 of module Admission>
+s = [ published |-> TRUE,
+  generation |-> 0,
+  member |-> TRUE,
+  grant |-> TRUE,
+  mode |-> "standard",
+  decision |-> "pending",
+  decisionDurable |-> FALSE,
+  admitted |-> TRUE,
+  durable |-> TRUE,
+  witness |-> TRUE,
+  cancelled |-> FALSE,
+  tombstone |-> FALSE,
+  started |-> FALSE,
+  ended |-> FALSE,
+  safe |-> FALSE,
+  badDurability |-> FALSE,
+  badLateStart |-> FALSE ]
+
+State 6: <Cancel line 35, col 11 to line 35, col 63 of module Admission>
+s = [ published |-> TRUE,
+  generation |-> 0,
+  member |-> TRUE,
+  grant |-> TRUE,
+  mode |-> "standard",
+  decision |-> "pending",
+  decisionDurable |-> FALSE,
+  admitted |-> TRUE,
+  durable |-> TRUE,
+  witness |-> TRUE,
+  cancelled |-> TRUE,
+  tombstone |-> FALSE,
+  started |-> FALSE,
+  ended |-> FALSE,
+  safe |-> FALSE,
+  badDurability |-> FALSE,
+  badLateStart |-> FALSE ]
+
+State 7: <StopDelivered line 37, col 18 to line 38, col 54 of module Admission>
+s = [ published |-> TRUE,
+  generation |-> 0,
+  member |-> TRUE,
+  grant |-> TRUE,
+  mode |-> "standard",
+  decision |-> "pending",
+  decisionDurable |-> FALSE,
+  admitted |-> TRUE,
+  durable |-> TRUE,
+  witness |-> TRUE,
+  cancelled |-> TRUE,
+  tombstone |-> TRUE,
+  started |-> FALSE,
+  ended |-> FALSE,
+  safe |-> FALSE,
+  badDurability |-> FALSE,
+  badLateStart |-> FALSE ]
+
+State 8: <SafeStop line 46, col 13 to line 47, col 44 of module Admission>
+s = [ published |-> TRUE,
+  generation |-> 0,
+  member |-> TRUE,
+  grant |-> TRUE,
+  mode |-> "standard",
+  decision |-> "pending",
+  decisionDurable |-> FALSE,
+  admitted |-> TRUE,
+  durable |-> TRUE,
+  witness |-> TRUE,
+  cancelled |-> TRUE,
+  tombstone |-> TRUE,
+  started |-> FALSE,
+  ended |-> FALSE,
+  safe |-> TRUE,
+  badDurability |-> FALSE,
+  badLateStart |-> FALSE ]
+
+State 9: <Start line 39, col 10 to line 43, col 74 of module Admission>
+s = [ published |-> TRUE,
+  generation |-> 0,
+  member |-> TRUE,
+  grant |-> TRUE,
+  mode |-> "standard",
+  decision |-> "pending",
+  decisionDurable |-> FALSE,
+  admitted |-> TRUE,
+  durable |-> TRUE,
+  witness |-> TRUE,
+  cancelled |-> TRUE,
+  tombstone |-> TRUE,
+  started |-> TRUE,
+  ended |-> FALSE,
+  safe |-> TRUE,
+  badDurability |-> FALSE,
+  badLateStart |-> TRUE ]
+
+2895 states generated, 944 distinct states found, 274 states left on queue.
+The depth of the complete state graph search is 9.
+Finished in 01s at (2026-09-13 19:19:53)

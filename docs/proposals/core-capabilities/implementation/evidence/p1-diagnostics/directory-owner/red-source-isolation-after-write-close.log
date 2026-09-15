@@ -1,0 +1,46 @@
+
+> @omne-harness-lite/diagnostics@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics
+> vitest run -- reviewer-regressions.spec.ts -t 'closes the owned source after a pending write callback fails during end'
+
+
+ RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics
+
+ ❯ tests/reviewer-regressions.spec.ts (11 tests | 1 failed) 848ms
+     × closes the owned source after a pending write callback fails during end 49ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/reviewer-regressions.spec.ts > D1-R2 close recovery after a write-triggered destroy > closes the owned source after a pending write callback fails during end
+AssertionError: expected { phase: 'failed', lock: 'held', …(8) } to match object { phase: 'active', …(2) }
+(7 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "lastErrorCode": null,
+-   "phase": "active",
++   "lastErrorCode": "SOURCE_RELEASE_UNKNOWN",
++   "phase": "failed",
+    "resource": "held",
+  }
+
+ ❯ tests/reviewer-regressions.spec.ts:250:38
+    248|       state: { phase: 'closed', resource: 'released' },
+    249|     })
+    250|     expect(directoryOwner.inspect()).toMatchObject({
+       |                                      ^
+    251|       phase: 'active',
+    252|       lastErrorCode: null,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  1 failed | 51 passed (52)
+   Start at  09:24:28
+   Duration  1.30s (transform 382ms, setup 0ms, import 865ms, tests 1.80s, environment 0ms)
+
+/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @omne-harness-lite/diagnostics@0.0.0 test: `vitest run -- reviewer-regressions.spec.ts -t 'closes the owned source after a pending write callback fails during end'`
+Exit status 1

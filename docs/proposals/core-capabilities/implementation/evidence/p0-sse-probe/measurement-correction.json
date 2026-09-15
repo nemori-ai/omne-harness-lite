@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Reproduce and justify the probe's initial measurement-expression correction.",
+  "contractBasis": {
+    "event": "The scenario requires exact data payload framing; absent id/event fields are not part of the expected input.",
+    "comment": "WHATWG ignores comment lines; the scenario only requires recognizing the OpenRouter heartbeat comment."
+  },
+  "observation": {
+    "eventOwnKeys": [
+      "id",
+      "event",
+      "data"
+    ],
+    "eventIdType": "undefined",
+    "eventTypeType": "undefined",
+    "eventData": "ok",
+    "jsonSerializedEvent": "{\"data\":\"ok\"}",
+    "comment": "OPENROUTER PROCESSING"
+  },
+  "before": {
+    "eventWholeObjectAssertion": {
+      "passed": false,
+      "error": {
+        "name": "AssertionError",
+        "message": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n    data: 'ok',\n+   event: undefined,\n+   id: undefined\n  }\n",
+        "code": "ERR_ASSERTION"
+      }
+    },
+    "packagedReadmeCommentAssertion": {
+      "passed": false,
+      "error": {
+        "name": "AssertionError",
+        "message": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'OPENROUTER PROCESSING'\n- ' OPENROUTER PROCESSING'\n",
+        "code": "ERR_ASSERTION"
+      }
+    }
+  },
+  "after": {
+    "eventDataAssertion": {
+      "passed": true
+    },
+    "observedHeartbeatAssertion": {
+      "passed": true
+    }
+  },
+  "retainedObservation": "eventsource-parser 4.1.0 removes one optional space after ':' for onComment although its packaged README says it retains that space; this extension mismatch does not alter SSE event framing."
+}

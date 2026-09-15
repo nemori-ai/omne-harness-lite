@@ -14,6 +14,8 @@
 - [PF-017：跨会话历史状态检索与后台通信协作](PF-017-cross-session-history-and-background-coordination.md)
 - [PF-018：使用 omne-selfound 的知识与认知能力](PF-018-selfound-knowledge-and-cognition-use.md)
 - [PF-022：多模态响应与输出](PF-022-multimodal-response-and-output.md)
+- [PF-024：多命令工具定义](PF-024-multi-command-tool-definition.md)
+- [PF-025：兼容外部命令式 hooks 体系](PF-025-external-hooks-compatibility.md)
 
 副维度关联：
 

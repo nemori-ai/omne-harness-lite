@@ -1,0 +1,26 @@
+{
+  "baseline": "654ea25",
+  "node": "v24.18.0",
+  "pnpm": "10.28.1",
+  "source_commit": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+  "agent_check": {
+    "passed": true,
+    "tests": 50,
+    "artifact_files": 15,
+    "upstream_records": 12
+  },
+  "dsh_baseline_check": {
+    "passed": true,
+    "tests": 2,
+    "subpaths": 3,
+    "upstream_records": 4,
+    "consumer": "offline, outside repository, both private tarballs, strict tsc and runtime, shared scope routing/parent chain/store teardown"
+  },
+  "corrections": [
+    "single active scope registry exposed from agent",
+    "existing source-baseline checker path corrected after D-007 relocation",
+    "unpublished private agent dependency selected by artifact override in isolated consumer",
+    "dispose retained Cordis fibers rather than nonexistent Context.dispose"
+  ],
+  "limitations": "source support pilot only; no D-008 provider conformance"
+}

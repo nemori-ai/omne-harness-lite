@@ -1,0 +1,40 @@
+Scope: 20 of 21 workspace projects
+packages/core/scope build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/work-data build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json && node scripts/build-schemas.mjs
+packages/util/brand build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/util/timeout build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/util/brand build: Done
+packages/util/values build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/util/timeout build: Done
+packages/core/scope build: Done
+packages/core/work-data build: PASS: verified and copied 2 frozen schemas covering 29 DataTypes
+packages/core/work-data build: Done
+packages/util/values build: Done
+packages/core/agent build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/media/content build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/storage/records build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/storage/records build: Done
+packages/media/content build: Done
+packages/core/agent build: Done
+packages/model/llm build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/observation/diagnostics build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/model/llm build: Done
+packages/observation/diagnostics build: Done
+packages/context/system-prompt build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/coordination/admission build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/session/session build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/storage/jsonl build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/coordination/admission build: Done
+packages/tools/tools build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/storage/jsonl build: Done
+packages/session/session build: Done
+packages/context/system-prompt build: Done
+packages/tools/tools build: Done
+apps/local-harness build$ tsc -p tsconfig.json
+packages/agent/loop build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/session/persistence build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/session/projection build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/session/persistence build: Done
+packages/agent/loop build: Done
+apps/local-harness build: Done
+packages/session/projection build: Done

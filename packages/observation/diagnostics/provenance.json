@@ -1,0 +1,19 @@
+{
+  "format": 1,
+  "scope": "Project-owned D-010 shared diagnostics provider and D-011 directory-owned bounded local output implementation",
+  "files": [],
+  "project_files": [
+    {
+      "path": "src/index.ts",
+      "purpose": "Public D-010 recording and D-011 directory/source lifecycle contracts"
+    },
+    {
+      "path": "src/runtime.ts",
+      "purpose": "Local Pino, SonicBoom, OpenTelemetry, fs-ext directory owner and shared budget implementation"
+    },
+    {
+      "path": "src/projection.ts",
+      "purpose": "Getter-free bounded projection of accepted diagnostic identity and point fields"
+    }
+  ]
+}

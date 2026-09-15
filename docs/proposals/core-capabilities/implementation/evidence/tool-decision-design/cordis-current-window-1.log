@@ -1,0 +1,25 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
++ undefined
+- {
+-   disposed: false,
+-   observerClosed: false,
+-   revision: 0,
+-   state: 5
+- }
+
+    at file:///data/qiwei/repos/omne-harness-lite/.worktrees/dsh-tool-decision-design/docs/proposals/core-capabilities/implementation/evidence/tool-decision-design/cordis-current-window.mjs:49:10 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: undefined,
+  expected: { state: 5, observerClosed: false, revision: 0, disposed: false },
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.18.0

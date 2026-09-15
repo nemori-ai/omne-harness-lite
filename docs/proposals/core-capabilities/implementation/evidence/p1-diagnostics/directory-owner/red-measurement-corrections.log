@@ -1,0 +1,126 @@
+
+ RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics
+
+ ↓ tests/runtime.spec.ts > O05/O06 local source lifecycle > creates an exclusive protected source and writes clean start/end records
+ ↓ tests/runtime.spec.ts > O05/O06 local source lifecycle > keeps the exclusive creation descriptor instead of reopening the path for append
+ ↓ tests/runtime.spec.ts > O01/O02 passive context behavior > preserves body result, throw, and opaque Promise identity without then observers
+ ↓ tests/runtime.spec.ts > O01/O02 passive context behavior > keeps two tenant contexts isolated across interleaved asynchronous work and root timers
+ ↓ tests/runtime.spec.ts > O01/O02 passive context behavior > does not observe or wait for a large set of unresolved business Promises
+ ↓ tests/runtime.spec.ts > O03 safe projection > does not invoke getters or retain unknown body/error fields and reports invalid projection
+ ↓ tests/runtime.spec.ts > O03 safe projection > rejects overlong/getter/toJSON/cyclic inputs and emits only fixed accepted fields
+ ↓ tests/runtime.spec.ts > O02/O04 standard span behavior > emits bounded parent/child OTel spans and counts span-capacity gaps
+ ↓ tests/runtime.spec.ts > O06 close ownership and generation guards > blocks on an unfinished span, lets that original span end, and retries the same close responsibility
+ ↓ tests/runtime.spec.ts > O06 close ownership and generation guards > keeps one delayed close responsibility across concurrent deadlines and releases no newer source
+ ↓ tests/runtime.spec.ts > O06 close ownership and generation guards > keeps a failed fd close unknown without blindly retrying its numeric identity
+ ↓ tests/runtime.spec.ts > O04/O05 configuration and local retention boundaries > rejects invalid source configuration before creating a source resource
+ ↓ tests/runtime.spec.ts > O04/O05 configuration and local retention boundaries > retains an acquired descriptor when source preparation and its first cleanup both fail
+ ↓ tests/runtime.spec.ts > O04/O05 configuration and local retention boundaries > rejects an unknown retained entry instead of treating it as available capacity
+ × tests/runtime.spec.ts > O04/O05 configuration and local retention boundaries > rejects a matching source filename without a valid package header 19ms
+   → expected { status: 'created', owner: { …(10) } } to match object { status: 'unavailable', …(2) }
+(16 matching properties omitted from actual)
+ ↓ tests/runtime.spec.ts > O04/O05 configuration and local retention boundaries > returns the same source handle and keeps different sources isolated under one owner
+ ↓ tests/runtime.spec.ts > O04/O05 configuration and local retention boundaries > rejects a conflicting configuration for the same source generation
+ ↓ tests/runtime.spec.ts > O04/O05 configuration and local retention boundaries > reports an earlier diagnostic source without a clean end as crash-unknown
+ ↓ tests/runtime.spec.ts > O04/O05 configuration and local retention boundaries > writes one ordinary low-traffic record without another log or close trigger
+ ↓ tests/runtime.spec.ts > O04/O05 bounded output and actual write progress > counts a projected record that exceeds the UTF-8 line cap without writing it
+ ↓ tests/runtime.spec.ts > O04/O05 bounded output and actual write progress > counts repeated warn/error buffer overflow while a real write is delayed
+ ↓ tests/runtime.spec.ts > O04/O05 bounded output and actual write progress > never grows the source past its file budget and counts every later error record
+ ↓ tests/runtime.spec.ts > O04/O05 bounded output and actual write progress > reports a delayed real fs.write as stalled and resumes from actual callback progress
+ ↓ tests/runtime.spec.ts > O04/O05 bounded output and actual write progress > tracks partial fs.write callbacks through the complete readable line boundary
+ ↓ tests/runtime.spec.ts > O04/O05 bounded output and actual write progress > contains a real EIO callback, exposes the safe code, and releases that stream
+ ↓ tests/runtime.spec.ts > O04/O05 bounded output and actual write progress > does not expose an arbitrary backend error code as diagnostic content
+ × tests/reviewer-regressions.spec.ts > D1-R2 close recovery after a write-triggered destroy > closes the owned source after a pending write callback fails during end 37ms
+   → expected +0 to be 1 // Object.is equality
+ ↓ tests/reviewer-regressions.spec.ts > D1-R2 close recovery after a write-triggered destroy > does not close a reused fd after the underlying source close returned an error
+ ↓ tests/reviewer-regressions.spec.ts > D1-R3 scanned source cleanup ownership > retains an old FileHandle whose close result is unknown without retrying it
+ ↓ tests/reviewer-regressions.spec.ts > D1-R5 hostile public projection inputs > contains revoked Proxies at scope, log, and end without changing business identity
+ ↓ tests/reviewer-regressions.spec.ts > D1-R4 ended span context retention > lets the SDK span be collected while its public context remains reachable
+ ↓ tests/reviewer-regressions.spec.ts > D1-R4 ended span context retention > starts a correlated child from the immutable identity of an ended parent
+ ↓ tests/reviewer-regressions.spec.ts > D1-R6 persisted gap summaries > writes the bounded buffer gap range and count after the real stream recovers
+ ↓ tests/reviewer-regressions.spec.ts > D1-R6 persisted gap summaries > keeps a failed oversized summary bounded without scheduling retries
+ ↓ tests/reviewer-regressions.spec.ts > D1-R6 persisted gap summaries > writes the gap summary before clean end when close starts before write recovery
+ ↓ tests/reviewer-regressions.spec.ts > D1-R1 shared directory budgets > includes an older live generation and its pending span end in the directory byte budget
+ ↓ tests/reviewer-regressions.spec.ts > D1-R1 shared directory budgets > reserves maxFiles across concurrent factory creation
+ ↓ tests/directory-owner.spec.ts > D1-R1 directory ownership and resource identity > exposes only the directory-owned local creation entry
+ ↓ tests/directory-owner.spec.ts > D1-R1 directory ownership and resource identity > rejects invalid directory configuration before allocating a path or lock file
+ ↓ tests/directory-owner.spec.ts > D1-R1 directory ownership and resource identity > uses one stable lock inode across path aliases, close, and restart
+ ↓ tests/directory-owner.spec.ts > D1-R1 directory ownership and resource identity > excludes a second process until the first process closes the real flock
+ ↓ tests/directory-owner.spec.ts > D1-R1 directory ownership and resource identity > reserves one shared source slot before the intercepted open and joins identical creates
+ ↓ tests/directory-owner.spec.ts > D1-R1 directory ownership and resource identity > releases a source slot after an open failure that created no file and allows a retry
+ ↓ tests/directory-owner.spec.ts > D1-R1 directory ownership and resource identity > retains an unexplained open collision without assigning the requested source identity
+ ↓ tests/directory-owner.spec.ts > D1-R1 directory ownership and resource identity > keeps a materialized slot after configuration failure until the degraded source closes
+ ↓ tests/directory-owner.spec.ts > D1-R1 directory ownership and resource identity > keeps the lock while a source open is late and releases it only after retrying owner close
+ ↓ tests/directory-owner.spec.ts > D1-R1 directory ownership and resource identity > retries final stat without releasing uncertain reserved bytes or the directory lock
+ × tests/directory-owner.spec.ts > D1-R1 directory ownership and resource identity > keeps a short write failure reserved until process exit when source release is not proved 261ms
+   → expected 0 to be greater than 0
+ ↓ tests/directory-owner.spec.ts > D1-R1 directory ownership and resource identity > holds the flock across an unfinished span and closes after the span ends
+ ↓ tests/directory-owner.spec.ts > D1-R1 directory ownership and resource identity > preserves a nonzero or symlink lock file without opening an owner
+ ↓ tests/directory-owner.spec.ts > D1-R1 directory ownership and resource identity > returns cleanup when a lock loser close is unknown without disturbing the winner
+ ↓ tests/directory-owner.spec.ts > D1-R1 directory ownership and resource identity > reports lock release unknown separately while a successor follows the actual flock result
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/directory-owner.spec.ts > D1-R1 directory ownership and resource identity > keeps a short write failure reserved until process exit when source release is not proved
+AssertionError: expected 0 to be greater than 0
+ ❯ tests/directory-owner.spec.ts:390:24
+    388|     expect(message.writeCall.requestedBytes).toBeGreaterThan(0)
+    389|     const addedBytes = message.actualBytes - message.baselineBytes
+    390|     expect(addedBytes).toBeGreaterThan(0)
+       |                        ^
+    391|     expect(addedBytes).toBeLessThan(message.writeCall.requestedBytes)
+    392|     expect(message.close.status).toBe('blocked')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  tests/reviewer-regressions.spec.ts > D1-R2 close recovery after a write-triggered destroy > closes the owned source after a pending write callback fails during end
+AssertionError: expected +0 to be 1 // Object.is equality
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ tests/reviewer-regressions.spec.ts:239:24
+    237|       state: { phase: 'closing', writeProgress: 'failed' },
+    238|     })
+    239|     expect(closeCalls).toBe(1)
+       |                        ^
+    240|     expect(openAfterFailure).toBe(false)
+    241|     expect(repeated).toMatchObject({
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  tests/runtime.spec.ts > O04/O05 configuration and local retention boundaries > rejects a matching source filename without a valid package header
+AssertionError: expected { status: 'created', owner: { …(10) } } to match object { status: 'unavailable', …(2) }
+(16 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "cleanup": null,
+-   "code": "UNKNOWN_SOURCE_FILE",
+-   "status": "unavailable",
++   "status": "created",
+  }
+
+ ❯ tests/runtime.spec.ts:721:20
+    719|       directoryOptions(options(directory, 'source-after-unknown')),
+    720|     )
+    721|     expect(result).toMatchObject({
+       |                    ^
+    722|       status: 'unavailable',
+    723|       code: 'UNKNOWN_SOURCE_FILE',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  3 failed (3)
+      Tests  3 failed | 49 skipped (52)
+   Start at  09:10:56
+   Duration  807ms (transform 588ms, setup 0ms, import 1.06s, tests 330ms, environment 0ms)
+
+undefined
+/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: vitest run tests/directory-owner.spec.ts tests/runtime.spec.ts tests/reviewer-regressions.spec.ts -t short write failure|matching source filename|pending write callback --reporter verbose

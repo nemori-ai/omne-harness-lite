@@ -1,0 +1,43 @@
+
+> @omne-harness-lite/admission@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p1-composition/packages/coordination/admission
+> vitest run
+
+
+ RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p1-composition/packages/coordination/admission
+
+
+ Test Files  3 passed (3)
+      Tests  34 passed (34)
+   Start at  11:12:03
+   Duration  402ms (transform 394ms, setup 0ms, import 466ms, tests 86ms, environment 0ms)
+
+
+> @omne-harness-lite/jsonl@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p1-composition/packages/storage/jsonl
+> vitest run
+
+
+ RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p1-composition/packages/storage/jsonl
+
+
+ Test Files  4 passed (4)
+      Tests  27 passed (27)
+   Start at  11:12:04
+   Duration  2.44s (transform 831ms, setup 0ms, import 2.71s, tests 2.53s, environment 1ms)
+
+
+> @omne-harness-lite/local-harness@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p1-composition/apps/local-harness
+> tsc -p tsconfig.json
+
+
+> @omne-harness-lite/local-harness@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p1-composition/apps/local-harness
+> vitest run
+
+
+ RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-p1-composition/apps/local-harness
+
+
+ Test Files  5 passed (5)
+      Tests  20 passed (20)
+   Start at  11:12:12
+   Duration  1.70s (transform 1.51s, setup 0ms, import 4.11s, tests 1.72s, environment 1ms)
+

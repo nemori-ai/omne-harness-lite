@@ -1,0 +1,21 @@
+$ pnpm --filter @omne-harness-lite/diagnostics run build
+exit 0
+
+$ pnpm --filter @omne-harness-lite/diagnostics run typecheck
+exit 0
+
+$ pnpm --filter @omne-harness-lite/diagnostics test -- --reporter=verbose
+
+RUN  v4.1.8 /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-diagnostics/packages/observation/diagnostics
+
+FAIL  tests/runtime.spec.ts > O02/O04 standard span behavior > emits bounded parent/child OTel spans and counts span-capacity gaps
+AssertionError: expected +0 to be 2 // Object.is equality
+at tests/runtime.spec.ts:214:43
+
+FAIL  tests/runtime.spec.ts > O06 close ownership and generation guards > blocks on an unfinished span, lets that original span end, and retries the same close responsibility
+AssertionError: expected +0 to be 1 // Object.is equality
+at tests/runtime.spec.ts:241:43
+
+Test Files  1 failed (1)
+Tests       2 failed | 4 passed (6)
+Exit status 1

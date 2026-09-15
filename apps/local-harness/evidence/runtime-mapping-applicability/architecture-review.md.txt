@@ -1,0 +1,36 @@
+# 原生 architecture-reviewer 返回正文
+
+来源：`/root/review_runtime_evidence_applicability`，实际模型 gpt-6-astra / xhigh。
+下文保留其最终返回正文；本机文件链接表示受审时的位置。root 后续处置不倒写本报告。
+
+评审完成。对象为 `976149b7e82276df7efdf3d344c9163aebdc0b6b` 的 local-harness 挂载、末门与退出，以及 AR/SR 对应机制。采用依据沿 `f98ac926`，需求范围沿既有消费记录及本次确定性 allow 基线。期间 HEAD 前移，但受审文件未变化。全程只读，未执行测试或模型。
+
+**本次未发现必须重选协议，或在 AR/SR 实施前新增行为模型、演绎证明或机器证明的阻断依据。** 设计保留共同门、精确代次、单调关闭、顺序排空和 retained 责任；没有发现依赖共享代数性质而省略这些控制的选择。`composability.md:48` 的模型义务可沿既有 AR/CB 契约与适用模型核对，不能仅因存在自定义映射就要求新模型。
+
+有两项尚需闭合：
+
+1. **F3 的模型适用性记录仍缺失；阻断“本次证据链已闭合”的结论，不构成全局停工依据。**
+
+   位置：[应用设计](/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/apps/local-harness/design.md:102)、[AR 设计](/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/packages/core/agent/design.md:51)、[SR 设计](/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/packages/session/session/design.md:47)。
+
+   必须让后续消费者能核对三个命题及其强制位置：新发布/工作不能穿过原必要依赖的失效点；重新挂载不能复活旧许可；原清理只作用原登记，责任未解除前保留占位。依据为 CB-03/06/07/10–14、AR-8/10–16，以及 `verification.md:72–75` 的实现—模型对应要求。
+
+   可复用证据的范围如下：
+
+   | 既有证据 | 可支持的判断 | 不能推出 |
+   |---|---|---|
+   | AR `Runtime.tla` | 唯一占位、计划 Factory 退役、工作及资源收口、旧清理不删新实例 | 突发物理丢失等同 `RetireFactory`；真实逐资源清理完成 |
+   | CB `Binding.tla` | 共同发布/新工作检查、资格恢复不复活旧修订、晚到准备及未确认移交保留责任 | 单向 `LoseDependency` 已检查完整失联—重挂协议；实际同步门已兑现 |
+   | Cordis 4.0.2 固定探针 | provider 已失效而 consumer 暂仍 ACTIVE；观察器前重入；同 Fiber 重载后的旧闭包仍存在 | 产品末门、单调关闭或业务结果接续已经通过 |
+
+   具体风险场景是：provider 先进入 UNLOADING，较早监听器调用旧闭包，此时 host stamp 尚未推进；之后同一 consumer Fiber 又 ACTIVE。设计已经要求直接检查原 provider 和新旧代次，但现有证据入口尚未解释这些步骤如何兑现 CB 的原子边界。缺少对应记录会使实施者误把旧模型绿色当作省略直接检查的依据。
+
+   长期归属应在 AR/SR 提供者设计与应用装配说明中，契约的可变 verification 入口链接对应范围。需记录真实挂载身份、共同门内禁止重入/装卸、关闭代次不可复活、原 owner 保有清理等前提分别由谁兑现。**当前没有据此修改冻结 v1 或建立新模型的必要事实**；若映射发现实际允许了既有模型无法解释的交错，再针对该命题补模型或证明。
+
+2. **真实提供者符合性仍未验证；这是产品接入/交付条件。**
+
+   [AR 实施门](/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/packages/core/agent/design.md:99)和[应用验证范围](/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/apps/local-harness/design.md:147)均明确未运行。AR 契约 `:193–203` 要求接入产品运行路径前提供已验证映射；CB 也明确抽象提交不是实际共同提交的证明。
+
+   本基线至少应覆盖 A04/A18、S03/S09/S12 及 D08 的实际依赖切片：观察器前重入拒绝、consumer ACTIVE 时原 provider 失效拒绝、重挂后旧句柄失效、准备晚到与清理失败保留原责任、旧 disposer 不影响新代。完成判据应观察真实任务、订阅、timer/fd 和业务占位的释放或具名 retained；仅观察 Fiber disposed 不足。有限循环或端到端通过仍不证明任意插件和全部交错。
+
+未发现需要本次裁决的新业务政策。未覆盖完整 HD/M1/M2、分布式恢复、任意执行器，也未评审 P1 实现或施工拓扑。以上意见不撤销已有语义接受，也不增加机制或产品的接受状态。

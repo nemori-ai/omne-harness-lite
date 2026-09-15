@@ -1,0 +1,178 @@
+{
+  "format": 1,
+  "repository": "https://github.com/deepseek-ai/deepseek-harness",
+  "commit": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+  "scope": "Source messages, request configuration and stream assembly; source baseline only, not target capability conformance",
+  "archive_sha256": "f08cfc86cb05d4186be3319670e2756375cb2788b3d2164dd7f30b885f350860",
+  "files": [
+    {
+      "upstream_path": "LICENSE",
+      "snapshot": "LICENSE",
+      "sha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be",
+      "targets": [
+        "LICENSE"
+      ],
+      "changes": "Unchanged DeepSeek copyright and full MIT text."
+    },
+    {
+      "upstream_path": "packages/llm/llm/src/adapter-failure.ts",
+      "snapshot": "upstream/llm/src/adapter-failure.ts",
+      "sha256": "7132ce407d433eedf94304f342fd703de60f80190431e2be707948b0c5104d54",
+      "targets": [
+        "src/adapter-failure.ts"
+      ],
+      "changes": "Preserved normalization algorithm; local module imports only Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/llm/llm/src/assembler.ts",
+      "snapshot": "upstream/llm/src/assembler.ts",
+      "sha256": "ff30f5ca346015bfffeffb5ee3398901d03eb3429fda5d0d4e0c40e8638dfe58",
+      "targets": [
+        "src/assembler.ts"
+      ],
+      "changes": "Preserved BlockAssembler algorithm; brand/assertNever imports use src/support Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/llm/llm/src/assistant-stream.ts",
+      "snapshot": "upstream/llm/src/assistant-stream.ts",
+      "sha256": "9ac0c19b83eb8243f4907579608e00f77d8c447c010f31afeec4a1e760f2da82",
+      "targets": [
+        "src/assistant-stream.ts"
+      ],
+      "changes": "Preserved compact stream algorithms and validation; JSON/freeze helpers use src/support Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/llm/llm/src/attribution.ts",
+      "snapshot": "upstream/llm/src/attribution.ts",
+      "sha256": "031f0a29b75498b9208ab2ede0a32b755c925f1a992562dd23970cff7caea075",
+      "targets": [
+        "src/attribution.ts"
+      ],
+      "changes": "Preserved header rendering; manifest path and default identity identify the local source baseline while retaining the upstream source URL Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/llm/llm/src/brand.ts",
+      "snapshot": "upstream/llm/src/brand.ts",
+      "sha256": "a3a3f22174353af8aea34a9a439986530bffcc6df6339e55612fd5a1fa4fb14c",
+      "targets": [
+        "src/brand.ts"
+      ],
+      "changes": "Preserved owned brands; imports the selected src/support brand primitive Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/llm/llm/src/call-config.ts",
+      "snapshot": "upstream/llm/src/call-config.ts",
+      "sha256": "c2ead88240db88af3199235389585d2ddc566312d8976d9648a5f5190d32e6c6",
+      "targets": [
+        "src/call-config.ts"
+      ],
+      "changes": "Preserved field equality and exact-object WeakSet marker; local type imports only Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/llm/llm/src/error.ts",
+      "snapshot": "upstream/llm/src/error.ts",
+      "sha256": "d5a46153de9293456b7c998f849b4e3f1a95c3830777aab932cdc5acf036b1b1",
+      "targets": [
+        "src/error.ts"
+      ],
+      "changes": "Preserved HarnessError, classifiers, and chained diagnostic rendering Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/llm/llm/src/index.ts",
+      "snapshot": "upstream/llm/src/index.ts",
+      "sha256": "e9790c58a9ab112eb41165a4cab474df751dfe7bd13fd8ade68564ca11f7c4d5",
+      "targets": [
+        "src/index.ts"
+      ],
+      "changes": "Replaced the Typert/Cordis adapter runtime entry with an explicit pure-mechanism export surface; the original remains non-compiled evidence Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/llm/llm/src/message.ts",
+      "snapshot": "upstream/llm/src/message.ts",
+      "sha256": "81322e50c2addcdad23a8c8f4d94e0f0958414478925fd3c5f0a9fc0031f7db3",
+      "targets": [
+        "src/message.ts"
+      ],
+      "changes": "Preserved message shapes and immutable constructors; randomUUID uses node:crypto and brand/freeze helpers use src/support Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/llm/llm/src/types.ts",
+      "snapshot": "upstream/llm/src/types.ts",
+      "sha256": "d243caef9bc6fcb72b2d81227c631c63d2b82203bb4b6e4b3bd3748e0a5e1717",
+      "targets": [
+        "src/types.ts"
+      ],
+      "changes": "Projected only consumed message/content/stream/request types; removed Cordis topology and Typert/model-discovery declarations plus unselected adapter catalog/pricing types Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/llm/llm/tests/adapter-failure.spec.ts",
+      "snapshot": "upstream/llm/tests/adapter-failure.spec.ts",
+      "sha256": "93b6dcb6394a679d1d005b54f2954d1c540189e90e827803f363a57b12420006",
+      "targets": [
+        "tests/llm-source-adapter-failure.spec.ts",
+        "tests/llm-error.spec.ts"
+      ],
+      "changes": "Imports compiled dist; source hostile-value expectations retained, with an added accepted foreign failure snapshot case Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/llm/llm/tests/assembler.spec.ts",
+      "snapshot": "upstream/llm/tests/assembler.spec.ts",
+      "sha256": "5cea588f1e00a2d6f3a4054a4ba9697008804456c54a54cf951dcf08c2554814",
+      "targets": [
+        "tests/llm-source-assembler.spec.ts",
+        "tests/llm-stream.spec.ts"
+      ],
+      "changes": "Imports compiled dist; retained public behavior tests, omitted private-field corruption using any, and added focused max-token/interruption coverage Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/llm/llm/tests/assistant-stream.spec.ts",
+      "snapshot": "upstream/llm/tests/assistant-stream.spec.ts",
+      "sha256": "64cfb03461bd236c7232968f0dcffb01dccbed95edfdb5265d75cf222da82e0d",
+      "targets": [
+        "tests/llm-source-assistant-stream.spec.ts",
+        "tests/llm-stream.spec.ts"
+      ],
+      "changes": "Only module import changed to compiled dist; focused smoke tests supplement the retained suite Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/llm/llm/tests/attribution.spec.ts",
+      "snapshot": "upstream/llm/tests/attribution.spec.ts",
+      "sha256": "7e533d815b8f8bc5f35b7154a61e0b594e93f0a2b39ef80036834f82bb31941d",
+      "targets": [
+        "tests/llm-source-attribution.spec.ts",
+        "tests/llm-config.spec.ts"
+      ],
+      "changes": "Imports compiled dist; expected default product identity changed to the local source baseline Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/llm/llm/tests/call-config.spec.ts",
+      "snapshot": "upstream/llm/tests/call-config.spec.ts",
+      "sha256": "de6f033a4b68342aeb212ed8440eecfa0c415453f34712fb80bdd97ee3545ac9",
+      "targets": [
+        "tests/llm-source-call-config.spec.ts",
+        "tests/llm-config.spec.ts"
+      ],
+      "changes": "Only imports changed to compiled dist/support entries; focused smoke tests supplement the retained suite Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/llm/llm/tests/message.spec.ts",
+      "snapshot": "upstream/llm/tests/message.spec.ts",
+      "sha256": "23bf1893526c0c83fb3b1abc9c4dca3b5baaede53b2919432ebba44e7bef8178",
+      "targets": [
+        "tests/llm-source-message.spec.ts",
+        "tests/llm-message.spec.ts"
+      ],
+      "changes": "Only module import changed to compiled dist; added empty-system projection coverage Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/llm/llm/tests/service.spec.ts",
+      "snapshot": "upstream/llm/tests/service.spec.ts",
+      "sha256": "b7ffe1b2ead1b4afd441cb7c0b56303453e3df8e45a8fdb26e937dcdc4046a18",
+      "targets": [
+        "tests/llm-error.spec.ts"
+      ],
+      "changes": "Retained only public HarnessError, context/quota classification, and error-chain cases; adapter runtime/registry tests are excluded with their unselected implementation Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    }
+  ],
+  "project_files": []
+}

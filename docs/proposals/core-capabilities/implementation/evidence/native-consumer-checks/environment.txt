@@ -1,0 +1,48 @@
+source baseline: ce738731d55966a7c001bcee67a11055ea8adedb
+initial native implementation: 804074af83d9dd6b7927ae621a31d95a9a313fb6
+shared native cache fix: fb62ba480fc47cc6ea97c3b1c4e3ff86186d0720
+Node.js: v24.18.0
+pnpm: 10.28.1
+CC: /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/tmp/p0-lock-probe/gcc10-root/usr/bin/gcc-10
+CXX: /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/tmp/p0-lock-probe/gcc10-root/usr/bin/g++-10
+GCC_EXEC_PREFIX: /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/tmp/p0-lock-probe/gcc10-root/usr/lib/gcc/
+gcc: gcc-10 (Ubuntu 10.5.0-1ubuntu1~20.04) 10.5.0
+g++: g++-10 (Ubuntu 10.5.0-1ubuntu1~20.04) 10.5.0
+kernel: Linux 5.15.0-1084-aws x86_64 GNU/Linux
+
+Workspace preparation:
+pnpm install --frozen-lockfile --ignore-scripts
+
+Checker tests:
+env \
+  CC=/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/tmp/p0-lock-probe/gcc10-root/usr/bin/gcc-10 \
+  CXX=/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/tmp/p0-lock-probe/gcc10-root/usr/bin/g++-10 \
+  GCC_EXEC_PREFIX=/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/tmp/p0-lock-probe/gcc10-root/usr/lib/gcc/ \
+  pnpm --filter @omne-harness-lite/package-checks test
+
+Shared-cache targeted check:
+env \
+  CC=/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/tmp/p0-lock-probe/gcc10-root/usr/bin/gcc-10 \
+  CXX=/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/tmp/p0-lock-probe/gcc10-root/usr/bin/g++-10 \
+  GCC_EXEC_PREFIX=/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/tmp/p0-lock-probe/gcc10-root/usr/lib/gcc/ \
+  pnpm --filter @omne-harness-lite/package-checks exec node --test \
+    --test-name-pattern='one shared addon' tests/boundaries.test.mjs
+
+Missing-environment control:
+env -u GCC_EXEC_PREFIX \
+  CC=/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/tmp/p0-lock-probe/gcc10-root/usr/bin/gcc-10 \
+  CXX=/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/tmp/p0-lock-probe/gcc10-root/usr/bin/g++-10 \
+  node tools/package-checks/src/check.mjs
+
+Full real endpoint:
+env \
+  CC=/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/tmp/p0-lock-probe/gcc10-root/usr/bin/gcc-10 \
+  CXX=/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/tmp/p0-lock-probe/gcc10-root/usr/bin/g++-10 \
+  GCC_EXEC_PREFIX=/data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/tmp/p0-lock-probe/gcc10-root/usr/lib/gcc/ \
+  node tools/package-checks/src/check.mjs
+
+Authorized-file format check:
+pnpm format:check -- \
+  tools/package-checks/src/check.mjs \
+  tools/package-checks/src/boundaries.mjs \
+  tools/package-checks/tests/boundaries.test.mjs

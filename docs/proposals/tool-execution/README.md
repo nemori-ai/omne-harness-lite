@@ -1,0 +1,212 @@
+---
+kind: proposal
+id: P-tool-execution
+status: accepted
+scope: 工具调用的完整生命周期（五维状态机、转移、级联、前台上限、内建人类请求工具）、工具 Schema 维度、内部帧的事实侧、与 Session/Run/HD 的接头及 Cordis 视角；消费 tool-system v1 候选的可用部分，不发新契约直到闭环成形
+---
+
+# 工具执行：调用生命周期、Schema 与帧
+
+[提案索引](../README.md) · [tools v1](../../../spec/capabilities/tools/v1/contract.md) · [run-driver v2](../../../spec/capabilities/run-driver/v2/contract.md) · [session v1](../../../spec/capabilities/session/v1/contract.md) · [human-decisions v1](../../../spec/capabilities/human-decisions/v1/contract.md) · [生命周期组合 LC v1](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md) · [工具系统 v1 草案](../tool-system/README.md) · [级联备忘](../tool-system/v1/session-run-cascade-memo.md)
+
+本提案承接 [D-014](../../decisions/D-014-session-run-agent-lifecycles.md)：Session、Run、
+实例三台状态机与它们的级联已经接受，工具调用是级联矩阵里唯一还没有自己一台完整
+状态机的对象。[tools v1](../../../spec/capabilities/tools/v1/contract.md)（D-008）定义了
+调用/attempt、后台、停止、绑定撤回与帧的条款，[run-driver v2](../../../spec/capabilities/run-driver/v2/contract.md)
+定义了驱动器怎样看调用的结算视图，但"一次调用从提议到结算的每个转移由谁在哪个
+提交里写什么、Run/Session/实例的每个级联触发对调用做什么、前台上限怎样转后台、
+Agent 向人提问的答复怎样回到工具"没有一处权威正文。本提案把这些放在一个视角下
+设计，接受后各归其位：语义缺口进 tools/session/run-driver 的下一版契约（闭环成形后
+一次发版，不单独为工具发版），提供者设计原地修订
+[tools](../../../packages/tools/tools/design.md) 与 [local-execution](../../../packages/tools/local-execution/design.md)，
+系统视图修订 [核心能力](../../architecture/core-capabilities.md) 的工具段。
+
+## 范围
+
+- 在范围内：调用的五个正交维度（进展、attempt 账本、等待关系、控制、结算交付）的
+  状态集合与转移；每个转移的提交面与同批伙伴；LC-04 每个触发对前台/后台/转换中调用
+  的级联列；前台上限与自动转后台；内建人类请求工具 `human`（问题、一次性批准、能力
+  授权申请）及"答复作为工具返回值"；工具 Schema 的维度总表（多模态、单/多命令范式、
+  后台声明与调用级 detach 参数、并发、停止能力、效果与暂行、帧声明、环境）；内部帧的
+  事实侧（身份、序号、缺口、记录等级、读面）；与 Run/Session/HD/AU/BG 的接头；Cordis
+  视角（插件、服务键、装载效应与撤除、依赖变化政策）；Claude Code / Codex hooks 在
+  S5/S7 两个站点的落点；候选性质与形式模型。
+- 不在范围内：PF-014.C6 必需 skill 的完整激活/撤回生命周期与 PF-024 之外的装配
+  （[definitions.md](../tool-system/v1/definitions.md)、[assembly.md](../tool-system/v1/assembly.md)
+  保留候选）；PF-004 派发形态；PF-012 六种环境组合与 Browser/Computer 选型（只作门
+  输入）；出站流协议、游标编码与传输（U-36）；帧的保留数值；工具体中途 `interrupt()`
+  式的通用可恢复暂停（用户裁决不纳入首版）；JSON Schema 本身（U-35）。
+
+## 文件
+
+- [requirements.md](requirements.md)：需求工作区快照与按要求的覆盖表。
+- [invariants.md](invariants.md)：调用（T）、人类请求工具（H）、帧（F）的安全性质与进展
+  性质（TP），每条标来源、保护点与证据义务。
+- [lifecycle.md](lifecycle.md)：五维状态机、转移表、内建人类请求工具、前台上限、控制
+  与级联表、恢复窗口、契约措辞缺口表。
+- [schema.md](schema.md)：维度总表（沿用 CD/TL/AU 已定字段，只补无落点的维度）、单/多
+  命令投影、多模态引用、前台上限与调用级 `detach`、停止能力、并发、帧声明、结果形状、
+  发布时检查清单。
+- [frames.md](frames.md)：帧身份与顺序、三记录等级、缺口词表、媒体帧、读面、与出站流的
+  依赖方向、崩溃恢复。
+- [cordis.md](cordis.md)：消费方式、插件与服务依赖图、装载效应与撤除、四类接口对接与
+  时序、依赖变化政策、hooks 兼容层在 S5/S7 的落点、提供者设计归属。
+- [scenarios.md](scenarios.md)：TS-01～TS-17 验收路径，各标模型动作/性质与模型外验收。
+- [evidence/](evidence/README.md)：调用生命周期 TLA+ 模型（五维、`human` 调用、owner 崩溃、
+  归档级联）、安全/进展两配置与一个否定变体、重放脚本与结果；条款覆盖记在
+  [tools 验证范围](../../../spec/capabilities/tools/verification.md)。
+- [review.md](review.md)：2026-09-14 独立评审的发现、处置与转给用户的决定点。
+
+## 裁决记录（2026-09-14，用户）
+
+| 编号 | 裁决 |
+|---|---|
+| U-38 | 工具设计范围追加：工具执行生命周期/状态机；tool schema 含多模态能力、传统与多命令范式、是否后台、前台超时未完成转后台；级联备忘条目；工具内部帧（依赖流式帧公共契约，事实侧先定） |
+| U-39 | 决定点 a～n（临时准备稿的内容已归档为下表）按作者建议拍板 |
+| U-40 | 要像 DeepSeek Harness 那样兼容 Claude Code / Codex 的命令式 hooks 体系；需求落为 [PF-025](../../requirements/product/agent/PF-025-external-hooks-compatibility.md)；决定点 o～v 按作者建议拍板 |
+| U-41 | Agent 发起 HITL 等用户答复时，答复不是普通用户输入，而是该工具的结果，回到工具调用作为返回值；先查 DSH，有则二次开发。据此采纳决定点 w（内建 `human` 工具纳入本轮）与 x（D2 机制；通用工具体中途 interrupt 不纳入首版）；契约措辞缺口随闭环一次发版 |
+| U-42 | 工具帧是耐久的：有持久化与回放机制，与同一 Session 的日志一起 append-only 追加写；帧的数据结构（含让 UI 知道怎么渲染的标识）以 omne-next / omne_harness 的工具帧设计为起点，保证重要特性不丢不漏。据此决定 d 的三等级改为 critical / durable（缺省）/ transient（[frames.md](frames.md#记录等级)） |
+| U-43（2026-09-15） | Run 的生命周期与工具的生命周期可以错位：工具状态耐久化，新 Run 恢复后接上（与 Run – live-agent 的关系同型）。据此 Run 不可恢复失败时只取消未准入的调用，已准入调用与未答问题保留，结算按 SE-14 C 列触发新 Run（[级联表](lifecycle.md#控制与级联表)、模型 `RunFail` 与 `FailKeepsHuman`） |
+| U-44（2026-09-15） | Agent 发起的批准本质是上下文提示词，不是系统机制；系统发起的 HITL 才是系统机制。Agent 的 HITL 工具只有 `ask_user` 与 `request_approval` 两个（omne-next `omne_harness` 已有定义），没有第三个；问题与批准的答复本质是用户提示词，以工具调用结果呈现。据此去掉 `request_consent` 与批准目标绑定（[命令表](lifecycle.md#内建人类请求工具)） |
+| U-45（2026-09-15） | Run 状态机与工具执行状态机解耦、可以错位；一次 Run 可有多个并行工具，有的按声明执行一段时间后自动转后台，有的不会；不存在 Run 级执行预算作为刹车（[前台上限](lifecycle.md#前台上限与自动转后台)）；omne-next 的耐久等待与离场执行设计作补充参考 |
+| U-46（2026-09-15） | 调用级 `detach` 不能否决工具声明的自动离场（取值只剩 `on_start \| auto`）；迟到结果以 `system_reminder` 内容块进入到达的 Step、按模型族投影为 user / developer message（确认） |
+| U-47（2026-09-15） | PF-005.C10 中"由系统权威记录对精确请求及批准结果的引用"现在干脆不要：从需求撤下，未来需要时作为新的能力另行设计；需求页已改（[PF-005 变更记录](../../requirements/product/agent/PF-005-agent-initiated-human-input-and-approval.md#变更记录)），可追溯改由耐久历史顺序与授权门记录给出 |
+| U-59（2026-09-15） | Run 应有明确的等待状态，需要 Run 等它的对象自己在 Run 上登记（用户提议，作者采纳为[等待登记簿](lifecycle.md#等待登记簿)）。同时确立工作风格：待裁决事项先筛过度设计、再由作者从顶层建模视角（可联合架构评审）自行决定，只把剩余的产品取舍交用户（[作者裁决表](#作者裁决2026-09-15按用户工作风格)） |
+
+## 作者裁决（用户按建议拍板）
+
+| # | 问题 | 采纳的选择 |
+|---|---|---|
+| a | 首版执行 owner 集合 | local-execution 加同进程 shell；browser/sandbox 留候选，PF-012 只作门输入 |
+| b | 后台 owner 进程模型 | 同进程 worker，接受"进程死亡则前台工具 unknown"的边界；独立进程留边界不实现 |
+| c | 定义面是否同轮 | Schema 维度同轮；PF-014.C6 激活/撤回与依赖图另开 |
+| d | 帧记录等级 | critical / durable（缺省）/ transient 三等级作声明词表（U-42 后 replayable 改为 durable：Session 域内 append-only），数值留实现；不做跨调用历史合并 |
+| e | 派发工具关系 | 只固定"派发是一次调用、结果走 call_settlement、终止传播沿 PF-013.C4"；形态归 PF-004 |
+| f | 归档/删除后的后台调用 | 政策 b：归档不动工作；结算到达 archived Session 按 SE-14 D2 列关闭；删除同样关闭并按数据治理处理结果 |
+| g | 是否发 tools v2 | 不单独发；缺口进 [缺口表](lifecycle.md#契约措辞缺口表)，闭环成形后一次发版 |
+| h | 调用状态机 TLA+ | 建一个，单配置 ≤ 1 分钟，含 admit / dispatch / settle / stop / background / Inbound 交接 / 归档级联 / `human` 调用 |
+| i | 单操作工具的投影 | 去掉 `command` 层：顶层 Schema 即该命令输入；多命令才 `{command, params}`（可选 `oneOf`） |
+| j | 调用级 `detach: never \| on_start \| auto` | 开放给模型，受定义 `startModes` 子集约束（U-46 后修订：去掉 `never`，调用不能否决工具声明的自动离场） |
+| k | 并发声明 `concurrency: serial \| parallel_safe` | 纳入声明词表；驱动器首版可仍串行执行 |
+| l | 多模态 | 工具输入/输出媒体一律用内容引用（CT），模型投影按 MC-11 交集选择；不建第二个图片库 |
+| m | 前台上限 `onLimit` 缺省 | keep_waiting；工具可声明 stop 或 detach（U-45 后修订：没有 Run 级预算刹车，有效阈值 = min(声明, 系统上限)，keep_waiting 等到自然结束或用户 stop） |
+| n | 计时与转换决定归属 | 调用运行时（tools 包）；驱动器不持计时器，执行 owner 只兑现 detach |
+| w | 内建人类请求工具 | 纳入：多命令工具 `human`，恰好两条命令 `ask_user` / `request_approval`（U-44 后去掉 `request_consent`），HD 为执行 owner |
+| x | 答复回到工具的机制 | D2：调用停在 `waiting_human` 视图不阻止收束与 Yield，答复由 HD 在同一提交结算调用，结算作接续开 Step；通用工具体中途 interrupt 不纳入首版 |
+
+hooks 兼容层的决定点 o～v 记在 [hooks 兼容提案](../hooks-compat/README.md#裁决记录)；本提案
+只在 S5/S7 的落点消费它们。
+
+## 评审后的决定点（用户裁决，2026-09-15）
+
+来源见 [review.md](review.md)；作者建议与用户裁决对照：
+
+| # | 问题 | 作者建议 | 用户裁决 |
+|---|---|---|---|
+| y | Run 不可恢复失败时未答的 `human` 请求 | 关闭请求 | 否决：Run 与工具生命周期错位，工具状态耐久，新 Run 接上（U-43） |
+| z | `request_approval` 决定与后续动作的绑定 | 结构化目标绑定，门消费 | 否决：Agent 的批准是提示词不是系统机制；只有 `ask_user` / `request_approval` 两个工具（U-44） |
+| aa | Run 执行时长预算的拥有者 | run v1 增加执行截止 | 否决：Run 与工具状态机解耦，没有 Run 级预算刹车（U-45） |
+| ab | 调用级 `detach` 能否否决自动离场 | 不能 | 不能（U-46） |
+| ac | 迟到结果以 `system_reminder` 进入 | 用户提出 | 确认（U-46） |
+
+## 作者裁决（2026-09-15，按用户工作风格）
+
+来源：两份只读核对报告（主检出 `tmp/next-design-prep/followup-interrupt.md`、`followup-artifacts.md`）
+指出的缺口与用户的两条产品补充。作者先把每项过一遍"是否过度设计、是否在真实需求前引入
+复杂度"，再从顶层建模视角自行决定（[U-59](#裁决记录2026-09-14用户) 的登记簿是用户示范的
+思路），正文按裁决写（[等待登记簿](lifecycle.md#等待登记簿)、[interrupt 动作链](lifecycle.md#interrupt-与-interrupt_then_run-的动作链)、
+[制品与呈现去重](schema.md#制品与呈现去重)、[缺口表](lifecycle.md#契约措辞缺口表)），交架构评审复核；
+没有一项需要用户再拍板。表里"作者建议"即裁决，"另一边"是被排除的形状及原因。
+
+| # | 问题（人话） | 作者建议 | 为什么 | 另一边 |
+|---|---|---|---|---|
+| 0 | Run 在等谁，用什么对象表达 | 等待登记簿：需要 Run 等它的对象（本 Run 准入的调用、它发的请求、它进的门）自己登记、办完注销；Run 等待 = 登记簿非空；入站裁决查表；控制级联 = 保留或整簿注销；调用上的前后台关系只是投影 | 用户提议（U-59）。三条推导规则合成一个对象，成员、路由、唤醒、级联全部变成同一件事的操作；模型里的关系字段本来就是它的按调用投影，行为等价 | 维持三处推导：每个消费者各算一遍，容易算出相反的路由 |
+| 1 | Run 的"等待位置集合"里到底有什么。它决定中断后一个调用的结果是"等用户恢复后再喂给模型"还是"下次开 Step 时顺带看到" | 写进契约：前台与转换中的调用、待答的问题、正在等的门；后台调用不算；中断保留，被新输入越过就整体释放 | 现在只有模型注释在定义它，两个实现可能写出相反的路由；这条定义已在模型里通过检查 | 留给提供者各自定义，跨实现不一致，SE-14 的分列没有依据 |
+| 2 | 中断时执行方说"停没停我不确定"（unknown）怎么办 | 普通中断：unknown 也算一种结局，Run 照常进入 interrupted，未知状态留在那个调用上长期可见，界面提供"强停"作升级；带新输入的中断：首稿写"未知期间新 Run 不开"，第二轮改为同样计入收口（[裁决 10](#第二轮作者裁决2026-09-15架构复核后)）；两边都不设系统级超时，执行方自己的有界等待到期就报 unknown | 给中断加一个"收口中"的中间状态要重新处理占位与归档；系统超时只会把执行方已经给出的 unknown 再包一层 | 加中间态：状态机多一个值、LC-02 占位规则与归档前提都要改 |
+| 3 | 用新输入打断后，旧 Run 上还没消费的接续、还在后台跑的调用、还没答的问题去哪 | 被越过就是终态：旧 Run 进新终态 `superseded`，同一提交整簿注销登记；接续改成"下次开 Step 顺带看到"，之后到的结果和答复按登记簿查表进当时活动的 Run（没有活动 Run 就触发新 Run）；问题仍可答；不可 resume；归档不需要特殊规则 | 从顶层看，一个登记全注销、没有残留接续、输入又被自己的新输入取代的 Run，"恢复"只会空转，把它留在 interrupted 是虚构的可恢复性；契约本来就允许 resume 返回 superseded；与 U-43（工作与 Run 解耦）同向 | 维持"保留 + 可恢复 + 归档时自动取消"：三条特殊规则换一个从不发生的恢复；维持契约原文"保留"：问题永远待办、会话归不了档 |
+| 4 | 新 Run 开场时，模型要不要知道上一轮被打断、还有什么在后台 | 要：复合意图带一份"被保留的工作清单"，新 Run 首个 Step 以一条系统提醒交代；结果真到了再按迟到结果进入 | 不交代，模型会重做已经在后台跑的事 | 只在结果到达时呈现：省一条提醒，代价是重复劳动 |
+| 5 | 执行方回报"停止进展"用什么词 | 封闭三轴：物理上 `quiescent / isolated / unknown`，清理 `done / retained`，外部效果 `none / possible / confirmed` | 契约只说"分开返回"，提案与 local-execution 设计各写一套 | 留给提供者：读面与界面各猜一套 |
+| 6 | 工具的"制品"（生图这类需要系统保存、用户可看、agent 以后还能读的产物）现在怎么放 | 首版：产物以结果内容块里的引用进历史（CT 保存字节并记录是哪次调用产的），过程中流出的走帧，客户端按媒体 id 去重、以结果块为准；PF-015 要求的制品对象（身份、版本、跨会话检索、读取工具）作为独立能力设计另开，不并进工具线 | DSH fork 没有第二通道，LangChain 的切分只解决"分两份返回"；现在只有生图一个用例，先做最小正确模型 | 现在就做制品对象：新契约、新内建工具、CD / tools / CT 三处联动改版，T-12 的边界要重裁 |
+| 7 | Run 在等工具或等人的时候，用户又发了一条普通消息，要不要马上喂给模型 | 要（用户已把"不能干等"登记为需求，机制归作者）：`queue` 的含义改为"当前 Run 的下一个空闲点消费"——Step 一收束、Run 进入等待，队首的普通文本就作为同一 Run 的下一步切点进模型，附带"哪些调用还没回来"的占位；命令和 trigger 仍等 Run 结束；不加第三种到达行为（[机制](lifecycle.md#等待期间的排队用户输入作者裁决-7)） | 用户 2026-09-15 的产品期望：不能干等；一个 Run 等工具几分钟时用户的话应该被听到；开新 Step 而不是注入在途调用，PF-013.C5 的边界保持 | 保持现状（等到 Run 结束才处理队列）；或加第三种到达行为 `steer` 让用户自己选：多一个选项、默认值之争回到产品层 |
+
+## 第二轮作者裁决（2026-09-15，架构复核后）
+
+来源：Codex `architecture-reviewer` 对 `eda8e3b` 的复核（[review.md 第二轮](review.md#第二轮复核2026-09-15)），
+对象 A 四项阻断、五条非阻断。同一风格：先筛过度设计，再从顶层建模自行决定；没有一项是
+产品取舍，不交用户。
+
+| # | 问题（人话） | 作者裁决 | 为什么 | 另一边 |
+|---|---|---|---|---|
+| 8 | 登记什么时候登、什么时候销；"等它回来"和"它回来了算不算接续"绕成了圈；人类请求和它的调用各登一次 | 提议即登，裁决为接续的那次提交注销；裁决查的是 holder 的发起 Run 有没有开放登记，不看"当前活动 Run"；人类请求不独立登记，附属于它的调用（审批附属于等审批的调用，问题附属于 `human` 调用），一次等待一条登记 | 登记的含义是"Run 在等这个对象"，从提议起就成立；到"裁决说它是接续"才结束——受理未裁决的窗口里 Run 确实还在等。发起 Run 而不是活动 Run，是 SE-14 原文，也是 A7 "中断的 Run 的答复等 resume"能成立的唯一读法 | 结算即注销：受理未裁决时登记簿空、Run 却不能走；两种 holder：一次答复要销两条、模型里只有一条 |
+| 9 | 前台工具跑几分钟时，Step 到底算不算收束；不收束就没有 `waiting`，排队文本没入口 | Step 收束 = attempt 已结算且提议已登记；"结果一起回"不再是收束条件，而是开下一 Step 的合批规则（每个 tool_use 恰一个块，缺省等齐，只在审批就绪、门恢复、队首文本三种情况提前开并给在途调用占位 `foreground_pending`） | "Step 在等结果"和"Run 在等结果"是同一件事写了两遍；把等待只留给登记簿，收束就只剩模型输出这一个判据，与"自然完成以模型响应为基准"同源。供应方的成对格式（每个 tool_use 配一个 tool_result）由合批规则守住，观察行为不变 | 维持 RD-10 原文：`waiting` 对前台调用永远到不了，作者裁决 7 落空 |
+| 10 | 带新输入的打断遇到"停没停不确定"，新 Run 开不开；普通中断后强停能不能直接算取消 | 开：unknown 计入收口，旧 Run 照常 superseded，清单注明"K 个停止未确认"，升级用单调用 `stopCall{force}`；普通中断后强停在有 unknown 调用时经 `stopping` 取得隔离依据再 cancelled，无 unknown 时直达 | U-43/U-45 下 Run 与调用解耦：unknown 的调用和后台调用对新 Run 的危险一样，后者不拦新 Run，前者也不该；"直达 cancelled"的前提是自有调用已停，unknown 正是前提不成立的情形，RN-05 又不许 unknown 冒充隔离 | 保留 `pending{unknown}`：一个既非活动也非终态的 Run 状态，LC-02 占位与取批门都要为它写特例 |
+| 11 | 模型说自己是登记簿的等价投影，复核找出四处不等价 | 按裁决 8/9 改模型：路由只看"有开放登记且发起 Run 活动"，不再给 `human_wait` 特例；越过时把所有已提议调用的关系置为 background（未提议的不动）；加 `StopProgressUnknown`（有派发意图后停止未知）；`SupersedeReleasesPositions` 覆盖结算中的调用 | 证据要忠实于抽象；差异一处处对上后，"行为等价"才能写 | 保留模型原样、把正文改成模型的样子：会把评审指出的错误路由写进契约 |
+| 12 | 新 Run 开场的"被保留工作清单"谁认领；队首是命令、文本被撤回时清单去哪 | 清单在越过提交里作为一条系统来源的 context 到达进入 Inbound，由本 Session 下一个有模型 Step 的 Run 在切点消费，恰一次；没有活动 Run 时它不触发 Run（SE-14 对 `system_notice` 的例外） | 已有的 context 机制（受理 → 下一 Step 消费一次）正好是"告诉下一个模型 Step 一件事"，不必再造一种 pending 对象 | 复合意图自己持有清单：命令 Run、撤回、多次 Run 各要一条特例 |
+| 13 | 复核的其余指正 | 门登记 `since` 可空（首 Step 前的依赖门）、`ret` 取已耐久的 gateRet；串行门与 Yield 不登记；T-4 改为"Yield 不改登记簿"；内建工具第 4 步与 B4 同步；证据文字同步（RunFail 不关请求、interrupt_then_run 已建模、TS-21 的 unknown 分支已在模型）；requirements.md 补 PF-013 增量 | 事实性修正 | — |
+
+## 第三轮作者裁决（2026-09-15，第三轮架构复核后）
+
+第三轮复核（[review.md](review.md#第三轮复核2026-09-15)）确认两轮处置方向不需要重选，
+指出 3 项须在进入 D-015 前闭合的前提 / 措辞错误与若干登记项。按同一工作风格逐项裁决：
+
+| # | 事项 | 裁决 | 依据 | 改动落点 |
+|---|---|---|---|---|
+| 14 | 停止未知的升级路径（A-阻1） | `stopCall{mode: force}` 只对声明 `stop.capability = forced_isolation` 的 owner 存在；首版 owner local-execution 声明 `cooperative_fence`，没有升级路径，unknown 长期可见。Run 级 force_stop 只对可升级的 unknown 调用进 `stopping`，其余在受理时记 `isolation: unverified`、不阻止 cancelled；控制结果记 `complete \| partial{unknown: K}` | TL-08"无法兑现不可声明"、RN-05"unknown 不等于安全停止"、[LE 设计](../../../packages/tools/local-execution/design.md)不承诺有时限的强制停止；此前"LE 已有实现依据"是假前提 | [A10](lifecycle.md#interrupt中断之后可-resume)、[B7](lifecycle.md#interrupt_then_run中断后立刻接新输入)、缺口表 TL-11 / RN-05 行、[run 设计](../../../packages/session/run/design.md) |
+| 15 | 入站裁决只替换 A / B 列（A-阻2） | 无开放登记时沿 SE-14 原表：发起 Run 或 Session 活动 → context；completed / failed / superseded → queue；cancelled / stopping → `closed(cancelled_run \| isolated)`；归档 → closed。force_stop 在受理进 `stopping` 的提交就整簿注销；T-17 的"活动"限定为 running / waiting / interrupted | SE-14 D1、SE-17、RN-05 末段：被停 Run 的晚到结算不得成为 trigger | [登记簿](lifecycle.md#等待登记簿)入站裁决与控制级联行、[T-17](invariants.md#调用)、证据说明的不建模列表 |
+| 16 | 复合意图的结果状态（A-阻3） | SE-08 只删"原责任继续阻止新驱动"半句，保留"显示 pending / unknown、不能确认完整成功"；新 Run 照常开的论证改为"fence 已封闭新步骤 + 清单告知模型"，不再说"与后台调用危险相同"（后台有 detach 确认，unknown 没有） | PF-013.C6 | [B3](lifecycle.md#interrupt_then_run中断后立刻接新输入)、缺口表 SE-08 行 |
+| 17 | 系统来源登记与旧词汇清扫（非阻断 1～5、8～10） | SE-13 加 `system` 来源（dedupKey = 被越过的 RunRef，容量归内部来源，保留期同其它 context，丢失可接受）；"阻止收束"残句全部改为合批规则表述；状态图 `admitted → settled_unavailable`；Yield 按登记簿：`foreground` / `detach_in_flight` / 已过门未 start 阻止，等审批、未过门与门不阻止；事实名统一为 `run.wait.claimed / released`；B4 由 Run 取消的未启动调用进清单、没有 owner 到达；HD-10～12 暂行调用无特例 | 复核逐项核对 | lifecycle.md 各处、[TS-16](scenarios.md)、review.md S2、[tools 验证页](../../../spec/capabilities/tools/verification.md)、run 设计 |
+| 18 | run-driver v3 登记 `invalid_proposal`（消息流复核 B-非阻断 2） | `run.step.settled{outcome: invalid_proposal{reasons}}` 进 RD-08 下一版 | 被拒 `tool_call` 块需要耐久来源 | 缺口表 RD-08 行 |
+| 19 | hooks 接头（接头 2～4） | `hook_context` 与 `system_notice` 在 RD-06 并列登记；S1 守卫在"空闲点取入既有 Run"时由驱动器在同一准备阶段求值，`additionalContext` 进空闲点开的 Step；hooks 映射的 Run 事实名改为 `run.state.changed`；`superseded` 不触发 `Stop`（与上游"中断不触发"同向） | 三提案词表一致 | 缺口表 RD-06 行、[hooks 映射](../hooks-compat/mapping.md) |
+| 20 | interrupted 上升级进入的 `stopping` 与占位唯一（D-015 批次作者发现） | 占位由"Run 状态 + 终止受理记录"派生：running、waiting 与由活动 Run 的终止受理进入的 stopping 占位；由 interrupted 升级进入的 stopping 不重新取得占位，也不阻止已在运行的新 Run | RN-03 / LC-02 的占位唯一（D-014 模型 I-1 反例）与裁决 10/14 的升级路径要同时成立；升级本就不该重新取得驱动权 | [run v2](../../../spec/capabilities/run/v2/contract.md) RN-01/03、[LC v2](../../../spec/compositions/session-run-agent-lifecycles/v2/contract.md) LC-02、场景 S08/S14；该转移未进模型，由提供者验收 |
+
+消息流提案对应的裁决见其 [README](../message-stream/README.md#第三轮复核后2026-09-15)。
+
+## 未决项
+
+- PF-004 三种派发关系与子 Session 提问的作答者规则（DSH 拒绝被委派子 agent 提问；我们沿
+  HD-01 作答者固定为 Session.owner，子 Session 的 owner 由 PF-004 设计决定）。
+- 多命令的 batch 模式与 shell 词法不纳入；若将来需要，另立需求。
+- 帧的条数/字节/保留期数值、后台调用上限与配额：实现阶段。
+- 出站流侧的帧词表全集与游标编码（U-36）：本提案只给 `tools.frame.<kind>` 前缀。
+- 契约措辞缺口（SE-13 问答答复的来源、RD-09 `waiting_human` 视图与迟到结果形态、RD-10 占位
+  首次呈现开 Step、SE-04/13 hooks 词汇、TL-07 预算被拒的措辞与 `unavailable`、TL-10 去掉
+  Run 预算项、RN-02 失败不关闭已准入调用、HD 作为执行 owner、run-driver v3、CD 与 MC 的
+  `system_reminder`、TL-12 帧耐久与 `frames(S)`）：见 [缺口表](lifecycle.md#契约措辞缺口表)，
+  随闭环一次发版。
+- 取回工具与转储信封（omne-next `read_tool_result_or_file` 与"结果已转储"占位）：首版不设，
+  大结果与中间帧的读面先归 UI；模型主动取回作为候选另开。
+- 制品对象（[PF-015](../../requirements/product/agent/PF-015-artifact-management-and-isolated-working-copies.md)：
+  身份、版本、租户归属、访问资格、跨会话检索）与 agent 的读取入口：作者裁决 6 另开
+  能力设计；工具线只保证引用进结果、CT 记录来源（[schema.md 制品](schema.md#制品与呈现去重)）。
+- 回流策略的 `silent`（后台结果不通知模型）与 `compensate`（失败时唤醒补偿）：首版只有
+  "同 Run 内下一 Step 呈现"与"新 Run 唤醒"两种，由 SE-14 路由自动给出。
+- 执行 owner 跨协调域（决定 b 留的边界）时，"fence 与 cancelled 结算同提交"不再成立，
+  TL-08 的 owner 账本排序成为 T-3 的唯一保护；届时须补跨域义务（[证据说明](evidence/README.md#抽象与边界)）。
+
+## 接受记录
+
+2026-09-15 由 [D-015](../../decisions/D-015-tool-execution-message-stream-and-hooks.md) 接受，与
+[消息流提案](../message-stream/README.md#接受记录)、[hooks 兼容提案](../hooks-compat/README.md#接受记录)
+同一决定、同一批发版。本提案的精确对象：
+[tools v2](../../../spec/capabilities/tools/v2/contract.md)（五维状态机、转移与级联、前台上限、
+封闭停止词表、单调用强停、内建 `human` 工具、帧事实侧；调用生命周期模型与场景随版本目录发布）、
+[run v2](../../../spec/capabilities/run/v2/contract.md)（等待登记簿、`waiting` 与 `waitingFor`、
+`superseded`、unknown 计入收口、控制结果与隔离记录）、
+[session v2](../../../spec/capabilities/session/v2/contract.md)（SE-14 A / B 列按登记簿、`system` 来源、
+取入既有 Run、SE-08 措辞）、[run-driver v3](../../../spec/capabilities/run-driver/v3/contract.md)
+（切点来源、Step 收束与合批规则、占位与迟到结果、`invalid_proposal`、Yield 按登记簿）、
+[human-decisions v2](../../../spec/capabilities/human-decisions/v2/contract.md)（HD 为 `human` 工具
+执行 owner、答复按登记簿路由）、[生命周期组合 v2](../../../spec/compositions/session-run-agent-lifecycles/v2/contract.md)
+（LC-04 的 `superseded` 行与 force_stop 受理即整簿注销）、
+[CD v2](../../../spec/data/core-work/v2/contract.md)（内容块与命令声明的维度总表）、
+[model-execution v2](../../../spec/capabilities/model-execution/v2/contract.md)（MC-04 / MC-07）、
+[media-content v2](../../../spec/capabilities/media-content/v2/contract.md)（CT-03 来源）。
+[契约措辞缺口表](lifecycle.md#契约措辞缺口表)的每一行都落进上述版本之一；被取代的 v1 / v2
+冻结可引用。
+
+用户裁决 U-38～U-47、U-59 与评审后的 y～ac 记录在本页；作者裁决 a～x、0～20 按用户确立的
+工作风格自定，随决定接受，用户可另行否决。三轮独立复核（[review.md](review.md)）的阻断项
+全部闭合；[未决项](#未决项)中未划去的各条是接受时明确保留的未完成义务。接受的是目标设计与
+有限验证工件（[tools 验证范围](../../../spec/capabilities/tools/verification.md)）；系统视图见
+[工具执行](../../architecture/tool-execution.md)；提供者设计的重写
+（[归属表](cordis.md#提供者设计归属与实施入口)）是接受之后的工作，尚未开始。

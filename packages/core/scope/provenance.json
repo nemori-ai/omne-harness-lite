@@ -1,0 +1,95 @@
+{
+  "format": 1,
+  "repository": "https://github.com/deepseek-ai/deepseek-harness",
+  "commit": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+  "retrieved_on": "2026-09-13",
+  "scope": "Shared scope identity, routing and managed contributions; source baseline only, not target capability conformance",
+  "cordis_release": {
+    "name": "@deepseek-ai/cordis",
+    "version": "4.0.2",
+    "repository": {
+      "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+      "type": "git",
+      "directory": "vendor/cordis"
+    },
+    "license": "MIT",
+    "dependencies": {
+      "@deepseek-ai/cosmokit": "^1.8.3",
+      "@standard-schema/spec": "^1.1.0"
+    },
+    "peerDependencies": {
+      "@deepseek-ai/cordis-plugin-loader": "^1.0.3",
+      "@deepseek-ai/cordis-plugin-include": "^1.0.7"
+    },
+    "peerDependenciesMeta": {
+      "@deepseek-ai/cordis-plugin-loader": {
+        "optional": true
+      },
+      "@deepseek-ai/cordis-plugin-include": {
+        "optional": true
+      }
+    },
+    "dist": {
+      "shasum": "ddffbc3b366dd71fe5f0a61c483cbe0c72df5103",
+      "tarball": "https://registry.npmjs.org/@deepseek-ai/cordis/-/cordis-4.0.2.tgz",
+      "fileCount": 32,
+      "integrity": "sha512-asOnXP1TzFSFQlHb1iegDZp0z/8WD1c7YNrwJR/Tx2bzNuMXfcekE/I67Iv6SQXeLB4csxqCngzQKANP7gdw0g==",
+      "signatures": [
+        {
+          "sig": "MEQCIGCi3+M5ipxi/u8u+jR6sVhjSagha7/xxEiVrXts870HAiBQN9bMPN9ttsF/uqSswYRZm2/umX3j7yHGxAOMX6XFPA==",
+          "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+        }
+      ],
+      "unpackedSize": 239076
+    },
+    "verified_tarball_sha256": "686ca44fc6e8d217804de9062b716b7c72755dde09c2a433dd07045eea3c6a97"
+  },
+  "files": [
+    {
+      "upstream_path": "packages/core/scope/src/index.ts",
+      "snapshot": "upstream/scope/index.ts",
+      "sha256": "074b8f0c3fa2e240effd0a7e65c54be7c14debc1e53bb712334ce20d15affe4a",
+      "targets": [
+        "src/scope.ts"
+      ],
+      "changes": "Retain full scope primitive and restore store exports; shared source baseline public subpath, one active scope identity registry Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/core/scope/tests/scope.spec.ts",
+      "snapshot": "upstream/scope/scope.spec.ts",
+      "sha256": "4aeba6333b6e1a9d4b4b0dbe171194656ff64ca65fef0598e38c7fd109d9c241",
+      "targets": [
+        "tests/scope.spec.ts"
+      ],
+      "changes": "Preserve all 11 cases against the built internal scope module. Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "LICENSE",
+      "snapshot": "LICENSE",
+      "sha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be",
+      "targets": [
+        "LICENSE"
+      ],
+      "changes": "Unchanged DeepSeek copyright and full MIT text."
+    },
+    {
+      "upstream_path": "packages/core/scope/src/store.ts",
+      "snapshot": "upstream/scope/store.ts",
+      "sha256": "e2f6c98e271cbae483393ccd1e5212a255def165a8a591d308efbd827af67278",
+      "targets": [
+        "src/store.ts"
+      ],
+      "changes": "Rebase local imports only; preserve source algorithms and test expectations Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    },
+    {
+      "upstream_path": "packages/core/scope/tests/store.spec.ts",
+      "snapshot": "upstream/scope/store.spec.ts",
+      "sha256": "3c1e5e3ff4ba50445d140aa0f09dc1e6c5e80cf6244fce628841bdc4e8029ad5",
+      "targets": [
+        "tests/store.spec.ts"
+      ],
+      "changes": "Rebase local imports only; preserve source algorithms and test expectations Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+    }
+  ],
+  "project_files": []
+}

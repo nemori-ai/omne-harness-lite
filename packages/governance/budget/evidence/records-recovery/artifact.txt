@@ -1,0 +1,19 @@
+$ sha256sum tmp/packed-consumer/budget/pack/omne-harness-lite-budget-0.0.0.tgz
+9ae9ff353bf1f96c772e6370ef2555a1817b21380cb6e047228f7e4e8f477bc0  omne-harness-lite-budget-0.0.0.tgz
+
+$ tar -tzf tmp/packed-consumer/budget/pack/omne-harness-lite-budget-0.0.0.tgz | sort
+package/README.md
+package/dist/decoder.d.ts
+package/dist/decoder.js
+package/dist/index.d.ts
+package/dist/index.js
+package/dist/ledger.d.ts
+package/dist/ledger.js
+package/dist/money.d.ts
+package/dist/money.js
+package/dist/result.d.ts
+package/dist/result.js
+package/dist/types.d.ts
+package/dist/types.js
+package/package.json
+package/provenance.json

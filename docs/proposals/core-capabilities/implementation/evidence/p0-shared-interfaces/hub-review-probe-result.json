@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "synchronousCallbacks": 3,
+  "lateRejectionsObserved": 3,
+  "invalidParticipantScenarios": 3,
+  "snapshotMutationScenarios": 4,
+  "exactGoldenLines": 2,
+  "limits": "Language-mechanism and exact fixture probes only; no product writer, durability, lifecycle or complete admission implementation."
+}
