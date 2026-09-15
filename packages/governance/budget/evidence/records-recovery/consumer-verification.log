@@ -1,16 +1,31 @@
+# Re-run on HUB design/dsh-core-adoption at 923123c (2026-09-15)
+# Node v24.18.0, pnpm 10.28.1, TypeScript 6.0.3, @types/node 24.13.4
+# Direct product dependency: the budget tarball only. The override list now has five entries
+# (admission and diagnostics added) because tenant depends on admission and diagnostics.
+# Nothing was fetched from the network.
+
 $ pnpm install --offline --ignore-scripts --ignore-workspace --lockfile=false
-Packages: +13
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Packages: +40
+++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 40, reused 38, downloaded 2, added 40, done
+
 dependencies:
 + @omne-harness-lite/budget 0.0.0
+
 devDependencies:
-+ @types/node 24.13.4
-+ typescript 6.0.3
-Done in 698ms using pnpm v10.28.1
++ @types/node 24.13.4 (26.5.1 is available)
++ typescript 6.0.3 (7.0.2 is available)
+
+Done in 776ms using pnpm v10.28.1
+exit 0
 
 $ NODE_PATH= pnpm exec tsc -p tsconfig.json --traceResolution
 ======== Module name '@omne-harness-lite/budget' was successfully resolved to 'consumer/node_modules/.pnpm/@omne-harness-lite+budget@file+..+pack+omne-harness-lite-budget-0.0.0.tgz/node_modules/@omne-harness-lite/budget/dist/index.d.ts' with Package ID '@omne-harness-lite/budget/dist/index.d.ts@0.0.0'. ========
 ======== Module name '@omne-harness-lite/records' was successfully resolved to 'consumer/node_modules/.pnpm/@omne-harness-lite+records@file+..+pack+omne-harness-lite-records-0.0.0.tgz/node_modules/@omne-harness-lite/records/dist/index.d.ts' with Package ID '@omne-harness-lite/records/dist/index.d.ts@0.0.0'. ========
 ======== Module name '@omne-harness-lite/tenant' was successfully resolved to 'consumer/node_modules/.pnpm/@omne-harness-lite+tenant@file+..+pack+omne-harness-lite-tenant-0.0.0.tgz/node_modules/@omne-harness-lite/tenant/dist/index.d.ts' with Package ID '@omne-harness-lite/tenant/dist/index.d.ts@0.0.0'. ========
+======== Module name '@omne-harness-lite/admission' was successfully resolved to 'consumer/node_modules/.pnpm/@omne-harness-lite+admission@file+..+pack+omne-harness-lite-admission-0.0.0.tgz/node_modules/@omne-harness-lite/admission/dist/index.d.ts' with Package ID '@omne-harness-lite/admission/dist/index.d.ts@0.0.0'. ========
+======== Module name '@omne-harness-lite/diagnostics' was successfully resolved to 'consumer/node_modules/.pnpm/@omne-harness-lite+diagnostics@file+..+pack+omne-harness-lite-diagnostics-0.0.0.tgz/node_modules/@omne-harness-lite/diagnostics/dist/index.d.ts' with Package ID '@omne-harness-lite/diagnostics/dist/index.d.ts@0.0.0'. ========
 ======== Module name '@omne-harness-lite/work-data' was successfully resolved to 'consumer/node_modules/.pnpm/@omne-harness-lite+work-data@file+..+pack+omne-harness-lite-work-data-0.0.0.tgz/node_modules/@omne-harness-lite/work-data/dist/index.d.ts' with Package ID '@omne-harness-lite/work-data/dist/index.d.ts@0.0.0'. ========
 exit 0
 
@@ -18,5 +33,14 @@ $ NODE_PATH= node dist/public-consumer.js
 {"sum":{"integer":"9007199254741000","scale":2,"currency":"USD"},"throughSeq":"0"}
 exit 0
 
-The tracked resolution lines remove the fixed worktree prefix from the original trace. The full raw
-trace remains in spoke-local tmp/p2-budget-records/consumer-trace.log until worktree retirement.
+# Negative control: the consumer source as it stood before this re-run, which still imported the
+# `BudgetResult` type the integration fix commit removed. It shows the passing typecheck above
+# reads the packed declarations rather than succeeding vacuously, and it is the reason the tracked
+# consumer source now takes the result type from `ReturnType<typeof addMoney>`.
+$ NODE_PATH= pnpm exec tsc --ignoreConfig --strict --target ES2024 --module nodenext --types node --verbatimModuleSyntax --noEmit previous-consumer.ts
+previous-consumer.ts:10:3 - error TS2305: Module '"@omne-harness-lite/budget"' has no exported member 'BudgetResult'.
+exit 2
+
+The tracked resolution lines remove the fixed worktree prefix from the original trace; the full raw
+trace stays in the local run directory and is not a reproduction dependency. The `$` lines are the
+commands as run; `exit` lines are the recorded process status.

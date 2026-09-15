@@ -65,6 +65,38 @@ and the repository-wide `pnpm run check` including the package checker (needs th
 the integrated tree; [artifact.txt](artifact.txt) and [consumer-verification.log](consumer-verification.log)
 still describe the leaf run at baseline `892aa8e`.
 
+## Packed consumer re-run on the integration tree `923123c` (2026-09-15)
+
+This closes the first obligation the section above left open; the paragraphs above are kept as
+history. The re-run used the integration tree at `923123c` with Node `v24.18.0`, pnpm `10.28.1`,
+TypeScript `6.0.3`, and `@types/node` `24.13.4`.
+
+- The `pnpm pack` file list is unchanged; the tarball SHA-256 is now
+  `9ae9ff353bf1f96c772e6370ef2555a1817b21380cb6e047228f7e4e8f477bc0`.
+  [artifact.txt](artifact.txt) records the re-run digest; the leaf digest
+  `74f573cb...` at baseline `892aa8e` stays in item 6 above.
+- The direct product dependency is still the budget tarball alone. The override list grew from
+  three entries to five: `@omne-harness-lite/admission` and `@omne-harness-lite/diagnostics` were
+  added because `tenant` now depends on both, alongside the existing `records`, `tenant`, and
+  `work-data` entries ([consumer-package.json](consumer-package.json)). The install resolved 40
+  packages (leaf run: 13) entirely from the local store with lifecycle scripts disabled; tenant's
+  `@deepseek-ai/cordis` `4.0.2` came from the store and no Cordis module was reached by the
+  typecheck.
+- [public-consumer.ts](public-consumer.ts) changed in one place: the integration fix commit removed
+  the `BudgetResult` public type, so the result slot now reads `ReturnType<typeof addMoney>`. The
+  previous source is kept as a negative control in
+  [consumer-verification.log](consumer-verification.log) and fails the same typecheck with TS2305,
+  so the passing run is not vacuous.
+- `tsc --traceResolution` resolved all six product modules to `dist/index.d.ts` inside the
+  tarballs, and `node dist/public-consumer.js` printed the same exact-arithmetic sum and
+  `throughSeq` `0` ledger origin as the leaf run.
+
+Not re-run here: the repository-wide `pnpm run check` including the package checker (still needs
+the native `fs-ext` rebuild environment), and the leaf build, typecheck, and Vitest suites, which
+[integration.log](integration.log) covers at HUB `4f60709`. The packed consumer still exercises
+only value arithmetic, validation, and ledger creation; it observes no durable writer, no decode
+of real provider lines, and no tenant authority behaviour.
+
 ## Evidence boundary
 
 The fixtures use structurally valid test evidence and cost facts. They do not recognize an evidence
