@@ -1,0 +1,43 @@
+{
+  "format": 1,
+  "consumer": "SYS-DYNAMIC.C1",
+  "source_commit": "e3573ca72d18bfe7ddd002df5025551b51eede46",
+  "upstream_snapshot": "5d6322d85652f17b72cf97043b6300926c41083a",
+  "selected": [
+    {
+      "file": "fully-dynamic-system.md",
+      "source_file": "docs/research/fully-dynamic-system/fully-dynamic-system.md",
+      "source_sha256": "41f199f89b328256265726260c5fa4cfeaaa71c8e26112a7bb4e142d8ca41604",
+      "target_sha256": "10ee12577b7b55ae0f32091c1fc77d559a28302be74f4a13f6c353847ed1568d"
+    },
+    {
+      "file": "fully-dynamic-system.zh.md",
+      "source_file": "docs/research/fully-dynamic-system/fully-dynamic-system.zh.md",
+      "source_sha256": "4e4734c08dd013563248afa672ab6d28a5777e9a3912e53b428de8c9e8e3fb94",
+      "target_sha256": "c546ea9cf8f52cc719008b9612f579f2f3ecd6b5b2bdd3b051053139d10ae28e"
+    },
+    {
+      "file": "fully_dynamic_system_intro.md",
+      "source_file": "docs/research/fully-dynamic-system/fully_dynamic_system_intro.md",
+      "source_sha256": "bd6d812cf91e6e6d094c463617d618762d9394471e6c75a7bf8f7af4e157ced7",
+      "target_sha256": "bd6d812cf91e6e6d094c463617d618762d9394471e6c75a7bf8f7af4e157ced7"
+    }
+  ],
+  "omitted_history": [
+    {
+      "source": "docs/research/fully-dynamic-system/history.log",
+      "sha256": "7fb67a94f6a78ff6fc34fa1da9a23903cb56f94f7eeb15b7b19c56f9d4b9f6a4",
+      "recover_at": "e3573ca72d18bfe7ddd002df5025551b51eede46"
+    },
+    {
+      "source": "docs/research/fully-dynamic-system/omne-next-history.bundle",
+      "sha256": "52956ee7959037a29fd2f394bc80874925e56f930f13acca0a0f9b2f8dced50e",
+      "recover_at": "e3573ca72d18bfe7ddd002df5025551b51eede46"
+    }
+  ],
+  "limitations": [
+    "Source commit and hashes establish content identity, not an independent trusted timestamp.",
+    "The current package does not carry the source Git bundle or history log.",
+    "Preserved framework comparisons were not revalidated against current releases."
+  ]
+}
