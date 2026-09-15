@@ -1,4 +1,73 @@
-# Agent 编译工具
+# Meta Harness 工具
+
+本目录只依赖工作区内部路径执行确定性生成与设计检查，不从承载产品仓库发现
+`docs/`、`spec/` 或配置。将完整 `.meta_harness/` 复制到另一目录后，显式传入其中的
+`design/` 仍可运行；产品消费者观测通过重基清单传入，不因邻近源码而升级采用状态。
+
+## 设计信息包检查
+
+`check_design.py` 检查新设计谱系的身份、资源、引用、冻结和形式任务登记：
+
+```sh
+python tooling/src/check_design.py --root design --formal registered
+python tooling/src/check_design.py --root design --formal skip
+python tooling/src/check_design.py --root design --formal run
+```
+
+三个形式任务模式含义不同：`registered` 只确认任务与工件已登记；`skip` 记录本次明确
+跳过执行；`run` 才调用清单中的 runner，并传播缺工具、超时和非零退出。前两种模式
+都不能作为 TLC、Alloy 或其他模型已通过的证据。`--previous-frozen PATH` 可核对同一
+baseline 先前冻结登记未被改变或移除。
+
+设计根必须包含五份清单；路径均相对设计根，禁止绝对路径、`..` 和符号链接逃逸：
+
+| 文件                | 持续含义与关键字段                                                                                                      |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `baseline.json`     | `format=1`、稳定 `baseline_id`、输入 `snapshot_id`、Schema `schema_namespace`、不可混入当前谱系的 `legacy_baseline_ids` |
+| `catalog.json`      | 当前谱系的精确三元组、family/topic、状态、版本资源、接受决定和条款级依赖                                                |
+| `rebase-map.json`   | 旧→新条款关系、退出身份、`freeze_gate` 与实际产品消费者的旧/新谱系观察                                                  |
+| `frozen.json`       | 已接受 catalog 资源的 SHA-256；发布后只追加，新内容必须新版本                                                           |
+| `formal-tasks.json` | 模型种类、已登记工件、可注入 argv runner 和超时；结果不写回规范                                                         |
+
+catalog 的稳定键是 `(baseline_id, contract_id, version)`。本次重基只接受固定 baseline
+中的 `version=1`，资源位置为 `spec/{family}/{topic}/v1/...`；同一坐标重复登记直接
+拒绝，即使两个文件内容不同。`accepted` 条目必须链接实际 `decisions/` 文件，全部版本
+资源必须冻结；候选状态和接受状态不能靠文件存在相互提升。
+
+依赖必须带精确坐标和实际消费条款。当前谱系坐标须在 catalog 中存在；旧谱系坐标须
+引用一条精确重基关系。`freeze_gate.blocked=true` 会阻断采用，退出身份不能作为当前
+依赖复活；先把其被消费条款映射到当前活体能力，再让 catalog 依赖当前坐标。产品包仍
+消费旧 Schema 时，以 `consumer_observations.status=observed-legacy` 保存事实，不能标为
+`verified-current`。
+
+每个 catalog Schema 的 `$id` 必须为
+`{schema_namespace}/{baseline_id}/spec/{family}/{topic}/v1/{resource}`。检查器解析所有
+`$ref`/`$dynamicRef` 的资源和 JSON Pointer；旧命名空间、缺资源与缺 pointer 都非零退出。
+它也核对设计根内 Markdown 文件和锚点，因此 requirements 与 decision 信息包的接受链
+可在独立副本中检查。当前实现不执行完整 JSON Schema 实例校验；迁移纵线仍须为具体
+Schema 提供 Draft 2020-12 结构和正反实例验证。
+
+`rebase_resources.py` 只复制显式列入清单且源 SHA-256 匹配的资源：
+
+```sh
+python tooling/src/rebase_resources.py \
+  --source-root /path/to/source-checkout \
+  --design-root design \
+  --manifest /path/to/rebase-files.json
+```
+
+清单格式为 `{"format":1,"files":[...]}`；每项给出 `source`、`target`、
+`source_sha256` 和 `replacements`。每个替换必须写出精确 `from`、`to` 与预期 `count`，
+数量不符、源漂移、目标碰撞时在写入前整体拒绝。无替换的二进制工件逐字节复制；带替换
+的文件必须是 UTF-8。`--check` 只读核对全部目标与当前渲染一致。这个工具不决定条款
+等价性、不自动改版本字符串；条款筛选和重基关系由内容拥有者给出，最终由设计检查器
+核对精确身份、依赖和引用。
+
+测试使用含 core-work 跨身份 `$ref`、command-input 退出身份重基、多个 RunDriver cfg、
+requirements/decision 链及旧产品 Schema 消费观察的小型设计树。它同时覆盖 namespace
+混用、同坐标碰撞、冻结漂移、阻断 gate、断链、runner 错误传播及复制到仓库外运行。
+
+## Agent 编译
 
 本轮实现从一个 `agents/` 源根按宿主策略编译四处目录，并提供独立的相对软链接工具。
 `projection.py` 解析源和适配并产生内存产物，`compile_agents.py` 负责 CLI 与预检写入，
@@ -38,7 +107,7 @@ host: codex
 skill: example-skill
 mode: copy
 slots:
-  "{{HOST_GUIDANCE}}": slots/host-guidance.md
+  '{{HOST_GUIDANCE}}': slots/host-guidance.md
 ```
 
 `slots` 可省略。替换文件相对当前 adapter，不能越界；仅替换 canonical 中 Markdown 的
