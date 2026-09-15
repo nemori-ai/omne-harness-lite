@@ -53,6 +53,27 @@
 （不能否决）；6 → 随 U-44 删除。用户提出的迟到结果投影 → U-46 确认；作者转给用户的 PF-005.C10 措辞 → U-47（撤下权威批准
 引用，未来另作能力）。
 
+## 第二轮复核（2026-09-15）
+
+复核：Codex `architecture-reviewer`（只读，gpt-6-astra / xhigh），对象为 HUB 分支提交
+`eda8e3b`（比较基线 `471e9ae`）的新增结构：等待登记簿、`superseded` 终态、等待期间的排队
+用户输入、作者裁决 2/4/5/6、动作链与模型。原始报告在主检出 `tmp/next-design-prep/`（作业
+副本 `review2-codex-result.md`）。处置按同一工作风格由作者裁决
+（[README 第二轮作者裁决](README.md#第二轮作者裁决2026-09-15架构复核后)），正文与模型在
+同一分支的后续提交改完。
+
+| 编号 | 发现 | 初判 | 处置 |
+|---|---|---|---|
+| A-1 | 登记注销"结算被消费时"、裁决"注销了开放登记才是接续"、A7 "注销后等 resume"三处互相引用成环；"活动 Run"在 SE-14（refs 指向的发起 Run）与新规则（当前活动 Run）之间两解；人类请求与其 `human` 调用各有登记 | 成立，三处时点确实没有统一 | 已修（裁决 8）：提议即登记，裁决为 continuation 的提交注销；裁决查 holder 的发起 Run；请求附属于调用不独立登记；[登记簿](lifecycle.md#等待登记簿)、A7、T-17、缺口表 RN-01/04、HD-04 |
+| A-2 | RD-10 下前台执行阻止 Step 收束，Run 保持 running，登记簿定义的 `waiting` 到不了，排队文本的主要场景没有合法转移；`deferred_receipt` 缺原因；TS-23 占位后又呈现 tool_result 违反 T-14 | 成立 | 已修（裁决 9）：Step 收束 = attempt 结算且提议登记，"阻止收束"改为开下一 Step 的合批规则；新原因 `foreground_pending`；TS-23 改为 reminder；缺口表 RD-09/10、RD-14、CD |
+| A-3 | 复合打断的 `prepareCloseOut` 与"unknown 时新 Run 不开"冲突，pending 期间旧 Run 无确定状态；interrupted 上 force_stop 直达 cancelled 的前提在 unknown 下不成立 | 成立 | 已修（裁决 10）：unknown 计入两种收口，不再有 pending；单调用 `stopCall{force}` 作升级；interrupted 上 force_stop 有 unknown 时经 stopping；B3/B7、A10、run 设计、缺口表 RN-03/05、SE-08、TL-11 |
+| A-4 | 模型不是登记簿的等价投影：proposed 已算阻塞而正文说准入才登记；`human_wait` 在 running 时被判 context；越过后被取消的前台调用保留 `rel` 又被判为新 Run 的接续；`RunWait` 允许前台执行中转 waiting | 成立（前两项是正文错、后两项是模型错） | 已修（裁决 8/9/11）：正文改为提议即登记、`RunWait` 即裁决 9 的收束；模型 `Route` 去掉 `human_wait` 特例、`RunInterruptThenRun` 把所有已提议调用 `rel` 置 background、`SupersedeReleasesPositions` 覆盖结算中调用、新增 `StopProgressUnknown`；重放见 [evidence](evidence/README.md) 模型发现 4 |
+| 非阻断 | 内建工具第 4 步未与 B4 同步；门登记的 `since` / `ret`；串行门与 Yield 不该登记；T-4 与 LC-04 行 7 措辞；裁决 4 清单的认领责任；裁决 5/6 范围；证据文字（RunFail、interrupt_then_run 未建模、TS-21 的 unknown 分支） | 成立 | 已修（裁决 12、13）：清单作为 `system_notice` context 由下一个有模型 Step 的 Run 消费一次；其余逐项改入正文 |
+
+复核列出的未决政策：跨协调域的登记簿交接（仍是未决项）；两份模型都是有限局部证据；
+requirements.md 的消费基线补 PF-013 增量（已补）。`superseded`、单一登记簿、单一公开出口
+三个方向复核未要求重选。
+
 ## 评审未验证项的现状
 
 - 重放已在处置后重新运行，`results.json` 的哈希对应当前文件；`source_commit` 仍是重放时的

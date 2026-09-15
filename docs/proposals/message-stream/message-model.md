@@ -19,7 +19,7 @@
 Message = {
   messageId: OpaqueId,               // 由 (eventId, ordinal) 确定地派生，不另发号（评审 B4）
   session: SessionRef,
-  position: {domain, seq, ordinal},  // 产生它的提交在协调域里的位置（DR-01 envelope 单调序号）+ 同一事实派生多条时的序数
+  position: {domain, seq, index, ordinal},  // 产生它的提交在协调域里的位置（DR-01 envelope 单调序号）+ 事实在该提交内的耐久序 + 同一事实派生多条时的序数
   role: user | assistant | system,   // 供应方无关的角色；工具结果与 system_reminder 的角色由投影决定（§5）
   origin: Origin,                    // 谁产生、经哪个 Step / attempt（出处）
   step: StepRef | null,              // 进入模型的 Step；用户输入在被取批前为 null
@@ -30,8 +30,10 @@ Message = {
 }
 ```
 
-`ordinal` 是派生表（§4）里同一事实派生第 n 条消息的序数，按事实内的顺序（取批的 items
-顺序、切点里的 reminder 顺序）编号，跨重建稳定；它与帧信封的 `batch.index` 无关（后者是
+`index` 是该事实在其提交内的耐久序（DR-01 一个 batch 内记录的 append 顺序），`ordinal` 是
+派生表（§4）里同一事实派生第 n 条消息的序数，按事实内的顺序（取批的 items 顺序、切点里的
+reminder 顺序）编号；两者跨重建稳定，历史顺序 = `(seq, index, ordinal)` 字典序，同批两条
+事实各派生的消息因此有确定次序（复核 B-新3）。它们与帧信封的 `batch.index` 无关（后者是
 订阅局部的投递计数）。
 
 ```text
@@ -60,19 +62,25 @@ snapshot / notice / relay / recall），本项目当前没有消费者，不引�
 | `tool_result` | `{blockId, kind: "tool_result", call: CallRef, outcome, value: Result}` | `value` 的形状按 [工具提案结果形状](../tool-execution/schema.md#结果形状)（候选）：`{outcome, output, content: ContentBlock[], error, possibleEffect}`；`content` 里的媒体块带 `delivery`，投影按 [MC-11](../../../spec/capabilities/model-execution/v1/contract.md) 交集处理 |
 | `system_reminder` | `{blockId, kind: "system_reminder", reminderKind: late_result \| human_answer \| hook_context \| system_notice, ref: {call, attempt} \| {request} \| {handler} \| null, outcome, content: ContentBlock[]}` | 由[工具提案](../tool-execution/lifecycle.md#占位与迟到结果的投影)提出（候选，用户裁决 [U-46](../tool-execution/README.md#裁决记录2026-09-14用户)）；系统产生、不能经用户输入导入（与 `deferred_receipt` 同一规则）；一份耐久记录，按模型族投影（§5） |
 
-`deferred_receipt` 按[工具提案的占位](../tool-execution/lifecycle.md#占位与迟到结果的投影)取形：
-`{blockId, kind: "deferred_receipt", call: CallRef | null, request: RequestRef | null, continuationId,
-status: pending, reason: background | waiting_human | superseded, notice: string}`——启动即后台的
-调用没有 `request`，`reason` 与 `notice` 让模型知道为什么还没有结果（评审 B5 指出两套形状
-不一致，以工具提案为准，进 CD 下一版）。客户端呈现时用调用当前状态
-（[工具提案五维状态](../tool-execution/lifecycle.md#五个正交维度)）标注它已结算与否，块本身
-不改写（MS-11）。占位不放在 `tool_result.value` 里：`tool_result` 只承载真实结果。
+`deferred_receipt` 的形状与 `reason` 词表**只有工具提案一份**
+（[占位与迟到结果](../tool-execution/lifecycle.md#占位与迟到结果的投影)：`{blockId, kind, call,
+reason: detached_background | background_from_start | waiting_approval | waiting_human |
+staged_provisional | foreground_pending, notice}`），本提案按引用消费、不另写（评审 B5 与复核
+B-新4：首稿另写的 `background | waiting_human | superseded` 三值与工具提案不一致；`superseded`
+不是占位原因——被越过的 Run 的调用在新 Run 里没有 tool_use，它们经被保留工作清单与迟到结果
+进入）。客户端呈现时用调用当前状态（[工具提案五维状态](../tool-execution/lifecycle.md#五个正交维度)）
+标注它已结算与否，块本身不改写（MS-11）。占位不放在 `tool_result.value` 里：`tool_result` 只
+承载真实结果。
 
 `tool_call{blockId, kind: "tool_call", call: CallRef | null, action: Action | null, validation: accepted |
-rejected{reason}, raw: {name, arguments} | null}` 由 `tools.call.proposed` 派生：[TL-01](../../../spec/capabilities/tools/v1/contract.md)
-校验通过的片段带 `call` 与 `action`；被拒的片段保留 `raw` 与 `rejected{reason}`（模型确实
-提了这个调用，真实结局不能丢，也不能变成可执行的 Action）。流式的参数片段
-（[delta-protocol.md](delta-protocol.md)）不是 `tool_call` 块，客户端不得据片段渲染为一次调用。
+rejected{reason}, raw: {name, arguments} | null}` 有两条派生来源：[TL-01](../../../spec/capabilities/tools/v1/contract.md)
+校验通过的片段由 `tools.call.proposed` 派生，带 `call` 与 `action`；校验不通过时 tools 提供者
+返回整份 `invalid_proposal`、不登记任何 proposed（[tools 设计](../../../packages/tools/tools/design.md)），
+被拒片段因此由 attempt 结算记录（MC-06 装配后的块里保留模型原始的 tool_call 块）与 Step 结算
+`run.step.settled{outcome: invalid_proposal{reasons}}`（[RD-08](../../../spec/capabilities/run-driver/v2/contract.md)）
+派生，带 `raw` 与 `rejected{reason}`（模型确实提了这个调用，真实结局不能丢，也不能变成可执行
+的 Action；复核 B-新3）。流式的参数片段（[delta-protocol.md](delta-protocol.md)）不是 `tool_call`
+块，客户端不得据片段渲染为一次调用。
 
 ## 3. 用户消息与附件
 
@@ -94,18 +102,18 @@ rejected{reason}, raw: {name, arguments} | null}` 由 `tools.call.proposed` 派�
 
 ## 4. 从事实派生消息
 
-同一协调域内所有流共享 DR-01 envelope 的单调序号，历史顺序 = 提交顺序；跨域部署前不需要
-另一个全序（[LC-09](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md) 的义务
-清单到时补）。派生表（对应 DSH `deriveMessages()`，[研究 dsh 笔记 §4](../../research/client-message-stream/notes/dsh.md#4-session-日志surface-与派生历史)）：
+同一协调域内所有流共享 DR-01 envelope 的单调序号，历史顺序 = 提交顺序，同一提交内按事实
+的耐久序 `index`、同一事实内按 `ordinal`（§1）；跨域部署前不需要另一个全序
+（[LC-09](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md) 的义务清单到时补）。派生表（对应 DSH `deriveMessages()`，[研究 dsh 笔记 §4](../../research/client-message-stream/notes/dsh.md#4-session-日志surface-与派生历史)）：
 
 | 事实（流.对象.事实） | 派生的消息 | 说明 |
 |---|---|---|
 | `queue.item.enqueued / edited / withdrawn` | `enqueued`：一条 `step: null`、`role: user`、`origin: user_input` 的消息，`content` = 该 revision 的 `InputBlock[]`；`edited`：新消息，旧消息 `supersededBy` 指向它；`withdrawn`：旧消息 `supersededBy` 指向撤回事实 | 只进历史投影；模型请求投影不取未取批消息（评审 B4） |
 | `queue.items.taken{items, run}` | 每个 item 把已派生的用户消息 `step` 指向消费它的 Step（`ordinal` 按 items 顺序） | 内容本体在队列项，消息只引用；`literal` 输入不解析命令 |
 | MC attempt 结算事实（MC 提供者设计待写，见 [cordis.md](cordis.md#能力侧)；要求携带 `purpose`（[RD-07](../../../spec/capabilities/run-driver/v2/contract.md)：`reply \| title \| compression \| auxiliary`）、装配后的 `ContentBlock[]`、`actualModel`、usage、紧凑流记录与缺失块清单） | `purpose = reply`：`role: assistant`、`origin: model_attempt`，`settlement` 记状态与缺失块；其余 `purpose` 不派生助手消息（压缩的摘要消息由压缩事实派生，见下；标题等辅助输出归各自读面） | `partial / cancelled` 也派生消息：保留全部**完整且已耐久**的块（文本、推理、媒体、已校验的 `tool_call`），未完成的块进 `settlement.missing`（[delta-protocol.md §4](delta-protocol.md#4-失败中断与部分内容)，评审 B6）；`failed / unknown` 无内容不派生消息但保留 usage 与状态（DSH 同规则） |
-| `tools.call.proposed{attempt, proposals[]}`（候选，[转移表](../tool-execution/lifecycle.md#转移表)） | 给该 attempt 的助手消息追加 / 确定 `tool_call` 块（通过校验的带 `call` 与 `action`，被拒的带 `raw` 与 `rejected{reason}`） | 助手消息的 `tool_call` 只来自这条事实，不来自流片段（§2） |
+| `tools.call.proposed{attempt, proposals[]}`（候选，[转移表](../tool-execution/lifecycle.md#转移表)）；`run.step.settled{outcome: invalid_proposal}`（RD-08） | 前者给该 attempt 的助手消息确定通过校验的 `tool_call` 块（带 `call` 与 `action`）；后者把该 attempt 结算记录里的原始 tool_call 块确定为 `rejected{reason}` 并保留 `raw` | 助手消息的 `tool_call` 只来自这两条事实，不来自流片段（§2） |
 | `tools.call.settled{call, attempt, result}`（候选） | 一律派生一条 `role: user`（供应方无关角色，投影见 §5）、`origin: tool_settlement`，`content: [tool_result]` 的消息，位置 = 结算提交 | 客户端在结算时就看到结果，与该调用是否已占位、Run 是否还会开 Step 无关（评审 B5：归档后结算也有消息）；模型请求投影按 §5 决定它以 `tool_result` 还是经 reminder 进入 |
-| `run.step.opened{cutpoint}` 且切点包含 `deferred_receipt` 或 `system_reminder` 输入（[RD-09](../../../spec/capabilities/run-driver/v2/contract.md)、工具提案候选） | `role: user`、`origin: system` 的占位消息；`role: user`、`origin: tool_settlement \| human_answer \| hook \| system` 的 `system_reminder` 消息，其 `content` 是对已派生结果消息的**引用**（`ref`），不复制正文 | 一个调用的最终结果在客户端视图里恰出现一次——结果消息；reminder 在历史投影里只显示"已于上方结果处呈现"（MS-11，对应工具提案 T-14）；同一 Step 输入里多条 reminder 排在新用户文本之前 |
+| `run.step.opened{cutpoint}` 且切点包含 `deferred_receipt` 或 `system_reminder` 输入（[RD-09](../../../spec/capabilities/run-driver/v2/contract.md)、工具提案候选） | `role: user`、`origin: system` 的占位消息；`system_reminder` 消息分两类：`late_result \| human_answer`（`origin: tool_settlement \| human_answer`）的 `content` 是对已派生结果消息的**引用**（`ref`），不复制正文；`hook_context \| system_notice`（`origin: hook \| system`）没有对应的结果消息，正文就在切点的 reminder 块里，消息按块原样派生（复核 B-新4） | 一个调用的最终结果在客户端视图里恰出现一次——结果消息；引用类 reminder 在历史投影里只显示"已于上方结果处呈现"，正文类 reminder 显示其正文（MS-11，对应工具提案 T-14）；同一 Step 输入里多条 reminder 排在新用户文本之前 |
 | `hd.decision.recorded{request, decision}`（候选） | 不单独派生消息：问答型答复经 `human` 工具的 `tools.call.settled` 成为 `tool_result`；审批型决定是系统门事实，不进模型 | [U-44](../tool-execution/README.md#裁决记录2026-09-14用户) |
 | `session.*`、`inbound.*`、`run.*`（其余）、`tools.control.*`、`tools.relation.*` | 不派生消息 | 结构事实；客户端以事实提示帧呈现状态（[envelope-and-cursor.md](envelope-and-cursor.md)） |
 | 压缩摘要（[MC-10](../../../spec/capabilities/model-execution/v1/contract.md)） | 一条 `role: user`、`origin: system` 的摘要消息，`supersededBy` 反向写到被摘要的消息 | 原历史保持；模型视图从摘要起 |

@@ -26,7 +26,7 @@ PF = [需求正文](../../requirements/README.md)，U = [沿用的裁决](README
 |---|---|---|---|---|
 | MS-1 | 出站流不产生事实：任何帧都能追溯到一条已提交事实（`(stream, seq)`）或一条带 attempt / call 身份的瞬态观察；客户端的任何"我看到了"都不改变事实 | LC-06、DR-02、PF-013.C10 | 帧信封必带 `position` 或 `ephemeral` 标记；出站流服务不持有 records 写权 | 信封 Schema 检查；游标模型（帧只由事实或瞬态动作产生） |
 | MS-2 | 每帧带去重键；同一事实至多投递一次到同一订阅；事实帧按 `(seq, index)` 单调且同批 `index` 连续；瞬态帧按 owner 序号在其 attempt / call 内严格单调 | U-34、SE-12、TL-12、MC-06 | 投递侧按 `dedupKey` 与订阅已投递集合判重；同批帧由服务端按提交分组；瞬态帧序号由 owner 分配 | 游标模型（`DeliverOnce`、`BufferOrdered`：按 `(seq, idx)`）；投递单测 |
-| MS-3 | 重连补齐完整（按批）：给定客户端游标，补齐集合 ∪ 已投递集合 = 该作用域内、序号不超过投影完整覆盖水位的全部已提交事实，无重复，游标之下没有半批；补齐来自投影与读面，不来自流的历史缓冲 | PF-013.C10、PF-022.C4、SE-03、SE-16 | 游标只在整批收齐后推进；服务端水位 `(seq, index)` 不越过 `completeTo`；补齐按水位差从投影拉；服务端按订阅水位补铃 | 游标模型（`CursorComplete`、`SentComplete`：多事实提交、投影滞后；否定变体 `SpecNoFill`、`SpecBuffered` 各给出反例） |
+| MS-3 | 重连补齐完整（按批）：给定客户端游标，补齐集合 ∪ 已投递集合 = 该作用域内、序号不超过投影完整覆盖水位的全部已提交事实，无重复，游标之下没有半批、没有未取回的派生正文；补齐来自投影与读面，不来自流的历史缓冲；全量重取取自投影同一水位的单一快照 | PF-013.C10、PF-022.C4、SE-03、SE-16 | 游标只在整批安装完成（含按位置拉正文）后推进；服务端水位 `(seq, index)` 不越过 `completeTo`；补齐区间 `(cursor, completeTo]` 按水位差从投影拉；`snapshot.asOf` 是全量重取的唯一切点；服务端按订阅水位补铃 | 游标模型（`CursorComplete`、`SentComplete`：多事实提交、投影滞后；否定变体 `SpecNoFill`、`SpecBuffered` 各给出反例；正文拉取与快照安装不建模，由场景 MS-10 与客户端单测验收） |
 | MS-4 | 瞬态缺口可见：被裁剪、未确认、崩溃丢失、来源消失或因慢客户端丢弃的瞬态帧以缺口词表（沿 [frames.md](../tool-execution/frames.md#缺口词表)，加 `unavailable`）明示，不冒充完整；耐久事实不产生缺口，只有"落后"与"投影暂不可用" | TL-12、PF-022.C6、SYS-OBSERVABILITY.C5 | 瞬态旁路的丢弃点写 gap 标记；`ended{abandoned}` 与 `ended{committed, settled: failed}` 明确终止；投影不可用时停发事实帧并标记 | 游标模型（`DraftCurrent`、`GapMarked`）；场景 MS-05、MS-15 |
 | MS-5 | 投递前核对读权：订阅建立时（含基线各项）与每帧投递前各核对一次租户 / Session / 对象权限；撤权后不再投递也不中断工作；游标绑定主体的可见范围版本，版本变化即失效、走全量重取；跨租户游标视为无效 | SYS-TENANT、TL-12、OB-03、HD-09 | 出站流服务在两处调用授权读面；`visibilityVersion` 进游标；游标解释在服务端 | 场景 MS-08；授权单测 |
 | MS-6 | 背压不阻塞事实与工作：慢客户端只丢瞬态帧并留缺口，不延迟任何提交、不阻塞驱动器或执行 owner；耐久帧的背压归 records 与 owner 之间（F-2 之外的 [frames.md 记录等级](../tool-execution/frames.md#记录等级)） | SYS-LONG-RUNNING、TL-12 | 瞬态旁路有界缓冲；事实提示只带位置，客户端自拉 | 场景 MS-06；负载单测 |
@@ -34,9 +34,9 @@ PF = [需求正文](../../requirements/README.md)，U = [沿用的裁决](README
 | MS-8 | 消息模型单一权威：历史投影、模型请求装配（MC-07）、客户端呈现消费同一 `Message` / `ContentBlock` 定义，差异只在投影；`deferred_receipt`、`system_reminder`、`tool_result` 只由各自权威产生，不能经用户输入或客户端导入 | CD-03、MC-07、PF-009.C4、U-46 | CD 下一版一份定义；投影函数是纯函数 | 投影单测（同一记录 → 三种投影） |
 | MS-9 | 耐久帧与 Session 日志同域 append-only：`frames(S)` 的序号与消息提交顺序可对齐，回放与实时投递看到同一序列；transient 帧只由显式声明产生，回放不冒充完整 | U-42、F-4、TL-12 | 帧写入经 records 同一协调域；出站流从 `frames(S)` 回放 | 工具提案证据；场景 MS-02 |
 | MS-10 | 呈现标识稳定：帧的 `render.kind` 与版本在声明里固定，客户端按它选组件，语义不依赖它；公开面不携带内部坐标（存储偏移、进程句柄、内部 id） | U-42、研究（omne-next 契约测试同型） | 信封 Schema 拒绝内部字段；`render` 词表登记 | Schema 检查；omne-next 核对清单 |
-| MS-11 | 一个调用的最终结果在客户端视图里恰出现一次：结算事实一律派生结果消息（位置 = 结算提交，归档后也如此）；之后的 `system_reminder{late_result \| human_answer}` 只引用它，历史投影不复制正文；占位 `deferred_receipt` 在结果到达后不消失、只被标为已结算 | T-14、U-46、PF-005.C8、PF-008.C4 | 客户端视图由耐久事实投影；投影按 `(call, attempt)` 关联；reminder 的 `ref` 指向结果消息 | 投影单测；场景 MS-03、MS-04、MS-14 |
+| MS-11 | 一个调用的最终结果在客户端视图里恰出现一次：结算事实一律派生结果消息（位置 = 结算提交，归档后也如此）；之后的 `system_reminder{late_result \| human_answer}` 只引用它，历史投影不复制正文；`hook_context \| system_notice` 类 reminder 没有结果消息，正文在块内；占位 `deferred_receipt` 的形状与原因词表只有工具提案一份，在结果到达后不消失、只被标为已结算 | T-14、U-46、PF-005.C8、PF-008.C4 | 客户端视图由耐久事实投影；投影按 `(call, attempt)` 关联；引用类 reminder 的 `ref` 指向结果消息 | 投影单测；场景 MS-03、MS-04、MS-14 |
 | MS-12 | 媒体只发引用：出站流不内联媒体字节；引用经 CT 读面取回并每次核对读权；未耐久的媒体块以带状态的占位呈现。唯一例外是标了 `preview: true`、不超过传输参数阈值的派生预览，原件仍以引用取回 | CT-02/04、PF-009.C3、PF-022.C4 | 信封 `payloadRef: MediaRef`；预览是另一个 `mediaId`（CD-03 的派生内容规则） | Schema 检查 |
-| MS-13 | 私有载荷不经任何入口流出：`replayState`、加密推理原件、未校验的调用参数增量只在 MC 私有记录与读面；实时帧、紧凑历史、重连基线三处都经同一个公开投影 | U-49、OB-03 | MC 提供者的 `toPublic` 纯函数是唯一出口 | MC 提供者单测（三处入口同一函数）；Schema 检查（公开词表不含私有字段） |
+| MS-13 | 私有载荷不经任何入口流出：`replayState`、加密推理原件、未校验的调用参数（增量与 `block-end` 里的完整参数）只在 MC 私有记录与读面；实时帧、紧凑历史、重连基线三处都经同一个公开投影，公开计数稠密、推理形态按块固定 | U-49、OB-03 | MC 提供者的 `toPublic` 整段转换是唯一出口 | MC 提供者单测（三处入口同一函数；过滤后计数连续；tool-call 块终止帧无参数）；Schema 检查（公开词表不含私有字段） |
 
 ## 进展性质
 

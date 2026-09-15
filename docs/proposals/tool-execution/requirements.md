@@ -8,7 +8,11 @@ D-012 采用的基线 `6f7f1de1bc2fe0e772dc48a83da4699fece82e89`（保留引用
 [PF-025](../../requirements/product/agent/PF-025-external-hooks-compatibility.md) 一页及其
 索引条目，其余 `docs/requirements/` 未变；快照之后 PF-005.C10 按用户裁决 U-47 在同一分支修订
 （撤下系统权威批准引用，见 [PF-005 变更记录](../../requirements/product/agent/PF-005-agent-initiated-human-input-and-approval.md#变更记录)），
-本提案按修订后的正文消费。正式接受前按
+本提案按修订后的正文消费。快照之后 2026-09-15 又消费了两处增量：
+[PF-013.C5](../../requirements/product/user/PF-013-session-run-lifecycle-and-pending-input-control.md#变更记录)
+的"等待期间自动消费排队文本"（[作者裁决 7](README.md#作者裁决2026-09-15按用户工作风格)）与
+[PF-009](../../requirements/product/user/PF-009-multimodal-input-attachments-and-commands.md#变更记录)
+C1 / C2 / C7 的复确认与扩展；正式接受时保留引用固定在含这些修订的提交上。正式接受前按
 [需求维护](../../maintenance/requirements.md#基线保留)固定新的保留引用。用户在本轮的裁决记录于
 [提案入口](README.md#裁决记录2026-09-14用户)，不改写需求正文。
 

@@ -7,7 +7,11 @@ D-012 采用的基线 `6f7f1de1bc2fe0e772dc48a83da4699fece82e89`（保留引用
 `refs/tags/requirements-baseline/2026-09-14-agent-loop-inbound`）之上新增了
 [PF-025](../../requirements/product/agent/PF-025-external-hooks-compatibility.md) 一页，并按用户裁决
 U-47 修订了 [PF-005.C10](../../requirements/product/agent/PF-005-agent-initiated-human-input-and-approval.md#变更记录)；
-其余 `docs/requirements/` 未变。正式接受前按
+其余 `docs/requirements/` 未变。快照之后 2026-09-15 又消费了
+[PF-013.C5](../../requirements/product/user/PF-013-session-run-lifecycle-and-pending-input-control.md#变更记录)
+的"等待期间自动消费排队文本"（工具提案作者裁决 7，本提案的占位与 reminder 派生随之覆盖
+`foreground_pending` 一类）与 [PF-009](../../requirements/product/user/PF-009-multimodal-input-attachments-and-commands.md#变更记录)
+C1 / C2 / C7 的复确认；正式接受时保留引用固定在含这些修订的提交上。正式接受前按
 [需求维护](../../maintenance/requirements.md#基线保留)固定新的保留引用。
 
 覆盖按要求分列；"性质"列指向 [invariants.md](invariants.md) 的编号，"落点"列指向波 2 的

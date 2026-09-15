@@ -96,8 +96,11 @@ Cursor = { domains: { <coordinationDomain>: seq },   // 各协调域**已整批�
   派生，且同域提交序号与各流序号同向单调。这是对 [出站流边界稿 §2](../outbound-stream/README.md#2-方向建议待实现阶段确认)
   "`(stream, seq)` 水位集合"的收敛：集合按域而不是按流，理由是 [研究结论 4](../../research/client-message-stream/README.md#0-结论先行)——
   按流的集合会随每个调用、每个请求各自一条流而无限增长。
-- 推进规则：客户端只在收到某提交的最后一帧（`batch.index = batch.count`）后才把该域的
-  序号推进到它；收到同批的前几帧不推进。因此游标之下没有半批（MS-3 按批陈述）。
+- 推进规则：客户端只在某提交的整批**安装完成**后才把该域的序号推进到它——收到最后一帧
+  （`batch.index = batch.count`）且该批引用的派生正文（§5.1"只给位置"的消息）都已按位置
+  读到本地；收到同批的前几帧不推进，正文拉取失败也不推进，重连后该批按半批规则重发
+  （复核 B-新1：只按帧推进会在"存了游标、还没拉到正文"的崩溃窗口里丢掉已确认的消息）。
+  因此游标之下没有半批、也没有未取回的正文（MS-3 按批陈述）。
 - 游标**不包含**瞬态位置：瞬态帧不可续，重连以基线取代（[delta-protocol.md §5](delta-protocol.md#5-重连基线)）。
 - 可见范围版本：主体对本 Session 可见对象集合的版本号，由 session 下一版的读面
   `visibilityVersion(session, subject)` 给出，任何影响该主体对本 Session 内对象读权的授予或
@@ -121,10 +124,15 @@ Cursor = { domains: { <coordinationDomain>: seq },   // 各协调域**已整批�
 3. 发 `stream.opened{target: now, resumable, baseline, resync}`——`target` 是本次要追平的位置，
    `resumable` 是客户端**现在就可以保存**的恢复位置，二者分开（评审 B2 第 2 点）：
    - `cursor == null`、`cursor.seq < floor` 或可见范围版本不符 → `resync: full`，`resumable = null`：
-     客户端清空本地状态，从 `history(session, to: target)`（[SE-03](../../../spec/capabilities/session/v1/contract.md)
-     读面）与各读面重取；期间收到的 `seq > target` 的帧先在本地暂存；历史读到 `target` 且各
-     读面重取完成是**安装完成点**，此刻客户端才保存游标 `= target` 并应用暂存帧；任一读取失败
-     则不保存游标、重开订阅重来（决定 H 的"超过保留期返回需全量重取"）。
+     客户端清空本地状态，从 projection 的**一个**读面 `snapshot(session, principal) → {asOf,
+     history, queue, requests, calls, visibility}` 重取——所有派生视图都是同一 fold 在同一水位
+     `asOf = completeTo` 上的结果（[SE-10](../../../spec/capabilities/session/v1/contract.md) 的
+     stateKey 集合），历史分页也按 `asOf` 过滤，不存在"各读面各一个时刻"（复核 B-新2）；
+     `target := asOf`，`(asOf, now]` 由随后的补齐推；期间收到的 `seq > asOf` 的帧先在本地暂存。
+     快照全部读到且其 `visibility` 与订阅时一致是**安装完成点**，此刻客户端才保存游标
+     `= asOf` 并应用暂存帧；任一读取失败、或可见范围版本在安装期间变化，客户端不保存游标、
+     重开订阅重来（决定 H 的"超过保留期返回需全量重取"）；服务端没有安装状态，终止安装的
+     只有客户端。瞬态基线另取（[delta-protocol.md §5](delta-protocol.md#5-重连基线)，自带版本）。
    - 否则 → `resync: none`，`resumable = cursor`（客户端已有的游标继续有效），随后按 §5.1
      补齐 `(cursor.seq, completeTo]`；`(completeTo, now]` 的部分等投影追上后由对账续推。
    - `baseline` 含进程内仍活跃的瞬态 owner：活跃 attempt 的公开紧凑流与 `nextIndex`
@@ -146,9 +154,11 @@ Cursor = { domains: { <coordinationDomain>: seq },   // 各协调域**已整批�
 
 ### 5.1 补齐集合
 
-补齐 = `projection.changes(session, from: cursor.seq + 1, to)`（[projection 包](../../../packages/session/projection/design.md)
+补齐 = `projection.changes(session, after: cursor.seq, to)`（[projection 包](../../../packages/session/projection/design.md)
 新增读面，cordis.md），返回 `{batches: [{seq, facts[]}], completeTo}`：该 Session 作用域内、序号在
-`(from, completeTo]` 的全部已提交事实按提交分组，投影为事实提示帧，顺序按 `(seq, index)`。
+`(after, min(to, completeTo)]` 的全部已提交事实按提交分组，投影为事实提示帧，顺序按 `(seq, index)`。
+端点是"游标之后、水位为止"的左开右闭区间，与模型一致（复核 B-新1 指出首稿 `from = cursor + 1`
+再取开区间会跳过紧接游标的那一批）。
 它来自投影对同一批耐久流的 fold，不来自出站流自己的缓冲（MS-3）；服务端推送以整批为
 单位，队列装不下整批时推前缀并把水位停在批内。投影重建中返回 `unavailable` 时的处置见 §5.2。
 
@@ -181,7 +191,7 @@ Cursor = { domains: { <coordinationDomain>: seq },   // 各协调域**已整批�
 | 内容 | 落点 |
 |---|---|
 | 信封、词表封闭性、游标语义、补齐算法、缺口帧 | 新能力 `message-stream` v1 |
-| `projection.changes(session, from, to) → {batches, completeTo}` 读面与 `floor` | session 下一版（读面清单）与 projection 提供者设计 |
+| `projection.changes(session, after, to) → {batches, completeTo}`、`snapshot(session, principal) → {asOf, …}` 读面与 `floor` | session 下一版（读面清单）与 projection 提供者设计 |
 | `visibilityVersion(session, subject)` 读面 | session 下一版（聚合租户成员资格、Session 授予与 HD 可见范围的版本） |
 | 跨协调域后的一致读取切点、域迁移 / 新增、跨域因果接头与历史排序 | [LC-09](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md) 义务清单；本提案只保证域内顺序（[未决项](README.md#未决项)） |
 | `frames(S)` 作为 Session 第四条流 | session 下一版（决定 K；[工具提案缺口表](../tool-execution/lifecycle.md#契约措辞缺口表)已登记） |

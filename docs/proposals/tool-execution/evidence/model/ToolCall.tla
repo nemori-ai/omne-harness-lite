@@ -162,6 +162,15 @@ StopProgress(c) ==
   /\ SettleOne(c, "interrupted")
   /\ UNCHANGED <<sess, run, owner, crashes, kind, fence, rel, hd>>
 
+\* TL-09 / author ruling 2: the owner's bounded wait for a stop expires after a
+\* durable dispatch intent and it reports `physical: unknown`; the call settles
+\* unknown with the stop progressed (TS-21).  No attempt terminal is written.
+StopProgressUnknown(c) ==
+  /\ prog[c] = "executing" /\ kind[c] = "tool" /\ ctl[c] = "stop_requested" /\ owner = "alive"
+  /\ att[c] = "dispatch_intent"
+  /\ SettleOne(c, "unknown")
+  /\ UNCHANGED <<sess, run, owner, crashes, kind, att, fence, rel, hd>>
+
 (* ================= dimension D: control ================= *)
 
 \* user stopCall (PF-003.C4); on a human call this withdraws the question
@@ -219,18 +228,19 @@ OwnerRecover ==
 
 (* ================= dimension E: settlement delivery via Inbound (SE-14) ================= *)
 
-\* SE-14 column A needs "the Run still waits at this call's position": a call
-\* that blocked the Step (gate pending, foreground, detach in flight) is such a
-\* position while the driver is inside the Step or waiting; a human wait only
-\* becomes the waiting position after the Step settled (waiting_human).  A
-\* background settlement is a context (B) while the Run is active.
-WasBlocking(c) == rel[c] \in {"none", "foreground", "detach_in_flight"}
+\* SE-14 column A with the wait registry (lifecycle.md, author ruling 8): the
+\* settlement of a call that holds an open claim on its originating Run is a
+\* continuation for that Run while the Run is active (running, waiting or
+\* interrupted); the claim is released in the same step.  `rel` is the
+\* registry projected on the call: none (proposed / awaiting approval),
+\* foreground, detach_in_flight and human_wait are open claims, background is
+\* none.  A settlement without a claim is a context (B) while the Run is active.
+Claimed(c) == rel[c] \in {"none", "foreground", "detach_in_flight", "human_wait"}
 RunActive == run \in {"running", "waiting", "interrupted"}
 
 Route(c) ==
   IF sess = "archived" THEN "closed"                                              \* D2
-  ELSE IF WasBlocking(c) /\ RunActive THEN "continuation"                         \* A
-  ELSE IF rel[c] = "human_wait" /\ run \in {"waiting", "interrupted"} THEN "continuation"  \* A
+  ELSE IF Claimed(c) /\ RunActive THEN "continuation"                             \* A
   ELSE IF RunActive THEN "context"                                                \* B
   ELSE IF run \in {"none", "terminal"} THEN "queue"                               \* C
   ELSE "closed"                                                                   \* D1
@@ -341,7 +351,10 @@ RunInterruptThenRun ==
        \* requests and background calls are outside the set and survive.
        Cascade({c \in Calls : Open(c) /\ rel[c] /= "background" /\ c \notin D
                               /\ (kind[c] = "tool" \/ prog[c] = "proposed")}, "context")
-  /\ rel' = [c \in Calls |-> IF prog'[c] = "executing" THEN "background" ELSE rel[c]]
+  \* the whole registry is released: no call keeps a claim, whatever its
+  \* progress (a cancelled-before-start call would otherwise be adjudicated as
+  \* a continuation of the new Run — second review, A-4)
+  /\ rel' = [c \in Calls |-> IF prog[c] = "none" THEN rel[c] ELSE "background"]
   /\ run' = "running"
   /\ UNCHANGED <<sess, owner, crashes, kind, att>>
 
@@ -364,7 +377,7 @@ Archive ==
 Gate(c) == GateAllow(c, "foreground") \/ GateAllow(c, "background") \/ GateAllow(c, "human_wait")
            \/ GateAsk(c) \/ GateDeny(c)
 Decide(c) == Approve(c, "foreground") \/ Approve(c, "background") \/ Reject(c)
-Finish(c) == Terminal(c, "succeeded") \/ Terminal(c, "failed") \/ StopProgress(c)
+Finish(c) == Terminal(c, "succeeded") \/ Terminal(c, "failed") \/ StopProgress(c) \/ StopProgressUnknown(c)
 
 Next ==
   \/ \E c \in Calls :
@@ -453,11 +466,12 @@ AnswerOnce == [][\A c \in Calls : hd[c] \in {"answered", "closed"} => hd'[c] = h
 \* H-3: interrupt keeps the human request and the call
 InterruptKeepsHuman == [][(run /= "interrupted" /\ run' = "interrupted") =>
   \A c \in Calls : kind[c] = "human" => (hd'[c] = hd[c] /\ prog'[c] = prog[c])]_vars
-\* T-15 (candidate policy af): a superseding input releases every waiting
-\* position of the old Run: no continuation survives and no open call blocks
+\* T-15 (candidate policy af, author rulings 3/8): a superseding input releases
+\* the whole registry of the old Run: no continuation survives and no call,
+\* open or settling, keeps a claim, so nothing settles as a continuation of
+\* the new Run afterwards
 SupersedeReleasesPositions == [][RunInterruptThenRun =>
-  \A c \in Calls : deliv'[c] /= "continuation"
-                   /\ (prog'[c] \in {"proposed", "waiting_approval", "admitted", "executing"} => rel'[c] = "background")]_vars
+  \A c \in Calls : deliv'[c] /= "continuation" /\ (prog[c] /= "none" => rel'[c] = "background")]_vars
 \* H-3 / RN-04: superseding keeps open human requests (already asked) and
 \* already-background work untouched; a human call whose request was never
 \* created is cancelled like any other not-yet-started call

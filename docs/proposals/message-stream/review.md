@@ -40,6 +40,25 @@ U-48～U-58，不重开政策选项。原始报告在主检出 `tmp/next-design-
 | L | 用户中途获得某个对象（比如一个已关闭的请求）的读权，之前被跳过的帧怎么补 | 沿 HD 的先例：权限一变，这个人的游标作废，下次连上做一次全量重取；不做逐帧回填（R3） | 服务端为每个订阅记"跳过了哪些"，获权后补发；多一本账，跨实例要同步 |
 | M | 工具调用参数的流式增量（模型还在写参数的半截 JSON）要不要流给客户端 | 不流；只流"开始写调用 / 写完了"两个标记，完整参数随事实帧到（R7） | 按参数键的披露声明裁剪后流：客户端能看到参数逐字出现，代价是裁剪规则要在半截 JSON 上做 |
 
+## 第二轮复核（2026-09-15）
+
+复核：Codex `architecture-reviewer`（只读，gpt-6-astra / xhigh），对象为 `eda8e3b`（比较基线
+`471e9ae`）的 R1～R9 处置与模型第二稿。B1～B8 的闭合判定：B1、B3、B6 已闭合，B2、B4、B5、
+B7、B8 部分闭合，余项即下表；处置按[第二轮作者裁决](README.md#第二轮复核后2026-09-15)。
+
+| 编号 | 发现 | 初判 | 处置 |
+|---|---|---|---|
+| B-新1 | §5.1 `from = cursor + 1` 再取开区间，紧接游标的那批被跳过；客户端在批末帧就存游标，正文按位置另拉，中间崩溃则正文永远拉不到 | 成立 | 已修（R10）：区间 `(cursor, completeTo]`；游标在整批安装完成（含正文）后才推进；[envelope-and-cursor.md §4 / §5.1](envelope-and-cursor.md#4-客户端游标决定-g) |
+| B-新2 | 全量重取的"各读面重取"没有共同 as-of；多页历史的可变派生字段时刻不一 | 成立 | 已修（R11）：projection 单一读面 `snapshot → {asOf, …}`，全部视图同一 fold 水位；客户端终止失败的安装；§5 第 3 条、cordis.md |
+| B-新3 | 同批两事实各派生消息位置相同；无效提议没有耐久来源（tools 返回 `invalid_proposal` 不登记 proposed）；`purpose` 只在结算时过滤，实时帧会先冒充回复 | 成立 | 已修（R12）：`position.index`；被拒调用由 attempt 结算记录 + `run.step.settled{invalid_proposal}` 派生；`started{purpose}`；[message-model.md §1/§2/§4](message-model.md#1-message-记录)、[delta-protocol.md §1](delta-protocol.md#1-帧) |
+| B-新4 | `deferred_receipt.reason` 与工具提案两份词表；reminder 引用规则误及 `hook_context` / `system_notice` | 成立 | 已修（R13）：词表只保留工具提案一份（含新增 `foreground_pending`）；reminder 分引用类与正文类；message-model §2/§4、MS-11 |
+| B-新5 | `block-end{block}` 可带完整参数；过滤后公开计数未定；推理明文 / 摘要在单帧上不可辨 | 成立（映射缺口） | 已修（R14）：`toPublic` 为整段转换：公开计数、tool-call 终止帧无参数、`reasoning-delta{form}` 与按块形态规则；delta-protocol §1、MS-13 |
+| B-新6 | `version` 与事件无可比字段、同步切未落实到提供者；代发 abandoned 后来源恢复的帧未处理；代发帧的序号与身份 | 成立 | 已修（R15）：帧带 `pub`、`version = pub`、读面与发布同一互斥；代发后关闭账目、后续帧丢弃；`observer` 与 `source_lost` 进词表；delta-protocol §1/§5、cordis.md、MS-16 |
+| 建议 | 截断文本只剩 missing 标记；证据"模型发现"尾部旧结论；MS-03/04/14 把受理与裁决写成同批；requirements.md 未含 PF-013 增量 | 成立 | 已修（R16、R17）：截断块保留前缀；MS-17；evidence 同步；场景按 SE-18 拆分；requirements.md 补增量 |
+
+复核未要求重选 `superseded`、单一登记簿或单一公开出口；跨协调域仍是未决项；两份模型仍是
+有限局部证据；MC 提供者、adapter、装配、背压、动态装卸、客户端持久化未验证。
+
 ## 未覆盖
 
 评审未运行实现、测量背压、重跑形式工具，未验证真实 SSE / HTTP 装配、MC 提供者与 OpenRouter

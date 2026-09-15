@@ -1,11 +1,11 @@
 TLC2 Version 2026.09.12.025210 (rev: 867aefb)
-Running breadth-first search Model-Checking with fp 31 and seed 3116696815177131773 with 4 workers on 8 cores with 3641MB heap and 64MB offheap memory [pid: 21713] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Running breadth-first search Model-Checking with fp 94 and seed 4087972671545056490 with 4 workers on 8 cores with 3641MB heap and 64MB offheap memory [pid: 208796] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
 Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/docs/proposals/tool-execution/evidence/model/ToolCallMC.tla
 Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/docs/proposals/tool-execution/evidence/model/ToolCall.tla
-Parsing file /tmp/tlc-12234795903641849667/TLC.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
-Parsing file /tmp/tlc-12234795903641849667/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
-Parsing file /tmp/tlc-12234795903641849667/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
-Parsing file /tmp/tlc-12234795903641849667/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file /tmp/tlc-3908081848755812057/TLC.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file /tmp/tlc-3908081848755812057/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-3908081848755812057/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-3908081848755812057/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
@@ -14,10 +14,10 @@ Semantic processing of module TLC
 Semantic processing of module ToolCallMC
 Linting of module ToolCall
 Linting of module ToolCallMC
-Starting... (2026-09-15 06:06:04)
+Starting... (2026-09-15 06:59:45)
 Computing initial states...
 Computed 2 initial states...
-Finished computing initial states: 4 states generated, with 3 of them distinct at 2026-09-15 06:06:04.
+Finished computing initial states: 4 states generated, with 3 of them distinct at 2026-09-15 06:59:45.
 Error: Action property AttemptMonotone is violated.
 Error: The behavior up to this point is:
 State 1: <Initial predicate>
@@ -34,7 +34,7 @@ State 1: <Initial predicate>
 /\ run = "none"
 /\ owner = "alive"
 
-State 2: <RunStart line 256, col 3 to line 259, col 77 of module ToolCall>
+State 2: <RunStart line 266, col 3 to line 269, col 77 of module ToolCall>
 /\ prog = (c1 :> "none" @@ c2 :> "none")
 /\ ctl = (c1 :> "none" @@ c2 :> "none")
 /\ att = (c1 :> "absence" @@ c2 :> "absence")
@@ -104,7 +104,7 @@ State 6: <Dispatch(c1) line 146, col 3 to line 148, col 84 of module ToolCall>
 /\ run = "running"
 /\ owner = "alive"
 
-State 7: <OwnerCrash line 203, col 3 to line 205, col 73 of module ToolCall>
+State 7: <OwnerCrash line 212, col 3 to line 214, col 73 of module ToolCall>
 /\ prog = (c1 :> "executing" @@ c2 :> "none")
 /\ ctl = (c1 :> "none" @@ c2 :> "none")
 /\ att = (c1 :> "dispatch_intent" @@ c2 :> "absence")
@@ -132,6 +132,6 @@ State 8: <OwnerRecoverRedispatch line 11, col 3 to line 16, col 72 of module Too
 /\ run = "running"
 /\ owner = "alive"
 
-5969 states generated, 2477 distinct states found, 1575 states left on queue.
+6825 states generated, 2916 distinct states found, 1872 states left on queue.
 The depth of the complete state graph search is 8.
-Finished in 00s at (2026-09-15 06:06:05)
+Finished in 00s at (2026-09-15 06:59:46)
