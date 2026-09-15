@@ -81,6 +81,7 @@ Agent Loop 已由 [D-012](../decisions/D-012-run-driver-and-inbound.md) 定义�
 | 活体 Agent 身份、装配、授权与退出 | [运行时专题](agent-runtime.md)、[D-005](../decisions/D-005-agent-runtime.md)及精确规格 |
 | Agent Loop 的推进、异步到达的裁决、占位与恢复 | [Run 驱动器与 Inbound](run-driver.md)、[D-012](../decisions/D-012-run-driver-and-inbound.md)及 run-driver v2 / session v1 / run v1；通知命名空间、PF-004 完整派发协议与多进程 epoch 活性仍未定 |
 | Session、Run 与 Agent 实例的状态机、三条关系与级联，三者作为独立插件 | [Session](session.md)、[Run](run.md)、[D-014](../decisions/D-014-session-run-agent-lifecycles.md)及 session v1 / run v1 / 生命周期组合 v1 / CC v2；事件与 envelope 的 Schema、跨协调域协议与归档后后台调用政策仍未定 |
+| 工具调用的完整生命周期、Run 的等待登记簿与被越过的终点、单一消息模型与出站流、命令式 hooks 兼容层 | [工具执行](tool-execution.md)、[消息流](message-stream.md)、[外部 hooks](external-hooks.md)、[D-015](../decisions/D-015-tool-execution-message-stream-and-hooks.md)及 tools v2 / run v2 / session v2 / run-driver v3 / message-stream v1 / external-hooks v1；提供者设计按新版本重写、跨协调域交接与 PF-004 派发仍未定 |
 | 共同能力归属、四类提供者与 Session 附着 | [共同边界](runtime-composition.md)、[D-007](../decisions/D-007-runtime-composition.md)及组合 v1 |
 | 本批 DSH 来源集合与依赖裁剪 | [复用边界](dsh-core-adoption.md)与 [D-006](../decisions/D-006-dsh-core-adoption.md)；只接受来源和阶段门槛 |
 | 本批 Session/Run、工具、授权/HITL、模型/媒体及相邻能力 | [核心能力](core-capabilities.md)与 D-008 已接受目标契约；真实提供者和应用仍待实现验收 |
@@ -126,6 +127,7 @@ Agent Loop 已由 [D-012](../decisions/D-012-run-driver-and-inbound.md) 定义�
 | [PF-022](../requirements/product/agent/PF-022-multimodal-response-and-output.md) | [D-008 核心能力](core-capabilities.md)已接受多模态流和持久内容的本轮契约；实际提供者、应用及[相邻范围](../proposals/core-capabilities/requirements.md#相邻边界与未覆盖部分)继续验收，不代表整个特性已交付 |
 | [PF-023](../requirements/product/user/PF-023-session-model-selection-and-continuity.md) | [D-008 核心能力](core-capabilities.md)已接受模型切换、模态连续性与一次压缩的本轮契约；实际提供者、应用及[相邻范围](../proposals/core-capabilities/requirements.md#相邻边界与未覆盖部分)继续验收，不代表整个特性已交付 |
 | [PF-024](../requirements/product/agent/PF-024-multi-command-tool-definition.md) | [D-008 核心能力](core-capabilities.md)已接受多命令单槽位与命令级声明的本轮契约；实际提供者、应用及[相邻范围](../proposals/core-capabilities/requirements.md#相邻边界与未覆盖部分)继续验收，不代表整个特性已交付 |
+| [PF-025](../requirements/product/agent/PF-025-external-hooks-compatibility.md) | [D-015](../decisions/D-015-tool-execution-message-stream-and-hooks.md) 已接受兼容层的站点、权力上界、映射与降级表（external-hooks v1）；提供者设计与实现尚未开始，子 agent 事件与非 command handler 未承诺 |
 | 已有 SYS-* 全局要求 | [约束落实索引](constraints.md)逐项导航 |
 
 2026-09-12 迁移核对：D-001、D-002 由 D-004 补充，D-003 保持适用；没有已接受

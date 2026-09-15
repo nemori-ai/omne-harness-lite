@@ -19,9 +19,9 @@ MC-07 的模型族投影、MC-12～14 的瞬态帧、读面与公开投影）都
 | [ModelSelection.tla](v2/ModelSelection.tla) | `9145647826db498e927a3c5c795e910ff8fd2125198ed2b2f961c47178e6f902` | 会话模态（text / image）、目标能力（支持 / 不支持 / unknown）、窗口三态、一次压缩与切换生效 |
 | [ModelSelection.cfg](v2/ModelSelection.cfg) | `ef27652ac458d94f349598ce0f6a38bec6251579f2f9d4dcf27d00b2f0722b8f` | 正向配置：两条不变量 |
 
-形式任务 `model-execution-v1-ModelSelection`（[formal-tasks.json](../../formal-tasks.json)）当前
-登记 v1 路径；两份工件逐字节相同，执行任一份结果一致，任务路径是否改指 v2 由本批次的
-发版者统一处理。两个否定变体不是登记任务，它们与重放脚本、运行日志留在
+形式任务 `model-execution-v2-ModelSelection`（[formal-tasks.json](../../formal-tasks.json)）登记
+v2 路径，v1 的同名任务继续指 v1 目录；两份工件逐字节相同，执行任一份结果一致。两个否定
+变体不是登记任务，它们与重放脚本、运行日志留在
 [核心能力提案的证据目录](../../../docs/proposals/core-capabilities/evidence/model/results.json)，
 可由 `replay.py` 在提供 JAVA_BIN 与 TLA2TOOLS_JAR 后重放。
 

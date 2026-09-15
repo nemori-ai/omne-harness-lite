@@ -21,9 +21,9 @@ TLC**：v2 对 HD-01/06/10/11 未改一字，对 HD-02/03/04/05/07/08/09/12 的�
 | [Provisional.tla](v2/Provisional.tla) | `a56e91a28443762ce65d219f2a367c42c9ea875efc0472b6fb1a6b26dcb135ad` | 父子两节点的暂行产物：批准、拒绝、finalize 与逆序撤销 |
 | [Provisional.cfg](v2/Provisional.cfg) | `87a900dabe84b7501c905f5f20a30457ae7a0a40b03044952d2d5f3c69bd6fdf` | 正向配置：两条不变量 |
 
-形式任务 `human-decisions-v1-Decisions` 与 `human-decisions-v1-Provisional`
-（[formal-tasks.json](../../formal-tasks.json)）当前登记 v1 路径；两份工件逐字节相同，执行
-任一份结果一致，任务路径是否改指 v2 由本批次的发版者统一处理。否定变体不是登记任务，
+形式任务 `human-decisions-v2-Decisions` 与 `human-decisions-v2-Provisional`
+（[formal-tasks.json](../../formal-tasks.json)）登记 v2 路径，v1 的两个同名任务继续指 v1 目录；
+两份工件逐字节相同，执行任一份结果一致。否定变体不是登记任务，
 它们与重放脚本、运行日志留在
 [核心能力提案的证据目录](../../../docs/proposals/core-capabilities/evidence/model/results.json)，
 可由 `replay.py` 在提供 JAVA_BIN 与 TLA2TOOLS_JAR 后重放。

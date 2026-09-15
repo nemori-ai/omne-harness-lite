@@ -34,8 +34,8 @@ envelope、读取与重放稳定——**不在模型覆盖范围内**：`Recover
 | `Recovery`，mutation `none` | 完整探索通过 | 0 |
 | `Recovery`，mutation `earlyAck`（配置在证据目录，未进版本目录） | `DurableAck` 反例 | 12 |
 
-[formal-tasks](../../formal-tasks.json) 中的 `durable-records-v1-Recovery` 指向 v1 目录；v2
-副本对应的任务登记由发布者在接受时处理。
+[formal-tasks](../../formal-tasks.json) 中的 `durable-records-v1-Recovery` 指向 v1 目录，
+`durable-records-v2-Recovery` 指向 v2 副本；两份工件逐字节相同。
 
 ## v1
 

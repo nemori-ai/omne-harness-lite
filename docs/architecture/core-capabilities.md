@@ -28,6 +28,12 @@ work-data 与 records 端口/codec 已接受，实际范围分别由
 [数据证据](../proposals/core-capabilities/implementation/evidence/p0-work-data/hub-summary.json)和
 [记录证据](../proposals/core-capabilities/implementation/evidence/p0-records/hub-summary.json)限定。
 
+[D-015](../decisions/D-015-tool-execution-message-stream-and-hooks.md)把本批里"工具执行 owner
+拥有原调用/attempt、停止与后台责任"和"人类请求按 continuation 独立接续"展开为调用的
+五维状态机、Run 的等待登记簿与答复作为工具返回值，发布 tools / human-decisions /
+model-execution / durable-records / media-content / core-work 数据的 v2；系统视图见
+[工具执行](tool-execution.md)、[消息流](message-stream.md)与[外部 hooks](external-hooks.md)。
+
 [D-010](../decisions/D-010-shared-diagnostics.md)与
 [D-011](../decisions/D-011-diagnostics-directory-ownership.md)固定共享诊断及目录
 所有权的实施选择，当前接口归[diagnostics](../../packages/observation/diagnostics/design.md)。

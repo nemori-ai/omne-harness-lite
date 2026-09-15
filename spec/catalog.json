@@ -39,25 +39,37 @@
     },
     {
       "id": "data.core-work",
-      "current_version": 1,
+      "current_version": 2,
       "versions": [
         {
           "version": 1,
-          "status": "accepted",
+          "status": "superseded",
           "path": "spec/data/core-work/v1/contract.md",
           "acceptance": "docs/decisions/D-008-core-capabilities.md"
+        },
+        {
+          "version": 2,
+          "status": "accepted",
+          "path": "spec/data/core-work/v2/contract.md",
+          "acceptance": "docs/decisions/D-015-tool-execution-message-stream-and-hooks.md"
         }
       ]
     },
     {
       "id": "capability.durable-records",
-      "current_version": 1,
+      "current_version": 2,
       "versions": [
         {
           "version": 1,
-          "status": "accepted",
+          "status": "superseded",
           "path": "spec/capabilities/durable-records/v1/contract.md",
           "acceptance": "docs/decisions/D-008-core-capabilities.md"
+        },
+        {
+          "version": 2,
+          "status": "accepted",
+          "path": "spec/capabilities/durable-records/v2/contract.md",
+          "acceptance": "docs/decisions/D-015-tool-execution-message-stream-and-hooks.md"
         }
       ]
     },
@@ -123,85 +135,127 @@
     },
     {
       "id": "capability.session",
-      "current_version": 1,
+      "current_version": 2,
       "versions": [
         {
           "version": 1,
-          "status": "accepted",
+          "status": "superseded",
           "path": "spec/capabilities/session/v1/contract.md",
           "acceptance": "docs/decisions/D-014-session-run-agent-lifecycles.md"
+        },
+        {
+          "version": 2,
+          "status": "accepted",
+          "path": "spec/capabilities/session/v2/contract.md",
+          "acceptance": "docs/decisions/D-015-tool-execution-message-stream-and-hooks.md"
         }
       ]
     },
     {
       "id": "capability.run",
-      "current_version": 1,
+      "current_version": 2,
       "versions": [
         {
           "version": 1,
-          "status": "accepted",
+          "status": "superseded",
           "path": "spec/capabilities/run/v1/contract.md",
           "acceptance": "docs/decisions/D-014-session-run-agent-lifecycles.md"
+        },
+        {
+          "version": 2,
+          "status": "accepted",
+          "path": "spec/capabilities/run/v2/contract.md",
+          "acceptance": "docs/decisions/D-015-tool-execution-message-stream-and-hooks.md"
         }
       ]
     },
     {
       "id": "composition.session-run-agent-lifecycles",
-      "current_version": 1,
+      "current_version": 2,
       "versions": [
         {
           "version": 1,
-          "status": "accepted",
+          "status": "superseded",
           "path": "spec/compositions/session-run-agent-lifecycles/v1/contract.md",
           "acceptance": "docs/decisions/D-014-session-run-agent-lifecycles.md"
+        },
+        {
+          "version": 2,
+          "status": "accepted",
+          "path": "spec/compositions/session-run-agent-lifecycles/v2/contract.md",
+          "acceptance": "docs/decisions/D-015-tool-execution-message-stream-and-hooks.md"
         }
       ]
     },
     {
       "id": "capability.human-decisions",
-      "current_version": 1,
+      "current_version": 2,
       "versions": [
         {
           "version": 1,
-          "status": "accepted",
+          "status": "superseded",
           "path": "spec/capabilities/human-decisions/v1/contract.md",
           "acceptance": "docs/decisions/D-008-core-capabilities.md"
+        },
+        {
+          "version": 2,
+          "status": "accepted",
+          "path": "spec/capabilities/human-decisions/v2/contract.md",
+          "acceptance": "docs/decisions/D-015-tool-execution-message-stream-and-hooks.md"
         }
       ]
     },
     {
       "id": "capability.tools",
-      "current_version": 1,
+      "current_version": 2,
       "versions": [
         {
           "version": 1,
-          "status": "accepted",
+          "status": "superseded",
           "path": "spec/capabilities/tools/v1/contract.md",
           "acceptance": "docs/decisions/D-008-core-capabilities.md"
+        },
+        {
+          "version": 2,
+          "status": "accepted",
+          "path": "spec/capabilities/tools/v2/contract.md",
+          "acceptance": "docs/decisions/D-015-tool-execution-message-stream-and-hooks.md"
         }
       ]
     },
     {
       "id": "capability.model-execution",
-      "current_version": 1,
+      "current_version": 2,
       "versions": [
         {
           "version": 1,
-          "status": "accepted",
+          "status": "superseded",
           "path": "spec/capabilities/model-execution/v1/contract.md",
           "acceptance": "docs/decisions/D-008-core-capabilities.md"
+        },
+        {
+          "version": 2,
+          "status": "accepted",
+          "path": "spec/capabilities/model-execution/v2/contract.md",
+          "acceptance": "docs/decisions/D-015-tool-execution-message-stream-and-hooks.md"
         }
       ]
     },
     {
       "id": "capability.media-content",
-      "current_version": 1,
+      "current_version": 2,
       "versions": [
         {
           "version": 1,
-          "status": "accepted",
+          "status": "superseded",
           "path": "spec/capabilities/media-content/v1/contract.md",
           "acceptance": "docs/decisions/D-008-core-capabilities.md"
+        },
+        {
+          "version": 2,
+          "status": "accepted",
+          "path": "spec/capabilities/media-content/v2/contract.md",
+          "acceptance": "docs/decisions/D-015-tool-execution-message-stream-and-hooks.md"
         }
       ]
     },
@@ -243,7 +297,7 @@
     },
     {
       "id": "capability.run-driver",
-      "current_version": 2,
+      "current_version": 3,
       "versions": [
         {
           "version": 1,
@@ -253,9 +307,39 @@
         },
         {
           "version": 2,
-          "status": "accepted",
+          "status": "superseded",
           "path": "spec/capabilities/run-driver/v2/contract.md",
           "acceptance": "docs/decisions/D-014-session-run-agent-lifecycles.md"
+        },
+        {
+          "version": 3,
+          "status": "accepted",
+          "path": "spec/capabilities/run-driver/v3/contract.md",
+          "acceptance": "docs/decisions/D-015-tool-execution-message-stream-and-hooks.md"
+        }
+      ]
+    },
+    {
+      "id": "capability.message-stream",
+      "current_version": 1,
+      "versions": [
+        {
+          "version": 1,
+          "status": "accepted",
+          "path": "spec/capabilities/message-stream/v1/contract.md",
+          "acceptance": "docs/decisions/D-015-tool-execution-message-stream-and-hooks.md"
+        }
+      ]
+    },
+    {
+      "id": "capability.external-hooks",
+      "current_version": 1,
+      "versions": [
+        {
+          "version": 1,
+          "status": "accepted",
+          "path": "spec/capabilities/external-hooks/v1/contract.md",
+          "acceptance": "docs/decisions/D-015-tool-execution-message-stream-and-hooks.md"
         }
       ]
     }

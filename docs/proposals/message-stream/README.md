@@ -1,7 +1,7 @@
 ---
 kind: proposal
 id: P-message-stream
-status: draft
+status: accepted
 scope: 客户端只认一个消息模型：core-work CD v1 内容块的补齐（reasoning、system_reminder、来源与出处）、模型 attempt 的增量协议、出站帧信封与客户端游标、作用域与投递、断线补齐，以及 Cordis 视角；接受后吸收出站流边界稿，语义分别进 CD / model-execution / session 的下一版或新能力 message-stream v1
 ---
 
@@ -197,8 +197,22 @@ B-阻1 与六条非阻断；同一风格处置，没有一项是产品取舍。
 
 ## 接受记录
 
-尚未接受。决定点 A～K 已由用户裁决（U-48～U-58）；独立评审 2026-09-15 完成
-（[review.md](review.md)：8 项阻断成立，其中同批多事实的游标推进 B1 与补齐水位 B2 直接
-命中 U-54 的评审重点），全部按[作者裁决](#作者裁决评审后2026-09-15)落地并重做游标模型；
-第二轮复核给出 6 项新阻断，按 R10～R17 改入正文（游标模型不受影响）；待第三轮复核后再
-决定接受范围、D-015 与发版批次。
+2026-09-15 由 [D-015](../../decisions/D-015-tool-execution-message-stream-and-hooks.md) 接受，与
+[工具执行提案](../tool-execution/README.md#接受记录)、[hooks 兼容提案](../hooks-compat/README.md#接受记录)
+同一决定、同一批发版。本提案的精确对象：新契约
+[message-stream v1](../../../spec/capabilities/message-stream/v1/contract.md)（帧信封与词表、一 Session
+一条流、客户端游标、重连补齐与全量重取、作用域与投递、瞬态帧协议；游标模型与场景随版本
+目录发布），以及它要求的 [CD v2](../../../spec/data/core-work/v2/contract.md)（`reasoning`、
+`system_reminder`、`tool_result.value`、`Origin`）、[session v2](../../../spec/capabilities/session/v2/contract.md)
+（历史派生表、`asOf`、`visibilityVersion`、快照贡献）、
+[model-execution v2](../../../spec/capabilities/model-execution/v2/contract.md)（`purpose`、缺失块、
+瞬态帧与 `pub{gen, n}`、`attempts` 读面）、[durable-records v2](../../../spec/capabilities/durable-records/v2/contract.md)
+（批内记录顺序）、[run-driver v3](../../../spec/capabilities/run-driver/v3/contract.md)（`invalid_proposal`）；
+[权威落点表](message-model.md#6-权威落点与消费者影响)的每一行都落进上述版本之一。
+[出站流边界稿](../outbound-stream/README.md)由本提案吸收。
+
+用户裁决 U-48～U-58 记录在本页；作者裁决 R1～R22 按用户确立的工作风格自定，随决定接受，
+用户可另行否决。三轮独立复核（[review.md](review.md)）的阻断项全部闭合；[未决项](#未决项)
+各条是接受时明确保留的未完成义务。接受的是目标设计与有限验证工件
+（[message-stream 验证范围](../../../spec/capabilities/message-stream/verification.md)）；系统视图见
+[消息流](../../architecture/message-stream.md)；message-stream、MC 与 projection 的提供者设计尚未写。
