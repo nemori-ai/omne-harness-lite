@@ -16,7 +16,7 @@
 | [CursorMC.tla](model/CursorMC.tla) | 对称约减与两个否定变体：`SpecNoFill`（铃只转发自身、不从水位补）、`SpecBuffered`（补齐来自最近 `Retain` 条的流缓冲而非投影） |
 | [Cursor.cfg](model/Cursor.cfg) | 安全配置：1 个订阅、2 次提交、每次至多 2 条事实、缓冲 2、至多 1 次崩溃与 1 次断线；登记为形式任务 |
 | [CursorThree.cfg](model/CursorThree.cfg) | 安全补充：同上但 3 次提交（覆盖"两批都没推完时第三批到达"）；约 2 分钟，只在重放脚本里跑，不登记为形式任务 |
-| [CursorTwo.cfg](model/CursorTwo.cfg) | 两订阅补充：2 次提交、每次 1 条（批语义已由单订阅配置覆盖，这里看订阅间独立）、至多 1 次崩溃与 1 次断线、对称约减；只在重放脚本里跑，不登记为形式任务 |
+| [CursorTwo.cfg](model/CursorTwo.cfg) | 两订阅补充：2 次提交、每次 1 条（批语义已由单订阅配置覆盖，这里看订阅间独立）、至多 1 次崩溃与 1 次断线、对称约减；约 2 分钟，只在重放脚本里跑，不登记为形式任务 |
 | [CursorProgress.cfg](model/CursorProgress.cfg) | 进展配置：1 个订阅、2 次提交、每次至多 2 条、无崩溃、不断线（崩溃与断线路径的活性在补充配置里），公平性假设见模块 `SpecFair`；登记为形式任务（单配置 ≤ 1 分钟的裁决） |
 | [CursorProgressFull.cfg](model/CursorProgressFull.cfg) | 进展补充：同上加至多 1 次崩溃与 1 次断线；约 3 分钟，只在重放脚本里跑，不登记为形式任务 |
 | [CursorNoFill.cfg](model/CursorNoFill.cfg) | 否定配置：期望 `CursorComplete` 被违反（丢一次铃后听到下一次铃，游标越过未投递的事实）；不登记为形式任务 |
