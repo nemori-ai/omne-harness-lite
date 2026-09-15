@@ -22,14 +22,12 @@ import type {
 } from '@omne-harness-lite/records'
 import type { Checked, OpaqueId, OperationRef, ValidationIssue } from '@omne-harness-lite/work-data'
 
-export type CompositionKind =
-  | 'owner_change'
-  | 'input_run'
-  | 'action_execution'
-  | 'request_wait'
-  | 'answer_consequence'
-  | 'budget_call'
-  | 'content_media'
+/**
+ * Name of the published composition that assembled this admission. The coordinator only checks
+ * its shape (`COMPOSITION_KIND_SHAPE`, at most 64 characters) and records it verbatim; it holds no
+ * list of names and never branches on one.
+ */
+export type CompositionKind = string
 
 export type AdmissionFailure = Readonly<{
   status: 'denied' | 'conflict' | 'unavailable'
@@ -102,6 +100,12 @@ export type CoordinatorStatus = Readonly<{
 
 export interface AdmissionCoordinator extends RecordPreparation {
   enter<T>(work: (frame: GateFrame) => T): T
+  /**
+   * Pure query: is `frame` exactly the object this coordinator currently holds as its active gate
+   * frame? Compares identity and the active flag only; it does not read the input, does not look
+   * at the coordinator phase, and grants no identity, eligibility, or publication permission.
+   */
+  isCurrentFrame(frame: GateFrame): boolean
   lookupPrepared(
     frame: GateFrame,
     operation: PreparedOperation,
@@ -111,20 +115,32 @@ export interface AdmissionCoordinator extends RecordPreparation {
   close(): Promise<CloseResult>
 }
 
+/**
+ * LC-06 hint delivered once after a ticket completes as committed with publication ready. Every
+ * field is an object the ticket already held: the composition name it was submitted with, the
+ * writer-canonical operation input (tenant, principal, causality) from the prepared commit, and
+ * the writer's committed receipt (position, operation, touched streams with their scopes). It is
+ * a hint, not a second fact; readers re-read authoritative state inside their own gate.
+ */
+export type CommittedNotice = Readonly<{
+  composition: CompositionKind
+  canonicalInput: string
+  receipt: CommittedReceipt
+}>
+
 export type AdmissionHost = Readonly<{
   coordinator: AdmissionCoordinator
   createUseIssuer: (owner: string) => ExactUseIssuer
+  /**
+   * Subscribe to committed/ready completions. Listeners run outside the gate, synchronously, in
+   * ticket completion order; a throwing listener is reported as a `delivery` diagnostic and does
+   * not affect the ticket, the watermarks, or other listeners. No replay, retry, or buffering.
+   */
+  subscribeCommitted: (listener: (notice: CommittedNotice) => void) => () => void
 }>
 
-const COMPOSITION_KINDS = new Set<CompositionKind>([
-  'owner_change',
-  'input_run',
-  'action_execution',
-  'request_wait',
-  'answer_consequence',
-  'budget_call',
-  'content_media',
-])
+const COMPOSITION_KIND_SHAPE = /^[a-z][a-z0-9_]*$/
+const COMPOSITION_KIND_MAX_LENGTH = 64
 
 const RELEASED: ReleaseResult = Object.freeze({ status: 'released' })
 
@@ -471,6 +487,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
   private closeCompletion: Promise<CloseResult> | null = null
   private closeResult: CloseResult | null = null
   private writerQuarantined = false
+  private readonly committedListeners = new Set<(notice: CommittedNotice) => void>()
 
   constructor(
     private readonly writer: RecordWriter,
@@ -553,11 +570,15 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
     return this.withFrame(work)
   }
 
+  isCurrentFrame(frame: GateFrame): boolean {
+    return this.currentFrame?.active === true && this.currentFrame.frame === frame
+  }
+
   lookupPrepared(
     frame: GateFrame,
     operation: PreparedOperation,
   ): AdmissionResult | Readonly<{ status: 'not_seen' }> {
-    if (!this.validFrame(frame)) return this.invalidFrame('lookup')
+    if (!this.isCurrentFrame(frame)) return this.invalidFrame('lookup')
     if (!isObject(operation) || !this.preparedOperations.has(operation)) {
       return this.assemblyFailure('invalid_snapshot', undefined, undefined, [])
     }
@@ -595,7 +616,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
   }
 
   submit(frame: GateFrame, prepared: PreparedAdmission): AdmissionResult {
-    if (!this.validFrame(frame)) return this.invalidFrame('submit')
+    if (!this.isCurrentFrame(frame)) return this.invalidFrame('submit')
     if (this.phase !== 'open') return this.unavailable(this.phase)
 
     let snapshot: AdmissionSnapshot
@@ -832,12 +853,19 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
             lockHeld: true,
           })
           this.closeResult = result
-          this.phase = 'closing'
           return result
         },
       )
     this.closeCompletion = completion
     return completion
+  }
+
+  subscribeCommitted(listener: (notice: CommittedNotice) => void): () => void {
+    if (typeof listener !== 'function') throw new TypeError('committed listener must be a function')
+    this.committedListeners.add(listener)
+    return () => {
+      this.committedListeners.delete(listener)
+    }
   }
 
   createUseIssuer(owner: string): ExactUseIssuer {
@@ -928,7 +956,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
   }
 
   private retainUse(state: UseState, position: Position, frame: GateFrame): undefined {
-    if (!this.validFrame(frame)) {
+    if (!this.isCurrentFrame(frame)) {
       this.invalidFrame('retain_at')
       throw new CallbackContractError('retainAt used an invalid frame')
     }
@@ -948,6 +976,8 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
       )
       throw new CallbackContractError('retainAt is not valid for this claim')
     }
+    // A pin whose retain never ran keeps retainInvoked=false; the fault stops it before marking.
+    this.stopAfterKnownFault('retain_at')
     state.retainInvoked = true
     this.invokeStrict(
       state.originalRetainAt,
@@ -1080,14 +1110,15 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
   private snapshotAdmission(input: PreparedAdmission): AdmissionSnapshot {
     if (!isObject(input)) throw new SnapshotError('admission must be an object')
     rejectAccessors(input)
-    const compositionValue = ownData(input, 'composition')
+    const composition = ownData(input, 'composition')
     if (
-      typeof compositionValue !== 'string' ||
-      !COMPOSITION_KINDS.has(compositionValue as CompositionKind)
+      typeof composition !== 'string' ||
+      composition.length === 0 ||
+      composition.length > COMPOSITION_KIND_MAX_LENGTH ||
+      !COMPOSITION_KIND_SHAPE.test(composition)
     ) {
       throw new SnapshotError('invalid composition kind')
     }
-    const composition = compositionValue as CompositionKind
     const commitValue = ownData(input, 'commit')
     if (!isObject(commitValue)) throw new SnapshotError('commit must be an object')
     const commitState = this.preparedCommits.get(commitValue)
@@ -1281,12 +1312,14 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
   private finishTicket(ticket: Ticket, result: CommitResult): void {
     const validResult = this.validateWriterCompletion(ticket, result)
     if (validResult.status === 'committed') {
-      let blocked =
+      // Evaluated before the durable callbacks to decide whether they may run, and again after
+      // them from the monotonic fault fact so a fault caught inside a callback cannot report ready.
+      const publicationBlocked = (): boolean =>
         ticket.blockedDiagnosticId !== null ||
         !ticket.logicalReady ||
         this.durabilityGap ||
-        this.phase === 'quarantined'
-      if (!blocked && ticket.writerPending.disposition === 'apply') {
+        this.writerQuarantined
+      if (!publicationBlocked() && ticket.writerPending.disposition === 'apply') {
         try {
           this.withFrame(frame => {
             for (const publication of ticket.snapshot.publications) {
@@ -1309,9 +1342,9 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
             ticket.writerPending.position,
             ticket.snapshot.identity,
           )
-          blocked = true
         }
       }
+      const blocked = publicationBlocked()
       if (blocked) this.durabilityGap = true
       if (!blocked) this.durable = snapshotWatermark(ticket.writerPending.position)
       const completion: AdmissionCompletion = Object.freeze({
@@ -1327,6 +1360,7 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
       })
       ticket.final = completion
       ticket.resolve(completion)
+      if (!blocked) this.broadcastCommitted(ticket, validResult.receipt)
       return
     }
     if (
@@ -1349,6 +1383,35 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
     )
     ticket.final = validResult
     ticket.resolve(validResult)
+  }
+
+  /**
+   * LC-06: one synchronous hint per committed/ready ticket, after its durable watermark advanced
+   * and its completion resolved. Runs outside any gate frame. A listener's throw is reported as a
+   * delivery diagnostic and changes nothing else; there is no retry, queue, or replay.
+   */
+  private broadcastCommitted(ticket: Ticket, receipt: CommittedReceipt): void {
+    if (this.committedListeners.size === 0) return
+    const notice: CommittedNotice = Object.freeze({
+      composition: ticket.snapshot.composition,
+      canonicalInput: ticket.snapshot.canonicalInput,
+      receipt,
+    })
+    for (const listener of [...this.committedListeners]) {
+      try {
+        listener(notice)
+      } catch {
+        this.recordDiagnostic({
+          diagnosticId: this.newDiagnosticId(),
+          phase: 'delivery',
+          code: 'committed_listener_throw',
+          level: 'error',
+          identity: ticket.snapshot.identity,
+          operation: ticket.snapshot.operation,
+          position: ticket.writerPending.position,
+        })
+      }
+    }
   }
 
   private validateWriterCompletion(ticket: Ticket, result: CommitResult): CommitResult {
@@ -1405,23 +1468,40 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
     owner: string,
     identity: DiagnosticIdentity,
   ): void {
+    this.stopAfterKnownFault(phase)
     const result = Reflect.apply(callback, undefined, values)
-    if (result === undefined) return
-    const observer = captureThenableObserver(result, () => {
-      const diagnosticId = this.newDiagnosticId()
-      this.recordDiagnostic({
-        diagnosticId,
-        phase: 'late_rejection',
-        code: `${phase}_rejected`,
-        level: 'error',
-        identity,
-        owner,
-        operation,
-        position,
+    if (result !== undefined) {
+      // Take over the rejection channel of whatever was returned before raising any fault, so a
+      // late rejection stays attributed to this owner, operation, position, and phase.
+      const observer = captureThenableObserver(result, () => {
+        const diagnosticId = this.newDiagnosticId()
+        this.recordDiagnostic({
+          diagnosticId,
+          phase: 'late_rejection',
+          code: `${phase}_rejected`,
+          level: 'error',
+          identity,
+          owner,
+          operation,
+          position,
+        })
       })
-    })
-    if (observer !== null) this.deferUntilFrameExit(observer)
-    throw new CallbackContractError(`${phase} must return undefined`)
+      if (observer !== null) this.deferUntilFrameExit(observer)
+      throw new CallbackContractError(`${phase} must return undefined`)
+    }
+    // The callback may have caught a reentry or other fault that already quarantined the domain.
+    this.stopAfterKnownFault(phase)
+  }
+
+  /**
+   * `writerQuarantined` is the monotonic fault fact: set by the first quarantine, never cleared by
+   * close(), by a callback catching its own error, or by a normal return. Once it is set no further
+   * retain/logical/durable callback runs and no success mark or watermark advances.
+   */
+  private stopAfterKnownFault(phase: string): void {
+    if (this.writerQuarantined) {
+      throw new CallbackContractError(`${phase} cannot continue after a known fault`)
+    }
   }
 
   private withFrame<T>(work: (frame: GateFrame) => T): T {
@@ -1497,10 +1577,6 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
     this.currentFrame.after.push(action)
   }
 
-  private validFrame(frame: GateFrame): boolean {
-    return this.currentFrame?.active === true && this.currentFrame.frame === frame
-  }
-
   private invalidFrame(phase: string): AdmissionFailure {
     this.quarantine(phase, 'invalid_frame', undefined, undefined)
     return this.unavailable('invalid_frame')
@@ -1557,7 +1633,9 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
   ): OpaqueId {
     const diagnosticId = this.diagnosticId ?? preferredDiagnosticId ?? this.newDiagnosticId()
     this.diagnosticId = diagnosticId
-    if (this.phase !== 'closed') this.phase = 'quarantined'
+    // The phase label follows the lifecycle: an open domain shows the fault, a closing one keeps
+    // reporting closing. The fault itself is the monotonic writerQuarantined fact plus diagnosticId.
+    if (this.phase === 'open') this.phase = 'quarantined'
     if (!this.writerQuarantined) {
       this.writerQuarantined = true
       try {
@@ -1636,5 +1714,7 @@ export function createAdmissionCoordinator(
   return Object.freeze({
     coordinator,
     createUseIssuer: (owner: string): ExactUseIssuer => coordinator.createUseIssuer(owner),
+    subscribeCommitted: (listener: (notice: CommittedNotice) => void): (() => void) =>
+      coordinator.subscribeCommitted(listener),
   })
 }

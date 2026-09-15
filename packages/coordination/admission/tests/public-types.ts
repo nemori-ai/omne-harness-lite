@@ -18,6 +18,7 @@ import type {
   AdmissionFailure,
   AdmissionHost,
   AdmissionResult,
+  CommittedNotice,
   CompositionKind,
   CoordinatorStatus,
   ExactUse,
@@ -35,6 +36,7 @@ type EveryPublicType = [
   AdmissionFailure,
   AdmissionHost,
   AdmissionResult,
+  CommittedNotice,
   CompositionKind,
   CoordinatorStatus,
   ExactUse,
@@ -64,6 +66,19 @@ declare const watermark: Watermark
 declare const operation: OperationRef
 declare const binding: UseBinding
 declare const diagnosticId: OpaqueId
+
+const currentFrame: boolean = (undefined as unknown as AdmissionCoordinator).isCurrentFrame(frame)
+void currentFrame
+
+const unsubscribe: () => void = (undefined as unknown as AdmissionHost).subscribeCommitted(
+  (notice: CommittedNotice) => {
+    const composition: string = notice.composition
+    const canonicalInput: string = notice.canonicalInput
+    const committed: Receipt = notice.receipt
+    void [composition, canonicalInput, committed]
+  },
+)
+void unsubscribe
 
 void [
   frame,

@@ -12,7 +12,9 @@ bootstrap/personal-index/tenant/member 记录的严格 decoder 与纯 fold。Ten
 ## 契约与公开面
 
 采用 [TG v1](../../../spec/capabilities/tenant-governance/v1/contract.md) 的
-TG-01/02/04/05、[CC v1](../../../spec/compositions/core-work-coordination/v1/contract.md)、
+TG-01/02/04/05、[CC v1](../../../spec/compositions/core-work-coordination/v1/contract.md)（当前版本为
+[CC v2](../../../spec/compositions/core-work-coordination/v2/contract.md)，v2 只放宽 CC-01 的
+组合声明规则，其余条款原文不变，本包行为不变）、
 [DR v1](../../../spec/capabilities/durable-records/v1/contract.md) 与
 [work-data v1](../../../spec/data/core-work/v1/contract.md)。TG-03 后置。
 状态、事件、操作结果及管理/资格端口见下文；

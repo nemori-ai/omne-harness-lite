@@ -42,6 +42,85 @@ function pending(result: AdmissionResult): PendingAdmission {
   return result
 }
 
+describe('composition names declared by published composition contracts', () => {
+  const publication: OwnerPublication = Object.freeze({
+    owner: 'records-owner',
+    publishLogical: () => undefined,
+    publishDurable: () => undefined,
+  })
+
+  function withComposition(
+    host: AdmissionHost,
+    operationId: string,
+    composition: unknown,
+    expectedRevision = '0',
+  ): PreparedAdmission {
+    return Object.freeze({
+      composition: composition as PreparedAdmission['composition'],
+      commit: preparedCommit(
+        host.coordinator,
+        operationId,
+        [publication.owner],
+        [],
+        expectedRevision,
+      ),
+      publications: Object.freeze([publication]),
+      uses: Object.freeze([]),
+    })
+  }
+
+  it('accepts every well-formed name without holding a list of them', () => {
+    const writer = new ControlledWriter()
+    const host = createAdmissionCoordinator(writer, new RecordingDiagnostics())
+    const declared = [
+      'take_batch',
+      'run_settle',
+      'session_archive',
+      'reacquire',
+      'a',
+      'x'.repeat(64),
+    ]
+
+    declared.forEach((composition, index) => {
+      const prepared = withComposition(host, `declared-${composition}`, composition, String(index))
+      const result = host.coordinator.enter(frame => host.coordinator.submit(frame, prepared))
+      expect(result.status).toBe('pending_durability')
+    })
+    expect(writer.commitInputs).toHaveLength(declared.length)
+    expect(host.coordinator.status().phase).toBe('open')
+  })
+
+  it('rejects malformed names before ranking and keeps the coordinator open', () => {
+    const writer = new ControlledWriter()
+    const host = createAdmissionCoordinator(writer, new RecordingDiagnostics())
+    const malformed: readonly unknown[] = [
+      '',
+      'Run_Settle',
+      '9lives',
+      'run-settle',
+      'run settle',
+      '_private',
+      'x'.repeat(65),
+      undefined,
+      null,
+      7,
+      Symbol('composition'),
+    ]
+
+    for (const composition of malformed) {
+      const prepared = withComposition(host, 'malformed', composition)
+      const result = host.coordinator.enter(frame => host.coordinator.submit(frame, prepared))
+      expect(result).toMatchObject({
+        status: 'unavailable',
+        owner: 'admission',
+        code: 'invalid_snapshot',
+      })
+    }
+    expect(writer.commitInputs).toHaveLength(0)
+    expect(host.coordinator.status().phase).toBe('open')
+  })
+})
+
 describe('A08 owner-policy measurements through the common coordinator', () => {
   it('orders call n before revoke n+1 while the revoke immediately closes n+2 admission', async () => {
     const writer = new ControlledWriter()

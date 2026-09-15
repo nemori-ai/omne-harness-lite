@@ -10,7 +10,9 @@
 该迁移当时不改变原行为、记法或采用版本，也未交付产品。
 
 精确承诺沿 [DR v1](../../../spec/capabilities/durable-records/v1/contract.md)、
-[CC v1](../../../spec/compositions/core-work-coordination/v1/contract.md)、
+[CC v1](../../../spec/compositions/core-work-coordination/v1/contract.md)（当前版本为
+[CC v2](../../../spec/compositions/core-work-coordination/v2/contract.md)，v2 只放宽 CC-01 的
+组合声明规则，其余条款原文不变，本包行为不变）、
 [core-work v1](../../../spec/data/core-work/v1/contract.md) 和
 [identity v1](../../../spec/data/agent-runtime-identity/v1/contract.md)。
 本页实现 DR-01–05 在一个本机 coordinationDomain 的映射；跨 owner 组合归

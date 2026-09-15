@@ -99,6 +99,9 @@ importers:
         specifier: workspace:*
         version: link:../../core/work-data
     devDependencies:
+      '@omne-harness-lite/jsonl':
+        specifier: workspace:*
+        version: link:../../storage/jsonl
       '@types/node':
         specifier: 24.13.4
         version: 24.13.4

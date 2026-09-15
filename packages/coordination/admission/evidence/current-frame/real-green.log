@@ -1,0 +1,9 @@
+
+ RUN  v4.1.8 <worktree>/packages/coordination/admission
+
+
+ Test Files  1 passed (1)
+      Tests  9 passed (9)
+   Start at  08:50:58
+   Duration  1.03s (transform 255ms, setup 0ms, import 631ms, tests 239ms, environment 0ms)
+
