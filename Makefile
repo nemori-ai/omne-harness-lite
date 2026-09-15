@@ -7,7 +7,7 @@ docs-check:
 	uv run --locked omne-docs-check $(if $(BASELINE),--baseline "$(BASELINE)")
 
 spec-check:
-	uv run --locked omne-spec-check
+	uv run --locked omne-spec-check $(if $(FORMAL),--formal "$(FORMAL)") $(if $(BASELINE),--baseline "$(BASELINE)")
 
 spec-tools:
 	uv run --locked omne-spec-tools-check
