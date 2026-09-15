@@ -75,3 +75,16 @@ live-agent v1（迁移坐标：`.meta_harness/design/spec/capabilities/live-agen
 run-driver v2（迁移坐标：`spec/capabilities/run-driver/v2/contract.md`） 与
 tools v1（迁移坐标：`spec/capabilities/tools/v1/contract.md`） 定义；本页只确认要求，
 未接受具体架构或发布规格。
+
+
+## 迁移依赖 gate
+
+以下坐标拥有本要求对候选设计的旧引用关系；它们不是本需求正文新接受的机制。新基线统一 `v1`，仍须按完整三元组辨认。
+
+| 历史引用三元组 | legacy current | 新目标三元组 | owner | 条款映射状态 | freeze 结果 |
+|---|---|---|---|---|---|
+| `(omne-harness-lite-legacy-spec, capability.live-agent, 1)` | `(omne-harness-lite-legacy-spec, capability.live-agent, 1)` | `(omne-harness-lite-design-2026-09-15, capability.live-agent, 1)` | F | `selected-for-new-v1-owner-review`；执行信任相关条款、目标哈希及 PF-025 消费映射仍待 owner review | 阻断 live-agent 依赖及 PF-025 覆盖冻结 |
+| `(omne-harness-lite-legacy-spec, capability.run-driver, 2)` | `(omne-harness-lite-legacy-spec, capability.run-driver, 3)` | `(omne-harness-lite-design-2026-09-15, capability.run-driver, 1)` | L | legacy 非 current 引用；所需执行/等待/取消条款的旧→新映射尚未提交，不能用 current v3 或新 v1 替换旧承诺 | 阻断 run-driver 依赖及 PF-025 覆盖冻结 |
+| `(omne-harness-lite-legacy-spec, capability.tools, 1)` | `(omne-harness-lite-legacy-spec, capability.tools, 2)` | `(omne-harness-lite-design-2026-09-15, capability.tools, 1)` | L | legacy 非 current 引用；所需工具定义/执行条款的旧→新映射尚未提交，不能按版本号相同推定继承 | 阻断 tools 依赖及 PF-025 覆盖冻结 |
+
+释放任一 gate 都需要 owner 给出条款级对应、目标内容哈希和受影响消费者验证；若语义不等价，回到接受链处理。

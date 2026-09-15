@@ -33,7 +33,7 @@
 | `PF-025` | `PF-025.C1`、`PF-025.C2` | [PF-025：兼容外部命令式 hooks 体系](product/PF-025-external-hooks-compatibility/requirements.md) | 待能力覆盖分析 |
 | `SYS-ALIGNMENT` | `SYS-ALIGNMENT` | [SYS-ALIGNMENT：与服务对象始终保持利益对齐](system/interest-alignment/requirements.md) | 待能力覆盖分析 |
 | `SYS-CONTINUITY` | `SYS-CONTINUITY` | [SYS-CONTINUITY：omne-next 功能继承与发展](system/omne-next-continuity/requirements.md) | 待能力覆盖分析 |
-| `SYS-DYNAMIC` | `SYS-DYNAMIC` | [SYS-DYNAMIC：完全动态系统](system/fully-dynamic-system/requirements.md) | 待能力覆盖分析 |
+| `SYS-DYNAMIC` | `SYS-DYNAMIC.C1`、`SYS-DYNAMIC.C2` | [SYS-DYNAMIC：完全动态系统](system/fully-dynamic-system/requirements.md) | 待能力覆盖分析 |
 | `SYS-IDENTITY`、`SYS-KERNEL`、`SYS-SPEC`、`SYS-DEPLOY`、`SYS-TENANT`、`SYS-LLM`、`SYS-EXPERIMENT` | `SYS-IDENTITY`、`SYS-KERNEL`、`SYS-SPEC`、`SYS-DEPLOY`、`SYS-TENANT`、`SYS-LLM`、`SYS-EXPERIMENT` | [已确认的跨系统约束](system/constraints/requirements.md) | 待能力覆盖分析 |
 | `SYS-LONG-RUNNING` | `SYS-LONG-RUNNING` | [SYS-LONG-RUNNING：超长期待机、稳定运行与持续进化](system/long-running-and-evolving/requirements.md) | 待能力覆盖分析 |
 | `SYS-OBSERVABILITY` | `SYS-OBSERVABILITY.C1`、`SYS-OBSERVABILITY.C2`、`SYS-OBSERVABILITY.C3`、`SYS-OBSERVABILITY.C4`、`SYS-OBSERVABILITY.C5`、`SYS-OBSERVABILITY.C6`、`SYS-OBSERVABILITY.C7` | [SYS-OBSERVABILITY：全链路可观测与日志完备](system/observability-and-logging/requirements.md) | 待能力覆盖分析 |

@@ -18,4 +18,6 @@
 | `docs/proposals/requirements-foundation/migration.md` @ `e3573ca72d18bfe7ddd002df5025551b51eede46` | `85662f98fc35192661f96f3a3dff0a5c0a50ab4d1e5b04d59b45e864bbda53b8` | 仅保留仍适用的归属边界；一次迁移步骤留在源历史 |
 | `docs/proposals/requirements-foundation/review.md` @ `e3573ca72d18bfe7ddd002df5025551b51eede46` | `91bc32f84b1e6cbe7136eb00ab1541f3b0371de7dff140216e0c477eb9650fd8` | 保留评审局限：评审不代替需求确认或设计接受 |
 
+3 个旧产品维度索引与 6 个来源基线/动态定义元数据文件的逐项重建或省略见[长期来源处置](source-disposition.md)。
+
 原接受决定坐标为 `docs/decisions/D-004-requirements-foundation.md`；其新基线决定映射由集成任务 I 拥有。本页不复制决定，也不借治理规则新增产品政策。

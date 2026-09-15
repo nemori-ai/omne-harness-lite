@@ -116,5 +116,18 @@ slash 要求，不撤回
 
 | 日期 | 变化 | 依据与处置 |
 |---|---|---|
-| 2026-09-15 | C1 复确认，正文不变："产品要支持用户使用文本以外的模态信息作为请求的一部分输入" | 用户直接确认（本会话）。已接受契约 CD-03（迁移坐标：`spec/data/core-work/v1/contract.md`）、CT-01～CT-04（迁移坐标：`spec/capabilities/media-content/v1/contract.md`）、SE-04/SE-05（迁移坐标：`spec/capabilities/session/v1/contract.md`） 已覆盖语义；未闭合的是 CD/CT 的 JSON Schema、上传传输与客户端交互（提供者与应用装配）、"模型实际接收了什么"的读面（消息流评审 N4（迁移坐标：`.meta_harness/design/proposals/message-stream/`）） |
+| 2026-09-15 | C1 复确认，正文不变："产品要支持用户使用文本以外的模态信息作为请求的一部分输入" | 用户直接确认（本会话）。已接受契约 CD-03（迁移坐标：`spec/data/core-work/v1/contract.md`）、CT-01～CT-04（迁移坐标：`spec/capabilities/media-content/v1/contract.md`）、SE-04/SE-05（迁移坐标：`spec/capabilities/session/v1/contract.md`） 在 legacy 基线的接受记录中记为“已覆盖语义”；该历史判断不自动承接新基线。未闭合的是 CD/CT 的 JSON Schema、上传传输与客户端交互（提供者与应用装配）、"模型实际接收了什么"的读面（消息流评审 N4（迁移坐标：`.meta_harness/design/proposals/message-stream/`）） |
 | 2026-09-15 | C2、C7 扩展："产品要支持用户使用快捷键的形式触发更丰富的交互流程"。快捷键的绑定目标从"获准控制"扩展为"显式绑定的交互流程"（控制、命令、Skill、其他交互入口）；C7 标题由"控制"改"触发入口"，末句改为"效果只来自显式绑定" | 用户直接确认（本会话），超出 [来源清单](../../../research/user-input-and-command-sources/research.md#来源与映射) 里键位源"首批动作只有 interrupt / resume / cancel / force_stop"的范围，属本项目新增要求。受影响消费者：command-input v1 IN-02（迁移坐标：`.meta_harness/design/spec/capabilities/command-input/v1/contract.md`）"绑定一个具名控制及精确目标"须在下一版扩为可绑定命令与流程（"不自动变成宏、slash 或脚本"仍成立，显式绑定不是自动）；session v1 SE-13 / SE-15（迁移坐标：`spec/capabilities/session/v1/contract.md`）"keyboard command 是即时控制，不入队"须改为"控制类绑定即时、命令类绑定按被绑定命令的受理与排队规则"；旧接受记录仍是历史事实，冲突部分在当前架构（迁移坐标：`.meta_harness/design/architecture/README.md#需求覆盖与缺口`）标为待处理 |
+
+
+## 迁移依赖 gate
+
+下表只解释上述变更记录中的旧规格坐标。目标版本号同为 `v1` 也属于新的 baseline 三元组，不能据路径或版本号推断等价。
+
+| 历史引用三元组 | legacy current | 新目标三元组 | owner | 条款映射状态 | freeze 结果 |
+|---|---|---|---|---|---|
+| `(omne-harness-lite-legacy-spec, data.core-work, 1)`（CD-03） | `(omne-harness-lite-legacy-spec, data.core-work, 2)` | `(omne-harness-lite-design-2026-09-15, data.core-work, 1)` | S | legacy v1 的历史覆盖声明；旧→新 CD-03 映射、目标哈希及消费者复核待 owner 提交 | 阻断 PF-009 对该数据条款的覆盖冻结 |
+| `(omne-harness-lite-legacy-spec, capability.media-content, 1)`（CT-01～CT-04） | `(omne-harness-lite-legacy-spec, capability.media-content, 2)` | `(omne-harness-lite-design-2026-09-15, capability.media-content, 1)` | M | legacy v1 的历史覆盖声明；旧→新 CT 条款映射、目标哈希及消费者复核待 owner 提交 | 阻断 PF-009 对媒体内容条款的覆盖冻结 |
+| `(omne-harness-lite-legacy-spec, capability.session, 1)`（SE-04/SE-05、SE-13/SE-15） | `(omne-harness-lite-legacy-spec, capability.session, 2)` | `(omne-harness-lite-design-2026-09-15, capability.session, 1)` | L | legacy v1 的历史覆盖/冲突记录；新条款尚需同时处理快捷键扩展，不能按等价迁移默认承接 | 阻断 PF-009 对 Session 消费的冻结；语义变化仍需有权者接受 |
+
+这些 gate 不撤销源接受记录的历史事实，也不声称 legacy current 已满足本轮新增要求。
