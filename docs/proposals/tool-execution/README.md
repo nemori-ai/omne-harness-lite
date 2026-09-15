@@ -70,6 +70,7 @@ Agent 向人提问的答复怎样回到工具"没有一处权威正文。本提�
 | U-44（2026-09-15） | Agent 发起的批准本质是上下文提示词，不是系统机制；系统发起的 HITL 才是系统机制。Agent 的 HITL 工具只有 `ask_user` 与 `request_approval` 两个（omne-next `omne_harness` 已有定义），没有第三个；问题与批准的答复本质是用户提示词，以工具调用结果呈现。据此去掉 `request_consent` 与批准目标绑定（[命令表](lifecycle.md#内建人类请求工具)） |
 | U-45（2026-09-15） | Run 状态机与工具执行状态机解耦、可以错位；一次 Run 可有多个并行工具，有的按声明执行一段时间后自动转后台，有的不会；不存在 Run 级执行预算作为刹车（[前台上限](lifecycle.md#前台上限与自动转后台)）；omne-next 的耐久等待与离场执行设计作补充参考 |
 | U-46（2026-09-15） | 调用级 `detach` 不能否决工具声明的自动离场（取值只剩 `on_start \| auto`）；迟到结果以 `system_reminder` 内容块进入到达的 Step、按模型族投影为 user / developer message（确认） |
+| U-47（2026-09-15） | PF-005.C10 中"由系统权威记录对精确请求及批准结果的引用"现在干脆不要：从需求撤下，未来需要时作为新的能力另行设计；需求页已改（[PF-005 变更记录](../../requirements/product/agent/PF-005-agent-initiated-human-input-and-approval.md#变更记录)），可追溯改由耐久历史顺序与授权门记录给出 |
 
 ## 作者裁决（用户按建议拍板）
 
@@ -119,8 +120,6 @@ hooks 兼容层的决定点 o～v 记在 [hooks 兼容提案](../hooks-compat/RE
   Run 预算项、RN-02 失败不关闭已准入调用、HD 作为执行 owner、run-driver v3、CD 与 MC 的
   `system_reminder`、TL-12 帧耐久与 `frames(S)`）：见 [缺口表](lifecycle.md#契约措辞缺口表)，
   随闭环一次发版。
-- PF-005.C10 里"由系统权威记录对精确请求及批准结果的引用"在 U-44（批准是提示词）下没有
-  系统机制承接，可追溯改由历史顺序与系统门记录给出；需求措辞是否调整待用户确认。
 - 取回工具与转储信封（omne-next `read_tool_result_or_file` 与"结果已转储"占位）：首版不设，
   大结果与中间帧的读面先归 UI；模型主动取回作为候选另开。
 - 回流策略的 `silent`（后台结果不通知模型）与 `compensate`（失败时唤醒补偿）：首版只有

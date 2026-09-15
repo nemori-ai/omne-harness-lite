@@ -6,7 +6,9 @@
 D-012 采用的基线 `6f7f1de1bc2fe0e772dc48a83da4699fece82e89`（保留引用
 `refs/tags/requirements-baseline/2026-09-14-agent-loop-inbound`）之上只新增了
 [PF-025](../../requirements/product/agent/PF-025-external-hooks-compatibility.md) 一页及其
-索引条目，其余 `docs/requirements/` 未变。正式接受前按
+索引条目，其余 `docs/requirements/` 未变；快照之后 PF-005.C10 按用户裁决 U-47 在同一分支修订
+（撤下系统权威批准引用，见 [PF-005 变更记录](../../requirements/product/agent/PF-005-agent-initiated-human-input-and-approval.md#变更记录)），
+本提案按修订后的正文消费。正式接受前按
 [需求维护](../../maintenance/requirements.md#基线保留)固定新的保留引用。用户在本轮的裁决记录于
 [提案入口](README.md#裁决记录2026-09-14用户)，不改写需求正文。
 
@@ -24,7 +26,7 @@ HD v1 落实的条款只引用，不复述。
 | PF-003.C6 恢复后重新关联后台调用 | [恢复窗口](lifecycle.md#恢复窗口)；沿用 TL-11、RD-16 | T-4、T-5 |
 | [PF-005.C1～C3](../../requirements/product/agent/PF-005-agent-initiated-human-input-and-approval.md) 主动提问、一次性批准、能力授权申请 | [内建人类请求工具](lifecycle.md#内建人类请求工具)：恰好两条命令 `human ask_user` / `human request_approval`（U-44），HD 为执行 owner；C3 的能力授权申请由 `ask_user` 表达需要，授予走系统发起的专属同意流程（HD-05），C2 的批准不建立会话权限 | H-1～H-4、T-9 |
 | PF-005.C4～C9 请求耐久、长期等待、多请求独立、首答胜出、决策池 | 归 HD v1（HD-01～09）；本提案只消费 HD-03 的接续绑定与 HD-08 的同提交 | H-1、H-3 |
-| PF-005.C10 批准与实际动作可追溯，越界重新请求 | 用户裁决 U-44：Agent 发起的批准是提示层语义，不是系统机制。可追溯 = 批准请求与答复都作为耐久工具事实在历史里按顺序可核对；受控动作的权威授权记录是系统门（AU 审计、必要时的 system_approval）；越界时重新请求是 Agent 的提示纪律，受控的越界动作会被系统门再次拦住。C10 中"由系统权威记录对精确请求及批准结果的引用"这半句在 U-44 下没有系统机制承接，需求措辞是否调整待用户确认（[未决项](README.md#未决项)） | T-9 |
+| PF-005.C10 批准与实际动作可追溯，越界重新请求 | 用户裁决 U-44：Agent 发起的批准是提示层语义，不是系统机制。可追溯 = 批准请求与答复都作为耐久工具事实在历史里按顺序可核对；受控动作的权威授权记录是系统门（AU 审计、必要时的 system_approval）；越界时重新请求是 Agent 的提示纪律，受控的越界动作会被系统门再次拦住。C10 中"由系统权威记录对精确请求及批准结果的引用"这半句已按用户裁决 U-47 从需求撤下（[PF-005 变更记录](../../requirements/product/agent/PF-005-agent-initiated-human-input-and-approval.md#变更记录)），本提案不承接；未来需要时作为新能力另行设计 | T-9 |
 | [PF-007.C4～C7](../../requirements/product/user/PF-007-system-initiated-hitl.md) 阻塞请求长期等待、决策池、暂行资格与后果 | 系统审批沿 TL-07 ask 门与 HD-06/07；暂行不加 Schema 字段，由 AU-03 `authorization.confirmation: provisional` 与 `provisionalContract` 承担（[schema.md](schema.md#维度总表)），承载归 HD-10～12 | T-9 |
 | [PF-013.C4](../../requirements/product/user/PF-013-session-run-lifecycle-and-pending-input-control.md) 运行控制的传播范围与工具处置 | [控制与级联表](lifecycle.md#控制与级联表)逐行落实 interrupt / interrupt_then_run / cancel / force_stop 对三种关系的处置 | T-3、T-4 |
 | [PF-024.C1/C2](../../requirements/product/agent/PF-024-multi-command-tool-definition.md#已确认要求) 多命令范式、单槽位 | 单/多命令统一定义两种投影（schema.md，波 2）；沿用 TL-01 | T-6、T-8 |

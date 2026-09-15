@@ -13,7 +13,7 @@
 | 编号 | 发现 | 处置 |
 |---|---|---|
 | B1 | Run 不可恢复失败时级联缺行：未答 `human` 请求与在途前台调用在 `failed` 下无归属，模型把 failed 与 completed 合并且只在无阻塞调用时可达 | 已修，按用户裁决 U-43：级联表新增"Run 不可恢复失败 → failed"行（未准入取消；已准入调用与未答问题保留，等待位置释放，结算按 SE-14 C 列触发新 Run）；模型新增 `RunFail` 与动作性质 `FailKeepsHuman`；RN-02 措辞进缺口表；场景 TS-18；invariants H-3、T-4 更新 |
-| B2 | `request_approval` 的一次性决定如何绑定后续调用未定义，T-9 对 PF-005.C2/C10 的覆盖不成立 | 已修，按用户裁决 U-44（评审建议 b 的方向）：Agent 发起的批准是提示层语义，答复以工具结果呈现，不被门消费；HITL 工具只有 `ask_user` / `request_approval`；T-9 收窄到系统审批；requirements 标出 PF-005.C10 中无系统机制承接的半句待用户确认措辞 |
+| B2 | `request_approval` 的一次性决定如何绑定后续调用未定义，T-9 对 PF-005.C2/C10 的覆盖不成立 | 已修，按用户裁决 U-44（评审建议 b 的方向）：Agent 发起的批准是提示层语义，答复以工具结果呈现，不被门消费；HITL 工具只有 `ask_user` / `request_approval`；T-9 收窄到系统审批；PF-005.C10 中无系统机制承接的半句由用户裁决 U-47 从需求撤下（[PF-005 变更记录](../../requirements/product/agent/PF-005-agent-initiated-human-input-and-approval.md#变更记录)） |
 
 ## 应修后接受
 
@@ -50,12 +50,14 @@
 
 评审列出六项，用户 2026-09-15 裁决：1 → U-43（保留问题，新 Run 接上）；2 → U-44（批准是
 提示词，无门绑定）；3 → 已按 HD-04 / RN-04 保留请求；4 → U-45（无 Run 级预算）；5 → U-46
-（不能否决）；6 → 随 U-44 删除。用户提出的迟到结果投影 → U-46 确认。
+（不能否决）；6 → 随 U-44 删除。用户提出的迟到结果投影 → U-46 确认；作者转给用户的 PF-005.C10 措辞 → U-47（撤下权威批准
+引用，未来另作能力）。
 
 ## 评审未验证项的现状
 
 - 重放已在处置后重新运行，`results.json` 的哈希对应当前文件；`source_commit` 仍是重放时的
   HEAD（提交本身在重放之后），身份以哈希为准。
-- 需求快照 `18026b2` 的说明未变。
+- 需求快照 `18026b2` 之后 PF-005.C10 按 U-47 在同一分支修订，见 [requirements.md](requirements.md)
+  的快照说明。
 - Ajv profile 与投影单测、帧与媒体场景、`human` 工具崩溃注入仍是实现阶段义务。
 - DSH `dsh-tool-ask-user` / `dsh-user-questions` 词汇的逐项对应留给接受后的 human-tool 设计。
