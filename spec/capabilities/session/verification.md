@@ -30,6 +30,37 @@ Run 抽象为 none / running / waiting / interrupted / terminal / cancelled，�
 accept → classify(queue) → withdraw → 停滞的反例；性质随即修正为允许队列清空，
 契约不需改动（[SE-05](v1/contract.md) 的 withdraw 本就只关闭这次投递）。
 
+## 消息流游标模型（提案候选）
+
+[message-stream 提案](../../../docs/proposals/message-stream/README.md)（未接受）的
+[Cursor.tla](../../../docs/proposals/message-stream/evidence/model/Cursor.tla) 为 [SE-03](v1/contract.md)
+的历史水位读面与 [SE-16](v1/contract.md) 的水位语义在客户端一侧提供有限证据：一个协调域的
+提交序号、作用域内 / 外两种事实、可丢的进程内铃（[LC-06](../../compositions/session-run-agent-lifecycles/v1/contract.md)）、
+每订阅的有界缓冲与已推送水位、投影下界、一个瞬态 attempt、断线与进程崩溃。按 Inbound 与
+工具提案证据模型的先例放在提案证据目录并登记为形式任务 `message-stream-cursor-safety` 与
+`message-stream-cursor-progress`（[formal-tasks.json](../../formal-tasks.json)）；抽象与边界见
+[证据说明](../../../docs/proposals/message-stream/evidence/README.md)，重放与哈希由
+[replay.py](../../../docs/proposals/message-stream/evidence/model/replay.py) 写入
+[results.json](../../../docs/proposals/message-stream/evidence/model/results.json)。提案接受前，
+这些结果只支持提案的候选性质 MS-1～MS-5、MS-7 与 MP-1～MP-3，不改变 session v1 的条款覆盖表。
+
+| 配置 | 规范映射 | 有限范围与结果（2026-09-15，8 核 4 worker） |
+|---|---|---|
+| Cursor.cfg（安全） | TypeOK；NoForeignDelivery（MS-5 作用域）；CursorComplete（MS-3：游标之下的作用域内事实全部已投递，不论丢过多少次铃）；SentComplete（服务端水位不虚报）；EndedAfterCommit（MS-7）；BufferOrdered、DeliverOnce（MS-2）；DraftCurrent（MS-4）；Monotone | 1 个订阅、3 条事实、两个缓冲各 2、至多 1 次崩溃与 1 次断线；36.0 万不同状态、8 秒，通过 |
+| CursorTwo.cfg（安全补充，不登记） | 同上 | 2 个订阅（对称约减）、2 条事实、至多 1 次崩溃与 1 次断线；217 万不同状态、1.5～3 分钟（视并发），通过；只在重放脚本里运行 |
+| CursorProgress.cfg（进展） | EventuallyDelivered（MP-1）；BuffersDrain（MP-3：事实队列排空）；AttemptsSettle（MP-2）；GapMarked（MS-4 的最终可见） | 1 个订阅、2 条事实；弱公平加在事实投递、缺口投递、瞬态投递、对账、订阅与 attempt 收尾；5.0 万不同状态、16 秒，通过（3 条事实的活性检查超过 5 分钟，未登记） |
+| CursorNoFill.cfg（否定，不登记） | 铃只转发自身、不从订阅水位补：期望违反 CursorComplete | 找到反例（数百状态、1 秒内；反例前探索的状态数随 worker 数变化）：订阅后丢第 1 次铃、听到第 2 次，游标越过未投递的事实 |
+| CursorBuffered.cfg（否定，不登记） | 补齐来自最近 1 条的流缓冲而非投影：期望违反 CursorComplete | 找到反例（不到一百状态、1 秒内）：离线期间两条事实，续订只拿到最后一条 |
+
+模型发现：(1) 首稿订阅建立把整个补齐区间一次塞进缓冲，3 条事实、缓冲 2 的配置立刻给出
+`TypeOK` 反例；补齐改为分页、余下由对账续推，提案的背压表随之从"缓冲满关订阅"改为"水位
+停住、有空位再续"。(2) 首稿把事实帧与瞬态帧放在同一个队列，进展检查给出反例：无穷多次
+attempt 的 `started / ended` 帧一直占满队列，事实帧永远进不来（`EventuallyDelivered` 与
+`BuffersDrain` 同时违反）；模型改为事实队列与瞬态环分开，与提案背压表的两行一致，
+`ended{committed}` 因此进瞬态环、客户端按位置读消息而不依赖两类帧的顺序。(3) 单队列
+模型下两订阅加崩溃的配置 5 分钟内未完成；分开后两订阅 2 条事实含崩溃 1.5～3 分钟完成，登记的
+安全配置仍取 1 个订阅、3 条事实、含崩溃（单配置 ≤ 1 分钟）。
+
 ## 条款覆盖
 
 | 条款 | 证据 | 未覆盖部分 |

@@ -32,6 +32,7 @@
 - [Agent 系统评测与 benchmark 驱动迭代](agent-system-evaluation/README.md)
 - [端到端多模态 Harness：2026 年系统设计与工程实践](multimodal-harness-2026/README.md)
 - [六个 Agent 系统的循环、事件与 hooks：DSH、Claude Code、Codex、pi、OpenCode、LangChain/deepagents](agent-loop-events-and-hooks/README.md)
+- [客户端消息流：消息模型、增量协议与断线后的同一事实](client-message-stream/README.md)：DSH、OpenRouter、Codex、OpenCode、pi 与 omne-next 的流层核对
 
 使用方法见[知识流转](../maintenance/knowledge-flow.md)。
 

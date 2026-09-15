@@ -9,6 +9,10 @@ scope: 面向客户端的出站流与通知作用域的职责划分、方向与�
 
 [提案索引](../README.md) · [Session 视图](../../architecture/session.md) · [Run 视图](../../architecture/run.md) · [生命周期组合 v1](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md)
 
+2026-09-15 起，本页划定的语义部分（消息模型、增量协议、帧信封与游标、作用域与补齐）由
+[消息流提案](../message-stream/README.md)展开（其决定点 I 请用户确认 U-36 的重新定位）；本页
+保留为边界与实现阶段问题清单，消息流提案接受后吸收本页。
+
 用户 2026-09-14 裁决（[U-36](../session-run-agent-lifecycles/README.md#裁决记录2026-09-14用户)）：
 通知作用域与出站流协议放到实现阶段设计，现在只划职责、方向与边界。本页就是那张
 边界图：它不是规格，不定义帧格式，不批准任何传输选型；实现阶段的设计从这里的

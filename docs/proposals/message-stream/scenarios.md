@@ -1,0 +1,26 @@
+# 场景：消息流的验收路径
+
+[提案索引](README.md) · [信封与游标](envelope-and-cursor.md) · [增量协议](delta-protocol.md) · [不变式](invariants.md) · [证据模型](evidence/README.md)
+
+每个场景给出触发、客户端看到的帧序列（事实帧写 `s:<seq>`，瞬态帧写 `~<owner>/e<epoch>#<seq>`，
+控制帧无位置）、[Cursor.tla](evidence/model/Cursor.tla) 里对应的动作与性质，以及模型不覆盖、
+要由提供者或投影单测兑现的部分。编号 MS-xx（与不变式 MS-n 同前缀但不同编号空间），与
+工具提案的 TS-xx、run-driver 的 S-xx 互不重号；提案接受后进入 `message-stream` v1 的 scenarios。
+
+| 编号 | 场景 | 客户端看到的序列 | 模型动作与性质 | 模型外验收 |
+|---|---|---|---|---|
+| MS-01 | 正常流式：一条用户输入、一次 attempt、一条助手消息 | `s:n queue.item.enqueued` → `s:n+1 queue.items.taken` + `run.lifecycle.created` + `run.step.opened` 同批 → `~A/e0#0 model.attempt.started{startedAfter: n+1}` → `~A/e0#1…k chunk`（含 `index = 0` 的 `block-start` 与空 `text-delta`）→ `s:n+2` attempt 结算事实 → `~A/e0#k+1 ended{committed, position: n+2, index: k+1}` → 客户端以派生消息替换草稿 | StartAttempt / Chunk / EndCommitted / Deliver；EndedAfterCommit、DraftCurrent、Monotone | 派生消息与紧凑流记录一致（投影单测）；`index = 0` 与空 delta 不被序列化丢弃（omne-next 教训，[研究笔记 §9](../../research/client-message-stream/notes/omne-next.md#9-取证与教训)） |
+| MS-02 | 工具帧与结果交错：一次 attempt 提议三个并行调用，一个有耐久帧、一个无帧、一个只有 transient 帧 | 结算与 `run.calls.proposed` 后三条 `tools.call.admitted` 同批 → `s: tools.frame.stdout{call: C1, seq: 1}`（`render: terminal`）与 `~C3/e0#1 tools.frame.progress` 交错 → `s: tools.call.settled{C2}` → … → `s: tools.call.settled{C1}`；`frames(S)` 的帧与 `tools.call.*` 事实共享域序号 | CommitFact("s") 交错 Broadcast（瞬态）；NoForeignDelivery、BufferOrdered、DeliverOnce | 帧 `render` 来自命令声明（[frames.md](../tool-execution/frames.md#帧身份与顺序)）；`tool_result` 派生恰一次（MS-11）；面板按 `(attempt, seq)` 拼接、不按流位置比大小 |
+| MS-03 | 后台调用结算：调用转后台，Run 结束后结果到达 | `tools.relation.detached` → `run.step.opened{cutpoint: [deferred_receipt]}` → `run.state.changed{completed}` → 后台 `tools.frame.*` 继续 → `tools.call.settled` + `inbound.arrival.classified{queue}` 同批 → `run.lifecycle.created` + `run.step.opened{cutpoint: [system_reminder{late_result}]}` | 只作为事实序列（CommitFact）；模型不区分事实种类 | 占位不消失、迟到结果恰一次（MS-11；[工具场景 TS-06](../tool-execution/scenarios.md)）；`system_reminder` 按模型族投影（投影单测） |
+| MS-04 | 人类请求卡片：`ask_user` 调用与答复 | `tools.call.admitted{C5}` + `hd.request.created{request: Q}` + `run.gate.awaited` + `run.state.changed{waiting}` 同批 → 客户端拉 `pool.get(Q)` → `hd.decision.recorded` + `tools.call.settled{C5}` + `inbound.arrival.*` 同批 → `run.state.changed{running}` | 事实序列 | 卡片内容与可答性来自 HD 读面而不是帧（[HD-09](../../../spec/capabilities/human-decisions/v1/contract.md)）；答复作为 `tool_result` 派生（[TS-12](../tool-execution/scenarios.md)） |
+| MS-05 | 断线三处：chunk 中、结算后未投递、Run 边界 | (a) chunk 中断线：重连 `stream.opened{baseline: {attempts: [{A, nextIndex, stream}]}}`，客户端展开基线为草稿再接 `index ≥ nextIndex`；(b) 结算事实已提交但 `ended` 未投递：重连后补齐含结算事实，基线无该 attempt，派生消息直接出现；(c) Run 结束后断线：补齐只含事实 | Disconnect / Subscribe（`cursor ≥ floor` 分支）/ Reconcile / Deliver；CursorComplete、SentComplete；进展 EventuallyDelivered、BuffersDrain | 基线与 `now` 同一同步切（MC 提供者累加器）；`index` 不连续时丢草稿重订阅 |
+| MS-06 | 慢客户端与背压 | 瞬态环满：`~C3/e0#7` 被丢 → `stream.gap{owner: C3, reason: trimmed}`；事实队列满：该订阅水位停住，`DeliverFact` 腾出空位后下一次铃或对账继续，不丢事实、不关订阅；瞬态环再满也挤不掉事实（两个缓冲） | Broadcast（丢最旧、`pend`）/ DeliverGap / Push 的部分推送 / Reconcile；GapMarked、CursorComplete、EventuallyDelivered；MS-6 的"不阻塞提交"由 CommitWith 不受 `buf` 约束体现 | owner 与 records 不受出站流影响（负载单测）；长期不消费的断开阈值是传输参数 |
+| MS-07 | 丢铃：一次或连续多次广播丢失 | 客户端察觉不到差别：服务端听到下一次铃时从水位 `sent` 补齐区间；没有后继铃时周期对账补齐 | CommitWith 的 `lost` 集合、Reconcile；CursorComplete、SentComplete；否定变体 `SpecNoFill` 给出反例 | 对账周期是传输参数；LC-06 的启动扫描兜底 |
+| MS-08 | 多客户端与撤权 | 同一 Session 两个订阅（不同租户成员）各自游标、各自缓冲；一个被撤权：`stream.closed{unauthorized}`，另一个照常；工作不受影响 | 两个 `Clients`（对称约减）；NoForeignDelivery、DeliverOnce 逐订阅成立 | 两处核对（订阅建立、每帧投递前）用**两个不同租户**的主体验收，不用同值 fixture（[研究笔记 §9](../../research/client-message-stream/notes/omne-next.md#9-取证与教训)）；撤权不停止工作 |
+| MS-09 | 进程重启 | attempt 流中崩溃：所有订阅断开；重连 `stream.opened{baseline: {attempts: []}}`，草稿标 `crash_gap`；随后事实收尾（`settled: unknown \| failed` 或新 attempt 带新 `epoch`） | Crash / Subscribe；DraftCurrent（旧 epoch 草稿不存活）、GapMarked | MC-06 的 unknown 记录与计费；`epoch` 变化时客户端整体重基线 |
+| MS-10 | 游标掉出投影保留期 | `subscribe(session, cursor: 12)` → `stream.opened{cursor: now, resync: full}` → 客户端清空本地、按 `history(session, range)` 与各读面重取 → 只接收 `seq > now` 的帧 | AdvanceFloor / Subscribe（`cursor < floor` 分支）；CursorComplete 在全量重取后仍成立；否定变体 `SpecBuffered`（补齐来自有界流缓冲）给出反例 | `floor` 由 projection 保留期与重建状态给出（[cordis.md 依赖变化](cordis.md#依赖变化政策)） |
+| MS-11 | 归档后的订阅 | `session.lifecycle.changed{archived}` 只是事实提示；订阅继续存在，后台调用的帧与结算照常到达；删除后 `stream.closed{session_deleted}` | 事实序列；Disconnect 表示服务端关闭 | 归档不停止工作（[SE-02](../../../spec/capabilities/session/v1/contract.md)）；删除后的读面按数据治理 |
+| MS-12 | 乱序帧（服务端缺陷） | 客户端收到事实帧序号倒退或缺口 → 视为服务端错误，关流 `resync_required` 并以游标重订阅 | BufferOrdered 保证模型内不发生；场景检验客户端的防御 | 客户端 journal 规则（[与 DSH 对照](envelope-and-cursor.md#6-与-dsh-的对照)） |
+
+MS-01、MS-02、MS-08 的 fixture 要求（`index = 0`、空 delta、两个不同租户）来自 omne-next 的两次"绿灯
+证明不了任何事"的取证记录；它们是验收清单，不是模型性质。

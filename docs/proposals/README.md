@@ -26,3 +26,4 @@
 - [出站流与通知作用域：职责、方向与边界](outbound-stream/README.md)：面向客户端的出站流的四层职责、建议方向与实现阶段问题清单；draft，协议本身实现阶段设计（U-36）。
 - [工具执行：调用生命周期、Schema 与帧](tool-execution/README.md)：调用的五维状态机、转移与级联、前台上限、内建人类请求工具（答复作为工具返回值）、Schema 维度、帧事实侧、Cordis 视角、场景与调用生命周期 TLA+ 模型；draft，待评审，消费工具系统 v1 草案的可用部分。
 - [外部命令式 hooks 兼容层](hooks-compat/README.md)：Claude Code / Codex hooks 到循环站点的逐项映射与降级表、handler 与信任、失败观察、Stop 续跑刹车；draft，待评审，作为 run-driver / tools / session 扩展点的消费者。
+- [消息流：单一消息模型、增量协议与出站帧](message-stream/README.md)：客户端只认一个消息模型（CD 内容块补齐）、attempt 增量与已提交事实的接头、帧信封与客户端游标、作用域与断线补齐、Cordis 视角；draft，波 1 骨架，接受后吸收出站流边界稿。

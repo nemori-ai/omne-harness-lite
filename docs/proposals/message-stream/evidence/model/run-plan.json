@@ -1,0 +1,42 @@
+[
+ {
+  "name": "Cursor",
+  "mutation": "none",
+  "expected": null,
+  "config": "docs/proposals/message-stream/evidence/model/Cursor.cfg",
+  "model": "docs/proposals/message-stream/evidence/model/CursorMC.tla",
+  "module": "docs/proposals/message-stream/evidence/model/Cursor.tla"
+ },
+ {
+  "name": "CursorTwo",
+  "mutation": "none",
+  "expected": null,
+  "config": "docs/proposals/message-stream/evidence/model/CursorTwo.cfg",
+  "model": "docs/proposals/message-stream/evidence/model/CursorMC.tla",
+  "module": "docs/proposals/message-stream/evidence/model/Cursor.tla"
+ },
+ {
+  "name": "CursorProgress",
+  "mutation": "none",
+  "expected": null,
+  "config": "docs/proposals/message-stream/evidence/model/CursorProgress.cfg",
+  "model": "docs/proposals/message-stream/evidence/model/CursorMC.tla",
+  "module": "docs/proposals/message-stream/evidence/model/Cursor.tla"
+ },
+ {
+  "name": "Cursor",
+  "mutation": "nofill",
+  "expected": "CursorComplete",
+  "config": "docs/proposals/message-stream/evidence/model/CursorNoFill.cfg",
+  "model": "docs/proposals/message-stream/evidence/model/CursorMC.tla",
+  "module": "docs/proposals/message-stream/evidence/model/Cursor.tla"
+ },
+ {
+  "name": "Cursor",
+  "mutation": "buffered",
+  "expected": "CursorComplete",
+  "config": "docs/proposals/message-stream/evidence/model/CursorBuffered.cfg",
+  "model": "docs/proposals/message-stream/evidence/model/CursorMC.tla",
+  "module": "docs/proposals/message-stream/evidence/model/Cursor.tla"
+ }
+]

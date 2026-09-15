@@ -610,6 +610,60 @@
         "docs/proposals/tool-execution/evidence/model/ToolCallMC.tla"
       ],
       "timeout_seconds": 120
+    },
+    {
+      "id": "message-stream-cursor-safety",
+      "kind": "tla",
+      "artifacts": [
+        "docs/proposals/message-stream/evidence/model/Cursor.tla",
+        "docs/proposals/message-stream/evidence/model/CursorMC.tla",
+        "docs/proposals/message-stream/evidence/model/Cursor.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx4g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "4",
+        "-deadlock",
+        "-metadir",
+        "tmp/formal-runs/message-stream-cursor-safety",
+        "-config",
+        "docs/proposals/message-stream/evidence/model/Cursor.cfg",
+        "docs/proposals/message-stream/evidence/model/CursorMC.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "message-stream-cursor-progress",
+      "kind": "tla",
+      "artifacts": [
+        "docs/proposals/message-stream/evidence/model/Cursor.tla",
+        "docs/proposals/message-stream/evidence/model/CursorMC.tla",
+        "docs/proposals/message-stream/evidence/model/CursorProgress.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx4g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "4",
+        "-deadlock",
+        "-metadir",
+        "tmp/formal-runs/message-stream-cursor-progress",
+        "-config",
+        "docs/proposals/message-stream/evidence/model/CursorProgress.cfg",
+        "docs/proposals/message-stream/evidence/model/CursorMC.tla"
+      ],
+      "timeout_seconds": 180
     }
   ]
 }
