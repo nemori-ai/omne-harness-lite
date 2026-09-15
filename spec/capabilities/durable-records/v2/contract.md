@@ -55,6 +55,6 @@ OS／文件系统须在实现验收列名，不把网络文件系统视为普通
 
 | 条款 | 性质 | 来源裁决 |
 |---|---|---|
-| DR-01 增加"批内记录顺序属于 envelope、读取与重放稳定" | 兼容扩展 | [消息流第三轮裁决 R19](../../../../docs/proposals/message-stream/README.md#第三轮复核后2026-09-15)、[消息模型 §6 落点表](../../../../docs/proposals/message-stream/message-model.md#6-权威落点与消费者影响) |
+| DR-01 增加"批内记录顺序属于 envelope、读取与重放稳定" | 兼容扩展 | 消息流第三轮裁决 R19、消息模型 §6 落点表 |
 | DR-01 其余、DR-02～DR-05 | 原文不变 | — |
 | 规范依赖由 CD v1 / CC v1 改为 CD v2 / CC v2 | 澄清 | [批次组成](../../../../docs/decisions/D-015-tool-execution-message-stream-and-hooks.md) |

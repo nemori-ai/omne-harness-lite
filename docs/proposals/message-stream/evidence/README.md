@@ -6,7 +6,7 @@
 第 3、5 节的有限模型，按工具提案证据模型的先例放在提案证据目录并登记为形式任务
 （`message-stream-cursor-safety`、`message-stream-cursor-progress`，
 [formal-tasks.json](../../../../spec/formal-tasks.json)），每次 spec-check 运行。条款覆盖与运行
-结果记在 [session 验证范围](../../../../spec/capabilities/session/verification.md#消息流游标模型提案候选)。
+结果记在 [message-stream 验证范围](../../../../spec/capabilities/message-stream/verification.md#配置规范映射与结果)。
 
 ## 文件
 
@@ -95,7 +95,7 @@
   后状态数大幅下降。第二稿加入多事实提交与投影水位后，3 次提交、每次至多 2 条的安全配置
   约 2 分钟，登记的安全配置因此取 2 次提交（Cursor.cfg，单配置 ≤ 1 分钟），3 次提交与两订阅
   作为补充配置在重放脚本里跑
-  （[session 验证范围](../../../../spec/capabilities/session/verification.md#消息流游标模型提案候选)
+  （[message-stream 验证范围](../../../../spec/capabilities/message-stream/verification.md#配置规范映射与结果)
   记状态数与耗时）。这是有限范围的取舍，不是语义有问题：订阅之间没有共享状态，模型里的
   耦合只有 `lost` 集合与广播。
 - 进展配置含崩溃与断线时约 3 分钟，登记的进展配置去掉这两条路径（CursorProgress.cfg），

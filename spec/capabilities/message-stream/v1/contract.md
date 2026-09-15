@@ -27,7 +27,7 @@ attempt 的瞬态帧协议。[决定 D-014](../../../../docs/decisions/D-014-ses
 选型、心跳、批处理、压缩与阈值等装配参数。
 
 行为模型见 [Cursor.tla](Cursor.tla) 与 [CursorMC.tla](CursorMC.tla)，符合性要求见
-[场景](scenarios.md)，覆盖范围、有限性与未建模项见[验证说明](../verification.md)。
+[场景](scenarios.md)，覆盖范围、有限性与未建模项见验证说明。
 
 ## 定义与原则
 
@@ -272,7 +272,7 @@ owner 的；代发帧的 `dedupKey` 第一段是 `observer` 而非 owner，因�
 
 ## 验证边界
 
-本契约的行为模型只覆盖单个协调域内的游标推进、服务端水位、补齐与瞬态收尾（[验证说明](../verification.md)）。
+本契约的行为模型只覆盖单个协调域内的游标推进、服务端水位、补齐与瞬态收尾（验证说明）。
 按位置拉取派生正文的安装过程、全量重取的多视图快照、授权与可见范围版本的变化、来源消失的代发、
 媒体与 `render`、多个协调域、租户级轻量流与传输装配均不在模型内，由规范场景与提供者验收承担。
 跨协调域部署前必须先兑现 [LC-09](../../../compositions/session-run-agent-lifecycles/v2/contract.md) 的

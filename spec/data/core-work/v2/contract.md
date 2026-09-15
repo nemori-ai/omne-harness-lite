@@ -169,17 +169,17 @@ tools v2 与模型执行能力；本条只固定记录形状。
 
 | 条款 | 性质 | 来源裁决 |
 |---|---|---|
-| CD-01 增加 `CallRef` / `AttemptRef` 承载 attempt 的澄清 | 澄清 | 由 CD-01 原文与[消息模型 §1](../../../../docs/proposals/message-stream/message-model.md#1-message-记录) 的引用写法统一得出，无单独裁决 |
-| CD-03 内容块种类增加 `reasoning` | 兼容扩展 | 用户裁决 [U-49](../../../../docs/proposals/message-stream/README.md#裁决记录2026-09-15用户) |
-| CD-03 内容块种类增加 `system_reminder` 及其两类规则 | 兼容扩展 | 用户裁决 [U-46](../../../../docs/proposals/tool-execution/README.md#裁决记录2026-09-14用户)、[决定点 ac](../../../../docs/proposals/tool-execution/README.md#评审后的决定点用户裁决2026-09-15)；两类划分为[消息流第二轮裁决 R13](../../../../docs/proposals/message-stream/README.md#第二轮复核后2026-09-15) |
-| CD-03 `deferred_receipt` 改为 `{call, reason(6), notice}` | 语义变化 | [作者裁决 9](../../../../docs/proposals/tool-execution/README.md#第二轮作者裁决2026-09-15架构复核后) 增补 `foreground_pending`；一份词表见[消息流第二轮裁决 R13](../../../../docs/proposals/message-stream/README.md#第二轮复核后2026-09-15) |
-| CD-03 `tool_call` 增加 `validation` 与 `raw` | 兼容扩展 | [消息流第二轮裁决 R12](../../../../docs/proposals/message-stream/README.md#第二轮复核后2026-09-15)、[工具第三轮裁决 18](../../../../docs/proposals/tool-execution/README.md#第三轮作者裁决2026-09-15第三轮架构复核后) |
-| CD-03 `tool_result.value` 固定为 `Result`、`content` 可嵌套内容块 | 兼容扩展 | [缺口表 CD-03/04 行](../../../../docs/proposals/tool-execution/lifecycle.md#契约措辞缺口表)、[结果形状](../../../../docs/proposals/tool-execution/schema.md#结果形状) |
-| CD-03 固定 `missing{blockId, kind, reason}` 与截断保留前缀 | 兼容扩展 | [消息流第二轮裁决 R16](../../../../docs/proposals/message-stream/README.md#第二轮复核后2026-09-15) |
-| CD-03 固定 `Origin` | 兼容扩展 | [消息模型 §1](../../../../docs/proposals/message-stream/message-model.md#1-message-记录)、[消息流裁决 R4](../../../../docs/proposals/message-stream/README.md#作者裁决评审后2026-09-15) |
-| CD-03 不可由用户输入导入的块种类扩展到 `reasoning`、`system_reminder` | 澄清 | [消息模型 §2](../../../../docs/proposals/message-stream/message-model.md#2-内容块补齐) |
-| CD-05 新增：`startModes`、`foreground`、`concurrency`、`media`、`frames`、两种 manifest 投影、保留参数与调用级 `detach` | 兼容扩展 | [作者裁决 i/j/k/l/m/n](../../../../docs/proposals/tool-execution/README.md#作者裁决用户按建议拍板)、用户裁决 [U-42](../../../../docs/proposals/tool-execution/README.md#裁决记录2026-09-14用户)、[U-46](../../../../docs/proposals/tool-execution/README.md#裁决记录2026-09-14用户)、[维度总表](../../../../docs/proposals/tool-execution/schema.md#维度总表) |
-| CD-05 删除 `BackgroundDeclaration.automatic` | 语义变化 | 用户裁决 [U-45](../../../../docs/proposals/tool-execution/README.md#裁决记录2026-09-14用户)、[决定点 aa](../../../../docs/proposals/tool-execution/README.md#评审后的决定点用户裁决2026-09-15) |
-| CD-05 `Command.cancellation` 改为 `stop{capability}` 三值 | 语义变化 | [作者裁决 5](../../../../docs/proposals/tool-execution/README.md#作者裁决2026-09-15按用户工作风格)、[第三轮裁决 14](../../../../docs/proposals/tool-execution/README.md#第三轮作者裁决2026-09-15第三轮架构复核后) |
-| CD-05 固定 `Result` 形状，`outcome` 增加 `unavailable` | 兼容扩展 | [缺口表 TL-07 终态词表行](../../../../docs/proposals/tool-execution/lifecycle.md#契约措辞缺口表)、[结果形状](../../../../docs/proposals/tool-execution/schema.md#结果形状) |
+| CD-01 增加 `CallRef` / `AttemptRef` 承载 attempt 的澄清 | 澄清 | 由 CD-01 原文与消息模型 §1 的引用写法统一得出，无单独裁决 |
+| CD-03 内容块种类增加 `reasoning` | 兼容扩展 | 用户裁决 U-49 |
+| CD-03 内容块种类增加 `system_reminder` 及其两类规则 | 兼容扩展 | 用户裁决 U-46、决定点 ac；两类划分为消息流第二轮裁决 R13 |
+| CD-03 `deferred_receipt` 改为 `{call, reason(6), notice}` | 语义变化 | 作者裁决 9 增补 `foreground_pending`；一份词表见消息流第二轮裁决 R13 |
+| CD-03 `tool_call` 增加 `validation` 与 `raw` | 兼容扩展 | 消息流第二轮裁决 R12、工具第三轮裁决 18 |
+| CD-03 `tool_result.value` 固定为 `Result`、`content` 可嵌套内容块 | 兼容扩展 | 缺口表 CD-03/04 行、结果形状 |
+| CD-03 固定 `missing{blockId, kind, reason}` 与截断保留前缀 | 兼容扩展 | 消息流第二轮裁决 R16 |
+| CD-03 固定 `Origin` | 兼容扩展 | 消息模型 §1、消息流裁决 R4 |
+| CD-03 不可由用户输入导入的块种类扩展到 `reasoning`、`system_reminder` | 澄清 | 消息模型 §2 |
+| CD-05 新增：`startModes`、`foreground`、`concurrency`、`media`、`frames`、两种 manifest 投影、保留参数与调用级 `detach` | 兼容扩展 | 作者裁决 i/j/k/l/m/n、用户裁决 U-42、U-46、维度总表 |
+| CD-05 删除 `BackgroundDeclaration.automatic` | 语义变化 | 用户裁决 U-45、决定点 aa |
+| CD-05 `Command.cancellation` 改为 `stop{capability}` 三值 | 语义变化 | 作者裁决 5、第三轮裁决 14 |
+| CD-05 固定 `Result` 形状，`outcome` 增加 `unavailable` | 兼容扩展 | 缺口表 TL-07 终态词表行、结果形状 |
 | CD-02、CD-04 | 原文不变 | — |

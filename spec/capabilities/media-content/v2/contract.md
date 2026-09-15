@@ -52,8 +52,8 @@ model_native 或 agent_attachment。原生语音必须实际以音频传给支�
 
 | 条款 | 性质 | 来源裁决 |
 |---|---|---|
-| CT-03 增加 `retainReference` 的来源记录 `producedBy{call}` | 兼容扩展 | [作者裁决 6](../../../../docs/proposals/tool-execution/README.md#作者裁决2026-09-15按用户工作风格)、[缺口表 CT-03 行](../../../../docs/proposals/tool-execution/lifecycle.md#契约措辞缺口表) |
-| CT-03 增加同一引用在帧与结果间的去重规则 | 兼容扩展 | [制品与呈现去重](../../../../docs/proposals/tool-execution/schema.md#制品与呈现去重) |
-| CT-03 写明未耐久引用不能进入终态结果 | 澄清 | [多模态](../../../../docs/proposals/tool-execution/schema.md#多模态) |
+| CT-03 增加 `retainReference` 的来源记录 `producedBy{call}` | 兼容扩展 | 作者裁决 6、缺口表 CT-03 行 |
+| CT-03 增加同一引用在帧与结果间的去重规则 | 兼容扩展 | 制品与呈现去重 |
+| CT-03 写明未耐久引用不能进入终态结果 | 澄清 | 多模态 |
 | CT-01、CT-02、CT-04 | 原文不变 | — |
 | 规范依赖由 CD v1 / CC v1 改为 CD v2 / CC v2 | 澄清 | [批次组成](../../../../docs/decisions/D-015-tool-execution-message-stream-and-hooks.md) |

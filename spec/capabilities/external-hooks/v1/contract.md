@@ -115,7 +115,7 @@ trigger 项保持排队，`hooks.run.completed` 与 `hooks.config.*` 记录保�
 **HK-08**：本节的映射表是 [PF-025.C1](../../../../docs/requirements/product/agent/PF-025-external-hooks-compatibility.md)
 兼容承诺的规范正文。上游事件全集与字段以固定快照为准：Claude Code 取 Claude Agent SDK
 `0.3.270` 的事件目录（33 个事件），Codex 取 `d77ebc7`，DSH 兼容插件的行为取 `c291e79`。
-这三个快照的原始观察记录在[六系统循环、事件与 hooks 研究](../../../../docs/research/agent-loop-events-and-hooks/README.md)，
+这三个快照的原始观察记录在六系统循环、事件与 hooks 研究，
 它是事实来源，不构成本契约的规范依赖。表中"落点"是该事件在本系统触发的精确位置，
 "兑现""降级""不支持"按 HK-03 的定义。上游快照之外出现的事件按不支持处理，不自动获得落点。
 
