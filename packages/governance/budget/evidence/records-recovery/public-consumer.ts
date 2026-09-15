@@ -7,7 +7,6 @@ import {
 import type {
   Budget,
   BudgetLedger,
-  BudgetResult,
   ChargeAttempt,
   MeterFact,
   Money,
@@ -29,7 +28,7 @@ if (ledger.throughSeq !== '0' || !Object.isFrozen(ledger)) {
 }
 
 const publicTypes: readonly [
-  BudgetResult<Money>,
+  ReturnType<typeof addMoney>,
   Budget | undefined,
   ChargeAttempt | undefined,
   MeterFact | undefined,

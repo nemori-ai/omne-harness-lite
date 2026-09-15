@@ -13,6 +13,8 @@
   },
   "pnpm": {
     "overrides": {
+      "@omne-harness-lite/admission": "file:../pack/omne-harness-lite-admission-0.0.0.tgz",
+      "@omne-harness-lite/diagnostics": "file:../pack/omne-harness-lite-diagnostics-0.0.0.tgz",
       "@omne-harness-lite/records": "file:../pack/omne-harness-lite-records-0.0.0.tgz",
       "@omne-harness-lite/tenant": "file:../pack/omne-harness-lite-tenant-0.0.0.tgz",
       "@omne-harness-lite/work-data": "file:../pack/omne-harness-lite-work-data-0.0.0.tgz"
