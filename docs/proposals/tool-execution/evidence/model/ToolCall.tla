@@ -272,6 +272,15 @@ RunWake ==
   /\ run' = "running"
   /\ UNCHANGED <<sess, owner, crashes, kind, prog, att, fence, rel, ctl, deliv, hd>>
 
+\* PF-013.C5 (2026-09-15 supplement) / candidate policy aj: queued user text
+\* is taken into the waiting Run as a new Step while its blocking calls stay
+\* open (no call changes; the queue itself is not modelled).  No fairness: the
+\* user may never type.
+RunSteer ==
+  /\ run = "waiting"
+  /\ run' = "running"
+  /\ UNCHANGED <<sess, owner, crashes, kind, prog, att, fence, rel, ctl, deliv, hd>>
+
 \* SE-17 / RD-10: completion needs no blocking call and no unconsumed context;
 \* a continuation still pending converts to a queue item (trigger)
 RunComplete ==
@@ -362,7 +371,7 @@ Next ==
        \/ StopRequest(c) \/ Detach(c) \/ DetachConfirm(c) \/ DetachFail(c)
        \/ Answer(c) \/ Adjudicate(c) \/ Consume(c)
   \/ OwnerCrash \/ OwnerRecover
-  \/ RunStart \/ RunWait \/ RunWake \/ RunComplete \/ RunFail \/ RunInterrupt \/ RunResume
+  \/ RunStart \/ RunWait \/ RunWake \/ RunSteer \/ RunComplete \/ RunFail \/ RunInterrupt \/ RunResume
   \/ RunInterruptThenRun \/ RunCancel
   \/ Archive
 

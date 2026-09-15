@@ -256,6 +256,33 @@ Run 级等待位置、不在门等待、剩余后台责任已确认独立 → co
 问题时 Run 停在 waiting_human 而不是 completed。这句"以模型响应为基准"登记为 RD-10
 的措辞补充（[缺口表](#契约措辞缺口表)）。
 
+### 等待期间的排队用户输入（候选，决定点 aj）
+
+用户 2026-09-15 的产品期望：当前 Run 不再等待模型响应、又没有完成时（Step 已收束，
+在等前台调用、人类答复或门），若请求队列里有用户的普通文本，产品应自动消费它，而不是
+干等到 Run 结束。现状：[SE-15](../../../spec/capabilities/session/v1/contract.md) 只在"无活动
+占位"时取批开新 Run，[RD-10 / RD-11](../../../spec/capabilities/run-driver/v2/contract.md) 的等待
+出边不看队列，[PF-013.C5](../../requirements/product/user/PF-013-session-run-lifecycle-and-pending-input-control.md)
+的 `queue` 只说"新消息耐久等待"，没说等到什么时候——三者合起来就是"干等"。
+需求已按用户原话登记（[PF-013 变更记录](../../requirements/product/user/PF-013-session-run-lifecycle-and-pending-input-control.md#变更记录)）。
+
+候选机制（不加第三种到达行为，`queue` 的含义改为"在当前 Run 的下一个空闲点消费"）：
+
+| 项 | 候选 | 依据 / 边界 |
+|---|---|---|
+| 空闲点 | Run 处于 waiting / waiting_human，或 waiting_gate 且该门不是开 Step 的前提（RD-06 的路由、技能、工具绑定可用）；Step 内（attempt 进行中、批内有阻止收束的视图）不算 | RD-09 / RD-10；"不注入正在进行的 LLM / tool call"（PF-013.C5）仍成立 |
+| 消费动作 | Session 的 `takeBatch` 增加"取入既有 Run"形态：同一提交 `queue.items.taken{into: RunRef}` + `run.step.opened{cutpoint}`，不创建 Run、不换 epoch；合批规则与 SE-06 相同（连续合格 text 项，遇 command / trigger 停止） | SE-06 / SE-15 下一版；LC-02 占位不变（同一 Run 继续持有） |
+| 切点内容 | 用户文本 + 每个仍在途的前台 / 转换中调用与未答请求各一条 `deferred_receipt`（模型必须知道它们还没回来，[占位](#占位与迟到结果的投影)、U-46） | RD-06 新来源；`deferred_receipt` 词表不变 |
+| 与接续的次序 | RD-10 的收束后判定顺序改为：完成 → 审批就绪 → 就绪接续 → **队首合格文本** → 等待；接续与文本同时就绪时同一 Step 一起消费（接续在前，文本在后，保持模型呈现顺序） | RD-10 下一版 |
+| 前台语义 | 前台调用仍是 Run 的等待位置：文本 Step 结束后它未结算，Run 回到 waiting；结算到达仍按 SE-14 A 列为 continuation（Run 活动且该位置仍在） | TL-10 不变；"前台 = 模型等它回来"变成"模型等它回来，除非用户先说话" |
+| 人类请求 | waiting_human 下的普通文本不是答复（HD-04 答复走 `answer`），请求保留、位置保留；模型看到文本与请求占位后可以继续等、也可以 stopCall 撤回问题 | HD-04；内建工具第 4 步 |
+| 有序命令 / trigger | 队首是 command 或 trigger 时不取入既有 Run，仍等 Run 终态后由 SE-15 一项一 Run | SE-07 / RN-06 |
+| 基线与恢复 | Run 的 basis 仍是首批；后续取入的批以 `supplement` 记在 Run 上，RN-08 恢复时按 Step 切点重建；`interrupt_then_run` 与 hold 不受影响（hold 时不取） | RN-02 / RN-08；PF-013.C3 |
+| 模型证据 | ToolCall 模型加 `RunSteer`（waiting → running，无公平性、不消费任何调用）：已有不变式在"等待中被用户文本唤醒、前台调用仍开放"的交错下继续成立 | [evidence](evidence/README.md) |
+
+另一边：保持 `queue` = 等到 Run 结束（现状），另加第三种到达行为 `steer`；代价是用户
+要理解三个选项、默认值之争回到产品层。作者不建议。
+
 ## 恢复窗口
 
 按 [RD-16](../../../spec/capabilities/run-driver/v2/contract.md) 的窗口表，把调用五维的恢复判定
@@ -304,6 +331,9 @@ Run 级等待位置、不在门等待、剩余后台责任已确认独立 → co
 | [TL-09](../../../spec/capabilities/tools/v1/contract.md) 停止的物理事实 | 只说"受理、真实停止、清理、外部结果分开返回"，无封闭词表；local-execution 设计与本提案维度 D 不一致 | 下一版封闭三轴词表 `physical / cleanup / effect`（决定点 ah）；local-execution 设计随之对齐 |
 | [MC-04](../../../spec/capabilities/model-execution/v1/contract.md) interrupt 的归属 | 只为强停写了接纳账本与迟到启动墓碑 | 下一版写明 interrupt 共用 |
 | [CT-03](../../../spec/capabilities/media-content/v1/contract.md) 与 PF-015 制品 | 工具生成媒体的引用不记录产生它的调用与 attempt；制品（[PF-015](../../requirements/product/agent/PF-015-artifact-management-and-isolated-working-copies.md)）无任何契约 | CT 下一版给 `retainReference` 加来源 `producedBy{call, attempt}`；制品对象与读取入口按决定点 ai 另开能力设计（[schema.md 制品](schema.md#制品与呈现去重)） |
+| [SE-04 / SE-06 / SE-15](../../../spec/capabilities/session/v1/contract.md) 等待期间的排队文本 | `queue` 到达行为只说"耐久等待"，取批只在无活动占位时开新 Run；Run 在等工具或人时队列干等 | 下一版按决定点 aj：`takeBatch` 增加取入既有 Run 的形态（`queue.items.taken{into}` + `run.step.opened` 同提交），`queue` 的含义为"当前 Run 的下一个空闲点消费"（[等待期间的排队用户输入](#等待期间的排队用户输入候选决定点-aj)） |
+| [RD-06 / RD-10 / RD-11](../../../spec/capabilities/run-driver/v2/contract.md) 等待出边与切点来源 | 等待出边封闭为接续 / 审批 / 请求关闭 / 门恢复，不含队首文本；切点来源没有"取入的用户批" | 下一版：唤醒集合加"队首合格文本"，判定顺序在就绪接续之后、等待之前；切点来源加取入的用户批与在途调用的 `deferred_receipt` |
+| [RN-02 / RN-08](../../../spec/capabilities/run/v1/contract.md) basis 与补充批 | Run 只记首批 basis | 下一版：后续取入的批记 `supplement`，恢复按 Step 切点重建 |
 
 提供者设计的配套义务（不是契约缺口）：[tools 设计](../../../packages/tools/tools/design.md)仍是
 session-run@1 基线，接受后按本提案重写（detach、interrupt_then_run、三段式事件名）；

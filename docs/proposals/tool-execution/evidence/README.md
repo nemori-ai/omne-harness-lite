@@ -47,6 +47,10 @@
   位置整体释放（continuation 改判 context、幸存开放调用一律 background），新 Run 立即
   running；模型只有一个 Run 槽位，所以旧 Run 的 `interrupted{supersededByInput}` 状态不单独
   表示，由 `SupersedeReleasesPositions` / `SupersedeKeepsWork` 两条动作性质表达它的效应。
+- 等待期间的排队用户输入（PF-013.C5 的 2026-09-15 补充，候选政策决定点 aj）建模为
+  `RunSteer`：waiting → running，不改任何调用；队列本身不建模，动作无公平性（用户可能
+  永远不说话）。它让"Run 在等待中被用户文本唤醒、前台调用仍开放、随后结算按 A 列进
+  continuation"的交错进入状态空间，既有不变式与进展性质在其上继续检查。
 - 不建模：帧、租户、费用、时间与预算、Yield、force_stop 的 epoch 撤销、hooks、
   `request_approval` 决定被后续调用消费、占位与迟到结果的投影（Detach / StopRequest 作为
   无标签触发；投影是驱动器的结构性质 T-14）、停止未知的可见状态（决定点 ae 的界面部分）。

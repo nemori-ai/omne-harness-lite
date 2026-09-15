@@ -1,11 +1,11 @@
 TLC2 Version 2026.09.12.025210 (rev: 867aefb)
-Running breadth-first search Model-Checking with fp 53 and seed -8094319743398045444 with 4 workers on 8 cores with 3641MB heap and 64MB offheap memory [pid: 152359] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Running breadth-first search Model-Checking with fp 101 and seed -3106614977719070414 with 4 workers on 8 cores with 3641MB heap and 64MB offheap memory [pid: 201169] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
 Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/docs/proposals/tool-execution/evidence/model/ToolCallMC.tla
 Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/docs/proposals/tool-execution/evidence/model/ToolCall.tla
-Parsing file /tmp/tlc-8635814015544106252/TLC.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
-Parsing file /tmp/tlc-8635814015544106252/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
-Parsing file /tmp/tlc-8635814015544106252/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
-Parsing file /tmp/tlc-8635814015544106252/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file /tmp/tlc-3850667626800822682/TLC.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file /tmp/tlc-3850667626800822682/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-3850667626800822682/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-3850667626800822682/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
@@ -14,10 +14,10 @@ Semantic processing of module TLC
 Semantic processing of module ToolCallMC
 Linting of module ToolCall
 Linting of module ToolCallMC
-Starting... (2026-09-15 05:30:42)
+Starting... (2026-09-15 05:44:38)
 Computing initial states...
 Computed 2 initial states...
-Finished computing initial states: 4 states generated, with 3 of them distinct at 2026-09-15 05:30:42.
+Finished computing initial states: 4 states generated, with 3 of them distinct at 2026-09-15 05:44:39.
 Error: Action property AttemptMonotone is violated.
 Error: The behavior up to this point is:
 State 1: <Initial predicate>
@@ -132,6 +132,6 @@ State 8: <OwnerRecoverRedispatch line 11, col 3 to line 16, col 72 of module Too
 /\ run = "running"
 /\ owner = "alive"
 
-8405 states generated, 3297 distinct states found, 2023 states left on queue.
+6488 states generated, 2666 distinct states found, 1689 states left on queue.
 The depth of the complete state graph search is 8.
-Finished in 00s at (2026-09-15 05:30:43)
+Finished in 00s at (2026-09-15 05:44:39)
