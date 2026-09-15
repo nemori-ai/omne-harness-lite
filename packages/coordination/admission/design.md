@@ -9,7 +9,9 @@
 [迁移采用](../../../docs/proposals/core-capabilities/implementation/shared-interfaces.md#p1-映射迁移的采用)；
 该迁移当时不更改原公开记法或行为，也未交付产品。
 
-精确承诺沿 [CC v1](../../../spec/compositions/core-work-coordination/v1/contract.md)、
+精确承诺沿 [CC v1](../../../spec/compositions/core-work-coordination/v1/contract.md)（当前版本为
+[CC v2](../../../spec/compositions/core-work-coordination/v2/contract.md)，v2 只放宽 CC-01 的
+组合声明规则，其余条款原文不变，本包行为不变）、
 [DR v1](../../../spec/capabilities/durable-records/v1/contract.md)、
 [core-work v1](../../../spec/data/core-work/v1/contract.md) 与
 [identity v1](../../../spec/data/agent-runtime-identity/v1/contract.md)。
