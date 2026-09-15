@@ -20,9 +20,11 @@ describe('exact Money values', () => {
   })
 
   it('rejects noncanonical values, mixed currencies, and negative constrained amounts', () => {
+    // The shared Money schema admits "-0"; the accepted copy is the canonical "0".
+    expect(accepted(validateMoney(money('-0')))).toEqual(money('0'))
+    expect(accepted(validateMoney(money('-0'), { nonNegative: true }))).toEqual(money('0'))
     for (const invalid of [
       money('01'),
-      money('-0'),
       money('1.0'),
       money('1', -1),
       money('1', Number.MAX_SAFE_INTEGER + 1),

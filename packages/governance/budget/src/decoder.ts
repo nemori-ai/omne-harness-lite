@@ -11,8 +11,9 @@ import type {
 import { canonicalJson, equalJson, parseData, parseJson } from '@omne-harness-lite/work-data'
 import type { EvidenceRef } from '@omne-harness-lite/tenant'
 import { validateMoney } from './money.ts'
-import { accepted, rejected } from './result.ts'
-import type { BudgetIssue, BudgetIssueCode, BudgetResult } from './result.ts'
+import { accepted, issueOf, rejectedWith } from './result.ts'
+import type { BudgetIssueCode } from './result.ts'
+import type { Checked, ValidationIssue } from '@omne-harness-lite/work-data'
 import type {
   Allocation,
   Budget,
@@ -29,13 +30,13 @@ import type {
 } from './types.ts'
 
 class ValidationFailure extends Error {
-  constructor(readonly issue: BudgetIssue) {
+  constructor(readonly issue: ValidationIssue) {
     super(issue.message)
   }
 }
 
 function problem(code: BudgetIssueCode, message: string, path: string): never {
-  throw new ValidationFailure(Object.freeze({ code, message, path }))
+  throw new ValidationFailure(issueOf(code, message, path))
 }
 
 function pointer(path: string, segment: string | number): string {
@@ -132,10 +133,10 @@ function moneyValue(value: JsonValue, path: string, nonNegative = false, currenc
   const checked = validateMoney(value, { nonNegative })
   if (!checked.ok) {
     const issue = checked.issues[0]
-    problem(
-      issue?.code ?? 'money',
-      issue?.message ?? 'invalid Money',
-      `${path}${issue?.path ?? ''}`,
+    throw new ValidationFailure(
+      issue === undefined
+        ? issueOf('money', 'invalid Money', path)
+        : Object.freeze({ ...issue, path: `${path}${issue.path}` }),
     )
   }
   if (currency !== undefined && checked.value.currency !== currency) {
@@ -1179,21 +1180,15 @@ function decodeRecord(
   problem('kind', `unknown budget record kind ${JSON.stringify(kind)}`, path)
 }
 
-function fromRecordFailure<T>(
-  issues: readonly Readonly<{ path: string; code: string; message: string }>[],
-): BudgetResult<T> {
-  const issue = issues[0]
-  return rejected(
-    issue?.code === 'capacity' ? 'capacity' : 'record',
-    issue?.message ?? 'invalid record envelope',
-    issue?.path ?? '',
-  )
+/** The records codec and the shared JSON parser already report `ValidationIssue`s; pass them through unchanged. */
+function fromRecordFailure<T>(issues: readonly ValidationIssue[]): Checked<T> {
+  return rejectedWith(issues.length === 0 ? [issueOf('record', 'invalid record envelope')] : issues)
 }
 
 function decodeValidatedEnvelope(
   envelope: CommitEnvelope,
   limits: CodecLimits,
-): BudgetResult<DecodedBudgetEnvelope> {
+): Checked<DecodedBudgetEnvelope> {
   try {
     const parsedInput = parseJson(envelope.canonicalInput, limits)
     if (!parsedInput.ok) return fromRecordFailure(parsedInput.issues)
@@ -1307,8 +1302,7 @@ function decodeValidatedEnvelope(
       }),
     )
   } catch (error) {
-    if (error instanceof ValidationFailure)
-      return Object.freeze({ ok: false, issues: Object.freeze([error.issue]) })
+    if (error instanceof ValidationFailure) return rejectedWith([error.issue])
     throw error
   }
 }
@@ -1316,7 +1310,7 @@ function decodeValidatedEnvelope(
 export function decodeBudgetEnvelope(
   envelope: CommitEnvelope,
   limits: CodecLimits,
-): BudgetResult<DecodedBudgetEnvelope> {
+): Checked<DecodedBudgetEnvelope> {
   const encoded = encodeEnvelope(envelope, limits)
   if (!encoded.ok) return fromRecordFailure(encoded.issues)
   const decoded = decodeJournalLine(encoded.value, limits)
@@ -1327,7 +1321,7 @@ export function decodeBudgetEnvelope(
 export function decodeBudgetLine(
   line: Uint8Array,
   limits: CodecLimits,
-): BudgetResult<DecodedBudgetEnvelope> {
+): Checked<DecodedBudgetEnvelope> {
   const decoded = decodeJournalLine(line, limits)
   if (!decoded.ok) return fromRecordFailure(decoded.issues)
   return decodeValidatedEnvelope(decoded.value.envelope, limits)

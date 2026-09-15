@@ -33,10 +33,17 @@ function accepted<T>(result: { ok: boolean; value?: T }): T {
   return result.value as T
 }
 
-function rejected(result: { ok: boolean; issues?: readonly { code: string }[] }, code?: string) {
+// Results use the shared Checked shape; the budget failure category is the message prefix.
+function rejected(
+  result: { ok: boolean; issues?: readonly { code: string; message: string }[] },
+  category?: string,
+) {
   expect(result.ok).toBe(false)
-  if (code !== undefined && !result.issues?.some(issue => issue.code === code)) {
-    throw new Error(`expected rejection ${code}: ${JSON.stringify(result)}`)
+  if (
+    category !== undefined &&
+    !result.issues?.some(issue => issue.message.startsWith(`${category}: `))
+  ) {
+    throw new Error(`expected rejection ${category}: ${JSON.stringify(result)}`)
   }
 }
 

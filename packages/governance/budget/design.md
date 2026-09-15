@@ -6,7 +6,9 @@
 保留历史与证据。当前实施只服务最小 allow 基线的真实本地预算。
 
 采用 [BG v1](../../../spec/capabilities/budget-accounting/v1/contract.md) BG-01–04、
-[CC v1](../../../spec/compositions/core-work-coordination/v1/contract.md)、
+[CC v1](../../../spec/compositions/core-work-coordination/v1/contract.md)（当前版本已是
+[CC v2](../../../spec/compositions/core-work-coordination/v2/contract.md)，v2 只放宽 CC-01 的
+组合声明规则、其余条款原文不变，本包的"预算预留与调用受理同批"一行在两版都保留）、
 [DR v1](../../../spec/capabilities/durable-records/v1/contract.md) 和
 [治理接口](../../../docs/proposals/core-capabilities/implementation/governance-interfaces.md)
 `058c77c`。金额、来源立场、period/attempt、事件与联合预留算法见下文；
@@ -81,6 +83,21 @@ reconciled/never_started 事件才释放终态预留；final 组成、Run finish
 推导结算。源码入口、命令、反例和公开产物消费见
 [包说明](./README.md)与[记录恢复证据](./evidence/records-recovery/README.md)。这些检查不
 识别 EvidenceRef 的真实权威，不授予 runtime admission，也不证明实际费用或持久化。
+
+集成到 HUB 时（2026-09-15，首批交接取舍）固定的四条实现政策，都是记录解释层的选择，
+不改上面的账目规则：
+
+- 结果形状复用 work-data 的 `Checked` / `ValidationIssue`（与 tenant 包同一做法），预算的
+  失败类别（`money`、`revision`、`causality`、`fact_conflict` 等）写在 `message` 前缀，只有
+  容量类映射到共享 `capacity` 码；不再有第二套结果类型。
+- `Money` 的结构校验就是共享 Schema（`parseData('Money')`），本包只加算术约束；Schema 允许
+  `"-0"`，接受后的副本归一为 `"0"`，符号算术只见到规范形。
+- 同一 envelope 内的记录按 kind 的固定先后处理（budget、period、posture、attempt、fact …），
+  同 kind 保持原序：一批是原子成立的集合，不是序列；同一 envelope 内规范 JSON 完全相同的
+  记录只解释一次（`attempt_reserved` 要在每个被触及的 budget stream 各写一行）。
+- 一个 attempt 的全部 allocation 在创建与费用变化时保持同一 `reserved` 值；`readAttemptExposure`
+  据此取任一 allocation 的预留。将来若出现按预算分别调整的记录，这条不变量与读面要一起改。
+- 账本数组按规范 JSON 的码元序排序（不用 `localeCompare`），恢复结果跨环境逐字节稳定。
 
 ## 实施协议的采用来源
 

@@ -3,8 +3,9 @@ import type { JsonValue, Money, OpaqueId } from '@omne-harness-lite/work-data'
 import { canonicalJson, equalJson } from '@omne-harness-lite/work-data'
 import { decodeBudgetEnvelope, decodeBudgetLine, factDigest } from './decoder.ts'
 import { addMoney, compareMoney, maxMoney, subtractMoney, validateMoney } from './money.ts'
-import { accepted, isRejected, rejected } from './result.ts'
-import type { BudgetIssue, BudgetIssueCode, BudgetResult } from './result.ts'
+import { accepted, isRejected, issueOf, rejected, rejectedWith } from './result.ts'
+import type { BudgetIssueCode } from './result.ts'
+import type { Checked, ValidationIssue } from '@omne-harness-lite/work-data'
 import type {
   Allocation,
   AttemptAccount,
@@ -25,17 +26,22 @@ import type {
 } from './types.ts'
 
 class FoldFailure extends Error {
-  constructor(readonly issue: BudgetIssue) {
+  constructor(readonly issue: ValidationIssue) {
     super(issue.message)
   }
 }
 
 function fail(code: BudgetIssueCode, message: string, path = ''): never {
-  throw new FoldFailure(Object.freeze({ code, message, path }))
+  throw new FoldFailure(issueOf(code, message, path))
 }
 
-function fromFailure(error: FoldFailure): BudgetResult<never> {
-  return Object.freeze({ ok: false, issues: Object.freeze([error.issue]) })
+/** Re-raises an issue produced by a nested check without rewrapping it. */
+function failIssue(issue: ValidationIssue): never {
+  throw new FoldFailure(issue)
+}
+
+function fromFailure(error: FoldFailure): Checked<never> {
+  return rejectedWith([error.issue])
 }
 
 function exact(left: unknown, right: unknown): boolean {
@@ -95,7 +101,11 @@ function ensureMoney(value: Money, currency: string, path: string, nonNegative =
   const checked = validateMoney(value, { nonNegative })
   if (isRejected(checked)) {
     const issue = checked.issues[0]
-    fail(issue?.code ?? 'money', issue?.message ?? 'invalid Money', path)
+    failIssue(
+      issue === undefined
+        ? issueOf('money', 'invalid Money', path)
+        : Object.freeze({ ...issue, path: `${path}${issue.path}` }),
+    )
   }
   if (checked.value.currency !== currency) {
     fail('currency', `expected ${currency}, received ${checked.value.currency}`, path)
@@ -106,13 +116,14 @@ function boundReserve(source: SourcePosture['source']): Money {
   return source.bound.kind === 'finite' ? source.bound.maximum : source.bound.knownReserve
 }
 
+/** Code-unit order on canonical JSON: locale- and ICU-independent, so recovered state is byte-stable across environments. */
 function sortByCanonical<T>(values: readonly T[]): readonly T[] {
   return Object.freeze(
-    [...values].sort((left, right) =>
-      canonicalJson(left as unknown as JsonValue).localeCompare(
-        canonicalJson(right as unknown as JsonValue),
-      ),
-    ),
+    [...values].sort((left, right) => {
+      const a = canonicalJson(left as unknown as JsonValue)
+      const b = canonicalJson(right as unknown as JsonValue)
+      return a < b ? -1 : a > b ? 1 : 0
+    }),
   )
 }
 
@@ -176,10 +187,7 @@ function currentFactsForAttempt(
   )
 }
 
-function knownCost(
-  facts: readonly SourceFactEntry[],
-  account: AttemptAccount,
-): BudgetResult<Money> {
+function knownCost(facts: readonly SourceFactEntry[], account: AttemptAccount): Checked<Money> {
   let total = zeroMoney(
     account.attempt.source.currency,
     account.attempt.source.bound.kind === 'finite'
@@ -198,7 +206,7 @@ function knownCost(
 function expectedReserve(
   account: AttemptAccount,
   facts: readonly SourceFactEntry[],
-): BudgetResult<Money> {
+): Checked<Money> {
   if (account.phase === 'reconciled' || account.phase === 'released_before_start') {
     const original = boundReserve(account.attempt.source)
     return accepted(zeroMoney(original.currency, original.scale))
@@ -226,7 +234,7 @@ function currentQualities(
 export function readAttemptExposure(
   state: BudgetLedger,
   chargeAttemptId: OpaqueId,
-): BudgetResult<AttemptExposure> {
+): Checked<AttemptExposure> {
   const account = state.attempts.find(item => item.attempt.chargeAttemptId === chargeAttemptId)
   if (account === undefined) return rejected('ownership', 'unknown charge attempt')
   const cost = knownCost(state.sourceFacts, account)
@@ -380,12 +388,11 @@ function currentBudgetExposure(
     )
     if (allocation === undefined) continue
     const cost = knownCost(facts, account)
-    if (isRejected(cost)) fail(cost.issues[0]!.code, cost.issues[0]!.message)
+    if (isRejected(cost)) failIssue(cost.issues[0]!)
     const contribution = addMoney(cost.value, allocation.reserved)
-    if (isRejected(contribution))
-      fail(contribution.issues[0]!.code, contribution.issues[0]!.message)
+    if (isRejected(contribution)) failIssue(contribution.issues[0]!)
     const next = addMoney(total, contribution.value)
-    if (isRejected(next)) fail(next.issues[0]!.code, next.issues[0]!.message)
+    if (isRejected(next)) failIssue(next.issues[0]!)
     total = next.value
   }
   return total
@@ -422,10 +429,7 @@ function validateAttemptCausality(
   }
 }
 
-function applyDecoded(
-  state: BudgetLedger,
-  decoded: DecodedBudgetEnvelope,
-): BudgetResult<BudgetLedger> {
+function applyDecoded(state: BudgetLedger, decoded: DecodedBudgetEnvelope): Checked<BudgetLedger> {
   try {
     if (
       state.coordinationDomain !== null &&
@@ -635,17 +639,15 @@ function applyDecoded(
           }
           const before = currentBudgetExposure(attempts, sourceFacts, target)
           const after = addMoney(before, item.reserved)
-          if (isRejected(after)) fail(after.issues[0]!.code, after.issues[0]!.message)
+          if (isRejected(after)) failIssue(after.issues[0]!)
           const withinLimit = compareMoney(after.value, target.limit!)
-          if (isRejected(withinLimit))
-            fail(withinLimit.issues[0]!.code, withinLimit.issues[0]!.message)
+          if (isRejected(withinLimit)) failIssue(withinLimit.issues[0]!)
           if (withinLimit.value > 0) {
             fail('transition', 'persisted reservation exceeds the hard budget limit')
           }
           if (attempt.source.bound.kind === 'unknown') {
             const beforeLimit = compareMoney(before, target.limit!)
-            if (isRejected(beforeLimit))
-              fail(beforeLimit.issues[0]!.code, beforeLimit.issues[0]!.message)
+            if (isRejected(beforeLimit)) failIssue(beforeLimit.issues[0]!)
             if (beforeLimit.value >= 0) {
               fail('transition', 'unknown attempt cannot start when hard exposure is at its limit')
             }
@@ -695,7 +697,7 @@ function applyDecoded(
     const beforeCosts = new Map<string, Money>()
     for (const account of attempts.values()) {
       const cost = knownCost(sourceFacts, account)
-      if (isRejected(cost)) fail(cost.issues[0]!.code, cost.issues[0]!.message)
+      if (isRejected(cost)) failIssue(cost.issues[0]!)
       beforeCosts.set(account.attempt.chargeAttemptId, cost.value)
     }
 
@@ -783,7 +785,7 @@ function applyDecoded(
         beforeCosts.get(account.attempt.chargeAttemptId) ??
         zeroMoney(account.attempt.source.currency, 0)
       const after = knownCost(sourceFacts, account)
-      if (isRejected(after)) fail(after.issues[0]!.code, after.issues[0]!.message)
+      if (isRejected(after)) failIssue(after.issues[0]!)
       if (!sameMoney(before, after.value)) changedCosts.add(account.attempt.chargeAttemptId)
     }
 
@@ -835,7 +837,7 @@ function applyDecoded(
         fail('transition', 'reservation before amount does not match current state')
       ensureMoney(record.data.after, current.reserved.currency, '/reservation/after', true)
       const expected = expectedReserve(account, sourceFacts)
-      if (isRejected(expected)) fail(expected.issues[0]!.code, expected.issues[0]!.message)
+      if (isRejected(expected)) failIssue(expected.issues[0]!)
       if (!sameMoney(record.data.after, expected.value))
         fail('transition', 'partial meter reserve must equal max(bound minus current cost, zero)')
       const updated = [...account.currentAllocations]
@@ -850,7 +852,7 @@ function applyDecoded(
       if (terminalAttempts.has(chargeAttemptId)) continue
       const account = attempts.get(chargeAttemptId)!
       const expected = expectedReserve(account, sourceFacts)
-      if (isRejected(expected)) fail(expected.issues[0]!.code, expected.issues[0]!.message)
+      if (isRejected(expected)) failIssue(expected.issues[0]!)
       for (const allocation of account.currentAllocations) {
         if (!sameMoney(allocation.reserved, expected.value)) {
           fail(
@@ -1018,7 +1020,7 @@ export function applyBudgetEnvelope(
   state: BudgetLedger,
   envelope: CommitEnvelope,
   limits: CodecLimits,
-): BudgetResult<BudgetLedger> {
+): Checked<BudgetLedger> {
   const decoded = decodeBudgetEnvelope(envelope, limits)
   return isRejected(decoded) ? decoded : applyDecoded(state, decoded.value)
 }
@@ -1027,7 +1029,7 @@ export function foldBudgetEnvelopes(
   envelopes: readonly CommitEnvelope[],
   limits: CodecLimits,
   initial: BudgetLedger = createBudgetLedger(),
-): BudgetResult<BudgetLedger> {
+): Checked<BudgetLedger> {
   let state = initial
   for (const envelope of envelopes) {
     const applied = applyBudgetEnvelope(state, envelope, limits)
@@ -1041,7 +1043,7 @@ export function decodeAndFoldBudgetLines(
   lines: readonly Uint8Array[],
   limits: CodecLimits,
   initial: BudgetLedger = createBudgetLedger(),
-): BudgetResult<BudgetLedger> {
+): Checked<BudgetLedger> {
   let state = initial
   for (const line of lines) {
     const decoded = decodeBudgetLine(line, limits)

@@ -1,12 +1,11 @@
 import * as budgetApi from '@omne-harness-lite/budget'
 import type { CodecLimits, CommitEnvelope } from '@omne-harness-lite/records'
-import type { Money } from '@omne-harness-lite/work-data'
+import type { Checked, Money } from '@omne-harness-lite/work-data'
 import type {
   Allocation,
   AttemptExposure,
   Budget,
   BudgetLedger,
-  BudgetResult,
   ChargeAttempt,
   CostSource,
   DecodedBudgetEnvelope,
@@ -30,12 +29,12 @@ declare const limits: CodecLimits
 const values = [budget, period, source, allocation, attempt, fact, decoded, exposure]
 void values
 
-const moneyResult: BudgetResult<Money> = budgetApi.addMoney(amount, amount)
-const decodedResult: BudgetResult<DecodedBudgetEnvelope> = budgetApi.decodeBudgetEnvelope(
+const moneyResult: Checked<Money> = budgetApi.addMoney(amount, amount)
+const decodedResult: Checked<DecodedBudgetEnvelope> = budgetApi.decodeBudgetEnvelope(
   envelope,
   limits,
 )
-const nextResult: BudgetResult<BudgetLedger> = budgetApi.applyBudgetEnvelope(
+const nextResult: Checked<BudgetLedger> = budgetApi.applyBudgetEnvelope(
   budgetApi.createBudgetLedger(),
   envelope,
   limits,

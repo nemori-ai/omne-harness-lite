@@ -25,7 +25,7 @@
     },
     {
       "path": "src/result.ts",
-      "purpose": "Explicit accepted or rejected result values for validation and recovery"
+      "purpose": "Shared Checked result helpers with the budget failure category as the message prefix"
     }
   ]
 }

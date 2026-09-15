@@ -3,8 +3,10 @@
 Pure budget-accounting values, durable-record decoding, exact Money operations, and deterministic
 recovery for the accepted `budget` record owner.
 
-The default entry exports the budget, period, source, attempt, allocation, meter-fact, ledger, and
-result types. It also exports:
+The default entry exports the budget, period, source, attempt, allocation, meter-fact, and ledger
+types. Results use the shared `Checked` / `ValidationIssue` shape from `@omne-harness-lite/work-data`
+(one definition per concept, as the tenant package does); the budget failure category
+(`money`, `revision`, `causality`, …) is the message prefix. It also exports:
 
 - `validateMoney`, `rescaleMoney`, `addMoney`, `subtractMoney`, `compareMoney`, and `maxMoney` for
   exact integer arithmetic without floating-point conversion or currency mixing;

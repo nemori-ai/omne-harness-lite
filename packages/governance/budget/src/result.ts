@@ -1,3 +1,10 @@
+import type { Checked, ValidationIssue } from '@omne-harness-lite/work-data'
+
+/**
+ * Budget failure categories. Results use the shared `Checked` / `ValidationIssue`
+ * shape from work-data (one definition per concept); the category is carried as
+ * the message prefix, and only `capacity` maps to the shared `capacity` code.
+ */
 export type BudgetIssueCode =
   | 'capacity'
   | 'causality'
@@ -15,28 +22,26 @@ export type BudgetIssueCode =
   | 'transition'
   | 'version'
 
-export type BudgetIssue = Readonly<{
-  path: string
-  code: BudgetIssueCode
-  message: string
-}>
-
-export type BudgetResult<T> =
-  Readonly<{ ok: true; value: T }> | Readonly<{ ok: false; issues: readonly BudgetIssue[] }>
-
-export function accepted<T>(value: T): BudgetResult<T> {
-  return Object.freeze({ ok: true, value })
-}
-
-export function rejected<T>(code: BudgetIssueCode, message: string, path = ''): BudgetResult<T> {
+export function issueOf(code: BudgetIssueCode, message: string, path = ''): ValidationIssue {
   return Object.freeze({
-    ok: false,
-    issues: Object.freeze([Object.freeze({ path, code, message })]),
+    path,
+    code: code === 'capacity' ? 'capacity' : 'schema',
+    message: `${code}: ${message}`,
   })
 }
 
-export function isRejected<T>(
-  value: BudgetResult<T>,
-): value is Extract<BudgetResult<T>, { ok: false }> {
+export function accepted<T>(value: T): Checked<T> {
+  return Object.freeze({ ok: true, value })
+}
+
+export function rejected<T>(code: BudgetIssueCode, message: string, path = ''): Checked<T> {
+  return rejectedWith([issueOf(code, message, path)])
+}
+
+export function rejectedWith<T>(issues: readonly ValidationIssue[]): Checked<T> {
+  return Object.freeze({ ok: false, issues: Object.freeze([...issues]) })
+}
+
+export function isRejected<T>(value: Checked<T>): value is Extract<Checked<T>, { ok: false }> {
   return !value.ok
 }
