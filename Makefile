@@ -1,7 +1,11 @@
-.PHONY: check docs-check spec-check spec-tools test product-check
+.PHONY: check agents-check docs-check spec-check spec-tools test product-check
 
 check:
 	./scripts/check.sh
+
+agents-check:
+	PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/compile_agents.py --source .meta_harness/agents --output .meta_harness --check
+	PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/link_agents.py --project-root . --check
 
 docs-check:
 	uv run --locked omne-docs-check $(if $(BASELINE),--baseline "$(BASELINE)")

@@ -1,0 +1,302 @@
+{
+  "status": "draft-selective-integration; old-entries-retained",
+  "repository_revision": "55ac071ec2c41f90ec836b21cf43db32dc4abb5e",
+  "guide": [
+    {
+      "source": "docs/architecture-guide/AGENTS.md",
+      "sha256": "dc10f6d03507bc661f0fc7ed5a287bd9da3e6bb17c675b3d55e70607648726e4",
+      "treatment": "retain-source-only",
+      "changes": "AGENTS.md/CLAUDE.md 属于旧指南目录治理，不作为运行资源复制"
+    },
+    {
+      "source": "docs/architecture-guide/CLAUDE.md",
+      "sha256": "336cc4fbf19beaada7ccf9986414fa91851a8d7a07dfb3ccbe800a69eed0ab49",
+      "treatment": "retain-source-only",
+      "changes": "AGENTS.md/CLAUDE.md 属于旧指南目录治理，不作为运行资源复制"
+    },
+    {
+      "source": "docs/architecture-guide/README.md",
+      "sha256": "a2326a69c687e36207abe32a610745b1e8d81724418c3bf2d33e1d465cb15d46",
+      "treatment": "replace-navigation",
+      "target": "canonical/references/topics.md",
+      "changes": "原索引由阶段入口与 topics 重组；实际输入由 workspace-context 导航。来源路径不作为运行时回读要求。"
+    },
+    {
+      "source": "docs/architecture-guide/assurance/README.md",
+      "sha256": "de2aad11bd4595933a4d77b77ac522b1514ee58b58920d2a3b285a8ad74a4afa",
+      "treatment": "replace-navigation",
+      "target": "canonical/references/topics.md",
+      "changes": "原索引由阶段入口与 topics 重组；实际输入由 workspace-context 导航。来源路径不作为运行时回读要求。"
+    },
+    {
+      "source": "docs/architecture-guide/assurance/composability.md",
+      "sha256": "e022897295c989df628cd1a090253dbc42467ecaec8b88137c4083ee54399d19",
+      "treatment": "adapt-topic",
+      "target": "canonical/references/architecture/assurance/composability.md",
+      "changes": "按新设计模型保留有效主题，职责调整/压缩/条件化处置见 completeness-review.md；不维持原文逐段等量复制。"
+    },
+    {
+      "source": "docs/architecture-guide/assurance/invariants.md",
+      "sha256": "9d2ed6f92061ecbdefe113c8ab5906f38c251037cb6be1ee00c14e11bb60dcae",
+      "treatment": "adapt-topic",
+      "target": "canonical/references/architecture/assurance/invariants.md",
+      "changes": "按新设计模型保留有效主题，职责调整/压缩/条件化处置见 completeness-review.md；不维持原文逐段等量复制。"
+    },
+    {
+      "source": "docs/architecture-guide/assurance/judgment.md",
+      "sha256": "d6d5c4fcc2ce7c77a0546c33daf1bec61906d75c5017da1ce65eca7ae20d9258",
+      "treatment": "adapt-topic",
+      "target": "canonical/references/architecture/assurance/judgment.md",
+      "changes": "按新设计模型保留有效主题，职责调整/压缩/条件化处置见 completeness-review.md；不维持原文逐段等量复制。"
+    },
+    {
+      "source": "docs/architecture-guide/assurance/specification.md",
+      "sha256": "9228fcf6d58b6f90f7090694a4a83198de66fd40a84b18d419df928a859c0537",
+      "treatment": "adapt-topic",
+      "target": "canonical/references/architecture/assurance/specification.md",
+      "changes": "按新设计模型保留有效主题，职责调整/压缩/条件化处置见 completeness-review.md；不维持原文逐段等量复制。"
+    },
+    {
+      "source": "docs/architecture-guide/examples/README.md",
+      "sha256": "7cdb80b3b22286db41a4d302b1860994a0ccc0b210281373755e521dffb954a3",
+      "treatment": "replace-navigation",
+      "target": "canonical/references/topics.md",
+      "changes": "原索引由阶段入口与 topics 重组；实际输入由 workspace-context 导航。来源路径不作为运行时回读要求。"
+    },
+    {
+      "source": "docs/architecture-guide/examples/model-switch.md",
+      "sha256": "79086598631b8976cee5b148cc111158663476df1cc6a87a011ef7850028274c",
+      "treatment": "adapt-topic",
+      "target": "canonical/references/architecture/examples/model-switch.md",
+      "changes": "按新设计模型保留有效主题，职责调整/压缩/条件化处置见 completeness-review.md；不维持原文逐段等量复制。"
+    },
+    {
+      "source": "docs/architecture-guide/examples/prompt-bindings.md",
+      "sha256": "9947c1310fbaea7a5a3d15b61c2f54e3f4006b2024c97de0d857fdbdfd45cbc9",
+      "treatment": "adapt-topic",
+      "target": "canonical/references/architecture/examples/prompt-bindings.md",
+      "changes": "按新设计模型保留有效主题，职责调整/压缩/条件化处置见 completeness-review.md；不维持原文逐段等量复制。"
+    },
+    {
+      "source": "docs/architecture-guide/examples/storage-replacement.md",
+      "sha256": "68eaea2e884260646d3395e0fb9b1e9a07e1215dc9c30afd68c78fbd8d2de210",
+      "treatment": "adapt-topic",
+      "target": "canonical/references/architecture/examples/storage-replacement.md",
+      "changes": "按新设计模型保留有效主题，职责调整/压缩/条件化处置见 completeness-review.md；不维持原文逐段等量复制。"
+    },
+    {
+      "source": "docs/architecture-guide/foundations/README.md",
+      "sha256": "d276cc86f6ef5b35eb77c9cb6ddd99b6df3096c15c38c6f54ff0197df3bea3b7",
+      "treatment": "replace-navigation",
+      "target": "canonical/references/topics.md",
+      "changes": "原索引由阶段入口与 topics 重组；实际输入由 workspace-context 导航。来源路径不作为运行时回读要求。"
+    },
+    {
+      "source": "docs/architecture-guide/foundations/concepts.md",
+      "sha256": "45b4d3b3de5dac1f8d2eb3ed0cf19636dc55617cd5bc81e7e6c1cfe9a899829a",
+      "treatment": "adapt-topic",
+      "target": "canonical/references/architecture/foundations/concepts.md",
+      "changes": "按新设计模型保留有效主题，职责调整/压缩/条件化处置见 completeness-review.md；不维持原文逐段等量复制。"
+    },
+    {
+      "source": "docs/architecture-guide/foundations/paradigm.md",
+      "sha256": "1afe5abd314558607f2aea549d77643b9637685cf28b1f96269d78eaeff44f70",
+      "treatment": "adapt-topic",
+      "target": "canonical/references/architecture/foundations/paradigm.md",
+      "changes": "按新设计模型保留有效主题，职责调整/压缩/条件化处置见 completeness-review.md；不维持原文逐段等量复制。"
+    },
+    {
+      "source": "docs/architecture-guide/modeling/README.md",
+      "sha256": "dce205e807b6f70d32bfa825e7755d5f2b0213c2b291d0c9cd757c246ffe8399",
+      "treatment": "replace-navigation",
+      "target": "canonical/references/topics.md",
+      "changes": "原索引由阶段入口与 topics 重组；实际输入由 workspace-context 导航。来源路径不作为运行时回读要求。"
+    },
+    {
+      "source": "docs/architecture-guide/modeling/capabilities.md",
+      "sha256": "1e5587286d7e61932b9b196fb13786d4e6176ed0f04e2c61f1bad9c45262baf0",
+      "treatment": "adapt-topic",
+      "target": "canonical/references/architecture/modeling/capabilities.md",
+      "changes": "按新设计模型保留有效主题，职责调整/压缩/条件化处置见 completeness-review.md；不维持原文逐段等量复制。"
+    },
+    {
+      "source": "docs/architecture-guide/modeling/identity-and-scope.md",
+      "sha256": "ec2270c79975bd73faa772277e799cca9f67c46d7032702df510ecaaaf18acc4",
+      "treatment": "adapt-topic",
+      "target": "canonical/references/architecture/modeling/identity-and-scope.md",
+      "changes": "按新设计模型保留有效主题，职责调整/压缩/条件化处置见 completeness-review.md；不维持原文逐段等量复制。"
+    },
+    {
+      "source": "docs/architecture-guide/modeling/state-and-storage.md",
+      "sha256": "91d74cd0f721221db9005e850af3553abaf298471eeaea771938bc0c15c3e975",
+      "treatment": "adapt-topic",
+      "target": "canonical/references/architecture/modeling/state-and-storage.md",
+      "changes": "按新设计模型保留有效主题，职责调整/压缩/条件化处置见 completeness-review.md；不维持原文逐段等量复制。"
+    },
+    {
+      "source": "docs/architecture-guide/reference/README.md",
+      "sha256": "fdd5eece3d3569444115df6157ea0cc62adb627572d2937daf060e3bf94161ee",
+      "treatment": "replace-navigation",
+      "target": "canonical/references/topics.md",
+      "changes": "原索引由阶段入口与 topics 重组；实际输入由 workspace-context 导航。来源路径不作为运行时回读要求。"
+    },
+    {
+      "source": "docs/architecture-guide/reference/contract-description.md",
+      "sha256": "8d923b61882a439965f4626d5dbce739f0b5a9872e0078794541498266564223",
+      "treatment": "adapt-topic",
+      "target": "canonical/references/architecture/reference/contract-description.md",
+      "changes": "按新设计模型保留有效主题，职责调整/压缩/条件化处置见 completeness-review.md；不维持原文逐段等量复制。"
+    },
+    {
+      "source": "docs/architecture-guide/reference/cordis-mapping.md",
+      "sha256": "c5a198e47f6b073040308fd4c854b262f6028411a83d0a651e8abdbee9230993",
+      "treatment": "adapt-topic",
+      "target": "canonical/references/architecture/reference/cordis-mapping.md",
+      "changes": "按新设计模型保留有效主题，职责调整/压缩/条件化处置见 completeness-review.md；不维持原文逐段等量复制。"
+    },
+    {
+      "source": "docs/architecture-guide/runtime/README.md",
+      "sha256": "58d15705524d668047998d247fa0613961b60ffec849f88067c6b42b4ed88293",
+      "treatment": "replace-navigation",
+      "target": "canonical/references/topics.md",
+      "changes": "原索引由阶段入口与 topics 重组；实际输入由 workspace-context 导航。来源路径不作为运行时回读要求。"
+    },
+    {
+      "source": "docs/architecture-guide/runtime/distribution.md",
+      "sha256": "48a66549bb288dafd27cb23693fca49b1f2ab604b2e0f1838e7dcc3aedc90465",
+      "treatment": "adapt-topic",
+      "target": "canonical/references/architecture/runtime/distribution.md",
+      "changes": "按新设计模型保留有效主题，职责调整/压缩/条件化处置见 completeness-review.md；不维持原文逐段等量复制。"
+    },
+    {
+      "source": "docs/architecture-guide/runtime/evolution.md",
+      "sha256": "77196770de6ec3e3c945fdd294aaf255be6f1181adaa98edc2c93bb9021b02ca",
+      "treatment": "adapt-topic",
+      "target": "canonical/references/architecture/runtime/evolution.md",
+      "changes": "按新设计模型保留有效主题，职责调整/压缩/条件化处置见 completeness-review.md；不维持原文逐段等量复制。"
+    },
+    {
+      "source": "docs/architecture-guide/runtime/interaction.md",
+      "sha256": "011819a0b1c3da60ac27153332f5ad82fde03b42ddb5326ef02a46aca12c0b8a",
+      "treatment": "adapt-topic",
+      "target": "canonical/references/architecture/runtime/interaction.md",
+      "changes": "按新设计模型保留有效主题，职责调整/压缩/条件化处置见 completeness-review.md；不维持原文逐段等量复制。"
+    },
+    {
+      "source": "docs/architecture-guide/runtime/lifecycle.md",
+      "sha256": "5a085a356a7b3620fbbf045b961b01c2e5e70829e1d879031dd4e96a192f7cfe",
+      "treatment": "adapt-topic",
+      "target": "canonical/references/architecture/runtime/lifecycle.md",
+      "changes": "按新设计模型保留有效主题，职责调整/压缩/条件化处置见 completeness-review.md；不维持原文逐段等量复制。"
+    }
+  ],
+  "method_and_layout_inputs": [
+    {
+      "source": "main-checkout/tmp/requirement-to-plugin-way.md",
+      "sha256": "a5d92dec70b00c02b40d4c26f3c6b3a9694fccda50ac61516287c690fe040d82"
+    },
+    {
+      "source": "main-checkout/tmp/framework-plan.md",
+      "sha256": "cce355047636dfb66d70e1e7ea619aea98c9faced51959fde588b259b925bff2"
+    },
+    {
+      "source": "main-checkout/tmp/meta-harness-layouts/c-private-design.md",
+      "sha256": "973e68b2d18791b725e73b686cdb82789ed20b30348503806f8256495830ee25"
+    }
+  ],
+  "authoring_guidance": "/data/qiwei/.codex/skills/.system/skill-creator/SKILL.md",
+  "context_boundary": "Workspace design context is internal to .meta_harness; source paths below are historical provenance only, never runtime fallbacks.",
+  "boundary_revision": {
+    "basis": "用户明确 .meta_harness 是自包含的设计世界，手册不应预知外部 omne-harness-lite",
+    "removed_runtime_binding": "project-context.md",
+    "internal_context": "canonical/references/workspace-context.md",
+    "adaptation": "产品身份、条款路径与既定产品政策移出运行时方法；专题保留方法并将部署、模型通道、维护权等转为显式需求输入。未导入的设计正文保留缺口。"
+  },
+  "selective_skill_integration": [
+    {
+      "source": ".agents/skills/architecture-design/SKILL.md",
+      "sha256": "50712f25ed48c4b62941c4f435deb7fd6eb60ee35b8d993df79416399c593c33",
+      "status": "selected-methods-integrated; original-entry-retained",
+      "disposition": "completeness-review.md"
+    },
+    {
+      "source": ".agents/skills/implementation-planning/SKILL.md",
+      "sha256": "3a32a5dc9c6bcdbb476b4f00911f3a6fd23e9fa5316c0ad039cf52571361f31a",
+      "status": "selected-methods-integrated; original-entry-retained",
+      "disposition": "completeness-review.md"
+    },
+    {
+      "source": ".agents/skills/spec-maintenance/SKILL.md",
+      "sha256": "954ac317c2a4152c1d5ac62572faa45a474e57258a30aae4234743f0917d7462",
+      "status": "selected-methods-integrated; original-entry-retained",
+      "disposition": "completeness-review.md"
+    },
+    {
+      "source": ".agents/skills/engineering-taste/SKILL.md",
+      "sha256": "8dd03a5914c756d453524a27ef3f0b01f0835dededad9f6dc8dc88c4c7f64eca",
+      "status": "selected-methods-integrated; original-entry-retained",
+      "disposition": "completeness-review.md"
+    },
+    {
+      "source": ".agents/skills/cordis-authoritative-docs/SKILL.md",
+      "sha256": "fc75ea3378dda64b8e4cac91fe7c5cd457af50fc4bfbcd1be3f4035bb218e77a",
+      "status": "selected-methods-integrated; original-entry-retained",
+      "disposition": "completeness-review.md"
+    }
+  ],
+  "maintenance_sources": [
+    {
+      "source": "docs/maintenance/knowledge-flow.md",
+      "sha256": "6b78e051f00016252b150207eeb5efeb4f65425f2b702a4dc140500dbb2a32b9",
+      "treatment": "selective-method-extraction",
+      "disposition": "completeness-review.md"
+    },
+    {
+      "source": "docs/maintenance/organization.md",
+      "sha256": "03e08c1deaeaee4f32d4e02b8386d77fbf1e450f9c13e9ce2928b2f9b1ac1ae3",
+      "treatment": "selective-method-extraction",
+      "disposition": "completeness-review.md"
+    },
+    {
+      "source": "docs/maintenance/requirements.md",
+      "sha256": "6840973459d90ca5bd2527832cbf7842fad6de6ffef2ffb6a38a6f33bfa4f29a",
+      "treatment": "selective-method-extraction",
+      "disposition": "completeness-review.md"
+    },
+    {
+      "source": "docs/maintenance/spec-maintenance.md",
+      "sha256": "a773f2b0d875ec37046684014d166940e27d1616df758dcfe1ce844b3754bb01",
+      "treatment": "selective-method-extraction",
+      "disposition": "completeness-review.md"
+    },
+    {
+      "source": "docs/maintenance/versioning.md",
+      "sha256": "046919cc901bdf5da042debd9a8bcaa655c6cb676ad0b11d7f04955ff48836cf",
+      "treatment": "selective-method-extraction",
+      "disposition": "completeness-review.md"
+    },
+    {
+      "source": "docs/maintenance/delivery-planning.md",
+      "sha256": "949e35ae291a44ba0367d9703b0d20b77c718dd120bbcd9afa16a1aa3b8106aa",
+      "treatment": "selective-method-extraction",
+      "disposition": "completeness-review.md"
+    }
+  ],
+  "completeness_review": {
+    "basis": "用户要求按新设计模型选择性吸纳、优化增删；不机械搬入全部旧内容",
+    "record": "completeness-review.md",
+    "method_gaps_closed": [
+      "design-decisions",
+      "spec-evolution",
+      "delivery-planning"
+    ],
+    "authority_switch": "deferred"
+  },
+  "capability_model_revision": {
+    "basis": "后续用户明确：产品需求分解到现有能力维度；合理组合仍无法承载的剩余独立责任形成新维度，再投影为独立 Cordis 插件。",
+    "record": "capability-model-review.md",
+    "supersedes": "原 S2 固定变化轴与前轮三个空间的能力分解解释；不取代原始资料的历史身份。",
+    "runtime_owner": "canonical/references/decompose.md",
+    "unchanged_scope": "生命周期、状态/身份、组合证明、规格版本与来源核对方法继续适用；不迁移产品资料或切换入口。"
+  }
+}

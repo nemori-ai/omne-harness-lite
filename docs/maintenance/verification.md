@@ -1,8 +1,8 @@
 # 验证、工具与证据
 
-本规范定义检查的边界，落实 [D-001](../decisions/D-001-documentation-system.md)。命令由根 `Makefile` 提供：`make docs-check`、`make spec-check`、`make spec-tools` 和 `make test`。具体实现集中在独立的 [spec-tools 开发包](../../tools/spec-tools/README.md)；Python 工具使用 Python 3.12+，由根 [uv workspace](workspace.md) 管理。实际参数与退出语义以包内实现及各 CLI 的 `--help` 为准。
+本规范定义检查的边界，落实 [D-001](../decisions/D-001-documentation-system.md)。命令由根 `Makefile` 提供：`make agents-check`、`make docs-check`、`make spec-check`、`make spec-tools` 和 `make test`。文档与规格检查实现在独立的 [spec-tools 开发包](../../tools/spec-tools/README.md)，agent 编译与链接检查归 [Meta Harness 工具](../../.meta_harness/tooling/README.md)；Python 工具使用 Python 3.12+，由根 [uv workspace](workspace.md) 管理。实际参数与退出语义以各 CLI 的 `--help` 为准。
 
-组合入口 `make check` 调用 [scripts/check.sh](../../scripts/check.sh)，依次执行文档检查、
+组合入口 `make check` 调用 [scripts/check.sh](../../scripts/check.sh)，依次执行 agent 产物与根链接检查、文档检查、
 规格检查、Python 工具测试和产品包检查，任一步失败即停止。该脚本也支持从其他工作目录通过绝对路径调用，
 供本地与 CI 共用；`make check BASELINE=<git-ref>` 将基线传给文档检查。
 当前已配置独立的 [TS/JS 格式检查 workflow](../../.github/workflows/format.yml)，
@@ -11,6 +11,7 @@
 
 | 层次 | 覆盖 | 不能声称 |
 |---|---|---|
+| `agents-check` | 从 canonical/角色源重新计算产物，核对预期文件内容与权限，以及三个根相对软链接 | 宿主已发现配置、原生权限已生效或模型行为符合预期；不清理输出中的其他文件 |
 | `docs-check` | Markdown 本地链接/锚点、需求 ID 唯一性与主副维度引用、决定来源、取代字段、冻结基线 | 设计正确或因果理由充分 |
 | `spec-check` | catalog 结构、正式版本路径及精确引用、Schema 结构；发现并实际执行声明的 TLA+/Alloy 任务 | 未建模部分已经证明 |
 | `product-check` | 产品职责包的构建、严格类型检查、来源/组合测试、依赖边界、原件完整性及逐包隔离 tarball 消费 | live-agent v1、D-008 目标能力或完整智能体产品已经实现 |
@@ -23,7 +24,7 @@
 可复用验证证据至少记录：契约与模型版本、源码 commit、工具与版本、命令或配置、输入边界/假设和结果。通过、失败、不确定和未覆盖均须如实保留。有限测试或模型检查不能表述为无条件证明。
 
 Markdown 检查覆盖根 README、CONTRIBUTING、AGENTS/CLAUDE 入口，docs/spec、
-packages/apps/tools/scripts 和 agent 配置目录；
+packages/apps/tools/scripts、`.meta_harness/` 与根 agent 配置入口；
 跳过依赖目录、构建产物与临时结果。历史原件按归档哈希核对。扩大源码目录时同步
 维护检查范围，避免目录有了入口文档却没有进入引用检查。
 
@@ -115,9 +116,9 @@ YAML 验证依赖，并以 editable 方式安装根开发组引用的 workspace 
 `make test` 的临时目录为 `tmp/test-runs/`，只用于本仓库测试，
 重跑可清理该目录，不触碰同机其他项目的测试证据。
 
-`make test` 同时覆盖仓库检查器和 [subagent 双端生成器](../../.agents/skills/design-subagents/references/packaging.md)
-的离线测试；不启动目标模型。skill 的两端文件镜像由 `make docs-check` 核对，
-生成角色的行为验证与宿主加载证据见该 skill 的[验证说明](../../.agents/skills/design-subagents/references/validation.md)。
+`make test` 同时覆盖仓库检查器、Meta Harness 编译/链接工具和 [subagent 双端生成器](../../.meta_harness/agents/skills/design-subagents/canonical/references/packaging.md)
+的离线测试；不启动目标模型。`make agents-check` 核对源与产物及链接，skill 的两端文件镜像另由 `make docs-check` 核对，
+生成角色的行为验证与宿主加载证据见该 skill 的[验证说明](../../.meta_harness/agents/skills/design-subagents/canonical/references/validation.md)。
 
 `make spec-tools` 单独检查 Java 11+ 与 `TLA2TOOLS_JAR`、`ALLOY_ANALYZER_JAR`
 所指向的实际 JAR，缺失任一项返回非零。JAR 从

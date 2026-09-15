@@ -1,0 +1,16 @@
+{
+  "source": ".agents/skills/worktree-discipline",
+  "source_revision": "55ac071ec2c41f90ec836b21cf43db32dc4abb5e",
+  "destination": "canonical/",
+  "source_retention": "old host entries retired after authorized switch; originals in agents/evaluation/host-entry-retirement/roots.tar.gz",
+  "files": {
+    "SKILL.md": {
+      "sha256": "e85735e44723cfe9edef2ab2715ed12ce6c3e8924ac2399f5c2c7816ceef380d",
+      "mode": 436
+    },
+    "references/fanout_playbook.md": {
+      "sha256": "a152588e22081a7d4f6d91acafccc36d1cf3cef80dc697e981121f55d6350d4c",
+      "mode": 436
+    }
+  }
+}

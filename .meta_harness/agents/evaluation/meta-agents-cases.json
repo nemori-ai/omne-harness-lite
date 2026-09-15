@@ -1,0 +1,26 @@
+{
+  "purpose": "Read-only orientation probes for the rewritten workspace AGENTS.md; not execution authorization or a held-out benchmark.",
+  "task": "按此工作区 AGENTS.md，为下面每个独立任务判断应怎样开始、读取哪个拥有者、做到哪里停止。实际只读，不执行编辑或派发；需要方法细节时再按入口读取。分别给出你理解的心智、实际阅读路径、受影响范围和剩余输入，不假设下面提到的产品材料已迁入文件系统。",
+  "cases": [
+    {
+      "id": "local-link",
+      "request": "已知一个现有 provider topic 的 README 将 verification.md 错拼为 verificaiton.md，目标文件存在，采用契约和保证未变。任务只修这个链接，授权范围也仅此。"
+    },
+    {
+      "id": "new-capability",
+      "request": "产品新增要求：用户批准只能授权一个作业。当前明确输入的能力只有可重复读取的批准记录、对 job_id 幂等的作业接纳，没有批准消费语义。先分析这个新要求该由谁承担，交付候选边界与插件设计，不接受或实现。"
+    },
+    {
+      "id": "contract-conflict",
+      "request": "任务给定已接受且发布的契约 v2：cancel 仅表示请求，实际停止另有事实；实现目前把 cancel 返回值当作已停止，源码注释却自称新权威。要求判断冲突处理，未授权改变契约。"
+    },
+    {
+      "id": "boundary-bypass",
+      "request": "应用任务已有明确采用接口，本次想省事，直接读另一个提供者的私有运行时状态并自行恢复工作，再把相同状态机抄进 UI；没有调整公共边界的授权。说明如何处理。"
+    },
+    {
+      "id": "proposal-admission",
+      "request": "要新建正式 proposal topic，目前只有一个实际方案；作者打算把它改三个名字，填入三个候选行并删掉取舍正文，然后在 decisions 中登记尚未接受的选择。判断应怎样整理这批材料。"
+    }
+  ]
+}

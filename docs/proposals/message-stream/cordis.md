@@ -3,7 +3,7 @@
 [提案索引](README.md) · [消息模型](message-model.md) · [增量协议](delta-protocol.md) · [信封与游标](envelope-and-cursor.md) · [作用域与投递](scope-and-delivery.md)
 
 按[总体范式](../../architecture-guide/foundations/paradigm.md#从目的到可演化的实现)分别推导
-服务、插件与消费方式；Cordis 语义按 [cordis-authoritative-docs](../../../.agents/skills/cordis-authoritative-docs/SKILL.md)
+服务、插件与消费方式；Cordis 语义按 [来源核对](../../../.meta_harness/agents/skills/harness-design-handbook/canonical/references/source-check.md)
 核对采用版本，本文件只给出消费方式与边界，不把上游应用策略当项目约定。
 
 ## 消费方式

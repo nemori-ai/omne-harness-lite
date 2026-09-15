@@ -21,7 +21,7 @@
 | [知识流转](knowledge-flow.md) | 研究、提案、决定和规格如何共同形成可追溯判断？ |
 | [防御演化](defensive-evolution.md) | 怎样维护、评估、简化或退出防御指导？ |
 
-`docs/README.md` 与 `spec/README.md` 是读者入口，本目录不取代具体契约、决定或研究的权威。变更架构边界时，按根 `AGENTS.md` 使用 architecture-design skill 定位当前架构、决定和规格。
+`docs/README.md` 与 `spec/README.md` 导航既有材料，本目录不取代具体契约、决定或研究的权威。新需求与设计从 [.meta_harness](../../.meta_harness/AGENTS.md) 进入，加载 [harness-design-handbook](../../.meta_harness/agents/skills/harness-design-handbook/canonical/SKILL.md)，并明确采用的产品事实与版本。
 
 已完成迁移的范围与来源去向见[文档体系迁移记录](migrations/2026-09-12-documentation-system.md)。
 

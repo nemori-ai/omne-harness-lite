@@ -1,0 +1,288 @@
+{
+  "source": ".agents/roles",
+  "source_revision": "55ac071ec2c41f90ec836b21cf43db32dc4abb5e",
+  "source_retention": "old root entries retired after authorized switch; originals in agents/evaluation/host-entry-retirement/roots.tar.gz",
+  "files": {
+    "README.md": {
+      "sha256": "581445823cea0348d3861553b24b747111f8d8ae4acfddec46a3169a9be4a8e9",
+      "mode": 436,
+      "destination": "agents/evaluation/legacy-roles/source-index.md"
+    },
+    "application-developer/assembly.toml": {
+      "sha256": "a856085cdd171c0dbf9f0451b15f1693e55437636580fe447146d72b3b89cfbb",
+      "mode": 436,
+      "destination": "agents/roles/application-developer/assembly.toml"
+    },
+    "application-developer/claude.yaml": {
+      "sha256": "db23f40e1284dc96de9ffe888863fe8805a9f3600811f603088898fa4eb18531",
+      "mode": 436,
+      "destination": "agents/roles/application-developer/claude.yaml"
+    },
+    "application-developer/codex.toml": {
+      "sha256": "05dc359bd5c9a5475b80e236912e0002c0fa242c3796e1c11251aca3c2ac86ab",
+      "mode": 436,
+      "destination": "agents/roles/application-developer/codex.toml"
+    },
+    "application-developer/role.md": {
+      "sha256": "6e7c74dfd5b14a75e372f553f5f537d9a6878da292a687a42ccabf112d94b0d6",
+      "mode": 436,
+      "destination": "agents/roles/application-developer/role.md"
+    },
+    "architecture-reviewer/claude-adaptation.md": {
+      "sha256": "81808cbdee1be18e3fe1b133f9a4a97a10abebcb9d4d977053e27be26a00b47a",
+      "mode": 436,
+      "destination": "agents/roles/architecture-reviewer/claude-adaptation.md"
+    },
+    "architecture-reviewer/claude.yaml": {
+      "sha256": "bf3bd3edf328a31fd6066f29ce4e3fbd62051288cad515af1bf0505d86d71e29",
+      "mode": 436,
+      "destination": "agents/roles/architecture-reviewer/claude.yaml"
+    },
+    "architecture-reviewer/codex-adaptation.md": {
+      "sha256": "8557d9c6faae9242d76a5d9f8587c0b0fa02e4f2d0e4ea7165e54dfa7d95dac5",
+      "mode": 436,
+      "destination": "agents/roles/architecture-reviewer/codex-adaptation.md"
+    },
+    "architecture-reviewer/codex.toml": {
+      "sha256": "f523e449f70cda5f1a2b9b826c365d38d0a91b29cf247e10fb70b46a22138210",
+      "mode": 436,
+      "destination": "agents/roles/architecture-reviewer/codex.toml"
+    },
+    "architecture-reviewer/role.md": {
+      "sha256": "e6101649d7d793593202b8f67c9a62d31314dfbe2a36d7c379b6e7fac6fb9a22",
+      "mode": 436,
+      "destination": "agents/roles/architecture-reviewer/role.md"
+    },
+    "architecture-reviewer/verification.md": {
+      "sha256": "b512c261d924d15308f5b1a8cb9119b6e29935b7494735fd4766ae664d6ffc20",
+      "mode": 436,
+      "destination": "agents/evaluation/legacy-roles/architecture-reviewer/verification.md"
+    },
+    "capability-developer/assembly.toml": {
+      "sha256": "0221c3fe513e32d057a949463af44d4efd38a91c92f6be83f0f2ef4757e1ff12",
+      "mode": 436,
+      "destination": "agents/roles/capability-developer/assembly.toml"
+    },
+    "capability-developer/claude.yaml": {
+      "sha256": "8e8f6ef7d3301278ca5a5624f6645a221c9513ccd24c54caf0295f2e16da438f",
+      "mode": 436,
+      "destination": "agents/roles/capability-developer/claude.yaml"
+    },
+    "capability-developer/codex.toml": {
+      "sha256": "1f570edd6755bf5a55b60eaf9a84f1f6056e98204abc90b340e767b043d5a881",
+      "mode": 436,
+      "destination": "agents/roles/capability-developer/codex.toml"
+    },
+    "capability-developer/role.md": {
+      "sha256": "71c5dd86b0c56853175ce92ec76af299d46b54361163c15c0f1408365a4e8c02",
+      "mode": 436,
+      "destination": "agents/roles/capability-developer/role.md"
+    },
+    "developer-contract.md": {
+      "sha256": "f6be2817b59e97bffab5b1cec64f923a7683ab01e81eb023ca5a574fdcaf0fbd",
+      "mode": 436,
+      "destination": "agents/roles/developer-contract.md"
+    },
+    "developer-task.md": {
+      "sha256": "996ffb34d5499fc4ffc39cb9c0f6d11bc566d7c649965e1644f430a05ede1c49",
+      "mode": 436,
+      "destination": "agents/roles/developer-task.md"
+    },
+    "developer-verification.md": {
+      "sha256": "e818489d8038caabddd84f9d6770f8d2b3b9923c12b4ed006517b9514b9afea2",
+      "mode": 436,
+      "destination": "agents/evaluation/legacy-roles/developer-verification.md"
+    },
+    "evidence/developer-roles/probes.json": {
+      "sha256": "7c12b35e3e265dd1ad37e6a61d3a4ed625f18105f426faf7adf5861567b2e173",
+      "mode": 436,
+      "destination": "agents/evaluation/legacy-roles/evidence/developer-roles/probes.json"
+    },
+    "evidence/developer-roles/review.json": {
+      "sha256": "38a808e1fabe42679b83ee3c4d4baa3e013f699f0cf6577b9f9fdd1e76aa1cea",
+      "mode": 436,
+      "destination": "agents/evaluation/legacy-roles/evidence/developer-roles/review.json"
+    },
+    "evidence/developer-roles/tests.log": {
+      "sha256": "155507411b36192687bc2a5bb652afb5e13974febdd1dc47b88cbeaac218c5d7",
+      "mode": 436,
+      "destination": "agents/evaluation/legacy-roles/evidence/developer-roles/tests.log"
+    },
+    "evidence/developer-roles-r4/checks.json": {
+      "sha256": "3b3fd6a1bf0a71779e4e73607fab2285a193be7469b9e91304843f1bfc9f9535",
+      "mode": 436,
+      "destination": "agents/evaluation/legacy-roles/evidence/developer-roles-r4/checks.json"
+    },
+    "evidence/developer-roles-r4/docs-check.log": {
+      "sha256": "fae69b7d5433065e987ec0d745f3396906e1d5c8bfe62333d86f211946f93cf0",
+      "mode": 436,
+      "destination": "agents/evaluation/legacy-roles/evidence/developer-roles-r4/docs-check.log"
+    },
+    "evidence/developer-roles-r4/review.json": {
+      "sha256": "bf9224bc99661fd3b29576cade2137adfcd61924d24c630540356ed5c1a6514d",
+      "mode": 436,
+      "destination": "agents/evaluation/legacy-roles/evidence/developer-roles-r4/review.json"
+    },
+    "evidence/developer-roles-r4/tests.log": {
+      "sha256": "05e12659fd07965d293605d144c06bcf1f9538c8090794e6f269ba29f3290243",
+      "mode": 436,
+      "destination": "agents/evaluation/legacy-roles/evidence/developer-roles-r4/tests.log"
+    },
+    "evidence/focused-reviewers/docs-check.log": {
+      "sha256": "f44f29cd3acaaae9db49ed97c60883f2498dedd39aad5bd8885511434b1fbe41",
+      "mode": 436,
+      "destination": "agents/evaluation/legacy-roles/evidence/focused-reviewers/docs-check.log"
+    },
+    "evidence/focused-reviewers/plan-output.txt": {
+      "sha256": "eeb5f8c9537c113c45560d6d4f40b7d1e59b58340a511f00766b8b22e46c8d2b",
+      "mode": 436,
+      "destination": "agents/evaluation/legacy-roles/evidence/focused-reviewers/plan-output.txt"
+    },
+    "evidence/focused-reviewers/plan-recovery-output.txt": {
+      "sha256": "347f5bc36e129391bfcf1b23857e288105ee6d1b6841423a4e1ef24b05071f92",
+      "mode": 436,
+      "destination": "agents/evaluation/legacy-roles/evidence/focused-reviewers/plan-recovery-output.txt"
+    },
+    "evidence/focused-reviewers/plan-recovery.txt": {
+      "sha256": "12964f3157691d292b1a5b2da741423fc4082d4c489008853d0a835a987f5aca",
+      "mode": 436,
+      "destination": "agents/evaluation/legacy-roles/evidence/focused-reviewers/plan-recovery.txt"
+    },
+    "evidence/focused-reviewers/plan-samples.txt": {
+      "sha256": "44b839210509a61e1cbbad550c679a1b7a845f0c14039079b65ebcc7c6f3c962",
+      "mode": 436,
+      "destination": "agents/evaluation/legacy-roles/evidence/focused-reviewers/plan-samples.txt"
+    },
+    "evidence/focused-reviewers/spec-candidate.txt": {
+      "sha256": "cbdc25d02ab007dec1ce2cb4959157ed0aa4ba291542de53a6577503fe79e106",
+      "mode": 436,
+      "destination": "agents/evaluation/legacy-roles/evidence/focused-reviewers/spec-candidate.txt"
+    },
+    "evidence/focused-reviewers/spec-design.txt": {
+      "sha256": "326f230114ddc0e503d56afb5091fddcb9514e3ef570b3609f260ffe32efb5a0",
+      "mode": 436,
+      "destination": "agents/evaluation/legacy-roles/evidence/focused-reviewers/spec-design.txt"
+    },
+    "evidence/focused-reviewers/spec-output.txt": {
+      "sha256": "43f83bc0bf14332c8c3706810dbd1636bea81a23bff48c6080cc0f2851aa8503",
+      "mode": 436,
+      "destination": "agents/evaluation/legacy-roles/evidence/focused-reviewers/spec-output.txt"
+    },
+    "evidence/focused-reviewers/static-checks.json": {
+      "sha256": "107a6de4f7079575997b8671957197f0fe96bea5279bd6136b70089d1be19f63",
+      "mode": 436,
+      "destination": "agents/evaluation/legacy-roles/evidence/focused-reviewers/static-checks.json"
+    },
+    "evidence/focused-reviewers/tests.log": {
+      "sha256": "b133ed8b4337796798bb1be803f43235a9a62bfd22e3cde6838cf81bfb2e814a",
+      "mode": 436,
+      "destination": "agents/evaluation/legacy-roles/evidence/focused-reviewers/tests.log"
+    },
+    "evidence/focused-reviewers/trial-inputs.json": {
+      "sha256": "a27cf8f5efd0b9801943beca9d209808da782b5a181722bdaef631b88f8631a7",
+      "mode": 436,
+      "destination": "agents/evaluation/legacy-roles/evidence/focused-reviewers/trial-inputs.json"
+    },
+    "evidence/focused-reviewers/trial-results.json": {
+      "sha256": "e8f8a196e071b6a90da4ca2f50862d8c6220279a28921a0c6078a7aeb9089942",
+      "mode": 436,
+      "destination": "agents/evaluation/legacy-roles/evidence/focused-reviewers/trial-results.json"
+    },
+    "focused-reviewer-verification.md": {
+      "sha256": "95f7cd28c43549ce8a4b9f496e31839f8ba4912101da8834c883f276d7226af0",
+      "mode": 436,
+      "destination": "agents/evaluation/legacy-roles/focused-reviewer-verification.md"
+    },
+    "infrastructure-developer/assembly.toml": {
+      "sha256": "0221c3fe513e32d057a949463af44d4efd38a91c92f6be83f0f2ef4757e1ff12",
+      "mode": 436,
+      "destination": "agents/roles/infrastructure-developer/assembly.toml"
+    },
+    "infrastructure-developer/claude.yaml": {
+      "sha256": "3273d377d52cb25faf4dcbdeeee9f7f91f39468d5df2dc59406ddc04692327e1",
+      "mode": 436,
+      "destination": "agents/roles/infrastructure-developer/claude.yaml"
+    },
+    "infrastructure-developer/codex.toml": {
+      "sha256": "01277d4d6c2041ba07fef16fbd132a342da5c58271f82b94164c76a9c63dc1db",
+      "mode": 436,
+      "destination": "agents/roles/infrastructure-developer/codex.toml"
+    },
+    "infrastructure-developer/role.md": {
+      "sha256": "4274c496ea689a63d5c7da2b5d9626a274b7d5d07c1ce03a926c8d1a9bf6288b",
+      "mode": 436,
+      "destination": "agents/roles/infrastructure-developer/role.md"
+    },
+    "kernel-developer/assembly.toml": {
+      "sha256": "70c18cdb85bc3055aef511d81bbab63e80cadf27dfbf611d954540410421b2cf",
+      "mode": 436,
+      "destination": "agents/roles/kernel-developer/assembly.toml"
+    },
+    "kernel-developer/claude.yaml": {
+      "sha256": "1a77434585aec6d8bca1d98214c828512b7a5ae0c8de8f433c34ac42941ee8c1",
+      "mode": 436,
+      "destination": "agents/roles/kernel-developer/claude.yaml"
+    },
+    "kernel-developer/codex.toml": {
+      "sha256": "2f2e39b402da666411bb0aa3eca8c4902e5a9103c276504ab50b6e663d0f2678",
+      "mode": 436,
+      "destination": "agents/roles/kernel-developer/codex.toml"
+    },
+    "kernel-developer/role.md": {
+      "sha256": "db77dd8f8cf375ae7bc971f90e2617e0a09d458a10146aa4cc6599d5f203967a",
+      "mode": 436,
+      "destination": "agents/roles/kernel-developer/role.md"
+    },
+    "plan-reviewer/claude.yaml": {
+      "sha256": "c0b2a487ed79f38c59914fb6bc6c3dac7fc34853c91030548fe44e0020967f4a",
+      "mode": 436,
+      "destination": "agents/roles/plan-reviewer/claude.yaml"
+    },
+    "plan-reviewer/codex.toml": {
+      "sha256": "30c114b453c4dc44369535696fbc2d901057f1d824df6382e807b383c738ed2a",
+      "mode": 436,
+      "destination": "agents/roles/plan-reviewer/codex.toml"
+    },
+    "plan-reviewer/role.md": {
+      "sha256": "df2964f63a9ef7388d24d96932dc87c4ce3a8ca0ca268b59fe2d1d62ecc6f064",
+      "mode": 436,
+      "destination": "agents/roles/plan-reviewer/role.md"
+    },
+    "spec-reviewer/claude.yaml": {
+      "sha256": "aa878713f1b6fcd884a6a03be917bc1186e3f0dcf9c2e719f0eec422bed9d0ed",
+      "mode": 436,
+      "destination": "agents/roles/spec-reviewer/claude.yaml"
+    },
+    "spec-reviewer/codex.toml": {
+      "sha256": "c3fd8a27a8a580fbeeacae4773327dd4ad01b97121589ee5833077df447c602a",
+      "mode": 436,
+      "destination": "agents/roles/spec-reviewer/codex.toml"
+    },
+    "spec-reviewer/role.md": {
+      "sha256": "8224018faf5748cb97e3961bfd7a384fa89f2baf567730bb7bb34d694ab9d601",
+      "mode": 436,
+      "destination": "agents/roles/spec-reviewer/role.md"
+    },
+    "verification-developer/assembly.toml": {
+      "sha256": "0221c3fe513e32d057a949463af44d4efd38a91c92f6be83f0f2ef4757e1ff12",
+      "mode": 436,
+      "destination": "agents/roles/verification-developer/assembly.toml"
+    },
+    "verification-developer/claude.yaml": {
+      "sha256": "93e31d35d1cec3ad3dcc38b3a28ba59a8bf972dd0e1694f2cbab3682f2fada84",
+      "mode": 436,
+      "destination": "agents/roles/verification-developer/claude.yaml"
+    },
+    "verification-developer/codex.toml": {
+      "sha256": "37037c88af6b0d382c83b988157f34030858839037dd9b63f63d0a33a160e298",
+      "mode": 436,
+      "destination": "agents/roles/verification-developer/codex.toml"
+    },
+    "verification-developer/role.md": {
+      "sha256": "885f8b0597196d58abe963d37c61717a0d86ffcee1535b01dd241eb19f0a01de",
+      "mode": 436,
+      "destination": "agents/roles/verification-developer/role.md"
+    }
+  },
+  "historical_evidence": "Only the recorded source revisions and hashes; not evidence for migrated prompts."
+}

@@ -1,0 +1,61 @@
+{
+  "date": "2026-09-15",
+  "agent": "meta_agents_forward_probe",
+  "kind": "read-only navigation exercise in ordinary agent; not native host loading or model adoption test",
+  "inputs": [
+    {
+      "id": "local-link",
+      "task": "只修某产品包 README 中一个已知错链接，契约与行为无变化。",
+      "observed": "在实际成员修正链接，相称核对即停，不启动完整设计；未给成员时不假装读取。"
+    },
+    {
+      "id": "intake",
+      "task": "用户首次提出‘每天把待处理事项汇总发给我’，本轮仅做需求 intake，既有产品资料的采用范围还未指定。",
+      "observed": "进入 design/requirements 并加载 handbook/intake；整理可观察结果、来源、确认与待澄清项。未自行采用外部旧材料、推断无现有能力或开始插件设计。"
+    },
+    {
+      "id": "contract-conflict",
+      "task": "已给精确已发布契约 v2，但实现注释称 v1 才是权威，要求定位修复归属。",
+      "observed": "采用任务指定 v2，分别判断注释错误与行为违约，定位实现/映射/证据拥有者；不改写冻结版本。"
+    },
+    {
+      "id": "boundary-bypass",
+      "task": "应用想直接读取兄弟提供者私有状态来省一个公共调用。",
+      "observed": "继续消费公开接口；只有实际无法完成流程时报告边界缺口，不复制状态机，不无故新建设计。"
+    },
+    {
+      "id": "source-maintenance",
+      "task": "需要修改 spec-reviewer 的职责说明，同时改进 handbook 的一页 reference：说明两类源位置、对应编写 skill 和生成消费路径，不实际修改。",
+      "observed": "角色定位 agents/roles/spec-reviewer 源并加载 design-subagents；技能定位 handbook canonical/reference 并加载当前环境官方 skill-creator。正确说明工作区内两端产物及根链接。"
+    }
+  ],
+  "sha256": {
+    "AGENTS.md": "f03bd13c789ee46371a25e60da3b5b00b4edb33b1fe87e6a42e1e4b704dc0319",
+    "CONTRIBUTING.md": "934659ad0bdf80197253a190a343ff879abe429ddb3d7bd7e9802bb08e3b552e",
+    "docs/development.md": "0862ccfb17e6b3d122ca02540cbf59e740de16f75f79020445e9be1ca4976a9d",
+    "docs/AGENTS.md": "9ac91383085efa42096b8ec8dc7043bed8092ba512feaacfd5ea3758d6e316fe",
+    "packages/AGENTS.md": "5ab0200f75c444fb35c30a1110d9f7984b819d8d63e11a55198ed7bb8ec6e995",
+    "apps/AGENTS.md": "b050406aec810bd4e8b2e4d8f8f15d7840c25210afde21bcf3c1d93134e7e093",
+    ".meta_harness/AGENTS.md": "60b307c2b6c6c50c1154d979ffbbd3eaf141ef52919b6bde77546d5318281c22",
+    ".meta_harness/agents/README.md": "9328aadb5db8f4196ac2296085076f8e2cb11a0dbe133a83ce500c3f257ced1c",
+    ".meta_harness/tooling/README.md": "dc69f410a9111744d8eaa6a41de15cff20d126c100a7c506c0e12dc0e9d290e1",
+    ".meta_harness/agents/roles/README.md": "7bd08b7e7c6483b317bba71b143d5c2e26a87cd36a8fb7b58b5b5b43e3d5f4e0",
+    ".meta_harness/agents/roles/application-developer/role.md": "2f4da2818f36cb9bf1517fc6bda2e59629be30191649990e8adf575cc992cfe4",
+    ".meta_harness/agents/roles/spec-reviewer/role.md": "2a47a65563aa172270f6b4f261ac8a54a5129421e2e94057f82fdc6b89803851",
+    ".meta_harness/agents/skills/harness-design-handbook/canonical/SKILL.md": "444e1831e48ca1999282d56318706530477fbaf3169e8fcb57ebe3139de3ad53",
+    ".meta_harness/agents/skills/harness-design-handbook/canonical/references/intake.md": "647465f3c23d597a0ac167b6d7011c9df955b428f69d4b507a5b338a32161d95",
+    ".meta_harness/agents/skills/harness-design-handbook/canonical/references/workspace-context.md": "5c8a52bc6d20976b64ac64d26cef676f4e5c812c19b9c2f74f21a066f5564701",
+    ".meta_harness/agents/skills/harness-design-handbook/canonical/references/spec-evolution.md": "9f7e8afad4baa9e61b71cf222092fc4f07e6e126e60c67be4a34fd051ecec5fd",
+    ".meta_harness/agents/skills/design-subagents/canonical/SKILL.md": "9d6710004521ab7607d086db98fe289157a2bd7c8d2d56cfb87772e42596b762"
+  },
+  "physical_prompt_lines": {
+    "AGENTS.md": 148,
+    "docs/AGENTS.md": 38,
+    "packages/AGENTS.md": 16,
+    "apps/AGENTS.md": 15,
+    ".meta_harness/AGENTS.md": 75
+  },
+  "reported_findings": "No blocking contradiction or broken link on traversed paths. Optional reviewer assembly.toml was probed and absent; reader recognized it was not required. Root product pointers do not select an unspecified task baseline.",
+  "actions": "Agent reported file reads and link-target inspection only; no editing, test/model execution, web or delegation.",
+  "limitations": "Observed outcomes are summaries of the agent's returned answer, not raw full tool traces. Complete answer remains in conversation. No host discovery, permission enforcement or exact-model behavior conclusion."
+}

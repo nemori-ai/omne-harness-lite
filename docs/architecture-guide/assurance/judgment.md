@@ -49,7 +49,7 @@
 
 缓存、池化、并行、批处理或自定义协议会引入一致性和失败成本。优化性复杂度需要可重复的瓶颈证据。正确性或明确边界所需的机制，则说明它保护的规则，不把它伪装成尚无测量的性能收益。
 
-更多高阶判断见 [engineering-taste skill](../../../.agents/skills/engineering-taste/SKILL.md)，具体风险类别见[防御性研发模式](../../defensive-patterns.md)。
+更多高阶判断见 [工程判断 skill](../../../.meta_harness/agents/skills/harness-design-handbook/canonical/references/architecture/assurance/judgment.md)，具体风险类别见[防御性研发模式](../../defensive-patterns.md)。
 
 ## 判断的停止点
 

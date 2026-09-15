@@ -2,13 +2,18 @@
 
 本规范落实 [D-001](../decisions/D-001-documentation-system.md) 与 [D-004](../decisions/D-004-requirements-foundation.md)。每个概念只能有一个权威定义；投影、示例和边界传输形状必须链接其定义并说明映射，不能静默复制语义。
 
+按用户后续确定的私有工作区分工，新需求 intake 与设计在 [.meta_harness/design](../../.meta_harness/design/README.md)
+相应 family 中接续，方法与 skills/roles 源归 [.meta_harness/agents](../../.meta_harness/agents/README.md)。
+下表的旧产品路径用于定位尚未迁出的拥有者，不作为新主题的默认创建位置；迁移不改变既有身份、接受或冻结承诺。
+本页保留其语义归属与治理规则，工作入口及当前迁移边界见[开发指南](../development.md#需求与设计的工作入口)。
+
 | 内容 | 权威位置 | 其他材料的责任 |
 |---|---|---|
 | 系统目标、产品特性与用户全局要求 | [requirements](../requirements/README.md) 维护唯一正文及具体确认范围 | 建模、能力定义、决定、规格与产品化受其约束，入口只投影；确认与追溯归[需求维护](requirements.md) |
 | 组织及治理规则 | 所属有效决定与本目录维护规范 | requirements 与架构只引用，不另立同义要求 |
 | 贡献入口与交付信息要求 | 根 [CONTRIBUTING.md](../../CONTRIBUTING.md) | 关联需求、治理与验证依据；不另造接受权限 |
 | 开发上手与排障导航 | [开发指南](../development.md) | 环境与命令引用包配置、脚本和验证规范 |
-| 架构方法 | `docs/architecture-guide/` | skill 负责路由，提案不复制方法论 |
+| 架构方法 | [harness-design-handbook](../../.meta_harness/agents/skills/harness-design-handbook/canonical/SKILL.md) 及其 references | 旧 architecture-guide 保留来源与既有材料导航；提案不复制方法论 |
 | 当前系统视图 | `docs/architecture/` | 投影上游要求、已接受选择、精确规格及其覆盖与缺口 |
 | 架构选择及适用范围 | `docs/decisions/D-*.md` | 提案保留讨论，研究保留证据 |
 | 值得长期保留取舍依据的候选设计 | `docs/proposals/` | 按下文准入，不收纳任意讨论或单次任务计划，不得作为正式规范依赖 |
@@ -64,8 +69,9 @@ AGENTS.md。局部入口是本规范及所属正文的简短投影，不另设�
 
 接口或库的局部选择只有在改变公共语义、关键机制、实质维护边界或消费者迁移
 时才需要这种持久提案；普通内部算法、修复和已定方案的实施说明沿既有契约
-完成。候选数量由实际取舍决定，不为满足格式虚构替代方案，也不要求先有完整
-模型才允许开始提案。具体证据义务见[知识流转](knowledge-flow.md#提案需要留下什么)。
+完成。正式 proposal topic 新建或重开选择时，按[当前提案准入](../../.meta_harness/design/proposals/README.md#主题准入与候选比较)
+组织至少三个实质候选，不虚构替代方案；单个候选可先分析，也不要求先有完整模型。
+旧提案保留历史比较范围，不倒填候选。具体证据义务见[知识流转](knowledge-flow.md#提案需要留下什么)。
 
 讨论、反例、评审及候选规格可以作为提案附件，但应直接支撑本次选择和必要的
 复现；保留经过整理的理由与依据，不把会话全文、每轮提示词、所有搜索输出或
@@ -83,8 +89,9 @@ AGENTS.md。局部入口是本规范及所属正文的简短投影，不另设�
 
 ## 当前实现设计的归属
 
-需要长期维护的提供者与运行装配设计随所属包或应用保存，默认正文为成员根的
-`design.md`；成员可以位于领域子目录。内容足够复杂时由该入口导航专题，不按
+新建的提供者与运行装配设计分别归 `.meta_harness/design/providers/` 与 `assemblies/` 的 topic 信息包，
+并按实际包或应用建立映射。尚未迁出的成员根 `design.md` 或 README 中的既有设计继续在原拥有者修订；
+迁入时明确消费者与旧入口切换，不同时维护两份当前正文。内容足够复杂时由入口导航专题，不按
 插件数量机械拆页。纯数据、编解码或简单计算包只描述实际存在的映射；已有 README
 足以承载的简短说明可直接维护，不为统一外观补造插件或空设计文件。
 

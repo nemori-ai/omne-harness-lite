@@ -1,7 +1,10 @@
 # 设计知识的维护
 
-本目录维护系统目标与产品要求，并把观察、候选方案和已接受选择组织为可追溯的设计知识。这里补充根约定在
-文档中的落点；完整地图由 [README](README.md) 维护，精确承诺由 [spec/](../spec/README.md) 定义。
+本目录保存尚未迁出的产品需求与设计材料，以及源码使用、开发和维护说明。这里补充根约定在
+既有文档中的落点；完整地图由 [README](README.md) 维护，精确承诺由 [spec/](../spec/README.md) 定义。
+新需求 intake 与设计工作从 [.meta_harness](../.meta_harness/AGENTS.md) 进入，加载
+[harness-design-handbook](../.meta_harness/agents/skills/harness-design-handbook/canonical/SKILL.md)；
+现有正文的接续与迁移按[开发入口](development.md#需求与设计的工作入口)定位，以下导航不要求在旧目录另建新主题。
 
 ## 内容归属
 
@@ -31,5 +34,5 @@
   候选如何形成正式依赖，沿[版本规则](maintenance/versioning.md)进入 [catalog](../spec/catalog.json)。
 
 局部措辞或链接修复只展开其内容所有者与相关检查；涉及新的能力边界、保证或取舍时，
-使用 [architecture-design](../.agents/skills/architecture-design/SKILL.md)。资料足以支持本次判断时停止，
+使用 [harness-design-handbook](../.meta_harness/agents/skills/harness-design-handbook/canonical/SKILL.md)。资料足以支持本次判断时停止，
 不因文档位于本目录就通读全部研究或启动完整架构评审。

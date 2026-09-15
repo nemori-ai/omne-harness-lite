@@ -9,8 +9,8 @@
   开发检查器归 [tools/](../tools/README.md)，应用装配归 [apps/](../apps/README.md)。
 - 包内类型与实现遵循 [spec/](../spec/README.md) 中的权威定义；冲突应回查精确
   版本与接受依据，不能以当前实现反向修改契约。
-- 当前提供者设计随成员维护，按[设计归属](../docs/maintenance/organization.md#当前实现设计的归属)
-  连接精确规格、公共入口及运行映射；必要设计不能仅留在一次性施工稿。
+- 既有提供者设计按[设计归属](../docs/maintenance/organization.md#当前实现设计的归属)接续；
+  新设计进入 `.meta_harness/design/providers/`，连接精确规格、公共入口及运行映射，必要设计不能仅留在一次性施工稿。
 
 沿既有契约的局部修改只读所属包及相关验证；新增能力边界、所有权或保证时，
-再使用 [architecture-design](../.agents/skills/architecture-design/SKILL.md)。
+进入 [.meta_harness](../.meta_harness/AGENTS.md)，加载 [harness-design-handbook](../.meta_harness/agents/skills/harness-design-handbook/canonical/SKILL.md)。

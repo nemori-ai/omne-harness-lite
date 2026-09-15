@@ -6,7 +6,7 @@
 
 | 入口 | 作用 |
 |---|---|
-| [check.sh](check.sh) | 定位仓库根，依次运行文档、规格、Python 工具测试及产品包检查；任一步失败即停止并返回非零 |
+| [check.sh](check.sh) | 定位仓库根，依次运行 agent 产物与根链接、文档、规格、Python 工具测试及产品包检查；任一步失败即停止并返回非零 |
 | [format.sh](format.sh) | 用根配置和本地锁定 Prettier 检查或写入受维护文件；`staged` 模式只检查 Git index blob |
 | [test-formatting.sh](test-formatting.sh) | 在临时独立 Git 仓库验证格式范围、幂等、部分暂存和 hook 安装边界 |
 | [install-format-hook.sh](install-format-hook.sh) | 显式安装格式化 pre-commit hook；发现已有 hook 时拒绝覆盖 |

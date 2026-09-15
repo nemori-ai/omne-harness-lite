@@ -16,7 +16,7 @@
 ## 按任务进入
 
 更新视图从[当前架构入口](README.md)及关联决定/规格定位依据。新增边界或改变
-保证时使用[架构设计 skill](../../.agents/skills/architecture-design/SKILL.md)，先从
+保证时使用[架构设计 skill](../../.meta_harness/agents/skills/harness-design-handbook/canonical/SKILL.md)，先从
 目标与需求导出适用性质，再作机制判断。
 
 仅同步已接受选择的导航时按受影响范围检查，无需重做无关设计。

@@ -14,9 +14,11 @@
 | [scripts/](../../scripts/README.md) | 仓库级开发与 CI/CD 自动化 | 串联现有工具、准备构建输入、整理产物；复杂检查逻辑归工具包 |
 | 各包或应用内的 `src/` | 该成员的实现源码 | TS、Python 都可采用；源码跟随所属包，不汇入根 `src/` |
 | 各成员的 `tests/` | 该成员的验证 | 测试夹具就近维护；共享测试工具按实际消费边界提取 |
-| `.agents/skills/` 与 `.claude/skills/` | 自包含的 agent 技能 | 技能自己的脚本、模板和测试随技能维护，双端保持一致 |
-| `.agents/roles/` | 本项目 subagent 的共享源定义 | 生成到 `.codex/agents/`、`.claude/agents/`，不手改生成物 |
-| `docs/` 与 `spec/` | 设计知识与语言无关契约 | 检查器实现引用这些材料，不在产品包或工具包里复制政策 |
+| [.meta_harness/](../../.meta_harness/README.md) | 可迁出的私有设计工作区 | 需求 intake、设计知识、方法与 agent 能力在此维护；既有产品正文按明确来源逐项接入 |
+| `.meta_harness/agents/skills/` | 自包含技能的 canonical 源与宿主适配 | 技能自己的脚本、模板和测试随 canonical 源维护 |
+| `.meta_harness/agents/roles/` | Subagent 的共享正文、公共契约与双端配置 | 经工作区工具生成原生配置，不手改生成物 |
+| 根 `.agents/`、`.claude/`、`.codex/` | 指向 `.meta_harness/` 内同名目录的相对软链接 | 只暴露生成产物；源与检查归工作区，不另保留 `.agents/roles/` 源副本 |
+| `docs/` 与 `spec/` | 源码说明及尚未迁出的产品设计知识、精确契约 | 检查器引用实际拥有者；迁移状态见[开发入口](../development.md#需求与设计的工作入口)，不复制政策 |
 
 按用途和所有权选择顶层位置，再按实际依赖选择语言与构建工具。独立包不等于
 独立发布、独立进程或独立微服务，也不要求每个 Cordis 插件单独成包。
@@ -50,10 +52,12 @@ tools/spec-tools/
   src/omne_harness_lite_spec_tools/     可安装模块及检查器格式
   tests/                              工具包测试
 scripts/check.sh                      本地和 CI 共用的检查编排
-.agents/skills/design-subagents/
-  scripts/                            技能的生成器及离线测试
-.claude/skills/design-subagents/
-  scripts/                            对应技能的同内容镜像
+.meta_harness/agents/skills/design-subagents/canonical/
+  scripts/                            技能的生成器及离线测试源
+.meta_harness/tooling/
+  src/                                skills/roles 编译与根链接工具
+  tests/                              工具边界的离线测试
+.agents / .claude / .codex            指向工作区内生成目录的相对软链接
 ```
 
 根 Makefile 提供短命令，`scripts/check.sh` 顺序组合现有检查，工具包拥有检查算法。

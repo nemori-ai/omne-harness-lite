@@ -54,7 +54,7 @@ def test_contribution_entry_links_and_development_anchors_are_checked(tmp_path):
     assert "CONTRIBUTING.md: broken anchor" in result.stdout
 
 
-@pytest.mark.parametrize("area", ["apps", "tools", "scripts", ".codex"])
+@pytest.mark.parametrize("area", ["apps", "tools", "scripts", ".codex", ".meta_harness"])
 def test_source_area_navigation_is_checked(tmp_path, area):
     base(tmp_path)
     write(tmp_path / area / "README.md", "[missing](missing.md)")

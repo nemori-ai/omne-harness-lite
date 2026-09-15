@@ -14,7 +14,7 @@
 
 指南正文先定义语言无关的含义，本页记录其与具体内核机制的对应，供实现核对使用。它不把上游应用协议整体作为本项目设计，也不确定本项目最终采用的依赖版本。
 
-研究依据固定为 DeepSeek 官方仓库提交 `c291e7961a515f6d7af9304e7fd1d257929aef26`。后续采用其他版本时，应重新核对相关语义；检索方法见 [Cordis 权威资料 skill](../../../.agents/skills/cordis-authoritative-docs/SKILL.md)。
+研究依据固定为 DeepSeek 官方仓库提交 `c291e7961a515f6d7af9304e7fd1d257929aef26`。后续采用其他版本时，应重新核对相关语义；检索方法见 [Cordis 权威资料 skill](../../../.meta_harness/agents/skills/harness-design-handbook/canonical/references/source-check.md)。
 
 ## 基础机制映射
 

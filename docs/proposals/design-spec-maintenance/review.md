@@ -66,5 +66,5 @@ plan-reviewer 以契约为前提检查可实施性与并行条件，上游缺口
 没有改变既有角色配置或扩大写入、执行、继续委派及接受权限。
 
 该次复核未覆盖行为试用及本轮后补证据记录，未执行生成器、测试、原生角色发现
-或实际权限检查；行为试用结果及局限由[角色验证](../../../.agents/roles/focused-reviewer-verification.md)
+或实际权限检查；行为试用结果及局限由[角色验证](../../../.meta_harness/agents/evaluation/legacy-roles/focused-reviewer-verification.md)
 另行记录。评审未重做 R1/R2，也不构成业务契约或角色行为的无条件保证。

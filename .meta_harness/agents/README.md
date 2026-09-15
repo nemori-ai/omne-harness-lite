@@ -1,0 +1,48 @@
+# Agent 源资产
+
+本目录是私有工作区资产的唯一编译源。三个独立 skills 与八个角色已迁入；
+承载它的当前 worktree 根 `.agents/`、`.claude/`、`.codex/` 已通过相对软链接暴露生成物，
+旧实体和原局部指引已[退役留档](evaluation/host-entry-retirement/README.md)，不能当作维护源。
+
+| 输入 | 输出（相对显式指定的输出根） |
+|---|---|
+| `skills/<name>/canonical/` + `adapters/<host>/strategy.yaml` | `.agents/skills/<name>/`、`.claude/skills/<name>/` |
+| `roles/<name>/role.md`、`codex.toml`、`claude.yaml`，可选 assembly / adaptation | `.codex/agents/<name>.toml`、`.claude/agents/<name>.md` |
+
+skills 的共享正文与资源放在 `canonical/`。即使两端直接复制，也分别提供显式策略；
+局部宿主差异通过策略声明的 Markdown slots 表达。包内相对引用保持不变，不猜测或
+自动重写外部路径；确需宿主路径时使用经过验证的局部适配，不发明运行时变量。
+生成后的目录名与 frontmatter 的 `name` 一致，`name`、`description` 和正文必填。
+
+只有 canonical 运行资源进入产物，`adapters/`、`.design/`、`evals/` 与维护入口不分发。
+正文 slot 展开后再次校验，未解析或未使用的 slot 都报错；非 Markdown 文件不作文本替换。
+两端一致是无差异策略的结果，不是禁止适配的全局约束。具体策略格式见工具说明。
+
+角色沿用现有共享角色源包格式及生成器，保留其字段校验、共享正文与宿主适配语义。
+公共契约等辅助文件可置于 `roles/` 根；每个角色子目录必须是完整双端源包。
+`role.md` 是角色共享语义，`codex.toml`、`claude.yaml` 与可选适配段承载宿主差异；
+不为统一文件名重复建立另一层 strategy。当前角色 renderer 仍验证完整双端配置，
+即使只选择一个输出宿主也一样；这是现有成对源格式的明确限制。
+角色正文、公共契约与配置已迁入 [roles](roles/README.md)；三个 reviewer 按新手册分别
+审能力设计、规格表达和交付依赖。旧运行证据归 [evaluation](evaluation/README.md)，不充当新提示的结果。
+
+编译遍历 skills 和 roles 的直接子目录；缺少必要文件、重复输出名称、符号链接等均报错，
+不静默跳过坏源。缓存目录不会成为资源。所有输入完成验证之后才写入输出。
+工具说明与实际命令见 [tooling](../tooling/README.md)。
+
+创建或修改 skill 时加载当前环境提供的官方 `skill-creator`，按其实际安装位置读取；
+它是编写工具，不假定已经随本工作区分发。维护角色加载下表的 `design-subagents`，
+调整常驻指令加载 `write-agents-md`；方法或设计心智变化再沿手册定位拥有者。
+
+## Skills
+
+| 入口 | 职责 |
+|---|---|
+| [harness-design-handbook](skills/harness-design-handbook/canonical/SKILL.md) | 从需求与能力覆盖到演化、契约、Cordis 投影和交接；方法草稿 |
+| [write-agents-md](skills/write-agents-md/canonical/SKILL.md) | AGENTS.md 的心智、边界、继承与阅读地图 |
+| [design-subagents](skills/design-subagents/canonical/SKILL.md) | 角色契约、宿主与模型适配、模板、成对渲染及验证 |
+| [worktree-discipline](skills/worktree-discipline/canonical/SKILL.md) | 明确执行仓库中的隔离、并行集成与证据保留 |
+
+后三者完整保留原资源，原件哈希与迁入调整分别记录在各自 `.design/`；
+外部项目依赖改为明确工作区/执行仓库输入，不暗接父仓库。编译保留草稿状态，
+生成不代表接受、安装、宿主加载或模型行为已验证。

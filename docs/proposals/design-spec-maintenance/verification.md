@@ -37,7 +37,7 @@
 R3 对 18 文件固定快照完成独立评审，无阻断或必要修订。两个普通独立 agent
 使用完整生成提示、请求 `gpt-5.6-sol / xhigh` 完成规格与计划的有限试用；计划
 另测一次前提变化后的恢复。具体输入、返回、静态检查与局限见
-[角色验证](../../../.agents/roles/focused-reviewer-verification.md)。这不代表原生
+[角色验证](../../../.meta_harness/agents/evaluation/legacy-roles/focused-reviewer-verification.md)。这不代表原生
 角色已被当前会话加载，也未验证 Claude 调用、实际档位遥测或宿主权限强制。
 
 ## 保留与适用范围

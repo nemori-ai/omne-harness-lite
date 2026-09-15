@@ -1,0 +1,12 @@
+{
+  "source": ".agents/skills/write-agents-md",
+  "source_revision": "55ac071ec2c41f90ec836b21cf43db32dc4abb5e",
+  "destination": "canonical/",
+  "source_retention": "old host entries retired after authorized switch; originals in agents/evaluation/host-entry-retirement/roots.tar.gz",
+  "files": {
+    "SKILL.md": {
+      "sha256": "e0624eff9a3ff84ba93cefb3af3b267ff93409e79babefc4e284252105ae8a4e",
+      "mode": 436
+    }
+  }
+}

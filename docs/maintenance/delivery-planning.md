@@ -2,7 +2,7 @@
 
 本页拥有交付计划的长期要求，连接[知识流转](knowledge-flow.md)与
 [设计就绪](spec-maintenance.md#设计就绪与实施入口)。技术研究和复用判断使用
-[implementation-planning](../../.agents/skills/implementation-planning/SKILL.md)，
+[交付规划](../../.meta_harness/agents/skills/harness-design-handbook/canonical/references/delivery-planning.md)，
 命令和结果格式由[验证规范](verification.md)维护。本轮补充依据见
 [治理提案](../proposals/evidence-governance/README.md)。
 
@@ -25,7 +25,7 @@
 设计尚在探索时，可规划研究、证明、候选规格、原型与未决选项；明确哪些后续
 工作依赖选择或证据，不能把这种计划称为全部实现均已就绪。正式实施只消费本
 任务已有充分依据的范围。完整目标、验收、实施规格与施工计划的开发者输入
-继续按[共同契约](../../.agents/roles/developer-contract.md)提供，证明或研究任务
+继续按[共同契约](../../.meta_harness/agents/roles/developer-contract.md)提供，证明或研究任务
 则按其对象给出命题、假设、问题和输出，不强求预先存在产品实现。
 
 ## 按产物与证据安排工作
@@ -82,7 +82,7 @@
 输入版本、已确认事实、未验证假设、结果和下一项动作；不建立第二套长期规格。
 从计划能找到未完成义务，并能辨认它们对本次交付和后续消费的影响。
 
-计划形成可识别稿后，按[评审分工](../../.agents/roles/README.md#规格与计划评审派发)
+计划形成可识别稿后，按[评审分工](../../.meta_harness/agents/roles/README.md#按判断对象选择-reviewer)
 交 plan-reviewer 检查兑现路径、依赖和验收责任；规格表达与架构判断仍由各自
 角色承担。普通局部修改不因引用本页而需要三轮审计。
 
