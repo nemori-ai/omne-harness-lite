@@ -66,7 +66,9 @@ prepareOperation 只规范化并冻结原操作身份/输入，不要求当前�
 本批一个 coordinator 独占一个 writer 的提交能力。业务 owner 保存自己的
 immutable logical/durable 根；coordinator 仅保存有序票据、参与 owner 的发布动作
 与资源责任，不读取它们的业务字段，也不提供任意 key/value 状态或自动事务回滚。
-跨能力组合采用[公共源码](src/index.ts)中 CompositionKind 的具名关系，
+组合名由发布的组合契约声明、由具名组合代码经 `composition` 字段传入；协调者只校验
+形状（非空、至多 64 字符、`^[a-z][a-z0-9_]*$`，不合形状在写入排位前以 invalid_snapshot
+拒绝）并原样记录，不持有名单，不按名字分支。
 单 owner 管理变更也经过同一门以建立撤销序。其余公开类型与本页运行映射如下，
 精确声明由源码维护：
 

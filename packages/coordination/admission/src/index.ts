@@ -22,14 +22,12 @@ import type {
 } from '@omne-harness-lite/records'
 import type { Checked, OpaqueId, OperationRef, ValidationIssue } from '@omne-harness-lite/work-data'
 
-export type CompositionKind =
-  | 'owner_change'
-  | 'input_run'
-  | 'action_execution'
-  | 'request_wait'
-  | 'answer_consequence'
-  | 'budget_call'
-  | 'content_media'
+/**
+ * Name of the published composition that assembled this admission. The coordinator only checks
+ * its shape (`COMPOSITION_KIND_SHAPE`, at most 64 characters) and records it verbatim; it holds no
+ * list of names and never branches on one.
+ */
+export type CompositionKind = string
 
 export type AdmissionFailure = Readonly<{
   status: 'denied' | 'conflict' | 'unavailable'
@@ -116,15 +114,8 @@ export type AdmissionHost = Readonly<{
   createUseIssuer: (owner: string) => ExactUseIssuer
 }>
 
-const COMPOSITION_KINDS = new Set<CompositionKind>([
-  'owner_change',
-  'input_run',
-  'action_execution',
-  'request_wait',
-  'answer_consequence',
-  'budget_call',
-  'content_media',
-])
+const COMPOSITION_KIND_SHAPE = /^[a-z][a-z0-9_]*$/
+const COMPOSITION_KIND_MAX_LENGTH = 64
 
 const RELEASED: ReleaseResult = Object.freeze({ status: 'released' })
 
@@ -1080,14 +1071,15 @@ class AdmissionCoordinatorRuntime implements AdmissionCoordinator {
   private snapshotAdmission(input: PreparedAdmission): AdmissionSnapshot {
     if (!isObject(input)) throw new SnapshotError('admission must be an object')
     rejectAccessors(input)
-    const compositionValue = ownData(input, 'composition')
+    const composition = ownData(input, 'composition')
     if (
-      typeof compositionValue !== 'string' ||
-      !COMPOSITION_KINDS.has(compositionValue as CompositionKind)
+      typeof composition !== 'string' ||
+      composition.length === 0 ||
+      composition.length > COMPOSITION_KIND_MAX_LENGTH ||
+      !COMPOSITION_KIND_SHAPE.test(composition)
     ) {
       throw new SnapshotError('invalid composition kind')
     }
-    const composition = compositionValue as CompositionKind
     const commitValue = ownData(input, 'commit')
     if (!isObject(commitValue)) throw new SnapshotError('commit must be an object')
     const commitState = this.preparedCommits.get(commitValue)
