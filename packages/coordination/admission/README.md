@@ -1,7 +1,8 @@
 # `@omne-harness-lite/admission`
 
-Project-owned synchronous admission coordination, ordered logical/durable publication, and exact
-runtime-use ownership for `composition.core-work-coordination` v1.
+Project-owned synchronous admission coordination, ordered logical/durable publication, exact
+runtime-use ownership, and the LC-06 committed broadcast for `composition.core-work-coordination`
+v2 (v1 clauses unchanged apart from the CC-01 composition declaration rule).
 
 The default public entry is `@omne-harness-lite/admission`. It consumes only the public records,
 work-data, and diagnostics entries. The package is a trusted factory and does not add a Cordis

@@ -82,6 +82,7 @@ immutable logical/durable 根；coordinator 仅保存有序票据、参与 owner
 | ExactUseIssuer、ExactUse、ReleaseResult | 绑定真实 owner/pin，保管单次 claim、释放与未决清理责任 |
 | PendingAdmission、AdmissionCompletion、AdmissionResult、AdmissionFailure | 认回原票据/结果，区分耐久提交与 publication ready/blocked |
 | CoordinatorStatus | 暴露关门/隔离阶段和 logical/durable 水位 |
+| AdmissionHost.subscribeCommitted、CommittedNotice | 票据以 committed/ready 完成后在门外同步广播一次已持有的组合名、规范输入与 committed Receipt；见下文"提交后广播（LC-06）" |
 
 ExactUse 的私有 claim 与生命周期状态由本提供者保存，其不变量见下文；
 它们不成为导出数据契约或第二个资源 owner。
@@ -207,6 +208,29 @@ writer 的入队与 coordinator 安装 logical 根在同一 JS 栈；写泵在�
 只有 publication=ready 才能继续相关效果；blocked 允许认回提交事实，相关业务
 读/写入口保持不可用，恢复重新建立根后才开放。查原 pending 时返回 coordinator
 同一票据，不能临时包装原 writer Promise 绕过发布步骤。
+
+### 提交后广播（LC-06）
+
+[LC-06](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md) 要求协调者在提交
+返回 committed 后把已提交事实原样广播一次。本包的实现：AdmissionHost 提供
+`subscribeCommitted(listener)`，返回退订函数；订阅面放在只由受信装配持有的 host 上，
+业务组合持有的 coordinator 不暴露它。时机是 `finishTicket` 中票据以 committed 且
+publication **ready** 完成、coordinator durable 水位已推进、票据 completion 已 resolve 之后，
+在任何 GateFrame 之外同步按票据完成顺序（即 seq 顺序）调用全部当时的订阅者。
+blocked、conflict、rejected、unknown 一律不发；同一票据只发一次，之后的认回不再发。
+
+CommittedNotice 只传票据已持有的对象：`composition`（提交时的组合名）、
+`canonicalInput`（prepared commit 的 writer 规范输入，含 tenantId、principal、causality）与
+writer 的 committed `Receipt`（position、operation、本票据触及的 stream 及其 scope）。
+writer 不向协调者返回 CommitEnvelope，本包也不另造第二份 envelope 表示。广播只是提示，
+不是第二种事实：通知不改状态、不改回执，监听器只收只读对象，动手前须在自己的门里重读
+权威状态。
+
+每个监听器各自 try/catch：抛错记一条 `phase=delivery`、`code=committed_listener_throw` 的
+诊断（带原 operation、position 与租户身份），不影响票据结果、水位或其他监听器。
+不重试、不排队、不缓冲、不给晚订阅者补发；提交与广播之间的崩溃不补发，丢失由提供者
+启动扫描兜底（LC-06）。租户与 Session 作用域的过滤不在本包做：通知带着 stream 的
+scope 与 operation 的 causality，路由归应用装配。
 
 每个 owner 的根只替换本 owner 在该位置的状态，不覆盖后来 logical 根；例如
 耐久前缀推进到 n 时，logical 已在 n+2，不能把 n 的旧快照写回 logical。
