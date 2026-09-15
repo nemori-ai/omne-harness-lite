@@ -4,7 +4,8 @@
 
 - 契约坐标：`(omne-harness-lite-design-2026-09-15, composition.agent-session-binding, 1)`
 - 版本与采用状态：新谱系 v1 候选；旧 v1 等价整理，等待 I 登记、独立评审与冻结
-- 精确依赖：`data.agent-runtime-identity@1` ARI-1～ARI-5、`capability.live-agent@1` AR-1～AR-16，均为新谱系 `equivalent-rebase`
+- 精确依赖：新谱系 `data.agent-runtime-identity@1` ARI-1～ARI-5、`capability.live-agent@1` AR-1～AR-16；同 baseline 的 `rebase_relation` 均为 `null`
+- 谱系关系：legacy→new 分别由 `f-identity-v1-equivalent-rebase` 和 `f-live-agent-v1-equivalent-rebase` 表达
 - 旧接受依据：`D-007`；只作为 lineage
 - 提供者映射：[core-agent](../../../providers/core-agent/README.md)
 

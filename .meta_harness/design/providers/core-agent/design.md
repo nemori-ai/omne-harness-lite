@@ -31,12 +31,18 @@
 
 `activated`/`disposed` 是带精确 AgentRef 的进程内已提交事实通知，不是耐久日志或授权。Context 可达性和 initiator 只提供组合/归因，均不得绕过操作门。
 
+## 激活审计耐久门
+
+ready 发布和业务工作面可用是两个独立事实。AR 是激活操作的生命周期与准入 owner；S 提供 tenant 审计 stream 的耐久记录接口，保存 `agent.operation_recorded/1={agent,operationKind,phase,reason,relatedOperation}`。ready 提交后 AR 先保持工作面关闭，在门外等该激活记录耐久；之前不发放 WorkPermit，`activated` 监听器也不得先启动业务。
+
+审计耐久后，AR 开放工作面并按 ready 提交时分配的顺序号分发 `activated`；同步异常、异步拒绝和通知重入 close 均隔离，不回滚 ready。审计失败返回 `published_but_audit_unavailable`，保留可按原 attempt/AgentRef 查询的 publication、audit 与 exit 状态，关闭新工作并继续安全清理；重试查询/记录原尝试，不新建第二次激活。S 的日志不是活体恢复指令，审计不可用也不能阻止 close/release。
+
 ## 状态、并发与失败映射
 
 Host 是 SessionRef→记录、发号与账目的写权威。activate 首次提交预留 preparing；门外异步准备；同一门内复核 host/mount/registration/generation/权限/attachment/资源后 ready。
 关闭共享同一退出过程，状态依次 `closing→releasing→disposed`；资源/工作/attachment 未确认释放时保持占位和 blocked/unknown，不恢复整表快照删除别人的新贡献。
 
-每个 WorkPermit 绑定 AgentRef、业务执行权和确切依赖；settle 只结算真实后代。旧句柄、旧 disposer 和晚到结果只作用于原代际，外部效果仍交给原工作权威。
+每个 WorkPermit 绑定 AgentRef、RunRef/epoch、业务执行权和整份实际装配。`checkWork` 在每个 Step/工具联合准入的同一活动 gate 核对原许可、Run epoch 和 ExactUse；`checkSettlement` 只在 closing 阶段允许 checkpoint、原已准入结果、停止或具名接管确认，releasing 后拒绝运行结果提交。settle 只在 WorkPermit/全部后代已结算或有具名接管证据时解除原 ExactUse；旧句柄、旧 disposer 和晚到结果只作用于原代际。
 
 ## 成对装载与撤除
 
@@ -44,9 +50,20 @@ Host 是 SessionRef→记录、发号与账目的写权威。activate 首次提�
 |---|---|---|---|
 | Registry 插件与 Host mount | 应用装配；required 依赖满足后 provide | 不发布服务或保留可诊断失败 | 先封闭所有新准入，等待实例收口，再释放 mount |
 | Factory binding | 注册插件；登记成功后可被精确选择 | 原 registration 自行收口 | retire 关新 activate，等待 preparing/ready 使用者，旧 disposer 不碰新绑定 |
-| 私有实例资源/attachment/driver | 稳定 runtime owner；共同发布后业务可用 | 预先登记回收，晚到资源归原尝试 | 静止、移交、反向依赖释放、attachment release，最后撤占位 |
+| 私有实例资源/attachment/driver | 稳定 runtime owner；共同 ready 发布且激活审计耐久后业务可用 | 预先登记回收，晚到资源归原尝试；审计失败关新工作 | 静止、移交、反向依赖释放、attachment release，最后撤占位 |
+
+## F↔L/S 已确定交接
+
+| 交接 | 已确定语义 | 尚未完成的提供者映射 |
+|---|---|---|
+| F↔L 激活与 Run 交付 | L 的 Session scheduler 是唯一发起者；有 ready 实例时先复用，无实例才 activate，再用新 epoch/WorkPermit 交付 Run | L 后续的新谱系 `capability.session@1`、`capability.run@1`、scheduler/driver 提供者坐标与实现待固定 |
+| F↔L 实例退役 | 实例 driver 兑现 `requestRetire`、Yield、WorkPermit/ExactUse 结算与 `awaitQuiescent`；这些是分别的事实，超时/表空不等于真实静止 | L 的 Run driver 实现、真实工具/任务树结算及故障验证待完成 |
+| F↔L 空闲与 Session 终态 | idle 必须读 Run 权威（无执行者且无可做事）。Session archived/deleted 耐久事实广播触发关闭空闲实例，门内重读真实状态，扫描修复丢失广播；崩溃后 Registry 从空表重建，不恢复活体 | L/S 的 Run 读面、Session 事实广播/扫描和裁决顺序待实现 |
+| F↔S 激活审计 | F 保持准入与原 attempt 查询；S 耐久写入操作记录，返回 durable/unavailable 真实结果 | S 的新谱系耐久记录坐标、幂等写入与可查询 attempt 端口待固定 |
+
+上述是 D-013/D-014 已确定交界在新谱系中的 provenance，不把已退役的 `capability.session-run` 复活为依赖。实现缺失只表示提供者尚未兑现，不重新打开这些已确定语义。
 
 ## 实施缺口与消费者影响
 
-当前默认入口尚无完整 `createAgentHost`/Registry 行为；Session link、IAM guard、driver quiescence 和真实 resource cleanup 也未交付。
+当前默认入口尚无完整 `createAgentHost`/Registry 行为；审计耐久门、Session link、IAM guard、scheduler/driver quiescence 和真实 resource cleanup 也未交付。
 因此本设计可供后续实现和 S/L 的接口消费，但不能作为产品组合已验收的证据。实现变化必须保持新谱系精确条款和旧代际隔离。
