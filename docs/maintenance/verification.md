@@ -16,7 +16,7 @@
 | `product-check` | 产品职责包的构建、严格类型检查、来源/组合测试、依赖边界、原件完整性及逐包隔离 tarball 消费 | live-agent v1、D-008 目标能力或完整智能体产品已经实现 |
 | 实现符合性 | 绑定源码版本的场景、集成测试或运行证据 | 所有实现、配置或部署天然等价 |
 
-`make docs-check BASELINE=<git-ref>`（或 `omne-docs-check --baseline <git-ref>`）必须用于审阅已发布规范或冻结表同时变更的提交。`omne-spec-check` 要将结构检查和 TLA+/Alloy 的实际执行分开报告：没有模型任务是明确覆盖缺口，声明了任务却缺少工具或执行失败是失败或未执行，绝不能假通过。提案和 archive 可单独检查，其结果不改变接受状态。
+`make docs-check BASELINE=<git-ref>`（或 `omne-docs-check --baseline <git-ref>`）必须用于审阅已发布规范或冻结表同时变更的提交。`make spec-check` 缺省执行全部已登记形式任务，是发版与合并前的门；日常修改用 `make spec-check FORMAL=changed BASELINE=<git-ref>`（或 `omne-spec-check --formal changed --baseline <git-ref>`）只执行工件相对基线有差异或未跟踪的任务，`FORMAL=none` 只做结构检查；被跳过的任务在输出里逐条标明，跳过不构成该任务通过的证据。`omne-spec-check` 要将结构检查和 TLA+/Alloy 的实际执行分开报告：没有模型任务是明确覆盖缺口，声明了任务却缺少工具或执行失败是失败或未执行，绝不能假通过。提案和 archive 可单独检查，其结果不改变接受状态。
 
 关键规则在其语义契约中有可引用 ID，并映射到适用的模型性质、Schema 约束、验收场景和证据或明确缺口。TLA+表达行为及状态演化，Alloy 在有限范围寻找结构反例，JSON Schema 约束数据形状；它们与文字规范互补，冲突时修正规格而不以单项检查覆盖冲突。场景应包含初始条件、动作、可观察结果和规则。
 

@@ -304,3 +304,27 @@ def test_requirement_reclassification_preserves_identity_and_updates_references(
     write(tmp_path / 'docs/requirements/product/agent/README.md', '[context](../environment/PF-001-context.md)')
     result = run(DOCS, tmp_path)
     assert result.returncode == 0, result.stdout
+
+
+def test_formal_changed_runs_only_tasks_whose_artifacts_differ_from_baseline(tmp_path):
+    base(tmp_path)
+    write(tmp_path / "spec/a.tla", "---- MODULE a ----\n====\n")
+    write(tmp_path / "spec/b.tla", "---- MODULE b ----\n====\n")
+
+    def task(name):
+        return {"id": name, "kind": "tla", "artifacts": [f"spec/{name}.tla"],
+                "command": [sys.executable, "-c", f"from pathlib import Path; Path('ran-{name}').write_text('yes')"]}
+
+    write(tmp_path / "spec/formal-tasks.json", json.dumps({"format": 1, "tasks": [task("a"), task("b")]}))
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+    subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@x", "commit", "-qm", "baseline"], cwd=tmp_path, check=True)
+    write(tmp_path / "spec/b.tla", "---- MODULE b ----\n\\* changed\n====\n")
+    result = subprocess.run([sys.executable, "-m", SPECS, "--root", str(tmp_path), "--formal", "changed", "--baseline", "HEAD"],
+                            text=True, capture_output=True)
+    assert result.returncode == 0, result.stdout
+    assert not (tmp_path / "ran-a").exists() and (tmp_path / "ran-b").read_text() == "yes"
+    assert "FORMAL a: skipped" in result.stdout and "executed 1 of 2" in result.stdout
+    result = subprocess.run([sys.executable, "-m", SPECS, "--root", str(tmp_path), "--formal", "none"], text=True, capture_output=True)
+    assert result.returncode == 0 and "executed 0 of 2" in result.stdout
+    assert run(SPECS, tmp_path).returncode == 0 and (tmp_path / "ran-a").exists()
