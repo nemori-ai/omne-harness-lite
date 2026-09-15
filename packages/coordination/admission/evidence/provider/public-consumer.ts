@@ -1,6 +1,8 @@
 import { createAdmissionCoordinator } from '@omne-harness-lite/admission'
 import type {
+  AdmissionCoordinator,
   AdmissionHost,
+  CommittedNotice,
   ExactUse,
   OwnerPublication,
   PreparedAdmission,
@@ -34,6 +36,16 @@ const admission: PreparedAdmission = {
 }
 
 host.coordinator.enter(frame => host.coordinator.submit(frame, admission))
+
+const unsubscribe: ReturnType<AdmissionHost['subscribeCommitted']> = host.subscribeCommitted(
+  (notice: CommittedNotice) =>
+    void `${notice.composition} ${notice.canonicalInput} ${notice.receipt.position.seq}`,
+)
+unsubscribe()
+
+const isCurrentFrame: AdmissionCoordinator['isCurrentFrame'] = frame =>
+  host.coordinator.isCurrentFrame(frame)
+void isCurrentFrame
 
 // @ts-expect-error logical publication may not return an arbitrary value
 publication.publishLogical = () => 1

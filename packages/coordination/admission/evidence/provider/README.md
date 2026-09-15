@@ -37,6 +37,40 @@ command output is in [consumer-verification.log](consumer-verification.log). The
 cached packages and downloaded the missing exact `nan@2.29.0` tarball required transitively by
 diagnostics `fs-ext`; no lifecycle scripts ran.
 
+## Packed consumer re-run on the integration tree `923123c` (2026-09-15)
+
+The two paragraphs above describe the leaf run at `025793a`; they are kept as history. The public
+surface has since gained `isCurrentFrame`, `subscribeCommitted`, and `CommittedNotice` (`766af9b`
+through `8f03e73`, merged into `design/dsh-core-adoption` as `923123c`), so the packed consumer was
+re-run against the integration tree with Node `v24.18.0`, pnpm `10.28.1`, TypeScript `6.0.3`, and
+`@types/node` `24.13.4`.
+
+- The `pnpm pack` file list is unchanged; the tarball SHA-256 is now
+  `3b4b77176adb987a9558b2a0cc84a778316d0e9033f8b721ce38d35eeac660f9`.
+  [artifact.txt](artifact.txt) records the re-run digest; the leaf digest stays in the paragraph
+  above.
+- Install list: the admission, diagnostics, records, and work-data tarballs as `file:` dependencies,
+  and the same four paths repeated as pnpm overrides so the packed transitive dependencies resolve
+  to tarballs. The leaf run did not record its override list. This install resolved 35 packages
+  entirely from the local store (`reused 35, downloaded 0`), so the leaf run's one-off `nan@2.29.0`
+  fetch did not recur; no lifecycle scripts ran.
+- [public-consumer.ts](public-consumer.ts) now also binds
+  `ReturnType<AdmissionHost['subscribeCommitted']>`, reads the three `CommittedNotice` fields, and
+  binds `AdmissionCoordinator['isCurrentFrame']`; `tsc --traceResolution` resolved all four product
+  modules to `dist/index.d.ts` inside the tarballs, which the leaf log did not record.
+- [runtime-consumer.mjs](runtime-consumer.mjs) additionally subscribes once through the packed
+  default entry, checks the returned unsubscribe is callable, unsubscribes, and asserts no notice
+  arrived; the prior synchronous gate, fresh-use release, and close checks are unchanged and still
+  pass. A negative control with the three new names misspelled fails the same typecheck with six
+  errors, so the passing run is not vacuous.
+- Raw commands and output: [consumer-verification.log](consumer-verification.log).
+
+Not re-run here: the leaf build, strict typecheck, and Vitest suites
+([leaf-verification.log](leaf-verification.log) still describes `025793a`), and the repository-wide
+checks. The runtime consumer still commits nothing, so no `CommittedNotice` was delivered and this
+evidence says nothing about delivery order, once-only delivery, or listener-throw handling; those
+remain with the admission test suite and the integrated composition.
+
 ## Covered admission properties
 
 The tests cover these admission-owned properties:
