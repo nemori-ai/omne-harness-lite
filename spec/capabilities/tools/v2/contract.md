@@ -258,7 +258,9 @@ projection 只在同一 fold 水位上调用它、不自带调用的可见范围
 已提交结果，声明解析/守卫缺失不能默认许可。未知输出 Schema 或内部
 插件异常如实结算，保留失败阶段。工具前只有 TL-07 的门与本条的守卫，守卫只能把
 allow 收紧为 ask 或 deny，不能放宽、不能改写已冻结的参数、不能新增调用；工具后只能
-选择进入模型的投影，不改耐久结果（TL-19）。外部命令式 hooks 在这两个站点的映射、
+选择进入模型的投影，不改耐久结果（TL-19）。这两个站点在 Agent Loop 上的标签
+（`pre_execute`、`post_execute`）与种类登记归
+[RD-19](../../run-driver/v3/contract.md)，本条只拥有它们对调用的权力上界。外部命令式 hooks 在这两个站点的映射、
 权力上界与降级归
 [external-hooks v1](../../external-hooks/v1/contract.md)，它不获得本条之外的权力。
 包级 fork 可保留有价值的 DSL/路由/冻结机制，但上游 waterfall、PTC、in-memory jobs 或

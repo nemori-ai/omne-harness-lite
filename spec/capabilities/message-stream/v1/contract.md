@@ -10,7 +10,7 @@ attempt 的瞬态帧协议。[决定 D-014](../../../../docs/decisions/D-014-ses
 规范依赖：[session v2](../../session/v2/contract.md)（Session、历史与派生消息、读面
 `changes / snapshot / visibilityVersion / history`、`frames(S)`、Inbound）、
 [run v2](../../run/v2/contract.md)（Run 状态与执行 epoch）、
-[run-driver v3](../../run-driver/v3/contract.md)（Step 切点与辅助工作的 `purpose` 词表）、
+[run-driver v3](../../run-driver/v3/contract.md)（Step 切点与辅助工作）、
 [tools v2](../../tools/v2/contract.md)（调用事实、`tools.frame.<kind>`、记录等级、缺口词表、帧读面与
 `calls` 贡献）、[human-decisions v2](../../human-decisions/v2/contract.md)（请求事实、可见范围与
 `requests` 贡献）、[model-execution v2](../../model-execution/v2/contract.md)（attempt、结算记录、
@@ -227,7 +227,7 @@ model-execution，其发布义务归 [MC-12](../../model-execution/v2/contract.m
 工作其 Step 引用为空；`epoch` 是该工作的执行代次（[run v2](../../run/v2/contract.md)），只作重基线
 依据，不作缺帧检测；`index` 在 attempt 内稠密零起，`ended.index` 等于已发 chunk 数；`startedAfter`
 是 attempt 开始时的客户端游标值，供客户端把草稿排在正确的事实之后。`purpose` 在 `started` 上就
-带（`reply | title | compression | auxiliary`，[run-driver v3](../../run-driver/v3/contract.md)）：客户端
+带（`reply | title | compression | auxiliary`，词表归 [MC-06](../../model-execution/v2/contract.md)）：客户端
 只把 `reply` 展开为助手草稿，其它目的不产生草稿，结算时直接撤下。
 
 **MS-21**：流出的 chunk 词表恰是 `block-start{index, blockType}`、`text-delta`、
