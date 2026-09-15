@@ -20,3 +20,11 @@ Registry/实例插件拥有活体资源；Factory 作为受管贡献注册；Ses
 ## 证据义务与受阻消费
 
 P2 checker、条款级 rebase、形式模型登记和独立架构/spec 评审是新 v1 候选门槛；实际 provider 符合性和完整组合仍未完成。
+
+
+## Cordis 事实与项目附加义务
+
+固定官方来源为同一修订的 Service、lifecycle/effects、events 与 scope 文档；它们支持服务解析、依赖生灭、受管注册和进程内事件。
+共同发布屏障、当前权限、耐久事实、业务静止和移交确认均是项目契约的附加义务；上游没有同名 API，provider 必须给实际协调映射。
+
+未来跨进程 provider 仍须兑现精确身份、可解释线性化、撤销、unknown 和释放语义，不能序列化 Cordis 对象冒充协议。
