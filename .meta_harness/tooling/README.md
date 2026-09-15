@@ -11,37 +11,51 @@
 ```sh
 python tooling/src/check_design.py --root design --formal registered
 python tooling/src/check_design.py --root design --formal skip
-python tooling/src/check_design.py --root design --formal run
+python tooling/src/check_design.py --root design --gate release --formal run
 ```
 
 三个形式任务模式含义不同：`registered` 只确认任务与工件已登记；`skip` 记录本次明确
 跳过执行；`run` 才调用清单中的 runner，并传播缺工具、超时和非零退出。前两种模式
 都不能作为 TLC、Alloy 或其他模型已通过的证据。`--previous-frozen PATH` 可核对同一
-baseline 先前冻结登记未被改变或移除。
+baseline 先前冻结登记未被改变或移除，也没有向已冻结版本目录追加资源；新增规范工件
+必须进入新版本。
+
+`--gate internal` 检查仍在编辑的信息树内部一致，允许保留可核对的 blocked relation 和
+`unknown` consumer；`--gate release` 作为切换/冻结门，对任一 blocked relation、unknown
+consumer 或缺少 release evidence 的关系失败。不能通过暂时删掉 catalog dependency 来绕过
+尚未释放的重基关系。
 
 设计根必须包含五份清单；路径均相对设计根，禁止绝对路径、`..` 和符号链接逃逸：
 
-| 文件                | 持续含义与关键字段                                                                                                      |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `baseline.json`     | `format=1`、稳定 `baseline_id`、输入 `snapshot_id`、Schema `schema_namespace`、不可混入当前谱系的 `legacy_baseline_ids` |
-| `catalog.json`      | 当前谱系的精确三元组、family/topic、状态、版本资源、接受决定和条款级依赖                                                |
-| `rebase-map.json`   | 旧→新条款关系、退出身份、`freeze_gate` 与实际产品消费者的旧/新谱系观察                                                  |
-| `frozen.json`       | 已接受 catalog 资源的 SHA-256；发布后只追加，新内容必须新版本                                                           |
-| `formal-tasks.json` | 模型种类、已登记工件、可注入 argv runner 和超时；结果不写回规范                                                         |
+| 文件                | 持续含义与关键字段                                                                                               |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `baseline.json`     | `format=1`、稳定 `baseline_id`、输入 `snapshot_id`、Schema `schema_namespace`、旧谱系清单及显式 `version_policy` |
+| `catalog.json`      | 当前谱系的精确三元组、family/topic、状态、版本资源、接受决定和条款级依赖                                         |
+| `rebase-map.json`   | 旧→新条款关系、退出身份、`freeze_gate` 与实际产品消费者的旧/新谱系观察                                           |
+| `frozen.json`       | 已接受 catalog 资源的 SHA-256；发布后只追加，新内容必须新版本                                                    |
+| `formal-tasks.json` | 模型种类、已登记工件、可注入 argv runner 和超时；结果不写回规范                                                  |
 
-catalog 的稳定键是 `(baseline_id, contract_id, version)`。本次重基只接受固定 baseline
-中的 `version=1`，资源位置为 `spec/{family}/{topic}/v1/...`；同一坐标重复登记直接
+catalog 的稳定键是 `(baseline_id, contract_id, version)`。本次重基的 baseline 使用
+`{"kind":"initial-uniform","version":1}`，后续稳定演化切换为 `{"kind":"evolving"}` 后可
+新增 v2，不能改写 v1。资源位置为 `spec/{family}/{topic}/v{version}/...`；同一坐标重复登记直接
 拒绝，即使两个文件内容不同。`accepted` 条目必须链接实际 `decisions/` 文件，全部版本
 资源必须冻结；候选状态和接受状态不能靠文件存在相互提升。
 
 依赖必须带精确坐标和实际消费条款。当前谱系坐标须在 catalog 中存在；旧谱系坐标须
-引用一条精确重基关系。`freeze_gate.blocked=true` 会阻断采用，退出身份不能作为当前
+引用一条精确重基关系。关系声明源/目标 clauses、逐条 mapping、实际 consumers、release
+evidence 及 freeze gate。accepted 旧依赖只可映到 accepted 精确目标，且消费 clauses 必须
+完全落在关系覆盖内。`freeze_gate.blocked=true` 会阻断采用，退出身份不能作为当前
 依赖复活；先把其被消费条款映射到当前活体能力，再让 catalog 依赖当前坐标。产品包仍
 消费旧 Schema 时，以 `consumer_observations.status=observed-legacy` 保存事实，不能标为
-`verified-current`。
+`verified-current`。每项 consumer evidence 固定 source commit/path/hash，并指向设计树内
+可按 hash 核对的 snapshot；`verified-current` 坐标必须真实存在，`unknown` 不能通过 release gate。
+
+accepted catalog 条目引用 decision topic 内的 `acceptance.json`。该声明必须链接同 topic 的
+决定正文，并以 exact coordinate 和非空 `scope_clauses` 声明接受范围；决定文件存在本身
+不能使契约成为 accepted。
 
 每个 catalog Schema 的 `$id` 必须为
-`{schema_namespace}/{baseline_id}/spec/{family}/{topic}/v1/{resource}`。检查器解析所有
+`{schema_namespace}/{baseline_id}/spec/{family}/{topic}/v{version}/{resource}`。检查器解析所有
 `$ref`/`$dynamicRef` 的资源和 JSON Pointer；旧命名空间、缺资源与缺 pointer 都非零退出。
 它也核对设计根内 Markdown 文件和锚点，因此 requirements 与 decision 信息包的接受链
 可在独立副本中检查。当前实现不执行完整 JSON Schema 实例校验；迁移纵线仍须为具体

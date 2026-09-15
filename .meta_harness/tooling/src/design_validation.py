@@ -145,10 +145,11 @@ def github_anchor(text: str) -> str:
 
 class DesignValidator:
     def __init__(self, root: Path, *, previous_frozen: Path | None = None,
-                 formal: str = "registered") -> None:
+                 formal: str = "registered", gate: str = "internal") -> None:
         self.root = root.resolve()
         self.previous_frozen = previous_frozen
         self.formal = formal
+        self.gate = gate
         self.errors: list[str] = []
         self.notes: list[str] = []
         self.baseline_id = ""
@@ -160,6 +161,8 @@ class DesignValidator:
         self.retired: set[tuple[str, str]] = set()
         self.retired_contract_ids: set[str] = set()
         self.legacy_baseline_ids: set[str] = set()
+        self.version_policy: dict[str, Any] = {}
+        self.consumer_observations: dict[str, dict[str, Any]] = {}
 
     def error(self, message: str) -> None:
         self.errors.append(message)
@@ -196,7 +199,7 @@ class DesignValidator:
         try:
             data = require_object(raw, "baseline.json")
             require_keys(data, {"format", "baseline_id", "snapshot_id", "schema_namespace",
-                                "legacy_baseline_ids"}, "baseline.json")
+                                "legacy_baseline_ids", "version_policy"}, "baseline.json")
             if data["format"] != FORMAT:
                 raise Invalid(f"baseline.json.format must be {FORMAT}")
             self.baseline_id = require_text(data["baseline_id"], "baseline.json.baseline_id")
@@ -206,6 +209,15 @@ class DesignValidator:
             if parsed.scheme != "https" or not parsed.netloc or parsed.query or parsed.fragment:
                 raise Invalid("baseline.json.schema_namespace must be an absolute https URL without query/fragment")
             self.namespace = namespace
+            policy = require_object(data["version_policy"], "baseline.json.version_policy")
+            require_keys(policy, {"kind"}, "baseline.json.version_policy")
+            if policy["kind"] == "initial-uniform":
+                version = policy.get("version")
+                if not isinstance(version, int) or isinstance(version, bool) or version < 1:
+                    raise Invalid("baseline.json.version_policy.version must be a positive integer")
+            elif policy["kind"] != "evolving":
+                raise Invalid("baseline.json.version_policy.kind must be initial-uniform or evolving")
+            self.version_policy = policy
             legacy = require_list(data["legacy_baseline_ids"], "baseline.json.legacy_baseline_ids")
             self.legacy_baseline_ids = {
                 require_text(v, "baseline.json.legacy_baseline_ids[]") for v in legacy
@@ -246,7 +258,9 @@ class DesignValidator:
             for index, raw_item in enumerate(require_list(data["relations"], "rebase-map.json.relations")):
                 where = f"rebase-map.json.relations[{index}]"
                 item = require_object(raw_item, where)
-                require_keys(item, {"id", "source", "disposition", "target", "freeze_gate"}, where)
+                require_keys(item, {"id", "source", "source_clauses", "disposition", "target",
+                                    "target_clauses", "clause_mappings", "consumers",
+                                    "release_evidence", "freeze_gate"}, where)
                 identity = require_text(item["id"], f"{where}.id")
                 if identity in self.rebase_relations:
                     raise Invalid(f"duplicate rebase relation id: {identity}")
@@ -257,6 +271,29 @@ class DesignValidator:
                 if disposition not in {"rebase", "retired", "historical"}:
                     raise Invalid(f"{where}.disposition is invalid: {disposition!r}")
                 target = None if item["target"] is None else Coordinate.read(item["target"], f"{where}.target")
+                source_clauses = self._clauses(item["source_clauses"], f"{where}.source_clauses")
+                target_clauses = self._clauses(item["target_clauses"], f"{where}.target_clauses",
+                                               allow_empty=target is None)
+                mappings = require_list(item["clause_mappings"], f"{where}.clause_mappings")
+                mapped_source: set[str] = set()
+                mapped_target: set[str] = set()
+                for map_index, raw_mapping in enumerate(mappings):
+                    map_where = f"{where}.clause_mappings[{map_index}]"
+                    mapping = require_object(raw_mapping, map_where)
+                    require_keys(mapping, {"source", "target"}, map_where)
+                    source_clause = require_text(mapping["source"], f"{map_where}.source")
+                    target_clause = require_text(mapping["target"], f"{map_where}.target")
+                    if source_clause not in source_clauses or target_clause not in target_clauses:
+                        raise Invalid(f"{map_where} must use declared source/target clauses")
+                    mapped_source.add(source_clause)
+                    mapped_target.add(target_clause)
+                consumers = require_list(item["consumers"], f"{where}.consumers")
+                if any(not isinstance(value, str) or not value for value in consumers):
+                    raise Invalid(f"{where}.consumers must contain non-empty consumer identities")
+                if len(set(consumers)) != len(consumers):
+                    raise Invalid(f"{where}.consumers contains duplicates")
+                release_evidence = self._evidence_list(item["release_evidence"],
+                                                       f"{where}.release_evidence")
                 gate = require_object(item["freeze_gate"], f"{where}.freeze_gate")
                 require_keys(gate, {"blocked", "reason"}, f"{where}.freeze_gate")
                 if not isinstance(gate["blocked"], bool):
@@ -267,28 +304,78 @@ class DesignValidator:
                     raise Invalid(f"{where} rebase must target the current baseline")
                 if disposition != "rebase" and target is not None:
                     raise Invalid(f"{where} {disposition} relation cannot have a target")
+                if target is None and target_clauses:
+                    raise Invalid(f"{where}.target_clauses must be empty when target is null")
+                if disposition == "rebase" and (mapped_source != source_clauses or mapped_target != target_clauses):
+                    raise Invalid(f"{where}.clause_mappings must cover every declared source and target clause")
                 item["_source"] = source
                 item["_target"] = target
+                item["_source_clauses"] = source_clauses
+                item["_target_clauses"] = target_clauses
+                item["_release_evidence"] = release_evidence
                 self.rebase_relations[identity] = item
             for index, raw_item in enumerate(require_list(data["consumer_observations"],
                                                           "rebase-map.json.consumer_observations")):
                 where = f"rebase-map.json.consumer_observations[{index}]"
                 item = require_object(raw_item, where)
                 require_keys(item, {"consumer", "consumes", "status", "evidence"}, where)
-                require_text(item["consumer"], f"{where}.consumer")
+                consumer = require_text(item["consumer"], f"{where}.consumer")
+                if consumer in self.consumer_observations:
+                    raise Invalid(f"duplicate consumer observation: {consumer}")
                 coordinate = Coordinate.read(item["consumes"], f"{where}.consumes")
                 status = item["status"]
                 if status not in {"observed-legacy", "verified-current", "unknown"}:
                     raise Invalid(f"{where}.status is invalid: {status!r}")
-                require_text(item["evidence"], f"{where}.evidence")
+                evidence = self._source_evidence(item["evidence"], f"{where}.evidence")
                 if status == "observed-legacy" and coordinate.baseline_id == self.baseline_id:
                     raise Invalid(f"{where} labels a current-baseline coordinate as legacy")
                 if status == "observed-legacy" and coordinate.baseline_id not in self.legacy_baseline_ids:
                     raise Invalid(f"{where} uses an undeclared legacy baseline")
                 if status == "verified-current" and coordinate.baseline_id != self.baseline_id:
                     raise Invalid(f"{where} labels a non-current coordinate as current")
+                item["_coordinate"] = coordinate
+                item["_evidence"] = evidence
+                self.consumer_observations[consumer] = item
+                if self.gate == "release" and status == "unknown":
+                    raise Invalid(f"{where} is unknown and blocks the release gate")
         except Invalid as error:
             self.error(str(error))
+
+    def _clauses(self, raw: Any, where: str, *, allow_empty: bool = False) -> set[str]:
+        values = require_list(raw, where)
+        if (not values and not allow_empty
+                or any(not isinstance(value, str) or not value.strip() for value in values)):
+            raise Invalid(f"{where} must contain non-empty clause identities")
+        if len(set(values)) != len(values):
+            raise Invalid(f"{where} contains duplicate clause identities")
+        return set(values)
+
+    def _source_evidence(self, raw: Any, where: str) -> dict[str, Any]:
+        evidence = require_object(raw, where)
+        require_keys(evidence, {"source_commit", "source_path", "sha256", "snapshot_path"}, where)
+        commit = require_text(evidence["source_commit"], f"{where}.source_commit")
+        if not re.fullmatch(r"[0-9a-f]{40}", commit):
+            raise Invalid(f"{where}.source_commit must be a full lowercase Git commit")
+        require_text(evidence["source_path"], f"{where}.source_path")
+        expected = require_text(evidence["sha256"], f"{where}.sha256")
+        snapshot = checked_path(self.root, evidence["snapshot_path"], f"{where}.snapshot_path")
+        if not snapshot.is_file() or not re.fullmatch(r"[0-9a-f]{64}", expected) or digest(snapshot) != expected:
+            raise Invalid(f"{where} snapshot is missing or does not match sha256")
+        return evidence
+
+    def _evidence_list(self, raw: Any, where: str) -> list[dict[str, Any]]:
+        values = require_list(raw, where)
+        result: list[dict[str, Any]] = []
+        for index, raw_item in enumerate(values):
+            item_where = f"{where}[{index}]"
+            item = require_object(raw_item, item_where)
+            require_keys(item, {"path", "sha256"}, item_where)
+            path = checked_path(self.root, item["path"], f"{item_where}.path")
+            expected = require_text(item["sha256"], f"{item_where}.sha256")
+            if not path.is_file() or not re.fullmatch(r"[0-9a-f]{64}", expected) or digest(path) != expected:
+                raise Invalid(f"{item_where} is missing or does not match sha256")
+            result.append(item)
+        return result
 
     def _catalog(self, raw: Any) -> None:
         try:
@@ -306,8 +393,10 @@ class DesignValidator:
                 coordinate = Coordinate.read(item["coordinate"], f"{where}.coordinate")
                 if coordinate.baseline_id != self.baseline_id:
                     raise Invalid(f"{where} mixes baseline {coordinate.baseline_id!r} into current catalog")
-                if coordinate.version != 1:
-                    raise Invalid(f"{where} must use version 1 in this rebased lineage")
+                if (self.version_policy["kind"] == "initial-uniform"
+                        and coordinate.version != self.version_policy["version"]):
+                    raise Invalid(f"{where} must use initial migration version "
+                                  f"{self.version_policy['version']}")
                 if coordinate.contract_id in self.retired_contract_ids:
                     raise Invalid(f"retired contract identity was revived in the new baseline: "
                                   f"{coordinate.label()}")
@@ -324,7 +413,7 @@ class DesignValidator:
                 status = item["status"]
                 if status not in ALLOWED_STATUSES:
                     raise Invalid(f"{where}.status is invalid: {status!r}")
-                expected_dir = PurePosixPath("spec", family, topic, "v1")
+                expected_dir = PurePosixPath("spec", family, topic, f"v{coordinate.version}")
                 contract_path = checked_path(self.root, item["contract_path"], f"{where}.contract_path")
                 if PurePosixPath(item["contract_path"]).parent != expected_dir:
                     raise Invalid(f"{where}.contract_path must be below {expected_dir.as_posix()}")
@@ -350,8 +439,10 @@ class DesignValidator:
                     if acceptance is None:
                         raise Invalid(f"{where}.acceptance is required for accepted contract")
                     accepted_path = checked_path(self.root, acceptance, f"{where}.acceptance")
-                    if not accepted_path.is_file() or not accepted_path.is_relative_to(self.root / "decisions"):
-                        raise Invalid(f"{where}.acceptance must be an existing decisions/ file")
+                    if (not accepted_path.is_file() or accepted_path.suffix != ".json"
+                            or not accepted_path.is_relative_to(self.root / "decisions")):
+                        raise Invalid(f"{where}.acceptance must be an existing decisions/ JSON declaration")
+                    self._acceptance(accepted_path, coordinate, f"{where}.acceptance")
                 elif acceptance is not None:
                     checked_path(self.root, acceptance, f"{where}.acceptance")
                 item["_where"] = where
@@ -399,6 +490,12 @@ class DesignValidator:
                 target = relation["_target"]
                 if relation["disposition"] != "rebase" or target not in self.coordinates:
                     raise Invalid(f"{dep_where} relation {relation_id} does not resolve to a current coordinate")
+                if item["status"] == "accepted" and self.coordinates[target]["status"] != "accepted":
+                    raise Invalid(f"{dep_where} accepted legacy dependency maps to non-accepted target: "
+                                  f"{target.label()}")
+                if not set(clauses).issubset(relation["_source_clauses"]):
+                    missing = sorted(set(clauses) - relation["_source_clauses"])
+                    raise Invalid(f"{dep_where} clauses are outside relation {relation_id}: {missing}")
                 if (coordinate.baseline_id, coordinate.contract_id) in self.retired:
                     raise Invalid(f"{dep_where} references retired identity {coordinate.label()}; "
                                   "map the consumed clauses to a live capability before acceptance")
@@ -412,6 +509,45 @@ class DesignValidator:
                     and not relation["freeze_gate"]["blocked"]
                     and target not in self.coordinates):
                 self.error(f"rebase relation {identity} has no exact target in catalog: {target.label()}")
+            missing_consumers = sorted(set(relation["consumers"]) - self.consumer_observations.keys())
+            if missing_consumers:
+                self.error(f"rebase relation {identity} names consumers without observations: "
+                           f"{', '.join(missing_consumers)}")
+            for consumer in set(relation["consumers"]) & self.consumer_observations.keys():
+                consumed = self.consumer_observations[consumer]["_coordinate"]
+                if consumed not in {relation["_source"], relation["_target"]}:
+                    self.error(f"rebase relation {identity} consumer {consumer} observes unrelated "
+                               f"coordinate: {consumed.label()}")
+            if self.gate == "release" and relation["freeze_gate"]["blocked"]:
+                self.error(f"rebase relation {identity} is blocked at release: "
+                           f"{relation['freeze_gate']['reason']}")
+            if self.gate == "release" and not relation["_release_evidence"]:
+                self.error(f"rebase relation {identity} has no release evidence")
+        for consumer, observation in self.consumer_observations.items():
+            coordinate = observation["_coordinate"]
+            if observation["status"] == "verified-current" and coordinate not in self.coordinates:
+                self.error(f"verified-current consumer {consumer} has no exact catalog coordinate: "
+                           f"{coordinate.label()}")
+
+    def _acceptance(self, path: Path, coordinate: Coordinate, where: str) -> None:
+        data = require_object(load_json(path), where)
+        require_keys(data, {"format", "decision_path", "accepts"}, where)
+        if data["format"] != FORMAT:
+            raise Invalid(f"{where}.format must be {FORMAT}")
+        decision = checked_path(self.root, data["decision_path"], f"{where}.decision_path")
+        if not decision.is_file() or not decision.is_relative_to(path.parent):
+            raise Invalid(f"{where}.decision_path must identify a decision file in the same topic")
+        matches = []
+        for index, raw in enumerate(require_list(data["accepts"], f"{where}.accepts")):
+            item_where = f"{where}.accepts[{index}]"
+            item = require_object(raw, item_where)
+            require_keys(item, {"coordinate", "scope_clauses"}, item_where)
+            candidate = Coordinate.read(item["coordinate"], f"{item_where}.coordinate")
+            clauses = self._clauses(item["scope_clauses"], f"{item_where}.scope_clauses")
+            if candidate == coordinate:
+                matches.append(clauses)
+        if len(matches) != 1:
+            raise Invalid(f"{where} must declare this exact coordinate exactly once: {coordinate.label()}")
 
     def _schemas(self) -> None:
         for path, coordinate in sorted(self.resource_paths.items()):
@@ -510,6 +646,19 @@ class DesignValidator:
                 for relative, expected in old_files.items():
                     if files.get(relative) != expected:
                         raise Invalid(f"previous frozen registration changed or was removed: {relative}")
+                old_version_dirs = {
+                    PurePosixPath(*PurePosixPath(relative).parts[:4])
+                    for relative in old_files
+                    if len(PurePosixPath(relative).parts) >= 5
+                }
+                additions_to_frozen_versions = sorted(
+                    relative for relative in files
+                    if (relative not in old_files
+                        and PurePosixPath(*PurePosixPath(relative).parts[:4]) in old_version_dirs)
+                )
+                if additions_to_frozen_versions:
+                    raise Invalid("resources were added to an already frozen version: " +
+                                  ", ".join(additions_to_frozen_versions))
             accepted_resources = {
                 path.relative_to(self.root).as_posix()
                 for coordinate, item in self.coordinates.items()

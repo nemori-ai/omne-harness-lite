@@ -17,8 +17,11 @@ def main(argv: list[str] | None = None) -> int:
                         help="Earlier frozen manifest in the same baseline; registrations are append-only")
     parser.add_argument("--formal", choices=("registered", "skip", "run"), default="registered",
                         help="Report registration, explicitly skip, or actually execute formal tasks")
+    parser.add_argument("--gate", choices=("internal", "release"), default="internal",
+                        help="Check editable internal consistency or fail-closed release readiness")
     args = parser.parse_args(argv)
-    validator = DesignValidator(args.root, previous_frozen=args.previous_frozen, formal=args.formal)
+    validator = DesignValidator(args.root, previous_frozen=args.previous_frozen, formal=args.formal,
+                                gate=args.gate)
     errors, notes = validator.validate()
     for note in notes:
         print(note)
@@ -27,7 +30,7 @@ def main(argv: list[str] | None = None) -> int:
     if errors:
         print(f"FAIL: design validation found {len(errors)} error(s).", file=sys.stderr)
         return 1
-    print(f"PASS: design tree {args.root.resolve()} is internally consistent; formal={args.formal}.")
+    print(f"PASS: design tree {args.root.resolve()} passed gate={args.gate}; formal={args.formal}.")
     return 0
 
 
