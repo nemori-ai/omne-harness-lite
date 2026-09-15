@@ -1,7 +1,7 @@
 ---
 kind: proposal
 id: P-hooks-compat
-status: draft
+status: accepted
 scope: Claude Code / Codex 命令式 hooks 体系的兼容适配层：上游事件到本系统循环站点的逐项映射与降级表、S1 受理后守卫协议、handler 与配置来源、执行主体与执行边界、失败与观察、Stop 续跑刹车；作为 run-driver / tools / session 扩展点的消费者，不新建第二套事件机制
 ---
 
@@ -110,6 +110,21 @@ Claude Code、Codex 的事件名、配置形状与 stdin/stdout JSON 协议写�
 
 ## 接受记录
 
-尚未接受。2026-09-14 完成映射、机制、字段、刹车与 Cordis 视角；独立评审同日完成，2 项
-阻断与 9 项应修已按 [review.md](review.md) 处置；决定点 U1～U5 由用户 2026-09-15 裁决，正文
-已按裁决写。
+2026-09-15 由 [D-015](../../decisions/D-015-tool-execution-message-stream-and-hooks.md) 接受，与
+[工具执行提案](../tool-execution/README.md#接受记录)、[消息流提案](../message-stream/README.md#接受记录)
+同一决定、同一批发版。本提案的精确对象：新契约
+[external-hooks v1](../../../spec/capabilities/external-hooks/v1/contract.md)（站点与权力上界、S1 守卫
+协议、两家事件映射与降级表、终态与事件、配置与字段对照、机制对照、`Stop` 续跑刹车、观察
+与信任；场景随版本目录发布），以及它要求的
+[session v2](../../../spec/capabilities/session/v2/contract.md)（`closed_by_guard`、`hook_continuation`
+来源与决定表行、`takeTrigger` 重查）、[run-driver v3](../../../spec/capabilities/run-driver/v3/contract.md)
+（受理后守卫、`hook_context` 切点来源）、
+[human-decisions v2](../../../spec/capabilities/human-decisions/v2/contract.md)（程序化作答者）；
+[缺口表](#与已接受契约的关系)的每一行都落进上述版本之一。
+
+用户裁决 U-40、决定点 o～v 与 U1～U5 记录在本页；独立评审（[review.md](review.md)）的处置与
+第三轮复核的接头项已闭合；[未决项](#未决项)各条是接受时明确保留的未完成义务。接受的是
+目标设计（本能力没有形式模型，证据义务见
+[external-hooks 验证范围](../../../spec/capabilities/external-hooks/verification.md)）；系统视图见
+[外部 hooks](../../architecture/external-hooks.md)；提供者设计（候选包 `packages/agent/hooks-compat`）
+尚未写。

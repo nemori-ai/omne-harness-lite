@@ -1,7 +1,7 @@
 ---
 kind: proposal
 id: P-tool-execution
-status: draft
+status: accepted
 scope: 工具调用的完整生命周期（五维状态机、转移、级联、前台上限、内建人类请求工具）、工具 Schema 维度、内部帧的事实侧、与 Session/Run/HD 的接头及 Cordis 视角；消费 tool-system v1 候选的可用部分，不发新契约直到闭环成形
 ---
 
@@ -157,6 +157,7 @@ hooks 兼容层的决定点 o～v 记在 [hooks 兼容提案](../hooks-compat/RE
 | 17 | 系统来源登记与旧词汇清扫（非阻断 1～5、8～10） | SE-13 加 `system` 来源（dedupKey = 被越过的 RunRef，容量归内部来源，保留期同其它 context，丢失可接受）；"阻止收束"残句全部改为合批规则表述；状态图 `admitted → settled_unavailable`；Yield 按登记簿：`foreground` / `detach_in_flight` / 已过门未 start 阻止，等审批、未过门与门不阻止；事实名统一为 `run.wait.claimed / released`；B4 由 Run 取消的未启动调用进清单、没有 owner 到达；HD-10～12 暂行调用无特例 | 复核逐项核对 | lifecycle.md 各处、[TS-16](scenarios.md)、review.md S2、[tools 验证页](../../../spec/capabilities/tools/verification.md)、run 设计 |
 | 18 | run-driver v3 登记 `invalid_proposal`（消息流复核 B-非阻断 2） | `run.step.settled{outcome: invalid_proposal{reasons}}` 进 RD-08 下一版 | 被拒 `tool_call` 块需要耐久来源 | 缺口表 RD-08 行 |
 | 19 | hooks 接头（接头 2～4） | `hook_context` 与 `system_notice` 在 RD-06 并列登记；S1 守卫在"空闲点取入既有 Run"时由驱动器在同一准备阶段求值，`additionalContext` 进空闲点开的 Step；hooks 映射的 Run 事实名改为 `run.state.changed`；`superseded` 不触发 `Stop`（与上游"中断不触发"同向） | 三提案词表一致 | 缺口表 RD-06 行、[hooks 映射](../hooks-compat/mapping.md) |
+| 20 | interrupted 上升级进入的 `stopping` 与占位唯一（D-015 批次作者发现） | 占位由"Run 状态 + 终止受理记录"派生：running、waiting 与由活动 Run 的终止受理进入的 stopping 占位；由 interrupted 升级进入的 stopping 不重新取得占位，也不阻止已在运行的新 Run | RN-03 / LC-02 的占位唯一（D-014 模型 I-1 反例）与裁决 10/14 的升级路径要同时成立；升级本就不该重新取得驱动权 | [run v2](../../../spec/capabilities/run/v2/contract.md) RN-01/03、[LC v2](../../../spec/compositions/session-run-agent-lifecycles/v2/contract.md) LC-02、场景 S08/S14；该转移未进模型，由提供者验收 |
 
 消息流提案对应的裁决见其 [README](../message-stream/README.md#第三轮复核后2026-09-15)。
 
@@ -184,9 +185,28 @@ hooks 兼容层的决定点 o～v 记在 [hooks 兼容提案](../hooks-compat/RE
 
 ## 接受记录
 
-尚未接受。波 1（本页、requirements、invariants、lifecycle）、波 2（schema、frames、cordis）
-与波 3 的模型、场景 2026-09-14 完成；形式任务 `tool-execution-call-safety` /
-`tool-execution-call-progress` 已登记。独立评审 2026-09-14 完成，2 项阻断与 11 项应修已
-按 [review.md](review.md) 处置；评审引出的决定点由用户 2026-09-15 裁决（U-43～U-46），正文
-已按裁决改写。接受后提供者设计修订（[归属表](cordis.md#提供者设计归属与实施入口)）与契约
-缺口一次发版。
+2026-09-15 由 [D-015](../../decisions/D-015-tool-execution-message-stream-and-hooks.md) 接受，与
+[消息流提案](../message-stream/README.md#接受记录)、[hooks 兼容提案](../hooks-compat/README.md#接受记录)
+同一决定、同一批发版。本提案的精确对象：
+[tools v2](../../../spec/capabilities/tools/v2/contract.md)（五维状态机、转移与级联、前台上限、
+封闭停止词表、单调用强停、内建 `human` 工具、帧事实侧；调用生命周期模型与场景随版本目录发布）、
+[run v2](../../../spec/capabilities/run/v2/contract.md)（等待登记簿、`waiting` 与 `waitingFor`、
+`superseded`、unknown 计入收口、控制结果与隔离记录）、
+[session v2](../../../spec/capabilities/session/v2/contract.md)（SE-14 A / B 列按登记簿、`system` 来源、
+取入既有 Run、SE-08 措辞）、[run-driver v3](../../../spec/capabilities/run-driver/v3/contract.md)
+（切点来源、Step 收束与合批规则、占位与迟到结果、`invalid_proposal`、Yield 按登记簿）、
+[human-decisions v2](../../../spec/capabilities/human-decisions/v2/contract.md)（HD 为 `human` 工具
+执行 owner、答复按登记簿路由）、[生命周期组合 v2](../../../spec/compositions/session-run-agent-lifecycles/v2/contract.md)
+（LC-04 的 `superseded` 行与 force_stop 受理即整簿注销）、
+[CD v2](../../../spec/data/core-work/v2/contract.md)（内容块与命令声明的维度总表）、
+[model-execution v2](../../../spec/capabilities/model-execution/v2/contract.md)（MC-04 / MC-07）、
+[media-content v2](../../../spec/capabilities/media-content/v2/contract.md)（CT-03 来源）。
+[契约措辞缺口表](lifecycle.md#契约措辞缺口表)的每一行都落进上述版本之一；被取代的 v1 / v2
+冻结可引用。
+
+用户裁决 U-38～U-47、U-59 与评审后的 y～ac 记录在本页；作者裁决 a～x、0～20 按用户确立的
+工作风格自定，随决定接受，用户可另行否决。三轮独立复核（[review.md](review.md)）的阻断项
+全部闭合；[未决项](#未决项)中未划去的各条是接受时明确保留的未完成义务。接受的是目标设计与
+有限验证工件（[tools 验证范围](../../../spec/capabilities/tools/verification.md)）；系统视图见
+[工具执行](../../architecture/tool-execution.md)；提供者设计的重写
+（[归属表](cordis.md#提供者设计归属与实施入口)）是接受之后的工作，尚未开始。

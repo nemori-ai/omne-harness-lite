@@ -561,9 +561,9 @@
       "id": "tool-execution-call-safety",
       "kind": "tla",
       "artifacts": [
-        "docs/proposals/tool-execution/evidence/model/ToolCall.tla",
-        "docs/proposals/tool-execution/evidence/model/ToolCallMC.tla",
-        "docs/proposals/tool-execution/evidence/model/ToolCall.cfg"
+        "spec/capabilities/tools/v2/ToolCall.tla",
+        "spec/capabilities/tools/v2/ToolCallMC.tla",
+        "spec/capabilities/tools/v2/ToolCall.cfg"
       ],
       "command": [
         "${JAVA_BIN}",
@@ -579,8 +579,8 @@
         "-metadir",
         "tmp/formal-runs/tool-execution-call-safety",
         "-config",
-        "docs/proposals/tool-execution/evidence/model/ToolCall.cfg",
-        "docs/proposals/tool-execution/evidence/model/ToolCallMC.tla"
+        "spec/capabilities/tools/v2/ToolCall.cfg",
+        "spec/capabilities/tools/v2/ToolCallMC.tla"
       ],
       "timeout_seconds": 180
     },
@@ -588,9 +588,9 @@
       "id": "tool-execution-call-progress",
       "kind": "tla",
       "artifacts": [
-        "docs/proposals/tool-execution/evidence/model/ToolCall.tla",
-        "docs/proposals/tool-execution/evidence/model/ToolCallMC.tla",
-        "docs/proposals/tool-execution/evidence/model/ToolCallProgress.cfg"
+        "spec/capabilities/tools/v2/ToolCall.tla",
+        "spec/capabilities/tools/v2/ToolCallMC.tla",
+        "spec/capabilities/tools/v2/ToolCallProgress.cfg"
       ],
       "command": [
         "${JAVA_BIN}",
@@ -606,8 +606,8 @@
         "-metadir",
         "tmp/formal-runs/tool-execution-call-progress",
         "-config",
-        "docs/proposals/tool-execution/evidence/model/ToolCallProgress.cfg",
-        "docs/proposals/tool-execution/evidence/model/ToolCallMC.tla"
+        "spec/capabilities/tools/v2/ToolCallProgress.cfg",
+        "spec/capabilities/tools/v2/ToolCallMC.tla"
       ],
       "timeout_seconds": 120
     },
@@ -615,9 +615,9 @@
       "id": "message-stream-cursor-safety",
       "kind": "tla",
       "artifacts": [
-        "docs/proposals/message-stream/evidence/model/Cursor.tla",
-        "docs/proposals/message-stream/evidence/model/CursorMC.tla",
-        "docs/proposals/message-stream/evidence/model/Cursor.cfg"
+        "spec/capabilities/message-stream/v1/Cursor.tla",
+        "spec/capabilities/message-stream/v1/CursorMC.tla",
+        "spec/capabilities/message-stream/v1/Cursor.cfg"
       ],
       "command": [
         "${JAVA_BIN}",
@@ -633,8 +633,8 @@
         "-metadir",
         "tmp/formal-runs/message-stream-cursor-safety",
         "-config",
-        "docs/proposals/message-stream/evidence/model/Cursor.cfg",
-        "docs/proposals/message-stream/evidence/model/CursorMC.tla"
+        "spec/capabilities/message-stream/v1/Cursor.cfg",
+        "spec/capabilities/message-stream/v1/CursorMC.tla"
       ],
       "timeout_seconds": 180
     },
@@ -642,9 +642,9 @@
       "id": "message-stream-cursor-progress",
       "kind": "tla",
       "artifacts": [
-        "docs/proposals/message-stream/evidence/model/Cursor.tla",
-        "docs/proposals/message-stream/evidence/model/CursorMC.tla",
-        "docs/proposals/message-stream/evidence/model/CursorProgress.cfg"
+        "spec/capabilities/message-stream/v1/Cursor.tla",
+        "spec/capabilities/message-stream/v1/CursorMC.tla",
+        "spec/capabilities/message-stream/v1/CursorProgress.cfg"
       ],
       "command": [
         "${JAVA_BIN}",
@@ -660,10 +660,317 @@
         "-metadir",
         "tmp/formal-runs/message-stream-cursor-progress",
         "-config",
-        "docs/proposals/message-stream/evidence/model/CursorProgress.cfg",
-        "docs/proposals/message-stream/evidence/model/CursorMC.tla"
+        "spec/capabilities/message-stream/v1/CursorProgress.cfg",
+        "spec/capabilities/message-stream/v1/CursorMC.tla"
       ],
       "timeout_seconds": 180
+    },
+    {
+      "id": "durable-records-v2-Recovery",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/durable-records/v2/Recovery.tla",
+        "spec/capabilities/durable-records/v2/Recovery.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx1g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-metadir",
+        "tmp/formal-runs/core-Recovery",
+        "-config",
+        "spec/capabilities/durable-records/v2/Recovery.cfg",
+        "spec/capabilities/durable-records/v2/Recovery.tla"
+      ],
+      "timeout_seconds": 120
+    },
+    {
+      "id": "human-decisions-v2-Decisions",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/human-decisions/v2/Decisions.tla",
+        "spec/capabilities/human-decisions/v2/Decisions.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx1g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-metadir",
+        "tmp/formal-runs/core-Decisions",
+        "-config",
+        "spec/capabilities/human-decisions/v2/Decisions.cfg",
+        "spec/capabilities/human-decisions/v2/Decisions.tla"
+      ],
+      "timeout_seconds": 120
+    },
+    {
+      "id": "human-decisions-v2-Provisional",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/human-decisions/v2/Provisional.tla",
+        "spec/capabilities/human-decisions/v2/Provisional.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx1g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-metadir",
+        "tmp/formal-runs/core-Provisional",
+        "-config",
+        "spec/capabilities/human-decisions/v2/Provisional.cfg",
+        "spec/capabilities/human-decisions/v2/Provisional.tla"
+      ],
+      "timeout_seconds": 120
+    },
+    {
+      "id": "model-execution-v2-ModelSelection",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-execution/v2/ModelSelection.tla",
+        "spec/capabilities/model-execution/v2/ModelSelection.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx1g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-metadir",
+        "tmp/formal-runs/core-ModelSelection",
+        "-config",
+        "spec/capabilities/model-execution/v2/ModelSelection.cfg",
+        "spec/capabilities/model-execution/v2/ModelSelection.tla"
+      ],
+      "timeout_seconds": 120
+    },
+    {
+      "id": "run-driver-v3-core",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/run-driver/v3/RunDriver.tla",
+        "spec/capabilities/run-driver/v3/RunDriverMC.tla",
+        "spec/capabilities/run-driver/v3/RunDriver.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx4g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "4",
+        "-metadir",
+        "tmp/formal-runs/run-driver-v3-core",
+        "-config",
+        "spec/capabilities/run-driver/v3/RunDriver.cfg",
+        "spec/capabilities/run-driver/v3/RunDriverMC.tla"
+      ],
+      "timeout_seconds": 300
+    },
+    {
+      "id": "run-driver-v3-sched",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/run-driver/v3/RunDriver.tla",
+        "spec/capabilities/run-driver/v3/RunDriverMC.tla",
+        "spec/capabilities/run-driver/v3/RunDriverSched.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx4g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "4",
+        "-metadir",
+        "tmp/formal-runs/run-driver-v3-sched",
+        "-config",
+        "spec/capabilities/run-driver/v3/RunDriverSched.cfg",
+        "spec/capabilities/run-driver/v3/RunDriverMC.tla"
+      ],
+      "timeout_seconds": 300
+    },
+    {
+      "id": "run-driver-v3-ops",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/run-driver/v3/RunDriver.tla",
+        "spec/capabilities/run-driver/v3/RunDriverMC.tla",
+        "spec/capabilities/run-driver/v3/RunDriverOps.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx4g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "4",
+        "-metadir",
+        "tmp/formal-runs/run-driver-v3-ops",
+        "-config",
+        "spec/capabilities/run-driver/v3/RunDriverOps.cfg",
+        "spec/capabilities/run-driver/v3/RunDriverMC.tla"
+      ],
+      "timeout_seconds": 300
+    },
+    {
+      "id": "run-driver-v3-progress",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/run-driver/v3/RunDriver.tla",
+        "spec/capabilities/run-driver/v3/RunDriverMC.tla",
+        "spec/capabilities/run-driver/v3/RunDriverProgress.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx4g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "4",
+        "-metadir",
+        "tmp/formal-runs/run-driver-v3-progress",
+        "-config",
+        "spec/capabilities/run-driver/v3/RunDriverProgress.cfg",
+        "spec/capabilities/run-driver/v3/RunDriverMC.tla"
+      ],
+      "timeout_seconds": 600
+    },
+    {
+      "id": "run-driver-v3-sched-progress",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/run-driver/v3/RunDriver.tla",
+        "spec/capabilities/run-driver/v3/RunDriverMC.tla",
+        "spec/capabilities/run-driver/v3/RunDriverSchedProgress.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx4g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "4",
+        "-metadir",
+        "tmp/formal-runs/run-driver-v3-sched-progress",
+        "-config",
+        "spec/capabilities/run-driver/v3/RunDriverSchedProgress.cfg",
+        "spec/capabilities/run-driver/v3/RunDriverMC.tla"
+      ],
+      "timeout_seconds": 600
+    },
+    {
+      "id": "run-driver-v3-progress-human",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/run-driver/v3/RunDriver.tla",
+        "spec/capabilities/run-driver/v3/RunDriverMC.tla",
+        "spec/capabilities/run-driver/v3/RunDriverProgressHuman.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx4g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "4",
+        "-metadir",
+        "tmp/formal-runs/run-driver-v3-progress-human",
+        "-config",
+        "spec/capabilities/run-driver/v3/RunDriverProgressHuman.cfg",
+        "spec/capabilities/run-driver/v3/RunDriverMC.tla"
+      ],
+      "timeout_seconds": 600
+    },
+    {
+      "id": "session-run-agent-lifecycles-v2-safety",
+      "kind": "tla",
+      "artifacts": [
+        "spec/compositions/session-run-agent-lifecycles/v2/Lifecycles.tla",
+        "spec/compositions/session-run-agent-lifecycles/v2/LifecyclesMC.tla",
+        "spec/compositions/session-run-agent-lifecycles/v2/Lifecycles.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx4g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "4",
+        "-metadir",
+        "tmp/formal-runs/session-run-agent-lifecycles-v2-safety",
+        "-config",
+        "spec/compositions/session-run-agent-lifecycles/v2/Lifecycles.cfg",
+        "spec/compositions/session-run-agent-lifecycles/v2/LifecyclesMC.tla"
+      ],
+      "timeout_seconds": 300
+    },
+    {
+      "id": "session-run-agent-lifecycles-v2-progress",
+      "kind": "tla",
+      "artifacts": [
+        "spec/compositions/session-run-agent-lifecycles/v2/Lifecycles.tla",
+        "spec/compositions/session-run-agent-lifecycles/v2/LifecyclesProgress.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx4g",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "4",
+        "-metadir",
+        "tmp/formal-runs/session-run-agent-lifecycles-v2-progress",
+        "-config",
+        "spec/compositions/session-run-agent-lifecycles/v2/LifecyclesProgress.cfg",
+        "spec/compositions/session-run-agent-lifecycles/v2/Lifecycles.tla"
+      ],
+      "timeout_seconds": 300
     }
   ]
 }

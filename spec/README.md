@@ -26,6 +26,14 @@
 [生命周期组合 v1](compositions/session-run-agent-lifecycles/README.md) 拥有三条关系与级联，
 发布 [CC v2](compositions/core-work-coordination/README.md) 与只改引用的 run-driver v2；
 覆盖见[生命周期验证范围](compositions/session-run-agent-lifecycles/verification.md)。
+[D-015](../docs/decisions/D-015-tool-execution-message-stream-and-hooks.md) 一次发布工具执行闭环
+所需的下一版：[tools v2](capabilities/tools/README.md)、[run v2](capabilities/run/README.md)、
+[session v2](capabilities/session/README.md)、[run-driver v3](capabilities/run-driver/README.md)、
+[human-decisions v2](capabilities/human-decisions/README.md)、[model-execution v2](capabilities/model-execution/README.md)、
+[durable-records v2](capabilities/durable-records/README.md)、[media-content v2](capabilities/media-content/README.md)、
+[CD v2](data/core-work/README.md)、[生命周期组合 v2](compositions/session-run-agent-lifecycles/README.md)，
+与两个新契约 [message-stream v1](capabilities/message-stream/README.md)、
+[external-hooks v1](capabilities/external-hooks/README.md)；覆盖见各能力的验证范围页。
 Live Agent 的采用范围沿 [运行时入口](capabilities/live-agent/README.md)及其决定/接受记录核对。
 跨提供者交接由 [Agent/Session 运行附着组合 v1](compositions/agent-session-binding/README.md)
 补充，保持原已发布契约不变。

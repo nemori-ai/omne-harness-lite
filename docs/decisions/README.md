@@ -20,3 +20,4 @@
 - [D-012：Run 驱动器与 Session Inbound](D-012-run-driver-and-inbound.md)：Agent Loop 作为可重建的 Run 驱动器、异步到达的统一裁决、占位与 epoch 分离；接受 run-driver v1 与 session-run v2。
 - [D-013：Run 驱动器的 Cordis 视角与提供者边界](D-013-run-driver-cordis-boundary.md)：实例驱动的消费方式、装载效应与撤除责任、四类接口对接、依赖变化政策与包归属；补充 D-012。
 - [D-014：Session、Run 与 Agent 实例的生命周期、关系与级联](D-014-session-run-agent-lifecycles.md)：session-run v2 拆为 session v1 与 run v1，三条关系与级联归生命周期组合 v1，CC v2 声明规则，run-driver v2 引用迁移，三者为独立插件；部分取代 D-012/D-013 的工件身份。
+- [D-015：工具执行闭环、消息流与外部 hooks 兼容](D-015-tool-execution-message-stream-and-hooks.md)：等待登记簿、`superseded` 终态、五维调用状态机与封闭停止词表、答复作为工具返回值、Step 收束与合批规则、单一消息模型与出站流、命令式 hooks 兼容层；一次发布 tools/HD/run/session/MC/DR/CT/CD 下一版、run-driver v3、生命周期组合 v2 与新契约 message-stream v1、external-hooks v1；部分取代 D-008 / D-014 的工件身份。
