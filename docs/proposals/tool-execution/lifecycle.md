@@ -113,14 +113,36 @@ LangGraph 式恢复要求中断点之前无副作用，与 TL-08 叠加后可用
 
 ## 占位与迟到结果的投影
 
+业务逻辑（用户 2026-09-14 明确）：一个调用切到后台后，Agent 是继续推进还是停下来等，
+由它自己决策；决策要有上下文，这个上下文就是一条占位的工具消息，让它知道调用已转后台、
+完成后会有通知。omne-next `omne_harness` 的
+`design_docs/interfaces/tool-result-retrieval-and-detachment-contract.md` 已有同一逻辑的三类
+合成消息（离场占位 ToolMessage、转储信封 ToolMessage、`human` 角色加 `<system_reminder>`
+的完成通知）与取回工具，本节以它为起点。
+
 模型只在 Step 边界看到调用；一个调用离开前台（转后台、启动即后台、等审批、等人、暂行
 staging）后，下一 Step 必须让模型知道"这个 tool_use 还没有结果"，之后结果才能以别的形态
-回来。[RD-09](../../../spec/capabilities/run-driver/v2/contract.md) 已定占位形态，没定迟到结果的
-形态；本节补齐（用户 2026-09-14 提出，决定 ac）。
+回来。[RD-09](../../../spec/capabilities/run-driver/v2/contract.md) 已定占位形态；
+[RD-10](../../../spec/capabilities/run-driver/v2/contract.md)"只有 deferred_receipt 而没有可喂给
+模型的新内容时不开 Step"与上述业务逻辑冲突：占位的**首次**呈现本身就是要喂给模型的新
+内容，否则模型没有机会决策。本节把它改为"首次呈现开 Step，重复呈现不开 Step"，并补迟到
+结果的形态（决定 ac）；两处都进[缺口表](#契约措辞缺口表)。
+
+| 模型的决策 | 系统的对应 |
+|---|---|
+| 继续推进（发起别的调用或输出） | Run 照常；后台调用的结果到达时按 SE-14 进入（同一 Run 未结束 → context，下一 Step 以 `system_reminder{late_result}` 呈现） |
+| 停下来等（本轮不再输出，结束） | Step 收束、Run 按 RN-02 完成；结果到达 → C 列 queue → trigger 开新 Run，其首个 Step 以 `system_reminder{late_result}` 呈现（omne-next 的"完成通知"） |
+| 主动取回（大结果或想看中间帧） | 首版不设取回工具；帧与结果的读面归 UI；omne-next 的 `read_tool_result_or_file` 与转储信封列为候选（[未决项](README.md#未决项)） |
+
+omne-next 的回流策略四值（`silent` / `inform` / `wake_continuation` / `compensate`，
+`design_docs/cross-cutting/durable-wait-and-detached-execution.md`）在这里的对应：同一 Run 内到达
+= inform（下一 Step 呈现），Run 已结束 = wake_continuation（trigger 开新 Run）；这两种由
+SE-14 的路由自动给出，不需要工具声明。`silent`（结果自行定格、不通知模型）与 `compensate`
+（失败时唤醒补偿）首版不做，作为候选记入[未决项](README.md#未决项)。
 
 | 时点 | 进入模型的块 | 规则 |
 |---|---|---|
-| 调用离开前台且需要开 Step | 该 tool_use 的 tool_result 位置放 `tool_result{content: [deferred_receipt{call, reason: detached_background \| background_from_start \| waiting_approval \| waiting_human \| staged_provisional}]}` | RD-09 视图表；满足供应方"每个 tool_use 恰一条 tool_result"的成对格式而不伪造答案（CD-03）；只有占位而无其它新内容时不开 Step（RD-10） |
+| 调用离开前台 | 驱动器开下一 Step，在该 tool_use 的 tool_result 位置放 `tool_result{content: [deferred_receipt{call, reason: detached_background \| background_from_start \| waiting_approval \| waiting_human \| staged_provisional, notice: "完成后会有通知"}]}` | RD-09 视图表；满足供应方"每个 tool_use 恰一条 tool_result"的成对格式而不伪造答案（CD-03）；占位的首次呈现是可喂给模型的新内容（开 Step 让模型决策），已呈现过的占位不再单独触发开 Step（RD-10 措辞修订，缺口表） |
 | 结果或答复在同一 Step 内到达且该 tool_use 尚未占位 | 该 tool_use 的 tool_result 即结果 | 前台调用、Step 内答复的 `human` 调用 |
 | 结果或答复在占位之后到达 | 新块 `system_reminder{reminderKind: late_result \| human_answer, ref: {call, attempt}, outcome, content: ContentBlock[]}` 进入到达的 Step 的输入 | 一个调用的最终结果恰以 tool_result 或 system_reminder 之一进入模型一次（T-14）；到达顺序按 arrival 的 acceptedOrder |
 
@@ -190,6 +212,7 @@ TL-10 第二段已定：有效阈值由声明阈值、系统上限、Run 剩余�
 |---|---|---|
 | [SE-13](../../../spec/capabilities/session/v1/contract.md)"问答型 human_answer 承载答复" | D2 下工具发起的问题由 HD 作为执行 owner 结算该调用，答复经 `call_settlement` 承载 | `human_answer` 只承载审批决定；RunDriver 模型的 `QIds` 并入调用；一条规则少一个例外 |
 | [RD-09](../../../spec/capabilities/run-driver/v2/contract.md) 视图词表 | 缺 `waiting_human`（不阻止收束、deferred_receipt 占位）；"跨 Step 晚到的结果在到达的 Step 呈现"没定形态 | 新增视图值；晚到结果以 `system_reminder` 呈现（[占位与迟到结果](#占位与迟到结果的投影)） |
+| [RD-10](../../../spec/capabilities/run-driver/v2/contract.md) 开 Step 判定 | "只有 deferred_receipt 而没有可喂给模型的新内容时不开 Step"让模型没有机会就"继续还是等"决策 | 下一版改为：占位首次呈现即开 Step；已呈现过的占位不再触发 |
 | [RD-14](../../../spec/capabilities/run-driver/v2/contract.md) Yield 前提 | 未提 `waiting_human` | 明确其不阻止 Yield |
 | [TL-07](../../../spec/capabilities/tools/v1/contract.md)"预留失败不是 deny" | 与 BG-03 的映射靠 RD-09 补出（停留 proposed、Run waiting_gate） | 下一版把"预算被拒停留 proposed"写进 TL-07 |
 | [SE-04](../../../spec/capabilities/session/v1/contract.md) closed 词表、SE-13 来源枚举 | hooks 兼容层需要 `closed_by_guard` 与 `hook_continuation` | 随 hooks 提案一并进入 |

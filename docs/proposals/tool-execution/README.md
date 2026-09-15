@@ -114,6 +114,10 @@ hooks 兼容层的决定点 o～v 记在 [hooks 兼容提案](../hooks-compat/RE
   hooks 词汇、TL-07 预算被拒的措辞与 `unavailable`、HD 作为执行 owner、run-driver v3、
   run v1 执行预算、CD 与 MC 的 `system_reminder`）：见 [缺口表](lifecycle.md#契约措辞缺口表)，
   随闭环一次发版。
+- 取回工具与转储信封（omne-next `read_tool_result_or_file` 与"结果已转储"占位）：首版不设，
+  大结果与中间帧的读面先归 UI；模型主动取回作为候选另开。
+- 回流策略的 `silent`（后台结果不通知模型）与 `compensate`（失败时唤醒补偿）：首版只有
+  "同 Run 内下一 Step 呈现"与"新 Run 唤醒"两种，由 SE-14 路由自动给出。
 - 执行 owner 跨协调域（决定 b 留的边界）时，"fence 与 cancelled 结算同提交"不再成立，
   TL-08 的 owner 账本排序成为 T-3 的唯一保护；届时须补跨域义务（[证据说明](evidence/README.md#抽象与边界)）。
 
