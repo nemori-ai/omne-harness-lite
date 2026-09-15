@@ -185,17 +185,76 @@ Run 状态机与工具执行状态机解耦、可以错位，一次 Run 可以�
 
 | 触发 | 未启动（proposed / waiting_approval / admitted 未 start） | foreground | detach_in_flight | detached_background / background_from_start | human_wait | 依据 |
 |---|---|---|---|---|---|---|
-| Run interrupt（LC-04 行 5） | 墓碑 + `cancelled_before_execution`；审批请求关闭 | stop，留下真实结局 | stop（不等 detach 回答，RD-13） | **也 stop**（PF-013.C4 第三行） | 保留请求，加全 Run 阻塞 | RN-04、HD-04、RD-13 |
-| Run interrupt_then_run（行 8/11） | 同上 | 可转后台者 detach；不可转者 stop | 等 detach 结果：确认 → 后台；失败 → stop | 保持后台 | 保留请求（同 interrupt 行；HD-04 / RN-04"独立问题保留原 Run"） | PF-013.C4、RD-13、HD-04 |
-| Run cancel（行 4） | 同上 | stop | stop | stop（普通 cancel 包括后台调用，TL-11） | 关闭请求 + `cancelled_before_execution` | RN-03、TL-11 |
-| Run force_stop（行 2/4） | 同上 | epoch 撤销 + stop；旧执行者结果走 `late_fact` | 同左 | 同左；隔离未证实则 Run stopping | 同 cancel | RN-05、RD-13 |
-| Run completed（行 3） | 不存在（收束前提） | 不存在（收束前提） | 不存在（阻止收束） | 继续；终态后的结算按 SE-14 C 列为 queue（trigger 开新 Run） | 不存在（Run 等人时不结算） | SE-17、RD-10 |
+| Run interrupt（LC-04 行 6） | 墓碑 + `cancelled_before_execution`；审批请求关闭 | stop，留下真实结局 | stop（不等 detach 回答，RD-13） | **也 stop**（PF-013.C4 第三行） | 保留请求，加全 Run 阻塞 | RN-03、RN-04、HD-04、RD-13；步骤见[动作链](#interrupt-与-interrupt_then_run-的动作链) |
+| Run interrupt_then_run（行 8） | 同上 | 可转后台者 detach；不可转者 stop | 等 detach 结果：确认 → 后台；失败 → stop | 保持后台 | 保留请求；旧 Run 的等待位置整体释放，答复按 SE-14 对当时的活动 Run 路由（候选，决定点 af；与 HD-04"答复不驱动新 Run"不同） | PF-013.C4、RD-13、HD-04；[动作链](#interrupt-与-interrupt_then_run-的动作链) |
+| Run cancel（行 5） | 同上 | stop | stop | stop（普通 cancel 包括后台调用，TL-11） | 关闭请求 + `cancelled_before_execution` | RN-03、TL-11 |
+| Run force_stop（行 2 / 行 5） | 同上 | epoch 撤销 + stop；旧执行者结果走 `late_fact` | 同左 | 同左；隔离未证实则 Run stopping | 同 cancel | RN-05、RD-13 |
+| Run completed（行 4） | 不存在（收束前提） | 不存在（收束前提） | 不存在（阻止收束） | 继续；终态后的结算按 SE-14 C 列为 queue（trigger 开新 Run） | 不存在（Run 等人时不结算） | SE-17、RD-10 |
 | Run 不可恢复失败 → failed（行 4，RD-13 末段） | 未准入（proposed / waiting_approval）→ `cancelled_before_execution`，审批请求关闭：过门是 Run 的动作；已准入未 start 的继续，owner 照常 start | 继续；等待位置随 Run 释放，结算按 C 列 queue 触发新 Run 接上（U-43：Run 与调用生命周期错位，调用状态耐久） | 同左 | 继续；结算按 C 列 queue | 保留请求；答复按 C 列 queue 触发新 Run | RD-08/13、SE-14、U-43；RN-02 措辞入[缺口表](#契约措辞缺口表) |
-| 实例计划退役（行 6） | 阻止 Yield 直到过门或 start 回执 | 阻止 Yield；热宽限到期按 interrupt 收口记 yield_forced | 阻止 Yield 直到确认 | 不受影响 | 不阻止 Yield | RD-14 |
-| 实例崩溃 / 进程重启（行 7） | 见[恢复窗口](#恢复窗口) | 同左 | 同左 | 重新关联同一 attempt（inspect/subscribe） | 请求耐久，答复照常路由 | RD-16、TL-11、PF-003.C6 |
-| 写入权丢失（行 12） | 停在水位 | 驱动器停在水位；owner 持独立资源可继续到 terminal，结算等写入权恢复 | 同左 | 同左 | 同左 | CC-02/04 |
+| 实例计划退役 / 驱动器 Yield（行 7） | 阻止 Yield 直到过门或 start 回执 | 阻止 Yield；热宽限到期按 interrupt 收口记 yield_forced | 阻止 Yield 直到确认 | 不受影响 | 不阻止 Yield | RD-14 |
+| 实例崩溃 / 进程重启（RD-16 窗口表；LC-04 无此行） | 见[恢复窗口](#恢复窗口) | 同左 | 同左 | 重新关联同一 attempt（inspect/subscribe） | 请求耐久，答复照常路由 | RD-16、TL-11、PF-003.C6 |
+| 写入权丢失（CC-02/04；LC-04 无此行） | 停在水位 | 驱动器停在水位；owner 持独立资源可继续到 terminal，结算等写入权恢复 | 同左 | 同左 | 同左 | CC-02/04 |
 | Session 归档 / 删除（行 1） | 不存在（前提无非终态 Run） | 不存在 | 不存在 | 政策 b（决定 f）：继续；结算到达 archived Session → `closed(closed_by_archive \| closed_by_delete)`；删除后结果按数据治理 | 不存在 | SE-02、SE-14 D2 |
 | 租户撤权 / 绑定撤回（TL-06） | 未准入 → `stale_binding` / `unavailable` | 已准入保留原实现闭包排空 | 同左 | 同左；紧急停用要单独发 stop | 请求按 HD-04 关闭 | TL-06 |
+
+## interrupt 与 interrupt_then_run 的动作链
+
+上面的级联表只回答"每种等待关系怎么处置"；这里沿[完整动作链](../../architecture-guide/reference/contract-description.md#沿完整动作链核对组合)
+把两条用户动作从入口到下一个 Step 逐步列出拥有者。已发布契约直接引用；契约没有说的
+由本提案给候选政策，标"候选"并列为 [决定点 ad～ah](README.md#确认报告后的决定点待用户2026-09-15)。
+核对来源是 2026-09-15 的只读核对（主检出 `tmp/next-design-prep/followup-interrupt.md`）。
+
+### interrupt（中断，之后可 resume）
+
+| # | 步骤 | 拥有者 | 事实 | 本提案补的候选政策 |
+|---|---|---|---|---|
+| A1 | 入口与权限 | [PF-013.C10](../../requirements/product/user/PF-013-session-run-lifecycle-and-pending-input-control.md)（同租户管理员须明确获准）；提供者设计 [session §5](../../../packages/session/session/design.md) 的 `session.emergency_control` | — | 候选：run 下一版在 [RN-03](../../../spec/capabilities/run/v1/contract.md) 写明控制权限键与合法发起者（Session owner；持 `session.emergency_control` 的同租户管理员），登记依据进 TG（[缺口表](#契约措辞缺口表)） |
+| A2 | 受理 | [RN-03](../../../spec/capabilities/run/v1/contract.md)（operationId、精确 RunRef、观察 epoch；`stale_target` / `ended`） | `run.control.requested{interrupt}` | — |
+| A3 | 关 Step、终止在途 attempt | RN-03、[RD-08](../../../spec/capabilities/run-driver/v2/contract.md)、[RD-16](../../../spec/capabilities/run-driver/v2/contract.md)（已流出前缀不可恢复） | attempt 结算 `cancelled`（[delta-protocol §4](../message-stream/delta-protocol.md#4-失败中断与部分内容)） | 候选：model-execution 下一版在 [MC-04](../../../spec/capabilities/model-execution/v1/contract.md) 写明 interrupt 与强停共用 TL-08 型的 attempt 接纳账本与迟到启动墓碑（[缺口表](#契约措辞缺口表)） |
+| A4 | 级联到调用 | PF-013.C4、RN-03、[TL-11](../../../spec/capabilities/tools/v1/contract.md)、[HD-04](../../../spec/capabilities/human-decisions/v1/contract.md)；[级联表](#控制与级联表)第 1 行 | `tools.control.requested` + `execution.stop.fenced`（[转移表](#转移表)） | — |
+| A5 | owner 的物理事实 | [TL-08 / TL-09](../../../spec/capabilities/tools/v1/contract.md) | `execution.stop.progressed{physical, cleanup, effect}` → `tools.control.progressed` | 候选（决定点 ah）：封闭三轴词表 `physical: quiescent \| isolated \| unknown`、`cleanup: done \| retained`、`effect: none \| possible \| confirmed`；[维度 D](#五个正交维度) 与 [local-execution 设计](../../../packages/tools/local-execution/design.md)按此对齐（`active` 只是 stop_requested 期间的中间观察，不是终值） |
+| A6 | 收口完成 → interrupted | RN-03、[LC-04 行 6](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md) | `run.state.changed{→ interrupted}` + `run.epoch.closed{interrupt}` | 候选（决定点 ae）：收口完成 = 每个停止请求都有物理事实（含 `unknown`）或调用已结算；`unknown` 计入真实结局，Run 照常到 interrupted，unknown 留在调用（`possibleEffect`）与控制记录上长期可见；不设"收口中"的 Run 状态。提供者映射：[run 设计 `prepareCloseOut`](../../../packages/session/run/design.md#提交面) |
+| A7 | 中断期间与之后到达的结算、答复 | [SE-14](../../../spec/capabilities/session/v1/contract.md) A / B 列、[RD-13](../../../spec/capabilities/run-driver/v2/contract.md) | `inbound.arrival.classified{continuation \| context}` | 候选（决定点 ad）：**等待位置集合** = 前台与转换中的调用（直到其结算被消费）+ 待答的 `human` 请求 + 正在等待的门；后台调用不是等待位置；interrupted Run 保留其位置（RN-04）。于是被停的前台调用结算 → continuation（等 resume 消费），被停的后台调用结算 → context（下一 Step 可见，不唤醒） |
+| A8 | resume | RN-03、[RN-08](../../../spec/capabilities/run/v1/contract.md)、[RD-04](../../../spec/capabilities/run-driver/v2/contract.md)、[SE-18](../../../spec/capabilities/session/v1/contract.md)、[LC-06](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md) | `run.epoch.issued{compat}` + `run.state.changed{interrupted → running}` | — |
+| A9 | 消费 pending continuation、开 Step | [RD-06、RD-09、RD-10](../../../spec/capabilities/run-driver/v2/contract.md) | `run.step.opened{cutpoint}` + `inbound.arrival.consumed`；被停调用以 `settled(interrupted)` 进 `tool_result` | — |
+| A10 | 停止未知的可见状态与超时 | 契约未覆盖 | — | 候选（决定点 ae）：没有系统级超时。owner 的有界等待到期即报 `unknown`（TL-09 的"时限只结束等待"），此后 Run 已 interrupted、调用带 `possibleEffect`；界面显示"停止未确认"并提供 force_stop（[RN-05](../../../spec/capabilities/run/v1/contract.md)）作升级路径；unknown 的调用不因 resume 自动重试（TL-09） |
+
+### interrupt_then_run（中断后立刻接新输入）
+
+| # | 步骤 | 拥有者 | 事实 | 本提案补的候选政策 |
+|---|---|---|---|---|
+| B1 | 受理与同提交行 | [SE-08](../../../spec/capabilities/session/v1/contract.md)、[LC-04 行 8](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md)、SE-04 | `queue.item.enqueued` + 复合意图 + `run.control.requested{interrupt, supersededByInput}`（[session 设计 §9](../../../packages/session/session/design.md)） | 候选：SE-08 正文引用的"LC-04 行 11"应为行 8（[缺口表](#契约措辞缺口表)） |
+| B2 | 旧 Run 在途工具 | [RN-04](../../../spec/capabilities/run/v1/contract.md)、RD-13、[TL-10](../../../spec/capabilities/tools/v1/contract.md)；[级联表](#控制与级联表)第 2 行 | `tools.relation.detach_requested / detached`，失败则 `tools.control.requested` | — |
+| B3 | 旧 Run 终点 | RN-04、RD-13 | `run.state.changed{→ interrupted, supersededByInput}` + `run.epoch.closed{superseded}` | 候选（决定点 ae）：停止或交接未知时保持 SE-08 的"原责任继续阻止新驱动"；复合意图显示 `pending{unknown: [calls]}`，界面提供 force_stop；不设系统超时 |
+| B4 | 旧 Run 的 pending continuation 与人类请求 | RN-04（"保留"）、[HD-04](../../../spec/capabilities/human-decisions/v1/contract.md)、[SE-17](../../../spec/capabilities/session/v1/contract.md)（只覆盖终态） | — | 候选（决定点 af）：旧 Run 记 `supersededByInput` 的同一提交**释放全部等待位置**——未消费的 continuation 改判为 context；其后到达的调用结算与人类答复按 SE-14 对当时的活动 Run 路由（有活动 Run → context，以 `system_reminder{late_result \| human_answer}` 进入其下一 Step；无活动 Run → queue 触发新 Run）；请求本身保留、仍可答（HD-04 的"答复不驱动新 Run"改为"答复以 context 进入活动 Run"）。旧 Run 保持 interrupted，按 RN-04 可 resume，但已无残留接续，resume 只是重评。归档：session 下一版把 `supersededByInput` 的 interrupted Run 视为可随归档在同一提交 cancel（其后台调用按政策 b 继续，结算到达归档 Session 时 closed） |
+| B5 | 新 Run 的创建与首个 Step 的切点 | [SE-06](../../../spec/capabilities/session/v1/contract.md)、[RD-06](../../../spec/capabilities/run-driver/v2/contract.md) | `queue.items.taken` + `run.lifecycle.created` + `run.epoch.issued` + `run.step.opened{cutpoint}` | 候选（决定点 ag）：复合意图携带被保留的工作清单（转后台的调用、保持后台的调用、未答请求，各带引用）；新 Run 首个 Step 的切点多一类来源——该清单投影为一条 `system_reminder{system_notice}`（"上一轮被打断：N 个调用在后台继续、M 个问题待答"）；结果与答复到达后再以 `late_result \| human_answer` 进入（[占位与迟到结果](#占位与迟到结果的投影)，U-46） |
+| B6 | 旧 Run 后台结果在新 Run 下的呈现 | [SE-16](../../../spec/capabilities/session/v1/contract.md)、SE-14 B 列 | `inbound.arrival.classified{context}` + `inbound.context.advanced` | 由 ad + af 闭合：后台调用不是等待位置且位置已释放 → context → 新 Run 下一 Step 的 `system_reminder{late_result}`；不再依赖"发起 Run 是否仍在等待"的推断 |
+| B7 | 停止 / 交接未知 | SE-08 | 复合意图 `pending{unknown}` | 同 B3 |
+| B8 | 日后对旧 Run 显式 resume | RN-04 | `run.epoch.issued{compat}` 或返回 `superseded` | 候选："仍可合法接续"= 旧 Run 的逻辑目标未被其后历史完成或取代，判据留提供者按 basis 与其后历史比较；位置已释放，resume 不唤醒任何接续 |
+
+### 与 U-43 的边界
+
+| 对象 | interrupt / interrupt_then_run（用户动作） | failed（系统结局，U-43） |
+|---|---|---|
+| 未准入调用 | `cancelled_before_execution`，审批关闭 | 同 |
+| 已在后台的调用 | interrupt：全部 stop（PF-013.C4）；interrupt_then_run：保持后台 | 不动 |
+| 未答的人类请求 | 保留；interrupt 加全 Run 阻塞（HD-04），interrupt_then_run 位置释放、答复进活动 Run（af） | 保留，答复按 C 列开新 Run |
+| 等待位置 | interrupt 保留；interrupt_then_run 释放（af） | 随 Run 释放 |
+
+差异在语义上清楚，但契约正文尚未按 U-43 改写（RN-02"不可恢复失败才关闭剩余请求"、
+HD-04 无"Run 失败保留请求"），随[缺口表](#契约措辞缺口表)一次发版；在那之前"按契约写
+实现"会写出与 U-43 相反的失败处置。
+
+### 自然完成的判定基准
+
+Run 的自然完成按 [RN-02](../../../spec/capabilities/run/v1/contract.md) 与 [RD-10](../../../spec/capabilities/run-driver/v2/contract.md)：
+Step 收束后，本 Run 的接续全部结算、无待答的阻塞请求、无未消费的就绪接续或审批、无
+Run 级等待位置、不在门等待、剩余后台责任已确认独立 → completed。判定的**基准是模型
+响应**：本 Step 的 attempt 没有产生任何调用提议，Step 就没有阻止收束的视图也不产生接续，
+上述条件随之成立，Run 自然完成；产生了调用，Run 至少要等这些调用的视图不再阻止收束。
+两处刻意偏差：启动即后台的调用不阻止完成（占位后结果晚到开新 Run）；没有调用但仍有未答
+问题时 Run 停在 waiting_human 而不是 completed。这句"以模型响应为基准"登记为 RD-10
+的措辞补充（[缺口表](#契约措辞缺口表)）。
 
 ## 恢复窗口
 
@@ -235,3 +294,18 @@ Run 状态机与工具执行状态机解耦、可以错位，一次 Run 可以�
 | [run](../../../spec/capabilities/run/v1/contract.md) v1 RN-02 | "不可恢复失败才沿其具名终止政策关闭剩余请求"与 U-43 冲突：失败只取消未准入的调用，已准入调用与未答问题保留并在新 Run 接上 | 下一版改措辞；不引入 Run 级执行预算（U-45） |
 | [SE-12](../../../spec/capabilities/session/v1/contract.md) arrival closed 原因 | hooks 兼容层需要 `closed_by_guard`（与 SE-04 同名） | 随 hooks 提案一并进入 |
 | [TL-12](../../../spec/capabilities/tools/v1/contract.md) 帧耐久性 | "实时帧可以非耐久"与 U-42"帧缺省耐久、与 Session 日志同域 append-only"不一致；Session 域需要帧流 `frames(S)` | 下一版：缺省耐久，transient 只由显式声明；session 下一版登记 `frames(S)` 流（[frames.md](frames.md#记录等级)） |
+| [RN-01 / RN-04](../../../spec/capabilities/run/v1/contract.md) 等待位置集合 | 只列为字段，没有成员规则；SE-14 的 A / B 分列完全依赖它，现在只在 RunDriver 模型注释里 | 下一版写入：前台与转换中的调用（直到结算被消费）、待答的 `human` 请求、当前门；后台调用不是位置；interrupted 保留，`supersededByInput` 释放（决定点 ad、af） |
+| [RN-03](../../../spec/capabilities/run/v1/contract.md) 安全收口与控制权限 | "安全收口"未说 `unknown` 是否计入；没有"收口中"状态；控制权限键与合法发起者未命名 | 下一版：unknown 计入收口结果、Run 照常 interrupted、unknown 长期可见（决定点 ae）；写明 `session.emergency_control` 与发起者（PF-013.C10），依据登记进 TG |
+| [SE-08](../../../spec/capabilities/session/v1/contract.md) 交叉引用 | 正文引"LC-04 行 11"，该行不存在（提案级联矩阵的编号），实际是行 8 | 下一版改为行 8；本提案级联表与模型注释已按 LC-04 行号改正 |
+| [RN-04](../../../spec/capabilities/run/v1/contract.md) / [SE-02](../../../spec/capabilities/session/v1/contract.md) / [SE-17](../../../spec/capabilities/session/v1/contract.md) 被越过的 Run | 残留 continuation 只写"保留"，无消费 / 转 queue / 关闭出边；interrupted 是非终态，永久阻止归档 | 下一版按决定点 af：`supersededByInput` 同批释放等待位置，continuation 改判 context；归档时同批 cancel 被越过的 Run |
+| [HD-04](../../../spec/capabilities/human-decisions/v1/contract.md) 被越过 Run 的答复 | "独立问题保留原 Run，答复不驱动新 Run" | 下一版：答复按 SE-14 对活动 Run 路由为 context（决定点 af） |
+| [RD-06](../../../spec/capabilities/run-driver/v2/contract.md) 切点来源 | 没有"上一个 Run 被保留的工作清单" | 下一版加一类来源：复合意图的清单投影为 `system_reminder{system_notice}`（决定点 ag） |
+| [RD-10](../../../spec/capabilities/run-driver/v2/contract.md) 自然完成 | 完成条件只以 Run 义务陈述，没写判定基准 | 下一版补一句：基准是模型响应——本 Step 无调用提议且其余条件成立即 completed（[自然完成的判定基准](#自然完成的判定基准)） |
+| [TL-09](../../../spec/capabilities/tools/v1/contract.md) 停止的物理事实 | 只说"受理、真实停止、清理、外部结果分开返回"，无封闭词表；local-execution 设计与本提案维度 D 不一致 | 下一版封闭三轴词表 `physical / cleanup / effect`（决定点 ah）；local-execution 设计随之对齐 |
+| [MC-04](../../../spec/capabilities/model-execution/v1/contract.md) interrupt 的归属 | 只为强停写了接纳账本与迟到启动墓碑 | 下一版写明 interrupt 共用 |
+| [CT-03](../../../spec/capabilities/media-content/v1/contract.md) 与 PF-015 制品 | 工具生成媒体的引用不记录产生它的调用与 attempt；制品（[PF-015](../../requirements/product/agent/PF-015-artifact-management-and-isolated-working-copies.md)）无任何契约 | CT 下一版给 `retainReference` 加来源 `producedBy{call, attempt}`；制品对象与读取入口按决定点 ai 另开能力设计（[schema.md 制品](schema.md#制品与呈现去重)） |
+
+提供者设计的配套义务（不是契约缺口）：[tools 设计](../../../packages/tools/tools/design.md)仍是
+session-run@1 基线，接受后按本提案重写（detach、interrupt_then_run、三段式事件名）；
+[local-execution 设计](../../../packages/tools/local-execution/design.md)的停止词表按决定点 ah 对齐；
+[run 设计](../../../packages/session/run/design.md)已补 `prepareCloseOut` 与 `epoch.closed{interrupt}`。

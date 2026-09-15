@@ -40,7 +40,7 @@ JSONL 只是 DR-04 的一个提供者。
 [U-33](../../../docs/proposals/session-run-agent-lifecycles/README.md#裁决记录2026-09-14用户)），
 version `"1"`：`run.lifecycle.created{basis, definition, acquisitionBasis, modelSelection, epoch, driverBinding}`
 / `.settled{state, reason, evidence, remainingIndependent}`、`run.state.changed{from, to, reason}`、
-`run.epoch.issued{epoch, driverBinding, compat}` / `.closed{epoch, reason: yield \| yield_forced \| force_stop \| superseded}`、
+`run.epoch.issued{epoch, driverBinding, compat}` / `.closed{epoch, reason: yield \| yield_forced \| interrupt \| force_stop \| superseded}`、
 `run.step.opened{step, cutpoint}` / `.settled{step, outcome}`、`run.attempt.recorded{step, attempt, phase}`、
 `run.calls.proposed{step, calls, presentedOrder}`、`run.call.admitted{call, attempt}`、
 `run.approval.consumed{request, call}`、`run.waiting_position.added{position}` / `.removed{position, reason}`、
@@ -71,7 +71,8 @@ prepare/check 端口，返回 CC 的 RecordPreparation；每次 prepare 核对
 | `prepareSettleRun` | `settled`、`state_changed → completed/failed/cancelled`、`epoch_closed` | Session（[LC-04 行 4](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md)：arrival 转换/关闭） |
 | `prepareYield{reason}` | `epoch_closed{yield \| yield_forced}`；state 不变 | 无；AR 的 `settle(work)` 是提交后反应 |
 | `prepareReacquire` / `prepareResume` | `epoch_issued{compat}` 同批封闭旧 epoch；resume 另记 `state_changed interrupted→running` | Session（[SE-18](../../../spec/capabilities/session/v1/contract.md) 裁决完成）、AR（工作许可） |
-| `prepareControl{interrupt \| cancel \| force_stop \| resume}` | `control_requested` / `control_progressed`；force_stop 同批 `epoch_closed{force_stop}`；interrupted 上的 cancel/force_stop 直接 `state_changed → cancelled`（[RN-03](../../../spec/capabilities/run/v1/contract.md)） | Session（会话级强停的 hold）、TL/HD（停止意图；同域同批，跨域沿 [CC-05](../../../spec/compositions/core-work-coordination/v2/contract.md)） |
+| `prepareControl{interrupt \| cancel \| force_stop \| resume}` | `control_requested` / `control_progressed`；force_stop 同批 `epoch_closed{force_stop}`；interrupted 上的 cancel/force_stop 直接 `state_changed → cancelled`（[RN-03](../../../spec/capabilities/run/v1/contract.md)）；`interrupt_then_run` 的受理批记 `control_requested{interrupt, supersededByInput}`（[SE-08](../../../spec/capabilities/session/v1/contract.md)） | Session（会话级强停的 hold；复合打断的 `queue.item.enqueued` 与复合意图）
+| `prepareCloseOut{interrupt \| superseded}` | 收口完成（每个停止请求都有物理事实——含 `unknown`——或调用已结算）时记 `state_changed → interrupted` 与 `epoch_closed{interrupt}`；复合打断记 `state_changed → interrupted{supersededByInput}` 与 `epoch_closed{superseded}`，并在同批释放等待位置集合（未消费 continuation 转 context）。unknown 留在调用与控制记录上，不设"收口中"的 Run 状态（[LC-04 行 6 / 行 8](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md)；候选政策见[工具提案 interrupt 动作链](../../../docs/proposals/tool-execution/lifecycle.md#interrupt-与-interrupt_then_run-的动作链)，决定点 ad～af 待用户） | Inbound（continuation → context 的改判）；复合打断下 Session 的取批门在收口完成后放行、TL/HD（停止意图；同域同批，跨域沿 [CC-05](../../../spec/compositions/core-work-coordination/v2/contract.md)） |
 
 命令 Run（[RN-06](../../../spec/capabilities/run/v1/contract.md)）由命令处理者经
 `prepareSettleRun` 结算；`unknown` 保留占位可见。

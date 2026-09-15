@@ -44,11 +44,11 @@ accept → classify(queue) → withdraw → 停滞的反例；性质随即修正
 [results.json](../../../docs/proposals/message-stream/evidence/model/results.json)。提案接受前，
 这些结果只支持提案的候选性质 MS-1～MS-5、MS-7 与 MP-1～MP-3，不改变 session v1 的条款覆盖表。
 
-| 配置 | 规范映射 | 有限范围与结果（2026-09-15，8 核 4 worker） |
+| 配置 | 规范映射 | 有限范围与结果（2026-09-15 存档重放，8 核 2 worker；形式任务命令用 4 worker，耗时更短） |
 |---|---|---|
-| Cursor.cfg（安全） | TypeOK；NoForeignDelivery（MS-5 作用域）；CursorComplete（MS-3：游标之下的作用域内事实全部已投递，不论丢过多少次铃）；SentComplete（服务端水位不虚报）；EndedAfterCommit（MS-7）；BufferOrdered、DeliverOnce（MS-2）；DraftCurrent（MS-4）；Monotone | 1 个订阅、3 条事实、两个缓冲各 2、至多 1 次崩溃与 1 次断线；36.0 万不同状态、8 秒，通过 |
-| CursorTwo.cfg（安全补充，不登记） | 同上 | 2 个订阅（对称约减）、2 条事实、至多 1 次崩溃与 1 次断线；217 万不同状态、1.5～3 分钟（视并发），通过；只在重放脚本里运行 |
-| CursorProgress.cfg（进展） | EventuallyDelivered（MP-1）；BuffersDrain（MP-3：事实队列排空）；AttemptsSettle（MP-2）；GapMarked（MS-4 的最终可见） | 1 个订阅、2 条事实；弱公平加在事实投递、缺口投递、瞬态投递、对账、订阅与 attempt 收尾；5.0 万不同状态、16 秒，通过（3 条事实的活性检查超过 5 分钟，未登记） |
+| Cursor.cfg（安全） | TypeOK；NoForeignDelivery（MS-5 作用域）；CursorComplete（MS-3：游标之下的作用域内事实全部已投递，不论丢过多少次铃）；SentComplete（服务端水位不虚报）；EndedAfterCommit（MS-7）；BufferOrdered、DeliverOnce（MS-2）；DraftCurrent（MS-4）；Monotone | 1 个订阅、3 条事实、两个缓冲各 2、至多 1 次崩溃与 1 次断线；36.0 万不同状态、22 秒，通过 |
+| CursorTwo.cfg（安全补充，不登记） | 同上 | 2 个订阅（对称约减）、2 条事实、至多 1 次崩溃与 1 次断线；217 万不同状态、3 分 7 秒，通过；只在重放脚本里运行 |
+| CursorProgress.cfg（进展） | EventuallyDelivered（MP-1）；BuffersDrain（MP-3：事实队列排空）；AttemptsSettle（MP-2）；GapMarked（MS-4 的最终可见） | 1 个订阅、2 条事实；弱公平加在事实投递、缺口投递、瞬态投递、对账、订阅与 attempt 收尾；5.0 万不同状态、38 秒，通过（3 条事实的活性检查超过 5 分钟，未登记；本配置的待推事实不会超过队列容量，"水位停住再续推"只由 Cursor.cfg 覆盖） |
 | CursorNoFill.cfg（否定，不登记） | 铃只转发自身、不从订阅水位补：期望违反 CursorComplete | 找到反例（数百状态、1 秒内；反例前探索的状态数随 worker 数变化）：订阅后丢第 1 次铃、听到第 2 次，游标越过未投递的事实 |
 | CursorBuffered.cfg（否定，不登记） | 补齐来自最近 1 条的流缓冲而非投影：期望违反 CursorComplete | 找到反例（不到一百状态、1 秒内）：离线期间两条事实，续订只拿到最后一条 |
 

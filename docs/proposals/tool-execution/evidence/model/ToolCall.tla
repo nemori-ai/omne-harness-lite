@@ -77,6 +77,7 @@ Cascade(S, pendingMode) ==
      /\ deliv' = [c \in Calls |-> IF c \in Now THEN "settling"
                                   ELSE IF pendingMode = "close" /\ c \in Pending THEN "closed"
                                   ELSE IF pendingMode = "queue" /\ c \in Pending THEN "queue"
+                                  ELSE IF pendingMode = "context" /\ deliv[c] = "continuation" THEN "context"
                                   ELSE deliv[c]]
      /\ ctl' = [c \in Calls |-> IF c \in Exec /\ ctl[c] = "none" THEN "stop_requested" ELSE ctl[c]]
      /\ hd' = [c \in Calls |-> IF c \in Now /\ hd[c] = "open" THEN "closed" ELSE hd[c]]
@@ -296,7 +297,7 @@ RunFail ==
         /\ rel' = [c \in Calls |-> IF Open(c) /\ c \notin NotAdmitted THEN "background" ELSE rel[c]]
   /\ UNCHANGED <<sess, owner, crashes, kind, att, fence, ctl>>
 
-\* LC-04 row 5 / PF-013.C4: every open tool call stops (background too);
+\* LC-04 row 6 / PF-013.C4: every open tool call stops (background too);
 \* human requests are kept and the Run needs an explicit resume (HD-04)
 RunInterrupt ==
   /\ run \in {"running", "waiting"}
@@ -309,7 +310,32 @@ RunResume ==
   /\ run' = IF Conts /= {} THEN "waiting" ELSE "running"
   /\ UNCHANGED <<sess, owner, crashes, kind, prog, att, fence, rel, ctl, deliv, hd>>
 
-\* LC-04 row 4 / TL-11: cancel stops every open call, closes human requests and
+\* LC-04 row 8 / RN-04 / SE-08 with the candidate policy of lifecycle.md
+\* (interrupt_then_run, decision points af/ag): the new input supersedes the
+\* Run in one commit.  Not-yet-started calls are cancelled; an executing
+\* foreground tool call either detaches (D) and keeps running as background
+\* work, or stops; already-background calls keep running; human requests are
+\* kept.  The superseded Run releases every waiting position: pending
+\* continuations become context and every surviving open call is background
+\* from now on, so later settlements and answers route as context to the
+\* active Run (SE-14 B) instead of waiting on a Run nobody resumes.  The model
+\* has one Run slot: from this step on `run` denotes the new Run, which starts
+\* at once.
+RunInterruptThenRun ==
+  /\ run \in {"running", "waiting"}
+  /\ \E D \in SUBSET {c \in Calls : kind[c] = "tool" /\ prog[c] = "executing"
+                                    /\ rel[c] \in {"foreground", "detach_in_flight"}} :
+       \* cancelled: every call not yet started (the gate was the old Run's act,
+       \* including a human call whose request was never created); stopped: the
+       \* executing foreground tool calls not chosen for detach.  Open human
+       \* requests and background calls are outside the set and survive.
+       Cascade({c \in Calls : Open(c) /\ rel[c] /= "background" /\ c \notin D
+                              /\ (kind[c] = "tool" \/ prog[c] = "proposed")}, "context")
+  /\ rel' = [c \in Calls |-> IF prog'[c] = "executing" THEN "background" ELSE rel[c]]
+  /\ run' = "running"
+  /\ UNCHANGED <<sess, owner, crashes, kind, att>>
+
+\* LC-04 row 5 / TL-11: cancel stops every open call, closes human requests and
 \* unconsumed inputs
 RunCancel ==
   /\ run \in {"running", "waiting", "interrupted"}
@@ -336,7 +362,8 @@ Next ==
        \/ StopRequest(c) \/ Detach(c) \/ DetachConfirm(c) \/ DetachFail(c)
        \/ Answer(c) \/ Adjudicate(c) \/ Consume(c)
   \/ OwnerCrash \/ OwnerRecover
-  \/ RunStart \/ RunWait \/ RunWake \/ RunComplete \/ RunFail \/ RunInterrupt \/ RunResume \/ RunCancel
+  \/ RunStart \/ RunWait \/ RunWake \/ RunComplete \/ RunFail \/ RunInterrupt \/ RunResume
+  \/ RunInterruptThenRun \/ RunCancel
   \/ Archive
 
 Spec == Init /\ [][Next]_vars
@@ -416,6 +443,17 @@ AnswerOnce == [][\A c \in Calls : hd[c] \in {"answered", "closed"} => hd'[c] = h
 \* H-3: interrupt keeps the human request and the call
 InterruptKeepsHuman == [][(run /= "interrupted" /\ run' = "interrupted") =>
   \A c \in Calls : kind[c] = "human" => (hd'[c] = hd[c] /\ prog'[c] = prog[c])]_vars
+\* T-15 (candidate policy af): a superseding input releases every waiting
+\* position of the old Run: no continuation survives and no open call blocks
+SupersedeReleasesPositions == [][RunInterruptThenRun =>
+  \A c \in Calls : deliv'[c] /= "continuation"
+                   /\ (prog'[c] \in {"proposed", "waiting_approval", "admitted", "executing"} => rel'[c] = "background")]_vars
+\* H-3 / RN-04: superseding keeps open human requests (already asked) and
+\* already-background work untouched; a human call whose request was never
+\* created is cancelled like any other not-yet-started call
+SupersedeKeepsWork == [][RunInterruptThenRun =>
+  \A c \in Calls : ((kind[c] = "human" /\ hd[c] = "open") \/ rel[c] = "background") =>
+    (hd'[c] = hd[c] /\ prog'[c] = prog[c] /\ ctl'[c] = ctl[c])]_vars
 \* T-4 / policy b: archiving touches no call
 ArchiveKeepsWork == [][(sess = "open" /\ sess' = "archived") =>
   (prog' = prog /\ att' = att /\ ctl' = ctl /\ fence' = fence)]_vars

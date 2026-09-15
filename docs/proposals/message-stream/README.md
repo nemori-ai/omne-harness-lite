@@ -56,7 +56,7 @@ hooks 进程输出的转发。
 | [cordis.md](cordis.md) | 消费方式、能力侧要求（含 MC 提供者设计缺口）、`MessageStreamPlugin` / `omneMessageStream`、装载效应与撤除、依赖变化政策、fork 演化路径 | 波 2 |
 | [evidence/README.md](evidence/README.md) | 游标与断线补齐的有限模型（`Cursor.tla`：可丢的铃、订阅水位、分页补齐、瞬态缺口、崩溃）、两个否定变体、形式任务登记与模型发现 | 波 3 |
 | [scenarios.md](scenarios.md) | 场景 MS-01～MS-12：正常流式、工具帧交错、后台结算、人类请求卡片、三处断线、背压、丢铃、多客户端与撤权、进程重启、掉出保留期、归档、乱序 | 波 3 |
-| review.md | 独立评审（由用户派发） | 待派发 |
+| [review.md](review.md) | 独立评审（Codex architecture-reviewer，2026-09-15）：8 项阻断、4 项建议、作者初判与决定点 L、M | 已派发，处置待用户确认 |
 
 ## 与并行线的关系
 
@@ -134,6 +134,10 @@ MC 的字段。
   提案没有对应物：迟到结果统一走 `inbound.arrival` 分类与 `system_reminder{late_result}`；
   若产品要求"存而不唤醒"，归 [PF-003](../../requirements/product/agent/PF-003-tool-execution-observation-and-control.md)
   的需求变更，不是本线。
+- 制品（[PF-015](../../requirements/product/agent/PF-015-artifact-management-and-isolated-working-copies.md)）
+  在消息模型里的位置：首版只以 `tool_result.value.content` 的媒体引用出现，客户端按 `mediaId`
+  与帧去重（[工具提案制品](../tool-execution/schema.md#制品与呈现去重)，决定点 ai）；制品对象
+  进消息模型随该能力设计再定。
 - `system_reminder` 的客户端呈现：它是"系统对模型说的话"，用户看不看、怎么看，波 2
   在 message-model.md 决定并列决定点。
 - 子 Session（PF-004）的帧归属与合并：首版不做，信封预留 `subject` 的父引用位置。
@@ -141,5 +145,7 @@ MC 的字段。
 
 ## 接受记录
 
-尚未接受。决定点 A～K 已由用户裁决（U-48～U-58）；独立评审由用户派发（游标编码
-U-54 列为评审重点），处置后再决定接受范围、D-015 与发版批次。
+尚未接受。决定点 A～K 已由用户裁决（U-48～U-58）；独立评审 2026-09-15 完成
+（[review.md](review.md)：8 项阻断成立，其中同批多事实的游标推进 B1 与补齐水位 B2 直接
+命中 U-54 的评审重点），作者初判为拟修，决定点 L、M 待用户；处置落地后再决定接受
+范围、D-015 与发版批次。

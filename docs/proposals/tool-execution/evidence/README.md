@@ -42,9 +42,14 @@
   验收项，一个只去掉 owner fence 检查的否定变体因此找不到反例，已换成重发变体。将来执行
   owner 跨协调域（决定 b 留的边界）时该同提交不再成立，owner 账本排序成为唯一保护，须补
   义务（[未决项](../README.md#未决项)）。
-- 不建模：帧、租户、费用、时间与预算、Yield、interrupt_then_run、force_stop 的 epoch 撤销、
-  hooks、`request_approval` 决定被后续调用消费、占位与迟到结果的投影（Detach / StopRequest
-  作为无标签触发；投影是驱动器的结构性质 T-14）。
+- interrupt_then_run 建模为 `RunInterruptThenRun`（2026-09-15 补，候选政策决定点 af）：一步内
+  未启动调用取消、前台调用按非确定选择转后台或 stop、后台与人类请求保留、旧 Run 的等待
+  位置整体释放（continuation 改判 context、幸存开放调用一律 background），新 Run 立即
+  running；模型只有一个 Run 槽位，所以旧 Run 的 `interrupted{supersededByInput}` 状态不单独
+  表示，由 `SupersedeReleasesPositions` / `SupersedeKeepsWork` 两条动作性质表达它的效应。
+- 不建模：帧、租户、费用、时间与预算、Yield、force_stop 的 epoch 撤销、hooks、
+  `request_approval` 决定被后续调用消费、占位与迟到结果的投影（Detach / StopRequest 作为
+  无标签触发；投影是驱动器的结构性质 T-14）、停止未知的可见状态（决定点 ae 的界面部分）。
 - 登记的进展配置只有 1 个调用：2 个调用加崩溃的活性检查在本机超过 10 分钟，超出"单配置
   ≤ 1 分钟"的裁决 h；2 个调用、无崩溃的补充配置约 3～5 分钟通过，只在重放脚本里运行。
 - 公平性：系统动作弱公平；`Consume` 与 `RunStart` 强公平以容忍 interrupt/resume 与
@@ -57,3 +62,8 @@
    waiting 时结算为 context，Run 既不再有阻塞者也不能消费 context，进展性质
    `SettlementsResolve` 被 TLC 否定；修正为"等待位置释放即重评"（RD-11 的出边），不改契约。
 2. 首版 lateStart 否定变体找不到反例（见上），改用重发变体。
+3. `RunInterruptThenRun` 首稿把"人类请求保留"写成"所有 `human` 调用不动"：一个尚未过门
+   的人类调用（请求还没创建）被标成后台，新 Run 可以完成，之后它再过门变成 `human_wait`，
+   `TerminalRunOnlyBackground` 被否定。修正为"未启动的调用不分种类都取消（门是旧 Run 的
+   动作），只有已开放的请求（`hd = open`）保留"，`SupersedeKeepsWork` 随之改为只约束开放
+   请求与后台调用；这条区分回到 lifecycle.md 级联表的"未准入调用"列，不改契约。

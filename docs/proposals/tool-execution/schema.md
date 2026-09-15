@@ -60,6 +60,31 @@ BackgroundDeclaration / ContentBlock / MediaRef / Action`；校验 profile 沿
 工具返回的媒体再成为后续工具输入，由 `MediaRef` 双向使用天然满足，不建第二个图片库；
 派生来源（裁剪自哪张）归 CT-03 的来源记录，不是工具 Schema 的事。
 
+### 制品与呈现去重
+
+用户 2026-09-15 提出的问题：有些工具（生图等）的产物要系统保存、流式帧可选渲染给用户、
+agent 以后还能读。核对结果（主检出 `tmp/next-design-prep/followup-artifacts.md`）：
+DSH fork 的 `ToolResult` 只有 `content / isError / meta`，`meta` 是上游钉死的呈现载荷，没有
+LangChain `content_and_artifact` 那样的第二通道；上游 DSH 的做法是字节交附件存储换耐久
+引用再放进 `content`；本项目需求层已有制品的权威落点
+[PF-015](../../requirements/product/agent/PF-015-artifact-management-and-isolated-working-copies.md)
+与 [PF-022.C5](../../requirements/product/agent/PF-022-multimodal-response-and-output.md)（消息内容 ≠ 制品），
+但规格层没有任何制品契约。
+
+本提案首版的候选（决定点 ai，[README](README.md#确认报告后的决定点待用户2026-09-15)）：
+
+| 规则 | 内容 | 依据 |
+|---|---|---|
+| 产物进结果 | 工具产物以 `content` 里的媒体块引用（`MediaRef`）进历史与结果，字节由 CT 保存；`delivery: agent_attachment` 表示"模型看见引用但不吃字节"（[CD-03](../../../spec/data/core-work/v1/contract.md)）；未耐久的引用不能进 terminal 结果（T-12） | [多模态](#多模态)、CT-01 |
+| 来源记录 | CT 下一版给 `retainReference` 加 `producedBy{call, attempt}`，回答"这张图是哪次调用产的"；帧里的媒体引用本来就带 `(call, attempt, producer, seq)` | CT-03、[frames.md](frames.md#帧身份与顺序) |
+| 呈现去重 | 同一 `MediaRef` 可以既出现在 critical / durable 帧里（过程），又出现在结果 `content` 里（结论）；耐久记录以结果块为准，帧是过程预览；客户端按 `mediaId` 去重、不双份呈现；声明了 `media.outputs` 的命令不必再为同一产物发媒体帧 | T-16、MS-12 |
+| agent 事后读取 | 首版只有 CT 读面（按 `MediaRef`）与 `readFrames`（按调用）；按制品身份检索、跨会话取回归 PF-015 的独立能力设计（取回工具首版不设，[未决项](README.md#未决项)） | PF-015.C2 |
+| 不做的 | 不给 `Result` 加第二通道、不改 fork 的 `ToolResult`；`meta` 不作制品载体 | 先做最小正确模型；单一用例 |
+
+与 LangChain 的对应：LangChain 的 `(content, artifact)` 只解决"分两份返回、artifact 不进模型、
+按调用 id 关联"，持久化、权限、渲染、事后读取都不在它范围内；本提案用 `delivery` 与 CT
+引用覆盖前两点，其余归 PF-015 的能力设计。
+
 ## 前台上限与调用级启动方式
 
 ```text

@@ -39,6 +39,8 @@ PF = [需求正文](../../requirements/README.md)，U = [用户裁决](README.md
 | T-12 | 工具产生的媒体只有 CT 引用耐久后才进入历史与结果；模型投影只含目标模型能消费的模态，其余以引用与文字说明进入；用户展开帧不等于向模型注入 | CT-02/04、MC-11、TL-12、PF-022.C5/C6 | `prepareTerminal`；投影选择 | 场景 |
 | T-13 | 调用级 `detach` 参数不越出定义的 `startModes`，也不能否决定义声明的 `onLimit`；不可兑现的能力（后台、停止、帧）不能被声明，未声明的不能被调用 | TL-08/10/12、决定 j、ab | 参数校验；装载时核实 owner 能力 | 单测 |
 | T-14 | 一个调用的最终结果恰一次进入模型：该 tool_use 未占位则作为它的 tool_result，已占位（deferred_receipt）则作为一条 `system_reminder{late_result \| human_answer}`；system_reminder 只由驱动器从已裁决 arrival 产生，不能由用户输入导入 | RD-09/10、CD-03、决定 ac、PF-003.C4 | 驱动器的投影规则（[占位与迟到结果](lifecycle.md#占位与迟到结果的投影)）；CD 块来源规则 | 投影单测；场景 TS-06 / TS-12 |
+| T-15 | 复合打断（interrupt_then_run）在记 `supersededByInput` 的同一提交释放旧 Run 的全部等待位置：无残留 continuation，幸存的开放调用与请求不再是任何 Run 的阻塞者；其后的结算与答复按 SE-14 对当时的活动 Run 路由（候选，决定点 af） | RN-04、SE-08、SE-14 | Run 提供者的同批提交（`prepareCloseOut{superseded}`）；Inbound 的改判 | ToolCall 模型 `SupersedeReleasesPositions`、`SupersedeKeepsWork`；场景 TS-20 |
+| T-16 | 同一媒体引用在耐久记录里以结果 `content` 的块为准、帧只是过程预览；客户端按 `mediaId` 去重、不双份呈现；工具生成媒体的引用记录产生它的调用与 attempt（候选，决定点 ai） | T-12、PF-022.C5、CT-03 | CT 引用的来源记录；投影选择器只选不改 | 投影单测；场景 TS-22 |
 
 ## 内建人类请求工具
 
