@@ -27,6 +27,27 @@ Frame = {
 坐标"契约测试同型）。JSON Schema 在实现前按 [U-35](../session-run-agent-lifecycles/README.md#裁决记录2026-09-14用户)
 具体设计。
 
+### 1.1 呈现标识词表（首版，用户裁决 U-57）
+
+`render.kind` 首版直接复用 omne-next 的渲染意图词表，不改名不增删
+（[研究笔记 omne-next §4](../../research/client-message-stream/notes/omne-next.md#4-工具进度帧)）：
+
+| `render.kind` | 含义 | 配什么内容 |
+|---|---|---|
+| `plain` | 纯文本 | 文本 |
+| `markdown` | Markdown | 文本 |
+| `html` | 可直接渲染的 HTML 片段 | 文本 |
+| `terminal` | 终端输出（ANSI 语义） | 文本 |
+| `code` | 源代码，语言作参数 `render.language` | 文本 |
+| `log` | 日志行 | 文本 |
+| `table` | 表格数据 | 文本（结构化） |
+| `widget` | 可交互小组件 | 文本且媒体类型为 `text/html` |
+| `image` | 图片 | 媒体引用 |
+
+随词表一起沿用的三条规则：渲染意图与内容的媒体类型正交、不从对方推导；非法组合具名
+拒绝、不静默改；未知的 `render.kind` 降级为按媒体类型的默认渲染，且降级对消费端可见。
+`render.version` 是词表版本，首版为 `1`；扩展词表发新版本，不原地改义。
+
 ## 2. 帧词表
 
 三类，命名空间统一，封闭性由 `message-stream` v1 契约给出：

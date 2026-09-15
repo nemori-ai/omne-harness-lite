@@ -77,7 +77,9 @@ hooks 进程输出的转发。
 | [U-42](../tool-execution/README.md#裁决记录2026-09-14用户) | 工具帧耐久、同域 append-only、帧体带呈现标识 | 客户端游标把 `(frames(S), seq)` 算进水位集合 |
 | [U-46](../tool-execution/README.md#裁决记录2026-09-14用户) | 迟到结果以 `system_reminder` 内容块进入到达的 Step | `system_reminder` 进消息模型与客户端呈现 |
 
-## 决定点（待用户）
+## 决定点（用户裁决 2026-09-15）
+
+下表是提交给用户时的原稿；裁决结果与落点见[裁决记录](#裁决记录2026-09-15用户)。
 
 每项先用人话说问题，再给作者建议与理由；"另一边"说明不选建议时的后果。
 
@@ -99,6 +101,22 @@ hooks 进程输出的转发。
 下一版（与工具闭环的 CD 改动同批）；帧信封、游标、作用域、补齐是新能力 `message-stream` v1；
 attempt 增量协议归 model-execution 下一版还是并入 `message-stream` v1，看波 2 写完后是否只涉及
 MC 的字段。
+
+## 裁决记录（2026-09-15，用户）
+
+| 编号 | 决定点 | 裁决 | 落点 |
+|---|---|---|---|
+| U-48 | A 管道 | SSE 推送加 HTTP 拉取；控制经现有 API | [cordis.md 消费方式](cordis.md#消费方式)、`apps/local-harness` 的 SSE 端点设计 |
+| U-49 | B 推理内容 | 推理进内容块模型；加密形态必须耐久，因为下一次模型请求要原样带上才能保证上下文完整、prompt cache 真正命中；出站流不流出加密形态，只流出明文，没有明文时退回摘要 | [message-model.md §2、§5](message-model.md#2-内容块补齐)、[delta-protocol.md §1](delta-protocol.md#1-帧) |
+| U-50 | C 增量落盘 | 沿用 DSH 的做法：紧凑记录随 attempt 结算耐久，原始逐 token 帧只在线上瞬态 | [delta-protocol.md §2](delta-protocol.md#2-耐久形式决定-c) |
+| U-51 | D 提示帧内容 | 小事实带内容，消息正文不带、客户端按位置拉 | [envelope-and-cursor.md §2](envelope-and-cursor.md#2-帧词表) |
+| U-52 | E 流的粒度 | 一个 Session 一条流；租户级列表变化走另一条轻量流 | [envelope-and-cursor.md §3](envelope-and-cursor.md#3-一个-session-一条流) |
+| U-53 | F hooks 观察事件 | 不进客户端流 | [scope-and-delivery.md §5](scope-and-delivery.md#5-不进客户端流的东西) |
+| U-54 | G 游标 | 按作者建议：不透明字符串，内容是每个协调域一个提交序号，不含瞬态位置；用户保留让架构评审复核的可能 | [envelope-and-cursor.md §4](envelope-and-cursor.md#4-客户端游标决定-g)；评审派发时列为重点 |
+| U-55 | H 补齐范围 | 按水位差从投影拉、不限条数；超过保留期返回"需全量重取" | [envelope-and-cursor.md §5](envelope-and-cursor.md#5-重连补齐) |
+| U-56 | I 提前做语义部分 | 同意；一般原则：多处通用或共用的协议与契约，设计阶段先定好一版，不留到实现阶段各写各的 | 本提案整体；原则适用于后续所有共用契约 |
+| U-57 | J 呈现标识词表 | 首版直接复用 omne-next 的渲染意图词表（九个值与三条规则），不改名不增删 | [envelope-and-cursor.md §1.1](envelope-and-cursor.md#11-呈现标识词表首版用户裁决-u-57) |
+| U-58 | K 工具帧流归属 | 归 session 下一版登记为 Session 的第四条流，理由是耐久与回放的职责要统一归属 | [cordis.md 能力侧](cordis.md#能力侧)、session 下一版 |
 
 ## 未决项
 
@@ -123,5 +141,5 @@ MC 的字段。
 
 ## 接受记录
 
-尚未接受。波 3 完成后派发独立评审，处置后由用户裁决决定点 A～K，再决定接受范围、
-D-015 与发版批次。
+尚未接受。决定点 A～K 已由用户裁决（U-48～U-58）；独立评审由用户派发（游标编码
+U-54 列为评审重点），处置后再决定接受范围、D-015 与发版批次。

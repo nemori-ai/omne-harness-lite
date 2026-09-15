@@ -256,7 +256,7 @@ Y"，第 10 节按本项目已定约束给出逐项处置建议，供 [message-s
 | `event_class` 四值（`durable / durable_projection / bounded_live / control`） | 不要 | 语义轴不同：它说"漏了怎么恢复"，本项目帧类（事实提示 / 耐久帧 / 瞬态 / 控制）与记录等级已表达同一信息；不再引入第二套 |
 | "说不出怎么恢复的事件就是不发布的事件"、未登记事件静默丢弃 | 改形 | 词表封闭沿用；但未登记的帧在本项目是提供者错误，要具名记录（[SYS-OBSERVABILITY](../../../requirements/system/observability-and-logging.md)），不静默 |
 | 帧种类走 SSE `event:`、位置走 `id:`、`id = null` 表示不推进 | 沿用 | `apps/local-harness` 的 SSE 端点按此映射 `kind` 与 `position`；瞬态帧无位置对应 `id = null` |
-| `StreamPosition` 两半 + HMAC `GatewayResumeToken` | 不要 | 本项目没有第二条瞬态通道，游标就是域序号；位置**绑资源不绑操作**、`tenant` 不进游标这两条判断沿用（[决定 G](../../../proposals/message-stream/README.md#决定点待用户)） |
+| `StreamPosition` 两半 + HMAC `GatewayResumeToken` | 不要 | 本项目没有第二条瞬态通道，游标就是域序号；位置**绑资源不绑操作**、`tenant` 不进游标这两条判断沿用（[决定 G / U-54](../../../proposals/message-stream/README.md#裁决记录2026-09-15用户)） |
 | 拼接按 body 内领域坐标 `(attempt, block_index, revision)`，不按流位置比大小 | 沿用 | 工具帧按 `{attempt, seq}`、attempt 帧按 `AttemptRef + idx`；游标只用于"从哪拉"，不用于帧内排序 |
 | 空 delta 合法、消费者必须 append；`reply.settled` 整条替换永不续接 | 沿用 | [delta-protocol.md](../../../proposals/message-stream/delta-protocol.md)：`chunk` 可空；派生消息替换草稿 |
 | `render_hint × mime_type × language` 正交 + 合法组合表 + 未知值可见降级 | 改形 | `render.kind` 词表以这 9 值为起点（决定 J），`mime` 归内容块的媒体引用，`language` 作 `code` 的参数；非法组合具名拒绝、未知 `render.kind` 降级并标记 |

@@ -31,7 +31,9 @@ model.attempt.ended   { attempt, epoch, index: Counter,          // 已发 chunk
 `block-end{index, block}`、`usage{usage}`、`finish{reason, replayState?}`。OpenRouter adapter 的义务
 （[研究 openrouter 笔记 §5](../../research/client-message-stream/notes/openrouter.md#5-与-dsh-streamchunk-的对应推断)）：
 按首次见到的 `index` 合成 `block-start`，按 `finish_reason` 到达合成 `block-end`；
-`reasoning_details` 三型映射到 `reasoning-delta` 或 replay 元数据；流中途 `error` 映射为
+`reasoning_details` 三型映射：明文与摘要映射到 `reasoning-delta`（有明文只发明文，只有摘要
+时发摘要），加密形态只进 replay 元数据与结算记录、不映射为任何 chunk（用户裁决
+[U-49](README.md#裁决记录2026-09-15用户)：加密推理耐久但不流出）；流中途 `error` 映射为
 `finish{error, failure{code, message, status?}}`；`content_filter` 映射为 `finish{error}` 并保留
 `native_finish_reason` 于 failure 诊断（DSH 词表无此项，进 MC 下一版的措辞）。
 
@@ -95,6 +97,6 @@ partial 的前缀是结算事实的一部分，不是可续写的草稿。
 
 | 内容 | 落点 |
 |---|---|
-| `model.attempt.*` 帧形状、`epoch` 作重基线依据、`ended` 在耐久回执之后 | 新能力 `message-stream` v1（若波 2 后确认只涉及 MC 字段则改进 model-execution 下一版；[README](README.md#决定点待用户) 作者决定） |
+| `model.attempt.*` 帧形状、`epoch` 作重基线依据、`ended` 在耐久回执之后 | 新能力 `message-stream` v1（若波 2 后确认只涉及 MC 字段则改进 model-execution 下一版；[README](README.md#决定点用户裁决-2026-09-15) 作者决定） |
 | 结算记录携带紧凑流记录与 partial 前缀 | model-execution 下一版（MC-04/06 的措辞）与 MC 提供者设计 |
 | OpenRouter chunk 映射、`content_filter` | MC 提供者设计（adapter） |

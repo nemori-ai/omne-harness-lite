@@ -50,7 +50,7 @@ snapshot / notice / relay / recall），本项目当前没有消费者，不引�
 
 | 块 | 形状 | 补齐说明 |
 |---|---|---|
-| `reasoning` | `{blockId, kind: "reasoning", form: text \| summary \| encrypted, text: string \| null, opaque: string \| null, format: string \| null, signature: string \| null}` | 新增（决定 B）。`text` 与 `summary` 可见；`encrypted` 只有 `opaque`，用户与历史投影不显示正文，模型请求投影在同一供应方族原样回传（OpenRouter `reasoning_details` 的三型与 `format`，[研究 openrouter 笔记 §4](../../research/client-message-stream/notes/openrouter.md#4-推理内容)）；模型未提供的推理不被构造（CD-03） |
+| `reasoning` | `{blockId, kind: "reasoning", form: text \| summary \| encrypted, text: string \| null, opaque: string \| null, format: string \| null, signature: string \| null}` | 新增（决定 B，用户裁决 [U-49](README.md#裁决记录2026-09-15用户)）。三种形态都耐久：加密形态必须存，因为下一次模型请求要原样带上才能保证上下文完整、prompt cache 真正命中；模型请求投影在同一供应方族原样回传（OpenRouter `reasoning_details` 的三型与 `format`，[研究 openrouter 笔记 §4](../../research/client-message-stream/notes/openrouter.md#4-推理内容)）。面向用户的投影与出站流只给明文，没有明文时退回摘要，加密形态从不流出，历史投影只显示"有加密推理"；模型未提供的推理不被构造（CD-03） |
 | `tool_result` | `{blockId, kind: "tool_result", call: CallRef, outcome, value: Result}` | `value` 的形状按 [工具提案结果形状](../tool-execution/schema.md#结果形状)（候选）：`{outcome, output, content: ContentBlock[], error, possibleEffect}`；`content` 里的媒体块带 `delivery`，投影按 [MC-11](../../../spec/capabilities/model-execution/v1/contract.md) 交集处理 |
 | `system_reminder` | `{blockId, kind: "system_reminder", reminderKind: late_result \| human_answer \| hook_context \| system_notice, ref: {call, attempt} \| {request} \| {handler} \| null, outcome, content: ContentBlock[]}` | 由[工具提案](../tool-execution/lifecycle.md#占位与迟到结果的投影)提出（候选，用户裁决 [U-46](../tool-execution/README.md#裁决记录2026-09-14用户)）；系统产生、不能经用户输入导入（与 `deferred_receipt` 同一规则）；一份耐久记录，按模型族投影（§5） |
 
@@ -103,7 +103,7 @@ snapshot / notice / relay / recall），本项目当前没有消费者，不引�
 |---|---|---|
 | 历史投影（用户可见） | 客户端历史、`history(session, range)` 读面（[Session 设计 §2.5](../../../packages/session/session/design.md#25-读面)） | 全部消息按提交顺序；`reasoning.encrypted` 只显示"有加密推理"；`system_reminder` 显示为系统行（默认折叠与否归 UI）；`deferred_receipt` 标注调用当前状态；被取代的消息标 `supersededBy`；每次读取按当前读权裁剪正文 |
 | 模型请求投影 | MC-07 装配 | 只取已取批有效版本与明确切点；`tool_result` 按模型族投影为 Anthropic 的 user 消息 `tool_result` 块或 OpenAI 的 `role: tool` 消息；`system_reminder` 投影为 Anthropic 类的带系统提醒框架的 user message 或 OpenAI 类的 developer message；`reasoning` 按供应方族回传或省略；媒体按 MC-11 交集与 `delivery` 决定原生送达或句柄文本；`deferred_receipt` 满足供应方"每个 tool_use 配一个 tool_result"的成对格式，不伪造答案（CD-03） |
-| 客户端实时呈现 | 出站流 | 与历史投影同一形状；正在生成的助手消息用 `model.attempt.*` 瞬态帧作草稿，收到 `ended{committed}` 后以派生消息替换（[delta-protocol.md §3](delta-protocol.md#3-瞬态与耐久的接头)） |
+| 客户端实时呈现 | 出站流 | 与历史投影同一形状；正在生成的助手消息用 `model.attempt.*` 瞬态帧作草稿，收到 `ended{committed}` 后以派生消息替换（[delta-protocol.md §3](delta-protocol.md#3-瞬态与耐久的接头)）；推理只流出明文片段，供应方只给摘要时流出摘要，加密形态不流出（U-49） |
 
 三种投影是同一 `Message` 的纯函数；单测义务见 [invariants.md](invariants.md#证据义务)。
 
