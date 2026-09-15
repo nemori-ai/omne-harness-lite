@@ -22,9 +22,9 @@ HD v1 落实的条款只引用，不复述。
 | PF-003.C4 符合声明的调用可手动转后台 | [等待关系维度](lifecycle.md#五个正交维度)、[前台上限与转后台](lifecycle.md#前台上限与自动转后台)；转后台后的占位与迟到结果进入模型的形态见[占位与迟到结果](lifecycle.md#占位与迟到结果的投影)；沿用 TL-10 | T-4、T-11、T-14 |
 | PF-003.C5 自动转后台 | 同上：有效阈值、计时归属、`onLimit` | T-11 |
 | PF-003.C6 恢复后重新关联后台调用 | [恢复窗口](lifecycle.md#恢复窗口)；沿用 TL-11、RD-16 | T-4、T-5 |
-| [PF-005.C1～C3](../../requirements/product/agent/PF-005-agent-initiated-human-input-and-approval.md) 主动提问、一次性批准、能力授权申请 | [内建人类请求工具](lifecycle.md#内建人类请求工具)：`human ask / request_approval / request_consent`，HD 为执行 owner | H-1～H-4、T-9 |
+| [PF-005.C1～C3](../../requirements/product/agent/PF-005-agent-initiated-human-input-and-approval.md) 主动提问、一次性批准、能力授权申请 | [内建人类请求工具](lifecycle.md#内建人类请求工具)：恰好两条命令 `human ask_user` / `human request_approval`（U-44），HD 为执行 owner；C3 的能力授权申请由 `ask_user` 表达需要，授予走系统发起的专属同意流程（HD-05），C2 的批准不建立会话权限 | H-1～H-4、T-9 |
 | PF-005.C4～C9 请求耐久、长期等待、多请求独立、首答胜出、决策池 | 归 HD v1（HD-01～09）；本提案只消费 HD-03 的接续绑定与 HD-08 的同提交 | H-1、H-3 |
-| PF-005.C10 批准与实际动作可追溯，越界重新请求 | `request_approval` 携带结构化目标，approve 产生绑定目标的一次性决定，后续调用准入门按 CD-04 Action 精确比较后消费，不符拒绝并要求新请求（[命令表](lifecycle.md#内建人类请求工具)，决定 z） | T-9 |
+| PF-005.C10 批准与实际动作可追溯，越界重新请求 | 用户裁决 U-44：Agent 发起的批准是提示层语义，不是系统机制。可追溯 = 批准请求与答复都作为耐久工具事实在历史里按顺序可核对；受控动作的权威授权记录是系统门（AU 审计、必要时的 system_approval）；越界时重新请求是 Agent 的提示纪律，受控的越界动作会被系统门再次拦住。C10 中"由系统权威记录对精确请求及批准结果的引用"这半句在 U-44 下没有系统机制承接，需求措辞是否调整待用户确认（[未决项](README.md#未决项)） | T-9 |
 | [PF-007.C4～C7](../../requirements/product/user/PF-007-system-initiated-hitl.md) 阻塞请求长期等待、决策池、暂行资格与后果 | 系统审批沿 TL-07 ask 门与 HD-06/07；暂行不加 Schema 字段，由 AU-03 `authorization.confirmation: provisional` 与 `provisionalContract` 承担（[schema.md](schema.md#维度总表)），承载归 HD-10～12 | T-9 |
 | [PF-013.C4](../../requirements/product/user/PF-013-session-run-lifecycle-and-pending-input-control.md) 运行控制的传播范围与工具处置 | [控制与级联表](lifecycle.md#控制与级联表)逐行落实 interrupt / interrupt_then_run / cancel / force_stop 对三种关系的处置 | T-3、T-4 |
 | [PF-024.C1/C2](../../requirements/product/agent/PF-024-multi-command-tool-definition.md#已确认要求) 多命令范式、单槽位 | 单/多命令统一定义两种投影（schema.md，波 2）；沿用 TL-01 | T-6、T-8 |

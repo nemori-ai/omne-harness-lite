@@ -5,15 +5,15 @@
 评审：architecture-reviewer（只读），2026-09-14，对象为 HUB 分支 `design/dsh-core-adoption`
 提交 `ed1ef8b` 的本提案全部文件、[tools 验证范围](../../../spec/capabilities/tools/verification.md)
 与新登记的两个形式任务；无比较基线。评审员未运行 TLC，未重算哈希。处置在同一分支的
-后续提交完成；"待用户"的项在 [README 新增决定点](README.md#评审后新增的决定点作者建议待用户确认)
-列出，正文已按作者建议写，用户否决即改回。
+后续提交完成；评审引出的决定点与用户裁决对照见 [README 决定点表](README.md#评审后的决定点用户裁决2026-09-15)，
+正文按裁决写。
 
 ## 阻断接受
 
 | 编号 | 发现 | 处置 |
 |---|---|---|
-| B1 | Run 不可恢复失败时级联缺行：未答 `human` 请求与在途前台调用在 `failed` 下无归属，模型把 failed 与 completed 合并且只在无阻塞调用时可达 | 已修：级联表新增"Run 不可恢复失败 → failed"行（前台 stop、转换中 stop、后台继续、人类请求关闭并结算 `cancelled_before_execution`，决定 y 待用户）；模型新增 `RunFail`，`TerminalRunOnlyBackground` 放宽为允许 stop 进行中的调用；场景 TS-18；invariants H-3、T-4 更新 |
-| B2 | `request_approval` 的一次性决定如何绑定后续调用未定义，T-9 对 PF-005.C2/C10 的覆盖不成立 | 已修（取评审建议 a）：请求携带结构化目标，approve 产生绑定目标的一次性决定，后续调用准入门按 CD-04 Action 精确比较后同批消费，不符拒绝并要求新请求（决定 z 待用户）；命令表、T-9、TS-14、requirements 同步 |
+| B1 | Run 不可恢复失败时级联缺行：未答 `human` 请求与在途前台调用在 `failed` 下无归属，模型把 failed 与 completed 合并且只在无阻塞调用时可达 | 已修，按用户裁决 U-43：级联表新增"Run 不可恢复失败 → failed"行（未准入取消；已准入调用与未答问题保留，等待位置释放，结算按 SE-14 C 列触发新 Run）；模型新增 `RunFail` 与动作性质 `FailKeepsHuman`；RN-02 措辞进缺口表；场景 TS-18；invariants H-3、T-4 更新 |
+| B2 | `request_approval` 的一次性决定如何绑定后续调用未定义，T-9 对 PF-005.C2/C10 的覆盖不成立 | 已修，按用户裁决 U-44（评审建议 b 的方向）：Agent 发起的批准是提示层语义，答复以工具结果呈现，不被门消费；HITL 工具只有 `ask_user` / `request_approval`；T-9 收窄到系统审批；requirements 标出 PF-005.C10 中无系统机制承接的半句待用户确认措辞 |
 
 ## 应修后接受
 
@@ -24,11 +24,11 @@
 | S3 | 模型的结算交付维度不忠实于 SE-14（前台调用在 running 时结算被路由为 context；context 可唤醒等待中的 Run） | 已修：`Route` 以"曾阻塞 Step 的调用在 Run 活动时 → continuation、`human_wait` 只在 Run 已等待时 → continuation、后台 → context"建模；`Consume(context)` 限定 running；证据说明与验证页披露 |
 | S4 | invariants.md 对模型范围的声明超出实际模型；验证页数字与日志不符 | 已修：T-4 / H-3 证据列与证据义务按实际模型改写；验证页数字取自最新重放日志 |
 | S5 | `unavailable` 作为结算结果在契约间不一致，未登记缺口 | 已修：维度 A 与结果形状加 `unavailable`（执行前，不消耗 attempt）；缺口表新增 TL-07 行 |
-| S6 | "Run 执行预算是最终刹车"没有拥有者与触发者 | 已修为显式缺口：缺口表新增 run v1 行；决定 aa 待用户；T-11 证据改为场景 |
+| S6 | "Run 执行预算是最终刹车"没有拥有者与触发者 | 已修，按用户裁决 U-45：Run 与工具状态机解耦，删除 Run 预算刹车；有效阈值 = min(声明, 系统上限)，`keep_waiting` 等到自然结束或用户 stop；TL-10 的 Run 预算项与 `stopMarginMs` 进缺口表删除 |
 | S7 | `HumanToolPlugin` 放在 HD 包会形成 HD ↔ TL 依赖环；HD.answer 结算调用的端口未定义 | 已修：移到新成员 `packages/tools/human-tool`；HD 下一版增加"请求结算接收器"端口（HD 定义、human-tool 实现），HD 不 import TL；cordis.md 依赖图、装载效应、归属表更新 |
 | S8 | 结算同批的组合者未指明 | 已修：`ToolExecutionLink` inject `omneSession`，组合 owner terminal + `prepareTerminal/checkTerminal` + accept；转移表与 cordis.md 更新 |
 | S9 | 缺口表遗漏 HD 与 run-driver 侧条款及受影响消费者 | 已修：缺口表新增 HD v1、run-driver v3、run v1、SE-12、MC-07 行，CD 行列出受影响消费者 |
-| S10 | `request_consent` 与 HD 提供者现状不一致 | 已修：命令表写明首版无合格提供者时按 TL-03 标 unavailable、不进 manifest |
+| S10 | `request_consent` 与 HD 提供者现状不一致 | 已修，按 U-44：该命令删除；能力授权申请由 `ask_user` 表达需要、授予走系统发起的专属同意流程 |
 | S11 | requirements.md 与 schema.md 关于"暂行"声明矛盾 | 已修：以 schema.md 为准修正 PF-007 行 |
 
 ## 建议
@@ -48,9 +48,9 @@
 
 ## 转给用户的决定点
 
-评审列出六项，处置如下：1 → 决定 y；2 → 决定 z；3 → 已按 HD-04 / RN-04 保留请求（无需裁决）；
-4 → 决定 aa；5 → 决定 ab；6 → 已按 S10 处理（无需裁决）。另有用户提出的迟到结果投影
-→ 决定 ac。
+评审列出六项，用户 2026-09-15 裁决：1 → U-43（保留问题，新 Run 接上）；2 → U-44（批准是
+提示词，无门绑定）；3 → 已按 HD-04 / RN-04 保留请求；4 → U-45（无 Run 级预算）；5 → U-46
+（不能否决）；6 → 随 U-44 删除。用户提出的迟到结果投影 → U-46 确认。
 
 ## 评审未验证项的现状
 

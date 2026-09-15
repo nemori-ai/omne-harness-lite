@@ -45,24 +45,24 @@ Claude Code、Codex 的事件名、配置形状与 stdin/stdout JSON 协议写�
 |---|---|---|
 | o | `SessionStart` 退出码 2 | 不兑现为 Run 级阻断，只注入上下文：Session 创建是治理操作，没有对应的上游语义 |
 | p | `PermissionRequest` 代人作答 | 允许，作答主体是装配 hook 资产的租户成员且须持有该请求的作答资格（[HD-05](../../../spec/capabilities/human-decisions/v1/contract.md)）；否则降级为观察 |
-| q | `Stop` 续跑刹车 | 连续续跑计数上限（缺省 8，租户可配）+ `stop_hook_active` 输入 + Run 预算；续跑是新 Run 而非同 turn，接受这一可见差异 |
+| q | `Stop` 续跑刹车 | 连续续跑计数上限（缺省 8，租户可配）+ `stop_hook_active` 输入；租户费用预算沿 BG 对每个续跑 Run 照常预留（没有 Run 级执行时长预算，见工具提案 [U-45](../tool-execution/README.md#评审后的决定点用户裁决2026-09-15)）；续跑是新 Run 而非同 turn，接受这一可见差异 |
 | r | `PreCompact` 阻断 | 不兑现，只把 `custom_instructions` 作为辅助 Step 输入 |
 | s | 超时 | 沿上游：命令超时不阻断；`PreToolUse` 超时按 fail-open 记失败并放行到 TL-07 门 |
 | t | `transcript_path` | 首版省略并在兼容说明列明 |
 | u | handler 首版集合 | 只有 command |
 | v | 执行主体与隔离 | 主体 = 装配 hook 资产的租户成员；命令在 [live-agent v1](../../../spec/capabilities/live-agent/v1/contract.md) 执行信任前提下运行，兼容层不声称隔离 |
 
-## 评审后新增的决定点（作者建议，待用户确认）
+## 评审后的决定点（用户裁决，2026-09-15）
 
-来源见 [review.md](review.md)；正文已按作者建议写，用户否决即改回。
+来源见 [review.md](review.md)；正文按裁决写。
 
-| # | 问题 | 作者建议 |
+| # | 问题 | 裁决 |
 |---|---|---|
 | U1 | 无 PF-012 沙盒映射时，哪些装配者类别可装载 command handler | 受管 hook 与个人租户 owner 装配的 hook 可载；组织普通成员装配的拒绝（`execution_boundary_required`），待沙盒映射后放开 |
-| U2 | 程序化作答是否受 AU-04 确认模式与组织强约束限制 | 受：Session 为 `confirm` 或组织策略要求人工确认时 hook 的 allow 无效，只在 `standard` 下生效 |
-| U3 | `hook_continuation` 不受 SE-16 容量拒绝，其有界性依据 | 接受"刹车计数 + 去重键 `(RunRef, handler)`"即为有界性证据 |
-| U4 | 受管 hook 的 fail-closed 租户策略 | 首版 fail-open；`hooks.failMode: open \| closed` 作为租户策略候选记录，不实现 |
-| U5 | S1 守卫的形状 | take 前内联求值（受理立即成功、稍后可能 `closed_by_guard`），interrupt_then_run 项例外地在受理准备阶段先求值；不采用"全部受理前求值"（受理提交会被 600 s 级 hook 阻塞） |
+| U2 | 程序化作答能否越过 AU-04 确认模式与组织强约束 | 不能：Session 为 `confirm` 或组织策略要求人工确认时 hook 的 allow 无效，只在 `standard` 下生效 |
+| U3 | `hook_continuation` 不受 SE-16 容量拒绝，其有界性依据 | 确认："刹车计数 + 去重键 `(RunRef, handler)`"即为有界性证据 |
+| U4 | 受管 hook 的 fail-closed 租户策略 | 先不做：不过早引入复杂度与未确定有真正受益的优化；不再作为候选记录 |
+| U5 | S1 守卫的形状 | take 前内联求值（受理立即成功、稍后可能 `closed_by_guard`），interrupt_then_run 项例外地在受理准备阶段先求值 |
 
 ## 性质与证据义务
 
@@ -71,7 +71,7 @@ Claude Code、Codex 的事件名、配置形状与 stdin/stdout JSON 协议写�
 | HK-1 | 权力上界：兼容层的任何效果只能是关闭队列项、收紧门（deny / ask）、排除模型投影、注入下一 Step 的 `system_reminder{hook_context}`、入队 trigger、有资格的程序化作答；不存在改写耐久输入 / 参数 / 结果或阻止 Run 结算的路径 | PF-025.C1、RD-17、TL-13、[T-6](../tool-execution/invariants.md#调用) | 适配器只能调用扩展点的封闭 API（[站点与权力](mapping.md#站点与权力)） | API 结构检查；run-driver 场景 S20；每站点一个"越权字段被记为 unsupported"的测试，含 S1 的 `suppressOriginalPrompt` 与 S8 的"阻止结算" |
 | HK-2 | 逐项可查：上游两家的每个事件、决定字段、输入字段与配置字段在映射表里恰有一种状态（兑现 / 降级 / 不支持）；配置里出现不支持项时写 `hooks.config.unsupported`，不静默 | PF-025.C1 | 映射表与配置装载 | 映射表对照研究笔记里的上游目录快照（CC 33 个事件、`SyncHookJSONOutput` 字段、CX schema）的检查；装载测试 |
 | HK-3 | 失败不静默：每次 hook 运行恰写一条 `hooks.run.completed`；阻断理由对用户与模型都可见；命令级失败不阻断但可查；守卫提供者不可用时插件不 ready，不出现无守卫放行 | PF-025.C2、TL-13、SYS-OBSERVABILITY | command runner、各站点适配器、插件 ready 条件 | 单测（崩溃、超时、非法 JSON）；HS-10 |
-| HK-4 | 刹车：同一 Session 连续由 `hook_continuation` 触发的 Run 数不超过上限；第上限次时 `stop_hook_active = true` 已给出；观察者重跑不产生第二个 trigger；Run 预算独立生效 | PF-025.C2、决定 q、U3 | SE-10 projection 计数、去重键（[刹车](mapping.md#stop-续跑的刹车)） | HS-06、HS-09；计数在归档 / 恢复后由 fold 重建的测试 |
+| HK-4 | 刹车：同一 Session 连续由 `hook_continuation` 触发的 Run 数不超过上限；第上限次时 `stop_hook_active = true` 已给出；观察者重跑不产生第二个 trigger；租户费用预算沿 BG 对每个续跑 Run 照常预留 | PF-025.C2、决定 q、U3 | SE-10 projection 计数、去重键（[刹车](mapping.md#stop-续跑的刹车)） | HS-06、HS-09；计数在归档 / 恢复后由 fold 重建的测试 |
 | HK-5 | 主体、来源与边界：hook 配置只从租户资产经 TG 资格发现，不读工作目录 settings；执行主体是装配者且每次触发前重验；command handler 只在部署对该装配者类别授予宿主级执行信任时装载；进程环境不含供应方凭据与 records 路径；跨租户配置不会被装载 | PF-025.C2、PF-010、live-agent v1 执行信任前提、决定 v、U1 | 装配准入与 spawn 环境（[装配与信任](mapping.md#装配与信任)） | 装配测试；跨租户否定测试；HS-07、HS-12；环境变量白名单测试 |
 
 ## 与已接受契约的关系
@@ -103,7 +103,6 @@ Claude Code、Codex 的事件名、配置形状与 stdin/stdout JSON 协议写�
 
 ## 未决项
 
-- 决定点 U1～U5 待用户确认。
 - 子 agent 事件（`SubagentStart/Stop`）与 `agent_id` 输入随 PF-004。
 - http / mcp_tool / prompt / agent handler 各随其依赖能力（PF-020、MCP、PF-004）另开。
 - `PreModelSwitch` 守卫、`PostToolBatch` 的 Step 级贡献、`transcript_path` 只读导出：需要时另开。
@@ -111,4 +110,5 @@ Claude Code、Codex 的事件名、配置形状与 stdin/stdout JSON 协议写�
 ## 接受记录
 
 尚未接受。2026-09-14 完成映射、机制、字段、刹车与 Cordis 视角；独立评审同日完成，2 项
-阻断与 9 项应修已按 [review.md](review.md) 处置，新增决定点 U1～U5 待用户确认。
+阻断与 9 项应修已按 [review.md](review.md) 处置；决定点 U1～U5 由用户 2026-09-15 裁决，正文
+已按裁决写。

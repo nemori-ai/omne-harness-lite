@@ -5,7 +5,7 @@
 评审：architecture-reviewer（只读），2026-09-14，对象为 HUB 分支 `design/dsh-core-adoption`
 提交 `ed1ef8b` 的本提案三个文件，含与 [tool-execution/cordis.md](../tool-execution/cordis.md)
 的接口一致性；无比较基线。处置在同一分支的后续提交完成，mapping.md 与 README 整体重写；
-"待用户"的项在 [README 新增决定点](README.md#评审后新增的决定点作者建议待用户确认)列出。
+评审引出的决定点与用户裁决见 [README 决定点表](README.md#评审后的决定点用户裁决2026-09-15)。
 
 ## 阻断接受
 
@@ -41,7 +41,8 @@
 ## 转给用户的决定点
 
 U1（宿主执行信任政策）、U2（程序化作答与确认模式）、U3（`hook_continuation` 有界性依据）、
-U4（fail-closed 租户策略）、U5（S1 守卫形状）：见 README 新增决定点表，正文已按作者建议写。
+U4（fail-closed 租户策略）、U5（S1 守卫形状）由用户 2026-09-15 裁决：U1、U3、U5 按作者建议，
+U2 不能越过确认模式，U4 先不做且不留候选；见 README 决定点表。
 
 ## 评审未验证项的现状
 

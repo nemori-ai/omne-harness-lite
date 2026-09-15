@@ -279,14 +279,22 @@ RunComplete ==
   /\ deliv' = [c \in Calls |-> IF c \in Conts THEN "queue" ELSE deliv[c]]
   /\ UNCHANGED <<sess, owner, crashes, kind, prog, att, fence, rel, ctl, hd>>
 
-\* RD-13 / RN-02: an unrecoverable failure closes the Run at once: blocking
-\* calls stop, pending human requests close (decision y), background work is
-\* untouched, unconsumed inputs become queue items (SE-17)
+\* RD-13 / RN-02 with the user ruling U-43 (Run and call lifecycles are
+\* decoupled): an unrecoverable failure ends the Run but not the admitted
+\* work.  Calls not yet admitted are cancelled (the gate was the Run's act);
+\* admitted, executing and waiting-for-human calls continue, lose their
+\* waiting position (rel := background) and settle later as queue triggers
+\* that start a new Run; unconsumed inputs become queue items (SE-17).
 RunFail ==
   /\ run \in {"running", "waiting"}
   /\ run' = "terminal"
-  /\ Cascade({c \in Calls : Open(c) /\ rel[c] /= "background"}, "queue")
-  /\ UNCHANGED <<sess, owner, crashes, kind, att, rel>>
+  /\ LET NotAdmitted == {c \in Calls : prog[c] \in {"proposed", "waiting_approval"}}
+     IN /\ prog' = [c \in Calls |-> IF c \in NotAdmitted THEN "cancelled" ELSE prog[c]]
+        /\ deliv' = [c \in Calls |-> IF c \in NotAdmitted THEN "settling"
+                                     ELSE IF c \in Pending THEN "queue" ELSE deliv[c]]
+        /\ hd' = [c \in Calls |-> IF c \in NotAdmitted /\ hd[c] = "open" THEN "closed" ELSE hd[c]]
+        /\ rel' = [c \in Calls |-> IF Open(c) /\ c \notin NotAdmitted THEN "background" ELSE rel[c]]
+  /\ UNCHANGED <<sess, owner, crashes, kind, att, fence, ctl>>
 
 \* LC-04 row 5 / PF-013.C4: every open tool call stops (background too);
 \* human requests are kept and the Run needs an explicit resume (HD-04)
@@ -377,10 +385,14 @@ AttemptAfterAdmission == \A c \in Calls :
 HumanByAnswer == \A c \in Calls :
   kind[c] = "human" => (prog[c] = "succeeded" <=> hd[c] = "answered")
 
-\* SE-17 / RD-10 / RN-02: after a terminal Run the only open calls are background
-\* work or calls whose stop the owner has still to progress (failure cascade)
-TerminalRunOnlyBackground == run = "terminal" =>
-  \A c \in Calls : Open(c) => (rel[c] = "background" \/ ctl[c] = "stop_requested")
+\* U-43: reaching a terminal Run never closes an open human question (a
+\* completed Run has none; a failed Run keeps them)
+FailKeepsHuman == [][(run \in {"running", "waiting"} /\ run' = "terminal") =>
+  \A c \in Calls : (kind[c] = "human" /\ prog[c] = "executing") => (hd'[c] = hd[c] /\ prog'[c] = prog[c])]_vars
+
+\* SE-17 / RD-10 / U-43: after a terminal Run every open call has no waiting
+\* position (it runs as background work and settles as a queue trigger)
+TerminalRunOnlyBackground == run = "terminal" => \A c \in Calls : Open(c) => rel[c] = "background"
 
 \* T-10 / SE-14 D2: nothing waits to be consumed in an archived Session
 ArchivedNoPending == sess = "archived" => \A c \in Calls : deliv[c] \notin {"continuation", "context", "queue"}

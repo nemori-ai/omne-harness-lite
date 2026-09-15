@@ -66,6 +66,10 @@ Agent 向人提问的答复怎样回到工具"没有一处权威正文。本提�
 | U-40 | 要像 DeepSeek Harness 那样兼容 Claude Code / Codex 的命令式 hooks 体系；需求落为 [PF-025](../../requirements/product/agent/PF-025-external-hooks-compatibility.md)；决定点 o～v 按作者建议拍板 |
 | U-41 | Agent 发起 HITL 等用户答复时，答复不是普通用户输入，而是该工具的结果，回到工具调用作为返回值；先查 DSH，有则二次开发。据此采纳决定点 w（内建 `human` 工具纳入本轮）与 x（D2 机制；通用工具体中途 interrupt 不纳入首版）；契约措辞缺口随闭环一次发版 |
 | U-42 | 工具帧是耐久的：有持久化与回放机制，与同一 Session 的日志一起 append-only 追加写；帧的数据结构（含让 UI 知道怎么渲染的标识）以 omne-next / omne_harness 的工具帧设计为起点，保证重要特性不丢不漏。据此决定 d 的三等级改为 critical / durable（缺省）/ transient（[frames.md](frames.md#记录等级)） |
+| U-43（2026-09-15） | Run 的生命周期与工具的生命周期可以错位：工具状态耐久化，新 Run 恢复后接上（与 Run – live-agent 的关系同型）。据此 Run 不可恢复失败时只取消未准入的调用，已准入调用与未答问题保留，结算按 SE-14 C 列触发新 Run（[级联表](lifecycle.md#控制与级联表)、模型 `RunFail` 与 `FailKeepsHuman`） |
+| U-44（2026-09-15） | Agent 发起的批准本质是上下文提示词，不是系统机制；系统发起的 HITL 才是系统机制。Agent 的 HITL 工具只有 `ask_user` 与 `request_approval` 两个（omne-next `omne_harness` 已有定义），没有第三个；问题与批准的答复本质是用户提示词，以工具调用结果呈现。据此去掉 `request_consent` 与批准目标绑定（[命令表](lifecycle.md#内建人类请求工具)） |
+| U-45（2026-09-15） | Run 状态机与工具执行状态机解耦、可以错位；一次 Run 可有多个并行工具，有的按声明执行一段时间后自动转后台，有的不会；不存在 Run 级执行预算作为刹车（[前台上限](lifecycle.md#前台上限与自动转后台)）；omne-next 的耐久等待与离场执行设计作补充参考 |
+| U-46（2026-09-15） | 调用级 `detach` 不能否决工具声明的自动离场（取值只剩 `on_start \| auto`）；迟到结果以 `system_reminder` 内容块进入到达的 Step、按模型族投影为 user / developer message（确认） |
 
 ## 作者裁决（用户按建议拍板）
 
@@ -80,28 +84,28 @@ Agent 向人提问的答复怎样回到工具"没有一处权威正文。本提�
 | g | 是否发 tools v2 | 不单独发；缺口进 [缺口表](lifecycle.md#契约措辞缺口表)，闭环成形后一次发版 |
 | h | 调用状态机 TLA+ | 建一个，单配置 ≤ 1 分钟，含 admit / dispatch / settle / stop / background / Inbound 交接 / 归档级联 / `human` 调用 |
 | i | 单操作工具的投影 | 去掉 `command` 层：顶层 Schema 即该命令输入；多命令才 `{command, params}`（可选 `oneOf`） |
-| j | 调用级 `detach: never \| on_start \| auto` | 开放给模型，受定义 `startModes` 子集约束 |
+| j | 调用级 `detach: never \| on_start \| auto` | 开放给模型，受定义 `startModes` 子集约束（U-46 后修订：去掉 `never`，调用不能否决工具声明的自动离场） |
 | k | 并发声明 `concurrency: serial \| parallel_safe` | 纳入声明词表；驱动器首版可仍串行执行 |
 | l | 多模态 | 工具输入/输出媒体一律用内容引用（CT），模型投影按 MC-11 交集选择；不建第二个图片库 |
-| m | 前台上限 `onLimit` 缺省 | keep_waiting，Run 预算是最终刹车；工具可声明 stop 或 detach |
+| m | 前台上限 `onLimit` 缺省 | keep_waiting；工具可声明 stop 或 detach（U-45 后修订：没有 Run 级预算刹车，有效阈值 = min(声明, 系统上限)，keep_waiting 等到自然结束或用户 stop） |
 | n | 计时与转换决定归属 | 调用运行时（tools 包）；驱动器不持计时器，执行 owner 只兑现 detach |
-| w | 内建人类请求工具 | 纳入：多命令工具 `human`（ask / request_approval / request_consent），HD 为执行 owner |
+| w | 内建人类请求工具 | 纳入：多命令工具 `human`，恰好两条命令 `ask_user` / `request_approval`（U-44 后去掉 `request_consent`），HD 为执行 owner |
 | x | 答复回到工具的机制 | D2：调用停在 `waiting_human` 视图不阻止收束与 Yield，答复由 HD 在同一提交结算调用，结算作接续开 Step；通用工具体中途 interrupt 不纳入首版 |
 
 hooks 兼容层的决定点 o～v 记在 [hooks 兼容提案](../hooks-compat/README.md#裁决记录)；本提案
 只在 S5/S7 的落点消费它们。
 
-## 评审后新增的决定点（作者建议，待用户确认）
+## 评审后的决定点（用户裁决，2026-09-15）
 
-来源见 [review.md](review.md)；ac 由用户 2026-09-14 提出。
+来源见 [review.md](review.md)；作者建议与用户裁决对照：
 
-| # | 问题 | 作者建议（正文已按此写） |
-|---|---|---|
-| y | Run 不可恢复失败时未答的 `human` 请求 | 关闭请求并结算 `cancelled_before_execution`（RN-02"按具名终止政策关闭剩余请求"），不保留到新 Run |
-| z | `request_approval` 决定与后续动作的绑定 | 请求携带结构化目标 `{toolKey, commandKey, paramsDigest \| resourceRefs}`，approve 产生绑定目标的一次性决定，后续调用准入门按 CD-04 Action 精确比较后消费，不符拒绝并要求新请求 |
-| aa | Run 执行时长预算的拥有者与到期控制 | run v1 下一版让 Run 携带执行截止（Session / 租户政策给定），到期由调度者发 interrupt；在此之前 `keep_waiting` 只靠用户 stop 兜底 |
-| ab | 调用级 `detach` 能否否决定义的 `onLimit: detach` | 不能：取值只剩 `on_start \| auto`，删 `never`（修订决定 j） |
-| ac | 转后台 / 等人后迟到结果怎样进入模型 | 占位沿 RD-09 `deferred_receipt`；迟到结果与答复以新内容块 `system_reminder` 进入到达的 Step，按模型族投影为 user message（Anthropic）或 developer message（OpenAI）；同一块承载 hooks 上下文与系统通知 |
+| # | 问题 | 作者建议 | 用户裁决 |
+|---|---|---|---|
+| y | Run 不可恢复失败时未答的 `human` 请求 | 关闭请求 | 否决：Run 与工具生命周期错位，工具状态耐久，新 Run 接上（U-43） |
+| z | `request_approval` 决定与后续动作的绑定 | 结构化目标绑定，门消费 | 否决：Agent 的批准是提示词不是系统机制；只有 `ask_user` / `request_approval` 两个工具（U-44） |
+| aa | Run 执行时长预算的拥有者 | run v1 增加执行截止 | 否决：Run 与工具状态机解耦，没有 Run 级预算刹车（U-45） |
+| ab | 调用级 `detach` 能否否决自动离场 | 不能 | 不能（U-46） |
+| ac | 迟到结果以 `system_reminder` 进入 | 用户提出 | 确认（U-46） |
 
 ## 未决项
 
@@ -110,10 +114,13 @@ hooks 兼容层的决定点 o～v 记在 [hooks 兼容提案](../hooks-compat/RE
 - 多命令的 batch 模式与 shell 词法不纳入；若将来需要，另立需求。
 - 帧的条数/字节/保留期数值、后台调用上限与配额：实现阶段。
 - 出站流侧的帧词表全集与游标编码（U-36）：本提案只给 `tools.frame.<kind>` 前缀。
-- 契约措辞缺口（SE-13 问答答复的来源、RD-09 `waiting_human` 视图与迟到结果形态、SE-04/13
-  hooks 词汇、TL-07 预算被拒的措辞与 `unavailable`、HD 作为执行 owner、run-driver v3、
-  run v1 执行预算、CD 与 MC 的 `system_reminder`）：见 [缺口表](lifecycle.md#契约措辞缺口表)，
+- 契约措辞缺口（SE-13 问答答复的来源、RD-09 `waiting_human` 视图与迟到结果形态、RD-10 占位
+  首次呈现开 Step、SE-04/13 hooks 词汇、TL-07 预算被拒的措辞与 `unavailable`、TL-10 去掉
+  Run 预算项、RN-02 失败不关闭已准入调用、HD 作为执行 owner、run-driver v3、CD 与 MC 的
+  `system_reminder`、TL-12 帧耐久与 `frames(S)`）：见 [缺口表](lifecycle.md#契约措辞缺口表)，
   随闭环一次发版。
+- PF-005.C10 里"由系统权威记录对精确请求及批准结果的引用"在 U-44（批准是提示词）下没有
+  系统机制承接，可追溯改由历史顺序与系统门记录给出；需求措辞是否调整待用户确认。
 - 取回工具与转储信封（omne-next `read_tool_result_or_file` 与"结果已转储"占位）：首版不设，
   大结果与中间帧的读面先归 UI；模型主动取回作为候选另开。
 - 回流策略的 `silent`（后台结果不通知模型）与 `compensate`（失败时唤醒补偿）：首版只有
@@ -126,5 +133,6 @@ hooks 兼容层的决定点 o～v 记在 [hooks 兼容提案](../hooks-compat/RE
 尚未接受。波 1（本页、requirements、invariants、lifecycle）、波 2（schema、frames、cordis）
 与波 3 的模型、场景 2026-09-14 完成；形式任务 `tool-execution-call-safety` /
 `tool-execution-call-progress` 已登记。独立评审 2026-09-14 完成，2 项阻断与 11 项应修已
-按 [review.md](review.md) 处置，新增决定点 y～ac 待用户确认。接受后提供者设计修订
-（[归属表](cordis.md#提供者设计归属与实施入口)）与契约缺口一次发版。
+按 [review.md](review.md) 处置；评审引出的决定点由用户 2026-09-15 裁决（U-43～U-46），正文
+已按裁决改写。接受后提供者设计修订（[归属表](cordis.md#提供者设计归属与实施入口)）与契约
+缺口一次发版。

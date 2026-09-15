@@ -1,11 +1,11 @@
 TLC2 Version 2026.09.12.025210 (rev: 867aefb)
-Running breadth-first search Model-Checking with fp 89 and seed -2797935865878011945 with 4 workers on 8 cores with 3641MB heap and 64MB offheap memory [pid: 151779] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Running breadth-first search Model-Checking with fp 37 and seed -1049689609701215585 with 4 workers on 8 cores with 3641MB heap and 64MB offheap memory [pid: 84544] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
 Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/docs/proposals/tool-execution/evidence/model/ToolCallMC.tla
 Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/dsh-core-adoption/docs/proposals/tool-execution/evidence/model/ToolCall.tla
-Parsing file /tmp/tlc-4190851947992275458/TLC.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
-Parsing file /tmp/tlc-4190851947992275458/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
-Parsing file /tmp/tlc-4190851947992275458/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
-Parsing file /tmp/tlc-4190851947992275458/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file /tmp/tlc-13475366474542386762/TLC.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file /tmp/tlc-13475366474542386762/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-13475366474542386762/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-13475366474542386762/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
@@ -14,23 +14,23 @@ Semantic processing of module TLC
 Semantic processing of module ToolCallMC
 Linting of module ToolCall
 Linting of module ToolCallMC
-Starting... (2026-09-14 20:22:16)
+Starting... (2026-09-15 02:41:49)
 Implied-temporal checking--satisfiability problem has 8 branches.
 Computing initial states...
 Computed 2 initial states...
-Finished computing initial states: 4 distinct states generated at 2026-09-14 20:22:16.
-Checking 8 branches of temporal properties for the current state space with 60104 total distinct states at (2026-09-14 20:22:19)
-Finished checking temporal properties in 00s at 2026-09-14 20:22:20
-Checking 8 branches of temporal properties for the current state space with 1509760 total distinct states at (2026-09-14 20:23:20)
-Finished checking temporal properties in 54s at 2026-09-14 20:24:14
-Checking 8 branches of temporal properties for the complete state space with 1556256 total distinct states at (2026-09-14 20:24:17)
-Finished checking temporal properties in 01min 00s at 2026-09-14 20:25:18
+Finished computing initial states: 4 distinct states generated at 2026-09-15 02:41:49.
+Checking 8 branches of temporal properties for the current state space with 42264 total distinct states at (2026-09-15 02:41:52)
+Finished checking temporal properties in 00s at 2026-09-15 02:41:53
+Checking 8 branches of temporal properties for the current state space with 1403696 total distinct states at (2026-09-15 02:42:53)
+Finished checking temporal properties in 46s at 2026-09-15 02:43:40
+Checking 8 branches of temporal properties for the complete state space with 1706840 total distinct states at (2026-09-15 02:43:55)
+Finished checking temporal properties in 01min 10s at 2026-09-15 02:45:05
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
-  calculated (optimistic):  val = 5.6E-9
-  based on the actual fingerprints:  val = 1.3E-9
-722272 states generated, 194532 distinct states found, 0 states left on queue.
-The depth of the complete state graph search is 20.
-The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 11 and the 95th percentile is 4).
-Finished in 03min 02s at (2026-09-14 20:25:18)
+  calculated (optimistic):  val = 6.4E-9
+  based on the actual fingerprints:  val = 2.5E-8
+762492 states generated, 213355 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 22.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 10 and the 95th percentile is 3).
+Finished in 03min 16s at (2026-09-15 02:45:05)

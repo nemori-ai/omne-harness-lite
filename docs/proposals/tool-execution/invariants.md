@@ -28,14 +28,14 @@ PF = [需求正文](../../requirements/README.md)，U = [用户裁决](README.md
 | T-1 | 一次调用同一时刻至多一个活跃 attempt；新 attempt 只在前一个 attempt 终态或墓碑生效之后，且经政策与新的准入；一次人类批准不覆盖不同 attempt | TL-07/08、RD-16 | 执行 owner 的 attempt 账本；tools 提交面的 admit | 调用模型 |
 | T-2 | 每次终态恰一次进入 Inbound（来源级 dedupKey = `(call, attempt)`），恰被消费一次；费用与效果随 attempt 归原调用与来源 Step，不改挂新 Run | SE-12/13、BG-03、PF-019 | `prepareTerminal` 与 Inbound accept 同批；消费事件引用 eventId | Inbound 模型（去重、单次消费）；调用模型（结算恰一次发出） |
 | T-3 | stop 单调：墓碑生效后不再有新步骤与新 start；迟到 start 在产生任何外部效果之前被拒；终态与 stop 竞争按真实先后，已完成的成功不被改写为中断；stop 只作用于原 call/attempt | TL-08/09、PF-003.C3 | owner 的同一接纳账本排序 start 与 stop | 调用模型；迟到 start 注入 |
-| T-4 | 调用从实际启动起由独立执行 owner 拥有；实例退役、崩溃、Yield、归档与 Run 失败不隐式取消也不隐式重启后台调用；转换只改变等待关系，不创建新调用、不重启工作 | TL-07/10/11、LC-04 行 1/6/7、PF-003.C4/C6、决定 f | 准入时绑定 owner；驱动器视图只读 | 调用模型（OwnerCrash / Archive / RunFail 动作后后台调用状态不变：ArchiveKeepsWork、TerminalRunOnlyBackground）；Yield 与 force_stop 不建模，用场景 TS-11 与 run-driver 场景 |
+| T-4 | 调用从实际启动起由独立执行 owner 拥有，Run 与调用的生命周期错位：实例退役、崩溃、Yield、归档与 Run 失败不隐式取消也不隐式重启已准入的调用，只释放等待位置，结算按 SE-14 在新 Run 接上；转换只改变等待关系，不创建新调用、不重启工作 | TL-07/10/11、LC-04 行 1/6/7、PF-003.C4/C6、决定 f、U-43 | 准入时绑定 owner；驱动器视图只读；调用状态耐久于 tools 流 | 调用模型（OwnerCrash / Archive / RunFail 动作后已准入调用状态不变：ArchiveKeepsWork、FailKeepsHuman、TerminalRunOnlyBackground）；Yield 与 force_stop 不建模，用场景 TS-11 与 run-driver 场景 |
 | T-5 | 无接纳证据不产生外部效果；恢复不对已耐久 dispatched 的 attempt 重发；dispatch 不明只 inspect/收口，不重新发出 | TL-08、RD-16、CC-04 | owner 在真实 I/O 前写 accepted 与 dispatch_intent | run-driver 模型 I-24；LE kill 探针；调用模型 |
 | T-6 | 参数在准入点冻结，之后任何站点（含 hooks 兼容层）不可改写；未完整通过具体命令校验的参数不产生 Action，未知命令或多余参数不落默认 handler；守卫只能收紧 | TL-01/13、RD-17、PF-025.C1 | `proposeCalls` 的完整校验；守卫返回值封闭 | Ajv profile 单测；run-driver 场景 S20 |
 | T-7 | 别名只经原 manifest 解析；同名新版本不接管旧请求返回的调用；已准入调用保留原实现闭包直到排空，突发依赖丢失结算 unavailable/unknown 而不无声换实现 | TL-02/06、PF-014.C5 | manifest 绑定；registration generation | 场景 |
 | T-8 | 多命令工具在 manifest 恰占一个槽位；调用、过程、费用与审计能定位到具体命令 | TL-01、PF-024.C2 | manifest 派生 | 单测 |
-| T-9 | 一次性批准恰一次消费；新 attempt 不能消费旧批准；agent_approval 的批准绑定请求时给出的结构化目标（决定 z），只有 Action 与目标精确相符的后续调用能消费，越界调用被门拒绝并要求新请求 | HD-06、RD-11、PF-005.C2/C10 | system_approval：`prepareConsumeDecision` 与调用准入同批；agent_approval：`request_approval` 的目标随决定耐久，准入门按 CD-04 Action 比较后同批消费（[命令表](lifecycle.md#内建人类请求工具)） | run-driver 模型（system_approval）；场景 TS-14（agent_approval，含越界拒绝） |
+| T-9 | 系统发起的一次性批准恰一次消费，新 attempt 不能消费旧批准；Agent 发起的 `request_approval` 答复只是耐久在历史里的提示词，不被任何门消费、不建立 standing permission，之后的受控动作照常过系统门 | HD-06、RD-11、PF-005.C2/C10、U-44 | system_approval：`prepareConsumeDecision` 与调用准入同批；agent_approval：无门消费路径（[命令表](lifecycle.md#内建人类请求工具)） | run-driver 模型（system_approval）；场景 TS-14 |
 | T-10 | 归档/删除后到达的结算按 SE-14 D2 列关闭，不开新 Run；结果引用按数据治理保留，不静默丢弃 | SE-14、决定 f | Inbound 裁决 | Inbound 模型 ArchiveClean |
-| T-11 | 前台上限的有效阈值不晚于 Run 执行预算减去 `stopMarginMs`；单次转换失败保持前台关系并报告原因；预算到期走收口停止；等待人类的时间不计入执行时长 | TL-10、PF-003.C5 | 调用运行时的计时与转换决定（决定 n）；执行预算的拥有者与到期控制待 run v1 下一版（决定 aa） | 场景 TS-16（模型不建模时间；Detach / StopRequest 作为无标签触发） |
+| T-11 | 前台上限的有效阈值 = min(声明, 系统上限)，与 Run 无关（U-45）；单次转换失败保持前台关系并报告原因；`keep_waiting` 的调用只由自然结束或用户 stop 结束；等待人类的时间不计入执行时长 | TL-10、PF-003.C5、U-45 | 调用运行时的计时与转换决定（决定 n） | 场景 TS-16（模型不建模时间；Detach / StopRequest 作为无标签触发） |
 | T-12 | 工具产生的媒体只有 CT 引用耐久后才进入历史与结果；模型投影只含目标模型能消费的模态，其余以引用与文字说明进入；用户展开帧不等于向模型注入 | CT-02/04、MC-11、TL-12、PF-022.C5/C6 | `prepareTerminal`；投影选择 | 场景 |
 | T-13 | 调用级 `detach` 参数不越出定义的 `startModes`，也不能否决定义声明的 `onLimit`；不可兑现的能力（后台、停止、帧）不能被声明，未声明的不能被调用 | TL-08/10/12、决定 j、ab | 参数校验；装载时核实 owner 能力 | 单测 |
 | T-14 | 一个调用的最终结果恰一次进入模型：该 tool_use 未占位则作为它的 tool_result，已占位（deferred_receipt）则作为一条 `system_reminder{late_result \| human_answer}`；system_reminder 只由驱动器从已裁决 arrival 产生，不能由用户输入导入 | RD-09/10、CD-03、决定 ac、PF-003.C4 | 驱动器的投影规则（[占位与迟到结果](lifecycle.md#占位与迟到结果的投影)）；CD 块来源规则 | 投影单测；场景 TS-06 / TS-12 |
@@ -46,7 +46,7 @@ PF = [需求正文](../../requirements/README.md)，U = [用户裁决](README.md
 |---|---|---|---|---|
 | H-1 | `human` 调用恰被一次答复结算；请求创建与调用准入在同一提交，答复与调用结算在同一提交；答复前崩溃、退役或 Yield 不丢请求、不重复请求 | HD-03/04/08、U-41 | HD 作为执行 owner 的 start 与 answer | 调用模型（`human` 种类）；崩溃注入 |
 | H-2 | 等人期间该调用的视图 `waiting_human` 不阻止 Step 收束、不阻止 Yield；答复后重取或开 Step 时，模型恰一次看到答复：未占位则作为该 tool_use 的 tool_result，已占位则作为一条 `system_reminder{human_answer}`（T-14） | RD-09/10/14、U-41、决定 ac | 视图词表；投影规则 | 调用模型（RunWait 允许 human_wait；RunComplete 不允许）；场景 TS-12；投影单测 |
-| H-3 | Run interrupt 与 interrupt_then_run 保留请求并加全 Run 阻塞，答复不自行解除；cancel / force_stop 与 Run 不可恢复失败（决定 y）同提交关闭请求并结算调用；用户单次 `stopCall` 撤回问题同前；迟到答复返回当前结果，不生成 arrival | HD-02/04、RN-02/04、SE-14 | HD.answer 的当前状态核对；Run 收口协议 | 调用模型（InterruptKeepsHuman；RunCancel / RunFail / StopRequest 的 Cascade）；HD 场景 |
+| H-3 | Run interrupt、interrupt_then_run 与不可恢复失败都保留请求（失败后答复按 SE-14 C 列触发新 Run 接上，U-43）；只有 cancel / force_stop 与用户单次 `stopCall` 同提交关闭请求并结算调用；迟到答复返回当前结果，不生成 arrival | HD-02/04、RN-03/04、SE-14、U-43 | HD.answer 的当前状态核对；Run 收口协议 | 调用模型（InterruptKeepsHuman、FailKeepsHuman；RunCancel / StopRequest 的 Cascade）；HD 场景 |
 | H-4 | 提问不消耗执行预算，费用来源为零；请求不设自动超时或默认答案；热宽限到期只回收实例 | PF-005.C5、HD-03 | BG 零费用来源；HD 请求策略 | 场景 |
 
 ## 帧

@@ -38,7 +38,7 @@
 | pass | 该项进入 take 的候选集合，无耐久痕迹 |
 | close | 同一 take 门内把该项 `queue.item.closed{closed_by_guard, reason}` 与其 arrival `inbound.arrival.closed{closed_by_guard}` 一起提交，然后继续下一队首；不新增队列项状态 |
 | 超时 / 崩溃 / 非法输出 | 视为 pass（fail-open，决定 s），写 `hooks.run.completed{failed \| timeout}`；崩溃后未求值的项在下一次 take 前重新求值，求值本身幂等 |
-| interrupt_then_run 项 | [SE-08](../../../spec/capabilities/session/v1/contract.md) 在受理点封闭旧驱动；为免白白中断，这类项在受理准备阶段先求值守卫（受同一超时约束），close 则受理后立即关闭、不发出中断；决定 U5 的另一形状（全部受理前求值）待用户 |
+| interrupt_then_run 项 | [SE-08](../../../spec/capabilities/session/v1/contract.md) 在受理点封闭旧驱动；为免白白中断，这类项在受理准备阶段先求值守卫（受同一超时约束），close 则受理后立即关闭、不发出中断（用户裁决 U5；不采用"全部受理前求值"，受理提交不能被 600 s 级 hook 阻塞） |
 | 可见性 | 关闭原因对用户可见；`additionalContext` 进该批首个 Step 的 `system_reminder{hook_context}`（[占位与迟到结果](../tool-execution/lifecycle.md#占位与迟到结果的投影)） |
 
 ## 事件映射：两家共有
@@ -127,7 +127,7 @@ HD 请求创建求值，守卫 deny 则不创建请求。守卫只在 `adjudicat
 | 命令级失败 | 退出码 2 阻断；其余不阻断；超时不阻断 | 2 阻断；其余记失败不阻断 | 2 阻断 | fail-open：非 2 不阻断，每次运行写 `hooks.run.completed`；`PreToolUse` 超时按失败放行到 TL-07 门（决定 s） |
 | 守卫提供者不可用 | — | — | — | 不是 fail-open：扩展点登记失败时插件不进入 ready（`hooks.config.rejected{reason: guard_unavailable}`），动态撤除先封闭准入（[AR-16](../../../spec/capabilities/live-agent/v1/contract.md)）；TL-13"守卫缺失不能默认许可" |
 | 阻断理由可见 | stderr → 模型 | stderr → 模型 | stderr → 模型 | stderr 写入拒绝结果 / 关闭原因，用户与模型都可见 |
-| 停止续跑刹车 | 8 次连续上限 + `stop_hook_active` | `stop_hook_active` | `steer()` | 计数上限 + `stop_hook_active` + Run 预算（决定 q） |
+| 停止续跑刹车 | 8 次连续上限 + `stop_hook_active` | `stop_hook_active` | `steer()` | 计数上限 + `stop_hook_active`（决定 q）；没有 Run 级执行时长预算（工具提案 [U-45](../tool-execution/README.md#评审后的决定点用户裁决2026-09-15)） |
 
 ## 输入与输出字段
 
@@ -153,11 +153,11 @@ HD 请求创建求值，守卫 deny 则不创建请求。守卫只在 `adjudicat
 |---|---|
 | 触发 | `run.lifecycle.changed{completed}` 提交后运行 `Stop` hook，返回 `decision: block + reason` |
 | 入队 | `omneSession.accept{source: hook_continuation, dedupKey: (RunRef, handler), originWork: 该 Run, payload: reason}`；观察者重跑（LC-06 幂等）因同键不产生第二项 |
-| 意图路由 | SE-14 新增一行：`hook_continuation` 为内部来源，意图 queue；originWork 已终态 → C 列 queue；Session 已归档 → `closed(closed_by_archive)`；不受 SE-16 容量拒绝，有界性由刹车与去重键给出（决定 U3） |
+| 意图路由 | SE-14 新增一行：`hook_continuation` 为内部来源，意图 queue；originWork 已终态 → C 列 queue；Session 已归档 → `closed(closed_by_archive)`；不受 SE-16 容量拒绝，有界性由刹车与去重键给出（用户裁决 U3） |
 | 取用 | [SE-06](../../../spec/capabilities/session/v1/contract.md) `takeTrigger` 时重查来源权威：hook 资产仍启用、装配者成员关系仍有效、Session open；任一失败 → 项 `closed(source_invalid)` |
 | 计数 | `n` = 连续由 `hook_continuation` 触发的 Run 数，按 [SE-10](../../../spec/capabilities/session/v1/contract.md) 注册为 projection（对 Run 启动事实的确定性 fold）：hook 触发 → `n + 1`，其它来源触发 → `n = 0`；归档不清零、恢复后由 fold 重建 |
 | `stop_hook_active` | 当前 Run 由 `hook_continuation` 触发时为 true |
-| 上限 | `n ≥ cap`（缺省 8，租户可配）时不再入队，写 `hooks.run.completed{status: brake, n, cap}` 并向用户通知；Run 预算对每个续跑 Run 独立生效 |
+| 上限 | `n ≥ cap`（缺省 8，租户可配）时不再入队，写 `hooks.run.completed{status: brake, n, cap}` 并向用户通知；租户费用预算沿 [BG-03](../../../spec/capabilities/budget-accounting/v1/contract.md) 对每个续跑 Run 照常预留，没有 Run 级执行时长预算 |
 | 与用户输入的关系 | 排队中的 trigger 项按 acceptedOrder 排在已有用户项之后；用户对排队项的撤回沿 [SE-04](../../../spec/capabilities/session/v1/contract.md) withdraw；已取用的续跑 Run 由 [RN-03](../../../spec/capabilities/run/v1/contract.md) 控制 |
 
 ## 观察事件
@@ -177,11 +177,11 @@ HD 请求创建求值，守卫 deny 则不创建请求。守卫只在 `adjudicat
 |---|---|
 | 装配者 | 该 hook 资产在本租户的选用 / 启用操作（[TG-05](../../../spec/capabilities/tenant-governance/v1/contract.md)）记录的 membership revision；个人租户为 owner，组织租户为执行该操作的管理员 |
 | 每次触发前重验 | 装配者成员关系仍 active、资产仍 enabled、Session 属同一租户；任一失败 → 跳过并写 `hooks.config.rejected{assembler_inactive}`（PF-010.C5：撤权影响下一道准入） |
-| 命令 hook 的执行边界 | 命令进程在 [live-agent v1](../../../spec/capabilities/live-agent/v1/contract.md) 执行信任前提下运行：没有 PF-012 沙盒映射时，只有部署策略授予宿主级执行信任的装配者类别可装载 command handler，否则 `hooks.config.rejected{execution_boundary_required}`；哪些类别可信是政策（决定 U1，作者建议：受管 hook 与个人租户 owner 装配的 hook 可载，组织普通成员装配的拒绝，待用户） |
+| 命令 hook 的执行边界 | 命令进程在 [live-agent v1](../../../spec/capabilities/live-agent/v1/contract.md) 执行信任前提下运行：没有 PF-012 沙盒映射时，只有受管 hook 与个人租户 owner 装配的 hook 可装载 command handler，组织普通成员装配的拒绝 `hooks.config.rejected{execution_boundary_required}`，待沙盒映射后放开（用户裁决 U1） |
 | 进程环境 | 白名单环境变量（不含供应方凭据与 records 路径）、显式 cwd（执行环境目标或每次运行的临时目录）、数据只经 stdin、无服务句柄；"适配器不提供写入接口"只在 API 层成立，文件级隔离取决于部署执行边界 |
 | 受管限制 | "只允许受管 hook"由租户资产策略表达；`allowManagedHooksOnly` 与 Codex `Managed` 映射到它 |
 | Skill / Subagent frontmatter hooks | 首版不支持 |
-| 程序化作答（`PermissionRequest`） | 实际 actor = hooks-compat 受信提供者，on-behalf-of = 装配者的当前 membership；提交时重验该 membership 有效、仍拥有该资产选用关系、且是 [HD-01](../../../spec/capabilities/human-decisions/v1/contract.md) 该 kind 的合法作答者，审计可辨程序化来源（HD-05 措辞补充）；Session 确认模式为 `confirm` 或组织策略要求人工确认时 hook 的 allow 无效（决定 U2，作者建议，待用户） |
+| 程序化作答（`PermissionRequest`） | 实际 actor = hooks-compat 受信提供者，on-behalf-of = 装配者的当前 membership；提交时重验该 membership 有效、仍拥有该资产选用关系、且是 [HD-01](../../../spec/capabilities/human-decisions/v1/contract.md) 该 kind 的合法作答者，审计可辨程序化来源（HD-05 措辞补充）；Session 确认模式为 `confirm` 或组织策略要求人工确认时 hook 的 allow 无效，只在 `standard` 下生效（用户裁决 U2） |
 
 ## 场景
 

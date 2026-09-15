@@ -83,9 +83,15 @@ stateDiagram-v2
 ## 内建人类请求工具
 
 PF-005 的 Agent 发起请求在 RD-02 的意图联合里没有独立意图，模型表达提问只能经
-ProposeCalls，所以它是一次工具调用：多命令工具 `human`，命令 `ask`（kind = question）、
-`request_approval`（kind = agent_approval）、`request_consent`（kind = specialized_consent），
-执行 owner 是 HD 提供者。用户裁决（U-41）：答复是该调用的返回值。
+ProposeCalls，所以它是一次工具调用：多命令工具 `human`，恰好两条命令 `ask_user`
+（kind = question）与 `request_approval`（kind = agent_approval），没有第三条（用户裁决
+[U-44](README.md#裁决记录2026-09-14用户)；omne-next `omne_harness` 的
+`design_docs/interfaces/hitl-agent-request-tools-contract.md` 同样只定义这两个工具，其参数、
+返回值与回复模板是 human-tool 设计的起点）。执行 owner 是 HD 提供者。用户裁决（U-41）：
+答复是该调用的返回值；U-44 进一步明确：问题与批准请求的答复本质上就是用户的提示词，只是
+以工具调用结果（ToolMessage）的形式呈现给 Agent，Agent 发起的批准是上下文提示、不是系统
+机制，真正的系统机制是系统发起的 HITL（TL-07 ask 门 → HD system_approval）。能力授权申请
+（PF-005.C3）不是第三条命令：Agent 用 `ask_user` 表达需要，授予本身走系统发起的专属同意流程。
 
 参照 DSH `c291e79` 的 `dsh-tool-ask-user` / `dsh-user-questions`（工具体内 `await ask()`，答案作
 普通工具结果返回；等待是进程内 Promise，崩溃后 `interruptedTurnClosers` 合成错误结果）：
@@ -93,19 +99,18 @@ ProposeCalls，所以它是一次工具调用：多命令工具 `human`，命令
 
 | 步骤 | 内容 | 依据 |
 |---|---|---|
-| 1 提议与准入 | `human ask` 经 ProposeCalls 提议；门为 allow（问人不需要批准）；联合提交里 HD 作为执行 owner `start` = 耐久创建请求并把 continuation 绑定到该调用位置；BG 来源为零费用 | HD-01/03、TL-07、PF-005.C4/C5 |
+| 1 提议与准入 | `human ask_user` / `human request_approval` 经 ProposeCalls 提议；门为 allow（问人不需要批准）；联合提交里 HD 作为执行 owner `start` = 耐久创建请求并把 continuation 绑定到该调用位置；BG 来源为零费用 | HD-01/03、TL-07、PF-005.C4/C5 |
 | 2 等待 | 调用视图为 `waiting_human`：与 RD-09 的 `waiting_approval` 同列——不阻止 Step 收束，需要开 Step 时以 deferred_receipt 占位（[占位规则](#占位与迟到结果的投影)）；Step 收束后无新内容则 Run 进入 waiting_human；RD-14 的 Yield 前提不含该视图，等人期间实例可退役 | RD-09/10/11/14、HD-03 |
 | 3 答复 | `HD.answer` 在同一提交里记唯一决定、把调用结算为 `succeeded{answer}`、受理结算 arrival；裁决为 continuation → 重取或开 Step；该 tool_use 尚未占位则其 tool_result 即答复，已占位则答复以 `system_reminder{human_answer}` 进入到达的 Step，两者恰居其一 | HD-02/05/08、SE-14 |
-| 4 控制 | interrupt 与 interrupt_then_run 都保留请求并加全 Run 阻塞（HD-04 / RN-04"独立问题保留原 Run"），须显式 resume；cancel / force_stop 与 Run 不可恢复失败（决定 y）同提交关闭请求并结算 `cancelled_before_execution`；用户对该调用单次 `stopCall` 即撤回问题，处置同前；迟到答复按 HD-02 返回当前结果，不生成 arrival | HD-04、RN-02/04、SE-14 human_answer 行 |
+| 4 控制 | interrupt 与 interrupt_then_run 都保留请求并加全 Run 阻塞（HD-04 / RN-04"独立问题保留原 Run"），须显式 resume；Run 不可恢复失败也保留请求（U-43：Run 与调用生命周期错位，答复到达按 SE-14 C 列触发新 Run 接上）；cancel / force_stop 同提交关闭请求并结算 `cancelled_before_execution`；用户对该调用单次 `stopCall` 即撤回问题，处置同 cancel；迟到答复按 HD-02 返回当前结果，不生成 arrival | HD-04、RN-03/04、SE-14 human_answer 行 |
 | 5 崩溃 | 调用（proposed/admitted）与请求（HD-03）都耐久；重启后 RD-04 四步取得驱动，答复照常路由 | RD-16 |
 
-三条命令的差异：
+两条命令的差异：
 
 | 命令 | 答复的去向 | 附加义务 |
 |---|---|---|
-| `ask` | 答复内容作为 tool_result | 选项标签即答案值；`custom` 覆盖单选；批量问题按 id 回填 |
-| `request_approval` | 请求内容必须携带结构化目标 `target{toolKey, commandKey, paramsDigest \| resourceRefs}`（决定 z）；决定（approve / reject / comment）作为 tool_result；approve 同时产生绑定该目标的一次性决定 `decisionRef` | 后续调用在准入门引用 `decisionRef`；门把 CD-04 Action 的 toolKey / commandKey 与参数摘要或解析出的资源同目标精确比较，相符则经 `prepareConsumeDecision` 同批消费，不符则 `denied_before_execution{approval_scope_mismatch}` 并要求新请求（PF-005.C10）；决定不跨 attempt、不跨 Session、不覆盖 AU 的 deny |
-| `request_consent` | 专属同意结果作为 tool_result | 授予经 AU 的专属能力结算（HD-05）；不建立会话权限或持续授权（PF-005.C3）；首版没有合格的专属能力提供者，按 TL-03 标 unavailable、不进 manifest（[HD 设计](../../../packages/governance/human-decisions/design.md)现状） |
+| `ask_user` | 答复内容作为 tool_result | 选项标签即答案值；`custom` 覆盖单选；批量问题按 id 回填 |
+| `request_approval` | 决定（approve / reject / comment）作为 tool_result，本质是用户提示词：告诉 Agent 用户对拟执行动作的态度 | 不产生任何可被系统门消费的决定、不建立 standing permission（omne-next HT-6 同）；之后真正执行的动作照常过 TL-07 门，需要人类确认的仍由系统发起 system_approval；PF-005.C10 的可追溯由答复耐久在历史里给出，"越界重新请求"是 Agent 的提示纪律，系统不比对目标 |
 
 不纳入首版：任意工具体在执行中途 `interrupt()` 再回到断点。执行 owner 不保存调用栈，
 LangGraph 式恢复要求中断点之前无副作用，与 TL-08 叠加后可用面很窄；需要中途问人的
@@ -156,18 +161,22 @@ deferred_receipt 同一规则）、耐久记录一份；投影按模型族由 MC
 
 ## 前台上限与自动转后台
 
-TL-10 第二段已定：有效阈值由声明阈值、系统上限、Run 剩余执行预算共同得到，须在预算
-截止前留出 `stopMarginMs`；用单调执行时长，HITL 等待不计；恢复不清零；单次转换失败
-保持前台并报告，预算到期走停止；只有 interrupt_then_run 要求"转换失败则中断"。本提案
-补三点（决定 m、n）：
+TL-10 第二段已定：用单调执行时长，HITL 等待不计；恢复不清零；单次转换失败保持前台并
+报告；只有 interrupt_then_run 要求"转换失败则中断"。用户裁决 [U-45](README.md#裁决记录2026-09-14用户)：
+Run 状态机与工具执行状态机解耦、可以错位，一次 Run 可以有多个并行工具，有的按声明执行一段
+时间后自动转后台，有的不会；不存在"Run 执行预算"这样的跨状态机刹车。据此 TL-10 里"Run
+剩余执行预算"与 `stopMarginMs` 两项进[缺口表](#契约措辞缺口表)删除；omne-next
+`design_docs/cross-cutting/durable-wait-and-detached-execution.md` 的离场策略、批次组合矩阵
+（attached + born-detached 混合）与降级律是补充参考。本提案补的点（决定 m、n、ab）：
 
 | 内容 | 采纳 |
 |---|---|
 | 计时与转换决定归属 | 调用运行时（tools 包）持计时：到点向 owner 发 `detach`，驱动器只看视图变化，owner 只兑现 |
-| 不可转后台的工具超过前台上限 | 声明 `foreground: {limitMs, onLimit: detach \| stop \| keep_waiting}`；缺省 `keep_waiting`，Run 执行预算是最终刹车；声明 `stop` 的工具到点 stop |
+| 有效阈值 | `min(声明 limitMs, 系统上限)`，两值与计时来源在准入时记录到调用 |
+| 不可转后台的工具超过前台上限 | 声明 `foreground: {limitMs, onLimit: detach \| stop \| keep_waiting}`；缺省 `keep_waiting`：Run 等到工具自然结束或用户 stop，没有别的刹车；声明 `stop` 的工具到点 stop |
 | 转换的可见中间态 | 沿 RD-09 的 `detach_in_flight`，不加新态 |
-| Run 执行预算的拥有者 | 现有契约里"Run 剩余执行预算"只出现在 TL-10，run v1 / budget v1 都没定义其拥有者与到期控制；建议 run v1 下一版让 Run 携带执行截止（由 Session 或租户政策给定），到期由调度者发 interrupt（决定 aa，待用户）；在此之前 `keep_waiting` 只靠用户 stop 兜底，[缺口表](#契约措辞缺口表)登记 |
-| 调用级 `detach` 的取值 | 只有 `on_start \| auto`：模型不能否决定义或运维声明的 `onLimit: detach`（决定 ab，取代决定 j 的 `never`） |
+| 调用级 `detach` 的取值 | 只有 `on_start \| auto`：模型不能否决定义或运维声明的 `onLimit: detach`（用户裁决，取代决定 j 的 `never`） |
+| 同批混合 | 同一 Step 提议的多个调用各按自己的声明走：有的前台等完、有的到点转后台、有的启动即后台；Step 收束只看仍阻塞的那些（RD-10），后台的按[占位与迟到结果](#占位与迟到结果的投影)回来 |
 
 ## 控制与级联表
 
@@ -181,7 +190,7 @@ TL-10 第二段已定：有效阈值由声明阈值、系统上限、Run 剩余�
 | Run cancel（行 4） | 同上 | stop | stop | stop（普通 cancel 包括后台调用，TL-11） | 关闭请求 + `cancelled_before_execution` | RN-03、TL-11 |
 | Run force_stop（行 2/4） | 同上 | epoch 撤销 + stop；旧执行者结果走 `late_fact` | 同左 | 同左；隔离未证实则 Run stopping | 同 cancel | RN-05、RD-13 |
 | Run completed（行 3） | 不存在（收束前提） | 不存在（收束前提） | 不存在（阻止收束） | 继续；终态后的结算按 SE-14 C 列为 queue（trigger 开新 Run） | 不存在（Run 等人时不结算） | SE-17、RD-10 |
-| Run 不可恢复失败 → failed（行 4，RD-13 末段） | 墓碑 + `cancelled_before_execution` | stop，留下真实结局 | stop | 继续；结算按 C 列为 queue | 关闭请求 + `cancelled_before_execution`（RN-02"按具名终止政策关闭剩余请求"；决定 y，待用户） | RN-02、RD-08/13、HD-04 |
+| Run 不可恢复失败 → failed（行 4，RD-13 末段） | 未准入（proposed / waiting_approval）→ `cancelled_before_execution`，审批请求关闭：过门是 Run 的动作；已准入未 start 的继续，owner 照常 start | 继续；等待位置随 Run 释放，结算按 C 列 queue 触发新 Run 接上（U-43：Run 与调用生命周期错位，调用状态耐久） | 同左 | 继续；结算按 C 列 queue | 保留请求；答复按 C 列 queue 触发新 Run | RD-08/13、SE-14、U-43；RN-02 措辞入[缺口表](#契约措辞缺口表) |
 | 实例计划退役（行 6） | 阻止 Yield 直到过门或 start 回执 | 阻止 Yield；热宽限到期按 interrupt 收口记 yield_forced | 阻止 Yield 直到确认 | 不受影响 | 不阻止 Yield | RD-14 |
 | 实例崩溃 / 进程重启（行 7） | 见[恢复窗口](#恢复窗口) | 同左 | 同左 | 重新关联同一 attempt（inspect/subscribe） | 请求耐久，答复照常路由 | RD-16、TL-11、PF-003.C6 |
 | 写入权丢失（行 12） | 停在水位 | 驱动器停在水位；owner 持独立资源可继续到 terminal，结算等写入权恢复 | 同左 | 同左 | 同左 | CC-02/04 |
@@ -216,13 +225,13 @@ TL-10 第二段已定：有效阈值由声明阈值、系统上限、Run 剩余�
 | [RD-14](../../../spec/capabilities/run-driver/v2/contract.md) Yield 前提 | 未提 `waiting_human` | 明确其不阻止 Yield |
 | [TL-07](../../../spec/capabilities/tools/v1/contract.md)"预留失败不是 deny" | 与 BG-03 的映射靠 RD-09 补出（停留 proposed、Run waiting_gate） | 下一版把"预算被拒停留 proposed"写进 TL-07 |
 | [SE-04](../../../spec/capabilities/session/v1/contract.md) closed 词表、SE-13 来源枚举 | hooks 兼容层需要 `closed_by_guard` 与 `hook_continuation` | 随 hooks 提案一并进入 |
-| [TL-10](../../../spec/capabilities/tools/v1/contract.md) 前台上限 | 缺 `onLimit` 与计时归属 | 下一版补声明字段 |
+| [TL-10](../../../spec/capabilities/tools/v1/contract.md) 前台上限 | 缺 `onLimit` 与计时归属；"Run 剩余执行预算"与 `stopMarginMs` 与 U-45（Run 与工具解耦）冲突 | 下一版补声明字段，删 Run 预算项与 `stopMarginMs`，有效阈值 = min(声明, 系统上限) |
 | [TL-01](../../../spec/capabilities/tools/v1/contract.md) 投影 | 单操作工具去掉 `command` 层（决定 i）未写明 | 下一版补两种投影 |
 | [CD-03/04](../../../spec/data/core-work/v1/contract.md) `Command` / `BackgroundDeclaration` / `ContentBlock` | 缺 `foreground`、`startModes`、`concurrency`、`media`、`frames`、结果形状；`cancellation` 只有二值；`automatic` 与 `foreground` 重叠；内容块缺 `system_reminder`（决定 ac） | 按 [schema.md 维度总表](schema.md#维度总表)一次进入下一版，删 `automatic`；受影响消费者：所有引用 CD v1 的契约（session、run、run-driver、HD、AU、MC、tools）需在同批指向新版 |
 | [TL-07](../../../spec/capabilities/tools/v1/contract.md) 终态词表 | `unavailable` 在 RD-09 / RD-11 / TL-06 中作结算结果出现，TL-07 六种 outcome 没有它 | 下一版加 `unavailable`（执行前，不消耗 attempt），结果形状同步 |
 | [MC-07](../../../spec/capabilities/model-execution/v1/contract.md) 装配 | 缺 `system_reminder` 块按模型族投影为 user / developer message 的规则 | 下一版补投影规则；投影选择器只能选不能改 |
-| [HD](../../../spec/capabilities/human-decisions/v1/contract.md) v1 | 缺"HD 作为 `human` 工具执行 owner"的条款：start = 创建请求、requestStop = 关闭、answer = 同提交结算调用；HD-08 的唯一 continuation 意图在 question 类下变为 call_settlement；HD-04 未提用户单次 `stopCall` 撤回问题；`request_approval` 决定绑定结构化目标（决定 z）；程序化作答者（hooks 提案） | 下一版补条款与结算接收器端口（[cordis.md](cordis.md#插件与服务依赖)） |
-| [run-driver](../../../spec/capabilities/run-driver/v2/contract.md) v2 → v3 | RD-06 切点来源"问答型 human_answer"、RD-09/11 视图与出边、RD-17 S1 受理后守卫（hooks 提案）都要改；RunDriver 模型的 `QIds` / `AskQuestion` 并入调用后六个配置须重做 | 与 tools 下一版同批；受影响消费者：run-driver 提供者设计、场景 S04/S18/S19 |
-| [run](../../../spec/capabilities/run/v1/contract.md) v1 | 没有 Run 执行时长预算的拥有者与到期控制（决定 aa） | 下一版定义执行截止与到期控制种类 |
+| [HD](../../../spec/capabilities/human-decisions/v1/contract.md) v1 | 缺"HD 作为 `human` 工具执行 owner"的条款：start = 创建请求、requestStop = 关闭、answer = 同提交结算调用；HD-08 的唯一 continuation 意图在 question / agent_approval 类下变为 call_settlement；agent_approval 的答复不产生可被门消费的决定（U-44）；HD-04 未提用户单次 `stopCall` 撤回问题，也未提 Run 失败保留请求（U-43）；程序化作答者（hooks 提案） | 下一版补条款与结算接收器端口（[cordis.md](cordis.md#插件与服务依赖)） |
+| [run-driver](../../../spec/capabilities/run-driver/v2/contract.md) v2 → v3 | RD-06 切点来源"问答型 human_answer"、RD-09/11 视图与出边、RD-13 失败收口不再处置已准入调用（U-43）、RD-17 S1 受理后守卫（hooks 提案）都要改；RunDriver 模型的 `QIds` / `AskQuestion` 并入调用后六个配置须重做 | 与 tools 下一版同批；受影响消费者：run-driver 提供者设计、场景 S04/S18/S19 |
+| [run](../../../spec/capabilities/run/v1/contract.md) v1 RN-02 | "不可恢复失败才沿其具名终止政策关闭剩余请求"与 U-43 冲突：失败只取消未准入的调用，已准入调用与未答问题保留并在新 Run 接上 | 下一版改措辞；不引入 Run 级执行预算（U-45） |
 | [SE-12](../../../spec/capabilities/session/v1/contract.md) arrival closed 原因 | hooks 兼容层需要 `closed_by_guard`（与 SE-04 同名） | 随 hooks 提案一并进入 |
 | [TL-12](../../../spec/capabilities/tools/v1/contract.md) 帧耐久性 | "实时帧可以非耐久"与 U-42"帧缺省耐久、与 Session 日志同域 append-only"不一致；Session 域需要帧流 `frames(S)` | 下一版：缺省耐久，transient 只由显式声明；session 下一版登记 `frames(S)` 流（[frames.md](frames.md#记录等级)） |

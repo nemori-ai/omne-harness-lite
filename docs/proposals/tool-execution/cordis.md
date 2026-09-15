@@ -17,7 +17,7 @@ Cordis 事实按 `c291e796` 修订的官方文档核对，项目采用官方包 
 |---|---|---|---|
 | 调用运行时 | `ToolStatePlugin` 提供 `omneToolState`（tools 流 owner、call/attempt/关系/控制的 prepare/check）；`ToolsPlugin` 提供 `omneTools`（discover/load/manifest/propose/adjudicate/stop/detach/帧读面、前台上限计时） | 所有工具经它提议与准入 | 选择执行 owner 集合、前台上限系统值、帧记录策略 |
 | 执行 owner | `LocalExecutionPlugin`（`omneLocalExecution`）、同进程 shell owner（决定 a，新增包候选 `tools/shell-execution`）、HD 作为 `human` 工具的 owner | 文件、shell、人类请求 | 装配哪些 owner 可用 |
-| 内建人类请求工具 | `HumanToolPlugin`（新成员 `packages/tools/human-tool`，同时消费 tools 与 HD 的公开入口）注册 `human` 定义、实现其 ExecutionProvider，并向 HD 登记"请求结算接收器"：HD.answer 的提交经该接收器同批写 `tools.call.settled` 与结算 arrival | `human ask / request_approval / request_consent` | 随 tools 与 HD 装载；HD 不 import TL |
+| 内建人类请求工具 | `HumanToolPlugin`（新成员 `packages/tools/human-tool`，同时消费 tools 与 HD 的公开入口）注册 `human` 定义、实现其 ExecutionProvider，并向 HD 登记"请求结算接收器"：HD.answer 的提交经该接收器同批写 `tools.call.settled` 与结算 arrival | `human ask_user / request_approval` | 随 tools 与 HD 装载；HD 不 import TL |
 | link 插件 | `ToolAdmissionLinkPlugin`（AU/BG）、`ToolApprovalLinkPlugin`（HD system_approval）、`ToolExecutionLinkPlugin`（每个执行 owner 一份；inject owner、`omneToolState` 与 `omneSession`，组合 terminal + 结算 + accept 的同批提交） | 无 | 双端管理能力经受信 options |
 | hooks 兼容层 | `hooks-compat` 插件在 S5 登记 TL-13 守卫、在 S7 登记投影选择器（另开提案） | 无 | 按 PF-025 装配 |
 
@@ -110,7 +110,7 @@ sequenceDiagram
         T->>H: prepareSystemRequest（同批）
         H-->>D: 批准 → prepareConsumeDecision → start
     else human 工具
-        T->>H: start = 创建 question/agent_approval/specialized_consent 请求
+        T->>H: start = 创建 question / agent_approval 请求
         H-->>T: answer → 结算 succeeded{answer}（同批）
         T->>S: accept{call_settlement}
     end
@@ -157,8 +157,8 @@ async hook 只能观察与注入上下文；每次运行写 `hooks.run.completed
 |---|---|---|
 | 调用五维状态、转移表、事件三段式重命名、前台计时、守卫与投影选择器 API、帧读面 | [tools 设计](../../../packages/tools/tools/design.md) | 接受后原地修订 |
 | attempt 账本与墓碑、帧 seq/gap、detach unsupported | [local-execution 设计](../../../packages/tools/local-execution/design.md) | 接受后对齐词汇 |
-| 五种 kind 的创建入口、请求结算接收器端口、程序化作答者 | [HD 设计](../../../packages/governance/human-decisions/design.md) | 接受后扩展 |
-| `human` 工具定义、ExecutionProvider、接收器实现、`request_approval` 目标绑定 | 新成员 `packages/tools/human-tool` | 设计待开（接受后） |
+| question / agent_approval 两种 kind 的创建入口、请求结算接收器端口、程序化作答者 | [HD 设计](../../../packages/governance/human-decisions/design.md) | 接受后扩展 |
+| `human` 工具定义（`ask_user` / `request_approval`，参数与回复模板以 omne-next `hitl-agent-request-tools-contract.md` 为起点）、ExecutionProvider、接收器实现 | 新成员 `packages/tools/human-tool` | 设计待开（接受后） |
 | 视图值 `waiting_human`、`human` 调用的 Yield 前提 | [run-driver 设计](../../../packages/agent/run-driver/design.md) | 接受后小修 |
 | 同进程 shell owner | 新包候选 `packages/tools/shell-execution` | 设计待开（决定 a 只定范围） |
 | hooks 兼容层 | 新提案 `docs/proposals/hooks-compat/` 与新包候选 `packages/agent/hooks-compat` | 另开 |

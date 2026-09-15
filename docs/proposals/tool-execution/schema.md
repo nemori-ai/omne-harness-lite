@@ -25,7 +25,7 @@ BackgroundDeclaration / ContentBlock / MediaRef / Action`；校验 profile 沿
 | `requiredSkills` | 工具/命令 | 装配（MC-07） | TL-05 已定 | 不动 |
 | `environmentCapabilities: string[]` | 命令 | 门、discover 的 available/unavailable 原因 | CD 已定；词表归 PF-012 设计 | 不动；门把它与 `Binding.environment` 资源公布的能力求交 |
 | `background: BackgroundDeclaration` | 命令 | 准入、驱动器视图、执行 owner | TL-10 已定 | 在 `mode=supported` 时加 `startModes`；`automatic` 由 `foreground` 取代（下文） |
-| `foreground: {limitMs, stopMarginMs, onLimit}` | 命令 | 调用运行时计时（裁决 n） | 新 | [前台上限](#前台上限与调用级启动方式) |
+| `foreground: {limitMs, onLimit}` | 命令 | 调用运行时计时（裁决 n） | 新 | [前台上限](#前台上限与调用级启动方式) |
 | 调用级参数 `detach` | 调用 | 准入、关系维度 | 新 | 同上 |
 | `cancellation` → `stop: {capability}` | 命令 | 执行 owner 声明核实、用户停止预期 | CD 为 `supported \| unsupported` | [停止能力](#停止能力) |
 | `concurrency` | 命令 | 驱动器 proposeCalls 批 | 新（裁决 k） | [并发](#并发) |
@@ -64,14 +64,14 @@ BackgroundDeclaration / ContentBlock / MediaRef / Action`；校验 profile 沿
 
 ```text
 background.startModes: [foreground, background_from_start]   // supported 时必填，非空子集
-foreground: { limitMs, stopMarginMs, onLimit: detach | stop | keep_waiting }   // 可选
+foreground: { limitMs, onLimit: detach | stop | keep_waiting }   // 可选
 ```
 
 | 规则 | 内容 | 依据 |
 |---|---|---|
-| `foreground` 取代 `automatic` | TL-10 的 `automatic{thresholdMs, stopMarginMs}` ≡ `foreground{limitMs: thresholdMs, stopMarginMs, onLimit: detach}`；发布下一版时删 `automatic` | 裁决 m、n |
-| `onLimit` 约束 | `detach` 只在 `background.mode = supported` 且 `startModes ∋ foreground` 时合法；`stop` 只在 `stop.capability ≠ unsupported` 时合法；缺席 = `keep_waiting`，Run 执行预算是最终刹车 | TL-08/10 |
-| 有效阈值 | `min(limitMs, 系统上限, Run 剩余预算 − stopMarginMs)`；三值与计时来源在准入时记录到调用；算不出正数时启动前不承诺自动转换 | TL-10 |
+| `foreground` 取代 `automatic` | TL-10 的 `automatic{thresholdMs, stopMarginMs}` ≡ `foreground{limitMs: thresholdMs, onLimit: detach}`；`stopMarginMs` 随 Run 预算项一起删除（U-45：Run 与工具解耦）；发布下一版时删 `automatic` | 裁决 m、n、U-45 |
+| `onLimit` 约束 | `detach` 只在 `background.mode = supported` 且 `startModes ∋ foreground` 时合法；`stop` 只在 `stop.capability ≠ unsupported` 时合法；缺席 = `keep_waiting`：等到自然结束或用户 stop | TL-08/10 |
+| 有效阈值 | `min(limitMs, 系统上限)`；两值与计时来源在准入时记录到调用 | TL-10、U-45 |
 | 调用级 `detach` | 投影时由 tools 包注入保留参数 `detach: on_start \| auto`（单操作投影在顶层，多命令投影与 `command` 同级），只在 `startModes` 含两种方式时出现；`on_start` → `background_from_start`；`auto`（缺省）→ 前台并按定义的 `onLimit` 处理；模型不能否决定义或运维声明的自动离场（裁决 ab 取代裁决 j 的 `never`）；越出 `startModes` → 参数校验失败，走 TL-01 的 `invalid_proposal` | 裁决 j、ab |
 | 不可变 | `detach` 剥离后记为调用的 `requestedRelation`，不进 `Action.params`；准入后不改 | [T-6](invariants.md#调用)、[T-13](invariants.md#调用) |
 
