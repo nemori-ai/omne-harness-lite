@@ -11,7 +11,7 @@
 ```text
 Frame = {
   kind: string,                       // 三段式（U-33）；见 §2 的词表
-  dedupKey: string,                   // 事实帧 = 事实的 eventId；瞬态帧 = "<owner>:<epoch>:<seq>"；控制帧 = 服务端生成
+  dedupKey: string,                   // 事实帧 = 事实的 eventId；瞬态帧 = "<issuer>:<epoch>:<seq>"，issuer 是 owner 或代发的 observer（复核 B-非阻断 5）；控制帧 = 服务端生成
   subject: { tenant, session, run?, step?, call?, attempt?, request?, input? },
   at: Timestamp,
   position: {domain, seq} | null,     // 事实帧：产生它的提交位置；瞬态/控制帧为 null
@@ -61,7 +61,7 @@ Frame = {
 
 | 类 | kind | 来源 | `payload` |
 |---|---|---|---|
-| 事实提示 | 各耐久流的事件名原样：`session.lifecycle.changed`、`session.hold.set / released`、`queue.item.enqueued / edited / withdrawn / closed`、`queue.order.changed`、`queue.items.taken`、`inbound.arrival.accepted / classified / consumed / converted / closed`、`inbound.context.advanced`、`run.lifecycle.created`、`run.state.changed`、`run.step.opened`、`run.attempt.recorded`、`run.calls.proposed`、`run.call.admitted`、`run.waiting_position.added`、`run.control.requested`、`run.gate.awaited`（[Session 设计 §2.4](../../../packages/session/session/design.md#24-事件命名去重键与词汇)、[Run 设计](../../../packages/session/run/design.md#提交面)）；工具与人类决定：`tools.call.proposed / admitted / waiting / settled / resolved`、`tools.control.requested / progressed`、`tools.relation.detach_requested / detached`、`hd.request.created / closed`、`hd.decision.recorded`（[工具提案转移表](../tool-execution/lifecycle.md#转移表)，候选；tools / HD 提供者设计现用的 `tools.call_proposed` 等两段名按 U-33 改为三段） | `records.envelope.committed` 广播（[LC-06](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md)）经作用域过滤 | 小事实带事件 `data`；产生消息的事实（`queue.items.taken`、attempt 结算、`tools.call.settled`、`run.step.opened`）只带 `position` 与 `subject`，客户端按位置拉派生消息 |
+| 事实提示 | 各耐久流的事件名原样：`session.lifecycle.changed`、`session.hold.set / released`、`queue.item.enqueued / edited / withdrawn / closed`、`queue.order.changed`、`queue.items.taken`、`inbound.arrival.accepted / classified / consumed / converted / closed`、`inbound.context.advanced`、`run.lifecycle.created`、`run.state.changed`、`run.step.opened`、`run.attempt.recorded`、`run.calls.proposed`、`run.call.admitted`、`run.wait.claimed / released`、`run.control.requested`、`run.gate.awaited`（[Session 设计 §2.4](../../../packages/session/session/design.md#24-事件命名去重键与词汇)、[Run 设计](../../../packages/session/run/design.md#提交面)）；工具与人类决定：`tools.call.proposed / admitted / waiting / settled / resolved`、`tools.control.requested / progressed`、`tools.relation.detach_requested / detached`、`hd.request.created / closed`、`hd.decision.recorded`（[工具提案转移表](../tool-execution/lifecycle.md#转移表)，候选；tools / HD 提供者设计现用的 `tools.call_proposed` 等两段名按 U-33 改为三段） | `records.envelope.committed` 广播（[LC-06](../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md)）经作用域过滤 | 小事实带事件 `data`；产生消息的事实（`queue.items.taken`、attempt 结算、`tools.call.settled`、`run.step.opened`）只带 `position` 与 `subject`，客户端按位置拉派生消息 |
 | 耐久帧 | `tools.frame.<kind>`（[frames.md](../tool-execution/frames.md#帧身份与顺序)，候选） | `frames(S)` 流的提交广播 | 帧 payload 或 `payloadRef`；`position = {domain, seq}` 加 `subject.call / attempt`；`render` 来自命令声明 |
 | 瞬态 | `model.attempt.started / chunk / ended`（[delta-protocol.md](delta-protocol.md)）、`tools.frame.<kind>`（`recordLevel: transient` 的帧） | MC 提供者累加器、tools 读面 `subscribeFrames` | 帧内容；`ephemeral = {owner: attempt \| call, epoch, seq}` |
 | 控制 | `stream.opened{target, resumable, baseline, resync: none \| full}`、`stream.gap{owner, epoch?, reason}`（`reason` 沿[缺口词表](../tool-execution/frames.md#缺口词表)：`trimmed \| crash_gap \| unconfirmed \| decode_unavailable`，本提案加 `unavailable`——来源或投影暂不可用；`owner` 可为 `session`）、`stream.closed{reason: unauthorized \| unavailable \| session_deleted \| resync_required}` | 出站流服务 | 见 §5 |
@@ -100,7 +100,9 @@ Cursor = { domains: { <coordinationDomain>: seq },   // 各协调域**已整批�
   （`batch.index = batch.count`）且该批引用的派生正文（§5.1"只给位置"的消息）都已按位置
   读到本地；收到同批的前几帧不推进，正文拉取失败也不推进，重连后该批按半批规则重发
   （复核 B-新1：只按帧推进会在"存了游标、还没拉到正文"的崩溃窗口里丢掉已确认的消息）。
-  因此游标之下没有半批、也没有未取回的正文（MS-3 按批陈述）。
+  因此游标之下没有半批、也没有未取回的正文（MS-3 按批陈述）。重连后同一批再来一次时，
+  客户端按去重键丢掉帧本身，但该批未完成的正文安装仍要做完才推进——去重免的是重复呈现，
+  不免安装（第三轮复核）。
 - 游标**不包含**瞬态位置：瞬态帧不可续，重连以基线取代（[delta-protocol.md §5](delta-protocol.md#5-重连基线)）。
 - 可见范围版本：主体对本 Session 可见对象集合的版本号，由 session 下一版的读面
   `visibilityVersion(session, subject)` 给出，任何影响该主体对本 Session 内对象读权的授予或
@@ -127,7 +129,11 @@ Cursor = { domains: { <coordinationDomain>: seq },   // 各协调域**已整批�
      客户端清空本地状态，从 projection 的**一个**读面 `snapshot(session, principal) → {asOf,
      history, queue, requests, calls, visibility}` 重取——所有派生视图都是同一 fold 在同一水位
      `asOf = completeTo` 上的结果（[SE-10](../../../spec/capabilities/session/v1/contract.md) 的
-     stateKey 集合），历史分页也按 `asOf` 过滤，不存在"各读面各一个时刻"（复核 B-新2）；
+     stateKey 集合），历史分页也按 `asOf` 过滤（`history(session, range, asOf)`），不存在
+     "各读面各一个时刻"（复核 B-新2）。`requests` 与 `calls` 两项的可见范围裁剪不是 projection
+     自己的规则：HD 与 tools 各按 SE-10 把它们注册为 projection 贡献，贡献里带自己的裁剪
+     （HD-09 的获准范围、SR 正文读权），projection 只在同一 fold 水位上调用它们——授权语义
+     仍只有能力自己这一份权威，时刻却只有 `asOf` 一个（第三轮复核 B-阻1，[cordis.md](cordis.md#能力侧)）；
      `target := asOf`，`(asOf, now]` 由随后的补齐推；期间收到的 `seq > asOf` 的帧先在本地暂存。
      快照全部读到且其 `visibility` 与订阅时一致是**安装完成点**，此刻客户端才保存游标
      `= asOf` 并应用暂存帧；任一读取失败、或可见范围版本在安装期间变化，客户端不保存游标、

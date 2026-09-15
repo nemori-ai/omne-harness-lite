@@ -20,7 +20,7 @@
 | 编号 | 发现 | 处置 |
 |---|---|---|
 | S1 | `interrupt_then_run` 对 `human_wait` 的处置与 HD-04 / RN-04 冲突且未入缺口表 | 已修：改为与 interrupt 行相同，保留请求；不再需要缺口 |
-| S2 | `serial` 并发语义与 RD-09 的串行默认不一致 | 已修：schema.md 对齐 RD-09（前一调用视图不再阻止收束即放行） |
+| S2 | `serial` 并发语义与 RD-09 的串行默认不一致 | 已修：schema.md 对齐 RD-09（前一调用的登记注销即放行；作者裁决 9 后"阻止收束"改为合批规则） |
 | S3 | 模型的结算交付维度不忠实于 SE-14（前台调用在 running 时结算被路由为 context；context 可唤醒等待中的 Run） | 已修：`Route` 以"曾阻塞 Step 的调用在 Run 活动时 → continuation、`human_wait` 只在 Run 已等待时 → continuation、后台 → context"建模；`Consume(context)` 限定 running；证据说明与验证页披露 |
 | S4 | invariants.md 对模型范围的声明超出实际模型；验证页数字与日志不符 | 已修：T-4 / H-3 证据列与证据义务按实际模型改写；验证页数字取自最新重放日志 |
 | S5 | `unavailable` 作为结算结果在契约间不一致，未登记缺口 | 已修：维度 A 与结果形状加 `unavailable`（执行前，不消耗 attempt）；缺口表新增 TL-07 行 |
@@ -73,6 +73,25 @@
 复核列出的未决政策：跨协调域的登记簿交接（仍是未决项）；两份模型都是有限局部证据；
 requirements.md 的消费基线补 PF-013 增量（已补）。`superseded`、单一登记簿、单一公开出口
 三个方向复核未要求重选。
+
+## 第三轮复核（2026-09-15）
+
+复核：Claude `architecture-reviewer`（只读，无 shell），对象为 `7793953`（比较基线 `eda8e3b`）
+的第二轮处置：作者裁决 8～13、模型、验证页、run / LE 提供者设计与三提案接头。原始报告在
+主检出 `tmp/next-design-prep/review3-claude-architecture.md`。结论：两轮处置方向都不需要重选；
+3 项应在进入 D-015 前闭合，都是一段内可改的前提或措辞错误。处置按
+[第三轮作者裁决](README.md#第三轮作者裁决2026-09-15第三轮架构复核后)。
+
+| 编号 | 发现 | 初判 | 处置 |
+|---|---|---|---|
+| A-阻1 | 裁决 10 的升级路径声称"LE 的 `forced_isolation` 已有实现依据"，而 LE 设计明写不承诺有时限的强制停止；首版 owner 对 `stopCall{mode: force}` 只能回 `unsupported` 或再报 `unknown`，interrupted 上 force_stop 会永远停在 `stopping` | 成立 | 已修（裁决 14）：升级路径只对声明 `forced_isolation` 的 owner 存在；无升级能力的 unknown 调用在受理时记 `isolation: unverified`、不进 `stopping`；A10 / B7 / TL-11 行 / run 设计同步 |
+| A-阻2 | 入站裁决行与 T-17 只写了 A / B / C / D2，丢了 SE-14 D1（cancelled / stopping → closed）与 `stopping`；force_stop 的整簿注销写在 cancelled 而 RN-05 先进 stopping | 成立 | 已修（裁决 15）：只替换 A / B 列判据，C / D1 / D2 沿原表；force_stop 在受理进 stopping 的提交整簿注销；T-17"活动"= running / waiting / interrupted；证据说明写明模型无 stopping、单 Run 槽位 |
+| A-阻3 | 删除 SE-08"原责任继续阻止新驱动"时把前半句一并删了，PF-013.C6 要求的复合意图结果状态没有落点；"与后台调用危险相同"缺 detach 确认这一前提 | 成立 | 已修（裁决 16）：只删后半句；复合意图结果 `partial{unknown: K}`；论证改为"fence 已封闭新步骤 + 清单告知模型"；RN-05 缺口行登记控制结果与隔离记录 |
+| 非阻断 1～10 | SE-13 缺 `system` 来源；"阻止收束"残句五处；状态图 `settled_unknown`；tools 验证页旧段落；Yield 判据两处不一致；模型范围声明；证据身份（无改动）；事实命名；B4 未启动调用的清单；HD-10～12 暂行调用 | 成立（7 无改动） | 已修（裁决 17）：见 README 表；`results.json` 哈希本轮未重算，模型未改 |
+| 接头 1～4 | 事实命名；S1 守卫在"取入既有 Run"时的求值者；`hook_context` 的 RD-06 登记；hooks 映射用 `run.lifecycle.changed`、`superseded` 是否触发 `Stop` 未写 | 成立 | 已修（裁决 19）：hooks 映射与 README 缺口表同步 |
+
+复核仍列为未决的政策：unknown 与后台调用在新 Run 下的等价性（已改为不依赖等价性的论证）、
+`system_notice` 的保留期与容量类别（裁决 17 定为与其它 context 相同）、跨协调域交接。
 
 ## 评审未验证项的现状
 

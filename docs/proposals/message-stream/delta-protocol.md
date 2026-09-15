@@ -11,7 +11,7 @@
 ## 1. 帧
 
 ```text
-model.attempt.started { attempt: AttemptRef, epoch, pub: Counter, purpose: reply | title | compression | auxiliary,
+model.attempt.started { attempt: AttemptRef, epoch, pub: {gen: ProviderGen, n: Counter}, purpose: reply | title | compression | auxiliary,
                         request: RequestId, provider, model, startedAfter: Cursor }
 model.attempt.chunk   { attempt, epoch, pub, index: Counter, at: Timestamp, chunk: StreamChunk }
 model.attempt.ended   { attempt, epoch, pub, index: Counter,     // 已发 chunk 数（公开计数）
@@ -20,10 +20,13 @@ model.attempt.ended   { attempt, epoch, pub, index: Counter,     // 已发 chunk
                                    observer: owner | message_stream } }
 ```
 
-- `pub`：MC 提供者在一个 Session 内对每次发布单调递增的计数（三种帧共用），读面
-  `attempts(session)` 的 `version` 就是快照时的 `pub`；插件丢弃 `pub ≤ version` 的帧，这是
-  "先读基线再订阅"能成为同步切的可比较字段（复核 B-新6）。提供者义务：读面快照与发布在
-  同一互斥下（进程内同步 emit），`items` 与 `version` 一致；序号由 MC 分配，插件不代分配。
+- `pub`：MC 提供者实例在一个 Session 内对每次发布单调递增的计数 `n`（三种帧共用），带上
+  提供者实例的代号 `gen`（提供者装载时生成，换代即变）；读面 `attempts(session)` 的 `version`
+  就是快照时的 `pub`；插件只在同一 `gen` 内比较，丢弃 `n ≤ version.n` 的帧，这是"先读基线再
+  订阅"能成为同步切的可比较字段（复核 B-新6）。收到 `gen` 与已知 `version.gen` 不同的帧，
+  插件先重读 `attempts` 取新基线、再按新 `version` 判定——换代不靠另一条通知，帧自己说明
+  （第三轮复核 B-非阻断 3）。提供者义务：读面快照与发布在同一互斥下（进程内同步 emit），
+  `items` 与 `version` 一致；序号由 MC 分配，插件不代分配。
 - `purpose`：在 `started` 上就带（不只在结算记录里）；客户端只把 `purpose = reply` 的帧展开为
   助手草稿，其它目的的帧进各自的界面位置（压缩：进度指示；标题、辅助：无草稿），结算时
   没有助手消息可替换、草稿直接撤下（复核 B-新3：否则标题或压缩 attempt 会先冒充一条回复）。
@@ -54,7 +57,9 @@ model.attempt.ended   { attempt, epoch, pub, index: Counter,     // 已发 chunk
   `tools.call.proposed` 到）；文本与推理块带公开形态的完整块。
 - 推理块的形态由其第一条公开 delta 决定并写在 `block-start`；同一私有块里后到的不同形态
   开一个新的公开块；有明文的块不再流出该块的摘要。这是 U-49"没有明文退摘要"在单帧上
-  可判定的形式。
+  可判定的形式。摘要先到、明文后到时，客户端会先后看到一个摘要块和一个明文块，两者都
+  保留（已流出的帧不撤回；是否折叠摘要块归 UI）；`toPublic` 是对私有序列前缀单调的 fold，
+  所以历史投影与实时看到的块序列一致（第三轮复核 B-非阻断 4）。
 
 实时发布、紧凑历史记录、重连基线三处入口共用它，没有第二条路径把私有载荷送出去；模型
 请求所需的完整回放经 MC 的私有读面取回，不从 `Message` 字段恢复。OpenRouter adapter 的义务
@@ -113,8 +118,8 @@ partial 的前缀是结算事实的一部分，不是可续写的草稿。
 已经过 `toPublic`），由 MC 提供者的读面 `attempts(session) → {items, version}` 给出（DSH
 `SessionAssistantStreamAccumulator` 同型；评审 B8），`version` 是快照时的发布计数 `pub`（§1）。
 出站流插件的同步切：先订阅 MC 的 `model.attempt.*` 事件、再读 `attempts`（顺序可以反过来，
-只要两步之间的帧都能按 `pub` 判定），丢弃 `pub ≤ version` 的帧——基线已经包含它们；`pub >
-version` 的帧接在基线之后。读面快照与发布在 MC 内同一互斥下，所以不存在"基线读完、监听
+只要两步之间的帧都能按 `pub` 判定），丢弃同一 `gen` 下 `n ≤ version.n` 的帧——基线已经包含
+它们；之后的帧接在基线之后；`gen` 不同的帧触发重读基线（§1）。读面快照与发布在 MC 内同一互斥下，所以不存在"基线读完、监听
 建好之间"漏掉的发布（复核 B-新6）。插件在 attempt 中途装载也拿得到完整基线，只监听未来
 事件拿不到。客户端把基线展开为草稿，再接收 `index ≥ nextIndex` 的 chunk；`epoch` 不匹配或
 `index` 不连续 → 丢弃草稿并重开订阅。进程重启后累加器为空：客户端只能靠事实（结算记录

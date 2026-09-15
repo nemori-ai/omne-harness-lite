@@ -28,9 +28,10 @@ terminal / cancelled，一个等待位置；Session 为 open / archived；执行
 | ToolCallRedispatch.cfg（否定，不登记） | 恢复时把已耐久 dispatch_intent 的 attempt 重发：期望违反 AttemptMonotone | 找到反例（约 2.7 千状态、1 秒内），证明 T-5 的保护点是恢复只 inspect 不重发 |
 
 形式任务命令带 `-deadlock`（终态无后继，死锁检查关闭；卡住由进展性质检查）。结算交付
-维度按 SE-14 建模：曾阻塞 Step 的调用在 Run 活动时结算为 continuation，`human_wait` 只在
-Run 已等待时为 continuation，后台为 context；context 从不唤醒等待中的 Run（细节与其它抽象
-见[证据说明](../../../docs/proposals/tool-execution/evidence/README.md)）。
+维度按 SE-14 建模：调用有开放登记（`rel ∈ {none, foreground, detach_in_flight, human_wait}`）
+且发起 Run 活动时结算为 continuation，无登记（background）且 Run 活动为 context，Run 终态
+为 queue，Session 归档为 closed；context 从不唤醒等待中的 Run（作者裁决 11；细节与其它
+抽象见[证据说明](../../../docs/proposals/tool-execution/evidence/README.md)）。
 
 模型发现：(1) 停止先于 start 时 fence 与 `cancelled_before_execution` 结算在同一提交，
 所以"fence 后 owner 迟到 start"被 `prog = admitted` 守卫排除，`NoStartAfterFence` 由提交

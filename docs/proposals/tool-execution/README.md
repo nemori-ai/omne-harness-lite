@@ -144,6 +144,22 @@ hooks 兼容层的决定点 o～v 记在 [hooks 兼容提案](../hooks-compat/RE
 | 12 | 新 Run 开场的"被保留工作清单"谁认领；队首是命令、文本被撤回时清单去哪 | 清单在越过提交里作为一条系统来源的 context 到达进入 Inbound，由本 Session 下一个有模型 Step 的 Run 在切点消费，恰一次；没有活动 Run 时它不触发 Run（SE-14 对 `system_notice` 的例外） | 已有的 context 机制（受理 → 下一 Step 消费一次）正好是"告诉下一个模型 Step 一件事"，不必再造一种 pending 对象 | 复合意图自己持有清单：命令 Run、撤回、多次 Run 各要一条特例 |
 | 13 | 复核的其余指正 | 门登记 `since` 可空（首 Step 前的依赖门）、`ret` 取已耐久的 gateRet；串行门与 Yield 不登记；T-4 改为"Yield 不改登记簿"；内建工具第 4 步与 B4 同步；证据文字同步（RunFail 不关请求、interrupt_then_run 已建模、TS-21 的 unknown 分支已在模型）；requirements.md 补 PF-013 增量 | 事实性修正 | — |
 
+## 第三轮作者裁决（2026-09-15，第三轮架构复核后）
+
+第三轮复核（[review.md](review.md#第三轮复核2026-09-15)）确认两轮处置方向不需要重选，
+指出 3 项须在进入 D-015 前闭合的前提 / 措辞错误与若干登记项。按同一工作风格逐项裁决：
+
+| # | 事项 | 裁决 | 依据 | 改动落点 |
+|---|---|---|---|---|
+| 14 | 停止未知的升级路径（A-阻1） | `stopCall{mode: force}` 只对声明 `stop.capability = forced_isolation` 的 owner 存在；首版 owner local-execution 声明 `cooperative_fence`，没有升级路径，unknown 长期可见。Run 级 force_stop 只对可升级的 unknown 调用进 `stopping`，其余在受理时记 `isolation: unverified`、不阻止 cancelled；控制结果记 `complete \| partial{unknown: K}` | TL-08"无法兑现不可声明"、RN-05"unknown 不等于安全停止"、[LE 设计](../../../packages/tools/local-execution/design.md)不承诺有时限的强制停止；此前"LE 已有实现依据"是假前提 | [A10](lifecycle.md#interrupt中断之后可-resume)、[B7](lifecycle.md#interrupt_then_run中断后立刻接新输入)、缺口表 TL-11 / RN-05 行、[run 设计](../../../packages/session/run/design.md) |
+| 15 | 入站裁决只替换 A / B 列（A-阻2） | 无开放登记时沿 SE-14 原表：发起 Run 或 Session 活动 → context；completed / failed / superseded → queue；cancelled / stopping → `closed(cancelled_run \| isolated)`；归档 → closed。force_stop 在受理进 `stopping` 的提交就整簿注销；T-17 的"活动"限定为 running / waiting / interrupted | SE-14 D1、SE-17、RN-05 末段：被停 Run 的晚到结算不得成为 trigger | [登记簿](lifecycle.md#等待登记簿)入站裁决与控制级联行、[T-17](invariants.md#调用)、证据说明的不建模列表 |
+| 16 | 复合意图的结果状态（A-阻3） | SE-08 只删"原责任继续阻止新驱动"半句，保留"显示 pending / unknown、不能确认完整成功"；新 Run 照常开的论证改为"fence 已封闭新步骤 + 清单告知模型"，不再说"与后台调用危险相同"（后台有 detach 确认，unknown 没有） | PF-013.C6 | [B3](lifecycle.md#interrupt_then_run中断后立刻接新输入)、缺口表 SE-08 行 |
+| 17 | 系统来源登记与旧词汇清扫（非阻断 1～5、8～10） | SE-13 加 `system` 来源（dedupKey = 被越过的 RunRef，容量归内部来源，保留期同其它 context，丢失可接受）；"阻止收束"残句全部改为合批规则表述；状态图 `admitted → settled_unavailable`；Yield 按登记簿：`foreground` / `detach_in_flight` / 已过门未 start 阻止，等审批、未过门与门不阻止；事实名统一为 `run.wait.claimed / released`；B4 由 Run 取消的未启动调用进清单、没有 owner 到达；HD-10～12 暂行调用无特例 | 复核逐项核对 | lifecycle.md 各处、[TS-16](scenarios.md)、review.md S2、[tools 验证页](../../../spec/capabilities/tools/verification.md)、run 设计 |
+| 18 | run-driver v3 登记 `invalid_proposal`（消息流复核 B-非阻断 2） | `run.step.settled{outcome: invalid_proposal{reasons}}` 进 RD-08 下一版 | 被拒 `tool_call` 块需要耐久来源 | 缺口表 RD-08 行 |
+| 19 | hooks 接头（接头 2～4） | `hook_context` 与 `system_notice` 在 RD-06 并列登记；S1 守卫在"空闲点取入既有 Run"时由驱动器在同一准备阶段求值，`additionalContext` 进空闲点开的 Step；hooks 映射的 Run 事实名改为 `run.state.changed`；`superseded` 不触发 `Stop`（与上游"中断不触发"同向） | 三提案词表一致 | 缺口表 RD-06 行、[hooks 映射](../hooks-compat/mapping.md) |
+
+消息流提案对应的裁决见其 [README](../message-stream/README.md#第三轮复核后2026-09-15)。
+
 ## 未决项
 
 - PF-004 三种派发关系与子 Session 提问的作答者规则（DSH 拒绝被委派子 agent 提问；我们沿

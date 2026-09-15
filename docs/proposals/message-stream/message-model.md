@@ -30,7 +30,9 @@ Message = {
 }
 ```
 
-`index` 是该事实在其提交内的耐久序（DR-01 一个 batch 内记录的 append 顺序），`ordinal` 是
+`index` 是该事实在其提交内的耐久序（一个 batch 内记录的 append 顺序；DR-01 目前只承诺批次
+序号单调与各流前置修订，"批内记录顺序是 envelope 的一部分、重放稳定"要在 DR 下一版登记，
+[§6](#6-权威落点与消费者影响)），`ordinal` 是
 派生表（§4）里同一事实派生第 n 条消息的序数，按事实内的顺序（取批的 items 顺序、切点里的
 reminder 顺序）编号；两者跨重建稳定，历史顺序 = `(seq, index, ordinal)` 字典序，同批两条
 事实各派生的消息因此有确定次序（复核 B-新3）。它们与帧信封的 `batch.index` 无关（后者是
@@ -145,4 +147,6 @@ rejected{reason}, raw: {name, arguments} | null}` 有两条派生来源：[TL-01
 | `Message` 派生规则（含 `(eventId, ordinal)` 身份、未取批输入、`purpose` 分流、`tool_call` 与结算消息）与 `supersededBy` | session 下一版（SE-03 的历史读面明确派生表） | projection 提供者设计、SE-03 消费者 |
 | attempt 记录的 `purpose`、缺失块清单与实际送达模态 | model-execution 下一版（MC-06 的记录字段） | MC 提供者设计、PF-009.C4 读面 |
 | `deferred_receipt` 的 `reason / notice`、`tool_call.validation` | core-work CD 下一版 | tools 结果记录、run-driver 切点 |
+| 批内记录顺序耐久、重放稳定（`position.index` 的依据） | durable-records 下一版（[DR-01](../../../spec/capabilities/durable-records/v1/contract.md) 补一句） | records 提供者、projection fold、历史排序 |
+| `run.step.settled{outcome: invalid_proposal{reasons}}` | run-driver v3（[工具提案缺口表](../tool-execution/lifecycle.md#契约措辞缺口表) RD-08 行） | 被拒 `tool_call` 的派生、SR 的 Step 收口 |
 | 模型族投影规则 | model-execution 下一版或 MC 提供者设计 | OpenRouter adapter |

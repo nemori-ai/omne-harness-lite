@@ -44,7 +44,11 @@
   "结果一起回"是驱动器的合批规则，模型不区分一个 Step 的 tool_result 是同批还是分批呈现。
 - 停止未知：`StopProgressUnknown`（派发意图之后 owner 的有界等待到期）让调用在 stop 请求
   下结算 `unknown`（TS-21）；`UnknownAfterDispatch` 继续约束它只在 `dispatch_intent` 之后
-  发生。Run 级 force_stop 的 stopping 路径与单调用强停不建模。
+  发生。Run 级 force_stop 的 stopping 路径与单调用强停不建模，`Route` 因此没有
+  `stopping` 分支——正文里 cancelled / stopping 发起 Run 的晚到结算走 SE-14 D1 `closed`
+  这条差异模型不暴露（第三轮复核 A-阻2）。模型只有一个 Run 槽位（`RunStart` 要求 run ∈
+  {none, terminal, cancelled}），所以"R0 interrupted、R1 在跑时 R0 的答复仍是 R0 的
+  continuation"（A7）与受理未裁决窗口一样不在模型内。
 - `TerminalRunOnlyBackground` 允许终态 Run 下仍有 `stop_requested` 的开放调用（失败级联后
   owner 尚未回答 stop）。
 - 停止先于 start 时，fence 与 `cancelled_before_execution` 结算在同一提交（转移表），所以

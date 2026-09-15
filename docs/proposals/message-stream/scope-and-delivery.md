@@ -13,7 +13,7 @@
 |---|---|---|---|
 | 订阅建立 | 当前认证主体（[SYS-IDENTITY](../../requirements/system/constraints.md#sys-identity)）、租户成员资格（[TG-01](../../../spec/capabilities/tenant-governance/v1/contract.md)）、对该 Session 的 `read_metadata` 与 `read_content`（[Session 设计 §11](../../../packages/session/session/design.md#11-当前调用者对象权限与运行委托)） | `omneSession` 读面：无权与不存在统一 `inaccessible`，不泄漏存在 | 拒绝订阅；不建立任何缓冲 |
 | 每帧投递前 | 该帧 `subject` 指向对象的读权：调用帧 / 工具结果需 SR 正文与工具结果读资格（[tools 设计](../../../packages/tools/tools/design.md#身份状态与事件投影)：`subscribeFrames` 经 SR 当前正文读权）；请求卡片需当前身份对该请求的可见范围（[HD-09](../../../spec/capabilities/human-decisions/v1/contract.md)）；媒体引用不在流内核对，取回时由 CT 核对（[CT-04](../../../spec/capabilities/media-content/v1/contract.md)） | 出站流服务不读 raw records，只经各能力读面；读面在披露时再查权限（[Session 设计 §2.5](../../../packages/session/session/design.md#25-读面)） | 该帧不投递（`batch.count` 按可见帧计）；连续失败或 Session 级读权丢失 → `stream.closed{unauthorized}` |
-| 订阅建立时的基线各项 | 活跃 attempt 的公开流（SR 正文读权）、活跃调用的帧水位（tools 读面）、待答请求列表（HD 可见范围）各经自己的权威核对，不凭外层 Session 主体一次放行（评审 B3） | 各读面 | 无权项不放入基线 |
+| 订阅建立时的基线各项 | 活跃 attempt 的公开流（SR 正文读权）、活跃调用的帧水位（tools 读面）、待答请求列表（HD 可见范围）各经自己的权威核对，不凭外层 Session 主体一次放行（评审 B3）；全量重取的 `snapshot` 里 `requests` / `calls` 由 HD / tools 注册的贡献在同一水位上裁剪，权威不变、时刻统一（复核 B-阻1） | 各读面与其贡献 | 无权项不放入基线 |
 | 可见范围版本变化 | 主体对本 Session 的 `visibilityVersion` 变了（获权或失权） | session 读面 | `stream.closed{resync_required}`；客户端重订阅走全量重取（[envelope-and-cursor.md §4](envelope-and-cursor.md#4-客户端游标决定-g)）；丧失 Session 级读权则 `unauthorized` |
 
 Cordis scope 只做 `records.envelope.committed` 的可见性路由，不做授权

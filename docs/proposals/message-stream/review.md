@@ -59,6 +59,22 @@ B7、B8 部分闭合，余项即下表；处置按[第二轮作者裁决](README
 复核未要求重选 `superseded`、单一登记簿或单一公开出口；跨协调域仍是未决项；两份模型仍是
 有限局部证据；MC 提供者、adapter、装配、背压、动态装卸、客户端持久化未验证。
 
+## 第三轮复核（2026-09-15）
+
+复核：Claude `architecture-reviewer`（只读，无 shell），对象为 `7793953`（比较基线 `eda8e3b`）
+的 R10～R17 处置。B-新1、B-新4、B-新5、R16 / R17 已闭合，B-新2、B-新3、B-新6 部分闭合；
+原始报告在主检出 `tmp/next-design-prep/review3-claude-architecture.md`。处置按
+[第三轮作者裁决](README.md#第三轮复核后2026-09-15)。
+
+| 编号 | 发现 | 初判 | 处置 |
+|---|---|---|---|
+| B-阻1 | R11 的单一快照把 `requests` / `calls` 的可见范围裁剪放进了 projection：要么复制 HD-09 的授权语义，要么调用 HD 读面而脱离 `asOf` 水位；`history(session, range)` 也缺 `asOf` | 成立 | 已修（R18）：HD / tools 按 SE-10 把两项注册为 projection 贡献并自带裁剪，projection 只在同一水位调用；`history` 加 `asOf`；cordis.md 能力侧义务与 scope-and-delivery 同步 |
+| 非阻断 1 | `position.index` 引 DR-01 作依据，DR-01 没有批内记录顺序的条款 | 成立 | 已修（R19）：改为"DR 下一版登记"，§6 落点表加 DR 行 |
+| 非阻断 2 | `run.step.settled{outcome: invalid_proposal}` 在 RD-08 无来源 | 成立 | 已修（工具提案裁决 18）：RD-08 缺口行登记，§6 表加行 |
+| 非阻断 3 | `pub` 跨提供者换代无作用域，新提供者的帧会被"丢弃 `pub ≤ version`"吞掉 | 成立 | 已修（R20）：`pub = {gen, n}`，只在同一 `gen` 内比较，`gen` 变化即重读基线 |
+| 非阻断 4 | U-49 混合顺序下客户端同时看到摘要块与明文块，正文未说 | 成立 | 已修（R21）：写明两块都保留、`toPublic` 前缀单调所以历史与实时一致、折叠归 UI |
+| 非阻断 5～7 | 代发帧去重键可能与 owner 同键；客户端去重不免安装；MS-13 缺 `inbound.arrival.accepted{system_notice}`；事实命名 | 成立 | 已修（R22）：去重键第一段为 issuer；推进规则补一句；MS-13 与词表同步；证据说明声明正文安装不建模 |
+
 ## 未覆盖
 
 评审未运行实现、测量背压、重跑形式工具，未验证真实 SSE / HTTP 装配、MC 提供者与 OpenRouter

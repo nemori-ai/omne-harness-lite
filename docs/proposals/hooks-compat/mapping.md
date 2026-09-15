@@ -19,7 +19,7 @@
 | S3 | 模型请求 | 不开放改写；模型切换只在下一 Run 生效 | 首版不登记 |
 | S5 | 工具准入 | TL-07 门的 AU 求值之后、准入 check 之前的守卫，门外 prepare 阶段求值，只能收紧；参数不可改 | `omneTools.registerGuard` → `{tighten: deny \| ask, reason, context?} \| pass`（与 [tool-execution/cordis.md](../tool-execution/cordis.md#hooks-兼容层在工具站点的落点) 一致） |
 | S7 | 工具结果进入投影 | 只选择进入模型的投影，不改耐久结果 | `omneTools.registerProjectionSelector` → `{exclude: reason} \| {context?}`；在结算 arrival 被裁决后、结果进入任一 Step 投影前求值一次 |
-| S8 | Run 完成条件成立 | 无"阻止停止"hook | `records.envelope.committed` 上 `run.lifecycle.changed{completed}` 的观察者 + `omneSession.accept{source: hook_continuation}` |
+| S8 | Run 完成条件成立 | 无"阻止停止"hook | `records.envelope.committed` 上 `run.state.changed{completed}` 的观察者 + `omneSession.accept{source: hook_continuation}` |
 | S9 | Session 归档 / 删除 | 观察 | `session.lifecycle.changed{archived \| deleted}` 的观察者；实例 dispose 不是耐久事实，不映射 |
 | 旁路 A | 压缩辅助 Step（[RD-07](../../../spec/capabilities/run-driver/v2/contract.md)） | 辅助 Step 输入贡献；观察 | Pre：辅助 Step 准备阶段的同步输入贡献者；Post：观察者，`additionalContext` 进下一 Step |
 | 旁路 B | Run 控制提交后 | 观察 | 观察者 |
@@ -34,7 +34,7 @@
 | 项 | 规则 |
 |---|---|
 | 适用项 | 来源为用户的 `text` 队列项（[SE-04](../../../spec/capabilities/session/v1/contract.md)）；command 与 trigger 项不适用（上游只对 prompt） |
-| 求值时点 | 调度者在 `takeBatch` 短提交之外的准备阶段，对队首候选项逐项求值；守卫不改变受理，受理仍按 [SE-12](../../../spec/capabilities/session/v1/contract.md) 立即成功 |
+| 求值时点 | 取用者在 `takeBatch` 短提交之外的准备阶段，对队首候选项逐项求值：开新 Run 时是调度者；既有 Run 在等待中于空闲点取入排队文本时（[工具提案作者裁决 7](../tool-execution/README.md#作者裁决2026-09-15按用户工作风格)）是驱动器，在同一准备阶段、同一协议求值，`additionalContext` 进空闲点开的那个 Step（第三轮复核接头 2）；守卫不改变受理，受理仍按 [SE-12](../../../spec/capabilities/session/v1/contract.md) 立即成功 |
 | pass | 该项进入 take 的候选集合，无耐久痕迹 |
 | close | 同一 take 门内把该项 `queue.item.closed{closed_by_guard, reason}` 与其 arrival `inbound.arrival.closed{closed_by_guard}` 一起提交，然后继续下一队首；不新增队列项状态 |
 | 超时 / 崩溃 / 非法输出 | 视为 pass（fail-open，决定 s），写 `hooks.run.completed{failed \| timeout}`；崩溃后未求值的项在下一次 take 前重新求值，求值本身幂等 |
@@ -50,8 +50,8 @@
 | `PreToolUse{tool_name, tool_input, tool_use_id}` | S5 | TL-07 门的 AU 求值之后 | `permissionDecision: deny \| ask`、CX `decision: block`（≡ deny）、退出码 2 → 收紧：deny → `denied_before_execution{reason: stderr \| permissionDecisionReason}`；ask → HD system_approval 请求，reason 写入请求内容；多 hook 取最严格；`additionalContext` → 下一 Step 的 `system_reminder{hook_context}` | `permissionDecision: allow` 在 AU 判 deny / ask 时无效（记 degraded） | `updatedInput`；CC `defer` |
 | `PermissionRequest{tool_name, tool_input}` | S5 / HD | 工具门产生的 system_approval 请求创建后、呈现给人之前 | `decision.behavior: allow \| deny` → 程序化作答（[装配与信任](#装配与信任)：主体资格不足则记 degraded 并只观察）；deny 的 `message` → HD-07 reason | 只作用于工具门的 system_approval，不作用于 `human` 工具的 question / agent_approval（PF-005：只能由 owner 作答） | `updatedInput`、`updatedPermissions`、`interrupt` |
 | `PostToolUse{tool_name, tool_input, tool_response}` / CC `PostToolUseFailure` | S7 | 结算 arrival 被裁决后、结果进入任一 Step 投影前（continuation / context / queue 列都触发，closed 不触发） | `additionalContext` → `system_reminder{hook_context}`；`decision: block` / 退出码 2 → 结果不进投影，以 `blocked_by_hook{reason}` 占位；终态到事件的对应见[终态与事件](#终态与事件) | — | CC `updatedToolOutput`；CX "结果替换为错误文本"；`continue: false`（只记录） |
-| `Stop{stop_hook_active, last_assistant_message}` | S8 | `run.lifecycle.changed{completed}` 提交后 | `decision: block + reason` → 入队 `hook_continuation` trigger，按 [SE-15](../../../spec/capabilities/session/v1/contract.md) 调度在队首合格时开新 Run；`stop_hook_active` 按[刹车](#stop-续跑的刹车)提供；`additionalContext` → 该新 Run 首个 Step 的 `system_reminder{hook_context}` | 续跑是新 Run 而非同 turn（可见差异） | 阻止 Run 结算；`continue: false`（只记录） |
-| CC `StopFailure{error, error_details, last_assistant_message}` | S8 | `run.lifecycle.changed{failed}` 提交后 | 观察（上游也只允许副作用） | — | — |
+| `Stop{stop_hook_active, last_assistant_message}` | S8 | `run.state.changed{completed}` 提交后 | `decision: block + reason` → 入队 `hook_continuation` trigger，按 [SE-15](../../../spec/capabilities/session/v1/contract.md) 调度在队首合格时开新 Run；`stop_hook_active` 按[刹车](#stop-续跑的刹车)提供；`additionalContext` → 该新 Run 首个 Step 的 `system_reminder{hook_context}` | 续跑是新 Run 而非同 turn（可见差异） | 阻止 Run 结算；`continue: false`（只记录） |
+| CC `StopFailure{error, error_details, last_assistant_message}` | S8 | `run.state.changed{failed}` 提交后 | 观察（上游也只允许副作用） | — | — |
 | `SubagentStart` / `SubagentStop` | 旁路 C | 派发调用准入与子 Run 结算 | — | — | 首版不支持（随 PF-004）；配置里出现时记 `hooks.config.unsupported` |
 | `PreCompact{trigger, custom_instructions}` / `PostCompact{compact_summary}` | 旁路 A | RD-07 辅助 Step 前后 | `custom_instructions` → 辅助 Step 输入贡献；`PostCompact.additionalContext` → 下一 Step 的 `system_reminder{hook_context}` | — | CX 的阻断（决定 r） |
 | `SessionEnd{reason}` | S9 | `session.lifecycle.changed{archived \| deleted}` 提交后 | 观察；`reason` 映射 `archived \| deleted` | 实例 dispose 不触发（上游无对应） | — |
@@ -151,7 +151,7 @@ HD 请求创建求值，守卫 deny 则不创建请求。守卫只在 `adjudicat
 
 | 内容 | 规则 |
 |---|---|
-| 触发 | `run.lifecycle.changed{completed}` 提交后运行 `Stop` hook，返回 `decision: block + reason` |
+| 触发 | `run.state.changed{completed}` 提交后运行 `Stop` hook，返回 `decision: block + reason`；`superseded`（被新输入越过，[工具提案作者裁决 3](../tool-execution/README.md#作者裁决2026-09-15按用户工作风格)）与 cancelled / failed 一样不触发——上游的中断也不触发 `Stop` |
 | 入队 | `omneSession.accept{source: hook_continuation, dedupKey: (RunRef, handler), originWork: 该 Run, payload: reason}`；观察者重跑（LC-06 幂等）因同键不产生第二项 |
 | 意图路由 | SE-14 新增一行：`hook_continuation` 为内部来源，意图 queue；originWork 已终态 → C 列 queue；Session 已归档 → `closed(closed_by_archive)`；不受 SE-16 容量拒绝，有界性由刹车与去重键给出（用户裁决 U3） |
 | 取用 | [SE-06](../../../spec/capabilities/session/v1/contract.md) `takeTrigger` 时重查来源权威：hook 资产仍启用、装配者成员关系仍有效、Session open；任一失败 → 项 `closed(source_invalid)` |

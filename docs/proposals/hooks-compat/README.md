@@ -81,7 +81,8 @@ Claude Code、Codex 的事件名、配置形状与 stdin/stdout JSON 协议写�
 | 契约与条款 | 缺口 | 处理 |
 |---|---|---|
 | [RD-17](../../../spec/capabilities/run-driver/v2/contract.md) 输入准入 | S1 需要"受理后、取用前的守卫"，只能关闭项不能改写（[协议](mapping.md#s1-守卫协议)） | run-driver v3 |
-| RD-17 停止边界 | 保持"无阻止停止 hook"；`Stop` block 兑现为入队 trigger | 无改动 |
+| RD-17 停止边界 | 保持"无阻止停止 hook"；`Stop` block 兑现为入队 trigger；`superseded` 不触发 `Stop` | 无改动 |
+| [RD-06](../../../spec/capabilities/run-driver/v2/contract.md) 切点来源 | `additionalContext` 的正文进切点需要新来源 `system_reminder{hook_context}`，与工具提案的 `system_notice` 并列（[工具提案缺口表](../tool-execution/lifecycle.md#契约措辞缺口表) RD-06 行） | run-driver v3 |
 | [SE-04](../../../spec/capabilities/session/v1/contract.md) / [SE-12](../../../spec/capabilities/session/v1/contract.md) closed 词表 | 队列项与 arrival 都加 `closed_by_guard`；trigger 项加 `closed(source_invalid)` | session v2 |
 | [SE-13](../../../spec/capabilities/session/v1/contract.md) / [SE-14](../../../spec/capabilities/session/v1/contract.md) | 来源枚举加 `hook_continuation`（内部来源，意图 queue，dedupKey `(RunRef, handler)`）；决定表加一行（终态 → C 列；归档 → closed） | session v2 |
 | [SE-06](../../../spec/capabilities/session/v1/contract.md) takeTrigger | `hook_continuation` 的来源权威重查项 | session v2 |
