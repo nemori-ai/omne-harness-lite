@@ -1,6 +1,6 @@
 # 当前需求覆盖输入
 
-本快照属于 `omne-harness-lite-design-2026-09-15`，包含 192 个唯一可消费条款坐标，列出后续能力分析必须逐条回答的要求；它不判断现有能力是否足够，也不生成新能力维度。
+本快照以 `omne-harness-lite-design-2026-09-15` 为迁入基线，加入 2026-09-16 直接确认的 PF-026，包含 197 个唯一可消费条款坐标，列出后续能力分析必须逐条回答的要求；它不判断现有能力是否足够，也不生成新能力维度。
 
 各 requirement topic 的“设计覆盖状态”只作身份级导航：它列出已有机制和专项缺口，避免重复设计。
 它不是本表的条款级 `covered / partial / uncovered / unknown` 结论，不能将本表的“待能力覆盖分析”
@@ -35,6 +35,7 @@
 | `PF-023` | `PF-023.C1`、`PF-023.C2`、`PF-023.C3`、`PF-023.C4`、`PF-023.C5`、`PF-023.C6`、`PF-023.C7` | [PF-023：会话级合法模型切换与下一轮接续](product/PF-023-session-model-selection-and-continuity/requirements.md) | 待能力覆盖分析 |
 | `PF-024` | `PF-024.C1`、`PF-024.C2` | [PF-024：多命令工具定义与 CLI 式使用](product/PF-024-multi-command-tool-definition/requirements.md) | 待能力覆盖分析 |
 | `PF-025` | `PF-025.C1`、`PF-025.C2` | [PF-025：兼容外部命令式 hooks 体系](product/PF-025-external-hooks-compatibility/requirements.md) | 待能力覆盖分析 |
+| `PF-026` | `PF-026.C1`、`PF-026.C2`、`PF-026.C3`、`PF-026.C4`、`PF-026.C5` | [PF-026：账号旅程与独立身份](product/PF-026-account-journey-and-isolation/requirements.md) | 待能力覆盖分析 |
 | `SYS-ALIGNMENT` | `SYS-ALIGNMENT` | [SYS-ALIGNMENT：与服务对象始终保持利益对齐](system/interest-alignment/requirements.md) | 待能力覆盖分析 |
 | `SYS-CONTINUITY` | `SYS-CONTINUITY` | [SYS-CONTINUITY：omne-next 功能继承与发展](system/omne-next-continuity/requirements.md) | 待能力覆盖分析 |
 | `SYS-DYNAMIC` | `SYS-DYNAMIC.C1`、`SYS-DYNAMIC.C2` | [SYS-DYNAMIC：完全动态系统](system/fully-dynamic-system/requirements.md) | 待能力覆盖分析 |

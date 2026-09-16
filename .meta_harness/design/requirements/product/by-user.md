@@ -28,6 +28,7 @@
 | `PF-022` | [PF-022：多模态响应与输出](PF-022-multimodal-response-and-output/README.md) | `agent` | `user` |
 | `PF-023` | [PF-023：会话级合法模型切换与下一轮接续](PF-023-session-model-selection-and-continuity/README.md) | `user` | `agent` |
 | `PF-025` | [PF-025：兼容外部命令式 hooks 体系](PF-025-external-hooks-compatibility/README.md) | `agent` | `user` |
+| `PF-026` | [PF-026：账号旅程与独立身份](PF-026-account-journey-and-isolation/README.md) | `user` | `agent` |
 
 同一要求只由其 topic 正文拥有；多维度出现只表示不同观察面。
 

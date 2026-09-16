@@ -15,7 +15,7 @@
 | --- | ---: | --- |
 | `正式设计完成` | 0 | 尚无 identity 闭合条款 coverage、采用契约及必要的 provider/assembly 交接。 |
 | `正在设计（直接候选机制）` | 21 | 有直接相关的 proposal、architecture、candidate spec、provider 或机制决定。 |
-| `正在设计（局部相邻基础）` | 8 | 有相邻可复用机制，专项责任和覆盖分析未形成。 |
+| `正在设计（局部相邻基础）` | 9 | 有相邻可复用机制，专项责任和覆盖分析未形成。 |
 | `尚未开始专项设计` | 8 | 正式 requirement 已登记，尚无足以起步的专项机制设计。 |
 | `阶段约束` | 1 | `SYS-EXPERIMENT` 是当前研发阶段边界，不是待设计的独立功能。 |
 
@@ -55,6 +55,7 @@ assembly 的新增、接受、取代或退役改变某 requirement 的设计起�
 | `PF-021` | [多机器部署与装配](product/PF-021-multi-machine-deployment-and-assembly/README.md)                    | `PF-022` | [多模态响应与输出](product/PF-022-multimodal-response-and-output/README.md)                               |
 | `PF-023` | [会话模型选择与连续性](product/PF-023-session-model-selection-and-continuity/README.md)               | `PF-024` | [多命令工具定义](product/PF-024-multi-command-tool-definition/README.md)                                  |
 | `PF-025` | [外部 hooks 兼容](product/PF-025-external-hooks-compatibility/README.md)                              |          |                                                                                                           |
+| `PF-026` | [账号旅程与独立身份](product/PF-026-account-journey-and-isolation/README.md)                          |          |                                                                                                           |
 
 ### 系统主题
 
