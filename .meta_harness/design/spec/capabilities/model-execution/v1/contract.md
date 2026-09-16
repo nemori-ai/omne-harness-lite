@@ -91,7 +91,7 @@ attempt 的结算记录必带：`purpose ∈ {reply, title, compression, auxilia
 CD v1 固定的 `truncated` 外由本能力定义，至少区分未耐久的媒体与被装配器丢弃的
 调用；`failed` 与 `unknown` 没有内容，仍保留 usage 与状态。实际送达模态是“模型
 这次实际收到了什么”的权威记录，与投递意图（CD v1 的 `delivery`）分开，供
-PF-009.C4（requirement source: `requirements/product/user/PF-009-multimodal-input-attachments-and-commands.md#已确认要求`）
+[PF-009.C4](../../../../requirements/product/PF-009-multimodal-input-attachments-and-commands/requirements.md#已确认要求)
 的读面消费。回放所需的私有材料另存（MC-14），不进结算记录的公开部分。
 
 ## 上下文装配

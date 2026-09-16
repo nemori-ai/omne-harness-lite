@@ -7,10 +7,17 @@
 
 ## 精确依赖与所有权
 
-提供者通过已固定的 Run/Work/tenant 引用消费可传输身份，直接固定 S 的 DR/CC/OB、
-G 已交付给 M 的 tenant/budget，以及 L 的
-Session/Run/Driver/Tools 精确候选快照；动作授权只沿 L 已固定的共同门见证消费，G 尚未向 M
-发布 AU 候选接口，不能由本组自行升级为直接依赖。具体资源 hash 见本次 `input-dependencies.json`。
+S/G/L 的 outgoing manifest 是 M 可用输入上界，不等于这个 provider 全部直接消费。候选 catalog
+为本 provider 登记的实际直接依赖只有：
+
+- S：`data.core-work` 的 CD-01～CD-05、`composition.core-work-coordination` 的 CC-01～CC-07、`capability.durable-records` 的 DR-01/DR-02/DR-03/DR-05；
+- L：`capability.session` 的 SE-01/SE-03/SE-06/SE-10/SE-11/SE-13/SE-14/SE-16/SE-18/SE-19/SE-20，`capability.run` 的 RN-01/RN-02/RN-03/RN-05/RN-07/RN-08/RN-09，`capability.run-driver` 的 RD-01/RD-02/RD-04/RD-06/RD-07/RD-08/RD-10/RD-13/RD-16，以及 `capability.tools` 的 TL-01/TL-02/TL-07/TL-08/TL-11/TL-12/TL-19/TL-20；
+- G：`capability.tenant-governance` 的 TG-01/TG-02/TG-05 和 `capability.budget-accounting` 的 BG-01～BG-04；
+- M：独立 `capability.media-content` 的 CT-01～CT-04。
+
+动作授权只沿 L 已固定的共同门见证消费；G 尚未向 M 发布 AU 候选接口，不能由本组自行升级为
+直接依赖。上界资源 hash 见本次 `input-dependencies.json`，实际依赖条款以 `catalog-delta.json`
+对应候选坐标为准；未列出的上界输入不是隐含依赖。
 Context 只携带作用域和依赖，不能成为业务状态权威。跨 tenant 默认拒绝；同物理内容摘要不能
 披露另一个 tenant 是否已有内容，也不能授予读取权。
 

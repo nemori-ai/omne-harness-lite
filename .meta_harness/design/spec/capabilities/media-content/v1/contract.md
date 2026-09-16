@@ -51,10 +51,19 @@ model_native 或 agent_attachment。原生语音必须实际以音频传给支�
 
 ## Legacy v2 相对 legacy v1 的来源差异
 
+本表只记录 legacy 谱系中 v2 已经相对 v1 发生的变化，不把本轮重基修正倒写成 legacy 事实。
+
 | 条款 | 性质 | 来源裁决 |
 |---|---|---|
-| CT-03 增加 `retainReference` 的来源记录 `producedBy{call, attempt}` | 兼容扩展并与已陈述的调用/尝试来源一致 | 作者裁决 6、缺口表 CT-03 行 |
+| CT-03 增加 `retainReference` 的来源记录 `producedBy{call}` | 兼容扩展 | 作者裁决 6、缺口表 CT-03 行 |
 | CT-03 增加同一引用在帧与结果间的去重规则 | 兼容扩展 | 制品与呈现去重 |
 | CT-03 写明未耐久引用不能进入终态结果 | 澄清 | 多模态 |
 | CT-01、CT-02、CT-04 | 原文不变 | — |
-| 新谱系依赖映射到 CD@1 / CC@1 | 重基映射 | 本次迁移；不继承旧版本号 |
+| 规范依赖由 legacy CD v1 / CC v1 改为 legacy CD v2 / CC v2 | 澄清 | D-015 批次组成 |
+
+## 本轮 legacy v2 到新谱系 v1 的重基变化
+
+| 范围 | 本轮变化 | 处置依据 |
+|---|---|---|
+| CT-03 来源身份 | 将 legacy v2 的 `producedBy{call}` 修正为 `producedBy{call, attempt}`，使字段形状与同段已经承诺的调用／尝试来源一致 | `rebase-delta.json` 的 `clause-scoped-rebase-with-coherence-correction` |
+| 契约身份与依赖 | 改用新 baseline candidate 坐标及 catalog 登记的 CD@1、CC@1、Tools@1、MC@1、TG@1 精确依赖 | 本轮 catalog/rebase delta；不继承 legacy 接受或版本号 |
