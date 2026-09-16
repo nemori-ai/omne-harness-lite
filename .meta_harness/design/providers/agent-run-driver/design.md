@@ -12,6 +12,12 @@
 - 每次 effect 前核对当前 Fiber、tenant、资格、binding、epoch 和取消；Context/AgentRef 不代授权。
 - 撤除先关新工作、排空本代短门与私有资源；已耐久请求、调用、结果、费用与 unknown 留给长期 owner。
 
+## 当前 v1 适配
+
+- 兼容声明固定当前坐标 `capability.run@1` 与 `capability.run-driver@1`；旧 v2 路径只作来源定位。
+- 恢复必须先校验完整前缀、fold 裁决视图并清空 accepted-arrival 扫描，再在最终联合准入发行 epoch/WorkPermit；此前不得进入 decide。
+- force_stop 只有强隔离已证实才允许 cancelled；legacy 模型的 ConfirmIsolation 只表示该门已通过。
+
 ## 来源协议（重基输入）
 
 ## Host 与服务
@@ -56,7 +62,8 @@ RN-08（legacy source: `../../../spec/capabilities/run/v1/contract.md`） 规定
 ```text
 compat = {
   driverBinding: { driverKey: "omne.run-driver", driverVersion: 1 },
-  contracts: { run: 1, "run-driver": 2 },
+  baseline: "omne-harness-lite-design-2026-09-15",
+  contracts: { "capability.run": 1, "capability.run-driver": 1 },
   reducer: { stateKey: "run.driver_position", version: 1 }
 }
 ```
@@ -84,6 +91,6 @@ Factory 换代：新版本登记后关旧版本新激活；持有旧版本实例
 
 先实现 `decide` 与节点拓扑（可脱离 Cordis 单测：以 RunDriver 模型的场景为用例），再接
 `omneRun` 提交面与 Factory 贡献。验收沿 run-driver 场景（legacy source: `../../../spec/capabilities/run-driver/v2/scenarios.md`）
-S01～S20 与 RD-16（legacy source: `../../../spec/capabilities/run-driver/v2/contract.md`） 的崩溃窗口表逐窗口注入；
+S01～S26 与 RD-16（legacy source: `../../../spec/capabilities/run-driver/v2/contract.md`） 的崩溃窗口表逐窗口注入；
 可改写站点（S20）以静态检查保证守卫只能收紧。现有 loop 切片（legacy source: `../loop/README.md`）
 的 runtime-context 与 assistant-stream 只作投影层参考，是否并入由流帧设计决定。

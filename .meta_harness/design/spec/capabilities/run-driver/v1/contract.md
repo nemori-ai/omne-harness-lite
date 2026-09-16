@@ -44,23 +44,18 @@ RN-08（legacy source: `../../run/v2/contract.md`） 各自派生，取入既有
 
 ## 取得驱动与命令
 
-**RD-04**：驱动只以三种方式取得，均在同一提交内取得 `(SessionRef, RunRef, epoch)`：
-新 Run（被 takeBatch/takeCommand/takeTrigger 吸收，SE-06/15（legacy source: `../../session/v2/contract.md`）、
-LC-04 行 3（legacy source: `../../../compositions/session-run-agent-lifecycles/v2/contract.md`））、resume
-（RN-03（legacy source: `../../run/v2/contract.md`））、重取（占位仍由本 Run 持有而 epoch 已被 Yield 封闭
-或崩溃留下无持有者的 epoch，LC-07（legacy source: `../../../compositions/session-run-agent-lifecycles/v2/contract.md`））。
-resume 与重取都执行完整的取得步骤，缺一步不得进入 decide：(1) 取新 epoch 使旧执行者
-失去提交权；(2) 读完整已提交前缀，撕裂尾部截回，未回执批次以 lookupOperation 确认；
-(3) 等待 Session 级裁决者把本 Session 未裁决的 arrival 裁决完（SE-18（legacy source: `../../session/v2/contract.md`））；
-(4) 折叠驱动位置与等待登记簿，对 dispatched/executing/unknown 的模型请求与调用按原
-attemptId 向原 owner inspect/subscribe（TL-11、MC-06），核实不了的记 unknown 且不重发。
-前提是无全 Run/Session 控制阻塞，不要求登记簿为空（HD-04）。resume 与重取还须通过
-RN-08（legacy source: `../../run/v2/contract.md`） 的恢复兼容证据，其中包含 Run 记录的驱动绑定与投影 reducer
-版本；驱动器实现换代后不兼容的 Run 保持原状态并保留占位，等待用户控制或兼容实现，
-不自动迁移。附着资格或授权失效时不新增等待种类：联合准入被拒即停在安全边界，由
-实例关闭与重取门承担（CB-06（legacy source: `../../../compositions/agent-session-binding/v1/contract.md`）、
-AR-16（legacy source: `../../live-agent/v1/contract.md`））。终态为 `superseded` 的 Run 不可 resume、不可重取
-（RN-03（legacy source: `../../run/v2/contract.md`））。
+**RD-04**：驱动取得分为门外恢复准备与最终联合准入。新 Run、resume、重取三条路径都必须
+在发行 epoch 前完成：(1) 读取并校验 Session/queue/inbound/Run 及所需 owner 的完整已提交
+前缀，撕裂尾部截回，未回执批次经 lookupOperation 定位；(2) fold 驱动位置、等待登记和
+Inbound 裁决视图；(3) 等待 Session 裁决者把 accepted arrivals 全部 classified（SE-11/18）；
+(4) 对 dispatched/executing/unknown 的外部工作按原 attemptId inspect/subscribe；(5) 核对
+RN-08 的本 baseline 精确契约坐标、driver binding、reducer 版本及当前资格。
+
+只有上述结果仍然匹配时，最终短提交才同时发行新 epoch、封闭旧 epoch、取得 AR WorkPermit
+并记录驱动 claim；提交后才允许进入 decide。新 Run 的队列取用/Run 建立也受同一前缀与
+裁决门约束。任何“先取 epoch，再读前缀或补扫 arrival”的实现都不符合本条。恢复不要求
+等待登记为空，但要求无全 Run/Session 控制阻塞；不兼容时保持原状态与占位，等待用户控制
+或兼容实现。superseded 不可 resume/重取。
 
 **RD-05**：basis 为 command 的 Run 只由 SE-07（legacy source: `../../session/v2/contract.md`） 的命令处理者结算，
 不经模型与工具批；上下文装载型命令随 text 项进入模型输入（SE-07）。命令 Run 的
@@ -199,25 +194,21 @@ gate_restored 的生产者义务归预算能力与依赖可用性能力的提供
 
 ## 收口、退役与结算
 
-**RD-13**：停止类操作（interrupt、interrupt_then_run、cancel、force_stop）共用收口
-协议：封闭新 Step → 按处置表逐个处理在途调用（interrupt 一律中断并留下真实结局，
-含后台调用；interrupt_then_run 可转后台者转、不可转者中断、已后台者继续；
-cancel/force_stop 沿 RN-03/05（legacy source: `../../run/v2/contract.md`））→ 取得每个调用的真实停止/交接/
-未知结果 → 按原因走终点。收口完成的判据沿 RN-03：每个停止请求都有物理事实（`unknown`
-计入）或该调用已结算；不设"收口中"的 Run 状态。收口直接向工具与人类决定权威
-inspect，不消费 arrival；收口期间产生的结算 arrival 由 Inbound 裁决。终点：interrupt →
-interrupted，登记簿保留，占位随状态派生释放；interrupt_then_run → superseded，终态提交
-整簿注销且未消费的 continuation 改判 context；cancel → cancelled；force_stop 在受理进
-`stopping` 的提交就整簿注销，隔离已证实 → cancelled(force_stopped)，隔离未证实 →
-stopping，保留占位；对 interrupted 的 Run 做 cancel/force_stop 沿 RN-03。未派发即被取消
-的调用得到合成终态，其审批请求关闭，指向该请求的未消费决定一并关闭，不留下无人可消费
-的接续；unknown 允许长期存在但必须可见。
+**RD-13**：停止类操作先封闭新 Step，再按原因处理调用并 inspect 真实结果。interrupt 与
+interrupt_then_run 的安全收口允许把 `unknown` 作为显式物理事实：前者进入 interrupted，
+后者进入 superseded、注销登记并把停止未确认责任写入 system context；因此复合打断收口后
+可以启动新驱动，unknown 仍由原 owner 持续可见地承担，不冒充已经停止。
 
-不可恢复失败不是停止类操作：Run failed 只结算未准入的调用
-（proposed / waiting_approval → cancelled_before_execution，其审批请求关闭，因为过门是
-Run 的动作），已准入的调用与未答的人类请求继续由各自 owner 承担，终态提交整簿注销；
-它们的结算与答复此后按 SE-14（legacy source: `../../session/v2/contract.md`） 的 C 列成为 trigger 开新 Run
-接上，驱动器不在收口中处置它们。
+cancel 沿 RN-03 进入 cancelled。force_stop 另有更强终态门：受理时进入 stopping、撤销 epoch
+并整簿注销；只有每个未结算调用给出 quiescent，或给出 RN-05 规定的、绑定调用/attempt、
+作用域、epoch、provider generation 与 fence revision 的强隔离证据，才可进入
+cancelled(force_stopped)。效果结局可未知并报告 `partial{unknown: K}`，但执行隔离
+`unverified`/unknown 时必须留在 stopping；不得释放其占位或启动后续队列驱动。对 interrupted
+Run 的 force_stop 进入不重新占位的 stopping，但仍须同一强隔离门才能 cancelled。
+
+未派发即取消的调用取得合成终态并关闭审批请求。不可恢复失败不走停止协议：未准入调用
+结算 cancelled_before_execution，已准入调用和未答请求由各 owner 承担，Run failed 时整簿
+注销，迟到结算按 SE-14 路由。所有 unknown、接管与迟到证据保持可查询。
 
 **RD-14**：运行时退役（AR-11/12（legacy source: `../../live-agent/v1/contract.md`））以 Yield 结束驱动：封闭
 epoch、保留占位、Run 状态与等待登记簿不变，位置由投影保留，由 Session 级调度以新

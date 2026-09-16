@@ -221,14 +221,16 @@ HD-09（legacy source: `../../human-decisions/v2/contract.md`） 与 tools v2（
 连续由该来源触发的 Run 数）是本注册面上的 projection 贡献，由对 Run 启动事实的确定性
 fold 得到，归档不清零、恢复后由 fold 重建（external-hooks v1（legacy source: `../../external-hooks/v1/contract.md`））。
 
-**SE-11**：恢复先校验日志前缀、schema/reducer 版本、定义/配置/组件和执行环境
-能力，再从原合法位置重建。已删除 Session 与关闭的 HITL 不复活。恢复时 Session
-级裁决先行：本能力提供者在启动时扫描其拥有的全部 Session（含无 Run、无
-live-agent 的空闲 Session），把 accepted 而未 classified 的 arrival 在当前 Run 状态下
-裁决完（SE-18），驱动器的重取或恢复只在此完成后进入
-（LC-08（legacy source: `../../../compositions/session-run-agent-lifecycles/v2/contract.md`））。历史读面可在
-前缀校验后带水位开放。Run 的恢复兼容证据、unknown 处理与 epoch 失效归
-RN-08（legacy source: `../../run/v2/contract.md`）。
+**SE-11**：恢复门按以下硬顺序执行，任何一步失败都保持 fail closed：
+(1) 同步并校验 Session、queue、inbound、Run 及其依赖权威的完整已提交前缀，撕裂尾部截回、
+未回执批次用 operation lookup 定位，schema/reducer/定义/配置不兼容则停止；(2) 从同一已确认
+水位 fold 出裁决所需的 Session、Run、等待登记和终态视图；(3) 扫描本提供者拥有的全部
+Session（含无 Run、无 live-agent 的空闲 Session），把 accepted 而未 classified 的 arrival
+按该视图裁决完（SE-18）；(4) 才允许发行新 epoch、取得工作许可或让驱动器进入 decide。
+
+这条门既约束崩溃恢复，也约束 Yield 后重取和显式 resume；先发行 epoch 再补扫不合法。
+已删除 Session 与关闭的 HITL 不复活。历史读面可在完整前缀校验后带水位开放；Run 的
+兼容证据、unknown 处理与 epoch 失效归 RN-08。
 
 本版不承诺任意执行栈热迁移、任意 OS 间无转换恢复、工具外部效果自动回滚或
 未受理离线草稿保存。实际支持环境由实现验收提供；语义允许未来独立部署，
@@ -262,7 +264,7 @@ continuation（使当前非终态 Run 的某个等待位置或 Run 本身就绪�
 
 | 来源 | 内容与登记 |
 |---|---|
-| `user_text`、`user_command` | 用户输入与有序命令；keyboard command 是 control |
+| `user_text`、`user_command` | 用户文本与有序动作；keyboard control 直接走 control，不生成 arrival；keyboard 绑定的 command / Skill / named flow 作为 `user_command` 明确入队，固定目标定义、参数与设置 revision；directory 只读取获准目录，选择后才形成动作 |
 | `call_settlement` | 任何工具调用的 TL-07（legacy source: `../../tools/v2/contract.md`） 终态结算，含子代理/handoff 派发与定时派发在 WorkRef 下创建的派发调用，也含内建 `human` 调用的答复结算（HD-08（legacy source: `../../human-decisions/v2/contract.md`））；dedupKey 为 `(call, attempt)`；帧不是 arrival |
 | `provisional_outcome` | HD-12（legacy source: `../../human-decisions/v2/contract.md`） 暂行决定按声明的回传，"仅改变产物"不生成，"触发补偿"进入独立 WorkRef |
 | `human_answer` | 只承载系统发起的审批型决定（HD-08（legacy source: `../../human-decisions/v2/contract.md`））；问答型与 Agent 发起批准的答复由 HD 作为 `human` 调用的执行 owner 在同一提交结算该调用，经 `call_settlement` 承载 |
@@ -274,7 +276,9 @@ continuation（使当前非终态 Run 的某个等待位置或 Run 本身就绪�
 | `hook_continuation` | 内部来源：外部 hooks 兼容层在 Run 完成后的续跑（external-hooks v1（legacy source: `../../external-hooks/v1/contract.md`））。意图恒为 queue，dedupKey 为 `(RunRef, handler)`，无来源策略，不受 SE-16 的容量拒绝；有界性由续跑刹车与该去重键给出 |
 
 每种人类请求只对应一个来源，同一事实不会以两种来源重复受理。调用结算、人类答复、
-暂行回传与门恢复只以已裁决的 arrival 被驱动器消费；驱动器直接读取工具/人类决定权威
+暂行回传与门恢复只以已裁决的 arrival 被驱动器消费，但四者释放的责任不同：调用结算
+释放 call 登记，门恢复释放 gate 登记；系统审批答复只形成 approval readiness，暂行回传只
+形成 provisional readiness，二者都不释放承载调用的登记。驱动器直接读取工具/人类决定权威
 只用于 fold 非结算视图、收口与重连，不据此第二次呈现或解除同一位置。
 
 **SE-14**：裁决按被 refs 引用的**发起 Run** 的状态与其等待登记簿分列：判定对象是提议该
@@ -284,16 +288,19 @@ D2；否则发起 Run 为 cancelled（含 force_stopped）或 stopping → D1；
 Run（running / waiting / interrupted）上有开放登记（RN-01（legacy source: `../../run/v2/contract.md`） 的等待
 登记簿）→ A；否则发起 Run 为 running / waiting / interrupted，或 Session 另有活动 Run → B；
 否则 → C（此时发起 Run 为 completed / failed / superseded 或不存在，且 Session 没有活动 Run）。
-`hook_continuation` 与 `connector_condition` 不走这一顺序，按各自行的固定意图受理。A 列是一次查表，不再从调用视图、请求集合与门集合各自推导；判为 continuation
-的提交与该登记的注销（`run.wait.released{holder, outcome: settled}`）是同一提交。调用结算没有来源
+`hook_continuation` 与 `connector_condition` 不走这一顺序，按各自行的固定意图受理。A 列是一次查表，不再从调用视图、请求集合与门集合各自推导。A 列仍按来源区分原子后果：
+`call_settlement` 的 continuation 与 call 登记的 `released{settled}` 同批；`gate_restored` 与 gate
+登记的 `released{passed}` 同批；`human_answer` 只写 `continuation{readiness: approval}`，不注销
+call 登记，批准被消费并 start 后该登记继续开放到真实 call settlement；`provisional_outcome`
+同样不释放其承载调用。调用结算没有来源
 策略，子代理、handoff 与定时派发一律按此判定。决定表：
 
 | 来源 | A | B | C | D1 | D2 |
 |---|---|---|---|---|---|
-| call_settlement | continuation | context（无开放登记而发起 Run 或 Session 仍活动） | queue（trigger：发起 Run 已终态或无发起 Run） | closed(cancelled_run)；发起 Run 为 stopping/force_stopped 则 closed(isolated) | closed(closed_by_archive/closed_by_delete) |
+| call_settlement | continuation（`readiness: settlement`；同批释放 call 登记） | context（无开放登记而发起 Run 或 Session 仍活动） | queue（trigger：发起 Run 已终态或无发起 Run） | closed(cancelled_run)；发起 Run 为 stopping/force_stopped 则 closed(isolated) | closed(closed_by_archive/closed_by_delete) |
 | provisional_outcome | 一次接续 → continuation；下次运行可感知 → context | 一次接续 → continuation（refs = run，下一次 Step 收束判定时就绪）；下次运行可感知 → context | 一次接续 → queue 并记 converted；下次运行可感知 → context | closed | closed |
-| human_answer | continuation | 不可能；迟到答复按 HD-02（legacy source: `../../human-decisions/v2/contract.md`） 返回当前结果，不生成 | 同左 | 同左 | 同左 |
-| gate_restored | continuation（门在登记簿上且 gateRef 匹配） | 不生成 | 不生成 | 不生成 | 不生成 |
+| human_answer | continuation（`readiness: approval`，不释放 call 登记） | 不可能；迟到答复按 HD-02（legacy source: `../../human-decisions/v2/contract.md`） 返回当前结果，不生成 | 同左 | 同左 | 同左 |
+| gate_restored | continuation（`readiness: gate`；gateRef 匹配并同批释放 gate 登记） | 不生成 | 不生成 | 不生成 | 不生成 |
 | connector_passive | context | context | context | context | 不受理 |
 | connector_condition | 按 policy：queue 或系统发起 interrupt_then_run（control + queue） | 同左 | queue | queue | 不受理 |
 | schedule_due | queue；判定依据为 originWork | 同左 | queue | originWork 被人取消或强停 → closed(refused_origin_cancelled)；否则 queue | 不受理 |
@@ -321,7 +328,7 @@ live-agent 实例，有则直接交驱动，没有才经 live-agent 的激活与
 交给 run-driver；调度只响应已提交事实的广播与启动扫描，不轮询
 （LC-06（legacy source: `../../../compositions/session-run-agent-lifecycles/v2/contract.md`））。调度提交的
 operationId 按 SE-06 派生，重取从 `(RunRef, 封闭的 epoch)` 派生（RN-08（legacy source: `../../run/v2/contract.md`））。
-keyboard command 是即时控制，不入队。
+keyboard control 是即时控制，不入队；keyboard 绑定的 command / Skill / named flow 是有序动作，按 SE-07 进入队列；directory 读取本身不建 Run。
 
 **SE-16**：context 意图的 arrival 按受理序号形成 Session 级序列，水位由 Inbound
 拥有。开 Step 时读取当前水位并把水位值记入切点；同一 Session 的多个非终态 Run

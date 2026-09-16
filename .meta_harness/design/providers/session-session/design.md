@@ -12,6 +12,14 @@
 - 每次 effect 前核对当前 Fiber、tenant、资格、binding、epoch 和取消；Context/AgentRef 不代授权。
 - 撤除先关新工作、排空本代短门与私有资源；已耐久请求、调用、结果、费用与 unknown 留给长期 owner。
 
+## 当前 v1 适配
+
+- archive/delete 门拒绝任何非终态 Run，包括不占位的 stopping；只查 placeholder 不足以准入。
+- keyboard control 立即走控制端口；keyboard command/Skill/named flow 按 SE-07 有序入队；directory 读取不建 Run。
+- Inbound 按来源提交 readiness：call settlement 释放 call wait、gate restored 释放 gate wait；approval/provisional readiness 不释放 call wait。
+- interrupt_then_run 收口为 superseded 后，停止未确认责任进入 system context，不阻止新驱动；它仍可查询且不得冒充已停止。
+- 恢复先校验完整前缀并 fold 裁决视图，再清空 accepted arrivals；之后才允许发行 epoch/WorkPermit 或调度进入驱动。
+
 ## 来源协议（重基输入）
 
 ## 1. 插件与服务
@@ -152,7 +160,7 @@ stateDiagram-v2
 | 转移 | 门内守卫（形状 1） | 同批效应（形状 2） | 提交后反应（形状 3） |
 |---|---|---|---|
 | create | 当前认证、TG 对 acquisition 的 use 资格、定义可用；同 operationId 认回原 Session | `session.lifecycle.created` | 无 |
-| archive / delete | `omneRun.listPlaceholder(S) = null` 且无 interrupted Run（LC-05（legacy source: `../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md`））；否则 busy 并给有权披露的原因，不隐式 cancel | `session.lifecycle.changed`；queued 项 `queue.item.closed{closed_by_archive \| closed_by_delete}`；accepted 与 classified 未消费的 arrival `inbound.arrival.closed{同}`；hold 集合保留（LC-04 行 1（legacy source: `../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md`）） | AR 宿主关闭该 Session 的空闲实例并释放附着（LC-06（legacy source: `../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md`））；附着资格随之失效 |
+| archive / delete | `omneRun.listNonTerminal(S)` 为空；必须拒绝 running/waiting/interrupted 以及任何 stopping，包括从 interrupted 升级而不占位的 stopping | 生命周期、queue 与未消费 arrival 同批关闭 | 宿主提交后关闭空闲实例并释放附着 |
 | restore | Session archived；原定义仍获准且可用，当前资格成立；不换定义 | `session.lifecycle.changed{open}`；不重新入队 | 无 |
 | rename / pin / model_choice | 元数据写权；`manualTitle` 锁定后自动标题只作建议 | 对应 `session.meta.*` / `session.model_choice.set` | 无 |
 
@@ -185,9 +193,9 @@ operationId 从 `(SessionRef, queueRevision, kind)` 派生。
 |---|---|---|---|---|
 | Run 级 `interrupt` / `resume` / `cancel` / `force_stop` | 精确 RunRef 与 observedEpoch | 转交 `omneRun.prepareControl`；本包不持 Run 状态 | 旧目标 ended / stale_target 由 Run 返回 | RN-03～05（legacy source: `../../../spec/capabilities/run/v1/contract.md`） |
 | Session 级 `force_stop` | 整个 Session | 组合 `session_force_stop`：`session.hold.set{session_force_stop}` 与当前占位 Run 的 `prepareControl{force_stop}`、epoch 撤销同批（LC-04 行 2（legacy source: `../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md`））；无占位 Run 时只 hold | 只有用户显式 `continueQueue` 解除 hold；不越过 stopping 占位，不恢复被强停的 Run | SE-09（legacy source: `../../../spec/capabilities/session/v1/contract.md`） |
-| `interrupt_then_run` | 新输入加当时精确 Run | 组合 `interrupt_then_run_accept`：新 input 入队、当时 Run 与复合意图 `{input, run, epoch, basis, configVersion?}` 耐久，旧 Run 关新 Step 同批（LC-04 行 8（legacy source: `../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md`）） | 旧 Run 的处置归 RN-04（legacy source: `../../../spec/capabilities/run/v1/contract.md`）；新输入按确认顺序由取批处理，不获优先通道；停止未知时复合意图显示 pending，原责任继续阻止新驱动 | SE-08（legacy source: `../../../spec/capabilities/session/v1/contract.md`） |
+| `interrupt_then_run` | 新输入加当时精确 Run | 受理批固定新 input、旧 Run/epoch 与终止意图；旧 Run 收口为 superseded 后注销登记，并把转后台/仍后台/停止未确认/未答请求写入 system context | 停止 unknown 保留在原责任与清单中，但 superseded 后不阻止新驱动；不宣称停止成功 | SE-08、RN-04 |
 | 系统发起的 `interrupt_then_run` | connector_condition 按 policy | 同上，新 input 是 trigger 项，意图记发起依据与配置版本 | 同上 | SE-08（legacy source: `../../../spec/capabilities/session/v1/contract.md`）、§7.3 |
-| keyboard command | 即时控制，不入队 | 映射到上面某个原语 | — | IN-02（legacy source: `../../../spec/capabilities/command-input/v1/contract.md`） |
+| keyboard binding | 显式 binding target 与 setting revision | control 即时走精确 Session/Run 控制端口；command / Skill / named flow 固定定义与参数后经 `enqueueCommand` 有序入队；directory 只读获准目录 | 不从按键取得权限或跳过目标准入 | IN-02、SE-07/13/15 |
 | 命令 Run 结算 | 命令处理者 | 转交 `omneRun.prepareSettleRun`；unknown 保留占位可见 | — | RN-06（legacy source: `../../../spec/capabilities/run/v1/contract.md`） |
 
 否定事实（hold、终止意图、epoch 撤销、TG/AU 收紧）立即封闭后续位置；正向事实
@@ -315,7 +323,7 @@ Run 终态、hold 解除、arrival 判为 continuation 或审批就绪、epoch �
 | `session_archive` / `session_delete` | session：`session.lifecycle.changed`；queue：未取批项 closed；inbound：accepted 与 classified 未消费者 closed；门内读 Run 状态作前提 | 1 |
 | `session_force_stop` | session：`session.hold.set`；run：`run.control.requested{force_stop}` + `run.epoch.closed{force_stop}` | 2 |
 | `interrupt_then_run_accept` | queue：新 input 入队；session：复合意图记录；run：`run.control.requested{interrupt, supersededByInput}`，关新 Step | 8 |
-| `reacquire` / `resume` | run：`run.epoch.issued{compat}` 同批封闭旧 epoch（resume 另记 state_changed）；AR：工作许可；前提：裁决扫描完成 | 7（重取）|
+| `reacquire` / `resume` | run：最终联合准入写 `run.epoch.issued{compat}` 并封闭旧 epoch；AR：工作许可；前提是完整前缀已校验、视图已 fold、accepted-arrival 扫描完成、在途已 inspect 且当前兼容/资格成立 | 7（重取） |
 
 ## 10. 链接与当前资格
 
@@ -406,8 +414,7 @@ blocksDiscard=false；provider 缺失或重建未完为 unavailable / complete=f
 
 ## 15. 恢复、投影与可观测性
 
-恢复顺序归 persistence（legacy source: `../persistence/design.md`）（records 重同步 → 各流 fold → Session
-校验 → 裁决扫描 → 投影重建 → 在途核实 → 资格重取 → 调度重取）；历史读面可在校验后带
+恢复顺序归 persistence（legacy source: `../persistence/design.md`）（完整 records 前缀同步/校验 → 从同一水位 fold Session/Run/等待与裁决视图 → accepted-arrival 裁决扫描 → 在途核实 → 当前兼容/资格重核 → 最终联合准入发行 epoch/WorkPermit → 调度进入驱动）；历史读面可在校验后带
 水位开放。状态贡献注册面沿 SE-10（legacy source: `../../../spec/capabilities/session/v1/contract.md`）：
 authoritative 贡献（三条流、Inbound、context 水位）只经具名操作更新；projection 贡献
 （列表、历史 surface、队列展示、驱动位置 reducer）由 projection（legacy source: `../projection/design.md`）

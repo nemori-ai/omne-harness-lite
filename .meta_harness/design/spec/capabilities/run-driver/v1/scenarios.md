@@ -26,7 +26,7 @@ model-execution v2（legacy source: `../../model-execution/v2/contract.md`）（
 | S14 失败不处置已准入调用 | Run 因不可恢复失败结算：未准入调用得 cancelled_before_execution 且审批请求关闭，已准入调用与未答请求继续；终态提交整簿注销；其结算此后按 C 列开新 Run 接上 | RD-13；RN-02；SE-14 | `FailRun` 的 `FailCalls`；I22 |
 | S15 恢复不重发 | attempt 已准入未耐久 dispatched 时崩溃；恢复判定未发出，旧 attempt cancelled、新 attempt 新准入；已耐久 dispatched 时不重发，查询或按政策新 attempt 并保留费用暴露 | RD-16；MC-04 | `Crash`/`Recover`；I18（否定变体 sendEarly） |
 | S16 start 窗口 | 准入后 owner 未回执 start 时崩溃；同 attemptId inspect；owner 无此 attempt 且许可有效则同 ID 重发，不产生第二个 attempt | RD-16；TL-08 | I18（`starts <= 1`） |
-| S17 未裁决 arrival | 受理后裁决前崩溃且 Session 空闲；提供者启动扫描先裁决；驱动器重取在裁决完成后才进入 | RD-04；SE-18；LC-08 | `Reacquire`/`Resume` 的 `~Unadjudicated` 前提 |
+| S17 未裁决 arrival | 受理后裁决前崩溃：恢复先校验完整前缀并 fold 裁决视图，再把 accepted arrival classified；只有扫描完成且兼容/资格仍成立，最终联合准入才发行新 epoch 与 WorkPermit 并进入 decide | RD-04；SE-11/18；RN-08；LC-08 | `Reacquire`/`Resume` 的 `~Unadjudicated` 只覆盖扫描屏障；完整前缀、兼容与发行顺序由提供者验收 |
 | S18 系统复合打断 | 连接器条件触发且配置为 interrupt_then_run；旧 Run 收口后进终态 `superseded`，整簿注销，未消费 continuation 改判 context，待批准调用 cancelled_before_execution；新 Run 首个 Step 以 `system_reminder{system_notice}` 交代被保留的工作清单 | SE-08；RN-04；RD-06/13；SE-14 | 未建模（见验证说明）；提供者验收 |
 | S19 命令 Run | 队首有序命令；命令处理者结算 success → completed；unknown 保留占位可见；上下文装载型命令随文本项进入模型；命令 Run 不消费 `system_notice` | RD-05/06；SE-07；RN-06 | 提供者验收 |
 | S20 context 不唤醒 | Run 在 `waiting` 时被动订阅内容到达；只推进水位，不唤醒；下一次开 Step 时按水位可见且去重 | SE-13/16 | 未建模（context 意图不建模） |
@@ -35,3 +35,4 @@ model-execution v2（legacy source: `../../model-execution/v2/contract.md`）（
 | S23 晚到结果恰一次 | 调用已占位后其结算被裁决为 continuation；结果以 `system_reminder{late_result, ref}` 进入到达的 Step，只引用已耐久结果、不复制正文；同一调用不再出现第二个 `tool_result` | RD-06/09 | `NoDouble`；投影验收 |
 | S24 无效提议收口 | attempt 成功但整份提议不能形成合法 Action；tools 不登记任何 proposed，Step 以 `run.step.settled{invalid_proposal{reasons}}` 收口；被拒片段带 `rejected{reason}` 与原始参数进历史；本 Step 不新增等待登记 | RD-08；TL-01 | `InvalidProposal`（`AllowInvalid = TRUE`）；I26 |
 | S25 守卫只能关闭 | 受理成功的队列项在取用前被守卫判为 close：同一 take 门内提交 `queue.item.closed{closed_by_guard}` 与 `inbound.arrival.closed{closed_by_guard}`，继续下一队首；守卫超时或输出非法一律放行并记录；守卫尝试改写文本、参数或阻止 Run 结算均被拒 | RD-17；SE-12；HK-02、HK-07 | 未建模（守卫不建模）；提供者验收 |
+| S26 force_stop 隔离门 | 一个调用效果结局 unknown 且隔离 unverified：Run 保持 stopping 与占位，后续队列不驱动；owner 给出绑定 call/attempt、scope、epoch、generation、fence revision 的强隔离证据后，才 cancelled(force_stopped)，可报告 partial 但未知只指效果结局 | RN-05；RD-13 | 模型的 `ConfirmIsolation` 只抽象强隔离已证实分支；没有 unverified → cancelled 动作；真实证据形状由提供者验收 |

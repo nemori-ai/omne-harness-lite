@@ -12,6 +12,12 @@
 - 每次 effect 前核对当前 Fiber、tenant、资格、binding、epoch 和取消；Context/AgentRef 不代授权。
 - 撤除先关新工作、排空本代短门与私有资源；已耐久请求、调用、结果、费用与 unknown 留给长期 owner。
 
+## 当前 v1 适配
+
+- Run 状态只有 preparing/running/waiting/interrupted/stopping，加 completed/failed/cancelled/superseded 四个终态；gate 是 waiting ledger 项，不存在 `waiting_gate`。
+- force_stop 的 isolation unknown/unverified 保持 stopping；只有绑定精确作用域与代次的强隔离证据允许 cancelled，partial 只描述效果结局未知。
+- 恢复先完成完整前缀校验、fold 与 accepted-arrival 裁决，再发行 epoch；下文旧 provider 文字若与这三点冲突就是明确 gap。
+
 ## 来源协议（重基输入）
 
 ## Host 与服务
@@ -68,12 +74,12 @@ prepare/check 端口，返回 CC 的 RecordPreparation；每次 prepare 核对
 | `prepareCalls{propose \| admit}` | `calls_proposed` / `call_admitted` | TL、AU、BG、HD |
 | `prepareConsumeDecision` | `approval_consumed` | HD、TL、BG |
 | `prepareSettleStep` | `step_settled` | 无 |
-| `prepareAwaitGate` / `prepareGateReturn` | `gate_awaited` / `gate_returned`；state ↔ waiting_gate | 无 |
+| `prepareAwaitGate` / `prepareGateReturn` | `gate_awaited` / `gate_returned`；Run 统一为 `waiting`，具体 gate 只在 waiting ledger 投影 | 无 |
 | `prepareSettleRun` | `settled`、`state_changed → completed/failed/cancelled`、`epoch_closed` | Session（LC-04 行 4（legacy source: `../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md`）：arrival 转换/关闭） |
 | `prepareYield{reason}` | `epoch_closed{yield \| yield_forced}`；state 不变 | 无；AR 的 `settle(work)` 是提交后反应 |
-| `prepareReacquire` / `prepareResume` | `epoch_issued{compat}` 同批封闭旧 epoch；resume 另记 `state_changed interrupted→running` | Session（SE-18（legacy source: `../../../spec/capabilities/session/v1/contract.md`） 裁决完成）、AR（工作许可） |
-| `prepareControl{interrupt \| cancel \| force_stop \| resume}` | `control_requested` / `control_progressed`；force_stop 同批 `epoch_closed{force_stop}`；interrupted 上的 cancel 直接 `state_changed → cancelled`（RN-03（legacy source: `../../../spec/capabilities/run/v1/contract.md`））；force_stop 的受理批同时整簿注销等待登记（`wait_released{*, cancelled}`）；interrupted 上的 force_stop 在没有可升级的停止未知调用时直达，有则进 `stopping`、只对 owner 声明 `stop.capability = forced_isolation` 的 unknown 调用各发一次 `stopCall{mode: force}`，owner 报 `isolated` 或再报 `unknown`（记 `isolation: unverified`）后 `state_changed → cancelled(force_stopped)`；owner 声明 `cooperative_fence` 的 unknown 调用在受理时就记 `isolation: unverified`，不阻止 cancelled（RN-05（legacy source: `../../../spec/capabilities/run/v1/contract.md`），工具提案作者裁决 10、14（legacy source: `../../../docs/proposals/tool-execution/README.md#第三轮作者裁决2026-09-15第三轮架构复核后`））；控制结果记 `complete \| partial{unknown: K}`；`interrupt_then_run` 的受理批记 `control_requested{interrupt, supersededByInput}`（SE-08（legacy source: `../../../spec/capabilities/session/v1/contract.md`）） | Session（会话级强停的 hold；复合打断的 `queue.item.enqueued` 与复合意图）；TL（单调用强停）
-| `prepareCloseOut{interrupt \| superseded}` | 收口完成（每个停止请求都有物理事实——含 `unknown`——或调用已结算；两种收口同一条件）时记 `state_changed → interrupted` 与 `epoch_closed{interrupt}`；复合打断记 `state_changed → superseded`（run 下一版新增的终态）与 `epoch_closed{superseded}`，并在同批整簿注销等待登记（`wait_released{*, superseded}`，未消费 continuation 转 context）、把被保留的工作清单（转后台 / 保持后台 / 停止未确认的调用、未答请求）作为 `origin: system` 的 context 到达交给 Inbound 受理（作者裁决 12）。unknown 留在调用与控制记录上，不设"收口中"的 Run 状态，也不阻止新 Run（LC-04 行 6 / 行 8（legacy source: `../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md`）；候选见工具提案 interrupt 动作链（legacy source: `../../../docs/proposals/tool-execution/lifecycle.md#interrupt-与-interrupt_then_run-的动作链`）与等待登记簿（legacy source: `../../../docs/proposals/tool-execution/lifecycle.md#等待登记簿`），作者裁决 1～3、8～12，待复核与 run 下一版） | Inbound（continuation → context 的改判；`system_notice` 到达的受理）；复合打断下 Session 的取批在收口提交之后进行、TL/HD（停止意图；同域同批，跨域沿 CC-05（legacy source: `../../../spec/compositions/core-work-coordination/v2/contract.md`）） |
+| `prepareReacquire` / `prepareResume` | 仅在完整前缀校验、fold、accepted-arrival 扫描、在途 inspect 与当前兼容/资格全部完成后，最终联合准入才写 `epoch_issued{compat}`、封闭旧 epoch；resume 另写 `state_changed interrupted→running` | AR WorkPermit；不得先发 epoch 再补恢复 |
+| `prepareControl{interrupt \| cancel \| force_stop \| resume}` | 控制受理、epoch 撤销与等待登记处理按 RN-03/05；force_stop 进入 stopping，isolation unknown/unverified 不得 cancelled。只有带 call/attempt、scope、epoch、provider generation、fence revision 的强隔离证据才过终态门；partial 只保留外部效果结局 unknown | Session hold / TL、HD 停止意图 |
+| `prepareCloseOut{interrupt \| superseded}` | interrupt 可在物理 unknown 显式记录后进入 interrupted；interrupt_then_run 收口为 superseded、整簿注销并把未确认责任写入 system context，随后可开新驱动。两者都保留 unknown，不把它说成停止成功；force_stop 不使用此较弱门 | Inbound 与 Session 组合 |
 
 命令 Run（RN-06（legacy source: `../../../spec/capabilities/run/v1/contract.md`））由命令处理者经
 `prepareSettleRun` 结算；`unknown` 保留占位可见。
@@ -81,7 +87,7 @@ prepare/check 端口，返回 CC 的 RecordPreparation；每次 prepare 核对
 ## 读面
 
 `omneRun` 提供 `readRun(run)`（状态、epoch、Step、等待位置、阻塞、控制）、
-`listPlaceholder(session)`（按派生规则返回该 Session 唯一占位 Run 或 null）、
+`listPlaceholder(session)`（按派生规则返回唯一占位 Run 或 null）、`listNonTerminal(session)`（归档门读取全部非终态 Run，包含不占位的 stopping）、
 `waitingPositions(run)`（供裁决者按等待位置判意图）。首版同一协调域，Session 门在
 门内直接读本读面；LC-09（legacy source: `../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md`）
 的版本戳读面留到规划跨域部署时再加。

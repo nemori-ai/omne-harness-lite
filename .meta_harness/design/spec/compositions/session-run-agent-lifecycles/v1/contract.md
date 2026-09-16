@@ -61,11 +61,11 @@ Session 与 Run 的转移是耐久事实；实例的转移不耐久，Registry �
 | 2 | Session 级 force_stop | 队列 hold；当前占位 Run → stopping；该 Run 的 epoch 在受理点撤销；该 Run 的等待登记整簿注销（`cancelled`） | SE-09（legacy source: `../../../capabilities/session/v2/contract.md`）、RN-05（legacy source: `../../../capabilities/run/v2/contract.md`） |
 | 3 | 取批 / 取命令 / 取 trigger；或在既有 Run 的空闲点取批 | 建立新 Run 的形态：队列侧固定并取用项；Run 建立（basis、定义、模型、初始 epoch）；epoch 发行给持有工作许可的实例。取入既有 Run 的形态（Run 处于 waiting 的空闲点）：队列侧固定并取用项；该批记为占位 Run 的 `supplement` 并开其下一个 Step，不建立 Run、不发行新 epoch | SE-06/07/15（legacy source: `../../../capabilities/session/v2/contract.md`）、RN-01/02（legacy source: `../../../capabilities/run/v2/contract.md`）、AR-8（legacy source: `../../../capabilities/live-agent/v1/contract.md`）、RD-06（legacy source: `../../../capabilities/run-driver/v3/contract.md`） |
 | 4 | Run → completed / failed / cancelled / superseded | 终态转移；仍开放的等待登记整簿注销（`failed \| cancelled \| superseded`；completed 以登记簿已空为前提）；指向本 Run 的未消费 continuation 转为 trigger 项（completed/failed）、改判为 context（superseded）或 closed（cancelled 与级联关闭）；superseded 另在同批受理一条 `source: system`、意图 context 的被保留工作清单到达；执行者 epoch 封闭 | RN-02/04/09（legacy source: `../../../capabilities/run/v2/contract.md`）、SE-13/14/17（legacy source: `../../../capabilities/session/v2/contract.md`）、D-012 的 I-14（legacy source: `../../../../docs/decisions/D-012-run-driver-and-inbound.md`） |
-| 5 | Run 的 force_stop / cancel | 控制受理；epoch 撤销；等待登记整簿注销（`cancelled`）；活动 Run 进 stopping，对 interrupted 的 cancel 直接 cancelled，对 interrupted 的 force_stop 在存在可升级 unknown 调用时进不占位的 stopping、否则直接 cancelled；对 TL/HD 的停止意图同域则同批、跨域沿 CC-05（legacy source: `../../core-work-coordination/v2/contract.md`） | RN-03/05（legacy source: `../../../capabilities/run/v2/contract.md`） |
+| 5 | Run 的 force_stop / cancel | 控制受理；epoch 撤销；等待登记整簿注销。cancel 按 RN-03 终态；force_stop 进入 stopping，只有每个未结算调用 quiescent 或具 RN-05 强隔离证据才 cancelled；隔离 unverified/unknown 保持 stopping 与占位。interrupted 上升级的 stopping 不重新占位，但同样不得无证据终态 | RN-03/05（legacy source: `../../../capabilities/run/v2/contract.md`） |
 | 6 | Run 的 interrupt | 关 Step；停止请求；安全收口（每个停止请求都有物理事实，`unknown` 计入）后 interrupted；epoch 封闭；等待登记簿保留、不注销 | RN-03（legacy source: `../../../capabilities/run/v2/contract.md`） |
 | 7 | 驱动器 Yield | epoch 封闭；Run 状态、等待登记簿、阻塞集合不变；占位随状态派生保留 | RD-14（legacy source: `../../../capabilities/run-driver/v3/contract.md`）、RN-01（legacy source: `../../../capabilities/run/v2/contract.md`） |
 | 8 | interrupt_then_run 受理 | 新 input 耐久；当时精确 Run 与复合意图记录；旧 Run 关新 Step 并受理终止意图。旧 Run 的终态 `superseded`、整簿注销与工作清单在其收口提交（行 4） | SE-08（legacy source: `../../../capabilities/session/v2/contract.md`）、RN-04（legacy source: `../../../capabilities/run/v2/contract.md`） |
-| 9 | Inbound 裁决 | arrival 的意图与 observedRun 记录；裁决为 continuation 时同批注销该 holder 在其发起 Run 上的等待登记（`settled`）；裁决与被引用 Run 的终态转移在同一协调域全序 | SE-12/14（legacy source: `../../../capabilities/session/v2/contract.md`）、RN-01（legacy source: `../../../capabilities/run/v2/contract.md`）、D-012 的 I-13（legacy source: `../../../../docs/decisions/D-012-run-driver-and-inbound.md`） |
+| 9 | Inbound 裁决 | arrival 意图与 observedRun 记录；call_settlement 判 continuation 时同批释放 call 登记（settled）；gate_restored 判 continuation 时同批释放 gate 登记（passed）；system approval 只形成 approval readiness，不释放 call 登记，批准消费/start 后仍等真实 settlement；provisional readiness 同样不释放。裁决与被引用 Run 的终态转移在同一协调域全序 | SE-12/14（legacy source: `../../../capabilities/session/v2/contract.md`）、RN-01（legacy source: `../../../capabilities/run/v2/contract.md`）、HD-06、D-012 的 I-13（legacy source: `../../../../docs/decisions/D-012-run-driver-and-inbound.md`） |
 
 首版五条流（session、queue、inbound、frames、run；`frames(S)` 由 SE-19（legacy source: `../../../capabilities/session/v2/contract.md`）
 登记）位于同一协调域；把它们拆到不同域前须先满足 LC-09。
@@ -106,18 +106,19 @@ Session 作用域过滤；广播只是提示，不是第二种事实。反应者
 **LC-07**：实例退役而 Run 在执行时，驱动器到安全边界提交 Yield（LC-04 行 7；前提沿
 RD-14（legacy source: `../../../capabilities/run-driver/v3/contract.md`）），静止后按
 AR-12（legacy source: `../../../capabilities/live-agent/v1/contract.md`） 释放资源与附着。占位 Run 的执行者为空
-后，重取由 Session 级调度者发起：先完成本 Session 的裁决扫描
+后，重取由 Session 级调度者发起：先通过 LC-08 的完整前缀校验与 fold，再完成本 Session 的裁决扫描
 （SE-18（legacy source: `../../../capabilities/session/v2/contract.md`）），再取得 ready 实例或激活新实例，在同一
 提交发行新 epoch 并封闭旧 epoch，operationId 从 `(RunRef, 封闭的 epoch)` 派生，重取须
 通过 RN-08（legacy source: `../../../capabilities/run/v2/contract.md`） 的恢复兼容证据。多数重取不需要新实例。
 
 ## 崩溃与恢复
 
-**LC-08**：崩溃与进程重启不留下任何实例事实或 Yield 事实。恢复顺序：耐久记录同步
-有效前缀 → Session 校验并完成全部 Session 的裁决扫描 → 投影重建 → 各执行 owner 核实
-在途 attempt/call/request → 当前资格重新取得 → 调度者对每个 Session 判断重取或开新 Run。
-"epoch 未封闭但无实例持有"与"epoch 已封闭"在恢复上是同一种情况，都只能重取
-（RN-08（legacy source: `../../../capabilities/run/v2/contract.md`））。裁决扫描先于任何重取是硬顺序。
+**LC-08**：崩溃与进程重启不留下实例或 Yield 事实。恢复硬顺序为：同步并校验所有
+所需权威的完整已提交前缀 → 从同一水位 fold Session、Run、等待登记及裁决视图 → 完成每个
+Session accepted arrivals 的裁决扫描 → inspect/subscribe 在途 owner → 重核当前资格和
+RN-08 兼容证据 → 最终联合准入才发行新 epoch、取得工作许可并进入驱动。任何一步失败都
+保持 fail closed；先发 epoch 或先进入 decide 再补扫均不合法。无实例持有的未封闭旧 epoch
+与已封闭 epoch 一样，只能按此顺序重取。
 
 ## 跨协调域部署前的义务
 
@@ -155,11 +156,11 @@ Run 域的状态版本戳；Run 域在消费 create 意图时重查占位；归�
 | LC-04 行 2 | 兼容扩展 | Session 级 force_stop 的受理提交加"整簿注销" | 作者裁决 15 |
 | LC-04 行 3 | 兼容扩展 | 增加"在既有 Run 的空闲点取批"的同提交形态（取项 + `supplement` + 开下一个 Step，不建 Run、不换 epoch） | 作者裁决 7 |
 | LC-04 行 4 | 语义变化 | 触发加 `superseded`；效应加整簿注销、superseded 的 continuation 改判 context、被保留工作清单作 `source: system` 的 context 到达同批受理 | 作者裁决 3/4/12 |
-| LC-04 行 5 | 语义变化 | 受理提交整簿注销；写明 interrupted 上 cancel 直达、force_stop 在有可升级 unknown 调用时进不占位的 stopping | 作者裁决 10/14/15 |
+| LC-04 行 5 | 语义变化 | force_stop 只有 quiescent 或强隔离证据才可终态；隔离 unknown/unverified 留在 stopping。interrupted 升级的 stopping 不重新占位，但同样不能无证据 cancelled | 当前 v1 联合复核 |
 | LC-04 行 6 | 澄清 | 安全收口写明"`unknown` 计入"；等待登记簿保留、不注销 | 作者裁决 2/8 |
 | LC-04 行 7 | 澄清 | "等待位置"改称等待登记簿；依据升为 run-driver v3 | 作者裁决 13 |
 | LC-04 行 8 | 澄清 | 写明受理提交只关新 Step 与受理终止意图，终态 `superseded` 与整簿注销属行 4 | 作者裁决 3 |
-| LC-04 行 9 | 兼容扩展 | 声明"裁决为 continuation 与该 holder 的登记注销同批" | 作者裁决 8、T-17 |
+| LC-04 行 9 | 语义变化 | 按来源拆开 readiness：call settlement 释放 call 登记、gate restored 释放 gate 登记；approval/provisional readiness 不释放 call 登记 | 当前 v1 联合复核 |
 | LC-05 | 澄清 | 归档守卫写明 `superseded` 为终态、不再阻止归档；补"取入既有 Run"的守卫 | 作者裁决 3/7 |
 | LC-06 | 不变 | 反应义务与形状 3 清单与 v1 相同 | — |
 | LC-09 | 兼容扩展 | 跨域义务加"等待登记的注销与释放事实不能同批时按 CC-05 退化" | 等待登记簿的跨域边界 |

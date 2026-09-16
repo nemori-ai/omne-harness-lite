@@ -12,6 +12,10 @@
 - 每次 effect 前核对当前 Fiber、tenant、资格、binding、epoch 和取消；Context/AgentRef 不代授权。
 - 撤除先关新工作、排空本代短门与私有资源；已耐久请求、调用、结果、费用与 unknown 留给长期 owner。
 
+## 当前 v1 适配
+
+来源协议没有被提升为实现符合性；其中仍指向旧坐标的内容只作 provenance，必须在实现前映射到当前 candidate 或登记 gap。
+
 ## 来源协议（重基输入）
 
 ## 公开入口与记录权威

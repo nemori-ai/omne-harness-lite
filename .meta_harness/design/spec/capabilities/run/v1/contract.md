@@ -112,8 +112,10 @@ SE-14（legacy source: `../../session/v2/contract.md`） 的判定顺序裁决�
 ## 控制
 
 **RN-03**：控制请求有 operationId、精确 RunRef、观察 epoch、范围和实际
-结果。控制结果为 `complete` 或 `partial{unknown: K}`，K 为收口时物理结果仍为 unknown 的
-自有调用数；`partial` 不报告完整成功
+结果。控制结果为 `complete` 或 `partial{unknown: K}`。interrupt/interrupt_then_run 的 K 是
+收口时物理结果仍 unknown 的自有调用数；force_stop 的 K 只能是在强隔离已经证实后、外部
+效果结局仍 unknown 的调用数，隔离本身 unknown/unverified 时不得终态或报告成功。`partial`
+不报告完整成功
 （PF-013.C6（legacy source: `../../../../docs/requirements/product/user/PF-013-session-run-lifecycle-and-pending-input-control.md`））。
 旧目标自然结束返回 ended；Session 当前换成新 Run 返回 stale_target，
 不重定向。受理、施加、物理停止、清理与外部效果状态分别表达；跨端重复
@@ -144,11 +146,11 @@ interrupted 已安全收口、不占位，其自有调用在 interrupt 时已请
 会重新占位并与此时正在运行的新 Run 并存，违反占位唯一
 （LC-02（legacy source: `../../../compositions/session-run-agent-lifecycles/v2/contract.md`）；本判断由
 D-014（legacy source: `../../../../docs/decisions/D-014-session-run-agent-lifecycles.md`） 引用的 Lifecycles
-模型反例得出）。force_stop 同样直达 cancelled，除非该 Run 存在物理结果仍为 unknown、且其
-执行 owner 声明 `stop.capability = forced_isolation` 的调用："自有调用已停止"的前提此时
-不成立，受理后进入 stopping，按 RN-05 取得隔离依据再进入 cancelled。由 interrupted 升级
-进入的 stopping 不重新取得本 Session 的驱动占位（LC-02）：interrupt 时释放的占位不因升级
-恢复，它也不阻止此时已在运行的 Run。指向终态 Run 的接续按
+模型反例得出）。对 interrupted Run 的 force_stop，只有所有调用已结算或已有 quiescent/
+强隔离证据时才能直达 cancelled；存在任何物理结果或隔离仍为 unknown/unverified 的调用时，
+受理后进入 stopping 并按 RN-05 等待终态门。由 interrupted 升级进入的 stopping 不重新取得
+本 Session 的驱动占位（LC-02），因此不阻止此时已在运行的新 Run；但它自身仍不能无证据
+进入 cancelled。指向终态 Run 的接续按
 SE-17（legacy source: `../../session/v2/contract.md`） 关闭或改判。
 
 **RN-04**：interrupt_then_run 的受理与新输入的排队归 SE-08（legacy source: `../../session/v2/contract.md`），
@@ -180,25 +182,26 @@ context，没有则为 queue 的 trigger 项（HD-04（legacy source: `../../hum
 **RN-05**：force_stop 立即撤销目标 epoch 的继续执行／结果提交权，尽力停止
 已受控执行体，记录物理停止、隔离、残留与外部效果未知。受理强停后 Run 进入 stopping，
 并持有不可由 resume 清除的终止意图；受理的同一提交整簿注销等待登记（`cancelled`，
-RN-01），stopping 期间没有开放登记。旧结果只可作为隔离证据，不修改有效 Run 结果。
-后续队列等安全停止/隔离依据确定后才准入。
+RN-01），stopping 期间没有开放登记。旧结果只可作为隔离证据，不修改有效 Run 结果；
+后续队列在该 stopping 持有占位时不得开始新驱动。
 
-stopping 只等待声明 `stop.capability = forced_isolation` 的执行 owner 回答：对每个物理
-结果仍为 unknown 且其 owner 有此声明的调用发一次 `stopCall{mode: force}`
-（TL-11（legacy source: `../../tools/v2/contract.md`）），owner 报 `isolated` 则控制记录对该调用记
-`isolation: isolated`，再报 `unknown` 则记 `isolation: unverified`；owner 声明
-`cooperative_fence` 或 `unsupported` 的 unknown 调用没有升级路径，在受理时即记
-`isolation: unverified`，不阻止进入终态。全部有升级路径的调用回答后进入
-cancelled(reason=force_stopped) 并释放驱动占位，控制结果按仍为 unknown 的调用数记
-`complete` 或 `partial{unknown: K}`（RN-03）。unknown 不等于安全停止：`isolation: unverified`
-长期可见，不冒充隔离，也不因 resume 或迟到结果自动重试。隔离后仍可能存在的外部效果、
-费用和清理责任独立记录，不能用 cancelled 表示它们已经回滚。
+进入 cancelled(reason=force_stopped) 的门要求每个尚未明确结算的受控调用满足以下之一：
+(a) owner 给出 `quiescent`；(b) 声明 `stop.capability = forced_isolation` 的 owner 给出可验证的
+强隔离证据，至少绑定调用/attempt、目标作用域、执行 epoch、provider generation 与隔离
+栅栏 revision，并保证该范围不能再产生目标侧效果。真实外部效果是否已经发生仍可为 unknown；
+这种“效果未知但强隔离已证实”的收口可报告 `partial{unknown: K}`，K 只计效果结局未知，
+不计执行隔离未知。
 
-Session 范围强停对队列的 hold 归 SE-09（legacy source: `../../session/v2/contract.md`），与本条的受理在同一
-提交。stopping 与 cancelled(force_stopped) 的 Run 自有调用的晚到结算只作隔离证据：其
-arrival 记 closed(isolated)，不成为接续也不生成 trigger（SE-14（legacy source: `../../session/v2/contract.md`）
-D1 列）。结构化后代、脱离委托和 handoff 的传播交给 PF-004 专属关系，不从后台工具
-策略推导子 Agent 权限或终止规则。
+`isolation: unverified`、普通 `unknown`、超时、`cooperative_fence` 或 `unsupported` 都不满足
+终态门；Run 保持 stopping、占位与后续队列屏障，直到取得强隔离/静止证据或有权的新契约
+明确接管风险。每个 `forced_isolation` owner 只接收一次同 operationId 的
+`stopCall{mode: force}`；重复或迟到报告只追加证据，不越过门。全部调用过门后才进入
+cancelled 并释放占位。隔离后仍可能存在的外部效果、费用和清理责任独立记录，不能用
+cancelled 表示它们已经回滚。
+
+Session 范围强停对队列的 hold 归 SE-09，与本条受理同批。stopping 与已经通过强隔离门的
+cancelled(force_stopped) Run 的晚到结算只作隔离证据，arrival 记 closed(isolated)，不成为
+接续或 trigger（SE-14 D1）。结构化后代、脱离委托和 handoff 的传播交给 PF-004 专属关系。
 
 **RN-06**：basis 为 command 的 Run 由 SE-07（legacy source: `../../session/v2/contract.md`） 的 takeCommand
 建立，只由命令处理者结算，不经模型与工具批。其结算映射为 Run 终态：success →
@@ -213,20 +216,19 @@ completed，rejected/failed → failed(reason)，unknown 保留占位且长期�
 注册到 SE-10（legacy source: `../../session/v2/contract.md`） 的注册面，输入为本能力持有的事实；缺少
 解析器或版本不符时该视图 unavailable，不返回默认位置。
 
-**RN-08**：恢复从原合法位置重建，先校验日志前缀、schema/reducer 版本、定义/配置/
-组件和执行环境能力。恢复兼容证据包含所需契约版本、实现协议、媒体可达性、外部
-工作原引用，以及 Run 记录的驱动绑定与投影 reducer 版本，不仅比较 OS 名称；
-resume 与重取都须通过该证据，驱动器实现换代后不兼容的 Run 保持原状态并保留占位，
-等待用户控制或兼容实现，不自动迁移。basis 与每个 `supplement` 批各按其取入提交重建，
-Run 的可见输入按 Step 切点重建，不重新合批；等待登记簿由 `run.wait.claimed / released`
-的事实前缀重算，不另存快照。已开始但无明确结局的调用向原执行 owner
-询问；原背景工作仍存活则重新订阅同 call，不能重复派发。无法确认的模型请求/
-工具外部效果记 unknown 并阻塞依赖决定，历史读取仍可可用。cancelled 与 superseded 的 Run
-不复活，writer/Run 旧 epoch 失效。重取以新 epoch 进行，operationId 从 `(RunRef, 封闭的
-epoch)` 派生，且只在 Session 级裁决扫描完成之后（SE-11/18（legacy source: `../../session/v2/contract.md`）、
-LC-08（legacy source: `../../../compositions/session-run-agent-lifecycles/v2/contract.md`））。崩溃没有留下
-Yield 事实时，"epoch 未封闭但无实例持有"与"epoch 已封闭"在恢复上是同一种情况，
-都只能重取。
+**RN-08**：恢复从原合法位置重建，并受 SE-11 的恢复门约束。顺序是：校验所有所需
+权威的完整已提交前缀与 schema/reducer/定义/配置 → fold Run、Step、等待登记与裁决视图 →
+完成本 Session accepted arrivals 的裁决扫描 → inspect/subscribe 在途模型请求、调用和请求 →
+核对当前资格与兼容证据 → 最后才在联合准入中发行新 epoch、取得工作许可并进入驱动。
+任何较早发行的 epoch 都无效；历史读面可在前缀校验后按水位开放，但不能推进工作。
+
+兼容证据包含本 baseline 的精确 Run/RunDriver 契约坐标、实现协议、媒体可达性、外部工作
+原引用、Run 记录的 driver binding 与 projection reducer 版本。resume 与重取都须通过；
+不兼容的 Run 保持原状态与占位，等待用户控制或兼容实现，不自动迁移。basis 和 supplement
+按各自提交重建，等待登记由 claimed/released 前缀重算。无法确认的模型请求/工具效果记
+unknown 并阻塞依赖决定，不重复派发。cancelled/superseded 不复活；新 epoch 的 operationId
+从 `(RunRef, 封闭的 epoch)` 派生。崩溃没有 Yield 事实时，无实例持有的旧 epoch 与已封闭
+epoch 一样只能经上述门重取。
 
 **RN-09**：Run 到 completed/failed/cancelled/superseded 的终态转移与 Inbound 的接续处理在
 同一提交（SE-17（legacy source: `../../session/v2/contract.md`）、
@@ -259,11 +261,11 @@ LC-09（legacy source: `../../../compositions/session-run-agent-lifecycles/v2/co
 | RN-02 | 兼容扩展 | `supplement` 批与开下一 Step 同提交，basis 不变 | 作者裁决 7 |
 | RN-03 | 兼容扩展 | 控制结果形状 `complete \| partial{unknown: K}`；控制权限键 `session.emergency_control` 与合法发起者 | 作者裁决 14、缺口表 RN-03/05 行 |
 | RN-03 | 语义变化 | 安全收口写明 `unknown` 计入、无系统级超时、无"收口中"状态；interrupted 保留等待登记簿 | 作者裁决 2 |
-| RN-03 | 语义变化 | interrupted 上的 force_stop 在存在可升级 unknown 调用时经 stopping；该 stopping 不重新占位 | 作者裁决 10/14 |
+| RN-03 | 语义变化 | interrupted 上 force_stop 只在全部已结算/quiescent/强隔离时直达；存在 isolation unknown/unverified 时进不占位的 stopping 并等待 RN-05 门 | 当前 v1 联合复核 |
 | RN-03 | 澄清 | resume 的目标状态词表随 RN-01 收敛；`superseded` 返回 superseded；Yield 不改登记簿 | 作者裁决 3/13 |
 | RN-04 | 语义变化 | 旧 Run 终态由 interrupted 改为新终态 `superseded`；终态提交整簿注销、未消费 continuation 改判 context、被保留工作清单作 `source: system` 的 context 到达同批受理；不可 resume，删"核对旧逻辑目标是否仍可合法接续" | 作者裁决 3/4/12 |
 | RN-04 | 语义变化 | 未答请求的答复按登记簿路由，不再"保留原 Run 的中断阻塞" | 作者裁决 3、缺口表 HD-04 行 |
-| RN-05 | 语义变化 | force_stop 受理提交整簿注销；stopping 只等声明 `forced_isolation` 的 owner 回答，其余 unknown 调用记 `isolation: unverified` 且不阻止终态（取代 v1"不能证实隔离时保留 stopping"） | 作者裁决 14 |
+| RN-05 | 语义变化 | force_stop 受理提交整簿注销；quiescent 或绑定精确 call/attempt/scope/epoch/generation/fence 的强隔离证据才允许 cancelled；普通 unknown/unverified 不得释放占位或报告成功 | 当前 v1 联合复核 |
 | RN-05 | 兼容扩展 | 控制记录对每个 unknown 调用记 `isolation: isolated \| unverified` | 缺口表 RN-05 行 |
 | RN-06 | 澄清 | 命令 Run 不消费工作清单、不取入 `supplement` | 作者裁决 12 |
 | RN-07 | 澄清 | "等待位置"改称等待登记簿 | 同 RN-01 |
