@@ -32,13 +32,13 @@
 
 M 的 durable current disposition 和 `attempt.closing.pending` observation 在同一批折成完整 `attemptStateUpdates`：closing pending 即使没有 terminal revision，仍给 `in_progress{pendingReason:outcome_unresolved}`；durable business unknown 给 `settled_without_message{outcome:unknown}`，后续 revision 更新同一 attempt，不能重复语义关闭。缺失条目、无权或 retention 过期只给集合级结果；本地旧草稿缺席不证明业务 outcome。历史正文身份和顺序按 SE-03 的原 `eventId`/ordinal 派生，本包不另发号或建第二条耐久历史流。
 
-checkpoint 仅是可丢弃的 fold 加速物，至少绑定 tenant/SessionRef、`stateKey`、reducer/schema/input 版本、来源 generation 与完整水位。水位越界、Session 错配、版本不符、坏 schema、缩短的事实尾部或当前授权版本变化时弃用相关缓存并从核实前缀重建；无法取得所需前缀时保持 unavailable，不把空缓存作为空集合。缓存行不能取得写入 Session、Run、M 等权威事实的权力。
+checkpoint 仅是可丢弃的 fold 加速物，至少绑定 tenant/SessionRef、`stateKey`、reducer/schema/input 版本、来源 generation 与完整水位。水位越界、Session 错配、版本不符、坏 schema 或缩短的事实尾部使 fold 缓存失效；授权版本变化使已裁剪的输出缓存失效，原始 fold 仍须经过当前授权才能返回。无法取得重建所需前缀时保持 unavailable，不把空缓存作为空集合。缓存行不能取得写入 Session、Run、M 等权威事实的权力。
 
 ## 装载、并发与失败
 
 | 资源或贡献 | 本代拥有者与可用时点 | 撤除与失败收口 |
 |---|---|---|
-| `omneSessionProjection`、Session 受限查询适配 | 同一插件 generation；验证前缀、贡献版本、授权入口和初始 fold 后才可供受限消费 | 先封本代新查询；在途读要么按已固定授权切完成，要么明确失败，不让晚到结果跨 generation 安装 |
+| `omneSessionProjection`、Session 受限查询适配 | 同一插件 generation；验证前缀、贡献版本、授权入口和初始 fold 后才可供受限消费 | 先封本代新查询；在途读返回前复核当前披露资格，撤权或换代后明确失败，不让晚到结果跨 generation 安装 |
 | reducer 登记、变化订阅 | 各贡献 owner 的精确 registration；投影 provider 纳管订阅和折叠任务 | 撤回本代登记与订阅，停止新输入并等待任务实际静止；保留原权威事实，相关视图 unavailable |
 | 派生缓存与重建任务 | 投影 provider；缓存只在输入版本、generation 和完整水位一致时可使用 | 可丢弃缓存；部分初始化失败也释放已取得资源，不恢复全局旧快照覆盖其他贡献 |
 
