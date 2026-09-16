@@ -20,11 +20,21 @@ tenant、operation、因果、epoch、修订与资源所有者必须显式；有
 | `GateFrame` / owner publication | 同步短门发布 logical，耐久完成后发布 durable | 回调不得 await/返回 thenable；协调者不解释业务字段 |
 | `ExactUseIssuer` / `ExactUse` | 绑定真实 owner/pin，单次 claim 与显式 release | 不能靠 cast/反序列化伪造，也不代替 owner 清理资源 |
 | committed broadcast | 门外广播已提交 receipt/组合名 | listener 不得改业务结果；丢通知由事实扫描恢复 |
-| Tenant bootstrap binding | 受信装配仅向精确 TenantHost 发放绑定原始 operation/input、新 tenantId 和本代 writer 的不可伪造窄写入能力；门内复核初始化前态及 owner 的业务检查；同操作携带到 Records/JSONL | 普通 coordinator、调用者、字符串 owner/operationKind、持久化 envelope 均不能铸造权限；不得扩大为所有 null-tenant 操作 |
+| Tenant personal creation binding | 受信装配仅给 TenantHost 两个封闭入口：init 核初始化前态/seed，registration 核已耐久导入的 Account 原始后果；首次排位前固定原 operation/摘要/`UserRef`/target。短门纯查来源、claim、target head 与当前代际，颁发本代一次性的二/三流资格并交 Records/JSONL | 普通 coordinator、客户端 origin/owner/operationKind/UserRef、旧 session 或持久 envelope 均不能铸造权限；门内不 await Account I/O |
 
-相同 bootstrap operation 在本代已取得逻辑位置后，prepare/lookup 必须返回原目标与
-pending/unknown 状态；不得把暂时 not_seen 变成二次生成目标的许可。跨重启只有
-CC-03 的原 writer 完整前缀核实了未提交并安全解除了占位，才能重新准备目标。
+Account→CC 的受信接收者在门外核 Account 源 fact identity、schema/version、签发权、
+原注册 operation/摘要、`UserRef`、target 与一次创建授权，然后将它以稳定身份耐久
+导入目标协调域并去重；响应丢失查原 identity。导入的是不可变授权投影，Account
+暂时不可达或 pending 后来 active 不撤销它；账号激活仍查 Account 自身结果。
+未核实/未导入时新创建 unavailable/unknown。导入前后的通知不直接颁发资格；
+旧 host/owner/writer generation 不能使用历史导入事实写入新代，新代须先经 CC-06
+完整根安装。导入意图的交付责任及结果由 CC-05 保留可查询。
+
+同一 personal creation operation 已排位后，prepare/lookup 必须返回原 target 与
+pending/unknown 状态；不能因 init 已完成、Account active 或暂时 not_seen 重跑首次准入
+或二次生成 target。跨重启只有 CC-03 的旧 writer 完整前缀核实了未提交并安全解除了
+占位，才能沿同一原 operation/摘要/target 重新准备；历史 committed 与当前 Tenant
+业务资格分别查询。租户 closing/closed 后原创建只认回历史结果，不赋予当前访问。
 
 writer 的 `committed`、coordinator completion 与 publication 状态是三个不同事实。writer
 完成耐久后，coordinator 必须在另一短门按 seq 提升全部 owner 的 durable 根。原 coordinator

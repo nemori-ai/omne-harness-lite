@@ -6,6 +6,9 @@ D-008/D-015 仅作 provenance；本坐标保持 candidate、`acceptance:null`。
 
 本能力拥有 append/read/recovery/ordering/unknown 与 writer 生命周期。业务状态解释归
 对应能力，共同准入及提交后的后果交接归 `composition.core-work-coordination@1`。
+本候选 personal creation 分支消费同 baseline 的 [CC-03/05/06](../../../compositions/core-work-coordination/v1/contract.md)
+所颁发的一笔资格；[TG-01](../../../capabilities/tenant-governance/v1/contract.md) 拥有业务事实，
+本能力不凭记录内容自授许可。
 
 ## 耐久记录能力
 
@@ -38,32 +41,45 @@ flatten 后的批内位置。prepare 阶段只能使用不冒充 `eventId` 的�
 update，不能逐事实去重。业务状态转移由所属能力校验和解释；存储只维护批次、顺序、完整性、
 独占写入和去重，不调用任意用户插件判定权限或推断事件含义。
 
-普通操作的每条 stream scope 必须与 operation tenant 一致。首版只允许受信装配给
-Tenant bootstrap owner 颁发一次绑定于**精确原始操作与冻结输入**的窄写入能力：
-该操作 tenant 为 null，在同一协调域的一次原子批中只可写两条固定的 Tenant system
-stream（`tenant-bootstrap`、`tenant-personal-index`）及一条新租户的
-`tenant:<tenantId>` tenant stream；后者的 streamId 必须等于
-`tenant:` 加其 scope tenantId，两个 identity 的 tenantId 必须严格相同。
-受信能力不能由提交者填写 `operationKind`、`owner` 字符串或反序列化任意 envelope
-取得；存储只验证能力绑定、stream 形状、身份、CAS、写者代际、唯一排序和重放一致性，
-不读取业务记录以判断个人租户、owner 或首次创建。Tenant owner 负责这些业务事实，
-共同准入门负责当前资格与相同批次。除这一个绑定外，null-tenant 的 tenant 流、跨租户
-混写与任意系统流继续拒绝。持久化操作结果若为 conflict，只写普通 system
-`operation-outcomes`；`conflict.currents` 仍只列**实际修订不匹配**的 stream，
-可包含原绑定目标 tenant stream，但不能为了持久化目标而伪造一条未冲突的 current。
-受信 writer 在该例外的 conflict outcome 与同一 `operation.conflict` 记录中额外
-保存必需的 `bootstrapTargetTenantId: OpaqueId`，与本次不可伪造的目标绑定严格
-相等；成功目标由唯一 tenant append 的 scope/streamId 得出。编码归属固定为
-`core-journal/2` envelope（该例外的成功与冲突都使用 v2）：仅此类冲突的 outcome 是
-`{status:"conflict", conflict:RevisionConflict, bootstrapTargetTenantId:OpaqueId}`，
-唯一 provider-owned system `operation.conflict` 记录使用 version `2`，其 data 是
-`{conflict:RevisionConflict, bootstrapTargetTenantId:OpaqueId}`，二者须逐字段一致。
-普通冲突仍无该字段，`currents` 仍仅实际 mismatch。该例外禁止写入旧
-`core-journal/1`；新 writer 可读取已有 v1 完整前缀，但不能把旧记录当成曾经接受
-该例外。v2 的 canonical 编码/摘要及其严格 v1/v2 解码归 Records codec 与 JSONL
-writer/replay；不得就地重新解释已写 v1 字节或接受额外字段。
-lookup 和恢复沿原 operationRef、冻结输入、历史目标及受限流形状检查引用，
-异输入不认回；历史关联只用于核对原结果，不能重新颁发运行时写入能力。
+普通操作的每条 stream scope 必须与 operation tenant 一致。唯一受限混合流例外是
+Tenant personal creation 的**一笔冻结原操作**，由受信装配在当前代颁发不可伪造的
+单次资格。资格绑定来源 `deployment_init | account_registration`、原 operationRef、
+冻结输入摘要、`UserRef`、personal target tenantId、精确协调域、精确 expected revisions、
+Tenant owner/Admission host generation 与 writer epoch。`deployment_init` 的 appends
+集合恰为 system `tenant-bootstrap`、system `tenant-personal-index`、tenant
+`tenant:<target>` 三条；`account_registration` 恰为后两条。唯一 tenant append 的
+scope tenantId 与 streamId 必须严格等于绑定 target；不得添加其他 system/tenant
+stream、改变集合、跨域使用或拆成多次 commit。每流一个 append，仍按版本化 canonical
+`StreamRef` 升序；一个流内多个 facts 只推进一次 revision。
+
+来源是受信颁发者的封闭变体，不是提交者提供的 `operationKind`、`origin`、`owner`、
+`UserRef` 字符串或反序列化 envelope；旧代资格不能被恢复扫描或历史结果重新铸造。
+存储验证资格绑定、精确流形状、tenant/target 身份、expected revisions、CAS、writer
+代际、唯一排序和结果一致性；不读业务事实来判断 Account 授权、唯一 claim、creator
+或 owner。那些关系及当前准入归 Tenant 与 CC；未得到它们颁发的有效绑定时返回
+rejected/unavailable，不开放泛用 null-tenant 混写。
+
+该例外的 durable conflict 只写 provider-owned system `operation-outcomes`。即使只有
+`tenant-personal-index` revision 冲突，outcome 和同一 `operation.conflict` fact 也必须
+保存原绑定的 `personalTargetTenantId: OpaqueId`、来源、原 operationRef、输入摘要及
+`UserRef`；两者逐字段一致，target 等于不可伪造资格绑定。`conflict.currents` 仅列
+实际不匹配的 stream，不为保留 target 伪造 tenant current。committed 的 target 则
+由唯一 tenant append 的 scope/streamId 与绑定核对。相同 operationRef、摘要、来源、
+`UserRef` 和 target 的 lookup/replay 才能认回原结果；同键异输入仅在仍有逻辑占位或
+耐久 outcome 可核实时冲突。暂时 `not_seen` 不证明未提交，不能换 target 或换键重写。
+
+新混合操作使用严格 `core-journal/3` envelope；其 personal creation conflict outcome
+形状为 `{status:"conflict", conflict:RevisionConflict, personalTargetTenantId:OpaqueId,
+source, operationRef, inputDigest, userRef}`，其中 `source` 恰为上述两个封闭枚举值，
+其余身份字段必须与操作及资格逐字段相等。唯一 provider-owned `operation.conflict`
+fact 使用 version `3`，data 恰为 `{conflict, personalTargetTenantId, source,
+operationRef, inputDigest, userRef}`。普通 conflict 不接受这些扩展字段。
+Records codec 与 JSONL writer/replay 须固定 v3 canonical 字节、摘要、必填与禁填字段，
+严格按记录版本解码、验证完整前缀与上述跨字段关系。旧候选
+`core-journal/1`、`/2` 不获此协议的读取或继续写入兼容承诺；发现存量字节时先
+保全原件，拒绝按 v3 可写恢复，另作显式处置。不能把旧专属 target 字段重释成
+v3 字段，亦不能从历史记录推导新代写入资格。未知格式、额外字段或不一致的
+outcome/fact/binding 同样阻断可写恢复。provider 验收须清点实际存量。
 
 **DR-02**：`commit` 结果区分：`committed(receipt)`、`conflict(currentRevision)`、
 `rejected(reason)`、`unavailable`、`unknown(operationRef)`。只有实际耐久确认后

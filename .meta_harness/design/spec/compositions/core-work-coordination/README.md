@@ -5,6 +5,7 @@
 - 精确条款：CC-01～CC-07
 - 责任：跨能力准入、原子提交、耐久后果、恢复和取消/补偿边界。
 - 提供者：[coordination-admission](../../../providers/coordination-admission/README.md)
+- 个人租户创建候选：CC-03/05 将 Account 原始后果受信导入后，以同一短门协议服务 init 与注册；封闭流形状见 [DR-01](../../capabilities/durable-records/v1/contract.md)。
 
 ## 准入与阅读
 

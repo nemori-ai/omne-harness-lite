@@ -6,6 +6,11 @@ legacy `composition.core-work-coordination@2` 重基，保留 CC-01～CC-07 及�
 
 本组合拥有跨能力准入、原子接受/拒绝、提交后事实广播、跨域回执以及取消/补偿边界；
 它不取得各业务状态权威，也不把通知、日志或多个独立写入称作共同提交。
+personal creation 候选分支依赖同 baseline 的 [DR-01](../../../capabilities/durable-records/v1/contract.md)、
+[TG-01/03](../../../capabilities/tenant-governance/v1/contract.md)、
+[AI-01/02/04/05](../../../capabilities/account-identity/v1/contract.md) 与
+[ACR-03～06](../../account-registration/v1/contract.md)。两个受信入口共享一套创建提交机制，
+但 Account 身份/凭据、Tenant claim/owner 与 Records 批次仍各有权威。
 
 ## 单机共同提交的实现约束
 
@@ -41,16 +46,36 @@ isValid，再在它们可能变化之后写入"已准入"。
 必须使用精确取消／执行权撤销；不得将普通撤权重解释为强停。授权增加仅在其
 耐久确认后可用。仅异步准备而尚未获得逻辑位置的操作不算准入。
 
-Tenant 首次个人租户 bootstrap 在此共同门中以受信宿主颁发的精确原始操作绑定取得
-受限 system/tenant 混合流写入资格；门内核对 Tenant 初始化前态与唯一 claim，不能由
-业务填入的 owner 或 operationKind 字符串授予。绑定仅允许该原操作的一份共同批次，
-不能复用于另一输入、租户或操作。该批次逻辑排位只封闭竞争初始化；成员新增与
-管理权限等正向资格必须等完整耐久前缀及 owner publication ready 后才可供随后
-操作准入。失败、unknown、publication blocked 不得读取逻辑态当作正向授权。
-相同原操作重试须先认回该操作已排位的目标与状态，不能因 `not_seen` 或重启
-重新生成目标；未核实写入不解除占位。只有按 CC-03 核实旧 writer 完整前缀及
-原操作未提交，才能取消原占位并重新准备。有占位或耐久 outcome 时异输入
-按原操作身份冲突；已证明未提交且释放占位后不虚构一个仍存在的旧输入记录。
+Tenant personal creation 使用同一逻辑排位、提交、lookup 与恢复机制。受信装配只
+提供两种封闭来源：首次 `deployment_init` 核 Tenant 初始化权威前态、受信 seed 与
+独占初始化资格；后续 `account_registration` 核 CC-05 已耐久导入的 Account
+原始后果，其稳定来源身份、原注册操作、摘要、`UserRef`、personal target 与
+一次创建授权必须逐项匹配。旧 session、客户端 `UserRef`、`origin`、`owner` 或
+`operationKind` 字符串不能授予资格。较早 pending 分配或凭据碰撞不构成来源后果。
+Account 注册入口关闭、logout、pending 后来变 active、provider 暂时失联或换代不撤销
+已成立的耐久授权；首版没有取消注册或关闭账号后撤销未排位创建的操作。若未来
+增加撤销，须另定跨 owner 排位顺序与屏障，不能追溯改写已准入位置。
+
+两种来源均在原操作首次逻辑排位前冻结输入和 target。已存在同 operation/input 的
+占位或耐久结果先认回原 target/status，不重跑首次前态；有可核实占位或耐久 outcome
+时同键异输入冲突。首次新排位的短门只读已耐久导入的来源事实和 Tenant/Admission
+当前 roots，执行纯检查：init 的未初始化与 claim，或 registration 的精确来源授权、
+同 `UserRef`/target 的唯一 claim 与目标 head，并核对当前 host/owner/writer generations。
+不得在门内等待 Account provider I/O、使用 TTL 缓存或把未耐久交付当成授权；
+未导入、来源未核实或无法证明同代根时，新操作 unavailable/unknown。门内成功才
+颁发 `capability.durable-records@1` DR-01 的单次封闭混合写资格：registration
+恰为 personal-index system 与目标 tenant 二流；init 另含 bootstrap system 三流。
+绑定原操作、摘要、来源、`UserRef`、target、精确流集合/expected revisions 和
+Admission/Tenant/writer 代际，不能复用于别的输入、流、代际或 commit。
+
+逻辑占位只封闭 user/target/初始化竞争，不能当作新成员、账号激活或管理资格。
+claim、personal tenant、creator 和唯一有效 owner 须在同一 durable 批次成立；
+完整耐久前缀及 owner publication 可消费后才有创建回执。写入 unknown 不释放占位；
+暂时 `not_seen` 不证明未提交。只有旧 writer 的完整前缀被核实、原操作确实未提交，
+且占位安全解除，才能沿同一原操作/摘要/target 重备。释放后不得虚构旧输入仍有
+durable conflict。历史 committed 结果只证明创建发生；租户 closing/closed 时同操作
+仍认回历史结果，但当前业务资格由 Tenant 再核。首版不开放同 `UserRef` 的另一新
+个人创建操作；未来是否允许须另定政策。
 
 写入失败使受影响协调域待核实，未确认位置不能执行，后续位置不能越过缺口。
 崩溃恢复在独占 writer 下解释连续、完整、校验有效的 envelope 前缀，包括
@@ -73,6 +98,18 @@ unavailable，不能把 TTL 缓存当作"当前授权"。
 查原目标操作；目标拒绝、失联、待重试和已接纳分别可见。源不因发送了通知便
 丢弃责任；目标不能从重复通知生成第二份 Run／工具／决定。此协议只保证事实
 交付与去重，不保证任意外部副作用恰好发生一次。
+
+Account→Tenant personal creation 的源后果必须由 Account 在凭据唯一绑定、稳定
+`UserRef`、原注册 operation/摘要和 personal target 均耐久后一次发出，稳定 source fact
+identity 绑定上述字段与 schema/version。受信 CC 接收者在门外向 Account 权威核验
+来源、版本、签发权与完整绑定，然后以 source fact identity 在目标协调域耐久导入；
+重复交付返回同一接纳结果，错字段/错版本拒绝，响应丢失按原 identity 查接纳结果。
+导入事实只是 Account 授权的不可变投影，不是第二个 Account 权威或账号 active 证明。
+未核实或未耐久导入时 Tenant 新排位不可用；已导入后 Account 暂时不可达不抹去
+该授权，账号 active 仍须 Account 自身后续耐久确认。旧接收者、Admission/host
+或 writer generation 不得拿历史导入事实直接写入新代；新代须经 CC-06 完整基线
+安装后在当前根中核验它。源与目标两次提交没有跨协调域原子性，pending/unknown
+时 Account 交付方与注册协调者保留查询、重试和可观察责任。
 
 **CC-06**：恢复读取 Session、队列、Run、请求、调用、预算、媒体引用和装配意图
 的已提交事实，核对格式/契约、定义/实现版本、环境能力和当前权限，再取得新的
