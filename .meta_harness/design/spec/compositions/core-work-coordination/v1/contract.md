@@ -8,7 +8,7 @@ legacy `composition.core-work-coordination@2` 重基，保留 CC-01～CC-07 及�
 它不取得各业务状态权威，也不把通知、日志或多个独立写入称作共同提交。
 personal creation 候选分支依赖同 baseline 的 [DR-01](../../../capabilities/durable-records/v1/contract.md)、
 [TG-01/03](../../../capabilities/tenant-governance/v1/contract.md)、
-[AI-01/02/02a/04/05](../../../capabilities/account-identity/v1/contract.md) 与
+[AI-01/02/02a/04/05/08](../../../capabilities/account-identity/v1/contract.md) 与
 [ACR-03～06](../../account-registration/v1/contract.md)。两个受信入口共享一套创建提交机制，
 但 Account 身份/凭据、Tenant claim/owner 与 Records 批次仍各有权威。
 

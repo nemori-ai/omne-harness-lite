@@ -17,7 +17,7 @@
 | unknown 和重启认回原批次 | 完整前缀由独占 writer 核实；仅在旧 writer 未提交、所有占位安全解除后用同操作/输入/target 重备。暂时 `not_seen`、坏前缀或 writer 未隔离均保持 unknown/blocked。 |
 | 历史完成与当前资格分离 | committed 后 publication blocked 的历史 completion 保持 blocked；CC-06 受信恢复宿主一次安装全部 owner roots，本代查询另给覆盖原位置的可消费证明。已 closing/closed 的旧租户只认回历史创建，当前 TG-03 仍拒绝业务。 |
 
-`init` 的新操作必须证明 Tenant 权威尚未建立、受信 seed 与独占初始化资格；target 由受信 Tenant 初始化准备者首次分配，在排位前固定。注册的新操作使用 Account 在凭据唯一绑定耐久确认后产生的**不可撤销一次创建后果**，绑定同一 `registrationOperation`、摘要、`UserRef` 和 target；较早的 pending 身份不自带此授权。候选以 CC-05 从受信来源核实并耐久导入该后果，短门只纯检查已可消费的导入事实、Tenant 当前 claim/target 与运行代际，不再查询 Account 当下是否 pending。Account 后来 active、logout 或换代不撤销历史授权；旧实例的写入权仍由代际隔离。**可信导入、代际隔离和真实提供者符合性尚未闭合，继续阻断实施。** 进程缓存、TTL 或客户端字段不能代替权威证明。已有操作认回只核历史绑定和结果，不重跑首次前态，否则已 active 账号或已初始化部署会错误拒绝历史结果。
+`init` 的新操作必须证明 Tenant 权威尚未建立、受信 seed 与独占初始化资格；两种来源的 target 均由 Tenant 定义的注入式、域分离规则从账号权威命名空间、入口种类和原操作 ID 确定；Account 首次耐久原操作绑定 target，无额外易丢失的准备者分配。注册的新操作使用 Account 在凭据唯一绑定耐久确认后产生的**不可撤销一次创建后果**，绑定同一 `registrationOperation`、摘要、`UserRef` 和 target；较早的 pending 身份不自带此授权。候选以 CC-05 从受信来源核实并耐久导入该后果，短门只纯检查已可消费的导入事实、Tenant 当前 claim/target 与运行代际，不再查询 Account 当下是否 pending。Account 后来 active、logout 或换代不撤销历史授权；旧实例的写入权仍由代际隔离。**可信导入、代际隔离和真实提供者符合性尚未闭合，继续阻断实施。** 进程缓存、TTL 或客户端字段不能代替权威证明。已有操作认回只核历史绑定和结果，不重跑首次前态，否则已 active 账号或已初始化部署会错误拒绝历史结果。
 
 ## 受限混合批次和跨 owner 交接
 

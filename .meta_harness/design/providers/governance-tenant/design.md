@@ -40,9 +40,11 @@ unavailable，不能以旧创建回执或 TTL 缓存放行。
 operationRef 查询占位与耐久结果；同输入重入沿原 target，不重新分配，也不重跑
 首次 init/pending 前态。部署入口只由受信 Host 安装资格取得 seed 与当前初始化前态，
 还须核 Account 已耐久分配且不复用的初始 `UserRef`、唯一凭据绑定、一次创建后果
-与 seed/target 的受信绑定；seed 字符串本身不能生成 `UserRef`。初始 target 在
-Account 后果耐久化前由受信准备者固定，unknown 与重启时沿 Account/CC 前置原
-操作认回，不靠本机缓存再分配。两个入口均只读取 CC-05 已核实并**耐久导入**的
+与 seed/target 的受信绑定；seed 字符串本身不能生成 `UserRef`。两种来源的 target
+按 TG-01 的注入式、域分离规则由账号权威命名空间、入口种类和原操作 ID 确定，
+并由 Account 首次耐久原操作绑定；其提交 unknown 时先核实，确认未提交才按
+同输入重备。本机缓存不构成 target 冻结事实。两个入口均只读取 CC-05 已核实
+并**耐久导入**的
 Account 原始后果，核对 source identity/version、原操作、摘要、`UserRef`、target
 及凭据标识唯一绑定已成立；目标沿来源事实固定。较早的 pending 分配、凭据碰撞、
 未核实/未耐久导入均不得创建。短门读导入事实与 Tenant/Admission 当前根的确切
@@ -56,8 +58,8 @@ Account 暂时不可用不撤销已导入后果，旧 provider/协调者实例�
 `UserRef`、target、精确 stream 集合/预期修订、Tenant Host 与本代 Admission/writer；
 init 为 system `tenant-bootstrap` + system `tenant-personal-index` + 目标
 `tenant:<tenantId>` 三流，注册仅后两流。后者仍属目标租户，不能改记 system；
-`operationKind`/owner 字符串和反序列化 envelope 不可取得凭据。若 prepare API 先于
-target 分配，须调整顺序或做受信原子绑定；不能先发无目标的跨 scope 许可。当前
+`operationKind`/owner 字符串和反序列化 envelope 不可取得凭据。准备资格必须核对
+Account 后果已耐久绑定 target；不能先发无目标的跨 scope 许可。当前
 DR-01/CC-03 候选已声明统一封闭许可及 conflict target 持久表示；真实
 writer/Admission/TenantHost 尚无符合性证据，注册入口保持 unavailable，不能
 拿旧 bootstrap 诊断字段或历史记录当作新代资格。
