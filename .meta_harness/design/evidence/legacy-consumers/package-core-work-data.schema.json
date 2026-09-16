@@ -1,0 +1,1071 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omne-harness-lite.invalid/spec/data/core-work/v1/schema.json",
+  "title": "Core work identity, immutable action and content v1",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/Action"
+    },
+    {
+      "$ref": "#/$defs/Input"
+    },
+    {
+      "$ref": "#/$defs/Decision"
+    },
+    {
+      "$ref": "#/$defs/ContentBlock"
+    },
+    {
+      "$ref": "#/$defs/Money"
+    },
+    {
+      "$ref": "#/$defs/MediaMetadata"
+    },
+    {
+      "$ref": "#/$defs/ToolDefinition"
+    }
+  ],
+  "$defs": {
+    "UserRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "userId"
+      ],
+      "properties": {
+        "userId": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        }
+      }
+    },
+    "MembershipRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenantId",
+        "userId"
+      ],
+      "properties": {
+        "tenantId": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        },
+        "userId": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        }
+      }
+    },
+    "DefinitionRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ownerTenantId",
+        "definitionId"
+      ],
+      "properties": {
+        "ownerTenantId": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        },
+        "definitionId": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        }
+      }
+    },
+    "DefinitionVersion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "definition",
+        "version"
+      ],
+      "properties": {
+        "definition": {
+          "$ref": "#/$defs/DefinitionRef"
+        },
+        "version": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        }
+      }
+    },
+    "SessionRef": {
+      "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/SessionRef"
+    },
+    "RunRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session",
+        "runId"
+      ],
+      "properties": {
+        "session": {
+          "$ref": "#/$defs/SessionRef"
+        },
+        "runId": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        }
+      }
+    },
+    "StepRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run",
+        "stepId"
+      ],
+      "properties": {
+        "run": {
+          "$ref": "#/$defs/RunRef"
+        },
+        "stepId": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        }
+      }
+    },
+    "WorkRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenantId",
+        "workId"
+      ],
+      "properties": {
+        "tenantId": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        },
+        "workId": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        }
+      }
+    },
+    "WorkOwner": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/StepRef"
+        },
+        {
+          "$ref": "#/$defs/WorkRef"
+        }
+      ]
+    },
+    "MediaRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenantId",
+        "mediaId"
+      ],
+      "properties": {
+        "tenantId": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        },
+        "mediaId": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        }
+      }
+    },
+    "MediaMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "media",
+        "sha256",
+        "byteLength",
+        "mimeType"
+      ],
+      "properties": {
+        "media": {
+          "$ref": "#/$defs/MediaRef"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "byteLength": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "mimeType": {
+          "type": "string",
+          "minLength": 1
+        },
+        "filename": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "ResourceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenantId",
+        "kind",
+        "resourceId",
+        "version"
+      ],
+      "properties": {
+        "tenantId": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        },
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "resourceId": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        },
+        "version": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        }
+      }
+    },
+    "SecretRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "tenantId",
+        "secretId",
+        "version"
+      ],
+      "properties": {
+        "kind": {
+          "const": "secret_version"
+        },
+        "tenantId": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        },
+        "secretId": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        },
+        "version": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        }
+      }
+    },
+    "Binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "implementationId",
+        "generation",
+        "configurationRevision",
+        "environment",
+        "parserVersion"
+      ],
+      "properties": {
+        "implementationId": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        },
+        "generation": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        },
+        "configurationRevision": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        },
+        "environment": {
+          "$ref": "#/$defs/ResourceRef"
+        },
+        "parserVersion": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        }
+      }
+    },
+    "Action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenantId",
+        "callId",
+        "attemptId",
+        "owner",
+        "definition",
+        "toolKey",
+        "commandKey",
+        "declarationVersion",
+        "binding",
+        "params",
+        "resources",
+        "permissions",
+        "confirmation",
+        "grantorKinds",
+        "impact"
+      ],
+      "properties": {
+        "tenantId": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        },
+        "callId": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        },
+        "attemptId": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        },
+        "owner": {
+          "$ref": "#/$defs/WorkOwner"
+        },
+        "definition": {
+          "$ref": "#/$defs/DefinitionVersion"
+        },
+        "toolKey": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        },
+        "commandKey": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        },
+        "declarationVersion": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        },
+        "binding": {
+          "$ref": "#/$defs/Binding"
+        },
+        "params": {
+          "type": "object"
+        },
+        "resources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ResourceRef"
+          },
+          "minItems": 0
+        },
+        "permissions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 0
+        },
+        "confirmation": {
+          "enum": [
+            "none",
+            "before_effect",
+            "provisional"
+          ]
+        },
+        "grantorKinds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 0
+        },
+        "impact": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provisionalContract": {
+          "$ref": "#/$defs/ResourceRef"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "confirmation": {
+                "const": "provisional"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "provisionalContract"
+            ]
+          }
+        }
+      ]
+    },
+    "CallRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner",
+        "callId",
+        "attemptId"
+      ],
+      "properties": {
+        "owner": {
+          "$ref": "#/$defs/WorkOwner"
+        },
+        "callId": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        },
+        "attemptId": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        }
+      }
+    },
+    "RequestRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenantId",
+        "requestId"
+      ],
+      "properties": {
+        "tenantId": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        },
+        "requestId": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        }
+      }
+    },
+    "Money": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "integer",
+        "scale",
+        "currency"
+      ],
+      "properties": {
+        "integer": {
+          "type": "string",
+          "pattern": "^-?(0|[1-9][0-9]*)$"
+        },
+        "scale": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "currency": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "OperationRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "namespace",
+        "principalId",
+        "operationId"
+      ],
+      "properties": {
+        "namespace": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        },
+        "principalId": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        },
+        "operationId": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        }
+      }
+    },
+    "Decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "request",
+        "contentVersion",
+        "outcomeVersion",
+        "actor",
+        "outcome"
+      ],
+      "properties": {
+        "request": {
+          "$ref": "#/$defs/RequestRef"
+        },
+        "contentVersion": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        },
+        "outcomeVersion": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        },
+        "actor": {
+          "$ref": "#/$defs/UserRef"
+        },
+        "outcome": {
+          "enum": [
+            "answer",
+            "approve",
+            "reject"
+          ]
+        },
+        "answer": {}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "answer"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "answer"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "answer"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "Input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session",
+        "inputId",
+        "revision",
+        "content",
+        "busyBehavior",
+        "literal"
+      ],
+      "properties": {
+        "session": {
+          "$ref": "#/$defs/SessionRef"
+        },
+        "inputId": {
+          "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/InputBlock"
+          },
+          "minItems": 0
+        },
+        "busyBehavior": {
+          "enum": [
+            "queue",
+            "interrupt_then_run"
+          ]
+        },
+        "literal": {
+          "type": "boolean"
+        }
+      }
+    },
+    "ContentBlock": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "blockId",
+            "kind",
+            "text"
+          ],
+          "properties": {
+            "blockId": {
+              "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+            },
+            "kind": {
+              "const": "text"
+            },
+            "text": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "blockId",
+            "kind",
+            "media",
+            "delivery"
+          ],
+          "properties": {
+            "blockId": {
+              "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+            },
+            "kind": {
+              "const": "image"
+            },
+            "media": {
+              "$ref": "#/$defs/MediaRef"
+            },
+            "delivery": {
+              "enum": [
+                "model_native",
+                "agent_attachment"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "blockId",
+            "kind",
+            "media",
+            "delivery"
+          ],
+          "properties": {
+            "blockId": {
+              "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+            },
+            "kind": {
+              "const": "audio"
+            },
+            "media": {
+              "$ref": "#/$defs/MediaRef"
+            },
+            "delivery": {
+              "enum": [
+                "model_native",
+                "agent_attachment"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "blockId",
+            "kind",
+            "media",
+            "delivery"
+          ],
+          "properties": {
+            "blockId": {
+              "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+            },
+            "kind": {
+              "const": "video"
+            },
+            "media": {
+              "$ref": "#/$defs/MediaRef"
+            },
+            "delivery": {
+              "enum": [
+                "model_native",
+                "agent_attachment"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "blockId",
+            "kind",
+            "media",
+            "delivery"
+          ],
+          "properties": {
+            "blockId": {
+              "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+            },
+            "kind": {
+              "const": "file"
+            },
+            "media": {
+              "$ref": "#/$defs/MediaRef"
+            },
+            "delivery": {
+              "enum": [
+                "model_native",
+                "agent_attachment"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "blockId",
+            "kind",
+            "call",
+            "action"
+          ],
+          "properties": {
+            "blockId": {
+              "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+            },
+            "kind": {
+              "const": "tool_call"
+            },
+            "call": {
+              "$ref": "#/$defs/CallRef"
+            },
+            "action": {
+              "$ref": "#/$defs/Action"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "blockId",
+            "kind",
+            "call",
+            "outcome",
+            "value"
+          ],
+          "properties": {
+            "blockId": {
+              "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+            },
+            "kind": {
+              "const": "tool_result"
+            },
+            "call": {
+              "$ref": "#/$defs/CallRef"
+            },
+            "outcome": {
+              "enum": [
+                "succeeded",
+                "failed",
+                "denied_before_execution",
+                "cancelled_before_execution",
+                "interrupted",
+                "unknown"
+              ]
+            },
+            "value": {}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "blockId",
+            "kind",
+            "call",
+            "request",
+            "continuationId",
+            "status"
+          ],
+          "properties": {
+            "blockId": {
+              "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+            },
+            "kind": {
+              "const": "deferred_receipt"
+            },
+            "call": {
+              "$ref": "#/$defs/CallRef"
+            },
+            "request": {
+              "$ref": "#/$defs/RequestRef"
+            },
+            "continuationId": {
+              "$ref": "https://omne-harness-lite.invalid/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+            },
+            "status": {
+              "const": "pending"
+            }
+          }
+        }
+      ]
+    },
+    "AuthorizationDeclaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "permissions",
+        "resourceResolver",
+        "confirmation",
+        "grantorKinds",
+        "impactTemplate"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "permissions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "resourceResolver": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "resolverId",
+            "version"
+          ],
+          "properties": {
+            "resolverId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "confirmation": {
+          "enum": [
+            "none",
+            "before_effect",
+            "provisional"
+          ]
+        },
+        "grantorKinds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "impactTemplate": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provisionalContract": {
+          "$ref": "#/$defs/ResourceRef"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "confirmation": {
+                "const": "provisional"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "provisionalContract"
+            ]
+          }
+        }
+      ]
+    },
+    "Command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commandKey",
+        "inputSchema",
+        "outputSchema",
+        "authorization",
+        "effect",
+        "cancellation",
+        "background",
+        "requiredSkills",
+        "environmentCapabilities"
+      ],
+      "properties": {
+        "commandKey": {
+          "type": "string",
+          "minLength": 1,
+          "not": {
+            "const": "help"
+          }
+        },
+        "inputSchema": {
+          "type": [
+            "object",
+            "boolean"
+          ]
+        },
+        "outputSchema": {
+          "type": [
+            "object",
+            "boolean"
+          ]
+        },
+        "authorization": {
+          "$ref": "#/$defs/AuthorizationDeclaration"
+        },
+        "effect": {
+          "enum": [
+            "read",
+            "write",
+            "external"
+          ]
+        },
+        "cancellation": {
+          "enum": [
+            "supported",
+            "unsupported"
+          ]
+        },
+        "background": {
+          "$ref": "#/$defs/BackgroundDeclaration"
+        },
+        "requiredSkills": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DefinitionVersion"
+          }
+        },
+        "environmentCapabilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "ToolDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "definition",
+        "toolKey",
+        "commands"
+      ],
+      "properties": {
+        "definition": {
+          "$ref": "#/$defs/DefinitionVersion"
+        },
+        "toolKey": {
+          "type": "string",
+          "minLength": 1
+        },
+        "commands": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Command"
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "BackgroundDeclaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "supported",
+            "unsupported"
+          ]
+        },
+        "executionOwnerProtocol": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "protocolId",
+            "version"
+          ],
+          "properties": {
+            "protocolId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "requiredResources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "reconnectProtocol": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "protocolId",
+            "version"
+          ],
+          "properties": {
+            "protocolId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "form": {
+          "const": "independent_execution"
+        },
+        "automatic": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "thresholdMs",
+            "stopMarginMs"
+          ],
+          "properties": {
+            "thresholdMs": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "stopMarginMs": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "supported"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "executionOwnerProtocol",
+              "requiredResources",
+              "reconnectProtocol",
+              "form"
+            ]
+          },
+          "else": {
+            "maxProperties": 1
+          }
+        }
+      ]
+    },
+    "InputBlock": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/ContentBlock"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "text",
+                "image",
+                "audio",
+                "video",
+                "file"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

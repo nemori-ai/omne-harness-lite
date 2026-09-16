@@ -1,6 +1,6 @@
 # 产品账号身份 v1
 
-本候选坐标为 `(omne-harness-lite-design-2026-09-15, capability.account-identity, 1)`，状态为 candidate；无 catalog 登记、接受或发布，不可作为已采用契约。来源是 [PF-026.C1–C5](../../../../requirements/product/PF-026-account-journey-and-isolation/requirements.md)、已批准的[提案 A](../../../../proposals/account-identity/design.md)及其接受范围 [D-016](../../../../decisions/account-identity/decision.md)。
+本候选坐标为 `(omne-harness-lite-design-2026-09-15, capability.account-identity, 1)`，已在 catalog 登记为 candidate，尚未作为整个坐标接受或发布。来源是 [PF-026.C1–C5](../../../../requirements/product/PF-026-account-journey-and-isolation/requirements.md)、已批准的[提案 A](../../../../proposals/account-identity/design.md)、[D-016](../../../../decisions/account-identity/decision.md)及接受其中 A→F、冲突和 init 语义的 [D-021](../../../../decisions/account-personal-local-creation/decision.md)。
 
 | 精确依赖坐标 | 消费条款 | 本契约的依赖关系 |
 |---|---|---|
