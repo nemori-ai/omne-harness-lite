@@ -26,11 +26,13 @@
 
 ## 操作与可观察结果
 
-**AI-04（开始/认回注册）**：`beginRegistration(registrationOpId, evidence)` 先由未定的注册准入政策裁决是否可启动；未获准时无新账号事实。获准时账号权威以稳定操作 ID 与必要输入绑定一次 `UserRef`、固定个人租户目标和 `pending_personal_scope`。相同操作和同一已绑定输入重试返回原身份/进展；同一操作异输入拒绝为冲突，不另分配身份；其他注册操作不能仅因被认为是同一现实人而合并。认证标识碰撞按尚待选择的认证政策给可辨拒绝，不借碰撞泄露他人账号。提交回执未知时返回 `pending/unknown` 及原操作查询入口；暂时查不到结果不能证明从未提交或释放原目标。注册准入、凭据收集、输入等价规则及凭据恢复未定，依赖它们的精确交互尚不可实施。
+**AI-04（开始/认回注册）**：`beginRegistration(registrationOpId, evidence)` 先查询是否已有与该原操作绑定的注册事实；同键同摘要只认回原身份/进展，同键异摘要冲突，不因当前新注册入口后来关闭而重新裁决已绑定操作。新操作按首版自助注册政策准入：能使用该部署的请求者无需邀请或管理员代建，但仍须通过输入校验与明确的滥用防护；暂时无法核验请求或资格时报告不可用，不伪造成功。获准后账号权威以稳定操作 ID 与规范输入绑定一次 `UserRef`、固定个人租户目标和 `pending_personal_scope`；其他操作不能仅因现实持有人相同而合并。认证标识碰撞若在分配前可确定，拒绝且不建身份；若分配后才发现，保留原 pending 身份和可诊断冲突，不换 `UserRef` 或静默另建账号。冲突报告不得泄露别人的账号详情。提交回执未知时返回 `pending/unknown` 及原操作查询入口；暂时查不到结果不能证明从未提交或释放原目标。密码采集、输入等价规则、具体滥用防护和凭据恢复仍须设计；这些细节不能变相引入邀请门。
 
-**AI-05（激活及注册查询）**：`confirmPersonalScope(registrationOpId, tenantProof)` 仅接受 Tenant/组合协调者的可信证明，逐项核对 AI-02 的绑定关系和可用水位；相同证明重试认回已激活结果，异目标或不完整证明拒绝且保持 pending。`registrationStatus(registrationOpId, authorizedEvidence)` 返回稳定身份、固定目标和 `pending_personal_scope | active | unknown` 中可安全披露的进展；查询者授权与信息裁剪随注册准入/认证方式定义。若 Tenant 结果 unknown，保持 pending 并由注册组合拥有核实/恢复责任；不能把 pending 伪称成功或用新 tenant 目标重试。注册成功仅在 `active` 可被再读核实时对用户确认。
+**AI-05（激活及注册查询）**：`confirmPersonalScope(registrationOpId, tenantProof)` 仅接受 Tenant/组合协调者的可信证明，逐项核对 AI-02 的绑定关系和可用水位；相同证明重试认回已激活结果，异目标或不完整证明拒绝且保持 pending。`registrationStatus(registrationOpId, authorizedEvidence)` 在权威已核实原操作绑定时可安全披露稳定身份、固定目标和 `pending_personal_scope | active`；尚不能确认原操作是否提交时只返回 `unknown` 与接续方式，不构造或泄露未核实的 `UserRef`/tenant target。查询的授权证据和内容裁剪由本能力绑定原操作，不因开放注册就允许按任意 operation ID 枚举账号。若 Tenant 结果 unknown，已确认的账号保持 pending 并由注册组合拥有核实/恢复责任；不能把 pending 伪称成功或用新 tenant 目标重试。注册成功仅在 `active` 可被再读核实时对用户确认。
 
-**AI-06（登录、验证和退出）**：`login(authenticationEvidence)` 由采用的成熟 provider 验证凭据，账号权威将结果映射至固定 `UserRef`，建立可核实且有过期规则的登录会话。`active` 账号可在后续业务门复核后使用；`pending_personal_scope` 账号至多得到注册查询/恢复专用会话，不得以此准入个人或组织业务。失败、未决或过期凭据不产生可用会话。`validateSession(sessionCredential, operation)` 以当前权威状态返回 `valid{UserRef, sessionRef, allowedClass}` 或不可用于授权的结果；`allowedClass` 至少区分 `registration_only` 与 `business_eligible`，后者仍不含 Tenant 成员证明。`logoutCurrent(sessionRef, authorizedCurrentSession)` 仅针对调用者当前登录态，撤销该会话并在**同一登录态对所有后续新保护交互不可再通过验证**时返回成功；从别的进程重放旧 token/cookie 也须拒绝。撤销提交或核实结果未知时返回 `pending/unknown`，本地 CLI 必须封闭该槽继续使用并保留原会话的核实/重试入口，不能报告成功。相同撤销操作重试认回已撤销结果；已撤销会话不会复活。其他独立会话是否也撤销尚待多端范围选择；已在途工作及其外部效果由各自 owner 结算，不由 logout 追溯撤销。
+**AI-06（登录、验证和退出）**：首版 `login(accountIdentifier, password)` 由采用的成熟 provider 验证账号密码；账号标识符是邮箱、用户名还是其它形式仍待选择，账号权威将结果映射至固定 `UserRef`，建立可核实、可撤销且有过期规则的登录会话；密码原文不得进入一般业务记录或跨能力持久数据。`active` 账号可在后续业务门复核后使用；`pending_personal_scope` 账号至多得到注册查询/恢复专用会话，不得以此准入个人或组织业务。失败、未决或过期凭据不产生可用会话。`validateSession(sessionCredential, operation)` 以当前权威状态返回 `valid{UserRef, sessionRef, allowedClass}` 或不可用于授权的结果；`allowedClass` 至少区分 `registration_only` 与 `business_eligible`，后者仍不含 Tenant 成员证明。
+
+`logoutCurrent(sessionRef, logoutOpId, authorizedCurrentSession)` 首次受理时验证调用者当前会话，把受信会话身份、稳定原操作 ID 与输入摘要绑定，然后只撤销这一登录态；重复同键同输入先认回原结果，同键异输入冲突。客户端须在提交前保存仅能查询**本次退出结果**的随机认回证明；它和 `logoutOpId` 都不是业务授权凭据。会话撤销后，`logoutStatus(logoutOpId, recoveryProof)` 只返回原撤销的已核实成功、未完成或 unknown，不要求已撤销会话重新取得业务授权，也不泄露账号资料。仅在**同一登录态对所有后续新保护交互不可再通过验证**时返回退出成功；从别的进程重放旧 token/cookie 也须拒绝。撤销提交或核实结果未知时返回 `pending/unknown`，本地 CLI 封闭该槽继续使用并保留原操作的状态查询，不得报告成功。若原操作是否受理仍不可核实，查询只给 unknown，不从会话恰好失效反推该次退出已成功。已撤销会话不会复活。其他独立会话是否也撤销尚待多端范围选择；已在途工作及其外部效果由各自 owner 结算，不由 logout 追溯撤销。
 
 **AI-07（切换与重启）**：选中哪个本地账号或目标组织属于 CLI 装配的交互状态，不改变账号、会话、Tenant 或既有 Session 的历史身份。应用切换槽位时必须重新验证所选会话，并清除/重键此前账号的设置、偏好和缓存；不能以当前目录、OS 用户或同盘文件位置推导新账号资格。账号及会话权威记录在进程重启后提供与重启前相同的有效性、过期/撤销和注册状态判断；失去核实能力时拒绝业务准入，不能由进程内缓存推断有效。未来本地 skills/settings 的物理 locator 由资源 owner/装配设计，不在本契约指定。
 
@@ -44,4 +46,4 @@
 
 [规范场景](scenarios.md)给出正常、冲突、未知及重启反例。账号自身身份与会话状态需要故障/符合性证据；注册跨 owner 原子或恢复性质、账号+Tenant 资源准入及会话撤销对 CLI 的整体保证应由独立 composition 及必要的 TLA+ 模型表达，不能用本包单方场景声称已证明。实际覆盖记录见[版本外验证](../verification.md)。
 
-产品尚未选开放/邀请/管理员注册准入、首版认证形式与恢复、多端会话和退出作用域；本候选没有把其中任一选择写成默认值。提供者版本、凭据存储、CLI 通道、磁盘布局和 Cordis 服务键属于后续设计。此为新候选 v1，没有旧采用版本可自动升级，接受和发布须更新唯一 catalog、依赖及冻结记录。
+产品已选择首版自助注册、账号密码与可撤销会话，退出只作用于当前登录态；密码重置/账号恢复、多端会话范围、期限和具体滥用防护仍未决定。提供者版本、凭据存储、CLI 通道、磁盘布局和 Cordis 服务键属于后续设计。此为新候选 v1，没有旧采用版本可自动升级，接受和发布须更新唯一 catalog、依赖及冻结记录。
