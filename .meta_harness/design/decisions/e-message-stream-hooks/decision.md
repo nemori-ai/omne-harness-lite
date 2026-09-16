@@ -20,7 +20,7 @@
 
 ## 理由、取代与下游
 
-这些变化为重复传输、不完整结算、活跃订阅切换、源失联、通知投影、关闭上下文及 Stop 上限选择单一可恢复的权威依据。E 的独立评审与有限形式模型是设计证据，覆盖和限制仍以对应[消息流验证](../../spec/capabilities/message-stream/v1/verification.md)及[Hooks 验证](../../spec/capabilities/external-hooks/v1/verification.md)为准；模型检查不是用户接受，也不证明真实提供者符合。
+这些变化为重复传输、不完整结算、活跃订阅切换、源失联、通知投影、关闭上下文及 Stop 上限选择单一可恢复的权威依据。E 的独立评审与有限形式模型是设计证据，覆盖和限制仍以[消息流形式模型说明](../../spec/capabilities/message-stream/v1/formal/README.md)及[Hooks 场景](../../spec/capabilities/external-hooks/v1/scenarios.md)为准；模型检查不是用户接受，也不证明真实提供者符合。
 
 本决定只在上表明确范围内取代旧 E 已批准契约中相冲突的可观察行为，不取代未变的旧保证，也不接受两份提案的所有候选机制。目标契约快照是本次审阅对象；若后续修改可观察集合或 owner 边界，须重新分类并取得相应接受，不能沿用本决定的授权。
 
