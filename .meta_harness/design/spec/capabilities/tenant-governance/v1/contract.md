@@ -12,7 +12,8 @@ legacy v1 重基，保留 TG-01～TG-05；D-008 及 tenant-contracts 历史候�
 `SubscriptionLink` 的本地关联、变更意图和对账状态由预算核算能力唯一拥有。
 
 个人创建精确消费同 baseline 的 [CD-01/02](../../../data/core-work/v1/contract.md) 身份与
-因果绑定、[AI-01/02/04](../../account-identity/v1/contract.md) 账号原操作/身份/目标来源，
+因果绑定、[AI-01/02/02a/04/08](../../account-identity/v1/contract.md) 账号原操作、
+身份、目标与一次创建授权的耐久来源，
 以及 [CC-03/05/06](../../../compositions/core-work-coordination/v1/contract.md) 的逻辑排位、
 耐久后果导入及全 owner 恢复。三项依赖坐标分别为 `data.core-work@1`、
 `capability.account-identity@1`、`composition.core-work-coordination@1`，均为本
@@ -38,11 +39,17 @@ active／suspended／removed，removed 后重新加入形成新 membership revis
 
 个人租户只有一套 Tenant 创建状态机，供两个**不同的受信入口**使用：部署首次
 `initializePersonalForDeployment` 与后续账号注册的 `createPersonalForAccount`。前者的
-新操作须在共同门中核对 Tenant 权威尚未建立、受信 seed principal 和独占初始化
-资格；该前态不是 JSONL 物理空文件，也不因 writer epoch 已存在而失效。后者的新
-操作须核对来自账号权威的一份已耐久、仅授权**该原注册操作**创建个人租户的后果：
+新操作须在共同门中核对 Tenant 权威尚未建立、受信 seed 与独占初始化资格；
+**初始 `UserRef` 必须由独立 Account 权威耐久分配，不能从 seed 字符串生成或由
+Tenant 自造**。初始账号也须先完成唯一凭据绑定，并形成与 seed、原操作、摘要、
+`UserRef` 和目标一致的一次个人创建后果；Tenant 核验该受信绑定及后果已耐久导入
+才可排位。该 Tenant 前态不是 JSONL 物理空文件，也不因 writer epoch 已存在而
+失效。后者的新操作须核对来自账号权威的一份已耐久、仅授权**该原注册操作**创建个人租户的后果：
 凭据标识唯一绑定、稳定且不复用的 `UserRef`、原操作/冻结摘要及 personal target
-已经成立。后果由 CC-05 受信接收者核实来源版本和全部绑定并耐久导入本协调域；
+已经成立。两个入口的 Account 来源后果由 CC-05 受信接收者核实来源版本和全部
+绑定并耐久导入本协调域；初始后果如何在 Tenant 权威未建立时导入、怎样将 seed
+绑定到来源身份，须由 Account/CC 的同一来源协议闭合，不能把 Tenant 首次前态
+等同于 CC 协调域不能先有导入事实；
 未核实或未耐久导入不得取得 Tenant 新逻辑位置。导入事实是 Account 原后果的引用，
 不变成第二个 Account 权威。首版无取消注册/关闭账号操作，入口关闭、logout、账号
 转 active 或 provider 换代不撤销已成立后果；这也不授予任何业务访问权。未来若
@@ -52,17 +59,18 @@ owner、operationKind、`UserRef` 字符串或旧 session 均不授予入口资�
 
 两个入口共用唯一 claim、操作占位、批次、结果与恢复规则。原操作、冻结输入、
 `UserRef`、个人种类、creator、唯一 active owner 及目标 tenantId 在首次逻辑排位前
-固定；部署 init 的目标由受信 Tenant 准备者首次分配并绑定，注册目标沿账号原后果
-的耐久 target，不再分配。Tenant 先按精确原操作查占位/耐久结果，再作新操作准入：
+固定；部署 init 的 target 由受信准备者在 Account 初始后果耐久化前确定，再由
+Account 后果固定并供 Tenant 认回；注册 target 同样沿账号原后果的耐久绑定，
+Tenant 均不在重试时重新分配。初始 Account 后果若 unknown，原 target 的保存/
+认回由 Account/CC 前置原操作映射保证；Tenant 不因本机准备缓存丢失而再分配。
+Tenant 先按精确原操作查占位/耐久结果，再作新操作准入：
 同键同输入认回原 target 与历史结果，不因部署后来已初始化或账号已 active 而重跑
 首次前态；异摘要、异 user、异 target 或异来源，在占位或耐久 outcome 可核实的
 范围冲突。另一原操作争同一 `UserRef` 的有效个人 claim 或同一 tenantId 明确冲突。
 关闭后的不同新操作再建个人租户首版不开放，未来政策未决；旧操作可认回历史事实。
-注册成功提交点“默认恰有一个且为 personal”的跨能力性质还要求
-`pending_personal_scope` 账号不能作为组织入会的有效主体；组织 `addMember` 与账号
-状态的同门核验归 ACR/TG 联合准入依赖，尚待 Account/CC 的可信状态证明映射闭合。
-本创建操作自身绝不附带组织成员；注册完成后明确获准的组织加入不受“默认恰一”
-解释为永久禁止。
+本创建操作自身只产生一份 personal tenant/唯一 owner，不附带组织成员；业务
+使用仍核 Account active 与当前 Tenant 资格。“默认恰一”只描述本初始化/注册
+创建的结果，不给独立组织入会操作增设本契约未授权的准入政策。
 
 新操作在 CC-03 同一短门获得逻辑位置并占用 global system `tenant-personal-index`
 唯一 claim，以索引 CAS 封闭竞争。本操作恰创建一份 personal tenant 和该
@@ -71,8 +79,9 @@ owner、operationKind、`UserRef` 字符串或旧 session 均不授予入口资�
 `tenant:<tenantId>` 流中的 personal tenant、creator 与唯一 active owner 成员；部署
 init **同批再写** system `tenant-bootstrap`，注册批次不写 bootstrap。目标 tenant 流
 仍属目标租户，不能改记为 system 资产；不能先写索引后补租户/成员。Tenant 核对
-业务唯一性和同批关联；DR 的精确受限混合流许可、CAS、排序、持久结果与恢复由
-其所属契约及 CC 共同门兑现，当前仅限 bootstrap 的旧许可不授权后续注册。
+业务唯一性和同批关联；[DR-01](../../durable-records/v1/contract.md) 与 CC-03
+候选已声明共用的单次封闭混合流资格、CAS、排序、持久结果及门内颁发，提供者
+尚未实现和验证，候选文字本身不开放后续注册。
 
 逻辑占位只封闭竞争，不开放新 owner、租户管理权或 ACR 激活。Tenant 的精确原操作
 查询区分 `reserved`、`pending_durability`、`unknown`、历史已提交但 owner publication

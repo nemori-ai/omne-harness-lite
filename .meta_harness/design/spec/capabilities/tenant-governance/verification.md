@@ -9,8 +9,11 @@ TG-01 的[统一创建场景](v1/scenarios.md)覆盖两来源的首次准入、�
 当前只有文字场景，尚无覆盖两个来源、多注册竞争、CC-05 导入和 CC-06 恢复交错
 的行为模型、严格格式证据或产品故障实验。真实验收至少要求 Account 源后果成立与
 耐久导入、Tenant/Admission 同门、DR 受限混合写与 conflict target 认回、完整
-owner publication 的组合。现有 DR-01/CC-03 只授予 bootstrap，后续注册保持
-unavailable；本候选不能被当成新许可或实现符合。
-注册成功提交点恰有一个 personal tenant 的组合检查还须覆盖 pending 账号并发组织
-`addMember` 被同门拒绝、激活后明确组织加入可成功；这项 ACR/TG 联合准入和可信
-账号状态证明尚无提供者证据。
+owner publication 的组合。DR-01/CC-03 候选现已声明统一封闭许可；对应
+writer/Admission provider 与 TenantHost 尚无符合性证据，后续注册实际入口保持
+unavailable。本候选不能被当成实现许可或实现符合。
+初始账号还须按 AI-08 验证：Account 在 Tenant init 前耐久分配不复用 `UserRef`、完成唯一
+凭据绑定及与 seed/target 一致的一次创建后果；缺任一事实、seed 错绑或仅有
+seed 字符串均拒绝 init。Account/CC 在 Tenant 权威未建立时的来源导入、unknown
+target 认回及恢复映射尚无提供者证据。每次创建只产一份 personal/owner，不能
+从该回执推断账号已 active 或授予 pending 身份业务访问。

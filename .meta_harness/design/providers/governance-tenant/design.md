@@ -32,14 +32,18 @@ provider 代次；个人创建的短门只读已耐久导入的 Account 原后�
 两个受信入口共用 TenantHost 的一份个人创建 operation/claim 状态机。Host 先按原
 operationRef 查询占位与耐久结果；同输入重入沿原 target，不重新分配，也不重跑
 首次 init/pending 前态。部署入口只由受信 Host 安装资格取得 seed 与当前初始化前态，
-首次占位者分配 target。注册入口只读取 CC-05 已核实并**耐久导入**的 Account 原始
-后果，核对 source identity/version、registrationOperation、摘要、`UserRef`、target
+还须核 Account 已耐久分配且不复用的初始 `UserRef`、唯一凭据绑定、一次创建后果
+与 seed/target 的受信绑定；seed 字符串本身不能生成 `UserRef`。初始 target 在
+Account 后果耐久化前由受信准备者固定，unknown 与重启时沿 Account/CC 前置原
+操作认回，不靠本机缓存再分配。两个入口均只读取 CC-05 已核实并**耐久导入**的
+Account 原始后果，核对 source identity/version、原操作、摘要、`UserRef`、target
 及凭据标识唯一绑定已成立；目标沿来源事实固定。较早的 pending 分配、凭据碰撞、
 未核实/未耐久导入均不得创建。短门读导入事实与 Tenant/Admission 当前根的确切
 水位，不等待 Account provider I/O。导入投影是来源引用，不成为第二份账号权威；
 Account 暂时不可用不撤销已导入后果，旧 provider/协调者实例也不能因此取得新代
 写入资格。sourceFact 身份、版本、水位与 target 的具体传输/校验由 Account/CC 提供者
-闭合；此处不把业务 DTO 或客户端 origin 当成证明。
+闭合；init 来源如何在 Tenant 权威未建立时导入和 seed 绑定也由该纵切闭合，
+此处不把业务 DTO 或客户端 origin 当成证明。
 
 受信装配只为一笔冻结个人创建颁发精确混合流资格，绑定来源、operationRef、摘要、
 `UserRef`、target、精确 stream 集合/预期修订、Tenant Host 与本代 Admission/writer；
@@ -47,8 +51,9 @@ init 为 system `tenant-bootstrap` + system `tenant-personal-index` + 目标
 `tenant:<tenantId>` 三流，注册仅后两流。后者仍属目标租户，不能改记 system；
 `operationKind`/owner 字符串和反序列化 envelope 不可取得凭据。若 prepare API 先于
 target 分配，须调整顺序或做受信原子绑定；不能先发无目标的跨 scope 许可。当前
-DR/CC 文本仍仅准 bootstrap；统一封闭许可及 conflict target 持久表示在它们的候选
-扩展真正就绪前，注册入口返回 unavailable，不试用旧凭据。
+DR-01/CC-03 候选已声明统一封闭许可及 conflict target 持久表示；真实
+writer/Admission/TenantHost 尚无符合性证据，注册入口保持 unavailable，不能
+拿旧 bootstrap 诊断字段或历史记录当作新代资格。
 
 逻辑 root 仅保留原操作/个人索引占位和负向封闭；未耐久 `tenant.created`/owner
 成员不能进入准入可读正向根。一个批次的 personal-index claim、personal tenant、
@@ -58,9 +63,9 @@ creator 和唯一 active owner 必须同批核对，init 再核 bootstrap 事实
 恢复宿主一次安装全部 owner roots 后，Tenant 本代查询才可给另立的可消费证明。
 历史提交结果、publication 可消费证明和当前 tenant/owner 资格分别读取；旧创建
 租户后来 closing/closed 只保留历史认回，不让旧回执恢复业务准入。
-组织 `addMember` 不能使 pending 账号取得有效成员资格；需要 Account 当前业务
-资格的可信同门证明。该接口由 ACR/TG 联合准入与 Account/CC provider 映射闭合，
-个人创建 sourceFact 只授权原个人创建，不能充当组织入会或账号 active 的证明。
+本创建不附带组织成员关系；个人创建 sourceFact 只授权原个人创建，不能充当
+账号 active 或独立组织入会的业务证明。普通业务使用仍核 Account active 与当前
+Tenant 资格；本纵切不扩张独立组织入会政策。
 
 撤除先关本代新调用，收口引用 source 与 pending/unknown operation，再释放精确注册。来源不明
 返回 unavailable/complete=false，不当空集合；关闭租户保留外部效果、财务责任与历史身份。
@@ -68,7 +73,7 @@ creator 和唯一 active owner 必须同批核对，init 再核 bootstrap 事实
 
 ## 依赖与共同门
 
-提供者候选组合依赖为：ARI-1；CD-01/CD-02；AI-01/02/04 的来源绑定；
+提供者候选组合依赖为：ARI-1；CD-01/CD-02；AI-01/02/02a/04/08 的来源绑定；
 DR-01～DR-05；CC-01/02/03/05/06；OB-01～OB-03。下游 ACR-03～06 消费本
 Host 的回执/可消费证明以完成激活，不是 Tenant 的反向依赖。其中 DR、OB 与运行
 身份是提供者实现依赖，不能由本页擅自改 catalog；TG 新消费 Account 来源与 CC

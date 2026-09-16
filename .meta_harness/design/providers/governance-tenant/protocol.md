@@ -17,9 +17,13 @@ joinedRevision，旧 grant 不因 userId 相同复活。
 统一 personal creation 的逻辑排位只作为原操作、目标及 global personal-index claim
 的冲突占位；资格读面不得直接消费未耐久 `tenant.created` 的 owner/member。Tenant
 先按 operationRef 查询历史占位/结果；同键同输入认回固定 target，不重新运行来源
-首次准入。部署 init 的新操作核 Tenant 权威尚未建立（不是 JSONL 物理空文件）与
-受信 seed；账号注册的新操作核 CC-05 已耐久导入的 Account 单操作授权后果，
-sourceFact/version、原操作、摘要、`UserRef` 和 target 必须同属一份受信绑定。较早
+首次准入。部署 init 的新操作核 Tenant 权威尚未建立（不是 JSONL 物理空文件）、
+受信 seed，以及 Account 对初始 `UserRef` 的耐久分配、唯一凭据绑定、与 seed/target
+一致的一次创建后果；Tenant 不从 seed 字符串造 `UserRef`。初始 target 在 Account
+后果前固定，unknown 时沿 Account/CC 前置原操作认回。账号注册的新操作核
+Account 单操作授权后果；两个来源均须经 CC-05 核实并耐久导入，sourceFact/
+version、原操作、摘要、`UserRef` 和 target 必须同属一份
+受信绑定；init 还核 seed。较早
 pending 分配、凭据标识碰撞或未耐久导入不构成该授权。短门只读耐久导入事实和
 Tenant/Admission 当前根，不等待 Account provider；Account 失联不撤销已导入的
 原后果，旧 provider generation 不能取得新写权。
