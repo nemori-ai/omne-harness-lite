@@ -6,13 +6,15 @@ PF-026 要让一个部署内出现多个独立账号，每个账号对应不同 
 
 ## 现有能力如何承载
 
-精确基线：迁移候选 [`data.core-work@1` CD-01/02](../../spec/data/core-work/v1/contract.md)、[`tenant-governance@1` TG-01/02](../../spec/capabilities/tenant-governance/v1/contract.md)，正式要求 [PF-001](../../requirements/product/PF-001-tenant-organization-context/README.md)、[PF-019](../../requirements/product/PF-019-tenant-subscription-usage-billing-and-budget/README.md)；其候选身份不等于发布契约。
+精确基线：迁移候选 [`data.core-work@1` CD-01/02](../../spec/data/core-work/v1/contract.md)、[`tenant-governance@1` TG-01/02](../../spec/capabilities/tenant-governance/v1/contract.md)、[`budget-accounting@1` BG-01/02/06](../../spec/capabilities/budget-accounting/v1/contract.md)，正式要求 [PF-001](../../requirements/product/PF-001-tenant-organization-context/README.md)、[PF-006](../../requirements/product/PF-006-user-settings-and-agent-definition-authorization/README.md)、[PF-019](../../requirements/product/PF-019-tenant-subscription-usage-billing-and-budget/README.md)；迁移候选不等于发布契约。
 
 | 产品结果 | 现有承载 | 已覆盖与未覆盖 |
 |---|---|---|
 | C1 新账号注册 | CD-01 把 `UserRef` 留给认证边界；TG-01 拥有个人租户、唯一 owner 成员和唯一有效个人租户约束 | Tenant 首次 bootstrap 只适用于部署初始化前态，后续账号创建、凭据绑定及个人租户的跨 owner 恢复未定义。普通 `createTenant` 有入口，但尚未证明满足注册组合。 |
 | C2 登录与退出 | CD-02 要可信主体；现有 CLI 有逐命令凭据验证 | 无产品账号会话、跨进程存储、撤销和切换契约；现有 `init` 与 proof-env 不形成完整旅程。 |
-| C3 个人数据/设置/额度隔离 | TG-01 的个人租户归属；PF-019 的租户账目/额度 | 两账号必须获得不同 UserRef 与个人租户；登录态到目标 tenant 的正确绑定需组合验证。账目能力不负责注册。 |
+| C3 个人数据隔离 | TG-01 的个人租户归属、TG-02 的私人 Session 读面 | 两账号必须获得不同 UserRef 与个人租户；登录态到目标 tenant 的正确绑定需组合验证。 |
+| C3 个人额度与消耗隔离 | PF-019；budget-accounting@1 BG-01 将费用归因 tenant 和原工作，BG-02 将 Budget 绑定 tenant/scope，BG-06 将授予额度绑定受益 tenant | 若两个账号得到不同个人 tenant，现有候选可分别计费、设预算和授额；其提供者/实际组合仍未验收，不能从账号不同直接推断账目隔离已经运行。 |
+| C3 用户设置隔离 | PF-006.C1/C4 要求设置有明确适用范围且不得静默外溢 | 字段 owner、账号级作用域与求值契约仍缺；CLI 的账号偏好或缓存不能因本机操作者相同而跨账号继承。 |
 | C4 多组织 | TG-02 把选择组织限定为新操作上下文，成员以 `(tenantId,userId)` 核验 | 可复用；账号切换后不得沿用另一账号成员资格和已选目标。 |
 | C5 可辨结果 | Tenant 有候选 bootstrap 重试边界 | 新账号提交、认证会话建立、个人租户创建跨 owner 的 unknown/重复请求回执未闭合。 |
 
@@ -26,6 +28,7 @@ PF-026 要让一个部署内出现多个独立账号，每个账号对应不同 
 | 每个账号的个人租户 | 扩展 Tenant 正常创建入口的受信调用规则 | 唯一索引、owner 成员和新租户流仍由 Tenant 拥有；不能由认证库直写。 |
 | 注册完成的跨 owner 判断 | 新增账号身份与 Tenant 的组合契约；可由应用编排/耐久协调者承载 | 需要分辨身份已建而个人范围未 ready，以及重试是否认回同一目标。 |
 | 当前登录账号、组织上下文和凭据槽 | CLI 应用装配 | 界面可切换，但不能替代服务端身份/成员核验。 |
+| 账号级设置及本地偏好的隔离 | 后续设置能力契约与 CLI 装配 | PF-006 已要求作用域，尚缺字段 owner/账号级求值；账号切换必须换作用域并拒绝沿用前账号缓存值。 |
 
 独立能力负责“系统相信哪个账号、该登录态是否有效”；Tenant 负责“该账号在何租户拥有什么成员资格”。两者有依赖和交接，但状态所有者、变化原因和消费者不同，因此可独立投影到 Cordis 服务/插件；插件边界不使注册两步自动原子化。
 
@@ -34,8 +37,8 @@ PF-026 要让一个部署内出现多个独立账号，每个账号对应不同 
 1. `signup(opId, registrationEvidence)` 经确定的准入政策验证，账号权威为这次操作稳定分配且不复用 `UserRef`，持久标记 `pending_personal_scope`。重复同一操作认回同一账号身份；不同输入/凭据碰撞给可辨冲突。邮箱或用户名是否是唯一登录名取决于采用方式，不能由现实人的相同性推断应合并账号。
 2. 编排者向 Tenant 的正常受信创建入口提交同一注册关联、`UserRef` 与稳定 personal tenant target。Tenant 自己原子核对唯一 claim、个人租户和唯一有效 owner 成员；首次部署 `bootstrapPersonal` 的初始化前态不能复用在后续注册。若两个 owner 无共同事务，协调状态必须耐久；在 unknown 时查询权威结果并认回，不因 `not_seen` 临时观察另建目标。
 3. 账号权威仅在 Tenant 的个人范围已核实 ready 后宣布 `active` 和可用的注册成功。pending 身份可以继续认证以完成恢复或查看注册状态，但不得作为个人业务的授权主体。永久失效、保留/补偿和孤儿预留的处理范围须由下游契约定明；本稿不假定“删账号”能回滚已发布租户。
-4. `login` 让成熟 provider 验证凭据并建立带过期/撤销语义的会话，适配成经验证且绑定 `UserRef` 的主体。业务准入还要核对账号 active、目标个人/组织成员及租户状态；客户端自报 `userId` 和持有 `UserRef` 不授予权限。
-5. `logout` 对当前 CLI 凭据槽执行撤销/清除，使它不能授权后续新交互；显示结果应区分已撤销、已无登录与无法核实撤销。切换账号不改写既有 Session 的 tenant，运行中工作及外部副作用如何处理由各自 owner 的现有契约决定。
+4. `login` 让成熟 provider 验证凭据并建立带过期/撤销语义的会话，适配成经验证且稳定绑定 `UserRef` 的主体。业务准入还要核对账号 active、目标个人/组织成员及租户状态；客户端自报 `userId` 和持有 `UserRef` 不授予权限。
+5. `logout` 对当前 CLI 凭据槽执行撤销/清除，使它不能授权后续新交互；显示结果应区分已撤销、已无登录与无法核实撤销。provider 若允许旧 token 或缓存 cookie 在撤销后暂时通过，须以实际时延限定保证或调整配置，不能仅凭撤销 API 存在宣称即时失效。切换账号不改写既有 Session 的 tenant，也不沿用前账号的设置、偏好和缓存；运行中工作及外部副作用如何处理由各自 owner 的现有契约决定。
 
 以上是需要形式化/故障验证的候选动作链，尚不是操作协议。具体注册资格、认证方式、多设备范围和 session 清理策略待产品/设计选择。
 
@@ -49,11 +52,11 @@ PF-026 要让一个部署内出现多个独立账号，每个账号对应不同 
 
 | 义务 | 保护者 | 所需证据与当前结果 | 受阻消费 |
 |---|---|---|---|
-| 不同账号的身份及个人范围不串 | 账号权威、Tenant、CLI/业务准入 | 两账号/同一现实人、切换账号和组织后读取/设置/额度隔离；未执行 | PF-026 实现接受 |
+| 不同账号的稳定身份及个人范围不串 | 账号权威、Tenant、设置 owner、CLI/业务准入 | 证明 provider subject 与项目 `UserRef` 一对一稳定映射且不复用；两账号/同一现实人、切换账号和组织后读取/设置/额度隔离，含 CLI 旧偏好/缓存；未执行 | PF-026 实现接受 |
 | 注册唯一结果和失败恢复 | 账号权威、Tenant、耐久协调者 | 固定目标故障注入：建账号、claim、发布、回执间宕机/unknown/并发重复；未执行 | `signup` 规格和实施就绪 |
-| 退出后不能凭当前态再次授权 | provider 与 CLI 凭据槽 | 跨进程重用旧 token、过期/撤销、服务不可达、设备码中断；未执行 | `logout` 保证与 provider 采用 |
+| 退出后不能凭当前态再次授权 | provider 与 CLI 凭据槽 | 跨进程重用旧 token、缓存 cookie、过期/撤销、服务不可达、设备码中断；记录实际拒绝时点与最长缓存时延，若要求即时失效则关闭可绕过权威查验的缓存；未执行 | `logout` 保证与 provider 采用 |
 | 本地单机可运维且可复用 | provider/应用 | 锁定库版本、SQLite 迁移/备份、资源关闭和重启；未执行 | 提供者选择 |
 
 ## 交接缺口
 
-产品需裁定开放注册还是邀请/管理员准入、首版认证方式及账号恢复，定义当前登录态的作用域。设计线随后固定账号契约、Tenant 后续个人租户入口和跨 owner 恢复；实施线只在这些约束下选择 provider、CLI 凭据槽及装配。评审见[评审记录](review.md)。
+产品需裁定开放注册还是邀请/管理员准入、首版认证方式及账号恢复，定义当前登录态的作用域。设计线随后固定账号契约、Tenant 后续个人租户入口、PF-006 账号级设置 owner/作用域和跨 owner 恢复；实施线只在这些约束下选择 provider、CLI 凭据槽及装配。评审见[评审记录](review.md)。

@@ -1,7 +1,12 @@
 # 评审与处置
 
-- 待审对象：本 topic 的 README、design、alternatives；作者候选，2026-09-16。
-- 当前事实：尚无独立架构评审、产品接受或规格评审。作者自检不计作独立评审。
+- 独立只读架构评审对象：提交 `f0909e4` 的本 topic 与研究包，2026-09-16。
+- 当前事实：评审给出两项非阻断补强建议；作者已在后续修订中处置，独立复核尚未记录。无产品接受或规格评审；作者自检不计作独立复核。
+
+| 发现与依据 | 影响 | 作者处置 | 复核状态 |
+|---|---|---|---|
+| C3 将个人数据、设置、额度并列，但只引用 Tenant/PF-019；遗漏 budget-accounting@1 BG-01/02/06 与 PF-006 的设置 owner 缺口 | 无法判断额度已有候选语义、设置隔离仍缺契约的边界 | [design.md](design.md) 拆为三行；[alternatives.md](alternatives.md) 补共同约束；CLI 账号切换不继承偏好/缓存 | 待独立复核 |
+| provider 调研不能由撤销 API 推断旧 token/cookie cache 即刻失效；还需核对稳定 `UserRef` 映射 | `logout` 保证和 C3 隔离可能被缓存或身份变化破坏 | [研究](../../research/account-auth-sources/research.md)补官方缓存限制；设计的 spike 明确稳定映射与实际撤销时延 | 待独立复核 |
 
 ## 尚未闭合
 

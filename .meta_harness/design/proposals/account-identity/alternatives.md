@@ -2,7 +2,7 @@
 
 ## 选择对象与共同约束
 
-对 [PF-026.C1–C5](../../requirements/product/PF-026-account-journey-and-isolation/requirements.md)，选择哪个能力拥有产品账号及认证生命周期，哪种成熟 provider 提供注册/会话机制。三个候选都必须保持账号 `UserRef` 与组织成员关系分离、个人数据/设置/额度隔离、可辨失败及仅退出当前登录态。Tenant 继续拥有个人租户唯一 claim，PF-019 继续拥有账目；具体开放注册政策未定。
+对 [PF-026.C1–C5](../../requirements/product/PF-026-account-journey-and-isolation/requirements.md)，选择哪个能力拥有产品账号及认证生命周期，哪种成熟 provider 提供注册/会话机制。三个候选都必须保持账号 `UserRef` 与组织成员关系分离、个人数据/设置/额度隔离、可辨失败及仅退出当前登录态。Tenant 继续拥有个人租户唯一 claim；[PF-019](../../requirements/product/PF-019-tenant-subscription-usage-billing-and-budget/README.md) 与 budget-accounting@1 BG-01/02/06 分别约束租户账目、预算和授额；[PF-006](../../requirements/product/PF-006-user-settings-and-agent-definition-authorization/README.md) 要求设置范围明确，但账号级设置 owner/求值契约仍缺。CLI 切换账号时不能沿用前账号的偏好或缓存；具体开放注册政策未定。
 
 | 候选 | 责任及兑现方式 | 总负担与关键反例 | 证据状态 |
 |---|---|---|---|
@@ -14,6 +14,6 @@
 
 ## 推荐与改变选择的观察
 
-当前推荐 **A**：它顺着 CD-01 已留出的认证边界和 TG-01 的 Tenant 责任划分，复用成熟注册/会话组件，首版单机不必先引入独立 IdP 服务。提案不接受 Better Auth 作为具体 provider；其采用版本、安全修复政策、数据库映射、CLI 授权方式及实际撤销行为仍需 spike。研究说明 Better Auth 官方当前只支持最新版的安全修复，正式选型须核对维护/升级责任（[来源](https://github.com/better-auth/better-auth/security)）。
+当前推荐 **A**：它顺着 CD-01 已留出的认证边界和 TG-01 的 Tenant 责任划分，复用成熟注册/会话组件，首版单机不必先引入独立 IdP 服务。提案不接受 Better Auth 作为具体 provider；其采用版本、安全修复政策、provider subject 与不复用 `UserRef` 的稳定映射、数据库迁移、CLI 授权方式及旧 token/缓存 cookie 的实际撤销时延仍需 spike。Better Auth 官方明确指出 cookie cache 可能让已撤销 session 在别的设备上持续有效至 `maxAge`；具体保证须由采用配置与实验支持（[会话文档](https://better-auth.com/docs/concepts/session-management)）。官方安全政策只支持最新版，正式选型须核对升级责任（[来源](https://github.com/better-auth/better-auth/security)）。
 
 如果本项目已有必须共用的组织 IdP、集中 SSO 或独立部署的硬要求，B 可能胜出。如果单一事务是经故障实验验证且确为必要、而独立边界无法在可接受恢复语义下闭合，C 才值得重议；不能仅因跨 owner 流程难写便转移账号权威。无论选哪条，注册准入政策和中途失败必须明确。
