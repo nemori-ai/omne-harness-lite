@@ -29,3 +29,6 @@ owner 校验表达。format 升级若改变 canonical 编码须发布新版本�
 conflict 只写 system `operation-outcomes`，其 currents 可引用原操作绑定的 tenant stream；
 prepare、提交、lookup 与重启读取均核对原 operation/input、scope 形状及绑定，不能
 用自报字段取得新写入许可。坏前缀、错 stream、重放异输入保持隔离或冲突，不跳过。
+重启时核对历史 envelope 的原 operation/input 与存储结构及唯一前缀；历史数据只
+用于重建原结果，不能被当作可导入的运行时受信写入凭据。未提交且无法证明的操作
+继续 unknown；重新写入仍须当前宿主的窄绑定。

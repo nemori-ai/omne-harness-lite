@@ -25,11 +25,14 @@ TenantHost 是按 tenant 分区的唯一 TG 状态权威；自然人身份由可
 选用及所有 provider 代次；Context、DTO 或菜单选择不构成授权。成员暂停/移除在 logical 位置
 封闭后续准入，耐久后才可作为正向权利依据；重加入形成新 joinedRevision，旧 grant 不复活。
 
-个人 bootstrap 的应用装配凭受信 TenantHost 安装资格发起一次精确操作。Host 先确定新
-tenantId 并冻结原输入，再由受信装配颁发仅绑定该 Host 实例、operationRef、输入摘要、
+个人 bootstrap 的应用装配凭受信 TenantHost 安装资格发起一次精确操作。Host 先冻结
+不依赖新 tenantId 的原始输入并查询精确 operationRef：已准备者沿原绑定认回，不再
+生成新 tenantId；首次占位者才生成 tenantId，在共同门内将该目标与原操作一起固定。
+受信装配颁发仅绑定该 Host 实例、operationRef、输入摘要、
 新 tenantId 和本代 Admission/writer 的窄凭据；`operationKind=tenant.bootstrap` 与
 `owner=tenant` 只是诊断字段，不能作为凭据。若现有 prepare API 先于新 tenantId 分配，
-施工须调整准备顺序或受信原子绑定，不允许在无目标身份时颁发泛用跨 scope 权限。
+施工须调整目标分配/准备顺序或受信原子绑定，不允许在无目标身份时颁发泛用跨
+scope 权限，也不能让同一原操作重试因重新抽取随机 tenantId 而变成异输入。
 普通业务对象不能取得颁发接口，凭据不得序列化为可由外部注入的许可信号。
 
 同一批次提交 system `tenant-bootstrap`、system `tenant-personal-index` 和新建 tenant
