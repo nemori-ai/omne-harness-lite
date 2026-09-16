@@ -24,7 +24,7 @@ reserve 绑定精确 ChargeAttempt、tenant、来源、币种、period 和全部
 受理在同一协调批次成立；动作授权与预算分别通过。只有确认从未发出才能 release；已发出或
 unknown 保留暴露，迟到事实归原 attempt/period，重复回执以 source fact identity/revision 去重。
 
-恢复从耐久记录重建 finite/unknown exposure、原 period 和 pending settlement，不能因 Run 完成、
+恢复从耐久记录重建已知预留、unknown exposure、原 period 和 pending settlement，不能因 Run 完成、
 断连、重启或 provider 卸载归零。来源失联关闭新 reserve，晚到事实仍由原 owner 认回。撤除先
 关新准入、排空 publication/source preparation 并保留账本与 unknown；当前实现尚未证明这些运行保证。
 
