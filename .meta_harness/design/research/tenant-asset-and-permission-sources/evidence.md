@@ -24,8 +24,8 @@
 
 | 来源 | 状态 | 路径 / 定位 |
 |---|---|---|
-| portfolio/entitlement/personal/membership | Accepted · current | `requirements/capabilities/tenant-owner-scoped-agent-asset-portfolio-read.md`；`tenant-effective-agent-asset-entitlement-lifecycle.md`；`tenant-personal-tenant-provisioning-and-active-tenant-selection.md`；`tenant-organization-tenant-and-membership-lifecycle.md`，Statement/AC |
-| authoring/acquisition/journey | Accepted · current | `requirements/capabilities/agent-definition-authorized-agent-asset-authoring-and-immutable-release.md`；`...acquisition-and-version-selection.md`；`first-party-agent-asset-and-custom-agent-management-journey.md` |
+| portfolio/entitlement/personal/membership | Accepted · current | `requirements/capabilities/tenant-owner-scoped-agent-asset-portfolio-read.md`；`requirements/capabilities/tenant-effective-agent-asset-entitlement-lifecycle.md`；`requirements/capabilities/tenant-personal-tenant-provisioning-and-active-tenant-selection.md`；`requirements/capabilities/tenant-organization-tenant-and-membership-lifecycle.md`，Statement/AC |
+| authoring/acquisition/journey | Accepted · current | `requirements/capabilities/agent-definition-authorized-agent-asset-authoring-and-immutable-release.md`；`requirements/capabilities/agent-definition-authorized-agent-asset-acquisition-and-version-selection.md`；`requirements/capabilities/first-party-agent-asset-and-custom-agent-management-journey.md` |
 | asset design | Accepted / Maturing design | `design_docs/cross-cutting/agent-asset-definition-rights-and-portfolio.md`，顶层清单与六事实面；不接受其 BC/聚合分工 |
 | ADR-025 | Accepted design + 07-31 correction | `adrs/accepted/ADR-025-agent-component-sourcing.md`，D-2/D-3/D-8 与 correction |
 | settings/language background | 历史设计，不是当前产品接受 | `design_docs/bounded-contexts/ubiquitous-language.md`；只能解释词汇 |

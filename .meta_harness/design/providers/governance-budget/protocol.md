@@ -16,7 +16,7 @@
 
 ## 结算、释放与完整性
 
-仅有“确认从未发出”或 late-start fence 能释放对应预留。已发出、unknown、断连、重启、
+只有同时确认调用从未发出，且 late-start fence 已封闭，才能释放对应预留。已发出、unknown、断连、重启、
 Run 完成或 provider 卸载都不能归零。只有来源的 final 事实同时证明该 attempt 的全部费用
 分量完整，才可解除 unknown/剩余预留；usage finish 本身不构成完整性证明。重复事实按
 source fact identity/revision 折叠，迟到事实仍归原 attempt、period 与 tenant。

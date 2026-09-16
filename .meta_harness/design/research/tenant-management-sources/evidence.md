@@ -24,9 +24,9 @@
 
 | 来源 | 状态 | 路径 / 定位 |
 |---|---|---|
-| membership/journey | Accepted · current | `requirements/capabilities/tenant-organization-tenant-and-membership-lifecycle.md`；`first-party-agent-asset-and-custom-agent-management-journey.md`，Outcome/PORTAL/failure semantics |
-| authoring/acquisition/entitlement | Accepted · current | `requirements/capabilities/agent-definition-authorized-agent-asset-authoring-and-immutable-release.md`；`...acquisition-and-version-selection.md`；`tenant-effective-agent-asset-entitlement-lifecycle.md` |
-| profiles/model selection/device consent | Accepted · current | `blueprint-model-profile-as-one-fully-filled-form.md` AC-3～6；`durable-session-model-selection-and-non-degrading-continuity.md` AC-1～3；`resource-owner-consented-device-capability-use.md` AC-3～7 |
+| membership/journey | Accepted · current | `requirements/capabilities/tenant-organization-tenant-and-membership-lifecycle.md`；`requirements/capabilities/first-party-agent-asset-and-custom-agent-management-journey.md`，Outcome/PORTAL/failure semantics |
+| authoring/acquisition/entitlement | Accepted · current | `requirements/capabilities/agent-definition-authorized-agent-asset-authoring-and-immutable-release.md`；`requirements/capabilities/agent-definition-authorized-agent-asset-acquisition-and-version-selection.md`；`requirements/capabilities/tenant-effective-agent-asset-entitlement-lifecycle.md` |
+| profiles/model selection/device consent | Accepted · current | `requirements/capabilities/blueprint-model-profile-as-one-fully-filled-form.md` AC-3～6；`requirements/capabilities/durable-session-model-selection-and-non-degrading-continuity.md` AC-1～3；`requirements/capabilities/resource-owner-consented-device-capability-use.md` AC-3～7 |
 | settings aggregate | **Draft**，含 2026-08-04 对账 | `design_docs/cross-cutting/user-settings-aggregate-projection.md` §1～3；仅作范围核对 |
 
 本轮未执行隔离、并发修改、重试或依赖影响测试，也未采用旧角色枚举、统一写 facade、数据库

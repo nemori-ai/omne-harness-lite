@@ -27,17 +27,17 @@
 
 | ID | 路径 / 符号 / 行 | 支持范围 |
 |---|---|---|
-| Q1/Q2 | `requirements/capabilities/tenant-personal-tenant-provisioning-and-active-tenant-selection.md`；`tenant-organization-tenant-and-membership-lifecycle.md` | Accepted tenant/member 产品边界 |
-| S07 | `libs/omne_harness_tenant_web_server/.../membership_router.py:567-805`，member mutation routes | D1、D6 入口门 |
-| S08 | `libs/omne_harness_tenant/.../application/services/membership.py:149-280` | D1 actor qualification 缺口 |
-| S09/T4 | `.../domain/tenant.py:454-512`；`tests/unit/test_tenant_aggregate.py:154-197` | D2 rejoin ID；测试未运行 |
-| S10/S11/S13 | `.../authz.py:105-351`；`active_tenant_resolution.py:71-155`；repository `:921-992` | 管理可见性与 D3 |
-| S12/S25 | `.../asset_access_query.py:19-49`；member enums `:31-91` | D3 tenant status/suspended 缺口 |
-| S14/S17 | `.../permission_grant.py:620-840`；runtime evaluator `:65-255` | D4/D5 授权与模式边界 |
-| S21/S22 | `.../guarded_tool.py:128-185`；tenant repository `save_all:179-275` | D6 audit await/CAS 竞态 |
-| S23/S24 | grant revoke `:938-1046`；runtime fence `:34-211` | 撤权 authority 与缓存范围 |
-| S26 | tenant lifecycle create `:61-138` | D8 一般创建缺 operation key |
-| T1/T3 | integration tenant scoped read `:134-192`；router role test `:247-274` | D7 与 admin 越权；均未运行 |
+| Q1/Q2 | `requirements/capabilities/tenant-personal-tenant-provisioning-and-active-tenant-selection.md:28-110`；`requirements/capabilities/tenant-organization-tenant-and-membership-lifecycle.md:31-189` | Accepted tenant/member 产品边界 |
+| S07 | `libs/omne_harness_tenant_web_server/omne_harness_tenant_web_server/api/routers/membership_router.py:567-805` | D1、D6 member mutation 入口门 |
+| S08 | `libs/omne_harness_tenant/omne_harness_tenant/application/services/membership.py:149-280` | D1 actor qualification 缺口 |
+| S09/T4 | `libs/omne_harness_tenant/omne_harness_tenant/domain/tenant.py:454-512`；`libs/omne_harness_tenant/tests/unit/test_tenant_aggregate.py:154-197` | D2 rejoin ID；测试未运行 |
+| S10/S11/S13 | `libs/omne_harness_tenant_web_server/omne_harness_tenant_web_server/authz.py:105-351`；`libs/omne_harness_tenant/omne_harness_tenant/application/services/active_tenant_resolution.py:71-155`；`libs/omne_harness_tenant/omne_harness_tenant/persistence/repositories/sql.py:921-992` | 管理可见性与 D3 |
+| S12/S25 | `libs/omne_harness_tenant/omne_harness_tenant/application/services/asset_access_query.py:19-49`；`libs/omne_harness_tenant/omne_harness_tenant/domain/enums.py:31-91` | D3 tenant status/suspended 缺口 |
+| S14/S17 | `libs/omne_harness_agent_blueprint/omne_harness_agent_blueprint/domain/aggregates.py:620-840`；`libs/omne_harness_runtime_plane/omne_harness_runtime_plane/application/policy/evaluator.py:65-255` | D4/D5 授权与模式边界 |
+| S21/S22 | `libs/omne_harness_runtime_plane/omne_harness_runtime_plane/application/policy/guarded_tool.py:128-185`；`libs/omne_harness_tenant/omne_harness_tenant/persistence/repositories/sql.py:179-275` | D6 audit await/CAS 竞态 |
+| S23/S24 | `libs/omne_harness_agent_blueprint/omne_harness_agent_blueprint/persistence/repositories/sql.py:938-1046`；`libs/omne_harness_runtime_plane/omne_harness_runtime_plane/application/policy/fence.py:34-211` | 撤权 authority 与缓存范围 |
+| S26 | `libs/omne_harness_tenant/omne_harness_tenant/application/services/tenant_lifecycle.py:61-138` | D8 一般创建缺 operation key |
+| T1/T3 | `tests/integration/single_node/test_single_node_owner_tenant_scoped_reads.py:134-192`；`libs/omne_harness_tenant_web_server/tests/unit/test_membership_write_router.py:247-274` | D7 与 admin 越权；均未运行 |
 
 静态阅读没有启动旧产品，也没有执行上述测试、模型或真实 Cordis 组合；外围代码可能补齐的
 保证仍未知。Accepted 要求、Draft/设计注释、源码行为和未执行测试断言始终分开。
