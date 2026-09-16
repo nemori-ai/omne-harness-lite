@@ -1,6 +1,6 @@
 # 账号到个人租户的单机创建边界
 
-- 状态：候选 B 推荐；架构结构复核无阻断，精确规格和形式模型仍在修订。本包不自行接受或发布。
+- 状态：候选 B 的架构与列明规格语义已由 [D-021](../../decisions/account-personal-local-creation/decision.md) 接受；catalog 发布及真实 provider 符合性另行验证。
 - 选择对象：首版单机中，独立 Account/Tenant 语义 owner 怎样共同实现首次 init 与后续注册的唯一个人租户，而不把一次旅程误作同一操作、也不预建分布式交付。
 - 需求与已接受边界：[PF-026](../../requirements/product/PF-026-account-journey-and-isolation/requirements.md)、[单机与身份约束](../../requirements/system/constraints/requirements.md)、[D-016](../../decisions/account-identity/decision.md)、[D-017](../../decisions/personal-tenant-creation/decision.md)。
 - 范围：现有能力覆盖、三项真实候选、一次真实动作链和恢复、Cordis 插件/提供者映射；不选具体认证库或宣称产品符合。

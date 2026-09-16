@@ -29,8 +29,8 @@
 本节按实际子目录链接 topic README，并标明选择对象、候选/接受边界与当前消费范围；未被索引的任务草稿不因此成为正式提案。
 
 - [产品账号身份与注册旅程](account-identity/README.md)：比较独立账号能力与成熟嵌入式 provider、独立 IdP、Tenant 扩展；候选 A 的能力边界与 provider 验证方向已由 D-016 接受，具体 provider 未定。
-- [个人租户创建协议统一候选](personal-tenant-creation/README.md)：比较双窄许可、统一 global index 与按账号分区 claim；推荐统一路径但尚未接受，Account 当前推进许可的门内语义仍未闭合。
-- [账号到个人租户的单机创建边界](account-personal-local-creation/README.md)：在 D-016/D-017 已接受边界内，比较同一原子事务、本地直接受信读取来源事实和耐久导入三条路径；推荐直接读取与单租户流，精确规格和证据仍待闭合。
+- [个人租户创建协议统一候选](personal-tenant-creation/README.md)：其统一机制由 D-017 接受；global index、混合流等旧候选被 D-021 的本地单流路径取代，保留比较来源。
+- [账号到个人租户的单机创建边界](account-personal-local-creation/README.md)：三条真实路径的比较；本地直接受信读取 F 与单租户流由 D-021 接受。
 
 判断方法按需读 [手册对应页](../../agents/skills/harness-design-handbook/canonical/references/decompose.md)。
 返回 [系统设计链](../README.md)。

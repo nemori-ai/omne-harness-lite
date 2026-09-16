@@ -26,5 +26,5 @@ Tenant 对个人租户只维护**一套**唯一 claim、固定目标、提交、
 | 下游 | 必须补齐的工作 |
 |---|---|
 | Tenant、Account 与注册组合 | 两来源受信准入、单一 claim/target/历史结果、账号激活屏障及失联认回。 |
-| DR、CC 与各提供者 | 精确混合流许可、统一 outcome/codec、短门和 writer 代际、完整前缀与 owner publication 恢复。 |
+| DR、CC 与各提供者 | 原提案曾要求精确混合流许可；[D-021](../account-personal-local-creation/decision.md) 已取代这一路径，当前为普通单目标 tenant 流、短门、writer 代际及完整前缀与 owner publication 恢复。 |
 | 形式模型与真实装配 | 两来源及多账号竞争、unknown、被阻发布、重启、旧实例迟到和注册完成时唯一默认个人租户的证据。 |
