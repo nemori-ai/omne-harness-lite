@@ -3,10 +3,10 @@
 本能力拥有 Session 对应活体实例的独占激活、精确代际、工作许可、装配绑定和资源退出。
 
 - 契约坐标：`(omne-harness-lite-design-2026-09-15, capability.live-agent, 1)`
-- 版本与采用状态：新谱系 v1 已登记候选；旧 v1 等价整理，独立评审完成，接受与冻结仍待 I 核对
+- 版本与采用状态：新谱系 v1 已按 [D-005](../../../decisions/agent-runtime/decision.md) 等价接受，规范资源已冻结；实现符合性另验
 - 精确依赖：`(omne-harness-lite-design-2026-09-15, data.agent-runtime-identity, 1)`，消费 ARI-1～ARI-5，同 baseline 直接依赖的 `rebase_relation:null`
 - 谱系关系：legacy→new 的等价整理单独登记为 `f-identity-v1-equivalent-rebase`，不是上述依赖边
-- 旧接受依据：`D-005`；不自动成为新坐标 acceptance
+- 采用依据：D-005 的新基线采用范围与 [catalog](../../../catalog.json) 中的精确 acceptance 登记
 - 提供者映射：[core-agent](../../../providers/core-agent/README.md)
 
 ## 准入核对

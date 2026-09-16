@@ -10,13 +10,13 @@
       },
       "family": "data",
       "topic": "agent-runtime-identity",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/data/agent-runtime-identity/v1/contract.md",
       "resources": [
         "spec/data/agent-runtime-identity/v1/contract.md",
         "spec/data/agent-runtime-identity/v1/schema.json"
       ],
-      "acceptance": null,
+      "acceptance": "decisions/agent-runtime/acceptance.json",
       "dependencies": []
     },
     {
@@ -27,7 +27,7 @@
       },
       "family": "capabilities",
       "topic": "live-agent",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/capabilities/live-agent/v1/contract.md",
       "resources": [
         "spec/capabilities/live-agent/v1/contract.md",
@@ -37,7 +37,7 @@
         "spec/capabilities/live-agent/v1/formal/RuntimeMC.tla",
         "spec/capabilities/live-agent/v1/formal/RuntimeProgress.cfg"
       ],
-      "acceptance": null,
+      "acceptance": "decisions/agent-runtime/acceptance.json",
       "dependencies": [
         {
           "coordinate": {
@@ -64,7 +64,7 @@
       },
       "family": "compositions",
       "topic": "agent-session-binding",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/compositions/agent-session-binding/v1/contract.md",
       "resources": [
         "spec/compositions/agent-session-binding/v1/contract.md",
@@ -72,7 +72,7 @@
         "spec/compositions/agent-session-binding/v1/formal/Binding.cfg",
         "spec/compositions/agent-session-binding/v1/formal/Binding.tla"
       ],
-      "acceptance": null,
+      "acceptance": "decisions/runtime-composition/acceptance.json",
       "dependencies": [
         {
           "coordinate": {

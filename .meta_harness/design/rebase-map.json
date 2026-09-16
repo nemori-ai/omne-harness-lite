@@ -68,10 +68,15 @@
         "composition.agent-session-binding@1<-data.agent-runtime-identity@1",
         "data.core-work@1<-data.agent-runtime-identity@1"
       ],
-      "release_evidence": [],
+      "release_evidence": [
+        {
+          "path": "decisions/agent-runtime/decision.md",
+          "sha256": "50999442c8de34de0841aed3fd85346ebb66d982f05387a64993f4154a4768f5"
+        }
+      ],
       "freeze_gate": {
-        "blocked": true,
-        "reason": "All listed consumers have verified-current target adoption; target remains candidate with acceptance:null, and release evidence/freeze are absent."
+        "blocked": false,
+        "reason": "Equivalent new v1 accepted and frozen; all listed target consumers verified-current."
       }
     },
     {
@@ -203,10 +208,19 @@
         "capability.run-driver@1<-capability.live-agent@1",
         "capability.external-hooks@1<-capability.live-agent@1"
       ],
-      "release_evidence": [],
+      "release_evidence": [
+        {
+          "path": "decisions/agent-runtime/decision.md",
+          "sha256": "50999442c8de34de0841aed3fd85346ebb66d982f05387a64993f4154a4768f5"
+        },
+        {
+          "path": "evidence/formal-2026-09-16/legacy-31/formal-results.json",
+          "sha256": "8ea8416c83d3ab9062ff5a7e0984fde14050c6180bc6b20043b2126928fd7c2b"
+        }
+      ],
       "freeze_gate": {
-        "blocked": true,
-        "reason": "All listed consumers have verified-current target adoption; target remains candidate with acceptance:null, and release evidence/freeze are absent."
+        "blocked": false,
+        "reason": "Equivalent new v1 accepted and frozen; all listed target consumers verified-current."
       }
     },
     {
@@ -317,10 +331,19 @@
         "composition.session-run-agent-lifecycles@1<-composition.agent-session-binding@1",
         "capability.run-driver@1<-composition.agent-session-binding@1"
       ],
-      "release_evidence": [],
+      "release_evidence": [
+        {
+          "path": "decisions/runtime-composition/decision.md",
+          "sha256": "795ecea6470355ed0ec9478d41ee84fececabe1cb22e439fee62eeaa67e1905a"
+        },
+        {
+          "path": "evidence/formal-2026-09-16/legacy-31/formal-results.json",
+          "sha256": "8ea8416c83d3ab9062ff5a7e0984fde14050c6180bc6b20043b2126928fd7c2b"
+        }
+      ],
       "freeze_gate": {
-        "blocked": true,
-        "reason": "All listed consumers have verified-current target adoption; target remains candidate with acceptance:null, and release evidence/freeze are absent."
+        "blocked": false,
+        "reason": "Equivalent new v1 accepted and frozen; all listed target consumers verified-current."
       }
     },
     {

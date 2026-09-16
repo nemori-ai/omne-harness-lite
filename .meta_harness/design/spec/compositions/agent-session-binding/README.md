@@ -3,10 +3,10 @@
 本组合拥有活体 Registry、Session attachment、访问验证、Factory/驱动和资源提供者之间的共同发布与释放交接。
 
 - 契约坐标：`(omne-harness-lite-design-2026-09-15, composition.agent-session-binding, 1)`
-- 版本与采用状态：新谱系 v1 已登记候选；旧 v1 等价整理，独立评审完成，接受与冻结仍待 I 核对
+- 版本与采用状态：新谱系 v1 已按 [D-007](../../../decisions/runtime-composition/decision.md) 等价接受，规范资源已冻结；实现符合性另验
 - 精确依赖：新谱系 `data.agent-runtime-identity@1` ARI-1～ARI-5、`capability.live-agent@1` AR-1～AR-16；同 baseline 的 `rebase_relation` 均为 `null`
 - 谱系关系：legacy→new 分别由 `f-identity-v1-equivalent-rebase` 和 `f-live-agent-v1-equivalent-rebase` 表达
-- 旧接受依据：`D-007`；只作为 lineage
+- 采用依据：D-007 的新基线采用范围与 [catalog](../../../catalog.json) 中的精确 acceptance 登记
 - 提供者映射：[core-agent](../../../providers/core-agent/README.md)
 
 ## 准入核对
