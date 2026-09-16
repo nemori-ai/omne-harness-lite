@@ -22,6 +22,10 @@ tenant、operation、因果、epoch、修订与资源所有者必须显式；有
 | committed broadcast | 门外广播已提交 receipt/组合名 | listener 不得改业务结果；丢通知由事实扫描恢复 |
 | Tenant bootstrap binding | 受信装配仅向精确 TenantHost 发放绑定原始 operation/input、新 tenantId 和本代 writer 的不可伪造窄写入能力；门内复核初始化前态及 owner 的业务检查；同操作携带到 Records/JSONL | 普通 coordinator、调用者、字符串 owner/operationKind、持久化 envelope 均不能铸造权限；不得扩大为所有 null-tenant 操作 |
 
+相同 bootstrap operation 在本代已取得逻辑位置后，prepare/lookup 必须返回原目标与
+pending/unknown 状态；不得把暂时 not_seen 变成二次生成目标的许可。跨重启只有
+CC-03 的原 writer 完整前缀核实了未提交并安全解除了占位，才能重新准备目标。
+
 writer 的 `committed`、coordinator completion 与 publication 状态是三个不同事实。writer
 完成耐久后，coordinator 必须在另一短门按 seq 提升全部 owner 的 durable 根。原 coordinator
 completion 对 `committed + publication=ready`、`committed + publication=blocked` 或具名 `unknown`

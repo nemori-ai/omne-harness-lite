@@ -26,7 +26,10 @@ tenant、operation、因果、epoch、修订与资源所有者必须显式；有
 以上是候选契约到 records 端口/codec 的目标映射，不表示当前实现已全部符合。实现验收须让
 prepare、encode/decode、writer receipt 与 recovery replay 使用同一版本化 canonical 编码和
 同一 `+1 per accepted append` 算法；任何一处按 fact 数推进都属于不兼容实现。
-同一受限绑定还须覆盖 conflict outcome 的 `conflict.currents`：只准引用该操作原目标
-tenant stream，实际冲突 append 仍仅写 system `operation-outcomes`；相同原操作/输入的
-lookup 和恢复保持该形状，异输入不得认回。严格解码历史绑定与准入时不可伪造的
+同一受限绑定还须覆盖 conflict outcome：`conflict.currents` 只列实际冲突的流；
+仅此例外的 conflict outcome 与 provider-owned system `operation.conflict` 记录必须
+额外编码 `bootstrapTargetTenantId` 并核对运行时绑定；相同原操作/输入的
+lookup 和恢复沿 writer 已提交的原操作/输入、成功 append 或冲突目标字段恢复
+历史目标，异输入不得认回。旧 codec 不接受新增字段，须版本化升级。
+严格解码历史绑定与准入时不可伪造的
 受信能力是两件事；不能仅凭日志内自称的 owner/operationKind 复授写入权。

@@ -42,14 +42,21 @@ update，不能逐事实去重。业务状态转移由所属能力校验和解�
 Tenant bootstrap owner 颁发一次绑定于**精确原始操作与冻结输入**的窄写入能力：
 该操作 tenant 为 null，在同一协调域的一次原子批中只可写两条固定的 Tenant system
 stream（`tenant-bootstrap`、`tenant-personal-index`）及一条新租户的
-`tenant:<tenantId>` tenant stream；后者的 streamId 必须等于其 scope tenantId。
+`tenant:<tenantId>` tenant stream；后者的 streamId 必须等于
+`tenant:` 加其 scope tenantId，两个 identity 的 tenantId 必须严格相同。
 受信能力不能由提交者填写 `operationKind`、`owner` 字符串或反序列化任意 envelope
 取得；存储只验证能力绑定、stream 形状、身份、CAS、写者代际、唯一排序和重放一致性，
 不读取业务记录以判断个人租户、owner 或首次创建。Tenant owner 负责这些业务事实，
 共同准入门负责当前资格与相同批次。除这一个绑定外，null-tenant 的 tenant 流、跨租户
 混写与任意系统流继续拒绝。持久化操作结果若为 conflict，只写普通 system
-`operation-outcomes`，但其 `conflict.currents` 可引用原绑定的新租户流；lookup 和恢复
-必须沿同一原始操作身份、输入与受限绑定检查引用，不把 outcome 当作第二次创建。
+`operation-outcomes`；`conflict.currents` 仍只列**实际修订不匹配**的 stream，
+可包含原绑定目标 tenant stream，但不能为了持久化目标而伪造一条未冲突的 current。
+受信 writer 在该例外的 conflict outcome 与同一 `operation.conflict` 记录中额外
+保存必需的 `bootstrapTargetTenantId`，与本次不可伪造的目标绑定严格相等；成功
+目标由唯一 tenant append 的 scope/streamId 得出。该新增字段需要明确的版本化
+envelope/outcome 编码、严格 codec 和历史重放支持，不得悄悄按旧格式接纳。
+lookup 和恢复沿原 operationRef、冻结输入、历史目标及受限流形状检查引用，
+异输入不认回；历史关联只用于核对原结果，不能重新颁发运行时写入能力。
 
 **DR-02**：`commit` 结果区分：`committed(receipt)`、`conflict(currentRevision)`、
 `rejected(reason)`、`unavailable`、`unknown(operationRef)`。只有实际耐久确认后

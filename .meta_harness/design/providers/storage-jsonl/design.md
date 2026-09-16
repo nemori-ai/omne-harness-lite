@@ -26,9 +26,12 @@ tenant、operation、因果、epoch、修订与资源所有者必须显式；有
 跨 stream prepare 输入顺序不承载业务关系；跨 owner 关系必须由完整 envelope 的引用及全部
 owner 校验表达。format 升级若改变 canonical 编码须发布新版本并保留旧格式的解码/重放规则，
 不能让同一历史 envelope 在重启后产生不同 recordIndex 或 eventId。
-conflict 只写 system `operation-outcomes`，其 currents 可引用原操作绑定的 tenant stream；
+conflict 只写 system `operation-outcomes`，其 currents 只列实际 mismatch；同一
+provider-owned outcome/record 必须额外持久化并核对原绑定的
+`bootstrapTargetTenantId`，包括仅 system stream 冲突时；
 prepare、提交、lookup 与重启读取均核对原 operation/input、scope 形状及绑定，不能
 用自报字段取得新写入许可。坏前缀、错 stream、重放异输入保持隔离或冲突，不跳过。
-重启时核对历史 envelope 的原 operation/input 与存储结构及唯一前缀；历史数据只
+重启时从唯一成功 tenant append 或冲突 outcome 的目标字段恢复历史目标，
+按版本化严格编码核对 envelope 的 operation/input、受限 stream 形状及唯一前缀；历史数据只
 用于重建原结果，不能被当作可导入的运行时受信写入凭据。未提交且无法证明的操作
 继续 unknown；重新写入仍须当前宿主的窄绑定。
