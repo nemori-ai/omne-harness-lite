@@ -31,9 +31,9 @@ invariant 与 temporal property 仍全部执行。
 - `CrossGenerationInstallMutation.cfg`：新 subscriber generation 安装旧 source/generation 的缓冲项。
 - `SourceLostTerminalMutation.cfg`：observer source loss 直接关闭草稿并伪造 terminal authority。
 
-实际命令、工具与文件哈希、状态计数、action coverage、公平假设、反例 trace 和条款映射位于
-本次 E 证据包 `tmp/docs-spec-v1/e/formal-runs/`。结论只覆盖记录的有限状态空间，不是 provider
-实现符合性、无限域机器证明或生产环境不丢消息的保证。
+前四类新模型的旧 E 一次性运行记录尚未作为本谱系的发布证据收录；其已登记的任务以
+[当前执行证据](../../../../../evidence/formal-2026-09-16/README.md)为准。结论只覆盖记录的有限
+状态空间，不是 provider 实现符合性、无限域机器证明或生产环境不丢消息的保证。
 
 ## Changes 与 snapshot 的性质和检查范围
 
@@ -78,6 +78,8 @@ StopAt=0 没有任何提交。TLA+ 弱公平只保证最终发生，不证明 MS
 Changes 的原子安装保留了状态和正文完整性的抽象，未枚举每种存储局部写失败；快照失败路径明确
 包含正文读取失败，不据此声称覆盖所有底层故障。
 
-重跑入口为 `tmp/docs-spec-v1/e/run_astra_client.py`；最终原始日志、逐项工具/输入/输出哈希、
-action coverage 与 task delta 在 `tmp/docs-spec-v1/e/formal-runs/astra-client/` 及同级 E 交接文件。
-旧 `round3-client` 和 WIP 日志保留其原版本诊断地位，不作为此修订通过证据。
+28 项有限运行的原始日志、逐项工具/输入/输出哈希和检查结果已在
+[设计证据包](../../../../../evidence/formal-2026-09-16/message-stream-28/run-report.json)。
+模型/配置与当前文件逐字节一致；原运行绑定的 MS/Session 自然语言正文后来变动，
+仅能复用其中未改变的游标、快照与授权投影前提，不能据此验证后来新增的 dedup key、
+媒体来源和 `provisional_outcome` 的 Run 归属。旧 WIP 日志不作为此修订通过证据。

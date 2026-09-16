@@ -1,0 +1,109 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 93 and seed 688231303599805512 with 1 worker on 8 cores with 910MB heap and 64MB offheap memory [pid: 240357] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness-e-formal/.meta_harness/design/spec/capabilities/message-stream/v1/formal/AuthorizationNoninterference.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/FiniteSets.tla
+Parsing file /tmp/TLC.tla
+Parsing file /tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module AuthorizationNoninterference
+Starting... (2026-09-16 08:07:32)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-16 08:07:32.
+Error: Invariant PerGuessedIdentityObservationEqual is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ visibilityVersion = 0
+/\ collectionReset = [hidden |-> FALSE, absent |-> FALSE, expired |-> FALSE]
+/\ completeTo = [hidden |-> 0, absent |-> 0, expired |-> 0]
+/\ asOf = [hidden |-> 0, absent |-> 0, expired |-> 0]
+/\ floor = [hidden |-> 0, absent |-> 0, expired |-> 0]
+/\ responseClassForX = [hidden |-> "none", absent |-> "none", expired |-> "none"]
+/\ authorizationDefinition = 0
+/\ responseHasX = [hidden |-> FALSE, absent |-> FALSE, expired |-> FALSE]
+/\ guessedIdentityAccepted = FALSE
+
+State 2: <SnapshotCollection line 63, col 3 to line 71, col 26 of module AuthorizationNoninterference>
+/\ visibilityVersion = 0
+/\ collectionReset = [hidden |-> FALSE, absent |-> FALSE, expired |-> FALSE]
+/\ completeTo = [hidden |-> 0, absent |-> 0, expired |-> 0]
+/\ asOf = [hidden |-> 0, absent |-> 0, expired |-> 0]
+/\ floor = [hidden |-> 0, absent |-> 0, expired |-> 0]
+/\ responseClassForX = [ hidden |-> "inaccessible",
+  absent |-> "not_found",
+  expired |-> "evidence_expired" ]
+/\ authorizationDefinition = 0
+/\ responseHasX = [hidden |-> FALSE, absent |-> FALSE, expired |-> FALSE]
+/\ guessedIdentityAccepted = TRUE
+
+The coverage statistics at 2026-09-16 08:07:32
+<Init line 24, col 1 to line 24, col 4 of module AuthorizationNoninterference>: 1:1
+  line 25, col 3 to line 33, col 36 of module AuthorizationNoninterference: 1
+<HiddenOrUnrelatedCommit line 35, col 1 to line 35, col 26 of module AuthorizationNoninterference>: 3:6
+  line 36, col 6 to line 36, col 16 of module AuthorizationNoninterference: 6
+  line 37, col 6 to line 37, col 39 of module AuthorizationNoninterference: 6
+  line 38, col 6 to line 38, col 54 of module AuthorizationNoninterference: 6
+  line 39, col 6 to line 41, col 32 of module AuthorizationNoninterference: 6
+<AdvanceCollectionFloor line 43, col 1 to line 43, col 25 of module AuthorizationNoninterference>: 0:0
+  line 44, col 6 to line 44, col 23 of module AuthorizationNoninterference: 6
+  line 45, col 6 to line 45, col 41 of module AuthorizationNoninterference: 0
+  line 46, col 6 to line 48, col 49 of module AuthorizationNoninterference: 0
+<ChangeAuthorizationProjection line 50, col 1 to line 50, col 29 of module AuthorizationNoninterference>: 1:2
+  line 51, col 6 to line 51, col 32 of module AuthorizationNoninterference: 4
+  |line 51, col 6 to line 51, col 28 of module AuthorizationNoninterference: 2
+  line 52, col 6 to line 52, col 33 of module AuthorizationNoninterference: 2
+  line 53, col 6 to line 53, col 27 of module AuthorizationNoninterference: 2
+  line 54, col 6 to line 55, col 68 of module AuthorizationNoninterference: 2
+<SnapshotCollection line 62, col 1 to line 62, col 18 of module AuthorizationNoninterference>: 1:2
+  line 63, col 6 to line 63, col 45 of module AuthorizationNoninterference: 1
+  |line 63, col 22 to line 63, col 45 of module AuthorizationNoninterference: 2:6
+  line 64, col 6 to line 67, col 39 of module AuthorizationNoninterference: 1
+  |line 65, col 8 to line 67, col 39 of module AuthorizationNoninterference: 2
+  line 68, col 6 to line 68, col 72 of module AuthorizationNoninterference: 1
+  |line 68, col 34 to line 68, col 71 of module AuthorizationNoninterference: 2
+  line 69, col 6 to line 69, col 48 of module AuthorizationNoninterference: 1
+  |line 69, col 25 to line 69, col 48 of module AuthorizationNoninterference: 2:6
+  line 70, col 6 to line 71, col 26 of module AuthorizationNoninterference: 1
+<ChangesFrom line 73, col 1 to line 73, col 19 of module AuthorizationNoninterference>: 0:0
+  line 75, col 6 to line 75, col 60 of module AuthorizationNoninterference: 0
+  line 76, col 6 to line 76, col 45 of module AuthorizationNoninterference: 0
+  line 77, col 6 to line 77, col 51 of module AuthorizationNoninterference: 0
+  line 78, col 6 to line 78, col 37 of module AuthorizationNoninterference: 0
+  line 79, col 6 to line 80, col 26 of module AuthorizationNoninterference: 0
+<PerGuessedIdentityObservationEqual line 104, col 1 to line 104, col 34 of module AuthorizationNoninterference>
+  line 105, col 3 to line 105, col 56 of module AuthorizationNoninterference: 6
+  |line 105, col 3 to line 105, col 52 of module AuthorizationNoninterference: 6
+  ||line 105, col 15 to line 105, col 51 of module AuthorizationNoninterference: 6
+  |||line 105, col 16 to line 105, col 35 of module AuthorizationNoninterference: 18
+  |||line 105, col 45 to line 105, col 50 of module AuthorizationNoninterference: 6
+End of statistics.
+6 states generated, 6 distinct states found, 4 states left on queue.
+The depth of the complete state graph search is 2.
+Finished in 00s at (2026-09-16 08:07:32)
+Command exited with non-zero status 12
+	Command being timed: "/data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness/tmp/toolchains/formal/jre/bin/java -Xmx1g -XX:+UseParallelGC -cp /data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness/tmp/toolchains/formal/downloads/tla2tools-v1.7.4.jar tlc2.TLC -workers 1 -coverage 1 -metadir /data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness-e-formal/tmp/docs-spec-v1/e/formal-runs/astra-client/tlc-state/guessed-identity-20260916T080732189312Z -config /data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness-e-formal/.meta_harness/design/spec/capabilities/message-stream/v1/formal/GuessedIdentityClassificationMutation.cfg /data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness-e-formal/.meta_harness/design/spec/capabilities/message-stream/v1/formal/AuthorizationNoninterference.tla"
+	User time (seconds): 1.64
+	System time (seconds): 0.10
+	Percent of CPU this job got: 175%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:00.99
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 97960
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 8
+	Minor (reclaiming a frame) page faults: 21229
+	Voluntary context switches: 4809
+	Involuntary context switches: 72
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 224
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 12
