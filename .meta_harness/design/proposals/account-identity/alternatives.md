@@ -2,7 +2,7 @@
 
 ## 选择对象与共同约束
 
-对 [PF-026.C1–C5](../../requirements/product/PF-026-account-journey-and-isolation/requirements.md)，选择哪个能力拥有产品账号及认证生命周期，哪种成熟 provider 提供注册/会话机制。三个候选都必须保持账号 `UserRef` 与组织成员关系分离，由可信账号及目标租户共同限定数据、设置、权限和其他资产的归属与可见范围，并提供可辨失败及仅退出当前登录态。Tenant 继续拥有个人租户唯一 claim；[PF-019](../../requirements/product/PF-019-tenant-subscription-usage-billing-and-budget/README.md) 与 budget-accounting@1 BG-01/02/06 分别约束租户账目、预算和授额；[PF-006](../../requirements/product/PF-006-user-settings-and-agent-definition-authorization/README.md) 要求设置范围明确，但账号级设置 owner/求值契约仍缺。CLI 切换账号时不能沿用前账号的偏好或缓存；未来本地磁盘上的 skills/settings 定位须以可信账号和目标租户为输入，具体布局未定；具体开放注册政策未定。
+对 [PF-026.C1–C5](../../requirements/product/PF-026-account-journey-and-isolation/requirements.md)，选择哪个能力拥有产品账号及认证生命周期，哪种成熟 provider 提供注册/会话机制。三个候选都必须保持账号 `UserRef` 与组织成员关系分离，以可信账号及资源作用域限定数据、设置、权限和其他资产的归属与可见范围；租户范围的对象还需核验目标租户，并提供可辨失败及仅退出当前登录态。Tenant 继续拥有个人租户唯一 claim；[PF-019](../../requirements/product/PF-019-tenant-subscription-usage-billing-and-budget/README.md) 与 budget-accounting@1 BG-01/02/06 分别约束租户账目、预算和授额；[PF-006](../../requirements/product/PF-006-user-settings-and-agent-definition-authorization/README.md) 要求设置范围明确，但账号级设置 owner/求值契约仍缺。CLI 切换账号时不能沿用前账号的偏好或缓存；未来本地磁盘上的 skills/settings 定位须以可信账号、资源作用域和适用的目标租户为输入，具体布局未定；具体开放注册政策未定。
 
 | 候选 | 责任及兑现方式 | 总负担与关键反例 | 证据状态 |
 |---|---|---|---|
