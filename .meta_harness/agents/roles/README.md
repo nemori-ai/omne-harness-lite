@@ -19,7 +19,8 @@
 五个开发者通过 `assembly.toml` 内联[共同契约](developer-contract.md)，固定提示已经包含必要输入、
 行动授权和停止条件；[派发模板](developer-task.md)提供本次事实，不进入固定提示。
 生成说明见[工具入口](../../tooling/README.md)，生成物归工作区内
-[Codex](../../.codex/agents/) 与 [Claude Code](../../.claude/agents/)。
+`.codex/agents/` 与 `.claude/agents/`；例如 [Codex 配置](../../.codex/agents/architecture-reviewer.toml)
+和 [Claude Code 定义](../../.claude/agents/architecture-reviewer.md)。
 
 ## 按判断对象选择 reviewer
 
