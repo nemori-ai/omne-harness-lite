@@ -40,7 +40,10 @@ ALLOWED_COORDINATES = frozenset({
     "composition.account-registration@1",
     "composition.session-run-agent-lifecycles@1",
 })
-ALLOWED_RETIRED_IDENTITIES = frozenset({"capability.session-run"})
+ALLOWED_RETIRED_IDENTITIES = frozenset({
+    "capability.session-run",
+    "proposal.outbound-stream",
+})
 MANIFESTS = ("catalog.json", "rebase-map.json", "frozen.json", "formal-tasks.json")
 
 
@@ -202,6 +205,22 @@ def task_key(item: dict[str, Any], where: str) -> str:
     return value
 
 
+def retired_identity_key(item: dict[str, Any], where: str) -> str:
+    required = {"baseline_id", "contract_id", "reason"}
+    if set(item) != required:
+        raise MergeError(f"{where} must contain exactly baseline_id/contract_id/reason")
+    if item["baseline_id"] != LEGACY_BASELINE_ID:
+        raise MergeError(f"{where}.baseline_id must be the declared legacy baseline")
+    contract_id = item["contract_id"]
+    if not isinstance(contract_id, str) or not contract_id.strip():
+        raise MergeError(f"{where}.contract_id must be a non-empty string")
+    if not isinstance(item["reason"], str) or not item["reason"].strip():
+        raise MergeError(f"{where}.reason must be a non-empty string")
+    if contract_id not in ALLOWED_RETIRED_IDENTITIES:
+        raise MergeError(f"retired identities outside allowlist: {contract_id}")
+    return contract_id
+
+
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -210,7 +229,7 @@ def load_replacements(path: Path | None) -> dict[str, dict[str, str]]:
     if path is None:
         return {}
     raw = load_json(path, "replacement plan")
-    allowed = {"format", "contracts", "relations", "consumer_observations", "tasks", "frozen_files"}
+    allowed = {"format", "contracts", "relations", "retired_identities", "consumer_observations", "tasks", "frozen_files"}
     unknown = set(raw) - allowed
     if unknown:
         raise MergeError(f"replacement plan has unknown fields: {', '.join(sorted(unknown))}")
@@ -276,14 +295,11 @@ def validate_and_render(
         replacement_section="tasks", replacements=replacements,
     )
 
-    retired: set[str] = set()
-    for candidate in candidates:
-        values = candidate.manifests["rebase-map.json"].get("retired_identities")
-        if not isinstance(values, list) or not all(isinstance(value, str) for value in values):
-            raise MergeError(f"{candidate.label}/rebase-map.json.retired_identities must be a string array")
-        retired.update(values)
-    if not retired.issubset(ALLOWED_RETIRED_IDENTITIES):
-        raise MergeError(f"retired identities outside allowlist: {', '.join(sorted(retired - ALLOWED_RETIRED_IDENTITIES))}")
+    retired = merge_keyed(
+        candidates, manifest="rebase-map.json", field="retired_identities",
+        key_fn=retired_identity_key, replacement_section="retired_identities",
+        replacements=replacements,
+    )
 
     resource_owners: dict[str, str] = {}
     accepted_found: set[str] = set()
@@ -395,7 +411,7 @@ def validate_and_render(
         "rebase-map.json": {
             "format": 1,
             "target_baseline_id": BASELINE_ID,
-            "retired_identities": sorted(retired),
+            "retired_identities": sorted(retired, key=lambda item: item["contract_id"]),
             "relations": relations,
             "consumer_observations": consumers,
         },

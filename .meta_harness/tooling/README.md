@@ -176,7 +176,8 @@ python .meta_harness/tooling/src/link_agents.py --project-root . --check
 
 `merge_design_candidates.py` 将已审阅的累积候选快照合成同一套五清单。它固定本轮
 `omne-harness-lite-design-2026-09-15`、Schema namespace、legacy baseline、统一 v1、
-23 个目标坐标（包括账号身份与注册组合）以及唯一允许退役的 `capability.session-run`；最终 `snapshot_id` 必须由调用者
+23 个目标坐标（包括账号身份与注册组合）以及仅允许从声明的 legacy baseline 退役的
+`capability.session-run` 和 `proposal.outbound-stream`；最终 `snapshot_id` 必须由调用者
 在锁定修订后显式传入，工具不会写临时 hash。
 
 ```sh
@@ -189,9 +190,10 @@ python tooling/src/merge_design_candidates.py \
   --output /path/to/candidate-output
 ```
 
-相同 coordinate、relation id、consumer id 或 task id 且内容逐字等价时去重；内容不同必须在
+相同 coordinate、relation id、退役身份、consumer id 或 task id 且内容逐字等价时去重；内容不同必须在
 replacement plan 中按键选择来源。这个机制用于表达 L 对 S lifecycle placeholder 的替换等
-真实语义收敛，禁止把累积快照机械 append。输出前整体检查重复键/资源路径、资源与形式工件
+真实语义收敛，禁止把累积快照机械 append。退役身份保留 `baseline_id`、`contract_id` 和 `reason`；
+同一身份的不同 reason 需要 `retired_identities` 替换选择。输出前整体检查重复键/资源路径、资源与形式工件
 存在性、跨 baseline、固定 allowlist、退役身份和替换计划。任何 `accepted` 坐标或 frozen 文件
 还必须由 `--adoption-authorization` 以 coordinate→接受记录路径/hash 和资源→hash 精确授权；
 工具只据此把对应 candidate 提升为 accepted 并生成完整冻结集合。决定文件存在、旧接受或旧冻结
