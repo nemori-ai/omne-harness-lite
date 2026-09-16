@@ -67,12 +67,13 @@ owner、operationKind、`UserRef` 字符串或旧 session 均不授予入口资�
 两个入口共用唯一 claim、操作占位、批次、结果与恢复规则。原操作、冻结输入、
 `UserRef`、个人种类、creator、唯一 active owner 及目标 tenantId 在首次逻辑排位前
 固定。个人 target 采用 Tenant 定义的注入式、域分离映射
-`personalTarget(accountAuthorityNamespace, entryKind, originalOperationId)`；两个不同
+`personalTarget(accountAuthorityNamespace, entryKind, originalOperationRef)`；其中
+`originalOperationRef` 是 CD-02 的完整 `(namespace, principalId, operationId)`，两个不同
 来源操作不得映到同一 tenantId，且与非个人租户 ID 空间不相交。部署 init 与账号
 注册均先按该规则确定 target，Account 首次耐久原操作绑定它；Tenant 核验来源后果
 中的 target 与规则一致，不在重试时随机分配。Account 首次提交前若准备进程崩溃，
 没有已发布的身份或 target；重启先核实 Account 原操作，已提交则认回原绑定，
-确认未提交才以相同命名空间、入口和原操作重备，规则仍给出同一 target。提交
+确认未提交才以相同账号权威命名空间、入口和完整原操作引用重备，规则仍给出同一 target。提交
 unknown 时不得仅凭本地缓存或暂时 `not_seen` 判断未提交，也不得开启新操作绕过核实。
 Tenant 先按精确原操作查占位/耐久结果，再作新操作准入：
 同键同输入认回原 target 与历史结果，不因部署后来已初始化或账号已 active 而重跑
