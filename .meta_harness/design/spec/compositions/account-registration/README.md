@@ -13,4 +13,5 @@
 |---|---|
 | 跨 owner 注册的状态、交接与失败 | [v1 候选契约](v1/contract.md) |
 | 可辨结果与反例 | [规范场景](v1/scenarios.md) |
+| 有限行为模型及前提 | [TLA+ 映射](v1/formal/README.md) |
 | 形式化和真实组合的义务 | [验证范围](verification.md) |
