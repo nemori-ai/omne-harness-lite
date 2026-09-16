@@ -1,12 +1,12 @@
 # composition.account-registration v1 候选
 
-本契约适用于首版单机部署内后续自然人账号的注册，不适用于部署首次 `init`。它细化 [D-016](../../../../decisions/account-identity/decision.md) 的跨能力交接，依赖同 baseline 的 [CD-01/02](../../../data/core-work/v1/contract.md)、[AI-01/02/04/05/06](../../../capabilities/account-identity/v1/contract.md)、[TG-01/02](../../../capabilities/tenant-governance/v1/contract.md) 和 [CC-03/06](../../core-work-coordination/v1/contract.md)；对应精确坐标分别为 `data.core-work@1`、`capability.account-identity@1`、`capability.tenant-governance@1`、`composition.core-work-coordination@1`，同 baseline 的 `rebase_relation` 均为 `null`。当前 `candidate`、`acceptance:null`；Tenant 后续个人创建端口及真实恢复映射未锁定，不能作为已发布的实施接口。
+本契约适用于首版单机部署内后续自然人账号的注册，不适用于部署首次 `init`。它细化 [D-016](../../../../decisions/account-identity/decision.md) 的跨能力交接，依赖同 baseline 的 [CD-01/02](../../../data/core-work/v1/contract.md)、[AI-01/02/04/05/06](../../../capabilities/account-identity/v1/contract.md)、[TG-01/02/03](../../../capabilities/tenant-governance/v1/contract.md) 和 [CC-03/06](../../core-work-coordination/v1/contract.md)；选择 system/tenant 混合流路径时还依赖 [DR-01](../../../capabilities/durable-records/v1/contract.md)。对应精确坐标分别为 `data.core-work@1`、`capability.account-identity@1`、`capability.tenant-governance@1`、`composition.core-work-coordination@1`、条件性 `capability.durable-records@1`，同 baseline 的 `rebase_relation` 均为 `null`。当前 `candidate`、`acceptance:null`；Tenant 后续个人创建端口及真实恢复映射未锁定，不能作为已发布的实施接口。
 
 ## 权威与目标
 
 账号权威唯一分配并保留不复用的 `UserRef`、注册身份及 pending/active 状态；Tenant 唯一裁决个人租户及 owner 成员、每个 `UserRef` 最多一个有效个人租户。注册协调者持有跨 owner 的原操作身份、稳定目标、每步回执与待核实责任；它不直写账号或 Tenant 的内部事实。注册的成功事实只在**同一个账号 active 且其唯一有效个人租户和 owner 成员已耐久可消费**时成立，不是任一步骤的局部成功。此后租户关闭、成员状态变化不改写历史注册结果；每次业务使用仍另核当前资格。
 
-认证 provider 的凭据提交与项目 `UserRef` 映射须可核实且稳定；提供者自身注册成功不能绕过上述产品完成条件。准入政策未确定时不允许把公开注册视为默认许可。客户端提交的账号 ID、tenant ID、同机文件或身份令牌本身均非可授予个人租户的资格。
+认证 provider 的凭据提交与项目 `UserRef` 映射须可核实且稳定；提供者自身注册成功不能绕过上述产品完成条件。首版允许能使用部署的人自助注册，不要求邀请或管理员代建；输入校验和滥用防护须由账号能力定义，不能把开放入口解释为无条件创建成功。客户端提交的账号 ID、tenant ID、同机文件或身份令牌本身均非可授予个人租户的资格。
 
 ## 共同性质
 
