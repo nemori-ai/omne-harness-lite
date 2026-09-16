@@ -20,7 +20,8 @@
 
 ## 可恢复坐标与状态
 
-固定 `nemori-ai/omne-next@6263fed545e48ad9efb5714f3fe76a7c1a0af1b5`：
+固定 `nemori-ai/omne-next@6263fed545e48ad9efb5714f3fe76a7c1a0af1b5`；下表路径相对于
+该固定提交的 `omne_harness/`：
 
 | 来源 | 状态 | 路径 / 定位 |
 |---|---|---|
