@@ -55,7 +55,7 @@ execution、environment、file 是 LE owner 的逻辑记录流，实际 `StreamR
 批内事实位置与编码由当前 DR/records 契约及提供者给出。旧 `core-journal/1`、
 `core-operation/1` 与事件 `/1` 是来源字节形状，不是新 v1 可写恢复格式；
 不得机械替换成 `/3`。普通业务批次、冲突结果和 writer epoch 的新 codec 仍有
-[DR/records 提供者缺口](../storage-jsonl/design.md#待语义拥有者收口)。
+[DR/records 提供者缺口](../storage-jsonl/design.md#待代码与环境验收)。
 decoder/纯 fold 要检查原 owner、身份、状态与来源；缺精确格式或 required fold
 不开放 start，不能恢复成空墓碑。
 
