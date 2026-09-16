@@ -352,13 +352,17 @@ Run（running / waiting / interrupted）上有开放登记（RN-01（legacy sour
 `call_settlement` 的 continuation 与 call 登记的 `released{settled}` 同批；`gate_restored` 与 gate
 登记的 `released{passed}` 同批；`human_answer` 只写 `continuation{readiness: approval}`，不注销
 call 登记，批准被消费并 start 后该登记继续开放到真实 call settlement；`provisional_outcome`
-同样不释放其承载调用。调用结算没有来源
+同样不释放其承载调用。`provisional_outcome` 的一次接续另有 `refs = run` 的
+Run 级就绪位置：B 列在**原发起 Run 仍非终态**时可保留该位置，不要求该 Run 有开放的
+call/gate 登记；它不指向同 Session 的另一个活动 Run。若原发起 Run 已终态，
+即使 Session 另有活动 Run，也按 C 列的 queue/converted 后果处理这项一次接续。
+调用结算没有来源
 策略，子代理、handoff 与定时派发一律按此判定。决定表：
 
 | 来源 | A | B | C | D1 | D2 |
 |---|---|---|---|---|---|
 | call_settlement | continuation（`readiness: settlement`；同批释放 call 登记） | context（无开放登记而发起 Run 或 Session 仍活动） | queue（trigger：发起 Run 已终态或无发起 Run） | closed(cancelled_run)；发起 Run 为 stopping/force_stopped 则 closed(isolated) | closed(closed_by_archive/closed_by_delete) |
-| provisional_outcome | 一次接续 → continuation；下次运行可感知 → context | 一次接续 → continuation（refs = run，下一次 Step 收束判定时就绪）；下次运行可感知 → context | 一次接续 → queue 并记 converted；下次运行可感知 → context | closed | closed |
+| provisional_outcome | 一次接续 → continuation；下次运行可感知 → context | 原发起 Run 非终态：一次接续 → continuation（refs = run，下一次 Step 收束判定时就绪）；原发起 Run 已终态：一次接续按 C 列 queue 并记 converted，不指向别的活动 Run；下次运行可感知 → context | 一次接续 → queue 并记 converted；下次运行可感知 → context | closed | closed |
 | human_answer | continuation（`readiness: approval`，不释放 call 登记） | 不可能；迟到答复按 HD-02（legacy source: `../../human-decisions/v2/contract.md`） 返回当前结果，不生成 | 同左 | 同左 | 同左 |
 | gate_restored | continuation（`readiness: gate`；gateRef 匹配并同批释放 gate 登记） | 不生成 | 不生成 | 不生成 | 不生成 |
 | connector_passive | context | context | context | context | 不受理 |
@@ -370,8 +374,9 @@ call 登记，批准被消费并 start 后该登记继续开放到真实 call se
 | hook_continuation | 不生成（续跑只在 Run 已 completed 后受理） | queue（意图恒为 queue，不因 Session 另有活动 Run 改判） | queue（trigger 项，一项一 Run；判定依据为 originWork，即触发它的已完成 Run） | 不生成（cancelled / stopping / superseded 不触发续跑） | closed(closed_by_archive/closed_by_delete) |
 
 每个 arrival 恰被裁决一次；其后它的意图只由 SE-17 的 Run 终态处理改写，不存在第二次
-裁决。continuation 只在 A 列判出，因此只指向裁决时非终态、且该 holder 仍在其登记簿上的
-Run；发起 Run 处于 interrupted 时 continuation 保留到 resume 消费。context 意图永不创建
+裁决。continuation 只在 A 列或上述 B 列 `provisional_outcome` 的 `refs = run` 例外判出：
+A 列指向裁决时非终态、且 holder 仍在其登记簿上的原 Run；B 列的例外只指向非终态的
+原发起 Run 本身。发起 Run 处于 interrupted 时 continuation 保留到 resume 消费。context 意图永不创建
 Run、永不唤醒等待中的 Run；`system` 来源的清单在无活动 Run 时只等待，由下一个有模型
 Step 的 Run 消费。裁决与目标 Run 的终态转移在同一协调域全序，由
 LC-04（legacy source: `../../../compositions/session-run-agent-lifecycles/v2/contract.md`） 声明。
