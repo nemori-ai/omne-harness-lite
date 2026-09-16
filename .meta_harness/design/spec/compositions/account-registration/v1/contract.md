@@ -12,13 +12,13 @@
 
 **ACR-01（原操作与身份）**：一次注册使用由受信入口固定的 `registrationOperation` 与规范化请求摘要。账号权威对同一原操作及相同摘要只认回同一不复用 `UserRef`；同键异摘要明确冲突。重复请求、进程重启与响应丢失不允许新建第二个账号。外部凭据标识冲突是可辨拒绝，不能与“同一现实人”混淆。
 
-**ACR-02（pending 的安全范围）**：账号权威可先持久建立 `pending_personal_scope`，并保存与原操作关联的稳定 personal tenant target；该账号只可执行继续/查询注册和必要的凭据恢复，不得凭 pending 身份取得个人业务、组织业务或设置/资产访问。pending 凭据验证不等于 active 主体授权；该 `UserRef` 在激活前不得经组织邀请、管理员代建或其它入口形成有效组织成员，Tenant 的组织入会门须核账号当前 active 资格。
+**ACR-02（pending 的安全范围）**：账号权威可先持久建立 `pending_personal_scope`，并保存与原操作关联的稳定 personal tenant target；该账号只可执行继续/查询注册和必要的凭据恢复，不得凭 pending 身份取得个人业务、组织业务或设置/资产访问。pending 凭据验证不等于 active 主体授权。该注册流程不会建立组织成员；独立组织入会的时序与准入由其自身契约决定，任何 pending 身份仍不得据此获得业务访问。
 
 **ACR-03（受信后果交付与 Tenant 创建）**：Account 只有在 AI-02a 的凭据唯一绑定与创建后果均已耐久确认后，才能以稳定来源身份把这一笔授权交给注册协调域。受信接收者按 CC-05 核实来源权威、契约版本、原操作、摘要、`UserRef`、固定 target 和原后果耐久性，再以该来源身份耐久接纳、去重并提供可查询回执；客户端 DTO、账号标识字符串、旧 session 或单独的 operation ID 不能代替。尚未可信导入时 Tenant 新创建不准入；已耐久导入后 Account 暂时失联或 provider 换代不撤销这份首版不可撤销后果，但旧实例不能再写入新代或伪造导入。导入投影只提供授权前提，不成为第二个账号权威。接收者缺席、未核实来源或导入结果 unknown 时协调者保留原交付责任，不重造来源后果。
 
 Tenant 为后续注册提供与首次部署 `init` **准入依据不同**的受信入口；两个入口可共用同一 Tenant 个人租户创建状态机。新操作在短准入门内只检查已经耐久且可消费的受信导入事实、原操作/目标绑定、当前个人唯一 claim、目标租户前态和运行实例资格，不在门内等待 Account provider I/O，也不因账号当前不再是 pending 就撤销原已授权后果。Tenant 同批提交个人租户、唯一有效 owner 成员与 claim；同一原操作认回同一 tenantId，竞争 `UserRef`/target 不能生成第二范围。该导入后果仅授这一笔创建，不授成员业务访问。采用 global personal-index + 目标 tenant stream 的统一混合批次是[待接受的提案 B](../../../../proposals/personal-tenant-creation/README.md)的候选路径；DR/CC 的受限二/三流许可、严格结果编码及真实存储映射必须单独闭合，首次 `init` 凭据不能冒充注册。
 
-**ACR-04（激活屏障）**：注册协调者只有取得账号身份/凭据映射的耐久确认，以及 Tenant 对**同一 `UserRef`、原操作、稳定 target、个人租户和 owner 成员**的耐久且可消费确认，才能要求账号权威从 pending 转为 active。账号权威在转移时重核这些绑定；注册成功的线性化点须只含由该注册建立的一份 personal tenant/owner，pending 阶段不得已有组织成员。之后独立且明确的组织入会可增加租户，不要求未来任何读取时始终只有一个。对外成功回执只在 active 可核实后成立。Tenant 的逻辑位置、待 fsync 回执、临时 `not_seen`、单方成功或客户端自报不构成激活依据。
+**ACR-04（激活屏障）**：注册协调者只有取得账号身份/凭据映射的耐久确认，以及 Tenant 对**同一 `UserRef`、原操作、稳定 target、个人租户和 owner 成员**的耐久且可消费确认，才能要求账号权威从 pending 转为 active。账号权威在转移时重核这些绑定；注册本身须恰建立一份 personal tenant/owner，不默认建立组织成员；独立且明确的组织入会可另行增加租户，不把“默认一个”解释为对全部并发成员关系的永久基数限制。对外成功回执只在 active 可核实后成立。Tenant 的逻辑位置、待 fsync 回执、临时 `not_seen`、单方成功或客户端自报不构成激活依据。
 
 **ACR-05（未知与认回）**：每步写入若返回 pending、结果未知或回执丢失，协调者保留原身份/目标、占位和接续责任，只查询相应权威并等待可核实结论；不得换键、换 tenant target 或按暂时 `not_seen` 再提交另一份。只有权威在独占恢复下证明原操作未提交、占位安全释放，才可用同一 `registrationOperation`/摘要/目标重试原步骤。若 Tenant 批次已提交但 owner publication 失败，原 completion 按 CC-06 保持 `committed_blocked`，协调者不得重发或仅凭它激活；受信恢复宿主安装覆盖原位置的全部 owner 基线后，新代权威查询另给可消费证明，才能继续 ACR-04。恢复宿主无法完成时账号保持 pending，用户看到待恢复而非成功。确定冲突或不能继续的结果对用户可辨，但不把已发布的账号或租户作为“回滚”静默删除。
 
@@ -40,7 +40,7 @@ Tenant 为后续注册提供与首次部署 `init` **准入依据不同**的受�
 ## 发布前必须闭合
 
 1. `capability.account-identity@1` 明确 pending/active、会话验证、操作认回与授权边界。
-2. [D-017](../../../../decisions/personal-tenant-creation/decision.md) 的 Tenant 统一个人创建：两个受信入口不同准入来源，一套 claim、target、提交、认回和恢复；pending 账号不得先形成组织成员。
+2. [D-017](../../../../decisions/personal-tenant-creation/decision.md) 的 Tenant 统一个人创建：两个受信入口不同准入来源，一套 claim、target、提交、认回和恢复；注册自身不得建立组织成员，pending 身份仍不得获得业务访问。
 3. Account AI-02a 的凭据唯一绑定与不可撤销后果、CC-05 受信耐久导入、旧实例隔离及跨 owner 回执；账号/协调者/Tenant 对原操作的恢复映射，含 CC-06 `committed_blocked` 新基线与“结果未提交”的证明路径。
 4. 统一 system personal-index/目标 tenant 混合批次所需的 DR-01/CC-03 精确二/三流许可、target outcome、严格 codec/replay 与提供者映射；不靠旧 bootstrap 专属许可或兼容层。
 5. 两来源、多账号并发与故障的行为模型、规范场景和真实提供者故障实验，含可信交付、凭据冲突、重复请求、回执丢失、fsync unknown、publication blocked、重启与跨进程请求。

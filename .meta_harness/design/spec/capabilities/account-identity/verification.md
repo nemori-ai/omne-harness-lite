@@ -6,6 +6,7 @@
 |---|---|---|---|
 | AI-01/04 不复用身份、同操作认回与异输入冲突 | [契约](v1/contract.md)、[场景](v1/scenarios.md) | 账号 provider 固定版本下的身份映射、宕机/重复/并发故障实验；未执行 | 注册实现与可信 `UserRef` 消费 |
 | AI-02a 唯一凭据绑定后才成立一次创建后果 | 同上；受信目标按 CC-05 导入 | 凭据 provider 回执 unknown/碰撞、源事实耐久、换代重复交付、客户端伪造及目标错绑故障实验；未执行 | Tenant 后续个人范围准入 |
+| AI-08 初始账号先于 Tenant init | 同一 Account 权威分配不复用 `UserRef`，受信 seed 与原操作绑定后才形成 `deployment_init` 后果 | 初始账号/凭据唯一绑定、Account 已建而 Tenant 未建时重启、同初始化操作认回、伪 seed/旧实例负例；未执行 | 首次部署创建与默认个人范围 |
 | AI-02/05 pending→active 与 Tenant 唯一个人范围 | 同上；依赖 TG-01 与[注册组合候选](../../compositions/account-registration/v1/contract.md) | 组合仍须给可信证明、固定目标、持久协调及恢复的模型/故障证据；未执行 | PF-026.C1 的完整注册成功 |
 | AI-03/06 账号密码、会话过期/撤销及 logout 成功屏障 | 同上 | 采用 provider 后测试密码处理、旧 token/cookie 在另一进程和重启后重放，以及原 logout 操作凭窄认回证明在撤销后查询；检查缓存、服务不可达与 unknown；未执行 | PF-026.C2 的退出保证 |
 | AI-07 与 PF-026.C3/C4 资产隔离 | 同上；依赖 TG-02 与各资源 owner | 两账号/多租户切换下设置、权限、额度和本地资源定位的组合检查；未执行 | CLI 与资源访问 |
