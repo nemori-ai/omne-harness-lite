@@ -18,7 +18,30 @@
 
 ## 当前主题
 
-本节按实际子目录链接 topic README，并标明接受范围与取代关系；索引只导航实际决定，不形成第二份接受状态清单。
+### 设计治理与知识流
+
+- [D-001：设计知识与规格体系](documentation-system/README.md)
+- [D-002：决定权威与因果复议](decision-authority/README.md)
+- [D-003：防御指导与开发模型评估](defensive-evaluation/README.md)
+- [D-004：系统目标与产品要求作为设计基础](requirements-foundation/README.md)
+
+### 运行时边界与来源采用
+
+- [D-005：以受管能力构成 Agent 运行时](agent-runtime/README.md)
+- [D-006：DSH 核心来源的定向复用](dsh-core-adoption/README.md)
+- [D-007：独立状态权威与受管附着](runtime-composition/README.md)
+
+### 实现组织与工程观测
+
+- [D-009：按能力族和真实职责组织产品包](package-organization/README.md)
+- [D-010：共享诊断设施与真实边界观测](shared-diagnostics/README.md)
+- [D-011：诊断目录的共同所有权](diagnostics-directory-ownership/README.md)，精确取代 D-010 的目录责任部分
+
+D-008 的来源决定同时覆盖后来被 D-012～D-015 拆分、修订并由 E 并发协议继续收敛的广泛能力集合。
+在最终 catalog、联合评审与精确采用快照锁定前，不把它压缩成一个会误导当前消费者的新 topic；其来源坐标与
+暂缓原因保存在本次 I 任务 inventory。D-012～D-015 同理由最终 I adoption 阶段按精确当前范围整理。
+
+本节只导航实际迁入的决定信息包，不形成第二份接受状态清单。
 
 判断方法按需读 [手册对应页](../../agents/skills/harness-design-handbook/canonical/references/design-decisions.md)。
 返回 [系统设计链](../README.md)。

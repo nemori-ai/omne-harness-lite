@@ -32,6 +32,10 @@ Schema、Alloy、TLA+ 行为模型及规范场景按表达与证据需要加入�
 catalog 依赖必须给精确 `coordinate`、消费 `clauses` 与 `rebase_relation`。模板负责收集这些语义输入，
 不自行生成或批准清单；清单间身份、路径、资源与接受关系不一致时停止发布，由唯一集成拥有者修正。
 
+这里的 `candidate`、`accepted` 和 `frozen` 只陈述规格采用与资源不可变性；`implemented` 与
+`assembled` 分别由 providers 和 assemblies 的实际证据拥有。任一缺失以具名 `gap` 保留，不能用
+旧基线接受、形式任务登记、目标设计或文件存在补齐。完整状态词见[系统设计链](../README.md#状态词怎样组合)。
+
 ### 按需展开形式化工件
 
 三种规格模板包均提供可选的 `v-next/formal/README.md`：导航性质、模型、前提、检查范围与论证缺口。

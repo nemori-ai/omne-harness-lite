@@ -171,3 +171,33 @@ python .meta_harness/tooling/src/link_agents.py --project-root . --check
 - 产物留在本工作区；当前 worktree 根入口已接入，产品需求、设计和 spec 正文没有整体迁移。
 
 这些是静态生成与文件操作证据，不证明宿主已发现配置、权限已生效或模型行为符合预期。
+
+## 设计候选整合
+
+`merge_design_candidates.py` 将已审阅的累积候选快照合成同一套五清单。它固定本轮
+`omne-harness-lite-design-2026-09-15`、Schema namespace、legacy baseline、统一 v1、
+21 个目标坐标以及唯一允许退役的 `capability.session-run`；最终 `snapshot_id` 必须由调用者
+在锁定修订后显式传入，工具不会写临时 hash。
+
+```sh
+python tooling/src/merge_design_candidates.py \
+  --design-root design \
+  --snapshot-id <final-locked-revision> \
+  --input F=/path/to/f/candidate-design \
+  --input S=/path/to/s/candidate-design \
+  --replacements /path/to/replacements.json \
+  --output /path/to/candidate-output
+```
+
+相同 coordinate、relation id、consumer id 或 task id 且内容逐字等价时去重；内容不同必须在
+replacement plan 中按键选择来源。这个机制用于表达 L 对 S lifecycle placeholder 的替换等
+真实语义收敛，禁止把累积快照机械 append。输出前整体检查重复键/资源路径、资源与形式工件
+存在性、跨 baseline、固定 allowlist、退役身份和替换计划。任何 `accepted` 坐标或 frozen 文件
+还必须由 `--adoption-authorization` 以 coordinate→接受记录路径/hash 和资源→hash 精确授权；
+工具只据此把对应 candidate 提升为 accepted 并生成完整冻结集合。决定文件存在、旧接受或旧冻结
+hash 都不能自行提升新 baseline 状态。既存输出内容不同时拒绝覆盖，`--check` 只读核对确定性结果。
+
+`normalize_formal_commands.py` 只为 TLC 2.19 命令生成审阅候选：从 argv 删除精确 token
+`-noGenerateSpecTE`，保留 task id、artifacts、coverage、exclusions、timeout 和所有其他字段，
+并另外输出逐 task 的 before/after diff。候选仍须由任务 owner 核对并在最终 manifest 上实际执行；
+生成成功不表示 TLC 通过，也不修改历史 delta 原件。
