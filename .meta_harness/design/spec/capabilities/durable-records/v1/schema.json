@@ -9,6 +9,60 @@
     {"$ref": "#/$defs/OperationConflictFactData"}
   ],
   "$defs": {
+    "CommitEnvelope": {
+      "oneOf": [
+        {"$ref": "#/$defs/OrdinaryCommitEnvelope"},
+        {"$ref": "#/$defs/OrdinaryConflictEnvelope"},
+        {"$ref": "#/$defs/PersonalCreationCommitEnvelope"},
+        {"$ref": "#/$defs/PersonalCreationConflictEnvelope"},
+        {"$ref": "#/$defs/WriterEpochEnvelope"}
+      ]
+    },
+    "Principal": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "user"],
+          "properties": {
+            "kind": {"const": "user"},
+            "user": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/UserRef"}
+          }
+        },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "systemId"],
+          "properties": {
+            "kind": {"const": "system"},
+            "systemId": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"}
+          }
+        }
+      ]
+    },
+    "OperationInput": {
+      "type": "object", "additionalProperties": false,
+      "required": ["format", "operationKind", "tenantId", "principal", "target", "arguments", "preconditions", "causality"],
+      "properties": {
+        "format": {"const": "core-operation/1"},
+        "operationKind": {"type": "string", "minLength": 1},
+        "tenantId": {"oneOf": [{"type": "null"}, {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"}]},
+        "principal": {"$ref": "#/$defs/Principal"},
+        "target": {}, "arguments": {}, "preconditions": {},
+        "causality": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "parentOperation": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/OperationRef"},
+            "initiator": {"$ref": "#/$defs/Principal"},
+            "session": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/SessionRef"},
+            "work": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/WorkOwner"},
+            "call": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/CallRef"},
+            "request": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/RequestRef"},
+            "agent": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/AgentRef"},
+            "definition": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/DefinitionVersion"},
+            "binding": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/Binding"}
+          }
+        }
+      }
+    },
     "JournalLine": {
       "type": "object",
       "additionalProperties": false,
@@ -51,6 +105,14 @@
           ]
         },
         "streamId": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"}
+      }
+    },
+    "AttemptedAppend": {
+      "type": "object", "additionalProperties": false,
+      "required": ["stream", "expectedRevision"],
+      "properties": {
+        "stream": {"$ref": "#/$defs/StreamRef"},
+        "expectedRevision": {"$ref": "#/$defs/Counter"}
       }
     },
     "RevisionConflict": {
@@ -116,12 +178,14 @@
         {"$ref": "#/$defs/PersonalCreationBinding"}
       ]
     },
-    "CommitEnvelope": {
+    "BaseEnvelope": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["formatVersion", "position", "operation", "inputEncoding", "canonicalInput", "inputDigest", "appends", "outcome", "requiredUses"],
+      "required": ["formatVersion", "recordClass", "source", "position", "operation", "inputEncoding", "canonicalInput", "inputDigest", "appends", "outcome", "requiredUses"],
       "properties": {
         "formatVersion": {"const": "core-journal/3"},
+        "recordClass": {"enum": ["ordinary_commit", "ordinary_conflict", "personal_creation_commit", "personal_creation_conflict", "writer_epoch"]},
+        "source": {"enum": ["ordinary", "deployment_init", "account_registration", "writer"]},
         "position": {
           "type": "object",
           "additionalProperties": false,
@@ -137,6 +201,7 @@
         "inputEncoding": {"const": "core-json/1"},
         "canonicalInput": {"type": "string"},
         "inputDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "attemptedAppends": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/AttemptedAppend"}},
         "appends": {
           "type": "array",
           "minItems": 1,
@@ -200,57 +265,96 @@
         }
       }
     },
-    "PersonalCreationEnvelope": {
+    "OrdinaryCommitEnvelope": {
       "allOf": [
-        {"$ref": "#/$defs/CommitEnvelope"},
+        {"$ref": "#/$defs/BaseEnvelope"},
         {
-          "if": {"properties": {"outcome": {"properties": {"status": {"const": "conflict"}}}}},
-          "then": {
-            "properties": {
-              "outcome": {"$ref": "#/$defs/PersonalCreationConflictOutcome"},
-              "appends": {
-                "minItems": 1,
-                "maxItems": 1,
-                "items": {
-                  "properties": {
-                    "stream": {
+          "properties": {
+            "recordClass": {"const": "ordinary_commit"},
+            "source": {"const": "ordinary"},
+            "outcome": {"properties": {"status": {"const": "committed"}}}
+          },
+          "not": {"required": ["attemptedAppends"]}
+        }
+      ]
+    },
+    "PersonalCreationEnvelope": {
+      "oneOf": [
+        {"$ref": "#/$defs/PersonalCreationCommitEnvelope"},
+        {"$ref": "#/$defs/PersonalCreationConflictEnvelope"}
+      ]
+    },
+    "PersonalCreationCommitEnvelope": {
+      "allOf": [
+        {"$ref": "#/$defs/BaseEnvelope"},
+        {
+          "properties": {
+            "recordClass": {"const": "personal_creation_commit"},
+            "source": {"enum": ["deployment_init", "account_registration"]},
+            "outcome": {"properties": {"status": {"const": "committed"}}}
+          },
+          "not": {"required": ["attemptedAppends"]},
+          "if": {"properties": {"source": {"const": "deployment_init"}}},
+          "then": {"properties": {"appends": {"minItems": 3, "maxItems": 3}}},
+          "else": {"properties": {"appends": {"minItems": 2, "maxItems": 2}}}
+        }
+      ]
+    },
+    "PersonalCreationConflictEnvelope": {
+      "allOf": [
+        {"$ref": "#/$defs/BaseEnvelope"},
+        {
+          "required": ["attemptedAppends"],
+          "properties": {
+            "recordClass": {"const": "personal_creation_conflict"},
+            "source": {"enum": ["deployment_init", "account_registration"]},
+            "outcome": {"$ref": "#/$defs/PersonalCreationConflictOutcome"},
+            "appends": {
+              "minItems": 1,
+              "maxItems": 1,
+              "items": {
+                "properties": {
+                  "stream": {
+                    "properties": {
+                      "namespace": {"const": "core.records"},
+                      "owner": {"const": "durable-records"},
+                      "scope": {"properties": {"kind": {"const": "system"}}},
+                      "streamId": {"const": "operation-outcomes"}
+                    }
+                  },
+                  "records": {
+                    "minItems": 1,
+                    "maxItems": 1,
+                    "items": {
                       "properties": {
-                        "namespace": {"const": "core.records"},
-                        "owner": {"const": "durable-records"},
-                        "scope": {"properties": {"kind": {"const": "system"}}},
-                        "streamId": {"const": "operation-outcomes"}
-                      }
-                    },
-                    "records": {
-                      "minItems": 1,
-                      "maxItems": 1,
-                      "items": {
-                        "properties": {
-                          "kind": {"const": "operation.conflict"},
-                          "version": {"const": "3"},
-                          "data": {"$ref": "#/$defs/PersonalCreationBinding"}
-                        }
+                        "kind": {"const": "operation.conflict"},
+                        "version": {"const": "3"},
+                        "data": {"$ref": "#/$defs/PersonalCreationBinding"}
                       }
                     }
                   }
                 }
-              },
-              "requiredUses": {"maxItems": 0}
-            }
+              }
+            },
+            "requiredUses": {"maxItems": 0}
           },
-          "else": {"properties": {"appends": {"minItems": 2, "maxItems": 3}}}
+          "if": {"properties": {"source": {"const": "deployment_init"}}},
+          "then": {"properties": {"attemptedAppends": {"minItems": 3, "maxItems": 3}}},
+          "else": {"properties": {"attemptedAppends": {"minItems": 2, "maxItems": 2}}}
         }
       ]
     },
     "WriterEpochEnvelope": {
       "allOf": [
-        {"$ref": "#/$defs/CommitEnvelope"},
+        {"$ref": "#/$defs/BaseEnvelope"},
         {
           "properties": {
+            "recordClass": {"const": "writer_epoch"},
+            "source": {"const": "writer"},
             "operation": {
               "properties": {
                 "namespace": {"const": "core.writer"},
-                "operationId": {"type": "string", "pattern": "^epoch:[1-9][0-9]*$"}
+                "operationId": {"type": "string", "pattern": "^epoch:[A-Za-z0-9_-]+:[1-9][0-9]*$"}
               }
             },
             "appends": {
@@ -298,15 +402,19 @@
               }
             },
             "requiredUses": {"maxItems": 0}
-          }
+          },
+          "not": {"required": ["attemptedAppends"]}
         }
       ]
     },
-    "GenericConflictEnvelope": {
+    "OrdinaryConflictEnvelope": {
       "allOf": [
-        {"$ref": "#/$defs/CommitEnvelope"},
+        {"$ref": "#/$defs/BaseEnvelope"},
         {
+          "required": ["attemptedAppends"],
           "properties": {
+            "recordClass": {"const": "ordinary_conflict"},
+            "source": {"const": "ordinary"},
             "appends": {
               "minItems": 1,
               "maxItems": 1,
