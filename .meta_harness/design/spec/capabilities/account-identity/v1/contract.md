@@ -1,0 +1,47 @@
+# 产品账号身份 v1
+
+本候选坐标为 `(omne-harness-lite-design-2026-09-15, capability.account-identity, 1)`，状态为 candidate；无 catalog 登记、接受或发布，不可作为已采用契约。来源是 [PF-026.C1–C5](../../../../requirements/product/PF-026-account-journey-and-isolation/requirements.md) 及用户已批准的[提案 A](../../../../proposals/account-identity/design.md)。对应决定预计记录于 `design/decisions/account-identity/`；该文件尚未出现，接受记录由集成拥有者补齐。
+
+| 精确依赖坐标 | 消费条款 | 本契约的依赖关系 |
+|---|---|---|
+| `(omne-harness-lite-design-2026-09-15, data.core-work, 1)` | [CD-01、CD-02](../../../data/core-work/v1/contract.md) | 复用不复用 `UserRef` 与可信主体/目标的区分；同义沿用，不重定义共享形状。 |
+| `(omne-harness-lite-design-2026-09-15, capability.tenant-governance, 1)` | [TG-01、TG-02](../../tenant-governance/v1/contract.md) | 个人租户及 owner 成员、唯一 claim 和组织目标的权威仍属 Tenant；本契约仅消费经核实的结果，待注册组合契约固定交接。 |
+
+## 责任、身份与状态
+
+**AI-01（账号事实）**：每个已准入注册操作分配唯一、不复用的 `UserRef`；它标识一个产品账号，不宣称现实人去重。同一现实人可以注册多个账号；不同 `UserRef` 不因同一 OS 用户、设备、登录名持有人或个人租户的物理存放位置而合并。凭据、认证 provider subject 与 `UserRef` 的映射由账号权威唯一裁决并持久保存；provider subject 不直接作为跨能力的 `UserRef`，映射变化不得悄然替换已发布身份。
+
+**AI-02（注册状态）**：账号权威至少区分 `pending_personal_scope` 与 `active`，并保留注册操作身份、稳定 `UserRef`、固定个人租户目标及可核实的进展。`pending_personal_scope` 是已建账号而个人范围尚未核实 ready，不授予个人业务准入；仅为查询或继续原注册操作提供受限入口。`active` 只在 Tenant 权威证明**同一 `UserRef`、固定目标 tenant、个人租户种类、唯一有效 owner 成员及已可供正向准入消费的耐久结果**后产生。账号不能根据单方写入成功、暂时 `not_seen` 或客户端陈述进入 `active`。此处不定义跨 owner 发布协议；注册 composition 必须固定证明来源、原操作认回与宕机恢复。当前没有永久关闭账号/删除数据操作。
+
+**AI-03（登录会话）**：账号权威拥有会话身份、绑定的唯一 `UserRef`、有效/过期/撤销状态及能跨进程和重启核验的权威依据。会话的认证形式、凭据种类和多端关系尚未决定；会话身份本身不授予租户成员资格或资源权限。保护业务入口每次从可信凭据验证出当前有效、`active` 的 `UserRef`，随后由目标资源 owner 和 Tenant 等权威按资源作用域及明确目标 tenant 核验。退出当前登录态的成功屏障由 AI-06 规定。
+
+## 性质与保护位置
+
+| 性质 | 来源和成立时点 | 保护位置与前提 |
+|---|---|---|
+| 不同账号永不共享或复用 `UserRef`，同一注册操作重试不产生第二身份 | PF-026.C1/C3；分配和认回时 | 账号身份分配/持久操作索引；底层 provider 映射必须稳定。 |
+| `active` 必须有同一账号的个人租户 ready 证明 | PF-026.C1/C5；激活提交及恢复读取时 | 账号激活守卫；Tenant TG-01 及待写的注册 composition 保证证明完整且可核实。 |
+| 已过期/撤销或非当前有效的凭据不能为新交互授权 | PF-026.C2；每次保护业务准入时 | 会话验证与服务端撤销可见性；本地槽清除不能替代。 |
+| 账号身份与目标租户成员资格分别核验，账号切换不继承前一账号的权限、设置、额度或缓存 | PF-026.C3/C4；资源读取/写入时 | 账号验证提供可信 `UserRef`；Tenant/资产/设置/预算各自保护归属。此性质的完整组合证据不属于单项账号能力。 |
+
+## 操作与可观察结果
+
+**AI-04（开始/认回注册）**：`beginRegistration(registrationOpId, evidence)` 先由未定的注册准入政策裁决是否可启动；未获准时无新账号事实。获准时账号权威以稳定操作 ID 与必要输入绑定一次 `UserRef`、固定个人租户目标和 `pending_personal_scope`。相同操作和同一已绑定输入重试返回原身份/进展；同一操作异输入拒绝为冲突，不另分配身份；其他注册操作不能仅因被认为是同一现实人而合并。认证标识碰撞按尚待选择的认证政策给可辨拒绝，不借碰撞泄露他人账号。提交回执未知时返回 `pending/unknown` 及原操作查询入口；暂时查不到结果不能证明从未提交或释放原目标。注册准入、凭据收集、输入等价规则及凭据恢复未定，依赖它们的精确交互尚不可实施。
+
+**AI-05（激活及注册查询）**：`confirmPersonalScope(registrationOpId, tenantProof)` 仅接受 Tenant/组合协调者的可信证明，逐项核对 AI-02 的绑定关系和可用水位；相同证明重试认回已激活结果，异目标或不完整证明拒绝且保持 pending。`registrationStatus(registrationOpId, authorizedEvidence)` 返回稳定身份、固定目标和 `pending_personal_scope | active | unknown` 中可安全披露的进展；查询者授权与信息裁剪随注册准入/认证方式定义。若 Tenant 结果 unknown，保持 pending 并由注册组合拥有核实/恢复责任；不能把 pending 伪称成功或用新 tenant 目标重试。注册成功仅在 `active` 可被再读核实时对用户确认。
+
+**AI-06（登录、验证和退出）**：`login(authenticationEvidence)` 由采用的成熟 provider 验证凭据，账号权威将结果映射至固定 `UserRef`，仅对 `active` 账号建立可核实且有过期规则的登录会话；失败、未决、过期或 pending 账号不产生可用于业务准入的会话。`validateSession(sessionCredential)` 以当前权威状态返回 `valid{UserRef, sessionRef}` 或不可用于授权的结果；有效结果不含 Tenant 成员证明。`logoutCurrent(sessionRef, authorizedCurrentSession)` 仅针对调用者当前登录态，撤销该会话并在**同一登录态对所有后续新保护交互不可再通过验证**时返回成功；从别的进程重放旧 token/cookie 也须拒绝。撤销提交或核实结果未知时返回 `pending/unknown`，本地 CLI 必须封闭该槽继续使用并保留原会话的核实/重试入口，不能报告成功。相同撤销操作重试认回已撤销结果；已撤销会话不会复活。其他独立会话是否也撤销尚待多端范围选择；已在途工作及其外部效果由各自 owner 结算，不由 logout 追溯撤销。
+
+**AI-07（切换与重启）**：选中哪个本地账号或目标组织属于 CLI 装配的交互状态，不改变账号、会话、Tenant 或既有 Session 的历史身份。应用切换槽位时必须重新验证所选会话，并清除/重键此前账号的设置、偏好和缓存；不能以当前目录、OS 用户或同盘文件位置推导新账号资格。账号及会话权威记录在进程重启后提供与重启前相同的有效性、过期/撤销和注册状态判断；失去核实能力时拒绝业务准入，不能由进程内缓存推断有效。未来本地 skills/settings 的物理 locator 由资源 owner/装配设计，不在本契约指定。
+
+## 交接、缺席与恢复
+
+注册的账号建立与 Tenant 个人范围发布属于两个权威。账号分配后，注册组合负责以固定账号/目标推进 Tenant 并核实；在 Tenant 未 ready 时账号持续 pending，不能把账号删除当成撤销 Tenant 外部效果。回执丢失、重启、重复或并发注册必须从同一操作与两边权威记录认回；需要另写 composition 固定操作关联、证明格式、单一结果和 orphan 处置。在该 composition 到位前，本契约只允许安全的 pending 与拒绝，不宣称 PF-026.C1 全链已经闭合。
+
+会话 provider/存储缺席、撤销状态不能核实或重启恢复未完成时，所有保护业务入口拒绝新准入；已报告 logout 成功的登录态在恢复后仍必须不可用。provider 的缓存 token/cookie 只有满足此屏障才可采用。CLI 槽、会话权威与业务资源的不同层次不允许相互代替。
+
+## 规范表达、待选政策与版本
+
+[规范场景](scenarios.md)给出正常、冲突、未知及重启反例。账号自身身份与会话状态需要故障/符合性证据；注册跨 owner 原子或恢复性质、账号+Tenant 资源准入及会话撤销对 CLI 的整体保证应由独立 composition 及必要的 TLA+ 模型表达，不能用本包单方场景声称已证明。实际覆盖记录见[版本外验证](../verification.md)。
+
+产品尚未选开放/邀请/管理员注册准入、首版认证形式与恢复、多端会话和退出作用域；本候选没有把其中任一选择写成默认值。提供者版本、凭据存储、CLI 通道、磁盘布局和 Cordis 服务键属于后续设计。此为新候选 v1，没有旧采用版本可自动升级，接受和发布须更新唯一 catalog、依赖及冻结记录。
