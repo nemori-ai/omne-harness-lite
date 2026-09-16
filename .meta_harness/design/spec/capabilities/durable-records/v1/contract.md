@@ -38,6 +38,19 @@ flatten 后的批内位置。prepare 阶段只能使用不冒充 `eventId` 的�
 update，不能逐事实去重。业务状态转移由所属能力校验和解释；存储只维护批次、顺序、完整性、
 独占写入和去重，不调用任意用户插件判定权限或推断事件含义。
 
+普通操作的每条 stream scope 必须与 operation tenant 一致。首版只允许受信装配给
+Tenant bootstrap owner 颁发一次绑定于**精确原始操作与冻结输入**的窄写入能力：
+该操作 tenant 为 null，在同一协调域的一次原子批中只可写两条固定的 Tenant system
+stream（`tenant-bootstrap`、`tenant-personal-index`）及一条新租户的
+`tenant:<tenantId>` tenant stream；后者的 streamId 必须等于其 scope tenantId。
+受信能力不能由提交者填写 `operationKind`、`owner` 字符串或反序列化任意 envelope
+取得；存储只验证能力绑定、stream 形状、身份、CAS、写者代际、唯一排序和重放一致性，
+不读取业务记录以判断个人租户、owner 或首次创建。Tenant owner 负责这些业务事实，
+共同准入门负责当前资格与相同批次。除这一个绑定外，null-tenant 的 tenant 流、跨租户
+混写与任意系统流继续拒绝。持久化操作结果若为 conflict，只写普通 system
+`operation-outcomes`，但其 `conflict.currents` 可引用原绑定的新租户流；lookup 和恢复
+必须沿同一原始操作身份、输入与受限绑定检查引用，不把 outcome 当作第二次创建。
+
 **DR-02**：`commit` 结果区分：`committed(receipt)`、`conflict(currentRevision)`、
 `rejected(reason)`、`unavailable`、`unknown(operationRef)`。只有实际耐久确认后
 返回 committed；接收进内存、emit、排入写队列或文件 write 返回均不够。

@@ -25,6 +25,21 @@ TenantHost 是按 tenant 分区的唯一 TG 状态权威；自然人身份由可
 选用及所有 provider 代次；Context、DTO 或菜单选择不构成授权。成员暂停/移除在 logical 位置
 封闭后续准入，耐久后才可作为正向权利依据；重加入形成新 joinedRevision，旧 grant 不复活。
 
+个人 bootstrap 的应用装配凭受信 TenantHost 安装资格发起一次精确操作。Host 先确定新
+tenantId 并冻结原输入，再由受信装配颁发仅绑定该 Host 实例、operationRef、输入摘要、
+新 tenantId 和本代 Admission/writer 的窄凭据；`operationKind=tenant.bootstrap` 与
+`owner=tenant` 只是诊断字段，不能作为凭据。若现有 prepare API 先于新 tenantId 分配，
+施工须调整准备顺序或受信原子绑定，不允许在无目标身份时颁发泛用跨 scope 权限。
+普通业务对象不能取得颁发接口，凭据不得序列化为可由外部注入的许可信号。
+
+同一批次提交 system `tenant-bootstrap`、system `tenant-personal-index` 和新建 tenant
+`tenant:<tenantId>`。逻辑 root 只保留本次初始化/个人索引占位与负向封闭，不将尚未
+耐久的 `tenant.created` 成员放进准入可读的正向根；即使延迟 fsync，读取资格也应
+失败或返回未开放。耐久发布同时开放 owner 资格；失败/unknown/blocked 保留占位，
+不得授予管理权限。恢复先核对三条事实处于同一 batch，seed user、claim tenantId、
+creator、owner/member 唯一性与个人种类全部对应，再 fold 并发布可读 root；任何
+交叉错配或断裂前缀都拒绝 ready。已有 writer epoch 不影响 Tenant 初始化前态判断。
+
 撤除先关本代新调用，收口引用 source 与 pending/unknown operation，再释放精确注册。来源不明
 返回 unavailable/complete=false，不当空集合；关闭租户保留外部效果、财务责任与历史身份。
 

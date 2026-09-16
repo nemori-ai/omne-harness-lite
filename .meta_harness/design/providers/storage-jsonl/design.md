@@ -21,7 +21,11 @@ tenant、operation、因果、epoch、修订与资源所有者必须显式；有
 | stream revision / fact identity | 每个 accepted append 令目标 stream revision 恰好 `+1`；同 append 多 facts 共享 revision；commit 以 canonical flatten 位置分配 `(domain,batchSeq,recordIndex)` eventId | owner fact sequence 不参与 CAS；prepare correlation 与 `(stream,revision)` 都不能冒充逐 fact eventId |
 | read/watermark | 只返回完整批次与精确前缀；在线、扫描和恢复复用同一 revision、canonical order 与 eventId 算法 | 落后/坏前缀不得用于授权或恢复成功；不得探测或兼容两套 revision 算法 |
 | writer/lock/recovery/close | epoch、原生锁、尾部核实、排空关闭有实现 | 网络 FS、硬件故障、目录 fsync 与提供者换代仍需环境验收 |
+| tenant bootstrap | writer 仅接受由受信装配经 Admission 绑定精确操作、冻结输入、新 tenantId 与本代 writer 的窄凭据；核对两条固定 Tenant system streams 与一条匹配 `tenant:<id>` 的 tenant stream，同批原子同步 | 既有 writer epoch 不是 Tenant 初始化已发生的证据；writer 不解析业务事件决定个人/owner 资格 |
 
 跨 stream prepare 输入顺序不承载业务关系；跨 owner 关系必须由完整 envelope 的引用及全部
 owner 校验表达。format 升级若改变 canonical 编码须发布新版本并保留旧格式的解码/重放规则，
 不能让同一历史 envelope 在重启后产生不同 recordIndex 或 eventId。
+conflict 只写 system `operation-outcomes`，其 currents 可引用原操作绑定的 tenant stream；
+prepare、提交、lookup 与重启读取均核对原 operation/input、scope 形状及绑定，不能
+用自报字段取得新写入许可。坏前缀、错 stream、重放异输入保持隔离或冲突，不跳过。

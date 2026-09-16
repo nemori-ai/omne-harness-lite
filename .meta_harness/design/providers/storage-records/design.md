@@ -21,7 +21,12 @@ tenant、operation、因果、epoch、修订与资源所有者必须显式；有
 | identity | commit 时以 canonical flatten 位置分配 `(coordinationDomain,batchSeq,recordIndex)` eventId | prepare correlation 不冒充 eventId；`(stream,revision)` 不逐 fact 去重 |
 | data | CommitEnvelope、RecordedOutcome、Position、UseRequirement | 业务状态解释或授权判断 |
 | codec | 单行严格编码/解码与结构限制 | 完整前缀、fsync 或恢复成功证明 |
+| bootstrap scope | 普通输入仍逐 append 检查 operation tenant；受信 Host 绑定精确原始操作/输入、新 tenantId 和只限两条 Tenant system stream 加一条 `tenant:<id>` tenant stream 的写入权限，codec 校验 stream 身份、唯一性及 canonical 次序 | owner/operationKind 字符串、反序列化字段不可铸造权限；codec 不解读 `tenant.created`、claim 或成员资格 |
 
 以上是候选契约到 records 端口/codec 的目标映射，不表示当前实现已全部符合。实现验收须让
 prepare、encode/decode、writer receipt 与 recovery replay 使用同一版本化 canonical 编码和
 同一 `+1 per accepted append` 算法；任何一处按 fact 数推进都属于不兼容实现。
+同一受限绑定还须覆盖 conflict outcome 的 `conflict.currents`：只准引用该操作原目标
+tenant stream，实际冲突 append 仍仅写 system `operation-outcomes`；相同原操作/输入的
+lookup 和恢复保持该形状，异输入不得认回。严格解码历史绑定与准入时不可伪造的
+受信能力是两件事；不能仅凭日志内自称的 owner/operationKind 复授写入权。

@@ -14,6 +14,13 @@ root 所允许集合的交集。不能只比较最终逻辑 root 与耐久 root�
 证明完整时返回 unavailable/complete=false，不把它解释为空集合或默认允许。重加入产生新
 joinedRevision，旧 grant 不因 userId 相同复活。
 
+首次 personal bootstrap 的逻辑排位只作为唯一初始化/claim 的冲突占位；资格读面
+不得直接消费未耐久 `tenant.created` 的 owner/member。Tenant owner 门内核对初始化
+前态（不是 JSONL 物理空文件）及 seed user，恢复以完整共同批次验证 bootstrap、
+personal claim、created 的个人 tenantId、creator、唯一 owner/member 同一自然人；
+单流 decoder 各自通过仍不足以开放。只有完整耐久发布后才让新增资格可读；
+unknown、sync 失败和 blocked publication 均不开放。
+
 ## 与预算核算的边界
 
 TG 拥有 tenant/member 以及 `budget.manage` 等管理资格，负责入口是否可用；它不拥有

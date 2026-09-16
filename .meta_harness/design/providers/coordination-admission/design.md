@@ -20,6 +20,7 @@ tenant、operation、因果、epoch、修订与资源所有者必须显式；有
 | `GateFrame` / owner publication | 同步短门发布 logical，耐久完成后发布 durable | 回调不得 await/返回 thenable；协调者不解释业务字段 |
 | `ExactUseIssuer` / `ExactUse` | 绑定真实 owner/pin，单次 claim 与显式 release | 不能靠 cast/反序列化伪造，也不代替 owner 清理资源 |
 | committed broadcast | 门外广播已提交 receipt/组合名 | listener 不得改业务结果；丢通知由事实扫描恢复 |
+| Tenant bootstrap binding | 受信装配仅向精确 TenantHost 发放绑定原始 operation/input、新 tenantId 和本代 writer 的不可伪造窄写入能力；门内复核初始化前态及 owner 的业务检查；同操作携带到 Records/JSONL | 普通 coordinator、调用者、字符串 owner/operationKind、持久化 envelope 均不能铸造权限；不得扩大为所有 null-tenant 操作 |
 
 writer 的 `committed`、coordinator completion 与 publication 状态是三个不同事实。writer
 完成耐久后，coordinator 必须在另一短门按 seq 提升全部 owner 的 durable 根。原 coordinator
