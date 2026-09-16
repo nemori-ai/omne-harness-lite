@@ -30,6 +30,9 @@ prepare、encode/decode、writer receipt 与 recovery replay 使用同一版本�
 仅此例外的 conflict outcome 与 provider-owned system `operation.conflict` 记录必须
 额外编码 `bootstrapTargetTenantId` 并核对运行时绑定；相同原操作/输入的
 lookup 和恢复沿 writer 已提交的原操作/输入、成功 append 或冲突目标字段恢复
-历史目标，异输入不得认回。旧 codec 不接受新增字段，须版本化升级。
+历史目标，异输入不得认回。新增格式 `core-journal/2` 对该分支使用 outcome
+`bootstrapTargetTenantId: OpaqueId` 及 provider-owned `operation.conflict` version `2`
+的 `{conflict, bootstrapTargetTenantId}` data；二者一致且绑定原操作。`core-journal/1`
+完整历史继续按旧编码读取，不能在 v1 解码中接受新增字段或声称其持有例外。
 严格解码历史绑定与准入时不可伪造的
 受信能力是两件事；不能仅凭日志内自称的 owner/operationKind 复授写入权。

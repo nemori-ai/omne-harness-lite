@@ -52,9 +52,16 @@ stream（`tenant-bootstrap`、`tenant-personal-index`）及一条新租户的
 `operation-outcomes`；`conflict.currents` 仍只列**实际修订不匹配**的 stream，
 可包含原绑定目标 tenant stream，但不能为了持久化目标而伪造一条未冲突的 current。
 受信 writer 在该例外的 conflict outcome 与同一 `operation.conflict` 记录中额外
-保存必需的 `bootstrapTargetTenantId`，与本次不可伪造的目标绑定严格相等；成功
-目标由唯一 tenant append 的 scope/streamId 得出。该新增字段需要明确的版本化
-envelope/outcome 编码、严格 codec 和历史重放支持，不得悄悄按旧格式接纳。
+保存必需的 `bootstrapTargetTenantId: OpaqueId`，与本次不可伪造的目标绑定严格
+相等；成功目标由唯一 tenant append 的 scope/streamId 得出。编码归属固定为
+`core-journal/2` envelope（该例外的成功与冲突都使用 v2）：仅此类冲突的 outcome 是
+`{status:"conflict", conflict:RevisionConflict, bootstrapTargetTenantId:OpaqueId}`，
+唯一 provider-owned system `operation.conflict` 记录使用 version `2`，其 data 是
+`{conflict:RevisionConflict, bootstrapTargetTenantId:OpaqueId}`，二者须逐字段一致。
+普通冲突仍无该字段，`currents` 仍仅实际 mismatch。该例外禁止写入旧
+`core-journal/1`；新 writer 可读取已有 v1 完整前缀，但不能把旧记录当成曾经接受
+该例外。v2 的 canonical 编码/摘要及其严格 v1/v2 解码归 Records codec 与 JSONL
+writer/replay；不得就地重新解释已写 v1 字节或接受额外字段。
 lookup 和恢复沿原 operationRef、冻结输入、历史目标及受限流形状检查引用，
 异输入不认回；历史关联只用于核对原结果，不能重新颁发运行时写入能力。
 

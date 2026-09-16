@@ -29,6 +29,9 @@ owner 校验表达。format 升级若改变 canonical 编码须发布新版本�
 conflict 只写 system `operation-outcomes`，其 currents 只列实际 mismatch；同一
 provider-owned outcome/record 必须额外持久化并核对原绑定的
 `bootstrapTargetTenantId`，包括仅 system stream 冲突时；
+该例外的成功和冲突都写 `core-journal/2`；冲突 outcome 目标字段与 system `operation.conflict` version `2`
+的 `{conflict, bootstrapTargetTenantId}` data；原有 v1 前缀仍由 v1 codec 读取，
+不补写或改写历史，v1 envelope 不能装载新的 mixed-scope exception；
 prepare、提交、lookup 与重启读取均核对原 operation/input、scope 形状及绑定，不能
 用自报字段取得新写入许可。坏前缀、错 stream、重放异输入保持隔离或冲突，不跳过。
 重启时从唯一成功 tenant append 或冲突 outcome 的目标字段恢复历史目标，
