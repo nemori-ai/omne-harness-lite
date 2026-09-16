@@ -18,6 +18,6 @@ Tenant 对每个可信 `UserRef` 使用确定 system `personal-claim:<userId>`�
 
 ## 推荐和改变选择的证据
 
-推荐 B：它满足同一唯一性/耐久/恢复性质，保留已有 global index 与 tenant stream 归属，所需新机制集中于来源证明、统一受限许可和统一 outcome。若真实测量证明 global index 是瓶颈或出现明确分区部署要求，再比较 C。若统一严格 codec/来源凭据无法可靠实现而双窄许可可验证，重新考虑 A；不能以“已有 bootstrap 代码”本身当作正确性证据。
+用户已按 [D-017](../../decisions/personal-tenant-creation/decision.md)接受“一套个人租户创建机制”，排除 A 的长期双协议方向；D-017 没有指定 global index。当前推荐 B 的 global index：它满足同一唯一性/耐久/恢复性质，且单机首版无证据需要 C 的分区成本。若真实测量证明 global index 是瓶颈或出现明确分区部署要求，再比较 C；不能以“已有 bootstrap 代码”本身当作正确性证据。
 
-用户授权重构旧候选，不代表已接受 B；[评审记录](review.md)和后续接受决定必须分开。任何选择均不得绕过 Account 原操作耐久事实、待定义的当前推进许可、CC-06 恢复基线或 ACR 激活证明。
+用户授权重构并接受统一机制，不代表接受 B 的每个存储/许可细节；[评审记录](review.md)和精确决定必须分开。任何选择均不得绕过 Account 创建后果的可信交付、CC-06 恢复基线或 ACR 激活证明。

@@ -1,8 +1,8 @@
 # 评审与待裁决
 
-- 当前状态：作者提出候选 B；独立 architecture-reviewer 已只读评审 `8816d74`，作者在 `703ee9a` 修订，定向复核确认五项表达/前提问题闭合。当前推进许可的具体语义仍阻断完整协议；无规格评审或接受决定。
+- 当前状态：作者提出候选 B；独立 architecture-reviewer 已只读评审 `8816d74`，作者在 `703ee9a` 修订，定向复核确认五项表达/前提问题闭合。用户随后以 [D-017](../../decisions/personal-tenant-creation/decision.md) 接受“一套创建语义”，未接受 B 的全部存储/许可细节。Account 一次创建后果与 CC-05 耐久导入已在候选规格中提出，真实提供者和联合证据仍未闭合。
 - 评审对象：`8816d74` 的本 topic 四文件及 proposals 索引，定向复核对象为 `703ee9a` 同内容修订；HUB 集成提交为 `6811db8`。
-- 接受边界：用户授权综合设计、可重构现有候选且无旧设计兼容要求，属于设计权限；并未选择 B。若后续接受，应以决定明确取代 TG/CC/DR 中 bootstrap 专属结构的范围，再修订候选规格及 provider 映射。
+- 接受边界：D-017 已取代 TG/CC/DR 中维持 bootstrap 专属协议、另建后续注册协议的方向；global index、二/三流格式、受信导入实现及提供者仍为候选。系统早期无生产存量，不为旧开发实现添加兼容负担，也不能静默误读旧字节。
 
 ## 独立架构评审处置
 
@@ -16,7 +16,7 @@
 
 | 待评审或裁决事项 | 为什么会改变设计 | 闭合证据/拥有者 |
 |---|---|---|
-| Account 耐久原操作事实与当前推进许可怎样分工 | 不可变历史绑定必须可认回；新的创建推进还需定义当时是否获准，不能预设 pending 意图可撤销或旧凭据长期有效 | Account/CC 先定义推进许可的状态、时点与门内核验，再给 provider revision/generation 映射和故障实验；此前后续入口 unavailable。 |
+| Account 耐久原操作事实如何授权 Tenant | AI-02a/ACR-03 候选现在规定凭据唯一绑定后发出不可撤销的一次创建后果，经 CC-05 受信耐久导入；不再预设第二份可撤销 Account 许可 | Account/CC/Tenant 联合评审该契约，验证来源/版本/绑定、导入去重、换代与旧实例隔离；提供者未符合前后续入口 unavailable。 |
 | `origin` 凭据与二/三流形状是否可防冒充 | 统一许可若成泛用 null-tenant 写权即破坏 TG/DR 隔离 | Tenant/CC/DR 联合规格、严格 codec 及负例；请求字符串不授予权限。 |
 | global index 的并发与重启行为 | 同 user/target 竞争、system-only conflict 与 unknown 可能丢原 target | 行为模型、writer/replay/lookup 故障实验；`currents` 不虚构目标修订。 |
 | 关闭后不同新操作可否给同账号另建 personal tenant | TG 只写最多一个有效，旧 ACR 操作仅须历史认回 | 产品/能力决定；首版候选不开放新建，旧 claim/历史结果保留；不预断未来政策为永久禁止。 |
