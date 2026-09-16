@@ -137,7 +137,7 @@ export async function checkRepository(repo) {
     )
   }
   const dshBaseline = await optionalJson(
-    join(repo, 'docs/proposals/agent-runtime/source-baseline/upstream-baseline.json'),
+    join(repo, 'tools/package-checks/evidence/dsh-agent-source/upstream-baseline.json'),
   )
 
   let records = 0

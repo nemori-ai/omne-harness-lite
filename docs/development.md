@@ -85,7 +85,7 @@ workspace 设置显式指向 `./node_modules/prettier`，并使用同一根配�
 | 产品需求 intake、研究、候选、决定、架构或规格设计 | [.meta_harness/design/](../.meta_harness/design/README.md) 的对应 family；按[下节](#需求与设计的工作入口)接续已有正文 |
 | Skill、专用 subagent 或宿主适配 | [.meta_harness/agents/](../.meta_harness/agents/README.md) 的源；技能选择见[下方 agent 指引](#使用-coding-agents) |
 | Agent 编译与项目根链接工具 | [.meta_harness/tooling/](../.meta_harness/tooling/README.md) |
-| 已有产品材料的局部修正、源码使用与开发说明 | 定位[文档地图](README.md)或[规格索引](../spec/README.md)中的现有拥有者；保持接受状态和精确版本 |
+| 已有产品材料的局部修正、源码使用与开发说明 | 定位[文档地图](README.md)或[规格索引](../.meta_harness/design/spec/README.md)中的现有拥有者；保持接受状态和精确版本 |
 
 各目录局部 AGENTS.md 补充其工作边界，完整布局由
 [workspace 规范](maintenance/workspace.md)维护。包内实现、依赖、构建和测试随成员维护；
@@ -107,8 +107,8 @@ workspace 设置显式指向 `./node_modules/prettier`，并使用同一根配�
 2. **开展设计。** 按手册分析现有能力及组合的覆盖，再判断扩展或新增责任。研究、候选、
    决定、规格、能力地图、提供者和装配分别进入 [design 的相应 family](../.meta_harness/design/README.md)，
    只创建本次需要的信息包；加载相关 references 后回到当前问题，不通读全部资料。
-3. **明确现有输入。** 为本项目工作时，任务显式提供 [docs/requirements](requirements/README.md)、
-   [当前架构](architecture/README.md)、相关决定与 [spec/catalog.json](../spec/catalog.json)
+3. **明确现有输入。** 为本项目工作时，任务显式提供 [requirements](../.meta_harness/design/requirements/README.md)、
+   [当前架构](../.meta_harness/design/architecture/README.md)、相关决定与 [spec/catalog.json](../spec/catalog.json)
    中实际采用的路径、版本和范围。工作区内尚缺材料不表示系统没有现有能力，手册也不从父目录推断这些事实。
 4. **接续与迁移。** 已有主题未迁移时，修订其当前拥有者并在新工作中引用；新增语义若属于已有条款，
    先定位该条款，避免两处各写一份。迁移某项正文时再明确来源、身份、接受依据、消费者和旧入口退役，

@@ -16,7 +16,7 @@ work-data、records 与 admission 的公共身份、使用绑定、`GateFrame` �
 否决、单 factory 槽及源 detach/initiator 行为，**没有实现 OMNE v1 的租户门禁、
 实例身份和完整退出协议**。private 和作用域过滤都不是安全隔离。
 
-目标契约见 [live-agent v1](../../../spec/capabilities/live-agent/v1/contract.md)，
+目标契约见 [live-agent v1](../../../.meta_harness/design/spec/capabilities/live-agent/v1/contract.md)，
 后续直接修订本包完成目标；本阶段不承诺上游 API 兼容，也不另立产品数据契约。
 本地 `Agent` 类型只表达来源算法所读的身份、Session 身份视图与 Context。
 

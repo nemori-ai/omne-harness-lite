@@ -7,7 +7,7 @@
   目录名称推导新的插件、服务或部署边界。
 - 跨包消费公开入口；需要穿透兄弟包的 `src/` 时，先核对其边界与契约。
   开发检查器归 [tools/](../tools/README.md)，应用装配归 [apps/](../apps/README.md)。
-- 包内类型与实现遵循 [spec/](../spec/README.md) 中的权威定义；冲突应回查精确
+- 包内类型与实现遵循 [spec/](../.meta_harness/design/spec/README.md) 中的权威定义；冲突应回查精确
   版本与接受依据，不能以当前实现反向修改契约。
 - 既有提供者设计按[设计归属](../docs/maintenance/organization.md#当前实现设计的归属)接续；
   新设计进入 `.meta_harness/design/providers/`，连接精确规格、公共入口及运行映射，必要设计不能仅留在一次性施工稿。

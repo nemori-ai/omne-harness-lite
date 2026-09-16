@@ -79,4 +79,6 @@ Application discovery is independent of the root command fan-out. When an app ex
 typecheck and test aggregation to apps before treating the root check as complete.
 
 The fixed official archive comparison remains in the
-[source audit](../../docs/proposals/core-capabilities/fork/evidence/check-sources.py).
+[source audit](scripts/check-dsh-sources.py). Its immutable upstream inventory is
+[package-check input](evidence/dsh-agent-source/upstream-baseline.json); these files verify
+the fork source provenance and do not define product behavior.

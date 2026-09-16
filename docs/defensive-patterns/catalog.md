@@ -1,6 +1,6 @@
 # 防御指导的身份与适用记录
 
-[当前指导](../defensive-patterns.md) · [演化规范](../maintenance/defensive-evolution.md)
+[当前指导](../defensive-patterns.md) · [演化规范](../../.meta_harness/agents/evaluation/developer-model/README.md)
 
 此表为现有指导提供稳定引用身份，供后续开发模型评估精确说明在比较哪一条提醒。
 正文仍由当前指导页维护；系统保证来自所属契约与决定。本次没有添加任何模型特定

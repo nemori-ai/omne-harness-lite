@@ -15,8 +15,8 @@
 
 ## 按任务进入
 
-调整指导或复核时读[防御演化](../maintenance/defensive-evolution.md)，涉及开发
-主力模型再读[评估入口](../evaluation/README.md)。指导正文与身份记录分别维护，
+调整指导或复核时读[防御演化](../../.meta_harness/agents/evaluation/developer-model/README.md)，涉及开发
+主力模型再读[评估入口](../../.meta_harness/agents/evaluation/developer-model/README.md)。指导正文与身份记录分别维护，
 不复制一套要求。
 
 仅修复记录引用时按当前对象检查，不因接触防御材料启动无关模型评估。

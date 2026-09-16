@@ -34,7 +34,7 @@ management operations remain future implementation work.
 
 The precise ownership and representation mapping is in the
 [tenant provider design](./design.md#共同值与协议的维护归属). Its adopted language-neutral sources
-are [tenant-governance v1](../../../spec/capabilities/tenant-governance/v1/contract.md) and
+are [tenant-governance v1](../../../.meta_harness/design/spec/capabilities/tenant-governance/v1/contract.md) and
 [core-work v1](../../../spec/data/core-work/v1/contract.md).
 
 Run `pnpm run build` followed by `pnpm run typecheck` from this leaf. Those checks establish only the

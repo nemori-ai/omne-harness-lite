@@ -18,7 +18,7 @@
 行为、相关版本和必要证据；设计任务说明目标、约束、已知事实与尚待确定的部分。
 产品需求的接收、澄清与设计工作进入私有工作区 [.meta_harness](.meta_harness/AGENTS.md)，
 先加载 [harness-design-handbook](.meta_harness/agents/skills/harness-design-handbook/canonical/SKILL.md)。
-本项目已有[系统目标与产品要求](docs/requirements/README.md)、决定和规格作为明确输入，
+本项目已有[系统目标与产品要求](.meta_harness/design/requirements/README.md)、决定和规格作为明确输入，
 保留确认范围与精确版本；有 Issue、提案或任务记录时直接引用，避免另写一份同义需求。
 工作入口与正文迁移的区别见[开发指南](docs/development.md#需求与设计的工作入口)。
 
@@ -81,7 +81,7 @@ skills/roles 变更一并交付 canonical/角色源、宿主适配与生成产�
 发现问题后回到拥有该含义的材料修正；涉及实现的检查应覆盖实际交付状态。
 
 评审及交付结论区分语义接受、提供者可实施、应用装配和实际验证的范围；设计
-中的关键跨能力交接沿[完整动作链](docs/architecture-guide/reference/contract-description.md#沿完整动作链核对组合)核对。
+中的关键跨能力交接沿[完整动作链](.meta_harness/agents/skills/harness-design-handbook/canonical/references/architecture/reference/contract-description.md#沿完整动作链核对组合)核对。
 
 评审意见、设计接受、实现完成和验证通过分别记录。政策与正式规格的接受、部分
 接受或取代按[知识流转](docs/maintenance/knowledge-flow.md#接受与交付怎样闭合)闭合。

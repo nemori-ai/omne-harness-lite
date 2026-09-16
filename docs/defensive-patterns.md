@@ -13,9 +13,9 @@ patterns](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/defen
 工具和 prompt 范围内保留、简化或退出。
 
 [D-003](decisions/D-003-defensive-evaluation.md) 要求切换开发主力模型前评估
-有关辅助。[开发模型评估](evaluation/README.md) 给出离线协议与固定任务集；
+有关辅助。[开发模型评估](../.meta_harness/agents/evaluation/developer-model/README.md) 给出离线协议与固定任务集；
 它不评估产品 runtime agent，也不自动授权模型采用。模式的来源、适用范围、
-复核和退出记录由[防御演化维护规则](maintenance/defensive-evolution.md)管理。
+复核和退出记录由[防御演化维护规则](../.meta_harness/agents/evaluation/developer-model/README.md)管理。
 模型升级、工具或 prompt 变化、失败复发、边界变更和明显成本负担都会触发复
 核。没有新观察不能仅为重辩而推翻已接受决定。
 
