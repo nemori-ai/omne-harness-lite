@@ -34,11 +34,12 @@
 - [D-012：Run 驱动器与 Session Inbound](run-driver-and-inbound/README.md)，保留循环与到达拓扑选择
 - [D-013：Run 驱动器的 Cordis 边界](run-driver-cordis-boundary/README.md)，保留实例驱动与装卸责任
 - [D-014：Session、Run 与 Agent 实例生命周期](session-run-agent-lifecycles/README.md)，保留独立权威、级联与原 envelope 广播
-- [D-015：工具闭环、消息流与外部 Hooks](tool-execution-message-stream-hooks/README.md)，保留旧有效范围并注明 D-018 的局部覆盖
+- [D-015：工具闭环、消息流与外部 Hooks](tool-execution-message-stream-hooks/README.md)，保留旧有效范围并注明 D-018/D-020 的局部覆盖
 - [D-016：独立产品账号能力](account-identity/README.md)，接受账号/Tenant 边界与成熟嵌入式认证优先验证方向
 - [D-017：统一的个人租户创建机制](personal-tenant-creation/README.md)，接受首次初始化与后续注册共用一套 Tenant 创建语义
 - [D-018：消息交付与外部 Hooks 的新 v1 语义](e-message-stream-hooks/README.md)，接受八组可观察变化的设计方向；发布与实现另行验证
 - [D-019：定向 fork pi-ai 用于 OpenRouter 传输](pi-ai-openrouter-transport/README.md)，接受传输复用方向；fork 与产品组合仍须验证
+- [D-020：消息游标、快照与活跃流交接](e-message-recovery-protocol/README.md)，接受三组 E 后续可观察协议的设计方向
 
 ### 实现组织与工程观测
 
