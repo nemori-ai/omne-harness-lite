@@ -16,6 +16,16 @@
 
 来源协议没有被提升为实现符合性；其中仍指向旧坐标的内容只作 provenance，必须在实现前映射到当前 candidate 或登记 gap。
 
+| 当前 HD v1 范围 | 本页提供者映射状态 |
+|---|---|
+| `system_approval` 的原请求、唯一答案、AU/TL/SR 后果与池 | 下文旧 T0-H 施工协议给出候选端口和撤除责任；目标接口未实现 |
+| `question`、`agent_approval` 及内建 `human.ask_user` / `human.request_approval` | HD-01～05、HD-08、HD-13 的语言契约已存在；本页旧 Request 形状和 SystemApprovalSource 只映射 `system_approval`，尚缺这两类请求的执行 owner、调用结算及后果端口设计 |
+| HD-05 的受信程序化 `system_approval` 作答者 | 尚缺 provider 登记、on-behalf-of 成员修订与 confirm 模式的具体同门映射；不能由普通答复端口代替 |
+| HD-10～12 的暂行决定与专属同意 | 没有合格领域来源；下文规定 unavailable，未映射实际 staging/finalize provider |
+
+这张表只标明 provider 覆盖，不缩小[HD v1](../../spec/capabilities/human-decisions/v1/contract.md)
+的候选业务语义；缺口未闭合时相关运行入口不可开放。
+
 ## 来源协议（重基输入）
 
 ## 公开入口与记录权威
@@ -43,8 +53,11 @@ request/outcome ID 在原 operation 私有候选分配一次；使用宿主唯�
 | Consequence | `{outcomeVersion,delivery:not_ready|pending_delivery|applied|failed|unknown,consumption:unconsumed|consumed|closed,consumedBy:null|CallRef,reason,sourcePosition,targetReceipt}`；交付 q1 ready 不等于消费批准。answered 与其后果关闭分别记录，保留原人类答案 |
 | Pool | 原请求的 derived 索引，键为 RequestRef；按水位分页，当前权限变化使旧游标失效。可答性 available/unreachable/not_placed/unknown 独立于 pending |
 
-streamId 为规范元组 `request(RequestRef)`；沿 core-journal/1、core-operation/1、
-字符串事件 version `"1"`、Counter，事件 decoder/纯 fold 从公共入口导出。
+streamId 候选为规范元组 `request(RequestRef)`。来源稿采用 `core-journal/1`、
+`core-operation/1`、事件 version `"1"` 与 Counter；这些是旧记录协议的 provenance，
+不是本 baseline 的可写格式或恢复兼容承诺。HD 目标 envelope、operation/fact
+版本及 decoder/fold 须与 DR 候选的实际采用格式另行闭合；在此之前不能凭旧
+字节或旧 decoder 宣称新代 HD 已具备可写恢复。
 sourcePosition 指耐久事实；本批关系沿 SR 的 `{kind:this_batch,stream,recordIndex}`，
 不预猜 seq；未知版本/缺 fold 关闭入口，不恢复成空池。
 

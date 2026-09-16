@@ -4,6 +4,5 @@
 - 当前状态：目标接口尚未实现/编译；只保留接口、状态、门与撤除协议作为后续实现输入。
 - 候选坐标：见[设计映射](design.md)
 
-
-
-[验证边界](verification.md)区分已有 primitives、目标协议和未实现 Cordis 投影。
+[设计映射](design.md#当前-v1-适配)逐项标明旧 T0-H 与当前 HD v1 的覆盖差额；
+[验证边界](verification.md)区分来源协议、目标端口和未实现 Cordis 投影。

@@ -56,6 +56,30 @@ unavailable；pre-active close 不排位也不保留待激活后自动执行的�
 旁路关闭。首版没有受信系统关闭入口。Account active 事实的受信交付和在短门
 中的同代读取尚无 provider 证据，未闭合前不得开放这些管理入口。
 
+## 组织、定义与权益的来源交接
+
+组织成员管理沿当前 Tenant 根核对真实账号主体及 `(tenantId,UserRef)` 成员，不能
+用 CLI 当前组织选择代替资格；移除最后一名有效 super_admin 须拒绝，最高资格
+转移在一份共同提交中成立。个人 owner 的特殊守卫不授予组织成员关系，组织入会
+仍由自身准入规则裁决。`tenant.members` 等治理操作集合不隐含 Session 正文、
+请求代答、调用控制或资源动作权限。
+
+定义发布由 TG 保留精确草稿修订、不可变发布版本及内容摘要；公开管理不能把
+customized 改成 official，官方种入只由受信来源完成。Entitlement 的签发权与
+修订事实来自源资产/权益 owner，受益租户管理员不能通过本地选择自授；跨租户
+签发仅授被指明的定义及版本权利，不开放来源租户通用读写。Acquisition 是消费
+租户的选用关系，enabled 不是运行贡献已装载，停用/移除也不撤销已经准入的工作。
+
+`registerReferenceSource` 只给具名 SR/TL 等真实引用 owner 的受信 link。双方在
+短门外各自准备，在同一 coordinator 逻辑位置登记相同的 source、registration、
+generation、适用范围及 stamp；LOADING 仅 held，双方及 link 当代可用后才参与
+正向检查。撤除只退休本次精确登记，旧 disposer 不得移除新代来源。来源对
+`prepareReferences` / `checkReferences` 返回带 owner revision 的完整性报告；
+`complete=false`、恢复未完或来源失联不是“没有引用”，应使依赖完整清单的
+discard/retire/disable/remove unavailable。仅在引用创建已封闭且能证明来源
+不适用时才可从该操作的必需清单排除。新增 SR/TL 引用与 TG 撤选/退役须在
+同一门核对来源 stamp；TG 不从异步投影推断无引用，也不反向依赖 SR/TL 实现。
+
 ## 与预算核算的边界
 
 TG 拥有 tenant/member 以及 `budget.manage` 等管理资格，负责入口是否可用；它不拥有

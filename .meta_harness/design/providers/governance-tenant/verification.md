@@ -35,3 +35,10 @@ Tenant/Admission 同门组合实验前，不声称个人关闭或管理入口实
 完整耐久 publication；本候选仅定义应验边界，不声称已执行。Account/CC 导入
 接口、DR/CC 统一许可的真实 provider 和 TenantHost 未完成前，该纵切不可宣称
 实现符合或开放注册入口；DR/CC 候选条款存在不替代这些验证。
+
+非个人路径另须验证：两账号同组织成员资格不混同；两个 super_admin 竞争移除
+最后最高管理员时仅一个合法状态可成立；官方种入不可由公开编辑冒充；源资产
+签发资格撤回后不能自授 Entitlement。SR/TL 在 TG 准备撤选后新增引用、来源
+装载仅 held、突然失联、报告 `complete=false`、旧 disposer 晚到及恢复重连时，
+discard/retire/disable/remove 不得把未知引用当空；停用只封闭后续使用，不
+抹已准入工作。治理资格、Session 正文和资源动作权限分别检查。

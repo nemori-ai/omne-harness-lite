@@ -15,7 +15,7 @@
 
 | 契约责任 | 候选公开面 | 当前事实与缺口 |
 |---|---|---|
-| AU-01～AU-02 | `createAuthorizationHost`、设置/grant 管理 | 设计具备 owner/revision/生效边界；无实现或真实恢复证据 |
+| AU-01～AU-02 | `createAuthorizationHost`、设置/grant 管理 | 设置作用域与双定义映射见[当前协议](protocol.md#设置归属与两种定义)；grantor 的统一权威表示尚未裁决，grant/amend/revoke 不能凭旧字段开放；无实现或真实恢复证据 |
 | AU-03～AU-06 | `AuthorizationPlugin` / `omneAuthorization`、具名 Session/Action/resource/decision fact links | service key 和 link 协议为候选；没有实际注册、判定或组合运行 |
 
 ## 权限见证、撤权与 TOCTOU
