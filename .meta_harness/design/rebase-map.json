@@ -313,14 +313,14 @@
         }
       ],
       "consumers": [
-        "composition.core-work-coordination@2<-composition.agent-session-binding@1",
+        "composition.core-work-coordination@1<-composition.agent-session-binding@1",
         "composition.session-run-agent-lifecycles@2<-composition.agent-session-binding@1",
         "capability.run-driver@3<-composition.agent-session-binding@1"
       ],
       "release_evidence": [],
       "freeze_gate": {
         "blocked": true,
-        "reason": "Target v1 is candidate with acceptance:null; all listed consumers are observed-legacy without verified-current adoption, and release_evidence is absent."
+        "reason": "Target v1 remains candidate with acceptance:null; CC adoption is verified-current, while lifecycle and RunDriver adoption need exact clause review, release evidence and freeze."
       }
     },
     {
@@ -2445,18 +2445,18 @@
       }
     },
     {
-      "consumer": "composition.core-work-coordination@2<-composition.agent-session-binding@1",
+      "consumer": "composition.core-work-coordination@1<-composition.agent-session-binding@1",
       "consumes": {
-        "baseline_id": "omne-harness-lite-legacy-spec",
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
         "contract_id": "composition.agent-session-binding",
         "version": 1
       },
-      "status": "observed-legacy",
+      "status": "verified-current",
       "evidence": {
-        "source_commit": "e3573ca72d18bfe7ddd002df5025551b51eede46",
-        "source_path": "spec/compositions/core-work-coordination/v2/contract.md",
-        "sha256": "18820be811effe1d713faf3ad275bf4d5910cbb8516b09242672cea54b74cf52",
-        "snapshot_path": "evidence/legacy-consumers/composition-agent-session-binding-1.source"
+        "source_commit": "d211bad985be0e92334a20be2a9d36026086d926",
+        "source_path": "spec/compositions/core-work-coordination/v1/contract.md",
+        "sha256": "3c1dc606df46a2c27a153c6b4e108513288a2364e483a6cecda2e0cf7473cdfb",
+        "snapshot_path": "spec/compositions/core-work-coordination/v1/contract.md"
       }
     },
     {
