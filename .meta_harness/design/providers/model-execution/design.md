@@ -44,3 +44,17 @@ ledger、callback、active snapshot 或 disposition projection 的符合实现�
 operation owner inspect、对账和接收迟到结果。重试产生新 attempt，保留原费用和因果关系。
 provider 停止先封闭新准入、排空/隔离在途工作并保存可恢复事实；插件卸载不等于撤回外部效果、
 删除媒体、释放预算或取消历史交付。
+
+## OpenRouter 传输适配边界
+
+ModelHost 保留 attempt、共同准入、预算、结算和迟到结果的权威；传输适配只承担请求投影、
+OpenRouter 出站、流解析及结果回传。内部工具调用的 `toolCalls/toolCallId` 必须映射为
+OpenRouter wire 的 `tool_calls/tool_call_id`，后续工具结果须带回原调用 ID；本地工具的
+实际执行仍走 Tools/授权门，模型适配层不能直接执行。路由中选择的 provider 与响应中
+实际服务的 provider 分开记录，费用也区分 OpenRouter 响应／可核实账务的实际金额、
+目录价格估算和缺失值；估算或数值偶合不能冒充实际收费输入给 Budget。
+
+按 [D-019](../../decisions/pi-ai-openrouter-transport/decision.md) 定向 fork pi-ai 的 OpenRouter
+provider、目录与流解析；fork 必须向 Host 暴露实际服务商、实际费用及其来源、响应身份，
+并保留明确的请求参数、无暗中重试、abort/错误和私有 replay 语义。DSH `llm-pi-ai`
+的设置、账号、凭据与本项目 Account/Budget/共同门不是同一权威，不因复用传输而接入。

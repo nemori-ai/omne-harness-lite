@@ -33,6 +33,7 @@
 - [D-016：独立产品账号能力](account-identity/README.md)，接受账号/Tenant 边界与成熟嵌入式认证优先验证方向
 - [D-017：统一的个人租户创建机制](personal-tenant-creation/README.md)，接受首次初始化与后续注册共用一套 Tenant 创建语义
 - [D-018：消息交付与外部 Hooks 的新 v1 语义](e-message-stream-hooks/README.md)，接受八组可观察变化的设计方向；发布与实现另行验证
+- [D-019：定向 fork pi-ai 用于 OpenRouter 传输](pi-ai-openrouter-transport/README.md)，接受传输复用方向；fork 与产品组合仍须验证
 
 ### 实现组织与工程观测
 
