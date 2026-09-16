@@ -12,10 +12,13 @@ legacy v1 重基，保留 TG-01～TG-05；D-008 及 tenant-contracts 历史候�
 `SubscriptionLink` 的本地关联、变更意图和对账状态由预算核算能力唯一拥有。
 
 个人创建精确消费同 baseline 的 [CD-01/02](../../../data/core-work/v1/contract.md) 身份与
-因果绑定、[AI-01/02/02a/04/08](../../account-identity/v1/contract.md) 的来源事实 F，
-以及 [CC-03/06](../../../compositions/core-work-coordination/v1/contract.md) 的当前代排位
-与恢复发布。三项依赖坐标分别为 `data.core-work@1`、
-`capability.account-identity@1`、`composition.core-work-coordination@1`，均为本
+因果绑定、[ARI-1/2](../../../data/agent-runtime-identity/v1/contract.md) 的 `OpaqueId`、
+[AI-01/02/02a/04/08](../../account-identity/v1/contract.md) 的来源事实 F、
+[CC-03/06](../../../compositions/core-work-coordination/v1/contract.md) 的当前代排位与恢复发布，
+以及 [DR-01/02](../../durable-records/v1/contract.md) 的 `OperationInput`、单租户提交和原操作认回。
+五项依赖坐标分别为 `data.core-work@1`、`data.agent-runtime-identity@1`、
+`capability.account-identity@1`、`composition.core-work-coordination@1`、
+`capability.durable-records@1`，均为本
 baseline 的 candidate。下游
 [ACR-03～06](../../../compositions/account-registration/v1/contract.md) 消费 TG-01
 回执与可消费证明以完成跨 owner 激活，不形成 TG 对 ACR 的反向依赖。
@@ -49,22 +52,29 @@ active／suspended／removed，removed 后重新加入形成新 membership revis
 账号 active 或 provider 换代不撤销它。旧实例不能在新代提交。
 
 `personalTarget(UserRef)` 的精确编码是 `personal:user:` 加 `UserRef.userId` 的 UTF-8
-字节按 RFC 4648 URL-safe base64 无填充编码；输入必须是共享 `OpaqueId` 的规范字符串，
-且只含 Unicode scalar values；解码再编码必须相同。此编码对 UserRef 注入，与非个人租户 ID 空间不相交。Account
+字节按 RFC 4648 URL-safe base64 无填充编码；本版 Account F 的 `UserRef.userId`
+及 `sourceRef` 均由 F Schema 限定为非空 ASCII `[A-Za-z0-9_-]+`，因此属于共享
+`OpaqueId` 的 Unicode scalar 子域；解码再编码必须相同。此编码对 UserRef 注入，
+与非个人租户 ID 空间不相交。Account
 首次持久绑定 UserRef 时固定此 target，Tenant 从 F.userRef 重算，错配拒绝。两个不同
 F 若含相同 UserRef，落在同一 target，但不得因此把第二来源认回为第一来源的成功。
 
 Tenant 原操作 T 为 `{namespace:"tenant.personal-create",principalId:"{\"kind\":\"system\",\"systemId\":\"tenant-personal-creator\"}",operationId:"source:"+base64url(UTF8(F.sourceRef))}`；
 来源 ref 的完整编码注入且域分离。T 不等于 Account 内部 A。Tenant 对同一 T 先查
 占位/耐久结果；同输入认回，异 F、异 target 或异输入在可核实占位/结果时冲突。
-不同 T 争同一 target 时，唯一目标流的空前态 CAS 只允许一个成功，另一个明确
-冲突；不同 UserRef 的目标流互不竞争。关闭后不同新来源再建个人范围首版不开放。
+不同 T 争同一 target 时，唯一目标流的空前态 CAS 只允许一个成功；另一 T 在
+第一 T 仅占逻辑位置但耐久结果未决时报告 `target_occupied_pending`，保持查询责任，
+不可报确定冲突。完整前缀确认另一 T 已成为该流创建者后，第二 T 的查询结果为
+确定终局 `personal_target_conflict`，保留本 T/F/target 及胜出者的证明但不披露其他
+账号资料，不发行可激活证明。同 T 重试认回该冲突，不能把另一 T 的 committed
+认作自己的成功；不同 UserRef 的目标流互不竞争。关闭后不同新来源再建个人范围
+首版不开放。
 
 编码正反例：`UserRef={userId:"u1"}` 的字节 `75 31` 给 `personal:user:dTE`，
 `{userId:"u2"}` 给 `personal:user:dTI`；`F.sourceRef="src-1"` 的字节
 `73 72 63 2d 31` 给 T.operationId `source:c3JjLTE`。解码必须回得原字节及规范
 字符串，带填充的 `dTE=`、不规范 UTF-8 或不成对 surrogate 均拒绝。`sourceRef`
-同样必须只含 Unicode scalar values；不以固定长度哈希代替上述注入编码。
+同样必须满足本版 ASCII 子域；不以固定长度哈希代替上述注入编码。
 
 T 的冻结 C 使用 [DR-01](../../durable-records/v1/contract.md) `core-operation/1`：
 `tenantId=target`、`principal={kind:"system",systemId:"tenant-personal-creator"}`、
@@ -80,7 +90,8 @@ generation 和短门资格是尝试状态，不进 C。Tenant 将同一目标租
 AI-08，Tenant 仍核对受信 init 来源与已核实空 Tenant 前态；writer epoch 存在不等于
 Tenant 已建立。个人创建不附带组织成员，不以历史创建授业务访问。
 
-Tenant 的 T 查询区分 `reserved`、`pending_durability`、`unknown`、历史已提交而 owner
+Tenant 的 T 查询区分 `reserved`、`target_occupied_pending`、`pending_durability`、
+`unknown`、`personal_target_conflict`、历史已提交而 owner
 publication 受阻的 `committed_blocked(owner_publication_required)`、durable committed
 及本代可消费证明。结果绑定 F/T/C 摘要、target、UserRef、creator/owner、批次位置
 与水位。逻辑占位不开放 owner 管理或账号激活。只有完整耐久前缀与 CC-06 全 owner

@@ -59,8 +59,8 @@ TG-01 精确 C；DR `inputDigestT` 仅计算 C，不复用 Account 私有 digest
 先按 T/C 查占位或耐久结果，相同认回，异输入冲突。新操作在 CC-03 当前代短门
 核 F 的冻结绑定、目标租户流空前态、唯一 personal/owner、init 的已核实空 Tenant
 前态及当前 host/owner/writer generations；门内不等待 Account I/O。不同 F 若含同一
-UserRef/Tenant target，只能有一个 T 占用目标流首位置，另一 T 冲突，不能认回为
-自身成功。不同 UserRef 各有独立目标流。通过后仅颁发普通单租户 DR-01 提交资格，
+UserRef/Tenant target，只能有一个 T 占用目标流首位置，另一 T 在先占位未决时保持 `target_occupied_pending`，先行 T 耐久成为创建者后
+给终局 `personal_target_conflict`，不能认回为自身成功。不同 UserRef 各有独立目标流。通过后仅颁发普通单租户 DR-01 提交资格，
 将 personal tenant、creator 与唯一 active owner 成员在一条目标流的一个 append
 同批持久化。没有个人索引或 bootstrap 流。
 
