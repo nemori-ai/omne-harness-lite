@@ -21,6 +21,9 @@
 这些材料拥有目标、观察者、确认范围、部署/隔离/模型访问等约束；手册中的示例不补充产品要求。
 本次输入尚未归档时明确记录来源和确认范围，不伪造已有条款编号。
 
+`design/requirements/interviews/` 保存可选的需求访谈语境。需要理解当时的争论、公开理由、观点修正或决定背景时按主题读取；
+它不是正式条款或接受依据。交互正在形成值得回顾的需求语境时，按[需求归位](intake.md#何时自主启记访谈)接续或建立信息包。
+
 目录是空骨架、正文未导入或版本不明时，说明缺哪项输入以及影响。
 可以凭用户已给出的需求继续候选分析；必要信息不足只阻止依赖它的定稿或实施。
 不向工作区外寻找同名 docs/spec 补齐，也不因没有内部登记便断言系统不存在相关能力。
@@ -54,6 +57,7 @@ catalog、冻结记录和形式任务清单不存在或不含相关身份时保�
 
 先用[信息包准入](information-packages.md)判断是否值得长期保存，再读 `design/README.md` 和相关 family README；已有主题先读其包入口。
 新主题的可复制信息包归各家族本地 `.templates/`，例如 `design/proposals/.templates/topic/`；
+requirements 同时提供正式条款的 `.templates/topic/` 与可选访谈语境的 `.templates/interview/`；
 规格家族由 `design/spec/README.md` 导航 data、capability、composition 三种包。
 模板资源不参与实际需求、能力、决定或规格发现，不能把占位内容当作已知系统事实。
 

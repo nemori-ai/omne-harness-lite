@@ -58,6 +58,7 @@
 | 当前问题 | 入口与停止点 |
 |---|---|
 | 新需求、能力边界或插件设计 | [harness-design-handbook](agents/skills/harness-design-handbook/canonical/SKILL.md)：从当前缺口进入，达到本次分析/设计/交接终点即收口 |
+| 需求交流值得持续回顾 | [需求归位](agents/skills/harness-design-handbook/canonical/references/intake.md#何时自主启记访谈)：在 requirements/interviews 接续可选笔记；访谈不自动升级为正式要求或决定 |
 | 已有契约、映射或证据发生变化 | [规格演进](agents/skills/harness-design-handbook/canonical/references/spec-evolution.md)：定位拥有者与受影响消费者，只展开变化涉及的范围 |
 | 知识应落哪里、怎样建 topic | [design 入口](design/README.md)，再读对应 family；不要求每项需求创建所有家族 |
 | 已有架构、规格或计划待审稿 | [评审分工](agents/roles/README.md#按判断对象选择-reviewer)：给出对象/版本、依据与范围，按问题委派独立只读评审，意见不代替接受 |

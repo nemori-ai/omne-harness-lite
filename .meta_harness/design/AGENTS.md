@@ -16,6 +16,9 @@
 最低信息与停止条件；再从本地 `.templates/` 建包并裁剪。任一步无法回答就停止建包，把待核对输入留在
 任务区；不要先创建空 topic、`plan.md` 或第二份权威等待以后补齐。
 
+需求交流若具有持续回顾价值但尚不是正式条款，可进入 requirements 的访谈信息包；访谈只保存来源语境，
+状态升级仍由正式 requirement、proposal 或 decision owner 显式完成。触发与记录边界见[需求归位](../agents/skills/harness-design-handbook/canonical/references/intake.md#何时自主启记访谈)。
+
 ## 状态和交接红线
 
 - 观察、推断、候选、评审、接受、发布、实现与验证分别记录；文件存在或 reviewer 无意见不能提升状态。
