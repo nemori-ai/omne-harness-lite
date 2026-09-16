@@ -12,8 +12,13 @@ legacy `composition.core-work-coordination@2` 重基，保留 CC-01～CC-07 及�
 **CC-01**：首版业务协调域由一份明确的准入协调实现服务于本批核心权威，使用
 同一有序提交通道，原子关系仅限本契约及同一协调域内发布的组合契约明确声明的
 组合。本契约声明：输入/取批与 Run、动作/批准消费与执行许可、等待与决定后果、
-预算预留与调用受理、媒体引用与内容受理；生命周期组合 LC-04（legacy source: `../../session-run-agent-lifecycles/v1/contract.md`）
-声明 Session 与 Run 之间的同提交行。这不把权威合成一个业务服务，也不要求将知识、
+预算预留与调用受理、媒体引用与内容受理。Legacy
+`composition.session-run-agent-lifecycles@1` 的 LC-04 曾声明 Session 与 Run 之间的同提交行；
+新 baseline 尚无该 lifecycle 坐标，因此它当前不是本契约依赖，也不构成新谱系同提交保证。
+是否以及如何承接该行须经 S+L joint review；relation
+`s-lifecycle-lc04-joint-review-freeze` 的 freeze gate 在此之前机械阻断 release。
+
+这不把权威合成一个业务服务，也不要求将知识、
 制品或外部账单纳入统一事件模型。实现可以将多个 typed stream 的一批记录放进同一
 JSONL 提交，不能先写多个文件再声称它们已原子成立。能力拆为远程提供者后仍须实现
 相同协议或发布新契约。

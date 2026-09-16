@@ -5,3 +5,6 @@
 
 宿主映射以 [设计映射](design.md) 的实际 factory/纯过程/ports 边界为准；本文不以 Cordis 插件包装
 冒充当前实现。若未来增加插件投影，须另行验证 Context 生命周期、撤除和应用装配。
+
+关联的 legacy Admission 模型只见证授权、效果开始前耐久、取消/安全停止后迟到启动三个不变量。
+它不覆盖 CC-05 outbox、CC-06 crash/recover/new epoch、CC-07 observation 或 recovery interleaving。

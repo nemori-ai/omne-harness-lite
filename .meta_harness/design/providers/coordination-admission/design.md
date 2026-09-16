@@ -22,9 +22,10 @@ tenant、operation、因果、epoch、修订与资源所有者必须显式；有
 | committed broadcast | 门外广播已提交 receipt/组合名 | listener 不得改业务结果；丢通知由事实扫描恢复 |
 
 writer 的 `committed`、coordinator completion 与 publication 状态是三个不同事实。writer
-完成耐久后，coordinator 必须在另一短门按 seq 提升全部 owner 的 durable 根；只有
-`publication=ready` 才 resolve 自己的 completion、允许相关效果并广播。`publishDurable`
-抛错时不能改称未提交：票据以 `committed + publication=blocked` 认回，协调域单调隔离，
+完成耐久后，coordinator 必须在另一短门按 seq 提升全部 owner 的 durable 根。原 coordinator
+completion 对 `committed + publication=ready`、`committed + publication=blocked` 或具名 `unknown`
+都必须完成，不能因本地发布失败悬挂；只有 `publication=ready` 才允许相关效果并广播。
+`publishDurable` 抛错时不能改称未提交：票据以 `committed + publication=blocked` 认回，协调域单调隔离，
 禁止相关效果和 committed broadcast，并保留全部占位、ExactUse claim 与资源收口责任。
 未核实写入保持 `unknown`。
 

@@ -154,7 +154,7 @@ text/image/audio/video/file 的有序块序列，媒体块带 `delivery`；`poss
 已耐久而终态不明。哪些 `outcome` 可达、是否消耗 attempt、以及结果如何进入模型，归
 tools v2 与模型执行能力；本条只固定记录形状。
 
-## 与上一版的差异
+## Legacy v1 → legacy v2 的来源差异
 
 | 条款 | 性质 | 来源裁决 |
 |---|---|---|
