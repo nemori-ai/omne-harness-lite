@@ -9,6 +9,9 @@ provider 失联/重载、旧候选不复活、清理失败及保留事实；只�
 
 个人 bootstrap 须补真实 Admission 与延迟 fsync 下的资格读取负例，以及成功/重启、
 重复原操作认回、异输入冲突、任意 null-tenant 跨 scope 冒充、错 tenantId、既有
-Tenant 初始化、三事实错批/错 user/错 owner、撕裂或坏前缀、conflict.currents
-引用 tenant stream 后 lookup/recovery。验证同时覆盖 Records 结构门、JSONL writer、
+Tenant 初始化、三事实错批/错 user/错 owner、撕裂或坏前缀、仅 system stream
+revision 冲突且 `currents` 无目标 tenant 引用时经 `bootstrapTargetTenantId` 的
+lookup/recovery、该字段缺失/错配、旧 v1 codec 拒绝例外及 v2 读取旧 v1 完整前缀。
+已取得逻辑位置未耐久的操作还须覆盖同 key 同/异输入认回、崩溃后 unknown 与
+安全截回释放占位的证据边界。验证同时覆盖 Records 结构门、JSONL writer、
 Tenant 业务门与完整耐久 publication；本候选仅定义应验边界，不声称已执行。
