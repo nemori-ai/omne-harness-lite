@@ -1,17 +1,17 @@
 TLC2 Version 2026.09.12.025210 (rev: 867aefb)
-Running breadth-first search Model-Checking with fp 0 and seed 1 with 1 worker on 8 cores with 470MB heap and 64MB offheap memory [pid: 229391] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness-j-hooks-control/.meta_harness/design/spec/capabilities/external-hooks/v1/formal/JointHooksRunControl.tla
-Parsing file /tmp/tlc-6264726783598221508/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
-Parsing file /tmp/tlc-6264726783598221508/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
-Parsing file /tmp/tlc-6264726783598221508/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Running breadth-first search Model-Checking with fp 0 and seed 1 with 1 worker on 8 cores with 470MB heap and 64MB offheap memory [pid: 248369] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness/.meta_harness/design/spec/capabilities/external-hooks/v1/formal/JointHooksRunControl.tla
+Parsing file /tmp/tlc-255971994985034215/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-255971994985034215/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-255971994985034215/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module JointHooksRunControl
 Linting of module JointHooksRunControl
-Starting... (2026-09-16 12:53:54)
+Starting... (2026-09-16 12:58:57)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-09-16 12:53:54.
+Finished computing initial states: 1 distinct state generated at 2026-09-16 12:58:57.
 Error: Invariant Safety is violated.
 Error: The behavior up to this point is:
 State 1: <Initial predicate>
@@ -161,4 +161,4 @@ s = [ gate |-> "ask",
 
 216 states generated, 98 distinct states found, 46 states left on queue.
 The depth of the complete state graph search is 5.
-Finished in 00s at (2026-09-16 12:53:54)
+Finished in 00s at (2026-09-16 12:58:57)

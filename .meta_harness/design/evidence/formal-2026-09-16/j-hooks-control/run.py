@@ -44,7 +44,8 @@ for cfg in sorted(FORMAL.glob('JointHooksRunControl.*.cfg')):
                         cwd=str(FORMAL.relative_to(ROOT)), exit_code=p.returncode,
                         expected_result=expected, log=log.name, log_sha256=sha(log)))
     print(cfg.stem, p.returncode, expected)
-manifest = dict(baseline_commit='d6669f28072e759f40a64386836b333f06d71d4c',
+manifest = dict(baseline_commit=subprocess.check_output(
+                    ['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
                 java=str(JAVA), java_sha256=sha(JAVA), jar=str(JAR),
                 jar_sha256=sha(JAR), inputs={str(p.relative_to(ROOT)): sha(p)
                                            for p in sources}, results=results)
