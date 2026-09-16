@@ -9,6 +9,32 @@ D-008/D-015 仅作 provenance；本坐标保持 candidate、`acceptance:null`。
 本候选 personal creation 分支消费同 baseline 的 [CC-03/05/06](../../../compositions/core-work-coordination/v1/contract.md)
 所颁发的一笔资格；[TG-01](../../../capabilities/tenant-governance/v1/contract.md) 拥有业务事实，
 本能力不凭记录内容自授许可。
+本能力的数据依赖为同 baseline 的 [CD-01/02](../../../data/core-work/v1/contract.md)
+`OperationRef` 与 `UserRef`，以及 [ARI-1/2](../../../data/agent-runtime-identity/v1/contract.md)
+`OpaqueId`/tenant 身份；本能力自有 `StreamRef`、`RevisionConflict` 与个人创建冲突
+形状见 [v1 Schema](schema.json)，不能借用 provider TypeScript 类型作规范。
+
+## 记录结构与编码
+
+`StreamRef={namespace:OpaqueId, owner:OpaqueId, scope:{kind:"system"} |
+{kind:"tenant",tenantId:OpaqueId}, streamId:OpaqueId}`；相等是五个语义字段
+（含 scope kind/tenantId）的逐字段精确相等。`RevisionConflict={kind:"revision",
+currents:[{stream:StreamRef,revision:Counter}]}`，`Counter` 为无前导零的非负十进制
+整数字符串（零恰为 `"0"`）；`currents` 按 canonical `StreamRef` 严格升序、无重复，
+只含提交时实际 `expectedRevision != currentRevision` 的流，`revision` 是其实际 head。
+JSON Schema 约束结构，逐字段身份、CAS、排序和来源可信性由本契约行为约束。
+
+本版 `core-json/1` canonical JSON 是有效 JSON 值的 UTF-8、无 BOM/无多余空白编码：
+对象键按 UTF-16 code unit 词典序严格升序，数组保留原序；字符串与有限数字按
+ECMAScript `JSON.stringify` 的对应值呈现，禁止 NaN/Infinity 和不成对 surrogate。
+v3 outer journal line 恰为 Schema 的 `JournalLine{byteLength,formatVersion,payload,sha256}`；
+payload 是 Schema 的 `PersonalCreationEnvelope` canonical 字符串，两层及
+`canonicalInput` 均用该规则；`inputDigest` 是 `canonicalInput` UTF-8 字节的 SHA-256
+小写十六进制，outer line 的长度和摘要按 DR-04 对 payload UTF-8 字节计算。
+`StreamRef` 排序键是上述 canonical JSON 的字符串结果，按 UTF-16 code unit 词典序
+比较，而非实现对象迭代顺序；记录 formatVersion 恰为 `core-journal/3`，解码须
+字节重新编码一致，不能仅因 JSON 值相等便接纳非 canonical 字节。格式、字段集、
+嵌套身份和冲突形状在本候选版本内固定；不认识格式或字段即拒绝可写恢复。
 
 ## 耐久记录能力
 
@@ -58,6 +84,16 @@ stream、改变集合、跨域使用或拆成多次 commit。每流一个 append
 代际、唯一排序和结果一致性；不读业务事实来判断 Account 授权、唯一 claim、creator
 或 owner。那些关系及当前准入归 Tenant 与 CC；未得到它们颁发的有效绑定时返回
 rejected/unavailable，不开放泛用 null-tenant 混写。
+
+资格授权的是同一原操作的**一次成功写入尝试**，不授予任意 system 写权。若其
+expected revisions 的 CAS 不成立，writer 只能为该原操作写一个单独的
+provider-owned conflict outcome envelope：其唯一 append 是 system
+`operation-outcomes`，不包含也不冒充上述二/三流成功批次中的任何 append。
+writer 以先前已验证的本次资格和原 operationRef/inputDigest 绑定该 outcome；
+它按 DR-02 的原操作身份去重，不能再次消费资格生成另一份结果。该 outcome 的
+耐久确认才允许返回 conflict；写入/同步结果未知时仍按原操作 unknown 查询，
+不能因预见 CAS 不匹配就提前报告 durable conflict。除了这个 writer 自有的
+结果记录，资格不允许调用方写 system `operation-outcomes`。
 
 该例外的 durable conflict 只写 provider-owned system `operation-outcomes`。即使只有
 `tenant-personal-index` revision 冲突，outcome 和同一 `operation.conflict` fact 也必须

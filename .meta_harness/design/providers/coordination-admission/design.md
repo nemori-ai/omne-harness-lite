@@ -20,10 +20,11 @@ tenant、operation、因果、epoch、修订与资源所有者必须显式；有
 | `GateFrame` / owner publication | 同步短门发布 logical，耐久完成后发布 durable | 回调不得 await/返回 thenable；协调者不解释业务字段 |
 | `ExactUseIssuer` / `ExactUse` | 绑定真实 owner/pin，单次 claim 与显式 release | 不能靠 cast/反序列化伪造，也不代替 owner 清理资源 |
 | committed broadcast | 门外广播已提交 receipt/组合名 | listener 不得改业务结果；丢通知由事实扫描恢复 |
-| Tenant personal creation binding | 受信装配仅给 TenantHost 两个封闭入口：init 核初始化前态/seed，registration 核已耐久导入的 Account 原始后果；首次排位前固定原 operation/摘要/`UserRef`/target。短门纯查来源、claim、target head 与当前代际，颁发本代一次性的二/三流资格并交 Records/JSONL | 普通 coordinator、客户端 origin/owner/operationKind/UserRef、旧 session 或持久 envelope 均不能铸造权限；门内不 await Account I/O |
+| Tenant personal creation binding | 受信装配仅给 TenantHost 两个封闭入口；两者都先核 Account 已耐久分配的不复用 `UserRef`、唯一凭据绑定、固定 target 与 AI-02a 创建后果经 CC-05 导入。init 再核 AI-08 受信初始账号来源、Tenant 尚未建立、seed 与独占部署资格；registration 核普通注册来源。首次排位前冻结原 operation/摘要/`UserRef`/target，短门纯查来源、claim、target head 与当前代际，颁发本代一次性的三/二流资格并交 Records/JSONL | 普通 coordinator、客户端 origin/owner/operationKind/UserRef、seed 文本、Tenant 自分配的 UserRef、旧 session 或持久 envelope 均不能铸造权限；门内不 await Account I/O |
 
-Account→CC 的受信接收者在门外核 Account 源 fact identity、schema/version、签发权、
-原注册 operation/摘要、`UserRef`、target 与一次创建授权，然后将它以稳定身份耐久
+Account→CC 的受信接收者对 init 与 registration 均在门外核 Account 源 fact identity、
+schema/version、签发权、原 operation/摘要、`UserRef`、target 与一次创建授权，
+然后将它以稳定身份耐久
 导入目标协调域并去重；响应丢失查原 identity。导入的是不可变授权投影，Account
 暂时不可达或 pending 后来 active 不撤销它；账号激活仍查 Account 自身结果。
 未核实/未导入时新创建 unavailable/unknown。导入前后的通知不直接颁发资格；

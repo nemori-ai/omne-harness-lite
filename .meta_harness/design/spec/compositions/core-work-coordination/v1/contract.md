@@ -8,7 +8,7 @@ legacy `composition.core-work-coordination@2` 重基，保留 CC-01～CC-07 及�
 它不取得各业务状态权威，也不把通知、日志或多个独立写入称作共同提交。
 personal creation 候选分支依赖同 baseline 的 [DR-01](../../../capabilities/durable-records/v1/contract.md)、
 [TG-01/03](../../../capabilities/tenant-governance/v1/contract.md)、
-[AI-01/02/04/05](../../../capabilities/account-identity/v1/contract.md) 与
+[AI-01/02/02a/04/05](../../../capabilities/account-identity/v1/contract.md) 与
 [ACR-03～06](../../account-registration/v1/contract.md)。两个受信入口共享一套创建提交机制，
 但 Account 身份/凭据、Tenant claim/owner 与 Records 批次仍各有权威。
 
@@ -47,11 +47,14 @@ isValid，再在它们可能变化之后写入"已准入"。
 耐久确认后可用。仅异步准备而尚未获得逻辑位置的操作不算准入。
 
 Tenant personal creation 使用同一逻辑排位、提交、lookup 与恢复机制。受信装配只
-提供两种封闭来源：首次 `deployment_init` 核 Tenant 初始化权威前态、受信 seed 与
-独占初始化资格；后续 `account_registration` 核 CC-05 已耐久导入的 Account
-原始后果，其稳定来源身份、原注册操作、摘要、`UserRef`、personal target 与
-一次创建授权必须逐项匹配。旧 session、客户端 `UserRef`、`origin`、`owner` 或
-`operationKind` 字符串不能授予资格。较早 pending 分配或凭据碰撞不构成来源后果。
+提供两种封闭来源。两者都须先由 Account 权威耐久确认不复用的 `UserRef`、唯一
+凭据绑定、原操作/摘要、personal target 与 AI-02a 的一次创建源后果，再按 CC-05
+受信导入目标协调域。首次 `deployment_init` 在此基础上额外核 Tenant 尚未建立的
+权威前态、受信 seed 与独占部署初始化资格；后续 `account_registration` 核普通
+注册入口政策。来源事实的稳定身份、原操作、摘要、`UserRef`、target 与一次授权
+必须逐项匹配。seed 文本、Tenant 自分配的 `UserRef`、旧 session、客户端
+`UserRef`/`origin`/`owner`/`operationKind` 字符串均不能授予资格；较早 pending 分配或
+凭据碰撞也不构成来源后果。
 Account 注册入口关闭、logout、pending 后来变 active、provider 暂时失联或换代不撤销
 已成立的耐久授权；首版没有取消注册或关闭账号后撤销未排位创建的操作。若未来
 增加撤销，须另定跨 owner 排位顺序与屏障，不能追溯改写已准入位置。
@@ -59,8 +62,9 @@ Account 注册入口关闭、logout、pending 后来变 active、provider 暂时
 两种来源均在原操作首次逻辑排位前冻结输入和 target。已存在同 operation/input 的
 占位或耐久结果先认回原 target/status，不重跑首次前态；有可核实占位或耐久 outcome
 时同键异输入冲突。首次新排位的短门只读已耐久导入的来源事实和 Tenant/Admission
-当前 roots，执行纯检查：init 的未初始化与 claim，或 registration 的精确来源授权、
-同 `UserRef`/target 的唯一 claim 与目标 head，并核对当前 host/owner/writer generations。
+当前 roots，执行纯检查：两者的精确来源授权和唯一 claim，以及 init 的未初始化/
+受信 seed/部署资格，或 registration 的普通注册来源，
+同 `UserRef`/target 的目标 head，并核对当前 host/owner/writer generations。
 不得在门内等待 Account provider I/O、使用 TTL 缓存或把未耐久交付当成授权；
 未导入、来源未核实或无法证明同代根时，新操作 unavailable/unknown。门内成功才
 颁发 `capability.durable-records@1` DR-01 的单次封闭混合写资格：registration
@@ -99,8 +103,8 @@ unavailable，不能把 TTL 缓存当作"当前授权"。
 丢弃责任；目标不能从重复通知生成第二份 Run／工具／决定。此协议只保证事实
 交付与去重，不保证任意外部副作用恰好发生一次。
 
-Account→Tenant personal creation 的源后果必须由 Account 在凭据唯一绑定、稳定
-`UserRef`、原注册 operation/摘要和 personal target 均耐久后一次发出，稳定 source fact
+Account→Tenant personal creation 的两个来源后果均按 AI-02a 由 Account 在凭据唯一
+绑定、稳定 `UserRef`、原 operation/摘要和 personal target 均耐久后一次发出，稳定 source fact
 identity 绑定上述字段与 schema/version。受信 CC 接收者在门外向 Account 权威核验
 来源、版本、签发权与完整绑定，然后以 source fact identity 在目标协调域耐久导入；
 重复交付返回同一接纳结果，错字段/错版本拒绝，响应丢失按原 identity 查接纳结果。

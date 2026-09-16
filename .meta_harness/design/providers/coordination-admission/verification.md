@@ -19,8 +19,8 @@
 | 遗留 ExactUse 未结算/释放失败 | 即使 roots 已重建也不 reopen；原 claim 与清理责任可查询且不被新工作复用 |
 | 原 operation 恢复查询 | 历史 completion 仍 blocked；受信投影可在 baseline 覆盖后报告 consumable，但 operation/receipt/result 不变且不广播 |
 | 原 attempt 结果未知 | consumable 不触发执行；先 inspect/关联原 attempt，无法核实仍 unknown，外部效果不重复 |
-| Account 源后果导入 | 真实 Account/CC 双域测试核来源权威、版本、全绑定与耐久去重；重复/丢响应查原 identity，pending 分配和客户端字符串不能授创建资格 |
-| 双入口短门 | init 与 registration 各核相应前态；门内只读 durable import 和当前 Tenant/Admission roots，注入 Account I/O 停顿不使短门 await；二/三流资格代际/形状不可互冒 |
+| Account 源后果导入 | init 的 AI-08 初始账号与 registration 均以真实 Account/CC 双域测试核唯一凭据绑定、不复用 `UserRef`、来源权威/版本/全绑定和耐久去重；重复/丢响应查原 identity，pending 分配、seed 或客户端字符串不能授创建资格 |
+| 双入口短门 | init 另核 Tenant 未建立、受信 seed/部署资格，registration 核注册来源；两者均先有 Account durable import；门内只读当前 Tenant/Admission roots，注入 Account I/O 停顿不使短门 await；三/二流资格代际/形状不可互冒 |
 | 竞争与认回 | 同 key/input 先认回固定 target；异输入在占位或 outcome 存在时冲突；不同操作争 user/target 仅一个排位；unknown/not_seen 不释放，核实未提交并安全解除后同绑定重备 |
 | 历史与现时 | Account active 或部署已初始化后原操作仍认回；closing/closed 后历史创建不授权业务；旧 committed-blocked 由新代完整 baseline 另行查询可消费而不改写 completion |
 

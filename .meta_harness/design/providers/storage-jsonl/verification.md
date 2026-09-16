@@ -11,6 +11,10 @@
 | canonical 多流提交 | 不同 prepare 输入排列经 adapter 得到相同 envelope；流内顺序不变，eventId 的 recordIndex 稳定 |
 | 非 canonical 直达 writer | 在分配 seq、占 operation 或写盘前拒绝；journal 字节与 head 不变 |
 | replay/recovery | 扫描完整前缀重建的 stream heads、operation lookup、receipt 与 eventId 等于在线结果 |
+| 二/三流资格封闭 | 真实 Admission/Tenant Host 与 writer 联合检验两个来源各自完整形状；错来源、额外/少流、错 target/revision/domain/代际及伪造字段在写盘和分配位置前拒绝 |
+| system-only conflict | 仅 personal-index CAS 冲突时另写同原操作的 provider outcome envelope，不写成功批次；`currents` 只含索引，v3 outcome 与 fact version `3` 的绑定字段一致，lookup/replay 同结果去重 |
+| v3 严格 replay 与旧字节 | 缺失/多余字段、错版本、错 target、非 canonical 顺序及损坏前缀阻断可写恢复；旧候选或未知格式字节先保全原件，再拒绝按 v3 可写恢复，无兼容读取或转换假设 |
+| unknown 后原操作重备 | 回执丢失与暂时 not_seen 保持原目标/占位；只有旧 writer 完整前缀证明未提交且占位安全解除后，当前代才可同绑定重备 |
 
 当前没有绑定新 v1 坐标的执行报告；已有实现和旧测试只作为待核对输入。
 

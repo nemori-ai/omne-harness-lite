@@ -21,20 +21,26 @@ tenant、operation、因果、epoch、修订与资源所有者必须显式；有
 | stream revision / fact identity | 每个 accepted append 令目标 stream revision 恰好 `+1`；同 append 多 facts 共享 revision；commit 以 canonical flatten 位置分配 `(domain,batchSeq,recordIndex)` eventId | owner fact sequence 不参与 CAS；prepare correlation 与 `(stream,revision)` 都不能冒充逐 fact eventId |
 | read/watermark | 只返回完整批次与精确前缀；在线、扫描和恢复复用同一 revision、canonical order 与 eventId 算法 | 落后/坏前缀不得用于授权或恢复成功；不得探测或兼容两套 revision 算法 |
 | writer/lock/recovery/close | epoch、原生锁、尾部核实、排空关闭有实现 | 网络 FS、硬件故障、目录 fsync 与提供者换代仍需环境验收 |
-| tenant bootstrap | writer 仅接受由受信装配经 Admission 绑定精确操作、冻结输入、新 tenantId 与本代 writer 的窄凭据；核对两条固定 Tenant system streams 与一条匹配 `tenant:<id>` 的 tenant stream，同批原子同步 | 既有 writer epoch 不是 Tenant 初始化已发生的证据；writer 不解析业务事件决定个人/owner 资格 |
+| personal creation | writer 只接受受信 Admission/Tenant Host 在当前代为一笔冻结原操作颁发的资格，绑定来源、原 operation/摘要、`UserRef`、target、domain、精确 expected revisions、host/owner/writer 代际。`account_registration` 恰是 personal-index system + `tenant:<target>` 二流；`deployment_init` 另含 bootstrap system 三流，同批原子同步 | writer 不解析 Account 授权或 Tenant 业务事实；客户端来源、owner/operationKind 字符串、旧 session、反序列化 envelope 与历史 epoch 均不能铸造资格 |
 
-跨 stream prepare 输入顺序不承载业务关系；跨 owner 关系必须由完整 envelope 的引用及全部
-owner 校验表达。format 升级若改变 canonical 编码须发布新版本并保留旧格式的解码/重放规则，
-不能让同一历史 envelope 在重启后产生不同 recordIndex 或 eventId。
-conflict 只写 system `operation-outcomes`，其 currents 只列实际 mismatch；同一
-provider-owned outcome/record 必须额外持久化并核对原绑定的
-`bootstrapTargetTenantId`，包括仅 system stream 冲突时；
-该例外的成功和冲突都写 `core-journal/2`；冲突 outcome 目标字段与 system `operation.conflict` version `2`
-的 `{conflict, bootstrapTargetTenantId}` data；原有 v1 前缀仍由 v1 codec 读取，
-不补写或改写历史，v1 envelope 不能装载新的 mixed-scope exception；
-prepare、提交、lookup 与重启读取均核对原 operation/input、scope 形状及绑定，不能
-用自报字段取得新写入许可。坏前缀、错 stream、重放异输入保持隔离或冲突，不跳过。
-重启时从唯一成功 tenant append 或冲突 outcome 的目标字段恢复历史目标，
-按版本化严格编码核对 envelope 的 operation/input、受限 stream 形状及唯一前缀；历史数据只
-用于重建原结果，不能被当作可导入的运行时受信写入凭据。未提交且无法证明的操作
-继续 unknown；重新写入仍须当前宿主的窄绑定。
+跨 stream prepare 输入顺序不承载业务关系；跨 owner 关系由完整 envelope 的引用及全部
+owner 校验表达。personal creation 使用严格 `core-journal/3` canonical 编码、摘要和
+版本标记，在线写入与重启 replay 使用同一顺序、revision 和 eventId 算法。
+target 协调域若存在旧候选格式或未知格式字节，须保全原件并拒绝按 v3 可写恢复；
+本候选不增加旧格式读取、转换或继续写入兼容层，也不就地重释历史 envelope。
+
+成功批次只接受资格规定的完整二/三流集合。CAS conflict 是**同原操作的另一个
+provider-owned outcome envelope**：仅写 system `operation-outcomes`，不伪造成功
+批次的 personal-index、bootstrap 或目标 tenant append；绑定原 operation/摘要、来源、
+`UserRef`、target 和原资格，按原操作身份去重。`conflict.currents` 只列实际 mismatch；
+即使只冲突 system index，也要把原 target 写入 outcome 与同一 provider-owned
+`operation.conflict` fact。两者采用 v3 封闭形状，fact version `3`，其 data 恰为
+`{conflict, personalTargetTenantId, source, operationRef, inputDigest, userRef}`，并与
+资格及 outcome 逐字段一致。普通 conflict 不接受这些扩展字段。
+
+prepare/commit 时 writer 核当前代不可伪造资格、二/三流完整形状、CAS 与结果；
+lookup/replay 从唯一成功 tenant append 或 conflict target 字段核历史身份和原结果，
+严格拒绝错字段、额外字段、错版本、错 stream、非 canonical 顺序、坏前缀和同键异
+输入。历史记录不重新颁发资格。unknown 不释放占位，临时 `not_seen` 不证明未提交；
+旧 writer 完整前缀、原操作未提交和占位安全解除都可核实后，才能以同原操作/摘要/
+target 在当前代重新准备。
