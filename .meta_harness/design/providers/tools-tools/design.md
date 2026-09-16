@@ -46,9 +46,8 @@ TL 消费 HD/AU/BG/TG/Run/Session 的公开窄类型，定义 ExecutionProvider/
 每 append 使该 stream revision 恰加一；调用方在提交前冻结 appends 数组和各流内
 facts 顺序，writer/read/replay 保持该顺序，按此 flatten 后才分配逐事实
 `eventId=(coordinationDomain,batchSeq,recordIndex)`；Counter 不转 number。
-DR 当前 `core-journal/3` 的严格 Schema 专为个人租户创建二/三流混合批次，
-**不能**把它当作通用 Tools 记录 envelope。Tools 的版本化 stream/fact/operation
-codec 与真实 writer/replay 映射仍待 DR owner 定义并验收；不得以来源的
+DR v3 已定义普通单 stream envelope；它仍未定义 Tools 的事实种类与完整 codec。
+Tools 的版本化 stream/fact/operation codec 与真实 writer/replay 映射仍待相应 owner 定义并验收；不得以来源的
 `core-journal/1`、`core-operation/1` 建新写入兼容层。
 投影可重建但不授予读取、作答或执行资格；未知版本/缺 required fold 拒绝该入口。
 
