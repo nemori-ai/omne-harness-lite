@@ -1013,6 +1013,118 @@
         "ChangesDelivery and SnapshotReducer were checked separately, not as a composed model"
       ],
       "execution_evidence": "tmp/docs-spec-v1/e/formal-runs/astra-client/authorization-safety.json"
+    },
+    {
+      "id": "account-registration-v1-basic",
+      "kind": "tla",
+      "artifacts": [
+        "spec/compositions/account-registration/v1/formal/AccountRegistration.tla",
+        "spec/compositions/account-registration/v1/formal/basic.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-XX:+UseParallelGC",
+        "-Xmx768m",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-seed",
+        "1",
+        "-fp",
+        "0",
+        "-metadir",
+        "${TLC_STATE_ROOT}/account-registration-v1-basic",
+        "-config",
+        "spec/compositions/account-registration/v1/formal/basic.cfg",
+        "spec/compositions/account-registration/v1/formal/AccountRegistration.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "account-registration-v1-same-user",
+      "kind": "tla",
+      "artifacts": [
+        "spec/compositions/account-registration/v1/formal/AccountRegistration.tla",
+        "spec/compositions/account-registration/v1/formal/same-user.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-XX:+UseParallelGC",
+        "-Xmx768m",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-seed",
+        "1",
+        "-fp",
+        "0",
+        "-metadir",
+        "${TLC_STATE_ROOT}/account-registration-v1-same-user",
+        "-config",
+        "spec/compositions/account-registration/v1/formal/same-user.cfg",
+        "spec/compositions/account-registration/v1/formal/AccountRegistration.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "account-registration-v1-init-race",
+      "kind": "tla",
+      "artifacts": [
+        "spec/compositions/account-registration/v1/formal/AccountRegistration.tla",
+        "spec/compositions/account-registration/v1/formal/init-race.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-XX:+UseParallelGC",
+        "-Xmx768m",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-seed",
+        "1",
+        "-fp",
+        "0",
+        "-metadir",
+        "${TLC_STATE_ROOT}/account-registration-v1-init-race",
+        "-config",
+        "spec/compositions/account-registration/v1/formal/init-race.cfg",
+        "spec/compositions/account-registration/v1/formal/AccountRegistration.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "account-registration-v1-credential-blocked",
+      "kind": "tla",
+      "artifacts": [
+        "spec/compositions/account-registration/v1/formal/AccountRegistration.tla",
+        "spec/compositions/account-registration/v1/formal/credential-blocked.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-XX:+UseParallelGC",
+        "-Xmx768m",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-seed",
+        "1",
+        "-fp",
+        "0",
+        "-metadir",
+        "${TLC_STATE_ROOT}/account-registration-v1-credential-blocked",
+        "-config",
+        "spec/compositions/account-registration/v1/formal/credential-blocked.cfg",
+        "spec/compositions/account-registration/v1/formal/AccountRegistration.tla"
+      ],
+      "timeout_seconds": 180
     }
   ]
 }
