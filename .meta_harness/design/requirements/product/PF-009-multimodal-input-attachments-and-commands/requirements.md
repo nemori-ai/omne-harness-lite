@@ -108,7 +108,7 @@ C1/C2 记录直接要求；C3–C7 按已授权继承方向，补充来源中可
 slash 要求，不撤回
 [SYS-CONTINUITY](../../system/omne-next-continuity/requirements.md) 的整体继承方向。
 
-当前候选（迁移坐标：`.meta_harness/design/proposals/agent-core/#当前需求对应与缺口`）尚未覆盖
+目前的设计（[本包覆盖状态](README.md#设计覆盖状态)）尚未覆盖
 完整多模态输入、附件耐久性和命令交互。本次不选定内容块 Schema、解析库、
 上传后端或运行时框架；没有已接受业务规格需因此取代。
 
@@ -116,7 +116,7 @@ slash 要求，不撤回
 
 | 日期 | 变化 | 依据与处置 |
 |---|---|---|
-| 2026-09-15 | C1 复确认，正文不变："产品要支持用户使用文本以外的模态信息作为请求的一部分输入" | 用户直接确认（本会话）。已接受契约 CD-03（迁移坐标：`spec/data/core-work/v1/contract.md`）、CT-01～CT-04（迁移坐标：`spec/capabilities/media-content/v1/contract.md`）、SE-04/SE-05（迁移坐标：`spec/capabilities/session/v1/contract.md`） 在 legacy 基线的接受记录中记为“已覆盖语义”；该历史判断不自动承接新基线。未闭合的是 CD/CT 的 JSON Schema、上传传输与客户端交互（提供者与应用装配）、"模型实际接收了什么"的读面（消息流评审 N4（迁移坐标：`.meta_harness/design/proposals/message-stream/`）） |
+| 2026-09-15 | C1 复确认，正文不变："产品要支持用户使用文本以外的模态信息作为请求的一部分输入" | 用户直接确认（本会话）。已接受契约 CD-03（迁移坐标：`spec/data/core-work/v1/contract.md`）、CT-01～CT-04（迁移坐标：`spec/capabilities/media-content/v1/contract.md`）、SE-04/SE-05（迁移坐标：`spec/capabilities/session/v1/contract.md`） 在 legacy 基线的接受记录中记为“已覆盖语义”；该历史判断不自动承接新基线。未闭合的是 CD/CT 的 JSON Schema、上传传输与客户端交互（提供者与应用装配）、"模型实际接收了什么"的读面（消息流评审 N4（旧提案可从 P0 来源修订恢复；新消息流候选仍待 E 线定稿）） |
 | 2026-09-15 | C2、C7 扩展："产品要支持用户使用快捷键的形式触发更丰富的交互流程"。快捷键的绑定目标从"获准控制"扩展为"显式绑定的交互流程"（控制、命令、Skill、其他交互入口）；C7 标题由"控制"改"触发入口"，末句改为"效果只来自显式绑定" | 用户直接确认（本会话），超出 [来源清单](../../../research/user-input-and-command-sources/research.md#来源与映射) 里键位源"首批动作只有 interrupt / resume / cancel / force_stop"的范围，属本项目新增要求。受影响消费者：command-input v1 IN-02（迁移坐标：`.meta_harness/design/spec/capabilities/command-input/v1/contract.md`）"绑定一个具名控制及精确目标"须在下一版扩为可绑定命令与流程（"不自动变成宏、slash 或脚本"仍成立，显式绑定不是自动）；session v1 SE-13 / SE-15（迁移坐标：`spec/capabilities/session/v1/contract.md`）"keyboard command 是即时控制，不入队"须改为"控制类绑定即时、命令类绑定按被绑定命令的受理与排队规则"；旧接受记录仍是历史事实，冲突部分在当前架构（迁移坐标：`.meta_harness/design/architecture/README.md#需求覆盖与缺口`）标为待处理 |
 
 

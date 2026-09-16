@@ -140,6 +140,6 @@ C1–C4 展开直接要求。C5–C11 按本轮方向与
 策略。完整目标已确认，这些精确承诺不能仅凭“采用 cron/RRULE”或“有通知表”
 宣称完成，也不从来源阶段交付范围推定本项目一期已实现全部目标。
 
-当前候选（迁移坐标：`.meta_harness/design/proposals/agent-core/#当前需求对应与缺口`）尚未覆盖
+目前的设计（[本包覆盖状态](README.md#设计覆盖状态)）尚未覆盖
 上述规划、日历、耐久到期和通知全流程。本次不采用旧系统单例 ticker、数据库、
 调度库或部署方式；来源要求中的旧时区与互斥效用限制按[核对记录](../../../research/future-planning-calendar-and-notification-sources/research.md#来源差异与当前处理)处理。

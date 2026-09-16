@@ -83,5 +83,5 @@ migration_status: equivalent-current-requirement
 原系统某条路径未实现也不缩小本轮已确认的产品范围。
 
 本项受 [SYS-TENANT](../../system/constraints/requirements.md#sys-tenant) 等全局要求约束。
-当前候选（迁移坐标：`.meta_harness/design/proposals/agent-core/#当前需求对应与缺口`）尚未覆盖
+目前的设计（[本包覆盖状态](README.md#设计覆盖状态)）尚未覆盖
 完整系统 HITL 和暂行确认；接受要求不等于接受旧架构或证明这些流程已交付。

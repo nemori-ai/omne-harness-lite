@@ -92,5 +92,5 @@ clone、自动 rebase、目录布局和来源发布接口均未作为本项目�
 执行环境；[PF-014](../PF-014-runtime-tool-and-skill-discovery-and-loading/requirements.md) 拥有
 能力发现及装载，技能资源加载与制品工作副本可以组合而不要求同一种生命周期。
 [PF-004](../PF-004-subagent-delegation-and-supervision/requirements.md) 的多个 Agent 也适用上述
-并发边界。Agent 核心候选（迁移坐标：`.meta_harness/design/proposals/agent-core/#当前需求对应与缺口`）
+并发边界。目前的设计（[本包覆盖状态](README.md#设计覆盖状态)）
 尚缺独立制品存储、工作副本、保存恢复与并发整合的完整模型。

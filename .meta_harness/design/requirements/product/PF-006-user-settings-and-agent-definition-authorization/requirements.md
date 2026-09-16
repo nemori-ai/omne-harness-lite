@@ -93,6 +93,6 @@ C6 随后续管理补充记录清除覆盖时的生效边界。
 [PF-004](../PF-004-subagent-delegation-and-supervision/requirements.md) 的派发级权限继承
 保留其范围，不把 master 的持久授权复制成 child 的长期授权。
 
-Agent 核心候选（迁移坐标：`.meta_harness/design/proposals/agent-core/#当前需求对应与缺口`）尚未
+目前的设计（[本包覆盖状态](README.md#设计覆盖状态)）尚未
 给出设置覆盖、定义级授权及运行时有效状态的完整模型。本次确认产品要求，不
 接受旧系统的配置聚合、权限字段或部署结构；当前没有已接受业务规格需因此取代。

@@ -171,7 +171,7 @@ migration_status: equivalent-current-requirement
 拥有工具调用的观察、中断和后台接续；工具调用与派生的 child 是不同的控制对象，
 不能把后台工具、handoff child 与父运行时生命周期混成一个开关。
 
-Agent 核心候选（迁移坐标：`.meta_harness/design/proposals/agent-core/#当前需求对应与缺口`）
+目前的设计（[本包覆盖状态](README.md#设计覆盖状态)）
 尚无完整 sub-agent 派发、授权、监督或定时闭环规格。本次登记新增约束与覆盖
 缺口，不接受候选设计，也不声明实现或验证完成；无需因此取代现有已接受的
 治理决定，旧基线保持原有范围。

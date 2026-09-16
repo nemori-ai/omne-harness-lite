@@ -44,8 +44,10 @@ migration_status: equivalent-current-requirement
 ## 待澄清与设计输入
 
 这里的“效用（effect）”沿用用户的产品表述，其精确语义、组织上下文的确定与
-变化方式，以及相应规则如何作用于协作，待后续展开。现有租户契约候选（迁移坐标：`.meta_harness/design/proposals/tenant-contracts/`）
-提供已有身份与成员关系的设计输入，其具体契约仍保持候选状态。
+变化方式，以及相应规则如何作用于协作，待后续展开。当前
+[Tenant Governance 候选契约](../../../spec/capabilities/tenant-governance/v1/contract.md#租户与成员)
+提供身份与成员关系的设计输入；[租户管理来源研究](../../../research/tenant-management-sources/README.md)
+保存可回溯依据。候选尚未在新基线接受，不据此宣称本条全部完成设计。
 
 本页不将产品表述中的 effect 等同于某种运行时 Effect 类型或实现机制。
 

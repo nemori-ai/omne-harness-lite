@@ -126,6 +126,6 @@ migration_status: equivalent-current-requirement
 发布 Connector、市场分发，以及更强的逐事件可靠队列各有独立范围，不从安装
 和有界供给能力推导。
 
-当前候选（迁移坐标：`.meta_harness/design/proposals/agent-core/#当前需求对应与缺口`）尚未完整
+目前的设计（[本包覆盖状态](README.md#设计覆盖状态)）尚未完整
 覆盖 Connector 安装与供给、感知及主动响应。来源的已承诺未来状态不等于本项目
 交付完成；本次无已接受业务设计或规格需取代，旧需求基线保持历史范围。

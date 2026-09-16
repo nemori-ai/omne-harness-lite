@@ -102,6 +102,6 @@ plugin，包括 tool、skill、service 等。用户同时授权核对 Cordis、D
 本项具体化 [SYS-DYNAMIC](../../system/fully-dynamic-system/requirements.md)、
 [SYS-LONG-RUNNING](../../system/long-running-and-evolving/requirements.md) 与
 [SYS-RUNTIME-CONTINUITY](../../system/runtime-state-and-continuity/requirements.md)。当前没有已接受
-的业务规格被本轮取代；Agent 核心候选（迁移坐标：`.meta_harness/design/proposals/agent-core/#当前需求对应与缺口`）
+的业务规格被本轮取代；目前的设计（[本包覆盖状态](README.md#设计覆盖状态)）
 需新增受治理的开发部署与变更模型。精确插件权限、兼容条件、验证门槛、回退/
 恢复协议及各类共享服务的在途政策仍待后续设计。

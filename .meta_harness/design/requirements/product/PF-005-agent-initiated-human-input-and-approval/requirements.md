@@ -120,7 +120,7 @@ HITL 在本项指智能体主动邀请用户提供信息或参与决策的流程
 须分别建模。[PF-004.C11](../PF-004-subagent-delegation-and-supervision/requirements.md#相邻要求对-sub-agent-的约束)
 引用本项用于 child 的人类请求；本项不扩大用户对 child 注入任意消息的控制权。
 
-Agent 核心候选（迁移坐标：`.meta_harness/design/proposals/agent-core/#当前需求对应与缺口`）尚未
+目前的设计（[本包覆盖状态](README.md#设计覆盖状态)）尚未
 覆盖完整的主动 HITL、耐久待答、唯一答复及恢复接续。现有候选的普通输入处理
 不能代替本项请求定位规则。本次登记不接受新架构或规格，也不反向改写旧基线；
 当前没有已接受的业务决定或规格需要因此取代。
@@ -129,4 +129,4 @@ Agent 核心候选（迁移坐标：`.meta_harness/design/proposals/agent-core/#
 
 | 日期 | 变化 | 依据与处置 |
 |---|---|---|
-| 2026-09-15 | C10 撤下“由系统权威记录对精确请求及批准结果的引用”与“没有引用时显示缺失、不能事后推断”两句；可追溯改由耐久历史顺序与授权门记录给出，越界重新请求成为智能体义务，系统不比对批准范围与实际动作 | 用户裁决 U-44 / U-47（迁移坐标：`.meta_harness/design/proposals/tool-execution/#裁决记录2026-09-14用户`）：Agent 发起的批准是提示层语义，不是系统机制；未来需要时作为新的能力另行登记，不在本项预留。来源事实仍见来源清单（迁移坐标：`.meta_harness/design/research/agent-initiated-hitl-sources/research.md#来源与确认范围`） |
+| 2026-09-15 | C10 撤下“由系统权威记录对精确请求及批准结果的引用”与“没有引用时显示缺失、不能事后推断”两句；可追溯改由耐久历史顺序与授权门记录给出，越界重新请求成为智能体义务，系统不比对批准范围与实际动作 | 用户裁决 U-44 / U-47（旧提案可从 P0 来源修订恢复；当前边界见 [Human Decisions 候选](../../../spec/capabilities/human-decisions/v1/contract.md)）：Agent 发起的批准是提示层语义，不是系统机制；未来需要时作为新的能力另行登记，不在本项预留。来源事实仍见来源清单（迁移坐标：`.meta_harness/design/research/agent-initiated-hitl-sources/research.md#来源与确认范围`） |

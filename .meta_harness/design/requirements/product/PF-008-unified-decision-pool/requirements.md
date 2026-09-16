@@ -88,6 +88,6 @@ C1–C3 展开本轮直接要求；C4–C7 承接原系统有效条款及已登�
 
 [SYS-TENANT](../../system/constraints/requirements.md#sys-tenant) 与
 [PF-001](../PF-001-tenant-organization-context/requirements.md) 继续约束所有条目与操作。
-当前候选（迁移坐标：`.meta_harness/design/proposals/agent-core/#当前需求对应与缺口`）尚未定义
+目前的设计（[本包覆盖状态](README.md#设计覆盖状态)）尚未定义
 完整池读写与跨请求后果关联。本次明确产品范围，未接受新架构、发布规格或声明
 实现完成；已接受治理决定及旧需求基线保持原有作用域。

@@ -204,7 +204,7 @@ Agent 在会话内主动检索其他会话及后台通信的能力，另归
 “生命周期控制”或旧实现符号直接补成确定动作；本轮保留为待细化范围，来源
 差异见核对记录（迁移坐标：`.meta_harness/design/research/session-run-and-pending-input-sources/research.md#来源差异与采用边界`）。
 
-当前候选（迁移坐标：`.meta_harness/design/proposals/agent-core/#当前需求对应与缺口`）尚未覆盖
+目前的设计（[本包覆盖状态](README.md#设计覆盖状态)）尚未覆盖
 本项完整要求。本轮不选择 State/Runtime 分工、冻结或持久化框架、队列、控制
 协议与投递机制，也不接受源部署绑定或旧兼容接口；没有已接受业务设计或规格
 需因此取代，历史需求基线保持原范围。
@@ -213,4 +213,4 @@ Agent 在会话内主动检索其他会话及后台通信的能力，另归
 
 | 日期 | 变化 | 依据与处置 |
 |---|---|---|
-| 2026-09-15 | C5 补充：`queue` 的"耐久等待"不是等到 Run 结束；当前 Run 不再等待模型响应而又未完成时，队列里的用户普通文本应被自动消费、进入该 Run 的下一步，不能干等 | 用户直接确认（本会话）："当判断当前 run 不再等待 llm response 的时候，虽然 run 未 complete，但是如果 request queue 里面有用户的请求的话，产品上我们期望应该要能够自动消费而不是干等在那里"。受影响消费者：session v1 SE-04 / SE-06 / SE-15（迁移坐标：`spec/capabilities/session/v1/contract.md`）（取批只在无活动占位时开新 Run）、run-driver v2 RD-10 / RD-11（迁移坐标：`spec/capabilities/run-driver/v2/contract.md`）（等待出边不含队首文本）、run v1 RN-02 / RN-08（迁移坐标：`spec/capabilities/run/v1/contract.md`）（basis 只记首批）；候选机制与缺口登记在工具提案（迁移坐标：`.meta_harness/design/proposals/tool-execution/#等待期间的排队用户输入作者裁决-7`）（作者裁决 7），冲突部分在当前架构（迁移坐标：`.meta_harness/design/architecture/README.md#需求覆盖与缺口`）标为待处理；旧接受记录仍是历史事实 |
+| 2026-09-15 | C5 补充：`queue` 的"耐久等待"不是等到 Run 结束；当前 Run 不再等待模型响应而又未完成时，队列里的用户普通文本应被自动消费、进入该 Run 的下一步，不能干等 | 用户直接确认（本会话）："当判断当前 run 不再等待 llm response 的时候，虽然 run 未 complete，但是如果 request queue 里面有用户的请求的话，产品上我们期望应该要能够自动消费而不是干等在那里"。受影响消费者：session v1 SE-04 / SE-06 / SE-15（迁移坐标：`spec/capabilities/session/v1/contract.md`）（取批只在无活动占位时开新 Run）、run-driver v2 RD-10 / RD-11（迁移坐标：`spec/capabilities/run-driver/v2/contract.md`）（等待出边不含队首文本）、run v1 RN-02 / RN-08（迁移坐标：`spec/capabilities/run/v1/contract.md`）（basis 只记首批）；作者裁决 7 的现行候选机制见 [RunDriver RD-18](../../../spec/capabilities/run-driver/v1/contract.md) 与 [Session SE-15](../../../spec/capabilities/session/v1/contract.md)；旧工具提案可从 P0 来源修订恢复，冲突部分在当前架构（迁移坐标：`.meta_harness/design/architecture/README.md#需求覆盖与缺口`）标为待处理；旧接受记录仍是历史事实 |

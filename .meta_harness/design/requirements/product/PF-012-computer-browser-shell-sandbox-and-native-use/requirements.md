@@ -128,6 +128,6 @@ HITL。[PF-010](../PF-010-organization-personal-assets-and-permissions/requireme
 交接、长期终端和故障恢复。共享本机支持不预先决定默认读取全部用户状态、
 取得管理员权限或使用某个浏览器协议。
 
-当前候选（迁移坐标：`.meta_harness/design/proposals/agent-core/#当前需求对应与缺口`）尚未定义
+目前的设计（[本包覆盖状态](README.md#设计覆盖状态)）尚未定义
 这些能力及两类环境的完整语义。本次登记直接要求和来源映射，不采用旧沙盒
 专用能力作为全系统唯一执行路径，也不选择容器、虚拟机、桌面后端或 shell。
