@@ -16,32 +16,51 @@
 | 契约责任 | 候选公开面 | 当前事实与缺口 |
 |---|---|---|
 | TG-01～TG-03 | `createTenantHost`、`TenantPlugin` / `omneTenant` | host/plugin 无可调用实现；关闭、最后最高管理者、重加入防复活及 tenant 隔离只在设计中 |
+| TG-01 统一个人创建 | 两个受信入口 `initializePersonalForDeployment` / `createPersonalForAccount`，共用原操作查询 | 首次 bootstrap 记录 decoder/fold 不能证明后续受信导入、同门排位或双来源恢复；Host 和端口未实现 |
 | TG-04～TG-05 | definition/entitlement/acquisition 管理与 `registerReferenceSource` | 值/记录设计已定；引用 owner、当前权益、发布与选用运行门未组合 |
 
 ## 所有权、失败与撤除
 
-TenantHost 是按 tenant 分区的唯一 TG 状态权威；自然人身份由可信身份边界提供，membership
-只表达 tenant 内资格。准备和最终 gate 必须重读 credential、membership revision、定义/权益/
-选用及所有 provider 代次；Context、DTO 或菜单选择不构成授权。成员暂停/移除在 logical 位置
+TenantHost 是 TG 状态权威；租户事实按 tenant 分区，个人唯一 claim 属于 Tenant 的
+global system index。自然人身份由账号权威提供，membership 只表达 tenant 内资格。
+普通业务准备和最终 gate 重核相应可信主体、membership revision、定义/权益/选用及
+provider 代次；个人创建的短门只读已耐久导入的 Account 原后果和 Tenant/Admission
+当前根，不同步调用 credential provider。Context、DTO 或菜单选择不构成授权。
+成员暂停/移除在 logical 位置
 封闭后续准入，耐久后才可作为正向权利依据；重加入形成新 joinedRevision，旧 grant 不复活。
 
-个人 bootstrap 的应用装配凭受信 TenantHost 安装资格发起一次精确操作。Host 先冻结
-不依赖新 tenantId 的原始输入并查询精确 operationRef：已准备者沿原绑定认回，不再
-生成新 tenantId；首次占位者才生成 tenantId，在共同门内将该目标与原操作一起固定。
-受信装配颁发仅绑定该 Host 实例、operationRef、输入摘要、
-新 tenantId 和本代 Admission/writer 的窄凭据；`operationKind=tenant.bootstrap` 与
-`owner=tenant` 只是诊断字段，不能作为凭据。若现有 prepare API 先于新 tenantId 分配，
-施工须调整目标分配/准备顺序或受信原子绑定，不允许在无目标身份时颁发泛用跨
-scope 权限，也不能让同一原操作重试因重新抽取随机 tenantId 而变成异输入。
-普通业务对象不能取得颁发接口，凭据不得序列化为可由外部注入的许可信号。
+两个受信入口共用 TenantHost 的一份个人创建 operation/claim 状态机。Host 先按原
+operationRef 查询占位与耐久结果；同输入重入沿原 target，不重新分配，也不重跑
+首次 init/pending 前态。部署入口只由受信 Host 安装资格取得 seed 与当前初始化前态，
+首次占位者分配 target。注册入口只读取 CC-05 已核实并**耐久导入**的 Account 原始
+后果，核对 source identity/version、registrationOperation、摘要、`UserRef`、target
+及凭据标识唯一绑定已成立；目标沿来源事实固定。较早的 pending 分配、凭据碰撞、
+未核实/未耐久导入均不得创建。短门读导入事实与 Tenant/Admission 当前根的确切
+水位，不等待 Account provider I/O。导入投影是来源引用，不成为第二份账号权威；
+Account 暂时不可用不撤销已导入后果，旧 provider/协调者实例也不能因此取得新代
+写入资格。sourceFact 身份、版本、水位与 target 的具体传输/校验由 Account/CC 提供者
+闭合；此处不把业务 DTO 或客户端 origin 当成证明。
 
-同一批次提交 system `tenant-bootstrap`、system `tenant-personal-index` 和新建 tenant
-`tenant:<tenantId>`。逻辑 root 只保留本次初始化/个人索引占位与负向封闭，不将尚未
-耐久的 `tenant.created` 成员放进准入可读的正向根；即使延迟 fsync，读取资格也应
-失败或返回未开放。耐久发布同时开放 owner 资格；失败/unknown/blocked 保留占位，
-不得授予管理权限。恢复先核对三条事实处于同一 batch，seed user、claim tenantId、
-creator、owner/member 唯一性与个人种类全部对应，再 fold 并发布可读 root；任何
-交叉错配或断裂前缀都拒绝 ready。已有 writer epoch 不影响 Tenant 初始化前态判断。
+受信装配只为一笔冻结个人创建颁发精确混合流资格，绑定来源、operationRef、摘要、
+`UserRef`、target、精确 stream 集合/预期修订、Tenant Host 与本代 Admission/writer；
+init 为 system `tenant-bootstrap` + system `tenant-personal-index` + 目标
+`tenant:<tenantId>` 三流，注册仅后两流。后者仍属目标租户，不能改记 system；
+`operationKind`/owner 字符串和反序列化 envelope 不可取得凭据。若 prepare API 先于
+target 分配，须调整顺序或做受信原子绑定；不能先发无目标的跨 scope 许可。当前
+DR/CC 文本仍仅准 bootstrap；统一封闭许可及 conflict target 持久表示在它们的候选
+扩展真正就绪前，注册入口返回 unavailable，不试用旧凭据。
+
+逻辑 root 仅保留原操作/个人索引占位和负向封闭；未耐久 `tenant.created`/owner
+成员不能进入准入可读正向根。一个批次的 personal-index claim、personal tenant、
+creator 和唯一 active owner 必须同批核对，init 再核 bootstrap 事实与 seed；注册
+再核 sourceFact 与同操作绑定。sync 失败、unknown 和 committed_blocked 不开放新
+资格。恢复先以完整前缀逐批校验二/三流关系与业务唯一性，再候选 fold；CC-06
+恢复宿主一次安装全部 owner roots 后，Tenant 本代查询才可给另立的可消费证明。
+历史提交结果、publication 可消费证明和当前 tenant/owner 资格分别读取；旧创建
+租户后来 closing/closed 只保留历史认回，不让旧回执恢复业务准入。
+组织 `addMember` 不能使 pending 账号取得有效成员资格；需要 Account 当前业务
+资格的可信同门证明。该接口由 ACR/TG 联合准入与 Account/CC provider 映射闭合，
+个人创建 sourceFact 只授权原个人创建，不能充当组织入会或账号 active 的证明。
 
 撤除先关本代新调用，收口引用 source 与 pending/unknown operation，再释放精确注册。来源不明
 返回 unavailable/complete=false，不当空集合；关闭租户保留外部效果、财务责任与历史身份。
@@ -49,12 +68,16 @@ creator、owner/member 唯一性与个人种类全部对应，再 fold 并发布
 
 ## 依赖与共同门
 
-提供者实际组合依赖固定为：ARI-1；CD-01/CD-02；DR-01～DR-05；CC-01/CC-02/CC-03/CC-05/CC-06；OB-01～OB-03。其中 DR、OB 与 F 身份是提供者实现依赖，
-不因此成为语言契约的新依赖；catalog 仍只保留原 G→CD/CC 六条语义依赖。
+提供者候选组合依赖为：ARI-1；CD-01/CD-02；AI-01/02/04 的来源绑定；
+DR-01～DR-05；CC-01/02/03/05/06；OB-01～OB-03。下游 ACR-03～06 消费本
+Host 的回执/可消费证明以完成激活，不是 Tenant 的反向依赖。其中 DR、OB 与运行
+身份是提供者实现依赖，不能由本页擅自改 catalog；TG 新消费 Account 来源与 CC
+导入，待统一集成时登记精确坐标/条款和消费者映射。
 
 | 输入 | 使用范围 | 缺席/换代 |
 |---|---|---|
 | 列出的 ARI/CD 条款 | 稳定身份、tenant、因果、冻结输入 | 结构有效不代表当前资格；不补造身份 |
+| AI 与 CC-05 导入 | Account 原始后果和稳定 target；ACR 是回执的下游消费者 | 未核实/未耐久导入不得排位；已导入后 Account 暂时不可用不撤销后果 |
 | 列出的 DR 条款 | 原操作、耐久回执、恢复/unknown、writer 换代 | 未核实写入保持 unknown，不能换 key 重试 |
 | 列出的 CC 条款 | prepare、同门检查、共同提交、publication 与恢复 | blocked/unknown 不执行效果；通知不是状态权威 |
 | 列出的 OB 条款 | 关联、拒绝/unknown 与 gap | 普通诊断失败不改业务事实；关键审计失败在效果前 fail closed |

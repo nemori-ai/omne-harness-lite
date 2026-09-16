@@ -7,11 +7,22 @@
 provider 失联/重载、旧候选不复活、清理失败及保留事实；只有真实记录、身份、来源和 Cordis
 生命周期组合通过后，才能提升对应实现状态。
 
-个人 bootstrap 须补真实 Admission 与延迟 fsync 下的资格读取负例，以及成功/重启、
-重复原操作认回、异输入冲突、任意 null-tenant 跨 scope 冒充、错 tenantId、既有
-Tenant 初始化、三事实错批/错 user/错 owner、撕裂或坏前缀、仅 system stream
-revision 冲突且 `currents` 无目标 tenant 引用时经 `bootstrapTargetTenantId` 的
-lookup/recovery、该字段缺失/错配、旧 v1 codec 拒绝例外及 v2 读取旧 v1 完整前缀。
-已取得逻辑位置未耐久的操作还须覆盖同 key 同/异输入认回、崩溃后 unknown 与
-安全截回释放占位的证据边界。验证同时覆盖 Records 结构门、JSONL writer、
-Tenant 业务门与完整耐久 publication；本候选仅定义应验边界，不声称已执行。
+统一 personal creation 须按 [TG-01 规范场景](../../spec/capabilities/tenant-governance/v1/scenarios.md)
+验收两个来源：init 的前态/seed/三流与账号注册授权后果/CC-05 耐久导入/二流，
+两者共享一次 claim、target/outcome codec 与恢复路径。拒绝客户端 origin、旧
+bootstrap 专属许可冒充、任意 null-tenant 跨 scope 混写；仅 system stream revision
+冲突且 `currents` 无目标 tenant 引用时，统一 target outcome 仍须可按原绑定查回，
+不能伪造 tenant current。严格 codec/replay 要验证字段缺失/错配、历史完整前缀和
+新格式的读取边界，不能重新解释旧字节。
+
+真实故障实验还须覆盖：较早 pending 分配或凭据碰撞不得发授权、sourceFact 未核实/
+未耐久导入、导入后 Account 失联或账号 active、旧 provider generation 冒充、
+同键同/异输入认回、两个账号争 claim/target、延迟 fsync 的资格读取负例、sync
+unknown、回执丢失、独占恢复与安全释放、错批/错 user/错 owner/第二 owner、
+publication blocked 与 CC-06 新代全 owner 基线、closing/closed 后历史认回与当前
+资格分离，以及 pending 账号组织入会被拒、激活后显式入会获准。组织入会需要
+Account 当前业务资格的可信同门证明，不能从 personal 创建后果推断账号 active。
+每项记录输入版本、writer/Admission generation、原操作、目标、批次
+水位与观察结果。验证同时覆盖 Records 结构门、JSONL writer、Tenant 业务门与
+完整耐久 publication；本候选仅定义应验边界，不声称已执行。Account/CC 导入
+接口、DR/CC 统一许可和真实 TenantHost 未完成前，该纵切不可实施或宣称符合。

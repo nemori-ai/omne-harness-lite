@@ -2,11 +2,24 @@
 
 本契约坐标为 `(omne-harness-lite-design-2026-09-15, capability.tenant-governance, 1)`。正文从同名
 legacy v1 重基，保留 TG-01～TG-05；D-008 及 tenant-contracts 历史候选只作 provenance，
-不自动接受新坐标。本坐标保持 candidate、`acceptance:null`。
+不自动接受新坐标。本坐标保持 candidate、`acceptance:null`。TG-01 的个人创建增量
+落实用户已明确接受的首次 init 与后续注册共用一套机制方向；其候选比较见
+[统一协议提案 B](../../../../proposals/personal-tenant-creation/alternatives.md)。架构方向接受
+不等于本精确规格或提供者已经接受、发布和验证。
 
 本能力拥有租户、成员、定义、权益和选用事实。自然人身份由认证边界提供；动作授权、
 预算、Session 正文权限与运行控制仍由各自能力拥有。租户管理入口只核定谁可管理预算；
 `SubscriptionLink` 的本地关联、变更意图和对账状态由预算核算能力唯一拥有。
+
+个人创建精确消费同 baseline 的 [CD-01/02](../../../data/core-work/v1/contract.md) 身份与
+因果绑定、[AI-01/02/04](../../account-identity/v1/contract.md) 账号原操作/身份/目标来源，
+以及 [CC-03/05/06](../../../compositions/core-work-coordination/v1/contract.md) 的逻辑排位、
+耐久后果导入及全 owner 恢复。三项依赖坐标分别为 `data.core-work@1`、
+`capability.account-identity@1`、`composition.core-work-coordination@1`，均为本
+baseline 的 candidate；CC-05 来源导入及 CC-03/06 的提供者映射尚未闭合，不能由
+本契约替它们颁发混合流写入权。下游
+[ACR-03～06](../../../compositions/account-registration/v1/contract.md) 消费 TG-01
+回执与可消费证明以完成跨 owner 激活，不形成 TG 对 ACR 的反向依赖。
 
 ## 租户与成员
 
@@ -23,21 +36,62 @@ platform 租户管理语义。个人租户创建与唯一有效 owner 成员共�
 active／suspended／removed，removed 后重新加入形成新 membership revision，
 旧授权依据不因身份相同恢复。所有操作记录操作者和生效修订。
 
-个人租户的首次 bootstrap 是受信 Tenant owner 在共同准入门内的一次操作：同一耐久批次
-同时写入系统 bootstrap、个人租户唯一索引和新租户流；新租户流仍属于该租户，不能改记为
-系统资产。Tenant 在门内核对当前初始化前态、seed principal、唯一 claim、创建者及唯一
-有效 owner 成员；在恢复时按**同一批次**重新核对这三条事实的 tenantId、userId、
-creator/owner 和个人租户种类。分别解码成功但批次关联不符或出现第二个有效个人租户的
-前缀不能 ready。此处的初始化前态是 Tenant 权威尚未建立，而非存储日志物理空文件。
+个人租户只有一套 Tenant 创建状态机，供两个**不同的受信入口**使用：部署首次
+`initializePersonalForDeployment` 与后续账号注册的 `createPersonalForAccount`。前者的
+新操作须在共同门中核对 Tenant 权威尚未建立、受信 seed principal 和独占初始化
+资格；该前态不是 JSONL 物理空文件，也不因 writer epoch 已存在而失效。后者的新
+操作须核对来自账号权威的一份已耐久、仅授权**该原注册操作**创建个人租户的后果：
+凭据标识唯一绑定、稳定且不复用的 `UserRef`、原操作/冻结摘要及 personal target
+已经成立。后果由 CC-05 受信接收者核实来源版本和全部绑定并耐久导入本协调域；
+未核实或未耐久导入不得取得 Tenant 新逻辑位置。导入事实是 Account 原后果的引用，
+不变成第二个 Account 权威。首版无取消注册/关闭账号操作，入口关闭、logout、账号
+转 active 或 provider 换代不撤销已成立后果；这也不授予任何业务访问权。未来若
+引入取消后阻止尚未排位创建，须另定义撤销与排位先后。短门只核已耐久导入事实、
+Tenant 当前根及本代准入资格，不等待账号 provider I/O。客户端填写的 origin、
+owner、operationKind、`UserRef` 字符串或旧 session 均不授予入口资格。
 
-逻辑位置可以先占用唯一索引并封闭竞争初始化，但新成员、新租户管理权限和任何扩大
-的正向资格只能在共同耐久发布后供准入消费；sync 失败、unknown 或部分发布均不得开放。
-相同操作认回原结果及已经分配的目标 tenantId；异输入沿原身份冲突，不借新键
-重试。逻辑排位后尚未耐久或写入结果 unknown 时必须保留原操作/目标占位并查询
-核实，不能因查询暂时 `not_seen` 再分配目标。重启后只有完整前缀与写者隔离共同
-证明原操作未提交、原占位已安全解除，才可重新准备目标。异输入冲突保证只在
-仍有原操作准备占位或耐久 outcome 可核实的范围内成立；安全证明未提交并释放
-全部占位后，没有保留未提交旧输入的隐含 tombstone。
+两个入口共用唯一 claim、操作占位、批次、结果与恢复规则。原操作、冻结输入、
+`UserRef`、个人种类、creator、唯一 active owner 及目标 tenantId 在首次逻辑排位前
+固定；部署 init 的目标由受信 Tenant 准备者首次分配并绑定，注册目标沿账号原后果
+的耐久 target，不再分配。Tenant 先按精确原操作查占位/耐久结果，再作新操作准入：
+同键同输入认回原 target 与历史结果，不因部署后来已初始化或账号已 active 而重跑
+首次前态；异摘要、异 user、异 target 或异来源，在占位或耐久 outcome 可核实的
+范围冲突。另一原操作争同一 `UserRef` 的有效个人 claim 或同一 tenantId 明确冲突。
+关闭后的不同新操作再建个人租户首版不开放，未来政策未决；旧操作可认回历史事实。
+注册成功提交点“默认恰有一个且为 personal”的跨能力性质还要求
+`pending_personal_scope` 账号不能作为组织入会的有效主体；组织 `addMember` 与账号
+状态的同门核验归 ACR/TG 联合准入依赖，尚待 Account/CC 的可信状态证明映射闭合。
+本创建操作自身绝不附带组织成员；注册完成后明确获准的组织加入不受“默认恰一”
+解释为永久禁止。
+
+新操作在 CC-03 同一短门获得逻辑位置并占用 global system `tenant-personal-index`
+唯一 claim，以索引 CAS 封闭竞争。本操作恰创建一份 personal tenant 和该
+`UserRef` 的唯一 active owner 成员，不顺带建立组织成员关系；一个耐久批次必须
+共同写入该 claim 和目标
+`tenant:<tenantId>` 流中的 personal tenant、creator 与唯一 active owner 成员；部署
+init **同批再写** system `tenant-bootstrap`，注册批次不写 bootstrap。目标 tenant 流
+仍属目标租户，不能改记为 system 资产；不能先写索引后补租户/成员。Tenant 核对
+业务唯一性和同批关联；DR 的精确受限混合流许可、CAS、排序、持久结果与恢复由
+其所属契约及 CC 共同门兑现，当前仅限 bootstrap 的旧许可不授权后续注册。
+
+逻辑占位只封闭竞争，不开放新 owner、租户管理权或 ACR 激活。Tenant 的精确原操作
+查询区分 `reserved`、`pending_durability`、`unknown`、历史已提交但 owner publication
+受阻的 `committed_blocked(owner_publication_required)`、以及可核实的 durable committed
+与**本代**可消费证明；结果绑定原操作、摘要、来源、`UserRef`、target、个人种类、
+creator/owner membership、批次/位置和水位。历史提交、当前 publication 可消费和当前
+租户/成员业务资格是三层不同事实。只有完整耐久前缀与全部 owner publication 可消费
+后，新正向资格和供 ACR-04 使用的同绑定证明才开放；租户后来 closing/closed 时旧
+创建仍可认回，但当前 TG-03 业务准入拒绝，历史回执不能恢复权限或单独激活账号。
+
+sync 失败、writer unknown、回执丢失或查询暂时 `not_seen` 均保留原操作/target/
+claim 占位，不换键、不换目标、不重发第二批。只有独占恢复核实旧 writer 的完整
+前缀、证明原操作未提交且全部占位安全解除，才允许**同一原操作、摘要与 target**
+重新准备；无遗留 tombstone 时不虚构释放后永久异输入冲突。已提交而 owner 发布
+失败时原 completion 保持 `committed_blocked`；仅 CC-06 受信恢复宿主在新代一次安装
+覆盖该位置的全部 owner roots，本代查询再给单独的可消费证据，不重写历史 completion
+或重提批次。恢复逐批按来源核对二流或三流同批、原操作/target/user/个人种类、
+creator 和唯一 owner 一致性及 personal-index 唯一性；错批、错来源、错 user/owner、
+第二有效 owner、撕裂或坏前缀均不得发布 ready。
 
 **TG-02**：用户选择当前组织只是新操作的目标上下文；既有 Session 的 tenant、
 owner 和原定义关联不可由切换菜单改变。组织不可用、成员失权或目标不匹配明确
