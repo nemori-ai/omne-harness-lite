@@ -7,7 +7,7 @@ tenant、operation、因果、epoch、修订与资源所有者必须显式；有
 
 ## 当前实现与缺口
 
-来源设计固定为 `packages/storage/records/README.md`，SHA-256 `c039cd8830ffc13d0ef3acb38ac04d60174b502638bd5c7200f388ca173ab41d`。只拥有公开 ports、envelope/receipt 数据与严格 codec；不拥有 writer 锁、fsync、恢复或业务状态语义。
+来源设计固定为 `packages/storage/records/README.md`，SHA-256 `c039cd8830ffc13d0ef3acb38ac04d60174b502638bd5c7200f388ca173ab41d`。旧实现只拥有公开 ports、envelope/receipt 数据与 `/1` 严格 codec；不拥有 writer 锁、fsync、恢复或业务状态语义。
 源码实现状态必须由 I/实施任务在精确 revision 核对；本文不复制源码内部结构，也不声称已通过新契约验收。
 
 ## 持续消费的映射
@@ -17,27 +17,58 @@ tenant、operation、因果、epoch、修订与资源所有者必须显式；有
 |---|---|---|
 | ports | RecordPreparation/Writer/Reader、Submission、Watermark、Receipt | 具体 I/O、锁或生命周期实现 |
 | revision | `StreamAppend.expectedRevision` 与 receipt/envelope stream revision 每次 accepted append 恰好 `+1`；同流多 facts 共享该 revision | owner fact count/sequence 不参与 CAS、身份或完整性 |
-| order | adapter 先合并每流唯一 append、保留 append-local order，再按 envelope format 的 canonical `StreamRef` 编码严格排序；codec 拒绝重复/非 canonical 输入 | codec/writer 不静默重排；跨流 prepare 顺序无业务语义 |
-| identity | commit 时以 canonical flatten 位置分配 `(coordinationDomain,batchSeq,recordIndex)` eventId | prepare correlation 不冒充 eventId；`(stream,revision)` 不逐 fact 去重 |
+| order | 调用方在 commit 前合并同流事实为唯一 append，冻结至少一条 appends 的数组顺序和每条 records 顺序；codec 拒绝重复 `StreamRef` | 通用批次允许唯一流的任意次序，codec/writer 不排序或重排；跨流次序不代替业务因果 |
+| identity | commit 时以冻结数组 flatten 位置分配 `(coordinationDomain,batchSeq,recordIndex)` eventId | prepare correlation 不冒充 eventId；`(stream,revision)` 不逐 fact 去重 |
 | data | CommitEnvelope、RecordedOutcome、Position、UseRequirement | 业务状态解释或授权判断 |
-| codec | 单行严格编码/解码与结构限制 | 完整前缀、fsync 或恢复成功证明 |
-| personal creation scope | 普通输入仍逐 append 检查 operation tenant；只接收受信 Host 在本代颁发的一笔资格，绑定来源、原 operation/摘要、`UserRef`、target、domain、精确流集合/expected revisions、Admission/Tenant/writer 代际。`account_registration` 仅 personal-index system + `tenant:<target>`，`deployment_init` 再含 bootstrap system；codec 校验 stream 身份、唯一性及 canonical 次序 | 客户端来源、owner/operationKind 字符串、反序列化字段不可铸造权限；codec 不解读 Account 授权、`tenant.created`、claim 或成员资格 |
+| codec | `core-json/1` canonical 字节、`core-journal/3` JournalLine 与五类封闭 CommitEnvelope 严格编解码；可信 writer 赋 `recordClass`/`source`，普通/个人 conflict 带 attemptedAppends | 单行 codec 不证明完整前缀、fsync、原操作认回或恢复成功；反序列化字段不颁发资格 |
+| personal creation scope | 普通输入仍逐 append 检查可信冻结 tenant；只接收受信 Host 在本代颁发的一笔资格，绑定来源、原 operation/摘要、`UserRef`、target、domain、精确流集合/expected revisions、Admission/Tenant/writer 代际。registration 顺序固定 `[personal-index,tenant:<target>]`，init 固定 `[bootstrap,personal-index,tenant:<target>]` | 特例顺序不变成通用排序规则；客户端来源、owner/operationKind 字符串、反序列化字段不可铸造权限，codec 不解读 Account 授权或 Tenant 业务事实 |
 
 以上是候选契约到 records 端口/codec 的目标映射，不表示当前实现已全部符合。实现验收须让
-prepare、encode/decode、writer receipt 与 recovery replay 使用同一版本化 canonical 编码和
-同一 `+1 per accepted append` 算法；任何一处按 fact 数推进都属于不兼容实现。
-同一受限绑定覆盖 conflict outcome：`conflict.currents` 只列实际冲突流；仅 personal
-creation conflict outcome 与同一 provider-owned `operation.conflict` fact 保存
-`personalTargetTenantId`、受信来源、原 operationRef、inputDigest、`UserRef`，并逐字段
-核对运行时资格。即使只冲突 system index，也须保留原 target，不能伪造 tenant current。
-lookup/replay 先以原 operation/摘要/来源/`UserRef`/target 核对 durable 结果和唯一
-目标 append 或 conflict 字段；不能以 `not_seen` 推断原写入未发生。
+prepare、encode/decode、writer receipt 与 recovery replay 使用同一版本化冻结顺序、
+flatten/eventId 与 `+1 per accepted append` 算法；任何一处按 fact 数推进修订、按
+`StreamRef` 重排 appends 或把 `(stream,revision)` 当逐 fact 身份都不符合目标。
+`canonicalInput` 须是 DR 所有的精确 `core-operation/1` `OperationInput`，而非调用方任意
+JSON：可信 prepare 的 namespace 与 `OperationRef.namespace` 一致，其 tenant/principal 与
+输入一致；`OperationRef.principalId` 为输入 principal 的 canonical JSON。
+`core-json/1` 规范对象键但保留数组顺序；
+`inputDigest` 是 canonicalInput UTF-8 的 SHA-256，外层 `JournalLine.byteLength/sha256`
+均按 canonical payload UTF-8 字节核对。原 `OperationRef` 加规范输入区分同键同输入
+认回与同键异输入冲突；摘要或记录行本身不授予调用权，也不证明 unknown 已收口。
 
-新候选格式 `core-journal/3` 对该分支使用上述封闭 outcome，provider-owned
-`operation.conflict` fact version `3` 使用相同 data。codec 固定 canonical 字节、摘要、
-必填/禁填字段，拒绝额外字段、错版本、错 target 与 outcome/fact 不一致；JSONL
-writer 在准入时复核本代资格，replay 在完整前缀上复核持久结构/绑定；replay
-不能从历史字节重建运行时资格。旧候选 `/1`、`/2` 没有读取或
-继续写入兼容承诺；遇到实际旧字节要保全原件并拒绝按 v3 可写恢复，由另行处置
-决定处理，不能静默重释。历史结果核查不能复授本代资格。当前源码是否具备这些
-端口和 codec 行为仍须在实施 revision 验收。
+通用 CAS mismatch 的 `RevisionConflict.currents` 按原冻结 appends 顺序列出实际
+mismatch，不按 stream 字典序排序。冲突 envelope 持久保存原冻结成功候选的
+`attemptedAppends:[{stream,expectedRevision}]`，与原数组一一对应、无重复，不含
+业务 facts，也不算已应用 append 或参与 eventId 分配。writer 为同一原操作生成唯一 provider-owned
+`core.records/operation-outcomes` append，scope 随可信原输入的 tenant 或 system，
+fact 为 `operation.conflict/3`、data 恰为 RevisionConflict；outcome 恰为
+`{status:"conflict",conflict}`、`requiredUses=[]`。原业务 appends 全不应用，只有
+结果批次耐久后才可报告 conflict；codec 校验 outcome/fact 等值、无个人扩展字段。
+replay 须从冲突行**之前**的连续完整前缀重算每个 attempted stream 当时的 head，
+按原顺序推出与 outcome/fact 完全相同且非空的 currents；期望修订或前缀无法核实时
+拒绝可写恢复/保持 unknown，不能只信冲突行自报的 currents。
+个人创建冲突改用 system outcome stream，仍保留原资格绑定的 target、来源、操作、
+摘要及 `UserRef`；其 attemptedAppends 还须是原受信二/三流资格的精确有序
+stream/expectedRevision 投影，不为只冲突 system index 伪造 tenant current。lookup/replay
+按原 operation/canonicalInput/digest 认回一次 committed 或 durable conflict；
+unknown 和临时 `not_seen` 均不证明未提交。
+
+v3 payload 的 `recordClass` 是 `ordinary_commit`、`ordinary_conflict`、
+`personal_creation_commit`、`personal_creation_conflict` 或 `writer_epoch`；对应的
+`source` 分别为 `ordinary`、受信 `deployment_init|account_registration` 或 `writer`，
+由可信 writer 从普通准备、当代 personal 资格或内部取得 writer 动作赋值。
+BaseEnvelope 只是共用字段，codec 必须按该判别值强制对应的封闭子形状；历史
+字节中的 `recordClass`/`source` 不可重铸新的运行资格。
+
+每次 `acquireWriter` 的受信 `core.writer` 操作也用 v3 封闭 envelope：唯一 system
+`writer-epochs` append 含 `writer.epoch/3{epoch}`，committed result 含同一 epoch，
+`requiredUses=[]`；原 operationId 包含无歧义的 domain64 与 epoch，避免两个
+coordinationDomain 的初始 epoch 共用 OperationRef；确切形式为
+`epoch:<domain64>:<epoch>`，domain64 是该 domain UTF-8 的无填充 canonical base64url。
+codec 校验封闭形状和规范输入，但只有 JSONL 持锁完整前缀、
+前一 epoch、同步和旧写者排除后才能交出 writer。普通调用不能提交保留的
+`core.writer` 或 `core.records` 记录。旧 `/1`、`/2` 字节没有本候选的可写恢复
+兼容承诺；遇到实际旧字节须保全原件，另作显式处置，不静默重释。
+
+当前 `packages/storage/records/src/index.ts` 仍将格式固定为 `/1`，要求 canonical
+stream 顺序并校验旧 conflict/epoch 形状；v3 通用 codec、按调用方冻结顺序及受限
+特例均需要实施修订。它尚非本候选的符合性证据。
