@@ -21,7 +21,7 @@ candidate、`acceptance:null`。
 [DR v1](../../spec/capabilities/durable-records/v1/contract.md)读取。旧格式、旧 probe 与施工编号只作来源定位；
 不能为了复用旧实现而增加兼容层。
 
-## 来源协议（重基输入）
+## 提供者候选（由固定来源重基）
 
 ## 公开入口与记录权威
 
@@ -30,7 +30,7 @@ candidate、`acceptance:null`。
 | `tools/local-execution` / `@omne-harness-lite/local-execution` | 原执行接纳/取消账本、固定文件计划/真实 I/O/帧与停止事实；本地文件资源身份、当前对象权限/可授予上限及使用责任；导出 createLocalExecutionHost、LocalExecutionPlugin、LocalResourceAccessPlugin、LocalFileToolPlugin、ExecutionProvider 实现与本地资源管理/事实接口、事件 decoder/纯 fold |
 
 本包尚无产品 member/API；以上默认入口是候选。只实现本批具名 Linux 本地
-read/write，ToolDefinition/Command 仍保持 TL 通用声明面（legacy source: `../tools/design.md#定义声明handler-与-skill-的同一发布单位`）。
+read/write，ToolDefinition/Command 仍保持[工具提供者的通用声明面](../tools-tools/design.md#定义声明handler-与-skill-的同一发布单位)。
 不执行 shell/任意 callback/网络文件系统/后台脱离；Node 24.18.0 FileHandle
 是实际 I/O，不用 AbortSignal 或内存 Map 代替停止协议。本包消费 TL 定义的
 ExecutionProvider/PermitFacts 及治理公共类型；TL 不 import 本包。记录 owner
@@ -39,7 +39,8 @@ I/O 责任，projection/帧只作观察。运行 incarnation 不能从持久数�
 
 ## 身份、状态与事件投影
 
-原 ExecutionRef/CallRef/Action 与来源 TL 恒定，直接消费 TL 身份（legacy source: `../tools/design.md#身份状态与事件投影`）。
+ExecutionRef/CallRef/Action 消费[共享身份与动作](../../spec/data/core-work/v1/contract.md)和
+[TL 提供者身份投影](../tools-tools/design.md#身份状态与事件投影)，不在 LE 重定义。
 executionEpoch、原 Step.createdEpoch、当前 Run.epoch 与 provider incarnation
 分别核验；重复 operation 认原计划，同键异输入 conflict，未知不换 ID 重发。
 
@@ -51,17 +52,18 @@ executionEpoch、原 Step.createdEpoch、当前 Run.epoch 与 provider incarnati
 | ExecutionExposure | `{call,attempt,owner,ownerGeneration,executionEpoch,state:open|closed,closedBy?,fenceRevision?}`；取得执行许可**或**接纳即由执行 owner 持有 open，只有同 call/attempt/execution epoch/owner generation/fence 的 quiescent 或 verified isolation 关闭；业务 settlement 独立 |
 | Live task | 原 provider 私有 `{incarnation,execution,launches,issuedIO,openHandles,cleanup}`；每个异步取得从开始前即有原 owner，迟到 handle 回原 cleanup；计数只是索引，必须对应实际 task/handle 及完成证据 |
 
-execution、environment、file 是 LE owner 的逻辑记录流，实际 `StreamRef`、操作身份、
-批内事实位置与编码由当前 DR/records 契约及提供者给出。旧 `core-journal/1`、
-`core-operation/1` 与事件 `/1` 是来源字节形状，不是新 v1 可写恢复格式；
-不得机械替换成 `/3`。普通业务批次、冲突结果和 writer epoch 的新 codec 仍有
-[DR/records 提供者缺口](../storage-jsonl/design.md#待代码与环境验收)。
+execution、environment、file 是 LE owner 的逻辑记录流；实际 `StreamRef`、
+`core-operation/1` 操作输入、`core-journal/3` envelope、批内事实位置与编码
+由[当前 DR v1](../../spec/capabilities/durable-records/v1/contract.md#记录结构与编码)给出。
+来源的 `core-journal/1` 和事件 `/1` 不获新 v1 的可写恢复承诺；旧源码尚未兑现
+[v3 codec 与 writer/replay 映射](../storage-jsonl/design.md#待代码与环境验收)。
+LE 自有的事实种类、版本与校验仍须按当前 DR 格式定义，不能凭来源事件名直接写入。
 decoder/纯 fold 要检查原 owner、身份、状态与来源；缺精确格式或 required fold
 不开放 start，不能恢复成空墓碑。
 
 | owner / 旧来源逻辑事件族（不是新记录编码） | 保存与合法转移 |
 |---|---|
-| local-execution.accepted / dispatch_intent / terminal_recorded | 精确计划/准入来源，实际 I/O 前的保守意图，实际终止事实；不能先写 succeeded 再做文件操作；终态与待交付 TL/BG 后果同批 |
+| local-execution.accepted / dispatch_intent / terminal_recorded | 精确计划/准入来源，实际 I/O 前的保守意图，实际终止事实；不能先写 succeeded 再做文件操作。终态经 TL-15 同域提交或 CC-05 跨域交付，BG 后果另按真实来源及回执收口 |
 | local-execution.stop_fenced/progressed / delivery_changed | 原取消墓碑、真实任务/handle/迟到启动隔离结果，目标回执；stop 的否定屏障不等同步等待 I/O |
 | local-execution.environment_registered/file_registered/rights_changed/file_observed | 原对象/owner/根与注册版本，权限上限合法变更，已核实内容修订或 unknown；读取文件内容本身不成为授权事实 |
 | 各 owner.operation_denied | 具名操作、目标、code、当前依据/水位，原 owner 关键拒绝审计；写失败为 audit_unavailable，不报已耐久拒绝 |
@@ -123,17 +125,32 @@ releasing/closed、原未收口 execution/准备/handle 责任及最近错误。
 用户不取得该宿主管理能力，单次 inspect 只按其权限披露对应工作。
 
 TL-07 的 exposure 从**执行许可取得或目标接纳两者中先发生者**开放，不等到
-`start` 回执。许可与 LE 接纳之间的空窗必须有精确 call/attempt、执行 epoch、
-owner generation 的持久 owner 和记账/交接；恢复时先认回该 exposure 与 fence，
-未认回则禁止新代接纳或向 RN-05 声称集合已空。当前 TL/LE 哪一方在许可提交批
-持久写入这项 LE-owner 暴露、跨域时如何按 CC-05 交接，仍须与
-[Tools 提供者](../tools-tools/design.md)联合固定；没有交接事实时不可把此空窗解释成未暴露。
+`start` 回执。TL-08 要求 exposure 与 attempt 账本由同一执行 owner、同一代恢复；
+因此 LE 的记录根持有本地执行的 exposure，TL 的列表只是按权查询与聚合，不能另造
+第二份物理执行权威。首版本地 LE 与 TL 使用同一协调域：LE Host 在 TL 准入准备时给出
+绑定原 call/attempt、执行 epoch、LE owner generation 和执行绑定的 exposure-open
+候选；共同门检查本代 LE/TL 挂载、原许可与当前根，把 LE owner 的
+`execution.exposure.opened` 事实及
+`tools.call.admitted`、Run 工作关系、授权审计与预算预留放进同一个批次。
+这只是 CC-01 已声明的调用受理／执行许可同批关系中的执行 owner 投影。
+完整耐久前缀及全部 owner publication 可消费之前不交付许可或发出 `start`。
+因此许可至 LE accepted 的空窗已有 LE 持久 owner；即使尚无 accepted，原
+`requestStop` 仍可在该账本建立墓碑，并与迟到 start 排序。LE 换代须先认回
+open exposure 与 fence，不能把未接纳或业务已 `settled(unknown)` 当作空集合。
+stop 先于 start 时，只有墓碑耐久、未曾 dispatch/launch，且同账本栅栏能保证
+任何迟到 start 都被拒绝，才能给该 exposure 记同代 quiescent 并释放原执行许可/资源责任；
+`cancelled_before_execution` 标签本身不替代这份物理证据。
+其它执行 provider 若不与 TL 同域，在具备等价的 CC-05 耐久交接、可查询认回
+和 RN-05 不漏项证明之前不交付许可，报告 unavailable；本地 LE 不冒充跨域原子性。
+LE open/close fact 的精确版本化 codec、真实 publication 安装和跨域协议仍属
+[Tools/LE/records 联合验证](verification.md#当前-v1-反例与阻断)，不是已实现保证。
 
 1. TL 的耐久 dispatch 意图在原 authority 下保留至执行目标接纳回执。LE 在同一
    coordinator 短门核验私有 permit、精确 Binding/原执行 epoch、自己的墓碑及
    去重，提交 local-execution.accepted；该批耐久前不启动任何目标文件 I/O。
-   start 回执丢失查同一 ledger，不能新建调用。跨域 provider 沿 CC-05；
-   本地共同提交消费同一 DR 协调域及唯一 writer，不另建 writer 或假定两文件原子提交。
+   start 回执丢失查同一 ledger，不能新建调用。本地共同提交消费同一 DR 协调域
+   及唯一 writer，不另建 writer 或假定两文件原子提交；其它 provider 的跨域
+   准入在上述交接闭合前 unavailable。
 2. 真正 I/O 前 LE 保存 dispatch_intent 及给 BG 的具名预算暴露交付意图；BG 通过
    recordExposure 认回这条真实 possibly_emitted 来源并耐久确认后，才继续启动。
    无回执保留原意图/预留且不发 I/O，不要求 BG 从执行帧猜暴露。随后在原执行屏障同步确认尚未 stop、
@@ -156,8 +173,9 @@ owner generation 的持久 owner 和记账/交接；恢复时先认回该 exposu
    只发 AbortSignal、Promise.race 超时、not_found 或计数变零都不算 stopped。
    未 rename 的临时文件清理和已取得 handle 的 close 仍由原 owner 做；I/O 卡住时
    保留 stopping/retained，时限只结束等待，不虚报可强制中止内核。
-5. 安全停止证据为原墓碑耐久、原 launch 均已收口、实际 I/O 不再进行、所有
-   通道禁止迟到 start、handle 已关闭或具名安全隔离。效果 none/happened/possible
+5. 本地安全停止证据为原墓碑耐久、原 launch 均已收口、实际 I/O 不再进行、所有
+   通道禁止迟到 start 且 handle 已关闭；其它 provider 的强隔离须另有合格证据。
+   效果 none/happened/possible
    单独保存。成功先耐久成立则 stop=ended；先 stop 后迟到成功按真实已发生事实
    入账，不能自动重写成成功或声称外部效果已撤销。
 
@@ -180,9 +198,14 @@ call/attempt/epoch/generation/fence revision 的隔离证据可核验，才给
 
 恢复先由 DR 的独占 writer 验证完整前缀，并沿 CC-06 在同水位 fold
 TL/HD/Session/Budget/执行/资源与必需 owner 事实。LE 未恢复墓碑和 permission-time
-exposure 前不可接收 start；旧运行 permit/handle 作废。原 accepted 且无
+exposure 前不可接收 start；旧运行 permit/handle 作废。
+CC-06 的同水位 required-owner 基线必须包含持有该 exposure/fence 的 LE durable root；
+缺 LE root、旧 generation 未隔离或来源关系未核实，既不开放新 `start`，也不向
+RN-05 返回“没有开放 exposure”。同一执行的 `execution.exposure.closed` 仅凭
+同代、同 call/attempt/epoch/fence 的 quiescent 或 verified isolation 事实提交，
+不由 `tools.call.settled` 或 Run 终态推导。原 accepted 且无
 dispatch_intent 的完整前缀可证明未进入效果位置，通过
-TL 的受限 recovery permit 交接（legacy source: `packages/tools/tools/design.md`）核对原耐久
+TL 的[受限 recovery permit 交接](../tools-tools/design.md#原调用与邻包的窄交接)核对原耐久
 准入/控制及实际精确绑定后继续，不以普通 grant 撤回重新裁决旧位置；已有
 dispatch_intent 但终态不明，则 possible_effect/unknown，
 不靠文件内容相同猜“恰好一次”，不自动重发。旧宿主是否仍有能力发出 I/O 也要
@@ -208,7 +231,8 @@ LE 分配每 attempt 单调 frame seq；frame 是执行观察，非模型思考�
 条数/字节/时限配置，裁剪返回明确 gap/earliest/latest，重启无法保留的旧帧报告
 crash gap。每订阅独立 cursor；TL 当前读权通过后转交，投递前再次核对，撤权
 结束该订阅而不 stop 工作。终态在 journal，与最后一帧/100% 进度分开；模型只
-取 SR 明确选择的结果/摘要，不因 UI 展开而注入全帧。无帧返回 empty/unsupported。
+取原 Run/Step 按[TL-19](../../spec/capabilities/tools/v1/contract.md#结果恢复与投影)
+明确消费的结果/摘要，不因 UI 展开而注入全帧。无帧返回 empty/unsupported。
 
 ## Cordis 映射与撤除责任
 
@@ -219,7 +243,7 @@ crash gap。每订阅独立 cursor；TL 当前读权通过后转交，投递前�
 | LE LocalFileToolPlugin / 精确工具贡献、无新 service | inject `omneTools`,`omneLocalExecution`,`omneLocalResources`,`omneAuthorization`；定义/Schema/声明/handler 选择一起 prepare/publish。该 Fiber 只拥有贡献注册和未转移准备，不拥有已准入 I/O；原执行实现和 FileUse 的资源归 LE |
 
 ToolExecutionLinkPlugin 由 TL 提供，双端 PermitFacts/ExecutionProvider 的当前
-代次和撤回义务见 TL 设计（legacy source: `../tools/design.md#cordis-映射与撤除责任`）。LE 自己
+代次和撤回义务见[TL 提供者映射](../tools-tools/design.md#cordis-映射与撤除责任)。LE 自己
 提供 createLocalExecutionHost 的恢复/关闭和精确资源/来源管理能力；应用仅将
 指定双端能力交 link options，不把管理能力混进普通 service。受信 factory/options
 注入唯一 coordinator、diagnostics、真实 RecordReader/恢复水位。prepare 只从
