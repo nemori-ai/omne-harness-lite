@@ -51,7 +51,7 @@ sourceLost 仅记录发生过一次源失联；后续 capture 未模拟源恢复
 ## 实际正反例与审阅
 
 Safety 与 Progress 各探索 105,844 个状态；五个独立 mutant 分别删除接收/安装边界、
-snapshot CAS、仅 asOf 条件、active generation 检查及 terminal 支配。原始日志在 [raw](raw/)；
+snapshot CAS、仅 asOf 条件、active generation 检查及 terminal 支配。原始检查见 [Safety 日志](raw/Safety.log)；
 [报告](run-report.json) 给出实际结果，完整反例保留在对应日志。
 有限状态检查只支持这些输入与假设，不是无界证明、实现符合性或全部 J 门闭合。
 独立审阅应核对条款投影、隐含前提、每个 mutant 的指定反例及证据哈希；
