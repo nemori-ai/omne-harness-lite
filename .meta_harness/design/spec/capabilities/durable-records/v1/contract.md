@@ -11,7 +11,7 @@ D-008/D-015 仅作 provenance；本坐标保持 candidate、`acceptance:null`。
 本能力不凭记录内容自授许可。
 本能力的数据依赖为同 baseline 的 [CD-01/02](../../../data/core-work/v1/contract.md)
 `OperationRef` 与 `UserRef`，以及 [ARI-1/2](../../../data/agent-runtime-identity/v1/contract.md)
-`OpaqueId`/tenant 身份；本能力自有 `StreamRef`、`RevisionConflict` 与个人创建冲突
+`OpaqueId`/tenant 身份；本能力自有 `StreamRef`、`CommitEnvelope`、`RevisionConflict` 与个人创建冲突
 形状见 [v1 Schema](schema.json)，不能借用 provider TypeScript 类型作规范。
 
 ## 记录结构与编码
@@ -20,19 +20,20 @@ D-008/D-015 仅作 provenance；本坐标保持 candidate、`acceptance:null`。
 {kind:"tenant",tenantId:OpaqueId}, streamId:OpaqueId}`；相等是五个语义字段
 （含 scope kind/tenantId）的逐字段精确相等。`RevisionConflict={kind:"revision",
 currents:[{stream:StreamRef,revision:Counter}]}`，`Counter` 为无前导零的非负十进制
-整数字符串（零恰为 `"0"`）；`currents` 按 canonical `StreamRef` 严格升序、无重复，
-只含提交时实际 `expectedRevision != currentRevision` 的流，`revision` 是其实际 head。
-JSON Schema 约束结构，逐字段身份、CAS、排序和来源可信性由本契约行为约束。
+整数字符串（零恰为 `"0"`）；`currents` 无重复，按原冻结 appends 顺序只列提交时
+实际 `expectedRevision != currentRevision` 的流，`revision` 是其实际 head。
+JSON Schema 约束结构，逐字段身份、CAS、顺序和来源可信性由本契约行为约束。
 
 本版 `core-json/1` canonical JSON 是有效 JSON 值的 UTF-8、无 BOM/无多余空白编码：
 对象键按 UTF-16 code unit 词典序严格升序，数组保留原序；字符串与有限数字按
 ECMAScript `JSON.stringify` 的对应值呈现，禁止 NaN/Infinity 和不成对 surrogate。
 v3 outer journal line 恰为 Schema 的 `JournalLine{byteLength,formatVersion,payload,sha256}`；
-payload 是 Schema 的 `PersonalCreationEnvelope` canonical 字符串，两层及
+payload 是 Schema 的通用 `CommitEnvelope` canonical 字符串；个人创建的成功/冲突
+记录还须满足受限 `PersonalCreationEnvelope` 与下文资格约束。两层及
 `canonicalInput` 均用该规则；`inputDigest` 是 `canonicalInput` UTF-8 字节的 SHA-256
 小写十六进制，outer line 的长度和摘要按 DR-04 对 payload UTF-8 字节计算。
-`StreamRef` 排序键是上述 canonical JSON 的字符串结果，按 UTF-16 code unit 词典序
-比较，而非实现对象迭代顺序；记录 formatVersion 恰为 `core-journal/3`，解码须
+记录 formatVersion 恰为 `core-journal/3`；appends 数组及每个 append 的 records 数组
+保留原冻结顺序，canonical JSON 只规范对象键与编码，不重排数组。解码须
 字节重新编码一致，不能仅因 JSON 值相等便接纳非 canonical 字节。格式、字段集、
 嵌套身份和冲突形状在本候选版本内固定；不认识格式或字段即拒绝可写恢复。
 
@@ -52,36 +53,39 @@ payload 是 Schema 的 `PersonalCreationEnvelope` canonical 字符串，两层�
 逐事实身份、逐事实 sequence 或去重键。owner 可保留辅助事实序号，但它不得参与存储 CAS、
 完整性或事实身份判断。
 
-提交者在 `commit` 前把同一 stream 的事实合并为唯一 append，并保留 append-local fact
-order；随后按当前 envelope format 指定的 canonical `StreamRef` 编码对 appends 严格升序
-排列，再按该顺序 flatten。跨 stream 的 prepare 输入顺序没有业务语义；需要表达的跨 owner
-关系必须由完整批次、因果引用与 owner 校验表达。writer 对重复 stream 或非 canonical 输入
-返回拒绝，不得静默重排，因为重排会改变逐事实身份。排序规则随 envelope format/version
-固定；升级不能让同一历史 envelope 得到另一种顺序。
+提交者在 `commit` 前把同一 stream 的事实合并为唯一 append，冻结 appends 数组及
+append-local fact order；同一批不能重复 `StreamRef`。writer 不按 StreamRef 排序，也不
+静默重排；按冻结 appends 数组次序、再按各 append 的 records 次序 flatten。此顺序属于
+调用者提交的批次，不能从跨 stream 的顺序推断业务因果；跨 owner 关系由完整批次、
+因果引用与 owner 校验表达。重复 stream 在分配位置和 operation 占位前拒绝，
+读取、重启与 replay 不得让同一历史 envelope 得到另一种顺序。
 
-append 内顺序与 canonical flatten 后的批内顺序都是 envelope 的一部分。`readRange`、恢复
+append 内顺序与上述 flatten 后的批内顺序都是 envelope 的一部分。`readRange`、恢复
 与重放按同一顺序给出记录；每条 accepted fact 的 `eventId` 是本能力在 durable commit 时
-分配的 `(coordinationDomain, batchSeq, recordIndex)` 确定编码，其中 `recordIndex` 是 canonical
+分配的 `(coordinationDomain, batchSeq, recordIndex)` 确定编码，其中 `recordIndex` 是
 flatten 后的批内位置。prepare 阶段只能使用不冒充 `eventId` 的临时 correlation identity。
 消费者（历史派生、出站流去重）引用最终 `eventId`；`(stream, revision)` 只能认出一次 stream
 update，不能逐事实去重。业务状态转移由所属能力校验和解释；存储只维护批次、顺序、完整性、
 独占写入和去重，不调用任意用户插件判定权限或推断事件含义。
 
-普通操作的每条 stream scope 必须与 operation tenant 一致。唯一受限混合流例外是
+普通操作的每条 stream scope 必须与可信冻结输入的 tenantId 一致。唯一受限混合流例外是
 Tenant personal creation 的**一笔冻结原操作**，由受信装配在当前代颁发不可伪造的
 单次资格。资格绑定来源 `deployment_init | account_registration`、原 operationRef、
 冻结输入摘要、`UserRef`、personal target tenantId、精确协调域、精确 expected revisions、
 Tenant owner/Admission host generation 与 writer epoch。`deployment_init` 的 appends
 集合恰为 system `tenant-bootstrap`、system `tenant-personal-index`、tenant
-`tenant:<target>` 三条；`account_registration` 恰为后两条。唯一 tenant append 的
+`tenant:<target>` 三条；`account_registration` 恰为后两条。此特例的冻结 appends
+顺序固定为 registration `[tenant-personal-index, tenant:<target>]`、init
+`[tenant-bootstrap, tenant-personal-index, tenant:<target>]`，仅约束此特例。
+唯一 tenant append 的
 scope tenantId 与 streamId 必须严格等于绑定 target；不得添加其他 system/tenant
-stream、改变集合、跨域使用或拆成多次 commit。每流一个 append，仍按版本化 canonical
-`StreamRef` 升序；一个流内多个 facts 只推进一次 revision。
+stream、改变集合或次序、跨域使用或拆成多次 commit。每流一个 append；一个流内
+多个 facts 只推进一次 revision。
 
 来源是受信颁发者的封闭变体，不是提交者提供的 `operationKind`、`origin`、`owner`、
 `UserRef` 字符串或反序列化 envelope；旧代资格不能被恢复扫描或历史结果重新铸造。
 存储验证资格绑定、精确流形状、tenant/target 身份、expected revisions、CAS、writer
-代际、唯一排序和结果一致性；不读业务事实来判断 Account 授权、唯一 claim、creator
+代际、唯一流集合及次序和结果一致性；不读业务事实来判断 Account 授权、唯一 claim、creator
 或 owner。那些关系及当前准入归 Tenant 与 CC；未得到它们颁发的有效绑定时返回
 rejected/unavailable，不开放泛用 null-tenant 混写。
 
@@ -95,7 +99,18 @@ writer 以先前已验证的本次资格和原 operationRef/inputDigest 绑定�
 不能因预见 CAS 不匹配就提前报告 durable conflict。除了这个 writer 自有的
 结果记录，资格不允许调用方写 system `operation-outcomes`。
 
-该例外的 durable conflict 只写 provider-owned system `operation-outcomes`。即使只有
+普通操作的 CAS 不匹配也只写**同原操作**的 provider-owned conflict outcome envelope：
+唯一 append 为 `{namespace:"core.records",owner:"durable-records",scope:原可信输入的
+tenant scope 或 system,streamId:"operation-outcomes"}`，其中唯一 fact 为
+`{kind:"operation.conflict",version:"3",data:RevisionConflict}`；`outcome` 恰为
+`{status:"conflict",conflict:RevisionConflict}`，`requiredUses=[]`。writer 依据原可信
+冻结输入的 tenant、原 `OperationRef`/`canonicalInput`/`inputDigest` 及实际 CAS mismatch
+生成并验证该记录；`currents` 按原 appends 顺序列出且与 fact 逐字段一致。原业务
+appends 全不应用，结果 stream 自身按通常 CAS `+1`；只在该 outcome 实际耐久后返回
+conflict，lookup/replay 以原操作身份认回同一结果。调用者不能直接提交此保留
+namespace/stream，普通 outcome/fact 不携带个人创建扩展字段。
+
+该例外的 durable conflict 改用 provider-owned **system** `operation-outcomes`。即使只有
 `tenant-personal-index` revision 冲突，outcome 和同一 `operation.conflict` fact 也必须
 保存原绑定的 `personalTargetTenantId: OpaqueId`、来源、原 operationRef、输入摘要及
 `UserRef`；两者逐字段一致，target 等于不可伪造资格绑定。`conflict.currents` 仅列
@@ -104,12 +119,28 @@ writer 以先前已验证的本次资格和原 operationRef/inputDigest 绑定�
 `UserRef` 和 target 的 lookup/replay 才能认回原结果；同键异输入仅在仍有逻辑占位或
 耐久 outcome 可核实时冲突。暂时 `not_seen` 不证明未提交，不能换 target 或换键重写。
 
-新混合操作使用严格 `core-journal/3` envelope；其 personal creation conflict outcome
+所有新操作与 provider-owned 记录使用严格 `core-journal/3` envelope。每次取得 writer
+时，在同一 journal 的 `core.writer` 保留 namespace 写入并同步一个 `writer.acquire`
+批次，随后才交出新 writer；首次 epoch 为 `"1"`，每次取得独占权从已核实完整前缀
+的最后 epoch 严格加一，不能借 PID/时间或未耐久的内存计数代替。该批次的
+`operation={namespace:"core.writer",principalId:受信系统主体,operationId:"epoch:<epoch>"}`；
+`canonicalInput` 是 `core-operation/1` 的 `writer.acquire`，tenantId=null、target 为
+coordinationDomain、arguments 含本 epoch、preconditions 含前一 epoch；唯一 append 是
+`{namespace:"core.writer",owner:"durable-records",scope:{kind:"system"},streamId:"writer-epochs"}`，
+唯一 fact 为 `{kind:"writer.epoch",version:"3",data:{epoch}}`，committed result 也恰含
+epoch，`requiredUses=[]`。position.writerEpoch 等于该 epoch，stream revision 仍按
+append `+1`。`core.writer` 与 `writer-epochs` 仅 writer 自己可写；replay 校验
+operation、输入、domain、前一 epoch、单调 epoch、position、append、outcome 与
+连续前缀一致，不能把普通业务行或旧格式行当成新代写入权。完整但未回执的 acquire
+须先认回并在下次取得写入权时再严格加一；失败或未知时不交出 writer。
+
+个人创建的特例使用其受限 envelope；其 personal creation conflict outcome
 形状为 `{status:"conflict", conflict:RevisionConflict, personalTargetTenantId:OpaqueId,
 source, operationRef, inputDigest, userRef}`，其中 `source` 恰为上述两个封闭枚举值，
 其余身份字段必须与操作及资格逐字段相等。唯一 provider-owned `operation.conflict`
 fact 使用 version `3`，data 恰为 `{conflict, personalTargetTenantId, source,
-operationRef, inputDigest, userRef}`。普通 conflict 不接受这些扩展字段。
+operationRef, inputDigest, userRef}`。普通 conflict 不接受这些扩展字段。受限 envelope
+的二/三流或单流形状还须通过当代不可伪造资格校验；Schema 自身不颁发混合写权限。
 Records codec 与 JSONL writer/replay 须固定 v3 canonical 字节、摘要、必填与禁填字段，
 严格按记录版本解码、验证完整前缀与上述跨字段关系。旧候选
 `core-journal/1`、`/2` 不获此协议的读取或继续写入兼容承诺；发现存量字节时先

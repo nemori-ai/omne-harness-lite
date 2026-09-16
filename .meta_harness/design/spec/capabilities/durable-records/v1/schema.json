@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/capabilities/durable-records/v1/schema.json",
-  "title": "Durable Records v1 stream and personal creation conflict shapes",
+  "title": "Durable Records v1 generic commit, writer epoch and personal creation shapes",
   "oneOf": [
     {"$ref": "#/$defs/JournalLine"},
-    {"$ref": "#/$defs/PersonalCreationEnvelope"},
+    {"$ref": "#/$defs/CommitEnvelope"},
     {"$ref": "#/$defs/PersonalCreationConflictOutcome"},
     {"$ref": "#/$defs/OperationConflictFactData"}
   ],
@@ -101,8 +101,22 @@
         "userRef": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/UserRef"}
       }
     },
-    "OperationConflictFactData": {"$ref": "#/$defs/PersonalCreationBinding"},
-    "PersonalCreationEnvelope": {
+    "GenericConflictOutcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "conflict"],
+      "properties": {
+        "status": {"const": "conflict"},
+        "conflict": {"$ref": "#/$defs/RevisionConflict"}
+      }
+    },
+    "OperationConflictFactData": {
+      "oneOf": [
+        {"$ref": "#/$defs/RevisionConflict"},
+        {"$ref": "#/$defs/PersonalCreationBinding"}
+      ]
+    },
+    "CommitEnvelope": {
       "type": "object",
       "additionalProperties": false,
       "required": ["formatVersion", "position", "operation", "inputEncoding", "canonicalInput", "inputDigest", "appends", "outcome", "requiredUses"],
@@ -126,7 +140,6 @@
         "appends": {
           "type": "array",
           "minItems": 1,
-          "maxItems": 3,
           "items": {
             "type": "object",
             "additionalProperties": false,
@@ -153,6 +166,7 @@
         },
         "outcome": {
           "oneOf": [
+            {"$ref": "#/$defs/GenericConflictOutcome"},
             {"$ref": "#/$defs/PersonalCreationConflictOutcome"},
             {
               "type": "object",
@@ -184,10 +198,146 @@
             }
           }
         }
-      },
-      "if": {"properties": {"outcome": {"properties": {"status": {"const": "conflict"}}}}},
-      "then": {"properties": {"appends": {"minItems": 1, "maxItems": 1}}},
-      "else": {"properties": {"appends": {"minItems": 2, "maxItems": 3}}}
+      }
+    },
+    "PersonalCreationEnvelope": {
+      "allOf": [
+        {"$ref": "#/$defs/CommitEnvelope"},
+        {
+          "if": {"properties": {"outcome": {"properties": {"status": {"const": "conflict"}}}}},
+          "then": {
+            "properties": {
+              "outcome": {"$ref": "#/$defs/PersonalCreationConflictOutcome"},
+              "appends": {
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                  "properties": {
+                    "stream": {
+                      "properties": {
+                        "namespace": {"const": "core.records"},
+                        "owner": {"const": "durable-records"},
+                        "scope": {"properties": {"kind": {"const": "system"}}},
+                        "streamId": {"const": "operation-outcomes"}
+                      }
+                    },
+                    "records": {
+                      "minItems": 1,
+                      "maxItems": 1,
+                      "items": {
+                        "properties": {
+                          "kind": {"const": "operation.conflict"},
+                          "version": {"const": "3"},
+                          "data": {"$ref": "#/$defs/PersonalCreationBinding"}
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "requiredUses": {"maxItems": 0}
+            }
+          },
+          "else": {"properties": {"appends": {"minItems": 2, "maxItems": 3}}}
+        }
+      ]
+    },
+    "WriterEpochEnvelope": {
+      "allOf": [
+        {"$ref": "#/$defs/CommitEnvelope"},
+        {
+          "properties": {
+            "operation": {
+              "properties": {
+                "namespace": {"const": "core.writer"},
+                "operationId": {"type": "string", "pattern": "^epoch:[1-9][0-9]*$"}
+              }
+            },
+            "appends": {
+              "minItems": 1,
+              "maxItems": 1,
+              "items": {
+                "properties": {
+                  "stream": {
+                    "properties": {
+                      "namespace": {"const": "core.writer"},
+                      "owner": {"const": "durable-records"},
+                      "scope": {"properties": {"kind": {"const": "system"}}},
+                      "streamId": {"const": "writer-epochs"}
+                    }
+                  },
+                  "records": {
+                    "minItems": 1,
+                    "maxItems": 1,
+                    "items": {
+                      "properties": {
+                        "kind": {"const": "writer.epoch"},
+                        "version": {"const": "3"},
+                        "data": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": ["epoch"],
+                          "properties": {"epoch": {"$ref": "#/$defs/Counter"}}
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "outcome": {
+              "type": "object",
+              "properties": {
+                "status": {"const": "committed"},
+                "result": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["epoch"],
+                  "properties": {"epoch": {"$ref": "#/$defs/Counter"}}
+                }
+              }
+            },
+            "requiredUses": {"maxItems": 0}
+          }
+        }
+      ]
+    },
+    "GenericConflictEnvelope": {
+      "allOf": [
+        {"$ref": "#/$defs/CommitEnvelope"},
+        {
+          "properties": {
+            "appends": {
+              "minItems": 1,
+              "maxItems": 1,
+              "items": {
+                "properties": {
+                  "stream": {
+                    "properties": {
+                      "namespace": {"const": "core.records"},
+                      "owner": {"const": "durable-records"},
+                      "streamId": {"const": "operation-outcomes"}
+                    }
+                  },
+                  "records": {
+                    "minItems": 1,
+                    "maxItems": 1,
+                    "items": {
+                      "properties": {
+                        "kind": {"const": "operation.conflict"},
+                        "version": {"const": "3"},
+                        "data": {"$ref": "#/$defs/RevisionConflict"}
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "outcome": {"$ref": "#/$defs/GenericConflictOutcome"},
+            "requiredUses": {"maxItems": 0}
+          }
+        }
+      ]
     }
   }
 }
