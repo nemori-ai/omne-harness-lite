@@ -5,7 +5,7 @@
 | 范围 | 已有表达 | 需要的证据及责任 | 受阻消费 |
 |---|---|---|---|
 | AI-01/04 不复用身份、同操作认回与异输入冲突 | [契约](v1/contract.md)、[场景](v1/scenarios.md) | 账号 provider 固定版本下的身份映射、宕机/重复/并发故障实验；未执行 | 注册实现与可信 `UserRef` 消费 |
-| AI-02/05 pending→active 与 Tenant 唯一个人范围 | 同上；依赖 TG-01 | 注册 composition 须给可信证明、固定目标、持久协调及恢复的模型/故障证据；未编写 | PF-026.C1 的完整注册成功 |
+| AI-02/05 pending→active 与 Tenant 唯一个人范围 | 同上；依赖 TG-01 与[注册组合候选](../../compositions/account-registration/v1/contract.md) | 组合仍须给可信证明、固定目标、持久协调及恢复的模型/故障证据；未执行 | PF-026.C1 的完整注册成功 |
 | AI-03/06 会话过期、撤销及 logout 成功屏障 | 同上 | 采用 provider 后测试旧 token/cookie 在另一进程和重启后重放；检查缓存、服务不可达与 unknown；未执行 | PF-026.C2 的退出保证 |
 | AI-07 与 PF-026.C3/C4 资产隔离 | 同上；依赖 TG-02 与各资源 owner | 两账号/多租户切换下设置、权限、额度和本地资源定位的组合检查；未执行 | CLI 与资源访问 |
 

@@ -1,6 +1,6 @@
 # 产品账号身份 v1
 
-本候选坐标为 `(omne-harness-lite-design-2026-09-15, capability.account-identity, 1)`，状态为 candidate；无 catalog 登记、接受或发布，不可作为已采用契约。来源是 [PF-026.C1–C5](../../../../requirements/product/PF-026-account-journey-and-isolation/requirements.md) 及用户已批准的[提案 A](../../../../proposals/account-identity/design.md)。对应决定预计记录于 `design/decisions/account-identity/`；该文件尚未出现，接受记录由集成拥有者补齐。
+本候选坐标为 `(omne-harness-lite-design-2026-09-15, capability.account-identity, 1)`，状态为 candidate；无 catalog 登记、接受或发布，不可作为已采用契约。来源是 [PF-026.C1–C5](../../../../requirements/product/PF-026-account-journey-and-isolation/requirements.md)、已批准的[提案 A](../../../../proposals/account-identity/design.md)及其接受范围 [D-016](../../../../decisions/account-identity/decision.md)。
 
 | 精确依赖坐标 | 消费条款 | 本契约的依赖关系 |
 |---|---|---|
@@ -30,13 +30,13 @@
 
 **AI-05（激活及注册查询）**：`confirmPersonalScope(registrationOpId, tenantProof)` 仅接受 Tenant/组合协调者的可信证明，逐项核对 AI-02 的绑定关系和可用水位；相同证明重试认回已激活结果，异目标或不完整证明拒绝且保持 pending。`registrationStatus(registrationOpId, authorizedEvidence)` 返回稳定身份、固定目标和 `pending_personal_scope | active | unknown` 中可安全披露的进展；查询者授权与信息裁剪随注册准入/认证方式定义。若 Tenant 结果 unknown，保持 pending 并由注册组合拥有核实/恢复责任；不能把 pending 伪称成功或用新 tenant 目标重试。注册成功仅在 `active` 可被再读核实时对用户确认。
 
-**AI-06（登录、验证和退出）**：`login(authenticationEvidence)` 由采用的成熟 provider 验证凭据，账号权威将结果映射至固定 `UserRef`，仅对 `active` 账号建立可核实且有过期规则的登录会话；失败、未决、过期或 pending 账号不产生可用于业务准入的会话。`validateSession(sessionCredential)` 以当前权威状态返回 `valid{UserRef, sessionRef}` 或不可用于授权的结果；有效结果不含 Tenant 成员证明。`logoutCurrent(sessionRef, authorizedCurrentSession)` 仅针对调用者当前登录态，撤销该会话并在**同一登录态对所有后续新保护交互不可再通过验证**时返回成功；从别的进程重放旧 token/cookie 也须拒绝。撤销提交或核实结果未知时返回 `pending/unknown`，本地 CLI 必须封闭该槽继续使用并保留原会话的核实/重试入口，不能报告成功。相同撤销操作重试认回已撤销结果；已撤销会话不会复活。其他独立会话是否也撤销尚待多端范围选择；已在途工作及其外部效果由各自 owner 结算，不由 logout 追溯撤销。
+**AI-06（登录、验证和退出）**：`login(authenticationEvidence)` 由采用的成熟 provider 验证凭据，账号权威将结果映射至固定 `UserRef`，建立可核实且有过期规则的登录会话。`active` 账号可在后续业务门复核后使用；`pending_personal_scope` 账号至多得到注册查询/恢复专用会话，不得以此准入个人或组织业务。失败、未决或过期凭据不产生可用会话。`validateSession(sessionCredential, operation)` 以当前权威状态返回 `valid{UserRef, sessionRef, allowedClass}` 或不可用于授权的结果；`allowedClass` 至少区分 `registration_only` 与 `business_eligible`，后者仍不含 Tenant 成员证明。`logoutCurrent(sessionRef, authorizedCurrentSession)` 仅针对调用者当前登录态，撤销该会话并在**同一登录态对所有后续新保护交互不可再通过验证**时返回成功；从别的进程重放旧 token/cookie 也须拒绝。撤销提交或核实结果未知时返回 `pending/unknown`，本地 CLI 必须封闭该槽继续使用并保留原会话的核实/重试入口，不能报告成功。相同撤销操作重试认回已撤销结果；已撤销会话不会复活。其他独立会话是否也撤销尚待多端范围选择；已在途工作及其外部效果由各自 owner 结算，不由 logout 追溯撤销。
 
 **AI-07（切换与重启）**：选中哪个本地账号或目标组织属于 CLI 装配的交互状态，不改变账号、会话、Tenant 或既有 Session 的历史身份。应用切换槽位时必须重新验证所选会话，并清除/重键此前账号的设置、偏好和缓存；不能以当前目录、OS 用户或同盘文件位置推导新账号资格。账号及会话权威记录在进程重启后提供与重启前相同的有效性、过期/撤销和注册状态判断；失去核实能力时拒绝业务准入，不能由进程内缓存推断有效。未来本地 skills/settings 的物理 locator 由资源 owner/装配设计，不在本契约指定。
 
 ## 交接、缺席与恢复
 
-注册的账号建立与 Tenant 个人范围发布属于两个权威。账号分配后，注册组合负责以固定账号/目标推进 Tenant 并核实；在 Tenant 未 ready 时账号持续 pending，不能把账号删除当成撤销 Tenant 外部效果。回执丢失、重启、重复或并发注册必须从同一操作与两边权威记录认回；需要另写 composition 固定操作关联、证明格式、单一结果和 orphan 处置。在该 composition 到位前，本契约只允许安全的 pending 与拒绝，不宣称 PF-026.C1 全链已经闭合。
+注册的账号建立与 Tenant 个人范围发布属于两个权威。账号分配后，[注册组合候选](../../../compositions/account-registration/v1/contract.md)负责以固定账号/目标推进 Tenant 并核实；在 Tenant 未 ready 时账号持续 pending，不能把账号删除当成撤销 Tenant 外部效果。回执丢失、重启、重复或并发注册必须从同一操作与两边权威记录认回；组合候选尚缺 Tenant 后续创建入口与真实恢复映射，不能宣称 PF-026.C1 全链已经闭合。
 
 会话 provider/存储缺席、撤销状态不能核实或重启恢复未完成时，所有保护业务入口拒绝新准入；已报告 logout 成功的登录态在恢复后仍必须不可用。provider 的缓存 token/cookie 只有满足此屏障才可采用。CLI 槽、会话权威与业务资源的不同层次不允许相互代替。
 
