@@ -1,0 +1,59 @@
+commit 111d3220e8f41a4640d0b1345e6884d0f23d84a9
+tree 5f284468e1af474a01eac627501eee7b99b5f5ff
+parent 0faecabe6cea64b68f3d156d9af909846b5a29a6
+author 潘其威(William) <46810637+PanQiWei@users.noreply.github.com> 1758110134 +0800
+committer GitHub <noreply@github.com> 1758110134 +0800
+gpgsig -----BEGIN PGP SIGNATURE-----
+ 
+ wsFcBAABCAAQBQJoyqG2CRC1aQ7uu5UhlAAAlsMQAC9Jfo2TvdXkJRkQK3FH1M4o
+ 99qyyklGVVPG0q72FFrRig78Ms6gGu/AISDdUtzTe0YmsftDRHyLLoRKZcKhbToJ
+ lGO2CDe/sNo5+2hNf5qChvsAXGorhwPUH4XTB9qYyTBAlNI9LoNH+iLmUAtlJEE5
+ pHdXe5yCa+NgLDrWcY4U3jiDpC1Gk4EmxBv0jdFlEfJ/38jR/rp0+nN1jAUxHBgy
+ Fdrjrhx5G7HyjhnCeHzX2vvdSmETgcr8MiV5j/ISTBZU4bTgWtelRCu9IWQMeE8/
+ A1sDX5jAqyQJWqhf4VtMe1uG6totAijyXphmqp62JaTdHsHbF2u/02E3dgAmnK8z
+ McUOmIny0OGRYo5o9A++qHybLE5w7wp1gyw2L7w6SOLvzk0fKjN0D1Pj8oS9S0Dt
+ Sf6BrHPGxIKbN64LBzzINKbjoenCE4jm5WUpI9Zh/DWxYC08Axa+0Rb1NwaGqXaV
+ lgMj7KBHW4+P1koHQ2YNVNNcdrPHv/m6bSTC6071VDqZRkW7Sx41QzcdP94CnfjT
+ eeyLhvHroAnYR8dXxTrHqIXvk+BrafJYEPCw5YlRLxKm1FCa5sG4j86GkuJNcxty
+ p8gJIfJele7zZ1nE7zZ+//4l8t+tM8bAsJqAb1m4AxDNbcb5vuH1BizEwKQBiHfM
+ 2jrwyE3PZWj4cSgwqw23
+ =lVgv
+ -----END PGP SIGNATURE-----
+ 
+
+    Create fully_dynamic_system_intro.md
+
+A	fully_dynamic_system_intro.md
+
+commit 72b9e2a933e5e7f3b22fa88e48a588d176ced97b
+tree 558dc15faa8314be663afb326c93b6a53a6dc495
+parent 771430936278edb375ff3150d951da83d9bda4e1
+author PanQiWei <594557445@qq.com> 1758518876 +0800
+committer PanQiWei <594557445@qq.com> 1758518876 +0800
+
+    chore: init project structure
+
+R100	fully_dynamic_system_intro.md	docs/fully_dynamic_system_intro.md
+
+commit f4a519b1548de7ee82815fa5b73f168d9aec539d
+tree e9bd449f993987b389a089dfdc593ff61cf778f8
+parent 643bc7f35850bb15fb9fb6e7f96393acaff0d4e6
+author PanQiWei <594557445@qq.com> 1765194388 +0800
+committer PanQiWei <594557445@qq.com> 1765194388 +0800
+
+    docs: build documentation system
+
+R100	docs/fully_dynamic_system_intro.md	docs.deprecated/fully_dynamic_system_intro.md
+A	docs/fully-dynamic-system.md
+A	docs/fully-dynamic-system.zh.md
+
+commit 5d6322d85652f17b72cf97043b6300926c41083a
+tree 3db75b13a1000b7541d0b9a5897dba5dc7fb487e
+parent 38dc323cb5ee657e05552aee56c768171c1cc2f7
+author PanQiWei <594557445@qq.com> 1765269503 +0800
+committer PanQiWei <594557445@qq.com> 1765269503 +0800
+
+    docs: re-write architecture.md
+
+M	docs/fully-dynamic-system.md
+M	docs/fully-dynamic-system.zh.md
