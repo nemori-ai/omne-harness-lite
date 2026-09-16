@@ -12,20 +12,22 @@ NoReceipt == 0
 NoGeneration == -1
 NoDomain == "none"
 Domain == "runtime"
-CanonicalStreams == <<S1, S2>>
+InputOrders == {<<S1, S2>>, <<S2, S1>>}
+Reverse(xs) == [i \in 1..Len(xs) |-> xs[Len(xs) - i + 1]]
 
 OwnerFacts(s) ==
   IF s = S1 THEN <<"owner-1:first", "owner-1:second">>
   ELSE <<"owner-2:first">>
 
-ExpectedFacts == OwnerFacts(S1) \o OwnerFacts(S2)
-EventIds(seq) == [i \in 1..Len(ExpectedFacts) |-> <<Domain, seq, i>>]
+Flatten(order, facts) == facts[order[1]] \o facts[order[2]]
+ExpectedFacts(order) == Flatten(order, [s \in Streams |-> OwnerFacts(s)])
+EventIds(seq) == [i \in 1..3 |-> <<Domain, seq, i>>]
 AllOwners == Owners
 OneOwner == {CHOOSE o \in Owners : TRUE}
 
 VARIABLES
   history, batchSeq, revision, opState, opReceipt, opResult, lookupReceipt, lookupResult,
-  rejectedNonCanonical, everCommitted,
+  frozenInputs, readView, replayView, everCommitted,
   online, prefixValid, currentOwnerGeneration, currentHostGeneration,
   stagedOwners, stagedDomain, stagedWatermark, stagedOwnerGeneration,
   stagedHostGeneration, stagedVerified,
@@ -34,7 +36,7 @@ VARIABLES
   qualifiedGeneration, reassociatedGeneration, effectCount
 
 vars == <<history, batchSeq, revision, opState, opReceipt, opResult, lookupReceipt, lookupResult,
-  rejectedNonCanonical, everCommitted,
+  frozenInputs, readView, replayView, everCommitted,
   online, prefixValid, currentOwnerGeneration, currentHostGeneration,
   stagedOwners, stagedDomain, stagedWatermark, stagedOwnerGeneration,
   stagedHostGeneration, stagedVerified,
@@ -51,7 +53,9 @@ Init ==
   /\ opResult = [o \in Operations |-> "not_seen"]
   /\ lookupReceipt = [o \in Operations |-> NoReceipt]
   /\ lookupResult = [o \in Operations |-> "not_seen"]
-  /\ rejectedNonCanonical = 0
+  /\ frozenInputs \in [Operations -> InputOrders]
+  /\ readView = <<>>
+  /\ replayView = <<>>
   /\ everCommitted = {}
   /\ online = TRUE
   /\ prefixValid = TRUE
@@ -81,22 +85,43 @@ NewRevision ==
   ELSE [s \in Streams |-> revision[s] + 1]
 
 NewEnvelope(o) ==
-  LET storedStreams == IF Mutation = "writerReorder"
-                       THEN <<S2, S1>> ELSE CanonicalStreams
-      storedFacts == IF Mutation = "writerReorder"
-                     THEN OwnerFacts(S2) \o <<"owner-1:second", "owner-1:first">>
-                     ELSE ExpectedFacts
+  LET storedStreams == IF Mutation = "writerStreamReorder"
+                       THEN Reverse(frozenInputs[o]) ELSE frozenInputs[o]
+      facts == [s \in Streams |->
+        IF Mutation = "writerFactReorder" /\ s = S1
+        THEN Reverse(OwnerFacts(s)) ELSE OwnerFacts(s)]
+      storedFacts == Flatten(storedStreams, facts)
       nextRevision == NewRevision
   IN [operation |-> o,
       seq |-> batchSeq + 1,
       streams |-> storedStreams,
-      streamFacts |-> [s \in Streams |->
-        IF Mutation = "writerReorder" /\ s = S1
-        THEN <<"owner-1:second", "owner-1:first">> ELSE OwnerFacts(s)],
+      streamFacts |-> facts,
       flatFacts |-> storedFacts,
       eventIds |-> [i \in 1..Len(storedFacts) |-> <<Domain, batchSeq + 1, i>>],
       oldRevision |-> revision,
       newRevision |-> nextRevision]
+
+Observe(e, mode) ==
+  LET order == IF mode = "read" /\ Mutation = "readStreamReorder"
+               THEN Reverse(e.streams) ELSE e.streams
+      facts == IF mode = "replay" /\ Mutation = "replayFactReorder"
+               THEN [e.streamFacts EXCEPT ![S1] = Reverse(@)] ELSE e.streamFacts
+      ids == IF mode = "read" /\ Mutation = "readEventIdReassign"
+             THEN Reverse(e.eventIds) ELSE e.eventIds
+  IN [e EXCEPT !.streams = order, !.streamFacts = facts,
+               !.flatFacts = Flatten(order, facts), !.eventIds = ids]
+
+ReadHistory ==
+  /\ online /\ batchSeq > 0
+  /\ readView' = [i \in 1..Len(history) |-> Observe(history[i], "read")]
+  /\ UNCHANGED <<history, batchSeq, revision, opState, opReceipt, opResult,
+       lookupReceipt, lookupResult, frozenInputs, replayView, everCommitted,
+       online, prefixValid, currentOwnerGeneration, currentHostGeneration,
+       stagedOwners, stagedDomain, stagedWatermark, stagedOwnerGeneration,
+       stagedHostGeneration, stagedVerified,
+       publishedOwners, publishedDomain, publishedWatermark, publishedOwnerGeneration,
+       publishedHostGeneration, publicationVerified, ready,
+       qualifiedGeneration, reassociatedGeneration, effectCount>>
 
 Commit(o) ==
   /\ online
@@ -109,24 +134,12 @@ Commit(o) ==
   /\ opResult' = [opResult EXCEPT ![o] = "accepted"]
   /\ everCommitted' = everCommitted \cup {o}
   /\ ready' = FALSE
-  /\ UNCHANGED <<lookupReceipt, lookupResult, rejectedNonCanonical,
+  /\ UNCHANGED <<lookupReceipt, lookupResult, frozenInputs, readView, replayView,
        online, prefixValid, currentOwnerGeneration, currentHostGeneration,
        stagedOwners, stagedDomain, stagedWatermark, stagedOwnerGeneration,
        stagedHostGeneration, stagedVerified,
        publishedOwners, publishedDomain, publishedWatermark, publishedOwnerGeneration,
        publishedHostGeneration, publicationVerified,
-       qualifiedGeneration, reassociatedGeneration, effectCount>>
-
-RejectNonCanonical ==
-  /\ online /\ rejectedNonCanonical = 0
-  /\ rejectedNonCanonical' = rejectedNonCanonical + 1
-  /\ UNCHANGED <<history, batchSeq, revision, opState, opReceipt, opResult,
-       lookupReceipt, lookupResult, everCommitted,
-       online, prefixValid, currentOwnerGeneration, currentHostGeneration,
-       stagedOwners, stagedDomain, stagedWatermark, stagedOwnerGeneration,
-       stagedHostGeneration, stagedVerified,
-       publishedOwners, publishedDomain, publishedWatermark, publishedOwnerGeneration,
-       publishedHostGeneration, publicationVerified, ready,
        qualifiedGeneration, reassociatedGeneration, effectCount>>
 
 Lookup(o) ==
@@ -138,7 +151,7 @@ Lookup(o) ==
      ELSE /\ UNCHANGED <<history, batchSeq, revision>>
   /\ lookupReceipt' = [lookupReceipt EXCEPT ![o] = opReceipt[o]]
   /\ lookupResult' = [lookupResult EXCEPT ![o] = opResult[o]]
-  /\ UNCHANGED <<opState, opReceipt, opResult, rejectedNonCanonical, everCommitted,
+  /\ UNCHANGED <<opState, opReceipt, opResult, frozenInputs, readView, replayView, everCommitted,
        online, prefixValid, currentOwnerGeneration, currentHostGeneration,
        stagedOwners, stagedDomain, stagedWatermark, stagedOwnerGeneration,
        stagedHostGeneration, stagedVerified,
@@ -155,7 +168,7 @@ InstallOnlinePublication ==
   /\ publishedHostGeneration' = currentHostGeneration
   /\ publicationVerified' = TRUE
   /\ UNCHANGED <<history, batchSeq, revision, opState, opReceipt, opResult,
-       lookupReceipt, lookupResult, rejectedNonCanonical, everCommitted,
+       lookupReceipt, lookupResult, frozenInputs, readView, replayView, everCommitted,
        online, prefixValid, currentOwnerGeneration, currentHostGeneration,
        stagedOwners, stagedDomain, stagedWatermark, stagedOwnerGeneration,
        stagedHostGeneration, stagedVerified, ready,
@@ -182,14 +195,14 @@ Crash ==
   /\ qualifiedGeneration' = NoGeneration
   /\ reassociatedGeneration' = NoGeneration
   /\ UNCHANGED <<history, batchSeq, revision, opState, opReceipt, opResult,
-       lookupReceipt, lookupResult, rejectedNonCanonical, everCommitted, prefixValid,
+       lookupReceipt, lookupResult, frozenInputs, readView, replayView, everCommitted, prefixValid,
        effectCount>>
 
 DamagePrefix ==
   /\ ~online /\ prefixValid /\ ~stagedVerified
   /\ prefixValid' = FALSE
   /\ UNCHANGED <<history, batchSeq, revision, opState, opReceipt, opResult,
-       lookupReceipt, lookupResult, rejectedNonCanonical, everCommitted,
+       lookupReceipt, lookupResult, frozenInputs, readView, replayView, everCommitted,
        online, currentOwnerGeneration, currentHostGeneration,
        stagedOwners, stagedDomain, stagedWatermark, stagedOwnerGeneration,
        stagedHostGeneration, stagedVerified,
@@ -199,6 +212,7 @@ DamagePrefix ==
 
 VerifyRecovery ==
   /\ ~online /\ prefixValid /\ ~stagedVerified
+  /\ replayView' = [i \in 1..Len(history) |-> Observe(history[i], "replay")]
   /\ stagedOwners' = IF Mutation = "missingOwnerRecovery"
                      THEN OneOwner ELSE AllOwners
   /\ stagedDomain' = Domain
@@ -207,7 +221,7 @@ VerifyRecovery ==
   /\ stagedHostGeneration' = currentHostGeneration
   /\ stagedVerified' = TRUE
   /\ UNCHANGED <<history, batchSeq, revision, opState, opReceipt, opResult,
-       lookupReceipt, lookupResult, rejectedNonCanonical, everCommitted,
+       lookupReceipt, lookupResult, frozenInputs, readView, everCommitted,
        online, prefixValid, currentOwnerGeneration, currentHostGeneration,
        publishedOwners, publishedDomain, publishedWatermark, publishedOwnerGeneration,
        publishedHostGeneration, publicationVerified, ready,
@@ -227,7 +241,7 @@ InstallRecovery ==
   /\ publishedHostGeneration' = stagedHostGeneration
   /\ publicationVerified' = TRUE
   /\ UNCHANGED <<history, batchSeq, revision, opState, opReceipt, opResult,
-       lookupReceipt, lookupResult, rejectedNonCanonical, everCommitted,
+       lookupReceipt, lookupResult, frozenInputs, readView, replayView, everCommitted,
        online, prefixValid, currentOwnerGeneration, currentHostGeneration,
        stagedOwners, stagedDomain, stagedWatermark, stagedOwnerGeneration,
        stagedHostGeneration, stagedVerified, ready,
@@ -267,7 +281,7 @@ MarkReady ==
             ![CHOOSE o \in everCommitted : TRUE] = @ + 1]
      ELSE UNCHANGED effectCount
   /\ UNCHANGED <<history, batchSeq, revision, opState, opReceipt, opResult,
-       lookupReceipt, lookupResult, rejectedNonCanonical, everCommitted,
+       lookupReceipt, lookupResult, frozenInputs, readView, replayView, everCommitted,
        online, prefixValid, currentOwnerGeneration, currentHostGeneration,
        stagedOwners, stagedDomain, stagedWatermark, stagedOwnerGeneration,
        stagedHostGeneration, stagedVerified,
@@ -277,7 +291,7 @@ Qualify ==
   /\ ready /\ qualifiedGeneration # currentOwnerGeneration
   /\ qualifiedGeneration' = currentOwnerGeneration
   /\ UNCHANGED <<history, batchSeq, revision, opState, opReceipt, opResult,
-       lookupReceipt, lookupResult, rejectedNonCanonical, everCommitted,
+       lookupReceipt, lookupResult, frozenInputs, readView, replayView, everCommitted,
        online, prefixValid, currentOwnerGeneration, currentHostGeneration,
        stagedOwners, stagedDomain, stagedWatermark, stagedOwnerGeneration,
        stagedHostGeneration, stagedVerified,
@@ -289,7 +303,7 @@ Reassociate ==
   /\ ready /\ reassociatedGeneration # currentHostGeneration
   /\ reassociatedGeneration' = currentHostGeneration
   /\ UNCHANGED <<history, batchSeq, revision, opState, opReceipt, opResult,
-       lookupReceipt, lookupResult, rejectedNonCanonical, everCommitted,
+       lookupReceipt, lookupResult, frozenInputs, readView, replayView, everCommitted,
        online, prefixValid, currentOwnerGeneration, currentHostGeneration,
        stagedOwners, stagedDomain, stagedWatermark, stagedOwnerGeneration,
        stagedHostGeneration, stagedVerified,
@@ -304,7 +318,7 @@ Execute(o) ==
   /\ effectCount[o] = 0
   /\ effectCount' = [effectCount EXCEPT ![o] = @ + 1]
   /\ UNCHANGED <<history, batchSeq, revision, opState, opReceipt, opResult,
-       lookupReceipt, lookupResult, rejectedNonCanonical, everCommitted,
+       lookupReceipt, lookupResult, frozenInputs, readView, replayView, everCommitted,
        online, prefixValid, currentOwnerGeneration, currentHostGeneration,
        stagedOwners, stagedDomain, stagedWatermark, stagedOwnerGeneration,
        stagedHostGeneration, stagedVerified,
@@ -318,7 +332,7 @@ ForgetCommitted(o) ==
   /\ opReceipt' = [opReceipt EXCEPT ![o] = NoReceipt]
   /\ opResult' = [opResult EXCEPT ![o] = "not_seen"]
   /\ UNCHANGED <<history, batchSeq, revision, lookupReceipt, lookupResult,
-       rejectedNonCanonical, everCommitted,
+       frozenInputs, readView, replayView, everCommitted,
        online, prefixValid, currentOwnerGeneration, currentHostGeneration,
        stagedOwners, stagedDomain, stagedWatermark, stagedOwnerGeneration,
        stagedHostGeneration, stagedVerified,
@@ -328,25 +342,30 @@ ForgetCommitted(o) ==
 
 Next ==
   \/ \E o \in Operations : Commit(o) \/ Lookup(o) \/ Execute(o) \/ ForgetCommitted(o)
-  \/ RejectNonCanonical
+  \/ ReadHistory
   \/ InstallOnlinePublication
   \/ Crash \/ DamagePrefix \/ VerifyRecovery \/ InstallRecovery
   \/ MarkReady \/ Qualify \/ Reassociate
 
 Spec == Init /\ [][Next]_vars
 
-TypeOK ==
-  /\ history \in Seq([operation : Operations, seq : Nat,
+EnvelopeType == [operation : Operations, seq : Nat,
        streams : Seq(Streams), streamFacts : [Streams -> Seq(STRING)],
-       flatFacts : Seq(STRING), eventIds : {EventIds(1), EventIds(2), EventIds(3)},
-       oldRevision : [Streams -> Nat], newRevision : [Streams -> Nat]])
+       flatFacts : Seq(STRING), eventIds : Seq({Domain} \X Nat \X Nat),
+       oldRevision : [Streams -> Nat], newRevision : [Streams -> Nat]]
+
+TypeOK ==
+  /\ history \in Seq(EnvelopeType)
   /\ batchSeq \in Nat /\ revision \in [Streams -> Nat]
   /\ opState \in [Operations -> {"not_seen", "committed"}]
   /\ opReceipt \in [Operations -> Nat]
   /\ opResult \in [Operations -> {"not_seen", "accepted"}]
   /\ lookupReceipt \in [Operations -> Nat]
   /\ lookupResult \in [Operations -> {"not_seen", "accepted"}]
-  /\ rejectedNonCanonical \in Nat /\ everCommitted \subseteq Operations
+  /\ frozenInputs \in [Operations -> InputOrders]
+  /\ readView \in Seq(EnvelopeType)
+  /\ replayView \in Seq(EnvelopeType)
+  /\ everCommitted \subseteq Operations
   /\ online \in BOOLEAN /\ prefixValid \in BOOLEAN
   /\ currentOwnerGeneration \in Nat /\ currentHostGeneration \in Nat
   /\ stagedOwners \subseteq Owners /\ stagedDomain \in {Domain, NoDomain} /\ stagedWatermark \in Nat
@@ -368,10 +387,23 @@ StreamRevisionPerAppend ==
 FactOrderStable ==
   \A i \in 1..Len(history) :
     /\ history[i].seq = i
-    /\ history[i].streams = CanonicalStreams
+    /\ history[i].streams = frozenInputs[history[i].operation]
     /\ history[i].streamFacts = [s \in Streams |-> OwnerFacts(s)]
-    /\ history[i].flatFacts = ExpectedFacts
+    /\ history[i].flatFacts = ExpectedFacts(frozenInputs[history[i].operation])
     /\ history[i].eventIds = EventIds(i)
+
+ReadOrderStable ==
+  /\ Len(readView) <= Len(history)
+  /\ readView = SubSeq(history, 1, Len(readView))
+
+ReplayOrderStable ==
+  /\ Len(replayView) <= Len(history)
+  /\ replayView = SubSeq(history, 1, Len(replayView))
+
+\* Expected to fail in a separate reachability probe, never a safety claim.
+NoBothPermutationsReadAndReplayed ==
+  ~(/\ {readView[i].streams : i \in 1..Len(readView)} = InputOrders
+    /\ {replayView[i].streams : i \in 1..Len(replayView)} = InputOrders)
 
 NoPartialOwnerPublication == publishedOwners = {} \/ publishedOwners = AllOwners
 
