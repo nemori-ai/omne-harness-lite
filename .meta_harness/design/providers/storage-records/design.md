@@ -20,8 +20,8 @@ tenant、operation、因果、epoch、修订与资源所有者必须显式；有
 | order | 调用方在 commit 前合并同流事实为唯一 append，冻结至少一条 appends 的数组顺序和每条 records 顺序；codec 拒绝重复 `StreamRef` | 通用批次允许唯一流的任意次序，codec/writer 不排序或重排；跨流次序不代替业务因果 |
 | identity | commit 时以冻结数组 flatten 位置分配 `(coordinationDomain,batchSeq,recordIndex)` eventId | prepare correlation 不冒充 eventId；`(stream,revision)` 不逐 fact 去重 |
 | data | CommitEnvelope、RecordedOutcome、Position、UseRequirement | 业务状态解释或授权判断 |
-| codec | `core-json/1` canonical 字节、`core-journal/3` JournalLine 与五类封闭 CommitEnvelope 严格编解码；可信 writer 赋 `recordClass`/`source`，普通/个人 conflict 带 attemptedAppends | 单行 codec 不证明完整前缀、fsync、原操作认回或恢复成功；反序列化字段不颁发资格 |
-| personal creation scope | 普通输入仍逐 append 检查可信冻结 tenant；只接收受信 Host 在本代颁发的一笔资格，绑定来源、原 operation/摘要、`UserRef`、target、domain、精确流集合/expected revisions、Admission/Tenant/writer 代际。registration 顺序固定 `[personal-index,tenant:<target>]`，init 固定 `[bootstrap,personal-index,tenant:<target>]` | 特例顺序不变成通用排序规则；客户端来源、owner/operationKind 字符串、反序列化字段不可铸造权限，codec 不解读 Account 授权或 Tenant 业务事实 |
+| codec | `core-json/1` canonical 字节、`core-journal/3` JournalLine 与普通 commit、普通 conflict、writer epoch 三类封闭 CommitEnvelope 严格编解码；可信 writer 赋 `recordClass`/`source`，普通 conflict 带 attemptedAppends | 单行 codec 不证明完整前缀、fsync、原操作认回或恢复成功；反序列化字段不颁发资格 |
+| personal creation scope | Tenant 从受信 F 派生 T/C 并在本代核来源、注入式 target、目标流空前态及唯一 owner；records 对冻结的一个 tenant-scope append 使用普通 DR-01 结构、CAS、冲突与认回 | 客户端来源、owner/operationKind 字符串、反序列化字段不可铸造业务资格；codec 不解读 Account 授权或 Tenant 业务事实 |
 
 以上是候选契约到 records 端口/codec 的目标映射，不表示当前实现已全部符合。实现验收须让
 prepare、encode/decode、writer receipt 与 recovery replay 使用同一版本化冻结顺序、
@@ -46,16 +46,16 @@ fact 为 `operation.conflict/3`、data 恰为 RevisionConflict；outcome 恰为
 replay 须从冲突行**之前**的连续完整前缀重算每个 attempted stream 当时的 head，
 按原顺序推出与 outcome/fact 完全相同且非空的 currents；期望修订或前缀无法核实时
 拒绝可写恢复/保持 unknown，不能只信冲突行自报的 currents。
-个人创建冲突改用 system outcome stream，仍保留原资格绑定的 target、来源、操作、
-摘要及 `UserRef`；其 attemptedAppends 还须是原受信二/三流资格的精确有序
-stream/expectedRevision 投影，不为只冲突 system index 伪造 tenant current。lookup/replay
-按原 operation/canonicalInput/digest 认回一次 committed 或 durable conflict；
+个人创建若因目标流 CAS 冲突，沿普通 tenant-scope provider outcome 写入同 T/C 的
+durable conflict；`attemptedAppends` 只含原目标流的冻结 stream/expectedRevision，
+`currents` 只含实际冲突流。另一 T 即使已在相同 target 创建，也不能将其成功归给
+本 T。lookup/replay 按原 operation/canonicalInput/digest 认回一次 committed 或 durable conflict；
 unknown 和临时 `not_seen` 均不证明未提交。
 
-v3 payload 的 `recordClass` 是 `ordinary_commit`、`ordinary_conflict`、
-`personal_creation_commit`、`personal_creation_conflict` 或 `writer_epoch`；对应的
-`source` 分别为 `ordinary`、受信 `deployment_init|account_registration` 或 `writer`，
-由可信 writer 从普通准备、当代 personal 资格或内部取得 writer 动作赋值。
+v3 payload 的 `recordClass` 是 `ordinary_commit`、`ordinary_conflict` 或
+`writer_epoch`；对应 `source` 为 `ordinary` 或 `writer`，由可信 writer 从普通准备
+或内部取得 writer 动作赋值。个人创建的 F/T/C 含义由 Tenant 核实，DR 不增加
+personal 专属 envelope 或跨 scope 写入特例。
 BaseEnvelope 只是共用字段，codec 必须按该判别值强制对应的封闭子形状；历史
 字节中的 `recordClass`/`source` 不可重铸新的运行资格。
 

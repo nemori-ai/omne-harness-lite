@@ -14,26 +14,25 @@ root 所允许集合的交集。不能只比较最终逻辑 root 与耐久 root�
 证明完整时返回 unavailable/complete=false，不把它解释为空集合或默认允许。重加入产生新
 joinedRevision，旧 grant 不因 userId 相同复活。
 
-统一 personal creation 的逻辑排位只作为原操作、目标及 global personal-index claim
-的冲突占位；资格读面不得直接消费未耐久 `tenant.created` 的 owner/member。Tenant
-先按 operationRef 查询历史占位/结果；同键同输入认回固定 target，不重新运行来源
-首次准入。部署 init 的新操作核 Tenant 权威尚未建立（不是 JSONL 物理空文件）、
-受信 seed，以及 Account 对初始 `UserRef` 的耐久分配、唯一凭据绑定、与 seed/target
-一致的一次创建后果；Tenant 不从 seed 字符串造 `UserRef`。初始 target 在 Account
-后果前固定，unknown 时沿 Account/CC 前置原操作认回。账号注册的新操作核
-Account 单操作授权后果；两个来源均须经 CC-05 核实并耐久导入，sourceFact/
-version、原操作、摘要、`UserRef` 和 target 必须同属一份
-受信绑定；init 还核 seed。较早
-pending 分配、凭据标识碰撞或未耐久导入不构成该授权。短门只读耐久导入事实和
-Tenant/Admission 当前根，不等待 Account provider；Account 失联不撤销已导入的
-原后果，旧 provider generation 不能取得新写权。
+统一 personal creation 的逻辑排位只作为原 T、目标流首位置的冲突占位；资格读面
+不得直接消费未耐久 `tenant.created` 的 owner/member。Tenant 先按 T/C 查询历史
+占位/结果；同键同输入认回固定 target，不重新运行来源首次准入。受信 init 的
+一次性资格由 Account AI-08 核实；Tenant 核已经证实的空 Tenant 根、Account
+已耐久分配且不复用的初始 `UserRef`、凭据唯一绑定及不可变 F。seed 字符串本身不能
+造 `UserRef` 或 target。后续注册也须先有 Account 的完整 F。两个入口均在短门外经
+当前受信同进程 Account 服务读取 F，核版本、`sourceRef`、`entryKind`、`UserRef`、
+target 与来源真实性；目标由 `personalTarget(UserRef)` 重算，T 从 F.sourceRef 派生，
+C 仅取公开 F 字段计算摘要。较早 pending、凭据碰撞或客户端自报来源均不构成资格。
+短门核冻结 F 与 Tenant/Admission 当前根的同代绑定，不等待 Account I/O；Account
+短暂失联不撤销同代已冻结的 F，换代须重新读取，旧 generation 不得取得新写权。
 
-两来源共用同一套记录/认回/恢复协议：system `tenant-personal-index` claim 与新
-`tenant:<target>` 流中的 personal tenant、creator、唯一 active owner 同一耐久批次；
-init 在**同一批**另写 `tenant-bootstrap`，注册不写它。写入能力对每笔冻结操作按来源
-限定精确二/三流形状，不能由客户端 origin 或 owner 字符串获得。恢复在完整共同批次
-核对来源、原操作、target、user、creator/owner、个人种类和唯一 claim；三流/二流
-交叉错配、单流各自解码成功但批次不同、第二 owner 或坏前缀均拒绝 ready。新的
+两来源共用同一套 T/C、记录、认回与恢复协议：仅向目标 `tenant:<target>` 流的
+空前态提交一个 append，其中 personal tenant、creator 与唯一 active owner 成员
+同成同败。目标由不复用的 UserRef 注入得到，不需要 global index；init 一次性资格
+属于 Account，不产生 Tenant bootstrap 流。DR 按普通单租户写入验证 scope、CAS、
+原操作与完整前缀，Tenant 验证 F/T/C、user、target、creator/owner 和个人种类。
+不同 F 声称同一 UserRef 时仅一个 T 可占目标首位置，另一 T 是本操作的 durable
+conflict，不可认回别人的成功；第二 owner 或坏前缀均拒绝 ready。新的
 owner 正向资格和 ACR 激活证明只在完整耐久前缀、全部 owner publication 与本代
 可消费基线同时成立时可读；unknown、sync 失败和 blocked publication 均不开放。
 

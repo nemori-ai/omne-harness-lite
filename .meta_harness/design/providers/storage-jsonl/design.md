@@ -10,7 +10,7 @@ tenant、operation、因果、epoch、修订与资源所有者必须显式；有
 来源设计固定为旧 `packages/storage/jsonl/design.md`，SHA-256 `78d8eb48075d91af05f5b009d5200594193feea3700f309fc3705df482a85ab9`；旧 provider 实现固定输入 `7152a7192c84fa49c27255bfdb4f9b0e86ad8eb5`，旧组合接受固定 HUB `31197742905a3c66fc3e650c153d65d014372c21`。有受限真实 JSONL/锁/恢复实现；支持文件系统、fsync、unknown、换代和全部 DR 条款仍需按新 v1 真实验收。
 源码实现状态必须由 I/实施任务在精确 revision 核对；本文不复制源码内部结构，也不声称已通过新契约验收。
 旧实现和 P1 证据只支持当时接口、格式及环境；通用 `core-journal/3`、冻结数组顺序、
-普通与个人创建冲突、v3 writer epoch、全部 owner 恢复和提供者换代没有由它们证明。
+普通冲突、个人创建目标单流、v3 writer epoch、全部 owner 恢复和提供者换代没有由它们证明。
 若新 v1 与旧 TypeScript 类型不符，修改端口/实现，不添加旧格式兼容层。
 
 ## Factory、依赖与资源归属
@@ -49,7 +49,7 @@ fact.data 恰为 `RevisionConflict` 且等于普通 conflict outcome 的 `confli
 `[{stream,expectedRevision}]` 和原次序，不含业务 facts；`currents` 只列其中实际
 不匹配的 stream，保留其原次序。replay 从该行**之前**的连续完整前缀重算这些
 stream 当时的 head 和 mismatch，与 outcome/fact 不一致则拒绝可写恢复；结果行同步
-未知时仍按原操作 unknown，不能提前声称 conflict。个人创建的封闭分支见下文；
+未知时仍按原操作 unknown，不能提前声称 conflict。个人创建沿同一普通路径；
 旧 `operation.conflict/1` 字节不能充当新 v1 的编码或验证证据。
 
 ## 完整前缀读取、认回与水位
@@ -89,48 +89,41 @@ owner。进程死亡使 OS 释放 fd，下一进程仍须重新持锁恢复。
 | read/watermark | 只返回完整批次与精确前缀；在线、扫描和恢复复用同一 revision、冻结数组次序与 eventId 算法 | 落后/坏前缀不得用于授权或恢复成功；不得探测或兼容两套 revision 算法 |
 | writer/lock/recovery/close | 旧版有 epoch、原生锁、尾部核实和排空关闭实现；新 v1 保留独占/同步/unknown 性质，重定 v3 `writer.acquire` 批次 | 网络 FS、硬件故障、目录 fsync 与提供者换代仍需环境验收 |
 | generic conflict | CAS mismatch 只写同操作的 provider-owned `core.records/operation-outcomes`，`operation.conflict/3` data 与普通 outcome 等值，scope 随原可信输入，attemptedAppends 保存原冻结全部 stream/expectedRevision，`requiredUses=[]` | 原业务 appends 全不应用；replay 从冲突前完整前缀复算 currents，未同步不得返回最终 conflict，caller 不取得保留 stream 写权 |
-| personal creation | writer 只接受受信 Admission/Tenant Host 在当前代为一笔冻结原操作颁发的资格，绑定来源、原 operation/摘要、`UserRef`、target、domain、精确 expected revisions、host/owner/writer 代际。registration 固定 `[personal-index,tenant:<target>]`，init 固定 `[bootstrap,personal-index,tenant:<target>]`，同批原子同步 | 特例固定次序不约束普通批次；writer 不解析 Account 授权或 Tenant 业务事实，客户端来源/字符串/旧代/历史 epoch 均不能铸造资格 |
+| personal creation | Tenant/Admission 在本代核受信 F、T/C、目标流空前态及唯一 owner，随后以一个目标 tenant 流 append 走普通 prepare/commit；writer 核普通冻结输入、scope、CAS 和 epoch | writer 不解析 Account 授权或 Tenant 业务事实；客户端来源/字符串/旧代/历史 epoch 均不能铸造当前资格 |
 
-## 个人租户创建的受限混合流
+## 个人租户创建的目标单流
 
-跨 stream 准备输入顺序不承载业务因果；跨 owner 关系由完整 envelope 的引用及全部
-owner 校验表达。通用及 personal creation 均使用严格 `core-journal/3` canonical
+通用批次的跨 stream 顺序不承载业务因果；个人创建只向目标流写一个 append。
+两者均使用严格 `core-journal/3` canonical
 **字节**编码、摘要和版本标记；canonical JSON 不给 appends 数组排序。在线写入与
 重启 replay 使用同一冻结顺序、revision 和 eventId 算法。
-可信 writer 按普通提交、普通冲突、个人创建提交/冲突和内部 writer epoch 五种
-`recordClass`，连同当前资格确定的 `source` 写入 envelope；codec 只能按相应
+可信 writer 根据普通准备或内部取得 writer 动作写入三种 `recordClass` 之一
+及对应的 `source=ordinary|writer`；codec 只能按相应
 封闭子形状解码，不能把通用 BaseEnvelope 当作独立可接受的 payload。历史
 `recordClass`/`source` 用于 replay 核对，不会恢复或新颁本代资格。
 target 协调域若存在旧候选格式或未知格式字节，须保全原件并拒绝按 v3 可写恢复；
 本候选不增加旧格式读取、转换或继续写入兼容层，也不就地重释历史 envelope。
 
-成功批次只接受资格规定的完整二/三流集合及顺序：registration 为
-`[tenant-personal-index,tenant:<target>]`，init 为
-`[tenant-bootstrap,tenant-personal-index,tenant:<target>]`。CAS conflict 是**同原操作的另一个
-provider-owned outcome envelope**：仅写 system `operation-outcomes`，不伪造成功
-批次的 personal-index、bootstrap 或目标 tenant append；绑定原 operation/摘要、来源、
-`UserRef`、target 和原资格，`attemptedAppends` 则保存原二/三流候选的有序
-stream/expectedRevision，按原操作身份去重。`conflict.currents` 只列实际 mismatch；
-即使只冲突 system index，也要把原 target 写入 outcome 与同一 provider-owned
-`operation.conflict` fact。两者采用 v3 封闭形状，fact version `3`，其 data 恰为
-`{conflict, personalTargetTenantId, source, operationRef, inputDigest, userRef}`，并与
-资格及 outcome 逐字段一致。普通 conflict 不接受这些扩展字段。
+Tenant/Admission 的受信门验证 F 的来源、T/C、注入式 target、目标流空前态及
+唯一 owner；writer 只见普通冻结操作。init 与后续注册同样只向目标
+`tenant:<target>` 一流写一个 append，包含个人租户、creator 与唯一 active owner。
+无 system personal-index、bootstrap 流或 personal 专属 envelope。CAS conflict
+是同 T/C 的普通 provider-owned tenant-scope outcome，`attemptedAppends` 为原目标
+流唯一期望修订；`currents` 仅列实际 mismatch，不能用另一 T 的成功替本 T 认回。
 
-prepare/commit 时 writer 核当前代不可伪造资格、二/三流完整形状、CAS 与结果；
-lookup/replay 从唯一成功 tenant append 或 conflict target 字段核历史身份和原结果，
-并从冲突前连续完整前缀复算 attemptedAppends 的 mismatch；
-严格拒绝错字段、额外字段、错版本、错 stream、个人创建错次序、非 canonical
-字节、坏前缀和同键异输入。历史记录不重新颁发资格。unknown 不释放占位，临时
-`not_seen` 不证明未提交；
-旧 writer 完整前缀、原操作未提交和占位安全解除都可核实后，才能以同原操作/摘要/
-target 在当前代重新准备。
+prepare/commit 时 writer 核普通 scope、CAS、原操作及当前 epoch；lookup/replay 从
+完整前缀按 T/C 认回历史结果，并从冲突行前的完整前缀复算 mismatch；严格拒绝
+错字段、额外字段、错版本、错 stream、非 canonical 字节、坏前缀和同键异输入。
+历史记录不重新颁发资格。unknown 不释放占位，临时 `not_seen` 不证明未提交；
+旧 writer 完整前缀、原操作未提交和占位安全解除都可核实后，才能以同 T/C
+在当前代重新准备。Account F 的新代受信读取与 Tenant 业务 fold 由各自 owner 验证。
 
 ## 待代码与环境验收
 
 DR 候选现已给出通用 CommitEnvelope、普通 conflict 及 `writer.acquire` 的 v3
-规范形状；[Schema](../../spec/capabilities/durable-records/v1/schema.json) 同时定义
-通用与个人创建的封闭子形状。当前 `packages/storage/records/src/index.ts` 和
+规范形状；[Schema](../../spec/capabilities/durable-records/v1/schema.json) 定义
+三类普通封闭子形状。当前 `packages/storage/records/src/index.ts` 和
 `packages/storage/jsonl/src/provider.ts` 仍使用 `core-journal/1`，旧 records codec
 要求 canonical StreamRef 顺序，旧 epoch/conflict fact 也不是 v3；实施须修改端口、
 严格 codec、准备/提交、持锁恢复与索引，再以固定源码 revision 和真实故障注入核验。
-新版格式存在不等于旧代码支持它；旧 P1 PASS 不抵扣通用/受限 v3 或换代验收。
+新版格式存在不等于旧代码支持它；旧 P1 PASS 不抵扣普通 v3、个人创建单流或换代验收。
