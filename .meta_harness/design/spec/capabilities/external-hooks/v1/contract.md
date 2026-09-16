@@ -97,7 +97,7 @@ trigger 项保持排队，`hooks.run.completed` 与 `hooks.config.*` 记录保�
 | close | 在同一 take 门内把该项 `queue.item.closed{closed_by_guard, reason}`、arrival close 与 hook completion 的 `fieldEntries[]`/`presentationEntries[]` 一起提交；该项的 additionalContext 只留在 completion 审计，不进入任何 Step |
 | 超时、崩溃或非法输出 | 视为 pass，写 `hooks.run.completed{failed \| timeout}`；崩溃后未求值的项在下一次 take 前重新求值，求值本身幂等 |
 | interrupt_then_run 项 | SE-08 在受理点封闭旧驱动。为免旧 Run 被白白中断，这类项在受理的准备阶段先求值守卫（受同一超时约束）；close 则受理后立即关闭该项并不发出中断，旧 Run 继续。受理提交本身不被守卫阻塞 |
-| 可见性 | 关闭原因对用户可见；hook 给出的附加上下文进入该批首个 Step 的 `system_reminder{hook_context}`（CD v1） |
+| 可见性 | 关闭原因对用户可见；仅最终 pass 且实际 take 的项，其附加上下文进入该批首个 Step 的 `system_reminder{hook_context}`（CD v1）；最终 close 的上下文只在 completion 审计中保留 |
 
 ## 事件映射
 
