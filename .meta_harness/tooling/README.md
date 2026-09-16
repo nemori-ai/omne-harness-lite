@@ -176,7 +176,7 @@ python .meta_harness/tooling/src/link_agents.py --project-root . --check
 
 `merge_design_candidates.py` 将已审阅的累积候选快照合成同一套五清单。它固定本轮
 `omne-harness-lite-design-2026-09-15`、Schema namespace、legacy baseline、统一 v1、
-21 个目标坐标以及唯一允许退役的 `capability.session-run`；最终 `snapshot_id` 必须由调用者
+23 个目标坐标（包括账号身份与注册组合）以及唯一允许退役的 `capability.session-run`；最终 `snapshot_id` 必须由调用者
 在锁定修订后显式传入，工具不会写临时 hash。
 
 ```sh

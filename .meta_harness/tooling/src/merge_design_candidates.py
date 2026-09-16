@@ -23,6 +23,7 @@ ALLOWED_COORDINATES = frozenset({
     "capability.engineering-observation@1",
     "capability.tenant-governance@1",
     "capability.action-authorization@1",
+    "capability.account-identity@1",
     "capability.budget-accounting@1",
     "capability.session@1",
     "capability.run@1",
@@ -36,6 +37,7 @@ ALLOWED_COORDINATES = frozenset({
     "capability.external-hooks@1",
     "composition.agent-session-binding@1",
     "composition.core-work-coordination@1",
+    "composition.account-registration@1",
     "composition.session-run-agent-lifecycles@1",
 })
 ALLOWED_RETIRED_IDENTITIES = frozenset({"capability.session-run"})
@@ -451,7 +453,7 @@ def main(argv: list[str] | None = None) -> int:
             args.design_root.resolve(), args.snapshot_id, candidates, replacements, accepted, frozen
         )
         write_outputs(args.output.resolve(), rendered, args.check)
-        print(f"PASS: merged {len(candidates)} candidate(s) into the fixed 21-coordinate baseline.")
+        print(f"PASS: merged {len(candidates)} candidate(s) into the fixed {len(ALLOWED_COORDINATES)}-coordinate baseline.")
         return 0
     except (OSError, MergeError) as error:
         print(f"ERROR: {error}", file=sys.stderr)

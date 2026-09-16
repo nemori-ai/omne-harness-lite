@@ -123,7 +123,7 @@ def test_merge_deduplicates_exact_items_and_requires_explicit_replacement(tmp_pa
     output = tmp_path / "output"
     passed = run_merge(design, output, ("first", first), ("second", second), replacements=replacement)
     assert passed.returncode == 0, passed.stderr
-    assert len(json.loads((output / "catalog.json").read_text())["contracts"]) == 21
+    assert len(json.loads((output / "catalog.json").read_text())["contracts"]) == len(MERGER.ALLOWED_COORDINATES)
     assert json.loads((output / "rebase-map.json").read_text())["relations"][0]["freeze_gate"]["reason"] == "reviewed replacement"
     assert json.loads((output / "baseline.json").read_text())["snapshot_id"] == "final-review-sha"
 
