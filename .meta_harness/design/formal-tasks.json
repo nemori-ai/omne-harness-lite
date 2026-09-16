@@ -1125,6 +1125,146 @@
         "spec/compositions/account-registration/v1/formal/AccountRegistration.tla"
       ],
       "timeout_seconds": 180
+    },
+    {
+      "id": "message-stream-v1-joint-projection-safety",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/message-stream/v1/formal/JointProjectionRecovery.tla",
+        "spec/capabilities/message-stream/v1/formal/JointProjectionRecoverySafety.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "${TLC_STATE_ROOT}/message-stream-v1-joint-projection-safety",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/message-stream/v1/formal/JointProjectionRecoverySafety.cfg",
+        "spec/capabilities/message-stream/v1/formal/JointProjectionRecovery.tla"
+      ],
+      "timeout_seconds": 180,
+      "coverage": [
+        "MS-07/08/11/12/22/23 with SE-03/10 and MC-12/13/14 finite projection interleavings"
+      ],
+      "exclusions": [
+        "multi-attempt/epoch, full active queue/source recovery, media durability, provider/client conformance"
+      ]
+    },
+    {
+      "id": "message-stream-v1-joint-projection-progress",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/message-stream/v1/formal/JointProjectionRecovery.tla",
+        "spec/capabilities/message-stream/v1/formal/JointProjectionRecoveryProgress.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "${TLC_STATE_ROOT}/message-stream-v1-joint-projection-progress",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/message-stream/v1/formal/JointProjectionRecoveryProgress.cfg",
+        "spec/capabilities/message-stream/v1/formal/JointProjectionRecovery.tla"
+      ],
+      "timeout_seconds": 180,
+      "coverage": [
+        "Conditional durable projection convergence under finite changes and weak fairness"
+      ],
+      "exclusions": [
+        "wall-clock polling bound, repeated failure, full active live safety"
+      ]
+    },
+    {
+      "id": "external-hooks-v1-joint-stop",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/external-hooks/v1/formal/JointHooksRunControl.tla",
+        "spec/capabilities/external-hooks/v1/formal/JointHooksRunControl.stop-none.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "${TLC_STATE_ROOT}/external-hooks-v1-joint-stop",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/external-hooks/v1/formal/JointHooksRunControl.stop-none.cfg",
+        "spec/capabilities/external-hooks/v1/formal/JointHooksRunControl.tla"
+      ],
+      "timeout_seconds": 180,
+      "coverage": [
+        "HK-16 cap and revision with Run/RunDriver stopping barrier"
+      ],
+      "exclusions": [
+        "complete recovery, real atomic gate and isolation implementation"
+      ]
+    },
+    {
+      "id": "external-hooks-v1-joint-gate",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/external-hooks/v1/formal/JointHooksRunControl.tla",
+        "spec/capabilities/external-hooks/v1/formal/JointHooksRunControl.gate-none.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "${TLC_STATE_ROOT}/external-hooks-v1-joint-gate",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/external-hooks/v1/formal/JointHooksRunControl.gate-none.cfg",
+        "spec/capabilities/external-hooks/v1/formal/JointHooksRunControl.tla"
+      ],
+      "timeout_seconds": 180,
+      "coverage": [
+        "HK-15/AU-06 timeout and current gate with Run control"
+      ],
+      "exclusions": [
+        "multiple actions, provider conformance"
+      ]
+    },
+    {
+      "id": "external-hooks-v1-joint-close",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/external-hooks/v1/formal/JointHooksRunControl.tla",
+        "spec/capabilities/external-hooks/v1/formal/JointHooksRunControl.close-none.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "${TLC_STATE_ROOT}/external-hooks-v1-joint-close",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/external-hooks/v1/formal/JointHooksRunControl.close-none.cfg",
+        "spec/capabilities/external-hooks/v1/formal/JointHooksRunControl.tla"
+      ],
+      "timeout_seconds": 180,
+      "coverage": [
+        "HK-07 close context and S1 completion isolation"
+      ],
+      "exclusions": [
+        "full Session state and durable completion implementation"
+      ]
     }
   ]
 }

@@ -1889,7 +1889,6 @@
       "contract_path": "spec/capabilities/message-stream/v1/contract.md",
       "resources": [
         "spec/capabilities/message-stream/v1/contract.md",
-        "spec/capabilities/message-stream/v1/scenarios.md",
         "spec/capabilities/message-stream/v1/formal/ActiveHandoff.cfg",
         "spec/capabilities/message-stream/v1/formal/ActiveHandoff.tla",
         "spec/capabilities/message-stream/v1/formal/ActiveHandoffProgress.cfg",
@@ -1915,6 +1914,9 @@
         "spec/capabilities/message-stream/v1/formal/HiddenWithoutCoverageMutation.cfg",
         "spec/capabilities/message-stream/v1/formal/HintInstallsCursorMutation.cfg",
         "spec/capabilities/message-stream/v1/formal/InstalledOnReceiptMutation.cfg",
+        "spec/capabilities/message-stream/v1/formal/JointProjectionRecovery.tla",
+        "spec/capabilities/message-stream/v1/formal/JointProjectionRecoveryProgress.cfg",
+        "spec/capabilities/message-stream/v1/formal/JointProjectionRecoverySafety.cfg",
         "spec/capabilities/message-stream/v1/formal/ListenerFailureGlobalMutation.cfg",
         "spec/capabilities/message-stream/v1/formal/LiveBeforeEnqueueMutation.cfg",
         "spec/capabilities/message-stream/v1/formal/MessageDelivery.cfg",
@@ -1943,7 +1945,8 @@
         "spec/capabilities/message-stream/v1/formal/StaleHiddenInstallMutation.cfg",
         "spec/capabilities/message-stream/v1/formal/StaleSnapshotInstallMutation.cfg",
         "spec/capabilities/message-stream/v1/formal/StaleTokenInstallMutation.cfg",
-        "spec/capabilities/message-stream/v1/formal/StaleVisibilityInstallMutation.cfg"
+        "spec/capabilities/message-stream/v1/formal/StaleVisibilityInstallMutation.cfg",
+        "spec/capabilities/message-stream/v1/scenarios.md"
       ],
       "acceptance": null,
       "dependencies": [
@@ -2163,6 +2166,10 @@
       "contract_path": "spec/capabilities/external-hooks/v1/contract.md",
       "resources": [
         "spec/capabilities/external-hooks/v1/contract.md",
+        "spec/capabilities/external-hooks/v1/formal/JointHooksRunControl.close-none.cfg",
+        "spec/capabilities/external-hooks/v1/formal/JointHooksRunControl.gate-none.cfg",
+        "spec/capabilities/external-hooks/v1/formal/JointHooksRunControl.stop-none.cfg",
+        "spec/capabilities/external-hooks/v1/formal/JointHooksRunControl.tla",
         "spec/capabilities/external-hooks/v1/scenarios.md"
       ],
       "acceptance": null,
