@@ -66,12 +66,12 @@
       "consumers": [
         "capability.live-agent@1<-data.agent-runtime-identity@1",
         "composition.agent-session-binding@1<-data.agent-runtime-identity@1",
-        "data.core-work@2<-data.agent-runtime-identity@1"
+        "data.core-work@1<-data.agent-runtime-identity@1"
       ],
       "release_evidence": [],
       "freeze_gate": {
         "blocked": true,
-        "reason": "Target v1 is candidate with acceptance:null; all listed consumers are observed-legacy without verified-current adoption, and release_evidence is absent."
+        "reason": "Target v1 remains candidate with acceptance:null; 3 mapped consumers have verified-current adoption but release evidence and freeze are absent."
       }
     },
     {
@@ -206,7 +206,7 @@
       "release_evidence": [],
       "freeze_gate": {
         "blocked": true,
-        "reason": "Target v1 is candidate with acceptance:null; all listed consumers are observed-legacy without verified-current adoption, and release_evidence is absent."
+        "reason": "Target v1 remains candidate with acceptance:null; only binding adoption is verified-current; other mapped consumers need exact clause review, release evidence and freeze."
       }
     },
     {
@@ -2312,61 +2312,61 @@
     {
       "consumer": "capability.live-agent@1<-data.agent-runtime-identity@1",
       "consumes": {
-        "baseline_id": "omne-harness-lite-legacy-spec",
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
         "contract_id": "data.agent-runtime-identity",
         "version": 1
       },
-      "status": "observed-legacy",
+      "status": "verified-current",
       "evidence": {
-        "source_commit": "e3573ca72d18bfe7ddd002df5025551b51eede46",
+        "source_commit": "d6669f28072e759f40a64386836b333f06d71d4c",
         "source_path": "spec/capabilities/live-agent/v1/contract.md",
-        "sha256": "381b9836f6045344c029125858795acd4f6d8460216c3021c51720d3d092a7b4",
-        "snapshot_path": "evidence/legacy-consumers/data-agent-runtime-identity-1.source"
+        "sha256": "90e4a0093fdb2a0626cf0ea56334de9218c86427ef15a437763ad84a8bb2297f",
+        "snapshot_path": "spec/capabilities/live-agent/v1/contract.md"
       }
     },
     {
       "consumer": "composition.agent-session-binding@1<-data.agent-runtime-identity@1",
       "consumes": {
-        "baseline_id": "omne-harness-lite-legacy-spec",
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
         "contract_id": "data.agent-runtime-identity",
         "version": 1
       },
-      "status": "observed-legacy",
+      "status": "verified-current",
       "evidence": {
-        "source_commit": "e3573ca72d18bfe7ddd002df5025551b51eede46",
+        "source_commit": "d6669f28072e759f40a64386836b333f06d71d4c",
         "source_path": "spec/compositions/agent-session-binding/v1/contract.md",
-        "sha256": "7b9c107091c523c72987ab2ffae57a8271f9c2ae23af60c30808479d2fe5dacc",
-        "snapshot_path": "evidence/legacy-consumers/data-agent-runtime-identity-2.source"
+        "sha256": "8fa4dc2f8b7504809f152fc1f650e84c76b2869e96b1c711756050121912c7f0",
+        "snapshot_path": "spec/compositions/agent-session-binding/v1/contract.md"
       }
     },
     {
-      "consumer": "data.core-work@2<-data.agent-runtime-identity@1",
+      "consumer": "data.core-work@1<-data.agent-runtime-identity@1",
       "consumes": {
-        "baseline_id": "omne-harness-lite-legacy-spec",
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
         "contract_id": "data.agent-runtime-identity",
         "version": 1
       },
-      "status": "observed-legacy",
+      "status": "verified-current",
       "evidence": {
-        "source_commit": "e3573ca72d18bfe7ddd002df5025551b51eede46",
-        "source_path": "spec/data/core-work/v2/contract.md",
-        "sha256": "a3c8ab5eaf6323974cf261c633fd944fd0c214e8d424a3fe3cc40aa9e9b11d34",
-        "snapshot_path": "evidence/legacy-consumers/data-agent-runtime-identity-3.source"
+        "source_commit": "d6669f28072e759f40a64386836b333f06d71d4c",
+        "source_path": "spec/data/core-work/v1/contract.md",
+        "sha256": "92da6116b71dd4e85a7156ac4baf0615f595398c7718e3a216be18ee4368c2fd",
+        "snapshot_path": "spec/data/core-work/v1/contract.md"
       }
     },
     {
       "consumer": "composition.agent-session-binding@1<-capability.live-agent@1",
       "consumes": {
-        "baseline_id": "omne-harness-lite-legacy-spec",
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
         "contract_id": "capability.live-agent",
         "version": 1
       },
-      "status": "observed-legacy",
+      "status": "verified-current",
       "evidence": {
-        "source_commit": "e3573ca72d18bfe7ddd002df5025551b51eede46",
+        "source_commit": "d6669f28072e759f40a64386836b333f06d71d4c",
         "source_path": "spec/compositions/agent-session-binding/v1/contract.md",
-        "sha256": "7b9c107091c523c72987ab2ffae57a8271f9c2ae23af60c30808479d2fe5dacc",
-        "snapshot_path": "evidence/legacy-consumers/capability-live-agent-1.source"
+        "sha256": "8fa4dc2f8b7504809f152fc1f650e84c76b2869e96b1c711756050121912c7f0",
+        "snapshot_path": "spec/compositions/agent-session-binding/v1/contract.md"
       }
     },
     {
