@@ -1,0 +1,223 @@
+{
+  "baseline_commit": "d6669f28072e759f40a64386836b333f06d71d4c",
+  "inputs": {
+    ".meta_harness/design/decisions/e-message-recovery-protocol/decision.md": "c95aeeb548865be080bbbcbf43e6d8c10a13b2313d244671db54c4eeb7dc0a62",
+    ".meta_harness/design/decisions/e-message-stream-hooks/decision.md": "03985f0b2df2fdf7c65bd734a511d179bf24421232ddf955d99a5fe33b5046a7",
+    ".meta_harness/design/evidence/formal-2026-09-16/j-message-projection/reproduce.py": "6c87a02d594f8ad0752fd4f4298d30bd351019d2ae9b5318eb6c4297a2d27bee",
+    ".meta_harness/design/spec/capabilities/media-content/v1/contract.md": "81c1669d3b023a5d90db1cda04d79342c62e813036225b840315e146477e0026",
+    ".meta_harness/design/spec/capabilities/message-stream/v1/contract.md": "a4ac7ff8fb7168d034c7bc0a5bd09bdfa57a79212a25214f3ad735589780538b",
+    ".meta_harness/design/spec/capabilities/message-stream/v1/formal/JointProjectionRecovery.tla": "5bf141c41b238eb5fb0cc4483a2c33f5acc563e63ae4352a1d57dc94db81370e",
+    ".meta_harness/design/spec/capabilities/message-stream/v1/formal/JointProjectionRecoveryProgress.cfg": "cd34c0b693894baa81e5379fd8f763cff194b1d2cdba527b4867358039a5441e",
+    ".meta_harness/design/spec/capabilities/message-stream/v1/formal/JointProjectionRecoveryReceiptCursorMutation.cfg": "11ed1663c112c57f5220c9e32985046b7587819edd011943666a2daf909e8adf",
+    ".meta_harness/design/spec/capabilities/message-stream/v1/formal/JointProjectionRecoveryReopenTerminalMutation.cfg": "8a12edfaf93d29b6e6227235420e3f107b423bf1e82e8f276bd55d6065d0c08b",
+    ".meta_harness/design/spec/capabilities/message-stream/v1/formal/JointProjectionRecoverySafety.cfg": "cc4c08f4af0c0a2fc59af8a6da33a91f434b1a06f470186b6cb91afc1a7b86ea",
+    ".meta_harness/design/spec/capabilities/message-stream/v1/formal/JointProjectionRecoveryStaleActiveMutation.cfg": "f02a50bea0df62030e9d45710f98a3578495aa3109808ae775decfbb20f7e877",
+    ".meta_harness/design/spec/capabilities/message-stream/v1/formal/JointProjectionRecoveryStaleAsOfMutation.cfg": "a195ab8ecb4405c359f4ec7449b45e85b6219903274ff6d09ed7fd3b78f374b7",
+    ".meta_harness/design/spec/capabilities/message-stream/v1/formal/JointProjectionRecoveryStaleSnapshotMutation.cfg": "aeb71919898f2a2059b9d22cdd1bd2cc81f3a967a9a5c1e9f3775470f169fcc1",
+    ".meta_harness/design/spec/capabilities/model-execution/v1/contract.md": "d7d6f9508f31915e48c4bbd33a89067c13f14c8af74cca706b12788b128091bf",
+    ".meta_harness/design/spec/capabilities/session/v1/contract.md": "dab0166e029d8aa96f721c1eba4965e90d835753d252bd85de3d13e21a74742f"
+  },
+  "tools": {
+    "java": {
+      "path": "/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java",
+      "sha256": "999c141a6e620c71aa4230ccb62341a89162f37818753ff006d766bf935dcbe1"
+    },
+    "tla2tools": {
+      "path": "/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar",
+      "sha256": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1"
+    }
+  },
+  "java_version": "openjdk version \"21.0.12.1\" 2026-08-18 LTS\nOpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS)\nOpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)\n",
+  "runs": [
+    {
+      "case": "Safety",
+      "command": [
+        "/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java",
+        "-Xmx2g",
+        "-cp",
+        "/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "2",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness-j-message/tmp/j-message/Safety",
+        "-config",
+        "JointProjectionRecoverySafety.cfg",
+        "JointProjectionRecovery.tla"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness-j-message/.meta_harness/design/spec/capabilities/message-stream/v1/formal",
+      "expected_violation": null,
+      "exit_code": 0,
+      "matched_expectation": true,
+      "log": "raw/Safety.log",
+      "sha256": "96d5e41c8e6525e36790138d4838895233ead9e8e5fcfa7dcbfa21945dda7e58",
+      "state_counts": [
+        "444877 states generated, 105844 distinct states found, 0 states left on queue."
+      ]
+    },
+    {
+      "case": "Progress",
+      "command": [
+        "/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java",
+        "-Xmx2g",
+        "-cp",
+        "/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "2",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness-j-message/tmp/j-message/Progress",
+        "-config",
+        "JointProjectionRecoveryProgress.cfg",
+        "JointProjectionRecovery.tla"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness-j-message/.meta_harness/design/spec/capabilities/message-stream/v1/formal",
+      "expected_violation": null,
+      "exit_code": 0,
+      "matched_expectation": true,
+      "log": "raw/Progress.log",
+      "sha256": "873aaff0813738cf6b1827181e4a71b4f7c006165924aac8151ae82e98496eb1",
+      "state_counts": [
+        "877 states generated, 105,844 distinct states found, 0 states left on queue.",
+        "444877 states generated, 105844 distinct states found, 0 states left on queue."
+      ]
+    },
+    {
+      "case": "ReceiptCursorMutation",
+      "command": [
+        "/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java",
+        "-Xmx2g",
+        "-cp",
+        "/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "2",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness-j-message/tmp/j-message/ReceiptCursorMutation",
+        "-config",
+        "JointProjectionRecoveryReceiptCursorMutation.cfg",
+        "JointProjectionRecovery.tla"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness-j-message/.meta_harness/design/spec/capabilities/message-stream/v1/formal",
+      "expected_violation": "AtomicCoverage",
+      "exit_code": 12,
+      "matched_expectation": true,
+      "log": "raw/ReceiptCursorMutation.log",
+      "sha256": "ffcfba3a3e176e65b61df0e3ba304326faf1b2ca478d5950be02c8f47b7cc1b8",
+      "state_counts": [
+        "119 states generated, 83 distinct states found, 62 states left on queue."
+      ]
+    },
+    {
+      "case": "StaleSnapshotMutation",
+      "command": [
+        "/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java",
+        "-Xmx2g",
+        "-cp",
+        "/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "2",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness-j-message/tmp/j-message/StaleSnapshotMutation",
+        "-config",
+        "JointProjectionRecoveryStaleSnapshotMutation.cfg",
+        "JointProjectionRecovery.tla"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness-j-message/.meta_harness/design/spec/capabilities/message-stream/v1/formal",
+      "expected_violation": "SnapshotCAS",
+      "exit_code": 12,
+      "matched_expectation": true,
+      "log": "raw/StaleSnapshotMutation.log",
+      "sha256": "2021651e75601d24367cd28176d7adf738959f5d76fffa59563e611b10a3b6c1",
+      "state_counts": [
+        "3154 states generated, 1359 distinct states found, 857 states left on queue."
+      ]
+    },
+    {
+      "case": "StaleAsOfMutation",
+      "command": [
+        "/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java",
+        "-Xmx2g",
+        "-cp",
+        "/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "2",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness-j-message/tmp/j-message/StaleAsOfMutation",
+        "-config",
+        "JointProjectionRecoveryStaleAsOfMutation.cfg",
+        "JointProjectionRecovery.tla"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness-j-message/.meta_harness/design/spec/capabilities/message-stream/v1/formal",
+      "expected_violation": "SnapshotCAS",
+      "exit_code": 12,
+      "matched_expectation": true,
+      "log": "raw/StaleAsOfMutation.log",
+      "sha256": "5f718a5cb094621403e450a653b0e537df8955cc16c0067eb48d21365b554de8",
+      "state_counts": [
+        "15714 states generated, 5609 distinct states found, 3062 states left on queue."
+      ]
+    },
+    {
+      "case": "StaleActiveMutation",
+      "command": [
+        "/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java",
+        "-Xmx2g",
+        "-cp",
+        "/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "2",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness-j-message/tmp/j-message/StaleActiveMutation",
+        "-config",
+        "JointProjectionRecoveryStaleActiveMutation.cfg",
+        "JointProjectionRecovery.tla"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness-j-message/.meta_harness/design/spec/capabilities/message-stream/v1/formal",
+      "expected_violation": "ActiveGeneration",
+      "exit_code": 12,
+      "matched_expectation": true,
+      "log": "raw/StaleActiveMutation.log",
+      "sha256": "95093c5788dfade9a60f0f28bae8148068cda72b9d604de947626275c0edc287",
+      "state_counts": [
+        "349 states generated, 193 distinct states found, 138 states left on queue."
+      ]
+    },
+    {
+      "case": "ReopenTerminalMutation",
+      "command": [
+        "/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/jdk-21.0.12.1+1-jre/bin/java",
+        "-Xmx2g",
+        "-cp",
+        "/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar",
+        "tlc2.TLC",
+        "-noGenerateSpecTE",
+        "-workers",
+        "2",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness-j-message/tmp/j-message/ReopenTerminalMutation",
+        "-config",
+        "JointProjectionRecoveryReopenTerminalMutation.cfg",
+        "JointProjectionRecovery.tla"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness-j-message/.meta_harness/design/spec/capabilities/message-stream/v1/formal",
+      "expected_violation": "TerminalDominates",
+      "exit_code": 12,
+      "matched_expectation": true,
+      "log": "raw/ReopenTerminalMutation.log",
+      "sha256": "c287ddd73540e5fbd11620f90c6ecc695a7ce47a33a4be552554361bff6f4566",
+      "state_counts": [
+        "13476 states generated, 5015 distinct states found, 2839 states left on queue."
+      ]
+    }
+  ]
+}

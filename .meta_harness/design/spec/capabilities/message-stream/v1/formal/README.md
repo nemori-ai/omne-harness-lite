@@ -1,5 +1,17 @@
 # Message Stream 有限模型
 
+## J：联合恢复交错检查（2026-09-16）
+
+新增 [JointProjectionRecovery](JointProjectionRecovery.tla) 将 Changes 安装、授权 full snapshot、
+active 换代与迟到更新放入同一有限状态机，检查 MS-22/23 与 SE-03/10、MC-06 的交接切片。
+这是候选验证附件，不是新组合契约，也不取代下文更细的单协议模型。
+[联合证据包](../../../../../evidence/formal-2026-09-16/j-message-projection/README.md)
+列出精确输入哈希、前提、条款覆盖与未验证范围、复现命令和实际正反例日志。
+安全和弱公平进展检查各枚举 105,844 个状态；五个定向 mutant 均违反指定性质。
+不将本次有界结果表述为全部跨能力验证或实现完成。
+
+## 既有单协议模型
+
 本目录分别建模耐久事实交付、active transient 交接、durable disposition 恢复与授权投影安装；四个
 legacy Cursor 工件保留其原有窄抽象。拆分保持 DR commit position、Session projection
 `completeTo`、publisher `pub.n`、attempt chunk index、subscriber generation 与客户端 installed
