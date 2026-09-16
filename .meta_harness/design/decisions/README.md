@@ -32,6 +32,7 @@
 - [D-007：独立状态权威与受管附着](runtime-composition/README.md)
 - [D-016：独立产品账号能力](account-identity/README.md)，接受账号/Tenant 边界与成熟嵌入式认证优先验证方向
 - [D-017：统一的个人租户创建机制](personal-tenant-creation/README.md)，接受首次初始化与后续注册共用一套 Tenant 创建语义
+- [D-018：消息交付与外部 Hooks 的新 v1 语义](e-message-stream-hooks/README.md)，接受八组可观察变化的设计方向；发布与实现另行验证
 
 ### 实现组织与工程观测
 
