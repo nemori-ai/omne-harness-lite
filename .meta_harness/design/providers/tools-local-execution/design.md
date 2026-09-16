@@ -1,7 +1,9 @@
 # 本地执行提供者设计映射
 
-状态：目标接口尚未实现/编译；真实文件 I/O、停止栅栏、frames 和资源权限仍待交付。 本页保留后续实现会持续消费的端口、状态、失败与撤除协议；来源中的旧
-接受和旧坐标仅作 provenance。本 baseline 对应契约均为 candidate、`acceptance:null`。
+状态：本设计所需的完整 TL/LE/Run 联合实现尚未验证；独立实施线已有受管文件执行及
+stop→rename 的局部修复（证据范围见[验证记录](verification.md)）。本页保留后续实现会持续消费的
+端口、状态、失败与撤除协议；来源中的旧接受和旧坐标仅作 provenance。当前 v1 契约仍为
+candidate、`acceptance:null`。
 
 
 
@@ -14,7 +16,10 @@
 
 ## 当前 v1 适配
 
-来源协议没有被提升为实现符合性；其中仍指向旧坐标的内容只作 provenance，必须在实现前映射到当前 candidate 或登记 gap。
+来源协议没有被提升为实现符合性；当前语义按[Tools v1 TL-07～09](../../spec/capabilities/tools/v1/contract.md)、
+[Run v1 RN-05](../../spec/capabilities/run/v1/contract.md)和
+[DR v1](../../spec/capabilities/durable-records/v1/contract.md)读取。旧格式、旧 probe 与施工编号只作来源定位；
+不能为了复用旧实现而增加兼容层。
 
 ## 来源协议（重基输入）
 
@@ -40,23 +45,29 @@ executionEpoch、原 Step.createdEpoch、当前 Run.epoch 与 provider incarnati
 
 | 本地执行状态 | 最小值与不变量 |
 |---|---|
-| Attempt ledger | `{execution,phase:accepted|dispatch_intent|terminal,acceptedOperation,planDigest,controlRevision,tombstone:null|StopFence,terminal:null|ExecutionTerminal,deliveries}`；absence 独立于任一状态。数据恢复不复活 Permit、ExactUse 或 FileHandle |
-| StopFence | `{execution,controlOperation,revision,requestedAt,epochClosed:true}`；即使 absence 也可创建，在 start 的同一账本/共同门排序；墓碑按原 execution 身份永久保留或可证明压缩，不能按时间过期 |
-| ExecutionTerminal | `{resultCandidate,acceptance:accepted|never_accepted,physical:active|quiescent|unknown,isolation:sealed|pending|unknown,cleanup:released|retained,effect:none|happened|possible|unknown,sourceVersion}`；unknown 不等于已停止，安全停止也不保证效果撤销 |
-| ExecutionExposure | `{call,attempt,owner,ownerGeneration,executionEpoch,state:open|closed,closedBy?}`；取得执行接纳即 open，只有同 identity 的 quiescent 或 verified isolation 关闭；业务 settlement 独立 |
+| Attempt ledger | `{execution,phase:absence|accepted|dispatch_intent|terminal,acceptedOperation,planDigest,controlRevision,tombstone:null|StopFence,terminal:null|ExecutionTerminal,deliveries}`；phase 单向前进，stop 墓碑可先于 accepted。数据恢复不复活 Permit、ExactUse 或 FileHandle |
+| StopFence | `{execution,controlOperation,revision,requestedAt}` 并绑定原 execution epoch；即使 absence 也可创建，在 start 的同一账本/共同门排序；单调用 stop 不自行宣称 Run epoch 已关闭。墓碑按原 execution 身份永久保留或可证明压缩，不能按时间过期 |
+| ExecutionTerminal | 原执行结果、实际 I/O、清理、效果和 sourceVersion 的内部证据；对 TL 输出封闭的 `physical/cleanup/effect` 三轴，不能把内部 `active/sealed/released/happened` 直接当成 TL-09 值 |
+| ExecutionExposure | `{call,attempt,owner,ownerGeneration,executionEpoch,state:open|closed,closedBy?,fenceRevision?}`；取得执行许可**或**接纳即由执行 owner 持有 open，只有同 call/attempt/execution epoch/owner generation/fence 的 quiescent 或 verified isolation 关闭；业务 settlement 独立 |
 | Live task | 原 provider 私有 `{incarnation,execution,launches,issuedIO,openHandles,cleanup}`；每个异步取得从开始前即有原 owner，迟到 handle 回原 cleanup；计数只是索引，必须对应实际 task/handle 及完成证据 |
 
-streamId 为规范元组 execution(ExecutionRef)、environment(ResourceRef)、
-file(ResourceRef)；core-journal/1、core-operation/1、Counter、事件字符串 version
-`"1"` 和 SR 同批 sourcePosition 不再另定义。decoder/纯 fold 检查原 owner/状态
-与来源；缺版本或 required fold 不开放 start，不能恢复成空墓碑。
+execution、environment、file 是 LE owner 的逻辑记录流，实际 `StreamRef`、操作身份、
+批内事实位置与编码由当前 DR/records 契约及提供者给出。旧 `core-journal/1`、
+`core-operation/1` 与事件 `/1` 是来源字节形状，不是新 v1 可写恢复格式；
+不得机械替换成 `/3`。普通业务批次、冲突结果和 writer epoch 的新 codec 仍有
+[DR/records 提供者缺口](../storage-jsonl/design.md#待语义拥有者收口)。
+decoder/纯 fold 要检查原 owner、身份、状态与来源；缺精确格式或 required fold
+不开放 start，不能恢复成空墓碑。
 
-| owner / 事件族（全部 /1） | 保存与合法转移 |
+| owner / 旧来源逻辑事件族（不是新记录编码） | 保存与合法转移 |
 |---|---|
 | local-execution.accepted / dispatch_intent / terminal_recorded | 精确计划/准入来源，实际 I/O 前的保守意图，实际终止事实；不能先写 succeeded 再做文件操作；终态与待交付 TL/BG 后果同批 |
 | local-execution.stop_fenced/progressed / delivery_changed | 原取消墓碑、真实任务/handle/迟到启动隔离结果，目标回执；stop 的否定屏障不等同步等待 I/O |
 | local-execution.environment_registered/file_registered/rights_changed/file_observed | 原对象/owner/根与注册版本，权限上限合法变更，已核实内容修订或 unknown；读取文件内容本身不成为授权事实 |
 | 各 owner.operation_denied | 具名操作、目标、code、当前依据/水位，原 owner 关键拒绝审计；写失败为 audit_unavailable，不报已耐久拒绝 |
+
+上述是旧稿的语义分组；新事实身份、三段式 kind 与同批关系以 TL-15/DR-01 为准。
+旧事件名和版本不是持久字节或新 decoder 的采用依据。
 
 ## 本地资源与真实执行
 
@@ -99,56 +110,87 @@ LocalFileToolPlugin 提供一个多命令工具，read `{targetId}` 为 none，w
 `start({execution,permit,binding,plan,operation})` 只给受信 TL 派发 owner；
 `inspect(execution)`、`requestStop({execution,controlOperation})`、`subscribe`
 是 ExecutionProvider 的窄方法。inspect 返回 absence/accepted/dispatch_intent/
-terminal、真实 physical/isolation/cleanup/effect 与 watermark；start 重复返回原
+terminal、真实停止/清理/效果证据与 watermark；start 重复返回原
 ExecutionRef/接纳回执，同键异计划或旧 permit 为 conflict/invalid_permit。
 detach 固定 unsupported，不改变前台关系。
+本地 read/write 命令声明 `stop.capability = cooperative_fence`：可同步封闭未发出的
+新文件动作，已发动作须等待真实收口，不能承诺时限内强隔离。`force` 单调用升级仅属于
+已核实 `forced_isolation` 能力的 owner，本提供者不得把超时、进程失联或内部
+`sealed` 标签当作 verified isolation，也不对 unknown 自动升级。
 原宿主另持 `requestClose/inspectExit`：返回 provider 的 closing/quiescent/
 releasing/closed、原未收口 execution/准备/handle 责任及最近错误。开始关闭先
 同步关新 start，真正关闭按下述证据推进；调用者等待超时不转 closed。普通
 用户不取得该宿主管理能力，单次 inspect 只按其权限披露对应工作。
 
+TL-07 的 exposure 从**执行许可取得或目标接纳两者中先发生者**开放，不等到
+`start` 回执。许可与 LE 接纳之间的空窗必须有精确 call/attempt、执行 epoch、
+owner generation 的持久 owner 和记账/交接；恢复时先认回该 exposure 与 fence，
+未认回则禁止新代接纳或向 RN-05 声称集合已空。当前 TL/LE 哪一方在许可提交批
+持久写入这项 LE-owner 暴露、跨域时如何按 CC-05 交接，仍须与
+[Tools 提供者](../tools-tools/design.md)联合固定；没有交接事实时不可把此空窗解释成未暴露。
+
 1. TL 的耐久 dispatch 意图在原 authority 下保留至执行目标接纳回执。LE 在同一
    coordinator 短门核验私有 permit、精确 Binding/原执行 epoch、自己的墓碑及
    去重，提交 local-execution.accepted；该批耐久前不启动任何目标文件 I/O。
-   start 回执丢失查同一 ledger，不能新建调用。跨域 provider 以后沿 CC-05，
-   本地使用同一 core-journal，不另建 writer 或假定两文件原子提交。
-2. 真正 I/O 前 LE 保存 dispatch_intent 及给 BG 的具名暴露交付意图；BG 通过
+   start 回执丢失查同一 ledger，不能新建调用。跨域 provider 沿 CC-05；
+   本地共同提交消费同一 DR 协调域及唯一 writer，不另建 writer 或假定两文件原子提交。
+2. 真正 I/O 前 LE 保存 dispatch_intent 及给 BG 的具名预算暴露交付意图；BG 通过
    recordExposure 认回这条真实 possibly_emitted 来源并耐久确认后，才继续启动。
    无回执保留原意图/预留且不发 I/O，不要求 BG 从执行帧猜暴露。随后在原执行屏障同步确认尚未 stop、
    登记一个原 launch/task；退出门后立即调用固定 Node I/O，无中间 await/插件
    回调。stop 先封闭则不发出，已登记的 launch 则仍由原 owner 收口，不能从
-   任务表先删除再等待。每次下一文件系统步骤均检查原停止屏障；真实 syscall
-   与 async await 都在门外，门不等待 I/O。
+   任务表先删除再等待。rename 发出前，每个**尚未发出**的 read/write/open/fstat/
+   临时文件 sync/rename 等新文件动作都用同一原 host 串行门完成“核对 stop/lease → 登记 task/handle
+   接收责任 → 立即调用固定 Node API”；这三步间不得 `await`。Node Promise 的
+   等待在门外，门不等待 I/O；stop 墓碑与各次发出按该门排序。
 3. read/write/open/sync/close 的每个 Promise 和迟到 FileHandle 从发起前就有
    原 task。write 写原目标同目录的专用临时文件，sync 后 rename，再同步目标/
-   必需目录，实际结果才可报告已完成；stop 不把已发生 rename 当回滚。结果
+   必需目录，实际结果才可报告已完成。**rename 尚未发出时**，stop 先过门就禁止
+   rename；**rename 已发出后**，目标/目录 fsync、revision 复核、fd close 是该已发
+   动作必要的完成与收口，stop 不应拦截这些步骤，也不得据此启动另一个独立文件
+   效果。stop 不把已发生 rename 当回滚；已核实效果与结果结算分开。结果
    经完整 output Schema 校验，非法输出/呈现错误结算 failed 并保留实际效果。
    最后关闭 fd、核实任务已静止，保存 terminal 和 TL/BG 待交付后果。
-4. requestStop 即使早于 start 也在同账本写墓碑；logical 时关闭全部后续步骤/
+4. requestStop 即使早于 start 也在同账本写墓碑；logical 时关闭全部尚未发出的新效果/
    迟到启动，耐久后才确认该封闭可恢复。已发出 I/O 必须等待实际 settle/close，
    只发 AbortSignal、Promise.race 超时、not_found 或计数变零都不算 stopped。
-   I/O 卡住时保留 stopping/retained，时限只结束等待，不虚报可强制中止内核。
+   未 rename 的临时文件清理和已取得 handle 的 close 仍由原 owner 做；I/O 卡住时
+   保留 stopping/retained，时限只结束等待，不虚报可强制中止内核。
 5. 安全停止证据为原墓碑耐久、原 launch 均已收口、实际 I/O 不再进行、所有
    通道禁止迟到 start、handle 已关闭或具名安全隔离。效果 none/happened/possible
    单独保存。成功先耐久成立则 stop=ended；先 stop 后迟到成功按真实已发生事实
    入账，不能自动重写成成功或声称外部效果已撤销。
 
+TL-09 的公开进展只写同一事实中的封闭三轴：`physical = quiescent | isolated | unknown`、
+`cleanup = done | retained`、`effect = none | possible | confirmed`。本地 cooperative
+owner 只有实际无在途效果和迟到启动时给 `quiescent`；仍在活动是中间观察，
+有界等待到期给 `unknown`，**不**输出 `isolated`。全部必需 fd/临时资源和原清理
+责任真实释放才给 `done`，否则 `retained`；能证明未产生效果给 `none`，已核实
+文件效果给 `confirmed`，发出后未核实、崩溃/回执丢失或原内部 `unknown` 给
+`possible`。已发 rename 后若 fsync/revision/close 失败或崩溃，保留真实
+`effect: confirmed | possible` 与 `cleanup: retained`（若尚未清理），业务结果
+按可恢复证据确定，否则 unknown，不能因 target 字节看似相同而填 succeeded。
+若未来另有 forced-isolation provider，只有强隔离资格在装载时已验证、同一
+call/attempt/epoch/generation/fence revision 的隔离证据可核验，才给
+`physical: isolated` 并关闭 TL-07 exposure；效果与清理仍分别报告。
+
 本地只执行这些受管文件操作，不创建可逃逸子进程/网络任务；任意 native callback
 不具有该停止声明。它支持可靠封闭和等待真实收口，**不承诺有时限的强制停止**。
 新的 provider 若声明强制停止，须另给实际隔离/迟到启动证据；API 字段不授资格。
 
-恢复先由 P1 独占 writer 验证前缀，再在同水位 fold TL/HD/SR/BG/执行/资源事实。
-LE 未恢复墓碑前不可接收 start；旧运行 permit/handle 作废。原 accepted 且无
+恢复先由 DR 的独占 writer 验证完整前缀，并沿 CC-06 在同水位 fold
+TL/HD/Session/Budget/执行/资源与必需 owner 事实。LE 未恢复墓碑和 permission-time
+exposure 前不可接收 start；旧运行 permit/handle 作废。原 accepted 且无
 dispatch_intent 的完整前缀可证明未进入效果位置，通过
-TL prepareRecoveryPermit/checkRecoveryPermit（legacy source: `../tools/design.md#原调用与邻包的窄交接`）核对原耐久
+TL 的受限 recovery permit 交接（legacy source: `packages/tools/tools/design.md`）核对原耐久
 准入/控制及实际精确绑定后继续，不以普通 grant 撤回重新裁决旧位置；已有
 dispatch_intent 但终态不明，则 possible_effect/unknown，
 不靠文件内容相同猜“恰好一次”，不自动重发。旧宿主是否仍有能力发出 I/O 也要
 按实际退出/OS 独占证据核实，未核实保持隔离，不能仅以 PID 或进程内 Map 判断。
-真实工具效果与业务 journal 不能原子成立的窗口见设计证据中的实际 kill 探针。
+真实工具效果与业务 journal 不能原子成立的窗口见[固定 kill 探针](verification.md#固定来源证据与限制)。
 
-原执行终态已耐久则重交同一 sourceVersion/operation，直到 TL/SR/BG 回执认回；
-无 Agent 也保留它们。SR S18 执行前 deny 恢复只有原 consume_result 接续，LE
+原执行终态已耐久则重交同一 sourceVersion/operation，直到 TL/Session/BG 回执认回；
+无 Agent 也保留它们。Session SE-18 的执行前 deny 恢复只有原结算接续，LE
 不能凭有 attemptId 就创建执行记录。原取消/强停/已关闭后果不随重启复活。
 
 ### 本地费用与帧
@@ -190,7 +232,7 @@ TL PermitFacts/ExecutionLink、Admission 等必要挂载的当前代次和实际
 ACTIVE**，不能等 effect 第一次执行。已 prepared start 和捕获旧闭包同样检查；
 依赖重现重新 apply 分配新 generation，不能用旧许可进入新 provider incarnation。
 同步状态/通知/异步 disposer 的固定机制及 canonical identity 依据见
-TL T-R1 映射（legacy source: `../tools/design.md#当前代次的最后门内检查`）；这项存活检查随后仍需
+[T-R1 探针](verification.md#固定来源证据与限制)；这项存活检查随后仍需
 原耐久准入/停止屏障/ExactUse/原执行 epoch，不代表重新裁决普通 grant。
 
 恢复/装载先纳管 async 准备，再同门核对当代存活才发布。LocalFileToolPlugin
@@ -201,15 +243,18 @@ LocalExecutionPlugin 的单一复合 effect 按实际 task→fd→provider 顺�
 host 关闭，不能拆成并行 disposer。突失先由 final current 检查封闭新 start；
 已接纳工作通过独立保有的控制/终态交付能力收口，不因操作挂载消失擦账。
 
-**T-R2：真实终态/停止事实交 TL/SR 不需要已交还的 DriverClaim 或活体 Agent。**
+**T-R2：真实终态/停止事实交 TL/Session 不需要已交还的 DriverClaim 或活体 Agent。**
 原来源执行 epoch/terminalVersion 与当前受信接收者/原调用控制分别核验；原
-有效结果使原 Step 接续 ready，已关闭的事实只按 SR late_fact/效果/计量保留。
+同域按 TL-15 将 `execution.attempt.terminal`、`tools.call.settled` 与相应
+`inbound.arrival.accepted` 放进同一完整提交；跨域按 CC-05 交接而不伪造原子性。
+Session 按 SE-14 独立裁决接续/上下文/入队/关闭，LE 不直接置 Run/Step ready。
+已关闭的事实只按迟到效果与计量保留，不复活原工作。
 接收端 unavailable 时保存稳定待交付责任，不能让旧 Agent callback 代行，也
-不能在重启后重新 start 一个已完成 attempt。执行新动作才需原 TL/SR 工作许可。
+不能在重启后重新 start 一个已完成 attempt。执行新动作才需原 TL/Run 工作许可。
 
-计划关闭先关新 start、保存墓碑/移交并等真实收口；P1 关闭次序由相邻 P2/app
+计划关闭先关新 start、保存墓碑/移交并等真实收口；DR writer 关闭次序由受信应用装配
 负责，不能先撤 writer 再宣称停止记录已耐久。timeout/cleanup 失败保留原
 requestClose/inspectExit/retained；宿主持续持有实际资源和后果直至合法释放。
-D06/D07/D09/D11/D12 的真实 I/O/停止/恢复/费用/帧验证及类型编译仍未执行；
-现有 kill 观察（legacy source: `../../../docs/proposals/core-capabilities/implementation/evidence/tool-decision-design/README.md`）
-只支持独立文件效果与业务结果间有崩溃窗口。
+旧 D06/D07/D09/D11/D12 是施工编号，不是当前 v1 验证清单；实施线已有局部
+真实 stop→rename 检查，但 TL/Run/预算/恢复/权限/帧的联合符合性尚未执行。
+证据与剩余反例见[验证记录](verification.md)。
