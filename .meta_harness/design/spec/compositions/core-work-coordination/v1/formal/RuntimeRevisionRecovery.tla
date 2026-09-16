@@ -276,9 +276,10 @@ MarkReady ==
                             publishedOwnerGeneration, publishedHostGeneration,
                             publicationVerified>>
   /\ ready' = TRUE
-  /\ IF Mutation = "readyAutoEffect"
+  /\ IF Mutation \in {"readyAutoEffect", "readyAutoEffectOnce"}
      THEN effectCount' = [effectCount EXCEPT
-            ![CHOOSE o \in everCommitted : TRUE] = @ + 1]
+            ![CHOOSE o \in everCommitted : TRUE] =
+              IF Mutation = "readyAutoEffectOnce" /\ @ > 0 THEN @ ELSE @ + 1]
      ELSE UNCHANGED effectCount
   /\ UNCHANGED <<history, batchSeq, revision, opState, opReceipt, opResult,
        lookupReceipt, lookupResult, frozenInputs, readView, replayView, everCommitted,
@@ -313,8 +314,8 @@ Reassociate ==
 
 Execute(o) ==
   /\ opState[o] = "committed" /\ ready
-  /\ qualifiedGeneration = currentOwnerGeneration
-  /\ reassociatedGeneration = currentHostGeneration
+  /\ (qualifiedGeneration = currentOwnerGeneration \/ Mutation = "skipQualification")
+  /\ (reassociatedGeneration = currentHostGeneration \/ Mutation = "skipReassociation")
   /\ effectCount[o] = 0
   /\ effectCount' = [effectCount EXCEPT ![o] = @ + 1]
   /\ UNCHANGED <<history, batchSeq, revision, opState, opReceipt, opResult,
@@ -421,6 +422,16 @@ LookupReturnsOriginal ==
 LookupNoDuplicateAppend == Len(history) = Cardinality(everCommitted)
 
 RecoveryNoDuplicateEffect == \A o \in Operations : effectCount[o] <= 1
+
+EffectStartGuard ==
+  \A o \in Operations : (effectCount'[o] > effectCount[o]) =>
+    /\ ready
+    /\ qualifiedGeneration = currentOwnerGeneration
+    /\ reassociatedGeneration = currentHostGeneration
+EffectStartAuthorized == [] [EffectStartGuard]_vars
+
+ReadyTransitionNoEffectGuard == (~ready /\ ready') => effectCount' = effectCount
+ReadyDoesNotStartEffect == [] [ReadyTransitionNoEffectGuard]_vars
 
 ReadyImpliesVerifiedCompleteInstall == ready =>
   /\ publicationVerified

@@ -36,6 +36,9 @@ owner publication/协调者消费状态。commit 与发布之间可崩溃。恢�
 `NoPartialOwnerPublication`、`StaleGenerationCannotReady`、`CommittedNeverBecomesNotSeen`、
 `LookupReturnsOriginal`、`LookupNoDuplicateAppend`、`RecoveryNoDuplicateEffect`、
 `ReadyImpliesVerifiedCompleteInstall`、`RecoveryReadyRequiresValidPrefix` 及类型约束。
+另以动作性质 `EffectStartAuthorized` 检查每次效果增量的前态已有本代资格和重新关联，
+`ReadyDoesNotStartEffect` 检查变为 ready 的跃迁不产生效果；效果发生后的崩溃不会
+把已经发生的合法效果误判为新代无资格执行。
 十二份 `RuntimeRevision*Mutation.cfg` 的预期反例如下；反例表示故障被性质检出，不能计作
 正模型通过。writer 的两种改序分开注入，不以同时改两种顺序掩盖遗漏。
 
@@ -53,24 +56,29 @@ owner publication/协调者消费状态。commit 与发布之间可崩溃。恢�
 | `readyAutoEffect` | `RecoveryNoDuplicateEffect` |
 | `forgetCommitted` | `CommittedNeverBecomesNotSeen` |
 
+另有三份定向负配置：`readyAutoEffectOnce` 仅在首次 ready 时制造一次效果，
+应命中 `ReadyDoesNotStartEffect`；`skipQualification` 和 `skipReassociation`
+分别只移除一项执行门，应各自命中 `EffectStartAuthorized`。它们防止
+“首次越权效果未重复，所以旧计数不变量仍通过”的盲点。
+
 `RuntimeRevisionPermutationsProbe.cfg` 无 mutation，另加故意否定可达情形的
 `NoBothPermutationsReadAndReplayed`。其预期反例必须在同一执行中提交两个不同排列的批次，
 在线读到二者，再崩溃并重放二者；这是非空覆盖见证，不是安全性质或进展保证。
 
-2026-09-16 对照 DR 候选修订 `ed607ad` 完成 caller-order 最终重跑：TLC 1.7.4
-正配置穷尽 4 个初态、22,764 个生成状态、
-5,540 个不同状态，搜索深度 17，未发现错误；12 个 mutants 和 1 个覆盖探针均产生指定反例。
-精确工具/输入哈希、运行命令、退出码和完整日志归工作区的忽略路径
-`tmp/docs-spec-v1/runtime-revision-formal/caller-order-final-ed607ad/`。
-本次对照的 DR `contract.md` SHA-256 是
-`550995cc96f98b39a467d95c27ed3d00d27d1cdbb53a9c5cd61fe55399507081`；
-只覆盖其中的 revision、批内顺序、fact/eventId 与 CC 发布恢复片段。
+2026-09-16 增加两项动作性质后，TLC 正配置仍穷尽 4 个初态、22,764 个生成状态、
+5,540 个不同状态，搜索深度 17，未发现错误；原 12 个 mutants、1 个排列探针及
+新增 3 个定向负配置均命中各自指定性质。精确工具/输入哈希、退出码和完整日志在
+[执行证据](../../../../../evidence/formal-2026-09-16/cc-runtime-revision/results.json)。
+DR-01 的 caller-order、revision、fact/eventId 只是有限片段，不能外推到完整协议。
 
 这是一份针对协议假设的**候选模型**，不是已接受规格或实现符合性证明：两条 stream 总在
 每个 batch 出现；最多两笔提交、一次崩溃；prefix 校验、完整 fold 和 owner root 内容以
 `prefixValid`、`stagedOwners` 抽象；receipt/result 用 operation 与 batchSeq 的确定关系抽象；
 外部效果只以计数与去重位抽象。它没有验证 JSONL 字节恢复、租户授权、任意 stream 子集、
 任意大小批次、重复 StreamRef 拒绝、CAS 冲突、writer epoch、个人创建特殊批次、
-多代连续崩溃、故障中的 durable outbox 效果交接或进展/公平性。独立评审尚未完成，
-该结果未加入注册任务，也不属于 J 的 31 项通过；迁移正文变化后须核对其准确修订，
-重跑受影响模型，不能将该有限候选模型称为完整 DR/CC 证明或提供者符合性证据。
+多代连续崩溃、故障中的 durable outbox 效果交接或进展/公平性。尤其旧 ExactUse/
+资源责任收口、新 writer epoch、历史 completion 保持 blocked、lookup 的恢复基线引用
+均未入模；不完整或混代候选的拒绝也仅有抽象检查。独立评审曾发现旧模型未检查首次
+ready 越权效果；上述动作性质与负配置修补这一有限缺口，定向独立复核已通过。
+该结果未加入注册任务，也不属于 J 的原 31 项通过；不能称为完整 DR/CC 证明或
+提供者符合性证据。

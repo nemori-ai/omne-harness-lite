@@ -1,0 +1,156 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Warning: Please run the Java VM which executes TLC with a throughput optimized garbage collector by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 48 and seed 2745733655825384746 with 1 worker on 8 cores with 1024MB heap and 64MB offheap memory [pid: 104076] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness/.meta_harness/design/spec/compositions/core-work-coordination/v1/formal/RuntimeRevisionRecovery.tla
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness/tmp/docs-spec-v1/runtime-revision-formal/action-guard-recheck/Integers.tla
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness/tmp/docs-spec-v1/runtime-revision-formal/action-guard-recheck/Sequences.tla
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness/tmp/docs-spec-v1/runtime-revision-formal/action-guard-recheck/FiniteSets.tla
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness/tmp/docs-spec-v1/runtime-revision-formal/action-guard-recheck/Naturals.tla
+Semantic processing of module Naturals
+Semantic processing of module Integers
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module RuntimeRevisionRecovery
+Starting... (2026-09-16 12:22:25)
+Computing initial states...
+Computed 2 initial states...
+Finished computing initial states: 4 distinct states generated at 2026-09-16 12:22:25.
+Error: Invariant ReadOrderStable is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ lookupResult = (op1 :> "not_seen" @@ op2 :> "not_seen")
+/\ ready = FALSE
+/\ publishedOwners = {}
+/\ publishedDomain = "none"
+/\ publishedWatermark = 0
+/\ reassociatedGeneration = -1
+/\ opResult = (op1 :> "not_seen" @@ op2 :> "not_seen")
+/\ currentOwnerGeneration = 0
+/\ frozenInputs = (op1 :> <<s1, s2>> @@ op2 :> <<s1, s2>>)
+/\ currentHostGeneration = 0
+/\ qualifiedGeneration = -1
+/\ stagedOwners = {}
+/\ stagedDomain = "none"
+/\ effectCount = (op1 :> 0 @@ op2 :> 0)
+/\ everCommitted = {}
+/\ readView = <<>>
+/\ stagedOwnerGeneration = -1
+/\ publicationVerified = FALSE
+/\ stagedHostGeneration = -1
+/\ stagedVerified = FALSE
+/\ online = TRUE
+/\ history = <<>>
+/\ lookupReceipt = (op1 :> 0 @@ op2 :> 0)
+/\ publishedOwnerGeneration = -1
+/\ stagedWatermark = 0
+/\ opReceipt = (op1 :> 0 @@ op2 :> 0)
+/\ publishedHostGeneration = -1
+/\ prefixValid = TRUE
+/\ batchSeq = 0
+/\ opState = (op1 :> "not_seen" @@ op2 :> "not_seen")
+/\ replayView = <<>>
+/\ revision = (s1 :> 0 @@ s2 :> 0)
+
+State 2: <Commit line 127, col 3 to line 143, col 65 of module RuntimeRevisionRecovery>
+/\ lookupResult = (op1 :> "not_seen" @@ op2 :> "not_seen")
+/\ ready = FALSE
+/\ publishedOwners = {}
+/\ publishedDomain = "none"
+/\ publishedWatermark = 0
+/\ reassociatedGeneration = -1
+/\ opResult = (op1 :> "accepted" @@ op2 :> "not_seen")
+/\ currentOwnerGeneration = 0
+/\ frozenInputs = (op1 :> <<s1, s2>> @@ op2 :> <<s1, s2>>)
+/\ currentHostGeneration = 0
+/\ qualifiedGeneration = -1
+/\ stagedOwners = {}
+/\ stagedDomain = "none"
+/\ effectCount = (op1 :> 0 @@ op2 :> 0)
+/\ everCommitted = {op1}
+/\ readView = <<>>
+/\ stagedOwnerGeneration = -1
+/\ publicationVerified = FALSE
+/\ stagedHostGeneration = -1
+/\ stagedVerified = FALSE
+/\ online = TRUE
+/\ history = << [ seq |-> 1,
+     operation |-> op1,
+     streams |-> <<s1, s2>>,
+     streamFacts |->
+         ( s1 :> <<"owner-1:first", "owner-1:second">> @@
+           s2 :> <<"owner-2:first">> ),
+     flatFacts |-> <<"owner-1:first", "owner-1:second", "owner-2:first">>,
+     eventIds |->
+         <<<<"runtime", 1, 1>>, <<"runtime", 1, 2>>, <<"runtime", 1, 3>>>>,
+     oldRevision |-> (s1 :> 0 @@ s2 :> 0),
+     newRevision |-> (s1 :> 1 @@ s2 :> 1) ] >>
+/\ lookupReceipt = (op1 :> 0 @@ op2 :> 0)
+/\ publishedOwnerGeneration = -1
+/\ stagedWatermark = 0
+/\ opReceipt = (op1 :> 1 @@ op2 :> 0)
+/\ publishedHostGeneration = -1
+/\ prefixValid = TRUE
+/\ batchSeq = 1
+/\ opState = (op1 :> "committed" @@ op2 :> "not_seen")
+/\ replayView = <<>>
+/\ revision = (s1 :> 1 @@ s2 :> 1)
+
+State 3: <ReadHistory line 115, col 3 to line 124, col 65 of module RuntimeRevisionRecovery>
+/\ lookupResult = (op1 :> "not_seen" @@ op2 :> "not_seen")
+/\ ready = FALSE
+/\ publishedOwners = {}
+/\ publishedDomain = "none"
+/\ publishedWatermark = 0
+/\ reassociatedGeneration = -1
+/\ opResult = (op1 :> "accepted" @@ op2 :> "not_seen")
+/\ currentOwnerGeneration = 0
+/\ frozenInputs = (op1 :> <<s1, s2>> @@ op2 :> <<s1, s2>>)
+/\ currentHostGeneration = 0
+/\ qualifiedGeneration = -1
+/\ stagedOwners = {}
+/\ stagedDomain = "none"
+/\ effectCount = (op1 :> 0 @@ op2 :> 0)
+/\ everCommitted = {op1}
+/\ readView = << [ seq |-> 1,
+     operation |-> op1,
+     streams |-> <<s2, s1>>,
+     streamFacts |->
+         ( s1 :> <<"owner-1:first", "owner-1:second">> @@
+           s2 :> <<"owner-2:first">> ),
+     flatFacts |-> <<"owner-2:first", "owner-1:first", "owner-1:second">>,
+     eventIds |->
+         <<<<"runtime", 1, 1>>, <<"runtime", 1, 2>>, <<"runtime", 1, 3>>>>,
+     oldRevision |-> (s1 :> 0 @@ s2 :> 0),
+     newRevision |-> (s1 :> 1 @@ s2 :> 1) ] >>
+/\ stagedOwnerGeneration = -1
+/\ publicationVerified = FALSE
+/\ stagedHostGeneration = -1
+/\ stagedVerified = FALSE
+/\ online = TRUE
+/\ history = << [ seq |-> 1,
+     operation |-> op1,
+     streams |-> <<s1, s2>>,
+     streamFacts |->
+         ( s1 :> <<"owner-1:first", "owner-1:second">> @@
+           s2 :> <<"owner-2:first">> ),
+     flatFacts |-> <<"owner-1:first", "owner-1:second", "owner-2:first">>,
+     eventIds |->
+         <<<<"runtime", 1, 1>>, <<"runtime", 1, 2>>, <<"runtime", 1, 3>>>>,
+     oldRevision |-> (s1 :> 0 @@ s2 :> 0),
+     newRevision |-> (s1 :> 1 @@ s2 :> 1) ] >>
+/\ lookupReceipt = (op1 :> 0 @@ op2 :> 0)
+/\ publishedOwnerGeneration = -1
+/\ stagedWatermark = 0
+/\ opReceipt = (op1 :> 1 @@ op2 :> 0)
+/\ publishedHostGeneration = -1
+/\ prefixValid = TRUE
+/\ batchSeq = 1
+/\ opState = (op1 :> "committed" @@ op2 :> "not_seen")
+/\ replayView = <<>>
+/\ revision = (s1 :> 1 @@ s2 :> 1)
+
+15 states generated, 15 distinct states found, 9 states left on queue.
+The depth of the complete state graph search is 3.
+The average outdegree of the complete state graph is 2 (minimum is 2, the maximum 2 and the 95th percentile is 2).
+Finished in 00s at (2026-09-16 12:22:25)
