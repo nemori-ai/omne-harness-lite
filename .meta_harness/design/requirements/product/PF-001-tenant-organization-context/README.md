@@ -5,17 +5,17 @@
 
 - 目标基线：`omne-harness-lite-design-2026-09-15`
 - 来源基线：`omne-harness-lite-legacy-spec` @ `e3573ca72d18bfe7ddd002df5025551b51eede46`
-- 当前状态：已确认范围等价迁入；正文保留明确的待澄清/待设计项
+- 当前状态：已确认范围等价迁入后，于 2026-09-16 经用户直接裁决**收窄**（四方面 → 三项，并确认求值方式）；正文保留明确的待澄清/待设计项
 - 下游状态：能力覆盖、规格和提供者映射由后续纵线建立
 
 ## 设计覆盖状态
 
-- 需求确认状态：已确认范围等价迁入；以正文和变更记录为准。
+- 需求确认状态：等价迁入后经 2026-09-16 用户裁决收窄；以正文和[变更记录](changes.md)为准，不得据 frontmatter 的迁移字段推断正文与源基线一致。
 - 设计覆盖状态：`正在设计（直接候选机制）`
 - 规格采用状态：下列 candidate 尚未在当前基线 catalog 中采用或发布。
 - Provider、assembly 与实现验证：有目标 provider；没有实际 assembly 或端到端验证结论。
 - 当前可复用设计落点：[Tenant Governance candidate](../../../spec/capabilities/tenant-governance/README.md)、[Action Authorization candidate](../../../spec/capabilities/action-authorization/README.md)、[tenant provider](../../../providers/governance-tenant/README.md)。
-- 覆盖边界与主要缺口：多组织上下文效用和完整产品操作尚未逐条分析；现有材料不构成 coverage 结论。
+- 覆盖边界与主要缺口：收窄后的三项效用（设置 / 权限 / 可用技能或工具）及其求值方式尚未逐条分析；「流程规范」的处置未确认；现有材料不构成 coverage 结论。
 
 ## 按当前问题展开
 
