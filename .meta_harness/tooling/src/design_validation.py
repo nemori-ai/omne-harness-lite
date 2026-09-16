@@ -588,7 +588,12 @@ class DesignValidator:
     def _markdown(self) -> None:
         markdown = sorted(p for p in self.root.rglob("*.md") if ".templates" not in p.parts)
         anchors: dict[Path, set[str]] = {}
-        for path in markdown:
+        workspace = self.root.parent if (self.root.name == "design" and
+                                         self.root.parent.name == ".meta_harness") else None
+
+        def anchors_for(path: Path) -> set[str]:
+            if path in anchors:
+                return anchors[path]
             found: set[str] = set()
             duplicates: dict[str, int] = {}
             for line in path.read_text(encoding="utf-8").splitlines():
@@ -598,7 +603,16 @@ class DesignValidator:
                     count = duplicates.get(base, 0)
                     found.add(base if count == 0 else f"{base}-{count}")
                     duplicates[base] = count + 1
-            anchors[path.resolve()] = found
+            anchors[path] = found
+            return found
+
+        def within(path: Path, root: Path) -> bool:
+            try:
+                path.relative_to(root)
+                return True
+            except ValueError:
+                return False
+
         for path in markdown:
             text = path.read_text(encoding="utf-8")
             for match in LINK_RE.finditer(text):
@@ -613,13 +627,19 @@ class DesignValidator:
                 target = path if not target_raw else (path.parent / target_raw)
                 try:
                     resolved = target.resolve()
-                    resolved.relative_to(self.root)
-                except (OSError, ValueError):
+                except OSError:
+                    self.error(f"{path.relative_to(self.root)}: link escapes design root: {raw}")
+                    continue
+                allowed = within(resolved, self.root)
+                if workspace is not None:
+                    allowed = (allowed or within(resolved, workspace / "agents") or
+                               resolved == workspace / "README.md")
+                if not allowed:
                     self.error(f"{path.relative_to(self.root)}: link escapes design root: {raw}")
                     continue
                 if not resolved.is_file():
                     self.error(f"{path.relative_to(self.root)}: broken local link: {raw}")
-                elif fragment and resolved.suffix == ".md" and github_anchor(unquote(fragment)) not in anchors.get(resolved, set()):
+                elif fragment and resolved.suffix == ".md" and github_anchor(unquote(fragment)) not in anchors_for(resolved):
                     self.error(f"{path.relative_to(self.root)}: missing Markdown anchor: {raw}")
 
     def _frozen(self, raw: Any) -> None:

@@ -515,6 +515,56 @@ def test_broken_requirement_decision_link_and_acceptance_are_locatable(tmp_path:
     assert any("requirements/product/sample/requirements.md: broken local link" in error for error in errors)
 
 
+def test_copied_meta_harness_resolves_agent_and_workspace_navigation(tmp_path: Path) -> None:
+    source = tmp_path / "source" / ".meta_harness"
+    build_tree(source / "design")
+    agent_page = source / "agents/skills/handbook/SKILL.md"
+    agent_page.parent.mkdir(parents=True)
+    agent_page.write_text("# Handbook\n\n## Design intent\n", encoding="utf-8")
+    (source / "README.md").write_text("# Workspace\n", encoding="utf-8")
+    shutil.copytree(TOOLING / "src", source / "tooling/src")
+    requirement = source / "design/requirements/product/sample/requirements.md"
+    with requirement.open("a", encoding="utf-8") as handle:
+        handle.write("[method](../../../../agents/skills/handbook/SKILL.md#design-intent) "
+                     "[workspace](../../../../README.md#workspace)\n")
+
+    copied = tmp_path / "copied" / ".meta_harness"
+    shutil.copytree(source, copied)
+    result = subprocess.run(
+        [sys.executable, str(copied / "tooling/src/check_design.py"),
+         "--root", str(copied / "design"), "--gate", "internal"],
+        cwd=tmp_path, capture_output=True, text=True, check=False,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_workspace_navigation_rejects_missing_targets_anchors_and_escapes(tmp_path: Path) -> None:
+    workspace = tmp_path / ".meta_harness"
+    build_tree(workspace / "design")
+    agent_page = workspace / "agents/handbook.md"
+    agent_page.parent.mkdir(parents=True)
+    agent_page.write_text("# Handbook\n", encoding="utf-8")
+    (workspace / "README.md").write_text("# Workspace\n", encoding="utf-8")
+    (workspace / "tooling").mkdir()
+    (workspace / "tooling/inside.md").write_text("# Tooling\n", encoding="utf-8")
+    outside = tmp_path / "outside.md"
+    outside.write_text("# Outside\n", encoding="utf-8")
+    (workspace / "agents/escape.md").symlink_to(outside)
+    requirement = workspace / "design/requirements/product/sample/requirements.md"
+    with requirement.open("a", encoding="utf-8") as handle:
+        handle.write("[missing](../../../../agents/missing.md) "
+                     "[anchor](../../../../agents/handbook.md#absent) "
+                     "[tooling](../../../../tooling/inside.md) "
+                     "[product](../../../../../outside.md) "
+                     "[symlink](../../../../agents/escape.md)\n")
+
+    errors, _ = validate(workspace / "design")
+    assert len(errors) == 5
+    assert sum("broken local link" in error for error in errors) == 1
+    assert sum("missing Markdown anchor" in error for error in errors) == 1
+    assert sum("link escapes design root" in error for error in errors) == 3
+
+
 def test_decision_acceptance_must_name_exact_coordinate_and_scope(tmp_path: Path) -> None:
     build_tree(tmp_path)
     path = tmp_path / "decisions/accept-current/acceptance.json"
