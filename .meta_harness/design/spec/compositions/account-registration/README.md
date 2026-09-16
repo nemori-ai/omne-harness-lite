@@ -4,7 +4,7 @@
 
 - 契约坐标：`(omne-harness-lite-design-2026-09-15, composition.account-registration, 1)`。
 - 采用状态：v1 候选，尚未登记 catalog、接受或冻结。
-- 需求与决定：[PF-026.C1/C3/C5](../../../requirements/product/PF-026-account-journey-and-isolation/requirements.md)、[D-016](../../../decisions/account-identity/decision.md) 与接受统一创建语义的 [D-017](../../../decisions/personal-tenant-creation/decision.md)。
+- 需求与决定：[PF-026.C1/C3/C5](../../../requirements/product/PF-026-account-journey-and-isolation/requirements.md)、[D-016](../../../decisions/account-identity/decision.md)、[D-017](../../../decisions/personal-tenant-creation/decision.md) 与接受本组合列明语义的 [D-021](../../../decisions/account-personal-local-creation/decision.md)。
 - 精确依赖：同 baseline `data.core-work@1` CD-01/02、`capability.account-identity@1` AI-01/02/02a/04/05/08、`capability.tenant-governance@1` TG-01/03、`composition.core-work-coordination@1` CC-03/06、`capability.durable-records@1` DR-01。均为候选；F 直读、T 单流与真实恢复符合性尚未验证。
 
 ## 按当前问题展开

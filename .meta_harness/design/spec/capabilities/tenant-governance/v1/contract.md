@@ -3,9 +3,9 @@
 本契约坐标为 `(omne-harness-lite-design-2026-09-15, capability.tenant-governance, 1)`。正文从同名
 legacy v1 重基，保留 TG-01～TG-05；D-008 及 tenant-contracts 历史候选只作 provenance，
 不自动接受新坐标。本坐标保持 candidate、`acceptance:null`。TG-01 的个人创建增量
-落实用户已明确接受的首次 init 与后续注册共用一套机制方向；其候选比较见
-[个人租户提案](../../../../proposals/personal-tenant-creation/README.md)。架构方向接受
-不等于本精确规格或提供者已经接受、发布和验证。
+落实已接受的首次 init 与后续注册共用机制；[D-021](../../../../decisions/account-personal-local-creation/decision.md)
+接受其本地单目标流语义，候选比较见[新提案](../../../../proposals/account-personal-local-creation/README.md)。
+列明语义的接受不等于整个坐标或提供者已经发布和验证。
 
 本能力拥有租户、成员、定义、权益和选用事实。自然人身份由认证边界提供；动作授权、
 预算、Session 正文权限与运行控制仍由各自能力拥有。租户管理入口只核定谁可管理预算；
