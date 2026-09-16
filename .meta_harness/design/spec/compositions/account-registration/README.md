@@ -4,8 +4,8 @@
 
 - 契约坐标：`(omne-harness-lite-design-2026-09-15, composition.account-registration, 1)`。
 - 采用状态：v1 候选，尚未登记 catalog、接受或冻结。
-- 需求与决定：[PF-026.C1/C3/C5](../../../requirements/product/PF-026-account-journey-and-isolation/requirements.md)、[D-016](../../../decisions/account-identity/decision.md)。
-- 精确依赖：同 baseline `data.core-work@1` CD-01/02、`capability.account-identity@1` AI-01/02/04/05/06、`capability.tenant-governance@1` TG-01/02/03、`composition.core-work-coordination@1` CC-03/06；选择混合流存储路径时还消费 `capability.durable-records@1` DR-01。均为候选。Tenant 对后续账号个人租户创建的增量尚未锁定，阻止本组合发布。
+- 需求与决定：[PF-026.C1/C3/C5](../../../requirements/product/PF-026-account-journey-and-isolation/requirements.md)、[D-016](../../../decisions/account-identity/decision.md) 与接受统一创建语义的 [D-017](../../../decisions/personal-tenant-creation/decision.md)。
+- 精确依赖：同 baseline `data.core-work@1` CD-01/02、`capability.account-identity@1` AI-01/02/02a/04/05/06、`capability.tenant-governance@1` TG-01/02/03、`composition.core-work-coordination@1` CC-03/05/06、`capability.durable-records@1` DR-01。均为候选；受信导入、统一受限批次与真实恢复映射尚未验证，阻止本组合发布。
 
 ## 按当前问题展开
 
