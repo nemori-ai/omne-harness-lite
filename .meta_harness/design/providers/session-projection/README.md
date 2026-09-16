@@ -4,7 +4,9 @@
 
 - 设计对象：目标 `@omne-harness-lite/session-projection` 的 `SessionProjectionPlugin`；现有包只公开 `/baseline` 的 registry/fold 原语。
 - 契约输入：[Session v1：SE-03、SE-10、SE-20](../../spec/capabilities/session/v1/contract.md)、[Run v1：RN-07、RN-08](../../spec/capabilities/run/v1/contract.md)、[核心工作协调 v1：CC-01、CC-06](../../spec/compositions/core-work-coordination/v1/contract.md)、[消息流 v1：MS-11、MS-12、MS-22](../../spec/capabilities/message-stream/v1/contract.md)。这些新坐标仍为 candidate；旧设计的接受记录不自动接受新坐标。
-- 来源：[原提供者设计](../../../../packages/session/projection/design.md)（最近改动 `34251fdfdac400f4db32a2e2b62aa1578b887b04`，SHA-256 `57c09837e86dcd17dd4176b26454ca0b04f07560df41abcdf0d1d0579cf61828`）；[源码公开入口](../../../../packages/session/projection/src/index.ts)与[包导出](../../../../packages/session/projection/package.json)用来区分现状和目标。
+- 来源：原提供者设计 `packages/session/projection/design.md`（最近改动 `34251fdfdac400f4db32a2e2b62aa1578b887b04`，SHA-256 `57c09837e86dcd17dd4176b26454ca0b04f07560df41abcdf0d1d0579cf61828`）；源码公开入口（`packages/session/projection/src/index.ts`）与包导出（`packages/session/projection/package.json`）用来区分现状和目标。
+
+`packages/` 路径是相对产品仓库根的源码定位符；文中实现现状可按产品源码提交 `74e3e48aa13b5c39c3b064537d2072dc2498b1d4` 复核，不是设计包内依赖。
 
 ## 准入与当前状态
 

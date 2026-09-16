@@ -7,7 +7,7 @@ tenant、operation、因果、epoch、修订与资源所有者必须显式；有
 
 ## 当前实现与缺口
 
-来源设计固定为 [legacy Admission 设计](../../../../packages/coordination/admission/design.md)，SHA-256 `5b9c851da9d4eed57b61322a25005d31271dc16ad1aa934c0613117c0d98cec8`；该页记录 P1 的已接受机制与固定旧证据，并非新 v1 的符合性证据。短门、ExactUse、receipt 型提交后通知在当前源码中存在；[当前 `CommittedNotice`](../../../../packages/coordination/admission/src/index.ts) 只有 `composition`、`canonicalInput`、`receipt`，不含原提交 envelope 的 appends/facts，因此**不符合** D-014 和 [LC-06](../../spec/compositions/session-run-agent-lifecycles/v1/contract.md) 的原 envelope 广播。完整业务能力准入闭环、跨纵线组合行和真实耐久联合验收仍缺。
+来源设计固定为 legacy Admission 设计（`packages/coordination/admission/design.md`），SHA-256 `5b9c851da9d4eed57b61322a25005d31271dc16ad1aa934c0613117c0d98cec8`；该页记录 P1 的已接受机制与固定旧证据，并非新 v1 的符合性证据。短门、ExactUse、receipt 型提交后通知在当前源码中存在；当前 `CommittedNotice`（`packages/coordination/admission/src/index.ts`）只有 `composition`、`canonicalInput`、`receipt`，不含原提交 envelope 的 appends/facts，因此**不符合** D-014 和 [LC-06](../../spec/compositions/session-run-agent-lifecycles/v1/contract.md) 的原 envelope 广播。完整业务能力准入闭环、跨纵线组合行和真实耐久联合验收仍缺。
 源码实现状态须由 I/实施任务在精确 revision 核对；本文区分来源机制、目标映射与尚未交付的改动，不把旧测试或通知存在升级为新契约验收。
 
 ## 持续消费的映射

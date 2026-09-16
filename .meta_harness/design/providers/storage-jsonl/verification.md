@@ -1,6 +1,6 @@
 # JSONL 存储提供者：验证边界
 
-本轮只核对来源 hash、契约映射与设计边界。旧源码输入 `7152a7192c84fa49c27255bfdb4f9b0e86ad8eb5` 的[成员验证](../../../../packages/storage/jsonl/evidence/provider/README.md)记录 build/typecheck/test 及真实 flock、同步、部分写和故障后清理；固定 HUB `31197742905a3c66fc3e650c153d65d014372c21` 的[跨包组合验证](../../../../apps/local-harness/evidence/storage-admission/README.md)记录旧 JSONL/admission/diagnostics 行为和环境。这些是旧 P1 的**实际历史证据**，不是新 v1 `core-journal/3`、个人租户创建、普通批次 v3 codec 或新 provider 换代的符合性报告；旧日志不得复用为新 PASS。
+本轮只核对来源 hash、契约映射与设计边界。旧源码输入 `7152a7192c84fa49c27255bfdb4f9b0e86ad8eb5` 的成员验证（`packages/storage/jsonl/evidence/provider/README.md`）记录 build/typecheck/test 及真实 flock、同步、部分写和故障后清理；固定 HUB `31197742905a3c66fc3e650c153d65d014372c21` 的跨包组合验证（`apps/local-harness/evidence/storage-admission/README.md`）记录旧 JSONL/admission/diagnostics 行为和环境。这些是旧 P1 的**实际历史证据**，不是新 v1 `core-journal/3`、个人租户创建、普通批次 v3 codec 或新 provider 换代的符合性报告；旧日志不得复用为新 PASS。
 
 新 v1 符合性须固定实施 revision、装配与真实后端环境，保留原始命令/结果，并注入真实失败；未覆盖项保持 partial/blocked。[设计映射](design.md#待代码与环境验收)
 列出当前 `/1` 端口、codec 与 writer 的代码差额；DR 候选的字段仍须随独立规格评审

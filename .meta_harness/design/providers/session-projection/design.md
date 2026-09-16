@@ -1,6 +1,6 @@
 # Session 投影提供者设计映射
 
-目标是从已校验的完整提交前缀构建 Session 范围的派生视图。语义依据见[Session v1](../../spec/capabilities/session/v1/contract.md)、[Run v1](../../spec/capabilities/run/v1/contract.md)和[消息流 v1](../../spec/capabilities/message-stream/v1/contract.md)；三者当前均为 candidate。来源是[旧提供者设计](../../../../packages/session/projection/design.md)，其曾接受的最小施工映射及当前 `/baseline` 源码不构成本目标实现的符合性证据；来源哈希和实际结果记在[验证记录](verification.md)。
+目标是从已校验的完整提交前缀构建 Session 范围的派生视图。语义依据见[Session v1](../../spec/capabilities/session/v1/contract.md)、[Run v1](../../spec/capabilities/run/v1/contract.md)和[消息流 v1](../../spec/capabilities/message-stream/v1/contract.md)；三者当前均为 candidate。来源是旧提供者设计（`packages/session/projection/design.md`），其曾接受的最小施工映射及当前 `/baseline` 源码不构成本目标实现的符合性证据；来源哈希和实际结果记在[验证记录](verification.md)。
 
 ## 能力到 Cordis 的投影
 

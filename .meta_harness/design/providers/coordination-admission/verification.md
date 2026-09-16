@@ -9,12 +9,12 @@
 关联的 legacy Admission 模型只见证授权、效果开始前耐久、取消/安全停止后迟到启动三个不变量。
 它不覆盖 CC-05 outbox、CC-06 crash/recover/new epoch、CC-07 observation 或 recovery interleaving。
 
-来源与证据边界：[legacy provider 设计](../../../../packages/coordination/admission/design.md) 的 SHA-256 为
+来源与证据边界：legacy provider 设计（`packages/coordination/admission/design.md`）的 SHA-256 为
 `5b9c851da9d4eed57b61322a25005d31271dc16ad1aa934c0613117c0d98cec8`；
-[P1 provider 证据](../../../../packages/coordination/admission/evidence/provider/README.md) 和
-[真实 JSONL/Admission 组合证据](../../../../apps/local-harness/evidence/storage-admission/README.md)
+P1 provider 证据（`packages/coordination/admission/evidence/provider/README.md`）和
+真实 JSONL/Admission 组合证据（`apps/local-harness/evidence/storage-admission/README.md`）
 分别证明旧版精确使用/同步发布、真实写泵/隔离等切片，不含新 v1 的全 owner 恢复基线或
-原 envelope handoff。旧 [广播测试](../../../../packages/coordination/admission/tests/committed-broadcast.spec.ts)
+原 envelope handoff。旧广播测试（`packages/coordination/admission/tests/committed-broadcast.spec.ts`）
 仅断言 `composition + canonicalInput + receipt` 通知，缺少 appends、facts、逐事实 eventId，
 故对 [LC-06](../../spec/compositions/session-run-agent-lifecycles/v1/contract.md) 留红。
 

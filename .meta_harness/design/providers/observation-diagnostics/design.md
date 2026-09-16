@@ -2,7 +2,7 @@
 
 ## 坐标、状态和能力边界
 
-本包映射候选 `(omne-harness-lite-design-2026-09-15, capability.engineering-observation, 1)` 的本机被动诊断部分，尤其是 [OB-01～03](../../spec/capabilities/engineering-observation/v1/contract.md)。[D-010](../../decisions/shared-diagnostics/decision.md) 接受共享记录面与 Pino/Sonic/OTel 机制；[D-011](../../decisions/diagnostics-directory-ownership/decision.md) 取代其独立来源目录预算和锁管理。来源设计固定为 `packages/observation/diagnostics/design.md` @ `e3573ca72d18bfe7ddd002df5025551b51eede46`、SHA-256 `32e4c2f88dd2c3cc73462347c090ebe0c258fe936e15c0a9431defbc877c2ae6`。本页承接长期提供者规则；实际接口以[包公开入口](../../../../packages/observation/diagnostics/src/index.ts)和固定实现修订为准，证据边界见[验证](verification.md)。
+本包映射候选 `(omne-harness-lite-design-2026-09-15, capability.engineering-observation, 1)` 的本机被动诊断部分，尤其是 [OB-01～03](../../spec/capabilities/engineering-observation/v1/contract.md)。[D-010](../../decisions/shared-diagnostics/decision.md) 接受共享记录面与 Pino/Sonic/OTel 机制；[D-011](../../decisions/diagnostics-directory-ownership/decision.md) 取代其独立来源目录预算和锁管理。来源设计固定为 `packages/observation/diagnostics/design.md` @ `e3573ca72d18bfe7ddd002df5025551b51eede46`、SHA-256 `32e4c2f88dd2c3cc73462347c090ebe0c258fe936e15c0a9431defbc877c2ae6`。本页承接长期提供者规则；实际接口以包公开入口（`packages/observation/diagnostics/src/index.ts`）和固定实现修订为准，证据边界见[验证](verification.md)。
 
 当前由受信应用创建唯一目录 owner 和 source runtime，只将受限 `Diagnostics` 注入消费者；配置、`inspect/close` 和 generation 选择归应用。没有已交付的 Cordis 服务键、logger bridge、全局 OTel manager 或插件装卸验证。未来插件适配必须先取得并验证具体资源，才发布记录面；撤除要观察实际清理结果，不能以 Context 卸载代替关闭。诊断原件是非耐久本地操作记录，关键审计随业务耐久提交或可核实 outbox 保存；本包不掌握业务 writer、授权、query/export 或保留删除权。
 

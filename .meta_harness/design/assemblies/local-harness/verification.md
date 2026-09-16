@@ -4,9 +4,9 @@
 
 | 对象与采用前提 | 原始结果 | 可以得出的结论与当前限制 |
 |---|---|---|
-| 旧固定 HUB `31197742905a3c66fc3e650c153d65d014372c21` 的 P1：真实 records/JSONL、原生 flock、admission、D1 diagnostics、独立 tarball 消费 | [`apps/local-harness/evidence/storage-admission/README.md`](../../../../apps/local-harness/evidence/storage-admission/README.md) 固定源码、Linux/Node 环境、测试与原始日志；[测试源码](../../../../apps/local-harness/tests/storage-admission/real-composition.spec.ts)仍在应用下 | 只支持当时 A05–A08、A30/31、O09/O10 所列局部机制；不包含真实 Account/Tenant/Run/Agent/Tools，也不覆盖新候选 `core-journal/3`、个人创建目标单流与 CC-06 恢复。 |
-| 旧运行映射只读评审 `f98ac926`，对象 `976149b` | [`evidence/runtime-mapping-applicability/README.md`](../../../../apps/local-harness/evidence/runtime-mapping-applicability/README.md) | 只支持旧设计命题与当时来源的适用性判断；不证明当前提供者末门、资源清理或完整 Cordis refinement。 |
-| 当前 `apps/local-harness` 成员 | [`package.json`](../../../../apps/local-harness/package.json) 和 `tests/storage-admission/` | 有 P1 验证载体；没有应用 `src/`、真实启动入口、身份/Agent/Session/工具端到端运行结果。 |
+| 旧固定 HUB `31197742905a3c66fc3e650c153d65d014372c21` 的 P1：真实 records/JSONL、原生 flock、admission、D1 diagnostics、独立 tarball 消费 | `apps/local-harness/evidence/storage-admission/README.md` 固定源码、Linux/Node 环境、测试与原始日志；测试源码（`apps/local-harness/tests/storage-admission/real-composition.spec.ts`）仍在应用下 | 只支持当时 A05–A08、A30/31、O09/O10 所列局部机制；不包含真实 Account/Tenant/Run/Agent/Tools，也不覆盖新候选 `core-journal/3`、个人创建目标单流与 CC-06 恢复。 |
+| 旧运行映射只读评审 `f98ac926`，对象 `976149b` | `apps/local-harness/evidence/runtime-mapping-applicability/README.md` | 只支持旧设计命题与当时来源的适用性判断；不证明当前提供者末门、资源清理或完整 Cordis refinement。 |
+| 当前 `apps/local-harness` 成员 | `apps/local-harness/package.json` 和 `tests/storage-admission/` | 有 P1 验证载体；没有应用 `src/`、真实启动入口、身份/Agent/Session/工具端到端运行结果。 |
 
 当前新谱系 v1 的 [DR](../../spec/capabilities/durable-records/verification.md)、[CC](../../spec/compositions/core-work-coordination/verification.md)、[Account](../../spec/capabilities/account-identity/verification.md)、[Tenant](../../spec/capabilities/tenant-governance/verification.md) 仍记录发布与提供者缺口。旧固定结果不自动随重基升级；当前没有本装配全链可运行提交或验收日志。
 
@@ -26,7 +26,7 @@
 
 ## 来源与旧设计到当前基线的对应
 
-旧正文为 [`apps/local-harness/design.md`](../../../../apps/local-harness/design.md)（本次读得 SHA-256 `a8b88dfa227d0447f4cef1d5ddc7cafc620c19f9ee1b4d549c0b82ca005d7eef`）；其接纳的最小运行选择来自提交 `1368c52b7255e16e9c2fcde30eebca6f870679f7`，装配映射接受点为 `f98ac926`。以下对应是迁移后的适用性判断，不追溯改变原接受记录：
+旧正文为 `apps/local-harness/design.md`（本次读得 SHA-256 `a8b88dfa227d0447f4cef1d5ddc7cafc620c19f9ee1b4d549c0b82ca005d7eef`）；其接纳的最小运行选择来自提交 `1368c52b7255e16e9c2fcde30eebca6f870679f7`，装配映射接受点为 `f98ac926`。以下对应是迁移后的适用性判断，不追溯改变原接受记录：
 
 | 旧应用设计中的假设或范围 | 当前处理及原因 |
 |---|---|

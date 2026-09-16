@@ -1,12 +1,12 @@
 # Session 投影提供者验证边界
 
-来源 [旧设计](../../../../packages/session/projection/design.md) 的 SHA-256 为 `57c09837e86dcd17dd4176b26454ca0b04f07560df41abcdf0d1d0579cf61828`；最近改动 commit `34251fdfdac400f4db32a2e2b62aa1578b887b04`。当前[源码入口](../../../../packages/session/projection/src/index.ts)和[package exports](../../../../packages/session/projection/package.json)只公开 `/baseline`；本页把实际源证据与目标 v1 缺口分开。
+旧设计 `packages/session/projection/design.md` 的 SHA-256 为 `57c09837e86dcd17dd4176b26454ca0b04f07560df41abcdf0d1d0579cf61828`；最近改动 commit `34251fdfdac400f4db32a2e2b62aa1578b887b04`。当前源码入口（`packages/session/projection/src/index.ts`）和包导出（`packages/session/projection/package.json`）只公开 `/baseline`；本页把实际源证据与目标 v1 缺口分开。
 
 在 HUB 当前源码上执行 `pnpm --filter @omne-harness-lite/session-projection build` 成功，随后同包 `test` 得到 1 个测试文件、28/28 用例通过。它只覆盖下表列出的 baseline 行为，不覆盖新 v1 的联合装配。
 
 | 采用性质/前提 | 实际源证据 | 新 v1 结论与剩余责任 |
 |---|---|---|
-| 纯 reducer、注册和本代撤回 | `SessionProjectionRegistry.register`/`stateOf`、`ctx.effect` disposer、[registry 测试](../../../../packages/session/projection/tests/projection-registry.spec.ts) | baseline 可演示同 key/版本登记和卸载；当前同版本重复登记按 refcount 共用首个函数，未证明 SE-10 对不同贡献的冲突拒绝 |
+| 纯 reducer、注册和本代撤回 | `SessionProjectionRegistry.register`/`stateOf`、`ctx.effect` disposer、registry 测试（`packages/session/projection/tests/projection-registry.spec.ts`） | baseline 可演示同 key/版本登记和卸载；当前同版本重复登记按 refcount 共用首个函数，未证明 SE-10 对不同贡献的冲突拒绝 |
 | 可丢弃缓存和重建 | `checkpoint`/`restoreFloor`/`restore`/`hydrate` 及 schema/version/缩短 log 测试 | 当前键与水位是内存 Session event seq，未绑定 DR/CC commitPosition、输入版本、授权版本及联合发布基线 |
 | 订阅、快照、折叠水位 | `onChanged`/`snapshot` 和对应测试 | 当前是 raw view 与 `asOfSeq`；没有按原 commit batch 的 `completeTo/floor/changes/snapshot`、授权集合或有限查询适配 |
 | Run driver 位置 | [Run driver 映射](../agent-run-driver/design.md)规定 `run.driver_position` | 当前没有按 RN-07 注册并以 Run 权威事实折叠的产品 reducer；缺席时 unavailable 尚待组合验证 |
