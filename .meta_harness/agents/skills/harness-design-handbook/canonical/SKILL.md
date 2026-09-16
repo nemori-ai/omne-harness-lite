@@ -44,6 +44,7 @@ metadata:
 | 责任已有，但性质与行为未闭合（S4–S5）       | [契约与完整动作链](references/define.md)                                                                                                        | 谁在何处保护性质，失败后谁接续？                     |
 | 需要把能力契约落实为插件设计（S6）          | [提供者与装配投影](references/project.md)                                                                                                       | 各能力怎样被提供、组合、替换与撤除？                 |
 | 需要审阅、规格落地或交接（S7–S8）           | [交付与反向核对](references/handoff.md)                                                                                                         | 哪些可被消费，能力地图怎样演化，还有哪些缺口？       |
+| 同一基线的独立评审反复留下实质阻断 finding  | [三轮未收敛时升级结构诊断](references/handoff.md#三轮未收敛时升级结构诊断)                                                                       | 是否应停止局部补丁，怎样从整体设计链找根因？         |
 | 不知道成果是否应长期保存、进入哪个 family   | [信息包准入](references/information-packages.md)                                                                                                | 谁持续消费、谁拥有正文、不满足时停在哪里？           |
 | 已定位到选择、变更或施工规划问题            | [设计选择](references/design-decisions.md) / [规格演进](references/spec-evolution.md) / [交付规划](references/delivery-planning.md)，选相关一页 | 决定依据、消费者影响或证据依赖是什么？               |
 | 某项 Cordis/DSH 行为影响选择                | [来源核对](references/source-check.md)                                                                                                          | 哪个版本的什么证据支持这条主张？                     |

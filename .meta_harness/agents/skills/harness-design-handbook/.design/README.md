@@ -18,6 +18,7 @@
 随后按用户明确的目录心智，将模板设计为 `design/{family}/.templates/` 中可复制的 topic 信息包，
 取代刚起草的集中单文件模板；组织、检查与试用记录见[信息包模板修订](template-packages.md)。
 正式 proposal topic 至少三个实质候选的后续要求，以及决定草稿归属修正，见[提案准入增量](proposal-admission.md)。
+同一接受基线最多三轮实质迭代、未收敛时升级整体诊断的规则，见[评审收敛规则](review-convergence.md)。
 
 ## 来源与边界
 
