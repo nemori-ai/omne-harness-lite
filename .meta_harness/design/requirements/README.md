@@ -23,8 +23,10 @@
 候选 spec、已接受决定、provider、assembly 与实现验证也分别具有自己的状态，必须按 topic 中的
 精确链接和说明核对。系统 topic 含多个身份时以其逐身份表为准。
 
-当 proposal、spec、provider 或 assembly 的新增、接受、取代或退役改变某 requirement 的设计起点或主要缺口时，
-该语义 owner 必须同步对应 topic 的设计覆盖状态和本节计数。只有实际形成逐条结论时，才更新
+当 requirement 身份新增、拆分、合并或移除，或 research、proposal、architecture、decision、spec、provider、
+assembly 的新增、接受、取代或退役改变某 requirement 的设计起点或主要缺口时，该语义 owner 必须同步
+对应 topic 的设计覆盖状态和本节计数。研究只提供事实依据，不因被引用而成为机制设计或覆盖结论。
+只有实际形成逐条结论时，才更新
 [coverage-obligations.md](coverage-obligations.md)。
 
 ## 检索入口

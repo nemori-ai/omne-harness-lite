@@ -12,7 +12,8 @@
 ## 设计覆盖状态
 
 > 模板提示（成稿删除）：本段只作身份级设计导航，不是逐条 requirement coverage；只链接实际存在的
-> proposal、architecture、spec、provider、decision 或 assembly topic。需求确认、candidate/采用、
+> research、proposal、architecture、spec、provider、decision 或 assembly topic。research 只作为可恢复的
+> 事实起点，不构成机制设计或覆盖结论；需求确认、candidate/采用、
 > provider/assembly 与实现验证必须分开陈述。
 
 - 需求确认状态：{{确认范围及来源；不由本段改变}}
@@ -34,3 +35,4 @@
 | 谁确认了哪些范围，前提后来怎样变化 | [来源与变更](changes.md)    |
 
 后续能力覆盖分析归提案；本包不从需求名称预设新能力或插件。
+身份集合或导航依据变化时，按[需求容器的维护触发规则](../../README.md#设计覆盖导航)同步本 topic 与汇总计数。
