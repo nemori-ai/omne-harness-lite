@@ -6,6 +6,7 @@
 | 实施线 [CLI 协调记录](../../interviews/cli-account-flow-2026-09-16/notes.md#int-001) | 转述命令名 `omne signup/login/logout` 和当前 `init` 缺口；不等同用户逐字确认 | [C1/C2](requirements.md#观察结果与边界) 的 CLI 投影 | 命令参数、失败回执、实施策略待设计 |
 | 完整旅程的结果推导 | 失败或切换时不能把错误账号当作已登录 | [C5](requirements.md#观察结果与边界) | 精确恢复和多端策略待定 |
 | 本次 2026-09-16 用户对“注销”范围的定向答复；访谈记录 [INT-005](../../interviews/cli-account-flow-2026-09-16/notes.md#int-005) | 仅退出当前账号登录状态；不要求永久关闭账号与处理其数据 | [C2](requirements.md#观察结果与边界) | 本机/跨设备撤销范围仍待设计 |
+| 本次 2026-09-16 用户对账号/租户双重隔离与本地资源定位的补充；访谈记录 [INT-006](../../interviews/cli-account-flow-2026-09-16/notes.md#int-006) | 数据、设置、权限和资产所有权共同受账号与租户范围约束；未来同盘资源定位要兼容该语义 | [C3/C4](requirements.md#观察结果与边界)、[兼容边界](requirements.md#未来本地资源定位的兼容边界) | 物理目录、定位协议、缓存键和实现步骤本轮未指定 |
 
 ## 后续变化
 
