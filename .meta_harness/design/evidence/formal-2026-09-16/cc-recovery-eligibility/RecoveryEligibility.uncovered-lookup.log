@@ -1,0 +1,268 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 0 and seed 1 with 2 workers on 8 cores with 910MB heap and 64MB offheap memory [pid: 159739] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness-cc-recovery-eligibility/.meta_harness/design/spec/compositions/core-work-coordination/v1/formal/RecoveryEligibility.tla
+Parsing file /tmp/tlc-16337180284126211495/Integers.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Integers.tla)
+Parsing file /tmp/tlc-16337180284126211495/FiniteSets.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-16337180284126211495/Naturals.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-16337180284126211495/Sequences.tla (jar:file:/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Semantic processing of module Naturals
+Semantic processing of module Integers
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module RecoveryEligibility
+Linting of module RecoveryEligibility
+Starting... (2026-09-16 12:36:37)
+Computing initial states...
+Computed 2 initial states...
+Computed 4 initial states...
+Computed 8 initial states...
+Computed 16 initial states...
+Computed 32 initial states...
+Computed 64 initial states...
+Computed 128 initial states...
+Computed 256 initial states...
+Computed 512 initial states...
+Computed 1024 initial states...
+Computed 2048 initial states...
+Finished computing initial states: 3888 distinct states generated at 2026-09-16 12:36:37.
+Error: Invariant LookupCoversOriginal is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ st = [ writerEpoch |-> 0,
+  prefix |-> "unchecked",
+  writer |-> "unacquired",
+  roots |-> "unchecked",
+  claims |-> ("exact-use" :> "unchecked" @@ "resource" :> "unchecked"),
+  attempt |-> "unchecked",
+  durableEpoch |-> 1,
+  watermark |-> 2,
+  baseline |-> None,
+  ready |-> FALSE,
+  claimRefs |->
+      ( "exact-use" :>
+            [operation |-> "op-1", claim |-> "exact-use", generation |-> 1] @@
+        "resource" :>
+            [operation |-> "op-1", claim |-> "resource", generation |-> 1] ),
+  historical |->
+      [ operation |-> "op-1",
+        receipt |-> "receipt-1",
+        result |-> "accepted",
+        batch |-> "batch-2",
+        position |-> [domain |-> "core", seq |-> 2, writerEpoch |-> 1],
+        publication |-> "blocked" ],
+  lookup |-> None,
+  qualification |-> "unchecked",
+  effects |-> 0,
+  broadcast |-> FALSE ]
+/\ env = [ prefix |-> "valid",
+  writer |-> "success",
+  roots |-> "valid",
+  claims |-> ("exact-use" :> "dischargeable" @@ "resource" :> "dischargeable"),
+  attempt |-> "unknown",
+  permission |-> FALSE,
+  tombstone |-> "cancelled" ]
+
+State 2: <VerifyPrefix line 43, col 3 to line 45, col 18 of module RecoveryEligibility>
+/\ st = [ writerEpoch |-> 0,
+  prefix |-> "valid",
+  writer |-> "unacquired",
+  roots |-> "unchecked",
+  claims |-> ("exact-use" :> "unchecked" @@ "resource" :> "unchecked"),
+  attempt |-> "unchecked",
+  durableEpoch |-> 1,
+  watermark |-> 2,
+  baseline |-> None,
+  ready |-> FALSE,
+  claimRefs |->
+      ( "exact-use" :>
+            [operation |-> "op-1", claim |-> "exact-use", generation |-> 1] @@
+        "resource" :>
+            [operation |-> "op-1", claim |-> "resource", generation |-> 1] ),
+  historical |->
+      [ operation |-> "op-1",
+        receipt |-> "receipt-1",
+        result |-> "accepted",
+        batch |-> "batch-2",
+        position |-> [domain |-> "core", seq |-> 2, writerEpoch |-> 1],
+        publication |-> "blocked" ],
+  lookup |-> None,
+  qualification |-> "unchecked",
+  effects |-> 0,
+  broadcast |-> FALSE ]
+/\ env = [ prefix |-> "valid",
+  writer |-> "success",
+  roots |-> "valid",
+  claims |-> ("exact-use" :> "dischargeable" @@ "resource" :> "dischargeable"),
+  attempt |-> "unknown",
+  permission |-> FALSE,
+  tombstone |-> "cancelled" ]
+
+State 3: <AcquireWriter line 50, col 3 to line 56, col 18 of module RecoveryEligibility>
+/\ st = [ writerEpoch |-> 2,
+  prefix |-> "valid",
+  writer |-> "acquired",
+  roots |-> "unchecked",
+  claims |-> ("exact-use" :> "unchecked" @@ "resource" :> "unchecked"),
+  attempt |-> "unchecked",
+  durableEpoch |-> 2,
+  watermark |-> 3,
+  baseline |-> None,
+  ready |-> FALSE,
+  claimRefs |->
+      ( "exact-use" :>
+            [operation |-> "op-1", claim |-> "exact-use", generation |-> 1] @@
+        "resource" :>
+            [operation |-> "op-1", claim |-> "resource", generation |-> 1] ),
+  historical |->
+      [ operation |-> "op-1",
+        receipt |-> "receipt-1",
+        result |-> "accepted",
+        batch |-> "batch-2",
+        position |-> [domain |-> "core", seq |-> 2, writerEpoch |-> 1],
+        publication |-> "blocked" ],
+  lookup |-> None,
+  qualification |-> "unchecked",
+  effects |-> 0,
+  broadcast |-> FALSE ]
+/\ env = [ prefix |-> "valid",
+  writer |-> "success",
+  roots |-> "valid",
+  claims |-> ("exact-use" :> "dischargeable" @@ "resource" :> "dischargeable"),
+  attempt |-> "unknown",
+  permission |-> FALSE,
+  tombstone |-> "cancelled" ]
+
+State 4: <FoldRoots line 59, col 3 to line 61, col 18 of module RecoveryEligibility>
+/\ st = [ writerEpoch |-> 2,
+  prefix |-> "valid",
+  writer |-> "acquired",
+  roots |-> "valid",
+  claims |-> ("exact-use" :> "unchecked" @@ "resource" :> "unchecked"),
+  attempt |-> "unchecked",
+  durableEpoch |-> 2,
+  watermark |-> 3,
+  baseline |-> None,
+  ready |-> FALSE,
+  claimRefs |->
+      ( "exact-use" :>
+            [operation |-> "op-1", claim |-> "exact-use", generation |-> 1] @@
+        "resource" :>
+            [operation |-> "op-1", claim |-> "resource", generation |-> 1] ),
+  historical |->
+      [ operation |-> "op-1",
+        receipt |-> "receipt-1",
+        result |-> "accepted",
+        batch |-> "batch-2",
+        position |-> [domain |-> "core", seq |-> 2, writerEpoch |-> 1],
+        publication |-> "blocked" ],
+  lookup |-> None,
+  qualification |-> "unchecked",
+  effects |-> 0,
+  broadcast |-> FALSE ]
+/\ env = [ prefix |-> "valid",
+  writer |-> "success",
+  roots |-> "valid",
+  claims |-> ("exact-use" :> "dischargeable" @@ "resource" :> "dischargeable"),
+  attempt |-> "unknown",
+  permission |-> FALSE,
+  tombstone |-> "cancelled" ]
+
+State 5: <Install line 68, col 3 to line 72, col 18 of module RecoveryEligibility>
+/\ st = [ writerEpoch |-> 2,
+  prefix |-> "valid",
+  writer |-> "acquired",
+  roots |-> "valid",
+  claims |-> ("exact-use" :> "unchecked" @@ "resource" :> "unchecked"),
+  attempt |-> "unchecked",
+  durableEpoch |-> 2,
+  watermark |-> 3,
+  baseline |->
+      [ domain |-> "core",
+        writerEpoch |-> 2,
+        watermark |-> 3,
+        ownerGenerations |-> ("owner-a" :> 2 @@ "owner-b" :> 2),
+        hostGeneration |-> 2,
+        owners |-> {"owner-a", "owner-b"} ],
+  ready |-> FALSE,
+  claimRefs |->
+      ( "exact-use" :>
+            [operation |-> "op-1", claim |-> "exact-use", generation |-> 1] @@
+        "resource" :>
+            [operation |-> "op-1", claim |-> "resource", generation |-> 1] ),
+  historical |->
+      [ operation |-> "op-1",
+        receipt |-> "receipt-1",
+        result |-> "accepted",
+        batch |-> "batch-2",
+        position |-> [domain |-> "core", seq |-> 2, writerEpoch |-> 1],
+        publication |-> "blocked" ],
+  lookup |-> None,
+  qualification |-> "unchecked",
+  effects |-> 0,
+  broadcast |-> FALSE ]
+/\ env = [ prefix |-> "valid",
+  writer |-> "success",
+  roots |-> "valid",
+  claims |-> ("exact-use" :> "dischargeable" @@ "resource" :> "dischargeable"),
+  attempt |-> "unknown",
+  permission |-> FALSE,
+  tombstone |-> "cancelled" ]
+
+State 6: <Lookup line 97, col 3 to line 101, col 18 of module RecoveryEligibility>
+/\ st = [ writerEpoch |-> 2,
+  prefix |-> "valid",
+  writer |-> "acquired",
+  roots |-> "valid",
+  claims |-> ("exact-use" :> "unchecked" @@ "resource" :> "unchecked"),
+  attempt |-> "unchecked",
+  durableEpoch |-> 2,
+  watermark |-> 3,
+  baseline |->
+      [ domain |-> "core",
+        writerEpoch |-> 2,
+        watermark |-> 3,
+        ownerGenerations |-> ("owner-a" :> 2 @@ "owner-b" :> 2),
+        hostGeneration |-> 2,
+        owners |-> {"owner-a", "owner-b"} ],
+  ready |-> FALSE,
+  claimRefs |->
+      ( "exact-use" :>
+            [operation |-> "op-1", claim |-> "exact-use", generation |-> 1] @@
+        "resource" :>
+            [operation |-> "op-1", claim |-> "resource", generation |-> 1] ),
+  historical |->
+      [ operation |-> "op-1",
+        receipt |-> "receipt-1",
+        result |-> "accepted",
+        batch |-> "batch-2",
+        position |-> [domain |-> "core", seq |-> 2, writerEpoch |-> 1],
+        publication |-> "blocked" ],
+  lookup |->
+      [ original |->
+            [ operation |-> "op-1",
+              receipt |-> "receipt-1",
+              result |-> "accepted",
+              batch |-> "batch-2",
+              position |-> [domain |-> "core", seq |-> 2, writerEpoch |-> 1],
+              publication |-> "blocked" ],
+        baselineRef |->
+            [ domain |-> "core",
+              writerEpoch |-> 2,
+              watermark |-> 1,
+              ownerGenerations |-> ("owner-a" :> 2 @@ "owner-b" :> 2),
+              hostGeneration |-> 2,
+              owners |-> {"owner-a", "owner-b"} ] ],
+  qualification |-> "unchecked",
+  effects |-> 0,
+  broadcast |-> FALSE ]
+/\ env = [ prefix |-> "valid",
+  writer |-> "success",
+  roots |-> "valid",
+  claims |-> ("exact-use" :> "dischargeable" @@ "resource" :> "dischargeable"),
+  attempt |-> "unknown",
+  permission |-> FALSE,
+  tombstone |-> "cancelled" ]
+
+34566 states generated, 23550 distinct states found, 3458 states left on queue.
+The depth of the complete state graph search is 6.
+Finished in 01s at (2026-09-16 12:36:38)
