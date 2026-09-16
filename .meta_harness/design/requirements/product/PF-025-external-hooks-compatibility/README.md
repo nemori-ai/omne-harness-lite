@@ -6,16 +6,16 @@
 - 目标基线：`omne-harness-lite-design-2026-09-15`
 - 来源基线：`omne-harness-lite-legacy-spec` @ `e3573ca72d18bfe7ddd002df5025551b51eede46`
 - 当前状态：已确认范围等价迁入；正文保留明确的待澄清/待设计项
-- 下游状态：能力覆盖、规格和提供者映射由后续纵线建立
+- 下游状态：E 纵线已形成专项候选设计和 provider 交接；条款级覆盖与采用仍待 J/I 核对
 
 ## 设计覆盖状态
 
 - 需求确认状态：已确认范围等价迁入；以正文和变更记录为准。
-- 设计覆盖状态：`正在设计（局部相邻基础）`
+- 设计覆盖状态：`正在设计（直接候选机制）`
 - 规格采用状态：下列 candidate 尚未在当前基线 catalog 中采用或发布。
-- Provider、assembly 与实现验证：相邻 provider 不构成 hooks 兼容交接；没有实际 assembly 或验证结论。
-- 当前可复用设计落点：[Run Driver candidate](../../../spec/capabilities/run-driver/README.md)、[Tools candidate](../../../spec/capabilities/tools/README.md)、[Live Agent candidate](../../../spec/capabilities/live-agent/README.md)。
-- 覆盖边界与主要缺口：事件映射、handler 集合、降级、续跑刹车和程序化作答资格尚未专项设计。
+- Provider、assembly 与实现验证：[external-hooks provider 候选设计](../../../providers/external-hooks/README.md)已给出交接；没有实际 assembly 或端到端实现验证。
+- 当前可复用设计落点：[External Hooks candidate](../../../spec/capabilities/external-hooks/README.md)直接定义兼容行为，并消费 [Run Driver](../../../spec/capabilities/run-driver/README.md)、[Tools](../../../spec/capabilities/tools/README.md)和 [Live Agent](../../../spec/capabilities/live-agent/README.md)候选边界。
+- 覆盖边界与主要缺口：候选尚未采用；PF-025.C1/C2 的逐条覆盖、宿主 CLI 配置到插件装配及失败路径需 J/I 与后续实现核对。
 
 ## 按当前问题展开
 

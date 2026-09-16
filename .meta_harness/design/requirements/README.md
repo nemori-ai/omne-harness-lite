@@ -14,8 +14,8 @@
 | 固定状态词 | 身份数 | 含义 |
 | --- | ---: | --- |
 | `正式设计完成` | 0 | 尚无 identity 闭合条款 coverage、采用契约及必要的 provider/assembly 交接。 |
-| `正在设计（直接候选机制）` | 21 | 有直接相关的 proposal、architecture、candidate spec、provider 或机制决定。 |
-| `正在设计（局部相邻基础）` | 9 | 有相邻可复用机制，专项责任和覆盖分析未形成。 |
+| `正在设计（直接候选机制）` | 22 | 有直接相关的 proposal、architecture、candidate spec、provider 或机制决定。 |
+| `正在设计（局部相邻基础）` | 8 | 有相邻可复用机制，专项责任和覆盖分析未形成。 |
 | `尚未开始专项设计` | 8 | 正式 requirement 已登记，尚无足以起步的专项机制设计。 |
 | `阶段约束` | 1 | `SYS-EXPERIMENT` 是当前研发阶段边界，不是待设计的独立功能。 |
 
