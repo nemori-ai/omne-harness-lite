@@ -46,10 +46,13 @@ fact 为 `operation.conflict/3`、data 恰为 RevisionConflict；outcome 恰为
 replay 须从冲突行**之前**的连续完整前缀重算每个 attempted stream 当时的 head，
 按原顺序推出与 outcome/fact 完全相同且非空的 currents；期望修订或前缀无法核实时
 拒绝可写恢复/保持 unknown，不能只信冲突行自报的 currents。
-个人创建若因目标流 CAS 冲突，沿普通 tenant-scope provider outcome 写入同 T/C 的
-durable conflict；`attemptedAppends` 只含原目标流的冻结 stream/expectedRevision，
-`currents` 只含实际冲突流。另一 T 即使已在相同 target 创建，也不能将其成功归给
-本 T。lookup/replay 按原 operation/canonicalInput/digest 认回一次 committed 或 durable conflict；
+个人创建的第二 T 遇第一 T 的未决逻辑占位时，由 Tenant 保留
+`target_occupied_pending`；records 没有已提交的 CAS mismatch，不能替 Tenant
+提前编造 durable conflict。若原 T/C 后续实际提交并与已耐久的目标流 CAS 冲突，
+沿普通 tenant-scope provider outcome 认回该存储 conflict；`attemptedAppends` 只含
+原目标流的冻结 stream/expectedRevision，`currents` 只含实际冲突流。Tenant 仍须
+依据完整前缀证明另一 T 已成为创建者，才给业务终局 `personal_target_conflict`；
+不能将胜者的成功归给本 T。lookup/replay 按原 operation/canonicalInput/digest 认回原存储结果；
 unknown 和临时 `not_seen` 均不证明未提交。
 
 v3 payload 的 `recordClass` 是 `ordinary_commit`、`ordinary_conflict` 或

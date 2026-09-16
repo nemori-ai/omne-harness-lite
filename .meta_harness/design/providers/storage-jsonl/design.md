@@ -107,9 +107,12 @@ target 协调域若存在旧候选格式或未知格式字节，须保全原件�
 Tenant/Admission 的受信门验证 F 的来源、T/C、注入式 target、目标流空前态及
 唯一 owner；writer 只见普通冻结操作。init 与后续注册同样只向目标
 `tenant:<target>` 一流写一个 append，包含个人租户、creator 与唯一 active owner。
-无 system personal-index、bootstrap 流或 personal 专属 envelope。CAS conflict
-是同 T/C 的普通 provider-owned tenant-scope outcome，`attemptedAppends` 为原目标
-流唯一期望修订；`currents` 仅列实际 mismatch，不能用另一 T 的成功替本 T 认回。
+无 system personal-index、bootstrap 流或 personal 专属 envelope。第一 T 只有
+未决逻辑占位时，第二 T 的 `target_occupied_pending` 归 Tenant 查询，writer 不造
+CAS conflict。第二 T 若实际提交并撞上已耐久目标流，才写同 T/C 的普通
+provider-owned tenant-scope conflict outcome；`attemptedAppends` 为原目标流唯一
+期望修订，`currents` 仅列实际 mismatch。Tenant 以完整前缀确认胜者，才给
+`personal_target_conflict`；JSONL lookup 不能把另一 T 的成功替本 T 认回。
 
 prepare/commit 时 writer 核普通 scope、CAS、原操作及当前 epoch；lookup/replay 从
 完整前缀按 T/C 认回历史结果，并从冲突行前的完整前缀复算 mismatch；严格拒绝

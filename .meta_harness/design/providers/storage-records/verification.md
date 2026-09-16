@@ -13,7 +13,7 @@
 | 通用 CAS conflict | 一流/四流任一原业务流冲突时只生成同 operation 的 provider-owned `core.records/operation-outcomes` 单 append，scope 随原可信 tenant、`operation.conflict/3` 与普通 outcome 等值、无个人字段、`requiredUses=[]`；attemptedAppends 按原冻结流/期望修订保留，冲突前完整前缀重算的 currents 必须一致，未耐久不得返回最终 conflict |
 | writer.acquire 编码 | `core.writer` 的 `writer-epochs` 单 append、`writer.epoch/3`、规范输入、含 domain64 的 operationId、committed epoch、`requiredUses=[]` 一致；两个 domain 的初始 epoch 操作不碰撞，旧调用不能伪造保留 namespace，codec 成功不证明已持锁同步或新 writer 可交出 |
 | 个人创建目标单流 | Tenant 受信 F/T/C 准备只向 `{scope:tenant(target),streamId:tenant:<target>}` 一流提交；codec/port 按普通 DR-01 检查 tenant scope、空前态 CAS、冻结 facts 与同批 eventId；混入 system 或另一 tenant 的流在分配位置前拒绝，F 真实性与唯一 owner 由 Tenant/CC 验证 |
-| 同 UserRef 不同 F 冲突 | 两个 T/C 对同一注入式目标争首位置，后一个使用普通 tenant-scope conflict outcome；`attemptedAppends` 和 `currents` 仅为真实目标流，重启 lookup 不把前一个 T 的成功当后一个 T 的成功 |
+| 同 UserRef 不同 F 冲突 | 第一 T 只占逻辑位置时，第二 T 保持 Tenant `target_occupied_pending`，records 不造尚不存在的 durable CAS conflict；若第二 T 后续提交与已耐久目标流冲突，普通 tenant-scope outcome 的 `attemptedAppends`/`currents` 仅含真实目标流；Tenant 另以完整前缀确认胜者后终局 `personal_target_conflict`，重启 lookup 不把胜者成功当第二 T 成功 |
 | v3 codec 与旧字节 | 三类 `recordClass`/可信 `source` 的封闭形状、JournalLine 长度/摘要、canonicalInput 摘要、普通 envelope 均校验；错/缺 recordClass/source/attemptedAppends、额外/缺失字段、错版本/target、outcome/fact 不一致、非 canonical 字节拒绝；实际旧候选前缀保全原件且不能按 v3 可写恢复 |
 
 这些项当前均未在新 v1 坐标下执行，不能从旧测试名或源码形状推断为通过。

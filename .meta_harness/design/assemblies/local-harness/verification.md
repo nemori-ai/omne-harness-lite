@@ -14,9 +14,10 @@
 
 | 边界 | 集成判据；当前状态 |
 |---|---|
-| 初始账号及第二账号 | init 与 signup 共享 Tenant F→T/C、注入式 target、目标单流与认回；同一 F 重试只认回原 T，不同 F 同 UserRef 仅一 T 可成功，不同 UserRef 不撞目标。凭据冲突、F 后宕机、Account/Tenant 失联、丢回执和跨进程重启不能造第二目标。当前无 Account provider/CLI/单流联合实测。 |
+| Account 凭据绑定与初始资格 | 真实 adapter 在 Account 耐久固定 A/规范标识后，以同 A 原子幂等绑定唯一标识与稳定 subject；注入 provider 已 bound、Account 映射未写就崩溃，重启按 A 查 `bound/conflict/unknown/已证明 not_seen` 并补原映射，不造第二身份或 F。确定凭据冲突留 A/UserRef/sourceRef 墓碑、查询终局 `rejected_credential_conflict`；init 仅在无 F/可推进绑定的确定终局后允许新受信 A，unknown/pending 不释放首位。当前无认证 provider、adapter 或 AccountHost 联合实测。 |
+| 初始账号及第二账号 | init 与 signup 共享 Tenant F→T/C、注入式 target、目标单流与认回；同一 F 重试只认回原 T。不同 F 同 UserRef 时，第一 T 未决则第二 T 只能报 `target_occupied_pending`，第一 T 耐久创建后第二 T 才终局 `personal_target_conflict`，原 A 再耐久标记并查询 `blocked_personal_target_conflict`；不同 UserRef 不撞目标。F 后宕机、Account/Tenant 失联、丢回执和跨进程重启不能造第二目标。当前无 Account/Tenant/CLI 单流联合实测。 |
 | 同机多账号与租户 | 切换登录态和目标租户后，Session、settings/skills、授权、预算与结果查询都按可信 `UserRef` 和目标租户隔离；logout 后旧会话不准新交互。当前无产品装配实测。 |
-| 首次运行与恢复 | fresh 时分别核实 Account 空状态、DR/CC 完整空业务前缀与 writer/owner 基线；缺失、损坏或未知责任不能当新部署。init 的目标单流前缀由必需 owner 完整 fold 并一次发布同水位 roots；Account pending/F 重启后仍可枚举并接续；`committed_blocked` 保留历史结果，完整新基线后单独判可消费，原 attempt unknown 不自动执行。当前旧 P1 recovery 不证明这条链。 |
+| 首次运行与恢复 | fresh 时分别核实 Account 空状态、DR/CC 完整空业务前缀与 writer/owner 基线；已拒绝 A 的不复用墓碑必须保留，缺失、损坏或未知责任不能当新部署。init 的目标单流前缀由必需 owner 完整 fold 并一次发布同水位 roots；Account pending/F、确定冲突和阻断在重启后仍可按原 A 查询，可推进者再接续；`committed_blocked` 保留历史结果，完整新基线后单独判可消费，原 attempt unknown 不自动执行。当前旧 P1 recovery 不证明这条链。 |
 | Agent/Session/Run | 双 Context 竞争激活/取批、撤权、卸载重入、迟到资源、旧引用与关闭，仍只有原占位和原清理责任；文本与唯一 Run 可查询。当前未执行。 |
 | 工具/预算/真实文件 | 多命令文件工具参数完整校验，真实授权与预算在效果前成立；仅原 allow attempt 写一次，ask 缺席拒绝；各效果/回执窗口 kill/reopen 后完成不重做、未知不假成功。当前未执行。 |
 | 独立消费者与关闭 | 从固定提交安装、构建并用公开入口跑整条链；退出后 fd、订阅、任务、timer 或具名 retained 可核对，旧 provider/disposer 不控制新代。P1 tarball 仅覆盖五个基础包，整链未执行。 |

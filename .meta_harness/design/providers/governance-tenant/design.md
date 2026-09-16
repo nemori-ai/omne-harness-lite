@@ -4,8 +4,9 @@
 `composition.core-work-coordination@1` 与 `capability.engineering-observation@1` 所需条款。
 旧 `f98ac926`/`058c77c` 接受只说明 legacy 施工来源，不接受本 baseline 坐标或候选插件。
 状态转移、失败语义与重载细节见[当前协议](protocol.md)，其内容同样保持 candidate。
-个人创建的单机映射采用[候选 B](../../proposals/account-personal-local-creation/design.md)；
-精确行为以同 baseline 的 TG/AI/CC/DR 候选规格为准，提供者采用仍未验证。
+个人创建的单机映射采用 [D-021](../../decisions/account-personal-local-creation/decision.md)
+接受的[提案 B](../../proposals/account-personal-local-creation/design.md)；列明语义已接受，
+完整 TG/AI/CC/DR 坐标与提供者符合性仍须分别核定。
 
 ## 实现路径与来源
 
@@ -55,14 +56,19 @@ A 或 digestA。Host 先按 T/C 查询占位与耐久结果；同输入认回，
 host/owner/writer generations；门内不等待 Account I/O。Tenant 经普通 DR-01
 单租户提交向 `tenant:<target>` 的一个 append 同批写个人租户、creator 与唯一
 active owner 成员。不同 UserRef 的目标流互不竞争；两个不同 F 声称同一 UserRef
-时仅一个 T 可占该目标首位置，另一 T 得到自身 durable conflict，不能认回前者。
+时仅一个 T 可占该目标首位置。第一 T 的占位/写入尚未核实时，第二 T 保留
+`target_occupied_pending` 和原查询责任；完整前缀确认第一 T 已耐久创建后，
+第二 T 才终局 `personal_target_conflict`，保留本 T/F/target 与胜者证明，不认回前者
+或泄露其账号资料。Account 随后核实并耐久标记原 A 为
+`blocked_personal_target_conflict`；Account 缺席时保留交接责任，不能把 Tenant
+冲突、普通 CAS 冲突和账号阻断提前合并成同一个结果。
 业务字符串、反序列化 envelope 与旧代准备均不能取得当前写入资格。当前
 writer/Admission/TenantHost 尚无此映射的符合性证据，个人创建入口保持 unavailable。
 
 逻辑 root 仅保留原 T/目标占位和负向封闭；未耐久 `tenant.created`/owner
 成员不能进入准入可读正向根。同一目标 append 的个人租户、creator、唯一 active
 owner 事实须逐项核对；init 另核 Account 受信来源和初始空 Tenant 根。sync 失败、
-unknown 和 committed_blocked 不开放新资格。恢复先以完整前缀逐条核对目标流
+unknown、`target_occupied_pending` 和 committed_blocked 不开放新资格。恢复先以完整前缀逐条核对目标流
 中的 F/T/C 绑定和唯一性，再候选 fold；CC-06 恢复宿主一次安装全部 owner roots
 后，Tenant 本代查询才可给另立的可消费证明。
 历史提交结果、publication 可消费证明和当前 tenant/owner 资格分别读取；旧创建
@@ -87,7 +93,7 @@ CC-05；待集成时登记精确坐标/条款和消费者映射。
 | 输入 | 使用范围 | 缺席/换代 |
 |---|---|---|
 | 列出的 ARI/CD 条款 | 稳定身份、tenant、因果、冻结输入 | 结构有效不代表当前资格；不补造身份 |
-| AI 受信 F 读面 | Account 原始后果、稳定 target、AI-08 init 资格；ACR 是回执的下游消费者 | 未发行 F 或新代 Account 缺席不得准备；同代已冻结 F 不因短暂失联撤销，换代须重读 |
+| AI 受信 F 读面 | Account 原始后果、稳定 target、AI-08 init 资格；ACR 消费 Tenant 冲突/可消费结果并由 Account 留终局状态 | 未发行 F、新代 Account 缺席或凭据冲突不得准备；同代已冻结 F 不因短暂失联撤销，换代须重读 |
 | 列出的 DR 条款 | 原操作、耐久回执、恢复/unknown、writer 换代 | 未核实写入保持 unknown，不能换 key 重试 |
 | 列出的 CC 条款 | prepare、同门检查、共同提交、publication 与恢复 | blocked/unknown 不执行效果；通知不是状态权威 |
 | 列出的 OB 条款 | 关联、拒绝/unknown 与 gap | 普通诊断失败不改业务事实；关键审计失败在效果前 fail closed |

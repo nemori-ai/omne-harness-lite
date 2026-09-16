@@ -23,7 +23,7 @@
 | replay/recovery | 扫描完整前缀重建的 stream heads、operation lookup、receipt 与 eventId 等于在线结果；冲突行之前的完整前缀重算每个 attempted stream 的 head、非空 mismatch 及其原序，篡改 attempted expected/head 或 outcome/fact 须阻断可写恢复；完整无回执行同步后按 committed 或 conflict outcome 认回，不把完整冲突行误报成功 |
 | close 与换代 | close 先关新提交，再排空/sync/释放；失败具名保留 pending/lock 状态；旧 token/epoch fenced；新 provider 只在旧 writer 释放且前缀/操作结果一致后取得写权 |
 | 个人创建目标单流 | 真实 Account/Tenant/Admission 与 writer 联合检验受信 F→T/C、按 UserRef 注入的 target、目标 tenant 流空前态和个人/唯一 owner facts；只写一条 tenant-scope append，伪造来源、跨 scope 混写、错 target/revision/domain/代际在写盘前拒绝；writer 走普通 DR 路径 |
-| 同目标不同 T 的冲突 | 不同 F 声称相同 UserRef 时，只有首个 T 的目标流 append 成功；另一个 T 的普通 tenant-scope conflict 只记原目标流的 `attemptedAppends` 与实际 `currents`，lookup/replay 保持两原操作各自结果；不同 UserRef 不争同流 |
+| 同目标不同 T 的冲突 | 不同 F 声称相同 UserRef 时，第一 T 只占逻辑位置或写入 unknown，第二 T 由 Tenant 查询 `target_occupied_pending`，writer 不造提前的 durable conflict；第一 T 完整前缀证明耐久创建后，Tenant 对第二 T 给 `personal_target_conflict`。第二 T 若提交碰到真实 CAS mismatch，普通 tenant-scope conflict 只记原目标流的 `attemptedAppends`/`currents`；lookup/replay 保持两 T 各自结果，不同 UserRef 不争同流 |
 | v3 严格 replay 与旧字节 | 三类 `recordClass` 与可信 `source` 对应封闭形状，核 exact `OperationInput`、canonicalInput/inputDigest、JournalLine 长度/摘要及 operation/principal 绑定；伪造 source、缺失/多余字段、错版本/摘要、错 target、非 canonical 字节及损坏前缀阻断可写恢复；旧候选或未知格式字节先保全原件，再拒绝按 v3 可写恢复，无兼容读取或转换假设 |
 | unknown 后原操作重备 | 回执丢失与暂时 not_seen 保持原目标/占位；只有旧 writer 完整前缀证明未提交且占位安全解除后，当前代才可同绑定重备 |
 | 首次空根与 provider 生命周期 | 空部署须持锁核实 DR 连续空业务前缀、writer epoch 和 CC/Tenant 必需根，不能把缺失或坏文件当 fresh；Account 缺席时新 F 不可准备，已冻结 F 可在同代完成；旧 provider/host/writer token 在换代后不能写，release 失败保留具名责任 |

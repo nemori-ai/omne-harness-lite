@@ -31,14 +31,20 @@ C 仅取公开 F 字段计算摘要。较早 pending、凭据碰撞或客户端�
 同成同败。目标由不复用的 UserRef 注入得到，不需要 global index；init 一次性资格
 属于 Account，不产生 Tenant bootstrap 流。DR 按普通单租户写入验证 scope、CAS、
 原操作与完整前缀，Tenant 验证 F/T/C、user、target、creator/owner 和个人种类。
-不同 F 声称同一 UserRef 时仅一个 T 可占目标首位置，另一 T 是本操作的 durable
-conflict，不可认回别人的成功；第二 owner 或坏前缀均拒绝 ready。新的
+不同 F 声称同一 UserRef 时仅一个 T 可占目标首位置。第一 T 仅有逻辑占位或其
+耐久结果未决时，第二 T 保留 `target_occupied_pending` 与原查询责任；独占完整
+前缀确认第一 T 已耐久创建后，第二 T 才给终局 `personal_target_conflict`；若独占恢复
+证明第一 T 未提交且安全释放目标占位，第二 T 才可用原 T/C 争首位置。终局保留
+本 T/F/target 及不泄露其他账号资料的胜者证明，不可认回别人的成功。Account
+核实该终局后将原 A 耐久标记 `blocked_personal_target_conflict`；Account 缺席时
+交接责任保留，未核实的冲突不提前报为确定阻断。第二 owner 或坏前缀均拒绝 ready。新的
 owner 正向资格和 ACR 激活证明只在完整耐久前缀、全部 owner publication 与本代
-可消费基线同时成立时可读；unknown、sync 失败和 blocked publication 均不开放。
+可消费基线同时成立时可读；`target_occupied_pending`、unknown、sync 失败和
+blocked publication 均不开放。
 
 Host 查询分别呈现历史 durable 提交、当前 publication 可消费、本次 tenant/owner
 业务资格；旧租户 closing/closed 后同操作只认回历史，当前业务拒绝。writer unknown、
-回执丢失或暂时 `not_seen` 保留原 target/claim 占位；仅独占恢复证明旧 writer
+回执丢失或暂时 `not_seen` 保留原 T/target 占位；仅独占恢复证明旧 writer
 未提交且安全解除全部占位后，同输入同 target 才可重备。已提交但 owner publication
 失败时原 completion 永久保留 `committed_blocked`，CC-06 新代全 owner 基线完成后
 本代查询另给可消费证明，不重发批次或改写原 completion。
