@@ -1,7 +1,7 @@
 # 工具状态提供者设计映射
 
-状态：基础 tools fork 有 schema/definition 源码和测试；完整 ToolHost、调用状态、frames、links 与恢复许可尚未实现。 本页保留后续实现会持续消费的端口、状态、失败与撤除协议；来源中的旧
-接受和旧坐标仅作 provenance。本 baseline 对应契约均为 candidate、`acceptance:null`。
+状态：基础 tools fork 有 schema/definition 源码和测试；完整 ToolHost、调用状态、frames、links 与恢复许可尚未实现。本页保留后续实现会持续消费的端口、状态、失败与撤除协议；来源中的旧
+接受和旧坐标仅作 provenance。本 baseline 对应契约均为 candidate、`acceptance:null`，本页也不是实现符合性声明。
 
 
 
@@ -12,11 +12,19 @@
 - 每次 effect 前核对当前 Fiber、tenant、资格、binding、epoch 和取消；Context/AgentRef 不代授权。
 - 撤除先关新工作、排空本代短门与私有资源；已耐久请求、调用、结果、费用与 unknown 留给长期 owner。
 
-## 当前 v1 适配
+## 当前 v1 契约与来源映射
 
-来源协议没有被提升为实现符合性；其中仍指向旧坐标的内容只作 provenance，必须在实现前映射到当前 candidate 或登记 gap。
+当前目标分别是 [TL-01～20](../../spec/capabilities/tools/v1/contract.md)、
+[DR-01～05](../../spec/capabilities/durable-records/v1/contract.md)、
+[CC-01～07](../../spec/compositions/core-work-coordination/v1/contract.md)、
+[SE-12～17](../../spec/capabilities/session/v1/contract.md) 与
+[RN-05](../../spec/capabilities/run/v1/contract.md)。下文的 `SR`、`core-journal/1`、
+`core-operation/1` 和旧端口名均是固定来源设计中的命名，不表示本候选复用旧接口。
+`SR` 所承担的等待登记、运行控制与到达裁决现分别归 Run、Session/Inbound；
+凡下文仍用它表示一个共同提交伙伴，实施前必须按各语义 owner 拆开。当前差距集中在
+通用 Tools 记录 codec、终态到达交接及恢复/强停的多 owner 联合验收。
 
-## 来源协议（重基输入）
+## 提供者候选（由固定来源重基）
 
 ## 公开入口与记录权威
 
@@ -28,14 +36,20 @@
 src/schema.ts（legacy source: `src/schema.ts`）、src/presentation.ts（legacy source: `src/presentation.ts`）。直接演化
 DSH tools fork（`c291e796`、MIT/provenance），保留声明 DSL/冻结/纯呈现；目标
 默认入口删除 llm/baseline、裸 execute、按当前同名查找的隐式依赖，不做兼容包装。
-TL 消费 HD/AU/BG/TG/SR 公开窄类型，定义 ExecutionProvider/PermitFacts 供 LE
+TL 消费 HD/AU/BG/TG/Run/Session 的公开窄类型，定义 ExecutionProvider/PermitFacts 供 LE
 实现；**不 import local-execution，HD 不 import TL**。work-data/records 是共享
 身份和 codec/端口，类型/纯 fold 不成插件。
 
-三个记录 owner 分别由各包拥有；本包仅写 `tools`。每一域每个 owner
+记录 owner 分别由对应能力拥有；本包仅写 `tools`。每一域每个 owner
 只有一份 logical/durable 根；多 Context 注入同一权威，不各建 Map。类型、codec、
-纯 fold 不变成 service。记录沿 `core-journal/1`、`core-operation/1`，每 stream
-每 batch 一个 append，事件 version 为字符串 `"1"`，Counter 不转 number。
+纯 fold 不变成 service。目标遵守 DR-01 的一 stream 一 batch 至多一个 append、
+每 append 使该 stream revision 恰加一；调用方在提交前冻结 appends 数组和各流内
+facts 顺序，writer/read/replay 保持该顺序，按此 flatten 后才分配逐事实
+`eventId=(coordinationDomain,batchSeq,recordIndex)`；Counter 不转 number。
+DR 当前 `core-journal/3` 的严格 Schema 专为个人租户创建二/三流混合批次，
+**不能**把它当作通用 Tools 记录 envelope。Tools 的版本化 stream/fact/operation
+codec 与真实 writer/replay 映射仍待 DR owner 定义并验收；不得以来源的
+`core-journal/1`、`core-operation/1` 建新写入兼容层。
 投影可重建但不授予读取、作答或执行资格；未知版本/缺 required fold 拒绝该入口。
 
 ## 身份、状态与事件投影
@@ -52,29 +66,31 @@ operation 稳定认回整个原输入，不用新 operation/attemptId 自动重�
 | ManifestTools | `{manifestId,work,requestBinding,items:[{alias,registrationId,definition,binding,commandSchemas,skillEvidence,consumerEvidence}],digest}`；保存真正送往请求的单槽位表面、正文依据；模型路径由 MC 保存完整请求，本表为其不可变组成 |
 | Call | `{call,action,subjectDefinition,initiator,delegationBasis,proposalSource,presentationIndex,continuationId,state,request:null|RequestRef,execution:null|ExecutionRef,terminal:null|ToolResultBlock,consequence,controlRevision}`；state 沿 TL-07；原 subjectDefinition 是被代表 Agent 定义，不能误用工具定义找 grant |
 | ExecutionRef | `{call,providerId,providerProtocol,implementationArtifact,binding,executionEpoch}`；executionEpoch 在准入时固定，与原 Step.createdEpoch/当前 Run.epoch 分开；不因 Agent 退役改写 |
-| ExecutionExposure | `{call,attempt,providerId,providerGeneration,executionEpoch,state:open|closed,closedBy?}`；执行许可/接纳即 open；只有同 identity 的 quiescent 或 verified isolation 关闭，`settled(unknown)` 保持 open |
-| Call consequence | `{sourceVersion,sourcePosition,target:SR|BG,operation,delivery:pending|applied|failed|unknown,receipt:null|Receipt}`；只存具名原结果/费用/停止交付，不建通用消息总线 |
+| ExecutionExposure | `{call,attempt,executionOwner,providerId,providerGeneration,executionEpoch,stopFenceRevision?,state:open|closed,closedBy?}`；执行许可取得或执行 owner 接纳中较早的时点即 open，permit→start 空窗不能漏记；停止时绑定其 fence revision，只有同 call/attempt/owner/generation/epoch/fence 的 quiescent 或 verified isolation 关闭，`settled(unknown)` 保持 open。该空窗的耐久事实 owner、与许可提交的同批关系及跨域 CC-05 交接仍须 TL/LE/CC 联合定稿 |
+| Call consequence | `{sourceVersion,sourcePosition,target:Inbound|BG,operation,delivery:pending|applied|failed|unknown,receipt:null|Receipt}`；工具结算交给 Inbound 到达，预算交给 BG；只存具名原结果/费用/停止交付，不建通用消息总线 |
 
-新 ID 沿 SR 已固定的宿主唯一启动命名空间与 owner 不回绕计数；request/outcome/
-registration IDs 在原 operation 候选中只分配一次。执行提供者 incarnation 是新
+新 ID 遵守 ARI-1 的作用域内不复用、CD-01 的 CallRef 共享身份；具体编码待
+Tools/DR codec 定义。request/outcome/registration IDs 在原 operation 候选中只分配一次。
+执行提供者 incarnation 是新
 运行身份；已准入 executionEpoch 不等于可反序列化的当前能力。旧 disposer/permit/
 消息不能控制新 incarnation。initiator 是因果来源，不冒充 owner、原 caller、当前
 作答者或受委托执行者；租户隔离逐条沿完整嵌套引用检查。
 
-TL streamId 使用规范元组 `registration(scope,id)`、`call(CallRef)`、
-`manifest(work,id)`、`reconciliation(tenant)`。
-Position 指已耐久事实；同批来源使用 SR 已固定的
-`{kind:this_batch,stream,recordIndex}`，fold 检查原 owner/协议/对象版本和同批互指，
-不预猜 seq，不凭跨 owner DTO 更新权威。
+来源候选把 TL streamId 写成规范元组 `registration(scope,id)`、`call(CallRef)`、
+`manifest(work,id)`、`reconciliation(tenant)`；这些是待 DR codec 定义的语义身份，
+不是已发布的 StreamRef 字节编码。Position 指已耐久事实；同批来源在 prepare
+阶段只用相对位置/临时关联，commit 后按冻结 append 与流内 facts 顺序
+解析为最终 eventId，不能因排序实现或重试到达次序改写同一原操作的身份。
+fold 检查原 owner/协议/对象版本和同批互指，不预猜 seq，不凭跨 owner DTO 更新权威。
 
-| owner / 事件族（全部 /1） | 保存与合法转移 |
+| 来源事件草案 / 当前 v1 对应 | 保存与合法转移 |
 |---|---|
-| tools.registration_planned/published/retiring/released | 精确声明/选用/实现/来源与上一修订；published 的持久记录只说明当代曾发布，当前可用仍查运行绑定；退役意图立即关闭新使用，released 要资源真实排空 |
-| tools.manifest_recorded / call_proposed | 原 manifest/消费证据或完整 Call 初值；proposed 与 SR call_proposed/原 blocked continuation 同批 |
-| tools.call_waiting / call_admitted | 原 call、AU 判定来源、request 或 ExecutionRef/permit 依据/chargeAttempt；分别与 HD/SR 等待或 AU/HD/BG/SR 准入同批 |
-| tools.call_terminal / result_delivery_changed | 原终态版本、可信 ToolResultBlock、效果/物理事实与待交付后果；不能用迟到观察覆盖已有终态。unknown 的 resolution 另写 tools.call_resolved，保留旧 unknown；业务终态不隐式关闭 ExecutionExposure |
-| tools.control_requested/progressed / reconciliation_advanced | 原 call/epoch/control 和停止责任；或已处理的 AU/TG 记录水位及待处置原请求。控制不由帧推断 |
-| 各 owner.operation_denied | 具名操作、目标、code、当前依据/水位，原 owner 关键拒绝审计；写失败为 audit_unavailable，不报已耐久拒绝 |
+| registration planned/published/retiring/released（来源名待 codec） | 精确声明/选用/实现/来源与上一修订；published 的持久记录只说明当代曾发布，当前可用仍查运行绑定；退役意图立即关闭新使用，released 要资源真实排空 |
+| manifest recorded（来源名待 codec） / `tools.call.proposed` | 原 manifest/消费证据或完整 Call 初值；proposed 与 `run.calls.proposed` 和原调用等待登记同批（TL-15/16） |
+| `tools.call.waiting` / `tools.call.admitted` | 原 call、AU 判定来源、request 或 ExecutionRef/permit 依据/chargeAttempt；分别与 HD/Run 等待或 AU/HD/BG/Run 准入同批 |
+| `tools.call.settled` / 交付状态（来源名待 codec） | 原终态版本、可信 ToolResultBlock、效果/物理事实与待交付后果；终态与 `inbound.arrival.accepted{call_settlement}` 同批或按 CC-05 跨域交付。不能用迟到观察覆盖已有终态；unknown 的 resolution 另写 `tools.call.resolved`，保留旧 unknown；业务终态不隐式关闭 ExecutionExposure |
+| `tools.control.requested/progressed` / reconciliation advanced（来源名待 codec） | 原 call/epoch/control 和停止责任；或已处理的 AU/TG 记录水位及待处置原请求。控制不由帧推断 |
+| 各 owner 的 denied 审计（来源名待 codec） | 具名操作、目标、code、当前依据/水位，原 owner 关键拒绝审计；写失败为 audit_unavailable，不报已耐久拒绝 |
 
 ## 公开操作与当前资格
 
@@ -90,10 +106,10 @@ prepare_again，用户 expected 冲突保存原条件结果；unknown 只查询�
 | discover/getDefinition/help | 当前 tenant/原定义权益/可披露范围，kind=tool|skill；返回真实 available/requestable/unavailable，来源缺失不是空目录；help 只读获准定义 |
 | load/loadSkill/retire | 明确 scope、原 acquisition、精确版本/配置、expected；装载可信实际制品，不能下载用户任意 JS。失权、unsupported_schema、missing_skill、unknown_declaration、stale_binding、busy/retained 分别可查 |
 | prepareManifestTools | 真实 Step/消费类型/当前所选工具与 skill 证据；返回冻结表面与来源 stamp，真正请求方在发送前同门核验并保存完整 manifest；此方法不执行工具 |
-| proposeCalls | SR 原 new_step claim、完整受管返回/原 manifest 或程序化消费证据、调用有序列表；为每项解析冻结 Action 并与 SR 联合登记；返回原 CallRef/continuationId。未经完整参数校验不执行、不偷偷降级命令 |
-| adjudicateCall | SR 原 adjudicate claim、原 CallRef、expected 与可选原 request；四值裁决按后文联合提交。程序化和模型同门，调用者不能填入 AU allow |
-| listCalls/getCall/inspectCall/subscribeFrames | SR 当前正文/工具结果读资格及精确 call；inspect 通过原 provider 查询，缺失表示 unavailable/unknown，不能由空帧猜终态。每订阅独立 cursor/撤权检查 |
-| stopCall/readControl/listExecutionExposure | SR 精确 call 控制资格；作用仅原 call/attempt，不伪装成 Run interrupt。重复认回原 control；exposure 只由同 owner/generation/epoch 的 quiescent 或 verified isolation 关闭，错代/迟到证据只审计 |
+| proposeCalls | RunDriver 原 new_step claim、完整受管返回/原 manifest 或程序化消费证据、调用有序列表；为每项解析冻结 Action 并与 Run 联合登记；返回原 CallRef/continuationId。未经完整参数校验不执行、不偷偷降级命令 |
+| adjudicateCall | RunDriver 原 adjudicate claim、原 CallRef、expected 与可选原 request；四值裁决按后文联合提交。程序化和模型同门，调用者不能填入 AU allow |
+| listCalls/getCall/inspectCall/subscribeFrames | 当前正文/工具结果读资格及精确 call，按 Run/Session 语义 owner 核验；inspect 通过原 provider 查询，缺失表示 unavailable/unknown，不能由空帧猜终态。每订阅独立 cursor/撤权检查 |
+| stopCall/readControl/listExecutionExposure | Run 的精确 call 控制资格；作用仅原 call/attempt，不伪装成 Run interrupt。重复认回原 control；exposure 只由同 call/attempt/owner/generation/epoch/fence 的 quiescent 或 verified isolation 关闭，错代/迟到证据只审计 |
 | reconcileWaiting | 受限宿主维护操作；按当前 AU/TG/绑定及原 request 核对待批后果，保存明确关闭/取代原因；不能自造人类答案 |
 
 HD 读/答/关闭接口及其当前 grantor 义务见 HD 设计（legacy source: `../../governance/human-decisions/design.md`）。
@@ -117,7 +133,7 @@ Binding/providerProtocol/acquisition/scope`。每条 handler 是该固定 provid
    TL 准备 handler、环境能力、输出 validator、全部必需 skill 及精确来源；返回
    私有 PublicationCandidate。准备回调不在共同门内，不给 resolver/handler
    coordinator、AU 写能力或 raw RecordWriter。
-3. 同门重新核对 TG 原 acquisition/权益、SR scope、AU 声明/解析器、执行提供者
+3. 同门重新核对 TG 原 acquisition/权益、Run/Session scope、AU 声明/解析器、执行提供者
    当前能力与资源版本。一个 publicationId 同时安装命令表/handler 选择/Schema/
    AU 声明索引/关联 skill 指引；任一缺失不发布可调用半项。运行根逻辑占位后，
    正向可调用入口等待必要装配记录耐久；owner publications 与实际记录 owner
@@ -131,13 +147,15 @@ Binding/providerProtocol/acquisition/scope`。每条 handler 是该固定 provid
 不能以“派生”名义在 TL publication 内任意修改其它 owner 的业务状态。
 
 更新使新请求选新代，旧 manifest 的未准入调用 stale_binding；待批原 Action
-不重绑，同批关闭 HD 后果/TL 调用/SR 该接续或按显式新提议取代。已准入调用
+不重绑，同批关闭 HD 后果/TL 调用及 Run 原等待关系，或按显式新提议取代。已准入调用
 保留原实现/依赖闭包；不能共存的提供者返回 busy，不能先 dispose 再等待使用数。
 执行中的旧资源由独立 owner 持有，不是新贡献 Fiber 的临时资源。
 
-一个工具不论命令多少，manifest 只有一个 alias；Schema 用同一命令表派生
-`oneOf [{command:const,params:该完整inputSchema},...]`，总预算按顶层工具计数。
-help 为保留元命令，不能注册同名业务 handler；授权读 help 也不是实际动作许可。
+一个工具不论命令多少，manifest 只有一个 alias，总预算按顶层工具计数。
+TL-01 的实际投影为单命令 `single`（无 command/help 层）、多命令默认 `compact`
+（`{command,params}`）或可选 `oneOf`（逐命令分支），均从同一冻结命令表派生，
+具体选用与预算/Schema 完整性在发布时检查。help 仅为多命令保留元命令，不能
+注册同名业务 handler；授权读 help 也不是实际动作许可。
 程序化入口记录 `{kind:programmatic,consumerId,protocol,work,registrationId,
 skillEvidence}`，真实受管消费者核实其必需技能获取，不伪造模型 manifest。
 模型建议只用原请求 manifest 的 alias/版本解析；不完整输出不能产生可执行提议。
@@ -159,22 +177,24 @@ loadSkill 保存精确定义/正文摘要/资源位置和 scope 选择；实际�
 
 所有 prepare 在门外返回原 owner 私有冻结候选/记录/publication/依据 stamp；
 check 在同一 GateFrame 只重检当前根，返回 ready/prepare_again/具名失败。
-下面方法不让消费者直接 append，也不把 TS brand 或一份 Action 当真实性证明。
+下表的 `prepare*` 名称沿固定来源，是待 Run/Session/Tools owner 落实的候选端口，
+不是当前 v1 已发布 API；它们只标识必须请求哪个语义 owner 的联合检查，不让消费者直接 append，
+也不把 TS brand 或一份 Action 当真实性证明。
 
 | 消费方定义的端口 / 实际提供者 | 必需数据与职责 |
 |---|---|
-| SR prepareProposedCall/checkProposedCall / SR | TL 原 CallRef/冻结 Action、new_step claim、原来源/呈现位置；沿 SR 同批登记原 blocked adjudicate continuation，proposeCalls 返回其原 ID |
-| SR prepareCallLink/checkCallLink、prepareWait/checkWait / SR | 仅原 adjudicate 工作调用：核对当前 active claim、原 Step/委托/AR 许可、CallRef/Action 恒定，分别在 action_execution 或 request_wait 同批 yield；不能用最新 Step 代原 Step |
-| SR prepareResult/checkResult / SR | 直接 deny 来自本次 active adjudicate claim，结果+consume_result ready+yield 同批；已耐久或同批执行终态交付没有 active claim 要求，核原 TL 来源/原执行 epoch、原接续和当前 SR 接收资格/控制；已关闭则 late fact，不复活工作 |
-| SR prepareRunControl/checkRunControl / TL（SR 组合） | 原 Run/observedEpoch、控制种类/operation、精确调用/请求与来源 stamp；当前控制者资格，不要求已交还 claim。driver_failure 来源另外核原 driver attempt，不能借控制入口伪造失败 |
-| SR prepareStopProgress/checkStopProgress / SR | 原执行/控制 operation、真实物理/隔离/清理/效果来源和当前接收资格；不要求 DriverClaim，不能以本地 abort 或 not_found 推导安全停止 |
-| AU BindingFacts / TL 实现 | prepareBinding/checkBinding 返回原 registration/Command/Schema/Binding/skill/current 发布 stamp；不拥有资源 mayPerform/mayDelegate，不替代 SR 的当前 caller/工作事实 |
+| Run call proposal（来源 `SR prepareProposedCall/checkProposedCall`）/ Run | TL 原 CallRef/冻结 Action、new_step claim、原来源/呈现位置；按 TL-15/16 同批登记 `run.calls.proposed` 和原等待登记，proposeCalls 返回原 ID |
+| Run call admission/wait（来源 `SR prepareCallLink/checkCallLink`、`prepareWait/checkWait`）/ Run | 仅原 adjudicate 工作调用：核对当前 active claim、原 Step/委托/AR 许可、CallRef/Action 恒定；准入或请求等待按 TL-15 与对应 owner 同批成立，不能用最新 Step 代原 Step |
+| TL 终态 + Inbound 到达 / Tools、Session | 直接 deny 核原 active adjudicate claim；执行终态核原执行身份/epoch，不要求已交还的 claim。所有结算同批写 `tools.call.settled` 与 `inbound.arrival.accepted{call_settlement,dedupKey=(call,attempt)}`，跨协调域走 CC-05 的源事实/目标去重与回执。Session 之后按 SE-14 独立分类，只有 continuation 与原 call 等待登记注销同批；context/queue/closed 不产生原 Run ready，stopping/force_stopped 按 isolated 关闭 |
+| Run control（来源 `SR prepareRunControl/checkRunControl`）/ Run | 原 Run/observedEpoch、控制种类/operation、精确调用/请求与来源 stamp；当前控制者资格，不要求已交还 claim。driver_failure 来源另外核原 driver attempt，不能借控制入口伪造失败 |
+| Run stop progress（来源 `SR prepareStopProgress/checkStopProgress`）/ Run | 原执行/控制 operation、真实物理/隔离/清理/效果来源和当前接收资格；不要求 DriverClaim，不能以本地 abort 或 not_found 推导安全停止 |
+| AU BindingFacts / TL 实现 | prepareBinding/checkBinding 返回原 registration/Command/Schema/Binding/skill/current 发布 stamp；不拥有资源 mayPerform/mayDelegate，不替代 Run 的当前 caller/工作事实 |
 | AU ResourceFacts / 本地资源 owner 实现 | 消费 LE 资源面（legacy source: `../local-execution/design.md#最小资源权限提供者`） 的精确 ResourceRef、动作权限、原合法 grantor/可授予上限/硬限制及当前根；任何缺口 unavailable，不给默认 allow |
 | TG ReferenceInventory / TL 实现 | prepareReferences/checkReferences，带原 definition/acquisition、注册/manifest/call 引用和完整性/referenceRevision；同门增加立即计入，实际撤回/耐久确认后才移除。provider 缺失不是空清单，TG 停用先成立则新注册失败 |
 | TL ExecutionProvider / local-execution 实现 | prepareBinding/checkBinding/acquireUse、start/inspect/requestStop/subscribe；协议/代次/环境资格及停止能力是实际实现事实；不经 raw handler 绕过 provider |
 | TL PermitFacts / TL 实现，执行 provider 消费 | checkPermit(frame,privatePermit,execution) 核验原 tools.call_admitted 的耐久位置/publication ready、精确绑定、执行 epoch/当前 incarnation、精确取消；不重新评估普通 grant，也不从任意 Receipt 发许可 |
 | TL prepareRecoveryPermit/checkRecoveryPermit / TL 实现，原恢复宿主消费 | `{execution,verifiedThrough,providerIncarnation,originalAdmission,executionFacts}`；核实原准入/控制与 LE 完整前缀中的未 dispatch 或已终态事实、原实际绑定可重新关联。只向当前真实 provider 发行同一 execution 的有限恢复/认回许可，旧私有对象作废；dispatch 不明时仅 inspect/收口，不给重新发出权 |
-| TL prepareTerminal/checkTerminal / TL | 原执行 owner/epoch、terminalVersion、结果候选与物理/效果/费用来源。核验原记录后输出 TL result、SR 结果后果和 BG 事实交接；无法交付的源保留稳定后果 |
+| TL prepareTerminal/checkTerminal / TL | 原执行 owner/epoch、terminalVersion、结果候选与物理/效果/费用来源。核验原记录后输出 TL 结算、`call_settlement` 到达与 BG 事实交接；跨域无法交付时保留稳定来源及待交付后果，不直接写 Run ready |
 
 HD 提供的 prepareSystemRequest/DecisionFacts/Consume 和 TL 实现的 SystemApprovalSource
 精确交接见 HD 设计（legacy source: `../../governance/human-decisions/design.md#答复与后果交接`）。后台
@@ -182,7 +202,8 @@ HD 提供的 prepareSystemRequest/DecisionFacts/Consume 和 TL 实现的 SystemA
 
 ### 一个实际 batch 中的裁决
 
-TL 是工具动作组合者，HD 是 answer 组合者，SR 是 fullRun 控制组合者。每次先
+TL 是工具动作组合者，HD 是 answer 组合者，Run 是 fullRun 控制组合者，
+Session/Inbound 是到达裁决者。每次先
 规范化原 operation，并以当前读权 lookupPrepared；not_seen 才准备。门外解析、
 准备所有 owner 根/审计/结果并 coordinator.prepare **整个 batch**；末门再次去重，
 按本次操作所需来源核对全部 stamp，再同步 pin 所需 ExactUse 并 submit 一次。
@@ -196,18 +217,23 @@ issuer 则是实际资源 owner；资源 owner 没有本批业务记录时不造
 
 | 原路径 | 必须同批成立的事实及 claim 去向 |
 |---|---|
-| proposed | tools.call_proposed + SR call_proposed/原 continuation_waiting。保留 new_step claim，不执行、不建预算预留。SR recordStepReturn 将完整返回、原 adjudicate ready、checkpoint/yield 同批保存；不能靠尚不存在的结果唤醒 |
-| 直接 deny | 原 adjudicate claim 的 AU deny 审计 + TL denied_before_execution 终态 + SR result_linked/consume_result ready/checkpoint/yield，owner_change 一批。使用 SR before_execution 终态证据，不要求不存在的执行接纳身份 |
-| ask | AU ask 审计 + HD request_created + TL call_waiting + SR 原 request/continuation/checkpoint/yield，request_wait 一批。无 HD 不提交半等待；耐久前不呈现可答项 |
-| allow（含 approve 后） | TL call_admitted/ExecutionRef/具名 dispatch 意图 + AU allow 审计 + HD decision_consumed（如有）+ BG 全部 reservation + SR call_linked/原 consume_result blocked/checkpoint/yield，action_execution 一批；pins 覆盖原工具/解析器所需闭包、环境和执行 provider |
-| 正常工具结果 | local-execution 原 terminal/待交付事实耐久后，TL terminal/result 后果与 SR result_linked/ready 同批；同域可直接联合。BG 计量/释放走真实来源事实，分次交付保留原 sourceVersion/operation 至各目标回执，不因通知成功删除 |
+| proposed | `tools.call.proposed` + Run 的原调用提议/等待登记同批。保留原 new_step claim，不执行、不建预算预留；完整模型返回由 RunDriver 按 RD-08 先校验，不能靠尚不存在的结果唤醒 |
+| 直接 deny | 原 adjudicate claim 的 AU deny 审计 + `tools.call.settled{denied_before_execution}` + `inbound.arrival.accepted{call_settlement}` 同批。没有执行接纳身份；Session 稍后依 SE-14 分类，不能在此伪造 Run ready |
+| ask | AU ask 审计 + `hd.request.created{system_approval}` + `tools.call.waiting`，请求附着原 Run 调用等待登记，一批成立。无 HD 不提交半等待；耐久前不呈现可答项 |
+| allow（含 approve 后） | `tools.call.admitted`/ExecutionRef/具名 dispatch 意图 + AU allow 审计 + HD 决定消费（如有）+ BG 全部 reservation + `run.call.admitted`/执行许可/附着登记，按 TL-15 一批成立；pins 覆盖原工具/解析器所需闭包、环境和执行 provider |
+| 正常工具结果 | 执行 owner 的原 terminal 与 `tools.call.settled{outcome}`、`inbound.arrival.accepted{call_settlement,dedupKey=(call,attempt)}` 同一共同提交；不同协调域以 CC-05 交付稳定来源和目标回执，不声称跨域原子。BG 计量/释放走真实来源事实，保留原 sourceVersion/operation 至各目标回执；Session 分类可独立发生，不因通知成功删除交付责任 |
 
-这些 ready 都对应原 Step，下一模型决策才创建新 Step。q1 的 approve/reject/结果
-可独立 claim/settle，q2 pending 不妨碍 q1；普通 completed 仍由 SR 检查所有接续、
-未决后果和责任。应用只调端口，不补“TL 保存后再 SR 保存”的业务事务。
+SE-14 将 accepted arrival 按原发起 Run 与等待登记分类：有有效开放登记才是
+continuation，并在分类提交中释放该登记；否则可能是 context、queue 或 closed。
+后续模型 Step 由 Run/Session 自己创建，工具终态不直接授予驱动资格。多个原调用
+可独立结算和裁决；Run completed 仍须检查接续、未决后果和责任。应用只调
+具名端口，不补“TL 保存后再 Session 保存”的假原子事务。
 
 调用 logical 准入 n 后普通撤权 n+1 不推翻 n；n 耐久并 publication ready 后才
-铸造/交付受约束 ExecutionPermit。force_stop/精确 stop 则关闭 n 的执行 epoch。
+铸造/交付受约束 ExecutionPermit。permit 到 LE start/accepted 的空窗仍计入
+execution exposure，持久 owner 和原子/跨域交接见上表待决项。force_stop/精确 stop
+撤销原 attempt 的继续执行权并建立 fence；单调用 stop 不等于 Run epoch 关闭，
+fence 也不等于 execution exposure 已关闭。
 正向 grant/答案/新发布未耐久不能准入，logical 收紧不被后来的 pending 放宽掩盖。
 audit/publication 失败保留原记录/票据/使用，committed+blocked 不改称未提交；
 unknown 只 lookup 原 operation/attempt。fresh pin 的失败释放沿原 issuer，不能
@@ -225,19 +251,24 @@ approve 历史。绑定变更使未准入调用 stale_binding，关闭/取代原
 
 确认模式改变不写答案。AU logical 根立即影响当前 answer/adjudicate 的资格，
 TL.reconcileWaiting 按真实已确认 AU 修改位置逐请求保存 cancelled/superseded
-后果及原因，并与 HD/SR 联合收口；grant 已足或 standard 恢复不伪造批准。
+后果及原因，并与 HD/Run 联合收口；grant 已足或 standard 恢复不伪造批准。
 ToolHost 的受管维护任务通过受信 factory/options 注入的真实 RecordReader 的
 readHead/readRange 追踪相关 AU/TG 水位、分页处理原等待；保留 reconciliation
 cursor/未交付引用，恢复先追齐。运行插件只触发具名维护操作，不取得 reader。
 通知仅唤醒，丢通知由配置的有界维护间隔/下次读答/准入重检补齐；不运行模型或
 工具忙轮询，不给人类期限/默认答案，不限制请求总量。来源未知保留 unavailable。
 
-单次 stop 由 TL 联合封闭原调用和其 system_approval/SR 接续；fullRun 的
-interrupt/cancel/force_stop/driver_failure 则消费 SR 已固定的精确清单与当前 stamp，
-将 TL 调用封闭/停止意图、HD 应关闭后果和 SR 控制事实一次提交。范围变动须重准备，
-不能遗漏刚登记的 proposed 或已 answered 尚未消费项。interrupt 不等 cancel，
-全 Run 阻塞不被答案清掉；force_stop 还要求执行器隔离证据。answered 历史不改写，
-不以取消请求凑普通成功。晚到终态按原 epoch 入有效原结果或隔离证据，绝不复活。
+单次 stop 由 TL 联合封闭原调用和其 system_approval/Run 等待关系；fullRun 的
+interrupt/cancel/force_stop/driver_failure 消费 Run owner 固定的精确清单与当前 stamp，
+将 TL 调用封闭/停止意图、HD 应关闭后果和 Run 控制事实按 CC-01 声明的共同提交
+关系提交。范围变动须重准备，不能遗漏刚登记的 proposed 或已 answered 尚未消费项。
+interrupt 不等 cancel，全 Run 阻塞不被答案清掉。RN-05 的 force_stop 终态门读取
+**全部开放 execution exposure**：每项只有同 call/attempt/执行 owner/代次/epoch/fence
+的 `quiescent` 或 verified isolation 才关闭；`settled(unknown)`、not_found、超时、
+普通 cooperative fence、错代或未证实隔离都不能关闭。未过门的 Run 保持 stopping
+及其派生 scheduler barrier；即使业务等待登记已清，也不能误报
+`cancelled(force_stopped)`。answered 历史不改写，不以取消请求凑普通成功；
+晚到终态按原 epoch 入有效原结果或隔离证据，绝不复活。
 
 ## Cordis 映射与撤除责任
 
@@ -299,4 +330,5 @@ T-R1 的有限实际探针不等于 TL 准入产品通过；T-R2 无 Agent 终�
 TL-15 事实身份按 DR-01：同一工具流一个 owner append 只使 aggregate revision 加一，所含多条 facts
 共享该 revision；逐 fact 去重只用 records commit 后的 `(coordinationDomain,batchSeq,recordIndex)` eventId。
 `operationId` 只认回提交尝试，来源 arrival 的 `(call,attempt)` 是另一层去重；prepare 临时 correlation
-及 `(stream,revision)` 均不能冒充 eventId。同批引用用相对位置准备，canonical flatten 后解析。
+及 `(stream,revision)` 均不能冒充 eventId。同批引用用目标 append 内的相对位置准备，
+按冻结数组顺序 flatten 后解析；同一原操作重试认回原 envelope，不重排或重新分配 eventId。
