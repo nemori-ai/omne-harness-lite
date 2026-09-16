@@ -16,7 +16,16 @@
 
 - 兼容声明固定当前坐标 `capability.run@1` 与 `capability.run-driver@1`；旧 v2 路径只作来源定位。
 - 恢复必须先校验完整前缀、fold 裁决视图并清空 accepted-arrival 扫描，再在最终联合准入发行 epoch/WorkPermit；此前不得进入 decide。
-- force_stop 只有强隔离已证实才允许 cancelled；legacy 模型的 ConfirmIsolation 只表示该门已通过。
+- force_stop 按 Tools execution exposure 集合求门；settled unknown 仍开放。只有每项同代 quiescent/verified isolation 才允许 cancelled；legacy 模型的 ConfirmIsolation 只表示该门已通过，未建模集合、错代或派生 scheduler barrier。
+- 驱动器只消费 `run.epoch.issued` / `run.epoch.closed` 与 `run.state.changed`，不制造这些事实。首次创建、
+  Yield、重取和 resume 都请求 Run owner 的无副作用 transition preparation；跨 owner 协调者只合并，CC
+  submit 时 Run owner guard 复核 latestIssued/openEpoch/revision/operation。reacquire/resume 成功总发行 successor；
+  old open epoch 由 owner 以 reacquired 唯一关闭，已 closed 只引用。terminationIntent active 硬拒 successor。
+  receipt 丢失以 RN-08 operationId lookup 认回 committed issued，不补写第二条事实。
+- attempt identity、observation 与 current disposition 只从 M 读面取得；驱动器不把它们复制进 Run
+  事实。`gate_restored` 到达与 `run.wait.released{holder: gateRef, outcome: passed}` 同批后，驱动器才把
+  gate 视为通过。旧 epoch 的迟到提交只得到 `rejected(stale_epoch)`；工程隔离证据由 OB/DR operation
+  evidence 持有，不追加 Run 业务事实。
 
 ## 来源协议（重基输入）
 
@@ -33,7 +42,7 @@ Factory 贡献登记到 `agents`（AR 的 `registerFactory`，AR-8（legacy sour
 
 | 约定 | 值 | 依据 |
 |---|---|---|
-| Factory driverKey / version | `omne.run-driver` / `1` | D-013 §7（legacy source: `../../../docs/proposals/agent-loop-inbound/cordis.md#7-提供者设计归属与实施入口`） 的缺口；写入 `epoch_issued.driverBinding` |
+| Factory driverKey / version | `omne.run-driver` / `1` | D-013 §7（legacy source: `../../../docs/proposals/agent-loop-inbound/cordis.md#7-提供者设计归属与实施入口`） 的缺口；写入 `run.epoch.issued.driverBinding` |
 | 投影 stateKey | `run.driver_position`，`kind: projection`，输入 run 流事件 | RN-07（legacy source: `../../../spec/capabilities/run/v1/contract.md`）、SE-10（legacy source: `../../../spec/capabilities/session/v1/contract.md`） |
 | 订阅接口 | `records.envelope.committed` 广播（DR-01 envelope，按租户与 Session 作用域过滤）加 `omneRun.readRun`、`omneSession` 的 Inbound 读面、TL/HD/MC 的非结算读面 | LC-06（legacy source: `../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md`）、RD-02（legacy source: `../../../spec/capabilities/run-driver/v2/contract.md`） |
 | 提交面 | 单 owner 提交直接用 `omneRun.prepare*`；跨 owner 提交用 `omneLifecycleCompositions` 或 TL/HD/MC 的具名组合 | RD-03（legacy source: `../../../spec/capabilities/run-driver/v2/contract.md`）、CC-01（legacy source: `../../../spec/compositions/core-work-coordination/v2/contract.md`） |
@@ -44,7 +53,7 @@ Factory 为每个活体实例准备一个实例驱动（D-013 消费方式），
 当前 Run 的 view 组合器、`records.envelope.committed` 的监听、执行 owner 的订阅、WorkPermit。
 交付点只有两个（LC-07（legacy source: `../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md`））：
 调度者经受限 Handle 交 Run（新 epoch、新 WorkPermit）；AR 的退出过程调用
-`requestRetire` → 驱动器到安全边界经 `omneRun.prepareYield` 封闭 epoch →
+`requestRetire` → 驱动器到安全边界请求 `omneRun.prepareTransition{yield}`，由 Run owner 准备唯一封闭 →
 `awaitQuiescent` 返回后 AR `releaseResources`。热宽限到期仍有前台执行时按 interrupt
 收口并记 `yield_forced`（RD-14（legacy source: `../../../spec/capabilities/run-driver/v2/contract.md`））。
 静止判据：无在途 prepare、无未回执的 attempt start、监听已撤。
@@ -91,6 +100,6 @@ Factory 换代：新版本登记后关旧版本新激活；持有旧版本实例
 
 先实现 `decide` 与节点拓扑（可脱离 Cordis 单测：以 RunDriver 模型的场景为用例），再接
 `omneRun` 提交面与 Factory 贡献。验收沿 run-driver 场景（legacy source: `../../../spec/capabilities/run-driver/v2/scenarios.md`）
-S01～S26 与 RD-16（legacy source: `../../../spec/capabilities/run-driver/v2/contract.md`） 的崩溃窗口表逐窗口注入；
+S01～S32 与 RD-16（legacy source: `../../../spec/capabilities/run-driver/v2/contract.md`） 的崩溃窗口表逐窗口注入；
 可改写站点（S20）以静态检查保证守卫只能收紧。现有 loop 切片（legacy source: `../loop/README.md`）
 的 runtime-context 与 assistant-stream 只作投影层参考，是否并入由流帧设计决定。

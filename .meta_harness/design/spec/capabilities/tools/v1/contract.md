@@ -100,6 +100,12 @@ cancelled_before_execution、unavailable。`unavailable` 只在执行前出现�
 它不消耗 attempt，其结果的 output 与 content 为空。admitted 与真正执行/物理停止分别
 可见，unknown 不是成功或“肯定没执行”；之后核实只追加 resolution，不重写原未知观察。
 
+业务 settlement 与物理 execution exposure 是两个正交维度。执行 owner 对每个曾取得执行许可或
+attempt 接纳的 `{call,attempt,owner,ownerGeneration}` 持有 exposure；只有同一 execution identity 的
+`quiescent` 或 verified isolation 事实关闭它。`settled(unknown)`、等待登记注销、Run 终态、超时、
+not_found、callback/进程失联都不关闭 exposure。Run/RD 可读取并聚合 exposure 以求 RN-05 门，不能按
+TL-07 settled 标签自行删项；迟到、重复、错 attempt/generation 的证据只留审计。
+
 proposed 耐久登记后解析当前门；deny 直接结算，ask 按 HD-03（legacy source: `../../human-decisions/v2/contract.md`）
 建请求，allow 在联合提交中取得预算预留、精确使用和执行许可，再建立 attempt。预算
 预留被拒不是 deny：该调用停留在 proposed，不产生 attempt，Run 进入预算门等待
@@ -121,7 +127,9 @@ attempt 账本的状态是封闭四值 `absence → accepted → dispatch_intent
 尝试。inspect 的 not_found 不证明安全停止。安全停止回执必须证明取消墓碑已生效且不能
 被迟到消息绕过，或启动通道已被可验证地隔离；仅发送取消信号不足。已经先接纳的执行按
 真实停止协议收口；准入许可耐久不免除执行器的开始／停止屏障。提供者重启必须先恢复该
-账本／隔离状态，不能先接收旧 start 再加载取消记录。
+账本／隔离状态，不能先接收旧 start 再加载取消记录。exposure 与 attempt 账本同 owner、同 generation
+恢复；pending/迟到 start 仍受既有墓碑约束。新 generation 必须先认回旧 exposure 与 fence，或保持
+unavailable，不能用换代把未闭合 exposure 清空。
 
 命令声明的停止能力 `stop.capability` 是封闭三值，执行 owner 在装载核实时必须能兑现，
 否则该命令 unavailable：`cooperative_fence` 表示 owner 封闭新动作并等待真实收口、不承诺
@@ -145,6 +153,8 @@ stop_requested 期间的“仍在活动”只是中间观察，不是 `physical`
 终态与 stop 竞争时返回真实先后，不能把已完成成功改写成中断；控制后晚到结果按原执行
 epoch 作为合法结果或隔离证据处理。被明确中断或结果未知的调用不会因 resume Session
 自动重试。清理权随原 owner 保留，不因普通 grant 撤销丢失。
+stop progress 的 quiescent/isolation 只有 identity 与当前 exposure 的 call、attempt、execution epoch、
+owner generation 和 fence revision 全部一致才可关闭；重复证据幂等，错代与迟到证据不命中新 exposure。
 
 ## 前后台关系
 
@@ -269,9 +279,12 @@ Session audit pair 不能直接承担上述目标承诺。
 `stop_requested`；Run 的终态不改写 A 与 B，也不隐式重启已准入的工作
 （RN-02（legacy source: `../../run/v2/contract.md`））。
 
-**TL-15**：每个转移有确定的触发者、提交面与同批伙伴；事实 kind 为三段式，每条带
-eventId、`(stream, seq)` 与 operationId，结算 arrival 的来源级 dedupKey 固定为
-`(call, attempt)`。
+**TL-15**：每个转移有确定的触发者、提交面与同批伙伴；事实 kind 为三段式。
+每条 accepted fact 的最终 `eventId=(coordinationDomain,batchSeq,recordIndex)` 只由 DR-01 的 canonical
+commit envelope 分配，是逐事实身份与投递去重键；`(stream,revision)` 只标识该流本次 owner append，
+同 append 多 facts 共享 revision，不能据此逐 fact 去重。`operationId` 标识幂等提交尝试，不是事实
+身份；prepare 临时关联 identity 不是 eventId，同批引用在 commit 前使用相对位置并在 commit 后解析。
+结算 arrival 的来源级 dedupKey 另固定为 `(call,attempt)`。
 
 | 转移 | 触发者 | 提交面与同批伙伴 |
 |---|---|---|

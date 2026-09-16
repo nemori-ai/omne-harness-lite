@@ -21,6 +21,23 @@ S/G/L 的 outgoing manifest 是 M 可用输入上界，不等于这个 provider 
 Context 只携带作用域和依赖，不能成为业务状态权威。跨 tenant 默认拒绝；同物理内容摘要不能
 披露另一个 tenant 是否已有内容，也不能授予读取权。
 
+provider 的持久 ledger 保存 immutable observations 与 revisioned current disposition；M 是唯一 writer，以
+attemptId/attemptEpoch/expectedRevision/evidenceId CAS 全序更新，并在同一 CC 门核对 Step 唯一 success、
+Run epoch/fence/RN-05。未获业务接纳的 late output 只记审计/费用/隔离，不生成 Message/tool batch；unknown 可经 inspect
+单调细化，abandoned 必须引用 execution fence。provider 在提交 disposition 前先把同 operation 的
+`attempt.closing.pending` observation 写入 M ledger；无 receipt 时只从它 fold 出 closing/outcome_unresolved，
+它不是 current disposition，投影为 in_progress 并保留草稿，不能由 active snapshot 合成；显式提交的 durable business unknown 必为
+settled_without_message，首次投影即 semantic close。disposition 进入 Session durable history，由
+SessionProjection 提供正文/明确无正文/outcome-unresolved/retention gap，不由 active publisher 留第二历史。
+
+active publisher 提供 sourceId/sourceGeneration、可靠有序 callback 与 compact public-state snapshot/cut。state 以
+`coveredThrough`（下一未覆盖 chunk index）表达同 transformVersion 的 fold 前缀；routeBinding 与
+actualResponseIdentity 分开。historyAnchor 为 session position 或无 Session work anchor。provider 换代
+fence 旧 attemptEpoch；普通重试新建 attemptId。active sourceGeneration 固定 transformVersion，frame 统一
+携带 runEpoch?/attemptEpoch/sourceGeneration/dispositionRef；旧代 `source.generation.changed` 唯一对应
+E 的 `stream.source-generation-changed`，二者不是同一协议对象；单 listener 故障只撤该订阅。当前源码没有
+ledger、callback、active snapshot 或 disposition projection 的符合实现。
+
 ## 失败、迟到和撤除
 
 外部请求或保留操作一旦可能发出，timeout/abort 只能记 unknown/partial，并由原 attempt/

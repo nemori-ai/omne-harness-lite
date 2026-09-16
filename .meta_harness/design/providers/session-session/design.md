@@ -72,7 +72,8 @@ tenant 或输入即冲突。
 |---|---|---|
 | Session | `{session, tenant, owner, initiator, source, definition: DefinitionVersion, acquisition: {tenantId, acquisitionId}, lifecycle: open \| archived \| deleted, title, manualTitle, pin, modelChoice, historyThrough: Watermark, controlRevision, queueRevision, inboundRevision}` | SE-01/02（legacy source: `../../../spec/capabilities/session/v1/contract.md`）；tenant/owner/initiator/原定义/acquisition 不可变；acquisition 只是 TG 原 Acquisition 的身份投影，不按版本另找一条 |
 | QueueItem | `{input: Input, kind: text \| command \| trigger, acceptedOrder: Counter, order: Counter, state: queued \| taken \| withdrawn \| closed, acceptedBy, membershipBasis, arrival: ArrivalId, takenBy: RunRef \| null, closedReason}` | SE-04（legacy source: `../../../spec/capabilities/session/v1/contract.md`）；每项记来源 arrival（用户输入也先受理，§7.1）；hold 是 Session 级集合，不是项状态；closed 原因词表沿 SE-04 |
-| Hold | `{operation, revision, reason: explicit \| session_force_stop}` 的活动集合 | SE-09（legacy source: `../../../spec/capabilities/session/v1/contract.md`）；有任一 hold 就不取新批 |
+| Hold | `{operation, revision, reason: explicit \| session_force_stop}` 的活动集合 | SE-09（legacy source: `../../../spec/capabilities/session/v1/contract.md`）；用户控制，只有显式 continueQueue/撤回解除 |
+| Scheduler safety barrier | 从任一 `stopping` Run 尚未通过 RN-05 execution-exposure 门派生，不另存 Session 字段 | 阻止所有 queue take 与新 Run；不撤销已运行 Run，不等于 hold/占位；门通过自然消失 |
 | Arrival | `{arrivalId, tenant, target: SessionRef \| WorkRef, source, dedupKey, payloadRef, refs: {call \| request \| continuation \| gate \| run} \| null, originWork \| null, policy \| null, state: accepted \| classified \| consumed \| converted \| closed \| withdrawn_by_user, intent: queue \| continuation \| context \| control \| null, observedRun: {run, epoch, state} \| null, acceptedOrder: Counter, closedReason}` | SE-12（legacy source: `../../../spec/capabilities/session/v1/contract.md`）；`(source, dedupKey)` 唯一 |
 | ContextWatermark | `{watermark: Counter, lowerBound: Counter}` | SE-16（legacy source: `../../../spec/capabilities/session/v1/contract.md`）；由 Inbound 拥有 |
 | Contribution | `{stateKey, scope, owner, kind: authoritative \| projection, schemaVersion, inputVersions, initialize, upgrade, withdrawPolicy, generation}` | SE-10（legacy source: `../../../spec/capabilities/session/v1/contract.md`） |
@@ -100,12 +101,18 @@ U-33（legacy source: `../../../docs/proposals/session-run-agent-lifecycles/READ
 全小写，段内 `_` 连词，version 字符串 `"1"`；进程内广播的 Cordis 事件名同一风格：
 `records.envelope.committed`。
 
-每条事件带去重键（U-34（legacy source: `../../../docs/proposals/session-run-agent-lifecycles/README.md#裁决记录2026-09-14用户`））：`eventId`（提交者在 prepare 时生成、幂等重试沿用）、位置
-`(stream, seq)`、产生它的 `operationId`。投递去重：广播可能重复，消费者以 `eventId`
-或 `(stream, seq)` 判重。消费去重：凡"消费"一条事实的动作自己也是耐久事件并引用被
+`operationId` 是 prepare/幂等重试的稳定身份；最终 `eventId=(domain,batchSeq,index)` 只能由 records commit
+分配，prepare 临时关联 identity 不能冒充 eventId。每个 composite batch 对每个 stream 至多一次 owner append，
+该 stream/aggregate revision 只 +1；同 append 多 facts 共享 revision，逐 fact 顺序由最终 envelope
+`(batchSeq,index)` 与 append-local order 表达，不能用 `(stream,revision)` 逐 fact 去重。组合者先合并每流唯一 append
+并保留该流 facts 内部顺序，再按当前 envelope format 的 canonical `StreamRef` 编码排序 appends；跨流 prepare
+输入顺序没有语义，跨 owner 因果关系由完整批次校验核对。同批引用在 prepare 时只用
+`{kind:this_batch,stream,recordIndex}` 相对位置，records commit 完成 canonical flatten 后才解析为最终
+`eventId=(coordinationDomain,batchSeq,recordIndex)`；临时 correlation identity 不写作 eventId。
+投递去重：广播可能重复，消费者以最终 `eventId` 判重。消费去重：凡"消费"一条事实的动作自己也是耐久事件并引用被
 消费事件的 `eventId`（`inbound.arrival.consumed{by}`），第二次消费在门内被拒。来源级
 去重是另一层：`(source, dedupKey)` 相同的到达只有一条 arrival。铃驱动的反应可用
-`(stream, seq)` 水位记住已处理位置，只是加速，权威仍是门内重读。
+commit position 水位记住已处理前缀，只是加速，权威仍是门内重读。
 
 | 流 | 事件 kind | data 与 fold 义务 |
 |---|---|---|
@@ -178,7 +185,7 @@ stateDiagram-v2
 | `edit` | inputId、期望 itemRevision 与 queueRevision、新文本块 | 项未 taken；媒体不可变，增删附件作为内容修订 | `queue.item.edited` | 冲突返回当前修订（SE-05（legacy source: `../../../spec/capabilities/session/v1/contract.md`）） |
 | `reorder` | 有序成员集合或目标位置、期望 queueRevision | 只动未取批项；不用过期全列表覆盖新加入项 | `queue.order.changed` | 用户显式调序覆盖命令的自动让行位置 |
 | `withdraw` | inputId、itemRevision | 项在 queued | `queue.item.withdrawn` + `inbound.arrival.withdrawn`（同批） | 只关闭这次投递；taken 后改走 Run 控制 |
-| `hold` / `continueQueue` | operationId、期望 controlRevision、明确 hold 集合 | `session.control` 权 | `session.hold.set` / `session.hold.released` | continueQueue 只解除列明的 hold，不越过 stopping 占位（SE-09（legacy source: `../../../spec/capabilities/session/v1/contract.md`）） |
+| `hold` / `continueQueue` | operationId、期望 controlRevision、明确 hold 集合 | `session.control` 权 | `session.hold.set` / `session.hold.released` | continueQueue 只解除列明的用户 hold，不越过 RN-05 派生 barrier（SE-09） |
 
 取用（`take_batch` / `take_command` / `take_trigger`）不是本插件的单独操作，是 §9 的
 组合：队列侧的 prepare/check 端口 `prepareTake{kind, items, expectedQueueRevision}` 只固定
@@ -191,12 +198,12 @@ operationId 从 `(SessionRef, queueRevision, kind)` 派生。
 
 | 原语 | 范围 | 受理点效应 | 后续 | 依据 |
 |---|---|---|---|---|
-| Run 级 `interrupt` / `resume` / `cancel` / `force_stop` | 精确 RunRef 与 observedEpoch | 转交 `omneRun.prepareControl`；本包不持 Run 状态 | 旧目标 ended / stale_target 由 Run 返回 | RN-03～05（legacy source: `../../../spec/capabilities/run/v1/contract.md`） |
-| Session 级 `force_stop` | 整个 Session | 组合 `session_force_stop`：`session.hold.set{session_force_stop}` 与当前占位 Run 的 `prepareControl{force_stop}`、epoch 撤销同批（LC-04 行 2（legacy source: `../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md`））；无占位 Run 时只 hold | 只有用户显式 `continueQueue` 解除 hold；不越过 stopping 占位，不恢复被强停的 Run | SE-09（legacy source: `../../../spec/capabilities/session/v1/contract.md`） |
+| Run 级 `interrupt` / `resume` / `cancel` / `force_stop` | 精确 RunRef 与 observed epoch fold | 转交 `omneRun.prepareTransition`；Run owner 无副作用地产生全部 Run facts/guard，本包不持或制造 Run 状态 | CC submit 时 Run owner 复核 exact revision/latest/open/operation；旧目标 ended / stale_target 由 Run 返回 | RN-01、RN-03～05（legacy source: `../../../spec/capabilities/run/v1/contract.md`） |
+| Session 级 `force_stop` | 整个 Session | Session owner 无副作用准备 `session.hold.set{session_force_stop}`，Run owner 准备 force_stop；组合者只合并两份 preparation，CC submit 时双方 guard 同时复核，任一 stale 整批拒绝；无占位 Run 时只提交 hold | RN-05 过门只消除派生 barrier；只有用户显式 `continueQueue` 解除 hold，不恢复被强停 Run或允许 successor | SE-09、LC-04 行 2 |
 | `interrupt_then_run` | 新输入加当时精确 Run | 受理批固定新 input、旧 Run/epoch 与终止意图；旧 Run 收口为 superseded 后注销登记，并把转后台/仍后台/停止未确认/未答请求写入 system context | 停止 unknown 保留在原责任与清单中，但 superseded 后不阻止新驱动；不宣称停止成功 | SE-08、RN-04 |
 | 系统发起的 `interrupt_then_run` | connector_condition 按 policy | 同上，新 input 是 trigger 项，意图记发起依据与配置版本 | 同上 | SE-08（legacy source: `../../../spec/capabilities/session/v1/contract.md`）、§7.3 |
 | keyboard binding | 显式 binding target 与 setting revision | 按目标定义调用与显式入口相同的 adapter：control → 精确控制端口；ordered command → `enqueueCommand`；Skill/Prompt context load → `enqueue{kind: text}` 后由 `takeBatch` 进入模型；directory → directory query/select，选择后再分流；named flow → flow 自身受理端口 | 不从按键取得权限，不把 Skill/Prompt/directory/flow 统一改写成 command；受理结果与失败词表须与显式入口等价 | IN-02、SE-07/13/15 |
-| 命令 Run 结算 | 命令处理者 | 转交 `omneRun.prepareSettleRun`；unknown 保留占位可见 | — | RN-06（legacy source: `../../../spec/capabilities/run/v1/contract.md`） |
+| 命令 Run 结算 | 命令处理者 | 请求 `omneRun.prepareTransition{terminal}`；组合者不制造 Run facts，unknown 保留占位可见 | — | RN-01/06（legacy source: `../../../spec/capabilities/run/v1/contract.md`） |
 
 否定事实（hold、终止意图、epoch 撤销、TG/AU 收紧）立即封闭后续位置；正向事实
 （解除 hold、resume、人类答案）必须耐久才供新准入；当前允许集合与所有未耐久收紧取
@@ -283,7 +290,9 @@ schedule_due 的判定依据是 originWork（被人取消或强停 → closed(re
 
 裁决者装载或恢复时扫描本提供者拥有的全部 Session（含无 Run、无实例的空闲 Session），
 把 accepted 而未 classified 的 arrival 在当前 Run 状态下裁决完（SE-11/18（legacy source: `../../../spec/capabilities/session/v1/contract.md`））。
-扫描完成前调度者不重取、不取批；扫描以 `(stream, seq)` 水位分页，重复扫描幂等。
+扫描完成前调度者不重取、不取批；扫描按 DR `commitPosition{domain,seq}` 的**完整批边界**
+分页，页大小不足以容纳单批时整批独占一页，不能以事实数或 stream revision 切开同一批。
+同批全部 arrival/Run/Session 关系核实并提交裁决后才保存扫描水位；重复扫描幂等。
 
 ### 7.5 context 水位与容量
 
@@ -300,7 +309,7 @@ Run 终态、hold 解除、arrival 判为 continuation 或审批就绪、epoch �
 
 1. 门外读 Session、队列头、hold、`omneRun.listPlaceholder`、占位 Run 的执行者是否为空、
    裁决者是否已完成本 Session 的扫描。
-2. 判定：无占位 ∧ 队列非 hold ∧ Session open ∧ 队首合格 ∧ 无未裁决 arrival → 取批 /
+2. 判定：无占位 ∧ 队列非 hold ∧ 无 RN-05 派生 barrier ∧ Session open ∧ 队首合格 ∧ 无未裁决 arrival → 取批 /
    取命令 / 取 trigger；占位在 ∧ 执行者空 ∧ 有可干的事（就绪 continuation、审批就绪、
    门恢复、resume 意图）∧ 无未裁决 arrival → 重取；否则不动。
 3. 先查该 Session 是否有 ready 实例；有则经受限 Handle 交驱动；无则 `agents.activate`
@@ -312,18 +321,21 @@ Run 终态、hold 解除、arrival 判为 continuation 或审批就绪、epoch �
 
 ## 9. 具名组合
 
-每个组合是一次 batch：各参与 owner 门外 prepare、门内 check、一次 submit
+每个组合是一次 batch：各参与 owner 门外 effect-free prepare、submit gate 内 check、一次 submit。
+同一 owner stream 的多条 facts 汇入该 stream 的一次 append 并共享一个新 aggregate revision；组合者不拆成
+多 append；按 canonical StreamRef 排序后才形成唯一 envelope，且完整批次校验跨 owner 关系。同批准备
+引用先用相对位置，records commit 解析最终 eventId；事实顺序与位置不可由协调者原始 prepare 次序猜出
 （CC-01～04（legacy source: `../../../spec/compositions/core-work-coordination/v2/contract.md`））。协调者不知道
 组合名。
 
 | 组合 | 参与 owner 与记录 | LC-04（legacy source: `../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md`） 行 |
 |---|---|---|
-| `take_batch` / `take_command` / `take_trigger` | queue：`queue.items.taken`；run：`run.lifecycle.created` + `run.epoch.issued`；AR：`pinWork` 交入 requiredUses；trigger 项另核来源权威仍有效，不合格则 `queue.item.closed` 并记录 | 3 |
-| `run_settle` | run：`run.lifecycle.settled` + `run.state.changed` + `run.epoch.closed`；inbound：指向本 Run 的未消费 continuation → `inbound.arrival.converted` + `queue.item.enqueued{trigger}`（completed/failed）或 `inbound.arrival.closed{cancelled_run}`（cancelled） | 4 |
+| `take_batch` / `take_command` / `take_trigger` | 合并 queue owner taken、Run owner create+initial issue、AR pinWork preparations；trigger 项另核来源权威。组合者不制造 Run facts | 3 |
+| `run_settle` | 合并 Run owner `prepareTransition{terminal}`（owner 对 open epoch 准备唯一 close，已 closed 返回原 epochClosureRef）与 inbound continuation converted/closed preparation；组合者不制造 Run facts | 4 |
 | `session_archive` / `session_delete` | session：`session.lifecycle.changed`；queue：未取批项 closed；inbound：accepted 与 classified 未消费者 closed；门内读 Run 状态作前提 | 1 |
-| `session_force_stop` | session：`session.hold.set`；run：`run.control.requested{force_stop}` + `run.epoch.closed{force_stop}` | 2 |
-| `interrupt_then_run_accept` | queue：新 input 入队；session：复合意图记录；run：`run.control.requested{interrupt, supersededByInput}`，关新 Step | 8 |
-| `reacquire` / `resume` | run：最终联合准入写 `run.epoch.issued{compat}` 并封闭旧 epoch；AR：工作许可；前提是完整前缀已校验、视图已 fold、accepted-arrival 扫描完成、在途已 inspect 且当前兼容/资格成立 | 7（重取） |
+| `session_force_stop` | 合并 Session owner 的 `session.hold.set` preparation 与 Run owner 的 `prepareTransition{force_stop}`；CC submit 同时复核双方 guard，组合者不制造 `run.*` | 2 |
+| `interrupt_then_run_accept` | 合并 queue/session owner 的 input+复合意图与 Run owner prepared interrupt/关新 Step；组合者不制造 Run facts | 8 |
+| `reacquire` / `resume` | 合并 Run owner transition（旧 epoch open 时以 reacquired 唯一关闭、否则引用原 close；成功总发行 successor）与 AR WorkPermit；active terminationIntent 硬拒；回执丢失 lookup committed operation | 7（重取） |
 
 ## 10. 链接与当前资格
 

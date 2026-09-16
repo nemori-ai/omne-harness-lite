@@ -35,13 +35,57 @@ holder 只能是本 Run 提议并耐久登记的调用，或本 Run 进入的门
 
 Run 拥有 `run.*` 命名空间下的耐久事实名，本版的封闭清单：`run.lifecycle.created`、
 `run.state.changed{to}`（RN-02 的每次状态转移一条）、`run.control.requested{kind}` 与
-`run.control.progressed{result}`（RN-03/05）、`run.epoch.closed`（epoch 交接与撤销，RN-02/05）、`run.gate.awaited`、
+`run.control.progressed{result}`（RN-03/05）、`run.epoch.issued{epoch,driverBinding,compat}` 与
+`run.epoch.closed`（epoch 交接与撤销，RN-02/05）、`run.gate.awaited`、
 `run.wait.claimed` 与 `run.wait.released`（本条）、`run.calls.proposed{calls}`（提议批的 Run 侧
 准备，与 `tools.call.proposed` 同批）、`run.call.admitted{call}`（准入的 Run 侧登记）与
 `run.approval.consumed{call, answer}`（消费一条批准答复，引用被消费答复的 eventId），三者的
 提交伙伴归 TL-15（legacy source: `../../tools/v2/contract.md`）。Step 事实 `run.step.opened` 与 `run.step.settled`
 在同一命名空间，由驱动器提交、归 RD-08（legacy source: `../../run-driver/v3/contract.md`） 定义。消费者引用
 这些名字时以本清单为准，不另起同义事实。
+
+`run.epoch.issued` 是每次 epoch（含首次创建）的唯一发行事实。`run.epoch.closed{epoch,reason}` 的
+reason 封闭为 `yield | yield_forced | reacquired | interrupt | force_stop | superseded | completed | failed | cancelled`；
+任一耐久前缀中每个 issued epoch 至多一条 closed，fold 遇同 epoch 第二条一律拒绝；在后继 epoch issued
+或 Run terminal 前，该 epoch 必须恰有一条 closed，只有当前活跃末代可以暂时没有。首次创建时
+`run.lifecycle.created{basis,definition,acquisitionBasis,modelSelection}` 与 issued 同 batch，created 不重复
+epoch；reacquire/resume 发行新 epoch 时，若前一 epoch 仍 open，同一 batch 先以实际交接原因
+`yield | yield_forced | reacquired | interrupt` 写旧 closed（崩溃接管用 reacquired），再写新 issued；若前一 epoch 已 closed，只核对原事实。发行
+operationId 固定目标 Run、前一 epoch/creation basis 与目标 driver compat；提交回执丢失时 lookup 原
+operation，不另发 epoch。
+
+Run fold 明确区分三个量：`latestIssuedEpoch` 是最后一条 issued 的耐久身份；`openEpoch` 是其中尚无
+closed 的唯一 epoch 或 null；`executor` 是运行时持有相应 WorkPermit 的活体绑定，不是耐久开放证明。
+Yield 后合法形态是 `latestIssuedEpoch=e, openEpoch=null, executor=null`，不能擦掉 e 或把进程存在当成 epoch 开放。
+
+Yield、interrupt、cancel、force_stop、terminal、reacquire 与 resume 的 Run 事实只能由 Run owner 的
+`prepareTransition{run,operationId,expectedRunRevision,expectedLatestIssuedEpoch,expectedOpenEpoch,intent}`
+无副作用准备产生。结果携 opaque owner guard、Run facts、投影后的 latest/open 与可选 epochClosureRef；
+跨 owner 协调者只能原样合并各 owner preparation。在 CC-01 一次 submit 门内，Run owner guard 必须重核
+精确 aggregate/stream revision、latest/open/operation，任一 stale 使整个复合 batch 拒绝；只有 committed batch
+改变状态。revision 按一次 Run owner append/operation 推进一次；同一 append 内多条 Run facts 共享该 revision，
+不按 fact 数分别推进。逐 fact 的稳定次序由 append-local order 与 records commit 后的最终 envelope
+`(batchSeq,index)` 表达；`(stream,revision)` 不是逐 fact 身份或去重键。最终 `eventId=(domain,batchSeq,index)`
+只能由 records commit 依当前 envelope format 的 canonical StreamRef 排序与 append-local fact order
+分配，prepare 的临时关联 identity 不得冒充 eventId。同批引用在 prepare 使用
+`{kind:this_batch,stream,recordIndex}` 相对位置，commit 才解析最终 eventId；跨流 prepare 到达顺序
+不决定事实顺序或身份。首次 create 的 `created + epoch.issued + state.changed` 属于同一个 Run append，
+提交后 aggregate revision 是 1，下一次 expectedRunRevision=1 可成功，=3 必冲突。
+未提交 preparation 不是耐久结果；operationId lookup 只认回已提交 batch。若 openEpoch 非空，owner 按 intent
+准备至多一条唯一 closed；若为空则引用 latestIssuedEpoch 已有 closed，任何消费者不得补写或改写原因。
+
+终态只由 `run.state.changed{to: completed|failed|cancelled|superseded,reason,evidence,
+remainingIndependent}` 表达，没有 `run.lifecycle.settled`。若转移时仍有 open epoch，同一 batch 恰写一条
+匹配原因的 closed：普通完成/失败/直接 cancel 分别是 completed/failed/cancelled，复合打断收口是
+superseded。若 interrupt 或 force_stop 受理已写 closed，后续 interrupted/stopping→terminal 只认回原
+closed，不再写第二条；从已经 interrupted 的 Run 直接 cancel 同理没有可再关闭的 epoch。终态保证是
+“该 Run 的最后 issued epoch 已关闭”，不是每个终态 batch 都重复携带 closed。
+
+模型 attempt identity/observation 全归 MC，Run 不写 attempt.recorded/attempt_ref_recorded；Run 的 Step、
+epoch/fence 只在共同门作 guard。门恢复由权威 gate_restored arrival/事实与
+`run.wait.released{holder:gateRef,outcome:passed}` 同 batch表达，没有 run.gate.returned。旧 epoch 提交在
+Run 门返回 `rejected(stale_epoch)`；隔离/迟到审计归 engineering-observation 与 DR operation evidence，
+不写 run.late_fact.recorded，不污染 Run 业务流。
 
 登记与注销各是一条耐久事实：`run.wait.claimed{holder, kind, since}` 与
 `run.wait.released{holder, outcome}`，`outcome ∈ settled | detached | passed | superseded |
@@ -134,7 +178,8 @@ Session、部分历史、恢复位置与等待登记簿——interrupt 不注销
 （SE-14（legacy source: `../../session/v2/contract.md`） A 列）。
 
 resume 只对匹配 interrupted 或有可解除阻塞的 waiting 生效，复核
-当前资格并取得新 epoch，不能清除仍待人类答复的阻塞，不自动重试已中断工具；对
+当前资格并取得新 epoch；若旧 epoch 仍 open，Run owner preparation 先以既有 `reacquired` 交接原因唯一
+关闭再发行 successor，若已 closed 则引用原 close 后发行，不能改写首次关闭原因。不能清除仍待人类答复的阻塞，不自动重试已中断工具；对
 等门的 Run 的 resume 是复核门后的重取，门仍闭则回到 waiting 且该门的登记保留。
 `superseded` 是终态，对它的 resume 返回 superseded（RN-04）。运行时退役
 产生的 Yield 不是控制请求，不改写为 interrupt，也不出现在控制结果中；Yield 不改写等待
@@ -146,10 +191,14 @@ interrupted 已安全收口、不占位，其自有调用在 interrupt 时已请
 会重新占位并与此时正在运行的新 Run 并存，违反占位唯一
 （LC-02（legacy source: `../../../compositions/session-run-agent-lifecycles/v2/contract.md`）；本判断由
 D-014（legacy source: `../../../../docs/decisions/D-014-session-run-agent-lifecycles.md`） 引用的 Lifecycles
-模型反例得出）。对 interrupted Run 的 force_stop，只有所有调用已结算或已有 quiescent/
-强隔离证据时才能直达 cancelled；存在任何物理结果或隔离仍为 unknown/unverified 的调用时，
+模型反例得出）。对 interrupted Run 的 force_stop，只有 TL-07/08 登记的全部 execution exposure 都已有
+同一 call/attempt/owner generation/fence 的 quiescent 或 verified isolation 时才能直达 cancelled；
+`settled(unknown)` 仍是 open exposure，不能因业务已结算而过门。存在任何物理结果或隔离仍为
+unknown/unverified 的调用时，
 受理后进入 stopping 并按 RN-05 等待终态门。由 interrupted 升级进入的 stopping 不重新取得
-本 Session 的驱动占位（LC-02），因此不阻止此时已在运行的新 Run；但它自身仍不能无证据
+本 Session 的驱动占位（LC-02），也不撤销此时已在运行的新 Run；但它产生 SE-06/15 的派生 scheduler
+safety barrier，阻止任何后续 queue take（包括向该新 Run 取 supplement）与再启动新 Run，直到 RN-05
+门通过。已有新 Run 只继续已取入工作、已有 continuation 与当前执行；旧 stopping 自身仍不能无证据
 进入 cancelled。指向终态 Run 的接续按
 SE-17（legacy source: `../../session/v2/contract.md`） 关闭或改判。
 
@@ -183,9 +232,13 @@ context，没有则为 queue 的 trigger 项（HD-04（legacy source: `../../hum
 已受控执行体，记录物理停止、隔离、残留与外部效果未知。受理强停后 Run 进入 stopping，
 并持有不可由 resume 清除的终止意图；受理的同一提交整簿注销等待登记（`cancelled`，
 RN-01），stopping 期间没有开放登记。旧结果只可作为隔离证据，不修改有效 Run 结果；
-后续队列在该 stopping 持有占位时不得开始新驱动。
+终止意图 active 时 Run owner 必须硬拒任何 reacquire/resume/successor issue，不能由新 executor 绕过强停；
+每个未过本门的 stopping Run 都派生 Session scheduler safety barrier；它与 LC-02 占位和 SE-09 用户 hold
+分离，阻止后续 queue take/新 Run，即使该 stopping 不占位。门全部通过只消除 barrier，不解除用户 hold。
 
-进入 cancelled(reason=force_stopped) 的门要求每个尚未明确结算的受控调用满足以下之一：
+门的集合不是“未结算调用”。它包含每个曾取得执行许可/接纳、且尚无**同一 execution owner、call、
+attempt 与 owner generation** 的 quiescent 或 verified isolation 事实的 execution exposure；TL-07 的
+`settled(unknown)` 仍在集合，等待登记已经注销也不移除。每项 exposure 满足以下之一才可关闭：
 (a) owner 给出 `quiescent`；(b) 声明 `stop.capability = forced_isolation` 的 owner 给出可验证的
 强隔离证据，至少绑定调用/attempt、目标作用域、执行 epoch、provider generation 与隔离
 栅栏 revision，并保证该范围不能再产生目标侧效果。真实外部效果是否已经发生仍可为 unknown；
@@ -193,7 +246,7 @@ RN-01），stopping 期间没有开放登记。旧结果只可作为隔离证据
 不计执行隔离未知。
 
 `isolation: unverified`、普通 `unknown`、超时、`cooperative_fence` 或 `unsupported` 都不满足
-终态门；Run 保持 stopping、占位与后续队列屏障，直到取得强隔离/静止证据或有权的新契约
+终态门；Run 保持 stopping、其原有占位状态与派生 scheduler barrier，直到取得强隔离/静止证据或有权的新契约
 明确接管风险。每个 `forced_isolation` owner 只接收一次同 operationId 的
 `stopCall{mode: force}`；重复或迟到报告只追加证据，不越过门。全部调用过门后才进入
 cancelled 并释放占位。隔离后仍可能存在的外部效果、费用和清理责任独立记录，不能用
@@ -261,7 +314,7 @@ LC-09（legacy source: `../../../compositions/session-run-agent-lifecycles/v2/co
 | RN-02 | 兼容扩展 | `supplement` 批与开下一 Step 同提交，basis 不变 | 作者裁决 7 |
 | RN-03 | 兼容扩展 | 控制结果形状 `complete \| partial{unknown: K}`；控制权限键 `session.emergency_control` 与合法发起者 | 作者裁决 14、缺口表 RN-03/05 行 |
 | RN-03 | 语义变化 | 安全收口写明 `unknown` 计入、无系统级超时、无"收口中"状态；interrupted 保留等待登记簿 | 作者裁决 2 |
-| RN-03 | 语义变化 | interrupted 上 force_stop 只在全部已结算/quiescent/强隔离时直达；存在 isolation unknown/unverified 时进不占位的 stopping 并等待 RN-05 门 | 当前 v1 联合复核 |
+| RN-03 | 语义变化 | interrupted 上 force_stop 只在每项 execution exposure 都有同 identity/generation/fence 的 quiescent 或 verified isolation 时直达；业务 settled(unknown) 仍不满足，存在 isolation unknown/unverified 时进不占位的 stopping 并等待 RN-05 门 | 当前 v1 联合复核 |
 | RN-03 | 澄清 | resume 的目标状态词表随 RN-01 收敛；`superseded` 返回 superseded；Yield 不改登记簿 | 作者裁决 3/13 |
 | RN-04 | 语义变化 | 旧 Run 终态由 interrupted 改为新终态 `superseded`；终态提交整簿注销、未消费 continuation 改判 context、被保留工作清单作 `source: system` 的 context 到达同批受理；不可 resume，删"核对旧逻辑目标是否仍可合法接续" | 作者裁决 3/4/12 |
 | RN-04 | 语义变化 | 未答请求的答复按登记簿路由，不再"保留原 Run 的中断阻塞" | 作者裁决 3、缺口表 HD-04 行 |

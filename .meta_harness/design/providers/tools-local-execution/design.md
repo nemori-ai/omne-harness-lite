@@ -43,6 +43,7 @@ executionEpoch、原 Step.createdEpoch、当前 Run.epoch 与 provider incarnati
 | Attempt ledger | `{execution,phase:accepted|dispatch_intent|terminal,acceptedOperation,planDigest,controlRevision,tombstone:null|StopFence,terminal:null|ExecutionTerminal,deliveries}`；absence 独立于任一状态。数据恢复不复活 Permit、ExactUse 或 FileHandle |
 | StopFence | `{execution,controlOperation,revision,requestedAt,epochClosed:true}`；即使 absence 也可创建，在 start 的同一账本/共同门排序；墓碑按原 execution 身份永久保留或可证明压缩，不能按时间过期 |
 | ExecutionTerminal | `{resultCandidate,acceptance:accepted|never_accepted,physical:active|quiescent|unknown,isolation:sealed|pending|unknown,cleanup:released|retained,effect:none|happened|possible|unknown,sourceVersion}`；unknown 不等于已停止，安全停止也不保证效果撤销 |
+| ExecutionExposure | `{call,attempt,owner,ownerGeneration,executionEpoch,state:open|closed,closedBy?}`；取得执行接纳即 open，只有同 identity 的 quiescent 或 verified isolation 关闭；业务 settlement 独立 |
 | Live task | 原 provider 私有 `{incarnation,execution,launches,issuedIO,openHandles,cleanup}`；每个异步取得从开始前即有原 owner，迟到 handle 回原 cleanup；计数只是索引，必须对应实际 task/handle 及完成证据 |
 
 streamId 为规范元组 execution(ExecutionRef)、environment(ResourceRef)、
@@ -159,6 +160,7 @@ enableSource 建立实际 observe/soft/hard 立场，所有适用预算仍参与
 来源能证明完整零费用才可 final 0，不能因没有 usage 默认归零。非零/未知来源
 沿治理 BG 的 knownReserve、当前暴露、原 period 和 late fact 去重规则。
 releaseBeforeStart 仅接受原耐久墓碑+never_started 证明；断连/unknown 不释放。
+owner 重启先恢复 attempt ledger、fence 与全部 open exposure；错代、迟到或重复 stop evidence 只审计，不关闭当前项。`settled(unknown)` 继续暴露，供 RN-05 门读取。
 
 LE 分配每 attempt 单调 frame seq；frame 是执行观察，非模型思考。保留量按
 条数/字节/时限配置，裁剪返回明确 gap/earliest/latest，重启无法保留的旧帧报告

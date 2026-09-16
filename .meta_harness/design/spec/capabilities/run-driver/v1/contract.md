@@ -51,8 +51,10 @@ Inbound 裁决视图；(3) 等待 Session 裁决者把 accepted arrivals 全部 
 (4) 对 dispatched/executing/unknown 的外部工作按原 attemptId inspect/subscribe；(5) 核对
 RN-08 的本 baseline 精确契约坐标、driver binding、reducer 版本及当前资格。
 
-只有上述结果仍然匹配时，最终短提交才同时发行新 epoch、封闭旧 epoch、取得 AR WorkPermit
-并记录驱动 claim；提交后才允许进入 decide。新 Run 的队列取用/Run 建立也受同一前缀与
+只有上述结果仍然匹配时，Run owner 才无副作用准备 successor transition：旧 epoch open 时以
+`reacquired` 唯一封闭，已 closed 则引用原 close；协调者把它与 AR WorkPermit preparation 原样合并，
+CC submit 时 owner guard 重核后才同时发行新 epoch、取得许可并记录驱动 claim。active terminationIntent
+硬拒 successor；提交后才允许进入 decide。新 Run 的队列取用/Run 建立也受同一前缀与
 裁决门约束。任何“先取 epoch，再读前缀或补扫 arrival”的实现都不符合本条。恢复不要求
 等待登记为空，但要求无全 Run/Session 控制阻塞；不兼容时保持原状态与占位，等待用户控制
 或兼容实现。superseded 不可 resume/重取。
@@ -98,6 +100,11 @@ failed 且政策允许 → 同 Step 新 attempt，切点不变；failed 且政�
 Run failed；unknown 可核实 → 按核实结果；unknown 核实不了 → 记 unknown 与费用
 暴露，政策允许则新 attempt，否则 failed(unknown)；cancelled → 收口。一个 Step 至多
 一个 success attempt，它是该 Step 唯一的权威模型输出。
+
+MC-06 的 disposition revision 只有在 M 的 CAS/CC 门同时读到“本 Step 尚无 accepted success”、匹配
+attemptEpoch/Run epoch、且 RN-05 终止意图仍允许接纳时，才标为业务 accepted；RD-08 只消费这一分类。
+门失败的 late result 不进入 Message、调用批或 Step success，只保留原 attempt 的审计/费用/隔离观察。
+`abandoned` disposition 封闭本条所有出边，尤其不能 propose tool call 或触发同 Step 新 attempt。
 
 Step 的结算事实 `run.step.settled{outcome}` 有两种 outcome。整份提议经
 TL-01（legacy source: `../../tools/v2/contract.md`） 校验不能形成合法 Action 时，tools 不登记任何 proposed，
@@ -200,11 +207,14 @@ interrupt_then_run 的安全收口允许把 `unknown` 作为显式物理事实�
 可以启动新驱动，unknown 仍由原 owner 持续可见地承担，不冒充已经停止。
 
 cancel 沿 RN-03 进入 cancelled。force_stop 另有更强终态门：受理时进入 stopping、撤销 epoch
-并整簿注销；只有每个未结算调用给出 quiescent，或给出 RN-05 规定的、绑定调用/attempt、
+并整簿注销；终态集合来自 TL-07/08 execution exposure，不来自“未结算”标签或等待登记。只有每个
+曾获执行接纳且仍开放的 exposure 给出 quiescent，或给出 RN-05 规定的、绑定调用/attempt、
 作用域、epoch、provider generation 与 fence revision 的强隔离证据，才可进入
 cancelled(force_stopped)。效果结局可未知并报告 `partial{unknown: K}`，但执行隔离
-`unverified`/unknown 时必须留在 stopping；不得释放其占位或启动后续队列驱动。对 interrupted
-Run 的 force_stop 进入不重新占位的 stopping，但仍须同一强隔离门才能 cancelled。
+`unverified`/unknown 时必须留在 stopping；`settled(unknown)` 仍是 exposure，整簿注销也不删除它。
+不得释放原占位，并由 stopping Run 派生 Session scheduler barrier 阻止任何新 queue take/后续 Run。
+对 interrupted Run 的 force_stop 进入不重新占位的 stopping，不撤销已经运行的新 Run，但同一 barrier
+阻止向它取 supplement 及其后启动 Run，直到同一强隔离门通过。
 
 未派发即取消的调用取得合成终态并关闭审批请求。不可恢复失败不走停止协议：未准入调用
 结算 cancelled_before_execution，已准入调用和未答请求由各 owner 承担，Run failed 时整簿

@@ -55,7 +55,7 @@ ContentBlock[]`、助手消息的 `settlement{status, missing[]}`、以及 `supe
 |---|---|---|
 | `queue.item.enqueued / edited / withdrawn` | enqueued：一条 `step: null`、`role: user`、`origin: user_input` 的消息，`content` 为该 revision 的输入块；edited：新 revision 的新消息，旧消息 `supersededBy` 指向它；withdrawn：旧消息 `supersededBy` 指向撤回事实，无后继 | 受理即派生，从未取批就撤回的输入也有历史；模型请求投影不取未取批消息 |
 | `queue.items.taken{items, run \| into}` | 每个 item 把已派生的用户消息的 `step` 指向消费它的 Step，`ordinal` 按 items 顺序 | 内容本体仍在队列项，消息只引用 |
-| 模型 attempt 的结算事实（MC-06（legacy source: `../../model-execution/v2/contract.md`） 记录 `purpose`） | `purpose = reply`：`role: assistant`、`origin: model_attempt` 的消息，`settlement` 记状态与缺失块清单；其余 `purpose` 不派生助手消息 | `partial / cancelled` 也派生：保留全部完整且已耐久的块，未完成的进 `missing`，截断块保留前缀；`failed / unknown` 无内容不派生消息，状态与用量仍保留 |
+| 模型 attempt 的 current disposition（MC-06） | `purpose = reply` 且 `contentDisposition=settled_with_message`：`role: assistant`、`origin: model_attempt` 的消息，`settlement` 记 outcome/revision/missing；其它 disposition 不派生助手消息 | `partial/cancelled` 可保留已耐久前缀；`failed/unknown/abandoned` 及 non-reply 通常明确 `settled_without_message`。later revision 可更新同一 attempt 的派生结果，不创建第二个语义结算 |
 | `tools.call.proposed`；`run.step.settled{outcome: invalid_proposal{reasons}}`（RD-08（legacy source: `../../run-driver/v3/contract.md`）） | 前者确定该 attempt 助手消息中通过校验的 `tool_call` 块（带调用与动作）；后者把该 attempt 结算记录里被拒的原始片段确定为 `rejected{reason}` 并保留 `raw` | 助手消息的 `tool_call` 块只来自这两条事实，不来自流式参数片段 |
 | `tools.call.settled{call, attempt, result}` | 一条 `role: user`、`origin: tool_settlement`、`content: [tool_result]` 的消息，位置为结算提交 | 与该调用是否已占位、Run 是否还会开 Step 无关；归档后到达的结算同样派生 |
 | `run.step.opened{cutpoint}` 且切点含 `deferred_receipt` 或 `system_reminder` | `role: user`、`origin: system` 的占位消息；引用类 `system_reminder{late_result \| human_answer}` 的内容是对已派生结果消息的引用，不复制正文；正文类 `system_reminder{hook_context \| system_notice}` 按块原样派生 | 一个调用的最终结果在历史里恰出现一次（结果消息）；同一 Step 输入里多条 reminder 排在新用户文本之前 |
@@ -64,8 +64,31 @@ ContentBlock[]`、助手消息的 `settlement{status, missing[]}`、以及 `supe
 
 读面 `history(session, range, asOf?)` 返回该范围内的派生 `Message` 与其水位：`asOf` 省略
 时取当前完整覆盖水位（SE-10），给定时只返回位置不超过 `asOf` 的派生结果，使一次全量重取
-的各视图落在同一水位。每次读取按当时的读权裁剪正文（SE-20）；无读权与不存在返回同一
+的各视图落在同一水位。分页只能在完整 `commitPosition{domain,seq}` 批之间切：同一批派生的全部
+消息、修订与可见状态更新属于一个安装单元，页面边界不得切开该批；若单批超过页大小则整批
+独占一页，下一页 token 指向下一个完整批。page token 固定 `asOf`、授权投影版本和最后完整批位置，
+变化时整次读取 reset，不把残页当完整正文。每次读取按当时的读权裁剪正文（SE-20）；无读权与不存在返回同一
 结果，不泄漏存在。派生缓存按 SE-10 携带 stateKey、reducer 版本与水位，越界即重建。
+
+SessionProjection 在每个完整 commit batch 上投影 `attemptStateUpdates`，full snapshot 返回同形的
+`attemptStates` 完整集合。它们逐项保留 MC-06 的权威含义，是以下封闭 tagged union：
+
+| `status` | 必需字段 | 禁止/语义 |
+|---|---|---|
+| `in_progress` | `{attemptId,attemptEpoch,purpose,historyAnchor,pendingReason?: outcome_unresolved}` | 没有 terminal revision/commitPosition；`pendingReason` 只从 M ledger 的耐久 `attempt.closing.pending` observation 在当前 asOf fold 出，不能从 active snapshot 合成，客户端保留草稿 |
+| `settled_with_message` | `{attemptId,attemptEpoch,revision,purpose,outcome,historyAnchor,contentDisposition:settled_with_message,contentRef,missing,actualResponseIdentity?,usage,finish,commitPosition}` | MC-06 disposition 字段逐项保留；Message/contentRef 必须在同一水位可安装；没有 authorityRef |
+| `settled_without_message` | `{attemptId,attemptEpoch,revision,purpose,outcome,historyAnchor,contentDisposition:settled_without_message,missing,actualResponseIdentity?,usage,finish,commitPosition}` | MC-06 disposition 字段逐项保留；包含 durable business `outcome=unknown`；首次出现即 semantic close，没有 authorityRef |
+| `abandoned` | `{attemptId,attemptEpoch,revision,purpose,outcome:abandoned,historyAnchor,contentDisposition:settled_without_message,missing,actualResponseIdentity?,usage,finish,authorityRef,commitPosition}` | MC-06 disposition 字段逐项保留；authorityRef 必须定位同 attemptEpoch 的权威 fence |
+
+它与 Message 正文从同一完整 fold 水位回答；“没有 Message”只有 settled_without_message、abandoned
+或其中 durable unknown 才构成无正文证明。durable business unknown 的 current disposition 后续细化时
+同一 attempt 升级 revision；旧 observation 仍在耐久历史，消费者更新呈现而不重复 semantic close。
+
+projection 先按 SE-20 和当前 `visibilityVersion` 裁剪，集合接口不接受客户端猜测的 attempt identity，
+也不逐项返回 inaccessible/not-found/evidence-expired。disposition 沿 Session history 的
+retention/归档/删除/可见性；请求位置早于 projection floor 时只要求 collection-level full snapshot。
+full snapshot 缺少某个客户端本地旧草稿，只允许客户端标记本地、可逆的 `evidence_unavailable`；
+它没有业务 outcome/revision，不执行 semantic close，不能证明对象不存在、隐藏或已过期。
 
 ## 输入队列
 
@@ -99,7 +122,9 @@ RN-03～05（legacy source: `../../run/v2/contract.md`） 的控制。
 **SE-06**：takeBatch 在同一短裁决与耐久提交中固定队首连续合格 text 项的
 身份、修订、内容和顺序，遇 command 或 trigger 停止；不存在活动驱动占位
 （LC-02（legacy source: `../../../compositions/session-run-agent-lifecycles/v2/contract.md`） 的派生关系，在同一门内读
-Run 状态）、队列非 hold、Session open、权限／定义／模型可用方可建立新 Run。队首
+Run 状态）、队列非 hold、Session open、权限／定义／模型可用，且不存在由任一尚未通过 RN-05
+终态门的 stopping Run 派生的 scheduler safety barrier，方可建立新 Run。该 barrier 不是 hold 或占位；
+即使 stopping Run 由 interrupted 升级而不占位，也阻止**后续新 Run**启动。队首
 失权明确阻塞或结算拒绝，不悄悄跳过不合格成员；不得临时扩充已确认批次。
 相同取批重试认回原 Run。消息边界原样保留，合批不把多条原文改写为摘要。
 后到输入进入下一批。取项、Run 建立与 epoch 发行在同一提交
@@ -188,11 +213,18 @@ RD-06（legacy source: `../../run-driver/v3/contract.md`） 与 CD-03（legacy s
 到达行为为 interrupt_then_run 的队列项在受理的准备阶段先经受理后守卫求值（SE-06 末段）：
 守卫关闭它时，该项在受理后立即以 `closed_by_guard` 关闭且不发出中断，旧 Run 继续。
 
+RN-05 派生 scheduler safety barrier 也阻止这一 take-into-existing 形态以及 SE-07 的 command/trigger
+take：已运行 Run 可继续其已经取入的 basis/supplements、已有 continuation 与当前工作，但 barrier 存续时
+不得再从 queue 取入新项。它不停止或撤销该 Run，也不改写任何 queue item 状态。
+
 **SE-09**：Session 范围的强停将队列置 hold，与控制受理在同一提交
 （LC-04 行 2（legacy source: `../../../compositions/session-run-agent-lifecycles/v2/contract.md`））；仅用户显式
 continueQueue 或撤回解除其对应状态，不因为清理完成自动启动下一 Run。单 Run
-强停不隐含全会话 hold。继续队列只解除 hold，不越过 stopping 占位，也不恢复被
-强停的 Run。Run 侧的 force_stop 语义归 RN-05（legacy source: `../../run/v2/contract.md`）。
+强停不隐含全会话 hold。用户 hold 与 scheduler safety barrier 是两个正交条件：hold 只由显式
+continueQueue/撤回解除；barrier 由“存在未通过 RN-05 门的 stopping Run”派生，全部过门后自然消失。
+Session 范围强停同时产生用户 hold 与该派生 barrier；清理完成不解除用户 hold，continueQueue 也不
+越过 barrier。由 interrupted 升级的 stopping 不重新占位、不撤销已经运行的新 Run，但 barrier 阻止
+其后再启动 Run。Run 侧的 force_stop 语义归 RN-05（legacy source: `../../run/v2/contract.md`）。
 
 ## 状态贡献与恢复
 
@@ -207,11 +239,39 @@ Inbound（SE-12～18）是本能力的 authoritative 贡献之一：arrival 的�
 驱动位置由 run-driver 以 projection 贡献注册到本注册面，由 run v2（legacy source: `../../run/v2/contract.md`）
 持有的事实 fold 得到（RN-07（legacy source: `../../run/v2/contract.md`））。
 
-本注册面上的投影须给出三个读面，并在同一 fold 水位上回答：`changes(session, after, to) →
-{batches, completeTo}` 返回本 Session 作用域内序号在 `(after, min(to, completeTo)]` 的已提交
-事实，按提交分组、组内按耐久序；`snapshot(session, principal) → {asOf, history, queue,
-requests, calls, visibility}` 是全量重取的**单一**读面，全部派生视图取自同一 fold 水位
-`asOf`；`floor(session)` 给出可服务下界。完整覆盖水位 `completeTo` 的含义是投影已把序号
+本注册面上的投影须给出三个读面，并在同一 fold 水位上回答：
+`changes(session, after, to: commitPosition | latest, principal, visibilityVersion) →
+{projectionBatches, resolvedTo, coveredThrough, floor, visibilityVersion} | reset_required{floor,visibilityVersion}` 返回按原 commitPosition 分组的**授权投影批**；
+`to` 为具体 commit position 或 `latest`；`latest` 在调用开始时解析为当前 `projection.completeTo` 并在
+响应中回显具体 `resolvedTo`。对具体 `to`，`resolvedTo=to`；总有
+`after ≤ coveredThrough ≤ resolvedTo` 且 `coveredThrough ≤ projection.completeTo`，因此具体 `to` 时
+`coveredThrough ≤ to`。`to` 是此次请求的上界，响应不能把全局 projection 水位当作已返回区间水位；
+若 `after` 已高于当前 projection 完整水位或 generation 不符则返回 collection-level reset，不伪造倒退覆盖。每批覆盖位置严格落在 `(after, coveredThrough]`；
+`coveredThrough` 证明该闭区间内每个原 commit batch 已在授权视图完整折叠、可原子安装，未达 `to`
+时只认回实际前缀。
+每组只含该主体在此位置可见的 facts/state updates，但对该授权视图必须原子完整，隐藏记录不以
+placeholder 或逐对象 rejection 出现。原 durable batch 对该主体投影为空时可以返回空 projection batch，
+也允许响应 `coveredThrough` 跨过它；两种编码在同一 provider/version 内固定，客户端只把
+`coveredThrough` 当此次授权集合前缀，不得用空组/缺号分类对象。每个非空组带该批折出的完整 `attemptStateUpdates`：
+`attempt.closing.pending` 即使没有 terminal revision 也必须产生完整
+`in_progress{pendingReason:outcome_unresolved}`；current disposition revision 同样经此 union 返回完整终态，
+客户端无需另查 M 才能解释。commitPosition 是 DR 的完整批位置
+`{domain,seq}`；客户端按原位置顺序原子安装每个授权投影组及其完整正文/state updates；全部返回组成功后，
+可在空组或已完整覆盖的间隙把 cursor 推至本响应的 `coveredThrough`，不得跳过未安装组。
+若任一组读取、正文或 state update 安装失败，cursor 停在最后完整位置并从那里重取。
+它不同于 `eventId{domain,seq,recordIndex}`、记录批内位置与消息流 frame 的 batch.index。
+`snapshot(session, principal, replacementToken) → {replacementToken, asOf, floor, visibilityVersion,
+coverage:{completeThrough,retainedFrom,authorizedSetComplete}, history, attemptStates, queue, requests, calls}`
+是全量重取的**单一**读面，全部派生视图取自同一 fold 水位 `asOf`。`attemptStates` 是该主体在
+`asOf` 获准读取且仍保留的完整集合；`authorizedSetComplete:true` 只声明该授权投影集合完整，不声称
+隐藏对象不存在。接口不接受 identity/lastKnownPosition，隐藏、不存在、已过期对象没有逐项响应。
+`visibilityVersion` 只在授权投影定义（grant/revoke/policy/scope）改变时换代；隐藏对象的业务提交可推进
+`asOf/completeTo` 而无需改变它，集合水位不得被解释为某个猜测 identity 的存在证明。`after < floor`
+或 visibilityVersion 不匹配时 `changes` 只返回 collection-level reset，客户端原子安装 full snapshot。
+snapshot 安装是客户端单一 CAS：replacementToken 仍是当前重取代次、visibilityVersion 仍匹配当前授权投影，
+且 `asOf >= installedCursor` 才能把 history/states/cursor/revision/semantic-close bookkeeping 一次替换；任一不符
+丢弃整份 snapshot 并重取，不能先替换状态再检查，也绝不回退 cursor、terminal revision 或 semantic close。
+完整覆盖水位 `completeTo` 的含义是投影已把序号
 不超过它的全部提交折叠进去；确定性 fold 本身不提供这个保证，必须显式给出，`asOf` 不得
 越过它。`snapshot` 的 `requests` 与 `calls` 不是投影自有的规则：
 HD-09（legacy source: `../../human-decisions/v2/contract.md`） 与 tools v2（legacy source: `../../tools/v2/contract.md`） 各按本条把
@@ -318,7 +378,9 @@ LC-04（legacy source: `../../../compositions/session-run-agent-lifecycles/v2/co
 
 **SE-15**：队列消费与调度。takeBatch 固定队首连续合格 text 项为一批，遇 command
 或 trigger 停止；takeCommand 对队首有序命令一项一 Run；takeTrigger 对队首 trigger
-项一项一 Run；三者互斥。Session 级调度由本能力拥有，在无活动占位、队列非 hold
+项一项一 Run；三者互斥。RN-05 派生 barrier 阻止三种 take，包括向已有 waiting Run 取入 supplement；
+已有 Run 仍可处理已取入工作与 continuation。Session 级调度由本能力拥有，在无活动占位、队列非 hold、且没有 RN-05
+派生 scheduler safety barrier
 且队首项合格时启动下一 Run，不依赖某个驱动器实例存活；占位被已 Yield 的 Run
 持有时，调度只能以新 epoch 重取该 Run。占位仍由一个非终态 Run 持有时，Session 级调度
 不启动新 Run：队首合格 text 项改由持有该 Run 驱动的驱动器在该 Run `waiting` 的空闲点按

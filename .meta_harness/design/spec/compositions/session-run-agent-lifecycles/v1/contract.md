@@ -52,18 +52,19 @@ Session 与 Run 的转移是耐久事实；实例的转移不耐久，Registry �
 ## 同提交声明
 
 **LC-04**：以下级联采用形状 2，是本组合按 CC-01（legacy source: `../../core-work-coordination/v2/contract.md`）
-声明的原子关系；每行由一个具名组合承担，Session 与 Run 的提供者互相不持有对方的
-状态：
+声明的原子关系；每行由一个具名组合承担。各 owner 先无副作用准备自己的 facts 与 guard，组合者只原样
+合并，CC 单次 submit 时各 owner 对精确 revision/identity 再检查；Session、Tools、Driver 或组合者不得制造
+Run 事实，Session 与 Run 的提供者互相不持有对方状态：
 
 | 行 | 触发 | 同一提交内的效应 | 依据 |
 |---|---|---|---|
 | 1 | Session 归档 / 删除 | 生命周期转移；未取批队列项 closed_by_archive/delete；accepted 与 classified 未消费的 arrival closed；封闭新激活的资格。前提"无非终态 Run"由 LC-05 守卫 | SE-02（legacy source: `../../../capabilities/session/v2/contract.md`）、SE-14（legacy source: `../../../capabilities/session/v2/contract.md`） D2 列、CB-05/06（legacy source: `../../agent-session-binding/v1/contract.md`） |
-| 2 | Session 级 force_stop | 队列 hold；当前占位 Run → stopping；该 Run 的 epoch 在受理点撤销；该 Run 的等待登记整簿注销（`cancelled`） | SE-09（legacy source: `../../../capabilities/session/v2/contract.md`）、RN-05（legacy source: `../../../capabilities/run/v2/contract.md`） |
+| 2 | Session 级 force_stop | Session owner 准备用户 hold；Run owner 准备当前占位 Run → stopping、epoch 撤销或原 close 引用、等待登记整簿注销。组合者只合并两份 preparation。stopping 同时派生 scheduler safety barrier；RN-05 过门只消除 barrier，用户 hold 仍须显式 continueQueue/撤回 | SE-09（legacy source: `../../../capabilities/session/v2/contract.md`）、RN-01/05（legacy source: `../../../capabilities/run/v2/contract.md`） |
 | 3 | 取批 / 取命令 / 取 trigger；或在既有 Run 的空闲点取批 | 建立新 Run 的形态：队列侧固定并取用项；Run 建立（basis、定义、模型、初始 epoch）；epoch 发行给持有工作许可的实例。取入既有 Run 的形态（Run 处于 waiting 的空闲点）：队列侧固定并取用项；该批记为占位 Run 的 `supplement` 并开其下一个 Step，不建立 Run、不发行新 epoch | SE-06/07/15（legacy source: `../../../capabilities/session/v2/contract.md`）、RN-01/02（legacy source: `../../../capabilities/run/v2/contract.md`）、AR-8（legacy source: `../../../capabilities/live-agent/v1/contract.md`）、RD-06（legacy source: `../../../capabilities/run-driver/v3/contract.md`） |
-| 4 | Run → completed / failed / cancelled / superseded | 终态转移；仍开放的等待登记整簿注销（`failed \| cancelled \| superseded`；completed 以登记簿已空为前提）；指向本 Run 的未消费 continuation 转为 trigger 项（completed/failed）、改判为 context（superseded）或 closed（cancelled 与级联关闭）；superseded 另在同批受理一条 `source: system`、意图 context 的被保留工作清单到达；执行者 epoch 封闭 | RN-02/04/09（legacy source: `../../../capabilities/run/v2/contract.md`）、SE-13/14/17（legacy source: `../../../capabilities/session/v2/contract.md`）、D-012 的 I-14（legacy source: `../../../../docs/decisions/D-012-run-driver-and-inbound.md`） |
-| 5 | Run 的 force_stop / cancel | 控制受理；epoch 撤销；等待登记整簿注销。cancel 按 RN-03 终态；force_stop 进入 stopping，只有每个未结算调用 quiescent 或具 RN-05 强隔离证据才 cancelled；隔离 unverified/unknown 保持 stopping 与占位。interrupted 上升级的 stopping 不重新占位，但同样不得无证据终态 | RN-03/05（legacy source: `../../../capabilities/run/v2/contract.md`） |
-| 6 | Run 的 interrupt | 关 Step；停止请求；安全收口（每个停止请求都有物理事实，`unknown` 计入）后 interrupted；epoch 封闭；等待登记簿保留、不注销 | RN-03（legacy source: `../../../capabilities/run/v2/contract.md`） |
-| 7 | 驱动器 Yield | epoch 封闭；Run 状态、等待登记簿、阻塞集合不变；占位随状态派生保留 | RD-14（legacy source: `../../../capabilities/run-driver/v3/contract.md`）、RN-01（legacy source: `../../../capabilities/run/v2/contract.md`） |
+| 4 | Run → completed / failed / cancelled / superseded | Run owner 准备终态转移、登记注销及 open epoch 唯一 close或原 close引用；Session owner准备 continuation 转 trigger/context/closed，superseded 另准备 system context arrival；组合者只合并。completed 以登记簿已空为前提 | RN-01/02/04/09（legacy source: `../../../capabilities/run/v2/contract.md`）、SE-13/14/17（legacy source: `../../../capabilities/session/v2/contract.md`）、D-012 的 I-14（legacy source: `../../../../docs/decisions/D-012-run-driver-and-inbound.md`） |
+| 5 | Run 的 force_stop / cancel | Run owner 独占准备控制、open epoch 唯一撤销或原 close 引用、登记注销。cancel 按 RN-03 终态；force_stop 进入 stopping、激活禁止 successor 的 terminationIntent，并对 TL-07/08 execution exposure 求 RN-05 门。未过门派生 barrier；单 Run 强停不设置用户 hold | RN-01/03/05（legacy source: `../../../capabilities/run/v2/contract.md`） |
+| 6 | Run 的 interrupt | Run owner 独占准备关 Step、停止请求、安全收口后的 interrupted 与 open epoch 唯一 close/原 close引用；等待登记簿保留、不注销 | RN-01/03（legacy source: `../../../capabilities/run/v2/contract.md`） |
+| 7 | 驱动器 Yield | 驱动器请求、Run owner 独占准备 open epoch 唯一封闭；Run 状态、等待登记簿、阻塞集合不变；占位随状态派生保留 | RD-14（legacy source: `../../../capabilities/run-driver/v3/contract.md`）、RN-01（legacy source: `../../../capabilities/run/v2/contract.md`） |
 | 8 | interrupt_then_run 受理 | 新 input 耐久；当时精确 Run 与复合意图记录；旧 Run 关新 Step 并受理终止意图。旧 Run 的终态 `superseded`、整簿注销与工作清单在其收口提交（行 4） | SE-08（legacy source: `../../../capabilities/session/v2/contract.md`）、RN-04（legacy source: `../../../capabilities/run/v2/contract.md`） |
 | 9 | Inbound 裁决 | arrival 意图与 observedRun 记录；call_settlement 判 continuation 时同批释放 call 登记（settled）；gate_restored 判 continuation 时同批释放 gate 登记（passed）；system approval 只形成 approval readiness，不释放 call 登记，批准消费/start 后仍等真实 settlement；provisional readiness 同样不释放。裁决与被引用 Run 的终态转移在同一协调域全序 | SE-12/14（legacy source: `../../../capabilities/session/v2/contract.md`）、RN-01（legacy source: `../../../capabilities/run/v2/contract.md`）、HD-06、D-012 的 I-13（legacy source: `../../../../docs/decisions/D-012-run-driver-and-inbound.md`） |
 
@@ -75,7 +76,9 @@ Session 与 Run 的转移是耐久事实；实例的转移不耐久，Registry �
 **LC-05**：以下效应采用形状 1，不写事实、不发通知：归档/删除的前提"无非终态 Run"
 （含 interrupted；`superseded` 是终态，被越过的 Run 不再阻止归档）在门内读 Run 当前状态；
 取批的前提"无占位"读 LC-02 的派生关系，取入既有 Run 的前提"占位 Run 处于 waiting"同样
-在门内读 Run 当前状态；附着资格、租户权限、定义授权失效只封闭后续准入（CB-06（legacy source: `../../agent-session-binding/v1/contract.md`）、
+在门内读 Run 当前状态；两种 queue take 还必须确认不存在由任一未过 RN-05 门的 stopping Run 派生的
+scheduler safety barrier。该派生不改变 LC-02 占位；已运行 Run 可继续已取工作与 continuation，但不得
+再取 supplement。附着资格、租户权限、定义授权失效只封闭后续准入（CB-06（legacy source: `../../agent-session-binding/v1/contract.md`）、
 CC-02/04（legacy source: `../../core-work-coordination/v2/contract.md`） 的撤销屏障），不解释为 cancel，进行中的
 Run 沿冻结依据继续（AR-9（legacy source: `../../../capabilities/live-agent/v1/contract.md`）），驱动器在下一
 安全边界的联合准入被拒即 Yield；写入权丢失封闭新提交，驱动器停在已确认水位
@@ -91,9 +94,10 @@ Session 作用域过滤；广播只是提示，不是第二种事实。反应者
 按 DR-02（legacy source: `../../../capabilities/durable-records/v2/contract.md`） 单独报告 delivery 状态，不改已
 提交事实；丢失由提供者启动扫描兜底。以下效应采用形状 3：
 
-- Session 级调度者对铃的反应：队列变化、Run 终态、hold 解除、arrival 判为接续或审批
+- Session 级调度者对铃的反应：队列变化、Run 终态、hold 解除、RN-05 barrier 变化、arrival 判为接续或审批
   就绪、epoch 封闭、门恢复、resume；判断"无占位且队首合格则开新 Run""占位 Run 执行者
-  为空且有可干之事则重取"；先查 ready 实例，无则激活（SE-15（legacy source: `../../../capabilities/session/v2/contract.md`））。
+  为空且有可干之事则重取"前先核对 barrier；barrier 存续不 take queue item、不激活新 Run，但不停止
+  已在运行的 Run；先查 ready 实例，无则激活（SE-15（legacy source: `../../../capabilities/session/v2/contract.md`））。
 - 宿主对 Session 归档/删除的反应：关闭该 Session 的空闲实例
   （AR-11（legacy source: `../../../capabilities/live-agent/v1/contract.md`） 的显式退役），释放附着。
 - AR 对 Run 终态、interrupted 与 Yield 的反应：`settle(work)` 结算许可
@@ -108,7 +112,8 @@ RD-14（legacy source: `../../../capabilities/run-driver/v3/contract.md`））�
 AR-12（legacy source: `../../../capabilities/live-agent/v1/contract.md`） 释放资源与附着。占位 Run 的执行者为空
 后，重取由 Session 级调度者发起：先通过 LC-08 的完整前缀校验与 fold，再完成本 Session 的裁决扫描
 （SE-18（legacy source: `../../../capabilities/session/v2/contract.md`）），再取得 ready 实例或激活新实例，在同一
-提交发行新 epoch 并封闭旧 epoch，operationId 从 `(RunRef, 封闭的 epoch)` 派生，重取须
+提交由 Run owner preparation 发行新 epoch；旧 epoch open 时同一 preparation 以 reacquired 唯一封闭，
+已 closed 则引用原事实。operationId 从 `(RunRef, latestIssuedEpoch)` 派生，重取须
 通过 RN-08（legacy source: `../../../capabilities/run/v2/contract.md`） 的恢复兼容证据。多数重取不需要新实例。
 
 ## 崩溃与恢复

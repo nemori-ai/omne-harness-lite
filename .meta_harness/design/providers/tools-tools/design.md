@@ -52,6 +52,7 @@ operation 稳定认回整个原输入，不用新 operation/attemptId 自动重�
 | ManifestTools | `{manifestId,work,requestBinding,items:[{alias,registrationId,definition,binding,commandSchemas,skillEvidence,consumerEvidence}],digest}`；保存真正送往请求的单槽位表面、正文依据；模型路径由 MC 保存完整请求，本表为其不可变组成 |
 | Call | `{call,action,subjectDefinition,initiator,delegationBasis,proposalSource,presentationIndex,continuationId,state,request:null|RequestRef,execution:null|ExecutionRef,terminal:null|ToolResultBlock,consequence,controlRevision}`；state 沿 TL-07；原 subjectDefinition 是被代表 Agent 定义，不能误用工具定义找 grant |
 | ExecutionRef | `{call,providerId,providerProtocol,implementationArtifact,binding,executionEpoch}`；executionEpoch 在准入时固定，与原 Step.createdEpoch/当前 Run.epoch 分开；不因 Agent 退役改写 |
+| ExecutionExposure | `{call,attempt,providerId,providerGeneration,executionEpoch,state:open|closed,closedBy?}`；执行许可/接纳即 open；只有同 identity 的 quiescent 或 verified isolation 关闭，`settled(unknown)` 保持 open |
 | Call consequence | `{sourceVersion,sourcePosition,target:SR|BG,operation,delivery:pending|applied|failed|unknown,receipt:null|Receipt}`；只存具名原结果/费用/停止交付，不建通用消息总线 |
 
 新 ID 沿 SR 已固定的宿主唯一启动命名空间与 owner 不回绕计数；request/outcome/
@@ -71,7 +72,7 @@ Position 指已耐久事实；同批来源使用 SR 已固定的
 | tools.registration_planned/published/retiring/released | 精确声明/选用/实现/来源与上一修订；published 的持久记录只说明当代曾发布，当前可用仍查运行绑定；退役意图立即关闭新使用，released 要资源真实排空 |
 | tools.manifest_recorded / call_proposed | 原 manifest/消费证据或完整 Call 初值；proposed 与 SR call_proposed/原 blocked continuation 同批 |
 | tools.call_waiting / call_admitted | 原 call、AU 判定来源、request 或 ExecutionRef/permit 依据/chargeAttempt；分别与 HD/SR 等待或 AU/HD/BG/SR 准入同批 |
-| tools.call_terminal / result_delivery_changed | 原终态版本、可信 ToolResultBlock、效果/物理事实与待交付后果；不能用迟到观察覆盖已有终态。unknown 的 resolution 另写 tools.call_resolved，保留旧 unknown |
+| tools.call_terminal / result_delivery_changed | 原终态版本、可信 ToolResultBlock、效果/物理事实与待交付后果；不能用迟到观察覆盖已有终态。unknown 的 resolution 另写 tools.call_resolved，保留旧 unknown；业务终态不隐式关闭 ExecutionExposure |
 | tools.control_requested/progressed / reconciliation_advanced | 原 call/epoch/control 和停止责任；或已处理的 AU/TG 记录水位及待处置原请求。控制不由帧推断 |
 | 各 owner.operation_denied | 具名操作、目标、code、当前依据/水位，原 owner 关键拒绝审计；写失败为 audit_unavailable，不报已耐久拒绝 |
 
@@ -92,7 +93,7 @@ prepare_again，用户 expected 冲突保存原条件结果；unknown 只查询�
 | proposeCalls | SR 原 new_step claim、完整受管返回/原 manifest 或程序化消费证据、调用有序列表；为每项解析冻结 Action 并与 SR 联合登记；返回原 CallRef/continuationId。未经完整参数校验不执行、不偷偷降级命令 |
 | adjudicateCall | SR 原 adjudicate claim、原 CallRef、expected 与可选原 request；四值裁决按后文联合提交。程序化和模型同门，调用者不能填入 AU allow |
 | listCalls/getCall/inspectCall/subscribeFrames | SR 当前正文/工具结果读资格及精确 call；inspect 通过原 provider 查询，缺失表示 unavailable/unknown，不能由空帧猜终态。每订阅独立 cursor/撤权检查 |
-| stopCall/readControl | SR 精确 call 控制资格；作用仅原 call/attempt，不伪装成 Run interrupt。重复认回原 control；无当前控制权不能改设置或读正文 |
+| stopCall/readControl/listExecutionExposure | SR 精确 call 控制资格；作用仅原 call/attempt，不伪装成 Run interrupt。重复认回原 control；exposure 只由同 owner/generation/epoch 的 quiescent 或 verified isolation 关闭，错代/迟到证据只审计 |
 | reconcileWaiting | 受限宿主维护操作；按当前 AU/TG/绑定及原 request 核对待批后果，保存明确关闭/取代原因；不能自造人类答案 |
 
 HD 读/答/关闭接口及其当前 grantor 义务见 HD 设计（legacy source: `../../governance/human-decisions/design.md`）。
@@ -294,3 +295,8 @@ effect 仅撤服务/订阅/原句柄及清理。单纯撤 contribution 不抹历
 机制证据（legacy source: `../../../docs/proposals/core-capabilities/implementation/evidence/tool-decision-design/README.md`）。
 T-R1 的有限实际探针不等于 TL 准入产品通过；T-R2 无 Agent 终态/控制、D01–D12
 和公开类型编译均待真实产品。交付次序及独占写路径归施工入口，不由包自行接受。
+
+TL-15 事实身份按 DR-01：同一工具流一个 owner append 只使 aggregate revision 加一，所含多条 facts
+共享该 revision；逐 fact 去重只用 records commit 后的 `(coordinationDomain,batchSeq,recordIndex)` eventId。
+`operationId` 只认回提交尝试，来源 arrival 的 `(call,attempt)` 是另一层去重；prepare 临时 correlation
+及 `(stream,revision)` 均不能冒充 eventId。同批引用用相对位置准备，canonical flatten 后解析。

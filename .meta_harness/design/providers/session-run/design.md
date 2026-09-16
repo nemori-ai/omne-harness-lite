@@ -15,7 +15,7 @@
 ## 当前 v1 适配
 
 - Run 状态只有 preparing/running/waiting/interrupted/stopping，加 completed/failed/cancelled/superseded 四个终态；gate 是 waiting ledger 项，不存在 `waiting_gate`。
-- force_stop 的 isolation unknown/unverified 保持 stopping；只有绑定精确作用域与代次的强隔离证据允许 cancelled，partial 只描述效果结局未知。
+- force_stop 的 isolation unknown/unverified 保持 stopping；门按 Tools execution exposure 求值，`settled(unknown)` 不出集合。只有绑定精确作用域与代次的强隔离证据允许 cancelled，partial 只描述效果结局未知。
 - 恢复先完成完整前缀校验、fold 与 accepted-arrival 裁决，再发行 epoch；下文旧 provider 文字若与这三点冲突就是明确 gap。
 
 ## 来源协议（重基输入）
@@ -39,55 +39,64 @@ JSONL 只是 DR-04 的一个提供者。
 
 | 对象 | 形状（候选） | 说明 |
 |---|---|---|
-| Run | `{run: RunRef, session, tenant, basis: batch \| command \| trigger, definition, acquisitionBasis, modelSelection, state, epoch: EpochRef \| null, steps, waitingPositions, blockers, control, settledEvidence}` | state 沿 RN-01～05（legacy source: `../../../spec/capabilities/run/v1/contract.md`）；basis 冻结精确修订与原消息顺序；`epoch = null` 表示无有效执行者 |
+| Run | `{run: RunRef, session, tenant, basis: batch \| command \| trigger, definition, acquisitionBasis, modelSelection, state, latestIssuedEpoch: EpochRef \| null, openEpoch: EpochRef \| null, steps, waitingPositions, blockers, control, settledEvidence}` | state 沿 RN-01～05（legacy source: `../../../spec/capabilities/run/v1/contract.md`）；basis 冻结精确修订与原消息顺序；latestIssued 保留历史身份，openEpoch=null 表示无提交权；runtime executor 另由 WorkPermit/Registry 观察 |
 | Epoch | `{epoch: OpaqueId, driverBinding: {driverKey, driverVersion}, compat, issuedAt, closed: null \| {reason}}` | 耐久；持有者（实例、WorkPermit）不耐久，恢复时不反序列化 |
 | Step | `{step, cutpoint, phase, proposedCalls, admittedCalls, attempts, outcome}` | 只记引用，不复制 TL/HD/MC 状态机 |
 
 状态只由具名提交推进。事件 kind 按三段式 `<流>.<对象>.<事实>`（用户裁决
 U-33（legacy source: `../../../docs/proposals/session-run-agent-lifecycles/README.md#裁决记录2026-09-14用户`）），
-version `"1"`：`run.lifecycle.created{basis, definition, acquisitionBasis, modelSelection, epoch, driverBinding}`
-/ `.settled{state, reason, evidence, remainingIndependent}`、`run.state.changed{from, to, reason}`、
-`run.epoch.issued{epoch, driverBinding, compat}` / `.closed{epoch, reason: yield \| yield_forced \| interrupt \| force_stop \| superseded}`、
-`run.step.opened{step, cutpoint}` / `.settled{step, outcome}`、`run.attempt.recorded{step, attempt, phase}`、
+version `"1"`：`run.lifecycle.created{basis, definition, acquisitionBasis, modelSelection}`、
+`run.state.changed{from, to, reason, evidence?, remainingIndependent?}`、
+`run.epoch.issued{epoch, driverBinding, compat}` / `.closed{epoch, reason: yield \| yield_forced \| reacquired \| interrupt \| force_stop \| superseded \| completed \| failed \| cancelled}`、
+`run.step.opened{step, cutpoint}` / `.settled{step, outcome}`、
 `run.calls.proposed{step, calls, presentedOrder}`、`run.call.admitted{call, attempt}`、
 `run.approval.consumed{request, call}`、`run.wait.claimed{holder, kind, since}` / `.released{holder, outcome}`、
-`run.gate.awaited{gateRef, gateRet}` / `.returned{gateRef}`、`run.control.requested` / `.progressed`、
-`run.late_fact.recorded{oldEpoch, source, classification}`。不提供任意 setState。占位不是
+`run.gate.awaited{gateRef, gateRet}`、`run.control.requested` / `.progressed`。终态 reason/evidence/
+remainingIndependent 属于 terminal state.changed/control facts；attempt observation 属于 M，gate 恢复由
+gate_restored arrival + wait.released 表达，stale epoch 审计属于 OB/DR evidence。不提供任意 setState。占位不是
 事件：它由 state 派生（LC-02（legacy source: `../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md`））。
 
-每条事件带去重键（用户裁决 U-34）：`eventId`、`(stream, seq)` 与 `operationId`，规则同
-Session 设计（legacy source: `../session/design.md#24-事件命名去重键与词汇`）；`run.approval.consumed` 引用被消费
-决定的 `eventId`，同一决定第二次消费在门内被拒。
+`operationId` 是 prepare/重试稳定身份；最终 `eventId=(domain,batchSeq,index)` 只由 records commit 分配，
+prepare 的临时关联 identity 不得冒充 eventId。每个 composite batch 对 run stream 至多一次 owner append，
+aggregate revision 只 +1；同一 append 的多条 Run facts 共享该 revision，逐 fact 顺序由最终 envelope
+`(batchSeq,index)` 和 append-local order 表达，不能用 `(stream,revision)` 逐 fact 去重。跨 owner
+append 由组合者按当前 envelope format 的 canonical StreamRef 排序；prepare 的同批因果引用先用
+`{kind:this_batch,stream,recordIndex}`，commit 后才解析最终 eventId，不能从跨流 prepare 顺序预测。
+消费者以最终 eventId 去重；`run.approval.consumed` 引用被消费决定的最终 eventId，同一决定第二次消费在门内被拒。
 
 ## 提交面
 
 RD-03（legacy source: `../../../spec/capabilities/run-driver/v2/contract.md`） 的每种 commitKind 对应一个
 prepare/check 端口，返回 CC 的 RecordPreparation；每次 prepare 核对
-`expected {run, epoch, runRevision}`，epoch 不符返回 `rejected(stale_epoch)` 并记
-`late_fact_recorded`（RN-02（legacy source: `../../../spec/capabilities/run/v1/contract.md`））。跨 owner 的提交由
+`expected {run, runRevision, latestIssuedEpoch, openEpoch}`。prepare 无副作用，由 Run owner 独占生成 Run facts
+和 opaque owner guard；跨 owner 协调者只能原样合并。在 CC 单次 submit 时 owner guard 再核 exact expected/
+operationId，stale 拒绝整个 batch；Run revision 是每 owner append/operation 推进一次的 aggregate/stream revision，
+同一 append 内多条事实只用稳定内部序，不按事实数增长。operation lookup 只认 committed 结果。epoch 不符返回 `rejected(stale_epoch)`；工程隔离证据由 OB/DR
+operation evidence 记录，不写 Run 业务事实。跨 owner 的提交由
 具名组合者拼 batch，Run 只核自己的事实。
 
 | 端口 | Run 侧记录 | 同一 batch 的其他 owner |
 |---|---|---|
-| `prepareOpenStep` | `step_opened{cutpoint}` | Session（`arrival_consumed`、水位） |
-| `prepareAttempt{admit \| dispatch \| settle}` | `attempt_ref_recorded` | MC、BG |
-| `prepareCalls{propose \| admit}` | `calls_proposed` / `call_admitted` | TL、AU、BG、HD |
-| `prepareConsumeDecision` | `approval_consumed` | HD、TL、BG |
-| `prepareSettleStep` | `step_settled` | 无 |
-| `prepareAwaitGate` / `prepareGateReturn` | `gate_awaited` / `gate_returned`；Run 统一为 `waiting`，具体 gate 只在 waiting ledger 投影 | 无 |
-| `prepareSettleRun` | `settled`、`state_changed → completed/failed/cancelled`、`epoch_closed` | Session（LC-04 行 4（legacy source: `../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md`）：arrival 转换/关闭） |
-| `prepareYield{reason}` | `epoch_closed{yield \| yield_forced}`；state 不变 | 无；AR 的 `settle(work)` 是提交后反应 |
-| `prepareReacquire` / `prepareResume` | 仅在完整前缀校验、fold、accepted-arrival 扫描、在途 inspect 与当前兼容/资格全部完成后，最终联合准入才写 `epoch_issued{compat}`、封闭旧 epoch；resume 另写 `state_changed interrupted→running` | AR WorkPermit；不得先发 epoch 再补恢复 |
-| `prepareControl{interrupt \| cancel \| force_stop \| resume}` | 控制受理、epoch 撤销与等待登记处理按 RN-03/05；force_stop 进入 stopping，isolation unknown/unverified 不得 cancelled。只有带 call/attempt、scope、epoch、provider generation、fence revision 的强隔离证据才过终态门；partial 只保留外部效果结局 unknown | Session hold / TL、HD 停止意图 |
+| `prepareOpenStep` | `run.step.opened{cutpoint}` | Session（`inbound.arrival.consumed`、水位） |
+| `prepareAttempt{admit \| dispatch \| settle}` | 不写 attempt 镜像；只以 Step/epoch/fence 作共同门 guard | MC、BG 写各自权威事实 |
+| `prepareCalls{propose \| admit}` | `run.calls.proposed` / `run.call.admitted` | TL、AU、BG、HD |
+| `prepareConsumeDecision` | `run.approval.consumed` | HD、TL、BG |
+| `prepareSettleStep` | `run.step.settled` | 无 |
+| `prepareAwaitGate` / gate-restored adjudication | `run.gate.awaited`；恢复时权威 arrival 与 `run.wait.released{holder:gateRef,outcome:passed}` 同 batch | Session Inbound |
+| `prepareTransition{intent: terminal}` | terminal `run.state.changed{reason,evidence,remainingIndependent}`；若 openEpoch 存在，owner 同批给匹配的唯一 closed；否则返回原 epochClosureRef 且不重复写 | Session（LC-04 行 4：arrival 转换/关闭）只合并 owner preparation |
+| `prepareTransition{intent: yield}` | openEpoch 的唯一 `run.epoch.closed{yield \| yield_forced}`；state 不变 | 无；AR 的 `settle(work)` 是提交后反应 |
+| create / `prepareTransition{intent: reacquire \| resume}` | 首次 created+issued；后续无论 reacquire/resume 都发行 successor，旧 epoch open 时 owner 先以 `reacquired` 唯一关闭，已 closed 则引用原 close。active terminationIntent 硬拒 successor。resume 同批按需 state.changed；回执丢失 lookup committed operation | AR WorkPermit；不得先发 epoch 再补恢复 |
+| `prepareTransition{intent: interrupt \| cancel \| force_stop}` | 控制受理、epoch 撤销与等待登记按 RN-03/05；openEpoch 由 owner 唯一关闭，已 closed 引用原 close。force_stop 进入 stopping并激活 terminationIntent，以 execution exposure 建门集合；settled unknown、错代/迟到证据不关项 | Session 用户 hold 独立；未过门 stopping 派生 scheduler barrier |
 | `prepareCloseOut{interrupt \| superseded}` | interrupt 可在物理 unknown 显式记录后进入 interrupted；interrupt_then_run 收口为 superseded、整簿注销并把未确认责任写入 system context，随后可开新驱动。两者都保留 unknown，不把它说成停止成功；force_stop 不使用此较弱门 | Inbound 与 Session 组合 |
 
-命令 Run（RN-06（legacy source: `../../../spec/capabilities/run/v1/contract.md`））由命令处理者经
-`prepareSettleRun` 结算；`unknown` 保留占位可见。
+命令 Run（RN-06（legacy source: `../../../spec/capabilities/run/v1/contract.md`））由命令处理者请求 Run owner
+`prepareTransition{terminal}` 结算；`unknown` 保留占位可见。
 
 ## 读面
 
 `omneRun` 提供 `readRun(run)`（状态、epoch、Step、等待位置、阻塞、控制）、
 `listPlaceholder(session)`（按派生规则返回唯一占位 Run 或 null）、`listNonTerminal(session)`（归档门读取全部非终态 Run，包含不占位的 stopping）、
+`listStopBarriers(session)`（返回所有未通过 RN-05 exposure 门的 stopping Run；供 Session scheduler 派生 barrier，不改变占位）、
 `waitingPositions(run)`（供裁决者按等待位置判意图）。首版同一协调域，Session 门在
 门内直接读本读面；LC-09（legacy source: `../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md`）
 的版本戳读面留到规划跨域部署时再加。
