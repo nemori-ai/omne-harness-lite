@@ -20,5 +20,7 @@
 
 本节按实际子目录链接 topic README，并标明采用快照与完整性范围；空缺是待核对范围，不表示能力不存在。
 
+- [产品账号身份能力地图](account-identity/README.md)：D-016 已接受的能力边界；账号与注册组合规格仍待接受。
+
 判断方法按需读 [手册对应页](../../agents/skills/harness-design-handbook/canonical/references/decompose.md)。
 返回 [系统设计链](../README.md)。

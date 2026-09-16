@@ -30,6 +30,7 @@
 - [D-005：以受管能力构成 Agent 运行时](agent-runtime/README.md)
 - [D-006：DSH 核心来源的定向复用](dsh-core-adoption/README.md)
 - [D-007：独立状态权威与受管附着](runtime-composition/README.md)
+- [D-016：独立产品账号能力](account-identity/README.md)，接受账号/Tenant 边界与成熟嵌入式认证优先验证方向
 
 ### 实现组织与工程观测
 
