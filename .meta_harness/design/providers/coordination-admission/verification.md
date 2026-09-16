@@ -30,7 +30,7 @@
 | 原 envelope handoff 与广播 | 真实 writer committed 结果的完整不可变 envelope 与同一已核实前缀/receipt/position 逐字段和 canonical 字节一致；一批多 stream、多 fact 按 canonical flatten 顺序具有独立 `(domain,batchSeq,recordIndex)` eventId；广播原对象，不从 receipt 造第二事件或丢事实 |
 | 广播顺序、scope 与失败 | committed/ready 且全部 owner 根已发布、coordinator completion 已 resolve 后，按 seq 门外各票据一次；blocked/unknown 不误广播；tenant/Session 过滤不越界；listener 抛错/重入不改变结果、水位或其他 listener，delivery 故障可定位原位置 |
 | 丢通知与恢复 | committed→广播间崩溃、监听者缺席或失败时，提供者启动扫描原完整前缀补漏；反应者按 eventId 幂等并在自身门内重读，不因扫描再次提交原事实；blocked 恢复基线不补发假广播 |
-| 通用 conflict outcome | 由 CC/DR 语义 owner 先界定普通 `record_conflict` 与 personal creation v3 冲突 envelope 的范围和广播条件，再按精确接受契约补测试；当前状态 unresolved，旧 conflict 不广播行为不构成新规则 |
+| 通用 conflict outcome | 由 CC/DR 语义 owner 界定普通 `record_conflict` 的广播条件；个人创建使用普通单 tenant 流冲突，不另设专用 envelope。旧 conflict 不广播行为不构成新规则 |
 
 新增恢复发布验收矩阵：
 
@@ -42,9 +42,9 @@
 | 遗留 ExactUse 未结算/释放失败 | 即使 roots 已重建也不 reopen；原 claim 与清理责任可查询且不被新工作复用 |
 | 原 operation 恢复查询 | 历史 completion 仍 blocked；受信投影可在 baseline 覆盖后报告 consumable，但 operation/receipt/result 不变且不广播 |
 | 原 attempt 结果未知 | consumable 不触发执行；先 inspect/关联原 attempt，无法核实仍 unknown，外部效果不重复 |
-| Account 源后果导入 | init 的 AI-08 初始账号与 registration 均以真实 Account/CC 双域测试核唯一凭据绑定、不复用 `UserRef`、来源权威/版本/全绑定和耐久去重；重复/丢响应查原 identity，pending 分配、seed 或客户端字符串不能授创建资格 |
-| 双入口短门 | init 另核 Tenant 未建立、受信 seed/部署资格，registration 核注册来源；两者均先有 Account durable import；门内只读当前 Tenant/Admission roots，注入 Account I/O 停顿不使短门 await；三/二流资格代际/形状不可互冒 |
-| 竞争与认回 | 同 key/input 先认回固定 target；异输入在占位或 outcome 存在时冲突；不同操作争 user/target 仅一个排位；unknown/not_seen 不释放，核实未提交并安全解除后同绑定重备 |
+| Account F 受信读取 | init 与 signup 均从本代 Account 取得完整不可变 F，核唯一凭据绑定、不复用 `UserRef`、版本与 target；未发行、内容变化、失联或换代后未重读均不启动新 T，pending 分配、seed 和客户端字符串不能授创建资格 |
+| 共同单流短门 | init 的一次性资格由 Account 证明，signup 只在部署建立后准入；门外读 F 并冻结 T/C，门内只读当前 Tenant/Admission roots，Account I/O 停顿不使短门 await；仅向目标 tenant 流写一个包含 personal 与唯一 owner 的 append |
+| 竞争与认回 | 同 T/C 先认回固定 target；异 C 冲突；不同 F 争同一 UserRef/target 仅一者可提交，不同 UserRef 无共享索引竞争；unknown/`not_seen` 不释放，核实未提交并安全解除后沿同 T/C 重备 |
 | 历史与现时 | Account active 或部署已初始化后原操作仍认回；closing/closed 后历史创建不授权业务；旧 committed-blocked 由新代完整 baseline 另行查询可消费而不改写 completion |
 
 这些场景当前没有绑定实现 revision 的执行证据；既有模型与正常 publication 测试不能替代它们。

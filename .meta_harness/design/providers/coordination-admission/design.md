@@ -20,7 +20,7 @@ tenant、operation、因果、epoch、修订与资源所有者必须显式；有
 | `GateFrame` / owner publication | 单同步短门发布 logical，writer 耐久后按 seq 在另一短门发布全部 durable roots，再完成 coordinator 票据 | 回调不得 await/返回 thenable；旧 durable 根不能覆盖较新的 logical 根；协调者不解释业务字段 |
 | `ExactUseIssuer` / `ExactUse` | 绑定真实 owner/pin，单次 claim 与显式 release | 不能靠 cast/反序列化伪造，也不代替 owner 清理资源 |
 | `records.envelope.committed` | 目标为 writer→Admission 受信交接**原始已提交 envelope**，仅 committed/ready 后门外广播一次 | 当前 `CommittedNotice` 不含 envelope，是待改实现；listener 不得改业务结果，丢通知由事实扫描恢复 |
-| Tenant personal creation binding | 受信装配仅给 TenantHost 两个封闭入口；两者都先核 Account 已耐久分配的不复用 `UserRef`、唯一凭据绑定、固定 target 与 AI-02a 创建后果经 CC-05 导入。init 再核 AI-08 受信初始账号来源、Tenant 尚未建立、seed 与独占部署资格；registration 核普通注册来源。首次排位前冻结原 operation/摘要/`UserRef`/target，短门纯查来源、claim、target head 与当前代际，颁发本代一次性的三/二流资格并交 Records/JSONL | 普通 coordinator、客户端 origin/owner/operationKind/UserRef、seed 文本、Tenant 自分配的 UserRef、旧 session 或持久 envelope 均不能铸造权限；门内不 await Account I/O |
+| Tenant personal creation binding | 门外经本代 Account 服务受信读取完整、不可变的 F；Tenant 由 `sourceRef` 派生本地 T、由 `UserRef` 派生唯一个人 target，冻结规范输入 C。init 一次性资格归 Account；已建立部署的 signup 共用 Tenant 目标流创建机制。短门核已读 F 绑定、目标流首位置和当前代际，仅颁发单 tenant 流的一次提交资格 | 没有个人专用 CC-05 导入、global index 或二/三流许可；客户端字段、seed、旧实例和历史 envelope 不能铸造权限；门内不 await Account I/O。当前实现尚无符合性证据 |
 
 ### 短门、票据与使用的持久语义
 
@@ -40,22 +40,19 @@ D-014（legacy source `docs/decisions/D-014-session-run-agent-lifecycles.md`，S
 
 若真实 writer 无法随 committed 结果交出原 envelope，唯一待评估的后备映射是按该 receipt 的精确 position 从**同一已核实耐久前缀**读取原 envelope，再验证完整身份与内容后投递；拿不准、读错位置或不可读取即不发布 ready 提示并保留可扫描的缺口。该后备不是已接受实现，不得退化成 receipt 自造通知。旧实现 `CommittedNotice`/测试仅证明 receipt 型通知的顺序和异常隔离，不能证明本节。
 
-来源 P1 的 `record_conflict` 仅证明其原 provider-owned 冲突记录可以耐久并以原 Receipt 认回，不发布业务根或消费 use。新 v1 的通用冲突 outcome 是否以及如何成为可广播的完整事实 envelope、与 DR v3 personal creation 专项 conflict envelope 的范围关系仍属 **CC/DR 语义 owner 未决**；本文不替它定义全局冲突事件或擅自把现有 conflict 通知排除规则扩大为新契约。
+来源 P1 的 `record_conflict` 仅证明其原 provider-owned 冲突记录可以耐久并以原 Receipt 认回，不发布业务根或消费 use。新 v1 通用冲突 outcome 是否以及如何成为可广播的完整事实 envelope，仍由 CC/DR 语义 owner 裁决；个人创建按普通 tenant 流冲突处理，不另设专用冲突 envelope。旧实现不广播 conflict 的行为不能自动扩大为新契约。
 
-Account→CC 的受信接收者对 init 与 registration 均在门外核 Account 源 fact identity、
-schema/version、签发权、原 operation/摘要、`UserRef`、target 与一次创建授权，
-然后将它以稳定身份耐久
-导入目标协调域并去重；响应丢失查原 identity。导入的是不可变授权投影，Account
-暂时不可达或 pending 后来 active 不撤销它；账号激活仍查 Account 自身结果。
-未核实/未导入时新创建 unavailable/unknown。导入前后的通知不直接颁发资格；
-旧 host/owner/writer generation 不能使用历史导入事实写入新代，新代须先经 CC-06
-完整根安装。导入意图的交付责任及结果由 CC-05 保留可查询。
+个人创建不消费 CC-05 的耐久导入协议。门外受信读取 F 时核完整形状、来源服务、
+`sourceRef`、`UserRef` 和固定 target；同一 Tenant/host/writer 代内已完成准备后，
+Account 暂时离线不撤销该准备。未读得完整 F、内容变化或换代后尚未重读时不能
+开始新的 T。Account 保留 pending/F 枚举责任；Tenant 不存第二份来源权威。
 
-同一 personal creation operation 已排位后，prepare/lookup 必须返回原 target 与
-pending/unknown 状态；不能因 init 已完成、Account active 或暂时 not_seen 重跑首次准入
-或二次生成 target。跨重启只有 CC-03 的旧 writer 完整前缀核实了未提交并安全解除了
-占位，才能沿同一原 operation/摘要/target 重新准备；历史 committed 与当前 Tenant
-业务资格分别查询。租户 closing/closed 后原创建只认回历史结果，不赋予当前访问。
+同一 T/C 已排位后，prepare/lookup 返回原 target 与 pending/unknown；不能因 init
+已完成、Account active 或暂时 `not_seen` 重跑首次准入或另造 T。不同 F 若声明同一
+`UserRef`，只能有一个 T 占用个人目标流首位置；另一 T 冲突，不能认回为自身成功。
+跨重启只有 CC-03 的旧 writer 完整前缀核实 T 未提交并安全解除占位，才能沿同一
+T/C/target 重备；历史 committed 与当前 Tenant 业务资格分别查询。租户关闭后原
+创建只认回历史结果，不赋予当前访问。
 
 writer 的 `committed`、coordinator completion 与 publication 状态是三个不同事实。writer
 完成耐久后，coordinator 必须在另一短门按 seq 提升全部 owner 的 durable 根。原 coordinator
