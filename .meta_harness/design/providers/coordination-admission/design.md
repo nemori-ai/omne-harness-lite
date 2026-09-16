@@ -7,8 +7,8 @@ tenant、operation、因果、epoch、修订与资源所有者必须显式；有
 
 ## 当前实现与缺口
 
-来源设计固定为 `packages/coordination/admission/design.md`，SHA-256 `5b9c851da9d4eed57b61322a25005d31271dc16ad1aa934c0613117c0d98cec8`。短门、ExactUse 与提交后 broadcast 有实现；完整业务能力准入闭环、跨纵线组合行和真实耐久联合验收仍缺。
-源码实现状态必须由 I/实施任务在精确 revision 核对；本文不复制源码内部结构，也不声称已通过新契约验收。
+来源设计固定为 [legacy Admission 设计](../../../../packages/coordination/admission/design.md)，SHA-256 `5b9c851da9d4eed57b61322a25005d31271dc16ad1aa934c0613117c0d98cec8`；该页记录 P1 的已接受机制与固定旧证据，并非新 v1 的符合性证据。短门、ExactUse、receipt 型提交后通知在当前源码中存在；[当前 `CommittedNotice`](../../../../packages/coordination/admission/src/index.ts) 只有 `composition`、`canonicalInput`、`receipt`，不含原提交 envelope 的 appends/facts，因此**不符合** D-014 和 [LC-06](../../spec/compositions/session-run-agent-lifecycles/v1/contract.md) 的原 envelope 广播。完整业务能力准入闭环、跨纵线组合行和真实耐久联合验收仍缺。
+源码实现状态须由 I/实施任务在精确 revision 核对；本文区分来源机制、目标映射与尚未交付的改动，不把旧测试或通知存在升级为新契约验收。
 
 ## 持续消费的映射
 
@@ -16,11 +16,31 @@ tenant、operation、因果、epoch、修订与资源所有者必须显式；有
 | 接口/机制 | 当前映射 | 明确边界 |
 |---|---|---|
 | `createAdmissionCoordinator` / `AdmissionHost` | 受信装配持有 host；业务只持窄 coordinator | 不向业务暴露完整 writer、quarantine 或 close |
-| `prepareOperation` / `lookupPrepared` | 门外冻结原操作；门内以同 key/input 认回 | `not_seen` 不是跨故障未提交证明 |
-| `GateFrame` / owner publication | 同步短门发布 logical，耐久完成后发布 durable | 回调不得 await/返回 thenable；协调者不解释业务字段 |
+| `prepareOperation` / `lookupPrepared` | 门外冻结原操作；门内以同 key/input 认回，重入门再查去重 | `not_seen` 不是跨故障未提交证明；不能绕过原 coordinator 票据 |
+| `GateFrame` / owner publication | 单同步短门发布 logical，writer 耐久后按 seq 在另一短门发布全部 durable roots，再完成 coordinator 票据 | 回调不得 await/返回 thenable；旧 durable 根不能覆盖较新的 logical 根；协调者不解释业务字段 |
 | `ExactUseIssuer` / `ExactUse` | 绑定真实 owner/pin，单次 claim 与显式 release | 不能靠 cast/反序列化伪造，也不代替 owner 清理资源 |
-| committed broadcast | 门外广播已提交 receipt/组合名 | listener 不得改业务结果；丢通知由事实扫描恢复 |
+| `records.envelope.committed` | 目标为 writer→Admission 受信交接**原始已提交 envelope**，仅 committed/ready 后门外广播一次 | 当前 `CommittedNotice` 不含 envelope，是待改实现；listener 不得改业务结果，丢通知由事实扫描恢复 |
 | Tenant personal creation binding | 受信装配仅给 TenantHost 两个封闭入口；两者都先核 Account 已耐久分配的不复用 `UserRef`、唯一凭据绑定、固定 target 与 AI-02a 创建后果经 CC-05 导入。init 再核 AI-08 受信初始账号来源、Tenant 尚未建立、seed 与独占部署资格；registration 核普通注册来源。首次排位前冻结原 operation/摘要/`UserRef`/target，短门纯查来源、claim、target head 与当前代际，颁发本代一次性的三/二流资格并交 Records/JSONL | 普通 coordinator、客户端 origin/owner/operationKind/UserRef、seed 文本、Tenant 自分配的 UserRef、旧 session 或持久 envelope 均不能铸造权限；门内不 await Account I/O |
+
+### 短门、票据与使用的持久语义
+
+来源 P1 的短门只运行受信组合的同步纯检查；外部查询、Schema 校验、资源取得、记录与候选根计算都在门外。进入门后按身份/租户和硬资格、修订与去重、绑定/epoch、grant/决定、预算和精确使用资格顺序复核当前根；未通过不能得到逻辑位置或效果许可。`isCurrentFrame` 仅证明对象是当前活动 frame，不授业务权限；重入、过期 frame 与异步返回均拒绝。
+
+提交前冻结 `PreparedCommit.owners`、publication owner 和 `requiredUses.binding` 的不可变快照；publication owner 与记录 owner 集合完全相等、各一次，use binding 与 requiredUses 完全相等且实例出自真实 issuer/pin。任何漏、重、多、伪造、accessor 或可变描述错配都在排位前具名拒绝，不能先写后补。每个 `retainAt`、`publishLogical`、`publishDurable` 严格同步返回 `undefined`；抛错/thenable 使域隔离，晚到 rejection 由门外诊断接管，晚到 resolve 不能恢复 ready。
+
+新的 apply 票据在同一短门把 fresh use 绑定到原 operation/input/Position，最多调用一次 `retainAt`；同操作同输入重复认回原票据，不能再次扣取或释放原 claim。ExactUse 的 `fresh`、`claimed`、`releasing`、`retained`、`released` 五态按原 owner 的证据和清理结果单向转移；releasing 不能抢占，retained/released 不能重用。有 claim 的释放只能由原资源 owner 依据 settled 或 verified_not_committed 证明，unknown 保留责任；释放失败/不确定也保留原 claim，协调者不成为第二资源 owner。重复、拒绝、组装失败只清理本次快照中未移交且确为 fresh 的 pin。
+
+writer committed、coordinator completion 与 owner publication 是不同事实。按序发布全部 owner durable roots 后才 resolve coordinator completion；publication 失败使原票据以 `committed + blocked` 完成、域单调隔离并保留占位和资源，不得改写为未提交或让后续票据越过缺口。逻辑根已走到 n+2 时，n 的耐久提升不能把旧快照覆盖到 logical。`close` 先关新准入，再等待已排位票据的 writer 结论和 coordinator publication，最后排空/关闭 writer；在途效果由原 owner 结算或隔离。
+
+### 原 envelope 广播交接
+
+D-014（legacy source `docs/decisions/D-014-session-run-agent-lifecycles.md`，SHA-256 `b112d9566ae618cb3af544a5f6b5bf4e0beb5d2734c9df8f9a8c1b6fe14e845c`）与 [LC-06](../../spec/compositions/session-run-agent-lifecycles/v1/contract.md) 要求事实即事件：交给反应者的是**原提交 envelope**，不是 receipt、规范输入或从它们重新拼出的第二份事件。目标采用受信 writer→Admission handoff：writer 在已核实 committed 的结果中交出与耐久前缀同一身份、canonical 内容和顺序的不可变完整 envelope（含所有 appends、facts 与批内位置，逐事实 eventId 按原位置确定）；Admission 核对 domain、commit/operation、position、receipt 与 envelope 绑定，只保管和转交这个对象，不重新赋予事实身份。该 handoff 的公开 port、生命周期及实际后端返回方式仍需 DR/Admission 联合实施映射；目前 writer 只返回 receipt，不具备该输入。
+
+在所有 owner durable roots 发布完成、coordinator 票据 committed/ready 且自身 completion 已 resolve 之后，Admission 在 GateFrame 外按 seq 对当时订阅者广播该原 envelope 一次。`blocked`、`unknown` 和未成立的操作不广播；重试认回同一票据不重播。每个 listener 独立隔离异常并报告 delivery 状态，不能影响原提交、其余 listener 或水位；应用按 tenant/Session scope 路由，反应者在自己的门内重读权威状态并按 envelope 的稳定 eventId 幂等。广播是提示，不提供耐久恰好一次投递：提交至通知之间崩溃、未订阅或 listener 失败由提供者启动扫描完整事实前缀补漏，扫描不得重做原提交。
+
+若真实 writer 无法随 committed 结果交出原 envelope，唯一待评估的后备映射是按该 receipt 的精确 position 从**同一已核实耐久前缀**读取原 envelope，再验证完整身份与内容后投递；拿不准、读错位置或不可读取即不发布 ready 提示并保留可扫描的缺口。该后备不是已接受实现，不得退化成 receipt 自造通知。旧实现 `CommittedNotice`/测试仅证明 receipt 型通知的顺序和异常隔离，不能证明本节。
+
+来源 P1 的 `record_conflict` 仅证明其原 provider-owned 冲突记录可以耐久并以原 Receipt 认回，不发布业务根或消费 use。新 v1 的通用冲突 outcome 是否以及如何成为可广播的完整事实 envelope、与 DR v3 personal creation 专项 conflict envelope 的范围关系仍属 **CC/DR 语义 owner 未决**；本文不替它定义全局冲突事件或擅自把现有 conflict 通知排除规则扩大为新契约。
 
 Account→CC 的受信接收者对 init 与 registration 均在门外核 Account 源 fact identity、
 schema/version、签发权、原 operation/摘要、`UserRef`、target 与一次创建授权，
