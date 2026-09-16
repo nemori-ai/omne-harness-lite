@@ -58,6 +58,9 @@ CC submit 时 owner guard 重核后才同时发行新 epoch、取得许可并记
 裁决门约束。任何“先取 epoch，再读前缀或补扫 arrival”的实现都不符合本条。恢复不要求
 等待登记为空，但要求无全 Run/Session 控制阻塞；不兼容时保持原状态与占位，等待用户控制
 或兼容实现。superseded 不可 resume/重取。
+附着资格或授权失效不新增等待种类：联合准入被拒即停在安全边界，由实例关闭与重取门承担
+（[CB-06](../../../compositions/agent-session-binding/v1/contract.md)、
+[AR-16](../../live-agent/v1/contract.md)）。
 
 **RD-05**：basis 为 command 的 Run 只由 SE-07（legacy source: `../../session/v2/contract.md`） 的命令处理者结算，
 不经模型与工具批；上下文装载型命令随 text 项进入模型输入（SE-07）。命令 Run 的
