@@ -1,0 +1,132 @@
+{
+  "format": 1,
+  "source_formal_tasks_sha256": "f1d305a9cfec27bca7800452566ae4220294c2ca450c17c4abb99fccae6f804d",
+  "java_sha256": "999c141a6e620c71aa4230ccb62341a89162f37818753ff006d766bf935dcbe1",
+  "jar_sha256": "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88",
+  "results": [
+    {
+      "id": "account-registration-v1-basic",
+      "command": [
+        "${JAVA_BIN}",
+        "-XX:+UseParallelGC",
+        "-Xmx768m",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-seed",
+        "1",
+        "-fp",
+        "0",
+        "-metadir",
+        "${TLC_STATE_ROOT}/account-registration-v1-basic",
+        "-config",
+        "spec/compositions/account-registration/v1/formal/basic.cfg",
+        "spec/compositions/account-registration/v1/formal/AccountRegistration.tla"
+      ],
+      "artifacts": {
+        "spec/compositions/account-registration/v1/formal/AccountRegistration.tla": "a61e9704b1779647dc940b32f2608e20b343744f8133590767d60e411f7f84b4",
+        "spec/compositions/account-registration/v1/formal/basic.cfg": "c9458999a4534a0ad2e8dae034075ed132a534cb1e7a048f73b65866c00fcf48"
+      },
+      "exit_code": 0,
+      "elapsed_seconds": 1.506,
+      "log": "account-registration-v1-basic.log",
+      "log_sha256": "adb17932aab50bc2ccf29697c18bfc1f0bd59eeb565085c123de33b143f0dfd1",
+      "complete_success": true
+    },
+    {
+      "id": "account-registration-v1-same-user",
+      "command": [
+        "${JAVA_BIN}",
+        "-XX:+UseParallelGC",
+        "-Xmx768m",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-seed",
+        "1",
+        "-fp",
+        "0",
+        "-metadir",
+        "${TLC_STATE_ROOT}/account-registration-v1-same-user",
+        "-config",
+        "spec/compositions/account-registration/v1/formal/same-user.cfg",
+        "spec/compositions/account-registration/v1/formal/AccountRegistration.tla"
+      ],
+      "artifacts": {
+        "spec/compositions/account-registration/v1/formal/AccountRegistration.tla": "a61e9704b1779647dc940b32f2608e20b343744f8133590767d60e411f7f84b4",
+        "spec/compositions/account-registration/v1/formal/same-user.cfg": "83615e26100d9a19130bfa0afa5482e746d1542158860310c1e9ceb1b2330431"
+      },
+      "exit_code": 0,
+      "elapsed_seconds": 10.26,
+      "log": "account-registration-v1-same-user.log",
+      "log_sha256": "cb6e9218b284a8f819d2aa8bcbf40f4d0529c6547c2c6ec05303a2812d655e1a",
+      "complete_success": true
+    },
+    {
+      "id": "account-registration-v1-init-race",
+      "command": [
+        "${JAVA_BIN}",
+        "-XX:+UseParallelGC",
+        "-Xmx768m",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-seed",
+        "1",
+        "-fp",
+        "0",
+        "-metadir",
+        "${TLC_STATE_ROOT}/account-registration-v1-init-race",
+        "-config",
+        "spec/compositions/account-registration/v1/formal/init-race.cfg",
+        "spec/compositions/account-registration/v1/formal/AccountRegistration.tla"
+      ],
+      "artifacts": {
+        "spec/compositions/account-registration/v1/formal/AccountRegistration.tla": "a61e9704b1779647dc940b32f2608e20b343744f8133590767d60e411f7f84b4",
+        "spec/compositions/account-registration/v1/formal/init-race.cfg": "0d640c4a7267afac1896b5b719e110811cd816441bc5e450386d508878fe99c6"
+      },
+      "exit_code": 0,
+      "elapsed_seconds": 1.155,
+      "log": "account-registration-v1-init-race.log",
+      "log_sha256": "a7317607be288e0ecbef62d56e8b38e84bce08cc4c0cb57bc190c41b0a02be0a",
+      "complete_success": true
+    },
+    {
+      "id": "account-registration-v1-credential-blocked",
+      "command": [
+        "${JAVA_BIN}",
+        "-XX:+UseParallelGC",
+        "-Xmx768m",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-seed",
+        "1",
+        "-fp",
+        "0",
+        "-metadir",
+        "${TLC_STATE_ROOT}/account-registration-v1-credential-blocked",
+        "-config",
+        "spec/compositions/account-registration/v1/formal/credential-blocked.cfg",
+        "spec/compositions/account-registration/v1/formal/AccountRegistration.tla"
+      ],
+      "artifacts": {
+        "spec/compositions/account-registration/v1/formal/AccountRegistration.tla": "a61e9704b1779647dc940b32f2608e20b343744f8133590767d60e411f7f84b4",
+        "spec/compositions/account-registration/v1/formal/credential-blocked.cfg": "e3e5767e143e2e17fb26d6d660d6f9839e5f9dfeb5d4f6087642764e0aa2e032"
+      },
+      "exit_code": 0,
+      "elapsed_seconds": 1.149,
+      "log": "account-registration-v1-credential-blocked.log",
+      "log_sha256": "83b2f7adb38437077f73c0448e2e1445dffe5bc1c1a5553c80f221c8aa624d21",
+      "complete_success": true
+    }
+  ]
+}

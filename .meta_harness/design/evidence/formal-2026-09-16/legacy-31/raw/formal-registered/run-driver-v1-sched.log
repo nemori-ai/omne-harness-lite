@@ -1,0 +1,32 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Warning: Please run the Java VM which executes TLC with a throughput optimized garbage collector by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 99 and seed -8866041782323581791 with 1 worker on 8 cores with 7824MB heap and 64MB offheap memory [pid: 60930] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness/.meta_harness/design/spec/capabilities/run-driver/v1/formal/RunDriverMC.tla
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness/.meta_harness/design/spec/capabilities/run-driver/v1/formal/RunDriver.tla
+Parsing file /tmp/TLC.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/Sequences.tla
+Parsing file /tmp/FiniteSets.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module RunDriver
+Semantic processing of module TLC
+Semantic processing of module RunDriverMC
+Starting... (2026-09-16 10:17:04)
+Warning: The set HIds has been defined to be a symmetry set but contains less than two elements.
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-16 10:17:04.
+Progress(13) at 2026-09-16 10:17:07: 137,035 states generated (137,035 s/min), 52,922 distinct states found (52,922 ds/min), 20,361 states left on queue.
+Progress(22) at 2026-09-16 10:18:07: 3,834,481 states generated (3,697,446 s/min), 1,402,974 distinct states found (1,350,052 ds/min), 312,082 states left on queue.
+Progress(25) at 2026-09-16 10:19:07: 7,324,647 states generated (3,490,166 s/min), 2,535,487 distinct states found (1,132,513 ds/min), 317,866 states left on queue.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 1.2E-6
+  based on the actual fingerprints:  val = 1.5E-6
+10118241 states generated, 3349516 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 34.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 12 and the 95th percentile is 4).
+Finished in 02min 57s at (2026-09-16 10:20:01)

@@ -63,6 +63,8 @@ Alloy 可按结构关系建立模型，检查断言并探索合法实例；参�
 从 [数据](data/README.md)、[能力](capabilities/README.md)、[组合](compositions/README.md) 继续导航；
 `archive/` 仅保留历史来源，`.templates/` 是写作资源，二者都不能当作当前接受的规格。
 
+已登记任务的最近一次有限 TLC [执行证据](../evidence/formal-2026-09-16/README.md)按精确输入和覆盖范围读取；通过不自动提升候选规格状态。
+
 ## 当前登记与迁移边界
 
 `baseline.json`、`catalog.json`、`rebase-map.json`、`frozen.json`、`formal-tasks.json` 与真实规范保持一致；

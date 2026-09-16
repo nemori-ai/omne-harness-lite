@@ -6,7 +6,7 @@ legacy CC v1 的 Admission 模型只检查三个不变量：准入具备授权�
 
 模型没有 outbox、崩溃恢复、新 epoch 或工程观测状态，因此不覆盖 CC-05、CC-06、CC-07，
 也不覆盖任何 recovery interleaving。它同样不覆盖新 v1 的 CC-01 声明规则或真实业务组合行。
-旧通过日志不复用；本轮仅登记，Java/TLC 不可用时不声称执行成功。
+旧通过日志不复用；本基线的 Admission 登记任务已有实际 [TLC 执行证据](../../../../../evidence/formal-2026-09-16/README.md)，但结果仍只覆盖上述片段。
 
 ## RuntimeRevisionRecovery：revision、publication 与恢复（provisional）
 
