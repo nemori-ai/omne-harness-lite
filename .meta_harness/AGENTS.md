@@ -28,9 +28,8 @@
 
 | 拥有者 | 保存什么，怎样进入 |
 |---|---|
-| [method/](method/README.md) | 方法自身的依据、演化与治理；具体正文沿其入口定位，不另抄一套 |
-| [design/](design/README.md) | 需求、研究、候选、决定、精确规格、能力地图、提供者/装配与迁移关系 |
-| [agents/](agents/README.md) | skills 的 canonical 源与宿主适配、角色正文和公共契约 |
+| [design/](design/README.md) | 产品需求、研究、候选、决定、精确规格、能力地图、提供者/装配与迁移关系 |
+| [agents/](agents/README.md) | 可复用方法的 skill canonical 源与维护证据、宿主适配、角色正文和公共契约 |
 | [tooling/](tooling/README.md) | 确定性的生成、检查与项目链接，实际支持边界以工具入口为准 |
 | [publication/](publication/README.md) | 对外产物范围、来源修订与采用关系 |
 

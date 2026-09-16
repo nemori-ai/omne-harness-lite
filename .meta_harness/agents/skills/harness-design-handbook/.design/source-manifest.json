@@ -285,7 +285,11 @@
   "completeness_review": {
     "basis": "用户要求按新设计模型选择性吸纳、优化增删；不机械搬入全部旧内容",
     "record": "completeness-review.md",
-    "method_gaps_closed": ["design-decisions", "spec-evolution", "delivery-planning"],
+    "method_gaps_closed": [
+      "design-decisions",
+      "spec-evolution",
+      "delivery-planning"
+    ],
     "authority_switch": "deferred"
   },
   "capability_model_revision": {
@@ -301,8 +305,16 @@
     "portable_admission_owner": "canonical/references/information-packages.md",
     "workspace_policy_owner": "../../../../design/README.md",
     "template_owner": "../../../../design/{family}/.templates/",
-    "method_governance_owner": "../../../../method/governance/README.md",
     "developer_model_evaluation": "../../../evaluation/developer-model/README.md",
-    "boundary": "Only reusable current rules and evaluation protocol were integrated; product topics, one-off plans, historic snapshots and unaccepted method proposals were not imported."
+    "boundary": "Only reusable current rules and evaluation protocol were integrated; product topics, one-off plans, historic snapshots and unaccepted method proposals were not imported.",
+    "portable_method_owner": "canonical/references/"
+  },
+  "method_directory_retirement": {
+    "date": "2026-09-16",
+    "record": "method-directory-retirement.md",
+    "runtime_owner": "canonical/SKILL.md and canonical/references/",
+    "maintenance_research": ".design/research/harness-design-decisions/",
+    "developer_model_evaluation": "../../../evaluation/developer-model/README.md",
+    "boundary": "Product facts and family templates remain with design owners; original P1/GATE task snapshots retain their historical paths."
   }
 }

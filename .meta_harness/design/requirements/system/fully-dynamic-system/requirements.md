@@ -27,8 +27,9 @@ migration_status: equivalent-current-requirement
 
 **SYS-DYNAMIC.C2（建模方向）：** 从动态能力、依赖、生命周期、作用域与所有权建模，显式约束
 结构演化；能力的定义、实现、绑定和组合关系应能动态演化。此项保留既有
-SYS-DYNAMIC 的确认范围，依据项目基线（迁移坐标：`.meta_harness/method/research/project-baseline/README.md`）
-与根开发约定。具体方法见[能力建模](../../../../agents/skills/harness-design-handbook/canonical/references/architecture/modeling/capabilities.md)。
+SYS-DYNAMIC 的确认范围；可恢复来源由[来源、确认与变化](changes.md)及本页 front matter 的来源提交、文件、哈希和锚点固定，
+并由当前根开发约定提供项目语境。需求变化按[需求归位](../../../../agents/skills/harness-design-handbook/canonical/references/intake.md#绑定当前系统而非历史设想)处理，
+具体方法见[能力建模](../../../../agents/skills/harness-design-handbook/canonical/references/architecture/modeling/capabilities.md)。
 
 2026-09-13 用户进一步澄清 C2 的设计含义：从 Cordis 视角考虑能力绑定和依赖，
 应同时考虑相关生命周期、激活产生的效用及卸载后的逆效用撤回；tool–skill

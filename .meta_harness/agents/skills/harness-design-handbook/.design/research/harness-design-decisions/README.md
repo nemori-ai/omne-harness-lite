@@ -1,5 +1,8 @@
 # Harness 设计决策治理：比较研究
 
+本包是维护 `harness-design-handbook` 的取证材料，位于不分发的 `.design/` 中。
+运行中的 agent 不需要读取它；已采用的方法由 canonical references 独立、完整地表达。
+
 本研究包考察六个具名 agent/harness 项目如何把工程设计知识从提案推进到
 接受与交付。它不把 agent 的运行时任务计划、工具调用批准或产品中的人在环
 交互当作设计决策。

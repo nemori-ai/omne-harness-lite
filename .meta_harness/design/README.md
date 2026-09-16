@@ -34,7 +34,8 @@
 
 各 family 入口拥有具体准入、停止条件和模板使用要求。一次施工的工作材料放本次明确工作区的 `tmp/`；
 任务完成后只将有持续消费价值的结论整理回对应拥有者，不把整份计划和任务日志转为长期主题。
-方法自身的演化归 `method/`，不冒充待设计系统的知识。
+可复用设计方法及其演化归 [harness-design-handbook](../agents/skills/harness-design-handbook/canonical/SKILL.md)
+与不分发的 `.design/` 维护证据，不冒充待设计系统的知识。
 
 ## 主题是信息包
 
@@ -74,9 +75,9 @@ proposals/
 - 验证记录反馈实现违约、语义遗漏、前提变化或新要求；研究/提案/决定按其职责处理，不用新结果暗改旧规范。
 
 `.templates/` 只拥有模板，不是实际知识主题；它不参与能力地图、接受/发布清单或正式规格发现。
-各 family 维护自己的模板形状，`method/` 和 skill 不维护另一份副本。模板不是登记格式，也不自动创建 catalog。
+各 family 维护自己的模板形状，skill 不维护另一份副本。模板不是登记格式，也不自动创建 catalog。
 
 具体方法继续由 [Harness 设计手册](../agents/skills/harness-design-handbook/canonical/SKILL.md) 按需导航。
 
-可复用方法归 [method/](../method/README.md)。本轮不迁移现有正文，不改变其接受状态。
+可复用方法按 [Harness 设计手册](../agents/skills/harness-design-handbook/canonical/SKILL.md) 渐进展开；产品事实和接受状态只由本设计链的实际 owner 维护。
 返回 [Meta Harness](../README.md)。

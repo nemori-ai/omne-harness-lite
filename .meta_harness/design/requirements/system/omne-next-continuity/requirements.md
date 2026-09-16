@@ -32,7 +32,9 @@ migration_status: equivalent-current-requirement
 功能继承基线。已查文件的接受状态不代表实现完成，旧系统代码结构和未接受设计
 也不自动成为本项目的设计选择。
 
-逐项确认与存在歧义时的处理归需求维护（迁移坐标：`.meta_harness/method/governance/requirements.md#确认与来源`）。
+逐项来源和迁入范围见[来源、确认与变化](changes.md)；确认与存在歧义时的处理按
+[需求归位](../../../../agents/skills/harness-design-handbook/canonical/references/intake.md#绑定当前系统而非历史设想)执行。
+本页及各专项 requirement 的 front matter 固定实际产品来源与谱系，方法页不承担产品接受事实。
 PF-002、PF-003 的直接要求和来源补充分开维护。
 
 后续明确的 [PF-004](../../product/PF-004-subagent-delegation-and-supervision/requirements.md)
