@@ -101,7 +101,9 @@ workspace 设置显式指向 `./node_modules/prettier`，并使用同一根配�
    [harness-design-handbook](../.meta_harness/agents/skills/harness-design-handbook/canonical/SKILL.md)，
    从 intake 参考页整理可观察结果、来源、确认范围与未决项；需求信息包进入
    [design/requirements](../.meta_harness/design/requirements/README.md)。已有主题先接续，
-   新主题从 family 内的 `.templates/` 起步，不把一句愿望直接命名为新插件。
+   新主题从 family 内的 `.templates/` 起步；需求访谈或有长期价值的需求语境可先接续可选的
+   [访谈记录](../.meta_harness/design/requirements/interviews/README.md)，但不因此成为正式要求或决定。
+   不把一句愿望直接命名为新插件。
 2. **开展设计。** 按手册分析现有能力及组合的覆盖，再判断扩展或新增责任。研究、候选、
    决定、规格、能力地图、提供者和装配分别进入 [design 的相应 family](../.meta_harness/design/README.md)，
    只创建本次需要的信息包；加载相关 references 后回到当前问题，不通读全部资料。
