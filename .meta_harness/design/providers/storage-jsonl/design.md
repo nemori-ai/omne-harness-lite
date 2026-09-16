@@ -1,9 +1,9 @@
-# JSONL 存储提供者设计映射
+# JSONL 存储提供者：设计映射
 
 ## 采用接口
 
-提供者消费 `capability.durable-records@1` 的精确候选坐标，并在 Cordis Context 中以有生命周期的服务/插件装配。
-tenant、operation、因果、epoch、修订与资源所有者必须显式；依赖撤除时先封闭新使用并收口已有责任。
+提供者消费 `capability.durable-records@1` 的精确候选坐标。当前实现由受信应用直接调用 `createJsonlProvider`，取得 provider/writer 后交给唯一 admission；没有 Cordis 服务键或插件，未来生命周期包装是候选 gap。
+tenant、operation、因果、epoch、修订与资源所有者必须显式；有状态资源的实际 owner 在撤除时先封闭新使用并收口已有责任。
 
 ## 当前实现与缺口
 

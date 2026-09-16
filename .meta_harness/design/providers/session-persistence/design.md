@@ -1,9 +1,9 @@
-# Session 持久提供者设计映射
+# Session 持久提供者：设计映射
 
 ## 采用接口
 
-提供者消费 `capability.durable-records@1` 的精确候选坐标，并在 Cordis Context 中以有生命周期的服务/插件装配。
-tenant、operation、因果、epoch、修订与资源所有者必须显式；依赖撤除时先封闭新使用并收口已有责任。
+提供者消费 `capability.durable-records@1` 的精确候选坐标。目标是消费受限 `RecordReader`/Watermark/decoder 的纯恢复过程，不提供 Cordis 服务或 writer；`recoverSession` 尚未实现，当前默认入口只有 `/baseline`。
+tenant、operation、因果、epoch、修订与资源所有者必须显式；有状态资源的实际 owner 在撤除时先封闭新使用并收口已有责任。
 
 ## 当前实现与缺口
 

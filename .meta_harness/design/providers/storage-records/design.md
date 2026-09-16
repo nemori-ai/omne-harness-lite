@@ -1,9 +1,9 @@
-# 记录端口与 codec设计映射
+# 记录端口与 codec：设计映射
 
 ## 采用接口
 
-提供者消费 `capability.durable-records@1` 的精确候选坐标，并在 Cordis Context 中以有生命周期的服务/插件装配。
-tenant、operation、因果、epoch、修订与资源所有者必须显式；依赖撤除时先封闭新使用并收口已有责任。
+提供者消费 `capability.durable-records@1` 的精确候选坐标。该包只有公共 ports、envelope/receipt 数据和严格 codec，无运行时资源、factory 或 Cordis 依赖；具体 writer/锁/恢复由 JSONL 等提供者拥有。
+tenant、operation、因果、epoch、修订与资源所有者必须显式；有状态资源的实际 owner 在撤除时先封闭新使用并收口已有责任。
 
 ## 当前实现与缺口
 

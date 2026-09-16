@@ -1,9 +1,9 @@
-# 工程诊断提供者设计映射
+# 工程诊断提供者：设计映射
 
 ## 采用接口
 
-提供者消费 `capability.engineering-observation@1` 的精确候选坐标，并在 Cordis Context 中以有生命周期的服务/插件装配。
-tenant、operation、因果、epoch、修订与资源所有者必须显式；依赖撤除时先封闭新使用并收口已有责任。
+提供者消费 `capability.engineering-observation@1` 的精确候选坐标。当前实现由应用创建目录 owner 与 source runtime，再把受限 `Diagnostics` 注入消费者；不新增 Cordis 服务、logger bridge 或全局 OTel manager。未来插件投影仍是 gap。
+tenant、operation、因果、epoch、修订与资源所有者必须显式；有状态资源的实际 owner 在撤除时先封闭新使用并收口已有责任。
 
 ## 当前实现与缺口
 
@@ -20,3 +20,19 @@ tenant、operation、因果、epoch、修订与资源所有者必须显式；依
 | OTel API/SDK/ALS | 私有 provider/manager、显式 parent、同一日志流 | 不注册全局 manager，不证明跨进程传播 |
 | health/gap | 尝试、接收、drop、pending、实际写入与关闭故障可见 | 崩溃尾部只能报 unknown；query/export/保留治理未实现 |
 | close | 关新 scope，等待有限 span/flush/stream close，保留未释放责任 | 不等待业务 Promise；调用 destroy 不等于释放完成 |
+
+D-011 的当前本地目录设计只有一个 owner：应用先经唯一 factory 打开部署控制目录内固定
+`.diagnostics.lock`，核对 realpath、普通零字节文件及 fd/path inode 后取得 `flock(exnb)`，
+才扫描原件或创建来源。锁文件在 generation、关闭和维护期间保持同一 inode，不 unlink、
+替换或截断；同进程的第二个 open file description 也必须由真实内核锁拒绝。
+
+目录 owner 统一计算所有来源的字节与 slot：默认最多 8 个来源文件，稳定锁另占一个零字节
+目录项，总量上限 64 MiB。每次 create 在 I/O 前预留 slot/字节，短写、回调错误或超时无法
+证明未写入时保留上界；只有确认未创建文件、fd 已收口或最终大小核对完成才释放预留。
+初始化/扫描/open 失败若仍持 fd、文件或准备责任，必须返回可 inspect/close 的 cleanup，
+不能以 unavailable/busy 遗忘资源。
+
+关闭先封 create，接管迟到 open，等待所有 source runtime、pending write、扫描 handle 与 fd
+实际收口并核对最终占用，最后才关闭持锁 fd；任一子资源或锁释放未知都返回 blocked/unknown，
+不先 unlock 再清理。该保证只适用于合作调用者、部署控制路径和已验证的本机 Linux/ext4 +
+`fs-ext@2.1.1` 环境；不覆盖 NFS、敌对目录写入或绕过唯一入口的程序。
