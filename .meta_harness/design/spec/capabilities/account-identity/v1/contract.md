@@ -5,15 +5,15 @@
 | 精确依赖坐标 | 消费条款 | 本契约的依赖关系 |
 |---|---|---|
 | `(omne-harness-lite-design-2026-09-15, data.core-work, 1)` | [CD-01、CD-02](../../../data/core-work/v1/contract.md) | 复用不复用 `UserRef` 与可信主体/目标的区分；同义沿用，不重定义共享形状。 |
-| `(omne-harness-lite-design-2026-09-15, capability.tenant-governance, 1)` | [TG-01、TG-02](../../tenant-governance/v1/contract.md) | 个人租户及 owner 成员、唯一 claim 和组织目标的权威仍属 Tenant；本契约仅消费经核实的结果，待注册组合契约固定交接。 |
+| `(omne-harness-lite-design-2026-09-15, capability.tenant-governance, 1)` | [TG-01、TG-02](../../tenant-governance/v1/contract.md) | 个人租户及 owner 成员的权威仍属 Tenant；本契约仅消费经核实的结果，注册组合固定接续。 |
 
 ## 责任、身份与状态
 
-**AI-01（账号事实）**：每个已准入注册操作分配唯一、不复用的 `UserRef`；它标识一个产品账号，不宣称现实人去重。同一现实人可以注册多个账号；不同 `UserRef` 不因同一 OS 用户、设备、登录名持有人或个人租户的物理存放位置而合并。凭据、认证 provider subject 与 `UserRef` 的映射由账号权威唯一裁决并持久保存；provider subject 不直接作为跨能力的 `UserRef`，映射变化不得悄然替换已发布身份。
+**AI-01（账号事实）**：每个已接纳 init 或注册原操作分配唯一、不复用的 `UserRef`；它标识一个产品账号，不宣称现实人去重。同一现实人可以注册多个账号；不同 `UserRef` 不因同一 OS 用户、设备、登录名持有人或个人租户的物理存放位置而合并。凭据、认证 provider subject 与 `UserRef` 的映射由账号权威唯一裁决并持久保存；provider subject 不直接作为跨能力的 `UserRef`，映射变化不得悄然替换已发布身份。
 
-**AI-02（注册状态）**：账号权威至少区分 `pending_personal_scope` 与 `active`，并保留注册操作身份、稳定 `UserRef`、固定个人租户目标及可核实的进展。`pending_personal_scope` 是已建账号而个人范围尚未核实 ready，不授予个人业务准入；仅为查询或继续原注册操作提供受限入口。`active` 只在 Tenant 权威证明**同一 `UserRef`、固定目标 tenant、个人租户种类、唯一有效 owner 成员及已可供正向准入消费的耐久结果**后产生。账号不能根据单方写入成功、暂时 `not_seen` 或客户端陈述进入 `active`。此处不定义跨 owner 发布协议；注册 composition 必须固定证明来源、原操作认回与宕机恢复。当前没有永久关闭账号/删除数据操作。
+**AI-02（注册状态）**：账号权威至少区分 `pending_personal_scope` 与 `active`，并保留 init/注册原操作身份、稳定 `UserRef`、固定个人租户目标及可核实的进展。`pending_personal_scope` 是已建账号而个人范围尚未核实 ready，不授予个人业务准入；仅为查询或继续原注册操作提供受限入口。`active` 只在 Tenant 权威证明**同一 `UserRef`、固定目标 tenant、个人租户种类、唯一有效 owner 成员及已可供正向准入消费的耐久结果**后产生。账号不能根据单方写入成功、暂时 `not_seen` 或客户端陈述进入 `active`。此处不定义跨 owner 发布协议；注册 composition 必须固定证明来源、原操作认回与宕机恢复。当前没有永久关闭账号/删除数据操作。
 
-**AI-02a（一次创建授权的成立）**：`pending_personal_scope` 身份分配和授权 Tenant 创建个人租户是两件事。无论是部署初始账号还是后续自助注册，只有账号权威已耐久确认规范账号标识的唯一凭据绑定、原账号创建操作与摘要、不可复用 `UserRef` 和按 TG-01 规则确定的固定目标，才持久形成一份以该原操作为身份的**个人范围创建后果**；较早的 pending 分配、尚未核实的凭据提交和冲突标识均不产生该后果。后果绑定由受信入口固定的 `deployment_init | account_registration` 来源，只授权这一个 `UserRef`、这一个目标的一次个人租户创建，不授予业务访问、第二目标或另一个操作；相同来源身份重复交付只能认回。首版没有取消该已成立后果的产品操作；关闭新注册入口、登录态退出、账号激活及 provider 换代均不追溯撤销它。未来若加入“取消注册并阻止尚未排位创建”，必须另定取消与 Tenant 准入的全序及旧后果范围，不能把旧记录解释为从未授权。
+**AI-02a（个人创建来源事实 F）**：`pending_personal_scope` 身份分配和授权 Tenant 创建个人租户是两件事。Account 首次耐久接纳内部原操作 A 及规范请求摘要 `digestA` 时，分配唯一不复用的 `UserRef`、稳定且全局不复用的 opaque `sourceRef`，并按 TG-01 固定 personal target；`digestA` 与 A→F 映射只由 Account 持有。同 A 同输入认回，异输入冲突。只有规范凭据标识的唯一绑定已被权威耐久核实，才形成不可变的 F，恰含 `{sourceRef,version:"1",entryKind:"deployment_init"|"account_registration",userRef,targetTenantId}`；[F Schema](schema.json#/$defs/PersonalCreationSourceFact) 固定形状。较早的 pending、凭据提交 unknown 或标识冲突均不能发行 F。F 不含密码、verifier、可离线猜测摘要、init seed、A 或 `digestA`；相同 `sourceRef` 永远只能返回同一内容，sourceRef 不得重分配。F 只授权该 `UserRef`/target 的一次创建，不授业务访问。关闭注册入口、logout、active 转移或 provider 换代不撤销已发行 F。未来若加入取消，须另定与 Tenant 准入的先后及旧 F 效力。
 
 **AI-03（登录会话）**：账号权威拥有会话身份、绑定的唯一 `UserRef`、有效/过期/撤销状态及能跨进程和重启核验的权威依据。首版认证形式是账号密码加可撤销会话；登录标识的生产政策、密码重置、多端关系和期限尚未决定。会话身份本身不授予租户成员资格或资源权限。保护业务入口每次从可信凭据验证出当前有效、`active` 的 `UserRef`，随后由目标资源 owner 和 Tenant 等权威按资源作用域及明确目标 tenant 核验。退出当前登录态的成功屏障由 AI-06 规定。
 
@@ -30,9 +30,9 @@
 
 **AI-04（开始/认回注册）**：`beginRegistration(registrationOpId, evidence)` 先查询是否已有与该原操作绑定的注册事实；同键同摘要只认回原身份/进展，同键异摘要冲突，不因当前新注册入口后来关闭而重新裁决已绑定操作。新操作按首版自助注册政策准入：能使用该部署的请求者无需邀请或管理员代建，但仍须通过输入校验与明确的滥用防护；暂时无法核验请求或资格时报告不可用，不伪造成功。获准后账号权威以稳定操作 ID 与规范输入绑定一次 `UserRef`、固定个人租户目标和 `pending_personal_scope`；其他操作不能仅因现实持有人相同而合并。当前标识在其声明的命名范围内必须唯一；标识碰撞若在分配前可确定，拒绝且不建身份；若分配后才发现，保留原 pending 身份和可诊断冲突，不换 `UserRef` 或静默另建账号。冲突报告不得泄露别人的账号详情。提交回执未知时返回 `pending/unknown` 及原操作查询入口；暂时查不到结果不能证明从未提交或释放原目标。密码采集、标识命名范围/等价规则、具体滥用防护和凭据恢复仍须设计；这些细节不能变相引入邀请门。
 
-账号权威须把 AI-02a 的创建后果与凭据唯一绑定的耐久确认分开报告：已分配 pending 但尚不能证明绑定时仅给受限查询/恢复，不向 Tenant 输出创建授权；确认后才通过受信内部交付输出稳定来源事实。若凭据 provider 的回执未知，先沿原操作核实，不靠另建账号或换 target 绕过冲突。源后果一旦对外声明已耐久，重启、替换 provider 和重复查询都必须认回同一内容；权威完整性异常时封闭交付并报错，不悄然换映射。
+账号权威须把 AI-02a 的 F 与凭据唯一绑定的耐久确认分开报告：已分配 pending 但尚不能证明绑定时只给受限查询/恢复。Tenant 只能经当前受信本地 Account 服务按 `sourceRef` 读取完整 F，不能从客户端、自报来源、缓存或旧插件实例取得创建资格。Account 暂时缺席时创建保持 pending；已发行 F 在恢复后必须可枚举、可认回，供 ACR-06 接续。相同 ref 内容变化、映射损坏或凭据绑定无法核实时封闭读取并报错，不悄然换映射。
 
-**AI-05（激活及注册查询）**：`confirmPersonalScope(registrationOpId, tenantProof)` 仅接受 Tenant/组合协调者的可信证明，逐项核对 AI-02 的绑定关系和可用水位；相同证明重试认回已激活结果，异目标或不完整证明拒绝且保持 pending。`registrationStatus(registrationOpId, authorizedEvidence)` 在权威已核实原操作绑定时可安全披露稳定身份、固定目标和 `pending_personal_scope | active`；尚不能确认原操作是否提交时只返回 `unknown` 与接续方式，不构造或泄露未核实的 `UserRef`/tenant target。查询的授权证据和内容裁剪由本能力绑定原操作，不因开放注册就允许按任意 operation ID 枚举账号。若 Tenant 结果 unknown，已确认的账号保持 pending 并由注册组合拥有核实/恢复责任；不能把 pending 伪称成功或用新 tenant 目标重试。注册成功仅在 `active` 可被再读核实时对用户确认。
+**AI-05（激活及账号建立查询）**：`confirmPersonalScope(accountCreationOpId, tenantProof)` 仅接受 Tenant/组合协调者的可信证明，逐项核对 AI-02 的绑定关系和可用水位；相同证明重试认回已激活结果，异目标或不完整证明拒绝且保持 pending。`accountCreationStatus(accountCreationOpId, authorizedEvidence)` 在权威已核实原操作绑定时可安全披露稳定身份、固定目标和 `pending_personal_scope | active`；尚不能确认原操作是否提交时只返回 `unknown` 与接续方式，不构造或泄露未核实的 `UserRef`/tenant target。查询的授权证据和内容裁剪由本能力绑定原操作，不因开放注册就允许按任意 operation ID 枚举账号。若 Tenant 结果 unknown，已确认的账号保持 pending 并由账号建立组合拥有核实/恢复责任；不能把 pending 伪称成功或用新 tenant 目标重试。init/signup 成功仅在 `active` 可被再读核实时对用户确认。
 
 **AI-06（登录、验证和退出）**：`login(accountIdentifier, password)` 由采用的成熟 provider 验证凭据；注册和登录必须使用同一明确的标识规范化与等价规则，同一规范标识在其声明的命名范围内唯一，不能由不同别名映射到两个可混淆的账号。早期本地开发可以用用户名实现该参数，但不将其提升为正式生产版标识政策；账号权威将结果映射至固定 `UserRef`，建立可核实、可撤销且有过期规则的登录会话；密码原文不得进入一般业务记录或跨能力持久数据。`active` 账号可在后续业务门复核后使用；`pending_personal_scope` 账号至多得到注册查询/恢复专用会话，不得以此准入个人或组织业务。失败、未决或过期凭据不产生可用会话。`validateSession(sessionCredential, operation)` 以当前权威状态返回 `valid{UserRef, sessionRef, allowedClass}` 或不可用于授权的结果；`allowedClass` 至少区分 `registration_only` 与 `business_eligible`，后者仍不含 Tenant 成员证明。
 
@@ -40,11 +40,11 @@
 
 **AI-07（切换与重启）**：选中哪个本地账号或目标组织属于 CLI 装配的交互状态，不改变账号、会话、Tenant 或既有 Session 的历史身份。应用切换槽位时必须重新验证所选会话，并清除/重键此前账号的设置、偏好和缓存；不能以当前目录、OS 用户或同盘文件位置推导新账号资格。账号及会话权威记录在进程重启后提供与重启前相同的有效性、过期/撤销和注册状态判断；失去核实能力时拒绝业务准入，不能由进程内缓存推断有效。未来本地 skills/settings 的物理 locator 由资源 owner/装配设计，不在本契约指定。
 
-**AI-08（部署初始账号）**：部署 `init` 的受信入口由账号权威以固定的初始化原操作、规范输入和受信 seed 绑定创建首个产品账号；`UserRef` 仍只由账号权威分配且永不复用，Tenant 不得从 seed 字符串推导或自造身份。初始个人 target 按 TG-01 的注入式规则从账号权威命名空间、入口种类和完整原操作引用确定；准备阶段无须另建可丢失的 target 分配事实，Account 首次耐久提交把该 target 与原操作、`UserRef`、凭据绑定。提交结果未知时先核实 Account 原操作；确认未提交后按同一输入重备仍得到同一 target，不能另取目标。初始账号遵守 AI-01/02/02a/04 的身份、凭据唯一绑定、pending 和一次个人范围创建后果规则；`deployment_init` 的来源证明还绑定 seed 与独占部署初始化资格。Account 可以在 Tenant 尚未建立时耐久保存这一 pending 身份及后果，并按同原操作认回；Tenant 未完成前不能用它取得业务准入或宣称初始化成功。首次初始化是受信部署操作，不经 AI-04 的公开自助注册门；两者仍输出同一形状的账号创建后果供统一 Tenant 机制消费。旧实例或仅有 seed 文本不构成新后果授权。
+**AI-08（部署初始账号）**：部署 `init` 是受信本地操作。Account 只在其权威根已核实没有任何已接纳账号身份、没有另一 init 原操作，且调用者持有本代独占初始化资格时，才能以 A 占用一次性首账号位置；同 A 同输入先认回。已耐久接纳的 pending init 不因暂时凭据故障或 Tenant 缺席自动释放；只有独占恢复权威证明 A 未提交，才可重新争首次位置。`UserRef` 与 sourceRef 由 Account 分配，target 依 TG-01 从 UserRef 确定；seed 只用于 Account 的受信准入，不进入 F，也不能供 Tenant 自造身份。唯一凭据绑定确认后发行与普通注册同形状、`entryKind=deployment_init` 的 F。Account 可先于 Tenant 保存 pending/F；只有初始账号 active 且部署建立可核实后才开放后续自助 signup。Tenant 未完成前不可声明 init 成功或业务可用。文件缺失、坏前缀、根未发布及恢复未完成都不是已核实空根。
 
 ## 交接、缺席与恢复
 
-注册的账号建立与 Tenant 个人范围发布属于两个权威。账号分配后，[注册组合候选](../../../compositions/account-registration/v1/contract.md)负责以固定账号/目标推进 Tenant 并核实；在 Tenant 未 ready 时账号持续 pending，不能把账号删除当成撤销 Tenant 外部效果。回执丢失、重启、重复或并发注册必须从同一操作与两边权威记录认回；组合候选尚缺 Tenant 后续创建入口与真实恢复映射，不能宣称 PF-026.C1 全链已经闭合。
+init/signup 的账号建立与 Tenant 个人范围发布属于两个权威。[注册组合候选](../../../compositions/account-registration/v1/contract.md)沿 Account 可枚举 pending/F 和 Tenant T 结果继续，不另建耐久交付意图。Tenant 未 ready 时账号保持 pending。回执丢失、重启、重复或并发请求须从 Account A/F 与 Tenant T 的权威记录认回。
 
 会话 provider/存储缺席、撤销状态不能核实或重启恢复未完成时，所有保护业务入口拒绝新准入；已报告 logout 成功的登录态在恢复后仍必须不可用。provider 的缓存 token/cookie 只有满足此屏障才可采用。CLI 槽、会话权威与业务资源的不同层次不允许相互代替。
 

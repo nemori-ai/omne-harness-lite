@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/capabilities/account-identity/v1/schema.json",
+  "title": "Account Identity v1 personal creation source fact",
+  "$ref": "#/$defs/PersonalCreationSourceFact",
+  "$defs": {
+    "PersonalCreationSourceFact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceRef", "version", "entryKind", "userRef", "targetTenantId"],
+      "properties": {
+        "sourceRef": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"},
+        "version": {"const": "1"},
+        "entryKind": {"enum": ["deployment_init", "account_registration"]},
+        "userRef": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/UserRef"},
+        "targetTenantId": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"}
+      }
+    }
+  }
+}

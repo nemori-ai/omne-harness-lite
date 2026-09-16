@@ -8,6 +8,6 @@
 
 本候选的 [v1 验证义务](v1/verification.md)中，DR-S01～S08 的真实端口/JSONL/
 Admission/owner 联合测试均未在统一协议下执行。Recovery 模型本轮未运行，且不覆盖
-revision/eventId、二/三流资格或 owner publication。旧 bootstrap 测试与 provider
-映射仅作实现线索，不构成注册入口证据。v3 严格 replay 和实际开发 journal 存量
+revision/eventId、F 直读、T/C 单流映射或 owner publication。旧 personal 混合流测试与 provider
+映射仅作历史线索，不构成当前候选证据。v3 严格 replay 和实际开发 journal 存量
 清点待完成；没有旧格式兼容承诺。

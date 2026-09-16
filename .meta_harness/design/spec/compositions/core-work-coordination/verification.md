@@ -1,11 +1,7 @@
-# Coordination v1 验证范围
+# 核心工作协调 v1 验证范围
 
-Admission 模型只为授权见证、效果开始前耐久和取消/安全停止后的迟到启动三个不变量提供
-有限结构证据。它不覆盖 CC-01、CC-05 outbox、CC-06 crash/recover/new epoch、CC-07 observation
-或 recovery interleaving；多能力真实事务、广播失败、跨域 outbox 和补偿必须由 G/L/M/E 与 I 联合验证。
-契约存在不证明 provider 已实现；所有未迁消费者保持 observed-legacy 并阻断 release。
+既有 Admission 模型仅覆盖其明确的逻辑准入抽象；不覆盖 CC-01、CC-05 通用耐久交付、CC-06 崩溃/新 epoch 或 CC-07 观测。现有恢复模型与故障变体的范围按 [v1/formal/README](v1/formal/README.md) 逐项判断，不能自动外推到个人创建。
 
-本候选的 [v1 验证义务](v1/verification.md)中，CC-S01～S11 的统一协议真实组合故障
-证据尚未产生；Account→CC 导入、二/三流互冒、unknown/blocked 后原操作认回、
-CC-06 全 owner 基线安装与 closing/closed 后历史/现时查询均待验收。现有 Admission
-模型不覆盖 CC-05 导入或 CC-06 恢复，不将模型存在表述为这两项已证明。
+个人创建的 CC-03 候选已改为 Account 当代受信直读 F、Tenant 派生 T/C、单租户流提交。旧 Account→CC 导入与二/三流测试不再属于此链的正例。需要验证未发行 F、Account 暂缺席、读完 F 后实例离线、旧 generation 准备失效、两 F 同 UserRef 冲突、不同 UserRef 独立、T unknown 与 CC-06 本代全 owner publication。场景见 [CC-S07～S11](v1/scenarios.md)，具体联合义务见 [v1 验证](v1/verification.md)。
+
+CC-05 保留为其他真正需要耐久接纳的边界的通用契约；本轮不声称该条已被个人创建或既有模型验证。

@@ -6,12 +6,11 @@ D-008/D-015 仅作 provenance；本坐标保持 candidate、`acceptance:null`。
 
 本能力拥有 append/read/recovery/ordering/unknown 与 writer 生命周期。业务状态解释归
 对应能力，共同准入及提交后的后果交接归 `composition.core-work-coordination@1`。
-本候选 personal creation 分支消费同 baseline 的 [CC-03/05/06](../../../compositions/core-work-coordination/v1/contract.md)
-所颁发的一笔资格；[TG-01](../../../capabilities/tenant-governance/v1/contract.md) 拥有业务事实，
-本能力不凭记录内容自授许可。
+个人创建消费普通单租户 DR-01 commit；[TG-01](../../../capabilities/tenant-governance/v1/contract.md)
+拥有来源核实、业务事实与唯一性，本能力不凭记录内容自授许可。
 本能力的数据依赖为同 baseline 的 [CD-01/02](../../../data/core-work/v1/contract.md)
 `OperationRef` 与 `UserRef`，以及 [ARI-1/2](../../../data/agent-runtime-identity/v1/contract.md)
-`OpaqueId`/tenant 身份；本能力自有 `StreamRef`、`CommitEnvelope`、`RevisionConflict` 与个人创建冲突
+`OpaqueId`/tenant 身份；本能力自有 `StreamRef`、`CommitEnvelope`、`RevisionConflict`
 形状见 [v1 Schema](schema.json)，不能借用 provider TypeScript 类型作规范。
 
 ## 记录结构与编码
@@ -33,14 +32,13 @@ preconditions,causality}`；`principal` 是 `{kind:"user",user:UserRef}` 或
 `{kind:"system",systemId:OpaqueId}`，`causality` 的允许引用见 Schema，未使用时为
 空对象。该格式归本能力的存储操作输入编码所有，不替业务 owner 定义
 `target/arguments/preconditions` 的含义。`OperationInput` **没有 namespace 字段**；
-`operation.namespace` 来自受信准备绑定的完整 `OperationRef`，个人创建时须等于已
-核实 Account 来源后果的原引用，writer epoch 时固定为 `core.writer`。writer 核可信
+`operation.namespace` 来自受信准备绑定的完整 `OperationRef`；个人创建使用
+TG-01 的 Tenant T，不复用 Account A；writer epoch 固定为 `core.writer`。writer 核可信
 准备与输入的 tenant、principal 一致；`operation.principalId` 恰为 principal 的
 canonical JSON，不能仅凭输入自报身份授权。codec 与 replay 同样须解析/验证
 该对象、摘要和 `OperationRef` 主体绑定；完整行本身不重建当代身份授权。
 v3 outer journal line 恰为 Schema 的 `JournalLine{byteLength,formatVersion,payload,sha256}`；
-payload 是 Schema 的 `CommitEnvelope` 五个封闭子类型之一的 canonical 字符串；
-个人创建的成功/冲突还须满足受信资格与下文跨字段约束。两层及
+payload 是 Schema 的 `CommitEnvelope` 三个封闭子类型之一的 canonical 字符串。两层及
 `canonicalInput` 均用该规则；`inputDigest` 是 `canonicalInput` UTF-8 字节的 SHA-256
 小写十六进制，outer line 的长度和摘要按 DR-04 对 payload UTF-8 字节计算。
 记录 formatVersion 恰为 `core-journal/3`；appends 数组及每个 append 的 records 数组
@@ -48,10 +46,9 @@ payload 是 Schema 的 `CommitEnvelope` 五个封闭子类型之一的 canonical
 字节重新编码一致，不能仅因 JSON 值相等便接纳非 canonical 字节。格式、字段集、
 嵌套身份和冲突形状在本候选版本内固定；不认识格式或字段即拒绝可写恢复。
 
-v3 的 `recordClass`/`source` 由可信 writer 根据普通准备、当前代 personal 资格或
-内部取得 writer 动作赋值：`ordinary_commit|ordinary_conflict` 对应 `source="ordinary"`，
-`personal_creation_commit|personal_creation_conflict` 对应受信
-`deployment_init|account_registration`，`writer_epoch` 对应 `source="writer"`。
+v3 的 `recordClass`/`source` 由可信 writer 根据普通准备或内部 writer 动作赋值：
+`ordinary_commit|ordinary_conflict` 对应 `source="ordinary"`，
+`writer_epoch` 对应 `source="writer"`。
 它们是持久辨别码，不是调用者提交的权限声明；codec 对每行强制相应封闭子类型，
 writer 再核受信来源与资格，replay 只核历史结构和完整前缀，绝不据历史字节重铸资格。
 Schema 的通用 `BaseEnvelope` 只是内部共同字段定义，不能当作可单独接纳的 payload。
@@ -93,44 +90,10 @@ update，不能逐事实去重。业务状态转移由所属能力校验和解�
 `{kind:"tenant",tenantId:t}`，不能混 system 或另一 tenant。普通 CAS 冲突按
 **原** `attemptedAppends` 执行同一双向核验，provider-owned 结果 stream 则按下文
 采用 system 或原 tenant scope；用户自报 `tenantId:null` 不授 system 写权限。
-唯一受限混合流例外是
-Tenant personal creation 的**一笔冻结原操作**，由受信装配在当前代颁发不可伪造的
-单次资格。资格绑定来源 `deployment_init | account_registration`、原 operationRef、
-冻结输入摘要、`UserRef`、personal target tenantId、精确协调域、精确 expected revisions、
-Tenant owner/Admission host generation 与 writer epoch。Account 来源的原输入摘要如何
-与本 envelope 的 `inputDigest` 精确对应，仍须在 Account→CC→DR 联合接口中定义；
-当前不假定二者是同一摘要，也不把凭据原文放入本能力的 `canonicalInput`。这一映射
-未闭合时，个人创建分支不能宣布可实施验收。`deployment_init` 的 appends
-集合恰为 system `tenant-bootstrap`、system `tenant-personal-index`、tenant
-`tenant:<target>` 三条；`account_registration` 恰为后两条。两种来源的
-`OperationInput.tenantId` 均为 `null`：其原操作是 Account 全局账号创建后果，
-personal target 是受信来源绑定及目标 tenant append 的身份，不是该输入的
-tenant scope。`null` 不给普通操作开放跨 system/tenant 混写；writer 必须核原
-`OperationRef`、来源事实身份/版本、输入摘要、`UserRef`、target 与 CC-03 本代
-单次资格的逐项绑定。此特例的冻结 appends
-顺序固定为 registration `[tenant-personal-index, tenant:<target>]`、init
-`[tenant-bootstrap, tenant-personal-index, tenant:<target>]`，仅约束此特例。
-唯一 tenant append 的 scope tenantId 与 streamId 必须严格等于绑定 target；
-不得添加其他 system/tenant
-stream、改变集合或次序、跨域使用或拆成多次 commit。每流一个 append；一个流内
-多个 facts 只推进一次 revision。
-
-来源是受信颁发者的封闭变体，不是提交者提供的 `operationKind`、`origin`、`owner`、
-`UserRef` 字符串或反序列化 envelope；旧代资格不能被恢复扫描或历史结果重新铸造。
-存储验证资格绑定、精确流形状、tenant/target 身份、expected revisions、CAS、writer
-代际、唯一流集合及次序和结果一致性；不读业务事实来判断 Account 授权、唯一 claim、creator
-或 owner。那些关系及当前准入归 Tenant 与 CC；未得到它们颁发的有效绑定时返回
-rejected/unavailable，不开放泛用 null-tenant 混写。
-
-资格授权的是同一原操作的**一次成功写入尝试**，不授予任意 system 写权。若其
-expected revisions 的 CAS 不成立，writer 只能为该原操作写一个单独的
-provider-owned conflict outcome envelope：其唯一 append 是 system
-`operation-outcomes`，不包含也不冒充上述二/三流成功批次中的任何 append。
-writer 以先前已验证的本次资格和原 operationRef/inputDigest 绑定该 outcome；
-它按 DR-02 的原操作身份去重，不能再次消费资格生成另一份结果。该 outcome 的
-耐久确认才允许返回 conflict；写入/同步结果未知时仍按原操作 unknown 查询，
-不能因预见 CAS 不匹配就提前报告 durable conflict。除了这个 writer 自有的
-结果记录，资格不允许调用方写 system `operation-outcomes`。
+TG-01 的个人创建 C 将 `tenantId` 固定为 personal target，以普通单租户流提交；
+其 `inputDigestT` 由 C 的 canonical 字节计算，与 Account 私有 `digestA` 无映射要求。
+DR 仅核受信准备的 T/C、tenant scope、CAS 和 writer 资格；F 的来源、UserRef 唯一性
+及 owner 事实归 Tenant/CC 核实。DR 记录中不得放 A、`digestA` 或凭据内容。
 
 冲突 envelope 的 `attemptedAppends` 必须保存原冻结成功候选的有序
 `[{stream:StreamRef,expectedRevision:Counter}]`，与原 appends 一一对应、无重复，
@@ -152,22 +115,9 @@ tenant scope 或 system,streamId:"operation-outcomes"}`，其中唯一 fact 为
 生成并验证该记录；`currents` 按 `attemptedAppends` 顺序列出且与 fact 逐字段一致。原业务
 appends 全不应用，结果 stream 自身按通常 CAS `+1`；只在该 outcome 实际耐久后返回
 conflict，lookup/replay 以原操作身份认回同一结果。调用者不能直接提交此保留
-namespace/stream，普通 outcome/fact 不携带个人创建扩展字段。
-
-该例外的 durable conflict 改用 provider-owned **system** `operation-outcomes`。
-其 `attemptedAppends` 仍须是原二/三流候选的精确有序 stream/expectedRevision 投影，
-与原受信资格绑定并按上述完整前缀复核；业务 facts 不被当成已提交。
-冲突行的 `canonicalInput.tenantId` 仍为 `null`，不能根据唯一 provider-owned system
-结果 stream 推断原候选只有 system 流；须重核 `attemptedAppends` 的全部 system 与
-目标 tenant 流身份。
-即使只有 `tenant-personal-index` revision 冲突，outcome 和同一
-`operation.conflict` fact 也必须
-保存原绑定的 `personalTargetTenantId: OpaqueId`、来源、原 operationRef、输入摘要及
-`UserRef`；两者逐字段一致，target 等于不可伪造资格绑定。`conflict.currents` 仅列
-实际不匹配的 stream，不为保留 target 伪造 tenant current。committed 的 target 则
-由唯一 tenant append 的 scope/streamId 与绑定核对。相同 operationRef、摘要、来源、
-`UserRef` 和 target 的 lookup/replay 才能认回原结果；同键异输入仅在仍有逻辑占位或
-耐久 outcome 可核实时冲突。暂时 `not_seen` 不证明未提交，不能换 target 或换键重写。
+namespace/stream。个人创建目标已在受信 C、T 的稳定派生与 tenant-scope
+`attemptedAppends` 中保存，CAS 冲突沿普通 outcome 认回，不能仅凭同 target 的
+另一 T 成功而把本 T 报为 committed。
 
 所有新操作与 provider-owned 记录使用严格 `core-journal/3` envelope。每次取得 writer
 时，在同一 journal 的 `core.writer` 保留 namespace 写入并同步一个 `writer.acquire`
@@ -187,14 +137,6 @@ operation、输入、domain、前一 epoch、单调 epoch、position、append、
 连续前缀一致，不能把普通业务行或旧格式行当成新代写入权。完整但未回执的 acquire
 须先认回并在下次取得写入权时再严格加一；失败或未知时不交出 writer。
 
-个人创建的特例使用其受限 envelope；其 personal creation conflict outcome
-形状为 `{status:"conflict", conflict:RevisionConflict, personalTargetTenantId:OpaqueId,
-source, operationRef, inputDigest, userRef}`，其中 `source` 恰为上述两个封闭枚举值，
-其余身份字段必须与操作及资格逐字段相等，outcome.source、envelope.source 与原受信
-资格的 source 也必须相同。唯一 provider-owned `operation.conflict`
-fact 使用 version `3`，data 恰为 `{conflict, personalTargetTenantId, source,
-operationRef, inputDigest, userRef}`。普通 conflict 不接受这些扩展字段。受限 envelope
-的二/三流或单流形状还须通过当代不可伪造资格校验；Schema 自身不颁发混合写权限。
 Records codec 与 JSONL writer/replay 须固定 v3 canonical 字节、摘要、必填与禁填字段，
 严格按记录版本解码、验证完整前缀与上述跨字段关系。旧候选
 `core-journal/1`、`/2` 不获此协议的读取或继续写入兼容承诺；发现存量字节时先

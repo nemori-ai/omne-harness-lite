@@ -1,19 +1,18 @@
-# 注册组合规范场景
+# 账号建立组合规范场景
 
-下列是候选 AC-R 组合契约的验收输入，尚无实际测试通过证据。
+这些是候选 ACR 的验收输入，不是已运行测试。
 
 | 场景 | 必须观察到的结果 |
 |---|---|
-| ACR-S01 正常后续注册 | 同一注册操作得到稳定 `UserRef`；Tenant 耐久发布该账号唯一 personal tenant/owner 成员；账号随后 active；成功回执含可核实同一目标。 |
-| ACR-S01a 默认唯一个人租户 | 注册自身恰建立同账号的一份 personal tenant/owner，不自动创建组织成员；pending 身份无业务准入。独立组织入会是另一操作，如何与注册并发由该操作的契约决定，不能从“默认一个”推出全局基数限制。 |
-| ACR-S01b 凭据绑定与受信交付 | 未耐久确认唯一凭据绑定时不产生 Account 创建后果；源事实确认后按稳定来源身份交付、目标耐久导入，同来源重复交付只认回。客户端伪造、错 `UserRef`/target、未耐久投影均不得通过 Tenant 短门。 |
-| ACR-S02 两账号同一现实持有人 | 两个请求均获自助注册准入、没有认证标识冲突且分别完成注册时，不同原操作产生不同 `UserRef` 和个人租户；不以本地 OS 用户、邮箱相似或同一 CLI 目录合并数据、设置、权限、额度。 |
-| ACR-S03 账号已 pending、Tenant 未提交时宕机 | 重启认回同一 `UserRef`/target；pending 不可做个人业务；原操作可继续，不能另建账号或租户。 |
-| ACR-S03a Account 在目标耐久导入后失联或换代 | Tenant 可凭已导入的不可撤销原后果和自身当前门条件推进同一创建；旧协调者/Account 实例不得再写新代。账号激活仍等 Account 恢复核实。 |
-| ACR-S04 Tenant 写入/回执 unknown | 保留占位与稳定目标；暂时 `not_seen` 不准换目标；核实 committed 则认回，核实未提交且安全解除占位才同操作重试。 |
-| ACR-S05 Tenant durable 但激活回执丢失 | 从权威 claim/成员及账号状态恢复；原操作最终返回同一 active 目标，不生成第二租户。 |
-| ACR-S05a Tenant 已 committed 但 owner publication 失败 | 原 completion 长期 blocked，账号仍 pending；只由受信恢复宿主安装全 owner 基线，新代查询确认原位置可消费后才激活，不重发 Tenant 批次。 |
-| ACR-S06 相同键异摘要及并发竞争 | 不得把另一输入认作原注册；同用户唯一 claim 不能产生第二个有效个人租户。 |
-| ACR-S07 逻辑发布早于 durable | pending 个人成员与正向资格不得供业务准入，注册也不能报告成功。 |
-| ACR-S08 切换账号与目标组织 | 新交互按当前受信账号及所选租户/资源范围检查；旧账号缓存、另一账号成员资格和组织额度不跨范围继承。 |
-| ACR-S09 已注册后个人租户关闭，再重试原注册操作 | 认回原历史完成事实且不另建个人租户；当前业务准入仍按 Tenant closing/closed 拒绝，历史成功回执不是当前访问许可。 |
+| ACR-S01 受信 init | 已核实空 Account/Tenant 根与本代独占 init 资格；A pending、凭据唯一绑定、F、T 单目标流提交、本代 owner publication、Account active、部署建立依序可核实；这之前 signup 不开放。 |
+| ACR-S02 后续 signup | 已建立部署内的自助请求经校验，Account 形成 F；Tenant 从受信服务读 F，T/C 单流创建 owner；Account active 可再读后才报成功。注册自身不建组织成员。 |
+| ACR-S03 init unknown | init A/pending 已耐久但凭据或 T unknown；同 A/F/T 核实恢复，不释放首账号位置，不另建 UserRef 或 target。 |
+| ACR-S04 未发行 F | pending 已建但唯一凭据绑定未确认、标识冲突或来源服务不可达；Tenant 不准入，不从 DTO、seed、账号字符串或缓存补 F。 |
+| ACR-S05 当前代读取 | Tenant 在当前代读完整 F 后 Account 暂离线，原准备可继续；host/owner/writer 换代使旧准备失效，新代重读同 F。F 同 ref 异内容封闭。 |
+| ACR-S06 两 F 同 UserRef | 第二 F 的 T 不同但 target 相同；第二 T 明确冲突，不能把第一 T 结果认作自身成功。 |
+| ACR-S07 不同 UserRef | 两个获准账号各得独立目标租户流和 owner；物理目录、OS 用户或同一现实持有人不合并身份、设置、额度。 |
+| ACR-S08 T unknown | 保留原 T/C/target，暂时 not_seen 不证明未提交；完整前缀核实后认回或在安全释放占位后同 T/C 重备。 |
+| ACR-S09 committed blocked | Tenant 已持久但 owner publication 失败，Account 仍 pending；新代全 owner 基线使原位置可消费后再激活，不重发 T。 |
+| ACR-S10 激活 unknown | Tenant ready、Account 激活回执丢失；沿原 A/F/T 和账号状态认回，不能生成第二租户或提前报成功。 |
+| ACR-S11 历史与当前 | 注册完成后个人租户关闭，原 A 只认回历史成功；当前业务按 Tenant closing/closed 拒绝。 |
+| ACR-S12 范围隔离 | 切换账号/组织后，新交互重核当前会话、目标成员和资源 owner；旧账号缓存、组织额度不继承。 |

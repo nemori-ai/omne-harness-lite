@@ -9,4 +9,4 @@
 
 ## 准入与阅读
 
-注册身份、凭据验证和会话撤销有独立状态权威，不能由 Tenant 成员资格或 Agent 运行身份代替。精确操作和失败边界见 [v1 契约](v1/contract.md)；可观察反例见[场景](v1/scenarios.md)；证据范围见[验证](verification.md)。注册账号与 Tenant 个人范围的跨 owner 交接由独立 composition 规格负责，本包仅规定本能力的门槛及所需权威证明。
+注册身份、凭据验证和会话撤销有独立状态权威，不能由 Tenant 成员资格或 Agent 运行身份代替。精确操作、[F Schema](v1/schema.json)和失败边界见 [v1 契约](v1/contract.md)；可观察反例见[场景](v1/scenarios.md)；证据范围见[验证](verification.md)。初始账号与后续注册的 Account→Tenant 激活链由独立 composition 规格负责，本包仅规定本能力的门槛及所需权威证明。

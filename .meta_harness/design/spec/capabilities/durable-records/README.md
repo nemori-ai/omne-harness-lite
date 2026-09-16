@@ -5,7 +5,7 @@
 - 精确条款：DR-01～DR-05
 - 责任：append/read/recovery/ordering/unknown、独占 writer 与提供者换代。
 - 提供者：[storage-records](../../../providers/storage-records/README.md)、[session-persistence](../../../providers/session-persistence/README.md) 与 [storage-jsonl](../../../providers/storage-jsonl/README.md)
-- 个人租户创建候选：DR-01 一笔封闭混合流资格，注册二流、首次 init 三流；新格式 `core-journal/3`。前置的受信来源和排位见 [CC-03/05](../../compositions/core-work-coordination/v1/contract.md)。
+- 个人租户创建候选：DR-01 普通单租户提交，一条目标流同批保存 personal tenant/owner；新格式 `core-journal/3`。受信来源和排位见 [CC-03](../../compositions/core-work-coordination/v1/contract.md)。
 
 ## 准入与阅读
 

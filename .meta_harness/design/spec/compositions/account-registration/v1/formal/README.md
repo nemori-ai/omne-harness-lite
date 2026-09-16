@@ -1,8 +1,9 @@
-# 注册交接行为模型
+# 旧注册交接行为模型的覆盖边界
 
-[AccountRegistration.tla](AccountRegistration.tla) 描述一个已获准注册的原操作在两个
-owner 间的交接。它细化 [ACR-01～06](../contract.md)，不是认证库、Tenant 存储或
-CC-06 恢复宿主的实现；本候选没有通过模型文件存在而获得接受或发布状态。
+[AccountRegistration.tla](AccountRegistration.tla) 描述旧版单个已获准 signup 操作的
+抽象交接。它与当前 [ACR-01～06](../contract.md) 的 F 直读、T/C 单租户提交、
+受信 init→部署建立→signup 门和多来源竞争不一致，**不得作为本版这些性质的证明**。
+下表仅解释原模型实际检查了什么；待新模型替换/补足后再更新证据登记。
 实际执行结果和剩余义务见 [verification](../../verification.md)。
 
 ## 状态与规范映射
@@ -31,9 +32,9 @@ CC-06 恢复宿主的实现；本候选没有通过模型文件存在而获得�
 - 耐久原操作意图的原子分配、账号记录的完整写入、Tenant 批次原子性和协调者旧许可 fencing
   是对应 owner 必须兑现的契约前提。`Recover*` 不是普通 `lookupOperation`：它要求已隔离旧
   writer、核实完整前缀并安全释放未提交占位；单次 `not_seen` 永远不满足此动作。
-- 修订后的 AI-02a/ACR-03 进一步要求凭据唯一绑定后才产生不可撤销的一次创建后果，并经
-  CC-05 受信耐久导入；本模型的 `Allocate` 将这些步骤抽象为已获准源意图，**没有**
-  检查早期 pending、凭据冲突、伪造/错绑导入或源/目标跨域失联交错。
+- 当前 AI-02a/ACR-03 要求凭据绑定后发行无秘密 F、当代直读、T/C 单流提交；
+  本模型的 `Allocate` 抽象成已获准源意图，**没有**检查这些步骤、早期 pending、
+  init 一次性资格、凭据冲突、同 UserRef 不同 F 或来源内容变化。
 - `RecoverBaseline` 抽象 CC-06 的全部 owner roots、同一基线水位、新 writer/代际与旧资源
   责任收口。该动作保留旧 blocked completion；模型只检查注册消费此证明的方式，不验证
   CC-06 内部重建、全 owner 原子安装或跨进程通道。

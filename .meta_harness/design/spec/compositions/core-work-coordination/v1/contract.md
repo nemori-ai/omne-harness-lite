@@ -4,7 +4,7 @@
 legacy `composition.core-work-coordination@2` 重基，保留 CC-01～CC-07 及“同协调域内
 发布的组合契约可声明原子关系”的当前规则。legacy CC v1 与 D-008/D-014 只作 provenance。
 
-本组合拥有跨能力准入、原子接受/拒绝、提交后事实广播、跨域回执以及取消/补偿边界；
+本组合拥有跨能力准入、原子接受/拒绝、提交后事实广播、不能共同提交时的交接回执以及取消/补偿边界；
 它不取得各业务状态权威，也不把通知、日志或多个独立写入称作共同提交。
 personal creation 候选分支依赖同 baseline 的 [DR-01](../../../capabilities/durable-records/v1/contract.md)、
 [TG-01/03](../../../capabilities/tenant-governance/v1/contract.md)、
@@ -46,40 +46,29 @@ isValid，再在它们可能变化之后写入"已准入"。
 必须使用精确取消／执行权撤销；不得将普通撤权重解释为强停。授权增加仅在其
 耐久确认后可用。仅异步准备而尚未获得逻辑位置的操作不算准入。
 
-Tenant personal creation 使用同一逻辑排位、提交、lookup 与恢复机制。受信装配只
-提供两种封闭来源。两者都须先由 Account 权威耐久确认不复用的 `UserRef`、唯一
-凭据绑定、原操作/摘要、personal target 与 AI-02a 的一次创建源后果，再按 CC-05
-受信导入目标协调域。首次 `deployment_init` 在此基础上额外核 Tenant 尚未建立的
-权威前态、受信 seed 与独占部署初始化资格；后续 `account_registration` 核普通
-注册入口政策。来源事实的稳定身份、原操作、摘要、`UserRef`、target 与一次授权
-必须逐项匹配。seed 文本、Tenant 自分配的 `UserRef`、旧 session、客户端
-`UserRef`/`origin`/`owner`/`operationKind` 字符串均不能授予资格；较早 pending 分配或
-凭据碰撞也不构成来源后果。
-Account 注册入口关闭、logout、pending 后来变 active、provider 暂时失联或换代不撤销
-已成立的耐久授权；首版没有取消注册或关闭账号后撤销未排位创建的操作。若未来
-增加撤销，须另定跨 owner 排位顺序与屏障，不能追溯改写已准入位置。
+Tenant personal creation 沿同一逻辑排位、提交、lookup 与恢复机制。Account 先耐久
+接纳 A、唯一凭据绑定和不可变 F；Tenant 在门外经当前受信本地 Account 服务读取完整
+F，核版本、sourceRef、entryKind、UserRef 与 target，不建立 CC-05 导入事实或耐久
+交付队列。未发行 F、Account 暂缺席或来源不一致时不准备新创建。完成本代受信读取
+并冻结 F 后，Account 该实例暂时离线不撤销这一份准备；若 host/owner/writer 换代，
+旧准备失效，新代须重新读取同一 F。没有客户端字段、seed 文本、旧 session、较早
+pending 分配或凭据碰撞可替代 F。
 
-两种来源均在原操作首次逻辑排位前冻结输入和 target。已存在同 operation/input 的
-占位或耐久结果先认回原 target/status，不重跑首次前态；有可核实占位或耐久 outcome
-时同键异输入冲突。首次新排位的短门只读已耐久导入的来源事实和 Tenant/Admission
-当前 roots，执行纯检查：两者的精确来源授权和唯一 claim，以及 init 的未初始化/
-受信 seed/部署资格，或 registration 的普通注册来源，
-同 `UserRef`/target 的目标 head，并核对当前 host/owner/writer generations。
-不得在门内等待 Account provider I/O、使用 TTL 缓存或把未耐久交付当成授权；
-未导入、来源未核实或无法证明同代根时，新操作 unavailable/unknown。门内成功才
-颁发 `capability.durable-records@1` DR-01 的单次封闭混合写资格：registration
-恰为 personal-index system 与目标 tenant 二流；init 另含 bootstrap system 三流。
-绑定原操作、摘要、来源、`UserRef`、target、精确流集合/expected revisions 和
-Admission/Tenant/writer 代际，不能复用于别的输入、流、代际或 commit。
+Tenant 由 F.sourceRef 注入式派生自己的 T，从 F.userRef 注入式派生 target，并生成
+TG-01 精确 C；DR `inputDigestT` 仅计算 C，不复用 Account 私有 digestA。
+先按 T/C 查占位或耐久结果，相同认回，异输入冲突。新操作在 CC-03 当前代短门
+核 F 的冻结绑定、目标租户流空前态、唯一 personal/owner、init 的已核实空 Tenant
+前态及当前 host/owner/writer generations；门内不等待 Account I/O。不同 F 若含同一
+UserRef/Tenant target，只能有一个 T 占用目标流首位置，另一 T 冲突，不能认回为
+自身成功。不同 UserRef 各有独立目标流。通过后仅颁发普通单租户 DR-01 提交资格，
+将 personal tenant、creator 与唯一 active owner 成员在一条目标流的一个 append
+同批持久化。没有个人索引或 bootstrap 流。
 
-逻辑占位只封闭 user/target/初始化竞争，不能当作新成员、账号激活或管理资格。
-claim、personal tenant、creator 和唯一有效 owner 须在同一 durable 批次成立；
-完整耐久前缀及 owner publication 可消费后才有创建回执。写入 unknown 不释放占位；
-暂时 `not_seen` 不证明未提交。只有旧 writer 的完整前缀被核实、原操作确实未提交，
-且占位安全解除，才能沿同一原操作/摘要/target 重备。释放后不得虚构旧输入仍有
-durable conflict。历史 committed 结果只证明创建发生；租户 closing/closed 时同操作
-仍认回历史结果，但当前业务资格由 Tenant 再核。首版不开放同 `UserRef` 的另一新
-个人创建操作；未来是否允许须另定政策。
+逻辑占位只封闭目标竞争，不能当作 owner、账号激活或管理资格。完整耐久前缀及
+CC-06 当前代 owner publication 可消费后才有创建证明。写入 unknown 不释放 T 占位；
+暂时 `not_seen` 不证明未提交。只有旧 writer 完整前缀证明 T 未提交且占位安全解除，
+才能同 T/C 重备。历史 committed 只证明创建发生；租户 closing/closed 时同 T
+仍认回历史结果，当前业务资格由 Tenant 再核。
 
 写入失败使受影响协调域待核实，未确认位置不能执行，后续位置不能越过缺口。
 崩溃恢复在独占 writer 下解释连续、完整、校验有效的 envelope 前缀，包括
@@ -103,17 +92,8 @@ unavailable，不能把 TTL 缓存当作"当前授权"。
 丢弃责任；目标不能从重复通知生成第二份 Run／工具／决定。此协议只保证事实
 交付与去重，不保证任意外部副作用恰好发生一次。
 
-Account→Tenant personal creation 的两个来源后果均按 AI-02a 由 Account 在凭据唯一
-绑定、稳定 `UserRef`、原 operation/摘要和 personal target 均耐久后一次发出，稳定 source fact
-identity 绑定上述字段与 schema/version。受信 CC 接收者在门外向 Account 权威核验
-来源、版本、签发权与完整绑定，然后以 source fact identity 在目标协调域耐久导入；
-重复交付返回同一接纳结果，错字段/错版本拒绝，响应丢失按原 identity 查接纳结果。
-导入事实只是 Account 授权的不可变投影，不是第二个 Account 权威或账号 active 证明。
-未核实或未耐久导入时 Tenant 新排位不可用；已导入后 Account 暂时不可达不抹去
-该授权，账号 active 仍须 Account 自身后续耐久确认。旧接收者、Admission/host
-或 writer generation 不得拿历史导入事实直接写入新代；新代须经 CC-06 完整基线
-安装后在当前根中核验它。源与目标两次提交没有跨协调域原子性，pending/unknown
-时 Account 交付方与注册协调者保留查询、重试和可观察责任。
+个人创建的 Account→Tenant 读取按 CC-03 的直接受信读取规则执行；本条通用交付
+协议只适用于其他真正需要耐久接纳的边界，不为 F 创建副本、outbox 或 ack。
 
 **CC-06**：恢复读取 Session、队列、Run、请求、调用、预算、媒体引用和装配意图
 的已提交事实，核对格式/契约、定义/实现版本、环境能力和当前权限，再取得新的

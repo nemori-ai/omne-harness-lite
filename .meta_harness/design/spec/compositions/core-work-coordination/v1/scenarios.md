@@ -1,18 +1,17 @@
 # 核心工作协调 v1 符合性场景
 
-这些场景固定 [contract](contract.md) 的 committed-blocked 恢复发布协议。它们是候选规格的
-验收义务，不表示当前 Admission 或业务 owners 已实现。
+这些场景固定候选契约的恢复发布和个人创建准入，不表示 provider 已通过。
 
 | 编号 | 触发与可观察结果 | 条款与证据归属 |
 |---|---|---|
-| CC-S01 部分 owner 安装失败 | committed 批次含多个 owners；恢复只重建一部分或某 owner 候选根校验失败；共同基线不安装、域不开放、原 operation 仍 committed-blocked，无效果/广播 | CC-03/06；恢复 host + owners 故障注入 |
-| CC-S02 旧代确认 | 旧 host/owner generation 在新 writer epoch 后迟到确认；确认被拒且不能推进新代水位或清除隔离 | CC-06；代际并发测试 |
-| CC-S03 完整基线原子安装 | 受信宿主在同一完整 watermark 验证跨 owner 关系、重建全部 roots、收口遗留责任并原子安装；读取者只能观察安装前 blocked 或安装后完整基线 | CC-03/06；并发读取与故障注入 |
-| CC-S04 原 operation 恢复消费 | 原 completion 保持 committed/blocked；新代 lookup 另报其 position 已由恢复基线覆盖并可消费，operation/receipt/result/eventId 不变，不重提事实、不发补偿性 broadcast | CC-05/06；lookup、扫描与广播测试 |
-| CC-S05 不重复外部效果 | 原 attempt 是否已 dispatch 未知；恢复 publication ready 后仍 inspect/关联原 attempt，不能直接执行或换 operation 重试；无法核实保持 unknown | CC-04/06；执行 owner 故障注入 |
-| CC-S06 遗留 ExactUse 未收口 | 完整前缀和 owner roots 已重建，但旧 claim/资源仍未结算或不可证明可释放；域保持关闭，直到原 owner 给出合法处置证据 | CC-03/06；资源 owner 联合测试 |
-| CC-S07 双入口与互冒 | init 缺 Account 初始账号耐久 `UserRef`/唯一凭据绑定/源后果，或缺未初始化前态/受信 seed/部署资格；注册仅有 pending 分配、客户端字段、旧 session、未导入来源时，均不获新位置；两种受信入口各只能领取对应三/二流资格，不能互冒或由 Tenant 自分配 `UserRef` | CC-02/03/05；Tenant/Account/Admission/Records 联合测试 |
-| CC-S08 导入、重试与短门 | 初始账号或后续注册的 Account 原始后果耐久后重复或丢响应交付，受信接收者核来源/版本/全绑定并耐久去重；未完成导入返回 unavailable/unknown，已导入后 Account 暂时失联仍可在短门纯检查，门内不等待 Account I/O | CC-03/05；真实源/目标 writer 与门内 I/O 注入 |
-| CC-S09 同键与竞争 | 同 operation/input 先认回固定 target；有占位或 outcome 时同键异输入冲突；不同 operation 争同 `UserRef` 或 target 仅一个能排位/提交，unknown 与暂时 not_seen 不放行新 target | CC-03；并发与崩溃注入 |
-| CC-S10 未提交后重备 | 旧 writer 完整前缀证明原操作未提交并安全解除占位后，同 operation/摘要/target 重备；前缀或释放不明则维持 unknown/blocked，不生成新 target，不伪造旧输入冲突 | CC-03/06；真实 writer 重启和隔离注入 |
-| CC-S11 历史与当前 | 已 active Account 或已初始化部署重试原操作仍认回；旧创建 committed_blocked 的 completion 不变，新代完整 owner 基线查询另报可消费；tenant closing/closed 仅返回历史创建结果，不以旧回执授新业务资格或激活账号 | CC-03/05/06；owner/ACR/Tenant 联合查询 |
+| CC-S01 部分 owner 安装失败 | committed 批次只重建一部分 owner 或候选根校验失败；基线不安装、域不开放、原 operation 保持 committed_blocked | CC-03/06；恢复宿主故障注入 |
+| CC-S02 旧代确认 | 旧 host/owner generation 在新 writer epoch 后迟到，不能推进新代水位或清除隔离 | CC-06；代际并发 |
+| CC-S03 完整基线原子安装 | 同一完整 watermark 验证跨 owner 关系并一次安装全部 roots；读者只见安装前 blocked 或安装后完整基线 | CC-03/06；并发读取 |
+| CC-S04 原操作恢复消费 | 原 completion 保持 blocked；新代 lookup 另报原位置被基线覆盖并可消费，operation/receipt/eventId 不变 | CC-06；查询/扫描 |
+| CC-S05 不重复外部效果 | 原 attempt 是否 dispatch 未知时先核实，不直接执行或换操作 | CC-04/06；故障注入 |
+| CC-S06 遗留 ExactUse 未收口 | 前缀和 roots 已重建，但旧资源责任未结算；域继续关闭 | CC-03/06；资源 owner 联合 |
+| CC-S07 双入口准入 | init 缺已核实空根、本代资格或完整 F；signup 在 init active 前、只有 pending、客户端 DTO 或旧 session；均不得取得 T 新位置 | CC-02/03；Account/Tenant 联合 |
+| CC-S08 F 直接读取与换代 | 当代门外读 F 后 Account 暂离线，本次准备仍可提交；host/owner/writer 换代须重读同 F，旧准备失效；F 同 ref 异内容封闭 | CC-03；当前代读取与故障注入 |
+| CC-S09 同键和目标竞争 | 同 T/C 认回；T 同键异 C 冲突；不同 F 同 UserRef 争同 target 时第二 T 不能认回第一 T，unknown/not_seen 不开放新目标 | CC-03；并发/崩溃 |
+| CC-S10 未提交后重备 | 完整前缀证明 T 未提交并安全解除占位后同 T/C 重备；否则保持 unknown/blocked | CC-03/06；writer 隔离 |
+| CC-S11 历史与当前 | init/signup 原 T 认回历史结果，publication 新代证明与当前 Tenant business eligibility 分别查询，closing/closed 不恢复权限 | CC-03/06；owner 查询 |

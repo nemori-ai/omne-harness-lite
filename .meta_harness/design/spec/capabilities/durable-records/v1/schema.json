@@ -1,67 +1,137 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/capabilities/durable-records/v1/schema.json",
-  "title": "Durable Records v1 generic commit, writer epoch and personal creation shapes",
+  "title": "Durable Records v1 generic commit and writer epoch shapes",
   "oneOf": [
-    {"$ref": "#/$defs/JournalLine"},
-    {"$ref": "#/$defs/CommitEnvelope"},
-    {"$ref": "#/$defs/PersonalCreationConflictOutcome"},
-    {"$ref": "#/$defs/OperationConflictFactData"}
+    {
+      "$ref": "#/$defs/JournalLine"
+    },
+    {
+      "$ref": "#/$defs/CommitEnvelope"
+    },
+    {
+      "$ref": "#/$defs/OperationConflictFactData"
+    }
   ],
   "$defs": {
     "CommitEnvelope": {
       "oneOf": [
-        {"$ref": "#/$defs/OrdinaryCommitEnvelope"},
-        {"$ref": "#/$defs/OrdinaryConflictEnvelope"},
-        {"$ref": "#/$defs/PersonalCreationCommitEnvelope"},
-        {"$ref": "#/$defs/PersonalCreationConflictEnvelope"},
-        {"$ref": "#/$defs/WriterEpochEnvelope"}
+        {
+          "$ref": "#/$defs/OrdinaryCommitEnvelope"
+        },
+        {
+          "$ref": "#/$defs/OrdinaryConflictEnvelope"
+        },
+        {
+          "$ref": "#/$defs/WriterEpochEnvelope"
+        }
       ]
     },
     "Principal": {
       "oneOf": [
         {
-          "type": "object", "additionalProperties": false,
-          "required": ["kind", "user"],
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "user"
+          ],
           "properties": {
-            "kind": {"const": "user"},
-            "user": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/UserRef"}
+            "kind": {
+              "const": "user"
+            },
+            "user": {
+              "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/UserRef"
+            }
           }
         },
         {
-          "type": "object", "additionalProperties": false,
-          "required": ["kind", "systemId"],
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "systemId"
+          ],
           "properties": {
-            "kind": {"const": "system"},
-            "systemId": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"}
+            "kind": {
+              "const": "system"
+            },
+            "systemId": {
+              "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+            }
           }
         }
       ]
     },
     "OperationInput": {
-      "type": "object", "additionalProperties": false,
-      "required": ["format", "operationKind", "tenantId", "principal", "target", "arguments", "preconditions", "causality"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "format",
+        "operationKind",
+        "tenantId",
+        "principal",
+        "target",
+        "arguments",
+        "preconditions",
+        "causality"
+      ],
       "properties": {
-        "format": {"const": "core-operation/1"},
-        "operationKind": {"type": "string", "minLength": 1},
+        "format": {
+          "const": "core-operation/1"
+        },
+        "operationKind": {
+          "type": "string",
+          "minLength": 1
+        },
         "tenantId": {
           "$comment": "Codec binds this value to the trusted ordinary appends or personal/writer qualification as DR-01 specifies; null alone is not system write authority.",
-          "oneOf": [{"type": "null"}, {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"}]
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+            }
+          ]
         },
-        "principal": {"$ref": "#/$defs/Principal"},
-        "target": {}, "arguments": {}, "preconditions": {},
+        "principal": {
+          "$ref": "#/$defs/Principal"
+        },
+        "target": {},
+        "arguments": {},
+        "preconditions": {},
         "causality": {
-          "type": "object", "additionalProperties": false,
+          "type": "object",
+          "additionalProperties": false,
           "properties": {
-            "parentOperation": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/OperationRef"},
-            "initiator": {"$ref": "#/$defs/Principal"},
-            "session": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/SessionRef"},
-            "work": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/WorkOwner"},
-            "call": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/CallRef"},
-            "request": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/RequestRef"},
-            "agent": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/AgentRef"},
-            "definition": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/DefinitionVersion"},
-            "binding": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/Binding"}
+            "parentOperation": {
+              "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/OperationRef"
+            },
+            "initiator": {
+              "$ref": "#/$defs/Principal"
+            },
+            "session": {
+              "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/SessionRef"
+            },
+            "work": {
+              "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/WorkOwner"
+            },
+            "call": {
+              "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/CallRef"
+            },
+            "request": {
+              "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/RequestRef"
+            },
+            "agent": {
+              "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/AgentRef"
+            },
+            "definition": {
+              "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/DefinitionVersion"
+            },
+            "binding": {
+              "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/Binding"
+            }
           }
         }
       }
@@ -69,12 +139,27 @@
     "JournalLine": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["byteLength", "formatVersion", "payload", "sha256"],
+      "required": [
+        "byteLength",
+        "formatVersion",
+        "payload",
+        "sha256"
+      ],
       "properties": {
-        "byteLength": {"type": "integer", "minimum": 1},
-        "formatVersion": {"const": "core-journal/3"},
-        "payload": {"type": "string"},
-        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        "byteLength": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "formatVersion": {
+          "const": "core-journal/3"
+        },
+        "payload": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
       }
     },
     "Counter": {
@@ -84,147 +169,240 @@
     "StreamRef": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["namespace", "owner", "scope", "streamId"],
+      "required": [
+        "namespace",
+        "owner",
+        "scope",
+        "streamId"
+      ],
       "properties": {
-        "namespace": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"},
-        "owner": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"},
+        "namespace": {
+          "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        },
+        "owner": {
+          "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        },
         "scope": {
           "oneOf": [
             {
               "type": "object",
               "additionalProperties": false,
-              "required": ["kind"],
-              "properties": {"kind": {"const": "system"}}
+              "required": [
+                "kind"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "system"
+                }
+              }
             },
             {
               "type": "object",
               "additionalProperties": false,
-              "required": ["kind", "tenantId"],
+              "required": [
+                "kind",
+                "tenantId"
+              ],
               "properties": {
-                "kind": {"const": "tenant"},
-                "tenantId": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"}
+                "kind": {
+                  "const": "tenant"
+                },
+                "tenantId": {
+                  "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+                }
               }
             }
           ]
         },
-        "streamId": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"}
+        "streamId": {
+          "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+        }
       }
     },
     "AttemptedAppend": {
-      "type": "object", "additionalProperties": false,
-      "required": ["stream", "expectedRevision"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stream",
+        "expectedRevision"
+      ],
       "properties": {
-        "stream": {"$ref": "#/$defs/StreamRef"},
-        "expectedRevision": {"$ref": "#/$defs/Counter"}
+        "stream": {
+          "$ref": "#/$defs/StreamRef"
+        },
+        "expectedRevision": {
+          "$ref": "#/$defs/Counter"
+        }
       }
     },
     "RevisionConflict": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "currents"],
+      "required": [
+        "kind",
+        "currents"
+      ],
       "properties": {
-        "kind": {"const": "revision"},
+        "kind": {
+          "const": "revision"
+        },
         "currents": {
           "type": "array",
           "minItems": 1,
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["stream", "revision"],
+            "required": [
+              "stream",
+              "revision"
+            ],
             "properties": {
-              "stream": {"$ref": "#/$defs/StreamRef"},
-              "revision": {"$ref": "#/$defs/Counter"}
+              "stream": {
+                "$ref": "#/$defs/StreamRef"
+              },
+              "revision": {
+                "$ref": "#/$defs/Counter"
+              }
             }
           }
         }
       }
     },
-    "PersonalCreationBinding": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["conflict", "personalTargetTenantId", "source", "operationRef", "inputDigest", "userRef"],
-      "properties": {
-        "conflict": {"$ref": "#/$defs/RevisionConflict"},
-        "personalTargetTenantId": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"},
-        "source": {"enum": ["deployment_init", "account_registration"]},
-        "operationRef": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/OperationRef"},
-        "inputDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-        "userRef": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/UserRef"}
-      }
-    },
-    "PersonalCreationConflictOutcome": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["status", "conflict", "personalTargetTenantId", "source", "operationRef", "inputDigest", "userRef"],
-      "properties": {
-        "status": {"const": "conflict"},
-        "conflict": {"$ref": "#/$defs/RevisionConflict"},
-        "personalTargetTenantId": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"},
-        "source": {"enum": ["deployment_init", "account_registration"]},
-        "operationRef": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/OperationRef"},
-        "inputDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-        "userRef": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/UserRef"}
-      }
-    },
     "GenericConflictOutcome": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status", "conflict"],
+      "required": [
+        "status",
+        "conflict"
+      ],
       "properties": {
-        "status": {"const": "conflict"},
-        "conflict": {"$ref": "#/$defs/RevisionConflict"}
+        "status": {
+          "const": "conflict"
+        },
+        "conflict": {
+          "$ref": "#/$defs/RevisionConflict"
+        }
       }
     },
     "OperationConflictFactData": {
-      "oneOf": [
-        {"$ref": "#/$defs/RevisionConflict"},
-        {"$ref": "#/$defs/PersonalCreationBinding"}
-      ]
+      "$ref": "#/$defs/RevisionConflict"
     },
     "BaseEnvelope": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["formatVersion", "recordClass", "source", "position", "operation", "inputEncoding", "canonicalInput", "inputDigest", "appends", "outcome", "requiredUses"],
+      "required": [
+        "formatVersion",
+        "recordClass",
+        "source",
+        "position",
+        "operation",
+        "inputEncoding",
+        "canonicalInput",
+        "inputDigest",
+        "appends",
+        "outcome",
+        "requiredUses"
+      ],
       "properties": {
-        "formatVersion": {"const": "core-journal/3"},
-        "recordClass": {"enum": ["ordinary_commit", "ordinary_conflict", "personal_creation_commit", "personal_creation_conflict", "writer_epoch"]},
-        "source": {"enum": ["ordinary", "deployment_init", "account_registration", "writer"]},
+        "formatVersion": {
+          "const": "core-journal/3"
+        },
+        "recordClass": {
+          "enum": [
+            "ordinary_commit",
+            "ordinary_conflict",
+            "writer_epoch"
+          ]
+        },
+        "source": {
+          "enum": [
+            "ordinary",
+            "writer"
+          ]
+        },
         "position": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["coordinationDomain", "writerEpoch", "commitId", "seq"],
+          "required": [
+            "coordinationDomain",
+            "writerEpoch",
+            "commitId",
+            "seq"
+          ],
           "properties": {
-            "coordinationDomain": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"},
-            "writerEpoch": {"$ref": "#/$defs/Counter"},
-            "commitId": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"},
-            "seq": {"$ref": "#/$defs/Counter"}
+            "coordinationDomain": {
+              "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+            },
+            "writerEpoch": {
+              "$ref": "#/$defs/Counter"
+            },
+            "commitId": {
+              "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+            },
+            "seq": {
+              "$ref": "#/$defs/Counter"
+            }
           }
         },
-        "operation": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/OperationRef"},
-        "inputEncoding": {"const": "core-json/1"},
-        "canonicalInput": {"type": "string", "$comment": "Parse canonical bytes as OperationInput, then validate its tenantId/principal and trusted OperationRef binding under DR-01."},
-        "inputDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-        "attemptedAppends": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/AttemptedAppend"}},
+        "operation": {
+          "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/OperationRef"
+        },
+        "inputEncoding": {
+          "const": "core-json/1"
+        },
+        "canonicalInput": {
+          "type": "string",
+          "$comment": "Parse canonical bytes as OperationInput, then validate its tenantId/principal and trusted OperationRef binding under DR-01."
+        },
+        "inputDigest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "attemptedAppends": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/AttemptedAppend"
+          }
+        },
         "appends": {
           "type": "array",
           "minItems": 1,
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["stream", "expectedRevision", "records"],
+            "required": [
+              "stream",
+              "expectedRevision",
+              "records"
+            ],
             "properties": {
-              "stream": {"$ref": "#/$defs/StreamRef"},
-              "expectedRevision": {"$ref": "#/$defs/Counter"},
+              "stream": {
+                "$ref": "#/$defs/StreamRef"
+              },
+              "expectedRevision": {
+                "$ref": "#/$defs/Counter"
+              },
               "records": {
                 "type": "array",
                 "minItems": 1,
                 "items": {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": ["kind", "version", "data"],
+                  "required": [
+                    "kind",
+                    "version",
+                    "data"
+                  ],
                   "properties": {
-                    "kind": {"type": "string", "minLength": 1},
-                    "version": {"type": "string", "minLength": 1},
+                    "kind": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "version": {
+                      "type": "string",
+                      "minLength": 1
+                    },
                     "data": {}
                   }
                 }
@@ -234,13 +412,22 @@
         },
         "outcome": {
           "oneOf": [
-            {"$ref": "#/$defs/GenericConflictOutcome"},
-            {"$ref": "#/$defs/PersonalCreationConflictOutcome"},
+            {
+              "$ref": "#/$defs/GenericConflictOutcome"
+            },
             {
               "type": "object",
               "additionalProperties": false,
-              "required": ["status", "result"],
-              "properties": {"status": {"const": "committed"}, "result": {}}
+              "required": [
+                "status",
+                "result"
+              ],
+              "properties": {
+                "status": {
+                  "const": "committed"
+                },
+                "result": {}
+              }
             }
           ]
         },
@@ -249,18 +436,38 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["recordOwner", "binding"],
+            "required": [
+              "recordOwner",
+              "binding"
+            ],
             "properties": {
-              "recordOwner": {"type": "string", "minLength": 1},
+              "recordOwner": {
+                "type": "string",
+                "minLength": 1
+              },
               "binding": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": ["owner", "resourceId", "generation", "epoch"],
+                "required": [
+                  "owner",
+                  "resourceId",
+                  "generation",
+                  "epoch"
+                ],
                 "properties": {
-                  "owner": {"type": "string", "minLength": 1},
-                  "resourceId": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"},
-                  "generation": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"},
-                  "epoch": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"}
+                  "owner": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "resourceId": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+                  },
+                  "generation": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+                  },
+                  "epoch": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"
+                  }
                 }
               }
             }
@@ -270,94 +477,55 @@
     },
     "OrdinaryCommitEnvelope": {
       "allOf": [
-        {"$ref": "#/$defs/BaseEnvelope"},
+        {
+          "$ref": "#/$defs/BaseEnvelope"
+        },
         {
           "properties": {
-            "recordClass": {"const": "ordinary_commit"},
-            "source": {"const": "ordinary"},
-            "outcome": {"properties": {"status": {"const": "committed"}}}
-          },
-          "not": {"required": ["attemptedAppends"]}
-        }
-      ]
-    },
-    "PersonalCreationEnvelope": {
-      "oneOf": [
-        {"$ref": "#/$defs/PersonalCreationCommitEnvelope"},
-        {"$ref": "#/$defs/PersonalCreationConflictEnvelope"}
-      ]
-    },
-    "PersonalCreationCommitEnvelope": {
-      "allOf": [
-        {"$ref": "#/$defs/BaseEnvelope"},
-        {
-          "properties": {
-            "recordClass": {"const": "personal_creation_commit"},
-            "source": {"enum": ["deployment_init", "account_registration"]},
-            "outcome": {"properties": {"status": {"const": "committed"}}}
-          },
-          "not": {"required": ["attemptedAppends"]},
-          "if": {"properties": {"source": {"const": "deployment_init"}}},
-          "then": {"properties": {"appends": {"minItems": 3, "maxItems": 3}}},
-          "else": {"properties": {"appends": {"minItems": 2, "maxItems": 2}}}
-        }
-      ]
-    },
-    "PersonalCreationConflictEnvelope": {
-      "allOf": [
-        {"$ref": "#/$defs/BaseEnvelope"},
-        {
-          "required": ["attemptedAppends"],
-          "properties": {
-            "recordClass": {"const": "personal_creation_conflict"},
-            "source": {"enum": ["deployment_init", "account_registration"]},
-            "outcome": {"$ref": "#/$defs/PersonalCreationConflictOutcome"},
-            "appends": {
-              "minItems": 1,
-              "maxItems": 1,
-              "items": {
-                "properties": {
-                  "stream": {
-                    "properties": {
-                      "namespace": {"const": "core.records"},
-                      "owner": {"const": "durable-records"},
-                      "scope": {"properties": {"kind": {"const": "system"}}},
-                      "streamId": {"const": "operation-outcomes"}
-                    }
-                  },
-                  "records": {
-                    "minItems": 1,
-                    "maxItems": 1,
-                    "items": {
-                      "properties": {
-                        "kind": {"const": "operation.conflict"},
-                        "version": {"const": "3"},
-                        "data": {"$ref": "#/$defs/PersonalCreationBinding"}
-                      }
-                    }
-                  }
+            "recordClass": {
+              "const": "ordinary_commit"
+            },
+            "source": {
+              "const": "ordinary"
+            },
+            "outcome": {
+              "properties": {
+                "status": {
+                  "const": "committed"
                 }
               }
-            },
-            "requiredUses": {"maxItems": 0}
+            }
           },
-          "if": {"properties": {"source": {"const": "deployment_init"}}},
-          "then": {"properties": {"attemptedAppends": {"minItems": 3, "maxItems": 3}}},
-          "else": {"properties": {"attemptedAppends": {"minItems": 2, "maxItems": 2}}}
+          "not": {
+            "required": [
+              "attemptedAppends"
+            ]
+          }
         }
       ]
     },
     "WriterEpochEnvelope": {
       "allOf": [
-        {"$ref": "#/$defs/BaseEnvelope"},
+        {
+          "$ref": "#/$defs/BaseEnvelope"
+        },
         {
           "properties": {
-            "recordClass": {"const": "writer_epoch"},
-            "source": {"const": "writer"},
+            "recordClass": {
+              "const": "writer_epoch"
+            },
+            "source": {
+              "const": "writer"
+            },
             "operation": {
               "properties": {
-                "namespace": {"const": "core.writer"},
-                "operationId": {"type": "string", "pattern": "^epoch:[A-Za-z0-9_-]+:[1-9][0-9]*$"}
+                "namespace": {
+                  "const": "core.writer"
+                },
+                "operationId": {
+                  "type": "string",
+                  "pattern": "^epoch:[A-Za-z0-9_-]+:[1-9][0-9]*$"
+                }
               }
             },
             "appends": {
@@ -367,10 +535,22 @@
                 "properties": {
                   "stream": {
                     "properties": {
-                      "namespace": {"const": "core.writer"},
-                      "owner": {"const": "durable-records"},
-                      "scope": {"properties": {"kind": {"const": "system"}}},
-                      "streamId": {"const": "writer-epochs"}
+                      "namespace": {
+                        "const": "core.writer"
+                      },
+                      "owner": {
+                        "const": "durable-records"
+                      },
+                      "scope": {
+                        "properties": {
+                          "kind": {
+                            "const": "system"
+                          }
+                        }
+                      },
+                      "streamId": {
+                        "const": "writer-epochs"
+                      }
                     }
                   },
                   "records": {
@@ -378,13 +558,23 @@
                     "maxItems": 1,
                     "items": {
                       "properties": {
-                        "kind": {"const": "writer.epoch"},
-                        "version": {"const": "3"},
+                        "kind": {
+                          "const": "writer.epoch"
+                        },
+                        "version": {
+                          "const": "3"
+                        },
                         "data": {
                           "type": "object",
                           "additionalProperties": false,
-                          "required": ["epoch"],
-                          "properties": {"epoch": {"$ref": "#/$defs/Counter"}}
+                          "required": [
+                            "epoch"
+                          ],
+                          "properties": {
+                            "epoch": {
+                              "$ref": "#/$defs/Counter"
+                            }
+                          }
                         }
                       }
                     }
@@ -395,29 +585,51 @@
             "outcome": {
               "type": "object",
               "properties": {
-                "status": {"const": "committed"},
+                "status": {
+                  "const": "committed"
+                },
                 "result": {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": ["epoch"],
-                  "properties": {"epoch": {"$ref": "#/$defs/Counter"}}
+                  "required": [
+                    "epoch"
+                  ],
+                  "properties": {
+                    "epoch": {
+                      "$ref": "#/$defs/Counter"
+                    }
+                  }
                 }
               }
             },
-            "requiredUses": {"maxItems": 0}
+            "requiredUses": {
+              "maxItems": 0
+            }
           },
-          "not": {"required": ["attemptedAppends"]}
+          "not": {
+            "required": [
+              "attemptedAppends"
+            ]
+          }
         }
       ]
     },
     "OrdinaryConflictEnvelope": {
       "allOf": [
-        {"$ref": "#/$defs/BaseEnvelope"},
         {
-          "required": ["attemptedAppends"],
+          "$ref": "#/$defs/BaseEnvelope"
+        },
+        {
+          "required": [
+            "attemptedAppends"
+          ],
           "properties": {
-            "recordClass": {"const": "ordinary_conflict"},
-            "source": {"const": "ordinary"},
+            "recordClass": {
+              "const": "ordinary_conflict"
+            },
+            "source": {
+              "const": "ordinary"
+            },
             "appends": {
               "minItems": 1,
               "maxItems": 1,
@@ -425,9 +637,15 @@
                 "properties": {
                   "stream": {
                     "properties": {
-                      "namespace": {"const": "core.records"},
-                      "owner": {"const": "durable-records"},
-                      "streamId": {"const": "operation-outcomes"}
+                      "namespace": {
+                        "const": "core.records"
+                      },
+                      "owner": {
+                        "const": "durable-records"
+                      },
+                      "streamId": {
+                        "const": "operation-outcomes"
+                      }
                     }
                   },
                   "records": {
@@ -435,17 +653,27 @@
                     "maxItems": 1,
                     "items": {
                       "properties": {
-                        "kind": {"const": "operation.conflict"},
-                        "version": {"const": "3"},
-                        "data": {"$ref": "#/$defs/RevisionConflict"}
+                        "kind": {
+                          "const": "operation.conflict"
+                        },
+                        "version": {
+                          "const": "3"
+                        },
+                        "data": {
+                          "$ref": "#/$defs/RevisionConflict"
+                        }
                       }
                     }
                   }
                 }
               }
             },
-            "outcome": {"$ref": "#/$defs/GenericConflictOutcome"},
-            "requiredUses": {"maxItems": 0}
+            "outcome": {
+              "$ref": "#/$defs/GenericConflictOutcome"
+            },
+            "requiredUses": {
+              "maxItems": 0
+            }
           }
         }
       ]

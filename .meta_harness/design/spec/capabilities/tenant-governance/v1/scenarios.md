@@ -1,24 +1,21 @@
-# TG-01 统一个人租户创建规范场景
+# TG-01 个人租户创建规范场景
 
-本页是 `capability.tenant-governance@1` 的候选验收输入，不是已运行的测试或已接受规格。
-两个受信入口共用 personal-index claim、提交、操作认回与恢复状态机；它们各自的首次
-准入前态不同。[ACR-03～06](../../../compositions/account-registration/v1/contract.md)
-仍拥有跨 Account/Tenant 的激活结果。
+本页是 `capability.tenant-governance@1` 的候选验收输入，不是已运行测试。init 与 signup 共用 F→T/C→单目标流状态机；额外的首账号准入归 AI-08。
 
 | 场景 | 必须观察到的 Tenant 结果 |
 |---|---|
-| TG-P01 首次部署 | Tenant 权威未建立；Account 已耐久分配初始 `UserRef`、完成唯一凭据绑定和同 target 一次创建后果，受信 seed 与该来源绑定，CC-05 已核实并耐久导入；global personal-index、新 personal tenant/唯一 active owner 与 `tenant-bootstrap` 三流同批耐久，可消费后才开放 owner。 |
-| TG-P02 后续账号 | Account 已耐久确认凭据标识唯一绑定、`UserRef`、原操作/摘要和 target 的单操作授权后果，CC-05 已核实并耐久导入；personal-index 与目标 tenant 二流同批，**不**追加 bootstrap，完整发布后给同绑定可消费证明。 |
-| TG-P03 来源互冒 | 客户端 origin/owner/operationKind、旧 session、仅有 seed 字符串或 `UserRef`、较早 pending 分配或凭据碰撞，均不能取得新逻辑位置；init 凭据不能写注册二流，注册后果不能写 init 三流。 |
-| TG-P04 来源暂失 | 授权后果未核实或未耐久导入时新创建 unavailable/unknown；已导入后 Account 暂时失联、入口关闭、logout 或账号转 active 不撤销原后果，但本身不授业务访问。旧 provider generation 不取得新代写权。 |
-| TG-P05 同操作重入与异输入 | 同键同摘要/user/target/来源先认回同一历史占位或结果，即使部署已初始化或账号 active；可核实占位/耐久 outcome 下同键异摘要/user/target/来源冲突，不换目标。 |
-| TG-P06 唯一竞争 | 两个新操作争同一 user personal claim 或目标 tenantId，仅一份占用逻辑位置；不同账号各自获准时获得不同 personal tenant 与 owner，不因同一现实持有人合并。 |
-| TG-P07 逻辑先于耐久 | 占位封闭竞争，但 pending owner/member、管理资格和 ACR 激活证明不可消费；仅完整耐久前缀和全部 owner publication 后开放。 |
-| TG-P08 sync unknown / 回执丢失 | 原操作/target/claim 占位保留；暂时 `not_seen` 不授权第二批或新 target。独占完整前缀核实 committed 则认回；无法核实继续 unknown。 |
-| TG-P09 安全未提交 | 旧 writer 隔离且完整前缀证明未提交、全部占位安全解除后，只允许同操作/输入/target 重备；没有耐久 tombstone 时不声称已释放输入永久冲突。 |
-| TG-P10 publication blocked | 原 completion 为 `committed_blocked`，不开放 owner 或激活证明、不重发批次；新代全 owner 基线覆盖原位置后，本代查询另给可消费证明，历史 completion 不改写。 |
-| TG-P11 错配恢复 | 二/三流错批、错来源、错 user/target/creator/owner、第二有效 owner、重复 claim、撕裂或坏前缀均拒绝 ready；每条 stream 单独 decoder 成功不够。 |
-| TG-P12 历史与当前资格 | 原创建后租户 closing/closed，同操作只认回历史提交；当前业务拒绝，旧回执不恢复权限。关闭后不同新操作再建个人范围首版不开放，未来政策未决。 |
-| TG-P13 本创建的范围 | init 与注册的每次创建都只产生一份 personal tenant/唯一 owner，不附带组织成员；pending 身份不能凭创建回执使用个人或组织业务。独立组织入会的准入由其自身契约决定。 |
-| TG-P14 ready 后、账号 active 前的关闭竞争 | personal/owner 已耐久可消费，但 Account 仍 pending；同一 owner 的 close 或 owner 管理请求可达却在逻辑门拒绝，不预留激活后自动执行的位置。Account 耐久 active 后，同一 owner 新发请求方可排位；不需要额外 activation reservation。 |
-| TG-P15 个人 owner 守卫 | 异账号、seed/系统标签、无法核实 Account active 或 owner revision 的 close/管理请求拒绝或 unavailable；没有首版系统关闭绕过。`changeMember`/`removeMember` 不能暂停/移除个人唯一 owner，closing 后清理按 TG-03 收口。 |
+| TG-P01 首次部署 | Account 与 Tenant 根均权威核实为空；受信 init 取得初始 A、唯一凭据绑定和 F 后，Tenant 重算 target，T 在目标 tenant-scope 流空前态一次提交 personal tenant/唯一 active owner；本代可消费后才可激活。文件缺失或未恢复不算空根。 |
+| TG-P02 后续账号 | 首账号 active 且部署建立后，signup F 走同一 T/C 与一条目标流；无需其他 system stream，完整发布后给同绑定可消费证明。 |
+| TG-P03 来源互冒 | 客户端 origin/owner/operationKind、旧 session、seed 字符串、仅有 UserRef、未发行 F 的 pending 或凭据冲突均不能获得新逻辑位置。 |
+| TG-P04 Account 暂失与换代 | 未完成当代受信 F 读取时保持 pending；本代读完冻结 F 后 Account 实例暂失不撤销准备。host/owner/writer 换代须重读同一 F，旧准备不可提交。 |
+| TG-P05 同 T 重入 | 同 T/C 先认回原占位或结果；可核实占位或 outcome 下同 T 异 C、异 F 或异 target 冲突，不重跑首建前态。 |
+| TG-P06 两 F 同 UserRef | 两个不同 F 得不同 T 但同 target；只有一个 T 可成为目标流创建者，第二个明确冲突，不能以现有 tenant 认作自己的成功。 |
+| TG-P07 不同 UserRef | 不同 UserRef 注入式映到不同目标流；两者可独立提交，不因同一 OS 用户或磁盘根争一份全局索引。 |
+| TG-P08 F 同 ref 异内容 | 受信服务对相同 sourceRef 返回不同字段，Tenant 封闭创建并报完整性错误；不能换 T 或 target。 |
+| TG-P09 逻辑先于耐久 | T 占位封闭目标竞争，但 pending owner、管理资格和 ACR 激活证明不可消费；完整耐久及全 owner publication 后才开放。 |
+| TG-P10 sync unknown／回执丢失 | 原 T/C/target 占位保留；暂时 not_seen 不授权第二批。独占完整前缀核实 committed 则认回，否则继续 unknown。 |
+| TG-P11 安全未提交 | 旧 writer 完整前缀证明 T 未提交且占位安全解除后，仅同 T/C/target 重备；不虚构永久异输入冲突。 |
+| TG-P12 publication blocked | 原 completion 保持 committed_blocked；新代全 owner 基线覆盖原位置后另给可消费证明，不重提批次或改历史结果。 |
+| TG-P13 错配恢复 | 单目标流错来源、错 T/C、错 user/target/creator/owner、第二有效 owner、撕裂或坏前缀均拒绝 ready。 |
+| TG-P14 历史与当前资格 | 原 T 已提交、租户后来 closing/closed 时，只认回历史结果；当前业务拒绝，旧回执不恢复权限。 |
+| TG-P15 owner 管理守卫 | 个人 owner 创建 ready 而账号仍 pending 时 close/管理请求拒绝且不占后来位置；active 后新请求才可排位。异账号、seed/系统标签、缺当前证明、普通成员操作移除唯一 owner 均拒绝。 |
