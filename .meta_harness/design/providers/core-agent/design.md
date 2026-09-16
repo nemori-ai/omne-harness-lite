@@ -20,6 +20,8 @@
 
 独立能力维度对应独立 Registry/实例插件边界；identity 数据本身不成为插件。binding 的共同提交由 Host 组合边界实现，不造第四个转发服务。
 
+应用在同一协调权威内只创建一份 `AgentHost`；重复绑定拒绝 `authority_already_bound`，多个 Cordis Context 复用原 Host。Host 以完整 `SessionRef` 元组索引，`incarnationId` 采用跨重启不复用的分配依据；旧句柄不能跨恢复解析为新实例。这是 ARI-2/3 与 AR-4 的提供者责任，不能靠进程内单字符串键或计数器兑现。
+
 ## 依赖、Context、事件与绑定
 
 | 依赖 | 解析和范围 | 工作绑定 | 缺席/撤除 |
@@ -28,6 +30,10 @@
 | Session attachment | `SessionAttachment` 由 Session provider 注册 | 精确 registration/generation + AgentRef | revoke 关准入；release unknown 保留责任 |
 | Factory/driver | scope 内受管贡献，activate 明确选择 | 每次实例/工作固定实际 binding | 先阻止新使用并排空原使用者，再卸载 |
 | admission/diagnostics | Registry 插件 required inject 的基础能力 | 实际 host/mount generation | provider 丢失封闭受影响准入，不复活旧实例 |
+
+Registry、Factory 贡献及实例的受信 `apply` 捕获真实 `c.fiber`、本次 mount generation 和精确 registration；`ctx.plugin` 的 PromiseLike 返回值只用于 await/dispose，不用其 uid 或内部包装识别当前实例。最后的激活、工作与撤除门直接核对原 provider 的代次和真实存活：同 Fiber 再次 ACTIVE、同名服务重装或 consumer 仍 ACTIVE，都不能让旧闭包重新获得资格。注册管理能力只交受信装配/贡献者，旧撤回器只作用原 registration。
+
+应用从唯一 AdmissionHost 向 AR 交付一份 `createUseIssuer("agent")` 发行能力；AR 不转交 issuer。AR 在真实资源 pin 与共同准入门内建立绑定原 AgentRef、Run epoch 和实际装配的 ExactUse，结算或具名接管后才解除；Session 的 `requiredUses` 引用该原使用关系，而不是凭可序列化的 binding 重新发行许可。
 
 `activated`/`disposed` 是带精确 AgentRef 的进程内已提交事实通知，不是耐久日志或授权。Context 可达性和 initiator 只提供组合/归因，均不得绕过操作门。
 
@@ -53,6 +59,8 @@ Host 是 SessionRef→记录、发号与账目的写权威。activate 首次提�
 | Registry 插件与 Host mount | 应用装配；required 依赖满足后 provide | 不发布服务或保留可诊断失败 | 先封闭所有新准入，等待实例收口，再释放 mount |
 | Factory binding | 注册插件；登记成功后可被精确选择 | 原 registration 自行收口 | retire 关新 activate，等待 preparing/ready 使用者，旧 disposer 不碰新绑定 |
 | 私有实例资源/attachment/driver | 稳定 runtime owner；共同 ready 发布且激活审计耐久后业务可用 | 预先登记回收，晚到资源归原尝试；审计失败关新工作 | 静止、移交、反向依赖释放、attachment release，最后撤占位 |
+
+实例退出由同一个复合清理过程按 AR-12/CB-12 推进：先关新工作，持有 Run 时让 Run owner 耐久封闭原 epoch；待 TL 等独立 owner 确认结算或接管，再由 AR 解除工作使用，等驱动真实静止后按反向依赖释放资源与 attachment。失败项保留原资源身份、清理函数、错误与安全重试条件；超时、Context disposed 或本地表空都不释放占位。宿主替换须先收口原账目并完成 CC-06 同水位恢复，不建立并行的第二活体权威。
 
 ## F↔L/S 已确定交接
 

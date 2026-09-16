@@ -31,7 +31,7 @@ A-12（legacy source: `../../../docs/proposals/session-run-agent-lifecycles/READ
 
 | 插件 | 服务键 | required inject | 职责 |
 |---|---|---|---|
-| `SessionPlugin` | `omneSession` | `omneAdmission`、`omneRecords`、`omneDiagnostics`、`omneIdentity`、`omneTenant`、`agents` | session / queue / inbound 三条流的 owner；§4～§7 的操作面；附着提供者；状态贡献注册面；读面 |
+| `SessionPlugin` | `omneSession` | `omneAdmission`、`omneRecords`、`omneDiagnostics`、`omneIdentity`、`omneTenant`、`agents` | session / queue / inbound 三条权威流与 `frames(S)` 第四条流的登记/保留边界；frames 的事实由 Tools owner 写入；§4～§7 的操作面、附着、状态贡献及读面 |
 | `InboundAdjudicatorPlugin` | `omneInboundAdjudicator` | `omneSession`、`omneRun`（`readRun`、`waitingPositions`）、`omneAdmission` | §7.3 的裁决算法；启动扫描（SE-18（legacy source: `../../../spec/capabilities/session/v1/contract.md`）），扫描完成是调度者重取的前提 |
 | `SessionSchedulerPlugin` | `omneSessionScheduler` | `omneLifecycleCompositions`、`omneSession`、`omneRun`、`agents`、`omneInboundAdjudicator`（扫描完成信号） | §8 的铃与判定；先找 ready 实例再 `agents.activate`；不轮询 |
 | `LifecycleCompositionsPlugin` | `omneLifecycleCompositions` | `omneSession`、`omneRun`、`omneAdmission`、`agents` | §9 的具名组合，每个是普通代码里的一次 batch 提交；协调者只管提交，不登记组合名 |
@@ -42,8 +42,10 @@ A-12（legacy source: `../../../docs/proposals/session-run-agent-lifecycles/READ
 候选默认入口 `@omne-harness-lite/session` 导出 `createSessionHost`、上述插件、公共事件
 decoder 与纯 fold、提交面与读面类型。应用单次创建 host；同一 coordinator 重复创建返回
 `authority_already_bound`；第二 Context 复用原 host。先由 persistence（legacy source: `../persistence/design.md`）
-在同一 Watermark 校验纯 fold、跨记录关系、必需状态贡献与定义/配置兼容性，再 provide；
-坏前缀或未知必需事件不默认空；投影可读不证明恢复完成。
+在同一 Watermark 校验纯 fold、跨记录关系、必需状态贡献与定义/配置兼容性，生成未发布的 Session 候选根；
+CC-06 受信恢复宿主须把它与 Run、M 及清单内全部 required owner roots 在同一 domain/watermark/generation
+原子安装，才可开放 `omneSession` 的可用读/写面。单个 Session fold 或插件 provide 不构成恢复发布；
+坏前缀或未知必需事件不默认空；投影可读不证明工作恢复完成。
 
 ## 2. 对象、流与事件
 
@@ -83,13 +85,13 @@ tenant 或输入即冲突。
 （LC-02（legacy source: `../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md`））。Run、Step、
 epoch、控制与等待位置归 run 包（legacy source: `../run/design.md`）。
 
-### 2.3 三条流
+### 2.3 四条流
 
-记录 owner 固定 `session`；tenant-scoped stream 为 `session(S)`（目录、生命周期、hold、
+Session 权威事实的记录 owner 固定 `session`；tenant-scoped stream 为 `session(S)`（目录、生命周期、hold、
 状态贡献注册）、`queue(S)`（队列项内容、修订、顺序、取用）、`inbound(S)`（arrival 的受理、
 裁决、消费、context 水位；用户裁决
-U-22（legacy source: `../../../docs/proposals/session-run-agent-lifecycles/README.md#裁决记录2026-09-14用户`））。
-一个 batch 每条流至多一条 append，修订每 batch 加一。四条流（含 `run(R)`）首版同一
+U-22（legacy source: `../../../docs/proposals/session-run-agent-lifecycles/README.md#裁决记录2026-09-14用户`）），以及 `frames(S)`（Session 登记、Tools 执行 owner 写入、按 Session 治理保留的耐久帧；帧身份/读面归 TL-12）。
+一个 batch 每条流至多一条 owner append，修订每 batch 加一。五条流（含 `run(R)`）首版同一
 协调域（CC-01（legacy source: `../../../spec/compositions/core-work-coordination/v2/contract.md`））。持久格式
 语言与后端无关：流身份、envelope 与事件词汇在 DR-01（legacy source: `../../../spec/capabilities/durable-records/v1/contract.md`）
 的记录模型层；JSONL 只是 DR-04（legacy source: `../../../spec/capabilities/durable-records/v1/contract.md`） 的一个提供者。
@@ -132,6 +134,7 @@ commit position 水位记住已处理前缀，只是加速，权威仍是门内�
 | inbound | `inbound.arrival.converted{arrivalId, item}` / `inbound.arrival.closed{arrivalId, reason}` / `inbound.arrival.withdrawn{arrivalId}` | converted 与 Run 终态同提交（SE-17（legacy source: `../../../spec/capabilities/session/v1/contract.md`）） |
 | inbound | `inbound.arrival.refused{source, dedupKey, reason: refused_capacity}` | 记录拒绝，不占 arrivalId |
 | inbound | `inbound.context.advanced{watermark, lowerBound}` | SE-16（legacy source: `../../../spec/capabilities/session/v1/contract.md`） |
+| frames | TL-12 定义的帧事实 | Tools owner 写入；Session 只登记同域位置、默认耐久及随 Session 治理的保留边界，不在此另造同义事件词汇 |
 | session（审计） | `session.operation.denied{operationKind, target, code, observed}` | 独立审计流，披露按读权裁剪 |
 
 去掉的词汇：`driver_reserved` / `driver_released` / `epoch_parked`（占位派生，
@@ -150,7 +153,9 @@ spec/data（legacy source: `../../../spec/data/README.md`） 的风格具体设�
 `inbound(session, filter)`（按 state / intent / refs 查 arrival，供裁决者与驱动器读
 classified 且未消费的 continuation、审批就绪、context 水位）、`contextWindow(session)`
 返回 `(lowerBound, watermark]`。读面在披露时再查权限；权限丢失关闭订阅的新披露。
-不导出 raw RecordReader。
+`visibilityVersion(session, subject)` 由当前 TG 成员与该 Session/请求的授权投影导出，供
+SessionProjection 的游标/全量重取判断；不把版本号当读权。帧正文由 TL-12 读面按
+`read_content` 与同水位位置披露。本包不导出 raw RecordReader。
 
 ## 3. 生命周期状态机
 
@@ -234,6 +239,9 @@ force_stop。
 发起 Run；调用方式等工具设计，见 §14）；human_answer 与 provisional_outcome 来自 HD；
 gate_restored 来自 BG 与依赖可用性提供者，仅当存在等待该门的 Run；connector_* 与
 schedule_due 来自连接器与日程提供者；cross_session_message 来自另一 Session 的工具调用。
+`system` 是 superseded Run 收口同批受理的工作清单，无等待 refs、固定 context；
+`hook_continuation` 是已完成 Run 的 hooks 续跑，固定 queue/trigger 并在取用时重查来源，
+不因同 Session 另有活动 Run 改判。这两类内部来源不能伪装成普通用户输入或占用外部容量。
 
 ### 7.2 裁决与消费的状态机
 
@@ -259,16 +267,16 @@ stateDiagram-v2
 ### 7.3 意图路由（裁决者算法）
 
 裁决者对每条 accepted 的 arrival 做一次短提交：门外读 arrival 与 Session；门内用
-`omneRun.readRun` 读被 refs 引用的 Run（call_settlement 读发起 Run，不是当前占位 Run），
-用 `omneRun.waitingPositions` 判断是否仍在等待该位置，再按
-SE-14（legacy source: `../../../spec/capabilities/session/v1/contract.md`） 的决定表落 intent。判定列：
+`omneRun.readRun` 读 refs 指向的**原发起 Run**（call_settlement 不读当前恰好占位的 Run），
+用 `omneRun.waitingPositions` 核对原 Run 的开放登记，再按当前
+SE-14（legacy source: `../../../spec/capabilities/session/v1/contract.md`） 的决定表落 intent。判定顺序先 Session 非 open（D2），再原 Run cancelled/stopping（D1），然后原 Run 的开放登记（A）、原 Run 或 Session 的活动 Run（B），最后 C；不得借同 Session 的另一个活动 Run 冒充原来源。
 
 | 列 | 条件 |
 |---|---|
-| A | 被引用 Run 非终态且尚在等待该位置（interrupted Run 保留其等待位置，RN-04（legacy source: `../../../spec/capabilities/run/v1/contract.md`）） |
-| B | 被引用 Run 非终态但已不在该位置等待；或无引用而当前占位 Run 非终态 |
-| C | 被引用 Run 为 completed/failed；或无引用且 Session 无 Run；或调用没有发起 Run |
-| D1 | 被引用 Run 为 cancelled 或 stopping，Session open |
+| A | 原发起 Run 为 running/waiting/interrupted，且相应 holder 仍有开放登记；call/gate readiness 的注销在本次裁决同批 |
+| B | 原发起 Run 为 running/waiting/interrupted 但不在该位置等待，或 Session 另有活动 Run；`provisional_outcome` 的一次接续只可指向仍非终态的**原发起 Run** |
+| C | 原发起 Run 为 completed/failed/superseded 或不存在，且 Session 无活动 Run；若原 Run 已终态但 Session 另有活动 Run，`provisional_outcome` 一次接续也按 C 后果处理，不借指后者 |
+| D1 | 原发起 Run 为 cancelled（含 force_stopped）或 stopping，Session open |
 | D2 | Session 已 archived/deleted |
 
 落点（同一提交内的记录）：
@@ -276,10 +284,16 @@ SE-14（legacy source: `../../../spec/capabilities/session/v1/contract.md`） �
 | intent | 记录 | 后续 |
 |---|---|---|
 | queue | `inbound.arrival.classified{queue}` + `queue.item.enqueued{kind: trigger, arrival}`（用户输入已在 enqueue 时入队，只记 classified） | 调度者响应队列变化的铃 |
-| continuation | `inbound.arrival.classified{continuation, observedRun}` | 驱动器在下一次 Step 收束判定或开 Step 时消费；审批型答复是审批就绪，由批准消费处理 |
+| continuation | `inbound.arrival.classified{continuation, observedRun, readiness}`；A 列 call_settlement 同批合并 Run owner 的 `run.wait.released{call,settled}`，gate_restored 同批合并 `run.wait.released{gate,passed}`；approval/provisional 不释放承载调用的登记 | 驱动器只消费已裁决就绪；B 列 provisional 一次接续固定 `refs=run` 指向非终态原 Run，在下一 Step 收束时就绪，不借指另一个活动 Run |
 | context | `inbound.arrival.classified{context}` + `inbound.context.advanced{watermark+1}` | 不启动、不唤醒；开 Step 时读水位入切点 |
 | control | 不生成 arrival 项；映射为 §5 的 `interrupt_then_run_accept`（connector_condition 按 policy）或 Run 控制 | — |
 | closed | `inbound.arrival.closed{cancelled_run \| isolated \| closed_by_archive \| closed_by_delete \| refused_origin_cancelled}` | 不复活 |
+
+`system` 仅形成 context；`hook_continuation` 仅形成 queue/trigger（其来源必须是已完成的原 Run），
+其判定不套用上表 A/B/C 的开放登记含义。`provisional_outcome` B 列的 Run 级例外
+沿已澄清的 SE-14：原 Run 已终态时按 C 的 queue/converted 后果，即使另有活动 Run。
+同批 wait release 由 Run owner 无副作用 preparation 产生并在 CC submit 复核，Session 裁决者只合并，
+不能自行制造 `run.*` 事实；approval/provisional readiness 不提前注销 call wait。
 
 裁决与被引用 Run 的终态转移在同一协调域全序（LC-04 行 9（legacy source: `../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md`））：
 首版同域，门内读到的 Run 状态就是当前状态；`continuation` 只指向裁决时非终态的 Run。
@@ -307,7 +321,7 @@ context 意图的 arrival 按受理序号形成 Session 级序列；开 Step 读
 Run 终态、hold 解除、arrival 判为 continuation 或审批就绪、epoch 封闭、门恢复、resume。
 每次铃的处理：
 
-1. 门外读 Session、队列头、hold、`omneRun.listPlaceholder`、占位 Run 的执行者是否为空、
+1. 门外读 Session、队列头、hold、`omneRun.listPlaceholder`、任一 RN-05 派生 barrier、占位 Run 的执行者是否为空、
    裁决者是否已完成本 Session 的扫描。
 2. 判定：无占位 ∧ 队列非 hold ∧ 无 RN-05 派生 barrier ∧ Session open ∧ 队首合格 ∧ 无未裁决 arrival → 取批 /
    取命令 / 取 trigger；占位在 ∧ 执行者空 ∧ 有可干的事（就绪 continuation、审批就绪、
@@ -315,6 +329,11 @@ Run 终态、hold 解除、arrival 判为 continuation 或审批就绪、epoch �
 3. 先查该 Session 是否有 ready 实例；有则经受限 Handle 交驱动；无则 `agents.activate`
    （SE-15（legacy source: `../../../spec/capabilities/session/v1/contract.md`）、LC-07（legacy source: `../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md`））。
 4. 调用 §9 的组合提交；门内重读上述条件，变化即放弃本次，等下一次铃。
+
+占位 Run 仍由驱动持有且处于 waiting 空闲点时，合格队首 text 由**该驱动器**按 RD-18
+取入既有 Run；Session 调度者不越过它启动新 Run，也不把 command/trigger 取入既有 Run。
+取入前同样重核 hold、RN-05 barrier、队首与受理后守卫；该 take 与下一个 Step 切点在
+§9 同一 batch，Run basis/epoch/占位不变。来源失效的 trigger 由取用者在另一条 take 路径按其契约处理。
 
 不轮询；铃丢失由启动扫描兜底（同一趟扫描先裁决后调度）。判定只读已提交事实与
 派生关系，不据通知推进。
@@ -331,6 +350,7 @@ Run 终态、hold 解除、arrival 判为 continuation 或审批就绪、epoch �
 | 组合 | 参与 owner 与记录 | LC-04（legacy source: `../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md`） 行 |
 |---|---|---|
 | `take_batch` / `take_command` / `take_trigger` | 合并 queue owner taken、Run owner create+initial issue、AR pinWork preparations；trigger 项另核来源权威。组合者不制造 Run facts | 3 |
+| `take_batch_into_waiting` | 驱动器判定 RD-18 空闲点，合并 queue owner 的 `queue.items.taken{into: RunRef}` 与 Run owner 的下一 `run.step.opened{cutpoint}` preparation；该切点记本次 supplement 依据，复用原有效 epoch/WorkPermit，不创建 Run、不发行 successor；队首 command/trigger 拒绝此形态 | 3（既有 Run） |
 | `run_settle` | 合并 Run owner `prepareTransition{terminal}`（owner 对 open epoch 准备唯一 close，已 closed 返回原 epochClosureRef）与 inbound continuation converted/closed preparation；组合者不制造 Run facts | 4 |
 | `session_archive` / `session_delete` | session：`session.lifecycle.changed`；queue：未取批项 closed；inbound：accepted 与 classified 未消费者 closed；门内读 Run 状态作前提 | 1 |
 | `session_force_stop` | 合并 Session owner 的 `session.hold.set` preparation 与 Run owner 的 `prepareTransition{force_stop}`；CC submit 同时复核双方 guard，组合者不制造 `run.*` | 2 |
@@ -386,7 +406,7 @@ blocksDiscard=false；provider 缺失或重建未完为 unavailable / complete=f
 
 | 效应 | 所有者 | 撤除与完成判据 | 保留 |
 |---|---|---|---|
-| `omneSession` 服务与三条流 owner 登记 | SessionPlugin | 关新操作 → 等在途提交 completion → 撤服务；authoritative 贡献不删记录 | 三条流全部事实 |
+| `omneSession` 服务、三条自写流与 `frames(S)` 登记 | SessionPlugin；帧事实由 Tools owner 写入 | 关新 Session 操作并等在途提交 completion；帧写入须遵守原 Tools owner 的在途/撤除协议，Session 卸载不删除任何流事实 | 四条流已提交事实按 Session 治理保留 |
 | 裁决者订阅与扫描任务 | 裁决者插件 | 取消订阅、等当前短提交结束；未裁决 arrival 留在 accepted，重装后扫描 | arrival 事实 |
 | 调度者订阅与开机扫描 | 调度者插件 | 取消订阅；进行中的 activate 由 AR 账目收口 | 占位 Run 与队列 |
 | 具名组合 | 组合者插件 | 关新组合 → 等在途 batch → 撤服务 | 已提交 batch |
@@ -426,9 +446,10 @@ blocksDiscard=false；provider 缺失或重建未完为 unavailable / complete=f
 
 ## 15. 恢复、投影与可观测性
 
-恢复顺序归 persistence（legacy source: `../persistence/design.md`）（完整 records 前缀同步/校验 → 从同一水位 fold Session/Run/等待与裁决视图 → accepted-arrival 裁决扫描 → 在途核实 → 当前兼容/资格重核 → 最终联合准入发行 epoch/WorkPermit → 调度进入驱动）；历史读面可在校验后带
-水位开放。状态贡献注册面沿 SE-10（legacy source: `../../../spec/capabilities/session/v1/contract.md`）：
-authoritative 贡献（三条流、Inbound、context 水位）只经具名操作更新；projection 贡献
+恢复顺序归 persistence（legacy source: `../persistence/design.md`）：完整 records 前缀同步/校验 → 同一水位 fold 全部 required owner roots 与跨 owner 关系 → CC-06 恢复宿主原子安装共同基线并处理遗留 claim → 裁决者以正常提交清空 accepted arrivals → 在途 attempt 核实 → 当前兼容/资格重核 → 最终联合准入发行 epoch/WorkPermit → 调度进入驱动。共同基线开放不跳过后面的工作门；历史读面须在完整基线发布后按已验证水位与当前读权开放。状态贡献注册面沿
+SE-10（legacy source: `../../../spec/capabilities/session/v1/contract.md`）：
+authoritative 贡献（Session 自写的三条流及 context 水位）只经具名操作更新；`frames(S)`
+由 Tools owner 写入并在 Session 治理下保留；projection 贡献
 （列表、历史 surface、队列展示、驱动位置 reducer）由 projection（legacy source: `../projection/design.md`）
 按 fold 重建，投影缓存只加速。各运行 owner 注入 Diagnostics；准备、准入、耐久确认、
 等待、控制、恢复与清理分别留阶段；正文、工具参数与秘密不进普通 log；通知与诊断失败
@@ -436,7 +457,7 @@ authoritative 贡献（三条流、Inbound、context 水位）只经具名操作
 
 ## 16. 实施与验证
 
-实施顺序：三条流的 decoder/fold 与 `SessionPlugin` 的操作面 → 裁决者与扫描 → 组合者
+实施顺序：三条 Session 自写流的 decoder/fold 与 `SessionPlugin` 的操作面、`frames(S)` 与 Tools owner 的同域登记 → 裁决者与扫描 → 组合者
 （先 `take_batch` 与 `run_settle`）→ 调度者 → link 插件。验收沿
 Session 验证范围（legacy source: `../../../spec/capabilities/session/verification.md`）的场景映射：
 LC 场景（legacy source: `../../../spec/compositions/session-run-agent-lifecycles/v1/scenarios.md`） S01～S12、

@@ -2,7 +2,7 @@
 
 ## 采用接口
 
-提供者消费 `capability.durable-records@1` 的精确候选坐标。目标是消费受限 `RecordReader`/Watermark/decoder 的纯恢复过程，不提供 Cordis 服务或 writer；`recoverSession` 尚未实现，当前默认入口只有 `/baseline`。
+提供者消费 `capability.durable-records@1` 与 `composition.core-work-coordination@1` 的精确候选坐标。目标是消费受限 `RecordReader`/Watermark/decoder 的纯恢复过程，不提供 Cordis 服务或 writer；`recoverSession` 尚未实现，当前默认入口只有 `/baseline`。
 tenant、operation、因果、epoch、修订与资源所有者必须显式；有状态资源的实际 owner 在撤除时先封闭新使用并收口已有责任。
 
 ## 当前实现与缺口
@@ -35,12 +35,14 @@ evidence_unavailable。仍在服务范围却缺 projection 输入必须 fail una
 | 阶段 | 目标责任 | 当前状态 |
 |---|---|---|
 | 输入 | 获准 reader、已同步 Watermark、decoder/fold 与精确版本表 | 目标接口，默认入口当前只有 `/baseline` |
-| 恢复 | 从同一已核实完整前缀与精确 watermark 重建 Session/Run/M 等受信装配清单中全部 required owner roots；每个 root 带 owner generation/来源范围，交 Admission recovery host 原子安装；任一缺失、旧代、不同水位或跨 owner 关系不闭合则 fail closed | `recoverSession` 尚未实现 |
-| 顺序 | records 扫描→各 owner fold→关系校验→裁决扫描→投影→attempt 核实→当前资格→调度 | 设计顺序，未有产品恢复测量 |
+| 纯恢复 | 在一个已核实完整前缀与精确 watermark 上，调用受信清单内各 owner 的 decoder/纯 fold 生成全部候选 durable roots，并核验版本、跨 owner 关系及来源范围；`recoverSession` 只返回这些候选和诊断，不自行提交 arrival、发行 epoch 或安装可见根 | `recoverSession` 尚未实现 |
+| 联合发布 | Admission recovery host 核验全部 required owner generations、旧 ExactUse/资源 claim、新 writer epoch 与 host generation，在一个短门中原子安装所有根及共同消费水位；任一缺失、旧代、不同水位或关系不闭合则 fail closed | 恢复宿主符合性未验证 |
+| 工作恢复 | 联合基线已可消费后，裁决者通过正常 CC 提交清空 accepted arrivals；原执行 owner inspect/subscribe 在途 attempt，重核当前资格/兼容性，最后联合准入才发行 epoch/WorkPermit 并进入驱动。裁决扫描可以写入，但不属于只读 `recoverSession`；工作门在它完成前保持关闭 | 设计顺序，未有产品恢复测量 |
 | 清理 | 成功/取消/失败释放本次 reader use；host generation 防晚到安装 | writer/锁最终释放仍归宿主 |
 
 恢复 publication 不由单个 Session root 成功决定：受信 Admission recovery host 验证全部 required owners、
 旧 ExactUse/资源 claim 处置、新 writer epoch 与 host generation 后，才将同一完整 baseline 原子发布并 reopen。
+这里的 reopen 只使已核实基线及受限裁决提交可用，不替代 SE-11 的扫描、attempt 核实和最终工作准入；若任何旧 claim 仍可能承载外部效果且未被具名接管，CC-06 继续阻止 reopen。
 旧 host/owner generation 的迟到安装 ack 不影响新代；原 `committed + publication=blocked` completion 原件不改。
 基线覆盖该原 position 后，新代 lookup 才可另报 `consumable{originalCompletion,baselineRef}`，不重发事实、
 广播或 receipt；consumable 也不准自动重发旧模型/工具 attempt，仍需 CC-06 当前资格、墓碑与 inspect 核实。

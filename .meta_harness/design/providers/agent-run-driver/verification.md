@@ -14,3 +14,5 @@ terminationIntent 拒绝，operation lookup 只认 committed 结果。`settled(u
 
 恢复/发布场景须覆盖 Session root 成功但 Run root 失败时仍不可见；旧 generation ack 无效；已安装完整
 baseline 后原 operation 可消费但原 blocked completion 不改，旧外部 attempt 不重复执行。
+
+L/M 联合验收还需固定 `omneModelExecution` 的实际 registration/generation：M 缺席拒新 attempt，旧 attempt 的 inspect、费用及 unknown 仍由原 M owner 收口；`awaitQuiescent` 在无 prepare/监听但存在未移交后代或无法确认的 start 时必须 blocked，独立 owner 可追溯接管后才成功。RD-18 场景须观察 waiting Run 取入 text 与下个 Step 同批、Run/epoch 不新建，command/trigger 不进入此路径。

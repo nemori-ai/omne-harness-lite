@@ -17,3 +17,4 @@ DR/CC 协调验证还须固定首次 `created + epoch.issued + state.changed` �
 接受、=3 冲突；跨流 prepare 顺序不影响 canonical envelope/eventId，prepare correlation 不能冒充最终事实身份。
 恢复不能仅凭 Run fold 公布可用性，必须与 Session 等 required owner roots 在精确 watermark 同代安装，
 并由新代 lookup 而非重发事实消解旧 blocked publication。
+还须注入单 Run root 已 fold、Session/M 等任一 required root 未能共同安装的窗口：`omneRun` 的读面和提交面都不可暴露该局部根，修复后只在同 domain/watermark/generation 的联合发布点开放。

@@ -36,9 +36,11 @@
 Factory 贡献登记到 `agents`（AR 的 `registerFactory`，AR-8（legacy source: `../../../spec/capabilities/live-agent/v1/contract.md`）），
 并把 reducer 登记到 `omneSession` 的状态贡献面。required inject：`agents`、`omneRun`、
 `omneSession`、`omneLifecycleCompositions`、`omneAdmission`、`omneRecords`（只读）、
-`omneTools`、`omneHumanDecisions`、`omneBudget`、`omneAuthorization`、`omneDiagnostics`。
+`omneModelExecution`、`omneTools`、`omneHumanDecisions`、`omneBudget`、`omneAuthorization`、`omneDiagnostics`。
 它不 inject `omneSessionScheduler` 与 `omneInboundAdjudicator`：驱动器被调度者交付 Run，
 不反向调用调度。
+
+`omneModelExecution` 是当前 M 提供者的候选服务键；Factory 必须固定实际 M registration/generation 与受限 prepare、dispatch、inspect/subscribe、settle 端口后才交付可工作实例。M 缺席时不接纳新模型 attempt；旧 attempt 的结果和费用仍由原 M owner 追踪。该绑定与媒体引用可达性、预算准入一起按 RD-04/08 在当前门核对，目标接口和真实实现仍待 L/M 联合验证。
 
 | 约定 | 值 | 依据 |
 |---|---|---|
@@ -56,10 +58,9 @@ Factory 为每个活体实例准备一个实例驱动（D-013 消费方式），
 `requestRetire` → 驱动器到安全边界请求 `omneRun.prepareTransition{yield}`，由 Run owner 准备唯一封闭 →
 `awaitQuiescent` 返回后 AR `releaseResources`。热宽限到期仍有前台执行时按 interrupt
 收口并记 `yield_forced`（RD-14（legacy source: `../../../spec/capabilities/run-driver/v2/contract.md`））。
-静止判据：无在途 prepare、无未回执的 attempt start、监听已撤。
+`awaitQuiescent` 的成功判据是：在途 prepare 已归原尝试、start 已认回且其工作已结算或由独立 owner 确认接管，实例拥有的未移交后代已结算，驱动不再发起新业务操作，监听已撤。没有未回执 start、取消等待或撤监听本身都不能证明静止；无法确认 start/接管者由 AR 原账目保留并返回 blocked/remaining，不把外部 unknown 改成停止成功。
 
-`decide(view) → intent` 是纯函数：view 由 run 流 fold、Inbound 读面与 TL/HD/MC 非结算
-视图组合；intent 是一次 prepare 的输入，提交由协调者裁决。广播只是铃：驱动器收到
+`decide(view) → intent` 是纯函数：view 由同一已提交前缀的 Run/等待登记、Inbound 已裁决到达、context 水位、队首候选项，以及 TL/HD/M/BG 的当前读面组合；既有 waiting Run 的文本取入由本驱动器在 RD-18 空闲点判定，向 Session/Run owner 请求同批 preparation。intent 是一次 prepare 的输入，提交由协调者裁决。广播只是铃：驱动器收到
 铃后重读 view 再 decide，不据通知推进；铃丢失由调度者的开机扫描兜底。
 
 ## 兼容性声明

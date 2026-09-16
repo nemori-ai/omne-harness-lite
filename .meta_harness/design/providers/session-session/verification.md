@@ -17,3 +17,7 @@ expected=3 冲突；相反跨流 prepare 顺序产生同一 canonical envelope/e
 代 ack 不影响新代，恢复后原 blocked completion 原件不变，新 lookup 仅带 baselineRef 认回且不重复执行 attempt。
 
 扫描分页按完整 DR commitPosition 批，不按 `(stream,seq)` 或 fact count 切；单批超页大小整批独占，复扫幂等且跨 owner 关系不被半批水位掩盖。
+
+新增跨边界场景：`frames(S)` 与 Session 三条权威流、Run 流在同域按提交位置对齐；Tools 是帧事实 writer，Session 治理保留期和当前 `read_content` 控制披露。单 Session root fold 成功不开放读/写面，只有 CC-06 全 required roots 同水位原子发布后才可用；随后 accepted-arrival 扫描完成前不发 epoch。
+
+SE-14 裁决矩阵至少固定：A 列 call settlement 与 call wait release 同批，gate restored 与 gate wait release 同批，approval/provisional readiness 不释放 call wait；B 列原发起 Run 非终态的 provisional 一次接续保持 `refs=run`，无开放登记也可在下一 Step 就绪；原 Run 已 completed/failed/superseded、同 Session 另有活动 Run 时按 C 的 queue/converted，不借指新 Run。`system` 只进 context，`hook_continuation` 只进 queue/trigger，后者在 take 前来源失效时结算 `closed(source_invalid)` 并记录。RD-18 取入合格 text 时只在 waiting 空闲点合并 queue taken 与下一 Step，保留原 Run/epoch；command/trigger、RN-05 barrier 或 hold 均不得误走此路径。

@@ -28,8 +28,7 @@
 `omneDiagnostics`、`omneIdentity`、`omneTenant`、`agents`（AR 的 `checkWork`）。
 **不 inject `omneSession`**（作者裁决 A-12（legacy source: `../../../docs/proposals/session-run-agent-lifecycles/README.md#作者裁决`））：
 凡需要同时改 Session 与 Run 的操作由 Session 包的组合者（legacy source: `../session/design.md#1-插件与服务`）
-注入双方端口后一次 batch 提交。options 接 persistence（legacy source: `../persistence/design.md`） 恢复
-校验后的 run 流 fold 结果与水位；先校验再 provide，坏前缀不默认空。
+注入双方端口后一次 batch 提交。options 只接收 persistence 与 Run owner 在完整前缀上生成、尚未对外发布的 run 候选根及其水位/版本依据。RunPlugin 可在受信装配中登记该候选，但 `omneRun` 读面和提交面须等 CC-06 恢复宿主把 Run、Session 及清单内全部 required owner roots 在同一 domain/watermark/generation 原子安装后才能开放；单独的 run fold 成功不得先 provide 可用状态，坏前缀不默认空。
 
 Run 提供者拥有 tenant-scoped stream `run(R)`（RN-01（legacy source: `../../../spec/capabilities/run/v1/contract.md`）），
 一个 batch 至多一条 append。流身份、envelope 与事件词汇在 DR-01 的记录模型层定义，
