@@ -30,6 +30,11 @@
 - [D-005：以受管能力构成 Agent 运行时](agent-runtime/README.md)
 - [D-006：DSH 核心来源的定向复用](dsh-core-adoption/README.md)
 - [D-007：独立状态权威与受管附着](runtime-composition/README.md)
+- [D-008：首批核心能力与共同准入](core-capabilities/README.md)，保留旧接受选择并注明后续局部取代；新 v1 仍须精确采用
+- [D-012：Run 驱动器与 Session Inbound](run-driver-and-inbound/README.md)，保留循环与到达拓扑选择
+- [D-013：Run 驱动器的 Cordis 边界](run-driver-cordis-boundary/README.md)，保留实例驱动与装卸责任
+- [D-014：Session、Run 与 Agent 实例生命周期](session-run-agent-lifecycles/README.md)，保留独立权威、级联与原 envelope 广播
+- [D-015：工具闭环、消息流与外部 Hooks](tool-execution-message-stream-hooks/README.md)，保留旧有效范围并注明 D-018 的局部覆盖
 - [D-016：独立产品账号能力](account-identity/README.md)，接受账号/Tenant 边界与成熟嵌入式认证优先验证方向
 - [D-017：统一的个人租户创建机制](personal-tenant-creation/README.md)，接受首次初始化与后续注册共用一套 Tenant 创建语义
 - [D-018：消息交付与外部 Hooks 的新 v1 语义](e-message-stream-hooks/README.md)，接受八组可观察变化的设计方向；发布与实现另行验证
@@ -41,9 +46,8 @@
 - [D-010：共享诊断设施与真实边界观测](shared-diagnostics/README.md)
 - [D-011：诊断目录的共同所有权](diagnostics-directory-ownership/README.md)，精确取代 D-010 的目录责任部分
 
-D-008 的来源决定同时覆盖后来被 D-012～D-015 拆分、修订并由 E 并发协议继续收敛的广泛能力集合。
-在最终 catalog、联合评审与精确采用快照锁定前，不把它压缩成一个会误导当前消费者的新 topic；其来源坐标与
-暂缓原因保存在本次 I 任务 inventory。D-012～D-015 同理由最终 I adoption 阶段按精确当前范围整理。
+D-008 与 D-012～D-015 的信息包记录**旧谱系已发生的接受事实**及后续局部取代，
+不表示新 v1 的 catalog、依赖或实现已经接受。目标资源的精确采用仍由 I 阶段登记。
 
 本节只导航实际迁入的决定信息包，不形成第二份接受状态清单。
 

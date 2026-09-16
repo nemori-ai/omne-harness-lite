@@ -7,7 +7,7 @@ MC-01～MC-14；D-008/D-015 只作来源与旧接受事实，不自动接受新�
 本能力拥有模型档案、请求 manifest、OpenRouter 路由、attempt 身份/状态/结算、上下文装配
 和会话模型切换。Session/Run/Driver/Tools 拥有工作切点、执行权、调用与等待；预算能力拥有
 费用暴露与结算；媒体能力拥有字节、引用、保留和投递；message-stream 拥有公开帧信封、游标
-和 `toPublic`。[D-018](../../../decisions/e-message-stream-hooks/decision.md) 已接受 E 的八组新语义方向；
+和 `toPublic`。[D-018](../../../../decisions/e-message-stream-hooks/decision.md) 已接受 E 的八组新语义方向；
 MC-12～MC-14 对 message-stream 的精确 MS-20～MS-24 交接仍须按该决定的目标快照与
 最终 J/I 资源锁完成采用核对，在此之前不能释放或冻结。
 
