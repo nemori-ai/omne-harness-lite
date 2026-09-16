@@ -6,6 +6,27 @@
 条款身份、确认范围、来源和基线由各 topic 拥有。[当前需求覆盖输入](coverage-obligations.md)
 把可消费条款投影给后续能力纵线，并规定覆盖结论的最低证据；它不重新定义需求，也不替代提案中的能力覆盖分析。
 
+## 设计覆盖导航
+
+每个正式 requirement topic 的入口都有“设计覆盖状态”段，用于定位可复用设计、边界与主要缺口；
+它不是逐条 coverage 结论，也不改变需求确认状态。
+
+| 固定状态词 | 身份数 | 含义 |
+| --- | ---: | --- |
+| `正式设计完成` | 0 | 尚无 identity 闭合条款 coverage、采用契约及必要的 provider/assembly 交接。 |
+| `正在设计（直接候选机制）` | 21 | 有直接相关的 proposal、architecture、candidate spec、provider 或机制决定。 |
+| `正在设计（局部相邻基础）` | 8 | 有相邻可复用机制，专项责任和覆盖分析未形成。 |
+| `尚未开始专项设计` | 8 | 正式 requirement 已登记，尚无足以起步的专项机制设计。 |
+| `阶段约束` | 1 | `SYS-EXPERIMENT` 是当前研发阶段边界，不是待设计的独立功能。 |
+
+`正在设计（直接候选机制）` 和 `正在设计（局部相邻基础）` 都**不等于任何条款已经 `covered`**。
+候选 spec、已接受决定、provider、assembly 与实现验证也分别具有自己的状态，必须按 topic 中的
+精确链接和说明核对。系统 topic 含多个身份时以其逐身份表为准。
+
+当 proposal、spec、provider 或 assembly 的新增、接受、取代或退役改变某 requirement 的设计起点或主要缺口时，
+该语义 owner 必须同步对应 topic 的设计覆盖状态和本节计数。只有实际形成逐条结论时，才更新
+[coverage-obligations.md](coverage-obligations.md)。
+
 ## 检索入口
 
 - 产品要求可按 [智能体](product/by-agent.md)、[环境](product/by-environment.md) 或
@@ -59,4 +80,6 @@
 它保存讨论语境与后续归位建议，不创建条款编号，也不替代正式需求主题。
 
 已有主题沿其入口接续；本 README 维护 system/product 索引、访谈入口及覆盖义务入口，不将 `.templates/` 计作已确认要求。
-信息包的裁剪与引用见 [系统设计链](../README.md#主题是信息包)。
+信息包的裁剪与引用见 [系统设计链](../README.md#主题是信息包)。设计覆盖状态只作导航；逐条
+`covered / partial / uncovered / unknown` 及其证据仍由 [coverage-obligations.md](coverage-obligations.md)
+的实际消费者建立。

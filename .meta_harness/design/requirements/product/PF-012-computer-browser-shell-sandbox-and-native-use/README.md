@@ -8,6 +8,15 @@
 - 当前状态：已确认范围等价迁入；正文保留明确的待澄清/待设计项
 - 下游状态：能力覆盖、规格和提供者映射由后续纵线建立
 
+## 设计覆盖状态
+
+- 需求确认状态：已确认范围等价迁入；以正文和变更记录为准。
+- 设计覆盖状态：`正在设计（局部相邻基础）`
+- 规格采用状态：[Tools candidate](../../../spec/capabilities/tools/README.md) 尚未在当前基线 catalog 中采用或发布。
+- Provider、assembly 与实现验证：[local-execution provider](../../../providers/tools-local-execution/README.md) 是目标设计；没有 Computer、Browser 或沙盒专项 assembly/验证结论。
+- 当前可复用设计落点：本地工具执行的目标设计。
+- 覆盖边界与主要缺口：环境选择、沙盒、本机使用和授权组合尚未专项设计。
+
 ## 按当前问题展开
 
 | 当前问题 | 阅读入口 |

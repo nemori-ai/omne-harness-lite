@@ -8,6 +8,15 @@
 - 当前状态：已确认范围等价迁入；正文保留明确的待澄清/待设计项
 - 下游状态：能力覆盖、规格和提供者映射由后续纵线建立
 
+## 设计覆盖状态
+
+- 需求确认状态：已确认范围等价迁入；以正文和变更记录为准。
+- 设计覆盖状态：`正在设计（局部相邻基础）`
+- 规格采用状态：下列 candidate 尚未在当前基线 catalog 中采用或发布。
+- Provider、assembly 与实现验证：相邻 provider 不构成跨会话协作交接；没有实际 assembly 或恢复验证结论。
+- 当前可复用设计落点：[Session candidate](../../../spec/capabilities/session/README.md)、[Durable Records candidate](../../../spec/capabilities/durable-records/README.md)、[session-persistence provider](../../../providers/session-persistence/README.md)。
+- 覆盖边界与主要缺口：历史查询、寻址、投递、消费、唤醒和恢复协议尚未专项设计。
+
 ## 按当前问题展开
 
 | 当前问题 | 阅读入口 |

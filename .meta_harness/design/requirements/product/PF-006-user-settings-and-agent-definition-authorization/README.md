@@ -8,6 +8,15 @@
 - 当前状态：已确认范围等价迁入；正文保留明确的待澄清/待设计项
 - 下游状态：能力覆盖、规格和提供者映射由后续纵线建立
 
+## 设计覆盖状态
+
+- 需求确认状态：已确认范围等价迁入；以正文和变更记录为准。
+- 设计覆盖状态：`正在设计（局部相邻基础）`
+- 规格采用状态：下列 candidate 尚未在当前基线 catalog 中采用或发布。
+- Provider、assembly 与实现验证：相邻 provider 不构成设置或 Agent 定义的专项交接；没有实际 assembly 或验证结论。
+- 当前可复用设计落点：[Action Authorization candidate](../../../spec/capabilities/action-authorization/README.md)、[Tenant Governance candidate](../../../spec/capabilities/tenant-governance/README.md)、[authorization provider](../../../providers/governance-authorization/README.md)。
+- 覆盖边界与主要缺口：设置目录、覆盖求值和定义级授权模型尚未专项设计，不能推定任何条款已覆盖。
+
 ## 按当前问题展开
 
 | 当前问题 | 阅读入口 |

@@ -8,6 +8,15 @@
 - 当前状态：已确认范围等价迁入；正文保留明确的待澄清/待设计项
 - 下游状态：能力覆盖、规格和提供者映射由后续纵线建立
 
+## 设计覆盖状态
+
+- 需求确认状态：已确认范围等价迁入；以正文和变更记录为准。
+- 设计覆盖状态：`正在设计（直接候选机制）`
+- 规格采用状态：[Budget Accounting candidate](../../../spec/capabilities/budget-accounting/README.md) 尚未在当前基线 catalog 中采用或发布。
+- Provider、assembly 与实现验证：[budget provider](../../../providers/governance-budget/README.md) 是目标设计；没有账单/供应方对账 assembly 或验证结论。
+- 当前可复用设计落点：Budget Accounting 的预算与用量责任。
+- 覆盖边界与主要缺口：订阅、账单、价格、多币种和供应方对账仍待专项设计与条款 coverage。
+
 ## 按当前问题展开
 
 | 当前问题 | 阅读入口 |

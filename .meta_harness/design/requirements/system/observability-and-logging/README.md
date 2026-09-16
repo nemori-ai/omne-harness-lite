@@ -8,6 +8,15 @@
 - 当前状态：已确认范围等价迁入；正文保留明确的待澄清/待设计项
 - 下游状态：能力覆盖、规格和提供者映射由后续纵线建立
 
+## 设计覆盖状态
+
+- 需求确认状态：已确认范围等价迁入；以正文和变更记录为准。
+- 设计覆盖状态：`正在设计（直接候选机制）`
+- 规格采用状态：[Engineering Observation candidate](../../../spec/capabilities/engineering-observation/README.md) 尚未在当前基线 catalog 中采用或发布。
+- Provider、assembly 与实现验证：[diagnostics provider](../../../providers/observation-diagnostics/README.md) 是目标设计；没有全能力 assembly、耐久审计或查询/导出验证结论。
+- 当前可复用设计落点：[shared-diagnostics decision](../../../decisions/shared-diagnostics/README.md) 和 Engineering Observation。
+- 覆盖边界与主要缺口：全能力接入、耐久审计、查询/导出及逐条 coverage 证据仍未闭合。
+
 ## 按当前问题展开
 
 | 当前问题 | 阅读入口 |

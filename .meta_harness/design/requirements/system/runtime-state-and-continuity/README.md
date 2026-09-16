@@ -8,6 +8,15 @@
 - 当前状态：已确认范围等价迁入；正文保留明确的待澄清/待设计项
 - 下游状态：能力覆盖、规格和提供者映射由后续纵线建立
 
+## 设计覆盖状态
+
+- 需求确认状态：已确认范围等价迁入；以正文和变更记录为准。
+- 设计覆盖状态：`正在设计（直接候选机制）`
+- 规格采用状态：下列 candidate 尚未在当前基线 catalog 中采用或发布。
+- Provider、assembly 与实现验证：有耐久与 Session/Run 目标 provider；没有恢复组合 assembly 或异构适配验证结论。
+- 当前可复用设计落点：[Durable Records candidate](../../../spec/capabilities/durable-records/README.md)、[Session candidate](../../../spec/capabilities/session/README.md)、[Run candidate](../../../spec/capabilities/run/README.md)、[lifecycle composition](../../../spec/compositions/session-run-agent-lifecycles/README.md)。
+- 覆盖边界与主要缺口：恢复、异构适配和真实组合验证仍未闭合。
+
 ## 按当前问题展开
 
 | 当前问题 | 阅读入口 |

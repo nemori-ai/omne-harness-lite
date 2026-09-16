@@ -8,6 +8,15 @@
 - 当前状态：已确认范围等价迁入；正文保留明确的待澄清/待设计项
 - 下游状态：能力覆盖、规格和提供者映射由后续纵线建立
 
+## 设计覆盖状态
+
+- 需求确认状态：已确认范围等价迁入；以正文和变更记录为准。
+- 设计覆盖状态：`正在设计（直接候选机制）`
+- 规格采用状态：[Human Decisions candidate](../../../spec/capabilities/human-decisions/README.md) 尚未在当前基线 catalog 中采用或发布。
+- Provider、assembly 与实现验证：[human-decisions provider](../../../providers/governance-human-decisions/README.md) 是目标设计；没有实际 assembly 或多端一致性验证结论。
+- 当前可复用设计落点：Human Decisions 的耐久请求、唯一答复和统一池责任。
+- 覆盖边界与主要缺口：产品读写、跨请求后果和多端一致性仍待逐条 coverage 与组合分析。
+
 ## 按当前问题展开
 
 | 当前问题 | 阅读入口 |

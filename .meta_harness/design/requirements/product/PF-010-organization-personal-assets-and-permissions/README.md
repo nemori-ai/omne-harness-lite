@@ -8,6 +8,15 @@
 - 当前状态：已确认范围等价迁入；正文保留明确的待澄清/待设计项
 - 下游状态：能力覆盖、规格和提供者映射由后续纵线建立
 
+## 设计覆盖状态
+
+- 需求确认状态：已确认范围等价迁入；以正文和变更记录为准。
+- 设计覆盖状态：`正在设计（局部相邻基础）`
+- 规格采用状态：[Tenant Governance candidate](../../../spec/capabilities/tenant-governance/README.md) 尚未在当前基线 catalog 中采用或发布。
+- Provider、assembly 与实现验证：[tenant provider](../../../providers/governance-tenant/README.md) 不构成资产专项交接；没有实际 assembly 或验证结论。
+- 当前可复用设计落点：Tenant Governance 的成员和权益基础。
+- 覆盖边界与主要缺口：资产、共享、安装、管理操作目录及完整权限组合尚未专项设计。
+
 ## 按当前问题展开
 
 | 当前问题 | 阅读入口 |

@@ -8,6 +8,15 @@
 - 当前状态：已确认范围等价迁入；正文保留明确的待澄清/待设计项
 - 下游状态：能力覆盖、规格和提供者映射由后续纵线建立
 
+## 设计覆盖状态
+
+- 需求确认状态：已确认范围等价迁入；以正文和变更记录为准。
+- 设计覆盖状态：`正在设计（局部相邻基础）`
+- 规格采用状态：[Live Agent candidate](../../../spec/capabilities/live-agent/README.md) 尚未在当前基线 catalog 中采用或发布。
+- Provider、assembly 与实现验证：[core-agent provider](../../../providers/core-agent/README.md) 不构成在线插件演化交接；没有专项 assembly 或验证结论。
+- 当前可复用设计落点：[Agent Runtime architecture](../../../architecture/agent-runtime/README.md) 的生命周期基础。
+- 覆盖边界与主要缺口：开发、验证、发布、在线换代、撤除和恢复全链路尚未专项设计。
+
 ## 按当前问题展开
 
 | 当前问题 | 阅读入口 |
