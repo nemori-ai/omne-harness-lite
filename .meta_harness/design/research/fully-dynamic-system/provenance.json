@@ -1,43 +1,76 @@
 {
-  "format": 1,
+  "format": 2,
   "consumer": "SYS-DYNAMIC.C1",
-  "source_commit": "e3573ca72d18bfe7ddd002df5025551b51eede46",
-  "upstream_snapshot": "5d6322d85652f17b72cf97043b6300926c41083a",
+  "migration_source": {
+    "repository": "omne-harness-lite",
+    "commit": "e3573ca72d18bfe7ddd002df5025551b51eede46",
+    "directory": "docs/research/fully-dynamic-system"
+  },
+  "upstream": {
+    "repository": "https://github.com/nemori-ai/omne-next",
+    "observed_checkout_head": "6263fed545e48ad9efb5714f3fe76a7c1a0af1b5",
+    "observed_checkout_shallow": false,
+    "capture_date": "2026-09-12",
+    "adopted_snapshot": "5d6322d85652f17b72cf97043b6300926c41083a",
+    "first_document_commit": "111d3220e8f41a4640d0b1345e6884d0f23d84a9"
+  },
   "selected": [
     {
       "file": "fully-dynamic-system.md",
       "source_file": "docs/research/fully-dynamic-system/fully-dynamic-system.md",
+      "upstream_file": "docs/fully-dynamic-system.md",
+      "upstream_blob": "87c3bb9b5b11b3aa3c77d6e796930a687d5757ca",
       "source_sha256": "41f199f89b328256265726260c5fa4cfeaaa71c8e26112a7bb4e142d8ca41604",
-      "target_sha256": "10ee12577b7b55ae0f32091c1fc77d559a28302be74f4a13f6c353847ed1568d"
+      "target_sha256": "10ee12577b7b55ae0f32091c1fc77d559a28302be74f4a13f6c353847ed1568d",
+      "migration_normalization": "removed one trailing newline byte"
     },
     {
       "file": "fully-dynamic-system.zh.md",
       "source_file": "docs/research/fully-dynamic-system/fully-dynamic-system.zh.md",
+      "upstream_file": "docs/fully-dynamic-system.zh.md",
+      "upstream_blob": "f2c9e815f6b34314dcef3b3db0b547d927cd50d1",
       "source_sha256": "4e4734c08dd013563248afa672ab6d28a5777e9a3912e53b428de8c9e8e3fb94",
-      "target_sha256": "c546ea9cf8f52cc719008b9612f579f2f3ecd6b5b2bdd3b051053139d10ae28e"
+      "target_sha256": "c546ea9cf8f52cc719008b9612f579f2f3ecd6b5b2bdd3b051053139d10ae28e",
+      "migration_normalization": "removed one trailing newline byte"
     },
     {
       "file": "fully_dynamic_system_intro.md",
       "source_file": "docs/research/fully-dynamic-system/fully_dynamic_system_intro.md",
+      "upstream_file": "docs.deprecated/fully_dynamic_system_intro.md",
+      "upstream_blob": "49129ae171849db8ce2ca361f87225e91c7a080e",
       "source_sha256": "bd6d812cf91e6e6d094c463617d618762d9394471e6c75a7bf8f7af4e157ced7",
-      "target_sha256": "bd6d812cf91e6e6d094c463617d618762d9394471e6c75a7bf8f7af4e157ced7"
+      "target_sha256": "bd6d812cf91e6e6d094c463617d618762d9394471e6c75a7bf8f7af4e157ced7",
+      "migration_normalization": "none; byte-identical"
     }
   ],
-  "omitted_history": [
-    {
-      "source": "docs/research/fully-dynamic-system/history.log",
-      "sha256": "7fb67a94f6a78ff6fc34fa1da9a23903cb56f94f7eeb15b7b19c56f9d4b9f6a4",
-      "recover_at": "e3573ca72d18bfe7ddd002df5025551b51eede46"
+  "carried_history": {
+    "history_log": {
+      "file": "history.log",
+      "source_file": "docs/research/fully-dynamic-system/history.log",
+      "source_sha256": "7fb67a94f6a78ff6fc34fa1da9a23903cb56f94f7eeb15b7b19c56f9d4b9f6a4",
+      "target_sha256": "7fb67a94f6a78ff6fc34fa1da9a23903cb56f94f7eeb15b7b19c56f9d4b9f6a4",
+      "bytes": 2333,
+      "byte_identical": true
     },
-    {
-      "source": "docs/research/fully-dynamic-system/omne-next-history.bundle",
-      "sha256": "52956ee7959037a29fd2f394bc80874925e56f930f13acca0a0f9b2f8dced50e",
-      "recover_at": "e3573ca72d18bfe7ddd002df5025551b51eede46"
+    "bundle": {
+      "file": "omne-next-history.bundle",
+      "source_file": "docs/research/fully-dynamic-system/omne-next-history.bundle",
+      "source_sha256": "52956ee7959037a29fd2f394bc80874925e56f930f13acca0a0f9b2f8dced50e",
+      "target_sha256": "52956ee7959037a29fd2f394bc80874925e56f930f13acca0a0f9b2f8dced50e",
+      "bytes": 8934083,
+      "ref": "refs/heads/omne-next-definition-history",
+      "tip": "5d6322d85652f17b72cf97043b6300926c41083a",
+      "reachable_commits": 237,
+      "scope": "Complete unfiltered ancestor history reachable from the adopted snapshot; trees include other source files, while later repository history, other refs, and unreachable objects are excluded.",
+      "commit_objects_rewritten": false,
+      "self_contained": true,
+      "byte_identical": true
     }
-  ],
+  },
   "limitations": [
-    "Source commit and hashes establish content identity, not an independent trusted timestamp.",
-    "The current package does not carry the source Git bundle or history log.",
+    "Git author and committer dates are repository metadata, not independently trusted timestamps.",
+    "Existing signature bytes are preserved, but cryptographic signer identity and trust were not verified.",
+    "The bundle ends at the adopted snapshot and does not contain later repository history, other refs, or unreachable objects.",
     "Preserved framework comparisons were not revalidated against current releases."
   ]
 }

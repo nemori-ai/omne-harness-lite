@@ -21,9 +21,12 @@ migration_status: equivalent-current-requirement
 2026-09-12 用户明确此目标，并指定 omne-next 对应文档为定义来源，要求复制原文并
 尽可能保留 Git history，以保留其存在的时间线。
 
-定义、演化公式与最小判定标准引用原样保存的[中文原文](../../../research/fully-dynamic-system/fully-dynamic-system.zh.md)。
-采用快照 `5d6322d85652f17b72cf97043b6300926c41083a`、早期原稿、Git 历史包及
-时间证据局限归[来源记录](../../../research/fully-dynamic-system/README.md)。
+定义、演化公式与最小判定标准引用迁移后的[中文阅读副本](../../../research/fully-dynamic-system/fully-dynamic-system.zh.md)。
+采用快照 `5d6322d85652f17b72cf97043b6300926c41083a` 的原始 blob 可从
+[Git 历史包](../../../research/fully-dynamic-system/omne-next-history.bundle)恢复；
+[早期原稿](../../../research/fully-dynamic-system/fully_dynamic_system_intro.md)、
+[历史日志](../../../research/fully-dynamic-system/history.log)与
+[时间证据局限](../../../research/fully-dynamic-system/evidence.md#内容身份与局限)在当前包中直接保留。
 
 **SYS-DYNAMIC.C2（建模方向）：** 从动态能力、依赖、生命周期、作用域与所有权建模，显式约束
 结构演化；能力的定义、实现、绑定和组合关系应能动态演化。此项保留既有

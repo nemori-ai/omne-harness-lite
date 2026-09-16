@@ -14,6 +14,9 @@
 |---|---|
 | 需要兑现哪些结果与边界 | [需求正文](requirements.md) |
 | 确认范围怎样追到源修订 | [来源与变化](changes.md) |
+| 采用快照中的定义正文 | [中文定义](../../../research/fully-dynamic-system/fully-dynamic-system.zh.md) / [英文版本](../../../research/fully-dynamic-system/fully-dynamic-system.md) |
+| 最早原稿与完整 Git 历史 | [早期原稿](../../../research/fully-dynamic-system/fully_dynamic_system_intro.md) / [历史日志](../../../research/fully-dynamic-system/history.log) / [可独立恢复的 bundle](../../../research/fully-dynamic-system/omne-next-history.bundle) |
+| Git 时间和签名能证明到哪里 | [证据边界](../../../research/fully-dynamic-system/evidence.md#内容身份与局限) |
 | 哪些覆盖结论仍待建立 | [全局覆盖输入](../../coverage-obligations.md) |
 
 后续覆盖分析必须逐条给出 `covered / partial / uncovered / unknown` 及证据；本包不从要求名称预设新能力。
