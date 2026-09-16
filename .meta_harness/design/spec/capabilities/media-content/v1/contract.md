@@ -34,9 +34,10 @@ model_native 或 agent_attachment。原生语音必须实际以音频传给支�
 的文件向 Agent 提供名称/MIME/长度及受限访问方式，不声称模型看过字节。
 派生转写/抽帧需要显式操作及来源，不替代原始模态事实。
 
-工具执行产生的媒体经 `retainReference` 取得耐久引用时记录来源 `producedBy{call, attempt}`，
-该引用因此能回答"这份内容是哪一次调用、哪一次尝试产生的"；来源记录是媒体引用的
-属性，不改变逻辑 owner、读取权或去重规则（CT-02）。同一媒体引用可以既出现在该调用的
+工具执行产生的媒体经 `retainReference` 取得耐久引用时记录来源 `producedBy{call: CallRef}`，
+该引用因此能回答"这份内容是哪一次调用、哪一次尝试产生的"；来源记录属于耐久媒体
+对象的元数据，`call` 已含 `attemptId`，不增加并列尝试字段或 `MediaRef` 字段；它不
+改变逻辑 owner、读取权或去重规则（CT-02）。同一媒体引用可以既出现在该调用的
 过程帧里，又出现在它的结果内容块里：耐久的结论以结果块为准，帧是过程材料，读取面按
 `mediaId` 表达它们指向同一份字节，消费者据此不重复呈现同一产物。未取得耐久引用的媒体
 不能进入终态结果；声明会产生某模态输出的命令不因此获得额外保留权，仍按 CT-01/CT-02
@@ -65,5 +66,5 @@ model_native 或 agent_attachment。原生语音必须实际以音频传给支�
 
 | 范围 | 本轮变化 | 处置依据 |
 |---|---|---|
-| CT-03 来源身份 | 将 legacy v2 的 `producedBy{call}` 修正为 `producedBy{call, attempt}`，使字段形状与同段已经承诺的调用／尝试来源一致 | `rebase-delta.json` 的 `clause-scoped-rebase-with-coherence-correction` |
+| CT-03 来源身份 | 把 legacy v2 的 `producedBy{call}` 明确解释为 `producedBy{call: CallRef}`；CD-01 的 `CallRef` 已含 `attemptId`，不新增并列字段或改变 `MediaRef` 形状 | `rebase-delta.json` 的 `clause-scoped-rebase-with-coherence-correction` |
 | 契约身份与依赖 | 改用新 baseline candidate 坐标及 catalog 登记的 CD@1、CC@1、Tools@1、MC@1、TG@1 精确依赖 | 本轮 catalog/rebase delta；不继承 legacy 接受或版本号 |

@@ -8,7 +8,8 @@
 M/L 联合交接：durable outcome 由 MC-06 ledger 经 SessionProjection changes/snapshot 恢复；
 active transient 由 MC-12～MC-14 compact public state/source cut 恢复，两条协议不共享位置或权威。
 实时发布与 active state 共用同一 `toPublic`/fold；`ended` 仅在 DR-02
-receipt 后出现；媒体使用 `producedBy{call,attempt}`；同一 MediaRef/`mediaId` 可以同时被过程帧和终态结果引用，
+receipt 后出现；媒体对象的来源元数据使用 `producedBy{call: CallRef}`，`MediaRef`
+仍只含 `tenantId/mediaId`；同一 MediaRef/`mediaId` 可以同时被过程帧和终态结果引用，
 消费者按 `mediaId` 只呈现一次，未取得耐久引用的媒体不进入终态。依赖的精确坐标与条款见本轮 catalog delta。正文直接消费 CD/CC/DR、Session SE-01/02/03/10/14/18/19/20、Run、RunDriver、Tools、HD、MC、CT、TG、AU、OB、External Hooks HK-17 与 lifecycle LC-06/09；没有列出的上界输入不是隐含依赖。
 
 ## 定义与原则
@@ -79,8 +80,10 @@ tools v1 帧缺口词表中的同名值，`unavailable` 由本契约新增，表
 客户端去重安装后的事实序列按 `(position.seq, batch.index)` 严格单调；同批 `index` 从 1 连续到
 `count`，`seq` 可以因其它 Session 的提交而跳号。客户端收到重发帧时仍把它计入当前批的完整性，
 只抑制第二次呈现；收到倒退、乱序或越过未完成批的帧时关闭订阅并从最后 installed cursor 重开。
-瞬态帧只在其 owner 的 `ephemeral.seq` 上单调，可以因裁剪产生 gap。`dedupKey` 来自事实或瞬态
-owner 的稳定身份，不能以连接内计数代替。
+瞬态帧只在其 owner 的 `ephemeral.seq` 上单调，可以因裁剪产生 gap。事实帧的
+`dedupKey` 是 DR-01 的事实 `eventId`；瞬态帧的 `dedupKey` 是
+`"<issuer>:<epoch>:<seq>"`，`issuer` 是实际发布 owner 或受信观察者；控制帧的
+`dedupKey` 由服务端生成并在同一控制事实重发时保持稳定。不能以连接内计数代替。
 
 **MS-07**：客户端游标是 `Cursor{domains: {<coordinationDomain>: seq}, visibility}`：每个协调域一个
 已完整安装该主体授权投影视图的提交前缀序号，加上主体对该 Session 的可见范围版本。首版只有一个协调域
