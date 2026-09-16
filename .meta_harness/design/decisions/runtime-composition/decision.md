@@ -16,6 +16,18 @@
 
 适用范围：共同能力归属、四类运行提供者交接和 Agent 与 Session 附着组合。
 
+## 需求消费基线
+
+原接受消费 `dae2df36491c0ab4b8b9a3d16db639dab5ea88b0` 的确认需求；逐项旧覆盖记录为
+`e3573ca:docs/proposals/runtime-composition/requirements.md`（SHA-256
+`51ae360ef4d94484b8f16acbb21888a78cb27b617bb6b9ba695d0`）。
+本决定回应[系统约束](../../requirements/system/constraints/requirements.md)、[动态能力分离](../../requirements/system/fully-dynamic-system/requirements.md)、
+[运行态连续性](../../requirements/system/runtime-state-and-continuity/requirements.md)、
+[Session/Run 控制](../../requirements/product/PF-013-session-run-lifecycle-and-pending-input-control/requirements.md)与
+[依赖降级](../../requirements/product/PF-020-dependency-availability-and-degradation/requirements.md)中的共同附着与撤销边界；
+完整业务状态、跨进程接管、模型/工具/媒体协议及真实提供者符合性不由此决定完成。
+当前需求的具体版本与变化由 requirements family 拥有，旧消费基线不自动升级。
+
 ## 理由与保留前提
 
 准备前单次检查无法覆盖并发撤权和撤除，共享可变 Session 也无法保护恢复；精确附着把有效期和资源责任变为可验证义务。

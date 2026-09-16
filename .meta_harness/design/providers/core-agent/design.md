@@ -39,6 +39,11 @@ Registry、Factory 贡献及实例的受信 `apply` 捕获真实 `c.fiber`、本
 
 ## 激活审计耐久门
 
+本节是 provider 候选增强：现行 AR-8/CB-03 尚未把审计耐久写成公开工作准入条件，
+`published_but_audit_unavailable` 也不能仅凭提供者稿升级为已接受的 v1 结果。
+若选择将这些可观察行为纳入新 v1，应由 Agent/Binding 语义拥有者补精确契约与接受依据后复审；
+在此之前，本节只说明拟实现的保守门和待验证责任。
+
 ready 发布和业务工作面可用是两个独立事实。AR 是激活操作的生命周期与准入 owner；S 提供 tenant 审计 stream 的耐久记录接口，保存 `agent.operation_recorded/1={agent,operationKind,phase,reason,relatedOperation}`。ready 提交后 AR 先保持工作面关闭，在门外等该激活记录耐久；之前不发放 WorkPermit。`activated` 只通知 ready 已成立，监听器的任何业务尝试仍须经工作门，不因收到通知而获准。
 
 ready 提交时登记 `activated` 及其单调顺序号，退出提交时同样登记 `disposed`；门外分发器必须先分发已登记的 `activated` 再分发 `disposed`。通知不等审计回执：审计失败、晚到或并发 close 均不能让 `disposed` 越过 `activated`，也不能无限扣住退出通知。同步异常、异步拒绝和通知重入 close 均隔离，不回滚 ready。

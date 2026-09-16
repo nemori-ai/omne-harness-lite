@@ -16,6 +16,17 @@
 
 适用范围：单机 Agent 运行时的身份、受限入口、装配绑定、独占激活、工作归属和退出。
 
+## 需求消费基线
+
+原接受消费 `f580718295daaec0f42d3262643e95281c493063` 的确认需求；逐项旧覆盖记录为
+`e3573ca:docs/proposals/agent-runtime/v1/requirements.md`（SHA-256
+`fdbd45997603d15d3204c76f0c6f89c2b0d45214ead776d474ba9643208173c6`）。
+本决定回应[系统约束](../../requirements/system/constraints/requirements.md)、[动态能力分离](../../requirements/system/fully-dynamic-system/requirements.md)、
+[运行态连续性](../../requirements/system/runtime-state-and-continuity/requirements.md)及
+[Session/Run 控制](../../requirements/product/PF-013-session-run-lifecycle-and-pending-input-control/requirements.md)中与身份、实例和绑定相关的部分；
+完整 Session/Run 状态、持久恢复、后台接管、插件隔离和分布式执行权仍由各自能力承担。
+当前需求的具体版本与变化由 requirements family 拥有，旧消费基线不自动升级。
+
 ## 理由与保留前提
 
 显式占位、绑定和提供者使用关系保护租户隔离、同 Session 唯一激活、旧引用安全与动态替换。
