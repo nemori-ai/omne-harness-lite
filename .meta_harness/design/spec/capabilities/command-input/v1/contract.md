@@ -37,9 +37,12 @@ JSON 对象按标准 JSON 解析其字符串/括号，不靠空格猜测边界�
 
 控制类绑定固定用户当时观察的精确 Session/Run 与 observed epoch，沿当前授权和
 `capability.run@1` 的 RN-03/RN-05 受理；旧目标结束返回 stale/ended，不能重定向到后来工作。
-命令、Skill 或流程类绑定等价于用户显式发起其目标：重新解析当前定义/选用/参数和权限，沿
-Session SE-06/SE-07 的受理、排队与去重规则；它不伪造 slash 输入，也不能跳过目标自己的
-准入、预算或人类决定。目标失效、来源缺席、设置冲突和结果 unknown 分别明确返回。
+按键与目标的显式入口等价，并按目标定义分流：即时 control 走精确控制端口；有序 command
+才沿 Session SE-07 进入 command queue；Skill/Prompt 上下文装载按 SE-07 解析后，与后续正文
+组成 text 项并由 takeBatch 进入模型路径；directory 只走目录查询/选择协议，选择后再按所选
+目标的显式入口分流；named flow 走该 flow 自己的受理协议。按键不把 Skill、Prompt、directory
+或 flow 改写为 `user_command`，也不能跳过目标自己的准入、预算或人类决定。目标失效、来源
+缺席、设置冲突和结果 unknown 分别明确返回。
 
 按键捕获和服务端受理分开记录，受理回执与实际结果分开呈现。冲突／不支持／系统保留键明确
 呈现，不自行改键；输入法和文本选择上下文优先按客户端声明处理，所有绑定都有等价显式入口。

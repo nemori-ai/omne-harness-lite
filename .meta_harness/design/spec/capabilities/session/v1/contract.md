@@ -264,7 +264,7 @@ continuation（使当前非终态 Run 的某个等待位置或 Run 本身就绪�
 
 | 来源 | 内容与登记 |
 |---|---|
-| `user_text`、`user_command` | 用户文本与有序动作；keyboard control 直接走 control，不生成 arrival；keyboard 绑定的 command / Skill / named flow 作为 `user_command` 明确入队，固定目标定义、参数与设置 revision；directory 只读取获准目录，选择后才形成动作 |
+| `user_text`、`user_command` | 用户正文与有序 command。keyboard 只选择显式绑定：control 直接走 control；有序 command 才成为 `user_command`；Skill/Prompt 上下文装载按 SE-07 与正文组成 text 项；directory 走目录协议并在选择后按目标分流；named flow 走 flow 自己的受理。各路径固定目标定义、参数与设置 revision |
 | `call_settlement` | 任何工具调用的 TL-07（legacy source: `../../tools/v2/contract.md`） 终态结算，含子代理/handoff 派发与定时派发在 WorkRef 下创建的派发调用，也含内建 `human` 调用的答复结算（HD-08（legacy source: `../../human-decisions/v2/contract.md`））；dedupKey 为 `(call, attempt)`；帧不是 arrival |
 | `provisional_outcome` | HD-12（legacy source: `../../human-decisions/v2/contract.md`） 暂行决定按声明的回传，"仅改变产物"不生成，"触发补偿"进入独立 WorkRef |
 | `human_answer` | 只承载系统发起的审批型决定（HD-08（legacy source: `../../human-decisions/v2/contract.md`））；问答型与 Agent 发起批准的答复由 HD 作为 `human` 调用的执行 owner 在同一提交结算该调用，经 `call_settlement` 承载 |
@@ -328,7 +328,9 @@ live-agent 实例，有则直接交驱动，没有才经 live-agent 的激活与
 交给 run-driver；调度只响应已提交事实的广播与启动扫描，不轮询
 （LC-06（legacy source: `../../../compositions/session-run-agent-lifecycles/v2/contract.md`））。调度提交的
 operationId 按 SE-06 派生，重取从 `(RunRef, 封闭的 epoch)` 派生（RN-08（legacy source: `../../run/v2/contract.md`））。
-keyboard control 是即时控制，不入队；keyboard 绑定的 command / Skill / named flow 是有序动作，按 SE-07 进入队列；directory 读取本身不建 Run。
+keyboard 入口不定义统一队列语义，而与目标的显式入口等价：control 立即走控制端口；有序 command 才由 takeCommand 消费；Skill/Prompt 上下文装载与正文组成 text 项并由 takeBatch 消费；directory 走目录协议，选择后再按所选目标分流；named flow 由 flow 自己受理。
+
+快捷键等价场景：同一用户、设置 revision、目标定义、参数和授权水位下，快捷键选择 Skill/Prompt 上下文装载，与从显式上下文装载入口提交相同正文，必须生成相同的 text 项、takeBatch 边界和模型输入；不得出现 `user_command` 或 command handler。其它四类目标也必须与各自显式 control、command、directory 或 flow 入口得到相同的受理结果与失败词表。
 
 **SE-16**：context 意图的 arrival 按受理序号形成 Session 级序列，水位由 Inbound
 拥有。开 Step 时读取当前水位并把水位值记入切点；同一 Session 的多个非终态 Run

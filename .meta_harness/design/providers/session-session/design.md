@@ -15,7 +15,7 @@
 ## 当前 v1 适配
 
 - archive/delete 门拒绝任何非终态 Run，包括不占位的 stopping；只查 placeholder 不足以准入。
-- keyboard control 立即走控制端口；keyboard command/Skill/named flow 按 SE-07 有序入队；directory 读取不建 Run。
+- keyboard 与显式目标入口等价：control 即时控制；只有 ordered command 入 command queue；Skill/Prompt 上下文装载形成 text/takeBatch；directory 走目录协议后按选择分流；named flow 走自身受理。
 - Inbound 按来源提交 readiness：call settlement 释放 call wait、gate restored 释放 gate wait；approval/provisional readiness 不释放 call wait。
 - interrupt_then_run 收口为 superseded 后，停止未确认责任进入 system context，不阻止新驱动；它仍可查询且不得冒充已停止。
 - 恢复先校验完整前缀并 fold 裁决视图，再清空 accepted arrivals；之后才允许发行 epoch/WorkPermit 或调度进入驱动。
@@ -195,7 +195,7 @@ operationId 从 `(SessionRef, queueRevision, kind)` 派生。
 | Session 级 `force_stop` | 整个 Session | 组合 `session_force_stop`：`session.hold.set{session_force_stop}` 与当前占位 Run 的 `prepareControl{force_stop}`、epoch 撤销同批（LC-04 行 2（legacy source: `../../../spec/compositions/session-run-agent-lifecycles/v1/contract.md`））；无占位 Run 时只 hold | 只有用户显式 `continueQueue` 解除 hold；不越过 stopping 占位，不恢复被强停的 Run | SE-09（legacy source: `../../../spec/capabilities/session/v1/contract.md`） |
 | `interrupt_then_run` | 新输入加当时精确 Run | 受理批固定新 input、旧 Run/epoch 与终止意图；旧 Run 收口为 superseded 后注销登记，并把转后台/仍后台/停止未确认/未答请求写入 system context | 停止 unknown 保留在原责任与清单中，但 superseded 后不阻止新驱动；不宣称停止成功 | SE-08、RN-04 |
 | 系统发起的 `interrupt_then_run` | connector_condition 按 policy | 同上，新 input 是 trigger 项，意图记发起依据与配置版本 | 同上 | SE-08（legacy source: `../../../spec/capabilities/session/v1/contract.md`）、§7.3 |
-| keyboard binding | 显式 binding target 与 setting revision | control 即时走精确 Session/Run 控制端口；command / Skill / named flow 固定定义与参数后经 `enqueueCommand` 有序入队；directory 只读获准目录 | 不从按键取得权限或跳过目标准入 | IN-02、SE-07/13/15 |
+| keyboard binding | 显式 binding target 与 setting revision | 按目标定义调用与显式入口相同的 adapter：control → 精确控制端口；ordered command → `enqueueCommand`；Skill/Prompt context load → `enqueue{kind: text}` 后由 `takeBatch` 进入模型；directory → directory query/select，选择后再分流；named flow → flow 自身受理端口 | 不从按键取得权限，不把 Skill/Prompt/directory/flow 统一改写成 command；受理结果与失败词表须与显式入口等价 | IN-02、SE-07/13/15 |
 | 命令 Run 结算 | 命令处理者 | 转交 `omneRun.prepareSettleRun`；unknown 保留占位可见 | — | RN-06（legacy source: `../../../spec/capabilities/run/v1/contract.md`） |
 
 否定事实（hold、终止意图、epoch 撤销、TG/AU 收紧）立即封闭后续位置；正向事实

@@ -1,6 +1,6 @@
 # Run 驱动、等待与结算验证范围
 
-六个 TLC 任务覆盖 core、scheduler、ops 以及三类进展配置；不覆盖真实 provider、跨进程活性或全部外部效果。
+六个 TLC 任务覆盖 core、scheduler、ops 以及三类进展配置。模型只在 `WakeGate` 消费 ready-gate arrival 时清除 gate 登记，不能证明 SE-14/LC-04 要求的裁决提交与 gate release 原子发生；也不覆盖真实 provider、跨进程活性或全部外部效果。RN-05 对 `partial.unknown` 的更强终态门是未接受的新 candidate semantic change。
 
 正文为条款级重基候选，旧执行结果、review、publication 与实现接受不进入新 baseline。
 本轮只通过设计树 internal gate、来源哈希和依赖映射；候选接受、真实组合测试、形式工具运行
