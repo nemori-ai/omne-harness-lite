@@ -15,14 +15,28 @@ D-008/D-015 仅作 provenance；本坐标保持 candidate、`acceptance:null`。
 全部不成立。属于不同状态权威不妨碍它们参加已声明的共同提交，但仅相同提供者
 明确支持的协调域内可原子提交；不同文件、服务或远程 store 不自动享有该保证。
 
-记录 envelope 保存 formatVersion、coordinationDomain、commitId、单调序号、
+记录 envelope 保存 formatVersion、coordinationDomain、commitId、单调 `batchSeq`、
 各目标 stream 和前置修订、tenant、主体、因果引用、状态变化类型／版本、数据及
-操作结果。一个批次内各记录的相对顺序也是 envelope 的一部分：`commit` 接收的记录
-顺序被保存，`readRange`、恢复与重放按同一顺序给出该批记录，消费者可以用
-`(批次序号, 批内位置)` 作为确定的全序；一条记录的 `eventId` 就是
-`(coordinationDomain, 批次序号, 批内位置)` 的确定编码，由本能力在提交时赋予，消费者
-（历史派生、出站流去重）引用它而不另发号。业务状态转移由所属能力校验和解释；存储只维护
-批次、顺序、完整性、独占写入和去重，不调用任意用户插件判定权限或推断事件含义。
+操作结果。一个 envelope 对每个 stream 至多接受一个 append；每个 accepted append
+令该 stream 的 revision **恰好加一**，与 append 内的事实数量无关。同一 append 的全部
+事实共享该次提交后的 stream revision；该 revision 只标识一次 stream update，不能兼作
+逐事实身份、逐事实 sequence 或去重键。owner 可保留辅助事实序号，但它不得参与存储 CAS、
+完整性或事实身份判断。
+
+提交者在 `commit` 前把同一 stream 的事实合并为唯一 append，并保留 append-local fact
+order；随后按当前 envelope format 指定的 canonical `StreamRef` 编码对 appends 严格升序
+排列，再按该顺序 flatten。跨 stream 的 prepare 输入顺序没有业务语义；需要表达的跨 owner
+关系必须由完整批次、因果引用与 owner 校验表达。writer 对重复 stream 或非 canonical 输入
+返回拒绝，不得静默重排，因为重排会改变逐事实身份。排序规则随 envelope format/version
+固定；升级不能让同一历史 envelope 得到另一种顺序。
+
+append 内顺序与 canonical flatten 后的批内顺序都是 envelope 的一部分。`readRange`、恢复
+与重放按同一顺序给出记录；每条 accepted fact 的 `eventId` 是本能力在 durable commit 时
+分配的 `(coordinationDomain, batchSeq, recordIndex)` 确定编码，其中 `recordIndex` 是 canonical
+flatten 后的批内位置。prepare 阶段只能使用不冒充 `eventId` 的临时 correlation identity。
+消费者（历史派生、出站流去重）引用最终 `eventId`；`(stream, revision)` 只能认出一次 stream
+update，不能逐事实去重。业务状态转移由所属能力校验和解释；存储只维护批次、顺序、完整性、
+独占写入和去重，不调用任意用户插件判定权限或推断事件含义。
 
 **DR-02**：`commit` 结果区分：`committed(receipt)`、`conflict(currentRevision)`、
 `rejected(reason)`、`unavailable`、`unknown(operationRef)`。只有实际耐久确认后

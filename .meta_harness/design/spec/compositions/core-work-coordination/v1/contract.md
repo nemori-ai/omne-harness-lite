@@ -69,6 +69,30 @@ unavailable，不能把 TTL 缓存当作"当前授权"。
 的模型/工具请求先按原 attempt 查询或重新关联，无法核实标 unknown，不自动重发。
 明确 cancelled／deleted／superseded 的工作不因恢复、迟到答复或提供者重现复活。
 
+writer 已提交而 owner durable publication 未完整安装时，原 operation 是
+`committed_blocked(owner_publication_required)`：它既不是 pending，也不是未提交。
+该状态封闭协调域的新效果和 committed broadcast，并保留原 operation、receipt、result、
+批次身份、占位与资源责任。普通重试或局部 owner 回调不能把它改成 ready。
+
+恢复发布只能由受信恢复宿主完成。宿主须在同一 `coordinationDomain` 的已核实完整耐久
+前缀和一个精确 watermark 上，验证全部批次的跨 owner 关系，按 canonical envelope 顺序
+重建该协调域所需的**全部** owner durable roots，并把基线绑定到 domain、watermark、
+owner generation 集、恢复 host generation 与新取得的 writer epoch。owner 缺失、部分安装、
+关系不一致、前缀未核实或旧 generation 确认均 fail closed。各 owner 的 fold 与候选根校验
+在门外完成；最终只在一个短门中一次切换完整 owner roots 与协调者消费水位，不能靠依次
+调用可单独发布的 owner 回调来模拟原子安装。外部不能观察或使用部分基线。
+
+重新开放前，恢复宿主还须按原 claim 核实并处置旧 `ExactUse` 与资源责任；未结算、无法
+证明可释放或仍可能承载外部效果的责任继续阻断开放。只有完整基线已安装、遗留责任已收口，
+且新 writer/epoch 已取得后，协调域才可开放。恢复不逐 operation 重放 publication 回调，
+不重提事实，也不重放外部效果。
+
+原 operation 的历史 completion 始终保留 `publication=blocked`。新 generation 的受信 lookup
+可在精确恢复基线覆盖其 position 后，另行报告该原 committed 结果已可消费，并返回基线引用；
+这不是改写历史 completion，也不产生第二份 operation/receipt/result。可消费 publication 只
+允许工作进入 CC-06 的当前资格、关联、墓碑与 attempt 核实流程；它不证明旧 attempt 未开始，
+也不直接授予执行许可。
+
 **CC-07**：工程关联包含 operation、commit、水位、tenant、可信主体、Session/
 Run/Step/attempt、定义与实现版本、环境及阶段；关键成功/拒绝/未知与控制事实
 随所属提交保存，诊断事件可以有界采样但必须显式报告缺口。内容与秘密分别裁剪，

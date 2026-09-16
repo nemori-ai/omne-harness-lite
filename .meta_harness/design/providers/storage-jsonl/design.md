@@ -16,7 +16,12 @@ tenant、operation、因果、epoch、修订与资源所有者必须显式；有
 | 接口/机制 | 当前映射 | 验收限制 |
 |---|---|---|
 | `createJsonlProvider` | 返回受信 reader 并取得唯一 writer | 只覆盖单机一个 coordinationDomain |
-| prepare/commit | 门外校验预编码；commit 同步排位，I/O 退出当前栈后串行 | 修订冲突也须耐久后返回；不读授权 |
+| prepare/commit | adapter 先合并每流唯一 append、保留流内事实顺序，再按当前 format 的 canonical `StreamRef` 编码严格排序；门外校验预编码，commit 同步排位，I/O 退出当前栈后串行 | writer 拒绝重复/非 canonical appends，不静默重排；修订冲突也须耐久后返回；不读授权 |
 | operation identity | 相同 key/input 认回原结果；异 input 冲突；unknown 保留原 key | unavailable/rejected 不伪称已接纳 |
-| read/watermark | 只返回完整批次与精确前缀 | 落后/坏前缀不得用于授权或恢复成功 |
+| stream revision / fact identity | 每个 accepted append 令目标 stream revision 恰好 `+1`；同 append 多 facts 共享 revision；commit 以 canonical flatten 位置分配 `(domain,batchSeq,recordIndex)` eventId | owner fact sequence 不参与 CAS；prepare correlation 与 `(stream,revision)` 都不能冒充逐 fact eventId |
+| read/watermark | 只返回完整批次与精确前缀；在线、扫描和恢复复用同一 revision、canonical order 与 eventId 算法 | 落后/坏前缀不得用于授权或恢复成功；不得探测或兼容两套 revision 算法 |
 | writer/lock/recovery/close | epoch、原生锁、尾部核实、排空关闭有实现 | 网络 FS、硬件故障、目录 fsync 与提供者换代仍需环境验收 |
+
+跨 stream prepare 输入顺序不承载业务关系；跨 owner 关系必须由完整 envelope 的引用及全部
+owner 校验表达。format 升级若改变 canonical 编码须发布新版本并保留旧格式的解码/重放规则，
+不能让同一历史 envelope 在重启后产生不同 recordIndex 或 eventId。
