@@ -44,7 +44,10 @@
       "properties": {
         "format": {"const": "core-operation/1"},
         "operationKind": {"type": "string", "minLength": 1},
-        "tenantId": {"oneOf": [{"type": "null"}, {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"}]},
+        "tenantId": {
+          "$comment": "Codec binds this value to the trusted ordinary appends or personal/writer qualification as DR-01 specifies; null alone is not system write authority.",
+          "oneOf": [{"type": "null"}, {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-runtime-identity/v1/schema.json#/$defs/OpaqueId"}]
+        },
         "principal": {"$ref": "#/$defs/Principal"},
         "target": {}, "arguments": {}, "preconditions": {},
         "causality": {
@@ -199,7 +202,7 @@
         },
         "operation": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/core-work/v1/schema.json#/$defs/OperationRef"},
         "inputEncoding": {"const": "core-json/1"},
-        "canonicalInput": {"type": "string"},
+        "canonicalInput": {"type": "string", "$comment": "Parse canonical bytes as OperationInput, then validate its tenantId/principal and trusted OperationRef binding under DR-01."},
         "inputDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         "attemptedAppends": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/AttemptedAppend"}},
         "appends": {

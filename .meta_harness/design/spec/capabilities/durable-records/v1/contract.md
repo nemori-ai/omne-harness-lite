@@ -32,10 +32,12 @@ ECMAScript `JSON.stringify` 的对应值呈现，禁止 NaN/Infinity 和不成�
 preconditions,causality}`；`principal` 是 `{kind:"user",user:UserRef}` 或
 `{kind:"system",systemId:OpaqueId}`，`causality` 的允许引用见 Schema，未使用时为
 空对象。该格式归本能力的存储操作输入编码所有，不替业务 owner 定义
-`target/arguments/preconditions` 的含义。writer 核可信 prepare 与输入的 tenant、
-principal、namespace 一致；`operation.principalId` 恰为 principal 的 canonical JSON，
-不能仅凭输入自报身份授权。codec 与 replay 同样须解析/验证该对象、摘要和
-`OperationRef` 主体绑定；完整行本身不重建当代身份授权。
+`target/arguments/preconditions` 的含义。`OperationInput` **没有 namespace 字段**；
+`operation.namespace` 来自受信准备绑定的完整 `OperationRef`，个人创建时须等于已
+核实 Account 来源后果的原引用，writer epoch 时固定为 `core.writer`。writer 核可信
+准备与输入的 tenant、principal 一致；`operation.principalId` 恰为 principal 的
+canonical JSON，不能仅凭输入自报身份授权。codec 与 replay 同样须解析/验证
+该对象、摘要和 `OperationRef` 主体绑定；完整行本身不重建当代身份授权。
 v3 outer journal line 恰为 Schema 的 `JournalLine{byteLength,formatVersion,payload,sha256}`；
 payload 是 Schema 的 `CommitEnvelope` 五个封闭子类型之一的 canonical 字符串；
 个人创建的成功/冲突还须满足受信资格与下文跨字段约束。两层及
@@ -86,13 +88,26 @@ flatten 后的批内位置。prepare 阶段只能使用不冒充 `eventId` 的�
 update，不能逐事实去重。业务状态转移由所属能力校验和解释；存储只维护批次、顺序、完整性、
 独占写入和去重，不调用任意用户插件判定权限或推断事件含义。
 
-普通操作的每条 stream scope 必须与可信冻结输入的 tenantId 一致。唯一受限混合流例外是
+普通操作的可信冻结 `OperationInput.tenantId` 与业务 appends 双向对应：为 `null` 时
+每条普通业务 stream 必须是 system scope；为非空 `t` 时每条都必须是
+`{kind:"tenant",tenantId:t}`，不能混 system 或另一 tenant。普通 CAS 冲突按
+**原** `attemptedAppends` 执行同一双向核验，provider-owned 结果 stream 则按下文
+采用 system 或原 tenant scope；用户自报 `tenantId:null` 不授 system 写权限。
+唯一受限混合流例外是
 Tenant personal creation 的**一笔冻结原操作**，由受信装配在当前代颁发不可伪造的
 单次资格。资格绑定来源 `deployment_init | account_registration`、原 operationRef、
 冻结输入摘要、`UserRef`、personal target tenantId、精确协调域、精确 expected revisions、
-Tenant owner/Admission host generation 与 writer epoch。`deployment_init` 的 appends
+Tenant owner/Admission host generation 与 writer epoch。Account 来源的原输入摘要如何
+与本 envelope 的 `inputDigest` 精确对应，仍须在 Account→CC→DR 联合接口中定义；
+当前不假定二者是同一摘要，也不把凭据原文放入本能力的 `canonicalInput`。这一映射
+未闭合时，个人创建分支不能宣布可实施验收。`deployment_init` 的 appends
 集合恰为 system `tenant-bootstrap`、system `tenant-personal-index`、tenant
-`tenant:<target>` 三条；`account_registration` 恰为后两条。此特例的冻结 appends
+`tenant:<target>` 三条；`account_registration` 恰为后两条。两种来源的
+`OperationInput.tenantId` 均为 `null`：其原操作是 Account 全局账号创建后果，
+personal target 是受信来源绑定及目标 tenant append 的身份，不是该输入的
+tenant scope。`null` 不给普通操作开放跨 system/tenant 混写；writer 必须核原
+`OperationRef`、来源事实身份/版本、输入摘要、`UserRef`、target 与 CC-03 本代
+单次资格的逐项绑定。此特例的冻结 appends
 顺序固定为 registration `[tenant-personal-index, tenant:<target>]`、init
 `[tenant-bootstrap, tenant-personal-index, tenant:<target>]`，仅约束此特例。
 唯一 tenant append 的 scope tenantId 与 streamId 必须严格等于绑定 target；
@@ -142,6 +157,9 @@ namespace/stream，普通 outcome/fact 不携带个人创建扩展字段。
 该例外的 durable conflict 改用 provider-owned **system** `operation-outcomes`。
 其 `attemptedAppends` 仍须是原二/三流候选的精确有序 stream/expectedRevision 投影，
 与原受信资格绑定并按上述完整前缀复核；业务 facts 不被当成已提交。
+冲突行的 `canonicalInput.tenantId` 仍为 `null`，不能根据唯一 provider-owned system
+结果 stream 推断原候选只有 system 流；须重核 `attemptedAppends` 的全部 system 与
+目标 tenant 流身份。
 即使只有 `tenant-personal-index` revision 冲突，outcome 和同一
 `operation.conflict` fact 也必须
 保存原绑定的 `personalTargetTenantId: OpaqueId`、来源、原 operationRef、输入摘要及
