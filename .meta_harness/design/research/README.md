@@ -26,6 +26,7 @@
 
 ### 产品机制来源
 
+- [产品账号认证与 CLI 登录的复用来源](account-auth-sources/README.md)
 - [Computer、Browser、Shell 与执行环境](computer-browser-shell-environment-sources/README.md)
 - [运行时能力装载与制品管理](dynamic-loading-and-artifact-sources/README.md)
 - [未来规划、日历与通知](future-planning-calendar-and-notification-sources/README.md)
