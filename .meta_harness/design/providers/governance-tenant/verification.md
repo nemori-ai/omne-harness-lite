@@ -24,6 +24,12 @@ unknown、回执丢失、独占恢复与安全释放、错批/错 user/错 owner
 publication blocked 与 CC-06 新代全 owner 基线、closing/closed 后历史认回与当前
 资格分离。本创建只建立一份 personal/owner，不附带组织成员；不能从 personal
 创建后果推断账号 active 或把 pending 身份用于业务。
+另测个人 owner 管理/close 的位置竞争：Tenant 创建已可消费而 Account 仍 pending、
+请求与 Account active 先后交错、actor 是别的账号、seed/系统标签冒充、active
+证明不可达或过旧、唯一 owner revision 变化、普通 `changeMember`/`removeMember`
+试图暂停/移除 owner，以及 closing 后清理。pending 请求必须拒绝且不留自动
+执行占位；active 后 owner 显式新请求可关闭。未完成 Account active 证明与
+Tenant/Admission 同门组合实验前，不声称个人关闭或管理入口实现符合。
 每项记录输入版本、writer/Admission generation、原操作、目标、批次
 水位与观察结果。验证同时覆盖 Records 结构门、JSONL writer、Tenant 业务门与
 完整耐久 publication；本候选仅定义应验边界，不声称已执行。Account/CC 导入

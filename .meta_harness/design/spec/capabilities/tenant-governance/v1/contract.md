@@ -32,6 +32,13 @@ platform 租户管理语义。个人租户创建与唯一有效 owner 成员共�
 
 `createTenant`、`addMember`、`changeMember`、`removeMember`、`closeTenant` 由
 对应管理主体调用。个人 owner 不可替换为其他人，不允许增加第二名个人成员。
+个人 owner 也不可经普通 `changeMember`/`removeMember` 被暂停、移除或变为没有
+唯一 active owner；关闭后的责任清理由 TG-03 收口，不以普通成员变更绕过。
+个人租户中凡以 owner 资格发起的 TG 管理变更，均须在其逻辑准入门核对：可信
+发起账号的 `UserRef` 与该租户唯一 owner 相同，且 Account 权威已耐久确认该账号
+`active`。pending、其他账号、seed 或系统标签均不满足该门槛；缺少可信 active
+证明时拒绝/不可用，不因创建回执或 owner 成员已耐久就授予管理权。这项门槛只
+约束个人 owner 管理，不为独立组织入会设新政策。
 组织 super_admin 可管理本组织成员及适用资产／配置／预算；变更不能移除最后
 一名有效 super_admin，转移最高管理资格以一份共同提交完成。成员状态
 active／suspended／removed，removed 后重新加入形成新 membership revision，
@@ -112,6 +119,10 @@ owner 和原定义关联不可由切换菜单改变。组织不可用、成员�
 仍活动的 Run、后台调用、未结算决定、财务责任与资产引用。显式控制或交接使其
 收口后才能 closed。关闭不是物理擦除、供应方退款或任意外部效果撤销；失败、
 未知及剩余责任可查询。已关闭 tenant 身份不复用，重试只认回原关闭操作。
+个人租户的 `closeTenant` 只准其唯一 owner 对应的耐久 `active` Account 在同一
+逻辑门发起；首版没有受信系统绕过关闭入口。pending 期间到达的 close 请求可被
+识别但须拒绝，不占待激活后自动执行的位置；账号 active 后 owner 可重新显式发起。
+若 owner publication 尚未可消费、账号状态未知或 actor 不匹配，也不得关闭。
 
 ## 定义、权益与选用
 

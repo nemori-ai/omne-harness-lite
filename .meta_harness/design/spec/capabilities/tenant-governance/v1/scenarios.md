@@ -20,3 +20,5 @@
 | TG-P11 错配恢复 | 二/三流错批、错来源、错 user/target/creator/owner、第二有效 owner、重复 claim、撕裂或坏前缀均拒绝 ready；每条 stream 单独 decoder 成功不够。 |
 | TG-P12 历史与当前资格 | 原创建后租户 closing/closed，同操作只认回历史提交；当前业务拒绝，旧回执不恢复权限。关闭后不同新操作再建个人范围首版不开放，未来政策未决。 |
 | TG-P13 本创建的范围 | init 与注册的每次创建都只产生一份 personal tenant/唯一 owner，不附带组织成员；pending 身份不能凭创建回执使用个人或组织业务。独立组织入会的准入由其自身契约决定。 |
+| TG-P14 ready 后、账号 active 前的关闭竞争 | personal/owner 已耐久可消费，但 Account 仍 pending；同一 owner 的 close 或 owner 管理请求可达却在逻辑门拒绝，不预留激活后自动执行的位置。Account 耐久 active 后，同一 owner 新发请求方可排位；不需要额外 activation reservation。 |
+| TG-P15 个人 owner 守卫 | 异账号、seed/系统标签、无法核实 Account active 或 owner revision 的 close/管理请求拒绝或 unavailable；没有首版系统关闭绕过。`changeMember`/`removeMember` 不能暂停/移除个人唯一 owner，closing 后清理按 TG-03 收口。 |

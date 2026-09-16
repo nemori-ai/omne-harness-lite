@@ -44,6 +44,18 @@ Host 查询分别呈现历史 durable 提交、当前 publication 可消费、�
 失败时原 completion 永久保留 `committed_blocked`，CC-06 新代全 owner 基线完成后
 本代查询另给可消费证明，不重发批次或改写原 completion。
 
+## 个人 owner 管理与关闭守卫
+
+`closeTenant(personal)` 及 TG 中以个人 owner 资格发起的管理变更，在取得逻辑
+位置的短门内核对可信 actor 的 `UserRef`、当前唯一 active owner membership
+revision，以及 Account 对同一 `UserRef` 已耐久 `active` 的当前可核验证明。
+任何一项缺失、pending、异账号、seed/系统标签或 owner 尚未可消费均拒绝/
+unavailable；pre-active close 不排位也不保留待激活后自动执行的占位。active
+后须由 owner 另行显式发起。普通 `changeMember`/`removeMember` 不能暂停或移除
+个人唯一 owner；closing 后的清理按 TG-03 留存责任进行，不从 member 变更
+旁路关闭。首版没有受信系统关闭入口。Account active 事实的受信交付和在短门
+中的同代读取尚无 provider 证据，未闭合前不得开放这些管理入口。
+
 ## 与预算核算的边界
 
 TG 拥有 tenant/member 以及 `budget.manage` 等管理资格，负责入口是否可用；它不拥有

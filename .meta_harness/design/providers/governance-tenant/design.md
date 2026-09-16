@@ -28,6 +28,13 @@ provider 代次；个人创建的短门只读已耐久导入的 Account 原后�
 当前根，不同步调用 credential provider。Context、DTO 或菜单选择不构成授权。
 成员暂停/移除在 logical 位置
 封闭后续准入，耐久后才可作为正向权利依据；重加入形成新 joinedRevision，旧 grant 不复活。
+个人租户的 owner 管理入口及 `closeTenant` 另有同门守卫：发起凭据解析出的
+`UserRef` 必须等于当前唯一 owner，Account 对该账号的 `active` 状态须已有可信
+耐久确认并在本次逻辑位置可核验。Host 不接受 pending、其他账号、seed/系统
+标签代替；首版无系统关闭绕过。个人 owner 不可被普通 member 变更暂停/移除，
+关闭后清理归 TG-03。Account active 证明如何进入本协调域的当前根、如何与
+actor/owner 修订同门核验仍需 Account/CC provider 映射；缺席时相关操作
+unavailable，不能以旧创建回执或 TTL 缓存放行。
 
 两个受信入口共用 TenantHost 的一份个人创建 operation/claim 状态机。Host 先按原
 operationRef 查询占位与耐久结果；同输入重入沿原 target，不重新分配，也不重跑

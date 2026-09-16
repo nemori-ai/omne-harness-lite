@@ -17,3 +17,8 @@ unavailable。本候选不能被当成实现许可或实现符合。
 seed 字符串均拒绝 init。Account/CC 在 Tenant 权威未建立时的来源导入、unknown
 target 认回及恢复映射尚无提供者证据。每次创建只产一份 personal/owner，不能
 从该回执推断账号已 active 或授予 pending 身份业务访问。
+TG-P14/P15 还须核验 ready→close→Account active 交错：personal 创建已 durable
+ready 而账号仍 pending 时，owner close/管理变更在逻辑门拒绝且不会在激活后自动
+执行；同一账号耐久 active 后新请求可关闭。异账号、seed/系统标签、active
+证明缺席、owner revision 变化和普通成员操作试图暂停/移除个人 owner 均失败
+关闭；首版没有受信系统关闭旁路。该 active 事实的同门 provider 映射尚未验证。
