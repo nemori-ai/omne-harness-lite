@@ -1,0 +1,10 @@
+# 能力地图
+
+| 维度 | 状态权威与插件投影 | 不拥有 | 提供者状态 |
+|---|---|---|---|
+| `data.core-work` | 共享值与 Schema；数据包，无独立运行插件 | 授权、状态转移、呈现 | Schema 候选，消费映射待迁移 |
+| `capability.durable-records` | 记录、writer、耐久水位、unknown；记录插件 | 业务语义与授权 | session persistence + JSONL 部分实现 |
+| `composition.core-work-coordination` | 短门、逻辑位置、共同提交、outbox/回执；协调插件 | 各能力状态、外部效果恰好一次 | admission 部分实现，联合行待核对 |
+| `capability.engineering-observation` | log/trace/diagnostic、cursor/gap/query；观测插件 | 授权、控制、业务真相 | diagnostics 部分实现，读面未闭合 |
+
+四个维度因责任与变化边界正交，但通过精确条款组合；正交不表示任意操作可交换。
