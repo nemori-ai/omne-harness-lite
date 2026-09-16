@@ -6,6 +6,10 @@ legacy `composition.core-work-coordination@2` 重基，保留 CC-01～CC-07 及�
 
 本组合拥有跨能力准入、原子接受/拒绝、提交后事实广播、不能共同提交时的交接回执以及取消/补偿边界；
 它不取得各业务状态权威，也不把通知、日志或多个独立写入称作共同提交。
+涉及活体 Agent 的准入、发布与使用关系继续消费同基线的
+[CB-01/02/03/06/09/13/14](../../agent-session-binding/v1/contract.md)：当前权限、共同撤销、
+精确工作许可和受管资源责任必须参与相应边界；账号注册等不涉及活体 Agent 的操作
+不因此取得 Agent 工作许可。Run epoch 仍由 Run 权威拥有。
 personal creation 候选分支依赖同 baseline 的 [DR-01](../../../capabilities/durable-records/v1/contract.md)、
 [TG-01/03](../../../capabilities/tenant-governance/v1/contract.md)、
 [AI-01/02/02a/04/05/08](../../../capabilities/account-identity/v1/contract.md) 与

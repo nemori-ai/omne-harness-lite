@@ -231,6 +231,23 @@
         {
           "coordinate": {
             "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "composition.agent-session-binding",
+            "version": 1
+          },
+          "clauses": [
+            "CB-01",
+            "CB-02",
+            "CB-03",
+            "CB-06",
+            "CB-09",
+            "CB-13",
+            "CB-14"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
             "contract_id": "capability.durable-records",
             "version": 1
           },
