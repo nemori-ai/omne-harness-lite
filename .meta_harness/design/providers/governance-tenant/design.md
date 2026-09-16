@@ -3,6 +3,7 @@
 消费 `capability.tenant-governance@1`，并固定 S 的 `data.core-work@1`、`capability.durable-records@1`、
 `composition.core-work-coordination@1` 与 `capability.engineering-observation@1` 所需条款。
 旧 `f98ac926`/`058c77c` 接受只说明 legacy 施工来源，不接受本 baseline 坐标或候选插件。
+状态转移、失败语义与重载细节见[当前协议](protocol.md)，其内容同样保持 candidate。
 
 ## 实现路径与来源
 

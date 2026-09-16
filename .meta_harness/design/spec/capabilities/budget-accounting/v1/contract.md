@@ -45,8 +45,9 @@ soft 记录阈值和告警后果；hard 在下一计费准入检查并预留当�
 
 ## 订阅、授予额度与账单
 
-**BG-05**：SubscriptionLink 由租户管理能力拥有本地关联和变更意图；供应方
-拥有其实际订阅/账期/状态/结算。操作 list/get/requestChange/requestCancel/
+**BG-05**：SubscriptionLink 的本地关联、变更意图、结果与对账状态由本能力
+唯一拥有；租户治理只提供管理入口和当前资格，不保存或复制这些状态。供应方拥有其
+实际订阅/账期/状态/结算。操作 list/get/requestChange/requestCancel/
 reconcile 保留当前外部版本、期望变更、生效时间和 pending/applied/rejected/
 unknown 结果。相同变更意图重试认回来源操作，不能重复购买；未知期间先
 核实，不把本地按钮成功当供应方已修改。实际支付、税务发票和代扣未由此
