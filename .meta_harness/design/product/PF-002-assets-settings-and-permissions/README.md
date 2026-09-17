@@ -2,7 +2,7 @@
 id: PF-002
 title: 设置、权限与资产的展开
 status: active
-revision: 1
+revision: 2
 relations:
   supersedes: []
   depends-on:
@@ -47,7 +47,7 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 1**，已定稿
+- 产品设计：**rev 2**，已定稿
 - 未决项：**无**
 - 待裁决：**无**
 - 技术投影：**尚未开始**

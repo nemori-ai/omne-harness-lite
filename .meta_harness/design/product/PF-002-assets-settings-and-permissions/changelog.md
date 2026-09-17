@@ -5,6 +5,38 @@
 
 技术投影用 `provenance.json` 引用具体 rev，所以这里的 rev 不准会直接传导到实现侧。
 
+## rev 2 — 2026-09-17
+
+**补入两类资产：MCP 与 Connector。**五类变七类，随
+[PF-001 rev 6](../PF-001-identity-scope-and-agent-constraints/changelog.md) 一同修订。
+
+| | rev 1 | rev 2 |
+|---|---|---|
+| 资产的种类 | 五类 | **七类**，补入 MCP 与 Connector |
+| 外部工具来源 | 没有位置 | **MCP**：一批动作的来源，本身不可调用。**它带来的动作不是独立资产** |
+| 外部消息来源 | 没有位置 | **Connector**：把外部消息送进来，**方向与其余六类相反** |
+| Plugin 能组合什么 | Skill、Tool、Slash Command | 再加 **MCP、Connector** |
+| Agent Definition 能组合什么 | 全部五类 | **全部七类** |
+| 组合关系表 | 5×5 | **7×7**，MCP 与 Connector 两行**全空** |
+
+### 两条要点
+
+**MCP 的形状等同于「多命令 tool 与它的子命令」**：接入点是资产，内容随它治理。
+反过来做——每个 MCP 工具各算一份资产——会让**资产身份随对端版本漂移**，
+而资产是要被持有、覆盖、转移的东西，身份必须稳定。
+
+**Connector 是七类里唯一方向相反的一类**，它回答「agent 从哪里被触达」。
+这扩展了「组装」的含义，扩展与撤回条件记在
+[PF-001 decisions 第四节](../PF-001-identity-scope-and-agent-constraints/decisions.md#四已知的来源问题)。
+
+### 下游要复核什么
+
+- **不要为每个 MCP 工具登记资产。**
+- **Connector 的权限必须回答「送进来的消息按什么身份处理」**——不定这一项，
+  租户隔离会在入口处破掉。
+- Plugin 可打包 MCP/Connector 这一条是 **PM 推的**，见
+  [decisions.md 第二节](decisions.md#二pm-推导)，可撤。
+
 ## rev 1 — 2026-09-17
 
 **首版。**把 [PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)

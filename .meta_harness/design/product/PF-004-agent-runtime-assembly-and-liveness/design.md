@@ -80,7 +80,7 @@
 |---|---|
 | 账号、组织、租户、四层作用域、`immutable`、成本按租户归属 | [PF-001](../PF-001-identity-scope-and-agent-constraints/design.md) |
 | **Context：agent 运行时可感知的上下文信息**（协作范围 / 个人两种） | [PF-001 §4](../PF-001-identity-scope-and-agent-constraints/design.md#contextagent-运行时可感知的上下文信息) |
-| 资产五类、能力标识、持有、设置与权限是资产的属性、层级求值、移除与禁用 | [PF-002](../PF-002-assets-settings-and-permissions/design.md) |
+| 资产七类、能力标识、持有、设置与权限是资产的属性、层级求值、移除与禁用 | [PF-002](../PF-002-assets-settings-and-permissions/design.md) |
 | **定义 / 装配 / 活体三段结构**，及「变化作用于下一次装配」 | [SYS-COMPOSITION](../../foundation/definition-and-runtime-composition/requirements.md) |
 
 本 topic 把 SYS-COMPOSITION 的三段结构，落到 agent 这件具体的事上，
@@ -445,7 +445,7 @@ agent 运行时可感知的上下文信息，并给出协作范围与个人两�
 |---|---|---|
 | [SYS-COMPOSITION](../../foundation/definition-and-runtime-composition/requirements.md) | 定义/装配/活体三段结构、变化作用于下一次装配 | **本 topic 是它在 agent 这件事上的产品落点**，不重复陈述结构本身 |
 | [PF-001](../PF-001-identity-scope-and-agent-constraints/README.md) | 身份、四层作用域、Context 两种、撤销的效应、成本按租户归属 | **依赖其定义**。本 topic 只补「运行期产生的上下文」这一类 |
-| [PF-002](../PF-002-assets-settings-and-permissions/README.md) | 资产五类、能力标识、层级求值、移除与禁用 | **依赖其定义**。装配的输入来自它的求值结果 |
+| [PF-002](../PF-002-assets-settings-and-permissions/README.md) | 资产七类、能力标识、层级求值、移除与禁用 | **依赖其定义**。装配的输入来自它的求值结果 |
 | [PF-003](../PF-003-asset-transfer-and-sharing/README.md) | 定义怎样跨组织流动 | 不直接依赖。转移与分享改变的是「持有什么」，经 PF-002 的求值进入装配 |
 | [PF-005](../PF-005-execution-environments-and-sandboxes/README.md) | 执行环境有哪几种、各自的存活期与隔离性 | **它是本 topic「执行环境」那一行的展开。**本 topic 只定它以注入方式进入实例，**不对它的寿命作断言** |
 
