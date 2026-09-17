@@ -5,11 +5,17 @@
 
 失效事件：项目层面的方向调整。单个产品 topic 的变化不影响这里。
 
+**这里有一个根目标。**[SYS-DYNAMIC 完全动态系统](fully-dynamic-system/README.md)
+是其余各条服务的对象——谈解耦、谈组合、谈恢复接续，归根结底都是在谈
+**怎样设计和组织这个系统，才能达到完全动态**。引用某一条时，
+回到这个根目标问一句「它为什么存在」，通常比逐字抠条款更快找到分界。
+
 ## 内容
 
 | Topic | 承载什么 |
 |---|---|
 | [cross-system-constraints](cross-system-constraints/README.md) | SYS-IDENTITY、SYS-KERNEL、SYS-SPEC、SYS-DEPLOY、SYS-TENANT、SYS-LLM、SYS-EXPERIMENT 七条跨系统约束 |
+| [definition-and-runtime-composition](definition-and-runtime-composition/README.md) | SYS-COMPOSITION：定义、装配与活体三段结构，以及内核实际给什么 |
 | [fully-dynamic-system](fully-dynamic-system/README.md) | 完全动态系统的目标与判据 |
 | [interest-alignment](interest-alignment/README.md) | 与所服务的组织或个人保持利益对齐 |
 | [long-running-and-evolving](long-running-and-evolving/README.md) | 超长期待机、稳定运行、持续进化 |
