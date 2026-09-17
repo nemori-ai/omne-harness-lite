@@ -54,7 +54,7 @@ relations:
 |---|---|---|
 | **世界** | 系统之外的东西 | `Files()` `Shell()` `Web()` `Browser()` `Computer()` |
 | **自己的能力集** | agent 由什么构成 | `Tools()` `Skills()` |
-| **自己的运行状态** | 正在做什么、做到哪 | `Todos()` `Jobs()` |
+| **自己的运行状态** | 正在做什么、做到哪 | `TodoItems()` `BkgJobs()` |
 | **他者** | 别的主体 | `Agents()` `Ask()` |
 | **系统自身** | 装配与插件本身 | `Cordis()`（**不在首批**） |
 

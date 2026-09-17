@@ -46,8 +46,8 @@
   按**作用对象**摊开之后，产品负责人给的六个集中在「世界」与「自己的能力集」两族，
   而**「自己的运行状态」与「他者」两族整个是空的**。
 - 状态：当前有效
-- 记录者注：据此提出五个候选（`Files()` `Agents()` `Todos()` `Jobs()` `Ask()`）
-  与一个需要产品负责人表态的（`Cordis()`）。其中 **`Jobs()` 与 `Ask()` 被指认为
+- 记录者注：据此提出五个候选（`Files()` `Agents()` `Todos()` `Jobs()` `Ask()`——后两个定稿时已改名为 **`TodoItems()`** 与 **`BkgJobs()`**，见 INT-008）
+  与一个需要产品负责人表态的（`Cordis()`）。其中 **`BkgJobs()` 与 `Ask()` 被指认为
   [PF-006](../../PF-006-tools-and-skills/design.md) 自己挖的坑**——那里定了执行可转后台、
   定了等待态，却没有对应的入口。**调研只用于发现缺口与印证边界，不作为依据。**
 
@@ -114,6 +114,43 @@
   的「两个入口」与「设施声明的主语」（合并升 rev 2）。
   **PF-004 那处比原先报告的小**：§6.3 早就有「增量装载是个例外」这条规则，
   缺的只是 §5.3 那张「最要紧的表」上拿不到这个例外——**改的是表，不是规则**。
+
+## INT-008 逐扇门 review：Shell / Computer / Agents / TodoItems / BkgJobs
+
+- 时间/顺序：**PF-007 rev 1 定稿之后**，产品负责人逐扇门过目
+- actor：**产品负责人本人**
+- 表达方式：`quote`
+- 内容（按发生顺序）：
+  1. 「session security mode 这个不在这边讨论，**shell 你舍弃 codex 的那两个 feature 我认可**，
+     不过 **shell 我认为我们的 commands 应该要是 create_session, execute, close_session，info,
+     这样运行多个 terminal sessions 同时存在，execute 能接受指定 session_id, cwd, envs,
+     run_in_background 等参数**」
+  2. 「**Computer() 这个请你直接对标 omne-next/ 的 computer use tool 来设计**」
+  3. 「**Agents() 工具的 dispatch 命令的几种模式，对标 omne-next/omne_harness 的来定义，
+     同时加上我们要支持调用第三方 harness 的 agent 并约定技术上走 ACP 的范式**」
+  4. 「**Todos() 工具我们不采用单份 plan 的形式，而是采用 todo items list 的形式，
+     因此 commands 我们设计成 add、remove、mark_complete、list，同时工具名改成 TodoItems()**」
+  5. 「**Jobs() 工具名改名为 BkgJobs()**」
+- 状态：当前有效。**五条全部落稿**
+- 记录者注：五条里有三处值得记下来。
+
+  **其一，第 4 条推翻了记录者的一条推导。**初稿主张「整份覆盖、不做逐条增删改」，
+  理由是「逐条改会让当前计划有多个答案」——**这个论证站不住**：它混淆了读与写，
+  `list` 永远给出当前全量。更要命的是它**与本 topic 自己的另一条自相矛盾**——
+  [`Files()` 的 `write`/`edit` 分开](../design.md#63-files通向文件系统)论证的正是
+  「整份覆盖与局部修改失手代价不同」，同一个判据在两扇门上得出了相反结论。
+  已记入 [decisions 第四节](../decisions.md#四已知的来源问题)。
+
+  **其二，第 1 条的设计比初稿好，记录者原稿有结构问题。**初稿把「开 / 执行 / 关」
+  塞进一个 `session` 命令里，等于在多命令范式里又嵌了一层子命令；
+  而**多个终端会话同时存在**这件事初稿完全没有。
+
+  **其三，第 3 条是本系统比前身多出来的能力。**
+  `omne-next` 的产品权威条款明确写着「**不批准跨 Tenant 或 third-party harness dispatch**」，
+  而本 topic 要支持它。记录者据此把**四条产品后果**写死（权限不可继承、
+  数据出境、监管取决于对方、回来的是外部内容），
+  其中「**派给外部必须是一项显式授予的权限**」是最硬的一条。
+  **ACP 是产品负责人给的技术约束，正文只提一句并标明归技术设计。**
 
 ## 记录边界
 

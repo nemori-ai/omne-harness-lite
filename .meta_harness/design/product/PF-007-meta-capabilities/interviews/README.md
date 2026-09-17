@@ -10,5 +10,5 @@
 
 | 日期 | 笔记 | 谈了什么 |
 |---|---|---|
-| 2026-09-17 | [Meta Capabilities](2026-09-17-meta-capabilities.md) | 开题：meta 的定义与「必定常驻」→ 不可禁用不可替换 + 六个必需 → 调研七家 → 补五个 + Cordis 非首批 → 全部多命令范式 → 补 exec_script 与 patch |
+| 2026-09-17 | [Meta Capabilities](2026-09-17-meta-capabilities.md) | 开题：meta 的定义与「必定常驻」→ 不可禁用不可替换 + 六个必需 → 调研七家 → 补五个 + Cordis 非首批 → 全部多命令范式 → 补 exec_script 与 patch → 逐扇门 review：Shell 多会话、Computer 对标 legacy、Agents 三模式 + 外部 harness、TodoItems / BkgJobs 改名 |
 | 2026-09-17 | [外部实现调研](2026-09-17-survey-of-harnesses.md) | pi / DSH / opencode / deepagents / Claude Code / Codex / Cursor / Kimi Code 各自提供了什么，以及 omne-next 的现成形态 |

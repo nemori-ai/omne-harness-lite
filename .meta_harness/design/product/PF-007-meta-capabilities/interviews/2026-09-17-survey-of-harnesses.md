@@ -118,6 +118,59 @@ Codex 的持久是隐式的——每条命令都自动保持状态；本 topic �
 这印证了[四、两个被指认为 PF-006 自己挖的坑](#四两个被指认为-pf-006-自己挖的坑)里的判断——
 **它们是一族能力，不该散成独立工具。**
 
+## 八、omne-next 的 computer use tool
+
+`Computer()` 直接对标它（[INT-008](2026-09-17-meta-capabilities.md#int-008-逐扇门-reviewshell--computer--agents--todoitems--bkgjobs) 第 2 条）。
+
+它本身就是 `BaseMultiCommandTool`，动作以**数组**形式传入（`actions=[{...}]`）。
+动作分四层，门槛不同：
+
+| 层 | 动作 | 门槛 |
+|---|---|---|
+| `TIER_BASIC` | click, type, key, scroll, move, wait, screenshot, cursor_position | 无 |
+| `TIER_ADVANCED` | drag, zoom, mouse_press, mouse_release, hold_key, clipboard_read, clipboard_write | **要先读 help** |
+| `TIER_WINDOW` | window_info, focus_window, close_window, set_window_state | **要先读 help** |
+| `TIER_APPLICATION` | launch_application, open_resource | **要先读 help** |
+
+另有四个机制被本 topic 采纳为**产品性质**：**批量动作**、**`help` 与其他动作互斥**、
+**截图预算**（超出时裁掉历史里的旧截图）、**动作之后等界面稳定**。
+还有一个 `SKILL_GATED_ACTIONS` 是预留的（当时为空集），本 topic 未采纳。
+
+它配套一份 `using-computer` 技能，含 `action-batching` 与 `interaction-loop`——
+**这印证了「工具必须与技能配套」**（[PF-002](../../PF-002-assets-settings-and-permissions/design.md#七类资产)）。
+
+## 九、omne-next 的 subagent dispatch
+
+`Agents()` 的派发模式对标它（[INT-008](2026-09-17-meta-capabilities.md#int-008-逐扇门-reviewshell--computer--agents--todoitems--bkgjobs) 第 3 条）。
+
+那边是一只 `subagent_dispatch` 工具挂十个命令，**三种派发关系**：
+
+| | 前身的承诺 |
+|---|---|
+| `delegate` | master 保留对直接子的**监督关系**，可发送后续消息，也可撤回 |
+| `spawn` | 创建**自身 blueprint 的独立执行 clone**；clone 有独立 session，可被撤回，但**不因此获得 delegate 的持续监督** |
+| `handoff` | 交出任务后不再介入、**不可撤回**；报告**永不回到这张 ack** |
+
+还有一条被本 topic 采纳的判断：**执行姿态由实现钉死，agent 不参与决策**——
+判据是「执行后还要不要等子回报」，**因此它不需要一个 agent 可选的开关**。
+
+以及 `expected_report_shape`：发起方对报告形状的**可选指引**，
+送给子并在完成时回显以供比对，**系统不校验子的报告内容**。
+
+### 一处本系统与前身相反
+
+前身那份产品权威条款写着：
+
+> **本决定不批准跨 Tenant 或 third-party harness dispatch。**
+
+而本 topic **要支持派给外部 harness 的 agent**（产品负责人裁决），
+技术上约定走 **ACP**（Agent Client Protocol——Zed / JetBrains 那套，
+原为「IDE ↔ 编码 agent」的协议，2026 年 1 月起有 Registry，
+Codex CLI、Claude Code、Gemini CLI、Copilot CLI 均在其中）。
+
+**这是有意的偏离，不是疏漏。**四条产品后果写在
+[design.md §6.8](../design.md#68-agents通向别的-agent)。
+
 ## 记录边界
 
 - 本篇全部内容是 **PM 的调研摘要**，不是任何人的裁决。
