@@ -57,5 +57,5 @@ bindings:
   - clause: "capability.account-identity/v1#S-11"
     evidence: "test:account-identity/revoked-session-rejected"
     assumptions:
-      - "作用范围限于被撤销的那一个登录态；多端范围未确认（契约 G-1），不在覆盖内"
+      - "作用范围限于被撤销的那一个登录态；全设备撤销是产品明确不做的，无须覆盖"
     alignment_checked: "2026-09-17"

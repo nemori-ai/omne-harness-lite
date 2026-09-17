@@ -76,5 +76,3 @@ register(identifier, credential):
 
 | 缺口 | 影响 |
 |---|---|
-| 契约 G-1 初始权益未确认 | `registered` 不承诺任何可用额度；调用方不得假设新账号可立即消费 |
-| 契约 G-2 部署准入未确认 | `admission-denied` 保留在结果集合中但无触发路径 |

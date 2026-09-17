@@ -22,7 +22,7 @@ relations:
 | 关系 | 本 topic 的情况 |
 |---|---|
 | `supersedes` | 无 |
-| `depends-on` | 无。本 topic 紧邻的内容（设置字段目录、额度规则、技能与工具的装载等）目前**都还没有对应的产品设计**，分界见 [design.md 第八节](design.md#八边界与依赖)。它们各自成立 topic 之后，这里补上声明 |
+| `depends-on` | 无。本 topic 紧邻的内容（设置字段目录、成本与账单明细、技能与工具的装载等）目前**都还没有对应的产品设计**，分界见 [design.md 第八节](design.md#八边界与依赖)。它们各自成立 topic 之后，这里补上声明 |
 | `extends` | 无 |
 
 ## 按当前问题展开
@@ -40,8 +40,8 @@ relations:
 ## 状态
 
 - 产品设计：**rev 1**，已定稿
-- 未决项：9（见 [design.md 第九节](design.md#九未决项)）
-- 待裁决：6（见 [decisions.md 第三节](decisions.md#三待裁决)）
+- 未决项：**无**
+- 待裁决：**无**
 - 技术投影：**尚未开始**
 
 技术投影按[设计手册](../../../agents/skills/harness-design-handbook/canonical/SKILL.md)展开，

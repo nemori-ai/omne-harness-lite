@@ -7,7 +7,7 @@ bindings:
     evidence: "formal:account-registration-v1-basic"
     assumptions:
       - "模型覆盖两个并发注册尝试；更大规模未检查"
-      - "适用范围为账号存续期；终止语义未确认（契约 G-5）"
+      - "适用范围为账号存续期；账号终止本版不做，故在存续期内恒成立"
     alignment_checked: "2026-09-17"
 
   - clause: "capability.tenant-governance/v1#S-2"
@@ -53,5 +53,5 @@ bindings:
   - clause: "capability.tenant-governance/v1#S-12"
     evidence: "test:tenant-governance/scope-chain-single-definition"
     assumptions:
-      - "层间次序未确认（契约 G-2），本绑定只覆盖「层次定义唯一」，不覆盖次序正确性"
+      - "本绑定只覆盖「层次定义唯一」；次序正确性需另一项证据，次序本身已由 PF-001 §6.1 确定"
     alignment_checked: "2026-09-17"
