@@ -78,6 +78,7 @@
 | **view_image / 多模态输入**（Codex） | 那是模型输入的形态，不是一扇门 |
 | **marketplace 浏览与安装**（omne-next） | 资产怎么到手，归 [PF-002](../../PF-002-assets-settings-and-permissions/README.md) 与 [PF-003](../../PF-003-asset-transfer-and-sharing/README.md) |
 | **plan mode**（Kimi、Claude Code） | 那是交互形态，不是能力 |
+| **脚本回调 agent 工具的桥**（omne-next ADR-005，`__TOOL_CALL__` 协议） | skill 脚本跑在沙箱里、反过来调用 agent 的工具，是一个很重的机制。**它有一个未解的问题：脚本回调时以谁的身份、谁的权限？**不解决就做，会在权限上开一个大洞。本版 `Skills().exec_script` **只跑脚本，不提供回调** |
 
 **这一节存在的意义**：将来有人问「为什么我们没有 lsp」，
 答案在这里，而不是「当时没想到」。
@@ -88,3 +89,7 @@
 - 外部系统的做法**不构成本 topic 的依据**。正文的每一条都能在
   [decisions.md](../decisions.md) 找到裁决出处或独立的推理链。
 - 调研时间为 2026-09-17，各家版本随时在变；**引用请核对当时的来源**。
+- `omne-next` 的 `ADR-005-skill-script-execution-and-tool-hints.md` 状态是 **Proposed**，
+  位于 `adrs/archived/`——**提出过但从未被接受**，因此既不是有效方案也不是被否决的方案。
+  本篇引用它只为说明「skill 带脚本」这个问题真实存在过，以及它当时打算走的路
+  （`exec_python` 那条，而非 `Skills()`）。
