@@ -4,14 +4,14 @@
   "namespaces": [
     {
       "prefix": "PF-",
-      "kind": "requirement-clause",
-      "owner": "requirements/product",
-      "description": "产品需求 topic 的稳定编号，形如 PF-001；条款以 .Cn 后缀"
+      "kind": "product-clause",
+      "owner": "product",
+      "description": "产品设计 topic 的稳定编号，形如 PF-001；条款以 .Cn 后缀"
     },
     {
       "prefix": "SYS-",
-      "kind": "requirement-clause",
-      "owner": "requirements/system/constraints",
+      "kind": "foundation-clause",
+      "owner": "foundation/cross-system-constraints",
       "description": "跨系统约束，形如 SYS-TENANT"
     },
     {

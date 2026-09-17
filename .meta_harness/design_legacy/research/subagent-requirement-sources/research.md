@@ -105,10 +105,19 @@ Python 工具基类和 wire 字段保持原系统设计身份。
 - **草稿修订与等待数量读取最新补充。** 2026-08-27 允许 Agent 自行修订/取消
   自己的草稿，已激活计划保持原确认门；2026-09-08 已取消单 Run 仅一个人类
   blocking request 的旧限制。不能只复制文件开头的早期表述。
+- **第三方 Harness Agent 的语义和本地协议选择分开。** 来源快照的已接受
+  [ADR-007][third-party-adr7] 与其后续 [ADR-008 §2.7][third-party-adr8] 已定义
+  `third_party_harness_agent` 为外部 target / continuation actor，而非内部 runtime
+  instance；目标描述显式声明可接受的派发关系。ADR-007 的 host shell/CLI 载体及其
+  早期单向限制，已由 ADR-008 的 descriptor 自声明范围修订，且都属于上游实现/架构
+  选择，不能自动迁为本项目机制。2026-09-16 的用户输入扩展 PF-004 并确认本项目以
+  ACP 统一控制此类 target（含已协商的远程控制）；该本地约束归
+  [PF-004.C12](../../requirements/product/PF-004-subagent-delegation-and-supervision/requirements.md#第三方-harness-agent)，
+  不把 ACP 能力协商、远程访问安全或任一厂商能力当作已经完成的设计。
 - **未接受或来源之外的扩展。** [Delegate inbox 消费轮次提案][inbox-proposal]
-  的候选设计、第三方 harness 的独立集成方案、旧数据库和传输选择不自动接受。
-  来源已有的精确产品政策与其实现形态应分别映射；若需改变已确认政策，须明确
-  记录需求变更，不能以“本项目重做设计”为由无声删除。
+  的候选设计、旧数据库和传输选择不自动接受。来源已有的精确产品政策与其实现
+  形态应分别映射；若需改变已确认政策，须明确记录需求变更，不能以“本项目重做设计”
+  为由无声删除。
 
 ## 核对方法与证据边界
 
@@ -153,3 +162,5 @@ ADR-055、ADR-072、dispatch invariants、advertisement 和相关接口说明。
 [self-evolution]: https://github.com/nemori-ai/omne-next/blob/6263fed545e48ad9efb5714f3fe76a7c1a0af1b5/omne_harness/requirements/constraints/governed-harness-development-self-evolution-lifecycle.md
 [advertisement]: https://github.com/nemori-ai/omne-next/blob/6263fed545e48ad9efb5714f3fe76a7c1a0af1b5/omne_harness/design_docs/interfaces/sub-agent-advertisement-contract.md
 [inbox-proposal]: https://github.com/nemori-ai/omne-next/blob/6263fed545e48ad9efb5714f3fe76a7c1a0af1b5/omne_harness/adrs/proposed/ADR-090-delegate-inbox-consumption-rounds.md
+[third-party-adr7]: https://github.com/nemori-ai/omne-next/blob/6263fed545e48ad9efb5714f3fe76a7c1a0af1b5/omne_harness/adrs/accepted/ADR-007-external-agent-harness-integration.md
+[third-party-adr8]: https://github.com/nemori-ai/omne-next/blob/6263fed545e48ad9efb5714f3fe76a7c1a0af1b5/omne_harness/adrs/accepted/ADR-008-agent-dispatch-and-instance-lifecycle-model.md

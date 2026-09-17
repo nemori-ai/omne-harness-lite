@@ -133,6 +133,28 @@ migration_status: equivalent-current-requirement
   保持各自事实与发布/归档语义。自演化场景中，producer 自派的 sub-agent 仍在
   同一控制关系内，不能仅凭换身份冒充独立 evaluator 或批准者。
 
+### 第三方 Harness Agent
+
+- **PF-004.C12：第三方 Harness Agent 保持外部性，并统一经 ACP 接入。**
+  `third_party_harness_agent` 是经租户、owner、目标登记和派发授权共同准入的外部
+  continuation actor / dispatch target；它与内部 sub-agent 并列，而不是内部 child
+  session、Agent Blueprint 或 runtime body 的别名。系统可为其保存目标描述、派发
+  关系、因果关系和外部会话关联，但不得据此伪造内部 child 的身份、历史、权限、
+  sandbox、凭据或工作区。
+
+  本项目对该外部 target 的启动、提示、进度/结果观察、取消及任何已协商的远程控制，
+  一律经 [Agent Client Protocol (ACP)](https://agentclientprotocol.com/) 的同一 client
+  控制面完成；原生 ACP server 与把原 harness 转为 ACP agent 的适配器同样可作为
+  target。target 必须在初始化时协商并声明实际能力；系统只能使用已协商且当前获准的
+  操作，不把 ACP 的通用会话接口误写成所有 harness 都具备双向消息、持久恢复或远程
+  控制。ACP 不可用、所需能力未声明、授权/配额不足或远端拒绝时，系统明确拒绝或如实
+  报告失败，不静默退回 host shell、厂商私有 remote-control 接口或替换为另一 target。
+
+  外部 target 的可接受派发关系须显式声明：可支持 `handoff`；只有其已声明并在 ACP
+  能力协商中能兑现必要控制与回流时才可支持 `delegate`；`spawn` 不把外部 harness
+  伪装成内部 Blueprint 的 clone。外部 ACP session 标识只能与本地的耐久派发记录关联，
+  不改变 C1--C11 对内部 child 的身份、授权、生命周期、监督和结果语义。
+
 ## 可观察场景
 
 以下用于解释要求，尚不是已经执行的验收；完整条件继续沿来源清单追溯。
@@ -148,8 +170,9 @@ migration_status: equivalent-current-requirement
 ## 继承边界与待澄清
 
 完整继承包含来源自己的适用范围：目前核心派发要求限定同租户内部目标；跨租户、
-第三方 harness target、自动替换目标及定时 `delegate` / `spawn` 不从本项推导。
-这些是所列来源的边界，不是对本项目整体功能继承方向的撤回。
+自动替换目标及定时 `delegate` / `spawn` 不从 C1--C11 推导。C12 是本项目在
+2026-09-16 明确确认的第三方 harness target 扩展；它不放宽同租户、owner、授权、
+配额或监督边界，也不从 ACP 推导未经协商的远程控制能力。
 
 [来源差异记录](../../../research/subagent-requirement-sources/research.md#来源差异与未决范围)
 保留旧 ADR 关于人类暂停/恢复的较宽说法，以及后续 ADR-072 和需求正文明确
@@ -172,6 +195,6 @@ migration_status: equivalent-current-requirement
 不能把后台工具、handoff child 与父运行时生命周期混成一个开关。
 
 目前的设计（[本包覆盖状态](README.md#设计覆盖状态)）
-尚无完整 sub-agent 派发、授权、监督或定时闭环规格。本次登记新增约束与覆盖
-缺口，不接受候选设计，也不声明实现或验证完成；无需因此取代现有已接受的
-治理决定，旧基线保持原有范围。
+尚无完整 sub-agent 派发、授权、监督、定时闭环或第三方 ACP 控制闭环规格。本次
+登记 C12 的产品约束与覆盖缺口，不接受具体能力设计、provider、assembly 或实现/验证
+结论；无需因此取代现有已接受的治理决定，旧基线保持其原有范围。

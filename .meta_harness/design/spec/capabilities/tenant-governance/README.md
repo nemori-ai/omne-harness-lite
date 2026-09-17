@@ -23,4 +23,4 @@
 |---|---|
 | 本版本精确承诺什么 | [v1/contract.md](v1/contract.md) |
 | 哪些条款有证据、哪些仍缺 | [verification.md](verification.md) |
-| 组织上下文怎样影响协作 | [PF-001 设计投影 v1](../../../requirements/product/PF-001-tenant-organization-context/design/v1/projection.md) |
+| 组织上下文怎样影响协作 | [PF-001 产品设计](../../../product/PF-001-identity-scope-and-agent-constraints/design.md) |

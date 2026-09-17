@@ -21,4 +21,4 @@
 | 本版本精确承诺什么 | [v1/contract.md](v1/contract.md) |
 | 形式模型与检查配置 | [v1/formal/README.md](v1/formal/README.md) |
 | 哪些条款有证据 | [verification.md](verification.md) |
-| 实施者要怎么做 | [PF-026 设计投影 v1](../../../requirements/product/PF-026-account-journey-and-isolation/design/v1/projection.md) |
+| 这条组合服务于什么产品判断 | [PF-001 产品设计](../../../product/PF-001-identity-scope-and-agent-constraints/design.md) |

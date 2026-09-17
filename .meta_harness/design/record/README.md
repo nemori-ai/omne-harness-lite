@@ -49,6 +49,5 @@
 骨架已建，内容尚未从 `design_legacy/` 的 `research/`、`proposals/`、`decisions/`、`evidence/` 迁入。
 迁入是整目录搬运，内部相对链接不变；跨目录链接（指向 spec、realization、registry）需要按新结构重写。
 
-`evidence/` 在上一代结构中没有入口 README，292 个文件没有导航；本次补上。
 
 返回[设计链入口](../README.md)。

@@ -13,7 +13,7 @@
 | `PF-001` | `PF-001` | [PF-001：原生租户隔离与多组织上下文](product/PF-001-tenant-organization-context/requirements.md) | 待能力覆盖分析 |
 | `PF-002` | `PF-002.C1`、`PF-002.C2`、`PF-002.C3`、`PF-002.C4`、`PF-002.C5`、`PF-002.C6`、`PF-002.C7`、`PF-002.C8`、`PF-002.C9` | [PF-002：外部环境感知与响应](product/PF-002-external-change-response/requirements.md) | 待能力覆盖分析 |
 | `PF-003` | `PF-003.C1`、`PF-003.C2`、`PF-003.C3`、`PF-003.C4`、`PF-003.C5`、`PF-003.C6` | [PF-003：工具执行可观察、生命周期控制与后台接续](product/PF-003-tool-execution-observation-and-control/requirements.md) | 待能力覆盖分析 |
-| `PF-004` | `PF-004.C1`、`PF-004.C2`、`PF-004.C3`、`PF-004.C4`、`PF-004.C5`、`PF-004.C6`、`PF-004.C7`、`PF-004.C8`、`PF-004.C9`、`PF-004.C10`、`PF-004.C11` | [PF-004：Sub-agent 派发、协作与监督](product/PF-004-subagent-delegation-and-supervision/requirements.md) | 待能力覆盖分析 |
+| `PF-004` | `PF-004.C1`、`PF-004.C2`、`PF-004.C3`、`PF-004.C4`、`PF-004.C5`、`PF-004.C6`、`PF-004.C7`、`PF-004.C8`、`PF-004.C9`、`PF-004.C10`、`PF-004.C11`、`PF-004.C12` | [PF-004：Sub-agent 派发、协作与监督](product/PF-004-subagent-delegation-and-supervision/requirements.md) | 待能力覆盖分析 |
 | `PF-005` | `PF-005.C1`、`PF-005.C2`、`PF-005.C3`、`PF-005.C4`、`PF-005.C5`、`PF-005.C6`、`PF-005.C7`、`PF-005.C8`、`PF-005.C9`、`PF-005.C10` | [PF-005：智能体主动提问、请求授权与答复接续](product/PF-005-agent-initiated-human-input-and-approval/requirements.md) | 待能力覆盖分析 |
 | `PF-006` | `PF-006.C1`、`PF-006.C2`、`PF-006.C3`、`PF-006.C4`、`PF-006.C5`、`PF-006.C6` | [PF-006：用户设置、Agent 定义级授权与出厂默认覆盖](product/PF-006-user-settings-and-agent-definition-authorization/requirements.md) | 待能力覆盖分析 |
 | `PF-007` | `PF-007.C1`、`PF-007.C2`、`PF-007.C3`、`PF-007.C4`、`PF-007.C5`、`PF-007.C6`、`PF-007.C7` | [PF-007：系统发起的 HITL 与动作授权确认](product/PF-007-system-initiated-hitl/requirements.md) | 待能力覆盖分析 |

@@ -19,4 +19,4 @@
 |---|---|
 | 怎样实现、依赖什么、资源谁拥有 | [design.md](design.md) |
 | 哪条承诺由哪份证据支持、前提是什么 | [bindings.yaml](bindings.yaml) |
-| 实施者的单一入口 | [PF-026 设计投影 v1](../../../requirements/product/PF-026-account-journey-and-isolation/design/v1/projection.md) |
+| 这个包服务于什么产品判断 | [PF-001 产品设计](../../../product/PF-001-identity-scope-and-agent-constraints/design.md) |
