@@ -49,9 +49,15 @@ relations:
 
 - 资产有**五类**：skill、tool、plugin、agent definition、slash command
 - 资产之间是组合关系；资产组装成 agent 本质上也是组合关系
-- 设置与权限**附着在具体资产上**，与资产之间也是组合关系
+- 设置与权限是**具体资产的两种属性**；身份层的设置是持有资产上的**投影**
+- **默认与强制**用同一个机制（`immutable`）表达，管资产、设置、权限三处
+- 设置页**随资产自动增删**，且分「界面偏好」与「资产设置与权限」两块
+- 「移除」与「禁用」是**两个动作**
 
-待裁决见 [decisions.md 第三节](decisions.md#三待裁决)。
+**待裁决：无**（见 [decisions.md 第三节](decisions.md#三待裁决)）。
+
+仍待填的是 [design.md §4](design.md#四概念定义) 那张表：**五类资产各自的详细定义与组合能力**。
+在它填完之前本 topic 不能定稿——**那是这个 topic 的主体**。
 
 `flows.md`、`acceptance.md`、`changelog.md` 在模型稳定之后再写——
 现在写只会写成一份要推翻的东西。
