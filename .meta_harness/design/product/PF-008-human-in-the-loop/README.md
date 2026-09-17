@@ -81,6 +81,10 @@ relations:
   （产品负责人已明确 agent-loop / session / inbound 会是多个 topic）。
   本 topic 按 [PF-004 的先例](../PF-004-agent-runtime-assembly-and-liveness/design.md#两个只引用不拥有的对象)
   只引用、不拥有，用到哪几件事写在 [design.md §4](design.md#只引用不拥有的两个对象)
+- 上游欠账：**一笔，尚未闭合**——[PF-007 说「长期授权只能从设置与权限走」](decisions.md#四已知的来源问题)，
+  而本 topic 系统拦截卡片的第四档在卡片上就能给出长期授权。**两者实质不冲突**
+  （授权仍落在权限设置那一层，第四档只是另一个入口），但 PF-007 的措辞会误导，
+  **建议补一句交叉引用；动它需产品负责人授权**
 - 技术投影：**尚未开始**
 
 技术投影按[设计手册](../../../agents/skills/harness-design-handbook/canonical/SKILL.md)展开，
