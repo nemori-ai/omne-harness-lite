@@ -19,6 +19,7 @@
 | [PF-004 Agent 运行时——定义、装配与实例](PF-004-agent-runtime-assembly-and-liveness/README.md) | active | 2 |
 | [PF-005 执行环境与沙箱](PF-005-execution-environments-and-sandboxes/README.md) | active | 2 |
 | [PF-006 工具与技能](PF-006-tools-and-skills/README.md) | active | 1 |
+| [PF-007 Meta Capabilities](PF-007-meta-capabilities/README.md) | active | 1 |
 
 ## 一个 topic 包含什么
 
