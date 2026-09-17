@@ -40,8 +40,8 @@ relations:
 ## 状态
 
 - 产品设计：**rev 1**，已定稿
-- 未决项：11（见 [design.md 第九节](design.md#九未决项)）
-- 待裁决：7（见 [decisions.md 第三节](decisions.md#三待裁决)）
+- 未决项：9（见 [design.md 第九节](design.md#九未决项)）
+- 待裁决：6（见 [decisions.md 第三节](decisions.md#三待裁决)）
 - 技术投影：**尚未开始**
 
 技术投影按[设计手册](../../../agents/skills/harness-design-handbook/canonical/SKILL.md)展开，
