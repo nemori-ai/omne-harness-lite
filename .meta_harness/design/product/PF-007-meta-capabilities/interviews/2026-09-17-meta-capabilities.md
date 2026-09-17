@@ -92,6 +92,29 @@
   **[PF-006 §6.4](../../PF-006-tools-and-skills/design.md#64-依赖声明与解析) 只写了工具声明设施需求，没写技能**，
   已报告未擅改。
 
+## INT-006 shell / bash tool 三家怎么设计的
+
+- 时间/顺序：`exec_script` 与 `patch` 落稿之后
+- actor：**产品负责人本人**
+- 表达方式：`quote`
+- 内容：「**shell 或者 bash tool，在 codex、claude code、pi 里面分别怎么设计的**」
+- 状态：当前有效（调研指示，非裁决）
+- 记录者注：结论在[调研笔记第七节](2026-09-17-survey-of-harnesses.md#七shell--bash-tool三家的具体设计)。
+  两点影响已落进 decisions 第二节：**不采纳 Codex 的「agent 主动申请提权」**
+  （与注入模型冲突），以及 **`Shell().session` 取显式而非 Codex 那种隐式持久**。
+
+## INT-007 授权回改三处上游欠账
+
+- actor：**产品负责人本人**
+- 表达方式：`quote`
+- 内容：「**上游三个欠账授权你去改**」
+- 状态：当前有效。**三处已全部闭合**
+- 记录者注：三处分别是——[PF-004](../../PF-004-agent-runtime-assembly-and-liveness/changelog.md)
+  的重建触发点（升 rev 3）、[PF-006](../../PF-006-tools-and-skills/changelog.md)
+  的「两个入口」与「设施声明的主语」（合并升 rev 2）。
+  **PF-004 那处比原先报告的小**：§6.3 早就有「增量装载是个例外」这条规则，
+  缺的只是 §5.3 那张「最要紧的表」上拿不到这个例外——**改的是表，不是规则**。
+
 ## 记录边界
 
 - 只记参与者实际表达过的内容、公开给出的理由，以及清楚标为记录者解释的摘要。

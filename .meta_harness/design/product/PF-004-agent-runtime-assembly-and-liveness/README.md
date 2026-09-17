@@ -2,7 +2,7 @@
 id: PF-004
 title: Agent 运行时——定义、装配与实例
 status: active
-revision: 2
+revision: 3
 relations:
   supersedes: []
   depends-on:
@@ -76,10 +76,10 @@ PF-002 因对象的种类或组合形状变，本 topic 因装配与资源治理
 
 ## 状态
 
-- 产品设计：**rev 2**，已定稿
+- 产品设计：**rev 3**，已定稿
 - 未决项：**无**
 - 待裁决：**无**
-- 一处已报告、尚未裁决的来源问题：见 [decisions.md 第四节](decisions.md#四已知的来源问题)
+- 来源问题：**已全部闭合**，处置记录见 [decisions.md 第四节](decisions.md#四已知的来源问题)
 - 技术投影：**尚未开始**
 
 技术投影按[设计手册](../../../agents/skills/harness-design-handbook/canonical/SKILL.md)展开，

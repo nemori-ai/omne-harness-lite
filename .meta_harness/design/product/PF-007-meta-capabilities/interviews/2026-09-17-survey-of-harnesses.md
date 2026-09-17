@@ -83,6 +83,41 @@
 **这一节存在的意义**：将来有人问「为什么我们没有 lsp」，
 答案在这里，而不是「当时没想到」。
 
+## 七、shell / bash tool：三家的具体设计
+
+指示来自 [INT-006](2026-09-17-meta-capabilities.md#int-006-shell--bash-tool-三家怎么设计的)。
+
+| | **Codex** | **Claude Code** | **pi** |
+|---|---|---|---|
+| **参数** | `command`（必需）、`workdir`、`timeout_ms`、**`with_escalated_permissions`**、**`justification`** | `command`、`description`、`timeout`（ms，默认 120000／上限 600000）、`run_in_background`、`dangerouslyDisableSandbox` | 未公开 |
+| **持久状态** | **有，且隐式**：`ShellSnapshot` 自动保留 alias／环境变量／函数跨命令，落盘存 3 天 | **没有**。只有工作目录跨调用保持；shell 状态每次从 profile 重新初始化 | 未公开 |
+| **交互 vs 非交互** | `exec_command`（交互式 PTY）与 `shell_command`（非交互脚本）分开 | 一个 Bash，靠 `run_in_background` 分叉 | 一个 bash，另有可选 `powershell` |
+| **后台** | 走 PTY 会话 | **`run_in_background` + 两个独立工具**：`BashOutput` 读输出、`KillShell` 终止；前台 `sleep` 被禁 | 未公开 |
+| **沙箱与权限** | 三档：ReadOnly → WorkspaceWrite → DangerFullAccess。**patched zsh 拦截 `execve`，即时审批**；**读权限跨平台一律不限**（刻意——防的是写与网络，不是信息外泄） | `dangerouslyDisableSandbox` 逃生口 | **没有权限系统**。明说不限制文件系统／进程／网络／凭据，要隔离自己上容器 |
+
+### 对本 topic 的两点影响
+
+**一、`with_escalated_permissions` + `justification` 没有采纳。**
+那是 agent **主动申请提权并给出一句话理由**。不采纳的理由不是它不好，
+而是它与本系统的模型不兼容：执行环境在这里是**注入**的，
+[flows.md §4](../flows.md#四谁决定什么) 写死了「agent 不选落点」。
+让它申请提权等于让它影响注入，
+[PF-005 的热替换模型](../../PF-005-execution-environments-and-sandboxes/design.md#53-换执行环境是换一个值不是开关一套机制)当场被捅破。
+**同一个问题本系统的答案是「不可用 + 说明原因，agent 绕路」。**
+
+**二、`Shell().session` 取显式而非隐式。**
+Codex 的持久是隐式的——每条命令都自动保持状态；本 topic 是显式开会话。
+显式更对：[PF-005](../../PF-005-execution-environments-and-sandboxes/README.md) 花了一整个 topic
+给执行环境定绑定层级，隐式持久会让「这条命令的状态活多久」变成第二套解释。
+**显式开会话，状态的寿命就等于那个执行环境的寿命。**
+
+### 一处顺带的印证
+
+**Claude Code 把后台输出与终止做成了两个散落的独立工具**（`BashOutput`、`KillShell`），
+而本 topic 把它们归进 `Jobs()` 一扇门。
+这印证了[四、两个被指认为 PF-006 自己挖的坑](#四两个被指认为-pf-006-自己挖的坑)里的判断——
+**它们是一族能力，不该散成独立工具。**
+
 ## 记录边界
 
 - 本篇全部内容是 **PM 的调研摘要**，不是任何人的裁决。

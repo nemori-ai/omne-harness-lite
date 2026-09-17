@@ -21,11 +21,11 @@ relations:
 
 # PF-007：Meta Capabilities
 
-**[PF-006](../PF-006-tools-and-skills/README.md) 定了「常驻」，并留了一句没展开的话——
-「恒定占槽位的只有能力发现与取用的两个入口」。本 topic 回答那两个入口是什么、
-还有没有别的、各自长什么样。**
+**[PF-006](../PF-006-tools-and-skills/README.md) 定了「常驻」，并说有**一批条目恒定占槽位、
+任何人关不掉**——那批是什么、有几扇、各自长什么样，本 topic 回答。**
 
-答案是**十二扇门**，而不是两个。
+答案是**十二扇门**。（PF-006 rev 1 当时写的是「只有能力发现与取用的两个入口」，
+本 topic 落定之后已随其 rev 2 改过来。）
 
 一句话概括本 topic 的结论：
 
@@ -99,8 +99,8 @@ relations:
 - 未决项：**无**
 - 待裁决：**无**
 - 交付范围：**十一扇门首批交付，`Cordis()` 定义但不交付**
-- 一处**需要上游配合修订**的事项已报告（PF-006 说「两个入口」，本 topic 定为十二个）：
-  见 [decisions.md 第四节](decisions.md#四已知的来源问题)
+- 上游欠账：**已全部闭合**（[PF-006 rev 2](../PF-006-tools-and-skills/changelog.md)），
+  处置记录见 [decisions.md 第四节](decisions.md#四已知的来源问题)
 - 技术投影：**尚未开始**
 
 技术投影按[设计手册](../../../agents/skills/harness-design-handbook/canonical/SKILL.md)展开，

@@ -2,7 +2,7 @@
 id: PF-006
 title: 工具与技能
 status: active
-revision: 1
+revision: 2
 relations:
   supersedes: []
   depends-on:
@@ -14,6 +14,8 @@ relations:
       for: 七类资产的形状与组合、层级求值
     - id: PF-001
       for: 租户与租户隔离
+    - id: PF-007
+      for: meta 的定义、哪些条目恒定占槽位
   extends: []
 ---
 
@@ -90,11 +92,11 @@ Tool Definition ──装配──→ 动作空间里的条目 ──调用─�
 
 ## 状态
 
-- 产品设计：**rev 1**，已定稿
+- 产品设计：**rev 2**，已定稿
 - 未决项：**无**
 - 待裁决：**无**
-- 一处**需要上游配合修订**的事项已报告（PF-004 的重建触发点需精化）：
-  见 [decisions.md 第四节](decisions.md#四已知的来源问题)
+- 来源问题：**已全部闭合**（PF-004 的重建触发点已随其 rev 3 精化），
+  处置记录见 [decisions.md 第四节](decisions.md#四已知的来源问题)
 - 技术投影：**尚未开始**
 
 技术投影按[设计手册](../../../agents/skills/harness-design-handbook/canonical/SKILL.md)展开，
