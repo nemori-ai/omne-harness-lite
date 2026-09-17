@@ -86,8 +86,13 @@ Alloy 可按结构关系建立模型，检查断言并探索合法实例；参�
 
 ## 当前状态
 
-骨架已建，规格 topic 尚未从 `design_legacy/spec/` 迁入。由于路径形状不变，
-迁入是整目录搬运：`$id`、`frozen.json` 中的相对路径与包内相对链接都不需要重写，
+已有三个 topic：[account-identity](capabilities/account-identity/README.md)、
+[tenant-governance](capabilities/tenant-governance/README.md)、
+[account-registration](compositions/account-registration/README.md)，均为 candidate。
+注册组合含 TLA+ 行为模型与三个检查配置，已实际执行。
+
+存量 topic 尚未从 `design_legacy/spec/` 迁入。由于路径形状不变，
+迁入是整目录搬运：`$id`、冻结清单中的相对路径与包内相对链接都不需要重写，
 SHA-256 也不改变。
 
 候选设计可使用本次明确输入并保留版本/接受缺口。返回 [系统设计链](../README.md)。

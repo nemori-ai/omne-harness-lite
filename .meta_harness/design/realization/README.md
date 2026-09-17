@@ -83,14 +83,20 @@ bindings:
 
 ## 当前主题
 
-{{迁入后按实际子目录链接节点 README，标明 kind、消费契约、源码修订与符合性状态；
-索引不把候选或文件存在升级为实现完成，也不汇总任务进度}}
+| 节点 | kind | 消费契约 | 状态 |
+|---|---|---|---|
+| [account-identity](packages/account-identity/README.md) | provider | `capability.account-identity` v1 | 设计完成，未实现 |
+| [tenant-governance](packages/tenant-governance/README.md) | provider | `capability.tenant-governance` v1 | 设计完成，未实现 |
+| [account-registration](packages/account-registration/README.md) | provider | `composition.account-registration` v1 | 设计完成，未实现；形式检查已通过 |
+
+三者的契约均为 candidate，尚无接受决定；「设计完成」不表示语义已被接受。
 
 ## 当前状态
 
-骨架已建，节点尚未从 `design_legacy/providers/` 与 `design_legacy/assemblies/` 迁入。
-`bindings.yaml` 是新增产物，既有节点迁入时逐个补；补不出证据的条款按上述规则
-记为缺口，不用空绑定占位。
+账号与租户一组的三个节点已建，各含 `design.md` 与 `bindings.yaml`。
+存量节点尚未从 `design_legacy/providers/` 与 `design_legacy/assemblies/` 迁入。
+
+**尚无 assembly 节点**：本项目还没有应用装配入口，`apps/` 为空。
 
 判断方法按需读[手册对应页](../../agents/skills/harness-design-handbook/canonical/references/project.md)。
 返回[设计链入口](../README.md)。

@@ -1,0 +1,61 @@
+version: 1
+node: "account-identity"
+kind: "provider"
+
+bindings:
+  - clause: "capability.account-identity/v1#S-3"
+    evidence: "test:account-identity/identifier-uniqueness"
+    assumptions:
+      - "存储提供者兑现唯一性约束；单机成立，分布式须由协议重新兑现"
+    alignment_checked: "2026-09-17"
+
+  - clause: "capability.account-identity/v1#S-4"
+    evidence: "test:account-identity/inactive-account-indistinguishable"
+    assumptions:
+      - "无。未激活账号的验证结果与账号不存在不可区分，是无条件要求"
+    alignment_checked: "2026-09-17"
+
+  - clause: "capability.account-identity/v1#S-5"
+    evidence: "test:account-identity/no-cross-account-link-field"
+    assumptions:
+      - "结构性检查覆盖账号记录的完整字段集合；新增字段须重跑"
+    alignment_checked: "2026-09-17"
+
+  - clause: "capability.account-identity/v1#S-6"
+    evidence: "test:account-identity/identity-param-has-no-default"
+    assumptions:
+      - "检查范围为本能力的对外操作签名；消费者侧的同名要求由各消费能力自行绑定"
+    alignment_checked: "2026-09-17"
+
+  - clause: "capability.account-identity/v1#S-7"
+    basis:
+      - effect-disposal-concurrent-not-ordered
+    evidence: "test:account-identity/revocation-survives-restart"
+    assumptions:
+      - "撤销记录写入持久存储；该测试须真正重启提供者，仅重建对象不足以覆盖"
+    alignment_checked: "2026-09-17"
+
+  - clause: "capability.account-identity/v1#S-8"
+    evidence: "test:account-identity/no-physical-location-in-authz"
+    assumptions:
+      - "静态检查资格判定路径；覆盖面限于本能力"
+    alignment_checked: "2026-09-17"
+
+  - clause: "capability.account-identity/v1#S-9"
+    evidence: "test:account-identity/journey-interruption-matrix"
+    assumptions:
+      - "中断点集合由实现枚举；新增中断点须扩充该矩阵"
+    alignment_checked: "2026-09-17"
+
+  - clause: "capability.account-identity/v1#S-10"
+    evidence: "formal:account-registration-v1-progress"
+    assumptions:
+      - "Failures = FALSE：进展性质只在存储持续可用的路径上检查"
+      - "Abandoning = FALSE：发起者不放弃，对应契约前提 (d)"
+    alignment_checked: "2026-09-17"
+
+  - clause: "capability.account-identity/v1#S-11"
+    evidence: "test:account-identity/revoked-session-rejected"
+    assumptions:
+      - "作用范围限于被撤销的那一个登录态；多端范围未确认（契约 G-1），不在覆盖内"
+    alignment_checked: "2026-09-17"

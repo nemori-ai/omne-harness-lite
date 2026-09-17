@@ -1,5 +1,36 @@
 {
   "format": 1,
   "baseline_id": "omne-harness-lite-design-2026-09-15",
-  "namespaces": []
+  "namespaces": [
+    {
+      "prefix": "PF-",
+      "kind": "requirement-clause",
+      "owner": "requirements/product",
+      "description": "产品需求 topic 的稳定编号，形如 PF-001；条款以 .Cn 后缀"
+    },
+    {
+      "prefix": "SYS-",
+      "kind": "requirement-clause",
+      "owner": "requirements/system/constraints",
+      "description": "跨系统约束，形如 SYS-TENANT"
+    },
+    {
+      "prefix": "D-",
+      "kind": "decision",
+      "owner": "record/decisions",
+      "description": "已接受决定的稳定编号"
+    },
+    {
+      "prefix": "S-",
+      "kind": "contract-clause",
+      "owner": "spec",
+      "description": "契约内条款编号。**作用域限于单个契约的单个版本**，不跨契约唯一；引用时须带契约坐标，如 capability.account-identity/v1#S-3"
+    },
+    {
+      "prefix": "INV-/SAF-/LIV-",
+      "kind": "analysis-property",
+      "owner": "任务产物",
+      "description": "领域读数阶段的性质编号，分别对应不变量、安全、进展。**只在一次分析产物内有效**，不进入契约；契约条款一律用 S- 前缀重新编号"
+    }
+  ]
 }

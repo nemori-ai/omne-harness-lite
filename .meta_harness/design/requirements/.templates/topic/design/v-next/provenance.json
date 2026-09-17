@@ -1,0 +1,38 @@
+{
+  "format": 1,
+  "topic": "{{需求 topic 目录名}}",
+  "version": "{{v1}}",
+  "generated_at": "{{YYYY-MM-DD}}",
+  "requirements_revision": "{{本版设计所依据的需求正文修订，可恢复}}",
+  "sources": [
+    {
+      "kind": "contract",
+      "coordinate": {
+        "baseline_id": "{{}}",
+        "contract_id": "{{}}",
+        "version": 1
+      },
+      "resource": "spec/capabilities/{{topic}}/v1/contract.md",
+      "sha256": "{{取自 registry/frozen.json；未冻结时填 null 并在 projection 中标注该节可能漂移}}"
+    },
+    {
+      "kind": "realization",
+      "node": "realization/packages/{{node}}",
+      "resource": "design.md",
+      "sha256": "{{}}"
+    },
+    {
+      "kind": "bindings",
+      "node": "realization/packages/{{node}}",
+      "resource": "bindings.yaml",
+      "sha256": "{{}}"
+    },
+    {
+      "kind": "basis",
+      "entries": ["{{basis 条目 id}}"],
+      "checked": "{{各条目的 checked 日期中最晚的一个}}"
+    }
+  ],
+  "supersedes": null,
+  "superseded_by": null
+}

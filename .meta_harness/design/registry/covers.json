@@ -1,5 +1,106 @@
 {
   "format": 1,
   "baseline_id": "omne-harness-lite-design-2026-09-15",
-  "covers": []
+  "covers": [
+    {
+      "requirement": { "topic": "PF-026-account-journey-and-isolation", "clause": "C1" },
+      "target": {
+        "contract_id": "composition.account-registration",
+        "version": 1,
+        "clauses": ["S-1", "S-2", "S-4", "S-5"]
+      },
+      "reviewed": true,
+      "note": "自助注册与「成功时恰有一个个人租户」由激活单点提交结构承载；初始权益未覆盖，见该契约 G-1"
+    },
+    {
+      "requirement": { "topic": "PF-026-account-journey-and-isolation", "clause": "C1" },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 1,
+        "clauses": ["S-3", "S-4"]
+      },
+      "reviewed": true,
+      "note": "账号身份的产生与「未激活不可用」"
+    },
+    {
+      "requirement": { "topic": "PF-026-account-journey-and-isolation", "clause": "C2" },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 1,
+        "clauses": ["S-7", "S-10", "S-11"]
+      },
+      "reviewed": true,
+      "note": "撤销作用范围未覆盖，见该契约 G-1"
+    },
+    {
+      "requirement": { "topic": "PF-026-account-journey-and-isolation", "clause": "C3" },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 1,
+        "clauses": ["S-2", "S-5"]
+      },
+      "reviewed": true,
+      "note": "多账号独立的身份侧；配额维度归 PF-019"
+    },
+    {
+      "requirement": { "topic": "PF-026-account-journey-and-isolation", "clause": "C3" },
+      "target": {
+        "contract_id": "capability.tenant-governance",
+        "version": 1,
+        "clauses": ["S-10"]
+      },
+      "reviewed": true,
+      "note": "个人范围四维度互不相交；执行在各维度 owner"
+    },
+    {
+      "requirement": { "topic": "PF-026-account-journey-and-isolation", "clause": "C4" },
+      "target": {
+        "contract_id": "capability.tenant-governance",
+        "version": 1,
+        "clauses": ["S-3", "S-7", "S-8", "S-9"]
+      },
+      "reviewed": true,
+      "note": "账号与组织关系分离、切换不串味"
+    },
+    {
+      "requirement": { "topic": "PF-026-account-journey-and-isolation", "clause": "C5" },
+      "target": {
+        "contract_id": "composition.account-registration",
+        "version": 1,
+        "clauses": ["S-3"]
+      },
+      "reviewed": true,
+      "note": "终结结果集合已枚举；登录与注销侧的可辨认结果见账号契约 S-9"
+    },
+    {
+      "requirement": { "topic": "PF-001-tenant-organization-context", "clause": "effect-scope" },
+      "target": {
+        "contract_id": "capability.tenant-governance",
+        "version": 1,
+        "clauses": ["S-11", "S-12"]
+      },
+      "reviewed": true,
+      "note": "三项效用的范围约束与作用域层次结构；层间次序未覆盖，见该契约 G-2"
+    },
+    {
+      "requirement": { "topic": "PF-001-tenant-organization-context", "clause": "multi-org" },
+      "target": {
+        "contract_id": "capability.tenant-governance",
+        "version": 1,
+        "clauses": ["S-2", "S-3"]
+      },
+      "reviewed": false,
+      "note": "多组织归属的可表达性；该需求条款状态为「继承待核对」，覆盖关系待需求确认后复核"
+    },
+    {
+      "requirement": { "topic": "system/constraints", "clause": "SYS-TENANT" },
+      "target": {
+        "contract_id": "capability.tenant-governance",
+        "version": 1,
+        "clauses": ["S-2", "S-3", "S-4", "S-6"]
+      },
+      "reviewed": true,
+      "note": "双层结构与跨租户默认拒绝；S-6 带前提，前提失效责任在各对象 owner"
+    }
+  ]
 }

@@ -77,8 +77,12 @@ probe 断言什么。
 
 ## 当前状态
 
-骨架已建，条目尚未迁入。已知的 12 条机制主张与 9 条负面清单目前散在
-`agents/skills/harness-design-handbook/canonical/` 的手册正文与历次走查产物中，
-迁入时逐条补 `symbols` 与 probe；补不出 probe 的条目按上述规则登记为待核对主张。
+已有 4 条条目，均来自账号与租户设计实际依赖的机制语义：
+`isolate-hides-instances-not-data`、`async-control-not-bail`、
+`plugin-body-reruns-on-provider-change`、`effect-disposal-concurrent-not-ordered`。
+
+**四条的 `probe` 目前均为 `null`**，因此按本页规则它们是待核对主张，不得单独作为设计依据——
+本项目尚无 Cordis 集成测试位置，补齐 owner 为 kernel 侧首个集成包。
+手册正文与历次走查中的其余机制主张尚未迁入。
 
 返回[设计链入口](../README.md)。

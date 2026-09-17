@@ -99,8 +99,9 @@ catalog 的稳定键是 `(baseline_id, contract_id, version)`。资源位置为
 
 ## 当前状态
 
-骨架已建，**清单尚未从 `design_legacy/` 迁入**，各文件为最小合法结构与占位 `baseline_id`。
-迁入前它们不构成有效契约登记，也不能作为采用依据。
+账号与租户一组的三个契约已登记（均为 `candidate`），三个形式任务已登记并实际执行过；
+`covers.json` 有 10 条覆盖关系，`id-namespaces.json` 已登记 5 个前缀族。
+其余存量清单尚未从 `design_legacy/` 迁入。
 
 迁入涉及两处工具适配，须一并完成，否则检查器找不到清单：
 

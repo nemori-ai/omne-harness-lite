@@ -1,5 +1,72 @@
 {
   "format": 1,
   "baseline_id": "omne-harness-lite-design-2026-09-15",
-  "tasks": []
+  "tasks": [
+    {
+      "id": "account-registration-v1-basic",
+      "kind": "tla",
+      "artifacts": [
+        "spec/compositions/account-registration/v1/formal/Registration.tla",
+        "spec/compositions/account-registration/v1/formal/basic.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "${TLC_STATE_ROOT}/account-registration-v1-basic",
+        "-workers",
+        "1",
+        "-config",
+        "spec/compositions/account-registration/v1/formal/basic.cfg",
+        "spec/compositions/account-registration/v1/formal/Registration.tla"
+      ],
+      "timeout_seconds": 120
+    },
+    {
+      "id": "account-registration-v1-crash",
+      "kind": "tla",
+      "artifacts": [
+        "spec/compositions/account-registration/v1/formal/Registration.tla",
+        "spec/compositions/account-registration/v1/formal/crash.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "${TLC_STATE_ROOT}/account-registration-v1-crash",
+        "-workers",
+        "1",
+        "-config",
+        "spec/compositions/account-registration/v1/formal/crash.cfg",
+        "spec/compositions/account-registration/v1/formal/Registration.tla"
+      ],
+      "timeout_seconds": 120
+    },
+    {
+      "id": "account-registration-v1-progress",
+      "kind": "tla",
+      "artifacts": [
+        "spec/compositions/account-registration/v1/formal/Registration.tla",
+        "spec/compositions/account-registration/v1/formal/progress.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "${TLC_STATE_ROOT}/account-registration-v1-progress",
+        "-workers",
+        "1",
+        "-config",
+        "spec/compositions/account-registration/v1/formal/progress.cfg",
+        "spec/compositions/account-registration/v1/formal/Registration.tla"
+      ],
+      "timeout_seconds": 120
+    }
+  ]
 }
