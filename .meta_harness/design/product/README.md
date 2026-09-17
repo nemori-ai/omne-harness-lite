@@ -13,7 +13,7 @@
 
 | Topic | 状态 | rev |
 |---|---|---|
-| [PF-001 身份、范围与对 Agent 的约束](PF-001-identity-scope-and-agent-constraints/README.md) | active | 1 |
+| [PF-001 身份、范围与对 Agent 的约束](PF-001-identity-scope-and-agent-constraints/README.md) | active | 2 |
 | [PF-002 设置、权限与资产的展开](PF-002-assets-settings-and-permissions/README.md) | **draft** | 0 |
 
 ## 一个 topic 包含什么
