@@ -44,7 +44,7 @@ relations:
 
 - 产品设计：**rev 2**，已定稿
 - 未决项：**无**
-- 待裁决：**无**
+- 待裁决：**1 项**（见 [decisions.md 第三节](decisions.md#三待裁决)）——账号能不能设权限边界
 - 技术投影：**尚未开始**
 
 技术投影按[设计手册](../../../agents/skills/harness-design-handbook/canonical/SKILL.md)展开，
