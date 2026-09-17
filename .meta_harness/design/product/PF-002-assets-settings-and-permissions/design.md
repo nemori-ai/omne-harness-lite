@@ -39,7 +39,7 @@
 > 本 topic **不重新定义**以下概念，直接使用：
 > [范围化对象](../PF-001-identity-scope-and-agent-constraints/design.md#范围化对象)、
 > [能力标识](../PF-001-identity-scope-and-agent-constraints/design.md#范围化对象)、
-> [五层作用域](../PF-001-identity-scope-and-agent-constraints/design.md#61-层次)、
+> [四层作用域](../PF-001-identity-scope-and-agent-constraints/design.md#61-层次)、
 > [三种合成语义](../PF-001-identity-scope-and-agent-constraints/design.md#62-三种合成语义)、
 > [official 与 customized](../PF-001-identity-scope-and-agent-constraints/design.md#来源official-与-customized)。
 
@@ -226,7 +226,7 @@ Agent Definition ──组合──→ Plugin ──组合──→ Skill
 
 | 步 | 做什么 | 输入 | 输出 | 语义归谁 |
 |---|---|---|---|---|
-| **1. 资产求值** | 这个租户有哪些资产可用 | (组织, 账号) + 五层作用域 | 每个能力标识一个生效资产 | [PF-001 §6.2](../PF-001-identity-scope-and-agent-constraints/design.md#62-三种合成语义) 的组合 + 同标识覆盖 |
+| **1. 资产求值** | 这个租户有哪些资产可用 | (组织, 账号) + 四层作用域 | 每个能力标识一个生效资产 | [PF-001 §6.2](../PF-001-identity-scope-and-agent-constraints/design.md#62-三种合成语义) 的组合 + 同标识覆盖 |
 | **2. 组装** | 这个 agent 实际由什么构成 | 一个 Agent Definition + 第 1 步的结果 | 沿组合图展开后的资产集合 | 本 topic §5.1 |
 | **3. 投影** | 有哪些设置项、哪些权限项 | 第 2 步装上的每个资产**自带的属性** | 项的集合 | 本 topic §5.2 |
 | **4. 层级计算** | 每一项的值是多少 | 第 3 步的每一项 + 各持有层配的值 | **组装时实际用的值** | PF-001 §6.2 的覆盖 / 收窄 |

@@ -2,7 +2,7 @@
 
 - 契约坐标：`omne-harness-lite-design-2026-09-15` · `composition.account-registration` · `v1`
 - 产品依据：[PF-001：身份、范围与对 Agent 的约束](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md)
-  **本契约须按 PF-001 rev 1 的三层身份与五层作用域逐条复核后才能接受；当前条款写在更早的模型上。**
+  **本契约须按 PF-001 rev 2 的三层身份与四层作用域逐条复核后才能接受；当前条款写在更早的模型上。**
 - 精确依赖：
   - `capability.account-identity` v1，消费条款 S-3、S-4、S-9
   - `capability.tenant-governance` v1，消费条款 S-1

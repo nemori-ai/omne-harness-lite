@@ -7,7 +7,7 @@ relations:
   supersedes: []
   depends-on:
     - id: PF-001
-      for: 范围化对象的五层作用域、三种合成语义、能力标识、official/customized
+      for: 范围化对象的四层作用域、三种合成语义、能力标识、official/customized
   extends: []
 ---
 
@@ -26,7 +26,7 @@ relations:
 | 关系 | 本 topic 的情况 |
 |---|---|
 | `supersedes` | 无 |
-| `depends-on` | [PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)。直接使用它定义的**五层作用域**、**三种合成语义**、**能力标识**与 **official/customized**，不重复定义 |
+| `depends-on` | [PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)。直接使用它定义的**四层作用域**、**三种合成语义**、**能力标识**与 **official/customized**，不重复定义 |
 | `extends` | 无 |
 
 **与 PF-001 的分界**：同一个字段在多层都有值时听谁的，归 PF-001；
