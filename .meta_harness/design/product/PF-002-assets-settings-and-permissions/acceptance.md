@@ -64,7 +64,7 @@
 | 资产怎样被发现、装载、卸载 | 运行时装载另有归属，本 topic 只定它由什么构成 |
 | 谁能创作、怎么发版、怎么上架 | 开发与发布流程另有归属 |
 | 某个具体 tool 到底有哪几项配置 | 本 topic 定「设置是资产的属性」这个结构，具体字段属那个 tool 自己的定义 |
-| 个人与组织之间的资产共享、携入、转让 | 归下一个 topic |
+| 资产怎样在组织之间流动 | 归 [PF-003](../PF-003-asset-transfer-and-sharing/README.md)，它定义转移与分享两个动作 |
 | Skill 套 Skill、Plugin 套 Plugin、Plugin 装 Agent Definition | 本版**刻意不做**，见 design.md §4。真有需要再加 |
 | 会话与运行实例的生命周期 | 本 topic 定 Agent Definition 是静态定义，跑起来之后的事另有归属 |
 

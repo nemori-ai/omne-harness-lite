@@ -27,6 +27,7 @@ relations:
 |---|---|
 | `supersedes` | 无 |
 | `depends-on` | [PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)。直接使用它定义的**四层作用域**、**三种合成语义**、**能力标识**与 **official/customized**，不重复定义 |
+| 被谁展开 | [PF-003 资产的转移与分享](../PF-003-asset-transfer-and-sharing/README.md) 依赖本 topic，定义资产怎样跨组织流动。**方向不能反**：本 topic 不引用它的结论 |
 | `extends` | 无 |
 
 **与 PF-001 的分界**：同一个字段在多层都有值时听谁的，归 PF-001；

@@ -13,8 +13,9 @@
 
 | Topic | 状态 | rev |
 |---|---|---|
-| [PF-001 身份、范围与对 Agent 的约束](PF-001-identity-scope-and-agent-constraints/README.md) | active | 4 |
+| [PF-001 身份、范围与对 Agent 的约束](PF-001-identity-scope-and-agent-constraints/README.md) | active | 5 |
 | [PF-002 设置、权限与资产的展开](PF-002-assets-settings-and-permissions/README.md) | active | 1 |
+| [PF-003 资产的转移与分享](PF-003-asset-transfer-and-sharing/README.md) | active | 1 |
 
 ## 一个 topic 包含什么
 

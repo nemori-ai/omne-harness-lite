@@ -35,7 +35,7 @@
 
 一个 topic 是信息包：入口给范围、状态与阅读地图，正文给判断或契约，证据给真实观察。
 先读 family/topic 入口；新主题从该 family 的 `.templates/` 起步并按问题裁剪，不能裁掉准入所需信息。
-建包规则归[设计信息包](design/README.md#主题是信息包)，候选比较门槛归[提案准入](design/proposals/README.md#主题准入与候选比较)，当前迁移状态归 [README](README.md)。
+建包规则归[设计信息包](design/README.md#主题是信息包)，候选比较门槛归[提案准入](design/record/proposals/README.md#主题准入与候选比较)，当前迁移状态归 [README](README.md)。
 
 ## 权威与不可混淆的边界
 
