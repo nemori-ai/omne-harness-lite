@@ -74,17 +74,15 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 1**，已定稿
+- 产品设计：**rev 1**，**已正式接受**（2026-09-17）
 - 未决项：**无**
 - 待裁决：**无**
 - **依赖两个尚未成文的对象**：**Run** 与**会话**的完整定义归后续 PF
   （产品负责人已明确 agent-loop / session / inbound 会是多个 topic）。
   本 topic 按 [PF-004 的先例](../PF-004-agent-runtime-assembly-and-liveness/design.md#两个只引用不拥有的对象)
   只引用、不拥有，用到哪几件事写在 [design.md §4](design.md#只引用不拥有的两个对象)
-- 上游欠账：**一笔，尚未闭合**——[PF-007 说「长期授权只能从设置与权限走」](decisions.md#四已知的来源问题)，
-  而本 topic 系统拦截卡片的第四档在卡片上就能给出长期授权。**两者实质不冲突**
-  （授权仍落在权限设置那一层，第四档只是另一个入口），但 PF-007 的措辞会误导，
-  **建议补一句交叉引用；动它需产品负责人授权**
+- 上游欠账：**已闭合**——[PF-007 rev 3](../PF-007-meta-capabilities/changelog.md) 已补上
+  「**禁的是系统替人解释，不是禁止人给长期授权**」这句交叉引用
 - 技术投影：**尚未开始**
 
 技术投影按[设计手册](../../../agents/skills/harness-design-handbook/canonical/SKILL.md)展开，

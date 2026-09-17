@@ -2,7 +2,7 @@
 id: PF-007
 title: Meta Capabilities
 status: active
-revision: 2
+revision: 3
 relations:
   supersedes: []
   depends-on:
@@ -95,13 +95,13 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 2**，**已正式接受**（2026-09-17）
+- 产品设计：**rev 3**，**已正式接受**（2026-09-17，rev 3 为接受后的欠账回改）
 - 未决项：**无**
 - 待裁决：**无**
 - 交付范围：**十一扇门首批交付，`Cordis()` 定义完整但不实现**
-- 上游欠账：**新增一笔，尚未闭合**——[PF-006 推出的「等待态等不到应答有上限」对
-  `Ask()` 不成立](decisions.md#四已知的来源问题)，因为它的等待不占任何资源。
-  **动 PF-006 需产品负责人授权。**rev 1 的三笔已闭合
+- 上游欠账：**已全部闭合**。rev 2 报告的那笔（PF-006「等待态等不到应答有上限」对
+  `Ask()` 不成立）已由 [PF-006 rev 3](../PF-006-tools-and-skills/changelog.md) 闭合；
+  rev 1 的三笔更早已闭合
 - 技术投影：**尚未开始**
 
 技术投影按[设计手册](../../../agents/skills/harness-design-handbook/canonical/SKILL.md)展开，
