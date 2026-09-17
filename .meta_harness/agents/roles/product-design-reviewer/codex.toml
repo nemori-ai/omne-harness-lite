@@ -1,0 +1,9 @@
+name = "product-design-reviewer"
+description = "Independent read-only review of a drafted product design document. Judges logic, completeness, concrete gaps and - as a thin added layer - whether the definitions can be implemented unambiguously. Does NOT judge design taste or direction. Returns evidence-backed findings; does not author, fix, or accept. Fixed reasoning effort: xhigh."
+model = "gpt-5.6-sol"
+model_reasoning_effort = "xhigh"
+sandbox_mode = "read-only"
+approval_policy = "never"
+
+[agents]
+enabled = false
