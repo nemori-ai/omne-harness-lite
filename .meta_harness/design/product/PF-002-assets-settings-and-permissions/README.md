@@ -1,8 +1,8 @@
 ---
 id: PF-002
 title: 设置、权限与资产的展开
-status: draft
-revision: 0
+status: active
+revision: 1
 relations:
   supersedes: []
   depends-on:
@@ -38,29 +38,31 @@ relations:
 | 当前问题 | 阅读入口 |
 |---|---|
 | 这块产品是什么：概念、模型、规则、取舍 | [产品设计](design.md) |
-| 哪些是拍板定的，哪些是推导的，还有什么没定 | [决策与来源](decisions.md) |
+| 资产怎么进来、怎么配、怎么组装，谁能做什么 | [流程与状态](flows.md) |
+| 做成什么样算做对了 | [验收标准](acceptance.md) |
+| 哪些是拍板定的，哪些是推导的 | [决策与来源](decisions.md) |
+| 这块设计怎么演变到今天 | [变更历史](changelog.md) |
 | 当时是怎么谈的 | [设计交流笔记](interviews/README.md) |
 
 ## 状态
 
-**draft，设计进行中。**本 topic 尚未定稿，**不可作为实施依据**。
+- 产品设计：**rev 1**，已定稿
+- 未决项：**无**
+- 待裁决：**无**
+- 技术投影：**尚未开始**
 
-已确定：
+技术投影按[设计手册](../../../agents/skills/harness-design-handbook/canonical/SKILL.md)展开，
+产物按其步骤 G 落回本包的 `projection/v1/`。
 
-- 资产有**五类**：skill、tool、plugin、agent definition、slash command
-- 资产之间是组合关系；资产组装成 agent 本质上也是组合关系
-- 设置与权限是**具体资产的两种属性**；身份层的设置是持有资产上的**投影**
-- **默认与强制**用同一个机制（`immutable`）表达，管资产、设置、权限三处
-- 设置页**随资产自动增删**，且分「界面偏好」与「资产设置与权限」两块
-- 「移除」与「禁用」是**两个动作**
+## 本包的文件
 
-**待裁决：无**（见 [decisions.md 第三节](decisions.md#三待裁决)）。
-
-**五类各自的定义与组合能力已起草**（[design.md §4](design.md#四概念定义)），
-`{{待定义}}` 占位已全部清空，非目标、用户与场景、取舍、边界也已补齐。
-
-**但仍是 draft**：§4 那一整节是 PM 起草的，**尚未经产品负责人逐条核对**。
-核对通过后转 active。
-
-`flows.md`、`acceptance.md`、`changelog.md` 在模型稳定之后再写——
-现在写只会写成一份要推翻的东西。
+```text
+PF-002-assets-settings-and-permissions/
+├── README.md         本页：定位、关系、状态
+├── design.md         概念、模型、规则、取舍、边界、未决
+├── flows.md          旅程、异常分支、状态流转、角色矩阵
+├── acceptance.md     可观察场景、绝不能发生的事、判据
+├── decisions.md      拍板记录 / PM 推导 / 待裁决 / 来源问题
+├── changelog.md      产品设计本身的演进
+└── interviews/       设计交流笔记（原始材料）
+```
