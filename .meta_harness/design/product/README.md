@@ -21,6 +21,8 @@
 | [PF-006 工具与技能](PF-006-tools-and-skills/README.md) | active | 3 |
 | [PF-007 Meta Capabilities](PF-007-meta-capabilities/README.md) | active | 3 |
 | [PF-008 Human in the Loop](PF-008-human-in-the-loop/README.md) | active | 1 |
+| PF-009 上下文消息类型与上下文管理 | **编号占位，尚未开始** | — |
+| [PF-010 Agent Loop 与 Run](PF-010-agent-loop-and-run/README.md) | **draft** | 1 |
 
 ## 一个 topic 包含什么
 
