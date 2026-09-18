@@ -2,7 +2,7 @@
 id: PF-006
 title: 工具与技能
 status: active
-revision: 3
+revision: 4
 relations:
   supersedes: []
   depends-on:
@@ -92,7 +92,7 @@ Tool Definition ──装配──→ 动作空间里的条目 ──调用─�
 
 ## 状态
 
-- 产品设计：**rev 3**，已定稿
+- 产品设计：**rev 4**，已定稿
 - 未决项：**无**
 - 待裁决：**无**
 - 来源问题：**已全部闭合**（PF-004 的重建触发点已随其 rev 3 精化），

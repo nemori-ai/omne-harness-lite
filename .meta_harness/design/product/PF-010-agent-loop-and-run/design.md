@@ -417,7 +417,7 @@
 
 | 事项 | 状态 |
 |---|---|
-| **tool result offloading 与方程的关系** | 产品负责人已提出该需求，**正在补进 [PF-006](../PF-006-tools-and-skills/README.md) 与 [PF-007](../PF-007-meta-capabilities/README.md)**。补完之后，本 topic 要回填：被卸载的结果**算不算「结果齐了」**（T7），以及它**改不改记录的尾巴形状** |
+| **tool result offloading 与方程的关系** | **上游已补完**（[PF-006 rev 4](../PF-006-tools-and-skills/changelog.md) 定了产出两部分与卸载，[PF-007 rev 4](../PF-007-meta-capabilities/changelog.md) 加了 `Tools().read_result`）。**本 topic 仍待回填**：被卸载的结果**算不算「结果齐了」**（T7）——PM 倾向**算**，因为占位提示本身就是一条完整的动作结果，与[转后台留占位](../PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)同形；**待产品负责人确认** |
 
 ### 9.4 尚无 topic 的依赖
 

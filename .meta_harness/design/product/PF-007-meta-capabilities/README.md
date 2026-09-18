@@ -2,7 +2,7 @@
 id: PF-007
 title: Meta Capabilities
 status: active
-revision: 3
+revision: 4
 relations:
   supersedes: []
   depends-on:
@@ -95,7 +95,7 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 3**，**已正式接受**（2026-09-17，rev 3 为接受后的欠账回改）
+- 产品设计：**rev 4**，**已正式接受**（2026-09-17；rev 3 为欠账回改，rev 4 为 `read_result` 补入）
 - 未决项：**无**
 - 待裁决：**无**
 - 交付范围：**十一扇门首批交付，`Cordis()` 定义完整但不实现**
