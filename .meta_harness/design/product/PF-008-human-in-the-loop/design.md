@@ -73,7 +73,7 @@ agent 拿不准的时候怎么问人、动手之前怎么请示。但那写的�
 
 | 概念 | 归谁 |
 |---|---|
-| [等待态](../PF-006-tools-and-skills/design.md#等待态)、[前台/后台两个维度](../PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)、[六种收场](../PF-006-tools-and-skills/design.md#53-一次工具执行的收场有六种)、[中断不是失败](../PF-006-tools-and-skills/design.md#67-用户可以中断而中断不是失败) | [PF-006](../PF-006-tools-and-skills/design.md) |
+| [等待态](../PF-006-tools-and-skills/design.md#等待态)、[前台/后台两个维度](../PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)、[六种收场](../PF-006-tools-and-skills/design.md#55-一次工具执行的收场有六种)、[中断不是失败](../PF-006-tools-and-skills/design.md#67-用户可以中断而中断不是失败) | [PF-006](../PF-006-tools-and-skills/design.md) |
 | [`Ask()` 与它的两个命令](../PF-007-meta-capabilities/design.md#611-ask通向人)、[会话授权上下文](../PF-007-meta-capabilities/design.md#会话授权上下文) | [PF-007](../PF-007-meta-capabilities/design.md) |
 | [运行实例](../PF-004-agent-runtime-assembly-and-liveness/design.md#运行实例) | [PF-004](../PF-004-agent-runtime-assembly-and-liveness/design.md) |
 | [设置与权限](../PF-002-assets-settings-and-permissions/design.md#52-设置与权限是资产的两种属性) | [PF-002](../PF-002-assets-settings-and-permissions/design.md) |
@@ -419,7 +419,7 @@ agent 走下一步的时候**一起被它看到**。
 而不是一个看起来像执行失败的结果。
 
 混在一起，agent 会**重试一件人刚刚否掉的事**——
-而且它会觉得自己在尽职尽责。这与 [PF-006 六种收场](../PF-006-tools-and-skills/design.md#53-一次工具执行的收场有六种)
+而且它会觉得自己在尽职尽责。这与 [PF-006 六种收场](../PF-006-tools-and-skills/design.md#55-一次工具执行的收场有六种)
 要「分得开」是同一条道理。
 
 ## 七、取舍

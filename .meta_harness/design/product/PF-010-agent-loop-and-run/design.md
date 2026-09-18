@@ -59,7 +59,7 @@
 |---|---|
 | [两个维度的等待态](../PF-008-human-in-the-loop/design.md#等待态的两个维度)、[那个判断函数](../PF-008-human-in-the-loop/design.md#52-那个判断函数)、[决策池](../PF-008-human-in-the-loop/design.md#决策池) | [PF-008](../PF-008-human-in-the-loop/design.md) |
 | [十二扇门与常驻预算](../PF-007-meta-capabilities/design.md#54-十二个槽位是预算的地板也是它的天花板意义)、[`Ask()`](../PF-007-meta-capabilities/design.md#611-ask通向人)、[会话授权上下文](../PF-007-meta-capabilities/design.md#会话授权上下文) | [PF-007](../PF-007-meta-capabilities/design.md) |
-| [六种收场](../PF-006-tools-and-skills/design.md#53-一次工具执行的收场有六种)、[可用性每次 run 开始前重算](../PF-006-tools-and-skills/design.md#62-可用性在每次-run-开始前重算)、[替换件](../PF-006-tools-and-skills/design.md#替换件)、[中断不是失败](../PF-006-tools-and-skills/design.md#67-用户可以中断而中断不是失败) | [PF-006](../PF-006-tools-and-skills/design.md) |
+| [六种收场](../PF-006-tools-and-skills/design.md#55-一次工具执行的收场有六种)、[可用性每次 run 开始前重算](../PF-006-tools-and-skills/design.md#62-可用性在每次-run-开始前重算)、[替换件](../PF-006-tools-and-skills/design.md#替换件)、[中断不是失败](../PF-006-tools-and-skills/design.md#67-用户可以中断而中断不是失败) | [PF-006](../PF-006-tools-and-skills/design.md) |
 | [运行实例](../PF-004-agent-runtime-assembly-and-liveness/design.md#运行实例)、装配、注入 | [PF-004](../PF-004-agent-runtime-assembly-and-liveness/design.md) |
 
 ### 只引用、不拥有的对象
@@ -272,7 +272,7 @@
 **「等一等再试」不产生状态转移**，这一条要紧：重试对方程是隐形的，
 恢复时不会看到「重试到第几次了」这种状态——**也不需要看到**。
 
-**第一档与[六种收场](../PF-006-tools-and-skills/design.md#53-一次工具执行的收场有六种)是同一回事**，
+**第一档与[六种收场](../PF-006-tools-and-skills/design.md#55-一次工具执行的收场有六种)是同一回事**，
 不另立一套说法。
 
 ### 5.9 恢复：重新算一遍 f，但尾巴要先对账
