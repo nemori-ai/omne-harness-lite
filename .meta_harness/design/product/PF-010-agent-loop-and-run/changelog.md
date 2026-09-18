@@ -70,8 +70,8 @@
 ### 下一步要做的
 
 1. **等 PF-009**（上下文消息类型与上下文管理）——压缩的产物形状归它。
-2. **回填 tool result offloading**：被卸载的结果算不算「结果齐了」。
-3. **五处待裁决**见 [decisions 第三节](decisions.md#三待裁决)。
+2. **五处待裁决**见 [decisions 第三节](decisions.md#三待裁决)。
+3. 定稿时补 `flows.md` 与 `acceptance.md`。
 
 ---
 
