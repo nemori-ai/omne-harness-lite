@@ -18,10 +18,10 @@
 | [PF-003 资产的转移与分享](PF-003-asset-transfer-and-sharing/README.md) | active | 1 |
 | [PF-004 Agent 运行时——定义、装配与实例](PF-004-agent-runtime-assembly-and-liveness/README.md) | active | 3 |
 | [PF-005 执行环境与沙箱](PF-005-execution-environments-and-sandboxes/README.md) | active | 2 |
-| [PF-006 工具与技能](PF-006-tools-and-skills/README.md) | active | 4 |
+| [PF-006 工具与技能](PF-006-tools-and-skills/README.md) | active | 6 |
 | [PF-007 Meta Capabilities](PF-007-meta-capabilities/README.md) | active | 4 |
 | [PF-008 Human in the Loop](PF-008-human-in-the-loop/README.md) | active | 1 |
-| PF-009 上下文消息类型与上下文管理 | **编号占位，尚未开始** | — |
+| [PF-009 上下文消息类型与上下文管理](PF-009-context-messages-and-management/README.md) | **draft** | 1 |
 | [PF-010 Agent Loop 与 Run](PF-010-agent-loop-and-run/README.md) | **draft** | 1 |
 
 ## 一个 topic 包含什么
