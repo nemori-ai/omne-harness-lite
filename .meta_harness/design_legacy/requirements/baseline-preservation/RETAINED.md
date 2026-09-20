@@ -1,11 +1,11 @@
 # 旧需求基线的对象保全
 
 2026-09-20 从承载仓库根 `docs/research/requirements-baselines/` 原样搬来。
-同一批搬迁里其余六份进了 [agents/research](../../../../agents/research/README.md)，
+同一批搬迁里其余六份进了 [agents/research](../../../agents/research/README.md)，
 **这一份没有**——它不是「别人怎么做」的调查，是**一次恢复验证留下的对象与结果**。
 
-放这里的理由就是本家族的失效事件：[没有](../README.md)。
-一次运行的结果不改写，重跑是新的一次运行。对象保全正是这种东西。
+放在 `design_legacy/requirements/` 下，因为它保全的正是**旧体系**那批需求正文。
+留档区不参与活设计链的检查，**原件的链接因此可以保持原样**。
 
 ## 保全的是哪一个
 
@@ -21,10 +21,10 @@
 
 ## 今天还要紧的理由
 
-新体系 [`design/foundation/`](../../../foundation/README.md) 七份 `requirements.md` 的
+新体系 [`design/foundation/`](../../../design/foundation/README.md) 七份 `requirements.md` 的
 front matter 都带 `source_baseline: omne-harness-lite-legacy-spec` 与 `source_file: docs/requirements/…`。
-**那套溯源指向的就是根 `docs/requirements/`。**根 `docs/` 一旦退役，
-能把 `source_sha256` 核回原文的只剩 Git 对象——**而这份 bundle 不依赖任何分支或远端。**
+**那套溯源指向的就是根 `docs/requirements/`，而它已于 2026-09-20 清退。**
+如今能把 `source_sha256` 核回原文的只剩 Git 对象——**这份 bundle 不依赖任何分支或远端**。
 
 ## 它不保全什么
 
@@ -43,22 +43,26 @@ front matter 都带 `source_baseline: omne-harness-lite-legacy-spec` 与 `source
 - **不能从任何 `requirements-baseline/*` tag 到达**；
 - 目前**只活在 `feat/meta-harness` 这一条开发分支上**。
 
-[旧需求维护规范](../../../../../docs/maintenance/requirements.md#基线保留)对此写得很明确——
+[旧需求维护规范](../../governance/requirements.md#基线保留)对此写得很明确——
 保留引用「不得改指或删除，也不能依赖可清理开发分支或本机 reflog；squash、rebase 或 GC
 不得使已接受决定引用的基线丢失」。**现在正踩在这条上。**
 
-这不是搬迁造成的，搬迁只是让它露出来：那份规范还在根 `docs/maintenance/` 下，
+这不是搬迁造成的，搬迁只是让它露出来：那份规范随旧体系一起进了留档区，
 而新体系没有承接它的正文，也就没人在执行它。**闭合它需要一个决定，不是补一次提交。**
 
 ## 原件未改，路径变了
 
 [`README.md`](README.md) 保持搬来时的原样，其中指向 `../../maintenance/requirements.md`、
 `../../requirements/README.md` 的相对链接是按它原来在 `docs/research/` 下的位置写的，
-**在这里不成立**。恢复命令里的 bundle 路径同样是旧的；从仓库根执行时用：
+**在这里不成立**——对应正文现在分别在
+[`design_legacy/governance/`](../../governance/) 与
+[`design/foundation/`](../../../design/foundation/README.md)。
+
+恢复命令里的 bundle 路径同样是旧的；从仓库根执行时用：
 
 ```sh
 git -C <新测试仓库> fetch \
-  "$PWD/.meta_harness/design/record/evidence/legacy-requirements-baseline/2026-09-12-foundation.bundle" \
+  "$PWD/.meta_harness/design_legacy/requirements/baseline-preservation/2026-09-12-foundation.bundle" \
   refs/tags/requirements-baseline/2026-09-12-foundation:refs/tags/requirements-baseline/2026-09-12-foundation
 ```
 
@@ -66,7 +70,7 @@ git -C <新测试仓库> fetch \
 
 ## 它不是什么
 
-- **不是当前需求正文。**当前目标在 [foundation](../../../foundation/README.md) 与
-  [product](../../../product/README.md) 演进。
-- **不是第二份需求注册表。**身份与版本清单归 [registry](../../../registry/README.md)。
+- **不是当前需求正文。**当前目标在 [foundation](../../../design/foundation/README.md) 与
+  [product](../../../design/product/README.md) 演进。
+- **不是第二份需求注册表。**身份与版本清单归 [registry](../../../design/registry/README.md)。
 - **不证明需求充分。**它只证明「那一天那个提交的这 13 份文件，今天还能逐字节取回」。
