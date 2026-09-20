@@ -48,6 +48,7 @@
 
 | 卷 | 回答什么问题 | 典型词条 |
 |---|---|---|
+| [架构内核与扩展](terms/architecture-core-and-extension.md) | 这个系统**哪一部分立规矩**，其余部分怎么建在它之上 | 架构内核 |
 | [主体与归属](terms/subjects-and-ownership.md) | **谁**在用这个系统，东西**归谁** | 账号 · 组织 · 租户 · 租户角色 |
 | [作用域与求值](terms/scope-and-resolution.md) | 一个值**怎么被算出来** | 作用域层 · 能力标识 · 覆盖与收窄 |
 | [能力与构成](terms/capabilities-and-composition.md) | agent **由什么构成**，因此**能做什么** | 资产八类 · 实例构成 · 动作空间 |
@@ -72,7 +73,8 @@
 | [decisions.md](decisions.md) | **不归任何 topic 的那些概念**，产品负责人对它们的直接裁决 |
 | [conflicts.md](conflicts.md) | **提取时发现的对不上的地方**，如实记录，不静默改掉 |
 
-> **有些概念不归任何一个 topic**——[会话与运行](terms/agent-runtime-loop.md)就是。
+> **有些概念不归任何一个 topic**——[会话与运行](terms/agent-runtime-loop.md)、
+> [架构内核](terms/architecture-core-and-extension.md)都是。
 > 它们是**跨全链的治理概念**，被很多 topic 引用却没有哪一个拥有，
 > **依据在 [decisions.md](decisions.md)**。**这是出处的第二种合法形式，没有第三种。**
 

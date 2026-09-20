@@ -7,6 +7,14 @@
 > **定义在各卷里**，以那里的为准。
 > 加、改、废一个词条时**同步改这一页**，见 [conventions](conventions.md#加一个新词条)。
 
+## [架构内核与扩展](terms/architecture-core-and-extension.md)
+
+**这个系统哪一部分立规矩，其余部分怎么建在它之上。**
+
+| ID | 中文 | English | 一句话 |
+|---|---|---|---|
+| [UL-architecture-core](terms/architecture-core-and-extension.md#ul-architecture-core--架构内核--architecture-core) | 架构内核 | Architecture Core | 立规矩的那一部分，**与 Cordis 的「内核层」不是一回事**；旧说法 ~~harness core~~ |
+
 ## [主体与归属](terms/subjects-and-ownership.md)
 
 **谁在用这个系统，东西归谁。**

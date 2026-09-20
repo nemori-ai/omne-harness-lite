@@ -12,6 +12,11 @@
 
 ## 当前 topic
 
+> **动手改任何一个之前，先看[架构内核 PF](architecture-core.md)。**
+> 那份清单登记哪些 topic 覆盖[架构内核](../ubiquitous_language/terms/architecture-core-and-extension.md#ul-architecture-core--架构内核--architecture-core)——
+> **改它们等于改别的 PF 赖以成立的前提**，代价与自检问题都在那里。
+> **下面这些目前全在那份清单上。**
+
 | Topic | 状态 | rev |
 |---|---|---|
 | [PF-000 发生的事与记录条目](PF-000-occurrences-and-record-entries/README.md) | active | 1 |
