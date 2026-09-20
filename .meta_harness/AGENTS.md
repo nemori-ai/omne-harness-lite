@@ -6,7 +6,7 @@
 
 `.meta_harness/` 是可以独立迁出的私有设计工作区。它既维护“怎样设计”的方法，也保存
 “本次设计什么”的需求与设计链；方法不会预先知道产品名称、现有能力或实现仓库。
-系统事实来自内部材料或本次明确输入，定位与缺失处理归[工作区上下文](agents/skills/harness-design-handbook/canonical/references/workspace-context.md)。
+系统事实来自内部材料或本次明确输入，定位与缺失处理归 `harness-design-handbook` skill 的「工作区上下文」。
 
 若它位于某个实现仓库中，对那个仓库的实际操作仍遵守适用约定；承载位置不使该仓库的
 产品目标、技术栈、模型路由或旧 docs/spec 自动成为设计权威。目录为空表示材料尚缺，
@@ -18,11 +18,11 @@
 
 能力维度按独立责任与变化边界划分，不由通用关注点表预设。先判断现有能力能否承载，
 再辨别组合、扩展、提供者修复或新的独立责任；缺资料、缺实现和缺语义分别处理。
-新增独立维度须给出独立插件边界；正交不等于无依赖或任意可交换。推理归[能力覆盖与演化](agents/skills/harness-design-handbook/canonical/references/decompose.md)。
+新增独立维度须给出独立插件边界；正交不等于无依赖或任意可交换。推理归 `harness-design-handbook` skill 的「能力覆盖与演化」。
 
 契约拥有含义、状态权威与保证，提供者和装配拥有具体兑现关系；目录、类、服务键和插件数量
 不能代替能力模型。组合须解释正常、失败及撤除后的责任交接，方法沿
-[契约与动作链](agents/skills/harness-design-handbook/canonical/references/define.md)和[插件投影](agents/skills/harness-design-handbook/canonical/references/project.md)展开。
+`harness-design-handbook` skill 的「契约与动作链」和「插件投影」展开。
 
 ## 让知识能够接续
 
@@ -39,14 +39,14 @@
 
 ## 权威与不可混淆的边界
 
-- 用户明确的新要求优先于历史交接；研究、候选、接受与实际兑现各有依据。有效决定在其前提与范围内继续约束后续设计，复议说明新依据和取代范围；方法归[设计选择](agents/skills/harness-design-handbook/canonical/references/design-decisions.md)。
-- 同一含义只有一个权威拥有者。冲突先定位条款、精确版本、接受依据与消费者，不把实现倒写成规格，也不在本文件裁决未定政策；发布后规范不可原地覆盖，传播规则归[规格演进](agents/skills/harness-design-handbook/canonical/references/spec-evolution.md)。
-- 语义接受、提供者可实施、装配明确与实际验证分别陈述。形式化工件按需选择，已触发的证据义务不能因 optional 而消失；有限检查不写成无条件证明，边界归[交付](agents/skills/harness-design-handbook/canonical/references/handoff.md)与[规格及证据](agents/skills/harness-design-handbook/canonical/references/architecture/assurance/specification.md)。
+- 用户明确的新要求优先于历史交接；研究、候选、接受与实际兑现各有依据。有效决定在其前提与范围内继续约束后续设计，复议说明新依据和取代范围；方法归 `harness-design-handbook` skill 的「设计选择」。
+- 同一含义只有一个权威拥有者。冲突先定位条款、精确版本、接受依据与消费者，不把实现倒写成规格，也不在本文件裁决未定政策；发布后规范不可原地覆盖，传播规则归 `harness-design-handbook` skill 的「规格演进」。
+- 语义接受、提供者可实施、装配明确与实际验证分别陈述。形式化工件按需选择，已触发的证据义务不能因 optional 而消失；有限检查不写成无条件证明，边界归 `harness-design-handbook` skill 的「交付」与「规格及证据」。
 - 修改 skills/roles 的源，再由工具生成工作区内 `.agents/`、`.claude/`、`.codex/`；不手改生成物。生成、宿主加载、项目根接入和对外发布是不同动作，依已有授权与[工具边界](tooling/README.md)、[发布边界](publication/README.md)处理，编译不扩张授权。
 
 ## 设计品味
 
-以下是[手册判断方法](agents/skills/harness-design-handbook/canonical/references/architecture/assurance/judgment.md)的简短投影：
+以下是 `harness-design-handbook` skill 中「工程判断」的简短投影：
 
 - 先说明需要保护的性质与真实变化，再选择抽象；没有独立契约或责任价值的包装直接表达。
 - 优先复用能兑现契约的成熟机制，比较适配、验证和长期维护的总负担；复杂度要有对应收益依据。
@@ -57,17 +57,18 @@
 
 | 当前问题 | 入口与停止点 |
 |---|---|
-| 新需求、能力边界或插件设计 | [harness-design-handbook](agents/skills/harness-design-handbook/canonical/SKILL.md)：从当前缺口进入，达到本次分析/设计/交接终点即收口 |
-| 需求交流值得持续回顾 | [需求归位](agents/skills/harness-design-handbook/canonical/references/intake.md#何时自主启记访谈)：在 requirements/interviews 接续可选笔记；访谈不自动升级为正式要求或决定 |
-| 已有契约、映射或证据发生变化 | [规格演进](agents/skills/harness-design-handbook/canonical/references/spec-evolution.md)：定位拥有者与受影响消费者，只展开变化涉及的范围 |
+| 新需求、能力边界或插件设计 | 加载 `harness-design-handbook` skill：从当前缺口进入，达到本次分析/设计/交接终点即收口 |
+| 在 product 区起草或修订产品设计正文 | 加载 `product-design` skill：它把视角切成 product manager；做技术设计或实现的人只读正文，不加载它。该区的维护规矩与阅读地图归 [product/AGENTS.md](design/product/AGENTS.md) |
+| 需求交流值得持续回顾 | 同一 skill 的「需求归位」（何时自主启记访谈）：在 requirements/interviews 接续可选笔记；访谈不自动升级为正式要求或决定 |
+| 已有契约、映射或证据发生变化 | 同一 skill 的「规格演进」：定位拥有者与受影响消费者，只展开变化涉及的范围 |
 | 知识应落哪里、怎样建 topic | [design 入口](design/README.md)，再读对应 family；不要求每项需求创建所有家族 |
 | 已有架构、规格或计划待审稿 | [评审分工](agents/roles/README.md#按判断对象选择-reviewer)：给出对象/版本、依据与范围，按问题委派独立只读评审，意见不代替接受 |
 | 派发或接手实现 | [开发者契约](agents/roles/developer-contract.md)与[任务输入](agents/roles/developer-task.md)：只实施本次已具备输入且获准写入的范围 |
-| 核对 Cordis/DSH 事实 | [来源核对](agents/skills/harness-design-handbook/canonical/references/source-check.md)：核对采用版本和具体证据，上游应用政策不是产品要求 |
-| 编写角色、宿主或模型适配 | [design-subagents](agents/skills/design-subagents/canonical/SKILL.md)：明确职责、行动、输入与停止条件，只核对本次实际目标 |
+| 核对 Cordis/DSH 事实 | 同一 skill 的「来源核对」：核对采用版本和具体证据，上游应用政策不是产品要求 |
+| 编写角色、宿主或模型适配 | 加载 `design-subagents` skill：明确职责、行动、输入与停止条件，只核对本次实际目标 |
 | 维护 skill 源、编译或链接 | [agents 源约定](agents/README.md)与[tooling](tooling/README.md)：确认输入、产物与目标根，检查不等于安装 |
-| 操作执行仓库的 worktree | [worktree-discipline](agents/skills/worktree-discipline/canonical/SKILL.md)：先定位本次检出、基线与证据，操作限于授权 |
-| 重写常驻指令或继承范围 | [write-agents-md](agents/skills/write-agents-md/canonical/SKILL.md)：先确认权威拥有者，再调整这里的投影 |
+| 操作执行仓库的 worktree | 加载 `worktree-discipline` skill：先定位本次检出、基线与证据，操作限于授权 |
+| 重写常驻指令或继承范围 | 加载 `write-agents-md` skill：先确认权威拥有者，再调整这里的投影 |
 | 评估角色或采用模型 | [评估入口](agents/evaluation/README.md)：区分静态生成、独立试用与实际运行，消费本次明确的采用协议 |
 
 普通局部改动沿已有契约与相关检查完成；出现新的责任边界、保证或失效前提才展开设计。

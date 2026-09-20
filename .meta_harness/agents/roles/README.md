@@ -56,8 +56,7 @@
 | 既定选择是否被完整、明确、规范地表达？ | spec-evolution → specification → handoff | 规格快照及其落实的设计；返回表达/引用/版本/证据声明缺口，不重新判断是否应新增能力 |
 | 依赖这些设计，实施能否安全推进并形成证据？ | delivery-planning → handoff / spec-evolution | 计划、验收、采用设计/规格与必要现状；返回受阻任务、写入冲突、证据和组合责任缺口，不逐条重审规格 |
 
-路线均从 [harness-design-handbook](../skills/harness-design-handbook/canonical/SKILL.md)
-进入，参考路径相对其根；实际 family/topic 入口拥有本次信息包，`.templates/` 只供裁剪使用。
+路线均从 `harness-design-handbook` skill 进入，参考路径相对其根；实际 family/topic 入口拥有本次信息包，`.templates/` 只供裁剪使用。
 上表三个角色共享只读纪律，判断对象不同，不要求每项局部修改依次经过全部角色。
 product-design-reviewer 同样只读，但判断对象是产品文档，不走 handbook 那三条路线。
 
@@ -101,7 +100,7 @@ python agents/skills/design-subagents/canonical/scripts/render_pair.py \
 
 命令仅打印 JSON。Codex 派发需要显式应用返回的 effort；直接调用角色不保证采用源默认档位。
 Claude 会话覆盖需应用完整角色 JSON，不以单个 effort 字段代替整份定义；实际调用面和支持范围
-沿 [design-subagents](../skills/design-subagents/canonical/SKILL.md) 核对。固定 reviewer 不接受此调档入口。
+沿 `design-subagents` skill 核对。固定 reviewer 不接受此调档入口。
 
 原生文件存在不说明当前会话已加载。具名角色不可用时，可在已有授权内交接完整生成提示作普通
 agent 试用，并说明未经应用的原生沙箱与权限不能算生效；无可用独立评审能力时保留具体缺口。

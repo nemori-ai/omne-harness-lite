@@ -31,18 +31,24 @@ skills 的共享正文与资源放在 `canonical/`。即使两端直接复制，
 工具说明与实际命令见 [tooling](../tooling/README.md)。
 
 创建或修改 skill 时加载当前环境提供的官方 `skill-creator`，按其实际安装位置读取；
-它是编写工具，不假定已经随本工作区分发。维护角色加载下表的 `design-subagents`，
-调整常驻指令加载 `write-agents-md`；方法或设计心智变化再沿手册定位拥有者。
+它是编写工具，不假定已经随本工作区分发。维护角色加载下表的 `design-subagents` skill，
+调整常驻指令加载 `write-agents-md` skill；方法或设计心智变化再沿 `harness-design-handbook` skill 定位拥有者。
 
 ## Skills
 
-| 入口 | 职责 |
-|---|---|
-| [harness-design-handbook](skills/harness-design-handbook/canonical/SKILL.md) | 从需求与能力覆盖到演化、契约、Cordis 投影和交接；方法草稿 |
-| [write-agents-md](skills/write-agents-md/canonical/SKILL.md) | AGENTS.md 的心智、边界、继承与阅读地图 |
-| [design-subagents](skills/design-subagents/canonical/SKILL.md) | 角色契约、宿主与模型适配、模板、成对渲染及验证 |
-| [worktree-discipline](skills/worktree-discipline/canonical/SKILL.md) | 明确执行仓库中的隔离、并行集成与证据保留 |
+使用时按名加载，不按路径读源；下表每个 skill 的源在 `skills/<name>/canonical/`，
+宿主适配在 `skills/<name>/adapters/<host>/`，只有维护源时才进那些目录。
 
-后三者完整保留原资源，原件哈希与迁入调整分别记录在各自 `.design/`；
+| Skill | 职责 |
+|---|---|
+| `harness-design-handbook` | 从需求与能力覆盖到演化、契约、Cordis 投影和交接；方法草稿 |
+| `product-design` | 以 product manager 视角起草或修订产品设计正文；该区维护规矩归 [design/product](../design/product/AGENTS.md) |
+| `write-agents-md` | AGENTS.md 的心智、边界、继承与阅读地图 |
+| `design-subagents` | 角色契约、宿主与模型适配、模板、成对渲染及验证 |
+| `worktree-discipline` | 明确执行仓库中的隔离、并行集成与证据保留 |
+| `ubiquitous-language` | 统一语言的取名、分卷、无歧义中英文定义、查重与冲突处置；词表归 [design/ubiquitous_language](../design/ubiquitous_language/README.md) |
+
+`design-subagents`、`worktree-discipline` 与 `ubiquitous-language` 三个 skill 完整保留原资源，
+原件哈希与迁入调整分别记录在各自 `.design/`；
 外部项目依赖改为明确工作区/执行仓库输入，不暗接父仓库。编译保留草稿状态，
 生成不代表接受、安装、宿主加载或模型行为已验证。
