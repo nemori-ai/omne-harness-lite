@@ -14,7 +14,7 @@
 - 设计覆盖状态：`尚未开始专项设计`
 - 规格采用状态：没有 PF-002 的 candidate 或已采用专项契约。
 - Provider、assembly 与实现验证：没有 Connector 安装、账号、供给、感知和主动响应的交接或验证结论。
-- 当前可复用设计落点：[Connector 与外部环境来源研究](../../../research/connector-environment-source-sources/README.md) 可避免重复调研；[Session candidate](../../../spec/capabilities/session/README.md) 有外部到达入口，但二者都不定义 Connector 专项责任。
+- 当前可复用设计落点：[Connector 与外部环境来源研究](../../../../research/legacy_backup/connector-environment-source-sources/README.md) 可避免重复调研；[Session candidate](../../../spec/capabilities/session/README.md) 有外部到达入口，但二者都不定义 Connector 专项责任。
 - 覆盖边界与主要缺口：全部条款仍待分析；不得由该到达入口推定外部响应已被覆盖。
 
 ## 按当前问题展开

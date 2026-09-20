@@ -6,8 +6,8 @@
 
 | 候选 | 责任及兑现方式 | 总负担与关键反例 | 证据状态 |
 |---|---|---|---|
-| **A：独立账号能力 + 成熟嵌入式认证 provider**（推荐） | 项目账号服务拥有产品 `UserRef`、注册状态与可信主体；Better Auth 类库管理凭据、会话/撤销，适配 SQLite；耐久协调者与 Tenant 建立个人租户，CLI 有多账号凭据槽。 | 需适配认证库 ID/数据库迁移与 Cordis 生命周期，尤其是注册与 Tenant 分仓时的中途状态；CLI device flow 可能要求本地 HTTP/UI，不能先承诺。 | [E4–E6](../../research/account-auth-sources/evidence.md)仅证明机制存在；本项目 spike 未执行。 |
-| **B：独立账号能力 + 独立 IdP 服务** | Keycloak 类 IdP 持有注册、登录、会话；本项目映射其 subject 为不复用的 `UserRef`，维护个人租户组合和 CLI OIDC/device 登录。 | 增加首版单机部署的服务、数据库、备份、升级与离线依赖；IdP 成功注册仍可能先于 Tenant 发布，恢复问题未消失。适合已有组织 IdP 或要求集中身份管理的部署。 | [E7](../../research/account-auth-sources/evidence.md)支持 IdP 功能；本产品部署成本/可靠性未实测。 |
+| **A：独立账号能力 + 成熟嵌入式认证 provider**（推荐） | 项目账号服务拥有产品 `UserRef`、注册状态与可信主体；Better Auth 类库管理凭据、会话/撤销，适配 SQLite；耐久协调者与 Tenant 建立个人租户，CLI 有多账号凭据槽。 | 需适配认证库 ID/数据库迁移与 Cordis 生命周期，尤其是注册与 Tenant 分仓时的中途状态；CLI device flow 可能要求本地 HTTP/UI，不能先承诺。 | [E4–E6](../../../research/legacy_backup/account-auth-sources/evidence.md)仅证明机制存在；本项目 spike 未执行。 |
+| **B：独立账号能力 + 独立 IdP 服务** | Keycloak 类 IdP 持有注册、登录、会话；本项目映射其 subject 为不复用的 `UserRef`，维护个人租户组合和 CLI OIDC/device 登录。 | 增加首版单机部署的服务、数据库、备份、升级与离线依赖；IdP 成功注册仍可能先于 Tenant 发布，恢复问题未消失。适合已有组织 IdP 或要求集中身份管理的部署。 | [E7](../../../research/legacy_backup/account-auth-sources/evidence.md)支持 IdP 功能；本产品部署成本/可靠性未实测。 |
 | **C：扩展 Tenant 为账号和认证权威 + 成熟认证组件** | Tenant 在同一边界内创建 `UserRef`、个人租户、成员并管理或委托凭据和会话；可能将账号与租户写入同一数据库事务。 | 若确实有共同存储，原子提交较直接；但尚无租户的注册主体与登录生命周期被绑进租户治理，未来认证方式变更牵动 Tenant。仅把认证库表放同库不能证明其写入能加入 Tenant 同一事务；在外部 IdP 场景优势消失。 | TG-01 的归属和首次 bootstrap 见[设计正文](design.md)；共同事务能力未验证。 |
 
 这三条是不同的权威与部署路径：A 把认证当嵌入式 provider，B 把它变成外部服务权威，C 改变现有 Tenant 的能力边界；不是同一个插件改名。

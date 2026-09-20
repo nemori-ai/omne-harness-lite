@@ -15,7 +15,7 @@ migration_status: equivalent-current-requirement
 
 # PF-014：运行时发现与按需装载工具、技能
 
-[智能体维度](../by-agent.md) · [来源核对](../../../research/dynamic-loading-and-artifact-sources/research.md)
+[智能体维度](../by-agent.md) · [来源核对](../../../../research/legacy_backup/dynamic-loading-and-artifact-sources/research.md)
 
 主维度：智能体。副维度：用户、环境。2026-09-12 用户明确 Agent 应在运行时
 发现并按需装载工具和技能，并授权结合 omne-next 的相关子系统、DSH 与 Cordis

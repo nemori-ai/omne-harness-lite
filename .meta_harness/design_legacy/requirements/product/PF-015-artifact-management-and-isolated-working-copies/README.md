@@ -14,7 +14,7 @@
 - 设计覆盖状态：`尚未开始专项设计`
 - 规格采用状态：没有 PF-015 的 candidate 或已采用专项契约。
 - Provider、assembly 与实现验证：没有制品、工作副本或并发边界的专项交接和验证结论。
-- 当前可复用设计落点：[运行时装载与制品管理来源研究](../../../research/dynamic-loading-and-artifact-sources/README.md) 可避免重复调研；没有专项机制设计，[Tools candidate](../../../spec/capabilities/tools/README.md) 仅将按制品身份检索留给独立设计。
+- 当前可复用设计落点：[运行时装载与制品管理来源研究](../../../../research/legacy_backup/dynamic-loading-and-artifact-sources/README.md) 可避免重复调研；没有专项机制设计，[Tools candidate](../../../spec/capabilities/tools/README.md) 仅将按制品身份检索留给独立设计。
 - 覆盖边界与主要缺口：制品身份、版本、所有权、工作副本与并发边界仍待能力分析。
 
 ## 按当前问题展开

@@ -6,7 +6,7 @@
 | 发现与依据 | 影响 | 作者处置 | 复核状态 |
 |---|---|---|---|
 | C3 将个人数据、设置、额度并列，但只引用 Tenant/PF-019；遗漏 budget-accounting@1 BG-01/02/06 与 PF-006 的设置 owner 缺口 | 无法判断额度已有候选语义、设置隔离仍缺契约的边界 | [design.md](design.md) 拆为三行；[alternatives.md](alternatives.md) 补共同约束；CLI 账号切换不继承偏好/缓存 | 待独立复核 |
-| provider 调研不能由撤销 API 推断旧 token/cookie cache 即刻失效；还需核对稳定 `UserRef` 映射 | `logout` 保证和 C3 隔离可能被缓存或身份变化破坏 | [研究](../../research/account-auth-sources/research.md)补官方缓存限制；设计的 spike 明确稳定映射与旧凭据重放 | 定向复核发现语义放宽，见下行 |
+| provider 调研不能由撤销 API 推断旧 token/cookie cache 即刻失效；还需核对稳定 `UserRef` 映射 | `logout` 保证和 C3 隔离可能被缓存或身份变化破坏 | [研究](../../../research/legacy_backup/account-auth-sources/research.md)补官方缓存限制；设计的 spike 明确稳定映射与旧凭据重放 | 定向复核发现语义放宽，见下行 |
 | 定向复核 `f817fd3`：把缓存时延披露当成可满足退出保证，违反已确认 PF-026.C2 | 当前登录态可能在成功回执后仍可访问数据 | [design.md](design.md) 收紧为成功回执前必须核实当前态失效；未核实给 pending/失败。研究与候选同步把旧 token/缓存 cookie 拒绝设为 provider 验收门 | 本次作者修正，待独立复核；不表示接受 |
 
 ## 接受与尚未闭合

@@ -15,7 +15,7 @@ migration_status: equivalent-current-requirement
 
 # PF-018：使用 omne-selfound 的知识与认知能力
 
-[智能体维度](../by-agent.md) · [来源与本轮取舍](../../../research/requirements-gap-resolution-sources/research.md)
+[智能体维度](../by-agent.md) · [来源与本轮取舍](../../../research/legacy_backup/requirements-gap-resolution-sources/research.md)
 
 2026-09-12 用户将 GAP-1 的第二部分明确为：Agent 具备使用 `omne-selfound`
 的能力，主要包括 `omne-engram` 和 `omne-cognition`。主维度为智能体，副维度

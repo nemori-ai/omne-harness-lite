@@ -15,7 +15,7 @@ migration_status: equivalent-current-requirement
 
 # PF-007：系统发起的 HITL 与动作授权确认
 
-[用户维度](../by-user.md) · [来源核对](../../../research/user-governance-and-decision-pool-sources/research.md)
+[用户维度](../by-user.md) · [来源核对](../../../../research/legacy_backup/user-governance-and-decision-pool-sources/research.md)
 
 主维度：用户，关注系统向用户请求决定及其对行动的效力。副维度：智能体，关联
 智能体的动作被系统拦截、等待或按声明形成暂行产物。

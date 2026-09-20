@@ -15,7 +15,7 @@ migration_status: equivalent-current-requirement
 
 # PF-011：面向未来的复杂日程规划、日历与通知提醒
 
-[智能体维度](../by-agent.md) · [日程与通知来源核对](../../../research/future-planning-calendar-and-notification-sources/research.md)
+[智能体维度](../by-agent.md) · [日程与通知来源核对](../../../../research/legacy_backup/future-planning-calendar-and-notification-sources/research.md)
 
 主维度：智能体。副维度：环境、用户，关联环境信号对规划的影响，以及用户的
 时间意图、日历设置、日程管理和通知触达。
@@ -142,4 +142,4 @@ C1–C4 展开直接要求。C5–C11 按本轮方向与
 
 目前的设计（[本包覆盖状态](README.md#设计覆盖状态)）尚未覆盖
 上述规划、日历、耐久到期和通知全流程。本次不采用旧系统单例 ticker、数据库、
-调度库或部署方式；来源要求中的旧时区与互斥效用限制按[核对记录](../../../research/future-planning-calendar-and-notification-sources/research.md#来源差异与当前处理)处理。
+调度库或部署方式；来源要求中的旧时区与互斥效用限制按[核对记录](../../../../research/legacy_backup/future-planning-calendar-and-notification-sources/research.md#来源差异与当前处理)处理。

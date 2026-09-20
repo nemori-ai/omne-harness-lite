@@ -15,7 +15,7 @@ migration_status: equivalent-current-requirement
 
 # PF-017：跨会话历史状态检索与后台通信协作
 
-[智能体维度](../by-agent.md) · [来源与本轮取舍](../../../research/requirements-gap-resolution-sources/research.md)
+[智能体维度](../by-agent.md) · [来源与本轮取舍](../../../research/legacy_backup/requirements-gap-resolution-sources/research.md)
 
 2026-09-12 用户将 GAP-1 的第一部分重新定义为：Agent 能在一个 Session 中
 检索其他 Sessions 的历史状态，并与其他会话后台通信、协调；GAP-2 并入这一

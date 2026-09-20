@@ -15,7 +15,7 @@ migration_status: equivalent-current-requirement
 
 # PF-019：租户订阅、额度、用量、账单与预算管理
 
-[用户维度](../by-user.md) · [租户管理](../PF-010-organization-personal-assets-and-permissions/requirements.md) · [来源核对](../../../research/requirements-gap-resolution-sources/research.md)
+[用户维度](../by-user.md) · [租户管理](../PF-010-organization-personal-assets-and-permissions/requirements.md) · [来源核对](../../../../research/legacy_backup/requirements-gap-resolution-sources/research.md)
 
 2026-09-12 用户接受并重定义 GAP-4：在租户管理下增加订阅额度/用量、账单与
 预算管理，且每一步 Agent Step 的金额开销都能够精细统计。本项作为租户管理

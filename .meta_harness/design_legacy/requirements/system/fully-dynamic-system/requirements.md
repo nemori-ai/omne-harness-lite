@@ -21,18 +21,18 @@ migration_status: equivalent-current-requirement
 2026-09-12 用户明确此目标，并指定 omne-next 对应文档为定义来源，要求复制原文并
 尽可能保留 Git history，以保留其存在的时间线。
 
-定义、演化公式与最小判定标准引用迁移后的[中文阅读副本](../../../research/fully-dynamic-system/fully-dynamic-system.zh.md)。
+定义、演化公式与最小判定标准引用迁移后的[中文阅读副本](../../../../research/legacy_backup/fully-dynamic-system/fully-dynamic-system.zh.md)。
 采用快照 `5d6322d85652f17b72cf97043b6300926c41083a` 的原始 blob 可从
-[Git 历史包](../../../research/fully-dynamic-system/omne-next-history.bundle)恢复；
-[早期原稿](../../../research/fully-dynamic-system/fully_dynamic_system_intro.md)、
-[历史日志](../../../research/fully-dynamic-system/history.log)与
-[时间证据局限](../../../research/fully-dynamic-system/evidence.md#内容身份与局限)在当前包中直接保留。
+[Git 历史包](../../../../research/legacy_backup/fully-dynamic-system/omne-next-history.bundle)恢复；
+[早期原稿](../../../../research/legacy_backup/fully-dynamic-system/fully_dynamic_system_intro.md)、
+[历史日志](../../../../research/legacy_backup/fully-dynamic-system/history.log)与
+[时间证据局限](../../../../research/legacy_backup/fully-dynamic-system/evidence.md#内容身份与局限)在当前包中直接保留。
 
 **SYS-DYNAMIC.C2（建模方向）：** 从动态能力、依赖、生命周期、作用域与所有权建模，显式约束
 结构演化；能力的定义、实现、绑定和组合关系应能动态演化。此项保留既有
 SYS-DYNAMIC 的确认范围；可恢复来源由[来源、确认与变化](changes.md)及本页 front matter 的来源提交、文件、哈希和锚点固定，
-并由当前根开发约定提供项目语境。需求变化按[需求归位](../../../../agents/skills/harness-design-handbook/canonical/references/intake.md#绑定当前系统而非历史设想)处理，
-具体方法见[能力建模](../../../../agents/skills/harness-design-handbook/canonical/references/architecture/modeling/capabilities.md)。
+并由当前根开发约定提供项目语境。需求变化按 `harness-design-handbook` skill 的「需求归位」→「绑定当前系统而非历史设想」处理，
+具体方法见同一 skill 的「能力建模」。
 
 2026-09-13 用户进一步澄清 C2 的设计含义：从 Cordis 视角考虑能力绑定和依赖，
 应同时考虑相关生命周期、激活产生的效用及卸载后的逆效用撤回；tool–skill

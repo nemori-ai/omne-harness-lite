@@ -1,7 +1,7 @@
 # D-012：Run 驱动器与 Session Inbound
 
 - 状态：旧谱系目标设计及有限验证已接受；当前目标 v1 仍为候选。
-- 来源：`e3573ca72d18bfe7ddd002df5025551b51eede46:docs/decisions/D-012-run-driver-and-inbound.md`，SHA-256 `44ac6d2cfafb327776bad400617ec892a11b4f61485ade116f0d2a84ef74fb4a`；来源提案为同修订 `docs/proposals/agent-loop-inbound/README.md#接受记录`，研究背景见[循环/事件/hooks 研究](../../research/agent-loop-events-and-hooks/README.md)。
+- 来源：`e3573ca72d18bfe7ddd002df5025551b51eede46:docs/decisions/D-012-run-driver-and-inbound.md`，SHA-256 `44ac6d2cfafb327776bad400617ec892a11b4f61485ade116f0d2a84ef74fb4a`；来源提案为同修订 `docs/proposals/agent-loop-inbound/README.md#接受记录`，研究背景见[循环/事件/hooks 研究](../../../research/legacy_backup/agent-loop-events-and-hooks/README.md)。
 - 接受依据：2026-09-14，任务作者在用户授权正式决定与规格撰写的范围内，结合两轮独立评审接受提案 r3 修订 `6fafacb`。接受的旧精确对象是 `run-driver@1` 与 `session-run@2`，需求基线 `6f7f1de1bc2fe0e772dc48a83da4699fece82e89`。
 
 ## 保留的选择

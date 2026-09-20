@@ -1,7 +1,7 @@
 # D-014：Session、Run 与 Agent 实例生命周期
 
 - 状态：旧谱系架构和有限模型已接受；目标新谱系 v1、提供者及装配分别等待精确采用与验证。
-- 来源：`e3573ca72d18bfe7ddd002df5025551b51eede46:docs/decisions/D-014-session-run-agent-lifecycles.md`，SHA-256 `b112d9566ae618cb3af544a5f6b5bf4e0beb5d2734c9df8f9a8c1b6fe14e845c`；来源提案为同修订 `docs/proposals/session-run-agent-lifecycles/README.md#接受记录`，研究背景见[循环/事件/hooks](../../research/agent-loop-events-and-hooks/README.md)。
+- 来源：`e3573ca72d18bfe7ddd002df5025551b51eede46:docs/decisions/D-014-session-run-agent-lifecycles.md`，SHA-256 `b112d9566ae618cb3af544a5f6b5bf4e0beb5d2734c9df8f9a8c1b6fe14e845c`；来源提案为同修订 `docs/proposals/session-run-agent-lifecycles/README.md#接受记录`，研究背景见[循环/事件/hooks](../../../research/legacy_backup/agent-loop-events-and-hooks/README.md)。
 - 接受依据：2026-09-14，任务作者结合独立评审与用户 U-17～U-32 裁决接受三台状态机的权威拆分、组合与 Cordis 边界；原精确对象为 session@1、run@1、生命周期组合@1、CC@2、run-driver@2。需求基线沿 D-012。
 
 ## 保留的选择

@@ -27,24 +27,24 @@ migration_status: equivalent-current-requirement
 
 ## 来源映射
 
-当前已查材料见[产品来源核对](../../../research/product-feature-sources/research.md)，核对提交为
+当前已查材料见[产品来源核对](../../../../research/legacy_backup/product-feature-sources/research.md)，核对提交为
 `6263fed545e48ad9efb5714f3fe76a7c1a0af1b5`。它是研究快照，尚不是用户确认的全部
 功能继承基线。已查文件的接受状态不代表实现完成，旧系统代码结构和未接受设计
 也不自动成为本项目的设计选择。
 
 逐项来源和迁入范围见[来源、确认与变化](changes.md)；确认与存在歧义时的处理按
-[需求归位](../../../../agents/skills/harness-design-handbook/canonical/references/intake.md#绑定当前系统而非历史设想)执行。
+`harness-design-handbook` skill 的「需求归位」→「绑定当前系统而非历史设想」执行。
 本页及各专项 requirement 的 front matter 固定实际产品来源与谱系，方法页不承担产品接受事实。
 PF-002、PF-003 的直接要求和来源补充分开维护。
 
 后续明确的 [PF-004](../../product/PF-004-subagent-delegation-and-supervision/requirements.md)
 完整继承 `omne-next/omne_harness` 的 sub-agent 相关要求，包含已承诺的未来能力。
-[该项来源清单](../../../research/subagent-requirement-sources/research.md)固定核心全文、相邻
+[该项来源清单](../../../../research/legacy_backup/subagent-requirement-sources/research.md)固定核心全文、相邻
 适用条款和有效补充；它已获得专项继承授权，不再只是可选参考。清单不限定整体
 功能继承范围，源文档中的冲突与后续新增承诺仍分别处理。
 
 主动 HITL（迁移坐标：`.meta_harness/design/research/agent-initiated-hitl-sources/research.md`） 与
-[用户治理及统一决策池](../../../research/user-governance-and-decision-pool-sources/research.md)
+[用户治理及统一决策池](../../../../research/legacy_backup/user-governance-and-decision-pool-sources/research.md)
 进一步映射 PF-005～PF-008 的直接要求与源有效条款，包括来源已承诺的未来
 批准引用和暂行确认。各项保留自己的确认与来源范围，不把研究快照升级为全局
 继承截止点，也不把源接受状态当作本项目的设计或实现证据。

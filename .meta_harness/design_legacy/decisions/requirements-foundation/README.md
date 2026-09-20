@@ -16,4 +16,4 @@
 |---|---|
 | 接受了什么、为什么、当前怎样消费 | [决定正文](decision.md) |
 
-- [需求入口](../../requirements/README.md)\n- [需求归位方法](../../../agents/skills/harness-design-handbook/canonical/references/intake.md)
+- [需求入口](../../requirements/README.md)\n- `harness-design-handbook` skill 的「需求归位」

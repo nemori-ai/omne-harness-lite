@@ -15,7 +15,7 @@ migration_status: equivalent-current-requirement
 
 # PF-015：制品管理与隔离工作副本
 
-[智能体维度](../by-agent.md) · [来源核对](../../../research/dynamic-loading-and-artifact-sources/research.md)
+[智能体维度](../by-agent.md) · [来源核对](../../../../research/legacy_backup/dynamic-loading-and-artifact-sources/research.md)
 
 主维度：智能体。副维度：用户、环境。2026-09-12 用户明确制品的存储和管理
 与 Agent 运行时、其宿主机解耦，能够加载到一次工作使用的文件系统，并支持

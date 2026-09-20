@@ -15,7 +15,7 @@ migration_status: equivalent-current-requirement
 
 # PF-012：Computer、Browser、Shell 能力与沙盒／本机使用
 
-[环境维度](../by-environment.md) · [执行环境来源核对](../../../research/computer-browser-shell-environment-sources/research.md)
+[环境维度](../by-environment.md) · [执行环境来源核对](../../../../research/legacy_backup/computer-browser-shell-environment-sources/research.md)
 
 主维度：环境，关注能力作用于怎样的操作环境。副维度：智能体、用户，分别
 关联三类 use 能力，以及与用户共享电脑时的授权、观察和控制。

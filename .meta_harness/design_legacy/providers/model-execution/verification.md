@@ -14,7 +14,7 @@ OpenRouter 账务查询一致。后续隔离探针通过产品 `LocalExecutionHo
 固定 `pi-ai@0.85.1` 的离线受控 SSE 与两次真实 OpenRouter 短请求表明，其路由和
 工具流可工作，但未修改的解析结果将实际服务商折为 `openrouter`，将费用只报告为
 目录估算；一组真实请求的估算恰与实际金额相等，仍未保留费用来源。实施调研与
-来源限制见[自包含研究包](../../research/pi-ai-openrouter-transport/README.md)；[D-019](../../decisions/pi-ai-openrouter-transport/decision.md)
+来源限制见[自包含研究包](../../../research/legacy_backup/pi-ai-openrouter-transport/README.md)；[D-019](../../decisions/pi-ai-openrouter-transport/decision.md)
 已选定 fork 方向，替换前仍须以固定版本和真实响应覆盖路由/BYOK/缓存/折扣、工具往返、响应 ID、
 usage 来源、断流/错误/abort、无隐藏重试与私有 replay；费用缺席时标 unknown，
 不能由目录估算推断真实扣费。候选小 fork 只证明解析点可修改，未完成类型和故障验证。

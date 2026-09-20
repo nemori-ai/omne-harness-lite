@@ -15,7 +15,7 @@ migration_status: equivalent-current-requirement
 
 # PF-020：依赖可用性、局部离线与诚实降级
 
-[环境维度](../by-environment.md) · [Cordis 与来源核对](../../../research/requirements-gap-resolution-sources/research.md)
+[环境维度](../by-environment.md) · [Cordis 与来源核对](../../../../research/legacy_backup/requirements-gap-resolution-sources/research.md)
 
 2026-09-12 用户要求结合 Cordis 进一步细化 GAP-7。主维度为环境，副维度为
 用户、智能体。以下把局部离线理解为：按实际装配、依赖和权限判断哪些能力

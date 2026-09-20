@@ -195,7 +195,7 @@ C1/C2 记录直接要求及其区分；C3–C7 将源已接受要求中可明确
 
 当前 [Tenant Governance 候选](../../../spec/capabilities/tenant-governance/v1/contract.md)、
 [Action Authorization 候选](../../../spec/capabilities/action-authorization/v1/contract.md)及
-[租户资产/权限来源研究](../../../research/tenant-asset-and-permission-sources/README.md)
+[租户资产/权限来源研究](../../../research/legacy_backup/tenant-asset-and-permission-sources/README.md)
 提供部分设计输入；完整资产分类、共享权益、个人/组织管理、角色动作及实际准入关系仍有缺口。
 本次记录要求和来源清单，
 不批准旧系统自动 overlay、组件解析器、资产聚合或实现兼容层。

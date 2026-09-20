@@ -15,7 +15,7 @@ migration_status: equivalent-current-requirement
 
 # PF-021：多机器接入、工作部署与动态装配
 
-[环境维度](../by-environment.md) · [Cordis 与来源核对](../../../research/requirements-gap-resolution-sources/research.md)
+[环境维度](../by-environment.md) · [Cordis 与来源核对](../../../research/legacy_backup/requirements-gap-resolution-sources/research.md)
 
 2026-09-12 用户接受 GAP-8，并要求“部署”和“装配”结合 Cordis 视角表达。
 主维度为环境，副维度为用户、智能体。本条纳入产品目标；阶段仍遵循

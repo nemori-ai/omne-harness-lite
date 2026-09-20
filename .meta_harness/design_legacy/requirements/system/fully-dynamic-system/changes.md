@@ -3,7 +3,7 @@
 | 可恢复输入 | 确认与迁入范围 | 对应正文定位 | 尚未确认的解释 |
 |---|---|---|---|
 | `docs/requirements/system/fully-dynamic-system.md` @ `e3573ca72d18bfe7ddd002df5025551b51eede46`；SHA-256 `2334233d17ea3234f42c9efe2635d21bd1828d8d82273a353244e73cecf59b69`；`# SYS-DYNAMIC：完全动态系统` | 保持源文件中已确认条款、显式边界和未决项；本次仅改变知识归属与链接表达 | [requirements.md](requirements.md)：`SYS-DYNAMIC.C1`、`SYS-DYNAMIC.C2` | 正文列出的待澄清、待设计和未采用范围继续保持原状态 |
-| `docs/research/fully-dynamic-system/` @ 同一提交；原始附件哈希与上游对象范围见[来源记录](../../../research/fully-dynamic-system/provenance.json) | 阅读副本迁入当前路径；`history.log` 与 bundle 保持原字节，使采用快照及其 237 个可达祖先提交可独立恢复 | `SYS-DYNAMIC.C1` 的定义与时间线证据 | Git 时间不是独立可信时间戳；未验证签名身份；bundle 不含采用快照之后的历史 |
+| `docs/research/fully-dynamic-system/` @ 同一提交；原始附件哈希与上游对象范围见[来源记录](../../../../research/legacy_backup/fully-dynamic-system/provenance.json) | 阅读副本迁入当前路径；`history.log` 与 bundle 保持原字节，使采用快照及其 237 个可达祖先提交可独立恢复 | `SYS-DYNAMIC.C1` 的定义与时间线证据 | Git 时间不是独立可信时间戳；未验证签名身份；bundle 不含采用快照之后的历史 |
 
 ## 本轮变化
 

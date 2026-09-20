@@ -15,7 +15,7 @@ migration_status: equivalent-current-requirement
 
 # PF-008：统一决策池与跨会话直接答复
 
-[用户维度](../by-user.md) · [来源核对](../../../research/user-governance-and-decision-pool-sources/research.md)
+[用户维度](../by-user.md) · [来源核对](../../../../research/legacy_backup/user-governance-and-decision-pool-sources/research.md)
 
 主维度：用户。副维度：智能体，关联请求的持续可见与答复后的工作接续。
 本页的“统一决策池”对应用户本轮所说的“决策通知池”，强调其中待决定、可答复

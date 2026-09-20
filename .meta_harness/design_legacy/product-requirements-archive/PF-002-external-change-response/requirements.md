@@ -15,7 +15,7 @@ migration_status: equivalent-current-requirement
 
 # PF-002：外部环境感知与响应
 
-[环境维度](../by-environment.md) · [Connector 来源核对](../../../research/connector-environment-source-sources/research.md)
+[环境维度](../by-environment.md) · [Connector 来源核对](../../../research/legacy_backup/connector-environment-source-sources/research.md)
 
 主维度：环境。副维度：用户、智能体。2026-09-12 用户逐项介绍中的第二项。
 
@@ -102,9 +102,9 @@ migration_status: equivalent-current-requirement
 
 ## 来源补充与关联
 
-初次讨论的[来源记录](../../../research/product-feature-sources/research.md#第二项外部环境感知与响应)
+初次讨论的[来源记录](../../../research/legacy_backup/product-feature-sources/research.md#第二项外部环境感知与响应)
 保留其当时“补充解释”的身份；本轮 Connector 及相关感知/响应范围以 C2–C9
-和[专项来源核对](../../../research/connector-environment-source-sources/research.md)为准，
+和[专项来源核对](../../../research/legacy_backup/connector-environment-source-sources/research.md)为准，
 不受旧记录未细化的范围限制，也不自动接受全部旧设计。
 
 [PF-011](../PF-011-future-planning-calendars-and-reminders/requirements.md) 拥有信号引出

@@ -14,7 +14,7 @@
 - 设计覆盖状态：`尚未开始专项设计`
 - 规格采用状态：没有 PF-018 的 candidate 或已采用专项契约。
 - Provider、assembly 与实现验证：没有 Selfound 接入、身份映射或专项验证交接。
-- 当前可复用设计落点：[GAP 取舍与新增要求来源研究](../../../research/requirements-gap-resolution-sources/README.md) 可避免重复调研；没有当前 proposal、architecture、spec、provider、decision 或 assembly 专项机制 topic。
+- 当前可复用设计落点：[GAP 取舍与新增要求来源研究](../../../research/legacy_backup/requirements-gap-resolution-sources/README.md) 可避免重复调研；没有当前 proposal、architecture、spec、provider、decision 或 assembly 专项机制 topic。
 - 覆盖边界与主要缺口：接入契约、身份映射、能力边界和 provider 设计仍待能力分析。
 
 ## 按当前问题展开

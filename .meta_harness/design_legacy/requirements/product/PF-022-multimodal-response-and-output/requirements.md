@@ -15,7 +15,7 @@ migration_status: equivalent-current-requirement
 
 # PF-022：多模态响应与输出
 
-[智能体维度](../by-agent.md) · [来源核对](../../../research/requirements-gap-resolution-sources/research.md)
+[智能体维度](../by-agent.md) · [来源核对](../../../../research/legacy_backup/requirements-gap-resolution-sources/research.md)
 
 2026-09-12 用户接受 GAP-9，并明确新增 Agent 的多模态响应/输出能力。
 主维度为智能体，副维度为用户；与 PF-009 的用户多模态输入分别维护。

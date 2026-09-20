@@ -16,4 +16,4 @@
 |---|---|
 | 接受了什么、为什么、当前怎样消费 | [决定正文](decision.md) |
 
-- [诊断提供者](../../providers/observation-diagnostics/README.md)\n- [观测研究](../../research/harness-observability/README.md)\n- [工程观测规格](../../spec/capabilities/engineering-observation/README.md)
+- [诊断提供者](../../providers/observation-diagnostics/README.md)\n- [观测研究](../../../research/legacy_backup/harness-observability/README.md)\n- [工程观测规格](../../spec/capabilities/engineering-observation/README.md)

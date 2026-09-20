@@ -13,7 +13,7 @@ migration_status: equivalent-current-requirement
 
 # SYS-RUNTIME-CONTINUITY：运行时与持久状态解耦、恢复接续及异构适配
 
-系统要求（迁移坐标：`.meta_harness/design/requirements/system/README.md`） · [omne-next 来源核对](../../../research/runtime-state-continuity-sources/research.md)
+系统要求（迁移坐标：`.meta_harness/design/requirements/system/README.md`） · [omne-next 来源核对](../../../../research/legacy_backup/runtime-state-continuity-sources/research.md)
 
 ## 已确认要求
 
@@ -38,7 +38,7 @@ migration_status: equivalent-current-requirement
 这不预先决定二者必须位于不同进程、机器或数据库。
 
 以下是来源材料支持的补充理解和后续核对方向，尚未作为本项目额外确认的精确
-承诺登记。对应章节、来源状态及限制见[来源核对](../../../research/runtime-state-continuity-sources/research.md)。
+承诺登记。对应章节、来源状态及限制见[来源核对](../../../../research/legacy_backup/runtime-state-continuity-sources/research.md)。
 
 | 关注点 | 用于减少歧义的参考 |
 |---|---|
@@ -74,8 +74,7 @@ migration_status: equivalent-current-requirement
 状态契约与实现关系继续遵循 [SYS-SPEC](../constraints/requirements.md#sys-spec)。
 
 本次属于新增确认要求，与上述既有要求相容；现有指南中的
-[状态与存储](../../../../agents/skills/harness-design-handbook/canonical/references/architecture/modeling/state-and-storage.md)和
-[部署边界](../../../../agents/skills/harness-design-handbook/canonical/references/architecture/runtime/distribution.md)可提供设计方法。
+`harness-design-handbook` skill 的「状态与存储」和「部署边界」可提供设计方法。
 目前的设计（[本包覆盖状态](README.md#设计覆盖状态)）尚未形成
 兑现 C1–C3 的完整规格；当前没有已接受的业务决定或规格需要因此取代。
 旧需求基线保留其原有范围，新增要求不反向改写旧快照。

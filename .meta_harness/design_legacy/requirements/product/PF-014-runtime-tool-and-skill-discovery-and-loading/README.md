@@ -20,7 +20,7 @@
 
 ### 当前可复用设计落点
 
-[运行时装载与制品管理来源研究](../../../research/dynamic-loading-and-artifact-sources/README.md) 可避免重复调研；
+[运行时装载与制品管理来源研究](../../../../research/legacy_backup/dynamic-loading-and-artifact-sources/README.md) 可避免重复调研；
 [Tools candidate](../../../spec/capabilities/tools/README.md) 只提供既有工具调用的责任边界。二者没有定义发现目录、
 依赖表示、按需装载或向模型披露的协议；当前没有 PF-014 专项机制 topic。
 

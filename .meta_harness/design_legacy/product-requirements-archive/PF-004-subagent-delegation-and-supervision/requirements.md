@@ -15,7 +15,7 @@ migration_status: equivalent-current-requirement
 
 # PF-004：Sub-agent 派发、协作与监督
 
-[智能体维度](../by-agent.md) · [继承来源与范围](../../../research/subagent-requirement-sources/research.md)
+[智能体维度](../by-agent.md) · [继承来源与范围](../../../research/legacy_backup/subagent-requirement-sources/research.md)
 
 主维度：智能体。副维度：用户，关联 owner 对子智能体及其未来工作的观察、授权
 和终止。编号沿用户介绍顺序，不表示实现顺序。
@@ -27,7 +27,7 @@ migration_status: equivalent-current-requirement
 已有的要求和已承诺的未来要求，不限于已经实现的功能。
 
 本次以来源提交 `6263fed545e48ad9efb5714f3fe76a7c1a0af1b5` 登记可追溯范围。
-[来源清单](../../../research/subagent-requirement-sources/research.md#核心要求的完整继承)
+[来源清单](../../../research/legacy_backup/subagent-requirement-sources/research.md#核心要求的完整继承)
 中的四份核心要求，继承其全部已接受产品条款、验收条件、有效补充与适用边界；
 相邻要求中直接约束 sub-agent 的部分同样纳入，见该清单的关联范围。
 以下 C1–C11 是便于阅读和消费的归纳，不能用简述遗漏来缩小上述完整继承范围。
@@ -174,7 +174,7 @@ migration_status: equivalent-current-requirement
 2026-09-16 明确确认的第三方 harness target 扩展；它不放宽同租户、owner、授权、
 配额或监督边界，也不从 ACP 推导未经协商的远程控制能力。
 
-[来源差异记录](../../../research/subagent-requirement-sources/research.md#来源差异与未决范围)
+[来源差异记录](../../../research/legacy_backup/subagent-requirement-sources/research.md#来源差异与未决范围)
 保留旧 ADR 关于人类暂停/恢复的较宽说法，以及后续 ADR-072 和需求正文明确
 收敛为观察与终止的依据。C6 按后续有效产品范围继承，不额外确认人类消息注入、
 指令改写或暂停/恢复；后续新增这些能力按需求变更记录。生命周期终止也不等同

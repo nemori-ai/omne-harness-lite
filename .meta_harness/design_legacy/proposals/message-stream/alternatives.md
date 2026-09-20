@@ -4,13 +4,13 @@
 
 - **前提与边界：**耐久事实和 projection 已有可查询水位；通知只作铃，瞬态模型输出不承诺恢复。
 - **兑现：**PF-013 恢复靠 `changes/snapshot`，PF-003/022 只在刷新后见到终态；实现为 committed 通知、周期 reconcile 和 projection API。
-- **失败：**丢铃可补齐，断线期间没有实时草稿；频繁拉取增加延迟与读负载。来源是 DSH `session/event` 与旧 outbound 草稿，见[DSH 研究](../../research/client-message-stream/notes/dsh.md)。
+- **失败：**丢铃可补齐，断线期间没有实时草稿；频繁拉取增加延迟与读负载。来源是 DSH `session/event` 与旧 outbound 草稿，见[DSH 研究](../../../research/legacy_backup/client-message-stream/notes/dsh.md)。
 - **处置：**可行且保持事实唯一权威；未单独采用，因为不能兑现已确认的实时 chunk/工具过程体验，但其 durable disposition/reconcile 是候选 3 的事实层。反向极端“只有 active snapshot”同样不合格：断线期间 terminal 离开 active 后无法恢复，failed/non-reply 无正文也无法收口。
 
 ## 2. Canonical replayable client event stream
 
 - **前提与边界：**把客户端事件定义为独立耐久 aggregate，offset 是恢复权威；事件投影而非领域读面拥有 replay。
-- **兑现：**一条 offset 同时补事实和过程，客户端实现简单；OpenCode `session.next.*` 展示可行路径，且明确 delta live-only、ended 耐久，见 [OpenCode 研究](../../research/client-message-stream/notes/opencode.md)。
+- **兑现：**一条 offset 同时补事实和过程，客户端实现简单；OpenCode `session.next.*` 展示可行路径，且明确 delta live-only、ended 耐久，见 [OpenCode 研究](../../../research/legacy_backup/client-message-stream/notes/opencode.md)。
 - **失败：**若 E 复制 Session/M outcome 形成统一覆盖域，会出现第二历史、双授权、双 retention 及 unknown/late evidence 分叉；若只统一 transport envelope，则仍不能让 pub/commit/chunk/visibility 共用时钟。要可行必须把该流升级为领域事实源并迁移现有 owner。
 - **处置：**真实可实施，但“E 第二历史”违反当前一个含义一个权威；未来若整体迁移到统一 event-sourcing 可重评，当前淘汰。
 

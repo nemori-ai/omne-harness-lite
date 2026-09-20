@@ -7,7 +7,7 @@
 ## 实现路径与来源
 
 复用官方 Cordis `4.0.2`，定向维护 DSH scope/agent 原语，在项目侧实现 AgentHost、Registry、私有实例插件及窄协议。
-来源依据见 [研究](../../research/dsh-cordis-dynamic/README.md)；不导入完整 DSH Harness，也不把上游事件/清理语义当产品保证。
+来源依据见 [研究](../../../research/legacy_backup/dsh-cordis-dynamic/README.md)；不导入完整 DSH Harness，也不把上游事件/清理语义当产品保证。
 
 ## 能力到 Cordis 的投影
 

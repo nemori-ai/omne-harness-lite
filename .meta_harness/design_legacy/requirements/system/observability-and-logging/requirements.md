@@ -13,7 +13,7 @@ migration_status: equivalent-current-requirement
 
 # SYS-OBSERVABILITY：全链路可观测与日志完备
 
-系统要求（迁移坐标：`.meta_harness/design/requirements/system/README.md`） · 架构落实（迁移坐标：`.meta_harness/design/architecture/constraints/`） · [参考来源](../../../research/requirements-gap-resolution-sources/research.md)
+系统要求（迁移坐标：`.meta_harness/design/requirements/system/README.md`） · 架构落实（迁移坐标：`.meta_harness/design/architecture/constraints/`） · [参考来源](../../../../research/legacy_backup/requirements-gap-resolution-sources/research.md)
 
 2026-09-12 用户明确新增：系统要全链路可观测、日志完备，这是对工程研发的
 要求，并纳入架构约束。本条是独立系统要求，约束所有能力及其组合的设计、

@@ -14,7 +14,7 @@
 - 设计覆盖状态：`尚未开始专项设计`
 - 规格采用状态：没有 PF-011 的 candidate 或已采用专项契约。
 - Provider、assembly 与实现验证：没有规划、日历、耐久调度或通知的专项交接和验证结论。
-- 当前可复用设计落点：[规划、日历与通知来源研究](../../../research/future-planning-calendar-and-notification-sources/README.md) 可避免重复调研；[Session candidate](../../../spec/capabilities/session/README.md) 只枚举 `schedule_due` 到达入口，二者不定义其产生、规划或通知责任。
+- 当前可复用设计落点：[规划、日历与通知来源研究](../../../../research/legacy_backup/future-planning-calendar-and-notification-sources/README.md) 可避免重复调研；[Session candidate](../../../spec/capabilities/session/README.md) 只枚举 `schedule_due` 到达入口，二者不定义其产生、规划或通知责任。
 - 覆盖边界与主要缺口：复杂规划、日历、耐久调度和通知全流程仍待能力分析。
 
 ## 按当前问题展开

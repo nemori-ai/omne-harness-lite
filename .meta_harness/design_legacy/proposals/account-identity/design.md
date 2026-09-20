@@ -48,7 +48,7 @@ PF-026 要让一个部署内出现多个独立账号，每个账号对应不同 
 
 建议账号身份插件公开受限服务：注册状态/身份解析、登录会话验证、当前会话撤销；由服务背后的 provider 承接密码/设备授权、凭据散列、session 存储和过期。Tenant 插件保持 personal tenant/成员唯一性；耐久协调者依赖两者的权威操作/查询，CLI 装配依赖账号服务与 Tenant 目标选择。账号插件卸载不撤销已发布租户和既有外部效果；停用时要拒绝新认证并处理未决注册。provider 实例及秘密材料生命周期由其 owner 明确。
 
-对于第一版单机，成熟 TS 嵌入式框架加 SQLite 是首选验证方向；[来源](../../research/account-auth-sources/README.md)支持机制存在，尚未验证它与本项目运行存储的事务、锁、迁移、资源释放和 Cordis 生命周期兼容。独立 IdP 及 Tenant 扩展见[候选](alternatives.md)。
+对于第一版单机，成熟 TS 嵌入式框架加 SQLite 是首选验证方向；[来源](../../../research/legacy_backup/account-auth-sources/README.md)支持机制存在，尚未验证它与本项目运行存储的事务、锁、迁移、资源释放和 Cordis 生命周期兼容。独立 IdP 及 Tenant 扩展见[候选](alternatives.md)。
 
 ## 证据义务与受阻消费
 

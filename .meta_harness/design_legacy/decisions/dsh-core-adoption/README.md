@@ -16,4 +16,4 @@
 |---|---|
 | 接受了什么、为什么、当前怎样消费 | [决定正文](decision.md) |
 
-- [DSH 采用提案](../../proposals/dsh-core-adoption/README.md)\n- [Cordis 来源研究](../../research/dsh-cordis-dynamic/README.md)
+- [DSH 采用提案](../../proposals/dsh-core-adoption/README.md)\n- [Cordis 来源研究](../../../research/legacy_backup/dsh-cordis-dynamic/README.md)

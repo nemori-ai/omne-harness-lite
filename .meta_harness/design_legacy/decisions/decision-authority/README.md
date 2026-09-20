@@ -16,4 +16,4 @@
 |---|---|
 | 接受了什么、为什么、当前怎样消费 | [决定正文](decision.md) |
 
-- [决定 family](../README.md)\n- [设计选择方法](../../../agents/skills/harness-design-handbook/canonical/references/design-decisions.md)
+- [决定 family](../README.md)\n- `harness-design-handbook` skill 的「设计选择」

@@ -15,7 +15,7 @@ migration_status: equivalent-current-requirement
 
 # PF-006：用户设置、Agent 定义级授权与出厂默认覆盖
 
-[用户维度](../by-user.md) · [来源核对](../../../research/user-governance-and-decision-pool-sources/research.md)
+[用户维度](../by-user.md) · [来源核对](../../../../research/legacy_backup/user-governance-and-decision-pool-sources/research.md)
 
 主维度：用户。副维度：智能体，关联 Agent 在用户配置与授权下的实际行为。
 

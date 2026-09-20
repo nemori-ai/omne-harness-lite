@@ -15,7 +15,7 @@ migration_status: equivalent-current-requirement
 
 # PF-023：会话级合法模型切换与下一轮接续
 
-[用户维度](../by-user.md) · [来源及后续修订核对](../../../research/requirements-gap-resolution-sources/research.md)
+[用户维度](../by-user.md) · [来源及后续修订核对](../../../research/legacy_backup/requirements-gap-resolution-sources/research.md)
 
 2026-09-12 用户明确新增：一个 Agent Session 能切换到另一个合法模型，继续
 新一轮工作，并授权从 omne_harness 补充完整含义。主维度为用户，副维度为智能体。
