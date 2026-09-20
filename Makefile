@@ -1,4 +1,4 @@
-.PHONY: check agents-check docs-check spec-check spec-tools test product-check
+.PHONY: check agents-check docs-check design-check formal-tools test product-check
 
 check:
 	./scripts/check.sh
@@ -8,12 +8,12 @@ agents-check:
 	PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/link_agents.py --project-root . --check
 
 docs-check:
-	uv run --locked omne-docs-check $(if $(BASELINE),--baseline "$(BASELINE)")
+	uv run --locked omne-docs-check
 
-spec-check:
-	uv run --locked omne-spec-check $(if $(FORMAL),--formal "$(FORMAL)") $(if $(BASELINE),--baseline "$(BASELINE)")
+design-check:
+	PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal $(or $(FORMAL),registered) $(if $(GATE),--gate "$(GATE)") $(if $(PREVIOUS_FROZEN),--previous-frozen "$(PREVIOUS_FROZEN)")
 
-spec-tools:
+formal-tools:
 	uv run --locked omne-spec-tools-check
 
 test:

@@ -138,15 +138,24 @@ def resolve_pointer(document: Any, fragment: str, where: str) -> None:
 
 
 def github_anchor(text: str) -> str:
+    # 标题里的链接按显示文字计入锚点，URL 不计：`## [记录与上下文](terms/x.md)` 的锚点是
+    # `记录与上下文`。不先解析就会把路径里的字符一起算进去，得到根本不存在的锚点。
+    text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", text)
     text = re.sub(r"[`*_~]", "", text.strip().lower())
     text = re.sub(r"[^\w\-\s\u4e00-\u9fff]", "", text)
-    return re.sub(r"\s+", "-", text)
+    # \u6bcf\u4e2a\u7a7a\u767d\u5404\u751f\u6210\u4e00\u4e2a\u8fde\u5b57\u7b26\uff0c\u4e0d\u5408\u5e76\uff1aGitHub \u5c31\u662f\u8fd9\u4e48\u505a\u7684\u3002
+    # `UL-x \u00b7 \u4e2d\u6587 \u00b7 English` \u53bb\u6389 `\u00b7` \u540e\u7559\u4e0b\u4e24\u4e2a\u7a7a\u683c\uff0c\u951a\u70b9\u56e0\u6b64\u662f `--`\uff0c\u7528 `\s+` \u4f1a\u7b97\u6210 `-`\u3002
+    return re.sub(r"\s", "-", text)
 
 
 class DesignValidator:
     def __init__(self, root: Path, *, previous_frozen: Path | None = None,
                  formal: str = "registered", gate: str = "internal") -> None:
         self.root = root.resolve()
+        # 清单可以直接放在设计根下，也可以集中在 registry/ 一区；两种布局都支持，
+        # 因为它只改变清单的存放位置，不改变被登记资源的坐标——资源路径一律相对 root 解析。
+        registry = self.root / "registry"
+        self.manifests = registry if (registry / "baseline.json").is_file() else self.root
         self.previous_frozen = previous_frozen
         self.formal = formal
         self.gate = gate
@@ -175,22 +184,26 @@ class DesignValidator:
             return None
 
     def validate(self) -> tuple[list[str], list[str]]:
-        baseline = self.capture("baseline.json", lambda: load_json(self.root / "baseline.json"))
+        baseline = self.capture("baseline.json", lambda: load_json(self.manifests / "baseline.json"))
         if baseline is None or not self._baseline(baseline):
             return self.errors, self.notes
-        rebase = self.capture("rebase-map.json", lambda: load_json(self.root / "rebase-map.json"))
-        if rebase is not None:
-            self._rebase(rebase)
-        catalog = self.capture("catalog.json", lambda: load_json(self.root / "catalog.json"))
+        # 重基清单只在从旧 baseline 接续时存在；全新 baseline 没有要接续的关系，
+        # 缺它不是错误。存在则必须合法。
+        rebase_path = self.manifests / "rebase-map.json"
+        if rebase_path.is_file():
+            rebase = self.capture("rebase-map.json", lambda: load_json(rebase_path))
+            if rebase is not None:
+                self._rebase(rebase)
+        catalog = self.capture("catalog.json", lambda: load_json(self.manifests / "catalog.json"))
         if catalog is not None:
             self._catalog(catalog)
             self._rebase_targets()
         self._schemas()
         self._markdown()
-        frozen = self.capture("frozen.json", lambda: load_json(self.root / "frozen.json"))
+        frozen = self.capture("frozen.json", lambda: load_json(self.manifests / "frozen.json"))
         if frozen is not None:
             self._frozen(frozen)
-        tasks = self.capture("formal-tasks.json", lambda: load_json(self.root / "formal-tasks.json"))
+        tasks = self.capture("formal-tasks.json", lambda: load_json(self.manifests / "formal-tasks.json"))
         if tasks is not None:
             self._formal(tasks)
         return self.errors, self.notes
@@ -632,8 +645,13 @@ class DesignValidator:
                     continue
                 allowed = within(resolved, self.root)
                 if workspace is not None:
+                    # design/ 是工作区的一区，不是自包含单元：它向 research/ 取事实、
+                    # 向 agents/ 取方法。允许指向这些兄弟区，但仍禁止逃出工作区——
+                    # 那才是「复制整个 .meta_harness 就能独立运行」真正要守住的边界。
                     allowed = (allowed or within(resolved, workspace / "agents") or
-                               resolved == workspace / "README.md")
+                               within(resolved, workspace / "research") or
+                               resolved == workspace / "README.md" or
+                               resolved == workspace / "AGENTS.md")
                 if not allowed:
                     self.error(f"{path.relative_to(self.root)}: link escapes design root: {raw}")
                     continue

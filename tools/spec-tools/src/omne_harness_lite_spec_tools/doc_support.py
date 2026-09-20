@@ -20,7 +20,7 @@ def repository_root(start: Path | None = None) -> Path:
     """Discover the inspected checkout from cwd, never from the installed package."""
     directory = (start or Path.cwd()).resolve()
     for candidate in (directory, *directory.parents):
-        if (candidate / "spec/catalog.json").is_file() and (candidate / "docs").is_dir():
+        if (candidate / ".meta_harness").is_dir() and (candidate / "docs").is_dir():
             return candidate
     raise ValueError("cannot locate repository: run inside the checkout or pass --root")
 

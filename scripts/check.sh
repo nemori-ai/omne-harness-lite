@@ -11,6 +11,6 @@ cd -- "$repo_root"
 
 make --no-print-directory agents-check
 make --no-print-directory docs-check
-make --no-print-directory spec-check
+make --no-print-directory design-check
 make --no-print-directory test
 make --no-print-directory product-check

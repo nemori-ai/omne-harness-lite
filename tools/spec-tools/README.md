@@ -24,4 +24,4 @@ uv build --package omne-harness-lite-spec-tools --out-dir .dist/spec-tools
 
 在本成员目录运行 `uv run --locked pytest` 检查包测试；根测试还覆盖 skill 生成器。
 依赖在本包声明，根开发组只引用本地 workspace 成员和跨包开发工具。
-检查支持的结论与形式验证覆盖见[验证规范](../../docs/maintenance/verification.md)。
+检查支持的结论与形式验证覆盖见[验证规范](../../docs/verification.md)。

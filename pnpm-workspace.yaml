@@ -1,4 +1,3 @@
 packages:
   - packages/*/*
   - apps/*
-  - tools/package-checks

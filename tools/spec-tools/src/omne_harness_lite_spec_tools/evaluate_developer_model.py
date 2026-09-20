@@ -49,8 +49,8 @@ def evaluate(report_path: Path, schema_path: Path | None = None,
         root = root.resolve() if root is not None else repository_root()
     except ValueError as error:
         return EvaluationResult("needs-completion", (str(error),))
-    schema_path = schema_path if schema_path is not None else root / "docs/evaluation/formats/developer-model-experiment.schema.json"
-    suite_path = suite_path if suite_path is not None else root / "docs/evaluation/suites/developer-model-v1.json"
+    schema_path = schema_path if schema_path is not None else root / ".meta_harness/agents/evaluation/developer-model/formats/developer-model-experiment.schema.json"
+    suite_path = suite_path if suite_path is not None else root / ".meta_harness/agents/evaluation/developer-model/suites/developer-model-v1.json"
     try:
         report = load_json(report_path)
     except (OSError, json.JSONDecodeError) as error:
@@ -103,7 +103,7 @@ def evaluate(report_path: Path, schema_path: Path | None = None,
     except (OSError, json.JSONDecodeError) as error:
         return EvaluationResult("needs-completion", tuple(issues + [f"heldout suite cannot be read: {error}"]))
     try:
-        suite_validator = Draft202012Validator(load_json(root / "docs/evaluation/formats/task-suite.schema.json"))
+        suite_validator = Draft202012Validator(load_json(root / ".meta_harness/agents/evaluation/developer-model/formats/task-suite.schema.json"))
         for label, suite in (("public", fixed_suite), ("heldout", heldout_suite)):
             for error in suite_validator.iter_errors(suite):
                 issues.append(f"{label} task packet {error.json_path}: {error.message}")
