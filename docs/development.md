@@ -2,7 +2,7 @@
 
 本页帮助开发者和 coding agents 从当前检出开始工作。贡献范围与交付要求见
 [CONTRIBUTING.md](../CONTRIBUTING.md)，需求与设计工作从 [.meta_harness](../.meta_harness/AGENTS.md)
-及其 [harness-design-handbook](../.meta_harness/agents/skills/harness-design-handbook/canonical/SKILL.md) 进入。
+并加载 `harness-design-handbook` skill 进入。
 源码归属、验证含义和治理规则由各自的维护文档拥有，本页负责上手顺序和按问题导航。
 
 ## 目录
@@ -24,7 +24,7 @@
 保留历史路线与接受依据。包基线可运行不代表目标产品已实现。
 
 在实际工作的仓库根确认位置和已有改动；隔离规则见
-[worktree-discipline](../.meta_harness/agents/skills/worktree-discipline/canonical/SKILL.md)：
+`worktree-discipline` skill：
 
 ```sh
 git rev-parse --show-toplevel
@@ -98,7 +98,7 @@ workspace 设置显式指向 `./node_modules/prettier`，并使用同一根配�
 当成已完成的迁移。本节拥有这一接入导航，实际正文仍由各自入口说明接受与采用范围。
 
 1. **接收需求。** 读取 [.meta_harness/AGENTS.md](../.meta_harness/AGENTS.md)，加载
-   [harness-design-handbook](../.meta_harness/agents/skills/harness-design-handbook/canonical/SKILL.md)，
+   `harness-design-handbook` skill，
    从 intake 参考页整理可观察结果、来源、确认范围与未决项；需求信息包进入
    [design/requirements](../.meta_harness/design/requirements/README.md)。已有主题先接续，
    新主题从 family 内的 `.templates/` 起步；需求访谈或有长期价值的需求语境可先接续可选的
@@ -160,11 +160,11 @@ PYTHONDONTWRITEBYTECODE=1 uv run --locked pytest tools/spec-tools/tests/test_doc
 
 | 当前任务 | 应加载的 skill 与工作位置 |
 |---|---|
-| 产品需求 intake、能力分析、架构/spec 设计与交接 | [harness-design-handbook](../.meta_harness/agents/skills/harness-design-handbook/canonical/SKILL.md)；在 `.meta_harness/design/` 接续，按当前缺口选择 intake、设计选择、规格演进或交付规划等 references |
+| 产品需求 intake、能力分析、架构/spec 设计与交接 | 加载 `harness-design-handbook` skill；在 `.meta_harness/design/` 接续，按当前缺口选择 intake、设计选择、规格演进或交付规划等 references |
 | 创建或修改 skill | 当前环境提供的官方 `skill-creator`；在 `.meta_harness/agents/skills/<name>/canonical/` 维护正文及资源，宿主差异进入相邻 `adapters/`；按环境提供的实际技能位置加载，不假定它已打包进本项目 |
-| 创建或修改 role、宿主配置或模型专属提示 | [design-subagents](../.meta_harness/agents/skills/design-subagents/canonical/SKILL.md)；源归 `.meta_harness/agents/roles/<role>/`，共同边界见[角色索引](../.meta_harness/agents/roles/README.md) |
-| 编写或调整 AGENTS.md 的心智与继承范围 | [write-agents-md](../.meta_harness/agents/skills/write-agents-md/canonical/SKILL.md)；修改实际作用域的源文件 |
-| 创建、使用、集成或清理隔离检出 | [worktree-discipline](../.meta_harness/agents/skills/worktree-discipline/canonical/SKILL.md)；操作本次明确的执行仓库 |
+| 创建或修改 role、宿主配置或模型专属提示 | 加载 `design-subagents` skill；源归 `.meta_harness/agents/roles/<role>/`，共同边界见[角色索引](../.meta_harness/agents/roles/README.md) |
+| 编写或调整 AGENTS.md 的心智与继承范围 | 加载 `write-agents-md` skill；修改实际作用域的源文件 |
+| 创建、使用、集成或清理隔离检出 | 加载 `worktree-discipline` skill；操作本次明确的执行仓库 |
 
 原 architecture-design、implementation-planning、spec-maintenance、engineering-taste 和
 cordis-authoritative-docs 的有效方法已经按新范式吸纳进手册；它们不再是独立安装的入口。

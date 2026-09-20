@@ -71,8 +71,7 @@ migration_status: equivalent-current-requirement
 状态契约与实现关系继续遵循 [SYS-SPEC](../cross-system-constraints/requirements.md#sys-spec)。
 
 本次属于新增确认要求，与上述既有要求相容；现有指南中的
-[状态与存储](../../../agents/skills/harness-design-handbook/canonical/references/architecture/modeling/state-and-storage.md)和
-[部署边界](../../../agents/skills/harness-design-handbook/canonical/references/architecture/runtime/distribution.md)可提供设计方法。
+`harness-design-handbook` skill 的「状态与存储」和「部署边界」可提供设计方法。
 目前的设计（[本包覆盖状态](README.md#设计覆盖状态)）尚未形成
 兑现 C1–C3 的完整规格；当前没有已接受的业务决定或规格需要因此取代。
 旧需求基线保留其原有范围，新增要求不反向改写旧快照。

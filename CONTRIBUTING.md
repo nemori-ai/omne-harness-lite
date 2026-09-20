@@ -17,7 +17,7 @@
 先说清要解决的问题、预期结果和受影响范围。问题报告提供可复现步骤、实际与预期
 行为、相关版本和必要证据；设计任务说明目标、约束、已知事实与尚待确定的部分。
 产品需求的接收、澄清与设计工作进入私有工作区 [.meta_harness](.meta_harness/AGENTS.md)，
-先加载 [harness-design-handbook](.meta_harness/agents/skills/harness-design-handbook/canonical/SKILL.md)。
+先加载 `harness-design-handbook` skill。
 本项目已有[系统目标与产品要求](.meta_harness/design/requirements/README.md)、决定和规格作为明确输入，
 保留确认范围与精确版本；有 Issue、提案或任务记录时直接引用，避免另写一份同义需求。
 工作入口与正文迁移的区别见[开发指南](docs/development.md#需求与设计的工作入口)。
@@ -29,7 +29,7 @@
 | 新观察挑战已有决定 | 按[知识流转](docs/maintenance/knowledge-flow.md)关联受影响决定，提交可复现、可验证的因果依据；观察本身不自动取代决定 |
 | 发布或修订正式规格 | 按[版本规则](docs/maintenance/versioning.md)维护接受依据、精确引用与冻结；历史规范原件不原地覆盖 |
 | 衔接能力规格、提供者设计与实施交接 | 按[规格维护](docs/maintenance/spec-maintenance.md)明确当前正文、就绪范围、受影响消费者与未完成义务 |
-| 创建或维护 skills、角色及宿主适配 | 在 [.meta_harness/agents](.meta_harness/agents/README.md) 修改源；skill 加载官方 `skill-creator`，角色加载 [design-subagents](.meta_harness/agents/skills/design-subagents/canonical/SKILL.md)，AGENTS.md 加载 [write-agents-md](.meta_harness/agents/skills/write-agents-md/canonical/SKILL.md) |
+| 创建或维护 skills、角色及宿主适配 | 在 [.meta_harness/agents](.meta_harness/agents/README.md) 修改源；skill 加载官方 `skill-creator`，角色加载 `design-subagents` skill，AGENTS.md 加载 `write-agents-md` skill |
 
 用户已明确的要求和任务授权是开展工作的依据。关键歧义或缺少必需输入时，提出
 最小澄清，继续不依赖该缺口的工作；不要把假设写成已确认需求。完整的规则与权威
@@ -44,7 +44,7 @@
 它保存可迁出的设计方法与 agent 能力，根宿主目录只通过软链接暴露生成物。
 
 先核对当前检出、分支和已有改动。常规隔离、合并与清理由
-[worktree-discipline](.meta_harness/agents/skills/worktree-discipline/canonical/SKILL.md)维护，工作树容器统一在
+`worktree-discipline` skill 维护，工作树容器统一在
 主检出根的 `.worktrees/`。任务中明确授权的例外按其范围执行，不改写为永久惯例。
 保护其他任务已有的改动，环境准备按开发指南在实际工作的检出中完成。
 
@@ -81,7 +81,7 @@ skills/roles 变更一并交付 canonical/角色源、宿主适配与生成产�
 发现问题后回到拥有该含义的材料修正；涉及实现的检查应覆盖实际交付状态。
 
 评审及交付结论区分语义接受、提供者可实施、应用装配和实际验证的范围；设计
-中的关键跨能力交接沿[完整动作链](.meta_harness/agents/skills/harness-design-handbook/canonical/references/architecture/reference/contract-description.md#沿完整动作链核对组合)核对。
+中的关键跨能力交接沿 `harness-design-handbook` skill 的「契约描述」→「沿完整动作链核对组合」核对。
 
 评审意见、设计接受、实现完成和验证通过分别记录。政策与正式规格的接受、部分
 接受或取代按[知识流转](docs/maintenance/knowledge-flow.md#接受与交付怎样闭合)闭合。

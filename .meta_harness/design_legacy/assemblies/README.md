@@ -20,5 +20,5 @@
 
 本节按实际子目录链接 topic README，并标明应用、提供者采用与集成证据范围；索引不汇总任务进度。
 
-判断方法按需读 [手册对应页](../../agents/skills/harness-design-handbook/canonical/references/project.md)。
+判断方法按需读 `harness-design-handbook` skill 的「插件投影」。
 返回 [系统设计链](../README.md)。

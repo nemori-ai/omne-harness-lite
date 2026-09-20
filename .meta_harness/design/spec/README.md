@@ -54,7 +54,7 @@ catalog 依赖必须给精确 `coordinate`、消费 `clauses` 与血缘关系。
 
 三种规格模板包均提供可选的 `v-next/formal/README.md`：导航性质、模型、前提、检查范围与论证缺口。
 它是待填写的形式化入口，不是已经完成的模型；依据条款选用工件，没有需要时可删去并同步包入口。
-已由设计触发的模型检查或证明义务不因模板可选而消失，门槛见[组合性质](../../agents/skills/harness-design-handbook/canonical/references/architecture/assurance/composability.md)。
+已由设计触发的模型检查或证明义务不因模板可选而消失，门槛见 `harness-design-handbook` skill 的「组合性质」。
 
 ```text
 <topic>/

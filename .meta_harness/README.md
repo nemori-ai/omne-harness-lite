@@ -37,14 +37,15 @@
 ```
 
 可复用的架构设计与维护方法由
-[harness-design-handbook](agents/skills/harness-design-handbook/canonical/SKILL.md) 自包含提供，
+`harness-design-handbook` skill 自包含提供，
 按当前问题渐进加载 references。方法研究和编写证据留在该 skill 的 `.design/`，不会作为运行时上下文分发。
 产品要求、接受事实、能力契约和采用状态归 [design](design/README.md)，不能写进 skill 代替产品 owner。
 
 ## 当前入口
 
-- 收到产品需求或系统能力声明：加载 [harness-design-handbook](agents/skills/harness-design-handbook/canonical/SKILL.md)，从 intake、能力覆盖或当前缺口进入。
-- 新建长期设计材料：先过[信息包准入](agents/skills/harness-design-handbook/canonical/references/information-packages.md)，再使用相应 design family 的本地模板包。
+- 收到产品需求或系统能力声明：加载 `harness-design-handbook` skill，从 intake、能力覆盖或当前缺口进入。
+- 在 [design/product](design/product/AGENTS.md) 起草或修订产品设计正文：加载 `product-design` skill；只把产品正文当输入读的技术工作不加载它。
+- 新建长期设计材料：先过 `harness-design-handbook` skill 的「信息包准入」，再使用相应 design family 的本地模板包。
 - 维护 skills 或 roles：从 [agents](agents/README.md) 修改 canonical 源和适配，不手改生成产物。
 - 生成、检查或接入宿主入口：使用 [tooling](tooling/README.md)；编译、项目根链接和发布是不同动作。
 - 判断可发布契约与实际采用：从 [design/spec](design/spec/README.md) 的清单和精确版本开始，不按目录存在推断接受状态。

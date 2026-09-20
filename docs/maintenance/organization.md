@@ -13,7 +13,7 @@
 | 组织及治理规则 | 所属有效决定与本目录维护规范 | requirements 与架构只引用，不另立同义要求 |
 | 贡献入口与交付信息要求 | 根 [CONTRIBUTING.md](../../CONTRIBUTING.md) | 关联需求、治理与验证依据；不另造接受权限 |
 | 开发上手与排障导航 | [开发指南](../development.md) | 环境与命令引用包配置、脚本和验证规范 |
-| 架构方法 | [harness-design-handbook](../../.meta_harness/agents/skills/harness-design-handbook/canonical/SKILL.md) 及其 references | 旧 architecture-guide 保留来源与既有材料导航；提案不复制方法论 |
+| 架构方法 | `harness-design-handbook` skill 及其 references | 旧 architecture-guide 保留来源与既有材料导航；提案不复制方法论 |
 | 当前系统视图 | `docs/architecture/` | 投影上游要求、已接受选择、精确规格及其覆盖与缺口 |
 | 架构选择及适用范围 | `docs/decisions/D-*.md` | 提案保留讨论，研究保留证据 |
 | 值得长期保留取舍依据的候选设计 | `docs/proposals/` | 按下文准入，不收纳任意讨论或单次任务计划，不得作为正式规范依赖 |

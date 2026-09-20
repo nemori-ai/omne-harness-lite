@@ -53,5 +53,5 @@ D-008 与 D-012～D-015 的信息包记录**旧谱系已发生的接受事实**�
 
 本节只导航实际迁入的决定信息包，不形成第二份接受状态清单。
 
-判断方法按需读 [手册对应页](../../agents/skills/harness-design-handbook/canonical/references/design-decisions.md)。
+判断方法按需读 `harness-design-handbook` skill 的「设计选择」。
 返回 [系统设计链](../README.md)。

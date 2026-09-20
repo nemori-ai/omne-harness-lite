@@ -98,7 +98,7 @@ Agent Definition 对运行实例、会话历史对运行实例。三次形状一
 - 两处用词上的偏离（**均为实质照办、仅名称不同**）：见 [decisions.md 第四节](decisions.md#四已知的来源问题)
 - 技术投影：**尚未开始**
 
-技术投影按[设计手册](../../../agents/skills/harness-design-handbook/canonical/SKILL.md)展开，
+技术投影按 `harness-design-handbook` skill 展开，
 产物按其步骤 G 落回本包的 `projection/v1/`。
 
 ## 本包的文件

@@ -23,5 +23,5 @@
 
 每个 topic 入口标明调查对象、版本与范围；先沿当前判断进入对应 topic，再按其阅读地图取得证据与局限。
 
-判断方法按需读 [手册对应页](../../../agents/skills/harness-design-handbook/canonical/references/design-decisions.md)。
+判断方法按需读 `harness-design-handbook` skill 的「设计选择」。
 返回 [系统设计链](../../README.md)。

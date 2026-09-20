@@ -30,7 +30,7 @@ migration_status: equivalent-current-requirement
 也不自动成为本项目的设计选择。
 
 逐项来源和迁入范围见[来源、确认与变化](changes.md)；确认与存在歧义时的处理按
-[需求归位](../../../agents/skills/harness-design-handbook/canonical/references/intake.md#绑定当前系统而非历史设想)执行。
+`harness-design-handbook` skill 的「需求归位」→「绑定当前系统而非历史设想」执行。
 本页及各专项 requirement 的 front matter 固定实际产品来源与谱系，方法页不承担产品接受事实。
 各专项要求的直接内容与来源补充分开维护。
 

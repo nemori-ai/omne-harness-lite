@@ -27,5 +27,5 @@
 
 本节按实际子目录链接 topic README，并标明长期消费者、前后身份与退出状态；任务仍在执行不等于主题已收口。
 
-判断方法按需读 [手册对应页](../../agents/skills/harness-design-handbook/canonical/references/spec-evolution.md)。
+判断方法按需读 `harness-design-handbook` skill 的「规格演进」。
 返回 [系统设计链](../README.md)。

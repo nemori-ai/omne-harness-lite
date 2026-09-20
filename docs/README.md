@@ -12,15 +12,15 @@
 | 参与研发或准备交付 | [贡献指南](../CONTRIBUTING.md) |
 | 从当前检出开始开发、检查与排障 | [开发指南](development.md) |
 | 了解当前系统方向和已确认边界 | [当前架构](../.meta_harness/design/architecture/README.md)、[系统要求](../.meta_harness/design/requirements/system/constraints/requirements.md) |
-| 定义能力或评估服务边界 | [架构设计指南](../.meta_harness/agents/skills/harness-design-handbook/canonical/references/topics.md)、[规格](../.meta_harness/design/spec/README.md) |
+| 定义能力或评估服务边界 | `harness-design-handbook` skill、[规格](../.meta_harness/design/spec/README.md) |
 | 确认我们为什么这样选择 | [决定](../.meta_harness/design/decisions/README.md) |
 | 查看候选方案与尚未接受的模型 | [提案](../.meta_harness/design/proposals/README.md) |
 | 查证上游行为、事实和验证范围 | [研究](../.meta_harness/design/research/README.md) |
 | 修改文档、契约、版本或决定 | [维护规则](maintenance/README.md) |
-| 判断知识是否持久化及应进入哪个目录 | [信息包准入](../.meta_harness/agents/skills/harness-design-handbook/canonical/references/information-packages.md)，目标目录 AGENTS 提供局部投影 |
-| 从需求推导不变量，判断何时需要证明 | [性质推导](../.meta_harness/agents/skills/harness-design-handbook/canonical/references/architecture/assurance/invariants.md#从目标与需求推导性质)、[组合性质](../.meta_harness/agents/skills/harness-design-handbook/canonical/references/architecture/assurance/composability.md) |
-| 持续维护规格、具体提供者设计及其实施就绪范围 | [规格演进](../.meta_harness/agents/skills/harness-design-handbook/canonical/references/spec-evolution.md) |
-| 撰写能解释依赖和验收证据的交付计划 | [交付规划](../.meta_harness/agents/skills/harness-design-handbook/canonical/references/delivery-planning.md) |
+| 判断知识是否持久化及应进入哪个目录 | `harness-design-handbook` skill 的「信息包准入」，目标目录 AGENTS 提供局部投影 |
+| 从需求推导不变量，判断何时需要证明 | 同一 skill 的「性质推导」与「组合性质」 |
+| 持续维护规格、具体提供者设计及其实施就绪范围 | 同一 skill 的「规格演进」 |
+| 撰写能解释依赖和验收证据的交付计划 | 同一 skill 的「交付规划」 |
 | 放置源码、配置开发环境或接入 CI | [源码布局](maintenance/workspace.md)、[验证规范](maintenance/verification.md) |
 | 判断相关防御指导是否适用 | [防御模式](defensive-patterns.md) |
 | 切换开发主力模型前评估辅助是否仍必要 | [开发模型评估](../.meta_harness/agents/evaluation/developer-model/README.md) |

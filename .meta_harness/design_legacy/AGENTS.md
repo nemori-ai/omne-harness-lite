@@ -17,7 +17,7 @@
 任务区；不要先创建空 topic、`plan.md` 或第二份权威等待以后补齐。
 
 需求交流若具有持续回顾价值但尚不是正式条款，可进入 requirements 的访谈信息包；访谈只保存来源语境，
-状态升级仍由正式 requirement、proposal 或 decision owner 显式完成。触发与记录边界见[需求归位](../agents/skills/harness-design-handbook/canonical/references/intake.md#何时自主启记访谈)。
+状态升级仍由正式 requirement、proposal 或 decision owner 显式完成。触发与记录边界见 `harness-design-handbook` skill 的「需求归位」→「何时自主启记访谈」。
 
 ## 状态和交接红线
 
@@ -31,6 +31,6 @@
 
 - 新建或吸纳主题：读所属 family 的 README 与本地 `.templates/`；按[信息包规则](README.md#主题是信息包)裁剪，模板本身不代表知识已准入。
 - 比较方案、记录接受或表达精确承诺：分别定位 proposals、decisions、spec，不能通过换目录提升状态；具体入口见 [family 地图](README.md)。
-- 现有条款与实现或证据冲突：读[规格演进](../agents/skills/harness-design-handbook/canonical/references/spec-evolution.md)，定位拥有者和消费者，不能在施工计划里重写契约。
+- 现有条款与实现或证据冲突：加载 `harness-design-handbook` skill，读其「规格演进」，定位拥有者和消费者，不能在施工计划里重写契约。
 
 普通局部修订直接接续已有主题；当前准入、拥有者与缺口清楚后停止扩展阅读，不为一次任务补齐所有 family。

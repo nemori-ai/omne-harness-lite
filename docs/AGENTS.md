@@ -2,8 +2,7 @@
 
 本目录保存尚未迁出的产品需求与设计材料，以及源码使用、开发和维护说明。这里补充根约定在
 既有文档中的落点；完整地图由 [README](README.md) 维护，精确承诺由 [spec/](../.meta_harness/design/spec/README.md) 定义。
-新需求 intake 与设计工作从 [.meta_harness](../.meta_harness/AGENTS.md) 进入，加载
-[harness-design-handbook](../.meta_harness/agents/skills/harness-design-handbook/canonical/SKILL.md)；
+新需求 intake 与设计工作从 [.meta_harness](../.meta_harness/AGENTS.md) 进入，加载 `harness-design-handbook` skill；
 现有正文的接续与迁移按[开发入口](development.md#需求与设计的工作入口)定位，以下导航不要求在旧目录另建新主题。
 
 ## 内容归属
@@ -12,7 +11,7 @@
 |---|---|
 | 系统目标、产品特性与全局要求 | [需求入口](../.meta_harness/design/requirements/README.md)拥有正文，[需求维护](maintenance/requirements.md)解释确认范围、消费基线与变更；架构和决定受已确认要求约束 |
 | 贡献与开发入口 | [贡献指南](../CONTRIBUTING.md)说明交付，[开发指南](development.md)导航操作；详细规则仍归维护文档 |
-| 架构方法、当前系统方向 | [指南](../.meta_harness/agents/skills/harness-design-handbook/canonical/references/topics.md)提供方法，[当前架构](../.meta_harness/design/architecture/README.md)投影已接受选择；不互相代替 |
+| 架构方法、当前系统方向 | `harness-design-handbook` skill 提供方法，[当前架构](../.meta_harness/design/architecture/README.md)投影已接受选择；不互相代替 |
 | 来源事实与候选取舍 | [research/](../.meta_harness/design/research/README.md)保留观察范围，[proposals/](../.meta_harness/design/proposals/README.md)承载待审方案 |
 | 选择的接受或取代 | [decisions/](../.meta_harness/design/decisions/README.md)与[知识流转](maintenance/knowledge-flow.md)；评审意见只是接受输入 |
 | 新材料、迁移、版本与引用 | [组织归属](maintenance/organization.md)、[版本规则](maintenance/versioning.md)；需要字段形状时再读[元数据](maintenance/metadata.md) |
@@ -34,5 +33,5 @@
   候选如何形成正式依赖，沿[版本规则](maintenance/versioning.md)进入 [catalog](../spec/catalog.json)。
 
 局部措辞或链接修复只展开其内容所有者与相关检查；涉及新的能力边界、保证或取舍时，
-使用 [harness-design-handbook](../.meta_harness/agents/skills/harness-design-handbook/canonical/SKILL.md)。资料足以支持本次判断时停止，
+加载 `harness-design-handbook` skill。资料足以支持本次判断时停止，
 不因文档位于本目录就通读全部研究或启动完整架构评审。

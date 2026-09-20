@@ -1,7 +1,7 @@
 # PF-026 的设计投影视图
 
 按版本固化本需求当前对应的完整设计投影，供实施者作为单一入口。
-方法归[设计手册步骤 G](../../../../../agents/skills/harness-design-handbook/canonical/SKILL.md#步骤-g投影视图落盘)。
+方法归 `harness-design-handbook` skill 的「步骤 G：投影视图落盘」。
 
 ## 版本
 

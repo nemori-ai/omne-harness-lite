@@ -2,7 +2,7 @@
 
 本页拥有交付计划的长期要求，连接[知识流转](knowledge-flow.md)与
 [设计就绪](spec-maintenance.md#设计就绪与实施入口)。技术研究和复用判断使用
-[交付规划](../../.meta_harness/agents/skills/harness-design-handbook/canonical/references/delivery-planning.md)，
+`harness-design-handbook` skill 的「交付规划」，
 命令和结果格式由[验证规范](verification.md)维护。本轮补充依据见
 [治理提案](../proposals/evidence-governance/README.md)。
 

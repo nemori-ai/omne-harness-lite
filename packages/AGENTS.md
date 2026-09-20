@@ -13,4 +13,4 @@
   新设计进入 `.meta_harness/design/providers/`，连接精确规格、公共入口及运行映射，必要设计不能仅留在一次性施工稿。
 
 沿既有契约的局部修改只读所属包及相关验证；新增能力边界、所有权或保证时，
-进入 [.meta_harness](../.meta_harness/AGENTS.md)，加载 [harness-design-handbook](../.meta_harness/agents/skills/harness-design-handbook/canonical/SKILL.md)。
+进入 [.meta_harness](../.meta_harness/AGENTS.md)，加载 `harness-design-handbook` skill。

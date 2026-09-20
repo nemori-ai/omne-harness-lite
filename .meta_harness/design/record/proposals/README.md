@@ -16,7 +16,7 @@
 
 尚不能形成三个真实候选时，先保留研究或任务级探索并补齐选择空间，不以不完整 topic 冒充已达到提案准入。
 已有有效决定下的普通局部工作直接沿用其依据，不为满足数量另造提案；准入不赋予接受权限。
-比较方法见[设计选择](../../../agents/skills/harness-design-handbook/canonical/references/design-decisions.md)。
+比较方法见 `harness-design-handbook` skill 的「设计选择」。
 
 **停止条件：**选择对象、现有能力覆盖或剩余责任尚不清楚时回到需求/研究；不足三个真实候选时留在研究或
 任务探索；需要改变已接受语义时等待有权决定。作者推荐、评审通过和模板齐全都不产生接受。
@@ -31,5 +31,5 @@
 {{迁入后按实际子目录链接 topic README；骨架阶段为空，
 原索引见 `design_legacy/proposals/README.md`，迁入时逐条恢复并核对链接与接受状态。}}
 
-判断方法按需读 [手册对应页](../../../agents/skills/harness-design-handbook/canonical/references/decompose.md)。
+判断方法按需读 `harness-design-handbook` skill 的「能力覆盖与演化」。
 返回 [系统设计链](../../README.md)。

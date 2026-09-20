@@ -87,7 +87,7 @@ Session、Run、请求、预算和工具执行 owner 都由长期宿主承载；
 
 Cordis 仍直接使用仓库锁定的官方包；服务/插件/Context 只承载运行组合。
 计划撤除先走 AR/CB/TL 的关门、排空与释放，再调用实际卸载。具体 API 映射
-沿既有 D-005/D-007 证据；改变映射时沿手册的[来源核对](../../../../.meta_harness/agents/skills/harness-design-handbook/canonical/references/source-check.md)核对采用版本，
+沿既有 D-005/D-007 证据；改变映射时沿 `harness-design-handbook` skill 的「来源核对」核对采用版本，
 本页不发明 Cordis 的事务或耐久 API。
 
 ## 记录格式、写入权与共同准入

@@ -10,6 +10,6 @@
 新设计进入 `.meta_harness/design/assemblies/`，引用提供包并说明实际选择、就绪和退出责任；计划不另立一份长期装配权威。
 
 调整已有装配时沿成员的契约和验证完成；若需要绕开包边界，或改变身份传递、
-授权、生命周期或失败语义，先通过
-[harness-design-handbook](../.meta_harness/agents/skills/harness-design-handbook/canonical/SKILL.md) 在 [.meta_harness](../.meta_harness/AGENTS.md) 核对权威设计。
+授权、生命周期或失败语义，先加载 `harness-design-handbook` skill，
+在 [.meta_harness](../.meta_harness/AGENTS.md) 核对权威设计。
 启动参数与构建命令放在应用自己的说明或脚本中，不扩充常驻提示。

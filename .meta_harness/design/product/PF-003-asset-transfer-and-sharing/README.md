@@ -66,7 +66,7 @@ PF-002 因对象的种类或组合形状变，本 topic 因流动的方向或语
 - 待裁决：**无**
 - 技术投影：**尚未开始**
 
-技术投影按[设计手册](../../../agents/skills/harness-design-handbook/canonical/SKILL.md)展开，
+技术投影按 `harness-design-handbook` skill 展开，
 产物按其步骤 G 落回本包的 `projection/v1/`。
 
 ## 本包的文件

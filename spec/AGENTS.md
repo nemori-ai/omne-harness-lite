@@ -3,8 +3,8 @@
 本目录维护可跨语言复现的语义承诺及其验证工件。根约定继续适用；这里说明
 编辑规格时如何找到权威版本和所属边界，完整组织见 [README](README.md)。
 
-规格、模型、提供者映射及消费者影响的维护使用
-[规格演进](../.meta_harness/agents/skills/harness-design-handbook/canonical/references/spec-evolution.md)，就绪与交接规则归
+规格、模型、提供者映射及消费者影响的维护加载
+`harness-design-handbook` skill，进入其「规格演进」；就绪与交接规则归
 [规格维护](../docs/maintenance/spec-maintenance.md)。
 
 ## 按语义定位
@@ -28,7 +28,7 @@
   具体义务见[版本规则](../docs/maintenance/versioning.md)与[验证规范](../docs/maintenance/verification.md)。
 - 文字、Schema、形式模型或实现出现语义冲突时，定位所属契约并报告反例；某项检查
   通过不能盖过冲突。查[规格与证据](../docs/architecture-guide/assurance/specification.md)，
-  涉及架构选择时使用 [harness-design-handbook](../.meta_harness/agents/skills/harness-design-handbook/canonical/SKILL.md)。
+  涉及架构选择时加载 `harness-design-handbook` skill。
 
 这些规范义务约束契约工件；检查软件在独立的开发包中，普通工具修复不因此需要发布
 业务契约。按实际变更选择检查，信息充分时停止展开，不为每项规格预建空附件或全部形式模型。

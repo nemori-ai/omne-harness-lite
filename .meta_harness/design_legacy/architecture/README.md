@@ -22,5 +22,5 @@
 
 - [产品账号身份能力地图](account-identity/README.md)：D-016 已接受的能力边界；账号与注册组合规格仍待接受。
 
-判断方法按需读 [手册对应页](../../agents/skills/harness-design-handbook/canonical/references/decompose.md)。
+判断方法按需读 `harness-design-handbook` skill 的「能力覆盖与演化」。
 返回 [系统设计链](../README.md)。

@@ -48,4 +48,4 @@
 
 恢复还要区分物理数据完整性与业务完成状态。存储能够返回完整记录，不足以判断远端工具是否已完成外部操作；未知结果需要核实、幂等重试或由上层政策处理。
 
-对每种恢复设计，说明从哪里恢复、恢复到哪个合法状态，以及恢复本身中断后能否再次执行。进一步的替换例子见[存储提供者替换](../../../.meta_harness/agents/skills/harness-design-handbook/canonical/references/architecture/examples/storage-replacement.md)。
+对每种恢复设计，说明从哪里恢复、恢复到哪个合法状态，以及恢复本身中断后能否再次执行。进一步的替换例子见 `harness-design-handbook` skill 的「存储提供者替换」。

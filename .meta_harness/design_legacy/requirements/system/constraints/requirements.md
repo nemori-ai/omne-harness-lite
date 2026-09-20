@@ -18,7 +18,7 @@ migration_status: equivalent-current-requirement
 以下各 ID 对应标题下的已确认正文，不包括后续设计候选。它们承接迁移前
 architecture/constraints.md 的用户要求；可恢复来源由[来源、确认与变化](changes.md)及本页 front matter 的
 `source_commit`、`source_file`、`source_sha256` 与 `source_anchor` 共同固定。新增或冲突输入按
-[需求归位](../../../../agents/skills/harness-design-handbook/canonical/references/intake.md#绑定当前系统而非历史设想)处理。
+`harness-design-handbook` skill 的「需求归位」→「绑定当前系统而非历史设想」处理。
 2026-09-12 本轮用户叙述进一步明确组织或个人的服务对象与最终目标，已分别归属
 目标正文（迁移坐标：`.meta_harness/design/requirements/system/README.md`）。迁移保留原 ID，不声称历史确认时已经使用这些新路径。
 

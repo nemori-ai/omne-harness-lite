@@ -98,5 +98,5 @@ bindings:
 
 **尚无 assembly 节点**：本项目还没有应用装配入口，`apps/` 为空。
 
-判断方法按需读[手册对应页](../../agents/skills/harness-design-handbook/canonical/references/project.md)。
+判断方法按需读 `harness-design-handbook` skill 的「插件投影」。
 返回[设计链入口](../README.md)。
