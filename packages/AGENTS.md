@@ -1,16 +1,28 @@
 # 产品包的实现边界
 
-这里补充产品包的源码归属与消费边界。包索引见 [README](README.md)，完整规则归
-[源码布局](../docs/maintenance/workspace.md)。
+**这里现在是空的**，原因见 [README](README.md)。布局规则归[源码布局](../docs/workspace.md)。
 
-- 包按已经明确的实现职责建立，源码、依赖、公开入口与测试随成员维护；不由
-  目录名称推导新的插件、服务或部署边界。
-- 跨包消费公开入口；需要穿透兄弟包的 `src/` 时，先核对其边界与契约。
-  开发检查器归 [tools/](../tools/README.md)，应用装配归 [apps/](../apps/README.md)。
-- 包内类型与实现遵循 [spec/](../.meta_harness/design/spec/README.md) 中的权威定义；冲突应回查精确
-  版本与接受依据，不能以当前实现反向修改契约。
-- 既有提供者设计按[设计归属](../docs/maintenance/organization.md#当前实现设计的归属)接续；
-  新设计进入 `.meta_harness/design/providers/`，连接精确规格、公共入口及运行映射，必要设计不能仅留在一次性施工稿。
+## 建立第一个包之前
+
+> **不要凭一份产品设计就在这里开包。**
+
+[设计工作区](../.meta_harness/AGENTS.md)目前停在产品设计阶段。
+包要从**已经接受的规格**出发建立——在那之前，这里多出任何一个目录，
+都会变成下一个人误以为"已经定下来"的东西。
+
+需要为某项能力落地实现时，先回到 `.meta_harness/`，加载 `harness-design-handbook` skill，
+把架构与规格走完；规格产出后再回来建包。
+
+## 有包之后守什么
+
+- 包按**已经明确的实现职责**建立，源码、依赖、公开入口与测试随成员维护；
+  不由目录名称推导新的插件、服务或部署边界。
+- 跨包消费**公开入口**；需要穿透兄弟包的 `src/` 时，先核对其边界与契约。
+  开发工具归 [tools/](../tools/README.md)，应用装配归 [apps/](../apps/README.md)。
+- 包内类型与实现遵循 [spec/](../.meta_harness/design/spec/README.md) 中的权威定义；
+  冲突时回查精确版本与接受依据，**不能以当前实现反向修改契约**。
+- 提供者设计归 `.meta_harness/design/realization/`，连接精确规格、公共入口与运行映射，
+  **不留在一次性施工稿里**。
 
 沿既有契约的局部修改只读所属包及相关验证；新增能力边界、所有权或保证时，
-进入 [.meta_harness](../.meta_harness/AGENTS.md)，加载 `harness-design-handbook` skill。
+回 [.meta_harness](../.meta_harness/AGENTS.md)。
