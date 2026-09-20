@@ -68,7 +68,7 @@ TLA+/Alloy 执行任务为 0，明确报告 UNCOVERED，本次不声称完成产
 检查器代码、测试执行、Git 恢复、生成配置及宿主行为不在此次独立复核范围内。
 
 正式基线为 `8688fe36a9d3d23edabd2f8c7a436b73cc15f34c`，保留 tag 为
-`requirements-baseline/2026-09-12-foundation`。其[自包含历史包和恢复记录](../../research/requirements-baselines/README.md)
+`requirements-baseline/2026-09-12-foundation`。其[自包含历史包和恢复记录](../../../.meta_harness/design/record/evidence/legacy-requirements-baseline/README.md)
 在基线之后单独交付，避免自引用提交哈希。仅从包导入 tag 的独立仓库没有开发分支
 或 alternates，清除 reflog 并 GC 后，提交及全部 13 份需求文件仍可恢复且字节一致，
 `git fsck --full` 通过。包随仓库跟踪保存，本轮没有远端推送或合并。
