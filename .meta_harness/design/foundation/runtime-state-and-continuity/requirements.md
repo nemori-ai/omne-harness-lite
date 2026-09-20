@@ -1,0 +1,82 @@
+---
+kind: system-requirement
+ids: [SYS-RUNTIME-CONTINUITY]
+source_baseline: omne-harness-lite-legacy-spec
+source_commit: e3573ca72d18bfe7ddd002df5025551b51eede46
+source_file: docs/requirements/system/runtime-state-and-continuity.md
+source_sha256: b44b6f9d3684af5c4acb2061ca235a7ea6c41b5a582c079d03ad711ce5a461b5
+source_anchor: "heading:# SYS-RUNTIME-CONTINUITY：运行时与持久状态解耦、恢复接续及异构适配"
+target_baseline: omne-harness-lite-design-2026-09-15
+migration_status: equivalent-current-requirement
+---
+
+# SYS-RUNTIME-CONTINUITY：运行时与持久状态解耦、恢复接续及异构适配
+
+## 已确认要求
+
+2026-09-12，用户在继续介绍系统目标时明确新增以下要求，并授权从
+`omne-next/omne_harness` 检索额外信息作为参考或补充。确认范围为以下三项；
+来源解释与尚未确定的细节分别列在后文。
+
+- **SYS-RUNTIME-CONTINUITY.C1：运行时与状态持久化解耦。** Agent 的运行时
+  应当与 Agent 的状态持久化解耦。
+- **SYS-RUNTIME-CONTINUITY.C2：同构资源下恢复接续。** 系统能够通过持久化
+  的状态，在同构资源下恢复 Agent 并接续运行。
+- **SYS-RUNTIME-CONTINUITY.C3：针对异构运行时适配。** 系统能够针对异构的
+  运行时采用针对性的装配策略或部署版本，以适应不同的物理环境、操作系统等。
+
+本条作为系统目标约束后续建模、能力定义、设计与产品化。阶段交付继续遵循
+[SYS-DEPLOY](../cross-system-constraints/requirements.md#sys-deploy)；具体支持环境与恢复保证待展开。
+
+## 含义与来源补充
+
+运行实例的存续与持久状态的存续需要分别表达；恢复时应能根据持久状态重新建立
+运行条件并接续工作。原系统的恢复讨论也区分执行实例与持久事实，为此提供参考。
+这不预先决定二者必须位于不同进程、机器或数据库。
+
+以下是来源材料支持的补充理解和后续核对方向，尚未作为本项目额外确认的精确
+承诺登记。对应章节、来源状态及限制见**来源核对**。
+
+| 关注点 | 用于减少歧义的参考 |
+|---|---|
+| 恢复的连续性 | 区分重新启动运行实例与恢复既有 Agent 工作；不能仅创建空白实例就声称已经恢复持久状态。来源以会话身份及已持久历史连续性表达这一点 |
+| 同构与兼容条件 | 原系统的未来续接要求用执行兼容类别说明“相同类型”，并将具体判据留给设计；本项目仍保留用户的“同构资源”用语，兼容类别不是已经选定的模型 |
+| 异构装配与部署 | 目标环境能否承载所需能力、组件及资源，需要与其装配或部署版本对应；能够启动某种配置，不等于已经证明完整支持该环境 |
+| 恢复结果 | 恢复持久状态、接续执行与确认外部行动结果分别判断；仅有持久历史不能证明中断时的外部行动已经完成 |
+
+原系统的续接来源限定于 `user_chat`，并区分当前同节点恢复和未来兼容节点间
+续接；这些是来源自身的范围。它们不将本条缩窄为聊天会话，也不把旧版本的
+节点绑定限制带入本项目。C3 的异构适配要求与 C2 的同构恢复要求分别成立，
+尚不能据此声称任意异构环境之间都可直接恢复同一执行状态。
+
+## 待澄清
+
+- **持久状态与恢复位置：** 必须保留哪些状态、确认持久化的边界，以及接续到
+  哪个合法执行位置；如何区分可重建状态、运行时临时对象和未完成外部行动。
+- **同构资源的判据：** 涉及哪些资源、运行环境、组件及版本条件，如何确认
+  目标满足恢复前提；不先把“同构”定义成某个字段完全相等或限定为原物理节点。
+- **恢复触发与保证：** 恢复的触发方式、对在途工作的处理、恢复失败的表现、
+  时间与数据损失边界尚未明确；自动故障接管、热迁移或调用恰好执行一次均未据此定案。
+- **异构支持范围：** 支持哪些物理环境、操作系统及版本，装配策略或部署版本
+  如何选择与维护，以及跨这些环境的状态格式兼容、转换和恢复范围。
+
+缺口限制依赖这些细节的定稿，不削弱以上三项已确认目标。
+
+## 与已有要求和设计的关系
+
+本条支撑 [SYS-LONG-RUNNING](../long-running-and-evolving/requirements.md) 的长期稳定运行与持续
+进化，并细化 [SYS-DEPLOY](../cross-system-constraints/requirements.md#sys-deploy) 中异构部署的目标。
+恢复与环境适配仍受 [SYS-TENANT](../cross-system-constraints/requirements.md#sys-tenant) 及
+[PF-001](../../product/PF-001-identity-scope-and-agent-constraints/design.md) 的租户与组织上下文约束。
+状态契约与实现关系继续遵循 [SYS-SPEC](../cross-system-constraints/requirements.md#sys-spec)。
+
+本次属于新增确认要求，与上述既有要求相容；现有指南中的
+`harness-design-handbook` skill 的「状态与存储」和「部署边界」可提供设计方法。
+目前的设计（[本包覆盖状态](README.md#设计覆盖状态)）尚未形成
+兑现 C1–C3 的完整规格；当前没有已接受的业务决定或规格需要因此取代。
+旧需求基线保留其原有范围，新增要求不反向改写旧快照。
+
+手动或自动转后台的工具工作怎样独立执行、恢复后的运行时怎样重新关联它，
+属于工具执行与观测的产品设计，本条不在此处规定其具体场景。
+
+返回[基础前提](../README.md)。

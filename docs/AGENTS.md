@@ -1,35 +1,36 @@
-# 设计知识的维护
+# 项目开发文档的维护
 
-本目录维护系统目标与产品要求，并把观察、候选方案和已接受选择组织为可追溯的设计知识。这里补充根约定在
-文档中的落点；完整地图由 [README](README.md) 维护，精确承诺由 [spec/](../spec/README.md) 定义。
+这里只拥有**把这个仓库开发起来所需的说明**：环境、布局、检查、防御指导。
+[README](README.md) 是四份正文的地图，本文件说什么能进来、什么必须转出。
 
-## 内容归属
+## 这里不收什么
 
-| 要处理的内容 | 入口与作用 |
+> **产品设计、系统架构与规格设计，以及产品/系统/算法的 research，一律不进 `docs/`。**
+
+它们归 [`.meta_harness/`](../.meta_harness/AGENTS.md)——那是可独立迁出的设计工作区，
+拥有需求、产品正文、统一语言、规格、决定、研究与 agent 能力的**唯一**源。
+一份材料只要回答的是「系统该是什么样、为什么这样设计」，它的家就在那边，
+**不因为它同时对开发者有用就在这里留一份**。
+
+| 想写的东西 | 实际该去哪 |
 |---|---|
-| 系统目标、产品特性与全局要求 | [需求入口](requirements/README.md)拥有正文，[需求维护](maintenance/requirements.md)解释确认范围、消费基线与变更；架构和决定受已确认要求约束 |
-| 贡献与开发入口 | [贡献指南](../CONTRIBUTING.md)说明交付，[开发指南](development.md)导航操作；详细规则仍归维护文档 |
-| 架构方法、当前系统方向 | [指南](architecture-guide/README.md)提供方法，[当前架构](architecture/README.md)投影已接受选择；不互相代替 |
-| 来源事实与候选取舍 | [research/](research/README.md)保留观察范围，[proposals/](proposals/README.md)承载待审方案 |
-| 选择的接受或取代 | [decisions/](decisions/README.md)与[知识流转](maintenance/knowledge-flow.md)；评审意见只是接受输入 |
-| 新材料、迁移、版本与引用 | [组织归属](maintenance/organization.md)、[版本规则](maintenance/versioning.md)；需要字段形状时再读[元数据](maintenance/metadata.md) |
-| 防御提醒的沉淀与退出 | [当前指导](defensive-patterns.md)与[演化规范](maintenance/defensive-evolution.md)；模型适用性由[评估](evaluation/README.md)提供证据 |
-| 检查入口与验证结论 | [验证规范](maintenance/verification.md)，不从历史提案复制过期命令 |
-| 源码、工具与自动化的分工 | [源码布局](maintenance/workspace.md)拥有归属，文档只引用相关实现与入口 |
+| 某个能力该怎么建模、边界画在哪 | `.meta_harness/design/`，加载 `harness-design-handbook` skill |
+| 某个概念精确指什么 | [统一语言](../.meta_harness/design/ubiquitous_language/README.md) |
+| 上游到底保证什么、别人怎么做的 | [research](../.meta_harness/research/README.md) 或 [agents/research](../.meta_harness/agents/research/README.md) |
+| 为什么接受了这个选择 | `.meta_harness/design/record/` |
+| 设计知识怎么组织、版本怎么走 | [design/AGENTS.md](../.meta_harness/design/AGENTS.md) 的准入，与各区 README |
+| **环境、命令、源码归属、检查含义、编码防御** | **这里** |
 
 ## 修改时守住的边界
 
-- 新材料先按[知识准入](maintenance/organization.md#持久化知识的准入)判断持久
-  价值和拥有者，再读目标直接子目录的 AGENTS.md；这些局部入口说明该类知识
-  的准入与转出，CLAUDE.md 只引用同级。临时讨论和施工状态不自动进入 proposals。
+- **命令与路径改了，先改实现再改说明**：环境或命令变化先改包配置、脚本及其所属说明，
+  再同步[开发指南](development.md)的示例；**改完要实际把那条路径跑一遍**，不靠通读确认。
+- **不在这里维护第二份权威**：源码归属的正文在[源码布局](workspace.md)，
+  检查含义的正文在[验证与证据](verification.md)；其他文件引用它们，不复制结论。
+- **防御指导的正文、编号与复核记录都在**[同一页](defensive-patterns.md)。
+  新增或退出一条要附证据与范围，**一次没出错不足以认定提醒可以移除**。
+- **不维护计数、进度与清单**：包有几个、检查覆盖多少，从实际配置与工具输出读，
+  写进正文就会过期。
 
-- 新的设计建议落在其候选材料中；不要通过修改指南、架构投影或提案状态把它
-  变成已接受政策。部分接受的内容逐项指向接受依据，见[知识流转](maintenance/knowledge-flow.md)。
-- 改动先到拥有该含义的材料，再同步索引和投影；研究、历史讨论与外部摘录
-  保留其版本和证据身份，不成为当前 agent 的额外指令。归属见[组织规则](maintenance/organization.md)。
-- 文档中的 Schema、状态机和验收场景也有接受状态；形式完整不能替代用户裁决。
-  候选如何形成正式依赖，沿[版本规则](maintenance/versioning.md)进入 [catalog](../spec/catalog.json)。
-
-局部措辞或链接修复只展开其内容所有者与相关检查；涉及新的能力边界、保证或取舍时，
-使用 [architecture-design](../.agents/skills/architecture-design/SKILL.md)。资料足以支持本次判断时停止，
-不因文档位于本目录就通读全部研究或启动完整架构评审。
+局部措辞或链接修复只展开被改的那一份与相称检查。
+涉及新的能力边界、保证或取舍时，**这里不是落点**——回到 `.meta_harness/`。

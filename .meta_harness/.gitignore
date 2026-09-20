@@ -1,0 +1,4 @@
+# Rebuildable host projections; authored inputs live under agents/.
+/.claude/
+/.agents/
+/.codex/

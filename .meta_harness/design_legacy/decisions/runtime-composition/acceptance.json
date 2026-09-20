@@ -1,0 +1,29 @@
+{
+  "format": 1,
+  "decision_path": "decisions/runtime-composition/decision.md",
+  "accepts": [
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "composition.agent-session-binding",
+        "version": 1
+      },
+      "scope_clauses": [
+        "CB-01",
+        "CB-02",
+        "CB-03",
+        "CB-04",
+        "CB-05",
+        "CB-06",
+        "CB-07",
+        "CB-08",
+        "CB-09",
+        "CB-10",
+        "CB-11",
+        "CB-12",
+        "CB-13",
+        "CB-14"
+      ]
+    }
+  ]
+}

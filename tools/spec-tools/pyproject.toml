@@ -12,7 +12,6 @@ dependencies = [
 
 [project.scripts]
 omne-docs-check = "omne_harness_lite_spec_tools.check_docs:main"
-omne-spec-check = "omne_harness_lite_spec_tools.check_specs:main"
 omne-spec-tools-check = "omne_harness_lite_spec_tools.check_tool_environment:main"
 omne-evaluate-developer-model = "omne_harness_lite_spec_tools.evaluate_developer_model:main"
 

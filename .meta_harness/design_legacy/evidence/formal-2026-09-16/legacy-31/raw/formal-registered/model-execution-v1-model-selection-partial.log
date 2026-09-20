@@ -1,0 +1,21 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 60 and seed -2472975966642632743 with 1 worker on 8 cores with 910MB heap and 64MB offheap memory [pid: 140440] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness/.meta_harness/design/spec/capabilities/model-execution/v1/formal/ModelSelection.tla
+Parsing file /tmp/Naturals.tla
+Semantic processing of module Naturals
+Semantic processing of module ModelSelection
+Starting... (2026-09-16 10:36:28)
+Computing initial states...
+Computed 2 initial states...
+Computed 4 initial states...
+Computed 8 initial states...
+Computed 16 initial states...
+Finished computing initial states: 18 distinct states generated at 2026-09-16 10:36:28.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 7.2E-18
+37 states generated, 33 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 4.
+The average outdegree of the complete state graph is 0 (minimum is 0, the maximum 1 and the 95th percentile is 1).
+Finished in 00s at (2026-09-16 10:36:28)

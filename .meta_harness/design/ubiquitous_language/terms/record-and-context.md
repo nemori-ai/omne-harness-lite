@@ -1,0 +1,326 @@
+# 记录与上下文
+
+**这一卷回答：留下了什么，以及怎么把它组装给读的人或模型。**
+
+```text
+              会话日志（全都在，只增不改）
+                        │
+            ┌───────────┴───────────┐
+            ↓                       ↓
+     组装给人的那份           组装给模型的那份
+```
+
+**两侧地位相同**——**不存在一份特殊的「上下文」凌驾于另一份之上**。
+收在这里的是**留下来的东西本身，以及从它派生出来的那两份**。
+
+> **不限于一段协作。**租户里多了一名成员、一个沙箱被换到别的机器上——
+> **这些不属于任何一次协作，但它们同样要留下记录**。
+
+词条格式与准入判据见 [conventions](../conventions.md)。
+
+## 留下了什么
+
+### UL-occurrence · 发生的事 · Occurrence
+
+> **中**：**一件真实发生过的事，在系统为它留下任何记录之前的那个东西。**
+> 它自己不是[记录条目](#ul-record-entry--记录条目--record-entry)，也不带任何标记。
+> **系统对它只做一个判断——要不要为它留下至少一条记录条目。**
+>
+> **EN**: **Something that actually happened, taken before the system records anything
+> about it.** It is not a record entry and carries no marks of its own. The system asks
+> it exactly one question — **must this leave at least one record entry?**
+
+- **出处**：[PF-000 §4 发生的事](../../product/PF-000-occurrences-and-record-entries/design.md#发生的事)（rev 1）
+- **别混**：**不是「事件」**——[「事件」在本系统不作为术语](../conflicts.md)，裸用时是白话
+- **⚠️ 注意 ①**：**判断打在它身上，不打在条目上。**
+  设计者手上拿到的永远是「刚发生了一件事」，那时他还没有条目可标
+- **注意 ②**：**「零条」是合法答案。**纯派生的动作——比如一次
+  [层级求值](scope-and-resolution.md)、一次[组装](#ul-context-assembly--上下文组装--context-assembly)——
+  **重算即得，不产生任何条目**
+
+### UL-record-entry · 记录条目 · Record Entry
+
+> **中**：**系统为一件[发生的事](#ul-occurrence--发生的事--occurrence)留下的一条不可变条目。**
+> 一件发生的事产出**零条、一条或多条**。条目一旦写下就不再改变——
+> **要改变，靠追加新的条目。**
+>
+> **EN**: **One immutable entry the system writes for an occurrence.** An occurrence
+> yields zero, one, or many. An entry never changes once written — **change is expressed
+> by appending**.
+
+- **出处**：[PF-000 §4 记录条目](../../product/PF-000-occurrences-and-record-entries/design.md#记录条目) ·
+  [§5.4](../../product/PF-000-occurrences-and-record-entries/design.md#54-一件事什么时候产出不止一条条目)（rev 1）
+- **⚠️ 注意 ①**：**产出多条只有两个原因**——**干预点先于它的结果**，或**增量先于成品**。
+  **「既要持久又要实时」不是原因**：一条持久条目照样能实时送达，
+  **那是同一条条目的一次投递，不是第二条条目**
+- **注意 ②**：**[会话日志](#ul-session-log--会话日志--session-log)是它们的一个家，不是唯一的家**——
+  租户级的事不属于任何一段协作
+- **注意 ③**：每条都要声明[**效力**](#ul-entry-standing--条目效力--entry-standing) ·
+  **寿命宿主** · **租户身份** · **出处** · **因果先后** · **外部效果的确定性**；
+  **「给谁看」不在其中**，那归[块标注](#ul-block-annotation--块标注--block-annotation)
+
+### UL-entry-standing · 条目效力 · Entry Standing
+
+> **中**：**一条[记录条目](#ul-record-entry--记录条目--record-entry)丢了会怎样。**三档：
+> **依据**——下一步算不出来了；**留痕**——下一步照常，但解释不了发生过什么；
+> **瞬态**——两样都不影响。
+> **只有「依据」进[状态转移方程](agent-runtime-loop.md#ul-run--运行--run)的定义域。**
+>
+> **EN**: **What is lost when a record entry is lost.** Three grades: **`Deciding`** —
+> the next step can no longer be computed; **`Explaining`** — the next step is unaffected
+> but what happened can no longer be accounted for; **`Transient`** — neither suffers.
+> **Only `Deciding` entries enter the domain of the state-transition function.**
+
+- **出处**：[PF-000 §4 条目效力](../../product/PF-000-occurrences-and-record-entries/design.md#条目效力--entry-standing) ·
+  [§5.2](../../product/PF-000-occurrences-and-record-entries/design.md#52-那个判断两条独立充分条件)（rev 1）
+- **⚠️ 注意 ①**：**它不是可见性。**留下来的东西**绝大多数模型根本不看**——
+  给谁看归[块标注](#ul-block-annotation--块标注--block-annotation)，**两者互不决定**
+- **注意 ②**：**它不是保留期。**一条条目的效力**不因为它被清理得早而改变**
+- **注意 ③**：**干预力只在「瞬态」这一档上才有取值**——
+  已提交的条目不干预任何事，**干预发生在它成为条目之前**
+
+### UL-session-log · 会话日志 · Session Log
+
+> **中**：**一份只增不改的流水账**，记录一个[会话](agent-runtime-loop.md#ul-session--会话--session)里发生过的事。
+> **[消息](#ul-message--消息--message)只是它的一部分，其余大部分是各种事件**——
+> 有的会在下一次组装时做成消息，有的永远不会。
+> **它记的是发生了什么，不是模型该看什么。**
+>
+> **EN**: **An append-only ledger** of what happened within one session. **Messages are
+> only part of it; most of the rest is events** — some of which become messages at the
+> next assembly, and some of which never will. **It records what happened, not what
+> the model ought to see.**
+
+- **出处**：[PF-012 §4 会话日志](../../product/PF-012-agent-loop-and-run/design.md#会话日志)（rev 2）
+- **别混**：**日志不等于「拿去用的那一份」**——**日志是一份，拿去用的有两份**
+- **⚠️ 注意 ①**：**只增不改没有例外。**[压缩](#ul-context-compaction--上下文压缩--context-compaction)不是例外
+  （它只翻标注、只追加摘要），[结果卸载](execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)也不是
+  （**原始结果从来没进过日志**），agent 取回全文是**往后追加两条**
+- **注意 ②**：**它归[会话](agent-runtime-loop.md#ul-session--会话--session)，不归[运行](agent-runtime-loop.md#ul-run--运行--run)**
+- **注意 ③**：**日志里那些事件具体有哪些，本版不展开**，归 [PF-012](../../product/PF-012-agent-loop-and-run/README.md)
+
+### UL-message · 消息 · Message
+
+> **中**：**一条对话记录**，落在[会话日志](#ul-session-log--会话日志--session-log)里。**七种，按「谁在说话」分**：
+>
+> | 谁在说 | 这一种 | 说的是什么 |
+> |---|---|---|
+> | **系统**，在开头 | `SystemMessage` | 你是谁、你该怎么做 |
+> | **人** | `UserMessage` | 我要你做什么 |
+> | **模型** | `AssistantMessage` | 我的回答，以及我要调哪些工具 |
+> | **工具**，说**结果** | `ToolMessage` | 跑完了，结果是这样 |
+> | **工具**，说**过程** | `ToolInternalMessage` | 我正在干什么，干到哪儿了 |
+> | **系统**，在中途 | `SystemReminderMessage` | 外面有信息进来了，你得知道 |
+> | **系统**，回头看 | `CompactionMessage` | 前面那一大段，概括起来是这样 |
+>
+> **前四种各家模型供应商都有，后三种是我们加的。**
+>
+> **EN**: **One entry of conversational record**, living in the session log. **Seven
+> kinds, divided by who is speaking** — the first four exist at every model vendor;
+> the last three (`ToolInternalMessage`, `SystemReminderMessage`, `CompactionMessage`)
+> are ours.
+
+- **出处**：[PF-009 §4 消息](../../product/PF-009-context-message-types/design.md#消息) · [七种消息](../../product/PF-009-context-message-types/design.md#七种消息按谁在说话分)（rev 2）
+- **注意 ①**：**说话的有四个，消息却有七种**——因为**有的说话者要说不止一类话**
+- **注意 ②**：`ToolInternalMessage` 承载[执行帧](execution-and-outcome.md#ul-execution-frame--执行帧--execution-frame)，
+  **给人看，agent 看不到**
+- **注意 ③**：`SystemReminderMessage` **不是「一条带标记的用户消息」**——
+  它得是一种类型，**记录里才分得开，adapter 才认得出**
+
+### UL-content-block · 内容块 · Content Block
+
+> **中**：**一条消息装的是若干个块，不是一段文本。**块分几类：
+> **文本 · 思考 · 语音 · 图 · 文件 · 工具调用 · 工具结果**
+> （工具结果**自己又是一串块**，所以工具也能返回图）。
+>
+> **EN**: **A message holds a number of blocks, not a span of text.** The kinds are
+> text, thinking, voice, image, file, tool call and tool result — **a tool result being
+> itself a series of blocks**, which is how a tool can return an image.
+
+- **出处**：[PF-009 §4 消息的内容是一串块](../../product/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 2）
+- **别混**：**裸写「块」不作数**——那个词到处都是
+- **注意**：**为什么不能是一段文本**——一条消息里可能既有文字又有图；
+  **模型的思考与它的回答是两回事，混在一起就再也分不开**；
+  工具调用的参数是结构化的，**压成文本就要靠解析捞回来，而解析会错**
+- **注意**：**文件块是一个[附件](execution-and-outcome.md#ul-attachment--附件--attachment)的引用，不是文件内容**
+
+### UL-block-annotation · 块标注 · Block Annotation
+
+> **中**：**每个[内容块](#ul-content-block--内容块--content-block)上的两个标注：给人看吗、给模型看吗。**
+> **两个互不决定**，四种组合都成立。**标注在块上，不在消息上**——
+> 因为**同一条消息里，各个块的去向可能不同**。
+> **它只说「取不取」，不说「长什么样」。**
+>
+> **EN**: **Two marks on every content block: is this for people, is this for the
+> model.** **They are independent** — all four combinations occur. **The marks sit on
+> the block, not on the message**, because **blocks within one message may go different
+> ways**. They say **whether to take it, never how to present it**.
+
+- **出处**：[PF-009 §4 每个块带两个标注](../../product/PF-009-context-message-types/design.md#每个块带两个标注给人看吗给模型看吗)（rev 2）
+- **注意 ①**：**这是那一侧的中枢机制**——两份组装都是拿它从同一份日志里筛
+- **注意 ②**：**四种组合各有实例**：绝大多数两边都给；
+  工具执行过程**只给人**；给模型的设定**只给模型**；
+  **没长完的工具调用两边都不给**——**留在记录里备查**
+- **注意 ③**：**它是[压缩](#ul-context-compaction--上下文压缩--context-compaction)能成立的前提**——
+  **压缩要先知道哪些块是给谁的，才谈得上压谁、留谁**
+
+### UL-incremental-arrival · 增量到达 · Incremental Arrival
+
+> **中**：**一条消息是分次到达的。**能一点点长出来的只有四样——
+> **文本 · 思考 · 工具调用的参数 · 语音**；其余的**要么没有，要么整个有**。
+> 两条硬性质：**半条消息不是消息**；**组装出来的，必须与一次性拿到的一模一样**。
+>
+> **EN**: **A message arrives in instalments.** Only four things grow piece by piece —
+> **text, thinking, tool-call arguments, and voice**; everything else is **either absent
+> or present whole**. Two hard properties: **half a message is not a message**, and
+> **what is assembled from the instalments must be identical to what would have arrived
+> in one piece**.
+
+- **出处**：[PF-009 §5.5](../../product/PF-009-context-message-types/design.md#55-一条消息是分次到达的) · [§5.6](../../product/PF-009-context-message-types/design.md#56-流断在半路)（rev 2）
+- **注意 ①**：**流断在半路有四种收场。**其中**没收齐参数的工具调用块**
+  **记下来，但两边都不给看**——**参数收齐了才算数**，
+  拿半截参数去调用，**比什么都不做危险得多**
+- **注意 ②**：**中断这件事本身要让 agent 知道**
+- **注意 ③**：**用户看见了的，记录里必须有**
+
+## 拿去用的那两份
+
+### UL-context-assembly · 上下文组装 · Context Assembly
+
+> **中**：**从[会话日志](#ul-session-log--会话日志--session-log)里取出一部分，拼成一份给某一方看的上下文。**
+> **两侧各有一份，地位相同。**
+> **组装不写日志——它只读；同一份日志组装十次，结果一样。**
+>
+> **EN**: **Taking part of the session log and composing it into a context for one
+> audience.** **There is one for each side, and neither outranks the other.**
+> **Assembly does not write to the log — it only reads; ten assemblies of the same log
+> give the same result.**
+
+- **出处**：[PF-010 §4 组装](../../product/PF-010-context-management-and-assembly/design.md#组装) · [§6.1](../../product/PF-010-context-management-and-assembly/design.md#61-组装只读日志不写日志)（rev 2）
+- **别混**：**裸写「上下文」不作数**——它另有[运行时 context](scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context) 与
+  `Cordis Context` 两个所指，[已记为冲突](../conflicts.md#现有冲突)
+- **注意**：**两侧形状不一样，根子是「人有记忆，模型没有」**
+
+### UL-user-facing-context · 给用户看的上下文 · User-Facing Context
+
+> **中**：组装给人的那一份。**两个动作，方向相反、锚点不同**：
+>
+> | | **往回要历史** | **一直收着新的** |
+> |---|---|---|
+> | 方向 | 往更早 | 往更新 |
+> | 谁发起 | **用户这边要** | **不用要**，有新的自己就到 |
+> | 锚在哪 | **当前已拿到的最早那一条** | 当前已拿到的最新那一条 |
+> | 拿到之后 | **接在前面**（prepend） | 接在后面 |
+>
+> **切进一个会话时永远是先拿一段最近的，不是全量。**
+>
+> **EN**: The side assembled for people. **Two actions, opposite in direction and
+> anchored differently**: reaching **back** for history (requested by the user, anchored
+> at the earliest entry already held, prepended on arrival), and **receiving** what is
+> new (unrequested, appended). **Entering a session always loads a recent stretch
+> first, never everything.**
+
+- **出处**：[PF-010 §4 给用户那一侧](../../product/PF-010-context-management-and-assembly/design.md#给用户那一侧两个动作方向相反) · [§6.6](../../product/PF-010-context-management-and-assembly/design.md#66-给用户那一侧往回要与往后收是两个动作)（rev 2）
+- **⚠️ 注意**：**用户往上翻不是「再来一次刚才那个动作」**——
+  那一次锚在「最近」，这一次锚在**当前已加载的最早点位**，**再往前多取一段接上去**。
+  **锚点不同，所以是两回事**
+
+### UL-model-facing-context · 给模型看的上下文 · Model-Facing Context
+
+> **中**：组装给模型的那一份，**分两块、分别组装**：
+>
+> | 块 | 是什么 | 什么时候变 |
+> |---|---|---|
+> | **[系统提示词](#ul-system-prompt--系统提示词--system-prompt)** | 你是谁、你有什么能用 | **在实例存续期内恒定** |
+> | **会话上下文** | 这场对话到目前为止 | **每一轮都在长** |
+>
+> **只有第二块压得动。**
+>
+> **EN**: The side assembled for the model, **composed as two blocks, separately**: the
+> **system prompt** (who you are, what you have — **constant for the life of the
+> instance**) and the **conversation context** (the exchange so far — **growing every
+> turn**). **Only the second can be compacted.**
+
+- **出处**：[PF-010 §4 给模型那一侧](../../product/PF-010-context-management-and-assembly/design.md#给模型那一侧两块分别组装) · [§5.3](../../product/PF-010-context-management-and-assembly/design.md#53-给模型的那一份两块各自的名字里就写着要求)（rev 2）
+- **⚠️ 注意 ①**：**混成一块，就会长出「把系统提示词也收走一段」这种东西**——
+  **那等于把 agent 的身份和能力清单压没了**
+- **注意 ②**：**四条要求**：
+  [尽可能最大化前缀一致](#ul-prefix-consistency--前缀一致--prefix-consistency) ·
+  **成分必须是明确标了给模型读的**（**默认拒绝**）·
+  **有[压缩记录](#ul-compaction-record--压缩记录--compaction-record)时边界由它定** ·
+  **先落盘再组装**
+- **注意 ③**：**没有明确标了「给模型读」的，不进这一份**——**默认是拒绝，不是放行**
+
+### UL-system-prompt · 系统提示词 · System Prompt
+
+> **中**：[给模型看的上下文](#ul-model-facing-context--给模型看的上下文--model-facing-context)里的第一块：
+> **你是谁、你有什么能用。**它的**全部成分在[装配](agent-runtime-loop.md#ul-agent-assembly--agent-装配--agent-assembly)时确定**，
+> 但**每次请求时才组装出来**；**在实例存续期内恒定**。**压缩碰不到它。**
+>
+> **EN**: The first of the two blocks: **who you are and what you have to work with**.
+> **Every ingredient is fixed at assembly time**, though **the text itself is composed
+> at request time**; it is **constant for the life of the instance**. **Compaction
+> cannot touch it.**
+
+- **出处**：[PF-010 §4](../../product/PF-010-context-management-and-assembly/design.md#给模型那一侧两块分别组装) · [PF-004 §5.4](../../product/PF-004-agent-runtime-assembly-and-liveness/design.md#54-为什么系统提示词必须落在第三列)（rev 2 / rev 3）
+- **注意**：走遍所有[meta 能力](capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability)，
+  **它应当逐字不变**——取用一个工具**不改写它**
+
+### UL-prefix-consistency · 前缀一致 · Prefix Consistency
+
+> **中**：这一次组装出来的上下文，**开头那一段与上一次逐字相同**。
+> **产品要求是「尽可能最大化」它**，而它同时**也是给[压缩](#ul-context-compaction--上下文压缩--context-compaction)的要求之一**。
+>
+> **EN**: The opening stretch of this assembly being **byte-for-byte what it was last
+> time**. The product requirement is to **maximise it as far as possible** — and it is
+> **equally a requirement on compaction**.
+
+- **出处**：[PF-010 §5.4 要求一](../../product/PF-010-context-management-and-assembly/design.md#要求一尽可能最大化前缀一致) · [§6.3](../../product/PF-010-context-management-and-assembly/design.md#63-前缀尽量与上一次逐字相同)（rev 2）
+- **注意**：**它与「保信息」「降长度」两两相冲**，见[压缩的三个联合目标](#ul-context-compaction--上下文压缩--context-compaction)
+
+## 压缩
+
+### UL-context-compaction · 上下文压缩 · Context Compaction
+
+> **中**：把[给模型看的上下文](#ul-model-facing-context--给模型看的上下文--model-facing-context)的**会话那一块**变小。
+> 它**在三个联合目标之间取平衡**：**保前缀 · 保信息 · 降长度**——
+> **三者两两相冲，押住任意两个，第三个必然吃亏**，所以**不存在「最优的压缩」**。
+>
+> **它能做的只有两件事，不能做的也是两件事：**
+>
+> | | |
+> |---|---|
+> | **能** | 把[块上「给模型看」那一位](#ul-block-annotation--块标注--block-annotation)翻过来 · 对历史生成一段摘要 |
+> | **不能** | **从持久化的记录中擦除一条消息**（无论是否还模型可读）· **压上一次模型请求之后新来的消息** |
+>
+> **EN**: Shrinking the conversation block of the model-facing context. It **balances
+> three joint goals — preserving the prefix, preserving information, reducing length —
+> which conflict pairwise**: hold any two and the third suffers, so **there is no
+> optimal compaction**. It **may** flip the "for the model" mark on a block and produce
+> a summary of history; it **may not** erase any message from the durable record, nor
+> compact anything that arrived after the last model request.
+
+- **出处**：[PF-010 §5.6](../../product/PF-010-context-management-and-assembly/design.md#56-压缩这件事的调子三个联合目标) · [§5.7](../../product/PF-010-context-management-and-assembly/design.md#57-压缩能做的只有两件事) · [§5.8](../../product/PF-010-context-management-and-assembly/design.md#58-压缩不能做的也是两件事)（rev 2）
+- **⚠️ 注意 ①**：**「不给模型看」不等于「可以删」。**
+  那一位翻掉之后，**它对模型不存在了，但它对人、对排查、对回溯一直都在**——
+  **[会话日志 append only](#ul-session-log--会话日志--session-log) 这条，压缩不是例外**
+- **注意 ②**：**模型还没看过的东西不能先替它压掉**——这划的是**输入区间的上界**，
+  上界是「**上一次模型请求**」，**不是「现在」**
+- **注意 ③**：**取哪个平衡是策略，不是产品设计的事**
+
+### UL-compaction-record · 压缩记录 · Compaction Record
+
+> **中**：压缩留下的那条消息（类型名 `CompactionMessage`）：**前面那一大段，概括起来是这样。**
+> **有它时，[给模型看的上下文](#ul-model-facing-context--给模型看的上下文--model-facing-context)的组装边界由它来定。**
+>
+> **EN**: The message compaction leaves behind (type name `CompactionMessage`): *this is
+> what that stretch amounts to*. **When present, it determines the boundary of the
+> model-facing assembly.**
+
+- **出处**：[PF-009 §4 CompactionMessage](../../product/PF-009-context-message-types/design.md#compactionmessage) · [PF-010 §6.4](../../product/PF-010-context-management-and-assembly/design.md#64-有压缩记录时边界由压缩记录定)（rev 2）
+- **⚠️ 注意**：**边界不是一条截断线。**压缩标的是**块**，而**块可以散布**——
+  所以「这次取哪一段」的答案**本来就不是一个起点**，而是
+  **「哪些块还模型可读」**，**它们可能落在最后一条摘要之前**。
+  见 [PF-010 §5.9](../../product/PF-010-context-management-and-assembly/design.md#59-块级标记解释了组装边界为什么不是一条线)
+
+返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

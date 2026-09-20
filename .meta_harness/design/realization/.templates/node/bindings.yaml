@@ -1,0 +1,30 @@
+# 条款到证据的绑定表。成稿时替换全部占位并删除本段说明。
+#
+# 每条绑定回答一个问题：这条契约承诺，有什么证据说明它真的成立，前提是什么。
+# 补不出证据的条款不要写空绑定占位——在 README.md 的分层状态里记为缺口，
+# 并写明 owner 与闭合条件。
+version: 1
+node: "{{与目录名一致的节点名}}"
+kind: "{{provider 或 assembly}}"
+
+bindings:
+  - # 精确契约坐标加条款号，例如 capability.live-agent/v1#S-7
+    clause: "{{contract_id}}/v{{version}}#{{clause}}"
+
+    # 该绑定依赖的机制语义条目 id，见 ../../../basis/README.md
+    # 不依赖上游机制时删除本字段，不要填空列表充数
+    basis:
+      - "{{basis-entry-id}}"
+
+    # test:<id> 指向实际测试；formal:<task-id> 指向 registry/formal-tasks.json 的任务
+    # 两种形式都拿不出时，问题在性质表述本身：退回把它改写成有界形式，
+    # 不新设“无法验证”的状态把缺证据登记成已处理
+    evidence: "{{test:… 或 formal:…}}"
+
+    # 必填。该证据成立的前提，例如公平性假设、检查配置中关闭的故障路径。
+    # 确无前提时写 []，但不省略字段——省掉它，有前提的检查会被读成无条件保证
+    assumptions:
+      - "{{前提及其失效时的责任方}}"
+
+    # 最后一次对着所引 basis 条目核对的日期。早于条目的 checked 即进入待复核
+    alignment_checked: "{{YYYY-MM-DD}}"

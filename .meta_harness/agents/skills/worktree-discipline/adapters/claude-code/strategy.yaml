@@ -1,0 +1,4 @@
+version: 1
+host: claude-code
+skill: worktree-discipline
+mode: copy

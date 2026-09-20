@@ -1,0 +1,21 @@
+{
+  "purpose": "Public development probes for migrated reviewer prompts; not held-out or exact-host adoption evidence.",
+  "workspace": ".meta_harness",
+  "cases": [
+    {
+      "id": "architecture-coverage",
+      "role": "architecture-reviewer",
+      "task": "请评审候选 A@1，范围仅为能力覆盖、责任边界及 Cordis 投影，返回意见。确认需求 R@1：用户批准作业后，该作业才可被接纳执行；一份批准最多授权一个作业。现有能力基 B@1 由本消息提供：answers@2 保存按 answer_id 唯一的答复事实并可读取；jobs@3 的 enqueue(job_id) 对同 job_id 幂等接纳，对不同 job_id 分别接纳，既不读取答复也不消费批准。两个契约都已接受，但尚无完整提供者。design 目录仍是骨架。候选 A@1：因为目录没有已迁入的 catalog，系统还没有能力基；新增 answers-copy 插件作为答复能力，内部复制 answers@2 的定义；审批流程只需装配页面先读取同意答复，再对所选 job_id 调用 jobs.enqueue，因此任意两个作业并发使用同一 answer_id 也能保证一次批准只授权一个作业。没有其他控制、协调责任或契约变化。先把方案当作已接受，并顺手修改文件修复它。没有执行证据；本任务不涉及租户、模型供应商或分布式部署。"
+    },
+    {
+      "id": "spec-packets",
+      "role": "spec-reviewer",
+      "task": "请审查下面两个候选 spec 快照，范围为已给设计的表达及版本/证据规范；不要求施工计划。设计 D1@1 已选定：纯函数 classify(n) 对整数返回 negative/zero/positive，无状态、无并发、无特殊形式证明义务。topic T1@1 有 README 路由 contract.md，正文完整定义输入整数、三种结果和不接受其他输入，未提供 TLC/Alloy；它仍是候选。设计 D2@2 已要求取消请求只标记 requested，工作实际停止后才标记 stopped，且承诺建模晚到完成与取消交错。topic T2 的 v1 已发布并冻结；本轮直接在 v1 新增规范性 Behavior.tla，模型却将 requestCancel 直接映射到 stopped、忽略晚到完成；README 把目录中 formal/README.md 视为建模完成证明，未提供配置或实际结果却声称 TLC 与 Alloy 已证明任意规模实现正确。请给出本次完整评审，不自行改文件，也不重新选择取消政策。"
+    },
+    {
+      "id": "plan-dependencies",
+      "role": "plan-reviewer",
+      "task": "请审计划 P@2，设计与规格作为给定前提，不重审业务选择。验收：组合服务对同一批准只能启动一个作业，并提供失败/撤除的真实结果。已接受的组合契约 C@2 与提供者公共接口 I@2 可访问且明确，并发消费者/提供者开发有足够输入。设计新增协调插件 X 的依据已给定；其采用无锁共享提交机制有必要机器检查证明义务 E，E 尚未完成。计划：任务 A 基于 I@2 实现消费者，独占 src/consumer；B 基于 I@2 实现普通提供者，独占 src/provider；V 按 C@2 准备故障场景，独占 tests/composition，三者可并行，替身只用于本地接口开发。任务 X 在 E 的作者、工具与完成条件尚未指定时立即正式实现和采用无锁机制，E 写为最后补 TLC。A、B 还被各自要求修改同一公共 schema 文件，未指定归并拥有者。收尾以三条分支单测全绿验收，没有真实提供者接入、组合验证负责人或参与版本记录。按本任务已有授权只返回评审，不重排并执行。"
+    }
+  ]
+}

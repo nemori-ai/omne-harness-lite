@@ -1,0 +1,24 @@
+{
+  "status": "registered-formal-pass-only; J overall not PASS",
+  "head_at_postcheck": "439746d40c4ded673d694fb6588abdef8a07e168",
+  "manifest_sha256": "0644ef257b0c720a14038b816eb7bc1339482d754099699dab0cbd8e639286f7",
+  "formal_results_sha256": "8ea8416c83d3ab9062ff5a7e0984fde14050c6180bc6b20043b2126928fd7c2b",
+  "input_lock_sha256": "d9e7208bdc58605c49242905843d357762bf6584454b85e4a4bba5695e8ca426",
+  "registered_tasks": 31,
+  "passed_exact": 31,
+  "input_resources_postchecked": 51,
+  "drift_or_log_mismatches": [],
+  "temporal_final_completed": {
+    "run-driver-v1-progress": true,
+    "run-driver-v1-progress-human": true,
+    "tools-v1-call-progress": true,
+    "message-stream-v1-cursor-progress": true
+  },
+  "scope_exclusions": [
+    "full 21-coordinate static lock still pending",
+    "DR generic JSONL Schema and writer conformance",
+    "unregistered CC RuntimeRevisionRecovery CanonicalStreams ordering model",
+    "RN-05/provider/client conformance",
+    "unbounded executions"
+  ]
+}

@@ -1,12 +1,12 @@
 # 自动化入口的边界
 
 这里负责将已有工具组织为可复用的仓库级操作；入口和调用方式见 [README](README.md)，
-源码归属见[workspace 规范](../docs/maintenance/workspace.md)。
+源码归属见[workspace 规范](../docs/workspace.md)。
 
 脚本拥有工作目录、输入、调用顺序和退出状态；检查算法归 [tools/](../tools/README.md)
 中的工具包，包或 skill 专属脚本随所属成员维护。CI 配置调用共同入口，避免复制逻辑。
 
-失败状态应传给调用方；检查通过的含义以[验证规范](../docs/maintenance/verification.md)
+失败状态应传给调用方；检查通过的含义以[验证规范](../docs/verification.md)
 为准。新增发布或部署动作时明确实际目标与外部副作用，不能让原有检查入口顺带发布。
 
 调整编排只展开相关入口与工具说明；涉及产品边界或保证变更时再查架构依据。

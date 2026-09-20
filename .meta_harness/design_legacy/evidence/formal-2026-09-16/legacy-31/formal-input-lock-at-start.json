@@ -1,0 +1,213 @@
+{
+  "status": "formal-model-input-lock; not full J static lock",
+  "head_at_start": "43dd923c3746700e96e6519383a1a74231d4e1ba",
+  "manifest_sha256": "0644ef257b0c720a14038b816eb7bc1339482d754099699dab0cbd8e639286f7",
+  "java_sha256": "999c141a6e620c71aa4230ccb62341a89162f37818753ff006d766bf935dcbe1",
+  "tlc_sha256": "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88",
+  "resources": [
+    {
+      "path": "spec/capabilities/budget-accounting/v1/formal/Budget.cfg",
+      "sha256": "b28debcbad30cbfd2e4c322d19e26397cda57c7bfc0f9c40164e90336db10981"
+    },
+    {
+      "path": "spec/capabilities/budget-accounting/v1/formal/Budget.tla",
+      "sha256": "a8fee8d032ac15edc0d81d5a7b79bcdde75328e77a741838645fc91e6169601b"
+    },
+    {
+      "path": "spec/capabilities/durable-records/v1/formal/Recovery.cfg",
+      "sha256": "43c98e230312655c4565482de223e5bd71fb1085810aa1d416dd3ed4a65aea3f"
+    },
+    {
+      "path": "spec/capabilities/durable-records/v1/formal/Recovery.tla",
+      "sha256": "8cc142c221a4c9db97350f21aabbd1be91ae164d0a39a5758c6e2648c2f6591e"
+    },
+    {
+      "path": "spec/capabilities/human-decisions/v1/formal/Decisions.cfg",
+      "sha256": "957e416940d7ea91ec238929e85b5f862cc271c37637892ead3983044b800bc5"
+    },
+    {
+      "path": "spec/capabilities/human-decisions/v1/formal/Decisions.tla",
+      "sha256": "e832652d14fd0a60e19eb8e9ee5630277a70a10549871eaa6d51c4f7134b358a"
+    },
+    {
+      "path": "spec/capabilities/human-decisions/v1/formal/Provisional.cfg",
+      "sha256": "87a900dabe84b7501c905f5f20a30457ae7a0a40b03044952d2d5f3c69bd6fdf"
+    },
+    {
+      "path": "spec/capabilities/human-decisions/v1/formal/Provisional.tla",
+      "sha256": "a56e91a28443762ce65d219f2a367c42c9ea875efc0472b6fb1a6b26dcb135ad"
+    },
+    {
+      "path": "spec/capabilities/live-agent/v1/formal/Runtime.cfg",
+      "sha256": "ad174c0667dd1221fd4f39f465bd5b32999a30c35260848d6219f9c52aafcf2b"
+    },
+    {
+      "path": "spec/capabilities/live-agent/v1/formal/Runtime.tla",
+      "sha256": "62066c9a628ce54ac1d1da76cdba1b7d1eb3bd3d60fae6c3f0f3ba8093499306"
+    },
+    {
+      "path": "spec/capabilities/live-agent/v1/formal/RuntimeMC.tla",
+      "sha256": "4cae1eb0fad9bd82cec99baf670f6989d8030b0092cf2d20009d496d0ddda015"
+    },
+    {
+      "path": "spec/capabilities/live-agent/v1/formal/RuntimeProgress.cfg",
+      "sha256": "9145db74f6faf6ca5ed48656bbc9e0d5db2bd3b3526bc0f46b849df145017350"
+    },
+    {
+      "path": "spec/capabilities/message-stream/v1/formal/AuthorizationNoninterference.cfg",
+      "sha256": "76b31b95df08b80960c22bb0032aa34a3e329f15f87545be25a6c3c2bbdbf4bc"
+    },
+    {
+      "path": "spec/capabilities/message-stream/v1/formal/AuthorizationNoninterference.tla",
+      "sha256": "0b1fa4a68a784180f6d28184c5e646a72dc27d33a4c32ffafd20b1d7b73c0ddd"
+    },
+    {
+      "path": "spec/capabilities/message-stream/v1/formal/ChangesDelivery.cfg",
+      "sha256": "3ed94cad2b7bbb98cebb46be6c49d85ffd9501ed41d89cebeb6c7951fb2f605b"
+    },
+    {
+      "path": "spec/capabilities/message-stream/v1/formal/ChangesDelivery.tla",
+      "sha256": "3dbf8f2abbfab9256a0a6c380e27c348a3f12f02952d4fa2a5674d2fb6878a43"
+    },
+    {
+      "path": "spec/capabilities/message-stream/v1/formal/ChangesDeliveryProgress.cfg",
+      "sha256": "826477038c06064ed9a7d0aa2f4847277b1df6d75190b04a5bf1123f1a9ca45e"
+    },
+    {
+      "path": "spec/capabilities/message-stream/v1/formal/ChangesHiddenOnlyProgress.cfg",
+      "sha256": "2741ff5d825ae6116edd7d654f26e89d8ed8f0f8a42b28759d8d5d532d1ab3ae"
+    },
+    {
+      "path": "spec/capabilities/message-stream/v1/formal/ChangesStateOnlyProgress.cfg",
+      "sha256": "37566c9ebe083119a0b3db38e42409ab137ec3c4f1d10223e754ad563510a927"
+    },
+    {
+      "path": "spec/capabilities/message-stream/v1/formal/Cursor.cfg",
+      "sha256": "cc227b53b04b9ca7c8c4433c29e8d138c5ce09cd451c43ab63d29ed28d980641"
+    },
+    {
+      "path": "spec/capabilities/message-stream/v1/formal/Cursor.tla",
+      "sha256": "caefdab25daca1c7dd440116b9b6b3a9a32243c532c79d6d14abae54585bbd1b"
+    },
+    {
+      "path": "spec/capabilities/message-stream/v1/formal/CursorMC.tla",
+      "sha256": "e8dd7da6fcdd415451f95b6bf88aede305f368e82711eaa8912eb37c45937c2b"
+    },
+    {
+      "path": "spec/capabilities/message-stream/v1/formal/CursorProgress.cfg",
+      "sha256": "f46afdb51e1b811a807d205291e0dce1b27b99eb789bb1e39359b6dc3889f116"
+    },
+    {
+      "path": "spec/capabilities/message-stream/v1/formal/SnapshotEmptyProgress.cfg",
+      "sha256": "57135a55d6307d849fbdbef58816e664a181653238ca2cd362437f6d49883c85"
+    },
+    {
+      "path": "spec/capabilities/message-stream/v1/formal/SnapshotHiddenOnlyProgress.cfg",
+      "sha256": "9465429ef623d59c8951012c567642676899f178c72e3cae800a691edb181be7"
+    },
+    {
+      "path": "spec/capabilities/message-stream/v1/formal/SnapshotReducer.cfg",
+      "sha256": "90378ee631513e7bb61a65200e97ec8c13a5abb67e1996c12af511ccf88de884"
+    },
+    {
+      "path": "spec/capabilities/message-stream/v1/formal/SnapshotReducer.tla",
+      "sha256": "e399b1db6abb9489770b994f81f1bc90188a21390c89b0a24f2fccf712ae5820"
+    },
+    {
+      "path": "spec/capabilities/message-stream/v1/formal/SnapshotReducerProgress.cfg",
+      "sha256": "7b9bf361f7a6e695d0792180c304e8d0534781a4b8d28bff6f8a741e3fb13f75"
+    },
+    {
+      "path": "spec/capabilities/message-stream/v1/formal/SnapshotStateOnlyProgress.cfg",
+      "sha256": "bc62d4e0cae53c59ae747d81fb14852856458e011c72f51029b0ae45a3a981c2"
+    },
+    {
+      "path": "spec/capabilities/model-execution/v1/formal/ModelSelection.cfg",
+      "sha256": "ef27652ac458d94f349598ce0f6a38bec6251579f2f9d4dcf27d00b2f0722b8f"
+    },
+    {
+      "path": "spec/capabilities/model-execution/v1/formal/ModelSelection.tla",
+      "sha256": "9145647826db498e927a3c5c795e910ff8fd2125198ed2b2f961c47178e6f902"
+    },
+    {
+      "path": "spec/capabilities/run-driver/v1/formal/RunDriver.cfg",
+      "sha256": "b538b829d1ea76650fbaf41d88dec0fbc8d6e6c1e0d5770ba5b40626d93b92b9"
+    },
+    {
+      "path": "spec/capabilities/run-driver/v1/formal/RunDriver.tla",
+      "sha256": "6dfe44667591028fa69b124383cb59558bb2ce5003263c4be3cab37a3bdc8934"
+    },
+    {
+      "path": "spec/capabilities/run-driver/v1/formal/RunDriverMC.tla",
+      "sha256": "a22be322f16b9e72b24b82a77cfe37ec20e882db6976daf05a5d8136df946a5e"
+    },
+    {
+      "path": "spec/capabilities/run-driver/v1/formal/RunDriverOps.cfg",
+      "sha256": "d27d9a9bdaeb7ffcb49eb79e24d6ea2ef1b1ab253d1a2ed16b462110b0761c4b"
+    },
+    {
+      "path": "spec/capabilities/run-driver/v1/formal/RunDriverProgress.cfg",
+      "sha256": "68dd84013aca6fcd863fa03154773d8cb479c032ed08c5e6403b940ec137b24e"
+    },
+    {
+      "path": "spec/capabilities/run-driver/v1/formal/RunDriverProgressHuman.cfg",
+      "sha256": "e1e58efd4ed6a570ef0b61c80dadbd908a2e288b4df15dba67c34fa54f96b7fa"
+    },
+    {
+      "path": "spec/capabilities/run-driver/v1/formal/RunDriverSched.cfg",
+      "sha256": "e7ac23c80b7d927c8b7800243b50edc719bc691648729952d23d81474c53166d"
+    },
+    {
+      "path": "spec/capabilities/run-driver/v1/formal/RunDriverSchedProgress.cfg",
+      "sha256": "b9aaaabe9b48eda1c79f6e267605aa0eca3e43457e6d5dc627c6e7fe6daa0fe4"
+    },
+    {
+      "path": "spec/capabilities/tools/v1/formal/ToolCall.cfg",
+      "sha256": "3d2c419e9ca9ca0831fffe0a8985b23ad4ea700c2957d39fc2cb08ca369f60cc"
+    },
+    {
+      "path": "spec/capabilities/tools/v1/formal/ToolCall.tla",
+      "sha256": "d4533fc878d287a8583b0cddaa77427b32d54ccddfde23bd1d0f118cd0d9623b"
+    },
+    {
+      "path": "spec/capabilities/tools/v1/formal/ToolCallMC.tla",
+      "sha256": "bf2e7ed783b04311d6b21a2f5ffbb0179941fb4539aa9d3b6857be8ea9b0c851"
+    },
+    {
+      "path": "spec/capabilities/tools/v1/formal/ToolCallProgress.cfg",
+      "sha256": "64d6fff2c51f9187077f6febb0772a917fdc8d48b83ede5b28f22aca6b333961"
+    },
+    {
+      "path": "spec/compositions/agent-session-binding/v1/formal/Binding.cfg",
+      "sha256": "00bb09d6bc2d05465bbaa5271ba08cfc500e8ee123d5c5d0eea0c0f7181573d2"
+    },
+    {
+      "path": "spec/compositions/agent-session-binding/v1/formal/Binding.tla",
+      "sha256": "6afc490b3537d3c95b3849a5edc18c47a491b6c8e568bb87ddd7021444071d8e"
+    },
+    {
+      "path": "spec/compositions/core-work-coordination/v1/formal/Admission.cfg",
+      "sha256": "e591ed388795178501df2b31602682ababa88f8274cdc528eb69b8dee07a5ea6"
+    },
+    {
+      "path": "spec/compositions/core-work-coordination/v1/formal/Admission.tla",
+      "sha256": "42644743d84c10bb3e7a8650e92f100df1a65564e03590f178831cc99dd6f339"
+    },
+    {
+      "path": "spec/compositions/session-run-agent-lifecycles/v1/formal/Lifecycles.cfg",
+      "sha256": "cd34600836bc38465c1b9b5ec8158d3fbd8f89a3d5f23134b63ada0e1ffec755"
+    },
+    {
+      "path": "spec/compositions/session-run-agent-lifecycles/v1/formal/Lifecycles.tla",
+      "sha256": "a970da81ed7076f7aa67eb48002f9bc8aa1d22f7146392cfb3ddeae9c6935f9e"
+    },
+    {
+      "path": "spec/compositions/session-run-agent-lifecycles/v1/formal/LifecyclesMC.tla",
+      "sha256": "686c32566b09449b492b32888806becca7468fcd7e6bf0065ac494bbb271bb94"
+    },
+    {
+      "path": "spec/compositions/session-run-agent-lifecycles/v1/formal/LifecyclesProgress.cfg",
+      "sha256": "5f5df20396644e48938c85ad2b548d4c34bcdbce68fe1a3aad72de6ebd576642"
+    }
+  ]
+}

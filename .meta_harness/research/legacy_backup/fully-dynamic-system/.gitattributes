@@ -1,0 +1,3 @@
+# Preserve captured evidence bytes and avoid treating the bundle as text.
+history.log whitespace=-blank-at-eol
+omne-next-history.bundle binary

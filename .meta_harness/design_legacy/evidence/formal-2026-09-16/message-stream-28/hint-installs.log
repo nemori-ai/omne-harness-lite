@@ -1,0 +1,447 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 118 and seed 886310487384613780 with 1 worker on 8 cores with 910MB heap and 64MB offheap memory [pid: 238521] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness-e-formal/.meta_harness/design/spec/capabilities/message-stream/v1/formal/ChangesDelivery.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/TLC.tla
+Parsing file /tmp/Sequences.tla
+Parsing file /tmp/FiniteSets.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module ChangesDelivery
+Starting... (2026-09-16 08:07:13)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-16 08:07:13.
+Error: Invariant InstalledRequiresAtomicAuthorizedBatch is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ coveredThrough = 0
+/\ semanticCloses = 0
+/\ sentHint = FALSE
+/\ projectionCompleteTo = 0
+/\ bodyAvailable = TRUE
+/\ resolvedTo = 0
+/\ hintSeen = FALSE
+/\ requestVisibility = 0
+/\ clientCursor = 0
+/\ bodyFailureUsed = FALSE
+/\ stateUpdatesInstalled = 0
+/\ bodyInstalled = FALSE
+/\ requestTo = 0
+/\ requestLatest = FALSE
+/\ requestAfter = 0
+/\ visibilityVersion = 0
+/\ clientCrash = FALSE
+/\ historyInstalled = 0
+/\ commitPosition = 0
+/\ closingSeen = FALSE
+/\ requestPhase = "idle"
+/\ hiddenCoverageInstalled = FALSE
+/\ invalidVisibilityInstall = FALSE
+/\ clientVisibility = 0
+
+State 2: <CommitNext line 47, col 3 to line 53, col 112 of module ChangesDelivery>
+/\ coveredThrough = 0
+/\ semanticCloses = 0
+/\ sentHint = FALSE
+/\ projectionCompleteTo = 0
+/\ bodyAvailable = TRUE
+/\ resolvedTo = 0
+/\ hintSeen = FALSE
+/\ requestVisibility = 0
+/\ clientCursor = 0
+/\ bodyFailureUsed = FALSE
+/\ stateUpdatesInstalled = 0
+/\ bodyInstalled = FALSE
+/\ requestTo = 0
+/\ requestLatest = FALSE
+/\ requestAfter = 0
+/\ visibilityVersion = 0
+/\ clientCrash = FALSE
+/\ historyInstalled = 0
+/\ commitPosition = 1
+/\ closingSeen = FALSE
+/\ requestPhase = "idle"
+/\ hiddenCoverageInstalled = FALSE
+/\ invalidVisibilityInstall = FALSE
+/\ clientVisibility = 0
+
+State 3: <CommitNext line 47, col 3 to line 53, col 112 of module ChangesDelivery>
+/\ coveredThrough = 0
+/\ semanticCloses = 0
+/\ sentHint = FALSE
+/\ projectionCompleteTo = 0
+/\ bodyAvailable = TRUE
+/\ resolvedTo = 0
+/\ hintSeen = FALSE
+/\ requestVisibility = 0
+/\ clientCursor = 0
+/\ bodyFailureUsed = FALSE
+/\ stateUpdatesInstalled = 0
+/\ bodyInstalled = FALSE
+/\ requestTo = 0
+/\ requestLatest = FALSE
+/\ requestAfter = 0
+/\ visibilityVersion = 0
+/\ clientCrash = FALSE
+/\ historyInstalled = 0
+/\ commitPosition = 2
+/\ closingSeen = FALSE
+/\ requestPhase = "idle"
+/\ hiddenCoverageInstalled = FALSE
+/\ invalidVisibilityInstall = FALSE
+/\ clientVisibility = 0
+
+State 4: <CommitNext line 47, col 3 to line 53, col 112 of module ChangesDelivery>
+/\ coveredThrough = 0
+/\ semanticCloses = 0
+/\ sentHint = FALSE
+/\ projectionCompleteTo = 0
+/\ bodyAvailable = TRUE
+/\ resolvedTo = 0
+/\ hintSeen = FALSE
+/\ requestVisibility = 0
+/\ clientCursor = 0
+/\ bodyFailureUsed = FALSE
+/\ stateUpdatesInstalled = 0
+/\ bodyInstalled = FALSE
+/\ requestTo = 0
+/\ requestLatest = FALSE
+/\ requestAfter = 0
+/\ visibilityVersion = 0
+/\ clientCrash = FALSE
+/\ historyInstalled = 0
+/\ commitPosition = 3
+/\ closingSeen = FALSE
+/\ requestPhase = "idle"
+/\ hiddenCoverageInstalled = FALSE
+/\ invalidVisibilityInstall = FALSE
+/\ clientVisibility = 0
+
+State 5: <ProjectNext line 56, col 3 to line 62, col 137 of module ChangesDelivery>
+/\ coveredThrough = 0
+/\ semanticCloses = 0
+/\ sentHint = FALSE
+/\ projectionCompleteTo = 1
+/\ bodyAvailable = TRUE
+/\ resolvedTo = 0
+/\ hintSeen = FALSE
+/\ requestVisibility = 0
+/\ clientCursor = 0
+/\ bodyFailureUsed = FALSE
+/\ stateUpdatesInstalled = 0
+/\ bodyInstalled = FALSE
+/\ requestTo = 0
+/\ requestLatest = FALSE
+/\ requestAfter = 0
+/\ visibilityVersion = 0
+/\ clientCrash = FALSE
+/\ historyInstalled = 0
+/\ commitPosition = 3
+/\ closingSeen = FALSE
+/\ requestPhase = "idle"
+/\ hiddenCoverageInstalled = FALSE
+/\ invalidVisibilityInstall = FALSE
+/\ clientVisibility = 0
+
+State 6: <ProjectNext line 56, col 3 to line 62, col 137 of module ChangesDelivery>
+/\ coveredThrough = 0
+/\ semanticCloses = 0
+/\ sentHint = FALSE
+/\ projectionCompleteTo = 2
+/\ bodyAvailable = TRUE
+/\ resolvedTo = 0
+/\ hintSeen = FALSE
+/\ requestVisibility = 0
+/\ clientCursor = 0
+/\ bodyFailureUsed = FALSE
+/\ stateUpdatesInstalled = 0
+/\ bodyInstalled = FALSE
+/\ requestTo = 0
+/\ requestLatest = FALSE
+/\ requestAfter = 0
+/\ visibilityVersion = 0
+/\ clientCrash = FALSE
+/\ historyInstalled = 0
+/\ commitPosition = 3
+/\ closingSeen = FALSE
+/\ requestPhase = "idle"
+/\ hiddenCoverageInstalled = FALSE
+/\ invalidVisibilityInstall = FALSE
+/\ clientVisibility = 0
+
+State 7: <ProjectNext line 56, col 3 to line 62, col 137 of module ChangesDelivery>
+/\ coveredThrough = 0
+/\ semanticCloses = 0
+/\ sentHint = FALSE
+/\ projectionCompleteTo = 3
+/\ bodyAvailable = TRUE
+/\ resolvedTo = 0
+/\ hintSeen = FALSE
+/\ requestVisibility = 0
+/\ clientCursor = 0
+/\ bodyFailureUsed = FALSE
+/\ stateUpdatesInstalled = 0
+/\ bodyInstalled = FALSE
+/\ requestTo = 0
+/\ requestLatest = FALSE
+/\ requestAfter = 0
+/\ visibilityVersion = 0
+/\ clientCrash = FALSE
+/\ historyInstalled = 0
+/\ commitPosition = 3
+/\ closingSeen = FALSE
+/\ requestPhase = "idle"
+/\ hiddenCoverageInstalled = FALSE
+/\ invalidVisibilityInstall = FALSE
+/\ clientVisibility = 0
+
+State 8: <SendLastFactHint line 65, col 3 to line 71, col 112 of module ChangesDelivery>
+/\ coveredThrough = 0
+/\ semanticCloses = 0
+/\ sentHint = TRUE
+/\ projectionCompleteTo = 3
+/\ bodyAvailable = TRUE
+/\ resolvedTo = 0
+/\ hintSeen = FALSE
+/\ requestVisibility = 0
+/\ clientCursor = 0
+/\ bodyFailureUsed = FALSE
+/\ stateUpdatesInstalled = 0
+/\ bodyInstalled = FALSE
+/\ requestTo = 0
+/\ requestLatest = FALSE
+/\ requestAfter = 0
+/\ visibilityVersion = 0
+/\ clientCrash = FALSE
+/\ historyInstalled = 0
+/\ commitPosition = 3
+/\ closingSeen = FALSE
+/\ requestPhase = "idle"
+/\ hiddenCoverageInstalled = FALSE
+/\ invalidVisibilityInstall = FALSE
+/\ clientVisibility = 0
+
+State 9: <ReceiveLastFactHint line 74, col 3 to line 80, col 137 of module ChangesDelivery>
+/\ coveredThrough = 0
+/\ semanticCloses = 0
+/\ sentHint = TRUE
+/\ projectionCompleteTo = 3
+/\ bodyAvailable = TRUE
+/\ resolvedTo = 0
+/\ hintSeen = TRUE
+/\ requestVisibility = 0
+/\ clientCursor = 3
+/\ bodyFailureUsed = FALSE
+/\ stateUpdatesInstalled = 0
+/\ bodyInstalled = FALSE
+/\ requestTo = 0
+/\ requestLatest = FALSE
+/\ requestAfter = 0
+/\ visibilityVersion = 0
+/\ clientCrash = FALSE
+/\ historyInstalled = 0
+/\ commitPosition = 3
+/\ closingSeen = FALSE
+/\ requestPhase = "idle"
+/\ hiddenCoverageInstalled = FALSE
+/\ invalidVisibilityInstall = FALSE
+/\ clientVisibility = 0
+
+The coverage statistics at 2026-09-16 08:07:13
+<Init line 33, col 1 to line 33, col 4 of module ChangesDelivery>: 2:2
+  line 34, col 3 to line 44, col 60 of module ChangesDelivery: 2
+<CommitNext line 46, col 1 to line 46, col 10 of module ChangesDelivery>: 3:259
+  line 47, col 6 to line 47, col 28 of module ChangesDelivery: 259
+  |line 47, col 6 to line 47, col 19 of module ChangesDelivery: 320
+  |line 47, col 23 to line 47, col 28 of module ChangesDelivery: 320
+  line 47, col 33 to line 47, col 68 of module ChangesDelivery: 259
+  line 48, col 6 to line 53, col 112 of module ChangesDelivery: 259
+<ProjectNext line 55, col 1 to line 55, col 11 of module ChangesDelivery>: 36:176
+  line 56, col 6 to line 56, col 42 of module ChangesDelivery: 176
+  |line 56, col 6 to line 56, col 25 of module ChangesDelivery: 317
+  |line 56, col 29 to line 56, col 42 of module ChangesDelivery: 317
+  line 57, col 6 to line 57, col 53 of module ChangesDelivery: 176
+  line 58, col 6 to line 62, col 137 of module ChangesDelivery: 176
+<SendLastFactHint line 64, col 1 to line 64, col 16 of module ChangesDelivery>: 1:2
+  line 65, col 6 to line 65, col 29 of module ChangesDelivery: 316
+  |line 65, col 6 to line 65, col 25 of module ChangesDelivery: 314
+  line 65, col 34 to line 65, col 42 of module ChangesDelivery: 6
+  |line 65, col 35 to line 65, col 42 of module ChangesDelivery: 4
+  line 65, col 47 to line 65, col 62 of module ChangesDelivery: 2
+  line 66, col 6 to line 71, col 112 of module ChangesDelivery: 2
+<ReceiveLastFactHint line 73, col 1 to line 73, col 19 of module ChangesDelivery>: 1:2
+  line 74, col 6 to line 74, col 13 of module ChangesDelivery: 1
+  line 74, col 18 to line 74, col 26 of module ChangesDelivery: 3
+  |line 74, col 19 to line 74, col 26 of module ChangesDelivery: 2
+  line 74, col 31 to line 74, col 46 of module ChangesDelivery: 1
+  |line 74, col 43 to line 74, col 46 of module ChangesDelivery: 2
+  line 75, col 6 to line 75, col 75 of module ChangesDelivery: 1
+  |line 75, col 22 to line 75, col 75 of module ChangesDelivery: 2
+  line 76, col 6 to line 80, col 137 of module ChangesDelivery: 1
+<PeriodicReconcileLatest line 82, col 1 to line 82, col 23 of module ChangesDelivery>: 35:68
+  line 83, col 6 to line 83, col 26 of module ChangesDelivery: 379
+  |line 83, col 6 to line 83, col 17 of module ChangesDelivery: 311
+  line 83, col 31 to line 83, col 46 of module ChangesDelivery: 68
+  |line 83, col 31 to line 83, col 42 of module ChangesDelivery: 127
+  line 84, col 6 to line 84, col 41 of module ChangesDelivery: 195
+  |line 84, col 6 to line 84, col 21 of module ChangesDelivery: 127
+  |line 84, col 25 to line 84, col 41 of module ChangesDelivery: 127
+  line 85, col 6 to line 85, col 64 of module ChangesDelivery: 68
+  line 86, col 6 to line 86, col 63 of module ChangesDelivery: 68
+  line 87, col 6 to line 87, col 43 of module ChangesDelivery: 68
+  line 88, col 6 to line 92, col 112 of module ChangesDelivery: 68
+<RequestConcreteHint line 94, col 1 to line 94, col 19 of module ChangesDelivery>: 0:0
+  line 95, col 6 to line 95, col 58 of module ChangesDelivery: 311
+  line 97, col 6 to line 97, col 32 of module ChangesDelivery: 0
+  line 97, col 37 to line 97, col 64 of module ChangesDelivery: 0
+  line 98, col 6 to line 98, col 27 of module ChangesDelivery: 0
+  line 98, col 32 to line 98, col 45 of module ChangesDelivery: 0
+  line 99, col 6 to line 99, col 43 of module ChangesDelivery: 0
+  line 100, col 6 to line 104, col 112 of module ChangesDelivery: 0
+<RequestConcretePrefix line 106, col 1 to line 106, col 21 of module ChangesDelivery>: 33:64
+  line 107, col 6 to line 107, col 26 of module ChangesDelivery: 375
+  |line 107, col 6 to line 107, col 17 of module ChangesDelivery: 311
+  line 107, col 31 to line 107, col 46 of module ChangesDelivery: 64
+  |line 107, col 31 to line 107, col 42 of module ChangesDelivery: 127
+  line 108, col 6 to line 108, col 41 of module ChangesDelivery: 187
+  |line 108, col 6 to line 108, col 21 of module ChangesDelivery: 123
+  |line 108, col 25 to line 108, col 41 of module ChangesDelivery: 123
+  line 109, col 6 to line 109, col 64 of module ChangesDelivery: 64
+  line 110, col 6 to line 110, col 45 of module ChangesDelivery: 64
+  line 111, col 6 to line 111, col 43 of module ChangesDelivery: 64
+  line 112, col 6 to line 116, col 112 of module ChangesDelivery: 64
+<ResolveBoundedChanges line 118, col 1 to line 118, col 21 of module ChangesDelivery>: 46:66
+  line 119, col 6 to line 119, col 31 of module ChangesDelivery: 377
+  |line 119, col 6 to line 119, col 17 of module ChangesDelivery: 311
+  line 120, col 6 to line 120, col 42 of module ChangesDelivery: 175
+  |line 120, col 6 to line 120, col 22 of module ChangesDelivery: 109
+  |line 120, col 26 to line 120, col 42 of module ChangesDelivery: 109
+  line 121, col 6 to line 121, col 41 of module ChangesDelivery: 66
+  line 122, col 6 to line 122, col 55 of module ChangesDelivery: 66
+  line 123, col 6 to line 127, col 54 of module ChangesDelivery: 66
+  |line 124, col 8 to line 127, col 54 of module ChangesDelivery: 66
+  ||line 124, col 11 to line 124, col 62 of module ChangesDelivery: 66
+  ||line 126, col 15 to line 127, col 54 of module ChangesDelivery: 66
+  |||line 126, col 18 to line 126, col 50 of module ChangesDelivery: 66
+  |||line 127, col 20 to line 127, col 28 of module ChangesDelivery: 52
+  |||line 127, col 35 to line 127, col 54 of module ChangesDelivery: 14
+  line 128, col 6 to line 132, col 137 of module ChangesDelivery: 66
+<LoseBodyRead line 134, col 1 to line 134, col 12 of module ChangesDelivery>: 0:0
+  line 135, col 6 to line 135, col 27 of module ChangesDelivery: 311
+  line 135, col 32 to line 135, col 47 of module ChangesDelivery: 75
+  line 137, col 6 to line 137, col 27 of module ChangesDelivery: 0
+  line 137, col 32 to line 137, col 54 of module ChangesDelivery: 0
+  line 138, col 6 to line 138, col 27 of module ChangesDelivery: 0
+  line 139, col 6 to line 144, col 80 of module ChangesDelivery: 0
+<RecoverBodyRead line 146, col 1 to line 146, col 15 of module ChangesDelivery>: 0:0
+  line 147, col 6 to line 147, col 19 of module ChangesDelivery: 311
+  line 147, col 24 to line 147, col 44 of module ChangesDelivery: 0
+  line 148, col 6 to line 153, col 97 of module ChangesDelivery: 0
+<InstallStateOnlyBatch line 155, col 1 to line 155, col 21 of module ChangesDelivery>: 13:13
+  line 156, col 6 to line 156, col 27 of module ChangesDelivery: 324
+  |line 156, col 6 to line 156, col 17 of module ChangesDelivery: 311
+  line 156, col 32 to line 156, col 68 of module ChangesDelivery: 88
+  |line 156, col 32 to line 156, col 48 of module ChangesDelivery: 75
+  |line 156, col 52 to line 156, col 68 of module ChangesDelivery: 75
+  line 157, col 6 to line 157, col 41 of module ChangesDelivery: 60
+  |line 157, col 6 to line 157, col 21 of module ChangesDelivery: 47
+  |line 157, col 25 to line 157, col 41 of module ChangesDelivery: 47
+  line 158, col 6 to line 158, col 21 of module ChangesDelivery: 60
+  |line 158, col 6 to line 158, col 17 of module ChangesDelivery: 47
+  line 158, col 26 to line 158, col 44 of module ChangesDelivery: 13
+  |line 158, col 26 to line 158, col 39 of module ChangesDelivery: 41
+  line 159, col 6 to line 159, col 47 of module ChangesDelivery: 13
+  line 160, col 6 to line 161, col 20 of module ChangesDelivery: 13
+  line 162, col 6 to line 162, col 50 of module ChangesDelivery: 13
+  line 163, col 6 to line 167, col 96 of module ChangesDelivery: 13
+<AdvanceAcrossEmptyAuthorizedProjection line 169, col 1 to line 169, col 38 of module ChangesDelivery>: 0:0
+  line 170, col 6 to line 170, col 21 of module ChangesDelivery: 311
+  line 171, col 7 to line 171, col 39 of module ChangesDelivery: 12
+  line 172, col 9 to line 172, col 45 of module ChangesDelivery: 12
+  line 173, col 12 to line 173, col 47 of module ChangesDelivery: 10
+  line 174, col 8 to line 174, col 29 of module ChangesDelivery: 10
+  line 174, col 34 to line 174, col 52 of module ChangesDelivery: 6
+  line 175, col 11 to line 175, col 43 of module ChangesDelivery: 10
+  line 176, col 6 to line 176, col 22 of module ChangesDelivery: 0
+  line 176, col 27 to line 176, col 47 of module ChangesDelivery: 0
+  line 177, col 6 to line 177, col 31 of module ChangesDelivery: 0
+  line 178, col 6 to line 178, col 79 of module ChangesDelivery: 0
+  line 179, col 6 to line 181, col 48 of module ChangesDelivery: 0
+  line 182, col 6 to line 186, col 38 of module ChangesDelivery: 0
+<InstallBodyBatch line 188, col 1 to line 188, col 16 of module ChangesDelivery>: 0:0
+  line 189, col 6 to line 189, col 27 of module ChangesDelivery: 311
+  line 189, col 32 to line 189, col 68 of module ChangesDelivery: 75
+  line 190, col 6 to line 190, col 41 of module ChangesDelivery: 47
+  line 191, col 6 to line 191, col 44 of module ChangesDelivery: 47
+  line 193, col 6 to line 193, col 22 of module ChangesDelivery: 0
+  line 193, col 27 to line 193, col 47 of module ChangesDelivery: 0
+  line 194, col 6 to line 194, col 31 of module ChangesDelivery: 0
+  line 195, col 6 to line 195, col 35 of module ChangesDelivery: 0
+  line 195, col 40 to line 195, col 58 of module ChangesDelivery: 0
+  line 196, col 6 to line 199, col 134 of module ChangesDelivery: 0
+<FinishResponse line 201, col 1 to line 201, col 14 of module ChangesDelivery>: 20:56
+  line 202, col 6 to line 202, col 27 of module ChangesDelivery: 367
+  |line 202, col 6 to line 202, col 17 of module ChangesDelivery: 311
+  line 202, col 32 to line 202, col 61 of module ChangesDelivery: 56
+  |line 202, col 32 to line 202, col 43 of module ChangesDelivery: 75
+  |line 202, col 48 to line 202, col 61 of module ChangesDelivery: 75
+  line 203, col 6 to line 203, col 27 of module ChangesDelivery: 56
+  line 204, col 6 to line 209, col 112 of module ChangesDelivery: 56
+<CrashAndReconnect line 211, col 1 to line 211, col 17 of module ChangesDelivery>: 61:160
+  line 212, col 6 to line 212, col 17 of module ChangesDelivery: 471
+  |line 212, col 7 to line 212, col 17 of module ChangesDelivery: 311
+  line 212, col 22 to line 212, col 40 of module ChangesDelivery: 160
+  line 213, col 6 to line 213, col 48 of module ChangesDelivery: 160
+  line 214, col 6 to line 218, col 124 of module ChangesDelivery: 160
+<RotateVisibility line 220, col 1 to line 220, col 16 of module ChangesDelivery>: 175:181
+  line 221, col 6 to line 221, col 26 of module ChangesDelivery: 492
+  |line 221, col 6 to line 221, col 22 of module ChangesDelivery: 311
+  line 221, col 31 to line 221, col 52 of module ChangesDelivery: 181
+  line 222, col 6 to line 227, col 63 of module ChangesDelivery: 181
+<DiscardStaleResponse line 229, col 1 to line 229, col 20 of module ChangesDelivery>: 27:142
+  line 230, col 6 to line 230, col 44 of module ChangesDelivery: 382
+  |line 230, col 6 to line 230, col 17 of module ChangesDelivery: 311
+  |line 230, col 23 to line 230, col 44 of module ChangesDelivery: 311
+  line 231, col 7 to line 231, col 43 of module ChangesDelivery: 255
+  |line 231, col 7 to line 231, col 23 of module ChangesDelivery: 184
+  |line 231, col 27 to line 231, col 43 of module ChangesDelivery: 184
+  line 232, col 8 to line 232, col 43 of module ChangesDelivery: 255
+  |line 232, col 8 to line 232, col 23 of module ChangesDelivery: 184
+  |line 232, col 27 to line 232, col 43 of module ChangesDelivery: 184
+  line 233, col 6 to line 233, col 27 of module ChangesDelivery: 142
+  line 234, col 6 to line 239, col 63 of module ChangesDelivery: 142
+<InstalledRequiresAtomicAuthorizedBatch line 270, col 1 to line 270, col 38 of module ChangesDelivery>
+  line 271, col 3 to line 271, col 75 of module ChangesDelivery: 452
+  |line 271, col 3 to line 271, col 34 of module ChangesDelivery: 452
+  |line 271, col 39 to line 271, col 75 of module ChangesDelivery: 451
+End of statistics.
+1182 states generated, 452 distinct states found, 139 states left on queue.
+The depth of the complete state graph search is 9.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 6 and the 95th percentile is 4).
+Finished in 00s at (2026-09-16 08:07:13)
+Command exited with non-zero status 12
+	Command being timed: "/data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness/tmp/toolchains/formal/jre/bin/java -Xmx1g -XX:+UseParallelGC -cp /data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness/tmp/toolchains/formal/downloads/tla2tools-v1.7.4.jar tlc2.TLC -workers 1 -coverage 1 -metadir /data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness-e-formal/tmp/docs-spec-v1/e/formal-runs/astra-client/tlc-state/hint-installs-20260916T080712892775Z -config /data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness-e-formal/.meta_harness/design/spec/capabilities/message-stream/v1/formal/HintInstallsCursorMutation.cfg /data/qiwei/repos/omne-harness-lite/.worktrees/meta-harness-e-formal/.meta_harness/design/spec/capabilities/message-stream/v1/formal/ChangesDelivery.tla"
+	User time (seconds): 2.21
+	System time (seconds): 0.13
+	Percent of CPU this job got: 207%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:01.13
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 116572
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 8
+	Minor (reclaiming a frame) page faults: 26433
+	Voluntary context switches: 3664
+	Involuntary context switches: 252
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 264
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 12

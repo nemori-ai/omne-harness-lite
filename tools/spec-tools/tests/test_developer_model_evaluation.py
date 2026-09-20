@@ -7,7 +7,7 @@ import unittest
 
 from omne_harness_lite_spec_tools.evaluate_developer_model import evaluate, sha256
 
-DEFAULT_SUITE = Path(__file__).resolve().parents[3] / "docs/evaluation/suites/developer-model-v1.json"
+DEFAULT_SUITE = Path(__file__).resolve().parents[3] / ".meta_harness/agents/evaluation/developer-model/suites/developer-model-v1.json"
 
 
 def artifact(directory: Path, name: str, content: str) -> dict:

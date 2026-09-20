@@ -1,0 +1,83 @@
+{
+  "format": 1,
+  "baseline_id": "omne-harness-lite-design-2026-09-15",
+  "contracts": [
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "capability.account-identity",
+        "version": 1
+      },
+      "family": "capabilities",
+      "topic": "account-identity",
+      "status": "candidate",
+      "contract_path": "spec/capabilities/account-identity/v1/contract.md",
+      "resources": [
+        "spec/capabilities/account-identity/v1/contract.md"
+      ],
+      "acceptance": null,
+      "dependencies": []
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "capability.tenant-governance",
+        "version": 1
+      },
+      "family": "capabilities",
+      "topic": "tenant-governance",
+      "status": "candidate",
+      "contract_path": "spec/capabilities/tenant-governance/v1/contract.md",
+      "resources": [
+        "spec/capabilities/tenant-governance/v1/contract.md"
+      ],
+      "acceptance": null,
+      "dependencies": []
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "composition.account-registration",
+        "version": 1
+      },
+      "family": "compositions",
+      "topic": "account-registration",
+      "status": "candidate",
+      "contract_path": "spec/compositions/account-registration/v1/contract.md",
+      "resources": [
+        "spec/compositions/account-registration/v1/contract.md",
+        "spec/compositions/account-registration/v1/formal/Registration.tla",
+        "spec/compositions/account-registration/v1/formal/basic.cfg",
+        "spec/compositions/account-registration/v1/formal/crash.cfg",
+        "spec/compositions/account-registration/v1/formal/progress.cfg"
+      ],
+      "acceptance": null,
+      "dependencies": [
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "capability.account-identity",
+            "version": 1
+          },
+          "clauses": [
+            "S-3",
+            "S-4",
+            "S-9"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "capability.tenant-governance",
+            "version": 1
+          },
+          "clauses": [
+            "S-1"
+          ],
+          "rebase_relation": null
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+uv run --locked omne-docs-check --baseline "55ac071ec2c41f90ec836b21cf43db32dc4abb5e"
+ERROR: apps/AGENTS.md: broken link: ../.agents/skills/architecture-design/SKILL.md
+ERROR: packages/AGENTS.md: broken link: ../.agents/skills/architecture-design/SKILL.md
+NOTE: structural evidence checks do not establish the sufficiency of causal reasoning.
+make: *** [Makefile:11: docs-check] Error 1
