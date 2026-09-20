@@ -42,16 +42,29 @@
 - **不构成对那几个工作树的完整抢救。**这次只按「本目录有没有同内容的模型」筛过一遍，
   **契约正文、提案讨论、评审记录都没有看**。要那些东西得回到对应分支自己找。
 
-## 来源分支怎么找回
+## 来源分支已退役，SHA 记在这里
 
-四个工作树的分支都还在（**只退役工作目录，分支与提交未删**）：
+2026-09-20 取回上述四份之后，十个 `meta-harness-*` 工作树与**它们的分支一并删除**。
+`reflog` 会过期，所以把退役时的 HEAD 记在这里——**只要对象没被 gc 掉，凭 SHA 仍可取回**：
+
+| 分支 | 退役时 HEAD | 当时领先 main |
+|---|---|---|
+| `feat/meta-harness-account-tenant-delta` | `703ee9acf4efa34772fd89a472f8098c4b9464b1` | 68 |
+| `feat/meta-harness-account-tenant-unified` | `d7fc10dcce587f692e0722a206339923d85006e0` | 76 |
+| `feat/meta-harness-account-unified-jsonl` | `bdb6e02d4403fb7b3a03fb2842dd2639bdc3975b` | 77 |
+| `feat/meta-harness-e` | `bfd3d22fc50e0f35d2c7a45fe349f7490d041ab0` | 37 |
+| `feat/meta-harness-e-formal` | `e1d8aa8e6ea93c67414a180553ab2389da0481eb` | 51 |
+| `feat/meta-harness-grant-authority` | `0a11031cf812333b1be282c3e01361bd129782a8` | 56 |
+| `meta-harness-personal-formal` | `21a6f4991244736a6ef15b0e7170ac2fc634130e` | 79 |
+| `feat/meta-harness-recovery-publication` | `a275c0069071f4883f707a9ce380cd009f4bf7f3` | 52 |
+| `feat/meta-harness-rn05-formal` | `19010a3873039d30c77086c0a65a6f16e3b3d4eb` | 39 |
+| `feat/meta-harness-run-inbound-tool-bridge` | `be50269332caa450b8a53d2258ac4c3eb1aa972e` | 51 |
 
 ```sh
-git branch -a | grep meta-harness-          # 分支还在
-git log --oneline main..feat/meta-harness-e-formal
-git show feat/meta-harness-rn05-formal:.meta_harness/design/spec/capabilities/run-driver/v1/formal/RunEpochBarrier.tla
+git show 19010a3873039d30c77086c0a65a6f16e3b3d4eb:.meta_harness/design/spec/capabilities/run-driver/v1/formal/RunEpochBarrier.tla
+git log --oneline main..e1d8aa8e6ea93c67414a180553ab2389da0481eb
 ```
 
-**`meta-harness-personal-formal` 当时另有一批未提交改动**（把 `MixedProgress.cfg` 拆成
-七个更细的 progress 属性，并改了 `run_checks.py`），**那批东西不在任何提交里**——
-退役那个工作目录之前需要单独处置。
+**`meta-harness-personal-formal` 当时还有一批未提交改动**（把 `MixedProgress.cfg` 拆成七个
+更细的 progress 属性，并改了 `run_checks.py`）。**经产品负责人确认丢弃，未落任何提交**——
+上表的 SHA 取不回它们，**那批东西已经不存在了**。
