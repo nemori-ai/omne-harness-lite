@@ -2,12 +2,12 @@
 id: PF-006
 title: 工具与技能
 status: active
-revision: 7
+revision: 9
 relations:
   supersedes: []
   depends-on:
     - id: PF-004
-      for: 运行实例、装配清单、动作空间、注入、三个时刻、移除与禁用
+      for: agent runtime 、装配清单、动作空间、注入、三个时刻、移除与禁用
     - id: PF-005
       for: 执行环境的四种、设施声明（供给侧）
     - id: PF-002
@@ -22,7 +22,7 @@ relations:
 # PF-006：工具与技能
 
 **[PF-002](../PF-002-assets-settings-and-permissions/README.md) 说了工具和技能各自是什么，
-[PF-004](../PF-004-agent-runtime-assembly-and-liveness/README.md) 说了它们在装配的哪一步进来。
+[PF-004](../PF-004-agent-definition-and-assembly/README.md) 说了它们在装配的哪一步进来。
 本 topic 补中间那段：**一份定义怎么变成 agent 真的能用的动作。
 
 一句话概括本 topic 的结论：
@@ -44,7 +44,7 @@ relations:
 工具作者不知道。两处都标了，**agent definition 压 plugin**。
 
 **不可用时装的是同名替换件，不是不装。**否则动作空间随环境波动变形，
-[I-4](../PF-004-agent-runtime-assembly-and-liveness/design.md#61-不变式) 当场作废，
+[I-4](../PF-004-agent-definition-and-assembly/design.md#61-不变式) 当场作废，
 而且用户查不出东西为什么没了。
 
 ## 一次工具执行的六种收场
@@ -58,11 +58,11 @@ relations:
 
 ```text
 Tool Definition ──装配──→ 动作空间里的条目 ──调用──→ Tool Execution
-   数据，长期                构成，绑运行实例          计算资源，绑 session
+   数据，长期                构成，绑 agent runtime          计算资源，绑 session
 ```
 
 这是「数据 vs 计算资源」的**第四次出现**，但这次换了宿主——前三次的计算资源
-（运行实例、沙箱本体）都挂在运行实例上，**这次挂在 session 上**。
+（agent runtime 、沙箱本体）都挂在 agent runtime 上，**这次挂在 session 上**。
 正因如此，一次 run 结束了它发起的执行还能继续，结果照样回得到那个 session。
 
 ## 一份工具定义，一次返回值
@@ -105,7 +105,7 @@ Tool Definition ──装配──→ 动作空间里的条目 ──调用─�
 | 关系 | 本 topic 的情况 |
 |---|---|
 | `supersedes` | 无 |
-| `depends-on` | [PF-004](../PF-004-agent-runtime-assembly-and-liveness/README.md)、[PF-005](../PF-005-execution-environments-and-sandboxes/README.md)（**rev 2 起**）、[PF-002](../PF-002-assets-settings-and-permissions/README.md)（**rev 2 起**）、[PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)，引用不改写 |
+| `depends-on` | [PF-004](../PF-004-agent-definition-and-assembly/README.md)、[PF-005](../PF-005-execution-environments-and-sandboxes/README.md)（**rev 2 起**）、[PF-002](../PF-002-assets-settings-and-permissions/README.md)（**rev 2 起**）、[PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)，引用不改写 |
 | `extends` | 无 |
 
 **与 PF-005 的分界**：执行环境**声明自己提供什么**，归 PF-005；

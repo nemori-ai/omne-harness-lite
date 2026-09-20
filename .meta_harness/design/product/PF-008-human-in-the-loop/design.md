@@ -75,7 +75,7 @@ agent 拿不准的时候怎么问人、动手之前怎么请示。但那写的�
 |---|---|
 | [等待态](../PF-006-tools-and-skills/design.md#等待态)、[前台/后台两个维度](../PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)、[六种收场](../PF-006-tools-and-skills/design.md#55-一次工具执行的收场有六种)、[中断不是失败](../PF-006-tools-and-skills/design.md#67-用户可以中断而中断不是失败) | [PF-006](../PF-006-tools-and-skills/design.md) |
 | [`Ask()` 与它的两个命令](../PF-007-meta-capabilities/design.md#611-ask通向人)、[会话授权上下文](../PF-007-meta-capabilities/design.md#会话授权上下文) | [PF-007](../PF-007-meta-capabilities/design.md) |
-| [运行实例](../PF-004-agent-runtime-assembly-and-liveness/design.md#运行实例) | [PF-004](../PF-004-agent-runtime-assembly-and-liveness/design.md) |
+| [装配清单](../PF-004-agent-definition-and-assembly/design.md#装配清单) | [PF-004](../PF-004-agent-definition-and-assembly/design.md) |
 | [设置与权限](../PF-002-assets-settings-and-permissions/design.md#52-设置与权限是资产的两种属性) | [PF-002](../PF-002-assets-settings-and-permissions/design.md) |
 | [租户与租户隔离](../PF-001-identity-scope-and-agent-constraints/design.md#租户) | [PF-001](../PF-001-identity-scope-and-agent-constraints/design.md) |
 
@@ -83,7 +83,7 @@ agent 拿不准的时候怎么问人、动手之前怎么请示。但那写的�
 
 本 topic 绕不开这两样，但**只用到它们各自的几件事**。它们的完整定义归后续 topic
 （产品负责人已明确 agent-loop / session / inbound 会是**多个** PF）。
-这与 [PF-004 的做法](../PF-004-agent-runtime-assembly-and-liveness/design.md#两个只引用不拥有的对象)一致。
+这与 [PF-004 的做法](../PF-004-agent-definition-and-assembly/design.md#三个只引用不拥有的对象)一致。
 
 | 对象 | 本 topic 用到的 | 本 topic **不**说它 |
 |---|---|---|
@@ -300,6 +300,20 @@ agent 拿不准的时候怎么问人、动手之前怎么请示。但那写的�
 **直接后果**：卡片不会自己消失。清掉一张卡片只有两条路——
 **人处理它，或者会话终结**。堆在池子里是产品的正常状态，不是故障。
 
+**「人处理它」有两种形式，而不是一种**：
+
+| 形式 | 它长什么样 | 入口 |
+|---|---|---|
+| **回复** | 人给出答案 | 在卡片上作答 |
+| **明确拒绝回复** | 人表示「**这个我不答**」——[它解除那张卡片，也计入「答完」](#65-不回答是合法答复) | 在卡片上点「我不答这个」（**跳一张**）；或[发一条插队指令](../PF-014-inbound-intake-and-queueing/design.md#插队)（**解除运行等待态上悬着的全部**） |
+
+> **展开这个词不是新增第三条路。**两种都是「人处理它」，
+> **本节的穷举一个字没改**；变的只是把一个已有的词说全。
+
+> **而这条穷举禁的到底是什么，要分清**：禁的是**没有事件也要给答案**（超时到点、默认答案），
+> 是**系统替人作答**。**插队那一刻世界里发生了一件事，而且是人做的**——
+> [时间流逝替人签字，和人自己改变主意，是两回事](../PF-014-inbound-intake-and-queueing/design.md#544-这没有推翻-pf-008它把一个词说全了)。
+
 ### 6.2 等待期间照常收，排队等着，解除时一起看到
 
 一个 run 停下来等人的时候，那个会话**照常接收**——用户发来的新消息、
@@ -446,7 +460,7 @@ agent 走下一步的时候**一起被它看到**。
 |---|---|---|
 | [PF-007](../PF-007-meta-capabilities/README.md) | `Ask()` 这扇门、会话授权上下文、放行由三样东西组合 | **接在它后面**。它定 agent 侧，本 topic 定人侧与中间的传递 |
 | [PF-006](../PF-006-tools-and-skills/README.md) | 等待态原语、前台/后台、六种收场、中断 | **依赖其定义**。`Ask()` 用的就是它的等待态 |
-| [PF-004](../PF-004-agent-runtime-assembly-and-liveness/README.md) | 运行实例；「只引用不拥有」的先例 | **依赖其定义**，并沿用它对会话与 Run 的处理方式 |
+| [PF-004](../PF-004-agent-definition-and-assembly/README.md) | agent runtime；「只引用不拥有」的先例 | **依赖其定义**，并沿用它对会话与 Run 的处理方式 |
 | [PF-002](../PF-002-assets-settings-and-permissions/README.md) | 设置与权限 | **依赖其定义**。租户的权限清单是判断函数的输入之一 |
 | [PF-001](../PF-001-identity-scope-and-agent-constraints/README.md) | 租户与租户隔离 | **依赖其定义**。池子按租户分 |
 

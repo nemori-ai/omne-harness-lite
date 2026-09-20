@@ -13,7 +13,7 @@ relations:
     - id: PF-008
       for: 停下来问人的那条路、决策卡片与决策池
     - id: PF-004
-      for: 装配、运行实例、退役与强制停止
+      for: 装配、 agent runtime 、退役与强制停止
     - id: PF-005
       for: 租户级沙箱可换地方重建；没有组织级沙箱这条判断
     - id: PF-001
@@ -57,7 +57,7 @@ relations:
 ```text
 租户                身份持续可用（稳态式）          ┐
  └─ 会话                建立 → 一次次运行 → 一直可用   │
-     └─ 运行                触发 → 备身子 → 走 → 收束   │ 包含关系，
+     └─ 运行                触发 → 备 agent runtime → 走 → 收束   │ 包含关系，
          └─ agent 的一步        想 → 动作 → 看结果        │ 所以处置从里往外
              ├─ 一次模型调用        发请求 → 回来 → 完整   │
              └─ 一次工具执行        调用 → 执行 → 交回     ┘
@@ -75,7 +75,7 @@ relations:
 | 关系 | 本 topic 的情况 |
 |---|---|
 | `supersedes` | 无 |
-| `depends-on` | [PF-000](../PF-000-occurrences-and-record-entries/README.md)、[PF-006](../PF-006-tools-and-skills/README.md)、[PF-008](../PF-008-human-in-the-loop/README.md)、[PF-004](../PF-004-agent-runtime-assembly-and-liveness/README.md)，引用不改写 |
+| `depends-on` | [PF-000](../PF-000-occurrences-and-record-entries/README.md)、[PF-006](../PF-006-tools-and-skills/README.md)、[PF-008](../PF-008-human-in-the-loop/README.md)、[PF-004](../PF-004-agent-definition-and-assembly/README.md)，引用不改写 |
 | `extends` | 无 |
 
 **本 topic 不重定任何一层已有的处置形状**——替换件怎么答、装配缺东西怎么失败、

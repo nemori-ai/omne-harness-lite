@@ -13,10 +13,10 @@
 >
 > ```text
 > 工具定义 ──装配──→ 动作空间里的条目 ──调用──→ 工具执行
->  数据，长期           构成，绑运行实例         计算资源，绑会话
+>  数据，长期           构成，绑 agent runtime         计算资源，绑会话
 > ```
 >
-> **最要紧的是第三段绑在会话上**，不绑运行实例、也不绑发起它的那次运行。
+> **最要紧的是第三段绑在会话上**，不绑 agent runtime 、也不绑发起它的那次运行。
 > 见 [PF-006 §5.2](../../product/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同)。
 
 ## 一次执行
@@ -39,9 +39,9 @@
 ### UL-tool-execution · 工具执行 · Tool Execution
 
 > **中**：**一次工具执行。**它**是计算资源**，有自己的运行时，**绑在[会话](agent-runtime-loop.md#ul-session--会话--session)上**——
-> 不绑运行实例，也不绑发起它的那次[运行](agent-runtime-loop.md#ul-run--运行--run)。
+> 不绑 agent runtime，也不绑发起它的那次[运行](agent-runtime-loop.md#ul-run--运行--run)。
 > 因此**一次运行结束了，它发起的工具执行可以还在跑**；
-> 发起它的运行实例哪怕已经退役也不影响——**收件人是会话，不是实例**。
+> 发起它的 agent runtime 哪怕早就没了也不影响——**收件人是会话，不是那个协程**。
 >
 > **EN**: **One execution of a tool.** It **is a compute resource** with a runtime of
 > its own, **bound to the session** — not to the agent instance, nor to the run that

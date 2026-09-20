@@ -89,7 +89,7 @@
 - **别混**：**子命令是 tool 的内部结构，不是独立资产**——随这个 tool 一起被持有、配置与授权
 - **⚠️ 别混**：**「工具」这个词指三样东西，寿命各不相同**——
   [工具定义](execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition)（数据，长期）、
-  动作空间里的那个条目（构成，绑运行实例）、
+  动作空间里的那个条目（构成，绑 agent runtime）、
   [工具执行](execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution)（计算资源，**绑会话**）。
   **本条说的是它作为一类资产**
 - **注意**：本系统把 Tool 定为**顶层资产**，与前身 `omne-next` 把它归为「组件」**有意相反**
@@ -184,8 +184,8 @@
 ### UL-agent-definition · Agent 定义 · Agent Definition
 
 > **中**：**一个 agent 的静态定义**——它由什么组装而成、以什么面貌工作。
-> **它不是会话，也不是[运行实例](agent-runtime-loop.md#ul-agent-instance--运行实例--agent-instance)**：
-> 改定义**不会**改变已经在跑的那个 agent，一个定义可以同时有很多个运行实例，
+> **它不是会话，也不是[agent runtime](agent-runtime-loop.md#ul-agent-runtime--agent-runtime--agent-runtime)**：
+> 改定义**不会**改变已经在跑的那个 agent，一个定义可以同时有很多个 agent runtime，
 > **定义与实例分别演进**。sub-agent 的定义**也属于这一类**。
 >
 > **EN**: **The static definition of an agent** — what it is assembled from and how it
@@ -215,26 +215,32 @@
 - **别混**：与[作用域合成语义](scope-and-resolution.md#ul-scope-composition-semantics--作用域合成语义--scope-composition-semantics)不是一回事——**裸写「组合」不作数**
 - **注意**：这一节在 PF-002 里标着「**PM 推导，待产品负责人确认**」
 
-### UL-instance-constitution · 实例构成 · Instance Constitution
+### UL-agent-constitution · agent 构成 · Agent Constitution
 
-> **中**：**[运行实例](agent-runtime-loop.md#ul-agent-instance--运行实例--agent-instance)「是什么」的那部分**——
+> **中**：**一份[装配清单](agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest)里「它是什么」的那部分**——
 > 动作空间、技能、需要哪几类执行环境、系统提示词的全部成分。**在装配时确定。**
 > **构成变了就是另一个 agent**；与[运行时注入](agent-runtime-loop.md#ul-runtime-injection--运行时注入--runtime-injection)的分界是一句话：
 > **这个变化改变的是「它是什么」，还是「它处在什么情况下」？**
 >
-> **EN**: **What a running instance *is*** — its action space, its skills, which kinds
-> of execution environment it needs, and every ingredient of its system prompt.
-> **Fixed at assembly time.** **A change of constitution makes it a different
-> agent.** The line against runtime injection is one question: **does this change
-> alter *what it is*, or *what circumstances it is in*?**
+> **EN**: **The part of an assembly manifest that says *what it is*** — its action
+> space, its skills, which kinds of execution environment it needs, and every
+> ingredient of its system prompt. **Fixed at assembly time.** **A change of
+> constitution makes it a different agent.** The line against runtime injection is
+> one question: **does this change alter *what it is*, or *what circumstances it is
+> in*?**
 
-- **出处**：[PF-004 §4 注入](../../product/PF-004-agent-runtime-assembly-and-liveness/design.md#注入) · [§5.3](../../product/PF-004-agent-runtime-assembly-and-liveness/design.md#53-三个时刻)（rev 3）
-- **注意**：构成变了**未必重建**——改了 Agent Definition 是**下一次 run 重建**，运行中[增量装载](agent-runtime-loop.md#ul-incremental-loading--增量装载--incremental-loading)则**不重建**
+- **出处**：[PF-004 §4 注入](../../product/PF-004-agent-definition-and-assembly/design.md#注入) · [§5.3](../../product/PF-004-agent-definition-and-assembly/design.md#53-三个时刻)（rev 5）
+- **弃用的说法**：**「agent 构成 / Instance Constitution」**——
+  2026-09-20 之前的名字，主语是已退役的「运行实例」，见 [UL-D-3](../decisions.md#ul-d-3--runtime-与活体--2026-09-20)
+- **别混**：**它不是整份清单**——清单还记着为哪个会话求的、依据哪个定义版本、成本算谁的。
+  **这一条只说其中「是什么」那一部分**，因为**那一部分才与注入对立**
+- **注意**：构成变了**未必要重新装配**——改了 Agent Definition 是**下一次 run 重新装配**，
+  运行中[增量装载](agent-runtime-loop.md#ul-incremental-loading--增量装载--incremental-loading)则**只在清单上追加一条**
 
 ### UL-action-space · 动作空间 · Action Space
 
-> **中**：**这个[运行实例](agent-runtime-loop.md#ul-agent-instance--运行实例--agent-instance)能发起哪些动作的集合。**
-> 它**只由[实例构成](#ul-instance-constitution--实例构成--instance-constitution)决定**——
+> **中**：**这个[agent runtime](agent-runtime-loop.md#ul-agent-runtime--agent-runtime--agent-runtime)能发起哪些动作的集合。**
+> 它**只由[agent 构成](#ul-agent-constitution--agent-构成--agent-constitution)决定**——
 > 装上新工具就变大，移除工具就变小，而**权限变了它不变**。
 > agent 照样能发起那个调用，只是这次被拒绝：它因此知道
 > **「这件事存在，只是我现在不被允许」，而不是「这件事不存在」**。
@@ -245,7 +251,7 @@
 > call and simply be refused, so it knows **"this exists, I am merely not allowed
 > right now"** rather than **"this does not exist"**.
 
-- **出处**：[PF-004 §4 动作空间](../../product/PF-004-agent-runtime-assembly-and-liveness/design.md#动作空间)（rev 3）
+- **出处**：[PF-004 §4 动作空间](../../product/PF-004-agent-definition-and-assembly/design.md#动作空间)（rev 3）
 - **注意**：这条锁定的是**变化的唯一原因**，不是「永不改变」。它真正排除的只有一件事：**拿构成之外的东西去改动作空间**
 
 ### UL-meta-capability · meta 能力 · Meta Capability

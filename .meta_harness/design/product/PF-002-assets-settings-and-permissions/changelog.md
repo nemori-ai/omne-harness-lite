@@ -24,7 +24,7 @@ Rules 那一半仍然成立，**Hooks 那一半被改判**。
 | Agent Definition 能组合什么 | 全部七类 | **全部八类** |
 | 「谁能组合谁」矩阵 | 7×7 | **8×8**。Loop Extension 那一行全空，**但空的理由与 MCP、Connector 不是一种**，正文分开写了 |
 | §5.1 的组合图 | 没画 MCP、Connector | **补全**，并加上 Loop Extension——三者都是叶子 |
-| §8 边界 | 「除 PF-001 与 PF-003 外都还没有产品设计」 | **过时了，重写**：装配归 [PF-004](../PF-004-agent-runtime-assembly-and-liveness/README.md)，拓展点位置归 [PF-012](../PF-012-agent-loop-and-run/README.md)，只剩「资产的开发与发布」没有主 |
+| §8 边界 | 「除 PF-001 与 PF-003 外都还没有产品设计」 | **过时了，重写**：装配归 [PF-004](../PF-004-agent-definition-and-assembly/README.md)，拓展点位置归 [PF-012](../PF-012-agent-loop-and-run/README.md)，只剩「资产的开发与发布」没有主 |
 
 ### 为什么值得推翻一条已立的推导
 
@@ -45,7 +45,7 @@ rev 1 那条推导**在当时是对的**：挂件没被列进那几类，而组�
 ### 下游要复核
 
 - 任何按「资产恰有七类」实现的枚举、校验或界面；
-- **[PF-004](../PF-004-agent-runtime-assembly-and-liveness/README.md) 的装配**：组装时要多认一类资产，
+- **[PF-004](../PF-004-agent-definition-and-assembly/README.md) 的装配**：组装时要多认一类资产，
   且**拓展件不进[动作空间](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-action-space--动作空间--action-space)**；
 - **[PF-012](../PF-012-agent-loop-and-run/README.md) rev 2** 里「拓展点不是资产」那几处，**已经不成立**，
   该 topic 的 rev 3 一并修订。

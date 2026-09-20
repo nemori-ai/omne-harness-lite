@@ -50,7 +50,7 @@
 | **怎么通信**（拉取与推送各用什么协议） | **技术选型。**产品只定「有两个不同的动作」，怎么实现归技术设计 |
 | 一共有哪几种消息、块上那两个标注 | 归 [PF-009](../PF-009-context-message-types/README.md)。本 topic **用**它们，不重定 |
 | 组装站在方程的哪一步、它改不改日志 | 归 [PF-012](../PF-012-agent-loop-and-run/design.md#53-改日志的动作与纯派生的动作)。本 topic 不重定 |
-| 系统提示词的**成分**与它在哪一刻定死 | 归 [PF-004](../PF-004-agent-runtime-assembly-and-liveness/design.md#54-为什么系统提示词必须落在第三列)。本 topic 只说**它是单独一块** |
+| 系统提示词的**成分**与它在哪一刻定死 | 归 [PF-004](../PF-004-agent-definition-and-assembly/design.md#54-为什么系统提示词必须落在第三列)。本 topic 只说**它是单独一块** |
 | **给语音层的那一份组装** | **本版不做。**产品负责人已明确：语音层现在不做设计。[它将来会存在](../PF-009-context-message-types/interviews/2026-09-18-openai-gpt-live.md)，但不在这一版 |
 
 ## 三、用户与场景
@@ -75,7 +75,7 @@
 |---|---|
 | [会话日志](../PF-012-agent-loop-and-run/design.md#会话日志)（append only）、[组装是纯派生的](../PF-012-agent-loop-and-run/design.md#53-改日志的动作与纯派生的动作) | [PF-012](../PF-012-agent-loop-and-run/design.md) |
 | [七种消息](../PF-009-context-message-types/design.md#七种消息按谁在说话分)、[块上的两个标注](../PF-009-context-message-types/design.md#每个块带两个标注给人看吗给模型看吗)、[`CompactionMessage`](../PF-009-context-message-types/design.md#compactionmessage) | [PF-009](../PF-009-context-message-types/design.md) |
-| [系统提示词的成分与三个时刻](../PF-004-agent-runtime-assembly-and-liveness/design.md#54-为什么系统提示词必须落在第三列) | [PF-004](../PF-004-agent-runtime-assembly-and-liveness/design.md) |
+| [系统提示词的成分与三个时刻](../PF-004-agent-definition-and-assembly/design.md#54-为什么系统提示词必须落在第三列) | [PF-004](../PF-004-agent-definition-and-assembly/design.md) |
 
 ### 组装
 
@@ -108,7 +108,7 @@
 
 | 块 | 它是什么 | 什么时候变 |
 |---|---|---|
-| **系统提示词** | 你是谁、你有什么能用 | **[在实例存续期内恒定](../PF-004-agent-runtime-assembly-and-liveness/design.md#54-为什么系统提示词必须落在第三列)** |
+| **系统提示词** | 你是谁、你有什么能用 | **[在实例存续期内恒定](../PF-004-agent-definition-and-assembly/design.md#54-为什么系统提示词必须落在第三列)** |
 | **会话上下文** | 这场对话到目前为止 | **每一轮都在长** |
 
 **为什么必须分成两块**：两块的**变化节奏完全不同**，而且——
@@ -167,9 +167,12 @@
 
 > **不是先有要求再起名字，是这两件事本来就是这一步的定义的一部分。**
 
-### 5.4 组装必须满足的四条要求
+### 5.4 组装必须满足的五条要求
 
-**产品只提要求，不定策略。**四条各自回答「做不到会怎样」：
+**产品只提要求，不定策略。**五条各自回答「做不到会怎样」：
+
+> **rev 3 加了第五条。**前四条都是从[会话日志](../PF-012-agent-loop-and-run/design.md#会话日志)那一侧写的，
+> **于是漏了「这一次是为哪个模型组装的」**——而[换模型那条产品承诺正压在它上面](../PF-013-model-profiles-and-invocation/design.md#59-换模型一条事实一个生效点零个新分支)。
 
 #### 要求一：尽可能最大化前缀一致
 
@@ -235,6 +238,30 @@
 | **事件不许攒在内存里** | **组装不许在落盘之前开始** |
 
 **两句合起来才是完整的**：一句管**写进来**，一句管**读出去**。
+
+#### 要求五：组装的输入里，必须有当下生效的那份模型档案
+
+**这一次组装是为哪个模型做的，组装自己必须知道。**
+
+**rev 2 的四条要求全是从[会话日志](../PF-012-agent-loop-and-run/design.md#会话日志)那一侧写的**，
+**于是漏了这一条**——而它是三条已定规则共同的落脚处：
+
+| 谁需要它 | 需要档案上的哪一项 |
+|---|---|
+| **这一次取多长** | **窗口** |
+| **这一次那个图块给原件还是给[文本那一份](../PF-013-model-profiles-and-invocation/design.md#转换件)** | **收得下哪些[模态](../PF-013-model-profiles-and-invocation/design.md#模态)** |
+| **一张图送进去之前要不要先缩** | **送进去之前的限制**（[PF-013 §8 那条三段交接的第二段](../PF-013-model-profiles-and-invocation/design.md#八边界与依赖)） |
+
+> **三项是同一份档案里的三个事实，不是三套机制。**
+> 组装接收那一份，按它处理——**[换模型因此不给 loop 添任何分支](../PF-013-model-profiles-and-invocation/design.md#59-换模型一条事实一个生效点零个新分支)**：
+> 用户换了模型，下一次组装拿到的就是新的那一份，**流程一个字都不用改**。
+
+**做不到会怎样**：换模型这条产品承诺**没有落脚点**。
+用户切到一个窗口更小的模型，组装照旧按老窗口取——**这一次请求当场装不下**；
+切到一个收不下图的模型，组装照旧递原图——**而那个块明明已经有文本那一份了**。
+
+> **具体用什么手段兑现「送进去之前的限制」**（预处理时多档各存一份、运行时缓存、还是别的），
+> **不在产品这一层**——[PF-013 已经把这一段明确划给架构与实现规格](../PF-013-model-profiles-and-invocation/design.md#八边界与依赖)。
 
 ### 5.5 几样东西各自落成哪一种消息
 
@@ -480,7 +507,7 @@
 |---|---|---|
 | [PF-009](../PF-009-context-message-types/README.md) | 七种消息、块上的两个标注、`CompactionMessage` | **依赖其定义**。本 topic **用**那两个标注，不重定 |
 | [PF-012](../PF-012-agent-loop-and-run/README.md)（草稿） | 会话日志、组装在方程里的位置、组装是纯派生的 | **依赖其定义**。本 topic 定**组装这一步内部怎么做** |
-| [PF-004](../PF-004-agent-runtime-assembly-and-liveness/README.md) | 系统提示词的成分与三个时刻 | **依赖其定义**。本 topic 只说**它是单独一块** |
+| [PF-004](../PF-004-agent-definition-and-assembly/README.md) | 系统提示词的成分与三个时刻 | **依赖其定义**。本 topic 只说**它是单独一块** |
 | [PF-006](../PF-006-tools-and-skills/README.md) | 卸载、占位、工具的产出 | **依赖其定义** |
 
 **明确不拥有、留给别处的**：

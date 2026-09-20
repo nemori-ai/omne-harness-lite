@@ -291,7 +291,7 @@
 最容易违反的一条：
 
 > **决定一次[运行](../../ubiquitous_language/terms/agent-runtime-loop.md)下一步的事实，
-> 不能把寿命挂在[运行实例](../../ubiquitous_language/terms/agent-runtime-loop.md)上。**
+> 不能把寿命挂在[agent runtime](../../ubiquitous_language/terms/agent-runtime-loop.md)上。**
 
 实例可回收、可重建，而运行还是那个运行。挂错了，
 **恢复的时候依据已经随实例一起没了**。
@@ -399,7 +399,7 @@
 
 ### 9.2 寿命宿主的首批取值表尚未封板
 
-现在写得出的有：**会话 · 运行 · 执行尝试 · 运行实例 · 租户**。
+现在写得出的有：**会话 · 运行 · 执行尝试 · agent runtime · 租户**。
 **「插件」不在其中**——它回答的是「谁产生了这条」，那是出处。
 
 **本版不封板**，因为**层数会继续增加**——

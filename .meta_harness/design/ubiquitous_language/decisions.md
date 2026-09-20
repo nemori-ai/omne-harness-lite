@@ -19,7 +19,7 @@
 
 随后就 PM 提交的草案裁决了三件事：
 
-> 「**同一个会话同一时刻只能有一个活跃的 run，同一时刻只能有一个活跃的 agent runtime。**
+> 「**同一个会话同一时刻只能有一个活跃的 run，同一时刻只能有一个活跃的 agent runtime 。**
 > （**目前还是遵循这个不变式，直到我们开始设计支持 gpt-live**）。
 > 至于放哪里：terms/ 下可以有一个专门的主题聚合，**就叫 agent 运行时闭环**吧」
 
@@ -30,7 +30,7 @@
 | # | 裁决 |
 |---|---|
 | **1** | **会话与运行都是「数据的聚合」，是「治理性质的概念」**——不是过程，不是行为 |
-| **2** | **[会话内单活跃](terms/agent-runtime-loop.md#ul-single-active-execution--会话内单活跃--single-active-execution)**：一个会话，同一时刻**至多一个活跃 Run**、**至多一个活跃运行实例** |
+| **2** | **[会话内单活跃](terms/agent-runtime-loop.md#ul-single-active-execution--会话内单活跃--single-active-execution)**：一个会话，同一时刻**至多一个活跃 Run**、**至多一个活跃 agent runtime**（**原话用的就是 agent runtime**；2026-09-18 至 09-20 之间本表写作「运行实例」，那是 PM 的转写，[已按原话校回](#ul-d-3--runtime-与活体--2026-09-20)） |
 | **3** | **这条不变式有明确的失效条件**：**开始设计支持 GPT-Live 时重新裁决**，在那之前一律遵循 |
 | **4** | 两者的词条归 `terms/` 下新的一卷，**卷名「agent 运行时闭环」** |
 | **5** | `Shell()` 那个「会话」**改名为[终端会话](terms/grounding-and-isolation.md#ul-terminal-session--终端会话--terminal-session)**，`Session` 留给协作会话 |
@@ -47,7 +47,7 @@
 | **会话有终态，且必须有** | [PF-005 会话级沙箱到点销毁](../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)、[PF-007 会话授权上下文随会话结束一起消失](../product/PF-007-meta-capabilities/design.md#会话授权上下文)——**两条既有设计都挂在「会话结束」这个事实上**。没有终态，它们全悬空 |
 | **Run 附着在恰好一个会话上** | 成本按租户归属、授权在会话里、沙箱绑会话——**一个不属于任何会话的 Run，这三样全没有着落** |
 | **Run 是逻辑的，尝试是物理的** | 「治理性质」。**治理要算账**：一次网络抖动重试若算成两个 Run，成本与失败都算错。**前身把 logical Run 与 physical attempt 分开，正是这个理由** |
-| **Run 从触发到收束** | [PF-004 已把「怎么推进、怎么收束、怎么中断」划给 Run 那一块](../product/PF-004-agent-runtime-assembly-and-liveness/design.md#两个只引用不拥有的对象)，本条只定**边界在哪**，不定**怎么收束** |
+| **Run 从触发到收束** | [PF-004 已把「怎么推进、怎么收束、怎么中断」划给 Run 那一块](../product/PF-004-agent-definition-and-assembly/design.md#三个只引用不拥有的对象)，本条只定**边界在哪**，不定**怎么收束** |
 
 ### 调研：四家怎么定义
 
@@ -154,5 +154,106 @@ typed evidence refs**——**Session 不是一个装满东西的袋子，它只�
 今后统一写「架构内核」。**索引页里「架构内核 PF」是**派生说法**——
 指「登记在架构内核 PF 索引上的那些 topic」，不单独建词条，因为
 [PF 是设计材料的编号，不是系统里的概念](conventions.md#这里不收的)。
+
+## UL-D-3 · runtime 与活体 · 2026-09-20
+
+### 产品负责人的原话
+
+先立命名约定：
+
+> 「我们先把能确定下来的规矩确定了先，在我们的系统里面，我们约定**凡是叫 xxx runtime 的，
+> 它就应该是一个 thread/coroutine event loop**，这点你没歧义吧」
+
+PM 当时拿「有没有待处理队列」去判，把工具执行与模型调用排除在外，被当场纠正：
+
+> 「但是这个『命』太不正规了，**就是一次 tool execution、model request，就不是一条线程或者协程了吗**」
+
+随后确认了后果：
+
+> 「那我们既然把 **agent runtime 也就是 agent loop** 定义下来了，那么 **PF-004 就不能用 agent runtime**
+> 并且 foundation 的 live-agent 就得推翻了对吧」
+
+再定取消怎么传播：
+
+> 「**两个问题本质上是中断谁**，答案很简单，**如果中断的只是一个 run（agent-loop），
+> tool runtime 在后台的都不停，但是 model response 要停**（因为 model response 无法切后台）；
+> **如果 session 被终止、归档、回收，那么 session 下的所有（包括子 session，以及子 session 下的所有）都要停**」
+
+最后定会话的地位：
+
+> 「**session 就是纯数据、治理性质的概念**，你硬要依赖它的话，你就记着这个关系：
+> **一个 session 下同一时刻至多只有一个活跃的 agent-loop**」
+
+### 定死了什么
+
+| # | 裁决 |
+|---|---|
+| **1** | **凡以 `runtime` 为中心词的对象，都是一个协程**——独立执行上下文、可挂起恢复、**可被独立取消**、有自己的生命周期 |
+| **2** | **有没有待处理队列，不是准入条件**。一次工具执行、一次模型请求**都是协程**，队列只决定它是否**兼任** event loop |
+| **3** | **agent runtime 就是推进 agent loop 的那个东西**，PF-004 的装配产物**不是它**，PF-004 不得使用这个名字 |
+| **4** | **中断一次运行**：已转后台的工具执行**不停**；模型请求**停**，理由是**它无法转后台** |
+| **5** | **终止 / 归档 / 回收会话**：其名下**一切都停**，**递归到子会话及子会话名下的一切** |
+| **6** | **会话是纯数据、治理性质的概念**，**不是活物**（重申并收紧 [UL-D-1 裁决 1](#定死了什么)） |
+| **7** | **一个会话，同一时刻至多一个活跃的 agent loop**——[会话内单活跃](terms/agent-runtime-loop.md#ul-single-active-execution--会话内单活跃--single-active-execution)的主语由「运行实例」换成 agent runtime |
+
+### 定义正文是 PM 起草的，依据在这里
+
+| 写进定义的话 | 依据 |
+|---|---|
+| **agent runtime 是「全系统唯一的 event loop」** | 裁决 1＋2。拿裁决 2 的判据逐个量：只有它持有[待处理消息队列](terms/agent-runtime-loop.md#ul-pending-message-queue--待处理消息队列--pending-message-queue)并循环取用 |
+| **agent runtime 「不持有状态」** | [Agent Loop 是纯函数](terms/agent-runtime-loop.md#ul-agent-loop--agent-loop--agent-loop)，状态全在[会话日志](terms/record-and-context.md#ul-session-log--会话日志--session-log)里。协程持有状态，停机重算就不成立 |
+| **[取消跟着宿主走](terms/agent-runtime-loop.md#ul-cancellation-follows-host--取消跟着宿主走--cancellation-follows-host)是一条规则，不是四条** | 裁决 4＋5 给的是四种情形。四种的共同解释只有一个：**每个协程跟着宿主死**。而「模型请求要停，因为它无法转后台」正是这条的印证——**它从没换过宿主** |
+| **「转后台就是换宿主」** | [PF-006 §6.5 已定「工具执行的运行时绑定在 session 上，与 agent 运行时、与一次 run 都是解耦的」](../product/PF-006-tools-and-skills/design.md)。裁决 4＋5 恰好给这句话补上了两头：**run 中断不波及它，会话终止才带走它** |
+| **装配的产物是[装配清单](terms/agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest)，不是活物** | 裁决 3。清单[四项属性全是「装配时确定、此后不变」](../product/PF-004-agent-definition-and-assembly/design.md)，不消耗、不生灭 |
+
+### 一处顺带查实的：这不是改主意，是校回原话
+
+**产品负责人 2026-09-18 定[会话内单活跃](terms/agent-runtime-loop.md#ul-single-active-execution--会话内单活跃--single-active-execution)时，
+原话就是「同一时刻只能有一个活跃的 agent runtime」**——见 [UL-D-1 的原话](#产品负责人的原话)。
+**是 PM 当时把它转写成了「运行实例」**，此后两天里这个转写扩散到 30 个文件、264 处。
+
+**这件事值得单记，因为它是这次拆解的一个独立佐证**：
+产品负责人从一开始指的就是那个**活的、能被取消的**东西；
+「运行实例」这个转写把它挪到了装配产物上，**矛盾是在转写那一步产生的**，不是原本就有。
+
+### 四处 PM 自己定的
+
+**① foundation 的「活体」不推翻，推翻的是 PF-004 对它的认定。**
+产品负责人问的是「foundation 的 live-agent 就得推翻了对吧」。PM 核过
+[SYS-COMPOSITION](../foundation/definition-and-runtime-composition/requirements.md#sys-compositionc1三段结构)
+四条之后判断**不必推翻**：C1「计算资源、可回收可重建、因资源治理而生灭」、
+C3「使用已捕获的绑定，不逐次重新解析」、C4「变化不改写正在活着的活体」——
+**五条逐条说的都是协程**。而 PF-004 的装配产物**对不上其中任何一条**。
+**foundation 一个字没说错，是 PF-004 认错了人。**这条产品负责人未反对，
+且随后以「先落盘」追认；**但原话是问句，所以记在这一栏，不记在裁决表里**。
+
+**② `handoff` 出去的不在递归范围内。**
+裁决 5 说「session 下的所有……都要停」，没说 `handoff`。
+[PF-007 明写 `spawn` / `delegate` 出去的**没有独立主会话身份**，`handoff` 出去的**有**](../product/PF-007-meta-capabilities/design.md)。
+若父会话归档要连坐 `handoff` 出去的那个，**那个「独立主会话身份」就名存实亡**——
+而它正是 `handoff` 区别于另外两种的**唯一**理由。两种读法只有一种自洽，
+所以 PM 定下，不上报。
+
+**③ 前台的工具执行运行时跟着停，落[「被中断」](../product/PF-006-tools-and-skills/design.md#67-用户可以中断而中断不是失败)。**
+裁决 4 说的是「后台的都不停」，前台没说。它的结果本来要回给 loop，**loop 没了就无处可去**；
+而 [PF-006 六种收场里「被中断」已经存在](../product/PF-006-tools-and-skills/design.md#55-一次工具执行的收场有六种)
+且明写「不是失败，别自动重试」。只有一个答案成立。
+**后果**：那一条从此有**第二个触发源**，原来只写了用户直接叫停这一次执行。
+
+**④ [执行尝试](terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)保留，不与 agent runtime 合并。**
+两者指同一个对象：**一次尝试就是一个 agent runtime 从起到灭**。
+但[执行尝试承载着「重试不是新的 Run」这个治理语义](#定死了什么)，
+删掉它，[UL-D-1 裁决「Run 是逻辑的、尝试是物理的」](#定死了什么)就没有落点。
+**处理办法是写死关系、不造第二个执行体**：agent runtime 是执行体本身，
+执行尝试是**从 Run 的角度看它**。
+
+### 与旧说法的关系
+
+| 旧说法 | 现在 |
+|---|---|
+| **「运行实例 / Agent Instance」** | **退役。**它骑两匹马——「持有已捕获的绑定」是数据那一侧，「计算资源、占用即消耗」是协程那一侧。**两半各归其位**：数据归[装配清单](terms/agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest)，活体归 [agent runtime](terms/agent-runtime-loop.md#ul-agent-runtime--agent-runtime--agent-runtime) |
+| **「实例退役 / Instance Retirement」** | **改名[优雅取消](terms/agent-runtime-loop.md#ul-graceful-cancellation--优雅取消--graceful-cancellation)**，语义不变——主语从已退役的「运行实例」换成运行时 |
+| 「一副身子」「装出一副身子」 | 讨论里的口语。**正文统一写「装配清单」或「agent runtime」**，视指的是哪一半 |
+| `PF-004-agent-definition-and-assembly` | **目录改名 [`PF-004-agent-definition-and-assembly`](../product/PF-004-agent-definition-and-assembly/README.md)**。裁决 3 之后，`agent-runtime` 留在它的目录名里会让读者以为这个概念归它，而它归 [PF-012](../product/PF-012-agent-loop-and-run/README.md) |
 
 返回[统一语言入口](README.md)

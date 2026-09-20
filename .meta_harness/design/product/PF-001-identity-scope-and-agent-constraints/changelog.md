@@ -78,7 +78,7 @@ Connector 约束的是「从哪里被触达」，与原定义「约束 agent 的
 ### 下游要复核什么
 
 - 引用「资产五类」字样的地方要改：[PF-002](../PF-002-assets-settings-and-permissions/README.md)（同步升 rev）、
-  [PF-004](../PF-004-agent-runtime-assembly-and-liveness/README.md)、
+  [PF-004](../PF-004-agent-definition-and-assembly/README.md)、
   [PF-005](../PF-005-execution-environments-and-sandboxes/README.md) 的相关引用。
 - **MCP 带来的动作不是独立资产**——实现时不要为每个 MCP 工具登记一份资产，
   那会让资产身份随外部服务端的版本漂移。

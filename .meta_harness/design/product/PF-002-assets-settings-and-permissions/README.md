@@ -27,7 +27,7 @@ relations:
 |---|---|
 | `supersedes` | 无 |
 | `depends-on` | [PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)。直接使用它定义的**四层作用域**、**三种合成语义**、**能力标识**与 **official/customized**，不重复定义 |
-| 被谁展开 | [PF-003 资产的转移与分享](../PF-003-asset-transfer-and-sharing/README.md) 定义资产怎样跨组织流动，[PF-004 装配与存活](../PF-004-agent-runtime-assembly-and-liveness/README.md) 定义怎样把这些搬进运行时，[PF-012 Agent Loop 与 Run](../PF-012-agent-loop-and-run/README.md) 定义 loop 上**一共有哪些拓展点位置**。三者都依赖本 topic，**方向不能反**：本 topic 不引用它们的结论 |
+| 被谁展开 | [PF-003 资产的转移与分享](../PF-003-asset-transfer-and-sharing/README.md) 定义资产怎样跨组织流动，[PF-004 装配与存活](../PF-004-agent-definition-and-assembly/README.md) 定义怎样把这些搬进运行时，[PF-012 Agent Loop 与 Run](../PF-012-agent-loop-and-run/README.md) 定义 loop 上**一共有哪些拓展点位置**。三者都依赖本 topic，**方向不能反**：本 topic 不引用它们的结论 |
 | `extends` | 无 |
 
 **与 PF-001 的分界**：同一个字段在多层都有值时听谁的，归 PF-001；

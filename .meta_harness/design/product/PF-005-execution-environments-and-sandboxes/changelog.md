@@ -48,7 +48,7 @@
 
 ## rev 1 — 2026-09-17
 
-**首版。**把 [PF-004](../PF-004-agent-runtime-assembly-and-liveness/README.md)
+**首版。**把 [PF-004](../PF-004-agent-definition-and-assembly/README.md)
 「执行环境」那一行展开：有哪几种、各自什么性质、里面的东西什么时候还在什么时候没。
 
 ### 这一版确定了什么

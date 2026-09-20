@@ -143,7 +143,7 @@ relations:
 | 关系 | 本 topic 的情况 |
 |---|---|
 | `supersedes` | 无 |
-| `depends-on` | [PF-012](../PF-012-agent-loop-and-run/README.md)、[PF-006](../PF-006-tools-and-skills/README.md)、[PF-008](../PF-008-human-in-the-loop/README.md)、[PF-004](../PF-004-agent-runtime-assembly-and-liveness/README.md)、[PF-007](../PF-007-meta-capabilities/README.md) |
+| `depends-on` | [PF-012](../PF-012-agent-loop-and-run/README.md)、[PF-006](../PF-006-tools-and-skills/README.md)、[PF-008](../PF-008-human-in-the-loop/README.md)、[PF-004](../PF-004-agent-definition-and-assembly/README.md)、[PF-007](../PF-007-meta-capabilities/README.md) |
 | `extends` | 无 |
 
 **与 PF-012 的分界**：那边定**什么时候**把事件做成消息，这边定**做成什么**。

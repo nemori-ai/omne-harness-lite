@@ -2,7 +2,7 @@
 id: PF-010
 title: 上下文管理与组装
 status: active
-revision: 2
+revision: 3
 relations:
   supersedes: []
   depends-on:
@@ -63,7 +63,7 @@ relations:
 
 > **只有会话那一块压得动。**
 
-系统提示词[在实例存续期内恒定](../PF-004-agent-runtime-assembly-and-liveness/design.md#54-为什么系统提示词必须落在第三列)。
+系统提示词[在实例存续期内恒定](../PF-004-agent-definition-and-assembly/design.md#54-为什么系统提示词必须落在第三列)。
 混成一块，就会长出「把系统提示词也收走一段」这种东西——
 **那等于把 agent 的身份和能力清单压没了**。
 
@@ -132,7 +132,7 @@ relations:
 | 关系 | 本 topic 的情况 |
 |---|---|
 | `supersedes` | 无 |
-| `depends-on` | [PF-009](../PF-009-context-message-types/README.md)、[PF-012](../PF-012-agent-loop-and-run/README.md)、[PF-004](../PF-004-agent-runtime-assembly-and-liveness/README.md)、[PF-006](../PF-006-tools-and-skills/README.md) |
+| `depends-on` | [PF-009](../PF-009-context-message-types/README.md)、[PF-012](../PF-012-agent-loop-and-run/README.md)、[PF-004](../PF-004-agent-definition-and-assembly/README.md)、[PF-006](../PF-006-tools-and-skills/README.md) |
 | `extends` | 无 |
 
 **与 PF-009 的分界**：那边定**有哪几种消息、块上带什么标注**，

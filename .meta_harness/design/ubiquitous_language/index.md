@@ -67,7 +67,7 @@
 | [UL-plugin](terms/capabilities-and-composition.md#ul-plugin--插件--plugin) | 插件 | Plugin | 打包分发若干资产的单元，**不是 Cordis plugin** |
 | [UL-agent-definition](terms/capabilities-and-composition.md#ul-agent-definition--agent-定义--agent-definition) | Agent 定义 | Agent Definition | 一个 agent 的静态定义，不是会话也不是实例 |
 | [UL-asset-composition](terms/capabilities-and-composition.md#ul-asset-composition--资产组合--asset-composition) | 资产组合 | Asset Composition | 资产之间、资产与 agent 之间的同一种关系 |
-| [UL-instance-constitution](terms/capabilities-and-composition.md#ul-instance-constitution--实例构成--instance-constitution) | 实例构成 | Instance Constitution | 运行实例「是什么」的那部分 |
+| [UL-agent-constitution](terms/capabilities-and-composition.md#ul-agent-constitution--agent-构成--agent-constitution) | agent 构成 | Agent Constitution | 装配清单里「它是什么」的那部分；旧名 ~~实例构成~~ |
 | [UL-action-space](terms/capabilities-and-composition.md#ul-action-space--动作空间--action-space) | 动作空间 | Action Space | 能发起哪些动作，**只由构成决定** |
 | [UL-meta-capability](terms/capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability) | meta 能力 | Meta Capability | 一整类能力的统一入口，**必定常驻、不可禁用** |
 | [UL-prompt-slot](terms/capabilities-and-composition.md#ul-prompt-slot--提示词槽位--prompt-slot) | 提示词槽位 | Prompt Slot | 系统提示词里一个恒定占位的条目 |
@@ -97,22 +97,24 @@
 
 | ID | 中文 | English | 一句话 |
 |---|---|---|---|
-| [UL-single-active-execution](terms/agent-runtime-loop.md#ul-single-active-execution--会话内单活跃--single-active-execution) | 会话内单活跃 | Single Active Execution | **一个会话同一时刻至多一个活跃 Run、一个活跃实例**（GPT-Live 时重裁） |
+| [UL-single-active-execution](terms/agent-runtime-loop.md#ul-single-active-execution--会话内单活跃--single-active-execution) | 会话内单活跃 | Single Active Execution | **一个会话同一时刻至多一个活跃 Run、一个活跃 agent runtime**（GPT-Live 时重裁） |
 | [UL-session](terms/agent-runtime-loop.md#ul-session--会话--session) | 会话 | Session | 一段协作的耐久身份与归属边界，**不要求有人说过话** |
-| [UL-run](terms/agent-runtime-loop.md#ul-run--运行--run) | 运行 | Run | 一次逻辑执行请求及其结果，**成本与失败的归属单位** |
-| [UL-trigger](terms/agent-runtime-loop.md#ul-trigger--触发--trigger) | 触发 | Trigger | 一次运行的起点，**不必是人说了一句话** |
+| [UL-run](terms/agent-runtime-loop.md#ul-run--运行--run) | 运行 | Run | 一次逻辑执行请求及其结果，**边界由 loop 的进出划定**；成本与失败的归属单位 |
+| [UL-trigger](terms/agent-runtime-loop.md#ul-trigger--触发--trigger) | 触发 | Trigger | **让待处理消息队列从空变非空的那件事**，不必是人说了一句话 |
+| [UL-pending-message-queue](terms/agent-runtime-loop.md#ul-pending-message-queue--待处理消息队列--pending-message-queue) | 待处理消息队列 | Pending Message Queue | 日志里还没被 loop 取走的那些消息，**是投影不是另一份存储** |
 | [UL-run-attempt](terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt) | 执行尝试 | Run Attempt | 同一次运行的一次实际执行，**重试不是新的 Run** |
 | [UL-run-terminal-state](terms/agent-runtime-loop.md#ul-run-terminal-state--运行终态--run-terminal-state) | 运行终态 | Run Terminal State | **恰有三种**，只从一个出口落账；**等人不是终态** |
-| [UL-agent-loop](terms/agent-runtime-loop.md#ul-agent-loop--agent-loop--agent-loop) | Agent Loop | Agent Loop | 推进一次运行的那个**纯函数**，不是那个 while 循环 |
+| [UL-agent-loop](terms/agent-runtime-loop.md#ul-agent-loop--agent-loop--agent-loop) | Agent Loop | Agent Loop | 推进一次运行的那个**纯函数**；**被求值的那个，不是求值它的那个** |
+| [UL-agent-runtime](terms/agent-runtime-loop.md#ul-agent-runtime--agent-runtime--agent-runtime) | agent runtime | Agent Runtime | **求值 loop 的那个协程**；全系统**唯一的 event loop**，不持有状态 |
 | [UL-agent-step](terms/agent-runtime-loop.md#ul-agent-step--agent-的一步--agent-step) | agent 的一步 | Agent Step | loop 转一圈；**一步之内至多一次模型调用** |
 | [UL-current-conditions](terms/agent-runtime-loop.md#ul-current-conditions--当下条件--current-conditions) | 当下条件 | Current Conditions | 日志之外、此刻才成立的那些，**不落日志** |
 | [UL-loop-extension-point](terms/agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point) | Loop 拓展点 | Loop Extension Point | 一个状态点的紧前或紧后，**按位置命名不按功能**；可挂多个。**当前十一个** |
-| [UL-agent-assembly](terms/agent-runtime-loop.md#ul-agent-assembly--agent-装配--agent-assembly) | Agent 装配 | Agent Assembly | 把定义在某作用域下变成实例的那个动作 |
-| [UL-agent-instance](terms/agent-runtime-loop.md#ul-agent-instance--运行实例--agent-instance) | 运行实例 | Agent Instance | 一副真正在跑的身子，可回收可重建 |
-| [UL-assembly-manifest](terms/agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest) | 装配清单 | Assembly Manifest | 「当时那个 agent 是什么样」的唯一答案 |
+| [UL-agent-assembly](terms/agent-runtime-loop.md#ul-agent-assembly--agent-装配--agent-assembly) | Agent 装配 | Agent Assembly | 把定义在某作用域下**求值成一份清单**的那个动作 |
+| [UL-assembly-manifest](terms/agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest) | 装配清单 | Assembly Manifest | 「当时那个 agent 是什么样」的唯一答案；**是数据，可跨尝试复用** |
 | [UL-runtime-injection](terms/agent-runtime-loop.md#ul-runtime-injection--运行时注入--runtime-injection) | 运行时注入 | Runtime Injection | 外面给的，换了不用重建，**不是 DI** |
 | [UL-incremental-loading](terms/agent-runtime-loop.md#ul-incremental-loading--增量装载--incremental-loading) | 增量装载 | Incremental Loading | 运行中加一个可选能力，清单上追加一条 |
-| [UL-instance-retirement](terms/agent-runtime-loop.md#ul-instance-retirement--实例退役--instance-retirement) | 实例退役 | Instance Retirement | 显式动作：先不接新活，等停当，再释放 |
+| [UL-cancellation-follows-host](terms/agent-runtime-loop.md#ul-cancellation-follows-host--取消跟着宿主走--cancellation-follows-host) | 取消跟着宿主走 | Cancellation Follows Host | **宿主没了它就没了**；转后台就是换宿主 |
+| [UL-graceful-cancellation](terms/agent-runtime-loop.md#ul-graceful-cancellation--优雅取消--graceful-cancellation) | 优雅取消 | Graceful Cancellation | 显式动作：先不接新活，等停当，再释放（旧名**实例退役**） |
 | [UL-forced-stop](terms/agent-runtime-loop.md#ul-forced-stop--强制停止--forced-stop) | 强制停止 | Forced Stop | 立刻撤销执行资格，**外部效果收不回来** |
 
 ## [落地与隔离](terms/grounding-and-isolation.md)
@@ -166,13 +168,14 @@
 
 ## [交互与派发](terms/interaction-and-dispatch.md)
 
-**agent 跟人、跟别的 agent 怎么来往。**
+**agent 跟人、跟别的 agent 怎么来往，以及外面怎么进来。**
 
 | ID | 中文 | English | 一句话 |
 |---|---|---|---|
 | [UL-agent-dispatch](terms/interaction-and-dispatch.md#ul-agent-dispatch--agent-派发--agent-dispatch) | agent 派发 | Agent Dispatch | `spawn` / `delegate` / `handoff` 三种，**五维取值不同** |
 | [UL-inter-agent-communication](terms/interaction-and-dispatch.md#ul-inter-agent-communication--agent-间通信--inter-agent-communication) | agent 间通信 | Inter-Agent Communication | **两条规则，覆盖面不一样**；素不相识的也能通 |
-| [UL-dispatch-report](terms/interaction-and-dispatch.md#ul-dispatch-report--派发报告--dispatch-report) | 派发报告 | Dispatch Report | **终结这次派发，只来一次**；与消息是两样东西 |
+| [UL-subagent](terms/interaction-and-dispatch.md#ul-subagent--子-agent--subagent) | 子 agent | Subagent | 会话是当前会话之**子会话**的那个；**`handoff` 与第三方 harness 不算** |
+| [UL-dispatch-report](terms/interaction-and-dispatch.md#ul-dispatch-report--派发报告--dispatch-report) | 派发报告 | Dispatch Report | **终结这次派发，不是那个会话**；只来一次 |
 | [UL-hitl](terms/interaction-and-dispatch.md#ul-hitl--人在回路--human-in-the-loop) | 人在回路 | Human in the Loop | 停下来等人，**没有上限** |
 | [UL-run-wait-state](terms/interaction-and-dispatch.md#ul-run-wait-state--运行等待态--run-wait-state) | 运行等待态 | Run Wait State | 系统算出来的、**直接把 run 停住**的那种等 |
 | [UL-decision-card](terms/interaction-and-dispatch.md#ul-decision-card--决策卡片--decision-card) | 决策卡片 | Decision Card | 让人**当场**就能判断；**一张只能答一次** |
@@ -181,6 +184,9 @@
 | [UL-inquiry](terms/interaction-and-dispatch.md#ul-inquiry--问询--inquiry) | 问询 | Inquiry | agent 主动问人，**一次问全** |
 | [UL-approval-request](terms/interaction-and-dispatch.md#ul-approval-request--请示--approval-request) | 请示 | Approval Request | 动手之前请人准不准，**固定两个选项** |
 | [UL-session-authorization-context](terms/interaction-and-dispatch.md#ul-session-authorization-context--会话授权上下文--session-authorization-context) | 会话授权上下文 | Session Authorization Context | 本会话内同意过的那些事，**会话结束一起消失** |
+| [UL-inbound-arrival](terms/interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival) | 入站到达 | Inbound Arrival | 外面送进一个会话、**被受理之后**的那条事实；**不是消息**，**裸写「到达」不作数** |
+| [UL-control-command](terms/interaction-and-dispatch.md#ul-control-command--控制指令--control-command) | 控制指令 | Control Command | 对正在发生的事或队列本身的直接处置，**不是内容、不排队** |
+| [UL-queue-jump](terms/interaction-and-dispatch.md#ul-queue-jump--插队--queue-jump) | 插队 | Queue Jump | 「这句话我要现在就被看到」，**插的是时间不是位置**；**不终止运行** |
 
 ## [记录与上下文](terms/record-and-context.md)
 

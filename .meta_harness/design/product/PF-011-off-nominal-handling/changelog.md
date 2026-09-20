@@ -261,7 +261,7 @@ rev 1 的「往上不许跳」会把事情卡死在这里。补的规则是：
 | 引用谁 | rev | 状态 |
 |---|---|---|
 | [PF-000](../PF-000-occurrences-and-record-entries/README.md) | rev 1 | active |
-| [PF-004](../PF-004-agent-runtime-assembly-and-liveness/README.md) | rev 3 | active |
+| [PF-004](../PF-004-agent-definition-and-assembly/README.md) | rev 3 | active |
 | [PF-006](../PF-006-tools-and-skills/README.md) | rev 7 | active，**其中五处措辞待回改** |
 | [PF-008](../PF-008-human-in-the-loop/README.md) | rev 1 | active |
 | [PF-010](../PF-010-context-management-and-assembly/README.md) | rev 2 | active |

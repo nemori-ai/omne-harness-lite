@@ -7,7 +7,7 @@ relations:
   supersedes: []
   depends-on:
     - id: PF-004
-      for: 执行环境是注入的、运行实例、动作空间、上下文怎样到达 agent
+      for: 执行环境是注入的、 agent runtime 、动作空间、上下文怎样到达 agent
     - id: PF-002
       for: 设置与权限、层级求值（执行安全策略是其中一种）
     - id: PF-001
@@ -17,8 +17,8 @@ relations:
 
 # PF-005：执行环境与沙箱
 
-**[PF-004](../PF-004-agent-runtime-assembly-and-liveness/README.md) 把执行环境定成
-注入给运行实例的三样东西之一，并定了一条很强的性质：一条 shell 命令，
+**[PF-004](../PF-004-agent-definition-and-assembly/README.md) 把执行环境定成
+注入给 agent runtime 的三样东西之一，并定了一条很强的性质：一条 shell 命令，
 执行在宿主机还是沙箱里，agent 都能执行。本 topic 把它展开：**
 **有哪几种、各自什么性质、里面的东西什么时候还在什么时候没。**
 
@@ -27,7 +27,7 @@ relations:
 > **宿主机不是「没有沙箱」的默认状态，它是执行环境的一个具体取值。**
 
 这看着像措辞，实则是运行时热替换的分水岭——把它当默认态，切换就退化成
-「开关一套机制」；当成取值，切换才是「换一个值」，**运行实例不重建、动作空间不变、agent 无感**。
+「开关一套机制」；当成取值，切换才是「换一个值」，**agent runtime 不重建、动作空间不变、agent 无感**。
 
 ## 四种，两个维度
 
@@ -65,17 +65,17 @@ relations:
 会话级沙箱**到点销毁、数据不留存**（刻意为之）。
 
 这是「数据 vs 计算资源」在本系统里的**第三次出现**——前两次是
-Agent Definition 对运行实例、会话历史对运行实例。三次形状一样。
+Agent Definition 对 agent runtime 、会话历史对 agent runtime 。三次形状一样。
 
 ## 关系
 
 | 关系 | 本 topic 的情况 |
 |---|---|
 | `supersedes` | 无 |
-| `depends-on` | [PF-004](../PF-004-agent-runtime-assembly-and-liveness/README.md)（**rev 2 起**）、[PF-002](../PF-002-assets-settings-and-permissions/README.md)、[PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)，引用不改写 |
+| `depends-on` | [PF-004](../PF-004-agent-definition-and-assembly/README.md)（**rev 2 起**）、[PF-002](../PF-002-assets-settings-and-permissions/README.md)、[PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)，引用不改写 |
 | `extends` | 无 |
 
-**与 PF-004 的分界**：执行环境**以什么方式**进入运行实例，归 PF-004；
+**与 PF-004 的分界**：执行环境**以什么方式**进入 agent runtime，归 PF-004；
 它**有哪几种、各自活多久**，归这里。**PF-004 不对执行环境的寿命作任何断言**
 （那是它 rev 2 明确写死的），两份并排读不应出现冲突。
 

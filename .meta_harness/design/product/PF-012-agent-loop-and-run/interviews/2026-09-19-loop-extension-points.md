@@ -239,7 +239,7 @@ rev 2 写在本次调研之前）。**一个工程实现与一条产品推导落
 | **`WorktreeCreate` / `WorktreeRemove`** | 同第一行，且 worktree 是 git 的概念 |
 | **`Elicitation` / `ElicitationResult`** | MCP 问询的答复归 [PF-008 的两个维度](../../PF-008-human-in-the-loop/design.md#等待态的两个维度)，那条路已经定完了 |
 | **`TeammateIdle` / `TaskCreated` / `TaskCompleted`** | 多 agent 协作的形态本系统[归 PF-007](../../PF-007-meta-capabilities/README.md)，不在 loop 上 |
-| **`ctx.systemPrompt` / `@dynamic_prompt`** | 系统提示词的**成分**归 [PF-004 §5.4](../../PF-004-agent-runtime-assembly-and-liveness/design.md#54-为什么系统提示词必须落在第三列)（装配时定），**成品**在请求时组装。**不是 loop 的拓展点** |
+| **`ctx.systemPrompt` / `@dynamic_prompt`** | 系统提示词的**成分**归 [PF-004 §5.4](../../PF-004-agent-definition-and-assembly/design.md#54-为什么系统提示词必须落在第三列)（装配时定），**成品**在请求时组装。**不是 loop 的拓展点** |
 | **`ctx.sessionPersistence`** | 落盘归技术设计；而且 DSH 自己写着它 **"without loop control"** |
 
 ---

@@ -1,6 +1,6 @@
 # 交互与派发
 
-**这一卷回答：agent 跟人、跟别的 agent 怎么来往。**
+**这一卷回答：agent 跟人、跟别的 agent 怎么来往，以及外面的东西怎么进到一个会话里。**
 
 收在这里的是**跨主体的往来**及其产物。**跟工具怎么来往**归
 [执行与收场](execution-and-outcome.md)——那是自己的手脚，不是别的主体。
@@ -26,15 +26,37 @@
 > assembled, who controls its lifecycle, when the dispatching action ends, and
 > whether it can message the dispatcher.
 
-- **出处**：[PF-007 §6.8 派发有三种模式](../../product/PF-007-meta-capabilities/design.md#派发有三种模式)（rev 6）
+- **出处**：[PF-007 §6.8 派发有三种模式](../../product/PF-007-meta-capabilities/design.md#派发有三种模式)（rev 7）
 - **注意 ①**：**两处分水岭，各自只有一条。**`spawn` 与 `delegate` 只差
   「**它带着什么开始干活**」；`spawn`/`delegate` 与 `handoff` 只差
   「**是不是独立主会话**」——**另外三个维度全是这一条的后果**
 - **注意 ②**：**`handoff` 撤不回。**这不是缺陷，是它的定义——**一个能被撤回的 `handoff`，那是 `delegate`**
 - **注意 ③**：**可以派给外部 harness 的 agent**，但那时**权限继承无从谈起、数据出境、
   监管取决于对方、回来的是外部内容**——因此**必须是一项显式授予的权限**
+- **注意 ④**：**「是不是独立主会话」这条分水岭还有另一个侧面——谁产生[子 agent](#ul-subagent--子-agent--subagent)。**
+  `spawn`/`delegate` 产生，`handoff` 不产生。**这不是第六个维度**，两者在三种模式上取值一一对应
 - **待裁决**：`spawn` 的「继承当前会话的上下文」**是共享同一份[会话](agent-runtime-loop.md#ul-session--会话--session)日志，
   还是派发那一刻复制一份**，见 [PF-007 §9.1](../../product/PF-007-meta-capabilities/design.md#91-spawn-的继承当前会话的上下文是共享还是复制)
+
+### UL-subagent · 子 agent · Subagent
+
+> **中**：**会话是当前会话之子会话的那个 agent。**[`spawn` 与 `delegate`](#ul-agent-dispatch--agent-派发--agent-dispatch) 派出去的是它；
+> **`handoff` 派出去的不是**（那个有独立主会话身份），**第三方 harness 上的会话也不是**。
+> **它的会话不因交回[报告](#ul-dispatch-report--派发报告--dispatch-report)而终结**——
+> 报告终结的是**那次派发**。
+>
+> **EN**: An agent whose session is a **child session** of the current one. `spawn`
+> and `delegate` produce one; `handoff` does not — that one holds an independent
+> primary session — and neither does a session on a third-party harness. **Its
+> session does not end when it hands back a report**: the report concludes the
+> dispatch, not the session.
+
+- **出处**：[PF-007 §6.8 报告终结的是这次派发，不是那个会话](../../product/PF-007-meta-capabilities/design.md#报告终结的是这次派发不是那个会话)（rev 7）
+- **别混**：与「**派发出去的 agent**」不是一回事——**后者含 `handoff`，它不含**。
+  [规则一](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)管的是前者，范围更大
+- **⚠️ 注意**：**「子会话」这个关系本身还没有定义。**它连同**会话树**、
+  **master 对自己全部 subagent 的感知与管理**归 **PF-015**（尚未开题）。
+  **本条只定外延**——哪些算、哪些不算；**内涵等那边**
 
 ### UL-inter-agent-communication · agent 间通信 · Inter-Agent Communication
 
@@ -54,13 +76,18 @@
 > communicate with one another — this is **bidirectional and requires no dispatch
 > relationship**, so **two agents that never met can talk**.
 
-- **出处**：[PF-007 §6.8 先说谁能给谁发消息](../../product/PF-007-meta-capabilities/design.md#先说谁能给谁发消息这是两条独立的规则)（rev 6）
+- **出处**：[PF-007 §6.8 先说谁能给谁发消息](../../product/PF-007-meta-capabilities/design.md#先说谁能给谁发消息这是两条独立的规则)（rev 7）
 - **注意 ①**：**规则二那三个条件缺一不可**，「**会话仍活跃**」尤其容易被忽略——
   **一个会话结束了的 agent，不是「暂时联系不上」，是这条通路不存在了**
 - **注意 ②**：**`handoff` 能向派发者发消息不是单独规定的一条**，
   是它**落进了规则二**的自然结果
 - **注意 ③**：**发不出去时要说清是哪一条不满足**（不是我派的？没有主会话身份？会话已结束？
   不同租户？）——**四种原因的处理方式完全不同**
+- **注意 ④**：**规则一不带时间限定。**它的条件只有「是不是我派的」一项，
+  所以**[子 agent](#ul-subagent--子-agent--subagent) 交回报告之后，这条通路依然成立**——
+  [报告终结的是那次派发，不是那个会话](#ul-dispatch-report--派发报告--dispatch-report)。
+  **⚠️ 但规则一没有规则二那样的「会话仍活跃」条件**，因此
+  **「对方会话已经结束时规则一还成不成立」目前没有答案**，等 PF-015 定义会话终态
 
 ### UL-dispatch-report · 派发报告 · Dispatch Report
 
@@ -76,7 +103,10 @@
 > on every count: **a report concludes the dispatch**, a message concludes nothing;
 > **a report comes once**, messages any number of times.
 
-- **出处**：[PF-007 §6.8 「不能发消息」不等于「不能说话」](../../product/PF-007-meta-capabilities/design.md#不能发消息不等于不能说话)（rev 6）
+- **出处**：[PF-007 §6.8 「不能发消息」不等于「不能说话」](../../product/PF-007-meta-capabilities/design.md#不能发消息不等于不能说话)（rev 7）
+- **⚠️ 它终结的是这次派发，不是那个会话。**[子 agent](#ul-subagent--子-agent--subagent) 交回报告之后，
+  **它的会话没有因此落进任何终态**，派发者[照样发得出消息](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)。
+  **不点破这一条，就会被做成「报告一到就把那个会话收掉」——而且不报错**
 - **注意**：不点破这层区分，「不能向派发者发消息」会被读成
   **「它干完了也没人知道」**——**而那正好相反**
 - **注意**：发起方可以附上「**我期望报告长什么样**」，但那是**指引，不是校验**——
@@ -236,5 +266,84 @@
   **禁的是系统替人解释，不是禁止人给长期授权**
 - **注意 ④**：**授权不能建立在记忆上**——不给它名字，「用户刚才同意过」就只能活在
   agent 的上下文里，**而上下文会被裁剪**
+
+## 外面怎么进来
+
+### UL-inbound-arrival · 入站到达 · Inbound Arrival
+
+> **中**：**外面要送进一个[会话](agent-runtime-loop.md#ul-session--会话--session)的一件事，
+> 被受理之后成为的那条事实。**受理**是一个动作，不是一个通道**——
+> 东西送到了不等于被受理；**受理的那一刻，它成为一条可以被指着说「就是它」的事实**。
+> 它**归属于恰好一个会话**、**有一个来源**，而且**受理了就不会凭空消失**：
+> 要么被消费，要么被明确关掉，**两种都留痕**。
+>
+> **EN**: **A thing from outside, destined for one session, as it exists once it has
+> been admitted.** Admission is **an action, not a channel** — something reaching the
+> system is not yet admitted; at the moment of admission it becomes a fact one can
+> point at. It **belongs to exactly one session**, **carries a source**, and **once
+> admitted never vanishes silently**: it is either consumed or explicitly closed out,
+> and **both leave a trace**.
+
+- **出处**：[PF-014 §4 入站到达](../../product/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 2）
+- **别混 ①**：**它不是一条[消息](record-and-context.md#ul-message--消息--message)。**
+  消息回答**谁在说话**；入站到达回答**外面送进来了一件什么事**。
+  **有的到达会成为消息**（进[待处理消息队列](agent-runtime-loop.md#ul-pending-message-queue--待处理消息队列--pending-message-queue)），
+  **有的不会**——一张卡片的答复、一条[控制指令](#ul-control-command--控制指令--control-command)都不是消息
+- **别混 ②**：**与[增量到达](record-and-context.md#ul-incremental-arrival--增量到达--incremental-arrival)是两回事。**
+  那条说的是**一条消息的内容分几次到齐**，这条说的是**一件事从外面进到会话里**。
+  **裸写「到达」不作数**，两处都要带限定
+- **注意**：**「从哪个通道进来」是它的一个属性，不是它的种类**——
+  斜杠命令、连接件送达、定时到点、别的会话捎话，**同一套受理规矩，差别只在取值**
+
+### UL-control-command · 控制指令 · Control Command
+
+> **中**：**用户对正在发生的事、或对[待处理消息队列](agent-runtime-loop.md#ul-pending-message-queue--待处理消息队列--pending-message-queue)本身的一次直接处置。**
+> 三条性质合起来才是它：**它不是内容**（不进 agent 的上下文去被理解，
+> 它改的是执行权或队列本身）、**它不排队**（排队的意思是「等一个合适的时候」，
+> 而它要的恰恰是现在）、**它的语义归定义那个动作的 topic**。
+>
+> **EN**: **A user's direct disposition of what is happening, or of the pending message
+> queue itself.** Three properties together constitute it: it is **not content** (it
+> never enters the agent's context to be interpreted; it changes execution rights or
+> the queue), it **does not queue** (queueing means waiting for a suitable moment, and
+> what it wants is precisely *now*), and **its meaning belongs to whichever topic
+> defines that action**.
+
+- **出处**：[PF-014 §4 控制指令](../../product/PF-014-inbound-intake-and-queueing/design.md#控制指令)（rev 2）
+- **别混 ①**：**与[斜杠命令](capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command)不是一回事。**
+  斜杠命令是**内容**——它要 agent 去做一件事，因此进队列；
+  控制指令是**处置**。**判据是问一句：它是内容还是处置？**
+- **别混 ②**：**「敲键盘」不是一类到达**，它是**发出一条控制指令的一种敲法**——
+  同一条指令可以敲键盘发、点按钮发、调接口发
+- **注意**：**本条只定这三条共同性质，不发明任何一条具体指令。**
+  [取消与强制停止](agent-runtime-loop.md#ul-forced-stop--强制停止--forced-stop)、[插队](#ul-queue-jump--插队--queue-jump)各有各的拥有者
+
+### UL-queue-jump · 插队 · Queue Jump
+
+> **中**：用户发出的一条[控制指令](#ul-control-command--控制指令--control-command)，
+> 意思是**「这句话我要现在就被看到」**。它做**三件事，要么一起成立、要么都不成立**：
+> 按**最大程度保留**的原则处置 loop 正停着的那一步、
+> 把用户这句话放到[待处理消息队列](agent-runtime-loop.md#ul-pending-message-queue--待处理消息队列--pending-message-queue)的**队首**、
+> 落下相应的占位与提醒**让 agent 知道刚才发生了什么、为什么**。
+>
+> **EN**: A user's control command meaning **"I want this seen right now."** It does
+> **three things, all or none**: it disposes of whatever step the loop is stopped at,
+> under the principle of **preserving as much as possible**; it puts the user's
+> sentence **at the head** of the pending message queue; and it records the
+> corresponding placeholders and reminders so **the agent knows what just happened and
+> why**.
+
+- **出处**：[PF-014 §4 插队](../../product/PF-014-inbound-intake-and-queueing/design.md#插队)（rev 2）
+- **别混 ①**：**它不终止[运行](agent-runtime-loop.md#ul-run--运行--run)。**
+  这是它与**取消**最要紧的差别：取消让运行落终态，
+  **插队只是把运行推到下一次取消息那一点**，运行一直活着
+- **别混 ②**：**名字容易误导：它插的不是别人的位置，是时间。**
+  队首那一项是它的落脚处，**不是它的目的**——两条路最终都走到同一个地方（取一批消息），
+  插队只是**把中间那段间隔压到最短**
+- **注意 ①**：**它是系统唯一的加急通道**，[不设第二种优先级](../../product/PF-012-agent-loop-and-run/design.md#先到先处理只有一个例外)
+- **注意 ②**：**它会解除 loop 里各种等待态**，其中悬着的[决策卡片](#ul-decision-card--决策卡片--decision-card)
+  按「**人明确拒绝回复**」处置——**取消视作拒绝是无副作用可逆的，反过来不是**
+
+---
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

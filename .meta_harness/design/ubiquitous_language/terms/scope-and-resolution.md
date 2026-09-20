@@ -161,7 +161,7 @@
 > only at run time** — a changed external environment, an adjusted permission, a
 > dependency gone unavailable.
 
-- **出处**：[PF-001 §4 Context](../../product/PF-001-identity-scope-and-agent-constraints/design.md#contextagent-运行时可感知的上下文信息) · [PF-004 §4 运行期上下文](../../product/PF-004-agent-runtime-assembly-and-liveness/design.md#运行期上下文)（rev 6 / rev 3）
+- **出处**：[PF-001 §4 Context](../../product/PF-001-identity-scope-and-agent-constraints/design.md#contextagent-运行时可感知的上下文信息) · [PF-004 §4 运行期上下文](../../product/PF-004-agent-definition-and-assembly/design.md#运行期上下文)（rev 6 / rev 3）
 - **别混 ①**：**不是 Cordis 的 `Context`**——那是依赖注入与生命周期的容器，属技术设计。指它时**必须写全 `Cordis Context`**
 - **别混 ②**：**不是[给模型看的上下文](../index.md#记录与上下文)**。**裸写「上下文 / context」在跨 topic 的文字里一律不作数**，[已记为冲突](../conflicts.md#现有冲突)
 

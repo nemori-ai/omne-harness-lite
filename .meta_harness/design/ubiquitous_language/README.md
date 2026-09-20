@@ -51,9 +51,9 @@
 | [架构内核与扩展](terms/architecture-core-and-extension.md) | 这个系统**哪一部分立规矩**，其余部分怎么建在它之上 | 架构内核 |
 | [主体与归属](terms/subjects-and-ownership.md) | **谁**在用这个系统，东西**归谁** | 账号 · 组织 · 租户 · 租户角色 |
 | [作用域与求值](terms/scope-and-resolution.md) | 一个值**怎么被算出来** | 作用域层 · 能力标识 · 覆盖与收窄 |
-| [能力与构成](terms/capabilities-and-composition.md) | agent **由什么构成**，因此**能做什么** | 资产八类 · 实例构成 · 动作空间 |
+| [能力与构成](terms/capabilities-and-composition.md) | agent **由什么构成**，因此**能做什么** | 资产八类 · agent 构成 · 动作空间 |
 | [流转与授权](terms/circulation-and-entitlement.md) | 东西**怎么在主体之间流动**，谁**凭什么**用它 | 所有权 · 使用权 · 转移 · 分享 |
-| [Agent 运行时闭环](terms/agent-runtime-loop.md) | 一段协作**怎么从触发走到收束，又怎么回到会话** | 会话 · 运行 · 触发 · 装配 · 运行实例 · 退役 |
+| [Agent 运行时闭环](terms/agent-runtime-loop.md) | 一段协作**怎么从触发走到收束，又怎么回到会话** | 会话 · 运行 · 触发 · 装配 · 装配清单 · agent runtime · 优雅取消 |
 | [取用与可用性](terms/reach-and-availability.md) | 一样能力此刻**够不够得着、做不做得了** | 常驻 · 当下可用性 · 替换件 · 依赖声明 |
 | [执行与收场](terms/execution-and-outcome.md) | 一件事**怎么跑、跑偏了谁接手、怎么了结** | 工具执行 · 等待态 · 发帧 · 卸载 · 六种收场 · 主路径 · 非常态 · 上交 |
 | [落地与隔离](terms/grounding-and-isolation.md) | 动作**实际落到哪里** | 执行环境 · 沙箱 · 宿主机 · 设施 |

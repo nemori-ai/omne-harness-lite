@@ -10,7 +10,7 @@
 
 | 谁 | 往里放了什么 |
 |---|---|
-| [PF-004](../PF-004-agent-runtime-assembly-and-liveness/design.md) | 系统提示词的成分，以及它在哪一刻定死 |
+| [PF-004](../PF-004-agent-definition-and-assembly/design.md) | 系统提示词的成分，以及它在哪一刻定死 |
 | [PF-006](../PF-006-tools-and-skills/design.md) | 工具的返回怎么进消息；[卸载](../PF-006-tools-and-skills/design.md#610-结果太大时卸载而卸载是第三个维度)后换成占位；转后台先放占位 |
 | [PF-007](../PF-007-meta-capabilities/design.md) | [十三扇门](../PF-007-meta-capabilities/design.md#54-十三个槽位是预算的地板也是它的天花板意义)常驻占预算 |
 | [PF-008](../PF-008-human-in-the-loop/design.md) | 卡片答完之后，结果回到那次 run |
@@ -55,7 +55,7 @@
 | 各家供应商 API 的**具体调用形式** | 产品只定「同一条消息在不同家落成什么」，怎么发是技术设计 |
 | 压缩用什么**算法**、摘要由谁生成 | 产品定产物的**形状与性质**，算法是可调的政策 |
 | 一次 run 怎么被驱动、事件怎么收进记录 | 归 [PF-012](../PF-012-agent-loop-and-run/README.md)。本 topic 只定**收进来之后做成什么** |
-| 系统提示词的**成分与组装时刻** | 归 [PF-004](../PF-004-agent-runtime-assembly-and-liveness/design.md#54-为什么系统提示词必须落在第三列)。本 topic 不重定 |
+| 系统提示词的**成分与组装时刻** | 归 [PF-004](../PF-004-agent-definition-and-assembly/design.md#54-为什么系统提示词必须落在第三列)。本 topic 不重定 |
 
 ## 三、用户与场景
 
@@ -79,7 +79,7 @@
 | [记录](../PF-012-agent-loop-and-run/design.md#会话日志)、[三类事件](../PF-012-agent-loop-and-run/design.md#511-外面进来的事怎么到-agent-眼前)、组装是纯派生的 | [PF-012](../PF-012-agent-loop-and-run/design.md) |
 | [工具的产出](../PF-006-tools-and-skills/design.md#工具的产出)、[卸载](../PF-006-tools-and-skills/design.md#卸载)、[六种收场](../PF-006-tools-and-skills/design.md#55-一次工具执行的收场有六种) | [PF-006](../PF-006-tools-and-skills/design.md) |
 | [决策卡片](../PF-008-human-in-the-loop/design.md#决策卡片)、答复怎么回到 run | [PF-008](../PF-008-human-in-the-loop/design.md) |
-| 系统提示词的成分与三个时刻 | [PF-004](../PF-004-agent-runtime-assembly-and-liveness/design.md) |
+| 系统提示词的成分与三个时刻 | [PF-004](../PF-004-agent-definition-and-assembly/design.md) |
 
 ### 消息
 
@@ -140,7 +140,7 @@
 **系统那三种，时间朝向各不相同**：设定朝**前**（这次对话开始之前就定好了），
 提醒朝**当下**（刚刚发生了一件事），**概括朝后**（回头看已经过去的那一段）。
 
-`SystemMessage` 在[实例存续期内恒定](../PF-004-agent-runtime-assembly-and-liveness/design.md#54-为什么系统提示词必须落在第三列)，
+`SystemMessage` 在[实例存续期内恒定](../PF-004-agent-definition-and-assembly/design.md#54-为什么系统提示词必须落在第三列)，
 而 `SystemReminderMessage` 随时可能出现在对话中间——
 **把后者做成前者，等于把一件偶发的事写进了长期设定**。
 
@@ -932,7 +932,7 @@ DeveloperMessage    UserMessage   （各自的 adapter 定）
 | [PF-012](../PF-012-agent-loop-and-run/README.md)（草稿） | 记录、三类事件、组装与压缩**在方程里的位置** | **互相依赖**。那边定「什么时候做成消息」，这边定「做成什么」 |
 | [PF-006](../PF-006-tools-and-skills/README.md) | 工具的产出、附件、卸载、六种收场 | **依赖其定义**。工具返回怎么落成 `ToolMessage`，形状归这里，语义归那边 |
 | [PF-008](../PF-008-human-in-the-loop/README.md) | 决策卡片、答复怎么回到 run | **依赖其定义**。答复落成什么消息，归这里 |
-| [PF-004](../PF-004-agent-runtime-assembly-and-liveness/README.md) | 系统提示词的成分与三个时刻 | **依赖其定义**，不重定 |
+| [PF-004](../PF-004-agent-definition-and-assembly/README.md) | 系统提示词的成分与三个时刻 | **依赖其定义**，不重定 |
 | [PF-007](../PF-007-meta-capabilities/README.md) | 十三扇门与常驻预算、Cordis 视角的 scope | **依赖其定义**。scope 变动做成哪一种提醒，归这里 |
 
 **明确不拥有、留给别处的**：

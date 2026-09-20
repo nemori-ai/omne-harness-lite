@@ -262,7 +262,7 @@
 > at request time**; it is **constant for the life of the instance**. **Compaction
 > cannot touch it.**
 
-- **出处**：[PF-010 §4](../../product/PF-010-context-management-and-assembly/design.md#给模型那一侧两块分别组装) · [PF-004 §5.4](../../product/PF-004-agent-runtime-assembly-and-liveness/design.md#54-为什么系统提示词必须落在第三列)（rev 2 / rev 3）
+- **出处**：[PF-010 §4](../../product/PF-010-context-management-and-assembly/design.md#给模型那一侧两块分别组装) · [PF-004 §5.4](../../product/PF-004-agent-definition-and-assembly/design.md#54-为什么系统提示词必须落在第三列)（rev 2 / rev 3）
 - **注意**：走遍所有[meta 能力](capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability)，
   **它应当逐字不变**——取用一个工具**不改写它**
 

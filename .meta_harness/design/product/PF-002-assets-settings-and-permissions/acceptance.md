@@ -77,7 +77,7 @@
 | 某个具体 tool 到底有哪几项配置 | 本 topic 定「设置是资产的属性」这个结构，具体字段属那个 tool 自己的定义 |
 | 资产怎样在组织之间流动 | 归 [PF-003](../PF-003-asset-transfer-and-sharing/README.md)，它定义转移与分享两个动作 |
 | Skill 套 Skill、Plugin 套 Plugin、Plugin 装 Agent Definition | 本版**刻意不做**，见 design.md §4。真有需要再加 |
-| 会话与运行实例的生命周期 | 本 topic 定 Agent Definition 是静态定义，跑起来之后的事归 [PF-004](../PF-004-agent-runtime-assembly-and-liveness/README.md) 与 [PF-012](../PF-012-agent-loop-and-run/README.md) |
+| 会话与 agent runtime 的生命周期 | 本 topic 定 Agent Definition 是静态定义，跑起来之后的事归 [PF-004](../PF-004-agent-definition-and-assembly/README.md) 与 [PF-012](../PF-012-agent-loop-and-run/README.md) |
 | **一共有哪些拓展点位置**、每个位置看得见什么改得动什么、同位置多个挂件按什么次序跑 | 归 [PF-012 §5.8](../PF-012-agent-loop-and-run/design.md#58-loop-拓展点)。本 topic 只定**拓展件是一类资产**及它的形状与组合 |
 
 **这一节不是遗漏清单，是边界声明。**验收时发现上述内容缺失，不算缺陷。

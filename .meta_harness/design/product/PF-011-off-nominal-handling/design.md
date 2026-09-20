@@ -43,7 +43,7 @@ agent 为一件它根本变不出来的东西反复重试，运行为一件早�
 | 不在本 topic | 归哪 |
 |---|---|
 | **穷举有哪些非常态** | **各自的 topic。**本 topic 给判据，不给清单——[判据不是清单](#57-这不是一张清单是一个判断) |
-| **某一层已有的处置形状** | 六种收场归 [PF-006](../PF-006-tools-and-skills/README.md)、问人那条路归 [PF-008](../PF-008-human-in-the-loop/README.md)、装配失败归 [PF-004](../PF-004-agent-runtime-assembly-and-liveness/README.md)、沙箱起不来归 [PF-005](../PF-005-execution-environments-and-sandboxes/README.md) |
+| **某一层已有的处置形状** | 六种收场归 [PF-006](../PF-006-tools-and-skills/README.md)、问人那条路归 [PF-008](../PF-008-human-in-the-loop/README.md)、装配失败归 [PF-004](../PF-004-agent-definition-and-assembly/README.md)、沙箱起不来归 [PF-005](../PF-005-execution-environments-and-sandboxes/README.md) |
 | **一条记录条目长什么样** | [PF-000](../PF-000-occurrences-and-record-entries/README.md) |
 | **怎么组装、怎么压缩** | [PF-010](../PF-010-context-management-and-assembly/README.md) |
 | **重试几次、等多久、退避多少** | **策略，不是产品设计。**本 topic 只说「手段用尽了就上交」 |
@@ -72,7 +72,7 @@ agent 为一件它根本变不出来的东西反复重试，运行为一件早�
 | [执行收场](../PF-006-tools-and-skills/design.md#55-一次工具执行的收场有六种)六种 | PF-006 | **引用。**它们是[一次工具执行](#54-各层的四要素)那一层的收场，[其中四种上交给 agent](#六种收场在这个模型里各是什么) |
 | [决策卡片](../PF-008-human-in-the-loop/design.md#决策卡片)、[决策池](../PF-008-human-in-the-loop/design.md#决策池) | PF-008 | **引用。**问人是横切手段，不是一层 |
 | [租户](../../ubiquitous_language/terms/subjects-and-ownership.md#ul-tenant--租户--tenant)、[会话](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-session--会话--session)、[运行](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run--运行--run) | 统一语言 | **引用。**它们各自就是树上的一层 |
-| [运行实例](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-agent-instance--运行实例--agent-instance) | 统一语言 | **引用。**它[根本不是一层](#53-层的顺序不是排出来的是推出来的)，是运行的承载物 |
+| [agent runtime](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-agent-runtime--agent-runtime--agent-runtime) | 统一语言 | **引用。**它[根本不是一层](#53-层的顺序不是排出来的是推出来的)，是运行的承载物 |
 
 ### 主路径
 
@@ -203,7 +203,7 @@ agent 的一步里既有一次模型调用、又有一次工具执行，
 > **树是全局的形状，而一件非常态实际走的是其中一条路**——
 > 从它起步的那一层，沿父节点一直到根。**下文把这条路叫「阶梯」。**
 
-这条判据顺带回答了一个容易搞错的问题：**[运行实例](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-agent-instance--运行实例--agent-instance)为什么不是一层。**
+这条判据顺带回答了一个容易搞错的问题：**[agent runtime](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-agent-runtime--agent-runtime--agent-runtime)为什么不是一层。**
 
 一个实例可以服务多次运行，一次运行也可能换实例，**它根本不在这棵树上**。
 它是运行的承载物，**生死由运行那一层处置**。
@@ -224,7 +224,7 @@ agent 的一步里既有一次模型调用、又有一次工具执行，
 |---|---|---|---|---|
 | **租户** | **稳态**：作为可用的归属边界持续成立 | 补配额 · [在别处重建租户级沙箱](../PF-005-execution-environments-and-sandboxes/design.md#64-租户级沙箱共享的工作空间) · 重新启用被禁的资产 | **没有人可交**（[§6.8](#68-阶梯到租户为止)） | **落终局——只有它做得了** |
 | **会话** | 建立 → 一次次运行 → 一直可用 | 重算可用性让下次运行换个动作空间 · 换个地方重建执行环境 | 租户 | —— |
-| **[运行](../PF-012-agent-loop-and-run/design.md#run)** | [触发 → 备好一副身子 → agent 一步步走 → 收束](../PF-012-agent-loop-and-run/design.md#56-状态转移表) | 重建一副身子 · 缺可选的照装并标明 · 腾出上下文空间 | 会话 | —— |
+| **[运行](../PF-012-agent-loop-and-run/design.md#run)** | [触发 → 备好一个 agent runtime → agent 一步步走 → 收束](../PF-012-agent-loop-and-run/design.md#56-状态转移表) | 重建一个 agent runtime · 缺可选的照装并标明 · 腾出上下文空间 | 会话 | —— |
 | **[agent 的一步](../PF-012-agent-loop-and-run/design.md#agent-的一步)** | 看到处境 → 决定做什么 → 做 → 看到结果 → 再来 | 换一条路 · 换个方法 · 先干别的 · 不做了换方向 · 分页取回 | 运行 | —— |
 | **[一次模型调用](../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call)** | 发出请求 → 流式回来 → 完整的一份回复 | **未定**——这一层[尚无 owner](#92-模型调用那一层还没有-owner) | agent 的一步 | —— |
 | **一次工具执行** | 调用 → 执行 → 把结果交回去 | [进等待态等一个应答](../PF-006-tools-and-skills/design.md#等待态) · [转后台](../PF-006-tools-and-skills/design.md#55-一次工具执行的收场有六种)（声明允许时） | agent 的一步 | —— |
@@ -271,7 +271,7 @@ agent 的一步里既有一次模型调用、又有一次工具执行，
 > 这个租户本来该一直用得上自己名下的东西。
 
 按「谁撞见谁先处置」，这件事要让**模型调用重试一轮、agent 的一步换条路试试、
-运行换一副身子、会话重算一次可用性**——**四层各做一次注定无用的处置**，
+运行换一个 agent runtime 、会话重算一次可用性**——**四层各做一次注定无用的处置**，
 才轮到真正能了结它的那一层。
 
 **层越多，这个错误越贵。**
@@ -283,7 +283,7 @@ agent 的一步里既有一次模型调用、又有一次工具执行，
 | 偏离 | 这一层缺什么 | 谁手上有 | 结果 |
 |---|---|---|---|
 | 一个工具用不了 | 一条能走的路 | **动作空间里还有别的**——agent 自己手上 | **本层了结** |
-| 运行实例没了 | 一副身子 | **装配的能力就在运行这一层** | **本层了结** |
+| agent runtime 没了 | 一个 agent runtime | **装配的能力就在运行这一层** | **本层了结** |
 | 上下文满了 | 空间 | 压缩就在这一层 | **本层了结** |
 | 装配缺**必需**的资产 | 那个资产 | 这一层拿不到 | **上交** |
 | 额度用完 | 配额 | **只有租户那一层给得了** | [**起点直接在租户层**](#55-起点偏离在哪一层不看是谁撞见的)，而配额就在它手上——**本层了结** |
@@ -509,7 +509,7 @@ agent 就是模型，模型没给出回复，**那个会思考的主体此刻不
 | 一条记录条目长什么样、效力与寿命宿主 | [PF-000](../PF-000-occurrences-and-record-entries/README.md) |
 | 工具那一层的六种收场、替换件、等待态 | [PF-006](../PF-006-tools-and-skills/README.md) |
 | 问人那条路的全部形状 | [PF-008](../PF-008-human-in-the-loop/README.md) |
-| 装配缺东西怎么失败、实例怎么退役、强制停止 | [PF-004](../PF-004-agent-runtime-assembly-and-liveness/README.md) |
+| 装配缺东西怎么失败、实例怎么退役、强制停止 | [PF-004](../PF-004-agent-definition-and-assembly/README.md) |
 | 沙箱起不来怎么办、禁止降级 | [PF-005](../PF-005-execution-environments-and-sandboxes/README.md) |
 | 租户是什么、隔离边界划在哪 | [PF-001](../PF-001-identity-scope-and-agent-constraints/README.md) 与 [SYS-TENANT](../../foundation/cross-system-constraints/requirements.md#sys-tenant) |
 | 组装与压缩 | [PF-010](../PF-010-context-management-and-assembly/README.md) |
@@ -558,7 +558,7 @@ rev 2 定稿时，本 topic 的地盘还有一块由 [PF-012](../PF-012-agent-lo
 | 这一段 | 谁拥有 |
 |---|---|
 | 模型选择存在哪、谁能配、多层怎么覆盖、能不能锁死 | [PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)、[PF-002](../PF-002-assets-settings-and-permissions/README.md) |
-| 模型在哪一刻被解析、换模型要不要重建实例、实际用了哪个要留痕 | [PF-004](../PF-004-agent-runtime-assembly-and-liveness/README.md) |
+| 模型在哪一刻被解析、换模型要不要重建实例、实际用了哪个要留痕 | [PF-004](../PF-004-agent-definition-and-assembly/README.md) |
 | 请求体的内容怎么攒出来 | [PF-010](../PF-010-context-management-and-assembly/README.md) |
 | **把它发出去 · 这一层失败了能做什么 · 什么时候算试尽** | **无主** |
 | 流式怎么回来、怎么拼成完整一份、断在半路怎么收场 | [PF-009](../PF-009-context-message-types/README.md) |

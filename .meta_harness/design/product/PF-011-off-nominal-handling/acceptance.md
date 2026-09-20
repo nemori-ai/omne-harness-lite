@@ -74,7 +74,7 @@
 | 一条记录条目的结构与字段 | [PF-000](../PF-000-occurrences-and-record-entries/README.md) 与技术设计 |
 | 六种收场各自长什么样 | [PF-006](../PF-006-tools-and-skills/README.md) |
 | 卡片怎么出、池子怎么组织 | [PF-008](../PF-008-human-in-the-loop/README.md) |
-| 装配缺东西怎么失败、沙箱起不来怎么办 | [PF-004](../PF-004-agent-runtime-assembly-and-liveness/README.md)、[PF-005](../PF-005-execution-environments-and-sandboxes/README.md) |
+| 装配缺东西怎么失败、沙箱起不来怎么办 | [PF-004](../PF-004-agent-definition-and-assembly/README.md)、[PF-005](../PF-005-execution-environments-and-sandboxes/README.md) |
 | 落终局之后的实际后果 | **造成它的那件事自己的 topic**——落终局的是[那件非常态，不是承接它的那一层](design.md#八边界与依赖) |
 | 一次模型调用失败了怎么办 | **尚无 owner**，见 [design.md §9.2](design.md#92-模型调用那一层还没有-owner) |
 | 错误码词表 | **技术设计**，且上层不读它 |

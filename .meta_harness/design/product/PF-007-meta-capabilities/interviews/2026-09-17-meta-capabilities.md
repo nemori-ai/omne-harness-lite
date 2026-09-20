@@ -109,7 +109,7 @@
 - 表达方式：`quote`
 - 内容：「**上游三个欠账授权你去改**」
 - 状态：当前有效。**三处已全部闭合**
-- 记录者注：三处分别是——[PF-004](../../PF-004-agent-runtime-assembly-and-liveness/changelog.md)
+- 记录者注：三处分别是——[PF-004](../../PF-004-agent-definition-and-assembly/changelog.md)
   的重建触发点（升 rev 3）、[PF-006](../../PF-006-tools-and-skills/changelog.md)
   的「两个入口」与「设施声明的主语」（合并升 rev 2）。
   **PF-004 那处比原先报告的小**：§6.3 早就有「增量装载是个例外」这条规则，

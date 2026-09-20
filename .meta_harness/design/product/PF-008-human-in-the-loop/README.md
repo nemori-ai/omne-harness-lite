@@ -2,7 +2,7 @@
 id: PF-008
 title: Human in the Loop
 status: active
-revision: 1
+revision: 2
 relations:
   supersedes: []
   depends-on:
@@ -11,7 +11,7 @@ relations:
     - id: PF-006
       for: 等待态原语、前台/后台两个维度、六种收场、中断不是失败
     - id: PF-004
-      for: 运行实例、Run 与会话这两个只引用不拥有的对象
+      for: agent runtime 、Run 与会话这三个只引用不拥有的对象
     - id: PF-002
       for: 权限设置
     - id: PF-001
@@ -55,7 +55,7 @@ relations:
 | 关系 | 本 topic 的情况 |
 |---|---|
 | `supersedes` | 无 |
-| `depends-on` | [PF-007](../PF-007-meta-capabilities/README.md)、[PF-006](../PF-006-tools-and-skills/README.md)、[PF-004](../PF-004-agent-runtime-assembly-and-liveness/README.md)、[PF-002](../PF-002-assets-settings-and-permissions/README.md)、[PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)，引用不改写 |
+| `depends-on` | [PF-007](../PF-007-meta-capabilities/README.md)、[PF-006](../PF-006-tools-and-skills/README.md)、[PF-004](../PF-004-agent-definition-and-assembly/README.md)、[PF-002](../PF-002-assets-settings-and-permissions/README.md)、[PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)，引用不改写 |
 | `extends` | 无 |
 
 **与 PF-007 的分界**：`Ask()` 这扇门长什么样、agent 侧看见什么，归 PF-007；
@@ -79,7 +79,7 @@ relations:
 - 待裁决：**无**
 - **依赖两个尚未成文的对象**：**Run** 与**会话**的完整定义归后续 PF
   （产品负责人已明确 agent-loop / session / inbound 会是多个 topic）。
-  本 topic 按 [PF-004 的先例](../PF-004-agent-runtime-assembly-and-liveness/design.md#两个只引用不拥有的对象)
+  本 topic 按 [PF-004 的先例](../PF-004-agent-definition-and-assembly/design.md#三个只引用不拥有的对象)
   只引用、不拥有，用到哪几件事写在 [design.md §4](design.md#只引用不拥有的两个对象)
 - 上游欠账：**已闭合**——[PF-007 rev 3](../PF-007-meta-capabilities/changelog.md) 已补上
   「**禁的是系统替人解释，不是禁止人给长期授权**」这句交叉引用

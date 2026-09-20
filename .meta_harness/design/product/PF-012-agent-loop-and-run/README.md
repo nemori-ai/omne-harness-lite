@@ -2,7 +2,7 @@
 id: PF-012
 title: Agent Loop 与 Run
 status: active
-revision: 3
+revision: 5
 relations:
   supersedes: []
   depends-on:
@@ -11,7 +11,7 @@ relations:
     - id: PF-011
       for: 非常态、主路径、上交、终局、一层四要素
     - id: PF-010
-      for: 组装的四条要求、压缩能做什么与不能做什么
+      for: 组装的五条要求、压缩能做什么与不能做什么
     - id: PF-009
       for: 七种消息、块上的两个标注、SystemReminderMessage
     - id: PF-008
@@ -21,7 +21,7 @@ relations:
     - id: PF-006
       for: 六种收场、可用性每次 run 开始前重算、替换件、卸载、中断不是失败
     - id: PF-004
-      for: 运行实例、装配、注入、三个时刻；等人不消耗计算资源
+      for: agent runtime 、装配、注入、三个时刻；等人不消耗计算资源
     - id: PF-002
       for: 拓展件是第八类资产——它自带哪些属性、能被谁打包、干预力怎么配
     - id: PF-001
@@ -35,7 +35,7 @@ relations:
 
 前面几个 topic 各自定了 agent 能做什么（[PF-006](../PF-006-tools-and-skills/README.md)、
 [PF-007](../PF-007-meta-capabilities/README.md)）、什么时候停下来等人（[PF-008](../PF-008-human-in-the-loop/README.md)）、
-它由什么装配而成（[PF-004](../PF-004-agent-runtime-assembly-and-liveness/README.md)）、
+它由什么装配而成（[PF-004](../PF-004-agent-definition-and-assembly/README.md)）、
 留下什么（[PF-000](../PF-000-occurrences-and-record-entries/README.md)）、
 怎么组装给模型看（[PF-010](../PF-010-context-management-and-assembly/README.md)）、
 跑偏了谁接手（[PF-011](../PF-011-off-nominal-handling/README.md)）。
@@ -57,6 +57,15 @@ relations:
 
 **两个都要，缺一个恢复就不成立。**
 
+**而 Run 的边界，由 Agent Loop 的进出划定：**
+
+> **进入 Agent Loop 的那一刻 Run 开始，退出的那一刻 Run 结束；
+> 而退不退出，只看[待处理消息队列](design.md#待处理消息队列)空不空。**
+
+**「触发」与「收束」因此不是两个独立概念，是这条规则的两端**——
+触发就是**让队列从空变非空的那件事**，收束就是**队列重新变空**。
+[什么东西会进队列、插队怎么被受理](../PF-014-inbound-intake-and-queueing/README.md)归 PF-014。
+
 ## 方程
 
 ```text
@@ -67,7 +76,7 @@ relations:
 
 > **恢复不是「接着上次的进程」，是「重新算一遍 `f`」。**
 > 而且[**它不是异常路径**](design.md#57-一次尝试三条路通向重新算一遍)——
-> 系统崩了、等人回来、身子换了一副，**三条路在方程眼里是同一件事**。
+> 系统崩了、等人回来、 agent runtime 换了一副，**三条路在方程眼里是同一件事**。
 
 ## Run 是三样东西的归属单位
 
@@ -86,15 +95,16 @@ relations:
 > **每个[状态点](design.md#53-改日志的动作与纯派生的动作)有紧前与紧后两条边，每条边就是一个位置。**
 > 六个状态点十二条边，**只有「尝试开始之前」不归本 topic**，[其余十一条全部开放](design.md#十一个位置是推出来的不是挑出来的)。
 
-**尝试开始之后 · 输入落盘之前 · 输入落盘之后 · 压缩之前 · 压缩之后 · 调模型之前 ·
+**尝试开始之后 · 消息落盘之前 · 消息落盘之后 · 压缩之前 · 压缩之后 · 调模型之前 ·
 调模型之后 · 执行动作之前 · 执行动作之后 · 落终态之前 · 落终态之后**
 
 **位置没有编号，就叫它站的那个名字。**
 
-> **「输入落盘之前」在 loop 外面，但清单记在这儿**——
-> 企业场景最要紧的几件事都发生在那一刻：**脱敏 · 敏感信息识别 · 提示词注入与攻击检测**。
+> **「消息落盘之前」不属于某一步，每有一条消息要落盘就经过一次**——
+> 不论它是用户说的、模型吐的还是工具交回来的。四件最要紧的事都发生在那一刻：
+> **脱敏 · 敏感信息识别 · 提示词注入与攻击检测 · 把收不下的模态转成文本**。
 > [日志只增不改](design.md#会话日志)，**落盘之后再想脱敏，原文已经永久留在那儿了**。
-> 见 [§5.8](design.md#输入落盘之前在-loop-外面但清单记在这儿)。
+> 见 [§5.8](design.md#消息落盘之前每条消息都经过它不只是输入)。
 
 **位置按它站在哪命名，不按挂在那儿的功能命名**，所以——
 
@@ -104,13 +114,17 @@ relations:
 | **位置的数目不随功能增长** | 功能没有上限，位置**十一个** |
 | **拓展件是[第八类资产](../PF-002-assets-settings-and-permissions/design.md#loop-extension)** | 组织超管配一份、租户覆盖或收窄，**走资产已有的那一套** |
 
-**系统自带的三件，各站在一个位置上**，它们不享受特权：
+**系统自带的几件，各站在一个位置上**，它们不享受特权：
 
 | 挂件 | 站在 | 谁拥有 |
 |---|---|---|
 | **循环探测** | **调模型之后**（收场＝完整回复） | 本 topic |
 | **放行判断** | **执行动作之前** | [PF-008](../PF-008-human-in-the-loop/README.md) |
 | **卸载判定** | **执行动作之后**（范围＝这一个） | [PF-006](../PF-006-tools-and-skills/README.md) |
+| **模态转换** | **消息落盘之前** | [PF-013](../PF-013-model-profiles-and-invocation/README.md) |
+| **重试** | **调模型之后**（收场＝失败） | [PF-013](../PF-013-model-profiles-and-invocation/README.md) |
+
+**标题不写数目**——数目会变，本版一次就从三件变成了五件。
 
 **不管挂什么，都只有一条通路：**
 
@@ -150,14 +164,19 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 3**，已定稿（rev 1 是草稿，rev 2 [没有包袱地重做](changelog.md)，rev 3 [把拓展点做完整](changelog.md#rev-3--2026-09-19)）
+- 产品设计：**rev 4**，已定稿（rev 1 是草稿，rev 2 [没有包袱地重做](changelog.md)，
+  rev 3 [把拓展点做完整](changelog.md#rev-3--2026-09-19)，
+  rev 4 [按新的 Run 边界重做了循环的进出](changelog.md#rev-4--2026-09-20)）
 - **没有待裁决项**。rev 1 那五条[全部自行定掉，零条上报](decisions.md#rev-1-那五条待裁决rev-2-自行定掉的)
-- **rev 2 的三个缺口，rev 3 闭合了一个、另两个有了编号**：
-  - [拓展点上挂什么、谁能挂](design.md#93-拓展点上挂什么已定谁能挂走资产那一套)——**已闭合**：[拓展件是第八类资产](../PF-002-assets-settings-and-permissions/design.md#loop-extension)，走资产已有的那一套
+- **缺口只剩一个**：
   - **会话**——编号已排定为 [PF-015](../README.md#已排定尚未开题的编号)，尚未开题。[它有哪几种终态尚未拍板](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-session--会话--session)，而 [§6.6](design.md#66-终态不可逆且只有一个出口) 压在它上面
-  - [一次模型调用那一层](design.md#92-一次模型调用那一层还没有-owner)——编号已排定为 [PF-013](../README.md#已排定尚未开题的编号)，尚未开题。rev 3 只给了它一个**站的地方**（调模型之后，收场＝失败），**不是答案**
-- **两笔要回给别人的账**：[PF-010](../PF-010-context-management-and-assembly/README.md) 复核吸收
-  [§6.11](design.md#611-悬着的东西不许被压掉)；[PF-011](../PF-011-off-nominal-handling/README.md) 关掉它的 §9.1，两边都要升 rev
+  - ~~[拓展点上挂什么、谁能挂](design.md#93-拓展点上挂什么已定谁能挂走资产那一套)~~ **rev 3 闭合**：[拓展件是第八类资产](../PF-002-assets-settings-and-permissions/design.md#loop-extension)
+  - ~~[一次模型调用那一层](design.md#92-一次模型调用那一层还没有-owner)~~ **rev 4 闭合**：[PF-013 已开题](../PF-013-model-profiles-and-invocation/README.md)
+- **一笔要回给别人的账**：[PF-010](../PF-010-context-management-and-assembly/README.md) 复核吸收
+  [§6.11](design.md#611-悬着的东西不许被压掉)，要升 rev
+- **两个本轮同步起草的 topic**：[PF-013](../PF-013-model-profiles-and-invocation/README.md)（模型档案、调用与切换）、
+  [PF-014](../PF-014-inbound-intake-and-queueing/README.md)（输入的受理与排队）。
+  **它们与本版是一次联合修订的三份产物**，要对齐后才谈接受
 - 技术投影：尚未开始
 
 ## 本包的文件

@@ -14,7 +14,7 @@
 > **它永远存在——不存在「没有执行环境」这个状态**，动作总要落在某处。
 > 它是[注入](agent-runtime-loop.md#ul-runtime-injection--运行时注入--runtime-injection)的：
 > **工具定义说的是「执行一条命令」，从不说「在哪执行」**，
-> 因此换掉它**不需要重建运行实例，也不改变动作空间**。
+> 因此换掉它**不需要重建 agent runtime，也不改变动作空间**。
 >
 > **EN**: **Where an action actually lands** — the host machine, a sandbox, or
 > something else. **It always exists; there is no state of "having no execution
@@ -22,8 +22,8 @@
 > definition says "run a command", never "run it there"**, so replacing it **requires
 > no rebuild of the running instance and does not change the action space**.
 
-- **出处**：[PF-004 §4 执行环境](../../product/PF-004-agent-runtime-assembly-and-liveness/design.md#执行环境) · [PF-005 §4](../../product/PF-005-execution-environments-and-sandboxes/design.md#执行环境)（rev 3 / rev 2）
-- **注意**：**它的存活与运行实例无关**——可能短得多（一次工具调用就结束），也可能长得多（绑定在租户）
+- **出处**：[PF-004 §4 执行环境](../../product/PF-004-agent-definition-and-assembly/design.md#执行环境) · [PF-005 §4](../../product/PF-005-execution-environments-and-sandboxes/design.md#执行环境)（rev 3 / rev 2）
+- **注意**：**它的存活与 agent runtime 无关**——可能短得多（一次工具调用就结束），也可能长得多（绑定在租户）
 
 ### UL-sandbox · 沙箱 · Sandbox
 

@@ -2,7 +2,7 @@
 id: PF-007
 title: Meta Capabilities
 status: active
-revision: 6
+revision: 9
 relations:
   supersedes: []
   depends-on:
@@ -13,7 +13,7 @@ relations:
     - id: PF-002
       for: 八类资产、多命令工具只占一个槽位、派发权限
     - id: PF-004
-      for: 运行实例、装配、注入
+      for: agent runtime 、装配、注入
     - id: PF-001
       for: 租户隔离、official 与 customized
   extends: []
@@ -84,7 +84,7 @@ relations:
 | 关系 | 本 topic 的情况 |
 |---|---|
 | `supersedes` | 无 |
-| `depends-on` | [PF-006](../PF-006-tools-and-skills/README.md)、[PF-005](../PF-005-execution-environments-and-sandboxes/README.md)、[PF-002](../PF-002-assets-settings-and-permissions/README.md)、[PF-004](../PF-004-agent-runtime-assembly-and-liveness/README.md)、[PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)，引用不改写 |
+| `depends-on` | [PF-006](../PF-006-tools-and-skills/README.md)、[PF-005](../PF-005-execution-environments-and-sandboxes/README.md)、[PF-002](../PF-002-assets-settings-and-permissions/README.md)、[PF-004](../PF-004-agent-definition-and-assembly/README.md)、[PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)，引用不改写 |
 | `extends` | 无 |
 
 **与 PF-006 的分界**：常驻这个机制怎么运作，归 PF-006；
@@ -103,9 +103,11 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 6**，**已正式接受**（rev 3 为欠账回改，rev 4 为 `read_result` 补入，rev 5 补入第十三扇门 `Engram()`，**rev 6 重做 `Agents()` 的派发模式**）
-- 未决项：**一项**——[§9.1 `spawn` 的「继承当前会话的上下文」是共享还是复制](design.md#91-spawn-的继承当前会话的上下文是共享还是复制)
-- 待裁决：**一项**（[D-1](decisions.md#三待裁决)，即上一条）
+- 产品设计：**rev 7**，**已正式接受**（rev 3 为欠账回改，rev 4 为 `read_result` 补入，rev 5 补入第十三扇门 `Engram()`，rev 6 重做 `Agents()` 的派发模式，**rev 7 明确「报告终结的是这次派发，不是那个会话」并划出子会话那道线**）
+- 未决项：**两项**——[§9.1 `spawn` 的「继承当前会话的上下文」是共享还是复制](design.md#91-spawn-的继承当前会话的上下文是共享还是复制)；
+  **§9.2 报告之后 master 再发一条消息，子拿什么回应**（它不能向派发者发消息，而报告只有一次且已用掉）
+- 待裁决：**一项**（[D-1](decisions.md#三待裁决)，即未决项的第一条）。
+  **§9.2 不列为待裁决**——它要等 [PF-015](../README.md#已排定尚未开题的编号) 定义子会话关系与会话终态之后才谈得上选，**现在定就是替 PF-015 做决定**
 - 交付范围：**十一扇门首批交付**；`Cordis()` **定义完整但不实现**，`Engram()` **只占位**
 - 上游欠账：**已全部闭合**。rev 2 报告的那笔（PF-006「等待态等不到应答有上限」对
   `Ask()` 不成立）已由 [PF-006 rev 3](../PF-006-tools-and-skills/changelog.md) 闭合；

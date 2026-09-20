@@ -5,8 +5,8 @@
 
 ## 一、背景与问题
 
-[PF-004](../PF-004-agent-runtime-assembly-and-liveness/design.md) 把**执行环境**
-定成注入给运行实例的三样东西之一——动作实际落到哪里，由它决定。它还定了一条很强的性质：
+[PF-004](../PF-004-agent-definition-and-assembly/design.md) 把**执行环境**
+定成注入给 agent runtime 的三样东西之一——动作实际落到哪里，由它决定。它还定了一条很强的性质：
 **一条 shell 命令，执行在宿主机还是沙箱里，agent 都能执行。**
 
 但**有哪几种执行环境、各自什么性质、里面的东西什么时候还在什么时候没**，
@@ -65,12 +65,12 @@ PF-004 有意留空了。留空的代价现在开始显现：
 |---|---|
 | 租户、四层作用域、租户隔离 | [PF-001](../PF-001-identity-scope-and-agent-constraints/design.md) |
 | 设置与权限是资产的属性、层级求值 | [PF-002](../PF-002-assets-settings-and-permissions/design.md) |
-| **执行环境是注入的**；运行实例、装配、动作空间、注入 | [PF-004](../PF-004-agent-runtime-assembly-and-liveness/design.md) |
+| **执行环境是注入的**；agent runtime 、装配、动作空间、注入 | [PF-004](../PF-004-agent-definition-and-assembly/design.md) |
 | 定义 / 装配 / 活体三段结构 | [SYS-COMPOSITION](../../foundation/definition-and-runtime-composition/requirements.md) |
 
 ### 执行环境
 
-[PF-004 已经定了它](../PF-004-agent-runtime-assembly-and-liveness/design.md#执行环境)：
+[PF-004 已经定了它](../PF-004-agent-definition-and-assembly/design.md#执行环境)：
 **动作实际落到哪里。**本 topic 不改写这个定义，只把它展开。
 
 展开的第一句就是本 topic 最要紧的一条：
@@ -198,8 +198,8 @@ PF-004 有意留空了。留空的代价现在开始显现：
 
 | | 数据（活得久） | 计算资源（可随时换） |
 |---|---|---|
-| [PF-004](../PF-004-agent-runtime-assembly-and-liveness/design.md) | Agent Definition | 运行实例 |
-| PF-004 | 会话历史 | 运行实例 |
+| [PF-004](../PF-004-agent-definition-and-assembly/design.md) | Agent Definition | agent runtime |
+| PF-004 | 会话历史 | agent runtime |
 | **本 topic** | **租户级沙箱内的数据** | **沙箱本体** |
 
 三次都指向同一条：**把跑的那个和存的那个分开，跑的那个才可以被随时回收、替换、迁移。**
@@ -208,7 +208,7 @@ PF-004 有意留空了。留空的代价现在开始显现：
 
 ```text
                         ┌──────────────────────────┐
-   运行实例 ←──注入──── │  当前生效的执行环境      │
+   agent runtime ←──注入──── │  当前生效的执行环境      │
    （动作空间不变）      │  宿主机 / 各类沙箱之一   │
                         └──────────────────────────┘
                                    ↑
@@ -216,7 +216,7 @@ PF-004 有意留空了。留空的代价现在开始显现：
 ```
 
 agent 发起的是「执行一条命令」，从不说「在哪执行」。策略一改，
-注入的那个取值就换了——**运行实例不重建，动作空间不变，agent 无感**。
+注入的那个取值就换了——**agent runtime 不重建，动作空间不变，agent 无感**。
 
 这条依赖 §6.1：**只有把宿主机也当成一个取值，这里换的才是「值」而不是「机制」。**
 
@@ -254,7 +254,7 @@ agent 发起的是「执行一条命令」，从不说「在哪执行」。策�
 
 理由是**刻意不做**，不是没想到：会话可以无限期存在，但未必每次都要用沙箱；
 让它一直占着不释放不合理。而
-[agent 能在运行时感知到变化并自行调整轨迹](../PF-004-agent-runtime-assembly-and-liveness/design.md#64-上下文变化怎样到达-agent)——
+[agent 能在运行时感知到变化并自行调整轨迹](../PF-004-agent-definition-and-assembly/design.md#64-上下文变化怎样到达-agent)——
 它有能力自己重新执行计算。**系统不必替它保管一切。**
 
 「有状态」的准确含义因此是：**在它活着的期间内有状态。**不是状态永久。
@@ -298,7 +298,7 @@ agent 发起的是「执行一条命令」，从不说「在哪执行」。策�
 ### 6.6 agent 要知道自己落在哪、上次的东西还在不在
 
 当前生效的执行环境，以及它**是否保留上一次的痕迹**，
-属于 [agent 可感知的上下文](../PF-004-agent-runtime-assembly-and-liveness/design.md#运行期上下文)。
+属于 [agent 可感知的上下文](../PF-004-agent-definition-and-assembly/design.md#运行期上下文)。
 
 - 环境被换掉（比如策略收紧、沙箱到期重建），按 PF-004 §6.4 的方式，
   **在下一轮以一条提醒到达**，不打断当前正在进行的运行。
@@ -335,7 +335,7 @@ agent 发起的是「执行一条命令」，从不说「在哪执行」。策�
 
 | 相邻 topic | 它拥有什么 | 本 topic 与它的关系 |
 |---|---|---|
-| [PF-004](../PF-004-agent-runtime-assembly-and-liveness/README.md) | 执行环境**是注入的**、运行实例、动作空间、上下文怎样到达 agent | **本 topic 是它「执行环境」那一行的展开**，不改写其定义 |
+| [PF-004](../PF-004-agent-definition-and-assembly/README.md) | 执行环境**是注入的**、 agent runtime 、动作空间、上下文怎样到达 agent | **本 topic 是它「执行环境」那一行的展开**，不改写其定义 |
 | [PF-002](../PF-002-assets-settings-and-permissions/README.md) | 设置与权限、层级求值 | **依赖其定义**。执行安全策略是它的一种，本 topic 只定策略改了之后环境怎么换 |
 | [PF-001](../PF-001-identity-scope-and-agent-constraints/README.md) | 租户、租户隔离 | **依赖其定义**。租户级沙箱的共享范围与「没有组织级沙箱」都由它决定 |
 | [SYS-TENANT](../../foundation/cross-system-constraints/requirements.md#sys-tenant) | 全局的租户隔离义务 | **不削弱它**。宿主机不提供租户隔离，因此必须被显式允许才能用 |

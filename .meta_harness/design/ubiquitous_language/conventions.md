@@ -59,6 +59,28 @@
 虽然常见，但**它们在本领域就是这个意思**，业界也这么用——**加限定反而不自然**。
 要加限定的是**被收窄了的**通用词，不是**本来就是这个意思**的常用词。
 
+### `runtime` 这个词，本系统写死了
+
+> **凡以 `runtime` 为中心词的对象（`X Runtime` / 「X 运行时」），都是一个协程：**
+> **有独立的执行上下文，能在 await 点挂起与恢复，能被独立取消，有自己的生命周期。**
+>
+> **其中兼任调度者的——持有待处理队列、循环取事件并分发——同时是 event loop。**
+> 这是**附加身份，不是准入门槛**。
+
+产品负责人 2026-09-20 直接裁决，依据与推理链在 [UL-D-3](decisions.md#ul-d-3--runtime-与活体--2026-09-20)。
+
+**判断位置，不判断字面**——`runtime` 在哪一侧决定它受不受这条约束：
+
+| 形态 | 它是什么 | 受约束吗 | 例 |
+|---|---|---|---|
+| **`X Runtime` / 「X 运行时」**（中心词） | 一个**东西** | **受。必须是协程** | [agent runtime](terms/agent-runtime-loop.md#ul-agent-runtime--agent-runtime--agent-runtime) · 模型请求运行时 · 工具执行运行时 |
+| **`Runtime X` / 「运行时 X」**（定语） | 「在运行期发生的」 | **不受** | [`Runtime Context`](terms/scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context) · [`Runtime Injection`](terms/agent-runtime-loop.md#ul-runtime-injection--运行时注入--runtime-injection) |
+
+中文语序刚好能分：**`runtime` 在后是名词，在前是形容词。**
+
+**这条规矩是用来判的。**拿它量过之后被判出去的，[Run](terms/agent-runtime-loop.md#ul-run--运行--run) 是一个——
+它是若干协程实例的**逻辑包络**，没有自己的执行上下文，**所以它不叫 runtime**。
+
 ### 出处为什么必填
 
 **没有出处，词条就是第二份权威。**
