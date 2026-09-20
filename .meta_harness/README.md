@@ -29,7 +29,7 @@
 │   └── views/                全部派生的聚合视图，由生成器产出，任何人不手写
 ├── research/                 核实事实、版本化观察、推断与局限；**不拥有方案选择**
 ├── design_legacy/            迁移前的设计链原件（见下方「尚未闭合」）
-├── agents/                   skills 与 roles 的唯一编译源，及评估证据
+├── agents/                   skills 与 roles 的唯一编译源、评估证据，及 research/ 里当初立规的观察
 ├── tooling/                  确定性生成、设计检查与项目根链接
 ├── publication/              交给产品仓库的产物范围、来源修订与采用关系
 ├── tmp/                      本地草稿与临时证据，不作为 topic

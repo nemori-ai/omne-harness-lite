@@ -8,7 +8,7 @@ ids: [SYS-IDENTITY, SYS-KERNEL, SYS-SPEC, SYS-DEPLOY, SYS-TENANT, SYS-LLM, SYS-E
 [系统要求](README.md) · [架构落实投影](../../architecture/constraints.md)
 
 以下各 ID 对应标题下的已确认正文，不包括后续设计候选。它们承接迁移前
-architecture/constraints.md 的用户要求，来源范围见[项目基线](../../research/project-baseline/README.md)。
+architecture/constraints.md 的用户要求，来源范围见[项目基线](../../../.meta_harness/agents/research/project-baseline/README.md)。
 2026-09-12 本轮用户叙述进一步明确组织或个人的服务对象与最终目标，已分别归属
 [目标正文](README.md)。迁移保留原 ID，不声称历史确认时已经使用这些新路径。
 

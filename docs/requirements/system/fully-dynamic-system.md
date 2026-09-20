@@ -19,7 +19,7 @@ ids: [SYS-DYNAMIC]
 
 **C2（建模方向）：** 从动态能力、依赖、生命周期、作用域与所有权建模，显式约束
 结构演化；能力的定义、实现、绑定和组合关系应能动态演化。此项保留既有
-SYS-DYNAMIC 的确认范围，依据[项目基线](../../research/project-baseline/README.md)
+SYS-DYNAMIC 的确认范围，依据[项目基线](../../../.meta_harness/agents/research/project-baseline/README.md)
 与根开发约定。具体方法见[能力建模](../../architecture-guide/modeling/capabilities.md)。
 
 2026-09-13 用户进一步澄清 C2 的设计含义：从 Cordis 视角考虑能力绑定和依赖，

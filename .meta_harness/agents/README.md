@@ -9,12 +9,17 @@
 | `skills/<name>/canonical/` + `adapters/<host>/strategy.yaml` | `.agents/skills/<name>/`、`.claude/skills/<name>/` |
 | `roles/<name>/role.md`、`codex.toml`、`claude.yaml`，可选 assembly / adaptation | `.codex/agents/<name>.toml`、`.claude/agents/<name>.md` |
 
+[`research/`](research/README.md) 不是编译源，也不产出任何东西：它保存**当初据以立规的观察**——
+上游流程怎么要求候选比较、形式化证明到哪为止、评测怎样进入决策。
+规矩本身归 skills 与各 family 的 README；那里只回答「这条规矩当时看了什么」。
+它与[待设计系统的研究](../research/README.md)按失效事件分家，判据见其入口。
+
 skills 的共享正文与资源放在 `canonical/`。即使两端直接复制，也分别提供显式策略；
 局部宿主差异通过策略声明的 Markdown slots 表达。包内相对引用保持不变，不猜测或
 自动重写外部路径；确需宿主路径时使用经过验证的局部适配，不发明运行时变量。
 生成后的目录名与 frontmatter 的 `name` 一致，`name`、`description` 和正文必填。
 
-只有 canonical 运行资源进入产物，`adapters/`、`.design/`、`evals/` 与维护入口不分发。
+只有 canonical 运行资源进入产物，`adapters/`、`.design/`、`evals/`、`research/` 与维护入口不分发。
 正文 slot 展开后再次校验，未解析或未使用的 slot 都报错；非 Markdown 文件不作文本替换。
 两端一致是无差异策略的结果，不是禁止适配的全局约束。具体策略格式见工具说明。
 
