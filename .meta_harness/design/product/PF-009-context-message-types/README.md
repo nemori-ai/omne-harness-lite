@@ -1,12 +1,12 @@
 ---
 id: PF-009
-title: 上下文消息类型与上下文管理
-status: draft
-revision: 1
+title: 上下文消息类型
+status: active
+revision: 2
 relations:
   supersedes: []
   depends-on:
-    - id: PF-010
+    - id: PF-012
       for: 记录、三类事件、组装与压缩在方程里的位置
     - id: PF-006
       for: 工具的产出、附件、卸载、六种收场
@@ -15,15 +15,14 @@ relations:
     - id: PF-004
       for: 系统提示词的成分与三个时刻
     - id: PF-007
-      for: 十二扇门与常驻预算、Cordis 视角的 scope
+      for: 十三扇门与常驻预算、Cordis 视角的 scope
   extends: []
 ---
 
-# PF-009：上下文消息类型与上下文管理
+# PF-009：上下文消息类型
 
-> ⚠️ **这是草稿，设计尚未完成。**
-> 本版只做了**消息类型**这一块，**上下文管理整块尚未开始**。
-> 缺口见 [design.md §9](design.md#九未决项)。**不要据此实施。**
+**本 topic 只做消息类型**——上下文管理与组装归 **PF-010**，
+异常的分层处理归 **PF-011**。
 
 前面几个 topic 都在往上下文里放东西——工具的返回、卡片的答复、事件做成的提醒——
 **却没有人说过上下文里一共有哪几种东西**。
@@ -111,8 +110,9 @@ relations:
 **判据：这条提醒讲的是一个状态，还是一件事。**
 状态有「当前值」，事没有——**事只有发生过与没发生过**。
 
-**同一条判据对工具帧也成立，只是判断的人不同**：提醒是系统产生的，系统判得出；
-帧是工具产生的，**只有工具作者知道自己这个工具是日志型还是进度型**，所以由他声明。
+**同一条判据对工具帧也成立，只是用判据的人不同**：提醒是系统产生的，系统判得出；
+帧是工具产生的，**判断发生在工具作者写代码的时候，而且是逐帧判**——
+**每一帧自己带着说明，系统照办**，[不看工具定义](../PF-006-tools-and-skills/design.md#帧长什么样由一份协议约定不由工具定义声明)。
 
 ## 一条消息是分次到达的
 
@@ -143,37 +143,42 @@ relations:
 | 关系 | 本 topic 的情况 |
 |---|---|
 | `supersedes` | 无 |
-| `depends-on` | [PF-010](../PF-010-agent-loop-and-run/README.md)、[PF-006](../PF-006-tools-and-skills/README.md)、[PF-008](../PF-008-human-in-the-loop/README.md)、[PF-004](../PF-004-agent-runtime-assembly-and-liveness/README.md)、[PF-007](../PF-007-meta-capabilities/README.md) |
+| `depends-on` | [PF-012](../PF-012-agent-loop-and-run/README.md)、[PF-006](../PF-006-tools-and-skills/README.md)、[PF-008](../PF-008-human-in-the-loop/README.md)、[PF-004](../PF-004-agent-runtime-assembly-and-liveness/README.md)、[PF-007](../PF-007-meta-capabilities/README.md) |
 | `extends` | 无 |
 
-**与 PF-010 的分界**：那边定**什么时候**把事件做成消息，这边定**做成什么**。
+**与 PF-012 的分界**：那边定**什么时候**把事件做成消息，这边定**做成什么**。
 
 ## 按当前问题展开
 
 | 当前问题 | 阅读入口 |
 |---|---|
 | 有哪几种消息、`SystemReminderMessage` 凭什么独立 | [产品设计](design.md) |
+| 做成什么样算做对了 | [验收标准](acceptance.md) |
 | 哪些是拍板定的，哪些是推导的，还有什么没定 | [决策与来源](decisions.md) |
 | 这块设计怎么演变到今天 | [变更历史](changelog.md) |
 | 当时是怎么谈的、参考了什么 | [设计交流笔记](interviews/README.md) |
 
 ## 状态
 
-- 产品设计：**rev 1 · 草稿**
-- **上下文管理整块尚未开始**——压缩产出什么形状、上下文怎么组装成一次请求，全都没定
-- 待裁决：**1 项**（[D-2](decisions.md#三待裁决) 记录里要不要留住「到达的过程」）
+- 产品设计：**rev 2**，**已接受为正式版本**（2026-09-18）
+- 范围：**只讲消息类型**；上下文管理与组装归 **PF-010**，异常的分层处理归 **PF-011**
+- 待裁决：**无**
+- 未决项：**无**
 - 技术投影：**尚未开始**
 
 ## 本包的文件
 
 ```text
-PF-009-context-messages-and-management/
+PF-009-context-message-types/
 ├── README.md         本页：定位、七种消息、关系、状态
-├── design.md         背景、消息类型、模型、规则、取舍、未决项
+├── design.md         背景、消息类型、模型、规则、取舍
+├── acceptance.md     可观察场景、绝不能发生的事、判据
 ├── decisions.md      拍板记录 / PM 推导 / 待裁决 / 来源问题
 ├── changelog.md      产品设计本身的演进
 └── interviews/       设计交流笔记（原始材料）
 ```
 
-**草稿期没有 `flows.md` 与 `acceptance.md`**——
-消息类型本身没有流程，而验收标准要等上下文管理那块定下来才有意义。
+**本包没有 `flows.md`，这是有意的。**消息类型本身没有多步旅程；
+唯一有流程的是[流断在半路那四种收场](design.md#56-流断在半路)，
+**而它已经在 §5.6 用一张表说清了**——再开一份流程文档，
+只会变成**第二份会漂移的权威**。
