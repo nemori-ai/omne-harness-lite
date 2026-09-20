@@ -14,14 +14,58 @@
 若由宿主软链接暴露，先解析实际文件位置。独立迁出后由任务明确工作区根。
 不要把当前 shell 目录、Git 根或宿主 `.agents/` 的父目录自动当作设计上下文。
 
+## 通用 family 名落在本工作区的哪里
+
+[信息包准入](information-packages.md)用的是**通用语义名**，因为手册可被单独迁出；
+**本节把它们映射到这个工作区的实际路径**。分区按「什么事件让这条事实失效」划分，
+不按文档体裁或被描述的对象划分——权威表在 `design/README.md#组织原则`。
+
+| 通用 family 名 | 本工作区的实际位置 | 失效事件 |
+|---|---|---|
+| requirements（产品方向） | `design/product/<topic>/` | 产品方向改变 |
+| requirements（系统目标与全局约束 `SYS-*`） | `design/foundation/<topic>/` | 系统目标改变 |
+| requirements/interview | `design/product/<topic>/interviews/` | —（只追加） |
+| research | **`research/`**——与 `design/` **平级的顶层家族**，不在 design 下 | 上游或事实本身变化 |
+| proposals | `design/record/proposals/<topic>/` | 永不失效，只追加 |
+| decisions | `design/record/decisions/<topic>/` | 永不失效，只追加 |
+| spec/data · spec/capability · spec/composition | `design/spec/{data,capabilities,compositions}/<topic>/v<N>/` | 语义变更（发新版，不原地改） |
+| providers | `design/realization/packages/<node>/`（`kind: provider`） | 实现换方案 |
+| assemblies | `design/realization/apps/<node>/`（`kind: assembly`） | 实现换方案 |
+| 设计投影（[步骤 G](../SKILL.md)） | `design/product/<topic>/projection/v<N>/` | 需求变更或上游设计变更（**出新版，不原地改**） |
+
+**还有四个分区没有对应的通用 family 名，它们是这个工作区自己的：**
+
+| 分区 | 保存什么 | 失效事件 |
+|---|---|---|
+| `design/registry/` | 身份、版本、基线、血缘、命名空间、形式任务、覆盖关系（`*.json` 清单，不按 topic） | 发布、接受、冻结、重分解 |
+| `design/basis/` | 内核与上游的机制语义条目及其 probe | 上游换版本 |
+| `design/record/evidence/` | 形式任务与符合性**实际执行**留下的配置、输入快照、原始结果 | 永不失效，只追加 |
+| `design/views/` | 全部派生的聚合视图，**不手写、不手改、不得引为依据** | 上游任一处变动 |
+
+**三个通用名在本工作区没有独立分区，不要去建：**
+
+| 通用名 | 它的内容现在归谁 |
+|---|---|
+| architecture | **尚未开始**。当前能力基由 `design/registry/catalog.json` + `design/spec/` + `design/realization/` 共同回答；**不要另建一份架构正文** |
+| migrations | 旧新身份的对应关系归 `design/registry/lineage.json`；过程材料留 `tmp/` |
+| providers ／ assemblies 分家 | **已合并为 `design/realization/`**，两者是同一种节点的两个 `kind`——那边 README 有合并理由 |
+
 ## 需求与系统约束
 
-先读 `design/requirements/README.md` 确认内容状态，再按相关条款展开
-`design/requirements/system/` 与 `design/requirements/product/`。
-这些材料拥有目标、观察者、确认范围、部署/隔离/模型访问等约束；手册中的示例不补充产品要求。
-本次输入尚未归档时明确记录来源和确认范围，不伪造已有条款编号。
+**需求分两处，按「什么会让它失效」分：**
 
-`design/requirements/interviews/` 保存可选的需求访谈语境。需要理解当时的争论、公开理由、观点修正或决定背景时按主题读取；
+- **系统目标与全局约束（`SYS-*`）**读 `design/foundation/README.md`，按相关条款展开各 topic。
+  它拥有目标、部署/隔离/模型访问等全局约束，**失效事件是系统目标改变**。
+- **产品设计**读 `design/product/README.md`，按 topic 展开。每个 topic 包内
+  `design.md` 拥有概念、模型与产品规则，`acceptance.md` 拥有可观察结果，
+  `decisions.md` 分开记录拍板、PM 推导与待裁决，**失效事件是产品方向改变**。
+
+手册中的示例不补充产品要求。本次输入尚未归档时明确记录来源和确认范围，不伪造已有条款编号。
+
+**产品正文只写最终确定的设计**：版本对照、交割说明与推导过程分别归该 topic 的
+`changelog.md`、`decisions.md` 与 `interviews/`，读正文时不必在里面找历史。
+
+`design/product/<topic>/interviews/` 保存可选的需求访谈语境。需要理解当时的争论、公开理由、观点修正或决定背景时按主题读取；
 它不是正式条款或接受依据。交互正在形成值得回顾的需求语境时，按[需求归位](intake.md#何时自主启记访谈)接续或建立信息包。
 
 目录是空骨架、正文未导入或版本不明时，说明缺哪项输入以及影响。
@@ -32,11 +76,18 @@
 
 | 当前问题                              | 工作区内的拥有者                                             |
 | ------------------------------------- | ------------------------------------------------------------ |
-| 当前能力基、组合关系及候选/已接受范围 | `design/architecture/`，由精确契约与决定支撑                 |
-| 已接受选择、理由与取代范围            | `design/decisions/`                                          |
-| 候选与观察证据                        | `design/proposals/`、`design/research/`                      |
+| 当前能力基、组合关系及候选/已接受范围 | **没有单独的架构区**：由 `design/registry/catalog.json` 的状态、`design/spec/` 的正文与 `design/realization/` 的绑定共同回答 |
+| 已接受选择、理由与取代范围            | `design/record/decisions/`                                   |
+| 候选与取舍                            | `design/record/proposals/`                                   |
+| 观察证据（上游事实、版本化读数）      | **顶层 `research/`**（与 `design/` 平级）                    |
+| 运行证据（实际跑过什么、得到什么）    | `design/record/evidence/`                                    |
+| 机制语义条目及其 probe                | `design/basis/`                                              |
 | 数据、能力与组合的精确含义            | `design/spec/README.md` 及对应版本正文                       |
-| 可采用身份、版本与接受依据            | `design/spec/catalog.json`，仅在实际存在且已有有效登记时消费 |
+| 可采用身份、版本与接受依据            | `design/registry/catalog.json`，仅在实际存在且已有有效登记时消费 |
+
+**`accepted` 这个状态词要求接受依据可定位**：catalog 里一个条目从 `candidate` 变成
+`accepted` 时，它的 `acceptance` 必须链接一份实际的 `design/record/decisions/` 文件——
+**没有那份文件就不能标 accepted**，规则在 `design/registry/README.md`。
 
 已有正式契约先查其接受依据与精确版本，再按需追溯候选和研究。
 能力基按语义承诺与关系查找，不能从插件目录或已实现接口反推完整范围；
@@ -55,10 +106,11 @@ catalog、冻结记录和形式任务清单不存在或不含相关身份时保�
 
 ## 主题信息包与模板
 
-先用[信息包准入](information-packages.md)判断是否值得长期保存，再读 `design/README.md` 和相关 family README；已有主题先读其包入口。
-新主题的可复制信息包归各家族本地 `.templates/`，例如 `design/proposals/.templates/topic/`；
-requirements 同时提供正式条款的 `.templates/topic/` 与可选访谈语境的 `.templates/interview/`；
-规格家族由 `design/spec/README.md` 导航 data、capability、composition 三种包。
+先用[信息包准入](information-packages.md)判断是否值得长期保存，再读 `design/README.md` 和相关分区 README；已有主题先读其包入口。
+新主题的可复制信息包归各分区本地 `.templates/`，例如 `design/record/proposals/.templates/topic/`；
+产品 topic 的包形状见 `design/product/.templates/topic/`（含可选的 `interviews/` 与 `projection/`）；
+规格家族由 `design/spec/README.md` 导航 data、capability、composition 三种包；
+实现节点由 `design/realization/.templates/node/` 起步，`kind` 决定它落在 `packages/` 还是 `apps/`。
 模板资源不参与实际需求、能力、决定或规格发现，不能把占位内容当作已知系统事实。
 
 一个 topic 是入口与相关正文、证据、评审等组成的信息包，各家族按自己的职责选择形状。
@@ -74,7 +126,23 @@ requirements 同时提供正式条款的 `.templates/topic/` 与可选访谈语�
 版本、冻结与消费者传播由[规格演进](spec-evolution.md)说明，分层就绪见[交付页](handoff.md)，证明门槛见
 [组合性质](architecture/assurance/composability.md)。这些方法不依赖外部维护文档才可理解。
 
-实际契约、冻结文件与验证任务归 `design/spec/`；工具入口归 `tooling/`，先读其说明确认支持范围。
+实际契约归 `design/spec/`；冻结记录与形式任务清单归 `design/registry/`（`frozen.json`、`formal-tasks.json`）；
+工具入口归 `tooling/`，先读其说明确认支持范围。
+
+**当前自动检查覆盖到哪，要分清楚：**
+
+| 检查得到 | 检查不到 |
+|---|---|
+| 设计树的身份、资源、引用、冻结与形式任务**登记**（`tooling/src/check_design.py`） | **设计投影的 `provenance.json` 与上游是否仍一致**——没有核对器 |
+| 形式任务在 `--formal run` 下的**实际执行**及其退出码 | 投影正文与它声称的来源之间有没有漂移 |
+
+所以**投影是否过期只能人工核**：据某一版实施之前，按它的 `provenance.json`
+回到各来源坐标对一遍。`tooling/src/projection.py` **不是**做这件事的——
+那是 agent 产物（skills/roles）的编译器，与设计投影同名不同义。
+
+**形式任务一旦真的执行，结果不落在规格的版本目录里**：规范资源一经接受即冻结并逐文件登记
+SHA-256，而运行结果每跑一次就多一份——两类失效事件互相打架。实际执行留下的配置、
+输入快照与原始结果归 `design/record/evidence/`，规格那边只登记任务与工件。
 现有生成工具不自动具备规格验证能力；模型、证明和实现结果必须对应本次真实版本与执行记录。
 规范清单用于发现契约及采用依据，区别于 Cordis 运行时服务/贡献注册表。
 实际工具缺失不会使证据义务消失，也不授权自行发布契约。
@@ -83,9 +151,10 @@ requirements 同时提供正式条款的 `.templates/topic/` 与可选访谈语�
 
 | 当前问题                               | 工作区内的拥有者                              |
 | -------------------------------------- | --------------------------------------------- |
-| 具体提供者、依赖、资源、采用对象与版本 | `design/providers/`                           |
-| 应用选择、配置和跨能力装配             | `design/assemblies/`                          |
-| 长期迁移边界和消费关系变化             | `design/migrations/`                          |
+| 具体提供者、依赖、资源、采用对象与版本 | `design/realization/packages/<node>/`（`kind: provider`） |
+| 应用选择、配置和跨能力装配             | `design/realization/apps/<node>/`（`kind: assembly`） |
+| 精确契约条款绑到哪份证据上             | 该节点的 `bindings.yaml`；**绑定要有稳定名字和一个在该语义消失时会失败的检查** |
+| 长期迁移边界和消费关系变化             | `design/registry/lineage.json`（旧新身份对应）；过程材料留 `tmp/` |
 | 评审角色及行动边界                     | `agents/roles/`，按实际定义与宿主可用能力使用 |
 | 临时试验、施工安排与进度               | `tmp/`；值得持久保留的判断回到相应设计拥有者  |
 | 对外提供哪些产物、采用修订与来源       | `publication/`                                |
@@ -97,7 +166,9 @@ requirements 同时提供正式条款的 `.templates/topic/` 与可选访谈语�
 ## 原语来源与外部证据
 
 研究可读取官方文档、指定版本源码或任务明确提供的材料；这是有对象和范围的取证，
-不会把外部仓库自动接入设计权威链。将相关事实、版本、局限及设计采用关系留在
-`design/research/` 或对应提供者设计，方法见[来源核对](source-check.md)。
+不会把外部仓库自动接入设计权威链。将相关事实、版本、局限留在**顶层 `research/`**
+的对应 topic；**跨多次设计被反复依赖、且给得出 probe 的机制语义**另立
+`design/basis/` 条目，上游换版本时由 probe 失败暴露。设计**采用**了什么是另一回事，
+归 `design/record/decisions/`。方法见[来源核对](source-check.md)。
 
 来源档案只解释材料从哪里整理而来，不能据此要求运行中的 agent 回到原仓库找当前需求。

@@ -24,7 +24,8 @@
 
 ## 何时自主启记访谈
 
-在以下任一情形，自主从 `design/requirements/.templates/interview/` 建立或接续访谈包：
+在以下任一情形，自主从该需求 topic 的访谈包模板建立或接续访谈包
+（本工作区在 `design/product/.templates/topic/interviews/`，落点是 `design/product/<topic>/interviews/`）：
 
 - 用户明确开展需求访谈；
 - 连续互动正在形成或修正问题、期望结果、约束、优先级或取舍；
@@ -39,8 +40,9 @@
 不记录或推测模型隐藏思维链；采用最小必要内容，不复制凭据、秘密或无关个人信息。
 
 访谈包的 `active` / `closed` 只表示记录状态。访谈中的明确确认只有被正式 owner 显式吸纳进
-`requirements.md` / `changes.md`、proposal 或 decision 后才取得相应状态；不创建 PF 编号、不进 spec catalog，
-也不从“新能力”措辞直接推导插件。详细包形状与接续规则由 `design/requirements/interviews/README.md` 及本地模板拥有。
+该 topic 的产品正文与 `decisions.md`、或进 proposal / decision 之后才取得相应状态；
+不创建 PF 编号、不进 spec catalog，也不从“新能力”措辞直接推导插件。
+详细包形状与接续规则由访谈包自己的 `README.md` 及本地模板拥有。
 
 ## 绑定当前系统，而非历史设想
 
