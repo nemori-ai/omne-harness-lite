@@ -91,7 +91,7 @@
 > next assembly, and some of which never will. **It records what happened, not what
 > the model ought to see.**
 
-- **出处**：[PF-012 §4 会话日志](../../product/PF-012-agent-loop-and-run/design.md#会话日志)（rev 2）
+- **出处**：[PF-012 §4 会话日志](../../product/PF-012-agent-loop-and-run/design.md#会话日志)（rev 5）
 - **别混**：**日志不等于「拿去用的那一份」**——**日志是一份，拿去用的有两份**
 - **⚠️ 注意 ①**：**只增不改没有例外。**[压缩](#ul-context-compaction--上下文压缩--context-compaction)不是例外
   （它只翻标注、只追加摘要），[结果卸载](execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)也不是
@@ -196,7 +196,7 @@
 > **Assembly does not write to the log — it only reads; ten assemblies of the same log
 > give the same result.**
 
-- **出处**：[PF-010 §4 组装](../../product/PF-010-context-management-and-assembly/design.md#组装) · [§6.1](../../product/PF-010-context-management-and-assembly/design.md#61-组装只读日志不写日志)（rev 2）
+- **出处**：[PF-010 §4 组装](../../product/PF-010-context-management-and-assembly/design.md#组装) · [§6.1](../../product/PF-010-context-management-and-assembly/design.md#61-组装只读日志不写日志)（rev 4）
 - **别混**：**裸写「上下文」不作数**——它另有[运行时 context](scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context) 与
   `Cordis Context` 两个所指，[已记为冲突](../conflicts.md#现有冲突)
 - **注意**：**两侧形状不一样，根子是「人有记忆，模型没有」**
@@ -220,7 +220,7 @@
 > new (unrequested, appended). **Entering a session always loads a recent stretch
 > first, never everything.**
 
-- **出处**：[PF-010 §4 给用户那一侧](../../product/PF-010-context-management-and-assembly/design.md#给用户那一侧两个动作方向相反) · [§6.6](../../product/PF-010-context-management-and-assembly/design.md#66-给用户那一侧往回要与往后收是两个动作)（rev 2）
+- **出处**：[PF-010 §4 给用户那一侧](../../product/PF-010-context-management-and-assembly/design.md#给用户那一侧两个动作方向相反) · [§6.6](../../product/PF-010-context-management-and-assembly/design.md#66-给用户那一侧往回要与往后收是两个动作)（rev 4）
 - **⚠️ 注意**：**用户往上翻不是「再来一次刚才那个动作」**——
   那一次锚在「最近」，这一次锚在**当前已加载的最早点位**，**再往前多取一段接上去**。
   **锚点不同，所以是两回事**
@@ -241,7 +241,7 @@
 > instance**) and the **conversation context** (the exchange so far — **growing every
 > turn**). **Only the second can be compacted.**
 
-- **出处**：[PF-010 §4 给模型那一侧](../../product/PF-010-context-management-and-assembly/design.md#给模型那一侧两块分别组装) · [§5.3](../../product/PF-010-context-management-and-assembly/design.md#53-给模型的那一份两块各自的名字里就写着要求)（rev 2）
+- **出处**：[PF-010 §4 给模型那一侧](../../product/PF-010-context-management-and-assembly/design.md#给模型那一侧两块分别组装) · [§5.3](../../product/PF-010-context-management-and-assembly/design.md#53-给模型的那一份两块各自的名字里就写着要求)（rev 4）
 - **⚠️ 注意 ①**：**混成一块，就会长出「把系统提示词也收走一段」这种东西**——
   **那等于把 agent 的身份和能力清单压没了**
 - **注意 ②**：**四条要求**：
@@ -275,7 +275,7 @@
 > time**. The product requirement is to **maximise it as far as possible** — and it is
 > **equally a requirement on compaction**.
 
-- **出处**：[PF-010 §5.4 要求一](../../product/PF-010-context-management-and-assembly/design.md#要求一尽可能最大化前缀一致) · [§6.3](../../product/PF-010-context-management-and-assembly/design.md#63-前缀尽量与上一次逐字相同)（rev 2）
+- **出处**：[PF-010 §5.4 要求一](../../product/PF-010-context-management-and-assembly/design.md#要求一尽可能最大化前缀一致) · [§6.3](../../product/PF-010-context-management-and-assembly/design.md#63-前缀尽量与上一次逐字相同)（rev 4）
 - **注意**：**它与「保信息」「降长度」两两相冲**，见[压缩的三个联合目标](#ul-context-compaction--上下文压缩--context-compaction)
 
 ## 压缩
@@ -300,7 +300,7 @@
 > a summary of history; it **may not** erase any message from the durable record, nor
 > compact anything that arrived after the last model request.
 
-- **出处**：[PF-010 §5.6](../../product/PF-010-context-management-and-assembly/design.md#56-压缩这件事的调子三个联合目标) · [§5.7](../../product/PF-010-context-management-and-assembly/design.md#57-压缩能做的只有两件事) · [§5.8](../../product/PF-010-context-management-and-assembly/design.md#58-压缩不能做的也是两件事)（rev 2）
+- **出处**：[PF-010 §5.6](../../product/PF-010-context-management-and-assembly/design.md#56-压缩是一个闭包它的调子是三个联合目标) · [§5.7](../../product/PF-010-context-management-and-assembly/design.md#57-压缩能做的只有两件事) · [§5.8](../../product/PF-010-context-management-and-assembly/design.md#58-压缩不能做的有三件事)（rev 4）
 - **⚠️ 注意 ①**：**「不给模型看」不等于「可以删」。**
   那一位翻掉之后，**它对模型不存在了，但它对人、对排查、对回溯一直都在**——
   **[会话日志 append only](#ul-session-log--会话日志--session-log) 这条，压缩不是例外**
@@ -317,7 +317,7 @@
 > what that stretch amounts to*. **When present, it determines the boundary of the
 > model-facing assembly.**
 
-- **出处**：[PF-009 §4 CompactionMessage](../../product/PF-009-context-message-types/design.md#compactionmessage) · [PF-010 §6.4](../../product/PF-010-context-management-and-assembly/design.md#64-有压缩记录时边界由压缩记录定)（rev 2）
+- **出处**：[PF-009 §4 CompactionMessage](../../product/PF-009-context-message-types/design.md#compactionmessage) · [PF-010 §6.4](../../product/PF-010-context-management-and-assembly/design.md#64-有压缩记录时边界由压缩记录定)（rev 4）
 - **⚠️ 注意**：**边界不是一条截断线。**压缩标的是**块**，而**块可以散布**——
   所以「这次取哪一段」的答案**本来就不是一个起点**，而是
   **「哪些块还模型可读」**，**它们可能落在最后一条摘要之前**。

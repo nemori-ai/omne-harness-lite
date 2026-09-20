@@ -223,7 +223,7 @@ rev 1 把不兼容的模型全挡在候选之外，**转换件于是永远没有
 | 问题 | 影响 | 处置 |
 |---|---|---|
 | **「模型档案」在 [PF-001 正文](../PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)里被用来作判定，却没有词条** | 触[该区红线](../AGENTS.md#红线)「新概念先进词表，再进正文」。后果是这个词至今**没有一处无歧义定义**，各 topic 读到的都是自己猜的 | **本 topic 补词条**，出处指向本 topic 的概念定义；PF-001 那一格的判定不动，措辞无须回改 |
-| [PF-011 §9.2](../PF-011-off-nominal-handling/design.md#92-模型调用那一层还没有-owner) 与 [UL-model-call 词条](../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call)都标着「这一层无主」 | 缺口标记已经过期——**本 topic 就是那个 owner** | 本 topic 定稿时**同步关闭两处标记** |
+| [PF-011 §9.1](../PF-011-off-nominal-handling/design.md#91-模型调用那一层还没有-owner) 与 [UL-model-call 词条](../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call)都标着「这一层无主」 | 缺口标记已经过期——**本 topic 就是那个 owner** | 本 topic 定稿时**同步关闭两处标记** |
 | **[PF-010](../PF-010-context-management-and-assembly/README.md) 没有明写「装配的输入包含当下生效的模型档案」** | 裁决 12 与 16 都建立在这件事上，而那边正文是从会话日志那一侧写的，**没落这个字**。缺它，「窗口/模态/大小上限是同一份档案里的三项事实」这条交接在 PF-010 侧无处落脚 | **回补 PF-010**，本 topic 定稿时一并做（见 P18） |
 | **工具能产出哪些块，尚未回答** | rev 1 时它是**产品问题**（算进投影的话，一次工具执行就能让一批模型当场不再是合法目标）。**rev 2 之后它降格成事实性缺口**——[只要转得出文本就不挡任何模型](design.md#511-有文本那一份的块不再把任何模型挡在外面) | 列进正文未决，**归 PF-006/PF-009 回补**；本 topic 只标不写 |
 | ~~**[裁决 17](#裁决-17--没人挂的时候系统自带一件) 让 PF-012 的「系统自带的三件」变成四件**~~ **已回补（rev 2）** | **这是一次[架构内核 PF](../architecture-core.md) 的改动。**半径量过：PF-012 内部 5 处引用「三件」，其中 2 处是锚点链接，另有一条验收标准 | **[PF-012 rev 4 已回补](../PF-012-agent-loop-and-run/changelog.md#rev-4--2026-09-20)**，并按本 topic 的建议**去掉了标题里的数字**。**实际不是四件是五件**——[裁决 18](#裁决-18--转换件是消息内容块落盘前的拓展点) 的模态转换件同时进了那张表 |

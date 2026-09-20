@@ -3,12 +3,10 @@
 - 修订：rev 5，2026-09-20 · [变更历史](changelog.md)
 - 状态：已定稿，**无未决项**
 
-> **rev 5 拆掉了一个概念。**本 topic 原来拥有「agent runtime」，把它说成
-> 「一次装配的产物：一副真正在跑的身子」。那个说法**骑了两匹马**——
-> 「持有已捕获的绑定」是数据那一侧，「计算资源、占用即消耗」是执行体那一侧。
-> **两半现在各归其位**：数据这一半就是本 topic 的[装配清单](#装配清单)，
-> 执行体那一半是 [agent runtime](../PF-012-agent-loop-and-run/design.md#agent-runtime)，**归 PF-012**。
-> 依据见 [UL-D-3](../../ubiquitous_language/decisions.md#ul-d-3--runtime-与活体--2026-09-20)。
+> **本 topic 拥有的是数据，不是活物。**一次装配求值出来的那份构成叫[装配清单](#装配清单)，
+> 它是数据；**照它跑起来的那个协程**叫
+> [agent runtime](../PF-012-agent-loop-and-run/design.md#agent-runtime)，**归 PF-012**。
+> 两者的分界见 [UL-D-3](../../ubiquitous_language/decisions.md#ul-d-3--runtime-与活体--2026-09-20)。
 
 ## 一、背景与问题
 
@@ -39,9 +37,8 @@
 > **本 topic 不拥有「真正在跑的那个」。**那是
 > [agent runtime](../PF-012-agent-loop-and-run/design.md#agent-runtime)，一个协程，
 > 归 [PF-012](../PF-012-agent-loop-and-run/README.md)。
-> **rev 4 及以前，本 topic 把两者当成了同一个对象叫「agent runtime」**，
-> 于是它一半是不可变的数据、一半被描述成「占用即消耗的计算资源」——
-> [那个矛盾在 rev 5 被拆开](../../ubiquitous_language/decisions.md#ul-d-3--runtime-与活体--2026-09-20)。
+> **把它和清单当成同一个对象，那个对象就会一半是不可变的数据、
+> 一半是「占用即消耗的计算资源」**——[两者必须分开的依据见 UL-D-3](../../ubiquitous_language/decisions.md#ul-d-3--runtime-与活体--2026-09-20)。
 
 会话怎么管、输入怎么进来、一次运行怎么被驱动，都不在这里（见 §2）。
 
@@ -63,7 +60,7 @@
 
 | 不做什么 | 为什么 |
 |---|---|
-| **[agent runtime](../PF-012-agent-loop-and-run/design.md#agent-runtime)** | **照清单起的那个协程怎么起、怎么被取消、取消怎么传播**——全归 [PF-012](../PF-012-agent-loop-and-run/README.md)。**rev 5 把这一块整个移交了出去** |
+| **[agent runtime](../PF-012-agent-loop-and-run/design.md#agent-runtime)** | **照清单起的那个协程怎么起、怎么被取消、取消怎么传播**——全归 [PF-012](../PF-012-agent-loop-and-run/README.md) |
 | **会话** | 会话是什么、怎么建、怎么管、历史怎么存——那是一个长期物件的事。本 topic 只用到它的一件事：**一次装配为一个会话而做** |
 | **输入怎么进来** | 消息怎么受理、怎么排队、怎么调序、什么时候取一批——都不在这里 |
 | **一次运行怎么被驱动** | 谁决定现在该跑一轮、怎么推进、怎么收束。本 topic 只用到一件事：**Run 照一份装配清单跑** |
@@ -138,8 +135,8 @@
 > **它对应 [SYS-COMPOSITION 三段结构](../../foundation/definition-and-runtime-composition/requirements.md#sys-compositionc1三段结构)
 > 的第二段「装配」，那一段明写它是「一次求值」。**
 > **第三段「活体」不在本 topic**——它是 [agent runtime](../PF-012-agent-loop-and-run/design.md#agent-runtime)，
-> 归 PF-012。rev 5 之前本 topic 把「活体」认在了求值结果上，
-> [那个认定已被推翻](../../ubiquitous_language/decisions.md#ul-d-3--runtime-与活体--2026-09-20)。
+> 归 PF-012。**求值的结果是数据，不是活体**；
+> [两者的分界见 UL-D-3](../../ubiquitous_language/decisions.md#ul-d-3--runtime-与活体--2026-09-20)。
 
 ### 装配清单
 
@@ -349,19 +346,20 @@ agent 运行时可感知的上下文信息，并给出协作范围与个人两�
 | **I-8** | 照一份装配清单跑出来的成本，**归属到启动它的那个租户** | 成本没有归属，账单明细无从谈起 |
 | **I-9** | 装配缺少必需的东西时**明确失败**，**不产生残缺的装配清单** | 一个缺零件的 agent 跑起来，它自己不知道缺什么，用户也不知道 |
 
-**编号里缺的四条，rev 5 连同「agent runtime」一起移交了 [PF-012](../PF-012-agent-loop-and-run/design.md#从-pf-004-移交来的四条不变式)。**
-**编号保持不变**，这样既有引用不会指错；**正文在那边，这里不留第二份**：
+**编号里缺的四条，主语是 [agent runtime](../PF-012-agent-loop-and-run/design.md#agent-runtime)，所以它们归
+[PF-012](../PF-012-agent-loop-and-run/design.md#agent-runtime-的四条不变式)。**
+**编号沿用这里的一套**，既有引用因此不会指错；**正文在那边，这里不留第二份**：
 
 | # | 它现在说什么 | 正文在哪 |
 |---|---|---|
-| **I-1** | 一个会话在任一时刻至多有一个活跃的 **agent runtime** | [PF-012 §6.1](../PF-012-agent-loop-and-run/design.md#从-pf-004-移交来的四条不变式) |
+| **I-1** | 一个会话在任一时刻至多有一个活跃的 **agent runtime** | [PF-012 §6.1](../PF-012-agent-loop-and-run/design.md#agent-runtime-的四条不变式) |
 | **I-2** | **agent runtime 的起灭**对协作中的用户不可见 | 同上 |
 | **I-6** | agent runtime 被取消，**不产生用户可感知的损失** | 同上 |
 | **I-7** | **等人回话的时间不消耗计算资源** | 同上 |
 
 **为什么它们不能留在这里**：这四条说的全是**一个活物的生灭**，
 而[本 topic 这一层没有活物](#三个只引用不拥有的对象)——装配是动作，清单是数据。
-**把关于协程的不变式挂在一份数据上，正是 rev 5 之前那个矛盾的来源。**
+**把关于协程的不变式挂在一份数据上，那份数据就会被当成活物。**
 
 ### 6.2 装配
 
@@ -490,11 +488,10 @@ agent runtime**不必重新装配**，清单上追加一条。分界是：
 **清单不会「被回收」，它只会失效。**它是数据，不占用计算资源，
 **留着也不花钱**——[要不要留、留多久，是记录那一侧的事](../PF-000-occurrences-and-record-entries/README.md)。
 
-> **rev 5 之前这一节叫「运行实例的生与灭」，写着「回收」「显式退役」。**
-> 那两个动作说的是**一个活物**怎么停，
-> 现在归 [PF-012 §6.13](../PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)
+> **「回收」「显式退役」这类动作不落在清单上**——那说的是**一个活物**怎么停，
+> 归 [PF-012 §6.13](../PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)
 > 与 [§6.14](../PF-012-agent-loop-and-run/design.md#614-停止有两级)。
-> **「等人回话时可以被回收」（I-7）也一并去了那边**——
+> **「等人回话时可以被回收」（I-7）同理**——
 > 那说的是协程可以被取消，而**清单本来就不必为等待付费**。
 
 **谁来决定现在该装配**，是驱动那一侧的事；本 topic 只定

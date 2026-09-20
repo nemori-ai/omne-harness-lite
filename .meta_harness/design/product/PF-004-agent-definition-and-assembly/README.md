@@ -31,11 +31,10 @@ Agent Definition ──装配(定义, 作用域)──→ 装配清单 ──照
                          （可变，清单不因此重算、协程不因此重起）
 ```
 
-> **rev 5 把最右边那一格移交给了 [PF-012](../PF-012-agent-loop-and-run/README.md)。**
-> rev 4 及以前，本 topic 用一个叫「运行实例」的对象同时表示中间和右边两格——
-> 于是它一半是不可变的数据、一半被描述成「占用即消耗的计算资源」。
-> [那个矛盾在 rev 5 被拆开](../../ubiquitous_language/decisions.md#ul-d-3--runtime-与活体--2026-09-20)：
-> **数据留在这里叫装配清单，活体去了那边叫 agent runtime。**
+> **最右边那一格不归本 topic**，它归 [PF-012](../PF-012-agent-loop-and-run/README.md)。
+> 用一个对象同时表示中间和右边两格，它就会**一半是不可变的数据、
+> 一半是「占用即消耗的计算资源」**——[两者必须分开的依据见 UL-D-3](../../ubiquitous_language/decisions.md#ul-d-3--runtime-与活体--2026-09-20)：
+> **数据在这里叫装配清单，活体在那边叫 agent runtime。**
 
 一句话概括本 topic 的结论：**有三个时刻，不是两个。**
 

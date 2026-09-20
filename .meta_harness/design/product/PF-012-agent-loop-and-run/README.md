@@ -11,7 +11,7 @@ relations:
     - id: PF-011
       for: 非常态、主路径、上交、终局、一层四要素
     - id: PF-010
-      for: 组装的五条要求、压缩能做什么与不能做什么
+      for: 组装的五条要求、压缩闭包的硬约束与动作边界、压缩输入区间的两个界
     - id: PF-009
       for: 七种消息、块上的两个标注、SystemReminderMessage
     - id: PF-008
@@ -21,7 +21,7 @@ relations:
     - id: PF-006
       for: 六种收场、可用性每次 run 开始前重算、替换件、卸载、中断不是失败
     - id: PF-004
-      for: agent runtime 、装配、注入、三个时刻；等人不消耗计算资源
+      for: 装配清单、装配、注入、三个时刻
     - id: PF-002
       for: 拓展件是第八类资产——它自带哪些属性、能被谁打包、干预力怎么配
     - id: PF-001
@@ -124,7 +124,12 @@ relations:
 | **模态转换** | **消息落盘之前** | [PF-013](../PF-013-model-profiles-and-invocation/README.md) |
 | **重试** | **调模型之后**（收场＝失败） | [PF-013](../PF-013-model-profiles-and-invocation/README.md) |
 
-**标题不写数目**——数目会变，本版一次就从三件变成了五件。
+**标题不写数目**——**数目会变**，写进标题就等于每加一件都要改一次标题。
+
+> **[循环探测与卸载判定不在转移表里](design.md#循环探测的四种结局全落在已有的行上)。**
+> 它们站在位置上，**跑完它们 `f` 的取值不变**；
+> 而循环探测的四种结局——无事、写一条干预消息、判定转不动了、判定要问人——
+> **全都落在表里已经有的那个尾巴形状上，一行转移都不用补**。
 
 **不管挂什么，都只有一条通路：**
 
@@ -142,7 +147,7 @@ relations:
 | `extends` | 无 |
 
 **与 [PF-011](../PF-011-off-nominal-handling/README.md) 的分界**：
-跑偏了谁接手、接不住往哪交，**全归那边**——rev 1 的「失败三档」已[整块交割](design.md#512-run-的终态与非常态的终局是两条线)。
+跑偏了谁接手、接不住往哪交，**全归那边**。
 **本 topic 只说一件事：[Run 的终态与那条阶梯是两条线](design.md#512-run-的终态与非常态的终局是两条线)。**
 
 **与 [PF-008](../PF-008-human-in-the-loop/README.md) 的分界**：停下来等人这件事本身归它；
@@ -150,6 +155,8 @@ relations:
 
 **与 [PF-009](../PF-009-context-message-types/README.md) / [PF-010](../PF-010-context-management-and-assembly/README.md) 的分界**：
 那两边定**有哪几种消息**、**怎么组装与压缩**；本 topic 只说它们**在方程里的位置**。
+**压缩是一个闭包**——[要不要压、压到什么程度都在里面判](design.md#55-想这一步交进闭包拿回装得下的一份)，
+方程只认「装得下 / 装不下」两个回执，**不必懂上下文预算**。
 
 ## 按当前问题展开
 
@@ -164,19 +171,13 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 4**，已定稿（rev 1 是草稿，rev 2 [没有包袱地重做](changelog.md)，
-  rev 3 [把拓展点做完整](changelog.md#rev-3--2026-09-19)，
-  rev 4 [按新的 Run 边界重做了循环的进出](changelog.md#rev-4--2026-09-20)）
-- **没有待裁决项**。rev 1 那五条[全部自行定掉，零条上报](decisions.md#rev-1-那五条待裁决rev-2-自行定掉的)
-- **缺口只剩一个**：
-  - **会话**——编号已排定为 [PF-015](../README.md#已排定尚未开题的编号)，尚未开题。[它有哪几种终态尚未拍板](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-session--会话--session)，而 [§6.6](design.md#66-终态不可逆且只有一个出口) 压在它上面
-  - ~~[拓展点上挂什么、谁能挂](design.md#93-拓展点上挂什么已定谁能挂走资产那一套)~~ **rev 3 闭合**：[拓展件是第八类资产](../PF-002-assets-settings-and-permissions/design.md#loop-extension)
-  - ~~[一次模型调用那一层](design.md#92-一次模型调用那一层还没有-owner)~~ **rev 4 闭合**：[PF-013 已开题](../PF-013-model-profiles-and-invocation/README.md)
-- **一笔要回给别人的账**：[PF-010](../PF-010-context-management-and-assembly/README.md) 复核吸收
-  [§6.11](design.md#611-悬着的东西不许被压掉)，要升 rev
-- **两个本轮同步起草的 topic**：[PF-013](../PF-013-model-profiles-and-invocation/README.md)（模型档案、调用与切换）、
-  [PF-014](../PF-014-inbound-intake-and-queueing/README.md)（输入的受理与排队）。
-  **它们与本版是一次联合修订的三份产物**，要对齐后才谈接受
+- 产品设计：**rev 5**，已定稿 · [演进过程见变更历史](changelog.md)
+- **没有待裁决项**
+- **缺口只剩一个**：**会话**——编号已排定为 [PF-015](../README.md#已排定尚未开题的编号)，尚未开题。
+  [它有哪几种终态尚未拍板](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-session--会话--session)，
+  而 [§6.6](design.md#66-终态不可逆且只有一个出口) 压在它上面
+- **不欠别人的账**：[悬着的东西不许被压掉](design.md#611-悬着的东西不许被压掉)
+  已被 [PF-010 rev 4](../PF-010-context-management-and-assembly/README.md) 吸收
 - 技术投影：尚未开始
 
 ## 本包的文件

@@ -183,7 +183,7 @@
 
 所以「依据 × 可否决」「留痕 × 可改写」这种格子**是空的**，不是罕见。
 这是 [PF-012「记录先于可见」](../PF-012-agent-loop-and-run/design.md#61-日志先于可见)
-的另一面，也是 [PF-010「一条都不许擦除」](../PF-010-context-management-and-assembly/design.md#610-记录里的消息一条都不能擦除)的推论。
+的另一面，也是 [PF-010「一条都不许擦除」](../PF-010-context-management-and-assembly/design.md#612-记录里的消息一条都不能擦除)的推论。
 
 **看起来像反例的，拆开都不是：**
 
@@ -413,7 +413,7 @@
 ### 9.4 一处已知的来源冲突
 
 [PF-007 §6.7](../PF-007-meta-capabilities/design.md#67-computer通向图形界面) 与
-[PF-010 §6.10](../PF-010-context-management-and-assembly/design.md#610-记录里的消息一条都不能擦除)
+[PF-010 §6.12](../PF-010-context-management-and-assembly/design.md#612-记录里的消息一条都不能擦除)
 的措辞冲突，见 [decisions.md 第四节](decisions.md#四已知的来源问题)。
 
 ---

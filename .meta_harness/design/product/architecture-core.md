@@ -40,15 +40,15 @@
 | [PF-003 资产的转移与分享](PF-003-asset-transfer-and-sharing/README.md) | 资产**怎么进到组织里**，所有权与使用权怎么在主体之间流动 | rev 1 |
 | [PF-004 Agent 定义与装配](PF-004-agent-definition-and-assembly/README.md) | **定义、装配、装配清单**三者的关系，以及注入进来的是什么 | rev 5 |
 | [PF-005 执行环境与沙箱](PF-005-execution-environments-and-sandboxes/README.md) | 动作**实际落到哪里**，隔离边界在哪 | rev 2 |
-| [PF-006 工具与技能](PF-006-tools-and-skills/README.md) | agent **能做什么**——工具与技能的常驻、装载与占位 | rev 7 |
-| [PF-007 Meta Capabilities](PF-007-meta-capabilities/README.md) | 系统**自带、关不掉的那几扇门**：agent 怎么问人、怎么看见自己 | rev 7 |
-| [PF-008 Human in the Loop](PF-008-human-in-the-loop/README.md) | 人**在哪里看到这些问题、怎么答、答完怎么回去** | rev 1 |
+| [PF-006 工具与技能](PF-006-tools-and-skills/README.md) | agent **能做什么**——工具与技能的常驻、装载与占位 | rev 9 |
+| [PF-007 Meta Capabilities](PF-007-meta-capabilities/README.md) | 系统**自带、关不掉的那几扇门**：agent 怎么问人、怎么看见自己 | rev 9 |
+| [PF-008 Human in the Loop](PF-008-human-in-the-loop/README.md) | 人**在哪里看到这些问题、怎么答、答完怎么回去** | rev 2 |
 | [PF-009 上下文消息类型](PF-009-context-message-types/README.md) | **一共有哪几种消息** | rev 2 |
-| [PF-010 上下文管理与组装](PF-010-context-management-and-assembly/README.md) | 消息**怎么组装**成给模型看的那一份，装不下时怎么办 | rev 2 |
+| [PF-010 上下文管理与组装](PF-010-context-management-and-assembly/README.md) | 消息**怎么组装**成给模型看的那一份，装不下时怎么办 | rev 4 |
 | [PF-011 非常态的分层处置](PF-011-off-nominal-handling/README.md) | 事情没按正常走的时候，**谁接手、接不住了往哪交** | rev 3 |
 | [PF-012 Agent Loop 与 Run](PF-012-agent-loop-and-run/README.md) | 一次运行**怎么走完**，停机之后又怎么接着走；**agent runtime 与取消怎么传播** | rev 5 |
-| [PF-013 模型档案、调用与切换](PF-013-model-profiles-and-invocation/README.md) | 我们能调哪些模型 · 把请求发出去 · 这一层失败了能做什么 · 什么时候算试尽 · 用户怎么换 | rev 1（草稿） |
-| [PF-014 输入的受理与排队](PF-014-inbound-intake-and-queueing/README.md) | 外面进来的事怎么被收下、排队、什么时候被取走；**控制指令的受理** | rev 1（草稿） |
+| [PF-013 模型档案、调用与切换](PF-013-model-profiles-and-invocation/README.md) | 我们能调哪些模型 · 把请求发出去 · 这一层失败了能做什么 · 什么时候算试尽 · 用户怎么换 | rev 3（草稿） |
+| [PF-014 输入的受理与排队](PF-014-inbound-intake-and-queueing/README.md) | 外面进来的事怎么被收下、排队、什么时候被取走；**控制指令的受理** | rev 2（草稿） |
 | **PF-015 会话的生命周期与归属** | 会话怎么建、怎么收束、**有哪几种终态**、日志的家、**会话树与子 agent 的管理** | **仅编号** |
 
 **只剩 PF-015 还没有正文。**范围与归属见
@@ -58,7 +58,7 @@
 
 ## 改一个架构内核 PF 意味着什么
 
-**不是不能改。**这些正文本来就在演进——PF-001 已经到 rev 7，PF-006 也是。
+**不是不能改。**这些正文本来就在演进，内核里几份已经改过很多轮。
 写这一节是为了让你在动手前知道**半径**。
 
 ### 代价在哪

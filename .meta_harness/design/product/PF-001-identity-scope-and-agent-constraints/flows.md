@@ -1,6 +1,6 @@
 # PF-001 流程与状态
 
-对应 [design.md](design.md) rev 1。概念定义在那里，本页只说它们怎么动。
+概念定义在 [design.md](design.md)，本页只说它们怎么动。
 
 ## 一、主要旅程
 

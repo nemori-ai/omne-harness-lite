@@ -8,11 +8,9 @@
 本页写的是**这个动作一旦发生，必须做什么、必须留下什么**。
 
 > **本页不写「那个协程怎么起、怎么停」。**
-> 那是 [agent runtime](../PF-012-agent-loop-and-run/design.md#agent-runtime)，
-> 归 [PF-012](../PF-012-agent-loop-and-run/flows.md)。
-> **rev 4 及以前本页有「空闲回收」「等人期间被回收」两条旅程和一张实例状态机，
-> rev 5 随「运行实例」一起移交了出去**，见
-> [UL-D-3](../../ubiquitous_language/decisions.md#ul-d-3--runtime-与活体--2026-09-20)。
+> 空闲回收、等人期间被取消、强制停止之后怎么报告，
+> 全归 [agent runtime](../PF-012-agent-loop-and-run/design.md#agent-runtime) 那一侧，
+> 见 [PF-012](../PF-012-agent-loop-and-run/flows.md)。
 
 ## 一、主要旅程
 
@@ -131,8 +129,8 @@
 | 失效 | 赖以成立的构成变了 | 不能 | **不占** |
 
 > **这张表最要紧的是最后一列全是「不占」。**
-> rev 4 及以前这里写的是「开始占 / 占 / 仍占直到释放完」——
-> **那是协程的状态，被错挂在了一份数据上**。
+> 写成「开始占 / 占 / 仍占直到释放完」就错了——
+> **那是协程的状态，不是一份数据的状态**。
 
 **清单不会「被回收」，它只会失效。**它是数据，留着不花钱；
 [要不要留、留多久，是记录那一侧的事](../PF-000-occurrences-and-record-entries/README.md)。

@@ -23,16 +23,16 @@
 | [PF-001 身份、范围与对 Agent 的约束](PF-001-identity-scope-and-agent-constraints/README.md) | active | 7 |
 | [PF-002 设置、权限与资产的展开](PF-002-assets-settings-and-permissions/README.md) | active | 3 |
 | [PF-003 资产的转移与分享](PF-003-asset-transfer-and-sharing/README.md) | active | 1 |
-| [PF-004 Agent 运行时——定义、装配与实例](PF-004-agent-definition-and-assembly/README.md) | active | 4 |
+| [PF-004 Agent 定义与装配](PF-004-agent-definition-and-assembly/README.md) | active | 5 |
 | [PF-005 执行环境与沙箱](PF-005-execution-environments-and-sandboxes/README.md) | active | 2 |
-| [PF-006 工具与技能](PF-006-tools-and-skills/README.md) | active | 8 |
-| [PF-007 Meta Capabilities](PF-007-meta-capabilities/README.md) | active | 8 |
+| [PF-006 工具与技能](PF-006-tools-and-skills/README.md) | active | 9 |
+| [PF-007 Meta Capabilities](PF-007-meta-capabilities/README.md) | active | 9 |
 | [PF-008 Human in the Loop](PF-008-human-in-the-loop/README.md) | active | 2 |
 | [PF-009 上下文消息类型](PF-009-context-message-types/README.md) | active | 2 |
-| [PF-010 上下文管理与组装](PF-010-context-management-and-assembly/README.md) | active | 3 |
+| [PF-010 上下文管理与组装](PF-010-context-management-and-assembly/README.md) | active | 4 |
 | [PF-011 非常态的分层处置](PF-011-off-nominal-handling/README.md) | active | 3 |
-| [PF-012 Agent Loop 与 Run](PF-012-agent-loop-and-run/README.md) | active | 4 |
-| [PF-013 模型档案、调用与切换](PF-013-model-profiles-and-invocation/README.md) | draft | 2 |
+| [PF-012 Agent Loop 与 Run](PF-012-agent-loop-and-run/README.md) | active | 5 |
+| [PF-013 模型档案、调用与切换](PF-013-model-profiles-and-invocation/README.md) | draft | 3 |
 | [PF-014 输入的受理与排队](PF-014-inbound-intake-and-queueing/README.md) | draft | 2 |
 
 ## 已排定、尚未开题的编号
@@ -54,8 +54,17 @@
 > [PF-005 的会话级沙箱到点销毁](PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)、
 > [PF-007 的会话授权上下文随会话结束消失](PF-007-meta-capabilities/design.md#会话授权上下文)、
 > [PF-012 §6.6 先确保会话存在再落终态](PF-012-agent-loop-and-run/design.md#66-终态不可逆且只有一个出口)，
-> **以及 rev 7 新添的那条**——[通信规则一没有「对方会话仍活跃」这个条件，而规则二有](PF-007-meta-capabilities/design.md#92-报告之后派发者再发一条消息子拿什么回应)，
+> **以及第四条**——[通信规则一没有「对方会话仍活跃」这个条件，而规则二有](PF-007-meta-capabilities/design.md#92-报告之后派发者再发一条消息子拿什么回应)，
 > **对方会话结束之后规则一还成不成立，现在没有答案**。
+
+> **2026-09-20**：**产品正文统一去历史化。**产品负责人的要求：
+> **`design.md` 只记录最终正式确定的设计**——「之前怎么样、现在怎么样」与推导过程
+> 一律不进正文，分别归 `changelog.md`、`decisions.md` 与 `interviews/`。
+> **十四个 topic 的 `design.md` / `flows.md` / `acceptance.md` / `README.md` 全部过了一遍**：
+> 删掉 rev 对照、交割说明、「原先写的是」，以及未决项里那些「rev N 已闭合」的条目；
+> **现行规则一个字没改，所以除 PF-010 与 PF-012 之外不升 rev**。
+> 这条规矩已写进[本区红线](AGENTS.md#红线)、`product-design` skill
+> 与 drafter / reviewer 两个 role。
 
 > **2026-09-19**：PF-011 开题为[非常态的分层处置](PF-011-off-nominal-handling/README.md)，
 > 它的地盘此前由 PF-012 的一节暂时拿着。**PF-011 本轮设计按产品负责人要求全程未参考那一份。**
@@ -63,7 +72,7 @@
 > **同日交割完成。**[PF-012 rev 2](PF-012-agent-loop-and-run/changelog.md) 在**同时看两边**的前提下
 > 把「失败三档」整块交出，并补上 rev 1 漏掉的那一半——
 > [Run 的终态与非常态的终局是两条线](PF-012-agent-loop-and-run/design.md#512-run-的终态与非常态的终局是两条线)。
-> **PF-011 同步升到 rev 3**，[那边 §9.1 已关](PF-011-off-nominal-handling/design.md#91-与-pf-012-的地盘交割--已完成)，
+> **PF-011 同步升到 rev 3**，[那边 §9.1 已关](PF-011-off-nominal-handling/changelog.md#rev-3--2026-09-19--交割完成两笔账清掉)，
 > **模型一个字没改**。
 
 > **2026-09-18 的一次编号重排**：PF-009 原名「上下文消息类型与上下文管理」，

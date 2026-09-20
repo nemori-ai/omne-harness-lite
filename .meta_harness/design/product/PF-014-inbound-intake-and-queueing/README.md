@@ -39,10 +39,10 @@ relations:
 **两个穷举是本 topic 的核心交付**（产品负责人点名要的）：
 **什么会发起一次运行**，以及**什么会影响「退出循环」这个判断**。
 
-> **rev 2 把第一个穷举换了形式。**[PF-012 rev 4](../PF-012-agent-loop-and-run/changelog.md#rev-4--2026-09-20) 定死了
+> **第一个穷举的形式由 PF-012 定死：**
 > 「[触发就是让待处理消息队列从空变成非空的那件事](../PF-012-agent-loop-and-run/design.md#run)」，
-> 于是**要穷举的从「哪些情形会开运行」变成「什么会进队列」**——
-> **不必再逐情形判断「此刻有没有运行在跑」**。
+> 所以**要穷举的不是「哪些情形会开运行」，而是「什么会进队列」**——
+> **不必逐情形判断「此刻有没有运行在跑」**。
 
 **边界**：**loop 自己怎么转、从哪里出去**归
 [PF-012](../PF-012-agent-loop-and-run/README.md)，本 topic 不改那个模型；
@@ -63,12 +63,11 @@ relations:
 > 那个位置存在、挂的是拓展件、走同一套干预力，归 PF-012；
 > **那一刻具体看得到什么、队列怎么排、一次取几条，归这里。**
 >
-> **⚠️ rev 4 起那个位置比本 topic 的受理面大**：它**每有一条消息落盘就经过一次**，
+> **⚠️ 那个位置比本 topic 的受理面大**：它**每有一条消息落盘就经过一次**，
 > 包括模型吐的、工具交回来的。**本 topic 只管其中「从外面进来」的那些。**
 
 **[待处理消息队列](../PF-012-agent-loop-and-run/design.md#待处理消息队列)这个概念归 PF-012，本 topic 不另造。**
-rev 1 曾叫它「输入队列」，**rev 2 改口用同一个词**——
-[同一个概念只有一个说法](../../ubiquitous_language/README.md)。
+**不要管它叫「输入队列」**——[同一个概念只有一个说法](../../ubiquitous_language/README.md)。
 
 ## 按当前问题展开
 
@@ -82,17 +81,15 @@ rev 1 曾叫它「输入队列」，**rev 2 改口用同一个词**——
 
 ## 状态
 
-- 产品设计：**rev 2**，草稿。rev 1 起草于 2026-09-20，
-  [同日按 PF-012 rev 4 的新 Run 边界整体重做](changelog.md#rev-2--2026-09-20)
-- 待裁决：**0**。rev 1 那两条**一条被上游关闭、一条随裁决消失**，
-  见 [decisions.md 第三节](decisions.md#三待裁决)
+- 产品设计：**rev 2**，草稿 · [演进过程见变更历史](changelog.md)
+- 待裁决：**0**，去向见 [decisions.md 第三节](decisions.md#三待裁决)
 - **本 topic 引入的四个概念已经落进词表**：
   [入站到达](../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival) ·
   [控制指令](../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-control-command--控制指令--control-command) ·
   [插队](../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-queue-jump--插队--queue-jump)，
   外加 PF-012 那边的[待处理消息队列](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-pending-message-queue--待处理消息队列--pending-message-queue)
 - **[PF-013](../PF-013-model-profiles-and-invocation/README.md) 与
-  [PF-012 rev 4](../PF-012-agent-loop-and-run/README.md) 是同一次联合修订的另两份产物**，要对齐后才谈接受
+  [PF-012](../PF-012-agent-loop-and-run/README.md) 是同一次联合修订的另两份产物**，要对齐后才谈接受
 - 技术投影：尚未开始
 
 ## 本包的文件

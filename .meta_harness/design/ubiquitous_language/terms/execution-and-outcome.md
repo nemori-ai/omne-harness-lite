@@ -83,7 +83,7 @@
 - **别混**：**不是那次请求的内容**——请求体怎么攒出来归 [PF-010](../../product/PF-010-context-management-and-assembly/README.md)；
   **也不是回复怎么流式拼起来**，那归 [PF-009](../../product/PF-009-context-message-types/README.md)
 - **⚠️ 注意**：**「这一层失败了能做什么、什么时候算试尽」目前无主**，
-  见 [PF-011 §9.2](../../product/PF-011-off-nominal-handling/design.md#92-模型调用那一层还没有-owner)
+  见 [PF-011 §9.1](../../product/PF-011-off-nominal-handling/design.md#91-模型调用那一层还没有-owner)
 
 ## 跑的过程中，跟外面说的两种话
 
