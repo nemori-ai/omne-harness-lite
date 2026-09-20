@@ -9,7 +9,7 @@ relations:
     - id: PF-001
       for: 身份与四层作用域、Context 两种、撤销的效应、成本按租户归属
     - id: PF-002
-      for: 资产七类、能力标识、持有与层级求值、移除与禁用
+      for: 资产八类、能力标识、持有与层级求值、移除与禁用
   extends: []
 ---
 
@@ -82,7 +82,7 @@ PF-002 因对象的种类或组合形状变，本 topic 因装配与资源治理
 - 来源问题：**已全部闭合**，处置记录见 [decisions.md 第四节](decisions.md#四已知的来源问题)
 - 技术投影：**尚未开始**
 
-技术投影按[设计手册](../../../agents/skills/harness-design-handbook/canonical/SKILL.md)展开，
+技术投影按 `harness-design-handbook` skill 展开，
 产物按其步骤 G 落回本包的 `projection/v1/`。
 
 ## 本包的文件

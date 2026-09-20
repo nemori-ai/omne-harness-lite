@@ -29,7 +29,9 @@
 | **2026-09-17** | 个人与组织之间的**资产共享、携入与转让**归**下一个 topic**，本 topic 只定「不自动流入」 | 用户直接裁决 | design.md §2 非目标、§8。那个 topic 后来成立为 [PF-003](../PF-003-asset-transfer-and-sharing/README.md) |
 | **2026-09-17** | **设置与权限是具体资产的两种属性**，不是独立漂浮的字段。资产定形状，**持有该资产的层**各自配值，运行时沿层级求值 | 用户直接裁决 | design.md §4「设置、权限、资产」 |
 | **2026-09-17** | **「组织的设置」「租户的权限」是在该身份持有的资产集合上的投影，不是对象。**真正的最小单位是（身份层，具体资产，属性项）→ 值 | 用户直接裁决 | design.md §4 |
-| **2026-09-17** | 资产共**五类**：skill、tool、plugin、agent definition、slash command。**tool 是可动态组装的资产之一** | 用户直接裁决 | design.md §4「资产的种类」。**rev 6 补入 MCP 与 Connector，共七类**，见下一行 |
+| **2026-09-17** | 资产共**五类**：skill、tool、plugin、agent definition、slash command。**tool 是可动态组装的资产之一** | 用户直接裁决 | design.md §4「资产的种类」。**rev 6 补入 MCP 与 Connector 共七类，rev 7 补入 Loop Extension 共八类**，见下两行 |
+| **2026-09-19** | **拓展点挂件就是第八类资产**，不另建一套持有与授权 | 用户裁决（选项作答）：在「plugin 扩容／第八类资产／挂件独立」三条里选**第八类资产**，明知它**推翻「恰有七类，这七类是穷尽的」** | design.md §4「资产的种类」新增 **Loop Extension** 一行与「关于 Loop Extension」一节（rev 7）；形状与组合归 [PF-002](../PF-002-assets-settings-and-permissions/design.md#loop-extension)，位置与约束归 [PF-012](../PF-012-agent-loop-and-run/design.md#58-loop-拓展点) |
+| **2026-09-19** | **loop 拓展点要做到完备**，让**租户与组织超管**能拓展/覆盖策略、自定义自己的 agent plugin | 用户直接指示：「我们从产品角度必须要通过提供完备的 loop 拓展点来让用户（租户、组织超管）可以拓展/覆盖策略或者自定义自己的 agent plugin」 | **本 topic 提供的是那套层级求值**——组织层配、租户层覆盖，见 design.md §4「关于 Loop Extension」 |
 | **2026-09-17** | **资产还少定义了两种类型：MCP 与 Connector**（Connector 的含义参照 `omne-next/omne_harness`），要回补到对应 topic | 用户直接裁决：「关于「资产」，我前面还少定义了两种类型：MCP 和 Connector（什么是 Connector 你参见 omne-next/omne_harness），这个你回到对应的 PF 去补充上去哈」 | design.md §4「资产的种类」（rev 6）；形状与组合归 [PF-002](../PF-002-assets-settings-and-permissions/design.md) |
 | **2026-09-17** | **账号只承担三个作用**：标识一个自然人、鉴权、把同一自然人在不同组织内的存在**聚合**起来。它**不持有**设置、权限或资产 | 用户直接裁决 | design.md §4「账号」、§6.1 |
 | **2026-09-17** | **context 有两种且正交**：「组织、租户」是一种，「界面偏好」是另一种，后者**放在账号下**。这里的 context 指 **agent 运行时可感知的上下文信息**，**不是 Cordis 模型里的 Context** | 用户直接裁决 | design.md §4「两种 context」 |

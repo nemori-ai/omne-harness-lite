@@ -2,7 +2,7 @@
 id: PF-001
 title: 身份、范围与对 Agent 的约束
 status: active
-revision: 6
+revision: 7
 relations:
   supersedes: []
   depends-on: []
@@ -42,12 +42,12 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 6**，已定稿
+- 产品设计：**rev 7**，已定稿
 - 未决项：**无**
 - 待裁决：**无**
 - 技术投影：**尚未开始**
 
-技术投影按[设计手册](../../../agents/skills/harness-design-handbook/canonical/SKILL.md)展开，
+技术投影按 `harness-design-handbook` skill 展开，
 产物按其步骤 G 落回本包的 `projection/v1/`。
 
 ## 本包的文件

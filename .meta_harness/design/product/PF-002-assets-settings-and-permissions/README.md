@@ -2,7 +2,7 @@
 id: PF-002
 title: 设置、权限与资产的展开
 status: active
-revision: 2
+revision: 3
 relations:
   supersedes: []
   depends-on:
@@ -27,7 +27,7 @@ relations:
 |---|---|
 | `supersedes` | 无 |
 | `depends-on` | [PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)。直接使用它定义的**四层作用域**、**三种合成语义**、**能力标识**与 **official/customized**，不重复定义 |
-| 被谁展开 | [PF-003 资产的转移与分享](../PF-003-asset-transfer-and-sharing/README.md) 依赖本 topic，定义资产怎样跨组织流动。**方向不能反**：本 topic 不引用它的结论 |
+| 被谁展开 | [PF-003 资产的转移与分享](../PF-003-asset-transfer-and-sharing/README.md) 定义资产怎样跨组织流动，[PF-004 装配与存活](../PF-004-agent-runtime-assembly-and-liveness/README.md) 定义怎样把这些搬进运行时，[PF-012 Agent Loop 与 Run](../PF-012-agent-loop-and-run/README.md) 定义 loop 上**一共有哪些拓展点位置**。三者都依赖本 topic，**方向不能反**：本 topic 不引用它们的结论 |
 | `extends` | 无 |
 
 **与 PF-001 的分界**：同一个字段在多层都有值时听谁的，归 PF-001；
@@ -47,12 +47,12 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 2**，已定稿
+- 产品设计：**rev 3**，已定稿
 - 未决项：**无**
 - 待裁决：**无**
 - 技术投影：**尚未开始**
 
-技术投影按[设计手册](../../../agents/skills/harness-design-handbook/canonical/SKILL.md)展开，
+技术投影按 `harness-design-handbook` skill 展开，
 产物按其步骤 G 落回本包的 `projection/v1/`。
 
 ## 本包的文件
