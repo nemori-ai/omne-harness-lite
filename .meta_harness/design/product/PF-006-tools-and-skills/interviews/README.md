@@ -14,4 +14,4 @@
 | 2026-09-18 | [工具定义与返回值](2026-09-18-tool-definition-and-result.md) | 两种 schema 范式 → 四项可选声明 → **等待态是原语不是声明**（纠正 PM）→ 两种返回形态与 `ToolResult` → 执行的账 → 「集中来写」的排版要求 → **不声明就是不能后台** |
 
 > **rev 4 的 offloading 那次交流记在别处。**它发生在 agent-loop 的语境下，
-> 原话见 [PF-010 的交流笔记](../../PF-010-agent-loop-and-run/interviews/2026-09-18-agent-loop.md)。
+> 原话见 [PF-012 的交流笔记](../../PF-012-agent-loop-and-run/interviews/2026-09-18-agent-loop.md)。

@@ -87,7 +87,7 @@
 - 状态：当前有效
 - 记录者注：两点。其一，括注「面向 Cordis 开发的话可能这些天然就具备了」是
   **技术怎么兑现**，按本区域约定**未写入产品正文**。其二，「工具声明自己依赖的服务」
-  里的「服务」与 [PF-002 排除的 Service](../../PF-002-assets-settings-and-permissions/design.md#七类资产)
+  里的「服务」与 [PF-002 排除的 Service](../../PF-002-assets-settings-and-permissions/design.md#八类资产)
   不是一回事，正文已加注区分，否则就是同名不同义。
 
 ## INT-006 三个问题的答复

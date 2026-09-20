@@ -79,7 +79,7 @@
   - 「**Files() 你评估一下，是用 edit 命令，还是用 patch 命令更灵活更高效**」
 - 状态：当前有效。**两条均已落稿**
 - 记录者注：三点。
-  其一，**第一条指出了初稿的一个洞**：[PF-002](../../PF-002-assets-settings-and-permissions/design.md#七类资产)
+  其一，**第一条指出了初稿的一个洞**：[PF-002](../../PF-002-assets-settings-and-permissions/design.md#八类资产)
   明说 skill 可以带资源文件、「读取一个 skill 不等于运行它带的脚本」——
   这句话本身就蕴含脚本是可以被运行的，而初稿通篇没说由谁来跑。
   记录者据此把 `exec_script` 归给 `Skills()`（理由：寻址与权限粒度，见 decisions 第二节），

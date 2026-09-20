@@ -2,7 +2,7 @@
 
 **这是原始材料，不是结论，更不是依据。**
 本篇记录的是**当时查到了什么**，用途只有两个：**发现缺口**、**印证边界**。
-十二扇门的构成来自产品负责人的裁决，不来自这里；
+十三扇门的构成来自产品负责人的裁决，不来自这里；
 命令集的取舍在 [decisions.md 第二节](../decisions.md#二pm-推导)各有推理链。
 
 执行者：PM。指示来自 [INT-002](2026-09-17-meta-capabilities.md#int-002-不可禁用不可替换六个必需的-meta以及调研指示)。
@@ -137,7 +137,7 @@ Codex 的持久是隐式的——每条命令都自动保持状态；本 topic �
 还有一个 `SKILL_GATED_ACTIONS` 是预留的（当时为空集），本 topic 未采纳。
 
 它配套一份 `using-computer` 技能，含 `action-batching` 与 `interaction-loop`——
-**这印证了「工具必须与技能配套」**（[PF-002](../../PF-002-assets-settings-and-permissions/design.md#七类资产)）。
+**这印证了「工具必须与技能配套」**（[PF-002](../../PF-002-assets-settings-and-permissions/design.md#八类资产)）。
 
 ## 九、omne-next 的 subagent dispatch
 
