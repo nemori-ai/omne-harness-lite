@@ -142,7 +142,7 @@ contract 明确职责、操作和必要行为；跨能力共享数据引用 `spe
 
 交付同步受影响的契约引用、提供者设计、应用装配、公共源码导航与验证说明，
 明确仍未完成的映射和组合义务及其归属。临时工作树中的关键证据需要在退役前
-按[工作树纪律](../../.meta_harness/agents/skills/worktree-discipline/canonical/SKILL.md)保留；永久入口
+按 `worktree-discipline` skill 保留；永久入口
 不能依赖临时检出继续存在。
 
 已有材料按真实后续变更或依赖消费迁移：先识别当前正文及具体缺口，再转移必要

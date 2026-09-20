@@ -116,9 +116,9 @@ YAML 验证依赖，并以 editable 方式安装根开发组引用的 workspace 
 `make test` 的临时目录为 `tmp/test-runs/`，只用于本仓库测试，
 重跑可清理该目录，不触碰同机其他项目的测试证据。
 
-`make test` 同时覆盖仓库检查器、Meta Harness 编译/链接工具和 [subagent 双端生成器](../../.meta_harness/agents/skills/design-subagents/canonical/references/packaging.md)
+`make test` 同时覆盖仓库检查器、Meta Harness 编译/链接工具和 `design-subagents` skill 的双端生成器
 的离线测试；不启动目标模型。`make agents-check` 核对源与产物及链接，skill 的两端文件镜像另由 `make docs-check` 核对，
-生成角色的行为验证与宿主加载证据见该 skill 的[验证说明](../../.meta_harness/agents/skills/design-subagents/canonical/references/validation.md)。
+生成角色的行为验证与宿主加载证据见该 skill 的「验证说明」。
 
 `make spec-tools` 单独检查 Java 11+ 与 `TLA2TOOLS_JAR`、`ALLOY_ANALYZER_JAR`
 所指向的实际 JAR，缺失任一项返回非零。JAR 从
