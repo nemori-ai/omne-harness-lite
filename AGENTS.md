@@ -8,11 +8,11 @@
 
 内核层复用 Cordis 与 DSH `agent` 原语；Agent Loop、Harness 层、工具协议、治理和其他子系统由本项目自行定义和实现。不要把 DeepSeek Harness 当作本项目的实现，也不要把本项目称为 Cordis Harness。
 
-Cordis 直接使用官方发布包，其他选定的 DSH 复用组件由本项目 fork 维护；设计时将这些 fork 视为可按需求与项目契约演化的自有模块。维护边界归 [SYS-KERNEL](.meta_harness/design/requirements/system/constraints/requirements.md#sys-kernel)，判断方法见 `harness-design-handbook` skill 的「工程判断」→「复杂度与复用」。
+Cordis 直接使用官方发布包，其他选定的 DSH 复用组件由本项目 fork 维护；设计时将这些 fork 视为可按需求与项目契约演化的自有模块。维护边界归 [SYS-KERNEL](.meta_harness/design/foundation/cross-system-constraints/requirements.md#sys-kernel)，判断方法见 `harness-design-handbook` skill 的「工程判断」→「复杂度与复用」。
 
 当前处于设计、规格建模与实验性演进阶段，尚未正式上线或对外提供生产服务。接受有明确设计和验证依据的大胆重构，不为旧版本保留未经要求的实现兼容层；历史材料的保留不构成兼容承诺。
 
-仓库按 monorepo 组织，产品实现以 TypeScript 为主，Python 当前用于开发工具。`packages/` 放产品包，`apps/` 放应用装配，`tools/` 放开发工具，`scripts/` 放仓库自动化；源码放在所属成员的 `src/`，跨包使用公开入口。完整归属与各语言 workspace 分工见[源码布局](docs/maintenance/workspace.md)。
+仓库按 monorepo 组织，产品实现以 TypeScript 为主，Python 当前用于开发工具。`packages/` 放产品包，`apps/` 放应用装配，`tools/` 放开发工具，`scripts/` 放仓库自动化；源码放在所属成员的 `src/`，跨包使用公开入口。完整归属与各语言 workspace 分工见[源码布局](docs/workspace.md)。
 
 站在 DSH Cordis 的视角建模完全动态系统：能力的定义、实现、绑定和组合关系都应能动态演化。可替换能力通过有生命周期、作用域和所有权的插件或服务，以及 Context、依赖注入和类型化事件组合。身份、不变量和状态转移由语言无关契约约束；存储是独立抽象，不按 DDD 战术分类强制切分系统，也不把 Cordis 的运行时对象直接当作数据契约。
 
@@ -21,15 +21,42 @@ Cordis 直接使用官方发布包，其他选定的 DSH 复用组件由本项�
 - 从第一天起支持租户隔离。受租户所有权约束的关键对象和跨边界操作显式携带租户身份，跨租户访问默认拒绝；沿用 `omne-next/omne_harness` 的双层结构，区分自然人全局身份与租户成员关系。
 - 所有模型请求统一经 OpenRouter 发送。
 
-以上是[系统目标与最终状态](.meta_harness/design/requirements/README.md)、[当前架构](.meta_harness/design/architecture/README.md)与[全局要求](.meta_harness/design/requirements/system/constraints/requirements.md)的简短投影。系统目标是后续建模、能力定义、设计与产品化的前提和基础；具体采用边界、接受状态和未决事项沿相应入口展开。
+以上是[系统目标与全局约束](.meta_harness/design/foundation/README.md)的简短投影。系统目标是后续建模、能力定义、设计与产品化的前提和基础；具体采用边界、接受状态和未决事项沿相应入口展开。**当前架构视图尚不存在**——架构设计还没开始，不要把产品设计当成架构结论。
 
-## 需求、设计与 agent 能力的工作区
+## `.meta_harness/` 拥有什么，外面做什么
 
-[`.meta_harness/`](.meta_harness/AGENTS.md) 是可独立迁出的私有设计工作区，维护从产品需求到 Cordis 插件设计的方法、设计知识，以及执行这些工作的 skills 和 roles。接收和澄清产品需求（intake）、分析能力覆盖、形成设计和规格，以及维护 agent 能力，都从这里进入；产品实现继续归 `packages/`、`apps/`。
+[`.meta_harness/`](.meta_harness/AGENTS.md) 是可独立迁出的私有设计工作区。
+**它拥有这个系统「该是什么样、为什么这样」的全部正文，而且是唯一一份：**
 
-需求与设计任务先加载 `harness-design-handbook` skill，按当前缺口展开 references，并在 `design/` 的对应 family 中接续或创建 topic 信息包。本项目已有需求、决定和精确规格作为明确输入提供给手册；方法本身不从承载仓库猜测产品事实。现有正文的采用位置与迁移边界见[开发指南](docs/development.md#需求与设计的工作入口)，不能因新容器存在就另建同义权威。
+| 归 `.meta_harness/` | 具体是什么 |
+|---|---|
+| 需求与产品设计 | 系统目标、全局约束、产品概念与模型、产品规则与验收 |
+| 统一语言 | 每个概念精确指什么——**新概念先建词条，才能在正文里用** |
+| 系统架构与规格设计 | 能力边界、契约、形式模型、提供者与装配映射 |
+| Research | 产品、系统、算法、上游事实的调查与证据 |
+| 已发生的事 | 提案、决定、评审、运行证据 |
+| Agent 能力 | skills 与 roles 的 canonical 源、宿主适配、评估 |
 
-skills 的源归 `.meta_harness/agents/skills/`，roles 的源归 `.meta_harness/agents/roles/`；根 `.agents/`、`.claude/`、`.codex/` 是工作区内生成产物的软链接。维护源时按下表加载编写技能，生成与接入操作归[工具入口](.meta_harness/tooling/README.md)，不直接修改宿主产物。
+> **在 `.meta_harness/` 以外，只做项目开发和与开发相关的文档维护。**
+> 那是纯粹的系统研发工作：写代码、写工具、写脚本，以及维护
+> 「怎么把这个仓库开发起来」的说明。
+>
+> **产品设计、架构与规格设计、以及产品/系统/算法的 research，都不在外面做，也不在外面留副本。**
+> 一份材料只要回答的是「系统该是什么样」，它的家就在 `.meta_harness/`——
+> **不因为它同时对开发者有用，就在外面再放一份。**
+
+这条边界是硬的：两份权威一定会分叉，而分叉时没人知道该信哪个。
+需要做设计时，进入 `.meta_harness/`，加载 `harness-design-handbook` skill，
+在 `design/` 的对应区接续或创建 topic；方法本身不从承载仓库猜测产品事实。
+
+**当前进度：正式设计停在产品设计阶段。**架构与规格设计尚未开始，
+因此 `packages/` 与 `apps/` 是空骨架——没有可构建的产品包，也没有可启动的应用。
+实现要从已接受的规格出发建立，**不要凭一份产品设计就去开包**。
+
+skills 的源归 `.meta_harness/agents/skills/`，roles 的源归 `.meta_harness/agents/roles/`；
+根 `.agents/`、`.claude/`、`.codex/` 是工作区内生成产物的软链接。
+维护源时按下表加载编写技能，生成与接入操作归[工具入口](.meta_harness/tooling/README.md)，
+**不直接修改宿主产物**。
 
 ## 研发品味
 
@@ -42,7 +69,7 @@ skills 的源归 `.meta_harness/agents/skills/`，roles 的源归 `.meta_harness
 - 让状态、所有权、生命周期、失败和副作用显式可见；不依赖隐藏的全局状态或隐式顺序。
 - 外部输出不因被运行时调用就变得可逆；恢复、补偿、幂等和撤销必须区分。
 - 让错误尽早暴露；禁止静默吞错、假成功和无法解释的默认行为。
-- 可观测性是运行行为的一部分：在真实边界让状态转换、失败与因果链可解释，生产、研发与 debug 共用结构化 log 和 trace 语义并通过配置调节细节。观测责任、关联、内容裁剪和耐久记录边界见[工程观测契约](.meta_harness/design/spec/capabilities/engineering-observation/v1/contract.md)与[全局要求](.meta_harness/design/requirements/system/observability-and-logging/requirements.md)。
+- 可观测性是运行行为的一部分：在真实边界让状态转换、失败与因果链可解释，生产、研发与 debug 共用结构化 log 和 trace 语义并通过配置调节细节。观测责任、关联、内容裁剪和耐久记录边界见[全局要求](.meta_harness/design/foundation/observability-and-logging/requirements.md)；精确的观测契约要等规格设计做到那里。
 - 每个 subagent 都应明确职责、行动边界、必要输入与停止条件；精确任务限定可写路径，关键歧义或必需规格/计划缺失时暂停依赖工作并澄清，持续区分已知、假设与未知。编写方法见 `design-subagents` skill。
 - 使用 Claude Code、Codex 等 harness 官方工具时，优先选择职责匹配的专用工具，例如编辑或补丁工具、subagent 派发与通信工具；只有专用工具不可用或无法满足需要时，才用 shell 等通用工具兜底。通用性不代表效率更高，不因命令行习惯绕过合适的专用工具；与研发 subagents 的[工具使用约定](.meta_harness/agents/roles/developer-contract.md#工具使用)保持一致。
 
@@ -52,7 +79,7 @@ skills 的源归 `.meta_harness/agents/skills/`，roles 的源归 `.meta_harness
 约定，机械格式交给项目统一工具，避免个人流派造成分化；操作与范围见[开发指南](docs/development.md#修改与验证)。
 研发 subagents 的执行要求见[共享契约](.meta_harness/agents/roles/developer-contract.md#tsjs-研发品味)。
 
-这些判断按需展开为 `harness-design-handbook` skill 的「工程判断」、[防御指导](docs/defensive-patterns.md)与[语义归属规则](docs/maintenance/organization.md)。
+这些判断按需展开为 `harness-design-handbook` skill 的「工程判断」与[防御指导](docs/defensive-patterns.md)；知识该落在哪一区，归 [design/AGENTS.md](.meta_harness/design/AGENTS.md) 的准入。
 
 ## 项目目录结构
 
@@ -64,36 +91,19 @@ omne-harness-lite/
 ├── CONTRIBUTING.md               贡献范围、可审阅交付与接受入口
 ├── AGENTS.md                     agent 的常驻心智、边界与导航
 ├── CLAUDE.md                     Claude Code 入口，通过 @AGENTS.md 复用同级约定
-├── docs/
-│   ├── README.md                 文档总索引
-│   ├── AGENTS.md / CLAUDE.md      文档局部约定与同级引用
-│   ├── requirements/             系统目标、产品三维与全局要求的权威正文
-│   ├── development.md            开发上手、操作与排障导航
-│   ├── architecture/             当前系统视图与已确认约束
-│   ├── architecture-guide/       架构方法、基础概念与设计判断
-│   ├── research/                 事实观察、来源、证据及局限
-│   ├── proposals/                候选设计、取舍与审阅结果
-│   ├── decisions/                已接受的选择、理由与取代关系
-│   ├── maintenance/              组织、版本、知识流转、验证和迁移规范
-│   ├── defensive-patterns.md     当前防御指导正文
-│   ├── defensive-patterns/       指导的稳定编号、范围与复核记录
-│   └── evaluation/               开发模型与防御辅助的评估协议、格式和样例
-├── spec/
-│   ├── README.md                 语言无关规格入口
-│   ├── AGENTS.md / CLAUDE.md      规格局部约定与同级引用
-│   ├── data/                     共享数据的含义与结构
-│   ├── capabilities/             能力行为、授权、所有权与生命周期
-│   ├── compositions/             跨能力交互与整体性质
-│   ├── catalog.json              契约身份、版本、状态与接受依据的唯一清单
-│   ├── frozen.json               已发布规范文件的冻结哈希
-│   ├── formal-tasks.json         形式模型的实际执行任务
-│   └── archive/                  历史规格原件与来源记录
-├── packages/                    产品可复用包，以 TS 为主；各成员拥有 src/
-├── apps/                        产品应用与装配入口；各成员拥有 src/
+├── docs/                         **只有项目开发文档**，四份正文，无子目录
+│   ├── development.md            上手、工具链、按问题选检查
+│   ├── workspace.md              源码归属、包边界与两套 workspace
+│   ├── verification.md           每个检查入口覆盖什么、不能声称什么
+│   ├── defensive-patterns.md     十条防御指导，含编号、适用范围与复核触发
+│   └── README.md / AGENTS.md / CLAUDE.md   地图与局部约定
+├── packages/                     产品可复用包；**当前为空骨架**
+├── apps/                         产品应用与装配入口；**当前为空骨架**
 ├── tools/
-│   └── spec-tools/               独立 Python 开发包，含 src/、格式与 tests/
-├── scripts/                     开发与 CI/CD 自动化，check.sh 组合现有检查
-├── .meta_harness/                私有方法、需求与设计链、skills/roles 源和生成工具
+│   └── spec-tools/               Python 开发包：跨仓库导航检查与工具环境检查
+├── scripts/                      开发与 CI/CD 自动化，check.sh 组合现有检查
+├── .meta_harness/                设计工作区：需求、产品、统一语言、规格、研究、
+│                                 已发生的事、skills/roles 源与生成工具
 ├── .agents -> .meta_harness/.agents    Codex skills 生成入口
 ├── .claude -> .meta_harness/.claude    Claude Code skills/subagents 生成入口
 ├── .codex -> .meta_harness/.codex      Codex subagents 生成入口
@@ -104,17 +114,23 @@ omne-harness-lite/
 └── uv.lock                       Python workspace 统一锁文件
 ```
 
-图中的 `docs/` 与 `spec/` 保留既有产品材料；新需求与设计的工作入口归 `.meta_harness/`，各项正文的迁移不由目录图宣布完成。目录不直接对应插件、服务、进程或数据库表。进入受维护目录时按需读取局部约定；宿主生成目录的源约定归 `.meta_harness/`，临时产物与工作树容器不另设约定。
+2026-09-20 清退了根 `spec/` 与 `docs/` 下的设计材料：它们已被 `.meta_harness/` 吸纳，
+**同一份东西不在工作区外留第二个源**。`packages/` 与 `apps/` 同时回退到空骨架，
+因为架构与规格设计尚未开始，那批实现没有有效依据。原件都在 Git 历史里。
+
+目录不直接对应插件、服务、进程或数据库表。进入受维护目录时按需读取局部约定；
+宿主生成目录的源约定归 `.meta_harness/`，临时产物与工作树容器不另设约定。
 
 ## 信息权威与演进边界
 
 - 用户明确的新要求优先于历史交接文档和旧讨论。研究提供事实，提案组织候选，决定记录已接受选择，规格落实精确承诺；各自引用其依据，不互相冒充或复制同义定义。
-- 在有效需求前提和适用范围内，没有新观测时有效决定是研究、提案、决定三者的最终权威。每份决定至少关联一份提案或研究；推翻必须带有可复现、可验证、可因果解释的强理由，并以新决定明确取代范围。需求变更与消费基线归[需求维护](docs/maintenance/requirements.md)，选择的复议归[知识流转](docs/maintenance/knowledge-flow.md)。
-- 未明确接受的提案、Schema、指南示例和历史原件不能当作正式契约。接受不等于实现或验证完成；当前可采用的契约和精确版本从[规格清单](spec/catalog.json)查找。
-- 已发布规格不可原地覆盖；修改发布新版本，推荐版本不自动升级消费者。归档原件与未接受候选不作为有效契约登记，具体规则见[版本规范](docs/maintenance/versioning.md)。
+- 在有效需求前提和适用范围内，没有新观测时有效决定是研究、提案、决定三者的最终权威。每份决定至少关联一份提案或研究；推翻必须带有可复现、可验证、可因果解释的强理由，并以新决定明确取代范围。这些规矩归 [record 家族](.meta_harness/design/record/README.md)与各区 README。
+- 未明确接受的提案、Schema、指南示例和历史原件不能当作正式契约。接受不等于实现或验证完成；当前可采用的契约和精确版本从[身份清单](.meta_harness/design/registry/README.md)查找。
+- 已发布规格不可原地覆盖；修改发布新版本，推荐版本不自动升级消费者。归档原件与未接受候选不作为有效契约登记。
+- **[`design_legacy/`](.meta_harness/design_legacy/README.md) 是留档，不是权威。**那是重构前那条设计链的原件，其中的契约、决定与提案**都已退役**；它们保留原有的相对链接以便还原当初的说法，但**不能作为任何新工作的依据**，也不能被外部文档引用成现行规则。
 - 规格、决定、实现或文档冲突时，先定位语义归属、适用版本和接受依据；如实报告反例，不能静默选用更方便的说法，也不靠改写本文件解决未决架构问题。
 - Cordis 特性、生命周期和 API 语义优先查[官方文档](https://github.com/deepseek-ai/deepseek-harness/tree/master/docs)，记录具体页面和采用版本。资料未覆盖的内容标为假设，通过源码、测试或小型验证补足；上游约定不自动成为本项目约定。
-- 模型检查、测试和实现经验都有范围与前提，不表述为无条件形式化证明。覆盖与工具状态按[验证规范](docs/maintenance/verification.md)如实报告。
+- 模型检查、测试和实现经验都有范围与前提，不表述为无条件形式化证明。覆盖与工具状态按[验证规范](docs/verification.md)如实报告。
 - 切换开发主力模型前，按[评估规范](.meta_harness/agents/evaluation/developer-model/README.md)判断特定防御辅助是否仍需强制使用；精简或移除提醒不撤销系统保证。
 
 ## 按任务展开
@@ -130,7 +146,7 @@ omne-harness-lite/
 | 已有规格或施工计划待审稿 | 按[评审分工](.meta_harness/agents/roles/README.md#按判断对象选择-reviewer)委派 spec-reviewer 检查规格表达，或 plan-reviewer 检查实施与调度；二者不代替架构判断和接受 |
 | 核对 Cordis API、依赖、插件或生命周期 | 加载 `harness-design-handbook` skill，进入其「来源核对」 |
 | 判断过度设计、抽象价值、复用或复杂度 | 加载 `harness-design-handbook` skill，进入其「工程判断」 |
-| 放置源码、增加成员或调整开发/CI 入口 | [源码布局与 workspace](docs/maintenance/workspace.md)及目标目录局部约定；具体命令见[验证规范](docs/maintenance/verification.md) |
+| 放置源码、增加成员或调整开发/CI 入口 | [源码布局与 workspace](docs/workspace.md)及目标目录局部约定；具体命令见[验证规范](docs/verification.md) |
 | 创建、接受、修改或迁移设计材料 | 从 [design 信息包](.meta_harness/design/README.md)定位 family 和本地模板；已有材料按其接受与版本依据接续，迁移须明确来源和消费者切换 |
 | 调整防御辅助或准备切换开发主力模型 | [防御演化](.meta_harness/agents/evaluation/developer-model/README.md)与[开发模型评估](.meta_harness/agents/evaluation/developer-model/README.md) |
 | 创建、使用、合并或清理工作树 | 加载 `worktree-discipline` skill；统一使用主检出根的 `.worktrees/`，HUB 与 spoke 不嵌套创建 |
@@ -138,7 +154,7 @@ omne-harness-lite/
 | 创建或修改 skill | 在 `.meta_harness/agents/skills/` 维护 canonical 源和适配；加载当前环境提供的官方 `skill-creator`，源与资源归属见 [agents](.meta_harness/agents/README.md) |
 | 定义 subagent 职责、两端配置或模型专属提示 | 在 `.meta_harness/agents/roles/` 工作，加载 `design-subagents` skill；先确认目标宿主支持，再核对精确模型的官方指导 |
 
-Codex 与 Claude Code 的 skills 和 subagents 由同一套源按宿主适配生成；源、产物和根链接由检查入口核对。普通局部修改沿已有契约和相关检查完成；只有出现新的边界、保证或取舍，才展开对应设计材料。信息足以支持当前任务时停止扩展阅读，不因调用 skill 而扩大任务或批准范围。设计工作地图见 [.meta_harness](.meta_harness/README.md)，既有材料见[文档索引](docs/README.md)与[规格索引](.meta_harness/design/spec/README.md)。
+Codex 与 Claude Code 的 skills 和 subagents 由同一套源按宿主适配生成；源、产物和根链接由检查入口核对。普通局部修改沿已有契约和相关检查完成；只有出现新的边界、保证或取舍，才展开对应设计材料。信息足以支持当前任务时停止扩展阅读，不因调用 skill 而扩大任务或批准范围。设计工作地图见 [.meta_harness](.meta_harness/README.md)，开发文档见[四份正文](docs/README.md)。
 
 ## 写给众 AGENTS 的话
 

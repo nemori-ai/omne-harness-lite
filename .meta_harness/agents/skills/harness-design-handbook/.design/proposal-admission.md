@@ -2,7 +2,7 @@
 
 用户明确要求正式 proposal topic 至少包含三个 candidates。本轮将其落实到
 [设计选择](../canonical/references/design-decisions.md#用能改变选择的依据比较)、
-[proposals 家族](../../../../design/proposals/README.md#主题准入与候选比较)及本地模板包，
+[proposals 家族](../../../../design/record/proposals/README.md#主题准入与候选比较)及本地模板包，
 并修正投影页和工作区 README 中“不要求候选数量”的旧表述。
 
 候选应回答同一选择对象，具有实质不同的责任或机制、兑现依据、代价与未知；不以改名、

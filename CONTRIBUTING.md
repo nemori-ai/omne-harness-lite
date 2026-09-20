@@ -18,22 +18,23 @@
 行为、相关版本和必要证据；设计任务说明目标、约束、已知事实与尚待确定的部分。
 产品需求的接收、澄清与设计工作进入私有工作区 [.meta_harness](.meta_harness/AGENTS.md)，
 先加载 `harness-design-handbook` skill。
-本项目已有[系统目标与产品要求](.meta_harness/design/requirements/README.md)、决定和规格作为明确输入，
-保留确认范围与精确版本；有 Issue、提案或任务记录时直接引用，避免另写一份同义需求。
-工作入口与正文迁移的区别见[开发指南](docs/development.md#需求与设计的工作入口)。
+本项目已有[系统目标与全局约束](.meta_harness/design/foundation/README.md)与一批
+[产品设计正文](.meta_harness/design/product/README.md)作为明确输入，保留确认范围与精确修订；
+有 Issue、提案或任务记录时直接引用，**避免另写一份同义需求**。
+`.meta_harness/` 与仓库其余部分的职责边界见[根 AGENTS.md](AGENTS.md#meta_harness-拥有什么外面做什么)。
 
 | 变更类型 | 从哪里推进 |
 |---|---|
 | 已有规则内的文字、链接、工具修复或实现修正 | 定位内容所有者或精确契约，在任务范围内修改并做相称验证；不要求另造提案或决定 |
 | 新需求、新能力，或职责、身份、授权、生命周期、失败等语义变化 | 在 `.meta_harness/design/` 相应 family 接续或创建信息包，沿手册分析现有能力覆盖、剩余责任与候选；必要政策未明确时，暂停依赖它的实施 |
-| 新观察挑战已有决定 | 按[知识流转](docs/maintenance/knowledge-flow.md)关联受影响决定，提交可复现、可验证的因果依据；观察本身不自动取代决定 |
-| 发布或修订正式规格 | 按[版本规则](docs/maintenance/versioning.md)维护接受依据、精确引用与冻结；历史规范原件不原地覆盖 |
-| 衔接能力规格、提供者设计与实施交接 | 按[规格维护](docs/maintenance/spec-maintenance.md)明确当前正文、就绪范围、受影响消费者与未完成义务 |
+| 新观察挑战已有决定 | 按 [record 家族](.meta_harness/design/record/README.md)的规矩关联受影响决定，提交可复现、可验证的因果依据；观察本身不自动取代决定 |
+| 发布或修订正式规格 | 按[身份清单](.meta_harness/design/registry/README.md)与[规格区](.meta_harness/design/spec/README.md)维护接受依据、精确引用与冻结；历史规范原件不原地覆盖 |
+| 衔接能力规格、提供者设计与实施交接 | 加载 `harness-design-handbook` skill 的「规格演进」，明确当前正文、就绪范围、受影响消费者与未完成义务 |
 | 创建或维护 skills、角色及宿主适配 | 在 [.meta_harness/agents](.meta_harness/agents/README.md) 修改源；skill 加载官方 `skill-creator`，角色加载 `design-subagents` skill，AGENTS.md 加载 `write-agents-md` skill |
 
 用户已明确的要求和任务授权是开展工作的依据。关键歧义或缺少必需输入时，提出
-最小澄清，继续不依赖该缺口的工作；不要把假设写成已确认需求。完整的规则与权威
-关系归[组织规范](docs/maintenance/organization.md)，本页提供贡献入口。
+最小澄清，继续不依赖该缺口的工作；不要把假设写成已确认需求。知识该落在哪一区、
+谁拥有哪份含义，归 [design/AGENTS.md](.meta_harness/design/AGENTS.md) 的准入；本页提供贡献入口。
 
 ## 开始工作
 
@@ -49,7 +50,7 @@
 保护其他任务已有的改动，环境准备按开发指南在实际工作的检出中完成。
 
 新增依赖应说明它解决什么问题以及为何适合，依赖归属和锁文件维护按
-[workspace 规范](docs/maintenance/workspace.md)。研发品味按 AGENTS.md 及其引用判断，
+[workspace 规范](docs/workspace.md)。研发品味按 AGENTS.md 及其引用判断，
 不把上游项目的贡献门槛或生产兼容政策自动搬到本项目。
 
 ## 形成可审阅的交付
@@ -63,7 +64,7 @@
 - 影响的边界、取舍、未决项及需要重点审阅的地方；只有实际相关时才展开。
 - 实际执行的验证及结果，必要的复现方式；未执行、失败和未覆盖项分别说明。
 
-按[验证规范](docs/maintenance/verification.md)选择检查。新增测试应保护改变的可观察
+按[验证规范](docs/verification.md)选择检查。新增测试应保护改变的可观察
 行为；局部文字修复无需为凑数量编写测试。修改行为时同步其所属说明、示例或契约，
 修改目录和入口时同步导航。不能靠重写预期或放宽检查隐藏尚未解决的冲突。
 skills/roles 变更一并交付 canonical/角色源、宿主适配与生成产物，运行 `make agents-check`
@@ -76,19 +77,20 @@ skills/roles 变更一并交付 canonical/角色源、宿主适配与生成产�
 ## 评审与接受
 
 架构设计形成可识别的待审稿后，按[架构评审角色](.meta_harness/agents/roles/README.md)进行独立评审，
-提供目标、版本或快照、范围及相关需求依据与覆盖缺口；接受设计时按
-[需求维护](docs/maintenance/requirements.md)固定需求基线。普通局部修改按相关检查和任务要求审阅。
+提供目标、版本或快照、范围及相关需求依据与覆盖缺口；接受设计时固定所消费的
+需求修订与确认范围，使后来者能恢复同一基线。普通局部修改按相关检查和任务要求审阅。
 发现问题后回到拥有该含义的材料修正；涉及实现的检查应覆盖实际交付状态。
 
 评审及交付结论区分语义接受、提供者可实施、应用装配和实际验证的范围；设计
 中的关键跨能力交接沿 `harness-design-handbook` skill 的「契约描述」→「沿完整动作链核对组合」核对。
 
 评审意见、设计接受、实现完成和验证通过分别记录。政策与正式规格的接受、部分
-接受或取代按[知识流转](docs/maintenance/knowledge-flow.md#接受与交付怎样闭合)闭合。
+接受或取代在 [record/decisions](.meta_harness/design/record/decisions/README.md) 闭合。
 合并、推送、发布或部署依任务授权执行，评审结论和本指南本身不授予这些动作的权限。
 
 ## 维护这份入口
 
-本页拥有贡献者交付信息与协作入口；环境操作归开发指南，详细治理归维护规范，
-命令实现归工具与脚本。调整其中一项时先修改其所有者，再同步必要入口；
+本页拥有贡献者交付信息与协作入口；环境操作归[开发指南](docs/development.md)，
+设计知识的准入与归属归 [.meta_harness](.meta_harness/AGENTS.md)，命令实现归工具与脚本。
+调整其中一项时先修改其所有者，再同步必要入口；
 不要在多份贡献指南、PR 模板和 AGENTS.md 中复制一套会独立演化的规则。
