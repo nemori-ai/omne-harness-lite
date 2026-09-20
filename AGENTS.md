@@ -81,6 +81,22 @@ skills 的源归 `.meta_harness/agents/skills/`，roles 的源归 `.meta_harness
 
 这些判断按需展开为 `harness-design-handbook` skill 的「工程判断」与[防御指导](docs/defensive-patterns.md)；知识该落在哪一区，归 [design/AGENTS.md](.meta_harness/design/AGENTS.md) 的准入。
 
+## 署名与分支：权责归于人
+
+> **AI 参与开发不改变权责归属。**指导和调用这些工具的那个人，对最终内容、
+> 事实来源与验证声明负责——**这份责任不能通过署名转移出去。**
+
+- **分支名以 git username 开头**，例如 `panqiwei/meta-harness`。
+  **不要以 harness 或 agent 的名字开头**——`codex/`、`claude/`、`kimi/`、`cursor/`、
+  `deepseek/` 这类前缀会让这条分支看起来是某个工具的产物，而不是某个人的工作。
+- **commit 的 author 与 trailer 不带任何 coding agent 信息。**
+  不写 `Co-Authored-By: Claude`、`Generated with <agent>` 之类的署名，
+  提交只记在实际负责的人名下。
+
+**为什么写死这两条：**署名里一旦出现 AI，出了问题就有了推卸的余地——
+「是 AI 写的」会变成没有尽到监管与质量把控之责的挡箭牌。
+**只署人名，是为了让那份责任无处可退。**
+
 ## 项目目录结构
 
 以下是职责地图，省略专题文件和临时运行产物；各层 `README.md` 负责更细的导航。

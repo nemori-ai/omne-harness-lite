@@ -72,7 +72,12 @@ skills/roles 变更一并交付 canonical/角色源、宿主适配与生成产�
 
 本地 diff、设计稿和远程 PR 使用同样的交付信息要求；已有 Issue/PR 时关联其记录。
 提交标题清楚说明本次改变即可，本仓库尚未设强制标题格式或“先建 Issue”的自动门槛。
-使用 AI 辅助时，对最终内容、事实来源和验证声明负责；生成成功不等于已验证。
+
+使用 AI 辅助时，**对最终内容、事实来源和验证声明负责**；生成成功不等于已验证。
+分支名以自己的 git username 开头，**不用 `codex/`、`claude/` 这类 harness 或 agent 名**；
+commit 的 author 与 trailer **不带任何 coding agent 信息**。
+理由见[根 AGENTS.md 的「署名与分支」](AGENTS.md#署名与分支权责归于人)——
+**署名只写人，责任才无处可退。**
 
 ## 评审与接受
 
