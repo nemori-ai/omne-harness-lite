@@ -20,7 +20,29 @@
 或第二份权威等待以后补齐。
 
 产品交流若具有持续回顾价值但尚不是正式结论，进入该 topic 的 `interviews/`；笔记只保存来源语境，
-升级为正文由该 topic 的 owner 显式完成。触发与记录边界见[需求归位](../agents/skills/harness-design-handbook/canonical/references/intake.md#何时自主启记访谈)。
+升级为正文由该 topic 的 owner 显式完成。触发与记录边界见 `harness-design-handbook` skill 的「需求归位」→「何时自主启记访谈」。
+
+## 全局只有一套说法
+
+**同一个概念，在整个设计链里只有一个词；那个词定在
+[ubiquitous_language/](ubiquitous_language/README.md)。**
+
+这条**对所有目录成立**——产品条款、系统约束、上游读数、精确规格、提供者设计、
+已发生的记录，用的都是同一套词。**统一语言的失效事件是「某个概念的含义变了」**，
+与 product（产品方向改变）、spec（语义变更）都不同，所以它自己一个家。
+
+| 情况 | 怎么办 |
+|---|---|
+| 要提到一个概念 | **先查[词条索引](ubiquitous_language/index.md)**；有就用那里的词 |
+| **要引入一个新概念** | **先加词条**，定义清楚无歧义**之后**才能在正文里用 |
+| 发现两处说法对不上 | 记进 [conflicts.md](ubiquitous_language/conflicts.md)，**不静默统一掉** |
+| 要确定某个词的正式英文名 | 从词条取，**不自己另译**——规格要能跨语言复现，译法分叉会直接传导到契约 |
+
+**词表拥有「这个词精确指什么」，各 topic 正文拥有「为什么是这个形状、有什么后果」。**
+两者不是同义复制：**「为什么」一律不写进词表**，写进去就是第二份权威。
+
+取名不许占用通用词、分卷按「它回答什么问题」、无歧义怎么自检——
+加载 `ubiquitous-language` skill。
 
 ## 两条容易走错的归属
 
@@ -47,8 +69,10 @@
 
 - 新建或吸纳主题：读所属目录的 README 与本地 `.templates/`；按[信息包规则](README.md#主题是信息包)裁剪，模板本身不代表知识已准入。
 - 比较方案、记录接受或表达精确承诺：分别定位 record/proposals、record/decisions、spec，不能通过换目录提升状态；具体入口见 [目录地图](README.md#组织原则)。
-- 现有条款与实现或证据冲突：读[规格演进](../agents/skills/harness-design-handbook/canonical/references/spec-evolution.md)，定位拥有者和消费者，不能在施工计划里重写契约。
+- 现有条款与实现或证据冲突：加载 `harness-design-handbook` skill，读其「规格演进」，定位拥有者和消费者，不能在施工计划里重写契约。
 - 需要知道某个上游机制到底保证什么：读 [basis/](basis/README.md) 的条目，不在本次分析里重新推导一遍。
 
 普通局部修订直接接续已有主题；当前准入、拥有者与缺口清楚后停止扩展阅读，不为一次任务补齐所有目录。
-进入 `product/` 工作时先读它自己的 [AGENTS.md](product/AGENTS.md)——那里的身份视角与语言要求与本文件不同。
+进入 `product/` 工作时先读它自己的 [AGENTS.md](product/AGENTS.md)——那里有该区的维护规矩与阅读地图；
+真要在那里落字，再按它的指引加载 `product-design` skill，
+那份会把视角切成 product manager，**只读产品正文取输入的人不加载**。

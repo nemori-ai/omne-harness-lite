@@ -1,0 +1,240 @@
+# 交互与派发
+
+**这一卷回答：agent 跟人、跟别的 agent 怎么来往。**
+
+收在这里的是**跨主体的往来**及其产物。**跟工具怎么来往**归
+[执行与收场](execution-and-outcome.md)——那是自己的手脚，不是别的主体。
+
+词条格式与准入判据见 [conventions](../conventions.md)。
+
+## 跟别的 agent
+
+### UL-agent-dispatch · agent 派发 · Agent Dispatch
+
+> **中**：**把一件事交给另一个 agent 去做。**三种模式，**五个维度上取值不同**：
+>
+> | | **`spawn`** | **`delegate`** | **`handoff`** |
+> |---|---|---|---|
+> | **是不是独立主会话** | 否 | 否 | **是** |
+> | **上下文怎么组装** | **继承当前会话的** | 一段 instruction | 一段 handoff 说明 |
+> | **生命周期受谁控制** | 派发者 | 派发者 | **不受派发者控制** |
+> | **派发动作何时结束** | 进[工具等待态](execution-and-outcome.md#ul-tool-wait-state--工具等待态--tool-wait-state)待[报告](#ul-dispatch-report--派发报告--dispatch-report)或失败 | 同左 | **确认会话建没建起来即结束** |
+> | **能否向派发者[发消息](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)** | 不能 | 不能 | **能** |
+>
+> **EN**: **Handing a piece of work to another agent.** Three modes, differing on
+> five dimensions: whether it is an independent primary session, how its context is
+> assembled, who controls its lifecycle, when the dispatching action ends, and
+> whether it can message the dispatcher.
+
+- **出处**：[PF-007 §6.8 派发有三种模式](../../product/PF-007-meta-capabilities/design.md#派发有三种模式)（rev 6）
+- **注意 ①**：**两处分水岭，各自只有一条。**`spawn` 与 `delegate` 只差
+  「**它带着什么开始干活**」；`spawn`/`delegate` 与 `handoff` 只差
+  「**是不是独立主会话**」——**另外三个维度全是这一条的后果**
+- **注意 ②**：**`handoff` 撤不回。**这不是缺陷，是它的定义——**一个能被撤回的 `handoff`，那是 `delegate`**
+- **注意 ③**：**可以派给外部 harness 的 agent**，但那时**权限继承无从谈起、数据出境、
+  监管取决于对方、回来的是外部内容**——因此**必须是一项显式授予的权限**
+- **待裁决**：`spawn` 的「继承当前会话的上下文」**是共享同一份[会话](agent-runtime-loop.md#ul-session--会话--session)日志，
+  还是派发那一刻复制一份**，见 [PF-007 §9.1](../../product/PF-007-meta-capabilities/design.md#91-spawn-的继承当前会话的上下文是共享还是复制)
+
+### UL-inter-agent-communication · agent 间通信 · Inter-Agent Communication
+
+> **中**：**两条独立的规则，覆盖面不一样：**
+>
+> | | 规则 | 覆盖面 |
+> |---|---|---|
+> | **一** | agent 可以给**任何它派发出去的** agent 发消息 | **只管一个方向**（派发者往外），**不问对方身份** |
+> | **二** | **具备独立主会话身份的、会话仍活跃的、同属一个租户的** agents 相互可以通信 | **双向**，且**不要求有派发关系** |
+>
+> **两个素不相识的 agent 也能通**，只要规则二那三个条件都满足。
+>
+> **EN**: **Two independent rules with different reach.** First: an agent may message
+> **any agent it dispatched**, whatever the mode — this covers **one direction only**
+> and asks nothing about the recipient's identity. Second: agents that **hold an
+> independent primary session, are still active, and belong to the same tenant** may
+> communicate with one another — this is **bidirectional and requires no dispatch
+> relationship**, so **two agents that never met can talk**.
+
+- **出处**：[PF-007 §6.8 先说谁能给谁发消息](../../product/PF-007-meta-capabilities/design.md#先说谁能给谁发消息这是两条独立的规则)（rev 6）
+- **注意 ①**：**规则二那三个条件缺一不可**，「**会话仍活跃**」尤其容易被忽略——
+  **一个会话结束了的 agent，不是「暂时联系不上」，是这条通路不存在了**
+- **注意 ②**：**`handoff` 能向派发者发消息不是单独规定的一条**，
+  是它**落进了规则二**的自然结果
+- **注意 ③**：**发不出去时要说清是哪一条不满足**（不是我派的？没有主会话身份？会话已结束？
+  不同租户？）——**四种原因的处理方式完全不同**
+
+### UL-dispatch-report · 派发报告 · Dispatch Report
+
+> **中**：被派发的 agent **交回来的那一次交代**。它与[消息](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)是两样东西：
+>
+> | | 报告 | 消息 |
+> |---|---|---|
+> | 终结什么吗 | **终结这次派发** | **什么都不终结** |
+> | 能来几次 | **一次** | 来回多少次都行 |
+> | 派发者那边 | 等待态**结束**，工具调用返回 | 不影响任何正在等的东西 |
+>
+> **EN**: The single account a dispatched agent hands back. It differs from a message
+> on every count: **a report concludes the dispatch**, a message concludes nothing;
+> **a report comes once**, messages any number of times.
+
+- **出处**：[PF-007 §6.8 「不能发消息」不等于「不能说话」](../../product/PF-007-meta-capabilities/design.md#不能发消息不等于不能说话)（rev 6）
+- **注意**：不点破这层区分，「不能向派发者发消息」会被读成
+  **「它干完了也没人知道」**——**而那正好相反**
+- **注意**：发起方可以附上「**我期望报告长什么样**」，但那是**指引，不是校验**——
+  写成硬校验，子就会为了通过校验而编造格式
+
+## 跟人
+
+### UL-hitl · 人在回路 · Human in the Loop
+
+> **中**：**一次执行停下来等人输入，人不输入就一直等着。**三个词都要紧：
+> **停下来**（不是轮询、不是重试，是真的停在那里）、
+> **等人输入**（等的是人，不是等时间，也不是等别的系统）、
+> **一直**（**没有上限**）。
+>
+> **EN**: **An execution pausing to await human input, and waiting indefinitely if
+> none comes.** Each part matters: it **actually stops** (no polling, no retrying);
+> what it waits for is **a person** — not a timeout, not another system; and it waits
+> **indefinitely**, with **no upper bound**.
+
+- **出处**：[PF-008 §4 HITL](../../product/PF-008-human-in-the-loop/design.md#hitl)（rev 1）
+- **⚠️ 注意**：**不设上限是硬的。**设了上限就必须规定「到点算什么」，
+  **那就是系统替人作答**——而**「人没回答」与「人回答了随便」是两回事**
+- **注意**：它**不占资源**——问询发生在动手之前，**不花钱的等待没有理由设上限**
+
+### UL-run-wait-state · 运行等待态 · Run Wait State
+
+> **中**：**一个[运行](agent-runtime-loop.md#ul-run--运行--run)停下来等一个输入。**
+> 它由**系统**在拿到一次模型响应之后算出来，**直接把 run 停住**。
+> 它与[工具等待态](execution-and-outcome.md#ul-tool-wait-state--工具等待态--tool-wait-state)
+> **是两个维度，挂在不同的生命周期上**。
+>
+> **EN**: **A run pausing to await an input.** It is computed **by the system** after a
+> model response comes back, and **stops the run outright**. It is **a dimension
+> distinct from the tool wait state**, hanging off a different lifecycle.
+
+- **出处**：[PF-008 §4 等待态的两个维度](../../product/PF-008-human-in-the-loop/design.md#等待态的两个维度)（rev 1）
+- **⚠️ 别混**：**裸写「等待态」不作数**——它有两个所指，**必须说清是 run 的还是工具的**
+- **注意**：`Ask()` 属于**工具**那一列。run 之所以也停住，
+  **是因为它恰好是前台调用**——**而不是因为这两个维度是同一件事**
+- **注意**：**一个会话同一时刻最多一个 run 在等**——等待期间到达的消息进队列、
+  由当前这个 run 在下一步消费，**不会另起一个 run**。
+  这与[会话内单活跃](agent-runtime-loop.md#ul-single-active-execution--会话内单活跃--single-active-execution)是同一条
+- **注意**：**同一个会话可以同时有别的东西在等**——那些转到后台的工具执行，
+  **各等各的，也不影响 run**
+
+### UL-decision-card · 决策卡片 · Decision Card
+
+> **中**：**一次需要人输入的请求，带齐让人当场就能判断的全部信息与选项。**
+> **「当场」是这个定义的重点**：人**不必回到原来那个会话去翻上下文**，读这张卡片就够了。
+>
+> **EN**: **One request for human input, carrying everything a person needs to judge it
+> on the spot** — options included. **"On the spot" is the point**: they should not
+> have to go back to the originating session and read up on the context.
+
+- **出处**：[PF-008 §4 决策卡片](../../product/PF-008-human-in-the-loop/design.md#决策卡片) · [§6.3](../../product/PF-008-human-in-the-loop/design.md#63-卡片自包含但要留得住溯源的路)（rev 1）
+- **注意 ①**：**一张卡片只能被答一次**，在会话里答还是在[池子](#ul-decision-pool--决策池--decision-pool)里答**都算数**，
+  **答完两处一起消失**——**同一张卡片有两套状态，人就再也不信任这个池子了**
+- **注意 ②**：**「在会话里答」指的是在会话里那张卡片上答，不是发一条消息**。
+  **答复只在卡片上做，消息永远是消息**——这消解了「等待期间用户发来的话是答复还是新交代」这个歧义
+- **注意 ③**：**卡片要让人看出「答了它会解除什么」**——同一个会话可能有好几张卡片悬着，
+  **而它们解除的东西不一样**
+- **注意 ④**：**「不回答」是合法答复**
+
+### UL-decision-pool · 决策池 · Decision Pool
+
+> **中**：**一个租户范围内，所有等着人输入的卡片，陈列在一处。**
+> **它是陈列，不是主体**——等的永远是某个会话里的某个 run 或某次工具执行，
+> **池子只是把它们摆到一起，让人一眼看见**。
+>
+> **EN**: **All cards awaiting human input within one tenant, displayed in one place.**
+> **It is a display, not an actor** — what waits is always a run or a tool execution
+> inside some session; the pool merely gathers them so a person can see them at a
+> glance.
+
+- **出处**：[PF-008 §4 决策池](../../product/PF-008-human-in-the-loop/design.md#决策池)（rev 1）
+- **⚠️ 注意**：**不存在「组织在等什么」这回事。组织不会等，等的永远是某个会话。**
+  把池子当成主体，就会做出一个「组织待办中心」——**它会开始有自己的状态、自己的流转、
+  自己的归属，而真正在等的那个 run 反倒被隔在一层之外**
+- **注意**：**租户隔离在池子上成立**
+
+### UL-admission-decision · 放行判断 · Admission Decision
+
+> **中**：**一个函数**，在一个 run 里**拿到一次模型响应之后跑**：既算出**要不要停**，
+> 也**写出给人看的那张[卡片](#ul-decision-card--决策卡片--decision-card)**——
+> **它既是判官也是撰稿人**。它的输入是三样合起来：
+> **权限设置 + [会话授权上下文](#ul-session-authorization-context--会话授权上下文--session-authorization-context) + 会话运行模式**。
+>
+> **EN**: **A function** run inside a run, **after each model response**: it decides
+> **whether to stop** and **writes the card the person will read** — **it is both judge
+> and drafter**. Its inputs are three things together: the permission settings, the
+> session authorization context, and the session's operating mode.
+
+- **出处**：[PF-008 §4 放行判断](../../product/PF-008-human-in-the-loop/design.md#放行判断) · [§5.2](../../product/PF-008-human-in-the-loop/design.md#52-那个判断函数)（rev 1）
+- **注意 ①**：**没有任何一样单独说了算。**获批不等于自动放行，有权限设置也不等于请示没意义
+- **注意 ②**：**权限设置里明确禁止的，会话授权翻不了案**——
+  否则任何禁止都能靠「让用户在会话里点个同意」绕过去，
+  而**会话里坐着的那个人，未必是设权限的那个人**
+- **注意 ③**：**拿不准就再问一次**——两个方向的代价不对称：该放的没放只是多问一遍，
+  **不该放的放了就是做了没有人批准过的事**
+
+### UL-inquiry · 问询 · Inquiry
+
+> **中**：agent **主动问人一个问题**。每个问题必须带齐三样：
+> **问题描述**（人话）+ **候选项**（**文本必需，图解可选**）+ **允许人自由输入自己的答复**。
+> **一次可以问多个问题。**
+>
+> **EN**: The agent **asking a person a question of its own accord**. Every question
+> must carry three things: **a plain-language description**, **candidate answers**
+> (**text required, a diagram optional**), and **room for the person to write their
+> own**. **Several questions may be asked at once.**
+
+- **出处**：[PF-007 §6.11 `Ask()`](../../product/PF-007-meta-capabilities/design.md#611-ask通向人)（rev 6）
+- **别混**：与[请示](#ul-approval-request--请示--approval-request)**形状不同**——
+  **问询是开放的，拿到之后接着想；请示是封闭的，拿到之后才动手**
+- **注意 ①**：**自由作答这条路由系统保证，不靠 agent 记得留**——**靠自觉总有忘的时候**
+- **注意 ②**：**一次问全。**打断的代价**与问题多少无关，只与打断次数有关**——
+  **挤牙膏式连问是产品缺陷**
+- **注意 ③**：**候选项只有图、没有文字是不行的**——引用不了、复述不了，**读屏的人直接被挡在门外**
+
+### UL-approval-request · 请示 · Approval Request
+
+> **中**：agent **就一件要动手的事请人准不准**。选项**固定两个**：同意 / 不同意，
+> **外加自由作答**。它要说清：**做什么 · 为什么 · 影响多大 · 撤不撤得回 · 不准怎么办**。
+> **获准之后那一笔进[会话授权上下文](#ul-session-authorization-context--会话授权上下文--session-authorization-context)。**
+>
+> **EN**: The agent **asking leave before doing something**. The options are **fixed at
+> two** — approve or decline — **plus free-form reply**. It must state what will be
+> done, why, how large the impact is, **whether it can be undone**, and what happens if
+> declined. **An approval is recorded into the session authorization context.**
+
+- **出处**：[PF-007 §6.11 `Ask()`](../../product/PF-007-meta-capabilities/design.md#611-ask通向人)（rev 6）
+- **注意 ①**：**先把事做了再请示，那不叫请示，叫通知**——**人拒绝的时候已经晚了**
+- **注意 ②**：**翻不出裁决就不要翻。**人的回答常常不落在准/驳上（「第二封改改语气再发」）——
+  **替人合成一个裁决等于伪造签字**
+- **注意 ③**：**agent 拿到批准后做的事不能比请示的多**——**人签的是那段文字**
+- **注意 ④**：**要写得出「什么时候不该敲这扇门」**——问得太多，人就会开始不假思索地点同意，
+  **那时这扇门形同虚设，而它看上去还在工作**
+
+### UL-session-authorization-context · 会话授权上下文 · Session Authorization Context
+
+> **中**：**一个会话里，用户已经点头同意 agent 做的那些事。**
+> 它由[请示](#ul-approval-request--请示--approval-request)一次次累积出来，
+> **随会话结束一起消失**，而且**改不了[权限设置](capabilities-and-composition.md#ul-permission--权限--permission)**。
+> 它与权限设置是**组合**关系，不是覆盖。
+>
+> **EN**: **The things a user has agreed the agent may do, within one session.** It
+> accumulates one approval at a time, **vanishes when the session ends**, and **cannot
+> alter the permission settings** — it **combines** with them rather than overriding
+> them.
+
+- **出处**：[PF-007 §4 会话授权上下文](../../product/PF-007-meta-capabilities/design.md#会话授权上下文)（rev 6）
+- **注意 ①**：它填的是此前谁都没拥有的那一层——原先只有**这一次**（做完就没）
+  和**长期**（权限设置）两个尺度。**不留痕迹则问得太勤，留成长期授权则当事人不知道自己批准了什么**
+- **注意 ②**：**只增不减，本版不提供逐笔撤销**——要收回给出去的同意，**结束会话即可**；
+  多一个「撤销某一笔」就多一处**「以为撤了其实没撤」**
+- **注意 ③**：**长期授权一直都可以给，只是必须由人明确地给**——
+  **禁的是系统替人解释，不是禁止人给长期授权**
+- **注意 ④**：**授权不能建立在记忆上**——不给它名字，「用户刚才同意过」就只能活在
+  agent 的上下文里，**而上下文会被裁剪**
+
+返回[统一语言入口](../README.md) · [全部词条索引](../index.md)
