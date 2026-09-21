@@ -95,6 +95,11 @@
 - [TypeSafe Jev：结构化决策模型的能力与边界](typesafe-jev/README.md) — `jev-1.13.0`，取证 2026-09-19 两轮（主张核查；机制、训练与用途），消费者待出现
 - [实时语音通话：能力、链路与证据强度](realtime-voice-calling/README.md) — `gpt-live-1` 与整条语音链路，取证 2026-09-19，消费者待出现
 
+### 同类 harness 横向调研
+
+- [四个 agent harness 怎么设计「会话」](agent-harness-session-design/README.md) — DSH `c291e796` / Claude Code `2.1.278` / Codex `0.154.0` / Pi `3390bd9`，取证 2026-09-20，消费者 PF-015
+- [六个 agent harness 怎么做 CLI 与 TUI](agent-harness-cli-tui/README.md) — 上述四家 + Cursor `2026.08.04` 与 Kimi Code `0.31.0`，取证 2026-09-21，消费者待出现
+
 迁入前的历史索引见 [`legacy_backup/`](legacy_backup/README.md)，那里是存底，不按本页规则接续。
 
 每个 topic 入口标明调查对象、版本与范围；先沿当前判断进入对应 topic，再按其阅读地图取得证据与局限。

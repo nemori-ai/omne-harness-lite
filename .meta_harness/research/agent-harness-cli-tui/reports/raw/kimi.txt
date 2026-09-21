@@ -1,0 +1,46 @@
+Usage: kimi [options] [command]
+
+The Starting Point for Next-Gen Agents
+
+Options:
+  -V, --version                 output the version number
+  -S, --session [id]            Resume a session. With ID: resume that session. Without ID:
+                                interactively pick.
+  -c, --continue                Continue the previous session for the working directory. (default:
+                                false)
+  -y, --yolo                    Auto-approve regular tool calls; the agent may still ask questions.
+                                (default: false)
+  --auto                        Start in auto permission mode: fully autonomous, the agent will not
+                                ask questions. (default: false)
+  -m, --model <model>           LLM model alias to use for this invocation. Defaults to
+                                default_model in config.toml.
+  -p, --prompt <prompt>         Run one prompt non-interactively and print the response.
+  --output-format <format>      Output format for prompt mode. Defaults to text. (choices: "text",
+                                "stream-json")
+  --skills-dir <dir>            Load skills from this directory instead of auto-discovered user and
+                                project directories. Can be repeated. (default: [])
+  --agent <name>                Agent profile to start the new session with. Custom profiles are
+                                discovered from agent directories or loaded via --agent-file. Cannot
+                                be combined with --session/--continue.
+  --agent-file <path>           Load an agent definition from a Markdown file and select it for the
+                                new session. Cannot be combined with --session/--continue. (default:
+                                [])
+  --add-dir <dir>               Add an additional workspace directory for this session. Can be
+                                repeated. (default: [])
+  --plan                        Start in plan mode. (default: false)
+  -h, --help                    Show help.
+
+Commands:
+  export [options] [sessionId]  Export a session as a ZIP archive.
+  provider                      Manage LLM providers non-interactively.
+  acp [options]                 Run kimi-code as an Agent Client Protocol (ACP) server over stdio.
+  web [options]                 Run the local Kimi server and open the web UI.
+  server                        Deprecated — use `kimi web` instead.
+  login                         Authenticate with Kimi Code CLI via the device-code flow.
+  doctor                        Validate Kimi Code configuration files.
+  vis [options] [sessionId]     Launch the session visualizer in your browser.
+  migrate                       Migrate data from a legacy kimi-cli installation into kimi-code.
+  upgrade|update                Upgrade Kimi Code to the latest version.
+
+Documentation:        https://moonshotai.github.io/kimi-code/
+
