@@ -42,9 +42,13 @@
 ## 产品设计
 
 产品正文按**主题**组织，每个主题一个信息包：概念定义、模型、产品规则、拍板记录与未决项
-各有其位。当前覆盖身份与范围、资产与权限、Agent 运行时、执行环境与沙箱、工具与技能、
-Meta Capabilities、Human in the Loop、上下文的消息类型与组装、非常态处置、
-以及 Agent Loop 与 Run。
+各有其位。当前覆盖发生的事与记录条目、身份与范围、设置权限与资产、资产的转移与分享、
+Agent 定义与装配、执行环境与沙箱、工具与技能、Meta Capabilities、Human in the Loop、
+上下文的消息类型与组装、非常态的分层处置、Agent Loop 与 Run、模型档案与调用、
+输入的受理与排队，以及会话的生命周期与归属。
+
+这些主题目前**全部属于[架构内核](.meta_harness/design/product/architecture-core.md)**——
+它们立的是彼此赖以成立的前提，**改其中一个，代价落在别的主题身上**。
 
 完整清单、状态与修订次数见[产品设计入口](.meta_harness/design/product/README.md)；
 概念的精确所指归[统一语言](.meta_harness/design/ubiquitous_language/README.md)——
