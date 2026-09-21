@@ -2,7 +2,7 @@
 id: PF-008
 title: Human in the Loop
 status: active
-revision: 2
+revision: 3
 relations:
   supersedes: []
   depends-on:
@@ -74,7 +74,7 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 1**，**已正式接受**（2026-09-17）
+- 产品设计：**rev 3**，**已正式接受**（rev 1 于 2026-09-17；**rev 3 随 [PF-007 rev 11](../PF-007-meta-capabilities/changelog.md) 重写了 §5.2 的一小节**——那里原本论证「agent 请示时不能给长期授权」，**前提已被推翻**）
 - 未决项：**无**
 - 待裁决：**无**
 - **依赖两个尚未成文的对象**：**Run** 与**会话**的完整定义归后续 PF

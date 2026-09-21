@@ -21,41 +21,45 @@
 |---|---|---|
 | [PF-000 发生的事与记录条目](PF-000-occurrences-and-record-entries/README.md) | active | 1 |
 | [PF-001 身份、范围与对 Agent 的约束](PF-001-identity-scope-and-agent-constraints/README.md) | active | 7 |
-| [PF-002 设置、权限与资产的展开](PF-002-assets-settings-and-permissions/README.md) | active | 3 |
+| [PF-002 设置、权限与资产的展开](PF-002-assets-settings-and-permissions/README.md) | active | 4 |
 | [PF-003 资产的转移与分享](PF-003-asset-transfer-and-sharing/README.md) | active | 1 |
-| [PF-004 Agent 定义与装配](PF-004-agent-definition-and-assembly/README.md) | active | 5 |
-| [PF-005 执行环境与沙箱](PF-005-execution-environments-and-sandboxes/README.md) | active | 2 |
+| [PF-004 Agent 定义与装配](PF-004-agent-definition-and-assembly/README.md) | active | 6 |
+| [PF-005 执行环境与沙箱](PF-005-execution-environments-and-sandboxes/README.md) | active | 3 |
 | [PF-006 工具与技能](PF-006-tools-and-skills/README.md) | active | 9 |
-| [PF-007 Meta Capabilities](PF-007-meta-capabilities/README.md) | active | 9 |
-| [PF-008 Human in the Loop](PF-008-human-in-the-loop/README.md) | active | 2 |
+| [PF-007 Meta Capabilities](PF-007-meta-capabilities/README.md) | active | 13 |
+| [PF-008 Human in the Loop](PF-008-human-in-the-loop/README.md) | active | 3 |
 | [PF-009 上下文消息类型](PF-009-context-message-types/README.md) | active | 2 |
-| [PF-010 上下文管理与组装](PF-010-context-management-and-assembly/README.md) | active | 4 |
+| [PF-010 上下文管理与组装](PF-010-context-management-and-assembly/README.md) | active | 5 |
 | [PF-011 非常态的分层处置](PF-011-off-nominal-handling/README.md) | active | 3 |
 | [PF-012 Agent Loop 与 Run](PF-012-agent-loop-and-run/README.md) | active | 5 |
 | [PF-013 模型档案、调用与切换](PF-013-model-profiles-and-invocation/README.md) | draft | 3 |
 | [PF-014 输入的受理与排队](PF-014-inbound-intake-and-queueing/README.md) | draft | 2 |
+| [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md) | draft | 5 |
 
 ## 已排定、尚未开题的编号
 
-**这里只登记编号归属，不是空 topic。**目录要等这块内容真的开写时才建——
-[空壳会被当成已有设计](#准入)。
+**这一栏现在是空的。**
 
-| 编号 | 归它的 | 范围（一句话，开题时以它自己的 §1 为准） |
-|---|---|---|
-| **PF-015** | **会话的生命周期与归属**（session） | 会话怎么建、怎么收束、**有哪几种终态**、日志的家、[摘要累积到装不下时怎么办](PF-010-context-management-and-assembly/design.md#八边界与依赖)、[会话内单活跃](../ubiquitous_language/terms/agent-runtime-loop.md#ul-single-active-execution--会话内单活跃--single-active-execution)那条约束；**2026-09-20 追加**：**会话树**，以及 **master agent 对自己全部[子 agent](../ubiquitous_language/terms/interaction-and-dispatch.md#ul-subagent--子-agent--subagent) 的感知与管理**（[PF-007 rev 7 记录但不设计](PF-007-meta-capabilities/decisions.md#一拍板记录)） |
+**PF-015 于 2026-09-21 开题**，见 [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md)。
+它是 2026-09-17「agent-loop / session / inbound 会是多个 PF，不是单个」那条裁决
+（记在 [PF-008 decisions](PF-008-human-in-the-loop/decisions.md#一拍板记录)）的**最后一个落点**——
+agent-loop 是 [PF-012](PF-012-agent-loop-and-run/README.md)，
+模型调用那一层是 [PF-013](PF-013-model-profiles-and-invocation/README.md)，
+inbound 是 [PF-014](PF-014-inbound-intake-and-queueing/README.md)，**四个全部开题**。
 
-> **这一组是 2026-09-17「agent-loop / session / inbound 会是多个 PF，不是单个」
-> 那条裁决的落点**（记在 [PF-008 decisions](PF-008-human-in-the-loop/decisions.md#一拍板记录)）。
-> **四个里已经做完三个**——agent-loop 是 [PF-012](PF-012-agent-loop-and-run/README.md)，
-> 模型调用那一层是 [PF-013](PF-013-model-profiles-and-invocation/README.md)，
-> inbound 是 [PF-014](PF-014-inbound-intake-and-queueing/README.md)；**只剩 PF-015。**
+> **那两条吊在「这段协作到此为止」上的规则，已经落到锚点上了。**
+> 那个锚点是[归档](PF-015-session-lifecycle-and-ownership/design.md#会话归档)——
+> [没有删除会话的概念，也就没有「会话结束」这回事](../ubiquitous_language/decisions.md#ul-d-4--主会话与子会话--2026-09-21)。
+> **两条的去向各不相同**：
 >
-> **而它最急**，因为**吊在「会话结束」这个尚未定义的事实上的已接受规则，现在有四条**：
-> [PF-005 的会话级沙箱到点销毁](PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)、
-> [PF-007 的会话授权上下文随会话结束消失](PF-007-meta-capabilities/design.md#会话授权上下文)、
-> [PF-012 §6.6 先确保会话存在再落终态](PF-012-agent-loop-and-run/design.md#66-终态不可逆且只有一个出口)，
-> **以及第四条**——[通信规则一没有「对方会话仍活跃」这个条件，而规则二有](PF-007-meta-capabilities/design.md#92-报告之后派发者再发一条消息子拿什么回应)，
-> **对方会话结束之后规则一还成不成立，现在没有答案**。
+> - [会话授权上下文**不随归档消失**](PF-007-meta-capabilities/design.md#会话授权上下文)——
+>   PF-007 rev 11 把它重定为**数据**，「随会话结束一起消失」那条作废；
+> - [通信规则一的条件问题](PF-007-meta-capabilities/design.md#92-报告之后派发者再发一条消息子拿什么回应)
+>   已由 PF-007 rev 10 闭合——规则一改双向，规则二的条件明确为**会话仍未被归档**。
+>
+> **PF-015 还差最后半块**：产品负责人给定的五块大纲里，
+> [只剩工具权限本身没开始](PF-015-session-lifecycle-and-ownership/README.md#本-rev-覆盖到哪)
+> （执行环境权限归 [PF-005](PF-005-execution-environments-and-sandboxes/README.md)）。
 
 > **2026-09-20**：**产品正文统一去历史化。**产品负责人的要求：
 > **`design.md` 只记录最终正式确定的设计**——「之前怎么样、现在怎么样」与推导过程

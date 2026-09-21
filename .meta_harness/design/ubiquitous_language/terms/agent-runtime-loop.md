@@ -80,8 +80,148 @@
 - **注意 ②**：**它比 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime) 长寿**——
   协程可被取消、可重新起，没了之后**会话还在、历史还在、认定的定义还在**。
   **它自己不是活物**：它是纯数据、治理性质的概念，不占用计算资源，也不会「停下来」
-- **注意 ③**：**它有终态，而且必须有**——PF-005 的沙箱销毁与 PF-007 的授权消失
-  全都挂在「会话结束」这个事实上。**具体有哪几种终态，尚未拍板**
+- **注意 ③**：**没有「会话结束」这回事。****没有删除会话的概念**，所以严格意义上
+  它不会终止。它走的是[四个状态](../../product/PF-015-session-lifecycle-and-ownership/design.md#会话的生命周期)——
+  **创建/初始化 · 运行/活跃 · 休眠 · [归档](#ul-session-archival--会话归档--session-archival)**，
+  其中**运行与休眠来回切换没有上限**，**归档可以撤销**。
+  **凡是要挂在「这段协作到此为止」上的东西，锚点都是归档**：
+  [未完成的工具执行随之收场](../../product/PF-006-tools-and-skills/design.md#65-工具执行有自己的运行时绑定在-session-上)就是其中之一。
+  **注意[会话级沙箱的销毁不在此列](../../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)**——
+  它挂的是**沙箱自己的最大连续存活时间**，那一节同时明写「**会话可以无限期存在**」
+- **注意 ④**：**它有两种性质**——[主会话](#ul-primary-session--主会话--primary-session)
+  与[子会话](#ul-child-session--子会话--child-session)。两者**都完整地是会话**，
+  区别只在关系里扮演的角色
+
+### UL-primary-session · 主会话 · Primary Session
+
+> **中**：**不是任何会话之子会话的那个会话。**它是这段协作的根：
+> **主会话之间生命周期相互独立**，谁也不因为另一个而开始或停止。
+>
+> **EN**: **A session that is not a child session of any other.** It is the root of its
+> stretch of collaboration: **primary sessions are mutually independent in lifecycle** —
+> none begins or ends because another did.
+
+- **出处**：[UL-D-4 裁决 1、2](../decisions.md#ul-d-4--主会话与子会话--2026-09-21)（产品负责人 2026-09-21 直接裁决，定义由 PM 起草）
+- **注意 ①**：**它是[会话](#ul-session--会话--session)的一种性质，不是另一种对象。**
+  主会话与[子会话](#ul-child-session--子会话--child-session)**都完整地是会话**——
+  都有耐久身份、归属边界、自己的日志，**只是在关系里扮演的角色不同**
+- **注意 ②**：**[`handoff` 派出去的 agent 落在这里](interaction-and-dispatch.md#ul-subagent--子-agent--subagent)**——
+  它「有独立主会话身份」，所以它**不是**子 agent，它的会话是主会话
+- **注意 ③**：**只有主会话的 agent 之间适用
+  [通信规则二](interaction-and-dispatch.md#ul-inter-agent-communication--agent-间通信--inter-agent-communication)**
+  （独立主会话身份 ∧ **会话仍未被归档** ∧ 同租户）
+
+### UL-child-session · 子会话 · Child Session
+
+> **中**：**由某个会话的 agent 通过 `delegate` 或 `spawn` 创建出的
+> [子 agent](interaction-and-dispatch.md#ul-subagent--子-agent--subagent) 所在的那个会话。**
+> 它由**创建**这个动作确立，**不由历史确立**——`spawn` 不是 `fork`，
+> **它不继承父会话的任何历史内容**。
+>
+> **EN**: **The session of a subagent that some session's agent created via `delegate` or
+> `spawn`.** It is established by **the act of creation, not by history**: `spawn` is not
+> `fork`, and **it inherits none of the parent session's history**.
+
+- **出处**：[UL-D-4 裁决 1、3](../decisions.md#ul-d-4--主会话与子会话--2026-09-21)（产品负责人 2026-09-21 直接裁决，定义由 PM 起草）
+- **别混 ①**：**不是 fork。**fork 复制或引用一段既有历史，它**从零开始**。
+  两个会话的 session log 在**存储上也不共享节点**（无指针引用）——
+  **但那是存储约束，不是访问约束**：跨会话取数据照常经工具能力与租户权限进行
+- **别混 ②**：**「子会话」是会话，「[子 agent](interaction-and-dispatch.md#ul-subagent--子-agent--subagent)」是 agent。**
+  前者是后者所在的那个会话
+- **注意 ①**：**嵌套层级不受约束**——子会话的 agent 可以再创建它自己的子会话
+- **注意 ②**：**通信拓扑是收窄的**：它的 agent **只能与自己的直接 parent、
+  或它自己再创建出的子会话的 agent** 通信；**兄弟之间、隔代之间都不可**。
+  其中**子 → 直接父**这一向是 [UL-D-4 裁决 7](../decisions.md#ul-d-4--主会话与子会话--2026-09-21) 放开的，
+  用途是**确认事实、澄清需求**这类子主动发起的求助
+- **注意 ③**：**它的会话不因交回[报告](interaction-and-dispatch.md#ul-dispatch-report--派发报告--dispatch-report)而终结**——
+  报告终结的是那次派发
+
+### UL-session-archival · 会话归档 · Session Archival
+
+> **中**：**把一段协作收起来的那个动作，以及它之后所处的那个状态。**
+> 它是**唯一一个「这段协作到此为止」的锚点**——
+> [没有删除会话这回事，所以也没有「会话结束」这回事](#ul-session--会话--session)。
+> **它有两条来路**：**租户手动归**，或**系统按一个出厂配置的时限自动归**。
+> **归档本身可以撤销**，撤销后会话回到休眠、历史一条不少；
+> **但它连带做的三件事不可逆**：子会话级联被归档、未完成的工具执行被中断、模型响应被中断。
+>
+> **EN**: **The act of putting a stretch of collaboration away, and the state it then sits
+> in.** It is **the one anchor for "this collaboration is over"** — there is no deleting a
+> session, hence no "session end". It arrives **two ways**: **the tenant archives it**, or
+> **the system does so once a factory-configured age is reached**. **Archival itself is
+> reversible**: undoing it returns the session to dormant with its history intact. **The
+> three things it does on the way in are not**: child sessions are archived transitively,
+> unfinished tool executions are interrupted, and the model response in flight is
+> interrupted.
+
+- **出处**：[PF-015 §4 会话归档](../../product/PF-015-session-lifecycle-and-ownership/design.md#会话归档) · [§6.3](../../product/PF-015-session-lifecycle-and-ownership/design.md#63-归档先停活儿再落状态)（rev 1）
+- **别混 ①**：**不是删除。**会话的身份与历史一直在，**归档只让它从眼前收起来**
+- **别混 ②**：**不是[会话级沙箱的销毁](grounding-and-isolation.md#ul-session-sandbox--会话级沙箱--session-scoped-sandbox)。**
+  那挂的是**沙箱自己的最大连续存活时间**，[同一节明写「会话可以无限期存在」](../../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)——
+  **沙箱没了，会话照活**
+- **别混 ③**：**不是[运行终态](#ul-run-terminal-state--运行终态--run-terminal-state)。**
+  那三个终态是 **Run 的**，一次运行收场不等于这段协作收场
+- **注意 ①**：**它只往下传，不往上传**——子会话被归档**不会**带走它的父
+- **注意 ②**：**撤销归档只还状态，不还工作**：被中断的接不回来，
+  被级联归档的子会话**要各自单独撤销**
+- **注意 ③**：**它不动[授权](interaction-and-dispatch.md#ul-session-authorization-context--会话授权上下文--session-authorization-context)。**
+  授权是数据，**归档不丢**——「工作被取消」推不出「授权也没了」
+- **注意 ④**：**自动归的档和手动归的档，后果一模一样**——
+  同样级联、同样中断、同样可撤销。**没有「系统归的比较轻」这回事**
+- **注意 ⑤**：**那条时限是[出厂配置，默认 30 天](../../product/PF-015-session-lifecycle-and-ownership/design.md#62-归档有两条来路人手动或到期自动)**，
+  **不是每个会话各设一个**；[租户改不改得动尚未裁决](../../product/PF-015-session-lifecycle-and-ownership/decisions.md#三待裁决)
+
+### UL-session-type · 会话类型 · Session Type
+
+> **中**：**一个[会话](#ul-session--会话--session)主要是用来干什么的。**
+> 它在会话建立时，**由用户选定的 [AgentDefinition](../../product/PF-004-agent-definition-and-assembly/design.md) 算出来**，
+> **此后不随来源变化**。
+>
+> **EN**: **What a session is mainly for.** It is **computed at creation from the
+> AgentDefinition the user picked**, and **never changes afterwards**, whatever later
+> happens to that definition.
+
+- **出处**：[PF-015 §4 会话类型](../../product/PF-015-session-lifecycle-and-ownership/design.md#会话类型) · [§5.3](../../product/PF-015-session-lifecycle-and-ownership/design.md#53-会话类型怎么算出来)（rev 1）
+- **⚠️ 别混**：**它不是一道闸门。**它**不参与**
+  [放行三元组](../../product/PF-007-meta-capabilities/design.md#611-ask通向人)，
+  也不收窄任何[权限](capabilities-and-composition.md#ul-permission--权限--permission)——
+  **一个 `coding` 会话不会因为类型就做不了别的事**
+- **注意 ①**：**是算出来的，不是绑上去的。**它与来源之间是一条**映射**，
+  映射改了**只影响新建的会话**，已存在的一个都不变
+- **注意 ②**：**当前五类只能出厂增补**，租户不能自定义——
+  [因为租户能自定义的是子 agent](../../product/PF-015-session-lifecycle-and-ownership/design.md#为什么类型只能出厂加)
+- **注意 ③**：**它唯一的用途是判断「用户此刻聊的，和这个会话本来是干什么的，对不对得上」**——
+  对不上时[只提醒，不阻拦](../../product/PF-015-session-lifecycle-and-ownership/design.md#66-跑题只提醒不阻拦)
+
+### UL-session-run-mode · 会话运行模式 · Session Run Mode
+
+> **中**：**这个[会话](#ul-session--会话--session)里，「本该问人」的那一刻改怎么办。****恰好三档**：
+> **`never`**——一律当作被拒，**不问任何人**；
+> **`auto_permission`**——**拿已经形成的决策记录算**，算不出来**就问人**；
+> **`bypass-permissions`**——**直接放行**。
+> **它不决定哪些动作要问人**，只决定**问不成的那一刻**怎么处置。
+>
+> **EN**: **What this session does at the moment something would otherwise be put to a
+> person.** Exactly three: **`never`** — treat every such moment as a refusal, asking no
+> one; **`auto_permission`** — **compute from the decision records already on hand**, and **ask a
+> person when they do not settle it**; **`bypass-permissions`** — let it through. **It does
+> not decide which actions need asking**, only what happens at that moment.
+
+- **出处**：[PF-015 §4 会话运行模式](../../product/PF-015-session-lifecycle-and-ownership/design.md#会话运行模式)（rev 5）；它在[放行四步](../../product/PF-007-meta-capabilities/design.md#56-一次放行判断走四步)里是第 ④ 步
+- **⚠️ 别混**：**`auto_permission` 决定「准不准」，执行环境那一维的 `auto_place` 决定「落在哪」**——
+  两者会在同一次执行里一前一后出现。**两个名字特意分开取，就是为了不撞**
+  （`auto_place` 归 PF-005，**尚未落盘**）。
+  另外**上游有一个叫 `auto` 的档，语义是「不问人、改问模型」**
+  （[见调研](../../../research/agent-harness-session-design/research.md)），
+  **我们这一档从不替人作判断**；`never` 与 `bypass-permissions` 两档则与上游同义
+- **注意 ①**：**`auto_permission` 是有闭环的那一档**——问人的答案**落成新的决策记录**，
+  下一次同样的事就算得出来了。**「同一件事不必问第二遍」就是这个闭环**
+- **注意 ②**：**`bypass-permissions` 跳过的是「问」，不是「禁」**——
+  **任何层的明确禁止，它一样翻不了案**
+- **注意 ③**：**`never` 连带一个后果**——
+  [`Ask().request_approval` 在这个会话里不可用](../../product/PF-007-meta-capabilities/design.md#57-权限能关掉一条命令关不掉一扇门)，
+  **而 `Ask()` 这扇门还在**，`ask` 照常能用
+- **注意 ④**：**它往子会话传**——[父是 `never`，子的 `request_approval` 一并不可用](../../product/PF-007-meta-capabilities/design.md#58-子不得宽于父)
 
 ### UL-run · 运行 · Run
 

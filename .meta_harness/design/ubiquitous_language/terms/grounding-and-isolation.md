@@ -148,4 +148,37 @@
 - **注意**：**状态的寿命是显式的**——开会话才有持久状态，**不做隐式持久**；
   给一个不存在的标识**必须明确失败**，不得悄悄降级成一次性执行
 
+### UL-execution-environment-permission · 执行环境权限 · Execution Environment Permission
+
+> **中**：**按工具逐个授予的一项权限，管的是「这个工具的作用能不能直接落在
+> [宿主机](#ul-host-machine--宿主机--host-machine)上」。****恰三态**：
+> `always-allow`——准它直接落宿主机；
+> `auto_place`——**由系统算出合适的执行环境**；
+> `never-allow`——**绝不落宿主机**。
+> 在**组织级与租户级**授予，**每个工具各配各的、互不牵连**。
+> **它只决定作用落在哪，不决定动作准不准。**
+>
+> **EN**: **A per-tool permission governing whether that tool's effects may land directly
+> on the host machine.** Exactly three: `always-allow`; `auto_place` — **the system picks a
+> fitting execution environment**; `never-allow` — **never the host machine**. Granted at the
+> organization and tenant levels, **each tool configured on its own**. **It decides where an
+> effect lands, never whether the action is permitted.**
+
+- **出处**：[PF-005 §4 执行环境权限](../../product/PF-005-execution-environments-and-sandboxes/design.md#执行环境权限) ·
+  [§6.8](../../product/PF-005-execution-environments-and-sandboxes/design.md#68-执行环境权限每个工具各配各的)（rev 3）
+- **⚠️ 别混**：**不是[会话运行模式](agent-runtime-loop.md#ul-session-run-mode--会话运行模式--session-run-mode)。**
+  **两者都是三态、都曾各有一个 `auto`**，但**一个决定「准不准」，一个决定「落在哪」**，
+  而且**会在同一次执行里一前一后出现**。**两个名字特意分开取**：`auto_permission` 对 `auto_place`
+- **⚠️ 注意 ①**：**粒度是「门」这一级，不是命令级。**执行环境是配给一扇门的，
+  **门后所有命令的作用都落在同一处**；而[「能不能做」本来就是一条一条命令的事](../../product/PF-007-meta-capabilities/design.md#57-权限能关掉一条命令关不掉一扇门)
+- **⚠️ 注意 ②**：**[落点不可用就是拒绝，不降级](../../product/PF-005-execution-environments-and-sandboxes/design.md#69-落点不可用就是拒绝不降级)。**
+  `auto_place` 算出该进容器而容器起不来，**这次执行被拒**，**不回退宿主机**
+- **注意 ③**：**[meta tool](capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability) 一样受它管。**
+  给 `Shell()` 配 `never-allow` **并没有关掉那扇门**，只是规定它的作用落在隔离环境里——
+  **不触[「关不掉一扇门」那条红线](../../product/PF-007-meta-capabilities/design.md#57-权限能关掉一条命令关不掉一扇门)**
+- **注意 ④**：**[工作区那一级不参与](scope-and-resolution.md#ul-workspace--工作区--workspace)**——
+  授权与权限相关的配置，**加载时就把工作区来的滤掉了**
+- **注意 ⑤**：**没声明要用执行环境的工具，这一维对它不适用。**
+  那是**实现时的契约**，**不是「默认取哪一档」**
+
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

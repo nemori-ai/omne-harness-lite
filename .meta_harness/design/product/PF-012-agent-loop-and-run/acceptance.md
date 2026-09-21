@@ -150,7 +150,7 @@
 | 一次模型调用失败了怎么办、模型档案长什么样、会话中途怎么换模型 | **[PF-013](../PF-013-model-profiles-and-invocation/README.md)** |
 | **什么东西会进队列、怎么受理、一次取几条、插队怎么被受理** | **[PF-014](../PF-014-inbound-intake-and-queueing/README.md)**。本 topic 只定 **loop 怎么消费它、它空了会怎样** |
 | **转换件的契约**（声明能处理哪些模态、块进块出） | **[PF-013](../PF-013-model-profiles-and-invocation/README.md)**。本 topic 只定**它站在哪个位置** |
-| 会话有哪几种终态 | **[PF-015](../README.md#已排定尚未开题的编号)**，尚未开题 |
+| 会话的生命周期与归档 | **[PF-015](../PF-015-session-lifecycle-and-ownership/design.md#会话的生命周期)**。**会话没有终态**，四个状态里收束的那个叫归档，**而且可以撤销** |
 
 ---
 

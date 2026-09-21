@@ -5,6 +5,35 @@
 
 技术投影用 `provenance.json` 引用具体 rev，所以这里的 rev 不准会直接传导到实现侧。
 
+## rev 5 — 2026-09-21
+
+**压缩之后，[meta runtime context](../PF-015-session-lifecycle-and-ownership/design.md#meta-runtime-context) 要重新给一份完整的。**
+依据：[PF-015 rev 3](../PF-015-session-lifecycle-and-ownership/changelog.md) 定下这一整块，
+并把这条作为**硬要求**交到本 topic（[裁决 38](../PF-015-session-lifecycle-and-ownership/decisions.md#2026-09-21--runtime-context-与十五项-meta-runtime-context)）。
+
+### 改了什么
+
+新增 [§6.16](design.md#616-压缩之后meta-runtime-context-要重新给一份完整的)：
+那一批东西**不是消息**，但模型要感知它；它平时以**变更通知**到达，
+**而压缩会把之前的通知一起收走**——所以压缩之后必须重新以完整形态给一份。
+
+**这不是给[「压缩只能做两件事」](design.md#610-压缩只能做两件事且落成同一条消息)开口子。**
+那一条说的是**它对消息做什么**；**meta runtime context 不在消息的范围内**，
+本条挡的恰恰是「把它当成消息一起压掉」。
+
+### 顺带澄清了一处
+
+**[第 7 项 meta runtime context](../PF-015-session-lifecycle-and-ownership/design.md#56-十五项-meta-runtime-context)
+是「会话当前使用的 ContextCompactionSettings」，它的消费者一度没有着落**——
+按那边的唯一判据得被模型、工具、拓展点之一消费才算数，**而压缩那个函数明确不是拓展点**。
+
+**产品负责人给的答案是「模型」**，理由是一个**还没做的能力**：
+让模型感知**当前占用比**与**压缩策略**，**自行决定要不要主动发起一次压缩**。
+**它与[第 15 项占用比是一对](../PF-015-session-lifecycle-and-ownership/design.md#56-十五项-meta-runtime-context)。**
+
+> **那个能力本身不写进本 topic 正文**——它还没设计，
+> [§6.7「要不要压在闭包里判」](design.md#67-压缩是一个闭包要不要压在它里面判)一个字未改。
+
 ## rev 4 — 2026-09-20
 
 **压缩从「方程里的一步」变成「方程外的一个闭包」，

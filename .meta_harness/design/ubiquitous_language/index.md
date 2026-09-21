@@ -38,6 +38,7 @@
 | ID | 中文 | English | 一句话 |
 |---|---|---|---|
 | [UL-scope-layer](terms/scope-and-resolution.md#ul-scope-layer--作用域层--scope-layer) | 作用域层 | Scope Layer | 出厂默认 / 组织级 / 租户级 / 会话级这四层 |
+| [UL-workspace](terms/scope-and-resolution.md#ul-workspace--工作区--workspace) | 工作区 | Workspace | 会话挂上的那个目录，**资产归属的第三级**；**授权与权限一概不参与**；旧说法 ~~项目~~ |
 | [UL-scoped-object](terms/scope-and-resolution.md#ul-scoped-object--范围化对象--scoped-object) | 范围化对象 | Scoped Object | 归属于某一层、参与求值的那类对象 |
 | [UL-capability-identifier](terms/scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier) | 能力标识 | Capability Identifier | 判定两个对象能否互相覆盖的那个标识 |
 | [UL-scope-evaluation](terms/scope-and-resolution.md#ul-scope-evaluation--作用域求值--scope-evaluation) | 作用域求值 | Scope Evaluation | 沿层算出这次实际生效的那一份 |
@@ -45,7 +46,8 @@
 | [UL-two-pass-resolution](terms/scope-and-resolution.md#ul-two-pass-resolution--两轮求值--two-pass-resolution) | 两轮求值 | Two-Pass Resolution | 先算哪个资产，再算它的属性项 |
 | [UL-immutable-marker](terms/scope-and-resolution.md#ul-immutable-marker--不可覆盖标记--immutable-marker) | 不可覆盖标记 | Immutable Marker | 把「默认这样」变成「必须这样」的那个标记 |
 | [UL-attribute-projection](terms/scope-and-resolution.md#ul-attribute-projection--属性投影--attribute-projection) | 属性投影 | Attribute Projection | 「组织的设置」是视图不是对象 |
-| [UL-runtime-context](terms/scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context) | 运行时 context | Runtime Context | agent 感知到的「我处在什么情形下」 |
+| [UL-runtime-context](terms/scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context) | 运行时 context | Runtime Context | **一块块就地更新的数据**，在 agent loop 内被**模型/工具/拓展点**消费；旧说法 ~~会话上下文感知域~~ |
+| [UL-meta-runtime-context](terms/scope-and-resolution.md#ul-meta-runtime-context--元-runtime-context--meta-runtime-context) | 元 runtime context | Meta Runtime Context | **每个会话必需携带并持续更新的那些**，当前**十五项**；与 meta 能力同构 |
 | [UL-collaboration-scope-context](terms/scope-and-resolution.md#ul-collaboration-scope-context--协作范围-context--collaboration-scope-context) | 协作范围 context | Collaboration-Scope Context | 我在哪个组织、什么租户身份、什么角色 |
 | [UL-personal-context](terms/scope-and-resolution.md#ul-personal-context--个人-context--personal-context) | 个人 context | Personal Context | 跟着人走的偏好，不参与任何层的合成 |
 
@@ -66,6 +68,8 @@
 | [UL-slash-command](terms/capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command) | 斜杠命令 | Slash Command | 用户主动发起某件事的入口 |
 | [UL-plugin](terms/capabilities-and-composition.md#ul-plugin--插件--plugin) | 插件 | Plugin | 打包分发若干资产的单元，**不是 Cordis plugin** |
 | [UL-agent-definition](terms/capabilities-and-composition.md#ul-agent-definition--agent-定义--agent-definition) | Agent 定义 | Agent Definition | 一个 agent 的静态定义，不是会话也不是实例 |
+| [UL-agent-type](terms/capabilities-and-composition.md#ul-agent-type--agent-类型--agent-type) | agent 类型 | Agent Type | 这份定义**具不具备 master 的那一整套机制**：`master` / `non-master`；**不是「子 agent」那个意思** |
+| [UL-master-category](terms/capabilities-and-composition.md#ul-master-category--master-类目--master-category) | master 类目 | Master Category | master 主要干什么的，五类；**只出厂加**，**不是会话类型** |
 | [UL-asset-composition](terms/capabilities-and-composition.md#ul-asset-composition--资产组合--asset-composition) | 资产组合 | Asset Composition | 资产之间、资产与 agent 之间的同一种关系 |
 | [UL-agent-constitution](terms/capabilities-and-composition.md#ul-agent-constitution--agent-构成--agent-constitution) | agent 构成 | Agent Constitution | 装配清单里「它是什么」的那部分；旧名 ~~实例构成~~ |
 | [UL-action-space](terms/capabilities-and-composition.md#ul-action-space--动作空间--action-space) | 动作空间 | Action Space | 能发起哪些动作，**只由构成决定** |
@@ -99,6 +103,11 @@
 |---|---|---|---|
 | [UL-single-active-execution](terms/agent-runtime-loop.md#ul-single-active-execution--会话内单活跃--single-active-execution) | 会话内单活跃 | Single Active Execution | **一个会话同一时刻至多一个活跃 Run、一个活跃 agent runtime**（GPT-Live 时重裁） |
 | [UL-session](terms/agent-runtime-loop.md#ul-session--会话--session) | 会话 | Session | 一段协作的耐久身份与归属边界，**不要求有人说过话** |
+| [UL-primary-session](terms/agent-runtime-loop.md#ul-primary-session--主会话--primary-session) | 主会话 | Primary Session | 不是任何会话之子会话的那个；**彼此生命周期独立** |
+| [UL-child-session](terms/agent-runtime-loop.md#ul-child-session--子会话--child-session) | 子会话 | Child Session | `delegate`/`spawn` 出的子 agent 所在的会话；**不继承历史，spawn 不是 fork** |
+| [UL-session-archival](terms/agent-runtime-loop.md#ul-session-archival--会话归档--session-archival) | 会话归档 | Session Archival | **唯一那个「协作到此为止」的锚点**；**租户手动或到期自动**；**本身可撤销，连带的三件事不可逆** |
+| [UL-session-type](terms/agent-runtime-loop.md#ul-session-type--会话类型--session-type) | 会话类型 | Session Type | 这个会话主要干什么的，**由 AgentDefinition 算出来**；**不是闸门** |
+| [UL-session-run-mode](terms/agent-runtime-loop.md#ul-session-run-mode--会话运行模式--session-run-mode) | 会话运行模式 | Session Run Mode | 「本该问人」那一刻怎么办：`never` / `auto_permission` / `bypass-permissions`；**别与执行环境那维的 `auto_place` 混** |
 | [UL-run](terms/agent-runtime-loop.md#ul-run--运行--run) | 运行 | Run | 一次逻辑执行请求及其结果，**边界由 loop 的进出划定**；成本与失败的归属单位 |
 | [UL-trigger](terms/agent-runtime-loop.md#ul-trigger--触发--trigger) | 触发 | Trigger | **让待处理消息队列从空变非空的那件事**，不必是人说了一句话 |
 | [UL-pending-message-queue](terms/agent-runtime-loop.md#ul-pending-message-queue--待处理消息队列--pending-message-queue) | 待处理消息队列 | Pending Message Queue | 日志里还没被 loop 取走的那些消息，**是投影不是另一份存储** |
@@ -132,6 +141,7 @@
 | [UL-sandbox-data](terms/grounding-and-isolation.md#ul-sandbox-data--沙箱数据--sandbox-data) | 沙箱数据 | Sandbox Data | 与沙箱本体分开的那个东西 |
 | [UL-environment-facility](terms/grounding-and-isolation.md#ul-environment-facility--环境设施--environment-facility) | 环境设施 | Environment Facility | 这个环境提供哪几种做事的手段 |
 | [UL-terminal-session](terms/grounding-and-isolation.md#ul-terminal-session--终端会话--terminal-session) | 终端会话 | Terminal Session | `Shell()` 开的那条命令行，**与[会话](terms/agent-runtime-loop.md#ul-session--会话--session)毫无关系** |
+| [UL-execution-environment-permission](terms/grounding-and-isolation.md#ul-execution-environment-permission--执行环境权限--execution-environment-permission) | 执行环境权限 | Execution Environment Permission | per-tool 三态，管**作用落在哪**不管**动作准不准**；`auto_place` 别混 `auto_permission` |
 
 ## [取用与可用性](terms/reach-and-availability.md)
 
@@ -183,8 +193,9 @@
 | [UL-admission-decision](terms/interaction-and-dispatch.md#ul-admission-decision--放行判断--admission-decision) | 放行判断 | Admission Decision | 一个函数，**既是判官也是撰稿人**；三样输入合起来 |
 | [UL-inquiry](terms/interaction-and-dispatch.md#ul-inquiry--问询--inquiry) | 问询 | Inquiry | agent 主动问人，**一次问全** |
 | [UL-approval-request](terms/interaction-and-dispatch.md#ul-approval-request--请示--approval-request) | 请示 | Approval Request | 动手之前请人准不准，**固定两个选项** |
-| [UL-session-authorization-context](terms/interaction-and-dispatch.md#ul-session-authorization-context--会话授权上下文--session-authorization-context) | 会话授权上下文 | Session Authorization Context | 本会话内同意过的那些事，**会话结束一起消失** |
+| [UL-session-authorization-context](terms/interaction-and-dispatch.md#ul-session-authorization-context--会话授权上下文--session-authorization-context) | 会话授权上下文 | Session Authorization Context | 用户关于授权说过的话，**按序排着的流水**；**是数据不是结论**，归档不丢 |
 | [UL-inbound-arrival](terms/interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival) | 入站到达 | Inbound Arrival | 外面送进一个会话、**被受理之后**的那条事实；**不是消息**，**裸写「到达」不作数** |
+| [UL-business-flow-extension-point](terms/interaction-and-dispatch.md#ul-business-flow-extension-point--业务流程拓展点--business-flow-extension-point) | 业务流程拓展点 | Business Flow Extension Point | 拦得住请求，**碰不到已经落定的事实**；**与 Loop 拓展点并列的另一类** |
 | [UL-control-command](terms/interaction-and-dispatch.md#ul-control-command--控制指令--control-command) | 控制指令 | Control Command | 对正在发生的事或队列本身的直接处置，**不是内容、不排队** |
 | [UL-queue-jump](terms/interaction-and-dispatch.md#ul-queue-jump--插队--queue-jump) | 插队 | Queue Jump | 「这句话我要现在就被看到」，**插的是时间不是位置**；**不终止运行** |
 
@@ -198,6 +209,7 @@
 | [UL-record-entry](terms/record-and-context.md#ul-record-entry--记录条目--record-entry) | 记录条目 | Record Entry | 一条不可变条目，**产出多条只有两个原因** |
 | [UL-entry-standing](terms/record-and-context.md#ul-entry-standing--条目效力--entry-standing) | 条目效力 | Entry Standing | 丢了会怎样——**依据 / 留痕 / 瞬态** |
 | [UL-session-log](terms/record-and-context.md#ul-session-log--会话日志--session-log) | 会话日志 | Session Log | **只增不改的流水账**，消息只是它的一部分 |
+| [UL-session-log-projection](terms/record-and-context.md#ul-session-log-projection--会话日志投影--session-log-projection) | 会话日志投影 | Session Log Projection | 从日志派生的视图，**不是第二份权威**；重算必得同一答案 |
 | [UL-message](terms/record-and-context.md#ul-message--消息--message) | 消息 | Message | 一条对话记录，**七种，按谁在说话分** |
 | [UL-content-block](terms/record-and-context.md#ul-content-block--内容块--content-block) | 内容块 | Content Block | 一条消息装的是若干个块，**不是一段文本** |
 | [UL-block-annotation](terms/record-and-context.md#ul-block-annotation--块标注--block-annotation) | 块标注 | Block Annotation | 给人看吗、给模型看吗——**标在块上不在消息上** |

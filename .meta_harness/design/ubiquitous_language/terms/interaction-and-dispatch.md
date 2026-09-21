@@ -19,14 +19,14 @@
 > | **上下文怎么组装** | **继承当前会话的** | 一段 instruction | 一段 handoff 说明 |
 > | **生命周期受谁控制** | 派发者 | 派发者 | **不受派发者控制** |
 > | **派发动作何时结束** | 进[工具等待态](execution-and-outcome.md#ul-tool-wait-state--工具等待态--tool-wait-state)待[报告](#ul-dispatch-report--派发报告--dispatch-report)或失败 | 同左 | **确认会话建没建起来即结束** |
-> | **能否向派发者[发消息](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)** | 不能 | 不能 | **能** |
+> | **能跟谁[通信](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)** | 只跟派发者 | 只跟派发者 | **派发者，外加规则二够得着的全部** |
 >
 > **EN**: **Handing a piece of work to another agent.** Three modes, differing on
 > five dimensions: whether it is an independent primary session, how its context is
 > assembled, who controls its lifecycle, when the dispatching action ends, and
-> whether it can message the dispatcher.
+> whom it can communicate with.
 
-- **出处**：[PF-007 §6.8 派发有三种模式](../../product/PF-007-meta-capabilities/design.md#派发有三种模式)（rev 7）
+- **出处**：[PF-007 §6.8 派发有三种模式](../../product/PF-007-meta-capabilities/design.md#派发有三种模式)（rev 10）
 - **注意 ①**：**两处分水岭，各自只有一条。**`spawn` 与 `delegate` 只差
   「**它带着什么开始干活**」；`spawn`/`delegate` 与 `handoff` 只差
   「**是不是独立主会话**」——**另外三个维度全是这一条的后果**
@@ -52,11 +52,19 @@
 > dispatch, not the session.
 
 - **出处**：[PF-007 §6.8 报告终结的是这次派发，不是那个会话](../../product/PF-007-meta-capabilities/design.md#报告终结的是这次派发不是那个会话)（rev 7）
-- **别混**：与「**派发出去的 agent**」不是一回事——**后者含 `handoff`，它不含**。
+- **别混 ①**：与「**派发出去的 agent**」不是一回事——**后者含 `handoff`，它不含**。
   [规则一](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)管的是前者，范围更大
-- **⚠️ 注意**：**「子会话」这个关系本身还没有定义。**它连同**会话树**、
-  **master 对自己全部 subagent 的感知与管理**归 **PF-015**（尚未开题）。
-  **本条只定外延**——哪些算、哪些不算；**内涵等那边**
+- **别混 ②**：**与 [agent 类型](capabilities-and-composition.md#ul-agent-type--agent-类型--agent-type)不是一回事**——
+  那是 **Agent 定义的一个属性**（`master` / `non-master`），说的是**这份定义带着哪套机制**；
+  **本条说的是它此刻在派发关系里扮演什么角色**。
+  **第二个取值特意不叫 `subagent`，就是为了不与本条撞名**（[C-14](../conflicts.md)）
+- **注意 ①**：**它所在的那个会话就是[子会话](agent-runtime-loop.md#ul-child-session--子会话--child-session)**，
+  内涵见该词条：由**创建**确立而非由历史确立，**不继承父会话的任何历史内容**，
+  存储上也**不共享节点**。**本条只定外延**——哪些算、哪些不算
+- **注意 ②**：**它的通信拓扑是收窄的**——只能与**直接 parent**、
+  或它自己再创建出的子会话的 agent 通信；**兄弟与隔代都不可**。
+  其中子 → 父那一向由 [UL-D-4 裁决 7](../decisions.md#ul-d-4--主会话与子会话--2026-09-21) 放开
+- **⚠️ 注意 ③**：**master 对自己全部 subagent 的感知与管理**仍归 **PF-015**
 
 ### UL-inter-agent-communication · agent 间通信 · Inter-Agent Communication
 
@@ -64,30 +72,38 @@
 >
 > | | 规则 | 覆盖面 |
 > |---|---|---|
-> | **一** | agent 可以给**任何它派发出去的** agent 发消息 | **只管一个方向**（派发者往外），**不问对方身份** |
+> | **一** | agent 与**它派发出去的** agent 之间可以互发消息 | **两个方向都通**，**不问对方身份**，只问「是不是我派的」 |
 > | **二** | **具备独立主会话身份的、会话仍活跃的、同属一个租户的** agents 相互可以通信 | **双向**，且**不要求有派发关系** |
 >
 > **两个素不相识的 agent 也能通**，只要规则二那三个条件都满足。
 >
-> **EN**: **Two independent rules with different reach.** First: an agent may message
-> **any agent it dispatched**, whatever the mode — this covers **one direction only**
-> and asks nothing about the recipient's identity. Second: agents that **hold an
-> independent primary session, are still active, and belong to the same tenant** may
-> communicate with one another — this is **bidirectional and requires no dispatch
-> relationship**, so **two agents that never met can talk**.
+> **EN**: **Two independent rules with different reach.** First: an agent and **any agent
+> it dispatched** may message **each other**, whatever the mode — this asks nothing about
+> the recipient's identity, only whether the dispatch relationship exists. Second: agents
+> that **hold an independent primary session, are still active, and belong to the same
+> tenant** may communicate with one another — this is **bidirectional and requires no
+> dispatch relationship**, so **two agents that never met can talk**.
 
 - **出处**：[PF-007 §6.8 先说谁能给谁发消息](../../product/PF-007-meta-capabilities/design.md#先说谁能给谁发消息这是两条独立的规则)（rev 7）
 - **注意 ①**：**规则二那三个条件缺一不可**，「**会话仍活跃**」尤其容易被忽略——
-  **一个会话结束了的 agent，不是「暂时联系不上」，是这条通路不存在了**
+  **一个会话已被归档的 agent，不是「暂时联系不上」，是这条通路不存在了**。
+  **「活跃」就是「未被归档」**（[UL-D-4 裁决 8](../decisions.md#ul-d-4--主会话与子会话--2026-09-21)）——
+  **没有删除会话的概念，也就没有「会话结束」这回事**
 - **注意 ②**：**`handoff` 能向派发者发消息不是单独规定的一条**，
   是它**落进了规则二**的自然结果
-- **注意 ③**：**发不出去时要说清是哪一条不满足**（不是我派的？没有主会话身份？会话已结束？
+- **注意 ③**：**发不出去时要说清是哪一条不满足**（不是我派的？没有主会话身份？会话已被归档？
   不同租户？）——**四种原因的处理方式完全不同**
 - **注意 ④**：**规则一不带时间限定。**它的条件只有「是不是我派的」一项，
   所以**[子 agent](#ul-subagent--子-agent--subagent) 交回报告之后，这条通路依然成立**——
   [报告终结的是那次派发，不是那个会话](#ul-dispatch-report--派发报告--dispatch-report)。
-  **⚠️ 但规则一没有规则二那样的「会话仍活跃」条件**，因此
-  **「对方会话已经结束时规则一还成不成立」目前没有答案**，等 PF-015 定义会话终态
+  **⚠️ 但规则一没有规则二那样的「会话仍未被归档」条件**，因此
+  **「对方会话已被归档时规则一还成不成立」仍然没有答案**。
+  [归档会中断那边的模型响应与工具执行](../../product/PF-015-session-lifecycle-and-ownership/design.md#63-归档先停活儿再落状态)，
+  所以问题是：**消息是没有接收者，还是进了那个会话等它被撤销归档**
+- **注意 ⑤**：**规则一双向，覆盖的是[子 agent](#ul-subagent--子-agent--subagent) 向上
+  「确认事实、澄清需求」那类话**（[UL-D-4 裁决 7](../decisions.md#ul-d-4--主会话与子会话--2026-09-21)）。
+  **它不让兄弟之间通**——两个兄弟子 agent 彼此没有派发关系，规则一够不着；
+  也都没有独立主会话身份，规则二够不着。**隔代同理**
 
 ### UL-dispatch-report · 派发报告 · Dispatch Report
 
@@ -103,12 +119,14 @@
 > on every count: **a report concludes the dispatch**, a message concludes nothing;
 > **a report comes once**, messages any number of times.
 
-- **出处**：[PF-007 §6.8 「不能发消息」不等于「不能说话」](../../product/PF-007-meta-capabilities/design.md#不能发消息不等于不能说话)（rev 7）
+- **出处**：[PF-007 §6.8 报告与消息是两样东西](../../product/PF-007-meta-capabilities/design.md#报告与消息是两样东西)（rev 10）
 - **⚠️ 它终结的是这次派发，不是那个会话。**[子 agent](#ul-subagent--子-agent--subagent) 交回报告之后，
   **它的会话没有因此落进任何终态**，派发者[照样发得出消息](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)。
   **不点破这一条，就会被做成「报告一到就把那个会话收掉」——而且不报错**
-- **注意**：不点破这层区分，「不能向派发者发消息」会被读成
-  **「它干完了也没人知道」**——**而那正好相反**
+- **注意**：**它与[消息](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)是两样东西**，
+  子 agent 两样都能用：**干到一半要确认事实、澄清需求，走消息**（什么都不终结，来回多少次都行）；
+  **干完了必须交报告**（只有一次，一交这次派发就结束）。
+  **混为一谈的代价是两头的**——把消息当报告，派发者以为活已干完；把报告当消息，那次派发永远不返回
 - **注意**：发起方可以附上「**我期望报告长什么样**」，但那是**指引，不是校验**——
   写成硬校验，子就会为了通过校验而编造格式
 
@@ -247,24 +265,33 @@
 
 ### UL-session-authorization-context · 会话授权上下文 · Session Authorization Context
 
-> **中**：**一个会话里，用户已经点头同意 agent 做的那些事。**
-> 它由[请示](#ul-approval-request--请示--approval-request)一次次累积出来，
-> **随会话结束一起消失**，而且**改不了[权限设置](capabilities-and-composition.md#ul-permission--权限--permission)**。
-> 它与权限设置是**组合**关系，不是覆盖。
+> **中**：**一个会话里，用户关于授权表达过的全部意思，按先后顺序排着的那一份。**
+> **它是流水，不是结论**——给出是一笔，**撤回也是往后再记一笔**，
+> **只追加，不回头改**。「此刻这个动作准不准」不写在里面，
+> 是**按这份流水实时算出来的**，算的时候连同
+> [权限设置](capabilities-and-composition.md#ul-permission--权限--permission)与会话运行模式一起判。
 >
-> **EN**: **The things a user has agreed the agent may do, within one session.** It
-> accumulates one approval at a time, **vanishes when the session ends**, and **cannot
-> alter the permission settings** — it **combines** with them rather than overriding
-> them.
+> **EN**: **Everything a user has expressed about authorization within one session, in the
+> order it was said.** It is **a ledger, not a verdict** — granting is one entry, **and so is
+> revoking**; entries are **only ever appended**. Whether a given action is permitted right
+> now is **not stored there but computed from it**, together with the permission settings and
+> the session's run mode.
 
-- **出处**：[PF-007 §4 会话授权上下文](../../product/PF-007-meta-capabilities/design.md#会话授权上下文)（rev 6）
-- **注意 ①**：它填的是此前谁都没拥有的那一层——原先只有**这一次**（做完就没）
-  和**长期**（权限设置）两个尺度。**不留痕迹则问得太勤，留成长期授权则当事人不知道自己批准了什么**
-- **注意 ②**：**只增不减，本版不提供逐笔撤销**——要收回给出去的同意，**结束会话即可**；
-  多一个「撤销某一笔」就多一处**「以为撤了其实没撤」**
-- **注意 ③**：**长期授权一直都可以给，只是必须由人明确地给**——
-  **禁的是系统替人解释，不是禁止人给长期授权**
-- **注意 ④**：**授权不能建立在记忆上**——不给它名字，「用户刚才同意过」就只能活在
+- **出处**：[PF-007 §4 会话授权上下文](../../product/PF-007-meta-capabilities/design.md#会话授权上下文)（rev 11）
+- **注意 ①**：**一笔表达有三个维度**——**来源**（结构化：界面上对着条目操作 / **语义化：用嘴说**）、
+  **方向**（给出 / 撤回）、**作用域**（这一次 / 本会话 / **全局，即本租户下未来所有会话**）
+- **注意 ②**：**它不挑来源。**卡片上点的「同意」算，
+  [自由作答](#ul-approval-request--请示--approval-request)里写的算，
+  **agent 压根没问、用户主动说的也算**
+- **注意 ③**：**作用域是用户表达出来的，不是系统替他归的类**——
+  系统只负责**准确理解**。**替他作主不允许**
+- **注意 ④**：**表达得出，不等于生效。**一个作用域能不能真落地，
+  仍按[他自己的身份与权限](scope-and-resolution.md#ul-scope-layer--作用域层--scope-layer)判——
+  **会话里坐着的那个人，未必是设权限的那个人**
+- **注意 ⑤**：**它是数据，不是活物。**
+  **[会话被归档它不丢](../../product/PF-015-session-lifecycle-and-ownership/design.md#67-归档不动授权)**，
+  撤销归档之后原样还在——**「工作被取消」推不出「授权也没了」**
+- **注意 ⑥**：**授权不能建立在记忆上**——不给它名字，「用户刚才同意过」就只能活在
   agent 的上下文里，**而上下文会被裁剪**
 
 ## 外面怎么进来
@@ -294,6 +321,29 @@
   **裸写「到达」不作数**，两处都要带限定
 - **注意**：**「从哪个通道进来」是它的一个属性，不是它的种类**——
   斜杠命令、连接件送达、定时到点、别的会话捎话，**同一套受理规矩，差别只在取值**
+
+### UL-business-flow-extension-point · 业务流程拓展点 · Business Flow Extension Point
+
+> **中**：**业务流程上一个开放的位置，挂在那里的东西可以拦住一次请求，
+> 但不改变任何已经落定的事实。**它产出的是**业务流程上的增量价值**，
+> **不是[会话日志](record-and-context.md#ul-session-log--会话日志--session-log)上的增量**——
+> **对会话日志不产生任何持久化影响**，这是它的定义性质，不是实现细节。
+>
+> **EN**: **An open position on a business flow, where what is attached may hold up a
+> request without altering any fact already committed.** What it produces is **added value
+> in the business flow**, not an increment to the session log: **it leaves no persistent
+> mark on that log at all** — a defining property, not an implementation detail.
+
+- **出处**：[PF-015 §4 业务流程拓展点](../../product/PF-015-session-lifecycle-and-ownership/design.md#业务流程拓展点) · [§6.6](../../product/PF-015-session-lifecycle-and-ownership/design.md#66-跑题只提醒不阻拦)（rev 1）
+- **⚠️ 别混**：**它不是 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)**——
+  **那一类只能靠改会话日志起作用**，这一类恰恰一个字都不能改。
+  两者是**并列的两类拓展点**，不是同一类的两个位置
+- **注意 ①**：**被拦下的东西，系统不持有。**它没有被
+  [受理](#ul-inbound-arrival--入站到达--inbound-arrival)，
+  **请求就地返回给发起方，到此为止**；用户若再来，那是**全新的一次请求**
+- **注意 ②**：**因此「一直不确认」没有后果**——没有待办、没有草稿、没有超时，什么都没留下
+- **注意 ③**：**目前只有一个实例**——[会话跑题的提醒](../../product/PF-015-session-lifecycle-and-ownership/design.md#66-跑题只提醒不阻拦)。
+  **这一类机制将来由谁统一拥有，尚未判定**
 
 ### UL-control-command · 控制指令 · Control Command
 

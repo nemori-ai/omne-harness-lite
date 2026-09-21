@@ -198,6 +198,57 @@
 - **注意**：混为一谈会出现「**我改了配置，正在跑的任务突然换了行为**」这种事故
 - **能组合**：**全部八类**（含其他 Agent Definition 作为 sub-agent）——**它是唯一能组合全部八类的**
 
+### UL-agent-type · agent 类型 · Agent Type
+
+> **中**：**一份 [Agent 定义](#ul-agent-definition--agent-定义--agent-definition)具不具备
+> master agent 的那一整套机制。****只有两个取值**：
+> **`master`**——具备全套机制，[开一段会话](agent-runtime-loop.md#ul-session--会话--session)，用户挑的就是它；
+> **`non-master`**——**不具备那套机制**的 agent。
+> **后者由前者反过来定义**：这条线划的是**有没有那套机制**，
+> **不是它在某次派发里扮演什么角色**。
+> **它是定义自身的属性**，与那份定义某一次装配的结果无关。
+>
+> **EN**: **Whether an agent definition carries the full set of mechanisms a master agent
+> has.** There are **exactly two values**: **`master`**, which has them and opens a session,
+> and **`non-master`**, defined by **not** having them. The second is defined **in terms of
+> the first on purpose**: the line is about **which mechanisms a definition carries**, not
+> about **the role it plays in any one dispatch**. **It is a property of the definition
+> itself**, independent of what any one assembly of it produces.
+
+- **出处**：[PF-004 §4 agent 类型](../../product/PF-004-agent-definition-and-assembly/design.md#agent-类型) · [§6.8](../../product/PF-004-agent-definition-and-assembly/design.md#68-两类-agent谁能被谁自定义)（rev 6）
+- **⚠️ 别混**：**`non-master` 不是[子 agent](interaction-and-dispatch.md#ul-subagent--子-agent--subagent)。**
+  后者说的是**它在派发关系里的角色**（被 `spawn`/`delegate` 派出去的那个）。
+  **一个是这份定义带着哪套机制，一个是此刻在扮演什么。**
+  **取这个名正是为了让两者不撞**（[C-14](../conflicts.md)）
+- **注意 ①**：**[master 必定是 official](../../product/PF-004-agent-definition-and-assembly/design.md#68-两类-agent谁能被谁自定义)**；
+  **租户能自定义的只有 `non-master`**
+- **注意 ②**：**它不决定这个 agent 能做什么**——[动作空间只由构成决定](#ul-action-space--动作空间--action-space)。
+  **一个 `non-master` 照样可以装得很强**
+- **⚠️ 注意 ③**：**「master 的那一整套机制」包含哪些，尚未定全**——
+  目前只列得出开会话、带类目、只能官方提供三条
+  （[PF-004 D-1](../../product/PF-004-agent-definition-and-assembly/decisions.md#三待裁决)）。
+  **不要按「凡是 master 有的 `non-master` 都没有」去实现**
+
+### UL-master-category · master 类目 · Master Category
+
+> **中**：**一份 [master](#ul-agent-type--agent-类型--agent-type) 的定义，主要是用来干什么的。**
+> 当前五类：`general-purpose` · `coding` · `office` · `research` · `personal-life`。
+> **它只挂在 master 上**——`non-master` 不开协作，这项属性对它没有意义。
+>
+> **EN**: **What a master agent's definition is mainly for.** Currently five:
+> `general-purpose`, `coding`, `office`, `research`, `personal-life`. **It hangs on masters
+> only** — a non-master opens no collaboration, so the property means nothing for it.
+
+- **出处**：[PF-004 §4 master 类目](../../product/PF-004-agent-definition-and-assembly/design.md#master-类目)（rev 6）
+- **⚠️ 别混**：**它不是[会话类型](agent-runtime-loop.md#ul-session-type--会话类型--session-type)。**
+  会话类型是**会话**的属性，**由它算出来**——
+  [算，不是拷贝](../../product/PF-015-session-lifecycle-and-ownership/design.md#53-会话类型怎么算出来)。
+  **映射改了，已存在的会话一个都不跟着变**
+- **注意 ①**：**只能由产品出厂增补，租户加不了新的一类**——
+  这是「[master 只能官方提供](#ul-agent-type--agent-类型--agent-type)」的推论，不是一条独立限制
+- **注意 ②**：**五类不是封死的**，产品负责人明说「不限定死，未来可拓展」；
+  **能拓展的是产品，不是租户**
+
 ## 构成关系
 
 ### UL-asset-composition · 资产组合 · Asset Composition
@@ -268,13 +319,18 @@
 > necessarily resident, and can be neither disabled nor replaced.**
 
 - **出处**：[PF-007 §4 meta](../../product/PF-007-meta-capabilities/design.md#meta) · [meta 与常驻的关系](../../product/PF-007-meta-capabilities/design.md#meta-与常驻的关系)（rev 6）
-- **注意 ①**：**「必定常驻」不是产品选择，是结构逼出来的**——
+- **⚠️ 注意 ①**：**「不可禁用」说的是那扇门，不是门后的每一条命令。**
+  [权限照常作用在命令这一级](../../product/PF-007-meta-capabilities/design.md#57-权限能关掉一条命令关不掉一扇门)——
+  **一条命令可以被关掉，而那扇门关不掉**。
+  典型：会话运行模式是 [`never`](agent-runtime-loop.md#ul-session-run-mode--会话运行模式--session-run-mode) 时，
+  `Ask().request_approval` 不可用，**而 `Ask()` 还在**
+- **注意 ②**：**「必定常驻」不是产品选择，是结构逼出来的**——
   **够到非常驻能力的唯一途径就是 meta**，若它自己也不常驻，就永远够不着它。
   **自指的闭环必须有一个不动点**
-- **注意 ②**：**常驻不一定是 meta**——一个普通工具标了常驻，它只是占了个位置
-- **注意 ③**：**关掉一扇门等于门后一整类能力凭空消失**，而 agent 会「不知道某件事存在」——
+- **注意 ③**：**常驻不一定是 meta**——一个普通工具标了常驻，它只是占了个位置
+- **注意 ④**：**关掉一扇门等于门后一整类能力凭空消失**，而 agent 会「不知道某件事存在」——
   那种失明无法解释也无法申诉。**收紧安全只能靠执行环境、权限与装配清单**
-- **注意 ④**：**全部采用多命令范式**，因此[整套只占一个槽位](#ul-prompt-slot--提示词槽位--prompt-slot)；
+- **注意 ⑤**：**全部采用多命令范式**，因此[整套只占一个槽位](#ul-prompt-slot--提示词槽位--prompt-slot)；
   **没有这一条，meta 这件事在预算上就不成立**
 - **别混**：**具体是哪几扇门（`Tools()` `Shell()` …）是它的实例，不是概念**——
   词表定义 meta 能力，**不为每一扇门各立一条**

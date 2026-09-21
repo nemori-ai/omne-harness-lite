@@ -136,7 +136,7 @@
 | 一条上交条目的形状与字段 | [PF-011 §5.8](../PF-011-off-nominal-handling/design.md#58-上交交的是什么) 与技术设计 |
 | 请求体怎么攒、怎么压 | [PF-010](../PF-010-context-management-and-assembly/README.md) |
 | 流式怎么拼、断在半路记录里留什么 | [PF-009](../PF-009-context-message-types/design.md#56-流断在半路) |
-| **中断这个指令怎么被受理**：谁能发、怎么排、什么时候取 | **PF-014**（[尚未开题](../README.md#已排定尚未开题的编号)） |
+| **中断这个指令怎么被受理**：谁能发、怎么排、什么时候取 | **[PF-014](../PF-014-inbound-intake-and-queueing/README.md)** |
 | 模型在哪一刻被解析、换模型要不要重建实例 | [PF-004 §6.6](../PF-004-agent-definition-and-assembly/design.md#66-模型在每次请求时确定) |
 | 档案的 Schema、上游错误到成因的对照表、脱敏怎么实现 | **技术设计** |
 | 按能力自动挑模型、自动降级到另一个模型 | **本版明确不做**，见 [design §2](design.md#二目标与非目标) |

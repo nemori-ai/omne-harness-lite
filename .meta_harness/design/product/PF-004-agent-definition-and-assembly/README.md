@@ -2,7 +2,7 @@
 id: PF-004
 title: Agent 定义与装配
 status: active
-revision: 5
+revision: 6
 relations:
   supersedes: []
   depends-on:
@@ -82,10 +82,13 @@ PF-002 因对象的种类或组合形状变，本 topic 因装配与资源治理
 
 ## 状态
 
-- 产品设计：**rev 5**，已定稿
-- 未决项：**无**
-- 待裁决：**无**
-- 来源问题：**已全部闭合**，处置记录见 [decisions.md 第四节](decisions.md#四已知的来源问题)
+- 产品设计：**rev 6**，已定稿（**rev 6 补上 [agent 类型](design.md#agent-类型)与 [master 类目](design.md#master-类目)**——
+  这两项属性此前被裁决定死了内容，却**没有家**）
+- 未决项：**两项**——[「master 的全套机制」包含哪些](design.md#九未决项)、
+  [`spawn`/`delegate` 能不能派一份 master 定义](design.md#九未决项)
+- 待裁决：**两项**（[D-1、D-2](decisions.md#三待裁决)，即上面那两条）。
+  **第一条更要紧**：`non-master` 是由 master 反向定义的，**那份清单不全，这条线就划不准**
+- 来源问题：**新增一条并已修掉**（[§7 引用了不存在的 §6.8](decisions.md#四已知的来源问题)）；其余仍按原处置
 - 技术投影：**尚未开始**
 
 技术投影按 `harness-design-handbook` skill 展开，

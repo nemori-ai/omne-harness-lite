@@ -37,6 +37,35 @@
 - **别混 ③**：**裸写「层」不作数。**系统里到处是层
 - **弃用**：~~「账号层」~~
 
+### UL-workspace · 工作区 · Workspace
+
+> **中**：**一个[会话](agent-runtime-loop.md#ul-session--会话--session)挂上的那个宿主机目录**，
+> 同时是**[资产](capabilities-and-composition.md#ul-asset--资产--asset)归属的第三级**——
+> 与组织、租户**同形**：那八类资产它一样能持有。
+> **两处与另两级不同**：它**运行时才确定**（会话挂上哪个目录，才有哪一份），
+> **而且跟着目录走**——同一个目录被两个会话挂上，**两边看到的是同一批**。
+>
+> **EN**: **The host directory a session is attached to**, and at the same time **the third
+> level of asset ownership** — structurally identical to organization and tenant, holding the
+> same eight kinds. It differs in two ways: it is **determined at run time**, and it **follows
+> the directory** — two sessions attached to the same directory see the same set.
+
+- **出处**：[PF-002 §4 工作区](../../product/PF-002-assets-settings-and-permissions/design.md#工作区) · [§5.7](../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算)（rev 4）
+- **弃用说法**：~~项目~~——**同一个东西**，正文统一写工作区。
+  「项目」在别处指的东西太多，**收窄它代价过大**
+- **⚠️ 别混**：**不是「会话级」。**会话级的东西[一律不外溢](agent-runtime-loop.md#ul-session--会话--session)，
+  **工作区级的留在那个目录上**——这个会话没了，下一个挂上来的还看得见
+- **⚠️ 注意 ①**：**授权与权限相关的配置，它一概不参与。**
+  [系统加载的时候就把工作区来的那部分过滤掉](../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算)——
+  **不是「加载了不许放宽」，也不是「只取收紧的那些」，是那条路根本不走**。
+  **一个仓库不能给自己提权**
+- **注意 ②**：**这条只管授权与权限。**资产与设置照常从它这一级求值——
+  **能力和偏好可以从项目里来，权力不行**
+- **⚠️ 注意 ③**：**它不是第五个[作用域层](#ul-scope-layer--作用域层--scope-layer)。**
+  [资产归属与作用域层是两套层次](../../product/PF-002-assets-settings-and-permissions/design.md#58-两套层次不是一套)——
+  归属那一套最里面是工作区，作用域那一套最里面是**会话**，**两者不是一回事**。
+  它参与的是「**有哪些资产**」，**属性怎么合成仍走原来那四层**
+
 ### UL-scoped-object · 范围化对象 · Scoped Object
 
 > **中**：**协作范围 context 内部**的对象——设置、权限与资产的共同抽象：
@@ -149,21 +178,56 @@
 
 ### UL-runtime-context · 运行时 context · Runtime Context
 
-> **中**：**agent 在运行时能感知到的、关于「我现在处在什么情形下」的信息。**
-> 三类**同归一处、同样通过[注入](agent-runtime-loop.md#ul-runtime-injection--运行时注入--runtime-injection)到达**：
-> [协作范围 context](#ul-collaboration-scope-context--协作范围-context--collaboration-scope-context)、
-> [个人 context](#ul-personal-context--个人-context--personal-context)，
-> 以及**运行期才产生的那些**（外部环境变了、权限被调整了、某个依赖不可用了）。
+> **中**：**会话推进中，在 [agent loop](agent-runtime-loop.md#ul-agent-loop--agent-loop--agent-loop) 内
+> 被模型、工具、拓展点之一消费的、[消息](record-and-context.md#ul-message--消息--message)之外的那些上下文。**
+> **它是一块一块的**：每块是一份数据，多数是一张**就地更新**的表单，也有实时算出来的；
+> **每块都有生产者**（会话本身，或会话外的某个东西）**和消费者**（那三个角色的一个或多个）。
+> [协作范围 context](#ul-collaboration-scope-context--协作范围-context--collaboration-scope-context)
+> 与[个人 context](#ul-personal-context--个人-context--personal-context) 都是其中的块。
 >
-> **EN**: Information available to an agent at run time about **the circumstances it
-> is currently operating in**. Three kinds, **kept together and all arriving by
-> injection**: collaboration-scope context, personal context, and **whatever arises
-> only at run time** — a changed external environment, an adjusted permission, a
-> dependency gone unavailable.
+> **EN**: The context **outside the messages** that is consumed, within the agent loop, by
+> one of three roles — **the model, tools, extension points**. It comes **in blocks**: each
+> block is a piece of data, mostly a form **updated in place**, sometimes computed on the
+> spot; each has **a producer** (the session itself, or something outside it) and **consumers**
+> (one or more of those three roles). Collaboration-scope context and personal context are
+> among its blocks.
 
-- **出处**：[PF-001 §4 Context](../../product/PF-001-identity-scope-and-agent-constraints/design.md#contextagent-运行时可感知的上下文信息) · [PF-004 §4 运行期上下文](../../product/PF-004-agent-definition-and-assembly/design.md#运行期上下文)（rev 6 / rev 3）
+- **出处**：[PF-015 §4 runtime context](../../product/PF-015-session-lifecycle-and-ownership/design.md#runtime-context)（rev 5）；块的两类来源沿用 [PF-001 §4 Context](../../product/PF-001-identity-scope-and-agent-constraints/design.md#contextagent-运行时可感知的上下文信息)（rev 7）
+- **弃用说法**：~~会话上下文感知域~~——**同一个概念**，正文统一写 runtime context
 - **别混 ①**：**不是 Cordis 的 `Context`**——那是依赖注入与生命周期的容器，属技术设计。指它时**必须写全 `Cordis Context`**
 - **别混 ②**：**不是[给模型看的上下文](../index.md#记录与上下文)**。**裸写「上下文 / context」在跨 topic 的文字里一律不作数**，[已记为冲突](../conflicts.md#现有冲突)
+- **⚠️ 别混 ③**：**不是[会话日志](record-and-context.md#ul-session-log--会话日志--session-log)。**
+  日志**只追加**、历史全都在、自己会说话；它**就地更新**、只回答「现在是什么」、
+  **变了要专门通知**。**一个答「发生过什么」，一个答「现在是什么」**
+- **注意 ①**：**判它进不进来只看一条**——**在 agent loop 内被那三个角色之一消费（依赖）**。
+  不看形态、不看归谁维护、不看重不重要
+- **注意 ②**：**「会话要维护的状态」是另一个圈，两者有交集不重合**——
+  [模态投影](../../product/PF-013-model-profiles-and-invocation/design.md#模态投影)是会话要维护的，
+  但那是**提供给会话外的服务用的**，会话内没人消费，**因此不是它**。
+  那一类的正名是[会话日志投影](record-and-context.md#ul-session-log-projection--会话日志投影--session-log-projection)
+- **注意 ③**：**[当下可用性](reach-and-availability.md#ul-current-availability--当下可用性--current-availability)也不是**——
+  **消费它的是 runtime 本身**，它在组装那一步就被用掉了
+- **注意 ④**：**工具和拓展点也读它。**它**从来不只是「给模型的上下文」**
+- **⚠️ 注意 ⑤**：**除了实时算的那些，每一块都要能恢复**——
+  [会话被重新加载、归档被撤销之后，它们必须还在](../../product/PF-015-session-lifecycle-and-ownership/design.md#58-存储要守住的两件事)。
+  **实时算的那些没有「恢复」这回事**
+
+### UL-meta-runtime-context · 元 runtime context · Meta Runtime Context
+
+> **中**：**每个[会话](agent-runtime-loop.md#ul-session--会话--session)都必需携带、
+> 并且必需持续更新的那些 [runtime context](#ul-runtime-context--运行时-context--runtime-context)。**
+> 与装配无关、与运行模式无关：**不论装的是哪一份定义，这一批一样都不能少。**
+>
+> **EN**: The blocks of runtime context **every session must carry and keep updated**.
+> Independent of assembly and of run mode: **whatever definition is assembled, none of them
+> may be missing.**
+
+- **出处**：[PF-015 §4 meta runtime context](../../product/PF-015-session-lifecycle-and-ownership/design.md#meta-runtime-context) · [§5.6 十五项](../../product/PF-015-session-lifecycle-and-ownership/design.md#56-十五项-meta-runtime-context)（rev 3）
+- **注意 ①**：**与 [meta 能力](capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability)同构**——
+  那边是每个 agent 必不可少的**能力**，这边是每个会话必不可少的**感知**。**两边都不可禁用、不可替换**
+- **注意 ②**：**当前恰有十五项**，[逐项的生产者、消费者与至少提供什么见正文](../../product/PF-015-session-lifecycle-and-ownership/design.md#56-十五项-meta-runtime-context)
+- **注意 ③**：**模型看见其中一块只有两种形态**——**完整的那一份**（会话刚开始、**上下文压缩之后**）
+  与**一条变更通知**。**第二种依赖第一种**：只发通知不发全量，模型迟早拼出一份与真的对不上的状态
 
 ### UL-collaboration-scope-context · 协作范围 context · Collaboration-Scope Context
 

@@ -2,7 +2,7 @@
 id: PF-005
 title: 执行环境与沙箱
 status: active
-revision: 2
+revision: 3
 relations:
   supersedes: []
   depends-on:
@@ -92,7 +92,9 @@ Agent Definition 对 agent runtime 、会话历史对 agent runtime 。三次形
 
 ## 状态
 
-- 产品设计：**rev 2**，已定稿（rev 1 已被接受为正式版本，rev 2 是其上的增补）
+- 产品设计：**rev 3**，已定稿（rev 1 已被接受为正式版本，rev 2 与 rev 3 是其上的增补。
+  **rev 3 接下[执行环境权限](design.md#执行环境权限)这一维**，并把
+  [「落点不可用就是拒绝」](design.md#69-落点不可用就是拒绝不降级)从推导表搬进正文）
 - 未决项：**无**
 - 待裁决：**无**
 - 两处用词上的偏离（**均为实质照办、仅名称不同**）：见 [decisions.md 第四节](decisions.md#四已知的来源问题)

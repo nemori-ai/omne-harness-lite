@@ -173,9 +173,9 @@ relations:
 
 - 产品设计：**rev 5**，已定稿 · [演进过程见变更历史](changelog.md)
 - **没有待裁决项**
-- **缺口只剩一个**：**会话**——编号已排定为 [PF-015](../README.md#已排定尚未开题的编号)，尚未开题。
-  [它有哪几种终态尚未拍板](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-session--会话--session)，
-  而 [§6.6](design.md#66-终态不可逆且只有一个出口) 压在它上面
+- **那个缺口已经有主了**：会话归 [PF-015](../PF-015-session-lifecycle-and-ownership/README.md)（rev 1）。
+  **它没有终态**——[生命周期是四个状态，收束的锚点是归档](../PF-015-session-lifecycle-and-ownership/design.md#会话的生命周期)，
+  而 [§6.6](design.md#66-终态不可逆且只有一个出口) 说的三个终态**是 Run 的，不是会话的**，两者从来不是一回事
 - **不欠别人的账**：[悬着的东西不许被压掉](design.md#611-悬着的东西不许被压掉)
   已被 [PF-010 rev 4](../PF-010-context-management-and-assembly/README.md) 吸收
 - 技术投影：尚未开始

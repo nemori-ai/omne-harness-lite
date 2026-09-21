@@ -2,7 +2,7 @@
 id: PF-010
 title: 上下文管理与组装
 status: active
-revision: 4
+revision: 5
 relations:
   supersedes: []
   depends-on:
@@ -177,7 +177,7 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 4**，**已接受为正式版本**（2026-09-20）
+- 产品设计：**rev 5**，**已接受为正式版本**（rev 4 于 2026-09-20；**rev 5 补一条硬要求——[压缩之后 meta runtime context 要重新给一份完整的](design.md#616-压缩之后meta-runtime-context-要重新给一份完整的)**）
 - **组装与压缩两块都已落地**；**压缩已闭包化**，`f` 那一侧不再有「量一量」这一步
 - 待裁决：**无**；未决项：**无**
 - 技术投影：**尚未开始**

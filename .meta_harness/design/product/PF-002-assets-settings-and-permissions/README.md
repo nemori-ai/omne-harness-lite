@@ -2,7 +2,7 @@
 id: PF-002
 title: 设置、权限与资产的展开
 status: active
-revision: 3
+revision: 4
 relations:
   supersedes: []
   depends-on:
@@ -47,7 +47,8 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 3**，已定稿
+- 产品设计：**rev 4**，已定稿（**rev 4 补上资产归属的第三级[工作区](design.md#工作区)**，
+  并定死**授权与权限相关的配置一概不从它这一级来**）
 - 未决项：**无**
 - 待裁决：**无**
 - 技术投影：**尚未开始**

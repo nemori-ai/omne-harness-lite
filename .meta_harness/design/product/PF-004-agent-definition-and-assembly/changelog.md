@@ -5,6 +5,68 @@
 
 技术投影用 `provenance.json` 引用具体 rev，所以这里的 rev 不准会直接传导到实现侧。
 
+## rev 6 — 2026-09-21
+
+**补上 Agent Definition 的两项分类属性：[agent 类型](design.md#agent-类型)与 [master 类目](design.md#master-类目)。**
+
+依据：产品负责人 2026-09-21 的裁决，原话逐字见
+[PF-015 decisions](../PF-015-session-lifecycle-and-ownership/decisions.md#2026-09-21--生命周期会话类型与业务流程拓展点)（裁决 8、9）。
+**那次裁决是在谈会话类型时给出的，而这两项属性的家在本 topic**——
+[PF-015 当时明写「只消费不定义」](../PF-015-session-lifecycle-and-ownership/design.md#九未决项)，本 rev 把它接过来。
+
+### 一、新增两个概念
+
+| 概念 | 是什么 |
+|---|---|
+| [**agent 类型**](design.md#agent-类型) | 一份定义**具不具备 master 的那一整套机制**：**`master`** / **`non-master`**。**只有两个取值**，后者**由前者反向定义** |
+| [**master 类目**](design.md#master-类目) | 一份 master 的定义主要用来干什么。当前五类。**只挂在 master 上**——`non-master` 没有这项 |
+
+**两者都是定义自身的属性**，与它某次装配的结果无关。
+
+### 二、新增 [§6.8](design.md#68-两类-agent谁能被谁自定义) 三条规则
+
+**master 必定是 official**；**租户能自定义的只有 `non-master`**；
+**master 类目只能出厂增补**——第三条是第一条的推论，不是独立限制。
+
+> **这三条约束的是「定义从哪来」，不是「装出来的 agent 能做什么」。**
+> 一个 `non-master` 照样可以装得很强，**能力由构成决定**（[I-4](design.md#61-不变式)）。
+
+### 三、第二类取值为什么叫 `non-master`
+
+**产品负责人定的名**（[原话见 decisions](decisions.md#2026-09-21--agent-definition-的两项分类属性)）：
+
+> **可以用 non-master 哈，也就是不具备一个 master agent 的全套机制的 agent。**
+
+**这一句同时给了名字和定义方式**——由 master 反向定义，
+划的是「**有没有那套机制**」，不是「它在派发里扮演什么角色」。
+
+**这避开了一处同名不同义**：若第二类也叫 `subagent`，它会与
+[子 agent](../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-subagent--子-agent--subagent) 撞——
+那个说的是**派发关系里的角色**。**两个词撞在一起，每次用都得带限定。**
+**[C-14 就此闭合](../../ubiquitous_language/conflicts.md)。**
+
+### 四、[§9 从「无未决项」变成有两条](design.md#九未决项)
+
+1. **「master 的那一整套机制」包含哪些**——目前只列得出三条（开会话、带类目、只能官方提供）。
+   **`non-master` 由它反向定义，清单不全这条线就划不准。**
+   正文明写**不要按「凡是 master 有的它都没有」去实现**。
+2. **`spawn` / `delegate` 能不能派一份 master 定义**——两种都自洽，等裁决。
+
+### 五、顺带修掉一处失效引用
+
+[§7 取舍表](design.md#七取舍)里「紧急的那种有显式控制（§6.8）」——
+**本 topic 从来没有过 §6.8**，那是个指向不存在小节的引用。
+现改为指向[控制指令](../PF-014-inbound-intake-and-queueing/design.md#控制指令)（归 PF-014）。
+**记在 [decisions 第四节](decisions.md#四已知的来源问题)。**
+
+### 六、下游要复核
+
+| 谁 | 复核什么 |
+|---|---|
+| [PF-015](../PF-015-session-lifecycle-and-ownership/README.md) | [会话类型的输入](../PF-015-session-lifecycle-and-ownership/design.md#53-会话类型怎么算出来)现在有正式定义了。**那边 §2 非目标与 §9 的对应条目随之闭合** |
+| [PF-007](../PF-007-meta-capabilities/README.md) | 它的裁决里一直在用 `master agent` 这个词，**现在这个词有精确所指了**。§9 第二条未决与它的派发模式相关 |
+| [统一语言](../../ubiquitous_language/index.md) | 新增 `UL-agent-type` 与 `UL-master-category` 两条词条 |
+
 ## rev 5 — 2026-09-20
 
 **拆掉「运行实例」，把活体那一半整个移交给 PF-012。本 topic 改名为「Agent 定义与装配」。**

@@ -99,6 +99,30 @@
 - **注意 ②**：**它归[会话](agent-runtime-loop.md#ul-session--会话--session)，不归[运行](agent-runtime-loop.md#ul-run--运行--run)**
 - **注意 ③**：**日志里那些事件具体有哪些，本版不展开**，归 [PF-012](../../product/PF-012-agent-loop-and-run/README.md)
 
+### UL-session-log-projection · 会话日志投影 · Session Log Projection
+
+> **中**：**从[会话日志](#ul-session-log--会话日志--session-log)派生出来的视图**，**不是第二份权威**——
+> **拿日志从头重算一遍，一定得到同一个答案**。
+> 它是**每次现算**还是**落盘增量维护**，是各个投影自己的取舍，**不改变它是什么**。
+>
+> **EN**: **A view derived from the [session log](#ul-session-log--会话日志--session-log)**,
+> **never a second source of truth** — **recomputing it from the log always yields the same
+> answer**. Whether it is computed on demand or maintained incrementally in storage is each
+> projection's own tradeoff, **and does not change what it is**.
+
+- **出处**：[PF-015 §5.8](../../product/PF-015-session-lifecycle-and-ownership/design.md#58-存储要守住的两件事)（rev 5）·
+  [PF-013 §4 模态投影](../../product/PF-013-model-profiles-and-invocation/design.md#模态投影)（rev 2）**给出了第一个实例**
+- **⚠️ 别混**：**不是 [runtime context](scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context)。**
+  runtime context 是**会话内那三个角色**消费的；**投影多半是给会话外的服务用的**。
+  两者有交集但不重合，[判据在 PF-015 §5.5](../../product/PF-015-session-lifecycle-and-ownership/design.md#55-哪些算-meta-runtime-context)
+- **⚠️ 注意 ①**：**它只能从日志算得出来。**
+  要是算它还得用上日志里没有的东西，**那它就不是投影**，是另一份自己的状态
+- **注意 ②**：**已有两个实例，形态不同**——
+  [模态投影](../../product/PF-013-model-profiles-and-invocation/design.md#模态投影)**落盘增量维护**（要答得快），
+  [待处理消息队列](agent-runtime-loop.md#ul-pending-message-queue--待处理消息队列--pending-message-queue)**每次现算**。
+  **现算的那些不需要存储那一套**
+- **注意 ③**：**加一个新投影，不该动已有的任何一个**——这是[那套协议要兑现的事](../../product/PF-015-session-lifecycle-and-ownership/design.md#58-存储要守住的两件事)
+
 ### UL-message · 消息 · Message
 
 > **中**：**一条对话记录**，落在[会话日志](#ul-session-log--会话日志--session-log)里。**七种，按「谁在说话」分**：
