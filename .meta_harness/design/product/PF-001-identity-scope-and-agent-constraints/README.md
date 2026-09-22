@@ -2,7 +2,7 @@
 id: PF-001
 title: 身份、范围与对 Agent 的约束
 status: active
-revision: 7
+revision: 8
 relations:
   supersedes: []
   depends-on: []
@@ -25,7 +25,7 @@ relations:
 |---|---|
 | `supersedes` | 无 |
 | `depends-on` | 无。本 topic 是基础，不引用别人的结论 |
-| 被谁展开 | [PF-002 设置、权限与资产的展开](../PF-002-assets-settings-and-permissions/README.md) 把资产的种类与组合展开，[PF-003 资产的转移与分享](../PF-003-asset-transfer-and-sharing/README.md) 定义资产怎样跨组织流动。两者都依赖本 topic，**方向不能反**：本 topic 不引用它们的结论。其余紧邻内容（成本与账单明细、技能与工具的装载等）目前还没有对应的产品设计，分界见 [design.md 第八节](design.md#八边界与依赖) |
+| 被谁展开 | [PF-002 设置、权限与资产的展开](../PF-002-assets-settings-and-permissions/README.md) 把资产的种类与组合展开，[PF-003 资产的复制与分享](../PF-003-asset-transfer-and-sharing/README.md) 定义资产怎样跨组织流动。两者都依赖本 topic，**方向不能反**：本 topic 不引用它们的结论。其余紧邻内容（成本与账单明细、技能与工具的装载等）目前还没有对应的产品设计，分界见 [design.md 第八节](design.md#八边界与依赖) |
 | `extends` | 无 |
 
 ## 按当前问题展开
@@ -42,7 +42,7 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 7**，已定稿
+- 产品设计：**rev 8**，已定稿
 - 未决项：**无**
 - 待裁决：**无**
 - 技术投影：**尚未开始**

@@ -114,7 +114,7 @@ confirmed_on: 2026-09-17
 | 消费者 | 消费的是哪一条 |
 |---|---|
 | [PF-002](../../product/PF-002-assets-settings-and-permissions/design.md#63-组合的引用指向能力标识)：组合的引用指向能力标识 | C2。引用指向标识而非具体资产，正是「定义不持有实现引用」在产品层的说法 |
-| [PF-003](../../product/PF-003-asset-transfer-and-sharing/README.md)：资产的转移与分享 | C1、C2。定义能跨组织流动而不携带环境假设，**正因为它不含绑定** |
+| [PF-003](../../product/PF-003-asset-transfer-and-sharing/README.md)：资产的复制与分享 | C1、C2。定义能跨组织流动而不携带环境假设，**正因为它不含绑定** |
 | [PF-004](../../product/PF-004-agent-definition-and-assembly/README.md)：Agent 运行时 | C1–C4 全部。**它是本条在 agent 这件事上的产品落点**：三段各自叫什么、三个时刻分别定什么、变化怎么传播 |
 | agent 实例的生灭被定为「资源与装配的治理」 | C1、C4。活体可回收重建，所以能按资源需要起落 |
 

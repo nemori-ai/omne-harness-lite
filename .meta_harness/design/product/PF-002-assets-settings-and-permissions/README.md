@@ -2,7 +2,7 @@
 id: PF-002
 title: 设置、权限与资产的展开
 status: active
-revision: 4
+revision: 7
 relations:
   supersedes: []
   depends-on:
@@ -27,7 +27,7 @@ relations:
 |---|---|
 | `supersedes` | 无 |
 | `depends-on` | [PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)。直接使用它定义的**四层作用域**、**三种合成语义**、**能力标识**与 **official/customized**，不重复定义 |
-| 被谁展开 | [PF-003 资产的转移与分享](../PF-003-asset-transfer-and-sharing/README.md) 定义资产怎样跨组织流动，[PF-004 装配与存活](../PF-004-agent-definition-and-assembly/README.md) 定义怎样把这些搬进运行时，[PF-012 Agent Loop 与 Run](../PF-012-agent-loop-and-run/README.md) 定义 loop 上**一共有哪些拓展点位置**。三者都依赖本 topic，**方向不能反**：本 topic 不引用它们的结论 |
+| 被谁展开 | [PF-003 资产的复制与分享](../PF-003-asset-transfer-and-sharing/README.md) 定义资产怎样跨组织流动，[PF-004 装配与存活](../PF-004-agent-definition-and-assembly/README.md) 定义怎样把这些搬进运行时，[PF-012 Agent Loop 与 Run](../PF-012-agent-loop-and-run/README.md) 定义 loop 上**一共有哪些拓展点位置**。三者都依赖本 topic，**方向不能反**：本 topic 不引用它们的结论 |
 | `extends` | 无 |
 
 **与 PF-001 的分界**：同一个字段在多层都有值时听谁的，归 PF-001；
@@ -47,8 +47,10 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 4**，已定稿（**rev 4 补上资产归属的第三级[工作区](design.md#工作区)**，
-  并定死**授权与权限相关的配置一概不从它这一级来**）
+- 产品设计：**rev 7**，已定稿（每一类资产的[身份是「类别 ＋ name」](design.md#身份是类别--name其余归实现)，
+  其余归实现；[禁用](design.md#禁用是逐层配的布尔设置任一层为真即不可见)是逐层配的布尔设置，
+  **任一层为真即不可见**，[不可用](../PF-006-tools-and-skills/design.md#63-不可用时装的是同名替换件不是不装)则是**可见但用了一定失败**；
+  **工作区那一级只禁得掉它自己提供的那批资产**）
 - 未决项：**无**
 - 待裁决：**无**
 - 技术投影：**尚未开始**
