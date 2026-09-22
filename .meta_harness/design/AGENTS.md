@@ -7,7 +7,7 @@
 
 这里保存后续需求分析、设计和维护要继续消费的知识。准入依据是持续的消费对象，
 不是任务名称、文件格式或评审状态。选目录只问一个问题：**什么事件会让这条事实失效**——
-产品方向改变归 product，系统目标改变归 foundation，上游换版本归 basis，语义变更归 spec，
+产品方向改变归 product，对象被重新认定或分解归 domain_objects，系统目标改变归 foundation，上游换版本归 basis，语义变更归 spec，
 实现换方案归 realization，已经发生的事归 record。先读[准入与停止条件](README.md#准入与停止条件)，再进入相应目录。
 
 一次交付的计划、派发、文件盘点与进度放本次明确工作区的 `tmp/`，不作为 design topic。
@@ -41,8 +41,26 @@
 **词表拥有「这个词精确指什么」，各 topic 正文拥有「为什么是这个形状、有什么后果」。**
 两者不是同义复制：**「为什么」一律不写进词表**，写进去就是第二份权威。
 
-取名不许占用通用词、分卷按「它回答什么问题」、无歧义怎么自检——
-加载 `ubiquitous-language` skill。
+进 `ubiquitous_language/` 先读它自己的 [AGENTS.md](ubiquitous_language/AGENTS.md)——查一个词、在正文里用一个已有的词，
+到那里就够了。**真要新增或修改词条**（取名、选卷、写定义、判形态、复核出处），再按它的指引加载 `ubiquitous-language` skill。
+
+## 有哪些对象，也只有一份
+
+**产品设计与架构、规格之间隔着一站：[domain_objects/](domain_objects/README.md)。**
+产品正文按问题分 topic，一个对象的事实散在很多 topic 里；那里把它们**跨 topic 收成一份**——
+每个有身份的对象一条：宿主、身份依据、生灭、依据出处（带 rev）。它的失效事件是「一个对象被重新认定或重新分解」。
+
+| 情况 | 怎么办 |
+|---|---|
+| 给一个词条写「形态」，写的是「对象」 | **同时**在 [objects.md](domain_objects/objects.md) 立一条；检查器会因为缺它而失败 |
+| 改了某个产品 topic 并升了 rev | 检查器点名的词条出处与对象依据**逐条复核**，成立再把 rev 改到当前值；**不复核就改 rev 等于把检查关掉** |
+| 碰到一个像对象、却哪儿都没定义的东西 | 进 [pending.md](domain_objects/pending.md) 并写清谁来裁，同时记进所属 topic 的 decisions「已知的来源问题」 |
+| 架构或规格设计要「相关领域对象」 | 从[领域对象地图](views/domain-object-map.md)找入口，读 objects.md 的条目，**依据仍以它指向的产品正文为准** |
+
+**条目不自带任何划分。**能力边界、限界上下文、聚合与存储切分是系统架构设计的结论，不写进对象条目。
+
+进 `domain_objects/` 先读它自己的 [AGENTS.md](domain_objects/AGENTS.md)。**来取输入的人读到那里为止**；
+真要立条目、登记待裁或处置对账器的点名，再按它的指引加载 `domain-objects` skill。
 
 ## 两条容易走错的归属
 

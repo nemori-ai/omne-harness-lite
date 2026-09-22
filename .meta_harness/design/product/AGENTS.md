@@ -96,7 +96,7 @@
   **「rev N 以前是那样」「这一版把 X 移交给了 Y」「这条是我推的、某日核对确认成立」
   一律不进正文**——它们分别归 `changelog.md`、`decisions.md` 与 `interviews/`。
   混进去，读者就得先分辨哪句还算数；而下一次修订之后，那些对比谁也不会去维护。
-  **例外只有 `depends-on` 表里标别人的精确版本，那是契约引用。**
+  **例外只有 `depends-on` 表里标别人的精确版本，那是契约引用；`README.md` 的「状态」段写本 topic 的 rev 同理。**
 - **概念只定义一次**，且**用[统一语言](../ubiquitous_language/README.md)里的那个词**；
   **新概念先进[词表](../ubiquitous_language/index.md)，再进正文**，没有例外。
 

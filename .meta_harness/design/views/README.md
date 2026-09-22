@@ -18,7 +18,8 @@
 
 | 视图 | 从哪里 join | 回答什么 |
 |---|---|---|
-| `object-index` | covers + catalog + bindings | 某个装配对象牵涉哪些条款与契约 |
+| [`domain-object-map`](domain-object-map.md) | 统一语言词条的形态与变体的父 + [领域对象条目](../domain_objects/README.md) + 各 topic 的 rev 与指向词条的链接 | 系统里有哪些**领域对象**（键是词条 ID）：各自的宿主、变体、依据在哪个 topic、还有谁在讲、哪些还悬着 |
+| `object-index` | covers + catalog + bindings | 某个**装配对象**（键是契约条款）牵涉哪些条款与契约 |
 | `subject-page` | covers + catalog + bindings + record | 某个契约「现在是什么样」的一页导航 |
 | `system-map` | catalog + lineage + realization | 当前有哪些能力、怎样组合、谁实现 |
 | `coverage-report` | covers + bindings + verification | 哪些需求条款没有承载者，哪些承诺没有证据 |
@@ -46,11 +47,16 @@
 入库带来的漂移风险由生成器的 `--check` 模式守：检查应生成的文件是否存在且一致，
 不一致即失败。这与 agent 产物编译采用同一种做法。
 
+**domain-object-map 与 object-index 是两张表，别当成一张。**前者的键是统一语言的词条 ID，
+上游是产品设计这一段，今天就有内容；后者的键是契约条款，上游是规格与实现映射，要等那一段开工。
+前者里「这个对象的骨架」来自[手写的对象条目](../domain_objects/objects.md)——那份有自己的家与失效事件，
+不是视图；视图只负责把它与词条、rev、反向链接排到一起。
+
 ## 当前状态
 
-**骨架已建，生成器尚未实现，因此本目录为空。**
+**`domain-object-map` 已由 `tooling/src/domain_objects.py` 生成并入库，`--check` 守在设计检查里。**
 
-这是诚实的空：视图的上游（`registry/covers.json`、realization 的绑定表）本身还没有内容，
-此时生成任何视图都只能产出一份看起来完整的空壳。生成器随上游内容一起落地。
+其余三份仍是诚实的空：它们的上游（`registry/covers.json`、realization 的绑定表）本身还没有内容，
+此时生成只能产出一份看起来完整的空壳。生成器随上游内容一起落地。
 
 返回[设计链入口](../README.md)。

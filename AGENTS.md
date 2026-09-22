@@ -32,6 +32,7 @@ Cordis 直接使用官方发布包，其他选定的 DSH 复用组件由本项�
 |---|---|
 | 需求与产品设计 | 系统目标、全局约束、产品概念与模型、产品规则与验收 |
 | 统一语言 | 每个概念精确指什么——**新概念先建词条，才能在正文里用** |
+| 领域对象 | 跨 topic 收齐的「系统里有哪些有身份的对象」——产品设计与架构、规格之间的那一站 |
 | 系统架构与规格设计 | 能力边界、契约、形式模型、提供者与装配映射 |
 | Research | 产品、系统、算法、上游事实的调查与证据 |
 | 已发生的事 | 提案、决定、评审、运行证据 |
@@ -118,7 +119,7 @@ omne-harness-lite/
 ├── tools/
 │   └── spec-tools/               Python 开发包：跨仓库导航检查与工具环境检查
 ├── scripts/                      开发与 CI/CD 自动化，check.sh 组合现有检查
-├── .meta_harness/                设计工作区：需求、产品、统一语言、规格、研究、
+├── .meta_harness/                设计工作区：需求、产品、统一语言、领域对象、规格、研究、
 │                                 已发生的事、skills/roles 源与生成工具
 ├── .agents -> .meta_harness/.agents    Codex skills 生成入口
 ├── .claude -> .meta_harness/.claude    Claude Code skills/subagents 生成入口
@@ -130,9 +131,8 @@ omne-harness-lite/
 └── uv.lock                       Python workspace 统一锁文件
 ```
 
-2026-09-20 清退了根 `spec/` 与 `docs/` 下的设计材料：它们已被 `.meta_harness/` 吸纳，
-**同一份东西不在工作区外留第二个源**。`packages/` 与 `apps/` 同时回退到空骨架，
-因为架构与规格设计尚未开始，那批实现没有有效依据。原件都在 Git 历史里。
+根下不再保留 `spec/` 与设计类 `docs/`：它们已被 `.meta_harness/` 吸纳，
+**同一份东西不在工作区外留第二个源**；原件在 Git 历史里。
 
 目录不直接对应插件、服务、进程或数据库表。进入受维护目录时按需读取局部约定；
 宿主生成目录的源约定归 `.meta_harness/`，临时产物与工作树容器不另设约定。
@@ -156,6 +156,8 @@ omne-harness-lite/
 | 开始参与、准备环境或整理交付 | [贡献指南](CONTRIBUTING.md)说明范围和交付要求，[开发指南](docs/development.md)导航环境与操作；详细规则继续归各内容所有者 |
 | 接收产品需求、系统能力声明，或进行架构设计与选型 | 进入 [.meta_harness](.meta_harness/AGENTS.md)，加载 `harness-design-handbook` skill，从 intake、能力覆盖或当前设计缺口展开 |
 | 在 [design/product](.meta_harness/design/product/AGENTS.md) 起草或修订产品设计正文 | 加载 `product-design` skill，它把视角切成 product manager；技术设计与实现只把产品正文当输入，不加载它。起草与评审可按 [roles](.meta_harness/agents/roles/README.md) 委派 |
+| 新增或修改[统一语言](.meta_harness/design/ubiquitous_language/AGENTS.md)词条 | 加载 `ubiquitous-language` skill；只是查一个词、在正文里用已有的词，不加载 |
+| 立或改[领域对象](.meta_harness/design/domain_objects/AGENTS.md)条目、登记待裁，或产品 topic 升 rev 后处置对账器的点名 | 加载 `domain-objects` skill；做架构、规格与实现只把对象清单当输入，不加载它 |
 | 完成一次架构设计，已有可识别的待审稿 | 委派 [architecture-reviewer](.meta_harness/agents/roles/README.md) 独立只读评审，提供对象、版本、目标与范围；评审意见不代替接受决定 |
 | 架构设计后准备 spec 与实施计划，评估技术栈、复用或 fork 路径 | 加载同一 skill，按需进入其「交付规划」，明确实现责任与可验收增量 |
 | 撰写或维护规格、模型，以及提供者映射和消费者影响 | 加载同一 skill，按需进入其「规格演进」，定位现有正文、精确版本和消费者 |

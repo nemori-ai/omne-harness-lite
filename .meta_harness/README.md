@@ -20,6 +20,7 @@
 ├── design/                   待设计系统的设计链，按失效事件分区
 │   ├── ubiquitous_language/  同一个概念只有一个词——失效于「某个概念的含义变了」
 │   ├── product/              概念、模型、产品规则、验收——失效于产品方向改变
+│   ├── domain_objects/       跨 topic 收齐的领域对象，产品与架构、规格之间的那一站——失效于对象被重新认定或分解
 │   ├── foundation/           系统目标与全局约束 SYS-*——失效于系统目标改变
 │   ├── basis/                内核与上游的机制语义条目及其 probe——失效于上游换版本
 │   ├── spec/                 精确规格与形式工件——失效于语义变更，发新版不原地改
@@ -47,6 +48,7 @@
 | 收到产品需求或系统能力声明 | 加载 `harness-design-handbook` skill，从 intake、能力覆盖或当前缺口进入 |
 | 在 [design/product](design/product/AGENTS.md) 起草或修订产品正文 | 加载 `product-design` skill；**只把产品正文当输入读的技术工作不加载它** |
 | 要用到某个概念，或要引入新概念 | [统一语言](design/ubiquitous_language/README.md)。**先有词条，再动正文** |
+| 想知道系统里有哪些有身份的对象、各自依据在哪 | [领域对象](design/domain_objects/README.md)；总表是派生的[领域对象地图](design/views/domain-object-map.md) |
 | 查证上游机制到底保证什么 | [research/](research/README.md) 的对应 topic，或 [basis/](design/basis/README.md) 的条目 |
 | 新建长期设计材料 | 先过 [准入与停止条件](design/README.md#准入与停止条件)，再用目标目录的本地 `.templates/` |
 | 维护 skills 或 roles | 从 [agents/](agents/README.md) 改 canonical 源，**不手改生成产物** |
