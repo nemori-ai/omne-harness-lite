@@ -3,9 +3,9 @@
 本页维护 monorepo 的源码归属、包边界与开发环境组织。产品实现以 TypeScript 为主；
 Python 当前服务于开发工具。
 
-> **当前 `packages/` 与 `apps/` 是空骨架。**正式设计停在产品设计阶段，
-> 架构与规格设计尚未开始，因此没有据以交付的实现。原因见
-> [packages/README](../packages/README.md)。本页描述的是**规则**，不是现状清单。
+> **现状：** `packages/` 有 `core/`、`infra/`、`tenancy/` 三组共十个成员（租户领域第一程，2026-09-22），
+> `apps/` 还没有可启动的应用。成员清单与各自状态见 [packages/README](../packages/README.md)，
+> 本页描述的是**规则**，不是现状清单。
 
 语言无关的契约不在这里——它们归
 [`.meta_harness/design/spec/`](../.meta_harness/design/spec/README.md)；
@@ -36,15 +36,22 @@ Python 当前服务于开发工具。
 同源、同批 fork、共同构建或实验阶段**都不是**聚合不相关职责的理由。
 共享类型和有身份的运行时原语保持唯一拥有者，其他包通过公开入口复用。
 
-> **只为已经有接受规格、且确实要写代码的职责建成员。**
-> 这条以前靠一份包组织决定支撑，那份决定已随旧设计链退役；
-> 重建包体系时[重新确定划分规则](../packages/AGENTS.md#建立第一个包之前)，不沿用旧的。
+> **只为已经有接受规格、且确实要写代码的职责建成员。**每个包对应一个
+> [realization 节点](../.meta_harness/design/realization/README.md)，节点先于包；
+> 第一层组名（`core`、`infra`、`tenancy`）随节点布局，`infra` 仍是候选名。
 
 ## 当前可执行代码
 
 ```text
-package.json / pnpm-workspace.yaml     TypeScript workspace 与根聚合命令
+package.json / pnpm-workspace.yaml     TypeScript workspace、版本 catalog 与根聚合命令
 pnpm-lock.yaml                         TypeScript 依赖统一锁文件
+tsconfig.base.json                     全体 TS 成员共用的编译选项（NodeNext、strict、.ts 后缀导入）
+packages/core/{identity-values,offer-expiry,kernel-basis,storage}
+                                       契约纯模块、Cordis 共用件与 probe、存储协议与一致性套件
+packages/infra/{storage-sql,clock}     存储与时钟提供者（sqlite/pg、租约时钟）
+packages/tenancy/{credential-verification,account-identity,organization-governance,account-registration}
+                                       四个 tenancy 插件的服务面类型与场景清单（实现在第二程）
+tools/ts-checks/                       TS 开发成员；产品源码结构检查规则与 CLI
 pyproject.toml                         Python 开发环境聚合，package = false
 uv.lock                                Python workspace 统一锁文件
 tools/spec-tools/                      Python 开发成员；跨仓库 Markdown 导航与工具环境检查
@@ -72,8 +79,10 @@ scripts/format.sh                      TS/JS 格式化与暂存区检查
 `tool.uv.workspace.members` 指向 `tools/spec-tools`，`workspace = true` 绑定本地成员。
 
 TS workspace 由 pnpm 管理，[`pnpm-workspace.yaml`](../pnpm-workspace.yaml) 声明
-`packages/*/*` 与 `apps/*` 两个范围——**两者当前都没有成员**，
-根命令因此只剩格式检查。Node 与 pnpm 的精确版本由根 `package.json` 的
+`packages/*/*`、`apps/*` 与 `tools/ts-checks` 三个范围，并用 `catalog` 把第三方依赖的版本钉一次
+（成员写 `catalog:`）。每个成员自带 `build`／`typecheck`／`test` 脚本，根命令用 `pnpm -r` 聚合；
+测试运行器是 vitest（`*.spec.ts` 运行时、`*.spec-d.ts` 类型测试）。
+Node 与 pnpm 的精确版本由根 `package.json` 的
 `engines` 和 `packageManager` 声明，**以那里为准**；uv 管理的 Python 环境与之独立并存。
 
 不把工具加入产品运行依赖；新增成员须符合叶子布局，**新增其他类别时显式更新 workspace 范围**。

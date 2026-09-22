@@ -21,7 +21,7 @@
 
 | 运行 | 输入与配置范围 | 结果 | 证据位置 |
 |---|---|---|---|
-| 无 | — | — | — |
+| 2026-09-22 包内测试 | `packages/core/offer-expiry/tests/`：`derive.spec.ts`（终结优先、严格不等号、`unavailable` 传播、指向对象不存在 ⇒ `expired`）、`time.spec.ts`（RFC 3339 解析与偏移、非法时长拒绝、两路默认／指定）、`schema.spec.ts`（Schema 副本逐字节；examples 与 `x-counterexamples` 正反实例）、`testing.spec.ts`（`testClock` 只前推）、`types.spec-d.ts` | 31 条通过、类型测试无错误 | 终端输出（本行是主线转述，尚未登记 record/evidence run） |
 
 两次 formal evidence run（`2026-09-22-formal-tenant-domain`、`-2`）**不覆盖本契约**——它不建形式工件，契约 verification 已明写。
 

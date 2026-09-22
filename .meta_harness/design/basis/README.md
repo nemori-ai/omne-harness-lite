@@ -29,7 +29,7 @@ symbols:
   - "Context.prototype.bail"
 lines:
   - "events.ts:165-175"
-probe: packages/kernel-basis/tests/basis/async-control-not-bail.test.ts
+probe: packages/core/kernel-basis/tests/basis/async-control-not-bail.test.ts
 checked: 2026-09-16
 ---
 ```
@@ -85,8 +85,11 @@ probe 断言什么。
 `isolate-hides-instances-not-data`、`async-control-not-bail`、
 `plugin-body-reruns-on-provider-change`、`effect-disposal-concurrent-not-ordered`。
 
-**四条的 `probe` 目前均为 `null`**，因此按本页规则它们是待核对主张，不得单独作为设计依据——
-本项目尚无 Cordis 集成测试位置，补齐 owner 为 kernel 侧首个集成包。
-手册正文与历次走查中的其余机制主张尚未迁入。
+四条的 `probe` 均已落在 `packages/core/kernel-basis/tests/basis/`，对采用版本 4.0.4 通过
+（2026-09-22，采用版本见 [D-025](../record/decisions/cordis-adoption-version/decision.md)）；
+`async-control-not-bail` 的读数在取证时按 4.0.4 源码改正过（Promise 被当作 bail 值，而非被忽略）。
+同目录下另有四条**不对应 basis 条目**的 probe（`inject-has-no-optional-form`、`provide-is-effect-managed`、
+`plugin-throw-fails-fiber`、`fiber-state-readable`），核对的是 realization 节点依赖的共用主张；
+要不要升格为条目，按本页准入另议。手册正文与历次走查中的其余机制主张尚未迁入。
 
 返回[设计链入口](../README.md)。

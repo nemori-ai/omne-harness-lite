@@ -6,11 +6,12 @@
 | 工具 | 职责 |
 |---|---|
 | [spec-tools](spec-tools/README.md) | 跨仓库 Markdown 导航与技能镜像、形式工具环境、开发模型评估证据；Python uv workspace 成员 |
+| [ts-checks](ts-checks/README.md) | 产品源码的结构检查规则（墙钟、`bail`、受限调用点、`./testing` 零 import），每条带「故意违反就失败」自测；pnpm workspace 成员，`pnpm run lint:rules` |
 
 设计链自身的身份、登记、冻结与形式任务检查归
 [.meta_harness/tooling](../.meta_harness/tooling/README.md)，**不在这里重复一份**。
-产品包的布局检查曾是这里的第二个成员，**已随空骨架一并退役**——
-等重新有产品包、且布局规则重新确定之后再建。
+产品包的布局检查曾是这里的第二个成员，随 2026-09-20 的空骨架退役；
+2026-09-22 起 `ts-checks` 承接契约与节点 verification 点名的结构检查，布局检查仍未重建。
 
 工具包不因安装到根开发环境就成为产品运行时依赖。仓库自动化的编排放在
 [scripts/](../scripts/README.md)；自包含 skill 的脚本留在技能目录。

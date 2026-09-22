@@ -1,0 +1,14 @@
+# 条款到证据的绑定表。
+# 本节点是采用型装配，不拥有契约条款；它承接的是五份 accepted 契约里「装配给」各行
+# （AI S-30、OG S-42、AR S-25、OE S-17、IV 第六节）在单机上的兑现——每一行在 design.md「归装配」承接表里有落点。
+# 本节点能否登记绑定待裁（准入张力已上报产品负责人）；且即便可以，也没有一条已存在、会失败且登记过 run 的证据可指：
+#   - 真实外键存在性、迁移合成、缺密钥与错配启动失败、撤除次序等测试尚未写（verification.md 逐条「未开始」）；
+#   - tools/ts-checks 的 restricted-call-sites 规则已存在并自带自测，但它的运行尚未登记为 record/evidence run，登记前不进绑定；
+#   - registry 登记的四个 formal task 检查的是契约模型，没有一条在本节点的装配语义消失时会失败；
+#   - kernel-basis 的八条 probe 证的是 4.0.4 内核语义，不是本节点的任何条款——它们作为机制依据记在 design.md，不绑。
+# 尚不存在的证据不写占位绑定；缺口记在 README.md「分层状态」，义务记在 verification.md。
+version: 1
+node: "tenancy-host"
+kind: "assembly"
+
+bindings: []

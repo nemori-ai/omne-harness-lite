@@ -1,7 +1,7 @@
 ---
 id: isolate-hides-instances-not-data
 upstream: cordis
-version: 4.0.2
+version: 4.0.4
 kind: negative
 symbols:
   - "reflect.ts: 服务解析沿 fiber 链向上，父的 isolate 标签不同即抛错不再上溯"
@@ -10,9 +10,9 @@ symbols:
 lines:
   - "reflect.ts:154-166"
   - "reflect.ts:289-290"
-  - "context.ts:121-125"
-probe: null
-checked: 2026-09-17
+  - "context.ts:115-125"
+probe: packages/core/kernel-basis/tests/basis/isolate-hides-instances-not-data.test.ts
+checked: 2026-09-22
 ---
 
 # `isolate` 隔离服务实例的可见性，不隔离数据
@@ -47,13 +47,13 @@ checked: 2026-09-17
 
 ## probe 断言什么
 
-**当前为 null，本条目是待核对主张，不得单独作为设计依据。**
+probe 在 `packages/core/kernel-basis` 里，对 4.0.4 通过（2026-09-22）：
 
-可写的 probe 形如：在两个 isolate 标签下各 provide 一个服务实例，令两者共享同一数据句柄，
-从标签 A 的实例读取标签 B 「应当看不到」的数据——若读取成功，说明隔离确实不及于数据，
-该断言成立；若上游某个版本使读取失败，说明语义变了，本条目失效。
-
-尚未落地的原因是本项目尚无 Cordis 集成测试位置。补齐 owner：kernel 侧首个集成包。
+1. 两个 `ctx.isolate('store')` 标签下各 provide 一个服务实例，两实例共享同一个 `Map`；
+   标签 A 下的消费者解析到的是 A 的实例（标签生效），但经它写入再读出的数据对 B 同样可见——隔离不及于数据。
+   若上游某个版本使这次读取失败，语义变了，本条目失效。
+2. 同标签重复 provide 抛 `service "…" has been registered`；同一 `label` 的两次 `isolate` 合流，
+   一边 provide 另一边可解析。
 
 ## 已知的误用
 

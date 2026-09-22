@@ -78,7 +78,7 @@
 | [投影 v1](../../../product/PF-001-identity-scope-and-agent-constraints/projection/README.md) | `provenance.json` 契约来源填冻结哈希、状态 `accepted`；目录 README 的状态句 | **已完成。**需求与节点来源仍未冻结，每次据它实施前先核坐标 |
 | 实施派发（developer 角色） | 以投影 v1 为入口；实际验证证据登记到 `record/evidence/`、绑定加进各节点 `bindings.yaml` | **未闭合。**源码尚未建包；第一次真实派发之后节点才可能进入 `implemented` |
 | 产品设计（PF-001 owner） | Q-n 里归产品的未决项（会话级层身份、成本计量口径、个人 context 内容、隶属请求宿主、清扫节奏等） | **未闭合。**闭合方式是升 PF-001 rev，再发布契约 v2 |
-| record/decisions | Cordis 采用版本、`tenancy` 名各需一条决定 | `tenancy` 名**已闭合**（[D-024](../tenancy-domain-name/README.md)，同日）；Cordis 采用版本**未闭合** |
+| record/decisions | Cordis 采用版本、`tenancy` 名各需一条决定 | `tenancy` 名**已闭合**（[D-024](../tenancy-domain-name/README.md)，同日）；Cordis 采用版本**已闭合**（[D-025](../cordis-adoption-version/README.md)，同日，4.0.4）；存储选型**已闭合**（[D-026](../infrastructure-persistence-choices/README.md)，同日） |
 
 **本决定不使后几项自动完成。**接受了设计，不等于：
 包已建立、任何测试跑过、任何规范场景演练过、任何变异核对登记过、存储已选定、应用已装配。

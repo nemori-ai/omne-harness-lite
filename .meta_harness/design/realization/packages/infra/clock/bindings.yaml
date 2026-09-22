@@ -1,0 +1,10 @@
+# 条款到证据的绑定表。
+# 本节点不是任何 spec/ 契约的 provider：它承接的是 data.offer-expiry v1 S-16 的时间源形状与
+# S-17「now 不后退」那一行（装配给），契约 provider 是 core/offer-expiry 节点。
+# 那份契约不建形式工件，没有已登记的 formal task，也没有任何已存在的测试；
+# 尚不存在的证据不写占位绑定——义务记在 verification.md，缺口记在 README.md「分层状态」。
+version: 1
+node: "clock"
+kind: "provider"
+
+bindings: []

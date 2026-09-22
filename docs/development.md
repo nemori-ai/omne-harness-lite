@@ -9,11 +9,15 @@
 
 ## 当前能跑什么
 
-**`packages/` 与 `apps/` 是空骨架。**正式设计停在产品设计阶段，架构与规格设计尚未开始，
-因此没有可构建的产品包、也没有可启动的应用（[为什么](../packages/README.md#为什么是空的)）。
+**`packages/` 有十个成员，`apps/` 还没有可启动的应用。**租户领域第一程（2026-09-22）建起了
+契约纯模块、Cordis 共用件、存储协议与 sqlite/pg 提供者、租约时钟，以及四个 tenancy 插件的
+服务面骨架——它们的操作实现在第二程，所以**现在没有能启动的产品**。成员与状态见
+[packages/README](../packages/README.md)。
 
-当前实际可运行的是：**开发工具**（`tools/spec-tools`、`.meta_harness/tooling`）、
-**自动化脚本**（`scripts/`）、**agent 产物的编译与检查**，以及**形式模型的执行**。
+当前实际可运行的是：**产品包的构建、类型检查与测试**（`pnpm run build`／`typecheck`／`test`，
+含 sqlite 上的存储一致性套件与 Cordis 4.0.4 的 probe）、**结构检查**（`pnpm run lint:rules`）、
+**开发工具**（`tools/spec-tools`、`.meta_harness/tooling`）、**自动化脚本**（`scripts/`）、
+**agent 产物的编译与检查**，以及**形式模型的执行**。
 
 ## 准备可用的检出
 
@@ -97,6 +101,9 @@ pnpm format:write
 | 统一语言词条、领域对象条目，或某个产品 topic 的 rev | `make design-check`；本地迭代用 `STALE=report` 看待复核队列 |
 | 检查器或生成器行为 | `make test` |
 | TS/JS 格式 | `pnpm format:check`；局部写入 `pnpm format:write -- <文件...>` |
+| 某个产品包的源码或测试 | `pnpm --filter @omne-harness-lite/<包名> run test`（含 `*.spec-d.ts` 类型测试）；改了公开入口再跑 `pnpm run build && pnpm run typecheck` |
+| 产品源码的结构约束（墙钟、`bail`、受限调用点） | `pnpm run lint:rules`；规则与自测见 [tools/ts-checks](../tools/ts-checks/README.md) |
+| 存储提供者或迁移 | `pnpm --filter @omne-harness-lite/storage-sql run test`：sqlite 上跑一致性套件；pg 需设 `OMNE_TEST_PG_URL`，否则跳过 |
 | 形式工具是否可用 | `make formal-tools` |
 | 跨入口改动 | `make check` |
 
@@ -143,8 +150,9 @@ Claude Code 通过同级 `CLAUDE.md` 的 `@AGENTS.md` 读取同一份约定。
 | 链接、技能镜像或 agent 产物检查失败 | 修正源及其引用，按编译工具更新产物；**不要手改镜像或移出检查范围掩盖错误** |
 | `UNCOVERED` | 尚无相应模型任务——那是覆盖缺口，不是失败 |
 | 形式工具检查失败 | `make formal-tools` 看 Java/JAR 是否就位；缺环境、覆盖缺口与执行失败是三件事 |
-| `No projects matched the filters` | 正常：`packages/`、`apps/` 当前没有成员 |
-| 不知道如何启动产品 | 当前没有可启动的应用，也没有发布入口 |
+| `No projects matched the filters` | `apps/**` 当前没有成员，只对 `apps` 的过滤会这样报；`packages/**` 有成员 |
+| `storage conformance · postgres` 显示 skipped | 未设 `OMNE_TEST_PG_URL`；跳过不是通过（[验证与证据](verification.md)） |
+| 不知道如何启动产品 | 当前没有可启动的应用，也没有发布入口；tenancy 插件的操作实现在第二程 |
 
 ## 保持本页可用
 

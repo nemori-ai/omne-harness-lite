@@ -1,0 +1,10 @@
+# 条款到证据的绑定表。
+# 本节点不兑现任何 spec/ 契约条款——它兑现的是 core/storage 的存储协议（无契约坐标），
+# 所以没有可写进 clause 的坐标，也没有已登记的 formal task 或已存在的测试。
+# 协议级证据（一致性套件在本提供者上的运行）登记在 verification.md，缺口记在 README.md「分层状态」。
+# 尚不存在的证据不写占位绑定。
+version: 1
+node: "storage-sql"
+kind: "provider"
+
+bindings: []

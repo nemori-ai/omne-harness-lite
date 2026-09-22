@@ -4,7 +4,7 @@
 
 **自建一个薄的 TypeScript 模块，不依赖任何上游包。**理由：契约拥有的是**值的含义、相等规则与形状**，
 没有任何成熟库表达「TenantId 是 (OrganizationId, AccountId) 的结构相等、无角色分量、规范序列化形式唯一」这类领域约束；
-能复用的只有两处：JSON Schema Draft 2020-12 校验器（现成库，候选 `ajv`，采用版本待选型时定）与签名原语
+能复用的只有两处：JSON Schema Draft 2020-12 校验器（`ajv` 8.20.0，Draft 2020-12 入口）与签名原语
 （Node 内置 `crypto`，不引第三方）。
 
 **不是 Cordis 插件。**契约明写它[没有操作、没有状态转移、没有提交点，因此不需要插件](../../../../spec/data/identity-values/v1/contract.md#这份契约拥有什么)；
@@ -29,7 +29,7 @@
 | [S-12](../../../../spec/data/identity-values/v1/contract.md#s-12-缺席与空值都不是身份值)／[S-33](../../../../spec/data/identity-values/v1/contract.md#s-33-表示层校验与判定分开) 表示层校验 | 每个解析入口的返回是 `Parsed<T> = { ok: T } \| { invalidInput: reason }`；**不抛异常**——抛出的异常是一条调用方可以不接的带外通道 | 尚未实现 | 「`invalidInput` 不得被记成判定结果」由**类型分层**兑现：解析在判定之前、返回类型不同；消费者节点的求值次序表（如 [`capability.account-identity/v1#S-13`](../../../../spec/capabilities/account-identity/v1/contract.md#s-13-产生账号未激活) 的三层）以它为第一层 |
 | [S-13](../../../../spec/data/identity-values/v1/contract.md#s-13-sameaccountdistincttenants)／[S-14](../../../../spec/data/identity-values/v1/contract.md#s-14-上级组织与上级链)／[S-15](../../../../spec/data/identity-values/v1/contract.md#s-15-shareancestor) 派生谓词 | `sameAccountDistinctTenants(a, b)` 纯函数；`ancestorChain` 与 `shareAncestor` **只给定义式的纯函数形式**（输入一张 `parentOf: OrganizationId → OrganizationId \| null` 的快照），**不读存储**——读面归治理节点 [S-34](../../../../spec/capabilities/organization-governance/v1/contract.md#s-34-上级链与有共同上级) | 尚未实现 | 治理节点必须把「快照与写入同提交」这一半自己兑现（[S-32 ④](../../../../spec/capabilities/organization-governance/v1/contract.md#s-32-接受隶属请求)）；本模块的纯函数保证的是**定义式与契约逐字一致**（`shareAncestor` 把各自算进链，`ancestorChain` 不含自己） |
 | [S-34](../../../../spec/data/identity-values/v1/contract.md#s-34-语义身份与实现地址分开) 身份与地址分开 | 本模块**不导出**任何从路径、URL、行号构造身份值的入口 | 尚未实现 | 反向（把身份回读成地址）由 SC-1 静态检查守 |
-| [S-35](../../../../spec/data/identity-values/v1/contract.md#s-35-交接凭证-handoff-warrant) 交接凭证 | 子模块 `handoffWarrant`：`issue(signingKey, purpose, boundAccountId) → HandoffWarrant`、`verify(verificationKey, purpose, expectedAccountId, warrant) → 'ok' \| 'invalid'`。形状：非空字符串（与 S-31 同形），内容是 `purpose · AccountId · 随机数 · 签名` 的编码，**核实方不解析领域事实，只核三件**（存在、绑定该标识、由产出方签发） | 尚未实现；签名原语用 Node `crypto`（候选 Ed25519） | **这是本节点最要紧的一处选择**，理由与落选方在[下节](#交接凭证走签名不走进程内登记)。契约把机制归 realization（[「它是一条契约承诺，不是一层安全机制」](../../../../spec/data/identity-values/v1/contract.md#它是一条契约承诺不是一层安全机制)） |
+| [S-35](../../../../spec/data/identity-values/v1/contract.md#s-35-交接凭证-handoff-warrant) 交接凭证 | 子模块 `handoffWarrant`：`issue(signingKey, purpose, boundAccountId) → HandoffWarrant`、`verify(verificationKey, purpose, expectedAccountId, warrant) → 'ok' \| 'invalid'`。形状：非空字符串（与 S-31 同形），内容是 `purpose · AccountId · 随机数 · 签名` 的编码，**核实方不解析领域事实，只核三件**（存在、绑定该标识、由产出方签发） | 已实现（`src/handoff-warrant.ts`）：Node `crypto` Ed25519 直签，交换表示 `base64url(JSON{v,purpose,account,nonce}).base64url(sig)`，核实时按规范重编码比对；密钥 PEM（PKCS8／SPKI）由装配下发。不用 `jose`／`paseto`：研究第二部分查到 jose 的默认核验不检查绑定声明、paseto 默认强制 `exp`，两者都要关掉默认才对得上 S-35（[研究「三条签名路线」](../../../../../research/agent-harness-persistence-and-identity-infra/research.md)） | **这是本节点最要紧的一处选择**，理由与落选方在[下节](#交接凭证走签名不走进程内登记)。契约把机制归 realization（[「它是一条契约承诺，不是一层安全机制」](../../../../spec/data/identity-values/v1/contract.md#它是一条契约承诺不是一层安全机制)） |
 | [`identity-values.schema.json`](../../../../spec/data/identity-values/v1/identity-values.schema.json) 规范表示 | `validate(defName, value)`：按 `$defs` 名校验交换表示；Schema 文件**从 spec 目录原样复制进包**并在 CI 里核对逐字节相同（规范工件在 spec，包里是副本，副本漂移即失败） | 尚未实现 | V-1 形状自检的登记形式见 [verification.md](verification.md) |
 
 ### 交接凭证走签名，不走进程内登记

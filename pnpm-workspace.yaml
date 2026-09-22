@@ -1,3 +1,17 @@
 packages:
   - packages/*/*
   - apps/*
+  - tools/ts-checks
+
+# 版本只在这里钉一次；成员用 `catalog:` 引用。改版本先改这里，再重生锁文件。
+catalog:
+  '@deepseek-ai/cordis': 4.0.4
+  '@types/node': 24.13.6
+  ajv: 8.20.0
+  kysely: 0.29.6
+  pg: 8.23.0
+  '@types/pg': 8.15.6
+  typescript: 6.0.3
+  vitest: 4.1.11
+  zod: 4.6.5
+  '@standard-schema/spec': 1.1.0

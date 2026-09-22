@@ -1,7 +1,7 @@
 ---
 id: effect-disposal-concurrent-not-ordered
 upstream: cordis
-version: 4.0.2
+version: 4.0.4
 kind: negative
 symbols:
   - "fiber.ts: 同一 effect 内的 disposer 逆序释放"
@@ -9,12 +9,12 @@ symbols:
   - "fiber.ts: 取出后由 Promise.all 并发驱动，异常只写日志不上抛"
   - "fiber.ts: UNLOADING 或已 dispose 后再建 effect 抛 CordisError('INACTIVE_EFFECT')"
 lines:
-  - "fiber.ts:431"
+  - "fiber.ts:80-82"
   - "utils.ts:27-31"
   - "fiber.ts:675-686"
-  - "fiber.ts:351-353"
-probe: null
-checked: 2026-09-17
+  - "fiber.ts:349-353"
+probe: packages/core/kernel-basis/tests/basis/effect-disposal-concurrent-not-ordered.test.ts
+checked: 2026-09-22
 ---
 
 # effect 之间的释放是并发的，逆序只约束取出
@@ -45,11 +45,13 @@ checked: 2026-09-17
 
 ## probe 断言什么
 
-**当前为 null，本条目是待核对主张。**
+probe 在 `packages/core/kernel-basis` 里，对 4.0.4 通过（2026-09-22）：
 
-可写的 probe：注册两个 effect，其 disposer 分别延时 50ms 与 0ms 后记录时间戳；
-卸载 fiber 后断言两者**重叠**（并发）而非串行。若上游改为顺序 await，断言失败，
-本条目失效。
+1. 先注册的 effect 其 disposer 延时 50ms，后注册的延时 0ms；卸载后完成顺序是「快的先」——
+   逆注册序只约束取出，完成顺序由耗时决定，即并发。若上游改为顺序 await，此断言失败，本条目失效。
+2. 一个 disposer 抛错，`fiber.dispose()` 照常 resolve，另一个 disposer 照常执行（错误只走 `ctx.logger.error`）。
+3. 同一 generator effect 内 yield 的三个 disposer 按 3、2、1 逆序释放。
+4. fiber 已 dispose 后在其 ctx 上再建 effect 抛 `INACTIVE_EFFECT`。
 
 ## 已知的误用
 

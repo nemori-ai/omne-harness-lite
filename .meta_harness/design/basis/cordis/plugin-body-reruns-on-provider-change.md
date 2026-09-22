@@ -1,19 +1,19 @@
 ---
 id: plugin-body-reruns-on-provider-change
 upstream: cordis
-version: 4.0.2
+version: 4.0.4
 kind: positive
 symbols:
   - "fiber.ts: Fiber.store 是必需服务实现的快照"
   - "fiber.ts: store 代际由各提供者 fiber 的 uid 拼成，任一必需服务换提供者即先卸载再重跑插件体"
   - "reflect.ts: check 谓词返回假或提供者非 ACTIVE 亦触发"
 lines:
-  - "fiber.ts:197-198"
-  - "fiber.ts:611-639"
+  - "fiber.ts:210"
+  - "fiber.ts:597-646"
   - "reflect.ts:241"
-  - "reflect.ts:274"
-probe: null
-checked: 2026-09-17
+  - "reflect.ts:274-277"
+probe: packages/core/kernel-basis/tests/basis/plugin-body-reruns-on-provider-change.test.ts
+checked: 2026-09-22
 ---
 
 # 必需服务换提供者会使插件体重跑
@@ -43,12 +43,12 @@ checked: 2026-09-17
 
 ## probe 断言什么
 
-**当前为 null，本条目是待核对主张。**
+probe 在 `packages/core/kernel-basis` 里，对 4.0.4 通过（2026-09-22）：
 
-可写的 probe：消费者插件体内递增一个外部计数器；替换其必需服务的提供者，
-断言计数器增加（插件体确实重跑）。再在同一提供者实例内改变内部状态，
-断言计数器**不**增加（同实例状态变化不触发）。第二个断言同样重要——
-它防的是把「重载」理解得过宽。
+消费者插件体内递增一个外部计数器。提供者缺席时计数为 0（PENDING，插件体未跑）；
+提供者 A 就位后计数为 1；改变 A 实例内部状态并让出事件循环后仍为 1（同实例状态变化不触发）；
+撤除 A、装入提供者 B 后计数为 2（换代 ⇒ 重跑）。第二与第三个断言同样重要——
+它们防的是把「重载」理解得过宽或过窄。
 
 ## 已知的误用
 

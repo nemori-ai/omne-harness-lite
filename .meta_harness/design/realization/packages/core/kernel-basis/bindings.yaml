@@ -1,0 +1,10 @@
+# 条款到证据的绑定表。
+# 本节点不兑现任何契约条款：它是 Cordis 4.0.4 取证 probe 的家、插件层共用件与测试装配工具，
+# 没有 clause 可写。probe 不是绑定——它是 basis 条目的证据，登记在各条目的 `probe` 字段
+#（四条已于 2026-09-22 回填）；共用件的单元测试是本包自己的测试，不对任何契约条款作证。
+# 全部证据义务逐条登记在 verification.md。
+version: 1
+node: "kernel-basis"
+kind: "provider"
+
+bindings: []

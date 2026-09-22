@@ -301,7 +301,7 @@ ctx（apps 装配，本批未建节点）
 | Q-13 | 三条待核对 Cordis 主张：可选 inject 语义、`ctx.provide` 是否自动纳管、插件体抛出后 fiber 状态；AR 读本 fiber 状态的 API | 按 source-check 对采用版本取证，回填 basis | 实施前先核；核不到按各节点写的退路 |
 | Q-14 | Cordis 采用版本无决定；basis 四条 probe null（`ar#G-5`） | record/decisions；kernel 侧首个集成包 | 按 4.0.2 手册基线，决定落地后重核 bindings |
 | Q-15 | 领域名 `tenancy`、包族布局 | 产品负责人 | 按 [realization 两层布局](../../../../realization/README.md#packages-的两层布局)，改名是搬目录不改契约 |
-| Q-16 | `storage`、`clock` 提供者与入口层（装配节点未建） | 装配设计（apps） | 按节点的要求清单选型；入口层先核实身份再调治理面 |
+| Q-16 | 入口层身份核实（客户端与据点进程之间的契约尚未起草）。`storage`、`clock` 与密钥三半已由 [D-026](../../../../record/decisions/infrastructure-persistence-choices/README.md) 裁定并落到候选节点 `packages/infra/{storage-sql,clock}`、`apps/tenancy-host`（2026-09-22，存储与时钟包已建并通过一致性套件） | 装配设计（apps） | 入口层先核实身份再调治理面；那一半阻断第 3 步的入口层部分，不阻断存储与时钟 |
 | Q-17 | 认证换代时旧凭据材料的迁移策略（CV：换方案 ⇒ 旧材料 `mismatch`） | 产品负责人 | 本版一种方案，不预埋迁移 |
 | Q-18 | 契约文本四处与现行设计对不上（不改语义，待 spec owner 修订）：`ar#S-34`「两步之间崩溃后发起者回来 ⇒ ① 认回、② 重建个人组织」与 `ai#S-13`「认回须未过期」矛盾——清除链只在已过期时跑，回来的人撞上的是 `identifier-held-by-expired-record`，走就地清除后全新注册；`ar#S-25` 第 1 行仍写「③ 读到 ② 提交后的事实」而修订后 `ai#S-14` 不读组织；`ai#S-30` 第 7 行左列「同一时间源 + 同一参数源」是旧兑现描述，现行用右列的「单点判定并携带的事实」；`ai#S-4`「AccountId 由存储生成」读作「在存储提交内生成、主键约束保证唯一」；`iv` 第六节 S-35 左格写 nonce 登记而正文把机制归 realization | spec owner | 按现行节点设计实施；四处都是措辞，不改任何失败集合或次序 |
 
@@ -311,7 +311,7 @@ ctx（apps 装配，本批未建节点）
 |---|---|---|---|
 | 1 | `packages/core/identity-values`：类型、解析、纯函数、Schema 副本、`handoffWarrant` | Q-9 采用候选 | IV verification 表：V-1 正反实例全过、S-35 四类反例测试过、Schema 副本逐字节相同 CI 过 |
 | 2 | `packages/core/offer-expiry`：`deriveState`、`timingFrom`、`parseOfferTtl`、`Clock` 形状 | 1 | OE 单元测试：终结记录优先、严格不等号、`unavailable` 传播、非法时长拒绝 |
-| 3 | 装配：`storage`（满足 AI/OG 要求清单，两节点的表同一约束域）、`clock`（不后退 + 高水位）；密钥一次生成、持久保存、按节点下发 | Q-16 | 存储 AI R-1～R-7、OG R-1～R-6 各有一条测试（含 R-3 锁定读、R-6／R-7 引用约束拒绝）；`clock` 回拨 ⇒ `unavailable` 测试过；漏配密钥 ⇒ 对应节点不 `ACTIVE` |
+| 3 | 装配：`storage`（满足 AI/OG 要求清单，两节点的表同一约束域）、`clock`（不后退 + 写在前的租约）；密钥一次生成、持久保存、按节点下发。**存储与时钟提供者已建包（2026-09-22）**，装配节点候选、入口层未决 | Q-16 | 存储 AI R-1～R-7、OG R-1～R-6 各有一条测试（含 R-3 锁定读、R-6／R-7 引用约束拒绝）；`clock` 回拨 ⇒ `unavailable` 测试过；漏配密钥 ⇒ 对应节点不 `ACTIVE` |
 | 4 | `packages/tenancy/credential-verification`（密码方案） | 1 | CV 单元测试四条 |
 | 5 | `packages/tenancy/account-identity` 八个操作 | 1–4；Q-13 核对 | `ai#S-31`～`#S-34`、`#S-40`～`#S-42` 场景全过；`#S-36` lint 过；`#S-32` 含真实重启 |
 | 6 | `packages/tenancy/organization-governance` 25 个操作 | 1–5 | `og#S-46`～`#S-48`、`#S-51`、`#S-52`、`#S-54`（八支）全过；`#S-48` 真并发；创建键五支；时长两路 |

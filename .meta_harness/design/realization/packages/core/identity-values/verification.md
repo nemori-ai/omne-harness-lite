@@ -19,9 +19,9 @@
 
 | 运行 | 输入与配置范围 | 结果 | 证据位置 |
 |---|---|---|---|
-| 无 | — | — | — |
+| 2026-09-22 包内测试 | `packages/core/identity-values/tests/`：`schema.spec.ts`（Schema 副本与 spec v1 逐字节相同；契约 `examples.md` 第 1～11 节参与机检的 86 行正反实例逐条校验）、`values.spec.ts`／`predicates.spec.ts`（S-5、S-7、S-13～S-15 与上级链、有共同上级）、`handoff-warrant.spec.ts`（签发／核实；改一字节、换密钥、换 AccountId、换 purpose 四类反例核不过；私钥 PEM 不被当作验证密钥）、`identifier.spec.ts`、`types.spec-d.ts` | 211 条通过、类型测试无错误 | 终端输出（本行是主线转述，尚未登记 record/evidence run） |
 
-**有限检查不写成无条件证明。**本节点尚无任何运行。
+**有限检查不写成无条件证明。**这些测试只证纯模块对契约实例与反例的判定；隔离义务 S-16～S-30 落在消费者节点，本包只给检查器。
 
 ## 覆盖缺口
 
