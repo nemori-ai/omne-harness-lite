@@ -10,14 +10,14 @@
       },
       "family": "data",
       "topic": "identity-values",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/data/identity-values/v1/contract.md",
       "resources": [
         "spec/data/identity-values/v1/contract.md",
         "spec/data/identity-values/v1/identity-values.schema.json",
         "spec/data/identity-values/v1/examples.md"
       ],
-      "acceptance": null,
+      "acceptance": "record/decisions/tenant-domain-design-acceptance/acceptance.json",
       "dependencies": []
     },
     {
@@ -28,13 +28,13 @@
       },
       "family": "data",
       "topic": "offer-expiry",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/data/offer-expiry/v1/contract.md",
       "resources": [
         "spec/data/offer-expiry/v1/contract.md",
         "spec/data/offer-expiry/v1/offer-expiry.schema.json"
       ],
-      "acceptance": null,
+      "acceptance": "record/decisions/tenant-domain-design-acceptance/acceptance.json",
       "dependencies": [
         {
           "coordinate": {
@@ -58,12 +58,12 @@
       },
       "family": "capabilities",
       "topic": "account-identity",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/capabilities/account-identity/v1/contract.md",
       "resources": [
         "spec/capabilities/account-identity/v1/contract.md"
       ],
-      "acceptance": null,
+      "acceptance": "record/decisions/tenant-domain-design-acceptance/acceptance.json",
       "dependencies": [
         {
           "coordinate": {
@@ -92,16 +92,17 @@
       },
       "family": "capabilities",
       "topic": "organization-governance",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/capabilities/organization-governance/v1/contract.md",
       "resources": [
         "spec/capabilities/organization-governance/v1/contract.md",
+        "spec/capabilities/organization-governance/v1/formal/README.md",
         "spec/capabilities/organization-governance/v1/formal/Membership.tla",
         "spec/capabilities/organization-governance/v1/formal/Membership.cfg",
         "spec/capabilities/organization-governance/v1/formal/Membership_NoSerialization.cfg",
         "spec/capabilities/organization-governance/v1/formal/Affiliation.als"
       ],
-      "acceptance": null,
+      "acceptance": "record/decisions/tenant-domain-design-acceptance/acceptance.json",
       "dependencies": [
         {
           "coordinate": {
@@ -193,16 +194,17 @@
       },
       "family": "compositions",
       "topic": "account-registration",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/compositions/account-registration/v1/contract.md",
       "resources": [
         "spec/compositions/account-registration/v1/contract.md",
+        "spec/compositions/account-registration/v1/formal/README.md",
         "spec/compositions/account-registration/v1/formal/Registration.tla",
         "spec/compositions/account-registration/v1/formal/basic.cfg",
         "spec/compositions/account-registration/v1/formal/crash.cfg",
         "spec/compositions/account-registration/v1/formal/progress.cfg"
       ],
-      "acceptance": null,
+      "acceptance": "record/decisions/tenant-domain-design-acceptance/acceptance.json",
       "dependencies": [
         {
           "coordinate": {

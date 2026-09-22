@@ -7,9 +7,9 @@
 
 | 版本 | 状态 | 对应需求修订 | 发布日期 | 说明 |
 |---|---|---|---|---|
-| [v1](v1/projection.md) | **当前** | PF-001 rev 15（另取 PF-003 rev 4 §6.14 的邀约过期一句） | 2026-09-22 | 首版：租户领域五份候选契约 + 六个 provider 节点的投影；来源全部未冻结，`provenance.json` 里 sha256 一律 `null` |
+| [v1](v1/projection.md) | **当前，已接受** | PF-001 rev 15（另取 PF-003 rev 4 §6.14 的邀约过期一句） | 2026-09-22 | 首版：租户领域五份契约 + 六个 provider 节点的投影；[D-023](../../../record/decisions/tenant-domain-design-acceptance/README.md) 同日接受为实施入口，五份契约来源已冻结（`provenance.json` 记冻结哈希），需求与节点来源未冻结（sha256 仍 `null`） |
 
-**当前应实施的版本：v1。**但 v1 的来源全是 `candidate`，**尚无接受记录**——它告诉实施者「按当前设计该怎么做」，不表示设计已被接受。
+**当前应实施的版本：v1**，接受依据是 [D-023](../../../record/decisions/tenant-domain-design-acceptance/decision.md)。接受的是设计与实施入口，不表示任何实现或验证已完成；18 项未决 Q-n 仍是显式缺口。
 
 ## 使用与维护
 

@@ -4,8 +4,9 @@
   "version": "v1",
   "generated_at": "2026-09-22",
   "requirements_revision": "PF-001 rev 15 (README.md front-matter revision: 15); PF-003 rev 4 §6.14 for offer expiry only",
-  "frozen": false,
-  "drift_note": "registry/frozen.json has no entries for this baseline; every sha256 below is null. Before implementing from this projection, verify each resource is still the current file. Contracts are all `candidate` with no acceptance record in record/decisions/.",
+  "frozen": "contracts-only",
+  "acceptance": "record/decisions/tenant-domain-design-acceptance/decision.md",
+  "drift_note": "The five contract sources are `accepted` under D-023 (2026-09-22) and their sha256 values below are the ones registered in registry/frozen.json; the checker reports any byte change to them. Requirement and realization sources are not in the frozen set, so their sha256 stays null: before implementing from this projection, verify those resources are still the current files (PF-001 rev 15; node design.md/bindings.yaml as of the acceptance commit).",
   "sources": [
     {
       "kind": "requirement",
@@ -35,37 +36,37 @@
     {
       "kind": "contract",
       "coordinate": { "baseline_id": "omne-harness-lite-design-2026-09-15", "contract_id": "data.identity-values", "version": 1 },
-      "status": "candidate",
+      "status": "accepted",
       "resource": "spec/data/identity-values/v1/contract.md",
-      "sha256": null
+      "sha256": "3d57e58950c0ba202d611450ed66c6ff66178e1fbbb4773615ea0481145be6af"
     },
     {
       "kind": "contract",
       "coordinate": { "baseline_id": "omne-harness-lite-design-2026-09-15", "contract_id": "data.offer-expiry", "version": 1 },
-      "status": "candidate",
+      "status": "accepted",
       "resource": "spec/data/offer-expiry/v1/contract.md",
-      "sha256": null
+      "sha256": "71165d083892075381b6ab74a56c9550c266ce375ef69a1ee9b431a3da85d07f"
     },
     {
       "kind": "contract",
       "coordinate": { "baseline_id": "omne-harness-lite-design-2026-09-15", "contract_id": "capability.account-identity", "version": 1 },
-      "status": "candidate",
+      "status": "accepted",
       "resource": "spec/capabilities/account-identity/v1/contract.md",
-      "sha256": null
+      "sha256": "642eb2663732b6e84b1c895a40ea214ecc4baeec5cd6653a95c0e33119aa1023"
     },
     {
       "kind": "contract",
       "coordinate": { "baseline_id": "omne-harness-lite-design-2026-09-15", "contract_id": "capability.organization-governance", "version": 1 },
-      "status": "candidate",
+      "status": "accepted",
       "resource": "spec/capabilities/organization-governance/v1/contract.md",
-      "sha256": null
+      "sha256": "ba6e748e3fea4cb0566d198ccb821e22e8bdcf0db878b85232adf2c7644a87a4"
     },
     {
       "kind": "contract",
       "coordinate": { "baseline_id": "omne-harness-lite-design-2026-09-15", "contract_id": "composition.account-registration", "version": 1 },
-      "status": "candidate",
+      "status": "accepted",
       "resource": "spec/compositions/account-registration/v1/contract.md",
-      "sha256": null
+      "sha256": "c0224baff5551e68aa68ae2a82ec5c5424a3194b88407d48cd913092cd246803"
     },
     { "kind": "realization", "node": "realization/packages/core/identity-values", "resource": "design.md", "sha256": null },
     { "kind": "bindings", "node": "realization/packages/core/identity-values", "resource": "bindings.yaml", "sha256": null },

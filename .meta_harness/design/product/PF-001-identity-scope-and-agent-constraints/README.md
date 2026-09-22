@@ -45,7 +45,7 @@ relations:
 - 产品设计：**rev 15**，已定稿
 - 未决项：**无**
 - 待裁决：**无**
-- 技术投影：**v1**（2026-09-22，依据 rev 15；覆盖租户相关领域，来源契约全部 `candidate`、未冻结）
+- 技术投影：**v1**（2026-09-22，依据 rev 15；覆盖租户相关领域；来源契约已由 [D-023](../../record/decisions/tenant-domain-design-acceptance/README.md) 接受并冻结，投影本身同批接受为实施入口）
 
 技术投影按 `harness-design-handbook` skill 展开，
 产物按其步骤 G 落回本包的 `projection/v1/`。

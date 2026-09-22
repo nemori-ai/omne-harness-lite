@@ -3,7 +3,7 @@
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
 > **当前状态：改写后的模型已执行一次（run `-2`），上一次 run 对当前模型不适用；规范场景一条都没演练过。**
-> `composition.account-registration` v1 是候选契约，尚未接受、尚无提供者、尚无装配。
+> `composition.account-registration` v1 已由 [D-023](../../../record/decisions/tenant-domain-design-acceptance/README.md) 接受并冻结（2026-09-22），提供者设计在 [`realization/packages/tenancy/account-registration`](../../../realization/packages/tenancy/account-registration/README.md)；尚无源码、尚无装配。**此后版本目录不再原地改，语义改动发布 v2。**
 >
 > **[2026-09-22 的第一次运行](#实际执行)跑的是改写之前的模型**：
 > 它检查的 `Activate` 守卫写的是 `orgCount >= 1`，而评审轮一把那个守卫判为错误

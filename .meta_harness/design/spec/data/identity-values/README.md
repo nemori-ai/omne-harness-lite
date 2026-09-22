@@ -11,15 +11,14 @@
 **它是本次租户相关领域里最先定的一份**：其余契约引用它的值，不各自复制一份同义类型。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.identity-values, 1)`
-- **状态**：`candidate`——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
-- **catalog 映射**：**已登记**（2026-09-22，状态 `candidate`）。`family=data`、`topic=identity-values`、
+- **状态**：`accepted`，资源已冻结——[D-023](../../../record/decisions/tenant-domain-design-acceptance/README.md)（产品负责人，2026-09-22）接受 v1 全部条款，含[已知缺口](v1/contract.md#十已知缺口)作为显式缺口；**此后语义改动发布 v2，不原地改 v1**。接受不表示已实现或已验证
+- **catalog 映射**：**已登记并接受**（2026-09-22，状态 `accepted`，`acceptance` 指向 D-023 的 [`acceptance.json`](../../../record/decisions/tenant-domain-design-acceptance/acceptance.json)）。`family=data`、`topic=identity-values`、
   `contract_path=spec/data/identity-values/v1/contract.md`，
   `resources` 另含 `spec/data/identity-values/v1/identity-values.schema.json` 与
   `spec/data/identity-values/v1/examples.md`；
   **`dependencies` 为空数组**——本契约不消费任何其他契约的条款，不是「待填」；
-  `acceptance` 为 `null`。**登记只是把坐标与资源放进采用面，不是接受**，
-  [`frozen.json` 里没有本契约的任何资源](../../../registry/README.md)
-- **提供者/装配映射**：**尚无**。架构与提供者设计未开始，本包不预填目标设计
+  三项资源的 SHA-256 已登记在 [`frozen.json`](../../../registry/README.md)
+- **提供者/装配映射**：[`realization/packages/core/identity-values`](../../../realization/packages/core/identity-values/README.md)（纯模块：身份值类型、Schema 校验、交接凭证签发／核实原语）；设计已随 D-023 接受，源码尚未建包
 
 ## 准入核对
 
@@ -31,7 +30,7 @@
 | 为什么是 data 而不是 capability | 它**没有操作**：没有状态转移、没有提交点、没有自己的授权前提与失败模式，**因此不需要插件**。有状态的是记录（成员记录、登录状态记录、组织记录），它们的写路径归各自的能力契约 |
 | 精确依赖 | **无。**它是本基线的第一份身份值契约，不 `$ref` 任何其他 Schema。输入是产品正文与全局约束条款（非 spec 坐标） |
 | 谁在等它 | 同批的三份候选契约——[账号身份](../../capabilities/account-identity/README.md)（`S-1`／`S-2`／`S-9`／`S-30`／`S-31`／`S-33`／`S-35` **七条**——`S-30` 按「正文以坐标引用即消费」的判据列入，catalog 已按七条登记）、[组织治理](../../capabilities/organization-governance/README.md)（值的形状、上级链与 `shareAncestor` 的定义、`S-35`）、[账号注册组合](../../compositions/account-registration/README.md)（`S-1`／`S-2`／`S-35`，**catalog 已登记这条依赖**）；[`data.offer-expiry` v1](../offer-expiry/README.md) 取 **`S-1`／`S-3`** 两个名字；**资产领域是具名第一消费者**（契约尚未建立）。完整清单见[契约的消费者表](v1/contract.md#消费者)——**那里是唯一的一份，本行只作索引** |
-| 接受状态 | 未接受。本包不写 acceptance |
+| 接受状态 | 已接受：[D-023](../../../record/decisions/tenant-domain-design-acceptance/decision.md)，2026-09-22；catalog `acceptance` 指向该包的 `acceptance.json` |
 
 ## 按当前问题展开
 

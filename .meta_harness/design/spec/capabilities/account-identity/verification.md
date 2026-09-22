@@ -2,7 +2,7 @@
 
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
-> **当前状态：未开始。**`capability.account-identity` v1 是候选契约，尚未接受、尚无提供者、尚无装配。
+> **当前状态：未开始。**`capability.account-identity` v1 已由 [D-023](../../../record/decisions/tenant-domain-design-acceptance/README.md) 接受并冻结（2026-09-22），提供者设计在 [`realization/packages/tenancy/account-identity`](../../../realization/packages/tenancy/account-identity/README.md) 与 [`credential-verification`](../../../realization/packages/tenancy/credential-verification/README.md)；尚无源码、尚无装配。**此后版本目录不再原地改，语义改动发布 v2。**
 > 下表登记的是**已经触发的证据义务**，不是已完成的检查。
 > **一条都没有执行过**——没有实现被检查过，也没有任何场景被演练过。
 > 本包**没有任何已执行记录**：不存在起草时自检，因为本契约不发布 Schema，没有可被本地求值的工件。

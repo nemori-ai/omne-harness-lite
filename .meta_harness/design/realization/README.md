@@ -126,7 +126,9 @@ bindings:
 
 2026-09-17 建在旧候选契约上的三个 provider 节点已随那批契约于 2026-09-22 整体废弃，原件只在 Git 历史里。
 
-**provider 节点（2026-09-22 首稿，全部 `candidate`，源码尚未建包）**——租户领域五份候选契约的提供者设计：
+**provider 节点（2026-09-22 首稿，源码尚未建包）**——租户领域五份契约的提供者设计。
+六个节点的**设计**已由 [D-023](../record/decisions/tenant-domain-design-acceptance/README.md) 接受为各契约的实现路径（2026-09-22），
+所兑现的契约同批 `accepted`；节点自身的状态**仍是 `candidate`**——`implemented`／`assembled` 要等源码与真实证据：
 
 | 节点 | 兑现的契约 | 形态 |
 |---|---|---|

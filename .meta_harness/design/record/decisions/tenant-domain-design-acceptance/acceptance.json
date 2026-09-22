@@ -1,0 +1,46 @@
+{
+  "format": 1,
+  "decision_path": "record/decisions/tenant-domain-design-acceptance/decision.md",
+  "accepts": [
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "data.identity-values",
+        "version": 1
+      },
+      "scope_clauses": ["S-1..S-35"]
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "data.offer-expiry",
+        "version": 1
+      },
+      "scope_clauses": ["S-1..S-26"]
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "capability.account-identity",
+        "version": 1
+      },
+      "scope_clauses": ["S-1..S-43"]
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "capability.organization-governance",
+        "version": 1
+      },
+      "scope_clauses": ["S-1..S-60"]
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "composition.account-registration",
+        "version": 1
+      },
+      "scope_clauses": ["S-1..S-35"]
+    }
+  ]
+}

@@ -11,8 +11,8 @@
 其中聚合是一个视图功能，那份答案的权威在治理契约。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.account-identity, 1)`
-- **状态**：`candidate`——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
-- **catalog 映射**：**已登记**（2026-09-22，状态 `candidate`）。`family=capabilities`、`topic=account-identity`、
+- **状态**：`accepted`，资源已冻结——[D-023](../../../record/decisions/tenant-domain-design-acceptance/README.md)（产品负责人，2026-09-22）接受 v1 全部条款，含[已知缺口](v1/contract.md#九已知缺口)作为显式缺口；**此后语义改动发布 v2，不原地改 v1**（D-023 已点名的措辞张力：[S-39](v1/contract.md#s-39-unactivated_retention)「此后的判定」、[S-4](v1/contract.md#s-4-账号记录)「由存储生成」、[S-30](v1/contract.md#s-30-装配给的保证-vs-协议须给的保证) 第 7 行左列，都等 v2）。接受不表示已实现或已验证
+- **catalog 映射**：**已登记并接受**（2026-09-22，状态 `accepted`，`acceptance` 指向 D-023 的 [`acceptance.json`](../../../record/decisions/tenant-domain-design-acceptance/acceptance.json)）。`family=capabilities`、`topic=account-identity`、
   `contract_path=spec/capabilities/account-identity/v1/contract.md`；本版**没有其他规范资源**（不建 `formal/`、不发布 Schema，理由见下）；
   依赖一项：`omne-harness-lite-design-2026-09-15 · data.identity-values · v1`，
   消费 clauses **七条**：`S-1`、`S-2`、`S-9`、`S-30`（跨边界须重新验证）、`S-31`（不透明标识的交换表示）、
@@ -21,10 +21,10 @@
   [S-30 的两行右列](v1/contract.md#s-30-装配给的保证-vs-协议须给的保证)以坐标引用它），
   清单那一侧由主线同步，[G-5](v1/contract.md#九已知缺口) 记当前值。
   **[缺口 G-3](v1/contract.md#九已知缺口) 关的就是这一条登记，它已经闭合**（契约正文那一格也已改过）。
-  `acceptance` 为 `null`，资源未冻结——**登记不是接受**。
+  唯一资源 `contract.md` 的 SHA-256 已登记在 [`frozen.json`](../../../registry/README.md)。
   **本包入口原先写的 `family=capability` 是笔误**：检查器只接受
   `data` / `capabilities` / `compositions` 三个值，且 `family` 要与路径段一致
-- **提供者/装配映射**：**尚无**。架构与提供者设计未开始，本包不预填目标设计
+- **提供者/装配映射**：[`realization/packages/tenancy/account-identity`](../../../realization/packages/tenancy/account-identity/README.md)（全部八个操作）与 [`tenancy/credential-verification`](../../../realization/packages/tenancy/credential-verification/README.md)（凭据形式那一半，`credentials` 服务面）；设计已随 D-023 接受，源码尚未建包
 
 ## 依赖方向：治理 → 本契约，单向
 
@@ -52,7 +52,7 @@
 | 为什么是 capability 而不是 data | 它拥有**状态转移**（未激活→已激活、有效→已失效）与**授权判定**（撤销的发起方资格），两者都有失败模式。[data 只拥有共享含义与结构](../../README.md#准入门槛与停止条件) |
 | 为什么凭据校验不单独立一份契约 | 它是[S-15](v1/contract.md#s-15-验证凭据并签发登录状态)一条操作的内部，**对消费者不构成独立的责任面**——没有任何消费者需要「只校验不签发」。把它拆成第二份契约，消费者要同时依赖两份才能完成一次登录，而两份之间又没有可独立演化的语义 |
 | 精确依赖 | `data.identity-values` v1，取 AccountId、LoginStateId 与「登录标识不是引用键」这一区分 |
-| 接受状态 | 未接受。本包不写 acceptance |
+| 接受状态 | 已接受：[D-023](../../../record/decisions/tenant-domain-design-acceptance/decision.md)，2026-09-22；catalog `acceptance` 指向该包的 `acceptance.json` |
 
 ## 按当前问题展开
 

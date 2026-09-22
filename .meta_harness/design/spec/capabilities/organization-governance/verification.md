@@ -3,7 +3,7 @@
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
 > **当前状态：形式工件已执行第二次（run `-2`，评审轮一修订之后），规范场景一条都没演练过。**
-> `capability.organization-governance` v1 是候选契约，尚未接受、尚无提供者、尚无装配。
+> `capability.organization-governance` v1 已由 [D-023](../../../record/decisions/tenant-domain-design-acceptance/README.md) 接受并冻结（2026-09-22），提供者设计在 [`realization/packages/tenancy/organization-governance`](../../../realization/packages/tenancy/organization-governance/README.md)；尚无源码、尚无装配。**此后版本目录不再原地改，语义改动发布 v2。**
 > 下表登记的是**已经触发的证据义务**，其中形式工件那一组在
 > [2026-09-22 的两次运行](#实际执行)里各执行过一遍，**结果记在那一节**。
 >

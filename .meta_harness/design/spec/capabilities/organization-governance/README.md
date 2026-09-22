@@ -20,15 +20,15 @@
 见[契约 S-4 末段的四条](v1/contract.md#s-4-依赖方向与被消费的面)。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.organization-governance, 1)`
-- **状态**：`candidate`——语义可被审阅；接受、采用与冻结均未由有权者闭合，
-  不得据此发布或声称消费者已采用
-- **catalog 映射**：**已登记**（2026-09-22，状态 `candidate`）。`family=capabilities`、
+- **状态**：`accepted`，资源已冻结——[D-023](../../../record/decisions/tenant-domain-design-acceptance/README.md)（产品负责人，2026-09-22）接受 v1 全部条款，
+  含[已知缺口](v1/contract.md#十一已知缺口)作为显式缺口；**此后语义改动发布 v2，不原地改 v1**。接受不表示已实现或已验证
+- **catalog 映射**：**已登记并接受**（2026-09-22，状态 `accepted`，`acceptance` 指向 D-023 的 [`acceptance.json`](../../../record/decisions/tenant-domain-design-acceptance/acceptance.json)）。`family=capabilities`、
   `topic=organization-governance`、
   `contract_path=spec/capabilities/organization-governance/v1/contract.md`，
   `resources` 另含 `v1/formal/Membership.tla`、`v1/formal/Membership.cfg`、
-  `v1/formal/Membership_NoSerialization.cfg`、`v1/formal/Affiliation.als`
-  （`v1/formal/README.md` 是导航页，**未登记为资源**）；依赖三项，
-  `acceptance` 为 `null`，资源未冻结。
+  `v1/formal/Membership_NoSerialization.cfg`、`v1/formal/Affiliation.als` 与 `v1/formal/README.md`
+  （导航页随接受一并登记为资源，版本目录整体冻结）；依赖三项；
+  六项资源的 SHA-256 已登记在 [`frozen.json`](../../../registry/README.md)。
   [缺口 G-10](v1/contract.md#十一已知缺口) 关的就是这一条登记与它暴露的消费清单缺口，
   **两半都已在评审轮一闭合**（评审轮三前它占用 `G-5`，与已关闭的 shareAncestor 那条一号两指，改号不改内容）。
   - `capability.account-identity · v1` 消费 clauses `S-14`、`S-17`、`S-18`、`S-20`、`S-22`、`S-38`（评审轮四按「引用即消费」补齐四条），
@@ -53,7 +53,7 @@
   （[第一次](../../../record/evidence/2026-09-22-formal-tenant-domain/README.md)之后
   `Affiliation.als` 改过，**Alloy 那四格以第二次为准**；`Membership.*` 两次逐字节相同），
   映射仍见 [formal 入口](v1/formal/README.md)
-- **提供者/装配映射**：**尚无**。架构与提供者设计未开始，本包不预填目标设计
+- **提供者/装配映射**：[`realization/packages/tenancy/organization-governance`](../../../realization/packages/tenancy/organization-governance/README.md)（一个插件、四个服务面，[S-53](v1/contract.md#s-53-清除未激活账号的个人组织) 单列只给清除链）；设计已随 D-023 接受，源码尚未建包
 
 ## 准入核对
 
@@ -64,7 +64,7 @@
 | 适用范围 | 组织与成员这一侧的事实与操作。**账号、登录状态、凭据不在范围内**；资产持有与配值、会话、成本计量也不在 |
 | 为什么是 capability 而不是 data | 它的每个写操作都有**授权前置**（谁能邀请、谁能调角色、谁能解除）与**失败模式**，且有[需要被别人调用的读面](v1/contract.md#s-26-成员资格判定)。这两样是 data 契约没有的 |
 | 精确依赖 | `data.identity-values` v1（身份值与隔离义务）、`data.offer-expiry` v1（过期语义，**整块引用不复制**）、`capability.account-identity` v1（两个读面） |
-| 接受状态 | 未接受。本包不写 acceptance |
+| 接受状态 | 已接受：[D-023](../../../record/decisions/tenant-domain-design-acceptance/decision.md)，2026-09-22；catalog `acceptance` 指向该包的 `acceptance.json` |
 
 ## 按当前问题展开
 

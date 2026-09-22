@@ -86,7 +86,8 @@ Alloy 可按结构关系建立模型，检查断言并探索合法实例；参�
 
 ## 当前状态
 
-**当前有五个候选 topic**，都属租户相关领域，**全部为 `candidate`**：
+**当前有五个 topic**，都属租户相关领域，**全部为 `accepted`、资源已冻结**
+（[D-023](../record/decisions/tenant-domain-design-acceptance/README.md)，产品负责人，2026-09-22）：
 
 | topic | 拥有什么 |
 |---|---|
@@ -96,8 +97,8 @@ Alloy 可按结构关系建立模型，检查断言并探索合法实例；参�
 | [`capabilities/organization-governance`](capabilities/organization-governance/README.md) | 组织、成员关系、邀请与隶属请求、当前租户身份 |
 | [`compositions/account-registration`](compositions/account-registration/README.md) | 一次注册从入口走到稳定点的整体责任 |
 
-**五份已在 [catalog](../registry/README.md) 登记**（2026-09-22），**状态一律 `candidate`**，
-`acceptance` 全为 `null`，`frozen.json` 里一条资源也没有。
+**五份已在 [catalog](../registry/README.md) 登记并接受**（登记与接受都在 2026-09-22），
+`acceptance` 一律指向 D-023 的 `acceptance.json`，`frozen.json` 登记了五个 v1 目录的全部 18 项资源。
 它们之间的依赖带精确坐标与消费 clauses，登记口径是**正文以坐标引用某条款即为消费**，
 只有否定式提及（「不来自」「不同于」）不登；**方向只算消费者 → 提供者**：data 契约正文以坐标引用
 capability／composition 条款作「落点」（谁在用它），不构成 data 契约对它们的依赖；
@@ -105,9 +106,12 @@ capability／composition 条款作「落点」（谁在用它），不构成 dat
 （如引用对方的依赖方向声明）或类比（「与……是同一条规矩」）的引用不登；`organization-governance` 对 `data.identity-values`
 的消费面已于评审轮二收齐为 27 条，与 [契约 S-4 的表](capabilities/organization-governance/README.md)一致。
 
-**登记不是接受，也不是发布。**[`record/decisions/`](../record/decisions/README.md) 里一份决定文件都没有；
-因此 PF-001 升 rev 带来的语义变化**仍然直接落在 v1 上，不发布第二个版本**——
-[不可原地覆盖的是已发布规格](#路径即身份)，这五份都还没有发布。
+**接受由 [D-023](../record/decisions/tenant-domain-design-acceptance/decision.md) 完成，冻结由 registry 完成。**
+评审期间「PF-001 升 rev 的语义变化直接落在 v1 上」的做法**自接受起终止**：
+v1 目录任何字节变化都会被检查器报 `frozen file changed`，语义改动[发布 v2](#路径即身份)
+（`baseline.json` 的 `version_policy` 已是 `evolving`）。D-023 已点名四处措辞与现行节点设计对不上、
+一处 S-39 读法待收口——**都留给 v2，实施按现行节点设计**。
+接受不表示已实现或已验证：五个 `verification.md` 在版本外，仍可变，实际状态以它们为准。
 
 **形式工件已执行过两轮**（都在 2026-09-22：
 [第一轮](../record/evidence/2026-09-22-formal-tenant-domain/README.md)，

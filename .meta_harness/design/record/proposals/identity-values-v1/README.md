@@ -8,10 +8,11 @@
 `TenantId` 给不给标量形式、不透明标识的相等语义要不要写进契约、
 `ScopeLayerIdentity` 的变体枚举是开是闭、「显式携带」携带的是 `TenantId` 还是按归属层的那个值。
 
-- **当前状态：候选。**三份竞标已由主线合并裁定，**合并结果已落盘为
-  [`spec/data/identity-values` v1](../../../spec/data/identity-values/README.md)，状态 `candidate`**。
-  **没有接受。**[`record/decisions/`](../../decisions/README.md) 里没有这份契约的决定文件，
-  [catalog 登记的状态也是 `candidate`](../../../registry/README.md)。
+- **当前状态：合并件已接受。**三份竞标已由主线合并裁定，合并结果落盘为
+  [`spec/data/identity-values` v1](../../../spec/data/identity-values/README.md)，
+  并由 [D-023](../../decisions/tenant-domain-design-acceptance/README.md)（产品负责人，2026-09-22）接受，
+  [catalog 状态 `accepted`、资源已冻结](../../../registry/README.md)。
+  **接受的是合并件，不是任何一份原件**——三份原件本身未被独立评审，留在本包作来源。
 - **本次终点与范围**：把竞标原件、择优规则与主线裁定收成一个可长期消费的信息包。
   评审记录见 [review.md](review.md)：合并件经过四轮 spec-reviewer 评审并在第四轮收敛（0 阻断）；三份原件本身未被独立评审，architecture-reviewer 未派。
 - **输入基线**：PF-001 rev 8 及其后续修订、PF-002、PF-003、PF-015 的产品正文，
@@ -44,9 +45,8 @@
   **它是合并结果，不是三份中的任何一份**；对应关系见
   [alternatives.md 的择优规则](alternatives.md#择优规则合并成一份的依据)。
 - **已在 catalog 登记**（2026-09-22）：坐标
-  `(omne-harness-lite-design-2026-09-15, data.identity-values, 1)`，状态 `candidate`，
-  `dependencies` 为空数组，`acceptance` 为 `null`。
-  **登记是采用面的坐标，不是接受**。
+  `(omne-harness-lite-design-2026-09-15, data.identity-values, 1)`，状态 `accepted`（自 D-023 起），
+  `dependencies` 为空数组，`acceptance` 指向 D-023 的 `acceptance.json`。
 - **四个消费者契约**各自登记了对它的依赖：
   [offer-expiry](../../../spec/data/offer-expiry/README.md)、
   [account-identity](../../../spec/capabilities/account-identity/README.md)、

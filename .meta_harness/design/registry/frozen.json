@@ -1,5 +1,24 @@
 {
   "format": 1,
   "baseline_id": "omne-harness-lite-design-2026-09-15",
-  "files": {}
+  "files": {
+    "spec/data/identity-values/v1/contract.md": "3d57e58950c0ba202d611450ed66c6ff66178e1fbbb4773615ea0481145be6af",
+    "spec/data/identity-values/v1/identity-values.schema.json": "1d1f5743c28de3400ecd332072549b6540ca602e553708491caa468267c6a855",
+    "spec/data/identity-values/v1/examples.md": "7c89ef5272f16b4deb6f9461a8b313789ad8e62fbb24719184b02b569c58e039",
+    "spec/data/offer-expiry/v1/contract.md": "71165d083892075381b6ab74a56c9550c266ce375ef69a1ee9b431a3da85d07f",
+    "spec/data/offer-expiry/v1/offer-expiry.schema.json": "63a8ccb42ea5f84a8062c9e8a472679c0d7ff11401c43939641587b48e2b0684",
+    "spec/capabilities/account-identity/v1/contract.md": "642eb2663732b6e84b1c895a40ea214ecc4baeec5cd6653a95c0e33119aa1023",
+    "spec/capabilities/organization-governance/v1/contract.md": "ba6e748e3fea4cb0566d198ccb821e22e8bdcf0db878b85232adf2c7644a87a4",
+    "spec/capabilities/organization-governance/v1/formal/README.md": "0ffe35efbb436b703d8b69dc9fe90db078e67f9a952fde93aa8730b878ba0c58",
+    "spec/capabilities/organization-governance/v1/formal/Membership.tla": "5c7656a47c3b827e638a24f781c4039ccb6d7a669e37799e8580101043bde436",
+    "spec/capabilities/organization-governance/v1/formal/Membership.cfg": "abaa8fa24bf14e8c8fa7e7bed0858197a78bd532c56887f27d462c42e1195734",
+    "spec/capabilities/organization-governance/v1/formal/Membership_NoSerialization.cfg": "8b0631823173848c527d32a9685470184a46a881440cd33fa5a55c19ba990159",
+    "spec/capabilities/organization-governance/v1/formal/Affiliation.als": "1a72efa2f9b7c8199ae3aac797154120cf714a9b6dc674961621c8187cd1526f",
+    "spec/compositions/account-registration/v1/contract.md": "c0224baff5551e68aa68ae2a82ec5c5424a3194b88407d48cd913092cd246803",
+    "spec/compositions/account-registration/v1/formal/README.md": "38fef9713f750e3e99266ad4541dc1d283f672749fb0cbaf02033743c632f5a6",
+    "spec/compositions/account-registration/v1/formal/Registration.tla": "83bc2f8c54bd5057e5831f638bd41d25fe8d908bb5fd43db937d2ee324230f20",
+    "spec/compositions/account-registration/v1/formal/basic.cfg": "38198123c96a2704908a72b8df4ea8a76cdf1fac1b05a4622c3b3e178915d64d",
+    "spec/compositions/account-registration/v1/formal/crash.cfg": "2a77296a8915042cf5f53d0f92a476b2e568e61a68d36044b78282125fff7ffc",
+    "spec/compositions/account-registration/v1/formal/progress.cfg": "6c1a4b3da5fe329b4db766559b1a0905002d050c8af71ad42fe1574b75c90cca"
+  }
 }

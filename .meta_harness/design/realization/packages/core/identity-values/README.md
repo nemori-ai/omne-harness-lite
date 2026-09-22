@@ -1,13 +1,13 @@
 # identity-values
 
 - kind：`provider`
-- 对象与设计修订：候选节点，2026-09-22 首稿；兑现 `omne-harness-lite-design-2026-09-15 · data.identity-values · v1`（[契约](../../../../spec/data/identity-values/v1/contract.md)，状态 `candidate`）
+- 对象与设计修订：候选节点，2026-09-22 首稿，设计同日由 [D-023](../../../../record/decisions/tenant-domain-design-acceptance/README.md) 接受为实现路径；兑现 `omne-harness-lite-design-2026-09-15 · data.identity-values · v1`（[契约](../../../../spec/data/identity-values/v1/contract.md)，状态 `accepted`、已冻结）
 - 源码位置：`packages/core/identity-values`——**尚未建包**。归 `core`：它兑现一份 `data.*` 契约，被租户领域全部四个节点与将来的资产领域消费（[两层布局](../../../README.md#packages-的两层布局)；第一层不是 workspace 成员，见承载仓库 `docs/workspace.md`）
 - 契约采用与边界依据：本节点是**纯模块，不是 Cordis 插件**——那份契约[没有操作、没有状态转移、没有提交点，因此不需要插件](../../../../spec/data/identity-values/v1/contract.md#这份契约拥有什么)。它提供三样：身份值的类型与相等／序列化、Schema 校验入口、[交接凭证](../../../../spec/data/identity-values/v1/contract.md#s-35-交接凭证-handoff-warrant)的签发与核实原语。**隔离义务（[S-16](../../../../spec/data/identity-values/v1/contract.md#s-16-按归属层显式携带身份值)～[S-30](../../../../spec/data/identity-values/v1/contract.md#s-30-跨边界须重新验证)）本模块兑现不了**——它们约束的是每个 owner 自己的判定路径，本模块只提供类型与检查器，义务落在消费者节点
 
 ## 分层状态
 
-- 语义接受范围：**无。**五份租户领域契约全部 `candidate`，[`record/decisions/`](../../../../record/decisions/README.md) 没有接受记录。本节点不因此提升任何条款的状态
+- 语义接受范围：`data.identity-values` v1 **全部条款**（含其已知缺口作为显式缺口），依据 [D-023](../../../../record/decisions/tenant-domain-design-acceptance/decision.md)（产品负责人，2026-09-22）；本节点的设计随同一决定被接受为实现路径。接受不提升下面三层
 - 可实施范围：本节点声称兑现的条款逐条见 [design.md「能力到 Cordis 的投影」](design.md#能力到-cordis-的投影)——身份值形状（S-1～S-13、S-31～S-34）、`MembershipStandingResult` 的两支形状（S-10）、`ScopeLayerIdentity` 两变体（S-11）、交接凭证的形状与签发／核实原语（S-35）。**不兑现**：隔离义务 S-16～S-30 的任何一条（只给检查器），成员资格效力怎么算（S-10 的行为面归治理节点），标识的**部署内唯一**（归各持有节点的存储约束）
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) 为**空表**——本契约没有已登记的 formal task，Schema 形状自检（V-1）只做过本地未登记的一次。证据义务 14 条全部「未开始」，见 [verification.md](verification.md)
 - 实际验证：**尚无。**源码不存在，没有任何运行结果

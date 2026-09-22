@@ -3,7 +3,7 @@
 [`A/`](A/contract.md)、[`B/`](B/contract.md)、[`C/`](C/contract.md) 是三位起草者**各自独立**
 交出的完整候选包。它们的比较与择优在 [alternatives.md](../alternatives.md)，**本页不重复**。
 
-**这些是原件，不是现行契约。**现行的候选契约是
+**这些是原件，不是现行契约。**现行契约（已接受）是
 [`spec/data/identity-values` v1](../../../../spec/data/identity-values/README.md)，
 它是三份的**合并件**，与这里任何一份都不相同。
 **不要照这里的条款号或措辞去实现或引用**——条款在合并时被重新编号过。

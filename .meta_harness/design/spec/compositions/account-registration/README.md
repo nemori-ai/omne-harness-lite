@@ -19,11 +19,11 @@
 于是「有账号但没有个人空间」这种状态在可观察面上不存在。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, composition.account-registration, 1)`
-- **状态**：`candidate`——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
-- **catalog 映射**：**已登记**（2026-09-22，状态 `candidate`）。`family=compositions`、`topic=account-registration`、
+- **状态**：`accepted`，资源已冻结——[D-023](../../../record/decisions/tenant-domain-design-acceptance/README.md)（产品负责人，2026-09-22）接受 v1 全部条款，含[已知缺口](v1/contract.md#九已知缺口)作为显式缺口；**此后语义改动发布 v2，不原地改 v1**（D-023 已点名的措辞张力：[S-34](v1/contract.md#s-34-第二条动作链未激活到期清除) 崩溃后回来的两步、[S-25](v1/contract.md#s-25-装配给的保证-vs-协议须给的保证) 第 1 行，都等 v2）。接受不表示已实现或已验证
+- **catalog 映射**：**已登记并接受**（2026-09-22，状态 `accepted`，`acceptance` 指向 D-023 的 [`acceptance.json`](../../../record/decisions/tenant-domain-design-acceptance/acceptance.json)）。`family=compositions`、`topic=account-registration`、
   `contract_path=spec/compositions/account-registration/v1/contract.md`；
-  `resources` 另含 `v1/formal/Registration.tla`、`v1/formal/basic.cfg`、`v1/formal/crash.cfg`、`v1/formal/progress.cfg`
-  （`v1/formal/README.md` 是导航页，**未登记为资源**）；
+  `resources` 另含 `v1/formal/Registration.tla`、`v1/formal/basic.cfg`、`v1/formal/crash.cfg`、`v1/formal/progress.cfg` 与 `v1/formal/README.md`
+  （导航页随接受一并登记为资源，版本目录整体冻结）；
   依赖三项——`omne-harness-lite-design-2026-09-15 · capability.account-identity · v1`
   （clauses `S-13`／`S-14`／`S-18`／`S-19`／`S-30`／`S-38`／`S-39`／`S-41`／`S-42`／`S-43`——`S-30` 是评审轮四按「实质消费」补登，
   **后三条是评审轮三按「引用即消费」补上的**：[formal 包](v1/formal/README.md#本版本选用什么)与[验证入口](verification.md#证据义务)以坐标引用那三条场景作本契约证据的落点；catalog 由主线同步）、
@@ -35,7 +35,7 @@
   **第三条依赖项与 `#S-19`／`#S-39` 两个 clause 是评审轮二补齐的，[G-7](v1/contract.md#九已知缺口) 就此闭合**；
   `#S-41`／`#S-42`／`#S-43` 三个 clause 是评审轮三补上的（catalog 那一侧由主线同步）；
   `covers.json` 的 `acceptance.md#三判据` 那一行曾缺 `S-12`／`S-34`，评审轮二后已由主线补登记。
-  `acceptance` 为 `null`，资源未冻结——**登记不是接受**，两份参与方契约也都还是 `candidate`。
+  六项资源的 SHA-256 已登记在 [`frozen.json`](../../../registry/README.md)；两份参与方契约与本契约同批接受（D-023）。
   **本包入口原先写的 `family=composition` 是笔误**：检查器只接受
   `data` / `capabilities` / `compositions` 三个值，且 `family` 要与路径段一致
 - **formal-tasks 映射**：**三项已全部登记**（2026-09-22）——
@@ -46,7 +46,7 @@
   [第一次](../../../record/evidence/2026-09-22-formal-tenant-domain/README.md)跑的是评审轮一改写之前的模型
   （`Activate` 的守卫、`warrant` 变量与 `progress.cfg` 的 `Expiring` 取值都变了），
   **那次的结论不再适用**。**变异与有效性核对仍未登记**，见[验证入口](verification.md)
-- **提供者/装配映射**：**尚无**。架构与提供者设计未开始，本包不预填目标设计
+- **提供者/装配映射**：[`realization/packages/tenancy/account-registration`](../../../realization/packages/tenancy/account-registration/README.md)（薄插件、两条动作链；清扫提供者因缺枚举读面本版建不起来）；设计已随 D-023 接受，源码尚未建包
 
 ## 准入核对
 
@@ -59,7 +59,7 @@
 | 参与方与版本 | 见 [S-2](v1/contract.md#s-2-参与方与精确承诺)。两份参与方契约**已成稿，消费条款号已填**，catalog 也已登记；三份都还是 `candidate`。**对 `data.identity-values` v1 的依赖登记已于评审轮二补上**（[缺口 G-7](v1/contract.md#九已知缺口) 闭合） |
 | 保护者是否明确 | 是。每一步的保护点逐条写在[完整动作链](v1/contract.md#s-8-三步次序与责任交接)里，唯一提交点在 ③ |
 | 失败后的接续责任是否明确 | 是。[S-11](v1/contract.md#s-11-失败停在哪) 给三个稳定状态，[S-12](v1/contract.md#s-12-重试规则) 给重试规则 |
-| 接受状态 | 未接受。本包不写 acceptance |
+| 接受状态 | 已接受：[D-023](../../../record/decisions/tenant-domain-design-acceptance/decision.md)，2026-09-22；catalog `acceptance` 指向该包的 `acceptance.json` |
 
 ## 按当前问题展开
 

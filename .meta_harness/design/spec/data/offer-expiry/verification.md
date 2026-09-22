@@ -2,7 +2,7 @@
 
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
-> **当前状态：未开始。**`data.offer-expiry` v1 是候选契约，尚未接受、尚无提供者、尚无装配。
+> **当前状态：未开始。**`data.offer-expiry` v1 已由 [D-023](../../../record/decisions/tenant-domain-design-acceptance/README.md) 接受并冻结（2026-09-22），提供者设计在 [`realization/packages/core/offer-expiry`](../../../realization/packages/core/offer-expiry/README.md)；尚无源码、尚无装配。**此后版本目录不再原地改，语义改动发布 v2。**
 > 下表登记的是**已经触发的证据义务**，不是已完成的检查。
 > **四条规范场景一条都未执行**——文件存在不代替结果。
 > 唯一跑过的是起草时对 Schema 正反实例的一次自检，其范围与局限见[下节](#结果与反例)；

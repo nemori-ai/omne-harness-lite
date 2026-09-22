@@ -13,15 +13,15 @@
 各归发出它的那个能力契约。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.offer-expiry, 1)`
-- **状态**：`candidate`——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
-- **catalog 映射**：**已登记**（2026-09-22，状态 `candidate`）。`family=data`、`topic=offer-expiry`、
+- **状态**：`accepted`，资源已冻结——[D-023](../../../record/decisions/tenant-domain-design-acceptance/README.md)（产品负责人，2026-09-22）接受 v1 全部条款，含[已知缺口](v1/contract.md#八已知缺口)作为显式缺口；**此后语义改动发布 v2，不原地改 v1**。接受不表示已实现或已验证
+- **catalog 映射**：**已登记并接受**（2026-09-22，状态 `accepted`，`acceptance` 指向 D-023 的 [`acceptance.json`](../../../record/decisions/tenant-domain-design-acceptance/acceptance.json)）。`family=data`、`topic=offer-expiry`、
   `contract_path=spec/data/offer-expiry/v1/contract.md`，
   `resources` 另含 `spec/data/offer-expiry/v1/offer-expiry.schema.json`；
   依赖一项：`omne-harness-lite-design-2026-09-15 · data.identity-values · v1`，
   消费 clauses `S-1`（AccountId）与 `S-3`（OrganizationId）。
   [缺口 G-5](v1/contract.md#八已知缺口) 关的就是这一条登记，**契约正文与这里都已标为闭合**。
-  `acceptance` 为 `null`，资源未冻结——**登记不是接受**
-- **提供者/装配映射**：**尚无**。架构与提供者设计未开始，本包不预填目标设计
+  两项资源的 SHA-256 已登记在 [`frozen.json`](../../../registry/README.md)
+- **提供者/装配映射**：[`realization/packages/core/offer-expiry`](../../../realization/packages/core/offer-expiry/README.md)（纯模块：`OfferTiming`、派生状态纯求值、`Clock` 形状）；设计已随 D-023 接受，源码尚未建包
 
 ## 准入核对
 
@@ -32,7 +32,7 @@
 | 适用范围 | 待接受的邀约。**已经被接受之后产生的东西不在范围内**——[分享确认之后的使用权没有到期](../../../product/PF-003-asset-transfer-and-sharing/design.md#614-待确认的复制通知与分享邀请会过期)，租户与上级组织属性同理 |
 | 为什么是 data 而不是 capability | 它没有需要被别人调用的行为：到期时刻是值，判定是纯计算，没有自己的授权前提与失败模式。发出、撤回、接受这些**有**授权与失败的操作，归各自的能力契约 |
 | 精确依赖 | `data.identity-values` v1，只取 OrganizationId、AccountId 两个名字 |
-| 接受状态 | 未接受。本包不写 acceptance |
+| 接受状态 | 已接受：[D-023](../../../record/decisions/tenant-domain-design-acceptance/decision.md)，2026-09-22；catalog `acceptance` 指向该包的 `acceptance.json` |
 
 ## 按当前问题展开
 

@@ -76,7 +76,7 @@
 
 ## 交接缺口
 
-- **没有决定。**本契约仍是 `candidate`；[接受归 decisions](../../decisions/README.md)。
+- **决定已落**：合并件由 [D-023](../../decisions/tenant-domain-design-acceptance/README.md) 接受（2026-09-22）；三份原件不在接受范围。
 - **没有评审。**见 [review.md](review.md)。
 - **没有提供者、没有装配、没有证据。**四份消费者契约同样都是 `candidate`，
   因此「依赖已登记」不等于「依赖可用」。

@@ -2,7 +2,7 @@
 
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
-> **当前状态：未开始。**`data.identity-values` v1 是候选契约，尚未接受、尚无提供者、尚无装配。
+> **当前状态：未开始。**`data.identity-values` v1 已由 [D-023](../../../record/decisions/tenant-domain-design-acceptance/README.md) 接受并冻结（2026-09-22），提供者设计在 [`realization/packages/core/identity-values`](../../../realization/packages/core/identity-values/README.md)；尚无源码、尚无装配。**此后版本目录不再原地改，语义改动发布 v2。**
 > 下表登记的是**已经触发的证据义务**，不是已完成的检查。
 > **九条静态检查（SC-1～SC-9）、十条消费者核对场景（CS-1～CS-10）、
 > 十条隔离义务规范场景（IS-1～IS-10）一条都未执行**——文件存在不代替结果。
