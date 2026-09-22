@@ -30,7 +30,7 @@ relations:
 **我们能调哪些模型、怎么把一次请求发出去、调不通怎么办、用户怎么换。**
 
 这一层此前没有主：[一次工具执行有 PF-006](../PF-006-tools-and-skills/README.md)，
-而与它同级的一次模型调用空着——[PF-011 §9.1 把这个缺口整格排了出来](../PF-011-off-nominal-handling/design.md#91-模型调用那一层还没有-owner)。
+而与它同级的一次模型调用空着——[PF-011 把这一层整格排了出来，一段一段点明各归谁](../PF-011-off-nominal-handling/design.md#模型调用那一层整格是这么分的)。
 本 topic 接下那一格，并按产品负责人 2026-09-20 的裁决把**模型档案**与**会话切换模型**
 一并纳入：三者共享同一批事实，拆开会让一条规则跨三个包。
 
@@ -66,14 +66,17 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 2**，草稿。rev 1 起草于 2026-09-20，
-  [同日按转换件与「面向状态码」两条裁决修订](changelog.md#rev-2--2026-09-20)
+- 产品设计：**rev 3**，草稿。rev 1 起草于 2026-09-20，
+  同日两次修订：[rev 2 按转换件与「面向状态码」两条裁决](changelog.md#rev-2--2026-09-20)、
+  [rev 3 写死模型请求运行时的宿主](changelog.md#rev-3--2026-09-20)
 - 待裁决：**0**。唯一那条（没人挂拓展件时的默认行为）已由[裁决 17](decisions.md#裁决-17--没人挂的时候系统自带一件) 定掉
 - **本 topic 新拥有[转换件的契约](design.md#转换件)**——
   位置归 [PF-012](../PF-012-agent-loop-and-run/design.md#模态转换为什么必须落在这里)，
   「有哪些模态、哪个模型收得下哪些」是大语言模型域定的，所以契约归这里
-- **[PF-012 rev 4](../PF-012-agent-loop-and-run/README.md) 与
-  [PF-014 rev 2](../PF-014-inbound-intake-and-queueing/README.md) 是同一次联合修订的另两份产物**，要对齐后才谈接受
+- **本 topic 与 [PF-012](../PF-012-agent-loop-and-run/README.md)、
+  [PF-014](../PF-014-inbound-intake-and-queueing/README.md) 出自同一次联合修订**；
+  那两份此后各自继续演进——**PF-012 到 rev 7**，**PF-014 到 rev 3 并已定稿**。
+  **本 topic 仍是 draft rev 3**，接受与否按本段，不随那两份的状态走
 - 技术投影：尚未开始
 
 ## 本包的文件

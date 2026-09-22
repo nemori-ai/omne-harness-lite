@@ -1,6 +1,6 @@
 # PF-008：Human in the Loop
 
-- 修订：rev 1，2026-09-17 · [变更历史](changelog.md)
+- 修订：rev 4，2026-09-21 · [变更历史](changelog.md)
 - 状态：已定稿，**无未决项**
 
 ## 一、背景与问题
@@ -37,7 +37,7 @@ agent 拿不准的时候怎么问人、动手之前怎么请示。但那写的�
 |---|---|
 | `Ask()` 这扇门本身的命令与形状 | 归 [PF-007](../PF-007-meta-capabilities/design.md#611-ask通向人)。本 topic 接在它后面 |
 | 等待态原语本身 | 归 [PF-006](../PF-006-tools-and-skills/design.md#等待态) |
-| **Run 怎么被驱动、会话怎么建与怎么收束** | 归后续 topic。本 topic 只引用，见 §4 |
+| **Run 怎么被驱动、会话怎么建与怎么收束** | 分别归 [PF-012](../PF-012-agent-loop-and-run/README.md) 与 [PF-015](../PF-015-session-lifecycle-and-ownership/README.md)。本 topic 只引用，见 [§4](#只引用不拥有的两个对象) |
 | 那个判断函数**怎么实现** | 产品只定它的职责与必须满足的性质 |
 | 池子的**界面长什么样** | 产品定「人必须能做到什么」，不画界面 |
 | 通知怎么送达（推送 / 邮件 / 红点） | 技术设计。产品只要求**人得知道有东西在等他** |
@@ -81,14 +81,16 @@ agent 拿不准的时候怎么问人、动手之前怎么请示。但那写的�
 
 ### 只引用、不拥有的两个对象
 
-本 topic 绕不开这两样，但**只用到它们各自的几件事**。它们的完整定义归后续 topic
-（产品负责人已明确 agent-loop / session / inbound 会是**多个** PF）。
+本 topic 绕不开这两样，但**只用到它们各自的几件事**。
+它们的完整定义归 [PF-012](../PF-012-agent-loop-and-run/README.md)（Run 与 Agent Loop）与
+[PF-015](../PF-015-session-lifecycle-and-ownership/README.md)（会话的生命周期与归属），
+**本 topic 引用不改写**。
 这与 [PF-004 的做法](../PF-004-agent-definition-and-assembly/design.md#三个只引用不拥有的对象)一致。
 
 | 对象 | 本 topic 用到的 | 本 topic **不**说它 |
 |---|---|---|
-| **Run** | 它**有一个等待态**；它被阻塞、被解除；一次 llm 响应回来之后是它的一个节点 | 谁决定现在该跑、怎么推进、怎么收束 |
-| **会话** | 卡片**归属于**某个会话；等待期间它**照常收消息、进队列**；会话走到终态时悬着的卡片一并清掉 | 会话怎么建、历史怎么存、**那个队列本身怎么运作** |
+| **[Run](../PF-012-agent-loop-and-run/design.md#run)** | 它**有一个等待态**；它被阻塞、被解除；一次 llm 响应回来之后是它的一个节点 | 谁决定现在该跑、怎么推进、怎么收束 |
+| **[会话](../PF-015-session-lifecycle-and-ownership/design.md#会话的生命周期)** | 卡片**归属于**某个会话；等待期间它**照常收消息、进队列**；[会话被归档](../PF-015-session-lifecycle-and-ownership/design.md#会话归档)时悬着的卡片一并清掉 | 会话怎么建、历史怎么存、**那个队列本身怎么运作** |
 
 **写下这张表是为了防一件事**：把「run 卡在等人」和「会话被占住」当成同一件事。
 **会话是长期的，run 是短暂的**——卡在等人的是 run，会话只是因此暂时不接新活。
@@ -304,7 +306,8 @@ agent 拿不准的时候怎么问人、动手之前怎么请示。但那写的�
 而一旦设了上限，就必须规定「到点算什么」——那就是替人签了字。
 
 **直接后果**：卡片不会自己消失。清掉一张卡片只有两条路——
-**人处理它，或者会话终结**。堆在池子里是产品的正常状态，不是故障。
+**人处理它，或者[那个会话被归档](../PF-015-session-lifecycle-and-ownership/design.md#会话归档)**。
+堆在池子里是产品的正常状态，不是故障。
 
 **「人处理它」有两种形式，而不是一种**：
 
@@ -353,7 +356,8 @@ agent 走下一步的时候**一起被它看到**。
 它在队列里等着，**被当前这个 run 在下一步消费**——
 所以[一个会话同一时刻最多一个 run 在等](#54-一个会话同一时刻最多一个-run-在等)仍然成立。
 
-**队列本身归 inbound 那一块**，本 topic 只定这里的行为：**照收、排队、一起交付**。
+**队列本身归 [PF-014](../PF-014-inbound-intake-and-queueing/README.md)**，
+本 topic 只定这里的行为：**照收、排队、一起交付**。
 
 #### 中断不排队
 
@@ -466,7 +470,9 @@ agent 走下一步的时候**一起被它看到**。
 |---|---|---|
 | [PF-007](../PF-007-meta-capabilities/README.md) | `Ask()` 这扇门、会话授权上下文、放行由三样东西组合 | **接在它后面**。它定 agent 侧，本 topic 定人侧与中间的传递 |
 | [PF-006](../PF-006-tools-and-skills/README.md) | 等待态原语、前台/后台、六种收场、中断 | **依赖其定义**。`Ask()` 用的就是它的等待态 |
-| [PF-004](../PF-004-agent-definition-and-assembly/README.md) | agent runtime；「只引用不拥有」的先例 | **依赖其定义**，并沿用它对会话与 Run 的处理方式 |
+| [PF-004](../PF-004-agent-definition-and-assembly/README.md) | 装配清单；「只引用不拥有」的先例 | **沿用它对会话与 Run 的处理方式** |
+| [PF-012](../PF-012-agent-loop-and-run/README.md) · [PF-015](../PF-015-session-lifecycle-and-ownership/README.md) | [Run 与 agent runtime](../PF-012-agent-loop-and-run/design.md#run)（PF-012）；[会话的生命周期与归档](../PF-015-session-lifecycle-and-ownership/design.md#会话归档)、[会话运行模式](../PF-015-session-lifecycle-and-ownership/design.md#会话运行模式)（PF-015） | **依赖其定义**。本 topic 只用到 [§4 列明的那几件事](#只引用不拥有的两个对象) |
+| [PF-014](../PF-014-inbound-intake-and-queueing/README.md) | [入站受理与队列](../PF-014-inbound-intake-and-queueing/design.md#入站到达)、[插队](../PF-014-inbound-intake-and-queueing/design.md#插队) | **依赖其定义**。本 topic 只定等待期间「照收、排队、一起交付」这个行为 |
 | [PF-002](../PF-002-assets-settings-and-permissions/README.md) | 设置与权限 | **依赖其定义**。租户的权限清单是判断函数的输入之一 |
 | [PF-001](../PF-001-identity-scope-and-agent-constraints/README.md) | 租户与租户隔离 | **依赖其定义**。池子按租户分 |
 
@@ -474,8 +480,8 @@ agent 走下一步的时候**一起被它看到**。
 
 | 留给谁 | 什么 |
 |---|---|
-| **后续 topic**（agent-loop / session / inbound，**多个**） | **Run 怎么被驱动、怎么收束；会话怎么建、输入平时怎么进来；等待期间那个队列本身怎么运作。**本 topic 只定「照收、排队、解除时一起交付」这个行为，**不定队列** |
-| **另有归属** | **会话运行模式**（每次都问 / 白名单放行 / 全自动）。它是判断函数的输入之一，本 topic **依赖它、不定义它**——与 [PF-007 §8](../PF-007-meta-capabilities/design.md#八边界与依赖) 的处置一致 |
+| [PF-012](../PF-012-agent-loop-and-run/README.md) · [PF-015](../PF-015-session-lifecycle-and-ownership/README.md) · [PF-014](../PF-014-inbound-intake-and-queueing/README.md) | **Run 怎么被驱动、怎么收束**（PF-012）；**会话怎么建、怎么收起来**（PF-015）；**输入平时怎么进来、等待期间那个队列本身怎么运作**（PF-014）。本 topic 只定「照收、排队、解除时一起交付」这个行为，**不定队列** |
+| [PF-015](../PF-015-session-lifecycle-and-ownership/README.md) | **[会话运行模式](../PF-015-session-lifecycle-and-ownership/design.md#会话运行模式)**（每次都问 / 白名单放行 / 全自动）。它是判断函数的输入之一，本 topic **依赖它、不定义它**——与 [PF-007 §8](../PF-007-meta-capabilities/design.md#八边界与依赖) 的处置一致 |
 | 技术设计 | 判断函数**怎么实现**；通知怎么送达；池子的界面与排序 |
 | 将来可能独立成 topic | **判断函数**本身。本 topic 只定它的产品职责（何时跑、吃什么、吐什么、必须满足什么性质）；它若长成独立 topic，**本 topic 引用不改写** |
 

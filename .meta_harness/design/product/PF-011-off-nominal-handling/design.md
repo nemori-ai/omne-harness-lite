@@ -1,6 +1,6 @@
 # PF-011：非常态的分层处置
 
-**rev 3**
+**rev 4**
 
 ---
 
@@ -200,6 +200,12 @@ agent 的一步里既有一次模型调用、又有一次工具执行，
 **「外面一层」＝ 树上的父节点。**处置沿树往根走，
 兄弟之间各交各的父节点，**互不干涉**。
 
+> **这棵树回答的是「接不住了往哪交」，不是「谁的运行时跟着谁死」。**
+> 后者是另一套关系，[取消跟着宿主走](../PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)——
+> 一次工具执行**转到后台就换了宿主**（从 agent runtime 换成会话），
+> 而在这棵树上，[转后台本来就是工具执行那一层「本层了结」](#六种收场在这个模型里各是什么)，
+> 它已经离开了阶梯。**两套关系各自成立，不要拿一套去校验另一套。**
+
 > **树是全局的形状，而一件非常态实际走的是其中一条路**——
 > 从它起步的那一层，沿父节点一直到根。**下文把这条路叫「阶梯」。**
 
@@ -226,7 +232,7 @@ agent 的一步里既有一次模型调用、又有一次工具执行，
 | **会话** | 建立 → 一次次运行 → 一直可用 | 重算可用性让下次运行换个动作空间 · 换个地方重建执行环境 | 租户 | —— |
 | **[运行](../PF-012-agent-loop-and-run/design.md#run)** | [触发 → 备好一个 agent runtime → agent 一步步走 → 收束](../PF-012-agent-loop-and-run/design.md#56-状态转移表) | 重建一个 agent runtime · 缺可选的照装并标明 · 腾出上下文空间 | 会话 | —— |
 | **[agent 的一步](../PF-012-agent-loop-and-run/design.md#agent-的一步)** | 看到处境 → 决定做什么 → 做 → 看到结果 → 再来 | 换一条路 · 换个方法 · 先干别的 · 不做了换方向 · 分页取回 | 运行 | —— |
-| **[一次模型调用](../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call)** | 发出请求 → 流式回来 → 完整的一份回复 | **未定**——这一层[尚无 owner](#91-模型调用那一层还没有-owner) | agent 的一步 | —— |
+| **[一次模型调用](../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call)** | 发出请求 → 流式回来 → 完整的一份回复 | 换一家供应商再来一次 · 退避之后再来一次——**[没有第三样](../PF-013-model-profiles-and-invocation/design.md#52-这一层的四要素填-pf-011-那一格)** | agent 的一步；**模型一个字都没出来时[越过它交给运行](#61-起点可以是任何一层往上不许跳)** | —— |
 | **一次工具执行** | 调用 → 执行 → 把结果交回去 | [进等待态等一个应答](../PF-006-tools-and-skills/design.md#等待态) · [转后台](../PF-006-tools-and-skills/design.md#55-一次工具执行的收场有六种)（声明允许时） | agent 的一步 | —— |
 
 **只有租户那一行的「终局」是实的**，因为[只有走到根，才谈得上「外面没有层了」](#68-阶梯到租户为止)。
@@ -513,6 +519,7 @@ agent 就是模型，模型没给出回复，**那个会思考的主体此刻不
 | 沙箱起不来怎么办、禁止降级 | [PF-005](../PF-005-execution-environments-and-sandboxes/README.md) |
 | 租户是什么、隔离边界划在哪 | [PF-001](../PF-001-identity-scope-and-agent-constraints/README.md) 与 [SYS-TENANT](../../foundation/cross-system-constraints/requirements.md#sys-tenant) |
 | 组装与压缩 | [PF-010](../PF-010-context-management-and-assembly/README.md) |
+| **把一次模型调用发出去 · 这一层失败了能做什么 · 什么时候算试尽** | [PF-013](../PF-013-model-profiles-and-invocation/README.md)——见下 |
 | 重试次数、退避、超时、[阈值提醒](#64-要让-agent-知道只能走阈值触发的定长提醒)的阈值与字数 | **策略，不是产品设计** |
 | 落终局之后的实际后果：用户看到什么、还能不能接着用 | **造成它的那件事自己的 topic**——见下 |
 | 错误码词表 | **技术设计**，且[上层不读它](#65-上层只认跨层通用的说法) |
@@ -522,6 +529,24 @@ agent 就是模型，模型没给出回复，**那个会思考的主体此刻不
 > 别的会话照跑。实际后果由造成它的那件事按自己的语义给出：
 > 配额耗尽就是配额那边的说法，资产被禁就是治理那边的说法。
 > **本 topic 只负责说「处置到此为止」。**
+
+### 模型调用那一层，整格是这么分的
+
+**这一层被切成七段，[本 topic 只拿最后一段](#54-各层的四要素)：**
+
+| 这一段 | 谁拥有 |
+|---|---|
+| 模型选择存在哪、谁能配、多层怎么覆盖、能不能锁死 | [PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)、[PF-002](../PF-002-assets-settings-and-permissions/README.md) |
+| 模型在哪一刻被解析、换模型要不要重建实例、实际用了哪个要留痕 | [PF-004](../PF-004-agent-definition-and-assembly/README.md) |
+| 请求体的内容怎么攒出来 | [PF-010](../PF-010-context-management-and-assembly/README.md) |
+| **把它发出去 · 这一层失败了能做什么 · 什么时候算试尽** | [**PF-013**](../PF-013-model-profiles-and-invocation/README.md)——[四要素那一格由它填](../PF-013-model-profiles-and-invocation/design.md#52-这一层的四要素填-pf-011-那一格) |
+| 流式怎么回来、怎么拼成完整一份、断在半路怎么收场 | [PF-009](../PF-009-context-message-types/README.md) |
+| 统一经 OpenRouter 出去 | [SYS-LLM](../../foundation/cross-system-constraints/requirements.md#sys-llm)，**但它自陈不决定调用细节** |
+| 试尽之后交给谁、[越过不存在的层](#61-起点可以是任何一层往上不许跳) | **本 topic** |
+
+**它单立一个 topic 而不是并进现有的**，理由是**改动它的原因与谁都不同**：
+它因上游供应商与路由形态变——**OpenRouter 换一种重试语义，
+PF-004、PF-009、PF-010 与本 topic 一个字都不用改**。
 
 ---
 
@@ -534,40 +559,7 @@ agent 就是模型，模型没给出回复，**那个会思考的主体此刻不
 
 **本 topic 一个字都不必因此改判**——六层模型、起点判据、上交与终局全部照旧。
 
-### 9.1 模型调用那一层还没有 owner
-
-**「一次模型调用失败了怎么办」现在没有主。**
-
-**但这个缺口是闭合的**——把现有 topic 排一遍，四面都已经有邻居划好了界，
-**无主的恰好就是 [§5.4 那一格](#54-各层的四要素)**：
-
-| 这一段 | 谁拥有 |
-|---|---|
-| 模型选择存在哪、谁能配、多层怎么覆盖、能不能锁死 | [PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)、[PF-002](../PF-002-assets-settings-and-permissions/README.md) |
-| 模型在哪一刻被解析、换模型要不要重建实例、实际用了哪个要留痕 | [PF-004](../PF-004-agent-definition-and-assembly/README.md) |
-| 请求体的内容怎么攒出来 | [PF-010](../PF-010-context-management-and-assembly/README.md) |
-| **把它发出去 · 这一层失败了能做什么 · 什么时候算试尽** | **无主** |
-| 流式怎么回来、怎么拼成完整一份、断在半路怎么收场 | [PF-009](../PF-009-context-message-types/README.md) |
-| 统一经 OpenRouter 出去 | [SYS-LLM](../../foundation/cross-system-constraints/requirements.md#sys-llm)，**但它自陈不决定调用细节** |
-| 试尽之后交给谁、[越过不存在的层](#61-起点可以是任何一层往上不许跳) | **本 topic** |
-
-**建议另立一个新 topic，而不是并进现有的。**三条依据：
-
-1. **同一棵树上的两个兄弟叶层，一个有主一个没有**——
-   [一次工具执行有 PF-006](../PF-006-tools-and-skills/README.md)，一次模型调用空着。**这是结构性的不对称。**
-2. **改动它的原因与谁都不同**：它因上游供应商与路由形态变。
-   **OpenRouter 换一种重试语义，PF-004、PF-009、PF-010 与本 topic 一个字都不用改**——
-   这正是[该区建新 topic 的判据](../AGENTS.md)。
-3. **唯一够得着的候选是 PF-004，而它自己弃权了三次**：非目标写「模型怎么供给、怎么路由归 SYS-LLM」，
-   §2 开头写「只管实例化，不管驱动」，§6.6 又写「模型的选择存在哪、怎么选……是会话与驱动那一侧的事」。
-   **收编要先推翻它写了三遍的范围声明。**
-
-> **[PF-012](../PF-012-agent-loop-and-run/README.md) 也不是它的主**：那边定的是
-> [一次模型调用在方程里站在哪一步](../PF-012-agent-loop-and-run/design.md#54-一步的骨架)，
-> **没有回答「它失败了能做什么、什么时候算试尽」**。
-> **这个缺口因此成立**，而它[有词条](../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call)，缺口也就地标在那里。
-
-### 9.2 待产品负责人裁决
+### 9.1 待产品负责人裁决
 
 见 [decisions.md 第三节](decisions.md#三待裁决)。
 

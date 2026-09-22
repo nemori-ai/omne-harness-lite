@@ -2,7 +2,7 @@
 id: PF-008
 title: Human in the Loop
 status: active
-revision: 3
+revision: 4
 relations:
   supersedes: []
   depends-on:
@@ -11,7 +11,13 @@ relations:
     - id: PF-006
       for: 等待态原语、前台/后台两个维度、六种收场、中断不是失败
     - id: PF-004
-      for: agent runtime 、Run 与会话这三个只引用不拥有的对象
+      for: 装配清单，以及「只引用不拥有」的先例
+    - id: PF-012
+      for: Run 与 agent runtime
+    - id: PF-015
+      for: 会话的生命周期与归档、会话运行模式
+    - id: PF-014
+      for: 入站队列、插队
     - id: PF-002
       for: 权限设置
     - id: PF-001
@@ -55,7 +61,7 @@ relations:
 | 关系 | 本 topic 的情况 |
 |---|---|
 | `supersedes` | 无 |
-| `depends-on` | [PF-007](../PF-007-meta-capabilities/README.md)、[PF-006](../PF-006-tools-and-skills/README.md)、[PF-004](../PF-004-agent-definition-and-assembly/README.md)、[PF-002](../PF-002-assets-settings-and-permissions/README.md)、[PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)，引用不改写 |
+| `depends-on` | [PF-007](../PF-007-meta-capabilities/README.md)、[PF-006](../PF-006-tools-and-skills/README.md)、[PF-004](../PF-004-agent-definition-and-assembly/README.md)、[PF-002](../PF-002-assets-settings-and-permissions/README.md)、[PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)、[PF-012](../PF-012-agent-loop-and-run/README.md)、[PF-015](../PF-015-session-lifecycle-and-ownership/README.md)、[PF-014](../PF-014-inbound-intake-and-queueing/README.md)，引用不改写 |
 | `extends` | 无 |
 
 **与 PF-007 的分界**：`Ask()` 这扇门长什么样、agent 侧看见什么，归 PF-007；
@@ -74,11 +80,12 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 3**，**已正式接受**（rev 1 于 2026-09-17；**rev 3 随 [PF-007 rev 11](../PF-007-meta-capabilities/changelog.md) 重写了 §5.2 的一小节**——那里原本论证「agent 请示时不能给长期授权」，**前提已被推翻**）
+- 产品设计：**rev 4**，**已正式接受**（rev 1 于 2026-09-17；**rev 3 随 [PF-007 rev 11](../PF-007-meta-capabilities/changelog.md) 重写了 §5.2 的一小节**——那里原本论证「agent 请示时不能给长期授权」，**前提已被推翻**；**rev 4 把「归后续 topic」的指路落到具体 topic，并统一「会话被归档」这个说法**）
 - 未决项：**无**
 - 待裁决：**无**
-- **依赖两个尚未成文的对象**：**Run** 与**会话**的完整定义归后续 PF
-  （产品负责人已明确 agent-loop / session / inbound 会是多个 topic）。
+- **两个只引用、不拥有的对象现在各有其家**：**Run** 归
+  [PF-012](../PF-012-agent-loop-and-run/README.md)，**会话**归
+  [PF-015](../PF-015-session-lifecycle-and-ownership/README.md)。
   本 topic 按 [PF-004 的先例](../PF-004-agent-definition-and-assembly/design.md#三个只引用不拥有的对象)
   只引用、不拥有，用到哪几件事写在 [design.md §4](design.md#只引用不拥有的两个对象)
 - 上游欠账：**已闭合**——[PF-007 rev 3](../PF-007-meta-capabilities/changelog.md) 已补上

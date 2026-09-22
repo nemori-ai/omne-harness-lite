@@ -2,7 +2,7 @@
 id: PF-011
 title: 非常态的分层处置
 status: active
-revision: 3
+revision: 4
 relations:
   supersedes: []
   depends-on:
@@ -19,7 +19,9 @@ relations:
     - id: PF-001
       for: 租户的定义与隔离边界
     - id: PF-012
-      for: 运行与 agent 的一步这两层各自的主路径；Run 的终态与本 topic 的终局是两条线
+      for: 运行与 agent 的一步这两层各自的主路径；Run 的终态与本 topic 的终局是两条线；取消跟着宿主走
+    - id: PF-013
+      for: 一次模型调用那一层的四要素、试尽的判定
   extends: []
 ---
 
@@ -93,7 +95,7 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 3**（rev 2 加了租户、模型调用、工具执行三层；**rev 3 只记交割与两笔账的了结，模型一个字没改**）
+- 产品设计：**rev 4**（rev 2 加了租户、模型调用、工具执行三层；rev 3 记交割与两笔账的了结；**rev 4 把模型调用那一格交给 PF-013**，模型仍然一个字没改）
 - **没有待裁决项**。rev 2 定稿后的通读改正了[收编表的一格归类](decisions.md#通读时改正的一处归类不可用不是上交)，
   并把[七条未决项筛成两条](design.md#九未决项)
 - **[与 PF-012 的地盘交割已完成](changelog.md#rev-3--2026-09-19--交割完成两笔账清掉)**（2026-09-19，同时看两边）：
@@ -101,9 +103,10 @@ relations:
   交割顺带划出一道外边界——[循环守卫 L3 不进这套模型](../PF-012-agent-loop-and-run/design.md#哪些收束根本不进-pf-011-的模型)
 - **两笔已结的债**：[PS-1](decisions.md#ps-1已闭合异常一词有两个所指)（[PF-000 记的 PS-2](../PF-000-occurrences-and-record-entries/decisions.md)——「异常」一词的双重含义，本 topic 取名时闭合）、
   **[PS-3](decisions.md#ps-3已闭合本-topic-曾用了一个还没有词条的概念)**（「一次模型调用」缺词条这条红线违规，**随 PF-012 rev 2 那一轮取名闭合**）
-- **仍然挂着的**：[一次模型调用那一层无主](design.md#91-模型调用那一层还没有-owner)（**rev 2 压着的那个前提已排除**——owner 不在 PF-012 里）、
-  [PS-4](decisions.md#ps-4未登记pf-006-没说替换件应答算不算一次工具执行)（PF-006 的一个洞，不阻塞本 topic）、
-  [PS-2](decisions.md#ps-2待复核一条内核机制条目的理由写错了)（归 basis 的 owner）
+- **六层的四要素现在都填得满**：最后一格[一次模型调用归 PF-013](design.md#模型调用那一层整格是这么分的)
+- **仍然挂着的**：[PS-4](decisions.md#ps-4未登记pf-006-没说替换件应答算不算一次工具执行)（PF-006 的一个洞，不阻塞本 topic）、
+  [PS-2](decisions.md#ps-2待复核一条内核机制条目的理由写错了)（归 basis 的 owner）、
+  **[PS-5](decisions.md#ps-5待裁决会话授权上下文消亡指的到底是什么)**（§5.6 一行的所指要产品负责人定）
 - **一处尚未回改**：[PF-006](../PF-006-tools-and-skills/README.md) 正文里五处用「异常」指程序报错，
   待其 owner 改为「报错」并升 rev
 - 技术投影：尚未开始

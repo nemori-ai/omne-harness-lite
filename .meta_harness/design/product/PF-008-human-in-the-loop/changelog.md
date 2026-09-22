@@ -5,6 +5,45 @@
 
 技术投影用 `provenance.json` 引用具体 rev，所以这里的 rev 不准会直接传导到实现侧。
 
+## rev 4 — 2026-09-21
+
+**「归后续 topic」的指路落到具体 topic；「会话终态 / 终结」统一成「会话被归档」。没有新结论。**
+
+### 一、两个「只引用、不拥有」的对象，现在各有其家
+
+[§4 那张表](design.md#只引用不拥有的两个对象)写它们「**完整定义归后续 topic**」时，那几个 topic 还不存在。现在：
+**Run 归 [PF-012](../PF-012-agent-loop-and-run/design.md#run)**，
+**会话归 [PF-015](../PF-015-session-lifecycle-and-ownership/design.md#会话的生命周期)**，
+**队列归 [PF-014](../PF-014-inbound-intake-and-queueing/design.md#入站到达)**。
+**本 topic 用到它们的哪几件事一个字没改**，改的只是指路：
+[§2 非目标](design.md#非目标) · [§4](design.md#只引用不拥有的两个对象) ·
+[§6.2 新消息不另起 run](design.md#新消息不另起-run) · [§8](design.md#八边界与依赖) ·
+[acceptance 的「本版不验收」](acceptance.md) · README 的关系与状态段。
+
+**同一处顺带改正一笔归属**：§8 原把 **agent runtime** 记在 PF-004 名下，
+它归 [PF-012](../PF-012-agent-loop-and-run/design.md#agent-runtime)——
+依据 [UL-D-3 裁决 3](../../ubiquitous_language/decisions.md#ul-d-3--runtime-与活体--2026-09-20)。
+
+### 二、会话没有「终态」，收束的那个状态叫归档
+
+[rev 3 已经改了 flows 的状态表](#rev-3--2026-09-21)，但这四处还留着旧说法：
+
+| 在哪 | 原先 | 现在 |
+|---|---|---|
+| [§4 会话那一行](design.md#只引用不拥有的两个对象) | 会话**走到终态**时悬着的卡片一并清掉 | [会话被归档](../PF-015-session-lifecycle-and-ownership/design.md#会话归档)时 |
+| [§6.1](design.md#61-永远等着系统不替人作答) | 清掉一张卡片只有两条路：人处理它，或**会话终结** | **或那个会话被归档** |
+| [flows 异常分支](flows.md#二异常分支) · [flows 决定权矩阵](flows.md#四谁决定什么) | 「会话走到终态」「会话终结」 | 「会话被归档」 |
+| [acceptance 可观察场景](acceptance.md) | 「会话走到终态」 | 「会话被归档」 |
+
+依据：[PF-015 §6.1](../PF-015-session-lifecycle-and-ownership/design.md#61-会话不会消失)——
+**没有删除会话这回事，也就没有「会话结束」**；收束的那个状态叫[归档](../PF-015-session-lifecycle-and-ownership/design.md#会话归档)。
+
+### 三、没有改的
+
+**[§6.1 的穷举](design.md#61-永远等着系统不替人作答)一个字没改**——清掉一张卡片仍然只有两条路，
+[「人处理它」的两种形式](design.md#61-永远等着系统不替人作答)也还是 rev 2 写下的那两种。
+**抬头的 rev 此前停在 rev 1**，本版一并追上。
+
 ## rev 3 — 2026-09-21
 
 **授权模型变了，本 topic 有一节的论证前提不成立了。**
