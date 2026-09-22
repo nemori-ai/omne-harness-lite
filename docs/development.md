@@ -93,7 +93,8 @@ pnpm format:write
 |---|---|
 | 跨仓库 Markdown 链接、锚点与技能镜像 | `make docs-check` |
 | Skills/roles 源、生成产物与根软链接 | `make agents-check` |
-| 设计链的身份、登记、冻结与形式任务 | `make design-check`（`FORMAT=run` 才真跑模型） |
+| 设计链的身份、登记、冻结与形式任务 | `make design-check`（`FORMAL=run` 才真跑模型） |
+| 统一语言词条、领域对象条目，或某个产品 topic 的 rev | `make design-check`；本地迭代用 `STALE=report` 看待复核队列 |
 | 检查器或生成器行为 | `make test` |
 | TS/JS 格式 | `pnpm format:check`；局部写入 `pnpm format:write -- <文件...>` |
 | 形式工具是否可用 | `make formal-tools` |

@@ -13,7 +13,7 @@
 |---|---|---|
 | `make agents-check` | 从 canonical 源与角色源重新计算产物，核对文件内容、权限及三个根相对软链接 | 宿主已发现配置、原生权限已生效或模型行为符合预期 |
 | `make docs-check` | 跨仓库 Markdown 本地链接与锚点、Codex/Claude 技能镜像一致 | 内容正确、设计成立或因果理由充分 |
-| `make design-check` | 设计链的身份、资源、引用、冻结登记与形式任务登记（`.meta_harness/design/`） | 登记等于执行；`--formal registered` 只确认任务存在 |
+| `make design-check` | 设计链的身份、资源、引用、冻结登记与形式任务登记（`.meta_harness/design/`）；统一语言、领域对象条目与产品 topic 三家的对账——形态与条目一一对应、出处与依据的 rev 等于 topic 当前 rev、词条索引与分卷一致、派生总表是最新的 | 登记等于执行；`--formal registered` 只确认任务存在。对账通过**不代表**任何条目的内容正确，也查不出「产品正文里冒出一个新对象却没人立词条」 |
 | `make test` | 仓库检查器、Meta Harness 编译/链接工具与 `design-subagents` 生成器的离线测试 | 宿主加载与模型行为已验证 |
 | `make product-check` | TS/JS 格式与格式化适配器自测 | 产品能力已实现——**当前没有产品包可构建或测试** |
 | `make formal-tools` | Java 与 `TLA2TOOLS_JAR`、`ALLOY_ANALYZER_JAR` 指向的实际 JAR 可用 | 任何模型已经跑过 |
@@ -22,6 +22,10 @@
 `FORMAL=skip` 记录本次明确跳过，**`FORMAL=run` 才真正调用 runner** 并传播缺工具、超时和非零退出。
 前两种**都不是**模型已通过的证据。`GATE=release` 作为切换/冻结门，对任一 blocked relation、
 unknown consumer 或缺 release evidence 的关系失败。
+
+对账那一半默认把「rev 落后」判为失败：某个产品 topic 升了 rev，引用它的词条出处与对象条目依据
+就要逐条复核后才能把 rev 改到当前值。本地迭代时可用 `STALE=report` 只列出待复核队列而不失败；
+**它不是通过的证据**，交付前仍须以默认模式通过。
 
 > **留档区不在检查范围内。**`design_legacy/`、`research/legacy_backup/` 与 `agents/research/`
 > 保持原件搬来时的相对链接——改写它们就会篡改「当初那份材料实际写了什么」。

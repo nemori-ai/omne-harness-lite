@@ -81,6 +81,37 @@ python tooling/src/rebase_resources.py \
 requirements/decision 链及旧产品 Schema 消费观察的小型设计树。它同时覆盖 namespace
 混用、同坐标碰撞、冻结漂移、阻断 gate、断链、runner 错误传播及复制到仓库外运行。
 
+## 领域对象对账
+
+`domain_objects.py` 对账三家之间的对应关系——统一语言词条、领域对象条目、产品 topic——
+并生成派生总表 `design/views/domain-object-map.md`：
+
+```sh
+python tooling/src/domain_objects.py --root design                  # 对账，并核对总表是不是最新
+python tooling/src/domain_objects.py --root design --write          # 重新生成总表
+python tooling/src/domain_objects.py --root design --stale report   # rev 落后只列出，不判失败
+```
+
+它查什么、为什么查，权威正文在 [domain_objects/conventions.md](../design/domain_objects/conventions.md#对账)；
+被点名之后怎么逐条复核，归 `ubiquitous-language` 与 `domain-objects` 两份 skill。这里只记工具自己的边界：
+
+- **rev 的权威是各 topic `README.md` front-matter 的 `revision`。**`design.md` 抬头与 `changelog.md`
+  最新一节若写了 rev，必须与它相等；没写不算错。产品区两张手写的 rev 表——`product/README.md` 的 topic 一览与
+  `product/architecture-core.md` 的清单——每一行同样必须与它相等。
+- `ubiquitous_language/conflicts.md` 里的 rev **不查**：那是记下冲突时看到的那一版，是一条观察的时间戳，不是对齐凭据。
+- 词条「出处」、条目「依据」、待裁「牵涉」读的是[同一条写法](../design/ubiquitous_language/conventions.md#rev-怎么写怎么读)：
+  指向产品正文的链接后面跟着它那个 topic 的 `（rev N）`，同一个 topic 连着的几条链接可以共用后面那一个；
+  一个括号里并列几个 rev 的，按前面 topic 出现的次序配，个数配不上就报错。
+- 总表比对时**忽略生成时间那一行**，所以隔天重跑不会因为日期而判过期。
+- `--stale report` 供本地迭代看待复核队列，**不是通过的证据**。
+- 链接与锚点是否存在由 `check_design.py` 统一查，本工具不重复；
+  它也**不判断任何条目的内容对不对**，更查不出产品正文里新冒出来、却没人立词条的对象。
+
+测试用一棵含一个 topic、一卷四个词条（含一个变体）、三条对象条目与一项待裁的小型设计树，覆盖：
+一致时通过且总表可往返、只改生成时间不判过期、对象词条缺条目与条目缺对象词条、条目缺词条或缺必填字段、
+rev 落后（含 topic 内三处 rev 不一致）及其 report 模式、依据缺 rev 或指向非产品正文、
+形态缺失/非法/变体的父无效、未定词条须同时出现在 pending 与 conflicts、索引与分卷不一致、待裁缺 owner。
+
 ## Agent 编译
 
 本轮实现从一个 `agents/` 源根按宿主策略编译四处目录，并提供独立的相对软链接工具。
