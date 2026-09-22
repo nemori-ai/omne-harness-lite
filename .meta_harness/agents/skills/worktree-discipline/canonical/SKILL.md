@@ -105,9 +105,8 @@ require the affected checks.
    failures first. Independent tasks using established patterns can proceed without a
    serial pilot; identify the evidence and dependencies in the existing wave plan.
 3. **Parallel spokes** — each spoke is a full Mode A citizen: own environment, own paths,
-   own baseline. Dispatch prompts for spoke workers MUST begin with `cd <spoke-path>`
-   plus a branch verification step — dispatched agents have committed to `main`
-   before.
+   own baseline. Dispatch prompts for spoke workers begin with `cd <spoke-path>`
+   plus a branch verification step (red line 4).
 4. **Merge-back** — as each spoke completes (or at the wave barrier), merge it into
    the HUB; the HUB runs an integration-level verification **after every merge-back**,
    not once at the end. Then apply **Retirement Before Removal** below: retire the
@@ -165,12 +164,11 @@ cleanup service or a requirement to archive every cache.
 ## The Eight Red Lines
 
 These safeguards address wrong-tree writes, stale checks, lost evidence and active
-consumers. Their incident examples come from the source workflow, not this task.
+consumers.
 
 1. **Write/Edit with worktree-absolute paths only.** Using main-checkout paths from a
-   worktree session writes files into the main working tree — a 27-file design-doc
-   batch once landed on `main` this way. After creating any file, run `git status` *in
-   the worktree* to confirm where it landed.
+   worktree session writes files into the main working tree. After creating any file,
+   run `git status` *in the worktree* to confirm where it landed.
 2. **Run checks with this worktree's toolchain and sources.** Python checks use its
    own `.venv`; future TS/JS members use this checkout's declared environment. Using
    the main checkout's environment can resolve stale sources and mask failures.
@@ -178,8 +176,8 @@ consumers. Their incident examples come from the source workflow, not this task.
    switches belong in worktrees, not in the primary checkout.
 4. **Dispatched agents prove their position before working** — first action
    `cd <worktree>` + branch verification — **and the dispatcher independently verifies
-   commit landing afterward** (`git -C <path> log --oneline`). Workers have claimed
-   worktree commits that were actually on `main`.
+   commit landing afterward** (`git -C <path> log --oneline`); a worker's claim is not
+   evidence.
 5. **Post-merge retirement includes evidence and consumers.** After a PR merges,
    update local `main` and apply Retirement Before Removal. At fan-out merge-back,
    apply the same check to the spoke. Keep any tree still needed by an active consumer,
@@ -195,16 +193,16 @@ consumers. Their incident examples come from the source workflow, not this task.
    commit authorization. Legitimate ignored evidence need not become a source commit;
    preserve it under the retention rules above.
 8. **A long-running HUB tracks `main`; it is not a frozen base.** Use the Mode B
-   synchronization triggers and full pre-PR gate verification. A stale E13 HUB once caused a
-   gatekeeper to report a false BLOCKER against standards already on `main` while new
-   import-linter gates never exercised the campaign's directory moves.
+   synchronization triggers and full pre-PR gate verification: a stale HUB makes
+   reviewers judge against superseded standards and leaves gates added on `main`
+   unexercised.
 
 ## In Orchestrator Mode
 
 A master orchestrator applies this skill **directly**: HUB setup, spoke creation,
 merge-back, and post-merge cleanup are integration work — conducting, not playing.
 One boundary against generic orchestration doctrine: a "single-committer / leaves
-never commit" dispatch-hygiene rule (e.g. cc-master's) targets parallel agents sharing
+never commit" dispatch-hygiene rule targets parallel agents sharing
 ONE working tree, where concurrent `git commit` races the index. In Mode B every spoke
 owns its worktree; when the task already authorizes commits, a spoke worker commits
 there and follows red line 4 (prove position, verify landing). Worktree ownership does

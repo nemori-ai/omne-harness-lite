@@ -84,10 +84,9 @@ product-design-reviewer 同样只读，但判断对象是产品文档，不走 h
 
 ## 模型配置与本次派发
 
-本轮沿用原配置：架构 reviewer 为 Codex `gpt-6-astra / xhigh`、Claude `claude-fable-5-1 / xhigh`；
-规格/计划 reviewer 为 `gpt-5.6-sol / xhigh`、`opus / xhigh`，固定档位。
-五个开发者为 `gpt-5.6-sol` / `opus`，默认档位见上表，可按任务选 medium/high/xhigh。
-这是迁入的配置及有日期的支持记录，不是对当前账户或新版本宿主的重新核验。
+模型与档位的权威在各角色的 `codex.toml`、`claude.yaml` 与开发者的 `assembly.toml`；
+reviewer 固定档位，开发者默认档位见上表，可按任务选 medium/high/xhigh。
+这些钉值来自有日期的支持记录，不是对当前账户或新版本宿主的重新核验。
 
 开发者派发参数从源配置取得。在本工作区根、使用具备 Python 3.12+ 和 PyYAML 的解释器：
 

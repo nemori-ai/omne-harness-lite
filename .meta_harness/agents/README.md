@@ -51,7 +51,8 @@ skills 的共享正文与资源放在 `canonical/`。即使两端直接复制，
 | `write-agents-md` | AGENTS.md 的心智、边界、继承与阅读地图 |
 | `design-subagents` | 角色契约、宿主与模型适配、模板、成对渲染及验证 |
 | `worktree-discipline` | 明确执行仓库中的隔离、并行集成与证据保留 |
-| `ubiquitous-language` | 统一语言的取名、分卷、无歧义中英文定义、查重与冲突处置；词表归 [design/ubiquitous_language](../design/ubiquitous_language/README.md) |
+| `ubiquitous-language` | 统一语言的取名、分卷、无歧义中英文定义、判形态、查重、冲突处置与出处复核；**只有要新增或修改词条的人加载**，该区约定归 [design/ubiquitous_language](../design/ubiquitous_language/AGENTS.md) |
+| `domain-objects` | 领域对象条目的宿主、身份、生灭与并入怎么判，待裁怎么登记，topic 升 rev 后怎么逐条复核，全量重提怎么做；**只有要在那一区落字的人加载**，该区约定归 [design/domain_objects](../design/domain_objects/AGENTS.md) |
 
 `design-subagents`、`worktree-discipline` 与 `ubiquitous-language` 三个 skill 完整保留原资源，
 原件哈希与迁入调整分别记录在各自 `.design/`；
