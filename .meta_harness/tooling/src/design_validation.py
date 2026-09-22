@@ -22,6 +22,8 @@ from urllib.parse import unquote, urldefrag, urljoin, urlparse
 FORMAT = 1
 ALLOWED_FAMILIES = {"data", "capabilities", "compositions"}
 ALLOWED_STATUSES = {"candidate", "accepted", "superseded", "withdrawn"}
+# 接受声明（acceptance.json）所在的决定家：工作区布局是 record/decisions/，旧布局是根下 decisions/。
+DECISION_HOMES = ("record/decisions", "decisions")
 LINK_RE = re.compile(r"(?<!!)\[[^\]]*\]\(([^)]+)\)|!\[[^\]]*\]\(([^)]+)\)")
 HEADING_RE = re.compile(r"^#{1,6}\s+(.+?)\s*$")
 
@@ -452,9 +454,12 @@ class DesignValidator:
                     if acceptance is None:
                         raise Invalid(f"{where}.acceptance is required for accepted contract")
                     accepted_path = checked_path(self.root, acceptance, f"{where}.acceptance")
-                    if (not accepted_path.is_file() or accepted_path.suffix != ".json"
-                            or not accepted_path.is_relative_to(self.root / "decisions")):
-                        raise Invalid(f"{where}.acceptance must be an existing decisions/ JSON declaration")
+                    # 决定的家是 record/decisions/（工作区布局）；根下 decisions/ 是旧布局，仍接受。
+                    in_decisions = any(accepted_path.is_relative_to(self.root / home)
+                                       for home in DECISION_HOMES)
+                    if not accepted_path.is_file() or accepted_path.suffix != ".json" or not in_decisions:
+                        raise Invalid(f"{where}.acceptance must be an existing JSON declaration under "
+                                      + " or ".join(f"{home}/" for home in DECISION_HOMES))
                     self._acceptance(accepted_path, coordinate, f"{where}.acceptance")
                 elif acceptance is not None:
                     checked_path(self.root, acceptance, f"{where}.acceptance")

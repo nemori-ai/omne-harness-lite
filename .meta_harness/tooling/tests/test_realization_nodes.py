@@ -200,6 +200,19 @@ def test_source_path_last_segment_and_area_must_match(tree: Path) -> None:
     assert any("源码位置是「packages/cli」" in message for message in errors(tree))
 
 
+def test_packages_group_without_readme_holds_two_layer_nodes(tree: Path) -> None:
+    # packages/<group>/<node>：第一层没有 README 的目录是 group，节点在下一层；源码位置要写完整两层。
+    import shutil
+    group = tree / "realization/packages/tenancy"
+    group.mkdir()
+    shutil.move(str(tree / CORE), str(group / "core"))
+    node = "realization/packages/tenancy/core"
+    assert any("源码位置是「packages/core」" in message and "packages/tenancy/core" in message
+               for message in errors(tree))
+    edit(tree, f"{node}/README.md", "源码位置：`packages/core`", "源码位置：`packages/tenancy/core`")
+    assert errors(tree) == []
+
+
 def test_source_path_may_say_not_built_yet(tree: Path) -> None:
     edit(tree, f"{CLI}/README.md", "源码位置：`apps/cli`（尚未建包）", "源码位置：尚未建包")
     assert errors(tree) == []

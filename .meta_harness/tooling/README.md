@@ -114,7 +114,8 @@ rev 落后（含 topic 内三处 rev 不一致）及其 report 模式、依据�
 
 ## 实现映射节点对账
 
-`realization_nodes.py` 核 `design/realization/{apps,packages}/<node>/` 每个节点的形状；
+`realization_nodes.py` 核 `design/realization/apps/<node>/` 与 `design/realization/packages/<group>/<node>/` 每个节点的形状
+（`packages/` 是[两层布局](../design/realization/README.md#packages-的两层布局)：第一层没有 `README.md` 的目录是 group，节点在它下面一层）；
 `.templates/` 不是主题，不参与对账：
 
 ```sh
@@ -127,8 +128,8 @@ python tooling/src/realization_nodes.py --root design --stale warn   # 交付面
 
 - **kind 与身份**：README 的 `- kind：` 只能是 `provider` 或 `assembly`，`bindings.yaml` 的
   `node` 等于目录名、`kind` 与 README 一致；assembly 必须有 `architecture.md`，provider 不得有。
-- **源码位置**：`- 源码位置：` 里的 `apps/<name>` 或 `packages/<name>`，最后一段必须与目录同名，
-  且 `apps`/`packages` 与节点所在目录一致；整行写「尚未建包」且不含路径时放行。
+- **源码位置**：`- 源码位置：` 里的 `apps/<node>` 或 `packages/<group>/<node>`，必须与节点在 `realization/` 下的路径逐字相同；
+  整行写「尚未建包」且不含路径时放行。
 - **交付面 rev**：assembly 的 `- 交付面：` 行与 `architecture.md` 的「交付面与非目标」一节，
   指向 `product/PF-*/README.md` 的链接后面必须跟它那个 topic 的「（rev N）」，
   读法与[领域对象条目的依据](../design/ubiquitous_language/conventions.md#rev-怎么写怎么读)完全相同（正则就复用那一份）。

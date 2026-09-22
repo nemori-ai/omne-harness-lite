@@ -575,6 +575,37 @@ def test_decision_acceptance_must_name_exact_coordinate_and_scope(tmp_path: Path
     assert any("must declare this exact coordinate exactly once" in error for error in errors)
 
 
+def test_acceptance_declaration_may_live_under_record_decisions(tmp_path: Path) -> None:
+    # 工作区布局把决定放在 record/decisions/；acceptance.json 与 decision.md 一起搬过去仍应通过。
+    build_tree(tmp_path)
+    old_home = tmp_path / "decisions/accept-current"
+    new_home = tmp_path / "record/decisions/accept-current"
+    new_home.parent.mkdir(parents=True)
+    shutil.move(str(old_home), str(new_home))
+    acceptance = json.loads((new_home / "acceptance.json").read_text())
+    acceptance["decision_path"] = "record/decisions/accept-current/decision.md"
+    write_json(new_home / "acceptance.json", acceptance)
+    catalog = json.loads((tmp_path / "catalog.json").read_text())
+    for item in catalog["contracts"]:
+        if item["acceptance"]:
+            item["acceptance"] = "record/decisions/accept-current/acceptance.json"
+    write_json(tmp_path / "catalog.json", catalog)
+    requirements = tmp_path / "requirements/product/sample/requirements.md"
+    requirements.write_text(requirements.read_text().replace("../../../decisions/", "../../../record/decisions/"))
+    errors, _ = validate(tmp_path)
+    assert not [error for error in errors if "acceptance" in error], errors
+
+    stray = tmp_path / "elsewhere/acceptance.json"
+    stray.parent.mkdir()
+    shutil.copy(new_home / "acceptance.json", stray)
+    for item in catalog["contracts"]:
+        if item["acceptance"]:
+            item["acceptance"] = "elsewhere/acceptance.json"
+    write_json(tmp_path / "catalog.json", catalog)
+    errors, _ = validate(tmp_path)
+    assert any("record/decisions/ or decisions/" in error for error in errors)
+
+
 def test_cli_runs_after_tooling_and_design_are_copied_outside_repository(tmp_path: Path) -> None:
     copied = tmp_path / "portable"
     tooling = copied / "tooling"

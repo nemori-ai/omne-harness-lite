@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """实现映射节点的对账。
 
-核的是 `design/realization/{apps,packages}/<node>/` 每个节点的形状：kind 与目录名和
+核的是 `design/realization/apps/<node>/` 与 `design/realization/packages/<group>/<node>/` 每个节点的形状：kind 与目录名和
 `bindings.yaml` 是否一致、assembly 才有 `architecture.md`、源码位置指向同名的包或应用、
 交付面 PF 的 rev 有没有漂移、技术栈采用的状态与依据、契约坐标在不在 `registry/catalog.json` 里、
 交付面还是 draft 时不得登记绑定，以及节点 markdown 里的相对链接能不能解析。
@@ -170,7 +170,15 @@ class Checker:
             if not directory.is_dir():
                 continue
             for path in sorted(directory.iterdir()):
-                if path.is_dir() and not path.name.startswith("."):
+                if not path.is_dir() or path.name.startswith("."):
+                    continue
+                # packages/ 是两层：packages/<group>/<node>。第一层没有 README.md 的目录是 group，
+                # 节点在它下面一层；带 README.md 的仍按单层节点对账（apps/ 一律单层）。
+                children = [child for child in sorted(path.iterdir())
+                            if child.is_dir() and not child.name.startswith(".")]
+                if area == "packages" and not (path / "README.md").is_file() and children:
+                    self.nodes.extend(Node(area, child) for child in children)
+                else:
                     self.nodes.append(Node(area, path))
 
     def catalog(self) -> set[tuple[str, int]]:
@@ -239,9 +247,10 @@ class Checker:
                                f"要么是 {node.area}/{node.name}，要么写「尚未建包」")
             else:
                 area, rest = match.group(1), match.group(2).rstrip("/")
-                if area != node.area or rest.split("/")[-1] != node.name:
+                expected = node.path.relative_to(self.root / "realization" / node.area).as_posix()
+                if area != node.area or rest != expected:
                     self.error(f"{self.rel(path)}:{number}: 源码位置是「{area}/{rest}」，"
-                               f"节点在 realization/{node.area}/{node.name} 下——最后一段要与目录同名")
+                               f"节点在 realization/{node.area}/{expected} 下——两边要逐字相同")
 
         if node.kind != "assembly":
             return
