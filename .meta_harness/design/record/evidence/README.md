@@ -21,15 +21,20 @@
 
 ```text
 evidence/
-└── <run-id>/              可恢复的运行标识，含日期
+└── <run-id>/              可恢复的运行标识
     ├── README.md          本次跑了什么、覆盖范围、结论与边界
-    ├── <task>/            按任务或对象分目录
+    ├── <task-id>/         按 registry/formal-tasks.json 的任务 id 分目录
     │   ├── config…        实际使用的配置，不是模板
+    │   ├── input…         输入快照（模型、规格文件）及其哈希
     │   └── output…        原始结果，不做摘要式改写
     └── …
 ```
 
-`<run-id>` 要能定位到具体一次执行，例如 `formal-2026-09-16`。
+`<run-id>` 的形状是 **`<YYYY-MM-DD>-<kind>-<scope>[-<n>]`**，例如 `2026-09-22-formal-tenant-domain`；
+同日同范围再跑一次是 `…-2`。日期在前只为让目录按时间排；`kind` 与 `scope` 给人扫读用。
+**目录名不是查找键**——「契约 X 的性质 P 靠哪次运行撑着」从 registry 的任务 id
+与 realization 绑定表的 `evidence` 字段 join 过来，所以任务子目录必须用任务 id 命名。
+不按种类预建上层目录；只有一种证据时分层是空框架。
 同一批任务的重跑建新的 run，不覆盖旧目录。
 
 ## 准入
@@ -53,7 +58,20 @@ evidence/
 
 ## 当前状态
 
-骨架已建，证据尚未从 `design_legacy/evidence/` 迁入（约 292 个文件，
+**本区有两次运行，都在 2026-09-22，跑的是同一批任务**：
+[`2026-09-22-formal-tenant-domain/`](2026-09-22-formal-tenant-domain/README.md) 与
+[`…-2/`](2026-09-22-formal-tenant-domain-2/README.md)。
+每次都是四个已登记 TLC 任务全部无反例，另加一次**按预期给出反例**的有效性核对
+与一次**未登记为任务**的 Alloy 执行。
+
+**第二次是因为模型改了**：五份契约经评审轮一修订，`Registration.tla`、`progress.cfg` 与
+`Affiliation.als` 三份工件跟着改了，**`Membership.tla` 与它的两个 cfg 没改**。
+因此**上一次 run 不是整批作废**——它的 membership 两行输入逐字节未变、仍然适用，
+其余几行对应旧模型。[逐文件的哈希对照在 run `-2` 的 README](2026-09-22-formal-tenant-domain-2/README.md#为什么重跑)。
+
+**通过不提升那五份契约的状态**，它们仍是 `candidate`；引用结论时沿用对应 run README 写明的边界。
+
+存量证据尚未从 `design_legacy/evidence/` 迁入（约 292 个文件，
 含 `formal-2026-09-16` 的 TLC 执行记录、`joint-protocol-2026-09-16` 与 `legacy-consumers`）。
 迁入是整目录搬运。
 

@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json",
+  "title": "data.identity-values v1",
+  "description": "身份值的规范交换表示。相等、唯一性范围与隔离义务由 contract.md 的 S-1～S-30 拥有；本文件只约束形状。未在此出现的变体是有意缺席的缺口，不得由消费者补齐。",
+  "$defs": {
+    "OpaqueIdentifier": {
+      "title": "不透明标识",
+      "description": "S-13：非空字符串，禁止首尾空白；相等是逐码点精确相等，不做规范化、大小写折叠或裁剪。消费者不得解析其内容推断任何事实。具体词法形式（长度、字符集、是否 UUID）本契约不承诺，归 realization（G-05）。它是表示层的共用形状，不是一个领域概念。",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+    },
+
+    "AccountId": {
+      "$ref": "#/$defs/OpaqueIdentifier",
+      "title": "AccountId",
+      "description": "S-1：账号的规范标识。不透明、部署内唯一、由存储在产生账号那一刻分配，不来自运行时对象；账号本版无终止路径，故不回收、不复用。跨对象引用一律用它，不用登录标识（S-2）。",
+      "examples": ["acc_91ab"]
+    },
+
+    "OrganizationId": {
+      "$ref": "#/$defs/OpaqueIdentifier",
+      "title": "OrganizationId",
+      "description": "S-3：组织的规范标识。不透明、部署内唯一、由存储在创建组织那一刻分配；组织本版无终结路径，故不回收、不复用。",
+      "examples": ["org_7f3c"]
+    },
+
+    "LoginStateId": {
+      "$ref": "#/$defs/OpaqueIdentifier",
+      "title": "LoginStateId",
+      "description": "S-8：登录状态的规范标识。不透明、部署内唯一。每次登录产生新的一个；失效不可逆且重启之后依然成立，重新登录得到的是新的一个，故不复用。",
+      "examples": ["lst_04d2"]
+    },
+
+    "OrganizationKind": {
+      "title": "OrganizationKind",
+      "description": "S-4：组织的变体，创建时确定、此后不可改，没有任何写路径把一个取值改成另一个。personal 蕴含三条结构性事实——不可邀请、上级组织恒空、不可作他人的上级——消费者读这一个值判断，不另立标志位。",
+      "enum": ["personal", "team"]
+    },
+
+    "TenantId": {
+      "title": "TenantId",
+      "description": "S-5、S-6、S-14：租户身份就是 (OrganizationId, AccountId) 这一组合，结构相等，不另铸标识，不含角色，不因成员关系断续而变，无销毁路径。这个对象是唯一的规范序列化形式；标量编码归 realization，须单射、一个部署一条规则，且不得被解析回分量来作判定（S-17）。两个分量都必需：缺一即非法值，不得用环境里的当前账号或当前组织补齐。",
+      "type": "object",
+      "properties": {
+        "organization": { "$ref": "#/$defs/OrganizationId" },
+        "account": { "$ref": "#/$defs/AccountId" }
+      },
+      "required": ["organization", "account"],
+      "additionalProperties": false,
+      "examples": [{ "organization": "org_7f3c", "account": "acc_91ab" }]
+    },
+
+    "TenantRole": {
+      "title": "TenantRole",
+      "description": "S-7：租户在其所属组织内的角色，恰持一个。可变，变更只影响此后的准入判定，不改变已发生的归属与既有事实。superAdministrator 的作用域恰是该组织，不表达任何平台范围的资格。",
+      "enum": ["superAdministrator", "member"]
+    },
+
+    "MembershipStanding": {
+      "title": "MembershipStanding",
+      "description": "S-9、S-10：对一个 TenantId 的成员资格判定结果，三值。effective 必须携带当前角色；unavailable 表示判定做不出来，它不是 ineffective——消费者据它明确失败，不得当作无效继续、不得回退到个人范围、不得返回空集合。判别式是闭合枚举，未知取值一律拒绝（S-15）。本名称尚无统一语言词条（G-07）。",
+      "oneOf": [
+        {
+          "title": "effective",
+          "type": "object",
+          "properties": {
+            "standing": { "const": "effective" },
+            "role": { "$ref": "#/$defs/TenantRole" }
+          },
+          "required": ["standing", "role"],
+          "additionalProperties": false
+        },
+        {
+          "title": "ineffective",
+          "description": "已经做出的判定：此刻不是有效成员（从未加入，或成员关系已解除）。",
+          "type": "object",
+          "properties": {
+            "standing": { "const": "ineffective" }
+          },
+          "required": ["standing"],
+          "additionalProperties": false
+        },
+        {
+          "title": "unavailable",
+          "description": "没有判定：判定依据读不到。刻意不携带原因字段——带上原因会诱使消费者按原因分支，而唯一正确的消费方式是失败。",
+          "type": "object",
+          "properties": {
+            "standing": { "const": "unavailable" }
+          },
+          "required": ["standing"],
+          "additionalProperties": false
+        }
+      ],
+      "examples": [
+        { "standing": "effective", "role": "superAdministrator" },
+        { "standing": "ineffective" },
+        { "standing": "unavailable" }
+      ]
+    },
+
+    "ScopeLayerIdentity": {
+      "title": "ScopeLayerIdentity",
+      "description": "S-11、S-12：身份带来的作用域层里，本契约供得出身份值的恰是两层——组织级给 OrganizationId，租户级给 TenantId。刻意不含第三个变体：出厂默认层没有身份值（官方件没有租户，不得铸造平台租户或系统组织），会话级是缺口 G-01 归 PF-015，工作区不是一重身份且路径不是身份。需要它们的消费者应当被明确阻断，而不是照着一个猜测实施。本名称尚无统一语言词条（G-07）。",
+      "oneOf": [
+        {
+          "title": "organization",
+          "type": "object",
+          "properties": {
+            "layer": { "const": "organization" },
+            "organization": { "$ref": "#/$defs/OrganizationId" }
+          },
+          "required": ["layer", "organization"],
+          "additionalProperties": false
+        },
+        {
+          "title": "tenant",
+          "type": "object",
+          "properties": {
+            "layer": { "const": "tenant" },
+            "tenant": { "$ref": "#/$defs/TenantId" }
+          },
+          "required": ["layer", "tenant"],
+          "additionalProperties": false
+        }
+      ],
+      "examples": [
+        { "layer": "organization", "organization": "org_7f3c" },
+        { "layer": "tenant", "tenant": { "organization": "org_7f3c", "account": "acc_91ab" } }
+      ]
+    }
+  }
+}

@@ -1,6 +1,1676 @@
 {
   "format": 1,
   "baseline_id": "omne-harness-lite-design-2026-09-15",
-  "covers": [],
-  "note": "覆盖关系当前为空。产品设计在 PF-001 rev 1 确立三层身份与五层作用域之后，技术侧的契约需按该模型重走；覆盖关系在新契约接受时逐条重建，不保留未经核对的条目。"
+  "clause_form": {
+    "kind": "section-anchor",
+    "shape": "<file>#<anchor>",
+    "reason": "id-namespaces.json 为 PF- 声明的条款后缀是 .Cn，但四个产品 topic 的正文里没有任何 Cn 编号；契约引用产品要求时一律用小节锚点。这里因此用小节锚点，不为登记自造一套 Cn 编号（那要动 product/，且会与将来产品侧真正编号时冲突）。约定与正文对不上这件事已作为不一致上报，未在此裁决。"
+  },
+  "covers": [
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#租户"
+      },
+      "target": {
+        "contract_id": "data.identity-values",
+        "version": 1,
+        "clauses": [
+          "S-5",
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#账号"
+      },
+      "target": {
+        "contract_id": "data.identity-values",
+        "version": 1,
+        "clauses": [
+          "S-2",
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#组织"
+      },
+      "target": {
+        "contract_id": "data.identity-values",
+        "version": 1,
+        "clauses": [
+          "S-3",
+          "S-14",
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#个人组织"
+      },
+      "target": {
+        "contract_id": "data.identity-values",
+        "version": 1,
+        "clauses": [
+          "S-4"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#当前租户身份"
+      },
+      "target": {
+        "contract_id": "data.identity-values",
+        "version": 1,
+        "clauses": [
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#作者用租户身份标识"
+      },
+      "target": {
+        "contract_id": "data.identity-values",
+        "version": 1,
+        "clauses": [
+          "S-5"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#退出之后再加入回来的是同一个租户"
+      },
+      "target": {
+        "contract_id": "data.identity-values",
+        "version": 1,
+        "clauses": [
+          "S-5",
+          "S-6",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#未激活的账号记录不会永久占着那个名字"
+      },
+      "target": {
+        "contract_id": "data.identity-values",
+        "version": 1,
+        "clauses": [
+          "S-2",
+          "S-3"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#61-层次"
+      },
+      "target": {
+        "contract_id": "data.identity-values",
+        "version": 1,
+        "clauses": [
+          "S-11",
+          "S-32"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#64-隔离"
+      },
+      "target": {
+        "contract_id": "data.identity-values",
+        "version": 1,
+        "clauses": [
+          "S-10",
+          "S-16",
+          "S-17",
+          "S-18",
+          "S-19",
+          "S-20",
+          "S-21",
+          "S-24",
+          "S-25",
+          "S-26",
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#65-本地资源定位"
+      },
+      "target": {
+        "contract_id": "data.identity-values",
+        "version": 1,
+        "clauses": [
+          "S-21",
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#66-撤销不等于强制停止"
+      },
+      "target": {
+        "contract_id": "data.identity-values",
+        "version": 1,
+        "clauses": [
+          "S-8",
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#67-创作与归属"
+      },
+      "target": {
+        "contract_id": "data.identity-values",
+        "version": 1,
+        "clauses": [
+          "S-11",
+          "S-32"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#非目标"
+      },
+      "target": {
+        "contract_id": "data.identity-values",
+        "version": 1,
+        "clauses": [
+          "S-2"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#31-账号"
+      },
+      "target": {
+        "contract_id": "data.identity-values",
+        "version": 1,
+        "clauses": [
+          "S-1"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#32-登录状态"
+      },
+      "target": {
+        "contract_id": "data.identity-values",
+        "version": 1,
+        "clauses": [
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#33-成员关系"
+      },
+      "target": {
+        "contract_id": "data.identity-values",
+        "version": 1,
+        "clauses": [
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#它不因此多一重身份"
+      },
+      "target": {
+        "contract_id": "data.identity-values",
+        "version": 1,
+        "clauses": [
+          "S-11"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "design.md#52-边界是那棵隶属树不是单个组织"
+      },
+      "target": {
+        "contract_id": "data.identity-values",
+        "version": 1,
+        "clauses": [
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-015-session-lifecycle-and-ownership",
+        "clause": "design.md#612-会话持有创建那一刻的租户身份"
+      },
+      "target": {
+        "contract_id": "data.identity-values",
+        "version": 1,
+        "clauses": [
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#两种邀约都会过期"
+      },
+      "target": {
+        "contract_id": "data.offer-expiry",
+        "version": 1,
+        "clauses": [
+          "S-5",
+          "S-7",
+          "S-8",
+          "S-9",
+          "S-10",
+          "S-11",
+          "S-12",
+          "S-14",
+          "S-18",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#隶属关系怎么建立与解除"
+      },
+      "target": {
+        "contract_id": "data.offer-expiry",
+        "version": 1,
+        "clauses": [
+          "S-1"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#未激活的账号记录不会永久占着那个名字"
+      },
+      "target": {
+        "contract_id": "data.offer-expiry",
+        "version": 1,
+        "clauses": [
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#61-层次"
+      },
+      "target": {
+        "contract_id": "data.offer-expiry",
+        "version": 1,
+        "clauses": [
+          "S-14"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#非目标"
+      },
+      "target": {
+        "contract_id": "data.offer-expiry",
+        "version": 1,
+        "clauses": [
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#15-邀请与加入"
+      },
+      "target": {
+        "contract_id": "data.offer-expiry",
+        "version": 1,
+        "clauses": [
+          "S-2",
+          "S-8",
+          "S-9",
+          "S-14"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#二分支与异常"
+      },
+      "target": {
+        "contract_id": "data.offer-expiry",
+        "version": 1,
+        "clauses": [
+          "S-10",
+          "S-11",
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "S-13 有意不登：其第三条来路（重复接受 ⇒ accepted）是规格层推导，flows §2 只给「已过期／被撤回」两条来路；按规则重登时勿加回。其余为批量导入，尚未逐条复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "design.md#614-待确认的复制通知与分享邀请会过期"
+      },
+      "target": {
+        "contract_id": "data.offer-expiry",
+        "version": 1,
+        "clauses": [
+          "S-2",
+          "S-3",
+          "S-8",
+          "S-10",
+          "S-11",
+          "S-12",
+          "S-14",
+          "S-19",
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "acceptance.md#一可观察场景"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 1,
+        "clauses": [
+          "S-13",
+          "S-34"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "acceptance.md#二绝不能发生的事"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 1,
+        "clauses": [
+          "S-11",
+          "S-15",
+          "S-21",
+          "S-22",
+          "S-24",
+          "S-25",
+          "S-32",
+          "S-37",
+          "S-42",
+          "S-43"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "acceptance.md#三判据"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 1,
+        "clauses": [
+          "S-10",
+          "S-13",
+          "S-19",
+          "S-23",
+          "S-30",
+          "S-31",
+          "S-33",
+          "S-34",
+          "S-37",
+          "S-38",
+          "S-40",
+          "S-41"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "acceptance.md#四本版不验收的"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 1,
+        "clauses": [
+          "S-3",
+          "S-39"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "decisions.md#一拍板记录"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 1,
+        "clauses": [
+          "S-6",
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "decisions.md#2026-09-22--九条正文规则逐条确认为产品要求"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 1,
+        "clauses": [
+          "S-10",
+          "S-15",
+          "S-16",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#账号"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 1,
+        "clauses": [
+          "S-1",
+          "S-4",
+          "S-6",
+          "S-8",
+          "S-11",
+          "S-18",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#登录状态"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 1,
+        "clauses": [
+          "S-1",
+          "S-3",
+          "S-15",
+          "S-37"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#未激活的账号记录不会永久占着那个名字"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 1,
+        "clauses": [
+          "S-5",
+          "S-13",
+          "S-14",
+          "S-18",
+          "S-38",
+          "S-39"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#61-层次"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 1,
+        "clauses": [
+          "S-12",
+          "S-39"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#64-隔离"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 1,
+        "clauses": [
+          "S-11",
+          "S-12",
+          "S-18",
+          "S-27",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#66-撤销不等于强制停止"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 1,
+        "clauses": [
+          "S-17",
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#非目标"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 1,
+        "clauses": [
+          "S-1",
+          "S-3",
+          "S-6",
+          "S-8"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#11-注册"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 1,
+        "clauses": [
+          "S-5",
+          "S-13",
+          "S-14"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#12-登录"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 1,
+        "clauses": [
+          "S-1"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#13-退出"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 1,
+        "clauses": [
+          "S-1",
+          "S-3",
+          "S-10",
+          "S-16",
+          "S-17",
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#31-账号"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 1,
+        "clauses": [
+          "S-1",
+          "S-5",
+          "S-14",
+          "S-15",
+          "S-19",
+          "S-20",
+          "S-38"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#32-登录状态"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 1,
+        "clauses": [
+          "S-1",
+          "S-9",
+          "S-10",
+          "S-15",
+          "S-23",
+          "S-37"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#二分支与异常"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 1,
+        "clauses": [
+          "S-13",
+          "S-14",
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "acceptance.md#一可观察场景"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "acceptance.md#二绝不能发生的事"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-17",
+          "S-18",
+          "S-19",
+          "S-26",
+          "S-28",
+          "S-29",
+          "S-38",
+          "S-39"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "acceptance.md#三判据"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-15",
+          "S-17",
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "decisions.md#2026-09-22--九条正文规则逐条确认为产品要求"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-9",
+          "S-16",
+          "S-18",
+          "S-30",
+          "S-32",
+          "S-37",
+          "S-44"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#组织"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-7",
+          "S-12",
+          "S-21",
+          "S-30",
+          "S-32",
+          "S-34"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#个人组织"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-6",
+          "S-20",
+          "S-23",
+          "S-29",
+          "S-30",
+          "S-32"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#租户"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#账号"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#角色"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-3",
+          "S-8",
+          "S-17",
+          "S-28",
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#当前租户身份"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-4",
+          "S-37"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#两种邀约都会过期"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-10",
+          "S-23",
+          "S-25",
+          "S-32",
+          "S-55",
+          "S-56",
+          "S-57",
+          "S-60"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#隶属关系怎么建立与解除"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-7",
+          "S-30",
+          "S-32",
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#退出之后再加入回来的是同一个租户"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-8",
+          "S-38",
+          "S-39"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#作者用租户身份标识"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-8"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#61-层次"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#64-隔离"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-9",
+          "S-14",
+          "S-16",
+          "S-37",
+          "S-43"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#66-撤销不等于强制停止"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-18",
+          "S-29",
+          "S-44"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#67-创作与归属"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-38"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#非目标"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-3"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#11-注册"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-20",
+          "S-53"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#12-登录"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-14"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#14-创建组织"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#15-邀请与加入"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-10",
+          "S-25",
+          "S-26",
+          "S-55",
+          "S-57"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#16-退出组织"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#17-建立与解除组织隶属"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-11",
+          "S-32",
+          "S-56",
+          "S-58",
+          "S-60"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#18-切换当前组织"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-37"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#31-账号"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-20",
+          "S-53"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#33-成员关系"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-8",
+          "S-17",
+          "S-28",
+          "S-29",
+          "S-38",
+          "S-39"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#二分支与异常"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-21",
+          "S-25",
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#四角色与操作"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-3",
+          "S-23",
+          "S-26",
+          "S-58",
+          "S-59",
+          "S-60"
+        ]
+      },
+      "reviewed": false,
+      "note": "S-59 授权已由 PF-001 rev 14 定为有效成员（任一角色）；S-58/S-60 超管。governance G-11 随之闭合，S-58 因此进 clauses。已解除成员只超管（rev 15）：S-59 ① 的过滤开关拆两档分别授权，「连无效的一起要」只给超管，普通成员请求该档 ⇒ notAuthorized；失败集合不变。其余为批量导入，尚未逐条复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "design.md#52-边界是那棵隶属树不是单个组织"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "design.md#612-关系解除之后"
+      },
+      "target": {
+        "contract_id": "capability.organization-governance",
+        "version": 1,
+        "clauses": [
+          "S-33",
+          "S-40"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "acceptance.md#一可观察场景"
+      },
+      "target": {
+        "contract_id": "composition.account-registration",
+        "version": 1,
+        "clauses": [
+          "S-12",
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "acceptance.md#二绝不能发生的事"
+      },
+      "target": {
+        "contract_id": "composition.account-registration",
+        "version": 1,
+        "clauses": [
+          "S-5",
+          "S-8",
+          "S-16"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "acceptance.md#三判据"
+      },
+      "target": {
+        "contract_id": "composition.account-registration",
+        "version": 1,
+        "clauses": [
+          "S-8",
+          "S-9",
+          "S-12",
+          "S-13",
+          "S-14",
+          "S-20",
+          "S-34",
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "acceptance.md#四本版不验收的"
+      },
+      "target": {
+        "contract_id": "composition.account-registration",
+        "version": 1,
+        "clauses": [
+          "S-3",
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#账号"
+      },
+      "target": {
+        "contract_id": "composition.account-registration",
+        "version": 1,
+        "clauses": [
+          "S-4",
+          "S-8"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#未激活的账号记录不会永久占着那个名字"
+      },
+      "target": {
+        "contract_id": "composition.account-registration",
+        "version": 1,
+        "clauses": [
+          "S-1",
+          "S-3",
+          "S-34",
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#64-隔离"
+      },
+      "target": {
+        "contract_id": "composition.account-registration",
+        "version": 1,
+        "clauses": [
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#非目标"
+      },
+      "target": {
+        "contract_id": "composition.account-registration",
+        "version": 1,
+        "clauses": [
+          "S-2"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#11-注册"
+      },
+      "target": {
+        "contract_id": "composition.account-registration",
+        "version": 1,
+        "clauses": [
+          "S-1",
+          "S-3",
+          "S-4",
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#14-创建组织"
+      },
+      "target": {
+        "contract_id": "composition.account-registration",
+        "version": 1,
+        "clauses": [
+          "S-8"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#31-账号"
+      },
+      "target": {
+        "contract_id": "composition.account-registration",
+        "version": 1,
+        "clauses": [
+          "S-3",
+          "S-6",
+          "S-8",
+          "S-10",
+          "S-12",
+          "S-15",
+          "S-34"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#二分支与异常"
+      },
+      "target": {
+        "contract_id": "composition.account-registration",
+        "version": 1,
+        "clauses": [
+          "S-6",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 登记时按契约正文的来源列逐条对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#工作区"
+      },
+      "target": {
+        "contract_id": "data.identity-values",
+        "version": 1,
+        "clauses": [
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 评审轮一修订后补登：按修订 agent 报告与契约正文的来源列对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "design.md#63-复制的通则同一自然人的两个租户身份"
+      },
+      "target": {
+        "contract_id": "data.identity-values",
+        "version": 1,
+        "clauses": [
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 评审轮一修订后补登：按修订 agent 报告与契约正文的来源列对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "design.md#612-关系解除之后"
+      },
+      "target": {
+        "contract_id": "data.identity-values",
+        "version": 1,
+        "clauses": [
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 评审轮一修订后补登：按修订 agent 报告与契约正文的来源列对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#contextagent-运行时可感知的上下文信息"
+      },
+      "target": {
+        "contract_id": "data.identity-values",
+        "version": 1,
+        "clauses": [
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 评审轮一修订后补登：按修订 agent 报告与契约正文的来源列对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "flows.md#34-一份待确认的邀约复制通知与分享邀请同形"
+      },
+      "target": {
+        "contract_id": "data.offer-expiry",
+        "version": 1,
+        "clauses": [
+          "S-8",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-22 评审轮一修订后补登：按修订 agent 报告与契约正文的来源列对到小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#17-建立与解除组织隶属"
+      },
+      "target": {
+        "contract_id": "data.offer-expiry",
+        "version": 1,
+        "clauses": [
+          "S-6"
+        ]
+      },
+      "reviewed": false,
+      "note": "评审轮四补登：S-6 据 flows §1.7 把隶属请求的过期判定按接收方组织判。尚未逐条复核。"
+    }
+  ],
+  "note": "2026-09-22 首次登记，覆盖租户相关领域五份 candidate 契约。每条的 clauses 由两处合并得出：契约正文里带小节链接的条款段落，以及各契约「性质」表的「来源」列。全部 reviewed=false——这是「声称覆盖但尚未逐条复核」的诚实初值，不是复核通过。三处已知不完整，登记时一并记明，不靠留白掩盖：（1）PF-007 也被 data.identity-values 与 capability.organization-governance 的正文引为来源（§4 一笔授权表达有三个维度），本次登记范围只含 PF-001/002/003/015，因此 PF-007 一条未登；（2）foundation 的 SYS-TENANT / SYS-DEPLOY 是全局约束不是产品条款，本清单只登记 PF- 侧，那一侧的覆盖没有家；（3）契约正文里以散文方式引用产品要求、没有给出小节链接的地方，本次登记抓不到。 2026-09-22 评审轮一修订后补登 18 处（见各行 note）。data.identity-values/v1#S-35「交接凭证」没有产品出处（规格层构造），有意不登记 cover。"
 }

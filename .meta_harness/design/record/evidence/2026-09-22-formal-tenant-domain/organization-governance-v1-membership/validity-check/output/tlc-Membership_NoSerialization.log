@@ -1,0 +1,60 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 76 and seed -8736887523590181921 with 4 workers on 8 cores with 6955MB heap and 64MB offheap memory [pid: 46433] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /tmp/claude-1001/-data-qiwei-repos-omne-harness-lite/2842d872-0f2b-4580-8fe6-93760b7cc9d0/scratchpad/run2/gov/Membership.tla
+Parsing file /tmp/tlc-1123431584258417898/Naturals.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-1123431584258417898/FiniteSets.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-1123431584258417898/_TLCTrace.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/_TLCTrace.tla)
+Parsing file /tmp/tlc-1123431584258417898/Sequences.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file /tmp/tlc-1123431584258417898/TLC.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file /tmp/tlc-1123431584258417898/TLCExt.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/TLCExt.tla)
+Parsing file /tmp/tlc-1123431584258417898/Integers.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Integers.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module Integers
+Semantic processing of module TLCExt
+Semantic processing of module _TLCTrace
+Semantic processing of module Membership
+Linting of module TLCExt
+Linting of module _TLCTrace
+Linting of module Membership
+Starting... (2026-09-22 11:07:04)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-22 11:07:04.
+Error: Invariant AtLeastOneSuperAdministrator is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ effective = {a1, a2}
+/\ staged = ( a1 :> [kind |-> "none", target |-> "none"] @@
+  a2 :> [kind |-> "none", target |-> "none"] )
+/\ isSuper = (a1 :> TRUE @@ a2 :> TRUE)
+
+State 2: <Stage(a2,a1,"remove") line 95, col 5 to line 101, col 39 of module Membership>
+/\ effective = {a1, a2}
+/\ staged = ( a1 :> [kind |-> "none", target |-> "none"] @@
+  a2 :> [kind |-> "remove", target |-> a1] )
+/\ isSuper = (a1 :> TRUE @@ a2 :> TRUE)
+
+State 3: <Stage(a1,a2,"remove") line 95, col 5 to line 101, col 39 of module Membership>
+/\ effective = {a1, a2}
+/\ staged = ( a1 :> [kind |-> "remove", target |-> a2] @@
+  a2 :> [kind |-> "remove", target |-> a1] )
+/\ isSuper = (a1 :> TRUE @@ a2 :> TRUE)
+
+State 4: <Apply(a1) line 104, col 5 to line 107, col 45 of module Membership>
+/\ effective = {a1}
+/\ staged = ( a1 :> [kind |-> "none", target |-> "none"] @@
+  a2 :> [kind |-> "remove", target |-> a1] )
+/\ isSuper = (a1 :> TRUE @@ a2 :> TRUE)
+
+State 5: <Apply(a2) line 104, col 5 to line 107, col 45 of module Membership>
+/\ effective = {}
+/\ staged = ( a1 :> [kind |-> "none", target |-> "none"] @@
+  a2 :> [kind |-> "none", target |-> "none"] )
+/\ isSuper = (a1 :> TRUE @@ a2 :> TRUE)
+
+149 states generated, 78 distinct states found, 18 states left on queue.
+The depth of the complete state graph search is 6.
+Finished in 00s at (2026-09-22 11:07:04)
+Trace exploration spec path: ./Membership_TTrace_1790075224.tla

@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json",
+  "title": "data.identity-values v1",
+  "description": "身份值的规范形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指 contract.md，仅在 data.identity-values/v1 内有效。",
+  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状；隔离义务 S-16～S-28 约束的是各 owner 的访问路径与判定，Schema 一概管不到，由静态检查与消费者契约兑现。",
+
+  "$defs": {
+
+    "OpaqueIdentifier": {
+      "title": "不透明标识（内部基定义）",
+      "description": "不透明、部署内唯一、由存储生成的标识。消费者不得解析其内部结构，不得从它推断注册时间、顺序或归属，不得做除相等之外的比较。它不来自运行时对象（如 Cordis 的 Fiber.uid）。本定义不单独被引用，只供下面各具体标识复用。",
+      "$comment": "字符集、长度与生成方式是已知缺口 G-04，留 realization。此处只约束到「非空字符串」，不补造格式；实现不得把这里的宽松当作「任意字符串都是合法标识」。",
+      "type": "string",
+      "minLength": 1
+    },
+
+    "LoginIdentifier": {
+      "$ref": "#/$defs/OpaqueIdentifier",
+      "title": "登录标识 · Login Identifier",
+      "description": "S-2：账号的一项属性，用来指认这个账号的对外名字。整个部署内唯一，注册时确定，未激活的账号同样占用它。它不是 AccountId，不得出现在 TenantId 中，也不得作为任何归属记录的键。",
+      "$comment": "它的对外形式（是否邮箱、是否允许大小写差异）本版未定，与 G-04 同属 realization。此处复用 OpaqueIdentifier 只是形状上的最小约束，不表示它对用户不可读。"
+    },
+
+    "AccountId": {
+      "$ref": "#/$defs/OpaqueIdentifier",
+      "title": "账号标识 · Account Id",
+      "description": "S-1：账号（UL-account）的标识。不透明、部署内唯一、由存储生成。相等即同一个账号。与登录标识是两样东西，见 LoginIdentifier 与 S-2。",
+      "examples": ["acc_91ab40"]
+    },
+
+    "OrganizationId": {
+      "$ref": "#/$defs/OpaqueIdentifier",
+      "title": "组织标识 · Organization Id",
+      "description": "S-3：组织（UL-organization）的标识。不透明、部署内唯一、由存储生成。个人组织与团队组织共用同一个标识空间，不能从它的形状分辨变体——要分辨读 OrganizationKind。",
+      "examples": ["org_7fd2c1"]
+    },
+
+    "LoginStateId": {
+      "$ref": "#/$defs/OpaqueIdentifier",
+      "title": "登录状态标识 · Login State Id",
+      "description": "S-9：登录状态（UL-login-state）的标识。不透明、部署内唯一、由存储生成。它不是会话的标识，也不是账号的标识。产品正文未述登录状态靠什么标识（缺口 G-05），本定义只给出满足「彼此可分辨」的最小形状。",
+      "examples": ["lgs_3c7e11"]
+    },
+
+    "OrganizationKind": {
+      "title": "组织变体 · Organization Kind",
+      "description": "S-4：组织的一项属性，创建时确定、此后不可改、无写路径。personal 蕴含三条结构性约束：不可邀请、上级恒空、不可作上级——它们不是可被调整的权限设置。由此得到：个人组织的上级链恒空，任何两个个人组织都不会有共同上级。",
+      "$comment": "「personal 蕴含那三条」是跨对象约束，Schema 表达不了，归 capability.organization-governance v1 与其 Affiliation.als。",
+      "type": "string",
+      "enum": ["personal", "team"]
+    },
+
+    "TenantRole": {
+      "title": "租户角色 · Tenant Role",
+      "description": "S-8：租户在其组织内的属性，单值，取值恰两种。可变，变更只影响此后的准入判定，不改变已发生的归属与既有事实。它不进租户身份（见 TenantId）。",
+      "type": "string",
+      "enum": ["super_administrator", "member"]
+    },
+
+    "TenantId": {
+      "title": "租户身份 · Tenant Id",
+      "description": "S-5 / S-7：值类型，由 (OrganizationId, AccountId) 这一有序对确定，这是它的唯一规范序列化形式。相等按分量，不存在第三种相等依据。不含角色、不含成员资格、不含时间。S-6：没有生成路径，也没有销毁路径——成员关系的建立与解除改变的是 MembershipStanding，不改变这个值是哪一个，已记录的引用永不悬空。",
+      "$comment": "本版刻意不定义任何标量形式（拼接串、哈希、编码键都不是）。消费者若在实现里需要标量键，不得把它作为身份对外发布，也不得把解析它的结果当作授权依据（S-7、S-22）。additionalProperties: false 同时挡住了「顺手加一个 role 字段」这种最常见的越界。",
+      "type": "object",
+      "properties": {
+        "organization": { "$ref": "#/$defs/OrganizationId" },
+        "account": { "$ref": "#/$defs/AccountId" }
+      },
+      "required": ["organization", "account"],
+      "additionalProperties": false,
+      "examples": [
+        { "organization": "org_7fd2c1", "account": "acc_91ab40" }
+      ]
+    },
+
+    "MembershipStanding": {
+      "title": "成员资格判定结果 · Membership Standing",
+      "description": "S-10：恰三值。effective 表示该 TenantId 此刻有效并同时给出角色；ineffective 表示此刻无效（从未建立，或已解除）；unavailable 表示判定不出来——判定依据此刻读不到。unavailable 与 ineffective 是两个值，不是一个：消费者拿到 unavailable 必须明确失败，不得视作无效、不得回退到任何其他范围、不得据此执行清理（S-25）。没有「有效但角色未知」这一态。",
+      "$comment": "这个正式英文名尚未进统一语言词表，是已登记的缺口 G-07；本契约接受前须补词条或换用已有词。判定本身（读面、写路径、失败集合）归 capability.organization-governance v1，本契约只定结果的取值与消费者的义务。",
+      "type": "object",
+      "oneOf": [
+        {
+          "title": "有效",
+          "properties": {
+            "standing": { "const": "effective" },
+            "role": { "$ref": "#/$defs/TenantRole" }
+          },
+          "required": ["standing", "role"],
+          "additionalProperties": false
+        },
+        {
+          "title": "无效",
+          "properties": {
+            "standing": { "const": "ineffective" }
+          },
+          "required": ["standing"],
+          "additionalProperties": false
+        },
+        {
+          "title": "不可用",
+          "properties": {
+            "standing": { "const": "unavailable" }
+          },
+          "required": ["standing"],
+          "additionalProperties": false
+        }
+      ],
+      "examples": [
+        { "standing": "effective", "role": "super_administrator" },
+        { "standing": "ineffective" },
+        { "standing": "unavailable" }
+      ]
+    },
+
+    "ScopeLayerIdentity": {
+      "title": "作用域层身份 · Scope Layer Identity",
+      "description": "S-11：作用域层（UL-scope-layer）及其身份值的表示，本版恰两个变体：organization 携带一个 OrganizationId，tenant 携带一个 TenantId。刻意排除四个：account（账号不占一格，求值是恒等的）、factory_default（归属是系统，没有身份值，不得铸一个「系统」主体）、workspace（不是一重身份，只在设置那条层序上占一格）、session（已知缺口 G-01，归 PF-015）。本类型不表达资产归属那条层序（official < 组织 < 租户 < 工作区），那是另一条层序，成员对不齐。",
+      "$comment": "枚举不含 session 是本版的一个明确设计动作，不是遗漏：让「会话级层身份」无法被静默构造出来，需要它的消费者会在这里停下并报缺口，而不是照一个猜测实施。补上它要出 v2。这个正式英文名同属缺口 G-07。",
+      "type": "object",
+      "oneOf": [
+        {
+          "title": "组织级",
+          "properties": {
+            "layer": { "const": "organization" },
+            "organization": { "$ref": "#/$defs/OrganizationId" }
+          },
+          "required": ["layer", "organization"],
+          "additionalProperties": false
+        },
+        {
+          "title": "租户级",
+          "properties": {
+            "layer": { "const": "tenant" },
+            "tenant": { "$ref": "#/$defs/TenantId" }
+          },
+          "required": ["layer", "tenant"],
+          "additionalProperties": false
+        }
+      ],
+      "examples": [
+        { "layer": "organization", "organization": "org_7fd2c1" },
+        { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }
+      ]
+    }
+  }
+}

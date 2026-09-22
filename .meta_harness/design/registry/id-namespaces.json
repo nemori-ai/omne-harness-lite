@@ -6,7 +6,7 @@
       "prefix": "PF-",
       "kind": "product-clause",
       "owner": "product",
-      "description": "产品设计 topic 的稳定编号，形如 PF-001；条款以 .Cn 后缀"
+      "description": "产品设计 topic 的稳定编号，形如 PF-001。产品正文当前不给条款编号，covers.json 引用产品要求时用「文件#小节锚点」（如 design.md#64-隔离），不自造 .Cn 后缀；若将来产品正文引入条款编号，先改这里再改 covers"
     },
     {
       "prefix": "SYS-",
@@ -18,7 +18,7 @@
       "prefix": "D-",
       "kind": "decision",
       "owner": "record/decisions",
-      "description": "已接受决定的稳定编号"
+      "description": "已接受决定的稳定编号。分配规则：从 design_legacy 迁入的决定保留原号（同一次接受只发生过一次）；新决定从旧谱系已用的最大号（D-021）之后顺序分配，不回填空号"
     },
     {
       "prefix": "S-",
@@ -31,6 +31,18 @@
       "kind": "analysis-property",
       "owner": "任务产物",
       "description": "领域读数阶段的性质编号，分别对应不变量、安全、进展。**只在一次分析产物内有效**，不进入契约；契约条款一律用 S- 前缀重新编号"
+    },
+    {
+      "prefix": "G-",
+      "kind": "contract-gap",
+      "owner": "spec",
+      "description": "契约「已知缺口」表的编号。作用域限于单个契约的单个版本，各契约写法（G-1／G-01）由该契约自定；跨契约引用须带契约坐标；已闭合的号保留不重排、不复用"
+    },
+    {
+      "prefix": "CS-/IS-/SC-/V-/P-",
+      "kind": "contract-evidence-item",
+      "owner": "spec",
+      "description": "契约的消费者核对场景（CS-）、隔离义务规范场景（IS-）、静态检查（SC-）、证据义务（V-）、性质（P-）编号。作用域限于单个契约的单个版本；跨契约引用须带契约坐标；covers.json 的 target.clauses 只接 S- 条款，这几族不作为覆盖目标"
     }
   ]
 }

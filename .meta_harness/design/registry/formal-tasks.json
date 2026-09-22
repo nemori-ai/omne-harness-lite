@@ -3,6 +3,30 @@
   "baseline_id": "omne-harness-lite-design-2026-09-15",
   "tasks": [
     {
+      "id": "organization-governance-v1-membership",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/organization-governance/v1/formal/Membership.tla",
+        "spec/capabilities/organization-governance/v1/formal/Membership.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/organization-governance-v1-membership",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/organization-governance/v1/formal/Membership.cfg",
+        "spec/capabilities/organization-governance/v1/formal/Membership.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
       "id": "account-registration-v1-basic",
       "kind": "tla",
       "artifacts": [
@@ -15,14 +39,16 @@
         "${TLA2TOOLS_JAR}",
         "tlc2.TLC",
         "-metadir",
-        "${TLC_STATE_ROOT}/account-registration-v1-basic",
+        "tmp/tlc/account-registration-v1-basic",
+        "-cleanup",
+        "-noGenerateSpecTE",
         "-workers",
         "1",
         "-config",
         "spec/compositions/account-registration/v1/formal/basic.cfg",
         "spec/compositions/account-registration/v1/formal/Registration.tla"
       ],
-      "timeout_seconds": 120
+      "timeout_seconds": 180
     },
     {
       "id": "account-registration-v1-crash",
@@ -37,14 +63,16 @@
         "${TLA2TOOLS_JAR}",
         "tlc2.TLC",
         "-metadir",
-        "${TLC_STATE_ROOT}/account-registration-v1-crash",
+        "tmp/tlc/account-registration-v1-crash",
+        "-cleanup",
+        "-noGenerateSpecTE",
         "-workers",
         "1",
         "-config",
         "spec/compositions/account-registration/v1/formal/crash.cfg",
         "spec/compositions/account-registration/v1/formal/Registration.tla"
       ],
-      "timeout_seconds": 120
+      "timeout_seconds": 300
     },
     {
       "id": "account-registration-v1-progress",
@@ -59,14 +87,16 @@
         "${TLA2TOOLS_JAR}",
         "tlc2.TLC",
         "-metadir",
-        "${TLC_STATE_ROOT}/account-registration-v1-progress",
+        "tmp/tlc/account-registration-v1-progress",
+        "-cleanup",
+        "-noGenerateSpecTE",
         "-workers",
         "1",
         "-config",
         "spec/compositions/account-registration/v1/formal/progress.cfg",
         "spec/compositions/account-registration/v1/formal/Registration.tla"
       ],
-      "timeout_seconds": 120
+      "timeout_seconds": 180
     }
   ]
 }

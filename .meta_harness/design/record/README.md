@@ -52,11 +52,20 @@
 
 | 子目录 | 被什么触发 |
 |---|---|
-| `decisions/` | **第一个契约从 `candidate` 变成 `accepted`** ——[catalog 的 `accepted` 条目必须链接一份实际的 decision 文件](../registry/README.md) |
+| `decisions/` | **有权者实际接受了一个精确对象**——契约从 `candidate` 变成 `accepted` 是其中一种（[catalog 的 `accepted` 条目必须链接一份实际的 decision 文件](../registry/README.md)）；产品形态、采用方向这类接受同样触发它 |
 | `evidence/` | **第一次以 `--formal run` 真正执行形式任务**——[登记在 registry 的那几个任务](../registry/README.md)跑出来的配置、输入快照与原始结果 |
 | `proposals/` | 第一次对账（`harness-design-handbook` skill 的步骤 D）走到回询：两种表述要分别往下推，候选必须并存可比 |
 
 **在那之前它们是空的，这是诚实的空**——没有实际发生的事就不追加。
+
+**2026-09-22，其中两个触发了**：
+[`evidence/2026-09-22-formal-tenant-domain/`](evidence/2026-09-22-formal-tenant-domain/README.md)
+是四个已登记形式任务加两项未登记检查的首次成套执行；
+[`proposals/identity-values-v1/`](proposals/identity-values-v1/README.md)
+收了三份独立起草的候选与主线的合并裁定。
+**`decisions/` 同日收了两条**——[D-022 CLI-TUI 交付形态](decisions/cli-tui-delivery-form/README.md)与
+[D-019 定向 fork pi-ai](decisions/model-provider-pi-ai-fork/README.md)，一条是产品形态、一条是采用方向；
+**两条都不接受任何契约**：[catalog 里五份契约仍全是 `candidate`](../registry/README.md)，一份都没有被接受。
 
 
 返回[设计链入口](../README.md)。

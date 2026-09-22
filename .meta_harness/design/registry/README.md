@@ -99,15 +99,35 @@ catalog 的稳定键是 `(baseline_id, contract_id, version)`。资源位置为
 
 ## 当前状态
 
-账号与租户一组的三个契约已登记（均为 `candidate`），三个形式任务已登记并实际执行过；
-`id-namespaces.json` 已登记 5 个前缀族。`covers.json` 当前为空——
-覆盖关系在契约按 PF-001 rev 1 复核并接受时逐条建立，不保留未经核对的条目。
+2026-09-22 登记了租户相关领域的第一批。
+**此后五份契约经过四轮 spec-reviewer 评审并逐条修订，第四轮全部无阻断，改动一律落在 v1 原地**
+（未发布，[冻结跟着接受走](#维护边界)）；catalog 的依赖 clauses 按「正文以坐标引用即消费、只算消费者 → 提供者方向、
+只登实质消费」的口径在评审轮三／四补齐（口径见 [spec/README](../spec/README.md#当前状态)）；
+其中两份带形式工件的契约，模型与配置改过之后**已第二次执行**，
+结果在 [`record/evidence/2026-09-22-formal-tenant-domain-2/`](../record/evidence/2026-09-22-formal-tenant-domain-2/README.md)。
+**五份仍全部是 `candidate`，评审与重跑都不提升状态。**
+
+| 清单 | 现在有什么 |
+|---|---|
+| `catalog.json` | **5 条，全部 `candidate`**：`data.identity-values`、`data.offer-expiry`、`capability.account-identity`、`capability.organization-governance`、`composition.account-registration`，版本一律 1。`acceptance` 全为 `null`，依赖带精确坐标与消费 clauses |
+| `formal-tasks.json` | **4 个 TLC 任务**：`organization-governance-v1-membership`、`account-registration-v1-{basic,crash,progress}`。runner 用 `${JAVA_BIN}` / `${TLA2TOOLS_JAR}` 两个可注入变量，工作目录是设计根。**已由 `--formal run` 实际跑通**。**保存下来的两次运行走的不是这条路径**——它们是主线本机直接调 TLC（4 workers），结果与输入快照在 [`…-formal-tenant-domain/`](../record/evidence/2026-09-22-formal-tenant-domain/README.md) 与 [`…-2/`](../record/evidence/2026-09-22-formal-tenant-domain-2/README.md)，[两者的 runner 差异与「为什么不影响被检查的东西」写在 run README](../record/evidence/2026-09-22-formal-tenant-domain-2/README.md#命令仍然是从日志重建的) |
+| `covers.json` | **PF-001／002／003／015 → 五份契约**的条款级覆盖，全部 `reviewed: false`。`clause` 用产品 topic 的**小节锚点**，理由与三处已知不完整写在该文件的 `clause_form` 与 `note` 里 |
+| `frozen.json` | **仍为空。**五份都没接受，[冻结跟着接受走](#维护边界) |
+| `lineage.json` | **仍为空。**2026-09-17 那三个候选于 2026-09-22 整体废弃，**从未接受或冻结，不产生血缘** |
+| `id-namespaces.json` | 5 个前缀族，本次未变 |
+
+**两件没有登记进来的事，都是有意的**：
+
+- **Alloy 的四条命令没有成为 formal task。**检查器支持 `kind: "alloy"`，
+  但 `alloy exec` 的退出码与断言结果无关（改坏判环前置后 `check` 变成 SAT，它仍退出 0），
+  而 `--formal run` 只看退出码——登记它会得到一个**永远通过的任务**。
+  [证据与闭合条件在那次运行的 README](../record/evidence/2026-09-22-formal-tenant-domain/README.md)。
+- **`Membership_NoSerialization.cfg` 没有成为 formal task。**它**期望失败**（退出 12），
+  与本清单的语义相反；它作为有效性核对保存在同一次运行里。
+
 其余存量清单尚未从 `design_legacy/` 迁入。
 
-迁入涉及两处工具适配，须一并完成，否则检查器找不到清单：
-
-- `tooling/src/check_design.py` 目前要求五份清单直接位于设计根，且文件名为 `rebase-map.json`；
-  新结构下它们在 `registry/` 下，且该文件改名 `lineage.json`。
-- `id-namespaces.json` 与 `covers.json` 是新增清单，检查器尚无对应校验。
+工具状态：检查器已读 `registry/` 下的清单，`lineage.json` 这个名字自 2026-09-22 起与工具一致；
+`id-namespaces.json` 与 `covers.json` 是新增清单，**检查器尚无对应校验**，格式只由本文示例约束。
 
 返回[设计链入口](../README.md)。

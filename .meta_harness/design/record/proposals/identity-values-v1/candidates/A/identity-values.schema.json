@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json",
+  "title": "identity-values v1",
+  "description": "data.identity-values v1 的身份值形状。本文件是定义集合：消费者按 $ref 引用其中的 $defs，不把整份文件当作根类型。根处不作任何断言。条款编号 S-n 指 contract.md，只在 data.identity-values/v1 内有效。",
+  "$comment": "隔离义务条款 S-14~S-26 约束的是携带与判定行为，JSON Schema 表达不了，由静态检查与规范场景承担；见 contract.md 第六节。",
+
+  "$defs": {
+
+    "AccountId": {
+      "$anchor": "AccountId",
+      "title": "AccountId",
+      "description": "S-1 账号的标识。不透明：消费者不得解析其内部结构，也不得从中推断任何账号事实。部署内唯一，由存储生成，不来自运行时（运行实例身份如 Cordis 的 Fiber.uid 不可充当）。相等为按字节精确相等，不做大小写折叠、Unicode 归一化或空白裁剪。S-2：它不是登录标识，两者不得互相替代或推导。",
+      "$comment": "字符集、长度上界与生成算法本版未定（缺口 G-ID-LEXICAL，留 realization）。此处只给最小身份语义：非空字符串。不得在此填入看起来合理的 pattern 或 maxLength。",
+      "type": "string",
+      "minLength": 1
+    },
+
+    "OrganizationId": {
+      "$anchor": "OrganizationId",
+      "title": "OrganizationId",
+      "description": "S-3 组织的标识。约束同 AccountId：非空、不透明、部署内唯一、由存储生成、不来自运行时、按字节精确相等。",
+      "$comment": "词法形式未定，见缺口 G-ID-LEXICAL。",
+      "type": "string",
+      "minLength": 1
+    },
+
+    "LoginStateId": {
+      "$anchor": "LoginStateId",
+      "title": "LoginStateId",
+      "description": "S-11 登录状态的标识。约束同 AccountId。每次登录产生新的一个；失效不可逆且不得复用——一个曾经失效的 LoginStateId 永远不再指向一个有效的登录状态。",
+      "$comment": "词法形式未定，见缺口 G-ID-LEXICAL。失效不可逆是登录状态的行为性质，归 capability.account-identity v1，此处只约束标识形状。",
+      "type": "string",
+      "minLength": 1
+    },
+
+    "OrganizationKind": {
+      "$anchor": "OrganizationKind",
+      "title": "OrganizationKind",
+      "description": "S-4 组织的种类，恰两个取值，创建时确定且此后不可改。personal = 个人组织（Personal Organization），team = 团队组织（Team Organization）。S-5：personal 蕴含三条结构约束——不可邀请、上级组织恒空、不可作他人的上级；三条是结构性禁止，不是可调整的权限设置。",
+      "type": "string",
+      "enum": ["personal", "team"]
+    },
+
+    "TenantId": {
+      "$anchor": "TenantId",
+      "title": "TenantId",
+      "description": "S-6 租户的身份：(OrganizationId, AccountId)。值类型，不另铸标识——不存在第三个由存储生成的租户主键。S-7 不含租户角色，也不含任何可变属性。S-8 不因成员关系断续而变，无销毁路径，历史引用永久可解析。S-9 这是唯一的规范序列化形式：恰含 organization 与 account 两个成员，均必填、均非空，不得有附加成员；相等为两个分量分别按其规则相等（结构相等），成员顺序不参与判定。",
+      "$comment": "S-9 的「唯一」是硬的：本契约不定义任何把 TenantId 压成单个标量的编码，需要标量键的消费者见缺口 G-TENANT-KEY。",
+      "type": "object",
+      "properties": {
+        "organization": { "$ref": "#/$defs/OrganizationId" },
+        "account": { "$ref": "#/$defs/AccountId" }
+      },
+      "required": ["organization", "account"],
+      "additionalProperties": false
+    },
+
+    "TenantRole": {
+      "$anchor": "TenantRole",
+      "title": "TenantRole",
+      "description": "S-10 租户在其所属组织内的角色，单值，恰两个取值。superAdministrator = 超级管理员（Super Administrator），member = 普通成员（Member）。可变，变更只影响此后的准入判定，不改变已发生的归属与既有事实。谁能改、改的前置条件归 capability.organization-governance v1。",
+      "type": "string",
+      "enum": ["superAdministrator", "member"]
+    },
+
+    "MembershipStanding": {
+      "$anchor": "MembershipStanding",
+      "title": "MembershipStanding",
+      "description": "S-12 成员资格判定的结果，恰三个取值，不得压成布尔或可空值。valid 必须携带角色；invalid 与 unavailable 必须不携带角色。unavailable 表示判定做不出来（依据不可读、提供者不可用），它是失败而不是一个答案：折成 invalid 会把「读不到」讲成「你不是成员」，折成 valid 会在依据不可读时放行——两种折叠都禁止。消费者遇到 unavailable 按 S-22 明确失败，不得回退到个人范围。",
+      "$comment": "MembershipStanding 尚无统一语言词条，见缺口 G-UL-STANDING；本契约接受之前须补词条。",
+      "oneOf": [
+        {
+          "title": "valid",
+          "description": "此刻是有效成员，角色是 role 携带的那个。",
+          "type": "object",
+          "properties": {
+            "standing": { "const": "valid" },
+            "role": { "$ref": "#/$defs/TenantRole" }
+          },
+          "required": ["standing", "role"],
+          "additionalProperties": false
+        },
+        {
+          "title": "invalid",
+          "description": "此刻不是有效成员（从未加入，或成员关系已解除）。它不是删除信号：租户级持有不可达但不销毁（C-5）。",
+          "type": "object",
+          "properties": {
+            "standing": { "const": "invalid" }
+          },
+          "required": ["standing"],
+          "additionalProperties": false
+        },
+        {
+          "title": "unavailable",
+          "description": "判定做不出来。消费者必须明确失败，不得视作 invalid，也不得视作 valid。",
+          "type": "object",
+          "properties": {
+            "standing": { "const": "unavailable" }
+          },
+          "required": ["standing"],
+          "additionalProperties": false
+        }
+      ]
+    },
+
+    "ScopeLayerIdentity": {
+      "$anchor": "ScopeLayerIdentity",
+      "title": "ScopeLayerIdentity",
+      "description": "S-13 作用域层中由身份带来的那两层各自的身份值：organization 层携带一个 OrganizationId，tenant 层携带一个 TenantId。出厂默认层归系统、没有身份值，因此不在这里。会话级的层身份本版无表示（缺口 G-SESSION-LAYER），本 Schema 对它一律拒绝，不给占位值。工作区不是一重身份，不占一格；上级组织不进这两层。",
+      "$comment": "ScopeLayerIdentity 是 UL-scope-layer 在规格里的表示名，不引入新产品概念；是否需要独立词条见缺口 G-UL-LAYER-IDENTITY。",
+      "oneOf": [
+        {
+          "title": "organization layer",
+          "type": "object",
+          "properties": {
+            "layer": { "const": "organization" },
+            "organization": { "$ref": "#/$defs/OrganizationId" }
+          },
+          "required": ["layer", "organization"],
+          "additionalProperties": false
+        },
+        {
+          "title": "tenant layer",
+          "type": "object",
+          "properties": {
+            "layer": { "const": "tenant" },
+            "tenant": { "$ref": "#/$defs/TenantId" }
+          },
+          "required": ["layer", "tenant"],
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

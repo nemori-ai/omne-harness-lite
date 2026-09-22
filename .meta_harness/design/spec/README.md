@@ -86,10 +86,48 @@ Alloy 可按结构关系建立模型，检查断言并探索合法实例；参�
 
 ## 当前状态
 
-已有三个 topic：[account-identity](capabilities/account-identity/README.md)、
-[tenant-governance](capabilities/tenant-governance/README.md)、
-[account-registration](compositions/account-registration/README.md)，均为 candidate。
-注册组合含 TLA+ 行为模型与三个检查配置，已实际执行。
+**当前有五个候选 topic**，都属租户相关领域，**全部为 `candidate`**：
+
+| topic | 拥有什么 |
+|---|---|
+| [`data/identity-values`](data/identity-values/README.md) | 身份值的形状与隔离义务 |
+| [`data/offer-expiry`](data/offer-expiry/README.md) | 一份待接受的邀约何时不再可被接受 |
+| [`capabilities/account-identity`](capabilities/account-identity/README.md) | 账号事实、登录状态、凭据校验 |
+| [`capabilities/organization-governance`](capabilities/organization-governance/README.md) | 组织、成员关系、邀请与隶属请求、当前租户身份 |
+| [`compositions/account-registration`](compositions/account-registration/README.md) | 一次注册从入口走到稳定点的整体责任 |
+
+**五份已在 [catalog](../registry/README.md) 登记**（2026-09-22），**状态一律 `candidate`**，
+`acceptance` 全为 `null`，`frozen.json` 里一条资源也没有。
+它们之间的依赖带精确坐标与消费 clauses，登记口径是**正文以坐标引用某条款即为消费**，
+只有否定式提及（「不来自」「不同于」）不登；**方向只算消费者 → 提供者**：data 契约正文以坐标引用
+capability／composition 条款作「落点」（谁在用它），不构成 data 契约对它们的依赖；
+**登的是实质消费**——本契约据以写出承诺、判定、映射或证据落点的条款；只作结构性前提
+（如引用对方的依赖方向声明）或类比（「与……是同一条规矩」）的引用不登；`organization-governance` 对 `data.identity-values`
+的消费面已于评审轮二收齐为 27 条，与 [契约 S-4 的表](capabilities/organization-governance/README.md)一致。
+
+**登记不是接受，也不是发布。**[`record/decisions/`](../record/decisions/README.md) 里一份决定文件都没有；
+因此 PF-001 升 rev 带来的语义变化**仍然直接落在 v1 上，不发布第二个版本**——
+[不可原地覆盖的是已发布规格](#路径即身份)，这五份都还没有发布。
+
+**形式工件已执行过两轮**（都在 2026-09-22：
+[第一轮](../record/evidence/2026-09-22-formal-tenant-domain/README.md)，
+以及评审轮一改了模型之后的[第二轮](../record/evidence/2026-09-22-formal-tenant-domain-2/README.md)）：
+`organization-governance` 的 `Membership.cfg` 与 `account-registration` 的三个配置
+**四个都登记成了 formal task**，两轮**四个都无反例**；
+`Membership_NoSerialization.cfg` 两轮都**按预期给出反例**（有效性核对，因期望失败而不登记为任务）；
+四条 Alloy 命令按预期 SAT／UNSAT，但 **`alloy exec` 的退出码与断言结果无关，因此未登记为任务**。
+**当前模型的结论以第二轮为准**——`Registration.tla`、`progress.cfg` 与 `Affiliation.als` 都改过，
+只有 `Membership.tla` 与它的两个 cfg 两轮逐字节相同。
+
+**「无反例」在这里离「已验证」还差一大截**：
+两份 formal 入口一共列了 11 个变异核对与 2 个 TLA+ 有效性核对，**两轮一个都没登记**；
+五份契约的规范场景**一条都没演练**。
+各包的实际状态与边界以其 `verification.md` 的「实际执行」一节为准。
+
+2026-09-17 建在 PF-001 rev 1 上的三份候选
+（账号身份、租户治理、账号注册组合）已于 2026-09-22 由产品负责人裁定**整体废弃**，
+它们从未被接受或冻结，原件只在 Git 历史里；架构与规格设计从 PF-001 rev 8 及其后续修订从零起步，
+第一站是租户相关领域。
 
 存量 topic 尚未从 `design_legacy/spec/` 迁入。由于路径形状不变，
 迁入是整目录搬运：`$id`、冻结清单中的相对路径与包内相对链接都不需要重写，
