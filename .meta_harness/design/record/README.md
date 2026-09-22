@@ -63,7 +63,7 @@
 是四个已登记形式任务加两项未登记检查的首次成套执行；
 [`proposals/identity-values-v1/`](proposals/identity-values-v1/README.md)
 收了三份独立起草的候选与主线的合并裁定。
-**`decisions/` 同日收了三条**——[D-022 CLI-TUI 交付形态](decisions/cli-tui-delivery-form/README.md)与
+**`decisions/` 同日收了四条**（第四条 [D-024](decisions/tenancy-domain-name/README.md) 只裁一个领域名）——[D-022 CLI-TUI 交付形态](decisions/cli-tui-delivery-form/README.md)与
 [D-019 定向 fork pi-ai](decisions/model-provider-pi-ai-fork/README.md)，一条是产品形态、一条是采用方向，两条都不接受任何契约；
 [D-023 接受租户领域的设计链](decisions/tenant-domain-design-acceptance/README.md)是本设计链**第一条接受契约的决定**：
 五份契约 v1、拆分裁定、六个节点设计与投影 v1 一并接受，[catalog 五条翻 `accepted` 并冻结](../registry/README.md)。

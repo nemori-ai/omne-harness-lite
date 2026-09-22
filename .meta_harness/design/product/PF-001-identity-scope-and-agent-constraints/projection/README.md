@@ -11,6 +11,8 @@
 
 **当前应实施的版本：v1**，接受依据是 [D-023](../../../record/decisions/tenant-domain-design-acceptance/decision.md)。接受的是设计与实施入口，不表示任何实现或验证已完成；18 项未决 Q-n 仍是显式缺口。
 
+**v1 落盘后闭合的未决项**（v1 正文不改，实施者按此读它的第 7 节）：Q-15 领域名——`tenancy`，[D-024](../../../record/decisions/tenancy-domain-name/README.md)（2026-09-22）。
+
 ## 使用与维护
 
 - 实施者读当前版本的 `projection.md` 即可取得全部设计输入；

@@ -39,7 +39,7 @@ realization/
 | 第一层 | 放什么 | 判据 |
 |---|---|---|
 | `core/` | **核心、共享、契约或底层协议相关**：`data.*` 数据契约的纯模块、跨领域复用的构造（身份值、交接凭证、过期判定、时间源形状）、内核层复用件 | 它没有自己的领域事实，**被两个以上领域消费**，或它兑现的是一份 `data.*` 契约 |
-| `<domain>/` | **按领域或限界上下文聚合**的能力与组合提供者 | 它拥有该领域的事实或动作链；一个节点只属于一个领域。领域名是候选，直到产品负责人拍板 |
+| `<domain>/` | **按领域或限界上下文聚合**的能力与组合提供者 | 它拥有该领域的事实或动作链；一个节点只属于一个领域。领域名由产品负责人拍板——租户领域是 `tenancy`（[D-024](../record/decisions/tenancy-domain-name/README.md)），新领域在拍板前标候选 |
 
 **怎么判一个节点归 `core` 还是某个领域**：问它兑现的契约是 `data.*` 还是 `capability.*`／`composition.*`——前者几乎总在 `core`；
 后者按契约拥有的事实归领域。拿不准的先按领域放，**被第二个领域消费的那天再搬进 `core`**，搬动是「实现换方案」，记 changelog 即可，不改契约。
@@ -139,7 +139,7 @@ bindings:
 | [`packages/tenancy/organization-governance`](packages/tenancy/organization-governance/README.md) | `capability.organization-governance` v1 | 插件，四个服务面（S-53 单列一个只给清除链）；跨 owner「同一提交」靠临界区加单调事实 |
 | [`packages/tenancy/account-registration`](packages/tenancy/account-registration/README.md) | `composition.account-registration` v1 | 薄插件，无事实；两条动作链，签发激活依据；清扫提供者因缺枚举读面本版建不起来 |
 
-`tenancy` 是租户领域这个限界上下文的候选名，产品负责人未拍板。六个节点共用的待核对主张（可选 inject、`ctx.provide` 纳管、插件体抛出后的 fiber 状态）与对存储提供者的要求清单各记在节点里。
+`tenancy` 是租户领域这个限界上下文的名字，产品负责人 2026-09-22 拍板（[D-024](../record/decisions/tenancy-domain-name/README.md)）。六个节点共用的待核对主张（可选 inject、`ctx.provide` 纳管、插件体抛出后的 fiber 状态）与对存储提供者的要求清单各记在节点里。
 
 ## 当前状态
 
