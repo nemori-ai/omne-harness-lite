@@ -15,16 +15,16 @@
 > **动手改任何一个之前，先看[架构内核 PF](architecture-core.md)。**
 > 那份清单登记哪些 topic 覆盖[架构内核](../ubiquitous_language/terms/architecture-core-and-extension.md#ul-architecture-core--架构内核--architecture-core)——
 > **改它们等于改别的 PF 赖以成立的前提**，代价与自检问题都在那里。
-> **下面这些目前全在那份清单上。**
+> **PF-000～PF-015 全在那份清单上；[PF-016 起默认在内核之外](architecture-core.md#内核之外的-pf)。**
 
 | Topic | 状态 | rev |
 |---|---|---|
 | [PF-000 发生的事与记录条目](PF-000-occurrences-and-record-entries/README.md) | active | 1 |
-| [PF-001 身份、范围与对 Agent 的约束](PF-001-identity-scope-and-agent-constraints/README.md) | active | 8 |
-| [PF-002 设置、权限与资产的展开](PF-002-assets-settings-and-permissions/README.md) | active | 7 |
-| [PF-003 资产的复制与分享](PF-003-asset-transfer-and-sharing/README.md) | active | 3 |
-| [PF-004 Agent 定义与装配](PF-004-agent-definition-and-assembly/README.md) | active | 8 |
-| [PF-005 执行环境与沙箱](PF-005-execution-environments-and-sandboxes/README.md) | active | 4 |
+| [PF-001 身份、范围与对 Agent 的约束](PF-001-identity-scope-and-agent-constraints/README.md) | active | 15 |
+| [PF-002 设置、权限与资产的展开](PF-002-assets-settings-and-permissions/README.md) | active | 10 |
+| [PF-003 资产的复制与分享](PF-003-asset-transfer-and-sharing/README.md) | active | 4 |
+| [PF-004 Agent 定义与装配](PF-004-agent-definition-and-assembly/README.md) | active | 9 |
+| [PF-005 执行环境与沙箱](PF-005-execution-environments-and-sandboxes/README.md) | active | 5 |
 | [PF-006 工具与技能](PF-006-tools-and-skills/README.md) | active | 14 |
 | [PF-007 Meta Capabilities](PF-007-meta-capabilities/README.md) | active | 15 |
 | [PF-008 Human in the Loop](PF-008-human-in-the-loop/README.md) | active | 4 |
@@ -32,9 +32,10 @@
 | [PF-010 上下文管理与组装](PF-010-context-management-and-assembly/README.md) | active | 5 |
 | [PF-011 非常态的分层处置](PF-011-off-nominal-handling/README.md) | active | 4 |
 | [PF-012 Agent Loop 与 Run](PF-012-agent-loop-and-run/README.md) | active | 7 |
-| [PF-013 模型档案、调用与切换](PF-013-model-profiles-and-invocation/README.md) | draft | 3 |
+| [PF-013 模型档案、调用与切换](PF-013-model-profiles-and-invocation/README.md) | draft | 4 |
 | [PF-014 输入的受理与排队](PF-014-inbound-intake-and-queueing/README.md) | active | 3 |
-| [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md) | draft | 7 |
+| [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md) | draft | 9 |
+| [PF-016 命令行交付面](PF-016-cli-tui-delivery-surface/README.md) | active | 3 |
 
 ## 已排定、尚未开题的编号
 

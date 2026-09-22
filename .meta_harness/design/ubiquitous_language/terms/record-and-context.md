@@ -123,8 +123,8 @@
 > projection's own tradeoff, **and does not change what it is**.
 
 - **形态**：视图
-- **出处**：[PF-015 §5.8](../../product/PF-015-session-lifecycle-and-ownership/design.md#58-存储要守住的两件事)（rev 7）·
-  [PF-013 §4 模态投影](../../product/PF-013-model-profiles-and-invocation/design.md#模态投影)（rev 3）**给出了第一个实例**
+- **出处**：[PF-015 §5.8](../../product/PF-015-session-lifecycle-and-ownership/design.md#58-存储要守住的两件事)（rev 9）·
+  [PF-013 §4 模态投影](../../product/PF-013-model-profiles-and-invocation/design.md#模态投影)（rev 4）**给出了第一个实例**
 - **⚠️ 别混**：**不是 [runtime context](scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context)。**
   runtime context 是**会话内那三个角色**消费的；**投影多半是给会话外的服务用的**。
   两者有交集但不重合，[判据在 PF-015 §5.5](../../product/PF-015-session-lifecycle-and-ownership/design.md#55-哪些算-meta-runtime-context)
@@ -247,7 +247,7 @@
 
 - **形态**：对象
 - **出处**：[PF-007 §6.9 `TodoItems()`](../../product/PF-007-meta-capabilities/design.md#69-todoitems通向自己手上的待办)（rev 15）·
-  [PF-015 §5.6 第 13 项](../../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 7）
+  [PF-015 §5.6 第 13 项](../../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 9）
 - **别混**：**与「目标」不是一回事**——那是**跨会话**的东西，
   [PF-007 明写它不装在这扇门后面，而设计链里还没有它的家](../../product/PF-007-meta-capabilities/design.md#69-todoitems通向自己手上的待办)
 - **⚠️ 注意 ①**：**它是给 agent 自己看的，不是给系统执行的**——
@@ -342,7 +342,7 @@
 
 - **形态**：视图
 - **出处**：[PF-010 §4 给模型那一侧](../../product/PF-010-context-management-and-assembly/design.md#给模型那一侧两块分别组装)（rev 5）·
-  [PF-004 §5.4](../../product/PF-004-agent-definition-and-assembly/design.md#54-为什么系统提示词必须落在第三列)（rev 8）
+  [PF-004 §5.4](../../product/PF-004-agent-definition-and-assembly/design.md#54-为什么系统提示词必须落在第三列)（rev 9）
 - **注意**：走遍所有[meta 能力](capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability)，
   **它应当逐字不变**——取用一个工具**不改写它**
 

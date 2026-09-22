@@ -182,6 +182,33 @@ rev 1 把不兼容的模型全挡在候选之外，**转换件于是永远没有
 > **「事实 / 策略」那条界线一个字没改。**本层仍然定死三类事实，拓展件推翻不了；
 > 收缩的只是**策略那一侧被本层预先咀嚼过的部分**。
 
+### 2026-09-22 · 凭据是范围上的一项属性，支持自带凭据
+
+**产品负责人裁决（选项作答）**，在「A 属性，挂在范围上／B 独立对象」两条里定：
+
+> 总体上我理解是 A（属性），就是用户完全可以 BYOK，
+> 这样未来可以设计权益、订阅扣费这些就可以方便区分了。
+
+| # | 定死了什么 | 落在正文哪里 |
+|---|---|---|
+| **1** | **OpenRouter 凭据是[组织](../../ubiquitous_language/terms/subjects-and-ownership.md#ul-organization--组织--organization)或[租户](../../ubiquitous_language/terms/subjects-and-ownership.md#ul-tenant--租户--tenant)身上的一项属性**，一范围一把；**不是一个独立对象** | [§5.6](design.md#56-凭据挂在范围上不挂在档案上)、[§6.2](design.md#62-凭据挂在范围上档案自己不存) |
+| **2** | 由此三条：**身份即范围**、**轮换是改这一项的值**、**用量归这个范围** | 同上 |
+| **3** | **它也不是[设置](../PF-002-assets-settings-and-permissions/design.md#52-设置与权限是资产的两种属性)**——设置总是某份资产的属性，而[档案与凭据都不是资产](design.md#模型档案) | [§5.6](design.md#56-凭据挂在范围上不挂在档案上)、[§4 模型档案](design.md#模型档案) |
+| **4** | **范围自带凭据（BYOK）是产品要支持的用法** | [§5.6](design.md#56-凭据挂在范围上不挂在档案上)、[§6.2](design.md#62-凭据挂在范围上档案自己不存) |
+
+**裁决理由（原话）**：*这样未来可以设计权益、订阅扣费这些就可以方便区分了*——
+走平台那把凭据的量与走自带那把的量，落在不同的范围上，**将来要区分就区分得开**。
+
+> **理由只记在这里，不进正文。**本阶段
+> [不建订阅、额度与预算](../PF-001-identity-scope-and-agent-constraints/design.md#二目标与非目标)，
+> 正文写了就是替一个还没有 topic 的东西先定形状。
+>
+> **这条闭合了[领域对象那边「凭据」那项待裁](../../domain_objects/pending.md)**：
+> 结论是**属性**，**不立对象条目**；词条立为
+> **[模型凭据 · Model Credential](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential)**。
+> **取名加了「模型」这个限定**：裸写「凭据」在本系统里还指
+> [连接件](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-connector--连接件--connector)那类接入件的凭据，收窄它代价过高。
+
 ## 二、PM 推导
 
 **推理链可核对、可推翻。**P1–P3 成于起草之前，P4 起成于起草过程中。

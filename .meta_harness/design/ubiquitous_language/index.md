@@ -23,14 +23,19 @@
 | ID | 中文 | English | 一句话 |
 |---|---|---|---|
 | [UL-account](terms/subjects-and-ownership.md#ul-account--账号--account) | 账号 | Account | 自然人的产品身份，只管标识、鉴权、聚合 |
-| [UL-login-state](terms/subjects-and-ownership.md#ul-login-state--登录状态--login-state) | 登录状态 | Login State | 鉴权意义上的一次登录，**不是会话**；退出只失效这一个 |
+| [UL-login-identifier](terms/subjects-and-ownership.md#ul-login-identifier--登录标识--login-identifier) | 登录标识 | Login Identifier | 账号的对外名字，**部署内唯一、注册时定**；**只指认，不证明持有** |
+| [UL-login-state](terms/subjects-and-ownership.md#ul-login-state--登录状态--login-state) | 登录状态 | Login State | 鉴权意义上的一次登录，**不是会话**；退出只失效这一个，**同账号的有效登录状态可被逐个列出与撤销** |
 | [UL-organization](terms/subjects-and-ownership.md#ul-organization--组织--organization) | 组织 | Organization | 一个协作范围，能容纳多个账号 |
 | [UL-personal-organization](terms/subjects-and-ownership.md#ul-personal-organization--个人组织--personal-organization) | 个人组织 | Personal Organization | 注册时自动产生、不能邀请人的那一个 |
 | [UL-team-organization](terms/subjects-and-ownership.md#ul-team-organization--团队组织--team-organization) | 团队组织 | Team Organization | 个人组织之外的所有组织 |
 | [UL-parent-organization](terms/subjects-and-ownership.md#ul-parent-organization--上级组织--parent-organization) | 上级组织 | Parent Organization | 一项属性，不是一层，也不带来继承 |
-| [UL-ancestor-chain](terms/subjects-and-ownership.md#ul-ancestor-chain--上级链--ancestor-chain) | 上级链 | Ancestor Chain | 顺着上级往上那条链，也是资产流转的边界 |
+| [UL-ancestor-chain](terms/subjects-and-ownership.md#ul-ancestor-chain--上级链--ancestor-chain) | 上级链 | Ancestor Chain | 顺着上级往上那条链，**不含自己**；「有共同上级」= 各自算进来后两条链有交集 = 同一棵隶属树，那就是资产流转的边界 |
+| [UL-offer](terms/subjects-and-ownership.md#ul-offer--邀约--offer) | 邀约 | Offer | 要对方点头才生效的那类东西的**统称**，**当前四样**；**只归类，四样不共享身份机制** |
 | [UL-invitation](terms/subjects-and-ownership.md#ul-invitation--邀请--invitation) | 邀请 | Invitation | 发给某个账号的加入邀约，**接受即产生租户**；**会过期** |
+| [UL-affiliation-request](terms/subjects-and-ownership.md#ul-affiliation-request--隶属请求--affiliation-request) | 隶属请求 | Affiliation Request | 发给另一个组织的建立隶属邀约，**接受即填上上级组织属性、不产生租户**；**与邀请是两种对象，只是过期规则相同** |
 | [UL-tenant](terms/subjects-and-ownership.md#ul-tenant--租户--tenant) | 租户 | Tenant | (组织, 账号) 这一组合，归属与隔离的单位 |
+| [UL-membership-standing](terms/subjects-and-ownership.md#ul-membership-standing--成员资格效力--membership-standing) | 成员资格效力 | Membership Standing | 这个租户此刻算不算数，**只有有效/无效两个取值**；**「目标范围不可用」不是第三个取值，那是失败** |
+| [UL-current-tenant-identity](terms/subjects-and-ownership.md#ul-current-tenant-identity--当前租户身份--current-tenant-identity) | 当前租户身份 | Current Tenant Identity | 登录状态上的一项选择，**创建那一刻被捕获，之后切换不影响已创建的** |
 | [UL-tenant-role](terms/subjects-and-ownership.md#ul-tenant-role--租户角色--tenant-role) | 租户角色 | Tenant Role | 租户在其组织内当前能做什么 |
 | [UL-super-administrator](terms/subjects-and-ownership.md#ul-super-administrator--超级管理员--super-administrator) | 超级管理员 | Super Administrator | 一个组织内的最高治理角色，**不是平台管理员** |
 
@@ -40,14 +45,16 @@
 
 | ID | 中文 | English | 一句话 |
 |---|---|---|---|
-| [UL-scope-layer](terms/scope-and-resolution.md#ul-scope-layer--作用域层--scope-layer) | 作用域层 | Scope Layer | 出厂默认 / 组织级 / 租户级 / 会话级这四层 |
-| [UL-workspace](terms/scope-and-resolution.md#ul-workspace--工作区--workspace) | 工作区 | Workspace | 会话挂上的那个目录，**资产归属的第三级**；**授权与权限一概不参与**；旧说法 ~~项目~~ |
+| [UL-scope-layer](terms/scope-and-resolution.md#ul-scope-layer--作用域层--scope-layer) | 作用域层 | Scope Layer | 身份带来的出厂默认 / 组织级 / 租户级 / 会话级这四层；**设置这一维还多一格工作区** |
+| [UL-scope-layer-identity](terms/scope-and-resolution.md#ul-scope-layer-identity--作用域层身份--scope-layer-identity) | 作用域层身份 | Scope Layer Identity | 一格由哪重身份充当：组织 / 租户 / 会话；**出厂默认那一格没有身份**，**工作区不在其列** |
+| [UL-workspace](terms/scope-and-resolution.md#ul-workspace--工作区--workspace) | 工作区 | Workspace | 租户持有、会话创建时显式挂上的一级资产归属，**由目录承载而不是目录本身**，不指定就空；**设置压过租户，权限一概不参与**；旧说法 ~~项目~~、~~会话挂上的那个宿主机目录~~ |
 | [UL-scoped-object](terms/scope-and-resolution.md#ul-scoped-object--范围化对象--scoped-object) | 范围化对象 | Scoped Object | 归属于某一层、参与求值的那类对象 |
 | [UL-capability-identifier](terms/scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier) | 能力标识 | Capability Identifier | 判定两个对象能否互相覆盖的那个标识，资产上是**类别 ＋ name** |
 | [UL-scope-evaluation](terms/scope-and-resolution.md#ul-scope-evaluation--作用域求值--scope-evaluation) | 作用域求值 | Scope Evaluation | 沿层算出这次实际生效的那一份 |
 | [UL-scope-composition-semantics](terms/scope-and-resolution.md#ul-scope-composition-semantics--作用域合成语义--scope-composition-semantics) | 作用域合成语义 | Scope Composition Semantics | 覆盖 / 收窄 / 组合三种 |
 | [UL-two-pass-resolution](terms/scope-and-resolution.md#ul-two-pass-resolution--两轮求值--two-pass-resolution) | 两轮求值 | Two-Pass Resolution | 先算哪个资产，再算它的属性项 |
 | [UL-immutable-marker](terms/scope-and-resolution.md#ul-immutable-marker--不可覆盖标记--immutable-marker) | 不可覆盖标记 | Immutable Marker | 把「默认这样」变成「必须这样」的那个标记 |
+| [UL-attribute-assignment](terms/scope-and-resolution.md#ul-attribute-assignment--属性配值--attribute-assignment) | 属性配值 | Attribute Assignment | 一份资产持有上、一个属性项的一个值，**设置与权限真正被读写的最小单位** |
 | [UL-attribute-projection](terms/scope-and-resolution.md#ul-attribute-projection--属性投影--attribute-projection) | 属性投影 | Attribute Projection | 「组织的设置」是视图不是对象 |
 | [UL-runtime-context](terms/scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context) | 运行时 context | Runtime Context | **一块块就地更新的数据**，在 agent loop 内被**模型/工具/拓展点**消费；旧说法 ~~会话上下文感知域~~ |
 | [UL-meta-runtime-context](terms/scope-and-resolution.md#ul-meta-runtime-context--元-runtime-context--meta-runtime-context) | 元 runtime context | Meta Runtime Context | **每个会话必需携带并持续更新的那些**，当前**十四项**；与 meta 能力同构 |
@@ -80,6 +87,7 @@
 | [UL-meta-capability](terms/capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability) | meta 能力 | Meta Capability | 一整类能力的统一入口，**必定常驻、不可禁用** |
 | [UL-prompt-slot](terms/capabilities-and-composition.md#ul-prompt-slot--提示词槽位--prompt-slot) | 提示词槽位 | Prompt Slot | 系统提示词里一个恒定占位的条目 |
 | [UL-model-profile](terms/capabilities-and-composition.md#ul-model-profile--模型档案--model-profile) | 模型档案 | Model Profile | 关于一个可被调用的模型的全部事实，是数据不是资产 |
+| [UL-model-credential](terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential) | 模型凭据 | Model Credential | 组织或租户身上的一项属性，**一范围一把**；身份即范围、轮换是改值、用量归范围；**范围可以自带** |
 
 ## [流转与授权](terms/circulation-and-entitlement.md)
 
@@ -135,7 +143,7 @@
 
 ## [落地与隔离](terms/grounding-and-isolation.md)
 
-**动作实际落到哪里。**
+**动作实际落到哪里，事实本身又存在哪一处。**
 
 | ID | 中文 | English | 一句话 |
 |---|---|---|---|
@@ -150,6 +158,8 @@
 | [UL-environment-facility](terms/grounding-and-isolation.md#ul-environment-facility--环境设施--environment-facility) | 环境设施 | Environment Facility | 这个环境提供哪几种做事的手段 |
 | [UL-terminal-session](terms/grounding-and-isolation.md#ul-terminal-session--终端会话--terminal-session) | 终端会话 | Terminal Session | `Shell()` 开的那条命令行，**与[会话](terms/agent-runtime-loop.md#ul-session--会话--session)毫无关系** |
 | [UL-execution-environment-permission](terms/grounding-and-isolation.md#ul-execution-environment-permission--执行环境权限--execution-environment-permission) | 执行环境权限 | Execution Environment Permission | per-tool 三态，管**作用落在哪**不管**动作准不准**；`auto_place` 别混 `auto_permission` |
+| [UL-session-base](terms/grounding-and-isolation.md#ul-session-base--会话据点--session-base) | 会话据点 | Session Base | 一个账号的会话、日志、卡片与 runtime 实际所在的那一处，身份是（一处 · 中心 · 账号）；**不是进程**，没人开着屏时照常发生事 |
+| [UL-governance-center](terms/grounding-and-isolation.md#ul-governance-center--治理中心--governance-center) | 治理中心 | Governance Center | 治理事实与组织／租户层范围化对象所在的那一处，**一次部署一个、身份不是它的地址**；**它不知道任何会话** |
 
 ## [取用与可用性](terms/reach-and-availability.md)
 
@@ -187,7 +197,7 @@
 
 ## [交互与派发](terms/interaction-and-dispatch.md)
 
-**agent 跟人、跟别的 agent 怎么来往，以及外面怎么进来。**
+**agent 跟人、跟别的 agent 怎么来往，外面怎么进来，人从哪一面碰到它。**
 
 | ID | 中文 | English | 一句话 |
 |---|---|---|---|
@@ -209,6 +219,9 @@
 | [UL-business-flow-extension-point](terms/interaction-and-dispatch.md#ul-business-flow-extension-point--业务流程拓展点--business-flow-extension-point) | 业务流程拓展点 | Business Flow Extension Point | 拦得住请求，**碰不到已经落定的事实**；**与 Loop 拓展点并列的另一类** |
 | [UL-control-command](terms/interaction-and-dispatch.md#ul-control-command--控制指令--control-command) | 控制指令 | Control Command | 对正在发生的事或队列本身的直接处置，**不是内容、不排队** |
 | [UL-queue-jump](terms/interaction-and-dispatch.md#ul-queue-jump--插队--queue-jump) | 插队 | Queue Jump | 「这句话我要现在就被看到」，**插的是时间不是位置**；**不终止运行** |
+| [UL-delivery-surface](terms/interaction-and-dispatch.md#ul-delivery-surface--交付面--delivery-surface) | 交付面 | Delivery Surface | 把日志投影给人看、把人做的事送进受理的那一面，**不持有领域事实、没有自己的领域语义**；本版只有一种 |
+| [UL-presentation-form](terms/interaction-and-dispatch.md#ul-presentation-form--呈现形式--presentation-form) | 呈现形式 | Presentation Form | 同一份事实交给读者的形式，**恰两种**：人读 / 机读；**别混会话运行模式** |
+| [UL-look-and-feel-preference](terms/interaction-and-dispatch.md#ul-look-and-feel-preference--观感偏好--look-and-feel-preference) | 观感偏好 | Look-and-Feel Preference | 只影响好不好看、顺不顺手的那些选择，**loop 内三个角色都不消费它**；个人 context 的一部分，不是 agent 要感知的界面偏好 |
 
 ## [记录与上下文](terms/record-and-context.md)
 

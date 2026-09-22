@@ -93,6 +93,9 @@
 - **注意 ④**：**它有两种性质**——[主会话](#ul-primary-session--主会话--primary-session)
   与[子会话](#ul-child-session--子会话--child-session)。两者**都完整地是会话**，
   区别只在关系里扮演的角色
+- **注意 ⑤**：**它归哪个租户，在创建那一刻就定了**——它持有
+  [创建那一刻的当前租户身份](subjects-and-ownership.md#ul-current-tenant-identity--当前租户身份--current-tenant-identity)，
+  [此后不随这个账号切换到别的租户身份而变](../../product/PF-015-session-lifecycle-and-ownership/design.md#612-会话持有创建那一刻的租户身份)
 
 ### UL-primary-session · 主会话 · Primary Session
 
@@ -165,7 +168,7 @@
 - **形态**：过程
 - **出处**：[PF-015 §4 会话归档](../../product/PF-015-session-lifecycle-and-ownership/design.md#会话归档) ·
   [§6.2](../../product/PF-015-session-lifecycle-and-ownership/design.md#62-归档有两条来路人手动或到期自动) ·
-  [§6.3](../../product/PF-015-session-lifecycle-and-ownership/design.md#63-归档先停活儿再落状态)（rev 7）
+  [§6.3](../../product/PF-015-session-lifecycle-and-ownership/design.md#63-归档先停活儿再落状态)（rev 9）
 - **别混 ①**：**不是删除。**会话的身份与历史一直在，**归档只让它从眼前收起来**
 - **别混 ②**：**不是[会话级沙箱的销毁](grounding-and-isolation.md#ul-session-sandbox--会话级沙箱--session-scoped-sandbox)。**
   那挂的是**沙箱自己的最大连续存活时间**，[同一节明写「会话可以无限期存在」](../../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)——
@@ -193,7 +196,7 @@
 > happens to that definition.
 
 - **形态**：属性
-- **出处**：[PF-015 §4 会话类型](../../product/PF-015-session-lifecycle-and-ownership/design.md#会话类型) · [§5.3](../../product/PF-015-session-lifecycle-and-ownership/design.md#53-会话类型怎么算出来)（rev 7）
+- **出处**：[PF-015 §4 会话类型](../../product/PF-015-session-lifecycle-and-ownership/design.md#会话类型) · [§5.3](../../product/PF-015-session-lifecycle-and-ownership/design.md#53-会话类型怎么算出来)（rev 9）
 - **⚠️ 别混**：**它不是一道闸门。**它**不参与**
   [放行三元组](../../product/PF-007-meta-capabilities/design.md#611-ask通向人)，
   也不收窄任何[权限](capabilities-and-composition.md#ul-permission--权限--permission)——
@@ -220,7 +223,7 @@
 > does not decide which actions need asking**, only what happens at that moment.
 
 - **形态**：属性
-- **出处**：[PF-015 §4 会话运行模式](../../product/PF-015-session-lifecycle-and-ownership/design.md#会话运行模式)（rev 7）；
+- **出处**：[PF-015 §4 会话运行模式](../../product/PF-015-session-lifecycle-and-ownership/design.md#会话运行模式)（rev 9）；
   它在[放行四步](../../product/PF-007-meta-capabilities/design.md#56-一次放行判断走四步)（rev 15）里是第 ④ 步
 - **⚠️ 别混**：**`auto_permission` 决定「准不准」，执行环境那一维的 `auto_place` 决定「落在哪」**——
   两者会在同一次执行里一前一后出现。**两个名字特意分开取，就是为了不撞**
@@ -523,8 +526,8 @@
 > scope at that time.
 
 - **形态**：过程
-- **出处**：[PF-004 §4 装配](../../product/PF-004-agent-definition-and-assembly/design.md#装配)（rev 8） ·
-  [PF-002 §5.6](../../product/PF-002-assets-settings-and-permissions/design.md#56-四步资产求值--组装--投影--层级计算)（rev 7）
+- **出处**：[PF-004 §4 装配](../../product/PF-004-agent-definition-and-assembly/design.md#装配)（rev 9） ·
+  [PF-002 §5.6](../../product/PF-002-assets-settings-and-permissions/design.md#56-四步资产求值--组装--投影--层级计算)（rev 10）
 - **别混 ①**：**裸写「装配 / assembly」在跨领域的文字里不作数**——它专指把 agent 定义求值成清单的这个动作
 - **别混 ②**：**它的产物不是一个活物**——
   **2026-09-20 之前本条写的是「变成一个运行实例」，那个说法已退役**，见 [UL-D-3](../decisions.md#ul-d-3--runtime-与活体--2026-09-20)
@@ -546,7 +549,7 @@
 > mid-run **adds** an entry, it never edits one.
 
 - **形态**：对象
-- **出处**：[PF-004 §4 装配清单](../../product/PF-004-agent-definition-and-assembly/design.md#装配清单)（rev 8）
+- **出处**：[PF-004 §4 装配清单](../../product/PF-004-agent-definition-and-assembly/design.md#装配清单)（rev 9）
 - **别混**：**不是 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime)**——
   **清单是照着起协程的那份图纸，协程是照它起来的那个东西**。
   复用清单**不等于**复用协程：协程每次尝试都是新的
@@ -568,7 +571,7 @@
 > arrive this way.**
 
 - **形态**：过程
-- **出处**：[PF-004 §4 注入](../../product/PF-004-agent-definition-and-assembly/design.md#注入)（rev 8）
+- **出处**：[PF-004 §4 注入](../../product/PF-004-agent-definition-and-assembly/design.md#注入)（rev 9）
 - **别混 ①**：**不是依赖注入**（DI）。那是技术设计里的容器机制；**裸写「注入」不作数**
 - **⚠️ 别混 ②**：**[执行环境](grounding-and-isolation.md#ul-execution-environment--执行环境--execution-environment)不是注入进来的**——
   它**每扇门每次执行现算**。两者共享同一条性质（变了不必重新装配、协程不必重起），**来路不同**
@@ -587,7 +590,7 @@
 > which goes through graceful cancellation and a fresh start.
 
 - **形态**：过程
-- **出处**：[PF-004 §6.3](../../product/PF-004-agent-definition-and-assembly/design.md#63-三类变化三种传播) · [§5.3](../../product/PF-004-agent-definition-and-assembly/design.md#53-三个时刻)（rev 8）
+- **出处**：[PF-004 §6.3](../../product/PF-004-agent-definition-and-assembly/design.md#63-三类变化三种传播) · [§5.3](../../product/PF-004-agent-definition-and-assembly/design.md#53-三个时刻)（rev 9）
 - **注意**：**两条路殊途同归**——热装不了就重新装配，**[动作空间](capabilities-and-composition.md#ul-action-space--动作空间--action-space)照样由构成决定**
 
 ## 怎么没

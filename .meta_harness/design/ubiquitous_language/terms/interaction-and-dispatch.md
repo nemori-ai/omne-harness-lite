@@ -1,9 +1,11 @@
 # 交互与派发
 
-**这一卷回答：agent 跟人、跟别的 agent 怎么来往，以及外面的东西怎么进到一个会话里。**
+**这一卷回答：agent 跟人、跟别的 agent 怎么来往，外面的东西怎么进到一个会话里，
+以及人从哪一面碰到这个系统。**
 
-收在这里的是**跨主体的往来**及其产物。**跟工具怎么来往**归
-[执行与收场](execution-and-outcome.md)——那是自己的手脚，不是别的主体。
+收在这里的是**跨主体的往来**及其产物，以及**那些往来发生在哪一面、以什么形式交出去**。
+**跟工具怎么来往**归[执行与收场](execution-and-outcome.md)——那是自己的手脚，不是别的主体；
+**那一面背后的事实存在哪一处**归[落地与隔离](grounding-and-isolation.md)。
 
 词条格式与准入判据见 [conventions](../conventions.md)。
 
@@ -246,6 +248,7 @@
 - **⚠️ 注意**：**不存在「组织在等什么」这回事。组织不会等，等的永远是某个会话。**
   把池子当成主体，就会做出一个「组织待办中心」——**它会开始有自己的状态、自己的流转、
   自己的归属，而真正在等的那个 run 反倒被隔在一层之外**
+- **注意**：在命令行交付形态下，[池子按会话据点各一份](../../product/PF-016-cli-tui-delivery-surface/design.md#619-这里看到的池子是这一处的)——「所有」相对于会话所在之处，一个人用两台机器就有两份；定义不因此改
 - **注意**：**租户隔离在池子上成立**
 
 ### UL-admission-decision · 放行判断 · Admission Decision
@@ -414,7 +417,7 @@
 > mark on that log at all** — a defining property, not an implementation detail.
 
 - **形态**：位置
-- **出处**：[PF-015 §4 业务流程拓展点](../../product/PF-015-session-lifecycle-and-ownership/design.md#业务流程拓展点) · [§6.6](../../product/PF-015-session-lifecycle-and-ownership/design.md#66-跑题只提醒不阻拦)（rev 7）
+- **出处**：[PF-015 §4 业务流程拓展点](../../product/PF-015-session-lifecycle-and-ownership/design.md#业务流程拓展点) · [§6.6](../../product/PF-015-session-lifecycle-and-ownership/design.md#66-跑题只提醒不阻拦)（rev 9）
 - **⚠️ 别混**：**它不是 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)**——
   **那一类只能靠改会话日志起作用**，这一类恰恰一个字都不能改。
   两者是**并列的两类拓展点**，不是同一类的两个位置
@@ -475,6 +478,90 @@
 - **注意 ①**：**它是系统唯一的加急通道**，[不设第二种优先级](../../product/PF-012-agent-loop-and-run/design.md#先到先处理只有一个例外)
 - **注意 ②**：**它会解除 loop 里各种等待态**，其中悬着的[决策卡片](#ul-decision-card--决策卡片--decision-card)
   按「**人明确拒绝回复**」处置——**取消视作拒绝是无副作用可逆的，反过来不是**
+
+## 人从哪一面碰到它
+
+### UL-delivery-surface · 交付面 · Delivery Surface
+
+> **中**：系统把[会话日志](record-and-context.md#ul-session-log--会话日志--session-log)**投影给人看**、
+> 并把**人做的事送进[受理](#ul-inbound-arrival--入站到达--inbound-arrival)**的那一面的总称。
+> **两条性质缺一不可**：**它不持有任何领域事实**——屏上的每一条都指得回日志里的一条，
+> 它提交的每一件事都成为一条[入站到达](#ul-inbound-arrival--入站到达--inbound-arrival)、
+> 一条卡片答复或一条[控制指令](#ul-control-command--控制指令--control-command)；
+> **它也没有自己的领域语义**——凡是在它上面能做的事，**都是别处已经定义过的动作**，它不新开任何通路。
+> **本版只有一种：装在用户自己机器上的命令行应用。**
+>
+> **EN**: The class of surfaces through which the system **projects the session log to a
+> person** and **feeds what that person does into intake**. **Two properties, both
+> required**: it **holds no domain fact of its own** — every line on screen points back to
+> an entry in the log, and everything it submits becomes an inbound arrival, a card answer
+> or a control command; and it **has no domain semantics of its own** — every action
+> available on it **is one defined elsewhere**, and it opens no new path. **This version has
+> only one kind: a command-line application installed on the user's own machine.**
+
+- **形态**：总称
+- **出处**：[PF-016 §4 交付面](../../product/PF-016-cli-tui-delivery-surface/design.md#交付面) ·
+  [§5.3](../../product/PF-016-cli-tui-delivery-surface/design.md#53-屏上的每一条都指得回日志里的一条) ·
+  [§5.4](../../product/PF-016-cli-tui-delivery-surface/design.md#54-人做的每一件事走的都是已有的路)（rev 3）
+- **⚠️ 别混**：**不是[会话据点](grounding-and-isolation.md#ul-session-base--会话据点--session-base)。**
+  据点是这些会话事实**所在的那一处**，交付面**什么都不持有**；
+  同一处据点上**可以同时开着好几处**在用它
+- **注意**：**「一次使用」不是一个有身份的东西**——各自的滚动位置、打了一半的草稿，**退出即消失**，
+  产品不给它们任何身份；要说的一切都挂在[登录状态](subjects-and-ownership.md#ul-login-state--登录状态--login-state)与会话据点上
+
+### UL-presentation-form · 呈现形式 · Presentation Form
+
+> **中**：[交付面](#ul-delivery-surface--交付面--delivery-surface)把**同一份事实交给读者的形式**，
+> **恰有两种**：**人读**——排版、着色、可以原地更新的那一份，给坐在屏前的人；
+> **机读**——逐条、可被解析的那一份，给脚本、CI 或另一个程序。
+> 两种形式消费的是**同一份[会话日志投影](record-and-context.md#ul-session-log-projection--会话日志投影--session-log-projection)、
+> 走的是同一条受理**，差别只在怎么交出去：**同一个场景用两种形式各跑一遍，
+> 日志上留下的[记录条目](record-and-context.md#ul-record-entry--记录条目--record-entry)序列必须一样。**
+>
+> **EN**: The form in which a delivery surface hands **the same facts** to its reader.
+> **Exactly two**: **human-readable** — laid out, coloured and updatable in place, for the
+> person at the screen; and **machine-readable** — line by line and parseable, for a script,
+> a CI job or another program. Both consume **the same session-log projection and go through
+> the same intake**, differing only in how the facts are handed over: **running one scenario
+> once in each form must leave the identical sequence of record entries in the log.**
+
+- **形态**：状态
+- **出处**：[PF-016 §4 呈现形式](../../product/PF-016-cli-tui-delivery-surface/design.md#呈现形式) ·
+  [§5.5](../../product/PF-016-cli-tui-delivery-surface/design.md#55-两种呈现形式同一份事实)（rev 3）
+- **⚠️ 别混**：**不是[会话运行模式](agent-runtime-loop.md#ul-session-run-mode--会话运行模式--session-run-mode)。**
+  那是「**本该问人的那一刻改怎么办**」，是会话的事，**改变领域行为**；
+  这一条是「**这份事实交给谁读**」，是交付面的事，**一个字都不改**
+- **注意**：**它不是「两个功能」**，是同一个东西的两种读法。做成两个，两边迟早对不上——
+  而对不上的那一天，**脚本跑出来的「成功」与人看到的「失败」会同时成立**
+
+### UL-look-and-feel-preference · 观感偏好 · Look-and-Feel Preference
+
+> **中**：[交付面](#ul-delivery-surface--交付面--delivery-surface)上那些
+> **只影响「看起来怎么样、用起来顺不顺手」的选择**——配色与主题、键位、一屏保留几轮、
+> 要不要去掉装饰只给线性文本。**判据只有一条**：
+> **在 [agent loop](agent-runtime-loop.md#ul-agent-loop--agent-loop--agent-loop) 内，
+> 模型、工具、拓展点这三个角色没有一个消费它。**
+> **因此改它不改变任何领域行为**：同一个场景换一种配置跑，记录条目序列一模一样。
+> **它是[个人 context](scope-and-resolution.md#ul-personal-context--个人-context--personal-context) 的一部分，由账号承载、跟着人走。**
+>
+> **EN**: The choices on a delivery surface that **only affect how it looks and how it feels
+> to use** — colour scheme and theme, key bindings, how many turns stay on screen, whether
+> decoration is dropped in favour of plain linear text. **One criterion decides membership**:
+> **inside the agent loop, none of the three roles — the model, the tools, the extensions —
+> consumes it.** **Changing it therefore changes no domain behaviour**: the same scenario
+> leaves the identical sequence of record entries either way. **It is part of the personal
+> context, carried by the account and travelling with the person.**
+
+- **形态**：属性
+- **出处**：[PF-016 §4 观感偏好](../../product/PF-016-cli-tui-delivery-surface/design.md#观感偏好) ·
+  [§6.12](../../product/PF-016-cli-tui-delivery-surface/design.md#612-观感偏好不改变任何领域行为)（rev 3）
+- **⚠️ 别混**：**不是[元 runtime context](scope-and-resolution.md#ul-meta-runtime-context--元-runtime-context--meta-runtime-context)
+  那十四项里的第 3 项「账号级的界面偏好」**（语言 · 时区 · 地区 · 明暗风格一类）——
+  **那些是要被 agent 感知的**，[已经是每个会话必带的一项](../../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)，
+  **不在这里，也不由这里定**；两者同样由账号承载（[C-26 的处置](../conflicts.md#现有冲突)），但一个进会话、一个不进
+- **注意**：[宿主不是词条的字段](../conventions.md#形态这个词指的是哪一类东西)——「由账号承载」写进定义，
+  是因为[PF-016 明文把它归进个人 context](../../product/PF-016-cli-tui-delivery-surface/design.md#观感偏好)，
+  那是所指的一部分，不是架构分解的结论
 
 ---
 

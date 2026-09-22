@@ -2,7 +2,7 @@
 id: PF-013
 title: 模型档案、调用与切换
 status: draft
-revision: 3
+revision: 4
 relations:
   supersedes: []
   depends-on:
@@ -66,9 +66,10 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 3**，草稿。rev 1 起草于 2026-09-20，
+- 产品设计：**rev 4**，草稿。rev 1 起草于 2026-09-20，
   同日两次修订：[rev 2 按转换件与「面向状态码」两条裁决](changelog.md#rev-2--2026-09-20)、
-  [rev 3 写死模型请求运行时的宿主](changelog.md#rev-3--2026-09-20)
+  [rev 3 写死模型请求运行时的宿主](changelog.md#rev-3--2026-09-20)；
+  [rev 4 把凭据定性为范围上的一项属性，并支持自带凭据](changelog.md#rev-4--2026-09-22)
 - 待裁决：**0**。唯一那条（没人挂拓展件时的默认行为）已由[裁决 17](decisions.md#裁决-17--没人挂的时候系统自带一件) 定掉
 - **本 topic 新拥有[转换件的契约](design.md#转换件)**——
   位置归 [PF-012](../PF-012-agent-loop-and-run/design.md#模态转换为什么必须落在这里)，

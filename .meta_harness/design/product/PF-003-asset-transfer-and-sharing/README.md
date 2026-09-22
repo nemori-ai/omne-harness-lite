@@ -2,7 +2,7 @@
 id: PF-003
 title: 资产的复制与分享
 status: active
-revision: 3
+revision: 4
 relations:
   supersedes: []
   depends-on:
@@ -35,7 +35,7 @@ relations:
 **你要不要让对方在关系结束之后还能用，决定了你该复制还是该分享。**
 
 **两个动作都要对方确认**，而**确认之前那份邀约会过期**——
-时长可配、有默认；**被它指向的那份资产不在了，它随即自动过期**
+**两类各有默认时长，发起时发起方可以指定这一份的**；**被它指向的那份资产不在了，它随即自动过期**
 （[§6.14](design.md#614-待确认的复制通知与分享邀请会过期)）。
 
 两者共同遵守一条系统级不变量：**团队组织里的资产不出那棵隶属树**，
@@ -46,7 +46,7 @@ relations:
 | 关系 | 本 topic 的情况 |
 |---|---|
 | `supersedes` | 无 |
-| `depends-on` | [PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)（**rev 8**，本 topic 用它定义的[上级组织](../PF-001-identity-scope-and-agent-constraints/design.md#组织)与租户范围的归属）与 [PF-002](../PF-002-assets-settings-and-permissions/README.md)。两者定义的概念一律引用，不改写 |
+| `depends-on` | [PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)（**rev 11**，本 topic 用它定义的[上级组织](../PF-001-identity-scope-and-agent-constraints/design.md#组织)与租户范围的归属）与 [PF-002](../PF-002-assets-settings-and-permissions/README.md)。两者定义的概念一律引用，不改写 |
 | `extends` | 无 |
 
 **与 PF-001 的分界**：组织怎样隶属、关系怎么建立解除，归 PF-001——那是组织**属性**的事。
@@ -69,7 +69,7 @@ PF-002 因对象的种类或组合形状变，本 topic 因流动的方向或语
 
 ## 状态
 
-- 产品设计：**rev 3**，已定稿
+- 产品设计：**rev 4**，已定稿
 - 未决项：**无**
 - 待裁决：**无**
 - 技术投影：**尚未开始**

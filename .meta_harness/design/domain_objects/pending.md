@@ -30,25 +30,10 @@
 - **谁来裁**：产品负责人——它要不要做、归哪个 topic，都还没有人说过；已记入 PF-007 decisions「已知的来源问题」
 - **闭合条件**：有 topic 认领它，或明确本版不做
 
-### 凭据
-
-- **现象**：PF-013 的 OpenRouter 凭据一个范围一把，可被指认、可轮换、用量记在它头上——像对象；可正文同时称它「范围的一项设置」。按 PF-002，设置是资产的属性，而模型档案与凭据都不是资产
-- **牵涉**：[PF-013 §5.6](../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上)（rev 3）；[PF-013 §6.2](../product/PF-013-model-profiles-and-invocation/design.md#62-凭据挂在范围上档案自己不存)（rev 3）
-- **谁来裁**：PF-013 的 owner
-- **闭合条件**：正文写明它是一个对象，还是某个对象上的一项值；是后者的话，挂在谁上
-
-### 属性项的配值
-
-- **现象**：PF-002 说「（身份层, 具体资产, 属性项）→ 值」才是「真正存在的、可以被读写的最小单位」，并给了它一套状态（未配 → 已配·可覆盖 ⇄ 已配·immutable）；「组织的设置」只是它的投影视图。可正文**没有给它名字**，所以立不了词条
-- **牵涉**：[PF-002 §5.2](../product/PF-002-assets-settings-and-permissions/design.md#52-设置与权限是资产的两种属性)（rev 7）；[PF-002 §5.2「组织的设置」是视图，不是对象](../product/PF-002-assets-settings-and-permissions/design.md#组织的设置是视图不是对象)（rev 7）
-- **挂着谁**：它以[资产持有](../ubiquitous_language/terms/circulation-and-entitlement.md#ul-asset-holding--资产持有--asset-holding)为前提——**一层要配值，先得持有那份资产**
-- **谁来裁**：PF-002 的 owner
-- **闭合条件**：正文给它一个名字；然后立词条、立对象条目
-
 ### runtime context 的一块
 
 - **现象**：PF-015 说 runtime context「是一块一块的，不是一个大袋子，每一块是一份数据」，每块有生产者与消费者、就地更新、要能恢复。词条 UL-runtime-context 指的是整批（形态为总称），真正可指认的单位「块」没有词条；而十四项里有的是实时算的、没有持久状态
-- **牵涉**：[PF-015 §4 runtime context](../product/PF-015-session-lifecycle-and-ownership/design.md#runtime-context)（rev 7）；[PF-015 §5.6](../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 7）
+- **牵涉**：[PF-015 §4 runtime context](../product/PF-015-session-lifecycle-and-ownership/design.md#runtime-context)（rev 9）；[PF-015 §5.6](../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 9）
 - **谁来裁**：PF-015 的 owner（该 topic 仍是草稿）
 - **闭合条件**：正文写明「块」是不是一个要被标识的单位；是的话给它名字并立词条
 
@@ -77,13 +62,13 @@
 ### 使用成本明细
 
 - **现象**：PF-001 要求「一次调用花掉的成本必须能算到发起它的那个租户头上，并能逐条列出来」，同时明说成本怎么算、明细怎么归集与呈现「目前没有对应的产品设计」
-- **牵涉**：[PF-001 §6.4](../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)（rev 8）
+- **牵涉**：[PF-001 §6.4](../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)（rev 15）
 - **谁来裁**：产品负责人——「观测与计量」这一块还没有 topic
 - **闭合条件**：有 topic 认领计量，并说明一条明细是什么
 
 ### 压缩策略
 
 - **现象**：PF-015 把「当前使用的 ContextCompactionSettings」列为一项 meta runtime context，没有指明它定义在哪；它是一份独立的设置对象，还是某个对象上的一项值，无从判断
-- **牵涉**：[PF-015 §5.6](../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 7）
+- **牵涉**：[PF-015 §5.6](../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 9）
 - **谁来裁**：PF-010 与 PF-015 的 owner
 - **闭合条件**：PF-010 认领它并说明它挂在哪

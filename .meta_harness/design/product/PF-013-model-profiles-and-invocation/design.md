@@ -1,6 +1,6 @@
 # PF-013：模型档案、调用与切换
 
-- 修订：rev 3，2026-09-20 · [变更历史](changelog.md)
+- 修订：rev 4，2026-09-22 · [变更历史](changelog.md)
 - 状态：草稿，**部分待定**——未决项见 [§9](#九未决项)
 
 ---
@@ -125,7 +125,8 @@
 | **送进去之前的限制** | 上游对内容本身的额外要求 | **开放的一组，可以一条都没有**；首版只有一条：**一张图最大多少字节** | 同上 |
 | **在册状态** | [在册还是已撤回](#在册--已撤回) | 二选一 | 见 [§6.4](#64-撤回不删行会话指向被撤回的档案时说已下架) |
 
-**凭据不在这张表里**，理由见 [§5.6](#56-凭据挂在范围上不挂在档案上)。
+**凭据不在这张表里**：[模型凭据](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential)
+是**范围身上的一项属性**，不是档案的，理由见 [§5.6](#56-凭据挂在范围上不挂在档案上)。
 
 > **属性表只写业务约束。**精确的数据结构、字段名与格式归 `spec/` 的 Schema，
 > 在这里再写一份完整字段规格，两边必然对不上。
@@ -529,16 +530,26 @@ agent 就是模型，模型没给出回复，**那个会思考的主体此刻不
 
 ```text
    范围（组织 / 租户）
-     ├── 一把 OpenRouter 凭据   ←── 范围的一项设置
+     ├── 一把 OpenRouter 凭据   ←── 范围自己带的一项属性
      └── 若干条自建档案          ←── 调用时取上面那一把，自己不存
 ```
 
-**三条性质：**
+**它是[模型凭据](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential)：
+一个范围身上的一项属性，一范围一把。**
+
+**不是[设置](../PF-002-assets-settings-and-permissions/design.md#52-设置与权限是资产的两种属性)**——
+设置总是**某份资产**的属性，而[档案不是资产](#模型档案)，凭据也不是。
+**它挂在范围自己身上**，所以：**身份即范围**（这一把是谁的，看它配在哪个范围上），
+**轮换就是改这一项的值**（不是换一个对象），**用量归到这个范围头上**。
+
+**四条性质：**
 
 - **自建档案自身不存凭据。**调用时按[作用域](../../ubiquitous_language/terms/scope-and-resolution.md#ul-scope-evaluation--作用域求值--scope-evaluation)取所在范围的那一把。
 - **官方档案不含凭据**——那是生产部署的装配阶段配置的，不是产品对象。
 - **[所有模型请求统一经 OpenRouter 出去](../../foundation/cross-system-constraints/requirements.md#sys-llm)**，
   所以「一把凭据」说的就是一把 OpenRouter 凭据，**不是每家供应商各一把**。
+- **范围可以自带凭据。**组织或租户配上自己的那一把，这个范围的模型调用就从它出去，
+  **用量也跟着记在它头上**——**这是产品要支持的用法，不是绕开产品的走法**。
 
 > **代价写在明面上**：**做不到「这个模型走另一个账号」**。[§7](#七取舍) 里说清楚了。
 
@@ -920,7 +931,11 @@ agent 就是模型，模型没给出回复，**那个会思考的主体此刻不
 
 ### 6.2 凭据挂在范围上，档案自己不存
 
-- **一个范围一把 OpenRouter 凭据**，这个范围里所有自建档案共用。
+- **[模型凭据](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential)是[组织](../../ubiquitous_language/terms/subjects-and-ownership.md#ul-organization--组织--organization)或[租户](../../ubiquitous_language/terms/subjects-and-ownership.md#ul-tenant--租户--tenant)身上的一项属性**，
+  **一个范围一把**，这个范围里所有自建档案共用。
+- **它不是某份资产的[设置](../PF-002-assets-settings-and-permissions/design.md#52-设置与权限是资产的两种属性)**——
+  档案与凭据都不是资产。**身份即范围，轮换是改值，用量归这个范围。**
+- **范围可以自带凭据**：配上自己的那一把，这个范围的调用就从它出去。
 - **自建档案自身不存凭据。**
 - **官方档案不含凭据**——生产部署的装配阶段配置的。
 

@@ -35,7 +35,7 @@
 > belonging to whoever holds it.
 
 - **形态**：属性
-- **出处**：[PF-006 §5.2](../../product/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同) · [§5.3](../../product/PF-006-tools-and-skills/design.md#53-一份工具定义长什么样)（rev 14） · [PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 7）
+- **出处**：[PF-006 §5.2](../../product/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同) · [§5.3](../../product/PF-006-tools-and-skills/design.md#53-一份工具定义长什么样)（rev 14） · [PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 10）
 - **别混**：与[工具](capabilities-and-composition.md#ul-tool--工具--tool)不是一回事——
   工具是那一类资产，**工具定义是它在数据与治理层面的那一份表示**；
   **同一个身份下可以有平台、组织、租户各自的一份**
@@ -94,7 +94,7 @@
 > **sibling of** tool execution — neither contains the other.
 
 - **形态**：对象
-- **出处**：[PF-013 flows §3.2 一次模型调用](../../product/PF-013-model-profiles-and-invocation/flows.md#32-一次模型调用)（rev 3） ·
+- **出处**：[PF-013 flows §3.2 一次模型调用](../../product/PF-013-model-profiles-and-invocation/flows.md#32-一次模型调用)（rev 4） ·
   [PF-011 §5.3](../../product/PF-011-off-nominal-handling/design.md#53-层的顺序不是排出来的是推出来的)（rev 4） ·
   [PF-012 §5.4](../../product/PF-012-agent-loop-and-run/design.md#54-一步的骨架)（rev 7）
 - **别混**：**不是那次请求的内容**——请求体怎么攒出来归 [PF-010](../../product/PF-010-context-management-and-assembly/README.md)；
