@@ -2,7 +2,7 @@
 id: PF-004
 title: Agent 定义与装配
 status: active
-revision: 6
+revision: 8
 relations:
   supersedes: []
   depends-on:
@@ -82,8 +82,8 @@ PF-002 因对象的种类或组合形状变，本 topic 因装配与资源治理
 
 ## 状态
 
-- 产品设计：**rev 6**，已定稿（**rev 6 补上 [agent 类型](design.md#agent-类型)与 [master 类目](design.md#master-类目)**——
-  这两项属性此前被裁决定死了内容，却**没有家**）
+- 产品设计：**rev 8**，已定稿（**rev 8 把[执行环境](design.md#执行环境)从「注入的三样之一」
+  改判为「装配留下两样、落点每次执行现算」**——跟上 [PF-005 rev 4](../PF-005-execution-environments-and-sandboxes/changelog.md)）
 - 未决项：**两项**——[「master 的全套机制」包含哪些](design.md#九未决项)、
   [`spawn`/`delegate` 能不能派一份 master 定义](design.md#九未决项)
 - 待裁决：**两项**（[D-1、D-2](decisions.md#三待裁决)，即上面那两条）。

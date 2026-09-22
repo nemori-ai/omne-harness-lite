@@ -2,14 +2,14 @@
 id: PF-005
 title: 执行环境与沙箱
 status: active
-revision: 3
+revision: 4
 relations:
   supersedes: []
   depends-on:
     - id: PF-004
-      for: 执行环境是注入的、 agent runtime 、动作空间、上下文怎样到达 agent
+      for: 执行环境是注入的、装配清单、动作空间、上下文怎样到达 agent
     - id: PF-002
-      for: 设置与权限、层级求值（执行安全策略是其中一种）
+      for: 设置与权限、层级求值（执行环境权限是其中一项）
     - id: PF-001
       for: 租户与租户隔离
   extends: []
@@ -24,10 +24,12 @@ relations:
 
 一句话概括本 topic 最要紧的结论：
 
-> **宿主机不是「没有沙箱」的默认状态，它是执行环境的一个具体取值。**
+> **宿主机始终在场，沙箱实现装配时可选装配，
+> 「当前生效的执行环境」是每扇门一个、每次执行算出来的。**
 
-这看着像措辞，实则是运行时热替换的分水岭——把它当默认态，切换就退化成
-「开关一套机制」；当成取值，切换才是「换一个值」，**agent runtime 不重建、动作空间不变、agent 无感**。
+这看着像措辞，实则是运行时热替换的分水岭——**落点是算出来的值**，
+[执行环境权限](design.md#执行环境权限)一改，下一次执行自己按新值算，
+**agent runtime 不重建、动作空间不变、agent 无感**。
 
 ## 四种，两个维度
 
@@ -41,7 +43,7 @@ relations:
 **两个「不绑定」含义相反**：无状态沙箱是**用完就扔**，宿主机是**大家共用**。
 只用一维说不清，而它们的风险恰好相反。
 
-## 再加一层：设施（rev 2）
+## 再加一层：设施
 
 上面那张表分的是**寿命与隔离**，回答「活多久、谁看得见」。它不回答
 「在里面能干什么」——那由**[设施](design.md#设施)**回答，而且是**声明出来**的：
@@ -65,26 +67,26 @@ relations:
 会话级沙箱**到点销毁、数据不留存**（刻意为之）。
 
 这是「数据 vs 计算资源」在本系统里的**第三次出现**——前两次是
-Agent Definition 对 agent runtime 、会话历史对 agent runtime 。三次形状一样。
+Agent Definition 对 agent runtime、会话历史对 agent runtime。三次形状一样。
 
 ## 关系
 
 | 关系 | 本 topic 的情况 |
 |---|---|
 | `supersedes` | 无 |
-| `depends-on` | [PF-004](../PF-004-agent-definition-and-assembly/README.md)（**rev 2 起**）、[PF-002](../PF-002-assets-settings-and-permissions/README.md)、[PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)，引用不改写 |
+| `depends-on` | [PF-004](../PF-004-agent-definition-and-assembly/README.md)（**rev 8**）、[PF-002](../PF-002-assets-settings-and-permissions/README.md)、[PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)，引用不改写 |
 | `extends` | 无 |
 
 **与 PF-004 的分界**：执行环境**以什么方式**进入 agent runtime，归 PF-004；
-它**有哪几种、各自活多久**，归这里。**PF-004 不对执行环境的寿命作任何断言**
-（那是它 rev 2 明确写死的），两份并排读不应出现冲突。
+它**有哪几种、各自活多久**，归这里。**PF-004 不对执行环境的寿命作任何断言**，
+两份并排读不应出现冲突。
 
 ## 按当前问题展开
 
 | 当前问题 | 阅读入口 |
 |---|---|
 | 这块产品是什么：四种环境、两个维度、规则、取舍 | [产品设计](design.md) |
-| 动作怎么落地、策略改了怎么换、沙箱怎么生灭 | [流程与状态](flows.md) |
+| 动作怎么落地、权限改了落点怎么变、沙箱怎么生灭 | [流程与状态](flows.md) |
 | 做成什么样算做对了 | [验收标准](acceptance.md) |
 | 哪些是拍板定的，哪些是推导的 | [决策与来源](decisions.md) |
 | 这块设计怎么演变到今天 | [变更历史](changelog.md) |
@@ -92,12 +94,17 @@ Agent Definition 对 agent runtime 、会话历史对 agent runtime 。三次形
 
 ## 状态
 
-- 产品设计：**rev 3**，已定稿（rev 1 已被接受为正式版本，rev 2 与 rev 3 是其上的增补。
+- 产品设计：**rev 4**，已定稿（rev 1 已被接受为正式版本，其后几版是其上的增补。
   **rev 3 接下[执行环境权限](design.md#执行环境权限)这一维**，并把
-  [「落点不可用就是拒绝」](design.md#69-落点不可用就是拒绝不降级)从推导表搬进正文）
+  [「落点不可用就是拒绝」](design.md#69-落点不可用就是拒绝不降级)从推导表搬进正文；
+  **rev 4 定死[宿主机始终在场、沙箱实现可选装配、落点每次执行算](design.md#61-宿主机始终在场沙箱实现装配时可选装配)**，
+  并把三个叫法收敛为[执行环境权限](design.md#执行环境权限)一个正式名）
 - 未决项：**无**
 - 待裁决：**无**
-- 两处用词上的偏离（**均为实质照办、仅名称不同**）：见 [decisions.md 第四节](decisions.md#四已知的来源问题)
+- 来源问题，见 [decisions.md 第四节](decisions.md#四已知的来源问题)：两处**用词上的偏离**
+  （**均为实质照办、仅名称不同**）；**rev 3 那两条要产品负责人拍板的已于 rev 4 闭合**；
+  新记一条**下游待对齐**——[PF-006 仍按「注入一个会话级执行环境」的说法写](decisions.md#四已知的来源问题)，
+  修订归那个 topic 的 owner
 - 技术投影：**尚未开始**
 
 技术投影按 `harness-design-handbook` skill 展开，

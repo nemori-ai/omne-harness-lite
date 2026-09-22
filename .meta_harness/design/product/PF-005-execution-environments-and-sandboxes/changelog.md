@@ -5,6 +5,85 @@
 
 技术投影用 `provenance.json` 引用具体 rev，所以这里的 rev 不准会直接传导到实现侧。
 
+## 校准 — 2026-09-22（不升 rev）
+
+**两处跟上别人的改名，本 topic 的规则一条没动。**
+
+| 改了哪里 | 改成什么 | 依据 |
+|---|---|---|
+| [§6.7 沙箱不是资产](design.md#67-沙箱不是资产) · [§7 取舍](design.md#七取舍) · [acceptance §二](acceptance.md) · [decisions §二 那条推导](decisions.md#二pm-推导)里资产语境的「**转移**」 | **复制**——[资产复制](../PF-003-asset-transfer-and-sharing/design.md#资产复制) | C-B 裁决把「资产转移」正式定名为[资产复制](../../ubiquitous_language/terms/circulation-and-entitlement.md#ul-asset-copy--资产复制--asset-copy)，旧说法进「弃用」；[PF-003 已改名为「资产的复制与分享」](../PF-003-asset-transfer-and-sharing/README.md) |
+| [PF-006 §6.8 转述本 topic 的那一句](../PF-006-tools-and-skills/design.md#68-工具怎么提执行环境的要求) | **那边已由 PF-006 的 owner 校准**，[本页 decisions 第四节的对应条目随之闭合](decisions.md#四已知的来源问题) | 同 rev 4 的落点模型 |
+| [§8 邻居表](design.md#八边界与依赖)里 PF-004 那一行「执行环境**是注入的**」，与 [README 关系表](README.md#关系)标的「rev 2 起」 | 改为**「装配这一头给执行环境留下什么」（需要哪几类、装进来哪些沙箱实现）**，版本标 **rev 8** | [PF-004 rev 8](../PF-004-agent-definition-and-assembly/changelog.md) 把执行环境从注入的三样里拿掉了；回读确认本 topic 依赖的[装配清单、动作空间、上下文怎样到达 agent](../PF-004-agent-definition-and-assembly/design.md#装配清单)仍由它拥有 |
+
+## rev 4 — 2026-09-22
+
+**执行环境的落地模型改写，三个叫法收敛成一个。**
+**下游要复核的是**：照 rev 3 把「当前生效的执行环境」实现成**装配时注入的一个全局取值**的人；
+以及把「执行安全策略」当成**与执行环境权限并存的另一层**的人。
+
+### 一、[§6.1 整节改写](design.md#61-宿主机始终在场沙箱实现装配时可选装配)
+
+依据：[产品负责人 2026-09-22 的裁决](decisions.md#一拍板记录)（原话见那里）。
+
+| | 现在写的 |
+|---|---|
+| **宿主机** | **不装配，始终在场**——agent runtime 本身就跑在它上面。**只要[执行环境权限](design.md#执行环境权限)允许就可用**，**不存在「宿主机不可用」** |
+| **[沙箱实现](design.md#沙箱实现)**（§4 新增的概念） | **装配时可选装配**；**全部遵循同一套契约与协议**，各自声明**提供哪几种[设施](design.md#设施)**、**可绑定哪几个层级** |
+| **落点** | **每扇门一个、每次执行算出来的**：按三态 × 这次要的设施 × 已装配沙箱实现的（设施 × 层级）算；要落隔离环境而匹配不上，**就拒绝** |
+| **热替换** | **结论不变**（策略改了不必重建、agent 无感），**论据换成「落点是每次执行算出来的值」** |
+
+**连带改的**：[§4 执行环境](design.md#执行环境)与[§4 宿主机](design.md#宿主机)、
+[§5.3 的图](design.md#53-换执行环境是换一个值不是开关一套机制)、
+[§6.2](design.md#62-宿主机不提供租户隔离因此必须被显式允许)、
+[§6.5](design.md#65-一个会话一个租户可以同时有多组执行环境)、
+[§6.6](design.md#66-agent-要知道自己落在哪上次的东西还在不在)、
+[§6.7](design.md#67-沙箱不是资产)（沙箱实现同样不是资产）、§7 取舍前三行、§8；
+flows §1.1/§1.2/§2/§4；acceptance 全篇。
+
+### 二、[§6.9](design.md#69-落点不可用就是拒绝不降级) 只对隔离环境说
+
+**宿主机不在此列**——它始终在场，没有「不可用」这回事。
+三种到不了位的情形（匹配不上 · 创建失败 · `never-allow` 而隔离环境也去不了）**处置完全一样：拒绝**。
+
+### 三、三个叫法收敛成[执行环境权限](design.md#执行环境权限)一个正式名
+
+| 叫法 | 现在是什么 |
+|---|---|
+| **执行环境权限** | **正式名**：per-tool、三态、组织级与租户级授予 |
+| ~~执行安全策略~~ | **把这项权限配成 `never-allow` 那件事**——**同一项权限的配值，不是另一个对象** |
+| ~~「可以使用宿主机」的资格~~ | **这项权限不是 `never-allow`** |
+
+正文两个叫法一律改写；[词条](../../ubiquitous_language/terms/grounding-and-isolation.md#ul-execution-environment-permission--执行环境权限--execution-environment-permission)把它们列入「弃用」。
+
+### 四、统一语言与 decisions
+
+- **新增词条 [UL-sandbox-implementation](../../ubiquitous_language/terms/grounding-and-isolation.md#ul-sandbox-implementation--沙箱实现--sandbox-implementation)**（形态：对象），领域对象同日立条目。
+- [UL-host-machine](../../ubiquitous_language/terms/grounding-and-isolation.md#ul-host-machine--宿主机--host-machine) 那句「装配时必须明确注入一个执行环境」**改为「始终在场；只要执行环境权限允许就可用」**。
+- **[decisions 第四节两条闭合](decisions.md#四已知的来源问题)**（三个叫法没有映射 · 粒度两说），
+  PM 推导里「宿主机是一个取值」那条**标为已被取代**；
+  **新记一条**：[PF-006 仍按旧说法写](decisions.md#四已知的来源问题)，修订归那个 topic 的 owner。
+- **[C-24](../../ubiquitous_language/conflicts.md) 就此闭合。**
+
+## 校准 — 2026-09-21（不升 rev，不改含义）
+
+- **[design.md](design.md) 文首的修订号落后**（写着 rev 2），而本页与
+  [README](README.md) 都已是 rev 3。**按本页最新一节对齐为 rev 3。**
+- **术语对齐 [UL-D-3](../../ubiquitous_language/decisions.md#ul-d-3--runtime-与活体--2026-09-20)**：
+  正文里的「agent 运行时」「agent 实例」一律改写为
+  [agent runtime](../PF-012-agent-loop-and-run/design.md#agent-runtime)——
+  这几处指的都是**活体那一半**（[§4 宿主机](design.md#宿主机)、
+  [§5.1 共享范围](design.md#51-四种执行环境)、[§6.4](design.md#64-租户级沙箱共享的工作空间)、
+  flows §1.5、acceptance）。**本 topic 的规则一条未改。**
+- **两处概念归属标错**：[§4 承接表](design.md#承接前面的-topic)与
+  [§8 边界表](design.md#八边界与依赖)把 **agent runtime 记在 PF-004 名下**，
+  而 [PF-004 rev 6 起只拥有装配清单](../PF-004-agent-definition-and-assembly/changelog.md)，
+  agent runtime 归 [PF-012](../PF-012-agent-loop-and-run/README.md)；
+  [§5.2 的类比表](design.md#52-租户级沙箱本体的存活与数据的存活是两件事)把**会话历史**
+  记在 PF-004 名下，而它归 PF-012。**均已改正。**
+- **新记一条来源问题**：执行环境权限 / 执行安全策略 / 「可以使用宿主机」的资格
+  三个叫法之间没有映射，见 [decisions.md 第四节](decisions.md#四已知的来源问题)。
+  **正文一个字没改**——要对齐得先有一条新的产品规则。
+
 ## rev 3 — 2026-09-21
 
 **接下执行环境权限这一维，并把一条只活在推导表里的规则搬进正文。**
