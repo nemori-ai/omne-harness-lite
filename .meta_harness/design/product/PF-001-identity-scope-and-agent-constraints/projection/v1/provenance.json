@@ -1,0 +1,97 @@
+{
+  "format": 1,
+  "topic": "PF-001-identity-scope-and-agent-constraints",
+  "version": "v1",
+  "generated_at": "2026-09-22",
+  "requirements_revision": "PF-001 rev 15 (README.md front-matter revision: 15); PF-003 rev 4 §6.14 for offer expiry only",
+  "frozen": false,
+  "drift_note": "registry/frozen.json has no entries for this baseline; every sha256 below is null. Before implementing from this projection, verify each resource is still the current file. Contracts are all `candidate` with no acceptance record in record/decisions/.",
+  "sources": [
+    {
+      "kind": "requirement",
+      "resource": "product/PF-001-identity-scope-and-agent-constraints/design.md",
+      "revision": 15,
+      "sha256": null
+    },
+    {
+      "kind": "requirement",
+      "resource": "product/PF-001-identity-scope-and-agent-constraints/flows.md",
+      "revision": 15,
+      "sha256": null
+    },
+    {
+      "kind": "requirement",
+      "resource": "product/PF-001-identity-scope-and-agent-constraints/acceptance.md",
+      "revision": 15,
+      "sha256": null
+    },
+    {
+      "kind": "requirement",
+      "resource": "product/PF-003-asset-transfer-and-sharing/design.md",
+      "revision": 4,
+      "sections": ["6.14"],
+      "sha256": null
+    },
+    {
+      "kind": "contract",
+      "coordinate": { "baseline_id": "omne-harness-lite-design-2026-09-15", "contract_id": "data.identity-values", "version": 1 },
+      "status": "candidate",
+      "resource": "spec/data/identity-values/v1/contract.md",
+      "sha256": null
+    },
+    {
+      "kind": "contract",
+      "coordinate": { "baseline_id": "omne-harness-lite-design-2026-09-15", "contract_id": "data.offer-expiry", "version": 1 },
+      "status": "candidate",
+      "resource": "spec/data/offer-expiry/v1/contract.md",
+      "sha256": null
+    },
+    {
+      "kind": "contract",
+      "coordinate": { "baseline_id": "omne-harness-lite-design-2026-09-15", "contract_id": "capability.account-identity", "version": 1 },
+      "status": "candidate",
+      "resource": "spec/capabilities/account-identity/v1/contract.md",
+      "sha256": null
+    },
+    {
+      "kind": "contract",
+      "coordinate": { "baseline_id": "omne-harness-lite-design-2026-09-15", "contract_id": "capability.organization-governance", "version": 1 },
+      "status": "candidate",
+      "resource": "spec/capabilities/organization-governance/v1/contract.md",
+      "sha256": null
+    },
+    {
+      "kind": "contract",
+      "coordinate": { "baseline_id": "omne-harness-lite-design-2026-09-15", "contract_id": "composition.account-registration", "version": 1 },
+      "status": "candidate",
+      "resource": "spec/compositions/account-registration/v1/contract.md",
+      "sha256": null
+    },
+    { "kind": "realization", "node": "realization/packages/core/identity-values", "resource": "design.md", "sha256": null },
+    { "kind": "bindings", "node": "realization/packages/core/identity-values", "resource": "bindings.yaml", "sha256": null },
+    { "kind": "realization", "node": "realization/packages/core/offer-expiry", "resource": "design.md", "sha256": null },
+    { "kind": "bindings", "node": "realization/packages/core/offer-expiry", "resource": "bindings.yaml", "sha256": null },
+    { "kind": "realization", "node": "realization/packages/tenancy/account-identity", "resource": "design.md", "sha256": null },
+    { "kind": "bindings", "node": "realization/packages/tenancy/account-identity", "resource": "bindings.yaml", "sha256": null },
+    { "kind": "realization", "node": "realization/packages/tenancy/credential-verification", "resource": "design.md", "sha256": null },
+    { "kind": "bindings", "node": "realization/packages/tenancy/credential-verification", "resource": "bindings.yaml", "sha256": null },
+    { "kind": "realization", "node": "realization/packages/tenancy/organization-governance", "resource": "design.md", "sha256": null },
+    { "kind": "bindings", "node": "realization/packages/tenancy/organization-governance", "resource": "bindings.yaml", "sha256": null },
+    { "kind": "realization", "node": "realization/packages/tenancy/account-registration", "resource": "design.md", "sha256": null },
+    { "kind": "bindings", "node": "realization/packages/tenancy/account-registration", "resource": "bindings.yaml", "sha256": null },
+    {
+      "kind": "formal-tasks",
+      "resource": "registry/formal-tasks.json",
+      "tasks": ["organization-governance-v1-membership", "account-registration-v1-basic", "account-registration-v1-crash", "account-registration-v1-progress"],
+      "evidence_run": "record/evidence/2026-09-22-formal-tenant-domain-2"
+    },
+    {
+      "kind": "basis",
+      "entries": ["plugin-body-reruns-on-provider-change", "async-control-not-bail", "effect-disposal-concurrent-not-ordered", "isolate-hides-instances-not-data"],
+      "checked": "2026-09-17",
+      "probe": null
+    }
+  ],
+  "supersedes": null,
+  "superseded_by": null
+}

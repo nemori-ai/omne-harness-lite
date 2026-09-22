@@ -38,14 +38,14 @@ relations:
 | 哪些是拍板定的，哪些是推导的，还有什么没定 | [决策与来源](decisions.md) |
 | 这块设计怎么演变到今天 | [变更历史](changelog.md) |
 | 当时是怎么谈的 | [设计交流笔记](interviews/README.md) |
-| 要实施它，当前该怎么做 | 技术投影**尚未开始** |
+| 要实施它，当前该怎么做 | [设计投影 v1](projection/v1/projection.md)（租户相关领域那一片；派生快照，来源全为 candidate） |
 
 ## 状态
 
 - 产品设计：**rev 15**，已定稿
 - 未决项：**无**
 - 待裁决：**无**
-- 技术投影：**尚未开始**
+- 技术投影：**v1**（2026-09-22，依据 rev 15；覆盖租户相关领域，来源契约全部 `candidate`、未冻结）
 
 技术投影按 `harness-design-handbook` skill 展开，
 产物按其步骤 G 落回本包的 `projection/v1/`。
@@ -60,5 +60,6 @@ PF-001-identity-scope-and-agent-constraints/
 ├── acceptance.md     可观察场景、绝不能发生的事、判据
 ├── decisions.md      拍板记录 / PM 推导 / 待裁决 / 来源问题
 ├── changelog.md      产品设计本身的演进
-└── interviews/       设计交流笔记（原始材料）
+├── interviews/       设计交流笔记（原始材料）
+└── projection/       向 Cordis 的技术设计投影，按版本固化（派生快照，不是权威）
 ```
