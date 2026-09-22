@@ -1,0 +1,8 @@
+# 条款到证据的绑定表。
+# 本契约（data.identity-values v1）没有已登记的 formal task，也没有任何已存在的测试；
+# 尚不存在的证据不写占位绑定——缺口记在 README.md「分层状态」与 verification.md「覆盖缺口」。
+version: 1
+node: "identity-values"
+kind: "provider"
+
+bindings: []

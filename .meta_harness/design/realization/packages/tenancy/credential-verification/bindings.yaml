@@ -1,0 +1,8 @@
+# 条款到证据的绑定表。
+# 本节点兑现的是 capability.account-identity v1 里凭据形式那一半（S-8 派生与比对、S-26 判定）；
+# 那份契约不建形式工件，本节点也没有任何已存在的测试。尚不存在的证据不写占位绑定。
+version: 1
+node: "credential-verification"
+kind: "provider"
+
+bindings: []

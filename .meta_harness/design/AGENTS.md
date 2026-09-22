@@ -94,3 +94,5 @@
 进入 `product/` 工作时先读它自己的 [AGENTS.md](product/AGENTS.md)——那里有该区的维护规矩与阅读地图；
 真要在那里落字，再按它的指引加载 `product-design` skill，
 那份会把视角切成 product manager，**只读产品正文取输入的人不加载**。
+进入 `realization/` 先读它的 [AGENTS.md](realization/AGENTS.md)——契约写性质、那里写绑定，开发者来读地图不加载 skill；
+进入 `record/` 先读它的 [AGENTS.md](record/AGENTS.md)——三个子目录只记已发生的事，查一条记录的人到那里为止。

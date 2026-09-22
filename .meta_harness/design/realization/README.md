@@ -18,15 +18,53 @@
 realization/
 ├── .templates/node/
 │   ├── README.md          节点入口与状态
+│   ├── architecture.md    应用的形状：拓扑、进程、交互面、分层、技术栈、分发——只有 assembly 节点有
 │   ├── design.md          实现路径、投影、依赖与装卸责任
 │   ├── bindings.yaml      条款到证据的绑定表
 │   └── verification.md    符合性或集成证据的可变入口
-├── packages/<node>/       产品包节点，kind: provider
+├── packages/
+│   ├── core/<node>/       核心与共享：数据契约、协议级构造、被多个领域消费的纯模块，kind: provider
+│   └── <domain>/<node>/   按领域或限界上下文聚合的能力提供者，kind: provider
 └── apps/<node>/           应用装配节点，kind: assembly
 ```
 
 `packages/` 与 `apps/` 对应实际源码归属，不是又一层分类。节点名与它实现的包或应用同名，
 使「读设计」和「读源码」用同一个词。
+
+## packages 的两层布局
+
+**这里的目录结构直接指导承载仓库根下 `packages/` 的目录结构**：节点路径 `packages/<group>/<node>` 就是将来源码包的路径，
+两边逐字相同，承载仓库 `docs/workspace.md` 那条「`packages/<能力族>/<职责包>/` 两层、第一层不是 workspace 成员」的规则在这里落成具体的第一层取值。
+
+| 第一层 | 放什么 | 判据 |
+|---|---|---|
+| `core/` | **核心、共享、契约或底层协议相关**：`data.*` 数据契约的纯模块、跨领域复用的构造（身份值、交接凭证、过期判定、时间源形状）、内核层复用件 | 它没有自己的领域事实，**被两个以上领域消费**，或它兑现的是一份 `data.*` 契约 |
+| `<domain>/` | **按领域或限界上下文聚合**的能力与组合提供者 | 它拥有该领域的事实或动作链；一个节点只属于一个领域。领域名是候选，直到产品负责人拍板 |
+
+**怎么判一个节点归 `core` 还是某个领域**：问它兑现的契约是 `data.*` 还是 `capability.*`／`composition.*`——前者几乎总在 `core`；
+后者按契约拥有的事实归领域。拿不准的先按领域放，**被第二个领域消费的那天再搬进 `core`**，搬动是「实现换方案」，记 changelog 即可，不改契约。
+`core` 不是「公共工具箱」：一个只被一个领域用的辅助模块不因为「看起来通用」进 `core`。
+
+节点的相对链接因此多一层：`packages/<group>/<node>/` 下指向 `spec/`、`product/`、`record/` 的链接是 `../../../../`，
+`apps/<node>/` 下仍是 `../../../`；模板里的链接按 `apps/` 深度写，建 provider 节点时要多加一层。
+
+## 应用节点比提供者节点多什么
+
+一个应用除了「选了哪些提供者、动作链怎么接」，还有一件只属于它的事：**它是什么形状**——
+起哪些进程、与别的应用之间有哪些边、人和脚本各从哪个面进来、装配哪些包家族、采用了什么技术栈、怎么分发。
+这些事实的失效事件同样是「实现换方案」，所以家在这里，落在 assembly 节点的 `architecture.md`。
+
+它每一节都是「引用 + 本应用的选择」：交付面为什么这样归产品设计的 PF，边上的保证归契约，
+候选比较归 proposals，采用理由归 decisions。**删掉这份文件，设计链丢失的只有「这个应用选了什么形状」这一件事**——
+多于此的内容都放错了地方。
+
+**拓扑总图不手写。**每个节点只写自己的进程与自己那一侧的边，「整个系统有哪些应用、怎么连」
+由 [views/system-map](../views/README.md) 从各节点 join 出来。
+
+**应用节点可以早于源码存在。**「设计好但还没开建」和「想象中的应用」的分界不是有没有源码，
+而是**产品设计有没有为这个交付面开题**：有 PF 就能建节点，状态 `candidate`，四层状态里
+可实施范围、绑定、实际验证各自写实现缺口与 owner；PF 仍是 draft 时节点不得登记任何绑定。
+没有 PF 的应用不建节点。
 
 ## bindings.yaml
 
@@ -73,9 +111,12 @@ bindings:
 ## 准入门槛与停止条件
 
 - provider 节点必须给出精确能力契约、Cordis 插件边界、服务/贡献、依赖、资源、装卸责任、源码修订与符合性状态。
-- assembly 节点必须定位实际应用、所选提供者和版本、配置/作用域、消费关系、完整动作链及真实集成证据或明确缺口。
+- assembly 节点必须定位它对应的产品交付面（PF 与 rev）、所选提供者和版本、配置/作用域、消费关系、完整动作链及真实集成证据或明确缺口，
+  并在 `architecture.md` 给出拓扑与进程模型、交互面、包分层、技术栈采用与分发。
+  **建立条件是该交付面已有 PF**；源码尚不存在时状态为 `candidate`，缺什么写什么。没有 PF 不建节点。
 - 只有机制候选时回 [proposals](../record/proposals/README.md)；源码或提供者不存在时如实记录实现缺口，
   不从文件名、接口形状或 mock 推断已兑现。
+- 应用节点不持有能力语义：边上的保证一律指向契约，命令的产品含义一律指向 PF；节点里出现第二份定义就是错。
 - 选择未发生时保持候选；整体保证缺少独立协调责任时回到能力分解，不能让装配胶水暗中拥有未定义能力。
 
 命名、裁剪与跨目录引用遵循[信息包约定](../README.md#主题是信息包)。
@@ -83,20 +124,28 @@ bindings:
 
 ## 当前主题
 
-| 节点 | kind | 消费契约 | 状态 |
-|---|---|---|---|
-| [account-identity](packages/account-identity/README.md) | provider | `capability.account-identity` v1 | 设计完成，未实现 |
-| [tenant-governance](packages/tenant-governance/README.md) | provider | `capability.tenant-governance` v1 | 设计完成，未实现 |
-| [account-registration](packages/account-registration/README.md) | provider | `composition.account-registration` v1 | 设计完成，未实现；形式检查已通过 |
+2026-09-17 建在旧候选契约上的三个 provider 节点已随那批契约于 2026-09-22 整体废弃，原件只在 Git 历史里。
 
-三者的契约均为 candidate，尚无接受决定；「设计完成」不表示语义已被接受。
+**provider 节点（2026-09-22 首稿，全部 `candidate`，源码尚未建包）**——租户领域五份候选契约的提供者设计：
+
+| 节点 | 兑现的契约 | 形态 |
+|---|---|---|
+| [`packages/core/identity-values`](packages/core/identity-values/README.md) | `data.identity-values` v1 | 纯模块：身份值类型、Schema 校验、交接凭证签发／核实原语（选签名方案） |
+| [`packages/core/offer-expiry`](packages/core/offer-expiry/README.md) | `data.offer-expiry` v1 | 纯模块：`OfferTiming`、派生状态纯求值、`Clock` 形状；`now` 不后退的候选形状归装配 |
+| [`packages/tenancy/account-identity`](packages/tenancy/account-identity/README.md) | `capability.account-identity` v1 | 插件，两个服务面；提供 S-15，`credentials` 作可选依赖调用时解析；留存期限在产生时定死 |
+| [`packages/tenancy/credential-verification`](packages/tenancy/credential-verification/README.md) | 同上契约的凭据形式那一半 | 插件，可整体替换；本版只有密码方案 |
+| [`packages/tenancy/organization-governance`](packages/tenancy/organization-governance/README.md) | `capability.organization-governance` v1 | 插件，四个服务面（S-53 单列一个只给清除链）；跨 owner「同一提交」靠临界区加单调事实 |
+| [`packages/tenancy/account-registration`](packages/tenancy/account-registration/README.md) | `composition.account-registration` v1 | 薄插件，无事实；两条动作链，签发激活依据；清扫提供者因缺枚举读面本版建不起来 |
+
+`tenancy` 是租户领域这个限界上下文的候选名，产品负责人未拍板。六个节点共用的待核对主张（可选 inject、`ctx.provide` 纳管、插件体抛出后的 fiber 状态）与对存储提供者的要求清单各记在节点里。
 
 ## 当前状态
 
-账号与租户一组的三个节点已建，各含 `design.md` 与 `bindings.yaml`。
 存量节点尚未从 `design_legacy/providers/` 与 `design_legacy/assemblies/` 迁入。
 
-**尚无 assembly 节点**：本项目还没有应用装配入口，`apps/` 为空。
+**assembly 节点**：`apps/cli/` 是第一个应用节点，随 CLI-TUI 交付面的 PF 一起建立（2026-09-22），状态 `candidate`——
+源码尚未落地，`bindings.yaml` 为空表。中心治理节点是另一个可部署应用，但它的交付面尚无 PF，**按准入不建节点**，
+缺口记在 `apps/cli/architecture.md` 的拓扑一节。
 
 判断方法按需读 `harness-design-handbook` skill 的「插件投影」。
 返回[设计链入口](../README.md)。

@@ -1,0 +1,57 @@
+# 条款到证据的绑定表。
+# 三个已登记 formal task：account-registration-v1-basic / -crash / -progress（Registration.tla + 各 cfg）。
+# 前提照 record/evidence/2026-09-22-formal-tenant-domain-2 的配置写。模型检查的是契约的动作链，
+# 不是本节点的源码；每条 assumptions 写明模型盖不到什么。规范场景 S-27～S-31 尚无测试，不写占位。
+version: 1
+node: "account-registration"
+kind: "provider"
+
+bindings:
+  - clause: "composition.account-registration/v1#S-13"
+    evidence: "formal:account-registration-v1-crash"
+    assumptions:
+      - "不变式 ActivatedHasPersonalOrganization ∧ OnePersonalOrganizationPerAccount；crash.cfg：Attempts = {a1,a2,a3}，Failures = TRUE，Abandoning = TRUE，Expiring = TRUE"
+      - "模型不表达组织内部结构（成员资格、角色）；「组织 + 首个成员同提交」是治理节点存储要求 R-1 的事，模型假设"
+      - "单登录标识模型；三个参与方动作被抽象为原子动作，存储原子性与隔离由 account-identity／organization-governance 的存储要求兑现，模型不检查"
+    alignment_checked: 2026-09-22
+
+  - clause: "composition.account-registration/v1#S-35"
+    evidence: "formal:account-registration-v1-crash"
+    assumptions:
+      - "不变式 NoOrphanPersonalOrganization 只在 crash.cfg 下被真正检查（basic.cfg 里清除链不发生）"
+      - "依据的形状与不可伪造性不在模型里（sweep 是布尔式阶段标记）；那一半的证据是 capability.account-identity/v1 场景 S-41 ④⑤、S-42 第 1 支（未开始）"
+      - "清扫的发起者与节奏不在模型里：Expire 与两步清除是可在任何位置插入的环境动作（最坏情况）"
+      - "「已过期」单调、Expire 原子、三个读点同答案在模型里由结构给出；真实系统靠 account-identity 账号行上的 expiredAt 事实（首次观测时落盘、行锁序列化）+ organization-governance R-6 引用约束（组织行指向账号行、删除受限）；NoOrphanPersonalOrganization 在真实系统里靠那条约束成立，模型不检查"
+    alignment_checked: 2026-09-22
+
+  - clause: "composition.account-registration/v1#S-16"
+    evidence: "formal:account-registration-v1-crash"
+    assumptions:
+      - "安全性质 NoFalseSuccess，在 Failures = TRUE 下检查；「回执只在 ③ 提交之后发出」由本节点方法体结构兑现，模型把它建成 Finish 动作的守卫"
+      - "配置同上（crash.cfg）"
+    alignment_checked: 2026-09-22
+
+  - clause: "composition.account-registration/v1#S-10"
+    evidence: "formal:account-registration-v1-crash"
+    assumptions:
+      - "动作性质 OrganizationBeforeActivation（[][A]_vars 形式）；ActivateOk 的守卫是 warrant[a] ∧ ¬expired，即「持有本次 ② 产出的依据且记录未过期」——依据被抽象为布尔，不表达绑定 AccountId"
+      - "配置同上（crash.cfg）"
+    alignment_checked: 2026-09-22
+
+  - clause: "composition.account-registration/v1#S-20"
+    evidence: "formal:account-registration-v1-crash"
+    assumptions:
+      - "ConvergentOutcome 是上面几条不变式的投影，不是独立性质（formal/README 明写）；绑定它只为让「静止时没有第三种形态」这句验收措辞有落点"
+      - "配置同上（crash.cfg）"
+    alignment_checked: 2026-09-22
+
+  - clause: "composition.account-registration/v1#S-19"
+    evidence: "formal:account-registration-v1-progress"
+    assumptions:
+      - "时序性质 EventualOutcome（leads-to）；progress.cfg：Attempts = {a1,a2}，Failures = FALSE（前提 (c) 存储最终持续可用），Abandoning = FALSE（前提 (b) 发起者不放弃），Expiring = TRUE；公平性 WF_vars(Organize) ∧ WF_vars(Activate)——这些是假设不是被证明的事实"
+      - "前提 (d)（两个参与方的服务面都能被解析到）根本没有被建模；证据形式是场景 S-29（未开始）"
+      - "撞上已过期记录停在 start 那一支不在前件内，EventualOutcome 对它什么也没说；那一支的进展由 S-8 分支表承担，本节点的「重跑 ① 只一次」是它的兑现点，证据是场景（未开始）"
+    alignment_checked: 2026-09-22
+
+# S-5（终结结果恰四值）不绑：TypeOK 约束的是模型自己变量的值域，自指，否定不了实现的返回类型；
+# 证据形式是 verification.md 登记的 lint（TerminalOutcome 字面量联合无第五值）。

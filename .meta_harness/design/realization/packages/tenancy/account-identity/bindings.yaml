@@ -1,0 +1,38 @@
+# 条款到证据的绑定表。
+# capability.account-identity v1 自己不建形式工件（契约第八节明写理由）；
+# 它的 S-13／S-14／S-38 在 composition.account-registration v1 的 Registration.tla 里被建成抽象动作，
+# 下面三条绑定借那份模型作证据，前提逐条写明——模型证的是「动作的守卫与转移」，
+# 不证存储原子性、表示层、依据不可伪造、失败值的字面。
+# 八条规范场景与两条静态检查尚无任何测试，不写占位绑定；见 verification.md。
+version: 1
+node: "account-identity"
+kind: "provider"
+
+bindings:
+  - clause: "capability.account-identity/v1#S-14"
+    evidence: "formal:account-registration-v1-crash"
+    assumptions:
+      - "模型把本操作抽象为 ActivateOk / ActivateRejected 两个原子动作；前置③（已过留存期限 ⇒ account-record-expired）对应 ActivateRejected 的 expired 守卫。存储提交的原子性与隔离（本节点存储要求 R-1／R-3）是模型的假设，不是被检查的事实"
+      - "依据核验被抽象成布尔 warrant[a]；「不可伪造」与「与 AccountId 绑定」不在模型里，证据形式是契约场景 S-42（未开始）"
+      - "run 配置 crash.cfg：Attempts = {a1, a2, a3}，Failures = TRUE，Abandoning = TRUE，Expiring = TRUE；结论只在该常量范围内成立（record/evidence/2026-09-22-formal-tenant-domain-2）"
+      - "「已过留存期限」在模型里是全局布尔 expired，Expire 是原子动作、三个读点读到同一个值——这正是模型抽象掉的部分；真实系统里由账号行上的 expiredAt 事实（首次观测时落盘）+ 存储要求 R-3 锁定读 + R-7 引用约束兑现（design.md「过期事实」一节），证据形式是 S-43 第 2 支含两条交错的真并发演练（未开始），模型不检查"
+      - "依据的不可伪造有两个前提不在模型里：activation 私钥只由 account-registration 持有且不外泄；本节点持有的 activation 公钥与那把私钥配对。两者是部署配置输入（缺 ⇒ 启动失败），由装配兑现，本版没有可机检的证据形式"
+    alignment_checked: 2026-09-22
+
+  - clause: "capability.account-identity/v1#S-13"
+    evidence: "formal:account-registration-v1-crash"
+    assumptions:
+      - "模型只覆盖幂等边界那一半：ClaimFresh（新建）、ClaimResume（认回同一 AccountId）、ClaimTaken（已激活 ⇒ identifier-taken）、ClaimExpired（已过期 ⇒ 不终结、就地清除）。凭据合规层（credential-rejected）与表示层（invalid-input）不在模型里"
+      - "单标识模型：登录标识唯一性被建模方式吸收，不是被检查的性质；真实系统里由存储唯一约束 R-2 兑现，证据形式是组合契约场景 S-31（未开始）"
+      - "run 配置同上（crash.cfg）"
+    alignment_checked: 2026-09-22
+
+  - clause: "capability.account-identity/v1#S-38"
+    evidence: "formal:account-registration-v1-crash"
+    assumptions:
+      - "模型把本操作抽象为 ExpireAccount，守卫 sweep = \"orgCleared\" 对应「持有清除依据」，expired ∧ unactivated 对应前置②③；幂等 ok（记录已不存在）与失败值字面不在模型里"
+      - "「删记录与释放标识同提交」不在模型里（单标识模型没有标识释放这回事），由本节点「标识是记录的一列」与存储要求 R-1／R-6 兑现，证据形式是契约场景 S-41 ①（未开始）"
+      - "模型里 ExpireAccount 无条件成功；真实系统里删除可能被 R-7 引用约束拒绝（个人组织行仍指着账号行）⇒ storage-unavailable ⇒ 清除链按抖动型重扫——NoOrphanPersonalOrganization 在真实系统里靠这条约束而不是靠动作次序成立，模型不检查"
+      - "依据不可伪造的两个前提同 S-14 那条：purge 私钥只由 organization-governance 持有且不外泄；本节点的 purge 公钥与之配对。部署配置输入，装配兑现"
+      - "run 配置同上（crash.cfg）；NoOrphanPersonalOrganization 只在此配置下被真正检查"
+    alignment_checked: 2026-09-22

@@ -1,0 +1,36 @@
+# 条款到证据的绑定表。
+# 只绑已登记的 formal task：organization-governance-v1-membership（Membership.tla + Membership.cfg）。
+# Affiliation.als 未登记为 formal task（Alloy 退出码尚未归 tooling），不可绑；其结果只在 verification.md 引 evidence run。
+# 规范场景 S-46～S-54 尚无任何测试，不写占位绑定。
+version: 1
+node: "organization-governance"
+kind: "provider"
+
+bindings:
+  - clause: "capability.organization-governance/v1#S-17"
+    evidence: "formal:organization-governance-v1-membership"
+    assumptions:
+      - "Serialized = TRUE：模型把 Commit(a,t,k) 建成不可分割动作，即假设选中的存储真的兑现了序列化（存储要求 R-3a，写事务开头锁组织行）；这条前提由存储提供者承担，模型不检查"
+      - "Actors = {a1, a2}：结论只在两位行动者范围内成立；未穷举更大规模"
+      - "无公平性假设，不检查任何进展性质；CHECK_DEADLOCK 关闭"
+      - "跨进程协调不在模型内（契约 S-42 第 1 行右列、G-7）"
+      - "run：record/evidence/2026-09-22-formal-tenant-domain-2，与上一次 run 同输入（模型与 cfg 未改）"
+    alignment_checked: 2026-09-22
+
+  - clause: "capability.organization-governance/v1#S-28"
+    evidence: "formal:organization-governance-v1-membership"
+    assumptions:
+      - "模型只覆盖「之后仍 ≥1 有效超管」这条前置与写入同提交（Remaining(t) # {} 守卫 + Commit）；授权判定、目标有效性、失败值字面不在模型里"
+      - "同上：Serialized = TRUE、Actors = {a1, a2}、无公平性"
+    alignment_checked: 2026-09-22
+
+  - clause: "capability.organization-governance/v1#S-29"
+    evidence: "formal:organization-governance-v1-membership"
+    assumptions:
+      - "模型里 remove 与 demote 共用同一条前置（flows §3.3 两行逐字相同）；个人组织的结构性禁止（personalOrganizationMemberCannotLeave）不在模型里，证据形式是契约场景 S-51"
+      - "并发移除对方「先成者成、后成者 wouldLeaveNoSuperAdministrator」在模型里是不变量不被违反这一面；失败值字面与「不留部分效果」由契约场景 S-48 真并发演练证"
+      - "同上：Serialized = TRUE、Actors = {a1, a2}、无公平性"
+    alignment_checked: 2026-09-22
+
+# S-39（回来的是同一个租户）不绑：Membership.tla 的 Rejoin 复用同一个 Actors 元素是建模方式，
+# 模型里没有任何在 S-39 被违反时会失败的断言；证据形式是 verification.md 登记的单元测试与跨契约场景 S-49。
