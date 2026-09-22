@@ -12,18 +12,23 @@
 
 > **中**：**动作实际落到哪里。**宿主机、沙箱，或别的什么。
 > **它永远存在——不存在「没有执行环境」这个状态**，动作总要落在某处。
-> 它是[注入](agent-runtime-loop.md#ul-runtime-injection--运行时注入--runtime-injection)的：
+> **落在哪一个，是每扇门、每一次执行算出来的**：
 > **工具定义说的是「执行一条命令」，从不说「在哪执行」**，
 > 因此换掉它**不需要重建 agent runtime，也不改变动作空间**。
 >
 > **EN**: **Where an action actually lands** — the host machine, a sandbox, or
 > something else. **It always exists; there is no state of "having no execution
-> environment"**, since an action must land somewhere. It is **injected**: **a tool
-> definition says "run a command", never "run it there"**, so replacing it **requires
-> no rebuild of the running instance and does not change the action space**.
+> environment"**, since an action must land somewhere. **Which one it is gets computed
+> per door and per execution**: **a tool definition says "run a command", never "run it
+> there"**, so replacing it **requires no rebuild of the agent runtime and does not
+> change the action space**.
 
-- **出处**：[PF-004 §4 执行环境](../../product/PF-004-agent-definition-and-assembly/design.md#执行环境) · [PF-005 §4](../../product/PF-005-execution-environments-and-sandboxes/design.md#执行环境)（rev 3 / rev 2）
-- **注意**：**它的存活与 agent runtime 无关**——可能短得多（一次工具调用就结束），也可能长得多（绑定在租户）
+- **形态**：对象
+- **出处**：[PF-004 §4 执行环境](../../product/PF-004-agent-definition-and-assembly/design.md#执行环境)（rev 8） · [PF-005 §4](../../product/PF-005-execution-environments-and-sandboxes/design.md#执行环境)（rev 4） · [PF-005 §6.1](../../product/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)（rev 4）
+- **注意 ①**：**它的存活与 agent runtime 无关**——可能短得多（一次工具调用就结束），也可能长得多（绑定在租户）
+- **⚠️ 注意 ②**：**它不是一个被注入的取值。**装配留下的是
+  「需要哪几类环境」与「装进来哪些[沙箱实现](#ul-sandbox-implementation--沙箱实现--sandbox-implementation)」两样，
+  **落点每扇门每次执行现算**
 
 ### UL-sandbox · 沙箱 · Sandbox
 
@@ -40,61 +45,103 @@
 > "hot-swap the execution environment per security policy, invisibly to the agent"
 > possible.
 
-- **出处**：[PF-005 §4 沙箱](../../product/PF-005-execution-environments-and-sandboxes/design.md#沙箱)（rev 2）
+- **形态**：变体（父：[执行环境](#ul-execution-environment--执行环境--execution-environment)）
+- **出处**：[PF-005 §4 沙箱](../../product/PF-005-execution-environments-and-sandboxes/design.md#沙箱)（rev 4）
+- **别混**：与[沙箱实现](#ul-sandbox-implementation--沙箱实现--sandbox-implementation)不是一回事——**后者是装配进来的那个提供者**，前者是**这次执行落进去的那个隔离环境**
 - **注意**：**沙箱不是资产**
+
+### UL-sandbox-implementation · 沙箱实现 · Sandbox Implementation
+
+> **中**：**装配时可以装进来的一个隔离环境提供者。**
+> **全部沙箱实现遵循同一套契约与协议**，并各自声明两件事：
+> **提供哪几种[设施](#ul-environment-facility--环境设施--environment-facility)**、
+> **可以绑定在哪几个层级**（一次调用 · 一个会话 · 一个租户）。
+> **装不装、装哪一个，是装配方的选择**；
+> [宿主机](#ul-host-machine--宿主机--host-machine)不在此列——它不需要被装配。
+>
+> **EN**: **A provider of isolated environments that assembly may plug in.** **All sandbox
+> implementations follow one and the same contract and protocol**, and each declares two
+> things: **which facilities it offers** and **which binding levels it supports** (one call,
+> one session, one tenant). **Whether to plug one in, and which one, is assembly's choice**;
+> the host machine is not among them — it needs no plugging in.
+
+- **形态**：对象
+- **出处**：[PF-005 §4 沙箱实现](../../product/PF-005-execution-environments-and-sandboxes/design.md#沙箱实现)（rev 4） · [§6.1](../../product/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)（rev 4）
+- **别混**：**不是[沙箱](#ul-sandbox--沙箱--sandbox)本身**——一个沙箱实现可以起出很多个沙箱
+- **注意 ①**：**它不是资产**——[理由与沙箱那条一样](../../product/PF-005-execution-environments-and-sandboxes/design.md#67-沙箱不是资产)：资产约束 agent 由什么组装而成，它提供的是动作落地的地方
+- **注意 ②**：**这次执行要落隔离环境时，拿设施与层级去匹配已装配的这些；
+  [匹配不上就拒绝](../../product/PF-005-execution-environments-and-sandboxes/design.md#69-落点不可用就是拒绝不降级)，不回退宿主机**
 
 ### UL-host-machine · 宿主机 · Host Machine
 
-> **中**：**agent 运行时本身所在的地方，也是唯一不隔离的执行环境。**
-> 它的特殊只有一处，但很要紧：**宿主机不提供租户隔离**——
-> 一个租户的 agent 在上面写下的东西，另一个租户的 agent 看得见。
-> 因此**它不是「没有沙箱」的默认状态，而是执行环境的一个具体取值**，
-> 且**必须被显式允许才能用**。
+> **中**：**[agent runtime](agent-runtime-loop.md#ul-agent-runtime--agent-runtime--agent-runtime)
+> 本身所在的地方，也是唯一不隔离的执行环境。**
+> **它始终在场**——agent runtime 本身就跑在它上面，**不存在「宿主机不可用」**；
+> **只要[执行环境权限](#ul-execution-environment-permission--执行环境权限--execution-environment-permission)允许，它就可用**。
+> 它的特殊还有一处，而这一处很要紧：**宿主机不提供租户隔离**——
+> 一个租户的 agent 在上面写下的东西，另一个租户的 agent 看得见；
+> 因此**作用能不能直接落在它上面，必须被显式允许**。
 >
 > **EN**: **Where the agent runtime itself lives, and the only execution environment
-> that does not isolate.** It is special in exactly one way, and that way matters:
-> **the host machine provides no tenant isolation** — what one tenant's agent writes
-> there, another tenant's agent can see. It is therefore **not a default state of
-> "no sandbox" but one concrete value of execution environment**, and **usable only
-> when explicitly permitted**.
+> that does not isolate.** **It is always there** — the agent runtime runs on it, so
+> **there is no such state as "the host machine is unavailable"**; **it is available
+> whenever the execution-environment permission allows it.** It is special in one
+> further way, and that way matters: **the host machine provides no tenant isolation** —
+> what one tenant's agent writes there, another tenant's agent can see — so **whether
+> an effect may land directly on it must be explicitly permitted**.
 
-- **出处**：[PF-005 §4 宿主机](../../product/PF-005-execution-environments-and-sandboxes/design.md#宿主机) · [§6.1](../../product/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机是一个取值不是默认状态) · [§6.2](../../product/PF-005-execution-environments-and-sandboxes/design.md#62-宿主机不提供租户隔离因此必须被显式允许)（rev 2）
-- **注意**：**装配时必须明确注入一个执行环境，哪怕注入的就是宿主机**
-- **注意**：**沙箱创建失败不得退回宿主机**——那等于绕过安全判断
+- **形态**：变体（父：[执行环境](#ul-execution-environment--执行环境--execution-environment)）
+- **出处**：[PF-005 §4 宿主机](../../product/PF-005-execution-environments-and-sandboxes/design.md#宿主机)（rev 4） · [§6.1](../../product/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)（rev 4） · [§6.2](../../product/PF-005-execution-environments-and-sandboxes/design.md#62-宿主机不提供租户隔离因此必须被显式允许)（rev 4）
+- **注意 ①**：**它不被装配**——要装配的是[沙箱实现](#ul-sandbox-implementation--沙箱实现--sandbox-implementation)，而且是可选的
+- **注意 ②**：**沙箱创建失败不得退回宿主机**——那等于绕过安全判断
 
 ### UL-stateless-sandbox · 无状态沙箱 · Stateless Sandbox
 
-> **中**：**效用不持久**的隔离执行环境：**一次调用结束就没了**，本来就没有该留的。
+> **中**：**效用不持久**的隔离执行环境：**它只活一次工具调用**——
+> 调用一结束，它连同里面的东西一起没了，**本来就没有该留的**。
 >
-> **EN**: An isolated execution environment whose **effects do not persist**: **once a
-> call ends, nothing remains** — there was never anything meant to be kept.
+> **EN**: An isolated execution environment whose **effects do not persist**: **it lives
+> for exactly one tool call**, and when that call ends it goes and everything inside
+> goes with it — there was never anything meant to be kept.
 
-- **出处**：[PF-005 §5.1 四种执行环境](../../product/PF-005-execution-environments-and-sandboxes/design.md#51-四种执行环境)（rev 2）
+- **形态**：对象
+- **出处**：[PF-005 §5.1 四种执行环境](../../product/PF-005-execution-environments-and-sandboxes/design.md#51-四种执行环境)（rev 4）
 - **别混**：它「不绑定」是因为**用完就扔**；宿主机「不绑定」是因为**大家共用**。
   **两个「不绑定」含义相反**，这正是分类必须拆成两维的原因
 
 ### UL-session-sandbox · 会话级沙箱 · Session-Scoped Sandbox
 
-> **中**：效用**活到一次会话**的隔离执行环境。**到点销毁，数据不留存——这是刻意的。**
+> **中**：效用**活到一次会话**的隔离执行环境：**绑定在一个会话上**，
+> 且有**最大连续存活时间**——**到点直接销毁，数据不留存，这是刻意的**；
+> 那个会话下次还要用，**重建一个新的、重新计时**。
 >
-> **EN**: An isolated execution environment whose effects **live for one session**.
-> **Destroyed when its time comes, with no data retained — deliberately so.**
+> **EN**: An isolated execution environment whose effects **live for one session**: it
+> is **bound to a session** and has a **maximum continuous lifetime**. **When that time
+> is up it is destroyed outright and nothing is retained — deliberately so**; should
+> the session need one again, **a fresh one is built and the clock starts over**.
 
-- **出处**：[PF-005 §6.3](../../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 2）
+- **形态**：对象
+- **出处**：[PF-005 §5.1 四种执行环境](../../product/PF-005-execution-environments-and-sandboxes/design.md#51-四种执行环境)（rev 4） ·
+  [§6.3](../../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 4）
 - **注意**：**同一个执行环境里的终端会话会一起消失**——环境是它们的宿主，agent **必须被告知**
 
 ### UL-tenant-sandbox · 租户级沙箱 · Tenant-Scoped Sandbox
 
-> **中**：效用**活到租户**的隔离执行环境，是一个**共享的工作空间**。
+> **中**：效用**活到租户**的隔离执行环境，是一个**共享的工作空间**——
+> 该租户的全部会话与全部 agent 在同一个空间里做事。
+> **本体的存活并不是无限的**：允许停机、允许换一个物理节点。
 > **三类沙箱里只有它对内部数据有持久要求**：必须**可备份、可迁移**，
 > 需要和租户生命周期一样长。
 >
 > **EN**: An isolated execution environment whose effects **live as long as the
-> tenant** — a **shared workspace**. **Of the three kinds of sandbox, only this one
-> places a durability requirement on the data inside it**: it must be **backupable and
+> tenant** — a **shared workspace** in which all of that tenant's sessions and agents
+> work. **The box itself is not guaranteed to stay up**: it may be stopped and moved to
+> another physical node. **Of the three kinds of sandbox, only this one places a
+> durability requirement on the data inside it**: that data must be **backupable and
 > migratable**, lasting as long as the tenant does.
 
-- **出处**：[PF-005 §5.2](../../product/PF-005-execution-environments-and-sandboxes/design.md#52-租户级沙箱本体的存活与数据的存活是两件事) · [§6.4](../../product/PF-005-execution-environments-and-sandboxes/design.md#64-租户级沙箱共享的工作空间)（rev 2）
+- **形态**：对象
+- **出处**：[PF-005 §5.2](../../product/PF-005-execution-environments-and-sandboxes/design.md#52-租户级沙箱本体的存活与数据的存活是两件事)（rev 4） · [§6.4](../../product/PF-005-execution-environments-and-sandboxes/design.md#64-租户级沙箱共享的工作空间)（rev 4）
 
 ### UL-sandbox-data · 沙箱数据 · Sandbox Data
 
@@ -108,7 +155,8 @@
 > can "the cloud host may stop and move nodes" and "what has been accumulated must not
 > be lost" both hold.**
 
-- **出处**：[PF-005 §4 沙箱内的数据](../../product/PF-005-execution-environments-and-sandboxes/design.md#沙箱内的数据) · [§5.2](../../product/PF-005-execution-environments-and-sandboxes/design.md#52-租户级沙箱本体的存活与数据的存活是两件事)（rev 2）
+- **形态**：对象
+- **出处**：[PF-005 §4 沙箱内的数据](../../product/PF-005-execution-environments-and-sandboxes/design.md#沙箱内的数据)（rev 4） · [§5.2](../../product/PF-005-execution-environments-and-sandboxes/design.md#52-租户级沙箱本体的存活与数据的存活是两件事)（rev 4）
 
 ### UL-environment-facility · 环境设施 · Environment Facility
 
@@ -124,9 +172,11 @@
 > dimensions**: two environments both scoped to a session may offer entirely different
 > facilities.
 
-- **出处**：[PF-005 §4 设施](../../product/PF-005-execution-environments-and-sandboxes/design.md#设施)（rev 2）
+- **形态**：属性
+- **出处**：[PF-005 §4 设施](../../product/PF-005-execution-environments-and-sandboxes/design.md#设施)（rev 4）
 - **别混**：**裸写「设施」不作数**——它专指执行环境声明的这一层
-- **注意**：**环境声明自己提供什么**归这里；**工具声明自己需要什么、怎么匹配、匹配不上怎么办**归工具那一块
+- **注意**：**环境声明自己提供什么**归这里；**工具声明自己需要什么怎么声明**归工具那一块；
+  [匹配不上的后果归 PF-005](../../product/PF-005-execution-environments-and-sandboxes/design.md#69-落点不可用就是拒绝不降级)
 - **注意**：**设施给不了时不降级、不绕道**
 
 ### UL-terminal-session · 终端会话 · Terminal Session
@@ -140,7 +190,8 @@
 > the last. **Several may exist at once**; **they live inside that execution
 > environment**, so when it goes, **all of them go with it**.
 
-- **出处**：[PF-007 §6.4 `Shell()`](../../product/PF-007-meta-capabilities/design.md#64-shell通向命令行) · [PF-005 §6.3](../../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 6 / rev 2）
+- **形态**：对象
+- **出处**：[PF-007 §6.4 `Shell()`](../../product/PF-007-meta-capabilities/design.md#64-shell通向命令行)（rev 15） · [PF-005 §6.3](../../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 4）
 - **⚠️ 别混**：**不是[会话](agent-runtime-loop.md#ul-session--会话--session)。**
   两者**毫无关系**——一个是协作的归属边界，一个是执行环境里的一条命令行。
   **`Shell()` 的命令名 `create_session` / `close_session` 不改**（那是接口），
@@ -164,8 +215,9 @@
 > organization and tenant levels, **each tool configured on its own**. **It decides where an
 > effect lands, never whether the action is permitted.**
 
+- **形态**：属性
 - **出处**：[PF-005 §4 执行环境权限](../../product/PF-005-execution-environments-and-sandboxes/design.md#执行环境权限) ·
-  [§6.8](../../product/PF-005-execution-environments-and-sandboxes/design.md#68-执行环境权限每个工具各配各的)（rev 3）
+  [§6.8](../../product/PF-005-execution-environments-and-sandboxes/design.md#68-执行环境权限每个工具各配各的)（rev 4）
 - **⚠️ 别混**：**不是[会话运行模式](agent-runtime-loop.md#ul-session-run-mode--会话运行模式--session-run-mode)。**
   **两者都是三态、都曾各有一个 `auto`**，但**一个决定「准不准」，一个决定「落在哪」**，
   而且**会在同一次执行里一前一后出现**。**两个名字特意分开取**：`auto_permission` 对 `auto_place`
@@ -180,5 +232,9 @@
   授权与权限相关的配置，**加载时就把工作区来的滤掉了**
 - **注意 ⑤**：**没声明要用执行环境的工具，这一维对它不适用。**
   那是**实现时的契约**，**不是「默认取哪一档」**
+- **注意 ⑥**：**「这个工具能不能用[宿主机](#ul-host-machine--宿主机--host-machine)」没有第二项权限在管**——
+  **这一项不是 `never-allow`，就是能用**
+- **弃用**：~~「执行安全策略」~~（指的是**把这一项配成 `never-allow`** 那件事，是同一项权限的配值） ·
+  ~~「使用宿主机的资格」~~（＝**这一项不是 `never-allow`**）
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

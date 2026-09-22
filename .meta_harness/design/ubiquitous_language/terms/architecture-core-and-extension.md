@@ -37,6 +37,7 @@
 > the [architecture-core PF index](../../product/architecture-core.md), a set that
 > grows as the design grows.
 
+- **形态**：总称
 - **出处**：[UL-D-2](../decisions.md#ul-d-2--架构内核--2026-09-20)（产品负责人 2026-09-20 直接裁决）
 - **判据**：拿一样东西问——**它是在立规矩，还是在用规矩？**立，在架构内核内；用，在外。
 - **别混 ①**：与**上游内核不是一回事**。那指 Cordis 与 DSH `agent` 原语，

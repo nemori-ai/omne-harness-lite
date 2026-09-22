@@ -23,18 +23,25 @@
 
 ### UL-tool-definition · 工具定义 · Tool Definition
 
-> **中**：**一个[工具](capabilities-and-composition.md#ul-tool--工具--tool)的静态描述**——
-> 叫什么、收什么参数、返回什么，以及它的可选声明（能不能后台、需要什么设施等）。
+> **中**：**一个[工具](capabilities-and-composition.md#ul-tool--工具--tool)在数据与治理层面的
+> 身份与表示**——叫什么、收什么参数、返回什么，以及它的可选声明（能不能后台、需要什么设施等）；
+> **它可以自带实现，直到自带一份完整的实现 package**。
 > **它是数据，长期存在**，谁持有它就归谁。
 >
-> **EN**: **The static description of a tool** — its name, the arguments it takes, what
-> it returns, plus its optional declarations (whether it may run in the background,
-> which facilities it needs, and so on). **It is data and long-lived**, belonging to
-> whoever holds it.
+> **EN**: **A tool's identity and representation at the data and governance level** — its
+> name, the arguments it takes, what it returns, plus its optional declarations (whether it
+> may run in the background, which facilities it needs, and so on); **it may carry its own
+> implementation, up to a complete implementation package**. **It is data and long-lived**,
+> belonging to whoever holds it.
 
-- **出处**：[PF-006 §5.3](../../product/PF-006-tools-and-skills/design.md#53-一份工具定义长什么样)（rev 7）
+- **形态**：属性
+- **出处**：[PF-006 §5.2](../../product/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同) · [§5.3](../../product/PF-006-tools-and-skills/design.md#53-一份工具定义长什么样)（rev 14） · [PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 7）
+- **别混**：与[工具](capabilities-and-composition.md#ul-tool--工具--tool)不是一回事——
+  工具是那一类资产，**工具定义是它在数据与治理层面的那一份表示**；
+  **同一个身份下可以有平台、组织、租户各自的一份**
 - **注意**：**有三样刻意不在定义里**——[等待态](#ul-tool-wait-state--工具等待态--tool-wait-state)、[发帧](#ul-frame-emission--发帧--frame-emission)，
-  以及[常驻标记](reach-and-availability.md#ul-residency--常驻--residency)。**前两个是这一次跑出来的事，第三个是引用关系**
+  以及[这一次的结果要不要卸载](#ul-result-offloading--结果卸载--result-offloading)。
+  **三样都取决于这一次跑成什么样**，而定义里写的是这个工具跟参数无关的固有属性
 
 ### UL-tool-execution · 工具执行 · Tool Execution
 
@@ -44,13 +51,16 @@
 > 发起它的 agent runtime 哪怕早就没了也不影响——**收件人是会话，不是那个协程**。
 >
 > **EN**: **One execution of a tool.** It **is a compute resource** with a runtime of
-> its own, **bound to the session** — not to the agent instance, nor to the run that
+> its own, **bound to the session** — not to the agent runtime, nor to the run that
 > started it. So **a run may end while the tool execution it started is still going**;
-> even if that instance has retired, the result still gets home — **the addressee is
-> the session, not the instance**.
+> even if that agent runtime has retired, the result still gets home — **the addressee
+> is the session, not the coroutine**.
 
-- **出处**：[PF-006 §4 Tool Execution](../../product/PF-006-tools-and-skills/design.md#tool-execution) · [§5.2](../../product/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同) · [§6.5](../../product/PF-006-tools-and-skills/design.md#65-工具执行有自己的运行时绑定在-session-上)（rev 7）
-- **注意**：**是哪次运行、哪个实例发起的，都记得下来，但都不绑生命周期**；**只有会话绑**
+- **形态**：对象
+- **出处**：[PF-006 §4 Tool Execution](../../product/PF-006-tools-and-skills/design.md#tool-execution)（rev 14） · [§5.2](../../product/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同)（rev 14） · [§6.5](../../product/PF-006-tools-and-skills/design.md#65-工具执行有自己的运行时绑定在-session-上)（rev 14）
+- **注意 ①**：**是哪次运行、哪个 agent runtime 发起的，都记得下来，但都不绑生命周期**；**只有会话绑**
+- **注意 ②**：**[会话被归档](../../product/PF-015-session-lifecycle-and-ownership/design.md#63-归档先停活儿再落状态)时仍未结束的，随之收场**——
+  收件人都没了；**这一刀不可逆**，撤销归档不会把它接回来
 
 ### UL-background-execution · 后台执行 · Background Execution
 
@@ -64,9 +74,14 @@
 > converts automatically**; **absent a declaration, it may not**. It is **a dimension
 > separate from the wait state** — all four combinations are possible.
 
-- **出处**：[PF-006 §6.6](../../product/PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)（rev 7）
+- **形态**：状态
+- **出处**：[PF-006 §6.6](../../product/PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)（rev 14）
 - **注意 ①**：**默认往保守的那一边倒**——**没表过态，不等于表了同意**
-- **注意 ②**：**「发起时就在后台」与「中途转后台」的决定权不同**——前者 agent 自己定，后者归用户或自动超时
+- **注意 ②**：**「发起时就在后台」与「中途转后台」的决定权不同**——
+  前者[由 agent 自己定](../../product/PF-007-meta-capabilities/design.md#64-shell通向命令行)，
+  后者[有三个触发源](../../product/PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)：
+  **超时自动转 · 用户手动切 · 用户插队时系统顺带触发**
+- **注意 ③**：**三个触发源都不绕开声明**——工具没声明允许后台，插队时它是[被中断](#ul-execution-outcome--执行收场--execution-outcome)，不是被转后台
 
 ### UL-model-call · 一次模型调用 · Model Call
 
@@ -78,12 +93,14 @@
 > **complete** reply has come back. It sits inside a single agent step and is a
 > **sibling of** tool execution — neither contains the other.
 
-- **出处**：[PF-011 §5.3](../../product/PF-011-off-nominal-handling/design.md#53-层的顺序不是排出来的是推出来的)（rev 2） ·
-  [PF-012 §5.4](../../product/PF-012-agent-loop-and-run/design.md#54-一步的骨架)（rev 2）
+- **形态**：对象
+- **出处**：[PF-013 flows §3.2 一次模型调用](../../product/PF-013-model-profiles-and-invocation/flows.md#32-一次模型调用)（rev 3） ·
+  [PF-011 §5.3](../../product/PF-011-off-nominal-handling/design.md#53-层的顺序不是排出来的是推出来的)（rev 4） ·
+  [PF-012 §5.4](../../product/PF-012-agent-loop-and-run/design.md#54-一步的骨架)（rev 7）
 - **别混**：**不是那次请求的内容**——请求体怎么攒出来归 [PF-010](../../product/PF-010-context-management-and-assembly/README.md)；
   **也不是回复怎么流式拼起来**，那归 [PF-009](../../product/PF-009-context-message-types/README.md)
-- **⚠️ 注意**：**「这一层失败了能做什么、什么时候算试尽」目前无主**，
-  见 [PF-011 §9.1](../../product/PF-011-off-nominal-handling/design.md#91-模型调用那一层还没有-owner)
+- **注意**：**这一层归 [PF-013](../../product/PF-013-model-profiles-and-invocation/README.md)**——
+  它的三个终态（**完整一份 · 上交 · 被中断**）、失败怎么分类、[什么时候算试尽](../../product/PF-013-model-profiles-and-invocation/design.md#什么时候算试尽)，都在那里
 
 ## 跑的过程中，跟外面说的两种话
 
@@ -111,7 +128,8 @@
 > external system, another agent; the shape is the same. **What matters is that the
 > system knows it is waiting, and knows what shape it waits for.**
 
-- **出处**：[PF-006 §4 等待态](../../product/PF-006-tools-and-skills/design.md#等待态)（rev 7）
+- **形态**：状态
+- **出处**：[PF-006 §4 等待态](../../product/PF-006-tools-and-skills/design.md#等待态)（rev 14）
 - **⚠️ 别混**：**裸写「等待态」不作数。**它有两个所指——
   这一条挂在**一次工具执行**上，另一条
   [运行等待态](interaction-and-dispatch.md#ul-run-wait-state--运行等待态--run-wait-state)挂在**一个运行**上，
@@ -125,40 +143,52 @@
 
 ### UL-frame-emission · 发帧 · Frame Emission
 
-> **中**：**一次工具执行的过程中，它主动交出一点「我正在干什么」。**
+> **中**：**一次工具执行的过程中，它主动交出一点「我正在干什么」**——
+> 交出来的是[执行帧](#ul-execution-frame--执行帧--execution-frame)，
+> 也就是它那条 `ToolInternalMessage` 的到达增量。
 > 三条性质：**它不承诺任何事**（发不出去就发不出去，**这次调用该怎么跑还怎么跑**）；
 > **系统不必预先知道哪个工具会发帧**（**绝大多数工具一帧都不发，那是正常形态**）；
-> **帧自己说清它要干什么**。
+> **交出来的东西自己说清它是什么**（开一个块时说明这块怎么填），**不必事先声明**。
 >
 > **EN**: **A tool execution volunteering, while running, a little of "what I am doing
-> right now."** Three properties: **it promises nothing** (if it cannot get out, it
-> cannot — **the call runs exactly as it would have**); **the system need not know in
-> advance which tools emit** (**most emit none at all, and that is the normal case**);
-> and **each frame says for itself what it is for**.
+> right now"** — what it hands over is an execution frame, i.e. an arrival increment of
+> its own `ToolInternalMessage`. Three properties: **it promises nothing** (if it cannot
+> get out, it cannot — **the call runs exactly as it would have**); **the system need not
+> know in advance which tools emit** (**most emit none at all, and that is the normal
+> case**); and **what arrives says for itself what it is** (a block states, as it is
+> opened, how it is to be filled), **with nothing declared up front**.
 
-- **出处**：[PF-006 §4 发帧](../../product/PF-006-tools-and-skills/design.md#发帧)（rev 7）
+- **形态**：过程
+- **出处**：[PF-006 §4 发帧](../../product/PF-006-tools-and-skills/design.md#发帧)（rev 14） ·
+  [PF-009 §5.8](../../product/PF-009-context-message-types/design.md#执行帧就是这条消息的到达增量)（rev 4）
 - **注意**：它补的是一个具体的窟窿——用户看着界面写着「正在调用某个工具」，**然后就没有下文了**：
   **它是卡住了，还是在正常地跑一件慢活，此前分不出来**
 
 ### UL-execution-frame · 执行帧 · Execution Frame
 
-> **中**：[发帧](#ul-frame-emission--发帧--frame-emission)发出去的那个东西。
-> **它长什么样由一份数据结构协议约定，不由工具定义声明**——
-> **系统对帧的解析是统一的**：不去查工具定义来决定要不要解析，
-> 而是**看实际收到了什么，再决定怎么处理**。**收到什么就按什么办，没收到就是没有。**
+> **中**：**一条 `ToolInternalMessage` 的到达增量。**一次工具执行对应一条这样的消息，
+> 内容是一串[内容块](record-and-context.md#ul-content-block--内容块--content-block)；
+> 帧就是这条消息**一点点到达的那些动作**，走的是与模型回复**同一套到达语法**——
+> 开一个块（说明这块是追加片段还是整体替换）、往里填、封上这个块、记一次账、收尾。
+> **它不是另一份协议，也不是一个可以单独指认的东西。**
 >
-> **EN**: What frame emission actually emits. **Its shape is fixed by a data-structure
-> protocol, not declared in any tool definition** — **the system parses frames
-> uniformly**: it does not consult the definition to decide whether to parse, it
-> **looks at what actually arrived and decides from that**. **Handle what comes; what
-> does not come simply is not there.**
+> **EN**: **An arrival increment of one `ToolInternalMessage`.** A tool execution yields
+> exactly one such message, whose content is a series of content blocks; the frames are
+> the steps by which that message arrives, **under the same arrival grammar as a model
+> reply** — open a block (stating whether it is appended to or replaced wholesale), fill
+> it, close it, account for it once, finish. **It is neither a separate protocol nor a
+> separately identifiable thing.**
 
-- **出处**：[PF-006 §4 帧长什么样](../../product/PF-006-tools-and-skills/design.md#帧长什么样由一份协议约定不由工具定义声明)（rev 7）
+- **形态**：过程
+- **出处**：[PF-009 §5.5](../../product/PF-009-context-message-types/design.md#到达的过程有它自己的语法) ·
+  [§5.8](../../product/PF-009-context-message-types/design.md#执行帧就是这条消息的到达增量)（rev 4）
 - **别混**：**裸写「帧」不作数**——那个词在别处指视频帧、网络帧
-- **注意 ①**：**这条省掉了一整层**：不必在定义里加一格「我发不发帧」，不必在运行时核对
-  「声明的和实际发的对不对得上」，也不必处理「声明了不发却发了」——**因为压根没有声明**
-- **注意 ②**：**它还留了一条路**——一个工具可以**先往外吐日志，最后再给一个汇总面板**。
-  预先声明会把这条路堵死，**而那个限制换不来任何东西**
+- **注意 ①**：**它落进日志的是结果，不是过程**——日志里留的是收尾之后那条完整的消息
+  （封口后的块）；**到达的过程不留**，中途被中断时已交付的块照样留
+- **注意 ②**：**系统不查工具定义**：不必在定义里加一格「我发不发帧」，不必核对
+  「声明的和实际发的对不对得上」——**因为压根没有声明**，收到什么就按什么办
+- **注意 ③**：**它留着一条路**——一个工具可以**先往外吐日志，最后再给一块汇总面板**：
+  前面那些块追加片段，**最后开一个整体替换的块**
 
 ## 交出来的东西
 
@@ -178,7 +208,8 @@
 > execution frames emitted while running — **which are for people, and which the agent
 > cannot see at all**.
 
-- **出处**：[PF-006 §4 工具的产出](../../product/PF-006-tools-and-skills/design.md#工具的产出)（rev 7）
+- **形态**：总称
+- **出处**：[PF-006 §4 工具的产出](../../product/PF-006-tools-and-skills/design.md#工具的产出)（rev 14）
 - **注意 ①**：前两部分要分，**是因为有些产出根本不适合进对话**——一张图、一个几十兆的文件。
   硬塞进去，**一条消息就把上下文吃光了**
 - **注意 ②**：**帧不顶替结果。**一个工具把过程播报得再细，**跑完照样要给结果**——
@@ -193,7 +224,8 @@
 > placing in the conversation**. The message tells the agent where it is, and **the
 > agent fetches it itself**.
 
-- **出处**：[PF-006 §4 工具的产出](../../product/PF-006-tools-and-skills/design.md#工具的产出)（rev 7）
+- **形态**：对象
+- **出处**：[PF-006 §4 工具的产出](../../product/PF-006-tools-and-skills/design.md#工具的产出)（rev 14）
 - **注意**：**产出带附件的工具需要[声明自己依赖的存储](reach-and-availability.md#ul-dependency-declaration--依赖声明--dependency-declaration)**，
   并且得有一个能从那个存储把它读出来的工具
 
@@ -211,13 +243,39 @@
 > **often the placeholder is all the agent needs, which is exactly why this is worth
 > doing**.
 
-- **出处**：[PF-006 §4 卸载](../../product/PF-006-tools-and-skills/design.md#卸载) · [§6.10](../../product/PF-006-tools-and-skills/design.md#610-结果太大时卸载而卸载是第三个维度)（rev 7）
+- **形态**：过程
+- **出处**：[PF-006 §4 卸载](../../product/PF-006-tools-and-skills/design.md#卸载)（rev 14） · [§6.10](../../product/PF-006-tools-and-skills/design.md#610-结果太大时卸载而卸载是第三个维度)（rev 14）
 - **别混**：**裸写「卸载」不作数**——那个词在别处指卸载插件、卸载软件
 - **⚠️ 注意**：**「换成」说的是相对于原始结果，不是在记录里替换。**
   [会话日志里从头到尾只有占位那一条](../../product/PF-012-agent-loop-and-run/design.md#510-卸载结果落成消息之前的那一关)——
   **原始结果从来没进过日志**；而 agent 取回全文，是**往后追加两条新消息**
 - **注意**：**它与前台/后台、与等待态是三个不耦合的维度**
 - **注意**：**取回全文要能分页**——不分页就等于把刚卸下去的东西原样搬回来，**卸载当场作废**
+
+### UL-offloaded-result · 被卸载的原始结果 · Offloaded Result
+
+> **中**：一次[工具执行](#ul-tool-execution--工具执行--tool-execution)**本该进消息、
+> 却因为太大而被[卸载](#ul-result-offloading--结果卸载--result-offloading)存起来的那一份完整结果**。
+> **它从来没进过[会话日志](record-and-context.md#ul-session-log--会话日志--session-log)**——
+> 进去的一直是那条占位。agent 要看它得**分页取回**，
+> 而取回是**往后追加两条新消息**，不是把占位换回去。
+>
+> **EN**: The **full result** of a tool execution that was meant for the message but got
+> **stored aside instead, because it was too large to fit**. **It never entered the
+> session log** — what went in was the placeholder, all along. An agent that wants it
+> **fetches it back a page at a time**, and fetching **appends two new messages** rather
+> than putting the original back where the placeholder sits.
+
+- **形态**：对象
+- **出处**：[PF-006 §4 卸载](../../product/PF-006-tools-and-skills/design.md#卸载)（rev 14） ·
+  [§6.10](../../product/PF-006-tools-and-skills/design.md#610-结果太大时卸载而卸载是第三个维度)（rev 14） ·
+  [PF-012 §5.10](../../product/PF-012-agent-loop-and-run/design.md#510-卸载结果落成消息之前的那一关)（rev 7）
+- **别混 ①**：**不是那条占位**——占位进了消息，带着够用的那部分、有多大、怎么取；
+  **这一条是被留在外面的那份全的**
+- **别混 ②**：**不是[附件](#ul-attachment--附件--attachment)**——
+  附件是工具**有意**不放进对话的产出，这一条是**本该进对话、只因太大而被挪走**的
+- **弃用**：~~「工具原件」~~——[「原件」在模态那边另有所指](../../product/PF-013-model-profiles-and-invocation/design.md#转换件)
+  （一个内容块里没被转成文本的那一份）
 
 ## 怎么了结
 
@@ -235,21 +293,20 @@
 > | **等不到应答** | No Reply | 按等不到处理，**不是失败也不是被拒** |
 >
 > **六种都以正常的工具返回消息到达 agent**，语义写在消息里；
-> **没有一种是以异常的形式抛给它的**。
+> **没有一种是以报错的形式抛给它的**。
 >
 > **EN**: **The terminal state of a tool execution — six of them**, and **the agent
 > must tell them apart**, because the next move differs entirely. **All six reach the
-> agent as an ordinary tool-return message** carrying the semantics; **none is thrown
-> at it as an exception.**
+> agent as an ordinary tool-return message** carrying the semantics; **not one of them
+> is raised at it as an error.**
 
-- **出处**：[PF-006 §5.5](../../product/PF-006-tools-and-skills/design.md#55-一次工具执行的收场有六种) · [§6.7](../../product/PF-006-tools-and-skills/design.md#67-用户可以中断而中断不是失败)（rev 7）
+- **形态**：状态
+- **出处**：[PF-006 §5.5](../../product/PF-006-tools-and-skills/design.md#55-一次工具执行的收场有六种)（rev 14） · [§6.7](../../product/PF-006-tools-and-skills/design.md#67-用户可以中断而中断不是失败)（rev 14）
 - **别混**：**与 [Run 的「收束」不是一回事](agent-runtime-loop.md#ul-run--运行--run)**——
   **粒度差着好几层**。**裸写「收场」只指工具这一层的这六种**
 - **注意 ①**：**四种「非完成」里只有一种是失败。**混成一种，agent 的下一步必然错：
   **该绕路时死磕，该等待时重来，用户刚叫停它又跑一遍**
-- **注意 ②**：**报错不带语义，agent 只能猜**——这是六种都走正常返回的理由。
-  （**出处正文此处写的是「异常」**，那是 exception 义；[「异常」已不作为术语](../conflicts.md)，
-  回改归 PF-006 的 owner）
+- **注意 ②**：**报错不带语义，agent 只能猜**——这是六种都走正常返回的理由
 
 ## 跑偏了谁接手
 
@@ -265,7 +322,8 @@
 > holds, arriving nowhere. It belongs to **that layer alone** — one and the same occurrence may
 > take an inner layer off its path while the outer layer proceeds untroubled.
 
-- **出处**：[PF-011 §4 主路径](../../product/PF-011-off-nominal-handling/design.md#主路径)（rev 2）
+- **形态**：属性
+- **出处**：[PF-011 §4 主路径](../../product/PF-011-off-nominal-handling/design.md#主路径)（rev 4）
 - **注意 ①**：**中文取好懂的说法，英文取航天惯用的 `nominal`**——
   两边各自成立，**不是互译**
 - **⚠️ 注意 ②**：**稳态式照样会偏离。**租户那一层的主路径是「作为可用的归属边界持续成立」——
@@ -283,8 +341,9 @@
 > occurrence** — whatever caused it is still an occurrence and still yields record entries.
 > **Two faces of one and the same thing.**
 
-- **出处**：[PF-011 §4 非常态](../../product/PF-011-off-nominal-handling/design.md#非常态) ·
-  [§5.1](../../product/PF-011-off-nominal-handling/design.md#51-非常态与发生的事是同一件事的两个面)（rev 2）
+- **形态**：状态
+- **出处**：[PF-011 §4 非常态](../../product/PF-011-off-nominal-handling/design.md#非常态)（rev 4） ·
+  [§5.1](../../product/PF-011-off-nominal-handling/design.md#51-非常态与发生的事是同一件事的两个面)（rev 4）
 - **⚠️ 注意 ①**：**它与报错无关。**绝大多数非常态**根本不报错**——用户叫停、
   能力此刻够不着、等不到回音、执行转后台；**反过来，有些报错不构成非常态**——
   工具内部捕获并自行重试成功，主路径一步没偏
@@ -301,9 +360,10 @@
 > one cannot settle it.** What travels is **the identity and classification of what was tried,
 > never the tried things themselves**. **Escalating halts**: the handing layer stops where it is.
 
-- **出处**：[PF-011 §4 上交](../../product/PF-011-off-nominal-handling/design.md#上交) ·
-  [§5.8](../../product/PF-011-off-nominal-handling/design.md#58-上交交的是什么) ·
-  [§6.2](../../product/PF-011-off-nominal-handling/design.md#62-上交即打断)（rev 2）
+- **形态**：过程
+- **出处**：[PF-011 §4 上交](../../product/PF-011-off-nominal-handling/design.md#上交)（rev 4） ·
+  [§5.8](../../product/PF-011-off-nominal-handling/design.md#58-上交交的是什么)（rev 4） ·
+  [§6.2](../../product/PF-011-off-nominal-handling/design.md#62-上交即打断)（rev 4）
 - **注意 ⑤**：**「外面一层」＝[层的树](../../product/PF-011-off-nominal-handling/design.md#53-层的顺序不是排出来的是推出来的)上的父节点**——
   层之间是包含关系，而包含关系形成的是树，不一定是一条链。
   **接手的那一层此刻不存在时，直接交给再外面一层，这不算跳级**
@@ -327,7 +387,8 @@
 > way out and **no layer remains that could return it to its nominal path**. **What
 > reaches this end is the condition itself, not the layer that was holding it.**
 
-- **出处**：[PF-011 §4 终局](../../product/PF-011-off-nominal-handling/design.md#终局)（rev 2）
+- **形态**：状态
+- **出处**：[PF-011 §4 终局](../../product/PF-011-off-nominal-handling/design.md#终局)（rev 4）
 - **别混 ①**：**不是失败的同义词**——算不算失败，**由落终局的那一层按自己的语义决定**
 - **别混 ②**：**不是[运行终态](agent-runtime-loop.md#ul-run-terminal-state--运行终态--run-terminal-state)**——
   一次 Run 早就落了终态，那件非常态**照样可能还在往外交**
