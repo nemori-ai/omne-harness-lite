@@ -44,7 +44,7 @@ ALLOWED_RETIRED_IDENTITIES = frozenset({
     "capability.session-run",
     "proposal.outbound-stream",
 })
-MANIFESTS = ("catalog.json", "rebase-map.json", "frozen.json", "formal-tasks.json")
+MANIFESTS = ("catalog.json", "lineage.json", "frozen.json", "formal-tasks.json")
 
 
 class MergeError(ValueError):
@@ -118,8 +118,8 @@ def read_candidate(label: str, root: Path) -> Candidate:
     ):
         if manifests[name].get(field) != BASELINE_ID:
             raise MergeError(f"{label}/{name} has a cross-baseline {field}")
-    if manifests["rebase-map.json"].get("target_baseline_id") != BASELINE_ID:
-        raise MergeError(f"{label}/rebase-map.json has a cross-baseline target")
+    if manifests["lineage.json"].get("target_baseline_id") != BASELINE_ID:
+        raise MergeError(f"{label}/lineage.json has a cross-baseline target")
     return Candidate(label, root.resolve(), manifests)
 
 
@@ -283,11 +283,11 @@ def validate_and_render(
         raise MergeError(f"final coordinate allowlist mismatch; missing={missing}, extra={extra}")
 
     relations = merge_keyed(
-        candidates, manifest="rebase-map.json", field="relations", key_fn=relation_key,
+        candidates, manifest="lineage.json", field="relations", key_fn=relation_key,
         replacement_section="relations", replacements=replacements,
     )
     consumers = merge_keyed(
-        candidates, manifest="rebase-map.json", field="consumer_observations", key_fn=consumer_key,
+        candidates, manifest="lineage.json", field="consumer_observations", key_fn=consumer_key,
         replacement_section="consumer_observations", replacements=replacements,
     )
     tasks = merge_keyed(
@@ -296,7 +296,7 @@ def validate_and_render(
     )
 
     retired = merge_keyed(
-        candidates, manifest="rebase-map.json", field="retired_identities",
+        candidates, manifest="lineage.json", field="retired_identities",
         key_fn=retired_identity_key, replacement_section="retired_identities",
         replacements=replacements,
     )
@@ -408,7 +408,7 @@ def validate_and_render(
             "version_policy": {"kind": "initial-uniform", "version": 1},
         },
         "catalog.json": {"format": 1, "baseline_id": BASELINE_ID, "contracts": contracts},
-        "rebase-map.json": {
+        "lineage.json": {
             "format": 1,
             "target_baseline_id": BASELINE_ID,
             "retired_identities": sorted(retired, key=lambda item: item["contract_id"]),

@@ -189,9 +189,9 @@ class DesignValidator:
             return self.errors, self.notes
         # 重基清单只在从旧 baseline 接续时存在；全新 baseline 没有要接续的关系，
         # 缺它不是错误。存在则必须合法。
-        rebase_path = self.manifests / "rebase-map.json"
+        rebase_path = self.manifests / "lineage.json"
         if rebase_path.is_file():
-            rebase = self.capture("rebase-map.json", lambda: load_json(rebase_path))
+            rebase = self.capture("lineage.json", lambda: load_json(rebase_path))
             if rebase is not None:
                 self._rebase(rebase)
         catalog = self.capture("catalog.json", lambda: load_json(self.manifests / "catalog.json"))
@@ -244,16 +244,16 @@ class DesignValidator:
 
     def _rebase(self, raw: Any) -> None:
         try:
-            data = require_object(raw, "rebase-map.json")
+            data = require_object(raw, "lineage.json")
             require_keys(data, {"format", "target_baseline_id", "relations", "retired_identities",
-                                "consumer_observations"}, "rebase-map.json")
+                                "consumer_observations"}, "lineage.json")
             if data["format"] != FORMAT:
-                raise Invalid(f"rebase-map.json.format must be {FORMAT}")
+                raise Invalid(f"lineage.json.format must be {FORMAT}")
             if data["target_baseline_id"] != self.baseline_id:
-                raise Invalid("rebase-map.json.target_baseline_id differs from baseline.json")
+                raise Invalid("lineage.json.target_baseline_id differs from baseline.json")
             for index, raw_item in enumerate(require_list(data["retired_identities"],
-                                                          "rebase-map.json.retired_identities")):
-                where = f"rebase-map.json.retired_identities[{index}]"
+                                                          "lineage.json.retired_identities")):
+                where = f"lineage.json.retired_identities[{index}]"
                 item = require_object(raw_item, where)
                 require_keys(item, {"baseline_id", "contract_id", "reason"}, where)
                 baseline = require_text(item["baseline_id"], f"{where}.baseline_id")
@@ -268,8 +268,8 @@ class DesignValidator:
                     raise Invalid(f"duplicate retired identity: {key}")
                 self.retired.add(key)
                 self.retired_contract_ids.add(contract)
-            for index, raw_item in enumerate(require_list(data["relations"], "rebase-map.json.relations")):
-                where = f"rebase-map.json.relations[{index}]"
+            for index, raw_item in enumerate(require_list(data["relations"], "lineage.json.relations")):
+                where = f"lineage.json.relations[{index}]"
                 item = require_object(raw_item, where)
                 require_keys(item, {"id", "source", "source_clauses", "disposition", "target",
                                     "target_clauses", "clause_mappings", "consumers",
@@ -328,8 +328,8 @@ class DesignValidator:
                 item["_release_evidence"] = release_evidence
                 self.rebase_relations[identity] = item
             for index, raw_item in enumerate(require_list(data["consumer_observations"],
-                                                          "rebase-map.json.consumer_observations")):
-                where = f"rebase-map.json.consumer_observations[{index}]"
+                                                          "lineage.json.consumer_observations")):
+                where = f"lineage.json.consumer_observations[{index}]"
                 item = require_object(raw_item, where)
                 require_keys(item, {"consumer", "consumes", "status", "evidence"}, where)
                 consumer = require_text(item["consumer"], f"{where}.consumer")

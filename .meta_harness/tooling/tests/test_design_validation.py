@@ -179,7 +179,7 @@ def build_tree(root: Path) -> None:
         "# IN-02 mapping evidence\n\nThe sample maps legacy SR-10 to current RUN-03.\n",
         encoding="utf-8",
     )
-    write_json(root / "rebase-map.json", {
+    write_json(root / "lineage.json", {
         "format": 1,
         "target_baseline_id": BASELINE,
         "retired_identities": [{
@@ -342,25 +342,25 @@ def test_direct_retired_dependency_needs_mapping_and_blocked_gate_stops_acceptan
 
     command["dependencies"][0]["rebase_relation"] = "command-input-IN-02-session-run-SR-10"
     write_json(tmp_path / "catalog.json", catalog)
-    rebase = json.loads((tmp_path / "rebase-map.json").read_text())
+    rebase = json.loads((tmp_path / "lineage.json").read_text())
     rebase["relations"][0]["freeze_gate"] = {"blocked": True, "reason": "owner review is open"}
-    write_json(tmp_path / "rebase-map.json", rebase)
+    write_json(tmp_path / "lineage.json", rebase)
     errors, _ = validate(tmp_path)
     assert any("blocked by freeze_gate" in error and "owner review is open" in error for error in errors)
 
 
 def test_unblocked_rebase_relation_requires_its_exact_catalog_target(tmp_path: Path) -> None:
     build_tree(tmp_path)
-    rebase = json.loads((tmp_path / "rebase-map.json").read_text())
+    rebase = json.loads((tmp_path / "lineage.json").read_text())
     rebase["relations"][0]["target"] = coordinate("capability.missing")
-    write_json(tmp_path / "rebase-map.json", rebase)
+    write_json(tmp_path / "lineage.json", rebase)
     errors, _ = validate(tmp_path)
     assert any("has no exact target in catalog" in error and "capability.missing" in error for error in errors)
 
 
 def test_accepted_legacy_dependency_requires_clause_coverage_and_accepted_target(tmp_path: Path) -> None:
     build_tree(tmp_path)
-    rebase = json.loads((tmp_path / "rebase-map.json").read_text())
+    rebase = json.loads((tmp_path / "lineage.json").read_text())
     evidence = rebase["relations"][0]["release_evidence"]
     rebase["relations"].append({
         "id": "legacy-core-work-owner",
@@ -374,7 +374,7 @@ def test_accepted_legacy_dependency_requires_clause_coverage_and_accepted_target
         "release_evidence": evidence,
         "freeze_gate": {"blocked": False, "reason": "exact clause checked"},
     })
-    write_json(tmp_path / "rebase-map.json", rebase)
+    write_json(tmp_path / "lineage.json", rebase)
     catalog = json.loads((tmp_path / "catalog.json").read_text())
     command = next(item for item in catalog["contracts"]
                    if item["coordinate"]["contract_id"] == "capability.command-input")
@@ -403,10 +403,10 @@ def test_accepted_legacy_dependency_requires_clause_coverage_and_accepted_target
 
 def test_release_gate_cannot_bypass_blocked_relation_or_unknown_consumer(tmp_path: Path) -> None:
     build_tree(tmp_path)
-    rebase = json.loads((tmp_path / "rebase-map.json").read_text())
+    rebase = json.loads((tmp_path / "lineage.json").read_text())
     rebase["relations"][0]["freeze_gate"] = {"blocked": True, "reason": "semantic owner open"}
     rebase["consumer_observations"][0]["status"] = "unknown"
-    write_json(tmp_path / "rebase-map.json", rebase)
+    write_json(tmp_path / "lineage.json", rebase)
     assert validate(tmp_path, gate="internal")[0] == []
     errors, _ = validate(tmp_path, gate="release")
     assert any("blocked at release" in error for error in errors)
@@ -415,18 +415,18 @@ def test_release_gate_cannot_bypass_blocked_relation_or_unknown_consumer(tmp_pat
 
 def test_verified_current_consumer_requires_exact_catalog_coordinate(tmp_path: Path) -> None:
     build_tree(tmp_path)
-    rebase = json.loads((tmp_path / "rebase-map.json").read_text())
+    rebase = json.loads((tmp_path / "lineage.json").read_text())
     rebase["consumer_observations"][0]["consumes"] = coordinate("capability.missing")
-    write_json(tmp_path / "rebase-map.json", rebase)
+    write_json(tmp_path / "lineage.json", rebase)
     errors, _ = validate(tmp_path)
     assert any("verified-current consumer" in error and "capability.missing" in error for error in errors)
 
 
 def test_retired_identity_cannot_be_revived_in_current_catalog(tmp_path: Path) -> None:
     build_tree(tmp_path)
-    rebase = json.loads((tmp_path / "rebase-map.json").read_text())
+    rebase = json.loads((tmp_path / "lineage.json").read_text())
     rebase["retired_identities"][0]["baseline_id"] = BASELINE
-    write_json(tmp_path / "rebase-map.json", rebase)
+    write_json(tmp_path / "lineage.json", rebase)
     errors, _ = validate(tmp_path)
     assert any("cannot retire an identity in the new baseline" in error for error in errors)
 

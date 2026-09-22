@@ -101,7 +101,7 @@ def make_candidate(design: Path, root: Path, *, label: str = "base") -> None:
     }
     dump(root / "baseline.json", baseline)
     dump(root / "catalog.json", {"format": 1, "baseline_id": MERGER.BASELINE_ID, "contracts": contracts})
-    dump(root / "rebase-map.json", {
+    dump(root / "lineage.json", {
         "format": 1,
         "target_baseline_id": MERGER.BASELINE_ID,
         "retired_identities": copy.deepcopy(RETIRED_IDENTITIES),
@@ -127,9 +127,9 @@ def test_merge_deduplicates_exact_items_and_requires_explicit_replacement(tmp_pa
     design, first, second = tmp_path / "design", tmp_path / "first", tmp_path / "second"
     make_candidate(design, first, label="first")
     make_candidate(design, second, label="second")
-    rebase = json.loads((second / "rebase-map.json").read_text())
+    rebase = json.loads((second / "lineage.json").read_text())
     rebase["relations"][0]["freeze_gate"]["reason"] = "reviewed replacement"
-    dump(second / "rebase-map.json", rebase)
+    dump(second / "lineage.json", rebase)
 
     failed = run_merge(design, tmp_path / "failed", ("first", first), ("second", second))
     assert failed.returncode == 1
@@ -141,7 +141,7 @@ def test_merge_deduplicates_exact_items_and_requires_explicit_replacement(tmp_pa
     passed = run_merge(design, output, ("first", first), ("second", second), replacements=replacement)
     assert passed.returncode == 0, passed.stderr
     assert len(json.loads((output / "catalog.json").read_text())["contracts"]) == len(MERGER.ALLOWED_COORDINATES)
-    assert json.loads((output / "rebase-map.json").read_text())["relations"][0]["freeze_gate"]["reason"] == "reviewed replacement"
+    assert json.loads((output / "lineage.json").read_text())["relations"][0]["freeze_gate"]["reason"] == "reviewed replacement"
     assert json.loads((output / "baseline.json").read_text())["snapshot_id"] == "final-review-sha"
 
 
@@ -162,13 +162,13 @@ def test_merge_fails_closed_on_missing_resource_cross_baseline_and_retired_ident
 
     catalog["contracts"][0]["coordinate"]["baseline_id"] = MERGER.BASELINE_ID
     dump(candidate / "catalog.json", catalog)
-    rebase = json.loads((candidate / "rebase-map.json").read_text())
+    rebase = json.loads((candidate / "lineage.json").read_text())
     rebase["retired_identities"].append({
         "baseline_id": MERGER.LEGACY_BASELINE_ID,
         "contract_id": "capability.live-agent",
         "reason": "not permitted",
     })
-    dump(candidate / "rebase-map.json", rebase)
+    dump(candidate / "lineage.json", rebase)
     result = run_merge(design, tmp_path / "out-retired", ("only", candidate))
     assert result.returncode == 1 and "retired identities outside allowlist" in result.stderr
 
@@ -179,12 +179,12 @@ def test_merge_retired_identities_preserve_legacy_objects_and_reason(tmp_path: P
     output = tmp_path / "output"
     result = run_merge(design, output, ("only", candidate))
     assert result.returncode == 0, result.stderr
-    retired = json.loads((output / "rebase-map.json").read_text())["retired_identities"]
+    retired = json.loads((output / "lineage.json").read_text())["retired_identities"]
     assert retired == RETIRED_IDENTITIES
     assert all(set(item) == {"baseline_id", "contract_id", "reason"} for item in retired)
     validator = VALIDATOR.DesignValidator(output, formal="none")
     assert validator._baseline(json.loads((output / "baseline.json").read_text()))
-    validator._rebase(json.loads((output / "rebase-map.json").read_text()))
+    validator._rebase(json.loads((output / "lineage.json").read_text()))
     assert validator.errors == []
     assert validator.retired == {
         (MERGER.LEGACY_BASELINE_ID, item["contract_id"]) for item in RETIRED_IDENTITIES
@@ -194,7 +194,7 @@ def test_merge_retired_identities_preserve_legacy_objects_and_reason(tmp_path: P
 def test_merge_retired_identities_reject_malformed_unknown_and_duplicate(tmp_path: Path) -> None:
     design, candidate = tmp_path / "design", tmp_path / "candidate"
     make_candidate(design, candidate)
-    source = json.loads((candidate / "rebase-map.json").read_text())
+    source = json.loads((candidate / "lineage.json").read_text())
     invalid = [
         (["capability.session-run"], "must be an object"),
         ([{**RETIRED_IDENTITIES[0], "reason": " "}], "reason must be a non-empty string"),
@@ -205,7 +205,7 @@ def test_merge_retired_identities_reject_malformed_unknown_and_duplicate(tmp_pat
     for index, (items, message) in enumerate(invalid):
         rebase = copy.deepcopy(source)
         rebase["retired_identities"] = items
-        dump(candidate / "rebase-map.json", rebase)
+        dump(candidate / "lineage.json", rebase)
         result = run_merge(design, tmp_path / f"out-{index}", ("only", candidate))
         assert result.returncode == 1 and message in result.stderr, result.stderr
 
@@ -214,9 +214,9 @@ def test_merge_retired_reason_change_requires_explicit_replacement(tmp_path: Pat
     design, first, second = tmp_path / "design", tmp_path / "first", tmp_path / "second"
     make_candidate(design, first, label="first")
     make_candidate(design, second, label="second")
-    rebase = json.loads((second / "rebase-map.json").read_text())
+    rebase = json.loads((second / "lineage.json").read_text())
     rebase["retired_identities"][0]["reason"] = "Reviewed replacement reason."
-    dump(second / "rebase-map.json", rebase)
+    dump(second / "lineage.json", rebase)
 
     failed = run_merge(design, tmp_path / "unapproved", ("first", first), ("second", second))
     assert failed.returncode == 1 and "declare an explicit replacement" in failed.stderr
@@ -226,7 +226,7 @@ def test_merge_retired_reason_change_requires_explicit_replacement(tmp_path: Pat
     output = tmp_path / "approved"
     passed = run_merge(design, output, ("first", first), ("second", second), replacements=replacement)
     assert passed.returncode == 0, passed.stderr
-    retired = json.loads((output / "rebase-map.json").read_text())["retired_identities"]
+    retired = json.loads((output / "lineage.json").read_text())["retired_identities"]
     assert retired[0] == rebase["retired_identities"][0]
     assert retired[1] == RETIRED_IDENTITIES[1]
 

@@ -31,7 +31,7 @@ consumer 或缺少 release evidence 的关系失败。不能通过暂时删掉 c
 | ------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `baseline.json`     | `format=1`、稳定 `baseline_id`、输入 `snapshot_id`、Schema `schema_namespace`、旧谱系清单及显式 `version_policy` |
 | `catalog.json`      | 当前谱系的精确三元组、family/topic、状态、版本资源、接受决定和条款级依赖                                         |
-| `rebase-map.json`   | 旧→新条款关系、退出身份、`freeze_gate` 与实际产品消费者的旧/新谱系观察                                           |
+| `lineage.json`      | 旧→新条款关系、退出身份、`freeze_gate` 与实际产品消费者的旧/新谱系观察                                           |
 | `frozen.json`       | 已接受 catalog 资源的 SHA-256；发布后只追加，新内容必须新版本                                                    |
 | `formal-tasks.json` | 模型种类、已登记工件、可注入 argv runner 和超时；结果不写回规范                                                  |
 
@@ -111,6 +111,43 @@ python tooling/src/domain_objects.py --root design --stale report   # rev 落后
 一致时通过且总表可往返、只改生成时间不判过期、对象词条缺条目与条目缺对象词条、条目缺词条或缺必填字段、
 rev 落后（含 topic 内三处 rev 不一致）及其 report 模式、依据缺 rev 或指向非产品正文、
 形态缺失/非法/变体的父无效、未定词条须同时出现在 pending 与 conflicts、索引与分卷不一致、待裁缺 owner。
+
+## 实现映射节点对账
+
+`realization_nodes.py` 核 `design/realization/{apps,packages}/<node>/` 每个节点的形状；
+`.templates/` 不是主题，不参与对账：
+
+```sh
+python tooling/src/realization_nodes.py --root design                # 对账
+python tooling/src/realization_nodes.py --root design --stale warn   # 交付面 rev 落后只列出，不判失败
+```
+
+节点该长什么样，权威正文在 [realization/README.md](../design/realization/README.md) 与
+[AGENTS.md](../design/realization/AGENTS.md)；这里只记工具自己查到哪：
+
+- **kind 与身份**：README 的 `- kind：` 只能是 `provider` 或 `assembly`，`bindings.yaml` 的
+  `node` 等于目录名、`kind` 与 README 一致；assembly 必须有 `architecture.md`，provider 不得有。
+- **源码位置**：`- 源码位置：` 里的 `apps/<name>` 或 `packages/<name>`，最后一段必须与目录同名，
+  且 `apps`/`packages` 与节点所在目录一致；整行写「尚未建包」且不含路径时放行。
+- **交付面 rev**：assembly 的 `- 交付面：` 行与 `architecture.md` 的「交付面与非目标」一节，
+  指向 `product/PF-*/README.md` 的链接后面必须跟它那个 topic 的「（rev N）」，
+  读法与[领域对象条目的依据](../design/ubiquitous_language/conventions.md#rev-怎么写怎么读)完全相同（正则就复用那一份）。
+  漂移默认判失败，`--stale warn`（或 `report`，同义）降为只列出——**不是通过的证据**。
+- **技术栈采用**：该节表里「状态」只有 `已采用` 与 `candidate`；前者的「依据」必须链到存在的
+  `record/decisions/<topic>/decision.md`，后者必须链到存在的 `record/proposals/<topic>/` 下的文件。
+- **契约坐标**：表头叫「契约坐标」或「精确形状归谁」的列，反引号里的 `contract_id/vN` 必须在
+  `registry/catalog.json` 里存在（只比 contract_id 与 version，节点不写 baseline）；契约未立写「待立：…」放行。
+- **draft 不得登记绑定**：交付面 PF 的 front-matter `status` 是 `draft` 时，`bindings.yaml` 的 `bindings` 必须为空。
+- **相对链接**：节点内 markdown 的本地相对链接要能解析（带文件与行号）。锚点、以及设计根内其他文件的链接，
+  仍由 `check_design.py` 统一查，本工具不重复。
+
+它**不判断任何节点的内容对不对**：查不出一条绑定的证据是否真能支持那条条款、
+`assumptions` 写得对不对、某条应用间的边是否只写了一侧；表列改名之后对应的检查会静默跳过。
+`bindings.yaml` 只读 `node`、`kind`、`bindings` 三个顶层键，其余字段无人校验。
+工具只读 `--root` 指向的设计根，不从承载仓库发现 `apps/` 或 `packages/` 源码。
+
+测试用一棵含一个产品 topic、一个 catalog、一个 assembly 与一个 provider 节点的小型设计树，
+逐条覆盖每条规则的通过与失败，外加空目录通过、缺 `realization/`、缺 catalog、YAML 读不出来。
 
 ## Agent 编译
 
