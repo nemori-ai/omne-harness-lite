@@ -5,6 +5,53 @@
 
 技术投影用 `provenance.json` 引用具体 rev，所以这里的 rev 不准会直接传导到实现侧。
 
+## 校准 — 2026-09-22（不升 rev）
+
+**一处转述措辞校准，本 topic 的产品规则一条没动。**
+
+| 改了哪里 | 改成什么 | 依据 |
+|---|---|---|
+| [§四「承接前面的 topic」](design.md#承接前面的-topic) PF-009 那一格里的「**说状态的取代说事的追加**」，链向 PF-009 §5.4 | 「**说状态的写清变化、说事的写清发生，消息一律追加**」，锚点改指 [PF-009 §6.4](../PF-009-context-message-types/design.md#64-说状态的写清变化说事的写清发生消息一律追加) | [PF-009 rev 4 §5.4](../PF-009-context-message-types/design.md#54-提醒说的是现在什么样还是刚才发生了什么) 与 [§6.4](../PF-009-context-message-types/design.md#64-说状态的写清变化说事的写清发生消息一律追加)：那条判据决定的是**这条提醒怎么写**，**消息之间没有取代** |
+| [§四承接表](design.md#承接前面的-topic)与 [§八](design.md#八边界与依赖)标的 PF-012 版本 | rev 6 → **rev 7** | 逐处回读 [PF-012 rev 7](../PF-012-agent-loop-and-run/changelog.md) 改过的五处：**[状态转移表](../PF-012-agent-loop-and-run/design.md#56-状态转移表)、[两层循环的出口](../PF-012-agent-loop-and-run/design.md#这个循环从哪里出去)、[十一个拓展点](../PF-012-agent-loop-and-run/design.md#58-loop-拓展点)一个字没改**，本 topic 的三个去处引的正是它们；[§4 当下条件](../PF-012-agent-loop-and-run/design.md#当下条件)改的是「注入进来的那些」里执行环境那一项的写法，**当下条件要看的那件事没变**，本 topic 也不引执行环境；[§5.11](../PF-012-agent-loop-and-run/design.md#511-外面进来的事怎么到-agent-眼前) 改的是最后一行与丢弃限定——**那正是本 rev 自己落下的那条规则**，三种消息与「收进日志就是进队列」未动；[§5.7 的第四件事](../PF-012-agent-loop-and-run/design.md#每一次尝试开始都要做四件事)本 rev [§6.10 已在引](design.md#610-注入的上下文变了没有运行在跑时什么都不做)；[§9.1](../PF-012-agent-loop-and-run/design.md#91-会话归-pf-015) 与本 topic 无关 |
+
+## rev 3 — 2026-09-22
+
+**runtime context 的变更怎么被感知：推与拉，按 Run 开没开闭合分。**
+依据：[产品负责人 2026-09-22 的直接裁决](decisions.md#2026-09-22--runtime-context-的变更推与拉按-run-开没开闭合分)，原话逐字在那里。
+
+| 改了哪里 | 现在怎么说 |
+|---|---|
+| [§6.10](design.md#610-注入的上下文变了没有运行在跑时什么都不做) | 先分推与拉两条路；**推来的按 Run 闭没闭合分**：未闭合（含停着等人）**进队列**，已闭合（会话空闲）**一律丢弃——不进队列、不落日志、不成为记录条目**。新增一条边界：**只管 runtime context 生产方的推**，后台工具结果那一类照常受理 |
+| 同节 | 补明**丢弃为什么不丢信息**：下一次尝试起来时 [agent runtime 自己拉一次](../PF-012-agent-loop-and-run/design.md#每一次尝试开始都要做四件事)；状态提醒的**前值取日志里最后感知到的那一份、现值取这次拉到的** |
+| [§5.7 那张表](design.md#57-穷举一什么会让队列从空变成非空)「注入的上下文变了」那一行 | 主语改写为「**runtime context 的某一块被生产方推来了变更**」，「**说状态的，取代式**」改为「**写清「从什么变成了什么」**」（跟上 [PF-009 rev 4](../PF-009-context-message-types/changelog.md)），并补明**会话空闲时推来的不在这张表里** |
+| [decisions §四](decisions.md#四已知的来源问题) | 那条「空闲期间变过的那几步没人正面裁过」**已闭合**——它是这套模型的结论：**因果链记的是会话感知到的变化，不是世界上发生过的每一步** |
+
+**含义变了什么**：rev 2 只说「没有运行在跑时什么都不做」，**没说那条推来的变更去哪了、也没说 agent 事后怎么知道当前值**。
+现在两头都写死了：**推的那一路丢弃，拉的那一路在每次尝试开始时必做。**
+
+**下游要复核的是**：把「注入的上下文变了」实现成无条件推送的人；
+以及**把后台工具结果也按这条丢掉**的人——**那一类不在此列**。
+
+**[PF-012 同日升到 rev 7](../PF-012-agent-loop-and-run/changelog.md)**，那边落的是「拉」这一件事与 §5.11 的分支。
+
+## 状态变更 — 2026-09-22（不升 rev）
+
+**产品负责人把本 topic 从草稿改为定稿**：[README front-matter](README.md) 的 `status` 由 `draft` 改为 `active`，状态段同步。
+**正文一个字未动**——[改变含义才升 rev](../AGENTS.md#改动怎么记)，状态不是内容。
+
+## 校准 — 2026-09-21（不升 rev）
+
+**一次正文校准，产品规则一条没动。**
+
+| 改了哪里 | 改成什么 | 依据 |
+|---|---|---|
+| [§5.4.4](design.md#544-这没有推翻-pf-008它把一个词说全了) 与 [decisions 裁决 14 那段](decisions.md#裁决-8-与-14-为什么最要紧)里转引的「会话终结」 | **归档**——[没有「会话结束」这回事，凡是挂在「这段协作到此为止」上的东西锚点都是它](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-session-archival--会话归档--session-archival)。decisions 那处保留原话，只加一句正式名字 | [UL-session-archival](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-session-archival--会话归档--session-archival) 与 [PF-015 §4](../PF-015-session-lifecycle-and-ownership/design.md#会话归档)；[PF-008 §6.1 现在写的也是这个词](../PF-008-human-in-the-loop/design.md#61-永远等着系统不替人作答) |
+| **§9.4「要回给别人的账」整节删掉** | **四笔全部落到了对方正文**：[`Ask()` 不可转后台](../PF-007-meta-capabilities/design.md#611-ask通向人) · [PF-008 §6.1 的「人处理它」已展开成回复／明确拒绝回复](../PF-008-human-in-the-loop/design.md#61-永远等着系统不替人作答) · [PF-012 §5.11 已接上控制指令那张表并给「注入的上下文变了」加了「有运行在跑」这个条件](../PF-012-agent-loop-and-run/design.md#511-外面进来的事怎么到-agent-眼前) · [PF-006 的占位原因已是五种](../PF-006-tools-and-skills/design.md#67-用户可以中断而中断不是失败)。**原 §9.5 顺位成 §9.4** | 对方正文现状；[PF-006 changelog 也已记下这两笔的落地](../PF-006-tools-and-skills/changelog.md) |
+| [§8 边界表](design.md#八边界与依赖)里「PF-007 缺『不可转后台』那一句」、[§5.4.2](design.md#542-两种等人答机制各归各产品语义是同一条) 里「PF-007 今天没有明写」 | **那一句已经在那边了**，改成直接引用它 | 同上 |
+| [§8](design.md#八边界与依赖) 与 [§9.2](design.md#92-会话被归档那一刻队列怎么办)里「PF-015 rev 1 没有覆盖存储与队列」 | **存储那一半 PF-015 已经给完**，队列那一半仍然没有答案——只说后者 | [PF-015 §5.8](../PF-015-session-lifecycle-and-ownership/design.md#58-存储要守住的两件事) 与[它的未决项](../PF-015-session-lifecycle-and-ownership/design.md#九未决项) |
+| 「可用性在每次尝试开始时重算」只链到 PF-006 那个写着「每次 run 开始前」的标题 | **改链到 [PF-012 那条把两者统一起来的**](../PF-012-agent-loop-and-run/design.md#每一次尝试开始都要做四件事)，PF-006 那条作为出处并列 | [PF-012 §5.7](../PF-012-agent-loop-and-run/design.md#每一次尝试开始都要做四件事)：「PF-006 定的是每次 run 开始前重算，**把每一次尝试也算作一次开始**」 |
+| README 写「本 topic 引入的**四个**概念」 | **三个**——入站到达 · 控制指令 · 插队；待处理消息队列是 [PF-012](../PF-012-agent-loop-and-run/design.md#待处理消息队列) 的 | 计数错，含义未变 |
+
 ## rev 2 — 2026-09-20
 
 **同日重做。**rev 1 刚落稿，产品负责人就在统一建模 run、agent-loop、inbound

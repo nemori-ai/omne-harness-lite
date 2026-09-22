@@ -2,7 +2,7 @@
 id: PF-007
 title: Meta Capabilities
 status: active
-revision: 13
+revision: 15
 relations:
   supersedes: []
   depends-on:
@@ -13,7 +13,11 @@ relations:
     - id: PF-002
       for: 八类资产、多命令工具只占一个槽位、派发权限
     - id: PF-004
-      for: agent runtime 、装配、注入
+      for: 装配、注入
+    - id: PF-012
+      for: agent runtime、Run、会话日志
+    - id: PF-015
+      for: 会话的生命周期与归档、会话运行模式、会话授权上下文在会话上的承载
     - id: PF-001
       for: 租户隔离、official 与 customized
   extends: []
@@ -84,7 +88,7 @@ relations:
 | 关系 | 本 topic 的情况 |
 |---|---|
 | `supersedes` | 无 |
-| `depends-on` | [PF-006](../PF-006-tools-and-skills/README.md)、[PF-005](../PF-005-execution-environments-and-sandboxes/README.md)、[PF-002](../PF-002-assets-settings-and-permissions/README.md)、[PF-004](../PF-004-agent-definition-and-assembly/README.md)、[PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)，引用不改写 |
+| `depends-on` | [PF-006](../PF-006-tools-and-skills/README.md)、[PF-005](../PF-005-execution-environments-and-sandboxes/README.md)、[PF-002](../PF-002-assets-settings-and-permissions/README.md)、[PF-004](../PF-004-agent-definition-and-assembly/README.md)、[PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)、[PF-012](../PF-012-agent-loop-and-run/README.md)、[PF-015](../PF-015-session-lifecycle-and-ownership/README.md)，引用不改写 |
 | `extends` | 无 |
 
 **与 PF-006 的分界**：常驻这个机制怎么运作，归 PF-006；
@@ -103,10 +107,10 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 12**，**已正式接受**（[逐版变更见 changelog](changelog.md)；**rev 11 重定授权模型——用嘴说的话算数，而且能说得出作用域**；**rev 12 定下「只保守」**；**rev 13 把放行判断展开成四步，并划清「权限关得掉一条命令、关不掉一扇门」**）
-- 未决项：**两项**——[§9.1 `spawn` 的「继承当前会话的上下文」是共享还是复制](design.md#91-spawn-的继承当前会话的上下文是共享还是复制)；
-  **§9.2 报告之后 master 再发一条消息，子拿什么回应**（**通路已通**，剩下那条回应算不算子会话里新的一次运行）
-- 待裁决：**一项**——[D-1](decisions.md#三待裁决)（即未决项的第一条）。
+- 产品设计：**rev 15**，**已正式接受**（[逐版变更见 changelog](changelog.md)；**rev 11 重定授权模型——用嘴说的话算数，而且能说得出作用域**；**rev 12 定下「只保守」**；**rev 13 把放行判断展开成四步，并划清「权限关得掉一条命令、关不掉一扇门」**；**rev 14 把几处仍按旧模型写的措辞对齐到现行结论**；**rev 15 定死 `spawn` 交出去的是上下文副本，并把「授权表达」定为正式名**）
+- 未决项：**一项**——**[§9.2](design.md#92-报告之后派发者再发一条消息子拿什么回应) 报告之后 master 再发一条消息，子拿什么回应**（**通路已通**，剩下那条回应算不算子会话里新的一次运行）
+- 待裁决：**无**。
+  **D-1 已于 rev 15 闭合**：`spawn` 交出去的是[派发那一刻组装出来的那份上下文的副本](design.md#两处分水岭各自只有一条)，**不是共享一本账**。
   **D-2 已于 rev 12 闭合**：表达不清按最窄算，**这是授权的原则**。
   **§9.2 不列为待裁决**——剩下那一半要等[同一子会话上的并发派发](../PF-015-session-lifecycle-and-ownership/design.md#九未决项)定了才谈得上选
 - 交付范围：**十一扇门首批交付**；`Cordis()` **定义完整但不实现**，`Engram()` **只占位**

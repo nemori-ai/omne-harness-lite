@@ -1,8 +1,8 @@
 ---
 id: PF-014
 title: 输入的受理与排队
-status: draft
-revision: 2
+status: active
+revision: 3
 relations:
   supersedes: []
   depends-on:
@@ -81,9 +81,9 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 2**，草稿 · [演进过程见变更历史](changelog.md)
+- 产品设计：**rev 3**，**已定稿**（2026-09-22 由产品负责人定） · [演进过程见变更历史](changelog.md)
 - 待裁决：**0**，去向见 [decisions.md 第三节](decisions.md#三待裁决)
-- **本 topic 引入的四个概念已经落进词表**：
+- **本 topic 引入的三个概念已经落进词表**：
   [入站到达](../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival) ·
   [控制指令](../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-control-command--控制指令--control-command) ·
   [插队](../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-queue-jump--插队--queue-jump)，

@@ -2,7 +2,7 @@
 id: PF-012
 title: Agent Loop 与 Run
 status: active
-revision: 5
+revision: 7
 relations:
   supersedes: []
   depends-on:
@@ -57,14 +57,23 @@ relations:
 
 **两个都要，缺一个恢复就不成立。**
 
-**而 Run 的边界，由 Agent Loop 的进出划定：**
+**而 Run 的边界，两句话说得完：**
 
-> **进入 Agent Loop 的那一刻 Run 开始，退出的那一刻 Run 结束；
-> 而退不退出，只看[待处理消息队列](design.md#待处理消息队列)空不空。**
+> **有还没被[承接](design.md#边界什么让它开始什么让它结束)的输入、而且没有未终结的 Run，就开始一个；
+> 落一个[终态](design.md#运行终态)，才结束。**
+> **[队列不是真相，是日志的投影](design.md#待处理消息队列)**——已记录的输入减去已被承接的。
 
 **「触发」与「收束」因此不是两个独立概念，是这条规则的两端**——
-触发就是**让队列从空变非空的那件事**，收束就是**队列重新变空**。
+触发就是**让队列从空变非空的那件事**，收束就是**再没有可承接的输入、这个 Run 落终态**。
 [什么东西会进队列、插队怎么被受理](../PF-014-inbound-intake-and-queueing/README.md)归 PF-014。
+
+**Run 存在的全部理由，是让下面这个判断只读日志就答得出来：**
+
+> **把系统关机、抹掉全部内存、只留[会话日志](design.md#会话日志)，重新开机后必须答得出
+> 「现在该不该起一副 agent runtime、它接手什么」，且答案唯一。**
+
+**所以「[Run 未终结](design.md#run-未终结不等于有一副-agent-runtime-活着)」不等于「有一副协程活着」**——
+一个等人三天的 Run，三天里一副协程都没有，[而它好端端悬在日志上](design.md#只看日志该不该起一个-agent-runtime)。
 
 ## 方程
 
@@ -85,8 +94,9 @@ relations:
 分给不同的单位，这个问题就要跨三个对象拼，而它们的边界不一样。
 **检验它的是这句话：「这次失败的任务，一共花了多少钱？」**
 
-> **一次 Run 可能有好几次[执行尝试](design.md#执行尝试)**，而**账和失败还是一笔**。
-> Run 是逻辑的，尝试是物理的。
+> **一次 Run 可能有好几次[执行尝试](design.md#执行尝试)**，而**账单上还是一笔**——
+> [明细按尝试记，汇总按 Run 算](design.md#成本两层缺哪一层都会算错)。
+> Run 是逻辑的，尝试是物理的；**尝试的身份是 (哪个 Run, 第几次)，从日志派生，不另存。**
 
 ## Loop 拓展点
 
@@ -171,13 +181,18 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 5**，已定稿 · [演进过程见变更历史](changelog.md)
+- 产品设计：**rev 7**，已定稿 · [演进过程见变更历史](changelog.md)
 - **没有待裁决项**
-- **那个缺口已经有主了**：会话归 [PF-015](../PF-015-session-lifecycle-and-ownership/README.md)（rev 1）。
+- **那个缺口已经有主了**：会话归 [PF-015](../PF-015-session-lifecycle-and-ownership/README.md)（rev 7，仍是草稿）。
   **它没有终态**——[生命周期是四个状态，收束的锚点是归档](../PF-015-session-lifecycle-and-ownership/design.md#会话的生命周期)，
   而 [§6.6](design.md#66-终态不可逆且只有一个出口) 说的三个终态**是 Run 的，不是会话的**，两者从来不是一回事
 - **不欠别人的账**：[悬着的东西不许被压掉](design.md#611-悬着的东西不许被压掉)
   已被 [PF-010 rev 4](../PF-010-context-management-and-assembly/README.md) 吸收
+- **[C-19 已闭合](../../ubiquitous_language/conflicts.md#现有冲突)**：[执行尝试](design.md#执行尝试)是**视图**，
+  身份 (哪个 Run, 第几次) 从日志派生，**不另存、不建对象**
+- **欠 [PF-000](../PF-000-occurrences-and-record-entries/README.md) 一次跟进**：
+  [§6.16 点名的几种条目与四个字段那边还没有](../PF-000-occurrences-and-record-entries/decisions.md#四已知的来源问题)，
+  **没有直接矛盾**，条目的种类与形状仍归那边定
 - 技术投影：尚未开始
 
 ## 本包的文件
@@ -185,7 +200,7 @@ relations:
 ```text
 PF-012-agent-loop-and-run/
 ├── README.md         本页：定位、关系、状态
-├── design.md         Run 与 Agent Loop、状态转移方程、执行尝试、十一个 Loop 拓展点、两条线
+├── design.md         Run 与 Agent Loop、状态转移方程、执行尝试、归属与记录、十一个 Loop 拓展点、两条线
 ├── flows.md          一次运行怎么走完、崩了怎么接、状态流转、拓展点站在哪
 ├── acceptance.md     可观察场景、绝不能发生的事、判据
 ├── decisions.md      拍板记录 / PM 推导 / 待裁决 / 来源问题

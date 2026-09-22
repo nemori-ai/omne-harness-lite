@@ -400,7 +400,7 @@
 ### 9.2 寿命宿主的首批取值表尚未封板
 
 现在写得出的有：**会话 · 运行 · 执行尝试 · agent runtime · 租户**。
-**「插件」不在其中**——它回答的是「谁产生了这条」，那是出处。
+**[Cordis plugin](../PF-002-assets-settings-and-permissions/design.md#plugin-不是-cordis-plugin) 不在其中**——它回答的是「谁产生了这条」，那是出处。
 
 **本版不封板**，因为**层数会继续增加**——
 [PF-011 已把处置模型做成与层数无关](../PF-011-off-nominal-handling/design.md#52-一层要声明四样)，

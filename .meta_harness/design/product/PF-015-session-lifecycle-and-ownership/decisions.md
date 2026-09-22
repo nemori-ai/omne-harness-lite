@@ -158,7 +158,7 @@
 > 可用性没人消费（消费它的是 runtime 本身），能理解吗？
 
 **原话（四，逐条给生产者、消费者与信息）**——十五项逐条内容见
-[§5.6 那张表](design.md#56-十五项-meta-runtime-context)，**本页不复制**；
+[§5.6 那张表](design.md#56-十四项-meta-runtime-context)，**本页不复制**；
 其中对 PM 提问的直接回答：
 
 > 关于「单次授权」，你可以这么理解，就是授权相关的 runtime context，数据结构上，
@@ -179,11 +179,11 @@
 | 37 | **当下可用性不是**——**消费它的是 runtime 本身**；它在组装时把用不了的工具技能**替换成说明，标识不变** | 同上 |
 | 38 | **llm 看见一块，只有两种形态**：**完整的**（会话刚开始、上下文压缩后）· **变更通知** | [§6.9](design.md#69-模型看见一块-runtime-context只有两种形态) |
 | 39 | **变更通知只对「模型消费的那些」发**；只有工具和拓展点读的**不发** | [§6.8](design.md#68-变更了要不要告诉-agent看谁消费它) |
-| 40 | **十五项 meta runtime context**，及各自的生产者、消费者与至少提供什么 | [§5.6](design.md#56-十五项-meta-runtime-context) |
-| 41 | **agent 的身份标识恒等于会话的身份标识**；会话-agent 一对一，**换了 agent runtime 标识不变**。**写进产品正文** | [§5.6 第 4 条](design.md#56-十五项-meta-runtime-context) |
+| 40 | **十五项 meta runtime context**，及各自的生产者、消费者与至少提供什么 | [§5.6](design.md#56-十四项-meta-runtime-context) |
+| 41 | **agent 的身份标识恒等于会话的身份标识**；会话-agent 一对一，**换了 agent runtime 标识不变**。**写进产品正文** | [§5.6 第 4 条](design.md#56-十四项-meta-runtime-context) |
 | 42 | **授权相关的那份数据本身要能表示三个作用域**：单次 / 本会话 / 全局（always on）——**「单次」不另起一块** | [§5.7](design.md#57-三个作用域在同一份数据里) |
 | 43 | **单次授权由 agent loop 上一个专门的拓展点，在一次 run 明确结束时清空** | [§6.10](design.md#610-单次授权在一次运行结束时清空) |
-| 44 | **第 8 项的消费者只有拓展点**；**第 9、10 项是模型与拓展点**；**第 15 项是模型** | [§5.6](design.md#56-十五项-meta-runtime-context) |
+| 44 | **第 8 项的消费者只有拓展点**；**第 9、10 项是模型与拓展点**；**第 15 项是模型** | [§5.6](design.md#56-十四项-meta-runtime-context) |
 | 45 | **第 9、10 项重叠没问题**——求值那一侧**具备去重能力**，怎么去重不归产品管 | 同上 |
 | 46 | **第 11 项的工作路径可以变**；**目录结构实时算即可，知道路径就够** | 同上 |
 | 47 | **广义上它就是 [runtime context](../../ubiquitous_language/terms/scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context)**——**不新造词** | 词表那一条扩写，「会话上下文感知域」登记为弃用说法 |
@@ -228,10 +228,10 @@ PM 给的两条处置是「定用法，裸写不作数」或「改名」，**产
 
 | # | 裁决 | 落在哪 |
 |---|---|---|
-| 51 | **[第 7 项](design.md#56-十五项-meta-runtime-context)的消费者是模型** | 那张表 |
+| 51 | **[第 7 项](design.md#56-十四项-meta-runtime-context)的消费者是模型** | 那张表 |
 | 52 | **理由是一个还没做的能力**：让模型**感知占用比与压缩策略**，**自行决策要不要主动压缩** | 同上，**第 7 与第 15 是一对** |
 
-**这条同时解释了[第 15 项](design.md#56-十五项-meta-runtime-context)的消费者为什么是模型**——
+**这条同时解释了[第 15 项](design.md#56-十四项-meta-runtime-context)的消费者为什么是模型**——
 **两块合起来才有意义**：只给占用比，它不知道压了会失去什么；只给策略，它不知道该不该压。
 
 > **「还没做的能力」也构成正当的消费者**：这一批是**每个会话必需携带**的，
@@ -268,6 +268,25 @@ PM 给的两条处置是「定用法，裸写不作数」或「改名」，**产
 在存储这件事上的落点。**PM 把它翻成了一句产品层面判断得了对错的话**：
 **「存储在产品语义上是什么，不取决于它实际存在哪里」**——
 产品设计或契约里出现「因为都在一台机器上，所以……」就是违反。
+
+### 2026-09-22 · 全局那一档落成租户层的权限值
+
+**产品负责人 2026-09-22 确认**：本 topic 按 [PF-007 rev 15](../PF-007-meta-capabilities/changelog.md) 已经落下的那一种改——
+**作用域为「全局」的[授权表达](../PF-007-meta-capabilities/design.md#一笔授权表达有三个维度)
+不进会话的授权流水，而是落成[租户层的权限设置值](../PF-002-assets-settings-and-permissions/design.md#52-设置与权限是资产的两种属性)**，
+**写它要有写它的权限**；**系统里的授权流水只有一种，每个会话一份**。
+
+| # | 裁决 | 落在哪 |
+|---|---|---|
+| 58 | **全局授权表达落成租户层的权限设置值**（结构化那一侧），**不另设全局的语义授权存储，也不另占一块 meta runtime context**；求值时它随结构化权限一起进[第 ③ 步](../PF-007-meta-capabilities/design.md#56-一次放行判断走四步) | [§5.6 第 8 条那一栏与它下面的读法](design.md#56-十四项-meta-runtime-context) · [§5.7](design.md#57-三个作用域在同一份数据里) |
+
+**这条闭合了[第四节记着的那处来源问题](#四已知的来源问题)**，
+也取消了[裁决 45](#2026-09-21--runtime-context-与十五项-meta-runtime-context) 的前提：
+**「第 9 与第 10 项会有重叠」那件事不再存在**——重叠来自「全局也在这张表里有一块」，
+而现在它不在了。**裁决 44 关于「第 9、10 项」的消费者，如今落在第 9 条一条上。**
+
+> **[裁决 42](#2026-09-21--runtime-context-与十五项-meta-runtime-context) 仍然成立**：
+> 授权那份数据依旧要分得出「单次 / 本会话 / 全局」——**正是靠这个区别，才知道这一笔该落到哪一侧**。
 
 ## 二、PM 推导
 
@@ -393,3 +412,5 @@ PM 给的两条处置是「定用法，裸写不作数」或「改名」，**产
 | ~~**`master agent` 这个词没有词条**~~ **✅ 已闭合** | [PF-004 rev 6](../PF-004-agent-definition-and-assembly/changelog.md) 把它定成 [agent 类型](../PF-004-agent-definition-and-assembly/design.md#agent-类型)的一个取值，词条见 [UL-agent-type](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-agent-type--agent-类型--agent-type) |
 | ~~**agent 的 type 与 category 没有家**~~ **✅ 已闭合** | 同上。**家在 [PF-004 §4](../PF-004-agent-definition-and-assembly/design.md#agent-类型)**，本 topic 只消费。**但那边由此新开两条待裁决**，见 [PF-004 §三](../PF-004-agent-definition-and-assembly/decisions.md#三待裁决) |
 | **`session log` 在原话里写作 `sessionn log`** | 明显笔误，正文按[会话日志](../../ubiquitous_language/terms/record-and-context.md#ul-session-log--会话日志--session-log)理解。**原话逐字保留，不代改** |
+| **[PF-012 §9.1](../PF-012-agent-loop-and-run/design.md#91-会话归-pf-015) 压过来三样，本 topic 既没覆盖也没登记过** | **三样是**：[不属于任何 Run 的模型调用归会话那一级](../PF-012-agent-loop-and-run/design.md#run-是三样东西的归属单位)、[「尝试开始之前」那个位置](../PF-012-agent-loop-and-run/design.md#十一个位置是推出来的不是挑出来的)、[摘要累积到装不下时怎么办](../PF-012-agent-loop-and-run/design.md#压完还超这一层腾不出空间了)。**2026-09-22 已登记进[正文 §9 未决项](design.md#九未决项)**——**登记不是裁决**，三样仍未定，**由本 topic 的 owner 裁** |
+| ~~**「全局那一档落在哪」，本 topic 与 PF-007 rev 15 两处说法不一样**~~ **✅ 已闭合（2026-09-22）** | **产品负责人确认按 PF-007 那一种**（[裁决 58](#2026-09-22--全局那一档落成租户层的权限值)）：全局授权表达**落成租户层的权限设置值**，**不另设全局存储、不另占一块 meta runtime context**。[§5.6](design.md#56-十四项-meta-runtime-context) 与 [§5.7](design.md#57-三个作用域在同一份数据里) 已改写，[领域对象那边的「全局语义授权集」待裁随之删除](../../domain_objects/pending.md) |

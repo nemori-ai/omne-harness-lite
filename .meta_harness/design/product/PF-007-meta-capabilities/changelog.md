@@ -5,6 +5,124 @@
 
 技术投影用 `provenance.json` 引用具体 rev，所以这里的 rev 不准会直接传导到实现侧。
 
+## 校准 — 2026-09-22（不升 rev）
+
+**正文校准，产品规则一条没动。**
+
+| 改了哪里 | 改成什么 | 依据 |
+|---|---|---|
+| [§5.2 总表](design.md#52-一张总表)的第四列——列名原写「落在什么执行环境」，`Files()`、`Shell()` 两格原写「当前注入的执行环境」，`Skills()` 那格原写「exec_script 落在当前执行环境上」；以及 [§6.3](design.md#63-files通向文件系统) 第一条性质 | 列名改为「**落在哪**」，三格一律改为**这次执行算出来的落点**：执行环境不是被注入的取值，落点是每扇门每次执行现算的 | [PF-005 §6.1](../PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)（宿主机始终在场、沙箱实现装配时可选装配、落点每扇门每次执行现算）与 [PF-004 §4「注入」](../PF-004-agent-definition-and-assembly/design.md#注入)（执行环境不在注入之列） |
+| [acceptance §二](acceptance.md#二绝不能发生的事)那条 rev 10 以前的红线「**`spawn` / `delegate` 出去的能给派发者发消息｜那条边界形同虚设。它只能提交一次报告……**」 | **反过来写**：**绝不能发生的是「除了那一次报告就再也说不上话」**——[规则一是双向的](design.md#先说谁能给谁发消息这是两条独立的规则)，**报告终结的是这次派发，不是那条通路** | 与同一份 [§一「发得出去」](acceptance.md#状态族与他者族)及 [design §6.8](design.md#报告与消息是两样东西) 直接冲突；那条红线是 [rev 10 推翻旧读法](#rev-10--2026-09-21)时漏改的一处 |
+
+## rev 15 — 2026-09-22
+
+**两条裁决落盘：`spawn` 交出去的到底是什么，以及「授权表达」是正式名。**
+**下游要复核的是**：照 rev 14 以前把 `spawn` 实现成「两边读同一本会话日志」的人；
+以及按「决策记录」这个说法建模的人。
+
+### 一、`spawn` 的「继承」定死为**复制组装结果**，[§9.1](design.md#九未决项) 闭合
+
+产品负责人 2026-09-22 给的原则是：「**不同的 session 在 session log、投影、
+runtime context snapshot 的数据存储上不存在共享的情况**」。据此：
+
+| 在哪 | 现在写的 |
+|---|---|
+| [§6.8 五维表](design.md#派发有三种模式)「上下文怎么组装」那格 | **带着派发那一刻组装出来的那份上下文的副本开始** |
+| [§6.8 两处分水岭](design.md#两处分水岭各自只有一条) | `spawn` 带的是**我知道的一切**——**派发那一刻组装出来给模型看的那份上下文的一份副本**；**那份副本是子会话日志里的第一条记录**，**父的日志不被指向、不被拷贝** |
+| §9 未决项 | **§9.1 删除**（闭合了就不是未决项）。**§9.2 的编号不重排**，下游锚点不变 |
+| [decisions.md](decisions.md#三待裁决) | **D-1 闭合**，拍板记录新增一条 |
+
+**闭合的是「共享」那一侧，不是「继承」这个词**：`spawn` 与 `delegate` 的分水岭
+仍然只有「带什么开始」一条——一个带副本加交代，一个只带交代。
+**[`spawn` 不是 `fork`](../../ubiquitous_language/decisions.md#ul-d-4--主会话与子会话--2026-09-21) 也因此成立**：
+副本是一条新记录，不是一个指针；而**看不见后来的事，正是[规则一那条双向通路](design.md#先说谁能给谁发消息这是两条独立的规则)必需的理由**。
+
+### 二、「决策记录」退役，正式名是**授权表达**
+
+[C-23](../../ubiquitous_language/conflicts.md) 记的「一物两名」由产品负责人裁为**一物**，
+取名**授权表达**（「决策记录」撞[记录条目](../../ubiquitous_language/terms/record-and-context.md#ul-record-entry--记录条目--record-entry)）。
+[§4](design.md#一笔授权表达有三个维度) 补上「**这一笔是什么**」这句定义，
+[§5.6](design.md#56-一次放行判断走四步) 的图与文字一律改用新名，
+词条 [UL-authorization-expression](../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-authorization-expression--授权表达--authorization-expression) 同日立起。
+**[PF-015 §4](../PF-015-session-lifecycle-and-ownership/design.md#会话运行模式) 一并改用新名**（其 rev 5 → 6）。
+
+### 三、作用域「全局」那一档的落点，以及 §5.6 两处算式
+
+| 在哪 | 现在写的 |
+|---|---|
+| [§4 作用域表](design.md#一笔授权表达有三个维度) | 新增「**落在哪**」一列：这一次与本会话落在**本会话这份流水**；**全局那一档不在流水里**，它**落成租户层的权限设置值**，而**写那个值要有写它的权限** |
+| [§5.6 第 ① 步](design.md#56-一次放行判断走四步) | 交集里**去掉「工作区级」**——同节末尾本来就写着[工作区那一级不参与这四步](../PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算) |
+| [§5.6 第 ③ 步](design.md#56-一次放行判断走四步) | **结构化的（含由全局授权表达落成的租户层权限值）＋ 本会话流水（本会话 ＋ 这一次）**——**「这一次」补进算式**：它管的正是第 ③ 步要算的那一批工具调用 |
+
+**下游要复核的**：按 rev 13～14 的第 ③ 步算式实现放行判断的人——
+**「这一次」那一档此前漏在算式外，而它一直是三个作用域之一**。
+
+## rev 14 — 2026-09-21
+
+**几处仍按旧模型写的措辞，对齐到现行结论。没有新结论。**
+**下游要复核的是**：读过 rev 9～13 之间任一版 `flows.md` / `acceptance.md`
+而据此实现了「授权出不了会话」的人。
+
+### 一、授权的作用域：三处按 rev 11 之前的模型写的地方
+
+[rev 11 定了三个作用域，含「全局」](#rev-11--2026-09-21)，但这三处没跟着改：
+
+| 在哪 | 原先写的 | 现在写的 |
+|---|---|---|
+| [flows.md §4 决定权矩阵](flows.md#四谁决定什么)两行 | 批准「**出不了这个会话**」「**不能变成长期授权**」 | **管到哪由他表达的作用域定**；碰不到的是**权限设置**，不是「长期」 |
+| flows.md §4 末行 | 长期授权「**不能从一次问询的回答里长出来**」 | **权限设置**不能；**一笔全局作用域的授权可以**，它落在会话授权上下文里 |
+| [acceptance.md 判据表](acceptance.md) | 「**授权活不过会话**」 | **照他说的作用域走**，且**说不清按最窄算** |
+
+**依据**：[design.md §4「一笔授权表达有三个维度」](design.md#一笔授权表达有三个维度)与
+[§6.11 性质五](design.md#ask-必须成立的性质)，两者自 rev 11 起就是现在这个样子。
+
+### 二、会话没有「终态」，收束的那个状态叫归档
+
+[§6.11 的第四个出口](design.md#四个出口)原写「**会话走到终态**」，现改为「**[会话被归档](../PF-015-session-lifecycle-and-ownership/design.md#会话归档)**」——
+与 [flows.md §3.4](flows.md#34-一次问询) 的写法一致。
+[§6.8「报告终结的是这次派发」](design.md#报告终结的是这次派发不是那个会话)里那两句
+「会话没有落进任何终态」同理改为「**不会因此被归档，而归档是会话唯一的出口**」。
+依据：[PF-015 §6.1](../PF-015-session-lifecycle-and-ownership/design.md#61-会话不会消失)
+与 [UL-D-4 裁决 8](../../ubiquitous_language/decisions.md#ul-d-4--主会话与子会话--2026-09-21)——
+**没有删除会话这回事，也就没有「会话结束」**。
+
+### 三、subagent 是一个 agent，不是一个会话
+
+[§6.8 那句定义](design.md#两处分水岭各自只有一条)原写「**那些 agent 会话**」，
+与同一节「**子 agent 是另一个 agent runtime**」读起来像两个东西。
+现按[词条](../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-subagent--子-agent--subagent)写准：
+**subagent 是那个 agent，[子会话](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-child-session--子会话--child-session)是它所在的会话**，
+并点明两者分开才说得清「派发者停了，停的是哪一个」。
+
+### 四、几处「归后续 topic」现在有了具体的家
+
+| 在哪 | 原先 | 现在 |
+|---|---|---|
+| [§2 非目标](design.md#非目标) · [§6.8 末](design.md#68-agents通向别的-agent) · [§8](design.md#八边界与依赖) · acceptance | 「归 **run** 那一块」 | [PF-012](../PF-012-agent-loop-and-run/README.md) |
+| [§6.11 性质六的表](design.md#ask-必须成立的性质) · [§8](design.md#八边界与依赖) | 会话运行模式「**另有归属**」 | [PF-015](../PF-015-session-lifecycle-and-ownership/design.md#会话运行模式) |
+| [§8](design.md#八边界与依赖) | 会话授权上下文怎么承载，归「**run / 会话**那一块」 | [PF-015](../PF-015-session-lifecycle-and-ownership/design.md#57-三个作用域在同一份数据里) |
+| [§4 承接表](design.md#承接前面的-topic) · [§8](design.md#八边界与依赖) · README front-matter | **agent runtime 归 PF-004** | **归 [PF-012](../PF-012-agent-loop-and-run/design.md#agent-runtime)**，依据 [UL-D-3 裁决 3](../../ubiquitous_language/decisions.md#ul-d-3--runtime-与活体--2026-09-20)（**PF-004 不得使用这个名字**，[那边已经改过来了](../PF-004-agent-definition-and-assembly/design.md#四概念定义)）。`depends-on` 因此补上 PF-012 与 PF-015 |
+
+**[§6.9](design.md#69-todoitems通向自己手上的待办) 那句「跨会话的是目标」是个例外**：
+**那个对象在设计链里至今没有定义**，所以正文只说「不装在这扇门后面」，
+并在 [§8](design.md#八边界与依赖) 把它记成**尚无归属**——不替它下定义。
+来源问题见 [decisions.md](decisions.md#四已知的来源问题)。
+
+### 五、术语与错链
+
+**不改含义，记在这里便于追溯**：`Shell()` 一族的叙述一律写
+[终端会话](../../ubiquitous_language/terms/grounding-and-isolation.md#ul-terminal-session--终端会话--terminal-session)
+（[UL-terminal-session 要求的](../../ubiquitous_language/terms/grounding-and-isolation.md#ul-terminal-session--终端会话--terminal-session)，
+[§6.4](design.md#64-shell通向命令行) 与 [flows §1.7](flows.md#17-在一个会话里连续做事) 里与 agent 的会话混着写的都改了）；
+`Shell().run` 改回 `execute`（flows §1.2、acceptance）；
+design.md 里三个同名的「必须成立的性质」标题各自加上门名，
+**因为重名让 [§4](design.md#它不挑来源) 与 [§6.11 性质五](design.md#ask-必须成立的性质)
+指向「自由作答」的那两个链接落到了 `Computer()` 那一节**。
+
+### 六、抬头的 rev 追上 changelog
+
+design.md 抬头此前停在 rev 9，README 状态段停在 rev 12，而 changelog 已到 rev 13。
+
 ## rev 13 — 2026-09-21
 
 **放行判断从「三样组合」展开成「四步有序」，并划清权限作用在门还是命令上。**
@@ -401,7 +519,7 @@ rev 6 没画出来的线**：
 **PM 没有倾向，两种都自洽**，而它们**对「消息机制在 `spawn` 下有没有用」给出相反答案**：
 共享的话派发者后来说的话子自己就看得见，规则一那条通路几乎用不上；复制的话那条通路是必需的。
 **实现方会自己挑一种，而挑错了不会报错**——只表现为「子 agent 有时像是知道后来的事，有时又不知道」。
-见 [§9.1](design.md#91-spawn-的继承当前会话的上下文是共享还是复制)。
+当时记在 §9.1（**已于 [rev 15](#rev-15--2026-09-22) 闭合并从未决项删除**）。
 
 ### 下游要复核
 

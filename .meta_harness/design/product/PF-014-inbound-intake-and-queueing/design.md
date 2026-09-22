@@ -1,7 +1,7 @@
 # PF-014：输入的受理与排队
 
-- 修订：rev 2，2026-09-20 · [变更历史](changelog.md)
-- 状态：草稿，**部分待定**——未决项见 [§9](#九未决项)
+- 修订：rev 3，2026-09-22 · [变更历史](changelog.md)
+- 状态：已定稿，**仍有未决项**——见 [§9](#九未决项)
 
 ---
 
@@ -103,9 +103,9 @@
 | [六种收场](../PF-006-tools-and-skills/design.md#55-一次工具执行的收场有六种)、[前台/后台与工具等待态是两个维度](../PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)、[中断不是失败](../PF-006-tools-and-skills/design.md#67-用户可以中断而中断不是失败)、[可用性每次运行开始前重算](../PF-006-tools-and-skills/design.md#62-可用性在每次-run-开始前重算) | [PF-006](../PF-006-tools-and-skills/design.md) |
 | [`Ask()` 的两个命令与它的五条性质](../PF-007-meta-capabilities/design.md#611-ask通向人) | [PF-007](../PF-007-meta-capabilities/design.md) |
 | [决策卡片](../PF-008-human-in-the-loop/design.md#决策卡片)、[决策池](../PF-008-human-in-the-loop/design.md#决策池)、[放行判断](../PF-008-human-in-the-loop/design.md#52-那个判断函数)、[等待期间照常收](../PF-008-human-in-the-loop/design.md#62-等待期间照常收排队等着解除时一起看到)、[答复只在卡片上做](../PF-008-human-in-the-loop/design.md#55-两条入口一件事)、[「不回答」是合法答复](../PF-008-human-in-the-loop/design.md#65-不回答是合法答复) | [PF-008](../PF-008-human-in-the-loop/design.md) |
-| [七种消息](../PF-009-context-message-types/design.md#七种消息按谁在说话分)、[`SystemReminderMessage`](../PF-009-context-message-types/design.md#systemremindermessage)、[说状态的取代说事的追加](../PF-009-context-message-types/design.md#54-提醒说的是现在什么样还是刚才发生了什么)、[流断在半路](../PF-009-context-message-types/design.md#56-流断在半路) | [PF-009](../PF-009-context-message-types/design.md) |
+| [七种消息](../PF-009-context-message-types/design.md#七种消息按谁在说话分)、[`SystemReminderMessage`](../PF-009-context-message-types/design.md#systemremindermessage)、[说状态的写清变化、说事的写清发生，消息一律追加](../PF-009-context-message-types/design.md#64-说状态的写清变化说事的写清发生消息一律追加)、[流断在半路](../PF-009-context-message-types/design.md#56-流断在半路) | [PF-009](../PF-009-context-message-types/design.md) |
 | [先落盘再组装](../PF-010-context-management-and-assembly/design.md#要求四先落盘再组装) | [PF-010](../PF-010-context-management-and-assembly/design.md) |
-| [会话日志](../PF-012-agent-loop-and-run/design.md#会话日志)、**[待处理消息队列](../PF-012-agent-loop-and-run/design.md#待处理消息队列)**、[当下条件](../PF-012-agent-loop-and-run/design.md#当下条件)、[执行尝试](../PF-012-agent-loop-and-run/design.md#执行尝试)、[运行终态](../PF-012-agent-loop-and-run/design.md#运行终态)、[状态转移表](../PF-012-agent-loop-and-run/design.md#56-状态转移表)、[两层循环的出口](../PF-012-agent-loop-and-run/design.md#这个循环从哪里出去)、[Loop 拓展点](../PF-012-agent-loop-and-run/design.md#58-loop-拓展点) | [PF-012](../PF-012-agent-loop-and-run/design.md)（**rev 4**） |
+| [会话日志](../PF-012-agent-loop-and-run/design.md#会话日志)、**[待处理消息队列](../PF-012-agent-loop-and-run/design.md#待处理消息队列)**、[当下条件](../PF-012-agent-loop-and-run/design.md#当下条件)、[执行尝试](../PF-012-agent-loop-and-run/design.md#执行尝试)、[运行终态](../PF-012-agent-loop-and-run/design.md#运行终态)、[状态转移表](../PF-012-agent-loop-and-run/design.md#56-状态转移表)、[两层循环的出口](../PF-012-agent-loop-and-run/design.md#这个循环从哪里出去)、[Loop 拓展点](../PF-012-agent-loop-and-run/design.md#58-loop-拓展点) | [PF-012](../PF-012-agent-loop-and-run/design.md)（**rev 7**） |
 | [一次模型调用被中断不是故障](../PF-013-model-profiles-and-invocation/design.md#还有一种没走完它不在这张表里)、[换模型不给 loop 添分支](../PF-013-model-profiles-and-invocation/design.md#59-换模型一条事实一个生效点零个新分支) | [PF-013](../PF-013-model-profiles-and-invocation/design.md) |
 | [会话](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-session--会话--session)、[运行](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run--运行--run)、[触发](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-trigger--触发--trigger)、[会话内单活跃](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-single-active-execution--会话内单活跃--single-active-execution)、[强制停止](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-forced-stop--强制停止--forced-stop) | 统一语言 |
 | [工具等待态](../../ubiquitous_language/terms/execution-and-outcome.md#ul-tool-wait-state--工具等待态--tool-wait-state)（挂在一次工具执行上）· [运行等待态](../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-run-wait-state--运行等待态--run-wait-state)（挂在一个运行上） | 统一语言 |
@@ -371,9 +371,8 @@
 
 > **人的处理有两种——回复，或者明确拒绝回复。插入消息属于后者。**
 
-**`Ask()` 为什么不走「转后台」那条路**：[它的等待永远在前台阻塞运行，且不过期](../PF-007-meta-capabilities/design.md#611-ask通向人)。
-**而这一点 PF-007 今天没有明写**（[§9.4](#94-要回给别人的账)），
-读者照普通工具的等待态去推，会推出相反的结论。
+**`Ask()` 为什么不走「转后台」那条路**：[它的等待永远在前台阻塞运行、不过期，因而不可转后台](../PF-007-meta-capabilities/design.md#611-ask通向人)。
+**这一句必须由 PF-007 明写**——读者照普通工具的等待态去推，会推出相反的结论。
 
 #### 5.4.3 「取消视作拒绝」为什么只能往这个方向倒
 
@@ -388,9 +387,14 @@
 
 #### 5.4.4 这没有推翻 PF-008，它把一个词说全了
 
-**[PF-008 §6.1](../PF-008-human-in-the-loop/design.md#61-永远等着系统不替人作答) 的穷举原封不动：**
+**[PF-008 §6.1](../PF-008-human-in-the-loop/design.md#61-永远等着系统不替人作答) 那个穷举，本 topic 一条都不动：**
 
-> 清掉一张卡片只有两条路——**人处理它**，或者会话终结。
+> 清掉一张卡片只有两条路——**人处理它**，或者这个会话
+> [被归档](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-session-archival--会话归档--session-archival)。
+
+> **第二条路的正式说法是[归档](../PF-015-session-lifecycle-and-ownership/design.md#会话归档)。**
+> **[「会话结束」这回事不存在](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-session--会话--session)**——
+> **凡是挂在「这段协作到此为止」上的东西，锚点都是归档**，本 topic 用的是这个词。
 
 **插队不是第三条路，它是「人处理它」的第二种形式。**
 不动结构，只把一个已有的词说全——**这比新增一条路便宜得多**。
@@ -458,7 +462,7 @@
 | **在一张卡片上作答**（含[「我不答这个」](../PF-008-human-in-the-loop/design.md#65-不回答是合法答复)） | 一条入站到达，去处是**落到卡片上**。它提供的是**内容**，不是处置 |
 | **[斜杠命令](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command)** | 一条入站到达，去处是**进队列**。它要 agent 去做一件事，那是**内容** |
 | **换一个模型** | 一条会话事实。[PF-013 已定：正在进行的那一次照常跑完，不打断](../PF-013-model-profiles-and-invocation/design.md#59-换模型一条事实一个生效点零个新分支) |
-| **一个依赖恢复了、一项权限变了** | 什么都不是——**它根本不必进受理面**。[可用性在每次尝试开始时重算](../PF-006-tools-and-skills/design.md#62-可用性在每次-run-开始前重算)，下一次算到它就是了 |
+| **一个依赖恢复了、一项权限变了** | 什么都不是——**它根本不必进受理面**。[可用性在每一次尝试开始时重算](../PF-012-agent-loop-and-run/design.md#每一次尝试开始都要做四件事)（[PF-006 定的是「每次 run 开始前」，而每一次尝试也算一次开始](../PF-006-tools-and-skills/design.md#62-可用性在每次-run-开始前重算)），下一次算到它就是了 |
 
 **最后一行值得多说一句，因为 legacy 在这里有一条我们没有的东西**：
 那份提案里有「额度恢复 / 依赖恢复唤醒一个在等门的运行」。
@@ -551,7 +555,7 @@
 | **一次[工具执行](../../ubiquitous_language/terms/execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution)交回结果** | `ToolMessage`，填在那次调用的位置上 | [PF-012 §5.11](../PF-012-agent-loop-and-run/design.md#511-外面进来的事怎么到-agent-眼前) |
 | **一次工具执行转了后台** | 那次调用的位置先落一条**占位** `ToolMessage` | 同上 |
 | **一次[后台执行](../../ubiquitous_language/terms/execution-and-outcome.md#ul-background-execution--后台执行--background-execution)完成回传** | **`SystemReminderMessage`**——那次调用的位置已被占位填掉，**结果回来时没有它的位置** | 同上；**这一条正是[「好了告诉我」那个用户故事](#三用户与场景)的落点** |
-| **注入的上下文变了，而此刻有运行在跑** | `SystemReminderMessage`（**说状态的，取代式**） | 同上 + [§6.10](#610-注入的上下文变了没有运行在跑时什么都不做) |
+| **[runtime context](../PF-015-session-lifecycle-and-ownership/design.md#runtime-context) 的某一块被生产方推来了变更，而此刻有运行在跑** | `SystemReminderMessage`（**说状态的，[写清「从什么变成了什么」](../PF-009-context-message-types/design.md#64-说状态的写清变化说事的写清发生消息一律追加)**） | 同上 + [§6.10](#610-注入的上下文变了没有运行在跑时什么都不做)。**会话空闲时推来的不在这张表里——它根本不产生一条到达** |
 | **到点了**（日程 / 定时） | `SystemReminderMessage` | [触发的定义明写「定时到点」是其中一种](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-trigger--触发--trigger)。**但这类能力尚无 topic**，见 [§9.1](#91-有几类来源的能力还没开题) |
 | **别的会话捎来一句**（含子 agent 派发回来的） | `SystemReminderMessage` | 同上——**能力尚无 topic**，本 topic 为它预留的是**去处，不是能力** |
 
@@ -814,17 +818,42 @@
 
 ### 6.10 注入的上下文变了，没有运行在跑时什么都不做
 
-**组织的设置改了、账号的偏好改了、[注入](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-runtime-injection--运行时注入--runtime-injection)的那一份换了——**
+**组织的设置改了、账号的偏好改了、[runtime context](../PF-015-session-lifecycle-and-ownership/design.md#runtime-context) 的某一块被它的生产方改了——**
+
+**会话感知这类变更有两条路，缺一条都不成立：**
+
+| 路 | 谁发起 | 什么时候 |
+|---|---|---|
+| **推** | **那一块的生产者** | 它那一块变了的时候 |
+| **拉** | [agent runtime](../PF-012-agent-loop-and-run/design.md#agent-runtime) 自己 | **每一次[执行尝试](../PF-012-agent-loop-and-run/design.md#执行尝试)成功起来时，取一次当前快照**（[那是 §5.7 四件事里的一件](../PF-012-agent-loop-and-run/design.md#每一次尝试开始都要做四件事)） |
+
+**推来的那一路，按此刻[运行](../PF-012-agent-loop-and-run/design.md#run)闭没闭合分两种：**
 
 | 此刻 | 怎么办 |
 |---|---|
-| **有运行在跑** | 落一条 `SystemReminderMessage` 进队列，**说状态的，取代式**（[PF-009](../PF-009-context-message-types/design.md#54-提醒说的是现在什么样还是刚才发生了什么)）。**agent 脚下的地变了，它必须知道** |
-| **没有运行在跑** | **什么都不做。** |
+| **有运行在跑**（Run 未闭合，**含停着等人**） | 落一条 `SystemReminderMessage` 进队列，**说状态的，写清「从什么变成了什么」**（[PF-009](../PF-009-context-message-types/design.md#64-说状态的写清变化说事的写清发生消息一律追加)）。**agent 脚下的地变了，它必须知道** |
+| **没有运行在跑**（Run 已闭合，会话空闲） | **一律丢弃**：**不进队列、不落日志、不成为[记录条目](../PF-000-occurrences-and-record-entries/design.md#记录条目)** |
 
-**「什么都不做」的依据**：
-[每一次组装都从当下重新拼](../PF-012-agent-loop-and-run/design.md#53-改日志的动作与纯派生的动作)，
-而这类提醒是**说状态的**——它描述的就是「现在什么样」。
-**下一次运行开始时，组装出来的本来就是新的那一份**，那条提醒**没有任何新信息**。
+> **⚠️ 这一条只管 runtime context 生产方推来的变更。**
+> **后台执行完成回传、用户又说了一句、外面送进来的消息、到点了——不在此列**：
+> 它们[照本 topic 受理](#61-先落账再谈别的)，**照样能让队列从空变成非空，照样开下一个运行**。
+> **判据是这两类东西答的不是同一个问题**：前者说「**现在什么样**」，**重算即得**；
+> 后者说「**发生了一件事**」，**丢了就真没了**。
+
+**「丢弃」不会让 agent 拿着过时的值干活**：
+下一次尝试起来时它**自己拉一次**，拿到的就是当前那一份；
+那条状态提醒的**前值取[会话日志](../PF-012-agent-loop-and-run/design.md#会话日志)里最后感知到的那一份，现值取这一次拉到的**。
+
+> **因果链记的是这个会话感知到的变化，不是世界上发生过的每一步。**
+> 空闲期间那一块改过三次还是三十次，**会话只感知到一次**——
+> 从它上次看见的那个值，到现在这个值。**那三十次里没有任何一次有 agent 在场。**
+
+**这不是[「先落账再谈别的」](#61-先落账再谈别的)的例外，而是它的边界**：
+
+> **被丢弃的那一推，从来没有成为一条[入站到达](#入站到达)。**
+> 受理面收的是「**发生了一件事**」；**一块 runtime context 现在是什么值，不是一件到达的事**——
+> 它[按 PF-000 的两条判据都不必留](../PF-000-occurrences-and-record-entries/design.md#52-那个判断两条独立充分条件)：
+> 丢了**下一步照样算得出**（下次拉一次就有），**也没有需要向谁解释的发生过程**——那段时间没有 agent 在场。
 
 > **不写这一条会怎样**：组织超管改一次设置，**所有空闲会话各醒一次、各调一次模型**，
 > 而每一次 agent 都会发现自己无事可做。**那是一笔纯粹由设置变更产生的账。**
@@ -863,10 +892,10 @@
 
 | 相邻 topic | 它拥有什么 | 本 topic 与它的关系 |
 |---|---|---|
-| [**PF-012**](../PF-012-agent-loop-and-run/README.md)（**rev 4**） | 状态转移表、两层循环的出口、**待处理消息队列**、拓展点、外面进来的事怎么到 agent 眼前 | **依赖其定义，且不改它。**本 topic 的三个去处**全部落在它已有的转移上，一个新状态、一个新出口都不加** |
+| [**PF-012**](../PF-012-agent-loop-and-run/README.md)（**rev 7**） | 状态转移表、两层循环的出口、**待处理消息队列**、拓展点、外面进来的事怎么到 agent 眼前 | **依赖其定义，且不改它。**本 topic 的三个去处**全部落在它已有的转移上，一个新状态、一个新出口都不加** |
 | [**PF-008**](../PF-008-human-in-the-loop/README.md) | 决策卡片、决策池、放行判断、等待期间照常收、答复只在卡片上做、**「不回答」是合法答复** | **依赖其定义。**[§6.1 的穷举本 topic 不动](#544-这没有推翻-pf-008它把一个词说全了)，只把「人处理它」说全 |
 | [**PF-006**](../PF-006-tools-and-skills/README.md) | 六种收场、前台/后台、工具等待态、中断不是失败 | **依赖其定义。**插队把一次工具执行推向其中两种收场；[它的两条用户动作在本 topic 找到了受理面](#55-控制指令家族) |
-| [**PF-007**](../PF-007-meta-capabilities/README.md) | `Ask()` 的两个命令与五条性质 | **依赖其定义。**[缺「不可转后台」那一句](#94-要回给别人的账) |
+| [**PF-007**](../PF-007-meta-capabilities/README.md) | `Ask()` 的两个命令与五条性质，**含[它的等待不可转后台](../PF-007-meta-capabilities/design.md#611-ask通向人)** | **依赖其定义。**[插队时它按「人拒绝回复」处置](#542-两种等人答机制各归各产品语义是同一条)，依据就是那一句 |
 | [**PF-009**](../PF-009-context-message-types/README.md) | 七种消息、`SystemReminderMessage`、来源是属性不是类别、流断在半路 | **依赖其定义。**[§5.7 那张表九行落成三种消息](#57-穷举一什么会让队列从空变成非空)，**一种新类型都没多** |
 | [**PF-010**](../PF-010-context-management-and-assembly/README.md) | 组装是纯派生的、先落盘再组装 | **依赖其定义。**[§6.1](#61-先落账再谈别的) 的另一半论证在那边 |
 | [**PF-013**](../PF-013-model-profiles-and-invocation/README.md) | 一次模型调用的收场与故障分类、换模型的生效点、**模态与转换件的契约** | **依赖其定义。**那边已经定了「被插队中断**不是**故障」，本 topic 不重述 |
@@ -877,7 +906,7 @@
 
 | 留给谁 | 什么 |
 |---|---|
-| [**PF-015**](../PF-015-session-lifecycle-and-ownership/README.md) | 会话怎么建、**[生命周期的四个状态](../PF-015-session-lifecycle-and-ownership/design.md#会话的生命周期)**、**被归档那一刻队列里还排着的东西怎么了结**（[rev 1 未覆盖](../PF-015-session-lifecycle-and-ownership/design.md#九未决项)） |
+| [**PF-015**](../PF-015-session-lifecycle-and-ownership/README.md) | 会话怎么建、**[生命周期的四个状态](../PF-015-session-lifecycle-and-ownership/design.md#会话的生命周期)**、**被归档那一刻队列里还排着的东西怎么了结**（[那边至今没有答案](../PF-015-session-lifecycle-and-ownership/design.md#九未决项)） |
 | **尚无 topic 的那几类来源** | **日程 / 定时触发**、**跨会话消息与子 agent 派发**（[§9.1](#91-有几类来源的能力还没开题)）。本 topic 为它们预留的是**去处，不是能力** |
 | **技术设计** | 队列怎么从日志算出来、[不漏不重](#67-不漏不重)怎么保证、去重怎么实现、通知怎么送达、**队列非空的空闲会话怎么被拉起来** |
 | **[拓展件](../PF-002-assets-settings-and-permissions/design.md#loop-extension)那一侧** | 挂在「消息落盘之前」的那些东西**各自干什么**。本 topic 只定**那一刻看得到什么** |
@@ -916,31 +945,21 @@
 - **[§6.8](#68-停机不会让一条入站到达永远悬着) 的「队列非空且没有活跃运行，这个状态不许长期存在」**——
   **已被归档的那些不适用**。
 
-> **这一条等 [PF-015](../PF-015-session-lifecycle-and-ownership/design.md#九未决项)**，
-> 它 rev 1 没有覆盖存储与队列。**在那之前，不要在实现里自己发明一套归档时的清理规则。**
+> **这一条等 [PF-015](../PF-015-session-lifecycle-and-ownership/design.md#九未决项)**——
+> 那边定了归档连带停掉哪些在途的活儿，**但没说队列里还排着的东西怎么了结**。
+> **在那之前，不要在实现里自己发明一套归档时的清理规则。**
 
 ### 9.3 待产品负责人裁决
 
 **无。**去向逐条记在 [decisions 第三节](decisions.md#三待裁决)。
 
-### 9.4 要回给别人的账
-
-**本 topic 一个字都没有改它们，只是把账记在这里。**
-
-| 账 | 归谁 | 要做什么 |
-|---|---|---|
-| **[`Ask()` 不可转后台](#542-两种等人答机制各归各产品语义是同一条)** | [PF-007](../PF-007-meta-capabilities/README.md) | 它写了「不占任何资源」「上限那条对它不成立」，**但没写「不可转后台」**——而那正是它在插队时不走转后台那条路的依据。**补一句，要升 rev** |
-| **[PF-008 §6.1 的「人处理它」要展开成两种](../PF-008-human-in-the-loop/design.md#61-永远等着系统不替人作答)** | [PF-008](../PF-008-human-in-the-loop/README.md) | 展开成「回复 / 明确拒绝回复」，并**指向它自己的 [§6.5](../PF-008-human-in-the-loop/design.md#65-不回答是合法答复)**。**不是新增第三条路，是把一个已有的词说全** |
-| **[PF-012 §5.11 的表要接上控制那条路，并给「注入的上下文变了」加一句限定](../PF-012-agent-loop-and-run/design.md#511-外面进来的事怎么到-agent-眼前)** | [PF-012](../PF-012-agent-loop-and-run/README.md) | 取消与插队在那张表里没有落点；而那一行现在有了一个条件——[没有运行在跑时什么都不做](#610-注入的上下文变了没有运行在跑时什么都不做) |
-| **[插队也会触发转后台，占位原因因此有五种](#541-占位消息一律要说清原因)** | [PF-006](../PF-006-tools-and-skills/README.md) | 转后台不只是工具作者与 agent 那一侧的事，**系统也可以因为插队而触发它**；占位原因要含「因插队转后台」「因插队被中断」「人拒绝回复」。**它们是新的取值，不是新的收场** |
-
-### 9.5 一处要请别人复核的措辞
+### 9.4 一处要请别人复核的措辞
 
 **不是冲突，是读起来会走偏的地方。本 topic 不擅自改别人的正文。**
 
 | 在哪 | 怎么会走偏 | 本 topic 的读法 |
 |---|---|---|
-| [**PF-009 §6.9**](../PF-009-context-message-types/design.md#69-用户看见了的记录里必须有)「用户看见了的，记录里必须有」 | 与[「消息落盘之前」被否决的到达不进日志](#否决了也不许静默)看起来相冲 | **不冲**：被拦的**内容**不进日志正文，而**「有一条被拦下了」这件事必须留一笔**（[PF-012 §6.10](../PF-012-agent-loop-and-run/design.md#610-能干预的拓展件必须留下结论) 已经要求），且[用户自己发的那条被拦时必须让他看得出来](#否决了也不许静默)。**请两边都确认这个读法** |
+| [**PF-009 §6.9**](../PF-009-context-message-types/design.md#69-用户看见了的会话日志里必须有)「用户看见了的，会话日志里必须有」 | 与[「消息落盘之前」被否决的到达不进日志](#否决了也不许静默)看起来相冲 | **不冲**：被拦的**内容**不进日志正文，而**「有一条被拦下了」这件事必须留一笔**（[PF-012 §6.10](../PF-012-agent-loop-and-run/design.md#610-能干预的拓展件必须留下结论) 已经要求），且[用户自己发的那条被拦时必须让他看得出来](#否决了也不许静默)。**请两边都确认这个读法** |
 
 ---
 

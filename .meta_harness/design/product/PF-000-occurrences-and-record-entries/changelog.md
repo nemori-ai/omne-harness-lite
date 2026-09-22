@@ -4,6 +4,14 @@
 
 ---
 
+## 校准 · 2026-09-21（**不改变含义，不升 rev**）
+
+| 改了什么 | 依据 |
+|---|---|
+| §9.2 与 decisions 第二节里那个裸的「插件」，写全为 **Cordis plugin** 并链到它的定义 | 统一语言规定「插件」专指 [Plugin 资产](../PF-002-assets-settings-and-permissions/design.md#plugin)，**指运行时那个代码装载单元必须写全 `Cordis plugin`**（[UL-plugin 别混 ①](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-plugin--插件--plugin)）。此处所指为后者的推理链记在 [decisions 第二节](decisions.md#二pm-的推导) |
+
+---
+
 ## rev 1 · 2026-09-19 · 首次成文
 
 ### 为什么现在才有这个 topic

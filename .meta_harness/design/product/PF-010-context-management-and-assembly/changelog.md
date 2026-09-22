@@ -5,6 +5,31 @@
 
 技术投影用 `provenance.json` 引用具体 rev，所以这里的 rev 不准会直接传导到实现侧。
 
+## 校准：§5.5 转述 PF-009 提醒规则的那半句跟上新裁决 — 2026-09-22
+
+**不升 rev，本 topic 的规则一条没改。**
+
+[§5.5 末尾](design.md#55-几样东西各自落成哪一种消息)原写「且**说状态的取代**、说事的追加」，
+现在写成**两类一律追加、说状态的自己写清「从什么变成了什么」**，依据是
+[PF-009 rev 4](../PF-009-context-message-types/changelog.md)——**消息层面没有「取代」**。
+
+**顺带就地点明一句**：组装这一侧**不需要「同一处只取最新」这道筛子**。
+[§5.4 的五条要求](design.md#54-组装必须满足的五条要求)因此**一条都不用加**，
+[§6.12「记录里的消息一条都不能擦除」](design.md#612-记录里的消息一条都不能擦除)与新裁决同向，也不动。
+
+## 校准：点明「压缩记录」就是那条消息 — 2026-09-21
+
+**不升 rev，含义一个字没变。**
+
+[要求三](design.md#要求三有压缩记录时边界由压缩记录来定)通篇用「压缩记录」，
+而这个词**从没在本 topic 里落过定义**——读者得自己猜它和
+[`CompactionMessage`](../PF-009-context-message-types/design.md#compactionmessage) 是不是一回事。
+现在就地点明：**[压缩记录](../../ubiquitous_language/terms/record-and-context.md#ul-compaction-record--压缩记录--compaction-record)
+就是压缩留下的那条 `CompactionMessage`**，不是另一份东西。
+
+**顺带**：指向 PF-009 §5.7 的链接随[那边的小节改名](../PF-009-context-message-types/changelog.md)
+改到新锚点（`#57-一份会话日志两种组装`）。
+
 ## rev 5 — 2026-09-21
 
 **压缩之后，[meta runtime context](../PF-015-session-lifecycle-and-ownership/design.md#meta-runtime-context) 要重新给一份完整的。**
@@ -23,13 +48,13 @@
 
 ### 顺带澄清了一处
 
-**[第 7 项 meta runtime context](../PF-015-session-lifecycle-and-ownership/design.md#56-十五项-meta-runtime-context)
+**[第 7 项 meta runtime context](../PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)
 是「会话当前使用的 ContextCompactionSettings」，它的消费者一度没有着落**——
 按那边的唯一判据得被模型、工具、拓展点之一消费才算数，**而压缩那个函数明确不是拓展点**。
 
 **产品负责人给的答案是「模型」**，理由是一个**还没做的能力**：
 让模型感知**当前占用比**与**压缩策略**，**自行决定要不要主动发起一次压缩**。
-**它与[第 15 项占用比是一对](../PF-015-session-lifecycle-and-ownership/design.md#56-十五项-meta-runtime-context)。**
+**它与[占用比那一项是一对](../PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)**（PF-015 rev 7 起是第 14 项）**。**
 
 > **那个能力本身不写进本 topic 正文**——它还没设计，
 > [§6.7「要不要压在闭包里判」](design.md#67-压缩是一个闭包要不要压在它里面判)一个字未改。
@@ -255,7 +280,7 @@ PM 由此推出它们**两两相冲**——押住任意两个，第三个必然�
 > **压缩不搬走任何东西，它只把「给模型看」那一位翻掉。**
 
 **三条直接后果**：压缩**不碰「给人看」那一位**；被压掉的东西**用户照样看得见**；
-[「一份记录，两种组装」](../PF-009-context-message-types/design.md#57-一份记录两种组装)**在这里兑现**——
+[「一份会话日志，两种组装」](../PF-009-context-message-types/design.md#57-一份会话日志两种组装)**在这里兑现**——
 没有那个机制，压缩就只能靠删，**而删了是两侧一起没**。
 
 **两条「不能做」，各挡一件事**：

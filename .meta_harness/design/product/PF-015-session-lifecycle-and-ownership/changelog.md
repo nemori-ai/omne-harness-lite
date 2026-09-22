@@ -5,9 +5,57 @@
 
 ## 当前修订
 
-**rev 5**（2026-09-21）
+**rev 7**（2026-09-22）
 
 ## 历史
+
+### 校准 · 2026-09-22（不升 rev）
+
+**登记了三个此前没人接住的缺口，并把入口的覆盖陈述改到现状。没有改动任何已拍板的设计。**
+
+| 变更 | [§9 未决项](design.md#九未决项)新增三行：[不属于任何 Run 的模型调用归会话那一级](../PF-012-agent-loop-and-run/design.md#run-是三样东西的归属单位)、[「尝试开始之前」那个位置](../PF-012-agent-loop-and-run/design.md#十一个位置是推出来的不是挑出来的)、[摘要累积到装不下时怎么办](../PF-012-agent-loop-and-run/design.md#压完还超这一层腾不出空间了)。[decisions 第四节](decisions.md#四已知的来源问题)同步一条 |
+|---|---|
+| 依据 | [PF-012 §9.1](../PF-012-agent-loop-and-run/design.md#91-会话归-pf-015) 把这三样压给本 topic，而本 topic 到 rev 7 既没覆盖也没把它们列进未决项 |
+| 为什么不升 rev | **未决项清单不是设计内容**——登记的是「这里还缺一块」，**不是裁决**。三样仍未定，由本 topic 的 owner 裁 |
+| 同日第二件 | [入口「本 rev 覆盖到哪」](README.md#本-rev-覆盖到哪)：大纲覆盖陈述由「四块半」改为「整块覆盖四块，权限那一块只覆盖与会话相交的部分」；权限那一行由「工具权限本身仍未开始」改为列出本 rev 实际覆盖的四处，并指明[放行三元组](../PF-007-meta-capabilities/design.md#611-ask通向人)里工具权限那条腿**仍是 §9 的未决项** |
+
+### rev 7 · 2026-09-22
+
+**全局那一档落成租户层的权限值，本 topic 那套「全局语义授权存储」退场。**
+依据：[裁决 58](decisions.md#2026-09-22--全局那一档落成租户层的权限值)——产品负责人 2026-09-22 确认按
+[PF-007 rev 15](../PF-007-meta-capabilities/changelog.md) 已落下的那一种。
+
+| 变更 | [§5.6](design.md#56-十四项-meta-runtime-context) 原第 9 项「这个租户的语义授权（全局当前生效中的）」**整条删除**；第 8 条那一栏补明**由全局授权表达落成的租户层权限值就在这一份里**；表下读法换掉两条（「全局那一档不另占一块」取代原来的「第 9 与第 10 会有重叠」）。[§5.7](design.md#57-三个作用域在同一份数据里) 改为一张落点表：**单次执行与本会话落在会话那份流水，全局落成租户层的权限设置值** |
+|---|---|
+| 含义 | **系统里的授权流水只有一种：每个会话一份。**此前本 topic 写的「全局有一个存储维护它，各会话的拓展点往里上报」**不成立**——照那样做会有两份全局授权，**而「以为撤了其实没撤」正是这样来的** |
+| 编号顺延 | **原第 10–15 项依次变成第 9–14 项**，§5.6 的标题相应从「十五项」改为「十四项」。**[decisions 第一节](decisions.md#一拍板记录)里按旧编号写下的裁决（44、45）指的是顺延前那一版**；裁决 45 的前提（第 9 与第 10 重叠）已随这次改动消失 |
+| 同版第二件 | [§6.8](design.md#68-变更了要不要告诉-agent看谁消费它) 补上**推与拉两条路**：推归生产者、**会话空闲时推来的一律丢弃**；拉归 agent runtime，**每次执行尝试起来时取一次当前快照**。依据是[产品负责人 2026-09-22 关于推与拉的裁决](../PF-014-inbound-intake-and-queueing/decisions.md#2026-09-22--runtime-context-的变更推与拉按-run-开没开闭合分)，规则本身落在 [PF-014 rev 3](../PF-014-inbound-intake-and-queueing/changelog.md) 与 [PF-012 rev 7](../PF-012-agent-loop-and-run/changelog.md)，**本 topic 只在 runtime context 这一侧指路**；[§6.8 原来那条「谁消费才通知」一个字没改](design.md#68-变更了要不要告诉-agent看谁消费它) |
+| 下游要复核 | 按「全局语义授权集」建模的人——**那个东西不存在**，[领域对象那边的同名待裁已删除](../../domain_objects/pending.md)；引用第 10 项及以后编号的人按顺延后的号读（词条 [UL-session-log-projection](../../ubiquitous_language/terms/record-and-context.md#ul-session-log-projection--会话日志投影--session-log-projection) 与 [UL-meta-runtime-context](../../ubiquitous_language/terms/scope-and-resolution.md#ul-meta-runtime-context--元-runtime-context--meta-runtime-context) 已同步） |
+
+### rev 6 · 2026-09-22
+
+**「决策记录」这个说法退役，正式名是[授权表达](../PF-007-meta-capabilities/design.md#一笔授权表达有三个维度)。**
+依据：产品负责人 2026-09-22 裁决「授权表达」与「决策记录」是**一物两名**
+（[C-23](../../ubiquitous_language/conflicts.md)；「决策记录」撞[记录条目](../../ubiquitous_language/terms/record-and-context.md#ul-record-entry--记录条目--record-entry)，过不了取名那一关）。
+
+| 变更 | [§4 会话运行模式](design.md#会话运行模式)两处：`auto_permission` 那一档「**拿已经形成的决策记录算**」与「**答案落成新的决策记录**」，一律改用**授权表达**；定义处链到 PF-007 §4 |
+|---|---|
+| 含义 | **一个字没变**——同一个东西此前在三处各叫各的，现在只有一个名字 |
+| 下游要复核 | 按「决策记录」这个说法建模的人；词条 [UL-session-run-mode](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-session-run-mode--会话运行模式--session-run-mode) 已同步 |
+| 顺带记下 | [§5.6 第 9 项与 §5.7](design.md#57-三个作用域在同一份数据里) 讲的「全局那一档」与 [PF-007 rev 15 定的落点](../PF-007-meta-capabilities/design.md#一笔授权表达有三个维度)**对不上**，已记入 [decisions 第四节](decisions.md#四已知的来源问题)，**本 rev 不改那两节** |
+
+### 校准 · 2026-09-21（不升 rev）
+
+**一次正文校准，没有改动任何已拍板的设计**——改的是几处与已接受内容对不上的旧说法。
+
+| 改了哪里 | 改成什么 | 依据 |
+|---|---|---|
+| [§2 非目标](design.md#非目标)里「不定义上下文感知域本身」那条 | **删掉。**本 rev 定义的就是它：[目标那一条](design.md#目标)与 [README 的大纲表](README.md#本-rev-覆盖到哪)都写着接下了整块 | [裁决 47](decisions.md#2026-09-21--runtime-context-与十五项-meta-runtime-context)：**广义上它就是 runtime context，不新造词**，「会话上下文感知域」已登记为弃用说法（[词条](../../ubiquitous_language/terms/scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context)） |
+| README 大纲表里那一行的名字 | **runtime context**——正文与目录统一用这个词 | 同上 |
+| [§1 背景](design.md#一背景与问题)转述的「一个会话里给出的授权，那段协作结束就不再作数」 | **换成两条今天仍然成立的规则**（agent 间通信要看对方还在不在、悬着的问询什么时候清掉）。**授权那条已经作废**——[授权是数据，归档不丢](design.md#67-归档不动授权)，[PF-007 那边也已改成「归档不会让它消失」](../PF-007-meta-capabilities/design.md#会话授权上下文) | [裁决 15](decisions.md#2026-09-21--生命周期会话类型与业务流程拓展点) 与 [PM 推导「归档与授权失效必须分开陈述」](decisions.md#归档与授权失效必须分开陈述) |
+| [§5.6](design.md#56-十四项-meta-runtime-context) 第 9、10 项写「**用户**的语义授权」 | **这个租户的语义授权**，并补一条读法：**主体是租户，不是自然人那个账号** | [裁决 24](decisions.md#2026-09-21--授权的来源撤回与作用域) 的原话——全局授权指「**租户下未来所有会话**」；身份双层结构归 [PF-001](../PF-001-identity-scope-and-agent-constraints/design.md#租户) |
+| §5.6 那份读法清单写「四件事」，其实列了五条 | **六件**——补上第 9、10 条主体那一条之后的实数 | 计数错，含义未变 |
+| `design.md` 缺抬头的修订行；[§4 meta runtime context](design.md#meta-runtime-context) 里「会话运行模式」错链到 §9 | **补上 rev 抬头**（与 README front-matter、本页一致）；**链接指回[会话运行模式](design.md#会话运行模式)** | 格式与错链，含义未变 |
 
 ### rev 5 · 2026-09-21
 
@@ -36,7 +84,7 @@
 
 | 项 | 内容 |
 |---|---|
-| 变更 | **本 topic 接下 runtime context 这一整块。**新增两个概念（[runtime context](design.md#runtime-context) · [meta runtime context](design.md#meta-runtime-context)）、[唯一判据与两个反例](design.md#55-哪些算-meta-runtime-context)、[十五项清单](design.md#56-十五项-meta-runtime-context)、[三个作用域同在一份数据里](design.md#57-三个作用域在同一份数据里)；产品规则加三条（[§6.8 变更通知按谁消费发](design.md#68-变更了要不要告诉-agent看谁消费它) · [§6.9 模型看见它的两种形态](design.md#69-模型看见一块-runtime-context只有两种形态) · [§6.10 单次授权在运行结束时清空](design.md#610-单次授权在一次运行结束时清空)）；取舍加三条；§1 补第四个空洞；§8、§9 更新 |
+| 变更 | **本 topic 接下 runtime context 这一整块。**新增两个概念（[runtime context](design.md#runtime-context) · [meta runtime context](design.md#meta-runtime-context)）、[唯一判据与两个反例](design.md#55-哪些算-meta-runtime-context)、[十五项清单](design.md#56-十四项-meta-runtime-context)、[三个作用域同在一份数据里](design.md#57-三个作用域在同一份数据里)；产品规则加三条（[§6.8 变更通知按谁消费发](design.md#68-变更了要不要告诉-agent看谁消费它) · [§6.9 模型看见它的两种形态](design.md#69-模型看见一块-runtime-context只有两种形态) · [§6.10 单次授权在运行结束时清空](design.md#610-单次授权在一次运行结束时清空)）；取舍加三条；§1 补第四个空洞；§8、§9 更新 |
 | 原因 | 产品负责人四段裁决（[裁决 32–47](decisions.md#2026-09-21--runtime-context-与十五项-meta-runtime-context)）。**此前这块东西散在三处**——PF-001 的 Context、PF-012 的当下条件、PF-002 的权限求值，**没有一处回答「一个会话最少得带着哪些」** |
 | 依据 | [decisions §一](decisions.md#2026-09-21--runtime-context-与十五项-meta-runtime-context) 的 16 条裁决；四格 † 推导与两个被纠正的归纳见[§二](decisions.md#二pm-推导) |
 | 影响 | **[PF-010](../PF-010-context-management-and-assembly/README.md) 收到一条硬要求**：[压缩之后必须重新给模型一份完整的](design.md#69-模型看见一块-runtime-context只有两种形态)，**不能只当消息处理**。<br>**[PF-012](../PF-012-agent-loop-and-run/README.md) 收到一个新的 loop 拓展点用途**：运行结束时清空单次授权。<br>**[统一语言](../../ubiquitous_language/index.md)**：`UL-runtime-context` 扩写，新增 `UL-meta-runtime-context` |
