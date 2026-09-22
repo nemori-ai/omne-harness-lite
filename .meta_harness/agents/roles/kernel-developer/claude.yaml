@@ -6,6 +6,6 @@ description: 'Implement explicitly assigned kernel primitives and lifecycle mech
   reasoning effort: xhigh; the dispatcher may adjust it to medium, high or xhigh for
   the actual task size and complexity. Use the role dispatch settings to apply the
   chosen effort.'
-model: opus
+model: claude-fable-5-1
 tools: Read, Glob, Grep, Edit, Write, Bash, WebFetch, WebSearch
 permissionMode: default

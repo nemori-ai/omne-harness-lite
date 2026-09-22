@@ -1,6 +1,6 @@
 name: spec-reviewer
-description: Read-only review of specification completeness, clarity and conformance to project conventions against a supplied design. Does not judge business correctness or design choices, review delivery scheduling, edit files or accept specifications.
-model: opus
+description: Read-only review of whether a supplied specification expresses its already-decided commitments completely, unambiguously and to project convention - per-operation completeness, reference and registry integrity, cross-contract consistency, consumer-path walkthrough and formal-artifact correspondence. Does not judge business correctness or design choices, review delivery scheduling, edit files or accept specifications.
+model: claude-fable-5-1
 effort: xhigh
 tools: Read, Glob, Grep, WebFetch, WebSearch
 permissionMode: dontAsk

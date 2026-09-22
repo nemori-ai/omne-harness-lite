@@ -1,5 +1,5 @@
 name = "architecture-reviewer"
-description = "Independent read-only architecture review after a design or revision is ready for review. Return evidence-backed findings and unresolved questions; do not author designs, apply fixes, or accept decisions. Ordinary wording and link edits do not require this role."
+description = "Independent read-only architecture review of a design choice - a capability boundary, a batch of contracts as a semantic whole, or a realization node. Checks property carriage, the kernel negative list, boundary re-check signals, cost signals, reverse checks and projection alignment against the handbook reconciliation tables; judges choices, not wording. Returns evidence-backed findings in four groups plus counter-arguments for boundary choices; does not author designs, apply fixes, review expression (spec-reviewer) or accept decisions."
 model = "gpt-6-astra"
 model_reasoning_effort = "xhigh"
 sandbox_mode = "read-only"

@@ -1,6 +1,6 @@
 name = "plan-reviewer"
 description = "Read-only review of delivery-plan feasibility, dependencies, safe parallel scheduling, ownership and acceptance evidence against supplied contracts. Does not audit specification completeness, redesign business behavior, edit files, execute tasks or accept delivery."
-model = "gpt-5.6-sol"
+model = "gpt-6-astra"
 model_reasoning_effort = "xhigh"
 sandbox_mode = "read-only"
 approval_policy = "never"

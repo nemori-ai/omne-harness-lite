@@ -30,7 +30,7 @@
 | decisions | `design/record/decisions/<topic>/` | 永不失效，只追加 |
 | spec/data · spec/capability · spec/composition | `design/spec/{data,capabilities,compositions}/<topic>/v<N>/` | 语义变更（发新版，不原地改） |
 | providers | `design/realization/packages/<node>/`（`kind: provider`） | 实现换方案 |
-| assemblies | `design/realization/apps/<node>/`（`kind: assembly`） | 实现换方案 |
+| assemblies | `design/realization/apps/<node>/`（`kind: assembly`）；应用的形状（拓扑、进程、交互面、分层、技术栈、分发）在同一节点的 `architecture.md`；**交付面已有 PF 即可建 `candidate` 节点**，不必等源码 | 实现换方案 |
 | 设计投影（[步骤 G](../SKILL.md)） | `design/product/<topic>/projection/v<N>/` | 需求变更或上游设计变更（**出新版，不原地改**） |
 
 **还有几个分区没有对应的通用 family 名，它们是这个工作区自己的：**
@@ -159,16 +159,30 @@ SHA-256，而运行结果每跑一次就多一份——两类失效事件互相�
 
 | 当前问题                               | 工作区内的拥有者                              |
 | -------------------------------------- | --------------------------------------------- |
-| 具体提供者、依赖、资源、采用对象与版本 | `design/realization/packages/<node>/`（`kind: provider`） |
+| 具体提供者、依赖、资源、采用对象与版本 | `design/realization/packages/<group>/<node>/`（`kind: provider`；两层布局与 `core` 的准入见该区 README） |
 | 应用选择、配置和跨能力装配             | `design/realization/apps/<node>/`（`kind: assembly`） |
 | 精确契约条款绑到哪份证据上             | 该节点的 `bindings.yaml`；**绑定要有稳定名字和一个在该语义消失时会失败的检查** |
 | 长期迁移边界和消费关系变化             | `design/registry/lineage.json`（旧新身份对应）；过程材料留 `tmp/` |
-| 评审角色及行动边界                     | `agents/roles/`，按实际定义与宿主可用能力使用 |
+| 评审与起草角色及行动边界               | `agents/roles/`，按实际定义与宿主可用能力使用；主线与角色的分工见下表 |
 | 临时试验、施工安排与进度               | `tmp/`；值得持久保留的判断回到相应设计拥有者  |
 | 对外提供哪些产物、采用修订与来源       | `publication/`                                |
 
 具体源码是提供者/装配设计中的显式映射：说明代码位置、修订、消费契约及证据范围，
 不假设某个父目录就是实现仓库。映射或源码尚未提供时保留为实施缺口，语义设计仍可继续。
+
+**主线做什么、角色做什么**（2026-09-22 租户领域一程之后定；判据：要与需求方对话、要跨全程上下文裁定、
+或产物本身是一次裁决的归主线；输入写得成简报、产物能被独立评审、量大到压垮主线上下文的立角色）：
+
+| 步 | 执行者 | 说明 |
+|---|---|---|
+| A 前身识别、D 对账与回询、E 简报、F 反向核对、G 投影、每轮评审处置 | **主线** | 都是裁定或核对，各一页表；G 在节点评审闭合后落 |
+| B 领域读数、C 机制读数、能力拆分提案（≥3 候选） | `architecture-drafter`，B 与 C 各派一次、互不读 | 读数留任务区，被引用的理由落 `record/proposals/` |
+| 契约、Schema、examples、形式工件、registry 登记、整批对齐 | `spec-drafter`；共用 data 契约先竞标合并，其余并行，最后一位做整批对齐 | 见[批内起草协议](define.md#一批契约并行起草时的协议) |
+| provider／assembly 节点、bindings | `realization-drafter` | 节点评审闭合前不落 G |
+| 基座级选择 | 三票独立评审投票（reviewer 角色，中立 prompt、强制二选一） | 反证互不重复才算独立 |
+| 产品修订、词条、领域对象条目 | **主线**（新 topic 才派 `product-design-drafter`） | 要与产品负责人来回 |
+
+主线亲自写的设计**同样**派独立评审；自评置信度对反例没有预测力。
 需要施工计划时使用[交付规划](delivery-planning.md)；实际负责人、工具及环境由任务明确，不从角色名字推断已具备。
 
 ## 原语来源与外部证据
