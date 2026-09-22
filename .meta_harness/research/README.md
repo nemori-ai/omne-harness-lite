@@ -99,6 +99,7 @@
 
 - [四个 agent harness 怎么设计「会话」](agent-harness-session-design/README.md) — DSH `c291e796` / Claude Code `2.1.278` / Codex `0.154.0` / Pi `3390bd9`，取证 2026-09-20，消费者 PF-015
 - [六个 agent harness 怎么做 CLI 与 TUI](agent-harness-cli-tui/README.md) — 上述四家 + Cursor `2026.08.04` 与 Kimi Code `0.31.0`，取证 2026-09-21，消费者待出现
+- [debugger 子代理：一方现状、社区做法、失败模式与取证手段](agent-debugger-subagents/README.md) — 八家产品的官方文档与源码（2026-09-22 当日线上版本，未钉 commit）+ 社区 22 条 + 论文与规范 21 条，取证 2026-09-22，消费者为前端调试子代理的角色设计
 
 迁入前的历史索引见 [`legacy_backup/`](legacy_backup/README.md)，那里是存底，不按本页规则接续。
 

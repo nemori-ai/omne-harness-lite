@@ -1,0 +1,156 @@
+# cli 的形状
+
+每一节都是「引用 + 本应用的选择」。**这个交付面在产品上是什么、命令的含义是什么，全部归
+[PF-016](../../../product/PF-016-cli-tui-delivery-surface/README.md)；边上的保证归契约；
+候选比较归[提案](../../../record/proposals/cli-tui/alternatives.md)；采用理由归
+[决定](../../../record/decisions/README.md)。本页不复述它们，也不在它们之外另立一份语义。**
+
+**本页对两类进程的称呼**——「客户端进程」与「据点进程」——**是本页给进程起的名字，不是概念**。
+[会话据点](../../../product/PF-016-cli-tui-delivery-surface/design.md#会话据点)**不是进程**
+（它的身份是「一处 · 中心 · 账号」，[词条这样定](../../../ubiquitous_language/terms/grounding-and-isolation.md)）；
+「此刻有没有一个进程在服务它」与「它在不在」是两件事。
+
+## 交付面与非目标
+
+本节点是 [PF-016 命令行交付面](../../../product/PF-016-cli-tui-delivery-surface/README.md)（rev 3）
+这一个交付面的应用装配：**一个装在用户自己机器上的命令行应用**。
+它给出的是这个应用的形状；交付面自己的定义、边界与产品规则全在那份正文里。
+
+**与形状相关的非目标**（产品层面的非目标归
+[PF-016 §二](../../../product/PF-016-cli-tui-delivery-surface/design.md#二目标与非目标)）：
+
+| 本节点不做什么 | 为什么 |
+| --- | --- |
+| **不切每会话工作进程** | v1 在据点进程内跑 agent runtime 协程。切进程的理由只有故障隔离，而本项目**零测量**；它是一条**演化边**，触发条件是测出隔离或内存瓶颈，不是预感（[提案 D6](../../../record/proposals/cli-tui/alternatives.md#d6-进程模型)） |
+| **不做全屏（alt-screen）界面** | v1 只做内联；alt-screen 是登记在案的 gap，改选条件是出现可复现的 scrollback 撞墙且内联无解（[提案 D3](../../../record/proposals/cli-tui/alternatives.md#d3-呈现路线)） |
+| **不做中心到本机的推送通道** | v1 说不出要订阅什么；出现具名需求再谈（[提案 D11](../../../record/proposals/cli-tui/alternatives.md#d11-线上协议与认证)） |
+| **不为治理中心写它那一侧** | 承载[治理中心](../../../product/PF-016-cli-tui-delivery-surface/design.md#治理中心)的那个应用**尚无产品交付面的 PF**，[按准入不建节点](../../README.md#准入门槛与停止条件)；本页只写本侧 |
+| **不画整个系统的拓扑总图** | 总图由 [views](../../../views/README.md) 从各节点 join，[不手写](../../AGENTS.md#红线) |
+| **不承诺 Windows** | pty、命名管道、进程组语义三处都未验；登记为 gap（见[分发与升级](#分发与升级)） |
+| **不做单文件分发** | v1 只发 npm 包；单文件是第二阶段，两条路各有已知门槛（[提案 D8](../../../record/proposals/cli-tui/alternatives.md#d8-分发形态)） |
+
+## 拓扑与进程模型
+
+**本应用起三类进程。**一个可执行文件按命令决定装哪一份装配清单；
+[会话、运行与工具执行都在用户本机](../../../record/decisions/cli-tui-delivery-form/decision.md)，
+治理中心在远端且**不知道任何会话**。
+
+| 进程 | 生命周期与所有者 | 承载什么 | 崩溃或退出时谁收口 |
+| --- | --- | --- | --- |
+| **客户端进程**（人读 / 机读两种[呈现形式](../../../product/PF-016-cli-tui-delivery-surface/design.md#呈现形式)共用一个可执行文件） | 每个终端一个或每次调用一个；用户起、用户停 | 呈现与输入：终端渲染或逐行输出、界面自己的临时状态、[观感偏好](../../../product/PF-016-cli-tui-delivery-surface/design.md#观感偏好)、所选登录状态凭据的引用。**零领域事实**（[PF-016 §6.1](../../../product/PF-016-cli-tui-delivery-surface/design.md#61-交付面不持有任何领域事实)） | **只是观察者走了**：不撤销任何领域动作、不改变任何会话事实。终端还原由本进程负责，且不只靠撤除路径（见 [design.md](design.md#成对的装载与撤除)） |
+| **据点进程**（承载[会话据点](../../../product/PF-016-cli-tui-delivery-surface/design.md#会话据点)的常驻进程，按操作系统用户一个） | **机器开着时始终在运转**（[PF-016 §6.16：没人开着屏这一处照常发生事](../../../product/PF-016-cli-tui-delivery-surface/design.md#616-没人开着屏这一处照常发生事)）：随操作系统用户登录自启（launchd / systemd user unit 一类，形态**未钉**），任一命令也能拉起；**不因空闲退出**，机器关机才是停机。提案里的 Q-常驻[已由产品裁为常驻](../../../product/PF-016-cli-tui-delivery-surface/decisions.md#一拍板记录) | 据点一侧的全部事实：会话与会话日志、等着的决策卡片、受理与队列、每个活跃会话一副 agent runtime、模型传输、治理侧的客户端代理与只用于显示的副本；并监听本机 socket。**本机唯一的写者** | 等同停机：恢复按 [PF-012](../../../product/PF-012-agent-loop-and-run/design.md) 的「先对账再重算」；在途工具执行按该 PF 的对账规则判。**退出不是取消，也不是失败** |
+| **工具执行子进程组** | 由据点进程起：前台每个[运行](../../../product/PF-012-agent-loop-and-run/design.md)一组，已转后台的每次执行自己一组 | 一次[工具执行](../../../ubiquitous_language/terms/execution-and-outcome.md)的实际作用落点——本形态下[宿主机就是用户自己的电脑](../../../product/PF-016-cli-tui-delivery-surface/design.md#三用户与场景)，[沙箱实现可选装配](../../../ubiquitous_language/terms/grounding-and-isolation.md) | 前台组随该运行的取消或强制停止被带走；后台组随会话归档或据点进程退出被带走，**不随该运行的取消**；两者都不假定外部效应可回滚 |
+
+**演化边（v1 不启用）**：把 agent runtime 搬进每会话工作进程。
+Cordis 的 fiber 树、服务解析、重载与 effect 释放**只在一个进程内**成立
+（[plugin-body-reruns-on-provider-change](../../../basis/cordis/plugin-body-reruns-on-provider-change.md)、
+[effect-disposal-concurrent-not-ordered](../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)），
+所以**能切的是装配，不是能力**：每个进程一棵根 context、一份清单，跨进程的服务面靠远端代理提供者兑现。
+切分前要闭合的先决核对与四条约束在[提案](../../../record/proposals/cli-tui/design.md#契约与-cordis-投影)，
+本节点在测出瓶颈之前不展开它。
+
+### 本应用内部的进程边
+
+| 边 | 两端 | 契约坐标 | 责任落在哪一侧 |
+| --- | --- | --- | --- |
+| 客户端进程 ↔ 据点进程（本机 socket，逐行 JSON） | 都是 `apps/cli` 的进程 | **待立：交付面呈现与受理契约**（拟议名；下行只读投影、上行受理两个方向，带来源坐标与单调序号） | 据点进程是唯一写者，客户端只读投影、只送受理；**每条连接出示登录状态凭据**，不从操作系统用户推断账号（[PF-016 §6.4](../../../product/PF-016-cli-tui-delivery-surface/design.md#64-一台机器上账号之间互不可见但宿主机那一层不隔离)）；有界缓冲、慢消费者处置与断线续读由传输两端自己兑现——**内核不提供背压与可靠投递** |
+| 机读那一份对外的逐行输出 | 同一份契约经客户端进程转发 | **待立：同上** | 机器可读通道只承载契约内容（[PF-016 §6.6](../../../product/PF-016-cli-tui-delivery-surface/design.md#66-机读那一份只承载事实)），诊断一律走另一条流 |
+
+### 与其他应用的边
+
+**只写本侧。**对端那一侧由对端节点写——而它现在没有节点。
+
+| 边 | 对端 | 契约坐标 | 本侧责任 |
+| --- | --- | --- | --- |
+| 据点一侧 → 治理中心：账号身份、登录状态与注册 | **尚无节点**——承载治理中心的那个应用没有产品交付面的 PF，[按准入不建节点](../../README.md#准入门槛与停止条件) | `capability.account-identity/v1`、`composition.account-registration/v1`、`data.identity-values/v1`；**它们的线上投影协议待立：治理契约线上投影协议**（拟议名） | 本侧是消费方，在据点进程里以远端客户端代理提供者提供这几份契约的服务面。[`account-identity` S-30](../../../spec/capabilities/account-identity/v1/contract.md#s-30-装配给的保证-vs-协议须给的保证) 与 [`account-registration` S-25](../../../spec/compositions/account-registration/v1/contract.md) 列出的「装配给的保证」**在这条边上全部失效且失效是静默的**，须由协议重新兑现；[`identity-values` S-30](../../../spec/data/identity-values/v1/contract.md#s-30-跨边界须重新验证) 要求在接收边界重新鉴别，**持有标识不再构成资格** |
+| 据点一侧 → 治理中心：组织治理、成员资格与邀约 | **尚无节点**，同上 | `capability.organization-governance/v1`、`data.offer-expiry/v1`；**协议同上待立** | [每道准入现读](../../../spec/capabilities/organization-governance/v1/contract.md#s-18-每道准入现读)，读不到时[明确失败](../../../spec/capabilities/organization-governance/v1/contract.md#s-43-依赖的提供者不可用)——**本侧的副本只用于显示，一律不作准入依据**（[PF-016 §6.9](../../../product/PF-016-cli-tui-delivery-surface/design.md#69-需要现读成员资格的那几件事不拿副本放行)）。邀约过期判定依赖的时间源一致性由 [`offer-expiry` S-17](../../../spec/data/offer-expiry/v1/contract.md) 点名，跨这条边后归协议 |
+
+**这两条边上没有任何绑定**：五份契约都是 `candidate`，协议未立，源码不存在。
+
+## 交互面
+
+**人用的面与脚本用的面消费同一份投影、走同一条受理**
+（[PF-016 §5.5](../../../product/PF-016-cli-tui-delivery-surface/design.md#55-两种呈现形式同一份事实)）。
+本节只登记入口与归属：**命令与界面元素的产品含义归 PF，精确形状归契约。**
+
+| 面 | 入口 | 语义归谁 | 精确形状归谁 |
+| --- | --- | --- | --- |
+| **人用**（人读那一份） | 界面模式的入口，加会话族 · 治理族 · 本机族三族一等子命令与界面骨架；[斜杠命令属于会话族](../../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)，与子命令共享同一份命令定义 | [PF-016 §5.7](../../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)、[§5.4](../../../product/PF-016-cli-tui-delivery-surface/design.md#54-人做的每一件事走的都是已有的路) | **待立：交付面呈现与受理契约**（拟议名） |
+| **脚本用**（机读那一份） | 无界面模式的逐行 JSON 进出、日志投影的可续读输出、退出码族 | [PF-016 §5.5](../../../product/PF-016-cli-tui-delivery-surface/design.md#55-两种呈现形式同一份事实)、[§6.6](../../../product/PF-016-cli-tui-delivery-surface/design.md#66-机读那一份只承载事实)、[§6.5](../../../product/PF-016-cli-tui-delivery-surface/design.md#65-人能做的脚本能做脚本能做的人能做) | **待立：同上**（退出码族与逐行输出的精确形状是那份契约的一部分，不是本页的自由度） |
+| **治理族直通** | 治理族的每个动作与租户契约的操作一一对应；**精确清单从[身份清单](../../../registry/README.md)生成，本页不抄一份** | [PF-016 §5.7 治理族](../../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族) | `capability.account-identity/v1`、`capability.organization-governance/v1`、`composition.account-registration/v1` 各自的操作；**据点一侧不重写语义、不补造请求身份** |
+| **非 TTY 与能力不足** | 界面模式在非 TTY 下拒绝启动并指向机读那一份；终端能力按白名单与协商判定，**不静默降级** | [PF-016 §6.15](../../../product/PF-016-cli-tui-delivery-surface/design.md#615-环境不支持的时候明说不静默降级) | **待立：同上**（退出码属于那份契约） |
+
+**调试流不在上表**：它走另一条流、由旗标开启，且
+[不改变任何领域行为](../../../product/PF-016-cli-tui-delivery-surface/design.md#612-观感偏好不改变任何领域行为)；
+它的责任归[可观测要求](../../../foundation/observability-and-logging/requirements.md)，不归本页新立一套。
+
+## 包分层与依赖规则
+
+产品包按 `packages/<能力族>/<职责包>/` 两层：**第一层只组织相关能力，不是成员**。
+下表是本应用的装配对象；**各包内部的设计归它自己的 provider 节点**，现在一个都还没有。
+**全部包尚未建立**——只在规格接受后建成员。
+
+| 层 | 包 | 可以依赖 | 不可以依赖 |
+| --- | --- | --- | --- |
+| 应用装配 | `apps/cli`（一个可执行文件，两份固定装配清单：客户端 / 据点） | 下面各层；拉起与发现据点进程、构建标识核对、退出码落地 | 被任何包反向依赖 |
+| 交互层 · 契约 | `packages/frontend/contract` | 无——**只有形状没有行为**，不进 `ctx` | harness 能力族、渲染库、任何传输实现 |
+| 交互层 · 门面 | `packages/frontend/facade` | `contract` + harness 能力族的服务面 + 租户契约的客户端代理 | 渲染库、具体传输实现。**它是 harness 的消费者，不是它的一部分**，自己不持有任何领域事实 |
+| 交互层 · 传输 | `packages/frontend/transport-socket`（两端） | `contract` | harness 能力族——**跨进程的事一律是协议消息，不是内核事件** |
+| 交互层 · 人读 | `packages/frontend/tui`（渲染层适配边界在这里） | `contract`，经传输客户端拿到实现 | harness 内部、`facade`。换渲染库只改这一个包 |
+| 交互层 · 机读 | `packages/frontend/headless` | `contract` | 同上 |
+| 租户契约实现 | `packages/tenancy/<职责包>`（本节点只装 HTTP 客户端代理提供者；职责包名待规格接受后定） | 租户契约的类型与线上投影 | `frontend` 家族、harness 能力族 |
+| harness 能力族 | **尚未设计**；v1 全部本地提供者，装在据点进程里 | — | — |
+| 内核 | `@deepseek-ai/cordis` 官方包 + 本项目 fork 的 DSH 原语（[SYS-KERNEL](../../../foundation/cross-system-constraints/requirements.md#sys-kernel)） | — | — |
+
+**四条依赖方向的规矩：**
+
+1. **人读与机读两个包只依赖契约**，经传输客户端拿到实现，对 harness 内部零感知。
+2. **`frontend` 家族里只有 `facade` 依赖 harness**；它不持有任何领域事实。
+3. **两份装配清单属于 `apps/cli`**，同一个可执行文件按命令决定装哪一份。两份装进同一进程、传输换成进程内**只供验证与调试**——那种形态下成立的「零序列化」「同步可见」**不得被任何测试当成契约保证**。
+4. **治理中心是另一个完整的应用**，与本应用之间只有[上面那两条边](#与其他应用的边)；共用的只有租户契约与它的线上投影。
+
+`frontend` 这个家族名由 [D-022 第⑤条](../../../record/decisions/cli-tui-delivery-form/decision.md)接受；
+**成员划分仍是设计判断，不是被接受的事实**。
+
+## 技术栈采用
+
+**下表每一行的状态都不是「已经这么做了」，而是「这一版设计选了什么」。**
+除模型传输层外**没有一条被接受**——`candidate` 的依据一律链到提案，
+[提案自己也写明推荐不等于接受](../../../record/proposals/cli-tui/alternatives.md)。
+精确版本未钉的照实写「未钉」，**不填一个看起来合理的值**。
+
+| 选型点 | 采用 | 精确版本 | 状态 | 依据 |
+| --- | --- | --- | --- | --- |
+| 运行时与语言 | Node + TypeScript，与内核同进程装配 | Node `>=24 <25`（承载仓库 `engines` 已钉）；TS 随 workspace | candidate | [提案 D1](../../../record/proposals/cli-tui/alternatives.md#d1-运行时与语言) |
+| 终端渲染层 | `@earendil-works/pi-tui` 钉版直接采用，隔一层自有适配边界；**不 fork、不打渲染核心 patch** | **未钉**（三个区分实验一个都没跑） | candidate | [提案 D2](../../../record/proposals/cli-tui/alternatives.md#d2-终端渲染层) |
+| 呈现路线 | 只做内联 scrollback，历史窗口化，完整历史走日志命令 | 不适用 | candidate | [提案 D3](../../../record/proposals/cli-tui/alternatives.md#d3-呈现路线) |
+| 终端差异承担 | 环境白名单 + 转义协商 + 用户配置覆盖；非 TTY 拒绝启动界面 | 不适用 | candidate | [提案 D4](../../../record/proposals/cli-tui/alternatives.md#d4-终端差异的承担方式) |
+| 机读那一份的进出形态 | 逐行 JSON 事件流进出，输出通道纯净 | 不适用 | candidate | [提案 D5](../../../record/proposals/cli-tui/alternatives.md#d5-无界面模式的输入与输出形态) |
+| 进程模型 | 据点进程内跑 agent runtime 协程 + 客户端进程；工具执行子进程按宿主分组；每会话工作进程是演化边 | 不适用 | candidate | [提案 D6](../../../record/proposals/cli-tui/alternatives.md#d6-进程模型) |
+| 命令体系形态 | 会话族与治理族都是一等子命令；机读那一份是子命令不是旗标 | 不适用 | candidate | [提案 D7](../../../record/proposals/cli-tui/alternatives.md#d7-cli-命令体系形态) |
+| 分发形态 | v1 发 npm 包（含 `bin`），要求本机 Node 24；单文件二进制是第二阶段 | 第二阶段选哪条**未钉** | candidate | [提案 D8](../../../record/proposals/cli-tui/alternatives.md#d8-分发形态) |
+| 测试驱动方式 | 虚拟终端断言 + 真 pty 冒烟 + 隔离中心的多客户端流程 | `@xterm/headless`、`node-pty` 版本**未钉** | candidate | [提案 D9](../../../record/proposals/cli-tui/alternatives.md#d9-测试驱动方式) |
+| 观感偏好的存放形态 | **是[个人 context](../../../product/PF-016-cli-tui-delivery-surface/design.md#观感偏好) 的一部分，随账号走**：值在中心一侧，据点留一份副本供离线用，客户端不另存；不参与作用域求值。提案 D10 推荐的「随机器走」**被产品裁决推翻**，本行只保留它对本机副本文件形态的判断 | 副本文件格式**未钉** | candidate | [提案 D10](../../../record/proposals/cli-tui/alternatives.md#d10-配置文件形态) |
+| 线上协议与认证 | 据点 ↔ 中心：HTTPS 请求/响应 + 登录状态作 bearer + 显式版本协商，无推送；客户端 ↔ 据点：本机 socket，每条连接出示登录状态 | 协议版本**未钉**（契约未立） | candidate | [提案 D11](../../../record/proposals/cli-tui/alternatives.md#d11-线上协议与认证) |
+| 模型传输层 | `pi-ai` 定向 fork，与 agent runtime 同进程 | 取证基线 `@earendil-works/pi-ai@0.85.1`；**fork 的采用版本未钉**（[决定明确不钉](../../../record/decisions/model-provider-pi-ai-fork/decision.md)） | 已采用 | [D-019](../../../record/decisions/model-provider-pi-ai-fork/decision.md) |
+
+**模型传输层那一行「已采用」的精确范围只到采用方向**：fork 代码、API 形状、装配与符合性
+**都没有被接受，也都没有被验证**；所有模型请求经 OpenRouter 是
+[SYS-LLM](../../../foundation/cross-system-constraints/requirements.md#sys-llm) 的硬约束，不是本行的选择。
+**凭据落在哪已裁**（提案的 Q-凭据）：[每台机器上只有那个人自己那一把，配在租户层，中心不签发不轮换](../../../product/PF-016-cli-tui-delivery-surface/design.md#620-每台机器上只有自己那一把凭据)；
+模型传输取据点上那份租户层副本，客户端永不见值。它随范围值同步到据点的通路归待立的治理契约线上投影协议。
+
+## 分发与升级
+
+- **安装渠道**：npm 包，带 `bin`；要求本机 Node `>=24 <25`。同事各自安装、各自升级。
+- **平台承诺**：v1 目标是 macOS 与 Linux。**Windows 不承诺**——pty、命名管道与进程组语义三处都未验，
+  闭合条件是在 Windows 上跑通崩溃注入。**可移植性的下限由最弱的随包文件决定**：
+  随包的原生件或外部可执行文件进入分发前过同一道检查。
+- **版本偏差是生产常态**：客户端每次连接出示构建标识；与据点进程不一致时，
+  据点进程**先排空再重启**——关闭新运行的准入、等在途工具执行到上限、写完在途日志，然后退出重来。
+  **「发出退出」不等于已静止**，收口按[成对的装载与撤除](design.md#成对的装载与撤除)。
+- **存储带格式版本**，据点进程启动时迁移；会话事实在磁盘上，客户端升级不影响它。
+- **升级期间的语义保证不归本页**：「不丢东西」归 [PF-012](../../../product/PF-012-agent-loop-and-run/design.md) 与
+  [PF-015](../../../product/PF-015-session-lifecycle-and-ownership/design.md)，协议版本协商归那份待立的契约；
+  本页只写本应用的排空次序与安装渠道。
+- **不做自动更新、灰度与使用数据上报**——[产品非目标](../../../product/PF-016-cli-tui-delivery-surface/design.md#二目标与非目标)。
