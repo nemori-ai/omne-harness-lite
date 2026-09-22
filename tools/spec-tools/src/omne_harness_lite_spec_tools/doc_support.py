@@ -5,6 +5,7 @@ import hashlib
 import json
 import re
 from datetime import date
+from functools import lru_cache
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
@@ -54,7 +55,10 @@ def slug(text: str) -> str:
     return re.sub(r"[^\w\- ]", "", text.lower()).replace(" ", "-")
 
 
+@lru_cache(maxsize=None)
 def headings(path: Path) -> set[str]:
+    # 每条带锚点的链接都要查目标文件的标题集；一份上千行的契约被引用上千次时，
+    # 不缓存就是把它解析上千遍。一次检查运行内文件不变，按路径缓存即可。
     parsed = tokens(path)
     result = set()
     for index, token in enumerate(parsed[:-1]):
