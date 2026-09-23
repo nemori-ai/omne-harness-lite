@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v1/governance-center-entry.schema.json",
   "title": "composition.governance-center-entry v1 · 治理中心入口的线上形状",
-  "description": "候选（candidate）。本文件只给信封、四种入口答复、路由结果外形、公开与完整体检、GovernanceCenterId 与列表句柄的形状；判定次序、映射与每条路由的语义以 contract.md 为准。身份值不在此复述，一律引用 data.identity-values v1。各路由载荷项与成功返回的线上形状账本未给（contract.md G-5），本版不收紧。",
+  "description": "候选（candidate）。本文件只给信封、四种入口答复、路由结果外形、公开与完整体检、GovernanceCenterId 与列表句柄的形状；判定次序、映射与每条路由的语义以 contract.md 为准。身份值不在此复述，一律引用 data.identity-values v1。各路由载荷项与成功返回的成员名沿被投影条款所在契约的 Schema、入口不改名（contract.md S-17）；本文件只收紧本契约自己定名的两处：登录成功的返回（LoginResult）与登录状态列表的项（LoginStateListItem）。",
   "$defs": {
     "GovernanceCenterId": {
       "title": "治理中心标识 · Governance Center Id（contract.md S-27）",
@@ -18,13 +18,13 @@
     },
     "LoginStateHandle": {
       "title": "列表句柄（无词条）· loginStateHandle（contract.md S-9）",
-      "description": "由 LoginStateId 在同一中心上确定地派生、不可逆、部署内单射；不是出示物、不是秘密。交换表示是候选（G-5）：64 个小写十六进制字符，逐字符比较。",
+      "description": "由 LoginStateId 在同一中心上确定地派生、不可逆、部署内单射；不是出示物、不是秘密。交换表示：64 个小写十六进制字符，逐字符比较。",
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
     },
     "ProtocolVersion": {
       "title": "协议版本（contract.md S-8）",
-      "description": "客户端声明的线上协议版本。哪些值算对得上由具名参数 accepted_protocol_versions 决定（本契约不填值）。交换表示是候选（G-5）。",
+      "description": "客户端声明的线上协议版本。哪些值算对得上由具名参数 accepted_protocol_versions 决定（本契约不填值）。交换表示：非空字符串。",
       "type": "string",
       "minLength": 1
     },
@@ -34,7 +34,7 @@
     },
     "EnvelopeRouteId": {
       "title": "信封路由标识（contract.md S-17）",
-      "description": "路由表封闭：恰这 27 条，没有泛化分派。每个值是被投影条款的坐标；写法是候选（G-5）。表外的值 ⇒ invalid-input（S-10 ①′）。",
+      "description": "路由表封闭：恰这 27 条，没有泛化分派。每个值是被投影条款的坐标。表外的值 ⇒ invalid-input（S-10 ①′）。",
       "type": "string",
       "enum": [
         "composition.account-registration/v1#S-8",
@@ -80,7 +80,7 @@
         },
         "operation": { "$ref": "#/$defs/EnvelopeRouteId" },
         "payload": {
-          "description": "这条路由的载荷；没有载荷项时是空对象。各路由的成员名账本未给（G-5）。载荷里没有「以谁的身份」这一格：发起者、调用方、接受者的身份一律推导（S-12）。",
+          "description": "这条路由的载荷；没有载荷项时是空对象。成员名沿被投影条款所在契约的 Schema，入口不改名（S-17）。载荷里没有「以谁的身份」这一格：发起者、调用方、接受者的身份一律推导（S-12）。",
           "type": "object"
         }
       }
@@ -143,12 +143,38 @@
     },
     "RouteSuccess": {
       "title": "路由结果：成功（contract.md S-7）",
-      "description": "result 是被投影操作 ⑤ 的成功返回。成员名 result 与各路由返回的线上形状账本未给（G-5）。身份值按 data.identity-values v1 的规范形式原样给出。列出登录状态的每一项只含列表句柄与签发时间，不含 LoginStateId（S-20）；登录成功的返回是全部输出里出示物唯一出现的一处（S-19、S-29）。",
+      "description": "result 是被投影操作 ⑤ 的成功返回，成员名沿其所在契约的 Schema、入口不改名（S-17）；身份值按 data.identity-values v1 的规范形式原样给出。登录路由的 result 是 LoginResult（全部输出里出示物唯一出现的一处，S-19、S-29）；列出登录状态路由的 result 是 LoginStateListItem 的数组，不含 LoginStateId（S-20）。",
       "type": "object",
       "required": ["result"],
       "additionalProperties": false,
       "properties": {
         "result": true
+      }
+    },
+    "LoginResult": {
+      "title": "登录成功的返回（contract.md S-19）",
+      "description": "loginState 是新签发的 LoginStateId（出示物）；loginStateHandle 是它的列表句柄，客户端据它在列表里认出自己、用它退出。",
+      "type": "object",
+      "required": ["loginState", "loginStateHandle"],
+      "additionalProperties": false,
+      "properties": {
+        "loginState": { "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/LoginStateId" },
+        "loginStateHandle": { "$ref": "#/$defs/LoginStateHandle" }
+      }
+    },
+    "LoginStateListItem": {
+      "title": "登录状态列表的一项（contract.md S-20）",
+      "description": "恰此两样：列表句柄与签发时间。不含 LoginStateId——列一次就收走其余设备的出示物，正是列表句柄要挡住的事（S-9）。",
+      "type": "object",
+      "required": ["loginStateHandle", "issuedAt"],
+      "additionalProperties": false,
+      "properties": {
+        "loginStateHandle": { "$ref": "#/$defs/LoginStateHandle" },
+        "issuedAt": {
+          "description": "这个登录状态被签发的时刻（中心的钟），RFC 3339。",
+          "type": "string",
+          "format": "date-time"
+        }
       }
     },
     "ClientFaceReply": {
@@ -178,7 +204,7 @@
     },
     "DeploymentParameterDuration": {
       "title": "一项部署参数的值",
-      "description": "一个时长；交换表示是候选（G-5）：正整数毫秒。没有出厂默认。",
+      "description": "一个时长，以正整数毫秒表示。没有出厂默认。",
       "type": "integer",
       "minimum": 1
     },
@@ -204,7 +230,7 @@
     },
     "FullHealthReply": {
       "title": "完整体检答复（contract.md S-26）",
-      "description": "只在运维面上可读。失败集合为空：读不到的项是 false，不是失败。不含部署密钥或任何凭据的值，不含任何治理事实。「中心自身的故障」一项产品要求可见，但字段名账本未给（G-6）；在 G-6 闭合之前本定义不封闭成员集合，闭合时原地补上并加 additionalProperties: false。",
+      "description": "只在运维面上可读。恰此十项，没有别的成员。失败集合为空：读不到的项是 false，不是失败。不含部署密钥或任何凭据的值，不含任何治理事实。",
       "type": "object",
       "required": [
         "reachable",
@@ -215,8 +241,10 @@
         "deploymentKeyPresent",
         "deploymentKeyComplete",
         "clockSane",
+        "defectCount",
         "deploymentParameters"
       ],
+      "additionalProperties": false,
       "properties": {
         "reachable": { "const": true },
         "centerId": { "$ref": "#/$defs/GovernanceCenterId" },
@@ -241,6 +269,11 @@
         "clockSane": {
           "description": "本次读取时现读钟；读不到或比中心用过的最晚时刻早为 false。",
           "type": "boolean"
+        },
+        "defectCount": {
+          "description": "自本次启动以来记过的缺陷数（S-14）；启动时为 0，重启归零。「记过缺陷」即 defectCount > 0。",
+          "type": "integer",
+          "minimum": 0
         },
         "deploymentParameters": { "$ref": "#/$defs/DeploymentParameters" }
       }

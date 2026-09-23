@@ -14,7 +14,7 @@
 | **V-1** 判定次序 × 四种入口答复 × 「判不了优先于无效」：[S-6](v1/contract.md#s-6-四种入口答复)、[S-7](v1/contract.md#s-7-答复集合闭合)、[S-8](v1/contract.md#s-8-协议版本与跨版本不变的两样)、[S-10](v1/contract.md#s-10-判定次序)、[S-11](v1/contract.md#s-11-认人)、[S-13](v1/contract.md#s-13-补授权)、[S-14](v1/contract.md#s-14-失败映射)、[S-18](v1/contract.md#s-18-公开体检)、[S-19](v1/contract.md#s-19-免认人的两条路由注册登录)、[S-33](v1/contract.md#s-33-认出人之后登录状态被撤销) | TLC：[`EntryDecision.cfg`](v1/formal/EntryDecision.cfg) 的十二条不变量；映射见 [formal/README](v1/formal/README.md#本版本选用什么) | **已执行**（[下表](#实际执行)）：无反例，完整穷尽 | 范围：一次行为一个请求、模型抽象之内。**逐字节相同不在模型里**（V-5）；**哪个身份值、哪个组织**不在模型里（V-9、V-13） |
 | **V-2** [S-10](v1/contract.md#s-10-判定次序) 的进展、[S-32](v1/contract.md#s-32-进展性质与前提) 的「这一次就得到答复」 | TLC：`EventuallyAnswered`，前提 `WF_vars(Pipeline)`（中心在运行）、环境不受公平性约束 | **已执行**：时序性质在 752 个状态上检查完，无反例 | 前提 P1～P4 在真实系统里由运维者兑现，不是被证明的事实 |
 | **V-3** 模型断言不平凡 | 有效性核对 [`Validity_Reachability.cfg`](v1/formal/Validity_Reachability.cfg) ＋ 六个变异配置 | **已执行**：八条「从不」全部被违反；六个变异各得预期反例 | **六条断言没有专门变异**：`AnsweredClosed`、`HealthUnconditional`、`ExemptIgnoresPresentation`、`ExemptInputWithoutLookup`、`RejectionOnlyWhenJudged`、`NoDomainWithoutGates`。它们的前件可达，但没有证明它们会失败。责任：本契约的下一轮修订 |
-| **V-4** Schema 与样例一致 | 逐节把 [examples.md](v1/examples.md) 的第一列喂给 `$defs`，与第二列比对 | **已执行**：70 条实例，0 条不符 | `format: date-time` 按校验器默认只作注解，`startedAt` 的时间点形状没有被断言 |
+| **V-4** Schema 与样例一致 | 逐节把 [examples.md](v1/examples.md) 的第一列喂给 `$defs`，与第二列比对 | **已执行**：84 条实例，0 条不符 | `format: date-time` 按校验器默认只作注解，`startedAt` 与 `issuedAt` 的时间点形状没有被断言 |
 | **V-5** [S-6](v1/contract.md#s-6-四种入口答复)、[S-11](v1/contract.md#s-11-认人) 整个线上答复逐字节相同 | 规范场景 [S-39](v1/contract.md#s-39-规范场景拒绝逐字相同)：六种不认情形 ＋ 撤销落在认人与办事之间，比较传输层状态、头与体 | **未开始。**需要入口层提供者与一个具体的传输落地 | 受阻消费者：据点一侧的客户端代理。**TLC 的「同一个答复值」不能替代这一条** |
 | **V-6** [S-10](v1/contract.md#s-10-判定次序) 答复的先后（真实组合） | 规范场景 [S-38](v1/contract.md#s-38-规范场景答复的先后) | **未开始** | 同上 |
 | **V-7** [S-6](v1/contract.md#s-6-四种入口答复)、[S-14](v1/contract.md#s-14-失败映射) 三个出口不合并；缺陷在完整体检里可见 | 规范场景 [S-40](v1/contract.md#s-40-规范场景三个出口不合并)：故障注入让存储读不到、让领域给出集合外的值 | **未开始** | 责任：入口层提供者 ＋ 承载装配 |
@@ -23,8 +23,8 @@
 | **V-10** [S-15](v1/contract.md#s-15-δ--0每个请求现读入口不跨请求缓存)、[S-16](v1/contract.md#s-16-不记住来访不区别对待来者) 只认登录状态；中心一侧 δ = 0 | 规范场景 [S-42](v1/contract.md#s-42-规范场景只认登录状态不认客户端)：撤销之后**立刻**再来 | **未开始** | 模型表达不了跨请求缓存，**只能靠这条** |
 | **V-11** [S-27](v1/contract.md#s-27-governancecenterid-的形状与相等)、[S-28](v1/contract.md#s-28-铸造存放与不变) 中心标识 | 规范场景 [S-44](v1/contract.md#s-44-规范场景中心标识)，含「标识那一格启动时读不出来 ⇒ 起不来、不铸新的」 | **未开始** | 责任：入口层提供者。**读不到当作还没有**这一支必须真跑——它最容易被一个「查不到就新建」抹掉 |
 | **V-12** [S-24](v1/contract.md#s-24-有意不投影)、[S-25](v1/contract.md#s-25-运维面只在中心所在的机器上且没有治理路由) 两张面没有第三张 | 规范场景 [S-45](v1/contract.md#s-45-规范场景两张面没有第三张) ＋ 静态检查 SC-1～SC-3 | **未开始** | — |
-| **V-13** [S-19](v1/contract.md#s-19-免认人的两条路由注册登录)～[S-23](v1/contract.md#s-23-当前租户身份的两条路由) 路由表逐条映射 | 实现符合性测试：对 27 条路由的每一个可达失败值，观察线上答复等于路由表所写；含 `interrupted` 不改写、`identifier-held-by-expired-record` 不出现、空列表记缺陷 | **未开始** | 依赖 [G-5](v1/contract.md#十三已知缺口)（载荷与返回的线上形状） |
-| **V-14** [S-29](v1/contract.md#s-29-秘密不进任何输出)、[S-30](v1/contract.md#s-30-工程记录) 输出里搜不到秘密；工程记录边界 | 规范场景 [S-46](v1/contract.md#s-46-规范场景输出里搜不到秘密) | **未开始** | `FullHealthReply` 在 [G-6](v1/contract.md#十三已知缺口) 闭合前 Schema 不封闭成员集合，这一条只能靠场景 |
+| **V-13** [S-19](v1/contract.md#s-19-免认人的两条路由注册登录)～[S-23](v1/contract.md#s-23-当前租户身份的两条路由) 路由表逐条映射 | 实现符合性测试：对 27 条路由的每一个可达失败值，观察线上答复等于路由表所写；含 `interrupted` 不改写、`identifier-held-by-expired-record` 不出现、空列表记缺陷 | **未开始** | 载荷与返回的成员名按 [S-17](v1/contract.md#s-17-路由表封闭每条路由的九件事从哪读) 的成员名规则取自参与方契约的 Schema；三份参与方 v1 都不发布 Schema，这一部分在它们发布之前无从逐字比对 |
+| **V-14** [S-29](v1/contract.md#s-29-秘密不进任何输出)、[S-30](v1/contract.md#s-30-工程记录) 输出里搜不到秘密；工程记录边界 | 规范场景 [S-46](v1/contract.md#s-46-规范场景输出里搜不到秘密) | **未开始** | Schema 挡得住完整体检里多出的成员（`FullHealthReply` 已封闭）；答复、公开体检之外的输出与工程记录里的秘密只能靠场景 |
 | **V-15** [S-34](v1/contract.md#s-34-起来即整体停机时在途请求归谁) 起来即整体；停机先停收、再等在途、再关闭 | 装配的启动与撤除测试：让任一参与方的面缺席，观察客户端一面不应答；停机时注入在途请求 | **未开始** | 责任：承载装配 |
 
 ### 静态检查义务
@@ -50,7 +50,7 @@
 | `Validity_gateUnavailableAsDenied.cfg` | 同上 | 退出 12，`CannotJudgeIsUnavailable` 被违反 |
 | `Validity_defectAsResult.cfg` | 同上 | 退出 12，`DefectIsUnavailable` 被违反 |
 | 同一 formal task，经设计检查器执行 | `check_design.py --root .meta_harness/design --formal run`（在工作树根） | `FORMAL governance-center-entry-v1-decision: executed; exit=0`；检查器整体 `PASS`（同次另执行了已登记的四个任务，均 exit 0） |
-| [examples.md](v1/examples.md) 对 [Schema](v1/governance-center-entry.schema.json) 自检 | jsonschema 4.26.0 ＋ referencing 0.37.0，Draft 2020-12，注册表含本 Schema 与 `data.identity-values` v1 的 Schema | 70 条实例，0 条不符；`check_schema` 通过 |
+| [examples.md](v1/examples.md) 对 [Schema](v1/governance-center-entry.schema.json) 自检 | jsonschema 4.26.0 ＋ referencing 0.37.0，Draft 2020-12，注册表含本 Schema 与 `data.identity-values` v1 的 Schema | 首稿 70 条、0 条不符；按主线裁决修订后重跑（同日）84 条、0 条不符；两次 `check_schema` 都通过 |
 
 **工具与环境**：TLC2 Version 2026.09.12.025210（rev 867aefb），OpenJDK Temurin 21.0.12.1，1 worker，Linux 5.15 amd64。
 
@@ -81,3 +81,4 @@
 | 时间 | 变化 | 对证据的影响 |
 |---|---|---|
 | 2026-09-23 | 首稿：v1 候选包成稿，登记 catalog、covers、formal-tasks | 上表为首次执行。此后模型或任一配置改动，按哈希判断上表是否仍适用，不适用的整行作废重跑 |
+| 2026-09-23 | 按主线裁决原地修订（未冻结）：表示名与交换表示定稿（原 G-5 闭合），载荷与返回的成员名改为规则（沿参与方契约的 Schema，入口不改名），登录成功返回 `{ loginState, loginStateHandle }`、列表项 `{ loginStateHandle, issuedAt }` 进 Schema；完整体检加 `defectCount` 并封闭成员集合（原 G-6 闭合）；缺口重编号 G-7→G-5、G-8→G-6 | **形式模型与七个配置字节未变，上表 TLC 结果仍适用**（哈希不变）。Schema 与样例变了：自检已重跑，结果见「实际执行」末行 |

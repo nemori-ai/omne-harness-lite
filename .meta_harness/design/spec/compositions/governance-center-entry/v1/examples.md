@@ -12,7 +12,7 @@
 - **`通过` 只说形状合规。**判定次序、身份推导、补授权、映射、逐字相同都不在 Schema 的能力范围内；它们的证据在[形式工件](formal/README.md)与[验证入口](../verification.md)。
 - **信封「拒绝」不等于 `invalid-input`。**不合形状时答哪一种，由 [S-10](contract.md#s-10-判定次序) 按不合的是哪个成员决定；信封一节多给一列「线上答复」。
 - **标识串只是占位。**`LoginStateId` 的具体词法归 `data.identity-values` v1，示例里的 `lgs_` 前缀不承诺任何规则；
-  `GovernanceCenterId`、列表句柄的十六进制表示是候选（[G-5](contract.md#十三已知缺口)）。
+  `GovernanceCenterId` 与列表句柄的十六进制表示是本契约的定名（[S-27](contract.md#s-27-governancecenterid-的形状与相等)、[S-9](contract.md#s-9-列表句柄)）。
 
 ## 1. GovernanceCenterId
 
@@ -112,7 +112,7 @@
 |---|---|---|
 | `{"result": "registered"}` | 通过 | [S-19](contract.md#s-19-免认人的两条路由注册登录) |
 | `{"result": "ok"}` | 通过 | [S-20](contract.md#s-20-登录状态的两条路由撤销列出)、[S-21](contract.md#s-21-组织治理写路由) |
-| `{"result": {"organization": "org_kf22", "account": "acc_7f3c91"}}` | 通过 | [S-23](contract.md#s-23-当前租户身份的两条路由)：返回的形状以被投影条款为准（此处只为示意 `result` 可以是对象；线上形状待 [G-5](contract.md#十三已知缺口)） |
+| `{"result": {"organization": "org_kf22", "account": "acc_7f3c91"}}` | 通过 | [S-23](contract.md#s-23-当前租户身份的两条路由)：当前租户身份查询返回一个 `TenantId`，按 `data.identity-values` v1 的规范形式原样给出（[S-17](contract.md#s-17-路由表封闭每条路由的九件事从哪读) 的成员名规则） |
 | `{"result": "ok", "failure": "notAuthorized"}` | 拒绝 | [S-7](contract.md#s-7-答复集合闭合)：一个答复只属于一类 |
 | `{}` | 拒绝 | S-7 |
 
@@ -157,9 +157,36 @@
 
 | 实例 | 预期 | 依据 |
 |---|---|---|
-| `{"reachable": true, "centerId": "3f9c1e0a7b2d4c6e8f0a1b2c3d4e5f60", "version": "0.1.0", "startedAt": "2026-09-23T08:00:00Z", "storageReachable": false, "deploymentKeyPresent": true, "deploymentKeyComplete": true, "clockSane": true, "deploymentParameters": {"unactivatedRetention": 604800000, "invitationTtlDefault": 1209600000, "affiliationRequestTtlDefault": 1209600000, "copyNoticeTtlDefault": 604800000, "sharingInvitationTtlDefault": 604800000}}` | 通过 | [S-26](contract.md#s-26-完整体检)：数据所在够不着时 `storageReachable` 为 `false`，中心仍在应答 |
-| `{"reachable": true, "centerId": "3f9c1e0a7b2d4c6e8f0a1b2c3d4e5f60", "version": "0.1.0", "startedAt": "2026-09-23T08:00:00Z", "storageReachable": true, "deploymentKeyPresent": false, "deploymentKeyComplete": true, "clockSane": true, "deploymentParameters": {"unactivatedRetention": 604800000, "invitationTtlDefault": 1209600000, "affiliationRequestTtlDefault": 1209600000, "copyNoticeTtlDefault": 604800000, "sharingInvitationTtlDefault": 604800000}}` | 拒绝 | S-26：密钥两项是启动时载入的结果；缺了中心本来起不来 |
-| `{"reachable": true, "centerId": "3f9c1e0a7b2d4c6e8f0a1b2c3d4e5f60", "version": "0.1.0", "startedAt": "2026-09-23T08:00:00Z", "storageReachable": true, "deploymentKeyPresent": true, "deploymentKeyComplete": true, "clockSane": true}` | 拒绝 | S-26：部署参数是完整体检的一项 |
+| `{"reachable": true, "centerId": "3f9c1e0a7b2d4c6e8f0a1b2c3d4e5f60", "version": "0.1.0", "startedAt": "2026-09-23T08:00:00Z", "storageReachable": false, "deploymentKeyPresent": true, "deploymentKeyComplete": true, "clockSane": true, "defectCount": 0, "deploymentParameters": {"unactivatedRetention": 604800000, "invitationTtlDefault": 1209600000, "affiliationRequestTtlDefault": 1209600000, "copyNoticeTtlDefault": 604800000, "sharingInvitationTtlDefault": 604800000}}` | 通过 | [S-26](contract.md#s-26-完整体检)：数据所在够不着时 `storageReachable` 为 `false`，中心仍在应答 |
+| `{"reachable": true, "centerId": "3f9c1e0a7b2d4c6e8f0a1b2c3d4e5f60", "version": "0.1.0", "startedAt": "2026-09-23T08:00:00Z", "storageReachable": true, "deploymentKeyPresent": true, "deploymentKeyComplete": true, "clockSane": false, "defectCount": 3, "deploymentParameters": {"unactivatedRetention": 604800000, "invitationTtlDefault": 1209600000, "affiliationRequestTtlDefault": 1209600000, "copyNoticeTtlDefault": 604800000, "sharingInvitationTtlDefault": 604800000}}` | 通过 | S-26：本次启动以来记过三次缺陷、钟此刻不可信；两件事各有一项，不合并 |
+| `{"reachable": true, "centerId": "3f9c1e0a7b2d4c6e8f0a1b2c3d4e5f60", "version": "0.1.0", "startedAt": "2026-09-23T08:00:00Z", "storageReachable": true, "deploymentKeyPresent": false, "deploymentKeyComplete": true, "clockSane": true, "defectCount": 0, "deploymentParameters": {"unactivatedRetention": 604800000, "invitationTtlDefault": 1209600000, "affiliationRequestTtlDefault": 1209600000, "copyNoticeTtlDefault": 604800000, "sharingInvitationTtlDefault": 604800000}}` | 拒绝 | S-26：密钥两项是启动时载入的结果；缺了中心本来起不来 |
+| `{"reachable": true, "centerId": "3f9c1e0a7b2d4c6e8f0a1b2c3d4e5f60", "version": "0.1.0", "startedAt": "2026-09-23T08:00:00Z", "storageReachable": true, "deploymentKeyPresent": true, "deploymentKeyComplete": true, "clockSane": true, "defectCount": 0}` | 拒绝 | S-26：部署参数是完整体检的一项 |
+| `{"reachable": true, "centerId": "3f9c1e0a7b2d4c6e8f0a1b2c3d4e5f60", "version": "0.1.0", "startedAt": "2026-09-23T08:00:00Z", "storageReachable": true, "deploymentKeyPresent": true, "deploymentKeyComplete": true, "clockSane": true, "deploymentParameters": {"unactivatedRetention": 604800000, "invitationTtlDefault": 1209600000, "affiliationRequestTtlDefault": 1209600000, "copyNoticeTtlDefault": 604800000, "sharingInvitationTtlDefault": 604800000}}` | 拒绝 | S-26：`defectCount` 是十项之一，缺了就说不出中心自身出没出过故障 |
+| `{"reachable": true, "centerId": "3f9c1e0a7b2d4c6e8f0a1b2c3d4e5f60", "version": "0.1.0", "startedAt": "2026-09-23T08:00:00Z", "storageReachable": true, "deploymentKeyPresent": true, "deploymentKeyComplete": true, "clockSane": true, "defectCount": -1, "deploymentParameters": {"unactivatedRetention": 604800000, "invitationTtlDefault": 1209600000, "affiliationRequestTtlDefault": 1209600000, "copyNoticeTtlDefault": 604800000, "sharingInvitationTtlDefault": 604800000}}` | 拒绝 | S-26：`defectCount` 是非负整数 |
+| `{"reachable": true, "centerId": "3f9c1e0a7b2d4c6e8f0a1b2c3d4e5f60", "version": "0.1.0", "startedAt": "2026-09-23T08:00:00Z", "storageReachable": true, "deploymentKeyPresent": true, "deploymentKeyComplete": true, "clockSane": true, "defectCount": 0, "deploymentKey": "k-0f9e8d7c", "deploymentParameters": {"unactivatedRetention": 604800000, "invitationTtlDefault": 1209600000, "affiliationRequestTtlDefault": 1209600000, "copyNoticeTtlDefault": 604800000, "sharingInvitationTtlDefault": 604800000}}` | 拒绝 | S-26、[S-29](contract.md#s-29-秘密不进任何输出)：恰此十项；夹带部署密钥的值被挡住 |
+| `{"reachable": true, "centerId": "3f9c1e0a7b2d4c6e8f0a1b2c3d4e5f60", "version": "0.1.0", "startedAt": "2026-09-23T08:00:00Z", "storageReachable": true, "deploymentKeyPresent": true, "deploymentKeyComplete": true, "clockSane": true, "defectCount": 1, "lastDefect": {"route": "capability.organization-governance/v1#S-27"}, "deploymentParameters": {"unactivatedRetention": 604800000, "invitationTtlDefault": 1209600000, "affiliationRequestTtlDefault": 1209600000, "copyNoticeTtlDefault": 604800000, "sharingInvitationTtlDefault": 604800000}}` | 拒绝 | S-26：缺陷的细节只在工程记录里，体检只给计数 |
 
-**第 11 节只有反例说得满**：`FullHealthReply` 在 [G-6](contract.md#十三已知缺口) 闭合之前不封闭成员集合，
-所以「多了一个成员」这类反例（例如夹带部署密钥的值）**本版 Schema 挡不住**——那一条由 [S-29](contract.md#s-29-秘密不进任何输出) 与规范场景 [S-46](contract.md#s-46-规范场景输出里搜不到秘密) 守。
+Schema 挡得住体检里多出的成员；答复与工程记录里的秘密仍由 [S-29](contract.md#s-29-秘密不进任何输出) 与规范场景 [S-46](contract.md#s-46-规范场景输出里搜不到秘密) 守。
+
+## 12. 登录成功的返回
+
+**校验对象**：`$defs/LoginResult`
+
+| 实例 | 预期 | 依据 |
+|---|---|---|
+| `{"loginState": "lgs_3c7e11", "loginStateHandle": "9b1d5e0f3a7c2b4d6e8f0a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b"}` | 通过 | [S-19](contract.md#s-19-免认人的两条路由注册登录)：出示物与它的列表句柄 |
+| `{"loginState": "lgs_3c7e11"}` | 拒绝 | S-19：缺句柄，客户端就无从在列表里认出自己、也无从退出 |
+| `{"loginStateId": "lgs_3c7e11", "loginStateHandle": "9b1d5e0f3a7c2b4d6e8f0a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b"}` | 拒绝 | S-19：成员名是 `loginState` |
+| `{"loginState": "lgs_3c7e11", "loginStateHandle": "9b1d5e0f3a7c2b4d6e8f0a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b", "account": "acc_7f3c91"}` | 拒绝 | S-19：返回恰此两样，不夹带账号 |
+| `{"loginState": "", "loginStateHandle": "9b1d5e0f3a7c2b4d6e8f0a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b"}` | 拒绝 | `data.identity-values` v1 S-12：空串不是身份值 |
+
+## 13. 登录状态列表的一项
+
+**校验对象**：`$defs/LoginStateListItem`
+
+| 实例 | 预期 | 依据 |
+|---|---|---|
+| `{"loginStateHandle": "9b1d5e0f3a7c2b4d6e8f0a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b", "issuedAt": "2026-09-23T08:00:00Z"}` | 通过 | [S-20](contract.md#s-20-登录状态的两条路由撤销列出) |
+| `{"loginStateHandle": "9b1d5e0f3a7c2b4d6e8f0a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b", "issuedAt": "2026-09-23T08:00:00Z", "loginState": "lgs_3c7e11"}` | 拒绝 | S-20、[S-9](contract.md#s-9-列表句柄)：列表不含 `LoginStateId` |
+| `{"loginStateHandle": "9b1d5e0f3a7c2b4d6e8f0a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b"}` | 拒绝 | S-20：每一项都带签发时间 |
+| `{"loginStateHandle": "lgs_3c7e11", "issuedAt": "2026-09-23T08:00:00Z"}` | 拒绝 | S-9：一个 `LoginStateId` 不是句柄 |
