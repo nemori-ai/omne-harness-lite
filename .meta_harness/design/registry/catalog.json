@@ -607,7 +607,9 @@
           },
           "clauses": [
             "$defs/Usage",
-            "$defs/Cost"
+            "$defs/Cost",
+            "$defs/RunId",
+            "$defs/AttemptId"
           ],
           "rebase_relation": null
         },

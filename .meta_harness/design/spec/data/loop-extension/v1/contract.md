@@ -11,12 +11,12 @@
 
   | 坐标 | 取它的什么 | 状态 |
   |---|---|---|
-  | `omne-harness-lite-design-2026-09-15 · data.identity-values · v1` | [S-31](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示) 不透明标识的交换表示——`RunRef`、`LogHandle` 用它 | 已接受、已冻结 |
+  | `omne-harness-lite-design-2026-09-15 · data.identity-values · v1` | [S-31](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示) 不透明标识的交换表示——`LogHandle` 照它的规则在本契约内定义（不跨契约 `$ref` 那一个 `$def`） | 已接受、已冻结 |
   | `omne-harness-lite-design-2026-09-15 · data.offer-expiry · v1` | [S-22](../../offer-expiry/v1/contract.md#s-22-schema-的范围) 的 `$defs/Instant`——结论落下的时刻 | 已接受、已冻结 |
   | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1` | `$defs/ToolCallBlock`、`ToolResultBlock`、`CallId`、`ExecutionOutcome`，以及 `CapabilityId` 的 `name` 成员（拓展件名与工具定义名的表示） | **候选，并行起草** |
   | `omne-harness-lite-design-2026-09-15 · data.messages · v1` | `$defs/Message`、`SystemReminderMessage`、`AssistantMessage`、`CompactionMessage` | **候选，第二波起草中** |
   | `omne-harness-lite-design-2026-09-15 · data.model-profile · v1` | `$defs/ModelProfileRef`、`ModelRequestParameters`、`ProviderName` | **候选，并行起草** |
-  | `omne-harness-lite-design-2026-09-15 · data.call-accounts · v1` | `$defs/Usage`、`Cost` | **候选，并行起草** |
+  | `omne-harness-lite-design-2026-09-15 · data.call-accounts · v1` | `$defs/Usage`、`Cost`；`$defs/RunId`、`AttemptId`——运行与执行尝试的标识，家在那份契约 | **候选，并行起草** |
   | `omne-harness-lite-design-2026-09-15 · data.tool-definition · v1` | `$defs/DependencyName`、`Duration` | **候选，并行起草** |
 
   **只引名字，不复述定义。**上面五份候选的正文与条款号尚未定型，本契约正文**不链接它们的文件、不引它们的条款号**，只以坐标与 `$defs` 名指认
@@ -40,7 +40,7 @@
 | 改参数先落一条生效参数；放行、人签、执行是同一份参数 | [PF-012 §5.8 改参数](../../../../product/PF-012-agent-loop-and-run/design.md#改参数先落一条生效参数) | [S-23](#s-23-rewrite)、[G-13](#十四已知缺口) |
 | 三种形态：点式与瀑布式采用，环绕式拆两半 | [PF-012 §5.8 三种形态](../../../../product/PF-012-agent-loop-and-run/design.md#三种形态两种装得进一种拆两半) | [S-13](#s-13-瀑布里的-subject-与-earlier)、[S-19](#s-19-结论封闭八种) |
 | 等人是 loop 的原语（五小节） | [PF-012 §5.8 等人是 loop 的原语](../../../../product/PF-012-agent-loop-and-run/design.md#等人是-loop-的原语) · [协程不在了](../../../../product/PF-012-agent-loop-and-run/design.md#协程不在了靠日志不靠记忆) · [写拓展件的人要守的一条](../../../../product/PF-012-agent-loop-and-run/design.md#写拓展件的人要守的一条) · [一批动作先全部判完](../../../../product/PF-012-agent-loop-and-run/design.md#一批动作先全部判完再执行任何一个) · [两个地方等不了](../../../../product/PF-012-agent-loop-and-run/design.md#两个地方等不了) | [S-14](#s-14-按位置的-subject)、[S-28](#s-28-ask)、[S-35](#s-35-跨过一次等待只能带已落日志的东西) |
-| 循环守卫四级 | [PF-012 §5.9](../../../../product/PF-012-agent-loop-and-run/design.md#59-循环守卫四级阶梯) | [消费者表](#消费者)、[G-10](#十四已知缺口) |
+| 循环守卫四级 | [PF-012 §5.9](../../../../product/PF-012-agent-loop-and-run/design.md#59-循环守卫四级阶梯) | [消费者表](#消费者)、[S-26](#s-26-stop) |
 | 拓展件只能靠改日志起作用；验收办法 | [PF-012 §6.9](../../../../product/PF-012-agent-loop-and-run/design.md#69-拓展件只能靠改日志起作用) | [S-32](#s-32-结论即走向)、[S-35](#s-35-跨过一次等待只能带已落日志的东西) |
 | 能干预的拓展件必须留下结论；各结论至少落什么 | [PF-012 §6.10](../../../../product/PF-012-agent-loop-and-run/design.md#610-能干预的拓展件必须留下结论) | [S-30](#s-30-每件的结论必留)、[S-31](#s-31-三种记录形状) |
 | 终态三种，原因不是终态 | [PF-012 §6.6](../../../../product/PF-012-agent-loop-and-run/design.md#66-终态不可逆且只有一个出口) · [运行终态](../../../../product/PF-012-agent-loop-and-run/design.md#运行终态) | [S-18](#s-18-terminalfact) |
@@ -51,19 +51,28 @@
 | 设置与权限是资产的两种属性；设置项四类（位置与情形属绑定类） | [PF-002 §5.2](../../../../product/PF-002-assets-settings-and-permissions/design.md#52-设置与权限是资产的两种属性) · [设置项分四类](../../../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别) | [S-4](#s-4-干预力三档)、[S-6](#s-6-声明的成员与类别) |
 | 选中模型与有效模型；合法目标集合 | [PF-013 §4 选中模型与有效模型](../../../../product/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型) · [§5.10](../../../../product/PF-013-model-profiles-and-invocation/design.md#510-合法目标集合与展示列表是两件事) | [S-24](#s-24-select_model) |
 | 上交成因八个；状态码原样带 | [PF-013 §5.7](../../../../product/PF-013-model-profiles-and-invocation/design.md#57-上交带什么原样带着状态码不翻译它) · [§6.14](../../../../product/PF-013-model-profiles-and-invocation/design.md#614-上交带的成因是封闭枚举外加一个诚实的兜底状态码另外原样带着) | [S-17](#s-17-failurecause) |
-| 三类事实归本层定死；被中断不是故障 | [PF-013 §5.4](../../../../product/PF-013-model-profiles-and-invocation/design.md#54-三类事实归本层定死其余照状态码) · [还有一种没走完](../../../../product/PF-013-model-profiles-and-invocation/design.md#还有一种没走完它不在这张表里) · [§6.12](../../../../product/PF-013-model-profiles-and-invocation/design.md#612-事实判断归本-topic策略归拓展件) | [S-17](#s-17-failurecause)、[S-27](#s-27-retry)、[G-11](#十四已知缺口) |
+| 三类事实归本层定死；被中断不是故障 | [PF-013 §5.4](../../../../product/PF-013-model-profiles-and-invocation/design.md#54-三类事实归本层定死其余照状态码) · [还有一种没走完](../../../../product/PF-013-model-profiles-and-invocation/design.md#还有一种没走完它不在这张表里) · [§6.12](../../../../product/PF-013-model-profiles-and-invocation/design.md#612-事实判断归本-topic策略归拓展件) | [S-2](#s-2-两个维度)、[S-17](#s-17-failurecause)、[S-27](#s-27-retry) |
 | 重试站在已有的位置上；每次发出只走一家；它看得到什么、能决定什么 | [PF-013 §5.12](../../../../product/PF-013-model-profiles-and-invocation/design.md#512-重试站在一个已经存在的位置上) | [S-14](#s-14-按位置的-subject)、[S-27](#s-27-retry) |
 | 放行判断的输入输出与定死的四档选项 | [PF-008 §5.2](../../../../product/PF-008-human-in-the-loop/design.md#52-那个判断函数) | [S-28](#s-28-ask)、[G-6](#十四已知缺口) |
 | 决策卡片；三种来源同一个形状；拓展件出的卡要标是哪一件 | [PF-008 §4 决策卡片](../../../../product/PF-008-human-in-the-loop/design.md#决策卡片) · [§6.8](../../../../product/PF-008-human-in-the-loop/design.md#68-三种来源的卡片同一个形状选项与记录不同) · [§6.9](../../../../product/PF-008-human-in-the-loop/design.md#69-人拒绝之后agent-分得出那是拒绝) | [S-28](#s-28-ask) |
 | 卸载判定站在执行动作之后（这一个） | [PF-006 §6.10](../../../../product/PF-006-tools-and-skills/design.md#610-结果太大时卸载而卸载是第三个维度) | [消费者表](#消费者)、[S-23](#s-23-rewrite) |
 | 拓展点协议的兼容层：fork 边界、G1–G11 推迟到协议起草 | [D-033](../../../../record/decisions/hooks-compat-baseline/decision.md) | [S-8](#s-8-原生件与兼容件)、[十五、明确不承诺](#十五明确不承诺) |
+| 同一位置只按装配顺序；`rewrite` 只改还没落盘的那一样；运行时只认统一入出；结论封闭（四种改走向加 `select_model`）；ReminderSource 封闭加 `extension` 兜底 | [D-038](../../../../record/decisions/message-and-shape-rulings/decision.md#十九处分岔) Q8 · Q9 · Q10 · Q19 · Q3 | [S-8](#s-8-原生件与兼容件)、[S-10](#s-10-本版没有-order)、[S-19](#s-19-结论封闭八种)、[S-22](#s-22-inject)、[S-23](#s-23-rewrite) |
+| 改这一次调用的目标模型要留口子 | [D-038 8c](../../../../record/decisions/message-and-shape-rulings/decision.md#追加要求三条) | [S-24](#s-24-select_model) |
+| 三种报错处置策略各落什么：`ignore` 只落日志；`record` 落日志并在下一次组装注入一条「某件没跑成」；`treat_as_veto` 在「之后」的位置等于落失败 | 主线裁定 2026-09-23，待产品负责人确认 | [S-5](#s-5-报错处置策略) |
+| 被用户中断的模型调用不触发调模型之后 | 主线裁定 2026-09-23，待产品负责人确认 | [S-2](#s-2-两个维度) |
+| 回复或系统追加的消息在落盘之前被否决：不落盘、结论落日志、调用照常结束；再来一次是下一次迭代的新调用，不走成因 | 主线裁定 2026-09-23，待产品负责人确认 | [S-2](#s-2-两个维度)、[S-17](#s-17-failurecause)、[S-25](#s-25-veto)、[S-27](#s-27-retry) |
+| `after_terminal` 不许注入 | 主线裁定 2026-09-23，待产品负责人确认 | [S-21](#s-21-位置与结论的合法组合)、[S-22](#s-22-inject) |
+| `stop` 带 `terminal`（被取消 / 失败，缺席即被取消）；循环守卫 L3 用失败 | 主线裁定 2026-09-23，待产品负责人确认 | [S-26](#s-26-stop)、[消费者表](#消费者) |
+| 运行与执行尝试的标识取 `data.call-accounts` 的 `RunId`、`AttemptId`；不透明标识不跨契约引用 | 主线裁定 2026-09-23，待产品负责人确认 | [S-12](#s-12-三个引用) |
 | 统一语言正式名与形态 | [UL-loop-extension](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension) · [UL-loop-extension-point](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point) · [UL-wait-primitive](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-wait-primitive--等待原语--wait-primitive) · [UL-replay](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-replay--回放--replay) · [UL-decision-card](../../../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-decision-card--决策卡片--decision-card) · [UL-admission-decision](../../../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-admission-decision--放行判断--admission-decision) · [UL-run](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run--运行--run) · [UL-run-attempt](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt) · [UL-run-terminal-state](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run-terminal-state--运行终态--run-terminal-state) · [UL-effective-model](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-effective-model--有效模型--effective-model) · [UL-setting-category](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category) · [UL-dependency-declaration](../../../../ubiquitous_language/terms/reach-and-availability.md#ul-dependency-declaration--依赖声明--dependency-declaration)；只引：[UL-agent-runtime](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-agent-runtime--agent-runtime--agent-runtime) · [UL-record-entry](../../../../ubiquitous_language/terms/record-and-context.md#ul-record-entry--记录条目--record-entry) · [UL-assembly-manifest](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest) | 全部正式名 |
 
 > **这张表里没有产品行的条款，逐条点名：**
 >
 > | 条款 | 它的依据来自哪 |
 > |---|---|
-> | [S-10](#s-10-本版没有-order)、[S-19](#s-19-结论封闭八种) 的「封闭八种」、[S-23](#s-23-rewrite) 的「只改还没落盘的」 | **产品负责人 2026-09-23 对形状草案 §6 的裁决**（Q8 只按装配顺序、Q19 四种改走向加 `select_model`、Q9 `rewrite` 只改还没落盘的、Q10 运行时只认统一入出）——经主线施工简报交付，不在产品正文里 |
+> | [S-10](#s-10-本版没有-order)、[S-19](#s-19-结论封闭八种) 的「封闭八种」、[S-23](#s-23-rewrite) 的「只改还没落盘的」 | 产品负责人 2026-09-23 的裁决，长期落点 [D-038](../../../../record/decisions/message-and-shape-rulings/decision.md#十九处分岔)（Q8、Q19、Q9、Q10），不在产品正文里 |
+> | 上表里六行「主线裁定 2026-09-23」 | 主线在产品负责人裁决之前先定的，**待产品负责人确认**；其中「回复在落盘之前被否决」与 [PF-012 rev 10 §5.8 否决分三路](../../../../product/PF-012-agent-loop-and-run/design.md#消息落盘之前的否决按消息是谁产生的分三路)「模型吐的回复」那一行的现行措辞（「当作这次模型调用失败」）不同——本契约按裁定写，产品正文的跟进归 PF-012 owner |
 > | [S-36](#s-36-规范表示与定义项)～[S-39](#s-39-判别式与枚举闭合)，以及 [S-12](#s-12-三个引用) 的表示部分 | [SYS-SPEC](../../../../foundation/cross-system-constraints/requirements.md#sys-spec)：表示、校验与「表示层不等于判定」是规格形式的要求，产品正文不承诺这一层 |
 > | [第十节装配给与协议给](#十装配给与协议给) | [SYS-DEPLOY](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy) |
 
@@ -115,7 +124,7 @@
 
 | 件 | 位置（维度） | 干预力 | 用得到的结论 |
 |---|---|---|---|
-| 循环探测（[PF-012 §5.9](../../../../product/PF-012-agent-loop-and-run/design.md#59-循环守卫四级阶梯)） | `after_model_call`（`complete_reply`） | 可改写 · 可否决 | L0 `observed`；L1/L2 `inject`；L4 `ask`；**L3「落终态失败」在封闭八种里没有对应——见 [G-10](#十四已知缺口)** |
+| 循环探测（[PF-012 §5.9](../../../../product/PF-012-agent-loop-and-run/design.md#59-循环守卫四级阶梯)） | `after_model_call`（`complete_reply`） | 可改写 · 可否决 | L0 `observed`；L1/L2 `inject`；L3 `stop{ terminal: failed }`（落失败，原因：原地打转）；L4 `ask` |
 | 放行判断（[UL-admission-decision](../../../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-admission-decision--放行判断--admission-decision)） | `before_action` | 可否决 | `observed`、`veto`、`ask`（选项定死，[G-6](#十四已知缺口)） |
 | 卸载判定（[PF-006 §6.10](../../../../product/PF-006-tools-and-skills/design.md#610-结果太大时卸载而卸载是第三个维度)） | `after_action`（`each`） | 可改写 | `observed`、`rewrite`（结果换成占位） |
 | 模态转换 | `before_persist_message` | 可改写 · 可否决（转不成就不落盘：报错策略 `treat_as_veto`） | `observed`、`rewrite`（给块挂派生表示与 transcript） |
@@ -147,12 +156,12 @@
 | `LoopPosition` 的十一个值 | [Loop 拓展点](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)的十一个位置，逐个见 [S-1](#s-1-十一个位置) |
 | `LoopExtensionDefinition` | [拓展件 · Loop Extension](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension)的声明 |
 | `Power` 的 `observe` / `rewrite` / `veto` | 干预力的只观察 / 可改写 / 可否决（**干预力无词条**，定义在 [PF-000 §4](../../../../product/PF-000-occurrences-and-record-entries/design.md#干预力--intervention-power)） |
-| `TerminalFact.state` 的 `completed` / `failed` / `cancelled` | [运行终态](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run-terminal-state--运行终态--run-terminal-state)的完成 / 失败 / 被取消 |
+| `TerminalFact.state` 的 `completed` / `failed` / `cancelled`；`stop.terminal` 的 `failed` / `cancelled` | [运行终态](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run-terminal-state--运行终态--run-terminal-state)的完成 / 失败 / 被取消 |
 | `AskOutput`、`DecisionCardDraft` | 落一张[决策卡片](../../../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-decision-card--决策卡片--decision-card)等人，用的是[等待原语](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-wait-primitive--等待原语--wait-primitive) |
 | `SelectModelOutput` | 改这一次请求的[有效模型](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-effective-model--有效模型--effective-model) |
 | `needs` | [依赖声明](../../../../ubiquitous_language/terms/reach-and-availability.md#ul-dependency-declaration--依赖声明--dependency-declaration)（词条正文写的是「工具或技能」，本契约把同一概念用在拓展件上，见 [G-5](#十四已知缺口)） |
 
-**`Dimension`、`ErrorPolicy`、`Subject`、`ExtensionInput`、`ExtensionOutput`、`Conclusion`、`RunRef`、`AttemptRef`、`LogHandle`、`TerminalFact`、`RetryPlan`、`CardOption` 是规格层的形状名，不是词条**，Schema 里因此不给它们「中文 · English」式标题。
+**`Dimension`、`ErrorPolicy`、`Subject`、`ExtensionInput`、`ExtensionOutput`、`Conclusion`、`LogHandle`、`TerminalFact`、`RetryPlan`、`CardOption` 是规格层的形状名，不是词条**，Schema 里因此不给它们「中文 · English」式标题。
 
 **正文用到、词表里没有的概念（无词条）**——本契约**不给它们下定义**，只指到产品正文：
 干预力（[PF-000 §4](../../../../product/PF-000-occurrences-and-record-entries/design.md#干预力--intervention-power)）、
@@ -171,7 +180,7 @@
 - **维度 ≠ 位置。**`after_model_call{failure}` 仍是 `after_model_call`；维度是挂件声明自己管哪一种的**筛选条件**，不管的那种它根本不被调到。
 - **声明里的值 ≠ 这一次的值。**`position`、`dimension` 是绑定类设置的出厂值，`power` 是干预力这项权限的出厂值；各层配值之后求得的才是这一次经过用的——**输入与结论记录里带的是求得的值**（[S-4](#s-4-干预力三档)、[S-6](#s-6-声明的成员与类别)）。
 - **`ask` ≠ 一个终结的结论。**它让这一次经过停在等人；人答完，同一件经回放交回它这一次的最终结论（[S-28](#s-28-ask)）。
-- **`stop` ≠ `veto`。**`veto` 拦的是它站的那个状态点；`stop` 叫停的是整次运行（落取消请求再落「被取消」）。
+- **`stop` ≠ `veto`。**`veto` 拦的是它站的那个状态点；`stop` 让整次运行不再继续（落「被取消」或「失败」）。
 - **不可用 ≠ 报错 ≠ 在等人**（[S-33](#s-33-不可用与报错两分)）。
 - **表示层拒绝 ≠ 判定**（[S-38](#s-38-表示层拒绝不是判定)）。
 
@@ -216,9 +225,9 @@
   要两种都管，就是两件拓展件（两份声明、两个 name）。
 - **在其余九个位置上维度必不带**；带了、或带了不属于该位置的那一种（例如 `after_model_call` 带 `scope`），即 `dimension_not_allowed`。
 - 这条配对对**每一处**成立：声明、输入、结论记录；对各层配值之后**求得的**那一对同样成立（[S-6](#s-6-声明的成员与类别)）。
-- **被用户中断的那一次模型调用不是 `failure`**——被中断不是故障（[PF-013](../../../../product/PF-013-model-profiles-and-invocation/design.md#还有一种没走完它不在这张表里)），也不是 `complete_reply`。
-  **它之后 `after_model_call` 触不触发、以哪一种维度触发，本契约不给答案**，见 [G-11](#十四已知缺口)；
-  消费者不得把它映射到两个取值中的任何一个。
+- **`after_model_call` 只在两种收场之后触发：完整回复落了盘（`complete_reply`），或调用失败、带着成因（`failure`）。**下面两种调用都**不触发**它：
+  - **被用户中断的那一次**——被中断既不是收场也不是故障（[PF-013 还有一种没走完](../../../../product/PF-013-model-profiles-and-invocation/design.md#还有一种没走完它不在这张表里)），不映射到两个取值中的任何一个；
+  - **回复在落盘之前被否决的那一次**——那次调用照常结束，回复没进日志（[S-25](#s-25-veto)）。在这里触发就得把一份没落盘的回复交给后面的件，而它们的结论要落日志（[P-11](#十二性质)）。
 
 ### S-3 「管哪些情形」本版只有维度
 
@@ -235,12 +244,12 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 |---|---|---|
 | `observe` | 看，不改 | 只有 `observed` |
 | `rewrite` | 追加一条，或决定下一条还没落盘的长什么样 | 见 [S-20](#s-20-档与结论的合法组合) |
-| `veto` | 以上全部，外加拦住它站的那个状态点、叫停这次运行、**落一张卡片等人** | 八种全部（仍受位置约束） |
+| `veto` | 以上全部，外加拦住它站的那个状态点、让这次运行不再继续、**落一张卡片等人** | 八种全部（仍受位置约束） |
 
 - **没有「放宽」这一档**，也没有任何结论能把一次「问一下」变成放行（[S-29](#s-29-没有放宽)）。
 - **「等人」不是第四档**：拦得住才谈得上等，它属于 `veto`。
 - **干预力是拓展件的一项权限，不是设置**（[PF-002](../../../../product/PF-002-assets-settings-and-permissions/design.md#loop-extension)）。
-  声明里的 `power` 是这项权限的**出厂值**（定义给默认值，Q6）；各层只能**收窄**；
+  声明里的 `power` 是这项权限的**出厂值**（定义给默认值，与 [D-038 Q6](../../../../record/decisions/message-and-shape-rulings/decision.md#十九处分岔) 对工具定义的裁决同一口径）；各层只能**收窄**；
   工作区带来的拓展件一律只观察（[PF-002 §5.7](../../../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算)）。
   **这一次经过用的是求得的值**，结论合不合法按它判，并记在结论记录的 `power` 上（[S-30](#s-30-每件的结论必留)）。
   求值归资产领域的能力，本契约只要求：**求得的值不高于声明的值**。
@@ -250,23 +259,25 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 
 **`ErrorPolicy` 恰三个值，说一件拓展件「可用却运行时报错」时这一次怎么处置：**
 
-| token | 这一次经过的走向 | 结论记录 |
+| token | 对 agent 的效果 | 结论记录（`skipped: errored` ＋ `error` ＋ 下面这个 `output`） |
 |---|---|---|
-| `ignore` | 不受影响 | `skipped: errored`，`output` 为 `observed` |
-| `record` | 不受影响 | `skipped: errored`，`output` 为 `observed` |
-| `treat_as_veto` | **当作否决**（fail-closed） | `skipped: errored`，`output` 为 `veto`（**只在五个「之前」位置有这一格**，见下） |
+| `ignore` | **没有任何效果**：这一次经过照常往下走 | `observed` |
+| `record` | 这一次经过照常往下走；**另往日志追加一条系统提醒，说本件这一次没跑成**，下一次组装看得到它 | `inject`，那条提醒见下 |
+| `treat_as_veto` | **fail-closed**：在「之前」的位置拦住那个状态点；在「之后」的位置**运行不再继续** | 五个「之前」的位置 `veto`；`after_terminal` 以外的五个「之后」的位置 `stop{ terminal: failed }`（[S-26](#s-26-stop)） |
 
+- **`treat_as_veto` 在「之后」的位置 ≡ `stop{ terminal: failed, reason }`**：那里没有可否决的状态点（[S-21](#s-21-位置与结论的合法组合)），fail-closed 就是这次运行不再继续——落「失败」，原因指向本件。
+- **`record` 那条提醒**：`source` 为 `extension`、`source.extension` 为本件的 name（与 [S-22](#s-22-inject) 同一条来源规则），内容只说「本件这一次没跑成」，给模型看。
+  它是 runner 以本件名义写的，**不转述报错详情**——那些只在结论记录的 `error` 里，且同样守 [S-31](#s-31-三种记录形状) 的「不带凭据、不转述没落盘的内容」。
+- **`after_terminal` 上三种都落 `observed`**：那里唯一合法的结论是 `observed`（[S-21](#s-21-位置与结论的合法组合)）。
+  运行已落终态，「不再继续」本来就成立；而一条提醒会让队列变非空、起下一次运行，那正是 `after_terminal` 不许注入的原因。
 - **缺席时的默认按求得的干预力取**，不是「不处置」：`observe` → `ignore`，`rewrite` → `record`，`veto` → `treat_as_veto`
   （[PF-012 §5.8 干预力三档表](../../../../product/PF-012-agent-loop-and-run/design.md#干预力三档直接用-pf-000-的)最后一列）。
-- **`treat_as_veto` 只有 `veto` 档能声明**：`observe`、`rewrite` 声明它即 `malformed`——
-  那等于让一件拦不住任何东西的件在报错时拦下东西。
-- **求得的策略不高于求得的干预力**：声明了 `treat_as_veto`、而这一次求得的干预力被收窄到 `observe` 或 `rewrite`，
+- **策略不高于干预力**：`observe` 只能声明 `ignore`，`rewrite` 不能声明 `treat_as_veto`，违者即 `malformed`——
+  否则一件不能注入的件会在报错时注入，一件拦不住任何东西的件会在报错时拦下东西。
+- **求得的策略同样不高于求得的干预力**：声明的策略高于这一次求得的干预力（例如声明 `treat_as_veto`、这一次被收窄到 `rewrite`），
   这一次按**那一档的默认**处置——拦不住东西的件，报错时同样拦不住。
 - **无论哪一种，处置本身都在那条结论记录里、可见**（[S-31](#s-31-三种记录形状)）。
-- **两处本版说不清的，不填默认值**：
-  `ignore` 与 `record` 在「每件的结论必留」之下**可观察后果相同**，二者的区别见 [G-8](#十四已知缺口)；
-  `treat_as_veto` 落在**「之后」的位置**上时，那里没有合法的否决可落（[S-21](#s-21-位置与结论的合法组合)），
-  这一格的处置见 [G-9](#十四已知缺口)——**在它闭合之前，runner 契约不得自行把这一格写成 `observed`**。
+- `veto`、`stop` 的 `reason` 由 runner 写，指明是本件报错按 `treat_as_veto` 处置；**不转述报错详情**，理由同上。
 - `ErrorPolicy` 是规格层的策略 token；它在资产上算哪一类设置，见 [G-7](#十四已知缺口)。
 
 ## 四、声明
@@ -299,7 +310,7 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 - **位置、维度、干预力、实现都不是身份**：同一个位置挂的多件是不同的资产，彼此不构成同标识覆盖；
   覆盖只发生在**同一个 name** 的不同实现之间（[PF-002](../../../../product/PF-002-assets-settings-and-permissions/design.md#身份是类别--name其余归实现)）。
 - 本契约里另有三处用这个 `name` 指认「本件」：结论记录的 `extension`（[S-30](#s-30-每件的结论必留)）、
-  `inject` 那条提醒的 `source.extension`（[S-22](#s-22-inject)）、取消请求的发起方（[S-26](#s-26-stop)）。**三处都必须等于本件的 name**。
+  `inject` 那条提醒的 `source.extension`（[S-22](#s-22-inject)）、`stop{ terminal: cancelled }` 落下的取消请求的发起方（[S-26](#s-26-stop)）。**三处都必须等于本件的 name**。
 
 ### S-8 原生件与兼容件
 
@@ -325,7 +336,7 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 
 ### S-10 本版没有 order
 
-**声明里没有次序成员。同一位置上几件的先后 = 装配清单里的顺序**（Q8 已裁；[装配清单](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest)是留痕，所以次序可复现）；
+**声明里没有次序成员。同一位置上几件的先后 = 装配清单里的顺序**（[D-038 Q8](../../../../record/decisions/message-and-shape-rulings/decision.md#十九处分岔) 已裁；[装配清单](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest)是留痕，所以次序可复现）；
 系统自带件与外来件一并按此排。带 `order` 的声明即 `malformed`。
 
 **这条只定「次序从哪来」，没有定「放行之后参数不许再变」由谁守**——见 [G-13](#十四已知缺口)。
@@ -351,15 +362,17 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 
 ### S-12 三个引用
 
-| 引用 | 含义 | 表示 | 相等 |
+| 成员 | 含义 | 表示 | 家 |
 |---|---|---|---|
-| `RunRef` | 指向一次[运行](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run--运行--run) | 不透明标识（[`data.identity-values/v1#S-31`](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示)） | 逐码点相等；**不解析** |
-| `AttemptRef` | 那次运行的第几次[执行尝试](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)，从 1 起 | 正整数 | 数值相等 |
-| `LogHandle` | 会话日志的**只读**句柄 | 不透明标识（同上） | 逐码点相等 |
+| `run` | 指向一次[运行](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run--运行--run) | `data.call-accounts/v1` 的 `RunId` | `data.call-accounts` |
+| `attempt`（及 `AttemptStartedSubject.attempt`） | 那次运行的第几次[执行尝试](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt) | `data.call-accounts/v1` 的 `AttemptId`（整数序号） | `data.call-accounts` |
+| `log` | 会话日志的**只读**句柄 | `LogHandle`：照 [`data.identity-values/v1#S-31`](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示) 的规则在本契约内定义——非空、首尾不是空白、逐码点相等、**不解析** | 本契约 |
 
-- **`AttemptRef` 单独不构成身份**：执行尝试的身份是（哪次运行, 第几次），与同一份输入里的 `run` 合起来才指认一次尝试。
+- **运行与执行尝试的标识只有一个家**：`RunId`、`AttemptId` 定在 `data.call-accounts`，本契约只引名字，不另立同义形状；它们的表示、相等、由谁产生与唯一范围以那份契约为准。
+- **`attempt` 单独不构成身份**：执行尝试的身份是（哪次运行, 第几次），与同一份输入里的 `run` 合起来才指认一次尝试。
 - **`LogHandle` 只能读**：读面由 runner 能力给；拓展件改日志的**唯一**办法是交回结论。它**不是**一份日志快照，拓展件也不得把读到的东西当成「跨等待的记忆」（[S-35](#s-35-跨过一次等待只能带已落日志的东西)）。
-- `RunRef` 怎么产生、唯一范围在哪，本契约不定（[G-3](#十四已知缺口)）；**不得用运行实例的内存身份充当它**。
+- **`LogHandle` 不跨契约引用 `data.identity-values` 的那一个 `$def`**：不透明标识按 S-31 的规则由各契约自己写出形状。
+- `LogHandle` 的读面本契约不定（[G-3](#十四已知缺口)）；**不得用运行实例的内存身份充当运行标识**。
 
 ### S-13 瀑布里的 subject 与 earlier
 
@@ -370,7 +383,7 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 - **`earlier` 是同一次经过里排在前面的每一件的最终结论记录，按瀑布顺序**，含被视作卸载的（`skipped: unavailable`）与报错的；
   **不含 `ask`**——一件交回 `ask` 时瀑布停在它那里，后面的件还没轮到；它答完之后落下的最终结论才进 `earlier`。
   `earlier` 里每一条的 `position`、`dimension` 与本输入相同。
-- **瀑布在第一个否决处到此为止**：一件交回 `veto`（含报错按 `treat_as_veto` 处置落下的 `veto`）或 `stop`，后面的件不再被调到。
+- **瀑布在第一个否决处到此为止**：一件交回 `veto` 或 `stop`（含报错按 `treat_as_veto` 处置落下的那两种），后面的件不再被调到。
 - **`before_action` 一批动作各自过一遍瀑布**：每个动作一份输入、一个自己的 `earlier`；`subject.batch` 让每一件看得到这一批有谁。
 
 ### S-14 按位置的 Subject
@@ -380,7 +393,7 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 
 | 位置（维度） | `$defs` | 成员 | 还没落盘的那一样 |
 |---|---|---|---|
-| `attempt_started` | `AttemptStartedSubject` | `attempt: AttemptRef` | 无 |
+| `attempt_started` | `AttemptStartedSubject` | `attempt: AttemptId`（[S-12](#s-12-三个引用)） | 无 |
 | `before_persist_message` | `BeforePersistMessageSubject` | `message: Message`、`producer ∈ user · model · tool · system` | **`message`** |
 | `after_persist_message` | `AfterPersistMessageSubject` | `message: Message` | 无 |
 | `before_compaction` | `BeforeCompactionSubject` | `plan: CompactionPlan`（[S-16](#s-16-compactionplan)） | 本版不开放改写（[G-15](#十四已知缺口)） |
@@ -391,7 +404,7 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 | `before_action` | `BeforeActionSubject` | `call: ToolCallBlock`、`definition: ToolDefinitionRef`、`batch: CallId[]` | **`call` 的参数** |
 | `after_action`（`each`） | `AfterActionEachSubject` | `callId`、`outcome: ExecutionOutcome`、`result?: ToolResultBlock` | **`result`**（结果落成消息之前的那一关） |
 | `after_action`（`batch`） | `AfterActionBatchSubject` | `outcomes: { callId, outcome }[]` | 无 |
-| `before_terminal` | `BeforeTerminalSubject` | `proposed: TerminalFact`（[S-18](#s-18-terminalfact)） | 本版不开放改写（Q9 列的四样不含它） |
+| `before_terminal` | `BeforeTerminalSubject` | `proposed: TerminalFact`（[S-18](#s-18-terminalfact)） | 本版不开放改写（D-038 Q9 确认的四样不含它） |
 | `after_terminal` | `AfterTerminalSubject` | `terminal: TerminalFact` | 无 |
 
 逐行补充：
@@ -446,7 +459,7 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 - **`unrecognized` 只表示「这次确实没认出来」**，不得用来偷懒；它出现时同样要留下可追溯的痕迹。
 - **「且试尽了」是 `upstream_unavailable` 作为上交成因时的附加条件**（PF-013 §5.7）。在 `after_model_call{failure}` 的输入里，
   它只说**这一次失败是上游那边的事**；试不试尽由挂在那个位置上的拓展件判（[S-27](#s-27-retry)）。
-- **模型回复在落盘前被否决、被当作一次调用失败时，它是八个里的哪一个，本契约不给答案**——见 [G-12](#十四已知缺口)。
+- **模型回复在落盘之前被否决不产出成因**：那次调用照常结束，不是故障（[S-25](#s-25-veto)）；八个成因之外**没有第九个**。
 
 ### S-18 TerminalFact
 
@@ -472,7 +485,7 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 | `rewrite` | 决定下一条还没落盘的东西长什么样（[S-23](#s-23-rewrite)） | 改还没落盘的 |
 | `select_model` | 改这一次请求的有效模型（[S-24](#s-24-select_model)） | 改还没落盘的 |
 | `veto` | 拦住它站的那个状态点（[S-25](#s-25-veto)） | 改走向 |
-| `stop` | 叫停这次运行（[S-26](#s-26-stop)） | 改走向 |
+| `stop` | 让这次运行不再继续：落「被取消」或「失败」（[S-26](#s-26-stop)） | 改走向 |
 | `retry` | 这次模型调用不算了结，再发一次（[S-27](#s-27-retry)） | 改走向 |
 | `ask` | 落一张卡片，让运行停下来等人（[S-28](#s-28-ask)） | 改走向 |
 
@@ -513,19 +526,20 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 | `after_action`（`each`） | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | ✗ | ✓ |
 | `after_action`（`batch`） | ✓ | ✓ | ✗ | ✗ | ✗ | ✓ | ✗ | ✓ |
 | `before_terminal` | ✓ | ✓ | ✗ | ✗ | ✓ | ✓ | ✗ | ✓ |
-| `after_terminal` | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ | ⊘ |
+| `after_terminal` | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ⊘ |
 
 每一列的来由：
 
 | 列 | 为什么是这几格 |
 |---|---|
-| `rewrite` | 只在 subject 里有**还没落盘的那一样**的位置（[S-14](#s-14-按位置的-subject) 最后一列；Q9 列的四样：消息、请求、参数、结果） |
+| `rewrite` | 只在 subject 里有**还没落盘的那一样**的位置（[S-14](#s-14-按位置的-subject) 最后一列；D-038 Q9 确认的四样：消息、请求、参数、结果） |
 | `select_model` | 只在调模型之前（[PF-013](../../../../product/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型)） |
 | `veto` | 只在五个「之前」：站在「之后」时那个状态点已经发生了；「尝试开始之后」不算「之前」 |
 | `stop` | 除两格外都能：**`before_persist_message` 那一刻看不到有没有运行在跑，没有一个运行可叫停**；**`after_terminal` 运行已落终态，不能再落第二个**（I-11）。这两格由 PF-014 §5.6 与 I-11 推出 |
 | `retry` | 只在调模型之后（失败）（[PF-013 §5.12](../../../../product/PF-013-model-profiles-and-invocation/design.md#512-重试站在一个已经存在的位置上)） |
 | `ask` | **两个地方等不了**：消息落盘之前（那条消息还没进日志，回放无从回起）、落终态之后（没有东西可停） |
-| `observed`、`inject` | 十三格全开 |
+| `inject` | 除 `after_terminal` 外都能：**落终态之后注入的提醒会让待处理消息队列非空，按 I-12 就要起下一次运行**——一件落终态之后的件借此让 agent 接着干活，越出了「之后」的权力 |
+| `observed` | 十三格全开；`after_terminal` 上只有它 |
 
 ### S-22 inject
 
@@ -538,7 +552,7 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 - **它是一条要落盘的消息**：它同样要经过 `before_persist_message`，那里挂的件照样对它起作用。
   **「同一次经过只跑一轮」与「一条注入的提醒不得无限触发注入」由 runner 兑现**，本契约只点名这条义务。
 - 注入之后日志变了：在 `before_model_call` 注入，那个攒好的请求就过期了，要重新组装（但不再回到这个位置）——那是 runner 的义务。
-- **在 `after_terminal` 注入的提醒会让待处理消息队列非空**，按 I-12 会有下一次运行承接它——一件落终态之后的拓展件经 `inject` 就能让 agent 接着干活，这是这一格的直接后果。
+- **`after_terminal` 上不许注入**（`output_not_allowed_at_position`）：那条提醒会让待处理消息队列非空，按 I-12 就要有下一次运行承接它（[S-21](#s-21-位置与结论的合法组合)）。
 - 那条提醒的 `id`、`createdAt` 由谁给，见 [G-16](#十四已知缺口)。
 
 ### S-23 rewrite
@@ -554,7 +568,7 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 | `after_action`（`each`） | `result`（卸载判定把大结果换成占位、结果脱敏） | `callId`、`outcome`；`result` 的 `callId`、`outcome` | 落成消息的是改写后的结果块 |
 
 - 交回的 `subject` 不是本位置那一种、或动了不可改的成员，即 `rewrite_touches_immutable`。「与输入逐值相同」要对照输入，Schema 管不到。
-- **其余九格没有 `rewrite`**（[S-21](#s-21-位置与结论的合法组合)）：`before_compaction` 与 `before_terminal` 的主体也还没落盘，但它们不在 Q9 列的四样里——
+- **其余九格没有 `rewrite`**（[S-21](#s-21-位置与结论的合法组合)）：`before_compaction` 与 `before_terminal` 的主体也还没落盘，但它们不在 D-038 Q9 确认的四样里——
   前者的「指定哪些不许压」因此本版没有结论可承载，见 [G-15](#十四已知缺口)。
 - **放行判断判的、人在卡片上点头的、实际执行的，必须是同一份参数**。同一位置上一件改写排在放行判断之后，这条就破了；
   次序只来自装配清单（[S-10](#s-10-本版没有-order)），**谁守这条性质本版没有答案**，见 [G-13](#十四已知缺口)。
@@ -567,7 +581,7 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
   **判定归能力**（模型请求那一侧），本契约只写义务；不在集合里，这条结论不生效，按 [S-34](#s-34-不合法的结论按报错处置) 处置。
 - **只改这一次，不改选中模型**：选中模型只因用户的切换命令而变。
 - **留痕**：这一次的有效模型怎么来的，记在 `data.model-response` 的 `route.selectedBy`（`{ extension: <本件 name> }`）；结论记录本身也在日志里。
-- 这是将来 model selector 的口子（g1 裁决 8c）；「会话的默认主模型 + 可选路由模型组」**不在本版**。
+- 这是将来 model selector 的口子（[D-038 8c](../../../../record/decisions/message-and-shape-rulings/decision.md#追加要求三条)）；「会话的默认主模型 + 可选路由模型组」**不在本版**。
 
 ### S-25 veto
 
@@ -586,9 +600,9 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 | `producer` | 之后 |
 |---|---|
 | `user`（及外部来源捎来的） | 拒绝这次请求，发送方被告知；用户自己发的那条被拦，必须让他看得出来 |
-| `model` | 当作这次模型调用失败，交给 `after_model_call{failure}` 上的重试；试尽则运行落失败，原因指向那件拓展件（成因取值见 [G-12](#十四已知缺口)） |
+| `model` | **不落盘，结论落日志，那次调用照常结束**——不是一次调用失败，不产出成因，**不触发 `after_model_call`**（[S-2](#s-2-两个维度)）；它在响应体上的处置（`replyDisposition` 为 `vetoed`）由 `data.model-response` 记。**再来一次是 loop 下一次迭代自然发起的一次新调用**，不经 `retry` |
 | `tool` | 这次运行落失败，原因指向那件拓展件 |
-| `system` 里系统自己追加的那些 | **本契约不给答案**（[G-14](#十四已知缺口)） |
+| `system` 里系统自己追加的那些 | **不落盘，结论落日志**；此外没有别的收场 |
 
 - **`reason` 不得转述被拦下的内容。**被拦的东西不进日志，而结论记录在日志里——把原文写进 `reason`，就等于把它写进了日志。
 - **`before_terminal` 的否决要让 agent 知道为什么接着转**：不然尾巴没变，重算还是「该收尾」。
@@ -596,14 +610,17 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 
 ### S-26 stop
 
-**`stop { reason }`：叫停这次运行——先落一条取消请求（发起方是本件，[S-7](#s-7-name-是身份)），再落终态「被取消」**，
-走的是[取消那条路](../../../../product/PF-012-agent-loop-and-run/design.md#615-取消先落日志再发信号)。`reason` 必带。
+**`stop { terminal?, reason }`：让这次运行不再继续；落哪一种终态由 `terminal` 定，`terminal ∈ { cancelled, failed }`，缺席即 `cancelled`。**`reason` 必带。
 
-- 它**不是完成，也不是 agent 失败**：是有人（通过这件拓展件）叫停了这次运行。
+| `terminal` | 落什么 | 是什么 |
+|---|---|---|
+| `cancelled`（缺席即此） | **先落一条取消请求（发起方是本件，[S-7](#s-7-name-是身份)），再落终态「被取消」**，走的是[取消那条路](../../../../product/PF-012-agent-loop-and-run/design.md#615-取消先落日志再发信号) | 有人（通过这件拓展件）叫停了这次运行——**不是完成，也不是 agent 失败** |
+| `failed` | **直接落终态「失败」，原因指向本件并带着 `reason`**；不落取消请求 | 这件判定运行不能再继续：循环守卫 L3「原地打转」（[PF-012 §5.9](../../../../product/PF-012-agent-loop-and-run/design.md#59-循环守卫四级阶梯)）；报错按 `treat_as_veto` 在「之后」的位置处置（[S-5](#s-5-报错处置策略)） |
+
+- **没有 `completed`**：拓展件不能替运行宣布完成——「完成」的判据是队列空（[PF-012 这个循环从哪里出去](../../../../product/PF-012-agent-loop-and-run/design.md#这个循环从哪里出去)），不是某一件说了算。
+- 终态的原因怎么表示，见 [G-4](#十四已知缺口)；本契约只要求「失败」那一种的原因**指得出是哪一件**。
 - 执行动作之后没有否决；别家在那里的「停住」（`continue:false`、批后阻断）只能译成 `stop`。
 - **两格没有 `stop`**（[S-21](#s-21-位置与结论的合法组合)）：`before_persist_message`（没有可见的运行）、`after_terminal`（已落终态）。
-- **`stop` 落的是「被取消」，不是「失败」**。循环守卫 L3 要落的是「失败，原因：原地打转」，
-  它在这八种里没有对应——见 [G-10](#十四已知缺口)，**本契约不把 L3 读成 `stop`**。
 
 ### S-27 retry
 
@@ -611,8 +628,8 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 
 - **每一次发出只走一家**：`provider` 是这一次要发给的那一家（`data.model-profile/v1` 的 `ProviderName`）；`after` 是退避多久之后再发（`data.tool-definition/v1` 的 `Duration`），缺席即不等。
 - **`retry` 推翻不了事实三类**：成因属于「发不出去」「重试没用」「已经开口说话了」（[S-17](#s-17-failurecause) 最后一列），
-  这条结论不生效，按 [S-34](#s-34-不合法的结论按报错处置) 处置。**「一个逻辑回复只发一次」高于任何策略。**
-  唯一例外是回复完整回来、却在落盘之前被否决（[S-25](#s-25-veto) 的 `model` 一路）——那一份没成为消息，可以再发。
+  这条结论不生效，按 [S-34](#s-34-不合法的结论按报错处置) 处置。**「一个逻辑回复只发一次」高于任何策略**，没有例外。
+- **回复在落盘之前被否决不经过这里**：那次调用照常结束、不触发 `after_model_call`；再来一次是 loop 下一次迭代发起的一次新调用（[S-25](#s-25-veto) 的 `model` 一路）。
 - **`provider` 必须是这一次有效模型的档案允许的供应商**；判定归模型请求那一侧的能力，本契约只写义务。
 - **「换一个模型」不是 `retry` 能做的**——那是用户的切换命令；`retry` 只换家、只退避。
 - 不再试就交回 `observed`：这一层试尽，上交。
@@ -755,8 +772,8 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 
 - **规范表示**：[`loop-extension.schema.json`](loop-extension.schema.json)，JSON Schema **Draft 2020-12**。
   `$id` = `https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/loop-extension/v1/loop-extension.schema.json`
-- **定义项**（42 项）：`LoopPosition` · `Dimension` · `Power` · `ErrorPolicy` · `LoopExtensionDefinition` · `ExtensionImplementation` ·
-  `RunRef` · `AttemptRef` · `LogHandle` · `FailureCause` · `TerminalFact` · `CompactionPlan` · `ModelRequest` · `ToolDefinitionRef` ·
+- **定义项**（40 项）：`LoopPosition` · `Dimension` · `Power` · `ErrorPolicy` · `LoopExtensionDefinition` · `ExtensionImplementation` ·
+  `LogHandle` · `FailureCause` · `TerminalFact` · `CompactionPlan` · `ModelRequest` · `ToolDefinitionRef` ·
   十三种 Subject（`AttemptStartedSubject` … `AfterTerminalSubject`）与 `Subject` · `ExtensionInput` ·
   八种结论（`ObservedOutput` … `AskOutput`）与 `ExtensionOutput` · `RetryPlan` · `CardOption` · `DecisionCardDraft` · `Conclusion`。
   消费者 `$ref` 这些定义，**不复制一份同义类型**。
@@ -770,7 +787,7 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 
 | # | 拒绝值 | 什么时候 | Schema 管得到吗 |
 |---|---|---|---|
-| 1 | `malformed` | **除第 2～5 行（位置、干预力、维度）与第 9、10 行专管的之外的一切形状问题**：不是一个对象；缺必有成员；多了成员（含 `order`、`matcher`）；成员类型不对；`host`、`onError`、`kind`、`producer`、`skipped`、`FailureCause`、终态等闭合枚举外的取值；`observe`/`rewrite` 声明 `treat_as_veto`；三种记录形状一种也不是；`callId` 该带不带、不该带带了；输入的 `run`/`attempt` 该带不带、不该带带了；**输入的** subject 与位置对不上；`about.position` 不等于这一次经过的位置；`about.callId` 与结论记录的 `callId` 不一致 | 除最后两条外都管得到 |
+| 1 | `malformed` | **除第 2～5 行（位置、干预力、维度）与第 9、10 行专管的之外的一切形状问题**：不是一个对象；缺必有成员；多了成员（含 `order`、`matcher`）；成员类型不对；`host`、`onError`、`kind`、`producer`、`skipped`、`FailureCause`、终态、`stop.terminal` 等闭合枚举外的取值；声明的 `onError` 高于 `power`（`observe` 声明 `record` 或 `treat_as_veto`，`rewrite` 声明 `treat_as_veto`）；三种记录形状一种也不是；报错记录的 `output` 不是处置策略落得下的那几种（[S-5](#s-5-报错处置策略)）；`callId` 该带不带、不该带带了；输入的 `run`/`attempt` 该带不带、不该带带了；**输入的** subject 与位置对不上；`about.position` 不等于这一次经过的位置；`about.callId` 与结论记录的 `callId` 不一致 | 除最后两条外都管得到 |
 | 2 | `position_unknown` | `position`（或 `about.position`）不在十一个里 | 管得到 |
 | 3 | `power_unknown` | `power` 不在三档里 | 管得到 |
 | 4 | `dimension_missing` | `after_model_call` 或 `after_action` 没带维度 | 管得到 |
@@ -792,7 +809,7 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 ### S-39 判别式与枚举闭合
 
 `LoopPosition`、`Dimension` 的两个成员、`Power`、`ErrorPolicy`、`FailureCause`、`TerminalFact.state`、`producer`、
-`implementation.kind` 与 `host`、`ExtensionOutput.kind`、`skipped` 各是一个闭合枚举。
+`implementation.kind` 与 `host`、`ExtensionOutput.kind`、`stop.terminal`、`skipped` 各是一个闭合枚举。
 **遇到未知取值一律拒绝**：不映射到「最接近」的已知值、不当缺省、不忽略该字段继续——
 这里每一个未知值都可能是一个更宽的权力（一个没见过的结论种类，读成 `observed` 就是静默放过，读成别的就是凭空授权）。
 
@@ -801,7 +818,7 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 | 条款 | Schema 管得到吗 | 表达不了的那部分归谁 |
 |---|---|---|
 | [S-1](#s-1-十一个位置)、[S-2](#s-2-两个维度) 位置与维度及其配对 | **完全管得到**（三处各一组条件约束） | — |
-| [S-4](#s-4-干预力三档)、[S-5](#s-5-报错处置策略) | 管取值域，与「`treat_as_veto` 只许 `veto` 档声明」 | 求得的值不高于声明的值、缺席取默认、收窄后的策略——归资产领域的求值与 runner |
+| [S-4](#s-4-干预力三档)、[S-5](#s-5-报错处置策略) | 管取值域、声明里「策略不高于干预力」、报错记录只落处置策略落得下的那几种 | 求得的值不高于声明的值、缺席取默认、收窄后的策略、「之前」「之后」各落哪一种、`record` 那条提醒的内容——归资产领域的求值与 runner |
 | [S-6](#s-6-声明的成员与类别)～[S-10](#s-10-本版没有-order) 声明 | 管成员集合、必有项、没有 `order` | 设置与权限的配值、求值——归资产领域 |
 | [S-11](#s-11-输入的成员)、[S-14](#s-14-按位置的-subject) 输入与主体 | 管位置与主体变体对应、`run`/`attempt` 的有无 | `earlier` 的位置一致、`batch` 含本次、`result` 与外层一致——归 runner |
 | [S-20](#s-20-档与结论的合法组合)、[S-21](#s-21-位置与结论的合法组合) 两张表 | **完全管得到**，在 `Conclusion` 的条件约束里；逐格对照在 [`examples.md` 末节](examples.md#9-两张合法组合表与-schema-逐格对照) | 前提是结论记录里的 `power` 是**求得的**值——那一半归 runner |
@@ -819,15 +836,18 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 | P-3 | 结论不越档、不越位 | 安全 | PF-012 §5.8、PF-000 §5.3 | 两张表（S-20、S-21）＋ 不合法即报错（S-34） | 一件 `rewrite` 档件拦下了一个动作；`after_action` 上出现一条否决 |
 | P-4 | 没有放宽 | 安全 | PF-012 §5.8 没有放宽 | S-19、S-29 ＋ 兼容层把 `allow` 译成 `observed` | 放行判断说「问一下」，动作却没问就做了 |
 | P-5 | 每件每次经过都留一条结论；不可用不编结论 | 不变量 | PF-012 §6.10、§5.8 可插拔 | S-30、S-31 ＋ runner | 排查的人分不出「判定说不用」「判定没跑成」「那一件此刻不在」 |
-| P-6 | `rewrite` 只动还没落盘的那一样的可改成员 | 安全 | PF-012 §5.8 能做什么、Q9 | S-23 ＋ runner 对照输入 | 日志里写的是一个动作、实际跑的是另一个，且没有任何东西报错 |
-| P-7 | 注入的提醒只能以本件的名义说话 | 安全 | PF-008 §6.8（标出是哪一件）、Q3 | S-22 | 一条提醒看起来是用户或系统说的，实际出自一件拓展件 |
+| P-6 | `rewrite` 只动还没落盘的那一样的可改成员 | 安全 | PF-012 §5.8 能做什么、D-038 Q9 | S-23 ＋ runner 对照输入 | 日志里写的是一个动作、实际跑的是另一个，且没有任何东西报错 |
+| P-7 | 注入的提醒只能以本件的名义说话 | 安全 | PF-008 §6.8（标出是哪一件）、D-038 Q3 | S-22 | 一条提醒看起来是用户或系统说的，实际出自一件拓展件 |
 | P-8 | 跨等待只带已落日志的东西 | 安全 | PF-012 写拓展件的人要守的一条 | 作者须知（S-35）＋ 回放发现偏差即停（runner） | 回放时一件拓展件出了第二张卡、问了第二遍模型 |
 | P-9 | `select_model` 只改这一次、只在合法目标里 | 安全 | PF-013 §4、§5.10 | S-24 ＋ 能力判定 ＋ `route.selectedBy` 留痕 | 选中模型被一件拓展件改掉；或切到一个收不下会话里图块的模型 |
 | P-10 | `retry` 推翻不了事实三类 | 安全 | PF-013 §5.4、§6.12 | S-27 ＋ 能力判定 | 已经吐了半句话之后又发了一遍 |
 | P-11 | 被拦下的内容不进日志 | 安全 | PF-012 §5.8 消息落盘之前、PF-014 §5.6 | S-25、S-31 的「不转述」 | 被脱敏或被拦的原文出现在一条结论的 `reason` 或 `error` 里 |
+| P-12 | 落终态之后的件不能让 agent 接着干活 | 安全 | PF-012 I-11、I-12；主线裁定 2026-09-23 | S-21 的 `after_terminal` 一行 ＋ S-5 的「`after_terminal` 上三种都落 `observed`」 | 一次运行落终态之后，一件拓展件的结论让下一次运行开了起来 |
+| P-13 | 报错不给件多出它本没有的权力 | 安全 | PF-012 §5.8 干预力三档；主线裁定 2026-09-23 | S-5 的「策略不高于干预力」＋ 报错记录只落四种（Schema）＋ runner 按求得的值处置 | 一件只观察的件报错之后，agent 的上下文里多了一条提醒；一件可改写件报错之后，运行被停下 |
 
 **进展性质：本契约不拥有任何进展性质**——「等人最终会被答」「瀑布最终走完」都不是数据的性质；
-等人没有上限（PF-008 §6.1），「同一位置同一次经过只跑一轮」这一类有界性归 runner 的行为模型。
+等人没有上限（PF-008 §6.1），「同一位置同一次经过只跑一轮」这一类有界性归 runner 的行为模型；
+「回复一再被否决、loop 一再发新调用」的有界性本版没有守护者，见 [G-17](#十四已知缺口)。
 
 ## 十三、缺席与恢复
 
@@ -841,7 +861,8 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 | 那两个位置上缺维度 | 拒绝（`dimension_missing`）；**不读作「两种都管」** | 声明方 |
 | 结论记录缺 `output` 而不是 `skipped: unavailable` | 拒绝（`malformed`） | runner |
 | `select_model` 缺 `reason`、`retry` 缺 `after`、`TerminalFact` 缺 `reason` | 合法：分别是「没说理由」「不等」「没给原因」 | — |
-| `veto`、`stop` 缺 `reason` | 拒绝（`malformed`）——否决与叫停**必须说原因** | 拓展件 |
+| `veto`、`stop` 缺 `reason` | 拒绝（`malformed`）——否决与停下运行**必须说原因** | 拓展件 |
+| `stop` 缺 `terminal` | 读作 `cancelled`（S-26）——**这是主线裁定 2026-09-23 给的缺省，待产品负责人确认，不是本契约填的** | runner |
 | 拓展件依赖的东西此刻不在 | 不可用，记 `skipped: unavailable`；**不是否决** | runner |
 | 运行时协程被回收，一件拓展件停在 `ask` | 卡片与结论都在日志里；下一次尝试回放到出卡处，拿记下的答复 | runner（回放） |
 | 系统重启 | 一切前情只来自日志；已有最终结论的件不重跑 | runner |
@@ -856,25 +877,26 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 |---|---|---|---|
 | **G-1** | `CompactionPlan` 的内容形状 | 要在压缩之前读出「这一趟要交进闭包的是什么」的拓展件 | PF-010 压缩那一侧的能力 |
 | **G-2** | `ModelRequest` 除 `target`/`parameters`/`messages` 之外的形状 | `before_model_call` 的 `rewrite` 核对「其余成员未动」 | 块 C（`data.model-response` 或请求契约） |
-| **G-3** | `RunRef` 怎么产生、唯一范围；`LogHandle` 的读面 | runner 的实现与跨进程读面 | 主线（loop 与会话那一程）；读面归 `capability.loop-extension-runner` |
+| **G-3** | `LogHandle` 的读面：读到的至少包含哪些条目、跨进程怎么读（运行与尝试标识的表示、产生与唯一范围已归 `data.call-accounts`） | runner 的实现与跨进程读面 | `capability.loop-extension-runner` |
 | **G-4** | `TerminalFact.reason` 的取值词表；`initiator` 的表示（尤其「发起方是某件拓展件」怎么写） | 按原因分流的 `after_terminal` 件；[S-26](#s-26-stop) 的发起方落点 | 主线（Run 相关条目与取消请求的形状，PF-012 §6.16 / PF-000） |
 | **G-5** | `DependencyName` 的名字空间；[依赖声明](../../../../ubiquitous_language/terms/reach-and-availability.md#ul-dependency-declaration--依赖声明--dependency-declaration)词条只写了工具与技能 | 拓展件的 `needs` 能写哪些名字 | 词表 owner ＋ `data.tool-definition` |
 | **G-6** | 放行判断那四档定死的选项、`CardOption.effect` 的含义、卡片落盘后的 `CardId` 与答复形状 | 放行判断用 `ask`；拓展件据答复下最终结论 | PF-008 卡片契约（未起草） |
 | **G-7** | `onError` 在资产上算哪一类设置（能不能由工作区配、能不能被锁） | 资产领域的配值与求值 | PF-002 owner |
-| **G-8** | `ignore` 与 `record` 在「每件的结论必留」之下的可观察区别 | 声明 `onError` 的作者不知道两者差在哪 | 产品负责人（PF-012 owner） |
-| **G-9** | **`treat_as_veto` 落在「之后」的位置上怎么处置**：那里没有合法的否决（`veto` 只在五个「之前」）。循环守卫 L4 就是 `after_model_call` 上的一件可否决件 | 「之后」位置上可否决件报错时的收场；**在它闭合之前 runner 不得自行写成 `observed`** | 产品负责人（PF-012 owner） |
-| **G-10** | **拓展件落「终态：失败」没有结论可用**：循环守卫 L3 要落「失败，原因：原地打转」（PF-012 §5.9、§5.12），「尝试开始之后」挂件要落一条终态事实；而封闭八种里只有 `stop`，它落的是「被取消」（PF-012 §5.8 的「停住」译法）。形状草案把 L3 读成 `stop`，与产品正文相抵 | 循环守卫 L3；一切要让运行落失败的拓展件 | 产品负责人（Q19 的封闭集合）＋ 主线 |
-| **G-11** | 被用户中断的模型调用之后 `after_model_call` 触不触发、以哪一种维度触发 | 管「调模型之后」的件对插队中断的反应 | PF-012 / PF-013 owner |
-| **G-12** | 模型回复在落盘之前被否决、被当作一次调用失败时，`FailureCause` 取八个里的哪一个（`interrupted_mid_reply` 恰好是它的例外，其余七个都对不上） | 重试件据成因判断能不能再发 | PF-013 owner |
-| **G-13** | **「放行判断判的、人签的、实际执行的是同一份参数」由什么守**：次序只来自装配清单（Q8），一件 `rewrite` 排在放行判断之后就能破掉它 | `before_action` 上的改写件与放行判断同时装 | 主线 → `capability.loop-extension-runner` 或 PF-002 / PF-004（PF-012 decisions 已登记这条来源问题） |
-| **G-14** | `before_persist_message` 否决一条**系统自己追加**的消息（尝试开始提醒、循环守卫的干预、注入的提醒）之后怎么收场——PF-012 的三路只覆盖外面进来的、模型吐的、工具交回的 | 在消息落盘之前挂否决件的租户 | PF-012 owner |
-| **G-15** | 压缩之前「指定哪些不许压」本版没有结论可承载（`rewrite` 不开放给 `CompactionPlan`，Q9 列的四样不含它） | 想在压缩之前保护某些内容的拓展件 | 主线 ＋ PF-010 |
+| G-8 | **已关闭**（主线裁定 2026-09-23，待产品负责人确认）：`ignore` 对 agent 没有任何效果，`record` 另注入一条「本件这一次没跑成」 | — | 答案在 [S-5](#s-5-报错处置策略) |
+| G-9 | **已关闭**（同上）：`treat_as_veto` 在「之后」的位置 ≡ `stop{ terminal: failed }` | — | 答案在 [S-5](#s-5-报错处置策略)、[S-26](#s-26-stop) |
+| G-10 | **已关闭**（同上）：`stop` 带 `terminal`，循环守卫 L3 用 `failed` | — | 答案在 [S-26](#s-26-stop)、[消费者表](#消费者) |
+| G-11 | **已关闭**（同上）：被用户中断的调用不触发 `after_model_call` | — | 答案在 [S-2](#s-2-两个维度) |
+| G-12 | **已关闭**（同上）：回复在落盘之前被否决不是一次调用失败，不产出成因、没有第九个成因 | — | 答案在 [S-17](#s-17-failurecause)、[S-25](#s-25-veto) |
+| **G-13** | **「放行判断判的、人签的、实际执行的是同一份参数」由什么守**：次序只来自装配清单（D-038 Q8），一件 `rewrite` 排在放行判断之后就能破掉它 | `before_action` 上的改写件与放行判断同时装 | 主线 → `capability.loop-extension-runner` 或 PF-002 / PF-004（PF-012 decisions 已登记这条来源问题） |
+| G-14 | **已关闭**（同上）：系统自己追加的消息在落盘之前被否决，不落盘、结论落日志，此外没有别的收场 | — | 答案在 [S-25](#s-25-veto) |
+| **G-15** | 压缩之前「指定哪些不许压」本版没有结论可承载（`rewrite` 不开放给 `CompactionPlan`，D-038 Q9 确认的四样不含它） | 想在压缩之前保护某些内容的拓展件 | 主线 ＋ PF-010 |
 | **G-16** | `inject` 交回的 `SystemReminderMessage` 里 `id`、`createdAt` 由谁给（拓展件保证不了会话内唯一） | 写 `inject` 的拓展件；runner 落盘 | 主线（与 `data.messages` 对齐） |
+| **G-17** | **模型回复一再在落盘之前被否决时，什么让它停下**：这一路不走成因、不经 `retry`、不触发 `after_model_call`（[S-25](#s-25-veto)），所以「试尽」与循环探测都够不着它；否决的 `reason` 会不会交到模型眼前，本契约也不定。一件每次都否决模型回复的件（例如回回转不成的模态转换件）就能让 loop 一直发新调用 | 在 `before_persist_message` 上挂可否决件的部署；账与额度 | 主线 → PF-012 owner（循环守卫的范围）或 `capability.loop-extension-runner` |
 
 **两件像缺口、其实不是的，记在这里免得被当成待裁：**
 
 - **兼容层的事件映射、定档依据、`ask`/`defer` 的译法**不是本契约的缺口——它们是 D-033 推迟的 G1–G11，归兼容层契约。
-- **同一位置的次序**不是缺口：Q8 已裁，只按装配清单。缺的是 G-13 那条性质的守护者，不是次序本身。
+- **同一位置的次序**不是缺口：D-038 Q8 已裁，只按装配清单。缺的是 G-13 那条性质的守护者，不是次序本身。
 
 ## 十五、明确不承诺
 
@@ -903,5 +925,5 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 **这不是把义务省掉**：已触发的义务在[验证入口](../verification.md)逐条登记，状态「未开始」。
 
 **发布后**：本目录下的规范正文、Schema 与实例不可原地覆盖；修改发布新版本。
-[已知缺口](#十四已知缺口)任一项被裁决后，凡改变本契约语义或表示的（G-9、G-10、G-11、G-12、G-15 尤其可能改变结论集合或两张表），都出 **v2**；
-推荐版本不自动升级消费者。
+[已知缺口](#十四已知缺口)里仍开着的任一项被裁决后，凡改变本契约语义或表示的（G-15 尤其可能改变两张表），都出 **v2**；
+推荐版本不自动升级消费者。**接受之前**，候选可以原地修订，每次修订记在[验证入口「变化的影响」](../verification.md#变化的影响)。

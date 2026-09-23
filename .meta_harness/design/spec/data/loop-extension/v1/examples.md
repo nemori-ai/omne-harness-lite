@@ -32,7 +32,7 @@
 | `{"ending": "failure"}` | 通过 | — | [S-2](contract.md#s-2-两个维度) |
 | `{"scope": "each"}` | 通过 | — | [S-2](contract.md#s-2-两个维度) |
 | `{"scope": "batch"}` | 通过 | — | [S-2](contract.md#s-2-两个维度) |
-| `{"ending": "interrupted"}` | 拒绝 | `dimension_not_allowed` | [S-2](contract.md#s-2-两个维度)：被中断不是故障，也不是第三种收场（[G-11](contract.md#十四已知缺口)） |
+| `{"ending": "interrupted"}` | 拒绝 | `dimension_not_allowed` | [S-2](contract.md#s-2-两个维度)：被中断的调用根本不触发 `after_model_call`，没有第三种收场 |
 | `{"ending": "failure", "scope": "each"}` | 拒绝 | `dimension_not_allowed` | [S-2](contract.md#s-2-两个维度)：一个位置只有一种维度 |
 | `{}` | 拒绝 | `dimension_not_allowed` | [S-2](contract.md#s-2-两个维度)：空维度不是「两种都管」 |
 
@@ -52,6 +52,8 @@
 | `{"position": "before_action", "power": "veto", "implementation": {"kind": "native"}}` | 拒绝 | `malformed` | [S-7](contract.md#s-7-name-是身份)：没有身份就不是一件拓展件 |
 | `{"name": "g", "position": "before_action", "power": "veto"}` | 拒绝 | `malformed` | [S-6](contract.md#s-6-声明的成员与类别)：`implementation` 必有 |
 | `{"name": "g", "position": "before_action", "power": "observe", "onError": "treat_as_veto", "implementation": {"kind": "native"}}` | 拒绝 | `malformed` | [S-5](contract.md#s-5-报错处置策略)：拦不住东西的件不能在报错时拦下东西 |
+| `{"name": "g", "position": "after_persist_message", "power": "observe", "onError": "record", "implementation": {"kind": "native"}}` | 拒绝 | `malformed` | [S-5](contract.md#s-5-报错处置策略)：只观察的件不能在报错时往日志里注入提醒 |
+| `{"name": "g", "position": "after_persist_message", "power": "rewrite", "onError": "treat_as_veto", "implementation": {"kind": "native"}}` | 拒绝 | `malformed` | [S-5](contract.md#s-5-报错处置策略)：策略不高于干预力 |
 | `{"name": "g", "position": "before_action", "power": "veto", "needs": [], "implementation": {"kind": "native"}}` | 拒绝 | `malformed` | [S-9](contract.md#s-9-依赖声明与不可用)：「不需要」只有缺席这一种写法 |
 | `{"name": "g", "position": "before_action", "power": "veto", "implementation": {"kind": "compat", "host": "cursor", "event": "x"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-原生件与兼容件)：宿主闭合 |
 | `{"name": "g", "position": "before_action", "power": "veto", "implementation": {"kind": "compat", "host": "codex"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-原生件与兼容件)：兼容件必须说是宿主的哪一个事件 |
@@ -83,7 +85,9 @@
 |---|---|---|---|
 | `{"kind": "observed"}` | 通过 | — | [S-19](contract.md#s-19-结论封闭八种) |
 | `{"kind": "veto", "reason": "生产库上的破坏性命令"}` | 通过 | — | [S-25](contract.md#s-25-veto) |
-| `{"kind": "stop", "reason": "本次运行已用尽预算"}` | 通过 | — | [S-26](contract.md#s-26-stop) |
+| `{"kind": "stop", "reason": "本次运行已用尽预算"}` | 通过 | — | [S-26](contract.md#s-26-stop)：`terminal` 缺席即 `cancelled` |
+| `{"kind": "stop", "terminal": "failed", "reason": "原地打转：同一工具同一参数已连续调用 6 次"}` | 通过 | — | [S-26](contract.md#s-26-stop)：循环守卫 L3 |
+| `{"kind": "stop", "terminal": "completed", "reason": "任务已做完"}` | 拒绝 | `malformed` | [S-26](contract.md#s-26-stop)：拓展件不能替运行宣布完成 |
 | `{"kind": "veto"}` | 拒绝 | `malformed` | [S-25](contract.md#s-25-veto)：否决必须说原因 |
 | `{"kind": "allow"}` | 拒绝 | `malformed` | [S-29](contract.md#s-29-没有放宽)：没有放宽；别家的「允许」译成 `observed` |
 | `{"kind": "goto", "step": "call_model"}` | 拒绝 | `malformed` | [S-19](contract.md#s-19-结论封闭八种)：拓展件不指定下一步 |
@@ -100,7 +104,11 @@
 |---|---|---|---|
 | `{"extension": "pii-scrubber", "position": "before_persist_message", "power": "rewrite", "skipped": "unavailable", "at": "2026-09-23T10:00:00Z"}` | 通过 | — | [S-31](contract.md#s-31-三种记录形状)：不可用，不带 `output` |
 | `{"extension": "prod-db-guard", "position": "before_action", "power": "veto", "callId": "call_02", "skipped": "errored", "error": "guard backend returned 500", "output": {"kind": "veto", "reason": "拓展件报错，按 treat_as_veto 处置"}, "at": "2026-09-23T10:00:01Z"}` | 通过 | — | [S-5](contract.md#s-5-报错处置策略)、[S-31](contract.md#s-31-三种记录形状) |
-| `{"extension": "result-offloader", "position": "after_action", "dimension": {"scope": "each"}, "power": "rewrite", "callId": "call_01", "skipped": "errored", "error": "output_not_allowed_for_power", "output": {"kind": "observed"}, "at": "2026-09-23T10:00:02Z"}` | 通过 | — | [S-34](contract.md#s-34-不合法的结论按报错处置)：它交回了一条 `veto`，被拒；`error` 恰为拒绝值，处置按 `record` 落 `observed` |
+| `{"extension": "result-offloader", "position": "after_action", "dimension": {"scope": "each"}, "power": "rewrite", "callId": "call_01", "skipped": "errored", "error": "output_not_allowed_for_power", "output": {"kind": "inject", "message": {"id": "msg_r1", "type": "system_reminder", "blocks": [], "createdAt": "2026-09-23T10:00:02Z", "nature": "event", "source": {"kind": "extension", "extension": "result-offloader"}}}, "at": "2026-09-23T10:00:02Z"}` | 通过 | — | [S-34](contract.md#s-34-不合法的结论按报错处置)：它交回了一条 `veto`，被拒；`error` 恰为拒绝值，处置按 `record` 落一条以本件名义的提醒（内容块从略，只说「本件这一次没跑成」） |
+| `{"extension": "loop-guard-x", "position": "after_model_call", "dimension": {"ending": "complete_reply"}, "power": "veto", "skipped": "errored", "error": "detector crashed", "output": {"kind": "stop", "terminal": "failed", "reason": "拓展件报错，按 treat_as_veto 处置"}, "at": "2026-09-23T10:00:04Z"}` | 通过 | — | [S-5](contract.md#s-5-报错处置策略)：「之后」的位置没有可否决的状态点，fail-closed 就是运行落失败 |
+| `{"extension": "audit-tail", "position": "after_terminal", "power": "veto", "skipped": "errored", "error": "sink unreachable", "output": {"kind": "observed"}, "at": "2026-09-23T10:00:05Z"}` | 通过 | — | [S-5](contract.md#s-5-报错处置策略)：落终态之后三种策略都只落 `observed` |
+| `{"extension": "loop-guard-x", "position": "after_model_call", "dimension": {"ending": "complete_reply"}, "power": "veto", "skipped": "errored", "error": "detector crashed", "output": {"kind": "stop", "reason": "拓展件报错"}, "at": "2026-09-23T10:00:04Z"}` | 拒绝 | `malformed` | [S-5](contract.md#s-5-报错处置策略)：报错处置落的 `stop` 只能是 `failed`——不替运行编一条取消请求 |
+| `{"extension": "g", "position": "before_model_call", "power": "rewrite", "skipped": "errored", "error": "boom", "output": {"kind": "rewrite", "subject": {"request": {"target": {"origin": "official", "routeName": "m"}, "parameters": {}, "messages": []}}}, "at": "2026-09-23T10:00:00Z"}` | 拒绝 | `malformed` | [S-5](contract.md#s-5-报错处置策略)：处置策略落不下 `rewrite` |
 | `{"extension": "pii-scrubber", "position": "before_persist_message", "power": "rewrite", "skipped": "unavailable", "output": {"kind": "observed"}, "at": "2026-09-23T10:00:00Z"}` | 拒绝 | `malformed` | [S-31](contract.md#s-31-三种记录形状)：不替一件没跑的东西编结论 |
 | `{"extension": "g", "position": "before_action", "power": "veto", "callId": "call_01", "skipped": "errored", "output": {"kind": "veto", "reason": "x"}, "at": "2026-09-23T10:00:00Z"}` | 拒绝 | `malformed` | [S-31](contract.md#s-31-三种记录形状)：报错必带 `error` |
 | `{"extension": "g", "position": "before_action", "power": "veto", "output": {"kind": "observed"}, "at": "2026-09-23T10:00:00Z"}` | 拒绝 | `malformed` | [S-30](contract.md#s-30-每件的结论必留)：执行动作之前的结论要说是为哪个动作 |
@@ -273,17 +281,17 @@ hook 进程超时、崩溃：按 [S-33](contract.md#s-33-不可用与报错两�
   "power": "rewrite",
   "output": {
     "kind": "select_model",
-    "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "fast-small" },
+    "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "fast-small" },
     "reason": "上一条用户消息少于 40 字且不含附件"
   },
   "at": "2026-09-23T10:00:00Z"
 }
 ```
 
-- `profile` 要在这一次的合法目标集合里——**判定归能力**；不在，这一次按 [S-34](contract.md#s-34-不合法的结论按报错处置) 记成报错，处置按 `record`（本件是可改写档）：请求照原有效模型发出。
+- `profile` 要在这一次的合法目标集合里——**判定归能力**；不在，这一次按 [S-34](contract.md#s-34-不合法的结论按报错处置) 记成报错，处置按 `record`（本件是可改写档）：落一条以本件名义的「本件这一次没跑成」提醒（`output` 为 `inject`），请求照原有效模型发出——注入之后日志变了，请求要重新组装，但不再回到这个位置（[S-22](contract.md#s-22-inject)）。
 - 选中模型不变；这一次的响应体 `route.selectedBy` 记 `{ "extension": "cheap-router" }`。
 - 瀑布里排在它后面的件拿到的 `request.target` 是 `fast-small` 这一条（[S-13](contract.md#s-13-瀑布里的-subject-与-earlier)）。
-- `ModelProfileRef` 的形状按 `data.model-profile` 简报账本写（`{ scope, routeName }`），定型后复核。
+- `ModelProfileRef` 的形状按 `data.model-profile` v1 候选（HUB 上已合入的那一稿）写：自建档案那一支 `{ origin: custom, scope, routeName }`；它再改结构，这里跟着改。
 
 ### EX-4 retry
 
@@ -331,6 +339,7 @@ hook 进程超时、崩溃：按 [S-33](contract.md#s-33-不可用与报错两�
 | 6 | `output_not_allowed_for_power` | `Conclusion` | `{"extension": "g", "position": "before_action", "power": "rewrite", "callId": "call_01", "output": {"kind": "veto", "reason": "x"}, "at": "2026-09-23T10:00:00Z"}` | 拒绝 | 位置允许 `veto`，档不允许（[S-20](contract.md#s-20-档与结论的合法组合)） |
 | 7 | `ask_at_forbidden_position` | `Conclusion` | `{"extension": "g", "position": "before_persist_message", "power": "veto", "output": {"kind": "ask", "card": {"explanation": "要不要收下这条？", "options": [{"id": "y", "label": "收"}], "about": {"position": "before_persist_message"}}}, "at": "2026-09-23T10:00:00Z"}` | 拒绝 | 档允许 `ask`；这个位置等不了——比第 8 行更具体，先给它 |
 | 8 | `output_not_allowed_at_position` | `Conclusion` | `{"extension": "g", "position": "after_action", "dimension": {"scope": "each"}, "power": "veto", "callId": "call_01", "output": {"kind": "veto", "reason": "x"}, "at": "2026-09-23T10:00:00Z"}` | 拒绝 | 档允许 `veto`；执行动作之后那一批动作已经对外发生了（[S-21](contract.md#s-21-位置与结论的合法组合)） |
+| 8 | `output_not_allowed_at_position` | `Conclusion` | `{"extension": "g", "position": "after_terminal", "power": "rewrite", "output": {"kind": "inject", "message": {"id": "msg_9", "type": "system_reminder", "blocks": [], "createdAt": "2026-09-23T10:00:00Z", "nature": "event", "source": {"kind": "extension", "extension": "g"}}}, "at": "2026-09-23T10:00:00Z"}` | 拒绝 | 档允许 `inject`、来源也对；落终态之后注入会让队列非空、起下一次运行（[S-21](contract.md#s-21-位置与结论的合法组合)） |
 | 9 | `rewrite_touches_immutable` | `Conclusion` | `{"extension": "g", "position": "before_action", "power": "rewrite", "callId": "call_01", "output": {"kind": "rewrite", "subject": {"proposed": {"state": "completed"}}}, "at": "2026-09-23T10:00:00Z"}` | 拒绝 | 档与位置都允许 `rewrite`；交回的主体不是本位置那一种（[S-23](contract.md#s-23-rewrite)） |
 | 10 | `inject_source_mismatch` | `Conclusion` | `{"extension": "g", "position": "after_model_call", "dimension": {"ending": "complete_reply"}, "power": "rewrite", "output": {"kind": "inject", "message": {"id": "msg_9", "type": "system_reminder", "blocks": [], "createdAt": "2026-09-23T10:00:00Z", "nature": "event", "source": {"kind": "loop_guard", "level": "L1", "finding": "重复调用同一工具"}}}, "at": "2026-09-23T10:00:00Z"}` | 拒绝 | 档与位置都允许 `inject`；它冒循环守卫的名义说话（[S-22](contract.md#s-22-inject)） |
 
@@ -350,6 +359,9 @@ hook 进程超时、崩溃：按 [S-33](contract.md#s-33-不可用与报错两�
 | 结论记录的 `power` 写的是声明里的值，而这一次求得的已被收窄 | [S-4](contract.md#s-4-干预力三档)、[S-30](contract.md#s-30-每件的结论必留)：两张表按求得的值判，记错了表就形同虚设 |
 | 一件依赖挂了的可否决件被记成 `{"kind": "veto"}` | [S-33](contract.md#s-33-不可用与报错两分)：不可用不是否决 |
 | 一件依赖挂了的件被记成 `{"kind": "observed"}` 而不是 `skipped: unavailable` | [S-31](contract.md#s-31-三种记录形状)：「此刻不在」必须看得见 |
+| 报错按 `treat_as_veto` 处置，在 `before_action` 落了 `stop{ terminal: failed }` 而不是 `veto` | [S-5](contract.md#s-5-报错处置策略)：「之前」的位置拦住那个状态点，不停下整次运行 |
+| 声明 `treat_as_veto`、这一次求得的干预力被收窄到 `rewrite`，报错时却落了 `veto` | [S-5](contract.md#s-5-报错处置策略)：按收窄后那一档的默认（`record`）处置 |
+| `record` 那条提醒里抄了报错的堆栈 | [S-5](contract.md#s-5-报错处置策略)：提醒只说「本件这一次没跑成」，报错详情只在 `error` 里 |
 | `veto.reason` 里原样抄了被拦下的那条用户消息 | [S-25](contract.md#s-25-veto)、P-11：被拦的内容不进日志 |
 | `error` 里带着上游返回的鉴权头片段 | [S-31](contract.md#s-31-三种记录形状)：日志只增不改，写错就是永久的 |
 | `earlier` 里混进了另一个位置的结论 | [S-13](contract.md#s-13-瀑布里的-subject-与-earlier) |
@@ -390,14 +402,14 @@ Schema 里每条约束以 `$comment` 标明它实现的是哪一行，下面按�
 | `after_action`（`each`） | observed inject rewrite stop ask | `[observed, inject, rewrite, stop, ask]` | 是 | select_model veto retry |
 | `after_action`（`batch`） | observed inject stop ask | `[observed, inject, stop, ask]` | 是 | rewrite select_model veto retry |
 | `before_terminal` | observed inject veto stop ask | `[observed, inject, veto, stop, ask]` | 是 | rewrite select_model retry |
-| `after_terminal` | observed inject | `[observed, inject]` | 是 | rewrite select_model veto stop retry；**ask（⊘）** |
+| `after_terminal` | observed | `[observed]` | 是 | inject rewrite select_model veto stop retry；**ask（⊘）** |
 
 **逐列复核**（与行向对照互为检查）：
 
 | 结论 | ✓ 的行数 | Schema 里出现在几条位置约束的 `enum` 里 | 一致 |
 |---|---|---|---|
 | `observed` | 13 | 13 | 是 |
-| `inject` | 13 | 13 | 是 |
+| `inject` | 12（除 `after_terminal`） | 12 | 是 |
 | `rewrite` | 4（`before_persist_message` `before_model_call` `before_action` `after_action{each}`） | 4 | 是；这四格另各有一条「subject 必须是本位置那一种」的约束 |
 | `select_model` | 1（`before_model_call`） | 1 | 是 |
 | `veto` | 5（五个「之前」） | 5 | 是 |

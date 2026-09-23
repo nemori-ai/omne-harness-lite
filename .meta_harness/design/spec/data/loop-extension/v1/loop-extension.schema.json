@@ -3,7 +3,7 @@
   "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/loop-extension/v1/loop-extension.schema.json",
   "title": "data.loop-extension v1",
   "description": "拓展点协议的数据半边：十一个位置与两个维度、干预力三档、报错处置策略、拓展件的声明、运行时交给拓展件的输入、拓展件交回的结论（封闭八种）与结论落日志的记录形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.loop-extension/v1 内有效。",
-  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状与两张合法组合表（档 × 结论、位置 × 结论），表在 Conclusion 的条件约束里；「rewrite 只改可改成员」「inject 的来源名等于本件名」「select_model 在合法目标集合里」「retry 不推翻事实三类」这些要么需要输入与输出两份实例对照，要么是判定，Schema 管不到，归 contract.md 的条款与 runner 能力。引用的同批契约 content-blocks、messages、model-profile、call-accounts、tool-definition 都是并行候选，$ref 目标以它们 v1 定型的 $defs 为准，见 verification.md「变化的影响」。正反实例在同目录 examples.md。",
+  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状与两张合法组合表（档 × 结论、位置 × 结论），表在 Conclusion 的条件约束里；「rewrite 只改可改成员」「inject 的来源名等于本件名」「select_model 在合法目标集合里」「retry 不推翻事实三类」这些要么需要输入与输出两份实例对照，要么是判定，Schema 管不到，归 contract.md 的条款与 runner 能力。引用的同批契约 content-blocks、messages、model-profile、call-accounts、tool-definition 都是并行候选，$ref 目标以它们 v1 定型的 $defs 为准，见 verification.md「变化的影响」；运行与执行尝试的标识 RunId、AttemptId 的家在 data.call-accounts，本文件只引。正反实例在同目录 examples.md。",
 
   "$defs": {
 
@@ -59,8 +59,8 @@
 
     "ErrorPolicy": {
       "title": "ErrorPolicy",
-      "description": "S-5：拓展件可用却运行时报错时这一次怎么处置。ignore 与 record 都不影响这一次经过的走向；treat_as_veto 当作否决（fail-closed）。缺席时按求得的干预力取默认：observe → ignore，rewrite → record，veto → treat_as_veto（PF-012 §5.8 干预力三档表的最后一列）。无论哪一种，处置本身都留在那条 Conclusion 里、可见。",
-      "$comment": "ignore 与 record 在「每件的结论必留」之下的可观察差别是缺口 G-8；treat_as_veto 在「之后」的位置上没有合法的否决可落，是缺口 G-9。它们是规格层的策略 token，没有统一语言词条。",
+      "description": "S-5：拓展件可用却运行时报错时这一次怎么处置。ignore：结论落日志，对 agent 没有任何效果（落下的是 observed）；record：结论落日志，并往日志追加一条以本件名义说「本件这一次没跑成」的系统提醒，下一次组装看得到它（落下的是 inject）；treat_as_veto：fail-closed——在五个「之前」的位置落 veto，在其余「之后」的位置落 stop{ terminal: failed }，即运行不再继续。缺席时按求得的干预力取默认：observe → ignore，rewrite → record，veto → treat_as_veto（PF-012 §5.8 干预力三档表的最后一列）。无论哪一种，处置本身都留在那条 Conclusion 里、可见。",
+      "$comment": "三种策略落下什么是主线裁定 2026-09-23（待产品负责人确认）。record 只许 rewrite、veto 档声明，treat_as_veto 只许 veto 档声明（LoopExtensionDefinition 的条件约束）。after_terminal 上唯一合法的结论是 observed（S-21），三种策略在那里都落 observed。它们是规格层的策略 token，没有统一语言词条。",
       "type": "string",
       "enum": ["ignore", "record", "treat_as_veto"]
     },
@@ -68,7 +68,7 @@
     "LoopExtensionDefinition": {
       "title": "拓展件的声明 · Loop Extension",
       "description": "S-6～S-10：一件拓展件（UL-loop-extension，第八类资产）的声明。name 是身份（能力标识 = 类别 loop_extension + name）；position 与 dimension 是绑定类设置的出厂值，power 是干预力这项权限的出厂值（定义给默认值，各层配值、运行时求值）；onError 缺席按求得的干预力取默认；needs 是依赖声明，缺席即不需要任何东西；implementation 说它是原生件还是兼容件。本版没有 order：同一位置的先后按装配清单的顺序。",
-      "$comment": "additionalProperties: false 挡住 order、matcher 这类本版没有的成员（malformed）。observe / rewrite 不得声明 treat_as_veto——那等于让一件拦不住任何东西的件在报错时拦下东西（malformed，S-5）。needs 用 minItems 1：「不需要任何东西」只有缺席这一种写法，不给空数组第二种写法。",
+      "$comment": "additionalProperties: false 挡住 order、matcher 这类本版没有的成员（malformed）。策略不高于干预力：observe 只能声明 ignore，rewrite 不得声明 treat_as_veto——否则一件不能注入的件会在报错时注入、一件拦不住任何东西的件会在报错时拦下东西（malformed，S-5）。needs 用 minItems 1：「不需要任何东西」只有缺席这一种写法，不给空数组第二种写法。",
       "type": "object",
       "properties": {
         "name": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/CapabilityId/properties/name" },
@@ -100,7 +100,11 @@
           "then": { "not": { "required": ["dimension"] } }
         },
         {
-          "if": { "properties": { "power": { "enum": ["observe", "rewrite"] } }, "required": ["power"] },
+          "if": { "properties": { "power": { "const": "observe" } }, "required": ["power"] },
+          "then": { "properties": { "onError": { "enum": ["ignore"] } } }
+        },
+        {
+          "if": { "properties": { "power": { "const": "rewrite" } }, "required": ["power"] },
           "then": { "properties": { "onError": { "enum": ["ignore", "record"] } } }
         }
       ]
@@ -132,25 +136,13 @@
       ]
     },
 
-    "RunRef": {
-      "$ref": "../../identity-values/v1/identity-values.schema.json#/$defs/OpaqueIdentifier",
-      "title": "RunRef",
-      "description": "S-12：指向一次运行（UL-run）的不透明引用；相等即同一次运行，按 data.identity-values/v1#S-31 逐码点相等，不解析。它的家（运行身份怎么产生、唯一范围）不在本契约，见缺口 G-3。",
-      "examples": ["run_4c1e"]
-    },
-
-    "AttemptRef": {
-      "title": "AttemptRef",
-      "description": "S-12：执行尝试（UL-run-attempt）的序号，从 1 起。它单独不构成身份——执行尝试的身份是（哪次运行, 第几次），与同一份输入里的 run 合起来才指认一次尝试。",
-      "type": "integer",
-      "minimum": 1,
-      "examples": [1, 3]
-    },
-
     "LogHandle": {
-      "$ref": "../../identity-values/v1/identity-values.schema.json#/$defs/OpaqueIdentifier",
       "title": "LogHandle",
-      "description": "S-12：会话日志的只读句柄，不透明。拿着它只能读，读面由能力给（capability.loop-extension-runner，第二波）；改日志的唯一办法是交回结论（Q9：结论不得改日志已有的任何一条）。它不是一份日志快照。",
+      "description": "S-12：会话日志的只读句柄，不透明。表示照 data.identity-values/v1#S-31 的规则：非空字符串，首尾不得是那张表里的空白码点，相等是逐码点精确相等，不解析。拿着它只能读，读面由能力给（capability.loop-extension-runner，第二波）；改日志的唯一办法是交回结论。它不是一份日志快照。",
+      "$comment": "按 S-31 的散文在本契约内定义，不 $ref data.identity-values 的 OpaqueIdentifier（主线裁定 2026-09-23）。pattern 与 S-31 的空白码点表逐个一致，尾部用 (?![\\s\\S]) 判绝对结尾。运行与执行尝试的标识不在这里：它们取 data.call-accounts/v1 的 RunId、AttemptId（S-12）。",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])",
       "examples": ["log_77a0"]
     },
 
@@ -227,7 +219,7 @@
     "AttemptStartedSubject": {
       "title": "尝试开始之后",
       "type": "object",
-      "properties": { "attempt": { "$ref": "#/$defs/AttemptRef" } },
+      "properties": { "attempt": { "$ref": "../../call-accounts/v1/call-accounts.schema.json#/$defs/AttemptId" } },
       "required": ["attempt"],
       "additionalProperties": false
     },
@@ -278,6 +270,7 @@
 
     "AfterModelCallCompleteReplySubject": {
       "title": "调模型之后 · 完整回复",
+      "description": "reply 是已经落盘的那条回复。回复在落盘之前被否决的那次调用、被用户中断的那次调用，都不触发 after_model_call（S-2）。",
       "type": "object",
       "properties": {
         "reply": { "$ref": "../../messages/v1/messages.schema.json#/$defs/AssistantMessage" },
@@ -397,8 +390,8 @@
       "properties": {
         "position": { "$ref": "#/$defs/LoopPosition" },
         "dimension": { "$ref": "#/$defs/Dimension" },
-        "run": { "$ref": "#/$defs/RunRef" },
-        "attempt": { "$ref": "#/$defs/AttemptRef" },
+        "run": { "$ref": "../../call-accounts/v1/call-accounts.schema.json#/$defs/RunId" },
+        "attempt": { "$ref": "../../call-accounts/v1/call-accounts.schema.json#/$defs/AttemptId" },
         "subject": { "$ref": "#/$defs/Subject" },
         "earlier": { "type": "array", "items": { "$ref": "#/$defs/Conclusion" } },
         "log": { "$ref": "#/$defs/LogHandle" }
@@ -462,7 +455,7 @@
 
     "InjectOutput": {
       "title": "inject",
-      "description": "S-22：往日志里追加一条系统提醒。message 的 source.kind 必为 extension，且 source.extension 等于本件的 name（后一半 Schema 管不到）。给模型看还是只给人看由块上的标注定。",
+      "description": "S-22：往日志里追加一条系统提醒。message 的 source.kind 必为 extension，且 source.extension 等于本件的 name（后一半 Schema 管不到）。给模型看还是只给人看由块上的标注定。after_terminal 上不许（S-21）。",
       "type": "object",
       "properties": {
         "kind": { "const": "inject" },
@@ -526,10 +519,12 @@
 
     "StopOutput": {
       "title": "stop",
-      "description": "S-26：叫停这次运行：先落一条取消请求（发起方是本件），再落终态「被取消」。reason 必带。",
+      "description": "S-26：让这次运行不再继续，落哪一种终态由 terminal 定：cancelled（缺席即此）先落一条取消请求（发起方是本件），再落终态「被取消」；failed 直接落终态「失败」，原因指向本件，不落取消请求。reason 必带。",
+      "$comment": "terminal 与缺席即 cancelled 是主线裁定 2026-09-23（待产品负责人确认）；循环守卫 L3 用 failed。取值闭合，completed 不在其中——拓展件不能替运行宣布完成。",
       "type": "object",
       "properties": {
         "kind": { "const": "stop" },
+        "terminal": { "enum": ["cancelled", "failed"], "default": "cancelled" },
         "reason": { "type": "string", "minLength": 1 }
       },
       "required": ["kind", "reason"],
@@ -635,7 +630,7 @@
     "Conclusion": {
       "title": "Conclusion",
       "description": "S-30～S-32：一件拓展件在一次经过里的结论落进日志的那一条。每件必留：跑出了结论的记 output；因不可用被视作卸载的记 skipped: unavailable、不带 output（不替一件没跑的东西编结论）；可用却报错的记 skipped: errored、error 与 output（output 是处置策略实际落下的那个结论）。power、position、dimension 是这一次经过求得的值；callId 指这次结论是为哪一个动作下的（只在 before_action 与 after_action{each}）。",
-      "$comment": "两张合法组合表在这里：下面 allOf 里「档 × 结论」三条、「位置 × 结论」十三条、rewrite 的 subject 与位置配对四条。output 缺席时（skipped: unavailable）这些约束空成立。error 在结论被表示层拒绝时恰为那个拒绝值 token（S-31），Schema 只约束到非空字符串。",
+      "$comment": "两张合法组合表在这里：下面 allOf 里「档 × 结论」三条、「位置 × 结论」十三条、报错处置只落四种一条、rewrite 的 subject 与位置配对四条。output 缺席时（skipped: unavailable）这些约束空成立。error 在结论被表示层拒绝时恰为那个拒绝值 token（S-31），Schema 只约束到非空字符串。",
       "type": "object",
       "properties": {
         "extension": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/CapabilityId/properties/name" },
@@ -771,9 +766,24 @@
           "then": { "properties": { "output": { "properties": { "kind": { "enum": ["observed", "inject", "veto", "stop", "ask"] } } } } }
         },
         {
-          "$comment": "位置 × 结论：after_terminal（不许 ask、不许 stop）。",
+          "$comment": "位置 × 结论：after_terminal（只有 observed：不许 ask、不许 stop、不许 inject——注入的提醒会让队列非空、起下一次运行）。",
           "if": { "properties": { "position": { "const": "after_terminal" } }, "required": ["position"] },
-          "then": { "properties": { "output": { "properties": { "kind": { "enum": ["observed", "inject"] } } } } }
+          "then": { "properties": { "output": { "properties": { "kind": { "enum": ["observed"] } } } } }
+        },
+
+        {
+          "$comment": "报错按策略处置只落四种（S-5）：ignore → observed，record → inject，treat_as_veto → 「之前」的位置 veto、「之后」的位置 stop{ terminal: failed }。",
+          "if": { "properties": { "skipped": { "const": "errored" } }, "required": ["skipped"] },
+          "then": {
+            "properties": {
+              "output": {
+                "anyOf": [
+                  { "properties": { "kind": { "enum": ["observed", "inject", "veto"] } } },
+                  { "properties": { "kind": { "const": "stop" }, "terminal": { "const": "failed" } }, "required": ["terminal"] }
+                ]
+              }
+            }
+          }
         },
 
         {

@@ -7,12 +7,12 @@
 **瀑布怎么走、回放怎么跑**变了，只动 runner。操作那一半是 `capability.loop-extension-runner`（第二波，未起草）。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.loop-extension, 1)`
-- **状态**：`candidate`，2026-09-23 起草；**未接受、未冻结**，不得据此发布或声称消费者已采用
+- **状态**：`candidate`，2026-09-23 起草、同日按主线裁定原地修订一次（[变化的影响](verification.md#变化的影响)）；**未接受、未冻结**，不得据此发布或声称消费者已采用
 - **catalog 映射**：已登记为 `candidate`（`acceptance` 为 null）。`family=data`、`topic=loop-extension`、
   `contract_path=spec/data/loop-extension/v1/contract.md`，`resources` 另含同目录的 `loop-extension.schema.json` 与 `examples.md`；
   `dependencies` 列七项——两项已接受（`data.identity-values`、`data.offer-expiry`），五项是并行起草中的候选
   （`data.content-blocks`、`data.messages`、`data.model-profile`、`data.call-accounts`、`data.tool-definition`），
-  **这五项的消费 clauses 暂以 `$defs/<名>` 登记，待它们定型后换成条款号**（[验证入口「变化的影响」](verification.md#变化的影响)）
+  **这五项的消费 clauses 暂以 `$defs/<名>` 登记，待它们定型后换成条款号**；`data.call-accounts` 那一项另含运行与执行尝试的标识 `RunId`、`AttemptId`（[验证入口「变化的影响」](verification.md#变化的影响)）
 - **提供者/装配映射**：**尚无**。它是纯数据契约，提供者会是 core 下的一个纯模块（形状、Schema 校验、两张合法组合表的判定）；节点未立
 
 ## 准入核对
@@ -36,7 +36,7 @@
 | 一个声明、一条结论长什么样，什么会被拒 | [v1 正反实例](v1/examples.md)，含四个完整走查 |
 | 某个位置能交回哪几种结论 | [档 × 结论](v1/contract.md#s-20-档与结论的合法组合)、[位置 × 结论](v1/contract.md#s-21-位置与结论的合法组合) |
 | 我在写拓展件，要额外守什么 | [S-35 跨过一次等待只能带已落日志的东西](v1/contract.md#s-35-跨过一次等待只能带已落日志的东西) |
-| 哪里在等裁决 | [已知缺口 G-1～G-16](v1/contract.md#十四已知缺口) |
+| 哪里在等裁决 | [已知缺口](v1/contract.md#十四已知缺口)：开着的是 G-1～G-7、G-13、G-15～G-17；G-8～G-12、G-14 已按主线裁定关闭（待产品负责人确认） |
 | 哪些条款有怎样的证据义务，现在到哪一步 | [验证与覆盖](verification.md) |
 
 ## 版本包
