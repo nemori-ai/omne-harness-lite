@@ -87,6 +87,40 @@
     {
       "coordinate": {
         "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "capability.account-identity",
+        "version": 2
+      },
+      "family": "capabilities",
+      "topic": "account-identity",
+      "status": "candidate",
+      "contract_path": "spec/capabilities/account-identity/v2/contract.md",
+      "resources": [
+        "spec/capabilities/account-identity/v2/contract.md"
+      ],
+      "acceptance": null,
+      "dependencies": [
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.identity-values",
+            "version": 1
+          },
+          "clauses": [
+            "S-1",
+            "S-2",
+            "S-9",
+            "S-30",
+            "S-31",
+            "S-33",
+            "S-35"
+          ],
+          "rebase_relation": null
+        }
+      ]
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
         "contract_id": "capability.organization-governance",
         "version": 1
       },

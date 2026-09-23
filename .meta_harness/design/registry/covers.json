@@ -830,6 +830,435 @@
         "clause": "acceptance.md#一可观察场景"
       },
       "target": {
+        "contract_id": "capability.account-identity",
+        "version": 2,
+        "clauses": [
+          "S-13",
+          "S-34"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 v2 候选登记：从 v1 同条复制并按 v2 §十补条款，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "acceptance.md#二绝不能发生的事"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 2,
+        "clauses": [
+          "S-11",
+          "S-15",
+          "S-21",
+          "S-22",
+          "S-24",
+          "S-25",
+          "S-32",
+          "S-37",
+          "S-42",
+          "S-43"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 v2 候选登记：从 v1 同条复制并按 v2 §十补条款，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "acceptance.md#三判据"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 2,
+        "clauses": [
+          "S-10",
+          "S-13",
+          "S-19",
+          "S-23",
+          "S-30",
+          "S-31",
+          "S-33",
+          "S-34",
+          "S-37",
+          "S-38",
+          "S-40",
+          "S-41",
+          "S-44"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 v2 候选登记：从 v1 同条复制并按 v2 §十补条款，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "acceptance.md#四本版不验收的"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 2,
+        "clauses": [
+          "S-3",
+          "S-39"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 v2 候选登记：从 v1 同条复制并按 v2 §十补条款，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "decisions.md#一拍板记录"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 2,
+        "clauses": [
+          "S-6",
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 v2 候选登记：从 v1 同条复制并按 v2 §十补条款，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "decisions.md#2026-09-22--九条正文规则逐条确认为产品要求"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 2,
+        "clauses": [
+          "S-10",
+          "S-15",
+          "S-16",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 v2 候选登记：从 v1 同条复制并按 v2 §十补条款，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#账号"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 2,
+        "clauses": [
+          "S-1",
+          "S-4",
+          "S-6",
+          "S-8",
+          "S-11",
+          "S-18",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 v2 候选登记：从 v1 同条复制并按 v2 §十补条款，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#登录状态"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 2,
+        "clauses": [
+          "S-1",
+          "S-3",
+          "S-15",
+          "S-37",
+          "S-44",
+          "S-45"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 v2 候选登记：从 v1 同条复制并按 v2 §十补条款，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#未激活的账号记录不会永久占着那个名字"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 2,
+        "clauses": [
+          "S-5",
+          "S-13",
+          "S-14",
+          "S-18",
+          "S-38",
+          "S-39"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 v2 候选登记：从 v1 同条复制并按 v2 §十补条款，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#61-层次"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 2,
+        "clauses": [
+          "S-12",
+          "S-39"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 v2 候选登记：从 v1 同条复制并按 v2 §十补条款，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#64-隔离"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 2,
+        "clauses": [
+          "S-11",
+          "S-12",
+          "S-18",
+          "S-27",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 v2 候选登记：从 v1 同条复制并按 v2 §十补条款，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#66-撤销不等于强制停止"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 2,
+        "clauses": [
+          "S-17",
+          "S-29",
+          "S-44"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 v2 候选登记：从 v1 同条复制并按 v2 §十补条款，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#非目标"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 2,
+        "clauses": [
+          "S-1",
+          "S-3",
+          "S-6",
+          "S-8"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 v2 候选登记：从 v1 同条复制并按 v2 §十补条款，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#11-注册"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 2,
+        "clauses": [
+          "S-5",
+          "S-13",
+          "S-14"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 v2 候选登记：从 v1 同条复制并按 v2 §十补条款，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#12-登录"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 2,
+        "clauses": [
+          "S-1"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 v2 候选登记：从 v1 同条复制并按 v2 §十补条款，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#13-退出"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 2,
+        "clauses": [
+          "S-1",
+          "S-3",
+          "S-10",
+          "S-16",
+          "S-17",
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 v2 候选登记：从 v1 同条复制并按 v2 §十补条款，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#31-账号"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 2,
+        "clauses": [
+          "S-1",
+          "S-5",
+          "S-14",
+          "S-15",
+          "S-19",
+          "S-20",
+          "S-38"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 v2 候选登记：从 v1 同条复制并按 v2 §十补条款，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#32-登录状态"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 2,
+        "clauses": [
+          "S-1",
+          "S-9",
+          "S-10",
+          "S-15",
+          "S-23",
+          "S-37",
+          "S-44",
+          "S-45"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 v2 候选登记：从 v1 同条复制并按 v2 §十补条款，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#二分支与异常"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 2,
+        "clauses": [
+          "S-13",
+          "S-14",
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 v2 候选登记：从 v1 同条复制并按 v2 §十补条款，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#八边界与依赖"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 2,
+        "clauses": [
+          "S-9",
+          "S-15",
+          "S-30",
+          "S-37",
+          "S-44",
+          "S-45",
+          "S-46"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 v2 候选登记；PF-017 rev 1 仍是 draft。未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#614-产品不把任何秘密的值交给运维者"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 2,
+        "clauses": [
+          "S-45",
+          "S-46"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 v2 候选登记；PF-017 rev 1 仍是 draft。未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#67-重启不让任何人退出登录"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 2,
+        "clauses": [
+          "S-10",
+          "S-47"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 v2 候选登记；PF-017 rev 1 仍是 draft。未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "acceptance.md#三判据"
+      },
+      "target": {
+        "contract_id": "capability.account-identity",
+        "version": 2,
+        "clauses": [
+          "S-46",
+          "S-47"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 v2 候选登记；PF-017 rev 1 仍是 draft。未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "acceptance.md#一可观察场景"
+      },
+      "target": {
         "contract_id": "capability.organization-governance",
         "version": 1,
         "clauses": [

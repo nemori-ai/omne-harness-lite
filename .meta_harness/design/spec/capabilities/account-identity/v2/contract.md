@@ -1,7 +1,7 @@
 # capability.account-identity v2
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.account-identity, 2)`
-- **状态**：`candidate`，未接受、未冻结，**尚未登记进 catalog**（[G-6](#九已知缺口)）。
+- **状态**：`candidate`，未接受、未冻结；已登记进 catalog（2026-09-23，`candidate`，[G-6](#九已知缺口) 已闭合）。
   前身是 [v1](../v1/contract.md)（`accepted`、已冻结，[D-023](../../../../record/decisions/tenant-domain-design-acceptance/README.md)）；
   **v1 一个字不改**，本版与它的逐条差异、对每个消费者的影响在 [§十](#十版本差异与规范工件)。
   **本版的主责产品要求在一份草稿里**：[PF-017](../../../../product/PF-017-governance-center-as-deployable-application/README.md) **rev 1（`draft`）**
@@ -43,7 +43,7 @@
   **消费面与 v1 相同，本版没有新增对它的消费**：[S-45](#s-45-登录状态出示物) 给 LoginStateId 定的派生规则
   落在 `#S-9`（不透明、部署内唯一、不复用）与 `#S-31`（交换表示）之内，
   [S-30](#s-30-装配给的保证-vs-协议须给的保证) 新增的「进程外来的身份一律先过 S-44」一行以 `#S-30` 为依据。
-  本版依赖项的 catalog 登记随本版登记一起做（[G-6](#九已知缺口)）。
+  本版依赖项已随本版一起登记进 catalog（2026-09-23）。
   **`#S-31` 必须列出来**：[S-36](#s-36-静态检查失败集合闭合) 用它界定 `invalid-input` 的闭合触发条件，
   那是一条静态检查真正依赖的语义，不是背景链接。
   **`#S-30` 也必须列出来**（评审轮三定的判据：**正文以坐标引用某条款即登记为消费，只有否定式提及不登**）：
@@ -1534,7 +1534,7 @@ LoginStateId 不透明、由高熵的出示物派生（[S-45](#s-45-登录状态
 | **G-3** | **已闭合（v1，2026-09-22）**：v1 的 catalog 登记。**本版的登记是另一件事**，见 [G-6](#九已知缺口)。编号保留不复用 | — | — |
 | **G-5** | **已闭合（v1，2026-09-22）**：v1 的依赖 `clauses` 与抬头的消费面逐条一致（七条）。本版消费面与 v1 相同，它在 catalog 里的登记归 [G-6](#九已知缺口)。编号保留不复用 | — | — |
 | **G-4** | **「撤销之后，已经开始的调用怎么办」没有契约拥有。**[S-29](#s-29-撤销不等于强制停止) 只承诺本契约那一半（不发停止信号），[产品正文说另一半「由独立的运行控制决定」](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#66-撤销不等于强制停止)，而那个运行控制本版还没有契约 | PF-012 / PF-015 的 owner | 运行控制的契约成立，并说明它据什么判断一次运行的发起身份是否仍有效 |
-| **G-6** | **本版尚未登记进 registry。**本版的坐标与资源（只有 `contract.md`）、对 `data.identity-values` v1 的依赖（与 v1 相同的七条 clauses）、本版的需求覆盖，都还没有登记；**登记之前，本版不是任何消费者可以钉的坐标**。v1→v2 的条款对应以 [§十](#十版本差异与规范工件) 为准 | registry 的维护者 | catalog 登记本版（`candidate`，依赖带 clauses），covers 登记本版新增条款的需求覆盖 |
+| **G-6** | **已闭合（2026-09-23）**：主线把本版登进 catalog（`candidate`、资源只有 `contract.md`、对 `data.identity-values` v1 的七条 clauses）并按 [§十](#十版本差异与规范工件) 补登 covers（PF-001 二十条随 v1 复制并补 S-44／S-45，PF-017 四条）。**v1→v2 的条款对应没有登进 lineage**：检查器只表达跨 baseline 的重基关系，同一 baseline 内的版本对应以 §十 的差异表为准，工具是否扩展另议。编号保留不复用 | — | — |
 
 **v1 还关掉过两条缺口，它们不在上表**（关掉它们的是 PF-001 **rev 12**，见
 [该 topic 的 changelog](../../../../product/PF-001-identity-scope-and-agent-constraints/changelog.md)；本版的依据是 rev 15）：

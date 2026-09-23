@@ -139,7 +139,7 @@
   两条新场景（[S-46](v2/contract.md#s-46-存储里翻不出能用的出示物)、[S-47](v2/contract.md#s-47-出示物的不可逆形式恒等于它的-loginstateid)）、
   [S-32](v2/contract.md#s-32-退出的持久性) 多一支、[S-36](v2/contract.md#s-36-静态检查失败集合闭合) 覆盖九个操作，
   另有记录结构的静态检查、熵下限的实现审阅、随机源不可用与碰撞两处故障注入。**不建形式工件**，理由在 [v2 §八](v2/contract.md#八规范表达与验证义务)。
-  **未登记 registry**：catalog、covers 与 v1→v2 的条款对应都还没有登记（[v2 G-6](v2/contract.md#九已知缺口)），登记之前 v2 不是任何消费者可以钉的坐标。
+  **registry 已登记**（2026-09-23）：catalog（`candidate`）与 covers；v1→v2 的条款对应未登 lineage（检查器只表达跨 baseline 关系），以 [v2 §十](v2/contract.md#十版本差异与规范工件) 为准。
   **实现映射须随之修订，本次没有改**（归各节点的 owner）：
   [`realization/packages/tenancy/account-identity`](../../../realization/packages/tenancy/account-identity/README.md)——
   签发要产生出示物、只存派生出的 LoginStateId，新增 [S-44](v2/contract.md#s-44-按出示物换取身份) 一个方法，
