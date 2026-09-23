@@ -121,6 +121,30 @@
         "spec/compositions/governance-center-entry/v1/formal/EntryDecision.tla"
       ],
       "timeout_seconds": 180
+    },
+    {
+      "id": "asset-transfer-v1-transfer",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/asset-transfer/v1/formal/Transfer.tla",
+        "spec/capabilities/asset-transfer/v1/formal/Transfer.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/asset-transfer-v1-transfer",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/asset-transfer/v1/formal/Transfer.cfg",
+        "spec/capabilities/asset-transfer/v1/formal/Transfer.tla"
+      ],
+      "timeout_seconds": 180
     }
   ]
 }
