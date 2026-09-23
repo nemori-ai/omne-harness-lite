@@ -1,0 +1,77 @@
+# 验证覆盖与实际证据
+
+`capability.model-request-runtime` v1（candidate）的证据义务与执行状态。本文件可更新，位于规范版本目录之外；
+结果始终绑定实际规范、模型与实现修订。
+
+**当前状态**：行为模型已在起草者本机跑过一次（下文「实际执行」）；**没有实现，没有执行过任何规范场景或测试**。
+模型检查的结论只对所列常量成立，**不是无条件证明**，也不代表任何实现符合本契约。
+
+## 证据义务
+
+### 形式工件
+
+模型、配置与断言 ↔ 条款的映射在 [formal 入口](v1/formal/README.md)。
+
+| 条款与性质 | 模型／配置 | 前提 | 状态 |
+|---|---|---|---|
+| [S-15](v1/contract.md#s-15-两个锚点先写后行) 两个锚点先写后行；[S-17](v1/contract.md#s-17-结算一处按序幂等先到者赢) 结算幂等、先到者赢；[S-22](v1/contract.md#s-22-同一次调用的发出序列) 发出序列（含跨尝试开口之后不再发出、续接同一家）；[S-30](v1/contract.md#s-30-dispatchagain) 守卫；[S-31](v1/contract.md#s-31-interrupt) 意图先落；[S-33](v1/contract.md#s-33-reconcile) 对账（失联发出被追补且不重发）；[S-5](v1/contract.md#s-5-一次调用一次发出) 序号跨尝试连续 | `Invocation.tla` ＋ `Invocation.cfg`（允许回退）、`Invocation_NoFallback.cfg`（不允许回退）；formal task `model-request-runtime-v1-invocation`、`model-request-runtime-v1-invocation-no-fallback` | 常量：2 家、至多 3 次发出、至多 2 次停机；对「出网、首 token、四种收场、中止、撤除结算、对账」弱公平；写下一条响应体是原子的 | **起草者本机跑过，退出 0、无反例**（2026-09-23，见下） |
+| 同上各断言**能失败** | 六份 `Invocation_Validity_*.cfg`（各拧反一个开关） | 同上 | **起草者本机跑过，六份均按预期出反例**（退出 12）；不登记为 formal task |
+| 续接、换家两条路可达 | 两份 `Invocation_Reach_*.cfg` | 同上 | **跑过，均按预期报出见证**（退出 12）；不登记 |
+
+**模型没有覆盖、不得写成「已由模型覆盖」的**：追加口的原子性与按 `ResponseId` 幂等、回复消息与响应体同一提交、成因分类表的内容、脱敏、凭据取值、合法目标与展示列表、投影、拓展件与 loop 的行为（见 [formal 入口「模型吸收了什么」](v1/formal/README.md#模型吸收了什么不写成已由模型覆盖)）。它们的证据在下两表。
+
+### 规范场景与测试
+
+| 条款与性质 | 场景／测试 | 证据形式与前提 | 状态 |
+|---|---|---|---|
+| [S-22](v1/contract.md#s-22-同一次调用的发出序列)、[S-17](v1/contract.md#s-17-结算一处按序幂等先到者赢) 发出序列与一次发出一条响应体 | [S-41](v1/contract.md#s-41-两家发出第一家-429-未开口第二家完成) | 脚本化传输 → 真实会话日志；核两条响应体、两份账 | 未开始 |
+| [S-15](v1/contract.md#s-15-两个锚点先写后行)、[S-33](v1/contract.md#s-33-reconcile) 停机前后 | [S-42](v1/contract.md#s-42-开口之后断流不重发)、[S-47](v1/contract.md#s-47-用户叫停之后停机不再发出) | **故障注入**：在两个锚点前后各杀一次进程，新进程对账 | 未开始 |
+| [S-27](v1/contract.md#s-27-selectmodel)、[S-7](v1/contract.md#s-7-一次调用绑定了什么) 切换先落后生效、不作用于在途 | [S-43](v1/contract.md#s-43-切换先落事实后生效) | 集成；另一支让切换事实写不进 | 未开始 |
+| [S-11](v1/contract.md#s-11-合法目标集合)、[S-12](v1/contract.md#s-12-展示列表) 已下架、模态挡在这一刻 | [S-44](v1/contract.md#s-44-已下架的档案)、[S-45](v1/contract.md#s-45-模态不兼容挡在算合法目标那一刻) | 纯计算的表驱动测试 ＋ 集成 | 未开始 |
+| [S-18](v1/contract.md#s-18-成因按来源分类三类事实由守卫兑现) 成因按来源、[S-20](v1/contract.md#s-20-写入之前脱敏) 脱敏 | [S-46](v1/contract.md#s-46-成因按来源分类与脱敏) | 哨兵串扫全部记录；前提：`status_cause_table` 与三个脱敏参数有值（G-5、G-6） | 未开始（被 G-5、G-6 阻断） |
+| [S-13](v1/contract.md#s-13-模态投影读到的必须追到日志尾) 投影追到日志尾 | **性质测试**：任意日志前缀上，追补之后的读 = 对全日志重算；**伸缩测量**：读的代价与历史长度无关 | 随机日志生成器 | 未开始 |
+| [S-35](v1/contract.md#s-35-默认重试件可替换) 默认件逐家一遍、不允许回退不试 | 表驱动测试（它是一个纯函数） | —— | 未开始 |
+| [S-14](v1/contract.md#s-14-缺席时的默认答案与失败集合) 失败值闭合与判定次序 | [examples §8](v1/examples.md#8-每个失败值一个反例) 与次序回归例 | —— | 未开始 |
+| [S-38](v1/contract.md#s-38-装配给的保证-vs-协议须给的保证) 传输适配九条 | 适配层的契约测试（脚本化上游）：单家、禁止回退、不开库重试、状态码、首 token 映射、不回落环境变量、不送会话标识、不换占位文本、固定 base URL | 前提：G-10 的 basis 条目 | 未开始 |
+
+### 由别处承担、本契约只写明要求的
+
+| 要求 | 由谁承担 | 本契约位置 |
+|---|---|---|
+| 回复消息与响应体同一提交、追加按 `ResponseId` 幂等、结算不受栅栏拒收 | 会话日志追加口（loop 那一程） | [S-17](v1/contract.md#s-17-结算一处按序幂等先到者赢)、[S-38](v1/contract.md#s-38-装配给的保证-vs-协议须给的保证) |
+| 上交条目、中断提醒、宿主停止前先中断 | loop | [S-3](v1/contract.md#s-3-本契约明确不承诺什么)、[S-36](v1/contract.md#s-36-宿主停止与撤除) |
+| 跨进程的新鲜度、秘密送达、转发链不越过锚点 | 组合契约（尚未立） | [S-38](v1/contract.md#s-38-装配给的保证-vs-协议须给的保证)、[G-12](v1/contract.md#十二已知缺口) |
+
+## 实际执行
+
+### 2026-09-23 起草者本机：TLC 十份配置
+
+- **模型修订**：本分支 `panqiwei/assets-runtimes-spec-modelrt` 上首次提交的 `v1/formal/Invocation.tla`（提交号见 `git log`，本页不填哈希）
+- **工具**：TLC2 Version 2026.09.12.025210 (rev: 867aefb)；openjdk 21.0.12.1；`-workers 1`，工作目录 `.meta_harness/design`
+- **命令形状**：`java -cp tla2tools.jar tlc2.TLC -metadir tmp/tlc/<id> -cleanup -noGenerateSpecTE -workers 1 -config <cfg> Invocation.tla`
+
+| 配置 | 退出码 | 结果 |
+|---|---|---|
+| `Invocation.cfg` | 0 | 29,521 states generated，15,802 distinct，深度 21；20 条不变量与进展性质 `SentEventuallySettled` 无违反；无死锁 |
+| `Invocation_NoFallback.cfg` | 0 | 13,861 generated，7,420 distinct；同上 |
+| `Invocation_Validity_NoGuard_Spoke.cfg` | 12 | `NoDispatchAfterSpoke` 违反：OpenPass → Dispatch → Send → FirstToken → FailAfter → DispatchAgain |
+| `Invocation_Validity_NoGuard_Fact.cfg` | 12 | `ContinuationOnlyAfterStrategyOrSilentLoss` 违反：OpenPass → Dispatch → Send → FailBefore(事实类) → DispatchAgain |
+| `Invocation_Validity_SpokeAfterObserve.cfg` | 12 | `NoDispatchAfterSeen` 违反：… → FirstToken（先交观察者）→ Crash → Reconcile（当成没开口）→ Dispatch → Send |
+| `Invocation_Validity_SendBeforeAnchor.cfg` | 12 | `QuiescentSettled` 违反：… → Send（锚点未写）→ Crash → Reconcile（找不到这次发出） |
+| `Invocation_Validity_AbortBeforeIntent.cfg` | 12 | `NoDispatchAfterInterrupt` 违反：… → Interrupt（未写意图）→ Crash → Reconcile（当成失联）→ Dispatch → Send |
+| `Invocation_Validity_NonIdempotentSettle.cfg` | 12 | `AtMostOneBodyPerDispatch` 违反：… → HostStop → FailBefore → TeardownWrite（第二条） |
+| `Invocation_Reach_ResumeThenComplete.cfg` | 12 | 见证 `NotResumeThenComplete` 被报出：续接路径可达 |
+| `Invocation_Reach_FallbackThenComplete.cfg` | 12 | 见证 `NotFallbackThenComplete` 被报出：换家路径可达 |
+
+原始输出只留在起草者本机的临时目录，**没有入库**；复跑以 `make design-check FORMAL=run`（两份登记配置）或上面的命令形状（其余八份）为准。
+
+## 结果与反例
+
+**正向配置无反例。**否定配置的反例都是预期的，形状见上表；它们说明的是「对应开关拧反时断言会失败」，**不是契约的缺陷**。
+
+## 变化的影响
+
+- **2026-09-23 起草**：首版，无旧证据。
+- **`data.model-response` / `data.call-accounts` 对齐波（[G-1](v1/contract.md#十二已知缺口)）落地时**：模型里的 `lost_silent`／`lost_spoken`、`int_user`／`int_cancel` 对应那边新增的 `interrupted{initiator}`；若对齐波改了「首 token 之前失联之后能否再发」的口径，`ContinuationOnlyAfterStrategyOrSilentLoss` 与对账表第三行一起改，模型须重跑。
+- **G-7 若判回「说到一半断了」为故障**：模型里 `lost_spoken` 改为一种故障收场，`AtMostOneTerminal` 与 `CauseMatchesFirstToken` 随之改，重跑。
+- **五种记录的形状定下（G-2）**：不影响模型；场景的核对对象改为那份 data 契约的成员名。

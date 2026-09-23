@@ -169,6 +169,54 @@
         "spec/capabilities/stream-assembly/v1/formal/Assembly.tla"
       ],
       "timeout_seconds": 600
+    },
+    {
+      "id": "model-request-runtime-v1-invocation",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v1/formal/Invocation.tla",
+        "spec/capabilities/model-request-runtime/v1/formal/Invocation.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v1-invocation",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v1/formal/Invocation.cfg",
+        "spec/capabilities/model-request-runtime/v1/formal/Invocation.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v1-invocation-no-fallback",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v1/formal/Invocation.tla",
+        "spec/capabilities/model-request-runtime/v1/formal/Invocation_NoFallback.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v1-invocation-no-fallback",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v1/formal/Invocation_NoFallback.cfg",
+        "spec/capabilities/model-request-runtime/v1/formal/Invocation.tla"
+      ],
+      "timeout_seconds": 180
     }
   ]
 }

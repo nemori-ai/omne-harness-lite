@@ -1,0 +1,116 @@
+# 规范实例：走通的路径与每个失败值的反例
+
+属于 `capability.model-request-runtime` v1 的规范工件。本契约**不附 Schema**，这里的实例不是形状校验用例，
+而是**操作层面的输入 → 预期结果 → 依据条款**：前七节各走通一条路径，第八节给每个失败值一个反例。
+
+**两条读法上的边界：**
+
+- **标识串只是占位**：`c1`、`r_1`、`s1` 这类写法不承诺任何词法（`data.identity-values/v1#S-31`）；响应体只写与本节有关的成员。
+- **「预期」是契约要求的可观察结果，不是某次执行的记录**；执行状态在[验证入口](../verification.md)。
+
+**共用的局面**（除非某节另说）：
+
+| 名字 | 是什么 |
+|---|---|
+| 会话 `s1` | 属于租户 `T = (O, A)`；当前 Run `run_1`、第 1 次尝试 |
+| 档案 `M1` | 官方档案，在册；允许的供应商 `[A, B]`、允许回退；输入模态 `text` |
+| 档案 `M2` | 官方档案，在册；允许的供应商 `[A]`、不允许回退；输入模态 `text`、`image` |
+| 凭据 | `T` 的租户层配了一把 |
+| 本据点传输能承载的模态 | `text`、`image`、`file`（没有 `audio`） |
+| 选中模型 | `M1`（最后一条切换事实） |
+
+## 1. 两家发出：第一家 429 未开口，第二家完成（场景 [S-41](contract.md#s-41-两家发出第一家-429-未开口第二家完成)）
+
+| 步 | 调用 | 预期 | 依据 |
+|---|---|---|---|
+| 1 | `effectiveModel(s1)` | `{ profile: M1, selectedBy: session, selected: M1 }` | [S-26](contract.md#s-26-effectivemodel) |
+| 2 | `openCall({ run: run_1, attempt: 1, session: s1, messages, … }, 宿主, 追加入口)` | `{ callId: c1, state: open }`；**日志里什么都没写** | [S-28](contract.md#s-28-opencall) ④ |
+| 3 | `dispatch(c1, 尝试 1)` | 日志先出现「已出门」（第 1 次、尝试 1、`A`、`r_1`），然后请求出网；A 回 429；返回 `r_1`：`failed{upstream_unavailable}`、`statusCode: 429`、没有 `firstTokenAt`，**已写**；`c1` 在 `awaiting_decision` | [S-15](contract.md#s-15-两个锚点先写后行)、[S-29](contract.md#s-29-dispatch) ⑤ |
+| 4 | 默认件读到策略类、下一家是 `B` ⇒ `retry { provider: B }` | —— | [S-35](contract.md#s-35-默认重试件可替换) |
+| 5 | `dispatchAgain(c1, { provider: B }, 尝试 1)` | 「已出门」（第 2 次、`B`、`r_2`）→ 出网 → 首 token 之前写「已开口」→ 内容交给观察者 → 收尾；返回 `r_2`：`complete`，带 `reply`，**交回、未写** | [S-30](contract.md#s-30-dispatchagain)、[S-16](contract.md#s-16-首-token-判据) |
+| 6 | loop 把 `r_2` 与回复消息一次提交写下 | 日志里：两条响应体、两份账、一条回复消息；`c1` 在 `complete` | [S-17](contract.md#s-17-结算一处按序幂等先到者赢) |
+
+## 2. 开口之后断流：不重发（场景 [S-42](contract.md#s-42-开口之后断流不重发)）
+
+| 步 | 调用 | 预期 | 依据 |
+|---|---|---|---|
+| 1 | `openCall` → `c2`；`dispatch(c2)` | 「已出门」→ 出网 →「已开口」→ 内容交出一半 → 连接断 | [S-15](contract.md#s-15-两个锚点先写后行) |
+| 2 | （`dispatch` 返回） | `failed{interrupted_mid_reply}`、有 `firstTokenAt`、已交付的块在 `delivered`、没有 `reply`；**已写**；`c2` 在 `awaiting_decision` | [S-18](contract.md#s-18-成因按来源分类三类事实由守卫兑现)、[S-29](contract.md#s-29-dispatch) |
+| 3 | 一件自定义重试件给 `retry { provider: B }`；`dispatchAgain(c2, { provider: B })` | **`retryRefused{already_spoke}`**——哪怕 `B` 从没试过 | [S-30](contract.md#s-30-dispatchagain) 守卫 2 |
+| 4 | `releaseCall(c2)` | `{ state: handed_up }`；上交条目与中断提醒由 loop 写 | [S-32](contract.md#s-32-releasecall) |
+
+## 3. 停机：首 token 之前与之后
+
+| 情形 | 日志里 `c3` 最后一次发出 | `reconcile(s1, 尝试 2)` 追补 | `c3` 随之 | 之后 |
+|---|---|---|---|---|
+| 首 token 之前停机 | 「已出门」（第 1 次、`A`、`r_5`）；无「已开口」；无响应体 | `r_5`：`interrupted{runtime_lost}`、没有 `firstTokenAt`、账全未知 | `resumable` | `openCall({ callId: c3, run: run_1, attempt: 2, … })` → `dispatch(c3, 尝试 2)`：第 **2** 次发出、发给 **`A`**、所在尝试 2 |
+| 首 token 之后停机 | 「已出门」「已开口」；无响应体 | `r_5`：`interrupted{runtime_lost}`、`firstTokenAt` 取自「已开口」、账全未知、没有 `reply` | `interrupted` | **不再发出**；`dispatch(c3)` 得 `retryRefused{call_ended}`；中断提醒由 loop 补 |
+| 用户叫停之后停机 | 「已出门」、中断意图（`user`）；无响应体 | `r_5`：`interrupted`、`initiator = user` | `interrupted` | **不是 `resumable`**（场景 [S-47](contract.md#s-47-用户叫停之后停机不再发出)） |
+
+依据：[S-33](contract.md#s-33-reconcile) 对账表。再对一次账：什么都不追补，返回同样的结果（⑦）。
+
+## 4. 切换先落事实后生效（场景 [S-43](contract.md#s-43-切换先落事实后生效)）
+
+| 步 | 调用 | 预期 | 依据 |
+|---|---|---|---|
+| 1 | `c4` 正在 `M1` 上发出 | —— | —— |
+| 2 | `selectModel(s1, M2, T)` | 切换事实写下之后返回 `{ selected: M2 }` | [S-27](contract.md#s-27-selectmodel) ④ |
+| 3 | `c4` 收场 | 它的 `route.profile` 仍是 `M1` | [S-7](contract.md#s-7-一次调用绑定了什么) |
+| 4 | `effectiveModel(s1)` | `{ profile: M2, selectedBy: session, selected: M2 }` | [S-9](contract.md#s-9-选中模型) |
+| 5 | 再 `selectModel(s1, M2, T)` | 不写新事实，返回 `{ selected: M2 }` | ⑦ |
+| 6 | 上层把「用哪个模型」锁成 `M1`，`effectiveModel(s1)` | `{ profile: M1, selectedBy: layer_lock, selected: M2 }`——**展示列表仍标 `M2` 为选中** | [S-10](contract.md#s-10-有效模型四步每步来源可查) 第 2 步 |
+
+## 5. 已下架的档案（场景 [S-44](contract.md#s-44-已下架的档案)）
+
+管理员撤回 `M1`，选中模型仍是 `M1`。
+
+| 调用 | 预期 | 依据 |
+|---|---|---|
+| `legalTargets(s1)` | 不含 `M1` | [S-11](contract.md#s-11-合法目标集合) |
+| `displayList(s1)` | `M1` 仍在，注记 `{ withdrawn }`、标「选中」；其余合法目标各带 `legal` | [S-12](contract.md#s-12-展示列表) |
+| `openCall(…)`（没有拓展件改目标） | `{ state: handed_up, undispatched: withdrawn }`；日志里一条调用终结记录；**没有响应体** | [S-28](contract.md#s-28-opencall) 出门前检查第 1 行 |
+| `effectiveModel(s1)` | `{ profile: M1, … }`——**不替用户改选** | [S-9](contract.md#s-9-选中模型) |
+| `selectModel(s1, M1, T)` | `notLegalTarget{because: [withdrawn]}` | [S-27](contract.md#s-27-selectmodel) |
+
+## 6. 模态不兼容挡在算合法目标那一刻（场景 [S-45](contract.md#s-45-模态不兼容挡在算合法目标那一刻)）
+
+会话里进来一张图（没有 transcript）。
+
+| 调用 | 预期 | 依据 |
+|---|---|---|
+| `legalTargets(s1)` | 含 `M2`、不含 `M1`（`M1` 不收图） | [S-11](contract.md#s-11-合法目标集合) |
+| `displayList(s1)` | `M1` 标 `{ modality_mismatch }`、标「选中」 | [S-12](contract.md#s-12-展示列表) |
+| 会话里再进来一段语音，档案 `M3` 声明收文本、图、语音 | `M3` **不在**合法目标——本据点传输送不出语音 | [S-11](contract.md#s-11-合法目标集合) 最后一个合取项 |
+| 给那张图补上 transcript 之后 `legalTargets(s1)` | `M1` 回到合法目标（语音那一段另算） | [§5.11](../../../../product/PF-013-model-profiles-and-invocation/design.md#511-有-transcript-的块不再把任何模型挡在外面) |
+
+## 7. 默认重试件：不允许回退的档案
+
+选中模型换成 `M2`（不允许回退）。第一次发出 A 回 503。
+
+| 步 | 预期 | 依据 |
+|---|---|---|
+| 默认件读到策略类，但档案不允许回退 | **不给 `retry`**，交回 ⇒ loop `releaseCall`，上交 | [S-35](contract.md#s-35-默认重试件可替换) 第 3 条 |
+| 一件自定义件给 `retry { provider: B }` | `retryRefused{provider_not_allowed}` | [S-30](contract.md#s-30-dispatchagain) 守卫 4 |
+| 一件自定义件给 `retry { provider: A }` | 放行：第 2 次发出仍给 `A` | 同上 |
+
+## 8. 每个失败值一个反例
+
+| 失败值 | 调用 | 为什么 | 依据 |
+|---|---|---|---|
+| `invalidInput{malformed}` | `openCall({ run: run_1, session: s1, … })`（缺 `attempt`） | `run` 与 `attempt` 只给了一个 | [S-28](contract.md#s-28-opencall) ① |
+| `invalidInput{malformed}` | `dispatchAgain(c1, { provider: B, target: M2 })` | 计划里出现目标——换模型不是重试能做的 | [S-30](contract.md#s-30-dispatchagain) |
+| `invalidInput{parameter_out_of_range}` | `openCall` 的 `parametersOverride` 把 `temperature` 给成域外值 | 合并之后过不了参数校验；**不是一次上交** | [S-28](contract.md#s-28-opencall) 出门前检查第 5 行 |
+| `unavailable` | `legalTargets(s1)`，作用域求值读不到 | 判不出来，**不返回空集** | [S-24](contract.md#s-24-legaltargets) ⑧ |
+| `unavailable` | `interrupt(c1, user)`，中断意图写不进 | **不发中止信号** | [S-31](contract.md#s-31-interrupt) ⑧ |
+| `profileNotFound` | `selectModel(s1, { origin: official, routeName: "vendor/never" }, T)` | 引用解析到零行 | [S-27](contract.md#s-27-selectmodel) |
+| `notLegalTarget{because: [modality_mismatch]}` | 第 6 节的局面里 `selectModel(s1, M1, T)` | `M1` 不收图 | [S-27](contract.md#s-27-selectmodel) |
+| `callNotFound` | `interrupt(c_other_session, user)` | 这个 `callId` 不在这个会话里 | [S-14](contract.md#s-14-缺席时的默认答案与失败集合) |
+| `alreadyEnded` | 第 1 节之后 `interrupt(c1, user)` | `c1` 已在终态 | [S-31](contract.md#s-31-interrupt) |
+| `runtimeStopped` | 宿主停止中 `openCall(…)` | 不开新调用 | [S-36](contract.md#s-36-宿主停止与撤除) |
+| `retryRefused{call_ended}` | 第 1 节之后 `dispatchAgain(c1, { provider: A })` | 调用已终结 | [S-30](contract.md#s-30-dispatchagain) 守卫 1 |
+| `retryRefused{already_spoke}` | 见第 2 节第 3 步 | 开过口 | 守卫 2 |
+| `retryRefused{fact_class}` | 第一次发出上游回 401（`credential_unavailable`）之后 `dispatchAgain` | 重试没用 | 守卫 3 |
+| `retryRefused{provider_not_allowed}` | 见第 7 节 | 不允许回退 | 守卫 4 |
+| `wrongPhase{phase: in_flight}` | `dispatch` 在途时另一路又调 `releaseCall(c1)` | 这次发出还没收场 | [S-32](contract.md#s-32-releasecall) |
+
+**判定次序的一条回归例**：一次开过口、此刻在 `awaiting_decision` 的调用上 `dispatch(c2)` ⇒ **`retryRefused{already_spoke}`**，不是 `wrongPhase`（[S-30](contract.md#s-30-dispatchagain) 末条、[S-29](contract.md#s-29-dispatch) ⑥ 的次序）。
