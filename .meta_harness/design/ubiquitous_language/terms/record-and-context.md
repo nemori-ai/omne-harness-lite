@@ -124,7 +124,7 @@
 
 - **形态**：视图
 - **出处**：[PF-015 §5.8](../../product/PF-015-session-lifecycle-and-ownership/design.md#58-存储要守住的两件事)（rev 11）·
-  [PF-013 §4 模态投影](../../product/PF-013-model-profiles-and-invocation/design.md#模态投影)（rev 7）**给出了第一个实例**
+  [PF-013 §4 模态投影](../../product/PF-013-model-profiles-and-invocation/design.md#模态投影)（rev 8）**给出了第一个实例**
 - **⚠️ 别混**：**不是 [runtime context](scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context)。**
   runtime context 是**会话内那三个角色**消费的；**投影多半是给会话外的服务用的**。
   两者有交集但不重合，[判据在 PF-015 §5.5](../../product/PF-015-session-lifecycle-and-ownership/design.md#55-哪些算-meta-runtime-context)
@@ -158,7 +158,7 @@
 > are ours.
 
 - **形态**：对象
-- **出处**：[PF-009 §4 消息](../../product/PF-009-context-message-types/design.md#消息) · [七种消息](../../product/PF-009-context-message-types/design.md#七种消息按谁在说话分)（rev 6）
+- **出处**：[PF-009 §4 消息](../../product/PF-009-context-message-types/design.md#消息) · [七种消息](../../product/PF-009-context-message-types/design.md#七种消息按谁在说话分)（rev 7）
 - **注意 ①**：**说话的有四个，消息却有七种**——因为**有的说话者要说不止一类话**
 - **注意 ②**：`ToolInternalMessage` 是工具说过程的那一种，**一次工具执行恰好一条**；
   [执行帧](execution-and-outcome.md#ul-execution-frame--执行帧--execution-frame)是**它的到达增量**。
@@ -177,7 +177,7 @@
 > itself a series of blocks**, which is how a tool can return an image.
 
 - **形态**：对象
-- **出处**：[PF-009 §4 消息的内容是一串块](../../product/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 6）
+- **出处**：[PF-009 §4 消息的内容是一串块](../../product/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 7）
 - **别混**：**裸写「块」不作数**——那个词到处都是
 - **注意**：**为什么不能是一段文本**——一条消息里可能既有文字又有图；
   **模型的思考与它的回答是两回事，混在一起就再也分不开**；
@@ -201,7 +201,7 @@
 > the transcript.
 
 - **形态**：属性
-- **出处**：[PF-013 §4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件)（rev 7）
+- **出处**：[PF-013 §4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件)（rev 8）
 - **别混**：**不是[结果卸载](execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)的占位**——占位替换了原件，派生表示与原件并存
 - **注意**：**取哪一份不需要选择规则**——看模型收得下什么、直接取对应的那份
 
@@ -218,7 +218,7 @@
 > that has one no longer keeps any model out of the legal-target set.**
 
 - **形态**：属性
-- **出处**：[PF-013 §4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件) · [§5.11](../../product/PF-013-model-profiles-and-invocation/design.md#511-有-transcript-的块不再把任何模型挡在外面)（rev 7）
+- **出处**：[PF-013 §4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件) · [§5.11](../../product/PF-013-model-profiles-and-invocation/design.md#511-有-transcript-的块不再把任何模型挡在外面)（rev 8）
 - **别混**：**不专指语音转写**——图、视频、文件的兜底文本都叫它
 - **弃用说法**：~~文本那一份~~ ~~块上的文本字段~~
 
@@ -240,7 +240,7 @@
 > type outside the four (a PDF, say) **is not a modality** and any model can read it.
 
 - **形态**：属性
-- **出处**：[PF-013 §4 模态](../../product/PF-013-model-profiles-and-invocation/design.md#模态)（rev 7）
+- **出处**：[PF-013 §4 模态](../../product/PF-013-model-profiles-and-invocation/design.md#模态)（rev 8）
 - **⚠️ 别混**：**七类块 ≠ 四种模态**——块的类型归 [PF-009](../../product/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)，模态归 PF-013
 - **注意**：两处对不上时**挡在算合法目标那一刻**，不是挡在出门那一刻
 
@@ -260,7 +260,7 @@
 
 - **形态**：视图
 - **出处**：[PF-013 §4 模态投影](../../product/PF-013-model-profiles-and-invocation/design.md#模态投影) ·
-  [§6.18](../../product/PF-013-model-profiles-and-invocation/design.md#618-模态投影要答得快而且是增量维护出来的)（rev 7）
+  [§6.18](../../product/PF-013-model-profiles-and-invocation/design.md#618-模态投影要答得快而且是增量维护出来的)（rev 8）
 - **别混 ①**：**不是「这一次请求里带了哪些模态」**——那随压缩与筛选变；投影说的是整个会话曾经有过什么
 - **别混 ②**：**不是「当前模型收得下哪些模态」**——那是档案说的能力；投影说的是历史
 - **注意**：它是[会话要维护的一项状态，却不是 runtime context](../../product/PF-015-session-lifecycle-and-ownership/design.md#55-哪些算-meta-runtime-context)——会话内三个角色都不消费它
@@ -278,7 +278,7 @@
 > ways**. They say **whether to take it, never how to present it**.
 
 - **形态**：属性
-- **出处**：[PF-009 §4 每个块带两个标注](../../product/PF-009-context-message-types/design.md#每个块带两个标注给人看吗给模型看吗)（rev 6）
+- **出处**：[PF-009 §4 每个块带两个标注](../../product/PF-009-context-message-types/design.md#每个块带两个标注给人看吗给模型看吗)（rev 7）
 - **注意 ①**：**这是那一侧的中枢机制**——两份组装都是拿它从同一份日志里筛
 - **注意 ②**：**四种组合各有实例**：绝大多数两边都给；
   工具执行过程**只给人**；给模型的设定**只给模型**；
@@ -290,18 +290,21 @@
 
 ### UL-incremental-arrival · 增量到达 · Incremental Arrival
 
-> **中**：**一条消息是分次到达的。**能一点点长出来的只有四样——
-> **文本 · 思考 · 工具调用的参数 · 语音**；其余的**要么没有，要么整个有**。
+> **中**：**一条消息是分次到达的。**追加片段地一点点长出来的只有四样——
+> **文本 · 思考 · 工具调用的参数 · 语音**；其余的**要么没有，要么整个有**——
+> 但整个交出来可以不止一次：一个整体替换的块每次填给整个新内容，图、文件也能这样刷新。
 > 两条硬性质：**半条消息不是消息**；**组装出来的，必须与一次性拿到的一模一样**。
 >
-> **EN**: **A message arrives in instalments.** Only four things grow piece by piece —
-> **text, thinking, tool-call arguments, and voice**; everything else is **either absent
-> or present whole**. Two hard properties: **half a message is not a message**, and
-> **what is assembled from the instalments must be identical to what would have arrived
-> in one piece**.
+> **EN**: **A message arrives in instalments.** Only four things grow piece by piece by
+> appending — **text, thinking, tool-call arguments, and voice**; everything else is
+> **either absent or present whole** — though "whole" may be handed over more than once:
+> a replace-mode block takes a complete new content on every fill, so an image or a file
+> can be refreshed that way too. Two hard properties: **half a message is not a message**,
+> and **what is assembled from the instalments must be identical to what would have
+> arrived in one piece**.
 
 - **形态**：过程
-- **出处**：[PF-009 §5.5](../../product/PF-009-context-message-types/design.md#55-一条消息是分次到达的) · [§5.6](../../product/PF-009-context-message-types/design.md#56-流断在半路)（rev 6）
+- **出处**：[PF-009 §5.5](../../product/PF-009-context-message-types/design.md#55-一条消息是分次到达的) · [§5.6](../../product/PF-009-context-message-types/design.md#56-流断在半路)（rev 7）
 - **注意 ①**：**流断在半路有四种收场。**其中**没收齐参数的工具调用块**
   **记下来，但两边都不给看**——**参数收齐了才算数**，
   拿半截参数去调用，**比什么都不做危险得多**
@@ -310,6 +313,28 @@
 - **注意 ④**：**「填」有两种模式**——说事的**追加片段**，说状态的**整体替换**（封口时是最后那一次填的内容）；
   **说明给在开块那一下**，此后这一块怎么填就定了。
   **[工具执行的帧走的也是这一套](execution-and-outcome.md#ul-execution-frame--执行帧--execution-frame)**
+- **注意 ⑤**：收尾之前拼到一半的那份是[在途状态](#ul-in-flight-arrival--在途状态--in-flight-arrival)，不是消息、不进日志
+
+### UL-in-flight-arrival · 在途状态 · In-Flight Arrival
+
+> **中**：**一次[模型调用](execution-and-outcome.md#ul-model-call--一次模型调用--model-call)或一次
+> [工具执行](execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution)身上的一项属性**：
+> 它那条正在[分次到达](#ul-incremental-arrival--增量到达--incremental-arrival)的消息，**在收尾之前已经拼起来的那一份**——
+> 已封口的块，加上开着的整体替换块最后一次填进去的内容。**由运行时持有，不进[会话日志](#ul-session-log--会话日志--session-log)，也不是一条消息**；
+> 中途重进的观察者先拿它再续收增量；收尾时那条消息一次落盘，它随之作废；运行时失去连续性它就没了。
+>
+> **EN**: An attribute of one **model call** or one **tool execution**: **what has been
+> assembled so far** of the message that is arriving in instalments, before it is closed
+> out — the blocks already closed, plus the latest fill of any open replace-mode block.
+> **Held by the runtime, never written to the session log, and not itself a message**; an
+> observer joining mid-way reads it first and then continues with the increments; when the
+> message is closed out and written once, this state is discarded, and it is lost whenever
+> the runtime loses continuity.
+
+- **形态**：属性
+- **出处**：[PF-009 §9.2 收尾之前，拼到一半的那份是在途状态](../../product/PF-009-context-message-types/design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息)（rev 7）
+- **别混**：**不是[会话日志投影](#ul-session-log-projection--会话日志投影--session-log-projection)**——投影从日志算出来，这一份日志里根本没有
+- **注意**：它丢了不靠恢复：那正是「停了就不重来」的情形，收场另行追补
 
 ### UL-todo-item · 待办条目 · Todo Item
 
@@ -497,7 +522,7 @@
 > model-facing assembly.**
 
 - **形态**：变体（父：[消息](#ul-message--消息--message)）
-- **出处**：[PF-009 §4 CompactionMessage](../../product/PF-009-context-message-types/design.md#compactionmessage)（rev 6）·
+- **出处**：[PF-009 §4 CompactionMessage](../../product/PF-009-context-message-types/design.md#compactionmessage)（rev 7）·
   [PF-010 §6.4](../../product/PF-010-context-management-and-assembly/design.md#64-有压缩记录时边界由压缩记录定)（rev 5）
 - **⚠️ 注意**：**边界不是一条截断线。**压缩标的是**块**，而**块可以散布**——
   所以「这次取哪一段」的答案**本来就不是一个起点**，而是

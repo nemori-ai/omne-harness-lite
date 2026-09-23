@@ -99,7 +99,7 @@
 > **sibling of** tool execution — neither contains the other.
 
 - **形态**：对象
-- **出处**：[PF-013 flows §3.2 一次模型调用](../../product/PF-013-model-profiles-and-invocation/flows.md#32-一次模型调用)（rev 7） ·
+- **出处**：[PF-013 flows §3.2 一次模型调用](../../product/PF-013-model-profiles-and-invocation/flows.md#32-一次模型调用)（rev 8） ·
   [PF-011 §5.3](../../product/PF-011-off-nominal-handling/design.md#53-层的顺序不是排出来的是推出来的)（rev 4） ·
   [PF-012 §5.4](../../product/PF-012-agent-loop-and-run/design.md#54-一步的骨架)（rev 10）
 - **别混**：**不是那次请求的内容**——请求体怎么攒出来归 [PF-010](../../product/PF-010-context-management-and-assembly/README.md)；
@@ -169,7 +169,7 @@
 
 - **形态**：过程
 - **出处**：[PF-006 §4 发帧](../../product/PF-006-tools-and-skills/design.md#发帧)（rev 17） ·
-  [PF-009 §5.8](../../product/PF-009-context-message-types/design.md#执行帧就是这条消息的到达增量)（rev 6）
+  [PF-009 §5.8](../../product/PF-009-context-message-types/design.md#执行帧就是这条消息的到达增量)（rev 7）
 - **注意**：它补的是一个具体的窟窿——用户看着界面写着「正在调用某个工具」，**然后就没有下文了**：
   **它是卡住了，还是在正常地跑一件慢活，此前分不出来**
 
@@ -190,7 +190,7 @@
 
 - **形态**：过程
 - **出处**：[PF-009 §5.5](../../product/PF-009-context-message-types/design.md#到达的过程有它自己的语法) ·
-  [§5.8](../../product/PF-009-context-message-types/design.md#执行帧就是这条消息的到达增量)（rev 6）
+  [§5.8](../../product/PF-009-context-message-types/design.md#执行帧就是这条消息的到达增量)（rev 7）
 - **别混**：**裸写「帧」不作数**——那个词在别处指视频帧、网络帧
 - **注意 ①**：**它落进日志的是结果，不是过程**——日志里留的是收尾之后那条完整的消息
   （封口后的块）；**到达的过程不留**，中途被中断时已交付的块照样留
@@ -223,6 +223,29 @@
   硬塞进去，**一条消息就把上下文吃光了**
 - **注意 ②**：**帧不顶替结果。**一个工具把过程播报得再细，**跑完照样要给结果**——
   否则 agent 手上什么都没有，**它压根看不见那些帧**
+
+### UL-call-account · 调用账目 · Call Account
+
+> **中**：一次[模型调用](#ul-model-call--一次模型调用--model-call)或一次[工具执行](#ul-tool-execution--工具执行--tool-execution)**身上的一项属性**：
+> **它花了什么、产出了多少的账**——用量、费用、砍掉了多少增量、落在哪、跑了多久。
+> **每一次调用或执行各留一份，进[会话日志](record-and-context.md#ul-session-log--会话日志--session-log)、不进给模型看的上下文**；
+> **费用拿不到记「未知」，不记零**，拿到了再补一条；按尝试记明细、按运行汇总。
+>
+> **EN**: An attribute of one **model call** or one **tool execution**: **the account of
+> what it consumed and produced** — usage, cost, how many increments were trimmed, where it
+> ran, how long it took. **One per call or execution, written to the session log and never
+> into the model-facing context**; **a cost that cannot be obtained is recorded as
+> "unknown", never as zero**, and corrected by a later entry when it arrives; itemised per
+> attempt, summed per run.
+
+- **形态**：属性
+- **出处**：[PF-006 §5.4 每一次执行都留一份账](../../product/PF-006-tools-and-skills/design.md#每一次执行都留一份账)（rev 17） ·
+  [PF-009 §5.5](../../product/PF-009-context-message-types/design.md#到达的过程有它自己的语法)（rev 7） ·
+  [PF-012 成本两层](../../product/PF-012-agent-loop-and-run/design.md#成本两层缺哪一层都会算错)（rev 10） ·
+  [PF-013 §5.13](../../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)（rev 8） ·
+  [PF-001 §6.4](../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)（rev 16）
+- **别混**：**不是[工具产出](#ul-tool-output--工具产出--tool-output)**——产出是给读者的东西，账是关于这次的事实
+- **注意**：工具内部调外部服务产生的费用也记在这里，一次执行可以有多笔
 
 ### UL-attachment · 附件 · Attachment
 

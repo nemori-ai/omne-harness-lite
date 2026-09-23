@@ -2,7 +2,7 @@
 id: PF-009
 title: 上下文消息类型
 status: active
-revision: 6
+revision: 7
 relations:
   supersedes: []
   depends-on:

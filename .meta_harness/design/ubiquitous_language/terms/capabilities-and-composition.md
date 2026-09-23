@@ -238,7 +238,7 @@
 > losslessness. Short form in running text: *converter*.
 
 - **形态**：变体（父：[拓展件](#ul-loop-extension--拓展件--loop-extension)）
-- **出处**：[PF-013 §4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件)（rev 7） ·
+- **出处**：[PF-013 §4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件)（rev 8） ·
   [PF-012 §5.8 模态转换为什么必须落在这里](../../product/PF-012-agent-loop-and-run/design.md#模态转换为什么必须落在这里)（rev 10）
 - **⚠️ 别混 ①**：**不是[结果卸载](execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)**——
   那是把**太大**的工具结果换成占位、原件离开消息；转换件处理的是**读不懂**，**原件一步没动**
@@ -524,7 +524,7 @@
 ### UL-model-profile · 模型档案 · Model Profile
 
 > **中**：**关于一个可被调用的模型的全部事实**——上游认哪个名字、能走哪几家供应商、
-> 收得下和给得出哪几种模态、一次能吃多少吐多少、送进去之前还有什么限制。
+> 收得下和给得出哪几种模态、一次能吃多少吐多少、送进去之前还有什么限制、随它带上哪些[请求参数](#ul-model-request-parameters--模型请求参数--model-request-parameters)。
 > **它是数据，不是[资产](#ul-asset--资产--asset)**：「用哪个模型」是某份
 > [Agent 定义](#ul-agent-definition--agent-定义--agent-definition)的一项[设置](#ul-setting--设置--setting)，
 > **而那项设置的取值是对一条档案的引用**——档案自己独立存在、读得出来。
@@ -532,15 +532,15 @@
 >
 > **EN**: **Everything the system holds about one callable model** — the name upstream
 > answers to, which providers it may go through and in what order, which modalities it
-> takes in and gives out, how much it reads and writes in one go, and what else must
-> hold before a request goes out. **It is data, not an asset**: "which model" is a
+> takes in and gives out, how much it reads and writes in one go, what else must
+> hold before a request goes out, and which **request parameters** travel with it. **It is data, not an asset**: "which model" is a
 > setting on an agent definition, and **that setting's value is a reference to one
 > profile**, which exists in its own right and can be read back. Its **routing name is
 > unique within a scope and never changes** — change it and it is a different profile.
 
 - **形态**：对象
-- **出处**：[PF-013 §4 模型档案](../../product/PF-013-model-profiles-and-invocation/design.md#模型档案)（rev 7） ·
-  [PF-013 flows §3.1 一条模型档案](../../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 7）
+- **出处**：[PF-013 §4 模型档案](../../product/PF-013-model-profiles-and-invocation/design.md#模型档案)（rev 8） ·
+  [PF-013 flows §3.1 一条模型档案](../../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 8）
 - **⚠️ 别混 ①**：**官方档案 / 自建档案**（谁建的、落在哪一层）**不是
   [官方件](circulation-and-entitlement.md#ul-official-asset--官方件--official-asset) /
   [自定义件](circulation-and-entitlement.md#ul-customized-asset--自定义件--customized-asset)**——
@@ -571,7 +571,7 @@
 > **bring its own**.
 
 - **形态**：属性
-- **出处**：[PF-013 §5.6](../../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上) · [§6.2](../../product/PF-013-model-profiles-and-invocation/design.md#62-凭据挂在范围上档案自己不存)（rev 7）
+- **出处**：[PF-013 §5.6](../../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上) · [§6.2](../../product/PF-013-model-profiles-and-invocation/design.md#62-凭据挂在范围上档案自己不存)（rev 8）
 - **⚠️ 别混 ①**：**不是[设置](#ul-setting--设置--setting)**——设置是**资产**的属性，
   而[档案不是资产](#ul-model-profile--模型档案--model-profile)、凭据也不是；**它挂在范围身上**
 - **别混 ②**：**裸写「凭据」不作数**——账号的登录凭据、[连接件](#ul-connector--连接件--connector)的接入凭据、
@@ -579,6 +579,24 @@
 - **注意**：一范围一把的代价是**做不到「这个模型走另一个账号」**；
   同一范围里所有自建档案的用量都记在同一把上，**上游账单分不到单条档案**
 - **弃用说法**：~~BYOK~~——OpenRouter 响应里的 `is_byok` 是上游字段，说的是**上游那一侧**用了谁的 key，与本词条不是一回事，正文不用这个缩写
+
+### UL-model-request-parameters · 模型请求参数 · Model Request Parameters
+
+> **中**：[模型档案](#ul-model-profile--模型档案--model-profile)**身上的一项属性**：**发请求时随档案带上的那一组常用参数**——推理强度、temperature、seed 这一类——
+> **名字与取值由系统统一定一份，各家 adapter 自己解析处理**；上游不认的项**不静默丢，留痕**。
+> 一次请求实际带了什么，记在那次请求的可追溯组成里；「调模型之前」的拓展件可以只为这一次改掉它们。
+>
+> **EN**: An attribute of a **model profile**: **the set of common parameters that travel
+> with the profile on every request** — reasoning effort, temperature, seed and the like —
+> **named and typed once by the system, translated by each adapter on its own**; an item
+> the upstream does not recognise is **never dropped silently but recorded**. What a given
+> request actually carried is kept in that request's traceable composition; an extension
+> at "before the model call" may override them for that one request.
+
+- **形态**：属性
+- **出处**：[PF-013 §4 模型档案](../../product/PF-013-model-profiles-and-invocation/design.md#模型档案)（rev 8）
+- **别混**：**不是[模型凭据](#ul-model-credential--模型凭据--model-credential)**——凭据挂范围、一范围一把；参数挂档案、一档案一组
+- **注意**：词表里有哪些参数、各取什么值，归规格，不归产品正文
 
 ### UL-mcp-credential · MCP 凭据 · MCP Credential
 
@@ -617,7 +635,7 @@
 
 - **形态**：属性
 - **出处**：[PF-013 §4 选中模型 与 有效模型](../../product/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型) ·
-  [§5.9](../../product/PF-013-model-profiles-and-invocation/design.md#59-换模型一条事实一个生效点零个新分支)（rev 7）
+  [§5.9](../../product/PF-013-model-profiles-and-invocation/design.md#59-换模型一条事实一个生效点零个新分支)（rev 8）
 - **⚠️ 别混**：用户界面上「你正在用 X」说的是它；**「刚才那句话是 X 说的」说的是另一件事**，两者完全可以不是同一个答案
 
 ### UL-effective-model · 有效模型 · Effective Model
@@ -639,7 +657,7 @@
 - **形态**：视图
 - **出处**：[PF-013 §4 选中模型 与 有效模型](../../product/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型) ·
   [§5.10](../../product/PF-013-model-profiles-and-invocation/design.md#510-合法目标集合与展示列表是两件事) ·
-  [§6.9](../../product/PF-013-model-profiles-and-invocation/design.md#69-合法目标算不出来时不替用户改选)（rev 7）
+  [§6.9](../../product/PF-013-model-profiles-and-invocation/design.md#69-合法目标算不出来时不替用户改选)（rev 8）
 - **注意**：拓展件改掉它**不是静默的**——它[必须留下结论](../../product/PF-012-agent-loop-and-run/design.md#610-能干预的拓展件必须留下结论)
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

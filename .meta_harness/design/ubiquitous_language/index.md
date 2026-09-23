@@ -92,6 +92,7 @@
 | [UL-prompt-slot](terms/capabilities-and-composition.md#ul-prompt-slot--提示词槽位--prompt-slot) | 提示词槽位 | Prompt Slot | 系统提示词里一个恒定占位的条目 |
 | [UL-model-profile](terms/capabilities-and-composition.md#ul-model-profile--模型档案--model-profile) | 模型档案 | Model Profile | 关于一个可被调用的模型的全部事实，是数据不是资产 |
 | [UL-model-credential](terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential) | 模型凭据 | Model Credential | 组织或租户身上的一项属性，**一范围一把**；身份即范围、轮换是改值、用量归范围；**范围可以自带** |
+| [UL-model-request-parameters](terms/capabilities-and-composition.md#ul-model-request-parameters--模型请求参数--model-request-parameters) | 模型请求参数 | Model Request Parameters | 档案身上随请求带上的一组常用参数，**系统统一命名、adapter 各自解析**，不认的项留痕不静默丢 |
 | [UL-mcp-credential](terms/capabilities-and-composition.md#ul-mcp-credential--mcp-凭据--mcp-credential) | MCP 凭据 | MCP Credential | MCP 接入点持有上的一项落点与身份类设置，**一份持有一份**；静态的或经 OAuth 取得的；**不是模型凭据** |
 | [UL-selected-model](terms/capabilities-and-composition.md#ul-selected-model--选中模型--selected-model) | 选中模型 | Selected Model | 会话当前指向的那条档案，**只因切换而变的取值** |
 | [UL-effective-model](terms/capabilities-and-composition.md#ul-effective-model--有效模型--effective-model) | 有效模型 | Effective Model | 这一次请求实际用的那条档案，**每次现算**；可与选中的不同，算不出是非常态 |
@@ -199,6 +200,7 @@
 | [UL-frame-emission](terms/execution-and-outcome.md#ul-frame-emission--发帧--frame-emission) | 发帧 | Frame Emission | 跑的过程中交出「我正在干什么」，**不承诺任何事** |
 | [UL-execution-frame](terms/execution-and-outcome.md#ul-execution-frame--执行帧--execution-frame) | 执行帧 | Execution Frame | **一条 `ToolInternalMessage` 的到达增量**，走与模型回复同一套到达语法 |
 | [UL-tool-output](terms/execution-and-outcome.md#ul-tool-output--工具产出--tool-output) | 工具产出 | Tool Output | 三部分，**读者不同**；帧只给人看，agent 看不到 |
+| [UL-call-account](terms/execution-and-outcome.md#ul-call-account--调用账目--call-account) | 调用账目 | Call Account | 一次调用或执行花了什么、产出多少的账；**进日志不进上下文**，费用拿不到记未知 |
 | [UL-attachment](terms/execution-and-outcome.md#ul-attachment--附件--attachment) | 附件 | Attachment | 存进存储、不进对话，agent 自己去取 |
 | [UL-result-offloading](terms/execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading) | 结果卸载 | Result Offloading | 原始结果存起来、消息里换成带摘要的占位，**不是全卸载** |
 | [UL-offloaded-result](terms/execution-and-outcome.md#ul-offloaded-result--被卸载的原始结果--offloaded-result) | 被卸载的原始结果 | Offloaded Result | 太大而被卸载存起来的那份完整工具结果，日志里只有占位 |
@@ -255,6 +257,7 @@
 | [UL-modality-projection](terms/record-and-context.md#ul-modality-projection--模态投影--modality-projection) | 模态投影 | Modality Projection | 会话历史里出现过哪几种**没有 transcript** 的模态；从日志派生、只增不减；合法目标的输入 |
 | [UL-block-annotation](terms/record-and-context.md#ul-block-annotation--块标注--block-annotation) | 块标注 | Block Annotation | 给人看吗、给模型看吗——**标在块上不在消息上** |
 | [UL-incremental-arrival](terms/record-and-context.md#ul-incremental-arrival--增量到达--incremental-arrival) | 增量到达 | Incremental Arrival | 分次到达，**能长的只有四样**；半条不是消息 |
+| [UL-in-flight-arrival](terms/record-and-context.md#ul-in-flight-arrival--在途状态--in-flight-arrival) | 在途状态 | In-Flight Arrival | 收尾之前拼到一半的那份，**运行时持有，不进日志、不是消息** |
 | [UL-todo-item](terms/record-and-context.md#ul-todo-item--待办条目--todo-item) | 待办条目 | Todo Item | agent 记给自己看的一条待办，活在一次会话里 |
 | [UL-context-assembly](terms/record-and-context.md#ul-context-assembly--上下文组装--context-assembly) | 上下文组装 | Context Assembly | 从日志拼出给某一方看的那份，**只读不写** |
 | [UL-user-facing-context](terms/record-and-context.md#ul-user-facing-context--给用户看的上下文--user-facing-context) | 给用户看的上下文 | User-Facing Context | 两个动作，**方向相反、锚点不同** |

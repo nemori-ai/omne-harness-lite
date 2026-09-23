@@ -85,7 +85,7 @@
 - **宿主**：—。建在组织或租户自己那一层；它不是资产，「用哪个模型」那项设置的取值是对它的引用
 - **身份**：路由名，同一范围内唯一，一旦定下不可改——改了就是另一条档案
 - **生灭**：建档（建档者持有该范围的配置资格）→ 在册 → 已撤回（终态，不可逆）；撤回不删行，那一行永远保留。「这个范围不再允许它」不是它的状态转移，是作用域求值的结果变了
-- **依据**：[PF-013 §4 模型档案](../product/PF-013-model-profiles-and-invocation/design.md#模型档案)（rev 7）；[PF-013 flows §3.1](../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 7）；[PF-013 §6.4](../product/PF-013-model-profiles-and-invocation/design.md#64-撤回不删行会话指向被撤回的档案时说已下架)（rev 7）
+- **依据**：[PF-013 §4 模型档案](../product/PF-013-model-profiles-and-invocation/design.md#模型档案)（rev 8）；[PF-013 flows §3.1](../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 8）；[PF-013 §6.4](../product/PF-013-model-profiles-and-invocation/design.md#64-撤回不删行会话指向被撤回的档案时说已下架)（rev 8）
 
 ### UL-meta-capability · meta 能力
 
@@ -209,7 +209,7 @@
 - **宿主**：[agent runtime](#ul-agent-runtime--agent-runtime)（永远；转不了后台）
 - **身份**：正文未述；每次调用要留下「实际用了哪条档案」的留痕
 - **生灭**：待发出 → 在途（可在本层换一家或退避）→ 说话中（首 token 到，不可逆）→ 完整一份。三个终态：完整一份 · 上交 · 被中断。停机恢复看首 token：之前可重发，之后一律不重发
-- **依据**：[PF-013 flows §3.2](../product/PF-013-model-profiles-and-invocation/flows.md#32-一次模型调用)（rev 7）；[PF-013 §5.2](../product/PF-013-model-profiles-and-invocation/design.md#52-这一层的四要素填-pf-011-那一格)（rev 7）；[PF-013 §5.13](../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)（rev 7）
+- **依据**：[PF-013 flows §3.2](../product/PF-013-model-profiles-and-invocation/flows.md#32-一次模型调用)（rev 8）；[PF-013 §5.2](../product/PF-013-model-profiles-and-invocation/design.md#52-这一层的四要素填-pf-011-那一格)（rev 8）；[PF-013 §5.13](../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)（rev 8）
 - **并入**：「模型请求运行时」「模型请求」「进行中的模型响应」——正文没给它们各自的身份，是这一个对象的运行时面
 - **未裁**：不属于任何运行的那种模型调用（旁路提问）宿主是谁，正文未述。归 PF-012 与 PF-015
 
@@ -291,7 +291,7 @@
 - **宿主**：[会话日志](#ul-session-log--会话日志)
 - **身份**：「一条消息有稳定的身份」，且不能从会变的文本或时间戳算出来；具体方式正文未述。类型是确定的，不靠解析内容
 - **生灭**：流式到达期间只是「正在长的块」→ 长成一条完整消息落盘，或按「流断在半路」收场 → 落盘后不改不删；**消息之间没有取代**，状态类提醒也一律追加。它对模型可不可读，可被后来的压缩摘要点名而改变，但那是算出来的，消息本身一字不动
-- **依据**：[PF-009 §4 消息](../product/PF-009-context-message-types/design.md#消息)（rev 6）；[PF-009 §4 半条消息不是消息](../product/PF-009-context-message-types/design.md#半条消息不是消息)（rev 6）；[PF-009 §5.4](../product/PF-009-context-message-types/design.md#54-提醒说的是现在什么样还是刚才发生了什么)（rev 6）；[PF-009 §5.6](../product/PF-009-context-message-types/design.md#56-流断在半路)（rev 6）；[PF-009 §6.4](../product/PF-009-context-message-types/design.md#64-说状态的写清变化说事的写清发生消息一律追加)（rev 6）
+- **依据**：[PF-009 §4 消息](../product/PF-009-context-message-types/design.md#消息)（rev 7）；[PF-009 §4 半条消息不是消息](../product/PF-009-context-message-types/design.md#半条消息不是消息)（rev 7）；[PF-009 §5.4](../product/PF-009-context-message-types/design.md#54-提醒说的是现在什么样还是刚才发生了什么)（rev 7）；[PF-009 §5.6](../product/PF-009-context-message-types/design.md#56-流断在半路)（rev 7）；[PF-009 §6.4](../product/PF-009-context-message-types/design.md#64-说状态的写清变化说事的写清发生消息一律追加)（rev 7）
 - **并入**：「排队的消息」——待处理与已消费是从日志派生的读法，不另存
 
 ### UL-content-block · 内容块
@@ -299,7 +299,7 @@
 - **宿主**：[消息](#ul-message--消息)
 - **身份**：正文未述；但压缩摘要的点名名单以块为单位，即块在消息内可被单独指到
 - **生灭**：开一个块（说明这块怎么填：追加片段 / 整体替换）→ 往里填 → 封口交出完整一块 → 落盘后块与它的两个标注都不再变；之后可被点名而不再对模型可读，那是算出来的，不回写
-- **依据**：[PF-009 §4 消息的内容是一串块](../product/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 6）；[PF-009 §4 每个块带两个标注](../product/PF-009-context-message-types/design.md#每个块带两个标注给人看吗给模型看吗)（rev 6）；[PF-009 §5.5](../product/PF-009-context-message-types/design.md#填有两种模式开块的时候说明是哪一种)（rev 6）
+- **依据**：[PF-009 §4 消息的内容是一串块](../product/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 7）；[PF-009 §4 每个块带两个标注](../product/PF-009-context-message-types/design.md#每个块带两个标注给人看吗给模型看吗)（rev 7）；[PF-009 §5.5](../product/PF-009-context-message-types/design.md#填有两种模式开块的时候说明是哪一种)（rev 7）
 
 ### UL-todo-item · 待办条目
 
