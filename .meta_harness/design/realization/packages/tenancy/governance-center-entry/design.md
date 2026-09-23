@@ -527,7 +527,7 @@ disposer 返回之后仍在跑的请求若再遇到缺陷，只写工程记录�
 | `isolate` 隔离实例可见性，不隔离数据 | 不用 `isolate` 做运维面的访问控制 | [`isolate-hides-instances-not-data`](../../../../basis/cordis/isolate-hides-instances-not-data.md)（同上） |
 | `ctx.fiber.state` 可读；插件体执行期间是 `LOADING` | `fiberIsActive`；「插件体返回即就绪、fiber 随后 `ACTIVE`」，所以开门不能 `await` 在插件体里（[就绪与开门](#就绪与开门为什么分两步)） | **共用主张，非 basis**：`core/kernel-basis` 的 probe `fiber-state-readable`（[读数](../../core/kernel-basis/design.md#读数与-probe-结果)第 8 条） |
 | `ctx.on` 注册的监听经 effect 纳管、随 fiber 撤除 | 运维面的三条监听；入口层对 `listening` 的监听 | **假设，须按 source-check 取证** |
-| 内核把 `ctx.plugin(plugin, config)` 的 config 对象原样交给插件体：不深拷贝、不冻结、不序列化，重跑时交的仍是同一个对象 | `openSignal` 是 config 里的一个 Promise：被拷贝或序列化就不再是装配手里那一个，兑现不到入口层；重跑时「同一个已兑现的 Promise」也依赖它 | **假设，须按 source-check 取证**；另核 `definePlugin` 的 Config 校验不重建对象 |
+| 内核把 `ctx.plugin(plugin, config)` 的 config 对象原样交给插件体：不深拷贝、不冻结、不序列化，重跑时交的仍是同一个对象 | `openSignal` 是 config 里的一个 Promise：被拷贝或序列化就不再是装配手里那一个，兑现不到入口层；重跑时「同一个已兑现的 Promise」也依赖它 | **已取证（W1-A，2026-09-23，Cordis 4.0.4 `fiber.ts` `resolveConfig`）**：顶层 config 会被 Standard Schema 校验**重建**（zod object 返回新对象），但经 `z.custom`／`instanceof` 放行的值**同引用**、不冻结；重跑时从构造时保存的原始 config 重新校验，交到插件体的仍是同一个引用。前提改写为：**运行时对象在 Config 里必须用 `z.custom`／`instanceof` 描述，不能用 `z.object` 展开**；probe `upgrade.guard-binding`（storage-sql）。`openSignal` 照此用 `z.custom` |
 | 不带 `thisArg` 的 `ctx.emit` 不按 isolate 过滤，监听者在 `emit` 的调用栈里同步执行；监听者抛出时 `emit` 的行为 | 通知在开闸之前同步到达；运维面监听者只做赋值与加一，不抛 | **假设**（「同步派发」一半有 basis，过滤与异常两半没有） |
 | 重跑时旧实例的异步 disposer 在新插件体开始之前完成 | 入口层重跑时新实例绑定同一端口 | **假设，须取证**；不成立时新实例撞端口 ⇒ `FAILED`、客户端一面保持问不到直到重启（不半开，但不自愈） |
 | 内核不提供跨进程身份与可见性、权限边界、可靠投递、背压 | 这些都由契约条款与本节点兑现 | **假设**：出自手册的内核负面清单，basis 没有条目 |

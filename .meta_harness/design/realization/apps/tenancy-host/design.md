@@ -231,7 +231,7 @@ clock 插件启动时仍按自己的判定再核一次回拨（[时钟装配](#�
 - `guard.confirm()` 返回 `{ migrated, snapshotTaken, snapshotRemoved }`；`guard` 没挂到任何实例 ⇒ 抛 `UpgradeGuardNotAttached`。本节点断言 **`snapshotTaken ⇒ snapshotRemoved`**——「拿了快照就必须删到」是守卫自己的不变量，与方言无关：拿了快照却没删到，说明确认没落在那个快照上 ⇒ 启动失败，具名原因「升级确认没有删到快照」。两种失败都在兑现 `openSignal` 之前，都走「逆序全撤 ⇒ 恢复快照」，闸从未开过。
 - **`migrated ∧ ¬snapshotTaken` 就是 U-3**：pg 上没有快照，`snapshotTaken` 为假、断言自然成立；跑过迁移而没有快照，这次升级在迁移提交之后撤不回。**不拒起**，启动日志具名写「本次升级不可撤回（U-3）」，与[实施缺口 U-3](#实施缺口与消费者影响) 互指。sqlite 上有待跑迁移就一定拿快照（R-U3），这一支只在 pg 上出现。
 - `guard.pending()` 不抛，三种结果：`never-attached`（守卫从未挂上实例——被占或 config 失败时的常态）、`clear`、`pending { location }`；只有最后一种要在启动失败说明里点出位置，是 R-U8 的撤后核查。
-- **前提**（与入口层的 `openSignal` 同一条）：内核把 `ctx.plugin(plugin, config)` 的 config 对象原样交给插件体——不深拷贝、不冻结、不序列化；**假设，须按 source-check 取证**（[入口层节点「依赖的上游机制语义」](../../packages/tenancy/governance-center-entry/design.md#依赖的上游机制语义)同一行）。不成立时插件体拿到的是拷贝，挂上去的不是本节点手里那一个 ⇒ `confirm()` 抛 `UpgradeGuardNotAttached` ⇒ 启动失败：**失败是响的**，不会退回「找不到 ⇒ 成功」。
+- **前提**（与入口层的 `openSignal` 同一条）：守卫的**引用**经 config 原样到达插件体——**已取证（W1-A，2026-09-23）**：顶层 config 会被 zod 校验重建，但 `z.custom` 放行的值同引用、不冻结、重跑时仍是同一个；所以 storage-sql 的 Config 用 `z.custom` 描述 `guard` 与各 check（[入口层节点「依赖的上游机制语义」](../../packages/tenancy/governance-center-entry/design.md#依赖的上游机制语义)同一行）。不成立时插件体拿到的是拷贝，挂上去的不是本节点手里那一个 ⇒ `confirm()` 抛 `UpgradeGuardNotAttached` ⇒ 启动失败：**失败是响的**，不会退回「找不到 ⇒ 成功」。
 
 | | `confirmUpgrade(config)`／`pendingUpgrade(config)`，以 config 为键（落选） | **守卫对象随 config 传入，确认绑在实例上（选）** |
 | --- | --- | --- |
