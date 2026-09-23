@@ -4,6 +4,11 @@
 # 下面三条绑定借那份模型作证据，前提逐条写明——模型证的是「动作的守卫与转移」，
 # 不证存储原子性、表示层、依据不可伪造、失败值的字面。
 # 八条规范场景与两条静态检查尚无任何测试，不写占位绑定；见 verification.md。
+#
+# 对 v2（candidate）：S-13／S-14／S-38 在 v2 里与 v1 逐字相同（v2 §十「原样」）。三条绑定只登在 v1 坐标上，
+# 对 v2 同号条款的适用性写在各条前提的最后一项；v2 未接受、组合 v1 钉的是 AI v1，因此不另登 v2 坐标。
+# v2 新增或改写的 S-15、S-17、S-44、S-45 没有任何已存在的证据（v2 §八：不建形式工件），不绑；
+# 它们的证据形式（场景、类型测试、熵审阅、故障注入）登记在 verification.md。
 version: 1
 node: "account-identity"
 kind: "provider"
@@ -17,6 +22,7 @@ bindings:
       - "run 配置 crash.cfg：Attempts = {a1, a2, a3}，Failures = TRUE，Abandoning = TRUE，Expiring = TRUE；结论只在该常量范围内成立（record/evidence/2026-09-22-formal-tenant-domain-2）"
       - "「已过留存期限」在模型里是全局布尔 expired，Expire 是原子动作、三个读点读到同一个值——这正是模型抽象掉的部分；真实系统里由账号行上的 expiredAt 事实（首次观测时落盘）+ 存储要求 R-3 锁定读 + R-7 引用约束兑现（design.md「过期事实」一节），证据形式是 S-43 第 2 支含两条交错的真并发演练（未开始），模型不检查"
       - "依据的不可伪造有两个前提不在模型里：activation 私钥只由 account-registration 持有且不外泄；本节点持有的 activation 公钥与那把私钥配对。两者是部署配置输入（缺 ⇒ 启动失败），由装配兑现，本版没有可机检的证据形式"
+      - "对 v2：capability.account-identity/v2#S-14 与本条逐字相同，模型检查的守卫与转移对它同样成立；前提是 v2 接受时该条仍逐字相同、组合改钉 v2 时模型的抽象动作不变。那之前只登 v1 坐标"
     alignment_checked: 2026-09-22
 
   - clause: "capability.account-identity/v1#S-13"
@@ -25,6 +31,7 @@ bindings:
       - "模型只覆盖幂等边界那一半：ClaimFresh（新建）、ClaimResume（认回同一 AccountId）、ClaimTaken（已激活 ⇒ identifier-taken）、ClaimExpired（已过期 ⇒ 不终结、就地清除）。凭据合规层（credential-rejected）与表示层（invalid-input）不在模型里"
       - "单标识模型：登录标识唯一性被建模方式吸收，不是被检查的性质；真实系统里由存储唯一约束 R-2 兑现，证据形式是组合契约场景 S-31（未开始）"
       - "run 配置同上（crash.cfg）"
+      - "对 v2：capability.account-identity/v2#S-13 与本条逐字相同，适用性同 S-14 那条的最后一项"
     alignment_checked: 2026-09-22
 
   - clause: "capability.account-identity/v1#S-38"
@@ -35,4 +42,5 @@ bindings:
       - "模型里 ExpireAccount 无条件成功；真实系统里删除可能被 R-7 引用约束拒绝（个人组织行仍指着账号行）⇒ storage-unavailable ⇒ 清除链按抖动型重扫——NoOrphanPersonalOrganization 在真实系统里靠这条约束而不是靠动作次序成立，模型不检查"
       - "依据不可伪造的两个前提同 S-14 那条：purge 私钥只由 organization-governance 持有且不外泄；本节点的 purge 公钥与之配对。部署配置输入，装配兑现"
       - "run 配置同上（crash.cfg）；NoOrphanPersonalOrganization 只在此配置下被真正检查"
+      - "对 v2：capability.account-identity/v2#S-38 与本条逐字相同，适用性同 S-14 那条的最后一项"
     alignment_checked: 2026-09-22

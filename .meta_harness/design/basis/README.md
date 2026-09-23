@@ -81,15 +81,16 @@ probe 断言什么。
 
 ## 当前状态
 
-已有 4 条条目，均来自账号与租户设计实际依赖的机制语义：
+已有 6 条条目，均来自账号与租户设计实际依赖的机制语义：
 `isolate-hides-instances-not-data`、`async-control-not-bail`、
-`plugin-body-reruns-on-provider-change`、`effect-disposal-concurrent-not-ordered`。
+`plugin-body-reruns-on-provider-change`、`effect-disposal-concurrent-not-ordered`（2026-09-22），
+以及 `inject-has-no-optional-form`（含「`ctx.get` 看得见整棵树」）、`plugin-throw-fails-fiber`（2026-09-23 升格，
+治理中心入口层的机制读数依赖它们：门只在必需服务全部 `ACTIVE` 时才开、配置错误即启动失败、「没有门」不能靠内核）。
 
-四条的 `probe` 均已落在 `packages/core/kernel-basis/tests/basis/`，对采用版本 4.0.4 通过
-（2026-09-22，采用版本见 [D-025](../record/decisions/cordis-adoption-version/decision.md)）；
+六条的 `probe` 均已落在 `packages/core/kernel-basis/tests/basis/`，对采用版本 4.0.4 通过
+（采用版本见 [D-025](../record/decisions/cordis-adoption-version/decision.md)）；
 `async-control-not-bail` 的读数在取证时按 4.0.4 源码改正过（Promise 被当作 bail 值，而非被忽略）。
-同目录下另有四条**不对应 basis 条目**的 probe（`inject-has-no-optional-form`、`provide-is-effect-managed`、
-`plugin-throw-fails-fiber`、`fiber-state-readable`），核对的是 realization 节点依赖的共用主张；
-要不要升格为条目，按本页准入另议。手册正文与历次走查中的其余机制主张尚未迁入。
+同目录下另有两条**不对应 basis 条目**的 probe（`provide-is-effect-managed`、`fiber-state-readable`），
+核对的是 realization 节点依赖的共用主张；要不要升格为条目，按本页准入另议。手册正文与历次走查中的其余机制主张尚未迁入。
 
 返回[设计链入口](../README.md)。

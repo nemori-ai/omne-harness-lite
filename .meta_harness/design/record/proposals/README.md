@@ -40,6 +40,7 @@
 | [`skill-spec-adoption/`](skill-spec-adoption/README.md) | 本项目 Skill 的**规格形状起点**：omne_skill_spec 移植、Agent Skills 开放格式直接采用、DSH skill 子系统 fork，还是自研最小规格；扩展声明放哪的子选择 | 四个实质候选；作者推荐开放格式 + 规则层自持、扩展声明走包内定义记录，**未评审、未接受**；**挡接受的一项：开放格式原文未钉存** | 下游是块 B 的 Skill 包契约与导入器；调用面开关走资产属性是主线已定前提 |
 | [`message-and-stream-baseline/`](message-and-stream-baseline/README.md) | 消息与块的**数据契约、到达语法、流装配器**三层各以谁为起点：DSH `llm/llm` 起步、pi-ai 类型起步、全自研，还是混合 | 四个实质候选；作者推荐混合（数据契约自研、语法借 StreamChunk 骨架并把伴件检查升为必选、装配器自写、pi-ai 只在传输适配翻译），**未评审、未接受**；三层可分开选、依赖单向 | 下游是块 D 共用契约，先于块 B、C 契约定型；建议按 tenant-capability-split 先例做独立评审或投票 |
 | [`slash-command-parsing-baseline/`](slash-command-parsing-baseline/README.md) | 交付面上斜杠命令的**识别、解析与展开逻辑起点**：omne-next 前缀分类器、Codex 做法、Claude Code 做法，还是按产品正文自研统一解析器 | 四个实质候选（另保留 DSH 的排除依据）；作者推荐自研并借各家零散规则，**未评审、未接受**；Q1–Q9 待区分，三项产品未决挡住测试用例集 | 下游是 PF-016/PF-014 的解析契约与导入器；对 [cli-tui](cli-tui/README.md) D7「共用一份命令定义」有收窄影响 |
+| [`governance-center-entry/`](governance-center-entry/README.md) | 治理中心的**入口层**（客户端 ↔ 中心的接入与身份核实）与**运维面**（只在中心所在机器可读的完整体检）在 Cordis 装配里落在哪、由谁拥有 | 四个实质候选：入口层三个落点（A 独立 fiber、B 并入装配、C 三扇门）加运维面一个替代（D 进程外命令），关键反例互不重复；**主线裁定方向 A，尚无接受、尚无评审**；输入基线含 [PF-017](../../product/PF-017-governance-center-as-deployable-application/README.md) rev 1（**草稿，未接受**），依赖它的结论都是候选依据 | 下游是待立的组合契约 `spec/compositions/governance-center-entry` v1 与待立的 realization 节点 `packages/tenancy/governance-center-entry`，以及 [apps/tenancy-host](../../realization/apps/tenancy-host/README.md)、`apps/cli` 两个节点的修订；接受走新决定 |
 
 存量 topic 尚未从 `design_legacy/proposals/` 迁入；原索引见那份留档，
 **迁入时逐条恢复并核对链接与接受状态**，不整批复制。

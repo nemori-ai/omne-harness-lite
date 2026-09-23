@@ -52,7 +52,7 @@
 | [沙箱数据](../domain_objects/objects.md#ul-sandbox-data--沙箱数据) | [UL-sandbox-data](../ubiquitous_language/terms/grounding-and-isolation.md#ul-sandbox-data--沙箱数据--sandbox-data) | [租户](../domain_objects/objects.md#ul-tenant--租户)（寿命上）；[租户级沙箱](../domain_objects/objects.md#ul-tenant-sandbox--租户级沙箱)（归属上） | — | PF-005 | — |
 | [终端会话](../domain_objects/objects.md#ul-terminal-session--终端会话) | [UL-terminal-session](../ubiquitous_language/terms/grounding-and-isolation.md#ul-terminal-session--终端会话--terminal-session) | [执行环境](../domain_objects/objects.md#ul-execution-environment--执行环境)（环境销毁，里面的终端会话全没） | — | PF-007 | 016 |
 | [会话据点](../domain_objects/objects.md#ul-session-base--会话据点) | [UL-session-base](../ubiquitous_language/terms/grounding-and-isolation.md#ul-session-base--会话据点--session-base) | 正文未述——正文只给了一条消失路径「这一处的那份数据被清除」，没说身份里那个账号那一头没了它怎么办（账号本版无注销，那一问正文无从谈起）。**它不寄宿于任何进程**：「此刻有没有进程在服务它」与「它在不在」是两件事 | — | PF-016 | — |
-| [治理中心](../domain_objects/objects.md#ul-governance-center--治理中心) | [UL-governance-center](../ubiquitous_language/terms/grounding-and-isolation.md#ul-governance-center--治理中心--governance-center) | —（独立于任何人的机器。会话据点的身份里带着它，那是**据点依赖它**，不是它寄宿于谁） | — | PF-016 | — |
+| [治理中心](../domain_objects/objects.md#ul-governance-center--治理中心) | [UL-governance-center](../ubiquitous_language/terms/grounding-and-isolation.md#ul-governance-center--治理中心--governance-center) | —（独立于任何人的机器。会话据点的身份里带着它，那是**据点依赖它**，不是它寄宿于谁） | — | PF-016 | 017 |
 
 ## 交互与派发
 

@@ -23,7 +23,7 @@
 | 保留前提 | 单机交付（[SYS-DEPLOY](../../../foundation/cross-system-constraints/requirements.md#sys-deploy)）；两个 tenancy 节点的表在同一存储、同一约束域 |
 | 取代关系 | 不取代任何决定；闭合 D-023「不表示存储已选定」那一句的范围 |
 
-**`infra` 这个第一层组名与 `apps/tenancy-host` 这个装配节点名是候选**，产品负责人尚未就名字本身作答；
+**`infra` 这个第一层组名与 `apps/tenancy-host` 这个装配节点名**在本决定时是候选，产品负责人 2026-09-23 已由 [D-027](../infrastructure-names-and-sqlite-durability/README.md) 拍板；本决定时尚未就名字本身作答；
 节点按候选名落盘，拍板后若改名是搬目录，不改本决定。
 
 ## 按当前问题展开

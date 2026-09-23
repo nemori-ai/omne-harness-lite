@@ -123,4 +123,30 @@
 - **注意**：**表达不出「或」就只能按最严的算**，好用的东西会被无谓地判成不可用
 - **注意**：**带脚本的技能同样要声明**它需要什么设施——不给它地方声明，就只能默认塞给宿主机，**绕过安全判断**
 
+### UL-governance-center-health-check · 治理中心体检 · Governance Center Health Check
+
+> **中**：[治理中心](grounding-and-isolation.md#ul-governance-center--治理中心--governance-center)关于「我此刻在不在、能不能答」的自述，
+> 从部署事实现算、不另存。**公开部分恰三样**——在不在、[治理中心标识](grounding-and-isolation.md#ul-governance-center-identifier--治理中心标识--governance-center-identifier)、版本——
+> 任何够得到中心的人**登录之前就能看，且不受版本核对那一关挡**；完整部分（起来的时刻、数据所在够不够得着、
+> [部署密钥](grounding-and-isolation.md#ul-deployment-key--部署密钥--deployment-key)在不在完整不完整、时钟正不正常、
+> 每一项[部署参数](grounding-and-isolation.md#ul-deployment-parameter--部署参数--deployment-parameter)的值）
+> 只有[运维者](subjects-and-ownership.md#ul-deployment-operator--运维者--deployment-operator)在中心所在的机器上看得到。
+> **两部分都不含任何治理事实，不含任何秘密的值。**正文简称「中心体检」。
+>
+> **EN**: A governance center's own statement of "am I up, can I answer", computed from deployment
+> facts and not stored separately. **The public part is exactly three things** — up or not, the
+> governance center identifier, the version — readable **before login** by anyone who can reach the
+> center and **not blocked by the version check**; the full part (when it started, whether its data
+> is reachable, whether the deployment key is present and complete, whether the clock is sane, the
+> value of each deployment parameter) is visible only to the deployment operator on the center's own
+> machine. **Neither part carries any governance fact or any secret value.** Product text shortens
+> it to "center health check".
+
+- **形态**：视图
+- **出处**：[PF-017 §4 中心体检](../../product/PF-017-governance-center-as-deployable-application/design.md#中心体检) ·
+  [§6.17](../../product/PF-017-governance-center-as-deployable-application/design.md#617-体检只说部署不说里面有谁)（rev 2）
+- **⚠️ 别混**：与 [PF-016 本机族的「体检」](../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)是**同一个词的两头**：
+  那边是客户端自查「能不能连上中心」，这边是中心自述「我在不在」；**取同一个词是有意的**，两头合起来才是「这条路通不通」
+- **注意**：不是[当下可用性](#ul-current-availability--当下可用性--current-availability)——那是一份能力的依赖解析结果，这是一次部署的自述
+
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

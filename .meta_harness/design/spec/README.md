@@ -34,6 +34,7 @@ Schema、Alloy、TLA+ 行为模型及规范场景按表达与证据需要加入�
 - 新 topic 必须有语义拥有者、稳定契约身份、适用范围、版本边界、精确依赖和候选/接受状态；发布还需 catalog 的采用依据。
 - 语义或接受未定时保留候选版本，不填正式登记；依赖条款无等价对应、Schema 身份冲突或已触发的证明义务未闭合时，停止相应发布与消费。
 - data 只拥有共享含义与结构，capability 拥有单项能力的操作/状态/失败，composition 拥有不能归于单项能力的整体性质与交接；归属不明先返回能力模型。
+- **线上形状归把操作送过进程边界的那份 composition。**capability 的操作输入与返回用散文写清含义，值类型引用 data 契约的 Schema，**自己不发布 Schema**；一旦某份 composition 把一组操作投影到进程外（信封、载荷、返回、答复集合），这些线上成员名与交换表示由它命名、以它的 Schema 为准，成员名从被投影条款的散文推出，不改被投影条款。据点侧代理、客户端与入口层都从那份 Schema 取名，**不在实现里各写各的**。同一个操作被两份 composition 投影到两条边时，后立的引用先立的定义，不另起一套名。
 
 ## 清单在哪里
 
@@ -86,8 +87,9 @@ Alloy 可按结构关系建立模型，检查断言并探索合法实例；参�
 
 ## 当前状态
 
-**当前有五个 topic**，都属租户相关领域，**全部为 `accepted`、资源已冻结**
-（[D-023](../record/decisions/tenant-domain-design-acceptance/README.md)，产品负责人，2026-09-22）：
+**当前有六个 topic**，都属租户相关领域，**全部 `accepted`、资源已冻结**：
+前五个 v1 依据 [D-023](../record/decisions/tenant-domain-design-acceptance/README.md)（产品负责人，2026-09-22）；
+`compositions/governance-center-entry` v1 与 `capabilities/account-identity` **v2** 依据 [D-028](../record/decisions/governance-center-design-acceptance/README.md)（产品负责人，2026-09-23；主责产品依据 PF-017 rev 2）。账号能力 v1 与 v2 并存：注册组合与治理契约仍钉 v1，入口契约钉 v2：
 
 | topic | 拥有什么 |
 |---|---|
@@ -96,9 +98,10 @@ Alloy 可按结构关系建立模型，检查断言并探索合法实例；参�
 | [`capabilities/account-identity`](capabilities/account-identity/README.md) | 账号事实、登录状态、凭据校验 |
 | [`capabilities/organization-governance`](capabilities/organization-governance/README.md) | 组织、成员关系、邀请与隶属请求、当前租户身份 |
 | [`compositions/account-registration`](compositions/account-registration/README.md) | 一次注册从入口走到稳定点的整体责任 |
+| [`compositions/governance-center-entry`](compositions/governance-center-entry/README.md) | 客户端 ↔ 治理中心这条边：判定次序、四种入口答复、身份推导与补授权、公开体检与运维面、治理中心标识 |
 
-**五份已在 [catalog](../registry/README.md) 登记并接受**（登记与接受都在 2026-09-22），
-`acceptance` 一律指向 D-023 的 `acceptance.json`，`frozen.json` 登记了五个 v1 目录的全部 18 项资源。
+**七个版本都在 [catalog](../registry/README.md) 登记并接受**：五份 v1 的 `acceptance` 指向 D-023 的 `acceptance.json`，
+入口契约 v1 与账号能力 v2 指向 D-028 的；`frozen.json` 登记了五个 v1 目录的 18 项资源，加入口契约 v1 的 15 项与账号能力 v2 的 1 项。
 它们之间的依赖带精确坐标与消费 clauses，登记口径是**正文以坐标引用某条款即为消费**，
 只有否定式提及（「不来自」「不同于」）不登；**方向只算消费者 → 提供者**：data 契约正文以坐标引用
 capability／composition 条款作「落点」（谁在用它），不构成 data 契约对它们的依赖；

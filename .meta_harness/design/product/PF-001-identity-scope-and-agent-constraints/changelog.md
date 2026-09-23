@@ -5,6 +5,75 @@
 
 技术投影用 `provenance.json` 引用具体 rev，所以这里的 rev 不准会直接传导到实现侧。
 
+## 状态变更 · rev 16 接受 — 2026-09-23（不升 rev）
+
+**产品负责人把 rev 16 登记为接受。**依据是同日的原话要点「阶段一我验收都通过，rev 完翻正式」（经主线派发转述，
+[decisions §一](decisions.md#一拍板记录)）。**正文一个字未动**——状态不是内容。
+front-matter 的 `status` 本来就是 `active`；[README 状态段](README.md#状态)补上了接受的日期与依据。
+
+**这句话说在 rev 16 落文之前**，是「rev 写完即为正式」的事前授权；落文本身产品负责人没有逐字过目。
+同一句话也让 [PF-017 rev 2](../PF-017-governance-center-as-deployable-application/changelog.md) 翻为正式。
+
+## rev 16 · 机器断电与操作系统崩溃：几处读起来没有例外的句子加上同一个限定 — 2026-09-23
+
+**本版只有一条产品负责人的裁决：本 topic 加上与 [PF-017](../PF-017-governance-center-as-deployable-application/README.md) 同一个限定。**
+没有新概念，没有改任何小节标题，已有规则一条没被推翻。**例外归 PF-017**
+（[§6.7](../PF-017-governance-center-as-deployable-application/design.md#67-重启不让任何人退出登录)、[§6.8](../PF-017-governance-center-as-deployable-application/design.md#68-停机已确认的都在没确认的等于没发生)），
+本 topic 只承认自己那几句受它约束，链接过去，不复述规则。
+
+### 为什么
+
+治理中心所用存储的持久性档位（[D-027](../../record/decisions/infrastructure-names-and-sqlite-durability/README.md)）意味着：
+机器断电或操作系统崩溃时，崩溃前最后一段已经答复过「成功」的写可能丢失；系统进程自己崩掉不在此列。
+产品负责人裁定把它写回产品正文（[PF-017 INT-016](../PF-017-governance-center-as-deployable-application/interviews/2026-09-23-rulings.md#int-016)），
+[PF-017 rev 2](../PF-017-governance-center-as-deployable-application/changelog.md) 已写进它自己的 §6.7、§6.8、§6.10、§6.12。
+PF-017 随之[登记了一条来源问题](../PF-017-governance-center-as-deployable-application/decisions.md#四已知的来源问题)：
+本 topic [flows §3.2](flows.md#32-登录状态)「失效必须在重启之后依然成立……这是安全事故」与[非目标](design.md#非目标)里账号不会消失的说法，
+都没有这条例外，只读本 topic 的人会以为它们没有例外。产品负责人的作答是「**PF-001 升 rev 加同一限定**」（[decisions §一](decisions.md#一拍板记录)）。
+
+### 改了哪些句子
+
+| 哪里 | 原来 | 现在 |
+|---|---|---|
+| [flows §3.2](flows.md#32-登录状态) | 「失效必须在重启之后依然成立……系统重启一次就又能用旧状态访问，这是安全事故。」到此为止 | 原句不动；补「系统自己崩掉（程序异常退出、被强行结束，机器照常开着）之后再起来，同样在这一条里」；加一段「**机器断电与操作系统崩溃是这一条的例外**」——刚退出或刚撤销的可能又有效、系统不知道丢了哪几件、运维者告诉用户再做一次、持有者在列表上再撤销，全部后果以 PF-017 §6.7 为准；再加一句「这不是这张表里的一条转移，『已失效不可回到有效』照样成立」 |
+| [flows §三](flows.md#三状态流转) 开头 | 没有 | 一段说明：断电不是下面任何一张表里的一条转移，几处「不可逆」照样成立 |
+| [design §4 登录状态](design.md#登录状态) | 「被撤销的那一个立即失效」之后没有任何限定 | 加一段：断电之后撤销可能要再做一次，**那个登录状态会重新出现在列表里**，持有者再撤销即可 |
+| [design §2 非目标](design.md#非目标)「账号与组织的终止」 | 「……唯一的例外是一条从未激活的记录到期被清除……所以它不是一条终止路径」到此为止 | 原句不动；补「**机器断电或操作系统崩溃也不是一条终止路径**」：刚注册的账号、刚建的组织可能不在，是那一段没留下来；名字可以重新注册，组织可以重新建 |
+| [design §2 非目标](design.md#非目标)「账号恢复……」 | 「账号不会消失，『恢复』没有对象」 | 「**已激活的账号没有消失路径**，『恢复』没有对象」 |
+| [design §4 未激活的账号记录不会永久占着那个名字](design.md#未激活的账号记录不会永久占着那个名字) | 「已激活的账号本版不会消失，它的个人组织与租户也就不会」 | 「已激活的账号本版**没有消失路径**，它的个人组织与租户也就没有」 |
+| [acceptance §二](acceptance.md#二绝不能发生的事) | 「退出登录后，重启系统又能用旧登录态访问」 | 同一行补「系统进程异常退出或被强行结束之后再起来，同样算」；「意味着什么」一格补「**机器断电或操作系统崩溃之后起来不在这一行**」 |
+| [acceptance §三](acceptance.md#三判据)「退出的持久性」 | 「退出后重启系统，再用旧登录态访问，被拒绝」 | 加一支验法：**强行结束系统进程**（机器照常开着）再起来，同样被拒绝；断电的例外不在这里验 |
+
+**后两处「不会消失 → 没有消失路径」不是改规则**：那两句要挡的是「有一条路能让已激活账号消失」，
+断电不是这样一条路；收成这个说法，它们在断电例外之下仍然是真话。推理链见 [decisions §二](decisions.md#二pm-推导)。
+
+**正文说「断电是这一条的例外」，不说「唯一的例外」**：从备份恢复会不会带回撤销，
+是 [PF-017 §9](../PF-017-governance-center-as-deployable-application/design.md#九未决项) 指给本 topic 的另一问，本版不表态（[decisions §二](decisions.md#二pm-推导)）。
+
+### 下游要复核什么
+
+- **统一语言与领域对象**：本版**不新增也不改任何概念**。出处或依据指向下面几节的，**要逐条回读**：
+  - [UL-login-state](../../ubiquitous_language/terms/subjects-and-ownership.md#ul-login-state--登录状态--login-state)
+    定义里「**失效在系统重启之后依然成立** / it still holds after a restart」——**仍然成立**（重启不含机器断电与操作系统崩溃）；
+    要不要加一条「注意」指向断电例外，由统一语言的维护者定。[对象条目](../../domain_objects/objects.md#ul-login-state--登录状态)
+    「生灭」里「不可逆，且重启之后依然成立」同理：断电不是一条转移（[flows §三 开头](flows.md#三状态流转)），那一栏的状态机不变。
+  - [UL-account](../../ubiquitous_language/terms/subjects-and-ownership.md#ul-account--账号--account) 注意②「已激活的账号本版没有任何消失路径」
+    与[对象条目](../../domain_objects/objects.md#ul-account--账号)「已激活之后本版无注销、终止、恢复」——**仍然成立**，
+    与本版收成的「没有消失路径」是同一个说法。
+  - 其余出处标 rev 15、指向本版没碰的那些节的（§4 账号属性表、组织、租户、当前租户身份、两种邀约、flows §1.x、§3.1 表、§3.3、§4 角色矩阵……），
+    **定义一个字没动**，复核后把 rev 改到 16 即可。
+- **规格**：[账号能力契约 v2](../../spec/capabilities/account-identity/v2/contract.md) 已把本 topic 的「重启」读作进程重启、
+  把断电与操作系统崩溃登记为装配给的边界，[入口契约](../../spec/compositions/governance-center-entry/v1/contract.md) S-32、S-36 同口径——
+  **与本版一致，语义不用改**。引用 [acceptance §三「退出的持久性」](acceptance.md#三判据) 的验证材料，可以照新加的那一支补「强行结束进程」的演练。
+- **技术投影**：[v2](projection/README.md) 依据 rev 15，已以 D-027 的断电边界为统一前提，**本版的限定与它同向**；要不要出新版由技术侧定。
+- **PF-017**：它 [decisions §四](../PF-017-governance-center-as-deployable-application/decisions.md#四已知的来源问题) 登记的这条来源问题由本版闭合；
+  它 README 关系表里对本 topic 标的「rev 15」，由它的维护者复核。
+- **产品区两张手写的 rev 表**（[README 的 topic 一览](../README.md#当前-topic)、[architecture-core 清单](../architecture-core.md#清单)）要改到 16。
+
+### 兼容性
+
+**没有改任何小节标题**，下游按锚点的引用都还在。概念一个没新增，定义一个字没动。
+
 ## rev 15 · 已解除的成员只给超级管理员看 — 2026-09-22
 
 **本版只有一条产品负责人的裁决，只动 [flows §4](flows.md#四角色与操作) 那张角色矩阵里成员名单那一行。**

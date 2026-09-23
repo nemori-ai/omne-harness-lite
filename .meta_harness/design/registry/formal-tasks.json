@@ -97,6 +97,30 @@
         "spec/compositions/account-registration/v1/formal/Registration.tla"
       ],
       "timeout_seconds": 180
+    },
+    {
+      "id": "governance-center-entry-v1-decision",
+      "kind": "tla",
+      "artifacts": [
+        "spec/compositions/governance-center-entry/v1/formal/EntryDecision.tla",
+        "spec/compositions/governance-center-entry/v1/formal/EntryDecision.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/governance-center-entry-v1-decision",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/compositions/governance-center-entry/v1/formal/EntryDecision.cfg",
+        "spec/compositions/governance-center-entry/v1/formal/EntryDecision.tla"
+      ],
+      "timeout_seconds": 180
     }
   ]
 }
