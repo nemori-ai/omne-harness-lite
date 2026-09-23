@@ -1,0 +1,813 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/loop-extension/v1/loop-extension.schema.json",
+  "title": "data.loop-extension v1",
+  "description": "拓展点协议的数据半边：十一个位置与两个维度、干预力三档、报错处置策略、拓展件的声明、运行时交给拓展件的输入、拓展件交回的结论（封闭八种）与结论落日志的记录形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.loop-extension/v1 内有效。",
+  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状与两张合法组合表（档 × 结论、位置 × 结论），表在 Conclusion 的条件约束里；「rewrite 只改可改成员」「inject 的来源名等于本件名」「select_model 在合法目标集合里」「retry 不推翻事实三类」这些要么需要输入与输出两份实例对照，要么是判定，Schema 管不到，归 contract.md 的条款与 runner 能力。引用的同批契约 content-blocks、messages、model-profile、call-accounts、tool-definition 都是并行候选，$ref 目标以它们 v1 定型的 $defs 为准，见 verification.md「变化的影响」。正反实例在同目录 examples.md。",
+
+  "$defs": {
+
+    "LoopPosition": {
+      "title": "Loop 拓展点 · Loop Extension Point",
+      "description": "S-1：十一个位置，按位置命名、不按功能命名；闭合枚举。每个 token 是 PF-012 §5.8 位置表里的一行：attempt_started 尝试开始之后；before_persist_message / after_persist_message 消息落盘之前 / 之后；before_compaction / after_compaction 压缩之前 / 之后；before_model_call / after_model_call 调模型之前 / 之后；before_action / after_action 执行动作之前 / 之后；before_terminal / after_terminal 落终态之前 / 之后。「尝试开始之前」不开（归 PF-015），不在枚举里。",
+      "$comment": "未知取值即表示层拒绝值 position_unknown（S-37）。维度不是第十二个位置（S-2）。",
+      "type": "string",
+      "enum": [
+        "attempt_started",
+        "before_persist_message",
+        "after_persist_message",
+        "before_compaction",
+        "after_compaction",
+        "before_model_call",
+        "after_model_call",
+        "before_action",
+        "after_action",
+        "before_terminal",
+        "after_terminal"
+      ]
+    },
+
+    "Dimension": {
+      "title": "Dimension",
+      "description": "S-2：两个位置上的筛选条件，不是又一个位置。after_model_call 的收场维度 ending ∈ complete_reply（完整回复）/ failure（失败）；after_action 的范围维度 scope ∈ each（这一个）/ batch（这一批全齐）。它是规格层的形状名，不是统一语言词条。",
+      "$comment": "哪一种维度配哪个位置由使用它的三处（LoopExtensionDefinition、ExtensionInput、Conclusion）各自的条件约束判定：那两个位置缺维度是 dimension_missing，别的位置给了维度、或给了不属于该位置的那一种是 dimension_not_allowed（S-37）。",
+      "oneOf": [
+        {
+          "title": "调模型之后的收场",
+          "type": "object",
+          "properties": { "ending": { "enum": ["complete_reply", "failure"] } },
+          "required": ["ending"],
+          "additionalProperties": false
+        },
+        {
+          "title": "执行动作之后的范围",
+          "type": "object",
+          "properties": { "scope": { "enum": ["each", "batch"] } },
+          "required": ["scope"],
+          "additionalProperties": false
+        }
+      ]
+    },
+
+    "Power": {
+      "title": "Power",
+      "description": "S-4：干预力三档（PF-000 §4、PF-012 §5.8）：observe 只观察 / rewrite 可改写 / veto 可否决。没有「放宽」这一档。「落卡片等人」属于 veto，不是第四档。干预力是拓展件的一项权限，不是设置：定义里给的是这项权限的出厂值，各层只能收窄；Conclusion 里记的是这一次经过求得的那个值。",
+      "$comment": "干预力没有统一语言词条（定义在 PF-000 §4），所以标题不写「中文 · English」词条式命名。未知取值即 power_unknown（S-37）。",
+      "type": "string",
+      "enum": ["observe", "rewrite", "veto"]
+    },
+
+    "ErrorPolicy": {
+      "title": "ErrorPolicy",
+      "description": "S-5：拓展件可用却运行时报错时这一次怎么处置。ignore 与 record 都不影响这一次经过的走向；treat_as_veto 当作否决（fail-closed）。缺席时按求得的干预力取默认：observe → ignore，rewrite → record，veto → treat_as_veto（PF-012 §5.8 干预力三档表的最后一列）。无论哪一种，处置本身都留在那条 Conclusion 里、可见。",
+      "$comment": "ignore 与 record 在「每件的结论必留」之下的可观察差别是缺口 G-8；treat_as_veto 在「之后」的位置上没有合法的否决可落，是缺口 G-9。它们是规格层的策略 token，没有统一语言词条。",
+      "type": "string",
+      "enum": ["ignore", "record", "treat_as_veto"]
+    },
+
+    "LoopExtensionDefinition": {
+      "title": "拓展件的声明 · Loop Extension",
+      "description": "S-6～S-10：一件拓展件（UL-loop-extension，第八类资产）的声明。name 是身份（能力标识 = 类别 loop_extension + name）；position 与 dimension 是绑定类设置的出厂值，power 是干预力这项权限的出厂值（定义给默认值，各层配值、运行时求值）；onError 缺席按求得的干预力取默认；needs 是依赖声明，缺席即不需要任何东西；implementation 说它是原生件还是兼容件。本版没有 order：同一位置的先后按装配清单的顺序。",
+      "$comment": "additionalProperties: false 挡住 order、matcher 这类本版没有的成员（malformed）。observe / rewrite 不得声明 treat_as_veto——那等于让一件拦不住任何东西的件在报错时拦下东西（malformed，S-5）。needs 用 minItems 1：「不需要任何东西」只有缺席这一种写法，不给空数组第二种写法。",
+      "type": "object",
+      "properties": {
+        "name": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/CapabilityId/properties/name" },
+        "position": { "$ref": "#/$defs/LoopPosition" },
+        "dimension": { "$ref": "#/$defs/Dimension" },
+        "power": { "$ref": "#/$defs/Power" },
+        "onError": { "$ref": "#/$defs/ErrorPolicy" },
+        "needs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "../../tool-definition/v1/tool-definition.schema.json#/$defs/DependencyName" }
+        },
+        "implementation": { "$ref": "#/$defs/ExtensionImplementation" }
+      },
+      "required": ["name", "position", "power", "implementation"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "position": { "const": "after_model_call" } }, "required": ["position"] },
+          "then": { "required": ["dimension"], "properties": { "dimension": { "required": ["ending"] } } }
+        },
+        {
+          "if": { "properties": { "position": { "const": "after_action" } }, "required": ["position"] },
+          "then": { "required": ["dimension"], "properties": { "dimension": { "required": ["scope"] } } }
+        },
+        {
+          "if": { "properties": { "position": { "not": { "enum": ["after_model_call", "after_action"] } } }, "required": ["position"] },
+          "then": { "not": { "required": ["dimension"] } }
+        },
+        {
+          "if": { "properties": { "power": { "enum": ["observe", "rewrite"] } }, "required": ["power"] },
+          "then": { "properties": { "onError": { "enum": ["ignore", "record"] } } }
+        }
+      ]
+    },
+
+    "ExtensionImplementation": {
+      "title": "ExtensionImplementation",
+      "description": "S-8：原生件 { kind: native }，或兼容件 { kind: compat, host, event }。运行时只认本契约的统一输入与结论；兼容件是一件在两边翻译的拓展件——它把统一输入译成宿主（claude_code / codex）那一个事件的原生输入，把宿主的输出译回本契约的结论。事件映射表、定档依据与导入报告不在本契约（D-033 G1–G11）。",
+      "$comment": "event 是宿主那一侧的事件名（如 PreToolUse），本契约不解释它、不列清单。host 闭合，未知取值即 malformed。",
+      "oneOf": [
+        {
+          "title": "原生件",
+          "type": "object",
+          "properties": { "kind": { "const": "native" } },
+          "required": ["kind"],
+          "additionalProperties": false
+        },
+        {
+          "title": "兼容件",
+          "type": "object",
+          "properties": {
+            "kind": { "const": "compat" },
+            "host": { "enum": ["claude_code", "codex"] },
+            "event": { "type": "string", "minLength": 1 }
+          },
+          "required": ["kind", "host", "event"],
+          "additionalProperties": false
+        }
+      ]
+    },
+
+    "RunRef": {
+      "$ref": "../../identity-values/v1/identity-values.schema.json#/$defs/OpaqueIdentifier",
+      "title": "RunRef",
+      "description": "S-12：指向一次运行（UL-run）的不透明引用；相等即同一次运行，按 data.identity-values/v1#S-31 逐码点相等，不解析。它的家（运行身份怎么产生、唯一范围）不在本契约，见缺口 G-3。",
+      "examples": ["run_4c1e"]
+    },
+
+    "AttemptRef": {
+      "title": "AttemptRef",
+      "description": "S-12：执行尝试（UL-run-attempt）的序号，从 1 起。它单独不构成身份——执行尝试的身份是（哪次运行, 第几次），与同一份输入里的 run 合起来才指认一次尝试。",
+      "type": "integer",
+      "minimum": 1,
+      "examples": [1, 3]
+    },
+
+    "LogHandle": {
+      "$ref": "../../identity-values/v1/identity-values.schema.json#/$defs/OpaqueIdentifier",
+      "title": "LogHandle",
+      "description": "S-12：会话日志的只读句柄，不透明。拿着它只能读，读面由能力给（capability.loop-extension-runner，第二波）；改日志的唯一办法是交回结论（Q9：结论不得改日志已有的任何一条）。它不是一份日志快照。",
+      "examples": ["log_77a0"]
+    },
+
+    "FailureCause": {
+      "title": "FailureCause",
+      "description": "S-17：一次模型调用故障的成因，恰八个，顺序照 PF-013 §5.7：withdrawn 已下架 · scope_disallowed 这个范围不再允许 · modality_mismatch 和会话里的模态对不上 · credential_unavailable 凭据不可用 · request_rejected 这次请求本身上游不接受 · upstream_unavailable 上游这会儿给不出回复 · interrupted_mid_reply 说到一半断了 · unrecognized 没认出来（兜底）。取值只按「谁能让它不再发生」分。被用户中断不是故障，不在这里。名字由本契约定，data.model-response 照抄。",
+      "$comment": "上游状态码另外原样带着（AfterModelCallFailureSubject.statusCode），不翻译进成因。「upstream_unavailable 且试尽」是它作为上交成因时的附加条件；在 after_model_call{failure} 的输入里它只说这次失败是上游那边的事，是否试尽由那个位置上的拓展件判（S-17）。",
+      "type": "string",
+      "enum": [
+        "withdrawn",
+        "scope_disallowed",
+        "modality_mismatch",
+        "credential_unavailable",
+        "request_rejected",
+        "upstream_unavailable",
+        "interrupted_mid_reply",
+        "unrecognized"
+      ]
+    },
+
+    "TerminalFact": {
+      "title": "TerminalFact",
+      "description": "S-18：一次运行的终态事实。state 是运行终态（UL-run-terminal-state）恰三种：completed 完成 / failed 失败 / cancelled 被取消。reason 是原因（超时、被打断、配额耗尽是原因不是终态）；initiator 是取消请求的发起方，只在 cancelled 时有、且必有。",
+      "$comment": "reason 的取值词表与 initiator 的表示都不在本契约（缺口 G-4）；这里只约束到非空字符串。initiator 只随 cancelled 出现：被取消之前必有一条取消请求（PF-012 I-16），发起方是那条请求的事实。",
+      "type": "object",
+      "properties": {
+        "state": { "enum": ["completed", "failed", "cancelled"] },
+        "reason": { "type": "string", "minLength": 1 },
+        "initiator": { "type": "string", "minLength": 1 }
+      },
+      "required": ["state"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "state": { "const": "cancelled" } }, "required": ["state"] },
+          "then": { "required": ["initiator"] },
+          "else": { "not": { "required": ["initiator"] } }
+        }
+      ]
+    },
+
+    "CompactionPlan": {
+      "title": "CompactionPlan",
+      "description": "S-16：压缩之前那个位置看得到的东西——要交进压缩闭包的那份日志与模型档案。本契约只给不透明形状（一个对象），内容的家在 PF-010 压缩那一侧的能力（缺口 G-1）。",
+      "type": "object"
+    },
+
+    "ModelRequest": {
+      "title": "ModelRequest",
+      "description": "S-15：调模型之前那个位置看得到的、已经攒好还没发出去的请求。本契约只定三个成员：target 这一次的有效模型（ModelProfileRef）、parameters 这一次要发出的请求参数、messages 组装出来的消息；其余成员不透明，形状的家在块 C（缺口 G-2）。可改的只有 parameters 与 messages（经 rewrite）；target 只经 select_model 改（S-23、S-24）。",
+      "type": "object",
+      "properties": {
+        "target": { "$ref": "../../model-profile/v1/model-profile.schema.json#/$defs/ModelProfileRef" },
+        "parameters": { "$ref": "../../model-profile/v1/model-profile.schema.json#/$defs/ModelRequestParameters" },
+        "messages": {
+          "type": "array",
+          "items": { "$ref": "../../messages/v1/messages.schema.json#/$defs/Message" }
+        }
+      },
+      "required": ["target", "parameters", "messages"]
+    },
+
+    "ToolDefinitionRef": {
+      "title": "ToolDefinitionRef",
+      "description": "S-14：执行动作之前那个位置上，运行时为这次调用找到的那份工具定义的名字。只是引用，不是定义本身。",
+      "type": "object",
+      "properties": {
+        "name": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/CapabilityId/properties/name" }
+      },
+      "required": ["name"],
+      "additionalProperties": false
+    },
+
+    "AttemptStartedSubject": {
+      "title": "尝试开始之后",
+      "type": "object",
+      "properties": { "attempt": { "$ref": "#/$defs/AttemptRef" } },
+      "required": ["attempt"],
+      "additionalProperties": false
+    },
+
+    "BeforePersistMessageSubject": {
+      "title": "消息落盘之前",
+      "description": "message 还没落盘；producer 是这条消息由谁产生：user 人经交付面说的 / model 模型调用产出的回复 / tool 工具执行交回的 / system 其余（系统或外部来源捎来的）。",
+      "type": "object",
+      "properties": {
+        "message": { "$ref": "../../messages/v1/messages.schema.json#/$defs/Message" },
+        "producer": { "enum": ["user", "model", "tool", "system"] }
+      },
+      "required": ["message", "producer"],
+      "additionalProperties": false
+    },
+
+    "AfterPersistMessageSubject": {
+      "title": "消息落盘之后",
+      "type": "object",
+      "properties": { "message": { "$ref": "../../messages/v1/messages.schema.json#/$defs/Message" } },
+      "required": ["message"],
+      "additionalProperties": false
+    },
+
+    "BeforeCompactionSubject": {
+      "title": "压缩之前",
+      "type": "object",
+      "properties": { "plan": { "$ref": "#/$defs/CompactionPlan" } },
+      "required": ["plan"],
+      "additionalProperties": false
+    },
+
+    "AfterCompactionSubject": {
+      "title": "压缩之后",
+      "type": "object",
+      "properties": { "compaction": { "$ref": "../../messages/v1/messages.schema.json#/$defs/CompactionMessage" } },
+      "required": ["compaction"],
+      "additionalProperties": false
+    },
+
+    "BeforeModelCallSubject": {
+      "title": "调模型之前",
+      "type": "object",
+      "properties": { "request": { "$ref": "#/$defs/ModelRequest" } },
+      "required": ["request"],
+      "additionalProperties": false
+    },
+
+    "AfterModelCallCompleteReplySubject": {
+      "title": "调模型之后 · 完整回复",
+      "type": "object",
+      "properties": {
+        "reply": { "$ref": "../../messages/v1/messages.schema.json#/$defs/AssistantMessage" },
+        "usage": { "$ref": "../../call-accounts/v1/call-accounts.schema.json#/$defs/Usage" },
+        "cost": { "$ref": "../../call-accounts/v1/call-accounts.schema.json#/$defs/Cost" }
+      },
+      "required": ["reply", "usage", "cost"],
+      "additionalProperties": false
+    },
+
+    "AfterModelCallFailureSubject": {
+      "title": "调模型之后 · 失败",
+      "description": "failure 是这次故障的成因；statusCode 是上游返回的状态码，有才带、原样带，不翻译。",
+      "type": "object",
+      "properties": {
+        "failure": { "$ref": "#/$defs/FailureCause" },
+        "statusCode": { "type": "integer" }
+      },
+      "required": ["failure"],
+      "additionalProperties": false
+    },
+
+    "BeforeActionSubject": {
+      "title": "执行动作之前",
+      "description": "call 是这一个动作（完整的工具调用块）；definition 是运行时为它找到的那份定义；batch 是这一批动作的全部 CallId，含本次这一个，无重复，顺序在本契约里无含义。",
+      "type": "object",
+      "properties": {
+        "call": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/ToolCallBlock" },
+        "definition": { "$ref": "#/$defs/ToolDefinitionRef" },
+        "batch": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/CallId" }
+        }
+      },
+      "required": ["call", "definition", "batch"],
+      "additionalProperties": false
+    },
+
+    "AfterActionEachSubject": {
+      "title": "执行动作之后 · 这一个",
+      "description": "callId 与 outcome 说这一次执行怎么收场；result 是这一次经过里待落盘的那个结果块，有才带。带的时候它的 callId 与 outcome 必须与外面两个相同（S-14，Schema 管不到）。",
+      "type": "object",
+      "properties": {
+        "callId": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/CallId" },
+        "outcome": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/ExecutionOutcome" },
+        "result": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/ToolResultBlock" }
+      },
+      "required": ["callId", "outcome"],
+      "additionalProperties": false
+    },
+
+    "AfterActionBatchSubject": {
+      "title": "执行动作之后 · 这一批全齐",
+      "type": "object",
+      "properties": {
+        "outcomes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "callId": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/CallId" },
+              "outcome": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/ExecutionOutcome" }
+            },
+            "required": ["callId", "outcome"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["outcomes"],
+      "additionalProperties": false
+    },
+
+    "BeforeTerminalSubject": {
+      "title": "落终态之前",
+      "type": "object",
+      "properties": { "proposed": { "$ref": "#/$defs/TerminalFact" } },
+      "required": ["proposed"],
+      "additionalProperties": false
+    },
+
+    "AfterTerminalSubject": {
+      "title": "落终态之后",
+      "type": "object",
+      "properties": { "terminal": { "$ref": "#/$defs/TerminalFact" } },
+      "required": ["terminal"],
+      "additionalProperties": false
+    },
+
+    "Subject": {
+      "title": "Subject",
+      "description": "S-14：按位置判别的输入主体，恰十三种（十一个位置，其中两个各按维度再分两种）。各变体成员互斥，单独拿到一个 Subject 也分得出是哪一种；它属于哪个位置由外面那份 ExtensionInput 或 Conclusion 的 position（与 dimension）判定，对不上即拒。",
+      "oneOf": [
+        { "$ref": "#/$defs/AttemptStartedSubject" },
+        { "$ref": "#/$defs/BeforePersistMessageSubject" },
+        { "$ref": "#/$defs/AfterPersistMessageSubject" },
+        { "$ref": "#/$defs/BeforeCompactionSubject" },
+        { "$ref": "#/$defs/AfterCompactionSubject" },
+        { "$ref": "#/$defs/BeforeModelCallSubject" },
+        { "$ref": "#/$defs/AfterModelCallCompleteReplySubject" },
+        { "$ref": "#/$defs/AfterModelCallFailureSubject" },
+        { "$ref": "#/$defs/BeforeActionSubject" },
+        { "$ref": "#/$defs/AfterActionEachSubject" },
+        { "$ref": "#/$defs/AfterActionBatchSubject" },
+        { "$ref": "#/$defs/BeforeTerminalSubject" },
+        { "$ref": "#/$defs/AfterTerminalSubject" }
+      ]
+    },
+
+    "ExtensionInput": {
+      "title": "ExtensionInput",
+      "description": "S-11～S-13：运行时交给一件拓展件的那一份。position / dimension 是这一次挂的位置（求得的值）；run / attempt 指这一次经过所在的运行与尝试——消息落盘之前那个位置看不到有没有运行在跑，所以那里两者都不带；subject 是瀑布里排在前面的件改写之后的那一份；earlier 是同一次经过里排在前面的件已经落下的结论；log 是只读句柄。",
+      "$comment": "位置与 subject 变体的对应、位置与维度的配对、run/attempt 的有无，都在下面的条件约束里；对不上即 malformed / dimension_*（S-37）。earlier 里每条的 position、dimension 必须与本输入相同，Schema 管不到。",
+      "type": "object",
+      "properties": {
+        "position": { "$ref": "#/$defs/LoopPosition" },
+        "dimension": { "$ref": "#/$defs/Dimension" },
+        "run": { "$ref": "#/$defs/RunRef" },
+        "attempt": { "$ref": "#/$defs/AttemptRef" },
+        "subject": { "$ref": "#/$defs/Subject" },
+        "earlier": { "type": "array", "items": { "$ref": "#/$defs/Conclusion" } },
+        "log": { "$ref": "#/$defs/LogHandle" }
+      },
+      "required": ["position", "subject", "earlier", "log"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "position": { "const": "after_model_call" } }, "required": ["position"] },
+          "then": { "required": ["dimension"], "properties": { "dimension": { "required": ["ending"] } } }
+        },
+        {
+          "if": { "properties": { "position": { "const": "after_action" } }, "required": ["position"] },
+          "then": { "required": ["dimension"], "properties": { "dimension": { "required": ["scope"] } } }
+        },
+        {
+          "if": { "properties": { "position": { "not": { "enum": ["after_model_call", "after_action"] } } }, "required": ["position"] },
+          "then": { "not": { "required": ["dimension"] } }
+        },
+        {
+          "if": { "properties": { "position": { "const": "before_persist_message" } }, "required": ["position"] },
+          "then": { "not": { "anyOf": [{ "required": ["run"] }, { "required": ["attempt"] }] } },
+          "else": { "required": ["run", "attempt"] }
+        },
+        { "if": { "properties": { "position": { "const": "attempt_started" } }, "required": ["position"] }, "then": { "properties": { "subject": { "$ref": "#/$defs/AttemptStartedSubject" } } } },
+        { "if": { "properties": { "position": { "const": "before_persist_message" } }, "required": ["position"] }, "then": { "properties": { "subject": { "$ref": "#/$defs/BeforePersistMessageSubject" } } } },
+        { "if": { "properties": { "position": { "const": "after_persist_message" } }, "required": ["position"] }, "then": { "properties": { "subject": { "$ref": "#/$defs/AfterPersistMessageSubject" } } } },
+        { "if": { "properties": { "position": { "const": "before_compaction" } }, "required": ["position"] }, "then": { "properties": { "subject": { "$ref": "#/$defs/BeforeCompactionSubject" } } } },
+        { "if": { "properties": { "position": { "const": "after_compaction" } }, "required": ["position"] }, "then": { "properties": { "subject": { "$ref": "#/$defs/AfterCompactionSubject" } } } },
+        { "if": { "properties": { "position": { "const": "before_model_call" } }, "required": ["position"] }, "then": { "properties": { "subject": { "$ref": "#/$defs/BeforeModelCallSubject" } } } },
+        {
+          "if": { "properties": { "position": { "const": "after_model_call" }, "dimension": { "properties": { "ending": { "const": "complete_reply" } }, "required": ["ending"] } }, "required": ["position", "dimension"] },
+          "then": { "properties": { "subject": { "$ref": "#/$defs/AfterModelCallCompleteReplySubject" } } }
+        },
+        {
+          "if": { "properties": { "position": { "const": "after_model_call" }, "dimension": { "properties": { "ending": { "const": "failure" } }, "required": ["ending"] } }, "required": ["position", "dimension"] },
+          "then": { "properties": { "subject": { "$ref": "#/$defs/AfterModelCallFailureSubject" } } }
+        },
+        { "if": { "properties": { "position": { "const": "before_action" } }, "required": ["position"] }, "then": { "properties": { "subject": { "$ref": "#/$defs/BeforeActionSubject" } } } },
+        {
+          "if": { "properties": { "position": { "const": "after_action" }, "dimension": { "properties": { "scope": { "const": "each" } }, "required": ["scope"] } }, "required": ["position", "dimension"] },
+          "then": { "properties": { "subject": { "$ref": "#/$defs/AfterActionEachSubject" } } }
+        },
+        {
+          "if": { "properties": { "position": { "const": "after_action" }, "dimension": { "properties": { "scope": { "const": "batch" } }, "required": ["scope"] } }, "required": ["position", "dimension"] },
+          "then": { "properties": { "subject": { "$ref": "#/$defs/AfterActionBatchSubject" } } }
+        },
+        { "if": { "properties": { "position": { "const": "before_terminal" } }, "required": ["position"] }, "then": { "properties": { "subject": { "$ref": "#/$defs/BeforeTerminalSubject" } } } },
+        { "if": { "properties": { "position": { "const": "after_terminal" } }, "required": ["position"] }, "then": { "properties": { "subject": { "$ref": "#/$defs/AfterTerminalSubject" } } } }
+      ]
+    },
+
+    "ObservedOutput": {
+      "title": "observed",
+      "description": "S-19：无意见，不改走向。三档都能交回。",
+      "type": "object",
+      "properties": { "kind": { "const": "observed" } },
+      "required": ["kind"],
+      "additionalProperties": false
+    },
+
+    "InjectOutput": {
+      "title": "inject",
+      "description": "S-22：往日志里追加一条系统提醒。message 的 source.kind 必为 extension，且 source.extension 等于本件的 name（后一半 Schema 管不到）。给模型看还是只给人看由块上的标注定。",
+      "type": "object",
+      "properties": {
+        "kind": { "const": "inject" },
+        "message": {
+          "allOf": [
+            { "$ref": "../../messages/v1/messages.schema.json#/$defs/SystemReminderMessage" },
+            {
+              "type": "object",
+              "properties": {
+                "source": {
+                  "type": "object",
+                  "properties": { "kind": { "const": "extension" } },
+                  "required": ["kind"]
+                }
+              },
+              "required": ["source"]
+            }
+          ]
+        }
+      },
+      "required": ["kind", "message"],
+      "additionalProperties": false
+    },
+
+    "RewriteOutput": {
+      "title": "rewrite",
+      "description": "S-23：决定下一条还没落盘的东西长什么样。subject 是本位置那一种 Subject 的完整一份，只许改那张「可改成员」表里的成员；不许改 earlier 与 log。",
+      "type": "object",
+      "properties": {
+        "kind": { "const": "rewrite" },
+        "subject": { "$ref": "#/$defs/Subject" }
+      },
+      "required": ["kind", "subject"],
+      "additionalProperties": false
+    },
+
+    "SelectModelOutput": {
+      "title": "select_model",
+      "description": "S-24：只在 before_model_call：把这一次请求的有效模型换成 profile。取值必须在这一次的合法目标集合里（判定归能力）；只改这一次，不改选中模型；留痕在响应体的 route.selectedBy。",
+      "type": "object",
+      "properties": {
+        "kind": { "const": "select_model" },
+        "profile": { "$ref": "../../model-profile/v1/model-profile.schema.json#/$defs/ModelProfileRef" },
+        "reason": { "type": "string", "minLength": 1 }
+      },
+      "required": ["kind", "profile"],
+      "additionalProperties": false
+    },
+
+    "VetoOutput": {
+      "title": "veto",
+      "description": "S-25：只在五个「之前」的位置：拦住它站的那个状态点。含义按位置：不落盘 / 这一趟不压 / 这次请求不发 / 这个动作不做 / 这次不收束（接着转）。reason 必带。",
+      "type": "object",
+      "properties": {
+        "kind": { "const": "veto" },
+        "reason": { "type": "string", "minLength": 1 }
+      },
+      "required": ["kind", "reason"],
+      "additionalProperties": false
+    },
+
+    "StopOutput": {
+      "title": "stop",
+      "description": "S-26：叫停这次运行：先落一条取消请求（发起方是本件），再落终态「被取消」。reason 必带。",
+      "type": "object",
+      "properties": {
+        "kind": { "const": "stop" },
+        "reason": { "type": "string", "minLength": 1 }
+      },
+      "required": ["kind", "reason"],
+      "additionalProperties": false
+    },
+
+    "RetryPlan": {
+      "title": "RetryPlan",
+      "description": "S-27：再发一次：发给哪一家供应商（每一次发出只走一家），可选退避多久之后再发。",
+      "type": "object",
+      "properties": {
+        "provider": { "$ref": "../../model-profile/v1/model-profile.schema.json#/$defs/ProviderName" },
+        "after": { "$ref": "../../tool-definition/v1/tool-definition.schema.json#/$defs/Duration" }
+      },
+      "required": ["provider"],
+      "additionalProperties": false
+    },
+
+    "RetryOutput": {
+      "title": "retry",
+      "description": "S-27：只在 after_model_call{failure}：这次调用不算了结，照 plan 再发一次。推翻不了事实三类（发不出去 / 重试没用 / 已经开口说话了）。",
+      "type": "object",
+      "properties": {
+        "kind": { "const": "retry" },
+        "plan": { "$ref": "#/$defs/RetryPlan" }
+      },
+      "required": ["kind", "plan"],
+      "additionalProperties": false
+    },
+
+    "CardOption": {
+      "title": "CardOption",
+      "description": "S-28：卡片上的一个选项，本契约只给不透明形状：id 在这张卡片内唯一，label 给人看，effect 是出卡那一件自己解释的附带数据。选项的语义、放行判断那四档定死的选项归卡片契约（缺口 G-6）。",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "label": { "type": "string", "minLength": 1 },
+        "effect": {}
+      },
+      "required": ["id", "label"],
+      "additionalProperties": false
+    },
+
+    "DecisionCardDraft": {
+      "title": "DecisionCardDraft",
+      "description": "S-28：一件拓展件要落的那张决策卡片（UL-decision-card）的草稿：自己写的说明、自己写的选项（至少一个）、这张卡片为哪个位置（与哪个动作）出的。落盘之后它才有 CardId，卡片本身的契约归 PF-008（未起草）。",
+      "$comment": "about.callId 在 before_action 必带；在 after_action 由维度定（each 必带、batch 不带），about 里没有维度，由 Conclusion 那一层对照（S-28）；其余位置不带。",
+      "type": "object",
+      "properties": {
+        "explanation": { "type": "string", "minLength": 1 },
+        "options": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/CardOption" } },
+        "about": {
+          "type": "object",
+          "properties": {
+            "position": { "$ref": "#/$defs/LoopPosition" },
+            "callId": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/CallId" }
+          },
+          "required": ["position"],
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "if": { "properties": { "position": { "const": "before_action" } }, "required": ["position"] },
+              "then": { "required": ["callId"] }
+            },
+            {
+              "if": { "properties": { "position": { "not": { "enum": ["before_action", "after_action"] } } }, "required": ["position"] },
+              "then": { "not": { "required": ["callId"] } }
+            }
+          ]
+        }
+      },
+      "required": ["explanation", "options", "about"],
+      "additionalProperties": false
+    },
+
+    "AskOutput": {
+      "title": "ask",
+      "description": "S-28：落一张卡片、让运行停下来等人。它是唯一一种不终结这一次经过的结论：人答完之后，这一件经回放拿到答复，再交回它这一次经过的最终结论。",
+      "type": "object",
+      "properties": {
+        "kind": { "const": "ask" },
+        "card": { "$ref": "#/$defs/DecisionCardDraft" }
+      },
+      "required": ["kind", "card"],
+      "additionalProperties": false
+    },
+
+    "ExtensionOutput": {
+      "title": "ExtensionOutput",
+      "description": "S-19：拓展件交回的结论，封闭八种，按 kind 判别。拓展件改变走向的办法只有这几种，每一种都留痕；没有「跳到哪一步」，没有「替人作答」，没有「放宽」。",
+      "oneOf": [
+        { "$ref": "#/$defs/ObservedOutput" },
+        { "$ref": "#/$defs/InjectOutput" },
+        { "$ref": "#/$defs/RewriteOutput" },
+        { "$ref": "#/$defs/SelectModelOutput" },
+        { "$ref": "#/$defs/VetoOutput" },
+        { "$ref": "#/$defs/StopOutput" },
+        { "$ref": "#/$defs/RetryOutput" },
+        { "$ref": "#/$defs/AskOutput" }
+      ]
+    },
+
+    "Conclusion": {
+      "title": "Conclusion",
+      "description": "S-30～S-32：一件拓展件在一次经过里的结论落进日志的那一条。每件必留：跑出了结论的记 output；因不可用被视作卸载的记 skipped: unavailable、不带 output（不替一件没跑的东西编结论）；可用却报错的记 skipped: errored、error 与 output（output 是处置策略实际落下的那个结论）。power、position、dimension 是这一次经过求得的值；callId 指这次结论是为哪一个动作下的（只在 before_action 与 after_action{each}）。",
+      "$comment": "两张合法组合表在这里：下面 allOf 里「档 × 结论」三条、「位置 × 结论」十三条、rewrite 的 subject 与位置配对四条。output 缺席时（skipped: unavailable）这些约束空成立。error 在结论被表示层拒绝时恰为那个拒绝值 token（S-31），Schema 只约束到非空字符串。",
+      "type": "object",
+      "properties": {
+        "extension": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/CapabilityId/properties/name" },
+        "position": { "$ref": "#/$defs/LoopPosition" },
+        "dimension": { "$ref": "#/$defs/Dimension" },
+        "power": { "$ref": "#/$defs/Power" },
+        "callId": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/CallId" },
+        "output": { "$ref": "#/$defs/ExtensionOutput" },
+        "at": { "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant" },
+        "skipped": { "enum": ["unavailable", "errored"] },
+        "error": { "type": "string", "minLength": 1 }
+      },
+      "required": ["extension", "position", "power", "at"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "position": { "const": "after_model_call" } }, "required": ["position"] },
+          "then": { "required": ["dimension"], "properties": { "dimension": { "required": ["ending"] } } }
+        },
+        {
+          "if": { "properties": { "position": { "const": "after_action" } }, "required": ["position"] },
+          "then": { "required": ["dimension"], "properties": { "dimension": { "required": ["scope"] } } }
+        },
+        {
+          "if": { "properties": { "position": { "not": { "enum": ["after_model_call", "after_action"] } } }, "required": ["position"] },
+          "then": { "not": { "required": ["dimension"] } }
+        },
+        {
+          "if": {
+            "anyOf": [
+              { "properties": { "position": { "const": "before_action" } }, "required": ["position"] },
+              { "properties": { "position": { "const": "after_action" }, "dimension": { "properties": { "scope": { "const": "each" } }, "required": ["scope"] } }, "required": ["position", "dimension"] }
+            ]
+          },
+          "then": { "required": ["callId"] },
+          "else": { "not": { "required": ["callId"] } }
+        },
+        {
+          "oneOf": [
+            {
+              "title": "跑出了结论",
+              "required": ["output"],
+              "not": { "anyOf": [{ "required": ["skipped"] }, { "required": ["error"] }] }
+            },
+            {
+              "title": "不可用，视作卸载",
+              "properties": { "skipped": { "const": "unavailable" } },
+              "required": ["skipped"],
+              "not": { "anyOf": [{ "required": ["output"] }, { "required": ["error"] }] }
+            },
+            {
+              "title": "报错，按策略处置",
+              "properties": { "skipped": { "const": "errored" } },
+              "required": ["skipped", "output", "error"]
+            }
+          ]
+        },
+
+        {
+          "$comment": "档 × 结论：observe 只能 observed。",
+          "if": { "properties": { "power": { "const": "observe" } }, "required": ["power"] },
+          "then": { "properties": { "output": { "properties": { "kind": { "const": "observed" } } } } }
+        },
+        {
+          "$comment": "档 × 结论：rewrite 不能 veto / stop / ask。",
+          "if": { "properties": { "power": { "const": "rewrite" } }, "required": ["power"] },
+          "then": { "properties": { "output": { "properties": { "kind": { "enum": ["observed", "inject", "rewrite", "select_model", "retry"] } } } } }
+        },
+        {
+          "$comment": "档 × 结论：veto 八种全部（仍受位置 × 结论约束）。",
+          "if": { "properties": { "power": { "const": "veto" } }, "required": ["power"] },
+          "then": { "properties": { "output": { "properties": { "kind": { "enum": ["observed", "inject", "rewrite", "select_model", "veto", "stop", "retry", "ask"] } } } } }
+        },
+
+        {
+          "$comment": "位置 × 结论：attempt_started。",
+          "if": { "properties": { "position": { "const": "attempt_started" } }, "required": ["position"] },
+          "then": { "properties": { "output": { "properties": { "kind": { "enum": ["observed", "inject", "stop", "ask"] } } } } }
+        },
+        {
+          "$comment": "位置 × 结论：before_persist_message（不许 ask、不许 stop）。",
+          "if": { "properties": { "position": { "const": "before_persist_message" } }, "required": ["position"] },
+          "then": { "properties": { "output": { "properties": { "kind": { "enum": ["observed", "inject", "rewrite", "veto"] } } } } }
+        },
+        {
+          "$comment": "位置 × 结论：after_persist_message。",
+          "if": { "properties": { "position": { "const": "after_persist_message" } }, "required": ["position"] },
+          "then": { "properties": { "output": { "properties": { "kind": { "enum": ["observed", "inject", "stop", "ask"] } } } } }
+        },
+        {
+          "$comment": "位置 × 结论：before_compaction（本版没有 rewrite，见 G-15）。",
+          "if": { "properties": { "position": { "const": "before_compaction" } }, "required": ["position"] },
+          "then": { "properties": { "output": { "properties": { "kind": { "enum": ["observed", "inject", "veto", "stop", "ask"] } } } } }
+        },
+        {
+          "$comment": "位置 × 结论：after_compaction。",
+          "if": { "properties": { "position": { "const": "after_compaction" } }, "required": ["position"] },
+          "then": { "properties": { "output": { "properties": { "kind": { "enum": ["observed", "inject", "stop", "ask"] } } } } }
+        },
+        {
+          "$comment": "位置 × 结论：before_model_call（select_model 只在这里）。",
+          "if": { "properties": { "position": { "const": "before_model_call" } }, "required": ["position"] },
+          "then": { "properties": { "output": { "properties": { "kind": { "enum": ["observed", "inject", "rewrite", "select_model", "veto", "stop", "ask"] } } } } }
+        },
+        {
+          "$comment": "位置 × 结论：after_model_call{complete_reply}。",
+          "if": { "properties": { "position": { "const": "after_model_call" }, "dimension": { "properties": { "ending": { "const": "complete_reply" } }, "required": ["ending"] } }, "required": ["position", "dimension"] },
+          "then": { "properties": { "output": { "properties": { "kind": { "enum": ["observed", "inject", "stop", "ask"] } } } } }
+        },
+        {
+          "$comment": "位置 × 结论：after_model_call{failure}（retry 只在这里）。",
+          "if": { "properties": { "position": { "const": "after_model_call" }, "dimension": { "properties": { "ending": { "const": "failure" } }, "required": ["ending"] } }, "required": ["position", "dimension"] },
+          "then": { "properties": { "output": { "properties": { "kind": { "enum": ["observed", "inject", "stop", "retry", "ask"] } } } } }
+        },
+        {
+          "$comment": "位置 × 结论：before_action。",
+          "if": { "properties": { "position": { "const": "before_action" } }, "required": ["position"] },
+          "then": { "properties": { "output": { "properties": { "kind": { "enum": ["observed", "inject", "rewrite", "veto", "stop", "ask"] } } } } }
+        },
+        {
+          "$comment": "位置 × 结论：after_action{each}（结果还没落盘，可改写）。",
+          "if": { "properties": { "position": { "const": "after_action" }, "dimension": { "properties": { "scope": { "const": "each" } }, "required": ["scope"] } }, "required": ["position", "dimension"] },
+          "then": { "properties": { "output": { "properties": { "kind": { "enum": ["observed", "inject", "rewrite", "stop", "ask"] } } } } }
+        },
+        {
+          "$comment": "位置 × 结论：after_action{batch}。",
+          "if": { "properties": { "position": { "const": "after_action" }, "dimension": { "properties": { "scope": { "const": "batch" } }, "required": ["scope"] } }, "required": ["position", "dimension"] },
+          "then": { "properties": { "output": { "properties": { "kind": { "enum": ["observed", "inject", "stop", "ask"] } } } } }
+        },
+        {
+          "$comment": "位置 × 结论：before_terminal（veto = 接着转）。",
+          "if": { "properties": { "position": { "const": "before_terminal" } }, "required": ["position"] },
+          "then": { "properties": { "output": { "properties": { "kind": { "enum": ["observed", "inject", "veto", "stop", "ask"] } } } } }
+        },
+        {
+          "$comment": "位置 × 结论：after_terminal（不许 ask、不许 stop）。",
+          "if": { "properties": { "position": { "const": "after_terminal" } }, "required": ["position"] },
+          "then": { "properties": { "output": { "properties": { "kind": { "enum": ["observed", "inject"] } } } } }
+        },
+
+        {
+          "$comment": "rewrite 的 subject 必须是本位置那一种：before_persist_message。",
+          "if": { "properties": { "position": { "const": "before_persist_message" }, "output": { "properties": { "kind": { "const": "rewrite" } }, "required": ["kind"] } }, "required": ["position", "output"] },
+          "then": { "properties": { "output": { "properties": { "subject": { "$ref": "#/$defs/BeforePersistMessageSubject" } } } } }
+        },
+        {
+          "$comment": "rewrite 的 subject 必须是本位置那一种：before_model_call。",
+          "if": { "properties": { "position": { "const": "before_model_call" }, "output": { "properties": { "kind": { "const": "rewrite" } }, "required": ["kind"] } }, "required": ["position", "output"] },
+          "then": { "properties": { "output": { "properties": { "subject": { "$ref": "#/$defs/BeforeModelCallSubject" } } } } }
+        },
+        {
+          "$comment": "rewrite 的 subject 必须是本位置那一种：before_action。",
+          "if": { "properties": { "position": { "const": "before_action" }, "output": { "properties": { "kind": { "const": "rewrite" } }, "required": ["kind"] } }, "required": ["position", "output"] },
+          "then": { "properties": { "output": { "properties": { "subject": { "$ref": "#/$defs/BeforeActionSubject" } } } } }
+        },
+        {
+          "$comment": "rewrite 的 subject 必须是本位置那一种：after_action{each}。",
+          "if": { "properties": { "position": { "const": "after_action" }, "output": { "properties": { "kind": { "const": "rewrite" } }, "required": ["kind"] } }, "required": ["position", "output"] },
+          "then": { "properties": { "output": { "properties": { "subject": { "$ref": "#/$defs/AfterActionEachSubject" } } } } }
+        },
+
+        {
+          "$comment": "ask 在 after_action{each} 出卡：卡片必须说是为哪个动作。",
+          "if": { "properties": { "position": { "const": "after_action" }, "dimension": { "properties": { "scope": { "const": "each" } }, "required": ["scope"] }, "output": { "properties": { "kind": { "const": "ask" } }, "required": ["kind"] } }, "required": ["position", "dimension", "output"] },
+          "then": { "properties": { "output": { "properties": { "card": { "properties": { "about": { "required": ["callId"] } } } } } } }
+        },
+        {
+          "$comment": "ask 在 after_action{batch} 出卡：这一批不属于某一个动作，卡片不带 callId。",
+          "if": { "properties": { "position": { "const": "after_action" }, "dimension": { "properties": { "scope": { "const": "batch" } }, "required": ["scope"] }, "output": { "properties": { "kind": { "const": "ask" } }, "required": ["kind"] } }, "required": ["position", "dimension", "output"] },
+          "then": { "properties": { "output": { "properties": { "card": { "properties": { "about": { "not": { "required": ["callId"] } } } } } } } }
+        }
+      ]
+    }
+  }
+}
