@@ -11,6 +11,11 @@ const describePg = url === undefined ? describe.skip : describe
 describePg('upgrade · postgres（缺 OMNE_TEST_PG_URL 时未运行）', () => {
   const connectionString = url ?? ''
 
+  it('upgrade.pg-close-once：读写两个句柄共用一个 pool，close() 只结束它一次', async () => {
+    const plain = await openStorage({ dialect: 'postgres', connectionString, upgrade: false })
+    await expect(plain.close()).resolves.toBeUndefined()
+  })
+
   it('upgrade.pg-single-transaction：第二个迁移失败 ⇒ 登记与 schema 都回到迁移前', async () => {
     const guard = createUpgradeGuard()
     const error = await openStorage({

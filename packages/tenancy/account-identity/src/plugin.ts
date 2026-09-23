@@ -29,7 +29,8 @@ const verificationKeyPem = z
  */
 export const AccountIdentityConfigSchema: z.ZodType<AccountIdentityConfig, unknown> = z
   .object({
-    credentialPolicy: z.unknown(),
+    // 键缺席与值为 undefined 同义：契约 S-27「缺席不是启动失败」
+    credentialPolicy: z.unknown().optional(),
     unactivatedRetention: z
       .number()
       .int()
