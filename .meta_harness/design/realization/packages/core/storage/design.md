@@ -23,9 +23,9 @@
 **Cordis 版本**：本节点不依赖 Cordis。提供者插件与消费者插件按 [D-025](../../../../record/decisions/cordis-adoption-version/decision.md) 采用 `@deepseek-ai/cordis` 4.0.4。
 **依赖版本**：Kysely 0.29.6（workspace catalog；D-026 与研究核对的也是它），本节点只依赖它的**类型**；vitest 4.1.11 是 `./conformance` 的运行时依赖（套件是 `describe` 块）；`node:sqlite`、`pg` 归提供者节点。
 
-## 协议（候选形状）
+## 协议
 
-标题里的「候选」是起草时的状态，别的节点以这个锚点引用本节；**2026-09-22 起协议已建包，名字不再是候选**。包 `@omne-harness-lite/storage`，源码 `packages/core/storage/src/`：`protocol.ts`、`errors.ts`、`map.ts`、`conformance/index.ts`（子路径 `./conformance`）。下面是公开面的摘要，以源码为准。
+包 `@omne-harness-lite/storage`，源码 `packages/core/storage/src/`：`protocol.ts`、`errors.ts`、`map.ts`、`migration.ts`、`preflight.ts`、`conformance/index.ts`（子路径 `./conformance`），已实现（HUB `c9b5850`）。下面是公开面的摘要，名字是实名，以源码为准。
 
 ```ts
 type UntypedDb = Kysely<any>                       // 协议不为消费者的表建类型
@@ -43,10 +43,13 @@ function narrow<DB>(tx: ReadTx): Kysely<DB>       // 消费者按自己的表接
 // 失败四型，以异常到达调用方；调用方只 catch 前三种，第四种与其他异常上抛（那是缺陷）：
 class StorageUnavailable  { cause?: unknown }                              // 瞬时：连接、忙超时、I/O、撤除期间被关
 class UniqueViolation     { constraint: string }                           // 唯一冲突；constraint 是迁移里给该约束起的名字
-class ReferenceViolation  { kind: 'delete-restricted' | 'missing-target' } // 引用约束两向
+class ReferenceViolation  { kind: ReferenceViolationKind }                 // 引用约束两向：'delete-restricted' | 'missing-target'
 class StorageDefect       { cause?: unknown }                              // 缺陷：语法、未知列、NOT NULL/CHECK、只读事务里写、嵌套调用、约束名映射不到……
+type StorageFailure = StorageUnavailable | UniqueViolation | ReferenceViolation | StorageDefect
 function mapStorageError<F extends string>(error: unknown, unavailable: F): { failure: F }  // 只折 StorageUnavailable；其余重抛
 ```
+
+四个错误类都继承 `Error`，`name` 字段就是类名，构造时可带 `cause`。
 
 **协议级语义（提供者义务，套件逐条证）**：
 
@@ -91,7 +94,7 @@ function mapStorageError<F extends string>(error: unknown, unavailable: F): { fa
 | AI R-7／OG R-6 引用约束（删除受限那一向） | `ReferenceViolation { kind: 'delete-restricted' }`，P-10 | **C-11** 套件自己的 `conformance_parent`／`conformance_child` 两表（外键 `conformance_child_parent_fk`，`ON DELETE RESTRICT`）：有子行时删父行 ⇒ `delete-restricted`，父行仍在 | sqlite `foreign_keys` 未开（删除静默成功——**这条是 sqlite 上最容易无声失守的**）；`kind` 分类反了 |
 | OG R-6（插入指向不存在的目标那一向） | `ReferenceViolation { kind: 'missing-target' }`，P-10 | **C-12** 插子行指向不存在的父 ⇒ `missing-target` | 同上；两向折成一个 `kind` |
 
-**两个方向都由套件自己的两张表证**——套件不知道也不该知道 `organization.ownerAccount` 这条真实的外键。真实外键是否存在、是否 `ON DELETE RESTRICT`，是装配迁移的事，见下节。**嵌套调用 ⇒ `StorageDefect`** 目前没有用例，记在缺口。
+**两个方向都由套件自己的两张表证**——套件不知道也不该知道 `organization.ownerAccount` 这条真实的外键。真实外键是否存在、是否 `ON DELETE RESTRICT`，是装配迁移的事，见下节。**嵌套调用 ⇒ `StorageDefect`**（P-13）由 **C-15** 证：写事务里再 `write`／`read` 都被拒，外层事务不受影响。
 
 ## 表结构不在协议里，由装配层迁移建立，两节点同一约束域
 
@@ -99,13 +102,25 @@ function mapStorageError<F extends string>(error: unknown, unavailable: F): { fa
 
 | 谁 | 建什么 | 依据 |
 |---|---|---|
-| 各持事实节点（AI、OG） | 自己记录的**列与约束的要求**（写在各自 design.md 的持久记录表与 R 清单里） | 节点设计 |
-| **装配**（`apps/tenancy-host`，名由 D-027 拍板；节点已起草，包未建） | 迁移文件：两个节点的表、唯一约束与主键的**名字**（P-11 的输入）、`organization.ownerAccount → account` 这条外键 `ON DELETE RESTRICT`——**两张表在同一个库、同一个 schema，一条外键，两侧各自记一条要求**（[AI R-7](../../tenancy/account-identity/design.md#对存储提供者的要求清单) ⇔ [OG R-6](../../tenancy/organization-governance/design.md#对存储提供者的要求清单)）；装配把它们作为 `MigrationProvider` 经 storage-sql 的 config 传入 | D-026「两个 tenancy 节点的表在同一存储、同一约束域」 |
+| 各持事实节点（AI、OG） | 自己记录的**列与约束的要求**（写在各自 design.md 的持久记录表与 R 清单里），并在包里导出自己表的迁移片段（`readonly MigrationFragment[]`：`accountIdentityMigrations`、`organizationGovernanceMigrations(...)` 的返回值），唯一约束与主键的**名字**（P-11 的输入）在片段里起 | 节点设计 |
+| **装配**（[`apps/tenancy-host`](../../../apps/tenancy-host/design.md)，名由 D-027 拍板） | 按次序把各 owner 的片段经 `composeMigrations` 合成一个 `MigrationProvider`，经 storage-sql 的 config 传入；`organization.ownerAccount → account` 这条外键 `ON DELETE RESTRICT` 由装配经 OG 迁移工厂的参数给出——**两张表在同一个库、同一个 schema，一条外键，两侧各自记一条要求**（[AI R-7](../../tenancy/account-identity/design.md#对存储提供者的要求清单) ⇔ [OG R-6](../../tenancy/organization-governance/design.md#对存储提供者的要求清单)） | D-026「两个 tenancy 节点的表在同一存储、同一约束域」 |
 | [`infra/storage-sql`](../../infra/storage-sql/README.md) | 迁移**运行器**（Kysely `Migrator`）；config 可选项 `migrations: MigrationProvider`，迁移在 `provide('storage')` **之前**跑；不带任何业务表 | D-026 |
-| [`infra/clock`](../../infra/clock/README.md) | 它自己那张租约表的迁移（自带，形状归该节点） | 该节点 |
+| [`infra/clock`](../../infra/clock/README.md) | 它自己那张租约表的迁移片段 `clockMigrations`（形状归该节点），同样由装配合成 | 该节点 |
 | 本节点 | 只带一致性套件**自己的**五张 `conformance_*` 表（含命名唯一索引、`ON DELETE RESTRICT` 外键、一个 `CHECK` 列），套件开头建、结尾删 | — |
 
-**装配还欠一条检查**：套件证的是「提供者会把外键违反报成两向可识别的类型」，不证「那条真实外键存在」。装配须自带一条测试：直接构造「组织行指着账号行」时删账号行 ⇒ `delete-restricted`；插组织行指向不存在的账号 ⇒ `missing-target`。owner 装配，登记在 [verification 覆盖缺口](verification.md#覆盖缺口)。
+**装配自带一条检查**：套件证的是「提供者会把外键违反报成两向可识别的类型」，不证「那条真实外键存在」。装配的测试直接构造「组织行指着账号行」时删账号行 ⇒ `delete-restricted`；插组织行指向不存在的账号 ⇒ `missing-target`——`apps/tenancy-host` 的 `assembly.fk-organization-owner-account`。owner 装配。
+
+### 迁移片段与迁移前核对的共用形状
+
+两样**形状**放在本包，是因为 owner 包（AI、OG、clock、入口层）与装配都要用它们、又都不该为此 import 提供者 `infra/storage-sql`；语义各归其主，本包只给类型与一个纯函数：
+
+| 公开名 | 形状 | 语义的 owner |
+|---|---|---|
+| `MigrationFragment` | `{ name: string; migration: Migration }`（Kysely `Migration`，只有 `up`、不带 `down`——升级整体性靠快照，不靠反向迁移）；`name` 在 owner 包内稳定、只追加不重排 | [tenancy-host「迁移由 owner 导出片段」](../../../apps/tenancy-host/design.md#存储装配迁移由-owner-导出片段本节点合成)（M-9） |
+| `composeMigrations(fragments) → MigrationProvider` | 按数组次序合成；合成名 `composedMigrationName(position, fragment)` = 四位全局位置编号 + `_` + owner 给的名字（`0001_<name>`）；同名片段 ⇒ 抛出，不静默覆盖 | 同上；次序由装配给 |
+| `PreflightCheck = (input: PreflightInput) → Promise<PreflightResult>` | `PreflightInput { tx: ReadTx; tables: ReadonlySet<string>; appliedMigrations: readonly string[] }`——同一个只读事务、提供者先读好的已存在表名（含迁移登记表本身）、已登记迁移名按执行次序；`PreflightResult = { ok: true } \| { ok: false; check; detail }`，`check` 是核对的稳定名字，提供者原样放进启动失败 | [storage-sql「迁移前只读核对」](../../infra/storage-sql/design.md#迁移前只读核对)；各条判据归各自 owner（数据格式归装配、时钟回拨归 clock、中心标识表归入口层） |
+
+装配与测试合成迁移一律用 `composeMigrations`，不各写一份。
 
 ## 一致性套件的形状
 
@@ -114,12 +129,12 @@ import { describeStorageConformance } from '@omne-harness-lite/storage/conforman
 describeStorageConformance(name: string, factory: () => Promise<StorageInstance>)
 ```
 
-- 提供者在**自己的**测试文件里调用它；套件是 vitest 的 `describe` 块，18 个用例（C-1a/b/c～C-15，含 C-2b 主键支）。
+- 提供者在**自己的**测试文件里调用它；套件是 vitest 的 `describe` 块，19 个用例（C-1a/b/c～C-15，含 C-2b 主键支）。
 - `factory` **每次调用返回一个新实例，指向同一个底层库**；套件在 `beforeAll` 起两个实例，个别用例再起第三个（C-8／C-9a／C-9b）。C-4／C-5／C-7／C-13 要两个真正独立的连接——sqlite 下即同一临时文件的多个连接（WAL）。
 - 套件开头用实例 0 在一个 `write` 里以 Kysely 的 schema 构建器建五张 `conformance_*` 表并清空；结尾删表、关闭实例。
 - **无 in-memory 实现**（D-026）：套件不带夹具；提供者的测试给它一个临时文件库。
-- pg 方言：本程只接线不跑；提供者对 pg 标 `describe.skip` 并写明前提（一个可连的 pg）。**跳过不是通过**，登记在 verification。
-- **套件至今没有在任何提供者上跑过**——`infra/storage-sql` 尚未建包。
+- pg 方言：提供者的 pg 测试文件在环境变量 `OMNE_TEST_PG_URL` 指向一个可连的库时运行，缺时 `describe.skip` 并在用例名里写明未运行。**跳过不是通过**，每次运行是否跳过登记在 verification。
+- 本版唯一的提供者 [`infra/storage-sql`](../../infra/storage-sql/README.md) 在 `tests/conformance.sqlite.spec.ts` 与 `tests/conformance.postgres.spec.ts` 里调用它。
 
 ## 五处关键选择
 
@@ -141,7 +156,7 @@ describeStorageConformance(name: string, factory: () => Promise<StorageInstance>
 | 调用方写法 | 每个可能撞唯一的插入都要改写成 `onConflict().doNothing()` 并检查影响行数 | 照常插入，catch `UniqueViolation` 后由调用方收场——OG S-20 在同一提交内重读；[AI S-13](../../tenancy/account-identity/design.md#能力到-cordis-的投影) 则不写、从快照重来一次（凭据计算在事务外） |
 | 引用约束 | `ON CONFLICT` 管不到外键；`missing-target` 仍会废掉 pg 事务 | 同一机制覆盖两种约束 |
 | 代价 | 无 | pg 每条语句一个 SAVEPOINT；sqlite 零成本 |
-| 本方弱点 | — | pg 上每条语句多一次往返；本程 pg 不跑，代价未测量 |
+| 本方弱点 | — | pg 上每条语句多一次往返；代价未测量 |
 
 落选方的最强论证：不需要 SAVEPOINT，pg 上更快。它输在「两个 tenancy 节点已经按 catch 后重读写好了分支」且外键那一向它管不到。
 
@@ -188,7 +203,7 @@ describeStorageConformance(name: string, factory: () => Promise<StorageInstance>
 | vitest 4.1.11（catalog） | 运行时依赖——`./conformance` 导出的是 `describe` 块 | — | 换测试运行器 ⇒ 套件重写，协议不变 |
 
 **被谁消费**：`account-identity`、`organization-governance` 经服务名 `storage` 用协议（它们 inject 的是提供者的实例，类型来自本节点），并用本节点的 `mapStorageError` 把 `StorageUnavailable` 折成各自的字面；
-`infra/storage-sql` 实现协议并跑套件；`infra/clock` 用 `storage` 读写租约。**`mapStorageError` 放在本包**是因为它折的是本包定义的错误类型——错误类型的 owner 拥有映射；`kernel-basis` 不 import 本包。
+`governance-center-entry` 用它读或铸中心标识；`infra/storage-sql` 实现协议并跑套件；`infra/clock` 用 `storage` 读写租约。`MigrationFragment` 由 AI、OG、clock、入口层各自导出，`PreflightCheck` 由 clock、入口层与装配各自实现，`composeMigrations` 由装配 `apps/tenancy-host` 调用。**`mapStorageError` 放在本包**是因为它折的是本包定义的错误类型——错误类型的 owner 拥有映射；`kernel-basis` 不 import 本包。
 服务名 `storage` 的类型声明（Cordis 的 Context 类型扩充）不在本包——本包不依赖 Cordis；归提供者节点。
 
 ### 对存储提供者的要求清单
@@ -203,7 +218,7 @@ describeStorageConformance(name: string, factory: () => Promise<StorageInstance>
 
 **协议无状态。**每次 `read`／`write` 调用恰是一次事务，提交点在 `fn` 返回之后、`write` 返回之前；写权在调用方的 `fn` 里，本节点不裁决任何冲突——它只保证冲突**可识别**（四型）且锁**按方言确实生效**（P-4／P-5）。
 
-**并发**：两个 tenancy 节点跨 owner 的两条交错（激活 vs 清除、创建个人组织 vs 清除）各撞上一个存储对象——账号行（`lockRow` + 行上的 `expiredAt` 列）与外键（`ReferenceViolation` 两向）。本节点给的就是这两个原语，推理在[那边](../../tenancy/organization-governance/design.md#跨-owner-的同一提交账号行上的过期事实加组织行对账号行的引用约束)；套件里 C-4 与 C-11／C-12 分别是它们在存储层的最小形状。**嵌套调用**（在 `fn` 内再调同一实例的 `read`／`write`）⇒ `StorageDefect`（P-8）；本版无用例。
+**并发**：两个 tenancy 节点跨 owner 的两条交错（激活 vs 清除、创建个人组织 vs 清除）各撞上一个存储对象——账号行（`lockRow` + 行上的 `expiredAt` 列）与外键（`ReferenceViolation` 两向）。本节点给的就是这两个原语，推理在[那边](../../tenancy/organization-governance/design.md#跨-owner-的同一提交账号行上的过期事实加组织行对账号行的引用约束)；套件里 C-4 与 C-11／C-12 分别是它们在存储层的最小形状。**嵌套调用**（在 `fn` 内再调同一实例的 `read`／`write`）⇒ `StorageDefect`（P-8、P-13），由 C-15 证。
 
 **失败映射**：四型以异常到达调用方；调用方的 `catch` 只认前三种，`StorageDefect` 与其它异常上抛（AI／OG 的「无 catch-all」）；`StorageUnavailable` → 各消费者自己的「不可用」字面（AI `storage-unavailable`、OG `unavailable`）经本包 `mapStorageError` 折出，**不在此统一**——它对 `UniqueViolation`／`ReferenceViolation`／`StorageDefect`／调用方错误一律重抛，唯一冲突与引用违反须在此之前由操作自己按契约分支处理。`fn` 自己抛的异常原样穿过 `write`（P-1），不被映射。
 
@@ -220,10 +235,10 @@ describeStorageConformance(name: string, factory: () => Promise<StorageInstance>
 
 ## 实施缺口与消费者影响
 
-- **套件从未在提供者上跑过**：`infra/storage-sql` 尚未建包；C-1～C-14 只有形状，没有结果。owner 批 B。
-- **装配节点未建立**：迁移、约束与主键的命名、真实外键、`foreign_keys=ON` 的配置、pg 的接线全在装配；候选 `apps/tenancy-host`，D-026 未拍板名字。受阻消费者：AI／OG 的全部场景演练（它们已在各自 verification 里登记「依赖装配」）。
+- **套件的运行结果尚未登记**：`infra/storage-sql` 已在 sqlite 与 pg 两种方言上接线运行套件，结果登记归那个节点的 verification 与 record/evidence；本节点 verification 的义务状态待证据 run 登记后回填。
+- **装配**：约束与主键的命名纪律、真实外键、`foreign_keys=ON`、pg 的接线由 [`apps/tenancy-host`](../../../apps/tenancy-host/design.md) 兑现，真实外键两向由它的 `assembly.fk-organization-owner-account` 证。
 - **套件自测**（对一个故意做错的提供者会红，例如把 `lockRow` 换成空操作跑 C-4）未写。owner 本节点。
-- **pg 方言本程不跑**：套件在 pg 上 `describe.skip` 不是通过。owner：装配（第二程或更晚，研究正文[「未知与下一项证据」](../../../../../research/agent-harness-persistence-and-identity-infra/research.md#未知与下一项证据)）。
+- **pg 方言依赖环境**：缺 `OMNE_TEST_PG_URL` 时套件在 pg 上 `describe.skip`，跳过不是通过；CI 是否提供可连的 pg 归装配与 CI 配置（研究正文[「未知与下一项证据」](../../../../../research/agent-harness-persistence-and-identity-infra/research.md#未知与下一项证据)）。
 - **`narrow` 只是类型断言**：表存在与否由装配迁移与消费者测试保证；换查询层 = 新版本协议。
 - **跨进程重启的持久证据**不在套件里（AI S-32 演练）；**跨进程形态下的存储协调协议**未定（D-026「不表示」列的 Q-8）。
 - **上游语义**：本节点不依赖 Cordis 行为，无 basis 引用。
