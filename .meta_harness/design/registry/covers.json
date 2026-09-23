@@ -3551,7 +3551,1185 @@
       },
       "reviewed": false,
       "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。本契约消费的是「条目无条件带租户身份」这一条，据此不在账里另存归属"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#七种消息按谁在说话分"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-1",
+          "S-7",
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#说话的有四个消息却有七种"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-1",
+          "S-7",
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#消息"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-1",
+          "S-2",
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#七种消息各自谁感知得到"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-5"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#三件容易搞错的事"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-5"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#出门的时候七种分三类"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-34",
+          "S-35",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#52-我们自己那两种在各家落成什么"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-35",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#62-我们自己那两种每一家都要有落点不许落空也不许丢"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-35",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#53-落到对面之后agent-还得分得出这不是人说的"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-15",
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#63-提醒的标识由系统加产生提醒的那一处交的是消息"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-15",
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#消息的内容是一串块不是一段文本"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-2",
+          "S-6"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#66-内容是块不在进日志时压成文本"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-2",
+          "S-6"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#每个块带两个标注给人看吗给模型看吗"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-5"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#611-每个块都带给人看--给模型看两个标注"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-5"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#systemremindermessage"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-12",
+          "S-15",
+          "S-18",
+          "S-19",
+          "S-22",
+          "S-23",
+          "S-24",
+          "S-25",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#65-来源是一个属性不是另一种消息"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-12",
+          "S-15",
+          "S-18",
+          "S-19",
+          "S-22",
+          "S-23",
+          "S-24",
+          "S-25",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#51-systemremindermessage-凭什么独立而不是一条带标记的用户消息"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-1",
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#61-一条消息是谁说的永远查得到且不靠解析内容"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-1",
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#54-提醒说的是现在什么样还是刚才发生了什么"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-16",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#64-说状态的写清变化说事的写清发生消息一律追加"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-16",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#55-一条消息是分次到达的"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-1",
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#半条消息不是消息"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-1",
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#67-分次到达的东西不进消息类型清单"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-1",
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#68-组装的结果与一次性拿到的必须相同"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-1",
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#56-流断在半路"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-10",
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#中断这件事本身要让-agent-知道"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#69-用户看见了的会话日志里必须有"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#610-没收齐的工具调用参数不解析不执行"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#613-只要发生了中断就补一条提醒"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#57-一份会话日志两种组装"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-5",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#612-日志完整删减只发生在组装那一步"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-5",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#toolinternalmessage"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-11",
+          "S-13",
+          "S-14",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#58-toolinternalmessage工具说它正在干什么"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-11",
+          "S-13",
+          "S-14",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#614-工具帧不进模型的上下文"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-11",
+          "S-13",
+          "S-14",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#compactionmessage"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#compactionmessage-凭什么单独成一种两条"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#91-这四件事归-pf-010不是本-topic-的缺口"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-11",
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#92-流式不留到达的过程"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-1",
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-1",
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#55-几样东西各自落成哪一种消息"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-11",
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#那两个标注仍然是这件事的前提"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-27",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#名单跟着摘要走是为了让日志能重放"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-27",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#610-压缩只能做两件事且落成同一条消息"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-27",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#611-压缩只管给模型看那一侧"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-27",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#58-压缩不能做的有三件事"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-28",
+          "S-29",
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#612-记录里的消息一条都不能擦除"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-28",
+          "S-29",
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#613-上一次模型请求之后新来的消息不许压"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-28",
+          "S-29",
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#614-悬着的东西不许被点名"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-28",
+          "S-29",
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#615-组装边界要看哪些块还模型可读不是最后一条摘要在哪"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-28",
+          "S-29",
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#给模型那一侧两块分别组装"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-7",
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#616-压缩之后meta-runtime-context-要重新给一份完整的"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#先对账再进方程"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-11",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#每一次尝试开始都要做四件事"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-20",
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#64-每一次尝试开始agent-都要知道"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#执行尝试"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#59-循环守卫四级阶梯"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#511-外面进来的事怎么到-agent-眼前"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-12",
+          "S-19",
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#611-悬着的东西不许被压掉"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#会话日志"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-27",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#只增不改怎么和压缩卸载共存"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-27",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-014-inbound-intake-and-queueing",
+        "clause": "design.md#57-穷举一什么会让队列从空变成非空"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-8",
+          "S-12",
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-014-inbound-intake-and-queueing",
+        "clause": "design.md#610-注入的上下文变了没有运行在跑时什么都不做"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-015-session-lifecycle-and-ownership",
+        "clause": "design.md#68-变更了要不要告诉-agent看谁消费它"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-17",
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-015-session-lifecycle-and-ownership",
+        "clause": "design.md#69-模型看见一块-runtime-context只有两种形态"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-17",
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#55-一次工具执行的收场有六种"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-11",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#转后台是前台那一次调用的收场后台执行另有自己的收场"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-11",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#占位消息一律要说清原因"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-11",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#612-工具执行的运行时可以被单独控制而它停了就不重来"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-14",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#54-为什么系统提示词必须落在第三列"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#决策卡片"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#等待态的两个维度"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#65-不回答是合法答复"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#68-三种来源的卡片同一个形状选项与记录不同"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 1,
+        "clauses": [
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
     }
   ],
-  "note": "2026-09-22 首次登记，覆盖租户相关领域五份 candidate 契约。每条的 clauses 由两处合并得出：契约正文里带小节链接的条款段落，以及各契约「性质」表的「来源」列。全部 reviewed=false——这是「声称覆盖但尚未逐条复核」的诚实初值，不是复核通过。三处已知不完整，登记时一并记明，不靠留白掩盖：（1）PF-007 也被 data.identity-values 与 capability.organization-governance 的正文引为来源（§4 一笔授权表达有三个维度），本次登记范围只含 PF-001/002/003/015，因此 PF-007 一条未登；（2）foundation 的 SYS-TENANT / SYS-DEPLOY 是全局约束不是产品条款，本清单只登记 PF- 侧，那一侧的覆盖没有家；（3）契约正文里以散文方式引用产品要求、没有给出小节链接的地方，本次登记抓不到。 2026-09-22 评审轮一修订后补登 18 处（见各行 note）。data.identity-values/v1#S-35「交接凭证」没有产品出处（规格层构造），有意不登记 cover。 2026-09-23 补登 composition.governance-center-entry v1（candidate）40 条：PF-017（rev 1，仍是 draft（PF-017 rev 1 已于 2026-09-23 同日接受，各条 note 已改））30 条、PF-016 5 条、PF-001 5 条，全部 reviewed=false；来源是该契约正文里带小节链接的条款段落。该契约的形式工件与规范场景条款（S-37～S-46）只在对到验收判据时登记。 2026-09-23 该契约评审第一轮修订：首登时有若干条的 clauses 在正文对应条款里并没有小节链接，已在正文逐条补齐；逐条核过之后，每条 covers 的产品小节都在所列的每个条款里有链接，唯一例外是 acceptance §二那一条（见其 note）；该条 clauses 补登 S-31。 2026-09-23 补登 composition.governance-center-entry-https-json v1（candidate，传输绑定）11 条：PF-017 rev 2 共 10 条、PF-016 rev 4 共 1 条，全部 reviewed=false；来源同一口径——该契约正文里带小节链接的条款段落，每条所列条款都链接了那个小节。 2026-09-23 该传输绑定评审第一轮修订：补登 1 条（PF-017 acceptance §二「冒牌货」一行 → S-30），§8 那一条补 S-30；该契约现 12 条。 2026-09-23 补登 data.content-blocks v1（candidate）24 条：PF-009 7 条、PF-010 3 条、PF-013 3 条、PF-006 6 条、PF-002 2 条、PF-001 1 条、PF-012 2 条，全部 reviewed=false；来源是该契约的「设计依据」表（按简报口径），不是逐条核对正文链接——不少行只在依据表里对应，所列条款的正文里没有那个小节的链接（如 PF-009 §4 → S-1、PF-013 §4 模态 → S-7）；PF-006 §6.12「它的宿主是谁」一条部分为让缺口 G-2 可见而登，见其 note。 2026-09-23 补登 data.call-accounts v1（candidate）12 条：PF-006 1、PF-009 4、PF-012 3（其中 §6.17 一条为缺口登记型，指 G-3）、PF-013 2、PF-001 1、PF-000 1，全部 reviewed=false；每条的 clauses 是该契约正文里带那个小节链接的条款（逐条机械核过）。PF-013 §6.2（凭据挂在范围上）只作「不归本契约」的否定式提及，未点名缺口，不登。"
+  "note": "2026-09-22 首次登记，覆盖租户相关领域五份 candidate 契约。每条的 clauses 由两处合并得出：契约正文里带小节链接的条款段落，以及各契约「性质」表的「来源」列。全部 reviewed=false——这是「声称覆盖但尚未逐条复核」的诚实初值，不是复核通过。三处已知不完整，登记时一并记明，不靠留白掩盖：（1）PF-007 也被 data.identity-values 与 capability.organization-governance 的正文引为来源（§4 一笔授权表达有三个维度），本次登记范围只含 PF-001/002/003/015，因此 PF-007 一条未登；（2）foundation 的 SYS-TENANT / SYS-DEPLOY 是全局约束不是产品条款，本清单只登记 PF- 侧，那一侧的覆盖没有家；（3）契约正文里以散文方式引用产品要求、没有给出小节链接的地方，本次登记抓不到。 2026-09-22 评审轮一修订后补登 18 处（见各行 note）。data.identity-values/v1#S-35「交接凭证」没有产品出处（规格层构造），有意不登记 cover。 2026-09-23 补登 composition.governance-center-entry v1（candidate）40 条：PF-017（rev 1，仍是 draft（PF-017 rev 1 已于 2026-09-23 同日接受，各条 note 已改））30 条、PF-016 5 条、PF-001 5 条，全部 reviewed=false；来源是该契约正文里带小节链接的条款段落。该契约的形式工件与规范场景条款（S-37～S-46）只在对到验收判据时登记。 2026-09-23 该契约评审第一轮修订：首登时有若干条的 clauses 在正文对应条款里并没有小节链接，已在正文逐条补齐；逐条核过之后，每条 covers 的产品小节都在所列的每个条款里有链接，唯一例外是 acceptance §二那一条（见其 note）；该条 clauses 补登 S-31。 2026-09-23 补登 composition.governance-center-entry-https-json v1（candidate，传输绑定）11 条：PF-017 rev 2 共 10 条、PF-016 rev 4 共 1 条，全部 reviewed=false；来源同一口径——该契约正文里带小节链接的条款段落，每条所列条款都链接了那个小节。 2026-09-23 该传输绑定评审第一轮修订：补登 1 条（PF-017 acceptance §二「冒牌货」一行 → S-30），§8 那一条补 S-30；该契约现 12 条。 2026-09-23 补登 data.content-blocks v1（candidate）24 条：PF-009 7 条、PF-010 3 条、PF-013 3 条、PF-006 6 条、PF-002 2 条、PF-001 1 条、PF-012 2 条，全部 reviewed=false；来源是该契约的「设计依据」表（按简报口径），不是逐条核对正文链接——不少行只在依据表里对应，所列条款的正文里没有那个小节的链接（如 PF-009 §4 → S-1、PF-013 §4 模态 → S-7）；PF-006 §6.12「它的宿主是谁」一条部分为让缺口 G-2 可见而登，见其 note。 2026-09-23 补登 data.call-accounts v1（candidate）12 条：PF-006 1、PF-009 4、PF-012 3（其中 §6.17 一条为缺口登记型，指 G-3）、PF-013 2、PF-001 1、PF-000 1，全部 reviewed=false；每条的 clauses 是该契约正文里带那个小节链接的条款（逐条机械核过）。PF-013 §6.2（凭据挂在范围上）只作「不归本契约」的否定式提及，未点名缺口，不登。 2026-09-23 补登 data.messages v1（candidate）73 条：PF-009 39、PF-010 12、PF-012 9、PF-014 2、PF-015 2、PF-006 4、PF-004 1、PF-008 4，全部 reviewed=false；来源是该契约的「设计依据」表（按简报口径），同一依据行链到多个小节的，每个小节各登一条、条款相同，不是逐条核对正文链接。规范场景条款（S-41～S-48）不登。"
 }

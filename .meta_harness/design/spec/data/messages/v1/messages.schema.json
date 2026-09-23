@@ -1,0 +1,653 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/messages/v1/messages.schema.json",
+  "title": "data.messages v1",
+  "description": "消息的规范形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.messages/v1 内有效。",
+  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状；表示层拒绝值（S-39）的具名与优先级、工具消息与后台收场提醒里 callId／outcome 的相等、压缩名单不点自己、消息内块标识唯一，以及全部会话日志层的判定（S-29、S-32）由契约条款定，Schema 管不到，逐条列在 contract.md「Schema 管得到什么」。外部引用三处：ContentBlock、ToolResultBlock、BlockId、CallId、ExecutionOutcome 取自 data.content-blocks v1；Instant 取自 data.offer-expiry v1 S-22。不透明标识按 data.identity-values v1 S-31 的散文自定义，不跨契约 $ref 它的 OpaqueIdentifier。ResponseId、ModelCallId 两项的家不在本契约，这里是占位定义（G-3、G-4）。正反实例在同目录 examples.md。",
+
+  "$defs": {
+
+    "MessageId": {
+      "title": "MessageId（contract.md S-3）",
+      "description": "一条消息的标识。在一份会话日志之内唯一，不回收、不复用；不从正文或时间点算出来。交换表示按 data.identity-values v1 S-31 的散文：非空字符串；首字符与末字符都不属于该条逐个列出的空白码点集合；逐码点相等，不做任何规范化；消费者不解析其内容。会话日志里靠 (messageId, blockId) 指认一个块。",
+      "$comment": "pattern 照 S-31 的显式空白码点集合写否定字符类，末尾用 (?![\\s\\S]) 判绝对结尾，不用 $ 与 \\s——理由与回归用例见 data.identity-values v1 S-31。词法形式归实现（G-1）。",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])",
+      "examples": ["m_01"]
+    },
+
+    "ResponseId": {
+      "title": "ResponseId（contract.md S-9；占位定义）",
+      "description": "产出一条 AssistantMessage 的那份模型响应的标识。它的家不在本契约：主线已裁定归 data.model-response v1（并行起草、未定型）。本定义只按 data.identity-values v1 S-31 的散文写出不透明形状，唯一范围与由谁产生以它的家为准。",
+      "$comment": "占位：data.model-response v1 定型后，本定义改为 $ref 那里的 $defs/ResponseId，不另留一份同义定义（G-3）。data.call-accounts v1 S-16 另有一份同名定义，两处合一归对齐波。",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])",
+      "examples": ["rsp_01"]
+    },
+
+    "ModelCallId": {
+      "title": "ModelCallId（contract.md S-21；占位定义）",
+      "description": "一次模型调用的标识，只用在中断提醒的 about 上。它的家不在本契约：主线已裁定归 data.call-accounts v1（对齐波补入）。本定义只按 data.identity-values v1 S-31 的散文写出不透明形状。",
+      "$comment": "占位：data.call-accounts 补入后，本定义改为 $ref 那里的定义（G-4）。",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])",
+      "examples": ["mc_01"]
+    },
+
+    "CardId": {
+      "title": "CardId（contract.md S-22）",
+      "description": "一张决策卡片的标识。家不在本契约——归决策卡片的契约（PF-008，未起草，G-5）。本定义只按 data.identity-values v1 S-31 的散文写出不透明形状。",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])",
+      "examples": ["card_01"]
+    },
+
+    "SessionRef": {
+      "title": "SessionRef（contract.md S-24）",
+      "description": "捎话过来的那个会话的指认。家不在本契约——这类能力尚无 topic（G-7）。本定义只按 data.identity-values v1 S-31 的散文写出不透明形状；拿到它不等于有权访问那个会话。",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])",
+      "examples": ["ses_7a"]
+    },
+
+    "AgentRef": {
+      "title": "AgentRef（contract.md S-24）",
+      "description": "捎话的那个 agent 的指认。家不在本契约（G-7）。本定义只按 data.identity-values v1 S-31 的散文写出不透明形状。",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])",
+      "examples": ["agt_reviewer"]
+    },
+
+    "ScheduleRef": {
+      "title": "ScheduleRef（contract.md S-24）",
+      "description": "到点的那个日程的指认。家不在本契约——这类能力尚无 topic（G-7）。本定义只按 data.identity-values v1 S-31 的散文写出不透明形状。",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])",
+      "examples": ["sch_daily"]
+    },
+
+    "RuntimeContextBlockId": {
+      "title": "RuntimeContextBlockId（contract.md S-25）",
+      "description": "runtime context 里某一块的指认。家不在本契约——归 PF-015 的 runtime context 契约（未起草，G-6）。本定义只按 data.identity-values v1 S-31 的散文写出不透明形状。",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])",
+      "examples": ["org_view"]
+    },
+
+    "MessageBase": {
+      "title": "消息底座（contract.md S-2）",
+      "description": "每一种消息共有的四个成员，都必填：id（S-3）、type（S-1）、blocks（一串内容块，次序有意义，可以是空数组——各种消息另有限制，S-6）、createdAt（S-4，不是次序）。消息不带「给谁看」——那在块上（S-5）。",
+      "$comment": "本定义不带 additionalProperties: false——各种消息以 allOf 引用它，并以 unevaluatedProperties: false 闭合自己的成员集合。块的形状整份取自 data.content-blocks v1。",
+      "type": "object",
+      "properties": {
+        "id": { "$ref": "#/$defs/MessageId" },
+        "type": { "type": "string" },
+        "blocks": {
+          "type": "array",
+          "items": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/ContentBlock" }
+        },
+        "createdAt": { "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant" }
+      },
+      "required": ["id", "type", "blocks", "createdAt"]
+    },
+
+    "SystemMessage": {
+      "title": "SystemMessage（contract.md S-7）",
+      "description": "系统在开头说的设定：你是谁、你有什么能用（UL-system-prompt）。成分在实例存续期内恒定。块里不许有思考、工具调用、工具结果，也不许有带来路标记的文本（S-6）。它的块不许被压缩名单点名（S-29）。",
+      "type": "object",
+      "allOf": [{ "$ref": "#/$defs/MessageBase" }],
+      "properties": {
+        "type": { "const": "system" },
+        "blocks": {
+          "items": {
+            "allOf": [
+              { "not": { "properties": { "kind": { "enum": ["thinking", "tool_call", "tool_result"] } }, "required": ["kind"] } },
+              { "not": { "required": ["origin"] } }
+            ]
+          }
+        }
+      },
+      "unevaluatedProperties": false
+    },
+
+    "UserMessage": {
+      "title": "UserMessage（contract.md S-8）",
+      "description": "人说的话；斜杠命令展开之后的那一条、经连接件送达的外部消息也落成这一种。块里不许有思考、工具调用、工具结果（S-6）；文本块可以带来路标记 origin（data.content-blocks v1 S-8），且只有这一种消息的顶层文本块可以带。",
+      "type": "object",
+      "allOf": [{ "$ref": "#/$defs/MessageBase" }],
+      "properties": {
+        "type": { "const": "user" },
+        "blocks": {
+          "items": {
+            "not": { "properties": { "kind": { "enum": ["thinking", "tool_call", "tool_result"] } }, "required": ["kind"] }
+          }
+        }
+      },
+      "unevaluatedProperties": false
+    },
+
+    "AssistantEnding": {
+      "title": "AssistantMessage 怎么收的尾（contract.md S-10）",
+      "description": "恰三个取值，闭合：complete——正常收尾；interrupted_by_user——用户叫停，且已有内容到了他眼前；truncated_at_limit——写到上限被截断。流断在半路的另两种情形（用户叫停而什么都没出来、出错断的）不成为消息，所以没有取值。",
+      "type": "string",
+      "enum": ["complete", "interrupted_by_user", "truncated_at_limit"]
+    },
+
+    "AssistantMessage": {
+      "title": "AssistantMessage（contract.md S-9、S-10）",
+      "description": "模型的回复：一次模型调用成为消息的那一份，只有这一份权威内容。response 指认产出它的那份响应（ResponseId，家在 data.model-response，G-3）；ending 说它怎么收的尾，缺席不当作 complete。块里不许有工具结果、不许有带来路标记的文本（S-6）。ending 为 complete 时不许有没长完的工具调用；ending 不是 complete 时至少一块——什么都还没出来的那种不成为消息。",
+      "type": "object",
+      "allOf": [
+        { "$ref": "#/$defs/MessageBase" },
+        {
+          "if": { "properties": { "ending": { "const": "complete" } }, "required": ["ending"] },
+          "then": {
+            "properties": {
+              "blocks": {
+                "items": {
+                  "not": { "properties": { "kind": { "const": "tool_call" }, "complete": { "const": false } }, "required": ["kind", "complete"] }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "ending": { "enum": ["interrupted_by_user", "truncated_at_limit"] } }, "required": ["ending"] },
+          "then": { "properties": { "blocks": { "minItems": 1 } } }
+        }
+      ],
+      "properties": {
+        "type": { "const": "assistant" },
+        "response": { "$ref": "#/$defs/ResponseId" },
+        "ending": { "$ref": "#/$defs/AssistantEnding" },
+        "blocks": {
+          "items": {
+            "allOf": [
+              { "not": { "properties": { "kind": { "const": "tool_result" } }, "required": ["kind"] } },
+              { "not": { "required": ["origin"] } }
+            ]
+          }
+        }
+      },
+      "required": ["response", "ending"],
+      "unevaluatedProperties": false
+    },
+
+    "ToolMessage": {
+      "title": "ToolMessage（contract.md S-11）",
+      "description": "工具说结果：一次调用恰一条，blocks 恰好一个工具结果块，且它的 callId 与本消息的 callId 相同（后一半 Schema 管不到）；违反即表示层拒绝 tool_message_block_count（S-39）。占位也是这一种——转后台、被中断、异常中断、卸载后的带摘要占位，收场与原因都写在那个工具结果块上（data.content-blocks v1 S-15～S-18）。",
+      "type": "object",
+      "allOf": [{ "$ref": "#/$defs/MessageBase" }],
+      "properties": {
+        "type": { "const": "tool" },
+        "callId": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/CallId" },
+        "blocks": {
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/ToolResultBlock" }
+        }
+      },
+      "required": ["callId"],
+      "unevaluatedProperties": false
+    },
+
+    "ToolInternalEnding": {
+      "title": "ToolInternalMessage 怎么收的尾（contract.md S-14）",
+      "description": "帧流怎么收的尾，恰三个取值，闭合：complete——产生者正常收尾；interrupted——执行被有意停下，帧流随之收尾；lost——产生者失去连续性，帧流没有等到它的收尾。它不是那次执行的收场——收场在工具消息或后台收场提醒里。",
+      "type": "string",
+      "enum": ["complete", "interrupted", "lost"]
+    },
+
+    "ToolInternalMessage": {
+      "title": "ToolInternalMessage（contract.md S-13、S-14）",
+      "description": "工具说过程：一次工具执行至多一条，块是它发的帧封口之后的那些块，至少一块。顶层每一块 visibility.toModel 都必须为 false，否则表示层拒绝 tool_internal_block_visible_to_model（S-39）。块里不许有思考、工具调用、工具结果、带来路标记的文本（S-6）。只有收尾之后的那一条进日志；收尾之前拼到一半的是在途状态，不是消息。",
+      "type": "object",
+      "allOf": [{ "$ref": "#/$defs/MessageBase" }],
+      "properties": {
+        "type": { "const": "tool_internal" },
+        "callId": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/CallId" },
+        "ending": { "$ref": "#/$defs/ToolInternalEnding" },
+        "blocks": {
+          "minItems": 1,
+          "items": {
+            "allOf": [
+              { "not": { "properties": { "kind": { "enum": ["thinking", "tool_call", "tool_result"] } }, "required": ["kind"] } },
+              { "not": { "required": ["origin"] } },
+              { "properties": { "visibility": { "properties": { "toModel": { "const": false } } } } }
+            ]
+          }
+        }
+      },
+      "required": ["callId", "ending"],
+      "unevaluatedProperties": false
+    },
+
+    "ReminderNature": {
+      "title": "提醒说的是事还是状态（contract.md S-16）",
+      "description": "恰两个取值，闭合：event——刚才发生了什么；state——现在什么样。它决定这条提醒必须写出什么（说状态的要交代从什么变成了什么），不决定它在日志里的命运（一律追加）。它与 source.kind 的对应是定死的，对不上即表示层拒绝 reminder_nature_mismatch（S-39）。",
+      "type": "string",
+      "enum": ["event", "state"]
+    },
+
+    "SystemReminderMessage": {
+      "title": "SystemReminderMessage（contract.md S-15～S-26）",
+      "description": "系统在中途说的话：外面有信息进来了。blocks 是给模型读的话（人也看得到）；source 是结构化的来源，给系统认——对账、呈现、压缩、循环阶梯都读它，不解析正文。nature 与 source.kind 的对应定死（S-16）。块里不许有思考、工具调用、带来路标记的文本；顶层工具结果块只在后台执行的两种收场提醒里出现，且恰好一块（S-19）。",
+      "type": "object",
+      "allOf": [
+        { "$ref": "#/$defs/MessageBase" },
+        {
+          "if": {
+            "properties": {
+              "source": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "background_execution_finished",
+                      "background_execution_interrupted",
+                      "attempt_started",
+                      "interrupted",
+                      "system_wait_answered",
+                      "loop_guard",
+                      "peer_session_note",
+                      "scheduled_trigger"
+                    ]
+                  }
+                },
+                "required": ["kind"]
+              }
+            },
+            "required": ["source"]
+          },
+          "then": { "properties": { "nature": { "const": "event" } } }
+        },
+        {
+          "if": {
+            "properties": {
+              "source": {
+                "properties": { "kind": { "enum": ["runtime_context_changed", "runtime_context_snapshot"] } },
+                "required": ["kind"]
+              }
+            },
+            "required": ["source"]
+          },
+          "then": { "properties": { "nature": { "const": "state" } } }
+        },
+        {
+          "if": {
+            "properties": {
+              "source": {
+                "properties": { "kind": { "enum": ["background_execution_finished", "background_execution_interrupted"] } },
+                "required": ["kind"]
+              }
+            },
+            "required": ["source"]
+          },
+          "then": {
+            "properties": {
+              "blocks": {
+                "contains": { "properties": { "kind": { "const": "tool_result" } }, "required": ["kind"] },
+                "minContains": 1,
+                "maxContains": 1
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "blocks": {
+                "items": { "not": { "properties": { "kind": { "const": "tool_result" } }, "required": ["kind"] } }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "source": { "properties": { "kind": { "const": "background_execution_finished" } }, "required": ["kind"] } },
+            "required": ["source"]
+          },
+          "then": {
+            "properties": {
+              "blocks": {
+                "items": {
+                  "if": { "properties": { "kind": { "const": "tool_result" } }, "required": ["kind"] },
+                  "then": { "properties": { "outcome": { "enum": ["completed", "failed", "interrupted", "no_answer"] } } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "source": { "properties": { "kind": { "const": "background_execution_interrupted" } }, "required": ["kind"] } },
+            "required": ["source"]
+          },
+          "then": {
+            "properties": {
+              "blocks": {
+                "items": {
+                  "if": { "properties": { "kind": { "const": "tool_result" } }, "required": ["kind"] },
+                  "then": {
+                    "properties": {
+                      "outcome": { "const": "failed" },
+                      "reason": { "properties": { "code": { "const": "abnormal_interruption" } } }
+                    },
+                    "required": ["reason"]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "type": { "const": "system_reminder" },
+        "nature": { "$ref": "#/$defs/ReminderNature" },
+        "source": { "$ref": "#/$defs/ReminderSource" },
+        "blocks": {
+          "items": {
+            "allOf": [
+              { "not": { "properties": { "kind": { "enum": ["thinking", "tool_call"] } }, "required": ["kind"] } },
+              { "not": { "required": ["origin"] } }
+            ]
+          }
+        }
+      },
+      "required": ["nature", "source"],
+      "unevaluatedProperties": false
+    },
+
+    "ReminderSource": {
+      "title": "提醒的来源（contract.md S-18）",
+      "description": "封闭的判别联合，按 kind 判别，恰十一种：十种系统自己的来源，外加拓展件追加的 extension 一种兜底。系统自己的来源不许绕过这张表私加（加一种＝改本契约版本）；每一种带自己的结构化成员，成员集合闭合。未知的 kind 是 malformed，不当作 extension。",
+      "oneOf": [
+        { "$ref": "#/$defs/BackgroundExecutionFinishedSource" },
+        { "$ref": "#/$defs/BackgroundExecutionInterruptedSource" },
+        { "$ref": "#/$defs/AttemptStartedSource" },
+        { "$ref": "#/$defs/InterruptedSource" },
+        { "$ref": "#/$defs/SystemWaitAnsweredSource" },
+        { "$ref": "#/$defs/LoopGuardSource" },
+        { "$ref": "#/$defs/PeerSessionNoteSource" },
+        { "$ref": "#/$defs/ScheduledTriggerSource" },
+        { "$ref": "#/$defs/RuntimeContextChangedSource" },
+        { "$ref": "#/$defs/RuntimeContextSnapshotSource" },
+        { "$ref": "#/$defs/ExtensionSource" }
+      ]
+    },
+
+    "BackgroundExecutionFinishedSource": {
+      "title": "后台执行跑到头了（contract.md S-19）",
+      "description": "转了后台的那段执行跑到头，真实结果回来了。callId 是那次调用；outcome 是那段执行的收场，只在 completed、failed、interrupted、no_answer 四种里出。结果本身是这条提醒 blocks 里恰好那一个工具结果块，它的 callId 与 outcome 与这里相同（Schema 管不到相等）。说事的。",
+      "type": "object",
+      "properties": {
+        "kind": { "const": "background_execution_finished" },
+        "callId": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/CallId" },
+        "outcome": {
+          "allOf": [
+            { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/ExecutionOutcome" },
+            { "enum": ["completed", "failed", "interrupted", "no_answer"] }
+          ]
+        }
+      },
+      "required": ["kind", "callId", "outcome"],
+      "additionalProperties": false
+    },
+
+    "BackgroundExecutionInterruptedSource": {
+      "title": "后台执行异常中断（contract.md S-19）",
+      "description": "恢复对账时由系统代落：转了后台的那段执行没了，也没有它结束时回来的提醒。收场是失败，写给 agent 的原因是异常中断——blocks 里恰好那一个工具结果块写 outcome: failed、reason.code: abnormal_interruption，callId 与这里相同。说事的。",
+      "type": "object",
+      "properties": {
+        "kind": { "const": "background_execution_interrupted" },
+        "callId": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/CallId" }
+      },
+      "required": ["kind", "callId"],
+      "additionalProperties": false
+    },
+
+    "AttemptStartedSource": {
+      "title": "一次尝试开始了（contract.md S-20）",
+      "description": "这条提醒同时就是日志里的「尝试开始」记录。attempt 是尝试序号，≥ 1，显式写出、不靠数；at 是这次尝试起的时刻；reason 是为什么起。哪个 Run 由承载它的记录条目给出（G-2）。说事的。",
+      "$comment": "reason 本版只有一个取值：PF-012 §5.7 列的三个原因里，只有「从一次中断接上来」在账本里有对应的 token；「首次」「等到的东西回来了」尚无 token，账本里的 recovered_after_outage 对不上产品正文的任何一个原因——G-8。",
+      "type": "object",
+      "properties": {
+        "kind": { "const": "attempt_started" },
+        "attempt": { "type": "integer", "minimum": 1 },
+        "reason": { "type": "string", "enum": ["resumed_after_interruption"] },
+        "at": { "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant" }
+      },
+      "required": ["kind", "attempt", "reason", "at"],
+      "additionalProperties": false
+    },
+
+    "InterruptedSource": {
+      "title": "刚才被中断了（contract.md S-21）",
+      "description": "只要发生了中断就补一条，哪怕什么内容都没留下。what 是被中断的那一层（model_call、tool_execution、run）；by 是谁发起的（user——用户叫停；system——不是用户发起的：出错断、写到上限、系统侧停止）；hadContent 是中断之前有没有内容已经到了用户眼前。about 可选，指认被中断的那一次：{ kind: tool, callId } 指一次工具调用，只配 what: tool_execution；{ kind: model, callId: ModelCallId, dispatch } 指一次模型调用的第几次发出，只配 what: model_call；what: run 不带 about。说事的。",
+      "type": "object",
+      "properties": {
+        "kind": { "const": "interrupted" },
+        "what": { "type": "string", "enum": ["model_call", "tool_execution", "run"] },
+        "by": { "type": "string", "enum": ["user", "system"] },
+        "hadContent": { "type": "boolean" },
+        "about": {
+          "oneOf": [
+            {
+              "title": "一次工具调用",
+              "type": "object",
+              "properties": {
+                "kind": { "const": "tool" },
+                "callId": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/CallId" }
+              },
+              "required": ["kind", "callId"],
+              "additionalProperties": false
+            },
+            {
+              "title": "一次模型调用的一次发出",
+              "type": "object",
+              "properties": {
+                "kind": { "const": "model" },
+                "callId": { "$ref": "#/$defs/ModelCallId" },
+                "dispatch": { "type": "integer", "minimum": 1 }
+              },
+              "required": ["kind", "callId", "dispatch"],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": ["kind", "what", "by", "hadContent"],
+      "allOf": [
+        {
+          "if": { "properties": { "what": { "const": "tool_execution" } }, "required": ["what"] },
+          "then": { "properties": { "about": { "properties": { "kind": { "const": "tool" } } } } }
+        },
+        {
+          "if": { "properties": { "what": { "const": "model_call" } }, "required": ["what"] },
+          "then": { "properties": { "about": { "properties": { "kind": { "const": "model" } } } } }
+        },
+        {
+          "if": { "properties": { "what": { "const": "run" } }, "required": ["what"] },
+          "then": { "not": { "required": ["about"] } }
+        }
+      ],
+      "additionalProperties": false
+    },
+
+    "CardAnswer": {
+      "title": "卡片上的一项答复（contract.md S-22；占位形状）",
+      "description": "optionId 是被选的那一项的指认（不透明），at 是答的时刻。本契约只给这个不透明的最小形状；卡片与答复的正式形状归决策卡片的契约（PF-008，未起草），自由作答与「不回答」怎样表示也归那里（G-5）。",
+      "type": "object",
+      "properties": {
+        "optionId": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+        },
+        "at": { "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant" }
+      },
+      "required": ["optionId", "at"],
+      "additionalProperties": false
+    },
+
+    "SystemWaitAnsweredSource": {
+      "title": "系统发起的等待，答复回来了（contract.md S-22）",
+      "description": "挂在一个 Run 上的那种等待（运行等待态）答完了：cardId 是那张卡片；extension 是发起这次等待的那一件拓展件的名字（系统自带的放行判断、循环守卫也各是一件；命名空间 G-10）；answers 至少一项。工具等待态的答复不走这里——那是那次执行的输入，结果落工具消息。说事的。",
+      "type": "object",
+      "properties": {
+        "kind": { "const": "system_wait_answered" },
+        "cardId": { "$ref": "#/$defs/CardId" },
+        "extension": { "type": "string", "minLength": 1 },
+        "answers": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/CardAnswer" } }
+      },
+      "required": ["kind", "cardId", "extension", "answers"],
+      "additionalProperties": false
+    },
+
+    "LoopGuardSource": {
+      "title": "循环守卫的干预（contract.md S-23）",
+      "description": "循环守卫在 L1 或 L2 往日志里写的那条干预消息。level 是这一级（阶梯走到第几级是从日志里数这一项得出的，不解析正文）；finding 是它看出了什么，非空。L0 只记一笔、L3 落终态、L4 出卡片，都不是这一种。说事的。",
+      "$comment": "L1、L2 两个取值照起草简报的账本写；它们不是 snake_case，与共同账本「枚举值 snake_case」一条对不上，已报主线。",
+      "type": "object",
+      "properties": {
+        "kind": { "const": "loop_guard" },
+        "level": { "type": "string", "enum": ["L1", "L2"] },
+        "finding": { "type": "string", "minLength": 1 }
+      },
+      "required": ["kind", "level", "finding"],
+      "additionalProperties": false
+    },
+
+    "PeerSessionNoteSource": {
+      "title": "别的会话捎来一句（contract.md S-24）",
+      "description": "另一个会话里的 agent 发来一条消息，含自己派出去的子 agent 回来报告。fromSession 是那个会话；fromAgent 可选，是那个 agent。这类能力尚无 topic，本契约只定它落成这一种消息。说事的。",
+      "type": "object",
+      "properties": {
+        "kind": { "const": "peer_session_note" },
+        "fromSession": { "$ref": "#/$defs/SessionRef" },
+        "fromAgent": { "$ref": "#/$defs/AgentRef" }
+      },
+      "required": ["kind", "fromSession"],
+      "additionalProperties": false
+    },
+
+    "ScheduledTriggerSource": {
+      "title": "到点了（contract.md S-24）",
+      "description": "一个日程到点了。schedule 是那个日程；dueAt 是它本该到点的时刻。这类能力尚无 topic，本契约只定它落成这一种消息。说事的。",
+      "type": "object",
+      "properties": {
+        "kind": { "const": "scheduled_trigger" },
+        "schedule": { "$ref": "#/$defs/ScheduleRef" },
+        "dueAt": { "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant" }
+      },
+      "required": ["kind", "schedule", "dueAt"],
+      "additionalProperties": false
+    },
+
+    "RuntimeContextChangedSource": {
+      "title": "runtime context 的某一块变了（contract.md S-17、S-25）",
+      "description": "说状态的：block 是哪一块；previous 必填——这个会话在日志里最后感知到的那一份，从未感知过则为 null；current 必填、不为 null——这一次的值。缺 previous 即表示层拒绝 reminder_state_without_previous（S-39），不补成 null。",
+      "$comment": "current 不许为 null，是为了让 previous: null 只有「从未感知过」这一个意思；若 runtime context 契约让某一块的值可以是 null，本定义须出 v2（G-6）。",
+      "type": "object",
+      "properties": {
+        "kind": { "const": "runtime_context_changed" },
+        "block": { "$ref": "#/$defs/RuntimeContextBlockId" },
+        "previous": {},
+        "current": { "not": { "type": "null" } }
+      },
+      "required": ["kind", "block", "previous", "current"],
+      "additionalProperties": false
+    },
+
+    "RuntimeContextSnapshotSource": {
+      "title": "runtime context 的完整那一份（contract.md S-25）",
+      "description": "说状态的：会话刚开始、以及上下文被压缩之后，把 runtime context 以完整形态再给一份。blocks 以块的指认为键、以这一刻的值为值，至少一项，值不为 null；reason 是为什么给（session_start、after_compaction）。它不是一次变化，不带前值（S-17）。",
+      "type": "object",
+      "properties": {
+        "kind": { "const": "runtime_context_snapshot" },
+        "blocks": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "$ref": "#/$defs/RuntimeContextBlockId" },
+          "additionalProperties": { "not": { "type": "null" } }
+        },
+        "reason": { "type": "string", "enum": ["session_start", "after_compaction"] }
+      },
+      "required": ["kind", "blocks", "reason"],
+      "additionalProperties": false
+    },
+
+    "ExtensionSource": {
+      "title": "拓展件追加的提醒（contract.md S-26）",
+      "description": "兜底：拓展件追加的其他提醒。extension 是那一件拓展件的名字（命名空间 G-10）；payload 可选，是它自带的任意 JSON 值，缺席与 null 各自保留。说事还是说状态由那一件声明，两个取值都合法。本契约列了 kind 的来源一律用它自己的 kind，不走这一支。",
+      "type": "object",
+      "properties": {
+        "kind": { "const": "extension" },
+        "extension": { "type": "string", "minLength": 1 },
+        "payload": {}
+      },
+      "required": ["kind", "extension"],
+      "additionalProperties": false
+    },
+
+    "SilencedBlockRef": {
+      "title": "名单上的一项（contract.md S-27）",
+      "description": "压缩名单点名的一个块：messageId 是那条消息，blockId 是那条消息里的一个块（含任意嵌套层，data.content-blocks v1 S-3）。点一个容器块，它里面的块随之对模型不可读（S-28）。",
+      "type": "object",
+      "properties": {
+        "messageId": { "$ref": "#/$defs/MessageId" },
+        "blockId": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/BlockId" }
+      },
+      "required": ["messageId", "blockId"],
+      "additionalProperties": false
+    },
+
+    "CompactionMessage": {
+      "title": "CompactionMessage（contract.md S-27～S-30）",
+      "description": "压缩记录（UL-compaction-record）：blocks 是摘要，silenced 是这次让哪些块从此对模型不可读的名单（覆盖可见性的记录）。名单只覆盖 toModel 一侧、只往不可读翻，不回头改块上的标注。silenced 必填（可以是空数组，缺席不当作空），同一项不重复；摘要与名单不能都是空的。名单不点自己（compaction_self_reference）、只点本消息之前的消息（compaction_forward_reference），其余合法性见 S-29——都是 Schema 管不到的。块里不许有思考、工具调用、工具结果、带来路标记的文本（S-6）。",
+      "type": "object",
+      "allOf": [{ "$ref": "#/$defs/MessageBase" }],
+      "properties": {
+        "type": { "const": "compaction" },
+        "silenced": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/SilencedBlockRef" }
+        },
+        "blocks": {
+          "items": {
+            "allOf": [
+              { "not": { "properties": { "kind": { "enum": ["thinking", "tool_call", "tool_result"] } }, "required": ["kind"] } },
+              { "not": { "required": ["origin"] } }
+            ]
+          }
+        }
+      },
+      "required": ["silenced"],
+      "not": {
+        "properties": { "blocks": { "maxItems": 0 }, "silenced": { "maxItems": 0 } },
+        "required": ["blocks", "silenced"]
+      },
+      "unevaluatedProperties": false
+    },
+
+    "Message": {
+      "title": "消息 · Message",
+      "description": "S-1：一条对话记录（UL-message），落在会话日志里。按 type 判别，恰七种：system、user、assistant、tool、tool_internal、system_reminder、compaction。type 取值闭合：分次到达的东西不是第八种；未知取值是表示层拒绝 type_unknown（S-39），不降级成最接近的一种。",
+      "oneOf": [
+        { "$ref": "#/$defs/SystemMessage" },
+        { "$ref": "#/$defs/UserMessage" },
+        { "$ref": "#/$defs/AssistantMessage" },
+        { "$ref": "#/$defs/ToolMessage" },
+        { "$ref": "#/$defs/ToolInternalMessage" },
+        { "$ref": "#/$defs/SystemReminderMessage" },
+        { "$ref": "#/$defs/CompactionMessage" }
+      ]
+    }
+  }
+}
