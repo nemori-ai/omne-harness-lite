@@ -3,8 +3,8 @@
 - 调查对象与日期：DSH `c291e7961a515f6d7af9304e7fd1d257929aef26` 的 `packages/mcp/mcp-client`（`0.1.5-rc.2`）；
   Codex `5c5308fc9a9ee789049d646ef11e5400384b9c6f` 的 `codex-rs/rmcp-client` 与 `core/src` 会话层；
   Codex 文档离线副本 2026-09-20。2026-09-23 取证。
-- 消费者：本程 proposal「MCP 客户端采用」（待出现）。
-- 最近核对：2026-09-23 / 上述两个 commit。
+- 消费者：提案 [MCP 客户端采用](../../design/record/proposals/mcp-client-adoption/README.md)（首轮、第二轮与第三轮）。
+- 最近核对：2026-09-23 / 上述两个 commit（首轮）；2026-09-23 / 第二轮各源 commit 与版本（见[第二轮](#第二轮同行封装的借鉴与依赖)）；2026-09-23 / 第三轮各源 commit 与版本（见[第三轮](#第三轮stdio-拉起位置)）。
 - 当前结论：DSH 的**连接监督与协议调用**这一层（连接、重连、列举、调用、超时、取消）形状可用，
   但包的另一半——**把每个 MCP 动作登记成一个独立工具、把失败抛成错误、把图片落进 DSH 附件库**——
   直接压在 DSH 的工具管线上，而产品在身份、授权粒度、可用性时点、不可用收场、宿主与租户五处与它不同向。
@@ -22,8 +22,8 @@
 
 ## 证据入口
 
-[evidence.md](evidence.md) 按来源分 E-1～E-16；产品条款是对照输入，列在 evidence.md 末尾「对照输入」。
-逐行论证在 [2026-09-23 报告](reports/2026-09-23-mcp-client-reuse.md)。
+[evidence.md](evidence.md) 按来源分 E-1～E-16（首轮）、E-17～E-28（第二轮）与 E-29～E-41（第三轮）；产品条款是对照输入，列在 evidence.md「对照输入」。
+逐行论证在 [2026-09-23 报告](reports/2026-09-23-mcp-client-reuse.md)、[第二轮报告](reports/2026-09-23-round2-wrapper-lessons.md) 与 [第三轮报告](reports/2026-09-23-round3-stdio-launch-site.md)；结论为什么变化见 [changelog](changelog.md)。
 
 ## 产品条款 × 两源对照
 
@@ -287,6 +287,409 @@ Codex `rmcp` 用 `workspace = true`，版本在 workspace `Cargo.toml` / `Cargo.
 - 来源：E-9、E-12。
 - 最近核对：2026-09-23 / Codex `5c5308fc`。
 
+## 第二轮：同行封装的借鉴与依赖
+
+- 调查对象与日期：DSH `c291e796`（补读决策记录与测试名）；pi `3390bd9`；pi 生态第三方扩展 `pi-mcp-adapter@2.37.0`；
+  Codex `5c5308fc`（本地 `rmcp-client` + 远程同 commit `codex-mcp` 与 `Cargo.lock`）；LangChain Python `52a4535f`（0.3.2，已归档）与 JS `@langchain/mcp-adapters` 1.1.4（langchainjs `12626c25`）；
+  OpenAI Agents Python `32edd3c3`（0.22.3）与 JS `a0b1c6fd`；Vercel `@ai-sdk/mcp` 2.0.56（`vercel/ai` `21b2d6c3`）；
+  Claude Agent SDK Python `dce7cdac`（0.2.158）与 npm 0.3.280；Claude Code `2.1.280` 文档与 `CHANGELOG.md` @ `56f36532`；npm 上官方 SDK 各包的版本。2026-09-23 取证。
+- 问题：产品负责人 2026-09-23 裁定走「官方 SDK 上自写薄桥」后，要求看同行**在 SDK 之上额外封装了什么**、自己记下了什么坑、带进来什么依赖。
+  本节只写事实与「撞上会怎样」，对照的是[提案必要性质](../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质) N-1～N-11；**不写该借鉴哪一条**。
+- 证据：[evidence.md](evidence.md) E-17～E-28；逐源与逐主题论证、依赖总表在[第二轮报告](reports/2026-09-23-round2-wrapper-lessons.md)。
+- 最近核对：2026-09-23 / 上列各 commit 与版本。
+
+### 同行做法 × 来源 × 撞上会怎样
+
+列出不等于推荐。「撞上」指**不做这件事**时同行实际遇到的后果；每行的出处在报告 §三 与 E-17～E-28。
+
+| 同行做法 | 来源 | 不做时同行撞上了什么 |
+|---|---|---|
+| 服务端限定名默认开，名字是（服务端, 原名）的纯函数，改字符或超长时加身份哈希 | DSH、Codex、Claude Code | 原名加可选前缀：撞名抛错或静默覆盖（OpenAI #464、LangChain #605） |
+| 名字长度上限按下游提供方取 | Codex（反例） | 提到 128 后超过 Bedrock 的 64（Codex #46188） |
+| 按前缀判断归属时防服务端名互为前缀 | Claude Code（反例） | 禁用 `foo` 误删 `foo__bar` 的工具 |
+| 跨连接的清单缓存，键含连接配置指纹；凭据类服务端与声明不可缓存的服务端排除 | Codex、pi-mcp-adapter、Claude Code | 没连上的服务端整个消失；TTL 语义错让缓存永远失效或直接工具永不注册（pi-mcp-adapter #561、#569、#641） |
+| 刷新失败保留上一份 | DSH、Claude Code | 瞬时错误清空命令与资源（Claude Code 2.1.214） |
+| `list_changed` 限流或合并 | Claude Code（反例） | 紧循环通知导致持续高 CPU（2.1.271） |
+| 翻页守卫：拒绝重复游标、页数与项数上限、失败不留部分结果 | DSH、Codex、OpenAI | 只取第一页静默少动作（Codex Legacy 模式）；游标成环 |
+| 连接与调用超时分开，另设空闲超时与 OAuth 请求超时 | Claude Code、Codex、pi-mcp-adapter | 一个 5 秒值误伤长调用（OpenAI #1024）；OAuth 请求卡死 agent（pi-mcp-adapter #485、Codex #22072） |
+| 传输关闭时统一收掉全部挂起请求，取消时清理挂起表项 | Vercel（修复后） | promise 永不结束且泄漏（Vercel #16580）；调用无限挂起（Claude Code 2.1.110） |
+| 失败的替代连接不拆掉最后一条可用连接；重连单飞 | pi-mcp-adapter | 并发 close 与 connect 留下孤儿进程（pi-mcp-adapter 2.0.0） |
+| 会话过期只在「带 session id 的 404 / `-32000`」时重试一次 | pi-mcp-adapter、Codex | 服务端重启后工具静默失效（LangChain #75） |
+| 不自动重放已发出的调用 | DSH、Codex | 重放：非幂等工具重复副作用（Vercel 文档自述） |
+| 部分失败不拖垮全部，失败者单独记录 | OpenAI、Codex、Claude Code | 一个服务端失败丢全部工具并留孤儿进程（LangChain #492、#551） |
+| stdio 进程组终止、stderr 持续排空、单行上限、环境白名单 | Codex | 超时不杀子进程（Claude Code 2.1.15）；stderr 累积 64 MB（2.1.208）；非 JSON 输出挂住会话（2.1.105） |
+| Windows 下解析 `npx` / `.cmd` | Codex、Vercel、pi-mcp-adapter | stdio 服务端起不来（Vercel #19157） |
+| 图片进入历史前统一规范尺寸 | pi | 超大图让提供方拒绝整段对话（pi 注释） |
+| 多段文本以分隔符合并 | DSH | 段间边界丢失 |
+| 错误保留分类与原始码 | Codex、pi-mcp-adapter、Claude Code | 分不出可重试的传输错与参数错（LangChain JS #11300、Vercel 单一错误类） |
+| 重定向限同源或拒绝；URL 派生名脱敏 | Codex、Vercel、OpenAI | 凭据进入模型可见输出（OpenAI #4016） |
+| 令牌轮换写回的并发保护 | Codex（fail-closed）、pi-mcp-adapter | 并发刷新丢 refresh token（Claude Code 2.1.136、Codex #41133） |
+| SDK 大版本分支关在一个模块里 | OpenAI Python、Claude Agent SDK Python | 无上界依赖在 SDK 大版本发布时导入即失败（LangChain #589） |
+| 工具描述字节稳定、工具集变化增量追加 | pi-mcp-adapter、pi | 重新注册改写缓存的 prompt 前缀 |
+| 以定义哈希为放行键 | pi-mcp-adapter | 定义被偷换后沿用旧放行（Vercel 文档「rug pull」） |
+
+### pi 本体没有 MCP 客户端，只有通用的工具扩展点；pi 生态的 MCP 桥是第三方扩展
+
+读遍 pi `3390bd9` 的 MCP 字样命中：README 写明「**No MCP.** … build an extension that adds MCP support」，`docs/usage.md` 写明不内置 MCP；
+其余命中只是一个测试夹具里的包名 `npm:pi-mcp-adapter`、一个 OAuth scope 字符串、`@google/genai` 对官方 SDK 的可选 peer，以及一处注释。
+**没有 MCP 客户端代码。**与 MCP 相关的只有两样：`pi.registerTool()` / `pi.setActiveTools()` 可在运行中增删激活工具（变化作为增量追加给模型）；
+工具结果里的图片在进入历史前统一缩放，注释点名「MCP bridges」，理由是超大图会让提供方拒绝**整段对话**。
+pi 生态实际在用的 MCP 桥是第三方 `pi-mcp-adapter`（作者 Nico Bailon），它建在官方 v2 拆分包上。
+
+- 适用范围：pi `3390bd9`（`pi-coding-agent@0.86.1`）；`pi-mcp-adapter@2.37.0`。
+- 代价与不适用：pi 的扩展点本身不给 MCP 任何语义（连接、清单、名字都由扩展自理）；pi-mcp-adapter 的做法是第三方的，不是 pi 作者的立场。
+- 撞上会怎样：把「pi」当作 MCP 参照时，能借的只有图片规范化与动态工具集两处；其余 MCP 行为要看 pi-mcp-adapter。
+- 来源：E-18、E-19。
+- 最近核对：2026-09-23 / pi `3390bd9`、pi-mcp-adapter 2.37.0。
+
+### 除 Vercel 外，本轮读到的封装都建在官方 SDK 上；官方 TS SDK 的 v2 换了包名，同行已分成钉 v1、上 v2、两版并接三群
+
+建在官方 TS SDK 1.x：DSH（`^1.12.0`，锁 1.29.0）、LangChain JS（`^1.30.0`）、Claude Agent SDK TS（peer `^1.29.0`）。
+上 v2 拆分包 `@modelcontextprotocol/client` / `core`：pi-mcp-adapter（精确 2.0.0）、OpenAI Agents JS（`^2`，可选依赖）；Claude Code 文档称有 v1 / v2 两套运行时，v2 带 2026-07-28 协议。
+Python：LangChain 钉 `mcp<2.0.0`；OpenAI Agents 与 Claude Agent SDK 用 `<3` 同时接 1.x 与 2.x，并把版本分支关在一个兼容模块里。Codex 精确钉 Rust SDK `rmcp =3.2.0`。
+Vercel `@ai-sdk/mcp` 自写 JSON-RPC、传输与协议版本协商，同时接受官方 SDK 的 transport 对象。
+npm 上 `@modelcontextprotocol/sdk` 最新 1.30.0 与 `@modelcontextprotocol/client` 2.0.0 于 **2026-07-27 同日发布**；**v2 不是 `sdk` 包的下一个大版本，而是新包名**。
+
+- 适用范围：上列各 commit / 版本；npm 注册表 2026-09-23。
+- 代价与不适用：LangChain Python 0.3.1 未设上界，mcp 2.0.0 发布后**导入即失败**（#589），0.3.2 才补上界；
+  OpenAI 与 Claude 的 Python 包为两版并接维护了字段名映射与传输分支。TS SDK 1.x 是否支持 2026-07-28 协议，本轮仍未取证（未读发布包）。
+- 撞上会怎样：[提案](../../design/record/proposals/mcp-client-adoption/alternatives.md) 候选 C 以首轮研究的 `1.29.0` 为基线；选 1.x 还是 v2 包名，决定依赖清单与协议版本覆盖，不是一次小版本升级。
+- 来源：E-1、E-19、E-20、E-22～E-28。
+- 最近核对：2026-09-23。
+
+### Codex 精确钉 `rmcp =3.2.0`；未就绪服务端的动作只在有目录缓存时进目录，调用时先等就绪再绑定
+
+补首轮缺件（同一 commit 远程取回）：workspace `Cargo.toml` 与 `Cargo.lock` 均为 `rmcp 3.2.0`。连接集 `McpConnectionSet` 并发启动服务端，构造不等；
+**有目录缓存**的未就绪服务端，其动作进目录但没有预绑定调用、只读注解被清空，调用时先等启动再重绑，仍不可用返回「not available to the model」；
+**无缓存且超过可选宽限**（默认 1 秒，全连接集共享一个截止时间）的服务端整个不进目录；**启动已失败**的不进目录。
+stdio 服务端中途退出后**没有自动重启**：只有 runtime 因配置、环境、鉴权变化或用户刷新被标脏后，下一次发布才新建连接。
+源码兜底默认值为启动 30 秒、调用 300 秒，与首轮所引文档副本（10 秒、60 秒）不一致，本轮未判哪边是运行时行为。
+
+- 适用范围：Codex `5c5308fc`。
+- 代价与不适用：「有缓存才进目录」依赖进程级 LRU（TTL 30 分钟），配了 OAuth、头助手或已存凭据的服务端**不缓存**，也就没有这条路径。
+  `rmcp 3.2.0` 源码未取得，issue #39149（`is_closed()` 看不到自行终止的 task）在 3.2.0 是否已修未核。
+- 撞上会怎样：[N-3](../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质) 的替换件在 Codex 的对应物只覆盖「近 30 分钟内连上过、且不带凭据类配置」的服务端；其余情形与 DSH 首连失败一样，条目消失。
+- 来源：E-20。
+- 最近核对：2026-09-23 / Codex `5c5308fc`。
+
+### 同行在动作名上分成默认加服务端限定与默认原名两群；合法化、长度上限与冲突策略各不相同
+
+默认限定：DSH（`mcp__<server>__<raw>`，不可关，64 字符，改动过则加 12 位 SHA-256）、Codex（`mcp__<server>` 命名空间，可按服务端豁免，128 字节，SHA1 12 位，撞名加哈希循环到唯一）、
+Claude Code（`mcp__<server>__<tool>`，`[A-Za-z0-9_-]` 外换 `_`，总长规则未公开）、pi-mcp-adapter（默认 server 前缀，可改 short / none / mcp；冲突各方**全部丢弃**；普通名不截断）。
+默认原名：OpenAI（跨服务端同名**抛错**；开关后 64 字符、sha1 8 位）、LangChain 两份（可选前缀，无冲突检测，**静默覆盖**）；Vercel 无前缀，合并时后者覆盖。
+DSH 与 OpenAI 的记录都显示「原名 + 撞名时再处理」是被真实撞名推翻的；DSH 引微软研究院统计 1,470 个服务端中 775 个工具名撞名。
+
+- 适用范围：上列各 commit / 版本。
+- 代价与不适用：Codex 把上限从 64 提到 128 后超过 Amazon Bedrock 的 64 字符上限（#46188，OPEN）；Claude Code 以前缀匹配时 `foo` 与 `foo__bar` 混淆（TS SDK 0.3.257）、
+  带连字符的服务端名被 hook matcher 子串误匹配（2.1.195）。**OpenRouter 及其后端对函数名的字符集与长度限制本轮未取证。**
+- 撞上会怎样：[N-7](../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质) 的逐动作身份若以名字承载，名字的上限由最终接收它的模型提供方决定；「以前缀判归属」在服务端名含 `__` 或互为前缀时会误判。
+- 来源：E-17、E-20、E-22～E-27。
+- 最近核对：2026-09-23。
+
+### 三家有跨连接的清单缓存让没连上的服务端仍有条目；键都含连接配置指纹、都不含租户，且都留了「不缓存」出口
+
+Codex：进程内 LRU（32 条、TTL 30 分钟），键 = 服务端名 + 传输配置 SHA1 指纹（**含所引用环境变量当前值的哈希**）+ 执行环境；凭据类服务端不缓存；
+服务端可在 initialize 里声明 `codex/tool-catalog-cache {cacheable:false}` 永久退出。
+pi-mcp-adapter：磁盘 `mcp-cache.json`，按服务端名作键，配置指纹、7 天、服务端 `ttlMs` 三者失效（`ttlMs: 0` 不缓存）；多进程读合并写**无锁**。
+Claude Code：「discovery cache」，TTL 900 秒、最大陈旧 4 小时，远程服务端「connects on first use」；重连或清除鉴权时丢弃。
+DSH、LangChain 两份、OpenAI、Vercel 没有跨连接的持久清单。
+
+- 适用范围：Codex `5c5308fc`、pi-mcp-adapter 2.37.0、Claude Code 2.1.280 文档。
+- 代价与不适用：pi-mcp-adapter 围绕 `ttlMs` 连出三条 issue（#561、#569、#641：零 TTL 让直接工具永不注册、不回 `ttlMs` 的服务端缓存被永远判失效、零 TTL 让延迟启动整体失效）；
+  Codex 清空缓存条目的只读注解，缓存里的对端自报信息不参与放行。
+- 撞上会怎样：[N-3](../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质) 的持久副本有三个先例，**但没有一家按租户或持有分键**；把凭据类服务端排除出缓存（Codex）意味着这类接入点连不上时没有替换件可装。
+- 来源：E-19、E-20、E-27。
+- 最近核对：2026-09-23。
+
+### 支持 `tools/list_changed` 的同行都是收到即换，没有一家按 run 边界延后
+
+自动刷新：DSH（整代替换，拉取失败留上一代）、Claude Code（刷新失败保留旧结果）、pi-mcp-adapter（热更新；另有 `freezeDirectTools` 冻结直接工具以稳定 prompt 缓存）。
+只转给用户回调、不失效缓存：LangChain JS。不支持：Codex（只写日志，#10105 等五条 OPEN）、OpenAI Python（需自接 `message_handler`）、Vercel（#8189 OPEN）、LangChain Python。
+
+- 适用范围：上列各 commit / 版本。
+- 代价与不适用：Claude Code 自述两次事故——服务端紧循环发通知导致持续高 CPU 与重复列举（2.1.271）；刷新遇瞬时错误把命令与资源清空（2.1.214，此后改为保留旧结果）。
+- 撞上会怎样：[N-2](../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质) 要求 run 内不变；同行的「收到即换」与之方向相反，唯一接近的是 pi-mcp-adapter 的冻结开关（为 prompt 缓存，不为 run 边界）。
+- 来源：E-17、E-19、E-20、E-22～E-25、E-27。
+- 最近核对：2026-09-23。
+
+### Codex 默认模式下 `tools/list` 只取第一页；跟游标的同行守卫各异
+
+Codex 在默认的 Legacy 协议模式下把 `nextCursor` 当作不存在，只取第一页；开 `Mcp20260728` 才翻页，翻页守卫为 100 页、2048 项、游标 64 KiB、游标重复即报错、整体 30 秒。
+DSH 拒绝重复游标（作者自述不防不停给新游标的服务端）；OpenAI 有 `max_list_pages`，重复游标、超页、中途失败都抛错且不返回、不缓存部分结果；
+LangChain Python 上限 1000 次；LangChain JS 与 Vercel 无上限；LangChain 两份的资源列举不分页。
+
+- 适用范围：上列各 commit / 版本。
+- 代价与不适用：「只取第一页」由本轮执行者复读源码确认（`codex-mcp/src/rmcp_client.rs:673-676`），未运行验证。
+- 撞上会怎样：多页服务端在「只取第一页」下**静默少动作**，agent 不知道自己少了什么；无上限实现遇到不停给新游标的服务端没有收口。
+  [N-3](../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质) 下「分页中断按这次没拿到清单处理」是提案作者建议，同行里 OpenAI 是同向的一家。
+- 来源：E-17、E-20、E-22～E-25。
+- 最近核对：2026-09-23。
+
+### 同行的超时不止「连接」「调用」两项，还分出了空闲超时与 OAuth 请求超时；边界值出过错
+
+Claude Code：启动 30 秒；每服务端调用超时是硬墙钟、progress 不续期；另有空闲超时（无响应且无 progress：远程 5 分钟、stdio 30 分钟）与远程每请求首字节计时。
+OpenAI Python 只有一个会话读超时，默认 5 秒，**同时作用于工具调用**。Vercel 默认无请求超时，初始化可单独限时。LangChain JS 退回 SDK 的 60 秒默认。
+
+- 适用范围：上列各 commit / 版本与 Claude Code 文档。
+- 代价与不适用：同行自述的边界值事故——OpenAI #4017（超时设 0 被当成不限时）、Claude Code 2.1.162（小于 1000 ms 被当成 1 秒看门狗）、
+  LangChain JS #9560（框架删掉超时数值，退回 60 秒）、Claude Code 2.1.142（工具超时没抬高远程每请求 fetch 超时）；
+  OAuth 引导与令牌请求不在启动超时里而卡死 agent（Codex #22072 OPEN、pi-mcp-adapter #485 已修）。
+- 撞上会怎样：[N-6](../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质) 的两项超时覆盖不到空闲与 OAuth 两段；长调用与 progress 的关系（续期与否）同行做法相反。
+- 来源：E-19、E-20、E-23～E-25、E-27。
+- 最近核对：2026-09-23。
+
+### 「在途请求永不收场」是同行记录最多的一类坑
+
+Claude Code CHANGELOG 五条（缓存的连接 promise 永不 resolve、stdio 非 JSON 输出挂住会话、SSE/HTTP 中途断开调用无限挂起、远程调用 5 分钟无响应、一个调用的消息解除另一调用的看门狗）；
+Vercel #16580（发出后取消，promise 永不结束且挂起表项泄漏；修复后传输关闭时统一以「Connection closed」失败全部挂起请求）；
+Codex #39149（死连接显示为打开）；LangChain Python #258（并发调用同一工具请求 ID 相同，其余挂起）；OpenAI #1404（initialize 失败后流式输出挂住）；
+Claude Agent SDK 的 SDK MCP 握手 ack 丢失导致会话无限挂起（改为 70 秒超时并只标该服务端失败）。
+另有三条读代码推断未经运行：Vercel 的 POST-SSE 正常结束无响应时挂起请求不失败、旧式 SSE 意外断开不触发 `onclose`；Codex 已关闭的客户端仍可能被放进 binding。
+
+- 适用范围：上列各 commit / 版本。
+- 代价与不适用：这些都是修复记录或 OPEN issue，说明发生过，不说明发生频率。
+- 撞上会怎样：[N-4](../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质) 把断连与超时归「失败」，前提是**每一个在途请求都会收场**；上面每一条都是既不失败也不成功的状态，agent 一直等。
+- 来源：E-20、E-22、E-24～E-27。
+- 最近核对：2026-09-23。
+
+### 自动恢复按传输分别做、覆盖面各不相同；OpenAI Python 与 Vercel 的重试会重放已发出的调用
+
+DSH 只对 stdio 有预算重连；Codex 只对 HTTP 做会话过期重握手与列举瞬态重试，stdio 不重启；Claude Code 远程最多 5 次退避，stdio 不重连；
+pi-mcp-adapter 对会话过期（带 session id 的 404 或 `-32000`）重连一次、重试一次，替代连接先私下建好再发布、失败候选不拆最后可用连接，keep-alive 模式另有指数退避重连，其余模式下次调用时懒连接；
+LangChain JS 两种都有：stdio 固定间隔 `restart`，Streamable HTTP 交给 SDK 的重连选项（重连细节在 SDK 内，本轮未取证）。
+OpenAI Python 的 Streamable HTTP 在断连、超时、5xx 时**新开隔离会话重试这次调用**；Vercel `maxRetries`（默认 0）对 `tools/call` 重试，文档自述非幂等工具会重复副作用。
+
+- 适用范围：上列各 commit / 版本。
+- 代价与不适用：pi-mcp-adapter 的会话过期重试依赖规范「会话失效时服务端先拒绝、不处理请求」，它刻意不匹配通用 400、ConnectionClosed、Abort。
+- 撞上会怎样：[N-8](../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质) 要求不重放已发出的调用——OpenAI Python 与 Vercel 的重试正是重放；
+  自己写恢复逻辑、两种传输都覆盖的只有 LangChain JS 与 pi-mcp-adapter，且前者 HTTP 一半交给 SDK。
+- 来源：E-3、E-19、E-20、E-23～E-25、E-27。
+- 最近核对：2026-09-23。
+
+### stdio 子进程泄漏或孤儿四家都记过；同行的防护落在进程组终止、stderr 排空、单行上限与环境过滤
+
+泄漏或孤儿：pi-mcp-adapter（2.0.0 并发 close + connect、2.2.2、2.15.0）、Claude Code（2.1.15 超时不杀子进程）与 Agent SDK（0.2.94）、LangChain Python #551、Codex #31499（Windows 重复拉起 183 个 node.exe）；
+DSH 另自述「不理信号的服务端会卡住卸载」的风险。防护：Codex 新进程组启动、SIGTERM 后 2 秒 SIGKILL，stderr 按行读走并留 250 ms 排空宽限（逃逸后代占着管道），
+单行 8 MiB 上限；Claude Code 2.1.208 记 stderr 每服务端累积到 64 MB。环境：Codex 与 Vercel 用**白名单**（`HOME`、`PATH` 等），DSH 用**黑名单**（剔除名字匹配 `KEY|PASSWORD|SECRET|TOKEN` 与 `DSH_*`）。
+Windows 上 `npx` / `.cmd` 需要专门解析（Codex、pi-mcp-adapter；Vercel #19157）。DSH 另记：Node 子进程在 `NODE_USE_ENV_PROXY` 下遇 `socks4://` 等值会在第一行前退出。
+
+- 适用范围：上列各 commit / 版本。
+- 代价与不适用：交给 SDK 关闭（DSH、pi-mcp-adapter、LangChain）时，终止方式取决于 SDK 版本，本轮未读 SDK 源码。
+- 撞上会怎样：[N-11](../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质)（候选假设）把拉起位置交给执行环境时，终止、stderr、帧上限与环境过滤随拉起方换主；
+  [N-5](../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质) 的「不跨租户身份共用凭据」在黑名单做法下取决于名字模式的覆盖面，在白名单做法下取决于显式传入的那一份。
+- 来源：E-5、E-17、E-19～E-22、E-25～E-27。
+- 最近核对：2026-09-23。
+
+### `structuredContent` 与 `content` 并存时同行方向相反；图片的预算、尺寸与入库各家不同
+
+Codex：`structuredContent` 非空时**只输出它、丢弃 content**。OpenAI：默认只给 content（docstring 理由：多数服务端两边重复）。LangChain：结构化进 artifact 不给模型。
+pi-mcp-adapter：追加在文本后。Vercel：只在没有 content 时补一段文本（#20171）。Claude Code 2.1.128 曾在两者并存时丢图。
+图片：Codex 不计入截断预算、总是保留；Claude Code 带图结果不写盘；pi 本体进入历史前缩放；pi-mcp-adapter 不限大小；DSH 只在模型声明图像输入时入库；Vercel #12025 图片导致流挂起。
+其他块：Codex、OpenAI、Vercel 把 audio / `resource_link` / 内嵌资源串成 JSON 文本；LangChain JS 在内嵌资源只有 uri 时**再发一次 `readResource`**；LangChain Python 音频抛 `NotImplementedError` 且不受错误兜底。
+
+- 适用范围：上列各 commit / 版本。
+- 代价与不适用：大输出写盘（Claude Code 超 2.5 万 token、pi-mcp-adapter 超 50 KiB）各带清理问题——前者 2.1.217 截断后内存仍留全文，后者临时文件不自动清理。
+- 撞上会怎样：这些落在[工具产出](../../design/ubiquitous_language/terms/execution-and-outcome.md#ul-tool-output--工具产出--tool-output)与两端模态的契约上；同行对「结构化优先还是内容优先」各有理由、方向相反。
+- 来源：E-17～E-20、E-22～E-27。
+- 最近核对：2026-09-23。
+
+### 两家的桥在错误到达 agent 前就已分不出可重试的传输错与参数错
+
+LangChain JS 把传输、超时与 `McpError` 统一包成 `ToolException` 且**丢 cause**（#11300 OPEN）；Vercel 只有一个 `MCPClientError`，超时、取消、断连、已关闭无子类无码。
+能区分的：Codex（鉴权需要单列并带 `mcp/www_authenticate`；启动错误分 Cancelled / Failed / 需重新授权）、pi-mcp-adapter（`tool_error`、`call_failed`、`auth_required`、`server_backoff`…，只有三种码算失败）、Claude Code（状态五值，瞬时错误重试、4xx 与认证不重试）。
+`isError` 原样给模型：Codex、OpenAI、Vercel、LangChain Python（默认转 error 状态消息）；抛错：DSH、LangChain JS。OpenAI 把调用异常默认换成不含细节的固定文本。
+
+- 适用范围：上列各 commit / 版本。
+- 代价与不适用：同一来源内，模型端看到的与宿主端能区分的不一定相同（OpenAI 宿主可区分、模型只见固定文本）。
+- 撞上会怎样：[N-4](../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质) 要把失败、被中断、等待态分开并都以正常返回到达 agent；桥层一旦丢了分类，后面无法补回。
+- 来源：E-4、E-19、E-20、E-22～E-25、E-27。
+- 最近核对：2026-09-23。
+
+### 取消通知不是同行的默认：Vercel 不发，Claude Agent SDK Python 在 mcp 1.x 下有选择地发
+
+Vercel 把 `abortSignal` 传进调用但**不发 `notifications/cancelled`**，取消后迟到的响应抛「unknown message ID」。
+Claude Agent SDK Python 在 mcp 1.x 下只对自己构建的服务端发取消，理由是 1.x 在处理函数仍回复时会停掉整个服务端；2.x 全部可取消。
+LangChain Python #314 记录客户端中途取消时的 `UnboundLocalError`。pi-mcp-adapter 在 task 路径发 `tasks/cancel`。
+
+- 适用范围：上列各 commit / 版本。
+- 代价与不适用：对端收到取消后是否停下不由客户端决定；Claude 的做法针对的是 Python SDK 1.x 服务端实现，TS 服务端是否同样受影响本轮未核。
+- 撞上会怎样：提案表中「取消：桥」依赖对端正确处理取消通知；同行里已有因对端 SDK 行为而**不发**的先例。
+- 来源：E-22、E-25、E-26。
+- 最近核对：2026-09-23。
+
+### 把 elicitation 交给人的同行都另建了确认界面，无界面时一律拒绝；sampling 只有一个第三方扩展做了，且请求与结果各确认一次
+
+elicitation：Claude Code（form 与 URL；Agent SDK 无回调时自动 decline）、Codex（转审批/提问界面）、Vercel（须先声明能力再注册处理函数）、
+pi-mcp-adapter（须有 UI，URL 模式须用户点开）、LangChain Python（回调；继任版用 LangGraph `interrupt()` 交给人）；LangChain JS、OpenAI、DSH 不声明。
+sampling：pi-mcp-adapter 只做纯文本、请求与结果各确认一次、走 pi 自己的模型注册表；Vercel 回 `-32601`；Claude Code 公开材料里没有 sampling 一词；其余不声明。
+roots：只有 Claude Code 返回启动目录与附加工作目录并在变化时通知。
+
+- 适用范围：上列各 commit / 版本。
+- 代价与不适用：「不声明能力」与「声明后回 `-32601`」对对端是两种可观察行为；Claude Agent SDK 的进程内服务桥对 roots / sampling / elicitation 一律回 `-32601`。
+- 撞上会怎样：[N-9](../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质) 要人作答、拓展件不得代填；同行里没有一家代填，差别只在无界面时回 decline 还是回错误。
+- 来源：E-15、E-19、E-22～E-27。
+- 最近核对：2026-09-23。
+
+### 同行在鉴权上反复踩的两处：重定向把凭据送往别源，轮换后的令牌被旧值覆盖
+
+重定向：Codex 只跟同源（注释：请求带敏感头与调用体）；Vercel `redirect:'error'`（文档：防 SSRF）；OpenAI `follow_redirects=False`；
+pi-mcp-adapter 不把绑定源的头交给 SDK 的 `requestInit`（注释：SDK 会拿它去请求别源的 OAuth 端点）。
+轮换令牌：Claude Code 2.1.136（多服务端并发刷新丢 refresh token）、Codex #41133 / #45944（关闭时或并发刷新丢已轮换令牌；持久化失败时故意 fail-closed）、pi-mcp-adapter 2.28.0（跨进程误删刚授权的凭据）。
+凭据泄漏：OpenAI #4016，URL 派生的服务端名把凭据与 query token 带进错误、trace 与模型可见输出，此后脱敏。
+
+- 适用范围：上列各 commit / 版本。
+- 代价与不适用：提案本版不桥 OAuth，轮换一项暂不触发；重定向与脱敏两项对静态头同样适用。
+- 撞上会怎样：[N-5](../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质) 的凭据若随重定向或服务端名进入别处，隔离在客户端层就已失守；同行的存储键都是本机用户 + 服务端名/URL，与首轮「没有租户维度」一致。
+- 来源：E-19、E-20、E-24、E-25、E-27。
+- 最近核对：2026-09-23。
+
+### 两家默认不把逐动作定义常驻上下文，Codex 在开工具搜索时延后；两家记录了工具定义变化会让缓存的 prompt 前缀失效
+
+pi-mcp-adapter 默认只注册一个代理工具（README：单个服务端可能超过 1 万 token，代理约 200）；Claude Code 默认 Tool Search，只加载名字与服务端说明；
+Codex 开了工具搜索时为 `Deferred`（首轮 E-13；工具搜索是否默认开启本轮未核）。DSH、LangChain、OpenAI、Vercel 逐动作直接给。
+pi-mcp-adapter 让代理描述**字节稳定**、pi 本体以增量追加工具集变化，理由都是重新注册会改写已缓存的 prompt 前缀。
+
+- 适用范围：上列各 commit / 版本。
+- 代价与不适用：Claude Code 的 Tool Search 需要支持 `tool_reference` 的模型，非第一方 base URL 时自动关闭。
+- 撞上会怎样：[N-1](../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质) 已定「不常驻、经 `Tools()` 发现」，与这三处做法同类；动作集随 run 重算时，定义字节的稳定性决定缓存前缀能否保住。
+- 来源：E-13、E-18、E-19、E-27。
+- 最近核对：2026-09-23。
+
+## 第三轮：stdio 拉起位置
+
+- 调查对象与日期：MCP 规范 `c7400a07`（2025-11-25 版）；DSH `c291e796`；Codex `5c5308fc`（本地 `rmcp-client`、`core/src` + 远程同 commit `codex-mcp`、`exec-server`、`config/src`）与文档副本 2026-09-20；
+  npm `@modelcontextprotocol/sdk` 1.29.0 / 1.30.0、`@modelcontextprotocol/client` 2.0.0；Python SDK v1.28.1 `777b8d06` / v2.0.0 `6f69a375`；OpenAI Agents Python `32edd3c3`；LangChain JS `12626c25` / Python `52a4535f`；
+  Vercel `21b2d6c3`；Claude Code 文档七页（2026-09-23 抓取）与 `@anthropic-ai/claude-agent-sdk` 0.3.280；`docker/mcp-gateway` `a34df45d`；`sparfenyuk/mcp-proxy` `153a96a6`；`supercorp-ai/supergateway` `874951c7`。2026-09-23 取证。
+- 问题：提案 [N-11](../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质)（候选假设）「stdio 服务端进程在哪拉起，不焊死在宿主机上，留出由执行环境落点决定的接口」；产品负责人 2026-09-23 要求先看同行怎么做。
+  本节只写事实与「撞上会怎样」，对照的是 [PF-005](../../design/product/PF-005-execution-environments-and-sandboxes/design.md)（rev 5）；**不写 N-11 该取哪一值**。
+- 证据：[evidence.md](evidence.md) E-29～E-41；逐源、逐主题论证与 N-11 两种取值的完整后果在[第三轮报告](reports/2026-09-23-round3-stdio-launch-site.md)。
+- 最近核对：2026-09-23 / 上列各 commit 与版本。
+
+### 源 × 拉起位置 × 可交外部执行器 × 桥接 × 生命周期
+
+列出不等于推荐。各格出处见报告 §二 与 E-29～E-41。
+
+| 源 | 拉起位置 | 可交外部执行器或容器 | 桥接方式 | 谁杀、怎么杀 |
+|---|---|---|---|---|
+| MCP 规范 | 客户端的子进程 | 未定义 | stdin/stdout | 客户端：关 stdin → SIGTERM → SIGKILL（SHOULD） |
+| DSH | harness 进程（SDK spawn） | 否；执行世界接缝存在但 SDK spawn 绕过它（作者自述） | 本机管道 | SDK `close()` + 1 秒等关闭 |
+| Codex | 逐服务端：编排进程或执行器 | 是（实验性，`environment_id`，密封 trait） | 本地管道 / exec-server 搬字节，帧在编排进程 | 本地进程组 2 s 升级；远端 `process/terminate`、断连全杀；落点解析失败不回退 |
+| 官方 TS SDK v1 | 调用方进程 | 仅能自写 `Transport` | 本机管道 | 直接子进程：stdin → 2 s → SIGTERM → 2 s → SIGKILL |
+| 官方 TS SDK v2 | 同上；`'auto'` 协商时另起旁路探测进程 | 同上（自写则就地探测） | 本机管道 | 同 v1 |
+| 官方 Python SDK | 调用方进程，新会话 | 否 | 本机管道 | 进程组 killpg |
+| OpenAI Agents | agent 进程 | 子类改 `create_streams()`；`SandboxAgent` 不含 MCP | 本机管道 | Python SDK 进程组 |
+| LangChain JS / Py | 调用方进程 | 否 | 本机管道 | SDK；JS 有 `restart`；Py 无显式会话时每调用一进程 |
+| Vercel | 调用方进程 | 自写 `MCPTransport` | 本机管道 | abort 直接子进程（推断） |
+| Claude Code | Claude Code 进程所在处 | 只能整进程搬（沙箱运行时、容器、VM、云会话、`spawnClaudeCodeProcess`） | 本机管道 | 闭源未核 |
+| Docker MCP Gateway | 网关经 `docker run` 起容器 | 是（容器） | `docker run -i` 管道 / `socat` | 缺省每调用一容器；长驻按客户端会话 |
+| mcp-proxy | 代理进程 | 代理可整体进容器 | stdio → SSE / Streamable HTTP | 随代理；所有客户端共用一个进程 |
+| supergateway | 代理进程 | 同上（自带镜像） | stdio → SSE / WS / Streamable HTTP | 进程组 5 s 升级；按请求 / 会话 / 共用 |
+
+### 逐服务端选择 stdio 落点的，本轮所读同行里只有 Codex 一家，且为实验性
+
+Codex 按服务端配置的执行环境 id（源码字段 `environment_id`，缺省 `"local"`）二选一：`local` 由编排进程在新进程组里拉起；其他 id 经该环境的执行器进程 API
+（`codex exec-server`，WebSocket 上的 JSON-RPC，`process/start|write|terminate`）在执行器一侧拉起，**MCP 帧仍在编排进程里做**，执行器只搬 stdin/stdout/stderr 的原始字节。
+启动器 trait 是密封的。其余同行的 stdio 服务端都由客户端进程或其代理进程在**本机**拉起；Claude Code 与 Codex 的 SSH 主机模式是把整个 agent 进程搬走，不是逐服务端选。
+
+- 适用范围：本节所列源与版本。「只有一家」是在所列源内读遍的结果，不推广到未读的客户端。
+- 代价与不适用：Codex 的文档副本把该项写作 `experimental_environment = local | remote`，**同 commit 源码读遍无此字样**；文档说「streamable HTTP 远端落点未实现」，源码里非本地 HTTP 服务端走该环境的 HTTP 客户端——两处不一致只记录。
+  `codex-mcp` 在选启动器处留 TODO：执行器路径尚未保留本地启动器的语义（进程组、Windows Job Object、stderr 排空）；Windows 下执行器拉起的服务端保留执行器的常规后代生命周期。
+- 撞上会怎样：以 Codex 为形状参照时，终止、孤儿与 stderr 的保证**随落点不同**；它的执行器是自家协议与自家注册中心，不是通用接口。
+- 来源：E-30、E-31。
+- 最近核对：2026-09-23 / Codex `5c5308fc`。
+
+### Codex 的落点解析失败时该服务端启动失败，不回退本地；远端路径要显式 cwd，环境从执行器一侧取
+
+环境 id 未知 →「references unknown environment id」；`local` 的 stdio 在没有本地环境时也失败；环境处于 Pending / Failed 时权限判为 Unavailable。
+执行器路径缺 `cwd` 即失败（cwd 以 `file:` URI 传）；argv 与 env 须为合法 Unicode；不带编排机的 `PATH`/`HOME`，改用执行器一侧的 `Core` 继承策略，只转发 `env_vars` 点名的本地变量与字面 `env`；
+`env_vars` 条目可写 `source = "remote"` 从执行器环境取值，本地路径遇到它直接报错。执行器拥有的服务端不许用托管 ChatGPT 鉴权，`http_headers_helper` 只限本地。
+
+- 适用范围：Codex `5c5308fc`。
+- 代价与不适用：「不回退」只在服务端**启动**时成立；已启动的远端进程在执行器 WebSocket 断开时被 exec-server 全部终止，事件流报 `Failed`，之后按第二轮所记「stdio 中途退出不自动重启」处理（E-20）。
+- 撞上会怎样：与 [PF-005 §6.9](../../design/product/PF-005-execution-environments-and-sandboxes/design.md#69-落点不可用就是拒绝不降级)「不回退宿主机」同向；
+  [N-5](../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质) 的凭据注入在这一形状下要按落点分两条来路。
+- 来源：E-30、E-31。
+- 最近核对：2026-09-23 / Codex `5c5308fc`。
+
+### DSH 有「执行世界」接缝、同仓库的 LSP stdio 服务端经它落进 E2B，但 MCP 因 SDK 自持 spawn 而绕过它
+
+DSH 以 `ctx.fs` + `ctx.subprocess` 定义一个执行世界，E2B 远端沙箱是换一对实现；`lsp-stdio` 经 `ctx.subprocess.spawn` 以管道拉起语言服务端，随执行世界落位。
+`dsh-subprocess` README 明写：「由 SDK 管理的 spawn 仍在服务之外——拥有内部 spawn 的传输（SDK 客户端、MCP）无法把该调用路由到本服务」，只能共用环境过滤函数 `scrubbedParentEnv`。
+
+- 适用范围：DSH `c291e796`。
+- 代价与不适用：「E2B 组合下 MCP stdio 服务端仍在宿主机上跑」是推断——E2B 决策记录把「prompts and tools」列在宿主一侧，未提 MCP；本轮未运行该组合。
+- 撞上会怎样：沿用官方 SDK 的 stdio 传输，拉起位置就由 SDK 决定；要让 MCP 服务端随落点走，DSH 的教训是必须在 SDK 之外自己持有 spawn。
+- 来源：E-29。
+- 最近核对：2026-09-23 / DSH `c291e796`。
+
+### 官方 TS SDK 的 stdio 传输没有 spawn 钩子；v2 在 `'auto'` 协商下对基类传输另起一次性旁路进程
+
+v1（1.29.0 / 1.30.0）与 v2（`@modelcontextprotocol/client` 2.0.0）的 `StdioClientTransport` 构造参数只有 `command/args/env/stderr/cwd`（1.30.0 起加 `maxBufferSize`），`cross-spawn` 在调用方进程所在机器拉起；
+要放到别处只能自写 `Transport`（v1 的帧工具经 `./*` 深路径导出，v2 从包入口导出 `ReadBuffer`/`serializeMessage`/`deserializeMessage`）。
+环境总是以六个白名单变量打底再叠加传入值；关闭顺序 stdin → 2 s → SIGTERM → 2 s → SIGKILL，**信号只发给直接子进程**。
+v2 协商为 `'auto'` 或钉版本时，若传输恰好是基类，先按同一参数另起旁路进程发 `server/discover`、探完回收，再起会话进程；子类或自写传输就地探测；缺省 `'legacy'` 不探测。
+
+- 适用范围：上列三个发布包。
+- 代价与不适用：「孙进程不在信号范围内」是读代码推断；旁路探测的理由是 SDK 源码注释（「pre-`initialize` 请求会让某些 SDK 写的 stdio 服务端退出」），本轮未验证哪些服务端如此。
+  官方 Python SDK（v1.28.1、v2.0.0）则以新会话拉起、按进程组终止——同为官方 SDK，孤儿行为不同。
+- 撞上会怎样：把拉起交给执行器或容器就要自写传输，同时失去 v2 旁路探测的保护（若开 `'auto'`）；沿用基类，`'auto'` 下每次连接在本机起两个进程。
+- 来源：E-32、E-33、E-34。
+- 最近核对：2026-09-23 / 上列版本。
+
+### TS SDK 1.29.0 与 1.30.0 支持的最新协议版本是 2025-11-25，不含 2026-07-28
+
+两版 `types.js` 的 `LATEST_PROTOCOL_VERSION` 均为 `2025-11-25`，`SUPPORTED_PROTOCOL_VERSIONS` 到 `2024-10-07`；v2 2.0.0 另有 `SUPPORTED_MODERN_PROTOCOL_VERSIONS`。
+这回答了首轮「[DSH 锁定的官方 SDK 是 1.29.0……](#dsh-锁定的官方-sdk-是-1290声明范围只到-1120codex-已有-2026-07-28-协议模式其-rmcp-版本本轮取不到)」里 TS SDK 那半项「待核实」与「未知与下一项证据」表第 1 行。
+
+- 适用范围：npm 发布包 1.29.0、1.30.0 的编译产物。
+- 代价与不适用：只读了常量，未核客户端在协商中如何使用它们。
+- 撞上会怎样：以 1.x 为基线时，2026-07-28 协议不在支持列表里；第二轮已记 v2 是新包名而非 `sdk` 的下一个大版本。
+- 来源：E-32、E-33。
+- 最近核对：2026-09-23。
+
+### Claude Code、Codex 与 OpenAI Agents 的沙箱都不约束 MCP 服务端；Claude Code 要约束它只能把整个进程搬进边界
+
+Claude Code 文档：Bash 沙箱只约束 Bash、PowerShell、Monitor 命令及其子进程，「MCP 服务端与命令 hook 是在宿主机上不受约束的独立进程」；
+沙箱禁止写 `.mcp.json` 等配置，理由是能写它们的命令「可以添加一个在沙箱之外运行的 MCP 服务端」；要约束 MCP，给的是沙箱运行时、dev container、自建容器、VM、云会话——都包住整个 Claude Code 进程。
+Agent SDK 的 stdio 配置只有 `command/args/env/timeout/alwaysLoad`（无 `cwd`），它提供的 `spawnClaudeCodeProcess` 钩子搬的是整个 Claude Code 进程。
+Codex：本地是普通子进程，执行器请求显式 `sandbox: None`；网络代理域名规则文档写明不限制 MCP 服务端；另以 `codex/sandbox-state-meta` 把沙箱状态经 `_meta` 交给声明了该能力的服务端自行执行。
+OpenAI：读遍 `src/agents/sandbox/` 89 个文件，MCP 只作为 `SandboxAgent` 参数透传与记忆条目类型出现；官方示例把 stdio 服务端注释为「另一个本地进程」。
+
+- 适用范围：Claude Code 文档 2026-09-23 抓取（厂商自述，本体闭源）；Codex `5c5308fc`；OpenAI `32edd3c3`。
+- 代价与不适用：Claude Code 的实际进程行为无法核对，只有文档陈述。
+- 撞上会怎样：「服务端落在沙箱所在的环境」与「服务端受沙箱约束」在同行里是两件事；[PF-005 §6.2](../../design/product/PF-005-execution-environments-and-sandboxes/design.md#62-宿主机不提供租户隔离因此必须被显式允许) 的宿主机约束对据点机上的 MCP 服务端进程同样成立。
+- 来源：E-30、E-31、E-35、E-38。
+- 最近核对：2026-09-23。
+
+### 把 stdio 服务端放进容器或网络代理的公开做法，拉起方都是中间层，进程粒度分「每调用 / 每会话 / 全体共用」三种
+
+Docker MCP Gateway：网关对每个本地服务端执行 `docker run --rm -i --init --security-opt no-new-privileges --cpus 1 --memory 2Gb --pull never …`，stdio 即该 CLI 的管道；
+缺省**每次工具调用一个容器**，服务端声明 `LongLived` 或 `--long-lived` 时按（服务端名, 客户端会话）缓存（参数文档：「适合有状态的服务端」）；密钥只以名字进 argv，值放在 CLI 环境里，缺失时填 `<UNKNOWN>` 继续起；可 `--network none`。
+mcp-proxy：每个服务端在代理启动时拉起一次、全体 HTTP 客户端共用，服务端一侧中间件只有 CORS。supergateway：无状态 Streamable HTTP 每请求一个子进程、有状态每会话一个、SSE 全体共用；子进程成组、SIGTERM 5 s 后 SIGKILL，`shell: true`、继承全部环境。
+
+- 适用范围：上列三个 commit。
+- 代价与不适用：Docker 网关只读了 `clientpool.go`、`handlers.go`、`stdio.go` 与参数参考；mcp-proxy 的「无鉴权」指读遍 `mcp_server.py` 的中间件。
+- 撞上会怎样：每调用一进程让有状态服务端每次从零开始、启动开销按调用计；全体共用让多个会话（及租户）的调用落进同一个服务端进程；经代理后「连接断即进程死」的对应关系被拆开。
+- 来源：E-39、E-40。
+- 最近核对：2026-09-23。
+
+### N-11 两种取值各自撞上什么
+
+只列事实推出的后果，不给取舍；完整论证在[报告 §五](reports/2026-09-23-round3-stdio-launch-site.md#五n-11-两种取值各自撞上会怎样只列事实与后果不给推荐)。
+
+| | 受执行环境落点约束 | 一律在据点机拉起 |
+|---|---|---|
+| 同行先例 | 只有 Codex（实验性、自家执行器协议） | DSH、官方 TS / Python SDK、OpenAI（含 `SandboxAgent`）、LangChain、Vercel、未搬家的 Claude Code |
+| 官方 TS SDK stdio 传输 | 用不上，须自写 `Transport`；`'auto'` 协商下失去旁路探测保护 | 可直接用 |
+| 终止与孤儿保证 | 随落点变（Codex 自留 TODO：两路语义不等价） | 取决于所用 SDK：TS 只杀直接子进程，Python 按进程组 |
+| 与 PF-005「每次执行现算落点」 | 长驻进程与逐次落点尺度不同；同行对齐法只有「每调用一进程」（有状态服务端每次从零）或「环境选择变了就重建连接」（Codex） | 服务端进程一切副作用落在据点机；宿主机不提供租户隔离、须显式允许（§6.2） |
+| 与执行环境权限（§6.8、§6.9） | 落点不可用时 Codex 的形状是启动失败、不回退 | MCP 动作若声明要用执行环境，`never-allow` 下无处可落只能拒绝；若不声明，服务端进程仍在宿主机上做事——同行无一处理这一组合 |
+| 凭据来路 | 按落点分两条（Codex 本地 / 执行器来源；Docker 值在 CLI 环境） | 单一来路：据点机环境（白名单或黑名单过滤） |
+| 沙箱约束 | 落进沙箱所在环境 ≠ 受沙箱约束（Codex `sandbox: None`） | 同行的沙箱都不管 MCP；Claude Code 为防借 `.mcp.json` 逃逸专门禁写配置 |
+
+- 来源：E-29～E-41；首轮 E-12（Codex 每步按环境选择标脏）；第二轮 E-17～E-22、E-26、E-27（孤儿记录）。
+- 最近核对：2026-09-23。
+
 ## 支撑假设
 
 | 假设 | 若它不成立，哪条结论垮掉 | 本轮是否核对 |
@@ -307,6 +710,7 @@ Codex `rmcp` 用 `workspace = true`，版本在 workspace `Cargo.toml` / `Cargo.
 
 ## 采用与后续核对
 
-尚无消费者；预期由本程 proposal「MCP 客户端采用」消费。DSH 或 Codex 换 commit、DSH 升级 SDK、
+消费者：提案 [MCP 客户端采用](../../design/record/proposals/mcp-client-adoption/README.md)（首轮读数进了它的 design.md 与 alternatives.md；第二轮回应产品负责人 2026-09-23 的追加要求）。
+DSH 或 Codex 换 commit、DSH 升级 SDK、第二轮的上游对象（pi-mcp-adapter、LangChain、OpenAI Agents、Vercel、Claude Agent SDK / Claude Code、官方 SDK 各包）换版本，
 或产品 PF-002 / PF-006 / PF-007 升 rev 触及 MCP 条款时，先判断是否触及上面任何一条结论，触及则按
-[演进事件词](../README.md#演进事件词) 记 changelog。
+[演进事件词](../README.md#演进事件词) 记 [changelog](changelog.md)。

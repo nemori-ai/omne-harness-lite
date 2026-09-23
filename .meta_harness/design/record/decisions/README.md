@@ -31,11 +31,20 @@
 | [D-026：基础设施持久化的四条选择](infrastructure-persistence-choices/README.md) | 无 in-memory 实现；SQL 经 Kysely 由配置切 sqlite(`node:sqlite`)/pg；队列先 redis；本地日志 JSONL；SQL 提供者进租户第一程 | 产品负责人，2026-09-22 | 存储协议接口已定；`infra`／`tenancy-host` 名已拍板；跨进程存储协调已定 |
 | [D-027：`infra`／`apps/tenancy-host` 名拍板，sqlite `synchronous=NORMAL`](infrastructure-names-and-sqlite-durability/README.md) | 两个名字不再是候选；开发期 sqlite 持久性档位 `NORMAL`，OS 崩溃可丢最后一段已提交事务作已知边界 | 产品负责人，2026-09-23 | 治理中心交付面已有 PF；断电级持久已承诺；pg 持久性已定 |
 | [D-028：接受治理中心交付面的设计链](governance-center-design-acceptance/README.md) | 四类对象：**入口契约 v1 全部条款**（含 G-1～G-12 作为显式缺口，G-10／G-11 开着先接受）、**账号能力 v2 全部条款**、能力边界选择「入口层独立 fiber」、八个节点本程的设计与修订；四件待定项的选择（断电边界写回 PF-017 rev 2、窄带读法接受、前跳校正不给运维出口） | 产品负责人，2026-09-23 | 实现与验证、传输绑定与防冒充手段、升级整体性的契约家、账号能力 v1 消费者自动升 v2 |
+| [D-031：工具定义数据契约的起点](tool-definition-baseline/README.md) | 一个**起点方向**：按 PF-006 §5.3 自研 JSON Schema（提案 D）；minimal-runtime、DSH、omne-next 三源只作参考、字段命名与结构可照抄 | 产品负责人，2026-09-23 | 任何契约存在或被接受；字段、方言、返回形状已定；任何实现；提案四项待区分调查已做 |
+| [D-032：工具执行运行时的实现起点](tool-execution-runtime-baseline/README.md) | 一个**起点方向**：自研（提案 C）；DSH jobs 与 local-execution 只借鉴避坑、不 fork；两源已知失败情形列为测试义务 | 产品负责人，2026-09-23 | 任何契约或提供者设计；`core/storage` 协议已接受；X-1～X-7 已做；同日据点停机收场的产品裁决（归 PF-012／PF-006／PF-009） |
+| [D-033：hooks 兼容层的起点](hooks-compat-baseline/README.md) | **起点与 fork 边界**：fork DSH `hook-protocol` 无运行时的四个文件 + `HookOutput`，runner／导入／映射／交付自写（提案 A）；改动超半改 C 的判据保留；G1–G11 推迟到拓展点协议起草时裁 | 产品负责人，2026-09-23 | 拓展点协议或兼容层契约；fork 已做；区分实验已跑；G1–G11 任何一项已裁 |
+| [D-034：Skill 规格形状的起点](skill-spec-adoption/README.md) | 一个**起点方向**：Agent Skills 开放格式 + 规则层自持（提案 B）；内容类扩展走包内定义记录、不进 frontmatter `metadata`（B-2b）；叠加参考 omne-next 与 Codex 的兼容扩展 | 产品负责人，2026-09-23 | 任何契约；任何一条具体外部扩展被采纳；基线快照、name 字符集、键分类表已定；研究缺口已闭合 |
+| [D-035：消息、到达语法与流装配器的起点](message-and-stream-baseline/README.md) | **三层起点**：数据契约自研、语法借 `StreamChunk` 骨架并条款化、装配器自写、pi-ai 止步传输适配、工具同语法发帧；三层落 core、先于两块运行时契约（提案 D，经独立架构评审判成立） | 产品负责人，2026-09-23 | 任何契约或实现；pi 原始参数探针已做；评审上交的九条保留前提已闭合；PF-009 rev 5／PF-013 rev 5–6 已确认 |
+| [D-036：斜杠命令识别与解析的起点](slash-command-parsing-baseline/README.md) | 一个**起点方向**：按产品正文自研统一解析器，借 Codex、omne-next、Claude Code 的部件（提案 D） | 产品负责人，2026-09-23 | 任何契约或判定用例集；Q1–Q9 的技术选择；同日 Q3／Q7／Q8 与三项产品未决的作答（归 PF-002／PF-014／PF-016／PF-004 下一次 rev） |
+| [D-037：MCP 客户端的采用](mcp-client-adoption/README.md) | **实现路径 + 本版桥接范围 + stdio 落点**：官方 `@modelcontextprotocol/sdk` 上自写薄桥（提案 C），同行封装只借鉴避坑；桥 tools／取消／日志／静态鉴权／两种传输、elicitation（契约就位前不声明）、进度→发帧、OAuth；不桥 resources 条目／prompts／sampling／roots／任务式动作／旧式 SSE；stdio 本版一律据点机拉起，「可换落点」记为将来拓展点 | 产品负责人，2026-09-23 | 任何契约或实现；SDK 精确钉版与能力已核实；OAuth 可开工（三件产品面事项未闭合）；连接与子进程的宿主已定 |
 
 **编号**：`D-` 是[决定的稳定编号](../../registry/README.md)。
 D-019 是**迁入时保留的原号**——同一次接受在旧谱系里就是这个号，
 接受事实只发生过一次，不为它另分配第二个号。
 D-022 至 D-028 是**新分配**的：旧谱系已分配到 D-021，新号从其后继续，避免与尚未迁入的存量决定相撞。
+D-031 起归「资产、工具运行时与模型请求运行时一程」：两条并行工作线 2026-09-23 约定各占一段号（治理中心一程用到 D-028），
+**D-029、D-030 是有意留空的段间余量，不回填**。
 
 **接受契约的只有 D-023 与 D-028。**D-019 与 D-022 各自写明它**不表示**接受任何契约，那是它们当日的范围声明，不因后来的接受改写；
 [catalog 里五份 v1 契约的 `acceptance` 指向 D-023，入口契约 v1 与账号能力 v2 指向 D-028](../../registry/README.md)。

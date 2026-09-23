@@ -18,7 +18,7 @@
 ### 存储
 
 - **现象**：工具定义可以指名声明「把附件放进哪个存储」，存储没配好则该工具整个不可用；被卸载的工具结果也「存着，没丢」。但全系统没有任何一处定义它——是对象、是一项设置、还是执行环境的一种设施，没人说过
-- **牵涉**：[PF-006 §4 工具的产出](../product/PF-006-tools-and-skills/design.md#工具的产出)（rev 16）；[PF-006 §6.4](../product/PF-006-tools-and-skills/design.md#64-依赖声明与解析)（rev 16）；[PF-012 §5.10](../product/PF-012-agent-loop-and-run/design.md#510-卸载结果落成消息之前的那一关)（rev 9）
+- **牵涉**：[PF-006 §4 工具的产出](../product/PF-006-tools-and-skills/design.md#工具的产出)（rev 17）；[PF-006 §6.4](../product/PF-006-tools-and-skills/design.md#64-依赖声明与解析)（rev 17）；[PF-012 §5.10](../product/PF-012-agent-loop-and-run/design.md#510-卸载结果落成消息之前的那一关)（rev 10）
 - **挂着谁**：[附件](objects.md#ul-attachment--附件)存在它里面，附件的宿主与留存因此都定不下来；被卸载的工具结果存在哪、留多久同样悬着
 - **谁来裁**：PF-006 的 owner
 - **闭合条件**：有一个 topic 定义了它，并立了词条，或明确说它不是一个产品概念
@@ -48,7 +48,7 @@
 ### agent 之间的消息
 
 - **现象**：PF-007 只定了「谁能给谁发」的两条规则；一条这样的消息靠什么标识、落在谁的会话里、留不留存，全未述。它是不是统一语言里那种「消息」的某一类，也没说
-- **牵涉**：[PF-007 §6.8 先说谁能给谁发消息](../product/PF-007-meta-capabilities/design.md#先说谁能给谁发消息这是两条独立的规则)（rev 16）；[PF-014 §4 入站到达](../product/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 4）
+- **牵涉**：[PF-007 §6.8 先说谁能给谁发消息](../product/PF-007-meta-capabilities/design.md#先说谁能给谁发消息这是两条独立的规则)（rev 16）；[PF-014 §4 入站到达](../product/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 5）
 - **谁来裁**：PF-007 与 PF-014 的 owner
 - **闭合条件**：正文写明它进收件方会话时走不走入站受理、落成哪一种消息
 
