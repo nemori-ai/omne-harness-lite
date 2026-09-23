@@ -10,7 +10,12 @@
 **这里没有组织、没有租户、没有成员资格。**账号[只管标识、鉴权、聚合](../../../product/PF-001-identity-scope-and-agent-constraints/design.md#账号)，
 其中聚合是一个视图功能，那份答案的权威在治理契约。
 
-- **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.account-identity, 1)`
+- **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.account-identity, 1)`；
+  候选的下一版是 `(omne-harness-lite-design-2026-09-15, capability.account-identity, 2)`，见下一条
+- **v2（`candidate`）**：[v2 契约](v2/contract.md)——**出示物与登录状态标识分离**：登录时交出一个高熵的[出示物](v2/contract.md#s-45-登录状态出示物)，
+  存储里只存它的不可逆形式（即 LoginStateId），跨进程认人凭出示物走新操作 [S-44](v2/contract.md#s-44-按出示物换取身份)。
+  未接受、未冻结、**尚未登记进 catalog**（[v2 G-6](v2/contract.md#九已知缺口)）；主责产品依据 PF-017 rev 1 仍是 draft。
+  与 v1 的逐条差异与消费者影响在 [v2 §十](v2/contract.md#十版本差异与规范工件)。**v1 的状态与下面各条不因它改变**
 - **状态**：`accepted`，资源已冻结——[D-023](../../../record/decisions/tenant-domain-design-acceptance/README.md)（产品负责人，2026-09-22）接受 v1 全部条款，含[已知缺口](v1/contract.md#九已知缺口)作为显式缺口；**此后语义改动发布 v2，不原地改 v1**（D-023 已点名的措辞张力：[S-39](v1/contract.md#s-39-unactivated_retention)「此后的判定」、[S-4](v1/contract.md#s-4-账号记录)「由存储生成」、[S-30](v1/contract.md#s-30-装配给的保证-vs-协议须给的保证) 第 7 行左列，都等 v2）。接受不表示已实现或已验证
 - **catalog 映射**：**已登记并接受**（2026-09-22，状态 `accepted`，`acceptance` 指向 D-023 的 [`acceptance.json`](../../../record/decisions/tenant-domain-design-acceptance/acceptance.json)）。`family=capabilities`、`topic=account-identity`、
   `contract_path=spec/capabilities/account-identity/v1/contract.md`；本版**没有其他规范资源**（不建 `formal/`、不发布 Schema，理由见下）；
@@ -58,7 +63,8 @@
 
 | 当前问题 | 阅读入口 |
 |---|---|
-| 本候选版本精确承诺什么 | [v1 契约](v1/contract.md) |
+| 已接受的版本精确承诺什么 | [v1 契约](v1/contract.md) |
+| 候选的 v2 改了什么、对谁有影响 | [v2 §十 版本差异](v2/contract.md#十版本差异与规范工件)；新增的 [S-44](v2/contract.md#s-44-按出示物换取身份)、[S-45](v2/contract.md#s-45-登录状态出示物) |
 | 八个操作各自的前置、提交点与失败集合 | [v1 契约 §三 操作](v1/contract.md#三操作) |
 | 哪些保证是**单机装配给的**、跨进程后谁重新兑现 | [S-30](v1/contract.md#s-30-装配给的保证-vs-协议须给的保证) |
 | 哪些条款有怎样的证据义务，现在到哪一步 | [验证与覆盖](verification.md) |
@@ -66,7 +72,8 @@
 
 ## 版本包
 
-`v1/` 是本契约的候选版本目录。**里面只有 `contract.md`**。
+`v1/`（`accepted`，已冻结）与 `v2/`（`candidate`）是本契约的两个版本目录，**各自只有 `contract.md`**。
+下面几段说的是 v1；v2 沿用同样的取舍（不建 `formal/`、不发布 Schema），它自己的理由在 [v2 §八](v2/contract.md#八规范表达与验证义务)与 [§十](v2/contract.md#十版本差异与规范工件)。
 
 **不建 `formal/`。**登录状态的状态机只有一条不可逆转移；
 账号的状态机有两条出口（激活、[到期清除](v1/contract.md#s-38-清除到期的未激活账号记录)），
