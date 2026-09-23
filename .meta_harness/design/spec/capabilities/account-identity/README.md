@@ -29,7 +29,7 @@
   唯一资源 `contract.md` 的 SHA-256 已登记在 [`frozen.json`](../../../registry/README.md)。
   **本包入口原先写的 `family=capability` 是笔误**：检查器只接受
   `data` / `capabilities` / `compositions` 三个值，且 `family` 要与路径段一致
-- **提供者/装配映射**：[`realization/packages/tenancy/account-identity`](../../../realization/packages/tenancy/account-identity/README.md)（全部八个操作）与 [`tenancy/credential-verification`](../../../realization/packages/tenancy/credential-verification/README.md)（凭据形式那一半，`credentials` 服务面）；设计已随 D-023 接受，源码尚未建包
+- **提供者/装配映射**：[`realization/packages/tenancy/account-identity`](../../../realization/packages/tenancy/account-identity/README.md)（v1 的全部八个操作；v2 的九个操作见节点的 [v2 的四处选择](../../../realization/packages/tenancy/account-identity/design.md#v2-的四处选择)）与 [`tenancy/credential-verification`](../../../realization/packages/tenancy/credential-verification/README.md)（凭据形式那一半，`credentials` 服务面）；设计已随 D-023 接受，源码尚未建包
 
 ## 依赖方向：治理 → 本契约，单向
 
