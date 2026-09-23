@@ -19,6 +19,7 @@
 | `tenancy/account-identity` | `capability.account-identity` v1 的 `accounts`／`logins` 服务面 | **只有类型、失败集合类型测试与契约场景 `it.todo`** |
 | `tenancy/organization-governance` | `capability.organization-governance` v1 的四个服务面 | 同上 |
 | `tenancy/account-registration` | `composition.account-registration` v1 的 `registration` 服务面 | 同上 |
+| `tenancy/governance-center-entry` | `composition.governance-center-entry` v1 的入口层，落在传输绑定 `…-https-json` v1 上：插件 `governance-center-entry`（TLS 客户端一面、判定次序、27 条路由）与 `governance-center-ops`（本机套接字完整体检）、迁移片段、迁移前核对 | 实现完整（租户领域第二程 W2-B）；sqlite 上包内证据义务全绿，pg 与崩溃／快照联演归 W3-A；包内常量见包 [README](tenancy/governance-center-entry/README.md) |
 
 `infra` 组名与 `apps/tenancy-host` 节点名已由产品负责人拍板（[D-027](../.meta_harness/design/record/decisions/infrastructure-names-and-sqlite-durability/README.md)，2026-09-23）。
 第一程的范围、验收与遗留见 `tmp/tenancy-leg-1-plan.md`（本地计划，不入库）与各节点 README。
