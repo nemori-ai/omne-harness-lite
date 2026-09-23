@@ -3,7 +3,7 @@
 - kind：assembly
 - 对象与设计修订：CLI 交付面的应用装配；**候选**，2026-09-22 随该交付面的产品正文建立，尚无实现修订
 - 源码位置：`apps/cli`（尚未建包）
-- 交付面：[PF-016 命令行交付面](../../../product/PF-016-cli-tui-delivery-surface/README.md)（rev 3）
+- 交付面：[PF-016 命令行交付面](../../../product/PF-016-cli-tui-delivery-surface/README.md)（rev 4）。它新增的斜杠命令交付面规则（只认开头一条、未知命令名不发送、`/` 开头的普通文本可字面发出）待本节点的输入解析契约出现时接住
 - 契约采用与边界依据：**本节点没有采用任何已接受契约。**它消费的五份租户契约在
   [身份清单](../../../registry/README.md)里全部是 `candidate`（`acceptance` 为 null）；
   客户端与据点进程之间那份契约**尚未起草**。边上的保证一律指向
