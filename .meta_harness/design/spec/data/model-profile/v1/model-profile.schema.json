@@ -1,0 +1,230 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-profile/v1/model-profile.schema.json",
+  "title": "data.model-profile v1",
+  "description": "模型档案、指向它的引用与统一请求参数词表的规范形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.model-profile/v1 内有效。",
+  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状：route_name_taken（路由名在全部档案里撞名）是判定，要读别的记录，Schema 管不到；max_output_exceeds_profile 是同一文档内的跨字段比较，Draft 2020-12 表达不了，由表示层校验在 Schema 之外补上（S-18、S-24）。一份被拒的文档对应哪一个拒绝值，按 contract.md S-25 的表与次序判，不按校验器报错的先后。正反实例在同目录 examples.md。",
+
+  "$defs": {
+
+    "ModelProfile": {
+      "title": "模型档案 · Model Profile",
+      "description": "S-1～S-12：关于一个可被调用的模型的全部事实（UL-model-profile）。它是数据，不是资产。身份是（所在范围, routeName）；所在范围是它被存放的那一格，不是记录的成员（S-1）。凭据、价格、「这次实际用了哪条」都不在这里（S-22）。",
+      "$comment": "inputConstraints 必填而 parameters 可缺席，是有意的：前者是对上游事实的记载，「一条都没有」要写成 {} 明说，缺席会与「没记」混读；后者是建档者的选择，缺席即「本档案不给任何一项」，因此出现时不得为空对象——同一个意思只有一种写法（S-9、S-17）。",
+      "type": "object",
+      "properties": {
+        "routeName": { "$ref": "#/$defs/RouteName" },
+        "origin": { "$ref": "#/$defs/ProfileOrigin" },
+        "providers": {
+          "description": "S-5：允许的供应商，有序、非空、无重复；第一个是首次发出的那一家，顺序即默认重试件逐家去试的次序。每一次发出只走其中一家。",
+          "type": "array",
+          "items": { "$ref": "#/$defs/ProviderName" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "allowFallback": {
+          "description": "S-6：第一家不行时允不允许往后走。false 时只允许发往 providers 的第一个。",
+          "type": "boolean"
+        },
+        "inputModalities": {
+          "description": "S-7：收得下的模态，非空集合，无重复，次序无意义，必含 text（缺它即 input_text_missing）。",
+          "type": "array",
+          "items": { "$ref": "#/$defs/Modality" },
+          "minItems": 1,
+          "uniqueItems": true,
+          "contains": { "const": "text" }
+        },
+        "outputModalities": {
+          "description": "S-7：给得出的模态，非空集合，无重复，次序无意义。",
+          "type": "array",
+          "items": { "$ref": "#/$defs/Modality" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "maxInputTokens": {
+          "description": "S-8：一次请求的输入最多能有多少 token，按上游对这个模型的计法。只计输入。",
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxOutputTokens": {
+          "description": "S-8：一次请求最多吐多少 token，按上游对这个模型的计法。",
+          "type": "integer",
+          "minimum": 1
+        },
+        "inputConstraints": { "$ref": "#/$defs/InputConstraints" },
+        "registration": { "$ref": "#/$defs/Registration" },
+        "updatedAt": {
+          "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant",
+          "description": "S-11：inputModalities、outputModalities、maxInputTokens、maxOutputTokens、inputConstraints 这五项最近一次取值变化的时刻；建档时即建档时刻。其余属性的变化不动它；它不后退。形状取 data.offer-expiry/v1 的 Instant（该契约 S-22）。"
+        },
+        "parameters": {
+          "$ref": "#/$defs/ModelRequestParameters",
+          "description": "S-15～S-21：随档案带上的统一请求参数。缺席即本档案不给任何一项；出现时至少一项（S-17）。其中 maxOutputTokens 不得超过本档案的 maxOutputTokens（S-18，Schema 管不到）。",
+          "minProperties": 1
+        }
+      },
+      "required": [
+        "routeName",
+        "origin",
+        "providers",
+        "allowFallback",
+        "inputModalities",
+        "outputModalities",
+        "maxInputTokens",
+        "maxOutputTokens",
+        "inputConstraints",
+        "registration",
+        "updatedAt"
+      ],
+      "additionalProperties": false
+    },
+
+    "ModelProfileRef": {
+      "title": "ModelProfileRef",
+      "description": "S-13、S-14：对一条模型档案的引用，「用哪个模型」那项设置、会话的选中模型与一次请求的有效模型都取这个值。按 origin 判别，恰两支：指向官方档案的是 {origin: official, routeName}；指向自建档案的是 {origin: custom, scope, routeName}，scope 是档案所在那一格的作用域层身份（data.identity-values/v1 的 ScopeLayerIdentity，该契约 S-11），没有默认值、不从环境推断（该契约 S-12、S-17）。解析只按给出的分量精确匹配，不跨层搜索、不回退到别层的同名档案。它是规格层的引用值名，不是统一语言词条，因此不给「中文 · English」那种词条式标题。",
+      "$comment": "官方那一支不带 scope：出厂默认层没有身份对象（data.identity-values/v1 S-11），本契约不为它铸一个。它能只凭 routeName 指认一条官方档案，前提是 S-3：路由名在全部档案（所有层、含已撤回）里唯一，官方名因此对所有层保留——这个前提不成立，官方引用就指不清。自建那一支的 scope 存成带判别式的 ScopeLayerIdentity，不得压平成两个可空字段（data.identity-values/v1 S-16）。",
+      "type": "object",
+      "oneOf": [
+        {
+          "title": "指向官方档案",
+          "properties": {
+            "origin": { "const": "official" },
+            "routeName": { "$ref": "#/$defs/RouteName" }
+          },
+          "required": ["origin", "routeName"],
+          "additionalProperties": false
+        },
+        {
+          "title": "指向自建档案",
+          "properties": {
+            "origin": { "const": "custom" },
+            "scope": {
+              "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json#/$defs/ScopeLayerIdentity"
+            },
+            "routeName": { "$ref": "#/$defs/RouteName" }
+          },
+          "required": ["origin", "scope", "routeName"],
+          "additionalProperties": false
+        }
+      ],
+      "examples": [
+        { "origin": "official", "routeName": "vendor-a/chat-large" },
+        {
+          "origin": "custom",
+          "scope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } },
+          "routeName": "vendor-b/coder-7b"
+        },
+        {
+          "origin": "custom",
+          "scope": { "layer": "organization", "organization": "org_7fd2c1" },
+          "routeName": "vendor-c/vision-mini"
+        }
+      ]
+    },
+
+    "RouteName": {
+      "title": "RouteName",
+      "description": "S-2：上游认的那个名字，档案身份的一个分量。非空字符串，首尾不得是空白；相等是逐码点精确相等，不做 Unicode 规范化、大小写折叠或首尾裁剪。本系统不解析它的内容（不从中读出厂商、系列或版本）。建档后不可改——改了就是另一条档案。",
+      "$comment": "空白集合与 data.identity-values/v1 S-31 逐码点同一集合（U+0009–000D、U+0020、U+0085、U+00A0、U+1680、U+2000–200A、U+2028、U+2029、U+202F、U+205F、U+3000、U+FEFF），pattern 同样不用 \\s 与 $，以 (?![\\s\\S]) 作绝对结尾；权威在那一条，该条改集合时本定义随之出新版本。刻意不 $ref 那份契约的 OpaqueIdentifier：那一项的含义是「部署内唯一、由存储生成」，路由名两样都不是。禁首尾空白是为了不让 S-3 的「路由名在全部档案里唯一」被一个尾随空格绕过。大小写不同、Unicode 相似字不算同名（S-3，主线 2026-09-23 裁定），本定义不做折叠。",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])",
+      "examples": ["vendor-a/chat-large", "vendor-b/coder-7b"]
+    },
+
+    "ProfileOrigin": {
+      "title": "ProfileOrigin",
+      "description": "S-4：档案的来源，恰两值。official 随系统发布、位于出厂默认层；custom 由组织超级管理员或租户在自己那一层（组织层或租户层）建。由产生方式决定，不是建档者可选的输入；产生时定，此后不可改。不同于资产的官方件 / 自定义件——档案不是资产。规格层判别式名，不是统一语言词条。",
+      "type": "string",
+      "enum": ["official", "custom"]
+    },
+
+    "ProviderName": {
+      "title": "ProviderName",
+      "description": "S-5：一家供应商在上游（OpenRouter）的标识。非空字符串，相等是逐码点精确相等；本系统不解析它。具体词法归传输适配层（缺口 G-2）。规格层值名，不是统一语言词条。",
+      "type": "string",
+      "minLength": 1,
+      "examples": ["provider-x"]
+    },
+
+    "Modality": {
+      "title": "模态 · Modality",
+      "description": "S-7：一类内容的形态（UL-modality），恰四种：text ↔ 文本、image ↔ 图、audio ↔ 语音（词条英文 voice）、video ↔ 视频。闭合，未知取值一律拒绝。文件不是一种模态：文件块的模态看它的媒体类型。",
+      "$comment": "data.content-blocks 在并行起草中，预定有同名定义、同样四个 token。两份定型后本定义改为 $ref 那一份，不留两份同义定义；对齐义务登记在 verification.md。",
+      "type": "string",
+      "enum": ["text", "image", "audio", "video"]
+    },
+
+    "InputConstraints": {
+      "title": "InputConstraints",
+      "description": "S-9：送进去之前的限制——上游对内容本身的额外要求。开放的一组，可以一条都没有（写 {}）；本版登记的恰一条 maxImageBytes：一张图送进去时最多多少字节。某一条缺席即档案记载上游对此没有限制。加一条是新版本；出现未登记的键即拒（constraint_unknown），不忽略。规格层值名，不是统一语言词条。",
+      "type": "object",
+      "properties": {
+        "maxImageBytes": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false,
+      "examples": [{}, { "maxImageBytes": 5242880 }]
+    },
+
+    "Registration": {
+      "title": "Registration",
+      "description": "S-10：在册状态，恰两值。档案产生时为 listed；listed → withdrawn 是唯一一条转移，withdrawn 是终态，没有回到 listed 的写路径。撤回不删行：已撤回的档案仍读得出，它的路由名在所在范围里仍被占着。「这个范围不允许它」不是这里的取值，是作用域求值的结果。规格层判别式名，不是统一语言词条。",
+      "type": "string",
+      "enum": ["listed", "withdrawn"]
+    },
+
+    "ModelRequestParameters": {
+      "title": "模型请求参数 · Model Request Parameters",
+      "description": "S-15～S-21：系统统一命名的一组常用请求参数（UL-model-request-parameters）。每一项都可缺席；缺席即不带这一项，任何一方不得替它补值（S-17）。作为独立值时 {} 表示一项都没有；挂在档案上时不得为空（见 ModelProfile.parameters）。各家 adapter 自己翻译成上游字段；上游不认的项不静默丢、值不静默改，留痕形状归 data.model-response（S-21）。词表加一项是新版本；出现未登记的成员即拒，不忽略。",
+      "$comment": "maxOutputTokens 不超过档案上限（S-18）只在档案文档里判；独立值里没有档案可比，与档案怎样配对、一次请求的覆盖怎样合并是缺口 G-8。本词表不含任何时限（超时、退避）——那是重试件的配置（PF-013 §6.17）。",
+      "type": "object",
+      "properties": {
+        "reasoningEffort": { "$ref": "#/$defs/ReasoningEffort" },
+        "temperature": { "type": "number", "minimum": 0, "maximum": 2 },
+        "topP": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "seed": { "type": "integer" },
+        "maxOutputTokens": { "type": "integer", "minimum": 1 },
+        "stopSequences": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        },
+        "frequencyPenalty": { "type": "number", "minimum": -2, "maximum": 2 },
+        "presencePenalty": { "type": "number", "minimum": -2, "maximum": 2 },
+        "extra": {
+          "description": "S-19：上游私有的透传项。键是上游自己的字段名，值是任意 JSON。出现时至少一项；键非空，且不得与统一词表的八个成员名相同。",
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "minLength": 1,
+            "not": {
+              "enum": [
+                "reasoningEffort",
+                "temperature",
+                "topP",
+                "seed",
+                "maxOutputTokens",
+                "stopSequences",
+                "frequencyPenalty",
+                "presencePenalty"
+              ]
+            }
+          }
+        }
+      },
+      "additionalProperties": false,
+      "examples": [
+        {},
+        { "reasoningEffort": "none" },
+        { "temperature": 0.2, "seed": 42, "extra": { "top_k": 40 } }
+      ]
+    },
+
+    "ReasoningEffort": {
+      "title": "ReasoningEffort",
+      "description": "S-16：推理强度，恰五值，闭合。none 是一个取值（明说不要推理），不同于缺席（不带这一项）。各档怎样译成上游的字段归 adapter；译不出原值时按 S-21 留痕，不得静默换成相邻的一档。",
+      "type": "string",
+      "enum": ["none", "low", "medium", "high", "max"]
+    }
+  }
+}
