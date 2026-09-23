@@ -123,6 +123,8 @@ class SavepointDriver implements Driver {
   constructor(
     private readonly inner: Driver,
     private readonly write: boolean,
+    /** 读写两个 Kysely 共用一个 pool：销毁交给 openPostgres 里只结束一次的那个函数，不各自 `pool.end()` */
+    private readonly destroyInner: () => Promise<void> = () => inner.destroy(),
   ) {}
   init() {
     return this.inner.init()
@@ -151,7 +153,7 @@ class SavepointDriver implements Driver {
     await this.inner.releaseConnection(raw)
   }
   destroy() {
-    return this.inner.destroy()
+    return this.destroyInner()
   }
   #raw(connection: DatabaseConnection): DatabaseConnection {
     return this.#wrapped.get(connection) ?? connection
@@ -160,11 +162,14 @@ class SavepointDriver implements Driver {
 
 export function openPostgres(options: PostgresOptions): DialectHandles {
   const pool = new pg.Pool({ connectionString: options.connectionString })
+  // pg.Pool 只许 end 一次；readDb 与 writeDb 各自 destroy 时都走这一个承诺
+  let ended: Promise<void> | undefined
+  const endPool = (): Promise<void> => (ended ??= pool.end())
   const make = (write: boolean): UntypedDb => {
     const dialect = new PostgresDialect({ pool })
     return new Kysely({
       dialect: {
-        createDriver: () => new SavepointDriver(dialect.createDriver(), write),
+        createDriver: () => new SavepointDriver(dialect.createDriver(), write, endPool),
         createQueryCompiler: () => dialect.createQueryCompiler(),
         createAdapter: () => dialect.createAdapter(),
         createIntrospector: db => dialect.createIntrospector(db),
@@ -187,5 +192,13 @@ export function openPostgres(options: PostgresOptions): DialectHandles {
     },
     readIsolation: 'repeatable read',
     writeIsolation: 'read committed',
+    async listTables(db) {
+      const { rows } = await sql<{
+        name: string
+      }>`SELECT table_name AS name FROM information_schema.tables WHERE table_schema = current_schema() AND table_type = 'BASE TABLE'`.execute(
+        db,
+      )
+      return rows.map(row => row.name)
+    },
   }
 }

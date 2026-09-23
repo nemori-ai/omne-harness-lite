@@ -58,21 +58,33 @@ evidence/
 
 ## 当前状态
 
-**本区有两次运行，都在 2026-09-22，跑的是同一批任务**：
-[`2026-09-22-formal-tenant-domain/`](2026-09-22-formal-tenant-domain/README.md) 与
-[`…-2/`](2026-09-22-formal-tenant-domain-2/README.md)。
-每次都是四个已登记 TLC 任务全部无反例，另加一次**按预期给出反例**的有效性核对
-与一次**未登记为任务**的 Alloy 执行。
+**本区有四次运行**：2026-09-22 两次形式工件执行，2026-09-23 一次形式工件执行与一次实现测试运行。
 
-**第二次是因为模型改了**：五份契约经评审轮一修订，`Registration.tla`、`progress.cfg` 与
+| run                                                                                                 | 跑了什么                                                                                                                                                                                                           | 结果                                                         |
+| --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
+| [`2026-09-22-formal-tenant-domain/`](2026-09-22-formal-tenant-domain/README.md)                     | 四个已登记 TLC 任务、一次有效性核对、一次未登记的 Alloy 执行                                                                                                                                                       | 任务全部无反例，有效性核对按预期给出反例                     |
+| [`2026-09-22-formal-tenant-domain-2/`](2026-09-22-formal-tenant-domain-2/README.md)                 | 同一批，模型改过之后重跑                                                                                                                                                                                           | 同上                                                         |
+| [`2026-09-23-formal-governance-center-entry/`](2026-09-23-formal-governance-center-entry/README.md) | formal task `governance-center-entry-v1-decision` ＋ 九个否定配置                                                                                                                                                  | 正配置无反例；九个否定配置全部按预期给出反例                 |
+| [`2026-09-23-tests-tenancy-leg-2/`](2026-09-23-tests-tenancy-leg-2/README.md)                       | 全部 13 个 TS 成员的 build／typecheck／test、`lint:rules`、`format:check`（sqlite），三份 pg 测试文件（`postgres:16`）；两处逐字节独立核对；[各节点证据义务的回填清单](2026-09-23-tests-tenancy-leg-2/coverage.md) | sqlite 1218 条：1184 通过、**34 跳过**、0 失败；pg 33 条全过 |
+
+**2026-09-22 的第二次是因为模型改了**：五份契约经评审轮一修订，`Registration.tla`、`progress.cfg` 与
 `Affiliation.als` 三份工件跟着改了，**`Membership.tla` 与它的两个 cfg 没改**。
-因此**上一次 run 不是整批作废**——它的 membership 两行输入逐字节未变、仍然适用，
+因此**第一次 run 不是整批作废**——它的 membership 两行输入逐字节未变、仍然适用，
 其余几行对应旧模型。[逐文件的哈希对照在 run `-2` 的 README](2026-09-22-formal-tenant-domain-2/README.md#为什么重跑)。
 
-**通过不提升那五份契约的状态**，它们仍是 `candidate`；引用结论时沿用对应 run README 写明的边界。
+**2026-09-23 没有重跑那四个任务**：它们的模型与配置同 run `-2` 的输入快照逐字节相同，run `-2` 的结论照旧适用；
+**例外是未登记的 Alloy 模型**，`Affiliation.als` 与 run `-2` 的快照差一行注释，那一行结论已不绑定当前文件
+（[对照在 2026-09-23 形式 run 的 README](2026-09-23-formal-governance-center-entry/README.md#其余四个任务为什么不重跑)）。
+
+**通过不提升任何契约的状态**，它们仍是 `candidate`；引用结论时沿用对应 run README 写明的边界。
+**模型检查与实现测试分开陈述**：形式 run 的无反例不说明实现，测试 run 的通过不说明模型性质；测试 run 里的跳过不是通过。
 
 存量证据尚未从 `design_legacy/evidence/` 迁入（约 292 个文件，
 含 `formal-2026-09-16` 的 TLC 执行记录、`joint-protocol-2026-09-16` 与 `legacy-consumers`）。
 迁入是整目录搬运。
+
+**2026-09-23 另有一次 Alloy 重跑**：[`2026-09-23-alloy-affiliation/`](2026-09-23-alloy-affiliation/README.md)——`Affiliation.als` 自 run `-2` 之后改过一行注释（冻结的是改后的文件），对当前文件重跑四条命令，结论与 run `-2` 逐条相同；同样不是 formal task。
+
+**2026-09-23 黑盒端到端验收**：[`2026-09-23-e2e-governance-center/`](2026-09-23-e2e-governance-center/README.md)——照部署方式起 `serve` 进程，零产品包引用的测试客户端走 PF-001 flows §一／§二 与 PF-017 acceptance §一／§二；46 条场景全过，产品正文与冻结契约说法不一致三处只记观察（`output/anomalies.txt`）。**独立复跑与四态判定**：[`2026-09-23-e2e-governance-center-2/`](2026-09-23-e2e-governance-center-2/README.md)——干净检出从零构建复跑 46/46 同样通过，手动演练走完；对上一次 run 的 109 行场景逐行判：Pass 54、Pass with issues 20（断言比正文弱或前提有界，逐条列出）、Fail 2（就是那两处产品正文与契约不一致）、Unable to verify 33；遮蔽用独立采集的秘密清单与结构扫描复核，0 命中。
 
 返回[已发生的事](../README.md)。

@@ -5,7 +5,7 @@
 **自建一个薄的 TypeScript 包，三件事一包。**
 
 1. **probe 的家。**[basis 准入](../../../../basis/README.md#准入)要求每条机制语义条目有一个在该语义消失时会失败的 probe；四条 [basis/cordis](../../../../basis/README.md#当前状态) 条目此前 `probe: null`，理由都是「尚无 Cordis 集成测试位置」。
-   [D-025](../../../../record/decisions/cordis-adoption-version/decision.md) 把版本钉在 4.0.4 并把闭合条件写成「basis 四条与三条待核对主张的 probe 在 4.0.4 上通过」，`probe` 字段指向 `packages/core/kernel-basis/tests/basis/<id>.test.ts`。本节点就是那个位置；八条 probe 已于 2026-09-22 在 4.0.4 上通过，四条条目已回填。
+   [D-025](../../../../record/decisions/cordis-adoption-version/decision.md) 把版本钉在 4.0.4 并把闭合条件写成「basis 四条与三条待核对主张的 probe 在 4.0.4 上通过」，`probe` 字段指向 `packages/core/kernel-basis/tests/basis/<id>.test.ts`。本节点就是那个位置：basis/cordis 的八条条目与两条不对应条目的共用主张，probe 都在 `tests/basis/`。
 2. **插件层共用件。**四个 tenancy 插件节点各自写了同一批句子：config 校验失败即抛出、失败值是字面量联合、`credentials` 走「调用时解析」、每步之前查本 fiber 是否仍 `ACTIVE`。这些句子的机制形状**只该实现一次**，否则「配置错误一个政策」会在四个包里各写各的。
 3. **测试装配工具。**四个节点的场景演练都要「起一个 Context，装上 storage、clock 与被测插件」；D-026 又规定测试对着真实提供者跑（sqlite 临时文件库）。`./testing` 子路径给这件事一个入口。
 
@@ -23,12 +23,12 @@
 
 | 责任来源 | 公开入口 | 实现／源码与采用版本 | 依据或缺口 |
 |---|---|---|---|
-| D-025 闭合条件；basis 四条条目的 `probe` | `tests/basis/<id>.test.ts` 八个文件：`isolate-hides-instances-not-data`、`async-control-not-bail`、`plugin-body-reruns-on-provider-change`、`effect-disposal-concurrent-not-ordered`、`inject-has-no-optional-form`、`provide-is-effect-managed`、`plugin-throw-fails-fiber`、`fiber-state-readable`（[verification](verification.md#证据义务)逐条） | 已实现；4.0.4 上通过（2026-09-22） | 每条 probe 的断言、结果与失效条件在[读数与 probe 结果](#读数与-probe-结果)。basis 四条已回填；后四条不对应条目，升格另议（basis 维护者） |
-| 四节点「config 校验失败 ⇒ 插件体抛出 ⇒ 启动失败」（[AI](../../tenancy/account-identity/design.md#成对的装载与撤除)、[OG](../../tenancy/organization-governance/design.md#成对的装载与撤除)、[AR](../../tenancy/account-registration/design.md#成对的装载与撤除)、[offer-expiry S-14 默认值那一路](../offer-expiry/design.md#能力到-cordis-的投影)） | `definePlugin({ name, inject?, Config, apply })` → `Plugin.Object`：`Config` 是任一 Standard Schema v1（zod 即可）；校验由**内核**在插件体运行前完成，失败 ⇒ fiber `FAILED`、不 provide、`await fiber` 拒绝；`inject` 里写进去的都是必需 | `src/plugin.ts`；zod 4.6.5（workspace catalog）只在测试里用，本包源码只依赖 `@standard-schema/spec` 的类型 | **这是「配置错误一个政策」的唯一实现点**：缺密钥、非正时长、非法方言配置在同批六个插件里同一收场——启动失败，不做运行期具名拒绝。机制已由 probe `plugin-throw-fails-fiber` 核实（非法 config ⇒ `FAILED` 且插件体不跑） |
+| D-025 闭合条件；basis/cordis 条目的 `probe` | `tests/basis/<id>.test.ts` 十个文件：`isolate-hides-instances-not-data`、`async-control-not-bail`、`plugin-body-reruns-on-provider-change`、`effect-disposal-concurrent-not-ordered`、`inject-has-no-optional-form`、`provide-is-effect-managed`、`plugin-throw-fails-fiber`、`fiber-state-readable`（[verification](verification.md#证据义务)逐条），以及 `emit-listener-throw-propagates`、`logger-level-order-error-lowest` | 已实现；前八个 4.0.4 上通过（2026-09-22），后两个随条目 2026-09-23 登记 | 前八个的断言、结果与失效条件在[读数与 probe 结果](#读数与-probe-结果)；后两个的读数与复核方式在各自 basis 条目里。八个文件对应 basis 条目，`provide-is-effect-managed`、`fiber-state-readable` 不对应条目，升格另议（basis 维护者） |
+| 四节点「config 校验失败 ⇒ 插件体抛出 ⇒ 启动失败」（[AI](../../tenancy/account-identity/design.md#成对的装载与撤除)、[OG](../../tenancy/organization-governance/design.md#成对的装载与撤除)、[AR](../../tenancy/account-registration/design.md#成对的装载与撤除)、[offer-expiry S-14 默认值那一路](../offer-expiry/design.md#能力到-cordis-的投影)） | `definePlugin({ name, inject?, Config, apply })` → `Plugin.Object`：`Config` 是任一 Standard Schema v1（zod 即可）；校验由**内核**在插件体运行前完成，失败 ⇒ fiber `FAILED`、不 provide、`await fiber` 拒绝；`inject` 里写进去的都是必需 | `src/plugin.ts`；zod 4.6.5（workspace catalog）只在测试里用，本包源码只依赖 `@standard-schema/spec` 的类型 | **这是「配置错误一个政策」的唯一实现点**：缺密钥、非正时长、非法方言配置在同批八个插件里同一收场——启动失败，不做运行期具名拒绝。机制已由 probe `plugin-throw-fails-fiber` 核实（非法 config ⇒ `FAILED` 且插件体不跑） |
 | 四节点的返回类型形状 `{ ok: X } \| { failure: '…' }` 与「只有成功与否」的 `ok` | `Outcome<T, F extends string> = { ok: T } \| { failure: F }`；`Ack<F> = 'ok' \| { failure: F }`；`succeed(v)`、`fail(f)`、`isSuccess(o)`。**没有兜底值**，`F` 是各契约自己的闭合字面联合（拼法以契约为准，不在此统一） | `src/outcome.ts` | identity-values 的 `Parsed<T>`（`{ ok } \| { invalidInput }`）**不在本包**——它的权威在 [identity-values](../identity-values/design.md#能力到-cordis-的投影)，本包不为它提供助手、不重定义，理由见[关键选择](#四处关键选择) |
 | AI「`credentials` 可选依赖、调用时解析」（[理由](../../tenancy/account-identity/design.md#s-15-归本节点credentials-作可选依赖在调用时解析)） | `resolveOptional<T>(ctx, name): T \| undefined`：读 `ctx.get(name)`，提供者缺席或已撤除 ⇒ `undefined`；**不登记依赖、不触发重跑** | `src/plugin.ts` | probe `inject-has-no-optional-form`：缺席 ⇒ `undefined` 且插件体照跑；提供者出现／撤除／换代都不重跑调用方。返回 `undefined` 而不是抛出：AI 的收场是「验证器不在 ⇒ `storage-unavailable`」，调用方要能把缺席当一个普通分支 |
 | AR「每步之前检查本 fiber 是否仍 `ACTIVE`」（[S-22 行](../../tenancy/account-registration/design.md#能力到-cordis-的投影)） | `FIBER_STATE = { PENDING: 0, LOADING: 1, ACTIVE: 2, FAILED: 3, DISPOSED: 4, UNLOADING: 5 }` 数值镜像 + `fiberIsActive(ctx)`（`ctx.fiber.state === FIBER_STATE.ACTIVE`） | `src/fiber-state.ts` | 4.0.4 的 `FiberState` 是 `declare const enum`，`isolatedModules` 下不能在运行时引用，所以镜像数值；probe `fiber-state-readable` 对着真实 fiber 核了 `PENDING`／`LOADING`／`ACTIVE`／`FAILED`／`DISPOSED` 五个值，**`UNLOADING` 未被观察到**（缺口） |
-| 四节点的场景演练 + D-026「测试对着真实提供者」 | `./testing`：`bootAssembly({ services?, plugins? })` → `{ ctx, fibers, dispose() }`。`services` 是装配层直接 provide 的服务值 `{ name, value }`（存储、时钟由调用方传入），由一个匿名宿主插件承载；`plugins` 按顺序装载并各自 `await`；任一插件启动失败 ⇒ 整个 `bootAssembly` 拒绝。另导出 `settle(fiber)` 供观察中间态 | `src/testing/index.ts` | **本包不 import `infra/storage-sql`**（`core` 不依赖 `infra`），夹具由调用方传入——见[关键选择](#四处关键选择)。启动失败时**已装的 fiber 不被撤除**（源码现状），见[装卸表](#成对的装载与撤除)与缺口 |
+| 四节点的场景演练 + D-026「测试对着真实提供者」 | `./testing`：`bootAssembly({ services?, plugins? })` → `{ ctx, fibers, dispose() }`。`services` 是装配层直接 provide 的服务值 `{ name, value }`（存储、时钟由调用方传入），由一个匿名宿主插件承载；`plugins` 按顺序装载并各自 `await`；任一插件启动失败或装后仍 `PENDING` ⇒ 先逆序撤已装的 fiber 再拒绝。另导出 `settle(fiber)` 供观察中间态 | `src/testing/index.ts` | **本包不 import `infra/storage-sql`**（`core` 不依赖 `infra`），夹具由调用方传入——见[关键选择](#四处关键选择)；撤除次序见[装卸表](#成对的装载与撤除) |
 
 ## 读数与 probe 结果
 
@@ -40,9 +40,9 @@
 | 2 | [`async-control-not-bail`](../../../../basis/cordis/async-control-not-bail.md) | **按 4.0.4 改正**：`isBailed` 只排除 `null`／`false`／`undefined`，**Promise 本身被当作 bail 值**——`bail` 在异步监听者处停下并把 Promise 交回调用方，后面的监听者不跑（不是「Promise 被忽略、继续往下」）；`serial` 逐个 await 后按解析值判定；`emit` 丢弃返回值 | `async-control-not-bail.test.ts`：① 异步「无异议」监听者在前、同步「否决」监听者在后，`ctx.bail` 返回值是 `Promise` 实例、只有异步者跑过、Promise 解析为 `undefined`；② `ctx.serial` 三个监听者都跑、`undefined`／`false` 不算 bail 值、结果是第三个的 `true`；③ `ctx.emit` 返回 `undefined` 且三个都跑 | 通过 | ①红 ⇒ 上游让 bail await 了——「异步控制走 `serial`」的红线仍成立但理由变了；②红 ⇒ serial 不再等待，四节点所有 `serial` 控制点失效。结论与 4.0.2 读数相同，失败形态改了：不是「静默放行」，是「拿到一个 Promise 当判定」 |
 | 3 | [`plugin-body-reruns-on-provider-change`](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md) | `Fiber.store` 是必需服务实现的快照，代际由提供者 fiber uid 拼成，变则先卸载再重跑插件体（`fiber.ts`）；提供者非 `ACTIVE` 或 `check` 返回假亦然（`reflect.ts`） | `plugin-body-reruns-on-provider-change.test.ts`：消费者 `inject: ['svc']`，① 提供者不在 ⇒ 插件体未跑（0 次）；② provide ⇒ 1 次；③ 同一提供者实例内改内部状态 ⇒ 仍 1 次；④ dispose 提供者、装新提供者 ⇒ 2 次 | 通过 | ④红 ⇒ 重跑不再发生，四节点「插件体只做 provide 与校验、可重跑」的前提变了；③红 ⇒ 重跑被理解得过宽，AI「`credentials` 可选」的半径论证要重看 |
 | 4 | [`effect-disposal-concurrent-not-ordered`](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md) | 同一 effect 内 disposer 逆序；fiber 卸载时各 effect 逆注册序**取出**后 `Promise.all` 并发驱动，异常只写日志不上抛（`fiber.ts`、`utils.ts`）；`UNLOADING`／已 dispose 后再建 effect 抛 `INACTIVE_EFFECT` | `effect-disposal-concurrent-not-ordered.test.ts`：① 慢 disposer（50ms）先注册、快的后注册，完成序是 `['fast', 'slow']`；② 一个 disposer 抛错，`dispose()` 仍 resolve 且第二个照常释放；③ 生成器 effect 的三个 disposer 逆序 `[3, 2, 1]`；④ dispose 后 `ctx.effect` 抛 `INACTIVE_EFFECT` | 通过 | ①红 ⇒ 上游改为顺序 await；②红 ⇒ 卸载失败开始上抛，`infra/storage-sql` 关闭句柄失败的收场要改 |
-| 5 | 共用主张：**`inject` 无可选形式，可选依赖走 `ctx.get`**（AI 依赖表；probe 不对应 basis 条目） | `Inject = (keyof M)[] \| { [K]?: config }`——写进即必需；`_refresh()` 缺一即不进 `ACTIVE`；`reflect.ts` 注释「Read a service from the store without the inject requirement」 | `inject-has-no-optional-form.test.ts`：① 对象形式 `inject: { missing: undefined }` 在 `missing` 缺席时 `PENDING`、插件体不跑；② 插件体里 `resolveOptional(ctx, 'credentials')` 缺席得 `undefined`、插件体照跑一次；③ provide A ⇒ 取到 A；dispose A ⇒ `undefined`；provide B ⇒ 取到 B；④ 全程调用方插件体仍只跑了 1 次 | 通过 | ④红 ⇒ `ctx.get` 开始登记依赖，AI「`credentials` 换代不重跑本插件」失守，`resolveOptional` 要换机制；①红 ⇒ inject 默认可选，六个插件的 `PENDING` 收场全部失效。**未覆盖**：提供者处于 `PENDING`／`UNLOADING` 中间态时 `ctx.get` 的返回（只核了缺席与撤除后） |
+| 5 | [`inject-has-no-optional-form`](../../../../basis/cordis/inject-has-no-optional-form.md)：**`inject` 无可选形式，可选依赖走 `ctx.get`**（AI 依赖表） | `Inject = (keyof M)[] \| { [K]?: config }`——写进即必需；`_refresh()` 缺一即不进 `ACTIVE`；`reflect.ts` 注释「Read a service from the store without the inject requirement」 | `inject-has-no-optional-form.test.ts`：① 对象形式 `inject: { missing: undefined }` 在 `missing` 缺席时 `PENDING`、插件体不跑；② 插件体里 `resolveOptional(ctx, 'credentials')` 缺席得 `undefined`、插件体照跑一次；③ provide A ⇒ 取到 A；dispose A ⇒ `undefined`；provide B ⇒ 取到 B；④ 全程调用方插件体仍只跑了 1 次 | 通过 | ④红 ⇒ `ctx.get` 开始登记依赖，AI「`credentials` 换代不重跑本插件」失守，`resolveOptional` 要换机制；①红 ⇒ inject 默认可选，六个插件的 `PENDING` 收场全部失效。**未覆盖**：提供者处于 `PENDING`／`UNLOADING` 中间态时 `ctx.get` 的返回（只核了缺席与撤除后） |
 | 6 | 共用主张：**`ctx.provide` 经 effect 纳管**（AI／OG／AR 装卸表） | `provide` 实现为 `this.ctx.fiber.effect(() => { …; return async () => { delete this.store[key] } })` | `provide-is-effect-managed.test.ts`：① 撤除提供者 ⇒ `ctx.get('accounts')` 为 `undefined`、必需 inject 它的消费者从 `ACTIVE` 回到 `PENDING`；② 插件体先 provide 再抛出 ⇒ 拒绝且该服务不可见 | 通过 | ①或②红 ⇒ 服务在 fiber 死后残留，三个节点「第二个 provide 失败则第一个随 fiber 撤」的部分失败收口不成立 |
-| 7 | 共用主张：**插件体或 config 抛出 ⇒ fiber `FAILED`、不 provide**（AI／OG／AR 装卸表、offer-expiry S-14） | `fiber.ts`「`FAILED` — the callback or its config threw」；`if (this._error) return FiberState.FAILED`；plugin `Config` 是 `StandardSchemaV1`，校验失败抛 config error | `plugin-throw-fails-fiber.test.ts`：① 插件体抛出 ⇒ `await fiber` 以同一错误拒绝、`state === FAILED`；② `definePlugin` + zod `Config`，非法 config ⇒ 拒绝（`/invalid config/`）、`FAILED`、插件体**未执行**、服务不可见；③ 合法 config ⇒ `ACTIVE`，插件体拿到校验后的值 | 通过 | ①或②红 ⇒ 抛出被吞、fiber 仍 `ACTIVE`——「配置错误 ⇒ 启动失败」的机制要换（在 provide 前显式 return 并记录），`definePlugin` 随之改 |
+| 7 | [`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)：**插件体或 config 抛出 ⇒ fiber `FAILED`、不 provide**（AI／OG／AR 装卸表、offer-expiry S-14） | `fiber.ts`「`FAILED` — the callback or its config threw」；`if (this._error) return FiberState.FAILED`；plugin `Config` 是 `StandardSchemaV1`，校验失败抛 config error | `plugin-throw-fails-fiber.test.ts`：① 插件体抛出 ⇒ `await fiber` 以同一错误拒绝、`state === FAILED`；② `definePlugin` + zod `Config`，非法 config ⇒ 拒绝（`/invalid config/`）、`FAILED`、插件体**未执行**、服务不可见；③ 合法 config ⇒ `ACTIVE`，插件体拿到校验后的值 | 通过 | ①或②红 ⇒ 抛出被吞、fiber 仍 `ACTIVE`——「配置错误 ⇒ 启动失败」的机制要换（在 provide 前显式 return 并记录），`definePlugin` 随之改 |
 | 8 | 共用主张：**`ctx.fiber.state` 可读，`FIBER_STATE` 镜像与真实取值一致**（AR S-22） | `FiberState` 为 `declare const enum { PENDING, LOADING, ACTIVE, FAILED, DISPOSED, UNLOADING }`；`state` 是 fiber 上的读面 | `fiber-state-readable.test.ts`：inject 缺席的 fiber `state === 0`（PENDING）；插件体内 `ctx.fiber.state === 1`（LOADING）；就绪后 `2`（ACTIVE）且 `fiberIsActive` 为真；插件体抛出 ⇒ `3`（FAILED）；dispose 后 `4`（DISPOSED）且 `fiberIsActive` 为假 | 通过 | 任一红 ⇒ 镜像数值错位，`fiberIsActive` 与 AR 主动停步跟着错。**未覆盖**：`UNLOADING`（5）没有被观察到——它是卸载进行中的瞬态，probe 未构造 |
 
 **probe 的形式**：每条一个测试文件，依赖 `@deepseek-ai/cordis` 4.0.4 与 vitest；probe 5／7／8 另引用本包的 `resolveOptional`／`definePlugin`／`FIBER_STATE`——它们核的正是这三个共用件所依赖的语义，让共用件本身进 probe 是有意的。断言写「当前语义成立」而不是「上游应该如此」——红了就是版本真的改了什么，D-025 要的正是这个信号。
@@ -76,7 +76,7 @@
 
 | | `./testing` 内建 sqlite 临时文件夹具（落选） | **调用方传入 `services: [{ name, value }]` 与插件（已落）** |
 |---|---|---|
-| 层次 | `core` 依赖 `infra`——协议层依赖它的一个实现 | `core` 只依赖 `core`；夹具在 `infra/storage-sql` 自己的测试入口（候选，批 B）里 |
+| 层次 | `core` 依赖 `infra`——协议层依赖它的一个实现 | `core` 只依赖 `core`；夹具在各消费者包自己的测试支撑文件里（经 `infra/storage-sql` 的 `openStorage` 起临时文件库） |
 | 每个测试文件写什么 | 一行 | 三四行：建临时文件、起 storage 实例、作为服务值传入 |
 | 换提供者跑同一批场景 | 改本包 | 改测试文件的一行 |
 | 本方弱点 | — | 样板重复；「每个测试文件一个库、不共享」是调用方纪律，本包管不到；传入的是**服务值**而不是插件，所以 storage 的装卸（关闭句柄）也由调用方自己做，`dispose()` 只撤 fiber |
@@ -97,9 +97,9 @@
 | zod 4.6.5（catalog） | `package.json` 列为依赖；本包源码不 import 它，测试与消费者用它写 `Config` | — | 换校验库 = 换消费者的 `Config` 写法，`definePlugin` 不变 |
 | 存储、时间源 | **不消费**——本节点无事实、无期限判定；`./testing` 只是把调用方传入的服务值 provide 出去 | — | — |
 
-**被谁消费**：四个 tenancy 插件节点（共用件 + `./testing`）、`infra/storage-sql` 与 `infra/clock`（`definePlugin`）。**`./testing` 只被测试代码 import**，产品代码不得依赖它——一条静态检查（候选，仓库 lint），登记在 verification。
+**被谁消费**：五个 tenancy 包（AI、CV、OG、AR、入口层；共用件 + `./testing`）、`infra/storage-sql` 与 `infra/clock`（`definePlugin`）、装配 `apps/tenancy-host`（`FIBER_STATE`）。**`./testing` 只被测试代码 import**，产品代码不得依赖它——承载仓库 `tools/ts-checks` 的规则 `no-testing-import`（产品源码不得 import `@omne-harness-lite/*/testing`），登记在 verification。
 
-**配置错误政策**：本节点无配置；它**实现**那条政策（`definePlugin` 把 `Config` 交给内核校验）。同批六个插件（四个 tenancy + 两个 infra）的 config 校验都经它，收场一律「fiber `FAILED` ⇒ 启动失败」。
+**配置错误政策**：本节点无配置；它**实现**那条政策（`definePlugin` 把 `Config` 交给内核校验）。同批八个插件（五个 tenancy 包的六个插件——入口层包有入口层与运维面两个——加两个 infra）的 config 校验都经它，收场一律「fiber `FAILED` ⇒ 启动失败」。
 
 ## 状态、并发与失败映射
 
@@ -121,8 +121,6 @@
 
 ## 实施缺口与消费者影响
 
-- **`package.json` 对 `identity-values` 的依赖无 import**：应删；owner 本节点。
 - **probe 未覆盖**：`UNLOADING` 取值、子 isolate 解析父标签服务抛错、提供者中间态下 `ctx.get` 的返回——三处各缺一条断言；owner 本节点，升级 Cordis 前补齐更稳。
-- **四条不对应 basis 条目的 probe**是否升格：归 basis 维护者，按 basis 准入另议；本节点只维护测试。
-- **`./testing` 不被产品代码依赖**的静态检查：检查器不存在。
-- **消费者影响**：AI 的 `credentials` 可选依赖、AR 的 S-22 主动停步、六个插件的启动失败政策，各自依赖 probe 5／8／7；四个 tenancy 节点正文里「待核对主张」的措辞可改为指向对应 probe 文件（不在本节点可写范围）。
+- **两条不对应 basis 条目的 probe**（`provide-is-effect-managed`、`fiber-state-readable`）是否升格：归 basis 维护者，按 basis 准入另议；本节点只维护测试。
+- **消费者影响**：AI 的 `credentials` 可选依赖、AR 的 S-22 主动停步、八个插件的启动失败政策，各自依赖 probe 5／8／7（前者与后者已升格为 basis 条目 `inject-has-no-optional-form`、`plugin-throw-fails-fiber`）。

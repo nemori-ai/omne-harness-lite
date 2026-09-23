@@ -1,0 +1,66 @@
+===== [kernel-basis] build =====
+$ (cwd=/data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence) pnpm --filter @omne-harness-lite/kernel-basis run build
+start: 2026-09-23T16:11:57Z
+
+> @omne-harness-lite/kernel-basis@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence/packages/core/kernel-basis
+> node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+
+end: 2026-09-23T16:11:58Z
+exit: 0
+
+===== [kernel-basis] typecheck =====
+$ (cwd=/data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence) pnpm --filter @omne-harness-lite/kernel-basis run typecheck
+start: 2026-09-23T16:11:58Z
+
+> @omne-harness-lite/kernel-basis@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence/packages/core/kernel-basis
+> tsc -p tsconfig.test.json
+
+end: 2026-09-23T16:12:00Z
+exit: 0
+
+===== [kernel-basis] test =====
+$ (cwd=/data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence) pnpm --filter @omne-harness-lite/kernel-basis exec vitest run --reporter=verbose --reporter=json --outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence/tmp/w4a/tests/json/kernel-basis.json
+start: 2026-09-23T16:12:00Z
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence/packages/core/kernel-basis
+
+ ✓ tests/basis/async-control-not-bail.test.ts > async-control-not-bail > bail 把 Promise 当 bail 值：异步「无异议」也会短路，且交回的是 Promise 不是判定 9ms
+ ✓ tests/basis/async-control-not-bail.test.ts > async-control-not-bail > serial 逐个 await 并按解析值判定；emit 丢弃返回值 3ms
+ ✓ tests/basis/isolate-hides-instances-not-data.test.ts > isolate-hides-instances-not-data > 隔离不及于数据 10ms
+ ✓ tests/basis/isolate-hides-instances-not-data.test.ts > isolate-hides-instances-not-data > 同标签重复 provide 抛错；同 label 的两次 isolate 合流 11ms
+ ✓ tests/basis/logger-level-order-error-lowest.test.ts > logger-level-order-error-lowest > 消息上的 level 数值：error 0、info 1、warn 2、debug 3 11ms
+ ✓ tests/basis/logger-level-order-error-lowest.test.ts > logger-level-order-error-lowest > exporter 无阈值 ⇒ 只到 INFO：warn 与 debug 被丢 2ms
+ ✓ tests/basis/logger-level-order-error-lowest.test.ts > logger-level-order-error-lowest > exporter 给 levels.default = 2 ⇒ warn 可见，debug 仍不可见 2ms
+ ✓ tests/basis/effect-disposal-concurrent-not-ordered.test.ts > effect-disposal-concurrent-not-ordered > 各 effect 的释放并发：慢的先注册、快的后注册，快的先完成 60ms
+ ✓ tests/basis/effect-disposal-concurrent-not-ordered.test.ts > effect-disposal-concurrent-not-ordered > disposer 抛错不上抛，卸载照常完成 8ms
+ ✓ tests/basis/effect-disposal-concurrent-not-ordered.test.ts > effect-disposal-concurrent-not-ordered > 同一 effect 内多个 disposer 逆序释放 2ms
+ ✓ tests/basis/effect-disposal-concurrent-not-ordered.test.ts > effect-disposal-concurrent-not-ordered > 已 dispose 后再建 effect 抛 INACTIVE_EFFECT 3ms
+ ✓ tests/basis/inject-has-no-optional-form.test.ts > inject-has-no-optional-form > inject 的对象形式也是必需：缺席即 PENDING 10ms
+ ✓ tests/basis/inject-has-no-optional-form.test.ts > inject-has-no-optional-form > ctx.get 不要求 inject：缺席返回 undefined，出现后可取到，换代不重跑调用方 8ms
+ ✓ tests/basis/plugin-throw-fails-fiber.test.ts > plugin-throw-fails-fiber > 插件体抛出 ⇒ FAILED 18ms
+ ✓ tests/basis/plugin-throw-fails-fiber.test.ts > plugin-throw-fails-fiber > config 校验失败 ⇒ FAILED，插件体不跑，服务不出现 11ms
+ ✓ tests/basis/plugin-throw-fails-fiber.test.ts > plugin-throw-fails-fiber > config 合法 ⇒ ACTIVE，且插件体拿到的是校验后的值 3ms
+ ✓ tests/testing.spec.ts > bootAssembly > 先 provide 装配层服务，再装插件；撤除后服务消失 21ms
+ ✓ tests/testing.spec.ts > bootAssembly > 任一插件启动失败 ⇒ 装配整体抛出 9ms
+ ✓ tests/testing.spec.ts > Outcome > 成功与失败形状互斥 1ms
+ ✓ tests/testing.spec.ts > bootAssembly · 清单错误 > 必需服务缺席 ⇒ PENDING 即启动失败并撤已装的 3ms
+ ✓ tests/testing.spec.ts > bootAssembly · 部分失败先撤已装的 > 第二个插件启动失败 ⇒ 第一个插件的 disposer 已执行 8ms
+ ✓ tests/basis/emit-listener-throw-propagates.test.ts > emit-listener-throw-propagates > 监听者抛出 ⇒ emit 同步抛出，后续监听者不跑 7ms
+ ✓ tests/basis/emit-listener-throw-propagates.test.ts > emit-listener-throw-propagates > 发方自己 try/catch 只能保住自己：被截断的后续监听者仍然不跑 2ms
+ ✓ tests/basis/fiber-state-readable.test.ts > fiber-state-readable > 镜像数值与真实状态一致 13ms
+ ✓ tests/basis/provide-is-effect-managed.test.ts > provide-is-effect-managed > 撤除提供者 ⇒ 服务不可解析、依赖者 PENDING 7ms
+ ✓ tests/basis/provide-is-effect-managed.test.ts > provide-is-effect-managed > 两个 provide 之间抛出 ⇒ 第一个也随 fiber 撤掉 6ms
+ ✓ tests/basis/plugin-body-reruns-on-provider-change.test.ts > plugin-body-reruns-on-provider-change > 换提供者重跑，同实例状态变化不重跑 10ms
+
+ Test Files  11 passed (11)
+      Tests  27 passed (27)
+Type Errors  no errors
+   Start at  16:12:01
+   Duration  667ms (transform 387ms, setup 0ms, import 1.01s, tests 287ms, environment 2ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence/tmp/w4a/tests/json/kernel-basis.json
+end: 2026-09-23T16:12:02Z
+exit: 0
+

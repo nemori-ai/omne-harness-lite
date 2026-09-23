@@ -1,6 +1,12 @@
 // 失败集合闭合：每个操作的失败字面量集合与契约 ⑥ 逐字相等（类型层）。
 import { describe, expectTypeOf, it } from 'vitest'
-import type * as og from '../src/index.ts'
+import type {
+  LoginStateId,
+  MembershipStandingResult,
+  OrganizationId,
+} from '@omne-harness-lite/identity-values'
+import type { MigrationFragment } from '@omne-harness-lite/storage'
+import * as og from '../src/index.ts'
 
 describe('organization-governance 失败集合逐字对契约', () => {
   it('S-20', () => {
@@ -167,5 +173,70 @@ describe('organization-governance 失败集合逐字对契约', () => {
   })
   it('S-55 调用方判别式集合封闭', () => {
     expectTypeOf<og.OfferReader['kind']>().toEqualTypeOf<'account' | 'tenant'>()
+  })
+})
+
+describe('E-4：S-36／S-37 的登录状态参数是 LoginStateId 品牌（D-028；AI v2 S-30 第 10 行）', () => {
+  it('交 LoginStateId 编译通过；交 unknown 或 string 编译失败（去掉 @ts-expect-error 即红）', () => {
+    const memberships = {} as og.MembershipsService
+    const branded = 'ls-1' as LoginStateId
+    const wire: string = 'ls-1'
+    const anything: unknown = 'ls-1'
+    // 类型层只检查调用形状，不运行
+    const check = () => {
+      void memberships.currentTenant(branded)
+      void memberships.switchCurrentTenant(branded, { organization: 'o', account: 'a' })
+      // @ts-expect-error 线上收到的串交不进来
+      void memberships.currentTenant(wire)
+      // @ts-expect-error unknown 不能冒充品牌
+      void memberships.currentTenant(anything)
+      // @ts-expect-error 线上收到的串交不进来
+      void memberships.switchCurrentTenant(wire, { organization: 'o', account: 'a' })
+      // @ts-expect-error unknown 不能冒充品牌
+      void memberships.switchCurrentTenant(anything, { organization: 'o', account: 'a' })
+    }
+    expectTypeOf(check).toBeFunction()
+    expectTypeOf<
+      Parameters<og.MembershipsService['currentTenant']>[0]
+    >().toEqualTypeOf<LoginStateId>()
+    expectTypeOf<
+      Parameters<og.MembershipsService['switchCurrentTenant']>[0]
+    >().toEqualTypeOf<LoginStateId>()
+  })
+})
+
+describe('S-26 返回值是闭合和：invalidInput | MembershipStandingResult（右支恰两支）', () => {
+  it('不把 invalidInput 塞进 MembershipStandingResult', () => {
+    type StandingReturn = Awaited<ReturnType<og.MembershipsService['standing']>>
+    expectTypeOf<StandingReturn>().toEqualTypeOf<
+      MembershipStandingResult | { readonly failure: 'invalidInput' }
+    >()
+    expectTypeOf<Extract<MembershipStandingResult, { failure: unknown }>>().toEqualTypeOf<{
+      readonly failure: 'unavailable'
+    }>()
+  })
+})
+
+describe('S-34 读面的成功值不再嵌套一层失败', () => {
+  it('ancestorChain 成功是组织序列、shareAncestor 成功是布尔', () => {
+    type Chain = Awaited<ReturnType<og.OrganizationsService['ancestorChain']>>
+    type Share = Awaited<ReturnType<og.OrganizationsService['shareAncestor']>>
+    expectTypeOf<Extract<Chain, { ok: unknown }>['ok']>().toEqualTypeOf<readonly OrganizationId[]>()
+    expectTypeOf<Extract<Share, { ok: unknown }>['ok']>().toEqualTypeOf<boolean>()
+  })
+})
+
+describe('I-4 迁移工厂的导出形状（tenancy-host 消费，不改）', () => {
+  it('({ ownerAccountReference: { table, column }, ownerAccountForeignKey }) ⇒ readonly MigrationFragment[]', () => {
+    expectTypeOf(og.organizationGovernanceMigrations)
+      .parameter(0)
+      .toEqualTypeOf<og.OrganizationGovernanceMigrationOptions>()
+    expectTypeOf<og.OrganizationGovernanceMigrationOptions>().toEqualTypeOf<{
+      readonly ownerAccountReference: { readonly table: string; readonly column: string }
+      readonly ownerAccountForeignKey: string
+    }>()
+    expectTypeOf(og.organizationGovernanceMigrations).returns.toEqualTypeOf<
+      readonly MigrationFragment[]
+    >()
   })
 })

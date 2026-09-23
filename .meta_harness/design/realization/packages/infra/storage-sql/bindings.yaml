@@ -1,11 +1,11 @@
 # 条款到证据的绑定表。
 # 本节点不兑现任何 spec/ 契约条款——它兑现的是 core/storage 的存储协议（无契约坐标），
-# 所以没有可写进 clause 的坐标，也没有已登记的 formal task 或已存在的测试。
-# 协议级证据（一致性套件在本提供者上的运行）登记在 verification.md，缺口记在 README.md「分层状态」。
-# 升级守卫承接的是 apps/tenancy-host 的 R-U1～R-U8（对 PF-017 §6.9 的承接；PF-017 rev 1 已接受（2026-09-23）），
-# 以及入口契约 S-34 的一条前提。绑定仍为 0：无已存在的证据可绑（升级守卫尚无源码与测试），
-# 不写占位绑定，义务在 verification.md 的 upgrade.* 各行。
-# 尚不存在的证据不写占位绑定。
+# 所以没有可写进 clause 的坐标。
+# 协议级证据（一致性套件在本提供者上 sqlite 与 pg 两侧的运行）与升级守卫的 upgrade.* 各条，
+# 已在 record/evidence/2026-09-23-tests-tenancy-leg-2 跑过并逐行登记在 verification.md——它们证的是协议 P-1～P-12
+# 与 tenancy-host 的 R-U1～R-U8（对 PF-017 §6.9 的承接，不是契约条款），不是契约坐标。
+# 入口契约 S-34「存储不可用只以返回值到达」那一前提，本节点的兑现依据是「没有自撤路径」（design.md），
+# 该 run 里没有以它为名的用例，不绑。空表不是缺证据，是没有可写的 clause。
 version: 1
 node: "storage-sql"
 kind: "provider"

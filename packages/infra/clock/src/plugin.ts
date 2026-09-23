@@ -15,10 +15,7 @@ export const clockPlugin = definePlugin<z.infer<typeof ClockConfig>>({
   Config: ClockConfig,
   async apply(ctx: Context) {
     const storage = ctx.get('storage') as Storage
-    const clock = new LeaseClock({
-      storage,
-      onRenewFailure: error => ctx.logger.warn('clock lease write failed: %s', String(error)),
-    })
+    const clock = new LeaseClock({ storage, logger: ctx.logger })
     await clock.start()
     try {
       ctx.effect(() => () => clock.close())

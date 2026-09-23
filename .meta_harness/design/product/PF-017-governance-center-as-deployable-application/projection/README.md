@@ -5,12 +5,12 @@
 
 ## 版本
 
-| 版本 | 状态 | 对应需求修订 | 发布日期 | 说明 |
-|---|---|---|---|---|
-| [v1](v1/projection.md) | **当前，已接受** | PF-017 rev 2（PF-016 rev 3 的据点一侧只作对端；PF-001 rev 16 的登录状态语义经账号能力 v2） | 2026-09-23 | 首版：入口契约 v1 + 账号能力 v2 + 入口层／运维面节点 + tenancy-host 的两步开闸与升级整体性 + storage-sql／clock 本程修订；[D-028](../../../record/decisions/governance-center-design-acceptance/README.md) 同日接受为实施入口 |
+| 版本                   | 状态                     | 对应需求修订                                                                               | 发布日期   | 说明                                                                                                                                                                                                                          |
+| ---------------------- | ------------------------ | ------------------------------------------------------------------------------------------ | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [v2](v2/projection.md) | **当前，已接受，已实现** | PF-017 rev 2（同上）                                                                       | 2026-09-23 | E-0～E-8 全部完成并有四次证据 run；G-10／G-11 由 [D-029](../../../record/decisions/governance-center-transport-binding-acceptance/README.md) 闭合；新增第 9 节验收判据对账与三处来源问题                                      |
+| [v1](v1/projection.md) | 被 v2 取代（2026-09-23） | PF-017 rev 2（PF-016 rev 3 的据点一侧只作对端；PF-001 rev 16 的登录状态语义经账号能力 v2） | 2026-09-23 | 首版：入口契约 v1 + 账号能力 v2 + 入口层／运维面节点 + tenancy-host 的两步开闸与升级整体性 + storage-sql／clock 本程修订；[D-028](../../../record/decisions/governance-center-design-acceptance/README.md) 同日接受为实施入口 |
 
-**当前应实施的版本：v1**，接受依据是 [D-028](../../../record/decisions/governance-center-design-acceptance/decision.md)。接受的是设计与实施入口，不表示任何实现或验证已完成；
-第 7 节的未决项仍是显式缺口，其中 G-10 传输绑定与 G-11 防冒充手段**必须在入口层建包之前闭合**。
+**当前版本：v2**，接受依据是 [D-028](../../../record/decisions/governance-center-design-acceptance/decision.md) 与 [D-029](../../../record/decisions/governance-center-transport-binding-acceptance/decision.md)。v2 记录的是实现与验证的实际状态（第 6、8、9 节），未决项仍是显式缺口（第 7 节）。
 
 租户领域其余部分（账号、组织、注册、共用数据）的投影在 [PF-001 投影 v2](../../PF-001-identity-scope-and-agent-constraints/projection/README.md)；本投影只讲治理中心这一侧多出来的东西，两份互相指路、不互相重复。
 

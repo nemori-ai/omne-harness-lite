@@ -1,0 +1,1 @@
+{"ts":1790188143455,"level":"error","name":"tenancy-host","event":"startup-failed","stage":"config","item":"OMNE_TENANCY_ACTIVATION_SIGNING_KEY_PEM_FILE","errorType":"HostStartupFailure","message":"tenancy-host startup failed at config: OMNE_TENANCY_ACTIVATION_SIGNING_KEY_PEM_FILE: the file cannot be opened (ENOENT)"}

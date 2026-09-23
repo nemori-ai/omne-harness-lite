@@ -239,5 +239,5 @@
     }
   ],
   "supersedes": "v1",
-  "superseded_by": null
+  "superseded_by": "v3"
 }

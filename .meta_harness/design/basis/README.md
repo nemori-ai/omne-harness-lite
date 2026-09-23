@@ -81,6 +81,8 @@ probe 断言什么。
 
 ## 当前状态
 
+2026-09-23 阶段 2 加两条（W1-B 实现 account-identity 时核实）：`emit-listener-throw-propagates`（否定事实：`emit` 不隔离监听者）、`logger-level-order-error-lowest`（级别序与缺省阈值）；probe 同目录，对 4.0.4 通过。
+
 已有 6 条条目，均来自账号与租户设计实际依赖的机制语义：
 `isolate-hides-instances-not-data`、`async-control-not-bail`、
 `plugin-body-reruns-on-provider-change`、`effect-disposal-concurrent-not-ordered`（2026-09-22），

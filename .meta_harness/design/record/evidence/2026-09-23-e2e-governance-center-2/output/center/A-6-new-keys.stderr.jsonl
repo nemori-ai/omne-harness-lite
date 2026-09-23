@@ -1,0 +1,23 @@
+{"ts":1790188144511,"level":"info","name":"tenancy-host","event":"manifest-active","plugins":["storage-sql","clock","credential-verification","account-identity","organization-governance","account-registration","governance-center-ops","governance-center-entry"]}
+{"ts":1790188144513,"level":"info","name":"tenancy-host","event":"upgrade-confirmed","migrated":false,"snapshotTaken":false,"snapshotRemoved":false}
+{"ts":1790188144513,"level":"info","name":"tenancy-host","event":"open-signal"}
+{"ts":1790188144514,"level":"info","name":"tenancy-host","event":"serving","centerId":"ce2f13af75041b4a22fece8c54b59a7a","version":"0.0.0","startedAt":1790188144513}
+{"ts":1790188144603,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"operation\",\"route\":\"capability.organization-governance/v1#S-27\",\"account\":\"36ef99ae0305eb9c24adc39f06760f3380286919bdec6c231f92776d3fedab3c\",\"answer\":\"result\"}"}
+{"ts":1790188144608,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"operation\",\"route\":\"capability.organization-governance/v1#S-27\",\"account\":\"36ef99ae0305eb9c24adc39f06760f3380286919bdec6c231f92776d3fedab3c\",\"answer\":\"result\"}"}
+{"ts":1790188144612,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"operation\",\"route\":\"capability.organization-governance/v1#S-27\",\"account\":\"b3a789ff3ff40d6eebf7f52b457947379698001504c42044fee19ac4f0579112\",\"answer\":\"result\"}"}
+{"ts":1790188144616,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"operation\",\"route\":\"capability.organization-governance/v1#S-27\",\"account\":\"5f8fca83ce5e54430f018c0b13b9e7550c0b04e49089d0307c765b59f43e8672\",\"answer\":\"result\"}"}
+{"ts":1790188144620,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"operation\",\"route\":\"capability.organization-governance/v1#S-27\",\"account\":\"961a76775741b6a89622605de5e533e55fcf0bf2d722f5ff0fa3f4455eac972d\",\"answer\":\"result\"}"}
+{"ts":1790188144624,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"operation\",\"route\":\"capability.organization-governance/v1#S-27\",\"account\":\"d32e4e06e19ee979274621739e6cd3c1bcca366a0f706189259dade33d46838a\",\"answer\":\"result\"}"}
+{"ts":1790188145024,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"operation\",\"route\":\"capability.account-identity/v2#S-15\",\"answer\":\"result\"}"}
+{"ts":1790188145435,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"operation\",\"route\":\"composition.account-registration/v1#S-8\",\"answer\":\"result\"}"}
+{"ts":1790188145846,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"operation\",\"route\":\"capability.account-identity/v2#S-15\",\"answer\":\"result\"}"}
+{"ts":1790188145854,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"operation\",\"route\":\"capability.organization-governance/v1#S-36\",\"account\":\"b123a646748621d10eebeb9428dfd3da2d4570fc141583838ad3c736127580ff\",\"answer\":\"result\"}"}
+{"ts":1790188145856,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"governance-center-entry"}
+{"ts":1790188145857,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"governance-center-ops"}
+{"ts":1790188145857,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"account-registration"}
+{"ts":1790188145858,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"organization-governance"}
+{"ts":1790188145858,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"account-identity"}
+{"ts":1790188145858,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"credential-verification"}
+{"ts":1790188145859,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"clock"}
+{"ts":1790188145867,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"storage-sql"}
+{"ts":1790188145867,"level":"info","name":"tenancy-host","event":"disposed","complete":true}

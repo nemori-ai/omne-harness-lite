@@ -1,0 +1,13 @@
+$ (cwd=/data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-e2e) pnpm run lint:rules
+start: 2026-09-23T18:06:30Z
+
+> omne-harness-lite-workspace@ lint:rules /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-e2e
+> pnpm --filter @omne-harness-lite/ts-checks run scan
+
+
+> @omne-harness-lite/ts-checks@0.0.0 scan /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-e2e/tools/ts-checks
+> node --experimental-strip-types src/cli.ts ../../packages ../../apps
+
+PASS: ts-checks 20 条规则，扫描 /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-e2e/packages、/data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-e2e/apps，无违反。
+end: 2026-09-23T18:06:31Z
+exit: 0
