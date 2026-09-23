@@ -23,10 +23,25 @@
 | tui-qa | 对 TUI 应用的一个交付增量按给定验收标准在真实装配上做**独立验收**：四态判决、机器证据、逐条对照、缺陷清单，外加终端矩阵、宽字符、resize、退出还原几关；**不修、不接受**，只写场景目录与证据目录；默认 high | [TUI 验收](tui-qa/role.md) |
 
 角色正文拥有职责与边界，`codex.toml`、`claude.yaml` 和可选模型适配段拥有宿主差异。
-五个开发者通过 `assembly.toml` 内联[共同契约](developer-contract.md)，固定提示已经包含必要输入、
-行动授权和停止条件；[派发模板](developer-task.md)提供本次事实，不进入固定提示。
+共享正文由各角色 `assembly.toml` 的 `shared_prompts` 按序内联：五个开发者在品味之后内联[共同契约](developer-contract.md)，
+固定提示已经包含必要输入、行动授权和停止条件；[派发模板](developer-task.md)提供本次事实，不进入固定提示。
 生成说明见[工具入口](../../tooling/README.md)，生成物归工作区内
 `.codex/agents/` 与 `.claude/agents/`；这些目录由工具生成，未生成时不作为文档链接目标。
+
+## 共享研发品味
+
+[研发品味](engineering-taste.md)是全部设计与研发角色共用的**唯一**品味正文：
+三个技术 drafter、三个技术 reviewer、五个开发者与两个 TUI 角色都把它列为 `shared_prompts` 的第一项，
+拼接顺序为 `role.md` → 研发品味 →（开发者）共同契约 → 模型适配段。
+它的导语写明只在各角色自身的职责、判断对象与授权之内生效：评审与验收角色不把品味当独立发现来源或验收判据。
+
+**两个产品设计角色刻意不挂**：它们站在 product manager 视角、明令不做技术判断，
+product-design-reviewer 还明写不评判设计品味；工程品味会把它们往技术设计上拉。
+`tooling/tests/test_role_sources.py` 守住这条：新角色忘了挂、或产品角色误挂，`make test` 都会失败。
+
+改品味只改这一个文件，然后按工具入口重编生成物并运行 `make agents-check`；
+已开着的 Claude Code 会话在启动时就固化了角色定义，要开新会话才会用上新正文。
+根 `AGENTS.md` 的同名一节只是给主会话的简短投影，原则级变化时再同步它。
 
 ## 产品设计的起草与评审
 

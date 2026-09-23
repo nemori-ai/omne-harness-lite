@@ -11,6 +11,7 @@
 - [历史角色证据](legacy-roles/README.md)：旧版本原始记录，只支持其原修订与范围。
 - [开发 agent 防御辅助评估](developer-model/README.md)：自包含协议、格式与公开任务包；证据完整不授权采用。
 - [角色模型复评（Opus 5.5 / GPT-6 Sol）](role-model-reeval/README.md)：各角色的换模依据、提示审计与宿主验证；任务质量对照尚未跑。
+- [共享研发品味单源化](shared-engineering-taste/README.md)：品味从根 AGENTS.md 迁为角色共享正文后的去向、分发覆盖与两端加载验证。
 
 角色迁移试用与开发模型采用评估是不同证据面。需要采用评估时明确基线、判据与接受权限；
 需要评估 handbook 或角色修改时只建立覆盖本次变化的任务，不把公开样例称作留出集。
