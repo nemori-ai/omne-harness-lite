@@ -589,6 +589,62 @@
           "rebase_relation": null
         }
       ]
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "data.arrival-events",
+        "version": 1
+      },
+      "family": "data",
+      "topic": "arrival-events",
+      "status": "candidate",
+      "contract_path": "spec/data/arrival-events/v1/contract.md",
+      "resources": [
+        "spec/data/arrival-events/v1/contract.md",
+        "spec/data/arrival-events/v1/arrival-events.schema.json",
+        "spec/data/arrival-events/v1/examples.md"
+      ],
+      "acceptance": null,
+      "dependencies": [
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.content-blocks",
+            "version": 1
+          },
+          "clauses": [
+            "S-1",
+            "S-3",
+            "S-4",
+            "S-6",
+            "S-7",
+            "S-10",
+            "S-12",
+            "S-13",
+            "S-14",
+            "S-26"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.call-accounts",
+            "version": 1
+          },
+          "clauses": [
+            "S-4",
+            "S-6",
+            "S-8",
+            "S-15",
+            "S-19",
+            "S-20",
+            "S-27"
+          ],
+          "rebase_relation": null
+        }
+      ]
     }
   ]
 }
