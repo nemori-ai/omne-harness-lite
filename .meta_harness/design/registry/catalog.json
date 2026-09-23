@@ -544,7 +544,10 @@
           "clauses": [
             "$defs/Usage",
             "$defs/Cost",
-            "$defs/CostCorrection"
+            "$defs/CostCorrection",
+            "$defs/RunId",
+            "$defs/AttemptId",
+            "$defs/ModelCallId"
           ],
           "rebase_relation": null
         },

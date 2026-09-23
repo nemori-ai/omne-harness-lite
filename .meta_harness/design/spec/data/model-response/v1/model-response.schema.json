@@ -3,37 +3,62 @@
   "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-response/v1/model-response.schema.json",
   "title": "data.model-response v1",
   "description": "一次发出的完整响应体：回复（若有）、出错断时已交付而不成消息的部分、用量与费用、路由留痕、收场、故障成因与原样状态码、时序、上游原始响应的引用。一次模型调用每发出一次留一条。根模式约束一条 ModelResponse。条款编号 S-n 指同目录的 contract.md，仅在 data.model-response/v1 内有效。",
-  "$comment": "状态 candidate，未接受、未冻结。本文件引用五份与它并行起草、尚未定型的契约的 $defs（data.call-accounts、data.content-blocks、data.messages、data.model-profile、data.loop-extension），名字按施工简报账本；它们定型后须逐个核对引用解析与含义（../verification.md「变化的影响」）。Schema 只管形状与收场条件（S-13）；reply.response 等于 id、三个时刻的先后、同一次调用的响应体序列（S-23）、脱敏（S-21）、无隐藏重试（S-24）、成因不取「发不出去」那三个值（S-16）都不在它的能力范围内（S-26）。allOf 每一支的 $comment 写明违反它时给哪个表示层拒绝值（S-27）。正反实例在同目录 examples.md。",
+  "$comment": "状态 candidate，未接受、未冻结。本文件引用五份与它并行起草、尚未定型的契约的 $defs（data.call-accounts、data.content-blocks、data.messages、data.model-profile、data.loop-extension），名字按施工简报账本；RunId、AttemptId、ModelCallId 三个标识的定义按主线裁定放在 data.call-accounts，由对齐波补入；它们定型后须逐个核对引用解析与含义（../verification.md「变化的影响」）。ResponseId 的家在本文件。Schema 只管形状与收场条件（S-13）；reply.response 等于 id、三个时刻的先后、同一次调用的响应体序列（S-23）、脱敏（S-21）、无隐藏重试（S-24）、成因不取「发不出去」那三个值（S-16）都不在它的能力范围内（S-26）。allOf 每一支的 $comment 写明违反它时给哪个表示层拒绝值（S-27）。正反实例在同目录 examples.md。",
   "$ref": "#/$defs/ModelResponse",
   "$defs": {
 
     "ResponseId": {
-      "$ref": "../../identity-values/v1/identity-values.schema.json#/$defs/OpaqueIdentifier",
       "title": "响应体标识（contract.md S-6）",
-      "description": "一条响应体的标识。不透明、部署内唯一，由写下这条响应体的一方铸，不回收、不复用；交换表示与相等规则按 data.identity-values/v1#S-31。它不是上游的请求 id（那是 Route.upstreamRequestId），也不从上游 id 推出。data.messages 的 AssistantMessage.response 取的就是它。",
+      "description": "一条响应体的标识，家在本契约。不透明、部署内唯一，由写下这条响应体的一方铸，不回收、不复用。交换表示按 data.identity-values/v1#S-31 的散文自定义：非空字符串，首字符与末字符都不属于 S-31 列出的那个显式空白码点集合，相等是逐码点精确相等。它不是上游的请求 id（那是 Route.upstreamRequestId），也不从上游 id 推出。data.messages 的 AssistantMessage.response 与 data.call-accounts 的 CostCorrection 指的都是它。",
+      "$comment": "不 $ref identity-values 的 OpaqueIdentifier：那一项的说明限它自己的文件复用。pattern 照 S-31 的码点表写出，与那边逐字相同的理由也相同——不用 \\s 与 $（两种引擎集合不同、Python 的 $ 匹配到末尾换行之前），改用显式否定字符类与 (?![\\s\\S]) 绝对结尾。",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])",
       "examples": ["resp_4c1e9a"]
     },
 
     "RunId": {
-      "$ref": "../../identity-values/v1/identity-values.schema.json#/$defs/OpaqueIdentifier",
+      "$ref": "../../call-accounts/v1/call-accounts.schema.json#/$defs/RunId",
       "title": "运行标识（contract.md S-7）",
-      "description": "这次调用所属的那次运行（UL-run）。本契约只引用，不铸、不定义唯一范围：运行的标识形式正文未述，家在 loop 那一程（contract.md G-1）。",
-      "examples": ["run_7a02"]
+      "description": "这次调用所属的那次运行（UL-run）。定义的家在 data.call-accounts/v1（它按尝试记明细、按 Run 汇总本就需要）；本契约只引用。"
     },
 
     "AttemptId": {
+      "$ref": "../../call-accounts/v1/call-accounts.schema.json#/$defs/AttemptId",
       "title": "执行尝试序号（contract.md S-7）",
-      "description": "这次调用落在它那次运行的第几次执行尝试里，从 1 起。它与 runId 合起来才是一次尝试的身份（UL-run-attempt：身份是 (哪次运行, 第几次)，不另存一份），单独不指认任何东西。",
-      "type": "integer",
-      "minimum": 1,
-      "examples": [1, 2]
+      "description": "这次调用落在它那次运行的第几次执行尝试里，整数、从 1 起；与 runId 合起来才是一次尝试的身份（UL-run-attempt：身份是 (哪次运行, 第几次)，不另存一份）。定义的家在 data.call-accounts/v1；本契约只引用。"
     },
 
     "ModelCallId": {
-      "$ref": "../../identity-values/v1/identity-values.schema.json#/$defs/OpaqueIdentifier",
+      "$ref": "../../call-accounts/v1/call-accounts.schema.json#/$defs/ModelCallId",
       "title": "模型调用标识（contract.md S-7）",
-      "description": "这条响应体属于哪一次模型调用（UL-model-call）。本契约只引用，不铸；它的家与唯一范围归模型请求运行时的能力契约（contract.md G-2）。它不是工具调用的 CallId。",
-      "examples": ["mc_19f3"]
+      "description": "这条响应体属于哪一次模型调用（UL-model-call）。定义的家在 data.call-accounts/v1；本契约只引用。它不是工具调用的 CallId。"
+    },
+
+    "ReplyDisposition": {
+      "title": "回复有没有成为消息（contract.md S-14）",
+      "description": "只在 outcome 为 complete 或 truncated 时出现，且在那里必有。persisted：这份回复落盘成了会话日志里的一条消息；{vetoed}：它在「消息落盘之前」被否决、没有成为消息——by 是否决它的那件拓展件（含转换件）的名字，reason 是它给出的理由（有就带）。被否决不改变收场：这次调用照样结束；要再试，是 loop 在下一次迭代另起的一次新的模型调用（新的 callId），不是这次调用的下一次发出——首 token 之后不许重发这条规则不因否决而有例外（S-14、S-17、S-23）。",
+      "oneOf": [
+        { "title": "落盘成了消息", "const": "persisted" },
+        {
+          "title": "落盘之前被否决",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["vetoed"],
+          "properties": {
+            "vetoed": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["by"],
+              "properties": {
+                "by": { "type": "string", "minLength": 1 },
+                "reason": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        }
+      ],
+      "examples": ["persisted", { "vetoed": { "by": "image-transcriber", "reason": "no transcript produced" } }]
     },
 
     "ModelCallRef": {
@@ -198,8 +223,9 @@
         },
         "reply": {
           "$ref": "../../messages/v1/messages.schema.json#/$defs/AssistantMessage",
-          "description": "成为消息的那一份（S-14）。它的 response 成员必须等于本响应体的 id（跨字段，Schema 不管）。"
+          "description": "这一次拿回来的那份回复（S-14）。complete／truncated 时它成没成为消息看 replyDisposition；interrupted 时它就是那条标明被中断的消息。它的 response 成员必须等于本响应体的 id（跨字段，Schema 不管）。"
         },
+        "replyDisposition": { "$ref": "#/$defs/ReplyDisposition" },
         "delivered": {
           "type": "array",
           "minItems": 1,
@@ -236,6 +262,31 @@
           "$comment": "failure_on_interrupted：interrupted 不带 failure——用户中断不是故障，不带成因（S-12、S-13）。",
           "if": { "properties": { "outcome": { "const": "interrupted" } }, "required": ["outcome"] },
           "then": { "not": { "required": ["failure"] } }
+        },
+        {
+          "$comment": "failure_on_success：complete / truncated 不带 failure——主路径走完了，回复在落盘之前被否决也不例外（那记在 replyDisposition 上，S-13、S-14）。",
+          "if": { "properties": { "outcome": { "enum": ["complete", "truncated"] } }, "required": ["outcome"] },
+          "then": { "not": { "required": ["failure"] } }
+        },
+        {
+          "$comment": "reply_ending_mismatch：reply.ending 与收场一一对应（S-13）。三支，任一支不成立即此值。",
+          "allOf": [
+            {
+              "$comment": "complete ↔ complete。",
+              "if": { "properties": { "outcome": { "const": "complete" } }, "required": ["outcome", "reply"] },
+              "then": { "properties": { "reply": { "properties": { "ending": { "const": "complete" } } } } }
+            },
+            {
+              "$comment": "truncated ↔ truncated_at_limit。",
+              "if": { "properties": { "outcome": { "const": "truncated" } }, "required": ["outcome", "reply"] },
+              "then": { "properties": { "reply": { "properties": { "ending": { "const": "truncated_at_limit" } } } } }
+            },
+            {
+              "$comment": "interrupted ↔ interrupted_by_user。",
+              "if": { "properties": { "outcome": { "const": "interrupted" } }, "required": ["outcome", "reply"] },
+              "then": { "properties": { "reply": { "properties": { "ending": { "const": "interrupted_by_user" } } } } }
+            }
+          ]
         },
         {
           "$comment": "first_token_inconsistent：firstTokenAt 的有无与收场、回复、已交付部分或成因对不上（S-13、S-17）。六支，任一支不成立即此值。",
@@ -286,24 +337,14 @@
           ]
         },
         {
-          "$comment": "malformed（跨成员，账本无专名，见 contract.md S-27 与「报给主线」）：complete / truncated 不带 failure。",
+          "$comment": "malformed（跨成员，无专名，contract.md S-27）：replyDisposition 在 complete / truncated 上必有。",
           "if": { "properties": { "outcome": { "enum": ["complete", "truncated"] } }, "required": ["outcome"] },
-          "then": { "not": { "required": ["failure"] } }
+          "then": { "required": ["replyDisposition"] }
         },
         {
-          "$comment": "malformed（跨成员，账本无专名）：reply.ending 与收场对应——complete ↔ complete。",
-          "if": { "properties": { "outcome": { "const": "complete" } }, "required": ["outcome", "reply"] },
-          "then": { "properties": { "reply": { "properties": { "ending": { "const": "complete" } } } } }
-        },
-        {
-          "$comment": "malformed（跨成员，账本无专名）：reply.ending 与收场对应——truncated ↔ truncated_at_limit。",
-          "if": { "properties": { "outcome": { "const": "truncated" } }, "required": ["outcome", "reply"] },
-          "then": { "properties": { "reply": { "properties": { "ending": { "const": "truncated_at_limit" } } } } }
-        },
-        {
-          "$comment": "malformed（跨成员，账本无专名）：reply.ending 与收场对应——interrupted ↔ interrupted_by_user。",
-          "if": { "properties": { "outcome": { "const": "interrupted" } }, "required": ["outcome", "reply"] },
-          "then": { "properties": { "reply": { "properties": { "ending": { "const": "interrupted_by_user" } } } } }
+          "$comment": "malformed（跨成员，无专名）：replyDisposition 只出现在 complete / truncated 上。",
+          "if": { "properties": { "outcome": { "enum": ["interrupted", "failed"] } }, "required": ["outcome"] },
+          "then": { "not": { "required": ["replyDisposition"] } }
         }
       ]
     }

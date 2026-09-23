@@ -11,7 +11,7 @@
 
 - **`通过` 只说形状合规。**[S-26](contract.md#s-26-schema-的范围) 列的那些 Schema 管不到的条款，一条也不因通过而成立；第三节专门列它们的反例。
 - **嵌在实例里的外部形状按施工简报的账本写**：`AssistantMessage`（`data.messages`）、`ContentBlock` 与 `AttachmentRef`（`data.content-blocks`）、
-  `Usage` 与 `Cost`（`data.call-accounts`）、`ModelProfileRef`、`ProviderName` 与 `ModelRequestParameters`（`data.model-profile`）、`FailureCause`（`data.loop-extension`）。
+  `Usage`、`Cost` 与 `RunId`、`AttemptId`、`ModelCallId`（`data.call-accounts`）、`ModelProfileRef`、`ProviderName` 与 `ModelRequestParameters`（`data.model-profile`）、`FailureCause`（`data.loop-extension`）。
   **这五份契约都还没定型**，它们定型后本页的每个实例要按实际的成员名与取值复核一遍（[验证入口「变化的影响」](../verification.md#变化的影响)）。
 - **标识串、供应商名、路由名只是占位**，不要从 `resp_`、`gen-` 这样的前缀推出任何规则（[S-6](contract.md#s-6-responseid)）。
 
@@ -19,7 +19,7 @@
 
 ### E-1 正常收尾
 
-预期：`通过`。依据 [S-13](contract.md#s-13-收场与其余成员的条件关系) 第一行：有 `reply`、`ending = complete`、有 `firstTokenAt`、没有 `failure`。
+预期：`通过`。依据 [S-13](contract.md#s-13-收场与其余成员的条件关系) 第一行：有 `reply`、`ending = complete`、`replyDisposition = persisted`、有 `firstTokenAt`、没有 `failure`。
 `selectedBy = session`：有效模型就是会话选中的那条（[S-10](contract.md#s-10-有效模型怎么来的)）。`raw` 两项都在（[S-20](contract.md#s-20-上游原始响应留存)）。
 
 ```json
@@ -48,6 +48,7 @@
       { "id": "b2", "kind": "tool_call", "visibility": { "toHuman": true, "toModel": true }, "complete": true, "callId": "call_01", "tool": "read_file", "arguments": { "path": "config.toml" } }
     ]
   },
+  "replyDisposition": "persisted",
   "timing": { "sentAt": "2026-09-23T10:00:00Z", "firstTokenAt": "2026-09-23T10:00:01.2Z", "endedAt": "2026-09-23T10:00:04Z" },
   "usage": { "input_tokens": 1840, "output_tokens": 212, "cache_read_tokens": 1536, "cache_write_tokens": 0, "source": "upstream" },
   "cost": { "cost_usd": 0.0031, "source": "upstream_usage" },
@@ -91,6 +92,7 @@
       { "id": "b2", "kind": "tool_call", "visibility": { "toHuman": false, "toModel": false }, "complete": false, "rawArguments": "{\"path\": \"src/ma" }
     ]
   },
+  "replyDisposition": "persisted",
   "timing": { "sentAt": "2026-09-23T10:01:00Z", "firstTokenAt": "2026-09-23T10:01:00.8Z", "endedAt": "2026-09-23T10:01:09Z" },
   "usage": { "input_tokens": 2210, "output_tokens": 256, "cache_read_tokens": 0, "cache_write_tokens": 2048, "source": "upstream" },
   "cost": { "cost_usd": 0.0019, "source": "upstream_usage" }
@@ -255,9 +257,87 @@ E-7，预期：`通过`。同一次调用的第二次发出，正常收尾；`re
       { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "测试失败是因为时区设置，已经定位到那一行。" }
     ]
   },
+  "replyDisposition": "persisted",
   "timing": { "sentAt": "2026-09-23T10:05:03Z", "firstTokenAt": "2026-09-23T10:05:04Z", "endedAt": "2026-09-23T10:05:09Z" },
   "usage": { "input_tokens": 3120, "output_tokens": 480, "cache_read_tokens": 0, "cache_write_tokens": 0, "source": "upstream" },
   "cost": { "cost_usd": 0.0123, "source": "upstream_usage" }
+}
+```
+
+### E-8 同一个 Run 里前后两次调用，前一次的回复被否决
+
+**两次调用，不是一次调用的两次发出**：`call.callId` 不同（`mc_3a01`、`mc_3a02`），各自的 `dispatch` 都是 1。
+前一次的模型回复里有一张图，挂在「消息落盘之前」的转换件给它交不出 transcript，**否决了这份回复**；
+这次调用照样以 `complete` 结束，记 `replyDisposition = { vetoed }`，**不带 `failure`**。loop 在下一次迭代**另起一次新的模型调用**，这一次的回复落盘成了消息
+（[S-13](contract.md#s-13-收场与其余成员的条件关系) 的引注、[S-14](contract.md#s-14-回复与已交付部分)、[S-17](contract.md#s-17-首-token-与时序)、[S-23](contract.md#s-23-同一次调用的响应体序列) 第 4 条）。
+**两笔钱都照实记**：被否决的那一次同样消耗了上游（[S-19](contract.md#s-19-用量与费用)）。
+
+E-8a，预期：`通过`。前一次调用：有首 token、有 `reply`，但 `replyDisposition` 是 `vetoed`——这份回复**没有成为消息**，它带的 `msg_70` 在会话日志里找不到。
+
+```json
+{
+  "id": "resp_8a0001",
+  "call": { "runId": "run_7a02", "attemptId": 2, "callId": "mc_3a01" },
+  "dispatch": 1,
+  "route": {
+    "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "google/gemini-2.5-flash-image" },
+    "selectedBy": "session",
+    "provider": "google-vertex",
+    "upstreamModel": "google/gemini-2.5-flash-image",
+    "upstreamRequestId": "gen-1758622200-8a8a8a",
+    "parameters": {}
+  },
+  "outcome": "complete",
+  "stopReason": "stop",
+  "reply": {
+    "id": "msg_70",
+    "type": "assistant",
+    "createdAt": "2026-09-23T10:06:07Z",
+    "response": "resp_8a0001",
+    "ending": "complete",
+    "blocks": [
+      { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "这是改好的架构图：" },
+      { "id": "b2", "kind": "image", "visibility": { "toHuman": true, "toModel": true }, "mediaType": "image/png", "data": { "storage": "attachments", "key": "blk/resp_8a0001/b2", "mediaType": "image/png", "bytes": 204800 } }
+    ]
+  },
+  "replyDisposition": { "vetoed": { "by": "image-transcriber", "reason": "no transcript produced for image/png" } },
+  "timing": { "sentAt": "2026-09-23T10:06:00Z", "firstTokenAt": "2026-09-23T10:06:01Z", "endedAt": "2026-09-23T10:06:07Z" },
+  "usage": { "input_tokens": 1500, "output_tokens": 1290, "cache_read_tokens": 1024, "cache_write_tokens": 0, "source": "upstream" },
+  "cost": { "cost_usd": 0.0391, "source": "upstream_usage" }
+}
+```
+
+E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的发出从 `dispatch = 1` 数起；回复落盘成了消息。
+
+```json
+{
+  "id": "resp_8b0002",
+  "call": { "runId": "run_7a02", "attemptId": 2, "callId": "mc_3a02" },
+  "dispatch": 1,
+  "route": {
+    "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "google/gemini-2.5-flash-image" },
+    "selectedBy": "session",
+    "provider": "google-vertex",
+    "upstreamModel": "google/gemini-2.5-flash-image",
+    "upstreamRequestId": "gen-1758622210-8b8b8b",
+    "parameters": {}
+  },
+  "outcome": "complete",
+  "stopReason": "stop",
+  "reply": {
+    "id": "msg_71",
+    "type": "assistant",
+    "createdAt": "2026-09-23T10:06:15Z",
+    "response": "resp_8b0002",
+    "ending": "complete",
+    "blocks": [
+      { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "架构图改好了：左侧是入口层，右侧是三个运行时。" }
+    ]
+  },
+  "replyDisposition": "persisted",
+  "timing": { "sentAt": "2026-09-23T10:06:10Z", "firstTokenAt": "2026-09-23T10:06:11Z", "endedAt": "2026-09-23T10:06:15Z" },
+  "usage": { "input_tokens": 1560, "output_tokens": 88, "cache_read_tokens": 1024, "cache_write_tokens": 0, "source": "upstream" },
+  "cost": { "cost_usd": 0.0012, "source": "upstream_usage" }
 }
 ```
 
@@ -314,6 +394,7 @@ E-7，预期：`通过`。同一次调用的第二次发出，正常收尾；`re
   "route": { "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "selectedBy": "session", "provider": "amazon-bedrock", "parameters": {} },
   "outcome": "success",
   "reply": { "id": "msg_60", "type": "assistant", "createdAt": "2026-09-23T10:05:09Z", "response": "resp_r3", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "好的。" } ] },
+  "replyDisposition": "persisted",
   "timing": { "sentAt": "2026-09-23T10:05:03Z", "firstTokenAt": "2026-09-23T10:05:04Z", "endedAt": "2026-09-23T10:05:09Z" },
   "usage": { "input_tokens": 3120, "output_tokens": 480, "cache_read_tokens": 0, "cache_write_tokens": 0, "source": "upstream" },
   "cost": { "cost_usd": 0.0123, "source": "upstream_usage" }
@@ -367,6 +448,7 @@ E-7，预期：`通过`。同一次调用的第二次发出，正常收尾；`re
   "dispatch": 2,
   "route": { "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "selectedBy": "session", "provider": "amazon-bedrock", "parameters": {} },
   "outcome": "complete",
+  "replyDisposition": "persisted",
   "timing": { "sentAt": "2026-09-23T10:05:03Z", "endedAt": "2026-09-23T10:05:09Z" },
   "usage": { "input_tokens": 3120, "output_tokens": 480, "cache_read_tokens": 0, "cache_write_tokens": 0, "source": "upstream" },
   "cost": { "cost_usd": 0.0123, "source": "upstream_usage" }
@@ -448,7 +530,7 @@ E-7，预期：`通过`。同一次调用的第二次发出，正常收尾；`re
 
 ### R-11 `first_token_inconsistent`：说「断在半路」，却没有首 token
 
-在 E-6 上把成因改成 `interrupted_mid_reply`。**没开口就谈不上「说到一半」**（[S-13](contract.md#s-13-收场与其余成员的条件关系) 最后两行，Schema 第六支的①）。预期：`拒绝：first_token_inconsistent`。
+在 E-6 上把成因改成 `interrupted_mid_reply`。**没开口就谈不上「说到一半」**（[S-13](contract.md#s-13-收场与其余成员的条件关系) 最后两行，Schema 第八支的①）。预期：`拒绝：first_token_inconsistent`。
 
 ```json
 {
@@ -466,10 +548,11 @@ E-7，预期：`通过`。同一次调用的第二次发出，正常收尾；`re
 
 ### R-12 `first_token_inconsistent`：开了口，成因却不是「断在半路」
 
-在 E-5 上把成因改成 `upstream_unavailable`——**这正是「看到 429 就当成上游那边的事」那种写法**，而首 token 已经出来了（Schema 第六支的②）。预期：`拒绝：first_token_inconsistent`。
+在 E-5 上把成因改成 `upstream_unavailable`——**这正是「看到 429 就当成上游那边的事」那种写法**，而首 token 已经出来了（Schema 第八支的②）。预期：`拒绝：first_token_inconsistent`。
 
-> **这一条也是 [G-6](contract.md#七已知缺口) 那种情形会被挡住的样子**：回复在落盘之前被否决、准备退避重试的那一次，
-> 若写成「有首 token、成因是某个可重试的值」，就是这个形状。本版有意拒绝它，**不让实现挑一个成因凑数**。
+> **回复在落盘之前被否决的那一次，若写成「`failed`、有首 token、成因是某个可重试的值」，也是这个形状，同样被挡住。**
+> 那一次的正确写法是 `complete`／`truncated` 加 `replyDisposition = { vetoed }`，见 [E-8](#e-8-同一个-run-里前后两次调用前一次的回复被否决)；
+> **不让实现挑一个成因凑数**。
 
 ```json
 {
@@ -488,7 +571,7 @@ E-7，预期：`通过`。同一次调用的第二次发出，正常收尾；`re
 
 ### R-13 `first_token_inconsistent`：有回复，却没有首 token
 
-在 E-7 上删掉 `firstTokenAt`。**有回复就交出过内容**（Schema 第六支的④）。预期：`拒绝：first_token_inconsistent`。
+在 E-7 上删掉 `firstTokenAt`。**有回复就交出过内容**（Schema 第八支的④）。预期：`拒绝：first_token_inconsistent`。
 
 ```json
 {
@@ -498,6 +581,7 @@ E-7，预期：`通过`。同一次调用的第二次发出，正常收尾；`re
   "route": { "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "selectedBy": "session", "provider": "amazon-bedrock", "parameters": {} },
   "outcome": "complete",
   "reply": { "id": "msg_60", "type": "assistant", "createdAt": "2026-09-23T10:05:09Z", "response": "resp_r13", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "好的。" } ] },
+  "replyDisposition": "persisted",
   "timing": { "sentAt": "2026-09-23T10:05:03Z", "endedAt": "2026-09-23T10:05:09Z" },
   "usage": { "input_tokens": 3120, "output_tokens": 480, "cache_read_tokens": 0, "cache_write_tokens": 0, "source": "upstream" },
   "cost": { "cost_usd": 0.0123, "source": "upstream_usage" }
@@ -506,7 +590,7 @@ E-7，预期：`通过`。同一次调用的第二次发出，正常收尾；`re
 
 ### R-14 `first_token_inconsistent`：没有回复的中断，却有首 token
 
-在 E-4 上加一个 `firstTokenAt`。**用户叫停时已经有内容，就必定落成一条消息**；有首 token 而没有回复，就是已交付的内容丢了（Schema 第六支的⑥）。预期：`拒绝：first_token_inconsistent`。
+在 E-4 上加一个 `firstTokenAt`。**用户叫停时已经有内容，就必定落成一条消息**；有首 token 而没有回复，就是已交付的内容丢了（Schema 第八支的⑥）。预期：`拒绝：first_token_inconsistent`。
 
 ```json
 {
@@ -521,9 +605,9 @@ E-7，预期：`通过`。同一次调用的第二次发出，正常收尾；`re
 }
 ```
 
-### R-15 `malformed`：正常收尾却带着故障
+### R-15 `failure_on_success`：正常收尾却带着故障
 
-在 E-7 上加一条 `failure`。**账本没有这一情形的专名**，按 [S-27](contract.md#s-27-表示层拒绝值) 给 `malformed`（已报主线补名）。预期：`拒绝：malformed`。
+在 E-7 上加一条 `failure`。**主路径走完了就没有成因**；回复在落盘之前被否决也不例外，那记在 `replyDisposition` 上（[S-13](contract.md#s-13-收场与其余成员的条件关系)、[S-27](contract.md#s-27-表示层拒绝值)）。预期：`拒绝：failure_on_success`。
 
 ```json
 {
@@ -533,6 +617,7 @@ E-7，预期：`通过`。同一次调用的第二次发出，正常收尾；`re
   "route": { "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "selectedBy": "session", "provider": "amazon-bedrock", "parameters": {} },
   "outcome": "complete",
   "reply": { "id": "msg_60", "type": "assistant", "createdAt": "2026-09-23T10:05:09Z", "response": "resp_r15", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "好的。" } ] },
+  "replyDisposition": "persisted",
   "failure": { "cause": "unrecognized", "statusCode": 200 },
   "timing": { "sentAt": "2026-09-23T10:05:03Z", "firstTokenAt": "2026-09-23T10:05:04Z", "endedAt": "2026-09-23T10:05:09Z" },
   "usage": { "input_tokens": 3120, "output_tokens": 480, "cache_read_tokens": 0, "cache_write_tokens": 0, "source": "upstream" },
@@ -540,9 +625,9 @@ E-7，预期：`通过`。同一次调用的第二次发出，正常收尾；`re
 }
 ```
 
-### R-16 `malformed`：回复的收尾与收场错配
+### R-16 `reply_ending_mismatch`：回复的收尾与收场错配
 
-在 E-2 上把 `reply.ending` 改成 `complete`，`outcome` 仍是 `truncated`。**截断就是截断，不许在回复上写成正常收尾**（[S-13](contract.md#s-13-收场与其余成员的条件关系)）；账本无专名，给 `malformed`。预期：`拒绝：malformed`。
+在 E-2 上把 `reply.ending` 改成 `complete`，`outcome` 仍是 `truncated`。**截断就是截断，不许在回复上写成正常收尾**（[S-13](contract.md#s-13-收场与其余成员的条件关系)、[S-27](contract.md#s-27-表示层拒绝值)）。预期：`拒绝：reply_ending_mismatch`。
 
 ```json
 {
@@ -552,9 +637,49 @@ E-7，预期：`通过`。同一次调用的第二次发出，正常收尾；`re
   "route": { "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "openai/gpt-5-mini" }, "selectedBy": "layer_lock", "provider": "openai", "parameters": {} },
   "outcome": "truncated",
   "reply": { "id": "msg_52", "type": "assistant", "createdAt": "2026-09-23T10:01:09Z", "response": "resp_r16", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "接下来改 main.rs：" } ] },
+  "replyDisposition": "persisted",
   "timing": { "sentAt": "2026-09-23T10:01:00Z", "firstTokenAt": "2026-09-23T10:01:00.8Z", "endedAt": "2026-09-23T10:01:09Z" },
   "usage": { "input_tokens": 2210, "output_tokens": 256, "cache_read_tokens": 0, "cache_write_tokens": 2048, "source": "upstream" },
   "cost": { "cost_usd": 0.0019, "source": "upstream_usage" }
+}
+```
+
+### R-17 `malformed`：正常收尾，却说不出回复有没有成为消息
+
+在 E-7 上删掉 `replyDisposition`。**缺席不是「落盘了」**——正常收尾与截断的那份回复有没有成为消息，必须明说（[S-14](contract.md#s-14-回复与已交付部分)）；
+这一情形没有专名，按 [S-27](contract.md#s-27-表示层拒绝值) 排在最后给 `malformed`。预期：`拒绝：malformed`。
+
+```json
+{
+  "id": "resp_r17",
+  "call": { "runId": "run_7a02", "attemptId": 2, "callId": "mc_2b77" },
+  "dispatch": 2,
+  "route": { "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "selectedBy": "session", "provider": "amazon-bedrock", "parameters": {} },
+  "outcome": "complete",
+  "reply": { "id": "msg_60", "type": "assistant", "createdAt": "2026-09-23T10:05:09Z", "response": "resp_r17", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "好的。" } ] },
+  "timing": { "sentAt": "2026-09-23T10:05:03Z", "firstTokenAt": "2026-09-23T10:05:04Z", "endedAt": "2026-09-23T10:05:09Z" },
+  "usage": { "input_tokens": 3120, "output_tokens": 480, "cache_read_tokens": 0, "cache_write_tokens": 0, "source": "upstream" },
+  "cost": { "cost_usd": 0.0123, "source": "upstream_usage" }
+}
+```
+
+### R-18 `malformed`：用户中断的回复带了 `replyDisposition`
+
+在 E-3 上加 `"replyDisposition": { "vetoed": { "by": "image-transcriber" } }`。**`interrupted` 的那份回复不带它**；它被否决时怎样表示本版没有定（[S-14](contract.md#s-14-回复与已交付部分)、[G-12](contract.md#七已知缺口)），
+**本版拒绝，不让实现先挑一种写法**。预期：`拒绝：malformed`。
+
+```json
+{
+  "id": "resp_r18",
+  "call": { "runId": "run_7a02", "attemptId": 1, "callId": "mc_1c55" },
+  "dispatch": 1,
+  "route": { "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "google/gemini-2.5-flash" }, "selectedBy": "session", "provider": "google-vertex", "parameters": {} },
+  "outcome": "interrupted",
+  "reply": { "id": "msg_53", "type": "assistant", "createdAt": "2026-09-23T10:02:03Z", "response": "resp_r18", "ending": "interrupted_by_user", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "这个问题可以分三步看。第一步" } ] },
+  "replyDisposition": { "vetoed": { "by": "image-transcriber" } },
+  "timing": { "sentAt": "2026-09-23T10:02:00Z", "firstTokenAt": "2026-09-23T10:02:01Z", "endedAt": "2026-09-23T10:02:03Z" },
+  "usage": { "input_tokens": "unknown", "output_tokens": "unknown", "cache_read_tokens": "unknown", "cache_write_tokens": "unknown", "source": "none" },
+  "cost": { "cost_usd": "unknown", "source": "none" }
 }
 ```
 
@@ -576,6 +701,9 @@ E-7，预期：`通过`。同一次调用的第二次发出，正常收尾；`re
 | 同一次调用有 `dispatch` 1 与 3，没有 2 | [S-8](contract.md#s-8-第几次发出)、[S-23](contract.md#s-23-同一次调用的响应体序列) |
 | 同一次调用里第 1 条是 `failed`、成因 `request_rejected`，之后还有第 2 条 | [S-23](contract.md#s-23-同一次调用的响应体序列)：「重试没用」是事实，重试挂件推翻不了 |
 | 同一次调用里有两条带 `reply` | [S-14](contract.md#s-14-回复与已交付部分)、[S-23](contract.md#s-23-同一次调用的响应体序列) |
+| E-8a 的回复被否决，这次调用之后却还有一条 `dispatch = 2` 再要一份 | [S-17](contract.md#s-17-首-token-与时序)、[S-23](contract.md#s-23-同一次调用的响应体序列)：有首 token 就不许重发，再试是**新的调用** |
+| `replyDisposition` 是 `vetoed`，会话日志里却有一条消息的 `id` 等于那份 `reply.id` | [S-14](contract.md#s-14-回复与已交付部分)：被否决的那份没有成为消息 |
+| `replyDisposition` 是 `persisted`，会话日志里却找不到那条消息 | [S-14](contract.md#s-14-回复与已交付部分) |
 | `raw.headers` 里有 `authorization: Bearer sk-or-…`，或 `upstreamError.message` 里带着密钥的前几位 | [S-21](contract.md#s-21-写入之前脱敏) |
 | 传输层在一次发出之内自己换了一家再试，只写下一条响应体 | [S-24](contract.md#s-24-一条响应体对应上游的一次请求) |
 | 拿到了实际费用，回头把那条响应体的 `cost` 改掉 | [S-22](contract.md#s-22-写下即不变)：更正靠追加 `CostCorrection` |

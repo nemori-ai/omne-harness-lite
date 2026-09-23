@@ -23,6 +23,7 @@
 | V-10 | **同一次调用的序列性质**：对任意一次调用读全部响应体，核对 `dispatch` 不重不跳、只有策略那一类失败之后才有下一条、`reply` 至多一条且在最后 | 对演练产生的日志做序列核对；需要时由能力契约的行为模型承担 | [S-8](v1/contract.md#s-8-第几次发出)、[S-23](v1/contract.md#s-23-同一次调用的响应体序列) | **未开始。**停机那一支受阻于 [G-7](v1/contract.md#七已知缺口) |
 | V-11 | **首 token 缺席是断言**：让运行时在首 token 之后、写响应体之前停机，恢复后核对没有任何一条把这一次写成「没开口」 | 故障注入（杀进程）＋ 恢复演练 | [S-18](v1/contract.md#s-18-首-token-缺席是一条断言) | **未开始，且受阻于 [G-7](v1/contract.md#七已知缺口)**：停机后谁补写、首 token 怎样判得出，本版无答案 |
 | V-12 | **写下即不变**：补账之后原响应体逐字不变；原始响应附件被清理之后响应体逐字不变 | 规范场景演练 | [S-19](v1/contract.md#s-19-用量与费用)、[S-20](v1/contract.md#s-20-上游原始响应留存)、[S-22](v1/contract.md#s-22-写下即不变) | **未开始** |
+| V-13 | **回复在落盘之前被否决**（[examples.md E-8](v1/examples.md#e-8-同一个-run-里前后两次调用前一次的回复被否决) 的场景）：挂一件对第一份回复必定否决的拓展件，核对①那次调用以 `complete`／`truncated` 加 `replyDisposition = { vetoed }` 结束、不带 `failure`；②**这次调用没有第二条响应体**，再试的那一条属于一个新的 `callId`、`dispatch = 1`；③被否决那份 `reply.id` 在会话日志里找不到消息，落盘那份找得到；④两笔用量与费用都在账上 | 规范场景演练；需要 `data.loop-extension` 的否决落点与模型请求运行时的提供者 | [S-13](v1/contract.md#s-13-收场与其余成员的条件关系)、[S-14](v1/contract.md#s-14-回复与已交付部分)、[S-17](v1/contract.md#s-17-首-token-与时序)、[S-19](v1/contract.md#s-19-用量与费用)、[S-23](v1/contract.md#s-23-同一次调用的响应体序列) | **未开始。**②是这条的分量：把再试写成同一调用的 `dispatch = 2`，Schema 放得过（[examples.md 第三节](v1/examples.md#三schema-挡不住但同样非法的)），只有数 `callId` 才看得出首 token 规则被开了例外 |
 
 ## 已知缺口
 
@@ -44,7 +45,7 @@
    它们在本分支里不存在，校验器解析不了引用；
 2. 本次起草派发只允许 `make design-check` 与 `make docs-check` 两条命令。
 
-**建议整批对齐时第一件事就跑 V-1**：本 Schema 的条件约束（`allOf` 里的 `if/then` 共十四处）是最容易写错而肉眼看不出的部分，
+**建议整批对齐时第一件事就跑 V-1**：本 Schema 的条件约束（`allOf` 里的 `if/then` 共十六处）是最容易写错而肉眼看不出的部分，
 而 [`examples.md`](v1/examples.md) 已按「预期」列写成可以直接喂给校验器的格式。
 
 ### 尚无的记录
@@ -74,21 +75,33 @@
 
   | 依赖 | 本契约用了它的什么 | 它定型时要复核 |
   |---|---|---|
-  | `data.call-accounts` v1 | `$defs/Usage`、`$defs/Cost`；`CostCorrection` 的目标形状 `{ kind: model_response, responseId }` 与 `obtainedVia`；汇总规则（`unknown` 单独计数、取最新更正） | `$defs` 名与成员名；「来源 = 无」时四项全 `unknown` 的写法；**它自己也立了 `ResponseId`**——整批对齐须定下一处权威（本契约 [S-6](v1/contract.md#s-6-responseid) 认为家在这里）；catalog `clauses` 由 `$defs/…` 换成它的条款号，**并补上汇总规则所在的那一条**（它没有 `$defs`，起草时无从填占位） |
+  | `data.call-accounts` v1 | `$defs/Usage`、`$defs/Cost`；`CostCorrection` 的目标形状 `{ kind: model_response, responseId }` 与 `obtainedVia`；汇总规则（`unknown` 单独计数、取最新更正）；**2026-09-23 修订起**还有 `$defs/RunId`、`$defs/AttemptId`（整数）、`$defs/ModelCallId`——本契约对这三个直接 `$ref` 过去 | `$defs` 名与成员名；「来源 = 无」时四项全 `unknown` 的写法；**对齐义务：那三个标识的定义要补进它**——补进之前本 Schema 的这三处 `$ref` 解析不了，V-1 跑不起来；补进后核对 `AttemptId` 是从 1 起的整数序号（本契约 [S-7](v1/contract.md#s-7-所属的那次调用)）。**`ResponseId` 的家按主线裁定在本契约**（[S-6](v1/contract.md#s-6-responseid)），它那边按 `data.identity-values` S-31 的散文自定义、**不 `$ref` 本契约**（避免两份 Schema 互相引用），对齐时核对两处表示逐字等价；catalog `clauses` 由 `$defs/…` 换成它的条款号，**并补上汇总规则所在的那一条**（它没有 `$defs`，起草时无从填占位） |
   | `data.content-blocks` v1 | `$defs/ContentBlock`（`delivered`）、`$defs/AttachmentRef`（`raw.body`）；没长完的工具调用两位皆假的规则 | `$defs` 名；实例里块的成员名（`kind`、`visibility`、`complete`、`rawArguments`…）；`AttachmentRef` 的成员 |
   | `data.messages` v1 | `$defs/AssistantMessage`；它的 `response` 成员与 `ending` 三值（`complete`、`interrupted_by_user`、`truncated_at_limit`） | 成员名与三值是否与本 Schema 的 `ending` 条件逐字一致；**它也在本地立了 `ResponseId`**（家指向块 C）——改为引用本契约 |
   | `data.model-profile` v1 | `$defs/ModelProfileRef`、`$defs/ProviderName`、`$defs/ModelRequestParameters`；参数词表的成员名（`droppedParameters` 的项名取它） | `$defs` 名；`ModelProfileRef` 能否表示**官方档案**（它在出厂默认层，而 `data.identity-values` 的 `ScopeLayerIdentity` 不含那一格）；词表成员名 |
-  | `data.loop-extension` v1 | `$defs/FailureCause` 的八值 | 八个名字与本契约 [S-15](v1/contract.md#s-15-故障的成因与原样状态码) 列的逐字一致；`data.arrival-events` 那份不透明的 `FailureCause` 形状同样要改为引用它 |
+  | `data.loop-extension` v1 | `$defs/FailureCause` 的八值 | 八个名字与本契约 [S-15](v1/contract.md#s-15-故障的成因与原样状态码) 列的逐字一致；`data.arrival-events` 那份不透明的 `FailureCause` 形状同样要改为引用它；**2026-09-23 修订起**还要核对它在「消息落盘之前」给出的否决结论与本契约 `replyDisposition.vetoed` 的 `by`、`reason` 同名同义，以及「否决之后再试是新的模型调用」在两边说法一致 |
 
-  **另有两处本契约自己的引用要在整批对齐时定**：`RunId`／`AttemptId` 与 `data.loop-extension` 的 `RunRef`／`AttemptRef` 是不是同一样东西、叫哪个名字；
-  `ModelCallId` 与 `data.arrival-events` 本地立的那一份合一（[G-2](v1/contract.md#七已知缺口)）。
-  **三个不透明标识引用了 `data.identity-values` 的 `OpaqueIdentifier`**，而那个定义的说明写着「只供本文件各具体标识复用」——
-  全批不透明标识怎样引用同一份表示，整批对齐时统一。
+  起草时另有两处本契约自己的引用留给整批对齐（`RunId`／`AttemptId`／`ModelCallId` 的家；三个不透明标识 `$ref` 了 `data.identity-values` 的 `OpaqueIdentifier`，
+  而那个定义的说明限本文件复用）——**两处都已由下一条的主线裁定处理**。
 
   **对证据的影响**：无——还没有任何证据。
 
+- **2026-09-23 主线裁定后就地修订**（仍 `candidate`，未冻结，同一分支第二条提交）。六项：
+
+  | 裁定 | 本契约改了什么 | 对证据的影响 |
+  |---|---|---|
+  | 回复在落盘之前被否决（与 `data.loop-extension` 对齐） | 新增成员 `replyDisposition ∈ persisted \| { vetoed: { by, reason? } }`，只在 `complete`／`truncated` 上且在那里必有；否决不改写收场、不带 `failure`，这次调用就此结束，再试是 loop 另起的新调用（新 `callId`）；首 token 规则**不加例外**，S-23 序列性质不变。改了 [S-1](v1/contract.md#s-1-本契约拥有什么)、成员表、[S-5](v1/contract.md#s-5-与别的形状的关系)、[S-12](v1/contract.md#s-12-收场)～[S-14](v1/contract.md#s-14-回复与已交付部分)、[S-17](v1/contract.md#s-17-首-token-与时序)、[S-23](v1/contract.md#s-23-同一次调用的响应体序列)、[S-26](v1/contract.md#s-26-schema-的范围)、[S-27](v1/contract.md#s-27-表示层拒绝值) 与性质表；G-6 闭合；新立 [G-12](v1/contract.md#七已知缺口)（`interrupted` 的那份被否决时无表示）；examples 新增 E-8（同一 Run 前后两次调用，前一次 `vetoed`）与 R-17、R-18 | V-1 的实例多了 E-8a／E-8b、R-17、R-18，全部正例补了 `replyDisposition`；新增 V-13；V-2、V-3、V-10 的判据不变 |
+  | `upstreamModel` 可缺席、`attemptId` 是整数序号 | 维持起草时的推导，未改 | 无 |
+  | 两个新拒绝值 | `failure_on_success`、`reply_ending_mismatch` 排在 `failure_on_interrupted` 之后；原先落在 `malformed` 的这两种情形改给具名值，`malformed` 只剩成员层面的不合与 `replyDisposition` 的有无；Schema `allOf` 仍是十支（具名的由六支变为八支，标 `malformed` 的由四支变为两支、改管 `replyDisposition` 的有无），`if/then` 由十四处变为十六处 | V-1 要核对的拒绝值变了：R-15、R-16 的预期改为具名值 |
+  | 标识的家 | `RunId`、`AttemptId`、`ModelCallId` 改为 `$ref` `data.call-accounts` v1（上表那一行的对齐义务）；`ResponseId` 的家在本契约；G-1、G-2 闭合 | V-1 多了三处要等 `data.call-accounts` 补定义才能解析的引用 |
+  | 不跨契约 `$ref` `OpaqueIdentifier` | `ResponseId` 按 `data.identity-values` S-31 的散文自定义（非空、首尾无空白，pattern 逐字照那张码点表）；本契约对 `data.identity-values` 不再有 Schema 引用，只有条款引用 | 无；V-1 少一处外部引用 |
+  | 8b／Q14 的依据落为 D-038 | 设计依据行改为「D-038 8b ／ Q14」；G-11 闭合。**D-038 在 HUB 上，本分支看不到**，依据行暂写成文字——**合入后补成链接**，是对齐或合入那一步的事 | 无 |
+
+  catalog：`data.call-accounts` 那条依赖的 `clauses` 补了 `$defs/RunId`、`$defs/AttemptId`、`$defs/ModelCallId`。
+  covers：PF-012「消息落盘之前的否决」由缺口登记改为常规覆盖（S-13、S-14、S-23），PF-013「已经开口说话了」的注记与全局注记去掉 G-6／G-11 的说法。
+
 - **将来的触发点**：
-  - [G-6](v1/contract.md#七已知缺口) 闭合（产品给「回复在落盘之前被否决」那一次定成因）：[S-13](v1/contract.md#s-13-收场与其余成员的条件关系) 的判定表要多一行、Schema 第六支的②要松一处；接受之后即是语义变更，发新版本。
+  - [G-12](v1/contract.md#七已知缺口) 闭合且要表示：`replyDisposition` 放宽到 `interrupted` 上，Schema 标 `malformed` 的第十支要改、R-18 翻成正例；接受之后即是表示变更，发新版本。
   - [G-7](v1/contract.md#七已知缺口) 闭合：V-10 的停机那一支与 V-11 解除阻断；若要加「判不出」这一取值，是表示变更，接受之后发新版本。
   - [G-8](v1/contract.md#七已知缺口) 若结论是「上游仍可能换家」，要加一个成员，接受之后发新版本。
   - 跨进程演化（[S-25](v1/contract.md#s-25-装配给的保证与协议须给的保证) 右列转为协议给）：语义边界改变，发新版本；本版的全部证据只保留其单机范围。
