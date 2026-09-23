@@ -16,10 +16,10 @@
 
 **两条读法上的边界：**
 
-- **`通过` 只说表示合法。**它不表示路由名没被占（[S-3](contract.md#s-3-同一范围内唯一官方名对所有层保留)，见[第 7 节](#7-判定撞名拒建不是-schema-实例)）、
-  不表示引用解析得到（[S-14](contract.md#s-14-引用只按两个分量精确解析)），更不表示谁能用它。
+- **`通过` 只说表示合法。**它不表示路由名没被占（[S-3](contract.md#s-3-路由名在全部档案里唯一)，见[第 7 节](#7-判定撞名拒建不是-schema-实例)）、
+  不表示引用解析得到（[S-14](contract.md#s-14-引用只精确解析不跨层)），更不表示谁能用它。
 - **示例里的路由名、供应商名与身份值都是占位。**`vendor-a/chat-large`、`provider-x` 不是任何真实目录里的条目，
-  也不是对词法的承诺（[G-2、G-3](contract.md#十已知缺口)）；`org_7fd2c1`、`acc_91ab40` 的形状归 `data.identity-values`。
+  也不是对词法的承诺（[G-2](contract.md#十已知缺口)）；`org_7fd2c1`、`acc_91ab40` 的形状归 `data.identity-values`。
 
 ## 1. 三条正例
 
@@ -44,7 +44,8 @@
 ```
 
 - 它在出厂默认层（[S-4](contract.md#s-4-profileorigin)）；**不含凭据**（[S-22](contract.md#s-22-凭据价格与实际用了哪条都不在档案上)），凭据在装配阶段配置。
-- **本版构造不出指向它的引用**（[S-13](contract.md#s-13-modelprofileref)、[G-1](contract.md#十已知缺口)）——见第 3 节最后三行。
+- 指向它的引用只带路由名（[S-13](contract.md#s-13-modelprofileref)）：`{"origin": "official", "routeName": "vendor-a/chat-large"}`——
+  能这样写，是因为路由名在全部档案里唯一（[S-3](contract.md#s-3-路由名在全部档案里唯一)）。
 - 没有 `parameters`：本档案一项都不给（[S-17](contract.md#s-17-缺席即不带没有人补值)）。
 
 ### 正例 B：租户层的自建档案，带请求参数
@@ -80,6 +81,7 @@
 
 ```json
 {
+  "origin": "custom",
   "scope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } },
   "routeName": "vendor-b/coder-7b"
 }
@@ -111,12 +113,13 @@
 
 ```json
 {
+  "origin": "custom",
   "scope": { "layer": "organization", "organization": "org_7fd2c1" },
   "routeName": "vendor-c/vision-mini"
 }
 ```
 
-- **已撤回的档案仍是一份合法文档，仍读得出**；这个引用仍解析到它（[S-10](contract.md#s-10-registration)、[S-14](contract.md#s-14-引用只按两个分量精确解析)）。
+- **已撤回的档案仍是一份合法文档，仍读得出**；这个引用仍解析到它（[S-10](contract.md#s-10-registration)、[S-14](contract.md#s-14-引用只精确解析不跨层)）。
 - `allowFallback: false` 而列表有两家**合法**：只发往第一家，第二家保留在档案上（[S-6](contract.md#s-6-允不允许回退)）。
 
 ## 2. ModelProfile 的反例
@@ -128,7 +131,7 @@
 | A：`routeName` → `""` | 拒绝 | `route_name_empty` | [S-2](contract.md#s-2-routename) |
 | A：−`routeName` | 拒绝 | `malformed`（M2） | [S-25](contract.md#s-25-拒绝值闭合一次恰一个)：缺必填成员报 `malformed`，不报 `route_name_empty` |
 | A：`routeName` → `null` | 拒绝 | `malformed`（M4） | 同上：`null` 不是一个空路由名 |
-| A：`routeName` → `" vendor-a/chat-large"` | 拒绝 | `malformed`（M7） | [S-2](contract.md#s-2-routename)：首尾不得是空白，否则一个空格就绕过 [S-3](contract.md#s-3-同一范围内唯一官方名对所有层保留) |
+| A：`routeName` → `" vendor-a/chat-large"` | 拒绝 | `malformed`（M7） | [S-2](contract.md#s-2-routename)：首尾不得是空白，否则一个空格就绕过 [S-3](contract.md#s-3-路由名在全部档案里唯一) |
 | A：`routeName` → `"vendor-a/chat-large\n"` | 拒绝 | `malformed`（M7） | [S-2](contract.md#s-2-routename)：**`$` 的回归用例**——用 `$` 收尾的 pattern 在 Python 下会放它通过 |
 | A：`routeName` → `"﻿vendor-a/chat-large"`（前导 U+FEFF） | 拒绝 | `malformed`（M7） | [S-2](contract.md#s-2-routename)：**`\s` 的回归用例**——U+FEFF 在显式空白集合里 |
 | A：`origin` → `"builtin"` | 拒绝 | `malformed`（M5） | [S-4](contract.md#s-4-profileorigin)：恰两值 |
@@ -141,7 +144,9 @@
 | A：`outputModalities` → `[]` | 拒绝 | `modalities_empty` | [S-7](contract.md#s-7-modality-与两组模态) |
 | A：`inputModalities` → `["text", "file"]` | 拒绝 | `modality_unknown` | [S-7](contract.md#s-7-modality-与两组模态)：**文件不是一种模态** |
 | A：`inputModalities` → `["text", "voice"]` | 拒绝 | `modality_unknown` | [S-7](contract.md#s-7-modality-与两组模态)：token 是 `audio`，词条英文 voice 不是 token |
-| A：`inputModalities` → `["Text"]` | 拒绝 | `modality_unknown` | [S-7](contract.md#s-7-modality-与两组模态)：不做「最接近」映射 |
+| A：`inputModalities` → `["image"]` | 拒绝 | `input_text_missing` | [S-7](contract.md#s-7-modality-与两组模态)：收得下的模态必含 `text`——否则有 transcript 的块它也读不了 |
+| A：`outputModalities` → `["image"]` | 通过 | —— | [S-7](contract.md#s-7-modality-与两组模态)：「必含 `text`」只约束收得下的那一组 |
+| A：`inputModalities` → `["text", "Text"]` | 拒绝 | `modality_unknown` | [S-7](contract.md#s-7-modality-与两组模态)：不做「最接近」映射 |
 | A：`inputModalities` → `["text", "text"]` | 拒绝 | `malformed`（M6） | [S-7](contract.md#s-7-modality-与两组模态)：集合，无重复 |
 | A：`inputModalities` → `["image", "text"]` | 通过 | —— | [S-7](contract.md#s-7-modality-与两组模态)：次序没有含义，与正例 A **是同一个集合** |
 | A：`maxInputTokens` → `0` | 拒绝 | `malformed`（M8） | [S-8](contract.md#s-8-两个上限)：至少一 |
@@ -166,7 +171,7 @@
 | A：＋`"parameters": {"maxOutputTokens": 0}` | 拒绝 | `parameter_out_of_range` | [S-16](contract.md#s-16-各项的取值域)：先于第 8 行的跨字段比较命中 |
 | A：＋`"parameters": {"maxOutputTokens": 64000}` | 通过 | —— | [S-18](contract.md#s-18-档案参数的输出上限)：等于档案上限可以 |
 | A：＋`"parameters": {"maxOutputTokens": 64001}` | 拒绝 | `max_output_exceeds_profile` | [S-18](contract.md#s-18-档案参数的输出上限)。**Schema 放行、表示层拒绝**——只跑 Schema 的实现会漏掉这一行 |
-| B：`maxOutputTokens` → `2048` | 拒绝 | `max_output_exceeds_profile` | [S-18](contract.md#s-18-档案参数的输出上限)、[S-12](contract.md#s-12-各属性何时定能不能改)：把档案上限改到低于参数值，改完的文档过不了；收场是 [G-7](contract.md#十已知缺口)。**Schema 放行、表示层拒绝** |
+| B：`maxOutputTokens` → `2048` | 拒绝 | `max_output_exceeds_profile` | [S-18](contract.md#s-18-档案参数的输出上限)、[S-12](contract.md#s-12-各属性何时定能不能改)：把档案上限改到低于参数值，改完的文档过不了。**所以上游收紧到这里时档案不改**，差额由 adapter 在发出时按「改了值再发出」处理并留痕（[S-21](contract.md#s-21-不静默丢也不静默改)）。**Schema 放行、表示层拒绝** |
 | A：＋`"parameters": {"top_k": 40}` | 拒绝 | `malformed`（M3） | [S-15](contract.md#s-15-modelrequestparameters-是一份词表)：上游私有的项只能进 `extra` |
 | A：＋`"parameters": {"timeoutMs": 30000}` | 拒绝 | `malformed`（M3） | [S-16](contract.md#s-16-各项的取值域)：词表里没有时限（PF-013 §6.17） |
 | A：＋`"parameters": {"extra": {}}` | 拒绝 | `malformed`（M10） | [S-17](contract.md#s-17-缺席即不带没有人补值)、[S-19](contract.md#s-19-extra) |
@@ -175,25 +180,30 @@
 
 ## 3. ModelProfileRef
 
-**校验对象**：`$defs/ModelProfileRef`（种类：`ModelProfileRef`）。`scope` 的形状由 `data.identity-values/v1` 的 `ScopeLayerIdentity` 判。
+**校验对象**：`$defs/ModelProfileRef`（种类：`ModelProfileRef`）。自建那一支 `scope` 的形状由 `data.identity-values/v1` 的 `ScopeLayerIdentity` 判。
 
 | 实例 | 预期 | 拒绝值 | 依据 |
 |---|---|---|---|
+| `{"origin": "official", "routeName": "vendor-a/chat-large"}`（正例 A 的引用） | 通过 | —— | [S-13](contract.md#s-13-modelprofileref)：官方那一支只带路由名，前提是 [S-3](contract.md#s-3-路由名在全部档案里唯一) |
 | 正例 B 的引用 | 通过 | —— | [S-13](contract.md#s-13-modelprofileref) |
 | 正例 C 的引用 | 通过 | —— | [S-13](contract.md#s-13-modelprofileref)：已撤回的档案照样可被引用 |
-| `{"scope": {"layer": "tenant", "tenant": {"account": "acc_91ab40", "organization": "org_7fd2c1"}}, "routeName": "vendor-b/coder-7b"}` | 通过 | —— | [S-13](contract.md#s-13-modelprofileref)：成员次序不参与相等，与正例 B 的引用**是同一个引用** |
-| `{"scope": {"layer": "tenant", "tenant": {"organization": "org_7fd2c1", "account": "acc_91ab40"}}, "routeName": ""}` | 拒绝 | `route_name_empty` | [S-2](contract.md#s-2-routename) |
-| `{"scope": {"layer": "tenant", "tenant": {"organization": "org_7fd2c1"}}, "routeName": "vendor-b/coder-7b"}` | 拒绝 | `malformed`（M9） | [S-13](contract.md#s-13-modelprofileref)：租户身份缺一个分量，不得用「当前登录账号」补齐 |
-| `{"scope": {"layer": "organization", "tenant": {"organization": "org_7fd2c1", "account": "acc_91ab40"}}, "routeName": "vendor-b/coder-7b"}` | 拒绝 | `malformed`（M9） | [S-13](contract.md#s-13-modelprofileref)：判别式与载荷对不上 |
-| `{"scope": {"organizationId": "org_7fd2c1", "tenantId": null}, "routeName": "vendor-c/vision-mini"}` | 拒绝 | `malformed`（M9） | [S-13](contract.md#s-13-modelprofileref)：两个可空字段那种压平形状 |
-| `{"scope": {"layer": "tenant", "tenant": {"organization": "org_7fd2c1", "account": "acc_91ab40"}}, "routeName": "vendor-b/coder-7b", "origin": "custom"}` | 拒绝 | `malformed`（M3） | [S-13](contract.md#s-13-modelprofileref)：本版引用恰两个分量 |
+| `{"routeName": "vendor-b/coder-7b", "scope": {"layer": "tenant", "tenant": {"account": "acc_91ab40", "organization": "org_7fd2c1"}}, "origin": "custom"}` | 通过 | —— | [S-13](contract.md#s-13-modelprofileref)：成员次序不参与相等，与正例 B 的引用**是同一个引用** |
+| `{"origin": "official", "routeName": ""}` | 拒绝 | `route_name_empty` | [S-2](contract.md#s-2-routename) |
+| `{"origin": "custom", "scope": {"layer": "tenant", "tenant": {"organization": "org_7fd2c1", "account": "acc_91ab40"}}, "routeName": ""}` | 拒绝 | `route_name_empty` | [S-2](contract.md#s-2-routename) |
+| `{"routeName": "vendor-a/chat-large"}` | 拒绝 | `malformed`（M2） | [S-13](contract.md#s-13-modelprofileref)：`origin` 必填，**缺它不表示「官方」** |
+| `{"scope": {"layer": "tenant", "tenant": {"organization": "org_7fd2c1", "account": "acc_91ab40"}}, "routeName": "vendor-b/coder-7b"}` | 拒绝 | `malformed`（M2） | [S-13](contract.md#s-13-modelprofileref)：`origin` 必填，带了 `scope` 也不替它推出「自建」 |
+| `{"origin": "custom", "routeName": "vendor-b/coder-7b"}` | 拒绝 | `malformed`（M2） | [S-13](contract.md#s-13-modelprofileref)：自建那一支 `scope` 必填，**缺它不表示「当前租户」，也不退成官方引用** |
+| `{"origin": "official", "scope": {"layer": "organization", "organization": "org_7fd2c1"}, "routeName": "vendor-a/chat-large"}` | 拒绝 | `malformed`（M3） | [S-13](contract.md#s-13-modelprofileref)：官方那一支不带范围分量，两支互斥 |
+| `{"origin": "builtin", "routeName": "vendor-a/chat-large"}` | 拒绝 | `malformed`（M5） | [S-13](contract.md#s-13-modelprofileref)、[S-4](contract.md#s-4-profileorigin)：恰两值 |
+| `{"origin": "custom", "scope": {"layer": "factoryDefault"}, "routeName": "vendor-a/chat-large"}` | 拒绝 | `malformed`（M9） | [S-13](contract.md#s-13-modelprofileref)：出厂默认层没有身份值，本契约不自行补上；指向官方档案用官方那一支 |
+| `{"origin": "custom", "scope": {"layer": "tenant", "tenant": {"organization": "org_7fd2c1"}}, "routeName": "vendor-b/coder-7b"}` | 拒绝 | `malformed`（M9） | [S-13](contract.md#s-13-modelprofileref)：租户身份缺一个分量，不得用「当前登录账号」补齐 |
+| `{"origin": "custom", "scope": {"layer": "organization", "tenant": {"organization": "org_7fd2c1", "account": "acc_91ab40"}}, "routeName": "vendor-b/coder-7b"}` | 拒绝 | `malformed`（M9） | [S-13](contract.md#s-13-modelprofileref)：判别式与载荷对不上 |
+| `{"origin": "custom", "scope": {"organizationId": "org_7fd2c1", "tenantId": null}, "routeName": "vendor-c/vision-mini"}` | 拒绝 | `malformed`（M9） | [S-13](contract.md#s-13-modelprofileref)：两个可空字段那种压平形状 |
+| `{"origin": "custom", "scope": null, "routeName": "vendor-c/vision-mini"}` | 拒绝 | `malformed`（M9） | [S-13](contract.md#s-13-modelprofileref)：`null` 不是一个范围 |
 | `"vendor-b/coder-7b"` | 拒绝 | `malformed`（M1） | [S-13](contract.md#s-13-modelprofileref)：[那项设置的取值不是一个裸名字](../../../../product/PF-013-model-profiles-and-invocation/design.md#61-档案是一个对象那项设置的取值是对它的引用) |
-| `{"routeName": "vendor-a/chat-large"}` | 拒绝 | `malformed`（M2） | [S-13](contract.md#s-13-modelprofileref)：`scope` 没有默认值；**省掉它不表示「官方」**（[G-1](contract.md#十已知缺口)） |
-| `{"scope": {"layer": "factoryDefault"}, "routeName": "vendor-a/chat-large"}` | 拒绝 | `malformed`（M9） | [S-13](contract.md#s-13-modelprofileref)：出厂默认层没有身份值，本契约不自行补上（[G-1](contract.md#十已知缺口)） |
-| `{"scope": null, "routeName": "vendor-a/chat-large"}` | 拒绝 | `malformed`（M9） | [S-13](contract.md#s-13-modelprofileref)：`null` 不是一个范围 |
 
-**最后三行是 G-1 的样子**：指向官方档案 A 的引用，本版三种想得到的写法全被拒——**这是有意的阻断**，
-需要它的消费者应当在这里停下，而不是照其中一种猜测实施。
+**表示合法不等于解析得到**（[S-14](contract.md#s-14-引用只精确解析不跨层)）：`{"origin": "custom", "scope": {"layer": "organization", "organization": "org_7fd2c1"}, "routeName": "vendor-b/coder-7b"}`
+形状上完全合法，但 `vendor-b/coder-7b` 那一条在租户层，**所在范围对不上就是「查无此条」**，不会顺着名字解析到租户层那一条。
 
 ## 4. ModelRequestParameters（独立值）
 
@@ -238,7 +248,7 @@
 | `"vendor-a/chat-large"` | 通过 | [S-2](contract.md#s-2-routename) |
 | `"a"` | 通过 | [S-2](contract.md#s-2-routename)：最短的合法路由名是一个非空白码点 |
 | `"vendor a/chat"` | 通过 | [S-2](contract.md#s-2-routename)：**中间**的空白不受本条限制；词法归上游 |
-| `"Vendor-A/Chat-Large"` | 通过 | [S-2](contract.md#s-2-routename)：与 `vendor-a/chat-large` **是两个名字**（逐码点相等）；它能不能绕过官方名保留是 [G-3](contract.md#十已知缺口) |
+| `"Vendor-A/Chat-Large"` | 通过 | [S-2](contract.md#s-2-routename)：与 `vendor-a/chat-large` **是两个名字**（逐码点相等）；只差大小写不算撞名（[S-3](contract.md#s-3-路由名在全部档案里唯一)） |
 | `""` | 拒绝 | [S-2](contract.md#s-2-routename) |
 | `"vendor-a/chat-large "` | 拒绝 | [S-2](contract.md#s-2-routename)：尾随空白 |
 | `12345` | 拒绝 | [S-2](contract.md#s-2-routename)：字符串 |
@@ -276,26 +286,28 @@
 | 实例 | 预期 | 拒绝值 | 依据 |
 |---|---|---|---|
 | A：`routeName` → `""`，且 −`updatedAt` | 拒绝 | `malformed`（M2） | 结构不完整先于一切具体原因 |
-| A：`providers` → `[]`，且 `registration` → `"deleted"` | 拒绝 | `providers_empty` | 第 3 行先于第 6 行 |
-| A：`inputConstraints` → `{"maxAudioSeconds": 60}`，且 ＋`"parameters": {"maxOutputTokens": 64001}` | 拒绝 | `max_output_exceeds_profile` | 第 8 行先于第 9 行 |
+| A：`providers` → `[]`，且 `registration` → `"deleted"` | 拒绝 | `providers_empty` | 第 3 行先于第 7 行 |
+| A：`inputModalities` → `["image", "file"]` | 拒绝 | `input_text_missing` | 第 5 行先于第 6 行：缺 `text` 与未知 token 同时命中，报缺 `text` |
+| A：`inputConstraints` → `{"maxAudioSeconds": 60}`，且 ＋`"parameters": {"maxOutputTokens": 64001}` | 拒绝 | `max_output_exceeds_profile` | 第 9 行先于第 10 行 |
 
 ## 7. 判定：撞名拒建（不是 Schema 实例）
 
-**这一节不是表示层校验**：每一行的拟建档案**都通过表示层校验**，被拒是因为要读别的记录（[S-3](contract.md#s-3-同一范围内唯一官方名对所有层保留)、[S-26](contract.md#s-26-表示层拒绝与判定分开)）。
+**这一节不是表示层校验**：每一行的拟建档案**都通过表示层校验**，被拒是因为要读别的记录（[S-3](contract.md#s-3-路由名在全部档案里唯一)、[S-26](contract.md#s-26-表示层拒绝与判定分开)）。
 它是规范场景，由拥有建档操作的能力演练（[G-11](contract.md#十已知缺口)），状态见[验证入口](../verification.md#证据义务)。
 
 **已有的档案**：正例 A（官方，在册）、正例 B（租户 `(org_7fd2c1, acc_91ab40)` 的租户层，在册）、正例 C（组织 `org_7fd2c1` 的组织层，已撤回）。
 
 | 拟建 | 结果 | 依据 |
 |---|---|---|
-| 租户 `(org_7fd2c1, acc_91ab40)` 建自建档案 `vendor-a/chat-large` | `route_name_taken` | S-3 第 2 条：官方名对所有层保留 |
-| 同一租户再建 `vendor-b/coder-7b` | `route_name_taken` | S-3 第 1 条：同一范围 |
-| 组织 `org_7fd2c1` 再建 `vendor-c/vision-mini` | `route_name_taken` | S-3 第 1 条：**已撤回的行仍占着名字**（[S-10](contract.md#s-10-registration)）；上游重新上架同名模型时怎么办是 [G-6](contract.md#十已知缺口) |
-| 组织 `org_7fd2c1` 建 `vendor-b/coder-7b` | **本条不拒** | 组织层与租户层不是同一范围；同一份列表里两条同名是 [G-5](contract.md#十已知缺口) |
-| 另一个组织 `org_kf22` 建 `vendor-c/vision-mini` | **本条不拒** | 不同范围 |
-| 正例 A 被撤回之后，租户 `(org_7fd2c1, acc_91ab40)` 建 `vendor-a/chat-large` | `route_name_taken` | S-3 第 2 条**不论在册还是已撤回** |
+| 租户 `(org_7fd2c1, acc_91ab40)` 建自建档案 `vendor-a/chat-large` | `route_name_taken` | 撞官方名 |
+| 同一租户再建 `vendor-b/coder-7b` | `route_name_taken` | 撞同一范围里的名字 |
+| 组织 `org_7fd2c1` 建 `vendor-b/coder-7b` | `route_name_taken` | 撞它某个租户的租户层里的名字——名字全局唯一，不看是哪一层 |
+| 另一个组织 `org_kf22` 建 `vendor-c/vision-mini` | `route_name_taken` | 撞不相干组织里一条**已撤回**的档案：已撤回的行仍占着名字（[S-10](contract.md#s-10-registration)）；上游重新上架同名模型时怎么办是 [G-6](contract.md#十已知缺口) |
+| 系统发布一条新的官方档案 `vendor-b/coder-7b` | `route_name_taken` | 新官方档案撞已有自建名**同样拒建**；处置归发布方，已有档案改不了名（[S-2](contract.md#s-2-routename)） |
+| 正例 A 被撤回之后，租户 `(org_7fd2c1, acc_91ab40)` 建 `vendor-a/chat-large` | `route_name_taken` | 不论在册还是已撤回 |
+| 租户 `(org_7fd2c1, acc_91ab40)` 建 `Vendor-A/Chat-Large` | **建出** | 只差大小写不算同名：逐码点比较，不做大小写折叠与相似字判定 |
 | 任一行，判定时读不到已有档案 | **明确失败**（值名归能力） | S-3 九件事第 4 行：**不得当作「未被占」** |
-| 两个请求**并发**为同一租户建 `vendor-d/new` | **恰一个成功**，另一个 `route_name_taken` | S-3 九件事第 3 行：判定与写入同一提交 |
+| 两个请求**并发**建 `vendor-d/new`，一个来自租户 `(org_7fd2c1, acc_91ab40)`、一个来自组织 `org_kf22` | **恰一个成功**，另一个 `route_name_taken` | S-3 九件事第 3 行：判定与写入同一提交，**提交边界覆盖整个名字空间**——两个不相干的范围也不能各判各的 |
 
 ## 8. 没有这条写路径：撤回不可逆
 

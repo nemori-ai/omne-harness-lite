@@ -3,7 +3,7 @@
   "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-profile/v1/model-profile.schema.json",
   "title": "data.model-profile v1",
   "description": "模型档案、指向它的引用与统一请求参数词表的规范形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.model-profile/v1 内有效。",
-  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状：route_name_taken（同一范围撞名、撞官方名）是判定，要读别的记录，Schema 管不到；max_output_exceeds_profile 是同一文档内的跨字段比较，Draft 2020-12 表达不了，由表示层校验在 Schema 之外补上（S-18、S-24）。一份被拒的文档对应哪一个拒绝值，按 contract.md S-25 的表与次序判，不按校验器报错的先后。正反实例在同目录 examples.md。",
+  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状：route_name_taken（路由名在全部档案里撞名）是判定，要读别的记录，Schema 管不到；max_output_exceeds_profile 是同一文档内的跨字段比较，Draft 2020-12 表达不了，由表示层校验在 Schema 之外补上（S-18、S-24）。一份被拒的文档对应哪一个拒绝值，按 contract.md S-25 的表与次序判，不按校验器报错的先后。正反实例在同目录 examples.md。",
 
   "$defs": {
 
@@ -27,11 +27,12 @@
           "type": "boolean"
         },
         "inputModalities": {
-          "description": "S-7：收得下的模态，非空集合，无重复，次序无意义。",
+          "description": "S-7：收得下的模态，非空集合，无重复，次序无意义，必含 text（缺它即 input_text_missing）。",
           "type": "array",
           "items": { "$ref": "#/$defs/Modality" },
           "minItems": 1,
-          "uniqueItems": true
+          "uniqueItems": true,
+          "contains": { "const": "text" }
         },
         "outputModalities": {
           "description": "S-7：给得出的模态，非空集合，无重复，次序无意义。",
@@ -80,23 +81,41 @@
 
     "ModelProfileRef": {
       "title": "ModelProfileRef",
-      "description": "S-13、S-14：对一条模型档案的引用，「用哪个模型」那项设置、会话的选中模型与一次请求的有效模型都取这个值。两个分量都必填：scope 是档案所在那一格的作用域层身份（data.identity-values/v1 的 ScopeLayerIdentity，该契约 S-11），没有默认值、不从环境推断（该契约 S-12、S-17）；routeName 是那一格里的路由名。解析只按两个分量精确匹配，不跨层搜索、不回退到别层的同名档案。它是规格层的引用值名，不是统一语言词条，因此不给「中文 · English」那种词条式标题。",
-      "$comment": "本版只构造得出组织层与租户层那两格的引用，也就是只指得到自建档案：ScopeLayerIdentity 刻意不含出厂默认层（data.identity-values/v1 S-11：那一格没有身份对象），本契约不自行补上。指向官方档案的引用形状是缺口 G-1——让它构造不出来，需要它的消费者会在这里停下报缺口，而不是照一个猜测实施。scope 存成带判别式的 ScopeLayerIdentity，不得压平成两个可空字段（data.identity-values/v1 S-16）。",
+      "description": "S-13、S-14：对一条模型档案的引用，「用哪个模型」那项设置、会话的选中模型与一次请求的有效模型都取这个值。按 origin 判别，恰两支：指向官方档案的是 {origin: official, routeName}；指向自建档案的是 {origin: custom, scope, routeName}，scope 是档案所在那一格的作用域层身份（data.identity-values/v1 的 ScopeLayerIdentity，该契约 S-11），没有默认值、不从环境推断（该契约 S-12、S-17）。解析只按给出的分量精确匹配，不跨层搜索、不回退到别层的同名档案。它是规格层的引用值名，不是统一语言词条，因此不给「中文 · English」那种词条式标题。",
+      "$comment": "官方那一支不带 scope：出厂默认层没有身份对象（data.identity-values/v1 S-11），本契约不为它铸一个。它能只凭 routeName 指认一条官方档案，前提是 S-3：路由名在全部档案（所有层、含已撤回）里唯一，官方名因此对所有层保留——这个前提不成立，官方引用就指不清。自建那一支的 scope 存成带判别式的 ScopeLayerIdentity，不得压平成两个可空字段（data.identity-values/v1 S-16）。",
       "type": "object",
-      "properties": {
-        "scope": {
-          "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json#/$defs/ScopeLayerIdentity"
-        },
-        "routeName": { "$ref": "#/$defs/RouteName" }
-      },
-      "required": ["scope", "routeName"],
-      "additionalProperties": false,
-      "examples": [
+      "oneOf": [
         {
+          "title": "指向官方档案",
+          "properties": {
+            "origin": { "const": "official" },
+            "routeName": { "$ref": "#/$defs/RouteName" }
+          },
+          "required": ["origin", "routeName"],
+          "additionalProperties": false
+        },
+        {
+          "title": "指向自建档案",
+          "properties": {
+            "origin": { "const": "custom" },
+            "scope": {
+              "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json#/$defs/ScopeLayerIdentity"
+            },
+            "routeName": { "$ref": "#/$defs/RouteName" }
+          },
+          "required": ["origin", "scope", "routeName"],
+          "additionalProperties": false
+        }
+      ],
+      "examples": [
+        { "origin": "official", "routeName": "vendor-a/chat-large" },
+        {
+          "origin": "custom",
           "scope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } },
           "routeName": "vendor-b/coder-7b"
         },
         {
+          "origin": "custom",
           "scope": { "layer": "organization", "organization": "org_7fd2c1" },
           "routeName": "vendor-c/vision-mini"
         }
@@ -106,7 +125,7 @@
     "RouteName": {
       "title": "RouteName",
       "description": "S-2：上游认的那个名字，档案身份的一个分量。非空字符串，首尾不得是空白；相等是逐码点精确相等，不做 Unicode 规范化、大小写折叠或首尾裁剪。本系统不解析它的内容（不从中读出厂商、系列或版本）。建档后不可改——改了就是另一条档案。",
-      "$comment": "空白集合与 data.identity-values/v1 S-31 逐码点同一集合（U+0009–000D、U+0020、U+0085、U+00A0、U+1680、U+2000–200A、U+2028、U+2029、U+202F、U+205F、U+3000、U+FEFF），pattern 同样不用 \\s 与 $，以 (?![\\s\\S]) 作绝对结尾；权威在那一条，该条改集合时本定义随之出新版本。刻意不 $ref 那份契约的 OpaqueIdentifier：那一项的含义是「部署内唯一、由存储生成」，路由名两样都不是。禁首尾空白是为了不让 S-3 的「官方名对所有层保留」被一个尾随空格绕过；大小写与 Unicode 同形字绕过是缺口 G-3。",
+      "$comment": "空白集合与 data.identity-values/v1 S-31 逐码点同一集合（U+0009–000D、U+0020、U+0085、U+00A0、U+1680、U+2000–200A、U+2028、U+2029、U+202F、U+205F、U+3000、U+FEFF），pattern 同样不用 \\s 与 $，以 (?![\\s\\S]) 作绝对结尾；权威在那一条，该条改集合时本定义随之出新版本。刻意不 $ref 那份契约的 OpaqueIdentifier：那一项的含义是「部署内唯一、由存储生成」，路由名两样都不是。禁首尾空白是为了不让 S-3 的「路由名在全部档案里唯一」被一个尾随空格绕过。大小写不同、Unicode 相似字不算同名（S-3，主线 2026-09-23 裁定），本定义不做折叠。",
       "type": "string",
       "minLength": 1,
       "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])",

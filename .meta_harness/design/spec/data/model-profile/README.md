@@ -35,7 +35,7 @@
 | 本候选版本精确承诺什么 | [v1 契约](v1/contract.md) |
 | 交换与存储表示 | [v1 Schema](v1/model-profile.schema.json) |
 | 一条档案长什么样、什么会被拒、拒成哪个值 | [v1 正反实例](v1/examples.md) |
-| 我要引用一条档案 | [S-13 ModelProfileRef](v1/contract.md#s-13-modelprofileref)——**指向官方档案的引用本版构造不出，见 [G-1](v1/contract.md#十已知缺口)** |
+| 我要引用一条档案 | [S-13 ModelProfileRef](v1/contract.md#s-13-modelprofileref)——按 `origin` 两支：官方只带路由名，自建另带所在范围；官方那一支成立的前提是 [S-3 路由名在全部档案里唯一](v1/contract.md#s-3-路由名在全部档案里唯一) |
 | 我是 adapter，上游不认某一项参数 | [S-21 不静默丢，也不静默改](v1/contract.md#s-21-不静默丢也不静默改) |
 | 哪里在等裁决 | [已知缺口](v1/contract.md#十已知缺口) |
 | 哪些条款有怎样的证据义务，现在到哪一步 | [验证与覆盖](verification.md) |
