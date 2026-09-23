@@ -2,7 +2,7 @@
 id: PF-012
 title: Agent Loop 与 Run
 status: active
-revision: 8
+revision: 9
 relations:
   supersedes: []
   depends-on:
@@ -151,6 +151,8 @@ relations:
 > **可否决那一档还能让 Run 停下来等人**：落一张卡片，用的是 loop 主流程等模型、等工具、等人的
 > [同一个原语](design.md#等人是-loop-的原语)——**放行判断就是这样问人的**，租户的拓展件也一样。
 > 等待靠日志撑着，协程没了照样接着等。**但没有[「放宽」这一档](design.md#没有放宽这一档)**：拓展件拦得住，放不宽。
+>
+> **拓展件是装了才有的可插拔服务**：[不可用就当它被卸载了，可用却报错按它那一类的策略办](design.md#拓展件是可插拔的服务不可用即卸载报错按策略)。
 
 ## 关系
 
@@ -185,8 +187,8 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 8**，已定稿 · [演进过程见变更历史](changelog.md)
-- **两项待裁决**：[「消息落盘之前」否决了模型或工具那一条之后 loop 拿到什么；可否决一档在「之后」位置挂了算什么](design.md#92-待产品负责人裁决)
+- 产品设计：**rev 9**，已定稿 · [演进过程见变更历史](changelog.md)
+- **没有待裁决项**
 - **那个缺口已经有主了**：会话归 [PF-015](../PF-015-session-lifecycle-and-ownership/README.md)（rev 7，仍是草稿）。
   **它没有终态**——[生命周期是四个状态，收束的锚点是归档](../PF-015-session-lifecycle-and-ownership/design.md#会话的生命周期)，
   而 [§6.6](design.md#66-终态不可逆且只有一个出口) 说的三个终态**是 Run 的，不是会话的**，两者从来不是一回事

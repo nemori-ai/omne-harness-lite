@@ -5,6 +5,36 @@
 
 技术投影用 `provenance.json` 引用具体 rev，所以这里的 rev 不准会直接传导到实现侧。
 
+## rev 16 · 工具执行从不由 agent runtime 承载；MCP 连不上就是不可用 — 2026-09-23
+
+**起因**：产品负责人看了 rev 15，纠正了 PM 推导的宿主模型，并裁了 §9 那项待裁。
+原话在 [decisions](decisions.md#2026-09-23二-工具执行从不由-agent-runtime-承载mcp-连不上就是不可用)：
+「Ask() 以及其他的工具，都是自己独立的 runtime，它们的等待态是它们自己的等待态不是 agent runtime 的等待态呀～是 agent runtime 这个协程在被阻塞等这些工具响应，是两回事……」
+「MCP 连不上视作『不可用』，按照我们的定义不可用就是替换成不可用替换件」。
+
+| 位置 | 现在怎么说 |
+|---|---|
+| [§4 等待态](design.md#等待态) | 补一段：**等待态是工具执行自己的，不是 agent runtime 的**；协程回收，`Ask()` 的卡照样挂着，协程重建后照 Run 接着等 |
+| [§4 Tool Execution](design.md#tool-execution) | 绑在谁身上：**会话**，有自己独立的 runtime，从不由 agent runtime 承载；前台 / 后台说的是 agent runtime 阻不阻塞在它上面 |
+| [§5.2](design.md#52-工具这个词指三样东西寿命各不相同) | 图与表回到「绑会话、不绑 run、不绑 agent runtime」；新增小节[「前台、后台说的是 agent runtime 在不在等它」](design.md#前台后台说的是-agent-runtime-在不在等它)：Run 记着协程在等哪一次执行，重建后接着等 |
+| [§5.5](design.md#55-一次工具执行的收场有六种) | 转后台 = agent runtime 不再阻塞在它上面，仍是前台那次调用的收场 |
+| [§6.5](design.md#65-工具执行有自己的运行时绑定在-session-上) | 宿主就是会话；**agent runtime 被回收不影响任何一次工具执行** |
+| [§6.12](design.md#612-工具执行的运行时可以被单独控制而它停了就不重来) | 停机的主语是**工具自己的 runtime**；回收对任何执行都不是停机；[「它的宿主是谁」那张表](design.md#它的宿主是谁决定了什么会带走它)宿主一列都是会话，「agent runtime 被回收」一列都是「不受影响」；「中断一次运行」一列照 PF-012 §6.13 的取消语义（前台落被中断、后台不停），**取消 ≠ 回收** |
+| [§6.13](design.md#接入点连不上它的动作就是不可用) | 新增小节：**run 前连不上 = 不可用**，照最近一次拿到的清单每个动作装替换件，说明「接入点连不上」 |
+| [§7](design.md#七取舍) | 「宿主分前后台」那行换成「从不由 agent runtime 承载」；新增「MCP 连不上即不可用」 |
+| [§9](design.md#九未决项) | **无未决项** |
+| flows、acceptance、README | 同步：回收不影响前后台执行、`Ask()` 卡不成孤儿、取消落被中断只对前台、MCP 连不上装替换件 |
+
+**作废了什么**：rev 15 的「宿主前台 agent runtime、转后台换到会话」「agent runtime 被回收对前台是停机」。
+**没变的**：转后台是前台那次调用的收场、后台另有收场；归档落被中断；停了不重来不设例外；常驻、help、两项设置、MCP 每动作一条目。
+
+### 下游要复核
+
+- **统一语言**：[UL-tool-execution](../../ubiquitous_language/terms/execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution) 原定义「绑在会话上，不绑 agent runtime」**本来就对**，补「前台 / 后台说的是协程阻不阻塞在它上面；回收不影响它」；[UL-execution-outcome](../../ubiquitous_language/terms/execution-and-outcome.md#ul-execution-outcome--执行收场--execution-outcome) 的「被中断」不含「agent runtime 被回收」。
+- **领域对象** [UL-tool-execution](../../domain_objects/objects.md#ul-tool-execution--工具执行)：宿主改为「会话（前后台都是）」，生灭补「协程回收不影响；工具自己的 runtime 停机 → 失败」。
+- **PF-012 §6.13**：前台那行「宿主 agent runtime」改为会话；「转后台就是换宿主」那句要改。
+- 出处标 PF-006 rev 15 的词条与对象条目逐条复核改 rev。
+
 ## rev 15 · help 可选；常驻是引用上的偏好类设置；宿主分前后台；MCP 动作映射成工具 — 2026-09-23
 
 **起因**：本程四份调研报了一批缺口，产品负责人 2026-09-23 裁了其中与本 topic 相关的三条（`help`、常驻、MCP 映射），

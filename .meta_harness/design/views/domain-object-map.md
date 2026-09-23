@@ -35,7 +35,7 @@
 
 | 对象 | 词条 | 宿主 | 变体 | 依据所在 | 还有谁在讲 |
 |---|---|---|---|---|---|
-| [工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行) | [UL-tool-execution](../ubiquitous_language/terms/execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution) | 前台时是 [agent runtime](../domain_objects/objects.md#ul-agent-runtime--agent-runtime)；转后台即换成[会话](../domain_objects/objects.md#ul-session--会话) | — | PF-006 | 012 014 |
+| [工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行) | [UL-tool-execution](../ubiquitous_language/terms/execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution) | [会话](../domain_objects/objects.md#ul-session--会话)（前后台都是；它有自己独立的 runtime）——前台只说明 [agent runtime](../domain_objects/objects.md#ul-agent-runtime--agent-runtime) 正阻塞着等它，那一笔记在 Run 里 | — | PF-006 | 012 014 |
 | [一次模型调用](../domain_objects/objects.md#ul-model-call--一次模型调用) | [UL-model-call](../ubiquitous_language/terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call) | [agent runtime](../domain_objects/objects.md#ul-agent-runtime--agent-runtime)（永远；转不了后台） | — | PF-013 | 011 012 014 |
 | [附件](../domain_objects/objects.md#ul-attachment--附件) | [UL-attachment](../ubiquitous_language/terms/execution-and-outcome.md#ul-attachment--附件--attachment) | 产出它的那次[工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行)；实际存放在工具定义声明的那个存储里 | — | PF-006 | 016 |
 | [被卸载的原始结果](../domain_objects/objects.md#ul-offloaded-result--被卸载的原始结果) | [UL-offloaded-result](../ubiquitous_language/terms/execution-and-outcome.md#ul-offloaded-result--被卸载的原始结果--offloaded-result) | 正文未述。它由一次[工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行)产出，却从来没进过[会话日志](../domain_objects/objects.md#ul-session-log--会话日志)——日志里只有那条占位；它自己「存起来」在哪、寿命跟着谁，没有说 | — | PF-006 | 012 |

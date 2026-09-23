@@ -2,7 +2,7 @@
 id: PF-006
 title: 工具与技能
 status: active
-revision: 15
+revision: 16
 relations:
   supersedes: []
   depends-on:
@@ -61,12 +61,13 @@ relations:
 
 ```text
 Tool Definition ──装配──→ 动作空间里的条目 ──调用──→ Tool Execution
-   数据，长期                构成，绑 agent runtime          计算资源，宿主：前台 agent runtime，转后台后 会话
+   数据，长期                构成，绑 agent runtime          计算资源，自己的 runtime，绑会话
 ```
 
-这是「数据 vs 计算资源」的**第四次出现**，但这次多了一步——它起初也挂在 agent runtime 上，
-**转后台就是换宿主，换到会话上**；而**结果的收件人始终是会话**。
-正因如此，转了后台的执行在 run 结束、agent runtime 退役之后还能继续，结果照样回得到那个会话。
+这是「数据 vs 计算资源」的**第四次出现**，但这次换了宿主——前三次的计算资源
+都挂在 agent runtime 上，**这次挂在会话上，从不由 agent runtime 承载**。
+**前台 / 后台说的是 agent runtime 这副协程有没有阻塞在它上面**，不是它挂在谁身上。
+正因如此，agent runtime 被回收不影响任何一次执行；转了后台的在 run 结束之后还能继续，结果照样回得到那个会话。
 
 ## 一份工具定义，一次返回值
 
@@ -135,12 +136,12 @@ Tool Definition ──装配──→ 动作空间里的条目 ──调用─�
 
 ## 状态
 
-- 产品设计：**rev 15**，已定稿（[依赖声明](design.md#依赖)是一串必需项的抽象名字；
-  [工具执行的宿主分前后台](design.md#52-工具这个词指三样东西寿命各不相同)；
+- 产品设计：**rev 16**，已定稿（[依赖声明](design.md#依赖)是一串必需项的抽象名字；
+  [工具执行自己的 runtime 绑会话，前后台只说 agent runtime 阻不阻塞在它上面](design.md#前台后台说的是-agent-runtime-在不在等它)；
   [常驻是引用条目上的偏好类设置](design.md#常驻)；[`help` 可选、带了须与 `inspect` 一致](design.md#53-一份工具定义长什么样)；
-  [MCP 对端每个动作一个工具条目](design.md#613-mcp-接入点带来的动作)）
-- 未决项：**一项**——MCP 接入点连不上时它的动作怎么呈现（[§9](design.md#九未决项)）
-- 待裁决：同上
+  [MCP 对端每个动作一个工具条目，连不上即不可用](design.md#613-mcp-接入点带来的动作)）
+- 未决项：**无**
+- 待裁决：**无**
 - 来源问题：见 [decisions.md 第四节](decisions.md#四已知的来源问题)
 - 技术投影：**尚未开始**
 
