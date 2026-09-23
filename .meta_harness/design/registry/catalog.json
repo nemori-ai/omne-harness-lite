@@ -517,6 +517,43 @@
           "rebase_relation": null
         }
       ]
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "data.tool-definition",
+        "version": 1
+      },
+      "family": "data",
+      "topic": "tool-definition",
+      "status": "candidate",
+      "contract_path": "spec/data/tool-definition/v1/contract.md",
+      "resources": [
+        "spec/data/tool-definition/v1/contract.md",
+        "spec/data/tool-definition/v1/tool-definition.schema.json",
+        "spec/data/tool-definition/v1/examples.md"
+      ],
+      "acceptance": null,
+      "dependencies": [
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.content-blocks",
+            "version": 1
+          },
+          "clauses": [
+            "$defs/ContentBlock",
+            "$defs/AttachmentRef",
+            "$defs/CapabilityId",
+            "$defs/Modality",
+            "$defs/MediaType",
+            "$defs/ExecutionOutcome",
+            "call_in_result",
+            "modalityOf"
+          ],
+          "rebase_relation": null
+        }
+      ]
     }
   ]
 }
