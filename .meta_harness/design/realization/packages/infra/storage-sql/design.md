@@ -84,6 +84,7 @@ config 是一个可辨识联合（候选；经 `core/kernel-basis` 的 `definePl
 
 | 部件 | 来源 | 本节点写什么 |
 |---|---|---|
+| 公开入口里的 `NodeSqliteDialect`、`NodeSqliteDriver`、`SqlStorage`、`openStorage`、两个错误翻译函数 | **测试与装配面**（2026-09-23 架构评审 N-2）：OG 的迁移测试与装配的夹具要用；`tenancy/**/src` 不得 import 它们绕过协议——由 ts-checks 规则 `no-dialect-bypass` 守 | 不写。消费者只经 `Storage` 协议进库 |
 | `SqliteAdapter`、`SqliteQueryCompiler`、`SqliteIntrospector` | kysely 导出，原样复用 | 不写。`supportsTransactionalDdl = false`、`supportsReturning = true` 是 adapter 自带的事实 |
 | `Driver` | 自写 | `init`（打开**一个写句柄**与**按需的读句柄**，各设 PRAGMA：两者 WAL／NORMAL／`foreign_keys=ON`，读句柄另加 `query_only=ON` 与 `busy_timeout=5000`，写句柄 `busy_timeout=0`）、`acquireConnection`（写：单句柄，**进程内队列**排队；读：取一个空闲读句柄，没有就开新的，到上限排队）、`beginTransaction`（写句柄发 `BEGIN IMMEDIATE`，遇 `SQLITE_BUSY` **异步重试**——`setTimeout` 退避、总上限 5 s，超时 ⇒ `StorageUnavailable`；读句柄发 `BEGIN`）、`commitTransaction`、`rollbackTransaction`、`releaseConnection`、`destroy`（关闭准入 → 等在途 → 逐个 `close()`） |
 | `DatabaseConnection` | 自写 | `executeQuery`：`prepare` + 按语句种类选 `run`／`all`，返回 `QueryResult`（`numAffectedRows`、`insertId`、`rows`）；`streamQuery`：本版不支持，抛出——协议没有流式读面 |
@@ -184,7 +185,7 @@ PreflightCheck = (input: { tx: ReadTx, tables: 已存在的表名集合, applied
 
 - `tables` 与 `appliedMigrations` 由本节点在同一读事务里先读好：核对者**不必自己判「表在不在」**，也就不会把一次读不到当成「还没有」。
 - 本节点不解释 `detail`，原样放进启动失败；「差的是哪一样」由给核对的那一方说。判据各归其主：数据格式归 tenancy-host（登记序列是本次合成序列的前缀），时钟回拨归 [`infra/clock`](../clock/design.md#迁移前的只读回拨核对)，中心标识表还在归 [`tenancy/governance-center-entry`](../../tenancy/governance-center-entry/design.md#对存储提供者的要求清单) 的 `governanceCenterPreflight`（候选名，R-GC8）。
-- **待跑迁移** = `migrations` 给出的名字里尚未登记的那些，决定⑥建不建快照。登记里有 `migrations` 没有的名字是数据格式问题，归 tenancy-host 那条核对；没给那条核对时，`Migrator` 在⑦自己的一致性检查（**待核**）会失败 ⇒ 恢复快照。
+- **待跑迁移** = `migrations` 给出的名字里尚未登记的那些，决定⑥建不建快照。登记里有 `migrations` 没有的名字 ⇒ **本节点在⑤自带最低防线**（2026-09-23 架构评审 N-1）：`StorageStartupFailure{stage:'preflight'}`、check 名 `migration-registry-beyond-known`，不拍快照、不跑迁移；次序是否为前缀仍归 tenancy-host 那条核对。W1-A 已核：`Migrator` 对「已登记但本次缺席」的名字在⑦报 `corrupted migrations`，但那已在快照之后、阶段会错报为「迁移」，所以不靠它。
 - 共用类型要不要放进 `core/storage` 不由本节点定；clock 靠同形的普通数据对上，**不 import 本包**。
 
 #### 排他为什么是随进程死亡释放的锁

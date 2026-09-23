@@ -194,6 +194,22 @@ describe('upgrade.registry-read', () => {
   })
 })
 
+describe('upgrade.registry-beyond-known', () => {
+  it('登记里有本版本不认识的迁移名 ⇒ 核对阶段具名失败，不跑迁移', async () => {
+    const file = tempSqliteFile('registry-beyond')
+    await confirmedDatabase(file, ['a', 'b'])
+    const guard = createUpgradeGuard()
+    const failure = await startupFailure(owner(file, ['a'], { guard }))
+    expect(failure.stage).toBe('preflight')
+    expect(failure.message).toContain('migration-registry-beyond-known')
+    expect(failure.message).toContain('0002_b')
+    // 没有走到确认：守卫未附着在役实例
+    await expect(guard.confirm()).rejects.toBeInstanceOf(UpgradeGuardNotAttached)
+    // 数据原样：旧版本（认识 a、b 的）照常能起
+    await confirmedDatabase(file, ['a', 'b'])
+  })
+})
+
 describe('upgrade.snapshot-consistent', () => {
   it('快照含一笔只在预写日志里的提交', async () => {
     const file = tempSqliteFile('snapshot-wal')

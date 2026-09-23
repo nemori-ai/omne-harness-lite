@@ -155,6 +155,18 @@ export async function openOwnedStorage(input: OwnedStorageInput): Promise<SqlSto
         { cause: error },
       )
     }
+    // 最低防线（架构评审 N-1）：登记里有本次 migrations 不认识的名字 ⇒ 这份数据来自更新的或别的版本，
+    // 在核对阶段具名失败，不拍快照、不跑迁移。次序是否为前缀由装配的数据格式核对判。
+    const beyond = applied.filter(name => !known.includes(name))
+    if (beyond.length > 0) {
+      throw new StorageStartupFailure(
+        'preflight',
+        `check "migration-registry-beyond-known": ${beyond.length} applied migration(s) unknown to this version, first "${beyond[0]}"`,
+        {
+          cause: { ok: false, check: 'migration-registry-beyond-known', detail: beyond.join(', ') },
+        },
+      )
+    }
     const pending = known.filter(name => !applied.includes(name))
     if (pending.length > 0 && !attachment.snapshotTaken && site.takeSnapshot !== undefined) {
       await site.takeSnapshot()
