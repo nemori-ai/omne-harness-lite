@@ -5,6 +5,25 @@
 
 技术投影用 `provenance.json` 引用具体 rev，所以这里的 rev 不准会直接传导到实现侧。
 
+## rev 16 · reload 是注册表的动态热更新，不是完整重新装配；资产云端同步记为拓展点 — 2026-09-23
+
+**起因**：主线把 rev 14 的一条 PM 推导「命令集随任何一次重新装配整批换、reload 只是人能发起的那一条」报给产品负责人确认，
+产品负责人当日纠正（[decisions](decisions.md#2026-09-23--reload-是注册表的动态热更新不是完整重新装配)）：reload 是一族**只刷新对应注册表**的动态热更新命令
+（如别家的 reload-skills、reload-plugins），不是完整重新装配；并明示**资产云端存储与本地—云端双向同步**是将来的拓展点，契约要留口子。
+
+| 位置 | 现在怎么说 |
+|---|---|
+| [§4「会话认得哪些命令，什么时候变」](design.md#会话认得哪些命令什么时候变) | reload 那一行改为「reload 一族：动态热更新，各刷各的注册表」；③ 型失败后「自动刷新命令注册表」；删去「命令集随任何一次重新装配整批换」 |
+| [§2 非目标](design.md#非目标) | reload 一行改为「一族」；**新增**「资产的云端存储与本地—云端双向同步」为将来拓展点、契约不得排除 |
+| [decisions](decisions.md) | §一新一节（原话）；§二「rev 14 新推的」四行改写，「整批换」一行**撤回**并保留痕迹；§四对应行更新 |
+
+**下游要复核什么**：
+
+- **[PF-004](../PF-004-agent-definition-and-assembly/README.md)**：注册表热更新对进行中运行怎么呈现（下一次取就是新的，还是下一次运行才是）——已在其 decisions 登记，其 §6.7 的发起者清单要接住 reload 一族与 ③ 型失败后自动刷新。
+- **规格**：reload 一族有哪几条、各刷哪张注册表、拼法；注册表作为会话/运行时服务的契约形状。
+- **资产契约**：不得排除云端存储与双向同步。
+- **统一语言**：[会话斜杠命令集](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set)定义末句随之改。
+
 ## rev 15 · MCP 凭据：经 OAuth 取得的与静态的同一套规矩 — 2026-09-23
 
 **起因**：产品负责人以复选卡片勾选「MCP 本版桥 OAuth」（[D-037](../../record/decisions/mcp-client-adoption/decision.md)，记在
