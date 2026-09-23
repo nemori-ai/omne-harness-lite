@@ -1728,6 +1728,64 @@
           "rebase_relation": null
         }
       ]
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "data.slash-command",
+        "version": 1
+      },
+      "family": "data",
+      "topic": "slash-command",
+      "status": "candidate",
+      "contract_path": "spec/data/slash-command/v1/contract.md",
+      "resources": [
+        "spec/data/slash-command/v1/contract.md",
+        "spec/data/slash-command/v1/slash-command.schema.json",
+        "spec/data/slash-command/v1/examples.md"
+      ],
+      "acceptance": null,
+      "dependencies": [
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.asset-model",
+            "version": 1
+          },
+          "clauses": [
+            "S-2",
+            "S-3",
+            "S-5",
+            "S-10",
+            "S-12",
+            "S-15"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.content-blocks",
+            "version": 1
+          },
+          "clauses": [
+            "S-8"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.identity-values",
+            "version": 1
+          },
+          "clauses": [
+            "S-8",
+            "S-31"
+          ],
+          "rebase_relation": null
+        }
+      ]
     }
   ]
 }
