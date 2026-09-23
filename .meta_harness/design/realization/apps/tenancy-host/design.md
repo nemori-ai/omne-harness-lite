@@ -167,7 +167,7 @@ provider = compose([
 
 ### 升级的整体性：迁移前只读核对、快照与确认
 
-[PF-017](../../../product/PF-017-governance-center-as-deployable-application/README.md)（rev 1，draft）[§6.9](../../../product/PF-017-governance-center-as-deployable-application/design.md#69-升级同一个中心要么整体成要么整体不成) 要求升级整体成或整体不成：起不来，数据必须还是升级前的样子，旧版本照常能起；
+[PF-017](../../../product/PF-017-governance-center-as-deployable-application/README.md)（rev 1，已接受 2026-09-23）[§6.9](../../../product/PF-017-governance-center-as-deployable-application/design.md#69-升级同一个中心要么整体成要么整体不成) 要求升级整体成或整体不成：起不来，数据必须还是升级前的样子，旧版本照常能起；
 [§6.6](../../../product/PF-017-governance-center-as-deployable-application/design.md#66-要么整个起来要么不起来) 与 [§6.10](../../../product/PF-017-governance-center-as-deployable-application/design.md#610-时间不能倒着走) 要求「版本接不了这份数据」「钟比中心用过的最晚时刻早」时不起来、数据原样不动，并告诉运维者差的是哪一样。
 **没有一份契约拥有这一条**——入口契约把启动的收场归承载装配（[S-32 末段](../../../spec/compositions/governance-center-entry/v1/contract.md#s-32-进展性质与前提)）——所以本节点直接承接产品要求：**编排归本节点，快照机制归存储提供者**。
 
@@ -531,7 +531,7 @@ verifyHandoffWarrant(verification, purpose, PROBE_ACCOUNT_ID, warrant) === 'ok' 
 
 | 缺口 | 挡住什么 | owner 与闭合条件 |
 | --- | --- | --- |
-| **产品依据与入口契约都未接受**：[PF-017](../../../product/PF-017-governance-center-as-deployable-application/README.md)（rev 1）`draft`，`composition.governance-center-entry/v1` `candidate` | 按[准入](../../README.md#应用节点比提供者节点多什么)本节点不得登记任何绑定；入口层与运维面的装配、升级的整体性、部署参数与部署密钥的映射，都是候选依据上的候选设计 | PF-017 接受、契约接受 |
+| **入口契约未接受**：[PF-017](../../../product/PF-017-governance-center-as-deployable-application/README.md) rev 1 已接受（2026-09-23），`composition.governance-center-entry/v1` 仍 `candidate` | 入口层与运维面的装配、客户端一面的承接，都是候选契约上的候选设计；绑定仍为 0——无已存在的证据可绑（契约 `candidate`、源码未建），不是准入挡着 | 契约接受；测试写成、run 登记 |
 | **U-1 开闸到确认之间的窗口——设计上已闭合**：入口层就绪与开闸分两步，本节点在全部 `ACTIVE` 且快照确认之后才兑现 `openSignal`，确认之前没有对外提交可随恢复消失（[两步开闸](#两步开闸就绪与开闸分开)、[反证 (b)](#升级的整体性迁移前只读核对快照与确认)） | 两边都未建包：`assembly.no-commit-before-open` 起不来，闭合只在设计上 | governance-center-entry 按其设计实现 `openSignal`、本节点实现 `boot()` 的两步开闸；演练通过后改记「已闭合」 |
 | **U-2 同一份库只有一个属主进程——已设计、无源码**：storage-sql 的属主独占（插件体第一步取、撤除最后一步放、随进程死亡释放；[排他为什么是随进程死亡释放的锁](../../packages/infra/storage-sql/design.md#排他为什么是随进程死亡释放的锁)）；sqlite 那一半借 sqlite 文件锁**待核**，pg 的会话锁在锁连接断开时的收场未定 | 源码落地之前两个进程同时升级同一份库时 §6.9 不成立 | storage-sql 落包并过 `upgrade.exclusive-owner`；本节点加两进程同时 `boot()` 的装配演练 |
 | **U-3 pg 上 PF-017 §6.9 本程不兑现（显式缺口）**：pg 上「迁移单事务」成立（R-U7），「迁移后装配失败回滚」不成立——迁移事务提交之后任何一步失败，库都已升级、旧版本起不来（[反证 (d)](#升级的整体性迁移前只读核对快照与确认)） | **受阻消费者：pg 部署**——闭合之前 pg 上的升级不满足 §6.9 | 本节点 + storage-sql；**闭合条件**：pg 首跑前定手段（候选：升级前逻辑备份钩子；或老版本可对新 schema 运行的兼容窗口）；pg 本程只接线（D-026） |

@@ -10,7 +10,7 @@
 [OG](../../../spec/capabilities/organization-governance/verification.md)、[AR](../../../spec/compositions/account-registration/verification.md)、
 [OE](../../../spec/data/offer-expiry/verification.md)、[入口契约](../../../spec/compositions/governance-center-entry/verification.md)——`composition.governance-center-entry/v1`）；那里把「装配给」各行记为**结构检查**（核对每条装配给都指向一个具体的装配事实）
 或「由别处承担」，治理中心入口的 V-15（起来即整体、停机）归装配与 governance-center-entry 节点一起。本页的义务从 [design.md](design.md) 声称的范围产生，**不从已有测试反推**。
-PF-017 仍是 `draft`、入口契约仍是 `candidate`：下面每条将来全绿，也不提升任何一层接受状态，且按准入不进绑定。
+PF-017 rev 1 已接受（2026-09-23），入口契约仍是 `candidate`：下面每条将来全绿，也不提升入口契约与各节点设计的接受状态；绑定仍为 0，因为眼下无已存在的证据可绑（契约 `candidate`、源码未建），某条测试写成并登记 run 之后才进绑定。
 
 ## 证据义务
 
@@ -65,7 +65,7 @@ pg 上没有任何结论；「回拨」「崩溃」都是用改写存储行、�
 
 | 缺什么 | 为什么 | 谁能补 |
 | --- | --- | --- |
-| **一条绑定都没有** | PF-017 `draft`，按准入不得登记（检查器强制）；本节点没有已存在的测试；`restricted-call-sites` 已存在但运行未登记 evidence run；formal task 与 probe 都不证本节点的条款 | PF-017 接受、run 登记后，回填 `test:` 证据 |
+| **一条绑定都没有** | 无已存在的证据可绑：入口契约 `candidate`、源码未建，本节点没有已存在的测试；`restricted-call-sites` 已存在但运行未登记 evidence run；formal task 与 probe 都不证本节点的条款（PF-017 rev 1 已于 2026-09-23 接受，准入不再挡绑定） | 测试写成、run 登记后，回填 `test:` 证据 |
 | **入口层怎么认人、怎么推导身份、怎么映射答复**不在本页 | 那是 governance-center-entry 的 T-1～T-19；本页只登记装配那一半（装载次序、同起同停、撤除、config、同一存储） | 该节点 |
 | **U-1 开闸到确认之间的窗口——设计上已闭合，无证据** | 两步开闸已写进本节点与 governance-center-entry 的设计，两边都未建包；`assembly.no-commit-before-open` 未开始 | governance-center-entry 实现 `openSignal`、本节点实现 `boot()` 之后跑那条演练 |
 | **U-2 同一份库的排他——已设计、无源码**：两个进程同时升级同一份库 | storage-sql 的属主独占已设计（sqlite 那一半待核），源码尚无，写不出会通过的测试 | storage-sql 落包并过 `upgrade.exclusive-owner` 后，本节点加一条两进程同时 `boot()` 的真并发演练 |

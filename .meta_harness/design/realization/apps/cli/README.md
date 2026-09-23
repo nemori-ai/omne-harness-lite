@@ -26,7 +26,7 @@
   front-matter 已是 `status: active`（rev 3，2026-09-22 接受；另有
   [6 条未决项](../../../product/PF-016-cli-tui-delivery-surface/design.md#九未决项)归别的 topic 或技术设计）——
   **产品语义已接受**；消费的五份租户契约 v1 也已 `accepted`，
-  但它们经治理中心入口的线上投影 `composition.governance-center-entry/v1` 是 `candidate`（对端的产品依据 PF-017 rev 1 仍是 `draft`），
+  但它们经治理中心入口的线上投影 `composition.governance-center-entry/v1` 是 `candidate`（对端的产品依据 PF-017 rev 1 已接受，2026-09-23），
   客户端与据点之间的契约尚未起草——**本节点两条边上用到的线上形状没有一条已被接受。**
   owner：产品交付面归 PF-016 的 owner，契约归各自的规格 owner。
 - **可实施范围：空。**`apps/cli` 与 `packages/frontend/*` **尚未建包**；
