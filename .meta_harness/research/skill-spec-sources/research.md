@@ -1,8 +1,8 @@
 # Skill 规格的三个参考来源：现在该信什么
 
 - 调查对象与日期：omne-next `6263fed545e48ad9efb5714f3fe76a7c1a0af1b5`（`omne_skill_spec` 0.1.0、`omne_core_v1` 的 `agentic/skill`、`omne_agent_skills` 0.3.1、`omne_skill_import` 0.1.0）；DSH `c291e7961a515f6d7af9304e7fd1d257929aef26`（`0.1.5-rc.2`）的 `packages/skill/*`；Agent Skills 本机实例（Claude Code `2.1.280` 与本机 `SKILL.md` 文件）。2026-09-23 首轮
-- 消费者：本程 proposal「Skill 规格采用」（待出现）
-- 最近核对：2026-09-23 / 上列版本
+- 消费者：[proposal「Skill 规格采用」](../../design/record/proposals/skill-spec-adoption/design.md)
+- 最近核对：2026-09-23 / 上列版本（首轮）；2026-09-23 第二轮补充开放格式原文与三家扩展，见[第二轮](#第二轮开放格式原文与三家扩展)与 [changelog](changelog.md)
 - 当前结论：三源在「SKILL.md = frontmatter + 正文 + 可选资源目录、name 与 description 必填、三级渐进披露、读正文不跑脚本」上一致，能承载 PF-002 Skill 定义的主体部分；
   产品正文里更靠后的那一层——正文变体、同名替换件、常驻标记挂在引用上、依赖决定可用性、脚本执行权随 skill 走、已发布版本不可变、内容与配置分开——**三源都没有现成承载**。
   omne-next 的两份 spec 在该 commit 上并未分叉；分叉的是 `omne_agent_skills` 自带的第二套校验，实测五处结论不同。
@@ -34,6 +34,7 @@
 - Agent Skills 本机实例：[evidence E13–E14](evidence.md#agent-skills-本机实例)。
 - PF 条款为行、三源为列的完整对照表（21 行，含可承载 / 需改 / 不可承载 / 未覆盖的判据）与 omne-next 逐字段比对表：
   [reports/2026-09-23-skill-spec-sources.md](reports/2026-09-23-skill-spec-sources.md) 第二节与第五节。本页只收结论。
+- 第二轮（开放格式原文、skills-ref 实跑、omne-next 补读、Codex、本机实例统计、Claude Code 文档照引）：[evidence E15–E25](evidence.md#第二轮开放格式原文与三家扩展2026-09-23)；盘点表在 [第二轮报告](reports/2026-09-23-round2-open-format-and-extensions.md)。
 
 ## 当前结论
 
@@ -286,7 +287,193 @@ registry（`dsh-skill`）只定义 provider 协议 `list / get`，不读文件�
 | DSH 调用策略与用户显式调用的决策理由 | 读 `2026-07-28-skill-invocation-policy.md`、`2026-08-08-user-explicit-skill-invocation.md` | Skill 与 Slash Command 的关系 | 待派发 |
 | 网络上的 Agent Skills 规格原文与本机实例是否一致 | 按本派发约束本轮不引；需要时另派并记录抓取快照 | 开放格式兼容范围 | 待派发 |
 
+## 第二轮：开放格式原文与三家扩展
+
+- 调查对象与日期：Agent Skills 开放格式 agentskills/agentskills `69ef37e9424c0a7ea9dd2293b559e43ec8176379`（规格页最后改动 `217be54873`，2026-08-04；**无版本号**）及参考库 skills-ref 0.1.0；omne-next `6263fed5`（复读与补读 `omne_agent_capabilities`）；Codex `5c5308fc9a9ee789049d646ef11e5400384b9c6f`；本机 Codex CLI `0.156.1` 与 Claude Code `2.1.280` 的实例。2026-09-23
+- 消费者：[proposal「Skill 规格采用」](../../design/record/proposals/skill-spec-adoption/design.md)的「接受前必须补的一项」与「会改变选择的证据」表
+- 本轮问题：(1) 钉存开放格式原文，核对 frontmatter 字段与必填、name 语法与上限、`metadata` 值类型、对未知顶层键的态度、`allowed-tools` 是否宿主必须执行；(2) 盘点 omne-next、Codex、Claude Code 在 `SKILL.md` 之上的扩展，按提案的键分四类归格，逐条写与 P1–P8 的相容或相抵
+- 当前结论：开放格式只定六键、必填 name 与 description；name 须等于父目录名；`metadata` 值只许字符串；对未知顶层键**规格正文未述**；`allowed-tools` 是实验性、宿主可不支持。
+  实现与生态在后三项上各行其是。三家扩展里，Codex 把全部专有配置放进包内侧车文件 `agents/openai.yaml`，其中的依赖声明只用于提示安装 MCP server；omne-next 的扩展都在聚合根或不同键名上；Claude Code 在 frontmatter 顶层另加十四个键。
+- 逐条盘点表（42 行，含分类与 P 相容性）在 [第二轮报告](reports/2026-09-23-round2-open-format-and-extensions.md)第三节；本节只收结论。原文字节与哈希在 [sources/](sources/provenance.json)。
+
+### 开放格式只定义六个 frontmatter 字段，必填只有 name 与 description
+
+`name`、`description` 必填；`license`、`compatibility`（1–500）、`metadata`、`allowed-tools` 可选（E15）。规格没有版本字段、作者字段或依赖字段；`metadata` 的示例里放了 `version: "1.0"`（字符串）。
+正文「no format restrictions」，目录「may contain any files and directories」，`scripts/ references/ assets/` 是建议（E15）。
+
+- 适用范围：`69ef37e` 的规格文字
+- 代价与不适用：规格只定义文件格式，**没有宿主合规条款**——它不规定宿主必须做什么，也就不能拿来判定一个宿主「不合规」
+- 来源：E15
+- 最近核对：2026-09-23
+
+### 开放格式的 name 规则五条，字符集表述自相含糊，参考库接受 Unicode 字母
+
+五条：1–64 字符；小写字母数字与连字符；不以连字符起止；不含 `--`；**等于父目录名**（E15）。
+字符集一句同时写「unicode lowercase alphanumeric」与括注 `a-z`、`0-9`；参考库按前者实现，`name: 日本語` 通过（E17 探针 5）。
+维护方的实现指南对其中两条（等于目录名、≤64）建议「warn, load anyway」（E16）。
+
+- 适用范围：`69ef37e` 的规格、指南与参考库
+- 代价与不适用：以规格文字为基线写 name 规则时，字符集要在「ASCII 小写」与「Unicode 小写字母」之间二选一，规格本身不给答案
+- 撞上会怎样：按 ASCII 规则校验，参考库判合格的 Unicode 名会被拒；按参考库规则，`a-z0-9` 之外的字母会进入身份键
+- 来源：E15、E16、E17
+- 最近核对：2026-09-23
+
+### 开放格式规定 metadata 值只许字符串，实现与生态实例多处不守
+
+字段节一直写「a map from string keys to string values」；概览表原写「Arbitrary key-value mapping」，issue #474 指出矛盾后，PR #479（2026-08-04 合入）把概览表补成字符串那一边（E15、E18）。
+实现侧：参考库不报错、把非字符串值 `str()` 强转（嵌套映射成了 Python repr 字符串），流式写法 `[a, b]` 则整份 YAML 被拒（E17）；Claude Code「Free-form YAML map」（E25）；Codex 只读 `metadata.short-description`（E20）；omne_agent_skills 报问题、core_v1 照收（E19）。
+本机 Codex 生态 106 份带 `metadata` 的 `SKILL.md` 里 71 份含非字符串值（E24）；issue #514（open）报告另一个宿主把决定 skill 是否进系统提示的结构放在 `metadata` 下（E18，转述）。
+
+- 适用范围：`69ef37e` 规格；实现各按其版本
+- 代价与不适用：在 `metadata` 里放结构化声明，与规格文字相抵；放字符串，则要自定一套字符串文法
+- 撞上会怎样：结构化 `metadata` 的 skill 经参考库校验后值被改写而不报错；经严格按字符串解析的宿主则载入失败（#474 所举）
+- 来源：E15、E17、E18、E19、E20、E24、E25
+- 最近核对：2026-09-23
+
+### 开放格式对未知顶层键未作规定：参考校验器拒收，两家宿主静默忽略
+
+规格正文没有一句话说遇到六键以外的顶层键时拒、忽略或告警；唯一相关的是 `metadata` 字段节「Clients can use this to store additional properties not defined by the Agent Skills spec」（E15，全文检索确认）。实现指南也不提（E16）。
+规格之外：参考库 `validate` 以六键白名单**拒**（E17 探针 2）；Claude Code 本地加载**静默忽略**，同厂商的 claude.ai 上传、Skills API、`package_skill.py` **硬拒**（E25）；Codex **静默忽略**（E20）；omne-next 两套都不读也不报（E19）。
+
+- 适用范围：`69ef37e` 规格；各实现按其版本
+- 代价与不适用：「未知键」的处置没有上游权威可依，只能由本项目的规则层自己写定
+- 撞上会怎样：在顶层加本项目键的 `SKILL.md`，在 Claude Code 与 Codex 里照常加载，在 claude.ai 上传与 skills-ref 校验时被拒；本机插件实例 115 份里 68 份已带规格外顶层键（E24），同一批文件在两类路径上一收一拒
+- 来源：E15、E16、E17、E19、E20、E24、E25
+- 最近核对：2026-09-23
+
+### 开放格式的 allowed-tools 是实验性字段，没有要求宿主必须执行
+
+「A space-separated string of tools that are pre-approved to run」「Experimental. Support for this field may vary between agent implementations」（E15）。规格全文没有任何字段被规定为宿主必须执行。
+同一字段三种读法：规格是「预批准」；参考库的模型注释是「Tool patterns the skill requires」（依赖），且不校类型；Claude Code 是「本轮免审批、下条消息清除」，接受串或列表（E17、E25）。
+
+- 适用范围：`69ef37e` 规格；参考库与 Claude Code 文档按其版本
+- 代价与不适用：一个宿主不执行 `allowed-tools`，按规格文字不构成不合规；但作者写下的预批准意图也就没有任何一方负责兑现
+- 撞上会怎样：按参考库注释把它读成依赖清单，会把 `Bash(git:*)` 这类权限模式当工具名去找提供者（首轮已述同一后果）
+- 来源：E15、E17、E18、E25
+- 最近核对：2026-09-23
+
+### 开放格式没有规定闭合定界行必须独占一行，参考库与 omne-next core_v1 都会截断
+
+规格只说「YAML frontmatter followed by Markdown」；实现指南写「the closing `---` after it」「Everything after the closing `---`, trimmed, is the skill's body」，不要求独占一行（E15、E16）。
+参考库 `content.split("---", 2)`：`description: see a---b here` 被截成 `see a`，其后文字成了正文，校验通过（E17 探针 8）——与首轮 core_v1 的实测同一现象（E7 第 3 条）。Codex 按行判定首行与闭合行（E20）；Claude Code 文档只写开头 `---` 须在首行（E25）。
+正文「trimmed」：前后空白不属正文（E16）。
+
+- 适用范围：`69ef37e` 与 omne-next `6263fed5`；Codex `5c5308f`
+- 代价与不适用：以规格文字为基线时，定界的行规则要本项目自己写定；照参考库实现会继承截断
+- 撞上会怎样：description 或其他单行值里出现 `---` 的 skill，正文边界随之漂移，而校验报合格
+- 来源：E7、E15、E16、E17、E20、E25
+- 最近核对：2026-09-23
+
+### omne-next 的扩展都在 SKILL.md 之外，或以不同键名出现
+
+- **键名不同**：core_v1 读 `allowed_tools`（下划线、列表），开放格式写法在它那里读成空（E7、E19）；`metadata` 值收任意结构（E19）。
+- **严于规格的规则**：core_v1 正文非空硬错误、非标准子目录告警、三级判定；omne_agent_skills 正文 >500 行与目录布局告警（E2、E5）。规格允许空正文与任意目录（E15）。
+- **聚合根上的扩展**（`omne_agent_capabilities`，不在 `SKILL.md` 里）：`install_mode` subscribed / detached、`upstream`（marketplace 与同步状态）、`publish_policy`（manual / on_tag / on_commit、目标租户）、`agent_editable`、`implementation` code_based / file_directory、`status`、调用计数；版本快照 `SkillVersion` frozen 且带 `content_hash`，但保留上限 20（E8、E19）。
+- **来源形态**：omne_agent_skills 的「工具即技能」没有磁盘上的 `SKILL.md`，正文由工具说明拼成（E5）。
+- 两套都**不读**六键以外的顶层键（E19）。
+
+- 适用范围：`6263fed5`；`omne_agent_capabilities` 只读到 domain 层
+- 代价与不适用：与 P 的逐条关系见报告 3.1：O1 与 P1 相抵、O6 与 P7 相抵、O9 的版本上限与 P5 相抵、A5 与 P5 相抵；O9 其余字段都在内容之外，与 P6 同向
+- 来源：E2、E5、E7、E8、E19
+- 最近核对：2026-09-23
+
+### Codex 的 skill 扩展全在侧车文件 agents/openai.yaml，frontmatter 只读三处
+
+frontmatter 只读 `name`（可缺省，缺省取目录名，只校长度 ≤64）、`description`（必需）、`metadata.short-description`；其余顶层键静默忽略；YAML 失败时给含 `: ` 的值加引号重试（E20）。
+其余全部放在包内 `agents/openai.yaml`：`interface`（显示名、短描述、图标、品牌色、默认提示）、`policy`（`allow_implicit_invocation`、`products`）、`dependencies.tools[]`（E21）。
+Codex 自述这个文件是「product-specific config intended for the machine/harness to read, not the agent」，「Other product-specific config can also live in the `agents/` folder」；缺失或解析失败只告警，不挡 `SKILL.md` 加载（E21）。
+
+- 适用范围：Codex `5c5308f` 源码（未编译运行）与 2026-09-20 文档
+- 代价与不适用：侧车里既有展示值、也有调用面开关（`policy`）与带连接端点的依赖；它们跟 `SKILL.md` 一起随目录复制。Codex 的 `name` 可缺省且不校字符集，与规格的 name 规则不同
+- 撞上会怎样：以规格规则校验 Codex 生态文件，本机 562 份里 1 份 name 不合语法、49 份不等于目录名（E24）；侧车里的 `policy` 若随内容原样生效，就是随复制带过来的调用面开关
+- 来源：E20、E21、E24
+- 最近核对：2026-09-23
+
+### Codex 的 dependencies 只认 mcp，用途是点名时提示安装，不参与可用性判定
+
+`dependencies.tools[]` 每项 `type`、`value`、`description`、`transport`、`command`、`url`、`oauth.callback_port`；只有 `type: mcp` 被使用（E21、E22）。
+用途：用户在输入里显式点名该 skill 时，若为第一方客户端且特性开关开启，比对已装的 MCP server，缺的弹问「Install / Continue anyway」，同意后写进配置（E22）。
+负面结论：在 `ext/skills/src` 与 `core/src` 的相关引用里**未见**按依赖隐藏、禁用或判 skill 不可用的代码——读遍命中处，未构造反例（E22）。本机 538 份侧车里 2 份写了 `dependencies`（E24）。
+
+- 适用范围：Codex `5c5308f`
+- 代价与不适用：它是「安装指引」，不是「缺了就不可用」；依赖项携带的是连接端点（url 或 command）而不是能力标识
+- 撞上会怎样：把它当依赖声明原样导入，作者指定的 MCP 端点会成为满足依赖的途径，且满足的动作本身会写配置
+- 来源：E21、E22、E24
+- 最近核对：2026-09-23
+
+### Codex 的调用面开关一处在侧车内容里，一处在配置层
+
+- 内容侧：`agents/openai.yaml` 的 `policy.allow_implicit_invocation`（false 时不进目录、`$name` 仍可调）与 `policy.products`（按产品过滤，加载器执行）（E21）。本机 538 份侧车里 154 份写了 `allow_implicit_invocation`（E24）。
+- 配置侧：`config.toml` 的 `[[skills.config]]` 以 `name` 或 `path` 选择、`enabled` 启停，挂在分层配置上；另有 `skills.bundled.enabled`、`include_instructions`、`max_context_tokens`（E23）。
+
+- 适用范围：Codex `5c5308f`
+- 代价与不适用：同一类「能不能被调用」的值在 Codex 里分两处存放，一处随内容复制、一处随使用者配置
+- 来源：E21、E23、E24
+- 最近核对：2026-09-23
+
+### Codex 以 SKILL.md 路径为身份，同名并列
+
+加载后只按 `SKILL.md` 规范路径去重，同名不合并，按 scope Repo < User < System < Admin 排序；文本里的 `$name` 只在无歧义时选中（E23；首轮引 [CX-7](../slash-command-parsing-sources/notes/codex.md#cx-7)）。文档：「If two skills share the same `name`, Codex doesn't merge them」（E23）。
+这与实现指南所称的「universal convention: project-level skills override user-level skills」不同（E16）。
+
+- 适用范围：Codex `5c5308f`
+- 撞上会怎样：同首轮对 Claude Code 的结论——并列的同名 skill 进「同名即替代」的系统会变成替代
+- 来源：E16、E23
+- 最近核对：2026-09-23
+
+### OpenAI 插件从 MCP 导入 skill 时逐资源带 sha256 摘要并取静态快照（文档级）
+
+Codex 文档所述的插件提交流程：MCP server 声明 `io.modelcontextprotocol/skills` 扩展（SEP-2640 草案的静态子集），`skills/list` 每条给 `skill://` URI、「frontmatter containing every entry」、完整资源清单与每个资源的 `sha256:` 摘要；导入时逐个取回核对摘要、要求目录名等于 name、限 100 文件 / `SKILL.md` 256 KiB / 单文件 1 MiB / 合计 5 MiB；「Skills imported from MCP are submission-time snapshots, not live runtime resources」（E23）。
+同一 SHA 的 `skills.read` 工具对非主机来源的 skill 以包内 `skill://` 标识取资源，提示词明写「do not treat `skill://` identifiers as filesystem paths」（E23）。
+
+- 适用范围：文档 2026-09-20；导入部分**源码未核**；SEP-2640 是草案，不是 MCP 稳定规范
+- 代价与不适用：逐资源摘要覆盖的是导入那一刻的快照，不是运行时的版本线
+- 来源：E23
+- 最近核对：2026-09-23
+
+### Claude Code 在开放格式之上另加十四个键，并放宽 metadata 与 allowed-tools 的类型
+
+十四个：`when_to_use`、`argument-hint`、`arguments`、`disable-model-invocation`、`user-invocable`、`disallowed-tools`、`model`、`effort`、`context`、`agent`、`background`、`hooks`、`paths`、`shell`（E25）。`name` 可缺省、`description` 只是 Recommended；`metadata` 是「Free-form YAML map」；`allowed-tools` 接受串或列表、授权只到本轮结束（E25）。
+正文另有 `` !`cmd` `` 动态注入（「runs shell commands before the skill content is sent to Claude」）与 `$ARGUMENTS`、`${CLAUDE_SKILL_DIR}` 等替换（E25）。首轮本机实例列过的键照旧（[首轮报告第四节](reports/2026-09-23-skill-spec-sources.md#四agent-skills-本机实例实际出现了哪些字段)）。
+
+- 适用范围：Claude Code 文档（页内最高版本注记 v2.1.280）；本机未探针
+- 代价与不适用：十四键里的调用面开关、预批准与执行设置都在内容里（报告 3.3 K4–K8 与 P6 相抵）；`` !`cmd` `` 在展开时就执行 shell（K10 与 P4、P7 相抵）
+- 撞上会怎样：原样收下带 `` !`cmd` `` 的正文，展开它就等于执行了一段不经 skill 脚本入口的命令；不展开，则进日志的是含占位的原文
+- 来源：E25
+- 最近核对：2026-09-23
+
+### 本机实例对开放格式规则的机械套用结果
+
+按规格规则逐项计数（E24，**不是任何宿主的实际加载结果**，含重复副本）：
+
+| 项 | `~/.codex/`（562） | `~/.claude/plugins/`（115） |
+|---|---|---|
+| name 合语法 / 等于目录名 | 561 / 513 | 115 / 114 |
+| 含规格外顶层键 | 59 | 68 |
+| 带 `metadata` 且含非字符串值 | 71（共 106 份带 `metadata`） | 0 |
+
+- 适用范围：本机 2026-09-23 的文件；Codex 侧含 `.tmp/plugins/` 下的 marketplace 副本
+- 来源：E24
+- 最近核对：2026-09-23
+
+### 第二轮的支撑假设
+
+| 假设 | 若它不成立，哪条结论垮掉 | 本轮是否核对 |
+|---|---|---|
+| agentskills.io 的规格页与 GitHub `69ef37e` 的 `specification.mdx` 是同一份 | 开放格式各条 | 已核：逐词比对只差渲染标记 |
+| 本机 openai/codex 克隆的 `5c5308f` 与上游同 SHA 一致 | Codex 各条 | 部分核对：HEAD 为该 SHA、工作树干净；与主检出钉存 tarball 共有的三个文件 `cmp` 一致 |
+| Codex 文档 2026-09-20 所述 MCP skill 导入与代码一致 | 「逐资源 sha256 摘要」一条 | 未核对：只有文档 |
+
+### 第二轮的未知与下一项证据
+
+| 未知或冲突 | 最小区分调查/实验 | 受影响选择及消费时点 |
+|---|---|---|
+| Codex 的 `skills.read` 与目录渲染是否把 `agents/` 从资源列表里排除 | 读 `ext/skills/src/render.rs` 与 `tools/list.rs` 的资源枚举 | 侧车文件对外部宿主是否可见 |
+| Codex 的 `interface.default_prompt` 在调用时插到哪里、是否进模型输入 | 读 TUI 与 app-server 对 `default_prompt` 的使用 | 两条入口进日志的文字是否一致 |
+| issue #514、#350、#485（结构化 metadata、`--allow-field`、`dependencies` 字段）后续是否合入规格 | 规格仓库 `docs/specification.mdx` 下一次改动 | 以规格为基线的规则表与扩展位置 |
+| 本仓库 canonical 7 份的 name 合规率 | 同 E24 的统计脚本 | 不挡选择 |
+
 ## 采用与后续核对
 
-消费者「Skill 规格采用」提案尚未出现。
+消费者：[proposal「Skill 规格采用」](../../design/record/proposals/skill-spec-adoption/design.md)（首轮时尚未出现，第二轮时已在评审）。
 升级任何一个来源时，先在 [evidence.md](evidence.md) grep 旧版本 token，再判断是否触及上面的结论；触及时按[演进事件词](../README.md#演进事件词)建 `changelog.md` 记一条。
