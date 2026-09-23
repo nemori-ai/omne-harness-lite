@@ -3551,7 +3551,968 @@
       },
       "reviewed": false,
       "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。本契约消费的是「条目无条件带租户身份」这一条，据此不在账里另存归属"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "acceptance.md#一可观察场景"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。缺口登记型：S-13 只写明「被日程引用」这类资产之外的引用方本版不列，指 G-13，不是覆盖"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "acceptance.md#二绝不能发生的事"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-8",
+          "S-47"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#61-层次"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-8",
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#64-隔离"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-14",
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#66-撤销不等于强制停止"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-20",
+          "S-52"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#67-创作与归属"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-7",
+          "S-16",
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#68-管理结果"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-3",
+          "S-18",
+          "S-20",
+          "S-22",
+          "S-24",
+          "S-25",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#两轮合成作用对象不同"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#作者用租户身份标识"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-7",
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#其余"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖「已发布版本保持不可变」一句；「发现新版本不静默替换已选用的版本」与 hold 缺省 current 的关系见 S-30 末段（主线裁定）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#拥有获权选用"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-9",
+          "S-27",
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#来源official-与-customized"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-5",
+          "S-8",
+          "S-15",
+          "S-29",
+          "S-32"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#角色"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-8",
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#33-成员关系"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-47"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#四角色与操作"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-16"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "acceptance.md#一可观察场景"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-30",
+          "S-33",
+          "S-38",
+          "S-44",
+          "S-50"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "acceptance.md#三判据"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "acceptance.md#二绝不能发生的事"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-15",
+          "S-21",
+          "S-24",
+          "S-30",
+          "S-36",
+          "S-38",
+          "S-42"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#53-两个例子两种合成"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-30",
+          "S-38"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#54-默认与强制一个机制三处适用"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-10",
+          "S-11",
+          "S-40"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#55-资产替换的层级"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-8",
+          "S-10",
+          "S-34",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#61-设置页是长出来的不是画出来的"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#63-组合的引用指向能力标识"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#64-移除与禁用是两个动作"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-3",
+          "S-31",
+          "S-44"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#connector"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-38"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#plugin"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#slash-command"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-24",
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#三方分工资产定形状各层配值运行时求值"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-9",
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#九未决项"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-38"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。缺口登记型：S-38 对组织层的 MCP 凭据配值一律 notPermitted，指 G-10，不是覆盖"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#会话认得哪些命令什么时候变"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-48"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#但对-agent-来说两者一样都不可见"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-16"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#挂上之后它的内容在装配时自动进来"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#由此得到两个推论"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-8"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#禁用是逐层配的布尔设置任一层为真即不可见"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-8",
+          "S-11"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#组织的设置是视图不是对象"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#谁能组合谁"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#身份是类别--name其余归实现"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-5"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#非目标"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-3"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "flows.md#11-给组织加一个资产"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "flows.md#12-配置一个资产的设置或权限"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-9",
+          "S-38"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "flows.md#13-用自定义资产替换-official"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-8"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "flows.md#14-组织锁死一个自定义资产"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-30",
+          "S-34"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "flows.md#15-不让成员用某个工具"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-31",
+          "S-32"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "flows.md#17-创作一个资产"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "flows.md#31-一个资产在某个范围里"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-10",
+          "S-30",
+          "S-31",
+          "S-32",
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "flows.md#32-一份持有上一个属性项的属性配值"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-10",
+          "S-18",
+          "S-31",
+          "S-38",
+          "S-39"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "flows.md#33-一个资产定义的版本"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-6",
+          "S-9",
+          "S-26",
+          "S-30",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。「不静默替换已选用的版本」在本契约由 versionSelection 可见兑现；hold 缺省 current 是主线裁定，见 S-30 末段"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "flows.md#二分支与异常"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-9",
+          "S-18",
+          "S-22",
+          "S-26",
+          "S-31",
+          "S-38",
+          "S-52"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "flows.md#四角色与操作"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-7",
+          "S-13",
+          "S-16",
+          "S-40"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "design.md#610-分享给的是获权不是拥有"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-15",
+          "S-25",
+          "S-46"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "design.md#611-分享的同步与自保"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-9",
+          "S-30",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "design.md#64-可复制的对象"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-6"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "design.md#65-首次复制"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-7",
+          "S-46"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "design.md#67-覆盖的范围内容覆盖配置不动"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-10",
+          "S-46"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "design.md#68-能力标识撞车但没有血缘"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-5"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "flows.md#33-一份资产在源侧与目标侧的关系"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "flows.md#二分支与异常"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-22",
+          "S-25",
+          "S-26",
+          "S-28",
+          "S-46"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "flows.md#四角色与操作"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-9",
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。部分为缺口登记型：S-9 据末行（目标侧成员在自己租户级配被分享资产）指 G-2；S-27 据「分享自己租户级的资产」一行定提升时有分享出去的持有即拒"
     }
   ],
-  "note": "2026-09-22 首次登记，覆盖租户相关领域五份 candidate 契约。每条的 clauses 由两处合并得出：契约正文里带小节链接的条款段落，以及各契约「性质」表的「来源」列。全部 reviewed=false——这是「声称覆盖但尚未逐条复核」的诚实初值，不是复核通过。三处已知不完整，登记时一并记明，不靠留白掩盖：（1）PF-007 也被 data.identity-values 与 capability.organization-governance 的正文引为来源（§4 一笔授权表达有三个维度），本次登记范围只含 PF-001/002/003/015，因此 PF-007 一条未登；（2）foundation 的 SYS-TENANT / SYS-DEPLOY 是全局约束不是产品条款，本清单只登记 PF- 侧，那一侧的覆盖没有家；（3）契约正文里以散文方式引用产品要求、没有给出小节链接的地方，本次登记抓不到。 2026-09-22 评审轮一修订后补登 18 处（见各行 note）。data.identity-values/v1#S-35「交接凭证」没有产品出处（规格层构造），有意不登记 cover。 2026-09-23 补登 composition.governance-center-entry v1（candidate）40 条：PF-017（rev 1，仍是 draft（PF-017 rev 1 已于 2026-09-23 同日接受，各条 note 已改））30 条、PF-016 5 条、PF-001 5 条，全部 reviewed=false；来源是该契约正文里带小节链接的条款段落。该契约的形式工件与规范场景条款（S-37～S-46）只在对到验收判据时登记。 2026-09-23 该契约评审第一轮修订：首登时有若干条的 clauses 在正文对应条款里并没有小节链接，已在正文逐条补齐；逐条核过之后，每条 covers 的产品小节都在所列的每个条款里有链接，唯一例外是 acceptance §二那一条（见其 note）；该条 clauses 补登 S-31。 2026-09-23 补登 composition.governance-center-entry-https-json v1（candidate，传输绑定）11 条：PF-017 rev 2 共 10 条、PF-016 rev 4 共 1 条，全部 reviewed=false；来源同一口径——该契约正文里带小节链接的条款段落，每条所列条款都链接了那个小节。 2026-09-23 该传输绑定评审第一轮修订：补登 1 条（PF-017 acceptance §二「冒牌货」一行 → S-30），§8 那一条补 S-30；该契约现 12 条。 2026-09-23 补登 data.content-blocks v1（candidate）24 条：PF-009 7 条、PF-010 3 条、PF-013 3 条、PF-006 6 条、PF-002 2 条、PF-001 1 条、PF-012 2 条，全部 reviewed=false；来源是该契约的「设计依据」表（按简报口径），不是逐条核对正文链接——不少行只在依据表里对应，所列条款的正文里没有那个小节的链接（如 PF-009 §4 → S-1、PF-013 §4 模态 → S-7）；PF-006 §6.12「它的宿主是谁」一条部分为让缺口 G-2 可见而登，见其 note。 2026-09-23 补登 data.call-accounts v1（candidate）12 条：PF-006 1、PF-009 4、PF-012 3（其中 §6.17 一条为缺口登记型，指 G-3）、PF-013 2、PF-001 1、PF-000 1，全部 reviewed=false；每条的 clauses 是该契约正文里带那个小节链接的条款（逐条机械核过）。PF-013 §6.2（凭据挂在范围上）只作「不归本契约」的否定式提及，未点名缺口，不登。"
+  "note": "2026-09-22 首次登记，覆盖租户相关领域五份 candidate 契约。每条的 clauses 由两处合并得出：契约正文里带小节链接的条款段落，以及各契约「性质」表的「来源」列。全部 reviewed=false——这是「声称覆盖但尚未逐条复核」的诚实初值，不是复核通过。三处已知不完整，登记时一并记明，不靠留白掩盖：（1）PF-007 也被 data.identity-values 与 capability.organization-governance 的正文引为来源（§4 一笔授权表达有三个维度），本次登记范围只含 PF-001/002/003/015，因此 PF-007 一条未登；（2）foundation 的 SYS-TENANT / SYS-DEPLOY 是全局约束不是产品条款，本清单只登记 PF- 侧，那一侧的覆盖没有家；（3）契约正文里以散文方式引用产品要求、没有给出小节链接的地方，本次登记抓不到。 2026-09-22 评审轮一修订后补登 18 处（见各行 note）。data.identity-values/v1#S-35「交接凭证」没有产品出处（规格层构造），有意不登记 cover。 2026-09-23 补登 composition.governance-center-entry v1（candidate）40 条：PF-017（rev 1，仍是 draft（PF-017 rev 1 已于 2026-09-23 同日接受，各条 note 已改））30 条、PF-016 5 条、PF-001 5 条，全部 reviewed=false；来源是该契约正文里带小节链接的条款段落。该契约的形式工件与规范场景条款（S-37～S-46）只在对到验收判据时登记。 2026-09-23 该契约评审第一轮修订：首登时有若干条的 clauses 在正文对应条款里并没有小节链接，已在正文逐条补齐；逐条核过之后，每条 covers 的产品小节都在所列的每个条款里有链接，唯一例外是 acceptance §二那一条（见其 note）；该条 clauses 补登 S-31。 2026-09-23 补登 composition.governance-center-entry-https-json v1（candidate，传输绑定）11 条：PF-017 rev 2 共 10 条、PF-016 rev 4 共 1 条，全部 reviewed=false；来源同一口径——该契约正文里带小节链接的条款段落，每条所列条款都链接了那个小节。 2026-09-23 该传输绑定评审第一轮修订：补登 1 条（PF-017 acceptance §二「冒牌货」一行 → S-30），§8 那一条补 S-30；该契约现 12 条。 2026-09-23 补登 data.content-blocks v1（candidate）24 条：PF-009 7 条、PF-010 3 条、PF-013 3 条、PF-006 6 条、PF-002 2 条、PF-001 1 条、PF-012 2 条，全部 reviewed=false；来源是该契约的「设计依据」表（按简报口径），不是逐条核对正文链接——不少行只在依据表里对应，所列条款的正文里没有那个小节的链接（如 PF-009 §4 → S-1、PF-013 §4 模态 → S-7）；PF-006 §6.12「它的宿主是谁」一条部分为让缺口 G-2 可见而登，见其 note。 2026-09-23 补登 data.call-accounts v1（candidate）12 条：PF-006 1、PF-009 4、PF-012 3（其中 §6.17 一条为缺口登记型，指 G-3）、PF-013 2、PF-001 1、PF-000 1，全部 reviewed=false；每条的 clauses 是该契约正文里带那个小节链接的条款（逐条机械核过）。PF-013 §6.2（凭据挂在范围上）只作「不归本契约」的否定式提及，未点名缺口，不登。 2026-09-23 补登 capability.asset-governance v1（candidate）59 条：PF-001 rev 16 共 15 条、PF-002 rev 16 共 35 条、PF-003 rev 4 共 9 条，全部 reviewed=false；每条的 clauses 是该契约正文里带那个小节链接的条款段落（S-1 导航表与 S-53 形式工件选择只作导航，不登），外加「性质与前提」表里以「来源」列对到「谁在何处保护」列所链条款的行（机械抽取）。三条为缺口登记型或部分缺口登记型（PF-001 acceptance §一 → G-13、PF-002 §九 → G-10、PF-003 flows §四 → G-2），见各行 note。SYS-TENANT／SYS-DEPLOY 同样是全局约束，不登。"
 }
