@@ -7,9 +7,9 @@
 
 ## 分层状态
 
-- 语义接受范围：**无契约条款归本节点。**`data.offer-expiry` v1 全部条款已被 [D-023](../../../../record/decisions/tenant-domain-design-acceptance/README.md) 接受，其中 S-16 的形状与 S-17「`now` 不后退」那一行是本节点**承接**的对象，provider 仍是 offer-expiry 节点；本节点作为承接者的选型被 D-026 接受。到此为止，不提升下面三层。入口契约 S-36 末行与 S-34 那两条出自 `candidate` 契约、产品依据 PF-017 rev 1 是 draft——这两条的语义接受：**无**
+- 语义接受范围：**无契约条款归本节点。**`data.offer-expiry` v1 全部条款已被 [D-023](../../../../record/decisions/tenant-domain-design-acceptance/README.md) 接受，其中 S-16 的形状与 S-17「`now` 不后退」那一行是本节点**承接**的对象，provider 仍是 offer-expiry 节点；本节点作为承接者的选型被 D-026 接受。到此为止，不提升下面三层。入口契约 S-36 末行与 S-34 那两条的产品依据 PF-017 rev 1 已接受（2026-09-23），但条款本身出自 `candidate` 契约——这两条的语义接受：**无**
 - 可实施范围：本节点声称兑现 S-17 五行里的两行——「`now` 与 `expiresAt` 同源可比」的**一半**（只 provide 一个实例；另一半「消费者不得另用 `Date.now()`」是 offer-expiry 的 lint SC-OE-3）与「`now` 不后退」的**全部**（进程内不后退、跨重启不后退、启动时回拨 fail-closed）；另声称入口契约 S-36 末行（运行中回拨 ⇒ `'unavailable'` 直到追上）与 S-34 那条前提；逐条见 [design.md「能力到 Cordis 的投影」](design.md#能力到-cordis-的投影)。**运行中回拨与迁移前核对是设计、源码尚无**——已建包的 `now()` 仍按单调钟推算，运行中被调回的墙钟不会让它答 `'unavailable'`，受阻消费者见 [design.md 实施缺口](design.md#实施缺口与消费者影响)（governance-center-entry N-5、tenancy-host）。**不兑现**：与真实时间的偏差上界（本节点跟墙钟走，不承诺墙钟准）、跨进程的单调（[投影 Q-8](../../../../product/PF-001-identity-scope-and-agent-constraints/projection/v1/projection.md#7-未决项)，两个进程各管各的「用过的最晚时刻」）、消费者侧「`'unavailable'` 时各操作失败」（各消费者节点）
-- 绑定与证据：[`bindings.yaml`](bindings.yaml) 为**空表**——本节点不是契约 provider，S-17 那一行在契约 verification 里也没有可绑的形式任务；证据义务（回拨、重启后租约、写失败、装卸）登记在 [verification.md](verification.md)，包内测试覆盖的已标「已通过」
+- 绑定与证据：[`bindings.yaml`](bindings.yaml) 为**空表**——无已存在的证据可绑（本节点不是契约 provider，S-17 那一行在契约 verification 里也没有可绑的形式任务；本次修订承接的入口契约两条尚无源码与测试）；证据义务（回拨、重启后租约、写失败、装卸）登记在 [verification.md](verification.md)，包内测试覆盖的已标「已通过」
 - 实际验证：2026-09-22 包内 8 条测试通过（进程内单调、回拨 ⇒ `start()` 抛出且实例闩住、崩溃后快速重启追上前 `'unavailable'`、干净撤除不用等、续约写失败 ⇒ 越过租约即 `'unavailable'`、撤除后 `'unavailable'`、插件 provide／撤除、缺迁移 ⇒ `StorageDefect` 启动失败）；见 [verification.md「实际执行」](verification.md#实际执行)。这 8 条对的是**修订前**的单调钟推算；本次修订的运行中回拨、现读墙钟与迁移前核对：**尚无**
 
 ## 按当前问题展开

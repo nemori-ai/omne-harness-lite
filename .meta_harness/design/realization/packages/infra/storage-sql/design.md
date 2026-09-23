@@ -141,7 +141,7 @@ config 是一个可辨识联合（候选；经 `core/kernel-basis` 的 `definePl
 
 ### 属主实例：排他、迁移前只读核对、升级快照与确认
 
-[tenancy-host「升级的整体性」](../../../apps/tenancy-host/design.md#升级的整体性迁移前只读核对快照与确认)要一次升级整体成或整体不成（[PF-017 §6.9](../../../../product/PF-017-governance-center-as-deployable-application/design.md#69-升级同一个中心要么整体成要么整体不成)，rev 1，draft）：
+[tenancy-host「升级的整体性」](../../../apps/tenancy-host/design.md#升级的整体性迁移前只读核对快照与确认)要一次升级整体成或整体不成（[PF-017 §6.9](../../../../product/PF-017-governance-center-as-deployable-application/design.md#69-升级同一个中心要么整体成要么整体不成)，PF-017 rev 1 已接受（2026-09-23））：
 编排归那个装配，**排他、快照、恢复与遗留检查归本节点**——「库是一个文件」「预写日志里还有已提交的内容」「pg 没有文件」只有存储提供者知道。
 那一节把要求列成 R-U1～R-U8，下表逐条承接，两边互指；排他承接它的缺口 U-2。本节不写具体语句，只写机制、次序与对外形状。
 
