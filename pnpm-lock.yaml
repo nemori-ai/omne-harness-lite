@@ -259,6 +259,9 @@ importers:
       '@omne-harness-lite/clock':
         specifier: workspace:*
         version: link:../../infra/clock
+      '@omne-harness-lite/credential-verification':
+        specifier: workspace:*
+        version: link:../credential-verification
       '@omne-harness-lite/storage-sql':
         specifier: workspace:*
         version: link:../../infra/storage-sql
