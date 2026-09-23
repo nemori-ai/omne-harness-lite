@@ -62,7 +62,7 @@
 - **宿主**：[租户](#ul-tenant--租户)——工作区由租户持有；换一个租户身份挂上同一个目录，那是另一份
 - **身份**：（租户, 承载目录）——**租户内按承载目录唯一**：同一租户下同一个目录被两个会话挂上，看到的是同一份。**它不是目录**：目录是承载，路径是指认它的地址、不是它的身份依据；靠什么标识那个目录，正文未述。目录之外的承载形态本版未定义
 - **生灭**：会话创建时显式指定哪一份才有哪一份，不指定这一级为空；挂上后在装配时自动解析承载目录里的特定文件；会话没了，同一租户的下一个会话挂上来还看得见。创建与终结的明确动作正文未述
-- **依据**：[PF-002 §4 工作区](../product/PF-002-assets-settings-and-permissions/design.md#工作区)（rev 10）；[PF-002 §4 工作区不是目录](../product/PF-002-assets-settings-and-permissions/design.md#工作区不是目录)（rev 10）；[PF-002 §4 它是会话选用的，不指定就是空](../product/PF-002-assets-settings-and-permissions/design.md#它是会话选用的不指定就是空)（rev 10）；[PF-002 §5.7](../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算)（rev 10）；[PF-002 §5.8 三条层序](../product/PF-002-assets-settings-and-permissions/design.md#58-三条层序各答一个问题)（rev 10）；[PF-002 §6.4 禁用是逐层配的布尔设置](../product/PF-002-assets-settings-and-permissions/design.md#禁用是逐层配的布尔设置任一层为真即不可见)（rev 10）；[PF-015 §6.13](../product/PF-015-session-lifecycle-and-ownership/design.md#613-工作区在创建时显式指定不指定就是空)（rev 10）
+- **依据**：[PF-002 §4 工作区](../product/PF-002-assets-settings-and-permissions/design.md#工作区)（rev 11）；[PF-002 §4 工作区不是目录](../product/PF-002-assets-settings-and-permissions/design.md#工作区不是目录)（rev 11）；[PF-002 §4 它是会话选用的，不指定就是空](../product/PF-002-assets-settings-and-permissions/design.md#它是会话选用的不指定就是空)（rev 11）；[PF-002 §5.7](../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算)（rev 11）；[PF-002 §5.8 三条层序](../product/PF-002-assets-settings-and-permissions/design.md#58-三条层序各答一个问题)（rev 11）；[PF-002 §6.4 禁用是逐层配的布尔设置](../product/PF-002-assets-settings-and-permissions/design.md#禁用是逐层配的布尔设置任一层为真即不可见)（rev 11）；[PF-015 §6.13](../product/PF-015-session-lifecycle-and-ownership/design.md#613-工作区在创建时显式指定不指定就是空)（rev 10）
 
 ## 能力与构成
 
@@ -71,14 +71,14 @@
 - **宿主**：—
 - **身份**：两级——上层是[能力标识，即「类别 ＋ name」](../product/PF-002-assets-settings-and-permissions/design.md#身份是类别--name其余归实现)，求值的产出是「每个能力标识一个生效资产」；下层是具体资产，同一标识下可并存 official、组织自定义、租户自定义、复制进来的多份。具体资产自身靠什么标识，正文未述
 - **生灭**：创作出草稿 → 修订 → 发布（该版本自此不可变）→ 再改成新版本；从租户范围提升到组织范围不可逆；删除被分享出去的须先告知受影响方，不默认级联。删除之后如何，正文未述
-- **依据**：[PF-002 §4 八类资产](../product/PF-002-assets-settings-and-permissions/design.md#八类资产)（rev 10）；[PF-002 §4 身份是「类别 ＋ name」](../product/PF-002-assets-settings-and-permissions/design.md#身份是类别--name其余归实现)（rev 10）；[PF-001 §4 资产的种类](../product/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 15）；[PF-002 flows §3.3](../product/PF-002-assets-settings-and-permissions/flows.md#33-一个资产定义的版本)（rev 10）
+- **依据**：[PF-002 §4 八类资产](../product/PF-002-assets-settings-and-permissions/design.md#八类资产)（rev 11）；[PF-002 §4 身份是「类别 ＋ name」](../product/PF-002-assets-settings-and-permissions/design.md#身份是类别--name其余归实现)（rev 11）；[PF-001 §4 资产的种类](../product/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 15）；[PF-002 flows §3.3](../product/PF-002-assets-settings-and-permissions/flows.md#33-一个资产定义的版本)（rev 11）
 
 ### UL-asset-version · 资产版本
 
 - **宿主**：[资产](#ul-asset--资产)——每一份资产有自己独立的一条版本线
 - **身份**：所属的那份资产 ＋ 它在那条版本线上的序号。版本线从 v1 起各数各的：复制过去的资产落在目标侧自己的线上，源侧的 v7 在那边可能是 v2
 - **生灭**：草稿（反复修订，还不是版本）→ 发布 → 已发布，自此不可变；再改只能在它之上发新版本。复制与分享只认已发布的。版本有没有终结，正文未述
-- **依据**：[PF-002 flows §3.3](../product/PF-002-assets-settings-and-permissions/flows.md#33-一个资产定义的版本)（rev 10）；[PF-003 §6.4](../product/PF-003-asset-transfer-and-sharing/design.md#64-可复制的对象)（rev 4）
+- **依据**：[PF-002 flows §3.3](../product/PF-002-assets-settings-and-permissions/flows.md#33-一个资产定义的版本)（rev 11）；[PF-003 §6.4](../product/PF-003-asset-transfer-and-sharing/design.md#64-可复制的对象)（rev 4）
 
 ### UL-model-profile · 模型档案
 

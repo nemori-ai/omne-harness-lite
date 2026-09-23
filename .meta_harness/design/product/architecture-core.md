@@ -36,7 +36,7 @@
 |---|---|---|
 | [PF-000 发生的事与记录条目](PF-000-occurrences-and-record-entries/README.md) | **哪些事必须被记下、记下来那条算什么**——后面每个 topic 共用的那一层 | rev 1 |
 | [PF-001 身份、范围与对 Agent 的约束](PF-001-identity-scope-and-agent-constraints/README.md) | **谁是谁、范围怎么划**；一个人在不同组织下的身份如何约束 agent 的组装与行动 | rev 15 |
-| [PF-002 设置、权限与资产的展开](PF-002-assets-settings-and-permissions/README.md) | 设置、权限、资产作为**范围化对象**的样子——挂在哪一层、多层同时有值时怎么合成、**工作区那一级** | rev 10 |
+| [PF-002 设置、权限与资产的展开](PF-002-assets-settings-and-permissions/README.md) | 设置、权限、资产作为**范围化对象**的样子——挂在哪一层、多层同时有值时怎么合成、**工作区那一级**、**设置项分四类** | rev 11 |
 | [PF-003 资产的复制与分享](PF-003-asset-transfer-and-sharing/README.md) | 资产**怎么进到组织里**，所有权与使用权怎么在主体之间流动 | rev 4 |
 | [PF-004 Agent 定义与装配](PF-004-agent-definition-and-assembly/README.md) | **定义、装配、装配清单**三者的关系、**两类 agent**，以及注入进来的是什么 | rev 9 |
 | [PF-005 执行环境与沙箱](PF-005-execution-environments-and-sandboxes/README.md) | 动作**实际落到哪里**，隔离边界在哪，**作用准不准落在宿主机上** | rev 5 |

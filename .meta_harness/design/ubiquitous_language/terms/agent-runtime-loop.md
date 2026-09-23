@@ -527,7 +527,7 @@
 
 - **形态**：过程
 - **出处**：[PF-004 §4 装配](../../product/PF-004-agent-definition-and-assembly/design.md#装配)（rev 9） ·
-  [PF-002 §5.6](../../product/PF-002-assets-settings-and-permissions/design.md#56-四步资产求值--组装--投影--层级计算)（rev 10）
+  [PF-002 §5.6](../../product/PF-002-assets-settings-and-permissions/design.md#56-四步资产求值--组装--投影--层级计算)（rev 11）
 - **别混 ①**：**裸写「装配 / assembly」在跨领域的文字里不作数**——它专指把 agent 定义求值成清单的这个动作
 - **别混 ②**：**它的产物不是一个活物**——
   **2026-09-20 之前本条写的是「变成一个运行实例」，那个说法已退役**，见 [UL-D-3](../decisions.md#ul-d-3--runtime-与活体--2026-09-20)

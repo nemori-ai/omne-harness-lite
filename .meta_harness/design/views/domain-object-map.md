@@ -28,7 +28,7 @@
 |---|---|---|---|---|---|
 | [资产](../domain_objects/objects.md#ul-asset--资产) | [UL-asset](../ubiquitous_language/terms/capabilities-and-composition.md#ul-asset--资产--asset) | — | 技能、工具、MCP、连接件、拓展件、模态转换件、斜杠命令、插件、Agent 定义、官方件、自定义件 | PF-002 | 001 |
 | [资产版本](../domain_objects/objects.md#ul-asset-version--资产版本) | [UL-asset-version](../ubiquitous_language/terms/capabilities-and-composition.md#ul-asset-version--资产版本--asset-version) | [资产](../domain_objects/objects.md#ul-asset--资产)——每一份资产有自己独立的一条版本线 | — | PF-002 | 003 |
-| [meta 能力](../domain_objects/objects.md#ul-meta-capability--meta-能力) | [UL-meta-capability](../ubiquitous_language/terms/capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability) | 正文未述。只说每个 agent 装配起来之后，十三个各恒定占一个常驻槽位 | — | PF-007 | — |
+| [meta 能力](../domain_objects/objects.md#ul-meta-capability--meta-能力) | [UL-meta-capability](../ubiquitous_language/terms/capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability) | 正文未述。只说每个 agent 装配起来之后，十三个各恒定占一个常驻槽位 | — | PF-007 | 002 |
 | [模型档案](../domain_objects/objects.md#ul-model-profile--模型档案) | [UL-model-profile](../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-profile--模型档案--model-profile) | —。建在组织或租户自己那一层；它不是资产，「用哪个模型」那项设置的取值是对它的引用 | — | PF-013 | — |
 
 ## 执行与收场
@@ -136,4 +136,4 @@
 
 产品正文提到它却没有链到词条，「还有谁在讲」那一列就是空的——这一列的空，多半是链接稀疏，不是没人讲。
 
-装配清单、资产、资产版本、meta 能力、模型档案、被卸载的原始结果、执行环境、沙箱实现、无状态沙箱、租户级沙箱、沙箱数据、派发报告、决策卡片、会话授权上下文、记录条目、待办条目、账号、登录状态、邀请、隶属请求。
+装配清单、资产、资产版本、模型档案、被卸载的原始结果、执行环境、沙箱实现、无状态沙箱、租户级沙箱、沙箱数据、派发报告、决策卡片、会话授权上下文、记录条目、待办条目、账号、登录状态、邀请、隶属请求。
