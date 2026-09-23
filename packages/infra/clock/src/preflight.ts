@@ -4,7 +4,7 @@
 import type { Kysely } from 'kysely'
 import type { PreflightCheck } from '@omne-harness-lite/storage'
 import { isRolledBack, systemTimeSources, type TimeSources } from './clock.ts'
-import { CLOCK_LEASE_TABLE, type ClockLeaseTable } from './lease.ts'
+import { CLOCK_LEASE_TABLE, leaseRow, type ClockLeaseTable } from './lease.ts'
 
 export const CLOCK_PREFLIGHT_CHECK = 'clock-rolled-back'
 
@@ -12,12 +12,13 @@ export function clockPreflight(sources: TimeSources = systemTimeSources): Prefli
   return async ({ tx, tables }) => {
     // 「表在不在」由存储提供者在同一读事务里读好：不以「读表报错」推断「没有」
     if (!tables.has(CLOCK_LEASE_TABLE)) return { ok: true }
-    const row = await (tx.db as Kysely<ClockLeaseTable>)
+    const raw = await (tx.db as Kysely<ClockLeaseTable>)
       .selectFrom(CLOCK_LEASE_TABLE)
       .select(['lease_until', 'written_at'])
       .where('id', '=', 1)
       .executeTakeFirst()
-    if (row === undefined) return { ok: true }
+    if (raw === undefined) return { ok: true }
+    const row = leaseRow(raw)
     const wall = sources.wall()
     if (!isRolledBack(wall, row)) return { ok: true }
     return {

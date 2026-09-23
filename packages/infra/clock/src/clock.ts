@@ -7,6 +7,7 @@ import {
   CLOCK_LEASE_TABLE,
   LEASE_WIDTH_MS,
   RENEW_PERIOD_MS,
+  leaseRow,
   type ClockLeaseTable,
 } from './lease.ts'
 
@@ -131,7 +132,7 @@ export class LeaseClock implements Clock {
         .selectAll()
         .where('id', '=', 1)
         .executeTakeFirst()
-      if (existing !== undefined) return { row: existing, fresh: false }
+      if (existing !== undefined) return { row: leaseRow(existing), fresh: false }
       const inserted = { id: 1, lease_until: w + LEASE_WIDTH_MS, written_at: w }
       try {
         await db.insertInto(CLOCK_LEASE_TABLE).values(inserted).execute()
@@ -143,7 +144,7 @@ export class LeaseClock implements Clock {
           .selectAll()
           .where('id', '=', 1)
           .executeTakeFirstOrThrow()
-        return { row: raced, fresh: false }
+        return { row: leaseRow(raced), fresh: false }
       }
     })
     if (isRolledBack(w, row)) {
