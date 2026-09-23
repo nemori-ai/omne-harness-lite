@@ -37,6 +37,7 @@
 | [D-034：Skill 规格形状的起点](skill-spec-adoption/README.md) | 一个**起点方向**：Agent Skills 开放格式 + 规则层自持（提案 B）；内容类扩展走包内定义记录、不进 frontmatter `metadata`（B-2b）；叠加参考 omne-next 与 Codex 的兼容扩展 | 产品负责人，2026-09-23 | 任何契约；任何一条具体外部扩展被采纳；基线快照、name 字符集、键分类表已定；研究缺口已闭合 |
 | [D-035：消息、到达语法与流装配器的起点](message-and-stream-baseline/README.md) | **三层起点**：数据契约自研、语法借 `StreamChunk` 骨架并条款化、装配器自写、pi-ai 止步传输适配、工具同语法发帧；三层落 core、先于两块运行时契约（提案 D，经独立架构评审判成立） | 产品负责人，2026-09-23 | 任何契约或实现；pi 原始参数探针已做；评审上交的九条保留前提已闭合；PF-009 rev 5／PF-013 rev 5–6 已确认 |
 | [D-036：斜杠命令识别与解析的起点](slash-command-parsing-baseline/README.md) | 一个**起点方向**：按产品正文自研统一解析器，借 Codex、omne-next、Claude Code 的部件（提案 D） | 产品负责人，2026-09-23 | 任何契约或判定用例集；Q1–Q9 的技术选择；同日 Q3／Q7／Q8 与三项产品未决的作答（归 PF-002／PF-014／PF-016／PF-004 下一次 rev） |
+| [D-037：MCP 客户端的采用](mcp-client-adoption/README.md) | **实现路径 + 本版桥接范围 + stdio 落点**：官方 `@modelcontextprotocol/sdk` 上自写薄桥（提案 C），同行封装只借鉴避坑；桥 tools／取消／日志／静态鉴权／两种传输、elicitation（契约就位前不声明）、进度→发帧、OAuth；不桥 resources 条目／prompts／sampling／roots／任务式动作／旧式 SSE；stdio 本版一律据点机拉起，「可换落点」记为将来拓展点 | 产品负责人，2026-09-23 | 任何契约或实现；SDK 精确钉版与能力已核实；OAuth 可开工（三件产品面事项未闭合）；连接与子进程的宿主已定 |
 
 **编号**：`D-` 是[决定的稳定编号](../../registry/README.md)。
 D-019 是**迁入时保留的原号**——同一次接受在旧谱系里就是这个号，
