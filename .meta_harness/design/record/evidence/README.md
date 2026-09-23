@@ -60,12 +60,12 @@ evidence/
 
 **本区有四次运行**：2026-09-22 两次形式工件执行，2026-09-23 一次形式工件执行与一次实现测试运行。
 
-| run | 跑了什么 | 结果 |
-|---|---|---|
-| [`2026-09-22-formal-tenant-domain/`](2026-09-22-formal-tenant-domain/README.md) | 四个已登记 TLC 任务、一次有效性核对、一次未登记的 Alloy 执行 | 任务全部无反例，有效性核对按预期给出反例 |
-| [`2026-09-22-formal-tenant-domain-2/`](2026-09-22-formal-tenant-domain-2/README.md) | 同一批，模型改过之后重跑 | 同上 |
-| [`2026-09-23-formal-governance-center-entry/`](2026-09-23-formal-governance-center-entry/README.md) | formal task `governance-center-entry-v1-decision` ＋ 九个否定配置 | 正配置无反例；九个否定配置全部按预期给出反例 |
-| [`2026-09-23-tests-tenancy-leg-2/`](2026-09-23-tests-tenancy-leg-2/README.md) | 全部 13 个 TS 成员的 build／typecheck／test、`lint:rules`、`format:check`（sqlite），三份 pg 测试文件（`postgres:16`）；两处逐字节独立核对；[各节点证据义务的回填清单](2026-09-23-tests-tenancy-leg-2/coverage.md) | sqlite 1218 条：1184 通过、**34 跳过**、0 失败；pg 33 条全过 |
+| run                                                                                                 | 跑了什么                                                                                                                                                                                                           | 结果                                                         |
+| --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
+| [`2026-09-22-formal-tenant-domain/`](2026-09-22-formal-tenant-domain/README.md)                     | 四个已登记 TLC 任务、一次有效性核对、一次未登记的 Alloy 执行                                                                                                                                                       | 任务全部无反例，有效性核对按预期给出反例                     |
+| [`2026-09-22-formal-tenant-domain-2/`](2026-09-22-formal-tenant-domain-2/README.md)                 | 同一批，模型改过之后重跑                                                                                                                                                                                           | 同上                                                         |
+| [`2026-09-23-formal-governance-center-entry/`](2026-09-23-formal-governance-center-entry/README.md) | formal task `governance-center-entry-v1-decision` ＋ 九个否定配置                                                                                                                                                  | 正配置无反例；九个否定配置全部按预期给出反例                 |
+| [`2026-09-23-tests-tenancy-leg-2/`](2026-09-23-tests-tenancy-leg-2/README.md)                       | 全部 13 个 TS 成员的 build／typecheck／test、`lint:rules`、`format:check`（sqlite），三份 pg 测试文件（`postgres:16`）；两处逐字节独立核对；[各节点证据义务的回填清单](2026-09-23-tests-tenancy-leg-2/coverage.md) | sqlite 1218 条：1184 通过、**34 跳过**、0 失败；pg 33 条全过 |
 
 **2026-09-22 的第二次是因为模型改了**：五份契约经评审轮一修订，`Registration.tla`、`progress.cfg` 与
 `Affiliation.als` 三份工件跟着改了，**`Membership.tla` 与它的两个 cfg 没改**。
@@ -82,5 +82,7 @@ evidence/
 存量证据尚未从 `design_legacy/evidence/` 迁入（约 292 个文件，
 含 `formal-2026-09-16` 的 TLC 执行记录、`joint-protocol-2026-09-16` 与 `legacy-consumers`）。
 迁入是整目录搬运。
+
+**2026-09-23 另有一次 Alloy 重跑**：[`2026-09-23-alloy-affiliation/`](2026-09-23-alloy-affiliation/README.md)——`Affiliation.als` 自 run `-2` 之后改过一行注释（冻结的是改后的文件），对当前文件重跑四条命令，结论与 run `-2` 逐条相同；同样不是 formal task。
 
 返回[已发生的事](../README.md)。
