@@ -568,7 +568,7 @@ unknownCount ≝ |{ r : current(r) = "unknown" }| + |{ t : currentOwn(t) = "unkn
 ### S-25 按尝试记明细，按 Run 汇总
 
 - **明细**：每一份账与每一条补账各是一笔明细，[按尝试增量记，崩溃前记多少算多少](../../../../product/PF-012-agent-loop-and-run/design.md#成本两层缺哪一层都会算错)。
-  「这笔属于哪次[尝试](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)、哪个运行、哪个租户」**由承载它的记录条目给**
+  「这笔属于哪次[执行尝试](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)、哪个运行、哪个租户」**由承载它的记录条目给**
   （[S-3](#s-3-本契约明确不拥有什么)；[PF-012 §6.16](../../../../product/PF-012-agent-loop-and-run/design.md#616-日志里至少要有这几种-run-相关的条目)、
   [PF-000 §5.5](../../../../product/PF-000-occurrences-and-record-entries/design.md#55-挂在每条条目上的字段)）。
 - **补账跟着它的目标分组**，不跟着它被写下的那一刻：一条补账归到它的目标所在的每一组。
@@ -740,6 +740,19 @@ unknownCount ≝ |{ r : current(r) = "unknown" }| + |{ t : currentOwn(t) = "unkn
 
 把 [`examples.md`](examples.md) 里每一条反例交给边界上的校验方。
 **必须观察到**：每一条得到的拒绝值与那一行写的**逐字相同**（按 [S-27](#s-27-表示层拒绝值闭合) 的次序）；被拒的值**没有**原样或被修补后记下。
+
+### S-37 三个归属标识的家：RunId、AttemptId、ModelCallId
+
+账按尝试记明细、按 Run 汇总（[S-25](#s-25-按尝试记明细按-run-汇总)），所以「哪次运行、第几次尝试、哪次模型调用」这三个标识的**交换表示定在本契约**，供 `data.model-response`、`data.messages`、`data.arrival-events`、`data.loop-extension` 引用，不各自另定：
+
+| 定义 | 是什么 | 表示 |
+|---|---|---|
+| `RunId` | 一次[运行](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run--运行--run)的标识；会话内唯一、不回收不复用，由 loop 在开始一次运行时产生 | 不透明字符串，按 `data.identity-values` v1 S-31 的散文（同 [S-16](#s-16-responseid)） |
+| `AttemptId` | 一次运行的第几次[执行尝试](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)：尝试的身份是 (运行, 第几次)、不另存，所以它是**从 1 起的整数序号**，与 `RunId` 合起来才完整 | `integer ≥ 1` |
+| `ModelCallId` | 一次[模型调用](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call)的标识；运行内唯一、不回收不复用，由模型请求运行时在受理调用时产生；一次调用发出多次时，各次发出以 `(ModelCallId, dispatch)` 指认，`dispatch` 归 `data.model-response` | 不透明字符串，同上 |
+
+这三个值的**产生**归各自的能力（loop、模型请求运行时），本契约只定表示与唯一范围；产生前无值，不得用占位值代替。
+主线 2026-09-23 裁定（待产品负责人确认）：家在本契约，理由是它们首先在账上被消费。
 
 ## 九、缺席与恢复
 
