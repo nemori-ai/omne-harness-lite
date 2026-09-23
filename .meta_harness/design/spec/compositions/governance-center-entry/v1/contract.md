@@ -349,7 +349,7 @@
 成员名从各条款 ①／⑤ 的散文措辞推出，列在下面的命名表里，Schema 里每条路由各一个 `Payload_<路由>` 与 `Result_<路由>`，成员封闭。
 身份值一律按 `data.identity-values` v1 的规范形式、引用它的 Schema；邀约的两个时刻与派生状态引用 `data.offer-expiry` v1 的 Schema。
 **载荷里没有「以谁的身份」这一格**（[S-12](#s-12-身份推导)）：下表「推导」一栏的身份值不在载荷里。
-这张表的成员名是本契约**首次命名**，待主线认可（[G-7](#十三已知缺口)）。
+这张表的成员名是本契约**首次命名**，2026-09-23 已由主线认可进命名账本；此后任何改名都是本契约的语义变更。
 
 #### 命名原则
 
@@ -406,7 +406,7 @@
 2. **首次命名的取值**：`direction` 的两个取值 `recipientAsParent`／`recipientAsChild`。OG S-11 与 S-30 ① 只有「请对方作自己的上级／下级」的散文，没有取值名。
 3. **表示上的推导**：
    - `InvitationId`、`AffiliationRequestId`、创建键的交换表示取 `data.identity-values` v1 S-31（不透明标识）——OG 只说它们不透明；
-   - `offerTtl` 取整数毫秒——与部署参数的两个默认时长同一概念、同一表示。**线上只约束「是整数」**：不是整数是入口的 `invalid-input`；是整数但非正交给领域，得 `invalidOfferDuration`。OG S-23 把「非正或不合形状」都收成 `invalidOfferDuration`，线上「不是整数」这一支因此与它不同名，见 [G-7](#十三已知缺口)；
+   - `offerTtl` 取整数毫秒——与部署参数的两个默认时长同一概念、同一表示。**线上只约束「是整数」**：不是整数是入口的 `invalid-input`；是整数但非正交给领域，得 `invalidOfferDuration`。OG S-23 把「非正或不合形状」都收成 `invalidOfferDuration`；线上「不是整数」这一支到不了 OG——线上的表示层归本契约（[S-14](#s-14-失败映射)），所以它是 `invalid-input`，不与 OG 的字面冲突；
    - S-34 的一个操作两种返回，按载荷里组织的个数区分。
 
 **答复不带 `operation`**：只看一个答复判不出它属于哪条路由，所以 Schema 的 `RouteSuccess.result` 是 27 个 `Result_<路由>` 的并；
@@ -813,7 +813,6 @@
 | G-4 | **部署参数里 PF-003 的两项（`copyNoticeTtlDefault`、`sharingInvitationTtlDefault`）没有消费它们的契约。**本版照样要值、校验、在完整体检里可见，但没有任何判定用到它们 | 复制通知与分享邀请的契约（尚未立） | 那两份契约立起来并消费它们 |
 | G-5 | **「登录状态效力不变」以「不经备份恢复」为前提。**恢复会带回备份之后撤销的登录状态；[PF-001 flows §3.2](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#32-登录状态) 的「已失效不可回到有效」没有写这个限定 | PF-001 owner（[PF-017 §9](../../../../product/PF-017-governance-center-as-deployable-application/design.md#九未决项) 已登记） | PF-001 owner 认这个读法，或把「恢复后仍保住撤销」提成对备份与恢复的新要求 |
 | G-6 | **中心自身被拆成多个进程之后**，[S-36](#s-36-装配给的保证-vs-协议须给的保证) 各行右列里的新鲜度界、δ 与「够不着某个领域时的收场」未定义 | 架构设计（本版单机，不阻断） | 分布式演化启动时给出，并作为本契约的新版本发布 |
-| G-7 | **27 条路由的线上成员名为本契约首次命名，账本待认可。**参与契约 v1 不发布 Schema，[S-17 的命名表](#路由的线上成员命名表)从各条款 ①／⑤ 的散文推出载荷与返回的成员名。表下列了三类需要特别看的地方：`credential` 的形状推不出；`direction` 的两个取值是首次命名；几处表示是推导来的，其中 `offerTtl`「不是整数」在线上答 `invalid-input`，而 OG S-23 把「不合形状」收成 `invalidOfferDuration` | 主线（命名账本） | 主线认可命名表 |
 
 ## 十四、版本差异与规范工件
 

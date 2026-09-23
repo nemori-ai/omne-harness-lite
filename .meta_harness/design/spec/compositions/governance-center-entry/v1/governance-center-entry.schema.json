@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v1/governance-center-entry.schema.json",
   "title": "composition.governance-center-entry v1 · 治理中心入口的线上形状",
-  "description": "候选（candidate）。本文件只给信封、四种入口答复、路由结果外形、公开与完整体检、GovernanceCenterId 与列表句柄的形状；判定次序、映射与每条路由的语义以 contract.md 为准。身份值不在此复述，一律引用 data.identity-values v1；邀约的时刻与派生状态引用 data.offer-expiry v1。三份参与契约 v1 不发布 Schema，27 条路由的载荷与成功返回的线上形状由本文件定义（Payload_<路由>、Result_<路由>），成员名从各条款 ①／⑤ 的散文推出，见 contract.md S-17 的命名表（G-7 待主线认可）。",
+  "description": "候选（candidate）。本文件只给信封、四种入口答复、路由结果外形、公开与完整体检、GovernanceCenterId 与列表句柄的形状；判定次序、映射与每条路由的语义以 contract.md 为准。身份值不在此复述，一律引用 data.identity-values v1；邀约的时刻与派生状态引用 data.offer-expiry v1。三份参与契约 v1 不发布 Schema，27 条路由的载荷与成功返回的线上形状由本文件定义（Payload_<路由>、Result_<路由>），成员名从各条款 ①／⑤ 的散文推出，见 contract.md S-17 的命名表（2026-09-23 主线认可）。",
   "$defs": {
     "GovernanceCenterId": {
       "title": "治理中心标识 · Governance Center Id（contract.md S-27）",
@@ -293,7 +293,7 @@
     },
     "CredentialMaterial": {
       "title": "凭据材料（credential，capability.account-identity v1 S-8）",
-      "description": "推不出线上形状：该契约 S-8 把凭据材料的结构、强度规则与比对方式交给 S-26 的 credential_policy，属实现选择。本定义因此不收紧（G-7 命名表里列为推不出的一项）；表示层校验与账号能力提供者判凭据材料的规则同源（contract.md S-19）。"
+      "description": "推不出线上形状：该契约 S-8 把凭据材料的结构、强度规则与比对方式交给 S-26 的 credential_policy，属实现选择。本定义因此不收紧（S-17 命名表下列为推不出的一项）；表示层校验与账号能力提供者判凭据材料的规则同源（contract.md S-19）。"
     },
     "OfferTtl": {
       "title": "这一份邀约的有效时长（offerTtl）",
@@ -302,7 +302,7 @@
     },
     "AffiliationDirection": {
       "title": "隶属请求的方向（direction，capability.organization-governance v1 S-11、S-30 ①）",
-      "description": "请对方作自己的上级 ⇒ recipientAsParent；请对方作自己的下级 ⇒ recipientAsChild。参与条款只有散文，两个取值名由本契约首次命名（G-7）。",
+      "description": "请对方作自己的上级 ⇒ recipientAsParent；请对方作自己的下级 ⇒ recipientAsChild。参与条款只有散文，两个取值名由本契约首次命名（S-17 命名表）。",
       "type": "string",
       "enum": ["recipientAsParent", "recipientAsChild"]
     },
