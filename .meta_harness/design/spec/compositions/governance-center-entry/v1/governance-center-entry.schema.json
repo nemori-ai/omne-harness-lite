@@ -175,7 +175,7 @@
     },
     "RouteSuccess": {
       "title": "路由结果：成功（contract.md S-7）",
-      "description": "result 是被投影操作 ⑤ 的成功返回，形状由本契约定义（S-17 命名表），每条路由一个 Result_<路由>。答复本身不带 operation，所以这里只能取 27 个形状的并；按路由判别的核对用 Exchange。身份值按 data.identity-values v1 的规范形式原样给出。登录的 result 是全部输出里出示物唯一出现的一处（S-19、S-29）；列出登录状态的 result 不含 LoginStateId（S-20）。",
+      "description": "result 是被投影操作 ⑤ 的成功返回，形状由本契约定义（S-17 命名表），每条路由一个 Result_<路由>。答复本身不带 operation，所以这里只能取 27 个形状的并；按路由判别的核对用 Exchange。身份值按 data.identity-values v1 的规范形式原样给出。登录的 result 是全部输出里出示物唯一出现的一处（S-19、S-29）；列出登录状态的 result 每项是那个登录状态的 LoginStateId（列表句柄）与签发时间，不含出示物（S-9、S-20）。",
       "type": "object",
       "required": ["result"],
       "additionalProperties": false,
@@ -418,7 +418,7 @@
         "loginStateHandle": { "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/LoginStateId" }
       }
     },
-    "Payload_AI_S37": { "title": "列出登录状态的载荷（capability.account-identity v2 S-37：唯一输入是出示物，载荷为空）", "type": "object", "additionalProperties": false },
+    "Payload_AI_S37": { "title": "列出登录状态的载荷（capability.account-identity v2 S-37：唯一输入是调用方的 LoginStateId，即认人所得 LoginStateId，不在载荷里；载荷为空）", "type": "object", "additionalProperties": false },
     "Payload_OG_S21": {
       "title": "创建团队组织的载荷（capability.organization-governance v1 S-21 ①）",
       "type": "object",

@@ -32,7 +32,7 @@
 | 适用范围 | 一个请求从到达中心起，到它得到答复为止；另含公开体检、运维面与治理中心标识。**客户端一侧**（标识比较、「问不到」的呈现、据点副本）不在范围内 |
 | 参与方与版本 | `capability.organization-governance` v1、`composition.account-registration` v1 与 `data.identity-values`、`data.offer-expiry` 两份 v1 **都已接受**；`capability.account-identity` 钉的是 v2，**仍是 `candidate`**。本契约只消费它们，不改它们 |
 | 保护者是否明确 | 是。判定次序每一步的保护点写在 [S-10](v1/contract.md#s-10-判定次序)，失败映射写在 [S-14](v1/contract.md#s-14-失败映射)；跨进程之后谁兑现写在 [S-36](v1/contract.md#s-36-装配给的保证-vs-协议须给的保证) |
-| 未定的 | [已知缺口](v1/contract.md#十三已知缺口) G-2～G-4、G-7、G-8、G-10、G-11 未闭合，各有 owner；G-1、G-5、G-6、G-9 已闭合（号保留，不复用） |
+| 未定的 | [已知缺口](v1/contract.md#十三已知缺口) G-2～G-4、G-7、G-8、G-10～G-12 未闭合，各有 owner；G-1、G-5、G-6、G-9 已闭合（号保留，不复用） |
 
 ## 按当前问题展开
 

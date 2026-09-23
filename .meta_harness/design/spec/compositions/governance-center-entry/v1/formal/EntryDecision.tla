@@ -148,33 +148,38 @@ CheckPayloadEarly ==
                    presentationRead, passedAuth, postAuthRead, gatePassed, domainCalled,
                    lookupFailed, rejectionJudged, stateNotValidSeen, defectRecorded>>
 
-(* S-11 第 ② 步：认人。不用查即判得了的三种照判「无效」；要查的读不到 ⇒ unavailable。 *)
+(* S-11 第 ② 步：认人。不用查即判得了的三种照判「无效」；要查的读不到 ⇒ unavailable；
+   AI S-44 给出失败集合之外的东西（未列出的值、没有返回、抛出）⇒ 缺陷。 *)
 Authenticate ==
     /\ pc = "auth"
     /\ presentationRead' = TRUE
     /\ \/ /\ pres \in LookupFree
           /\ rejectionJudged' = TRUE
           /\ Answer("loginStateRejected")
-          /\ UNCHANGED <<lookupFailed, passedAuth>>
+          /\ UNCHANGED <<lookupFailed, passedAuth, defectRecorded>>
        \/ /\ pres \notin LookupFree
           /\ lookupFailed' = TRUE
           /\ Answer(IF Mutation = "unavailableAsRejected"
                       THEN "loginStateRejected" ELSE "unavailable")
-          /\ UNCHANGED <<rejectionJudged, passedAuth>>
+          /\ UNCHANGED <<rejectionJudged, passedAuth, defectRecorded>>
+       \/ /\ pres \notin LookupFree
+          /\ defectRecorded' = TRUE
+          /\ Answer(DefectReply)
+          /\ UNCHANGED <<lookupFailed, rejectionJudged, passedAuth>>
        \/ /\ pres \notin LookupFree
           /\ (pres \in NotIssuedHere \/ revoked)
           /\ rejectionJudged' = TRUE
           /\ Answer("loginStateRejected")
-          /\ UNCHANGED <<lookupFailed, passedAuth>>
+          /\ UNCHANGED <<lookupFailed, passedAuth, defectRecorded>>
        \/ /\ pres = "valid" /\ ~revoked
           /\ passedAuth' = TRUE
           /\ pc' = CASE Mutation = "inputBeforeAuth"     -> "derive"
                      [] Mutation = "authBeforeEnvelope"  -> "envelope"
                      [] Mutation = "deriveBeforePayload" -> "derive"
                      [] OTHER                            -> "payload"
-          /\ UNCHANGED <<reply, lookupFailed, rejectionJudged>>
+          /\ UNCHANGED <<reply, lookupFailed, rejectionJudged, defectRecorded>>
     /\ UNCHANGED <<route, versionOk, envelopeOk, pres, payloadOk, revoked, postAuthRead,
-                   gatePassed, domainCalled, stateNotValidSeen, defectRecorded>>
+                   gatePassed, domainCalled, stateNotValidSeen>>
 
 (* S-10：载荷的表示层校验。要认人的路由在认出人之后才看；免认人的版本对上就看。不用查。 *)
 CheckPayload ==
@@ -189,7 +194,8 @@ CheckPayload ==
                    lookupFailed, rejectionJudged, stateNotValidSeen, defectRecorded>>
 
 (* S-12：身份推导（现读 OG S-36）。读到「出示的登录状态已不作数」只可能出自其间的撤销；
-   invalidInput 或返回的 account 分量不等于认人所得 AccountId 都是缺陷（S-14 矛盾清单 ④）。 *)
+   invalidInput、失败集合之外的东西，或返回的 account 分量不等于认人所得 AccountId
+   （S-14 矛盾清单 ③）都是缺陷。 *)
 Derive ==
     /\ pc = "derive"
     /\ postAuthRead' = TRUE
@@ -308,10 +314,10 @@ CannotJudgeIsUnavailable == (pc = "done" /\ lookupFailed) => reply = "unavailabl
 RejectionOnlyWhenJudged == reply = "loginStateRejected" => rejectionJudged
 
 (* S-11：版本对得上、信封合格、判得了时，没带／多个／表示层非法／撤销／从没签发／别的中心签的，
-   同一个答复。 *)
+   同一个答复。「判得了」＝ 没有读不到，也没有缺陷（缺陷是 S-14 的「答不出」）。 *)
 RejectionUniform ==
     ( /\ pc = "done" /\ route \in AuthRoutes /\ versionOk /\ envelopeOk
-      /\ ~lookupFailed
+      /\ ~lookupFailed /\ ~defectRecorded
       /\ (pres \in LookupFree \/ pres \in NotIssuedHere) )
     => reply = "loginStateRejected"
 
@@ -342,7 +348,7 @@ NoDomainWithoutGates ==
         /\ (route \in AuthRoutes => passedAuth)
         /\ (route = "authGated" => gatePassed)
 
-(* S-7、S-12、S-13、S-14：缺陷——无论出在身份推导、补授权还是领域操作——对来者一律 unavailable。 *)
+(* S-7、S-11、S-12、S-13、S-14：缺陷——无论出在认人、身份推导、补授权还是领域操作——对来者一律 unavailable。 *)
 DefectIsUnavailable == (pc = "done" /\ defectRecorded) => reply = "unavailable"
 
 Safety == /\ AnsweredClosed /\ VersionFirst /\ EnvelopeBeforeAuth /\ HealthUnconditional

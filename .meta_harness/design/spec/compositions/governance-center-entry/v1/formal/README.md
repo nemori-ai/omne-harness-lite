@@ -14,12 +14,12 @@
 | [S-18](../contract.md#s-18-公开体检) 公开体检不受挡 | TLA+ 不变量 | `HealthUnconditional` | 三样的内容与来源（启动时载入）不在模型里；规范场景 [S-44](../contract.md#s-44-规范场景中心标识) |
 | [S-19](../contract.md#s-19-免认人的两条路由注册登录) 免认人路由不看出示物、载荷不用查就判 | TLA+ 不变量 | `ExemptIgnoresPresentation`、`ExemptInputWithoutLookup` | 注册的四个终结结果原样呈现，模型收成 `result`；归实现符合性测试 |
 | [S-10](../contract.md#s-10-判定次序)、[S-11](../contract.md#s-11-认人) 判不了优先于无效 | TLA+ 不变量 | `CannotJudgeIsUnavailable`、`RejectionOnlyWhenJudged` | — |
-| [S-11](../contract.md#s-11-认人) 六种不认情形同一个答复 | TLA+ 不变量 | `RejectionUniform` | **只检查到「同一个答复值」**。「整个线上答复逐字节相同」是表示承诺，被「一个答复就是一个值」这种建模方式吸收了，**不算由模型覆盖**；证据在规范场景 [S-39](../contract.md#s-39-规范场景拒绝逐字相同) |
+| [S-11](../contract.md#s-11-认人) 六种不认情形同一个答复 | TLA+ 不变量 | `RejectionUniform`（前件里的「判得了」＝ 没有读不到、也没有缺陷） | **只检查到「同一个答复值」**。「整个线上答复逐字节相同」是表示承诺，被「一个答复就是一个值」这种建模方式吸收了，**不算由模型覆盖**；证据在规范场景 [S-39](../contract.md#s-39-规范场景拒绝逐字相同) |
 | [S-33](../contract.md#s-33-认出人之后登录状态被撤销)、[S-14](../contract.md#s-14-失败映射) 认人之后才读到撤销 | TLA+ 不变量 | `LateRevocationUniform` | 同上一行，只到值 |
 | [S-10](../contract.md#s-10-判定次序) 先认人后看输入 | TLA+ 不变量 | `InputAfterAuth` | — |
 | [S-10](../contract.md#s-10-判定次序)、[S-13](../contract.md#s-13-补授权) 领域调用前各关都过 | TLA+ 不变量 | `NoDomainWithoutGates` | 补授权判的是**哪个组织**、每条路由推的是**哪个身份值**不在模型里；归实现符合性测试与规范场景 [S-43](../contract.md#s-43-规范场景身份推导与补授权) |
 | [S-13](../contract.md#s-13-补授权) 补授权读不到不收成 `notAuthorized` | TLA+ 不变量 | `CannotJudgeIsUnavailable`（`Gate` 的读不到分支） | **多个组织「全部读完、不短路」不在模型里**：模型的 `Gate` 是一次读、结果由环境任选，表达不了「先读到 `ineffective` 就停」这种改坏——它不会留下一个读不到的痕迹让断言去抓。证据在规范场景 [S-40](../contract.md#s-40-规范场景三个出口不合并) 的第三句 |
-| [S-12](../contract.md#s-12-身份推导)、[S-13](../contract.md#s-13-补授权)、[S-14](../contract.md#s-14-失败映射) 缺陷一律 `unavailable` | TLA+ 不变量 | `DefectIsUnavailable`（`Derive`、`Gate`、`Dispatch` 各有一个缺陷分支） | 缺陷是**哪一种**（集合之外、结构上到不了、矛盾清单四项）被收成一个分支；「缺陷计入 `defectCount`」不在模型里；规范场景 [S-40](../contract.md#s-40-规范场景三个出口不合并) |
+| [S-11](../contract.md#s-11-认人)、[S-12](../contract.md#s-12-身份推导)、[S-13](../contract.md#s-13-补授权)、[S-14](../contract.md#s-14-失败映射) 缺陷一律 `unavailable` | TLA+ 不变量 | `DefectIsUnavailable`（`Authenticate`、`Derive`、`Gate`、`Dispatch` 各有一个缺陷分支） | 缺陷是**哪一种**（集合之外、结构上到不了、矛盾清单三项）被收成一个分支；「缺陷计入 `defectCount`」不在模型里；规范场景 [S-40](../contract.md#s-40-规范场景三个出口不合并) |
 | [S-10](../contract.md#s-10-判定次序) 的进展、[S-32](../contract.md#s-32-进展性质与前提) 的「这一次就得到答复」 | TLA+ 时序性质 | `EventuallyAnswered` | 前提见下；前提不成立时来者看到什么，模型不覆盖（那是 P1 不成立：问不到） |
 
 **不在本模型里、也不假装被它覆盖的**：
@@ -38,7 +38,7 @@
   - 七种出示物情形：`absent`、`multiple`、`malformed` 三种不用查（`LookupFree`）；`valid`、`revoked`、`neverIssued`、`otherCenter` 要现读 [AI S-44](../../../../capabilities/account-identity/v2/contract.md#s-44-按出示物换取身份)（按出示物换取身份）。拿一个 `LoginStateId` 当出示物，AI S-44 的答复与 `neverIssued` 相同（`login-state-rejected`），不另列一种情形。
   - `CheckVersion` ＝ [S-10](../contract.md#s-10-判定次序) ①；`CheckEnvelope` ＝ ①′；`Authenticate` ＝ ②（[S-11](../contract.md#s-11-认人)）；`CheckPayload` ＝ 载荷；`Derive` ＝ 身份推导（[S-12](../contract.md#s-12-身份推导)）；`Gate` ＝ 补授权（[S-13](../contract.md#s-13-补授权)）；`Dispatch` ＝ ③（[S-14](../contract.md#s-14-失败映射)）。
   - `Derive` 对全部要认人的路由都走一次：真实路由里只有需要行事 `TenantId` 的才现读，不读的那些的行为是模型行为的子集（只走「通过」那一支），安全性质对子集照样成立。
-  - `Derive`、`Gate`、`Dispatch` 各有一个**缺陷分支**：`Derive` 对应 OG S-36 返回 `invalidInput` 或返回的 `account` 分量不等于认人所得 `AccountId`；`Gate` 对应补授权那次现读返回 `invalidInput` 或集合之外的东西；`Dispatch` 对应 [S-14](../contract.md#s-14-失败映射) 的其余缺陷情形。变量 `postAuthRead` 记「身份推导或补授权做过一次现读」，供 `PayloadBeforeDerive` 判次序。
+  - `Authenticate`、`Derive`、`Gate`、`Dispatch` 各有一个**缺陷分支**：`Authenticate` 对应 AI S-44 给出失败集合之外的东西（未列出的值、没有返回、抛出）；`Derive` 对应 OG S-36 返回 `invalidInput`、失败集合之外的东西，或返回的 `account` 分量不等于认人所得 `AccountId`（矛盾清单 ③）；`Gate` 对应补授权那次现读返回 `invalidInput` 或集合之外的东西；`Dispatch` 对应 [S-14](../contract.md#s-14-失败映射) 的其余缺陷情形。变量 `postAuthRead` 记「身份推导或补授权做过一次现读」，供 `PayloadBeforeDerive` 判次序。
   - 每一次现读读得到、读不到由环境任选；`Revoke` 是环境，在答复之前的任何时刻让出示的那个有效登录状态被撤销。
 - **TLC 检查输入**：[`EntryDecision.cfg`](EntryDecision.cfg)，登记为 formal task 的**唯一**配置。常量 `Mutation = "none"`；不变量 `TypeOK` 与十四条（上表十三条，加上由 `TypeOK` 推出、只作回归的 `AnsweredClosed`）；时序性质 `EventuallyAnswered`；关死锁检查（答复之后没有后继动作）。
 - **前提**：
