@@ -589,6 +589,47 @@
           "rebase_relation": null
         }
       ]
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "capability.asset-evaluation",
+        "version": 1
+      },
+      "family": "capabilities",
+      "topic": "asset-evaluation",
+      "status": "candidate",
+      "contract_path": "spec/capabilities/asset-evaluation/v1/contract.md",
+      "resources": [
+        "spec/capabilities/asset-evaluation/v1/contract.md",
+        "spec/capabilities/asset-evaluation/v1/examples.md",
+        "spec/capabilities/asset-evaluation/v1/formal/Evaluation.als",
+        "spec/capabilities/asset-evaluation/v1/formal/README.md"
+      ],
+      "acceptance": null,
+      "dependencies": [
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.identity-values",
+            "version": 1
+          },
+          "clauses": [
+            "S-5",
+            "S-8",
+            "S-10",
+            "S-12",
+            "S-15",
+            "S-17",
+            "S-18",
+            "S-27",
+            "S-30",
+            "S-32",
+            "S-33"
+          ],
+          "rebase_relation": null
+        }
+      ]
     }
   ]
 }
