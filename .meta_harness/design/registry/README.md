@@ -108,11 +108,15 @@ catalog 的依赖 clauses 按「正文以坐标引用即消费、只算消费者
 **同日晚些时候，[D-023](../record/decisions/tenant-domain-design-acceptance/README.md) 接受了五份 v1，本清单据此翻状态并冻结**——
 接受事件是唯一的触发，评审与重跑本身不提升状态。
 
+**2026-09-23 第二批（治理中心入口）**：新登两条 `candidate`——`composition.governance-center-entry` v1
+与 `capability.account-identity` **v2**（出示物与 LoginStateId 分离）；入口契约带一个 TLC 任务；
+covers 补登 PF-016／PF-017 → 入口契约、PF-001／PF-017 → AI v2；主责产品依据 PF-017 rev 1 已于同日接受。两条都未接受、未冻结。
+
 | 清单 | 现在有什么 |
 |---|---|
-| `catalog.json` | **5 条，全部 `accepted`**：`data.identity-values`、`data.offer-expiry`、`capability.account-identity`、`capability.organization-governance`、`composition.account-registration`，版本一律 1。`acceptance` 一律指向 `record/decisions/tenant-domain-design-acceptance/acceptance.json`；两份带 `formal/` 的契约把 `formal/README.md` 也登为资源（版本目录整体冻结）；依赖带精确坐标与消费 clauses |
-| `formal-tasks.json` | **4 个 TLC 任务**：`organization-governance-v1-membership`、`account-registration-v1-{basic,crash,progress}`。runner 用 `${JAVA_BIN}` / `${TLA2TOOLS_JAR}` 两个可注入变量，工作目录是设计根。**已由 `--formal run` 实际跑通**。**保存下来的两次运行走的不是这条路径**——它们是主线本机直接调 TLC（4 workers），结果与输入快照在 [`…-formal-tenant-domain/`](../record/evidence/2026-09-22-formal-tenant-domain/README.md) 与 [`…-2/`](../record/evidence/2026-09-22-formal-tenant-domain-2/README.md)，[两者的 runner 差异与「为什么不影响被检查的东西」写在 run README](../record/evidence/2026-09-22-formal-tenant-domain-2/README.md#命令仍然是从日志重建的) |
-| `covers.json` | **PF-001／002／003／015 → 五份契约**的条款级覆盖，全部 `reviewed: false`。`clause` 用产品 topic 的**小节锚点**，理由与三处已知不完整写在该文件的 `clause_form` 与 `note` 里 |
+| `catalog.json` | **7 条：5 条 `accepted`、2 条 `candidate`**（`composition.governance-center-entry` v1、`capability.account-identity` v2，`acceptance` 为 null）。接受的五条：`data.identity-values`、`data.offer-expiry`、`capability.account-identity`、`capability.organization-governance`、`composition.account-registration`，版本一律 1。`acceptance` 一律指向 `record/decisions/tenant-domain-design-acceptance/acceptance.json`；两份带 `formal/` 的契约把 `formal/README.md` 也登为资源（版本目录整体冻结）；依赖带精确坐标与消费 clauses |
+| `formal-tasks.json` | **5 个 TLC 任务**：`organization-governance-v1-membership`、`account-registration-v1-{basic,crash,progress}`、`governance-center-entry-v1-decision`（2026-09-23，候选契约的任务，执行不提升状态）。runner 用 `${JAVA_BIN}` / `${TLA2TOOLS_JAR}` 两个可注入变量，工作目录是设计根。**已由 `--formal run` 实际跑通**。**保存下来的两次运行走的不是这条路径**——它们是主线本机直接调 TLC（4 workers），结果与输入快照在 [`…-formal-tenant-domain/`](../record/evidence/2026-09-22-formal-tenant-domain/README.md) 与 [`…-2/`](../record/evidence/2026-09-22-formal-tenant-domain-2/README.md)，[两者的 runner 差异与「为什么不影响被检查的东西」写在 run README](../record/evidence/2026-09-22-formal-tenant-domain-2/README.md#命令仍然是从日志重建的) |
+| `covers.json` | **PF-001／002／003／015 → 五份契约**，加 2026-09-23 补登的 **PF-016／PF-017 → 入口契约、PF-001／PF-017 → AI v2**，全部 `reviewed: false`。`clause` 用产品 topic 的**小节锚点**，理由与三处已知不完整写在该文件的 `clause_form` 与 `note` 里 |
 | `frozen.json` | **18 项**：五个 v1 目录下的全部文件，逐文件 SHA-256，随 D-023 一次登记。此后只追加；v1 任何字节变化都会被检查器报 `frozen file changed` |
 | `lineage.json` | **仍为空。**2026-09-17 那三个候选于 2026-09-22 整体废弃，**从未接受或冻结，不产生血缘** |
 | `id-namespaces.json` | 5 个前缀族，本次未变 |
