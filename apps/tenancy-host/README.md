@@ -15,10 +15,10 @@ node apps/tenancy-host/dist/cli.js keygen <directory>            # 一次性生�
 node apps/tenancy-host/dist/cli.js serve                         # 从环境变量起治理中心
 ```
 
-| 子命令 | 行为 | 退出码 |
-| --- | --- | --- |
-| `keygen <dir>` | 写四份 Ed25519 PEM（`0600`，目录不存在即以 `0700` 建出）；标准输出一行 JSON 给出四个 `_FILE` 变量与路径，**不含密钥内容**；四份里任一已存在 ⇒ 一份都不写 | 0 成功；1 已存在或写失败；2 用法错误 |
-| `serve` | `boot()`；收到 `SIGTERM`／`SIGINT` ⇒ 按装载逆序撤除 ⇒ 退出 | 0 撤完；1 启动失败或撤除总超时（30 s）内没撤完；2 用法错误 |
+| 子命令         | 行为                                                                                                                                                     | 退出码                                                     |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `keygen <dir>` | 写四份 Ed25519 PEM（`0600`，目录不存在即以 `0700` 建出）；标准输出一行 JSON 给出四个 `_FILE` 变量与路径，**不含密钥内容**；四份里任一已存在 ⇒ 一份都不写 | 0 成功；1 已存在或写失败；2 用法错误                       |
+| `serve`        | `boot()`；收到 `SIGTERM`／`SIGINT` ⇒ 按装载逆序撤除 ⇒ 退出                                                                                               | 0 撤完；1 启动失败或撤除总超时（30 s）内没撤完；2 用法错误 |
 
 **本版不轮换密钥。**重生密钥等于换钥：两步之间的注册与清除会以契约已定义的方式收场（重来即可），但换钥必须在中心停着的时候做。
 
@@ -27,19 +27,19 @@ node apps/tenancy-host/dist/cli.js serve                         # 从环境变�
 `X` 与 `X_FILE` 恰设其一（`_FILE` 给文件路径）；空值按未设处理。任何一项缺、二义、读不到、权限过宽、解析不了 ⇒ **启动失败**，
 失败说明点名是哪一项、不含值。
 
-| 变量 | 内容 |
-| --- | --- |
-| `OMNE_TENANCY_STORAGE_DIALECT` | `sqlite`（缺省）或 `postgres` |
-| `OMNE_TENANCY_STORAGE_FILE` | sqlite 库文件路径（`:memory:` 被拒） |
-| `OMNE_TENANCY_STORAGE_URL` | pg 连接串（方言为 `postgres` 时） |
-| `OMNE_TENANCY_ACTIVATION_SIGNING_KEY_PEM[_FILE]`、`…_ACTIVATION_VERIFICATION_KEY_PEM[_FILE]`、`…_PURGE_SIGNING_KEY_PEM[_FILE]`、`…_PURGE_VERIFICATION_KEY_PEM[_FILE]` | 两对部署密钥；文件对 group／other 可读 ⇒ 启动失败；两对不配对 ⇒ 起插件之前启动失败 |
-| `OMNE_TENANCY_UNACTIVATED_RETENTION`、`…_INVITATION_TTL_DEFAULT`、`…_AFFILIATION_REQUEST_TTL_DEFAULT`、`…_COPY_NOTICE_TTL_DEFAULT`、`…_SHARING_INVITATION_TTL_DEFAULT` | 五项部署参数：正整数毫秒或 ISO 8601 时长（`P7D`）；同一组值进各插件与完整体检 |
-| `OMNE_TENANCY_TEAM_CREATION_KEY_RETENTION` | 团队创建键保留期（同上格式） |
-| `OMNE_TENANCY_CLOCK_READY_TIMEOUT` | 启动时等中心的钟可读的上界，**必须大于时钟租约宽度 10 s** |
-| `OMNE_TENANCY_CREDENTIAL_POLICY` | 凭据政策 JSON；缺席不是启动失败（此时注册一律得 `credential-rejected`，契约 S-27） |
-| `OMNE_TENANCY_ENTRY_LISTEN` | 客户端一面的 `host:port`（IPv6 写 `[addr]:port`），无缺省端口 |
-| `OMNE_TENANCY_ENTRY_TLS_CERT_CHAIN_PEM[_FILE]`、`OMNE_TENANCY_ENTRY_TLS_PRIVATE_KEY_PEM[_FILE]` | TLS 证书链与私钥（不是部署密钥）；私钥文件对 group／other 可读 ⇒ 启动失败 |
-| `OMNE_TENANCY_OPS_SOCKET_DIR` | 运维面套接字目录（绝对路径）；套接字是其中的 `governance-center-ops.sock` |
+| 变量                                                                                                                                                                   | 内容                                                                               |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `OMNE_TENANCY_STORAGE_DIALECT`                                                                                                                                         | `sqlite`（缺省）或 `postgres`                                                      |
+| `OMNE_TENANCY_STORAGE_FILE`                                                                                                                                            | sqlite 库文件路径（`:memory:` 被拒）                                               |
+| `OMNE_TENANCY_STORAGE_URL`                                                                                                                                             | pg 连接串（方言为 `postgres` 时）                                                  |
+| `OMNE_TENANCY_ACTIVATION_SIGNING_KEY_PEM[_FILE]`、`…_ACTIVATION_VERIFICATION_KEY_PEM[_FILE]`、`…_PURGE_SIGNING_KEY_PEM[_FILE]`、`…_PURGE_VERIFICATION_KEY_PEM[_FILE]`  | 两对部署密钥；文件对 group／other 可读 ⇒ 启动失败；两对不配对 ⇒ 起插件之前启动失败 |
+| `OMNE_TENANCY_UNACTIVATED_RETENTION`、`…_INVITATION_TTL_DEFAULT`、`…_AFFILIATION_REQUEST_TTL_DEFAULT`、`…_COPY_NOTICE_TTL_DEFAULT`、`…_SHARING_INVITATION_TTL_DEFAULT` | 五项部署参数：正整数毫秒或 ISO 8601 时长（`P7D`）；同一组值进各插件与完整体检      |
+| `OMNE_TENANCY_TEAM_CREATION_KEY_RETENTION`                                                                                                                             | 团队创建键保留期（同上格式）                                                       |
+| `OMNE_TENANCY_CLOCK_READY_TIMEOUT`                                                                                                                                     | 启动时等中心的钟可读的上界，**必须大于时钟租约宽度 10 s**                          |
+| `OMNE_TENANCY_CREDENTIAL_POLICY`                                                                                                                                       | 凭据政策 JSON；缺席不是启动失败（此时注册一律得 `credential-rejected`，契约 S-27） |
+| `OMNE_TENANCY_ENTRY_LISTEN`                                                                                                                                            | 客户端一面的 `host:port`（IPv6 写 `[addr]:port`），无缺省端口                      |
+| `OMNE_TENANCY_ENTRY_TLS_CERT_CHAIN_PEM[_FILE]`、`OMNE_TENANCY_ENTRY_TLS_PRIVATE_KEY_PEM[_FILE]`                                                                        | TLS 证书链与私钥（不是部署密钥）；私钥文件对 group／other 可读 ⇒ 启动失败          |
+| `OMNE_TENANCY_OPS_SOCKET_DIR`                                                                                                                                          | 运维面套接字目录（绝对路径）；套接字是其中的 `governance-center-ops.sock`          |
 
 scrypt 派生参数取 credential-verification 的缺省（N = 2^17、r = 8、p = 1），本版没有来源变量。
 
@@ -74,17 +74,18 @@ scrypt 派生参数取 credential-verification 的缺省（N = 2^17、r = 8、p 
 8. **升级 = 停着的时候换一个版本再启动。**sqlite 上确认之前的任何启动失败都把库恢复到升级前，旧版本照常能起；
    **确认之后开闸那一刻钟读不到**（`serving-timeout`，缺口 U-4）是已接受的残余情形：库已是新版本、旧版本起不来——**核过钟再用同一版本重启**。
    **pg 上迁移提交之后的失败撤不回**（缺口 U-3，本版无手段）：启动日志会有一条 `upgrade-irreversible`。
-9. **停机**：`SIGTERM` 后入口层先停收、在途请求至多排空 10 s，再逐个撤其余七条；30 s 内没撤完即退出 1 并记下没撤完的插件。
+9. **网络边界**：`OMNE_TENANCY_ENTRY_LISTEN` 默认只填本机或私有网络地址；公网暴露须有前置的网络边界（入口契约不承诺限流与登录试探防护，注册与登录对任何能到达端口的连接开放）。第一版按「自己人开发与实验」定基调（D-029）：登录状态没有寿命、只有撤销，出实验之前那一条必须先闭合。
+10. **停机**：`SIGTERM` 后入口层先停收、在途请求至多排空 10 s，再逐个撤其余七条；30 s 内没撤完即退出 1 并记下没撤完的插件。
 
 ## 实现映射：本装配的常量
 
-| 量 | 取值 | 约束 | 源码 |
-| --- | --- | --- | --- |
-| 入口层排空上界 `drainTimeoutMs` | 10 s | 须小于撤除总超时（启动时核） | `src/manifest.ts` `DRAIN_TIMEOUT_MS` |
-| 撤除总超时 | 30 s | 盖住入口层排空 10 s + 运维面撤除 3 s + 存储关闭 | `DISPOSE_TIMEOUT_MS` |
-| 等 `serving` 的上界 | `OMNE_TENANCY_CLOCK_READY_TIMEOUT` + 1 s | 盖住入口层开闸那一刻再读钟的上界（入口层用同一个 `clockReadyTimeoutMs`） | `SERVING_GRACE_MS` |
-| 日志导出阈值 | WARN（2） | basis `logger-level-order-error-lowest` | `src/log.ts` |
-| 中心版本 `version` | 包版本 `0.0.0` | 构建常量，测试核与 `package.json` 一致 | `src/version.ts` |
+| 量                              | 取值                                     | 约束                                                                     | 源码                                 |
+| ------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------ |
+| 入口层排空上界 `drainTimeoutMs` | 10 s                                     | 须小于撤除总超时（启动时核）                                             | `src/manifest.ts` `DRAIN_TIMEOUT_MS` |
+| 撤除总超时                      | 30 s                                     | 盖住入口层排空 10 s + 运维面撤除 3 s + 存储关闭                          | `DISPOSE_TIMEOUT_MS`                 |
+| 等 `serving` 的上界             | `OMNE_TENANCY_CLOCK_READY_TIMEOUT` + 1 s | 盖住入口层开闸那一刻再读钟的上界（入口层用同一个 `clockReadyTimeoutMs`） | `SERVING_GRACE_MS`                   |
+| 日志导出阈值                    | WARN（2）                                | basis `logger-level-order-error-lowest`                                  | `src/log.ts`                         |
+| 中心版本 `version`              | 包版本 `0.0.0`                           | 构建常量，测试核与 `package.json` 一致                                   | `src/version.ts`                     |
 
 入口层包自己的常量（TLS 握手 30 s、接收时限 30 s、运维面撤除 3 s、存储现探 2 s）见
 [它的 README](../../packages/tenancy/governance-center-entry/README.md#实现映射包内常量)；本装配的常量没有一个短于它们所盖住的那一段。

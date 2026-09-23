@@ -9,14 +9,14 @@
 **它不拥有入口契约的任何语义，只拥有本传输自身的事实**：判定次序、答复是什么、线上形状全在入口契约与它的 Schema 里。它**接受并冻结之后**才闭合入口契约的 G-10 与 G-11 的中心一侧。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, composition.governance-center-entry-https-json, 1)`；绑定标识 `https-json/1`。
-- **状态**：`candidate`，接受待 D-029（主线报用户）。**不冻结**：接受之前可原地改，每次改动记在[验证入口的「变化的影响」](verification.md#变化的影响)。
+- **状态**：`accepted`，[D-029](../../../record/decisions/governance-center-transport-binding-acceptance/README.md)（2026-09-23）；`v1/` **已冻结**，任何字节变化都发新版本。接受前的三轮修订记在[验证入口的「变化的影响」](verification.md#变化的影响)。
 - **catalog 映射**：`family=compositions`、`topic=governance-center-entry-https-json`、`contract_path=spec/compositions/governance-center-entry-https-json/v1/contract.md`；
   `resources` 是 `v1/contract.md` 与 `v1/examples.md`；`acceptance` 为 null。依赖三项，全部 `rebase_relation: null`：
   `composition.governance-center-entry` v1（`accepted`）、`data.offer-expiry` v1（`accepted`，时间点的写法）与 `data.identity-values` v1（`accepted`，路由结果里三种身份值的成员与分支）；消费 clauses 以[契约 S-2](v1/contract.md#s-2-依赖与精确承诺) 为准。
 - **formal-tasks 映射**：无——[形式工件不触发](v1/contract.md#s-25-形式工件不触发)。
 - **提供者／装配映射**：兑现者是入口层的实现映射节点 [`realization/packages/tenancy/governance-center-entry`](../../../realization/packages/tenancy/governance-center-entry/README.md)（它的 T-2 固定字节快照 = 本契约 examples 的可执行形式）；
   证书链、私钥与运维面目录由承载装配 [`realization/apps/tenancy-host`](../../../realization/apps/tenancy-host/README.md) 给；据点一侧的客户端代理 [`realization/apps/cli`](../../../realization/apps/cli/README.md) 是将来的消费者。
-- **采用依据**：入口节点[「传输机制候选」](../../../realization/packages/tenancy/governance-center-entry/design.md#传输机制候选)的「选」列，主线 2026-09-23 采用（待 D-029 接受）。
+- **采用依据**：入口节点[「传输机制候选」](../../../realization/packages/tenancy/governance-center-entry/design.md#传输机制候选)的「选」列，主线 2026-09-23 采用，D-029 同日接受。
 
 ## 准入核对
 

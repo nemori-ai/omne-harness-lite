@@ -15,10 +15,10 @@
 
 四项分别陈述，不互相补齐。
 
-- **语义接受范围：入口契约 v1 全部条款（S-1～S-48，含 G-1～G-12 作为显式缺口）与本节点的设计，依据 [D-028](../../../../record/decisions/governance-center-design-acceptance/decision.md)（产品负责人，2026-09-23）。**本节点的设计——独立不 provide 的 fiber、同包运维面、占位行读或铸、`openSignal` 两步开闸、`listening` 握手——随同一决定接受为实现路径；G-10／G-11 归本节点、实施前闭合。主责产品依据 PF-017 rev 2。接受不提升下面三层。
-  参与方里账号能力改用 v2，它是 `candidate`（未接受）；其余四份契约 v1 已由 [D-023](../../../../record/decisions/tenant-domain-design-acceptance/decision.md) 接受（账号能力 v1 也在其中，本节点已不消费它）；采用版本与名字由 D-025、[D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/decision.md) 接受。本节点的设计与它依据的提案都没有被接受
+- **语义接受范围：入口契约 v1 全部条款（S-1～S-48，含 G-1～G-12 作为显式缺口）与本节点的设计，依据 [D-028](../../../../record/decisions/governance-center-design-acceptance/decision.md)（产品负责人，2026-09-23）。**本节点的设计——独立不 provide 的 fiber、同包运维面、占位行读或铸、`openSignal` 两步开闸、`listening` 握手——随同一决定接受为实现路径；G-10／G-11 已由 [D-029](../../../../record/decisions/governance-center-transport-binding-acceptance/decision.md) 闭合（传输绑定接受并冻结；防冒充中心一侧在本节点、客户端规则在 `apps/cli`）。主责产品依据 PF-017 rev 2。接受不提升下面三层。
+  参与方里账号能力改用 v2（D-028 接受）；其余四份契约 v1 已由 [D-023](../../../../record/decisions/tenant-domain-design-acceptance/decision.md) 接受（账号能力 v1 也在其中，本节点已不消费它）；采用版本与名字由 D-025、[D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/decision.md) 接受
 - **可实施范围**：本节点声称兑现契约 S-1～S-36 中落在入口层与运维面的部分，逐条见 [design.md 的投影表](design.md#能力到-cordis-的投影)；
-  并**认领契约的两条缺口**——**G-10 传输绑定的版本化工件**（候选 `https-json/1`，见[传输绑定](design.md#传输绑定将来冻结的工件)，未采用、未冻结）与 **G-11 防冒充的具体手段**（中心一侧：只有 TLS 监听，证书链与私钥是部署配置输入、不是部署密钥，见[防冒充](design.md#防冒充中心一侧的手段与材料)）。
+  并**认领契约的两条缺口**——**G-10 传输绑定的版本化工件**（`composition.governance-center-entry-https-json` v1，D-029 接受并冻结，见[传输绑定](design.md#传输绑定将来冻结的工件)）与 **G-11 防冒充的具体手段**（中心一侧：只有 TLS 监听，证书链与私钥是部署配置输入、不是部署密钥，见[防冒充](design.md#防冒充中心一侧的手段与材料)；客户端一侧的规则由 D-029 定、落在 `apps/cli`）。
   **不兑现**：客户端一侧（标识比较、「问不到」的呈现、据点副本、防冒充的确认）；契约 G-2～G-4、G-7、G-8（G-1 随 AI v2 闭合，证据在账号能力一侧）；「装配给」一列里归 `apps/tenancy-host` 的各项（装载顺序、迁移合成与原子性、迁移前核对 `governanceCenterPreflight` 的接入（N-16，那边已承接设计）、config 来源、日志汇、撤除总超时，以及 **`openSignal` 的兑现时机**——全部 fiber `ACTIVE` 且升级快照确认之后——与兑现后等 `serving` 的上界，见[归装配](design.md#归装配的事项)）。
   **读法待核对与依赖他节点的**：载荷内部成员重复按 `payload` 重复同一步收场，是本节点的延伸读法（N-3，契约 S-4 稳定稿仍未单列）；`clockSane` 的运行中回拨由时钟节点检出（N-5 设计层已闭合）。原 N-1（`startedAt` 在钟读不到时）、N-2（工程记录分不出存储与钟）已由契约裁决闭合，本节点照裁决写（启动等钟、超界启动失败；工程记录只记入口层自己观察到的失败值），见[缺口表](design.md#实施缺口与消费者影响)。
   **AI v2：已对齐**。认人改调 [AI v2 S-44](../../../../spec/capabilities/account-identity/v2/contract.md#s-44-按出示物换取身份)（`logins.exchange`，候选名，与账号能力节点一致），列表句柄 = `LoginStateId`，域分隔派生与多重匹配分支已删；出示物的表示层用账号能力包导出的 `parseLoginStatePresentation`（S-45 交换表示的全部四条），不解析线上的 `LoginStateId`；「只凭出示物认人」写成结构检查（[本节点约束](design.md#本节点约束存储要求之外)第 8 条，含不 import `parseLoginStateId`、不写 `as LoginStateId`）；出示物的线上形状归入口契约 Schema，`LoginStatePresentation` 就是 S-45 交换表示的投影，账号能力签发的 43 字符 base64url 过它（[对齐义务](design.md#出示物的线上形状对齐义务)）；撤销的句柄在载荷那一步过 Schema（只到 IV S-31），过了原样交给 `revoke` 的 `unknown` 目标参数。`credentials` 的注入不变。
@@ -31,11 +31,11 @@
 
 ## 按当前问题展开
 
-| 当前问题 | 阅读入口 |
-|---|---|
-| 两个插件各 inject 什么、一个请求怎么走、27 条路由各调哪个方法、传输与防冒充的候选、中心标识存哪怎么铸、装卸怎么配对、对存储要什么、还缺什么 | [实现设计](design.md) |
-| 哪条承诺由哪份证据支持、前提是什么 | [绑定表](bindings.yaml) |
-| 要证什么、实际跑过什么、还缺什么 | [验证与证据](verification.md) |
+| 当前问题                                                                                                                                    | 阅读入口                      |
+| ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| 两个插件各 inject 什么、一个请求怎么走、27 条路由各调哪个方法、传输与防冒充的候选、中心标识存哪怎么铸、装卸怎么配对、对存储要什么、还缺什么 | [实现设计](design.md)         |
+| 哪条承诺由哪份证据支持、前提是什么                                                                                                          | [绑定表](bindings.yaml)       |
+| 要证什么、实际跑过什么、还缺什么                                                                                                            | [验证与证据](verification.md) |
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。

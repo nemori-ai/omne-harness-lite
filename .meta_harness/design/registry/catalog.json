@@ -453,13 +453,13 @@
       },
       "family": "compositions",
       "topic": "governance-center-entry-https-json",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/compositions/governance-center-entry-https-json/v1/contract.md",
       "resources": [
         "spec/compositions/governance-center-entry-https-json/v1/contract.md",
         "spec/compositions/governance-center-entry-https-json/v1/examples.md"
       ],
-      "acceptance": null,
+      "acceptance": "record/decisions/governance-center-transport-binding-acceptance/acceptance.json",
       "dependencies": [
         {
           "coordinate": {
