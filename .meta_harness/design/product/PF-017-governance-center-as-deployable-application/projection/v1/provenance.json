@@ -3,7 +3,7 @@
   "topic": "PF-017-governance-center-as-deployable-application",
   "version": "v1",
   "generated_at": "2026-09-23",
-  "requirements_revision": "PF-017 rev 2 (README.md front-matter revision: 2); PF-016 rev 3 as the peer side only; PF-001 rev 15 for login-state semantics",
+  "requirements_revision": "PF-017 rev 2 (README.md front-matter revision: 2); PF-016 rev 3 as the peer side only; PF-001 rev 16 for login-state semantics",
   "frozen": "contracts-only",
   "acceptance": "record/decisions/governance-center-design-acceptance/decision.md",
   "drift_note": "The two contract sources below are `accepted` under D-028 (2026-09-23) and their sha256 values are the ones registered in registry/frozen.json; the checker reports any byte change to them. The three v1 contracts listed for reference are frozen under D-023. Requirement and realization sources are not in the frozen set, so their sha256 stays null: before implementing from this projection, verify those resources are still the current files (PF-017 rev 2; node design.md/bindings.yaml as of the D-028 commit). G-10 and G-11 must be closed in the entry node before the entry package is created; this projection does not change when they close unless a contract version changes.",
@@ -39,7 +39,7 @@
     {
       "kind": "requirement",
       "resource": "product/PF-001-identity-scope-and-agent-constraints/design.md",
-      "revision": 15,
+      "revision": 16,
       "sections": [
         "4"
       ],

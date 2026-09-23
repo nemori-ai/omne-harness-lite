@@ -7,7 +7,7 @@
   （入口层落在哪：四个实质候选，推荐 A——入口层作为治理中心内不 provide 的独立 fiber、运维面同包另一 fiber；
   [两次 architecture-reviewer 评审](../../proposals/governance-center-entry/review.md)：第一次一项阻断当日闭合，第二次无阻断）。
 - **需求与方法前提**：[PF-017 rev 2](../../../product/PF-017-governance-center-as-deployable-application/README.md)（`status: active`；rev 1 于 2026-09-23 接受，rev 2 同日落三条裁决 INT-016～INT-018）；
-  [PF-001 rev 15](../../../product/PF-001-identity-scope-and-agent-constraints/README.md)；[PF-016 rev 3](../../../product/PF-016-cli-tui-delivery-surface/README.md)；
+  [PF-001 rev 16](../../../product/PF-001-identity-scope-and-agent-constraints/README.md)；[PF-016 rev 3](../../../product/PF-016-cli-tui-delivery-surface/README.md)；
   [SYS-DEPLOY](../../../foundation/cross-system-constraints/requirements.md#sys-deploy) 单机字面读法；
   `harness-design-handbook` 主线 A→G 走完；F 反向核对的结论写进入口契约 S-36 与账号能力 v2 S-30 的「装配给／协议给」表。
   spec-reviewer 三轮（第二轮起无阻断，第三轮定向复评无阻断），应修全部采纳。
@@ -44,7 +44,7 @@
 
 **保留前提：**
 
-- **PF-017 rev 2 与 PF-001 rev 15 是两份契约的需求基线。**PF 再升 rev 带来语义变化时，已发布规格不可原地覆盖，发布新版本。
+- **PF-017 rev 2 与 PF-001 rev 16 是两份契约的需求基线。**PF 再升 rev 带来语义变化时，已发布规格不可原地覆盖，发布新版本。
 - **单机部署的字面读法**：两份契约「装配给 vs 协议须给」表左列的保证由装配兑现；分布式演化时右列须由协议重新兑现。
 - **D-027 的持久性边界按 PF-017 rev 2 的写法读**：断电或 OS 崩溃可能丢掉最后一段已提交事务，是装配给的边界，本版不承诺；进程崩溃不在此列。
 - **Cordis 4.0.4**（[D-025](../cordis-adoption-version/README.md)）；节点新增的假设（内核原样传递 config 对象、`node:sqlite` 在线备份接口等）须按 source-check 取证后才进 bindings。

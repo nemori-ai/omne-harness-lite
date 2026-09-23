@@ -2,7 +2,7 @@
 id: PF-001
 title: 身份、范围与对 Agent 的约束
 status: active
-revision: 15
+revision: 16
 relations:
   supersedes: []
   depends-on: []
@@ -38,17 +38,17 @@ relations:
 | 哪些是拍板定的，哪些是推导的，还有什么没定 | [决策与来源](decisions.md) |
 | 这块设计怎么演变到今天 | [变更历史](changelog.md) |
 | 当时是怎么谈的 | [设计交流笔记](interviews/README.md) |
-| 要实施它，当前该怎么做 | [设计投影 v1](projection/v1/projection.md)（租户相关领域那一片；派生快照，来源全为 candidate） |
+| 要实施它，当前该怎么做 | [设计投影 v2](projection/v2/projection.md)（租户相关领域那一片；派生快照，不是权威；版本与接受依据见[投影目录](projection/README.md)） |
 
 ## 状态
 
-- 产品设计：**rev 15**，已定稿
+- 产品设计：**rev 16**，已定稿；2026-09-23 按产品负责人「rev 完翻正式」的裁决登记为接受（[decisions §一](decisions.md#一拍板记录)）
 - 未决项：**无**
 - 待裁决：**无**
-- 技术投影：**v1**（2026-09-22，依据 rev 15；覆盖租户相关领域；来源契约已由 [D-023](../../record/decisions/tenant-domain-design-acceptance/README.md) 接受并冻结，投影本身同批接受为实施入口）
+- 技术投影：**v2**（2026-09-23，依据 rev 15；覆盖租户相关领域；由 [D-023](../../record/decisions/tenant-domain-design-acceptance/README.md) 与 [D-028](../../record/decisions/governance-center-design-acceptance/README.md) 接受为实施入口；版本表在[投影目录](projection/README.md)）
 
 技术投影按 `harness-design-handbook` skill 展开，
-产物按其步骤 G 落回本包的 `projection/v1/`。
+产物按其步骤 G 落回本包的 `projection/` 下对应版本。
 
 ## 本包的文件
 

@@ -7,7 +7,7 @@
 
 | 版本 | 状态 | 对应需求修订 | 发布日期 | 说明 |
 |---|---|---|---|---|
-| [v1](v1/projection.md) | **当前，已接受** | PF-017 rev 2（PF-016 rev 3 的据点一侧只作对端；PF-001 rev 15 的登录状态语义经账号能力 v2） | 2026-09-23 | 首版：入口契约 v1 + 账号能力 v2 + 入口层／运维面节点 + tenancy-host 的两步开闸与升级整体性 + storage-sql／clock 本程修订；[D-028](../../../record/decisions/governance-center-design-acceptance/README.md) 同日接受为实施入口 |
+| [v1](v1/projection.md) | **当前，已接受** | PF-017 rev 2（PF-016 rev 3 的据点一侧只作对端；PF-001 rev 16 的登录状态语义经账号能力 v2） | 2026-09-23 | 首版：入口契约 v1 + 账号能力 v2 + 入口层／运维面节点 + tenancy-host 的两步开闸与升级整体性 + storage-sql／clock 本程修订；[D-028](../../../record/decisions/governance-center-design-acceptance/README.md) 同日接受为实施入口 |
 
 **当前应实施的版本：v1**，接受依据是 [D-028](../../../record/decisions/governance-center-design-acceptance/decision.md)。接受的是设计与实施入口，不表示任何实现或验证已完成；
 第 7 节的未决项仍是显式缺口，其中 G-10 传输绑定与 G-11 防冒充手段**必须在入口层建包之前闭合**。

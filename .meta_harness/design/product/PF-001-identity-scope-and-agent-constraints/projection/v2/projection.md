@@ -2,10 +2,10 @@
 
 > **v2 相对 v1 改了什么**（v1 保留不改，正在照它实施的人可以对照）：入口层有了契约与节点——Q-16 闭合，第 8 节第 3 步的入口层部分改指 [PF-017 投影 v1](../../../PF-017-governance-center-as-deployable-application/projection/v1/projection.md)；
 > 账号能力有了 v2（出示物与 LoginStateId 分离），本投影的 `ai` 坐标仍指 v1——注册组合与治理契约钉的是 v1，入口层那一侧按 PF-017 投影读 v2；
-> Q-14 Cordis 版本、Q-15 领域名已由 D-025／D-024 闭合；第 5.5 节装配草图的入口层一行改为已建节点；D-027 的断电边界按 PF-017 rev 2 读法补进第 3 节前提。需求修订不变（PF-001 rev 15）。
+> Q-14 Cordis 版本、Q-15 领域名已由 D-025／D-024 闭合；第 5.5 节装配草图的入口层一行改为已建节点；D-027 的断电边界按 PF-017 rev 2 读法补进第 3 节前提。需求修订不变（PF-001 rev 16）。
 
 - 对应需求：[PF-001](../../README.md) 全部条款里**租户相关领域**这一片——账号、登录状态、组织与隶属、成员关系与角色、两种邀约、租户身份与隔离义务、作用域层里组织级与租户级的身份。**不含**设置／权限／资产的求值与持有（PF-002）、资产流转（PF-003）、会话（PF-015）、成本计量（无 topic）。另取 [PF-003 §6.14](../../../PF-003-asset-transfer-and-sharing/design.md#614-待确认的复制通知与分享邀请会过期) 一句作邀约过期的第二消费者依据
-- 本版依据的需求修订：**PF-001 rev 15**（`README.md` front-matter），PF-003 rev 4
+- 本版依据的需求修订：**PF-001 rev 16**（`README.md` front-matter），PF-003 rev 4
 - 状态：**当前，已接受为实施入口**——五份契约与六节点依据 [D-023](../../../../record/decisions/tenant-domain-design-acceptance/README.md)（产品负责人，2026-09-22），入口层与账号能力 v2 依据 [D-028](../../../../record/decisions/governance-center-design-acceptance/README.md)（2026-09-23）。契约来源 `accepted`、已冻结（[provenance.json](provenance.json) 里契约的 sha256 即 `frozen.json` 登记值）；需求与节点来源不在冻结集合，实施前先核那些坐标
 - 未决 gap 数：**15**（见[第 7 节](#7-未决项)；Q-14、Q-15、Q-16 已闭合，条目保留并标注）
 

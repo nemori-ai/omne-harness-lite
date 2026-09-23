@@ -56,7 +56,7 @@ relations:
 | 关系 | 含义 | 本 topic 的情况 |
 |---|---|---|
 | `supersedes` | 对方全部内容被吸收 | **无。**本 topic 是新开的，不取代任何人 |
-| `depends-on` | 引用对方定义，不重复展开 | **四个**，见 front-matter：[PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)（rev 15）、[PF-016](../PF-016-cli-tui-delivery-surface/README.md)（rev 3）、[PF-015](../PF-015-session-lifecycle-and-ownership/README.md)（rev 9）、[PF-003](../PF-003-asset-transfer-and-sharing/README.md)（rev 4）。**每一个都是「用它的规矩」，没有一个是「改它的规矩」** |
+| `depends-on` | 引用对方定义，不重复展开 | **四个**，见 front-matter：[PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)（rev 16）、[PF-016](../PF-016-cli-tui-delivery-surface/README.md)（rev 3）、[PF-015](../PF-015-session-lifecycle-and-ownership/README.md)（rev 9）、[PF-003](../PF-003-asset-transfer-and-sharing/README.md)（rev 4）。**每一个都是「用它的规矩」，没有一个是「改它的规矩」** |
 | `extends` | 扩展对方范围，对方继续有效 | **无** |
 
 **本 topic [在架构内核之外](../architecture-core.md#内核之外的-pf)：它只用规矩，不立规矩。**
@@ -80,10 +80,10 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 2**，定稿。首稿于 2026-09-23 经评审、两轮修订后由产品负责人通读接受（原话在 [decisions §一](decisions.md#2026-09-23--正式接受)）；本 rev 落的是产品负责人同日三条裁决（INT-016～INT-018：断电与操作系统崩溃的例外、崩溃后重启的那一小段、钟先跳快再校正回来无运维出口），**落文待产品负责人通读**
+- 产品设计：**rev 2**，定稿。首稿于 2026-09-23 经评审、两轮修订后由产品负责人通读接受（原话在 [decisions §一](decisions.md#2026-09-23--正式接受)）；本 rev 落的是产品负责人同日三条裁决（INT-016～INT-018：断电与操作系统崩溃的例外、崩溃后重启的那一小段、钟先跳快再校正回来无运维出口），同日由产品负责人验收接受（[decisions §一](decisions.md#2026-09-23--正式接受)）
 - 未决项：**7**（见 [design.md 第九节](design.md#九未决项)）：PF-016 两条、PF-001 四条；本 topic 后续版本一条（钟先跳快再校正回来时要不要给运维出口）
 - 待裁决：**0**；可被推翻的 PM 建议：**0**——曾待确认的六条已有去向（见 [decisions.md 第三节](decisions.md#三待裁决)）
-- 已知的来源问题：**13**，其中 2 条已闭合（见 [decisions.md 第四节](decisions.md#四已知的来源问题)）：PF-001 四处（凭据泄漏无补救、凭据规则由谁定、恢复会带回撤销这一读法、「失效在重启之后依然成立」没有断电与操作系统崩溃的限定）、PF-016 三处（§9 那一问已答、「不呈现」不等于「静态不可读」、确认连上的不是那个中心时怎么呈现）、PF-001 投影 Q-10 的产品来源、技术侧政策的来源方向、词条待复核、产品区 rev 表（README 待改到 rev 2、architecture-core 待补），以及已闭合的标题用词与领域对象条目
+- 已知的来源问题：**13**，其中 3 条已闭合（见 [decisions.md 第四节](decisions.md#四已知的来源问题)）：PF-001 四处（凭据泄漏无补救、凭据规则由谁定、恢复会带回撤销这一读法；「失效在重启之后依然成立」没有断电与操作系统崩溃的限定——已由 PF-001 rev 16 闭合）、PF-016 三处（§9 那一问已答、「不呈现」不等于「静态不可读」、确认连上的不是那个中心时怎么呈现）、PF-001 投影 Q-10 的产品来源、技术侧政策的来源方向、词条待复核、产品区 rev 表（README 待改到 rev 2、architecture-core 待补），以及已闭合的标题用词与领域对象条目
 - 技术投影：[v1](projection/README.md)，对应 rev 2——派生快照，不是权威
 
 ## 本包的文件

@@ -7,9 +7,18 @@
 
 ## 当前修订
 
-**rev 2**（2026-09-23）
+**rev 2**（2026-09-23），已接受
 
 ## 历史
+
+### 状态变更 · rev 2 接受 — 2026-09-23（不升 rev）
+
+**产品负责人把 rev 2 翻为正式**：原话要点「阶段一我验收都通过，rev 完翻正式」（经主线转述，[decisions §一](decisions.md#2026-09-23--正式接受)、[INT-019](interviews/2026-09-23-rulings.md#int-019)）。
+[design 抬头](design.md)的状态行去掉「待产品负责人通读」，[README 状态段](README.md#状态)同步；**正文一个字未动**——改变含义才升 rev，状态不是内容。
+front-matter 的 `status` 在 rev 1 接受时已是 `active`，不变。
+同一次改动里，[decisions §四](decisions.md#四已知的来源问题)「PF-001 flows §3.2 与非目标没有断电与操作系统崩溃的限定」那一条标为**已闭合**——
+产品负责人同日裁「PF-001 升 rev 加同一限定」，[PF-001 rev 16](../PF-001-identity-scope-and-agent-constraints/changelog.md) 已加上并指回本 topic §6.7、§6.8。
+**本 topic 对 PF-001 的依赖**（README 关系表标的「rev 15」）没有随之改动：rev 16 只加这条限定，本 topic 与它一致，改不改那个标注由维护者复核后定。
 
 ### rev 2 · 2026-09-23
 

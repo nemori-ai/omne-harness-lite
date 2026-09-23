@@ -16,6 +16,11 @@
 2026-09-17 关于三层身份与三种合成语义的裁决是在对话中直接给出的，
 未另留笔记；内容全部记在 [decisions.md 第一节](../decisions.md#一拍板记录)。
 
+2026-09-23 的两次作答（本 topic 加上机器断电与操作系统崩溃的限定；rev 16 接受）经主线派发转述，
+本包未另留笔记；来源与转述方式注明在 [decisions.md 第一节](../decisions.md#一拍板记录)。
+其中例外本身的原始记录在 PF-017 的 [INT-016](../../PF-017-governance-center-as-deployable-application/interviews/2026-09-23-rulings.md#int-016)，
+接受那句话记在同一份的 [INT-019](../../PF-017-governance-center-as-deployable-application/interviews/2026-09-23-rulings.md#int-019)。
+
 ## 记什么，不记什么
 
 **记**：用户的判断与选择、他排除了什么、他给出的理由、当时未解决的争论。
