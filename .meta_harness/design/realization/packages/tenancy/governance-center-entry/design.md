@@ -32,25 +32,26 @@
 
 **复杂度声明**：没有缓存、队列、重试、连接池、限流。像「机制」的只有三样，都是正确性所需——
 **分派闸**（开门之前与排空开始之后不分派；开门由装配的 `openSignal` 放行；[S-34](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-34-起来即整体停机时在途请求归谁)）、
-**在途计数**（有界排空要知道何时等完）、**三条通知**（开门、关门与缺陷到达运维面，[下文](#插件边界服务面与三处关键选择)）。
+**在途计数**（有界排空要知道何时等完）、**四条通知**（开门、关门与缺陷到达运维面，外加运维面装载时的一声「在听」，[下文](#插件边界服务面与三处关键选择)）。
 
 ## 插件边界、服务面与三处关键选择
 
 | 插件（候选名） | inject（全部必需） | provide | 取得的资源 | config（候选字段；非法 ⇒ 启动失败） |
 |---|---|---|---|---|
 | `governance-center-entry`（入口层） | `logins`、`registration`、`organizations`、`memberships`、`offers`、`storage`、`credentials`（只用 `parse`）、`clock`（只在启动时用） | **无** | 一个 TLS 监听（effect）；启动时读或铸中心标识一次、等钟可读一次；插件体返回后等 `openSignal` 兑现才开门 | `listen`（地址与端口）、`tls`（证书链与私钥 PEM）、`version`（中心所装版本）、`drainTimeoutMs`（排空上界，正整数）、`clockReadyTimeoutMs`（等钟的上界，正整数）、`openSignal`（装配传入的 Promise，兑现即「可以开门」；缺席或不是 thenable ⇒ config 校验不过） |
-| `governance-center-ops`（运维面） | `storage`、`clock` | **无** | 一个本机套接字监听（effect）；三条通知的监听者 | `socketDirectory`（绝对路径）、`deploymentKey`（`{ present: true, complete: true }`，只收字面 `true`）、`deploymentParameters`（五项正整数毫秒） |
+| `governance-center-ops`（运维面） | `storage`、`clock` | **无** | 一个本机套接字监听（effect）；三条通知的监听者；装载时发一次 `listening` | `socketDirectory`（绝对路径）、`deploymentKey`（`{ present: true, complete: true }`，只收字面 `true`）、`deploymentParameters`（五项正整数毫秒） |
 
 - **入口层不 inject** `accounts`（S-13／S-14／S-18／S-38 不投影，[S-24](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-24-有意不投影)）、
   `organization-purge`（S-53）。`credentials` inject，但**只调它的 `parse`**，不碰 `derive`／`verify`／`checkPolicy`，见下面第一张表。
   `clock` inject，**只在启动时用**：启动成功以中心的钟可读为条件，入口层就绪之前等它可读一次、开门那一刻再读一次作 `startedAt`（[下文](#中心标识版本与启动时刻怎么到达运维面)）；请求处理不读钟，客户端的钟从不参与判定。
 - **就绪与开门分两步**：插件体绑好端口（不受理）、标识就绪、钟可读之后**返回**，fiber 随之 `ACTIVE`；开门挂在装配给的 `openSignal` 上，装配在全部 fiber `ACTIVE` 且升级快照确认之后兑现它（[下文](#就绪与开门为什么分两步)）。
 - **运维面不引用任何治理服务**：它的源码目录只许导入 `kernel-basis`、`storage` 协议、`offer-expiry`、Node 内置与本包一个不导入任何 `tenancy/*` 包的事件声明模块（导入白名单，SC-2 的兑现形式，[下文](#本节点约束存储要求之外)）。
-- **三条通知**都用 `emit`（通知，不是控制；返回值被丢弃，[`async-control-not-bail`](../../../../basis/cordis/async-control-not-bail.md)）：
-  `governance-center-entry/serving`（候选名，载荷 `{ centerId, version, startedAt }`，入口层开门前发一次）、
-  `governance-center-entry/stopped`（候选名，无载荷，入口层关门时发一次）与
-  `governance-center-entry/defect`（候选名，**无载荷**，每记一次缺陷发一次）。不落存储、不经服务；本版不开任何控制类事件，认人是一次显式调用。
-  运维面只在 `serving` 与 `stopped` 之间应答——**两张面同起同停**。
+- **四条通知**都用 `emit`（通知，不是控制；返回值被丢弃，[`async-control-not-bail`](../../../../basis/cordis/async-control-not-bail.md)）：
+  `governance-center-entry/serving`（候选名，载荷 `{ centerId, version, startedAt }`，入口层开门前发一次，见到下一条时再发一次）、
+  `governance-center-entry/stopped`（候选名，无载荷，入口层关门时发一次）、
+  `governance-center-entry/defect`（候选名，**无载荷**，每记一次缺陷发一次）与
+  `governance-center-ops/listening`（候选名，无载荷，运维面每次装载时发一次；入口层若正开着门就重发 `serving`）。不落存储、不经服务；本版不开任何控制类事件，认人是一次显式调用。
+  运维面只在 `serving` 与 `stopped` 之间应答——**两张面同起同停**；第四条让两者被各自重跑、次序不定时仍能对上（[下文](#运维面重跑之后怎么恢复应答)）。
 - **accepted_protocol_versions 是包内常量**（候选 `ACCEPTED_PROTOCOL_VERSIONS`，非空；候选值 `["1"]`），不是 config：
   哪些线上协议版本对得上，由本包的路由表实现了哪些版本决定；做成 config 就让装配能宣称接受一个代码没实现的版本。
   它随本包版本定下、运行期间不变，[S-8](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-8-协议版本与跨版本不变的两样)「缺即启动失败」因此在结构上不会发生；
@@ -79,7 +80,7 @@
 | | 运维面自己读 `governance_center`（落选） | 装配经 config 传给运维面（落选） | **入口层开门前 `emit serving`、关门时 `emit stopped`（选）** |
 |---|---|---|---|
 | 最强论证 | 运维面不依赖入口层起没起来；重跑后可自取 | 与部署参数走同一条路，运维面只读 config | 标识只有一个铸造者与一个载入点；`emit` 同步派发，监听者在入口层开门之前就拿到三样；`startedAt` 是入口层开门那一刻读到的中心的钟；同一对通知顺带给出「同起同停」的边界 |
-| 本方弱点 | 首次启动时那一行还不存在（入口层后装、后铸）；标识出现两个载入点；也不知道客户端一面何时停 | 运维面装载时标识还没铸：要么装配自己铸（装配胶水拥有契约语义，[红线](../../../AGENTS.md#红线)），要么把运维面挪到入口层之后（运维面失败时入口层已在分派，半开） | 运维面对入口层有一条运行时通知依赖；运维面重跑会丢三样直到入口层下一次开门（[N-4](#实施缺口与消费者影响)） |
+| 本方弱点 | 首次启动时那一行只是占位（入口层后装、后铸）；读到已铸的值也不知道客户端一面此刻开没开门、何时停 | 运维面装载时标识还没铸：要么装配自己铸（装配胶水拥有契约语义，[红线](../../../AGENTS.md#红线)），要么把运维面挪到入口层之后（运维面失败时入口层已在分派，半开） | 运维面对入口层有一条运行时通知依赖；运维面重跑会丢三样直到入口层下一次开门（[N-4](#实施缺口与消费者影响)） |
 | 置信度 | — | — | 中高 |
 
 谁来等钟：
@@ -91,6 +92,27 @@
 | 置信度 | — | 高 |
 
 `clockReadyTimeoutMs` 须**严格大于**时钟节点的租约宽度 `LEASE_WIDTH_MS`（候选 10 s，[clock 节点「启动时的租约窗口与入口层等钟」](../../infra/clock/design.md#启动时的租约窗口与入口层等钟)）：崩溃后快速重启落在租约窗口里时，钟至多这么久读不到；取值不大于它，快速重启就可能启动失败。取值归装配。
+
+### 运维面重跑之后怎么恢复应答
+
+契约的前提是**本版运行中不换代存储与时钟的提供者**（起草者正补进契约）；下面是这条前提被破时，两张面仍能各自恢复应答的做法。
+两个插件都 inject `storage`、`clock`，任一换代，内核把它们**各自**重跑，次序不定。只靠 `serving` 通知时，入口层先重跑完、先发了 `serving`，后重跑的运维面就错过了它，此后永不应答。
+
+做法：
+
+- **运维面每次装载**：先挂三条监听，再 `emit('governance-center-ops/listening')`。不读 `governance_center`：`centerId` 只从 `serving` 携带。
+- **入口层**监听 `listening`：闸是 `serving` ⇒ 重发一次 `serving`（同一个 `centerId`、`version`、`startedAt`）；闸不是 `serving` ⇒ 什么都不做，等自己开门时发。
+- **运维面应答的门不变**：见过 `serving`、其后没有 `stopped`。
+
+| | 按「自己读行」为门：读到已铸的值就应答（落选） | 读行 + 握手：门仍是 `serving`，读到的 `centerId` 与 `serving` 交叉核对（落选） | 只靠 `serving`，不握手（落选，原做法） | **只握手（选）** |
+|---|---|---|---|---|
+| 最强论证 | 不依赖入口层的通知就答得出标识，重跑后自己恢复 | 标识有两个来源，不一致时看得见 | 机制最少 | 谁后重跑都拿得到 `serving`：运维面后到，它的 `listening` 让开着门的入口层重发；入口层后到，它开门时本来就发。同起同停在启动、换代、停机都成立；标识只有一个来源 |
+| 本方弱点 | **反例**：普通重启时那一行早已铸好，运维面一装载就应答，而入口层还在等钟、等 `openSignal`——每次重启都有一段运维面答、客户端一面不答的窗口，S-34 同起同停被破 | 握手成立之后读行只剩交叉核对：多一条读存储的代码路径、多一个「两处标识不一致」的不可能状态分支，却不改变任何一次应答——没有独立价值 | 换代时入口层先重跑完 ⇒ 运维面永不应答 | 多一条通知与入口层的一个监听；运维面的 `centerId` 完全信入口层发来的那一个 |
+| 置信度 | — | — | — | 中高 |
+
+运维面仍必需 inject `storage`：完整体检的 `storageReachable` 每次读都现探一次（[十项从哪来](#完整体检十项从哪来)），这是它对存储唯一的用途。
+
+重跑丢 `startedAt`、`defectCount` 照旧（[N-4](#实施缺口与消费者影响)）：重跑后的运维面拿到的 `startedAt` 是入口层手里的那个（入口层没重跑就是原值，重跑过就是它重开门的时刻），`defectCount` 从 0 数起。
 
 ### 就绪与开门为什么分两步
 
@@ -156,7 +178,7 @@
 | [S-25](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-25-运维面只在中心所在的机器上且没有治理路由) 运维面 | 运维：`socketDirectory` 下一个 Unix 域套接字上的 HTTP；**不看请求内容，任何请求都答完整体检**——没有路由，也就没有第二个操作；只在 `serving` 与 `stopped` 之间应答（与客户端一面同起同停）；不写任何持久事实 | 尚未实现 | 契约 SC-2 由[导入白名单](#本节点约束存储要求之外)兑现；T-9 |
 | [S-26](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-26-完整体检) 完整体检 | 运维：十项的来源见[下表](#完整体检十项从哪来) | 尚未实现 | T-4（`defectCount`）、T-9、T-18；`startedAt` 总有定义：启动成功以钟可读为条件（[上文](#中心标识版本与启动时刻怎么到达运维面)）；`clockSane` 的「开着时往回倒」由时钟节点在运行中检出（[N-5](#实施缺口与消费者影响) 设计层已闭合） |
 | [S-27](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-27-governancecenterid-的形状与相等) 标识形状 | 入口：铸造 `randomBytes(16)` 的小写十六进制；读回时核 `^[0-9a-f]{32}$`，不合 ⇒ 启动失败，**不修、不重铸** | `node:crypto` | T-8 |
-| [S-28](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-28-铸造存放与不变) 铸造、存放、不变 | 入口：本包导出迁移片段建 `governance_center` 一行表；插件体里一次 `storage.write` 读或铸（[下节](#中心标识迁移片段与读或铸)）；**本包只碰这一张表** | 尚未实现 | 提交点即那次写；[存储要求](#对存储提供者的要求清单) R-GC1～R-GC7；T-8、T-13 |
+| [S-28](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-28-铸造存放与不变) 铸造、存放、不变 | 入口：本包导出迁移片段建 `governance_center` 并插入占位行（「未铸」）；插件体里一次 `storage.write` 锁住那一行读或铸，按 ④ 的三种读法收场：未铸 ⇒ 铸；已铸且合 S-27 ⇒ 用；**那一格不存在或值不合 S-27 ⇒ 启动失败**；具名错误的原因恰为 ④ 的失败四支（[下节](#中心标识迁移片段与读或铸)）；表整个丢了由迁移前核对挡（R-GC8）；**本包只碰这一张表** | 尚未实现 | 占位行兑现 ②「那一格与存储结构同时立起」；③ 提交点即铸的那一次写；⑦「读不到」「不存在」都不当作未铸；⑧ 中途崩溃两态；[存储要求](#对存储提供者的要求清单) R-GC1～R-GC8；T-8、T-13。S-28 前提与 [S-36](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-36-装配给的保证-vs-协议须给的保证)「那一格立起过就不被重建」行归装配，本包以 R-GC8 供判据——与契约指名的判据不同（[N-17](#实施缺口与消费者影响)）；已知边界见下节 |
 | [S-29](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-29-秘密不进任何输出) 秘密不进输出 | 两个插件：输出只有四种答复、路由结果、两种体检、工程记录、启动失败说明；出示物只出现在登录成功的 `result.loginState`；启动失败说明只写阶段与错误类型，不写任何 PEM 或 config 值 | 尚未实现 | TLS 私钥不在 S-29 列举之列，本节点照秘密处理；T-11 |
 | [S-30](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-30-工程记录) 工程记录 | 入口：每个请求一条结构化记录（[字段](#工程记录)），经装配给定的日志汇；账号与租户只以关联号出现；`unavailable` 记的是**入口层自己观察到的失败值**——哪一次调用、参与方给出的哪个值——不推断它背后是存储还是钟 | 尚未实现；日志汇归装配 | T-11 |
 | [S-31](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-31-不变量与安全性质) 性质表 | 各行的保护点即本表其余各行 | — | — |
@@ -294,26 +316,40 @@
 
 | 表（候选名） | 列 | 约束 |
 |---|---|---|
-| `governance_center` | `slot`（TEXT NOT NULL，本包只写常量 `'center'`）、`center_id`（TEXT NOT NULL） | 主键 `slot`，不命名，两方言都报 `governance_center_pkey`（[迁移纪律 M-3](../../../apps/tenancy-host/design.md#迁移纪律每条对应一个提供者要求)，TEXT 列、不是 rowid 别名）；**不建 CHECK**（M-7：`center_id` 的形状由本包读回时核）；`ifNotExists`，可重跑（M-1）；**不带 `down`**——撤掉这张表就是丢掉中心的身份 |
+| `governance_center` | `slot`（TEXT NOT NULL，本包只写常量 `'center'`）、`center_id`（TEXT，**可空：NULL 即「未铸」**） | 主键 `slot`，不命名，两方言都报 `governance_center_pkey`（[迁移纪律 M-3](../../../apps/tenancy-host/design.md#迁移纪律每条对应一个提供者要求)，TEXT 列、不是 rowid 别名）；**不建 CHECK**（M-7：`center_id` 的形状由本包读回时核）；`ifNotExists`；**建表之后插入占位行** `('center', NULL)`，以 `ON CONFLICT (slot) DO NOTHING` 插入（候选：Kysely `onConflict(oc => oc.column('slot').doNothing())`，两方言都有；迁移不经存储协议，[core/storage 不用它](../../core/storage/design.md#语句级失败不废事务p-2不改用-on-conflict-do-nothing)的那条选择管的是运行期写路径），所以片段可重跑、重跑不碰已铸的值（M-1）；**不带 `down`**——撤掉这张表就是丢掉中心的身份 |
 
 提案给的列候选里还有 `created_at`，本节点不要：契约里没有它的消费者，多一列就多一个没有人读的持久事实（`tenancy/` 下的源码也不许取墙钟，只能来自 `clock`）。
 
-**读或铸**（入口层插件体里，一次 `storage.write`，这一次写就是[首次启动的提交点](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-28-铸造存放与不变)）：
+**占位行就是契约 [S-28](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-28-铸造存放与不变) ② 说的「那一格与存储结构同时立起，状态是未铸」**：是不是第一次只看这一格，本包不判治理事实是否为空（本包也只碰这一张表）。
+这一读法成立的理由：**「行在、值为未铸」只可能出现在从未开过门的数据上**——治理事实只经入口层的路由写入，路由只在标识铸好、开门之后才受理。
+收场与契约 S-28 ④ 的三种读法、失败集合四支逐一对应：
 
-1. 读 `slot = 'center'` 那一行；有 ⇒ 核 `center_id` 的形状，合则用它，不合 ⇒ 抛出（启动失败，不修、不重铸）。
-2. 无 ⇒ 生成 128 位随机、插入；撞 `governance_center_pkey` ⇒ 在同一事务内重读，用读到的那一个。
-3. `StorageUnavailable`、`StorageDefect`（表不在、列不对）⇒ 原样上抛 ⇒ 插件体抛出 ⇒ 启动失败。**读不到绝不当作还没有。**
+| 读到的 | 读法（S-28 ④） | 收场 |
+|---|---|---|
+| 行在，`center_id` 为 NULL | 未铸 | **铸**：生成 128 位随机，写进这一行——首次启动的提交点 |
+| 行在，值合 S-27（`^[0-9a-f]{32}$`） | 已铸 | 用它，不再铸 |
+| 行在，值不合 S-27 | 失败支「值不合 S-27」 | **启动失败**，点名这一支；不修、不重铸，公开体检从没交出过那个值 |
+| **行不在**（表在） | 失败支「那一格不存在」 | **启动失败**，点名这一支；**不当作未铸**（S-28 ⑦） |
+| 表不在 | 同上，但它是 S-28 **前提**那一支 | 由迁移前的只读核对挡在迁移之前、不重建（[R-GC8](#对存储提供者的要求清单)）；漏过来时这次读得 `StorageDefect` ⇒ 启动失败、不铸，点名的是「读不到」、缺陷原文随附——本包只碰这一张表、不读目录，分不出「表不在」与别的缺陷 |
+| `StorageUnavailable`、`StorageDefect` | 失败支「读不到」 | 原样上抛 ⇒ 启动失败。**读不到绝不当作未铸**（S-28 ⑦） |
+| 铸的那次写失败 | 失败支「写不进」 | 启动失败；那一格仍是未铸，下一次启动仍算第一次（S-28 ③、⑧） |
 
-| | 主键就是 `center_id`，读后写（落选） | 部署级互斥 `lockSentinel` + 读后写（落选） | **常量槽位作主键（选）** |
+| | 专用哨兵字符串表示「未铸」，列保持 NOT NULL（落选） | 另加一列 `minted` 布尔（落选） | **`center_id` 可空，NULL 即未铸（选）** |
 |---|---|---|---|
-| 最强论证 | 表最简单 | 不加列；协议已有（P-5） | 「至多一行」由存储约束兑现，不依赖写者记得取锁；撞键在同一事务内重读即收敛（P-2）；两方言同一个约束名 |
-| 本方弱点 | 两个并发首启各铸一个，两行并存 = 两个中心 | 只在所有写者都取同名锁时成立 | 多一列没有语义的 `slot` |
-| 置信度 | — | — | 高 |
+| 最强论证 | 列不可空；读者忘了判哨兵时，哨兵不合 S-27 ⇒ 启动失败，失败方向是关着的 | 状态显式成一列 | 「还没有值」就是没有值：三态落在三种互斥的读数上（行不在／NULL／字符串），没有一个与标识共享值域的魔法常量；严格类型下 `string \| null` 逼读者两支都写 |
+| 本方弱点 | 哨兵与标识共享值域，要永远排除在 S-27 之外；值恰好损坏成哨兵时会被当成未铸而重铸 | 两列可能互相矛盾（`minted` 真而值空），多一种要判的损坏 | 可空列给了一条「退回未铸」的写法：只有本包写这张表（[约束](#本节点约束存储要求之外)第 4 条），唯一的 `UPDATE` 带 `WHERE center_id IS NULL`、从不写 NULL；本包之外有人把值改成 NULL，下次启动会重铸——列为已知边界（见下） |
+| 置信度 | — | — | 中高 |
 
-**自构的两条交错**：
-(a) 两个写者同时首启（入口层重跑时旧插件体仍在执行，或两个进程指向同一份数据）——sqlite 下 `BEGIN IMMEDIATE` 已把两次写排成先后，后者读到前者提交的行；pg 下两者都读到「无」、都插入，后者在主键上等前者提交后得 `UniqueViolation`，同一事务内重读（READ COMMITTED 下新语句看得到已提交的行，P-3）拿到前者的值。两者最终同一个标识。
-(b) 读那一行时存储抖动——提供者若把失败折成「空结果」，这里就会铸出第二个标识。挡住它的是[存储要求](#对存储提供者的要求清单) R-GC5（P-8：不可用只以 `StorageUnavailable` 到达，不返回空结果），由一致性套件 C-9a 证；本节点另有 T-8 用会注入故障的存储核「读不到 ⇒ 起不来、不铸」。
+**读或铸**（入口层插件体里，一次 `storage.write`）：`tx.lockRow('governance_center', { slot: 'center' })` 锁住那一行（[P-4](../../core/storage/design.md#协议候选形状)）→ 读它 → 按上表收场；铸的那一支 `UPDATE governance_center SET center_id = <新值> WHERE slot = 'center' AND center_id IS NULL`，这次提交就是首次启动的提交点。启动失败一律抛出具名错误（候选 `GovernanceCenterIdentityError`，原因字段恰为 S-28 ④ 的四支：读不到、写不进、那一格不存在、值不合 S-27），启动失败说明据它点名是哪一支。
+
+**自构的交错**：
+(a) 两个写者同时首启（入口层重跑时旧插件体仍在执行，或两个进程指向同一份数据）——两者 `lockRow` 同一行，P-4 把它们排成先后：后者等前者提交，读到已铸的值、直接用。两个写者共同触碰的存储对象就是这一行。`WHERE center_id IS NULL` 是第二道：万一锁没排上序，后者的更新影响零行，重读拿到前者的值。
+(b) 读那一行时存储抖动——提供者若把失败折成「空结果」，读到的是「行不在」⇒ **启动失败**，不是铸一个新的：占位行让这类故障的方向是关着的。挡住它的仍是 R-GC5（P-8：不可用只以 `StorageUnavailable` 到达），由一致性套件 C-9a 证；T-8 用会注入故障的存储核「读不到 ⇒ 起不来、不铸」。
+(c) 表被整张删掉、迁移登记也被清空——迁移会重建这张表并插入占位行，入口层随后铸出**另一个**标识。挡住它的只有迁移前核对（R-GC8）：非空库里没有 `governance_center`。契约 S-28 前提写的正是这条判据（「已有别的治理事实却没有那一格所在的结构」），机制归存储提供者、判据归本包（[N-17 已闭合](#实施缺口与消费者影响)）。
 (a) 的 pg 分支要真并发才看得见，写进 [verification](verification.md#证据义务) 作 T-8 的真并发演练。
+
+**已知边界**（本包只碰一张表，契约 S-28 ② 也明写不判治理事实是否为空）：有人把一张新建的 `governance_center`（只有占位行）拼进一份已有治理事实的数据，或把已铸的值改回 NULL——下次启动读到「未铸」，会铸出新标识。两者都要本包之外的写者动这张表；本节点不为它读别的表。
+**前提**：`governance_center` 与第一批治理事实的表出现在同一个数据格式里，不存在「先有事实、后建这张表」的已发布数据；将来若有，须由那一版的迁移显式处置占位行。
 
 **之后**：标识载入插件实例（公开体检答复的固定字节在这时构造）；运行期间入口层再也不碰存储。入口层重跑是一次新的「启动」：重新读（不会再铸），读不到 ⇒ 重跑失败、客户端一面保持问不到。
 
@@ -341,7 +377,7 @@ Schema 的 pattern 注明须在按码点匹配的正则方言下求值：本包�
 | 项 | 来源 | 读不到时 |
 |---|---|---|
 | `reachable` | 常量 `true` | — |
-| `centerId`、`version` | `serving` 通知 | `serving` 之前、`stopped` 之后运维面不答任何请求（问不到，与客户端一面同起同停） |
+| `centerId`、`version` | `serving` 通知（运维面重跑后经 `listening` 握手重新拿到，[重跑之后](#运维面重跑之后怎么恢复应答)） | `serving` 之前、`stopped` 之后运维面不答任何请求（问不到，与客户端一面同起同停） |
 | `startedAt` | `serving` 通知里入口层开门那一刻读到的时刻（`instantToRfc3339`）；入口层重跑再发通知时**保留第一次的值** | 不会读不到：钟在 `clockReadyTimeoutMs` 内读不到，入口层就不开门、没有 `serving`，运维面也就不答 |
 | `storageReachable` | 每次读现探：一次 `storage.read` 读 `governance_center`，与一个包内超时常量（候选 2 s）竞速 | 超时、`StorageUnavailable`、`StorageDefect` ⇒ `false`（缺陷另记一条 error 记录，不计入 `defectCount`——那只数 S-14 的缺陷）；超时后那次读继续跑完，结果丢弃 |
 | `clockSane` | 每次读现读 `clock.now()`，不是 `'unavailable'` ⇒ `true` | `'unavailable'` ⇒ `false`；运行中墙钟回拨时时钟答 `'unavailable'`，直到追上它用过的最晚时刻（[clock 节点](../../infra/clock/design.md#运行中回拨每次现读墙钟比对用过的最晚时刻)） |
@@ -360,8 +396,8 @@ Schema 的 pattern 注明须在按码点匹配的正则方言下求值：本包�
 | `capability.organization-governance/v1` 十七个操作与六个读面（`accepted`） | 入口必需 inject `organizations`、`memberships`、`offers`（[organization-governance](../organization-governance/README.md)）；**不** inject `organization-purge` | 同 `logins` | 同 `logins` |
 | `composition.account-registration/v1` S-8（`accepted`） | 入口必需 inject `registration`（[account-registration](../account-registration/README.md)） | 同上 | 同上 |
 | `data.identity-values/v1`、`data.offer-expiry/v1`（`accepted`） | 包依赖：解析器、`instantToRfc3339`、两份 Schema 副本 | 随包版本 | — |
-| 存储协议（无契约，`storage`） | 入口、运维都必需 inject；入口只在启动时用一次，运维每次体检读一次 | 换代 ⇒ 两个插件都重跑；**本版装配不换代** | **不可用只表现为返回值**（`StorageUnavailable`），不表现为面缺席——两个插件不因存储抖动卸载；面缺席只在清单错误或换代时出现 ⇒ 两个都 `PENDING` |
-| 时间源（offer-expiry S-16 的形状，`clock`） | 入口、运维都必需 inject；入口只在启动时等它可读一次，运维每次体检读一次 | 换代 ⇒ 两个插件都重跑（运维丢三样与计数，N-4）；本版装配不换代 | 不可用只表现为 `now()` 返回 `'unavailable'`：插件体里超过 `clockReadyTimeoutMs` ⇒ 启动失败；开门那一刻超过同一上界 ⇒ 不开门（[N-12](#实施缺口与消费者影响)）；运行中只让 `clockSane` 为 `false`；面缺席 ⇒ 两个都 `PENDING` ⇒ 装配判清单错误 |
+| 存储协议（无契约，`storage`） | 入口、运维都必需 inject；入口只在启动时用一次，运维只在每次体检时现探一次（`storageReachable`） | 换代 ⇒ 两个插件各自重跑、次序不定，靠 `listening` 握手重新对上（[重跑之后](#运维面重跑之后怎么恢复应答)）；**契约前提：本版运行中不换代** | **不可用只表现为返回值**（`StorageUnavailable`），不表现为面缺席——两个插件不因存储抖动卸载；面缺席只在清单错误或换代时出现 ⇒ 两个都 `PENDING` |
+| 时间源（offer-expiry S-16 的形状，`clock`） | 入口、运维都必需 inject；入口只在启动时等它可读一次，运维每次体检读一次 | 换代 ⇒ 两个插件各自重跑，同上（运维丢 `startedAt` 与计数，N-4）；契约前提：本版运行中不换代 | 不可用只表现为 `now()` 返回 `'unavailable'`：插件体里超过 `clockReadyTimeoutMs` ⇒ 启动失败；开门那一刻超过同一上界 ⇒ 不开门（[N-12](#实施缺口与消费者影响)）；运行中只让 `clockSane` 为 `false`；面缺席 ⇒ 两个都 `PENDING` ⇒ 装配判清单错误 |
 | 部署配置输入 | 两个插件的 config，经 `definePlugin` 由内核在插件体之前校验 | 只在装载时读 | 缺、非法 ⇒ `FAILED` ⇒ 装配整体启动失败（[`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)），与同批节点同一政策，没有运行期具名拒绝 |
 | 装配的放行信号（入口层 config `openSignal`） | 装配在装载时构造一个 Promise 传入；入口层只挂续延、不 `await` 它 | 兑现 ⇒ 开门；重跑时仍是同一个已兑现的 Promise | 缺席或不是 thenable ⇒ config 校验不过 ⇒ 启动失败（同上一政策）；拒绝 ⇒ 不开门；一直不兑现 ⇒ 不开门，撤除走「未开门」那一支 |
 
@@ -369,15 +405,16 @@ Schema 的 pattern 注明须在按码点匹配的正则方言下求值：本包�
 
 | # | 要求 | 对应契约条款 | 协议兑现点 |
 |---|---|---|---|
-| R-GC1 | 读或铸在一次写事务内原子：插入要么提交要么无痕 | [S-28](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-28-铸造存放与不变) ③、⑧ | P-1 |
-| R-GC2 | 主键冲突可识别，报迁移里的约束名 `governance_center_pkey`；冲突只废那一条语句，同一事务可重读 | S-28 ⑤、性质 1 | P-2、P-11 |
+| R-GC1 | 读或铸在一次写事务内原子：那一次更新要么提交要么无痕 | [S-28](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-28-铸造存放与不变) ③、⑧ | P-1 |
+| R-GC2 | 锁定读：两个写事务都 `lockRow` 那一行时排成一个次序，后者读到前者提交的值；主键保证至多一行（`governance_center_pkey`） | S-28 ⑤、性质 1 | P-4；主键由迁移建 |
 | R-GC3 | 写事务内读到全部已提交写的最新值 | S-28 ⑤ | P-3 |
 | R-GC4 | 持久：提交后跨重启仍在。**边界**：sqlite `synchronous=NORMAL` 下 OS 崩溃可丢最后一段已提交事务（[D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/decision.md)）；丢的是 WAL 的后缀，标识若被丢，它之后的治理事实一并丢——「跟着数据走」仍成立，但客户端已见过的标识会随之消失 | S-28 性质 1、2 | P-7 |
-| R-GC5 | 不可用与缺陷可识别，**读失败永不以空结果到达** | S-28 ⑦（读不到绝不当作还没有） | P-8；一致性套件 C-9a、C-14 |
+| R-GC5 | 不可用与缺陷可识别，**读失败永不以空结果到达** | S-28 ⑦（「读不到」绝不当作「未铸」） | P-8；一致性套件 C-9a、C-14 |
 | R-GC6 | `governance_center` 与全部治理事实在**同一个 `storage` 实例、同一个库** | S-28 性质 2；[S-36](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-36-装配给的保证-vs-协议须给的保证)「中心标识与治理事实同一存储」行 | 装配：恰一个 `storage`（[tenancy-host「同一存储」](../../../apps/tenancy-host/design.md#同一存储同一约束域本节点要保证的三件事)），那边须补一条互指的要求 |
 | R-GC7 | 本包的迁移在 `storage` 对外可见之前跑完 | S-28 ②（读得出那一格的状态） | storage-sql 在 `provide` 之前跑迁移 |
+| R-GC8 | **表整个丢了在迁移之前就挡住**：升级守卫的迁移前只读核对以同一读事务读出的表清单判「非空库（除迁移登记外还有别的表）却没有 `governance_center`」⇒ 启动失败、不碰数据。否则登记也被清空时迁移会重建这张表与占位行，入口层随即铸出另一个标识（上文交错 (c)） | S-28「前提」段；[S-36](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-36-装配给的保证-vs-协议须给的保证)「那一格立起过就不被重建」行；S-44 规范场景「丢了那一格所在整个结构」一句。契约写的判据与本条相同（[N-17 已闭合](#实施缺口与消费者影响)） | [storage-sql 迁移前只读核对](../../infra/storage-sql/design.md#迁移前只读核对)：机制归它，判据归本包——本包导出一条核对（候选 `governanceCenterPreflight`，与 clock 的 `clockPreflight` 同形、纯函数、不 import storage-sql），装配放进 `upgrade.checks` |
 
-七条都在 storage-sql 对账号能力、组织治理 R-1～R-5 的兑现范围内，不另开协议义务；R-GC6 是装配的事。
+前七条都在 storage-sql 对账号能力、组织治理 R-1～R-5 的兑现范围内，不另开协议义务；R-GC6 是装配的事；R-GC8 依赖 storage-sql 的升级守卫，由装配接上（[归装配](#归装配的事项)）。
 
 ### 本节点约束（存储要求之外）
 
@@ -387,7 +424,7 @@ Schema 的 pattern 注明须在按码点匹配的正则方言下求值：本包�
 | 2 | 不按来者区别：不读对端地址、不保存任何按来者的状态 | S-16 | 候选文本规则（同 `tools/ts-checks` 现有形式）+ T-16 |
 | 3 | 路由表封闭、无泛化分派 | S-17、S-24 | T-1 + `restricted-call-sites` 扩展 |
 | 4 | **本包只碰 `governance_center` 一张表**，不写原始 SQL | S-28；提案「入口层持有 storage 的访问范围」 | 候选文本规则：本包源码里 `selectFrom`／`insertInto`／`updateTable`／`deleteFrom` 的表名只能是它，不出现 `sql` 模板 |
-| 5 | 运维面目录只按白名单导入（`kernel-basis`、`storage` 协议、`offer-expiry`、Node 内置、本包的事件声明模块），事件声明模块本身不导入任何 `tenancy/*` 包 | S-25、契约 SC-2 | 候选文本规则；白名单让传递导入图有界，现有规则形式就查得了 |
+| 5 | 运维面目录只按白名单导入（`kernel-basis`、`storage` 协议、`offer-expiry`、Node 内置、本包的事件声明模块），事件声明模块本身不导入任何 `tenancy/*` 包；**事件订阅也在白名单内**：运维面只许 `on`／`once` 本包声明的三个通知名（`serving`、`stopped`、`defect`），只许 `emit` 本包声明的 `governance-center-ops/listening`——按字符串名订阅治理事件（例如 `ctx.on('login.revoked', …)`）不经导入，导入白名单挡不住 | S-25、契约 SC-2 | 候选文本规则：导入白名单；运维面源码里 `on`／`once`／`emit` 的第一个实参只能是事件声明模块导出的常量（不许字符串字面量、不许计算出的名字）；白名单让传递导入图有界，现有规则形式就查得了 |
 | 6 | 工程记录与启动失败说明不含出示物、凭据材料、PEM、任何 config 值、载荷里的值、对端地址 | S-29、S-30 | T-11 |
 | 7 | 对 `credentials` 只调 `parse`；`derive`、`verify`、`checkPolicy` 只由账号能力调用 | S-19（同源的表示层校验，不是凭据判定） | 候选文本规则：本包源码不出现这三个方法的调用 |
 | 8 | **只凭出示物认人**：入口层永不把线上收到的任何 `LoginStateId`（载荷里的句柄、或任何成员）当作认人依据；认人只走 `logins.exchange`，不调 `logins.verify`；以登录状态为发起方或调用方的四处调用（`logins.listEffective`、`logins.revoke` 的发起方、`memberships.currentTenant`、`memberships.switchCurrentTenant`）的实参只取认人所得的那一个 | S-11；[AI v2 S-30](../../../../spec/capabilities/account-identity/v2/contract.md#s-30-装配给的保证-vs-协议须给的保证)「只有 S-44 认出示物」一行 | 类型 + 候选文本规则：认人所得的值是 ② 阶段模块里私有构造的一个类型（候选 `Caller { loginStateId, accountId }`），路由调用函数只从它取发起方；规则查本包源码：不出现 `.verify(` 对 `logins` 的调用、**不 import `parseLoginStateId`、不出现 `as LoginStateId` 断言**、`Caller` 的构造只在 ② 阶段模块一处。后两项与账号能力节点把 S-16 的发起方、S-17、S-37 的参数收窄为品牌 `LoginStateId` 合起来，本包手里的 `LoginStateId` 就只能来自 S-15、S-44、S-37 的返回（[那边的选择](../account-identity/design.md#v2-的四处选择)）。S-16 的目标参数是 `unknown`：载荷里的句柄原样交进去，它只作被撤的对象，不作认人依据。另有 T-5 的「拿句柄当出示物」一支 |
@@ -395,7 +432,7 @@ Schema 的 pattern 注明须在按码点匹配的正则方言下求值：本包�
 ## 状态、并发与失败映射
 
 **入口层实例状态**（内存，随实例消失）：配置常量、路由表、五份固定字节（四种答复 + 公开体检）、中心标识、分派闸（`closed → serving → draining`；未开门就撤除或开门失败时 `closed → retired`，此后 `openSignal` 再兑现也不开）、在途计数。
-**运维面实例状态**：`centerId`、`version`、`startedAt`（未到时为空）、`defectCount`。**持久状态**：`governance_center` 一行，只在入口层启动时写一次。
+**运维面实例状态**：`centerId`、`version`、`startedAt`（未到时为空）、`defectCount`。**持久状态**：`governance_center` 一行——迁移插入占位（未铸），入口层首次启动时写一次（未铸 → 已铸），此后没有任何写。
 
 ### 提交点：入口层在路由上不提交任何东西
 
@@ -436,13 +473,14 @@ Schema 的 pattern 注明须在按码点匹配的正则方言下求值：本包�
 |---|---|---|---|
 | **运维** config 校验（内核，插件体之前） | — | 不合 ⇒ `FAILED`，插件体不跑 | — |
 | **运维** 三条通知的监听（`ctx.on`） | 本 fiber；装载后立即生效 | 插件体后续抛出 ⇒ 随 fiber 收回（**假设**：`ctx.on` 经 effect 纳管） | 随 fiber 撤除；此后入口层的通知无人接收 |
+| **运维** 挂好三条监听之后 `emit('governance-center-ops/listening')` | 不对外；开着门的入口层据此重发 `serving` | 入口层未装或未开门 ⇒ 无人重发，等它开门时发 | 一次性，无需撤除 |
 | **运维** 本机套接字：核目录权限 → 处理残留文件 → 绑定；一个 `ctx.effect` 登记 disposer | 本 fiber；绑定完成即可接受连接，但只在 `serving` 与 `stopped` 之间作答，其余时间关闭连接不答（同起同停） | 权限不对、有人在听、绑定失败 ⇒ 抛出 ⇒ `FAILED`；`ctx.effect` 登记时 fiber 已被撤（`INACTIVE_EFFECT`）⇒ 自己关掉服务器、删掉套接字文件再重抛（同 [clock 的做法](../../infra/clock/design.md#成对的装载与撤除)） | disposer：停止接受 → 关闭已有连接 → 删除套接字文件。**不保留任何东西**：`defectCount`、`startedAt` 随实例消失（契约：重启归零） |
 | **入口** config 校验（内核） | — | 不合 ⇒ `FAILED` | — |
 | **入口** TLS 上下文与服务器对象；绑定监听；**紧接着**一个 `ctx.effect` 登记 disposer | 本 fiber；绑定后连接可达，但闸是 `closed`——一律关闭连接不答 | 证书或私钥不合、端口占用 ⇒ 抛出 ⇒ `FAILED`，此前没有任何东西要收；`INACTIVE_EFFECT` ⇒ 自己关服务器再重抛 | 见下「停机」：未开门直接释放端口（开门失败时已释放的，跳过），已开门走三步 |
-| **入口** 读或铸中心标识（一次 `storage.write`） | 首次启动的提交点 | 抛出 ⇒ `FAILED` ⇒ 已登记的 effect 随失败收回，监听关闭（[`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)）；标识若已提交，下次启动读到它 | **撤除不删**：标识是持久事实，撤除之后仍为真 |
+| **入口** 读或铸中心标识（一次 `storage.write`，`lockRow` 那一行） | 首次启动的提交点 | 读不到、写不进、那一格不存在、值不合 S-27 ⇒ 抛出具名错误（点名是哪一支）⇒ `FAILED` ⇒ 已登记的 effect 随失败收回，监听关闭（[`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)）；标识若已提交，下次启动读到它 | **撤除不删**：标识是持久事实，撤除之后仍为真 |
 | **入口** 等钟可读：轮询 `clock.now()`（同步），间隔是包内常量（候选 100 ms），上界 `clockReadyTimeoutMs` | 不对外 | 超界 ⇒ 抛出 ⇒ `FAILED` ⇒ 监听随之关闭，启动失败；标识若刚铸过，下次启动读到它（无人见过，无害）；等待期间本 fiber 被撤（`fiberIsActive` 为假）⇒ 清掉轮询定时器、停止 | 轮询定时器只活在等待期间，等完或超界即清 |
-| **入口** 构造公开体检固定字节；给 `openSignal` 挂上开门续延（兑现与拒绝两支都处理）；**插件体返回** | 本 fiber 随之 `ACTIVE`——入口层**就绪**：端口绑好、闸仍 `closed`，一律关闭连接不答 | 插件体到这里已没有可失败的步骤 | 续延挂在一个 Promise 上，不是纳管资源；它自己先核 `fiberIsActive` 与闸状态，撤除之后兑现就什么都不做 |
-| **入口** `openSignal` 兑现 ⇒ 读钟（读不到按同一间隔轮询，上界 `clockReadyTimeoutMs`）→ `emit('governance-center-entry/serving', { centerId, version, startedAt })` → 开闸（`closed → serving`） | **中心起来了的那一刻**（S-34）；运维面此刻拿到三样，两张面同时开始应答 | 钟超界读不到 ⇒ 闸 `closed → retired`、`server.close()` 释放端口、记一条 error 记录（原因：钟），不发任何通知——中心没有起来，装配靠等不到 `serving` 得知（[N-12](#实施缺口与消费者影响)）；`openSignal` 被拒绝 ⇒ 闸保持 `closed`，不记、不发，装配自己撤除 | 见下「停机」 |
+| **入口** 构造公开体检固定字节；监听 `governance-center-ops/listening`（闸是 `serving` ⇒ 重发 `serving`）；给 `openSignal` 挂上开门续延（兑现与拒绝两支都处理）；**插件体返回** | 本 fiber 随之 `ACTIVE`——入口层**就绪**：端口绑好、闸仍 `closed`，一律关闭连接不答 | 插件体到这里已没有可失败的步骤 | 续延挂在一个 Promise 上，不是纳管资源；它自己先核 `fiberIsActive` 与闸状态，撤除之后兑现就什么都不做 |
+| **入口** `openSignal` 兑现 ⇒ 读钟（读不到按同一间隔轮询，上界 `clockReadyTimeoutMs`；**每一拍先核 `fiberIsActive` 且闸仍是 `closed`**，本 fiber 已撤或闸已 `retired` ⇒ 清掉定时器、停止，不开门、不发通知）→ `emit('governance-center-entry/serving', { centerId, version, startedAt })` → 开闸（`closed → serving`） | **中心起来了的那一刻**（S-34）；运维面此刻拿到三样，两张面同时开始应答 | 钟超界读不到 ⇒ 闸 `closed → retired`、`server.close()` 释放端口、记一条 error 记录（原因：钟），不发任何通知——中心没有起来，装配靠等不到 `serving` 得知（[N-12](#实施缺口与消费者影响)）；`openSignal` 被拒绝 ⇒ 闸保持 `closed`，不记、不发，装配自己撤除 | 见下「停机」 |
 
 **停机**（入口层那一个 effect 的 disposer，按序，[`effect-disposal-concurrent-not-ordered`](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)：只有同一个 effect 内部有序）按闸的状态分两支。
 **未开门**（闸 `closed` 或 `retired`）：闸置 `retired`（此后 `openSignal` 再兑现也不开）→ 关闭已接的连接 → `server.close()` 释放端口；**跳过停收与等在途**——没有受理过任何请求，也没有发过 `serving`，所以不发 `stopped`。
@@ -468,7 +506,8 @@ disposer 返回之后仍在跑的请求若再遇到缺陷，只写工程记录�
 | 事项 | 本节点要求什么 |
 |---|---|
 | 装载清单 | 运维面、入口层两条 fiber 装在最后，运维先于入口；两条都纳入同步 `PENDING` 结构判定；撤除按逆序，入口先于运维 |
-| 迁移合成 | 合入 `governanceCenterMigration`，次序无关；与其余片段同一份 `MigrationProvider`、同一个库（R-GC6、R-GC7） |
+| 迁移合成 | 合入 `governanceCenterMigration`（建表并插入占位行），次序无关；与其余片段同一份 `MigrationProvider`、同一个库（R-GC6、R-GC7） |
+| 迁移前核对（R-GC8） | 把本包导出的 `governanceCenterPreflight`（候选）放进 storage-sql 的 `upgrade.checks`：非空库却没有 `governance_center` ⇒ 启动失败、不碰数据 |
 | 迁移原子性与启动前只读核对 | [PF-017 §6.9](../../../../product/PF-017-governance-center-as-deployable-application/design.md#69-升级同一个中心要么整体成要么整体不成)、[§6.10](../../../../product/PF-017-governance-center-as-deployable-application/design.md#610-时间不能倒着走) 的实现要求；本节点的片段只保证幂等 |
 | 入口层 config 的来源 | 监听地址；TLS 证书链与私钥（部署配置输入，来源与文件权限沿密钥的规矩，但不是部署密钥）；`version`（构建常量）；`drainTimeoutMs`（须小于装配的撤除总超时）；`clockReadyTimeoutMs`（候选名；须严格大于时钟的租约宽度）；`openSignal`（候选名；装配在装载时构造的 Promise，不来自配置文件） |
 | `openSignal` 的兑现时机（[U-1](../../../apps/tenancy-host/design.md#实施缺口与消费者影响)） | 全部 fiber `ACTIVE` **且**升级快照确认之后才兑现；确认失败 ⇒ 拒绝它（或不兑现）再逆序撤除。兑现之后**等 `serving`**，上界至少 `clockReadyTimeoutMs` 加余量，等不到 ⇒ 按启动失败收场——入口层在开门那一刻读不到钟时只能不开门、记 error，没有别的途径让装配知道（[N-12](#实施缺口与消费者影响)） |
@@ -484,10 +523,11 @@ disposer 返回之后仍在跑的请求若再遇到缺陷，只写工程记录�
 | 插件体或 config 抛出 ⇒ `FAILED`，已注册的 effect 收回 | 配置错误 = 启动失败；铸标识失败时监听随之关闭 | [`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)（同上） |
 | 必需服务换提供者 ⇒ 先卸载再重跑插件体 | 门随参与方的缺席关上；重跑重读标识 | [`plugin-body-reruns-on-provider-change`](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)（同上） |
 | effect 之间并发、不保序；只有同一 effect 内有序；撤除中再登记 effect 抛 `INACTIVE_EFFECT` | 停机的两支放在一个 effect；`INACTIVE_EFFECT` 的自收口 | [`effect-disposal-concurrent-not-ordered`](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)（同上） |
-| `emit` 同步派发、丢弃返回值；异步控制不能用 `bail` | 三条通知；认人不走事件 | [`async-control-not-bail`](../../../../basis/cordis/async-control-not-bail.md)（同上） |
+| `emit` 同步派发、丢弃返回值；异步控制不能用 `bail` | 四条通知；认人不走事件 | [`async-control-not-bail`](../../../../basis/cordis/async-control-not-bail.md)（同上） |
 | `isolate` 隔离实例可见性，不隔离数据 | 不用 `isolate` 做运维面的访问控制 | [`isolate-hides-instances-not-data`](../../../../basis/cordis/isolate-hides-instances-not-data.md)（同上） |
 | `ctx.fiber.state` 可读；插件体执行期间是 `LOADING` | `fiberIsActive`；「插件体返回即就绪、fiber 随后 `ACTIVE`」，所以开门不能 `await` 在插件体里（[就绪与开门](#就绪与开门为什么分两步)） | **共用主张，非 basis**：`core/kernel-basis` 的 probe `fiber-state-readable`（[读数](../../core/kernel-basis/design.md#读数与-probe-结果)第 8 条） |
-| `ctx.on` 注册的监听经 effect 纳管、随 fiber 撤除 | 运维面的三条监听 | **假设，须按 source-check 取证** |
+| `ctx.on` 注册的监听经 effect 纳管、随 fiber 撤除 | 运维面的三条监听；入口层对 `listening` 的监听 | **假设，须按 source-check 取证** |
+| 内核把 `ctx.plugin(plugin, config)` 的 config 对象原样交给插件体：不深拷贝、不冻结、不序列化，重跑时交的仍是同一个对象 | `openSignal` 是 config 里的一个 Promise：被拷贝或序列化就不再是装配手里那一个，兑现不到入口层；重跑时「同一个已兑现的 Promise」也依赖它 | **假设，须按 source-check 取证**；另核 `definePlugin` 的 Config 校验不重建对象 |
 | 不带 `thisArg` 的 `ctx.emit` 不按 isolate 过滤，监听者在 `emit` 的调用栈里同步执行；监听者抛出时 `emit` 的行为 | 通知在开闸之前同步到达；运维面监听者只做赋值与加一，不抛 | **假设**（「同步派发」一半有 basis，过滤与异常两半没有） |
 | 重跑时旧实例的异步 disposer 在新插件体开始之前完成 | 入口层重跑时新实例绑定同一端口 | **假设，须取证**；不成立时新实例撞端口 ⇒ `FAILED`、客户端一面保持问不到直到重启（不半开，但不自愈） |
 | 内核不提供跨进程身份与可见性、权限边界、可靠投递、背压 | 这些都由契约条款与本节点兑现 | **假设**：出自手册的内核负面清单，basis 没有条目 |
@@ -505,7 +545,7 @@ disposer 返回之后仍在跑的请求若再遇到缺陷，只写工程记录�
 | N-1 | **已闭合**：钟在启动成功那一刻读不到时 `startedAt` 无定义（S-26）。契约裁决「启动成功以钟可读为条件，超界则启动失败」；本节点改为入口层 inject `clock`、开门前等它可读，上界 `clockReadyTimeoutMs`（[上文](#中心标识版本与启动时刻怎么到达运维面)） | — | — | — |
 | N-2 | **已闭合**：「存储」与「钟」两类判不了在入口层分不出（S-30）。契约裁决 S-30 收窄为「记录入口层自己观察到的失败值」；本节点的工程记录照此只记调用与原值（[工程记录](#工程记录)） | — | — | — |
 | N-3 | S-4 对四个顶层成员的重复已有裁决，本节点照做；**载荷内部**成员重复契约没有单列，本节点按「载荷不合格」与 `payload` 重复同一步收场（`invalid-input`） | 延伸读法 | 无（只影响畸形请求的答复） | 契约 S-4 稳定稿仍未单列（2026-09-23 核过）；契约日后另有规定以它为准 |
-| N-4 | 运维面重跑（只在 `storage` 或 `clock` 换提供者时）丢 `startedAt`、`defectCount`，并在入口层下一次开门前不应答 | 实现限制 | 无（本版装配不换这两个提供者） | 本节点：真要支持运行中换代时，把这几样挪到跨重跑的持有者 |
+| N-4 | 运维面重跑（只在 `storage` 或 `clock` 换提供者时）丢 `startedAt`、`defectCount`；恢复应答靠 `listening` 握手（[重跑之后](#运维面重跑之后怎么恢复应答)），`startedAt` 取入口层手里的值、`defectCount` 从 0 数起 | 实现限制 | 无（契约前提：本版运行中不换代这两个提供者） | 本节点：真要支持运行中换代时，把这几样挪到跨重跑的持有者 |
 | N-5 | **已闭合（设计层）**：`clockSane` 的「开着时往回倒」要时钟在运行中检出回拨并答 `'unavailable'`。闭合方式：[clock 节点](../../infra/clock/design.md#运行中回拨每次现读墙钟比对用过的最晚时刻)改为每次 `now()` 现读墙钟、比对用过的最晚时刻；它的源码改动未做，归那个节点 | — | — | — |
 | N-6 | 带重复键报告的 JSON 解析器无决定；传输候选（HTTPS、Unix 套接字、`Connection: close`、信封在体）无决定——后者的采用即 G-10 的前一步 | 采用缺口 | 建包 | 主线：立提案或决定 |
 | N-7 | 结构检查未建：`restricted-call-sites` 加方法限定；「只碰一张表」；运维面导入白名单；不读对端地址；`credentials` 只调 `parse`；只凭出示物认人（[约束](#本节点约束存储要求之外)第 8 条） | 证据缺口 | 契约 SC-1、SC-2；AI v2 S-30「只有 S-44 认出示物」 | `tools/ts-checks`：各加规则与「故意违反就失败」自测 |
@@ -516,6 +556,9 @@ disposer 返回之后仍在跑的请求若再遇到缺陷，只写工程记录�
 | N-12 | **已闭合**：开门那一刻的失败回不到装配（开门在插件体之外，钟超界读不到时 fiber 已是 `ACTIVE`，只能不开门、释放端口、记 error、不发 `serving`）。闭合方式：`apps/tenancy-host` 在兑现 `openSignal` 之后有界地等 `serving`，超时即启动失败、不恢复快照（[两步开闸](../../../apps/tenancy-host/design.md#两步开闸就绪与开闸分开)；那边登记为 U-4） | — | — | — |
 | N-13 | **已闭合（设计层）**：账号能力节点已按 AI v2 修订——`logins.exchange`、`issue` 返回 `{ presentation, loginStateId }`、出示物 32 字节 base64url、导出 `parseLoginStatePresentation`；本页已按它对齐。**源码仍是 v1 骨架**，由那个节点的第二程改，受阻的是本节点认人与登录两处的实现 | — | — | — |
 | N-14 | **已闭合**：撤销目标两份契约曾对不上（入口 S-20 要载荷里的句柄原样交给 AI S-16，AI v2 S-16 曾要两个 `LoginStateId` 都不得来自线上）。闭合方式：[AI v2 S-16](../../../../spec/capabilities/account-identity/v2/contract.md#s-16-撤销登录状态) 把来源要求限在发起方、目标可来自线上载荷，账号能力节点的 `revoke` 改为 `revoke(target: unknown, initiator: LoginStateId)`、目标的表示层归那个包；本节点撤销路由回到一次调用、句柄原样交给目标参数 | — | — | — |
+| N-15 | **已闭合**：契约 S-28 改写成文后逐条核对——② 占位行、④ 三种读法与失败四支（具名错误的原因补上「写不进」）、⑦「读不到」「不存在」都不当作未铸、⑧ 中途崩溃两态、S-44 规范场景的三句（T-8 各支对上）。原列的残余改记为已知边界（[中心标识](#中心标识迁移片段与读或铸)），契约 S-28 ② 已明写不判治理事实是否为空。核对中发现的判据差异另记 N-17 | — | — | — |
+| N-16 | **已闭合（设计层）**：迁移前核对的接入。`apps/tenancy-host` 已把 `governanceCenterPreflight` 与 `clockPreflight()` 并列放进 `upgrade.checks`（[升级的整体性](../../../apps/tenancy-host/design.md#升级的整体性迁移前只读核对快照与确认)只读核对表「中心标识表还在」一行），演练是那边的 `assembly.upgrade-preflight-refuses` ③；两边源码都尚无 | — | — | — |
+| N-17 | **已闭合**：契约 [S-28](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-28-铸造存放与不变)「前提」段、[S-36](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-36-装配给的保证-vs-协议须给的保证)「那一格立起过就不被重建」行与 S-44 规范场景那一句，原写的判据是「登记为建立过的结构不在 ⇒ 启动失败」（一条实现映射里不存在的通用核对，且迁移登记与表一起丢时看不见）；现已改成本包 R-GC8 的判据「存储里已有别的治理事实、却没有那一格所在的结构 ⇒ 启动失败、不重建、不铸造」，机制归存储提供者、判据归本包、装配接进核对。除登记外别的表全丢了那一支，契约明写按「读不到 ⇒ 启动失败」收场 | — | — | — |
 
 **消费者影响**：`apps/tenancy-host` 要按[归装配](#归装配的事项)修订（含 `openSignal` 的兑现时机与等 `serving`）；`apps/cli` 的两条待立边改指本节点兑现的契约；
 参与方的服务面方法名一旦在 owner 节点改动，[路由到服务方法](#路由到服务方法)跟着改，契约不动。
