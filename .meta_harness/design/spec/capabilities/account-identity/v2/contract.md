@@ -4,9 +4,9 @@
 - **状态**：`candidate`，未接受、未冻结；已登记进 catalog（2026-09-23，`candidate`，[G-6](#九已知缺口) 已闭合）。
   前身是 [v1](../v1/contract.md)（`accepted`、已冻结，[D-023](../../../../record/decisions/tenant-domain-design-acceptance/README.md)）；
   **v1 一个字不改**，本版与它的逐条差异、对每个消费者的影响在 [§十](#十版本差异与规范工件)。
-  **本版的主责产品要求在一份草稿里**：[PF-017](../../../../product/PF-017-governance-center-as-deployable-application/README.md) **rev 1（`draft`）**
+  **本版的主责产品要求**：[PF-017](../../../../product/PF-017-governance-center-as-deployable-application/README.md) **rev 1，已接受（2026-09-23，[正式接受](../../../../product/PF-017-governance-center-as-deployable-application/decisions.md#2026-09-23--正式接受)）**
   [§8](../../../../product/PF-017-governance-center-as-deployable-application/design.md#八边界与依赖)
-  「中心存下来的登录状态，读到数据或备份的人不能直接拿去用」——**PF-017 被接受之前，本版不进入接受**
+  「中心存下来的登录状态，读到数据或备份的人不能直接拿去用」——本版进入接受须以 PF-017 被接受为前提，**这一前提已于 2026-09-23 成立**；本版自身仍是 `candidate`
 - **设计依据**：[PF-001 §4 账号](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#账号)、
   [§6.4 隔离](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)、
   [§6.5 本地资源定位](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#65-本地资源定位)、
@@ -23,7 +23,7 @@
   [acceptance §二、§三](../../../../product/PF-001-identity-scope-and-agent-constraints/acceptance.md#三判据)；
   [decisions 2026-09-22 九条确认](../../../../product/PF-001-identity-scope-and-agent-constraints/decisions.md#2026-09-22--九条正文规则逐条确认为产品要求)的第 1、2 条，
   以及 [decisions 2026-09-22「登录标识本版不提供修改」](../../../../product/PF-001-identity-scope-and-agent-constraints/decisions.md#一拍板记录)（PF-001 **rev 15**）——
-  以上是 v1 的依据，**本版原样沿用**；本版新增的依据是 PF-017 rev 1（draft）的
+  以上是 v1 的依据，**本版原样沿用**；本版新增的依据是 PF-017 rev 1（已接受，2026-09-23）的
   [§6.14 产品不把任何秘密的值交给运维者](../../../../product/PF-017-governance-center-as-deployable-application/design.md#614-产品不把任何秘密的值交给运维者)
   与 [§8「不交出能直接用的凭证」](../../../../product/PF-017-governance-center-as-deployable-application/design.md#八边界与依赖)、
   [§6.7 重启不让任何人退出登录](../../../../product/PF-017-governance-center-as-deployable-application/design.md#67-重启不让任何人退出登录)，
@@ -942,8 +942,8 @@ LoginStateId 不透明、由高熵的出示物派生（[S-45](#s-45-登录状态
 | 安全 | [S-25](#s-25-两个账号之间没有通路) 两个账号之间没有通路 | [S-11](#s-11-账号记录不含跨账号关联字段) 的数据形状（**只管本契约这一份**） | [PF-001 §6.4](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离) |
 | 安全 | 一个账号上有效的登录状态**一个都不会从列表里漏掉** | [S-37](#s-37-列出本账号有效登录状态) 的返回定义＋「读不到不得返回空集」的缺席默认 | [acceptance §二](../../../../product/PF-001-identity-scope-and-agent-constraints/acceptance.md#二绝不能发生的事)、[§三](../../../../product/PF-001-identity-scope-and-agent-constraints/acceptance.md#三判据) |
 | 不变量 | **每个登录状态的 LoginStateId 恒等于它的出示物的不可逆形式**（本版新增） | [S-15](#s-15-验证凭据并签发登录状态) 的那一次提交：出示物的产生、派生与写入同提交；记录上的 LoginStateId 此后不改（[S-9](#s-9-登录状态记录)） | [S-45](#s-45-登录状态出示物) 的派生规则；场景 [S-47](#s-47-出示物的不可逆形式恒等于它的-loginstateid) |
-| 安全 | **读到存储或备份的人，不能以其中任何一个登录状态行事**——存储里没有出示物（本版新增，**有前提**，见下） | [S-45](#s-45-登录状态出示物) 的「永不以可读形式保存」＋[S-15](#s-15-验证凭据并签发登录状态) 写进记录的只有 LoginStateId＋[S-44](#s-44-按出示物换取身份) 只认出示物＋[S-30](#s-30-装配给的保证-vs-协议须给的保证)「只有 S-44 认出示物」一行（没有别的门收 LoginStateId） | [PF-017 §8](../../../../product/PF-017-governance-center-as-deployable-application/design.md#八边界与依赖)（rev 1，draft）；场景 [S-46](#s-46-存储里翻不出能用的出示物) |
-| 安全 | **拿到列表的人，不能以列表里任何一个登录状态行事**——列表不交出能直接用的凭证（本版新增，**有前提**，见下） | [S-37](#s-37-列出本账号有效登录状态) 只列 LoginStateId＋[S-44](#s-44-按出示物换取身份) 不认 LoginStateId＋[S-30](#s-30-装配给的保证-vs-协议须给的保证)「只有 S-44 认出示物」一行（没有别的门收 LoginStateId） | [PF-017 §8](../../../../product/PF-017-governance-center-as-deployable-application/design.md#八边界与依赖)（rev 1，draft）；场景 [S-46](#s-46-存储里翻不出能用的出示物) 的第 3 支 |
+| 安全 | **读到存储或备份的人，不能以其中任何一个登录状态行事**——存储里没有出示物（本版新增，**有前提**，见下） | [S-45](#s-45-登录状态出示物) 的「永不以可读形式保存」＋[S-15](#s-15-验证凭据并签发登录状态) 写进记录的只有 LoginStateId＋[S-44](#s-44-按出示物换取身份) 只认出示物＋[S-30](#s-30-装配给的保证-vs-协议须给的保证)「只有 S-44 认出示物」一行（没有别的门收 LoginStateId） | [PF-017 §8](../../../../product/PF-017-governance-center-as-deployable-application/design.md#八边界与依赖)（rev 1，已接受 2026-09-23）；场景 [S-46](#s-46-存储里翻不出能用的出示物) |
+| 安全 | **拿到列表的人，不能以列表里任何一个登录状态行事**——列表不交出能直接用的凭证（本版新增，**有前提**，见下） | [S-37](#s-37-列出本账号有效登录状态) 只列 LoginStateId＋[S-44](#s-44-按出示物换取身份) 不认 LoginStateId＋[S-30](#s-30-装配给的保证-vs-协议须给的保证)「只有 S-44 认出示物」一行（没有别的门收 LoginStateId） | [PF-017 §8](../../../../product/PF-017-governance-center-as-deployable-application/design.md#八边界与依赖)（rev 1，已接受 2026-09-23）；场景 [S-46](#s-46-存储里翻不出能用的出示物) 的第 3 支 |
 
 **本版新增的两条安全性质是有前提地成立的**，四个前提写在这里：
 
@@ -1597,7 +1597,7 @@ PF-001 rev 15 的登录状态[只有撤销、没有到期](../../../../product/P
 
 | 条款 | 本版怎样 | 语义变了吗 | 差异 |
 |---|---|---|---|
-| 抬头 | 改写 | — | 坐标 v2、状态 `candidate`；新增依据 PF-017 rev 1（draft）§6.14、§6.7、§8 与 acceptance §三两条判据，以及 INT-011；对 `data.identity-values` v1 的消费**多登 `#S-19` 一条**（S-17 本来就以它为依据，v1 漏登），成八条 |
+| 抬头 | 改写 | — | 坐标 v2、状态 `candidate`；新增依据 PF-017 rev 1（已接受，2026-09-23）§6.14、§6.7、§8 与 acceptance §三两条判据，以及 INT-011；对 `data.identity-values` v1 的消费**多登 `#S-19` 一条**（S-17 本来就以它为依据，v1 漏登），成八条 |
 | [S-1](#s-1-本契约拥有什么) | 改写 | 扩（拥有面多一件事） | 登录状态一行加上出示物、派生规则与 S-44 的所有权 |
 | [S-2](#s-2-消费者与依赖方向) | 改写 | 扩 | 消费者表加入口契约一行（带版本号）；「判断来者是谁」一行分成进程内（S-17）与跨进程（S-44）；注册组合那一行的消费面计数由「九条」改正为「十条」（v1 的计数有误，catalog 为准） |
 | [S-3](#s-3-明确不承诺什么) | 追加 | 否 | 新增一条边界声明：到期、刷新与轮换是产品侧未决项（PF-017 §9、INT-011，owner 为 PF-001 的 owner），不是本契约的缺口；S-44 的耗时同样不在范围 |
