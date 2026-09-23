@@ -19,6 +19,22 @@
     "spec/compositions/account-registration/v1/formal/Registration.tla": "83bc2f8c54bd5057e5831f638bd41d25fe8d908bb5fd43db937d2ee324230f20",
     "spec/compositions/account-registration/v1/formal/basic.cfg": "38198123c96a2704908a72b8df4ea8a76cdf1fac1b05a4622c3b3e178915d64d",
     "spec/compositions/account-registration/v1/formal/crash.cfg": "2a77296a8915042cf5f53d0f92a476b2e568e61a68d36044b78282125fff7ffc",
-    "spec/compositions/account-registration/v1/formal/progress.cfg": "6c1a4b3da5fe329b4db766559b1a0905002d050c8af71ad42fe1574b75c90cca"
+    "spec/compositions/account-registration/v1/formal/progress.cfg": "6c1a4b3da5fe329b4db766559b1a0905002d050c8af71ad42fe1574b75c90cca",
+    "spec/capabilities/account-identity/v2/contract.md": "29bf928fd750121b2630778044b5afd981e377d8167a4bc7c7f6e8fb4780984f",
+    "spec/compositions/governance-center-entry/v1/contract.md": "7798e378d857118df82b14662f6ad9120909e57f51f69e587a894f6c1a07d963",
+    "spec/compositions/governance-center-entry/v1/examples.md": "e39db7b5bbf69a05b0c0e6905e72b84712be682a3836604a566800e9198b5013",
+    "spec/compositions/governance-center-entry/v1/formal/EntryDecision.cfg": "12cd556423baedc91761f932ee2e686a1fb4bbf1cb1278d78de1d9c4e0cd4e26",
+    "spec/compositions/governance-center-entry/v1/formal/EntryDecision.tla": "05006b6c3ca100d3c5182a6a701044c988a38b08af76a09223f4ee1ffafd24a0",
+    "spec/compositions/governance-center-entry/v1/formal/README.md": "d7e8c1c96207e255f922d2f2050e7227057cd9befa4dd50a9b89153f63e773fb",
+    "spec/compositions/governance-center-entry/v1/formal/Validity_Reachability.cfg": "9949177bb351b7c7ada65ed7b1686de145a15f65085903e350829ace1acccdc8",
+    "spec/compositions/governance-center-entry/v1/formal/Validity_authBeforeEnvelope.cfg": "d1580671536a87d03bb7d943be14c9c0fadaccf9774ee696a3c7762b1917e28b",
+    "spec/compositions/governance-center-entry/v1/formal/Validity_defectAsResult.cfg": "d6fa442ff09cba54fdf367e7a1fefef94c60983e417297df9a04fef6fdde19bf",
+    "spec/compositions/governance-center-entry/v1/formal/Validity_deriveBeforePayload.cfg": "97be78b86fc6a3855c63da980a9466a460f8606852bf3f1e35188cb00641ca91",
+    "spec/compositions/governance-center-entry/v1/formal/Validity_gateUnavailableAsDenied.cfg": "60b7d27b324765a917985b2148b97dadd87fb2d1742ef6a154f1abf6bd0704dc",
+    "spec/compositions/governance-center-entry/v1/formal/Validity_inputBeforeAuth.cfg": "45ba38425a16981c50b027f9823ac32991a92fdf0e6f0b6827e4090ea83f7315",
+    "spec/compositions/governance-center-entry/v1/formal/Validity_passthroughStateNotValid.cfg": "3701c37d37fd09db78ae46660fd225669f75e610e6a17f91c4faefdf573e9af4",
+    "spec/compositions/governance-center-entry/v1/formal/Validity_readPresentationBeforeVersion.cfg": "2029dbcf6d0dc12e610e7daff161f884698e34c1f890f7736bea6511edc3ca5d",
+    "spec/compositions/governance-center-entry/v1/formal/Validity_unavailableAsRejected.cfg": "e50939eb0ce697cc8591f3cbe7c7bece61c9f073b6b750c4ea4272483fda8a88",
+    "spec/compositions/governance-center-entry/v1/governance-center-entry.schema.json": "e8ee446e957163fc91b8cebb87a8434ee0c2a464b53a2264349c8ad54b396fb1"
   }
 }

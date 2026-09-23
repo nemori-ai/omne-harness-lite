@@ -23,6 +23,7 @@
 | [S-21](../../../../spec/capabilities/organization-governance/v1/contract.md#s-21-创建团队组织) 创建键五支 + 注入 | 演练 | 未开始 | 本节点 |
 | [S-23](../../../../spec/capabilities/organization-governance/v1/contract.md#s-23-发出邀请)／[S-30](../../../../spec/capabilities/organization-governance/v1/contract.md#s-30-发出隶属请求) 时长两路、S-30 自环 | 演练 | 未开始 | 本节点 |
 | [S-42 第 4 行](../../../../spec/capabilities/organization-governance/v1/contract.md#s-42-装配给的保证-vs-协议须给的保证) 只由清除链调用 | 结构检查：仓库内解析 `organization-purge` 的包只有 `account-registration`——**同时查 inject 声明与 `ctx.get('organization-purge')` 一类动态解析**；须有一条「在别的包里故意解析就失败」的自测 | 未开始；检查器不存在 | 装配节点；本节点提出形式 |
+| S-36／S-37 的登录状态参数是品牌（[design S-36／S-37 行](design.md#操作)；[AI v2 S-30 第 10 行](../../../../spec/capabilities/account-identity/v2/contract.md#s-30-装配给的保证-vs-协议须给的保证)） | **类型测试**（`tests/types.spec-d.ts`）：把 `unknown` 与 `string` 交给 `currentTenant`、`switchCurrentTenant` 的登录状态参数须编译失败（`@ts-expect-error`，去掉即红），交 `LoginStateId` 编译通过；**另一支运行期**：绕过类型送非法表示（空串、首尾空白）⇒ `invalidInput`，不是 `loginStateNotValid`、不是 `unavailable`，且本节点没有读存储——钉住「S-31 解析交给 AI S-17、本节点按 S-4 第三行映射」 | 未开始；骨架的两个参数仍是 `unknown` | 本节点。类型那一支失守是静默的：入口层把线上的串直接交进来，每一步都返回成功 |
 | 「同一提交」的跨 owner 解释（[design.md](design.md#跨-owner-的同一提交账号行上的过期事实加组织行对账号行的引用约束)） | 与 account-identity S-43 第 2 支同一次真并发演练，**含两条交错**（激活 vs 清除、创建个人组织 vs 清除）；另一条 R-6 的注入测试：直接构造「组织行指着账号行」时 S-38 被拒、重扫后收敛 | 未开始 | 本节点 + account-identity + account-registration |
 
 ## 实际执行

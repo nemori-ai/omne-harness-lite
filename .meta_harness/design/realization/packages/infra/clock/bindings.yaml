@@ -3,6 +3,8 @@
 # S-17「now 不后退」那一行（装配给），契约 provider 是 core/offer-expiry 节点。
 # 那份契约不建形式工件，没有已登记的 formal task，也没有任何已存在的测试；
 # 尚不存在的证据不写占位绑定——义务记在 verification.md，缺口记在 README.md「分层状态」。
+# 2026-09-23 修订承接的入口契约 S-36 末行与 S-34 前提（产品依据 PF-017 rev 1 已接受（2026-09-23））：
+# 绑定仍为 0——无已存在的证据可绑（运行中回拨与迁移前核对尚无源码与测试），同样不写占位绑定。
 version: 1
 node: "clock"
 kind: "provider"

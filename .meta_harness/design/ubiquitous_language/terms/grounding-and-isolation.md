@@ -312,4 +312,74 @@
   [个人自托管一个中心不是产品形态](../../product/PF-016-cli-tui-delivery-surface/design.md#二目标与非目标)，
   研发用的夹具不在这个词的承诺范围里——**但夹具起来的那个仍然是一个治理中心**，所指不变
 
+### UL-deployment-key · 部署密钥 · Deployment Key
+
+> **中**：只有这一次[治理中心](#ul-governance-center--治理中心--governance-center)部署持有的一套秘密，
+> 用来让「只有这个中心自己能说出的话」不可伪造。由[运维者](subjects-and-ownership.md#ul-deployment-operator--运维者--deployment-operator)
+> 在立中心时生成一次、放在中心的数据之外自己保管，**中心永不显示它**；缺了或不完整，中心不起来。
+> **它不加密任何东西**，所以换掉它什么都不丢。
+>
+> **EN**: The one set of secrets held only by this governance-center deployment, used to make
+> "things only this center itself can say" unforgeable. The deployment operator generates it
+> once when standing the center up and keeps it outside the center's data; **the center never
+> shows it**; missing or incomplete, the center does not start. **It encrypts nothing**, so
+> replacing it loses nothing.
+
+- **形态**：属性
+- **出处**：[PF-017 §4 部署密钥](../../product/PF-017-governance-center-as-deployable-application/design.md#部署密钥) ·
+  [§6.11](../../product/PF-017-governance-center-as-deployable-application/design.md#611-部署密钥运维者生成一次自己保管中心永不显示它)（rev 2）
+- **⚠️ 别混**：不是账号的凭据、不是[模型凭据](capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential)、
+  不是[登录状态](subjects-and-ownership.md#ul-login-state--登录状态--login-state)——那三样各归各的拥有者。
+  也不是[治理中心标识](#ul-governance-center-identifier--治理中心标识--governance-center-identifier)：一个是秘密、可换，一个是名字、不换
+- **注意**：它具体给哪几句话背书归技术设计；本条以技术侧采用需要部署级秘密的路为前提
+  （[PF-017 decisions §二](../../product/PF-017-governance-center-as-deployable-application/decisions.md#二pm-推导)），改路则复核
+
+### UL-governance-center-identifier · 治理中心标识 · Governance Center Identifier
+
+> **中**：一个[治理中心](#ul-governance-center--治理中心--governance-center)用来指认自己的那个名字：
+> 第一次启动成功那一刻由中心自己定下、此后不变、跟着它的数据走、对任何够得到中心的人**在登录之前就可读**。
+> **不是地址，不是秘密**；两个地址后面是不是同一个中心，比的就是它——相同是搬家，不同是另一个中心。
+> 正文简称「中心标识」。
+>
+> **EN**: The name a governance center uses to identify itself: fixed by the center at its first
+> successful start, never changing, travelling with its data, and **readable before login** by
+> anyone who can reach the center. **Neither an address nor a secret**; whether two addresses lead
+> to the same center is decided by comparing it — the same means the center moved, different means
+> another center. Product text shortens it to "center identifier".
+
+- **形态**：属性
+- **出处**：[PF-017 §4 中心标识](../../product/PF-017-governance-center-as-deployable-application/design.md#中心标识) ·
+  [§6.12](../../product/PF-017-governance-center-as-deployable-application/design.md#612-同一个中心换了地址还是它另一个中心必须被认出来)（rev 2）
+- **注意**：「此后不变」对同一份数据成立；机器断电或操作系统崩溃只会**连着数据一起丢它**（刚立起来的中心没立住，下次起来的是另一个中心），不会让同一份数据上的它变成另一个值（[§6.12](../../product/PF-017-governance-center-as-deployable-application/design.md#612-同一个中心换了地址还是它另一个中心必须被认出来)，rev 2）
+- **⚠️ 别混**：不是地址（地址可变，它不变）；不是[部署密钥](#ul-deployment-key--部署密钥--deployment-key)；
+  与[登录标识](subjects-and-ownership.md#ul-login-identifier--登录标识--login-identifier)同一取名模式，所指不同——一个指认中心，一个指认账号
+- **注意**：它只管「是不是同一个」，不证明「真的是它」——防冒充归传输那一层
+  （[PF-017 §8](../../product/PF-017-governance-center-as-deployable-application/design.md#八边界与依赖)）；
+  同一份数据被拷贝后两处同时活着，它分不出，那是运维错误（[§6.12](../../product/PF-017-governance-center-as-deployable-application/design.md#612-同一个中心换了地址还是它另一个中心必须被认出来)）
+
+### UL-deployment-parameter · 部署参数 · Deployment Parameter
+
+> **中**：产品正文写着「按部署配置」、对整个[治理中心](#ul-governance-center--治理中心--governance-center)上所有人一律生效、
+> 且不属于任何组织或租户的那些值的**统称**。每一项各归定义它的 topic（本版五项：未激活记录的留存期限；
+> 加入组织的邀请与隶属请求、待确认的复制通知与分享邀请各自的默认时长）；每一项由
+> [运维者](subjects-and-ownership.md#ul-deployment-operator--运维者--deployment-operator)给值、中心启动时读、缺一不可、不出厂默认；
+> 改了只影响此后的判定——**唯一例外是邀约类业务动作**：一份邀约的时效在发出那一刻定下（填了用填的，没填用那一刻的默认值），此后不随参数变。
+> **它不是[范围化对象](scope-and-resolution.md#ul-scoped-object--范围化对象--scoped-object)**，不挂在任何一层、不参与求值。
+>
+> **EN**: The collective name for the values the product text marks "configured per deployment":
+> in force for everyone on a governance center and belonging to no organization or tenant. Each
+> item is owned by the topic that defines it (five in this version: the retention period of
+> unactivated records, and the default periods of organization invitations, affiliation requests,
+> pending copy notices and sharing invitations); each is set by the deployment operator, read at
+> start, required with no factory default, and a change affects only later judgements — with one
+> exception: an offer's validity period is fixed at the moment it is issued (the issuer's own value
+> if given, otherwise that moment's default) and does not follow later parameter changes.
+> **Not a scoped object** — it hangs on no layer and takes no part in evaluation.
+
+- **形态**：总称
+- **出处**：[PF-017 §4 部署参数](../../product/PF-017-governance-center-as-deployable-application/design.md#部署参数) ·
+  [§6.15](../../product/PF-017-governance-center-as-deployable-application/design.md#615-部署参数由运维者给值起动时读缺一不可)（rev 2）
+- **⚠️ 别混**：不是范围化对象，也不是[设置](capabilities-and-composition.md#ul-asset--资产--asset)——设置挂在层上、按范围求值，它对全中心一律生效
+- **注意**：「统称」不是一张表——每一项各自有值、各归自己的 topic；本 topic 只说谁给、何时生效、改了怎么算
+
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

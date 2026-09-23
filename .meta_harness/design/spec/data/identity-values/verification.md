@@ -123,6 +123,13 @@ V-2～V-14 尚无执行记录。首次执行时在此记录工具与版本、环
 
 ## 变化的影响
 
+- **已记录：`capability.account-identity` v2（`candidate`）对本契约两处的读法**（2026-09-23）。**本契约 v1 已冻结，一个字不改**；两处收口归本契约的下一版：
+  ① **[G-04](v1/contract.md#十已知缺口)（不透明标识的词法）对 LoginStateId 已在规格层定下**——账号能力 v2 的
+  [S-45](../../capabilities/account-identity/v2/contract.md#s-45-登录状态出示物) 规定 LoginStateId 等于出示物 UTF-8 的 SHA-256 写成的 64 个小写十六进制字符，
+  满足 [S-31](v1/contract.md#s-31-不透明标识的交换表示)；AccountId、OrganizationId 等其余标识的 G-04 **仍开**。
+  消费者判 LoginStateId 合不合形状仍只用 S-31，不收紧到那个形状（同一条 S-45 写明理由）。
+  ② **[S-9](v1/contract.md#s-9-loginstateid)「由存储生成」读作「在签发那次存储提交里产生」**，唯一性仍由存储的唯一约束兑现，不由派生兑现。
+  **对证据的影响：无**——本契约的义务与已执行的检查都不涉及这两处。
 - **已执行：PF-002 升到 rev 10、PF-015 升到 rev 9**（2026-09-22，
   [PF-002 changelog rev 10](../../../product/PF-002-assets-settings-and-permissions/changelog.md)、
   [PF-015 changelog rev 9](../../../product/PF-015-session-lifecycle-and-ownership/changelog.md)）。

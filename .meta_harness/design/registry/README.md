@@ -78,6 +78,10 @@ catalog 的稳定键是 `(baseline_id, contract_id, version)`。资源位置为
 
 `target` 用 catalog 的精确坐标；`clauses` 为空表示「覆盖该契约但尚未定位到条款」，
 与「已确认不涉及任何条款」不同，后者不应登记为一条 cover。
+**一种例外——缺口登记型 cover**：某条契约条款**明文声明**一条需求不归本契约、并点名一个具名缺口
+（如入口契约 S-34 对 PF-017 §6.9 登 G-12），这条需求 → 该条款可以登记，`note` 必须写明
+「为让缺口可见而登，不表示已覆盖」并指到缺口号；缺口闭合（有契约家）时把 `target` 改指真正的承接条款。
+没有点名缺口的否定式提及仍不登。
 
 每项覆盖带 `reviewed` 标记。批量导入时 `reviewed: false` 是诚实的初值——
 它表示「声称覆盖但尚未逐条复核」，与「已复核确认覆盖」必须可区分；
@@ -108,11 +112,17 @@ catalog 的依赖 clauses 按「正文以坐标引用即消费、只算消费者
 **同日晚些时候，[D-023](../record/decisions/tenant-domain-design-acceptance/README.md) 接受了五份 v1，本清单据此翻状态并冻结**——
 接受事件是唯一的触发，评审与重跑本身不提升状态。
 
+**2026-09-23 第二批（治理中心入口）**：新登两条 `candidate`——`composition.governance-center-entry` v1
+与 `capability.account-identity` **v2**（出示物与 LoginStateId 分离）；入口契约带一个 TLC 任务；
+covers 补登 PF-016／PF-017 → 入口契约、PF-001／PF-017 → AI v2（含一条「缺口登记型」：§6.9 与 §6.10 第 1 行 → S-34，指 G-12）。
+**同日夜里 [D-028](../record/decisions/governance-center-design-acceptance/README.md) 接受了这两条，本清单据此翻状态并冻结**：
+入口契约 v1 的 15 项资源与账号能力 v2 的 1 项追加进 `frozen.json`；账号能力 v1 与 v2 并存，注册组合与治理契约仍钉 v1。主责产品依据 PF-017 rev 2。
+
 | 清单 | 现在有什么 |
 |---|---|
-| `catalog.json` | **5 条，全部 `accepted`**：`data.identity-values`、`data.offer-expiry`、`capability.account-identity`、`capability.organization-governance`、`composition.account-registration`，版本一律 1。`acceptance` 一律指向 `record/decisions/tenant-domain-design-acceptance/acceptance.json`；两份带 `formal/` 的契约把 `formal/README.md` 也登为资源（版本目录整体冻结）；依赖带精确坐标与消费 clauses |
-| `formal-tasks.json` | **4 个 TLC 任务**：`organization-governance-v1-membership`、`account-registration-v1-{basic,crash,progress}`。runner 用 `${JAVA_BIN}` / `${TLA2TOOLS_JAR}` 两个可注入变量，工作目录是设计根。**已由 `--formal run` 实际跑通**。**保存下来的两次运行走的不是这条路径**——它们是主线本机直接调 TLC（4 workers），结果与输入快照在 [`…-formal-tenant-domain/`](../record/evidence/2026-09-22-formal-tenant-domain/README.md) 与 [`…-2/`](../record/evidence/2026-09-22-formal-tenant-domain-2/README.md)，[两者的 runner 差异与「为什么不影响被检查的东西」写在 run README](../record/evidence/2026-09-22-formal-tenant-domain-2/README.md#命令仍然是从日志重建的) |
-| `covers.json` | **PF-001／002／003／015 → 五份契约**的条款级覆盖，全部 `reviewed: false`。`clause` 用产品 topic 的**小节锚点**，理由与三处已知不完整写在该文件的 `clause_form` 与 `note` 里 |
+| `catalog.json` | **7 条：5 条 `accepted`、2 条 `candidate`**（`composition.governance-center-entry` v1、`capability.account-identity` v2，`acceptance` 为 null）。接受的五条：`data.identity-values`、`data.offer-expiry`、`capability.account-identity`、`capability.organization-governance`、`composition.account-registration`，版本一律 1。`acceptance` 一律指向 `record/decisions/tenant-domain-design-acceptance/acceptance.json`；两份带 `formal/` 的契约把 `formal/README.md` 也登为资源（版本目录整体冻结）；依赖带精确坐标与消费 clauses |
+| `formal-tasks.json` | **5 个 TLC 任务**：`organization-governance-v1-membership`、`account-registration-v1-{basic,crash,progress}`、`governance-center-entry-v1-decision`（2026-09-23，候选契约的任务，执行不提升状态）。runner 用 `${JAVA_BIN}` / `${TLA2TOOLS_JAR}` 两个可注入变量，工作目录是设计根。**已由 `--formal run` 实际跑通**。**保存下来的两次运行走的不是这条路径**——它们是主线本机直接调 TLC（4 workers），结果与输入快照在 [`…-formal-tenant-domain/`](../record/evidence/2026-09-22-formal-tenant-domain/README.md) 与 [`…-2/`](../record/evidence/2026-09-22-formal-tenant-domain-2/README.md)，[两者的 runner 差异与「为什么不影响被检查的东西」写在 run README](../record/evidence/2026-09-22-formal-tenant-domain-2/README.md#命令仍然是从日志重建的) |
+| `covers.json` | **PF-001／002／003／015 → 五份契约**，加 2026-09-23 补登的 **PF-016／PF-017 → 入口契约、PF-001／PF-017 → AI v2**，全部 `reviewed: false`。`clause` 用产品 topic 的**小节锚点**，理由与三处已知不完整写在该文件的 `clause_form` 与 `note` 里 |
 | `frozen.json` | **18 项**：五个 v1 目录下的全部文件，逐文件 SHA-256，随 D-023 一次登记。此后只追加；v1 任何字节变化都会被检查器报 `frozen file changed` |
 | `lineage.json` | **仍为空。**2026-09-17 那三个候选于 2026-09-22 整体废弃，**从未接受或冻结，不产生血缘** |
 | `id-namespaces.json` | 5 个前缀族，本次未变 |

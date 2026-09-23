@@ -1,6 +1,6 @@
 # storage-sql 验证与证据
 
-本节点不兑现契约条款，义务来自三处：[`core/storage` 一致性套件](../../core/storage/design.md#要求到协议再到会红的测试)的每一条用例（套件归那个节点，**在本提供者上跑**归本节点）、方言切换、错误码映射。
+本节点不兑现契约条款，义务来自四处：[`core/storage` 一致性套件](../../core/storage/design.md#要求到协议再到会红的测试)的每一条用例（套件归那个节点，**在本提供者上跑**归本节点）、方言切换、错误码映射，以及 [tenancy-host R-U1～R-U8](../../../apps/tenancy-host/design.md#升级的整体性迁移前只读核对快照与确认) 与属主排他（升级守卫，`upgrade.*`）。
 运行结果归 [record/evidence](../../../../record/evidence/README.md)，本页只引用并解释范围。
 
 ## 证据义务
@@ -9,7 +9,7 @@
 |---|---|---|---|
 | AI R-1／OG R-1 单次提交原子（P-1） | 套件 C-1a／C-1b／C-1c 在 sqlite 临时文件库上绿 | 未开始 | 本节点；套件由 `core/storage` 给出后在本提供者上跑 |
 | AI R-2／OG R-2 唯一约束可识别（P-11） | C-2：`constraint === 迁移里的名字`——本提供者的 `PRAGMA index_list` 反查在此会红；主键那一支按 `sqlite_autoindex_<table>_N` 反查；迁移未命名 ⇒ `StorageDefect` | 未开始 | 本节点；反查是实施项，实现前主键那一支无结果 |
-| AI R-2「同一提交内重读」（P-2） | C-3、C-13：sqlite 原生；pg 分支本程 skip | 未开始 | 本节点 |
+| 约束失败后「同一提交内重读」（OG S-20、OG R-6；P-2） | C-3、C-13：sqlite 原生；pg 分支本程 skip | 未开始 | 本节点 |
 | AI R-3／OG R-3a 行级锁定读（P-4） | C-4：两个实例、`await` 让出、两次都提交、终值 +2、**无一方 busy 失败**——写句柄的异步重试在此会红 | 未开始 | 本节点。**前提**：套件 `factory` 每次返回指向同一文件的新实例（协议节点已写明） |
 | OG R-3b 部署级哨兵（P-5） | C-5 | 未开始 | 本节点；sqlite 下由库级锁覆盖，pg 下 advisory lock 本程不跑 |
 | OG R-3c 提交内读写同源（P-3） | C-6a／C-6b | 未开始 | 本节点 |
@@ -26,6 +26,17 @@
 | pg 逐语句 SAVEPOINT（P-2） | `driver.pg-savepoint`：拦截连接上的语句，断言写事务内每条语句前后有 `SAVEPOINT`／`RELEASE`，失败后有 `ROLLBACK TO`；**不连库** | 未开始 | 本节点 |
 | 装卸配对（[design.md](design.md#成对的装载与撤除)） | `lifecycle.dispose-drains`：一个在途写事务未完成时 dispose，断言它按自己的提交收场（成立或无痕），新调用抛 `StorageUnavailable`，全部句柄最终关闭；`lifecycle.config-error-fails-load`：非法 config（含 `:memory:`）⇒ fiber `FAILED`、无 `storage` 服务；`lifecycle.open-failure-fails-load`：文件不可写 ⇒ 同 | 未开始 | 本节点。「抛出 ⇒ `FAILED` 且不 provide」本身由 kernel-basis probe `plugin-throw-fails-fiber.test.ts` 在 4.0.4 上核过；本节点这两条只证本插件在这些情形下确实抛 |
 | 迁移在 `provide` 之前 | `lifecycle.migrations-before-provide`：config 带一个会失败的迁移 ⇒ 无 `storage` 服务；带一个建表迁移 ⇒ 消费者首次解析到 `storage` 时表已在 | 未开始 | 本节点 |
+| 属主排他（tenancy-host U-2） | `upgrade.exclusive-owner`：**两个子进程**对同一文件各起一个开了守卫的实例——后起者以「被占」启动失败、库与快照都没被它碰；先起者被 `SIGKILL` 之后，后起者再起即成功（锁随进程释放，不需要人清理）；同进程第二个开了守卫的实例同样「被占」；不开守卫的实例不受影响（一致性套件照旧两实例同文件）。排他在此会红：去掉锁，后起者在先起者未确认时恢复它的快照 | 未开始 | 本节点；锁的承载方式待核后定 |
+| R-U1 只读核对先于任何写 | `upgrade.preflight-refuses-before-write`：给一条返回 `ok: false` 的核对 ⇒ 启动失败、阶段「核对」、`detail` 原样；库的已提交内容（逐表）不变、没有快照、登记表没被建；核对里发写语句 ⇒ `StorageDefect`；核对抛出 ⇒ 同样「核对」阶段 | 未开始 | 本节点 |
+| R-U2 迁移登记可读，读不到不当作空 | `upgrade.registry-read`：空库 ⇒ `appliedMigrations` 为空、`tables` 不含登记表；跑过两个迁移的库 ⇒ 两个名字按执行次序；读句柄在核对前被关（注入读失败）⇒ 启动失败、阶段「核对」、`cause` 是 `StorageUnavailable`，**不是**空序列放行 | 未开始 | 本节点 |
+| R-U3 一致快照，含预写日志里的提交 | `upgrade.snapshot-consistent`：先提交一笔写且不做检查点（它只在预写日志里），再用多一个迁移的 provider 启动；在⑦之前截住，断言快照文件单独打开读得到那一笔；首次启动支：库文件不存在 ⇒ 打开之前已有「库不存在」标记 | 未开始 | 本节点；在线备份接口待核 |
+| R-U4 确认之前的失败撤回升级 | `upgrade.restore-on-migration-failure`：第二个迁移失败 ⇒ 启动失败、阶段「迁移」且点名它；库的内容、登记与 schema 回到升级前，**附属文件里没有升级后的写**，快照已不在。`upgrade.restore-on-dispose`：迁移成功、`provide` 之后别的写入者提交一笔，不确认即撤除 ⇒ 库回到升级前，那一笔也不在；首次启动支：撤除之后库文件与两个附属文件都不存在 | 未开始 | 本节点 |
+| R-U5 遗留快照先恢复 | `upgrade.leftover-restored`：子进程在⑥之后、⑦中、恢复的「删附属文件之后、替换之前」各被杀一次 ⇒ 下一次启动先恢复、再按升级前的库重走，最终库与只跑旧序列的库内容一致；另一支在⑥写临时名之后、改名之前被杀 ⇒ 下一次启动②删掉半成品、⑥照常建成快照，`pending()` 从不把半成品报成快照 | 未开始 | 本节点；真崩溃，用子进程 |
+| R-U6 确认 | `upgrade.confirm`：有待跑迁移 ⇒ 返回 `{ migrated: true, snapshotTaken: true, snapshotRemoved: true }`，之后快照不在、`pending()` 为 `clear`，此后撤除不动库；无待跑迁移的重启 ⇒ 三者皆假、无动作；首次启动而迁移为空 ⇒ `snapshotTaken` 与 `snapshotRemoved` 为真、`migrated` 为假；同一附着上再调返回第一次的结果；快照目录只读 ⇒ 抛出、快照仍在；快照在确认之前被外部删掉 ⇒ `snapshotTaken ∧ ¬snapshotRemoved`（装配断言在此会红）；pg 上跑过迁移 ⇒ `{ migrated: true, snapshotTaken: false, snapshotRemoved: false }`、不抛（U-3 那一支，本程随 pg 套件 skip） | 未开始 | 本节点 |
+| R-U6 确认绑在实例上（交错 (f)） | `upgrade.guard-binding`：装配手里的守卫就是插件体附着的那一个（交给插件的守卫在插件 `ACTIVE` 后 `confirm()` 成功——**内核若拷贝 config，这一支会红**）；从未交给任何插件的守卫 ⇒ `confirm()` 抛 `UpgradeGuardNotAttached`，交给插件的那个实例的快照原样在，随后撤除恢复它；「被占」启动失败之后守卫未附着、`pending()` 为 `never-attached`；撤除开始之后 `confirm()` 抛 `UpgradeGuardNotAttached`，撤完 `pending()` 仍按原位置答；确认在途时撤除 ⇒ 撤除等它返回、不恢复；同一个守卫交给两个实例（不同文件）⇒ 后附着的那个启动失败 | 未开始 | 本节点 |
+| R-U7 pg 迁移一个事务 | `upgrade.pg-single-transaction`：第二个迁移失败 ⇒ 登记与 schema 都回到迁移前。**本程 `describe.skip`**，前提同 pg 套件；跳过不是通过 | 未开始（本程不跑） | 本节点提供开关；跑 pg 归装配 |
+| R-U8 具名失败；恢复失败快照不删 | `upgrade.named-failures`：被占／恢复／核对／快照（快照目录只读）／迁移五个阶段各触发一次，断言类型是 `StorageStartupFailure`、阶段对、**不是** `StorageUnavailable`；恢复失败（库目录只读）⇒ 失败里带快照位置、快照仍在。`upgrade.dispose-restore-failure-visible`：撤除路径上让恢复失败 ⇒ `fiber.dispose()` 照常 resolve（basis 所言），`guard.pending()` 仍报 `pending` 与位置，有一条 error 记录 | 未开始 | 本节点 |
+| `upgrade` 配置政策（带迁移必须显式给出） | `lifecycle.upgrade-config-policy`：带 `migrations` 而缺 `upgrade` ⇒ fiber `FAILED`、无 `storage` 服务；`upgrade` 对象而无 `migrations` ⇒ 同；`guard` 不是 `createUpgradeGuard()` 造的 ⇒ 同；带 `migrations` 且 `upgrade: false` ⇒ 照常 `ACTIVE`、不取锁、不建快照 | 未开始 | 本节点。「抛出 ⇒ `FAILED`」本身由 basis [`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md) 核过 |
 
 ## 实际执行
 
@@ -39,9 +50,16 @@
 
 ## 覆盖缺口
 
-- **pg 方言零运行证据**：接线不跑是 D-026 的范围裁定；第一次跑 pg 前，锁等待超时、`23503` 分类、SAVEPOINT 往返、`pool.end()` 行为都没有证据。owner：装配，第二程。
+- **pg 方言零运行证据**：接线不跑是 D-026 的范围裁定；第一次跑 pg 前，锁等待超时、`23503` 分类、SAVEPOINT 往返、`pool.end()` 行为，以及连接串指向事务模式连接池（pgbouncer 一类）时会话级咨询锁是否还有意义，都没有证据。owner：装配，第二程。
 - **P-11 反查未实现**：sqlite 下主键与唯一约束反查回约束名是实施项，实现前 C-2 主键那一支无结果。owner：本节点。
 - **断电级持久**没有证据形式，且本版 `synchronous=NORMAL` 明确不给；R-4 只证到进程重启（跨进程重启归 AI S-32 演练）。
 - **跨进程的锁竞争**（两个进程各起一个本插件）没有套件用例；本版单机，Q-8。
 - **本节点自己的装卸测试全部未开始**；它们依赖的内核语义（basis 两条、kernel-basis 两条 probe）已在 4.0.4 上通过，不再是缺口。
+- **升级守卫零实现、零证据**：`upgrade.*` 十二条与 `lifecycle.upgrade-config-policy` 全部未开始；挡住 tenancy-host 的 `assembly.upgrade-preflight-refuses`、`assembly.upgrade-restore-on-boot-failure`、`assembly.upgrade-crash-recovery`、`assembly.upgrade-confirmed`。本包给这几条的形状：装配经 `createUpgradeGuard()` 造守卫、以 `upgrade: { checks, guard }` 传入；确认是 `guard.confirm()`，装配断言 `snapshotTaken ⇒ snapshotRemoved`，`migrated ∧ ¬snapshotTaken` 是 U-3 那一支（具名日志，不拒起）；确认调在未附着的守卫上 ⇒ `UpgradeGuardNotAttached`；撤后核查是 `guard.pending()` 的三种结果。那几条演练怎么断言归 tenancy-host。owner：本节点。
+- **夹具要补 `upgrade: false`**：落包之后，一致性套件、本包插件测试与 clock 包内测试里带迁移的夹具不写 `upgrade: false` 就以配置错误启动失败；「实际执行」里 2026-09-22 的两次运行在这条政策之前，改夹具之后要重跑再登记。owner：本节点。
+- **运维约定「生产库不得被非守卫实例打开」**（[design.md 交错 (b) 旁](design.md#自构的交错)）：非守卫实例在机制之外，本节点无法检测，无证据形式；与 clock「租约表不得手动删」同形。owner：装配（tenancy-host 的运维说明）。
+- **确认的删除已生效、目录落盘失败**那一支（[design.md 实施缺口](design.md#实施缺口与消费者影响)）：抛出时快照已不在命名空间里，与 tenancy-host R-U6「报错时快照须仍在」差这一支；定手段之前不写测试。owner：本节点 + tenancy-host。
+- **pg 上迁移提交之后的撤回**没有机制、也就没有测试形式（tenancy-host 缺口 U-3）；闭合手段二选一见 [design.md 实施缺口](design.md#实施缺口与消费者影响)，定了之后加一条真演练。owner：本节点 + tenancy-host，第一次跑 pg 之前。
+- **重跑时旧 disposer 与新插件体的先后**是待核对主张（交错 (d)）；核定前不写测试，两种答案都不静默。
+- **给 tenancy-host 的一条前提**：「库文件逐字节不变」只在上一次是干净停机时成立，否则 sqlite 关句柄时的检查点会改写库文件的字节而不改内容；该节点 `assembly.upgrade-preflight-refuses` 的断言要带这条前提或改成按内容比对（[design.md](design.md#实施缺口与消费者影响)）。
 - 与 [bindings.yaml](bindings.yaml) 一致：空表，本节点无契约条款可绑。
