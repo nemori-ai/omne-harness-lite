@@ -1,0 +1,352 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v1/tool-definition.schema.json",
+  "title": "data.tool-definition v1",
+  "description": "工具定义与工具返回值的规范形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.tool-definition/v1 内有效。",
+  "$comment": "状态 candidate，未接受、未冻结。块、附件引用、能力标识、模态、媒体类型取自 data.content-blocks v1（同样是候选、在另一处并行起草，尚未定型），本文件只 $ref 其 $defs、不复制定义。Schema 只管形状：参数 schema 是否合法的 Draft 2020-12 schema（S-4，表示层校验在 Schema 之外的那一步）、help 与 inspect 一致（S-8）、声明与实际对得上（S-19、S-24）、表示层拒绝不折成判定（S-27）都管不到。表示层拒绝值、判定次序与 malformed 的来由 M1～M23 见 contract.md S-26。正反实例在同目录 examples.md。",
+
+  "$defs": {
+
+    "ToolDefinition": {
+      "title": "工具定义 · Tool Definition",
+      "description": "S-1～S-19：一个工具在数据与治理层面的身份与表示（UL-tool-definition）。两种范式按 paradigm 判别（S-3），恰其一。作者写的定义身份是 name（S-2）；MCP 来源的定义不是资产、没有能力标识（S-17）。定义是数据，不携带运行时对象、代码或实现的装载方式（S-1、S-30），也不声明等待态、发帧、要不要卸载（S-29）。",
+      "oneOf": [
+        { "$ref": "#/$defs/SingleFunctionTool" },
+        { "$ref": "#/$defs/MultiCommandTool" }
+      ]
+    },
+
+    "SingleFunctionTool": {
+      "title": "单函数工具",
+      "description": "S-4：paradigm = single。没有命令，全是参数：input 就是参数 schema，原样进模型面（S-6）。不得带 commands（拒绝值 commands_forbidden）。MCP 来源的定义恒为这一种（S-17），且不得带 composes（S-16）。",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "description": "S-2、S-18：作者写的定义以它为身份（能力标识 = 类别 tool + name）；逐码点相等；字符集与长度是缺口 G-1。" },
+        "description": { "type": "string", "minLength": 1, "description": "S-8：模型面那个条目的说明。替换件与原件同形，只换这一项。" },
+        "paradigm": { "const": "single" },
+        "input": { "$ref": "#/$defs/JsonSchema", "description": "S-4：参数 schema，原样即 modelInput（S-6）。" },
+        "help": { "type": "string", "minLength": 1, "description": "S-8：可选的用法说明，是一个文本字段；带了须与 Tools().inspect 一致。产品正文的「help 命令空间」由 inspect 呈现这个字段，不是一个可调的命令。" },
+        "needs": { "$ref": "#/$defs/ToolNeeds" },
+        "settings": { "$ref": "#/$defs/ToolSettings" },
+        "allowBackground": { "type": "boolean", "description": "S-12：作者的许可，不是设置。不声明即不允许。" },
+        "permissions": {
+          "type": "object",
+          "description": "S-15：本版只有执行权限一项，必填、没有缺省。",
+          "properties": { "execute": { "$ref": "#/$defs/ExecutePermission" } },
+          "required": ["execute"],
+          "additionalProperties": false
+        },
+        "composes": {
+          "type": "object",
+          "description": "S-16：能组合什么——技能名，指向能力标识（类别 skill + name），不指向某一份具体资产。不是依赖，不参与可用性。",
+          "properties": { "skills": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true } },
+          "additionalProperties": false
+        },
+        "origin": { "$ref": "#/$defs/ToolOrigin" }
+      },
+      "required": ["name", "description", "paradigm", "input", "permissions", "origin"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": { "origin": { "properties": { "kind": { "const": "mcp" } }, "required": ["kind"] } },
+            "required": ["origin"]
+          },
+          "then": { "not": { "required": ["composes"] } }
+        },
+        {
+          "if": { "properties": { "settings": { "required": ["backgroundThreshold"] } }, "required": ["settings"] },
+          "then": { "properties": { "allowBackground": { "const": true } }, "required": ["allowBackground"] }
+        }
+      ],
+      "$comment": "allOf 的两条 if/then：第一条表达 S-16 与 S-17（MCP 来源的定义不组合任何资产，malformed M14）；第二条表达 S-12（声明了转后台阈值就必须有后台许可，malformed M15）。"
+    },
+
+    "MultiCommandTool": {
+      "title": "多命令工具",
+      "description": "S-5：paradigm = multi。先选命令，再给那个命令的参数。必带非空的 commands（缺或空即 commands_missing）；不带 input——它的模型面 input 由 commands 按 S-7 生成，不是一个被存下的成员。命令是工具的内部结构，不是资产。MCP 来源的定义不得是这一种（S-17）。",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "description": "S-2、S-18。" },
+        "description": { "type": "string", "minLength": 1, "description": "S-8：整个工具的说明。" },
+        "paradigm": { "const": "multi" },
+        "commands": {
+          "type": "object",
+          "description": "S-5：命令名 → 命令定义，至少一项。命令名的表示与相等见 S-18。",
+          "minProperties": 1,
+          "propertyNames": { "minLength": 1 },
+          "additionalProperties": { "$ref": "#/$defs/CommandDefinition" }
+        },
+        "help": { "type": "string", "minLength": 1, "description": "S-8：整个工具的用法总览，可选，是一个文本字段；带了须与 Tools().inspect 一致。不因它生成任何一支（S-7 第 1 条）。" },
+        "needs": { "$ref": "#/$defs/ToolNeeds" },
+        "settings": { "$ref": "#/$defs/ToolSettings" },
+        "allowBackground": { "type": "boolean", "description": "S-12。" },
+        "permissions": {
+          "type": "object",
+          "description": "S-15。",
+          "properties": { "execute": { "$ref": "#/$defs/ExecutePermission" } },
+          "required": ["execute"],
+          "additionalProperties": false
+        },
+        "composes": {
+          "type": "object",
+          "description": "S-16。",
+          "properties": { "skills": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true } },
+          "additionalProperties": false
+        },
+        "origin": {
+          "description": "S-17：多命令工具只能是作者写的。",
+          "allOf": [
+            { "$ref": "#/$defs/ToolOrigin" },
+            { "properties": { "kind": { "const": "authored" } } }
+          ]
+        }
+      },
+      "required": ["name", "description", "paradigm", "commands", "permissions", "origin"],
+      "additionalProperties": false,
+      "if": { "properties": { "settings": { "required": ["backgroundThreshold"] } }, "required": ["settings"] },
+      "then": { "properties": { "allowBackground": { "const": true } }, "required": ["allowBackground"] },
+      "$comment": "if/then 表达 S-12：声明了转后台阈值就必须有后台许可（malformed M15）。MCP 来源不得是这一种，由 origin 的 kind 限定为 authored 表达（M14）。"
+    },
+
+    "CommandDefinition": {
+      "title": "命令定义",
+      "description": "S-5：多命令工具里的一个命令。description 必填（说明这一个命令），原样成为生成规则里那一支的 description（S-7 第 4 条）；input 是这个命令的参数 schema，原样成为那一支的 args（S-7 第 3 条），只带命令清单的写法下写 {}；help 可选，是一个文本字段，带了须与 Tools().inspect 对这个命令的回答一致（S-8）。",
+      "type": "object",
+      "properties": {
+        "description": { "type": "string", "minLength": 1 },
+        "input": { "$ref": "#/$defs/JsonSchema" },
+        "help": { "type": "string", "minLength": 1 }
+      },
+      "required": ["description", "input"],
+      "additionalProperties": false
+    },
+
+    "JsonSchema": {
+      "title": "JSON Schema（Draft 2020-12）",
+      "description": "S-4、S-5：参数 schema。取值必须是 JSON Schema Draft 2020-12 的合法 schema，由实现校验，不由本 Schema 表达；本 Schema 只要求它是一个 JSON 对象，因此布尔 schema 不收。不是对象、或是对象却不合 Draft 2020-12，都是 input_not_schema（S-26 第 5 行）。本契约不约束它用哪些关键字、顶层是否 type object、能不能引用外部资源——各家供应商能呈现的子集是缺口 G-12。",
+      "type": "object",
+      "$comment": "不 $ref 官方元 schema（主线 2026-09-23 裁定）：合法性检查是表示层校验在 Schema 之外的那一步。"
+    },
+
+    "ToolNeeds": {
+      "title": "四项依赖名",
+      "description": "S-9：可选；四个成员各可选，不声明即不需要（PF-006 六项可选声明表明写的缺省）。空数组与不声明同义。它们是依赖声明里的名字，不是设置，各层不能改（S-19）。attachmentStorage 这一项算不算被满足，连同「装配里有工具读得出这个存储」一起判。",
+      "type": "object",
+      "properties": {
+        "externalServices": { "type": "array", "items": { "$ref": "#/$defs/DependencyName" }, "uniqueItems": true },
+        "attachmentStorage": { "$ref": "#/$defs/DependencyName" },
+        "inputModalities": { "type": "array", "items": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/Modality" }, "uniqueItems": true },
+        "outputModalities": { "type": "array", "items": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/Modality" }, "uniqueItems": true }
+      },
+      "additionalProperties": false
+    },
+
+    "DependencyName": {
+      "title": "依赖名",
+      "description": "S-9、S-18：依赖声明里的一个抽象名字（外部服务、存储），谁生效在那个名字上谁满足。非空字符串，逐码点相等，不解析；字符集与命名空间是缺口 G-1。",
+      "type": "string",
+      "minLength": 1
+    },
+
+    "ToolSettings": {
+      "title": "设置项声明",
+      "description": "S-10～S-13：本版恰四项，各自可选；不声明的项不存在，各层无从配值。每一项的类别由本契约定死：targetEnvironment 恒为 placement_identity，其余三项恒为 preference——作者标了别的类别即 malformed（M10），标了四值之外的类别即 category_unknown。定义给的是形状与默认值，不是最终值。",
+      "type": "object",
+      "properties": {
+        "targetEnvironment": {
+          "description": "S-11：目标环境——绑定在哪一层 × 要哪几种设施；落点与身份类，工作区配不了。",
+          "allOf": [
+            { "$ref": "#/$defs/SettingDeclaration" },
+            { "properties": { "category": { "const": "placement_identity" }, "default": { "$ref": "#/$defs/TargetEnvironment" } } }
+          ]
+        },
+        "backgroundThreshold": {
+          "description": "S-12：前台跑超过多久自动转后台；偏好类。它不授予后台许可：声明了它，定义就必须同时带 allowBackground: true（由 SingleFunctionTool、MultiCommandTool 的 if/then 表达，否则 malformed M15）。",
+          "allOf": [
+            { "$ref": "#/$defs/SettingDeclaration" },
+            { "properties": { "category": { "const": "preference" }, "default": { "$ref": "#/$defs/Duration" } } }
+          ]
+        },
+        "timeout": {
+          "description": "S-13：超时；偏好类。到时落哪种收场等语义是缺口 G-6。",
+          "allOf": [
+            { "$ref": "#/$defs/SettingDeclaration" },
+            { "properties": { "category": { "const": "preference" }, "default": { "$ref": "#/$defs/Duration" } } }
+          ]
+        },
+        "concurrency": {
+          "description": "S-13：并发；偏好类，正整数。计数范围与超出时的收场是缺口 G-6。",
+          "allOf": [
+            { "$ref": "#/$defs/SettingDeclaration" },
+            { "properties": { "category": { "const": "preference" }, "default": { "type": "integer", "minimum": 1 } } }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "SettingDeclaration": {
+      "title": "一项设置的声明",
+      "description": "S-10：{ category, default }——资产声明一项设置时必须标的类别（UL-setting-category），以及作者给的默认值。两者都必填。各层配值与运行时求值不在本契约。",
+      "type": "object",
+      "properties": {
+        "category": { "$ref": "#/$defs/SettingCategory" },
+        "default": true
+      },
+      "required": ["category", "default"],
+      "additionalProperties": false
+    },
+
+    "SettingCategory": {
+      "title": "设置项类别 · Setting Category",
+      "description": "S-10：恰四值，取自 PF-002 §5.2 与 UL-setting-category：preference 偏好 · binding 绑定 · placement_identity 落点与身份 · governance 治理。闭合枚举，未知取值即 category_unknown（S-28）。",
+      "type": "string",
+      "enum": ["preference", "binding", "placement_identity", "governance"]
+    },
+
+    "TargetEnvironment": {
+      "title": "目标环境的值",
+      "description": "S-11：{ bindingLayer, facilities }。facilities 可为空（对设施没有要求），不重复。",
+      "type": "object",
+      "properties": {
+        "bindingLayer": { "$ref": "#/$defs/BindingLayer" },
+        "facilities": { "type": "array", "items": { "$ref": "#/$defs/Facility" }, "uniqueItems": true }
+      },
+      "required": ["bindingLayer", "facilities"],
+      "additionalProperties": false
+    },
+
+    "BindingLayer": {
+      "title": "绑定层（无词条）",
+      "description": "S-11：取值恰四个，取自 PF-005 §5.1 四种执行环境，各对应一个词条：host_machine ↔ 宿主机 Host Machine · stateless_sandbox ↔ 无状态沙箱 Stateless Sandbox · session_sandbox ↔ 会话级沙箱 Session-Scoped Sandbox · tenant_sandbox ↔ 租户级沙箱 Tenant-Scoped Sandbox。闭合枚举，未知取值即 binding_layer_unknown（S-28）。「满足」是恰等还是「至少」、与执行环境权限三态怎么交互是缺口 G-5。",
+      "type": "string",
+      "enum": ["host_machine", "stateless_sandbox", "session_sandbox", "tenant_sandbox"]
+    },
+
+    "Facility": {
+      "title": "设施名",
+      "description": "S-11：环境设施（UL-environment-facility）的名字。PF-005 明确不定设施清单，因此是非空的自由字符串，逐码点相等（S-18）；名字集合是缺口 G-2。",
+      "type": "string",
+      "minLength": 1
+    },
+
+    "Duration": {
+      "title": "时长",
+      "description": "S-14：ISO 8601 时长，只用 PT 后的时、分、秒三段（按此次序、至少一段、秒可带小数），非负，不给数值上限。不收年、月、周、日：它们是日历单位，长度随起点而变。相等按时长值比较：PT60S 与 PT1M 是同一个时长。",
+      "type": "string",
+      "pattern": "^PT(?=[0-9])(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+(?:[.][0-9]+)?S)?(?![\\s\\S])",
+      "$comment": "结尾用 (?![\\s\\S]) 而不用 $：Python 的 $ 会匹配到「末尾换行之前」，两个引擎会对带尾随换行的串一收一拒。"
+    },
+
+    "ExecutePermission": {
+      "title": "执行权限的默认值",
+      "description": "S-15：{ default }，必填、没有缺省。恰三档：forbid 禁止 · auto 自动 · ask 问一下（PF-002 §4 Tool）。各层按收窄合成；三档怎样落进放行四步归 PF-007 §5.6。auto 不是执行环境权限的 auto_place，也不是会话运行模式的 auto_permission。未知档位即 permission_unknown（S-28）。",
+      "type": "object",
+      "properties": {
+        "default": { "type": "string", "enum": ["forbid", "auto", "ask"] }
+      },
+      "required": ["default"],
+      "additionalProperties": false
+    },
+
+    "ToolOrigin": {
+      "title": "来源",
+      "description": "S-17：判别成员 kind，恰两种。authored：作者写的定义。mcp：由某个 MCP 接入点的列举结果生成，对端的一个动作一份定义；endpoint 是那个接入点的能力标识（类别必须是 mcp），remoteName 是那个动作在对端的名字、原样保留。未知 kind 即 origin_unknown（S-28）。",
+      "oneOf": [
+        {
+          "title": "作者写的",
+          "type": "object",
+          "properties": { "kind": { "const": "authored" } },
+          "required": ["kind"],
+          "additionalProperties": false
+        },
+        {
+          "title": "由 MCP 列举生成",
+          "type": "object",
+          "properties": {
+            "kind": { "const": "mcp" },
+            "endpoint": {
+              "allOf": [
+                { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/CapabilityId" },
+                { "properties": { "category": { "const": "mcp" } }, "required": ["category"] }
+              ]
+            },
+            "remoteName": { "type": "string", "minLength": 1 }
+          },
+          "required": ["kind", "endpoint", "remoteName"],
+          "additionalProperties": false
+        }
+      ]
+    },
+
+    "ToolReturn": {
+      "title": "工具返回值",
+      "description": "S-20：工具函数交回来的东西，恰两种写法——一个字符串，或一个 ToolResult。字符串等价于只含一个文本块的 ToolResult（等价由接收返回值的运行时兑现）。它不是一次执行的收场（S-25）。",
+      "oneOf": [
+        { "type": "string" },
+        { "$ref": "#/$defs/ToolResult" }
+      ]
+    },
+
+    "ToolResult": {
+      "title": "ToolResult",
+      "description": "S-21：三样——content（进消息的内容，必填、可为空数组）、offload（这次要卸载的原始结果，可选）、attachments（附件的地址，可选）。content 里不得有工具调用块（S-22，拒绝值 result_call_in_content）。它不带收场、原因、耗时或账（S-25）。",
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/ContentBlock" },
+              { "not": { "properties": { "kind": { "const": "tool_call" } }, "required": ["kind"] } }
+            ]
+          }
+        },
+        "offload": { "$ref": "#/$defs/Offload" },
+        "attachments": {
+          "type": "array",
+          "items": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/AttachmentRef" }
+        }
+      },
+      "required": ["content"],
+      "additionalProperties": false
+    },
+
+    "Offload": {
+      "title": "作者声明的卸载",
+      "description": "S-23：给出它就是这次执行的作者声明要卸载。raw 必填：被卸载的原始结果，引用（AttachmentRef）或内联（base64 字节 + 媒体类型）；它从不进消息与会话日志。summary 可选、给了就非空：作者自己写的摘要，进占位；不给时占位由运行时给，只说明大小与取回途径，不是系统写的摘要。summary 里同样不得有工具调用块（S-22）。",
+      "type": "object",
+      "properties": {
+        "raw": {
+          "oneOf": [
+            { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/AttachmentRef" },
+            {
+              "title": "内联",
+              "type": "object",
+              "properties": {
+                "inline": { "type": "string", "minLength": 1, "contentEncoding": "base64", "pattern": "^[A-Za-z0-9+/]*={0,2}(?![\\s\\S])" },
+                "mediaType": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/MediaType" }
+              },
+              "required": ["inline", "mediaType"],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "summary": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "allOf": [
+              { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/ContentBlock" },
+              { "not": { "properties": { "kind": { "const": "tool_call" } }, "required": ["kind"] } }
+            ]
+          }
+        }
+      },
+      "required": ["raw"],
+      "additionalProperties": false,
+      "$comment": "内联形式的成员名 inline 与 base64 表示照 data.content-blocks 给语音、图块定的内联写法；那边的账本没有一个可 $ref 的内联字节定义名，这里因此内联写出一份，已作为「同一概念一份权威」的对齐项报主线。"
+    }
+  }
+}
