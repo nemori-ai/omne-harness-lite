@@ -75,6 +75,7 @@
 | [UL-mcp](terms/capabilities-and-composition.md#ul-mcp--mcp--mcp) | MCP | MCP | 一个外部工具来源的接入点 |
 | [UL-connector](terms/capabilities-and-composition.md#ul-connector--连接件--connector) | 连接件 | Connector | 一个外部消息来源的接入件，**方向相反** |
 | [UL-loop-extension](terms/capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension) | 拓展件 | Loop Extension | 挂在 loop 拓展点上的一段判断或动作，**第八类资产** |
+| [UL-modality-converter](terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter) | 模态转换件 | Modality Converter | 站在「消息落盘之前」的拓展件，把块的非文本模态**就地渲染成文本**；不判断要不要转、不保证转得出；简称转换件 |
 | [UL-slash-command](terms/capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command) | 斜杠命令 | Slash Command | 用户主动发起某件事的入口 |
 | [UL-plugin](terms/capabilities-and-composition.md#ul-plugin--插件--plugin) | 插件 | Plugin | 打包分发若干资产的单元，**不是 Cordis plugin** |
 | [UL-agent-definition](terms/capabilities-and-composition.md#ul-agent-definition--agent-定义--agent-definition) | Agent 定义 | Agent Definition | 一个 agent 的静态定义，不是会话也不是实例 |
@@ -88,6 +89,8 @@
 | [UL-prompt-slot](terms/capabilities-and-composition.md#ul-prompt-slot--提示词槽位--prompt-slot) | 提示词槽位 | Prompt Slot | 系统提示词里一个恒定占位的条目 |
 | [UL-model-profile](terms/capabilities-and-composition.md#ul-model-profile--模型档案--model-profile) | 模型档案 | Model Profile | 关于一个可被调用的模型的全部事实，是数据不是资产 |
 | [UL-model-credential](terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential) | 模型凭据 | Model Credential | 组织或租户身上的一项属性，**一范围一把**；身份即范围、轮换是改值、用量归范围；**范围可以自带** |
+| [UL-selected-model](terms/capabilities-and-composition.md#ul-selected-model--选中模型--selected-model) | 选中模型 | Selected Model | 会话当前指向的那条档案，**只因切换而变的取值** |
+| [UL-effective-model](terms/capabilities-and-composition.md#ul-effective-model--有效模型--effective-model) | 有效模型 | Effective Model | 这一次请求实际用的那条档案，**每次现算**；可与选中的不同，算不出是非常态 |
 
 ## [流转与授权](terms/circulation-and-entitlement.md)
 
@@ -236,6 +239,8 @@
 | [UL-session-log-projection](terms/record-and-context.md#ul-session-log-projection--会话日志投影--session-log-projection) | 会话日志投影 | Session Log Projection | 从日志派生的视图，**不是第二份权威**；重算必得同一答案 |
 | [UL-message](terms/record-and-context.md#ul-message--消息--message) | 消息 | Message | 一条对话记录，**七种，按谁在说话分** |
 | [UL-content-block](terms/record-and-context.md#ul-content-block--内容块--content-block) | 内容块 | Content Block | 一条消息装的是若干个块，**不是一段文本** |
+| [UL-modality](terms/record-and-context.md#ul-modality--模态--modality) | 模态 | Modality | 一类内容的形态，**恰四种**：文本 · 图 · 语音 · 视频；档案上与块上两处必须对得上；**文件不是模态** |
+| [UL-modality-projection](terms/record-and-context.md#ul-modality-projection--模态投影--modality-projection) | 模态投影 | Modality Projection | 会话历史里出现过哪几种**没有文本那一份**的模态；从日志派生、只增不减；合法目标的输入 |
 | [UL-block-annotation](terms/record-and-context.md#ul-block-annotation--块标注--block-annotation) | 块标注 | Block Annotation | 给人看吗、给模型看吗——**标在块上不在消息上** |
 | [UL-incremental-arrival](terms/record-and-context.md#ul-incremental-arrival--增量到达--incremental-arrival) | 增量到达 | Incremental Arrival | 分次到达，**能长的只有四样**；半条不是消息 |
 | [UL-todo-item](terms/record-and-context.md#ul-todo-item--待办条目--todo-item) | 待办条目 | Todo Item | agent 记给自己看的一条待办，活在一次会话里 |

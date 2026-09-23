@@ -1,7 +1,7 @@
 ---
 id: PF-013
 title: 模型档案、调用与切换
-status: draft
+status: active
 revision: 4
 relations:
   supersedes: []
@@ -66,7 +66,7 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 4**，草稿。rev 1 起草于 2026-09-20，
+- 产品设计：**rev 4**，**已正式接受**（产品负责人 2026-09-23，[记录](decisions.md#2026-09-23--接受为正式)）。rev 1 起草于 2026-09-20，
   同日两次修订：[rev 2 按转换件与「面向状态码」两条裁决](changelog.md#rev-2--2026-09-20)、
   [rev 3 写死模型请求运行时的宿主](changelog.md#rev-3--2026-09-20)；
   [rev 4 把凭据定性为范围上的一项属性，并支持自带凭据](changelog.md#rev-4--2026-09-22)
@@ -76,8 +76,8 @@ relations:
   「有哪些模态、哪个模型收得下哪些」是大语言模型域定的，所以契约归这里
 - **本 topic 与 [PF-012](../PF-012-agent-loop-and-run/README.md)、
   [PF-014](../PF-014-inbound-intake-and-queueing/README.md) 出自同一次联合修订**；
-  那两份此后各自继续演进——**PF-012 到 rev 7**，**PF-014 到 rev 3 并已定稿**。
-  **本 topic 仍是 draft rev 3**，接受与否按本段，不随那两份的状态走
+  那两份此后各自继续演进——**PF-012 到 rev 7**，**PF-014 到 rev 3 并已定稿**；
+  三份各自演进、各自接受，状态不互相牵连
 - 技术投影：尚未开始
 
 ## 本包的文件

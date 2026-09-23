@@ -26,15 +26,15 @@
 | [PF-004 Agent 定义与装配](PF-004-agent-definition-and-assembly/README.md) | active | 9 |
 | [PF-005 执行环境与沙箱](PF-005-execution-environments-and-sandboxes/README.md) | active | 5 |
 | [PF-006 工具与技能](PF-006-tools-and-skills/README.md) | active | 14 |
-| [PF-007 Meta Capabilities](PF-007-meta-capabilities/README.md) | active | 15 |
+| [PF-007 Meta Capabilities](PF-007-meta-capabilities/README.md) | active | 16 |
 | [PF-008 Human in the Loop](PF-008-human-in-the-loop/README.md) | active | 4 |
 | [PF-009 上下文消息类型](PF-009-context-message-types/README.md) | active | 4 |
 | [PF-010 上下文管理与组装](PF-010-context-management-and-assembly/README.md) | active | 5 |
 | [PF-011 非常态的分层处置](PF-011-off-nominal-handling/README.md) | active | 4 |
 | [PF-012 Agent Loop 与 Run](PF-012-agent-loop-and-run/README.md) | active | 7 |
-| [PF-013 模型档案、调用与切换](PF-013-model-profiles-and-invocation/README.md) | draft | 4 |
+| [PF-013 模型档案、调用与切换](PF-013-model-profiles-and-invocation/README.md) | active | 4 |
 | [PF-014 输入的受理与排队](PF-014-inbound-intake-and-queueing/README.md) | active | 3 |
-| [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md) | draft | 9 |
+| [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md) | draft | 10 |
 | [PF-016 命令行交付面](PF-016-cli-tui-delivery-surface/README.md) | active | 3 |
 
 ## 已排定、尚未开题的编号
@@ -58,9 +58,10 @@ inbound 是 [PF-014](PF-014-inbound-intake-and-queueing/README.md)，**四个全
 > - [通信规则一的条件问题](PF-007-meta-capabilities/design.md#92-报告之后派发者再发一条消息子拿什么回应)
 >   已由 PF-007 rev 10 闭合——规则一改双向，规则二的条件明确为**会话仍未被归档**。
 >
-> **PF-015 还差最后半块**：产品负责人给定的五块大纲里，
-> [只剩工具权限本身没开始](PF-015-session-lifecycle-and-ownership/README.md#本-rev-覆盖到哪)
-> （执行环境权限归 [PF-005](PF-005-execution-environments-and-sandboxes/README.md)）。
+> **PF-015 五块大纲现已全部有落点**（2026-09-23）：工具权限那条腿由
+> [PF-007 §5.6](PF-007-meta-capabilities/design.md#56-一次放行判断走四步) 接住——
+> 三档执行权限各落放行四步里的一处；执行环境权限归 [PF-005](PF-005-execution-environments-and-sandboxes/README.md)。
+> PF-015 仍是草稿，接受与否另议。
 
 > **2026-09-20**：**产品正文统一去历史化。**产品负责人的要求：
 > **`design.md` 只记录最终正式确定的设计**——「之前怎么样、现在怎么样」与推导过程

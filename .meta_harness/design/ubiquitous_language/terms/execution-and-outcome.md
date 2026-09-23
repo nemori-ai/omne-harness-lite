@@ -101,6 +101,10 @@
   **也不是回复怎么流式拼起来**，那归 [PF-009](../../product/PF-009-context-message-types/README.md)
 - **注意**：**这一层归 [PF-013](../../product/PF-013-model-profiles-and-invocation/README.md)**——
   它的三个终态（**完整一份 · 上交 · 被中断**）、失败怎么分类、[什么时候算试尽](../../product/PF-013-model-profiles-and-invocation/design.md#什么时候算试尽)，都在那里
+- **注意 ②**：**「模型请求运行时」指执行这一次调用的那个协程，与它同生同灭**——
+  [正文当同一物用](../../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)，
+  [对象条目已并入](../../domain_objects/objects.md#ul-model-call--一次模型调用)，**不另立词条**（与「工具执行运行时」并入[工具执行](#ul-tool-execution--工具执行--tool-execution)同一分寸）；
+  它受 [`runtime` 那条写死的规矩](../conventions.md#runtime-这个词本系统写死了)约束：**宿主永远是 agent runtime，转不了后台**
 
 ## 跑的过程中，跟外面说的两种话
 

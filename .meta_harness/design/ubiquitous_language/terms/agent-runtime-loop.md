@@ -168,7 +168,7 @@
 - **形态**：过程
 - **出处**：[PF-015 §4 会话归档](../../product/PF-015-session-lifecycle-and-ownership/design.md#会话归档) ·
   [§6.2](../../product/PF-015-session-lifecycle-and-ownership/design.md#62-归档有两条来路人手动或到期自动) ·
-  [§6.3](../../product/PF-015-session-lifecycle-and-ownership/design.md#63-归档先停活儿再落状态)（rev 9）
+  [§6.3](../../product/PF-015-session-lifecycle-and-ownership/design.md#63-归档先停活儿再落状态)（rev 10）
 - **别混 ①**：**不是删除。**会话的身份与历史一直在，**归档只让它从眼前收起来**
 - **别混 ②**：**不是[会话级沙箱的销毁](grounding-and-isolation.md#ul-session-sandbox--会话级沙箱--session-scoped-sandbox)。**
   那挂的是**沙箱自己的最大连续存活时间**，[同一节明写「会话可以无限期存在」](../../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)——
@@ -196,7 +196,7 @@
 > happens to that definition.
 
 - **形态**：属性
-- **出处**：[PF-015 §4 会话类型](../../product/PF-015-session-lifecycle-and-ownership/design.md#会话类型) · [§5.3](../../product/PF-015-session-lifecycle-and-ownership/design.md#53-会话类型怎么算出来)（rev 9）
+- **出处**：[PF-015 §4 会话类型](../../product/PF-015-session-lifecycle-and-ownership/design.md#会话类型) · [§5.3](../../product/PF-015-session-lifecycle-and-ownership/design.md#53-会话类型怎么算出来)（rev 10）
 - **⚠️ 别混**：**它不是一道闸门。**它**不参与**
   [放行三元组](../../product/PF-007-meta-capabilities/design.md#611-ask通向人)，
   也不收窄任何[权限](capabilities-and-composition.md#ul-permission--权限--permission)——
@@ -223,8 +223,8 @@
 > does not decide which actions need asking**, only what happens at that moment.
 
 - **形态**：属性
-- **出处**：[PF-015 §4 会话运行模式](../../product/PF-015-session-lifecycle-and-ownership/design.md#会话运行模式)（rev 9）；
-  它在[放行四步](../../product/PF-007-meta-capabilities/design.md#56-一次放行判断走四步)（rev 15）里是第 ④ 步
+- **出处**：[PF-015 §4 会话运行模式](../../product/PF-015-session-lifecycle-and-ownership/design.md#会话运行模式)（rev 10）；
+  它在[放行四步](../../product/PF-007-meta-capabilities/design.md#56-一次放行判断走四步)（rev 16）里是第 ④ 步
 - **⚠️ 别混**：**`auto_permission` 决定「准不准」，执行环境那一维的 `auto_place` 决定「落在哪」**——
   两者会在同一次执行里一前一后出现。**两个名字特意分开取，就是为了不撞**
   （`auto_place` 是[执行环境权限](grounding-and-isolation.md#ul-execution-environment-permission--执行环境权限--execution-environment-permission)的一档，归 PF-005）。

@@ -4,10 +4,10 @@
 > 要引用，引[领域对象条目](../domain_objects/objects.md)、[统一语言词条](../ubiquitous_language/index.md)或它们指向的产品正文。
 
 - derived-from：`ubiquitous_language/terms/*.md`（形态、变体的父）· `domain_objects/objects.md` · `domain_objects/pending.md` · `product/PF-*/{README,design,flows}.md`（rev、指向词条的链接）
-- 生成时间：2026-09-22
+- 生成时间：2026-09-23
 - 生成：`python tooling/src/domain_objects.py --root design --write`
 
-对象 **38** 个，变体 **19** 个，形态未定的词条 **0** 个，待裁 **8** 项。
+对象 **38** 个，变体 **20** 个，形态未定的词条 **0** 个，待裁 **8** 项。
 
 **按统一语言的分卷排**——分卷「按它回答什么问题」，是全链里唯一不随对象重新分解而搬家的维度。这不是能力边界，也不是限界上下文；那是系统架构设计的事。
 
@@ -26,17 +26,17 @@
 
 | 对象 | 词条 | 宿主 | 变体 | 依据所在 | 还有谁在讲 |
 |---|---|---|---|---|---|
-| [资产](../domain_objects/objects.md#ul-asset--资产) | [UL-asset](../ubiquitous_language/terms/capabilities-and-composition.md#ul-asset--资产--asset) | — | 技能、工具、MCP、连接件、拓展件、斜杠命令、插件、Agent 定义、官方件、自定义件 | PF-002 | 001 |
+| [资产](../domain_objects/objects.md#ul-asset--资产) | [UL-asset](../ubiquitous_language/terms/capabilities-and-composition.md#ul-asset--资产--asset) | — | 技能、工具、MCP、连接件、拓展件、模态转换件、斜杠命令、插件、Agent 定义、官方件、自定义件 | PF-002 | 001 |
 | [资产版本](../domain_objects/objects.md#ul-asset-version--资产版本) | [UL-asset-version](../ubiquitous_language/terms/capabilities-and-composition.md#ul-asset-version--资产版本--asset-version) | [资产](../domain_objects/objects.md#ul-asset--资产)——每一份资产有自己独立的一条版本线 | — | PF-002 | 003 |
 | [meta 能力](../domain_objects/objects.md#ul-meta-capability--meta-能力) | [UL-meta-capability](../ubiquitous_language/terms/capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability) | 正文未述。只说每个 agent 装配起来之后，十三个各恒定占一个常驻槽位 | — | PF-007 | — |
-| [模型档案](../domain_objects/objects.md#ul-model-profile--模型档案) | [UL-model-profile](../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-profile--模型档案--model-profile) | —。建在组织或租户自己那一层；它不是资产，「用哪个模型」那项设置的取值是对它的引用 | — | PF-013（草稿） | — |
+| [模型档案](../domain_objects/objects.md#ul-model-profile--模型档案) | [UL-model-profile](../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-profile--模型档案--model-profile) | —。建在组织或租户自己那一层；它不是资产，「用哪个模型」那项设置的取值是对它的引用 | — | PF-013 | — |
 
 ## 执行与收场
 
 | 对象 | 词条 | 宿主 | 变体 | 依据所在 | 还有谁在讲 |
 |---|---|---|---|---|---|
 | [工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行) | [UL-tool-execution](../ubiquitous_language/terms/execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution) | 前台时是 [agent runtime](../domain_objects/objects.md#ul-agent-runtime--agent-runtime)；转后台即换成[会话](../domain_objects/objects.md#ul-session--会话) | — | PF-006 | 012 014 |
-| [一次模型调用](../domain_objects/objects.md#ul-model-call--一次模型调用) | [UL-model-call](../ubiquitous_language/terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call) | [agent runtime](../domain_objects/objects.md#ul-agent-runtime--agent-runtime)（永远；转不了后台） | — | PF-013（草稿） | 011 012 014 |
+| [一次模型调用](../domain_objects/objects.md#ul-model-call--一次模型调用) | [UL-model-call](../ubiquitous_language/terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call) | [agent runtime](../domain_objects/objects.md#ul-agent-runtime--agent-runtime)（永远；转不了后台） | — | PF-013 | 011 012 014 |
 | [附件](../domain_objects/objects.md#ul-attachment--附件) | [UL-attachment](../ubiquitous_language/terms/execution-and-outcome.md#ul-attachment--附件--attachment) | 产出它的那次[工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行)；实际存放在工具定义声明的那个存储里 | — | PF-006 | 016 |
 | [被卸载的原始结果](../domain_objects/objects.md#ul-offloaded-result--被卸载的原始结果) | [UL-offloaded-result](../ubiquitous_language/terms/execution-and-outcome.md#ul-offloaded-result--被卸载的原始结果--offloaded-result) | 正文未述。它由一次[工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行)产出，却从来没进过[会话日志](../domain_objects/objects.md#ul-session-log--会话日志)——日志里只有那条占位；它自己「存起来」在哪、寿命跟着谁，没有说 | — | PF-006 | 012 |
 
@@ -86,10 +86,10 @@
 |---|---|---|---|---|---|
 | [账号](../domain_objects/objects.md#ul-account--账号) | [UL-account](../ubiquitous_language/terms/subjects-and-ownership.md#ul-account--账号--account) | — | — | PF-001 | — |
 | [登录状态](../domain_objects/objects.md#ul-login-state--登录状态) | [UL-login-state](../ubiquitous_language/terms/subjects-and-ownership.md#ul-login-state--登录状态--login-state) | [账号](../domain_objects/objects.md#ul-account--账号)——它是以这个账号的身份通过鉴权的一次登录。账号本版无注销，「账号没了它怎么办」正文无从谈起 | — | PF-001 | — |
-| [组织](../domain_objects/objects.md#ul-organization--组织) | [UL-organization](../ubiquitous_language/terms/subjects-and-ownership.md#ul-organization--组织--organization) | — | 个人组织、团队组织 | PF-001 | 013（草稿） |
+| [组织](../domain_objects/objects.md#ul-organization--组织) | [UL-organization](../ubiquitous_language/terms/subjects-and-ownership.md#ul-organization--组织--organization) | — | 个人组织、团队组织 | PF-001 | 013 |
 | [邀请](../domain_objects/objects.md#ul-invitation--邀请) | [UL-invitation](../ubiquitous_language/terms/subjects-and-ownership.md#ul-invitation--邀请--invitation) | [组织](../domain_objects/objects.md#ul-organization--组织)——**发出它的那个组织**：它不存在了，这份邀请随即自动过期。它指向一个账号，但那个账号在接受之前对它没有任何持有；个人组织发不出邀请 | — | PF-001 | — |
 | [隶属请求](../domain_objects/objects.md#ul-affiliation-request--隶属请求) | [UL-affiliation-request](../ubiquitous_language/terms/subjects-and-ownership.md#ul-affiliation-request--隶属请求--affiliation-request) | 正文未述。由一个[组织](../domain_objects/objects.md#ul-organization--组织)的超级管理员发出、指向另一个组织；个人组织不参与隶属关系，既发不出也收不到 | — | PF-001 | — |
-| [租户](../domain_objects/objects.md#ul-tenant--租户) | [UL-tenant](../ubiquitous_language/terms/subjects-and-ownership.md#ul-tenant--租户--tenant) | —（身份由[组织](../domain_objects/objects.md#ul-organization--组织)与[账号](../domain_objects/objects.md#ul-account--账号)共同确定） | — | PF-001 | 011 013（草稿） |
+| [租户](../domain_objects/objects.md#ul-tenant--租户) | [UL-tenant](../ubiquitous_language/terms/subjects-and-ownership.md#ul-tenant--租户--tenant) | —（身份由[组织](../domain_objects/objects.md#ul-organization--组织)与[账号](../domain_objects/objects.md#ul-account--账号)共同确定） | — | PF-001 | 011 013 |
 
 ## 谁寄宿在谁身上
 

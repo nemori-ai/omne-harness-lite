@@ -29,7 +29,7 @@
 > whom it can communicate with.
 
 - **形态**：过程
-- **出处**：[PF-007 §6.8 派发有三种模式](../../product/PF-007-meta-capabilities/design.md#派发有三种模式)（rev 15）
+- **出处**：[PF-007 §6.8 派发有三种模式](../../product/PF-007-meta-capabilities/design.md#派发有三种模式)（rev 16）
 - **注意 ①**：**两处分水岭，各自只有一条。**`spawn` 与 `delegate` 只差
   「**它带着什么开始干活**」——**一个带副本加交代，一个只带交代**；
   `spawn`/`delegate` 与 `handoff` 只差
@@ -58,7 +58,7 @@
 
 - **形态**：属性
 - **出处**：[PF-007 §6.8 两处分水岭，各自只有一条](../../product/PF-007-meta-capabilities/design.md#两处分水岭各自只有一条) ·
-  [§6.8 报告终结的是这次派发，不是那个会话](../../product/PF-007-meta-capabilities/design.md#报告终结的是这次派发不是那个会话)（rev 15）
+  [§6.8 报告终结的是这次派发，不是那个会话](../../product/PF-007-meta-capabilities/design.md#报告终结的是这次派发不是那个会话)（rev 16）
 - **别混 ①**：与「**派发出去的 agent**」不是一回事——**后者含 `handoff`，它不含**。
   [规则一](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)管的是前者，范围更大
 - **别混 ②**：**与 [agent 类型](capabilities-and-composition.md#ul-agent-type--agent-类型--agent-type)不是一回事**——
@@ -96,7 +96,7 @@
 > dispatch relationship**, so **two agents that never met can talk**.
 
 - **形态**：规则
-- **出处**：[PF-007 §6.8 先说谁能给谁发消息](../../product/PF-007-meta-capabilities/design.md#先说谁能给谁发消息这是两条独立的规则)（rev 15）
+- **出处**：[PF-007 §6.8 先说谁能给谁发消息](../../product/PF-007-meta-capabilities/design.md#先说谁能给谁发消息这是两条独立的规则)（rev 16）
 - **注意 ①**：**规则二那三个条件缺一不可**，「**会话仍活跃**」尤其容易被忽略——
   **一个会话已被归档的 agent，不是「暂时联系不上」，是这条通路不存在了**。
   **「活跃」就是「未被归档」**（[UL-D-4 裁决 8](../decisions.md#ul-d-4--主会话与子会话--2026-09-21)）——
@@ -134,7 +134,7 @@
 > **a report comes once**, messages any number of times.
 
 - **形态**：对象
-- **出处**：[PF-007 §6.8 报告与消息是两样东西](../../product/PF-007-meta-capabilities/design.md#报告与消息是两样东西)（rev 15）
+- **出处**：[PF-007 §6.8 报告与消息是两样东西](../../product/PF-007-meta-capabilities/design.md#报告与消息是两样东西)（rev 16）
 - **⚠️ 它终结的是这次派发，不是那个会话。**[子 agent](#ul-subagent--子-agent--subagent) 交回报告之后，
   **它的会话不会因此被归档，而归档是会话唯一的出口**，派发者[照样发得出消息](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)。
   **不点破这一条，就会被做成「报告一到就把那个会话收掉」——而且不报错**
@@ -284,7 +284,7 @@
 > own**. **Several questions may be asked at once.**
 
 - **形态**：过程
-- **出处**：[PF-007 §6.11 `Ask()`](../../product/PF-007-meta-capabilities/design.md#611-ask通向人)（rev 15）
+- **出处**：[PF-007 §6.11 `Ask()`](../../product/PF-007-meta-capabilities/design.md#611-ask通向人)（rev 16）
 - **别混**：与[请示](#ul-approval-request--请示--approval-request)**形状不同**——
   **问询是开放的，拿到之后接着想；请示是封闭的，拿到之后才动手**
 - **注意 ①**：**自由作答这条路由系统保证，不靠 agent 记得留**——**靠自觉总有忘的时候**
@@ -304,7 +304,7 @@
 > declined. **An approval is recorded into the session authorization context.**
 
 - **形态**：过程
-- **出处**：[PF-007 §6.11 `Ask()`](../../product/PF-007-meta-capabilities/design.md#611-ask通向人)（rev 15）
+- **出处**：[PF-007 §6.11 `Ask()`](../../product/PF-007-meta-capabilities/design.md#611-ask通向人)（rev 16）
 - **注意 ①**：**先把事做了再请示，那不叫请示，叫通知**——**人拒绝的时候已经晚了**
 - **注意 ②**：**翻不出裁决就不要翻。**人的回答常常不落在准/驳上（「第二封改改语气再发」）——
   **替人合成一个裁决等于伪造签字**
@@ -327,7 +327,7 @@
 > the session's run mode.
 
 - **形态**：对象
-- **出处**：[PF-007 §4 会话授权上下文](../../product/PF-007-meta-capabilities/design.md#会话授权上下文)（rev 15）
+- **出处**：[PF-007 §4 会话授权上下文](../../product/PF-007-meta-capabilities/design.md#会话授权上下文)（rev 16）
 - **注意 ①**：**流水里的每一笔是一次[授权表达](#ul-authorization-expression--授权表达--authorization-expression)**，
   **三个维度**——**来源**（结构化：界面上对着条目操作 / **语义化：用嘴说**）、
   **方向**（给出 / 撤回）、**作用域**（这一次 / 本会话 / **全局，即本租户下未来所有会话**）。
@@ -367,7 +367,7 @@
 > permission setting value**.
 
 - **形态**：对象
-- **出处**：[PF-007 §4 一笔授权表达有三个维度](../../product/PF-007-meta-capabilities/design.md#一笔授权表达有三个维度)（rev 15）
+- **出处**：[PF-007 §4 一笔授权表达有三个维度](../../product/PF-007-meta-capabilities/design.md#一笔授权表达有三个维度)（rev 16）
 - **别混**：**不是[会话授权上下文](#ul-session-authorization-context--会话授权上下文--session-authorization-context)**——
   那是流水**整份**，这是流水里的**一笔**
 - **注意 ①**：**撤回也是一笔**——**不是把先前那笔擦掉**，是往后再记一笔
@@ -417,7 +417,7 @@
 > mark on that log at all** — a defining property, not an implementation detail.
 
 - **形态**：位置
-- **出处**：[PF-015 §4 业务流程拓展点](../../product/PF-015-session-lifecycle-and-ownership/design.md#业务流程拓展点) · [§6.6](../../product/PF-015-session-lifecycle-and-ownership/design.md#66-跑题只提醒不阻拦)（rev 9）
+- **出处**：[PF-015 §4 业务流程拓展点](../../product/PF-015-session-lifecycle-and-ownership/design.md#业务流程拓展点) · [§6.6](../../product/PF-015-session-lifecycle-and-ownership/design.md#66-跑题只提醒不阻拦)（rev 10）
 - **⚠️ 别混**：**它不是 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)**——
   **那一类只能靠改会话日志起作用**，这一类恰恰一个字都不能改。
   两者是**并列的两类拓展点**，不是同一类的两个位置

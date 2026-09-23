@@ -165,6 +165,30 @@
 - **注意 ②**：**它只能靠改[会话日志](record-and-context.md#ul-session-log--会话日志--session-log)起作用**，不能不留痕地改变下一步
 - **能组合**：**不组合任何资产**（同 [MCP](#ul-mcp--mcp--mcp) 与[连接件](#ul-connector--连接件--connector)）
 
+### UL-modality-converter · 模态转换件 · Modality Converter
+
+> **中**：挂在 [PF-012「消息落盘之前」](../../product/PF-012-agent-loop-and-run/design.md#模态转换为什么必须落在这里)那个位置上的一件[拓展件](#ul-loop-extension--拓展件--loop-extension)，
+> **把一个[内容块](record-and-context.md#ul-content-block--内容块--content-block)的非文本[模态](record-and-context.md#ul-modality--模态--modality)就地渲染成文本**。
+> 它**声明自己能处理哪些模态**；**块进块出**；**就地给那个块记录文本的字段赋值**，不新增块、不改原样；
+> **在落盘之前跑完，之后不再跑**。它**不判断这次要不要转**、**不保证转得出来**、**不承诺无损**。
+> 正文在没有歧义处简称**转换件**。
+>
+> **EN**: A loop extension sitting at the "before a message is persisted" position that
+> **renders a content block's non-text modality into text, in place**. It **declares which
+> modalities it handles**; **a block goes in and text comes out**; it **fills the block's
+> text field** without adding a block or altering the original; it **runs before
+> persistence and never again**. It does **not** decide whether to convert this time,
+> does **not** guarantee a rendering, and does **not** promise losslessness. Short form
+> in running text: *converter*.
+
+- **形态**：变体（父：[拓展件](#ul-loop-extension--拓展件--loop-extension)）
+- **出处**：[PF-013 §4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件)（rev 4） ·
+  [PF-012 §5.8 模态转换为什么必须落在这里](../../product/PF-012-agent-loop-and-run/design.md#模态转换为什么必须落在这里)（rev 7）
+- **⚠️ 别混**：**不是[结果卸载](execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)**——
+  那是把**太大**的工具结果换成占位、原件离开消息；转换件处理的是**读不懂**，**原件一步没动**
+- **注意 ①**：**位置归 PF-012，契约归 PF-013**——有哪些模态、哪个模型收得下哪些，是大语言模型域定的
+- **注意 ②**：**转不出来的块就进[模态投影](record-and-context.md#ul-modality-projection--模态投影--modality-projection)**，把收不下它的模型挡在合法目标之外——这是有意的兜底方向
+
 ### UL-slash-command · 斜杠命令 · Slash Command
 
 > **中**：**用户主动发起某件事的入口**，用户敲 `/什么` 触发。
@@ -368,7 +392,7 @@
 > necessarily resident, and can be neither disabled nor replaced.**
 
 - **形态**：对象
-- **出处**：[PF-007 §4 meta](../../product/PF-007-meta-capabilities/design.md#meta)（rev 15） · [meta 与常驻的关系](../../product/PF-007-meta-capabilities/design.md#meta-与常驻的关系)（rev 15）
+- **出处**：[PF-007 §4 meta](../../product/PF-007-meta-capabilities/design.md#meta)（rev 16） · [meta 与常驻的关系](../../product/PF-007-meta-capabilities/design.md#meta-与常驻的关系)（rev 16）
 - **⚠️ 注意 ①**：**「不可禁用」说的是那扇门，不是门后的每一条命令。**
   [权限照常作用在命令这一级](../../product/PF-007-meta-capabilities/design.md#57-权限能关掉一条命令关不掉一扇门)——
   **一条命令可以被关掉，而那扇门关不掉**。
@@ -400,7 +424,7 @@
 > resident budget is **on entry points, not on individual actions**.
 
 - **形态**：视图
-- **出处**：[PF-006 §4 槽位](../../product/PF-006-tools-and-skills/design.md#槽位)（rev 14） · [PF-007 §5.4](../../product/PF-007-meta-capabilities/design.md#54-十三个槽位是预算的地板也是它的天花板意义)（rev 15）
+- **出处**：[PF-006 §4 槽位](../../product/PF-006-tools-and-skills/design.md#槽位)（rev 14） · [PF-007 §5.4](../../product/PF-007-meta-capabilities/design.md#54-十三个槽位是预算的地板也是它的天花板意义)（rev 16）
 - **别混**：**裸写「槽位」不作数**——它专指系统提示词里的那种占位
 - **注意**：**不占槽位不等于不在[动作空间](#ul-action-space--动作空间--action-space)里**——见[三层正交](reach-and-availability.md#三层正交这是本卷的地基)
 
@@ -463,5 +487,42 @@
   **正式名一律带「模型」**
 - **注意**：一范围一把的代价是**做不到「这个模型走另一个账号」**；
   同一范围里所有自建档案的用量都记在同一把上，**上游账单分不到单条档案**
+
+### UL-selected-model · 选中模型 · Selected Model
+
+> **中**：**[会话](agent-runtime-loop.md#ul-session--会话--session)当前指向的那条[模型档案](#ul-model-profile--模型档案--model-profile)。**
+> 它是一个**被记下来的取值**，**只因一次切换而变**；它摆在那儿，不会算不出来。
+> **它不是这一次请求实际用的那条**——那是[有效模型](#ul-effective-model--有效模型--effective-model)。
+>
+> **EN**: **The model profile a session currently points at** — a **recorded value** that
+> **changes only through a switch**, and is always simply there. **Not the profile a given
+> request actually goes out with**: that is the effective model.
+
+- **形态**：属性
+- **出处**：[PF-013 §4 选中模型 与 有效模型](../../product/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型) ·
+  [§5.9](../../product/PF-013-model-profiles-and-invocation/design.md#59-换模型一条事实一个生效点零个新分支)（rev 4）
+- **⚠️ 别混**：用户界面上「你正在用 X」说的是它；**「刚才那句话是 X 说的」说的是另一件事**，两者完全可以不是同一个答案
+
+### UL-effective-model · 有效模型 · Effective Model
+
+> **中**：**这一次请求实际用的那条[模型档案](#ul-model-profile--模型档案--model-profile)。**
+> 它是**一次求值的结果，每次请求现算**：从[选中模型](#ul-selected-model--选中模型--selected-model)出发，
+> 经[层级求值](scope-and-resolution.md#ul-scope-evaluation--作用域求值--scope-evaluation)（上层[锁死](scope-and-resolution.md#ul-immutable-marker--不可覆盖标记--immutable-marker)的压过它），
+> 再经「调模型之前」位置上的[拓展件](#ul-loop-extension--拓展件--loop-extension)可能的改写得出；
+> **可以与选中模型不同**；**算不出来是一件非常态**。
+> **不是「上一条回复是哪个模型生成的」**——那是留痕，是上一次求值的历史答案。
+>
+> **EN**: **The model profile one request actually goes out with** — **the result of an
+> evaluation, computed afresh per request**: starting from the selected model, through
+> scope evaluation (an upper level's lock wins), then through whatever an extension at the
+> "before the model call" position rewrites. It **may differ from the selected model**,
+> and **failing to compute it is an off-nominal**. **Not "which model produced the last
+> reply"** — that is a trace, the answer of an earlier evaluation.
+
+- **形态**：视图
+- **出处**：[PF-013 §4 选中模型 与 有效模型](../../product/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型) ·
+  [§5.10](../../product/PF-013-model-profiles-and-invocation/design.md#510-合法目标集合与展示列表是两件事) ·
+  [§6.9](../../product/PF-013-model-profiles-and-invocation/design.md#69-合法目标算不出来时不替用户改选)（rev 4）
+- **注意**：拓展件改掉它**不是静默的**——它[必须留下结论](../../product/PF-012-agent-loop-and-run/design.md#610-能干预的拓展件必须留下结论)
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

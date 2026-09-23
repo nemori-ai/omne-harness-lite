@@ -282,7 +282,7 @@
 > among its blocks.
 
 - **形态**：总称
-- **出处**：[PF-015 §4 runtime context](../../product/PF-015-session-lifecycle-and-ownership/design.md#runtime-context)（rev 9）；块的两类来源沿用 [PF-001 §4 Context](../../product/PF-001-identity-scope-and-agent-constraints/design.md#contextagent-运行时可感知的上下文信息)（rev 15）
+- **出处**：[PF-015 §4 runtime context](../../product/PF-015-session-lifecycle-and-ownership/design.md#runtime-context)（rev 10）；块的两类来源沿用 [PF-001 §4 Context](../../product/PF-001-identity-scope-and-agent-constraints/design.md#contextagent-运行时可感知的上下文信息)（rev 15）
 - **弃用说法**：~~会话上下文感知域~~——**同一个概念**，正文统一写 runtime context
 - **别混 ①**：**不是 Cordis 的 `Context`**——那是依赖注入与生命周期的容器，属技术设计。指它时**必须写全 `Cordis Context`**
 - **别混 ②**：**不是[给模型看的上下文](../index.md#记录与上下文)**。**裸写「上下文 / context」在跨 topic 的文字里一律不作数**，[已记为冲突](../conflicts.md#现有冲突)
@@ -318,7 +318,7 @@
 > may be missing.**
 
 - **形态**：总称
-- **出处**：[PF-015 §4 meta runtime context](../../product/PF-015-session-lifecycle-and-ownership/design.md#meta-runtime-context) · [§5.6 十四项](../../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 9）
+- **出处**：[PF-015 §4 meta runtime context](../../product/PF-015-session-lifecycle-and-ownership/design.md#meta-runtime-context) · [§5.6 十四项](../../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 10）
 - **注意 ①**：**与 [meta 能力](capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability)同构**——
   那边是每个 agent 必不可少的**能力**，这边是每个会话必不可少的**感知**。**两边都不可禁用、不可替换**
 - **注意 ②**：**当前恰有十四项**，[逐项的生产者、消费者与至少提供什么见正文](../../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)

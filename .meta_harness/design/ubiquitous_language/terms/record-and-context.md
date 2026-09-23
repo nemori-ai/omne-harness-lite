@@ -123,7 +123,7 @@
 > projection's own tradeoff, **and does not change what it is**.
 
 - **形态**：视图
-- **出处**：[PF-015 §5.8](../../product/PF-015-session-lifecycle-and-ownership/design.md#58-存储要守住的两件事)（rev 9）·
+- **出处**：[PF-015 §5.8](../../product/PF-015-session-lifecycle-and-ownership/design.md#58-存储要守住的两件事)（rev 10）·
   [PF-013 §4 模态投影](../../product/PF-013-model-profiles-and-invocation/design.md#模态投影)（rev 4）**给出了第一个实例**
 - **⚠️ 别混**：**不是 [runtime context](scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context)。**
   runtime context 是**会话内那三个角色**消费的；**投影多半是给会话外的服务用的**。
@@ -183,6 +183,47 @@
   **模型的思考与它的回答是两回事，混在一起就再也分不开**；
   工具调用的参数是结构化的，**压成文本就要靠解析捞回来，而解析会错**
 - **注意**：**文件块是一个[附件](execution-and-outcome.md#ul-attachment--附件--attachment)的引用，不是文件内容**
+
+### UL-modality · 模态 · Modality
+
+> **中**：**一类内容的形态：文本 · 图 · 语音 · 视频，恰四种。**
+> 它写在两处，**两处必须对得上**：[模型档案](capabilities-and-composition.md#ul-model-profile--模型档案--model-profile)上写这个模型**收得下、给得出**哪几种；
+> [内容块](#ul-content-block--内容块--content-block)上写这一块**是**哪一种。
+> **差一点就是它、但不是它：块的类型。**思考与工具调用是文本的**用途**，不是形态；
+> 文件块装的是附件的引用、任何模型都读得了，**所以文件不是一种模态**。
+>
+> **EN**: **The form a piece of content takes: text, image, voice or video — exactly
+> four.** It is written in two places that **must agree**: on a model profile, which kinds
+> the model **takes in and gives out**; on a content block, which kind **this block is**.
+> **Close but not it: the block type.** Thinking and tool calls are *uses* of text, not
+> forms; a file block holds an attachment reference any model can read, **so "file" is not
+> a modality**.
+
+- **形态**：属性
+- **出处**：[PF-013 §4 模态](../../product/PF-013-model-profiles-and-invocation/design.md#模态)（rev 4）
+- **⚠️ 别混**：**七类块 ≠ 四种模态**——块的类型归 [PF-009](../../product/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)，模态归 PF-013
+- **注意**：两处对不上时**挡在算合法目标那一刻**，不是挡在出门那一刻
+
+### UL-modality-projection · 模态投影 · Modality Projection
+
+> **中**：**这个会话的历史里，出现过哪几种「只有原件、没有文本那一份」的[模态](#ul-modality--模态--modality)。**
+> 它从[会话日志](#ul-session-log--会话日志--session-log)派生，**重算一遍必得同一个答案**；
+> **只增不减**；是[合法目标集合](../../product/PF-013-model-profiles-and-invocation/design.md#510-合法目标集合与展示列表是两件事)的一个输入，
+> **不是模型档案的属性**。
+> **它不是「历史里出现过哪几种模态」**——那是它的上界，差的正是[转换件](capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)转成了文本的那些。
+>
+> **EN**: **Which modalities have appeared in this session's history with only their
+> original and no text rendering.** Derived from the session log — **recomputing yields
+> the same answer**; it **only grows**; it is one input to the legal-target set, **not a
+> property of any profile**. **Not "every modality that ever appeared"**: that is its upper
+> bound, and the gap is exactly what converters rendered to text.
+
+- **形态**：视图
+- **出处**：[PF-013 §4 模态投影](../../product/PF-013-model-profiles-and-invocation/design.md#模态投影) ·
+  [§6.18](../../product/PF-013-model-profiles-and-invocation/design.md#618-模态投影要答得快而且是增量维护出来的)（rev 4）
+- **别混 ①**：**不是「这一次请求里带了哪些模态」**——那随压缩与筛选变；投影说的是整个会话曾经有过什么
+- **别混 ②**：**不是「当前模型收得下哪些模态」**——那是档案说的能力；投影说的是历史
+- **注意**：它是[会话要维护的一项状态，却不是 runtime context](../../product/PF-015-session-lifecycle-and-ownership/design.md#55-哪些算-meta-runtime-context)——会话内三个角色都不消费它
 
 ### UL-block-annotation · 块标注 · Block Annotation
 
@@ -246,8 +287,8 @@
 > go and do it.**
 
 - **形态**：对象
-- **出处**：[PF-007 §6.9 `TodoItems()`](../../product/PF-007-meta-capabilities/design.md#69-todoitems通向自己手上的待办)（rev 15）·
-  [PF-015 §5.6 第 13 项](../../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 9）
+- **出处**：[PF-007 §6.9 `TodoItems()`](../../product/PF-007-meta-capabilities/design.md#69-todoitems通向自己手上的待办)（rev 16）·
+  [PF-015 §5.6 第 13 项](../../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 10）
 - **别混**：**与「目标」不是一回事**——那是**跨会话**的东西，
   [PF-007 明写它不装在这扇门后面，而设计链里还没有它的家](../../product/PF-007-meta-capabilities/design.md#69-todoitems通向自己手上的待办)
 - **⚠️ 注意 ①**：**它是给 agent 自己看的，不是给系统执行的**——
