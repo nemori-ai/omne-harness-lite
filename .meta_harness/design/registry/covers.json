@@ -2797,11 +2797,12 @@
         "clauses": [
           "S-4",
           "S-22",
-          "S-24"
+          "S-24",
+          "S-30"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 传输绑定起草登记：防冒充硬要求的中心一侧（服务端 TLS 认证，S-4）与出示物途中的机密性（S-22、S-24）；客户端一侧不在本契约，登为该契约的缺口 G-2。PF-017 rev 2。未经独立复核"
+      "note": "2026-09-23 传输绑定起草登记：防冒充硬要求的中心一侧（服务端 TLS 认证，S-4）与出示物途中的机密性（S-22、S-24）；客户端一侧不在本契约，登为该契约的缺口 G-2。PF-017 rev 2。评审第一轮修订补 S-30（规范场景，正文已链接本节）。未经独立复核"
     },
     {
       "requirement": {
@@ -2963,7 +2964,22 @@
       },
       "reviewed": false,
       "note": "2026-09-23 传输绑定起草登记：据点侧把读不成答复的一律当作中心不可达、只看体认出版本对不上——客户端读答复的规则；呈现归 PF-016。PF-016 rev 4。未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "acceptance.md#二绝不能发生的事"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry-https-json",
+        "version": 1,
+        "clauses": [
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 传输绑定评审第一轮修订补登（spec-reviewer 建议 8）：只覆盖该节「客户端把报出同一个中心标识的冒牌货当成了中心」一行在中心一侧的那一半——规范场景 S-30 验服务端 TLS 认证与材料；客户端一侧的确认不在本契约，登为该契约 G-2。PF-017 rev 2。未经独立复核"
     }
   ],
-  "note": "2026-09-22 首次登记，覆盖租户相关领域五份 candidate 契约。每条的 clauses 由两处合并得出：契约正文里带小节链接的条款段落，以及各契约「性质」表的「来源」列。全部 reviewed=false——这是「声称覆盖但尚未逐条复核」的诚实初值，不是复核通过。三处已知不完整，登记时一并记明，不靠留白掩盖：（1）PF-007 也被 data.identity-values 与 capability.organization-governance 的正文引为来源（§4 一笔授权表达有三个维度），本次登记范围只含 PF-001/002/003/015，因此 PF-007 一条未登；（2）foundation 的 SYS-TENANT / SYS-DEPLOY 是全局约束不是产品条款，本清单只登记 PF- 侧，那一侧的覆盖没有家；（3）契约正文里以散文方式引用产品要求、没有给出小节链接的地方，本次登记抓不到。 2026-09-22 评审轮一修订后补登 18 处（见各行 note）。data.identity-values/v1#S-35「交接凭证」没有产品出处（规格层构造），有意不登记 cover。 2026-09-23 补登 composition.governance-center-entry v1（candidate）40 条：PF-017（rev 1，仍是 draft（PF-017 rev 1 已于 2026-09-23 同日接受，各条 note 已改））30 条、PF-016 5 条、PF-001 5 条，全部 reviewed=false；来源是该契约正文里带小节链接的条款段落。该契约的形式工件与规范场景条款（S-37～S-46）只在对到验收判据时登记。 2026-09-23 该契约评审第一轮修订：首登时有若干条的 clauses 在正文对应条款里并没有小节链接，已在正文逐条补齐；逐条核过之后，每条 covers 的产品小节都在所列的每个条款里有链接，唯一例外是 acceptance §二那一条（见其 note）；该条 clauses 补登 S-31。 2026-09-23 补登 composition.governance-center-entry-https-json v1（candidate，传输绑定）11 条：PF-017 rev 2 共 10 条、PF-016 rev 4 共 1 条，全部 reviewed=false；来源同一口径——该契约正文里带小节链接的条款段落，每条所列条款都链接了那个小节。"
+  "note": "2026-09-22 首次登记，覆盖租户相关领域五份 candidate 契约。每条的 clauses 由两处合并得出：契约正文里带小节链接的条款段落，以及各契约「性质」表的「来源」列。全部 reviewed=false——这是「声称覆盖但尚未逐条复核」的诚实初值，不是复核通过。三处已知不完整，登记时一并记明，不靠留白掩盖：（1）PF-007 也被 data.identity-values 与 capability.organization-governance 的正文引为来源（§4 一笔授权表达有三个维度），本次登记范围只含 PF-001/002/003/015，因此 PF-007 一条未登；（2）foundation 的 SYS-TENANT / SYS-DEPLOY 是全局约束不是产品条款，本清单只登记 PF- 侧，那一侧的覆盖没有家；（3）契约正文里以散文方式引用产品要求、没有给出小节链接的地方，本次登记抓不到。 2026-09-22 评审轮一修订后补登 18 处（见各行 note）。data.identity-values/v1#S-35「交接凭证」没有产品出处（规格层构造），有意不登记 cover。 2026-09-23 补登 composition.governance-center-entry v1（candidate）40 条：PF-017（rev 1，仍是 draft（PF-017 rev 1 已于 2026-09-23 同日接受，各条 note 已改））30 条、PF-016 5 条、PF-001 5 条，全部 reviewed=false；来源是该契约正文里带小节链接的条款段落。该契约的形式工件与规范场景条款（S-37～S-46）只在对到验收判据时登记。 2026-09-23 该契约评审第一轮修订：首登时有若干条的 clauses 在正文对应条款里并没有小节链接，已在正文逐条补齐；逐条核过之后，每条 covers 的产品小节都在所列的每个条款里有链接，唯一例外是 acceptance §二那一条（见其 note）；该条 clauses 补登 S-31。 2026-09-23 补登 composition.governance-center-entry-https-json v1（candidate，传输绑定）11 条：PF-017 rev 2 共 10 条、PF-016 rev 4 共 1 条，全部 reviewed=false；来源同一口径——该契约正文里带小节链接的条款段落，每条所列条款都链接了那个小节。 2026-09-23 该传输绑定评审第一轮修订：补登 1 条（PF-017 acceptance §二「冒牌货」一行 → S-30），§8 那一条补 S-30；该契约现 12 条。"
 }

@@ -9,8 +9,10 @@
 - **转义文本**：代码块里的 `\r\n` 是 CR LF 两个字节（`0D 0A`）；代码块里的**换行只为排版，不是字节**；除 `\r\n` 之外，§1～§5 的转义文本里没有别的转义，其余字符就是它们的 UTF-8 字节。
 - **十六进制**：小写，每行 32 个字节；空白与换行只为排版，去掉之后就是那串字节。
 - 每一份都写明总字节数、头部（到空行为止）与体各多少字节，以及整串字节的 SHA-256，供核对。
+- 这些是 **HTTP 报文这一层**的字节（[S-11](contract.md#s-11-答复的外形)）：TLS 记录与传输分段怎样切不在内。
 
-**值只是占位**：治理中心标识 `3f9c1e0a7b2d4c6e8f0a1b2c3d4e5f60`、版本 `0.1.0`、列表句柄与时刻沿用入口契约 [examples](../../governance-center-entry/v1/examples.md) 的占位值。
+**值只是占位。**沿用入口契约 [examples](../../governance-center-entry/v1/examples.md) 占位值的：治理中心标识 `3f9c1e0a7b2d4c6e8f0a1b2c3d4e5f60`、版本 `0.1.0`、§4 第一项的列表句柄 `b8f71176…0dd8e` 与时刻 `2026-09-23T08:00:00Z`、§5 的 `startedAt` 与五项部署参数的取值、§6 的两个出示物与各标识。
+**本页新增的**：§4 第二项的列表句柄 `c3ff21f9…f87aa` 与它的时刻 `2026-09-23T08:00:00.25Z`（为示范秒的小数部分）、§2 请求里的主机名 `center.example.invalid`，以及 §6、§7 为示范读法与写法构造的请求体与值。
 §1、§3 是**任何中心上都一样**的固定字节；§2 的答复、§4、§5 随值而变，变的只是体里的值与 `Content-Length` 那一行，形状不变。
 
 ## 1. `version-mismatch`
@@ -39,7 +41,7 @@ Connection: close\r\n
 
 ## 2. 公开体检的请求与答复
 
-**请求**（[S-9](contract.md#s-9-公开体检的请求在本传输上的形状)）：方法、路径与头中心都不看，这里的 `POST /`、`Host`、`Content-Type` 只是实例；**不改的是请求体**——恰有一个 `operation` 成员、值为 `composition.governance-center-entry/v1#S-18` 的 JSON 对象。下面是最短的那一种。
+**请求**（[S-9](contract.md#s-9-公开体检的请求在本传输上的形状)）：客户端一律用 `POST`、以 `Content-Length` 成帧（[S-6](contract.md#s-6-只看请求体)）；路径与其余头中心都不看，这里的 `/`、`Host`、`Content-Type` 只是实例；**不改的是请求体**——恰有一个 `operation` 成员、值为 `composition.governance-center-entry/v1#S-18` 的 JSON 对象。下面是最短的那一种。
 
 总 160 字节 = 头部 101 + 体 59；SHA-256 `1bf21973b666f3f054b76be27d98c624ab7b28bb7f0e6eba5ea728d8ff14812a`。
 
@@ -187,7 +189,7 @@ Connection: close\r\n
 
 ## 5. 运维面的完整体检答复
 
-[S-21](contract.md#s-21-运维面的答复)：本机套接字上，对任何能成帧的请求都是这个形状；十个成员与 `deploymentParameters` 的五项都按 `FullHealthReply` 的书写次序。它随读取的时刻变化，不是固定字节。
+[S-21](contract.md#s-21-运维面的答复)：本机套接字 `governance-center-ops.sock`（[S-20](contract.md#s-20-运维面的承载)）上，对任何能成帧的请求都是这个形状；十个成员与 `deploymentParameters` 的五项都按 `FullHealthReply` 的书写次序。它随读取的时刻变化，不是固定字节。
 
 总 554 字节 = 头部 116 + 体 438；SHA-256 `3e2f3380a3e1a3b0205da3fb6e79af945c725234f34d73d797d1b3670f6c6f62`。
 
