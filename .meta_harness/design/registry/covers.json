@@ -11845,7 +11845,563 @@
       },
       "reviewed": false,
       "note": "2026-09-23 起草时按设计依据表登记（同一依据行链到多个小节的各登一条），并入条款正文里带该小节链接的条款；未经独立复核。部分为让缺口 G-8（具名拒绝条目的形状）可见而登"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "decisions.md#2026-09-23--reload-是注册表的动态热更新不是完整重新装配"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "decisions.md#2026-09-23--斜杠命令参数无权限即不存在会话认得哪些命令③-型不开放保留名前缀"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#mcp"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-11"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#plugin"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-5"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#slash-command"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-20",
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#tool"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#会话认得哪些命令什么时候变"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-1",
+          "S-14",
+          "S-15",
+          "S-20",
+          "S-23",
+          "S-27",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#非目标"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-1",
+          "S-3"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#53-三个时刻"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#61-不变式"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-12",
+          "S-21",
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#62-装配"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#63-三类变化三种传播"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-15",
+          "S-23",
+          "S-28",
+          "S-34"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#65-权限变化动作空间不变"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#装配清单"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#61-常驻标记挂在引用条目上agent-definition-压-plugin"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#613-mcp-接入点带来的动作"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-7",
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#62-可用性在每次-run-开始前重算"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-11"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#63-不可用时装的是同名替换件不是不装"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-8",
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#64-依赖声明与解析"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-8"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#依赖"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-8"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#只有且只有必需"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-8"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#可用性"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-8"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#常驻"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#接入点连不上它的动作就是不可用"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#替换件"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#槽位"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-007-meta-capabilities",
+        "clause": "design.md#57-权限能关掉一条命令关不掉一扇门"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-007-meta-capabilities",
+        "clause": "design.md#58-子不得宽于父"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-007-meta-capabilities",
+        "clause": "design.md#meta-与常驻的关系"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#每一次尝试开始都要做四件事"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-015-session-lifecycle-and-ownership",
+        "clause": "design.md#58-存储要守住的两件事"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-8"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-015-session-lifecycle-and-ownership",
+        "clause": "design.md#611-会话睡醒之后还是原来那个"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-015-session-lifecycle-and-ownership",
+        "clause": "design.md#612-会话持有创建那一刻的租户身份"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-015-session-lifecycle-and-ownership",
+        "clause": "design.md#会话运行模式"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-016-cli-tui-delivery-surface",
+        "clause": "design.md#57-人要做的事分三族"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-016-cli-tui-delivery-surface",
+        "clause": "design.md#617-治理中心不可达已经开着的会话照常干活"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 1,
+        "clauses": [
+          "S-20",
+          "S-31"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记（每个所列条款的正文都链接了该小节），未经独立复核"
     }
   ],
-  "note": "2026-09-22 首次登记，覆盖租户相关领域五份 candidate 契约。每条的 clauses 由两处合并得出：契约正文里带小节链接的条款段落，以及各契约「性质」表的「来源」列。全部 reviewed=false——这是「声称覆盖但尚未逐条复核」的诚实初值，不是复核通过。三处已知不完整，登记时一并记明，不靠留白掩盖：（1）PF-007 也被 data.identity-values 与 capability.organization-governance 的正文引为来源（§4 一笔授权表达有三个维度），本次登记范围只含 PF-001/002/003/015，因此 PF-007 一条未登；（2）foundation 的 SYS-TENANT / SYS-DEPLOY 是全局约束不是产品条款，本清单只登记 PF- 侧，那一侧的覆盖没有家；（3）契约正文里以散文方式引用产品要求、没有给出小节链接的地方，本次登记抓不到。 2026-09-22 评审轮一修订后补登 18 处（见各行 note）。data.identity-values/v1#S-35「交接凭证」没有产品出处（规格层构造），有意不登记 cover。 2026-09-23 补登 composition.governance-center-entry v1（candidate）40 条：PF-017（rev 1，仍是 draft（PF-017 rev 1 已于 2026-09-23 同日接受，各条 note 已改））30 条、PF-016 5 条、PF-001 5 条，全部 reviewed=false；来源是该契约正文里带小节链接的条款段落。该契约的形式工件与规范场景条款（S-37～S-46）只在对到验收判据时登记。 2026-09-23 该契约评审第一轮修订：首登时有若干条的 clauses 在正文对应条款里并没有小节链接，已在正文逐条补齐；逐条核过之后，每条 covers 的产品小节都在所列的每个条款里有链接，唯一例外是 acceptance §二那一条（见其 note）；该条 clauses 补登 S-31。 2026-09-23 补登 composition.governance-center-entry-https-json v1（candidate，传输绑定）11 条：PF-017 rev 2 共 10 条、PF-016 rev 4 共 1 条，全部 reviewed=false；来源同一口径——该契约正文里带小节链接的条款段落，每条所列条款都链接了那个小节。 2026-09-23 该传输绑定评审第一轮修订：补登 1 条（PF-017 acceptance §二「冒牌货」一行 → S-30），§8 那一条补 S-30；该契约现 12 条。 2026-09-23 补登 data.content-blocks v1（candidate）24 条：PF-009 7 条、PF-010 3 条、PF-013 3 条、PF-006 6 条、PF-002 2 条、PF-001 1 条、PF-012 2 条，全部 reviewed=false；来源是该契约的「设计依据」表（按简报口径），不是逐条核对正文链接——不少行只在依据表里对应，所列条款的正文里没有那个小节的链接（如 PF-009 §4 → S-1、PF-013 §4 模态 → S-7）；PF-006 §6.12「它的宿主是谁」一条部分为让缺口 G-2 可见而登，见其 note。 2026-09-23 补登 data.call-accounts v1（candidate）12 条：PF-006 1、PF-009 4、PF-012 3（其中 §6.17 一条为缺口登记型，指 G-3）、PF-013 2、PF-001 1、PF-000 1，全部 reviewed=false；每条的 clauses 是该契约正文里带那个小节链接的条款（逐条机械核过）。PF-013 §6.2（凭据挂在范围上）只作「不归本契约」的否定式提及，未点名缺口，不登。 2026-09-23 补登 data.model-response v1（candidate，块 C）26 条：PF-013 rev 8 共 16 条（design 15、flows 1）、PF-009 rev 7 共 4 条、PF-004 rev 10 共 2 条、PF-012 rev 10 共 3 条、PF-001 rev 16 共 1 条，全部 reviewed=false；来源同一口径——该契约正文里带小节链接的条款段落。PF-013 rev 5–8、PF-009 rev 5–7 全文待产品负责人确认。同日主线裁定后修订：「消息落盘之前的否决」一条由缺口登记型改为常规覆盖（原 G-6 闭合），PF-013「已经开口说话了」一条补登 S-14；两条产品裁决（完整响应体、原始响应留存）已落为 D-038（8b／Q14），那是决定不是产品小节，不登 cover。 2026-09-23 补登 data.tool-definition v1（candidate，起草者随契约登记）32 条：PF-006 rev 17 共 21 条、PF-002 rev 16 共 8 条、PF-005 rev 5 共 3 条，全部 reviewed=false；口径同上——所列每个条款的正文都链接了那个小节（由契约正文逐条抽取）。该契约只引不据以立条款的 PF-007 §5.6／§6.1、PF-009、PF-012 §5.10 有意不登；PF-006 §5.5、§非目标只出现在消费者场景与缺口表里，同样不登。 2026-09-23 补登 data.asset-model v1（candidate）53 条：PF-002 38 条（design.md 33、flows.md 5）、PF-001 7 条、PF-003 8 条，全部 reviewed=false；来源是该契约的「设计依据」表（按简报口径），另有 4 条（PF-002 §5.2「由此得到两个推论」、flows §1.4，PF-003 §4「资产复制」、§6.7）取自条款正文里的小节链接；其中 PF-002 §4 MCP／Skill／Connector／Agent Definition、§9、§5.3、flows §3.3 与 PF-001「拥有、获权、选用」各有一部分为让缺口（G-2、G-3、G-5～G-7、G-10）可见而登，见各行 note。设计依据表的工作区一行还列了 PF-002 §4「它是会话选用的」与 PF-015 §6.13，本契约没有条款覆盖「会话选用」，不登；PF-003 flows §3.1 只在缺口 G-2 与走查 CS-3 里指路，不登。 2026-09-23 补登 data.loop-extension v1（candidate）45 条：PF-012 rev 10 共 25 条、PF-000 rev 1 共 2 条、PF-002 rev 16 共 4 条、PF-013 rev 8 共 8 条、PF-008 rev 5 共 4 条、PF-014 rev 5 共 1 条、PF-006 rev 17 共 1 条，全部 reviewed=false；来源是该契约的设计依据表（小节 → 条款），未逐条核对每个条款正文是否都链接了那个小节。PF-012 的「系统自带的几件各站在哪」只落在该契约的消费者表，不对应任何 S-n 条款，有意不登。 2026-09-23 该契约按主线裁定原地修订：G-10 关闭，补登 1 条（PF-012 §5.9 → S-26）；该契约现 46 条。 2026-09-23 补登 capability.asset-transfer v1（candidate）32 条：PF-003 rev 4 共 25 条、PF-002 rev 16 共 3 条、PF-001 rev 16 共 4 条，全部 reviewed=false；来源是该契约的设计依据与正文里带小节链接的条款；两条部分为让缺口可见而登（PF-003 flows §3.4 → G-1、flows §四 → G-2），见其 note。 2026-09-23 补登 data.messages v1（candidate）73 条：PF-009 39、PF-010 12、PF-012 9、PF-014 2、PF-015 2、PF-006 4、PF-004 1、PF-008 4，全部 reviewed=false；来源是该契约的「设计依据」表（按简报口径），同一依据行链到多个小节的，每个小节各登一条、条款相同，不是逐条核对正文链接。规范场景条款（S-41～S-48）不登。 2026-09-23 补登 capability.asset-governance v1（candidate）59 条：PF-001 rev 16 共 15 条、PF-002 rev 16 共 35 条、PF-003 rev 4 共 9 条，全部 reviewed=false；每条的 clauses 是该契约正文里带那个小节链接的条款段落（S-1 导航表与 S-53 形式工件选择只作导航，不登），外加「性质与前提」表里以「来源」列对到「谁在何处保护」列所链条款的行（机械抽取）。三条为缺口登记型或部分缺口登记型（PF-001 acceptance §一 → G-13、PF-002 §九 → G-10、PF-003 flows §四 → G-2），见各行 note。SYS-TENANT／SYS-DEPLOY 同样是全局约束，不登。 2026-09-23 补登 capability.asset-evaluation v1（candidate）31 条：PF-002 rev 16 共 20、PF-001 rev 16 共 3、PF-003 rev 4 共 2、PF-004 rev 10 共 4、PF-007 rev 16 共 1、PF-015 rev 11 共 1，全部 reviewed=false；每条的 clauses 是该契约正文里带那个小节链接的条款，或「性质」表里以那个小节为来源的那一行的保护条款（逐条机械核过）。规范场景条款（S-33～S-37）不登；只在正文里作前提或消费者提及的小节（PF-003 §6.12、PF-002 §6.1、PF-007 §6.11、PF-012 干预力三档等）不登。 2026-09-23 补登 data.connector v1（candidate，起草者随契约登记）17 条：PF-002 rev 16 共 7 条（design 6、acceptance 1）、PF-014 rev 5 共 6 条（design 5、flows 1）、PF-000 rev 1 共 1 条、PF-015 rev 11 共 1 条、PF-003 rev 4 共 2 条，全部 reviewed=false；来源是该契约的「设计依据」表，另 1 条（PF-002 acceptance §一）取自条款正文的小节链接。PF-002 §九（组织格能不能持有凭据）只在 S-12 里指向缺口 G-4、PF-014 §6.1／§6.7 只以「归受理」否定式出现，都不登；规范场景条款（S-20～S-23）不登。 2026-09-23 补登 capability.modality-projection v1（candidate）14 条：PF-013 rev 8 共 10 条、PF-012 rev 10 共 2 条、PF-006 rev 17 共 1 条、PF-015 rev 11 共 1 条（其中 S-3 一项为让缺口 G-8 可见而登），全部 reviewed=false；来源是该契约的「设计依据」表，另以正文里带小节链接的条款补齐（PF-013 §5.11 → S-21）。五条主线裁定（S1-g、报-2、C-7、同键重复登记即失败、转换件不得发起模型调用）不是产品小节，不登；PF-012「消息落盘之前的否决按消息是谁产生的分三路」「挂件自己花的钱」、PF-006 §6.11 本身与「换模型之后哪些工具还在」、PF-015 §5.5 在该契约里只作指路或对照，不登；规范场景条款（S-30～S-37）不登。 2026-09-23 补登 data.arrival-events v1（candidate）25 条与 capability.stream-assembly v1（candidate）17 条，全部 reviewed=false；来源是两份契约的「设计依据」表（按简报口径）。主线裁决而产品正文尚无落处的条款（两份契约各自在依据表下方点名）不登；SYS-SPEC／SYS-DEPLOY、D-035 与 basis 条目不是产品条款，不登。 2026-09-23 补登 data.skill-package v1（candidate，起草者随契约登记）21 条：PF-002 rev 16 共 9 条、PF-006 rev 17 共 8 条、PF-007 rev 16 共 1 条、PF-003 rev 4 共 2 条、PF-001 rev 16 共 1 条，全部 reviewed=false；来源是该契约的「设计依据」表，另有 2 条（PF-006「六项可选声明」、PF-001「路径是地址不是钥匙」）取自条款正文里的小节链接；PF-002 §4 Skill 一条部分为让缺口 G-2、G-3 可见而登，PF-007 §6.2 起草简报标为只引、只登数据一侧的把手，见各行 note。PF-006 §6.9 只出现在该契约的「明确不承诺」里，不登；规范场景条款（S-26～S-31）不登。 2026-09-23 补登 capability.tool-admission v1（candidate，接口型，起草者随契约登记）38 条：PF-007 rev 16 共 6 条、PF-008 rev 5 共 14 条（design 10、flows 3、acceptance 1）、PF-012 rev 10 共 8 条、PF-015 rev 11 共 3 条、PF-002 rev 16 共 5 条、PF-014 rev 5 共 1 条、PF-001 rev 16 共 1 条，全部 reviewed=false；来源是该契约的「设计依据」表与条款正文里的小节链接（按简报口径），未逐条复核。D-038 Q8／Q19 是决定不是产品小节、SYS-SPEC／SYS-DEPLOY／SYS-TENANT 是全局约束，不登；规范场景条款（S-38～S-45）不登。 2026-09-23 补登 data.slash-command v1（candidate）15 条：PF-002 rev 16 共 7 条（design 6、decisions 1）、PF-016 rev 5 共 5 条（design 4、decisions 1）、PF-014 rev 5 共 3 条，全部 reviewed=false；来源是该契约的「设计依据」表（同一依据行链到多个小节的各登一条），并入条款正文里带小节链接的条款，不是逐条核对每个所列条款的正文都链接了那个小节。PF-014 §5.6、§6.1 两条部分为让缺口 G-4、G-8 可见而登，见其 note。只在消费者表、装配给与协议给表、性质表与缺口表里出现的小节（PF-016 §5.5 在性质表里的那次、PF-014 §9.5）不另登。"
+  "note": "2026-09-22 首次登记，覆盖租户相关领域五份 candidate 契约。每条的 clauses 由两处合并得出：契约正文里带小节链接的条款段落，以及各契约「性质」表的「来源」列。全部 reviewed=false——这是「声称覆盖但尚未逐条复核」的诚实初值，不是复核通过。三处已知不完整，登记时一并记明，不靠留白掩盖：（1）PF-007 也被 data.identity-values 与 capability.organization-governance 的正文引为来源（§4 一笔授权表达有三个维度），本次登记范围只含 PF-001/002/003/015，因此 PF-007 一条未登；（2）foundation 的 SYS-TENANT / SYS-DEPLOY 是全局约束不是产品条款，本清单只登记 PF- 侧，那一侧的覆盖没有家；（3）契约正文里以散文方式引用产品要求、没有给出小节链接的地方，本次登记抓不到。 2026-09-22 评审轮一修订后补登 18 处（见各行 note）。data.identity-values/v1#S-35「交接凭证」没有产品出处（规格层构造），有意不登记 cover。 2026-09-23 补登 composition.governance-center-entry v1（candidate）40 条：PF-017（rev 1，仍是 draft（PF-017 rev 1 已于 2026-09-23 同日接受，各条 note 已改））30 条、PF-016 5 条、PF-001 5 条，全部 reviewed=false；来源是该契约正文里带小节链接的条款段落。该契约的形式工件与规范场景条款（S-37～S-46）只在对到验收判据时登记。 2026-09-23 该契约评审第一轮修订：首登时有若干条的 clauses 在正文对应条款里并没有小节链接，已在正文逐条补齐；逐条核过之后，每条 covers 的产品小节都在所列的每个条款里有链接，唯一例外是 acceptance §二那一条（见其 note）；该条 clauses 补登 S-31。 2026-09-23 补登 composition.governance-center-entry-https-json v1（candidate，传输绑定）11 条：PF-017 rev 2 共 10 条、PF-016 rev 4 共 1 条，全部 reviewed=false；来源同一口径——该契约正文里带小节链接的条款段落，每条所列条款都链接了那个小节。 2026-09-23 该传输绑定评审第一轮修订：补登 1 条（PF-017 acceptance §二「冒牌货」一行 → S-30），§8 那一条补 S-30；该契约现 12 条。 2026-09-23 补登 data.content-blocks v1（candidate）24 条：PF-009 7 条、PF-010 3 条、PF-013 3 条、PF-006 6 条、PF-002 2 条、PF-001 1 条、PF-012 2 条，全部 reviewed=false；来源是该契约的「设计依据」表（按简报口径），不是逐条核对正文链接——不少行只在依据表里对应，所列条款的正文里没有那个小节的链接（如 PF-009 §4 → S-1、PF-013 §4 模态 → S-7）；PF-006 §6.12「它的宿主是谁」一条部分为让缺口 G-2 可见而登，见其 note。 2026-09-23 补登 data.call-accounts v1（candidate）12 条：PF-006 1、PF-009 4、PF-012 3（其中 §6.17 一条为缺口登记型，指 G-3）、PF-013 2、PF-001 1、PF-000 1，全部 reviewed=false；每条的 clauses 是该契约正文里带那个小节链接的条款（逐条机械核过）。PF-013 §6.2（凭据挂在范围上）只作「不归本契约」的否定式提及，未点名缺口，不登。 2026-09-23 补登 data.model-response v1（candidate，块 C）26 条：PF-013 rev 8 共 16 条（design 15、flows 1）、PF-009 rev 7 共 4 条、PF-004 rev 10 共 2 条、PF-012 rev 10 共 3 条、PF-001 rev 16 共 1 条，全部 reviewed=false；来源同一口径——该契约正文里带小节链接的条款段落。PF-013 rev 5–8、PF-009 rev 5–7 全文待产品负责人确认。同日主线裁定后修订：「消息落盘之前的否决」一条由缺口登记型改为常规覆盖（原 G-6 闭合），PF-013「已经开口说话了」一条补登 S-14；两条产品裁决（完整响应体、原始响应留存）已落为 D-038（8b／Q14），那是决定不是产品小节，不登 cover。 2026-09-23 补登 data.tool-definition v1（candidate，起草者随契约登记）32 条：PF-006 rev 17 共 21 条、PF-002 rev 16 共 8 条、PF-005 rev 5 共 3 条，全部 reviewed=false；口径同上——所列每个条款的正文都链接了那个小节（由契约正文逐条抽取）。该契约只引不据以立条款的 PF-007 §5.6／§6.1、PF-009、PF-012 §5.10 有意不登；PF-006 §5.5、§非目标只出现在消费者场景与缺口表里，同样不登。 2026-09-23 补登 data.asset-model v1（candidate）53 条：PF-002 38 条（design.md 33、flows.md 5）、PF-001 7 条、PF-003 8 条，全部 reviewed=false；来源是该契约的「设计依据」表（按简报口径），另有 4 条（PF-002 §5.2「由此得到两个推论」、flows §1.4，PF-003 §4「资产复制」、§6.7）取自条款正文里的小节链接；其中 PF-002 §4 MCP／Skill／Connector／Agent Definition、§9、§5.3、flows §3.3 与 PF-001「拥有、获权、选用」各有一部分为让缺口（G-2、G-3、G-5～G-7、G-10）可见而登，见各行 note。设计依据表的工作区一行还列了 PF-002 §4「它是会话选用的」与 PF-015 §6.13，本契约没有条款覆盖「会话选用」，不登；PF-003 flows §3.1 只在缺口 G-2 与走查 CS-3 里指路，不登。 2026-09-23 补登 data.loop-extension v1（candidate）45 条：PF-012 rev 10 共 25 条、PF-000 rev 1 共 2 条、PF-002 rev 16 共 4 条、PF-013 rev 8 共 8 条、PF-008 rev 5 共 4 条、PF-014 rev 5 共 1 条、PF-006 rev 17 共 1 条，全部 reviewed=false；来源是该契约的设计依据表（小节 → 条款），未逐条核对每个条款正文是否都链接了那个小节。PF-012 的「系统自带的几件各站在哪」只落在该契约的消费者表，不对应任何 S-n 条款，有意不登。 2026-09-23 该契约按主线裁定原地修订：G-10 关闭，补登 1 条（PF-012 §5.9 → S-26）；该契约现 46 条。 2026-09-23 补登 capability.asset-transfer v1（candidate）32 条：PF-003 rev 4 共 25 条、PF-002 rev 16 共 3 条、PF-001 rev 16 共 4 条，全部 reviewed=false；来源是该契约的设计依据与正文里带小节链接的条款；两条部分为让缺口可见而登（PF-003 flows §3.4 → G-1、flows §四 → G-2），见其 note。 2026-09-23 补登 data.messages v1（candidate）73 条：PF-009 39、PF-010 12、PF-012 9、PF-014 2、PF-015 2、PF-006 4、PF-004 1、PF-008 4，全部 reviewed=false；来源是该契约的「设计依据」表（按简报口径），同一依据行链到多个小节的，每个小节各登一条、条款相同，不是逐条核对正文链接。规范场景条款（S-41～S-48）不登。 2026-09-23 补登 capability.asset-governance v1（candidate）59 条：PF-001 rev 16 共 15 条、PF-002 rev 16 共 35 条、PF-003 rev 4 共 9 条，全部 reviewed=false；每条的 clauses 是该契约正文里带那个小节链接的条款段落（S-1 导航表与 S-53 形式工件选择只作导航，不登），外加「性质与前提」表里以「来源」列对到「谁在何处保护」列所链条款的行（机械抽取）。三条为缺口登记型或部分缺口登记型（PF-001 acceptance §一 → G-13、PF-002 §九 → G-10、PF-003 flows §四 → G-2），见各行 note。SYS-TENANT／SYS-DEPLOY 同样是全局约束，不登。 2026-09-23 补登 capability.asset-evaluation v1（candidate）31 条：PF-002 rev 16 共 20、PF-001 rev 16 共 3、PF-003 rev 4 共 2、PF-004 rev 10 共 4、PF-007 rev 16 共 1、PF-015 rev 11 共 1，全部 reviewed=false；每条的 clauses 是该契约正文里带那个小节链接的条款，或「性质」表里以那个小节为来源的那一行的保护条款（逐条机械核过）。规范场景条款（S-33～S-37）不登；只在正文里作前提或消费者提及的小节（PF-003 §6.12、PF-002 §6.1、PF-007 §6.11、PF-012 干预力三档等）不登。 2026-09-23 补登 data.connector v1（candidate，起草者随契约登记）17 条：PF-002 rev 16 共 7 条（design 6、acceptance 1）、PF-014 rev 5 共 6 条（design 5、flows 1）、PF-000 rev 1 共 1 条、PF-015 rev 11 共 1 条、PF-003 rev 4 共 2 条，全部 reviewed=false；来源是该契约的「设计依据」表，另 1 条（PF-002 acceptance §一）取自条款正文的小节链接。PF-002 §九（组织格能不能持有凭据）只在 S-12 里指向缺口 G-4、PF-014 §6.1／§6.7 只以「归受理」否定式出现，都不登；规范场景条款（S-20～S-23）不登。 2026-09-23 补登 capability.modality-projection v1（candidate）14 条：PF-013 rev 8 共 10 条、PF-012 rev 10 共 2 条、PF-006 rev 17 共 1 条、PF-015 rev 11 共 1 条（其中 S-3 一项为让缺口 G-8 可见而登），全部 reviewed=false；来源是该契约的「设计依据」表，另以正文里带小节链接的条款补齐（PF-013 §5.11 → S-21）。五条主线裁定（S1-g、报-2、C-7、同键重复登记即失败、转换件不得发起模型调用）不是产品小节，不登；PF-012「消息落盘之前的否决按消息是谁产生的分三路」「挂件自己花的钱」、PF-006 §6.11 本身与「换模型之后哪些工具还在」、PF-015 §5.5 在该契约里只作指路或对照，不登；规范场景条款（S-30～S-37）不登。 2026-09-23 补登 data.arrival-events v1（candidate）25 条与 capability.stream-assembly v1（candidate）17 条，全部 reviewed=false；来源是两份契约的「设计依据」表（按简报口径）。主线裁决而产品正文尚无落处的条款（两份契约各自在依据表下方点名）不登；SYS-SPEC／SYS-DEPLOY、D-035 与 basis 条目不是产品条款，不登。 2026-09-23 补登 data.skill-package v1（candidate，起草者随契约登记）21 条：PF-002 rev 16 共 9 条、PF-006 rev 17 共 8 条、PF-007 rev 16 共 1 条、PF-003 rev 4 共 2 条、PF-001 rev 16 共 1 条，全部 reviewed=false；来源是该契约的「设计依据」表，另有 2 条（PF-006「六项可选声明」、PF-001「路径是地址不是钥匙」）取自条款正文里的小节链接；PF-002 §4 Skill 一条部分为让缺口 G-2、G-3 可见而登，PF-007 §6.2 起草简报标为只引、只登数据一侧的把手，见各行 note。PF-006 §6.9 只出现在该契约的「明确不承诺」里，不登；规范场景条款（S-26～S-31）不登。 2026-09-23 补登 capability.tool-admission v1（candidate，接口型，起草者随契约登记）38 条：PF-007 rev 16 共 6 条、PF-008 rev 5 共 14 条（design 10、flows 3、acceptance 1）、PF-012 rev 10 共 8 条、PF-015 rev 11 共 3 条、PF-002 rev 16 共 5 条、PF-014 rev 5 共 1 条、PF-001 rev 16 共 1 条，全部 reviewed=false；来源是该契约的「设计依据」表与条款正文里的小节链接（按简报口径），未逐条复核。D-038 Q8／Q19 是决定不是产品小节、SYS-SPEC／SYS-DEPLOY／SYS-TENANT 是全局约束，不登；规范场景条款（S-38～S-45）不登。 2026-09-23 补登 data.slash-command v1（candidate）15 条：PF-002 rev 16 共 7 条（design 6、decisions 1）、PF-016 rev 5 共 5 条（design 4、decisions 1）、PF-014 rev 5 共 3 条，全部 reviewed=false；来源是该契约的「设计依据」表（同一依据行链到多个小节的各登一条），并入条款正文里带小节链接的条款，不是逐条核对每个所列条款的正文都链接了那个小节。PF-014 §5.6、§6.1 两条部分为让缺口 G-4、G-8 可见而登，见其 note。只在消费者表、装配给与协议给表、性质表与缺口表里出现的小节（PF-016 §5.5 在性质表里的那次、PF-014 §9.5）不另登。 2026-09-23 补登 capability.asset-registry v1（candidate）36 条：PF-002 8、PF-004 6、PF-006 12、PF-007 3、PF-012 1、PF-015 4、PF-016 2，全部 reviewed=false；来源是该契约各条款正文里的产品小节链接（逐条抽取，规范场景 S-36～S-45 不登）。有意不登两处：PF-002 §6.3 只在失败值总表的命名注记里出现（说明 dependencyUnresolved 这个名字偏窄），PF-012「每一次尝试开始」在 S-30 里是被标为待产品修订的相抵现文；设计依据里的 PF-006 §4 常驻／槽位／依赖／替换件、PF-002 §4 Plugin／MCP 已在对应条款正文里补了链接后登记。"
 }
