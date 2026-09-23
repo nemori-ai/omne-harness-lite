@@ -21,7 +21,7 @@
 ### UL-login-state · 登录状态
 
 - **宿主**：[账号](#ul-account--账号)——它是以这个账号的身份通过鉴权的一次登录。账号本版无注销，「账号没了它怎么办」正文无从谈起
-- **身份**：正文未述靠什么标识；只写明彼此分得出——重新登录是新的一个，多处登录各是一个，退出只失效被退出的那一个。**同账号的有效登录状态能被逐个列出（每一个带签发时间）并逐个指定撤销**，可分辨到这个程度
+- **身份**：正文未述靠什么标识；只写明彼此分得出——重新登录是新的一个，多处登录各是一个，退出只失效被退出的那一个。**属于签发它的那个[治理中心](#ul-governance-center--治理中心)**，那是它身份的一部分（[PF-016 §4 治理中心](../product/PF-016-cli-tui-delivery-surface/design.md#治理中心)，rev 3）。**同账号的有效登录状态能被逐个列出（每一个带签发时间）并逐个指定撤销**，可分辨到这个程度
 - **生灭**：（无）→ 有效（登录；前置：账号已激活、凭据正确）→ 已失效（退出或被撤销；不可逆，且重启之后依然成立）。本版不做全设备退出
 - **依据**：[PF-001 §4 登录状态](../product/PF-001-identity-scope-and-agent-constraints/design.md#登录状态)（rev 15）；[PF-001 flows §3.2](../product/PF-001-identity-scope-and-agent-constraints/flows.md#32-登录状态)（rev 15）；[PF-001 flows §1.2](../product/PF-001-identity-scope-and-agent-constraints/flows.md#12-登录)（rev 15）
 
@@ -193,7 +193,6 @@
 - **生灭**：[运维者](../ubiquitous_language/terms/subjects-and-ownership.md#ul-deployment-operator--运维者--deployment-operator)**第一次启动成功那一刻**产生（[治理中心标识](../ubiquitous_language/terms/grounding-and-isolation.md#ul-governance-center-identifier--治理中心标识--governance-center-identifier)在这一刻定下，里面零账号、零组织）→ **运行中 ⇄ 停着**（升级、换部署密钥、换机器换地址都在停着时做；同一份数据就是同一个中心）→ **本版没有销毁**；从零重立的是另一个中心，从备份恢复的仍是原来那个
 - **依据**：[PF-016 §4 治理中心](../product/PF-016-cli-tui-delivery-surface/design.md#治理中心)（rev 3）；[PF-016 §5.1](../product/PF-016-cli-tui-delivery-surface/design.md#51-三处地方各自拥有什么)（rev 3）；[PF-016 §5.6](../product/PF-016-cli-tui-delivery-surface/design.md#56-哪些东西在中心一侧哪些在据点一侧)（rev 3）；[PF-017 §5.2 中心的一生](../product/PF-017-governance-center-as-deployable-application/design.md#52-中心的一生)（rev 1）；[PF-017 §6.12](../product/PF-017-governance-center-as-deployable-application/design.md#612-同一个中心换了地址还是它另一个中心必须被认出来)（rev 1）；[PF-017 flows §三 状态流转](../product/PF-017-governance-center-as-deployable-application/flows.md#三状态流转)（rev 1）
 - **并入**：「治理事实所在的那个中心」（交付面草案里的「中心治理节点」）——同一处：[账号](#ul-account--账号)、[组织](#ul-organization--组织)、[租户](#ul-tenant--租户)与成员资格、角色、[邀请](#ul-invitation--邀请)与[隶属请求](#ul-affiliation-request--隶属请求)，以及组织层与租户层的那些范围化对象都在它那里，**而它不知道任何会话**
-- **未裁**：**PF-017 rev 1 尚未接受**——上面「生灭」与「身份」里引 PF-017 的部分，在产品负责人接受它之前是候选依据；接受即闭合，不接受则退回「正文未述」
 
 ## 执行与收场
 

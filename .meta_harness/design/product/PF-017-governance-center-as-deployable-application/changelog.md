@@ -11,6 +11,13 @@
 
 ## 历史
 
+## 状态变更 — 2026-09-23（不升 rev）
+
+**产品负责人把本 topic 从草稿改为定稿**：[README front-matter](README.md) 的 `status` 由 `draft` 改为 `active`，状态段同步。
+**正文一个字未动**——改变含义才升 rev，状态不是内容。接受的是 rev 1；原话在 [decisions §一](decisions.md#2026-09-23--正式接受)。
+**下游随之解锁**：入口契约 `composition.governance-center-entry` v1 与账号能力契约 v2 的主责需求不再是草稿；
+[`realization/apps/tenancy-host`](../../realization/apps/tenancy-host/README.md) 按准入可以登记绑定——但要等有证据可绑。
+
 ### rev 1 · 2026-09-23
 
 | 项 | 内容 |

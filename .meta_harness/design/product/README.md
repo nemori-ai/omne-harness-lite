@@ -36,7 +36,7 @@
 | [PF-014 输入的受理与排队](PF-014-inbound-intake-and-queueing/README.md) | active | 3 |
 | [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md) | draft | 9 |
 | [PF-016 命令行交付面](PF-016-cli-tui-delivery-surface/README.md) | active | 3 |
-| [PF-017 治理中心作为一个可部署应用](PF-017-governance-center-as-deployable-application/README.md) | draft | 1 |
+| [PF-017 治理中心作为一个可部署应用](PF-017-governance-center-as-deployable-application/README.md) | active | 1 |
 
 ## 已排定、尚未开题的编号
 
