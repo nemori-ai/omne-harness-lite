@@ -232,13 +232,15 @@ describe('terminal-outcome-closed', () => {
   })
 
   it('变异核对：真实的 AR 源码原文无违反；追加一个返回第五个值的 register ⇒ 报出', () => {
+    // 常量在 types.ts（实现后的布局），index.ts 只再导出；规则看整包，所以两份都喂
+    const types = real(`${AR}types.ts`)
     const original = real(`${AR}index.ts`)
-    expect(terminalOutcomeClosed.check([original])).toEqual([])
+    expect(terminalOutcomeClosed.check([types, original])).toEqual([])
     const mutated = file(
       original.path,
       `${original.text}\nexport async function register(): Promise<TerminalOutcome> {\n  return 'failed'\n}\n`,
     )
-    expect(terminalOutcomeClosed.check([mutated])).toHaveLength(1)
+    expect(terminalOutcomeClosed.check([types, mutated])).toHaveLength(1)
   })
 })
 
