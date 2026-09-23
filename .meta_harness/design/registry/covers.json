@@ -3551,7 +3551,325 @@
       },
       "reviewed": false,
       "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。本契约消费的是「条目无条件带租户身份」这一条，据此不在账里另存归属"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#八类资产" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-1", "S-10"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#身份是类别--name其余归实现" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-1", "S-3"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#slash-command" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-2"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖「分隔符与拼法归规格」里名字词法那一半（不含冒号）；保留前缀 omne-official 的拼法归斜杠命令的契约，本契约 G-11"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#tool" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-10", "S-12"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖外壳与属性项的推出义务；工具定义本身归 data.tool-definition"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#mcp" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-10", "S-12"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。正文部分为让缺口 G-5 可见而登：MCP 接入点的正文契约尚不存在"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#connector" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-10"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖外壳；正文部分为让缺口 G-7 可见而登"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#loop-extension" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-10", "S-12"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖外壳与属性项的推出义务；拓展件定义本身归 data.loop-extension"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#skill" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-10"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖外壳；正文部分为让缺口 G-5 可见而登"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#agent-definition" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-10"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖外壳；正文部分为让缺口 G-6 可见而登"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-23"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖配值的形状与「不是明文、不跨持有、不呈现」；凭据本体的存取归提供者设计"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#九未决项" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-23"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。为让缺口 G-10（组织格能否持有 MCP 凭据）可见而登，不表示已覆盖；S-23 只承诺两种答案下形状都不变"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#plugin" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-11"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。成员的实现、Rules 与 plugin 自己的属性项未覆盖，见缺口 G-9"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#谁能组合谁" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-11"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖 Plugin 一行；其余组合关系的判定归 capability.asset-evaluation"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#几个刻意不做的组合" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-11"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖 Plugin 嵌套 Plugin、Plugin 含 Agent Definition 两行"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#51-组合是一种关系不是几种" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-11"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#63-组合的引用指向能力标识" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-11"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#工作区" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-16", "S-17", "S-24"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#工作区不是目录" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-17", "S-24"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#它挂在租户下" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-17"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#挂上之后它的内容在装配时自动进来" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-24"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖那份特定命名的文件的位置与形状；自动解析与过滤归 capability.asset-evaluation"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#52-设置与权限是资产的两种属性" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-12", "S-14"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#三方分工资产定形状各层配值运行时求值" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-12", "S-14", "S-18"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖「定形状」「配值」两方的形状；「求值」归 capability.asset-evaluation"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#组织的设置是视图不是对象" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-14", "S-18"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#设置项分四类资产声明每一项时必须标类别" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-13", "S-20"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#由此得到两个推论" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-12", "S-20"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文的小节链接登记，未经独立复核（推论二：出厂格的值就是声明的 default）"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#53-两个例子两种合成" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-12", "S-14", "S-19"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。S-19 一处为让缺口 G-3 可见而登：「租户为组织共享的资产配值」的资格来路本版没有表示"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#54-默认与强制一个机制三处适用" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-14", "S-15"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#55-资产替换的层级" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-18"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖锁替换的表示；替换次序的求值归 capability.asset-evaluation"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#57-工作区那一级不参与权限计算" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-20", "S-24"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖工作区格持有的形状限制；读入时的过滤与最严值归 capability.asset-evaluation"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#58-三条层序各答一个问题" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-16"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖资产归属那条层序的四格；三条层序的合成归 capability.asset-evaluation"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#它不因此多一重身份" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-16"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#64-移除与禁用是两个动作" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-15", "S-18"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#禁用是逐层配的布尔设置任一层为真即不可见" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-15"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖禁用的表示；析取与工作区的限定归 capability.asset-evaluation"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "flows.md#31-一个资产在某个范围里" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-18"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖状态的表示；转移归 capability.asset-governance"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "flows.md#32-一份持有上一个属性项的属性配值" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-14"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "flows.md#33-一个资产定义的版本" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-9", "S-18"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。S-18 一处为让缺口 G-2（持有上的版本选用）可见而登"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "flows.md#12-配置一个资产的设置或权限" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-24"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖「工作区那一级的值来自承载目录里的文件」"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "flows.md#14-组织锁死一个自定义资产" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-20"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文的小节链接登记，未经独立复核（出厂格不加锁）"
+    },
+    {
+      "requirement": { "topic": "PF-001-identity-scope-and-agent-constraints", "clause": "design.md#67-创作与归属" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-6", "S-7"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。「agent 产出要能分辨」未覆盖，见缺口 G-4"
+    },
+    {
+      "requirement": { "topic": "PF-001-identity-scope-and-agent-constraints", "clause": "design.md#作者用租户身份标识" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-6", "S-7"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-001-identity-scope-and-agent-constraints", "clause": "design.md#来源official-与-customized" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-5", "S-15", "S-19"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-001-identity-scope-and-agent-constraints", "clause": "design.md#拥有获权选用" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-19"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖「拥有」「获权」两件的表示；「选用」本版没有表示，见缺口 G-2"
+    },
+    {
+      "requirement": { "topic": "PF-001-identity-scope-and-agent-constraints", "clause": "design.md#路径是地址不是钥匙" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-17"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-001-identity-scope-and-agent-constraints", "clause": "design.md#资产的种类" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-1", "S-10"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-001-identity-scope-and-agent-constraints", "clause": "design.md#62-三种合成语义" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-14", "S-15"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖 immutable 标记与禁用的表示；三种合成语义本身归 capability.asset-evaluation"
+    },
+    {
+      "requirement": { "topic": "PF-003-asset-transfer-and-sharing", "clause": "design.md#复制血缘" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-21", "S-22"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-003-asset-transfer-and-sharing", "clause": "design.md#资产复制" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-21"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文的小节链接登记，未经独立复核。只覆盖复制落下的记录带什么；复制动作归 capability.asset-transfer"
+    },
+    {
+      "requirement": { "topic": "PF-003-asset-transfer-and-sharing", "clause": "design.md#64-可复制的对象" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-7", "S-9", "S-21"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖版本线独立、提升不可逆、有血缘的记录不可再作源；可复制的判定归 capability.asset-transfer"
+    },
+    {
+      "requirement": { "topic": "PF-003-asset-transfer-and-sharing", "clause": "design.md#65-首次复制" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-6", "S-21"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-003-asset-transfer-and-sharing", "clause": "design.md#68-能力标识撞车但没有血缘" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-18", "S-21"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-003-asset-transfer-and-sharing", "clause": "design.md#67-覆盖的范围内容覆盖配置不动" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-14", "S-23"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按条款正文的小节链接登记，未经独立复核（留存的配值合法；凭据配值不被冲掉）。项还在、取值域变了的情形见缺口 G-12"
+    },
+    {
+      "requirement": { "topic": "PF-003-asset-transfer-and-sharing", "clause": "design.md#分享" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-19", "S-22"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖被分享方持有的资格来路与分享号的表示；分享本身归 capability.asset-transfer"
+    },
+    {
+      "requirement": { "topic": "PF-003-asset-transfer-and-sharing", "clause": "design.md#610-分享给的是获权不是拥有" },
+      "target": { "contract_id": "data.asset-model", "version": 1, "clauses": ["S-19"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
     }
   ],
-  "note": "2026-09-22 首次登记，覆盖租户相关领域五份 candidate 契约。每条的 clauses 由两处合并得出：契约正文里带小节链接的条款段落，以及各契约「性质」表的「来源」列。全部 reviewed=false——这是「声称覆盖但尚未逐条复核」的诚实初值，不是复核通过。三处已知不完整，登记时一并记明，不靠留白掩盖：（1）PF-007 也被 data.identity-values 与 capability.organization-governance 的正文引为来源（§4 一笔授权表达有三个维度），本次登记范围只含 PF-001/002/003/015，因此 PF-007 一条未登；（2）foundation 的 SYS-TENANT / SYS-DEPLOY 是全局约束不是产品条款，本清单只登记 PF- 侧，那一侧的覆盖没有家；（3）契约正文里以散文方式引用产品要求、没有给出小节链接的地方，本次登记抓不到。 2026-09-22 评审轮一修订后补登 18 处（见各行 note）。data.identity-values/v1#S-35「交接凭证」没有产品出处（规格层构造），有意不登记 cover。 2026-09-23 补登 composition.governance-center-entry v1（candidate）40 条：PF-017（rev 1，仍是 draft（PF-017 rev 1 已于 2026-09-23 同日接受，各条 note 已改））30 条、PF-016 5 条、PF-001 5 条，全部 reviewed=false；来源是该契约正文里带小节链接的条款段落。该契约的形式工件与规范场景条款（S-37～S-46）只在对到验收判据时登记。 2026-09-23 该契约评审第一轮修订：首登时有若干条的 clauses 在正文对应条款里并没有小节链接，已在正文逐条补齐；逐条核过之后，每条 covers 的产品小节都在所列的每个条款里有链接，唯一例外是 acceptance §二那一条（见其 note）；该条 clauses 补登 S-31。 2026-09-23 补登 composition.governance-center-entry-https-json v1（candidate，传输绑定）11 条：PF-017 rev 2 共 10 条、PF-016 rev 4 共 1 条，全部 reviewed=false；来源同一口径——该契约正文里带小节链接的条款段落，每条所列条款都链接了那个小节。 2026-09-23 该传输绑定评审第一轮修订：补登 1 条（PF-017 acceptance §二「冒牌货」一行 → S-30），§8 那一条补 S-30；该契约现 12 条。 2026-09-23 补登 data.content-blocks v1（candidate）24 条：PF-009 7 条、PF-010 3 条、PF-013 3 条、PF-006 6 条、PF-002 2 条、PF-001 1 条、PF-012 2 条，全部 reviewed=false；来源是该契约的「设计依据」表（按简报口径），不是逐条核对正文链接——不少行只在依据表里对应，所列条款的正文里没有那个小节的链接（如 PF-009 §4 → S-1、PF-013 §4 模态 → S-7）；PF-006 §6.12「它的宿主是谁」一条部分为让缺口 G-2 可见而登，见其 note。 2026-09-23 补登 data.call-accounts v1（candidate）12 条：PF-006 1、PF-009 4、PF-012 3（其中 §6.17 一条为缺口登记型，指 G-3）、PF-013 2、PF-001 1、PF-000 1，全部 reviewed=false；每条的 clauses 是该契约正文里带那个小节链接的条款（逐条机械核过）。PF-013 §6.2（凭据挂在范围上）只作「不归本契约」的否定式提及，未点名缺口，不登。"
+  "note": "2026-09-22 首次登记，覆盖租户相关领域五份 candidate 契约。每条的 clauses 由两处合并得出：契约正文里带小节链接的条款段落，以及各契约「性质」表的「来源」列。全部 reviewed=false——这是「声称覆盖但尚未逐条复核」的诚实初值，不是复核通过。三处已知不完整，登记时一并记明，不靠留白掩盖：（1）PF-007 也被 data.identity-values 与 capability.organization-governance 的正文引为来源（§4 一笔授权表达有三个维度），本次登记范围只含 PF-001/002/003/015，因此 PF-007 一条未登；（2）foundation 的 SYS-TENANT / SYS-DEPLOY 是全局约束不是产品条款，本清单只登记 PF- 侧，那一侧的覆盖没有家；（3）契约正文里以散文方式引用产品要求、没有给出小节链接的地方，本次登记抓不到。 2026-09-22 评审轮一修订后补登 18 处（见各行 note）。data.identity-values/v1#S-35「交接凭证」没有产品出处（规格层构造），有意不登记 cover。 2026-09-23 补登 composition.governance-center-entry v1（candidate）40 条：PF-017（rev 1，仍是 draft（PF-017 rev 1 已于 2026-09-23 同日接受，各条 note 已改））30 条、PF-016 5 条、PF-001 5 条，全部 reviewed=false；来源是该契约正文里带小节链接的条款段落。该契约的形式工件与规范场景条款（S-37～S-46）只在对到验收判据时登记。 2026-09-23 该契约评审第一轮修订：首登时有若干条的 clauses 在正文对应条款里并没有小节链接，已在正文逐条补齐；逐条核过之后，每条 covers 的产品小节都在所列的每个条款里有链接，唯一例外是 acceptance §二那一条（见其 note）；该条 clauses 补登 S-31。 2026-09-23 补登 composition.governance-center-entry-https-json v1（candidate，传输绑定）11 条：PF-017 rev 2 共 10 条、PF-016 rev 4 共 1 条，全部 reviewed=false；来源同一口径——该契约正文里带小节链接的条款段落，每条所列条款都链接了那个小节。 2026-09-23 该传输绑定评审第一轮修订：补登 1 条（PF-017 acceptance §二「冒牌货」一行 → S-30），§8 那一条补 S-30；该契约现 12 条。 2026-09-23 补登 data.content-blocks v1（candidate）24 条：PF-009 7 条、PF-010 3 条、PF-013 3 条、PF-006 6 条、PF-002 2 条、PF-001 1 条、PF-012 2 条，全部 reviewed=false；来源是该契约的「设计依据」表（按简报口径），不是逐条核对正文链接——不少行只在依据表里对应，所列条款的正文里没有那个小节的链接（如 PF-009 §4 → S-1、PF-013 §4 模态 → S-7）；PF-006 §6.12「它的宿主是谁」一条部分为让缺口 G-2 可见而登，见其 note。 2026-09-23 补登 data.call-accounts v1（candidate）12 条：PF-006 1、PF-009 4、PF-012 3（其中 §6.17 一条为缺口登记型，指 G-3）、PF-013 2、PF-001 1、PF-000 1，全部 reviewed=false；每条的 clauses 是该契约正文里带那个小节链接的条款（逐条机械核过）。PF-013 §6.2（凭据挂在范围上）只作「不归本契约」的否定式提及，未点名缺口，不登。 2026-09-23 补登 data.asset-model v1（candidate）53 条：PF-002 38 条（design.md 33、flows.md 5）、PF-001 7 条、PF-003 8 条，全部 reviewed=false；来源是该契约的「设计依据」表（按简报口径），另有 4 条（PF-002 §5.2「由此得到两个推论」、flows §1.4，PF-003 §4「资产复制」、§6.7）取自条款正文里的小节链接；其中 PF-002 §4 MCP／Skill／Connector／Agent Definition、§9、§5.3、flows §3.3 与 PF-001「拥有、获权、选用」各有一部分为让缺口（G-2、G-3、G-5～G-7、G-10）可见而登，见各行 note。设计依据表的工作区一行还列了 PF-002 §4「它是会话选用的」与 PF-015 §6.13，本契约没有条款覆盖「会话选用」，不登；PF-003 flows §3.1 只在缺口 G-2 与走查 CS-3 里指路，不登。"
 }
