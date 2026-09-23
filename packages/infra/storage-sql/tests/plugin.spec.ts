@@ -1,9 +1,18 @@
+import { existsSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { Context } from '@deepseek-ai/cordis'
 import { sql } from 'kysely'
 import type { Migration, MigrationProvider } from 'kysely/migration'
+import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
 import { bootAssembly } from '@omne-harness-lite/kernel-basis/testing'
 import { StorageUnavailable, type StorageInstance } from '@omne-harness-lite/storage'
-import { STORAGE_SERVICE, StorageSqlConfig, storageSqlPlugin } from '../src/index.ts'
+import {
+  STORAGE_SERVICE,
+  StorageSqlConfig,
+  createUpgradeGuard,
+  openStorage,
+  storageSqlPlugin,
+} from '../src/index.ts'
 import { tempSqliteFile } from './support.ts'
 
 const migrations: MigrationProvider = {
@@ -28,7 +37,12 @@ describe('storage-sql 插件', () => {
       plugins: [
         {
           plugin: storageSqlPlugin,
-          config: { dialect: 'sqlite', file: tempSqliteFile('plugin'), migrations },
+          config: {
+            dialect: 'sqlite',
+            file: tempSqliteFile('plugin'),
+            migrations,
+            upgrade: false,
+          },
         },
       ],
     })
@@ -77,6 +91,7 @@ describe('storage-sql 插件', () => {
               dialect: 'sqlite',
               file: tempSqliteFile('bad-migration'),
               migrations: failing,
+              upgrade: false,
             },
           },
         ],
@@ -91,5 +106,67 @@ describe('storage-sql 插件', () => {
     expect(StorageSqlConfig.safeParse({ dialect: 'mysql', connectionString: 'x' }).success).toBe(
       false,
     )
+  })
+})
+
+describe('lifecycle.upgrade-config-policy：带迁移时 upgrade 必须显式给出', () => {
+  async function loadFails(config: unknown): Promise<void> {
+    const ctx = new Context()
+    const fiber = ctx.plugin(storageSqlPlugin, config as StorageSqlConfig)
+    await expect(fiber).rejects.toThrow(/invalid config/)
+    expect(fiber.state as number).toBe(FIBER_STATE.FAILED)
+    expect(ctx.get(STORAGE_SERVICE)).toBeUndefined()
+  }
+
+  it('带 migrations 而缺 upgrade ⇒ FAILED、无 storage 服务', async () => {
+    await loadFails({ dialect: 'sqlite', file: tempSqliteFile('policy-missing'), migrations })
+  })
+
+  it('upgrade 对象而无 migrations ⇒ 同', async () => {
+    await loadFails({
+      dialect: 'sqlite',
+      file: tempSqliteFile('policy-no-migrations'),
+      upgrade: { checks: [], guard: createUpgradeGuard() },
+    })
+  })
+
+  it('guard 不是 createUpgradeGuard() 造的 ⇒ 同', async () => {
+    await loadFails({
+      dialect: 'sqlite',
+      file: tempSqliteFile('policy-foreign-guard'),
+      migrations,
+      upgrade: { checks: [], guard: { confirm: async () => ({}), pending: async () => 'clear' } },
+    })
+  })
+
+  it('直接调 openStorage 同样受这条约束', async () => {
+    await expect(
+      openStorage({ dialect: 'sqlite', file: tempSqliteFile('policy-direct'), migrations }),
+    ).rejects.toThrow(/upgrade must be given explicitly/)
+  })
+
+  it('带 migrations 且 upgrade: false ⇒ 照常 ACTIVE、不取锁、不建快照', async () => {
+    const file = tempSqliteFile('policy-false')
+    const assembly = await bootAssembly({
+      plugins: [
+        {
+          plugin: storageSqlPlugin,
+          config: { dialect: 'sqlite', file, migrations, upgrade: false },
+        },
+      ],
+    })
+    expect(assembly.fibers[0]?.state as number).toBe(FIBER_STATE.ACTIVE)
+    expect(existsSync(`${file}.upgrade-snapshot`)).toBe(false)
+    // 不取锁：同一文件上一个开了守卫的实例照样取得排他
+    const guard = createUpgradeGuard()
+    const owner = await openStorage({
+      dialect: 'sqlite',
+      file,
+      migrations,
+      upgrade: { checks: [], guard },
+    })
+    await guard.confirm()
+    await owner.close()
+    await assembly.dispose()
   })
 })

@@ -23,16 +23,30 @@ export interface DialectHandles {
   /** 读事务的隔离设置（pg：REPEATABLE READ READ ONLY；sqlite：由只读句柄承担）。 */
   readonly readIsolation: 'repeatable read' | undefined
   readonly writeIsolation: 'read committed' | undefined
+  /** 当前库里已存在的用户表名（含迁移登记表）；在调用方给的事务里读，不写。 */
+  listTables(db: UntypedDb): Promise<string[]>
+}
+
+/** 属主实例的撤除收尾，由升级守卫提供；不开守卫的实例没有这一层。 */
+export interface StorageTeardown {
+  /** 撤除第一步：守卫置为已撤（此后 confirm 抛 NotAttached）；返回需要等它返回的在途确认。 */
+  begin(): Promise<unknown> | undefined
+  /** 句柄关闭之后：磁盘上仍有快照 ⇒ 恢复（句柄没关干净则不恢复）；最后放排他。 */
+  finish(handlesClosed: boolean): Promise<void>
 }
 
 export class SqlStorage implements StorageInstance {
   /** 在途事务的异步上下文：在 fn 里再调 read/write 是嵌套调用 ⇒ StorageDefect（写队列下会自锁）。 */
   readonly #inTx = new AsyncLocalStorage<'read' | 'write'>()
   #closed = false
+  #closing: Promise<void> | undefined
   #inflight = 0
   #drained: (() => void) | undefined
 
-  constructor(private readonly handles: DialectHandles) {}
+  constructor(
+    private readonly handles: DialectHandles,
+    private readonly teardown?: StorageTeardown,
+  ) {}
 
   async read<T>(fn: (tx: ReadTx) => Promise<T>): Promise<T> {
     this.#admit()
@@ -69,17 +83,36 @@ export class SqlStorage implements StorageInstance {
     }
   }
 
-  /** 关准入 → 等在途事务各自收场 → 关句柄。之后 read/write ⇒ StorageUnavailable。 */
-  async close(): Promise<void> {
-    if (this.#closed) return
+  /**
+   * 关准入 → 等在途事务各自收场（与在途的升级确认）→ 关句柄 → 属主实例：恢复未确认的快照、放排他。
+   * 之后 read/write ⇒ StorageUnavailable。重复调用得到同一次收尾。
+   */
+  close(): Promise<void> {
+    this.#closing ??= this.#close()
+    return this.#closing
+  }
+
+  async #close(): Promise<void> {
+    const confirming = this.teardown?.begin()
     this.#closed = true
     if (this.#inflight > 0) {
       await new Promise<void>(resolve => {
         this.#drained = resolve
       })
     }
-    await this.handles.writeDb.destroy()
-    await this.handles.readDb.destroy()
+    // 确认的失败归调用 confirm() 的那一方；这里只等它不再碰快照
+    await confirming?.catch(() => undefined)
+    let handlesClosed = false
+    try {
+      try {
+        await this.handles.writeDb.destroy()
+      } finally {
+        await this.handles.readDb.destroy()
+      }
+      handlesClosed = true
+    } finally {
+      await this.teardown?.finish(handlesClosed)
+    }
   }
 
   #admit(): void {

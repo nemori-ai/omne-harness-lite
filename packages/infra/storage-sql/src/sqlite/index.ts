@@ -1,4 +1,4 @@
-import { Kysely } from 'kysely'
+import { Kysely, sql } from 'kysely'
 import type { UntypedDb } from '@omne-harness-lite/storage'
 import { NodeSqliteDialect } from './driver.ts'
 import type { DialectHandles } from '../provider.ts'
@@ -27,5 +27,13 @@ export function openSqlite(options: SqliteOptions): DialectHandles {
     async lockSentinel() {},
     readIsolation: undefined,
     writeIsolation: undefined,
+    async listTables(db) {
+      const { rows } = await sql<{
+        name: string
+      }>`SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\'`.execute(
+        db,
+      )
+      return rows.map(row => row.name)
+    },
   }
 }
