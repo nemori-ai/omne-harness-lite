@@ -20,7 +20,7 @@
 | `tenancy/organization-governance` | `capability.organization-governance` v1 的四个服务面 | 同上 |
 | `tenancy/account-registration` | `composition.account-registration` v1 的 `registration` 服务面 | 同上 |
 
-`infra` 这个组名是候选，等产品负责人拍板（[D-026](../.meta_harness/design/record/decisions/infrastructure-persistence-choices/README.md)）。
+`infra` 组名与 `apps/tenancy-host` 节点名已由产品负责人拍板（[D-027](../.meta_harness/design/record/decisions/infrastructure-names-and-sqlite-durability/README.md)，2026-09-23）。
 第一程的范围、验收与遗留见 `tmp/tenancy-leg-1-plan.md`（本地计划，不入库）与各节点 README。
 
 ## 硬约束

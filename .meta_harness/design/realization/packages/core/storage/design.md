@@ -100,7 +100,7 @@ function mapStorageError<F extends string>(error: unknown, unavailable: F): { fa
 | 谁 | 建什么 | 依据 |
 |---|---|---|
 | 各持事实节点（AI、OG） | 自己记录的**列与约束的要求**（写在各自 design.md 的持久记录表与 R 清单里） | 节点设计 |
-| **装配**（候选 `apps/tenancy-host`，D-026 未拍板，**本批未建立**） | 迁移文件：两个节点的表、唯一约束与主键的**名字**（P-11 的输入）、`organization.ownerAccount → account` 这条外键 `ON DELETE RESTRICT`——**两张表在同一个库、同一个 schema，一条外键，两侧各自记一条要求**（[AI R-7](../../tenancy/account-identity/design.md#对存储提供者的要求清单) ⇔ [OG R-6](../../tenancy/organization-governance/design.md#对存储提供者的要求清单)）；装配把它们作为 `MigrationProvider` 经 storage-sql 的 config 传入 | D-026「两个 tenancy 节点的表在同一存储、同一约束域」 |
+| **装配**（`apps/tenancy-host`，名由 D-027 拍板；节点已起草，包未建） | 迁移文件：两个节点的表、唯一约束与主键的**名字**（P-11 的输入）、`organization.ownerAccount → account` 这条外键 `ON DELETE RESTRICT`——**两张表在同一个库、同一个 schema，一条外键，两侧各自记一条要求**（[AI R-7](../../tenancy/account-identity/design.md#对存储提供者的要求清单) ⇔ [OG R-6](../../tenancy/organization-governance/design.md#对存储提供者的要求清单)）；装配把它们作为 `MigrationProvider` 经 storage-sql 的 config 传入 | D-026「两个 tenancy 节点的表在同一存储、同一约束域」 |
 | [`infra/storage-sql`](../../infra/storage-sql/README.md) | 迁移**运行器**（Kysely `Migrator`）；config 可选项 `migrations: MigrationProvider`，迁移在 `provide('storage')` **之前**跑；不带任何业务表 | D-026 |
 | [`infra/clock`](../../infra/clock/README.md) | 它自己那张租约表的迁移（自带，形状归该节点） | 该节点 |
 | 本节点 | 只带一致性套件**自己的**五张 `conformance_*` 表（含命名唯一索引、`ON DELETE RESTRICT` 外键、一个 `CHECK` 列），套件开头建、结尾删 | — |

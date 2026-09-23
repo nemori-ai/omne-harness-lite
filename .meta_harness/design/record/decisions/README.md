@@ -29,11 +29,12 @@
 | [D-024：租户领域的限界上下文名 `tenancy`](tenancy-domain-name/README.md) | 一个名字：`packages/tenancy/<node>` 这一层叫 `tenancy` | 产品负责人，2026-09-22 | 布局判据改变；任何契约或节点语义改变；Cordis 采用版本已定 |
 | [D-025：Cordis 采用版本 4.0.4](cordis-adoption-version/README.md) | 一个版本号：产品包依赖 `@deepseek-ai/cordis` 4.0.4；basis 与三条待核对主张按它重取证 | 产品负责人，2026-09-22 | 任何 Cordis 语义已被核实（看 probe）；DSH 其他复用组件的版本已定；后续补丁自动采用 |
 | [D-026：基础设施持久化的四条选择](infrastructure-persistence-choices/README.md) | 无 in-memory 实现；SQL 经 Kysely 由配置切 sqlite(`node:sqlite`)/pg；队列先 redis；本地日志 JSONL；SQL 提供者进租户第一程 | 产品负责人，2026-09-22 | 存储协议接口已定；`infra`／`tenancy-host` 名已拍板；跨进程存储协调已定 |
+| [D-027：`infra`／`apps/tenancy-host` 名拍板，sqlite `synchronous=NORMAL`](infrastructure-names-and-sqlite-durability/README.md) | 两个名字不再是候选；开发期 sqlite 持久性档位 `NORMAL`，OS 崩溃可丢最后一段已提交事务作已知边界 | 产品负责人，2026-09-23 | 治理中心交付面已有 PF；断电级持久已承诺；pg 持久性已定 |
 
 **编号**：`D-` 是[决定的稳定编号](../../registry/README.md)。
 D-019 是**迁入时保留的原号**——同一次接受在旧谱系里就是这个号，
 接受事实只发生过一次，不为它另分配第二个号。
-D-022 至 D-026 是**新分配**的：旧谱系已分配到 D-021，新号从其后继续，避免与尚未迁入的存量决定相撞。
+D-022 至 D-027 是**新分配**的：旧谱系已分配到 D-021，新号从其后继续，避免与尚未迁入的存量决定相撞。
 
 **接受契约的只有 D-023。**D-019 与 D-022 各自写明它**不表示**接受任何契约，那是它们当日的范围声明，不因 D-023 改写；
 [catalog 里五份契约的 `acceptance` 都指向 D-023](../../registry/README.md)。

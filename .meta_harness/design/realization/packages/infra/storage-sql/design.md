@@ -174,7 +174,7 @@ config 是一个可辨识联合（候选；经 `core/kernel-basis` 的 `definePl
 - **写句柄不用 sqlite busy handler**：对研究「三家一致」参数的有意偏离，理由是同步 API 下同进程两实例互卡（[Driver 边界](#自写-nodesqlite-driver-的边界)）；退避粒度与 5 s 上限是候选常量。owner：本节点。
 - **待核项**（落包时按 source-check 取证，记进 verification；都是库 API 事实，不是内核语义）：Kysely 0.29.6 事务 API 能否传「只读」到 Driver；`DatabaseSync` 的 `enableForeignKeyConstraints`／`timeout` 选项；`node:sqlite` 错误对象的 `errcode`／`errstr` 字段名与 `SQLITE_BUSY` 的可捕获形态；`pg.Pool.end()` 对借出连接的处理；`Migrator` 登记表名；`PRAGMA index_list` 在 `DatabaseSync` 下的返回形状。
 - **`UPDATE` 改被引用主键在 P-10 分类下会被记成 `missing-target`**：假设本程无此写路径，落包时按 AI／OG 操作表核。
-- **R-4 的断电边界**：`synchronous=NORMAL` 是同行默认；要断电级持久由装配把它改成 `FULL`——本版 config 不暴露这一项，需要时加。owner：装配（`apps/tenancy-host` 候选名，尚未建立）。
+- **R-4 的断电边界**：`synchronous=NORMAL` 由 [D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/README.md) 拍板（2026-09-23）；要断电级持久改 `FULL` 须新决定并加 config 项——本版 config 不暴露这一项，需要时加。owner：装配（`apps/tenancy-host` 候选名，尚未建立）。
 - **pg 全部行**（读事务隔离级、`lock_timeout`、错误码、`pool.end()`）本程只接线，一致性套件对 pg `describe.skip` 并写前提「有一个可连的 pg ≥ 14」；第一次跑 pg 时本表所有「推断」都要重核。owner：装配，第二程。
 - **`better-sqlite3` 退路**：若 `node:sqlite` 在 Node 24 上有本程绕不过的缺陷（同步 API 之外的），退到 `better-sqlite3` 12.x + Kysely 内置 `SqliteDialect`——只换 Driver，协议与一致性套件不动。D-026 明写这条退路归本节点登记。
 - **`streamQuery` 不支持**：协议没有流式读面；将来有了再补。

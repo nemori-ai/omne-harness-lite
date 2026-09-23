@@ -71,7 +71,7 @@ offer-expiry 节点的候选形状把高水位写成「已读到的最大 `now`�
 | # | 要求 | 对应 |
 |---|---|---|
 | R-C1 | 单行的条件更新在一次提交内原子，条件不满足时不写且可判（受影响行数） | 续约与撤除两条守卫 |
-| R-C2 | 持久：提交后跨进程重启仍在。**边界**：storage-sql 的 sqlite 用 `synchronous=NORMAL`，OS 崩溃／断电可丢最后一段已提交事务（含最近一次续约）——「不后退」跨 OS 崩溃须装配取 `synchronous=FULL`，本版不给（owner 装配） | 高水位的全部意义 |
+| R-C2 | 持久：提交后跨进程重启仍在。**边界**：storage-sql 的 sqlite 用 `synchronous=NORMAL`，OS 崩溃／断电可丢最后一段已提交事务（含最近一次续约）——「不后退」跨 OS 崩溃不承诺（[D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/README.md) 裁 `NORMAL`） | 高水位的全部意义 |
 | R-C3 | 不可用可识别：写失败作为 `StorageUnavailable` 返回，不是静默成功 | 写失败 ⇒ `'unavailable'` 的前提 |
 | R-C4 | 表由本包的迁移建立，在 `storage` 可见之前跑完 | `storage-sql` 在 `provide` 前跑迁移 |
 

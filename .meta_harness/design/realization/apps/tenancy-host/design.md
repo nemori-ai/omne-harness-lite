@@ -343,7 +343,7 @@ verifyHandoffWarrant(verification, purpose, PROBE_ACCOUNT_ID, warrant) === 'ok' 
 | --- | --- | --- |
 | **入口层身份核实未写**（第三件半）：登录态怎样到达本进程、`LoginStateId` → 身份值 → 治理面 | 把本进程暴露成终端 API 的那一步（第二程）；**不阻断第一程**——各节点的场景演练在进程内直接调服务面 | 客户端与据点进程之间的契约起草（`apps/cli` 节点标「待立」）；立了之后本节点加入口层一节并回填 [S-42 末两行](#归装配的事项逐条承接) |
 | **本节点与准入规则的张力**：交付面写的是 PF-001（不是终端交付面 PF）；承载治理中心的应用无 PF | 本节点的「交付面」一行是借用；`apps/cli` 与本节点之间的边没有对端身份；绑定登记的准入待裁 | 主线不裁，已上报产品负责人：准入例外或为治理中心开题；本节点先以 candidate 存在 |
-| **名字**：`tenancy-host`、`infra` 都是候选 | 无 | 产品负责人（[D-026 准入核对](../../../record/decisions/infrastructure-persistence-choices/README.md#准入核对)） |
+| **名字**：`tenancy-host`、`infra` 已由 [D-027](../../../record/decisions/infrastructure-names-and-sqlite-durability/README.md) 拍板（2026-09-23） | 无 | 已闭合（[D-026 准入核对](../../../record/decisions/infrastructure-persistence-choices/README.md#准入核对)） |
 | **四个基础设施节点的设计尚未被接受** | 本节点对 storage-sql、clock、core/storage、kernel-basis 的每一处采用 | 那四个节点的评审与接受 |
 | **AI、OG 的迁移片段第二程才有** | 本节点的迁移合成在此之前只能合 `clockLeaseMigration`；`assembly.fk-organization-owner-account` 起不来 | AI、OG 节点第二程各加一行「导出迁移片段」（OG 的是工厂，收外键目标与名字） |
 | **跨 owner 外键靠 OG 片段的工厂参数**（sqlite 无 `ADD CONSTRAINT`）——候选形状 | 若 OG 不接受工厂形状，退路是本节点以 `ALTER TABLE organization ADD COLUMN owner_account … REFERENCES account(account_id)`（可空列，两方言都允许）在 OG 片段之后加列与外键，代价是 OG 的一列由装配建 | OG 节点 + 本节点 |
@@ -353,7 +353,7 @@ verifyHandoffWarrant(verification, purpose, PROBE_ACCOUNT_ID, warrant) === 'ok' 
 | **Kysely `Migrator` 登记表名待核** | 迁移清单的完整性 | 本节点，落包时核 |
 | **密钥下发两条路、config 校验库、测试运行器**既无决定也无提案 | architecture 技术栈采用表少三行 | 主线：立提案或决定 |
 | **pg 零运行** | D-026「只改配置切 pg」在本节点无证据 | 装配，第二程 |
-| **`synchronous=FULL`** 不可配 | 断电级持久 | 已报产品负责人；storage-sql 加 config 项 + 本节点取值 |
+| **`synchronous=FULL`** 不可配 | 断电级持久 | [D-027](../../../record/decisions/infrastructure-names-and-sqlite-durability/README.md) 裁 `NORMAL`（2026-09-23）；要 `FULL` 须新决定并给 storage-sql 加 config 项 |
 | **G-13 残留清扫定时器、G-6 清扫提供者** | 存储卫生；无正确性影响 | 前者：产品负责人定节奏后本节点加 effect；后者：AI v2 枚举读面 |
 | **撤除总超时**是本节点的候选常量，未定 | 一个挂住的 disposer 让进程不退出 | 本节点，落包时定并记候选值 |
 | **`scrypt` 不限流** | 资源上限 | 装配运维关注点；有测量再做 |

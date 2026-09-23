@@ -38,7 +38,7 @@ Python 当前服务于开发工具。
 
 > **只为已经有接受规格、且确实要写代码的职责建成员。**每个包对应一个
 > [realization 节点](../.meta_harness/design/realization/README.md)，节点先于包；
-> 第一层组名（`core`、`infra`、`tenancy`）随节点布局，`infra` 仍是候选名。
+> 第一层组名（`core`、`infra`、`tenancy`）随节点布局。
 
 ## 当前可执行代码
 
