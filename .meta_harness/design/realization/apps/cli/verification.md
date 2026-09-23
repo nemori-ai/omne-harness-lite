@@ -14,7 +14,7 @@
 
 | 来源条款 | 需要什么证据 | 当前状态 | owner 与闭合条件 |
 | --- | --- | --- | --- |
-| [`capability.account-identity/v1#S-30`](../../../spec/capabilities/account-identity/v1/contract.md#s-30-装配给的保证-vs-协议须给的保证) | 该条列出的「装配给的保证」在本节点这条跨进程边上**逐条**由协议重新兑现的证据：撤销传播时延上界 δ 进契约、激活可见性窗口内 fail-closed、同提交的等价表述、标识释放的传播界 | **未开始** | 本节点 + 该契约 owner。闭合条件：治理契约的线上投影协议立项并接受；在它存在之前**本节点不得声称这些保证仍然成立** |
+| [`capability.account-identity/v1#S-30`](../../../spec/capabilities/account-identity/v1/contract.md#s-30-装配给的保证-vs-协议须给的保证) | 该条列出的「装配给的保证」在本节点这条跨进程边上**逐条**由协议重新兑现的证据：撤销传播时延上界 δ 进契约、激活可见性窗口内 fail-closed、同提交的等价表述、标识释放的传播界 | **未开始** | 本节点 + 该契约 owner。入口契约 [`composition.governance-center-entry/v1#S-36`](../../../spec/compositions/governance-center-entry/v1/contract.md#s-36-装配给的保证-vs-协议须给的保证)（candidate）已逐行写明这条边上由谁兑现：领域没有被拆开，同存储／同提交类的保证仍由装配给，改由协议给的是与调用方身份和流向调用方的值有关的那几行（含中心一侧 δ = 0）；据点侧副本的陈旧归 PF-016。闭合条件：入口契约接受；在此之前**本节点不得声称这些保证已成立** |
 | [`capability.organization-governance/v1#S-42`](../../../spec/capabilities/organization-governance/v1/contract.md#s-42-装配给的保证-vs-协议须给的保证) | 同上，针对组织治理那一侧列出的各条 | **未开始** | 同上 |
 | [`composition.account-registration/v1#S-25`](../../../spec/compositions/account-registration/v1/contract.md) | 注册组合链跨这条边之后的同提交与重跑语义证据 | **未开始** | 同上 |
 | [`data.identity-values/v1#S-30`](../../../spec/data/identity-values/v1/contract.md#s-30-跨边界须重新验证) | 接收边界重新鉴别调用方的结构检查：**持有标识不构成资格** | **未开始** | 同上 |
@@ -51,7 +51,7 @@
 
 | 缺什么 | 为什么 | 谁能补 |
 | --- | --- | --- |
-| 本节点消费的五份租户契约**一条绑定都没有** | 交付面 [PF-016 是 `draft`](../../../product/PF-016-cli-tui-delivery-surface/README.md)，[按准入不得登记绑定](../../README.md#应用节点比提供者节点多什么)；且代理提供者不存在 | PF 接受 + 规格与实现推进之后，由本节点回填 |
+| 本节点消费的五份租户契约**一条绑定都没有** | 五份租户契约已接受（D-023），但本节点的代理提供者不存在、据点与客户端之间的契约未起草、入口契约仍是 candidate，没有任何可引用的测试或形式任务 | PF 接受 + 规格与实现推进之后，由本节点回填 |
 | 交付面自己那份契约的全部性质**没有可绑定的条款** | 契约尚未起草 | 架构与规格设计 |
 | harness 能力族的任何条款 | 契约与提供者都还没设计 | 各能力的设计 |
-| 跨进程之后失效的那批保证 | 协议未立；**在它立起来之前，这批保证在本节点这条边上是缺口，不是假设** | 治理契约的线上投影协议 |
+| 跨进程之后失效的那批保证 | 入口契约（candidate）已把这批保证逐行分派；**在它被接受、且据点侧代理立起来之前，这批保证在本节点这条边上是缺口，不是假设** | 入口契约 `composition.governance-center-entry/v1` 的接受；据点侧代理提供者 |

@@ -155,8 +155,8 @@ bindings:
 源码尚未落地，`bindings.yaml` 为空表。治理中心那一侧的交付面 PF-017 已于 2026-09-23 起草（draft，未接受），入口层与运维面落在
 [`packages/tenancy/governance-center-entry`](packages/tenancy/governance-center-entry/README.md)（candidate），由 `apps/tenancy-host` 装配；`apps/cli` 两条跨应用边的对端随本程修订。
 [`apps/tenancy-host/`](apps/tenancy-host/README.md)（名字由 [D-027](../record/decisions/infrastructure-names-and-sqlite-durability/README.md) 拍板）是租户领域第一程的采用型装配节点（2026-09-22），状态 `candidate`：
-只写存储（迁移清单与真实外键）、时钟与密钥三半，入口层身份核实明写为缺口；它没有终端交付面 PF，
-与上一段的准入有张力，待产品负责人裁（准入例外或为治理中心开题）。
+第一程写存储（迁移清单与真实外键）、时钟与密钥；2026-09-23 随 PF-017（draft）与入口契约修订，补入口层与运维面的装配、升级整体性（迁移前只读核对、快照与确认）；
+交付面 PF 的准入张力已由 PF-017 开题化解，接受仍待 PF-017 与契约翻正。
 
 判断方法按需读 `harness-design-handbook` skill 的「插件投影」。
 返回[设计链入口](../README.md)。
