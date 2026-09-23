@@ -1,0 +1,66 @@
+# 条款到证据的绑定表。
+# 唯一可绑的已存在证据是契约自己的形式任务 governance-center-entry-v1-decision（EntryDecision.tla + EntryDecision.cfg）。
+# 它检查的是契约的判定次序模型，不是本节点的源码（源码尚不存在）；每条 assumptions 写明模型盖不到什么。
+# 只绑「对应断言有变异配置证明它会失败」的条款，外加 S-32 的进展性质（前提写明）。
+# 执行记录在契约 verification「实际执行」（2026-09-23，无反例）；原始输出未入 record/evidence。
+# 本节点自己的测试义务 T-1～T-18 一条都还没有（尚未建包），不写占位，登记在 verification.md。
+# 契约 candidate、主责产品依据 PF-017 rev 1 draft：这些绑定不提升任何一层接受状态。
+version: 1
+node: "governance-center-entry"
+kind: "provider"
+
+bindings:
+  - clause: "composition.governance-center-entry/v1#S-10"
+    evidence: "formal:governance-center-entry-v1-decision"
+    assumptions:
+      - "依据不变式 VersionFirst（变异 Validity_readPresentationBeforeVersion 使它被违反）与 InputAfterAuth（变异 Validity_inputBeforeAuth 在 -continue 下使它被违反）；EntryDecision.cfg：Mutation = \"none\"，一次行为只有一个请求，每次现读读得到或读不到由环境任选"
+      - "同属 S-10 的 NoDomainWithoutGates 没有专门变异证明它会失败（契约 verification V-3 的已知缺口），本绑定不以它为依据"
+      - "模型的阶段（CheckVersion、CheckEnvelope、Authenticate、CheckPayload、Derive、Gate、Dispatch）与本节点请求处理函数的阶段是否一一对应，由节点测试 T-3 核；T-3 未开始"
+    alignment_checked: "2026-09-23"
+
+  - clause: "composition.governance-center-entry/v1#S-11"
+    evidence: "formal:governance-center-entry-v1-decision"
+    assumptions:
+      - "依据不变式 CannotJudgeIsUnavailable（变异 Validity_unavailableAsRejected 使它被违反）与 RejectionUniform（变异 Validity_inputBeforeAuth 使它被违反）"
+      - "RejectionUniform 只检查到「同一个答复值」；整个线上答复逐字节相同被「一个答复就是一个值」的建模方式吸收，模型不覆盖，证据形式是节点测试 T-2（契约场景 S-39），未开始"
+      - "RejectionOnlyWhenJudged 没有专门变异，本绑定不以它为依据"
+      - "前提：参与方的 S-17 把一切判不了收成 storage-unavailable；参与方另给出集合外的值时走 S-14 缺陷路径，不在本条"
+    alignment_checked: "2026-09-23"
+
+  - clause: "composition.governance-center-entry/v1#S-13"
+    evidence: "formal:governance-center-entry-v1-decision"
+    assumptions:
+      - "依据不变式 CannotJudgeIsUnavailable 在 Gate 读不到那一支（变异 Validity_gateUnavailableAsDenied 使它被违反）：补授权读不到不收成 notAuthorized"
+      - "补授权判的是哪个组织、调用方是哪个账号不在模型里；证据形式是节点测试 T-6（契约场景 S-43），未开始"
+    alignment_checked: "2026-09-23"
+
+  - clause: "composition.governance-center-entry/v1#S-14"
+    evidence: "formal:governance-center-entry-v1-decision"
+    assumptions:
+      - "依据不变式 DefectIsUnavailable（变异 Validity_defectAsResult 使它被违反）：缺陷一律 unavailable"
+      - "「缺陷在完整体检的 defectCount 里可见」不在模型里：那一半的证据是节点测试 T-4（契约场景 S-40），未开始"
+      - "模型把全部路由结果收成一个 result；各路由失败值的逐条映射由节点测试 T-10 核，未开始"
+    alignment_checked: "2026-09-23"
+
+  - clause: "composition.governance-center-entry/v1#S-33"
+    evidence: "formal:governance-center-entry-v1-decision"
+    assumptions:
+      - "依据不变式 LateRevocationUniform（变异 Validity_passthroughStateNotValid 使它被违反）；撤销是不受公平性约束的环境动作 Revoke，可在答复之前任何时刻发生"
+      - "只检查到「同一个答复值」；与第 ② 步拒绝逐字节相同由节点测试 T-2 的第七次核，未开始"
+    alignment_checked: "2026-09-23"
+
+  - clause: "composition.governance-center-entry/v1#S-32"
+    evidence: "formal:governance-center-entry-v1-decision"
+    assumptions:
+      - "时序性质 EventuallyAnswered；流水线动作带弱公平 WF_vars(Pipeline)（对应前提 P1：中心在运行）——这是假设，不是被证明的事实"
+      - "环境不受公平性约束；P2（数据所在够得着）、P3（钟可读未倒退）、P4（版本对得上）不成立时模型只保证得到答复，不保证得到领域的答复"
+      - "没有变异配置演示这条性质会失败；它失败的形态是某个阶段在某个状态下没有使能的动作"
+      - "一次行为只有一个请求；多个请求之间的交错与排空不在模型里（节点测试 T-12 与契约 V-15）"
+    alignment_checked: "2026-09-23"
+
+# 不绑：
+# - S-7 答复闭合：AnsweredClosed 断言 reply 落在模型自己定义的 Replies 里，与 TypeOK 同属自指；
+#   具名值的闭合归 Schema 的 RouteFailureName 与节点测试 T-10。
+# - S-18 公开体检不受挡、S-19 免认人路由不看出示物：HealthUnconditional、ExemptIgnoresPresentation、
+#   ExemptInputWithoutLookup 没有变异证明它们会失败（契约 V-3 缺口）；证据形式是节点测试 T-8、T-10、T-17。
+# - S-15 δ = 0：模型一次行为只有一个请求，跨请求缓存无从表达；证据形式只有节点测试 T-7。
