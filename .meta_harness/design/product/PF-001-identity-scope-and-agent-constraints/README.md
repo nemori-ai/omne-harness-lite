@@ -21,31 +21,31 @@ relations:
 
 ## 关系
 
-| 关系 | 本 topic 的情况 |
-|---|---|
-| `supersedes` | 无 |
-| `depends-on` | 无。本 topic 是基础，不引用别人的结论 |
-| 被谁展开 | [PF-002 设置、权限与资产的展开](../PF-002-assets-settings-and-permissions/README.md) 把资产的种类与组合展开，[PF-003 资产的复制与分享](../PF-003-asset-transfer-and-sharing/README.md) 定义资产怎样跨组织流动。两者都依赖本 topic，**方向不能反**：本 topic 不引用它们的结论。其余紧邻内容（成本与账单明细、技能与工具的装载等）目前还没有对应的产品设计，分界见 [design.md 第八节](design.md#八边界与依赖) |
-| `extends` | 无 |
+| 关系         | 本 topic 的情况                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `supersedes` | 无                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `depends-on` | 无。本 topic 是基础，不引用别人的结论                                                                                                                                                                                                                                                                                                                                                                       |
+| 被谁展开     | [PF-002 设置、权限与资产的展开](../PF-002-assets-settings-and-permissions/README.md) 把资产的种类与组合展开，[PF-003 资产的复制与分享](../PF-003-asset-transfer-and-sharing/README.md) 定义资产怎样跨组织流动。两者都依赖本 topic，**方向不能反**：本 topic 不引用它们的结论。其余紧邻内容（成本与账单明细、技能与工具的装载等）目前还没有对应的产品设计，分界见 [design.md 第八节](design.md#八边界与依赖) |
+| `extends`    | 无                                                                                                                                                                                                                                                                                                                                                                                                          |
 
 ## 按当前问题展开
 
-| 当前问题 | 阅读入口 |
-|---|---|
-| 这块产品是什么：概念、模型、规则、取舍 | [产品设计](design.md) |
-| 用户怎么走、对象怎么流转、谁能做什么 | [流程与状态](flows.md) |
-| 做成什么样算做对了 | [验收标准](acceptance.md) |
-| 哪些是拍板定的，哪些是推导的，还有什么没定 | [决策与来源](decisions.md) |
-| 这块设计怎么演变到今天 | [变更历史](changelog.md) |
-| 当时是怎么谈的 | [设计交流笔记](interviews/README.md) |
-| 要实施它，当前该怎么做 | [设计投影 v2](projection/v2/projection.md)（租户相关领域那一片；派生快照，不是权威；版本与接受依据见[投影目录](projection/README.md)） |
+| 当前问题                                   | 阅读入口                                                                                                                               |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 这块产品是什么：概念、模型、规则、取舍     | [产品设计](design.md)                                                                                                                  |
+| 用户怎么走、对象怎么流转、谁能做什么       | [流程与状态](flows.md)                                                                                                                 |
+| 做成什么样算做对了                         | [验收标准](acceptance.md)                                                                                                              |
+| 哪些是拍板定的，哪些是推导的，还有什么没定 | [决策与来源](decisions.md)                                                                                                             |
+| 这块设计怎么演变到今天                     | [变更历史](changelog.md)                                                                                                               |
+| 当时是怎么谈的                             | [设计交流笔记](interviews/README.md)                                                                                                   |
+| 要实施它，当前该怎么做                     | [设计投影 v3](projection/v3/projection.md)（租户相关领域那一片；派生快照，不是权威；版本与接受依据见[投影目录](projection/README.md)） |
 
 ## 状态
 
 - 产品设计：**rev 16**，已定稿；2026-09-23 按产品负责人「rev 完翻正式」的裁决登记为接受（[decisions §一](decisions.md#一拍板记录)）
 - 未决项：**无**
 - 待裁决：**无**
-- 技术投影：**v2**（2026-09-23，依据 rev 15；覆盖租户相关领域；由 [D-023](../../record/decisions/tenant-domain-design-acceptance/README.md) 与 [D-028](../../record/decisions/governance-center-design-acceptance/README.md) 接受为实施入口；版本表在[投影目录](projection/README.md)）
+- 技术投影：**v3**（2026-09-23，依据 rev 16，记录实现与验收对账；覆盖租户相关领域；由 [D-023](../../record/decisions/tenant-domain-design-acceptance/README.md) 与 [D-028](../../record/decisions/governance-center-design-acceptance/README.md) 接受为实施入口；版本表在[投影目录](projection/README.md)）
 
 技术投影按 `harness-design-handbook` skill 展开，
 产物按其步骤 G 落回本包的 `projection/` 下对应版本。

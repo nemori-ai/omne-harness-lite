@@ -100,7 +100,9 @@ Alloy 可按结构关系建立模型，检查断言并探索合法实例；参�
 | [`compositions/account-registration`](compositions/account-registration/README.md) | 一次注册从入口走到稳定点的整体责任 |
 | [`compositions/governance-center-entry`](compositions/governance-center-entry/README.md) | 客户端 ↔ 治理中心这条边：判定次序、四种入口答复、身份推导与补授权、公开体检与运维面、治理中心标识 |
 
-**七个版本都在 [catalog](../registry/README.md) 登记并接受**：五份 v1 的 `acceptance` 指向 D-023 的 `acceptance.json`，
+**另有第七个 topic，是候选、不在上面「全部 accepted」之列**：[`compositions/governance-center-entry-https-json`](compositions/governance-center-entry-https-json/README.md) v1（`candidate`，2026-09-23 起草，接受待 D-029）——入口契约落在 HTTP/1.1 over TLS + JSON 上的全部字节事实（传输绑定 `https-json/1`，闭合入口契约 G-10 与 G-11 的中心一侧），已在 catalog 登记、未冻结。
+
+**上面六个 topic 的七个版本都在 [catalog](../registry/README.md) 登记并接受**（第七个 topic 的候选 v1 也已登记，`acceptance` 为 null）：五份 v1 的 `acceptance` 指向 D-023 的 `acceptance.json`，
 入口契约 v1 与账号能力 v2 指向 D-028 的；`frozen.json` 登记了五个 v1 目录的 18 项资源，加入口契约 v1 的 15 项与账号能力 v2 的 1 项。
 它们之间的依赖带精确坐标与消费 clauses，登记口径是**正文以坐标引用某条款即为消费**，
 只有否定式提及（「不来自」「不同于」）不登；**方向只算消费者 → 提供者**：data 契约正文以坐标引用

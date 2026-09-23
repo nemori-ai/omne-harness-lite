@@ -1,0 +1,104 @@
+===== [ts-checks] build =====
+$ (cwd=/data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence) pnpm --filter @omne-harness-lite/ts-checks run build
+start: 2026-09-23T16:12:09Z
+
+> @omne-harness-lite/ts-checks@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence/tools/ts-checks
+> node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+
+end: 2026-09-23T16:12:11Z
+exit: 0
+
+===== [ts-checks] typecheck =====
+$ (cwd=/data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence) pnpm --filter @omne-harness-lite/ts-checks run typecheck
+start: 2026-09-23T16:12:11Z
+
+> @omne-harness-lite/ts-checks@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence/tools/ts-checks
+> tsc -p tsconfig.test.json
+
+end: 2026-09-23T16:12:13Z
+exit: 0
+
+===== [ts-checks] test =====
+$ (cwd=/data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence) pnpm --filter @omne-harness-lite/ts-checks exec vitest run --reporter=verbose --reporter=json --outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence/tmp/w4a/tests/json/ts-checks.json
+start: 2026-09-23T16:12:13Z
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence/tools/ts-checks
+
+ ✓ tests/source-text.spec.ts > analyse > 注释从两个视图里抹掉，换行与长度不变 3ms
+ ✓ tests/source-text.spec.ts > analyse > 字符串内容只在骨架里抹掉；注释符号在字符串里不算注释 0ms
+ ✓ tests/source-text.spec.ts > analyse > 模板字符串：正文抹掉，插值里的代码保留（含嵌套模板与花括号） 1ms
+ ✓ tests/source-text.spec.ts > analyse > 正则字面量内容抹掉，除号不当正则 1ms
+ ✓ tests/source-text.spec.ts > firstArgument 与 matchClose > 第一个顶层实参，嵌套括号里的逗号不切 1ms
+ ✓ tests/source-text.spec.ts > importsOf / namedImportsOf > 静态、副作用、动态导入；注释与字符串里的字样不算 3ms
+ ✓ tests/source-text.spec.ts > namedFunctionBodies > 函数声明、方法、箭头函数都认；调用与控制语句不认；返回类型含对象字面量类型之外的写法 1ms
+ ✓ tests/rules.spec.ts > no-wall-clock > 产品源码用 Date.now() ⇒ 报出；infra/clock 与测试豁免 4ms
+ ✓ tests/rules.spec.ts > no-bail-control > ctx.bail( ⇒ 报出；serial 不报 2ms
+ ✓ tests/rules.spec.ts > restricted-call-sites > account-registration 之外调 accounts.produce( 或解析 organization-purge ⇒ 报出 2ms
+ ✓ tests/rules.spec.ts > no-testing-import > 产品源码 import ./testing ⇒ 报出；测试文件豁免 1ms
+ ✓ tests/rules.spec.ts > runRules > 汇总全部规则 5ms
+ ✓ tests/account-identity-rules.spec.ts > no-presentation-in-diagnostics > 出示物进日志、emit、new Error(、defect( 的实参（含模板插值）⇒ 报出 5ms
+ ✓ tests/account-identity-rules.spec.ts > no-presentation-in-diagnostics > 合规：诊断只写种类与原因；字面量里的字样不算；出示物交给返回值与解析不算 1ms
+ ✓ tests/account-identity-rules.spec.ts > no-presentation-in-diagnostics > 变异核对：在真实的 logins.ts 的随机源失败日志里带上出示物 ⇒ 报出；原文无违反 9ms
+ ✓ tests/account-identity-rules.spec.ts > no-random-source-inline > Math.random、出示物模块外的 randomBytes、插件体传别的源 ⇒ 报出 2ms
+ ✓ tests/account-identity-rules.spec.ts > no-random-source-inline > 合规：randomBytes 在出示物模块；插件体传 cryptoRandomSource；类型位置不算 1ms
+ ✓ tests/account-identity-rules.spec.ts > no-random-source-inline > 包不存在 ⇒ 静默；包在而插件体模块缺席 ⇒ 报布局偏离 1ms
+ ✓ tests/account-identity-rules.spec.ts > no-random-source-inline > 变异核对：真实的 plugin.ts 原文无违反；把随机源换成别的 ⇒ 报出 10ms
+ ✓ tests/account-identity-rules.spec.ts > ai-r8-no-credential-in-write > storage.write( 回调里调 credentials.verify/derive/checkPolicy/parse ⇒ 报出 1ms
+ ✓ tests/account-identity-rules.spec.ts > ai-r8-no-credential-in-write > 合规：凭据计算在写事务之前；回调里的注释与字符串不算；read 回调不在此列 0ms
+ ✓ tests/account-identity-rules.spec.ts > ai-r8-no-credential-in-write > 变异核对：真实的 accounts.ts 原文无违反；在第一个写事务回调开头调一次 credentials.derive( ⇒ 报出 6ms
+ ✓ tests/consumer-rules.spec.ts > sc-oe-1 > 持久记录类型（*Record／*Row／*Table）以 OfferState 为字段 ⇒ 报出 7ms
+ ✓ tests/consumer-rules.spec.ts > sc-oe-1 > 合规：记录只存 SettledState | null；读面类型带 OfferState 不算；offer-expiry 自身不查 1ms
+ ✓ tests/consumer-rules.spec.ts > sc-oe-1 > 变异核对：真实的 OG records.ts 原文无违反；把 settled 改成 OfferState ⇒ 报出 19ms
+ ✓ tests/consumer-rules.spec.ts > sc-oe-2 > 接受路径里对派生状态逐值比较（=== 与 case，含嵌套回调）⇒ 报出 3ms
+ ✓ tests/consumer-rules.spec.ts > sc-oe-2 > 合规：接受路径只经 acceptable()、比较 'unavailable'；撤回路径按状态分派不在范围；写 settled 不是比较 1ms
+ ✓ tests/consumer-rules.spec.ts > sc-oe-2 > 变异核对：真实的 OG offers.ts 原文无违反；把 acceptable() 换成逐值比较 ⇒ 报出 19ms
+ ✓ tests/consumer-rules.spec.ts > sc-cv-1 > CV 包之外对材料值做成员访问、正则解析、JSON.parse ⇒ 报出 2ms
+ ✓ tests/consumer-rules.spec.ts > sc-cv-1 > 合规：品牌断言、原样存取与传递；CV 包自己解析材料不算 0ms
+ ✓ tests/consumer-rules.spec.ts > sc-cv-1 > 变异核对：真实的 AI 源码原文无违反；在 logins.ts 里拆材料 ⇒ 报出 11ms
+ ✓ tests/consumer-rules.spec.ts > terminal-outcome-closed > 合规：恰四值；返回 TerminalOutcome 的函数只返回四值；嵌套回调返回别的字面量不算 2ms
+ ✓ tests/consumer-rules.spec.ts > terminal-outcome-closed > 第五个值、断言、常量多一值或换了值、类型另加成员 ⇒ 报出 1ms
+ ✓ tests/consumer-rules.spec.ts > terminal-outcome-closed > 包不存在 ⇒ 静默；包在而常量缺席 ⇒ 报出 0ms
+ ✓ tests/consumer-rules.spec.ts > terminal-outcome-closed > 变异核对：真实的 AR 源码原文无违反；追加一个返回第五个值的 register ⇒ 报出 2ms
+ ✓ tests/consumer-rules.spec.ts > og-s42-dynamic-resolve > AR 之外经 ctx.get、resolveOptional、inject 解析 organization-purge，或引用常量 ⇒ 报出（OG 自己解析也算） 1ms
+ ✓ tests/consumer-rules.spec.ts > og-s42-dynamic-resolve > 合规：AR 解析；OG 定义并 provide；测试里解析 0ms
+ ✓ tests/consumer-rules.spec.ts > og-s42-dynamic-resolve > 变异核对：真实的 OG plugin.ts 原文无违反；让它自己解析一次 ⇒ 报出 3ms
+ ✓ tests/consumer-rules.spec.ts > no-dialect-bypass > tenancy 包源码从 storage-sql 导入库连接构件、经命名空间用它、new Kysely( ⇒ 报出 2ms
+ ✓ tests/consumer-rules.spec.ts > no-dialect-bypass > 合规：只经 Storage 协议；Kysely 只作类型；测试与装配以外的包不查 0ms
+ ✓ tests/consumer-rules.spec.ts > no-dialect-bypass > 变异核对：真实的 tenancy 源码原文无违反；在 OG records.ts 里另开连接 ⇒ 报出 6ms
+ ✓ tests/entry-rules.spec.ts > ops-import-whitelist > 合规：白名单内的包、cordis 与 zod、node:*、事件声明模块与 ops 目录内互引 5ms
+ ✓ tests/entry-rules.spec.ts > ops-import-whitelist > 运维面导入治理包、本包别处、第三方、白名单包的子入口、动态说明符 ⇒ 逐条报出 2ms
+ ✓ tests/entry-rules.spec.ts > ops-import-whitelist > 事件声明模块导入任何 @omne-harness-lite/*、本包模块或别的第三方 ⇒ 报出 1ms
+ ✓ tests/entry-rules.spec.ts > ops-import-whitelist > 合规：事件声明模块导入 node 内置、cordis 类型与 zod 1ms
+ ✓ tests/entry-rules.spec.ts > ops-import-whitelist > 入口层包不存在 ⇒ 静默通过；包在而运维面目录或事件声明模块缺席 ⇒ 报布局偏离 3ms
+ ✓ tests/entry-rules.spec.ts > ops-event-whitelist > 合规：Cordis 上下文只订阅 serving/stopped/defect、只派发 listening；Node 发射器不管 3ms
+ ✓ tests/entry-rules.spec.ts > ops-event-whitelist > ctx.on('login.revoked', …) 与计算出的名字、错的常量、非事件模块的同名标识符 ⇒ 报出 1ms
+ ✓ tests/entry-rules.spec.ts > ops-event-whitelist > 同名标识符若不是从事件声明模块导入的，不算 1ms
+ ✓ tests/entry-rules.spec.ts > ops-event-whitelist > 运维面目录之外不查（客户端面的派发归别的规则） 0ms
+ ✓ tests/entry-rules.spec.ts > single-table-entry > 合规：字面量、带别名的字面量、定义为该字面量的常量 2ms
+ ✓ tests/entry-rules.spec.ts > single-table-entry > 别的表、判不出的表名、join 别的表、sql 模板与 sql.raw ⇒ 报出 1ms
+ ✓ tests/entry-rules.spec.ts > single-table-entry > 入口层包之外不查 0ms
+ ✓ tests/entry-rules.spec.ts > no-peer-address > remoteAddress、x-forwarded-for 等 ⇒ 报出；注释里提到不算 1ms
+ ✓ tests/entry-rules.spec.ts > credentials-parse-only > 入口层包里 .derive( .verify( .checkPolicy( ⇒ 报出；.parse( 合规 1ms
+ ✓ tests/entry-rules.spec.ts > presentation-only-authn > logins.verify(、parseLoginStateId、as LoginStateId、<LoginStateId> ⇒ 报出 1ms
+ ✓ tests/entry-rules.spec.ts > presentation-only-authn > 合规：exchange 认人、类型位置的 LoginStateId 泛型与导入不算 1ms
+ ✓ tests/entry-rules.spec.ts > presentation-only-authn > 入口层解析 accounts 服务（inject、ctx.get、resolveOptional、ACCOUNTS_SERVICE 常量）⇒ 报出 1ms
+ ✓ tests/entry-rules.spec.ts > presentation-only-authn > 合规：inject 里只有路由表点名的服务；字面量 accounts 出现在别处（日志键）不算解析 1ms
+ ✓ tests/entry-rules.spec.ts > no-network-listen-in-tenancy > 入口层包 transport/ops 之外、其他 tenancy 包 ⇒ 导入 node:http/https/net/tls 或 .listen( 报出 1ms
+ ✓ tests/entry-rules.spec.ts > no-network-listen-in-tenancy > 合规：transport 与 ops 里可以；core/infra 与测试不在范围 0ms
+ ✓ tests/entry-rules.spec.ts > restricted-call-sites：入口 SC-1 新增的四个方法 > 入口层包与其他非 owner 包调 createPersonal/activate/purge/sweepStaleSelections ⇒ 报出 1ms
+ ✓ tests/entry-rules.spec.ts > restricted-call-sites：入口 SC-1 新增的四个方法 > 合规：owner 包定义与自调、注册组合调用、注释里提到、相似名字 1ms
+ ✓ tests/entry-rules.spec.ts > 临时目录里造出入口层包：collectSources + CLI 真的会红 > 违反的包 ⇒ runRules 报出各条、CLI 退出 1 并逐条打印 157ms
+ ✓ tests/entry-rules.spec.ts > 临时目录里造出入口层包：collectSources + CLI 真的会红 > 合规的包 ⇒ CLI 退出 0 134ms
+
+ Test Files  5 passed (5)
+      Tests  65 passed (65)
+Type Errors  no errors
+   Start at  16:12:13
+   Duration  867ms (transform 1.03s, setup 0ms, import 1.45s, tests 473ms, environment 1ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence/tmp/w4a/tests/json/ts-checks.json
+end: 2026-09-23T16:12:14Z
+exit: 0
+

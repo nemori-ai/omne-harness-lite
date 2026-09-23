@@ -1,0 +1,18 @@
+{
+  "reachable": true,
+  "centerId": "9d4b0ae54ae7b2621bd7311e73fcfa68",
+  "version": "0.0.0",
+  "startedAt": "2026-09-23T18:05:02.118Z",
+  "storageReachable": true,
+  "deploymentKeyPresent": true,
+  "deploymentKeyComplete": true,
+  "clockSane": true,
+  "defectCount": 0,
+  "deploymentParameters": {
+    "unactivatedRetention": 604800000,
+    "invitationTtlDefault": 1209600000,
+    "affiliationRequestTtlDefault": 1209600000,
+    "copyNoticeTtlDefault": 604800000,
+    "sharingInvitationTtlDefault": 604800000
+  }
+}

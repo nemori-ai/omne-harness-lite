@@ -1,0 +1,29 @@
+===== [tenancy-host.pg] pg =====
+$ (cwd=/data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence) OMNE_TEST_PG_URL=postgres://postgres:***@127.0.0.1:55439/w4a_host_admin pnpm --filter @omne-harness-lite/tenancy-host exec vitest run tests/pg.spec.ts --reporter=verbose --reporter=json --outputFile.json=<json>
+start: 2026-09-23T16:16:51Z
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence/apps/tenancy-host
+
+ ✓ tests/pg.spec.ts > pg 首跑 · 装配（OMNE_TEST_PG_URL） > assembly.pg-wiring：同一份迁移与装载代码只改方言配置 ⇒ boot() 成功、答复、铸标识；重启标识不变；外键两向与约束名同 sqlite 845ms
+ ✓ tests/pg.spec.ts > pg 首跑 · 装配（OMNE_TEST_PG_URL） > assembly.pg-upgrade-atomic：本版多两个片段、第二个失败 ⇒ 启动失败于迁移；登记与 schema 都回到迁移前（R-U7，一个事务） 289ms
+ ✓ tests/pg.spec.ts > pg 首跑 · 装配（OMNE_TEST_PG_URL） > U-3 在 pg 上的真形状：迁移提交之后没有快照 ⇒ 不拒起，启动日志恰一条「本次升级不可撤回（U-3）」；迁移后入口层失败撤不回（缺口 U-3，记录现状） 347ms
+ ✓ tests/pg.spec.ts > pg 首跑 · 装配（OMNE_TEST_PG_URL） > 交错 I-9 的 pg 支：属主排他（咨询锁）——A 在役时 B 于「被占」拒绝 289ms
+ ✓ tests/pg.spec.ts > pg 首跑 · 交错 I-12（AR 包 I-1／I-2／I-4 在 pg 上重跑；真实 AI／OG／AR + 本节点的合成迁移） > I-1 S-14 先：③ 在自己的事务里写下激活、尚未提交；期限过去，清除链发起——提交后 ① 现读到已激活 ⇒ accountIsActivated。终态：已激活 ∧ 有个人组织 201ms
+ ✓ tests/pg.spec.ts > pg 首跑 · 交错 I-12（AR 包 I-1／I-2／I-4 在 pg 上重跑；真实 AI／OG／AR + 本节点的合成迁移） > I-2 清除链 ① 先：② 已提交、依据在手；期限过去，清除链 ① 删组织、尚未提交；③ 排在它后面，提交后现读到已落盘的过期 ⇒ interrupted。终态：没有可用账号、没有孤儿 201ms
+ ✓ tests/pg.spec.ts > pg 首跑 · 交错 I-12（AR 包 I-1／I-2／I-4 在 pg 上重跑；真实 AI／OG／AR + 本节点的合成迁移） > I-4 插入方向：S-20 读到「未过期」之后、提交之前清除链整条跑完（账号行被删）⇒ S-20 的插入被引用约束拒绝 ⇒ interrupted。终态：什么都没有，没有孤儿组织 225ms
+ ✓ tests/pg.spec.ts > pg 首跑 · 各包留给 pg 的支 > AI「凭据计算挪出写事务之后的交错 ②」pg 支：同标识同凭据两路并发 ⇒ 同一个 AccountId、一行；不同凭据 ⇒ 恰一个账号、另一路 identifier-taken（撞唯一约束那条路） 208ms
+ ✓ tests/pg.spec.ts > pg 首跑 · 各包留给 pg 的支 > AR I-6 撞 account_login_identifier_unique 那一支的 pg 变体：同一标识两路并发注册 ⇒ 恰一路 registered；另一路 identifier-taken，或（撞约束重来之后记录又变了一次 ⇒ AI 答 storage-unavailable）interrupted、重来即 identifier-taken；不变量成立，且至少一轮真的撞到了唯一约束 275ms
+ ✓ tests/pg.spec.ts > pg 首跑 · 各包留给 pg 的支 > 入口层「真并发首启（pg）」：两个入口层实例同时读或铸 ⇒ 只铸一次、两者开门时报同一个标识 289ms
+ ✓ tests/pg.spec.ts > pg 首跑 · 各包留给 pg 的支 > 收尾观察：pg 上 storage-sql 的 close() 是否拒绝（已报主线的缺陷；本条只记录，不作判据） 0ms
+
+ Test Files  1 passed (1)
+      Tests  11 passed (11)
+Type Errors  no errors
+   Start at  16:16:52
+   Duration  5.84s (transform 657ms, setup 0ms, import 1.13s, tests 4.56s, environment 0ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence/tmp/w4a/tests/json-pg/tenancy-host.pg.json
+end: 2026-09-23T16:16:58Z
+exit: 0

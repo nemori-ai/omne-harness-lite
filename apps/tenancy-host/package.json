@@ -1,0 +1,48 @@
+{
+  "name": "@omne-harness-lite/tenancy-host",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "治理中心装配：存储与迁移合成、升级守卫确认、时钟、密钥、四个 tenancy 插件与入口层的装载清单、两步开闸与逆序撤除。设计：.meta_harness/design/realization/apps/tenancy-host/",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:e2e": "vitest run tests/e2e"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness-lite/account-identity": "workspace:*",
+    "@omne-harness-lite/account-registration": "workspace:*",
+    "@omne-harness-lite/clock": "workspace:*",
+    "@omne-harness-lite/credential-verification": "workspace:*",
+    "@omne-harness-lite/governance-center-entry": "workspace:*",
+    "@omne-harness-lite/identity-values": "workspace:*",
+    "@omne-harness-lite/kernel-basis": "workspace:*",
+    "@omne-harness-lite/offer-expiry": "workspace:*",
+    "@omne-harness-lite/organization-governance": "workspace:*",
+    "@omne-harness-lite/storage": "workspace:*",
+    "@omne-harness-lite/storage-sql": "workspace:*",
+    "kysely": "catalog:",
+    "pg": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/pg": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

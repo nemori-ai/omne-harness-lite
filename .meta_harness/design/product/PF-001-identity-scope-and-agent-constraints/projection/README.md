@@ -5,12 +5,13 @@
 
 ## 版本
 
-| 版本 | 状态 | 对应需求修订 | 发布日期 | 说明 |
-|---|---|---|---|---|
-| [v2](v2/projection.md) | **当前，已接受** | PF-001 rev 16（同上） | 2026-09-23 | Q-14／Q-15／Q-16 闭合：入口层有了契约与节点（按 [PF-017 投影 v1](../../PF-017-governance-center-as-deployable-application/projection/v1/projection.md) 实施）、账号能力 v2 并存、D-027 断电边界作统一前提；[D-028](../../../record/decisions/governance-center-design-acceptance/README.md) 接受 |
-| [v1](v1/projection.md) | 被 v2 取代（2026-09-23） | PF-001 rev 16（另取 PF-003 rev 4 §6.14 的邀约过期一句） | 2026-09-22 | 首版：租户领域五份契约 + 六个 provider 节点的投影；[D-023](../../../record/decisions/tenant-domain-design-acceptance/README.md) 同日接受为实施入口，五份契约来源已冻结（`provenance.json` 记冻结哈希），需求与节点来源未冻结（sha256 仍 `null`） |
+| 版本                   | 状态                             | 对应需求修订                                            | 发布日期   | 说明                                                                                                                                                                                                                                                                                             |
+| ---------------------- | -------------------------------- | ------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [v3](v3/projection.md) | **当前，已接受，租户领域已实现** | PF-001 rev 16（同上）                                   | 2026-09-23 | 九步全部完成并有证据 run；第 3½ 步改指 PF-017 投影 v2；新增第 9 节验收判据对账                                                                                                                                                                                                                   |
+| [v2](v2/projection.md) | 被 v3 取代（2026-09-23）         | PF-001 rev 16（同上）                                   | 2026-09-23 | Q-14／Q-15／Q-16 闭合：入口层有了契约与节点（按 [PF-017 投影 v1](../../PF-017-governance-center-as-deployable-application/projection/v1/projection.md) 实施）、账号能力 v2 并存、D-027 断电边界作统一前提；[D-028](../../../record/decisions/governance-center-design-acceptance/README.md) 接受 |
+| [v1](v1/projection.md) | 被 v2 取代（2026-09-23）         | PF-001 rev 16（另取 PF-003 rev 4 §6.14 的邀约过期一句） | 2026-09-22 | 首版：租户领域五份契约 + 六个 provider 节点的投影；[D-023](../../../record/decisions/tenant-domain-design-acceptance/README.md) 同日接受为实施入口，五份契约来源已冻结（`provenance.json` 记冻结哈希），需求与节点来源未冻结（sha256 仍 `null`）                                                 |
 
-**当前应实施的版本：v2**，接受依据是 [D-023](../../../record/decisions/tenant-domain-design-acceptance/decision.md)（五份契约与六节点）与 [D-028](../../../record/decisions/governance-center-design-acceptance/decision.md)（入口层与账号能力 v2）。接受的是设计与实施入口，不表示任何实现或验证已完成；15 项未决 Q-n 仍是显式缺口。入口层那一半按 [PF-017 投影 v1](../../PF-017-governance-center-as-deployable-application/projection/v1/projection.md) 实施，本投影只指路不重复。
+**当前版本：v3**，接受依据同 v2（[D-023](../../../record/decisions/tenant-domain-design-acceptance/decision.md)、[D-028](../../../record/decisions/governance-center-design-acceptance/decision.md)）加 [D-029](../../../record/decisions/governance-center-transport-binding-acceptance/decision.md)。v3 记录实现与验证的实际状态（第 6、8、9 节），未决项仍是显式缺口（第 7 节）。
 
 ## 使用与维护
 

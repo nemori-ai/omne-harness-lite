@@ -1,0 +1,15 @@
+{"ts":1790186706855,"level":"info","name":"tenancy-host","event":"manifest-active","plugins":["storage-sql","clock","credential-verification","account-identity","organization-governance","account-registration","governance-center-ops","governance-center-entry"]}
+{"ts":1790186706856,"level":"info","name":"tenancy-host","event":"upgrade-confirmed","migrated":false,"snapshotTaken":false,"snapshotRemoved":false}
+{"ts":1790186706856,"level":"info","name":"tenancy-host","event":"open-signal"}
+{"ts":1790186706857,"level":"info","name":"tenancy-host","event":"serving","centerId":"0a69216b36d7bdf80c395a1614af5d5a","version":"0.0.0","startedAt":1790186706857}
+{"ts":1790186706902,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"operation\",\"route\":\"capability.organization-governance/v1#S-23\",\"account\":\"9cb4be94881b9fc16430798040580f86368b5e6279a2ea2b038835c101aeecec\",\"tenant\":\"8faae90c3f385f0035983d379a0e6f5dcf32ba96005a712f664db58956d36e65\",\"answer\":\"result\"}"}
+{"ts":1790186708918,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"operation\",\"route\":\"capability.organization-governance/v1#S-55\",\"account\":\"3dba0b62395e22edc2638c0a4e2ce8721463344ff1cd568fd99030b04447ea3b\",\"answer\":\"result\"}"}
+{"ts":1790186708920,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"governance-center-entry"}
+{"ts":1790186708921,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"governance-center-ops"}
+{"ts":1790186708921,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"account-registration"}
+{"ts":1790186708922,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"organization-governance"}
+{"ts":1790186708922,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"account-identity"}
+{"ts":1790186708922,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"credential-verification"}
+{"ts":1790186708923,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"clock"}
+{"ts":1790186708930,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"storage-sql"}
+{"ts":1790186708930,"level":"info","name":"tenancy-host","event":"disposed","complete":true}

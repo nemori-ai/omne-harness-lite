@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "capability.organization-governance v1 的提供者：organizations、offers、memberships、organization-purge 四个服务面。第一程只有服务面类型、失败集合与契约场景清单",
+  "description": "capability.organization-governance v1 的提供者：一个 Cordis 插件、四个服务面（organizations、offers、memberships、organization-purge），全部 25 个操作、五个通知事件，以及六张表的迁移片段工厂",
   "engines": {
     "node": ">=24 <25"
   },
@@ -22,12 +22,18 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness-lite/account-identity": "workspace:*",
     "@omne-harness-lite/identity-values": "workspace:*",
-    "@omne-harness-lite/offer-expiry": "workspace:*",
     "@omne-harness-lite/kernel-basis": "workspace:*",
-    "@omne-harness-lite/account-identity": "workspace:*"
+    "@omne-harness-lite/offer-expiry": "workspace:*",
+    "@omne-harness-lite/storage": "workspace:*",
+    "kysely": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
+    "@omne-harness-lite/clock": "workspace:*",
+    "@omne-harness-lite/storage-sql": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

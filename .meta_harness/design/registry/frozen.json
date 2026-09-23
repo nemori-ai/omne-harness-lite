@@ -35,6 +35,8 @@
     "spec/compositions/governance-center-entry/v1/formal/Validity_passthroughStateNotValid.cfg": "3701c37d37fd09db78ae46660fd225669f75e610e6a17f91c4faefdf573e9af4",
     "spec/compositions/governance-center-entry/v1/formal/Validity_readPresentationBeforeVersion.cfg": "2029dbcf6d0dc12e610e7daff161f884698e34c1f890f7736bea6511edc3ca5d",
     "spec/compositions/governance-center-entry/v1/formal/Validity_unavailableAsRejected.cfg": "e50939eb0ce697cc8591f3cbe7c7bece61c9f073b6b750c4ea4272483fda8a88",
-    "spec/compositions/governance-center-entry/v1/governance-center-entry.schema.json": "e8ee446e957163fc91b8cebb87a8434ee0c2a464b53a2264349c8ad54b396fb1"
+    "spec/compositions/governance-center-entry/v1/governance-center-entry.schema.json": "e8ee446e957163fc91b8cebb87a8434ee0c2a464b53a2264349c8ad54b396fb1",
+    "spec/compositions/governance-center-entry-https-json/v1/contract.md": "385839de42fdbe253d4196d3e0330c1c88a6a26d35e065f7e5dbf6be7dcd3372",
+    "spec/compositions/governance-center-entry-https-json/v1/examples.md": "0efcc32c45b447b1a0f9fda89a4a34ddcc058418f3c53167fbaceb3a8c302246"
   }
 }

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "composition.account-registration v1 的提供者：registration 服务面（注册主链与清除链）。第一程只有服务面类型、终结结果与契约场景清单",
+  "description": "composition.account-registration v1 的提供者：registration 服务面（注册主链与清除链）：registrationPlugin、激活依据签发、四值终结结果、清除链三分类与缺陷记录",
   "engines": {
     "node": ">=24 <25"
   },
@@ -22,12 +22,19 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness-lite/account-identity": "workspace:*",
     "@omne-harness-lite/identity-values": "workspace:*",
     "@omne-harness-lite/kernel-basis": "workspace:*",
-    "@omne-harness-lite/account-identity": "workspace:*",
-    "@omne-harness-lite/organization-governance": "workspace:*"
+    "@omne-harness-lite/organization-governance": "workspace:*",
+    "@omne-harness-lite/storage": "workspace:*",
+    "kysely": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
+    "@omne-harness-lite/clock": "workspace:*",
+    "@omne-harness-lite/credential-verification": "workspace:*",
+    "@omne-harness-lite/storage-sql": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

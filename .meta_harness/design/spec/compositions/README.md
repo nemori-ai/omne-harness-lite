@@ -18,3 +18,4 @@
 |---|---|
 | [`account-registration`](account-registration/README.md) | 一次注册从入口走到稳定点的整体责任 |
 | [`governance-center-entry`](governance-center-entry/README.md) | 客户端 ↔ 治理中心这条边的判定次序、入口答复与身份交接 |
+| [`governance-center-entry-https-json`](governance-center-entry-https-json/README.md) | 上一条落到 HTTP/1.1 over TLS + JSON 上的传输绑定 `https-json/1`：固定字节、读法、跨协议版本不变的两样（`accepted`，已冻结，D-029） |

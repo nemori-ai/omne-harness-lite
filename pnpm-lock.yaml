@@ -45,6 +45,67 @@ importers:
         specifier: 3.9.6
         version: 3.9.6
 
+  apps/tenancy-host:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@omne-harness-lite/account-identity':
+        specifier: workspace:*
+        version: link:../../packages/tenancy/account-identity
+      '@omne-harness-lite/account-registration':
+        specifier: workspace:*
+        version: link:../../packages/tenancy/account-registration
+      '@omne-harness-lite/clock':
+        specifier: workspace:*
+        version: link:../../packages/infra/clock
+      '@omne-harness-lite/credential-verification':
+        specifier: workspace:*
+        version: link:../../packages/tenancy/credential-verification
+      '@omne-harness-lite/governance-center-entry':
+        specifier: workspace:*
+        version: link:../../packages/tenancy/governance-center-entry
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../../packages/core/identity-values
+      '@omne-harness-lite/kernel-basis':
+        specifier: workspace:*
+        version: link:../../packages/core/kernel-basis
+      '@omne-harness-lite/offer-expiry':
+        specifier: workspace:*
+        version: link:../../packages/core/offer-expiry
+      '@omne-harness-lite/organization-governance':
+        specifier: workspace:*
+        version: link:../../packages/tenancy/organization-governance
+      '@omne-harness-lite/storage':
+        specifier: workspace:*
+        version: link:../../packages/core/storage
+      '@omne-harness-lite/storage-sql':
+        specifier: workspace:*
+        version: link:../../packages/infra/storage-sql
+      kysely:
+        specifier: 'catalog:'
+        version: 0.29.6
+      pg:
+        specifier: 'catalog:'
+        version: 8.23.0
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      '@types/pg':
+        specifier: 'catalog:'
+        version: 8.15.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6))
+
   packages/core/identity-values:
     dependencies:
       ajv:
@@ -188,6 +249,9 @@ importers:
 
   packages/tenancy/account-identity:
     dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
       '@omne-harness-lite/credential-verification':
         specifier: workspace:*
         version: link:../credential-verification
@@ -200,7 +264,22 @@ importers:
       '@omne-harness-lite/offer-expiry':
         specifier: workspace:*
         version: link:../../core/offer-expiry
+      '@omne-harness-lite/storage':
+        specifier: workspace:*
+        version: link:../../core/storage
+      kysely:
+        specifier: 'catalog:'
+        version: 0.29.6
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
     devDependencies:
+      '@omne-harness-lite/clock':
+        specifier: workspace:*
+        version: link:../../infra/clock
+      '@omne-harness-lite/storage-sql':
+        specifier: workspace:*
+        version: link:../../infra/storage-sql
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -213,6 +292,9 @@ importers:
 
   packages/tenancy/account-registration:
     dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
       '@omne-harness-lite/account-identity':
         specifier: workspace:*
         version: link:../account-identity
@@ -225,7 +307,25 @@ importers:
       '@omne-harness-lite/organization-governance':
         specifier: workspace:*
         version: link:../organization-governance
+      '@omne-harness-lite/storage':
+        specifier: workspace:*
+        version: link:../../core/storage
+      kysely:
+        specifier: 'catalog:'
+        version: 0.29.6
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
     devDependencies:
+      '@omne-harness-lite/clock':
+        specifier: workspace:*
+        version: link:../../infra/clock
+      '@omne-harness-lite/credential-verification':
+        specifier: workspace:*
+        version: link:../credential-verification
+      '@omne-harness-lite/storage-sql':
+        specifier: workspace:*
+        version: link:../../infra/storage-sql
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -238,13 +338,86 @@ importers:
 
   packages/tenancy/credential-verification:
     dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../../core/identity-values
       '@omne-harness-lite/kernel-basis':
         specifier: workspace:*
         version: link:../../core/kernel-basis
+      '@omne-harness-lite/storage':
+        specifier: workspace:*
+        version: link:../../core/storage
+      kysely:
+        specifier: 'catalog:'
+        version: 0.29.6
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
     devDependencies:
+      '@omne-harness-lite/clock':
+        specifier: workspace:*
+        version: link:../../infra/clock
+      '@omne-harness-lite/storage-sql':
+        specifier: workspace:*
+        version: link:../../infra/storage-sql
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6))
+
+  packages/tenancy/governance-center-entry:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@omne-harness-lite/account-identity':
+        specifier: workspace:*
+        version: link:../account-identity
+      '@omne-harness-lite/account-registration':
+        specifier: workspace:*
+        version: link:../account-registration
+      '@omne-harness-lite/credential-verification':
+        specifier: workspace:*
+        version: link:../credential-verification
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../../core/identity-values
+      '@omne-harness-lite/kernel-basis':
+        specifier: workspace:*
+        version: link:../../core/kernel-basis
+      '@omne-harness-lite/offer-expiry':
+        specifier: workspace:*
+        version: link:../../core/offer-expiry
+      '@omne-harness-lite/organization-governance':
+        specifier: workspace:*
+        version: link:../organization-governance
+      '@omne-harness-lite/storage':
+        specifier: workspace:*
+        version: link:../../core/storage
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
+      kysely:
+        specifier: 'catalog:'
+        version: 0.29.6
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@omne-harness-lite/clock':
+        specifier: workspace:*
+        version: link:../../infra/clock
+      '@omne-harness-lite/storage-sql':
+        specifier: workspace:*
+        version: link:../../infra/storage-sql
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -257,6 +430,9 @@ importers:
 
   packages/tenancy/organization-governance:
     dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
       '@omne-harness-lite/account-identity':
         specifier: workspace:*
         version: link:../account-identity
@@ -269,7 +445,22 @@ importers:
       '@omne-harness-lite/offer-expiry':
         specifier: workspace:*
         version: link:../../core/offer-expiry
+      '@omne-harness-lite/storage':
+        specifier: workspace:*
+        version: link:../../core/storage
+      kysely:
+        specifier: 'catalog:'
+        version: 0.29.6
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
     devDependencies:
+      '@omne-harness-lite/clock':
+        specifier: workspace:*
+        version: link:../../infra/clock
+      '@omne-harness-lite/storage-sql':
+        specifier: workspace:*
+        version: link:../../infra/storage-sql
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

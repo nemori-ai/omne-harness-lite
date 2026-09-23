@@ -1,0 +1,46 @@
+{
+  "name": "@omne-harness-lite/governance-center-entry",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "治理中心入口层：客户端面（TLS + JSON 信封的判定次序与路由）与运维面（Unix 套接字体检）；兑现 composition.governance-center-entry v1。设计：.meta_harness/design/realization/packages/tenancy/governance-center-entry/",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "schema"
+  ],
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness-lite/account-identity": "workspace:*",
+    "@omne-harness-lite/account-registration": "workspace:*",
+    "@omne-harness-lite/credential-verification": "workspace:*",
+    "@omne-harness-lite/identity-values": "workspace:*",
+    "@omne-harness-lite/kernel-basis": "workspace:*",
+    "@omne-harness-lite/offer-expiry": "workspace:*",
+    "@omne-harness-lite/organization-governance": "workspace:*",
+    "@omne-harness-lite/storage": "workspace:*",
+    "ajv": "catalog:",
+    "kysely": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@omne-harness-lite/clock": "workspace:*",
+    "@omne-harness-lite/storage-sql": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
