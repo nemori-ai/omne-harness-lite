@@ -444,6 +444,66 @@
           "rebase_relation": null
         }
       ]
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "composition.governance-center-entry-https-json",
+        "version": 1
+      },
+      "family": "compositions",
+      "topic": "governance-center-entry-https-json",
+      "status": "candidate",
+      "contract_path": "spec/compositions/governance-center-entry-https-json/v1/contract.md",
+      "resources": [
+        "spec/compositions/governance-center-entry-https-json/v1/contract.md",
+        "spec/compositions/governance-center-entry-https-json/v1/examples.md"
+      ],
+      "acceptance": null,
+      "dependencies": [
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "composition.governance-center-entry",
+            "version": 1
+          },
+          "clauses": [
+            "S-3",
+            "S-4",
+            "S-5",
+            "S-6",
+            "S-7",
+            "S-8",
+            "S-10",
+            "S-11",
+            "S-16",
+            "S-17",
+            "S-18",
+            "S-25",
+            "S-26",
+            "S-27",
+            "S-29",
+            "S-30",
+            "S-32",
+            "S-33",
+            "S-34",
+            "S-36"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.offer-expiry",
+            "version": 1
+          },
+          "clauses": [
+            "S-3",
+            "S-22"
+          ],
+          "rebase_relation": null
+        }
+      ]
     }
   ]
 }

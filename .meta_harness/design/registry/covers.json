@@ -2785,7 +2785,185 @@
       },
       "reviewed": false,
       "note": "2026-09-23 起草登记：「你不在这个组织里」「这个登录已经不在有效之列」两条反馈的线上落点。未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#八边界与依赖"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry-https-json",
+        "version": 1,
+        "clauses": [
+          "S-4",
+          "S-22",
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 传输绑定起草登记：防冒充硬要求的中心一侧（服务端 TLS 认证，S-4）与出示物途中的机密性（S-22、S-24）；客户端一侧不在本契约，登为该契约的缺口 G-2。PF-017 rev 2。未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#62-中心只认登录状态不认客户端"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry-https-json",
+        "version": 1,
+        "clauses": [
+          "S-6"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 传输绑定起草登记：只看请求体，方法、路径、请求头与对端一概不参与。PF-017 rev 2。未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#64-无效与答不出是两个不同的答复"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry-https-json",
+        "version": 1,
+        "clauses": [
+          "S-7",
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 传输绑定起草登记：只覆盖「版本先于一切、看不懂的请求答版本对不上」与「体检的公开部分不受 ① 挡」在字节上的落点；答复的先后本身归 composition.governance-center-entry。PF-017 rev 2。未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#65-拒绝的时候什么都不多说"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry-https-json",
+        "version": 1,
+        "clauses": [
+          "S-11",
+          "S-13",
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 传输绑定起草登记：「逐字相同」在线上的那份字节（状态、头、体）。PF-017 rev 2。未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#616-版本对不上就明说"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry-https-json",
+        "version": 1,
+        "clauses": [
+          "S-17",
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 传输绑定起草登记：version-mismatch 的完整字节与客户端认出它的办法，跨协议版本不改。PF-017 rev 2。未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#617-体检只说部署不说里面有谁"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry-https-json",
+        "version": 1,
+        "clauses": [
+          "S-9",
+          "S-15",
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 传输绑定起草登记：公开体检请求与答复、完整体检在本传输上的形状；体检的内容归 composition.governance-center-entry。PF-017 rev 2。未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#中心体检"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry-https-json",
+        "version": 1,
+        "clauses": [
+          "S-15",
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 传输绑定起草登记。PF-017 rev 2。未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#51-中心有两张面没有第三张"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry-https-json",
+        "version": 1,
+        "clauses": [
+          "S-20",
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 传输绑定起草登记：两张面各一条通道、不共用。PF-017 rev 2。未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#运维者"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry-https-json",
+        "version": 1,
+        "clauses": [
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 传输绑定起草登记：运维面只在中心所在的机器上可达（本机套接字、目录只对运行用户可访问）。PF-017 rev 2。未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "acceptance.md#三判据"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry-https-json",
+        "version": 1,
+        "clauses": [
+          "S-26",
+          "S-27",
+          "S-28",
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 传输绑定起草登记：规范场景对到判据（拒绝逐字相同、只认登录状态不认客户端、答复的先后、版本对不上就明说、体检只说部署、运维者没有门）在线上字节上的那一半。PF-017 rev 2。未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-016-cli-tui-delivery-surface",
+        "clause": "flows.md#二分支与异常"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry-https-json",
+        "version": 1,
+        "clauses": [
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 传输绑定起草登记：据点侧把读不成答复的一律当作中心不可达、只看体认出版本对不上——客户端读答复的规则；呈现归 PF-016。PF-016 rev 4。未经独立复核"
     }
   ],
-  "note": "2026-09-22 首次登记，覆盖租户相关领域五份 candidate 契约。每条的 clauses 由两处合并得出：契约正文里带小节链接的条款段落，以及各契约「性质」表的「来源」列。全部 reviewed=false——这是「声称覆盖但尚未逐条复核」的诚实初值，不是复核通过。三处已知不完整，登记时一并记明，不靠留白掩盖：（1）PF-007 也被 data.identity-values 与 capability.organization-governance 的正文引为来源（§4 一笔授权表达有三个维度），本次登记范围只含 PF-001/002/003/015，因此 PF-007 一条未登；（2）foundation 的 SYS-TENANT / SYS-DEPLOY 是全局约束不是产品条款，本清单只登记 PF- 侧，那一侧的覆盖没有家；（3）契约正文里以散文方式引用产品要求、没有给出小节链接的地方，本次登记抓不到。 2026-09-22 评审轮一修订后补登 18 处（见各行 note）。data.identity-values/v1#S-35「交接凭证」没有产品出处（规格层构造），有意不登记 cover。 2026-09-23 补登 composition.governance-center-entry v1（candidate）40 条：PF-017（rev 1，仍是 draft（PF-017 rev 1 已于 2026-09-23 同日接受，各条 note 已改））30 条、PF-016 5 条、PF-001 5 条，全部 reviewed=false；来源是该契约正文里带小节链接的条款段落。该契约的形式工件与规范场景条款（S-37～S-46）只在对到验收判据时登记。 2026-09-23 该契约评审第一轮修订：首登时有若干条的 clauses 在正文对应条款里并没有小节链接，已在正文逐条补齐；逐条核过之后，每条 covers 的产品小节都在所列的每个条款里有链接，唯一例外是 acceptance §二那一条（见其 note）；该条 clauses 补登 S-31。"
+  "note": "2026-09-22 首次登记，覆盖租户相关领域五份 candidate 契约。每条的 clauses 由两处合并得出：契约正文里带小节链接的条款段落，以及各契约「性质」表的「来源」列。全部 reviewed=false——这是「声称覆盖但尚未逐条复核」的诚实初值，不是复核通过。三处已知不完整，登记时一并记明，不靠留白掩盖：（1）PF-007 也被 data.identity-values 与 capability.organization-governance 的正文引为来源（§4 一笔授权表达有三个维度），本次登记范围只含 PF-001/002/003/015，因此 PF-007 一条未登；（2）foundation 的 SYS-TENANT / SYS-DEPLOY 是全局约束不是产品条款，本清单只登记 PF- 侧，那一侧的覆盖没有家；（3）契约正文里以散文方式引用产品要求、没有给出小节链接的地方，本次登记抓不到。 2026-09-22 评审轮一修订后补登 18 处（见各行 note）。data.identity-values/v1#S-35「交接凭证」没有产品出处（规格层构造），有意不登记 cover。 2026-09-23 补登 composition.governance-center-entry v1（candidate）40 条：PF-017（rev 1，仍是 draft（PF-017 rev 1 已于 2026-09-23 同日接受，各条 note 已改））30 条、PF-016 5 条、PF-001 5 条，全部 reviewed=false；来源是该契约正文里带小节链接的条款段落。该契约的形式工件与规范场景条款（S-37～S-46）只在对到验收判据时登记。 2026-09-23 该契约评审第一轮修订：首登时有若干条的 clauses 在正文对应条款里并没有小节链接，已在正文逐条补齐；逐条核过之后，每条 covers 的产品小节都在所列的每个条款里有链接，唯一例外是 acceptance §二那一条（见其 note）；该条 clauses 补登 S-31。 2026-09-23 补登 composition.governance-center-entry-https-json v1（candidate，传输绑定）11 条：PF-017 rev 2 共 10 条、PF-016 rev 4 共 1 条，全部 reviewed=false；来源同一口径——该契约正文里带小节链接的条款段落，每条所列条款都链接了那个小节。"
 }
