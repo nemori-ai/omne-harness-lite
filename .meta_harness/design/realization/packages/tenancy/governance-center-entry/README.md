@@ -4,7 +4,9 @@
 - 对象与设计修订：候选节点，2026-09-23 首稿；兑现 `omne-harness-lite-design-2026-09-15 · composition.governance-center-entry · v1`（[契约](../../../../spec/compositions/governance-center-entry/v1/contract.md)，状态 `candidate`，主责产品依据 [PF-017](../../../../product/PF-017-governance-center-as-deployable-application/README.md)（rev 1）仍是 `draft`）。形状依据[提案 `governance-center-entry`](../../../../record/proposals/governance-center-entry/README.md) 的候选 A（候选，未接受）
 - 源码位置：`packages/tenancy/governance-center-entry`——**尚未建包**。第二层 `tenancy` 是租户领域这个限界上下文的名字（[D-024](../../../../record/decisions/tenancy-domain-name/README.md)）；布局规则见[两层布局](../../../README.md#packages-的两层布局)
 - 契约采用与边界依据：一个包、两个 Cordis 插件，**都不 provide**，都装在装载清单最后、**同起同停**。
-  **入口层** `governance-center-entry`（候选名）必需 inject `logins`、`registration`、`organizations`、`memberships`、`offers`、`storage`、`credentials`（只用 `parse`）、`clock`（只在启动时用）：一个 TLS 监听、一张封闭的路由表、判定次序与答复映射、启动时读或铸中心标识；**启动成功以钟可读为条件**——开门之前等 `clock.now()` 可读，上界是装配给的 config `clockReadyTimeoutMs`（候选名），超界即启动失败；**在路由上不提交任何东西**，全包只碰 `governance_center` 一张表，由本包导出它的迁移片段。
+  **入口层** `governance-center-entry`（候选名）必需 inject `logins`、`registration`、`organizations`、`memberships`、`offers`、`storage`、`credentials`（只用 `parse`）、`clock`（只在启动时用）：一个 TLS 监听、一张封闭的路由表、判定次序与答复映射、启动时读或铸中心标识；**启动成功以钟可读为条件**——插件体里等 `clock.now()` 可读，上界是装配给的 config `clockReadyTimeoutMs`（候选名），超界即启动失败；
+  **就绪与开门分两步**：插件体只绑端口不受理、标识就绪、钟可读后返回，等装配传入的 config `openSignal`（候选名，一个 Promise）兑现才开门、读钟作 `startedAt`、发 `serving`；
+  账号能力按 [`capability.account-identity` v2](../../../../spec/capabilities/account-identity/v2/contract.md)（`candidate`）消费：**认人凭出示物走 S-44**，列表句柄就是 `LoginStateId` 本身，入口层永不以线上收到的 `LoginStateId` 认人；**在路由上不提交任何东西**，全包只碰 `governance_center` 一张表，由本包导出它的迁移片段。
   **运维面** `governance-center-ops`（候选名）只 inject `storage`、`clock`：本机套接字上只答完整体检，不引用任何治理服务。
   中心标识、版本、开门与关门、缺陷经三条 `emit` 通知从入口层到达运维面，不落存储、不经服务。配置错误一个政策：启动失败。Cordis 采用 `@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/decision.md)）
 
@@ -13,15 +15,16 @@
 四项分别陈述，不互相补齐。
 
 - **语义接受范围：无。**契约 `candidate`（catalog 已登记，`acceptance` 为空），PF-017 rev 1 `draft`——本节点依据的每一条都是候选依据。
-  参与方五份契约 v1 已由 [D-023](../../../../record/decisions/tenant-domain-design-acceptance/decision.md) 接受；采用版本与名字由 D-025、[D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/decision.md) 接受。本节点的设计与它依据的提案都没有被接受
+  参与方里账号能力改用 v2，它是 `candidate`（未接受）；其余四份契约 v1 已由 [D-023](../../../../record/decisions/tenant-domain-design-acceptance/decision.md) 接受（账号能力 v1 也在其中，本节点已不消费它）；采用版本与名字由 D-025、[D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/decision.md) 接受。本节点的设计与它依据的提案都没有被接受
 - **可实施范围**：本节点声称兑现契约 S-1～S-36 中落在入口层与运维面的部分，逐条见 [design.md 的投影表](design.md#能力到-cordis-的投影)；
   并**认领契约的两条缺口**——**G-10 传输绑定的版本化工件**（候选 `https-json/1`，见[传输绑定](design.md#传输绑定将来冻结的工件)，未采用、未冻结）与 **G-11 防冒充的具体手段**（中心一侧：只有 TLS 监听，证书链与私钥是部署配置输入、不是部署密钥，见[防冒充](design.md#防冒充中心一侧的手段与材料)）。
-  **不兑现**：客户端一侧（标识比较、「问不到」的呈现、据点副本、防冒充的确认）；契约 G-1～G-4、G-7、G-8；「装配给」一列里归 `apps/tenancy-host` 的各项（装载顺序、迁移合成与原子性、config 来源、日志汇、撤除总超时，见[归装配](design.md#归装配的事项)）。
+  **不兑现**：客户端一侧（标识比较、「问不到」的呈现、据点副本、防冒充的确认）；契约 G-2～G-4、G-7、G-8（G-1 随 AI v2 闭合，证据在账号能力一侧）；「装配给」一列里归 `apps/tenancy-host` 的各项（装载顺序、迁移合成与原子性、config 来源、日志汇、撤除总超时，以及 **`openSignal` 的兑现时机**——全部 fiber `ACTIVE` 且升级快照确认之后——与兑现后等 `serving` 的上界，见[归装配](design.md#归装配的事项)）。
   **读法待核对与依赖他节点的**：载荷内部成员重复按 `payload` 重复同一步收场，是本节点的延伸读法（N-3，契约 S-4 成文后核对）；`clockSane` 依赖时钟节点补运行中回拨判定（N-5）。原 N-1（`startedAt` 在钟读不到时）、N-2（工程记录分不出存储与钟）已由契约裁决闭合，本节点照裁决写（启动等钟、超界启动失败；工程记录只记入口层自己观察到的失败值），见[缺口表](design.md#实施缺口与消费者影响)。
-  **待 AI v2**：`capability.account-identity` 将出 v2（起草中，尚未登记）——出示物与 `LoginStateId` 分离，账号能力以出示物的 SHA-256 作 `LoginStateId`，并新增「按出示物换取身份」的操作。本节点受影响的是两处：**认人**改调那个新操作（[S-11 行](design.md#能力到-cordis-的投影)与[路由到服务方法](design.md#路由到服务方法)），**列表句柄**不再由入口层以域分隔 SHA-256 派生，改为「句柄 = `LoginStateId`」（[列表句柄](design.md#列表句柄与工程记录的关联号)，连带 T-5 与多重匹配的缺陷分支）；`credentials` 的注入不变。v2 成稿之前 design、bindings、verification 仍按 AI v1 写，机制不改；受阻消费者是这两处的实现与 T-5。
+  **AI v2：已对齐**。认人改调 [AI v2 S-44](../../../../spec/capabilities/account-identity/v2/contract.md#s-44-按出示物换取身份)（`logins.exchange`，候选名），列表句柄 = `LoginStateId`、撤销按它指认，域分隔派生与多重匹配分支已删；「只凭出示物认人」写成结构检查（[本节点约束](design.md#本节点约束存储要求之外)第 8 条）；出示物的线上形状归入口契约 Schema，账号能力节点的表示须落在其中（[对齐义务](design.md#出示物的线上形状对齐义务)）。`credentials` 的注入不变。
+  **仍未闭合**：入口契约改钉 AI v2 的修订在途（N-11，契约与节点暂不一致）；开门那一刻的失败回不到装配（N-12，归 `apps/tenancy-host`）；账号能力节点尚未按 v2 修订、S-44 还没有方法名（N-13）。
   **源码：尚未建包**，本节点的一切名字都是候选
 - **绑定与证据**：[`bindings.yaml`](bindings.yaml) **六条**（S-10、S-11、S-13、S-14、S-32、S-33），全部绑到契约的 formal task `governance-center-entry-v1-decision`——证的是**契约模型**，不是本节点源码；前提逐条写在各绑定里。**绑定为候选、不提升状态**：契约仍是 `candidate`，这六条既不提升语义接受，也不说明本节点任何源码符合契约。
-  S-7、S-15、S-18、S-19 不绑（自指、模型表达不了、或没有变异证明会失败），理由在 bindings 末尾。本节点自己的十九条测试义务 T-1～T-19 与五条结构检查**全部未开始**，见 [verification.md](verification.md#证据义务)
+  S-7、S-15、S-18、S-19 不绑（自指、模型表达不了、或没有变异证明会失败），理由在 bindings 末尾。S-11 那条的前提已改为 AI v2 S-44，契约修订成文后重核（N-11）。本节点自己的十九条测试义务 T-1～T-19 与六条结构检查**全部未开始**，见 [verification.md](verification.md#证据义务)
 - **实际验证：尚无。**本节点没有任何运行；契约模型在 2026-09-23 跑过一次，那是契约的证据（[verification「实际执行」](verification.md#实际执行)）
 
 ## 按当前问题展开
