@@ -521,3 +521,11 @@ describe('事件：只在状态确实改变的那一次提交之后发', () => {
     ])
   })
 })
+
+describe('归别处的静态规则形式（本包只提出检查形式与类型一形）', () => {
+  it.skip('no-presentation-in-diagnostics 的 lint 一形（模板字符串与间接拼接）——归 W2-C（tools/ts-checks）；类型一形在 types.spec-d.ts', () => {})
+  it.skip('R-8 文本规则：storage.write( 回调的词法范围内不出现 credentials.*( ——归 W2-C（tools/ts-checks）；测试一形在本文件「R-8」', () => {})
+  it.skip('S-45 熵审阅的两条文本规则：本包源码不出现 Math.random；插件体构造实现类时不传随机源参数——归 W2-C（tools/ts-checks）', () => {})
+  it.skip('S-30「进程外来的身份一律先过 S-44」接收边界一侧：边界包不调 logins.verify、不 import parseLoginStateId、不写 as LoginStateId——归 W2-C（规则）与 W2-B（入口层包）', () => {})
+  it.skip('凭据计算挪出写事务之后的交错 ② 在 pg 上再跑一次（走撞唯一约束那条路）——归 W3-A（pg 首跑）', () => {})
+})
