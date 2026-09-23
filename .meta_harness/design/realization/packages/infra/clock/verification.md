@@ -1,7 +1,7 @@
 # clock 验证与证据
 
 契约侧的证据义务权威在 [`spec/data/offer-expiry/verification.md`](../../../../spec/data/offer-expiry/verification.md)；S-17 五行装配给保证在那里没有可跑的证据形式（offer-expiry 节点 [覆盖缺口](../../core/offer-expiry/verification.md#覆盖缺口)明写）。
-本页登记的是**本节点作为「`now` 不后退」承接者自己能证的三条**，加装卸配对。运行结果归 [record/evidence](../../../../record/evidence/README.md)，本页只引用并解释范围。
+本页登记的是**本节点作为「`now` 不后退」承接者自己能证的几条**，入口契约（`candidate`）经 tenancy-host 转交的运行中回拨、不自撤与启动窗口，tenancy-host 要的迁移前核对，加装卸配对。运行结果归 [record/evidence](../../../../record/evidence/README.md)，本页只引用并解释范围。
 
 ## 证据义务
 
@@ -11,8 +11,14 @@
 | 同一行——重启后高水位生效 | `clock.restart-respects-lease`：实例 A 运行、返回若干值、**不走撤除直接丢弃**（模拟崩溃）；用同一存储装载实例 B，断言 B 的第一个非 `'unavailable'` 返回值 ≥ A 最后返回值；另一支：A 走撤除后再装 B，断言 B **立即**可服务（租约已收回）。崩溃分支正是「写在后的高水位」会红的地方——返回值未落盘即丢弃 | 未开始 | 本节点 |
 | 同一行——写失败（瞬时） | `clock.write-failure-goes-unavailable`：装载后让 `storage.write` 开始抛 `StorageUnavailable`（关闭底层库或注入失败的 storage），断言在 `leaseUntil` 之前 `now()` 仍返回值、越过后返回 `'unavailable'`；恢复存储后一次续约周期内恢复返回值 | 未开始 | 本节点 |
 | 同一行——写失败（缺陷） | `clock.write-defect-latches`：让续约写抛 `StorageDefect`（如删掉 `clock_lease` 表），断言 `now()` 立即且永久返回 `'unavailable'`、定时器不再发写、有一条 error 日志 | 未开始 | 本节点 |
-| 同一行——进程内单调 | `clock.monotonic-in-process`：紧密循环调用 `now()` N 次，断言非递减；把系统墙钟无关化（`Date.now` 只在锚定时被调一次——用 spy 断言调用次数为 1） | 未开始 | 本节点 |
-| 装卸配对（[design.md](design.md#成对的装载与撤除)） | `lifecycle.dispose-reclaims-lease`：撤除后 `clock_lease.lease_until` 等于撤除时刻而不是 `+L`；`lifecycle.dispose-with-inflight-renewal`：续约写在途时撤除，断言定时器已清、写按自己那次提交收场、旧 `impl.now()` 返回 `'unavailable'`；`lifecycle.storage-failure-fails-load`：启动判定那次写失败（两型各一支）⇒ fiber `FAILED`、无 `clock` 服务 | 未开始 | 本节点。「抛出 ⇒ `FAILED` 且不 provide」本身由 kernel-basis probe `plugin-throw-fails-fiber.test.ts` 在 4.0.4 上核过；本节点末条只证本插件在启动写失败时确实抛 |
+| 同一行——进程内不后退 | `clock.monotonic-in-process`：注入的墙钟前进、原地、后退各一段，紧密循环调用 `now()`，断言返回值（去掉 `'unavailable'`）非递减、且每个返回值都等于当时的墙钟读数——后一条在「按单调钟推算」的实现上会红 | 未开始（包内现有的「进程内单调」测试按修订前的推算写，须重写） | 本节点 |
+| [入口契约 S-36](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-36-装配给的保证-vs-协议须给的保证) 末行——运行中回拨 | `clock.running-rollback-unavailable-until-caught-up`：服务中把注入的墙钟调回 5 s ⇒ 下一次 `now()` 即 `'unavailable'`（零延迟，不等续约周期）；墙钟前推到回拨前最后返回值之前一毫秒仍 `'unavailable'`，到达它即恢复返回；进入与离开各一条结构化记录；这段时间里续约写不改小 `written_at`（读行断言）。**在按单调钟推算的实现上会红**（它照常返回） | 未开始 | 本节点；消费者侧 `clockSane = false` 归 governance-center-entry 的 T-9 类测试 |
+| 同上——运行中回拨之后重启 | `clock.rollback-then-restart`：服务中回拨、随即不走撤除丢弃实例、同一存储装新实例 ⇒ 新实例要么启动失败（确定回拨），要么在窗口里答 `'unavailable'` 直到墙钟追上旧 `lease_until`；另一支走撤除 ⇒ 撤除写的是 `max(hw, w)`，新实例以回拨后的墙钟启动即确定回拨 | 未开始 | 本节点 |
+| 同上——墙钟向前跳 | `clock.forward-jump-bounded`：服务中墙钟前跳 1 min ⇒ `now()` 答 `'unavailable'` 至多一个续约周期，续约成功后返回新的墙钟读数（不是旧推算值） | 未开始 | 本节点；代价行（[design.md 代价表](design.md#运行中回拨每次现读墙钟比对用过的最晚时刻)）的证据 |
+| 入口契约 S-34「时钟不可用只表现为返回值」 | `clock.no-self-dispose`：经 `bootAssembly` 装 `storage-sql` + `clock`，依次制造运行中回拨、续约写失败、续约写缺陷（闩住）——每一种之后 `clock` fiber 仍 `ACTIVE`、服务仍解析得到，只是 `now()` 答 `'unavailable'` | 未开始 | 本节点 |
+| 入口契约 S-34「启动成功以钟可读为条件」 | `clock.startup-window-bounded`：上一实例续约后崩溃，新实例以墙钟 = `written_at` 启动（最坏情形）⇒ `now()` 答 `'unavailable'` 恰到墙钟 = 旧 `lease_until` 为止（= `LEASE_WIDTH_MS`），之后可读；以墙钟 = `written_at` + 3 s 启动 ⇒ 等 L − 3 s。入口层以 `clockReadyTimeoutMs` 等钟的那一半归 governance-center-entry 与 tenancy-host | 未开始 | 本节点 |
+| tenancy-host R-U1 的时钟那一条 | `clock.preflight-readonly`：`tables` 不含 `clock_lease` ⇒ 通过；有表无行 ⇒ 通过；`written_at` 在墙钟之后 ⇒ `ok: false`、`check` 为回拨、`detail` 含两个时刻；三支都断言没有任何写（行与表不变）；与 `start()` 判定一致（同一组输入下 `start()` 抛出 ⇔ 核对不过） | 未开始 | 本节点；装进 storage-sql `upgrade.checks` 的那一半归 tenancy-host `assembly.upgrade-preflight-refuses` ② |
+| 装卸配对（[design.md](design.md#成对的装载与撤除)） | `lifecycle.dispose-reclaims-lease`：撤除后 `clock_lease.lease_until` 与 `written_at` 都等于 `max(hw, 撤除时墙钟)` 而不是 `+L`（墙钟正落后时等于 `hw`）；`lifecycle.dispose-with-inflight-renewal`：续约写在途时撤除，断言定时器已清、写按自己那次提交收场、旧 `impl.now()` 返回 `'unavailable'`；`lifecycle.storage-failure-fails-load`：启动判定那次写失败（两型各一支）⇒ fiber `FAILED`、无 `clock` 服务 | 未开始 | 本节点。「抛出 ⇒ `FAILED` 且不 provide」本身由 kernel-basis probe `plugin-throw-fails-fiber.test.ts` 在 4.0.4 上核过；本节点末条只证本插件在启动写失败时确实抛 |
 | 迁移 | `migration.clock-lease-idempotent`：同一迁移跑两次不报错（sqlite 非事务 DDL 的幂等要求） | 未开始 | 本节点 |
 
 ## 实际执行
@@ -28,5 +34,7 @@
 - **跨进程的先后**没有证据形式，本版也不承诺（[design.md 并发](design.md#状态并发与失败映射)、投影 Q-8）。
 - **租约表被外部删除**导致「不后退」失守，无法在本节点内检测，只能靠运维约定；无证据形式。owner：装配。
 - **与真实时间的偏差**不在承诺内，无义务。
-- **本节点自己的测试全部未开始**；它们依赖的内核语义（basis 三条、kernel-basis 两条 probe）已在 4.0.4 上通过，不再是缺口。
+- **义务表除第一行外都标「未开始」**：包内已有同主题的测试（README 转述 8 条通过，未登记 evidence run），逐条对上义务并登记 run 之前不改状态；它们依赖的内核语义（basis 三条、kernel-basis 两条 probe）已在 4.0.4 上通过，不再是缺口。**那 8 条对的是修订前的单调钟推算**，本次修订的六条（运行中回拨、回拨后重启、向前跳、不自撤、启动窗口、迁移前核对）零实现、零证据。
+- **运行中回拨检出在源码落地之前没有承接实现**：受阻消费者 governance-center-entry（N-5：`clockSane` 与要看时间的路由）与 tenancy-host（「时钟装配」转交的那一行）；入口契约 S-36 末行、S-26 `clockSane`、S-32 前提 P3 的运行中那一半在此之前无证据。owner：本节点。
+- **两条平台假设**（校时步进阈值、休眠恢复后计时器到期）只影响代价表的量级，没有证据形式；`clock.forward-jump-bounded` 用注入的墙钟模拟，不证真实休眠。
 - 与 [bindings.yaml](bindings.yaml) 一致：空表。

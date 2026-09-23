@@ -1,6 +1,6 @@
 # storage-sql 验证与证据
 
-本节点不兑现契约条款，义务来自三处：[`core/storage` 一致性套件](../../core/storage/design.md#要求到协议再到会红的测试)的每一条用例（套件归那个节点，**在本提供者上跑**归本节点）、方言切换、错误码映射。
+本节点不兑现契约条款，义务来自四处：[`core/storage` 一致性套件](../../core/storage/design.md#要求到协议再到会红的测试)的每一条用例（套件归那个节点，**在本提供者上跑**归本节点）、方言切换、错误码映射，以及 [tenancy-host R-U1～R-U8](../../../apps/tenancy-host/design.md#升级的整体性迁移前只读核对快照与确认) 与属主排他（升级守卫，`upgrade.*`）。
 运行结果归 [record/evidence](../../../../record/evidence/README.md)，本页只引用并解释范围。
 
 ## 证据义务
@@ -26,6 +26,16 @@
 | pg 逐语句 SAVEPOINT（P-2） | `driver.pg-savepoint`：拦截连接上的语句，断言写事务内每条语句前后有 `SAVEPOINT`／`RELEASE`，失败后有 `ROLLBACK TO`；**不连库** | 未开始 | 本节点 |
 | 装卸配对（[design.md](design.md#成对的装载与撤除)） | `lifecycle.dispose-drains`：一个在途写事务未完成时 dispose，断言它按自己的提交收场（成立或无痕），新调用抛 `StorageUnavailable`，全部句柄最终关闭；`lifecycle.config-error-fails-load`：非法 config（含 `:memory:`）⇒ fiber `FAILED`、无 `storage` 服务；`lifecycle.open-failure-fails-load`：文件不可写 ⇒ 同 | 未开始 | 本节点。「抛出 ⇒ `FAILED` 且不 provide」本身由 kernel-basis probe `plugin-throw-fails-fiber.test.ts` 在 4.0.4 上核过；本节点这两条只证本插件在这些情形下确实抛 |
 | 迁移在 `provide` 之前 | `lifecycle.migrations-before-provide`：config 带一个会失败的迁移 ⇒ 无 `storage` 服务；带一个建表迁移 ⇒ 消费者首次解析到 `storage` 时表已在 | 未开始 | 本节点 |
+| 属主排他（tenancy-host U-2） | `upgrade.exclusive-owner`：**两个子进程**对同一文件各起一个开了守卫的实例——后起者以「被占」启动失败、库与快照都没被它碰；先起者被 `SIGKILL` 之后，后起者再起即成功（锁随进程释放，不需要人清理）；同进程第二个开了守卫的实例同样「被占」；不开守卫的实例不受影响（一致性套件照旧两实例同文件）。排他在此会红：去掉锁，后起者在先起者未确认时恢复它的快照 | 未开始 | 本节点；锁的承载方式待核后定 |
+| R-U1 只读核对先于任何写 | `upgrade.preflight-refuses-before-write`：给一条返回 `ok: false` 的核对 ⇒ 启动失败、阶段「核对」、`detail` 原样；库的已提交内容（逐表）不变、没有快照、登记表没被建；核对里发写语句 ⇒ `StorageDefect`；核对抛出 ⇒ 同样「核对」阶段 | 未开始 | 本节点 |
+| R-U2 迁移登记可读，读不到不当作空 | `upgrade.registry-read`：空库 ⇒ `appliedMigrations` 为空、`tables` 不含登记表；跑过两个迁移的库 ⇒ 两个名字按执行次序；读句柄在核对前被关（注入读失败）⇒ 启动失败、阶段「核对」、`cause` 是 `StorageUnavailable`，**不是**空序列放行 | 未开始 | 本节点 |
+| R-U3 一致快照，含预写日志里的提交 | `upgrade.snapshot-consistent`：先提交一笔写且不做检查点（它只在预写日志里），再用多一个迁移的 provider 启动；在⑦之前截住，断言快照文件单独打开读得到那一笔；首次启动支：库文件不存在 ⇒ 打开之前已有「库不存在」标记 | 未开始 | 本节点；在线备份接口待核 |
+| R-U4 确认之前的失败撤回升级 | `upgrade.restore-on-migration-failure`：第二个迁移失败 ⇒ 启动失败、阶段「迁移」且点名它；库的内容、登记与 schema 回到升级前，**附属文件里没有升级后的写**，快照已不在。`upgrade.restore-on-dispose`：迁移成功、`provide` 之后别的写入者提交一笔，不确认即撤除 ⇒ 库回到升级前，那一笔也不在；首次启动支：撤除之后库文件与两个附属文件都不存在 | 未开始 | 本节点 |
+| R-U5 遗留快照先恢复 | `upgrade.leftover-restored`：子进程在⑥之后、⑦中、恢复的「删附属文件之后、替换之前」各被杀一次 ⇒ 下一次启动先恢复、再按升级前的库重走，最终库与只跑旧序列的库内容一致 | 未开始 | 本节点；真崩溃，用子进程 |
+| R-U6 确认 | `upgrade.confirm`：确认之后快照不在、`pendingUpgrade` 为空；此后撤除不动库；没有快照时确认成功且无动作；pg 上确认无动作 | 未开始 | 本节点 |
+| R-U7 pg 迁移一个事务 | `upgrade.pg-single-transaction`：第二个迁移失败 ⇒ 登记与 schema 都回到迁移前。**本程 `describe.skip`**，前提同 pg 套件；跳过不是通过 | 未开始（本程不跑） | 本节点提供开关；跑 pg 归装配 |
+| R-U8 具名失败；恢复失败快照不删 | `upgrade.named-failures`：被占／恢复／核对／快照（快照目录只读）／迁移五个阶段各触发一次，断言类型是 `StorageStartupFailure`、阶段对、**不是** `StorageUnavailable`；恢复失败（库目录只读）⇒ 失败里带快照位置、快照仍在。`upgrade.dispose-restore-failure-visible`：撤除路径上让恢复失败 ⇒ `fiber.dispose()` 照常 resolve（basis 所言），`pendingUpgrade` 仍报快照与位置，有一条 error 记录 | 未开始 | 本节点 |
+| `upgrade` 配置政策 | `lifecycle.upgrade-without-migrations-fails-load`：只给 `upgrade` 不给 `migrations` ⇒ fiber `FAILED`、无 `storage` 服务 | 未开始 | 本节点 |
 
 ## 实际执行
 
@@ -44,4 +54,8 @@
 - **断电级持久**没有证据形式，且本版 `synchronous=NORMAL` 明确不给；R-4 只证到进程重启（跨进程重启归 AI S-32 演练）。
 - **跨进程的锁竞争**（两个进程各起一个本插件）没有套件用例；本版单机，Q-8。
 - **本节点自己的装卸测试全部未开始**；它们依赖的内核语义（basis 两条、kernel-basis 两条 probe）已在 4.0.4 上通过，不再是缺口。
+- **升级守卫零实现、零证据**：`upgrade.*` 十一条与 `lifecycle.upgrade-without-migrations-fails-load` 全部未开始；挡住 tenancy-host 的 `assembly.upgrade-preflight-refuses`、`assembly.upgrade-restore-on-boot-failure`、`assembly.upgrade-crash-recovery`、`assembly.upgrade-confirmed`。owner：本节点。
+- **pg 上迁移提交之后的撤回**没有机制、也就没有测试形式（tenancy-host 缺口 U-3）；闭合手段二选一见 [design.md 实施缺口](design.md#实施缺口与消费者影响)，定了之后加一条真演练。owner：本节点 + tenancy-host，第一次跑 pg 之前。
+- **重跑时旧 disposer 与新插件体的先后**是待核对主张（交错 (d)）；核定前不写测试，两种答案都不静默。
+- **给 tenancy-host 的一条前提**：「库文件逐字节不变」只在上一次是干净停机时成立，否则 sqlite 关句柄时的检查点会改写库文件的字节而不改内容；该节点 `assembly.upgrade-preflight-refuses` 的断言要带这条前提或改成按内容比对（[design.md](design.md#实施缺口与消费者影响)）。
 - 与 [bindings.yaml](bindings.yaml) 一致：空表，本节点无契约条款可绑。
