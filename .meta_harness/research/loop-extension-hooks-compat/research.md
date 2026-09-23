@@ -153,7 +153,7 @@ DSH 把每次 hook 运行记成 log-only 的 `hook/invoked`/`hook/result` 成对
 CC：PreToolUse `ask` 弹宿主固定的权限对话框（带 hook 来源标签与 reason，auto 模式也强制弹）；`defer` **只在 `-p` 模式、只在一轮仅一个工具调用时**生效，进程以 `tool_deferred` 退出、调用留在 transcript、外部调用方 resume 后同一调用再过一次 PreToolUse，无超时。
 Codex：PreToolUse `ask` 不支持；PermissionRequest 只能在审批 UI 出现前替人决定或弃权；mcp_tool handler 可经 MCP elicitation 在 hook 进程内向用户要输入，等待不计超时。
 DSH CC 桥的 `ask` 走审批接缝，没有应答方即 fail-closed 为 deny。
-PF-008 的等待是落盘的、[没有超时](../../design/product/PF-008-human-in-the-loop/design.md#61-永远等着系统不替人作答)、不占协程的等待；卡片来源只有 agent 发起与系统发起两种，[选项按来源固定](../../design/product/PF-008-human-in-the-loop/design.md#68-两种来源的卡片同一个形状选项与记录不同)。
+PF-008 的等待是落盘的、[没有超时](../../design/product/PF-008-human-in-the-loop/design.md#61-永远等着系统不替人作答)、不占协程的等待；卡片来源只有 agent 发起与系统发起两种，[选项按来源固定](../../design/product/PF-008-human-in-the-loop/design.md#68-三种来源的卡片同一个形状选项与记录不同)。
 
 - 适用范围：同上。
 - 代价与不适用：「租户经 hook 自定义人机协作流程」在两家没有可照搬的先例；最接近的 CC `defer` 不进任何决策池、受限于非交互模式与单调用，Codex 的 elicitation 等待占着 hook 进程。
@@ -258,7 +258,7 @@ merge：没有 CC 的 `defer` 档。Codex 桥给的 `tool_input` 只有 `{comman
 | 1 | 否决的含义只写了调模型之前、执行动作之前、落终态之前三处；压缩之前、消息落盘之前（被拦的消息要留什么痕）、执行动作之后（这一批）没有写 | [PF-012 干预力三档](../../design/product/PF-012-agent-loop-and-run/design.md#干预力三档直接用-pf-000-的) | PreCompact、UserPromptSubmit、PostToolBatch、Codex PostCompact 的阻断 |
 | 2 | 三档干预力没有「放宽」；一件拓展件能否替人放行，没有说 | [PF-012 干预力三档](../../design/product/PF-012-agent-loop-and-run/design.md#干预力三档直接用-pf-000-的)、[PF-002 Loop Extension](../../design/product/PF-002-assets-settings-and-permissions/design.md#loop-extension) | PreToolUse/PermissionRequest 的 `allow` |
 | 3 | 租户挂件在人看到之前代答，算不算「系统替人作答」，没有说 | [PF-008 §6.1](../../design/product/PF-008-human-in-the-loop/design.md#61-永远等着系统不替人作答) | AskUserQuestion `answers`、Elicitation `accept`、PermissionRequest `allow` |
-| 4 | 卡片来源只有 agent 发起与系统发起；拓展件落的卡片属于哪一种、选项集由谁定，没有说（循环守卫 L4「复用等人那条路」是系统自带件，未覆盖租户件） | [PF-008 §6.8](../../design/product/PF-008-human-in-the-loop/design.md#68-两种来源的卡片同一个形状选项与记录不同)、[PF-012 §5.9](../../design/product/PF-012-agent-loop-and-run/design.md#59-循环守卫四级阶梯) | 用户 2026-09-23 要求租户经 hook 自定义人机协作 |
+| 4 | 卡片来源只有 agent 发起与系统发起；拓展件落的卡片属于哪一种、选项集由谁定，没有说（循环守卫 L4「复用等人那条路」是系统自带件，未覆盖租户件） | [PF-008 §6.8](../../design/product/PF-008-human-in-the-loop/design.md#68-三种来源的卡片同一个形状选项与记录不同)、[PF-012 §5.9](../../design/product/PF-012-agent-loop-and-run/design.md#59-循环守卫四级阶梯) | 用户 2026-09-23 要求租户经 hook 自定义人机协作 |
 | 5 | 挂件要求「停住」时落哪种终态，没有说 | [PF-012 能做什么，不能做什么](../../design/product/PF-012-agent-loop-and-run/design.md#能做什么不能做什么) | `continue:false` |
 | 6 | 外来 hook 没有声明干预力的概念；它的干预力按什么定，没有说 | [PF-002 Loop Extension](../../design/product/PF-002-assets-settings-and-permissions/design.md#loop-extension) | 两家 hook 的能力由事件与输出字段隐含 |
 | 7 | 同一位置挂多件用瀑布求值；外来 hook 原本是并行互不可见 | [PF-012 三种形态](../../design/product/PF-012-agent-loop-and-run/design.md#三种形态两种装得进一种拆两半) | 两家的并行折叠 |

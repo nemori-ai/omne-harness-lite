@@ -5,6 +5,42 @@
 
 技术投影用 `provenance.json` 引用具体 rev，所以这里的 rev 不准会直接传导到实现侧。
 
+## rev 5 — 2026-09-23
+
+**卡片有了第三种来源：拓展件发起，选项由它自己写；拓展件不能替人作答，也不能把「问一下」变放行。**
+依据：产品负责人 2026-09-23 块 B-2 的作答（原话在 [decisions 第一节](decisions.md#一拍板记录)）；
+「拓展件怎么停、怎么接着等」随 [PF-012 rev 8](../PF-012-agent-loop-and-run/changelog.md#rev-8--2026-09-23) 落在那边。
+
+### 改了什么
+
+| 位置 | 现在怎么说 |
+|---|---|
+| [§4 等待态的两个维度](design.md#等待态的两个维度) | run 那一列的「谁发起」：**系统（放行判断）或一件拓展件**，经 PF-012 的原语；补一段「**拓展件借的是 run 那一列**」，并划清：怎么停归 PF-012，卡片出来之后的一切归这里 |
+| [§4 放行判断](design.md#放行判断) | 它是**系统自带的一件拓展件**，出卡用的就是任何可否决拓展件都能用的那个原语；**差别只在选项定死** |
+| [§5.1](design.md#51-三种情形中间那一种最容易被漏掉) | 第三种情形补「或一件拓展件要问」 |
+| [§5.3](design.md#53-一批卡片与答完是什么意思) | 一批卡片的来源加第三行「**拓展件在同一次停下里各自出卡**」；**答完之后可能还有下一轮**，每轮都照全答完才解除 |
+| [§6.1](design.md#61-永远等着系统不替人作答) | **对拓展件出的卡同样成立**（只有人处理或会话归档才消失）；**「系统替人作答」包括拓展件替人作答**；一张表写清替人答卡、把「问一下」改放行、搬来的这类 hook 各怎么办；**不替人作答与不设放宽是一件事的两面** |
+| [§6.6](design.md#66-卡片要让人看出答了它会解除什么) | 拓展件出的卡解除的是 run，但**要说实话：答完可能又停在下一轮** |
+| [§6.8](design.md#68-三种来源的卡片同一个形状选项与记录不同)（标题改为「三种来源」） | 三种来源；选项表加「拓展件出的：它自己写，可自由作答」；**它写的「允许」跨不过放行那一关**；审计表加第三列，**记录标出是哪一件** |
+| [§6.9](design.md#69-人拒绝之后agent-分得出那是拒绝) | 拓展件据人的答复否掉动作，agent 拿到「不许做」及其来由，同样不是执行失败 |
+| [§7](design.md#七取舍)、[§8](design.md#八边界与依赖) | 取舍加两行；PF-012 那一行写明依赖 rev 8 的原语与「没有放宽」 |
+| [flows](flows.md) | 新增 §1.10「租户的规矩要问人」；异常分支加四行（替人作答不生效、又来一轮、出卡时挂了当否决、runtime 被收回卡片照挂）；决定权矩阵加「拓展件那条路」 |
+| [acceptance](acceptance.md) | 来源分辨、拓展件卡片的选项与规矩、替人作答不生效、同一批两种来源、第二轮；「绝不能」加两条；判据「不替人作答」加一半 |
+
+### 没有改的
+
+**§6.1 的穷举一个字没改**——清掉一张卡片仍然只有两条路；**一批全答完才解除、一张只答一次、答复资格跟会话访问权走**，对拓展件的卡一样成立。
+**放行判断的四档与资格约束不变。**
+
+### 下游要复核什么
+
+| 谁 | 复核什么 |
+|---|---|
+| [**PF-012**](../PF-012-agent-loop-and-run/README.md) | 已同步升 rev 8 |
+| [**PF-007**](../PF-007-meta-capabilities/README.md) | `Ask()` 两个命令的选项与 agent 侧不变；**「放行不由任何一样东西单独决定」那三样没有第四样**——拓展件不是放行的依据，只能收紧 |
+| [**PF-002**](../PF-002-assets-settings-and-permissions/README.md) | Loop Extension 的干预力：**可否决一档含出卡等人** |
+| 词表 | [UL-run-wait-state](../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-run-wait-state--运行等待态--run-wait-state)（「由系统…算出来」要加拓展件）、[UL-decision-card](../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-decision-card--决策卡片--decision-card)、[UL-card-batch](../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-card-batch--一批卡片--card-batch)（可能有下一轮）、[UL-admission-decision](../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-admission-decision--放行判断--admission-decision)（它是一件系统自带的拓展件）的出处 rev |
+
 ## rev 4 — 2026-09-21
 
 **「归后续 topic」的指路落到具体 topic；「会话终态 / 终结」统一成「会话被归档」。没有新结论。**

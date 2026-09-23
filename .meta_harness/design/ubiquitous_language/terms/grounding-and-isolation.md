@@ -27,7 +27,7 @@
 > change the action space**.
 
 - **形态**：对象
-- **出处**：[PF-004 §4 执行环境](../../product/PF-004-agent-definition-and-assembly/design.md#执行环境)（rev 9） · [PF-005 §4](../../product/PF-005-execution-environments-and-sandboxes/design.md#执行环境)（rev 5） · [PF-005 §6.1](../../product/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)（rev 5）
+- **出处**：[PF-004 §4 执行环境](../../product/PF-004-agent-definition-and-assembly/design.md#执行环境)（rev 10） · [PF-005 §4](../../product/PF-005-execution-environments-and-sandboxes/design.md#执行环境)（rev 5） · [PF-005 §6.1](../../product/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)（rev 5）
 - **注意 ①**：**它的存活与 agent runtime 无关**——可能短得多（一次工具调用就结束），也可能长得多（绑定在租户）
 - **⚠️ 注意 ②**：**它不是一个被注入的取值。**装配留下的是
   「需要哪几类环境」与「装进来哪些[沙箱实现](#ul-sandbox-implementation--沙箱实现--sandbox-implementation)」两样，
@@ -269,7 +269,7 @@
 - **出处**：[PF-016 §4 会话据点](../../product/PF-016-cli-tui-delivery-surface/design.md#会话据点) ·
   [§5.2](../../product/PF-016-cli-tui-delivery-surface/design.md#52-一个账号在一处怎么被装起来) ·
   [§5.6](../../product/PF-016-cli-tui-delivery-surface/design.md#56-哪些东西在中心一侧哪些在据点一侧) ·
-  [§6.16](../../product/PF-016-cli-tui-delivery-surface/design.md#616-没人开着屏这一处照常发生事)（rev 3）
+  [§6.16](../../product/PF-016-cli-tui-delivery-surface/design.md#616-没人开着屏这一处照常发生事)（rev 4）
 - **⚠️ 别混**：**不是[宿主机](#ul-host-machine--宿主机--host-machine)。**
   本交付形态下两者**恰好是同一台机器**，但**回答的问题不同**：
   宿主机回答「一次[工具执行](execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution)的作用**落在哪**」，
@@ -304,7 +304,7 @@
 - **形态**：对象
 - **出处**：[PF-016 §4 治理中心](../../product/PF-016-cli-tui-delivery-surface/design.md#治理中心) ·
   [§5.1](../../product/PF-016-cli-tui-delivery-surface/design.md#51-三处地方各自拥有什么) ·
-  [§5.6](../../product/PF-016-cli-tui-delivery-surface/design.md#56-哪些东西在中心一侧哪些在据点一侧)（rev 3）
+  [§5.6](../../product/PF-016-cli-tui-delivery-surface/design.md#56-哪些东西在中心一侧哪些在据点一侧)（rev 4）
 - **⚠️ 别混**：**不是[会话据点](#ul-session-base--会话据点--session-base)。**
   **分界不是「治理 vs 会话」那么粗**：**对同一个组织里的别人也成立的**在中心一侧，
   **只对这台机器上这个人的这段协作成立的**在据点一侧

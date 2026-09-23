@@ -40,7 +40,7 @@
 > and at run time they resolve by **override**.
 
 - **形态**：属性
-- **出处**：[PF-001 §4 设置、权限、资产](../../product/PF-001-identity-scope-and-agent-constraints/design.md#设置权限资产)（rev 15） · [PF-002 §5.2](../../product/PF-002-assets-settings-and-permissions/design.md#52-设置与权限是资产的两种属性)（rev 11）
+- **出处**：[PF-001 §4 设置、权限、资产](../../product/PF-001-identity-scope-and-agent-constraints/design.md#设置权限资产)（rev 15） · [PF-002 §5.2](../../product/PF-002-assets-settings-and-permissions/design.md#52-设置与权限是资产的两种属性)（rev 12）
 - **注意 ①**：配值的资格来自**持有**——**没有这个工具，就配不了它的执行权限**。
   配下的那一格叫[属性配值](scope-and-resolution.md#ul-attribute-assignment--属性配值--attribute-assignment)，
   **挂在那份持有上**
@@ -72,7 +72,7 @@
 > permission gate this run passes through**.
 
 - **形态**：属性
-- **出处**：[PF-002 §5.2 设置项分四类](../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 11）
+- **出处**：[PF-002 §5.2 设置项分四类](../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 12）
 - **别混**：与[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)里的「类别」不是一回事——
   那是**资产**的八类之一，这是**设置项**的四类之一；正文里裸写「类别」指前者
 - **注意**：工作区**自己带来的**资产，其落点类设置随资产一起来——这条限定挡的是**改别人资产的落点**
@@ -107,8 +107,9 @@
 > it automatically load all of its attachments.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-002 §4 Skill](../../product/PF-002-assets-settings-and-permissions/design.md#skill)（rev 11）
+- **出处**：[PF-002 §4 Skill](../../product/PF-002-assets-settings-and-permissions/design.md#skill)（rev 12） · [PF-006 §4 技能的说明](../../product/PF-006-tools-and-skills/design.md#技能的说明)（rev 15）
 - **别混**：Skill 说**怎么做**，[Tool](#ul-tool--工具--tool) 是**做的那个动作**。「代码审查该看哪些地方」是 skill，「读文件」是 tool
+- **注意**：它的**说明**是触发与路由的依据——[常驻](reach-and-availability.md#ul-residency--常驻--residency)时进系统提示词的是 name 与说明，`Skills().search` 按它找，替换件换掉的也是它；正文与资源按需取
 - **能组合**：Tool
 
 ### UL-tool · 工具 · Tool
@@ -124,7 +125,7 @@
 > slot** at assembly time.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 11）
+- **出处**：[PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 12）
 - **别混**：**子命令是 tool 的内部结构，不是独立资产**——随这个 tool 一起被持有、配置与授权
 - **⚠️ 别混**：**「工具」这个词指三样东西，寿命各不相同**——
   [工具定义](execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition)（数据，长期）、
@@ -139,16 +140,20 @@
 > **中**：**一个外部工具来源的接入点。**接进来之后，它提供的动作可被 agent 使用。
 > **接入点本身是资产，它带来的那些动作不单独成为资产**——随它一起被持有、授权与治理。
 > **对端的可用性与版本不由本系统掌握**：它提供的动作可能今天有明天没有，**而这不是故障**。
+> **对端的每一个动作在动作空间里是一个工具条目**——不常驻、经取用入口发现；
+> 动作集**每次运行开始前与可用性一起重算，一次运行之内不变**。
 >
 > **EN**: **An access point to an external source of tools.** Once connected, the
 > actions it offers become usable by the agent. **The access point is the asset; the
 > actions it brings are not assets of their own** — they are held, authorized and
 > governed along with it. **Availability and versioning on the far side lie outside
 > this system's control**, so an action present today may be gone tomorrow — **and
-> that is not a fault**.
+> that is not a fault**. **Each action on the far side is one tool entry in the action
+> space** — not resident, found through the discovery entry; the action set is
+> **recomputed before each run together with availability and does not change within a run**.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-001 §4 资产的种类](../../product/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 15） · [PF-002 §4 MCP](../../product/PF-002-assets-settings-and-permissions/design.md#mcp)（rev 11）
+- **出处**：[PF-001 §4 资产的种类](../../product/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 15） · [PF-002 §4 MCP](../../product/PF-002-assets-settings-and-permissions/design.md#mcp)（rev 12） · [PF-006 §6.13](../../product/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)（rev 15）
 - **别混**：Tool 是**一个动作**，MCP 是**一批动作的来源**——**MCP 本身不可被调用**
 - **能组合**：**不组合任何资产**
 
@@ -158,15 +163,19 @@
 > **八类里只有它回答「agent 从哪里被触达」**——另外六类回答「agent 能做什么、怎么做」，
 > [拓展件](#ul-loop-extension--拓展件--loop-extension)回答「推进的时候在哪些位置插手」。
 > **只能送消息进来**——没有数据读取面，也没有管理面。
+> **它带身份鉴权**：接对面服务的哪个账号，是持有上的一项[落点与身份类设置](#ul-setting-category--设置项类别--setting-category)，随租户身份不同而不同。
 >
 > **EN**: **An inbound attachment for an external message source**, delivering outside
 > messages into the system. **Of the eight, only this one answers how the agent can
 > be reached**: six answer what an agent can do and how, and a loop extension answers
 > where to intervene as the agent proceeds. It can **only deliver messages inward** — it
-> exposes no data-read surface and no management surface.
+> exposes no data-read surface and no management surface. **It carries identity
+> authentication**: which account on the far side it binds to is a placement-and-identity
+> setting on the holding, differing per tenant identity.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-001 §4 资产的种类](../../product/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 15） · [PF-002 §4 Connector](../../product/PF-002-assets-settings-and-permissions/design.md#connector)（rev 11）
+- **出处**：[PF-001 §4 资产的种类](../../product/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 15） · [PF-002 §4 Connector](../../product/PF-002-assets-settings-and-permissions/design.md#connector)（rev 12）
+- **注意**：**一人多账户不立新对象**——同一租户身份要接同一服务的两个账号，就是两份 name 不同的连接件
 - **别混**：MCP 是**我出去调它**，Connector 是**它进来找我**
 - **能组合**：**不组合任何资产**
 
@@ -174,17 +183,22 @@
 
 > **中**：挂在某个 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)上的**一段判断或动作**。
 > 它声明自己**挂在哪个位置**、**管哪些情形**，以及自己的**[干预力](../../product/PF-000-occurrences-and-record-entries/design.md#干预力--intervention-power)**——
-> 只观察 / 可改写 / 可否决。
+> 只观察 / 可改写 / 可否决——**没有「放宽」一档**，拓展件不能把「问一下」变成放行。
+> **可否决那一档含「落一张[决策卡片](interaction-and-dispatch.md#ul-decision-card--决策卡片--decision-card)等人」**：拓展件用的是 loop 自己等外部应答的那个原语，与主流程共用。
 > **同一个位置可以挂多个拓展件，各干各的。**
 >
 > **EN**: **A piece of judgement or action** attached to one loop extension point. It
 > declares **which position it sits at**, **which cases it covers**, and its own
-> **intervention power** — observe, rewrite, or veto. **Several extensions may sit at
-> the same position, each doing its own thing.**
+> **intervention power** — observe, rewrite, or veto; **there is no "relax" level**, an
+> extension cannot turn "ask" into "allow". **Veto includes "drop a decision card and wait
+> for a person"**: the extension uses the loop's own primitive for awaiting an external
+> reply, shared with the main flow. **Several extensions may sit at the same position, each
+> doing its own thing.**
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-002 §4 Loop Extension](../../product/PF-002-assets-settings-and-permissions/design.md#loop-extension)（rev 11） ·
-  [PF-012 §4 拓展件](../../product/PF-012-agent-loop-and-run/design.md#拓展件)（rev 7）
+- **出处**：[PF-002 §4 Loop Extension](../../product/PF-002-assets-settings-and-permissions/design.md#loop-extension)（rev 12） ·
+  [PF-012 §4 拓展件](../../product/PF-012-agent-loop-and-run/design.md#拓展件) · [§5.8](../../product/PF-012-agent-loop-and-run/design.md#58-loop-拓展点)（rev 8）
+- **注意 ③**：**外来 hook**（Claude Code / Codex 格式）导入为拓展件时按其声明的输出能力定档；**工作区带来的一律只观察**
 - **⚠️ 别混**：**它不是[拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)**——
   **拓展点是位置，拓展件是挂上去的东西**。位置由[状态点](../../product/PF-012-agent-loop-and-run/design.md#53-改日志的动作与纯派生的动作)推出、数目有限；**挂什么没有上限**
 - **注意 ①**：**干预力是它的[权限](#ul-permission--权限--permission)，不是[设置](#ul-setting--设置--setting)**——
@@ -194,42 +208,58 @@
 
 ### UL-modality-converter · 模态转换件 · Modality Converter
 
-> **中**：挂在 [PF-012「消息落盘之前」](../../product/PF-012-agent-loop-and-run/design.md#模态转换为什么必须落在这里)那个位置上的一件[拓展件](#ul-loop-extension--拓展件--loop-extension)，
-> **把一个[内容块](record-and-context.md#ul-content-block--内容块--content-block)的非文本[模态](record-and-context.md#ul-modality--模态--modality)就地渲染成文本**。
-> 它**声明自己能处理哪些模态**；**块进块出**；**就地给那个块记录文本的字段赋值**，不新增块、不改原样；
-> **在落盘之前跑完，之后不再跑**。它**不判断这次要不要转**、**不保证转得出来**、**不承诺无损**。
-> 正文在没有歧义处简称**转换件**。
+> **中**：挂在 [PF-012「消息落盘之前」](../../product/PF-012-agent-loop-and-run/design.md#模态转换为什么必须落在这里)那个位置上的一件[拓展件](#ul-loop-extension--拓展件--loop-extension)。
+> **输入一个非文本[模态](record-and-context.md#ul-modality--模态--modality)的[内容块](record-and-context.md#ul-content-block--内容块--content-block)或一个文件块；
+> 输出一个或多个别的模态的内容块（不能是文件块），外加一段纯文本 [transcript](record-and-context.md#ul-transcript--transcript--transcript) 作最后兜底。**
+> 产出挂在原块上作[派生表示](record-and-context.md#ul-derived-rendering--派生表示--derived-rendering)，**原块不动，不新增块、不另立对象**。
+> 它按**一种模态或一种文件媒体类型**登记，同键只有一件生效、**可替换**（替换只在系统装配层，**本版不是资产**）。
+> 产出**在落盘之前写好，之后不变**。**转换失败，那条输入消息不落盘、发送方被告知**；没登记转换件的键不算失败。
+> 它**不判断这次要不要转**、**不承诺无损**。正文在没有歧义处简称**转换件**。
 >
-> **EN**: A loop extension sitting at the "before a message is persisted" position that
-> **renders a content block's non-text modality into text, in place**. It **declares which
-> modalities it handles**; **a block goes in and text comes out**; it **fills the block's
-> text field** without adding a block or altering the original; it **runs before
-> persistence and never again**. It does **not** decide whether to convert this time,
-> does **not** guarantee a rendering, and does **not** promise losslessness. Short form
-> in running text: *converter*.
+> **EN**: A loop extension at the "before a message is persisted" position. **It takes one
+> content block of a non-text modality, or one file block, and yields one or more content
+> blocks in other modalities (never a file block), plus a plain-text transcript as the
+> last-resort fallback.** The outputs hang on the original block as its derived renderings;
+> **the original is untouched, no block is added and no separate object is created.** Converters
+> are registered **per modality or per file media type**; one is in effect per key and it is
+> **replaceable** — at system assembly only, **not an asset in this version**. Outputs are
+> **written before persistence and never change**. **If conversion fails, the incoming message
+> is not persisted and the sender is told**; a key with no registered converter is not a
+> failure. It does **not** decide whether to convert this time and does **not** promise
+> losslessness. Short form in running text: *converter*.
 
 - **形态**：变体（父：[拓展件](#ul-loop-extension--拓展件--loop-extension)）
-- **出处**：[PF-013 §4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件)（rev 4） ·
-  [PF-012 §5.8 模态转换为什么必须落在这里](../../product/PF-012-agent-loop-and-run/design.md#模态转换为什么必须落在这里)（rev 7）
-- **⚠️ 别混**：**不是[结果卸载](execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)**——
+- **出处**：[PF-013 §4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件)（rev 5） ·
+  [PF-012 §5.8 模态转换为什么必须落在这里](../../product/PF-012-agent-loop-and-run/design.md#模态转换为什么必须落在这里)（rev 8）
+- **⚠️ 别混 ①**：**不是[结果卸载](execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)**——
   那是把**太大**的工具结果换成占位、原件离开消息；转换件处理的是**读不懂**，**原件一步没动**
+- **⚠️ 别混 ②**：**父词条是资产的一类，它本版却不是资产**——它走拓展件的位置与干预力，
+  但不被持有、不按层配值；「未来是否升为资产」是 PF-013 记下的显式缺口
 - **注意 ①**：**位置归 PF-012，契约归 PF-013**——有哪些模态、哪个模型收得下哪些，是大语言模型域定的
-- **注意 ②**：**转不出来的块就进[模态投影](record-and-context.md#ul-modality-projection--模态投影--modality-projection)**，把收不下它的模型挡在合法目标之外——这是有意的兜底方向
+- **注意 ②**：**转换失败就是「消息落盘之前」那个位置的否决**（PF-012 rev 8 的否决表），不是另一种收场
+- **注意 ③**：**没登记转换件、因而没有 transcript 的块进[模态投影](record-and-context.md#ul-modality-projection--模态投影--modality-projection)**，把收不下它的模型挡在合法目标之外——这是有意的兜底方向
 
 ### UL-slash-command · 斜杠命令 · Slash Command
 
-> **中**：**用户主动发起某件事的入口**，用户敲 `/什么` 触发。
-> 它**绑定**要做的事（一个 skill、一段 prompt 或其他上下文）——
-> **命令本身不是做事的东西，它是指路牌**。**不含键盘控制、shell 命令或系统命令。**
+> **中**：**人主动发起某件事的入口**，人在交付面敲 `/什么` 触发；**只由交付面识别、只对人**，模型不调用它。
+> 它**绑定**要做的事，**绑定目标恰有三种**：**一段自定义提示词**；**装配的一个 skill**（其正文直接成为消息里的一个内容块）；
+> **一条系统业务流程**（命令服务或查询服务的某一个动作，不进队列、不成为消息）。
+> **命令本身不是做事的东西，它是指路牌**。**不含键盘控制或 shell 命令。**
 >
-> **EN**: **An entry point through which a user initiates something**, triggered by
-> typing `/something`. It **binds** to the thing to be done — a skill, a prompt, or
-> other context. **The command is not the doing; it is a signpost.** It covers **no
-> keyboard control, no shell commands and no system commands.**
+> **EN**: **An entry point through which a person initiates something**, triggered by
+> typing `/something` on a delivery surface; **recognized only by the delivery surface and
+> only for people** — the model never invokes it. It **binds** to the thing to be done, and
+> **the binding target is exactly one of three**: **a custom prompt**; **an assembled skill**
+> (whose text becomes one content block of the message); or **a system business flow** (one
+> action of a command or query service, which enters no queue and becomes no message).
+> **The command is not the doing; it is a signpost.** It covers **no keyboard control and no
+> shell commands.**
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-002 §4 Slash Command](../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)（rev 11）
+- **出处**：[PF-002 §4 Slash Command](../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)（rev 12）
 - **别混**：Skill 是方法本身，Slash Command 是**发起它的入口**。绑定是**多对多**——一个 skill 可以有多个入口，也可以完全没有
+- **注意 ①**：**名字**——交付面自己的动作名与系统业务流程型命令名是**系统保留名**，前两种绑定的命令不得占用；同能力标识按资产替换规则
+- **注意 ②**：**为什么单独是一类资产**：为将来的可编程性留口子——出处同上
 - **能组合**：Skill（绑定）
 
 ### UL-plugin · 插件 · Plugin
@@ -244,7 +274,7 @@
 > single skill out of a plugin.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-001 §4 资产的种类](../../product/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 15） · [PF-002 §4 Plugin](../../product/PF-002-assets-settings-and-permissions/design.md#plugin)（rev 11）
+- **出处**：[PF-001 §4 资产的种类](../../product/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 15） · [PF-002 §4 Plugin](../../product/PF-002-assets-settings-and-permissions/design.md#plugin)（rev 12）
 - **别混 ①**：**不是 Cordis plugin**——那是运行时的代码装载单元，属技术设计。指它时**必须写全 `Cordis plugin`**
 - **别混 ②**：Plugin 组合出来的**还是资产**，可以继续被组合；[Agent Definition](#ul-agent-definition--agent-定义--agent-definition) 组合出来的是**一个能跑的 agent**
 - **能组合**：Skill、Tool、Slash Command、MCP、Connector、[拓展件](#ul-loop-extension--拓展件--loop-extension)，以及 Rules 这类声明性成员
@@ -263,7 +293,7 @@
 > thing evolve separately**. A sub-agent's definition **is one of these too**.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-001 §4 资产的种类](../../product/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 15） · [PF-002 §4 Agent Definition](../../product/PF-002-assets-settings-and-permissions/design.md#agent-definition)（rev 11）
+- **出处**：[PF-001 §4 资产的种类](../../product/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 15） · [PF-002 §4 Agent Definition](../../product/PF-002-assets-settings-and-permissions/design.md#agent-definition)（rev 12）
 - **注意**：混为一谈会出现「**我改了配置，正在跑的任务突然换了行为**」这种事故
 - **能组合**：**全部八类**（含其他 Agent Definition 作为 sub-agent）——**它是唯一能组合全部八类的**
 
@@ -285,7 +315,7 @@
 > itself**, independent of what any one assembly of it produces.
 
 - **形态**：属性
-- **出处**：[PF-004 §4 agent 类型](../../product/PF-004-agent-definition-and-assembly/design.md#agent-类型)（rev 9） · [§6.8](../../product/PF-004-agent-definition-and-assembly/design.md#68-两类-agent谁能被谁自定义)（rev 9）
+- **出处**：[PF-004 §4 agent 类型](../../product/PF-004-agent-definition-and-assembly/design.md#agent-类型)（rev 10） · [§6.8](../../product/PF-004-agent-definition-and-assembly/design.md#68-两类-agent谁能被谁自定义)（rev 10）
 - **⚠️ 别混**：**`non-master` 不是[子 agent](interaction-and-dispatch.md#ul-subagent--子-agent--subagent)。**
   后者说的是**它在派发关系里的角色**（被 `spawn`/`delegate` 派出去的那个）。
   **一个是这份定义带着哪套机制，一个是此刻在扮演什么。**
@@ -310,7 +340,7 @@
 > only** — a non-master opens no collaboration, so the property means nothing for it.
 
 - **形态**：属性
-- **出处**：[PF-004 §4 master 类目](../../product/PF-004-agent-definition-and-assembly/design.md#master-类目)（rev 9）
+- **出处**：[PF-004 §4 master 类目](../../product/PF-004-agent-definition-and-assembly/design.md#master-类目)（rev 10）
 - **⚠️ 别混**：**它不是[会话类型](agent-runtime-loop.md#ul-session-type--会话类型--session-type)。**
   会话类型是**会话**的属性，**由它算出来**——
   [算，不是拷贝](../../product/PF-015-session-lifecycle-and-ownership/design.md#53-会话类型怎么算出来)。
@@ -337,7 +367,7 @@
 > line**, so the source's v7 may be v2 over there.
 
 - **形态**：对象
-- **出处**：[PF-002 flows §3.3 一个资产定义的版本](../../product/PF-002-assets-settings-and-permissions/flows.md#33-一个资产定义的版本)（rev 11） ·
+- **出处**：[PF-002 flows §3.3 一个资产定义的版本](../../product/PF-002-assets-settings-and-permissions/flows.md#33-一个资产定义的版本)（rev 12） ·
   [PF-003 §6.4 可复制的对象](../../product/PF-003-asset-transfer-and-sharing/design.md#64-可复制的对象)（rev 4）
 - **别混 ①**：**不是[版本选用](circulation-and-entitlement.md#ul-version-selection--版本选用--version-selection)**——
   那说的是**某个范围当前选了哪一个**，是一条关系；这一条说的是**被选的那个东西**
@@ -358,7 +388,7 @@
 > acyclic**, and **composition transfers no definition ownership**.
 
 - **形态**：属性
-- **出处**：[PF-002 §5.1](../../product/PF-002-assets-settings-and-permissions/design.md#51-组合是一种关系不是几种)（rev 11）
+- **出处**：[PF-002 §5.1](../../product/PF-002-assets-settings-and-permissions/design.md#51-组合是一种关系不是几种)（rev 12）
 - **别混**：与[作用域合成语义](scope-and-resolution.md#ul-scope-composition-semantics--作用域合成语义--scope-composition-semantics)不是一回事——**裸写「组合」不作数**
 - **注意**：这一节在 PF-002 里标着「**PM 推导，待产品负责人确认**」
 
@@ -379,7 +409,7 @@
 > in*?**
 
 - **形态**：属性
-- **出处**：[PF-004 §4 注入](../../product/PF-004-agent-definition-and-assembly/design.md#注入)（rev 9） · [§5.3](../../product/PF-004-agent-definition-and-assembly/design.md#53-三个时刻)（rev 9）
+- **出处**：[PF-004 §4 注入](../../product/PF-004-agent-definition-and-assembly/design.md#注入)（rev 10） · [§5.3](../../product/PF-004-agent-definition-and-assembly/design.md#53-三个时刻)（rev 10）
 - **弃用的说法**：**「agent 构成 / Instance Constitution」**——
   2026-09-20 之前的名字，主语是已退役的「运行实例」，见 [UL-D-3](../decisions.md#ul-d-3--runtime-与活体--2026-09-20)
 - **别混**：**它不是整份清单**——清单还记着为哪个会话求的、依据哪个定义版本、成本算谁的。
@@ -402,7 +432,7 @@
 > right now"** rather than **"this does not exist"**.
 
 - **形态**：视图
-- **出处**：[PF-004 §4 动作空间](../../product/PF-004-agent-definition-and-assembly/design.md#动作空间)（rev 9）
+- **出处**：[PF-004 §4 动作空间](../../product/PF-004-agent-definition-and-assembly/design.md#动作空间)（rev 10）
 - **注意**：这条锁定的是**变化的唯一原因**，不是「永不改变」。它真正排除的只有一件事：**拿构成之外的东西去改动作空间**
 
 ### UL-meta-capability · meta 能力 · Meta Capability
@@ -438,20 +468,20 @@
 
 ### UL-prompt-slot · 提示词槽位 · Prompt Slot
 
-> **中**：**agent 在系统提示词里直接看见的一个条目。**
+> **中**：**agent 始终直接看见的一个条目**——正文说「在系统提示词里」指的就是这种始终可见的呈现，不限定它落在一次模型请求的哪个位置。
 > 标了[常驻](reach-and-availability.md#ul-residency--常驻--residency)的占一个，没标的不占；
 > 此外有**一批恒定占槽位、且关不掉**的条目（PF-007 定义的 meta）。
 > **多命令工具整套只占一个**，因此常驻预算的正确用法是
 > **把钱花在入口上，不是花在具体动作上**。
 >
-> **EN**: **One entry the agent sees directly in the system prompt.** Whatever is
+> **EN**: **One entry the agent always sees directly** — "in the system prompt" in the product text means this always-visible rendering, wherever it lands in a request. Whatever is
 > marked resident takes one; whatever is not takes none. On top of these sit **a set
 > that permanently occupy slots and cannot be switched off**. **A multi-command tool
 > takes a single slot for its whole command set**, so the right way to spend a
 > resident budget is **on entry points, not on individual actions**.
 
 - **形态**：视图
-- **出处**：[PF-006 §4 槽位](../../product/PF-006-tools-and-skills/design.md#槽位)（rev 14） · [PF-007 §5.4](../../product/PF-007-meta-capabilities/design.md#54-十三个槽位是预算的地板也是它的天花板意义)（rev 16）
+- **出处**：[PF-006 §4 槽位](../../product/PF-006-tools-and-skills/design.md#槽位)（rev 15） · [PF-007 §5.4](../../product/PF-007-meta-capabilities/design.md#54-十三个槽位是预算的地板也是它的天花板意义)（rev 16）
 - **别混**：**裸写「槽位」不作数**——它专指系统提示词里的那种占位
 - **注意**：**不占槽位不等于不在[动作空间](#ul-action-space--动作空间--action-space)里**——见[三层正交](reach-and-availability.md#三层正交这是本卷的地基)
 
@@ -475,8 +505,8 @@
 > unique within a scope and never changes** — change it and it is a different profile.
 
 - **形态**：对象
-- **出处**：[PF-013 §4 模型档案](../../product/PF-013-model-profiles-and-invocation/design.md#模型档案)（rev 4） ·
-  [PF-013 flows §3.1 一条模型档案](../../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 4）
+- **出处**：[PF-013 §4 模型档案](../../product/PF-013-model-profiles-and-invocation/design.md#模型档案)（rev 5） ·
+  [PF-013 flows §3.1 一条模型档案](../../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 5）
 - **⚠️ 别混 ①**：**官方档案 / 自建档案**（谁建的、落在哪一层）**不是
   [官方件](circulation-and-entitlement.md#ul-official-asset--官方件--official-asset) /
   [自定义件](circulation-and-entitlement.md#ul-customized-asset--自定义件--customized-asset)**——
@@ -507,13 +537,14 @@
 > **bring its own**.
 
 - **形态**：属性
-- **出处**：[PF-013 §5.6](../../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上) · [§6.2](../../product/PF-013-model-profiles-and-invocation/design.md#62-凭据挂在范围上档案自己不存)（rev 4）
+- **出处**：[PF-013 §5.6](../../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上) · [§6.2](../../product/PF-013-model-profiles-and-invocation/design.md#62-凭据挂在范围上档案自己不存)（rev 5）
 - **⚠️ 别混 ①**：**不是[设置](#ul-setting--设置--setting)**——设置是**资产**的属性，
   而[档案不是资产](#ul-model-profile--模型档案--model-profile)、凭据也不是；**它挂在范围身上**
 - **别混 ②**：**裸写「凭据」不作数**——账号的登录凭据、[连接件](#ul-connector--连接件--connector)的接入凭据都叫凭据，
   **正式名一律带「模型」**
 - **注意**：一范围一把的代价是**做不到「这个模型走另一个账号」**；
   同一范围里所有自建档案的用量都记在同一把上，**上游账单分不到单条档案**
+- **弃用说法**：~~BYOK~~——OpenRouter 响应里的 `is_byok` 是上游字段，说的是**上游那一侧**用了谁的 key，与本词条不是一回事，正文不用这个缩写
 
 ### UL-selected-model · 选中模型 · Selected Model
 
@@ -527,7 +558,7 @@
 
 - **形态**：属性
 - **出处**：[PF-013 §4 选中模型 与 有效模型](../../product/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型) ·
-  [§5.9](../../product/PF-013-model-profiles-and-invocation/design.md#59-换模型一条事实一个生效点零个新分支)（rev 4）
+  [§5.9](../../product/PF-013-model-profiles-and-invocation/design.md#59-换模型一条事实一个生效点零个新分支)（rev 5）
 - **⚠️ 别混**：用户界面上「你正在用 X」说的是它；**「刚才那句话是 X 说的」说的是另一件事**，两者完全可以不是同一个答案
 
 ### UL-effective-model · 有效模型 · Effective Model
@@ -549,7 +580,7 @@
 - **形态**：视图
 - **出处**：[PF-013 §4 选中模型 与 有效模型](../../product/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型) ·
   [§5.10](../../product/PF-013-model-profiles-and-invocation/design.md#510-合法目标集合与展示列表是两件事) ·
-  [§6.9](../../product/PF-013-model-profiles-and-invocation/design.md#69-合法目标算不出来时不替用户改选)（rev 4）
+  [§6.9](../../product/PF-013-model-profiles-and-invocation/design.md#69-合法目标算不出来时不替用户改选)（rev 5）
 - **注意**：拓展件改掉它**不是静默的**——它[必须留下结论](../../product/PF-012-agent-loop-and-run/design.md#610-能干预的拓展件必须留下结论)
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

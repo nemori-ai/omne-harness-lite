@@ -2,7 +2,7 @@
 id: PF-013
 title: 模型档案、调用与切换
 status: active
-revision: 4
+revision: 5
 relations:
   supersedes: []
   depends-on:
@@ -66,13 +66,13 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 4**，**已正式接受**（产品负责人 2026-09-23，[记录](decisions.md#2026-09-23--接受为正式)）。rev 1 起草于 2026-09-20，
-  同日两次修订：[rev 2 按转换件与「面向状态码」两条裁决](changelog.md#rev-2--2026-09-20)、
-  [rev 3 写死模型请求运行时的宿主](changelog.md#rev-3--2026-09-20)；
-  [rev 4 把凭据定性为范围上的一项属性，并支持自带凭据](changelog.md#rev-4--2026-09-22)
-- 待裁决：**0**。唯一那条（没人挂拓展件时的默认行为）已由[裁决 17](decisions.md#裁决-17--没人挂的时候系统自带一件) 定掉
-- **本 topic 新拥有[转换件的契约](design.md#转换件)**——
-  位置归 [PF-012](../PF-012-agent-loop-and-run/design.md#模态转换为什么必须落在这里)，
+- 产品设计：**rev 5**（2026-09-23），落产品负责人同日关于**转换件、视频、供应商回退**的裁决——
+  [变更](changelog.md#rev-5--2026-09-23)。**rev 4 已正式接受**（产品负责人 2026-09-23，[记录](decisions.md#2026-09-23--接受为正式)）；
+  **rev 5 全文待产品负责人确认**
+- 待裁决：**1**——模型吐出的、工具交回的消息转换失败怎么办，见 [decisions 第三节](decisions.md#三待裁决)
+- **本 topic 拥有[转换件的契约](design.md#转换件)**：按模态或文件媒体类型登记、同键可替换；
+  一个块进，**别的模态的块作为派生表示挂在原块上，外加一段 transcript**；**转失败，那条输入消息不落盘**。
+  位置归 [PF-012](../PF-012-agent-loop-and-run/design.md#模态转换为什么必须落在这里)（rev 8），
   「有哪些模态、哪个模型收得下哪些」是大语言模型域定的，所以契约归这里
 - **本 topic 与 [PF-012](../PF-012-agent-loop-and-run/README.md)、
   [PF-014](../PF-014-inbound-intake-and-queueing/README.md) 出自同一次联合修订**；

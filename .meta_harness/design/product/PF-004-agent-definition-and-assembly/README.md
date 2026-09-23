@@ -2,7 +2,7 @@
 id: PF-004
 title: Agent 定义与装配
 status: active
-revision: 9
+revision: 10
 relations:
   supersedes: []
   depends-on:
@@ -82,9 +82,10 @@ PF-002 因对象的种类或组合形状变，本 topic 因装配与资源治理
 
 ## 状态
 
-- 产品设计：**rev 9**，已定稿（**rev 9 接住[工作区那一级的内容在装配时自动进来](design.md#装配)**——
-  跟上 [PF-002 rev 10](../PF-002-assets-settings-and-permissions/changelog.md)；rev 8 把[执行环境](design.md#执行环境)从「注入的三样之一」
-  改判为「装配留下两样、落点每次执行现算」——跟上 [PF-005 rev 4](../PF-005-execution-environments-and-sandboxes/changelog.md)）
+- 产品设计：**rev 10**，已定稿（**rev 10 让[技能在系统提示词里的那一格](design.md#52-三段结构是递归的)跟上
+  [PF-006 rev 15 的常驻](../PF-006-tools-and-skills/design.md#常驻)**：常驻的才进，进的是 name 与说明；
+  rev 9 接住[工作区那一级的内容在装配时自动进来](design.md#装配)——跟上 [PF-002 rev 10](../PF-002-assets-settings-and-permissions/changelog.md)；
+  rev 8 把[执行环境](design.md#执行环境)从「注入的三样之一」改判为「装配留下两样、落点每次执行现算」——跟上 [PF-005 rev 4](../PF-005-execution-environments-and-sandboxes/changelog.md)）
 - 未决项：**两项**——[「master 的全套机制」包含哪些](design.md#九未决项)、
   [`spawn`/`delegate` 能不能派一份 master 定义](design.md#九未决项)
 - 待裁决：**两项**（[D-1、D-2](decisions.md#三待裁决)，即上面那两条）。
