@@ -3,7 +3,7 @@
 - 调查对象与日期：`@earendil-works/pi-ai@0.86.1`（pi `3390bd93630965a12a0a1a5c36ce890ec22f7e1d`）源码；
   本仓库钉住的 `@earendil-works/pi-ai@0.85.1` 发布物与补丁；`feat/minimal-runtime@d79484d` 的 `packages/model/{execution,llm}`；
   DSH `c291e7961a515f6d7af9304e7fd1d257929aef26` 的 `packages/llm/*`。2026-09-23，全部离线取证。
-- 消费者：本程块 C 的架构读数与「模型传输比较门」补记（待出现）。
+- 消费者：[D-019 的比较门现状补记（2026-09-23）](../../design/record/decisions/model-provider-pi-ai-fork/gate-status-2026-09-23.md)（已落）；本程块 C 的架构读数（待出现）。
 - 最近核对：2026-09-23 / 上列版本（首轮）。
 - 当前结论：D-019 的两处丢失（实际执行方、实际费用）在 0.86.1 上原样存在，补丁仍要；
   minimal-runtime 的 pi-ai 传输只闭合了非推理文本/工具的正常路径，比较门里的私有 replay、请求字段按模型实测、
@@ -277,5 +277,5 @@ pi-ai 按 provider id 与 baseURL 自动推断请求形状（`detectCompat`，`:
 
 ## 采用与后续核对
 
-尚无消费者落地。预期消费者是本程块 C 的架构读数，以及 D-019 下的「模型传输比较门」补记（待出现）。
+已落地的消费者：[D-019 的比较门现状补记（2026-09-23）](../../design/record/decisions/model-provider-pi-ai-fork/gate-status-2026-09-23.md)。预期消费者还有本程块 C 的架构读数（待出现）。
 pi-ai 换版本时 grep 本包的 `0.85.1`、`0.86.1`、`3390bd9`；minimal-runtime 前移时 grep `d79484d`。
