@@ -122,7 +122,7 @@ def test_unfilled_template_is_not_generated(source):
 def test_shared_prompt_is_inlined_and_drift_is_detected(source, tmp_path):
     common = source.parent / "common.md"
     common.write_text("你必须取得实施规格与施工计划才能开工。\n")
-    (source / "assembly.toml").write_text('shared_prompt = "../common.md"\n')
+    (source / "assembly.toml").write_text('shared_prompts = ["../common.md"]\n')
     (source.parent / "task.md").write_text("这是给派发者的任务模板。")
     outputs = renderer.render(source)
     codex, _, body = bodies(outputs)
@@ -148,8 +148,33 @@ def test_invalid_shared_prompt_cannot_be_silently_omitted(source, tmp_path, kind
         target = "role.md"
     elif kind == "placeholder":
         common.write_text("{{required_contract}}")
-    (source / "assembly.toml").write_text(f'shared_prompt = "{target}"\n')
+    (source / "assembly.toml").write_text(f'shared_prompts = ["{target}"]\n')
     with pytest.raises((ValueError, OSError)):
+        renderer.render(source)
+
+
+def test_shared_prompts_are_inlined_in_declared_order(source):
+    (source.parent / "taste.md").write_text("# 品味\n先保护不变量。\n")
+    (source.parent / "contract.md").write_text("# 边界\n只改授权路径。\n")
+    (source / "assembly.toml").write_text('shared_prompts = ["../taste.md", "../contract.md"]\n')
+    codex, _, body = bodies(renderer.render(source))
+    assert body == ((source / "role.md").read_text().strip() + "\n\n# 品味\n先保护不变量。"
+                    + "\n\n# 边界\n只改授权路径。\n")
+    assert codex["developer_instructions"] == body
+
+
+@pytest.mark.parametrize("assembly", [
+    'shared_prompts = []\n',
+    'shared_prompts = "../common.md"\n',
+    'shared_prompts = ["../common.md", "../common.md"]\n',
+    'shared_prompts = ["../common.md", "./../common.md"]\n',
+    'shared_prompts = [""]\n',
+    'shared_prompt = "../common.md"\n',
+])
+def test_malformed_shared_prompt_lists_are_rejected(source, assembly):
+    (source.parent / "common.md").write_text("共同边界。\n")
+    (source / "assembly.toml").write_text(assembly)
+    with pytest.raises(ValueError):
         renderer.render(source)
 
 

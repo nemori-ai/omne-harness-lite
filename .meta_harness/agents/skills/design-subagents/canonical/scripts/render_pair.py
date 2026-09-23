@@ -55,17 +55,28 @@ def assembly_inputs(source: Path) -> tuple[str, str | None]:
     if not raw:
         return "", None
     data = tomllib.loads(raw)
-    if data.keys() - {"shared_prompt", "default_effort"}:
+    if data.keys() - {"shared_prompts", "default_effort"}:
         raise ValueError("assembly.toml: unknown field")
-    shared = ""
-    if "shared_prompt" in data:
-        relative = required_string(data, "shared_prompt", "assembly")
-        target = (source / relative).resolve()
-        # A sibling common prompt is allowed; traversal beyond the role collection is not.
-        if (Path(relative).is_absolute() or not target.is_relative_to(source.parent.resolve())
-                or target == (source / "role.md").resolve() or target.suffix != ".md"):
-            raise ValueError("shared prompt must be Markdown within the role collection")
-        shared = source_text(source.parent.resolve(), str(target.relative_to(source.parent.resolve())))
+    parts = []
+    if "shared_prompts" in data:
+        entries = data["shared_prompts"]
+        if not isinstance(entries, list) or not entries:
+            raise ValueError("assembly: shared_prompts must be a nonempty array")
+        collection = source.parent.resolve()
+        seen = set()
+        for relative in entries:
+            if not isinstance(relative, str) or not relative.strip():
+                raise ValueError("assembly: shared_prompts entries must be nonempty strings")
+            target = (source / relative).resolve()
+            # A sibling common prompt is allowed; traversal beyond the role collection is not.
+            if (Path(relative).is_absolute() or not target.is_relative_to(collection)
+                    or target == (source / "role.md").resolve() or target.suffix != ".md"):
+                raise ValueError("shared prompt must be Markdown within the role collection")
+            if target in seen:
+                raise ValueError(f"assembly: duplicate shared prompt: {relative}")
+            seen.add(target)
+            parts.append(source_text(collection, str(target.relative_to(collection))))
+    shared = "\n\n".join(parts)
     effort = data.get("default_effort")
     if "default_effort" in data and effort not in ("medium", "high", "xhigh"):
         raise ValueError("default_effort must be medium, high or xhigh")

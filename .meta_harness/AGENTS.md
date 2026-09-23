@@ -71,6 +71,7 @@
 | 知识该落哪里、怎样建 topic | [design/AGENTS.md](design/AGENTS.md) 的准入四步，再读目标目录 README；**不要求每项需求创建所有目录** |
 | 已有架构、规格或计划待审稿 | [评审分工](agents/roles/README.md#按判断对象选择-reviewer)：给出对象/版本、依据与范围，意见不代替接受 |
 | 派发或接手实现 | [开发者契约](agents/roles/developer-contract.md)与[任务输入](agents/roles/developer-task.md)：只实施本次已具备输入且获准写入的范围 |
+| 几种做法都成立，要选方向 | [研发品味](agents/roles/engineering-taste.md)：全部设计与研发角色内联的同一份，改它只改那一处再重编 |
 | 编写角色、宿主或模型适配 | 加载 `design-subagents` skill：明确职责、行动、输入与停止条件 |
 | 维护 skill 源、编译或链接 | [agents 源约定](agents/README.md)与 [tooling](tooling/README.md)：**检查不等于安装** |
 | 操作执行仓库的 worktree | 加载 `worktree-discipline` skill：先定位本次检出、基线与证据 |
