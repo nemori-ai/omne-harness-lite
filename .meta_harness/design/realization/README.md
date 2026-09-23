@@ -152,8 +152,8 @@ bindings:
 存量节点尚未从 `design_legacy/providers/` 与 `design_legacy/assemblies/` 迁入。
 
 **assembly 节点**：`apps/cli/` 是第一个应用节点，随 CLI-TUI 交付面的 PF 一起建立（2026-09-22），状态 `candidate`——
-源码尚未落地，`bindings.yaml` 为空表。中心治理节点是另一个可部署应用，但它的交付面尚无 PF，**按准入不建节点**，
-缺口记在 `apps/cli/architecture.md` 的拓扑一节。
+源码尚未落地，`bindings.yaml` 为空表。治理中心那一侧的交付面 PF-017 已于 2026-09-23 起草（draft，未接受），入口层与运维面落在
+[`packages/tenancy/governance-center-entry`](packages/tenancy/governance-center-entry/README.md)（candidate），由 `apps/tenancy-host` 装配；`apps/cli` 两条跨应用边的对端随本程修订。
 [`apps/tenancy-host/`](apps/tenancy-host/README.md)（名字由 [D-027](../record/decisions/infrastructure-names-and-sqlite-durability/README.md) 拍板）是租户领域第一程的采用型装配节点（2026-09-22），状态 `candidate`：
 只写存储（迁移清单与真实外键）、时钟与密钥三半，入口层身份核实明写为缺口；它没有终端交付面 PF，
 与上一段的准入有张力，待产品负责人裁（准入例外或为治理中心开题）。
