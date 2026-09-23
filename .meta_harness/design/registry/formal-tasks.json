@@ -145,6 +145,30 @@
         "spec/capabilities/asset-transfer/v1/formal/Transfer.tla"
       ],
       "timeout_seconds": 180
+    },
+    {
+      "id": "stream-assembly-v1-assembly",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/stream-assembly/v1/formal/Assembly.tla",
+        "spec/capabilities/stream-assembly/v1/formal/Assembly.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/stream-assembly-v1-assembly",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/stream-assembly/v1/formal/Assembly.cfg",
+        "spec/capabilities/stream-assembly/v1/formal/Assembly.tla"
+      ],
+      "timeout_seconds": 600
     }
   ]
 }
