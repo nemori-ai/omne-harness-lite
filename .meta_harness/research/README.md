@@ -101,6 +101,19 @@
 - [六个 agent harness 怎么做 CLI 与 TUI](agent-harness-cli-tui/README.md) — 上述四家 + Cursor `2026.08.04` 与 Kimi Code `0.31.0`，取证 2026-09-21，消费者待出现
 - [debugger 子代理：一方现状、社区做法、失败模式与取证手段](agent-debugger-subagents/README.md) — 八家产品的官方文档与源码（2026-09-22 当日线上版本，未钉 commit）+ 社区 22 条 + 论文与规范 21 条，取证 2026-09-22，消费者为前端调试子代理的角色设计
 
+### 资产、工具运行时与模型请求运行时一程（2026-09-23 起）
+
+- [资产持有与分层求值的同行先例与反例](asset-holding-and-evaluation-peers/README.md) — DSH `c291e796` / Codex `5c5308f` / omne-next `6263fed` / Claude Code `2.1.280`，取证 2026-09-23，消费者为块 A 的架构读数
+- [工具执行运行时的来源：DSH jobs 与 minimal-runtime local-execution](tool-execution-runtime-sources/README.md) — DSH `c291e796` / 本仓库 `feat/minimal-runtime@d79484d`，取证 2026-09-23，消费者为提案「工具运行时基线」（待出现）
+- [MCP 客户端的复用：DSH mcp-client 与 Codex rmcp-client](mcp-client-reuse/README.md) — DSH `c291e796`（SDK 锁 1.29.0）/ Codex `5c5308f`（形状参照），取证 2026-09-23，消费者为提案「MCP 客户端采用」（待出现）
+- [Skill 规格的参考来源：omne-next、DSH 与本机 SKILL.md 实例](skill-spec-sources/README.md) — omne-next `6263fed`（含两套校验实测）/ DSH `c291e796` / 本机 Claude Code `2.1.280` 实例，取证 2026-09-23，消费者为提案「Skill 规格采用」（待出现）
+- [连接件与斜杠命令的形状起点：omne-next 与 DSH](connector-and-slash-command-sources/README.md) — omne-next `6263fed`（多处只有设计无实现）/ DSH `c291e796`，取证 2026-09-23，消费者为提案「Connector 与 Slash Command 形状起点」（待出现）
+- [工具定义形状的三源对照：DSH、omne-next 与 minimal-runtime](tool-definition-shape-sources/README.md) — DSH `c291e796` / omne-next `6263fed` / 本仓库 `feat/minimal-runtime@d79484d`，PF-006 §5.3 逐条对照，取证 2026-09-23，消费者为提案「工具定义基线」（待出现）
+- [模型请求传输的来源：pi-ai 与 minimal-runtime 的现状](model-request-transport-sources/README.md) — pi `3390bd9`（0.86.1）/ 本仓库钉的 0.85.1 + 补丁 / minimal-runtime `d79484d`，D-019 比较门逐项现状，取证 2026-09-23（离线），消费者为块 C 的架构读数与「模型传输比较门」补记（待出现）
+- [Loop 拓展点与两家 hooks 的兼容层：Claude Code、Codex 与 DSH hook-protocol](loop-extension-hooks-compat/README.md) — Claude Code 文档 2026-09-23 抓取（`sources/` 钉字节）+ 本机 `2.1.280` 实例 / Codex `5c5308f` / DSH `c291e796`，两家事件→PF-012 十一位置映射全表，取证 2026-09-23，消费者为提案「hooks 兼容层基线」（待出现）
+- [消息数据模型与流协议的起点：DSH llm、DSH 会话格式、pi-ai 与 minimal-runtime](message-model-and-stream-sources/README.md) — DSH `c291e796` / pi `3390bd9` / minimal-runtime `d79484d`，PF-009/010/012/013 条款逐行三源对照（五种判定），取证 2026-09-23，消费者为提案「消息与流基线」（待出现）
+- [斜杠命令的识别与解析：五个来源怎么认、怎么分、怎么留痕](slash-command-parsing-sources/README.md) — Codex `5c5308f`（TUI 取自同 SHA 克隆，未钉字节）/ Claude Code `2.1.280` 文档字节 + 本机实测 / DSH `c291e796` / omne-next `6263fed` / pi `3390bd9`（只作对照），取证 2026-09-23，消费者为提案「斜杠命令识别与解析基线」（待出现）
+
 迁入前的历史索引见 [`legacy_backup/`](legacy_backup/README.md)，那里是存底，不按本页规则接续。
 
 每个 topic 入口标明调查对象、版本与范围；先沿当前判断进入对应 topic，再按其阅读地图取得证据与局限。

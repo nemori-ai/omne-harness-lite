@@ -69,13 +69,15 @@
 |---|---|---|---|
 | [UL-asset](terms/capabilities-and-composition.md#ul-asset--资产--asset) | 资产 | Asset | 约束 agent 由什么组装而成、从哪被触达、在哪插手，**恰有八类** |
 | [UL-setting](terms/capabilities-and-composition.md#ul-setting--设置--setting) | 设置 | Setting | 资产的一种属性，管「怎么做」 |
+| [UL-setting-category](terms/capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category) | 设置项类别 | Setting Category | 每项设置必标的四类之一：偏好 / 绑定 / 落点与身份 / 治理；决定值能从哪些层来 |
 | [UL-permission](terms/capabilities-and-composition.md#ul-permission--权限--permission) | 权限 | Permission | 资产的一种属性，管「能做什么」 |
 | [UL-skill](terms/capabilities-and-composition.md#ul-skill--技能--skill) | 技能 | Skill | 一段可复用的工作方法 |
 | [UL-tool](terms/capabilities-and-composition.md#ul-tool--工具--tool) | 工具 | Tool | 一个可被调用的动作，**身份是这一类里的那个 name** |
-| [UL-mcp](terms/capabilities-and-composition.md#ul-mcp--mcp--mcp) | MCP | MCP | 一个外部工具来源的接入点 |
-| [UL-connector](terms/capabilities-and-composition.md#ul-connector--连接件--connector) | 连接件 | Connector | 一个外部消息来源的接入件，**方向相反** |
-| [UL-loop-extension](terms/capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension) | 拓展件 | Loop Extension | 挂在 loop 拓展点上的一段判断或动作，**第八类资产** |
-| [UL-slash-command](terms/capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command) | 斜杠命令 | Slash Command | 用户主动发起某件事的入口 |
+| [UL-mcp](terms/capabilities-and-composition.md#ul-mcp--mcp--mcp) | MCP | MCP | 一个外部工具来源的接入点；对端每个动作是一个工具条目，run 内不变 |
+| [UL-connector](terms/capabilities-and-composition.md#ul-connector--连接件--connector) | 连接件 | Connector | 一个外部消息来源的接入件，**方向相反**；带身份鉴权，接哪个账号是持有上的落点与身份类设置 |
+| [UL-loop-extension](terms/capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension) | 拓展件 | Loop Extension | 挂在 loop 拓展点上的一段判断或动作，**第八类资产**；无「放宽」档，可否决含落卡片等人 |
+| [UL-modality-converter](terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter) | 模态转换件 | Modality Converter | 站在「消息落盘之前」的拓展件：一块或一文件进，若干别的模态的块 + transcript 出，挂原块作派生表示；按模态/媒体类型登记可替换，本版不是资产；失败即否决 |
+| [UL-slash-command](terms/capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command) | 斜杠命令 | Slash Command | 人在交付面敲 `/` 发起某件事的入口；绑定目标恰三种：自定义提示词 / 装配的 skill / 系统业务流程；**只由交付面识别、只对人** |
 | [UL-plugin](terms/capabilities-and-composition.md#ul-plugin--插件--plugin) | 插件 | Plugin | 打包分发若干资产的单元，**不是 Cordis plugin** |
 | [UL-agent-definition](terms/capabilities-and-composition.md#ul-agent-definition--agent-定义--agent-definition) | Agent 定义 | Agent Definition | 一个 agent 的静态定义，不是会话也不是实例 |
 | [UL-agent-type](terms/capabilities-and-composition.md#ul-agent-type--agent-类型--agent-type) | agent 类型 | Agent Type | 这份定义**具不具备 master 的那一整套机制**：`master` / `non-master`；**不是「子 agent」那个意思** |
@@ -88,6 +90,8 @@
 | [UL-prompt-slot](terms/capabilities-and-composition.md#ul-prompt-slot--提示词槽位--prompt-slot) | 提示词槽位 | Prompt Slot | 系统提示词里一个恒定占位的条目 |
 | [UL-model-profile](terms/capabilities-and-composition.md#ul-model-profile--模型档案--model-profile) | 模型档案 | Model Profile | 关于一个可被调用的模型的全部事实，是数据不是资产 |
 | [UL-model-credential](terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential) | 模型凭据 | Model Credential | 组织或租户身上的一项属性，**一范围一把**；身份即范围、轮换是改值、用量归范围；**范围可以自带** |
+| [UL-selected-model](terms/capabilities-and-composition.md#ul-selected-model--选中模型--selected-model) | 选中模型 | Selected Model | 会话当前指向的那条档案，**只因切换而变的取值** |
+| [UL-effective-model](terms/capabilities-and-composition.md#ul-effective-model--有效模型--effective-model) | 有效模型 | Effective Model | 这一次请求实际用的那条档案，**每次现算**；可与选中的不同，算不出是非常态 |
 
 ## [流转与授权](terms/circulation-and-entitlement.md)
 
@@ -133,6 +137,8 @@
 | [UL-agent-step](terms/agent-runtime-loop.md#ul-agent-step--agent-的一步--agent-step) | agent 的一步 | Agent Step | loop 转一圈；**一步之内至多一次模型调用** |
 | [UL-current-conditions](terms/agent-runtime-loop.md#ul-current-conditions--当下条件--current-conditions) | 当下条件 | Current Conditions | 日志之外、此刻才成立的那些，**不落日志** |
 | [UL-loop-extension-point](terms/agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point) | Loop 拓展点 | Loop Extension Point | 一个状态点的紧前或紧后，**按位置命名不按功能**；可挂多个。**当前十一个** |
+| [UL-wait-primitive](terms/agent-runtime-loop.md#ul-wait-primitive--等待原语--wait-primitive) | 等待原语 | Wait Primitive | 协程「停下来等外面应答」的那一种办法，主流程与拓展件共用；协程没了靠卡片与答复活着 |
+| [UL-replay](terms/agent-runtime-loop.md#ul-replay--回放--replay) | 回放 | Replay | 新尝试把挂起中的拓展件按日志重跑到挂起点；不花第二遍钱、不出第二张卡 |
 | [UL-agent-assembly](terms/agent-runtime-loop.md#ul-agent-assembly--agent-装配--agent-assembly) | Agent 装配 | Agent Assembly | 把定义在某作用域下**求值成一份清单**的那个动作 |
 | [UL-assembly-manifest](terms/agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest) | 装配清单 | Assembly Manifest | 「当时那个 agent 是什么样」的唯一答案；**是数据，可跨尝试复用** |
 | [UL-runtime-injection](terms/agent-runtime-loop.md#ul-runtime-injection--运行时注入--runtime-injection) | 运行时注入 | Runtime Injection | 外面给的，换了不用重建，**不是 DI** |
@@ -167,7 +173,7 @@
 
 | ID | 中文 | English | 一句话 |
 |---|---|---|---|
-| [UL-residency](terms/reach-and-availability.md#ul-residency--常驻--residency) | 常驻 | Residency | 始终出现在系统提示词里；**标记挂在引用上，不是资产的属性** |
+| [UL-residency](terms/reach-and-availability.md#ul-residency--常驻--residency) | 常驻 | Residency | 能力身份始终对 agent 可见；**是引用上的一项偏好类设置，不是资产的属性**；可见时展示什么归装配策略 |
 | [UL-current-availability](terms/reach-and-availability.md#ul-current-availability--当下可用性--current-availability) | 当下可用性 | Current Availability | **依赖解析的结果，不是开关**；每次 run 前重算。**可见但用了一定失败**，与禁用不同 |
 | [UL-stand-in](terms/reach-and-availability.md#ul-stand-in--替换件--stand-in) | 替换件 | Stand-in | 不可用时占在原位的**同形呈现**：只换说明，调用必得「不可用」 |
 | [UL-dependency-declaration](terms/reach-and-availability.md#ul-dependency-declaration--依赖声明--dependency-declaration) | 依赖声明 | Dependency Declaration | **一串必需项的抽象名字**，种类不限；**只有且，只有必需** |
@@ -207,7 +213,7 @@
 | [UL-dispatch-report](terms/interaction-and-dispatch.md#ul-dispatch-report--派发报告--dispatch-report) | 派发报告 | Dispatch Report | **终结这次派发，不是那个会话**；只来一次 |
 | [UL-hitl](terms/interaction-and-dispatch.md#ul-hitl--人在回路--human-in-the-loop) | 人在回路 | Human in the Loop | 停下来等人，**没有上限** |
 | [UL-run-wait-state](terms/interaction-and-dispatch.md#ul-run-wait-state--运行等待态--run-wait-state) | 运行等待态 | Run Wait State | 系统算出来的、**直接把 run 停住**的那种等 |
-| [UL-decision-card](terms/interaction-and-dispatch.md#ul-decision-card--决策卡片--decision-card) | 决策卡片 | Decision Card | 让人**当场**就能判断；**一张只能答一次** |
+| [UL-decision-card](terms/interaction-and-dispatch.md#ul-decision-card--决策卡片--decision-card) | 决策卡片 | Decision Card | 让人**当场**就能判断；**一张只能答一次**；来源三种：agent / 系统 / 拓展件 |
 | [UL-card-batch](terms/interaction-and-dispatch.md#ul-card-batch--一批卡片--card-batch) | 一批卡片 | Card Batch | 一次停下来产生的那批卡片，全了才解除阻塞 |
 | [UL-decision-pool](terms/interaction-and-dispatch.md#ul-decision-pool--决策池--decision-pool) | 决策池 | Decision Pool | 租户内所有等着的卡片，**是陈列不是主体** |
 | [UL-admission-decision](terms/interaction-and-dispatch.md#ul-admission-decision--放行判断--admission-decision) | 放行判断 | Admission Decision | 一个函数，**既是判官也是撰稿人**；三样输入合起来 |
@@ -236,6 +242,10 @@
 | [UL-session-log-projection](terms/record-and-context.md#ul-session-log-projection--会话日志投影--session-log-projection) | 会话日志投影 | Session Log Projection | 从日志派生的视图，**不是第二份权威**；重算必得同一答案 |
 | [UL-message](terms/record-and-context.md#ul-message--消息--message) | 消息 | Message | 一条对话记录，**七种，按谁在说话分** |
 | [UL-content-block](terms/record-and-context.md#ul-content-block--内容块--content-block) | 内容块 | Content Block | 一条消息装的是若干个块，**不是一段文本** |
+| [UL-derived-rendering](terms/record-and-context.md#ul-derived-rendering--派生表示--derived-rendering) | 派生表示 | Derived Rendering | 转换件产出、挂在原块上的一组别的模态的块；原块不动，落盘前写好不变 |
+| [UL-transcript](terms/record-and-context.md#ul-transcript--transcript--transcript) | transcript | Transcript | 转换件为一个块产出的纯文本兜底；有它的块不再把模型挡在合法目标外 |
+| [UL-modality](terms/record-and-context.md#ul-modality--模态--modality) | 模态 | Modality | 一类内容的形态，**恰四种**：文本 · 图 · 语音 · 视频；档案上与块上两处必须对得上；**块的模态看媒体类型**，视频装在文件块里 |
+| [UL-modality-projection](terms/record-and-context.md#ul-modality-projection--模态投影--modality-projection) | 模态投影 | Modality Projection | 会话历史里出现过哪几种**没有 transcript** 的模态；从日志派生、只增不减；合法目标的输入 |
 | [UL-block-annotation](terms/record-and-context.md#ul-block-annotation--块标注--block-annotation) | 块标注 | Block Annotation | 给人看吗、给模型看吗——**标在块上不在消息上** |
 | [UL-incremental-arrival](terms/record-and-context.md#ul-incremental-arrival--增量到达--incremental-arrival) | 增量到达 | Incremental Arrival | 分次到达，**能长的只有四样**；半条不是消息 |
 | [UL-todo-item](terms/record-and-context.md#ul-todo-item--待办条目--todo-item) | 待办条目 | Todo Item | agent 记给自己看的一条待办，活在一次会话里 |

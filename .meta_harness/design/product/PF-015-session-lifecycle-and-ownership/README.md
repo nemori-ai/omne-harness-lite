@@ -2,7 +2,7 @@
 id: PF-015
 title: 会话怎么建、活成什么样、什么时候归档，以及会话之间是什么关系
 status: draft
-revision: 9
+revision: 11
 relations:
   supersedes: []
   depends-on:
@@ -39,13 +39,14 @@ relations:
 ## 本 rev 覆盖到哪
 
 **这是一份还在长的设计。**产品负责人给定的讨论大纲有五块，**本 rev 整块覆盖其中四块**；
-**权限那一块只覆盖它与会话这个聚合相交的部分**，剩下的在 [§9](design.md#九未决项) 显式列着。
+**权限那一块只覆盖它与会话这个聚合相交的部分**，剩下的各归其主：授权的完整模型与放行四步归
+[PF-007](../PF-007-meta-capabilities/design.md#56-一次放行判断走四步)，执行环境权限归 [PF-005](../PF-005-execution-environments-and-sandboxes/README.md)。
 
 | 大纲 | 本 rev |
 |---|---|
 | **会话的生命周期管理** | ✅ [四个状态与它们之间怎么走](design.md#五模型)；[归档的两条来路](design.md#62-归档有两条来路人手动或到期自动)——租户手动，或按出厂时限自动 |
 | **会话内的数据存储和持久化** | ✅ **产品侧该说的说完了**：[存储要守住的两件事](design.md#58-存储要守住的两件事)——会话睡醒还是原来那个、别把单机焊进语义。**这是对存储提的要求，不是一份存储方案**；怎么存归技术设计 |
-| **权限**（工具权限 / 执行环境权限） | ⚠️ **只覆盖与会话这个聚合相交的部分**：[归档对授权做什么、不做什么](design.md#54-会话内的授权与生命周期的交界)、[三个作用域落在同一份数据里](design.md#57-三个作用域在同一份数据里)、[单次授权在一次运行结束时清空](design.md#610-单次授权在一次运行结束时清空)，以及[会话运行模式](design.md#会话运行模式)这第三条腿。授权的完整模型（两种来源、两种撤回、三个作用域）归 [PF-007 §4](../PF-007-meta-capabilities/design.md#会话授权上下文)，执行环境权限归 [PF-005](../PF-005-execution-environments-and-sandboxes/README.md)；**[放行三元组](../PF-007-meta-capabilities/design.md#611-ask通向人)里工具权限那条腿仍是未决项**（[§9](design.md#九未决项)） |
+| **权限**（工具权限 / 执行环境权限） | ⚠️ **只覆盖与会话这个聚合相交的部分**：[归档对授权做什么、不做什么](design.md#54-会话内的授权与生命周期的交界)、[三个作用域落在同一份数据里](design.md#57-三个作用域在同一份数据里)、[单次授权在一次运行结束时清空](design.md#610-单次授权在一次运行结束时清空)，以及[会话运行模式](design.md#会话运行模式)这第三条腿。授权的完整模型（两种来源、两种撤回、三个作用域）归 [PF-007 §4](../PF-007-meta-capabilities/design.md#会话授权上下文)，执行环境权限归 [PF-005](../PF-005-execution-environments-and-sandboxes/README.md)；**[放行三元组](../PF-007-meta-capabilities/design.md#611-ask通向人)里工具权限那条腿由 [PF-007 §5.6](../PF-007-meta-capabilities/design.md#56-一次放行判断走四步) 接住**——三档执行权限各落放行四步里的一处，本 topic 不再持有这项未决 |
 | **会话间的关系** | ✅ [主会话与子会话](design.md#52-会话与会话之间) |
 | **会话的 [runtime context](../../ubiquitous_language/terms/scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context)** | ✅ **整块已接下**——[它是什么](design.md#runtime-context)、[哪些是每个会话必不可少的](design.md#56-十四项-meta-runtime-context)（**十四项**）、[怎么让模型感知到](design.md#69-模型看见一块-runtime-context只有两种形态) |
 
@@ -75,10 +76,10 @@ relations:
 
 ## 状态
 
-**draft，rev 9。**[生命周期](design.md#会话的生命周期)、[会话间的传导](design.md#52-会话与会话之间)、
+**draft，rev 11。**[生命周期](design.md#会话的生命周期)、[会话间的传导](design.md#52-会话与会话之间)、
 [会话类型](design.md#会话类型)、[业务流程拓展点](design.md#业务流程拓展点)、
 [会话运行模式](design.md#会话运行模式)与[存储要守住的两件事](design.md#58-存储要守住的两件事)
-六块已由产品负责人拍板（[decisions](decisions.md#一拍板记录)，共 58 条），可以被下游引用；
+六块已由产品负责人拍板（[decisions](decisions.md#一拍板记录)，共 59 条），可以被下游引用；
 其余按上表，**未覆盖即未定**。
 
 **待裁决只剩一条**：[自动归档的时限租户改不改得动](decisions.md#三待裁决)。

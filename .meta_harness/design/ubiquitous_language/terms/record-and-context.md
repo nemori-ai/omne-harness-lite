@@ -97,7 +97,7 @@
 
 - **形态**：对象
 - **出处**：[PF-012 §4 会话日志](../../product/PF-012-agent-loop-and-run/design.md#会话日志) ·
-  [§5.11 外面进来的事，怎么到 agent 眼前](../../product/PF-012-agent-loop-and-run/design.md#511-外面进来的事怎么到-agent-眼前)（rev 7）
+  [§5.11 外面进来的事，怎么到 agent 眼前](../../product/PF-012-agent-loop-and-run/design.md#511-外面进来的事怎么到-agent-眼前)（rev 9）
 - **别混**：**日志不等于「拿去用的那一份」**——**日志是一份，拿去用的有两份**
 - **⚠️ 注意 ①**：**只增不改没有例外。**[压缩](#ul-context-compaction--上下文压缩--context-compaction)不是例外
   （**它只往后追加一条[压缩记录](#ul-compaction-record--压缩记录--compaction-record)**——摘要是内容，
@@ -123,8 +123,8 @@
 > projection's own tradeoff, **and does not change what it is**.
 
 - **形态**：视图
-- **出处**：[PF-015 §5.8](../../product/PF-015-session-lifecycle-and-ownership/design.md#58-存储要守住的两件事)（rev 9）·
-  [PF-013 §4 模态投影](../../product/PF-013-model-profiles-and-invocation/design.md#模态投影)（rev 4）**给出了第一个实例**
+- **出处**：[PF-015 §5.8](../../product/PF-015-session-lifecycle-and-ownership/design.md#58-存储要守住的两件事)（rev 11）·
+  [PF-013 §4 模态投影](../../product/PF-013-model-profiles-and-invocation/design.md#模态投影)（rev 6）**给出了第一个实例**
 - **⚠️ 别混**：**不是 [runtime context](scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context)。**
   runtime context 是**会话内那三个角色**消费的；**投影多半是给会话外的服务用的**。
   两者有交集但不重合，[判据在 PF-015 §5.5](../../product/PF-015-session-lifecycle-and-ownership/design.md#55-哪些算-meta-runtime-context)
@@ -158,7 +158,7 @@
 > are ours.
 
 - **形态**：对象
-- **出处**：[PF-009 §4 消息](../../product/PF-009-context-message-types/design.md#消息) · [七种消息](../../product/PF-009-context-message-types/design.md#七种消息按谁在说话分)（rev 4）
+- **出处**：[PF-009 §4 消息](../../product/PF-009-context-message-types/design.md#消息) · [七种消息](../../product/PF-009-context-message-types/design.md#七种消息按谁在说话分)（rev 5）
 - **注意 ①**：**说话的有四个，消息却有七种**——因为**有的说话者要说不止一类话**
 - **注意 ②**：`ToolInternalMessage` 是工具说过程的那一种，**一次工具执行恰好一条**；
   [执行帧](execution-and-outcome.md#ul-execution-frame--执行帧--execution-frame)是**它的到达增量**。
@@ -177,12 +177,93 @@
 > itself a series of blocks**, which is how a tool can return an image.
 
 - **形态**：对象
-- **出处**：[PF-009 §4 消息的内容是一串块](../../product/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 4）
+- **出处**：[PF-009 §4 消息的内容是一串块](../../product/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 5）
 - **别混**：**裸写「块」不作数**——那个词到处都是
 - **注意**：**为什么不能是一段文本**——一条消息里可能既有文字又有图；
   **模型的思考与它的回答是两回事，混在一起就再也分不开**；
   工具调用的参数是结构化的，**压成文本就要靠解析捞回来，而解析会错**
-- **注意**：**文件块是一个[附件](execution-and-outcome.md#ul-attachment--附件--attachment)的引用，不是文件内容**
+- **注意**：**文件块是一个[附件](execution-and-outcome.md#ul-attachment--附件--attachment)的引用，不是文件内容**；
+  **视频没有自己的块类型，装在文件块里**，它的[模态](#ul-modality--模态--modality)由块的媒体类型决定
+- **注意**：块上可挂两样由[转换件](capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)产出的属性——
+  [派生表示](#ul-derived-rendering--派生表示--derived-rendering)与 [transcript](#ul-transcript--transcript--transcript)，都在落盘前写好、之后不变
+
+### UL-derived-rendering · 派生表示 · Derived Rendering
+
+> **中**：**[转换件](capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)从一个[内容块](#ul-content-block--内容块--content-block)产出、挂在那个原块上的一组别的[模态](#ul-modality--模态--modality)的内容块**——
+> 比如一张图的一段文字描述。**原块不动**，派生表示是它的属性，不是消息里另外的块；
+> **不能是文件块**；**在落盘之前写好，之后不变**。组装时按有效模型的模态取对应的一份，取不到再用 [transcript](#ul-transcript--transcript--transcript)。
+>
+> **EN**: **A set of content blocks in other modalities, produced by a converter from one
+> content block and hanging on that original block** — a text description of an image, say.
+> **The original is untouched**; derived renderings are an attribute of it, not further blocks
+> in the message; **never a file block**; **written before persistence and never changed**.
+> At assembly the rendering matching the effective model's modality is taken; failing that,
+> the transcript.
+
+- **形态**：属性
+- **出处**：[PF-013 §4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件)（rev 6）
+- **别混**：**不是[结果卸载](execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)的占位**——占位替换了原件，派生表示与原件并存
+- **注意**：**取哪一份不需要选择规则**——看模型收得下什么、直接取对应的那份
+
+### UL-transcript · transcript · Transcript
+
+> **中**：**[转换件](capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)为一个[内容块](#ul-content-block--内容块--content-block)产出的那段纯文本，作最后兜底**：
+> 哪一份[派生表示](#ul-derived-rendering--派生表示--derived-rendering)都取不到时，给模型看的就是它。
+> 它挂在原块上，**在落盘之前写好，之后不变**；**有它的块不再把任何模型挡在合法目标之外**。
+> 正文直接写 transcript，不另起中文名。
+>
+> **EN**: **The plain-text rendering a converter produces for one content block, as the
+> last-resort fallback**: when no derived rendering fits, this is what the model sees. It
+> hangs on the original block, **written before persistence and never changed**; **a block
+> that has one no longer keeps any model out of the legal-target set.**
+
+- **形态**：属性
+- **出处**：[PF-013 §4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件) · [§5.11](../../product/PF-013-model-profiles-and-invocation/design.md#511-有-transcript-的块不再把任何模型挡在外面)（rev 6）
+- **别混**：**不专指语音转写**——图、视频、文件的兜底文本都叫它
+- **弃用说法**：~~文本那一份~~ ~~块上的文本字段~~
+
+### UL-modality · 模态 · Modality
+
+> **中**：**一类内容的形态：文本 · 图 · 语音 · 视频，恰四种。**
+> 它写在两处，**两处必须对得上**：[模型档案](capabilities-and-composition.md#ul-model-profile--模型档案--model-profile)上写这个模型**收得下、给得出**哪几种；
+> [内容块](#ul-content-block--内容块--content-block)上写这一块**是**哪一种。
+> **差一点就是它、但不是它：块的类型。**思考与工具调用是文本的**用途**，不是形态；
+> **块上的模态由它的媒体类型决定**：文件块装的是附件的引用，装的是视频它就是视频模态，
+> 媒体类型不在四种之列的（比如一份 PDF）**不是一种模态**，任何模型都读得了。
+>
+> **EN**: **The form a piece of content takes: text, image, voice or video — exactly
+> four.** It is written in two places that **must agree**: on a model profile, which kinds
+> the model **takes in and gives out**; on a content block, which kind **this block is**.
+> **Close but not it: the block type.** Thinking and tool calls are *uses* of text, not
+> forms; **a block's modality follows its media type**: a file block holds an attachment
+> reference, and if that attachment is a video the block's modality is video, while a media
+> type outside the four (a PDF, say) **is not a modality** and any model can read it.
+
+- **形态**：属性
+- **出处**：[PF-013 §4 模态](../../product/PF-013-model-profiles-and-invocation/design.md#模态)（rev 6）
+- **⚠️ 别混**：**七类块 ≠ 四种模态**——块的类型归 [PF-009](../../product/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)，模态归 PF-013
+- **注意**：两处对不上时**挡在算合法目标那一刻**，不是挡在出门那一刻
+
+### UL-modality-projection · 模态投影 · Modality Projection
+
+> **中**：**这个会话的历史里，出现过哪几种「只有原件、没有 [transcript](#ul-transcript--transcript--transcript)」的[模态](#ul-modality--模态--modality)。**
+> 它从[会话日志](#ul-session-log--会话日志--session-log)派生，**重算一遍必得同一个答案**；
+> **只增不减**；是[合法目标集合](../../product/PF-013-model-profiles-and-invocation/design.md#510-合法目标集合与展示列表是两件事)的一个输入，
+> **不是模型档案的属性**。
+> **它不是「历史里出现过哪几种模态」**——那是它的上界，差的正是[转换件](capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)转成了文本的那些。
+>
+> **EN**: **Which modalities have appeared in this session's history with only their
+> original and no transcript.** Derived from the session log — **recomputing yields
+> the same answer**; it **only grows**; it is one input to the legal-target set, **not a
+> property of any profile**. **Not "every modality that ever appeared"**: that is its upper
+> bound, and the gap is exactly what converters rendered to text.
+
+- **形态**：视图
+- **出处**：[PF-013 §4 模态投影](../../product/PF-013-model-profiles-and-invocation/design.md#模态投影) ·
+  [§6.18](../../product/PF-013-model-profiles-and-invocation/design.md#618-模态投影要答得快而且是增量维护出来的)（rev 6）
+- **别混 ①**：**不是「这一次请求里带了哪些模态」**——那随压缩与筛选变；投影说的是整个会话曾经有过什么
+- **别混 ②**：**不是「当前模型收得下哪些模态」**——那是档案说的能力；投影说的是历史
+- **注意**：它是[会话要维护的一项状态，却不是 runtime context](../../product/PF-015-session-lifecycle-and-ownership/design.md#55-哪些算-meta-runtime-context)——会话内三个角色都不消费它
 
 ### UL-block-annotation · 块标注 · Block Annotation
 
@@ -197,7 +278,7 @@
 > ways**. They say **whether to take it, never how to present it**.
 
 - **形态**：属性
-- **出处**：[PF-009 §4 每个块带两个标注](../../product/PF-009-context-message-types/design.md#每个块带两个标注给人看吗给模型看吗)（rev 4）
+- **出处**：[PF-009 §4 每个块带两个标注](../../product/PF-009-context-message-types/design.md#每个块带两个标注给人看吗给模型看吗)（rev 5）
 - **注意 ①**：**这是那一侧的中枢机制**——两份组装都是拿它从同一份日志里筛
 - **注意 ②**：**四种组合各有实例**：绝大多数两边都给；
   工具执行过程**只给人**；给模型的设定**只给模型**；
@@ -220,7 +301,7 @@
 > in one piece**.
 
 - **形态**：过程
-- **出处**：[PF-009 §5.5](../../product/PF-009-context-message-types/design.md#55-一条消息是分次到达的) · [§5.6](../../product/PF-009-context-message-types/design.md#56-流断在半路)（rev 4）
+- **出处**：[PF-009 §5.5](../../product/PF-009-context-message-types/design.md#55-一条消息是分次到达的) · [§5.6](../../product/PF-009-context-message-types/design.md#56-流断在半路)（rev 5）
 - **注意 ①**：**流断在半路有四种收场。**其中**没收齐参数的工具调用块**
   **记下来，但两边都不给看**——**参数收齐了才算数**，
   拿半截参数去调用，**比什么都不做危险得多**
@@ -246,8 +327,8 @@
 > go and do it.**
 
 - **形态**：对象
-- **出处**：[PF-007 §6.9 `TodoItems()`](../../product/PF-007-meta-capabilities/design.md#69-todoitems通向自己手上的待办)（rev 15）·
-  [PF-015 §5.6 第 13 项](../../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 9）
+- **出处**：[PF-007 §6.9 `TodoItems()`](../../product/PF-007-meta-capabilities/design.md#69-todoitems通向自己手上的待办)（rev 16）·
+  [PF-015 §5.6 第 13 项](../../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 11）
 - **别混**：**与「目标」不是一回事**——那是**跨会话**的东西，
   [PF-007 明写它不装在这扇门后面，而设计链里还没有它的家](../../product/PF-007-meta-capabilities/design.md#69-todoitems通向自己手上的待办)
 - **⚠️ 注意 ①**：**它是给 agent 自己看的，不是给系统执行的**——
@@ -342,7 +423,7 @@
 
 - **形态**：视图
 - **出处**：[PF-010 §4 给模型那一侧](../../product/PF-010-context-management-and-assembly/design.md#给模型那一侧两块分别组装)（rev 5）·
-  [PF-004 §5.4](../../product/PF-004-agent-definition-and-assembly/design.md#54-为什么系统提示词必须落在第三列)（rev 9）
+  [PF-004 §5.4](../../product/PF-004-agent-definition-and-assembly/design.md#54-为什么系统提示词必须落在第三列)（rev 10）
 - **注意**：走遍所有[meta 能力](capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability)，
   **它应当逐字不变**——取用一个工具**不改写它**
 
@@ -416,7 +497,7 @@
 > model-facing assembly.**
 
 - **形态**：变体（父：[消息](#ul-message--消息--message)）
-- **出处**：[PF-009 §4 CompactionMessage](../../product/PF-009-context-message-types/design.md#compactionmessage)（rev 4）·
+- **出处**：[PF-009 §4 CompactionMessage](../../product/PF-009-context-message-types/design.md#compactionmessage)（rev 5）·
   [PF-010 §6.4](../../product/PF-010-context-management-and-assembly/design.md#64-有压缩记录时边界由压缩记录定)（rev 5）
 - **⚠️ 注意**：**边界不是一条截断线。**压缩标的是**块**，而**块可以散布**——
   所以「这次取哪一段」的答案**本来就不是一个起点**，而是

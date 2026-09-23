@@ -2,14 +2,14 @@
 id: PF-014
 title: 输入的受理与排队
 status: active
-revision: 3
+revision: 4
 relations:
   supersedes: []
   depends-on:
     - id: PF-000
       for: 记录条目——每一件从外面到达的事都要先成为一条记下来的事实
     - id: PF-002
-      for: 连接件是「agent 从哪里被触达」的那个资产、斜杠命令、拓展件的形状与授权
+      for: 连接件是「agent 从哪里被触达」的那个资产、斜杠命令（三种绑定目标、只由交付面识别）、拓展件的形状与授权
     - id: PF-006
       for: 六种收场、转后台（声明允许时）、中断不是失败——插队要把正在跑的工具推向其中两种
     - id: PF-007
@@ -81,7 +81,7 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 3**，**已定稿**（2026-09-22 由产品负责人定） · [演进过程见变更历史](changelog.md)
+- 产品设计：**rev 4**，**已定稿**（2026-09-22 由产品负责人定） · [演进过程见变更历史](changelog.md)
 - 待裁决：**0**，去向见 [decisions.md 第三节](decisions.md#三待裁决)
 - **本 topic 引入的三个概念已经落进词表**：
   [入站到达](../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival) ·
