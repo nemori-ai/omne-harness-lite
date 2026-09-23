@@ -1,2 +1,2 @@
-shared_prompt = "../developer-contract.md"
+shared_prompts = ["../developer-contract.md"]
 default_effort = "medium"
