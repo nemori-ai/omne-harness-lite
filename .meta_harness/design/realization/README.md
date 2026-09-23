@@ -127,36 +127,36 @@ bindings:
 
 2026-09-17 建在旧候选契约上的三个 provider 节点已随那批契约于 2026-09-22 整体废弃，原件只在 Git 历史里。
 
-**provider 节点（2026-09-22 首稿；同日 `core/`、`infra/` 六个已建包并通过各自测试，`tenancy/` 四个只有服务面骨架）**——租户领域五份契约的提供者设计，以及它们共用的基础设施节点。
+**provider 节点（2026-09-22 首稿，2026-09-23 修订；十一个都已实现，源码修订 HUB `c9b5850`）**——租户领域五份契约的提供者设计，以及它们共用的基础设施节点。
 六个节点的**设计**已由 [D-023](../record/decisions/tenant-domain-design-acceptance/README.md) 接受为各契约的实现路径（2026-09-22），
-所兑现的契约同批 `accepted`；节点自身的状态**仍是 `candidate`**——`implemented`／`assembled` 要等源码与真实证据：
+governance-center-entry 的设计由 [D-028](../record/decisions/governance-center-design-acceptance/README.md) 接受（2026-09-23）；所兑现的契约同批 `accepted`。节点状态 `implemented`：各自在源码修订 HUB `c9b5850` 上声称兑现，全部包测试在运行 `2026-09-23-tests-tenancy-leg-2`（证据登记在 `record/evidence/2026-09-23-tests-tenancy-leg-2/`，HUB）里于 sqlite 下通过，逐条覆盖待各节点 verification 回填：
 
 | 节点 | 兑现的契约 | 形态 |
 |---|---|---|
 | [`packages/core/identity-values`](packages/core/identity-values/README.md) | `data.identity-values` v1 | 纯模块：身份值类型、Schema 校验、交接凭证签发／核实原语（选签名方案） |
-| [`packages/core/offer-expiry`](packages/core/offer-expiry/README.md) | `data.offer-expiry` v1 | 纯模块：`OfferTiming`、派生状态纯求值、`Clock` 形状；`now` 不后退的候选形状归装配 |
-| [`packages/tenancy/account-identity`](packages/tenancy/account-identity/README.md) | `capability.account-identity` v1（accepted，D-023）与 v2（accepted，D-028，2026-09-23） | 插件，两个服务面；提供 S-15，`credentials` 作可选依赖调用时解析；留存期限在产生时定死。**v2 段**：出示物（32 字节随机、base64url）与 `LoginStateId = SHA-256(出示物)` 分离、`logins.exchange`、参数按是否指认调用方分品牌类型与 `unknown`；源码仍是 v1 骨架 |
+| [`packages/core/offer-expiry`](packages/core/offer-expiry/README.md) | `data.offer-expiry` v1 | 纯模块：`OfferTiming`、派生状态纯求值、`Clock` 形状；`now` 不后退由 `infra/clock` 兑现 |
+| [`packages/tenancy/account-identity`](packages/tenancy/account-identity/README.md) | `capability.account-identity` v1（accepted，D-023）与 v2（accepted，D-028，2026-09-23） | 插件，两个服务面；提供 S-15，`credentials` 作可选依赖调用时解析；留存期限在产生时定死。**v2 段**：出示物（32 字节随机、base64url）与 `LoginStateId = SHA-256(出示物)` 分离、`logins.exchange`、参数按是否指认调用方分品牌类型与 `unknown`；按 v2 实现 |
 | [`packages/tenancy/credential-verification`](packages/tenancy/credential-verification/README.md) | 同上契约的凭据形式那一半 | 插件，可整体替换；本版只有密码方案 |
 | [`packages/tenancy/organization-governance`](packages/tenancy/organization-governance/README.md) | `capability.organization-governance` v1 | 插件，四个服务面（S-53 单列一个只给清除链）；跨 owner「同一提交」靠账号行上的过期事实加组织行对账号行的引用约束，无进程内锁 |
 | [`packages/tenancy/account-registration`](packages/tenancy/account-registration/README.md) | `composition.account-registration` v1 | 薄插件，无事实；两条动作链，签发激活依据；清扫提供者因缺枚举读面本版建不起来 |
-| [`packages/tenancy/governance-center-entry`](packages/tenancy/governance-center-entry/README.md) | `composition.governance-center-entry` v1（accepted，D-028） | 2026-09-23 首稿，候选，尚未建包：两个插件都不 provide、同起同停——入口层（封闭路由表、判定次序、读或铸中心标识、路由上不提交）与运维面（本机套接字上只答完整体检）；认领契约 G-10（传输绑定）、G-11（防冒充） |
-| [`packages/core/kernel-basis`](packages/core/kernel-basis/README.md) | 无契约条款（D-025、basis 准入） | 纯模块：Cordis 4.0.4 的 8 条 probe、`definePlugin`／`Outcome`／`FIBER_STATE`、测试装配 `bootAssembly`；候选，已建包 |
-| [`packages/core/storage`](packages/core/storage/README.md) | 无契约条款（AI R-1～R-7／OG R-1～R-6 的规格化） | 纯模块：存储协议（一次读／写事务、显式锁、四型失败）与一致性套件；候选，已建包 |
-| [`packages/infra/storage-sql`](packages/infra/storage-sql/README.md) | 无契约条款（D-026） | 插件 `storage-sql`：Kysely 提供者，sqlite（`node:sqlite`）／pg 由配置切换，迁移运行器；候选，已建包，sqlite 上套件全绿。**2026-09-23 修订**：升级整体性（显式 `upgrade` 守卫、属主独占锁、只读核对、快照与恢复、`confirmUpgrade`／`pendingUpgrade`），已设计、无源码 |
-| [`packages/infra/clock`](packages/infra/clock/README.md) | offer-expiry S-16 形状／S-17「`now` 不后退」的承接 | 插件 `clock`：写在前的租约；候选，已建包。**2026-09-23 修订**：`now()` 改为每次现读墙钟并与最晚已用时刻比对（运行中回拨与启动窗口同一规则）、`clockPreflight` 导出，已设计、源码仍是单调推算 |
+| [`packages/tenancy/governance-center-entry`](packages/tenancy/governance-center-entry/README.md) | `composition.governance-center-entry` v1（accepted，D-028） | 2026-09-23 首稿：两个插件都不 provide、同起同停——入口层（封闭路由表、判定次序、读或铸中心标识、路由上不提交）与运维面（本机套接字上只答完整体检）；认领契约 G-10（传输绑定）、G-11（防冒充） |
+| [`packages/core/kernel-basis`](packages/core/kernel-basis/README.md) | 无契约条款（D-025、basis 准入） | 纯模块：Cordis 4.0.4 的 8 条 probe、`definePlugin`／`Outcome`／`FIBER_STATE`、测试装配 `bootAssembly` |
+| [`packages/core/storage`](packages/core/storage/README.md) | 无契约条款（AI R-1～R-7／OG R-1～R-6 的规格化） | 纯模块：存储协议（一次读／写事务、显式锁、四型失败）与一致性套件 |
+| [`packages/infra/storage-sql`](packages/infra/storage-sql/README.md) | 无契约条款（D-026） | 插件 `storage-sql`：Kysely 提供者，sqlite（`node:sqlite`）／pg 由配置切换，迁移运行器。**2026-09-23 修订**：升级整体性（显式 `upgrade` 守卫、属主独占锁、只读核对、快照与恢复、守卫对象 `createUpgradeGuard()` 的 `confirm()`／`pending()`） |
+| [`packages/infra/clock`](packages/infra/clock/README.md) | offer-expiry S-16 形状／S-17「`now` 不后退」的承接 | 插件 `clock`：写在前的租约。**2026-09-23 修订**：`now()` 每次现读墙钟并与最晚已用时刻比对（运行中回拨与启动窗口同一规则）、`clockPreflight` 导出 |
 
-`tenancy` 是租户领域这个限界上下文的名字，产品负责人 2026-09-22 拍板（[D-024](../record/decisions/tenancy-domain-name/README.md)）。六个节点共用的待核对主张（可选 inject、`ctx.provide` 纳管、插件体抛出后的 fiber 状态）与对存储提供者的要求清单各记在节点里。
+`tenancy` 是租户领域这个限界上下文的名字，产品负责人 2026-09-22 拍板（[D-024](../record/decisions/tenancy-domain-name/README.md)）。六个节点共用的上游主张（可选 inject、`ctx.provide` 纳管、插件体抛出后的 fiber 状态）已由 [basis](../basis/README.md) 条目或 kernel-basis 的 probe 在 4.0.4 上取证；对存储提供者的要求清单各记在节点里。
 
 ## 当前状态
 
 存量节点尚未从 `design_legacy/providers/` 与 `design_legacy/assemblies/` 迁入。
 
 **assembly 节点**：`apps/cli/` 是第一个应用节点，随 CLI-TUI 交付面的 PF 一起建立（2026-09-22），状态 `candidate`——
-源码尚未落地，`bindings.yaml` 为空表。治理中心那一侧的 PF-017 rev 1 已接受（2026-09-23），入口层与运维面落在
-[`packages/tenancy/governance-center-entry`](packages/tenancy/governance-center-entry/README.md)（candidate），由 `apps/tenancy-host` 装配；`apps/cli` 两条跨应用边的对端随本程修订。
-[`apps/tenancy-host/`](apps/tenancy-host/README.md)（名字由 [D-027](../record/decisions/infrastructure-names-and-sqlite-durability/README.md) 拍板）是租户领域第一程的采用型装配节点（2026-09-22），状态 `candidate`：
-第一程写存储（迁移清单与真实外键）、时钟与密钥；2026-09-23 随 PF-017 与入口契约修订，补入口层与运维面的装配、升级整体性（迁移前只读核对、快照与确认）；
-PF-017 rev 1 已接受（2026-09-23），节点接受仍待入口契约翻正。两个应用节点的绑定都仍为 0：无已存在的证据可绑（契约 `candidate`、源码未建）。
+源码尚未落地，`bindings.yaml` 为空表。治理中心那一侧的 PF-017 rev 2（rev 1 于 2026-09-23 接受），入口层与运维面落在
+[`packages/tenancy/governance-center-entry`](packages/tenancy/governance-center-entry/README.md)（`implemented`），由 `apps/tenancy-host` 装配；`apps/cli` 两条跨应用边的对端已指向它们。
+[`apps/tenancy-host/`](apps/tenancy-host/README.md)（名字由 [D-027](../record/decisions/infrastructure-names-and-sqlite-durability/README.md) 拍板）是租户领域的采用型装配节点（2026-09-22），状态 `assembled`（源码修订 HUB `c9b5850`）：
+存储（迁移合成与真实外键）、时钟与密钥；2026-09-23 随 PF-017 与入口契约补入口层与运维面的装配、升级整体性（迁移前只读核对、快照与确认），设计随 D-028 接受；
+本节点测试在运行 `2026-09-23-tests-tenancy-leg-2` 里通过（sqlite 下全过，pg 16 上 pg 用例 11／11），逐条覆盖与绑定待 verification 回填。`apps/cli` 的绑定仍为 0：客户端代理与源码都不存在。
 
 判断方法按需读 `harness-design-handbook` skill 的「插件投影」。
 返回[设计链入口](../README.md)。
