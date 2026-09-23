@@ -10,7 +10,7 @@
 **它不拥有任何治理语义**——那些仍在各自的契约里。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, composition.governance-center-entry, 1)`
-- **状态**：`candidate`。主责产品依据 [PF-017](../../../product/PF-017-governance-center-as-deployable-application/README.md) rev 1 仍是 `draft`；所依赖的 `capability.account-identity` v2 也是 `candidate`。两者被接受之前本契约不进入接受。**未接受、未冻结，不得当作有效契约引用。**
+- **状态**：`candidate`。主责产品依据 [PF-017](../../../product/PF-017-governance-center-as-deployable-application/README.md) rev 1 已接受（2026-09-23）；所依赖的 `capability.account-identity` v2 仍是 `candidate`，它被接受之前本契约不进入接受。本契约自身的接受另行决定。**未接受、未冻结，不得当作有效契约引用。**
 - **catalog 映射**：已登记为 `candidate`，`acceptance` 为空。`family=compositions`、`topic=governance-center-entry`、
   `contract_path=spec/compositions/governance-center-entry/v1/contract.md`；`resources` 另含 Schema、`examples.md`、`formal/README.md`、
   `formal/EntryDecision.tla`、`formal/EntryDecision.cfg` 与九个 `formal/Validity_*.cfg`。

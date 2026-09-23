@@ -1,11 +1,10 @@
 # composition.governance-center-entry v1
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, composition.governance-center-entry, 1)`
-- **状态**：`candidate`。**产品依据的主责一份是草稿**：[PF-017](../../../../product/PF-017-governance-center-as-deployable-application/README.md) **rev 1，`draft`**（2026-09-23 第二轮修订之后的正文）。
-  依赖它的每一条都是候选依据；PF-017 被接受之前，本契约不进入接受。
-  **所依赖的 `capability.account-identity` v2 也是 `candidate`**（它的主责产品依据同是 PF-017 rev 1）；它被接受之前，本契约同样不进入接受。
+- **状态**：`candidate`。主责产品依据 [PF-017](../../../../product/PF-017-governance-center-as-deployable-application/README.md) **rev 1 已接受（2026-09-23）**（[PF-017 decisions §一「正式接受」](../../../../product/PF-017-governance-center-as-deployable-application/decisions.md#2026-09-23--正式接受)；rev 不升，正文就是第二轮修订之后的那一版）。本契约自身的接受另行决定。
+  **所依赖的 `capability.account-identity` v2 仍是 `candidate`**（它的主责产品依据同是 PF-017 rev 1）；它被接受之前，本契约不进入接受。
 - **设计依据**：
-  - PF-017 rev 1（draft）：[§部署前提](../../../../product/PF-017-governance-center-as-deployable-application/design.md#部署前提)、
+  - PF-017 rev 1（已接受，2026-09-23）：[§部署前提](../../../../product/PF-017-governance-center-as-deployable-application/design.md#部署前提)、
     [§4 五个概念](../../../../product/PF-017-governance-center-as-deployable-application/design.md#四概念定义)、
     [§5.1](../../../../product/PF-017-governance-center-as-deployable-application/design.md#51-中心有两张面没有第三张)、
     [§5.3](../../../../product/PF-017-governance-center-as-deployable-application/design.md#53-认出一个来者只有一条路)、

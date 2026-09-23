@@ -89,7 +89,7 @@ Alloy 可按结构关系建立模型，检查断言并探索合法实例；参�
 
 **当前有六个 topic**，都属租户相关领域。前五个**为 `accepted`、资源已冻结**
 （[D-023](../record/decisions/tenant-domain-design-acceptance/README.md)，产品负责人，2026-09-22）；
-`compositions/governance-center-entry` 是 **`candidate`**（2026-09-23 登记，未接受、未冻结，主责产品依据 PF-017 rev 1 仍是 draft），下文关于接受与冻结的段落不适用于它：
+`compositions/governance-center-entry` 与 `capabilities/account-identity` **v2** 是 **`candidate`**（2026-09-23 登记，未接受、未冻结；主责产品依据 PF-017 rev 1 已接受，2026-09-23），下文关于接受与冻结的段落不适用于它们：
 
 | topic | 拥有什么 |
 |---|---|
