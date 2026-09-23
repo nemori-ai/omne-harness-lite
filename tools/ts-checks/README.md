@@ -4,17 +4,46 @@
 每条规则只看文本与路径（便宜、可自测），不做类型分析。类型层的检查（失败集合闭合等）
 在各包的 `tests/*.spec-d.ts` 里，不在这里。
 
-| 规则 | 来源 | 查什么 |
-|---|---|---|
-| `no-wall-clock` | offer-expiry 节点 SC-OE-3 | `core/`、`tenancy/` 源码里不得出现 `Date.now()`、无参 `new Date()`、`performance.now()`；`infra/` 与测试豁免 |
-| `no-bail-control` | basis `async-control-not-bail` | 不得调用 `ctx.bail(`，异步控制走 `serial` |
-| `no-testing-import` | apps/tenancy-host verification | 产品源码不得 import `@omne-harness-lite/*/testing` |
-| `restricted-call-sites` | account-identity S-30、organization-governance S-42 | `accounts.produce(` 与 `'organization-purge'` 只出现在 `tenancy/account-registration`（及定义它们的包） |
+新规则（`restricted-call-sites` 的扩展与其后各条）跑在 `src/source-text.ts` 的词法视图上：
+注释与字符串、模板、正则字面量的内容不算代码，括号按代码配对。老的三条与 `restricted-call-sites`
+的前两项仍逐行扫原文（行为未改）。按路径写死的位置集中在 `src/layout.ts`，入口层包的路径以
+[governance-center-entry verification「包布局常量」](../../.meta_harness/design/realization/packages/tenancy/governance-center-entry/verification.md#静态检查)为准。
+**被查的包不存在时规则无事可查、静默通过**；包存在而规则依赖的布局锚点（入口层包的
+`src/events.ts` 与 `src/ops/`、账号能力包的 `src/plugin.ts`、注册组合包的 `TERMINAL_OUTCOMES`）缺席时报出，不静默失效。
+
+| 规则 | 来源 | 查什么 | 不覆盖 |
+|---|---|---|---|
+| `no-wall-clock` | offer-expiry 节点 SC-OE-3 | `core/`、`tenancy/` 源码里不得出现 `Date.now()`、无参 `new Date()`、`performance.now()`；`infra/` 与测试豁免 | 经别名取墙钟 |
+| `no-bail-control` | basis `async-control-not-bail` | 不得调用 `ctx.bail(`，异步控制走 `serial` | — |
+| `no-testing-import` | apps/tenancy-host verification | 产品源码不得 import `@omne-harness-lite/*/testing` | — |
+| `restricted-call-sites` | AI S-30、OG S-42、入口契约 SC-1 | `accounts.produce(` 与 `'organization-purge'` 只出现在 `tenancy/account-registration`（及定义它们的包）；`createPersonal(`、`activate(`、`purge(`、`sweepStaleSelections(`（`.m(` 与解构后的 `m(` 都算）同样只许在 AR 与定义它们的包（OG；AI）。入口层路由表不点名这四个，入口层包里出现即违反 | `apps/` 不在扫描根内（装配调 `sweepStaleSelections` 不受查）；经别名或 `obj[name](` 调用 |
+| `ops-import-whitelist` | 入口契约 SC-2；入口节点约束第 5 条；主线 2026-09-23 裁决（cordis、zod 纳入） | 入口层包 `src/ops/**` 只许导入 `@omne-harness-lite/kernel-basis`、`storage`、`offer-expiry`（恰这三个名，不含子入口）、`@deepseek-ai/cordis`、`zod`、`node:*`、`src/events.ts` 与 ops 目录内文件；动态导入的说明符须是字面量。`src/events.ts` 只许导入 `node:*`、`@deepseek-ai/cordis`、`zod`：不导入任何 `@omne-harness-lite/*`，也不做相对导入（它在白名单里，这两种都会让传递图越界） | 类型导入与运行时导入不分（都算） |
+| `ops-event-whitelist` | 入口契约 SC-2；入口节点约束第 5 条（事件订阅白名单） | `src/ops/**` 里 Cordis 上下文（成员链含 `ctx`／`context`、标注为 `Context` 或由它们直接赋值的名字）的 `on`／`once` 第一个实参只能是从 `src/events.ts` 导入的 `serving`、`stopped`、`defect`，`emit`／`parallel`／`serial` 只能是 `listening`（具名导入可改名，命名空间导入的成员也认）；字符串字面量与计算出的名字报出 | Node 发射器（`server.on('error')`）不查；经解构（`const { on } = ctx`）、函数返回值或多次转手的上下文；`emit(thisArg, name)` 重载按首个实参判，会报出 |
+| `single-table-entry` | 入口契约 S-28；入口节点约束第 4 条 | 入口层包源码里 `selectFrom`／`insertInto`／`updateTable`／`deleteFrom`（及 `replaceInto`、`mergeInto`、各类 `join`、`createTable`／`alterTable`／`dropTable`、`lockRow`）的表名只能是 `'governance_center'`（可带 `as 别名`）或本包里定义为该字面量的常量；不出现 `sql` 模板与 `sql.raw(` | 成员表达式、拼接、数组等判不出的写法一律报出（按违反处理，不放过）；`createIndex(...).on(...)` |
+| `no-peer-address` | 入口契约 S-16；入口节点约束第 2 条 | 入口层包源码不出现 `remoteAddress`／`remotePort`／`remoteFamily`、`x-forwarded-for`／`x-real-ip`／`forwarded` 头（字面量或 `.forwarded`，大小写不论） | 遍历 `rawHeaders` 并以非字面量方式比对；「不保存按来者的状态」（T-16 覆盖） |
+| `credentials-parse-only` | 入口契约 S-19；入口节点约束第 7 条 | 入口层包源码不出现 `.derive(`、`.verify(`、`.checkPolicy(`（不分接收者） | 经别名或 `obj['verify'](` 调用 |
+| `presentation-only-authn` | 入口契约 S-11、S-24；AI v2 S-30 第 10 行；入口节点约束第 8 条与 design S-24 行 | 入口层包源码不出现 `.verify(`、`parseLoginStateId`（导入或经命名空间调用）、`as LoginStateId` 与 `<LoginStateId>` 断言；不解析 `accounts` 服务：`inject`、`ctx.get(`、`resolveOptional(ctx, …)` 里的 `'accounts'`，以及 `ACCOUNTS_SERVICE` 常量的任何引用 | `Caller` 只在 ② 阶段模块构造（布局常量未点名 ② 阶段模块）；四处调用的实参只从 `Caller` 取（类型层）；以改名导入的类型做断言 |
+| `no-network-listen-in-tenancy` | 入口契约 S-25；入口 verification R-20 | `tenancy/*/src` 不导入 `node:http`／`https`／`net`／`tls`（含无 `node:` 前缀的同名模块）、不调 `.listen(`；入口层包之内只许 `src/transport/**` 与 `src/ops/**` | `node:http2`、`node:dgram`；非字面量的动态导入 |
+| `no-presentation-in-diagnostics` | AI v2 S-45／S-46；AI verification | 账号能力包源码里日志方法（`.info/.warn/.error/.debug/.success`）、`.emit/.parallel/.serial`、`new *Error(`、`defect(` 的实参（含模板插值）不出现 `presentation`（裸名、成员或键）、`LoginStatePresentation`、本文件标注为该类型的名字、由 `generatePresentation(`／`parseLoginStatePresentation(` 直接赋值的名字 | 经别的变量转手、经辅助函数拼进消息、经不在上列的诊断外观调用；这些由 S-46 ② 的动态翻查兜底 |
+| `no-random-source-inline` | AI v2 S-45（熵下限）；AI verification 两条文本规则 | 账号能力包源码不出现 `Math.random`；`randomBytes` 等 crypto 随机函数只在 `src/presentation.ts`；插件体 `src/plugin.ts` 里 `random:` 的值只能是 `cryptoRandomSource`，简写 `{ random }` 报出 | 服务实现类以位置参数接随机源；插件体构造分散到别的模块 |
+| `ai-r8-no-credential-in-write` | AI v2 S-30 第 4 行；AI design R-8 | 账号能力包源码里 `storage.write(` 实参的词法范围内不出现 `credentials.verify/derive/checkPolicy/parse(` | 经辅助函数（如回调里调的 `#issueCommitted`）的间接调用、改名的凭据服务变量——由 AI 包的替身标记测试（形式 ②）补 |
+| `sc-oe-1` | offer-expiry S-7；offer-expiry 节点 SC-OE-1 | 消费者包（除 `core/offer-expiry`）里名为 `*Record`／`*Row`／`*Table` 的 interface 与对象类型别名不以 `OfferState` 为字段类型 | 不按命名约定起名的持久记录类型；把 `OfferState` 值写进字符串列（类型上本来就是 `string`） |
+| `sc-oe-2` | offer-expiry S-13；offer-expiry 节点 SC-OE-2 | 消费者的接受路径——名为 `accept` 后接大写字母的函数、方法、赋给该名的箭头函数的块体（含其中嵌套回调）——不对 `pending`／`accepted`／`withdrawn`／`expired` 做 `===`／`!==`／`case` 比较，只经 `acceptable()` | 经辅助函数逐值比较；`includes`／查表式分派；不以 `accept*` 命名的接受路径 |
+| `sc-cv-1` | AI S-8；CV 节点 SC-CV-1 | `tenancy/*` 除 CV 包外，对凭据材料值（标注为 `CredentialMaterial` 的名字、末段为 `material`／`credential_material` 的成员、`(… as CredentialMaterial)`）不做任何成员访问或下标、不交给正则 `.exec(`／`.test(` 或 `JSON.parse(`。品牌断言本身不算违反 | 经别的变量转手后再解析；`String.prototype.split.call(m)` 一类间接调用 |
+| `terminal-outcome-closed` | AR S-5；AR verification「S-5 四值闭合」 | AR 包的 `TERMINAL_OUTCOMES` 恰为 S-5 的四个字面量；`TerminalOutcome` 只由它派生；返回类型标注含 `TerminalOutcome` 的函数体（扣掉嵌套函数）里 `return '<字面量>'` 都在常量里；不出现 `as TerminalOutcome`／`<TerminalOutcome>` | 条件表达式或辅助函数给出的返回值（由类型检查兜底） |
+| `og-s42-dynamic-resolve` | OG S-42 第 4 行；AI S-30 | `organization-purge` 服务经 `ctx.get(…)`、`resolveOptional(ctx, …)`、`inject: [...]`／`{...}`／`ctx.inject([...])` 解析只许在 AR（OG 自己也不许，它只 provide）；`ORGANIZATION_PURGE_SERVICE` 常量只在 AR 与 OG 出现 | 服务名经变量拼出后再解析 |
+| `no-dialect-bypass` | 架构评审 N-2；storage-sql 节点「Driver 的边界」；tenancy-host「同一存储、同一约束域」 | `tenancy/*/src` 不从 `@omne-harness-lite/storage-sql` 导入 `NodeSqliteDialect`、`NodeSqliteDriver`、`SqlStorage`、`openStorage`（具名导入，或命名空间／默认导入的成员），不 `new Kysely(`；测试豁免 | 经别的包转手取得连接；`kysely` 的其他构造入口 |
 
 ```sh
 pnpm run lint:rules          # 根：扫描 packages/，有违反即退出 1
 pnpm --filter @omne-harness-lite/ts-checks test   # 规则自测
 ```
 
-加规则：在 `src/rules/` 写一个 `Rule`，登记进 `src/index.ts` 的 `RULES`，并在 `tests/rules.spec.ts`
-补「故意违反就失败」的夹具。规则的来源条款写进 `source` 字段。
+自测分四个文件：`tests/rules.spec.ts`（老规则）、`tests/entry-rules.spec.ts`（入口层包各条，另在临时目录造出整个包，
+经 `collectSources` 与 CLI 证明违反时退出 1、合规时退出 0）、`tests/account-identity-rules.spec.ts` 与
+`tests/consumer-rules.spec.ts`（除两向夹具外，读真实产品源码做变异核对：原文无违反、注入一处违反即被报出）；
+`tests/source-text.spec.ts` 守词法视图本身。变异核对的锚点是真实源码里的一段文字，产品源码改写后锚点失配会让测试失败——
+那时更新锚点，不删核对。
+
+加规则：在 `src/rules/` 写一个 `Rule`，登记进 `src/index.ts` 的 `RULES`，并补「故意违反就失败、合规就通过」的两向夹具。
+规则的来源条款写进 `source` 字段，README 表里同时写「不覆盖」。
