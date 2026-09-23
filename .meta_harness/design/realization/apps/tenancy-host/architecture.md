@@ -1,62 +1,70 @@
 # tenancy-host 的形状
 
-每一节都是「引用 + 本应用的选择」。**租户领域在产品上是什么归
-[PF-001](../../../product/PF-001-identity-scope-and-agent-constraints/README.md)；边上的保证归五份契约；
+每一节都是「引用 + 本应用的选择」。**治理中心作为一个应用在产品上是什么归
+[PF-017](../../../product/PF-017-governance-center-as-deployable-application/README.md)，租户领域是什么归
+[PF-001](../../../product/PF-001-identity-scope-and-agent-constraints/README.md)；边上的保证归六份契约（五份租户契约与 `composition.governance-center-entry/v1`，后者下称入口契约）；
 采用理由归[决定](../../../record/decisions/README.md)。本页不复述它们，也不在它们之外另立一份语义。**
 
-**本页对本应用进程的称呼「tenancy-host 进程」是本页给进程起的名字，不是概念**；
-它与 PF-016 所称的[治理中心](../../../product/PF-016-cli-tui-delivery-surface/design.md#治理中心)（「治理事实所在的那一处」，不是进程）
-之间的关系**未裁**，见[非目标](#交付面与非目标)末行。
+**本页对本应用进程的称呼「tenancy-host 进程」是本页给进程起的名字，不是概念**：它是
+[治理中心](../../../product/PF-016-cli-tui-delivery-surface/design.md#治理中心)（「治理事实所在的那一处」，不是进程）作为一个应用运行时的那个进程——
+PF-017 为这个应用开题时点名的就是本节点（[拍板记录](../../../product/PF-017-governance-center-as-deployable-application/decisions.md#一拍板记录)开题一行），入口契约的消费者一栏也把本节点列为承载它的装配（[S-2](../../../spec/compositions/governance-center-entry/v1/contract.md#s-2-参与方与精确承诺) 末段）。
 
 ## 交付面与非目标
 
-本节点承接 [PF-001 身份、范围与对 Agent 的约束](../../../product/PF-001-identity-scope-and-agent-constraints/README.md)（rev 15）
+本节点是 [PF-017 治理中心作为一个可部署应用](../../../product/PF-017-governance-center-as-deployable-application/README.md)（rev 1，draft）的应用装配——
+PF-017 有意不在治理中心身上用「交付面」这个词，本节标题只沿用节点模板——并承接
+[PF-001 身份、范围与对 Agent 的约束](../../../product/PF-001-identity-scope-and-agent-constraints/README.md)（rev 15）
 的[投影 v1 第 3 步](../../../product/PF-001-identity-scope-and-agent-constraints/projection/v1/projection.md#8-实施顺序)：
-把租户领域的六个 provider 与四个基础设施 provider 装进**一台机器上的一个进程**，给它们真实的存储、时钟与密钥。
-**它是一个采用型装配**：不选产品政策，不拥有能力语义，每一处选择都指向决定或某个 provider 节点。
+把租户领域的五个 provider、四个基础设施 provider 与入口层所在的包装进**一台机器上的一个进程**，给它们真实的存储、时钟与密钥，并让它对客户端与运维者各开一张面。
+**它是一个采用型装配**：不选产品政策，不拥有能力语义，每一处选择都指向决定、契约或某个 provider 节点。
 
 **与形状相关的非目标**：
 
 | 本节点不做什么 | 为什么 |
 | --- | --- |
-| **不写入口层身份核实** | 登录态怎样从客户端到达本进程、`LoginStateId` 怎样换成身份值再调治理面，取决于客户端与据点进程之间**尚未起草的契约**（`apps/cli` 节点已标「待立」）。这半件事阻断的是把本进程暴露成终端 API 的那一步，**不阻断第一程**——第一程的消费者是各节点的场景演练，它们在进程内直接调服务面 |
+| **不写客户端一侧** | 据点进程里的客户端代理、防冒充的确认、「问不到」的呈现归 `apps/cli` 与 PF-016；本节点只装中心一侧（[入口契约 S-3](../../../spec/compositions/governance-center-entry/v1/contract.md#s-3-本契约明确不承诺什么)「客户端一侧」） |
+| **不开第三张面** | 进程对外只有入口层的客户端一面与运维面（[S-25](../../../spec/compositions/governance-center-entry/v1/contract.md#s-25-运维面只在中心所在的机器上且没有治理路由)、[PF-017 §5.1](../../../product/PF-017-governance-center-as-deployable-application/design.md#51-中心有两张面没有第三张)）；本节点不另开任何监听、管理端口或调试入口 |
 | **不跑 pg** | [D-026](../../../record/decisions/infrastructure-persistence-choices/decision.md#选择与范围)：pg 方言本程只接线；第一次跑 pg 归第二程或更晚 |
 | **不做密钥轮换** | 无需求；[identity-values 节点](../../packages/core/identity-values/design.md#交接凭证走签名不走进程内登记)把「不轮换」记为本版选择。重生密钥的后果写在 [design.md](design.md#密钥装配两对-ed25519-密钥作为部署配置输入) |
 | **不建任何定时器** | 残留清扫（[OG G-13](../../../spec/capabilities/organization-governance/v1/contract.md#十一已知缺口)）与清扫提供者（[AR G-6](../../../spec/compositions/account-registration/v1/contract.md#九已知缺口)）本版都不建；后者连枚举读面都没有 |
-| **不切进程、不做远端代理** | 本版单机一个进程（[SYS-DEPLOY](../../../foundation/cross-system-constraints/requirements.md#sys-deploy)）；跨进程的全部保证归各契约「协议给」那一列（投影 [Q-8](../../../product/PF-001-identity-scope-and-agent-constraints/projection/v1/projection.md#7-未决项)） |
-| **不裁本应用与治理中心的关系** | 承载治理中心的应用无交付面 PF，`apps/cli` 节点已把它记为缺口。本节点是租户领域提供者在单机上的宿主装配；它是否就是那个应用（或其一部分），等产品为治理中心开题。**在此之前本节点不与 `apps/cli` 建边的对端身份** |
+| **不切进程、不做多实例** | 本版单机一个进程（[SYS-DEPLOY](../../../foundation/cross-system-constraints/requirements.md#sys-deploy)；多实例是 [PF-017 非目标](../../../product/PF-017-governance-center-as-deployable-application/design.md#非目标)）；中心自身被拆开之后的保证归入口契约 G-8 与各契约「协议给」那一列（投影 [Q-8](../../../product/PF-001-identity-scope-and-agent-constraints/projection/v1/projection.md#7-未决项)） |
+| **不把备份与恢复做成产品动作** | PF-017 非目标；恢复会带回备份之后撤销的登录状态（入口契约 G-7），本节点不提供任何恢复入口。升级失败时的快照恢复是启动收场的一部分，不是备份 |
 | **不画拓扑总图** | 总图由 [views](../../../views/README.md) 从各节点 join，[不手写](../../AGENTS.md#红线) |
 
 ## 拓扑与进程模型
 
-**进程模型：待交付面 PF。**第一程没有独立进程——本节点交付的是一个 `boot()`／`dispose()`（候选名），
-**只在各节点的测试进程里被内嵌调用**；怎么起（systemd／容器／手动）、怎么停、信号处理、退出码，都等承载治理中心的应用开题后随它的 PF 定。
+**进程模型：一个进程，形态未定。**本版没有独立进程——本节点交付的是一个 `boot()`／`dispose()`（候选名），
+**只在各节点的测试进程里被内嵌调用**；怎么起（systemd／容器／手动）、怎么停、信号处理、退出码、命令怎么拼，
+[PF-017 §8](../../../product/PF-017-governance-center-as-deployable-application/design.md#八边界与依赖) 交给技术设计，本节点建包时定。
 下表写的是「有进程时它是什么样」，**本版没有一行是已存在的**。
 
 | 进程 | 生命周期与所有者 | 承载什么 | 崩溃或退出时谁收口 |
 | --- | --- | --- | --- |
-| **tenancy-host 进程**（待交付面 PF） | **本版不存在**；有进程时由运维起、运维停。启动是一个整体：任一 fiber 启动失败或清单错误（`PENDING`）⇒ 撤除已装的、退出非零（[design.md](design.md#成对的装载与撤除)） | 一个 Cordis `Context`，按顺序装 `storage` → `clock` → `credentials` → `account-identity` → `organization-governance` → `account-registration`；一个 sqlite 文件库（WAL）；四份密钥 PEM 只在两个持钥插件与一个核实插件的 config 里。**租户领域的全部事实都在存储里**，进程不持有任何只活在内存里的领域事实（[AI S-28](../../../spec/capabilities/account-identity/v1/contract.md#s-28-依赖不可用撤除与重启时的在途归属)、[OG S-43](../../../spec/capabilities/organization-governance/v1/contract.md#s-43-依赖的提供者不可用)） | 在途调用按各自那一次存储提交收场（内核不取消在途调用）；sqlite 由 WAL 恢复到最后一个完整提交；`clock_lease` 未收回 ⇒ 下次启动至多等一个租约宽度（[clock 节点](../../packages/infra/clock/design.md#状态并发与失败映射)）。**退出不是取消、不是失败** |
+| **tenancy-host 进程**（治理中心作为应用运行时的那个进程） | **本版不存在**；有进程时由[运维者](../../../product/PF-017-governance-center-as-deployable-application/design.md#运维者)起、运维者停。启动是一个整体：只读核对不过、任一 fiber 启动失败或清单错误（`PENDING`）⇒ 撤除已装的、升级快照未确认则恢复、说明原因、退出非零（[design.md](design.md#成对的装载与撤除)）；入口层开闸即「起来了」 | 一个 Cordis `Context`，按顺序装 `storage` → `clock` → `credentials` → `account-identity` → `organization-governance` → `account-registration` → 运维面 → 入口层；一个 sqlite 文件库（WAL），升级时旁边多一份未确认的快照；一个 TLS 监听（入口层）与一个本机套接字（运维面），**没有第三个监听**；四份密钥 PEM 只在两个持钥插件与一个核实插件的 config 里，TLS 私钥只在入口层的 config 里。**租户领域的全部事实与中心标识都在存储里**，进程不持有任何只活在内存里的领域事实（[AI S-28](../../../spec/capabilities/account-identity/v1/contract.md#s-28-依赖不可用撤除与重启时的在途归属)、[OG S-43](../../../spec/capabilities/organization-governance/v1/contract.md#s-43-依赖的提供者不可用)、[S-34](../../../spec/compositions/governance-center-entry/v1/contract.md#s-34-起来即整体停机时在途请求归谁)） | 在途调用按各自那一次存储提交收场（内核不取消在途调用）；sqlite 由 WAL 恢复到最后一个完整提交；`clock_lease` 未收回 ⇒ 下次启动至多等一个租约宽度（[clock 节点](../../packages/infra/clock/design.md#状态并发与失败映射)）；启动途中崩溃留下的未确认快照，下次启动先恢复（开闸到确认之间的窗口是缺口 U-1）。**退出不是取消、不是失败** |
 
 **没有子进程、没有工作线程。**`scrypt` 是 CPU 密集计算，credential-verification 节点把并发上限归装配的运维关注点；本版不做限流，记在[实施缺口](design.md#实施缺口与消费者影响)。
 
 ### 与其他应用的边
 
-**只写本侧。**对端由对端节点写；`apps/cli` 节点在它那一侧写了「据点 → 治理中心」两条边并把对端记为「尚无节点」——本节点**不认领**那个对端身份（见非目标末行），下表因此只有一行，且契约坐标之外的部分全是「待立」。
+**只写本侧。**对端由对端节点写；两端引用的契约坐标一致。
 
 | 边 | 对端 | 契约坐标 | 本侧责任 |
 | --- | --- | --- | --- |
-| 进程外调用方 → 本进程：账号身份、注册、组织治理与邀约 | **尚无节点**——谁是调用方（`apps/cli` 的据点进程或别的应用）取决于治理中心开题；线上协议**待立：治理契约线上投影协议**（拟议名，与 `apps/cli` 节点同名） | `capability.account-identity/v1`、`composition.account-registration/v1`、`capability.organization-governance/v1`、`data.identity-values/v1`、`data.offer-expiry/v1` | 本侧是提供方。**本版这条边不存在**：五份契约的服务面是能力间内部面，[OG S-42 末两行](../../../spec/capabilities/organization-governance/v1/contract.md#s-42-装配给的保证-vs-协议须给的保证)明写它们**不得被直接暴露成终端 API**，前面必须有一层做身份核实的入口——那层本版不写。协议立起来时，AI S-30、OG S-42、AR S-25、OE S-17 右列的每一行都要在这条边上由协议重新兑现，[IV S-30](../../../spec/data/identity-values/v1/contract.md#s-30-跨边界须重新验证) 要求接收边界重新鉴别 |
+| **客户端 ↔ 治理中心（入口层）**：账号身份、登录状态与注册；组织治理、成员资格与邀约；当前租户身份；公开体检 | [`apps/cli`](../cli/architecture.md#与其他应用的边) 的据点进程——那一侧按领域写成「账号身份、登录状态与注册」「组织治理、成员资格与邀约」两条边，走的是这同一个入口层、同一份契约；它的客户端代理**尚不存在** | `composition.governance-center-entry/v1`（`candidate`；线上形状、判定次序、四种入口答复、路由表）；它投影的 `capability.account-identity/v1`、`capability.organization-governance/v1`、`composition.account-registration/v1`，与 `data.identity-values/v1`、`data.offer-expiry/v1`（均 `accepted`） | 本侧是提供方，兑现者是 [governance-center-entry](../../packages/tenancy/governance-center-entry/design.md) 的入口层（HTTP/1.1 over TLS，候选）；五份契约的服务面仍是能力间内部面，**只经入口层到达网络**。客户端这条边上哪些保证由协议重新兑现、哪些仍由本装配给，以入口契约 [S-36](../../../spec/compositions/governance-center-entry/v1/contract.md#s-36-装配给的保证-vs-协议须给的保证) 为准，逐行承接在 [design.md](design.md#归装配的事项逐条承接)。防冒充：中心一侧只有 TLS 监听，客户端怎么确认归对端（契约 G-11 的中心一侧 owner 是 governance-center-entry） |
+| **运维者 ↔ 运维面（本机通道）**：完整体检 | 运维者在中心所在的机器上，经本机工具读；**不是一个应用节点**，本版也没有专门的运维命令（进程形态未定） | `composition.governance-center-entry/v1`（`candidate`）的 [S-25](../../../spec/compositions/governance-center-entry/v1/contract.md#s-25-运维面只在中心所在的机器上且没有治理路由)、[S-26](../../../spec/compositions/governance-center-entry/v1/contract.md#s-26-完整体检) | 本侧是提供方，兑现者是 governance-center-entry 的运维面：`OMNE_TENANCY_OPS_SOCKET_DIR` 下一个 Unix 域套接字，只在中心所在机器上可达、只答完整体检、没有任何治理路由；与客户端一面不共用任何通道。本装配给它的 config 里没有任何治理服务（S-36「运维者没有门」行） |
 
 ## 交互面
 
-**本版没有人用的面，也没有脚本用的领域面**——五份契约的服务面只在进程内被解析。本节登记两个入口与归属：
+**本应用没有人直接操作的界面**：人与脚本经客户端（`apps/cli`）到达入口层，运维者经本机工具到达运维面。五份契约的服务面只在进程内被解析。本节登记三个入口与归属：
 
 | 面 | 入口 | 语义归谁 | 精确形状归谁 |
 | --- | --- | --- | --- |
-| **领域操作的入口层**（人或脚本经客户端到达本进程） | **本版无** | 各契约的操作；产品含义归 [PF-001](../../../product/PF-001-identity-scope-and-agent-constraints/README.md) 与相关 PF | **待立：治理契约线上投影协议**（拟议名）——含入口层的身份核实。在它之前本进程没有对外入口 |
-| **运维用**：一次性密钥生成 | 第一程是一个导出函数（候选 `generateKeyFiles(dir)`），调 identity-values 的 `generateHandoffKeyPair()` 两次，写四份 PEM 文件；命令形态 `tenancy-host keygen` 随进程形态一起等交付面 PF（[design.md](design.md#密钥装配两对-ed25519-密钥作为部署配置输入)） | 密钥是部署配置输入（[identity-values 节点](../../packages/core/identity-values/design.md#依赖作用域与绑定)）；本函数不持有语义 | **待立：不是契约**——它是本应用的运维入口，形状随源码定，本节点只登记它存在与它产出什么 |
+| **客户端一面**（人或脚本经客户端到达本进程） | 入口层的 TLS 监听，地址来自 `OMNE_TENANCY_ENTRY_LISTEN`；27 条路由加公开体检，**封闭** | 各领域操作的产品含义归 [PF-001](../../../product/PF-001-identity-scope-and-agent-constraints/README.md) 与相关 PF；认人、答复先后、拒绝同形归 [PF-017](../../../product/PF-017-governance-center-as-deployable-application/README.md) | `composition.governance-center-entry/v1`（信封、四种入口答复、路由表、Schema）；落到 HTTPS 上的字节归该节点的传输绑定（契约 G-10，候选 `https-json/1`，未冻结） |
+| **运维面**（运维者在中心所在的机器上） | 运维面的 Unix 域套接字，目录来自 `OMNE_TENANCY_OPS_SOCKET_DIR`；任何请求都答完整体检 | [PF-017 中心体检](../../../product/PF-017-governance-center-as-deployable-application/design.md#中心体检)、§6.13 运维者没有门 | `composition.governance-center-entry/v1` 的 S-25、S-26 |
+| **运维用**：一次性密钥生成 | 本版是一个导出函数（候选 `generateKeyFiles(dir)`），调 identity-values 的 `generateHandoffKeyPair()` 两次，写四份 PEM 文件；命令形态 `tenancy-host keygen` 随进程形态一起定（[design.md](design.md#密钥装配两对-ed25519-密钥作为部署配置输入)） | 密钥是部署配置输入（[identity-values 节点](../../packages/core/identity-values/design.md#依赖作用域与绑定)），产品上是 [PF-017 部署密钥](../../../product/PF-017-governance-center-as-deployable-application/design.md#部署密钥)；本函数不持有语义 | **待立：不是契约**——它是本应用的运维入口，形状随源码定，本节点只登记它存在与它产出什么 |
 
-**调试流与结构化日志不在上表**：启动失败要落一条结构化记录（哪条 fiber、什么原因、**不含密钥材料**），责任归
+**调试流与结构化日志不在上表**：启动失败要落一条结构化记录（哪一步、什么原因、**不含密钥材料与 config 值**），入口层每个请求落一条工程记录（[S-30](../../../spec/compositions/governance-center-entry/v1/contract.md#s-30-工程记录)），
+都经 `ctx.logger` 写到进程标准错误流（候选，[design.md](design.md#入口层与运维面的装配)）；责任归
 [可观测要求](../../../foundation/observability-and-logging/requirements.md)，不归本页新立一套。
 
 ## 包分层与依赖规则
@@ -66,7 +74,8 @@
 
 | 层 | 包 | 可以依赖 | 不可以依赖 |
 | --- | --- | --- | --- |
-| 应用装配 | `apps/tenancy-host`：装载清单、config 解析与密钥配对自检、**迁移合成**（次序 + 跨 owner 外键的目标与名字）、密钥生成函数 | 下面各层全部 | 被任何包反向依赖 |
+| 应用装配 | `apps/tenancy-host`：装载清单、config 解析与密钥配对自检、**迁移合成**（次序 + 跨 owner 外键的目标与名字）与升级整体性的编排、密钥生成函数 | 下面各层全部；`infra/storage-sql` 与 `infra/clock` 另各多一个候选导出（快照确认、迁移前回拨核对），尚不存在 | 被任何包反向依赖 |
+| 领域 · 线上投影 | `packages/tenancy/governance-center-entry`：入口层与运维面两个插件，导出 `governance_center` 的迁移片段（[该节点](../../packages/tenancy/governance-center-entry/design.md#实现路径与来源)） | 入口层：AI、OG、AR、CV 的服务面类型，`core/*`（含 `core/storage` 协议）；运维面：只 `core/kernel-basis`、`core/storage` 协议、`core/offer-expiry`、Node 内置与本包的事件声明模块（导入白名单，契约 SC-2） | `infra/*`；运维面不得导入任何 `tenancy/*` 包 |
 | 领域 · 组合 | `packages/tenancy/account-registration` | `tenancy/account-identity`、`tenancy/organization-governance` 的服务面类型、`core/identity-values`、`core/kernel-basis` | `infra/*`、存储协议 |
 | 领域 · 能力 | `packages/tenancy/account-identity`、`packages/tenancy/organization-governance`、`packages/tenancy/credential-verification`；**AI、OG 第二程各导出自己表的迁移片段**（OG 的是工厂，收外键目标与名字作参数，**不 import AI 的包**） | `core/*`（含 `core/storage` 的协议与错误类型） | `infra/*`——它们 inject 的是**服务名**，不 import 提供者包；彼此之间不 import 对方的迁移 |
 | 基础设施提供者 | `packages/infra/storage-sql`、`packages/infra/clock`（后者导出 `clockLeaseMigration`） | `core/storage`、`core/kernel-basis`、`core/offer-expiry`（`Clock`／`Instant` 形状） | `tenancy/*`；任何业务表 |
@@ -76,8 +85,8 @@
 **三条依赖方向的规矩：**
 
 1. **迁移片段在各 owner 包，合成在 `apps/tenancy-host`**——表是 owner 事实的存储形状，列跟着 owner 变，片段放在 owner 包里让「迁移随 owner 列变化同步修改」这条代价落在同一个包、同一次修改；跨 owner 那条外键与合成次序只有装配同时看得见两边（[core/storage 节点](../../packages/core/storage/design.md#表结构不在协议里由装配层迁移建立两节点同一约束域)、[design.md 迁移的所有权](design.md#迁移的所有权)）。代价不因此消失：被外键引用的列改名不在编译期暴露，靠本节点的外键存在性与约束名测试在 CI 里挡。
-2. **密钥只出现在三个 config 对象里**：`account-registration` 的 config 持 `activation` 私钥，`organization-governance` 的持 `purge` 私钥，`account-identity` 的持两把公钥；**不经任何服务、不进 ctx**。
-3. **`tenancy/*` 与 `infra/*` 之间没有 import 边**，只有 Cordis 服务名（`storage`、`clock`）——换提供者只改本应用的装载清单。
+2. **密钥只出现在三个 config 对象里**：`account-registration` 的 config 持 `activation` 私钥，`organization-governance` 的持 `purge` 私钥，`account-identity` 的持两把公钥；TLS 私钥只在入口层的 config 里；**都不经任何服务**（但挂在各自 fiber 的 config 上，同进程可达，[design.md](design.md#私钥不经服务-store-可达)）。
+3. **`tenancy/*` 与 `infra/*` 之间没有 import 边**，只有 Cordis 服务名（`storage`、`clock`）——换提供者只改本应用的装载清单。升级整体性要的两个候选导出由本应用 import、不由任何 `tenancy/*` 包 import。
 
 ## 技术栈采用
 
@@ -93,15 +102,20 @@
 | in-memory 存储 | **不提供**；测试对着 sqlite 临时文件库 | — | 已采用 | [D-026](../../../record/decisions/infrastructure-persistence-choices/decision.md) |
 | 时间源提供者 | `packages/infra/clock`（单调钟锚定 + 存储里写在前的租约；机制归该节点，**该节点尚未被接受**） | — | 已采用 | [D-026](../../../record/decisions/infrastructure-persistence-choices/decision.md) |
 | 交接凭证的不可伪造 | 签名而非进程内登记，原语 Node 内置 `crypto`（Ed25519 由 identity-values 节点定） | 随 Node 24 | 已采用 | [D-023](../../../record/decisions/tenant-domain-design-acceptance/decision.md) |
+| 入口层与运维面的落点 | 一个包两个插件、都不 provide、装在清单最后（运维面在前） | 不适用 | candidate | [提案 governance-center-entry 候选 A](../../../record/proposals/governance-center-entry/alternatives.md#候选-a) |
+| 客户端一面的传输 | HTTP/1.1 over TLS（Node 内置 `node:https`，最低 TLS 1.3）；整个信封在请求体里；每个答复 `Connection: close`；只有 TLS 监听。形状归 governance-center-entry 节点 | 传输绑定**未钉**（契约 G-10） | candidate | [提案 cli-tui D11](../../../record/proposals/cli-tui/alternatives.md#d11-线上协议与认证)（同向；出示物放在请求体而不是 `Authorization` 头，差别与理由在那个节点） |
+| 运维面的本机通道 | Unix 域套接字上的 HTTP，目录只对中心的运行用户可访问 | 不适用 | candidate | [提案 governance-center-entry 运维面](../../../record/proposals/governance-center-entry/design.md#运维面) |
+| 升级的整体性 | 迁移前只读核对；sqlite 迁移前建快照、确认之前的启动失败恢复快照；pg 迁移一个事务 | 不适用 | candidate | [提案装配草图](../../../record/proposals/governance-center-entry/design.md#装载顺序)（「迁移之前」「迁移」两行） |
 
 **不在上表、因为既无决定也无提案的选择**（本节点只能记为候选，理由与落选方在 design.md）：
-密钥下发路径（环境变量 / 文件路径，`_FILE` 惯例）、config 校验库（zod，经 `definePlugin`；kernel-basis 节点记「采用版本无决定」）、
-测试运行器（vitest，仓库统一）。闭合条件：主线立提案或决定后本表加行。
+密钥下发路径（环境变量 / 文件路径，`_FILE` 惯例；TLS 材料沿同一规矩）、config 校验库（zod，经 `definePlugin`；kernel-basis 节点记「采用版本无决定」）、
+测试运行器（vitest，仓库统一）、日志汇（`ctx.logger` 写标准错误流上的逐行 JSON）、带重复键报告的 JSON 解析器（governance-center-entry 节点 N-6）。闭合条件：主线立提案或决定后本表加行。
 
 ## 分发与升级
 
-- **安装渠道与进程管理：未钉。**本版无分发承诺；第一程的消费者是各节点的场景演练，它们在测试进程里起本装配。
-- **平台**：随 `node:sqlite` 与 Node `>=24 <25`；WAL 要求同一主机、共享内存可用（[研究](../../../../research/agent-harness-persistence-and-identity-infra/research.md#sqlite-运行参数在三家-tsrust-实现里一致)）。
-- **存储带迁移登记**：Kysely `Migrator` 的登记表在库里，启动时在 `provide('storage')` 之前跑合成后的迁移；**本节点不提供回滚**——片段带不带 `down` 归各 owner（clock 的带），合成后只调 `migrateToLatest`；sqlite 的 DDL 不在事务里，失败靠幂等重跑收口。
-- **升级时的语义保证不归本页**：撤除次序与在途工作的收场在 [design.md](design.md#成对的装载与撤除)；跨版本的协议协商归那份待立的契约。
+- **安装渠道与进程管理：未钉。**本版无分发承诺；当前的消费者是各节点的场景演练，它们在测试进程里起本装配。
+- **平台**：随 `node:sqlite` 与 Node `>=24 <25`；WAL 要求同一主机、共享内存可用（[研究](../../../../research/agent-harness-persistence-and-identity-infra/research.md#sqlite-运行参数在三家-tsrust-实现里一致)）；运维面的 Unix 域套接字不承诺 Windows。
+- **升级 = 停着的时候换一个版本再启动**（[PF-017 §6.9](../../../product/PF-017-governance-center-as-deployable-application/design.md#69-升级同一个中心要么整体成要么整体不成)）：Kysely `Migrator` 的登记表在库里，启动时在 `provide('storage')` 之前先做只读核对（数据格式版本能否接手、时钟未回拨），有待跑迁移就先建快照、再跑合成后的迁移；
+  确认之前任何一步失败都恢复快照，旧版本照常能起。**不用 `down` 回滚**；编号名只追加（M-9）。机制与缺口（开闸到确认的窗口、同一份库的排他、pg 提交后的撤回）在 [design.md](design.md#升级的整体性迁移前只读核对快照与确认)。磁盘要多容纳一份库的大小。
+- **升级时的语义保证不归本页**：撤除次序与在途工作的收场在 [design.md](design.md#成对的装载与撤除)；跨协议版本不承诺兼容窗口，版本对不上客户端得 `version-mismatch`（[入口契约 S-8](../../../spec/compositions/governance-center-entry/v1/contract.md#s-8-协议版本与跨版本不变的两样)），中心与客户端一起升级是运维者的事。
 - **密钥文件与库文件的备份、权限与迁移是运维约定**；本节点只规定文件权限的检查（[design.md](design.md#密钥装配两对-ed25519-密钥作为部署配置输入)）。
