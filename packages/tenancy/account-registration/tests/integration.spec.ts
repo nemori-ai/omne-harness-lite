@@ -1,5 +1,5 @@
 // 架构评审点名的其余集成点（I-6、I-7、I-8、I-10）与本插件自己的装载面（config、inject、换代时在途调用的收场）。
-// I-7、I-8、I-10 用真实 clock 插件；I-6 用时间替身。真实组合，凭据是包内替身（见 support.ts 抬头）。
+// I-7、I-8、I-10 用真实 clock 插件；I-6 用时间替身。真实组合，含真实 credential-verification。
 import { afterEach, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { LEASE_WIDTH_MS } from '@omne-harness-lite/clock'

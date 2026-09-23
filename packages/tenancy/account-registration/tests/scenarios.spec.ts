@@ -1,6 +1,6 @@
 // composition.account-registration v1 §八的规范场景 S-27～S-31，加 S-5（四值闭合的运行期一面）与 S-8 失败值映射。
 // 全部是真实组合：真实 AI／OG／AR 插件、真实 storage-sql（临时 sqlite 文件）、真实 clock（需要前推时间的用包内替身）；
-// 凭据是包内替身（见 support.ts 抬头）。
+// 凭据是真实 credential-verification（测试参数）。
 import { afterEach, describe, expect, it } from 'vitest'
 import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
 import { TERMINAL_OUTCOMES, type TerminalOutcome } from '../src/index.ts'
