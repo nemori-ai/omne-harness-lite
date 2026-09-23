@@ -3701,7 +3701,109 @@
       "target": { "contract_id": "data.arrival-events", "version": 1, "clauses": ["S-5"] },
       "reviewed": false,
       "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖「两次发出是两条流」那一句（目标带 dispatch）"
+    },
+    {
+      "requirement": { "topic": "PF-009-context-message-types", "clause": "design.md#到达的过程有它自己的语法" },
+      "target": { "contract_id": "capability.stream-assembly", "version": 1, "clauses": ["S-1", "S-9", "S-13", "S-21"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。封口交完整块、必有结局、账只记一次在装配一侧的落点"
+    },
+    {
+      "requirement": { "topic": "PF-009-context-message-types", "clause": "design.md#组装出来的必须与一次性拿到的一模一样" },
+      "target": { "contract_id": "capability.stream-assembly", "version": 1, "clauses": ["S-27"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。前提与不在相等里的三样见 S-27"
+    },
+    {
+      "requirement": { "topic": "PF-009-context-message-types", "clause": "design.md#68-组装的结果与一次性拿到的必须相同" },
+      "target": { "contract_id": "capability.stream-assembly", "version": 1, "clauses": ["S-27"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-009-context-message-types", "clause": "design.md#56-流断在半路" },
+      "target": { "contract_id": "capability.stream-assembly", "version": 1, "clauses": ["S-8", "S-9", "S-28"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。本契约只交出五行表要的事实（原因、有没有开口）；查表包消息归宿主与 data.messages"
+    },
+    {
+      "requirement": { "topic": "PF-009-context-message-types", "clause": "design.md#工具调用的参数收齐了才算数" },
+      "target": { "contract_id": "capability.stream-assembly", "version": 1, "clauses": ["S-10", "S-11", "S-12"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-009-context-message-types", "clause": "design.md#610-没收齐的工具调用参数不解析不执行" },
+      "target": { "contract_id": "capability.stream-assembly", "version": 1, "clauses": ["S-10", "S-11", "S-12"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。「不执行」那一半归宿主（S-28 第五条、G-2）"
+    },
+    {
+      "requirement": { "topic": "PF-009-context-message-types", "clause": "design.md#69-用户看见了的会话日志里必须有" },
+      "target": { "contract_id": "capability.stream-assembly", "version": 1, "clauses": ["S-7", "S-9"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。落盘归宿主；进程没了之后不成立（S-29 第二行）"
+    },
+    {
+      "requirement": { "topic": "PF-009-context-message-types", "clause": "design.md#616-砍了要说不许默默丢" },
+      "target": { "contract_id": "capability.stream-assembly", "version": 1, "clauses": ["S-12", "S-14", "S-15"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。模型侧汇总无承载处（G-3）"
+    },
+    {
+      "requirement": { "topic": "PF-009-context-message-types", "clause": "design.md#帧多了要节流规则就是-616-那一条" },
+      "target": { "contract_id": "capability.stream-assembly", "version": 1, "clauses": ["S-14", "S-15"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-009-context-message-types", "clause": "design.md#执行帧就是这条消息的到达增量" },
+      "target": { "contract_id": "capability.stream-assembly", "version": 1, "clauses": ["S-13"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。frames.emitted 的算式"
+    },
+    {
+      "requirement": { "topic": "PF-009-context-message-types", "clause": "design.md#大部分工具不发这个而那是正常形态" },
+      "target": { "contract_id": "capability.stream-assembly", "version": 1, "clauses": ["S-13", "S-37"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-009-context-message-types", "clause": "design.md#617-发帧发不出去不影响这次工具执行" },
+      "target": { "contract_id": "capability.stream-assembly", "version": 1, "clauses": ["S-26"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-009-context-message-types", "clause": "design.md#92-流式不留到达的过程" },
+      "target": { "contract_id": "capability.stream-assembly", "version": 1, "clauses": ["S-4"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-009-context-message-types", "clause": "design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息" },
+      "target": { "contract_id": "capability.stream-assembly", "version": 1, "clauses": ["S-4", "S-7", "S-29"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。本契约的快照比这一小节列举的宽（含开着的追加块的片段），见 G-4"
+    },
+    {
+      "requirement": { "topic": "PF-013-model-profiles-and-invocation", "clause": "design.md#已经开口说话了优先于其余各类" },
+      "target": { "contract_id": "capability.stream-assembly", "version": 1, "clauses": ["S-16"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。本契约只给位置；时刻与判定归宿主"
+    },
+    {
+      "requirement": { "topic": "PF-013-model-profiles-and-invocation", "clause": "design.md#513-模型请求的运行时可以被单独控制而它停了看首-token" },
+      "target": { "contract_id": "capability.stream-assembly", "version": 1, "clauses": ["S-29"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖在途状态丢失时的后果那一句"
+    },
+    {
+      "requirement": { "topic": "PF-006-tools-and-skills", "clause": "design.md#612-工具执行的运行时可以被单独控制而它停了就不重来" },
+      "target": { "contract_id": "capability.stream-assembly", "version": 1, "clauses": ["S-22", "S-29"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
     }
   ],
-  "note": "2026-09-22 首次登记，覆盖租户相关领域五份 candidate 契约。每条的 clauses 由两处合并得出：契约正文里带小节链接的条款段落，以及各契约「性质」表的「来源」列。全部 reviewed=false——这是「声称覆盖但尚未逐条复核」的诚实初值，不是复核通过。三处已知不完整，登记时一并记明，不靠留白掩盖：（1）PF-007 也被 data.identity-values 与 capability.organization-governance 的正文引为来源（§4 一笔授权表达有三个维度），本次登记范围只含 PF-001/002/003/015，因此 PF-007 一条未登；（2）foundation 的 SYS-TENANT / SYS-DEPLOY 是全局约束不是产品条款，本清单只登记 PF- 侧，那一侧的覆盖没有家；（3）契约正文里以散文方式引用产品要求、没有给出小节链接的地方，本次登记抓不到。 2026-09-22 评审轮一修订后补登 18 处（见各行 note）。data.identity-values/v1#S-35「交接凭证」没有产品出处（规格层构造），有意不登记 cover。 2026-09-23 补登 composition.governance-center-entry v1（candidate）40 条：PF-017（rev 1，仍是 draft（PF-017 rev 1 已于 2026-09-23 同日接受，各条 note 已改））30 条、PF-016 5 条、PF-001 5 条，全部 reviewed=false；来源是该契约正文里带小节链接的条款段落。该契约的形式工件与规范场景条款（S-37～S-46）只在对到验收判据时登记。 2026-09-23 该契约评审第一轮修订：首登时有若干条的 clauses 在正文对应条款里并没有小节链接，已在正文逐条补齐；逐条核过之后，每条 covers 的产品小节都在所列的每个条款里有链接，唯一例外是 acceptance §二那一条（见其 note）；该条 clauses 补登 S-31。 2026-09-23 补登 composition.governance-center-entry-https-json v1（candidate，传输绑定）11 条：PF-017 rev 2 共 10 条、PF-016 rev 4 共 1 条，全部 reviewed=false；来源同一口径——该契约正文里带小节链接的条款段落，每条所列条款都链接了那个小节。 2026-09-23 该传输绑定评审第一轮修订：补登 1 条（PF-017 acceptance §二「冒牌货」一行 → S-30），§8 那一条补 S-30；该契约现 12 条。 2026-09-23 补登 data.content-blocks v1（candidate）24 条：PF-009 7 条、PF-010 3 条、PF-013 3 条、PF-006 6 条、PF-002 2 条、PF-001 1 条、PF-012 2 条，全部 reviewed=false；来源是该契约的「设计依据」表（按简报口径），不是逐条核对正文链接——不少行只在依据表里对应，所列条款的正文里没有那个小节的链接（如 PF-009 §4 → S-1、PF-013 §4 模态 → S-7）；PF-006 §6.12「它的宿主是谁」一条部分为让缺口 G-2 可见而登，见其 note。 2026-09-23 补登 data.call-accounts v1（candidate）12 条：PF-006 1、PF-009 4、PF-012 3（其中 §6.17 一条为缺口登记型，指 G-3）、PF-013 2、PF-001 1、PF-000 1，全部 reviewed=false；每条的 clauses 是该契约正文里带那个小节链接的条款（逐条机械核过）。PF-013 §6.2（凭据挂在范围上）只作「不归本契约」的否定式提及，未点名缺口，不登。"
+  "note": "2026-09-22 首次登记，覆盖租户相关领域五份 candidate 契约。每条的 clauses 由两处合并得出：契约正文里带小节链接的条款段落，以及各契约「性质」表的「来源」列。全部 reviewed=false——这是「声称覆盖但尚未逐条复核」的诚实初值，不是复核通过。三处已知不完整，登记时一并记明，不靠留白掩盖：（1）PF-007 也被 data.identity-values 与 capability.organization-governance 的正文引为来源（§4 一笔授权表达有三个维度），本次登记范围只含 PF-001/002/003/015，因此 PF-007 一条未登；（2）foundation 的 SYS-TENANT / SYS-DEPLOY 是全局约束不是产品条款，本清单只登记 PF- 侧，那一侧的覆盖没有家；（3）契约正文里以散文方式引用产品要求、没有给出小节链接的地方，本次登记抓不到。 2026-09-22 评审轮一修订后补登 18 处（见各行 note）。data.identity-values/v1#S-35「交接凭证」没有产品出处（规格层构造），有意不登记 cover。 2026-09-23 补登 composition.governance-center-entry v1（candidate）40 条：PF-017（rev 1，仍是 draft（PF-017 rev 1 已于 2026-09-23 同日接受，各条 note 已改））30 条、PF-016 5 条、PF-001 5 条，全部 reviewed=false；来源是该契约正文里带小节链接的条款段落。该契约的形式工件与规范场景条款（S-37～S-46）只在对到验收判据时登记。 2026-09-23 该契约评审第一轮修订：首登时有若干条的 clauses 在正文对应条款里并没有小节链接，已在正文逐条补齐；逐条核过之后，每条 covers 的产品小节都在所列的每个条款里有链接，唯一例外是 acceptance §二那一条（见其 note）；该条 clauses 补登 S-31。 2026-09-23 补登 composition.governance-center-entry-https-json v1（candidate，传输绑定）11 条：PF-017 rev 2 共 10 条、PF-016 rev 4 共 1 条，全部 reviewed=false；来源同一口径——该契约正文里带小节链接的条款段落，每条所列条款都链接了那个小节。 2026-09-23 该传输绑定评审第一轮修订：补登 1 条（PF-017 acceptance §二「冒牌货」一行 → S-30），§8 那一条补 S-30；该契约现 12 条。 2026-09-23 补登 data.content-blocks v1（candidate）24 条：PF-009 7 条、PF-010 3 条、PF-013 3 条、PF-006 6 条、PF-002 2 条、PF-001 1 条、PF-012 2 条，全部 reviewed=false；来源是该契约的「设计依据」表（按简报口径），不是逐条核对正文链接——不少行只在依据表里对应，所列条款的正文里没有那个小节的链接（如 PF-009 §4 → S-1、PF-013 §4 模态 → S-7）；PF-006 §6.12「它的宿主是谁」一条部分为让缺口 G-2 可见而登，见其 note。 2026-09-23 补登 data.call-accounts v1（candidate）12 条：PF-006 1、PF-009 4、PF-012 3（其中 §6.17 一条为缺口登记型，指 G-3）、PF-013 2、PF-001 1、PF-000 1，全部 reviewed=false；每条的 clauses 是该契约正文里带那个小节链接的条款（逐条机械核过）。PF-013 §6.2（凭据挂在范围上）只作「不归本契约」的否定式提及，未点名缺口，不登。 2026-09-23 补登 data.arrival-events v1（candidate）25 条与 capability.stream-assembly v1（candidate）17 条，全部 reviewed=false；来源是两份契约的「设计依据」表（按简报口径）。主线裁决而产品正文尚无落处的条款（两份契约各自在依据表下方点名）不登；SYS-SPEC／SYS-DEPLOY、D-035 与 basis 条目不是产品条款，不登。"
 }

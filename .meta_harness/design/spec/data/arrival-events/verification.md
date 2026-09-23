@@ -54,6 +54,12 @@ V-1～V-9 **一条执行记录也没有**。起草时的手核只保证 `example
   依赖 `data.content-blocks` v1 与 `data.call-accounts` v1（**两者都是 candidate、未冻结**——它们在评审中改了被引用的 `$defs` 或条款，本契约要同轮复核）。
 - **同日，起草中途收到主线的对齐裁定**（落进本版，不是另一版）：目标加 `dispatch`；`FailureCause` 改 `$ref` `data.loop-extension` v1，不自定义；
   `ModelCallId` 改 `$ref` `data.call-accounts` v1；出错断时已交付的块归 `data.model-response` 的 `delivered`。**因此两处 `$ref` 在本工作树里解析不到，`make design-check` 以此报两条错**——主线已明示这两处留给对齐波。
+- **同日，第二道主线裁定（块 D 机制读数：三层全是纯计算）**：装配状态由宿主持有、事件由宿主按目标路由（[S-1](v1/contract.md#s-1-本契约拥有什么)、[S-3](v1/contract.md#s-3-本契约不拥有什么)、[S-24](v1/contract.md#s-24-违反语法由消费一方判定并命名) 随之改写：「目标此刻有一条流」不再是序列规则）；
+  节流分发出一侧与投递一侧，只有前者进账（[S-22](v1/contract.md#s-22-节流只动填合并不改结果砍了要说)）；被拒的增量由宿主以 `rejected` 的 `trim` 说出来（[S-29](v1/contract.md#s-29-表示层拒绝不是判定也不修补)）；
+  首个内容排除空载荷（[S-21](v1/contract.md#s-21-第一个内容步骤)）。**全部落在本版**，此前没有任何评审或证据用过旧说法。
+- **同日，`capability.stream-assembly` v1 起草时回写三处措辞**：[S-12](v1/contract.md#s-12-填整体替换)、[S-24](v1/contract.md#s-24-违反语法由消费一方判定并命名) 原说要借开块才能判的拒绝值「只有 `replace_payload_shape`」，
+  实际帧流上往语音块填字节的 `frame_media_inline` 也要借开块；[S-28](v1/contract.md#s-28-表示层拒绝值) 补一句「这两项只在那块此刻开着时才判，否则取消费一侧的序列失败值」。
+  **拒绝值集合与次序不变**，V-2、V-3 的口径随之更准确。
 - **`data.messages` v1 与本契约并行起草**：本契约只在正文里以坐标提到它（落点），不依赖它的任何条款。
 - **[G-1](v1/contract.md#九已知缺口)／[G-2](v1/contract.md#九已知缺口) 闭合**：`$ref` 解析通过、catalog 补登依赖，**语义不变**；V-1 此时才能全部跑。
 - **[G-3](v1/contract.md#九已知缺口) 闭合**（呈现提示的取值集）：[S-10](v1/contract.md#s-10-呈现提示) 与 S-33 的正反例重写 ⇒ **出 v2**。

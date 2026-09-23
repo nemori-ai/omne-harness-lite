@@ -5,7 +5,8 @@
 
 **一份语法，两个生产者**：模型的回复（长成 `AssistantMessage`）与工具的执行帧（长成 `ToolInternalMessage`）走同一套；
 它是 core 三层（[D-035](../../../record/decisions/message-and-stream-baseline/README.md)）里的第二层——
-语法借 `StreamChunk` 的骨架并条款化。**按它把消息拼出来的是 `capability.stream-assembly`**，那是本语法唯一的消费方式。
+语法借 `StreamChunk` 的骨架并条款化。**按它把一条流装配起来的是 `capability.stream-assembly`**，那是本语法唯一的消费方式；
+装配状态由宿主（模型请求运行时、工具执行运行时）持有，包成哪种消息也归宿主。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.arrival-events, 1)`
 - **状态**：`candidate`——未接受、未冻结，不得据此发布或声称消费者已采用
