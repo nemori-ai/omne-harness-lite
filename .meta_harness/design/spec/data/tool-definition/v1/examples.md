@@ -80,34 +80,51 @@
 }
 ```
 
-`commands` 在这里**有意不按字母序写**：生成规则的次序不依赖作者写成什么样（[S-7](contract.md#s-7-多命令-input-的生成规则) 第 4 条）。
-它按 [S-7](contract.md#s-7-多命令-input-的生成规则) 生成的模型面 input 如下（**校验对象**：`$defs/JsonSchema`，**预期：通过**——它是一份合法的 schema）：
+`commands` 在这里**有意不按字母序写**：生成规则的次序不依赖作者写成什么样（[S-7](contract.md#s-7-多命令-input-的生成规则) 第 5 条）。
+它按 [S-7](contract.md#s-7-多命令-input-的生成规则) 生成的模型面 input 如下（**校验对象**：`$defs/JsonSchema`，**预期：通过**——它是一个 JSON 对象；它也是一份合法的 Draft 2020-12 schema，那是 Schema 之外那一步的事）：
 
 ```json
 {
   "type": "object",
-  "properties": {
-    "command": { "enum": ["list", "read", "write"] },
-    "args": {
-      "oneOf": [
-        { "type": "object", "properties": {}, "additionalProperties": false },
-        {
+  "oneOf": [
+    {
+      "description": "列出全部笔记的标识。",
+      "properties": {
+        "command": { "const": "list" },
+        "args": { "type": "object", "properties": {}, "additionalProperties": false }
+      },
+      "required": ["command", "args"],
+      "additionalProperties": false
+    },
+    {
+      "description": "读一条笔记。",
+      "properties": {
+        "command": { "const": "read" },
+        "args": {
           "type": "object",
           "properties": { "id": { "type": "string" } },
           "required": ["id"],
           "additionalProperties": false
-        },
-        {
+        }
+      },
+      "required": ["command", "args"],
+      "additionalProperties": false
+    },
+    {
+      "description": "写入或覆盖一条笔记。",
+      "properties": {
+        "command": { "const": "write" },
+        "args": {
           "type": "object",
           "properties": { "id": { "type": "string" }, "text": { "type": "string" } },
           "required": ["id", "text"],
           "additionalProperties": false
         }
-      ]
+      },
+      "required": ["command", "args"],
+      "additionalProperties": false
     }
-  },
-  "required": ["command", "args"],
-  "additionalProperties": false
+  ]
 }
 ```
 
@@ -186,38 +203,44 @@
 
 ## 5. 定义的反例：每个拒绝值至少一个
 
-**校验对象**：`$defs/ToolDefinition`。**预期一律：拒绝。**第三列是按 [S-26](contract.md#s-26-表示层拒绝值与判定次序) 的次序应报的值。
+**校验对象**：`$defs/ToolDefinition`。**预期：表示层一律拒绝。**第二列是 Schema 这一关：标「Schema 通过」的两行由 Schema 之外那一步拒（[S-4](contract.md#s-4-单函数工具)）。
+第三列是按 [S-26](contract.md#s-26-表示层拒绝值与判定次序) 的次序应报的值；`malformed` 注明是 `M1`～`M15` 的哪一条。
 
 | 实例 | 预期 | 拒绝值 · 依据 |
 |---|---|---|
-| `"notes"` | 拒绝 | `malformed`（①）：不是 JSON 对象 |
-| `{"name": "t", "description": "d", "input": {"type": "object"}, "permissions": {"execute": {"default": "ask"}}, "origin": {"kind": "authored"}}` | 拒绝 | `malformed`（①）：缺 `paradigm`——没有缺省范式 |
-| B 的 `paradigm` 换成 `"pipeline"` | 拒绝 | `paradigm_unknown`（②）：[S-3](contract.md#s-3-两种范式)、[S-28](contract.md#s-28-判别式与枚举闭合) |
-| B 加 `"commands": {"go": {"description": "d", "input": {"type": "object"}}}` | 拒绝 | `commands_forbidden`（③）：[S-4](contract.md#s-4-单函数工具) |
-| `{"name": "t", "description": "d", "paradigm": "multi", "permissions": {"execute": {"default": "ask"}}, "origin": {"kind": "authored"}}` | 拒绝 | `commands_missing`（④）：[S-5](contract.md#s-5-多命令工具) |
-| 上一行加 `"commands": {}` | 拒绝 | `commands_missing`（④）：空映射就是没有命令 |
-| B 的 `input` 换成 `{"type": 5}` | 拒绝 | `input_not_schema`（⑤）：不合 Draft 2020-12 元 schema |
-| 第 2 节的例子，`list.input` 换成 `{"required": "id"}` | 拒绝 | `input_not_schema`（⑤）：`required` 必须是数组；命令的 `input` 同样按元 schema 判 |
-| B 加 `"settings": {"targetEnvironment": {"category": "placement_identity", "default": {"bindingLayer": "vm", "facilities": []}}}` | 拒绝 | `binding_layer_unknown`（⑥）：[S-11](contract.md#s-11-目标环境)、[S-28](contract.md#s-28-判别式与枚举闭合) |
-| B 加 `"settings": {"timeout": {"category": "security", "default": "PT1M"}}` | 拒绝 | `category_unknown`（⑦）：[S-10](contract.md#s-10-设置项声明) |
-| B 的 `permissions.execute.default` 换成 `"allow"` | 拒绝 | `permission_unknown`（⑧）：[S-15](contract.md#s-15-执行权限)；**不得**被当成 `auto` |
-| B 的 `origin` 换成 `{"kind": "plugin"}` | 拒绝 | `origin_unknown`（⑨）：[S-17](contract.md#s-17-来源) |
-| B 的 `paradigm` 换成 `"pipeline"`，**同时** `permissions.execute.default` 换成 `"allow"` | 拒绝 | **`paradigm_unknown`**：两处都不合时报次序靠前的那一个（S-26） |
-| B 去掉 `permissions` | 拒绝 | `malformed`（⑩）：执行权限必填、**不补任何一档**（[S-15](contract.md#s-15-执行权限)） |
-| B 去掉 `origin` | 拒绝 | `malformed`（⑩）：来源必填，没有缺省的「作者写的」（[S-17](contract.md#s-17-来源)） |
-| 第 2 节的例子加 `"input": {"type": "object"}` | 拒绝 | `malformed`（⑩）：多命令工具的 input 由 `commands` 生成，**不存第二份**（[S-5](contract.md#s-5-多命令工具)） |
-| B 加 `"settings": {"targetEnvironment": {"category": "preference", "default": {"bindingLayer": "host_machine", "facilities": []}}}` | 拒绝 | `malformed`（⑩）：目标环境的类别恒为 `placement_identity`——标成偏好就让工作区配得到它（[S-10](contract.md#s-10-设置项声明)） |
-| 第 3 节的例子，`paradigm` 换成 `"multi"`、去掉 `input`、加 `"commands": {"search": {"description": "d", "input": {"type": "object"}}}` | 拒绝 | `malformed`（⑩）：MCP 来源恒为单函数（[S-17](contract.md#s-17-来源)） |
-| 第 3 节的例子加 `"composes": {"skills": ["triage-guide"]}` | 拒绝 | `malformed`（⑩）：MCP 来源不组合（[S-16](contract.md#s-16-组合)） |
-| 第 3 节的例子，`endpoint.category` 换成 `"tool"` | 拒绝 | `malformed`（⑩）：端点必须是一个 MCP 接入点的能力标识（[S-17](contract.md#s-17-来源)） |
-| B 加 `"allowBackground": true, "settings": {"backgroundThreshold": {"category": "preference", "default": "P1D"}}` | 拒绝 | `malformed`（⑩）：不收日历单位，写 `PT24H`（[S-14](contract.md#s-14-时长的表示)） |
-| B 加 `"settings": {"concurrency": {"category": "preference", "default": 0}}` | 拒绝 | `malformed`（⑩）：并发是正整数（[S-13](contract.md#s-13-超时与并发)） |
-| B 的 `name` 换成 `""` | 拒绝 | `malformed`（⑩）：名字非空（[S-18](contract.md#s-18-名字的表示与相等)） |
-| B 加 `"waitsForReply": true` | 拒绝 | `malformed`（⑩）：等待态不在定义里（[S-29](contract.md#s-29-不在定义里的三样)） |
-| B 加 `"emitsFrames": true` | 拒绝 | `malformed`（⑩）：发帧不在定义里（[S-29](contract.md#s-29-不在定义里的三样)） |
-| B 加 `"implementation": {"module": "./fetch_page.js"}` | 拒绝 | `malformed`（⑩）：实现不在定义里（[S-30](contract.md#s-30-实现不在定义里)） |
-| B 加 `"settings": {"targetEnvironment": {"category": "placement_identity", "default": {"bindingLayer": "stateless_sandbox", "facilities": ["browser", "browser"]}}}` | 拒绝 | `malformed`（⑩）：设施不重复 |
-| B 加 `"needs": {"inputModalities": ["pdf"]}` | 拒绝 | `malformed`（⑩）：不是一种模态（取值集归 `data.content-blocks` 的 `Modality`）；**本契约的账本没有给它一个专名** |
+| `"notes"` | 拒绝 | `malformed`（M1）：不是 JSON 对象 |
+| `{"name": "t", "description": "d", "input": {"type": "object"}, "permissions": {"execute": {"default": "ask"}}, "origin": {"kind": "authored"}}` | 拒绝 | `malformed`（M2）：缺 `paradigm`——没有缺省范式 |
+| B 的 `paradigm` 换成 `"pipeline"` | 拒绝 | `paradigm_unknown`：[S-3](contract.md#s-3-两种范式)、[S-28](contract.md#s-28-判别式与枚举闭合) |
+| B 加 `"commands": {"go": {"description": "d", "input": {"type": "object"}}}` | 拒绝 | `commands_forbidden`：[S-4](contract.md#s-4-单函数工具) |
+| `{"name": "t", "description": "d", "paradigm": "multi", "permissions": {"execute": {"default": "ask"}}, "origin": {"kind": "authored"}}` | 拒绝 | `commands_missing`：[S-5](contract.md#s-5-多命令工具) |
+| 上一行加 `"commands": {}` | 拒绝 | `commands_missing`：空映射就是没有命令 |
+| B 的 `input` 换成 `true` | 拒绝 | `input_not_schema`：布尔 schema 合法，但不是对象——本契约只收对象（[S-4](contract.md#s-4-单函数工具)） |
+| B 的 `input` 换成 `{"type": 5}` | **Schema 通过** · 表示层拒绝 | `input_not_schema`：是对象，却不合 Draft 2020-12——由实现判，不由 Schema 表达 |
+| 第 2 节的例子，`list.input` 换成 `{"required": "id"}` | **Schema 通过** · 表示层拒绝 | `input_not_schema`：`required` 必须是数组；命令的 `input` 同样由实现判 |
+| B 加 `"settings": {"targetEnvironment": {"category": "placement_identity", "default": {"bindingLayer": "vm", "facilities": []}}}` | 拒绝 | `binding_layer_unknown`：[S-11](contract.md#s-11-目标环境)、[S-28](contract.md#s-28-判别式与枚举闭合) |
+| B 加 `"settings": {"timeout": {"category": "security", "default": "PT1M"}}` | 拒绝 | `category_unknown`：[S-10](contract.md#s-10-设置项声明) |
+| B 的 `permissions.execute.default` 换成 `"allow"` | 拒绝 | `permission_unknown`：[S-15](contract.md#s-15-执行权限)；**不得**被当成 `auto` |
+| B 的 `origin` 换成 `{"kind": "plugin"}` | 拒绝 | `origin_unknown`：[S-17](contract.md#s-17-来源) |
+| B 的 `paradigm` 换成 `"pipeline"`，**同时** `permissions.execute.default` 换成 `"allow"` | 拒绝 | **`paradigm_unknown`**：两处都不合时报次序靠前的那一行（S-26） |
+| B 去掉 `permissions` | 拒绝 | `malformed`（M3）：执行权限必填、**不补任何一档**（[S-15](contract.md#s-15-执行权限)） |
+| B 去掉 `origin` | 拒绝 | `malformed`（M3）：来源必填，没有缺省的「作者写的」（[S-17](contract.md#s-17-来源)） |
+| B 加 `"waitsForReply": true` | 拒绝 | `malformed`（M4）：等待态不在定义里（[S-29](contract.md#s-29-不在定义里的三样)） |
+| B 加 `"emitsFrames": true` | 拒绝 | `malformed`（M4）：发帧不在定义里（[S-29](contract.md#s-29-不在定义里的三样)） |
+| B 加 `"implementation": {"module": "./fetch_page.js"}` | 拒绝 | `malformed`（M4）：实现不在定义里（[S-30](contract.md#s-30-实现不在定义里)） |
+| B 加 `"allowBackground": "yes"` | 拒绝 | `malformed`（M5）：许可是布尔 |
+| B 的 `name` 换成 `""` | 拒绝 | `malformed`（M6）：名字非空（[S-18](contract.md#s-18-名字的表示与相等)） |
+| B 加 `"settings": {"targetEnvironment": {"category": "placement_identity", "default": {"bindingLayer": "stateless_sandbox", "facilities": ["browser", "browser"]}}}` | 拒绝 | `malformed`（M7）：设施不重复 |
+| B 加 `"needs": {"inputModalities": ["pdf"]}` | 拒绝 | `malformed`（M8）：不是一种模态（取值集归 `data.content-blocks` 的 `Modality`） |
+| 第 3 节的例子，`endpoint.category` 换成 `"tool"` | 拒绝 | `malformed`（M9）：端点必须是一个 MCP 接入点的能力标识（[S-17](contract.md#s-17-来源)） |
+| B 加 `"settings": {"targetEnvironment": {"category": "preference", "default": {"bindingLayer": "host_machine", "facilities": []}}}` | 拒绝 | `malformed`（M10）：目标环境的类别恒为 `placement_identity`——标成偏好就让工作区配得到它（[S-10](contract.md#s-10-设置项声明)） |
+| B 加 `"allowBackground": true, "settings": {"backgroundThreshold": {"category": "preference", "default": "P1D"}}` | 拒绝 | `malformed`（M11）：不收日历单位，写 `PT24H`（[S-14](contract.md#s-14-时长的表示)） |
+| B 加 `"settings": {"concurrency": {"category": "preference", "default": 0}}` | 拒绝 | `malformed`（M12）：并发是正整数（[S-13](contract.md#s-13-超时与并发)） |
+| 第 2 节的例子加 `"input": {"type": "object"}` | 拒绝 | `malformed`（M13）：多命令工具的 input 由 `commands` 生成，**不存第二份**（[S-5](contract.md#s-5-多命令工具)） |
+| 第 3 节的例子，`paradigm` 换成 `"multi"`、去掉 `input`、加 `"commands": {"search": {"description": "d", "input": {"type": "object"}}}` | 拒绝 | `malformed`（M14）：MCP 来源恒为单函数（[S-17](contract.md#s-17-来源)） |
+| 第 3 节的例子加 `"composes": {"skills": ["triage-guide"]}` | 拒绝 | `malformed`（M14）：MCP 来源不组合（[S-16](contract.md#s-16-组合)） |
+| B 加 `"settings": {"backgroundThreshold": {"category": "preference", "default": "PT30S"}}` | 拒绝 | `malformed`（M15）：有阈值没有许可——声明一个永远用不上的值只会误导（[S-12](contract.md#s-12-后台许可与转后台阈值)） |
+| 上一行再加 `"allowBackground": false` | 拒绝 | `malformed`（M15）：许可必须恰为 `true` |
+| 第 2 节的例子加 `"settings": {"backgroundThreshold": {"category": "preference", "default": "PT30S"}}` | 拒绝 | `malformed`（M15）：多命令工具同样适用 |
 
 ## 6. 小值的正反实例
 
@@ -334,16 +357,20 @@
 
 | 实例 | 预期 | 拒绝值 · 依据 |
 |---|---|---|
-| `{"content": [{"id": "b1", "kind": "tool_call", "visibility": {"toHuman": true, "toModel": true}, "callId": "c9", "tool": "notes", "arguments": {}, "complete": true}]}` | 拒绝 | `result_call_in_content`（③）：结果里不发起调用（[S-22](contract.md#s-22-结果内容里没有工具调用)） |
-| `{"content": [], "offload": {"raw": {"inline": "eA==", "mediaType": "text/plain"}, "summary": [{"id": "b3", "kind": "tool_call", "visibility": {"toHuman": false, "toModel": false}, "rawArguments": "{\"id\":", "complete": false}]}}` | 拒绝 | `result_call_in_content`（③）：半截的调用块同样不行，摘要里同样不行 |
-| `42` | 拒绝 | `malformed`（①）：既不是字符串也不是对象 |
-| `null` | 拒绝 | `malformed`（①）：没有「空返回」这一写法；什么都不给就写 `{"content": []}` |
-| `{}` | 拒绝 | `malformed`（④）：`content` 必填 |
-| `{"content": [], "outcome": "failed"}` | 拒绝 | `malformed`（④）：返回值不带收场（[S-25](contract.md#s-25-toolresult-不是收场)）；「失败」怎么表达是 [G-9](contract.md#十已知缺口) |
-| `{"content": [], "offload": {"summary": [{"id": "b1", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "摘要"}]}}` | 拒绝 | `malformed`（④）：卸载必须给出原始结果 |
-| `{"content": [], "offload": {"raw": {"inline": "eA==", "mediaType": "text/plain"}, "summary": []}}` | 拒绝 | `malformed`（④）：摘要给了就非空——空摘要与没写摘要不是同一件事 |
-| `{"content": [], "offload": {"raw": {"inline": "eA=="}}}` | 拒绝 | `malformed`（④）：内联的原始结果必带媒体类型（[S-23](contract.md#s-23-卸载)） |
-| `{"content": [{"id": "b1", "kind": "text", "text": "缺标注"}]}` | 拒绝 | **以 `data.content-blocks` 的拒绝值报**（②）：块本身不合那份契约（缺两个标注），块的权威在那里 |
+| `{"content": [{"id": "b1", "kind": "tool_call", "visibility": {"toHuman": true, "toModel": true}, "callId": "c9", "tool": "notes", "arguments": {}, "complete": true}]}` | 拒绝 | `result_call_in_content`（第 3 行）：结果里不发起调用（[S-22](contract.md#s-22-结果内容里没有工具调用)） |
+| `{"content": [], "offload": {"raw": {"inline": "eA==", "mediaType": "text/plain"}, "summary": [{"id": "b3", "kind": "tool_call", "visibility": {"toHuman": false, "toModel": false}, "rawArguments": "{\"id\":", "complete": false}]}}` | 拒绝 | `result_call_in_content`（第 3 行）：半截的调用块同样不行，摘要里同样不行 |
+| `42` | 拒绝 | `malformed`（M16）：既不是字符串也不是对象 |
+| `null` | 拒绝 | `malformed`（M16）：没有「空返回」这一写法；什么都不给就写 `{"content": []}` |
+| `{}` | 拒绝 | `malformed`（M17）：`content` 必填 |
+| `{"content": [], "outcome": "failed"}` | 拒绝 | `malformed`（M18）：返回值不带收场（[S-25](contract.md#s-25-toolresult-不是收场)）；「失败」怎么表达是 [G-9](contract.md#十已知缺口) |
+| `{"content": [], "offload": {"summary": [{"id": "b1", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "摘要"}]}}` | 拒绝 | `malformed`（M17）：卸载必须给出原始结果 |
+| `{"content": [], "offload": {"raw": {"inline": "eA==", "mediaType": "text/plain"}, "summary": []}}` | 拒绝 | `malformed`（M20）：摘要给了就非空——空摘要与没写摘要不是同一件事 |
+| `{"content": [], "offload": {"raw": {"inline": "eA=="}}}` | 拒绝 | `malformed`（M17）：内联的原始结果必带媒体类型（[S-23](contract.md#s-23-卸载)） |
+| `{"content": "找到 3 条"}` | 拒绝 | `malformed`（M19）：`content` 是块的数组；只给一段文本就直接返回字符串 |
+| `{"content": [], "offload": {"raw": "eyJyb3dzIjogW119"}}` | 拒绝 | `malformed`（M21）：原始结果只有引用与内联两种形式，裸串不是其一 |
+| `{"content": [], "offload": {"raw": {"inline": "不是 base64", "mediaType": "text/plain"}}}` | 拒绝 | `malformed`（M22）：内联字节按 base64 表示 |
+| `{"content": [], "attachments": [{}]}` | 拒绝 | `malformed`（M23）：附件的地址必须是一个合法的 `AttachmentRef` |
+| `{"content": [{"id": "b1", "kind": "text", "text": "缺标注"}]}` | 拒绝 | **以 `data.content-blocks` 的拒绝值报**（第 2 行）：块本身不合那份契约（缺两个标注），块的权威在那里 |
 
 ## 9. 生成规则的逐字核对
 
@@ -352,27 +379,31 @@
 
 | S-7 | 要求 | 在第 2 节那份生成结果里 | 对得上吗 |
 |---|---|---|---|
-| 第 1 条 | 判别成员名恰为 `command`，取值集恰为全部命令名 | `properties.command.enum` = `["list", "read", "write"]`；`commands` 的键恰是 `write`、`list`、`read` 三个 | 是 |
-| 第 2 条 | 参数成员名恰为 `args` | `properties.args` | 是 |
-| 第 3 条 | 每个命令的 `input` 原样进 `oneOf`，不改写、不合并 | 三个分支与 `commands.list.input`、`commands.read.input`、`commands.write.input` 逐字相同；`read` 的 `help` 与三个命令的 `description` **都没有**进来——它们不是 `input` 的一部分 | 是 |
-| 第 4 条 | 按码点升序，`enum` 与 `oneOf` 同序 | `l`（U+006C）< `r`（U+0072）< `w`（U+0077）：`list`、`read`、`write`；第 1、2、3 个分支依次是它们的 `input`；**与作者在 `commands` 里写的次序（`write`、`list`、`read`）无关** | 是 |
-| 第 5 条 | 命令只来自 `commands`，不为 `help` 生成命令 | `read` 带了 `help`，`enum` 里**没有** `help` | 是 |
-| 第 6 条 | 恰含 `type`、`properties`、`required`、`additionalProperties` 四个成员 | 四个，不多不少；`required` = `["command", "args"]`，`additionalProperties` = `false` | 是 |
+| 第 1 条 | 一个命令恰一支，支只来自 `commands` | `oneOf` 恰三支，对 `commands` 的三个键 `write`、`list`、`read`；`read` 带了 `help`，**没有**为它多出一支 | 是 |
+| 第 2 条 | 判别成员名恰为 `command`，命令 `n` 那一支是 `{"const": n}` | 三支的 `properties.command` 依次是 `{"const": "list"}`、`{"const": "read"}`、`{"const": "write"}` | 是 |
+| 第 3 条 | 参数成员名恰为 `args`，是 `commands[n].input` 原样 | 三支的 `properties.args` 与 `commands.list.input`、`commands.read.input`、`commands.write.input` 逐字相同；`read` 的 `help` **没有**进来 | 是 |
+| 第 4 条 | 那一支的 `description` 是 `commands[n].description` 原样 | 三支的 `description` 与三个命令的 `description` 逐字相同；整个工具的 `description` **不在**生成结果里（它是条目的说明，[S-6](contract.md#s-6-模型面只有一个条目)） | 是 |
+| 第 5 条 | 第 i 支是码点升序排第 i 的命令 | `l`（U+006C）< `r`（U+0072）< `w`（U+0077）：`list`、`read`、`write`；**与作者在 `commands` 里写的次序（`write`、`list`、`read`）无关** | 是 |
+| 第 6 条 | 顶层恰 `type`（`"object"`）与 `oneOf`；每支恰 `description`、`properties`、`required`、`additionalProperties` | 顶层两个成员；每支四个，`required` = `["command", "args"]`，`additionalProperties` = `false` | 是 |
 
 **结论：第 2 节那份生成结果与 S-7 逐条一致。**
 
-**同一个实例也演示了 [G-3](contract.md#十已知缺口) 的缺陷 ①**——规则照做了，得到的 schema 却挡不住命令与参数错配：
+**这份 schema 按所选命令判参数**（对读，未机检）：
 
 | 调用 | 过这份生成出的 input 吗 | 过所选命令自己的 `input` 吗 |
 |---|---|---|
-| `{"command": "read", "args": {}}` | **过**：`{}` 恰只命中 `list` 那一支（`read` 缺 `id`、`write` 缺 `id` 与 `text`），`oneOf` 成立 | **不过**：`read` 要 `id` |
-| `{"command": "list", "args": {"id": "n1"}}` | **过**：恰只命中 `read` 那一支 | **不过**：`list` 不收参数 |
-| `{"command": "read", "args": {"id": "n1"}}` | 过 | 过 |
+| `{"command": "read", "args": {"id": "n1"}}` | **过**：只有 `read` 那一支的 `const` 对得上，参数合那一支的 `args` | 过 |
+| `{"command": "read", "args": {}}` | **不过**：只有 `read` 那一支的 `const` 对得上，`args` 缺 `id`；`list` 那一支的 `const` 是 `list`，不命中 | 不过 |
+| `{"command": "list", "args": {"id": "n1"}}` | **不过**：`list` 那一支的 `args` 不收成员 | 不过 |
+| `{"command": "delete", "args": {}}` | **不过**：没有一支的 `const` 是 `delete` | —（不是命令） |
+| `{"command": "read", "args": {"id": "n1"}, "note": "x"}` | **不过**：每支 `additionalProperties: false` | — |
+| `"read"` | **不过**：顶层 `type` 是 `object` | — |
 
-**缺陷 ②** 要改一处才看得见：把 `list.input` 换成宽松的 `{"type": "object"}`（PF-006 明许的「只带命令清单」就是这种写法），
-那么 `{"command": "read", "args": {"id": "n1"}}` **同时命中 `list` 与 `read` 两支，`oneOf` 不成立——一次完全正确的调用被拒**。
+第二、三条调用在原规则（`args: oneOf`，[G-3](contract.md#十已知缺口)，已关闭）下都会**过**——那正是改判的原因。
 
-这正是 [S-7](contract.md#s-7-多命令-input-的生成规则) 要求消费者**以 `commands[command].input` 判参数、不以过了 `modelInput` 代替**的原因。
+**只带命令清单的写法**：把三个命令的 `input` 都换成 `{}`（[S-5](contract.md#s-5-多命令工具)），生成出的各支 `args` 原样为 `{}`，其余不变。
+此时 `{"command": "read", "args": {"id": "n1"}}` **恰命中 `read` 一支，过**——原规则下它会同时命中三支，`oneOf` 不成立，一次正确的调用被拒；
+`{"command": "read", "args": 5}` 也过：参数不由 schema 约束，用法由 `help` 与 `Tools().inspect` 给；`{"command": "remove", "args": {}}` 仍不过。
 
 ## 10. Schema 挡不住、但同样非法的
 
@@ -382,7 +413,8 @@
 |---|---|
 | 两份 `name` 相同、`input` 不同的定义被当成两个工具，同时出现在动作空间里 | [S-2](contract.md#s-2-身份是-name)：同名即同一个工具的两份表示 |
 | 定义里带了 `help`，`Tools().inspect` 对同一个工具说的是另一套用法 | [S-8](contract.md#s-8-说明与用法) |
-| 一个声明了阈值、却没有 `allowBackground: true` 的工具，因阈值到了被转后台 | [S-12](contract.md#s-12-后台许可与转后台阈值)：阈值不授予许可 |
+| 一个没有 `allowBackground: true` 的工具，被用户手动切到后台，或随插队顺带转了后台 | [S-12](contract.md#s-12-后台许可与转后台阈值)：三个触发源都不绕开许可（有阈值无许可的定义已被 M15 拒在表示层） |
+| `Tools().inspect` 把 `help` 当成一个命令来调，或装配为它在模型面多生成一支 | [S-8](contract.md#s-8-说明与用法)：`help` 是文本字段，由 `inspect` 呈现 |
 | 替换件的 `input` 与原件不同，或它的 `name` 变了 | [S-6](contract.md#s-6-模型面只有一个条目)：同形，只换 `description` |
 | 没声明 `needs.attachmentStorage` 的工具返回了 `attachments` | [S-24](contract.md#s-24-结果与声明对得上) |
 | 没在 `outputModalities` 里声明 `image` 的工具返回了图块 | [S-24](contract.md#s-24-结果与声明对得上) |
@@ -392,10 +424,10 @@
 | 一份被表示层拒绝的定义被装成替换件，或从动作空间里静默消失 | [S-27](contract.md#s-27-表示层拒绝不是判定) |
 | 运行时为了决定解不解析帧，先去查定义里有没有「会发帧」一格 | [S-29](contract.md#s-29-不在定义里的三样) |
 | 从 `issue_search` 这类名字里拆出「来自哪个接入点」 | [S-18](contract.md#s-18-名字的表示与相等)：来源在 `origin`，不在名字里 |
-| 以 `{"command": "read", "args": {}}` 过了生成出的 input 为由执行 `read` | [S-7](contract.md#s-7-多命令-input-的生成规则)：参数以所选命令自己的 `input` 为准 |
+| 命令 `input` 里有 `{"$ref": "#/$defs/Id"}` 这样的根相对引用，运行时仍以「过了生成出的 input」代替按 `commands[c].input` 判参数 | [S-7](contract.md#s-7-多命令-input-的生成规则) 末段：嵌进之后这个引用按生成出的根解析，两者不再等价；参数以所选命令自己的 `input` 为准 |
 
 ## 核对记
 
-起草者逐条对过（2026-09-23，**人工**）：第 1～4 节的正例满足 [S-3](contract.md#s-3-两种范式)～[S-17](contract.md#s-17-来源) 的每一条形状要求；
-第 5、8 节每个反例恰违反一处，且第三列的拒绝值与 [S-26](contract.md#s-26-表示层拒绝值与判定次序) 的次序一致；
-第 6 节的时长实例与 [S-14](contract.md#s-14-时长的表示) 的写法一致。**这不是 Schema 校验**：机检未运行，块与附件引用的实例还要等 `data.content-blocks` 定型后重核。
+起草者逐条对过（2026-09-23，**人工**；同日按主线裁定修订后重对一次）：第 1～4 节的正例满足 [S-3](contract.md#s-3-两种范式)～[S-17](contract.md#s-17-来源) 的每一条形状要求；
+第 5、8 节每个反例恰违反一处，且第三列的拒绝值与 M 编号与 [S-26](contract.md#s-26-表示层拒绝值与判定次序) 的次序一致；
+第 6 节的时长实例与 [S-14](contract.md#s-14-时长的表示) 的写法一致；第 9 节按修订后的 S-7 重做。**这不是 Schema 校验**：机检未运行，块与附件引用的实例还要等 `data.content-blocks` 定型后重核。

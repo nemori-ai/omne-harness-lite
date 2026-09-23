@@ -3,7 +3,7 @@
   "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v1/tool-definition.schema.json",
   "title": "data.tool-definition v1",
   "description": "工具定义与工具返回值的规范形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.tool-definition/v1 内有效。",
-  "$comment": "状态 candidate，未接受、未冻结。块、附件引用、能力标识、模态、媒体类型取自 data.content-blocks v1（同样是候选、在另一处并行起草，尚未定型），本文件只 $ref 其 $defs、不复制定义。Schema 只管形状：help 与 inspect 一致（S-8）、声明与实际对得上（S-19、S-24）、表示层拒绝不折成判定（S-27）都管不到。表示层拒绝值与判定次序见 contract.md S-26。正反实例在同目录 examples.md。",
+  "$comment": "状态 candidate，未接受、未冻结。块、附件引用、能力标识、模态、媒体类型取自 data.content-blocks v1（同样是候选、在另一处并行起草，尚未定型），本文件只 $ref 其 $defs、不复制定义。Schema 只管形状：参数 schema 是否合法的 Draft 2020-12 schema（S-4，表示层校验在 Schema 之外的那一步）、help 与 inspect 一致（S-8）、声明与实际对得上（S-19、S-24）、表示层拒绝不折成判定（S-27）都管不到。表示层拒绝值、判定次序与 malformed 的来由 M1～M23 见 contract.md S-26。正反实例在同目录 examples.md。",
 
   "$defs": {
 
@@ -25,7 +25,7 @@
         "description": { "type": "string", "minLength": 1, "description": "S-8：模型面那个条目的说明。替换件与原件同形，只换这一项。" },
         "paradigm": { "const": "single" },
         "input": { "$ref": "#/$defs/JsonSchema", "description": "S-4：参数 schema，原样即 modelInput（S-6）。" },
-        "help": { "type": "string", "minLength": 1, "description": "S-8：可选的用法说明；带了须与 Tools().inspect 一致。它与产品正文「help 命令空间」的对应是缺口 G-4。" },
+        "help": { "type": "string", "minLength": 1, "description": "S-8：可选的用法说明，是一个文本字段；带了须与 Tools().inspect 一致。产品正文的「help 命令空间」由 inspect 呈现这个字段，不是一个可调的命令。" },
         "needs": { "$ref": "#/$defs/ToolNeeds" },
         "settings": { "$ref": "#/$defs/ToolSettings" },
         "allowBackground": { "type": "boolean", "description": "S-12：作者的许可，不是设置。不声明即不允许。" },
@@ -46,12 +46,20 @@
       },
       "required": ["name", "description", "paradigm", "input", "permissions", "origin"],
       "additionalProperties": false,
-      "if": {
-        "properties": { "origin": { "properties": { "kind": { "const": "mcp" } }, "required": ["kind"] } },
-        "required": ["origin"]
-      },
-      "then": { "not": { "required": ["composes"] } },
-      "$comment": "if/then 表达 S-16 与 S-17：MCP 来源的定义不组合任何资产。它被拒时的拒绝值是 malformed（S-26 第 10 位）。"
+      "allOf": [
+        {
+          "if": {
+            "properties": { "origin": { "properties": { "kind": { "const": "mcp" } }, "required": ["kind"] } },
+            "required": ["origin"]
+          },
+          "then": { "not": { "required": ["composes"] } }
+        },
+        {
+          "if": { "properties": { "settings": { "required": ["backgroundThreshold"] } }, "required": ["settings"] },
+          "then": { "properties": { "allowBackground": { "const": true } }, "required": ["allowBackground"] }
+        }
+      ],
+      "$comment": "allOf 的两条 if/then：第一条表达 S-16 与 S-17（MCP 来源的定义不组合任何资产，malformed M14）；第二条表达 S-12（声明了转后台阈值就必须有后台许可，malformed M15）。"
     },
 
     "MultiCommandTool": {
@@ -69,7 +77,7 @@
           "propertyNames": { "minLength": 1 },
           "additionalProperties": { "$ref": "#/$defs/CommandDefinition" }
         },
-        "help": { "type": "string", "minLength": 1, "description": "S-8：整个工具的用法总览，可选；带了须与 Tools().inspect 一致。不因它生成任何命令（S-7 第 5 条）。" },
+        "help": { "type": "string", "minLength": 1, "description": "S-8：整个工具的用法总览，可选，是一个文本字段；带了须与 Tools().inspect 一致。不因它生成任何一支（S-7 第 1 条）。" },
         "needs": { "$ref": "#/$defs/ToolNeeds" },
         "settings": { "$ref": "#/$defs/ToolSettings" },
         "allowBackground": { "type": "boolean", "description": "S-12。" },
@@ -95,12 +103,15 @@
         }
       },
       "required": ["name", "description", "paradigm", "commands", "permissions", "origin"],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "if": { "properties": { "settings": { "required": ["backgroundThreshold"] } }, "required": ["settings"] },
+      "then": { "properties": { "allowBackground": { "const": true } }, "required": ["allowBackground"] },
+      "$comment": "if/then 表达 S-12：声明了转后台阈值就必须有后台许可（malformed M15）。MCP 来源不得是这一种，由 origin 的 kind 限定为 authored 表达（M14）。"
     },
 
     "CommandDefinition": {
       "title": "命令定义",
-      "description": "S-5：多命令工具里的一个命令。description 必填（说明这一个命令）；input 是这个命令的参数 schema，原样进生成规则的 oneOf（S-7 第 3 条）；help 可选，带了须与 Tools().inspect 对这个命令的回答一致（S-8）。",
+      "description": "S-5：多命令工具里的一个命令。description 必填（说明这一个命令），原样成为生成规则里那一支的 description（S-7 第 4 条）；input 是这个命令的参数 schema，原样成为那一支的 args（S-7 第 3 条），只带命令清单的写法下写 {}；help 可选，是一个文本字段，带了须与 Tools().inspect 对这个命令的回答一致（S-8）。",
       "type": "object",
       "properties": {
         "description": { "type": "string", "minLength": 1 },
@@ -113,9 +124,9 @@
 
     "JsonSchema": {
       "title": "JSON Schema（Draft 2020-12）",
-      "description": "S-4、S-5：参数 schema 必须是一份合法的 Draft 2020-12 schema（对象或布尔），按官方元 schema 判；不合即 input_not_schema（S-26 第 5 位）。本契约不约束它用哪些关键字、顶层是不是对象、能不能引用外部资源——各家供应商能呈现的子集是缺口 G-12。",
-      "$ref": "https://json-schema.org/draft/2020-12/schema",
-      "$comment": "按施工简报账本以 $ref 引用官方元 schema。设计工作区的检查器只解析登记在 catalog 里的 Schema 资源，会把这个外部 $ref 报成 unresolved schema resource——这是检查器与账本之间的冲突，已报主线，未在此自行改写。"
+      "description": "S-4、S-5：参数 schema。取值必须是 JSON Schema Draft 2020-12 的合法 schema，由实现校验，不由本 Schema 表达；本 Schema 只要求它是一个 JSON 对象，因此布尔 schema 不收。不是对象、或是对象却不合 Draft 2020-12，都是 input_not_schema（S-26 第 5 行）。本契约不约束它用哪些关键字、顶层是否 type object、能不能引用外部资源——各家供应商能呈现的子集是缺口 G-12。",
+      "type": "object",
+      "$comment": "不 $ref 官方元 schema（主线 2026-09-23 裁定）：合法性检查是表示层校验在 Schema 之外的那一步。"
     },
 
     "ToolNeeds": {
@@ -140,7 +151,7 @@
 
     "ToolSettings": {
       "title": "设置项声明",
-      "description": "S-10～S-13：本版恰四项，各自可选；不声明的项不存在，各层无从配值。每一项的类别由本契约定死：targetEnvironment 恒为 placement_identity，其余三项恒为 preference——作者标了别的类别即 malformed，标了四值之外的类别即 category_unknown。定义给的是形状与默认值，不是最终值。",
+      "description": "S-10～S-13：本版恰四项，各自可选；不声明的项不存在，各层无从配值。每一项的类别由本契约定死：targetEnvironment 恒为 placement_identity，其余三项恒为 preference——作者标了别的类别即 malformed（M10），标了四值之外的类别即 category_unknown。定义给的是形状与默认值，不是最终值。",
       "type": "object",
       "properties": {
         "targetEnvironment": {
@@ -151,7 +162,7 @@
           ]
         },
         "backgroundThreshold": {
-          "description": "S-12：前台跑超过多久自动转后台；偏好类。它不授予后台许可——allowBackground 不为 true 时永不生效。",
+          "description": "S-12：前台跑超过多久自动转后台；偏好类。它不授予后台许可：声明了它，定义就必须同时带 allowBackground: true（由 SingleFunctionTool、MultiCommandTool 的 if/then 表达，否则 malformed M15）。",
           "allOf": [
             { "$ref": "#/$defs/SettingDeclaration" },
             { "properties": { "category": { "const": "preference" }, "default": { "$ref": "#/$defs/Duration" } } }

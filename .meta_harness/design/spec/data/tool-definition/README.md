@@ -33,7 +33,8 @@
 | 本候选版本精确承诺什么 | [v1 契约](v1/contract.md) |
 | 交换与存储表示 | [v1 Schema](v1/tool-definition.schema.json) |
 | 一份定义、一个返回值长什么样，什么会被拒 | [v1 正反实例](v1/examples.md) |
-| 多命令工具在模型面那一份 input 到底长什么样 | [契约 S-7](v1/contract.md#s-7-多命令-input-的生成规则) 与 [实例第 9 节](v1/examples.md#9-生成规则的逐字核对)——**先读 G-3** |
+| 多命令工具在模型面那一份 input 到底长什么样 | [契约 S-7](v1/contract.md#s-7-多命令-input-的生成规则) 与 [实例第 9 节](v1/examples.md#9-生成规则的逐字核对) |
+| 一份坏定义、坏返回值报哪个拒绝值 | [契约 S-26](v1/contract.md#s-26-表示层拒绝值与判定次序)：十个值、判定次序、`malformed` 的来由 M1～M23 |
 | 哪里在等裁决 | [已知缺口](v1/contract.md#十已知缺口) |
 | 哪些条款有怎样的证据义务，现在到哪一步 | [验证与覆盖](verification.md) |
 
