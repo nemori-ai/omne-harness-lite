@@ -13,8 +13,10 @@
 
 - **`通过` 只说形状合规。**判定次序、身份推导、补授权、映射、逐字相同都不在 Schema 的能力范围内；它们的证据在[形式工件](formal/README.md)与[验证入口](../verification.md)。
 - **信封「拒绝」不等于 `invalid-input`。**不合形状时答哪一种，由 [S-10](contract.md#s-10-判定次序) 按不合的是哪个成员决定；信封一节多给一列「线上答复」。
-- **标识串只是占位。**`LoginStateId` 的具体词法归 `data.identity-values` v1，示例里的 `lgs_` 前缀不承诺任何规则；
-  `GovernanceCenterId` 与列表句柄的十六进制表示是本契约的定名（[S-27](contract.md#s-27-governancecenterid-的形状与相等)、[S-9](contract.md#s-9-列表句柄)）。
+- **标识串只是占位。**出示物的字母表与长度 `capability.account-identity` v2 S-45 不定，示例里的 `lsp_` 前缀与长度不承诺任何规则、也不代表熵下限；
+  列表句柄就是 `LoginStateId`（[S-9](contract.md#s-9-列表句柄)），示例里的 64 个十六进制字符按 AI S-45 的派生式由同表的出示物算出
+  （`lsp_q8Jf…1GsW` → `b8f71176…0dd8e`，`lsp_Zt5R…0uVx` → `c3ff21f9…cf87aa`），但 Schema 只按 `data.identity-values` v1 的不透明标识校验它，示例里另有的 `lgs_` 前缀串同样只是占位；
+  `GovernanceCenterId` 的十六进制表示是本契约的定名（[S-27](contract.md#s-27-governancecenterid-的形状与相等)）。
 
 ## 1. GovernanceCenterId
 
@@ -30,16 +32,24 @@
 | `"3f9c1e0a7b2d4c6e8f0a1b2c3d4e5f60 "` | 拒绝 | S-27：带空白不是合法值 |
 | `""` | 拒绝 | S-27 |
 
-## 2. 列表句柄
+## 2. 出示物
 
-**校验对象**：`$defs/LoginStateHandle`
+**校验对象**：`$defs/LoginStatePresentation`
+
+表示层不合格的出示物在线上答 `login-state-rejected`，不是 `invalid-input`（[S-5](contract.md#s-5-出示物)）；登录成功答复里的 `loginState` 用的是同一个定义。
 
 | 实例 | 预期 | 依据 |
 |---|---|---|
-| `"9b1d5e0f3a7c2b4d6e8f0a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b"` | 通过 | [S-9](contract.md#s-9-列表句柄)：64 个小写十六进制字符 |
-| `"lgs_3c7e11"` | 拒绝 | S-9：一个 `LoginStateId` 不是句柄；反过来，句柄当出示物用在第 ② 步被判「从没签发过」 |
-| `"9B1D5E0F3A7C2B4D6E8F0A1C3E5B7D9F1A3C5E7B9D1F3A5C7E9B1D3F5A7C9E1B"` | 拒绝 | S-9：比较逐字符，大写不是交换表示 |
-| `"9b1d5e0f"` | 拒绝 | S-9：长度不对 |
+| `"lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW"` | 通过 | [S-5](contract.md#s-5-出示物)；AI S-45：不透明字符串，首末都不是空白 |
+| `"x"` | 通过 | AI S-45：字母表不定、长度没有下限；熵下限是签发方的承诺，不是形状 |
+| `"lsp_😀x"` | 通过 | AI S-45：成对的代理是一个标量值（U+1F600），不是孤立的代理码点 |
+| `"lsp_\uD800x"` | 拒绝 | AI S-45：孤立的代理码点不是 Unicode 标量值，没有 UTF-8 编码，派生对它无定义 |
+| `"b8f7117646179c7f8f923b56e9735b1a337d0cf67c7a5d63d3d2f4896ec0dd8e"` | 通过 | 形状上与任何出示物无从区分；拿 `LoginStateId` 当出示物是在第 ② 步被 AI S-44 拒成 `login-state-rejected`（[S-11](contract.md#s-11-认人)），不是表示层 |
+| `""` | 拒绝 | AI S-45：非空 |
+| `" lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW"` | 拒绝 | AI S-45：首字符不得是 `data.identity-values` v1 S-31 空白码点表里的码点 |
+| `"lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW\n"` | 拒绝 | 同上，末字符；尾随换行正是 `$` 会放过的那一处 |
+| `"﻿lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW"` | 拒绝 | 同上：U+FEFF 在那张表里 |
+| `42` | 拒绝 | 出示物是字符串 |
 
 ## 3. 请求信封
 
@@ -47,23 +57,25 @@
 
 | 实例 | 预期 | 依据 | 线上答复（[S-10](contract.md#s-10-判定次序)） |
 |---|---|---|---|
-| `{"protocolVersion": "1", "presentedLoginState": "lgs_3c7e11", "operation": "capability.organization-governance/v1#S-27", "payload": {}}` | 通过 | [S-4](contract.md#s-4-请求信封)：四个成员；没有载荷项时是空对象 | 往下走第 ② 步 |
-| `{"protocolVersion": "1", "operation": "capability.account-identity/v1#S-15", "payload": {"loginIdentifier": "ada@example.invalid", "credential": "correct horse battery staple"}}` | 通过 | S-4：出示物可以缺席；登录不看它 | 往下走第 ③ 步 |
-| `{"protocolVersion": "1", "operation": "capability.account-identity/v1#S-15", "payload": {}}` | 拒绝 | S-4、[S-17](contract.md#s-17-路由表封闭每条路由的九件事从哪读)：载荷按 `operation` 判别到登录的载荷，缺登录标识与凭据 | `invalid-input`（免认人路由，不用查就判） |
-| `{"protocolVersion": "1", "presentedLoginState": "lgs_3c7e11", "operation": "capability.organization-governance/v1#S-22", "payload": {"organization": "org_kf22", "tenant": {"organization": "org_kf22", "account": "acc_7f3c91"}}}` | 拒绝 | S-17：载荷成员封闭，多了一个 | 认出人之后 `invalid-input`；已撤销的出示物 ⇒ `login-state-rejected` |
+| `{"protocolVersion": "1", "presentedLoginState": "lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW", "operation": "capability.organization-governance/v1#S-27", "payload": {}}` | 通过 | [S-4](contract.md#s-4-请求信封)：四个成员；没有载荷项时是空对象 | 往下走第 ② 步 |
+| `{"protocolVersion": "1", "operation": "capability.account-identity/v2#S-15", "payload": {"loginIdentifier": "ada@example.invalid", "credential": "correct horse battery staple"}}` | 通过 | S-4：出示物可以缺席；登录不看它 | 往下走第 ③ 步 |
+| `{"protocolVersion": "1", "operation": "capability.account-identity/v2#S-15", "payload": {}}` | 拒绝 | S-4、[S-17](contract.md#s-17-路由表封闭每条路由的九件事从哪读)：载荷按 `operation` 判别到登录的载荷，缺登录标识与凭据 | `invalid-input`（免认人路由，不用查就判） |
+| `{"protocolVersion": "1", "presentedLoginState": "lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW", "operation": "capability.organization-governance/v1#S-22", "payload": {"organization": "org_kf22", "tenant": {"organization": "org_kf22", "account": "acc_7f3c91"}}}` | 拒绝 | S-17：载荷成员封闭，多了一个 | 认出人之后 `invalid-input`；已撤销的出示物 ⇒ `login-state-rejected` |
 | `{"protocolVersion": "1", "operation": "capability.organization-governance/v1#S-27", "payload": {}}` | 通过 | S-4：形状上出示物可缺席 | `login-state-rejected`（[S-11](contract.md#s-11-认人)：没带，不用查） |
-| `{"presentedLoginState": "lgs_3c7e11", "operation": "capability.organization-governance/v1#S-27", "payload": {}}` | 拒绝 | S-4：缺 `protocolVersion` | `version-mismatch`（[S-10](contract.md#s-10-判定次序) ①，出示物一眼都不看） |
+| `{"presentedLoginState": "lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW", "operation": "capability.organization-governance/v1#S-27", "payload": {}}` | 拒绝 | S-4：缺 `protocolVersion` | `version-mismatch`（[S-10](contract.md#s-10-判定次序) ①，出示物一眼都不看） |
 | `{"protocolVersion": "", "operation": "capability.organization-governance/v1#S-27", "payload": {}}` | 拒绝 | [S-8](contract.md#s-8-协议版本与跨版本不变的两样) | `version-mismatch` |
-| `{"protocolVersion": "1", "presentedLoginState": "lgs_3c7e11", "operation": "capability.account-identity/v1#S-17", "payload": {}}` | 拒绝 | [S-24](contract.md#s-24-有意不投影)：S-17 不作为一条路由 | `invalid-input`（①′） |
-| `{"protocolVersion": "1", "presentedLoginState": "lgs_3c7e11", "operation": "capability.organization-governance/v1#S-53", "payload": {}}` | 拒绝 | S-24：清除个人组织没有路由 | `invalid-input`（①′） |
-| `{"protocolVersion": "1", "presentedLoginState": "lgs_3c7e11", "operation": "capability.account-identity/v1#S-18", "payload": {}}` | 拒绝 | S-24：读账号没有路由 | `invalid-input`（①′） |
-| `{"protocolVersion": "1", "presentedLoginState": "lgs_3c7e11", "operation": "capability.organization-governance/v1#S-23", "payload": {}, "actingTenant": {"organization": "org_kf22", "account": "acc_7f3c91"}}` | 拒绝 | S-4：表外成员；[S-12](contract.md#s-12-身份推导)：本版没有「以哪个租户身份行事」这一格 | `invalid-input`（①′）——表示层收场，**不是**对 [G-2](contract.md#十三已知缺口) 的回答 |
-| `{"protocolVersion": "1", "presentedLoginState": "lgs_3c7e11", "operation": "capability.organization-governance/v1#S-27", "payload": {}, "requestedAt": "2026-09-23T10:00:00Z"}` | 拒绝 | S-4：时间不进信封 | `invalid-input`（①′） |
-| `{"protocolVersion": "1", "presentedLoginState": ["lgs_3c7e11", "lgs_9a0b22"], "operation": "capability.organization-governance/v1#S-27", "payload": {}}` | 拒绝 | [S-5](contract.md#s-5-出示物)：恰好一个 | `login-state-rejected`（多个，不用查） |
+| `{"protocolVersion": "1", "presentedLoginState": "lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW", "operation": "capability.account-identity/v2#S-17", "payload": {}}` | 拒绝 | [S-24](contract.md#s-24-有意不投影)：S-17 不作为一条路由 | `invalid-input`（①′） |
+| `{"protocolVersion": "1", "presentedLoginState": "lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW", "operation": "capability.account-identity/v2#S-44", "payload": {}}` | 拒绝 | S-24：认人是每个经 ② 的请求的第 ② 步，不作为一条路由 | `invalid-input`（①′） |
+| `{"protocolVersion": "1", "operation": "capability.account-identity/v1#S-15", "payload": {"loginIdentifier": "ada@example.invalid", "credential": "correct horse battery staple"}}` | 拒绝 | [S-17](contract.md#s-17-路由表封闭每条路由的九件事从哪读)：路由标识是被投影条款的坐标，本版投影的是账号能力 v2，v1 的坐标不在表里 | `invalid-input`（①′） |
+| `{"protocolVersion": "1", "presentedLoginState": "lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW", "operation": "capability.organization-governance/v1#S-53", "payload": {}}` | 拒绝 | S-24：清除个人组织没有路由 | `invalid-input`（①′） |
+| `{"protocolVersion": "1", "presentedLoginState": "lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW", "operation": "capability.account-identity/v2#S-18", "payload": {}}` | 拒绝 | S-24：读账号没有路由 | `invalid-input`（①′） |
+| `{"protocolVersion": "1", "presentedLoginState": "lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW", "operation": "capability.organization-governance/v1#S-23", "payload": {}, "actingTenant": {"organization": "org_kf22", "account": "acc_7f3c91"}}` | 拒绝 | S-4：表外成员；[S-12](contract.md#s-12-身份推导)：本版没有「以哪个租户身份行事」这一格 | `invalid-input`（①′）——表示层收场，**不是**对 [G-2](contract.md#十三已知缺口) 的回答 |
+| `{"protocolVersion": "1", "presentedLoginState": "lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW", "operation": "capability.organization-governance/v1#S-27", "payload": {}, "requestedAt": "2026-09-23T10:00:00Z"}` | 拒绝 | S-4：时间不进信封 | `invalid-input`（①′） |
+| `{"protocolVersion": "1", "presentedLoginState": ["lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW", "lsp_Zt5Rn0aB7cD2eF9gH4iJ6kL1mN3oP8qS0uVx"], "operation": "capability.organization-governance/v1#S-27", "payload": {}}` | 拒绝 | [S-5](contract.md#s-5-出示物)：恰好一个 | `login-state-rejected`（多个，不用查） |
 | `{"protocolVersion": "1", "presentedLoginState": "", "operation": "capability.organization-governance/v1#S-27", "payload": {}}` | 拒绝 | S-5：表示层不合格的出示物 | `login-state-rejected`（出示物是身份，不是输入） |
-| `{"protocolVersion": "1", "presentedLoginState": "", "operation": "capability.account-identity/v1#S-15", "payload": {}}` | 拒绝 | S-5 | 登录不看出示物：按载荷判（[S-19](contract.md#s-19-免认人的两条路由注册登录)） |
-| `{"protocolVersion": "1", "presentedLoginState": "lgs_3c7e11", "operation": "capability.organization-governance/v1#S-27"}` | 拒绝 | S-4：`payload` 必需 | 属于「载荷」那一步，认出人之后才看：登录状态有效 ⇒ `invalid-input`；已撤销 ⇒ `login-state-rejected` |
-| `{"protocolVersion": "1", "presentedLoginState": "lgs_3c7e11", "operation": "capability.organization-governance/v1#S-27", "payload": null}` | 拒绝 | S-4：`payload` 是对象 | 同上 |
+| `{"protocolVersion": "1", "presentedLoginState": "", "operation": "capability.account-identity/v2#S-15", "payload": {}}` | 拒绝 | S-5 | 登录不看出示物：按载荷判（[S-19](contract.md#s-19-免认人的两条路由注册登录)） |
+| `{"protocolVersion": "1", "presentedLoginState": "lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW", "operation": "capability.organization-governance/v1#S-27"}` | 拒绝 | S-4：`payload` 必需 | 属于「载荷」那一步，认出人之后才看：登录状态有效 ⇒ `invalid-input`；已撤销 ⇒ `login-state-rejected` |
+| `{"protocolVersion": "1", "presentedLoginState": "lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW", "operation": "capability.organization-governance/v1#S-27", "payload": null}` | 拒绝 | S-4：`payload` 是对象 | 同上 |
 
 ## 4. 公开体检的请求
 
@@ -72,7 +84,7 @@
 | 实例 | 预期 | 依据 |
 |---|---|---|
 | `{"operation": "composition.governance-center-entry/v1#S-18"}` | 通过 | [S-18](contract.md#s-18-公开体检) |
-| `{"operation": "composition.governance-center-entry/v1#S-18", "protocolVersion": "0-obsolete", "presentedLoginState": "lgs_3c7e11"}` | 通过 | S-18：其余成员一律忽略——版本对不上照样读得到，带的登录状态不被看 |
+| `{"operation": "composition.governance-center-entry/v1#S-18", "protocolVersion": "0-obsolete", "presentedLoginState": "lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW"}` | 通过 | S-18：其余成员一律忽略——版本对不上照样读得到，带的登录状态不被看 |
 | `{"operation": "capability.organization-governance/v1#S-27"}` | 拒绝 | S-18：不是公开体检 |
 | `{}` | 拒绝 | S-18 |
 
@@ -98,7 +110,7 @@
 |---|---|---|
 | `{"failure": "notAuthorized"}` | 通过 | [S-13](contract.md#s-13-补授权)：补授权不过；[S-22](contract.md#s-22-组织治理读路由与补授权) |
 | `{"failure": "interrupted"}` | 通过 | [S-19](contract.md#s-19-免认人的两条路由注册登录)：注册的 `interrupted` 原样呈现，不改写成 `unavailable` |
-| `{"failure": "login-state-not-found"}` | 通过 | [S-20](contract.md#s-20-登录状态的两条路由撤销列出)：句柄匹配不到 |
+| `{"failure": "login-state-not-found"}` | 通过 | [S-20](contract.md#s-20-登录状态的两条路由撤销列出)：撤销的目标查不到或不属于本账号，AI S-16 原名透传 |
 | `{"failure": "identifier-or-credential-rejected"}` | 通过 | S-19：三种登录失败逐字相同 |
 | `{"failure": "notOwnTenant"}` | 通过 | [S-23](contract.md#s-23-当前租户身份的两条路由) |
 | `{"failure": "identifier-held-by-expired-record"}` | 拒绝 | S-19：结构上到不了本组合 |
@@ -179,11 +191,12 @@ Schema 挡得住体检里多出的成员；答复与工程记录里的秘密仍�
 
 | 实例 | 预期 | 依据 |
 |---|---|---|
-| `{"loginState": "lgs_3c7e11", "loginStateHandle": "9b1d5e0f3a7c2b4d6e8f0a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b"}` | 通过 | [S-19](contract.md#s-19-免认人的两条路由注册登录)：出示物与它的列表句柄 |
-| `{"loginState": "lgs_3c7e11"}` | 拒绝 | S-19：缺句柄，客户端就无从在列表里认出自己、也无从退出 |
-| `{"loginStateId": "lgs_3c7e11", "loginStateHandle": "9b1d5e0f3a7c2b4d6e8f0a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b"}` | 拒绝 | S-19：成员名是 `loginState` |
-| `{"loginState": "lgs_3c7e11", "loginStateHandle": "9b1d5e0f3a7c2b4d6e8f0a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b", "account": "acc_7f3c91"}` | 拒绝 | S-19：返回恰此两样，不夹带账号 |
-| `{"loginState": "", "loginStateHandle": "9b1d5e0f3a7c2b4d6e8f0a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b"}` | 拒绝 | `data.identity-values` v1 S-12：空串不是身份值 |
+| `{"loginState": "lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW", "loginStateHandle": "b8f7117646179c7f8f923b56e9735b1a337d0cf67c7a5d63d3d2f4896ec0dd8e"}` | 通过 | [S-19](contract.md#s-19-免认人的两条路由注册登录)：出示物与它的列表句柄 |
+| `{"loginState": "lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW"}` | 拒绝 | S-19：缺句柄，客户端就无从在列表里认出自己、也无从退出 |
+| `{"loginStateId": "lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW", "loginStateHandle": "b8f7117646179c7f8f923b56e9735b1a337d0cf67c7a5d63d3d2f4896ec0dd8e"}` | 拒绝 | S-19：成员名是 `loginState` |
+| `{"loginState": "lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW", "loginStateHandle": "b8f7117646179c7f8f923b56e9735b1a337d0cf67c7a5d63d3d2f4896ec0dd8e", "account": "acc_7f3c91"}` | 拒绝 | S-19：返回恰此两样，不夹带账号 |
+| `{"loginState": "", "loginStateHandle": "b8f7117646179c7f8f923b56e9735b1a337d0cf67c7a5d63d3d2f4896ec0dd8e"}` | 拒绝 | AI S-45：出示物非空 |
+| `{"loginState": "lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW", "loginStateHandle": "b8f7117646179c7f8f923b56e9735b1a337d0cf67c7a5d63d3d2f4896ec0dd8e "}` | 拒绝 | `data.identity-values` v1 S-31：句柄就是 `LoginStateId`，首末不得是空白 |
 
 ## 13. 登录状态列表的一项
 
@@ -191,11 +204,12 @@ Schema 挡得住体检里多出的成员；答复与工程记录里的秘密仍�
 
 | 实例 | 预期 | 依据 |
 |---|---|---|
-| `{"loginStateHandle": "9b1d5e0f3a7c2b4d6e8f0a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b", "issuedAt": "2026-09-23T08:00:00Z"}` | 通过 | [S-20](contract.md#s-20-登录状态的两条路由撤销列出) |
-| `{"loginStateHandle": "9b1d5e0f3a7c2b4d6e8f0a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b", "issuedAt": "2026-09-23T08:00:00Z", "loginState": "lgs_3c7e11"}` | 拒绝 | S-20、[S-9](contract.md#s-9-列表句柄)：列表不含 `LoginStateId` |
-| `{"loginStateHandle": "9b1d5e0f3a7c2b4d6e8f0a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b"}` | 拒绝 | S-20：每一项都带签发时间 |
-| `{"loginStateHandle": "lgs_3c7e11", "issuedAt": "2026-09-23T08:00:00Z"}` | 拒绝 | S-9：一个 `LoginStateId` 不是句柄 |
-| `{"loginStateHandle": "9b1d5e0f3a7c2b4d6e8f0a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b", "issuedAt": "2026-09-23T08:00:00"}` | 拒绝 | S-20：`issuedAt` 是 `data.offer-expiry` v1 的 `Instant`，必须带时区偏移 |
+| `{"loginStateHandle": "b8f7117646179c7f8f923b56e9735b1a337d0cf67c7a5d63d3d2f4896ec0dd8e", "issuedAt": "2026-09-23T08:00:00Z"}` | 通过 | [S-20](contract.md#s-20-登录状态的两条路由撤销列出) |
+| `{"loginStateHandle": "b8f7117646179c7f8f923b56e9735b1a337d0cf67c7a5d63d3d2f4896ec0dd8e", "issuedAt": "2026-09-23T08:00:00Z", "loginState": "lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW"}` | 拒绝 | S-20、[S-9](contract.md#s-9-列表句柄)：列表不含出示物 |
+| `{"loginStateHandle": "b8f7117646179c7f8f923b56e9735b1a337d0cf67c7a5d63d3d2f4896ec0dd8e"}` | 拒绝 | S-20：每一项都带签发时间 |
+| `{"loginStateHandle": "lgs_3c7e11", "issuedAt": "2026-09-23T08:00:00Z"}` | 通过 | S-9：句柄就是 `LoginStateId`，Schema 只按 `data.identity-values` v1 的不透明标识校验，不校验 AI S-45 的派生形式——消费者不得解析它 |
+| `{"loginStateHandle": "", "issuedAt": "2026-09-23T08:00:00Z"}` | 拒绝 | `data.identity-values` v1 S-12、S-31：空串不是身份值 |
+| `{"loginStateHandle": "b8f7117646179c7f8f923b56e9735b1a337d0cf67c7a5d63d3d2f4896ec0dd8e", "issuedAt": "2026-09-23T08:00:00"}` | 拒绝 | S-20：`issuedAt` 是 `data.offer-expiry` v1 的 `Instant`，必须带时区偏移 |
 
 ## 14. 各路由的载荷与成功返回
 
@@ -221,7 +235,7 @@ Schema 挡得住体检里多出的成员；答复与工程记录里的秘密仍�
 | `"registered"` | 通过 | 该组合 S-4、S-5 |
 | `"interrupted"` | 拒绝 | 另三个终结结果走 `{ failure }`，不是成功返回（[S-19](contract.md#s-19-免认人的两条路由注册登录)） |
 
-### 14.2 登录 `capability.account-identity/v1#S-15`
+### 14.2 登录 `capability.account-identity/v2#S-15`
 
 **校验对象**：`$defs/Payload_AI_S15`
 
@@ -234,18 +248,18 @@ Schema 挡得住体检里多出的成员；答复与工程记录里的秘密仍�
 
 | 实例 | 预期 | 依据 |
 |---|---|---|
-| `{"loginState": "lgs_3c7e11", "loginStateHandle": "9b1d5e0f3a7c2b4d6e8f0a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b"}` | 通过 | S-19 |
-| `"lgs_3c7e11"` | 拒绝 | 返回是出示物连同它的句柄，不是一个裸的 `LoginStateId` |
+| `{"loginState": "lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW", "loginStateHandle": "b8f7117646179c7f8f923b56e9735b1a337d0cf67c7a5d63d3d2f4896ec0dd8e"}` | 通过 | S-19 |
+| `"lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW"` | 拒绝 | 返回是出示物连同它的 `LoginStateId`，不是一个裸的出示物 |
 
-### 14.3 撤销 `capability.account-identity/v1#S-16`
+### 14.3 撤销 `capability.account-identity/v2#S-16`
 
 **校验对象**：`$defs/Payload_AI_S16`
 
 | 实例 | 预期 | 依据 |
 |---|---|---|
-| `{"loginStateHandle": "9b1d5e0f3a7c2b4d6e8f0a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b"}` | 通过 | 目标经句柄指认（[S-20](contract.md#s-20-登录状态的两条路由撤销列出)） |
+| `{"loginStateHandle": "b8f7117646179c7f8f923b56e9735b1a337d0cf67c7a5d63d3d2f4896ec0dd8e"}` | 通过 | 目标就是这个 `LoginStateId`，原样交给 AI S-16（[S-20](contract.md#s-20-登录状态的两条路由撤销列出)） |
 | `{}` | 拒绝 | 句柄必需；缺席**不是**「退出自己」 |
-| `{"loginState": "lgs_3c7e11"}` | 拒绝 | 线上不收目标的 `LoginStateId` |
+| `{"loginState": "lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW"}` | 拒绝 | 成员名是 `loginStateHandle`；撤销的目标按 `LoginStateId` 指认，不收出示物 |
 
 **校验对象**：`$defs/Result_AI_S16`
 
@@ -254,7 +268,7 @@ Schema 挡得住体检里多出的成员；答复与工程记录里的秘密仍�
 | `"ok"` | 通过 | ⑤ `ok` |
 | `true` | 拒绝 | ⑤ 是字符串 `"ok"` |
 
-### 14.4 列出登录状态 `capability.account-identity/v1#S-37`
+### 14.4 列出登录状态 `capability.account-identity/v2#S-37`
 
 **校验对象**：`$defs/Payload_AI_S37`
 
@@ -267,7 +281,7 @@ Schema 挡得住体检里多出的成员；答复与工程记录里的秘密仍�
 
 | 实例 | 预期 | 依据 |
 |---|---|---|
-| `[{"loginStateHandle": "9b1d5e0f3a7c2b4d6e8f0a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b", "issuedAt": "2026-09-23T08:00:00Z"}]` | 通过 | S-20 |
+| `[{"loginStateHandle": "b8f7117646179c7f8f923b56e9735b1a337d0cf67c7a5d63d3d2f4896ec0dd8e", "issuedAt": "2026-09-23T08:00:00Z"}]` | 通过 | S-20 |
 | `[]` | 拒绝 | 成功调用必含调用方自己那一个；空列表是缺陷，入口答 `unavailable` |
 
 ### 14.5 创建团队组织 `capability.organization-governance/v1#S-21`
@@ -530,8 +544,8 @@ Schema 挡得住体检里多出的成员；答复与工程记录里的秘密仍�
 
 | 实例 | 预期 | 依据 |
 |---|---|---|
-| `{}` | 通过 | LoginStateId 就是出示物 |
-| `{"loginState": "lgs_3c7e11"}` | 拒绝 | 出示物在信封里，不在载荷里 |
+| `{}` | 通过 | LoginStateId 是认人所得 `LoginStateId`（[S-12](contract.md#s-12-身份推导)），不在载荷里 |
+| `{"loginState": "lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW"}` | 拒绝 | 出示物在信封里，不在载荷里 |
 
 **校验对象**：`$defs/Result_OG_S36`
 
@@ -671,7 +685,7 @@ Schema 挡得住体检里多出的成员；答复与工程记录里的秘密仍�
 | `{"operation": "capability.organization-governance/v1#S-28", "reply": {"result": "ok"}}` | 通过 | 调整角色的成功返回 |
 | `{"operation": "capability.organization-governance/v1#S-28", "reply": "login-state-rejected"}` | 通过 | 入口答复对每条路由同形 |
 | `{"operation": "capability.organization-governance/v1#S-28", "reply": {"failure": "wouldLeaveNoSuperAdministrator"}}` | 通过 | 具名失败 |
-| `{"operation": "capability.account-identity/v1#S-15", "reply": {"result": "lgs_3c7e11"}}` | 拒绝 | 登录的返回是 `{ loginState, loginStateHandle }` |
+| `{"operation": "capability.account-identity/v2#S-15", "reply": {"result": "lsp_q8Jf3kQ2vXw9pLr7TzA0mYc4Nd6Hb5Ue1GsW"}}` | 拒绝 | 登录的返回是 `{ loginState, loginStateHandle }` |
 | `{"operation": "composition.governance-center-entry/v1#S-18", "reply": {"result": "ok"}}` | 拒绝 | 公开体检不走信封 |
 
 ## 16. 本契约自定的值

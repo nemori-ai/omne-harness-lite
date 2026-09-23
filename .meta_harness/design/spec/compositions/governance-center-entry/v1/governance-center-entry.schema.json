@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v1/governance-center-entry.schema.json",
   "title": "composition.governance-center-entry v1 · 治理中心入口的线上形状",
-  "description": "候选（candidate）。本文件只给信封、四种入口答复、路由结果外形、公开与完整体检、GovernanceCenterId 与列表句柄的形状；判定次序、映射与每条路由的语义以 contract.md 为准。身份值不在此复述，一律引用 data.identity-values v1；邀约的时刻与派生状态、以及时间点（issuedAt、startedAt）引用 data.offer-expiry v1。InvitationId、AffiliationRequestId、CreationKey 三个不透明标识的值定义归本文件，形状按 data.identity-values v1 S-31 的散文，不引用那份 Schema 的内部基定义。三份参与契约 v1 不发布 Schema，27 条路由的载荷与成功返回的线上形状由本文件定义（Payload_<路由>、Result_<路由>），成员名从各条款 ①／⑤ 的散文推出，见 contract.md S-17 的命名表（2026-09-23 主线认可）。",
+  "description": "候选（candidate）。本文件只给信封、四种入口答复、路由结果外形、公开与完整体检、GovernanceCenterId 与出示物的形状；判定次序、映射与每条路由的语义以 contract.md 为准。身份值不在此复述，一律引用 data.identity-values v1；邀约的时刻与派生状态、以及时间点（issuedAt、startedAt）引用 data.offer-expiry v1。InvitationId、AffiliationRequestId、CreationKey 三个不透明标识的值定义归本文件，形状按 data.identity-values v1 S-31 的散文，不引用那份 Schema 的内部基定义。三份参与契约（capability.account-identity v2、capability.organization-governance v1、composition.account-registration v1）不发布 Schema，27 条路由的载荷与成功返回的线上形状由本文件定义（Payload_<路由>、Result_<路由>），成员名从各条款 ①／⑤ 的散文推出，见 contract.md S-17 的命名表（2026-09-23 主线认可）。",
   "$defs": {
     "GovernanceCenterId": {
       "title": "治理中心标识 · Governance Center Identifier（contract.md S-27）",
@@ -16,11 +16,14 @@
         { "value": "3f9c1e0a7b2d4c6e", "rejectedBy": "长度不足 128 位" }
       ]
     },
-    "LoginStateHandle": {
-      "title": "列表句柄（无词条）· loginStateHandle（contract.md S-9）",
-      "description": "由 LoginStateId 在同一中心上确定地派生、不可逆、部署内单射；不是出示物、不是秘密。交换表示：64 个小写十六进制字符，逐字符比较。",
+    "LoginStatePresentation": {
+      "title": "出示物（登录状态出示物，无词条）· presentedLoginState、loginState（contract.md S-5；capability.account-identity v2 S-45）",
+      "description": "持有即被认的不透明字符串，由账号能力签发、只在登录成功的那一次答复里交出。不是 LoginStateId；字母表不定，消费者不得解析。交换表示按 capability.account-identity v2 S-45，本定义只是它的投影：Unicode 标量值序列（不含孤立的代理码点，由 not/pattern 断言，须在按码点匹配的正则方言下求值，如 ECMA-262 的 u 标志）；非空；至多 1024 个标量值（候选值，随 S-45 定）；首字符与末字符都不属于 data.identity-values v1 S-31 列出的空白码点集合；逐码点相等，不做任何规范化。末尾用 (?![\\s\\S]) 判绝对结尾，不用 $。",
       "type": "string",
-      "pattern": "^[0-9a-f]{64}$"
+      "minLength": 1,
+      "maxLength": 1024,
+      "not": { "pattern": "[\\uD800-\\uDFFF]" },
+      "pattern":"^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
     },
     "ProtocolVersion": {
       "title": "协议版本（contract.md S-8）",
@@ -38,9 +41,9 @@
       "type": "string",
       "enum": [
         "composition.account-registration/v1#S-8",
-        "capability.account-identity/v1#S-15",
-        "capability.account-identity/v1#S-16",
-        "capability.account-identity/v1#S-37",
+        "capability.account-identity/v2#S-15",
+        "capability.account-identity/v2#S-16",
+        "capability.account-identity/v2#S-37",
         "capability.organization-governance/v1#S-21",
         "capability.organization-governance/v1#S-22",
         "capability.organization-governance/v1#S-23",
@@ -75,8 +78,8 @@
       "properties": {
         "protocolVersion": { "$ref": "#/$defs/ProtocolVersion" },
         "presentedLoginState": {
-          "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/LoginStateId",
-          "description": "出示物（无词条，contract.md S-5）：恰一个 LoginStateId，持有即被认。缺席没有默认值。"
+          "$ref": "#/$defs/LoginStatePresentation",
+          "description": "出示物（contract.md S-5）：恰一个，交给 capability.account-identity v2 S-44 认人；不是 LoginStateId。缺席没有默认值。"
         },
         "operation": { "$ref": "#/$defs/EnvelopeRouteId" },
         "payload": {
@@ -86,9 +89,9 @@
       },
       "allOf": [
         { "if": { "properties": { "operation": { "const": "composition.account-registration/v1#S-8" } }, "required": ["operation"] }, "then": { "properties": { "payload": { "$ref": "#/$defs/Payload_AR_S8" } } } },
-        { "if": { "properties": { "operation": { "const": "capability.account-identity/v1#S-15" } }, "required": ["operation"] }, "then": { "properties": { "payload": { "$ref": "#/$defs/Payload_AI_S15" } } } },
-        { "if": { "properties": { "operation": { "const": "capability.account-identity/v1#S-16" } }, "required": ["operation"] }, "then": { "properties": { "payload": { "$ref": "#/$defs/Payload_AI_S16" } } } },
-        { "if": { "properties": { "operation": { "const": "capability.account-identity/v1#S-37" } }, "required": ["operation"] }, "then": { "properties": { "payload": { "$ref": "#/$defs/Payload_AI_S37" } } } },
+        { "if": { "properties": { "operation": { "const": "capability.account-identity/v2#S-15" } }, "required": ["operation"] }, "then": { "properties": { "payload": { "$ref": "#/$defs/Payload_AI_S15" } } } },
+        { "if": { "properties": { "operation": { "const": "capability.account-identity/v2#S-16" } }, "required": ["operation"] }, "then": { "properties": { "payload": { "$ref": "#/$defs/Payload_AI_S16" } } } },
+        { "if": { "properties": { "operation": { "const": "capability.account-identity/v2#S-37" } }, "required": ["operation"] }, "then": { "properties": { "payload": { "$ref": "#/$defs/Payload_AI_S37" } } } },
         { "if": { "properties": { "operation": { "const": "capability.organization-governance/v1#S-21" } }, "required": ["operation"] }, "then": { "properties": { "payload": { "$ref": "#/$defs/Payload_OG_S21" } } } },
         { "if": { "properties": { "operation": { "const": "capability.organization-governance/v1#S-22" } }, "required": ["operation"] }, "then": { "properties": { "payload": { "$ref": "#/$defs/Payload_OG_S22" } } } },
         { "if": { "properties": { "operation": { "const": "capability.organization-governance/v1#S-23" } }, "required": ["operation"] }, "then": { "properties": { "payload": { "$ref": "#/$defs/Payload_OG_S23" } } } },
@@ -222,9 +225,9 @@
       },
       "allOf": [
         { "if": { "properties": { "operation": { "const": "composition.account-registration/v1#S-8" } } }, "then": { "properties": { "reply": { "properties": { "result": { "$ref": "#/$defs/Result_AR_S8" } } } } } },
-        { "if": { "properties": { "operation": { "const": "capability.account-identity/v1#S-15" } } }, "then": { "properties": { "reply": { "properties": { "result": { "$ref": "#/$defs/Result_AI_S15" } } } } } },
-        { "if": { "properties": { "operation": { "const": "capability.account-identity/v1#S-16" } } }, "then": { "properties": { "reply": { "properties": { "result": { "$ref": "#/$defs/Result_AI_S16" } } } } } },
-        { "if": { "properties": { "operation": { "const": "capability.account-identity/v1#S-37" } } }, "then": { "properties": { "reply": { "properties": { "result": { "$ref": "#/$defs/Result_AI_S37" } } } } } },
+        { "if": { "properties": { "operation": { "const": "capability.account-identity/v2#S-15" } } }, "then": { "properties": { "reply": { "properties": { "result": { "$ref": "#/$defs/Result_AI_S15" } } } } } },
+        { "if": { "properties": { "operation": { "const": "capability.account-identity/v2#S-16" } } }, "then": { "properties": { "reply": { "properties": { "result": { "$ref": "#/$defs/Result_AI_S16" } } } } } },
+        { "if": { "properties": { "operation": { "const": "capability.account-identity/v2#S-37" } } }, "then": { "properties": { "reply": { "properties": { "result": { "$ref": "#/$defs/Result_AI_S37" } } } } } },
         { "if": { "properties": { "operation": { "const": "capability.organization-governance/v1#S-21" } } }, "then": { "properties": { "reply": { "properties": { "result": { "$ref": "#/$defs/Result_OG_S21" } } } } } },
         { "if": { "properties": { "operation": { "const": "capability.organization-governance/v1#S-22" } } }, "then": { "properties": { "reply": { "properties": { "result": { "$ref": "#/$defs/Result_OG_S22" } } } } } },
         { "if": { "properties": { "operation": { "const": "capability.organization-governance/v1#S-23" } } }, "then": { "properties": { "reply": { "properties": { "result": { "$ref": "#/$defs/Result_OG_S23" } } } } } },
@@ -252,23 +255,23 @@
     },
     "LoginResult": {
       "title": "登录成功的返回（contract.md S-19）",
-      "description": "loginState 是新签发的 LoginStateId（出示物）；loginStateHandle 是它的列表句柄，客户端据它在列表里认出自己、用它退出。",
+      "description": "loginState 是 capability.account-identity v2 S-15 交出的出示物（只此一次）；loginStateHandle 是同一个登录状态的 LoginStateId（列表句柄，S-9），客户端据它在列表里认出自己、用它退出。",
       "type": "object",
       "required": ["loginState", "loginStateHandle"],
       "additionalProperties": false,
       "properties": {
-        "loginState": { "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/LoginStateId" },
-        "loginStateHandle": { "$ref": "#/$defs/LoginStateHandle" }
+        "loginState": { "$ref": "#/$defs/LoginStatePresentation" },
+        "loginStateHandle": { "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/LoginStateId" }
       }
     },
     "LoginStateListItem": {
       "title": "登录状态列表的一项（contract.md S-20）",
-      "description": "恰此两样：列表句柄与签发时间。不含 LoginStateId——列一次就收走其余设备的出示物，正是列表句柄要挡住的事（S-9）。",
+      "description": "恰此两样：列表句柄（即那个登录状态的 LoginStateId）与签发时间。不含出示物——LoginStateId 过不了 capability.account-identity v2 S-44，列一次拿不走其余设备能用的东西（S-9）。",
       "type": "object",
       "required": ["loginStateHandle", "issuedAt"],
       "additionalProperties": false,
       "properties": {
-        "loginStateHandle": { "$ref": "#/$defs/LoginStateHandle" },
+        "loginStateHandle": { "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/LoginStateId" },
         "issuedAt": {
           "description": "这个登录状态被签发的时刻（中心的钟）；形状取 data.offer-expiry v1 的 Instant（S-22：带时区偏移的 RFC 3339 时间点）。",
           "$ref": "../../../data/offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant"
@@ -297,8 +300,8 @@
       "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
     },
     "CredentialMaterial": {
-      "title": "凭据材料（credential，capability.account-identity v1 S-8）",
-      "description": "线上是一个非空字符串。内部格式归凭据方案的 owner（与 capability.account-identity v1 S-26 credential_policy 同一个 owner）；入口层的表示层校验用该 owner 给出的同一条解析规则，解析不过 ⇒ invalid-input（contract.md S-19）。Schema 只断言「非空字符串」这一层，解析规则不在这里。",
+      "title": "凭据材料（credential，capability.account-identity v2 S-8）",
+      "description": "线上是一个非空字符串。内部格式归凭据方案的 owner（与 capability.account-identity v2 S-26 credential_policy 同一个 owner）；入口层的表示层校验用该 owner 给出的同一条解析规则，解析不过 ⇒ invalid-input（contract.md S-19）。Schema 只断言「非空字符串」这一层，解析规则不在这里。",
       "type": "string",
       "minLength": 1
     },
@@ -397,7 +400,7 @@
       }
     },
     "Payload_AI_S15": {
-      "title": "登录的载荷（capability.account-identity v1 S-15 ①）",
+      "title": "登录的载荷（capability.account-identity v2 S-15 ①）",
       "type": "object",
       "required": ["loginIdentifier", "credential"],
       "additionalProperties": false,
@@ -407,15 +410,15 @@
       }
     },
     "Payload_AI_S16": {
-      "title": "撤销（含退出）的载荷（capability.account-identity v1 S-16 ①的目标，经列表句柄指认；contract.md S-20）",
+      "title": "撤销（含退出）的载荷（capability.account-identity v2 S-16 ①的目标 LoginStateId，成员名 loginStateHandle；contract.md S-20）",
       "type": "object",
       "required": ["loginStateHandle"],
       "additionalProperties": false,
       "properties": {
-        "loginStateHandle": { "$ref": "#/$defs/LoginStateHandle" }
+        "loginStateHandle": { "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/LoginStateId" }
       }
     },
-    "Payload_AI_S37": { "title": "列出登录状态的载荷（capability.account-identity v1 S-37：唯一输入是出示物，载荷为空）", "type": "object", "additionalProperties": false },
+    "Payload_AI_S37": { "title": "列出登录状态的载荷（capability.account-identity v2 S-37：唯一输入是出示物，载荷为空）", "type": "object", "additionalProperties": false },
     "Payload_OG_S21": {
       "title": "创建团队组织的载荷（capability.organization-governance v1 S-21 ①）",
       "type": "object",
@@ -536,9 +539,9 @@
       "additionalProperties": false,
       "properties": { "tenant": { "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantId" } }
     },
-    "Payload_OG_S36": { "title": "当前租户身份查询的载荷（S-36 ①的 LoginStateId 就是出示物，载荷为空）", "type": "object", "additionalProperties": false },
+    "Payload_OG_S36": { "title": "当前租户身份查询的载荷（S-36 ①的 LoginStateId 是认人所得 LoginStateId，载荷为空）", "type": "object", "additionalProperties": false },
     "Payload_OG_S37": {
-      "title": "切换当前租户身份的载荷（S-37 ①；LoginStateId 就是出示物）",
+      "title": "切换当前租户身份的载荷（S-37 ①；LoginStateId 是认人所得 LoginStateId）",
       "type": "object",
       "required": ["targetTenant"],
       "additionalProperties": false,
@@ -590,10 +593,10 @@
       "properties": { "includeConcluded": { "type": "boolean" } }
     },
     "Result_AR_S8": { "title": "注册成功的返回（composition.account-registration v1 S-4、S-5）", "const": "registered" },
-    "Result_AI_S15": { "title": "登录成功的返回（S-15 ⑤ 的 LoginStateId ＋ 它的列表句柄）", "$ref": "#/$defs/LoginResult" },
+    "Result_AI_S15": { "title": "登录成功的返回（S-15 ⑤ 的 {出示物, LoginStateId}）", "$ref": "#/$defs/LoginResult" },
     "Result_AI_S16": { "title": "撤销成功的返回（S-16 ⑤）", "const": "ok" },
     "Result_AI_S37": {
-      "title": "列出登录状态的返回（S-37 ⑤：每项的 LoginStateId 换成列表句柄）",
+      "title": "列出登录状态的返回（S-37 ⑤：每项的 LoginStateId 与签发时间）",
       "description": "至少一项：成功调用必含调用方自己那一个；空列表是缺陷，入口答 unavailable，不会作为成功返回出现（contract.md S-20）。",
       "type": "array",
       "minItems": 1,

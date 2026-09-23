@@ -35,7 +35,7 @@
 - **模型文件**：[`EntryDecision.tla`](EntryDecision.tla)。
 - **语义映射**：
   - 一个行为 = 一个请求从到达走到答复。请求的形状——路由类别（`publicHealth`／`exempt`／`auth`／`authGated`）、版本对不对得上、信封合不合格、出示物的七种情形、载荷合不合格——在初始状态里任取。
-  - 七种出示物情形：`absent`、`multiple`、`malformed` 三种不用查（`LookupFree`）；`valid`、`revoked`、`neverIssued`、`otherCenter` 要现读 AI S-17。
+  - 七种出示物情形：`absent`、`multiple`、`malformed` 三种不用查（`LookupFree`）；`valid`、`revoked`、`neverIssued`、`otherCenter` 要现读 [AI S-44](../../../../capabilities/account-identity/v2/contract.md#s-44-按出示物换取身份)（按出示物换取身份）。拿一个 `LoginStateId` 当出示物，AI S-44 的答复与 `neverIssued` 相同（`login-state-rejected`），不另列一种情形。
   - `CheckVersion` ＝ [S-10](../contract.md#s-10-判定次序) ①；`CheckEnvelope` ＝ ①′；`Authenticate` ＝ ②（[S-11](../contract.md#s-11-认人)）；`CheckPayload` ＝ 载荷；`Derive` ＝ 身份推导（[S-12](../contract.md#s-12-身份推导)）；`Gate` ＝ 补授权（[S-13](../contract.md#s-13-补授权)）；`Dispatch` ＝ ③（[S-14](../contract.md#s-14-失败映射)）。
   - `Derive` 对全部要认人的路由都走一次：真实路由里只有需要行事 `TenantId` 的才现读，不读的那些的行为是模型行为的子集（只走「通过」那一支），安全性质对子集照样成立。
   - `Derive`、`Gate`、`Dispatch` 各有一个**缺陷分支**：`Derive` 对应 OG S-36 返回 `invalidInput` 或返回的 `account` 分量不等于认人所得 `AccountId`；`Gate` 对应补授权那次现读返回 `invalidInput` 或集合之外的东西；`Dispatch` 对应 [S-14](../contract.md#s-14-失败映射) 的其余缺陷情形。变量 `postAuthRead` 记「身份推导或补授权做过一次现读」，供 `PayloadBeforeDerive` 判次序。

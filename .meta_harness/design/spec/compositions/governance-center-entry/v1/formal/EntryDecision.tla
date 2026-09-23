@@ -32,7 +32,8 @@ ASSUME Mutation \in Mutations
 Routes     == {"publicHealth", "exempt", "auth", "authGated"}
 AuthRoutes == {"auth", "authGated"}
 
-(* 出示物的七种情形。前三种不用查就判得了；后四种要查（现读 AI S-17）。 *)
+(* 出示物的七种情形。前三种不用查就判得了；后四种要查（现读 AI S-44）。 *)
+(* 拿 LoginStateId 当出示物，AI S-44 的答复与 neverIssued 相同，不另列。 *)
 PresKinds     == {"absent", "multiple", "malformed",
                   "valid", "revoked", "neverIssued", "otherCenter"}
 LookupFree    == {"absent", "multiple", "malformed"}

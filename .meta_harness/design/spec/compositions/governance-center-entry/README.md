@@ -10,16 +10,16 @@
 **它不拥有任何治理语义**——那些仍在各自的契约里。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, composition.governance-center-entry, 1)`
-- **状态**：`candidate`。主责产品依据 [PF-017](../../../product/PF-017-governance-center-as-deployable-application/README.md) rev 1 仍是 `draft`；它被接受之前本契约不进入接受。**未接受、未冻结，不得当作有效契约引用。**
+- **状态**：`candidate`。主责产品依据 [PF-017](../../../product/PF-017-governance-center-as-deployable-application/README.md) rev 1 仍是 `draft`；所依赖的 `capability.account-identity` v2 也是 `candidate`。两者被接受之前本契约不进入接受。**未接受、未冻结，不得当作有效契约引用。**
 - **catalog 映射**：已登记为 `candidate`，`acceptance` 为空。`family=compositions`、`topic=governance-center-entry`、
   `contract_path=spec/compositions/governance-center-entry/v1/contract.md`；`resources` 另含 Schema、`examples.md`、`formal/README.md`、
   `formal/EntryDecision.tla`、`formal/EntryDecision.cfg` 与九个 `formal/Validity_*.cfg`。
-  依赖五项，全部 `rebase_relation: null`：`capability.account-identity` v1、`capability.organization-governance` v1、
+  依赖五项，全部 `rebase_relation: null`：`capability.account-identity` v2（`candidate`）、`capability.organization-governance` v1、
   `composition.account-registration` v1、`data.identity-values` v1、`data.offer-expiry` v1（读邀约的返回引用它的 `OfferTiming`／`OfferState`，`issuedAt`／`startedAt` 引用它的 `Instant`）；
   消费 clauses 以[契约 S-2](v1/contract.md#s-2-参与方与精确承诺) 为准。
 - **formal-tasks 映射**：登记一项 `governance-center-entry-v1-decision`（`EntryDecision.tla` ＋ `EntryDecision.cfg`）；九个否定配置不登记。执行结果见[验证入口](verification.md#实际执行)。
-- **提供者／装配映射**：尚无。入口层的实现映射节点待立（候选位置 `realization/packages/tenancy/governance-center-entry`），
-  承载装配是 [`realization/apps/tenancy-host`](../../../realization/apps/tenancy-host/README.md)（待修订）。
+- **提供者／装配映射**：入口层的实现映射节点是 [`realization/packages/tenancy/governance-center-entry`](../../../realization/packages/tenancy/governance-center-entry/README.md)（`candidate`），
+  承载装配是 [`realization/apps/tenancy-host`](../../../realization/apps/tenancy-host/README.md)（已按本契约修订）。
 - **选择依据**：[提案 `governance-center-entry`](../../../record/proposals/governance-center-entry/README.md)。
 
 ## 准入核对
@@ -30,9 +30,9 @@
 | 为什么进 compositions | 「每个请求先核版本、再认人、判不了就答不出、绝不说成无效」是整体性质，三个参与方各自都承诺不了 |
 | 稳定身份 | `composition.governance-center-entry`，版本 1 |
 | 适用范围 | 一个请求从到达中心起，到它得到答复为止；另含公开体检、运维面与治理中心标识。**客户端一侧**（标识比较、「问不到」的呈现、据点副本）不在范围内 |
-| 参与方与版本 | 三份参与方契约与 `data.identity-values`、`data.offer-expiry` 两份 v1 **都已接受**；本契约只消费它们，不改它们 |
+| 参与方与版本 | `capability.organization-governance` v1、`composition.account-registration` v1 与 `data.identity-values`、`data.offer-expiry` 两份 v1 **都已接受**；`capability.account-identity` 钉的是 v2，**仍是 `candidate`**。本契约只消费它们，不改它们 |
 | 保护者是否明确 | 是。判定次序每一步的保护点写在 [S-10](v1/contract.md#s-10-判定次序)，失败映射写在 [S-14](v1/contract.md#s-14-失败映射)；跨进程之后谁兑现写在 [S-36](v1/contract.md#s-36-装配给的保证-vs-协议须给的保证) |
-| 未定的 | [已知缺口](v1/contract.md#十三已知缺口) G-1～G-4、G-7、G-8、G-10、G-11 未闭合，各有 owner；G-5、G-6、G-9 已闭合（号保留，不复用） |
+| 未定的 | [已知缺口](v1/contract.md#十三已知缺口) G-2～G-4、G-7、G-8、G-10、G-11 未闭合，各有 owner；G-1、G-5、G-6、G-9 已闭合（号保留，不复用） |
 
 ## 按当前问题展开
 

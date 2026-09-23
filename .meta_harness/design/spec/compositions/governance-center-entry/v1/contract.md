@@ -3,6 +3,7 @@
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, composition.governance-center-entry, 1)`
 - **状态**：`candidate`。**产品依据的主责一份是草稿**：[PF-017](../../../../product/PF-017-governance-center-as-deployable-application/README.md) **rev 1，`draft`**（2026-09-23 第二轮修订之后的正文）。
   依赖它的每一条都是候选依据；PF-017 被接受之前，本契约不进入接受。
+  **所依赖的 `capability.account-identity` v2 也是 `candidate`**（它的主责产品依据同是 PF-017 rev 1）；它被接受之前，本契约同样不进入接受。
 - **设计依据**：
   - PF-017 rev 1（draft）：[§部署前提](../../../../product/PF-017-governance-center-as-deployable-application/design.md#部署前提)、
     [§4 五个概念](../../../../product/PF-017-governance-center-as-deployable-application/design.md#四概念定义)、
@@ -28,14 +29,14 @@
   - [SYS-DEPLOY](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy)、
     [SYS-TENANT](../../../../foundation/cross-system-constraints/requirements.md#sys-tenant)、
     [SYS-OBSERVABILITY C1／C3／C6](../../../../foundation/observability-and-logging/requirements.md#已确认要求与工程含义)
-- **参与方契约**（坐标与消费 clauses 见 [S-2](#s-2-参与方与精确承诺)，全部 `accepted`）：
-  `capability.account-identity` v1、`capability.organization-governance` v1、`composition.account-registration` v1
+- **参与方契约**（坐标与消费 clauses 见 [S-2](#s-2-参与方与精确承诺)）：
+  `capability.account-identity` **v2**（`candidate`）、`capability.organization-governance` v1、`composition.account-registration` v1（两份 `accepted`）
 - **精确语义依赖**：`omne-harness-lite-design-2026-09-15 · data.identity-values · v1`——
   本契约**不复述**任何身份值的定义，线上用它们的规范形式原样传；消费 clauses 见 [S-2](#s-2-参与方与精确承诺)。
   `omne-harness-lite-design-2026-09-15 · data.offer-expiry · v1`——读邀请、读隶属请求与三条列表的返回里带着邀约的两个时刻与派生状态，
   线上形状引用它的 Schema，不复述；列表项的 `issuedAt` 与完整体检的 `startedAt` 引用它的时间点 `Instant`；`offerTtl` 的含义取它的 `offer_ttl`。消费 clauses 同见 [S-2](#s-2-参与方与精确承诺)。
-- **缩写**：**AI** = `capability.account-identity` v1、**OG** = `capability.organization-governance` v1、**AR** = `composition.account-registration` v1、
-  **IV** = `data.identity-values` v1、**OE** = `data.offer-expiry` v1。「AI S-17」就是坐标 `capability.account-identity/v1#S-17` 的简写，同一段或同一表行里首次出现时带链接；
+- **缩写**：**AI** = `capability.account-identity` **v2**、**OG** = `capability.organization-governance` v1、**AR** = `composition.account-registration` v1、
+  **IV** = `data.identity-values` v1、**OE** = `data.offer-expiry` v1。「AI S-44」就是坐标 `capability.account-identity/v2#S-44` 的简写，同一段或同一表行里首次出现时带链接；
   **不带缩写的 `S-n` 只指本契约自己的条款**。
 - **为什么是一份组合契约**：判定次序、四种入口答复与身份推导对**每一个**请求都一样，横跨三份契约，
   任何一个单项能力都拥有不了；理由的长期家是
@@ -43,7 +44,7 @@
   与[为什么不拆、为什么不并](../../../../record/proposals/governance-center-entry/design.md#为什么不拆为什么不并)。
 - **本契约用到的四个技术名**，都**没有词条**（无词条），只在本契约里当技术名用，不是统一语言的正式名：
   **入口层**（无词条：兑现本契约客户端那一面的提供者）、**运维面**（无词条：[运维者](../../../../ubiquitous_language/terms/subjects-and-ownership.md#ul-deployment-operator--运维者--deployment-operator)那一面在运行中的中心上唯一的部分）、
-  **出示物**（无词条：信封成员 `presentedLoginState` 里携带的那个值）、**列表句柄**（无词条：成员 `loginStateHandle` 的值）。
+  **出示物**（无词条：信封成员 `presentedLoginState` 里携带的那个值，就是 AI 的「登录状态出示物」）、**列表句柄**（无词条：成员 `loginStateHandle` 的值，就是那个登录状态的 `LoginStateId`）。
 - **条款编号**：`S-n`，只在本契约本版本内有效；外部引用写全坐标，如 `composition.governance-center-entry/v1#S-10`。
   编号在本版本内只追加、不重排。缺口 `G-n`、证据义务 `V-n`、静态检查 `SC-n` 同此作用域；**已闭合的缺口号保留、标「已闭合」，不复用**。
 - **本契约不拥有任何产品正文里没有的产品政策。**凡正文未定、需要产品负责人或别的 owner 裁定的，一律写成[显式缺口](#十三已知缺口)，不填默认值。
@@ -72,14 +73,14 @@
 
 | 参与方 | coordinate 与消费 clauses（`rebase_relation` 一律不适用：首版，无前身） | 向本组合提供的保证 | 本组合对它的前提 |
 |---|---|---|---|
-| `capability.account-identity` | `omne-harness-lite-design-2026-09-15 · capability.account-identity · v1`；[`#S-3`](../../../capabilities/account-identity/v1/contract.md#s-3-明确不承诺什么)（时序侧信道不在范围）、[`#S-8`](../../../capabilities/account-identity/v1/contract.md#s-8-凭据材料)（凭据材料的内部格式属实现选择，入口层不解析它的含义）、[`#S-26`](../../../capabilities/account-identity/v1/contract.md#s-26-credential_policy)（`credential_policy`：凭据方案由它的 owner 定，入口层的表示层校验用该 owner 给出的同一条解析规则，见 [S-19](#s-19-免认人的两条路由注册登录)）、[`#S-10`](../../../capabilities/account-identity/v1/contract.md#s-10-撤销是持久记录不是内存生命周期)（撤销是持久记录）、[`#S-15`](../../../capabilities/account-identity/v1/contract.md#s-15-验证凭据并签发登录状态)（登录）、[`#S-16`](../../../capabilities/account-identity/v1/contract.md#s-16-撤销登录状态)（撤销）、[`#S-17`](../../../capabilities/account-identity/v1/contract.md#s-17-校验登录状态)（第 ② 步认人）、[`#S-20`](../../../capabilities/account-identity/v1/contract.md#s-20-已激活不回退不消失)（已激活不回退、不消失——调用方本人的 `accountNotActivated`／`accountDoesNotExist` 因此记缺陷，见 [S-14](#s-14-失败映射)）、[`#S-29`](../../../capabilities/account-identity/v1/contract.md#s-29-撤销不等于强制停止)（撤销只影响下一道准入）、[`#S-30`](../../../capabilities/account-identity/v1/contract.md#s-30-装配给的保证-vs-协议须给的保证)（第 3、6、8 行）、[`#S-37`](../../../capabilities/account-identity/v1/contract.md#s-37-列出本账号有效登录状态)（列出） | [AI S-17](../../../capabilities/account-identity/v1/contract.md#s-17-校验登录状态) 的四个出口封闭、`login-state-rejected` 不区分原因、撤销提交之后必拒；[AI S-15](../../../capabilities/account-identity/v1/contract.md#s-15-验证凭据并签发登录状态) 三种登录失败逐字相同；[AI S-37](../../../capabilities/account-identity/v1/contract.md#s-37-列出本账号有效登录状态) 列出此刻全部有效的、必含调用方自己那一个 | `LoginStateId` **不可猜测**——出示物安全的地基。**这是本组合的前提，本组合不兑现它**；它成立依赖 AI [G-2](../../../capabilities/account-identity/v1/contract.md#九已知缺口) 与 IV [G-04](../../../data/identity-values/v1/contract.md#十已知缺口) 闭合（[S-36](#s-36-装配给的保证-vs-协议须给的保证) 的「出示物不可伪造」行） |
+| `capability.account-identity` | `omne-harness-lite-design-2026-09-15 · capability.account-identity · v2`（`candidate`）；[`#S-3`](../../../capabilities/account-identity/v2/contract.md#s-3-明确不承诺什么)（时序侧信道不在范围）、[`#S-8`](../../../capabilities/account-identity/v2/contract.md#s-8-凭据材料)（凭据材料的内部格式属实现选择，入口层不解析它的含义）、[`#S-26`](../../../capabilities/account-identity/v2/contract.md#s-26-credential_policy)（`credential_policy`：凭据方案由它的 owner 定，入口层的表示层校验用该 owner 给出的同一条解析规则，见 [S-19](#s-19-免认人的两条路由注册登录)）、[`#S-10`](../../../capabilities/account-identity/v2/contract.md#s-10-撤销是持久记录不是内存生命周期)（撤销是持久记录）、[`#S-15`](../../../capabilities/account-identity/v2/contract.md#s-15-验证凭据并签发登录状态)（登录：返回出示物与它的 LoginStateId）、[`#S-16`](../../../capabilities/account-identity/v2/contract.md#s-16-撤销登录状态)（撤销：按 LoginStateId 指认目标）、[`#S-17`](../../../capabilities/account-identity/v2/contract.md#s-17-校验登录状态)（校验登录状态：AI S-44 的判定就是它的判定——查不到、已撤销、所属账号未激活收成同一个拒绝，撤销提交之后必拒；本组合**不调用**它，它只对进程内开放，见 [S-11](#s-11-认人)）、[`#S-20`](../../../capabilities/account-identity/v2/contract.md#s-20-已激活不回退不消失)（已激活不回退、不消失——调用方本人的 `accountNotActivated`／`accountDoesNotExist` 因此记缺陷，见 [S-14](#s-14-失败映射)）、[`#S-29`](../../../capabilities/account-identity/v2/contract.md#s-29-撤销不等于强制停止)（撤销只影响下一道准入）、[`#S-30`](../../../capabilities/account-identity/v2/contract.md#s-30-装配给的保证-vs-协议须给的保证)（v1 的第 3、6、8 行，以及 v2 新增的「只有 S-44 认出示物」「出示物猜不中」「出示物只交到调用方手里」三行）、[`#S-37`](../../../capabilities/account-identity/v2/contract.md#s-37-列出本账号有效登录状态)（列出）、[`#S-44`](../../../capabilities/account-identity/v2/contract.md#s-44-按出示物换取身份)（第 ② 步认人：按出示物换取身份）、[`#S-45`](../../../capabilities/account-identity/v2/contract.md#s-45-登录状态出示物)（出示物的性质与交换表示；LoginStateId 由它派生、不可逆、不是秘密） | [AI S-44](../../../capabilities/account-identity/v2/contract.md#s-44-按出示物换取身份) 的四个出口封闭（判定就是 AI S-17 的判定）、`login-state-rejected` 不区分原因、撤销提交之后必拒；[AI S-15](../../../capabilities/account-identity/v2/contract.md#s-15-验证凭据并签发登录状态) 三种登录失败逐字相同，成功时一次交出出示物与它的 LoginStateId；[AI S-37](../../../capabilities/account-identity/v2/contract.md#s-37-列出本账号有效登录状态) 列出此刻全部有效的、必含调用方自己那一个，列出的 LoginStateId 不是出示物 | **出示物猜不中**——出示物安全的地基（[AI S-30](../../../capabilities/account-identity/v2/contract.md#s-30-装配给的保证-vs-协议须给的保证) 的「出示物猜不中」行、[AI S-45](../../../capabilities/account-identity/v2/contract.md#s-45-登录状态出示物) 的熵下限）。**这是本组合的前提，由 AI 的提供者兑现，本组合不兑现它**（[S-36](#s-36-装配给的保证-vs-协议须给的保证) 的「出示物猜不中」行）。LoginStateId 本版不承担任何安全性，可以被看见 |
 | `capability.organization-governance` | `omne-harness-lite-design-2026-09-15 · capability.organization-governance · v1`；[`#S-16`](../../../capabilities/organization-governance/v1/contract.md#s-16-缺席时的默认答案)（拒绝／不可用／表示层三类收场）、[`#S-10`](../../../capabilities/organization-governance/v1/contract.md#s-10-邀请)／[`#S-11`](../../../capabilities/organization-governance/v1/contract.md#s-11-隶属请求)（两种邀约的标识不透明、方向两支——命名表的出处）、[`#S-21`](../../../capabilities/organization-governance/v1/contract.md#s-21-创建团队组织)～[`#S-37`](../../../capabilities/organization-governance/v1/contract.md#s-37-切换当前租户身份)（十七个操作，其中 [`#S-26`](../../../capabilities/organization-governance/v1/contract.md#s-26-成员资格判定) 兼作补授权、[`#S-36`](../../../capabilities/organization-governance/v1/contract.md#s-36-当前租户身份查询) 兼作身份推导）、[`#S-42`](../../../capabilities/organization-governance/v1/contract.md#s-42-装配给的保证-vs-协议须给的保证)（第 4、5、6、8、9 行）、[`#S-55`](../../../capabilities/organization-governance/v1/contract.md#s-55-读邀请)～[`#S-60`](../../../capabilities/organization-governance/v1/contract.md#s-60-列出组织收到的隶属请求)（六个读面） | 每个操作的失败集合封闭；「判不出来」一律 `unavailable`、表示层一律 `invalidInput`，不与拒绝合并；[OG S-36](../../../capabilities/organization-governance/v1/contract.md#s-36-当前租户身份查询) 给出当前租户身份或 `loginStateNotValid`／`unavailable` | **它的面是能力间内部面**，调用方身份由本组合核实后才交给它（[`#S-42`](../../../capabilities/organization-governance/v1/contract.md#s-42-装配给的保证-vs-协议须给的保证) 第 8、9 行）——本组合就是那道核实 |
 | `composition.account-registration` | `omne-harness-lite-design-2026-09-15 · composition.account-registration · v1`；[`#S-2`](../../account-registration/v1/contract.md#s-2-参与方与精确承诺)（「注册入口」一行）、[`#S-4`](../../account-registration/v1/contract.md#s-4-注册成功)、[`#S-5`](../../account-registration/v1/contract.md#s-5-终结结果集合)、[`#S-6`](../../account-registration/v1/contract.md#s-6-每个终结结果的含义与对应的存储状态)、[`#S-8`](../../account-registration/v1/contract.md#s-8-三步次序与责任交接)（被投影的那条动作链）、[`#S-12`](../../account-registration/v1/contract.md#s-12-重试规则)（重发）、[`#S-25`](../../account-registration/v1/contract.md#s-25-装配给的保证-vs-协议须给的保证) | 一次注册尝试的终结结果恰为四个值；`identifier-held-by-expired-record` 在它内部就地消化 | **本组合就是它的「注册入口」**：表示层校验归本组合；四个终结结果原样呈现；`interrupted` 不改写 |
 | `data.identity-values` | `omne-harness-lite-design-2026-09-15 · data.identity-values · v1`；线上形状引用的值类型 [`#S-1`](../../../data/identity-values/v1/contract.md#s-1-accountid)、[`#S-2`](../../../data/identity-values/v1/contract.md#s-2-登录标识不是-accountid)、[`#S-3`](../../../data/identity-values/v1/contract.md#s-3-organizationid)、[`#S-4`](../../../data/identity-values/v1/contract.md#s-4-organizationkind)、[`#S-8`](../../../data/identity-values/v1/contract.md#s-8-tenantrole)、[`#S-10`](../../../data/identity-values/v1/contract.md#s-10-membershipstanding)，[`#S-12`](../../../data/identity-values/v1/contract.md#s-12-缺席与空值都不是身份值)（可选项缺席不写 `null`）；[`#S-7`](../../../data/identity-values/v1/contract.md#s-7-tenantid-的规范序列化形式)、[`#S-9`](../../../data/identity-values/v1/contract.md#s-9-loginstateid)、[`#S-11`](../../../data/identity-values/v1/contract.md#s-11-scopelayeridentity)、[`#S-16`](../../../data/identity-values/v1/contract.md#s-16-按归属层显式携带身份值)～[`#S-21`](../../../data/identity-values/v1/contract.md#s-21-判定依据的构成封闭)、[`#S-23`](../../../data/identity-values/v1/contract.md#s-23-不得冒充隔离)、[`#S-27`](../../../data/identity-values/v1/contract.md#s-27-每道准入现读)、[`#S-28`](../../../data/identity-values/v1/contract.md#s-28-当前租户身份在创建那一刻捕获)、[`#S-30`](../../../data/identity-values/v1/contract.md#s-30-跨边界须重新验证)、[`#S-31`](../../../data/identity-values/v1/contract.md#s-31-不透明标识的交换表示)、[`#S-33`](../../../data/identity-values/v1/contract.md#s-33-表示层校验与判定分开) | 身份值的形状与规范形式；隔离义务 | — |
 | `data.offer-expiry` | `omne-harness-lite-design-2026-09-15 · data.offer-expiry · v1`；[`#S-4`](../../../data/offer-expiry/v1/contract.md#s-4-offertiming)（`OfferTiming`）、[`#S-7`](../../../data/offer-expiry/v1/contract.md#s-7-派生状态)（派生状态四值）、[`#S-14`](../../../data/offer-expiry/v1/contract.md#s-14-offer_ttl)（`offer_ttl` 的含义与正值约束）、[`#S-17`](../../../data/offer-expiry/v1/contract.md#s-17-装配给的保证-vs-协议须给的保证)（第 4 行「默认 `offer_ttl` 为正」：本版由承载装配在启动时校验兑现，[完整体检](#s-26-完整体检)据此只会显示正值；其余四行在这条边上不触发）、[`#S-22`](../../../data/offer-expiry/v1/contract.md#s-22-schema-的范围)（`Instant` 时间点的规范形式——`issuedAt`、`startedAt` 引用它） | 邀约两个时刻与派生状态的形状；时间点的形状；这一份时长的含义 | —（逐行见 [S-36](#s-36-装配给的保证-vs-协议须给的保证) 的两行 OE） |
 
-**消费者**（本契约的兑现者与使用者，不是参与方）：兑现客户端一面与运维面的**入口层**（无词条），实现映射节点待立（候选位置 `realization/packages/tenancy/governance-center-entry`）；
-承载它的装配 [`realization/apps/tenancy-host`](../../../../realization/apps/tenancy-host/README.md)（待修订）；据点一侧的客户端代理（`realization/apps/cli`，不在本程实施边界）。
+**消费者**（本契约的兑现者与使用者，不是参与方）：兑现客户端一面与运维面的**入口层**（无词条），实现映射节点是 [`realization/packages/tenancy/governance-center-entry`](../../../../realization/packages/tenancy/governance-center-entry/README.md)（`candidate`）；
+承载它的装配 [`realization/apps/tenancy-host`](../../../../realization/apps/tenancy-host/README.md)（已按本契约修订）；据点一侧的客户端代理 [`realization/apps/cli`](../../../../realization/apps/cli/README.md)（不在本程实施边界）。
 
 ### S-3 本契约明确不承诺什么
 
@@ -90,9 +91,9 @@
 - **传输机制。**信封与答复怎样落到某种传输上（头、路径、状态码、体、帧）归实现映射；本契约只约束[那次落地必须保持的性质](#s-4-请求信封)与[跨协议版本不变的两样](#s-8-协议版本与跨版本不变的两样)。传输绑定作为版本化工件发布之前，是缺口 [G-10](#十三已知缺口)。
 - **防冒充的具体手段。**「客户端确认连上的真是那个中心」是[产品交给技术设计的硬要求](../../../../product/PF-017-governance-center-as-deployable-application/design.md#八边界与依赖)，归传输那一层；它用到的材料是部署配置输入，**不是**[部署密钥](../../../../ubiquitous_language/terms/grounding-and-isolation.md#ul-deployment-key--部署密钥--deployment-key)。本契约既不兑现它，也不以它为任何条款的前提；手段与它的验证义务是缺口 [G-11](#十三已知缺口)。
 - **会话。**路由表里没有任何会话操作；中心不知道任何会话（[PF-016 §4 治理中心](../../../../product/PF-016-cli-tui-delivery-surface/design.md#治理中心)：来往里没有会话）。
-- **时序侧信道。**与 [`capability.account-identity/v1#S-3`](../../../capabilities/account-identity/v1/contract.md#s-3-明确不承诺什么) 同一口径：「逐字相同」只约束答复本身，不约束耗时。
+- **时序侧信道。**与 [`capability.account-identity/v2#S-3`](../../../capabilities/account-identity/v2/contract.md#s-3-明确不承诺什么) 同一口径：「逐字相同」只约束答复本身，不约束耗时。
 - **客户端一侧。**标识比较、「问不到」的呈现、三类现读的放行归 PF-016；本契约只给它们判定依据。
-- **存储里的登录状态不可被直接冒用。**本版**做不到**，见 [G-1](#十三已知缺口)。
+- **存储里的登录状态不可被直接冒用。**这一条**由账号能力兑现，不由本组合兑现**：存储与备份里只有出示物的不可逆形式（[AI S-45](../../../capabilities/account-identity/v2/contract.md#s-45-登录状态出示物)），本组合也不保存出示物（[S-5](#s-5-出示物)）。原缺口 [G-1](#十三已知缺口) 因此闭合。
 
 ## 二、信封、出示物与答复
 
@@ -127,10 +128,13 @@
 
 ### S-5 出示物
 
-- **出示物就是一个 [`LoginStateId`](../../../data/identity-values/v1/contract.md#s-9-loginstateid)**，按持有者即被认的方式使用（bearer；[PF-001 §4 登录状态](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#登录状态)）：
-  持有它本身就是 [`capability.account-identity/v1#S-17`](../../../capabilities/account-identity/v1/contract.md#s-17-校验登录状态) 校验的那件事。
+- **出示物就是 [AI S-45](../../../capabilities/account-identity/v2/contract.md#s-45-登录状态出示物) 的「登录状态出示物」**：[AI S-15](../../../capabilities/account-identity/v2/contract.md#s-15-验证凭据并签发登录状态) 签发一个登录状态时一次性交出的那个不透明字符串，
+  按持有者即被认的方式使用（bearer；[PF-001 §4 登录状态](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#登录状态)）：持有它本身就是 [AI S-44](../../../capabilities/account-identity/v2/contract.md#s-44-按出示物换取身份) 校验的那件事。
+  **它不是 `LoginStateId`**：`LoginStateId` 是它的不可逆形式，可以被看见（列表里就有，[S-9](#s-9-列表句柄)），拿来当出示物过不了 AI S-44。
+  这是产品负责人把登录态的合法性、鉴权与保存交给业界通行做法之后的形状（[PF-017 INT-011](../../../../product/PF-017-governance-center-as-deployable-application/interviews/2026-09-23-rulings.md#int-011)）。
+- **交换表示就是 AI S-45 的「交换表示」一行，入口层用同一条判、不另立一条**：Unicode 标量值序列（不含孤立的代理码点）、非空、至多 1024 个标量值、首末字符都不属于 [`data.identity-values/v1#S-31`](../../../data/identity-values/v1/contract.md#s-31-不透明标识的交换表示) 列出的空白码点集合；逐码点相等，不做任何规范化。上界是 AI S-45 的候选值，随它定；那一行变了，本条与 Schema 跟着变。入口层不解析它、不对它的字母表设任何限制。
 - **恰好一个。**一个请求带了不止一个出示物 ⇒ [S-11](#s-11-认人) 判「无效」。
-- **出示物不是「输入」，是身份。**它在表示层就不合格（不满足 [`data.identity-values/v1#S-31`](../../../data/identity-values/v1/contract.md#s-31-不透明标识的交换表示) 的交换表示）时，
+- **出示物不是「输入」，是身份。**它在表示层就不合格（不满足上一条的交换表示）时，
   **答 `login-state-rejected`，不答 `invalid-input`**——它属于「带的登录状态从没被这个中心签发过」那一种情形。
   这与 [`data.identity-values/v1#S-33`](../../../data/identity-values/v1/contract.md#s-33-表示层校验与判定分开) 不冲突：那条说表示层拒绝不是一次判定结果；
   这里是一次**不用查就判得了的判定**——一个不合形状的值不可能是本中心签发的任何一个登录状态。
@@ -151,7 +155,7 @@
 - **`unavailable` 对来者不带原因。**原因只在[完整体检](#s-26-完整体检)与[工程记录](#s-30-工程记录)里。
 - **同一个值的每一次答复逐字相同**，覆盖**整个线上答复**——传输层的状态、头与体一并算，不只是一句文案。
   实现为每个值固定一份字节序列；除此之外答复里没有任何随请求变化的部分（没有请求编号、时间戳、原因码）。
-- `login-state-rejected` 沿用 [`capability.account-identity/v1#S-17`](../../../capabilities/account-identity/v1/contract.md#s-17-校验登录状态) 的字面；四个值与领域失败值同形（kebab-case）。
+- `login-state-rejected` 沿用 [`capability.account-identity/v2#S-44`](../../../capabilities/account-identity/v2/contract.md#s-44-按出示物换取身份) 的字面；四个值与领域失败值同形（kebab-case）。
 
 ### S-7 答复集合闭合
 
@@ -182,21 +186,21 @@
 ### S-9 列表句柄
 
 **列表句柄**（无词条，成员 `loginStateHandle`）是[登录状态列表](#s-20-登录状态的两条路由撤销列出)与[撤销](#s-20-登录状态的两条路由撤销列出)在线上指认某一个登录状态用的值。
+**它就是那个登录状态的 [`LoginStateId`](../../../data/identity-values/v1/contract.md#s-9-loginstateid)**，入口层不另派生任何东西。
 
-| 性质 | 内容 |
-|---|---|
-| 由出示物派生 | `loginStateHandle = H(LoginStateId)`。在同一个中心上，对同一个 `LoginStateId` 恒得到同一个句柄 |
-| 跨重启、升级、换密钥稳定 | 同一个 `LoginStateId` 的句柄在重启、升级、更换[部署密钥](../../../../ubiquitous_language/terms/grounding-and-isolation.md#ul-deployment-key--部署密钥--deployment-key)之后**不变**：`H` **不以任何可轮换的材料为键**。否则一次换密钥就让每台机器认不出自己那一项，而换密钥[什么都不该丢](../../../../product/PF-017-governance-center-as-deployable-application/design.md#部署密钥) |
-| 不可逆 | 从句柄**得不到** `LoginStateId`；句柄**不是出示物**——拿句柄去当出示物，按「从没签发过」答 `login-state-rejected` |
-| 部署内单射 | 同一中心上两个不同的 `LoginStateId` 不得得到同一个句柄；**万一**撤销时匹配到不止一项，按缺陷收场（[S-20](#s-20-登录状态的两条路由撤销列出)），不撤销任何一个 |
-| 不是秘密 | 它可以出现在答复里与工程记录里 |
-| 不产生新的持久事实 | 入口层**不保存**句柄与登录状态的对照；每次都由现读的列表重新算 |
-| 交换表示 | 恰一种：64 个小写十六进制字符（Schema `LoginStateHandle`）。比较逐字符，不做规范化 |
+| 性质 | 内容 | 由谁保证 |
+|---|---|---|
+| 就是 `LoginStateId` | 列表里每一项的句柄、登录成功答复里的句柄，都是 AI 给出的那个 `LoginStateId` 原值；入口层不改写、不另算 | 本契约 |
+| 不是出示物、得不到出示物 | `LoginStateId` 是出示物的不可逆形式；拿它当出示物，AI S-44 答 `login-state-rejected`（[S-11](#s-11-认人)） | [AI S-45](../../../capabilities/account-identity/v2/contract.md#s-45-登录状态出示物) 的派生规则 |
+| 不是秘密 | 可以出现在答复里与工程记录里 | 同上：本版登录状态的安全性在出示物的熵上，不在 `LoginStateId`（[S-36](#s-36-装配给的保证-vs-协议须给的保证) 的「出示物猜不中」行） |
+| 部署内唯一 | 两个登录状态不会有同一个句柄，所以按句柄撤销不会多撤 | AI S-45（由存储的唯一约束兑现）；`data.identity-values` v1 [`#S-9`](../../../data/identity-values/v1/contract.md#s-9-loginstateid) |
+| 跨重启、升级、换密钥稳定 | 同一个登录状态的句柄在重启、升级、更换[部署密钥](../../../../ubiquitous_language/terms/grounding-and-isolation.md#ul-deployment-key--部署密钥--deployment-key)之后**不变**——换密钥[什么都不该丢](../../../../product/PF-017-governance-center-as-deployable-application/design.md#部署密钥) | AI S-45 的派生式：确定、不加盐、**不以任何密钥为键**，且 `LoginStateId` 写进登录状态记录、跟着数据走 |
+| 交换表示 | `data.identity-values` v1 的 `LoginStateId`（[`#S-31`](../../../data/identity-values/v1/contract.md#s-31-不透明标识的交换表示)）；比较逐码点，不做规范化。**消费者不得解析它**——它恰是 64 个十六进制字符这件事只让 AI 的派生可复现，不是给线上读的结构 | IV |
 
-`H` 的具体构造归实现映射；本契约只要求上表七条。
-**客户端须把句柄与登录状态一起保存**：两样只在登录成功时一并交出（[S-19](#s-19-免认人的两条路由注册登录)），此后客户端据句柄在列表里认出自己那一项、用它退出；线上没有「凭出示物换句柄」的路由。
-**为什么要它**：[登录状态](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#登录状态)按持有者认，列表若给出 `LoginStateId` 本身，同一账号的任何一台设备列一次，就收走了其余设备的出示物——
-撤销失窃设备之前，窃取者已经拿到了其余几个（[§8 不交出能直接用的凭证](../../../../product/PF-017-governance-center-as-deployable-application/design.md#八边界与依赖)）。
+**客户端须把句柄与出示物一起保存**：两样只在登录成功时一并交出（[S-19](#s-19-免认人的两条路由注册登录)），此后客户端据句柄在列表里认出自己那一项、用它退出；
+线上没有「凭出示物换句柄」的路由，客户端也**不自行按派生式去算**——派生规则只归 AI S-45 一处。
+**为什么列表可以直接给 `LoginStateId`**：[登录状态](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#登录状态)按持有者认，持有的是出示物；
+列表里的 `LoginStateId` 过不了 AI S-44，同一账号的一台设备列一次，**拿不走**其余设备能用的东西（[§8 不交出能直接用的凭证](../../../../product/PF-017-governance-center-as-deployable-application/design.md#八边界与依赖)；[AI S-37](../../../capabilities/account-identity/v2/contract.md#s-37-列出本账号有效登录状态)：列出的 `LoginStateId` 不是出示物）。
 
 ## 三、判定次序
 
@@ -230,7 +234,7 @@
 
 **「输入」指载荷，信封不是输入；信封不合格在认人之前拒绝。**[§6.4 ④](../../../../product/PF-017-governance-center-as-deployable-application/design.md#64-无效与答不出是两个不同的答复)说「要登录状态的事，认出人之后才看输入」，
 那里的「输入」是**那件事本身的输入**，在线上就是 `payload`；`operation` 与表外成员是**信封**的事——不知道要办哪件事，就谈不上「那件事的输入」，
-所以 ①′ 排在认人之前、答 `invalid-input`，与 ④ 不冲突。这一读法是产品负责人 2026-09-23 的裁定。
+所以 ①′ 排在认人之前、答 `invalid-input`，与 ④ 不冲突。这一读法是产品负责人 2026-09-23 的裁定（[PF-017 INT-013](../../../../product/PF-017-governance-center-as-deployable-application/interviews/2026-09-23-rulings.md#int-013)：认人之前拒绝）。
 
 ### S-11 认人
 
@@ -242,14 +246,16 @@
 | 没带 | 不查 | `login-state-rejected` |
 | 带了不止一个 | 不查 | `login-state-rejected` |
 | 表示层不合格 | 不查 | `login-state-rejected`（[S-5](#s-5-出示物)） |
-| 恰一个、形状合格 | 现读 [`capability.account-identity/v1#S-17`](../../../capabilities/account-identity/v1/contract.md#s-17-校验登录状态) | 见下 |
+| 恰一个、形状合格 | 现读 [`capability.account-identity/v2#S-44`](../../../capabilities/account-identity/v2/contract.md#s-44-按出示物换取身份)（按出示物换取身份），输入就是出示物 | 见下 |
 
-| [AI S-17](../../../capabilities/account-identity/v1/contract.md#s-17-校验登录状态) 的出口 | 本步的收场 |
+| [AI S-44](../../../capabilities/account-identity/v2/contract.md#s-44-按出示物换取身份) 的出口 | 本步的收场 |
 |---|---|
-| `AccountId` | **认出了人**，带着这个 `AccountId` 往下走 |
-| `login-state-rejected`（查不到、已撤销、所属账号未激活——**从没签发过、已退出或撤销、别的中心签的**都落在这里） | `login-state-rejected` |
-| `invalid-input` | `login-state-rejected`。**本版到不了**：入口层判出示物的表示层用的是同一条 [`#S-31`](../../../data/identity-values/v1/contract.md#s-31-不透明标识的交换表示)；前提一旦不成立，收场已经写在这里——出示物是身份，不是输入 |
+| `{LoginStateId, AccountId}` | **认出了人**，带着这两个值往下走（[S-12](#s-12-身份推导)：认人所得 `LoginStateId`、认人所得 `AccountId`） |
+| `login-state-rejected`（查不到、已撤销、所属账号未激活——**从没签发过、已退出或撤销、别的中心签的**，以及**拿一个 `LoginStateId`（例如列表里的一项）当出示物**，都落在这里） | `login-state-rejected` |
+| `invalid-input` | `login-state-rejected`。**本版到不了**：入口层判出示物的表示层用的就是 AI S-44 的那一条（[AI S-45](../../../capabilities/account-identity/v2/contract.md#s-45-登录状态出示物) 的交换表示）；前提一旦不成立，收场已经写在这里——出示物是身份，不是输入 |
 | `storage-unavailable` | `unavailable` |
+
+**认人只走 AI S-44**：本组合从不以线上收到的任何 `LoginStateId` 调 [AI S-17](../../../capabilities/account-identity/v2/contract.md#s-17-校验登录状态) 来认人——那是 AI 只对进程内开放的面（[AI S-30](../../../capabilities/account-identity/v2/contract.md#s-30-装配给的保证-vs-协议须给的保证) 的「只有 S-44 认出示物」行）。
 
 **六种不认的情形——没带、带了不止一个、表示层不合格、从没签发过、已退出或撤销、别的中心签的——在版本对得上、判得了时，整个线上答复逐字相同**（[§6.5](../../../../product/PF-017-governance-center-as-deployable-application/design.md#65-拒绝的时候什么都不多说)）。
 从中心的任何拒绝里，读不出一个名字存不存在，也读不出一个登录状态曾经有没有过。
@@ -263,9 +269,10 @@
 
 | 交给领域的身份值 | 从哪来 | 读不到／读到不作数时 |
 |---|---|---|
-| 调用方的 `AccountId`——下文称**认人所得 `AccountId`** | 第 ② 步 [AI S-17](../../../capabilities/account-identity/v1/contract.md#s-17-校验登录状态) 给出的那一个 | —（已在第 ② 步定下） |
-| 行事的 `TenantId`（发起者、调用方、接受者 `TenantId`）——下文称**推导所得 `TenantId`** | 现读 [OG S-36](../../../capabilities/organization-governance/v1/contract.md#s-36-当前租户身份查询)，参数是出示的那个 `LoginStateId`——即登录状态上[当前选中的租户身份](../../../../ubiquitous_language/terms/subjects-and-ownership.md#ul-current-tenant-identity--当前租户身份--current-tenant-identity)（[PF-001 §4 当前租户身份](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#当前租户身份)） | `unavailable` ⇒ `unavailable`；`loginStateNotValid` ⇒ `login-state-rejected`（其间被撤销，见 [S-33](#s-33-认出人之后登录状态被撤销)）；`invalidInput` 本版到不了，出现即缺陷；返回的 `TenantId` 的 `account` 分量不等于认人所得 `AccountId` ⇒ 缺陷（[S-14](#s-14-失败映射) 的矛盾清单） |
-| 被传给领域的 `LoginStateId`（[OG S-36](../../../capabilities/organization-governance/v1/contract.md#s-36-当前租户身份查询)、[OG S-37](../../../capabilities/organization-governance/v1/contract.md#s-37-切换当前租户身份)、[AI S-16](../../../capabilities/account-identity/v1/contract.md#s-16-撤销登录状态)、[AI S-37](../../../capabilities/account-identity/v1/contract.md#s-37-列出本账号有效登录状态) 四条路由） | 就是出示的那一个 | — |
+| 调用方的 `AccountId`——下文称**认人所得 `AccountId`** | 第 ② 步 [AI S-44](../../../capabilities/account-identity/v2/contract.md#s-44-按出示物换取身份) 给出的那一个 | —（已在第 ② 步定下） |
+| 出示物所属那个登录状态的 `LoginStateId`——下文称**认人所得 `LoginStateId`** | 同上，AI S-44 一并给出 | —（已在第 ② 步定下） |
+| 行事的 `TenantId`（发起者、调用方、接受者 `TenantId`）——下文称**推导所得 `TenantId`** | 现读 [OG S-36](../../../capabilities/organization-governance/v1/contract.md#s-36-当前租户身份查询)，参数是认人所得 `LoginStateId`——即登录状态上[当前选中的租户身份](../../../../ubiquitous_language/terms/subjects-and-ownership.md#ul-current-tenant-identity--当前租户身份--current-tenant-identity)（[PF-001 §4 当前租户身份](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#当前租户身份)） | `unavailable` ⇒ `unavailable`；`loginStateNotValid` ⇒ `login-state-rejected`（其间被撤销，见 [S-33](#s-33-认出人之后登录状态被撤销)）；`invalidInput` 本版到不了，出现即缺陷；返回的 `TenantId` 的 `account` 分量不等于认人所得 `AccountId` ⇒ 缺陷（[S-14](#s-14-失败映射) 的矛盾清单） |
+| 被传给领域的 `LoginStateId`（[OG S-36](../../../capabilities/organization-governance/v1/contract.md#s-36-当前租户身份查询)、[OG S-37](../../../capabilities/organization-governance/v1/contract.md#s-37-切换当前租户身份)、[AI S-16](../../../capabilities/account-identity/v2/contract.md#s-16-撤销登录状态)、[AI S-37](../../../capabilities/account-identity/v2/contract.md#s-37-列出本账号有效登录状态) 四条路由的发起方、调用方） | 认人所得 `LoginStateId`。**出示物本身从不交给领域**：收出示物的面只有 AI S-44 | — |
 
 - **推导发生在请求到达的那一刻，每个请求推一次，随请求交下去**；领域操作不在使用点重取当前租户身份
   （[`data.identity-values/v1#S-17`](../../../data/identity-values/v1/contract.md#s-17-身份参数没有默认值)、[`#S-28`](../../../data/identity-values/v1/contract.md#s-28-当前租户身份在创建那一刻捕获)）。
@@ -289,6 +296,7 @@
 
 **这是本契约按隔离原则给四条读面加的前置**，依据是 [PF-001 §6.4 隔离](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)：
 没有明确所有权或成员资格依据时，跨租户访问默认拒绝。一个组织的类型、它的上级链、别人在它里面的成员资格效力，都不向与那个组织无关的人开放。
+产品负责人 2026-09-23 裁定这是隔离原则的自然延伸，由架构与规格设计自定、不需要产品另提需求（[PF-017 INT-014](../../../../product/PF-017-governance-center-as-deployable-application/interviews/2026-09-23-rulings.md#int-014)）。
 
 | 路由 | 「该组织」是哪个 | 补的那一道 |
 |---|---|---|
@@ -321,12 +329,12 @@
 | 成功返回（该条款 ⑤），且合本契约 Schema 的 `Result_<路由>` | `{ result: … }` |
 | AI 的 `storage-unavailable`；OG 的 `unavailable`（[三类收场之一](../../../capabilities/organization-governance/v1/contract.md#s-16-缺席时的默认答案)）；`MembershipStandingResult` 的 `{ failure: "unavailable" }` | `unavailable` |
 | 表示层不合格：AI 的 `invalid-input`、OG 的 `invalidInput`（[同上](../../../capabilities/organization-governance/v1/contract.md#s-16-缺席时的默认答案)）——**这一次请求实际交给领域的输入里有来自载荷的项** | `invalid-input` |
-| 同上——**这一次请求实际交给领域的输入里没有来自载荷的项**（交进去的全是入口层产出的值：认人所得 `AccountId`、推导所得 `TenantId`、出示的那个 `LoginStateId`、按句柄匹配出的目标） | `unavailable`，**并记为缺陷**：入口层自己产出的值被领域判为不合形状，错不在来者 |
-| **「出示的那个登录状态此刻不作数」**：[AI S-37](../../../capabilities/account-identity/v1/contract.md#s-37-列出本账号有效登录状态) 的 `login-state-rejected`、[AI S-16](../../../capabilities/account-identity/v1/contract.md#s-16-撤销登录状态) 的 `not-authorized`、[OG S-36](../../../capabilities/organization-governance/v1/contract.md#s-36-当前租户身份查询)／[OG S-37](../../../capabilities/organization-governance/v1/contract.md#s-37-切换当前租户身份) 的 `loginStateNotValid` | `login-state-rejected`（[S-33](#s-33-认出人之后登录状态被撤销)） |
-| **在本组合里结构上到不了的具名值**：AR 的 `identifier-held-by-expired-record`（[S-19](#s-19-免认人的两条路由注册登录)）；[OG S-21](../../../capabilities/organization-governance/v1/contract.md#s-21-创建团队组织)、[OG S-25](../../../capabilities/organization-governance/v1/contract.md#s-25-接受邀请) 就**调用方本人**给出的 `accountNotActivated`、`accountDoesNotExist`——认人所得 `AccountId` 必属一个已激活账号（[AI S-17](../../../capabilities/account-identity/v1/contract.md#s-17-校验登录状态) 对未激活账号答 `login-state-rejected`），而[已激活不回退、不消失](../../../capabilities/account-identity/v1/contract.md#s-20-已激活不回退不消失) | `unavailable`，**并记为缺陷**。与空列表同一口径 |
+| 同上——**这一次请求实际交给领域的输入里没有来自载荷的项**（交进去的全是入口层产出的值：认人所得 `AccountId`、认人所得 `LoginStateId`、推导所得 `TenantId`） | `unavailable`，**并记为缺陷**：入口层自己产出的值被领域判为不合形状，错不在来者 |
+| **「出示的那个登录状态此刻不作数」**：[AI S-37](../../../capabilities/account-identity/v2/contract.md#s-37-列出本账号有效登录状态) 的 `login-state-rejected`、[AI S-16](../../../capabilities/account-identity/v2/contract.md#s-16-撤销登录状态) 的 `not-authorized`、[OG S-36](../../../capabilities/organization-governance/v1/contract.md#s-36-当前租户身份查询)／[OG S-37](../../../capabilities/organization-governance/v1/contract.md#s-37-切换当前租户身份) 的 `loginStateNotValid` | `login-state-rejected`（[S-33](#s-33-认出人之后登录状态被撤销)） |
+| **在本组合里结构上到不了的具名值**：AR 的 `identifier-held-by-expired-record`（[S-19](#s-19-免认人的两条路由注册登录)）；[OG S-21](../../../capabilities/organization-governance/v1/contract.md#s-21-创建团队组织)、[OG S-25](../../../capabilities/organization-governance/v1/contract.md#s-25-接受邀请) 就**调用方本人**给出的 `accountNotActivated`、`accountDoesNotExist`——认人所得 `AccountId` 必属一个已激活账号（[AI S-44](../../../capabilities/account-identity/v2/contract.md#s-44-按出示物换取身份) 对未激活账号答 `login-state-rejected`），而[已激活不回退、不消失](../../../capabilities/account-identity/v2/contract.md#s-20-已激活不回退不消失) | `unavailable`，**并记为缺陷**。与空列表同一口径 |
 | 该条款失败集合里的其余具名值 | `{ failure: <原名> }`，**原样透传**，不改名、不合并、不加原因 |
 | **失败集合之外的任何东西**（未列出的值、没有返回、抛出） | `unavailable`，**并记为缺陷** |
-| **与该条款承诺矛盾的返回——封闭清单，恰下列四样，此外不检**：① 成功返回不合本契约 Schema 的 `Result_<路由>`；② [OG S-27](../../../capabilities/organization-governance/v1/contract.md#s-27-我的租户) 或 [AI S-37](../../../capabilities/account-identity/v1/contract.md#s-37-列出本账号有效登录状态) 返回空列表；③ 撤销路由按句柄匹配到不止一项（[S-20](#s-20-登录状态的两条路由撤销列出)）；④ [OG S-36](../../../capabilities/organization-governance/v1/contract.md#s-36-当前租户身份查询) 返回的 `TenantId` 的 `account` 分量不等于认人所得 `AccountId`（[S-12](#s-12-身份推导)） | `unavailable`，**并记为缺陷** |
+| **与该条款承诺矛盾的返回——封闭清单，恰下列三样，此外不检**：① 成功返回不合本契约 Schema 的 `Result_<路由>`；② [OG S-27](../../../capabilities/organization-governance/v1/contract.md#s-27-我的租户) 或 [AI S-37](../../../capabilities/account-identity/v2/contract.md#s-37-列出本账号有效登录状态) 返回空列表；③ [OG S-36](../../../capabilities/organization-governance/v1/contract.md#s-36-当前租户身份查询) 返回的 `TenantId` 的 `account` 分量不等于认人所得 `AccountId`（[S-12](#s-12-身份推导)） | `unavailable`，**并记为缺陷** |
 
 **「记为缺陷」**的全部情形就是上表标了它的四行、[补授权](#s-13-补授权)那一行与 [S-19](#s-19-免认人的两条路由注册登录)～[S-23](#s-23-当前租户身份的两条路由) 各表里写「缺陷」的格；它们计入[完整体检](#s-26-完整体检)的 `defectCount`，细节只在[工程记录](#s-30-工程记录)里。
 
@@ -338,7 +346,7 @@
 
 ### S-15 δ = 0：每个请求现读，入口不跨请求缓存
 
-- **每个请求都现读**：第 ② 步现读 [AI S-17](../../../capabilities/account-identity/v1/contract.md#s-17-校验登录状态)，身份推导现读 [OG S-36](../../../capabilities/organization-governance/v1/contract.md#s-36-当前租户身份查询)，补授权现读 [OG S-26](../../../capabilities/organization-governance/v1/contract.md#s-26-成员资格判定)；领域操作按各自契约现读成员资格与角色。
+- **每个请求都现读**：第 ② 步现读 [AI S-44](../../../capabilities/account-identity/v2/contract.md#s-44-按出示物换取身份)，身份推导现读 [OG S-36](../../../capabilities/organization-governance/v1/contract.md#s-36-当前租户身份查询)，补授权现读 [OG S-26](../../../capabilities/organization-governance/v1/contract.md#s-26-成员资格判定)；领域操作按各自契约现读成员资格与角色。
   这就是[只信此刻仍有效的](../../../../product/PF-017-governance-center-as-deployable-application/design.md#63-只信自己签发的此刻仍有效的登录状态别人说验过了不算数)在中心一侧的样子。
 - **入口层不跨请求缓存任何认人结果、授权判定、推导出的身份或成员资格效力**——一条都不缓存。
   撤销、退出、解除、降级、切换在提交之后，**下一个到达中心的请求**就看得到（[`data.identity-values/v1#S-27`](../../../data/identity-values/v1/contract.md#s-27-每道准入现读)、[PF-001 §6.6](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#66-撤销不等于强制停止)）。
@@ -374,7 +382,7 @@
 | **6 事件** | **入口层不发、不订阅、不转发任何事件**；领域的通知事件不上线 | — |
 | **7 缺席时的默认答案** | 出示物缺席 ⇒ `login-state-rejected`（经 ② 的路由；[`data.identity-values/v1#S-18`](../../../data/identity-values/v1/contract.md#s-18-缺席即拒绝)）；**载荷里的身份值缺席 ⇒ `invalid-input`，不从任何地方补**；被投影条款写明「缺席取默认」的非身份项（时长、指定角色、过滤开关、创建键）缺席时**原样作缺席交下去**，由领域取它自己的默认，入口层不替它填 | — |
 | **8 在途归属** | 入口层没有按请求保存的状态。领域操作按它自己那一次提交收场；答复没送达时，事实要么已提交、要么没发生（[§6.8](../../../../product/PF-017-governance-center-as-deployable-application/design.md#68-停机已确认的都在没确认的等于没发生)）；其间的撤销见 [S-33](#s-33-认出人之后登录状态被撤销) | 多步路由写明中途失败留下什么 |
-| **9 装配给／协议给** | [S-36](#s-36-装配给的保证-vs-协议须给的保证) 里**每条路由都读**的四行：「读不到即明确失败」「表示层校验与判定分开」「起来即整体」「中心一侧 δ = 0 只是中心一侧」；**经 ② 的路由另读**五行：「跨边界须重新验证」「出示物不可伪造」「判定依据不含物理位置」「每道准入现读」「六条路径同一判定；不得冒充隔离」 | 「第 9 件事」一列：这条路由**另外**读 S-36 的哪几行 |
+| **9 装配给／协议给** | [S-36](#s-36-装配给的保证-vs-协议须给的保证) 里**每条路由都读**的四行：「读不到即明确失败」「表示层校验与判定分开」「起来即整体」「中心一侧 δ = 0 只是中心一侧」；**经 ② 的路由另读**六行：「跨边界须重新验证」「只有 AI S-44 认出示物」「出示物猜不中」「判定依据不含物理位置」「每道准入现读」「六条路径同一判定；不得冒充隔离」 | 「第 9 件事」一列：这条路由**另外**读 S-36 的哪几行 |
 
 **线上形状归本契约**：三份参与契约 v1 不发布 Schema，**27 条路由的载荷与成功返回的线上形状由本契约定义**；
 成员名从各条款 ①／⑤ 的散文措辞推出，列在下面的命名表里，Schema 里每条路由各一个 `Payload_<路由>` 与 `Result_<路由>`，成员封闭。
@@ -396,9 +404,9 @@
 | 路由 | 载荷成员 · 类型 · ← 参与条款 ① 的哪一项 | 推导（不在载荷里） | 成功返回 · ← ⑤ |
 |---|---|---|---|
 | 注册 `composition.account-registration/v1#S-8` | `loginIdentifier` · IV `LoginIdentifier` ← 登录标识；`credential` · 非空字符串（内部格式见下注 1） ← 凭据材料 | — | `"registered"` ← `registered`（[AR S-4](../../account-registration/v1/contract.md#s-4-注册成功)、[AR S-5](../../account-registration/v1/contract.md#s-5-终结结果集合)） |
-| 登录 `capability.account-identity/v1#S-15` | `loginIdentifier`、`credential`，同上 ← ① 登录标识、凭据材料 | — | `{ loginState, loginStateHandle }` ← LoginStateId（句柄由入口派生，[S-9](#s-9-列表句柄)） |
-| 撤销 `capability.account-identity/v1#S-16` | `loginStateHandle` · 列表句柄 ← 目标 LoginStateId（经句柄指认，[S-20](#s-20-登录状态的两条路由撤销列出)） | 发起方 LoginStateId = 出示物 | `"ok"` ← `ok` |
-| 列出 `capability.account-identity/v1#S-37` | 无 | LoginStateId = 出示物 | `[{ loginStateHandle, issuedAt }]`，至少一项 ← 每项的 LoginStateId 换成句柄，签发时间（OE `Instant`） |
+| 登录 `capability.account-identity/v2#S-15` | `loginIdentifier`、`credential`，同上 ← ① 登录标识、凭据材料 | — | `{ loginState, loginStateHandle }` ← `{出示物, LoginStateId}`（句柄就是 LoginStateId，[S-9](#s-9-列表句柄)） |
+| 撤销 `capability.account-identity/v2#S-16` | `loginStateHandle` · IV `LoginStateId` ← 目标 LoginStateId（[S-20](#s-20-登录状态的两条路由撤销列出)） | 认人所得 LoginStateId（发起方） | `"ok"` ← `ok` |
+| 列出 `capability.account-identity/v2#S-37` | 无 | 认人所得 LoginStateId | `[{ loginStateHandle, issuedAt }]`，至少一项 ← 每项的 LoginStateId、签发时间（OE `Instant`） |
 | `capability.organization-governance/v1#S-21` | `creationKey?` · `CreationKey` ← 创建键 | 认人所得 AccountId（创建者） | IV `OrganizationId` ← `OrganizationId` |
 | `capability.organization-governance/v1#S-22` | `organization` · IV `OrganizationId` ← `OrganizationId` | — | `{ organization, organizationKind, parentOrganization? }` ← `{ OrganizationId, OrganizationKind, 上级组织（有或无） }` |
 | `capability.organization-governance/v1#S-23` | `invitedAccount` · IV `AccountId` ← 目标 AccountId；`role?` · IV `TenantRole` ← 指定角色；`offerTtl?` · 整数毫秒 ← 这一份的有效时长 | 推导所得 TenantId（发起者） | `InvitationId` ← `InvitationId` |
@@ -414,8 +422,8 @@
 | `capability.organization-governance/v1#S-33` | `childOrganization` · IV `OrganizationId` ← 被解除的那条隶属关系（下级 OrganizationId） | 推导所得 TenantId（发起者） | `"ok"` |
 | `capability.organization-governance/v1#S-34` | `organizations` · 一或两个 IV `OrganizationId` ← 一个或两个 `OrganizationId` | — | 一个 ⇒ `[OrganizationId]`（上级链，不含自己）；两个 ⇒ 布尔（有共同上级） |
 | `capability.organization-governance/v1#S-35` | `tenant` ← `TenantId` | — | `{ organizationLayer, tenantLayer }`，各一个 IV `ScopeLayerIdentity`（`layer` 分别是 `organization`／`tenant`）← 组织级、租户级 |
-| `capability.organization-governance/v1#S-36` | 无 | LoginStateId = 出示物 | IV `TenantId` ← `TenantId` |
-| `capability.organization-governance/v1#S-37` | `targetTenant` ← 目标 TenantId | LoginStateId = 出示物 | `"ok"` |
+| `capability.organization-governance/v1#S-36` | 无 | 认人所得 LoginStateId | IV `TenantId` ← `TenantId` |
+| `capability.organization-governance/v1#S-37` | `targetTenant` ← 目标 TenantId | 认人所得 LoginStateId | `"ok"` |
 | `capability.organization-governance/v1#S-55` | `invitation` ← `InvitationId`；`callerIdentityKind` · `account`／`tenant` ← 调用方身份的判别式 | 按判别式取认人所得 AccountId 或推导所得 TenantId（调用方） | `InvitationView` ← ⑤ |
 | `capability.organization-governance/v1#S-56` | `affiliationRequest` ← `AffiliationRequestId` | 推导所得 TenantId（调用方） | `AffiliationRequestView` ← ⑤ |
 | `capability.organization-governance/v1#S-57` | `includeConcluded?` · 布尔 ← 「连已终结的一起要」 | 认人所得 AccountId | `[InvitationView]` ← 邀请列表 |
@@ -433,7 +441,7 @@
 
 **散文推不出、或靠推导补上的地方**，逐条写明，不自造语义：
 
-1. **`credential` 在线上是一个非空字符串**（Schema `CredentialMaterial`）；它的**内部格式**归凭据方案的 owner——与 [AI S-26](../../../capabilities/account-identity/v1/contract.md#s-26-credential_policy) `credential_policy` 同一个 owner（[AI S-8](../../../capabilities/account-identity/v1/contract.md#s-8-凭据材料)：结构、强度规则与比对方式属实现选择）。
+1. **`credential` 在线上是一个非空字符串**（Schema `CredentialMaterial`）；它的**内部格式**归凭据方案的 owner——与 [AI S-26](../../../capabilities/account-identity/v2/contract.md#s-26-credential_policy) `credential_policy` 同一个 owner（[AI S-8](../../../capabilities/account-identity/v2/contract.md#s-8-凭据材料)：结构、强度规则与比对方式属实现选择）。
    入口层的表示层校验**用该 owner 给出的同一条解析规则**，解析不过 ⇒ `invalid-input`（[S-19](#s-19-免认人的两条路由注册登录)）。入口层不自定第二套，也不对它做 Schema 之外的收紧。
 2. **首次命名的取值**：`direction` 的两个取值 `recipientAsParent`／`recipientAsChild`。[OG S-11](../../../capabilities/organization-governance/v1/contract.md#s-11-隶属请求) 与 [OG S-30](../../../capabilities/organization-governance/v1/contract.md#s-30-发出隶属请求) ① 只有「请对方作自己的上级／下级」的散文，没有取值名。
 3. **表示上的推导**：
@@ -470,26 +478,26 @@
 注册不设任何门槛，靠的是[部署前提](../../../../product/PF-017-governance-center-as-deployable-application/design.md#部署前提)：够得到中心的就是组织里的人。
 
 **两条路由的载荷表示层校验相同**：`loginIdentifier` 按 IV `LoginIdentifier` 的形状判；`credential` 须是非空字符串，并**用凭据方案 owner 给出的那一条解析规则**判——
-那个 owner 与 [AI S-26](../../../capabilities/account-identity/v1/contract.md#s-26-credential_policy) `credential_policy` 是同一个，入口层不自定第二套。
+那个 owner 与 [AI S-26](../../../capabilities/account-identity/v2/contract.md#s-26-credential_policy) `credential_policy` 是同一个，入口层不自定第二套。
 **解析不过 ⇒ `invalid-input`，从不把解析不过的值交给领域**。解析只判「它是不是那个方案下的一份凭据材料」，不判它可不可接受——可接受与否是 `credential_policy` 的事，在注册里收成 `credential-rejected`。
 
 | 路由 | 身份怎么推 | 载荷 | 返回与映射 | 重发 | 第 9 件事（另读 S-36 的） |
 |---|---|---|---|---|---|
 | **注册** `composition.account-registration/v1#S-8` | 无身份可推 | 登录标识、凭据材料。**表示层校验归本组合**（[AR S-2「注册入口」一行](../../account-registration/v1/contract.md#s-2-参与方与精确承诺)）：不合格 ⇒ `invalid-input`，**不交进去**（交进去的收场是 `interrupted`） | [四个终结结果](../../account-registration/v1/contract.md#s-5-终结结果集合)：`registered`（[注册成功](../../account-registration/v1/contract.md#s-4-注册成功)）⇒ `{ result: "registered" }`；`identifier-taken`／`credential-rejected`／`interrupted` ⇒ `{ failure: <原名> }`。**`interrupted` 原样呈现，不改写**——不改成成功、不改成 `identifier-taken`，**也不改成 `unavailable`**：它已经含着「底层不可用」那一支（[AR S-6](../../account-registration/v1/contract.md#s-6-每个终结结果的含义与对应的存储状态)），其产品措辞就是「这次没有注册成功」。`identifier-held-by-expired-record` **结构上到不了**本组合（它在注册组合内部就地消化）；出现即缺陷 | 按 [AR S-12](../../account-registration/v1/contract.md#s-12-重试规则)：同一标识、同一凭据重来，接着走完或得 `identifier-taken`（激活已提交而回执丢失时） | 「注册入口的义务」「`identifier-held-by-expired-record` 只流向注册组合」 |
-| **登录** `capability.account-identity/v1#S-15` | 无身份可推 | 登录标识、凭据材料（表示层校验同上） | 成功 ⇒ `{ result: { loginState, loginStateHandle } }`：`loginState` 是**新签发的 `LoginStateId`（出示物在全部输出里唯一出现的一处）**，`loginStateHandle` 是它的列表句柄——客户端据后者在列表里认出自己、用它退出（[S-9](#s-9-列表句柄)）。`identifier-or-credential-rejected` 原样透传：**三种登录失败逐字相同**（[AI S-15](../../../capabilities/account-identity/v1/contract.md#s-15-验证凭据并签发登录状态)）。`invalid-input` ⇒ `invalid-input`；`storage-unavailable` ⇒ `unavailable` | **不幂等**：重发会签发另一个登录状态；多出来的那个在列表里看得见、撤得掉（[AI S-15 在途归属](../../../capabilities/account-identity/v1/contract.md#s-15-验证凭据并签发登录状态)） | 「出示物不可伪造」（新签发的那一个就是此后的出示物）「登录状态的效力不变」 |
+| **登录** `capability.account-identity/v2#S-15` | 无身份可推 | 登录标识、凭据材料（表示层校验同上） | 成功 ⇒ `{ result: { loginState, loginStateHandle } }`：`loginState` 是 AI S-15 交出的**出示物（它在全部输出里唯一出现的一处）**，`loginStateHandle` 是同一个登录状态的 `LoginStateId`，即它的列表句柄——客户端据后者在列表里认出自己、用它退出（[S-9](#s-9-列表句柄)）。`identifier-or-credential-rejected` 原样透传：**三种登录失败逐字相同**（[AI S-15](../../../capabilities/account-identity/v2/contract.md#s-15-验证凭据并签发登录状态)）。`invalid-input` ⇒ `invalid-input`；`storage-unavailable` ⇒ `unavailable` | **不幂等**：重发会签发另一个登录状态；多出来的那个在列表里看得见、撤得掉（[AI S-15 在途归属](../../../capabilities/account-identity/v2/contract.md#s-15-验证凭据并签发登录状态)） | 「出示物只交到调用方手里」「出示物猜不中」（新签发的那一个就是此后的出示物）「登录状态的效力不变」 |
 
 提交点：注册是[激活那一次提交](../../account-registration/v1/contract.md#s-8-三步次序与责任交接)；登录是登录状态记录写入的那一次提交。
 
 ### S-20 登录状态的两条路由：撤销、列出
 
-两条都经第 ② 步；交给领域的 `LoginStateId` 就是出示的那一个（[PF-001 §4 登录状态](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#登录状态)：一台机器上的一个登录状态可以被列出、被撤销）。
+两条都经第 ② 步；交给领域的发起方、调用方 `LoginStateId` 是认人所得 `LoginStateId`（[S-12](#s-12-身份推导)；[PF-001 §4 登录状态](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#登录状态)：一台机器上的一个登录状态可以被列出、被撤销）。
 
 | 路由 | 身份怎么推 | 载荷 | 返回与映射 | 重发 | 第 9 件事（另读 S-36 的） |
 |---|---|---|---|---|---|
-| **撤销（含退出）** `capability.account-identity/v1#S-16` | 发起方 = 出示的 `LoginStateId`；**目标由句柄匹配得出**：现读 [AI S-37](../../../capabilities/account-identity/v1/contract.md#s-37-列出本账号有效登录状态)`(出示的那一个)`，在列表里找句柄等于载荷里那一个的项，恰一项 ⇒ 以它的 `LoginStateId` 为目标调 [AI S-16](../../../capabilities/account-identity/v1/contract.md#s-16-撤销登录状态) | `loginStateHandle`（必需，无默认值——**缺席不是「退出自己」**；退出就是带上自己那一个的句柄） | 成功 `ok`。**匹配不到 ⇒ `{ failure: "login-state-not-found" }`**——与 AI S-16 把「不存在」「不是你的」并成的那一个值逐字相同，产品反馈是[「这个登录已经不在有效之列」](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#二分支与异常)。**匹配到不止一项 ⇒ 缺陷**，`unavailable`，一个都不撤。AI S-37 那次现读：`login-state-rejected` ⇒ `login-state-rejected`，`storage-unavailable` ⇒ `unavailable`，`invalid-input` ⇒ 缺陷。AI S-16：`login-state-not-found` 透传，`not-authorized` ⇒ `login-state-rejected`，`invalid-input` ⇒ 缺陷，`storage-unavailable` ⇒ `unavailable` | 撤销已提交、答复丢了之后重发：**撤的是别的那一个** ⇒ 它已不在列表里 ⇒ `login-state-not-found`；**撤的是自己（退出）** ⇒ 第 ② 步就 `login-state-rejected`。**两者都是「已经撤掉了」的可观察形式**；线上**没有** AI S-16「已撤销 ⇒ `ok`」那一支，因为入口层拿不到已撤销那个的 `LoginStateId` | 「撤销之后立刻生效」 |
-| **列出** `capability.account-identity/v1#S-37` | 调用方 = 出示的 `LoginStateId` | 无（空对象） | 成功 ⇒ `{ result: [ … ] }`，每一项恰为 `{ loginStateHandle, issuedAt }`（签发时间，OE `Instant`），**不含 `LoginStateId`**。空列表 ⇒ 缺陷（成功调用必含调用方自己那一个）。`login-state-rejected` ⇒ `login-state-rejected`；`storage-unavailable` ⇒ `unavailable`；`invalid-input` ⇒ 缺陷 | 纯读 | 「撤销之后立刻生效」（列表里不再有已撤销的） |
+| **撤销（含退出）** `capability.account-identity/v2#S-16` | 发起方 = 认人所得 `LoginStateId`；**目标 = 载荷里的 `loginStateHandle`**，即目标登录状态的 `LoginStateId`（[S-9](#s-9-列表句柄)），原样交给 [AI S-16](../../../capabilities/account-identity/v2/contract.md#s-16-撤销登录状态)——它只作对象，**从不作认人依据** | `loginStateHandle`（必需，无默认值——**缺席不是「退出自己」**；退出就是带上自己那一个的句柄） | 成功 `ok`，含 AI S-16「已撤销 ⇒ `ok`」那一支（目标已被撤掉、发起方仍有效时）。`login-state-not-found` **原样透传**——AI S-16 把「不存在」「不是你的」并成的那一个值，产品反馈是[「这个登录已经不在有效之列」](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#二分支与异常)。`not-authorized` ⇒ `login-state-rejected`（发起方在认人之后被撤，[S-33](#s-33-认出人之后登录状态被撤销)）；`invalid-input` ⇒ `invalid-input`（交进去的输入里有来自载荷的目标，[S-14](#s-14-失败映射)）；`storage-unavailable` ⇒ `unavailable` | 撤销已提交、答复丢了之后重发：**撤的是别的那一个** ⇒ AI S-16 幂等 ⇒ `ok`；**撤的是自己（退出）** ⇒ 第 ② 步就 `login-state-rejected`。两者都是「已经撤掉了」的可观察形式 | 「撤销之后立刻生效」 |
+| **列出** `capability.account-identity/v2#S-37` | 调用方 = 认人所得 `LoginStateId` | 无（空对象） | 成功 ⇒ `{ result: [ … ] }`，每一项恰为 `{ loginStateHandle, issuedAt }`：`loginStateHandle` 是那一项的 `LoginStateId`，`issuedAt` 是签发时间（OE `Instant`）。**不含出示物**（AI 本来就不给，[AI S-37](../../../capabilities/account-identity/v2/contract.md#s-37-列出本账号有效登录状态)）。空列表 ⇒ 缺陷（成功调用必含调用方自己那一个）。`login-state-rejected` ⇒ `login-state-rejected`；`storage-unavailable` ⇒ `unavailable`；`invalid-input` ⇒ 缺陷 | 纯读 | 「撤销之后立刻生效」（列表里不再有已撤销的） |
 
-撤销路由的提交点是 [AI S-16](../../../capabilities/account-identity/v1/contract.md#s-16-撤销登录状态) 那一次提交；它之前的 [AI S-37](../../../capabilities/account-identity/v1/contract.md#s-37-列出本账号有效登录状态) 是纯读。**在两次调用之间目标被别处撤掉**，AI S-16 按它自己的幂等返回 `ok`——这次撤销想要的状态已经成立。
+撤销路由只有一次领域调用，提交点就是 [AI S-16](../../../capabilities/account-identity/v2/contract.md#s-16-撤销登录状态) 那一次提交；入口层不先读列表、不做任何匹配。
 
 ### S-21 组织治理：写路由
 
@@ -537,8 +545,8 @@
 
 | 路由 `capability.organization-governance/v1#…` | 交给领域的身份 | 载荷 | 返回与映射 | 提交与重发 | 第 9 件事（另读 S-36 的） |
 |---|---|---|---|---|---|
-| [`S-36`](../../../capabilities/organization-governance/v1/contract.md#s-36-当前租户身份查询) 当前租户身份查询 | `LoginStateId` = 出示的那一个 | 无 | 成功 ⇒ `{ result: TenantId }`（规范形式）。`loginStateNotValid` ⇒ `login-state-rejected`；`invalidInput` ⇒ 缺陷；返回的 `account` 分量不等于认人所得 `AccountId` ⇒ 缺陷 | 纯读 | 「当前租户身份的可见性」、「`TenantId` 的规范形式」 |
-| [`S-37`](../../../capabilities/organization-governance/v1/contract.md#s-37-切换当前租户身份) 切换当前租户身份 | `LoginStateId` = 出示的那一个 | 目标 `TenantId` | `ok`；透传 `notOwnTenant`、`membershipNotEffective`；`loginStateNotValid` ⇒ `login-state-rejected` | 单次提交；幂等 | 「当前租户身份的可见性」、「成员资格的可见性」、「`TenantId` 的规范形式」 |
+| [`S-36`](../../../capabilities/organization-governance/v1/contract.md#s-36-当前租户身份查询) 当前租户身份查询 | 认人所得 `LoginStateId` | 无 | 成功 ⇒ `{ result: TenantId }`（规范形式）。`loginStateNotValid` ⇒ `login-state-rejected`；`invalidInput` ⇒ 缺陷；返回的 `account` 分量不等于认人所得 `AccountId` ⇒ 缺陷 | 纯读 | 「当前租户身份的可见性」、「`TenantId` 的规范形式」 |
+| [`S-37`](../../../capabilities/organization-governance/v1/contract.md#s-37-切换当前租户身份) 切换当前租户身份 | 认人所得 `LoginStateId` | 目标 `TenantId` | `ok`；透传 `notOwnTenant`、`membershipNotEffective`；`loginStateNotValid` ⇒ `login-state-rejected` | 单次提交；幂等 | 「当前租户身份的可见性」、「成员资格的可见性」、「`TenantId` 的规范形式」 |
 
 **切换提交之后，下一个请求的身份推导就读到新值**（[S-15](#s-15-δ--0每个请求现读入口不跨请求缓存)；[PF-001 §4 当前租户身份](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#当前租户身份)）。本路由**不是**[三类现读](../../../../product/PF-016-cli-tui-delivery-surface/design.md#69-需要现读成员资格的那几件事不拿副本放行)的放行者——那一侧归据点；本契约只保证中心此刻的答案是现读的。
 
@@ -549,9 +557,9 @@
 
 | 不投影的 | 为什么 |
 |---|---|
-| [AI S-13](../../../capabilities/account-identity/v1/contract.md#s-13-产生账号未激活)、[AI S-14](../../../capabilities/account-identity/v1/contract.md#s-14-激活账号)、[AI S-38](../../../capabilities/account-identity/v1/contract.md#s-38-清除到期的未激活账号记录) | 只归注册组合（它们的唯一调用方）；从线上直接够到，`identifier-held-by-expired-record` 就流向了终端（[S-36](#s-36-装配给的保证-vs-协议须给的保证) 的对应行） |
-| [AI S-18](../../../capabilities/account-identity/v1/contract.md#s-18-读账号)（读账号） | 它以「持有 `AccountId` 即可读」为授权；上线等于让任何拿到一个 `AccountId` 的人读它的激活与过期状态 |
-| [AI S-17](../../../capabilities/account-identity/v1/contract.md#s-17-校验登录状态) 作为一条路由 | 它是每个经 ② 的请求的第 ② 步，不另开一条 |
+| [AI S-13](../../../capabilities/account-identity/v2/contract.md#s-13-产生账号未激活)、[AI S-14](../../../capabilities/account-identity/v2/contract.md#s-14-激活账号)、[AI S-38](../../../capabilities/account-identity/v2/contract.md#s-38-清除到期的未激活账号记录) | 只归注册组合（它们的唯一调用方）；从线上直接够到，`identifier-held-by-expired-record` 就流向了终端（[S-36](#s-36-装配给的保证-vs-协议须给的保证) 的对应行） |
+| [AI S-18](../../../capabilities/account-identity/v2/contract.md#s-18-读账号)（读账号） | 它以「持有 `AccountId` 即可读」为授权；上线等于让任何拿到一个 `AccountId` 的人读它的激活与过期状态 |
+| [AI S-44](../../../capabilities/account-identity/v2/contract.md#s-44-按出示物换取身份)、[AI S-17](../../../capabilities/account-identity/v2/contract.md#s-17-校验登录状态) 作为路由 | AI S-44 是每个经 ② 的请求的第 ② 步，不另开一条；AI S-17 按 `LoginStateId` 认人，**只对进程内调用方开放**（AI S-30 的「只有 S-44 认出示物」行），上线就等于让任何读到列表的人认成别人 |
 | [OG S-20](../../../capabilities/organization-governance/v1/contract.md#s-20-创建个人组织)（创建个人组织） | 只归注册组合的动作链 |
 | [OG S-53](../../../capabilities/organization-governance/v1/contract.md#s-53-清除未激活账号的个人组织)（清除个人组织） | 它没有授权前置，只能由注册组合的清除链调用；上线就是一条直接删任何账号个人组织的入口 |
 | AR 的清除链 | 由清扫与注册主链发起，不是来者的动作 |
@@ -642,9 +650,9 @@
 | [部署密钥](../../../../product/PF-017-governance-center-as-deployable-application/design.md#部署密钥)的值 | 无（生成它的办法在交出时给过一次，那不是中心运行时的输出） |
 | 账号的凭据材料 | 无 |
 | [模型凭据](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential)的值 | 无。**本契约对它只承诺「不进任何输出」**，不承诺「在数据里读不出来」（[§6.14](../../../../product/PF-017-governance-center-as-deployable-application/design.md#614-产品不把任何秘密的值交给运维者)） |
-| 出示物（`LoginStateId`） | **恰一处**：登录路由成功时交出新签发的那一个（[S-19](#s-19-免认人的两条路由注册登录)）。线上交出去的其余东西都不能当登录状态用（[§8 不交出能直接用的凭证](../../../../product/PF-017-governance-center-as-deployable-application/design.md#八边界与依赖)） |
+| 出示物 | **恰一处**：登录路由成功时交出新签发的那一个（[S-19](#s-19-免认人的两条路由注册登录)）。线上交出去的其余东西都不能当登录状态用（[§8 不交出能直接用的凭证](../../../../product/PF-017-governance-center-as-deployable-application/design.md#八边界与依赖)） |
 
-列表句柄不是秘密，可以出现。
+列表句柄（即 `LoginStateId`）不是秘密，可以出现（[S-9](#s-9-列表句柄)）。
 
 ### S-30 工程记录
 
@@ -659,7 +667,7 @@
 - **不记对端地址**；
 - **账号与租户只以不可逆的关联号出现**，从记录里还原不出 `AccountId`、`TenantId`；
 - 不含 [S-29](#s-29-秘密不进任何输出) 列出的任何一样；
-- 对来者逐字相同的那六种不认情形，记录里**可以**区分「没带／多个／表示层不合格」与「查过了、不认」——后者内部三种（从没签发、已撤销、别的中心签的），[S-17 本身就不区分](../../../capabilities/account-identity/v1/contract.md#s-17-校验登录状态)，记录里也分不出。
+- 对来者逐字相同的那六种不认情形，记录里**可以**区分「没带／多个／表示层不合格」与「查过了、不认」——后者内部三种（从没签发、已撤销、别的中心签的），[AI S-44 本身就不区分](../../../capabilities/account-identity/v2/contract.md#s-44-按出示物换取身份)，记录里也分不出。
 
 运维者读这些记录，与「握着磁盘的人」是同一类事，**不是产品开给他的一扇门**（[§6.13](../../../../product/PF-017-governance-center-as-deployable-application/design.md#613-运维者没有任何一扇门通向账号能做的事)）。
 
@@ -673,7 +681,7 @@
 | 性质 | 谁在何处保护 | 前提 | 来源 |
 |---|---|---|---|
 | **版本先于一切**：版本对不上时，除公开体检外只答 `version-mismatch`，出示物没被看过，那件事没发生 | [S-10](#s-10-判定次序) ① | — | [§6.4 ①](../../../../product/PF-017-governance-center-as-deployable-application/design.md#64-无效与答不出是两个不同的答复)、[§6.16](../../../../product/PF-017-governance-center-as-deployable-application/design.md#616-版本对不上就明说) |
-| **只认自己签发的、此刻有效的** | [S-11](#s-11-认人)：每请求现读 [AI S-17](../../../capabilities/account-identity/v1/contract.md#s-17-校验登录状态) | `LoginStateId` 不可猜测——本组合的前提，依赖 AI G-2 与 IV G-04 闭合（[S-36](#s-36-装配给的保证-vs-协议须给的保证)） | [§6.3](../../../../product/PF-017-governance-center-as-deployable-application/design.md#63-只信自己签发的此刻仍有效的登录状态别人说验过了不算数) |
+| **只认自己签发的、此刻有效的** | [S-11](#s-11-认人)：每请求凭出示物现读 [AI S-44](../../../capabilities/account-identity/v2/contract.md#s-44-按出示物换取身份) | 出示物猜不中——本组合的前提，由 AI 兑现（[S-36](#s-36-装配给的保证-vs-协议须给的保证) 的「出示物猜不中」行） | [§6.3](../../../../product/PF-017-governance-center-as-deployable-application/design.md#63-只信自己签发的此刻仍有效的登录状态别人说验过了不算数) |
 | **判不了不下结论**：任何一步判不了 ⇒ `unavailable`；永不说成 `login-state-rejected`，永不放行，永不拿旧答案或空清单顶 | [S-10](#s-10-判定次序)、[S-14](#s-14-失败映射)、[S-15](#s-15-δ--0每个请求现读入口不跨请求缓存) | 领域契约把判不了收成各自的不可用值（它们都是） | [§6.4 ②](../../../../product/PF-017-governance-center-as-deployable-application/design.md#64-无效与答不出是两个不同的答复) |
 | **拒绝不泄漏**：六种不认情形同一个线上答复；认出人之后才读到的撤销也是这一个 | [S-11](#s-11-认人)、[S-14](#s-14-失败映射)、[S-33](#s-33-认出人之后登录状态被撤销)、[S-6](#s-6-四种入口答复) 的逐字相同 | 时序侧信道不在范围 | [§6.5](../../../../product/PF-017-governance-center-as-deployable-application/design.md#65-拒绝的时候什么都不多说) |
 | **此刻有效才认**（中心一侧 δ = 0） | [S-15](#s-15-δ--0每个请求现读入口不跨请求缓存) | — | [§6.3](../../../../product/PF-017-governance-center-as-deployable-application/design.md#63-只信自己签发的此刻仍有效的登录状态别人说验过了不算数)、[PF-001 §6.6](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#66-撤销不等于强制停止) |
@@ -685,7 +693,7 @@
 | **中心标识一生不变；两次从零首启不同** | [S-28](#s-28-铸造存放与不变) | 同一份数据；碰撞按概率界 | [§4 中心标识](../../../../product/PF-017-governance-center-as-deployable-application/design.md#中心标识)、[§6.12](../../../../product/PF-017-governance-center-as-deployable-application/design.md#612-同一个中心换了地址还是它另一个中心必须被认出来) |
 | **过期只量中心的钟** | [S-4](#s-4-请求信封)：信封不含时间 | — | [§5.4](../../../../product/PF-017-governance-center-as-deployable-application/design.md#54-中心自己的时间) |
 | **来往里没有会话；中心从不主动发** | [S-3](#s-3-本契约明确不承诺什么)、[S-24](#s-24-有意不投影) | — | [PF-016 §4 治理中心](../../../../product/PF-016-cli-tui-delivery-surface/design.md#治理中心)、[§5.6](../../../../product/PF-016-cli-tui-delivery-surface/design.md#56-哪些东西在中心一侧哪些在据点一侧) |
-| **登录状态的效力只由退出与撤销改变**（重启、升级、换密钥、改参数都不改） | 登录状态记录在存储里（[`capability.account-identity/v1#S-10`](../../../capabilities/account-identity/v1/contract.md#s-10-撤销是持久记录不是内存生命周期) 的既有性质）＋ 本组合不缓存、不另存 | **不经备份恢复**（[S-36](#s-36-装配给的保证-vs-协议须给的保证) 的「效力不变」行；[G-7](#十三已知缺口)） | [§6.7](../../../../product/PF-017-governance-center-as-deployable-application/design.md#67-重启不让任何人退出登录) |
+| **登录状态的效力只由退出与撤销改变**（重启、升级、换密钥、改参数都不改） | 登录状态记录在存储里（[`capability.account-identity/v2#S-10`](../../../capabilities/account-identity/v2/contract.md#s-10-撤销是持久记录不是内存生命周期) 的既有性质）＋ 本组合不缓存、不另存 | **不经备份恢复**（[S-36](#s-36-装配给的保证-vs-协议须给的保证) 的「效力不变」行；[G-7](#十三已知缺口)） | [§6.7](../../../../product/PF-017-governance-center-as-deployable-application/design.md#67-重启不让任何人退出登录) |
 
 ### S-32 进展性质与前提
 
@@ -711,8 +719,8 @@
 
 第 ② 步认出人之后、第 ③ 步提交之前，出示的那个登录状态可能在别处被撤销：
 
-- **领域操作照常执行**，除非它自己又读了那个登录状态——[撤销只影响下一道尚未通过的准入](../../../capabilities/account-identity/v1/contract.md#s-29-撤销不等于强制停止)，这一次的准入已经在第 ② 步通过了。
-- **身份推导或领域操作读到「出示的登录状态已不作数」**（[OG S-36](../../../capabilities/organization-governance/v1/contract.md#s-36-当前租户身份查询)／[OG S-37](../../../capabilities/organization-governance/v1/contract.md#s-37-切换当前租户身份) 的 `loginStateNotValid`、[AI S-37](../../../capabilities/account-identity/v1/contract.md#s-37-列出本账号有效登录状态) 的 `login-state-rejected`、[AI S-16](../../../capabilities/account-identity/v1/contract.md#s-16-撤销登录状态) 的 `not-authorized`）⇒ **`login-state-rejected`**，与在第 ② 步被拒逐字相同（[S-14](#s-14-失败映射)；[§6.5](../../../../product/PF-017-governance-center-as-deployable-application/design.md#65-拒绝的时候什么都不多说)：拒绝的时候什么都不多说）。
+- **领域操作照常执行**，除非它自己又读了那个登录状态——[撤销只影响下一道尚未通过的准入](../../../capabilities/account-identity/v2/contract.md#s-29-撤销不等于强制停止)，这一次的准入已经在第 ② 步通过了。
+- **身份推导或领域操作读到「出示的登录状态已不作数」**（[OG S-36](../../../capabilities/organization-governance/v1/contract.md#s-36-当前租户身份查询)／[OG S-37](../../../capabilities/organization-governance/v1/contract.md#s-37-切换当前租户身份) 的 `loginStateNotValid`、[AI S-37](../../../capabilities/account-identity/v2/contract.md#s-37-列出本账号有效登录状态) 的 `login-state-rejected`、[AI S-16](../../../capabilities/account-identity/v2/contract.md#s-16-撤销登录状态) 的 `not-authorized`）⇒ **`login-state-rejected`**，与在第 ② 步被拒逐字相同（[S-14](#s-14-失败映射)；[§6.5](../../../../product/PF-017-governance-center-as-deployable-application/design.md#65-拒绝的时候什么都不多说)：拒绝的时候什么都不多说）。
 - 无论哪一支，**下一个请求**在第 ② 步就被拒（[PF-001 §6.6](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#66-撤销不等于强制停止)：撤销向后生效）。
 
 ### S-34 起来即整体；停机时在途请求归谁
@@ -744,7 +752,7 @@
 | 时序保证 | 需要：入口在所依赖的面都可用之后才应答 | [S-34](#s-34-起来即整体停机时在途请求归谁) |
 | 可靠投递 | 不需要 | 不承诺送达（[S-3](#s-3-本契约明确不承诺什么)） |
 | 背压与流控 | 不需要 | 非目标（[S-3](#s-3-本契约明确不承诺什么)） |
-| 跨 owner 事务、外部效应回滚 | 不需要 | 每个请求至多落在一个领域操作的一次提交里；撤销路由的第一步是纯读 |
+| 跨 owner 事务、外部效应回滚 | 不需要 | 每个请求至多落在一个领域操作的一次提交里；入口层自己的现读（认人、推导、补授权）都是纯读 |
 
 ## 十一、装配给 vs 协议给
 
@@ -757,9 +765,9 @@
 
 | 保证（来源） | 本版单机：由谁给 | 这条边上／跨进程之后：谁兑现 | 做不到会怎样 |
 |---|---|---|---|
-| **撤销之后立刻生效**（[`capability.account-identity/v1#S-30`](../../../capabilities/account-identity/v1/contract.md#s-30-装配给的保证-vs-协议须给的保证) 第 3 行） | 装配：入口层与账号能力读同一个存储 | **协议给**：[S-15](#s-15-δ--0每个请求现读入口不跨请求缓存) 的中心一侧 δ = 0。中心被拆开之后，账号能力那一行的 δ 须定义，本条的 0 随之变成那个 δ | 退出或被撤销的登录状态在缓存窗口里还能用——[PF-001 §6.6](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#66-撤销不等于强制停止) 被破 |
-| **持有 `AccountId` 即可读账号**（同上第 6 行） | 装配：只有进程内调用方 | **靠不暴露兑现**：[S-24](#s-24-有意不投影) 不投影 [AI S-18](../../../capabilities/account-identity/v1/contract.md#s-18-读账号)；线上任何 `AccountId` 都不作行事依据（[S-12](#s-12-身份推导)）。只要线上不出现 AI S-18，本版不需要账号能力的新版本。**残余暴露**：对已知 `AccountId` 可探知存在与激活状态（须先成为某组织超管并发一次邀请——[OG S-23](../../../capabilities/organization-governance/v1/contract.md#s-23-发出邀请) 透传 `accountNotActivated`／`accountDoesNotExist`）；**接受**，理由：`AccountId` 不可枚举（[IV S-31](../../../data/identity-values/v1/contract.md#s-31-不透明标识的交换表示) 的不透明标识），且被邀请者会看到这次邀请 | 任何拿到一个 `AccountId` 的人读得到它的激活与过期状态 |
-| **`identifier-held-by-expired-record` 只流向注册组合**（同上第 8 行） | 装配：只有注册组合调 [AI S-13](../../../capabilities/account-identity/v1/contract.md#s-13-产生账号未激活) | **结构上兑现**：[S-24](#s-24-有意不投影) 不投影 AI S-13；注册路由只给[四个终结结果](#s-19-免认人的两条路由注册登录)；限定调用点的静态检查覆盖入口层（[SC-1](../verification.md#静态检查义务)） | 「某个名字上挂着一条已过期记录、它的 `AccountId` 是这个」开放给任何人 |
+| **撤销之后立刻生效**（[`capability.account-identity/v2#S-30`](../../../capabilities/account-identity/v2/contract.md#s-30-装配给的保证-vs-协议须给的保证) 第 3 行） | 装配：入口层与账号能力读同一个存储 | **协议给**：[S-15](#s-15-δ--0每个请求现读入口不跨请求缓存) 的中心一侧 δ = 0。中心被拆开之后，账号能力那一行的 δ 须定义，本条的 0 随之变成那个 δ | 退出或被撤销的登录状态在缓存窗口里还能用——[PF-001 §6.6](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#66-撤销不等于强制停止) 被破 |
+| **持有 `AccountId` 即可读账号**（同上第 6 行） | 装配：只有进程内调用方 | **靠不暴露兑现**：[S-24](#s-24-有意不投影) 不投影 [AI S-18](../../../capabilities/account-identity/v2/contract.md#s-18-读账号)；线上任何 `AccountId` 都不作行事依据（[S-12](#s-12-身份推导)）。只要线上不出现 AI S-18，本版不需要账号能力的新版本。**残余暴露**：对已知 `AccountId` 可探知存在与激活状态（须先成为某组织超管并发一次邀请——[OG S-23](../../../capabilities/organization-governance/v1/contract.md#s-23-发出邀请) 透传 `accountNotActivated`／`accountDoesNotExist`）；**接受**（[PF-017 INT-012](../../../../product/PF-017-governance-center-as-deployable-application/interviews/2026-09-23-rulings.md#int-012)），理由：`AccountId` 不可枚举（[IV S-31](../../../data/identity-values/v1/contract.md#s-31-不透明标识的交换表示) 的不透明标识），且被邀请者会看到这次邀请 | 任何拿到一个 `AccountId` 的人读得到它的激活与过期状态 |
+| **`identifier-held-by-expired-record` 只流向注册组合**（同上第 8 行） | 装配：只有注册组合调 [AI S-13](../../../capabilities/account-identity/v2/contract.md#s-13-产生账号未激活) | **结构上兑现**：[S-24](#s-24-有意不投影) 不投影 AI S-13；注册路由只给[四个终结结果](#s-19-免认人的两条路由注册登录)；限定调用点的静态检查覆盖入口层（[SC-1](../verification.md#静态检查义务)） | 「某个名字上挂着一条已过期记录、它的 `AccountId` 是这个」开放给任何人 |
 | **OG S-53 只由清除链调用**（[`capability.organization-governance/v1#S-42`](../../../capabilities/organization-governance/v1/contract.md#s-42-装配给的保证-vs-协议须给的保证) 第 4 行；[`composition.account-registration/v1#S-25`](../../account-registration/v1/contract.md#s-25-装配给的保证-vs-协议须给的保证) 第 7 行） | 装配 | **结构上兑现**：不投影 [OG S-53](../../../capabilities/organization-governance/v1/contract.md#s-53-清除未激活账号的个人组织)，入口层不引用清除个人组织那一面（[SC-1](../verification.md#静态检查义务)） | 一条直接删任何账号个人组织的入口 |
 | **成员资格的可见性**（[OG S-42](../../../capabilities/organization-governance/v1/contract.md#s-42-装配给的保证-vs-协议须给的保证) 第 5 行） | 装配：写入即被下一次读看到 | **协议给**：中心一侧 δ = 0，入口层不缓存（[S-15](#s-15-δ--0每个请求现读入口不跨请求缓存)） | 被移出的人在缓存窗口里仍被放行 |
 | **当前租户身份的可见性**（[OG S-42](../../../capabilities/organization-governance/v1/contract.md#s-42-装配给的保证-vs-协议须给的保证) 第 6 行） | 装配 | **协议给**：同上；切换提交之后，下一个请求的身份推导读到新值（[S-23](#s-23-当前租户身份的两条路由)）。据点建会话前的现读归 PF-016 | 切换之后新建的东西落到旧的租户身份上 |
@@ -777,7 +785,9 @@
 | **表示层校验与判定分开**（[`#S-33`](../../../data/identity-values/v1/contract.md#s-33-表示层校验与判定分开)） | — | **协议给**：`invalid-input` 与三种判定结论分开（[S-6](#s-6-四种入口答复)）；出示物是身份不是输入（[S-5](#s-5-出示物)） | 一次参数错误被读成一次授权或存在性结论 |
 | **邀约过期的钟与存储同源**（[OE S-17](../../../data/offer-expiry/v1/contract.md#s-17-装配给的保证-vs-协议须给的保证) 第 1、2、3、5 行） | 装配 | **这条边不触发**：钟与存储都没有拆开，客户端的钟不参与任何判定、时间不进信封（[S-4](#s-4-请求信封)）。那份契约的右列只在中心自身被拆开时才需要兑现 | 若有人把客户端带来的时刻当成「现在」，过期的邀约会在客户端拨慢了钟的机器上复活、在拨快的机器上提前作废——这正是 S-4 让时间不进信封所挡住的 |
 | **每一类的默认 `offer_ttl` 取值为正**（[OE S-17](../../../data/offer-expiry/v1/contract.md#s-17-装配给的保证-vs-协议须给的保证) 第 4 行）。**单列一行的理由**：它是 OE 那张表里唯一一条**在这个可部署应用上触发**的——两类默认时长就是完整体检里的 `invitationTtlDefault`、`affiliationRequestTtlDefault` | **装配给**：承载装配在启动加载部署参数时校验，非正或不合形状即启动失败、说明是哪一项（[起来即整体](#s-34-起来即整体停机时在途请求归谁)）；本契约的完整体检据此只会显示正值 | 这条边不改变它：默认值不经线上，线上的 `offerTtl` 是**这一份**的时长、由领域判正值（[S-21](#s-21-组织治理写路由)）。中心被拆开之后按 OE S-17 右列，每个承载发出操作的节点各自校验 | 非正的默认值让所有没填时长的邀约发出即不可接受，而发出看起来是成功的 |
-| **出示物不可伪造**（本组合的前提，见 [S-2](#s-2-参与方与精确承诺) 账号能力一行） | **前提，本组合不兑现**：`LoginStateId` 不可猜测。它成立依赖 AI [G-2](../../../capabilities/account-identity/v1/contract.md#九已知缺口) 与 IV [G-04](../../../data/identity-values/v1/contract.md#十已知缺口) 闭合——那两处把标识的形式与不可猜测程度交给提供者设计 | 不变——它本来就是跨进程的前提 | 出示物可被猜中，任何人能以任何人的身份行事 |
+| **只有 AI S-44 认出示物；进程外来的身份一律先过它**（[`capability.account-identity/v2#S-30`](../../../capabilities/account-identity/v2/contract.md#s-30-装配给的保证-vs-协议须给的保证) 第 10 行） | 装配：AI S-17、S-16、S-37 按 `LoginStateId` 只对进程内调用方开放 | **协议给，本组合就是那个接收边界**：第 ② 步只把出示物交给 [AI S-44](../../../capabilities/account-identity/v2/contract.md#s-44-按出示物换取身份)（[S-11](#s-11-认人)）；线上来的 `LoginStateId` 只作撤销的目标对象（[S-20](#s-20-登录状态的两条路由撤销列出)），从不据以认人 | 谁读到一个 `LoginStateId`（列表里、存储里）就能以它的主人行事——出示物与标识的区分形同虚设 |
+| **出示物猜不中**（同上第 11 行；[AI S-45](../../../capabilities/account-identity/v2/contract.md#s-45-登录状态出示物) 的熵下限；本组合的前提，见 [S-2](#s-2-参与方与精确承诺) 账号能力一行） | **前提，本组合不兑现**：安全性在出示物的熵上，由账号能力兑现。`LoginStateId` 不承担任何安全性——它是出示物的不可逆形式，可以被看见（[S-9](#s-9-列表句柄)） | 不变——它本来就是跨进程的前提 | 出示物可被猜中，任何人能以任何人的身份行事 |
+| **出示物只交到调用方手里**（同上第 13 行） | —（本组合就是把出示物送过进程边界的那一方） | **协议给**：出示物只在登录成功的那一次答复里出现（[S-19](#s-19-免认人的两条路由注册登录)），其余答复与观测记录都不带它（[S-29](#s-29-秘密不进任何输出)）；途中不被旁人读到、交给的是真正的对端，归传输层（[G-10](#十三已知缺口)、[G-11](#十三已知缺口)） | 出示物在交出途中被截走，截走的人与持有者此后无从区分 |
 | **登录状态的效力不变**（本契约；[S-31](#s-31-不变量与安全性质) 末行） | 装配：登录状态记录在存储里、入口不另存 | 不变。**前提是「不经备份恢复」**：恢复把中心带回备份那一刻，备份之后撤销的登录状态随之又有效（[G-7](#十三已知缺口)） | 恢复之后一个已撤销的登录状态又能用，而持有者以为它早已失效 |
 | **中心一侧 δ = 0 只是中心一侧**（本契约） | 装配 | 据点上的副本与陈旧窗口归 PF-016，不在本契约 | 把据点副本的陈旧误读成中心放行了已撤销的登录状态 |
 | **起来即整体**（本契约 [S-34](#s-34-起来即整体停机时在途请求归谁)） | **装配给**：入口层对它消费的每一个面都是必需依赖，任一缺席就不应答（[`inject-has-no-optional-form`](../../../../basis/cordis/inject-has-no-optional-form.md)）；启动中任一步失败即整体失败、不留半个面（[`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)）；运维面与客户端一面同起同停。**前提**：存储或时钟不可用只能表现为返回值上的不可用（[IV S-19](../../../data/identity-values/v1/contract.md#s-19-不可用即明确失败)），不得表现为面缺席——由存储与时钟的提供者兑现（实现映射）；面缺席只在启动、停机、换代三种时候 | **协议给**：中心被拆开之后，入口够不着某个领域时对那条路由答 `unavailable`，**绝不以部分成功或空结果顶替** | 能登录却答不出成员资格、能建组织却记不下邀请的半开中心 |
@@ -801,7 +811,7 @@
 
 **不选 Alloy**：本契约要检查的是次序与映射，是行为；「路由表封闭」「运维面不引用治理能力」是代码结构的事实，由静态检查守，不需要结构模型。
 
-**建 Schema**：[`governance-center-entry.schema.json`](governance-center-entry.schema.json)——信封（按 `operation` 判别到 27 条路由各自的载荷）、四种入口答复、路由结果（27 条路由各自的成功返回；按路由核对用 `Exchange`）、公开与完整体检、`GovernanceCenterId`、列表句柄，以及本契约自定的三个不透明标识、凭据材料与这一份的时长；
+**建 Schema**：[`governance-center-entry.schema.json`](governance-center-entry.schema.json)——信封（按 `operation` 判别到 27 条路由各自的载荷）、四种入口答复、路由结果（27 条路由各自的成功返回；按路由核对用 `Exchange`）、公开与完整体检、`GovernanceCenterId`、出示物的交换表示（列表句柄直接引用 `data.identity-values` v1 的 `LoginStateId`），以及本契约自定的三个不透明标识、凭据材料与这一份的时长；
 正反实例在 [examples.md](examples.md)。
 
 ### 规范场景
@@ -831,8 +841,9 @@
 ### S-41 规范场景：列表不给能直接用的东西
 
 在一台机器上列出本账号的登录状态，把列表里的每一项拿到另一台机器上当出示物用：**每一次都得 `login-state-rejected`**。
-用列表里另一项的句柄撤销它：成功；再撤一次：`login-state-not-found`；用自己的句柄撤销（退出）之后，带着它再来：`login-state-rejected`。
-依据：[acceptance §三「不交出能直接用的凭证」](../../../../product/PF-017-governance-center-as-deployable-application/acceptance.md#三判据)的第一半；**第二半（备份里的登录状态用不了）本版不满足**，见 [G-1](#十三已知缺口)。
+用列表里另一项的句柄撤销它：成功；再撤一次：仍是成功（[AI S-16](../../../capabilities/account-identity/v2/contract.md#s-16-撤销登录状态) 的幂等）；用一个从没签发过的句柄撤销：`login-state-not-found`；用自己的句柄撤销（退出）之后，带着它再来：`login-state-rejected`。
+先登录三次、撤销其中一次，再停机做一份数据备份：把备份里的**每一个字符串值**都放进信封当出示物来问事：**每一次都得 `login-state-rejected`**，与没带时的答复逐字相同；**同一次里两个仍有效的出示物照常能用**（正对照，缺了它一个恒拒的入口也会让前一半看起来成立）。
+依据：[acceptance §三「不交出能直接用的凭证」](../../../../product/PF-017-governance-center-as-deployable-application/acceptance.md#三判据)的两半；备份那一半在账号能力一侧的形式是 [AI S-46](../../../capabilities/account-identity/v2/contract.md#s-46-存储里翻不出能用的出示物)，这里从线上再验一次。
 
 ### S-42 规范场景：只认登录状态，不认客户端
 
@@ -872,7 +883,7 @@
 
 | # | 缺口 | owner | 闭合条件 |
 |---|---|---|---|
-| G-1 | **存储里的登录状态可以被直接冒用。**本版出示物就是 `LoginStateId`（[`capability.account-identity/v1#S-17`](../../../capabilities/account-identity/v1/contract.md#s-17-校验登录状态) 把「持有它」当作被校验的那件事），存储里存的也是它。**本版备份或数据外泄的实际后果**：外泄那一刻有效的每一个登录状态都可被冒用，直到被撤销；**处置是持有者用任一有效登录状态列出全部、逐个撤销**。这不满足 [PF-017 §8](../../../../product/PF-017-governance-center-as-deployable-application/design.md#八边界与依赖)「中心存下来的登录状态，读到数据或备份的人不能直接拿去用」与 [acceptance §三「不交出能直接用的凭证」](../../../../product/PF-017-governance-center-as-deployable-application/acceptance.md#三判据)的第二半；**列表那一半本版已由[列表句柄](#s-9-列表句柄)兑现** | `capability.account-identity` 的 spec owner；PF-017 owner 知情 | 账号能力发布 v2「出示物与登录状态标识分离」（存储只存出示物的不可逆形式），本契约随之发新版本 |
+| G-1 | **已闭合（2026-09-23）**：存储里的登录状态可以被直接冒用（原来出示物就是 `LoginStateId`，存储里存的也是它）。闭合方式：本契约改钉 `capability.account-identity` v2——出示物与 `LoginStateId` 分开，存储与备份里只有出示物的不可逆形式，没有任何东西能过 [AI S-44](../../../capabilities/account-identity/v2/contract.md#s-44-按出示物换取身份)（[AI S-45](../../../capabilities/account-identity/v2/contract.md#s-45-登录状态出示物)、[AI S-46](../../../capabilities/account-identity/v2/contract.md#s-46-存储里翻不出能用的出示物)）；本契约的 [S-5](#s-5-出示物)、[S-9](#s-9-列表句柄)、[S-11](#s-11-认人) 随之改写，[S-41](#s-41-规范场景列表不给能直接用的东西) 覆盖两半。账号能力 v2 与本契约同为 `candidate`，本闭合随它一并待接受 | — | 已闭合 |
 | G-2 | **请求显式携带的「以哪个租户身份行事」与登录状态上当前选中的不一致时怎么答。**本版信封与载荷没有这一格，一律按当前选中的行事（[S-12](#s-12-身份推导)） | PF-001 owner（[PF-017 §9](../../../../product/PF-017-governance-center-as-deployable-application/design.md#九未决项)） | PF-001 定语义；本契约发新版本加上这一格与它的答复 |
 | G-3 | **按登录标识指认被邀请者，线上没有承载。**本版邀请路由收目标 `AccountId`；据点侧怎么拿到它不在本程实施边界。另有一个产品问题：那个标识上挂着一条**未激活**记录时，发邀请的人该看到什么 | `capability.account-identity` 的 spec owner（新版本加一个解析面，授权条件：调用方已过第 ② 步）；未激活记录的呈现归 PF-001／PF-016 owner | 解析面发布，本契约加一条路由 |
 | G-4 | **部署参数里 PF-003 的两项（`copyNoticeTtlDefault`、`sharingInvitationTtlDefault`）没有消费它们的契约。**本版照样要值、校验、在完整体检里可见，但没有任何判定用到它们 | 复制通知与分享邀请的契约（尚未立） | 那两份契约立起来并消费它们 |
@@ -881,7 +892,7 @@
 | G-7 | **「登录状态效力不变」以「不经备份恢复」为前提。**恢复会带回备份之后撤销的登录状态；[PF-001 flows §3.2](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#32-登录状态) 的「已失效不可回到有效」没有写这个限定 | PF-001 owner（[PF-017 §9](../../../../product/PF-017-governance-center-as-deployable-application/design.md#九未决项) 已登记） | PF-001 owner 认这个读法，或把「恢复后仍保住撤销」提成对备份与恢复的新要求 |
 | G-8 | **中心自身被拆成多个进程之后**，[S-36](#s-36-装配给的保证-vs-协议须给的保证) 各行右列里的新鲜度界、δ 与「够不着某个领域时的收场」未定义 | 架构设计（本版单机，不阻断） | 分布式演化启动时给出，并作为本契约的新版本发布 |
 | G-9 | **已闭合（2026-09-23）**：[S-17 命名表](#路由的线上成员命名表)是本契约首次命名，待主线认可。闭合方式：主线通读并认可进命名账本 | — | 已闭合 |
-| G-10 | **传输绑定（路径、状态码、帧）没有版本化的工件。**本契约只约束落地必须保持的性质（[S-4](#s-4-请求信封) 的承载位置与重复成员、[S-6](#s-6-四种入口答复) 的整个线上答复逐字相同、[S-8](#s-8-协议版本与跨版本不变的两样) 跨版本不变的两样）；具体绑定没有可冻结、可按版本引用的工件，客户端代理与规范场景 [S-39](#s-39-规范场景拒绝逐字相同) 的逐字节比较都没有可对照的那一版 | 入口层的实现映射节点（候选位置 `realization/packages/tenancy/governance-center-entry`） | 该节点发布传输绑定，并作为冻结资源登记 |
+| G-10 | **传输绑定（路径、状态码、帧）没有版本化的工件。**本契约只约束落地必须保持的性质（[S-4](#s-4-请求信封) 的承载位置与重复成员、[S-6](#s-6-四种入口答复) 的整个线上答复逐字相同、[S-8](#s-8-协议版本与跨版本不变的两样) 跨版本不变的两样）；具体绑定没有可冻结、可按版本引用的工件，客户端代理与规范场景 [S-39](#s-39-规范场景拒绝逐字相同) 的逐字节比较都没有可对照的那一版 | 入口层的实现映射节点（[`realization/packages/tenancy/governance-center-entry`](../../../../realization/packages/tenancy/governance-center-entry/README.md)，`candidate`） | 该节点发布传输绑定，并作为冻结资源登记 |
 | G-11 | **防冒充的具体手段。**「客户端确认连上的真是那个中心」是[产品交给技术设计的硬要求](../../../../product/PF-017-governance-center-as-deployable-application/design.md#八边界与依赖)，归传输那一层；本契约不以它为前提（[S-3](#s-3-本契约明确不承诺什么)），但它没有落点就没有人兑现 | 入口层的实现映射节点 | 节点给出机制与它的验证义务 |
 
 ## 十四、版本差异与规范工件

@@ -322,7 +322,7 @@
           "coordinate": {
             "baseline_id": "omne-harness-lite-design-2026-09-15",
             "contract_id": "capability.account-identity",
-            "version": 1
+            "version": 2
           },
           "clauses": [
             "S-3",
@@ -335,7 +335,9 @@
             "S-26",
             "S-29",
             "S-30",
-            "S-37"
+            "S-37",
+            "S-44",
+            "S-45"
           ],
           "rebase_relation": null
         },
