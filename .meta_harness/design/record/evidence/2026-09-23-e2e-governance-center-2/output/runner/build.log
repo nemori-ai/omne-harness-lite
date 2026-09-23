@@ -1,0 +1,35 @@
+$ (cwd=/data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-e2e-verdict) pnpm run build
+start: 2026-09-23T18:28:08Z
+
+> omne-harness-lite-workspace@ build /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-e2e-verdict
+> pnpm -r --filter './packages/**' --filter './apps/**' --filter './tools/ts-checks' run build
+
+Scope: 13 of 14 workspace projects
+packages/core/identity-values build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/kernel-basis build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/storage build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+tools/ts-checks build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/kernel-basis build: Done
+packages/core/identity-values build: Done
+tools/ts-checks build: Done
+packages/core/storage build: Done
+packages/core/offer-expiry build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/infra/storage-sql build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/offer-expiry build: Done
+packages/infra/storage-sql build: Done
+packages/infra/clock build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/infra/clock build: Done
+packages/tenancy/credential-verification build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/tenancy/credential-verification build: Done
+packages/tenancy/account-identity build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/tenancy/account-identity build: Done
+packages/tenancy/organization-governance build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/tenancy/organization-governance build: Done
+packages/tenancy/account-registration build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/tenancy/account-registration build: Done
+packages/tenancy/governance-center-entry build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/tenancy/governance-center-entry build: Done
+apps/tenancy-host build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+apps/tenancy-host build: Done
+end: 2026-09-23T18:28:25Z
+exit: 0

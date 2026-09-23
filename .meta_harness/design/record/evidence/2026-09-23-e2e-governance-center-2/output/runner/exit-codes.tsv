@@ -1,0 +1,5 @@
+step	exit	seconds
+install	0	1
+build	0	17
+e2e	0	50
+manual	0	3
