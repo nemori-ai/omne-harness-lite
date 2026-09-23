@@ -1,0 +1,141 @@
+===== [tenancy-host] build =====
+$ (cwd=/data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence) pnpm --filter @omne-harness-lite/tenancy-host run build
+start: 2026-09-23T16:14:32Z
+
+> @omne-harness-lite/tenancy-host@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence/apps/tenancy-host
+> node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+
+end: 2026-09-23T16:14:34Z
+exit: 0
+
+===== [tenancy-host] typecheck =====
+$ (cwd=/data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence) pnpm --filter @omne-harness-lite/tenancy-host run typecheck
+start: 2026-09-23T16:14:34Z
+
+> @omne-harness-lite/tenancy-host@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence/apps/tenancy-host
+> tsc -p tsconfig.test.json
+
+end: 2026-09-23T16:14:37Z
+exit: 0
+
+===== [tenancy-host] test =====
+$ (cwd=/data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence) pnpm --filter @omne-harness-lite/tenancy-host exec vitest run --reporter=verbose --reporter=json --outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence/tmp/w4a/tests/json/tenancy-host.json
+start: 2026-09-23T16:14:37Z
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence/apps/tenancy-host
+
+ ↓ tests/pg.spec.ts > pg 首跑 · 装配（OMNE_TEST_PG_URL） > assembly.pg-wiring：同一份迁移与装载代码只改方言配置 ⇒ boot() 成功、答复、铸标识；重启标识不变；外键两向与约束名同 sqlite
+ ↓ tests/pg.spec.ts > pg 首跑 · 装配（OMNE_TEST_PG_URL） > assembly.pg-upgrade-atomic：本版多两个片段、第二个失败 ⇒ 启动失败于迁移；登记与 schema 都回到迁移前（R-U7，一个事务）
+ ↓ tests/pg.spec.ts > pg 首跑 · 装配（OMNE_TEST_PG_URL） > U-3 在 pg 上的真形状：迁移提交之后没有快照 ⇒ 不拒起，启动日志恰一条「本次升级不可撤回（U-3）」；迁移后入口层失败撤不回（缺口 U-3，记录现状）
+ ↓ tests/pg.spec.ts > pg 首跑 · 装配（OMNE_TEST_PG_URL） > 交错 I-9 的 pg 支：属主排他（咨询锁）——A 在役时 B 于「被占」拒绝
+ ↓ tests/pg.spec.ts > pg 首跑 · 交错 I-12（AR 包 I-1／I-2／I-4 在 pg 上重跑；真实 AI／OG／AR + 本节点的合成迁移） > I-1 S-14 先：③ 在自己的事务里写下激活、尚未提交；期限过去，清除链发起——提交后 ① 现读到已激活 ⇒ accountIsActivated。终态：已激活 ∧ 有个人组织
+ ↓ tests/pg.spec.ts > pg 首跑 · 交错 I-12（AR 包 I-1／I-2／I-4 在 pg 上重跑；真实 AI／OG／AR + 本节点的合成迁移） > I-2 清除链 ① 先：② 已提交、依据在手；期限过去，清除链 ① 删组织、尚未提交；③ 排在它后面，提交后现读到已落盘的过期 ⇒ interrupted。终态：没有可用账号、没有孤儿
+ ↓ tests/pg.spec.ts > pg 首跑 · 交错 I-12（AR 包 I-1／I-2／I-4 在 pg 上重跑；真实 AI／OG／AR + 本节点的合成迁移） > I-4 插入方向：S-20 读到「未过期」之后、提交之前清除链整条跑完（账号行被删）⇒ S-20 的插入被引用约束拒绝 ⇒ interrupted。终态：什么都没有，没有孤儿组织
+ ↓ tests/pg.spec.ts > pg 首跑 · 各包留给 pg 的支 > AI「凭据计算挪出写事务之后的交错 ②」pg 支：同标识同凭据两路并发 ⇒ 同一个 AccountId、一行；不同凭据 ⇒ 恰一个账号、另一路 identifier-taken（撞唯一约束那条路）
+ ↓ tests/pg.spec.ts > pg 首跑 · 各包留给 pg 的支 > AR I-6 撞 account_login_identifier_unique 那一支的 pg 变体：同一标识两路并发注册 ⇒ 恰一路 registered；另一路 identifier-taken，或（撞约束重来之后记录又变了一次 ⇒ AI 答 storage-unavailable）interrupted、重来即 identifier-taken；不变量成立，且至少一轮真的撞到了唯一约束
+ ↓ tests/pg.spec.ts > pg 首跑 · 各包留给 pg 的支 > 入口层「真并发首启（pg）」：两个入口层实例同时读或铸 ⇒ 只铸一次、两者开门时报同一个标识
+ ↓ tests/pg.spec.ts > pg 首跑 · 各包留给 pg 的支 > 收尾观察：pg 上 storage-sql 的 close() 是否拒绝（已报主线的缺陷；本条只记录，不作判据）
+ ✓ tests/lifecycle.spec.ts > assembly.manifest-shape > 清单：恰一个 storageSqlPlugin、恰一个 clockPlugin；inject organization-purge 的恰为 AR；运维面与入口层是最后两项且运维面在前；运维面 config 里没有服务句柄 46ms
+ ✓ tests/migrations.spec.ts > assembly.migration-composition > 空库上跑合成的迁移 ⇒ 十张表都在，governance_center 恰一行未铸的占位（入口层随即铸出标识）；AI 片段编号在 OG 之前 183ms
+ ✓ tests/lifecycle.spec.ts > assembly.manifest-shape > 运行中：五个消费 storage 的插件解析到同一个实例，consumers of clock 同一个实例；governance_center 与治理事实同库 159ms
+ ✓ tests/upgrade.spec.ts > assembly.upgrade-preflight-refuses：只读核对不过 ⇒ 不碰数据 > ① 迁移登记里多一个本版本不认识的名字（更新的版本写过这份库）⇒ 拒绝、点名那个迁移；库的内容与字节都不变、没有建快照 245ms
+ ✓ tests/migrations.spec.ts > assembly.migration-composition > 迁移本身在空库上建的是「未铸」的占位行（不经入口层） 74ms
+ ✓ tests/lifecycle.spec.ts > assembly.pending-is-manifest-error：PENDING 是清单错误，同步判定、不等待 > AR 排到 AI 之前 ⇒ 装 AR 那一步即拒绝、点名缺的服务；已装的 storage／clock／credentials 已撤 108ms
+ ✓ tests/lifecycle.spec.ts > assembly.pending-is-manifest-error：PENDING 是清单错误，同步判定、不等待 > 入口层支：清单里拿掉 credentials ⇒ 入口层装上即 PENDING ⇒ 同步拒绝，入口层的监听从未打开 86ms
+ ✓ tests/config.spec.ts > assembly.missing-key-fails-boot：四份部署密钥各五种坏法 > OMNE_TENANCY_ACTIVATION_SIGNING_KEY_PEM：缺、二义、文件读不到、文件对 group／other 可读、不是 Ed25519 236ms
+ ✓ tests/config.spec.ts > assembly.missing-key-fails-boot：四份部署密钥各五种坏法 > OMNE_TENANCY_ACTIVATION_VERIFICATION_KEY_PEM：缺、二义、文件读不到、文件对 group／other 可读、不是 Ed25519 55ms
+ ✓ tests/migrations.spec.ts > assembly.migration-composition > organization 上恰有一条外键，名字、目标、ON DELETE RESTRICT、不延迟都由本节点给出 110ms
+ ✓ tests/migrations.spec.ts > assembly.migration-composition > M-9 编号名快照：本次合成序列以上一个发布版的序列为前缀（只多不改、不重排） 1ms
+ ✓ tests/config.spec.ts > assembly.missing-key-fails-boot：四份部署密钥各五种坏法 > OMNE_TENANCY_PURGE_SIGNING_KEY_PEM：缺、二义、文件读不到、文件对 group／other 可读、不是 Ed25519 147ms
+ ✓ tests/migrations.spec.ts > assembly.migrations-idempotent > 每个片段在已迁移的库上再跑一次：不报错、schema 不变；已铸的标识不被打回未铸（存在即不插） 101ms
+ ✓ tests/lifecycle.spec.ts > assembly.no-commit-before-open 与 assembly.entry-loads-last > ① 停在确认处：八条 fiber 都已 ACTIVE；公开体检、注册、运维面请求一律关闭不答，库里没有新行，serving 尚未发出 119ms
+ ✓ tests/config.spec.ts > assembly.missing-key-fails-boot：四份部署密钥各五种坏法 > OMNE_TENANCY_PURGE_VERIFICATION_KEY_PEM：缺、二义、文件读不到、文件对 group／other 可读、不是 Ed25519 115ms
+ ✓ tests/config.spec.ts > assembly.key-pairing-mismatch-fails-boot：四份各自合法、但不配对 ⇒ 起插件之前拒绝 > ① activation 私钥配另一次 keygen 的 activation 公钥 19ms
+ ✓ tests/config.spec.ts > assembly.key-pairing-mismatch-fails-boot：四份各自合法、但不配对 ⇒ 起插件之前拒绝 > ② activation 与 purge 的公钥互换 23ms
+ ✓ tests/config.spec.ts > assembly.key-pairing-mismatch-fails-boot：四份各自合法、但不配对 ⇒ 起插件之前拒绝 > ③ 两把私钥互换 23ms
+ ✓ tests/config.spec.ts > assembly.key-pairing-mismatch-fails-boot：四份各自合法、但不配对 ⇒ 起插件之前拒绝 > 反向：配对正确 ⇒ 自检通过、不留任何凭证 5ms
+ ✓ tests/config.spec.ts > assembly.invalid-config-fails-boot：每一项坏法都启动失败、点名那一项、不含值 > unactivatedRetention 为 0 25ms
+ ✓ tests/migrations.spec.ts > assembly.migrations-idempotent > 同一文件上起两次：第二次没有待跑迁移，标识不变 140ms
+ ✓ tests/lifecycle.spec.ts > assembly.no-commit-before-open 与 assembly.entry-loads-last > ④ 正常路径的事件次序：全部 ACTIVE → 确认 → 兑现 → serving → 第一条答复；boot() 在 serving 之后才返回 150ms
+ ✓ tests/config.spec.ts > assembly.invalid-config-fails-boot：每一项坏法都启动失败、点名那一项、不含值 > invitationTtlDefault 为负 23ms
+ ✓ tests/config.spec.ts > assembly.invalid-config-fails-boot：每一项坏法都启动失败、点名那一项、不含值 > affiliationRequestTtlDefault 不是时长 21ms
+ ✓ tests/config.spec.ts > assembly.invalid-config-fails-boot：每一项坏法都启动失败、点名那一项、不含值 > teamCreationKeyRetention 缺 28ms
+ ✓ tests/config.spec.ts > assembly.invalid-config-fails-boot：每一项坏法都启动失败、点名那一项、不含值 > OMNE_TENANCY_STORAGE_FILE 为 :memory:（storage-sql 的 Config 拒） 31ms
+ ✓ tests/migrations.spec.ts > assembly.constraint-names-resolve（经装配出的 storage，任何一条映射成 StorageDefect 就是片段没按 M-2／M-3 命名） > 唯一约束与主键都报迁移里起的名字 99ms
+ ✓ tests/migrations.spec.ts > assembly.fk-organization-owner-account（S-35 孤儿不可达在存储层的唯一直接实证） > ① 指向不存在账号的组织行 ⇒ missing-target；② 删被引用的账号行 ⇒ delete-restricted、账号行仍在；③ 负向运行：外键关着的裸句柄删除静默成功 113ms
+ ✓ tests/config.spec.ts > assembly.invalid-config-fails-boot：每一项坏法都启动失败、点名那一项、不含值 > OMNE_TENANCY_STORAGE_FILE 缺 23ms
+ ✓ tests/config.spec.ts > assembly.invalid-config-fails-boot：每一项坏法都启动失败、点名那一项、不含值 > 方言不认识 24ms
+ ✓ tests/config.spec.ts > assembly.invalid-config-fails-boot：每一项坏法都启动失败、点名那一项、不含值 > pg 方言缺连接串 20ms
+ ✓ tests/config.spec.ts > assembly.invalid-config-fails-boot：每一项坏法都启动失败、点名那一项、不含值 > CREDENTIAL_POLICY 不是合法 JSON 23ms
+ ✓ tests/config.spec.ts > assembly.invalid-config-fails-boot：每一项坏法都启动失败、点名那一项、不含值 > PF-003 部署参数 copyNoticeTtlDefault 缺 23ms
+ ✓ tests/lifecycle.spec.ts > assembly.no-commit-before-open 与 assembly.entry-loads-last > 运维面只在 serving 与 stopped 之间作答：入口层撤完（发了 stopped）运维面还在但不答；入口层先于运维面撤 108ms
+ ✓ tests/config.spec.ts > assembly.invalid-config-fails-boot：每一项坏法都启动失败、点名那一项、不含值 > PF-003 部署参数 sharingInvitationTtlDefault 非正 23ms
+ ✓ tests/config.spec.ts > assembly.invalid-config-fails-boot：每一项坏法都启动失败、点名那一项、不含值 > ENTRY_LISTEN 缺 24ms
+ ✓ tests/config.spec.ts > assembly.invalid-config-fails-boot：每一项坏法都启动失败、点名那一项、不含值 > ENTRY_LISTEN 不是 host:port 29ms
+ ✓ tests/config.spec.ts > assembly.invalid-config-fails-boot：每一项坏法都启动失败、点名那一项、不含值 > TLS 证书链两个来源都缺 22ms
+ ✓ tests/lifecycle.spec.ts > assembly.dispose-reverse-order 与 assembly.dispose-with-inflight > 正常 dispose：逆序撤；clock 收回了租约（lease_until 是撤除时刻而不是 +L）——它的撤除写找到了活的 storage；句柄已关、套接字文件已删、端口已放 160ms
+ ✓ tests/config.spec.ts > assembly.invalid-config-fails-boot：每一项坏法都启动失败、点名那一项、不含值 > TLS 私钥两个来源都设 22ms
+ ✓ tests/config.spec.ts > assembly.invalid-config-fails-boot：每一项坏法都启动失败、点名那一项、不含值 > TLS 私钥文件对 group／other 可读 19ms
+ ✓ tests/config.spec.ts > assembly.invalid-config-fails-boot：每一项坏法都启动失败、点名那一项、不含值 > OPS_SOCKET_DIR 缺 18ms
+ ✓ tests/config.spec.ts > assembly.invalid-config-fails-boot：每一项坏法都启动失败、点名那一项、不含值 > 等钟上界缺（assembly.clock-ready-timeout ①） 22ms
+ ✓ tests/config.spec.ts > assembly.invalid-config-fails-boot：每一项坏法都启动失败、点名那一项、不含值 > 等钟上界不大于租约宽度（assembly.clock-ready-timeout ①） 20ms
+ ✓ tests/config.spec.ts > assembly.invalid-config-fails-boot：每一项坏法都启动失败、点名那一项、不含值 > 排空上界不小于撤除总超时 ⇒ 启动失败（两个都是常量：这里核判据本身与常量取值） 1ms
+ ✓ tests/config.spec.ts > assembly.invalid-config-fails-boot：每一项坏法都启动失败、点名那一项、不含值 > 反向：credentialPolicy 缺席 ⇒ 启动成功（契约 S-27 的例外），注册得 credential-rejected 148ms
+ ✓ tests/config.spec.ts > assembly.invalid-config-fails-boot：每一项坏法都启动失败、点名那一项、不含值 > 反向：五项部署参数与运维面完整体检里的 deploymentParameters 逐项相等（同一组值只解析一次） 70ms
+ ✓ tests/config.spec.ts > assembly.invalid-config-fails-boot：每一项坏法都启动失败、点名那一项、不含值 > HOST_VERSION 与 package.json 的版本一致（构建常量） 1ms
+ ✓ tests/config.spec.ts > 密钥生成函数 generateKeyFiles（keygen） > 产出四份文件、0600、各自被 load*Key 接受、两对互相配对、两对不相同；目录已有文件时拒绝覆盖 21ms
+ ✓ tests/config.spec.ts > 密钥生成函数 generateKeyFiles（keygen） > 四份里只有一份已存在 ⇒ 一份都不留下（不留半套） 13ms
+ ✓ tests/upgrade.spec.ts > assembly.upgrade-preflight-refuses：只读核对不过 ⇒ 不碰数据 > ② clock_lease.written_at 在墙钟之后 ⇒ 在跑任何迁移之前拒绝（钟比中心用过的最晚时刻早），库的内容不变 619ms
+ ✓ tests/lifecycle.spec.ts > assembly.dispose-reverse-order 与 assembly.dispose-with-inflight > 撤除时在途的一次注册：排空上界内答完的照常答、按自己那一次提交收场；撤除开始后新到的连接得不到答复 621ms
+ ✓ tests/process.spec.ts > assembly.upgrade-crash-recovery：启动途中崩溃 > 迁移中途（快照已建、第一条新迁移已提交）SIGKILL ⇒ 下一次启动先恢复遗留快照、按升级前的库照常起来 1530ms
+ ✓ tests/upgrade.spec.ts > assembly.upgrade-preflight-refuses：只读核对不过 ⇒ 不碰数据 > ③ 中心标识表丢了（迁移登记保留）⇒ 非空数据里没有中心标识表、拒绝；没有重建那张表、没有铸出新标识 647ms
+ ✓ tests/upgrade.spec.ts > assembly.upgrade-preflight-refuses：只读核对不过 ⇒ 不碰数据 > ③ 中心标识表丢了（迁移登记清空）⇒ 非空数据里没有中心标识表、拒绝；没有重建那张表、没有铸出新标识 595ms
+ ✓ tests/upgrade.spec.ts > assembly.upgrade-preflight-refuses：只读核对不过 ⇒ 不碰数据 > 反向：空库照常通过；登记序列是本次序列的真前缀 ⇒ 核对通过、只跑差的那几条 570ms
+ ✓ tests/process.spec.ts > assembly.upgrade-crash-recovery：启动途中崩溃 > 迁移之后、确认之前 SIGKILL ⇒ 同上；恢复本身失败（快照所在目录只读）⇒ 启动失败于遗留快照恢复、写出快照位置、快照仍在 1367ms
+ ✓ tests/lifecycle.spec.ts > assembly.keys-only-in-owner-config（窄形式：它不证同进程别的代码读不到） > PEM 字段恰为 AR←activation 私钥、OG←purge 私钥、AI←两把公钥、入口层←TLS 证书链与私钥；服务里、日志里、完整体检里都没有 PEM 516ms
+ ✓ tests/lifecycle.spec.ts > assembly.credentials-swap-no-rerun（CV 换代演练） > 撤掉 credentials 的 fiber、装另一实现：AI 与 OG 的插件体不重跑（服务实例不变、fiber 一直 ACTIVE）；期间 logins.issue 得 storage-unavailable、accounts.read 照常；入口层随之关门再开门 1087ms
+ ✓ tests/upgrade.spec.ts > assembly.upgrade-restore-on-boot-failure：确认之前的任何启动失败都撤回升级 > 入口层端口被占 ⇒ 拒绝；库回到升级前，上一版照常能起、中心标识不变 685ms
+ ✓ tests/upgrade.spec.ts > assembly.upgrade-restore-on-boot-failure：确认之前的任何启动失败都撤回升级 > 迁移之后 clock 启动时检出回拨（ClockRollbackDetected）⇒ 拒绝；恢复连同那次写一起撤回 608ms
+ ✓ tests/lifecycle.spec.ts > assembly.clock-write-failure-fails-boot > clock 启动判定那次写失败 ⇒ boot() 拒绝于 clock，storage 已撤 98ms
+ ✓ tests/lifecycle.spec.ts > 真实 clock 插件的组合（入口层包内用的是替身） > 开闸时刻 startedAt 来自真实时钟，完整体检里的 startedAt／clockSane 与它一致 83ms
+ ✓ tests/lifecycle.spec.ts > AI S-32「完整重启」支：boot() 可重入同一文件 > 第一次签发并撤销一个登录状态、dispose；第二次 logins.verify 得 login-state-rejected，出示物换不出身份 1028ms
+ ✓ tests/lifecycle.spec.ts > assembly.boot-failure-log：每种启动失败落恰一条结构化记录，不含 PEM 与 config 值 > config、密钥配对、清单、插件、只读核对各一次 68ms
+ ✓ tests/upgrade.spec.ts > assembly.upgrade-restore-on-boot-failure：确认之前的任何启动失败都撤回升级 > 运维面套接字目录权限过宽 ⇒ 拒绝；库回到升级前 612ms
+ ✓ tests/upgrade.spec.ts > assembly.upgrade-restore-on-boot-failure：确认之前的任何启动失败都撤回升级 > 首次启动支：库文件与附属文件都不存在，下一次启动仍是第一次（S-28 ③） > 运维面套接字目录权限过宽 111ms
+ ✓ tests/upgrade.spec.ts > assembly.upgrade-restore-on-boot-failure：确认之前的任何启动失败都撤回升级 > 首次启动支：库文件与附属文件都不存在，下一次启动仍是第一次（S-28 ③） > 入口层端口被占 116ms
+ ✓ tests/upgrade.spec.ts > assembly.upgrade-restore-on-boot-failure：确认之前的任何启动失败都撤回升级 > 首次启动支：库文件与附属文件都不存在，下一次启动仍是第一次（S-28 ③） > 铸中心标识的那次写失败（入口层读或铸抛出） 136ms
+ ✓ tests/process.spec.ts > assembly.no-commit-before-open ②：确认之前 SIGKILL，没有任何答复见过被撤回的值 > 非首次：停在确认处时客户端与运维面都问不到；杀掉之后下一次启动恢复遗留快照，库与升级前逐表相等 1380ms
+ ✓ tests/process.spec.ts > assembly.no-commit-before-open ②：确认之前 SIGKILL，没有任何答复见过被撤回的值 > 首次：停在确认处时标识已铸进库、但没有任何答复带出它；杀掉之后下一次仍是第一次，标识被重铸 891ms
+ ✓ tests/upgrade.spec.ts > assembly.upgrade-restore-on-boot-failure：确认之前的任何启动失败都撤回升级 > 撤除路径上恢复失败（R-U8）：迁移之后快照所在目录不可写、再让入口层端口被占 ⇒ 撤完、boot() 拒绝于「升级未确认」，写出快照位置、快照仍在；目录恢复后上一版照常能起 648ms
+ ✓ tests/upgrade.spec.ts > assembly.upgrade-confirmed：确认绑在实例上，确认之后不再恢复 > 有待跑迁移 ⇒ migrated／snapshotTaken／snapshotRemoved 皆真、快照已不在；没有待跑迁移 ⇒ 三者皆假；之后 dispose 与再次 boot 都不动库 646ms
+ ✓ tests/process.spec.ts > 交错 I-9：两进程属主排他，clock 租约在同一文件 > 两进程同时 boot() 同一份库 ⇒ 恰一个起来、另一个于「被占」拒绝；A 撤除后 B 起来，startedAt 不早于 A 最后写下的 lease_until 1603ms
+ ✓ tests/upgrade.spec.ts > assembly.upgrade-confirmed：确认绑在实例上，确认之后不再恢复 > 交错守卫对象：给存储的是守卫 A、确认时调另一个 createUpgradeGuard() 的 B ⇒ UpgradeGuardNotAttached ⇒ 从未开闸、逆序全撤、快照恢复、拒绝并点名守卫没挂上 557ms
+ ✓ tests/upgrade.spec.ts > assembly.upgrade-confirmed：确认绑在实例上，确认之后不再恢复 > 断言支：确认报 snapshotTaken 而没删到快照 ⇒ 兑现之前拒绝「升级确认没有删到快照」，库回到升级前 565ms
+ ✓ tests/upgrade.spec.ts > assembly.upgrade-confirmed：确认绑在实例上，确认之后不再恢复 > U-3 反向支：确认报 migrated ∧ ¬snapshotTaken（pg 的形状）⇒ 不拒起，启动日志里恰有一条具名「本次升级不可撤回（U-3）」 622ms
+ ✓ tests/upgrade.spec.ts > assembly.upgrade-confirmed：确认绑在实例上，确认之后不再恢复 > 显式守卫支（N-5） > 带 migrations 而 upgrade 缺席 ⇒ 存储的 Config 拒、启动失败、库未打开 19ms
+ ✓ tests/upgrade.spec.ts > assembly.upgrade-confirmed：确认绑在实例上，确认之后不再恢复 > 显式守卫支（N-5） > upgrade: false 的实例不取独占、不建快照；生产 boot() 在它上面确认不了（守卫没挂上）⇒ 拒绝 50ms
+ ✓ tests/upgrade.spec.ts > assembly.upgrade-confirmed：确认绑在实例上，确认之后不再恢复 > 显式守卫支（N-5） > 存储提供者层面：upgrade: false 照常打开、不取独占（另一个属主同时拿得到锁） 46ms
+ ✓ tests/process.spec.ts > 交错 I-9：两进程属主排他，clock 租约在同一文件 > A 在役时 B 起不来（被占），B 的失败不碰数据；A 的中心照常答复 1970ms
+ ✓ tests/process.spec.ts > 进程入口（src/cli.ts） > serve：起来之后 SIGTERM ⇒ 逆序撤除、退出 0；标准错误流是逐行 JSON，含 serving 与 disposed 763ms
+ ✓ tests/upgrade.spec.ts > AI S-46 ① 的快照部分：翻装配留下的升级快照，里面没有能用的出示物 > 确认之前停住，快照里每一段可打印串交给 S-44 都换不出身份；三个出示物以任何形式都不在快照里 1943ms
+ ✓ tests/process.spec.ts > 进程入口（src/cli.ts） > serve 启动失败 ⇒ 退出 1，标准错误流里恰一条 startup-failed 724ms
+ ✓ tests/upgrade.spec.ts > 运维约定的依据：直接打开快照文件会生附属文件 > 以 sqlite 打开一份快照即在旁边生出 -wal／-shm（所以运维说明写「不要直接打开快照文件」） 566ms
+ ✓ tests/slow.spec.ts > assembly.clock-ready-timeout ②③ 与快速重启 > ② 钟在界内一直读不到（lease_until 推到界之外）⇒ 入口层超界、boot() 拒绝于「钟读不到」、其余已撤、升级快照已恢复 10796ms
+ ✓ tests/process.spec.ts > 进程入口（src/cli.ts） > keygen <dir>：写四份文件、标准输出给出 _FILE 变量；同一目录再跑一次 ⇒ 退出 1、不覆盖；缺参数 ⇒ 退出 2 1942ms
+ ✓ tests/process.spec.ts > AI S-32 的完整进程重启（另起一个 Node 进程打开同一库） > 进程一签发并撤销一个登录状态、SIGTERM 退出；进程二里 logins.verify 得 login-state-rejected 1672ms
+ ✓ tests/slow.spec.ts > assembly.clock-ready-timeout ②③ 与快速重启 > ③／快速重启：written_at ≤ 墙钟 < lease_until ⇒ 入口层等钟可读之后成功（至多一个租约宽度），startedAt 不早于 lease_until 3122ms
+ ✓ tests/slow.spec.ts > assembly.no-commit-before-open ⑤：确认之后等不到 serving（已接受的残余情形 U-4） > 开闸那一刻钟读不到 ⇒ 等 clockReadyTimeoutMs + 1 s 之后拒绝「钟读不到或回拨：重启前先核钟」、逆序撤完、端口已放；快照已确认、不恢复；恢复钟后同一版本照常起；钟往回拨则在只读核对上拒绝 26906ms
+ ✓ tests/slow.spec.ts > assembly.dispose-timeout > 一个故意挂住的 disposer ⇒ dispose() 在总超时后仍返回，记下未完成（含没轮到）的 fiber 30070ms
+
+ Test Files  6 passed | 1 skipped (7)
+      Tests  91 passed | 11 skipped (102)
+Type Errors  no errors
+   Start at  16:14:38
+   Duration  72.72s (transform 4.21s, setup 0ms, import 10.98s, tests 101.94s, environment 1ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence/tmp/w4a/tests/json/tenancy-host.json
+end: 2026-09-23T16:15:51Z
+exit: 0
+

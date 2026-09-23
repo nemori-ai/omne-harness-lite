@@ -1,0 +1,16 @@
+commit: c9b5850c3fe0652cd6c5c3649a703a9bb78254d8 (c9b5850 修 W3-A 报的两处包缺陷：storage-sql pg 读写句柄共用 pool )
+branch: panqiwei/tenancy-leg-2-evidence
+os: Linux 5.15.0-1084-aws x86_64 GNU/Linux
+cpu: 8 cores (Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz)
+memory: 30 GiB total
+node: v24.18.0
+node openssl: 3.5.7
+system openssl: OpenSSL 1.1.1f  31 Mar 2020
+node:sqlite (sqlite version): 3.53.1
+pnpm: 10.28.1
+typescript: Version 6.0.3
+vitest: vitest/4.1.11 linux-x64 node-v24.18.0
+docker: Docker version 23.0.4, build f480fb1
+java (formal run): openjdk version "21.0.12.1" 2026-08-18 LTS
+tla2tools: db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1  /opt/tlaplus/tla2tools.jar
+uv: uv 0.11.24 (x86_64-unknown-linux-gnu)

@@ -1,0 +1,21 @@
+===== [storage-sql.upgrade.postgres] pg =====
+$ (cwd=/data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence) OMNE_TEST_PG_URL=postgres://postgres:***@127.0.0.1:55439/w4a_upgrade pnpm --filter @omne-harness-lite/storage-sql exec vitest run tests/upgrade.postgres.spec.ts --reporter=verbose --reporter=json --outputFile.json=<json>
+start: 2026-09-23T16:16:49Z
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence/packages/infra/storage-sql
+
+ ✓ tests/upgrade.postgres.spec.ts > upgrade · postgres（缺 OMNE_TEST_PG_URL 时未运行） > upgrade.pg-close-once：读写两个句柄共用一个 pool，close() 只结束它一次 28ms
+ ✓ tests/upgrade.postgres.spec.ts > upgrade · postgres（缺 OMNE_TEST_PG_URL 时未运行） > upgrade.pg-single-transaction：第二个迁移失败 ⇒ 登记与 schema 都回到迁移前 80ms
+ ✓ tests/upgrade.postgres.spec.ts > upgrade · postgres（缺 OMNE_TEST_PG_URL 时未运行） > upgrade.confirm（pg 支）：跑过迁移 ⇒ { migrated: true, snapshotTaken: false, snapshotRemoved: false }、不抛（U-3） 37ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+Type Errors  no errors
+   Start at  16:16:50
+   Duration  765ms (transform 220ms, setup 0ms, import 457ms, tests 148ms, environment 0ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence/tmp/w4a/tests/json-pg/storage-sql.upgrade.postgres.json
+end: 2026-09-23T16:16:51Z
+exit: 0
