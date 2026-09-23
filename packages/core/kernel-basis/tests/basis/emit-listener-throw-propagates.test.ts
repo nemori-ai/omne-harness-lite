@@ -3,45 +3,36 @@
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 
+// 事件表是类型层的，probe 用一个自定义事件名，经宽类型的 ctx 派发。
+type Loose = { on(name: string, cb: () => void): unknown; emit(name: string): void }
+
 describe('emit-listener-throw-propagates', () => {
   it('监听者抛出 ⇒ emit 同步抛出，后续监听者不跑', () => {
-    const ctx = new Context()
+    const ctx = new Context() as unknown as Loose
     const seen: string[] = []
-    ctx.on(
-      'login.revoked' as never,
-      (() => {
-        seen.push('first')
-        throw new Error('handler exploded')
-      }) as never,
-    )
-    ctx.on(
-      'login.revoked' as never,
-      (() => {
-        seen.push('second')
-      }) as never,
-    )
-    expect(() => ctx.emit('login.revoked' as never)).toThrow('handler exploded')
+    ctx.on('login.revoked', () => {
+      seen.push('first')
+      throw new Error('handler exploded')
+    })
+    ctx.on('login.revoked', () => {
+      seen.push('second')
+    })
+    expect(() => ctx.emit('login.revoked')).toThrow('handler exploded')
     expect(seen).toEqual(['first'])
   })
 
   it('发方自己 try/catch 只能保住自己：被截断的后续监听者仍然不跑', () => {
-    const ctx = new Context()
+    const ctx = new Context() as unknown as Loose
     const seen: string[] = []
-    ctx.on(
-      'login.revoked' as never,
-      (() => {
-        throw new Error('handler exploded')
-      }) as never,
-    )
-    ctx.on(
-      'login.revoked' as never,
-      (() => {
-        seen.push('second')
-      }) as never,
-    )
+    ctx.on('login.revoked', () => {
+      throw new Error('handler exploded')
+    })
+    ctx.on('login.revoked', () => {
+      seen.push('second')
+    })
     let caught: unknown
     try {
-      ctx.emit('login.revoked' as never)
+      ctx.emit('login.revoked')
     } catch (error) {
       caught = error
     }

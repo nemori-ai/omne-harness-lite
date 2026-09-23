@@ -7,7 +7,10 @@ import { describe, expect, it } from 'vitest'
 
 function collect(ctx: Context, levels?: Record<string, number>) {
   const messages: Message[] = []
-  ctx.logger.exporter({ levels, export: message => void messages.push(message) })
+  ctx.logger.exporter({
+    ...(levels ? { levels } : {}),
+    export: message => void messages.push(message),
+  })
   return messages
 }
 
