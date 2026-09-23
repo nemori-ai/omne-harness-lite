@@ -502,6 +502,19 @@
             "S-22"
           ],
           "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.identity-values",
+            "version": 1
+          },
+          "clauses": [
+            "S-7",
+            "S-10",
+            "S-11"
+          ],
+          "rebase_relation": null
         }
       ]
     }
