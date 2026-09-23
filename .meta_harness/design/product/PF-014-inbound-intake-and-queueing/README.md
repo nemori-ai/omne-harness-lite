@@ -2,7 +2,7 @@
 id: PF-014
 title: 输入的受理与排队
 status: active
-revision: 4
+revision: 5
 relations:
   supersedes: []
   depends-on:
@@ -81,7 +81,7 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 4**，**已定稿**（2026-09-22 由产品负责人定） · [演进过程见变更历史](changelog.md)
+- 产品设计：**rev 5**，**已定稿**（2026-09-22 由产品负责人定） · [演进过程见变更历史](changelog.md)
 - 待裁决：**0**，去向见 [decisions.md 第三节](decisions.md#三待裁决)
 - **本 topic 引入的三个概念已经落进词表**：
   [入站到达](../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival) ·

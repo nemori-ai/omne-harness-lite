@@ -1,0 +1,75 @@
+# skills-ref（agentskills/agentskills@69ef37e）探针：脚本与输出
+# 环境：uv venv Python 3.12.13 + strictyaml 1.7.3；skills_ref 源码取自本目录 skills-ref-*-69ef37e.txt（errors.py 同 commit，未钉）
+# ---- probe.py ----
+import sys, tempfile, pathlib
+sys.path.insert(0, "skills_ref_pkg")
+from skills_ref.validator import validate
+from skills_ref.parser import parse_frontmatter
+cases = {
+ "1 minimal": ("demo", "---\nname: demo\ndescription: d\n---\nbody\n"),
+ "2 unknown top-level key": ("demo", "---\nname: demo\ndescription: d\nuser-invocable: true\n---\nbody\n"),
+ "3 nested metadata value": ("demo", "---\nname: demo\ndescription: d\nmetadata:\n  deps:\n    tools: [a, b]\n---\nbody\n"),
+ "4 list metadata value": ("demo", "---\nname: demo\ndescription: d\nmetadata:\n  tags: [a, b]\n---\nbody\n"),
+ "5 unicode name": ("日本語", "---\nname: 日本語\ndescription: d\n---\nbody\n"),
+ "6 name != dir": ("other", "---\nname: demo\ndescription: d\n---\nbody\n"),
+ "7 consecutive hyphens": ("a--b", "---\nname: a--b\ndescription: d\n---\nbody\n"),
+ "8 --- inside description": ("demo", "---\nname: demo\ndescription: see a---b here\n---\nbody\n"),
+ "9 allowed-tools list": ("demo", "---\nname: demo\ndescription: d\nallowed-tools: [Read, Grep]\n---\nbody\n"),
+ "10 empty body": ("demo", "---\nname: demo\ndescription: d\n---\n"),
+ "11 unquoted colon": ("demo", "---\nname: demo\ndescription: Use when: pdf\n---\nbody\n"),
+}
+for label,(d,content) in cases.items():
+    with tempfile.TemporaryDirectory() as t:
+        p = pathlib.Path(t)/d; p.mkdir()
+        (p/"SKILL.md").write_text(content)
+        errs = validate(p)
+        try:
+            md, body = parse_frontmatter(content)
+            extra = f"parsed={md!r} body={body!r}"
+        except Exception as e:
+            extra = f"parse_exc={e!r}"
+        print(f"[{label}] errors={errs}\n    {extra}")
+# ---- probe2.py ----
+import sys, tempfile, pathlib
+sys.path.insert(0, "skills_ref_pkg")
+from skills_ref.validator import validate
+from skills_ref.parser import parse_frontmatter
+cases = {
+ "12 nested metadata block": "---\nname: demo\ndescription: d\nmetadata:\n  deps:\n    tools:\n      - a\n      - b\n---\nbody\n",
+ "13 metadata int/bool": "---\nname: demo\ndescription: d\nmetadata:\n  version: 1.0\n  flag: true\n---\nbody\n",
+ "14 allowed-tools block list": "---\nname: demo\ndescription: d\nallowed-tools:\n  - Read\n  - Grep\n---\nbody\n",
+}
+for label,content in cases.items():
+    with tempfile.TemporaryDirectory() as t:
+        p = pathlib.Path(t)/"demo"; p.mkdir(); (p/"SKILL.md").write_text(content)
+        md, body = parse_frontmatter(content)
+        print(f"[{label}] errors={validate(p)}\n    parsed={md!r}")
+# ---- 输出 ----
+[1 minimal] errors=[]
+    parsed={'name': 'demo', 'description': 'd'} body='body'
+[2 unknown top-level key] errors=["Unexpected fields in frontmatter: user-invocable. Only ['allowed-tools', 'compatibility', 'description', 'license', 'metadata', 'name'] are allowed."]
+    parsed={'name': 'demo', 'description': 'd', 'user-invocable': 'true'} body='body'
+[3 nested metadata value] errors=['Invalid YAML in frontmatter: While scanning\n  in "<unicode string>", line 6, column 12:\n        tools: [a, b]\n               ^ (line: 6)\nFound ugly disallowed JSONesque flow mapping (surround with \' and \' to make text appear literally)\n  in "<unicode string>", line 6, column 13:\n        tools: [a, b]\n                ^ (line: 6)']
+    parse_exc=ParseError('Invalid YAML in frontmatter: While scanning\n  in "<unicode string>", line 6, column 12:\n        tools: [a, b]\n               ^ (line: 6)\nFound ugly disallowed JSONesque flow mapping (surround with \' and \' to make text appear literally)\n  in "<unicode string>", line 6, column 13:\n        tools: [a, b]\n                ^ (line: 6)')
+[4 list metadata value] errors=['Invalid YAML in frontmatter: While scanning\n  in "<unicode string>", line 5, column 9:\n      tags: [a, b]\n            ^ (line: 5)\nFound ugly disallowed JSONesque flow mapping (surround with \' and \' to make text appear literally)\n  in "<unicode string>", line 5, column 10:\n      tags: [a, b]\n             ^ (line: 5)']
+    parse_exc=ParseError('Invalid YAML in frontmatter: While scanning\n  in "<unicode string>", line 5, column 9:\n      tags: [a, b]\n            ^ (line: 5)\nFound ugly disallowed JSONesque flow mapping (surround with \' and \' to make text appear literally)\n  in "<unicode string>", line 5, column 10:\n      tags: [a, b]\n             ^ (line: 5)')
+[5 unicode name] errors=[]
+    parsed={'name': '日本語', 'description': 'd'} body='body'
+[6 name != dir] errors=["Directory name 'other' must match skill name 'demo'"]
+    parsed={'name': 'demo', 'description': 'd'} body='body'
+[7 consecutive hyphens] errors=['Skill name cannot contain consecutive hyphens']
+    parsed={'name': 'a--b', 'description': 'd'} body='body'
+[8 --- inside description] errors=[]
+    parsed={'name': 'demo', 'description': 'see a'} body='b here\n---\nbody'
+[9 allowed-tools list] errors=['Invalid YAML in frontmatter: While scanning\n  in "<unicode string>", line 4, column 16:\n    allowed-tools: [Read, Grep]\n                   ^ (line: 4)\nFound ugly disallowed JSONesque flow mapping (surround with \' and \' to make text appear literally)\n  in "<unicode string>", line 4, column 17:\n    allowed-tools: [Read, Grep]\n                    ^ (line: 4)']
+    parse_exc=ParseError('Invalid YAML in frontmatter: While scanning\n  in "<unicode string>", line 4, column 16:\n    allowed-tools: [Read, Grep]\n                   ^ (line: 4)\nFound ugly disallowed JSONesque flow mapping (surround with \' and \' to make text appear literally)\n  in "<unicode string>", line 4, column 17:\n    allowed-tools: [Read, Grep]\n                    ^ (line: 4)')
+[10 empty body] errors=[]
+    parsed={'name': 'demo', 'description': 'd'} body=''
+[11 unquoted colon] errors=['Invalid YAML in frontmatter: mapping values are not allowed here\n  in "<unicode string>", line 3, column 22:\n    description: Use when: pdf\n                         ^ (line: 3)']
+    parse_exc=ParseError('Invalid YAML in frontmatter: mapping values are not allowed here\n  in "<unicode string>", line 3, column 22:\n    description: Use when: pdf\n                         ^ (line: 3)')
+[12 nested metadata block] errors=[]
+    parsed={'name': 'demo', 'description': 'd', 'metadata': {'deps': "{'tools': ['a', 'b']}"}}
+[13 metadata int/bool] errors=[]
+    parsed={'name': 'demo', 'description': 'd', 'metadata': {'version': '1.0', 'flag': 'true'}}
+[14 allowed-tools block list] errors=[]
+    parsed={'name': 'demo', 'description': 'd', 'allowed-tools': ['Read', 'Grep']}

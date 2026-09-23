@@ -2,7 +2,7 @@
 id: PF-012
 title: Agent Loop 与 Run
 status: active
-revision: 9
+revision: 10
 relations:
   supersedes: []
   depends-on:
@@ -187,8 +187,9 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 9**，已定稿 · [演进过程见变更历史](changelog.md)
-- **没有待裁决项**
+- 产品设计：**rev 10**，已定稿 · [演进过程见变更历史](changelog.md)
+- **没有待裁决项**；[对账那条裁决](decisions.md#一拍板记录)有两处 PM 读法[请产品负责人确认](decisions.md#四已知的来源问题)（追补前提含「工具执行运行时里找不到它」；没有协程要恢复的会话也要被发现）
+- **欠 [PF-009](../PF-009-context-message-types/README.md) 一次登记**：追补的占位 `ToolMessage` 与 `SystemReminderMessage` 由系统在对账时代落，那边的来源说法要不要补，[见来源问题](decisions.md#四已知的来源问题)
 - **那个缺口已经有主了**：会话归 [PF-015](../PF-015-session-lifecycle-and-ownership/README.md)（rev 7，仍是草稿）。
   **它没有终态**——[生命周期是四个状态，收束的锚点是归档](../PF-015-session-lifecycle-and-ownership/design.md#会话的生命周期)，
   而 [§6.6](design.md#66-终态不可逆且只有一个出口) 说的三个终态**是 Run 的，不是会话的**，两者从来不是一回事

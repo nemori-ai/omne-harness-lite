@@ -276,7 +276,7 @@
 > through the loop's wait primitive — **built-in confers no privilege**.
 
 - **形态**：过程
-- **出处**：[PF-008 §4 放行判断](../../product/PF-008-human-in-the-loop/design.md#放行判断) · [§5.2](../../product/PF-008-human-in-the-loop/design.md#52-那个判断函数)（rev 5） · [PF-012 §5.8 系统自带的几件](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件各站在哪)（rev 9）
+- **出处**：[PF-008 §4 放行判断](../../product/PF-008-human-in-the-loop/design.md#放行判断) · [§5.2](../../product/PF-008-human-in-the-loop/design.md#52-那个判断函数)（rev 5） · [PF-012 §5.8 系统自带的几件](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件各站在哪)（rev 10）
 - **注意 ①**：**没有任何一样单独说了算。**获批不等于自动放行，有权限设置也不等于请示没意义
 - **注意 ②**：**权限设置里明确禁止的，会话授权翻不了案**——
   否则任何禁止都能靠「让用户在会话里点个同意」绕过去，
@@ -405,7 +405,7 @@
 > and **both leave a trace**.
 
 - **形态**：对象
-- **出处**：[PF-014 §4 入站到达](../../product/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 4）
+- **出处**：[PF-014 §4 入站到达](../../product/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 5）
 - **别混 ①**：**它不是一条[消息](record-and-context.md#ul-message--消息--message)。**
   消息回答**谁在说话**；入站到达回答**外面送进来了一件什么事**。
   **有的到达会成为消息**（进[待处理消息队列](agent-runtime-loop.md#ul-pending-message-queue--待处理消息队列--pending-message-queue)），
@@ -456,7 +456,7 @@
 > defines that action**.
 
 - **形态**：变体（父：[入站到达](#ul-inbound-arrival--入站到达--inbound-arrival)）
-- **出处**：[PF-014 §4 控制指令](../../product/PF-014-inbound-intake-and-queueing/design.md#控制指令)（rev 4）
+- **出处**：[PF-014 §4 控制指令](../../product/PF-014-inbound-intake-and-queueing/design.md#控制指令)（rev 5）
 - **别混 ①**：**与[斜杠命令](capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command)不是一回事。**
   绑定提示词或 skill 的斜杠命令是**内容**——它要 agent 去做一件事，因此进队列；
   绑定系统业务流程的那种不进队列，但它触发的是一条业务流程、留一条记录，也不是处置；
@@ -482,7 +482,7 @@
 > why**.
 
 - **形态**：变体（父：[控制指令](#ul-control-command--控制指令--control-command)）
-- **出处**：[PF-014 §4 插队](../../product/PF-014-inbound-intake-and-queueing/design.md#插队)（rev 4）
+- **出处**：[PF-014 §4 插队](../../product/PF-014-inbound-intake-and-queueing/design.md#插队)（rev 5）
 - **别混 ①**：**它不终止[运行](agent-runtime-loop.md#ul-run--运行--run)。**
   这是它与**取消**最要紧的差别：取消让运行落终态，
   **插队只是把运行推到下一次取消息那一点**，运行一直活着
@@ -516,7 +516,7 @@
 - **形态**：总称
 - **出处**：[PF-016 §4 交付面](../../product/PF-016-cli-tui-delivery-surface/design.md#交付面) ·
   [§5.3](../../product/PF-016-cli-tui-delivery-surface/design.md#53-屏上的每一条都指得回日志里的一条) ·
-  [§5.4](../../product/PF-016-cli-tui-delivery-surface/design.md#54-人做的每一件事走的都是已有的路)（rev 4）
+  [§5.4](../../product/PF-016-cli-tui-delivery-surface/design.md#54-人做的每一件事走的都是已有的路)（rev 5）
 - **⚠️ 别混**：**不是[会话据点](grounding-and-isolation.md#ul-session-base--会话据点--session-base)。**
   据点是这些会话事实**所在的那一处**，交付面**什么都不持有**；
   同一处据点上**可以同时开着好几处**在用它
@@ -541,7 +541,7 @@
 
 - **形态**：状态
 - **出处**：[PF-016 §4 呈现形式](../../product/PF-016-cli-tui-delivery-surface/design.md#呈现形式) ·
-  [§5.5](../../product/PF-016-cli-tui-delivery-surface/design.md#55-两种呈现形式同一份事实)（rev 4）
+  [§5.5](../../product/PF-016-cli-tui-delivery-surface/design.md#55-两种呈现形式同一份事实)（rev 5）
 - **⚠️ 别混**：**不是[会话运行模式](agent-runtime-loop.md#ul-session-run-mode--会话运行模式--session-run-mode)。**
   那是「**本该问人的那一刻改怎么办**」，是会话的事，**改变领域行为**；
   这一条是「**这份事实交给谁读**」，是交付面的事，**一个字都不改**
@@ -568,7 +568,7 @@
 
 - **形态**：属性
 - **出处**：[PF-016 §4 观感偏好](../../product/PF-016-cli-tui-delivery-surface/design.md#观感偏好) ·
-  [§6.12](../../product/PF-016-cli-tui-delivery-surface/design.md#612-观感偏好不改变任何领域行为)（rev 4）
+  [§6.12](../../product/PF-016-cli-tui-delivery-surface/design.md#612-观感偏好不改变任何领域行为)（rev 5）
 - **⚠️ 别混**：**不是[元 runtime context](scope-and-resolution.md#ul-meta-runtime-context--元-runtime-context--meta-runtime-context)
   那十四项里的第 3 项「账号级的界面偏好」**（语言 · 时区 · 地区 · 明暗风格一类）——
   **那些是要被 agent 感知的**，[已经是每个会话必带的一项](../../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)，

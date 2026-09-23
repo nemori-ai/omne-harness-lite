@@ -21,21 +21,21 @@
 |---|---|---|
 | [PF-000 发生的事与记录条目](PF-000-occurrences-and-record-entries/README.md) | active | 1 |
 | [PF-001 身份、范围与对 Agent 的约束](PF-001-identity-scope-and-agent-constraints/README.md) | active | 16 |
-| [PF-002 设置、权限与资产的展开](PF-002-assets-settings-and-permissions/README.md) | active | 13 |
+| [PF-002 设置、权限与资产的展开](PF-002-assets-settings-and-permissions/README.md) | active | 16 |
 | [PF-003 资产的复制与分享](PF-003-asset-transfer-and-sharing/README.md) | active | 4 |
 | [PF-004 Agent 定义与装配](PF-004-agent-definition-and-assembly/README.md) | active | 10 |
 | [PF-005 执行环境与沙箱](PF-005-execution-environments-and-sandboxes/README.md) | active | 5 |
-| [PF-006 工具与技能](PF-006-tools-and-skills/README.md) | active | 16 |
+| [PF-006 工具与技能](PF-006-tools-and-skills/README.md) | active | 17 |
 | [PF-007 Meta Capabilities](PF-007-meta-capabilities/README.md) | active | 16 |
 | [PF-008 Human in the Loop](PF-008-human-in-the-loop/README.md) | active | 5 |
-| [PF-009 上下文消息类型](PF-009-context-message-types/README.md) | active | 5 |
+| [PF-009 上下文消息类型](PF-009-context-message-types/README.md) | active | 6 |
 | [PF-010 上下文管理与组装](PF-010-context-management-and-assembly/README.md) | active | 5 |
 | [PF-011 非常态的分层处置](PF-011-off-nominal-handling/README.md) | active | 4 |
-| [PF-012 Agent Loop 与 Run](PF-012-agent-loop-and-run/README.md) | active | 9 |
-| [PF-013 模型档案、调用与切换](PF-013-model-profiles-and-invocation/README.md) | active | 6 |
-| [PF-014 输入的受理与排队](PF-014-inbound-intake-and-queueing/README.md) | active | 4 |
+| [PF-012 Agent Loop 与 Run](PF-012-agent-loop-and-run/README.md) | active | 10 |
+| [PF-013 模型档案、调用与切换](PF-013-model-profiles-and-invocation/README.md) | active | 7 |
+| [PF-014 输入的受理与排队](PF-014-inbound-intake-and-queueing/README.md) | active | 5 |
 | [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md) | draft | 11 |
-| [PF-016 命令行交付面](PF-016-cli-tui-delivery-surface/README.md) | active | 4 |
+| [PF-016 命令行交付面](PF-016-cli-tui-delivery-surface/README.md) | active | 5 |
 | [PF-017 治理中心作为一个可部署应用](PF-017-governance-center-as-deployable-application/README.md) | active | 2 |
 ## 已排定、尚未开题的编号
 

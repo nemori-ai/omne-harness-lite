@@ -29,5 +29,6 @@
 |---|---|
 | 接受了什么、什么仍须验证、**不表示**什么 | [决定正文](decision.md) |
 | 固定版本上实际观察到什么 | [研究包](../../../../research/legacy_backup/pi-ai-openrouter-transport/README.md)与它的[证据记录](../../../../research/legacy_backup/pi-ai-openrouter-transport/evidence.md) |
+| 比较门逐项做到了哪、0.86.1 上补丁还要不要 | [2026-09-23 比较门现状补记](gate-status-2026-09-23.md)——对本决定的追加，不改写接受范围；观察本身在[模型请求运行时研究](../../../../research/model-request-transport-sources/research.md) |
 
 返回[决定](../README.md)。

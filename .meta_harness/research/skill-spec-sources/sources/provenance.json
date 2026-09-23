@@ -1,0 +1,104 @@
+{
+  "format": 2,
+  "consumer": "proposal「Skill 规格采用」（.meta_harness/design/record/proposals/skill-spec-adoption/）的「接受前必须补的一项」与扩展盘点",
+  "capture_date": "2026-09-23",
+  "capture_window_utc": "首次抓取在 2026-09-23T10:54:55Z（GitHub raw 抓完时刻）之前数分钟，未单独记时；2026-09-23T11:01:02Z 重抓 specification.md 字节不变",
+  "normalization": "none；文本与源码扩展名改为 .txt，只为不让仓库的 Markdown 链接检查与 Python 工具链解析它们",
+  "upstream_repository": {
+    "url": "https://github.com/agentskills/agentskills",
+    "head_commit_at_capture": "69ef37e9424c0a7ea9dd2293b559e43ec8176379",
+    "head_commit_date": "2026-08-09T20:36:04Z",
+    "head_commit_subject": "docs: add OpenClaw to client showcase (#492)",
+    "last_commit_touching_docs_specification_mdx": "217be54873（2026-08-04T22:52:17Z，Merge PR #479 clarify-metadata）",
+    "last_commit_touching_skills_ref_validator_and_parser": "547831f3a2（2025-12-18T14:39:21Z，Add skills-ref library (#2)）",
+    "spec_version_label": "规格页与仓库均无版本号；以 commit 钉版本"
+  },
+  "selected": [
+    {
+      "file": "agentskills-specification-2026-09-23.txt",
+      "upstream_url": "https://agentskills.io/specification.md",
+      "capture_method": "curl -sL（HTTP 200，content-type text/markdown，原样字节）；11:01:02Z 重抓 sha256 相同",
+      "note": "站点渲染出的 Markdown；与下一项 GitHub 源逐词比对，只差页头包装与转义（\\~、\\<）、列表符号和表格对齐，未见文字差异",
+      "target_sha256": "2b1dbb4fd80c31748d15812c4ebd3e66c09383d0c792801f617718684489e40d"
+    },
+    {
+      "file": "agentskills-specification-mdx-69ef37e.txt",
+      "upstream_url": "https://raw.githubusercontent.com/agentskills/agentskills/69ef37e9424c0a7ea9dd2293b559e43ec8176379/docs/specification.mdx",
+      "capture_method": "curl -sL（HTTP 200，原样字节）",
+      "target_sha256": "b9079c0c10b7930e8c6a20ff2bc10cda2a3343c55185120e3f1116a1a529b220"
+    },
+    {
+      "file": "agentskills-adding-skills-support-mdx-69ef37e.txt",
+      "upstream_url": "https://raw.githubusercontent.com/agentskills/agentskills/69ef37e9424c0a7ea9dd2293b559e43ec8176379/docs/client-implementation/adding-skills-support.mdx",
+      "capture_method": "curl -sL（HTTP 200，原样字节）",
+      "note": "站点对应页 https://agentskills.io/client-implementation/adding-skills-support.md 同时抓取，逐词比对只差渲染标记，不另存",
+      "target_sha256": "e1a788f858766f4b54e0542e235ad3b1a965147e2c759926eb1c2b0a0129eef9"
+    },
+    {
+      "file": "skills-ref-validator-69ef37e.txt",
+      "upstream_url": "https://raw.githubusercontent.com/agentskills/agentskills/69ef37e9424c0a7ea9dd2293b559e43ec8176379/skills-ref/src/skills_ref/validator.py",
+      "capture_method": "curl -sL（HTTP 200，原样字节）",
+      "note": "skills-ref 0.1.0（pyproject），README 自称「demonstration purposes only. It is not meant to be used in production」",
+      "target_sha256": "b5ee3d8537c83c959c31c2cb080a5227646ede5aea545f1ac835ed3c4645f6c5"
+    },
+    {
+      "file": "skills-ref-parser-69ef37e.txt",
+      "upstream_url": "https://raw.githubusercontent.com/agentskills/agentskills/69ef37e9424c0a7ea9dd2293b559e43ec8176379/skills-ref/src/skills_ref/parser.py",
+      "capture_method": "curl -sL（HTTP 200，原样字节）",
+      "target_sha256": "9a74c9a90eb217b82bec27570332eab74547acfbee2973c0a8bcd23f6c7bc211"
+    },
+    {
+      "file": "skills-ref-models-69ef37e.txt",
+      "upstream_url": "https://raw.githubusercontent.com/agentskills/agentskills/69ef37e9424c0a7ea9dd2293b559e43ec8176379/skills-ref/src/skills_ref/models.py",
+      "capture_method": "curl -sL（HTTP 200，原样字节）",
+      "target_sha256": "c6645fcfc04c78e773657856e8c6058e43951ce283e9b303ca721df1acac6a7b"
+    },
+    {
+      "file": "skills-ref-probe-2026-09-23.txt",
+      "upstream_url": null,
+      "capture_method": "本轮复现实验：以上三份源码（加同 commit 的 errors.py，未钉）在 uv venv（Python 3.12.13、strictyaml 1.7.3）里直接调用 validate / parse_frontmatter；文件内含两段探针脚本与完整输出",
+      "target_sha256": "3af75e3e37caab99e279d9127cf14f3bd78ab3055f8b1f8d905a79c9341358f4"
+    },
+    {
+      "file": "agentskills-issue-474-2026-09-23.json",
+      "upstream_url": "https://api.github.com/repos/agentskills/agentskills/issues/474",
+      "capture_method": "curl -sL（GitHub REST API 原样 JSON）",
+      "note": "issue「Clarify whether SKILL.md metadata supports arbitrary values or only strings」，2026-08-01 关闭；对应改动为 PR #479（commit 3f3bbec813，2026-08-03）只改概览表一行，把字段节的「a map from string keys to string values」补进概览",
+      "target_sha256": "18e884201957adf9f836d8d1cbe34d210ec461739f8d8ca0a8005489aa6b3f45"
+    },
+    {
+      "file": "codex-5c5308f-skills.tar.gz",
+      "upstream_url": "https://github.com/openai/codex",
+      "commit": "5c5308fc9a9ee789049d646ef11e5400384b9c6f",
+      "capture_method": "git archive --format=tar.gz 5c5308f -- <下列路径>，取自本机另一会话 scratchpad 里的 openai/codex 克隆（HEAD 恰为该 SHA，工作树干净，路径不钉、会失效）；与主检出 tmp/sources/codex-5c5308f.tar.gz 的共有文件 core/src/{mcp_skill_dependencies.rs,session/turn.rs,skills.rs} 逐字节一致（cmp）",
+      "paths": [
+        "codex-rs/skills/src/{model,parser,interface,loading,invocation,name_counts,mentions,selection}.rs",
+        "codex-rs/skills/src/assets/samples/skill-creator/references/openai_yaml.md",
+        "codex-rs/ext/skills/src/loader/",
+        "codex-rs/ext/skills/src/provider/",
+        "codex-rs/ext/skills/src/tools/",
+        "codex-rs/ext/skills/src/{catalog_prompt,invocation}.rs",
+        "codex-rs/config/src/skills_config.rs",
+        "codex-rs/core/src/mcp_skill_dependencies.rs",
+        "codex-rs/core/src/session/turn.rs"
+      ],
+      "reproduce": "在任一 openai/codex 克隆里对上列路径执行同一条 git archive",
+      "target_sha256": "dd04ceb0b067620fb0e8aaac980a4559f00de42dbb4c4c2b279879cf737bd550"
+    }
+  ],
+  "referenced_not_stored": [
+    {
+      "what": "agentskills/agentskills 的 open issues #350、#485、#514、#520、#144、#105",
+      "state_at_capture": "均为 open（GitHub REST API，2026-09-23 约 10:55Z）",
+      "note": "社区提议与报告，不是规格；只作「规格外正在讨论什么」的线索"
+    },
+    {
+      "what": "Claude Code skills 文档",
+      "note": "复用同程 topic 的钉存字节 ../../slash-command-parsing-sources/sources/claude-code-slash-commands-2026-09-23.txt（sha256 4868ac94…2eb162），不在本包重复存放"
+    },
+    {
+      "what": "Codex 官方文档离线副本 manual.md",
+      "note": "主检出 tmp/sources/codex-docs-2026-09-20.tar.gz（2026-09-20 抓取），不在本包重复存放"
+    }
+  ]
+}

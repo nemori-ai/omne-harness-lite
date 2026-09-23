@@ -1,0 +1,102 @@
+{
+  "url": "https://api.github.com/repos/agentskills/agentskills/issues/474",
+  "repository_url": "https://api.github.com/repos/agentskills/agentskills",
+  "labels_url": "https://api.github.com/repos/agentskills/agentskills/issues/474/labels{/name}",
+  "comments_url": "https://api.github.com/repos/agentskills/agentskills/issues/474/comments",
+  "events_url": "https://api.github.com/repos/agentskills/agentskills/issues/474/events",
+  "html_url": "https://github.com/agentskills/agentskills/issues/474",
+  "id": 5035425798,
+  "node_id": "I_kwDOQp3VPc8AAAABLCKABg",
+  "number": 474,
+  "title": "Clarify whether SKILL.md metadata supports arbitrary values or only strings",
+  "user": {
+    "login": "DaVinci42",
+    "id": 4347318,
+    "node_id": "MDQ6VXNlcjQzNDczMTg=",
+    "avatar_url": "https://avatars.githubusercontent.com/u/4347318?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/DaVinci42",
+    "html_url": "https://github.com/DaVinci42",
+    "followers_url": "https://api.github.com/users/DaVinci42/followers",
+    "following_url": "https://api.github.com/users/DaVinci42/following{/other_user}",
+    "gists_url": "https://api.github.com/users/DaVinci42/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/DaVinci42/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/DaVinci42/subscriptions",
+    "organizations_url": "https://api.github.com/users/DaVinci42/orgs",
+    "repos_url": "https://api.github.com/users/DaVinci42/repos",
+    "events_url": "https://api.github.com/users/DaVinci42/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/DaVinci42/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "labels": [
+
+  ],
+  "state": "closed",
+  "locked": false,
+  "assignees": [
+
+  ],
+  "milestone": null,
+  "comments": 3,
+  "created_at": "2026-08-01T05:14:05Z",
+  "updated_at": "2026-08-12T03:40:13Z",
+  "closed_at": "2026-08-04T22:52:18Z",
+  "assignee": null,
+  "author_association": "NONE",
+  "issue_field_values": [
+
+  ],
+  "type": null,
+  "active_lock_reason": null,
+  "sub_issues_summary": {
+    "total": 0,
+    "completed": 0,
+    "percent_completed": 0
+  },
+  "issue_dependencies_summary": {
+    "blocked_by": 0,
+    "total_blocked_by": 0,
+    "blocking": 0,
+    "total_blocking": 0
+  },
+  "body": "# Issue: Clarify whether `metadata` supports arbitrary values or only string values\n\nThe current Agent Skills specification appears to describe two different constraints for the optional `metadata` field in `SKILL.md` frontmatter.\n\nIn the [frontmatter overview table](https://github.com/agentskills/agentskills/blob/38a2ff82958afee88dadf4831509e6f7e9d8ef4e/docs/specification.mdx#L18-L26), `metadata` is described as:\n\n> Arbitrary key-value mapping for additional metadata.\n\nHowever, the later [`metadata` field section](https://github.com/agentskills/agentskills/blob/38a2ff82958afee88dadf4831509e6f7e9d8ef4e/docs/specification.mdx#L117-L124) says:\n\n> A map from string keys to string values\n\nThese are not equivalent constraints. \"Arbitrary key-value mapping\" suggests clients may accept nested objects, arrays, booleans, numbers, or other YAML values, while \"string keys to string values\" requires every metadata value to be a string.\n\nThis ambiguity affects client compatibility. Strict parsers that implement `metadata` as `map[string]string` reject skills that use nested metadata objects or arrays, even though the overview wording can be read as allowing arbitrary values.\n\nThis came up in ayghri/i-have-adhd#93, where a skill using nested metadata failed to load in stricter clients. The maintainer noted that this should likely be clarified in the Agent Skills specification first because the documentation appears inconsistent.\n\nOne concrete example is a skill with frontmatter like:\n\n```yaml\nmetadata:\n  hermes:\n    tags: [ADHD, Output Style, Productivity, Formatting]\n    category: productivity\n    related_skills: []\n```\n\nA strict parser may fail with an error similar to:\n\n```text\nparsing frontmatter: yaml: unmarshal errors: cannot unmarshal !!map into string\n```\n\nCould the specification clarify the intended constraint?\n\nPossible resolutions:\n\n1. If `metadata` values must be strings, update the overview wording from \"Arbitrary key-value mapping\" to something like \"Additional metadata as a string-to-string mapping.\"\n2. If arbitrary YAML values are intended, update the `metadata field` section and client expectations to allow nested objects, arrays, and scalar values.\n\nClarifying this would help skill authors write portable `SKILL.md` files and help client implementers validate frontmatter consistently.\n",
+  "closed_by": {
+    "login": "jonathanhefner",
+    "id": 771968,
+    "node_id": "MDQ6VXNlcjc3MTk2OA==",
+    "avatar_url": "https://avatars.githubusercontent.com/u/771968?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/jonathanhefner",
+    "html_url": "https://github.com/jonathanhefner",
+    "followers_url": "https://api.github.com/users/jonathanhefner/followers",
+    "following_url": "https://api.github.com/users/jonathanhefner/following{/other_user}",
+    "gists_url": "https://api.github.com/users/jonathanhefner/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/jonathanhefner/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/jonathanhefner/subscriptions",
+    "organizations_url": "https://api.github.com/users/jonathanhefner/orgs",
+    "repos_url": "https://api.github.com/users/jonathanhefner/repos",
+    "events_url": "https://api.github.com/users/jonathanhefner/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/jonathanhefner/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "reactions": {
+    "url": "https://api.github.com/repos/agentskills/agentskills/issues/474/reactions",
+    "total_count": 1,
+    "+1": 1,
+    "-1": 0,
+    "laugh": 0,
+    "hooray": 0,
+    "confused": 0,
+    "heart": 0,
+    "rocket": 0,
+    "eyes": 0
+  },
+  "timeline_url": "https://api.github.com/repos/agentskills/agentskills/issues/474/timeline",
+  "performed_via_github_app": null,
+  "state_reason": "completed",
+  "pinned_comment": null
+}

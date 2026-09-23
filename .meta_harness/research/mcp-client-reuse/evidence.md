@@ -203,3 +203,364 @@ Codex 为 `tmp/sources/extracted/codex/`，Codex 文档为 `tmp/sources/extracte
 | 工具协议归本项目自定 | [SYS-KERNEL](../../design/foundation/cross-system-constraints/requirements.md#sys-kernel) |
 
 上游升级时，grep 本文件里的 `c291e796`、`5c5308fc`、`1.29.0`、`2026-09-20` 找需要重核的记录。
+
+## 第二轮：同行封装的借鉴与依赖（2026-09-23）
+
+消费对象：research.md「[第二轮：同行封装的借鉴与依赖](research.md#第二轮同行封装的借鉴与依赖)」各条；逐源与逐主题论证在
+[第二轮报告](reports/2026-09-23-round2-wrapper-lessons.md)。全部为**源码、清单、文档、CHANGELOG 与 issue 阅读，没有运行**任何代码或测试。
+
+### 第二轮取证条件总览
+
+| 来源 | 精确对象与版本 | 取得方式 | 来源立场 |
+|---|---|---|---|
+| DSH | 同首轮 `c291e796` | 主检出 `tmp/sources/extracted/dsh/` | 作者自述（`.agents/notes/`）+ 源码 + 测试名 |
+| pi | `earendil-works/pi` `3390bd93630965a12a0a1a5c36ce890ec22f7e1d`（`pi-coding-agent@0.86.1`） | 主检出 `tmp/sources/pi-3390bd9.tar.gz` → `extracted/pi/` | 作者自述 + 源码 |
+| pi-mcp-adapter | npm `pi-mcp-adapter@2.37.0`，tarball sha256 `41c281a3a19fb4aec08036a8d91682d77adf1df1c02032dc3221ab739ae1859f`；GitHub `nicobailon/pi-mcp-adapter` | `npm pack`；issue 列表经 WebFetch 摘要 | **第三方**（非 pi 作者）源码 + README + CHANGELOG |
+| Codex（补件） | `openai/codex` **同一 commit** `5c5308fc9a9ee789049d646ef11e5400384b9c6f`（2026-09-20T03:02:48Z）的 `codex-rs/codex-mcp`、`config`、`protocol`、`utils/output-truncation` 与 workspace `Cargo.toml` / `Cargo.lock` | `git fetch --depth 1 origin <SHA>` + sparse checkout；与主检出归档的 `rmcp-client`、`core/src` 逐文件 diff 无差异 | 源码（一手）+ issue（`gh search issues`） |
+| LangChain Python | `langchain-ai/langchain-mcp-adapters` `52a4535f3eb4b98f386836e4d9b8c4cadf99afca`（2026-09-10，0.3.2）；仓库已归档（`isArchived: true`） | `git clone --depth 1` | 源码 + issue；继任 `langchain-ai/langchain` `c36e3f826fb7b66c746b8235ef83ab3910dd32be` 只做轮廓 |
+| LangChain JS | `langchain-ai/langchainjs` `12626c25a9acdd72d2c8a68788479440916d38a1`（2026-09-23），包目录最后提交 `b0a0d3f73608674818e4ad6c12adde622c90afa5`；npm `@langchain/mcp-adapters@1.1.4` | GitHub API 按 SHA 取该包 40 个文件 | 源码 + CHANGELOG + issue |
+| OpenAI Agents | Python `openai/openai-agents-python` `32edd3c3ecde37a7fb6bf4b082f35f1d8f7f086b`（2026-09-22，0.22.3）；JS `openai/openai-agents-js` `a0b1c6fd8e15703d3fb37c3de6f90f08400c6700`（0.18.0，grep 级） | `git clone --depth 1` | 源码 + 仓库内 `docs/` + issue |
+| Vercel AI SDK | `vercel/ai` `21b2d6c3658bb397014bbcac4e7108468ce1f9e4`（2026-09-23T08:29:45Z），`@ai-sdk/mcp` 2.0.56；npm `ai` 7.0.112 | `gh api` 取树，按 SHA 下载 raw 文件（磁盘不足以克隆） | 源码 + 仓库内 `content/` 文档 + CHANGELOG + issue |
+| Claude Agent SDK | Python `anthropics/claude-agent-sdk-python` `dce7cdac8276c004e08f4d94acffbf85dfbbd116`（0.2.158）；npm `@anthropic-ai/claude-agent-sdk@0.3.280`（`claudeCodeVersion` 2.1.280）；TS 仓库 `58d2e4b81bdca2c6ce10e6e5db22ad7acdc1d58c`（只有 CHANGELOG） | `git clone --depth 1`；`npm pack`，只读 `.d.ts` 与 `package.json` | 源码（Python）/ 类型声明与 CHANGELOG（TS） |
+| Claude Code | 本机 `2.1.280`；`anthropics/claude-code` `56f36532530f88b572854538d685fcf781141e8c` 的 `CHANGELOG.md`；code.claude.com `docs/en/{mcp,agent-sdk/mcp,managed-mcp,permissions,env-vars}.md` | `git clone --depth 1`；`curl` 文档 `.md`，2026-09-23 | **厂商自述**；本体闭源 |
+| 官方 SDK 发布事实 | npm registry `@modelcontextprotocol/{sdk,client,core}` | `npm view`，2026-09-23 | 注册表元数据，**不含包内容** |
+
+远程源的本地副本放在取证会话的 scratchpad，会被清理；复核按上表 SHA / 版本重新取得。
+
+## E-17 DSH 决策记录里的取舍与坑（补首轮）
+
+- 消费对象：第二轮「名字」「翻页守卫」「多段文本」「出站代理」各条。
+- 来源：DSH `c291e796` `.agents/notes/implemented/feature/2026-07-07-mcp-client-plugin.md`；`.agents/notes/implemented/architecture/2026-08-27-outbound-proxy-policy.md`；
+  `.agents/notes/implemented/feature/2026-08-22-standard-acp-automation-controls.md`；`packages/mcp/mcp-client/{src/tools.ts,tests/*.ts}`；`packages/util/http-proxy/package.json`；
+  `packages/subagent/subagent-claude-code/package.json`；`pnpm-lock.yaml`。来源立场：作者自述 + 源码。
+- 实际观察：
+  - 插件记录「Tool discovery and registration」：每次同步拒绝重复的非空续页游标并保留上一代，「This detects repeated cursors; it does not bound a server that continually returns distinct cursors」；
+    `src/tools.ts:153-182` 以 `seenCursors` 实现。引用的失败报告 `deepseek-harness/discussions/3660` **未打开**。
+  - 同记录「Tool discovery and registration」「Name conflict handling」：列八个多服务端客户端的限定名链接；引微软研究院 1,470 个服务端中 775 个撞名、`search` 出现在 32 个；
+    「Alternatives considered → Raw model-facing tool names with an optional `toolPrefix`」记原前提为假与装载顺序依赖。
+  - 同记录「Preserve multiple TextBlocks」：`flattenText()` 用 `join('')`，多段文本丢边界。
+  - 同记录「Replace the canonical MCP result with core ContentBlock[]」：规范值与投影分开的理由。
+  - 同记录「Auto-reconnect with exponential backoff」：原先拒绝，「Operational feedback reversed the deferral」。
+  - 同记录「Consequences」：「a misbehaving MCP server that ignores signals could wedge dispose」。
+  - `tests/reconnect.spec.ts:140-516`：25 个 `it` 名（逐条见第二轮报告 §二 DSH）；`tests/` 各文件 `it(` 计数：`mcp-client.spec.ts` 57、`apply.spec.ts` 23、`mcp-client.e2e.ts` 22。
+  - 出站代理记录 `:9`：Node `fetch` 不读 `HTTP_PROXY`，MCP over HTTP 等静默直连；`:47`：`NODE_USE_ENV_PROXY` 下 `socks4://` 等值让 Node 子进程（含 MCP 服务端）在第一行前退出，Node 24.17 实测；
+    `:57`：每个调用点一条 egress 测试，含 MCP over HTTP（`tests/egress.spec.ts`）。`packages/util/http-proxy/package.json:32-33` `undici ^8.10.0`。
+  - ACP 记录「Standard MCP mapping」：发布前校验与首连失败回滚。
+  - `subagent-claude-code/package.json:48` `@modelcontextprotocol/sdk ^1.29.0`；`pnpm-lock.yaml:11587-11590` 为 `@anthropic-ai/claude-agent-sdk@0.3.263` 的 peer；该包 `src/` 无 `modelcontextprotocol` 引用。
+- 支持范围：作者自述与源码结构。**测试未运行**。
+
+## E-18 pi 本体：不做 MCP，只有扩展点
+
+- 消费对象：第二轮「pi 本体不含 MCP 客户端」。
+- 来源：pi `3390bd9`。命令：`grep -rIil 'mcp|modelcontextprotocol' --exclude-dir=node_modules`，逐个命中文件看上下文。
+- 实际观察：
+  - `packages/coding-agent/README.md:397` 扩展能力清单「MCP server integration」；`:501`「**No MCP.** Build CLI tools with READMEs … or build an extension that adds MCP support」。
+  - `packages/coding-agent/docs/usage.md:310`「intentionally does not include built-in MCP」。
+  - `packages/coding-agent/test/settings-manager-bug.test.ts:45-53` 夹具包名 `npm:pi-mcp-adapter`；`packages/ai/src/auth/oauth/anthropic.ts:37` OAuth scope 字符串含 `user:mcp_servers`；
+    `packages/agent/docs/pico/v3/view-and-events.md:349` 对照 Codex 的 `McpToolCall` 条目。
+  - `package-lock.json:1200-1206` 与 `packages/coding-agent/npm-shrinkwrap.json:932-938`：`@google/genai@2.21.0` 对 `@modelcontextprotocol/sdk ^1.25.2` 的**可选 peer**。
+  - `packages/coding-agent/src/utils/tool-result-images.ts:11-19` 注释（「tools that produce images themselves (extensions, MCP bridges, screenshot tools) … Oversized images make the provider reject the whole conversation」）；`:40-46` 处理失败保留原块；
+    调用点 `src/core/agent-session.ts:544-548`，在扩展 `tool_result` 钩子之后。
+  - `docs/extensions.md:1408-1410` `pi.registerTool()` 启动后可调、同会话立即可见；`:1716-1732` `setActiveTools`；`:2404-2406` 工具集增量追加与缓存前缀失效。
+- 支持范围：**读遍命中，无 MCP 客户端实现**。`pi-mcp-adapter` 只作为包名出现，其实现见 E-19。
+
+## E-19 pi-mcp-adapter 2.37.0（第三方）
+
+- 消费对象：第二轮「SDK 大版本」「持久清单」「重连」「暴露面」「审批」各条。
+- 来源：npm tarball（sha256 见总览）解包后的 `package/`；路径相对之。来源立场：第三方作者源码与自述。
+- 实际观察：
+  - 依赖：`package.json:170-186` dependencies（`@modelcontextprotocol/client` 2.0.0、`core` 2.0.0、`ext-apps ^1.2.2`、`ext-tasks ^0.1.0`、`@napi-rs/keyring ^1.3.0`、`@typesafe-ai/sdk 0.6.0`、`ajv ^8.17.1`、`ajv-formats ^3.0.1`、`cross-spawn ^7.0.6`、`open ^10.2.0`、`recheck 4.6.0-beta.3`、`smol-toml ^1.6.1`、`strip-json-comments ^5.0.3`、`undici ^6.28.1`、`zod`）；`:187-203` peer（pi-ai、pi-tui、typebox 可选）；`CHANGELOG.md:419`（2.21.0 去掉对旧 `@modelcontextprotocol/sdk` peer 的要求）。
+  - 暴露：`README.md:13-17` 代理工具动机；`index.ts:1781-1807` 注册 `mcp`；`direct-tool-surface.ts:195-201` 描述字节稳定；`:72-193` 直接工具取自缓存。
+  - 连接：`init.ts:285-332` 首次运行连全部填缓存；`lifecycle.ts:98-153` 30 s 健康检查、空闲 10 min 断开；`failure-backoff.ts:3` 60 s；`server-manager.ts:929-1010`（注释 `:947-949`）替代连接先建后发布、失败候选不拆最后可用路由；
+    `session-recovery.ts:5-58`、`:93-157` 会话过期判定与一次重试；`server-manager.ts:1950-1963` 只调 `client.close()`；`README.md:1011` 跨 pi 进程不共享服务端。
+  - 缓存：`metadata-cache.ts:37`（7 天）、`:41-43`（位置）、`:59-82`（读合并写、pid 临时文件、rename）、`:84-139`（配置指纹与失效）；`README.md:459`。
+  - 名字：`types.ts:825-857`（合法化与前缀）、`:532-556`（命名空间代理名 59 字符截断）、`:869-889`（冲突各方全部丢弃）。
+  - 输出：`mcp-output-guard.ts:5-16`、`:104-108`、`:144-176`（50 KiB / 2000 行、临时文件 0600、图片不限）；`tool-registrar.ts:10-14`、`:133-174`、`:236-247`。
+  - elicitation / sampling / roots：`elicitation-handler.ts:47-88`、`:311-353`；`sampling-handler.ts:42-88`、`:162-221`；`README.md:367`（roots 未实现）。
+  - 鉴权：`mcp-auth.ts:23-42`（凭据库、Windows 分块）；`README.md:435`（不退回明文）；`server-manager.ts:1555-1557`（绑定源的头不交给 SDK `requestInit`）；`mcp-oauth-provider.ts:733-744`（作废只在本 provider 内）。
+  - 审批：`session-approvals.ts:40-76`（定义哈希 + 参数哈希）。错误：`error-signal.ts:3-32`、`proxy-modes.ts:1161-1727`。
+  - CHANGELOG（行号）：`:875`（2.0.0 孤儿进程）、`:792`（2.2.2）、`:576`、`:584`、`:572`（2.12.0）、`:502`（2.15.0）、`:311`、`:319`（2.27.0）、`:274`（2.28.0）、`:173`（2.33.0，OAuth 请求无超时，#485）、`:124`（2.34.0，`ttlMs: 0`）。
+  - issue（WebFetch 列表摘要，未逐条打开）：#485、#561、#569、#577、#641。
+- 支持范围：静态阅读；`ext-apps` 运行时用法未核（推测打进 UI bundle）。
+
+## E-20 Codex `codex-mcp` 连接集、目录缓存、名字、投影（补首轮缺件）
+
+- 消费对象：第二轮「未就绪服务端的动作」「持久清单」「分页」「名字」「结果投影」「stdio 无自动重启」「`rmcp` 版本」各条；首轮 research「未知与下一项证据」第 2 行。
+- 来源：`openai/codex` `5c5308fc`（远程取回，见总览）。路径相对 `codex-rs/`。
+- 实际观察：
+  - 版本：`Cargo.toml:434` `rmcp = { version = "=3.2.0", default-features = false }`；`Cargo.lock:13054` rmcp 3.2.0；`:10700` oauth2 5.0.0；`:14765` sse-stream 0.2.5；`:9771` keyring 3.6.3；`:12899`、`:12950` reqwest 0.12.28 与 0.13.4。
+  - 启动：`codex-mcp/src/rmcp_client.rs:103-104` `DEFAULT_STARTUP_TIMEOUT = 30s`、`DEFAULT_TOOL_TIMEOUT = 300s`（兜底于 `connection_manager.rs:336-343`）；`connection_manager.rs:254`、`:752-812` 并发启动；
+    `connection_manager/required.rs:15-59` 与 `core/src/session/mcp_runtime.rs:148` required 失败会话失败；`connection_manager/tool_catalog.rs:215-281` 可选宽限，截止时间写入缓存条目 `tool_catalog_cache.rs:133-161`。
+  - 未就绪服务端：`connection_manager/tool_catalog.rs:285-332`、`:338-371`（三种情形）；`:316-320` 清空只读注解；`core/src/tools/handlers/mcp.rs:285-291` 调用前等就绪；`core/src/mcp_tool_call.rs:165-183`「not available」。
+  - 目录缓存：`codex-mcp/src/tool_catalog_cache.rs:32-49`（LRU 32、TTL 30 min）、`:227-403`（键与指纹，含环境变量值哈希）、`:307-320`、`:368-373`（不缓存情形）、`:124-131`、`:184-218`（失效与代次）；
+    `rmcp_client.rs:97-98`、`:968-980`（`codex/tool-catalog-cache {cacheable:false}`）。
+  - `list_changed`：`rmcp-client/src/logging_client_handler.rs:86-88` 只写日志；在 `codex-mcp`、`rmcp-client`、`core/src` grep `list_changed|ListChanged` 无其他生产代码命中。
+  - 分页：`codex-mcp/src/rmcp_client.rs:673-676` Legacy 模式 `next_cursor` 恒为 `None`（本轮执行者复读确认；`rmcp-client` 的 `list_tools_with_connector_ids` 不在内部翻页，`rmcp-client/src/rmcp_client.rs:706-734`）；
+    `core/src/config/mod.rs:1836-1842` 默认 Legacy；`codex-mcp/src/pagination.rs:9-80` 翻页守卫。
+  - 名字：`codex-mcp/src/mcp/mod.rs:565-580` 合法化；`codex-mcp/src/tools.rs:113-316` 长度 128、SHA1 12 位、冲突处理。
+  - 投影：`protocol/src/models.rs:2301-2336`（structuredContent 非空时只输出它）、`:2343-2443`（逐类映射）；`core/src/mcp_tool_call.rs:936-973`（不支持模态换占位）；`utils/output-truncation/src/lib.rs:115-203`（图片不计入预算）。
+  - stdio 退出：`rmcp-client/src/rmcp_client.rs:1035-1044` `is_closed`；`connection_manager.rs:105-107` 下次发布才新建；13 处 `mark_mcp_runtime_dirty()` 调用点均非连接关闭；`connection_manager/tool_catalog.rs:295` 不检查已关闭。
+  - TODO：`codex-mcp/src/rmcp_client.rs:1144`、`rmcp-client/src/oauth/refresh_transaction.rs:240-243`、`:363-364`、`rmcp-client/src/http_headers.rs:263`。
+  - issue（`gh search issues`，2026-09-23）：#10105（及 #33266、#35583、#37417、#43642）、#29321、#22072、#46188、#39990、#39149、#31499、#41133、#45944。
+- 支持范围：连接集、缓存、名字与投影的源码。**`rmcp 3.2.0` 源码未取得**；`connection_manager/resources.rs`、elicitation 相关文件与测试未读。
+  与首轮 E-16 文档默认值（启动 10 s、调用 60 s，`config-file_config-reference.md:617-632`）不一致，本轮未判哪边是运行时行为。
+
+## E-21 Codex `rmcp-client` 的 stdio 与 HTTP 防护（本地归档补读）
+
+- 消费对象：第二轮「stdio 子进程治理」「鉴权与凭据」。
+- 来源：主检出 `tmp/sources/extracted/codex/codex-rs/rmcp-client/src/`（`5c5308fc`）。
+- 实际观察：`bounded_stdio_transport.rs:21-22`、`local_stdio_transport.rs:22` `MAX_MCP_STDIO_LINE_BYTES = 8 MiB`，`bounded_stdio_transport.rs:65` 超限关传输；
+  `local_stdio_transport.rs:29-34` Legacy 与 2026-07-28 两种帧；`stdio_server_launcher.rs:215-219` 进程组 2 s 宽限与 stderr 250 ms 排空宽限、`:244`（逃逸后代占着 stderr）、`:351-378` stderr 进日志；
+  `utils.rs:21-46`、`:163-175` 默认环境变量白名单 11 个；`program_resolver.rs:1-17` Windows 脚本解析；`http_client_redirect.rs:1-5`、`:23` 只跟同源重定向、至多 10 次。
+- 支持范围：源码结构，未运行。
+
+## E-22 LangChain Python `langchain-mcp-adapters` 0.3.2
+
+- 消费对象：第二轮「SDK 大版本」「部分失败」「名字」「结果投影」「错误」。
+- 来源：`52a4535f`，路径相对仓库根。
+- 实际观察：`README.md:3-11` 不再维护、迁往 `langchain.mcp`；`pyproject.toml:10-21` 依赖（`mcp>=1.24.0,<2.0.0`）；`uv.lock:726-727` mcp 1.28.1；
+  `client.py:173-175`、`tools.py:460-487` 每次调用新建会话；`client.py:198-216`（`gather` 无 `return_exceptions`）与 `:276-298`（`get_server_info` 带）；`tools.py:458-487` 绕 SDK 吞异常的注释；
+  `tools.py:320-354` 分页（上限 1000）；`tools.py:515-518` 前缀；`tools.py:175-283` 投影（`:197-202` audio `NotImplementedError`）；`tools.py:99-158` `isError` 处理；`callbacks.py:28-141` 回调；
+  `sessions.py:53-57`、`:344-356` 传输超时。issue：#75、#99、#258、#298、#314、#466、#492、#551、#589（mcp 2.0 导入即失败）、#605。
+  继任 `langchain` `c36e3f82` `libs/langchain_v1/pyproject.toml:51` `fastmcp>=4.0.1,<5.0.0`；`libs/langchain_v1/langchain/mcp/adapter.py:146-157` elicitation 用 `interrupt()`。
+- 支持范围：源码；大批 issue 于 2026-09-16 以 superseded 批量关闭，**关闭 ≠ HEAD 已修**（#492、#551 对应代码 HEAD 未改）。
+
+## E-23 LangChain JS `@langchain/mcp-adapters` 1.1.4
+
+- 消费对象：第二轮「连接池」「超时」「错误」「schema 简化」。
+- 来源：langchainjs `12626c25` 的 `libs/langchain-mcp-adapters/`。
+- 实际观察：`package.json` 依赖 `@modelcontextprotocol/sdk ^1.30.0`、`debug ^4.4.3`、`zod`，peer `@langchain/core ^1.0.0`、`@langchain/langgraph ^1.4.13`，可选 `extended-eventsource ^2.1.0`（`src/` 未引用），`node >=20.10.0`；
+  `src/connection.ts:83-93`、`:231-238`、`:576-593` 连接池与键；`src/client.ts:247` 串行初始化；`:714-758`、`:924-994`、`:1030-1118` 重连；`src/connection.ts:449-462` SDK 重连选项映射；
+  `src/tools.ts:1010-1018` 超时读取；`:1211-1220` 分页；`src/connection.ts:222-229` `list_changed` 只转回调；`src/tools.ts:299-475`、`:1250-1256` schema 简化并用于运行时校验；
+  `:837-845`、`:1164-1175` 错误包装丢 cause；`src/connection.ts:127-131` 未声明客户端能力。issue：#10825、#9136、#9560、#11083、#11300、#11302、#10905、#8805。
+- 支持范围：源码；下游 LangGraph 对 `ToolException` 的处理未核。
+
+## E-24 OpenAI Agents SDK
+
+- 消费对象：第二轮「SDK 大版本」「超时」「重连（隔离会话重试）」「名字」「结果投影」「错误」「凭据脱敏」。
+- 来源：Python `32edd3c3`，路径相对仓库根；JS `a0b1c6fd` 相对 `packages/agents-core/`。
+- 实际观察：`pyproject.toml:16-22` `mcp>=1.19.0,<3` 与传递依赖安全下限；`src/agents/mcp/_compat.py:21-31`、`:101-130` 版本分支；
+  `src/agents/mcp/server.py:1934`、`:2084`、`:2262` 读超时默认 5、`:137-161` 0 的语义；`:884-891`、`:1254-1274` 重试；`:2430-2628` Streamable HTTP 隔离会话重试调用（`:2525-2528` 计两次预算）；
+  `:988-992`、`:2355` 请求串行；`src/agents/mcp/manager.py:192-202`、`:409-441` 失败处理；`server.py:1463-1464`、`:1115-1117` 缓存；`src/agents/run_loop.py:2124`、`:2465` 每轮列举；
+  `server.py:1504-1519` 分页失败不留部分结果；`src/agents/mcp/util.py:317-339` 同名抛错、`:425-515` 前缀与截断；`:789-820` 投影；`src/agents/tool.py:1975-1980` 默认失败文本；
+  `src/agents/mcp/_logging.py:14-45` 脱敏；`server.py:1843-1878` cancel scope 注释。JS `package.json:130-132` `@modelcontextprotocol/client ^2.0.0` 可选依赖；`src/shims/mcp-server/node.ts:263-278`、`:1297-1531` 自动重连与「listing became stale」。
+  issue：#464、#1167、#1024、#4016、#4017、#4334、#5054、#840、#1288、#1404。
+- 支持范围：Python 通读 MCP 模块；JS grep 级。官方 `mcp` 包在未设回调时的默认行为未核。
+
+## E-25 Vercel `@ai-sdk/mcp` 2.0.56
+
+- 消费对象：第二轮「协议层自写」「挂起请求」「取消」「错误」「重定向」。
+- 来源：`vercel/ai` `21b2d6c3`，路径相对 `packages/mcp/`（文档相对仓库根）。
+- 实际观察：`package.json:44-65` 依赖与 Node ≥ 22，无官方 SDK；`src/tool/json-rpc-message.ts:7-62` 自写 JSON-RPC；`src/tool/types.ts:5-13` 协议版本常量；
+  `src/tool/mcp-transport.ts:197-208` 鸭子类型接受外部 transport、`:127-133` `redirect:'error'`；`src/tool/mcp-client.ts:1510-1523` 断连收掉挂起请求、`:812-845` 取消与超时清理、`:1546-1552` 迟到响应抛错、
+  `:467-478` 通知一律 `Unsupported message type`、`:1164-1182` 每次列举拉全、`:1297` 原名作键、`:1251-1271` `isError` 原样返回、`:209-239` 模型投影、`:1440-1449` sampling/roots `-32601`；
+  `src/error/mcp-client-error.ts` 单一错误类；`src/tool/mcp-stdio/get-environment.ts` 环境白名单；`src/tool/mcp-http-transport.ts:414-419`、`src/tool/mcp-sse-transport.ts:192-247`、`src/tool/mcp-stdio/mcp-stdio-transport.ts:101-122`（三条推断的出处）。
+  文档 `content/docs/03-ai-sdk-core/16-mcp-tools.mdx:20`、`:170-179`、`:292-296`、`:361-364`、`:648-690`；cookbook `content/cookbook/05-node/54-mcp-tools.mdx:74-80`。
+  `packages/mcp/CHANGELOG.md:299`、`:398`、`:1246`、`:1264`。issue：#16580、#18075、#8189、#14693、#12025、#20171、#19157。
+- 支持范围：源码与仓库内文档；测试未读、未运行；三条标「推断」。
+
+## E-26 Claude Agent SDK
+
+- 消费对象：第二轮「SDK 大版本」「取消」「elicitation」「运行时控制」。
+- 来源：Python `dce7cdac`（路径相对仓库根）；npm 0.3.280 解包 `package/`。
+- 实际观察：Python `pyproject.toml:28-34` 依赖（`mcp>=1.23.0,<3.0.0`、`jsonschema`、`anyio`、`sniffio`）与 `CHANGELOG.md:118`、`:451`、`:560`、`:678` 的 mcp 范围演变；
+  `src/claude_agent_sdk/_internal/_mcp_compat.py:17`（版本分支只在本模块）、`:98-109`（1.x 只对自建服务端发取消）；`_internal/sdk_mcp_bridge.py:15-21`、`:198-245`（通知丢弃、反向请求 `-32601`、握手后死亡不恢复）；
+  `_internal/query.py:573-591` 控制通道路由；`src/claude_agent_sdk/__init__.py:433-442` `maxResultSizeChars` 走 `_meta`、`:451-488` 投影。
+  TS：`package.json` 无 dependencies、peer `@modelcontextprotocol/sdk ^1.29.0`；`sdk.d.ts:1165-1210` `McpServerStatus.source`、`:3051` `setMcpServers`、`:4274-4300` `sdkMcpServerManifests`、`:1664-1672` elicitation 默认 decline；
+  TS CHANGELOG（仓库 `58d2e4b8`）`:168-169`（`foo` / `foo__bar`）、`:733`（后台连接破坏性变更）、`:944`（子进程未清理）。
+- 支持范围：Python 源码；TS 只到类型与清单，`sdk.mjs` 未反编译。
+
+## E-27 Claude Code 文档与 CHANGELOG
+
+- 消费对象：第二轮「超时」「挂起」「重连」「list_changed」「发现缓存」「结果投影」「权限」「鉴权」各条。
+- 来源：code.claude.com 文档 `.md`（2026-09-23 抓取，自称到 2.1.280）；`anthropics/claude-code` `56f36532` `CHANGELOG.md`。来源立场：**厂商自述**，实现闭源。
+- 实际观察：`mcp.md:321-342` v1/v2 两套运行时；`:344-357` `list_changed`；`:359-388` 重连与重试分类；`:264-275` 发现缓存；`:411-435` 超时、空闲超时、转后台；
+  `:498` 插件命名与字符替换；`:594-606` 作用域去重；`:1254-1291` 输出上限与写盘；`:1293-1319` schema 合法化；`:1321-1347` `requiresUserInteraction`；`:938-1027` `headersHelper`；`:730-936` OAuth；`:117` roots；
+  `env-vars.md:456-468` 连接批量与超时变量；`permissions.md:183-199`、`:478-486` 规则形状；`managed-mcp.md:238-330` 允许/拒绝列表与 `type:"sdk"` 例外。
+  CHANGELOG 行：`:5880`（2.1.9）、`:5832`（2.1.15）、`:4329`（2.1.105）、`:4244`（2.1.110）、`:2735`（2.1.187）、`:4164`（2.1.113）、`:3690`（2.1.136）、`:2438`（2.1.206）、`:2103`（2.1.217）、
+  `:4425`（2.1.98）、`:6398`（2.0.31）、`:1998`（2.1.221）、`:525`（2.1.271）、`:2212`（2.1.214）、`:3845`（2.1.128）、`:2381`（2.1.208）、`:4462`（2.1.97）、`:3523`（2.1.142）、`:3088`（2.1.162）、`:2671`（2.1.195）。
+  文档、SDK MCP 页、env-vars 页与 CHANGELOG 全文 grep `sampling` 均 0 命中。
+- 支持范围：厂商对自身行为的陈述；与实现一致性无法核对。
+
+## E-28 官方 SDK 各包的注册表事实
+
+- 消费对象：第二轮「SDK 大版本」。
+- 来源：npm registry，`npm view`，2026-09-23。
+- 实际观察：`@modelcontextprotocol/sdk` latest `1.30.0`，`time["1.29.0"] = 2026-03-30T16:50:42Z`，`time["1.30.0"] = 2026-07-27T17:56:01Z`；
+  `@modelcontextprotocol/client` latest `2.0.0`，包创建于 2026-04-01，`time["2.0.0"] = 2026-07-27T23:55:22Z`，dependencies `@modelcontextprotocol/core 2.0.0`、`zod ^4.2.0`、`jose ^6.1.3`、`cross-spawn ^7.0.5`、`eventsource ^3.0.2`、`eventsource-parser ^3.0.0`、`pkce-challenge ^5.0.0`；
+  `@modelcontextprotocol/core` latest `2.0.0`，包创建于 2026-06-25。
+- 支持范围：版本与发布时间。**不支持**任何关于包内能力（协议版本、自定义传输、elicitation 处理器）的结论——包内容未取。
+
+第二轮上游升级时，grep 本文件里的 `52a4535f`、`12626c25`、`32edd3c3`、`21b2d6c3`、`dce7cdac`、`56f36532`、`2.37.0`、`=3.2.0`、`2.0.0` 找需要重核的记录。
+
+## 第三轮：stdio 拉起位置（2026-09-23）
+
+消费对象：research.md「[第三轮：stdio 拉起位置](research.md#第三轮stdio-拉起位置)」各条；逐源与逐主题论证在
+[第三轮报告](reports/2026-09-23-round3-stdio-launch-site.md)。全部为**源码、发布包与文档阅读，没有运行**任何代码或测试；没有构造反例。
+
+### 第三轮取证条件总览
+
+| 来源 | 精确对象与版本 | 取得方式 | 来源立场 |
+|---|---|---|---|
+| MCP 规范 | `modelcontextprotocol/modelcontextprotocol` `c7400a0796045cbf102cb80b9b41422c7ce8e7af`（2026-09-22），`docs/specification/2025-11-25/basic/{transports,lifecycle}.mdx` | raw 按 SHA 下载 | 规范文字；2026-07-28 版同名页按同路径取回失败 |
+| DSH | 同首轮 `c291e796` | 主检出 `tmp/sources/extracted/dsh/` | 作者自述（README、`.agents/notes/`）+ 源码 |
+| Codex（本地） | 同首轮 `5c5308fc` 的 `rmcp-client`、`core/src`；文档副本 2026-09-20 | 主检出 `tmp/sources/extracted/codex{,-docs}/` | 源码 + 厂商文档 |
+| Codex（远程补件） | **同一 commit** `5c5308fc9a9ee789049d646ef11e5400384b9c6f` 的 `codex-rs/{codex-mcp,exec-server,config/src}` | `git fetch --depth 1 --filter=blob:none` + sparse checkout，`git log -1` 核对 SHA 与提交时间 2026-09-20T03:02:48Z | 源码（一手）+ crate README |
+| 官方 TS SDK | npm `@modelcontextprotocol/sdk@1.29.0`（tarball sha256 `1c51470eca288ae744a5d8bb48e217d3eab5869eb2cbaf587fc29f336d6b096c`）、`@1.30.0`（`2cac3f3e38fec2815ed9efafa2947faf8c6957310684f99703f3d180f3e9af1a`）；`@modelcontextprotocol/client@2.0.0`（`cb470b0249b4a06e262145ab2281ea25344e77608f312a5a52ab4dcc26bfa732`） | `npm pack` | 发布包编译产物（`dist/`），非仓库源码 |
+| 官方 Python SDK | `modelcontextprotocol/python-sdk` tag `v1.28.1` `777b8d06710c140e3606b0d4598e2aa48546c266`、`v2.0.0` `6f69a3758ebf2ee55ce050f58b470ce11af71133` | raw 按 SHA 下载单文件 | 源码 |
+| OpenAI Agents | Python 同第二轮 `32edd3c3` | raw 按 SHA 下载；`gh api` 取树 | 源码 + 仓库内文档与示例 |
+| LangChain | JS 同第二轮 `12626c25`；Python 同第二轮 `52a4535f` | raw 按 SHA 下载 | 源码 |
+| Vercel | 同第二轮 `21b2d6c3` | raw 按 SHA 下载 | 源码 + 仓库内文档 |
+| Claude Code | code.claude.com `docs/en/{mcp,sandboxing,sandbox-environments,devcontainer,cloud-environments,claude-code-on-the-web,remote-control}.md` | `curl`，2026-09-23T11:40Z | **厂商自述**；本体闭源 |
+| Claude Agent SDK | npm `@anthropic-ai/claude-agent-sdk@0.3.280`（tarball sha256 `5d3f5706261215c352d8b41606fb320f92a63cf252f020b47e7eed598bcb7ba8`） | `npm pack`，只读 `sdk.d.ts` | 类型声明 |
+| Docker MCP Gateway | `docker/mcp-gateway` `a34df45d4ec0e941a9853ad768c4f6cd818966b3`（2026-09-16） | raw 按 SHA 下载；`gh api` 取树 | 源码 + README + 参数参考 |
+| mcp-proxy | `sparfenyuk/mcp-proxy` `153a96a61fde2bf5a23961c64a3dd96b5e385108`（2026-05-14） | raw 按 SHA 下载 | 源码 + README |
+| supergateway | `supercorp-ai/supergateway` `874951c7aa5beba23fbba1e6e567795435c47c64`（2026-09-23） | raw 按 SHA 下载；`gh api` 取树 | 源码 + README |
+
+远程源的本地副本放在取证会话的 scratchpad，会被清理；复核按上表 SHA / 版本重新取得。
+
+## E-29 DSH：stdio 拉起与执行世界接缝
+
+- 消费对象：第三轮「DSH 有『执行世界』接缝……」；摘要表 DSH 行。
+- 来源：DSH `c291e796`。
+- 实际观察：
+  - `packages/mcp/mcp-client/src/transport.ts:15-19` 注释「The MCP SDK owns the actual spawn, so this transport shares the scrub definition rather than the spawn path」；`:31-39` `new StdioClientTransport({command,args,env,cwd})`，未设 `stderr`。
+  - `packages/mcp/mcp-client/src/index.ts:49-70` `StdioConfig`（`env`「merged on top of scrubbed ambient env」、`cwd`）；`:113-124` schema，`cwd` 缺省 `''`。
+  - `packages/subprocess/subprocess/src/index.ts:38-78` `SENSITIVE_ENV_PATTERN` 与 `scrubbedParentEnv()`（注释：供「SDK-managed transports」共用）；`:86-114` 接缝语义（可执行文件属于同一执行世界、终止托管范围、服务卸载时终止全部托管进程）。
+  - `packages/subprocess/subprocess/README.md:77`、`:142`「SDK-managed spawns remain outside — a transport that owns its internal spawn (the SDK client, MCP) cannot route that call through this service」。
+  - `.agents/notes/implemented/architecture/2026-07-28-portable-execution-world-consumers.md:17`（`ctx.fs` + `ctx.subprocess` 定义一个执行世界）、`:26`（`dsh-lsp-stdio` 经 `ctx.subprocess` 拉起语言服务端）、`:31-33`（E2B 拥有与宿主拥有的清单；宿主含「prompts and tools」）、`:57`（否决整个 harness 跑进远端）。
+  - `packages/lsp/lsp-stdio/src/connection.ts:58-104` 以 `spawner({argv,cwd,stdio:{stdin:'pipe',stdout:'pipe',stderr:{maxBytes}},graceMs,env})` 拉起；`src/index.ts:146-157` 经 `ctx.subprocess.resolveExecutable` 与 `ctx.subprocess.spawn`。
+  - `packages/e2b/README.md:12`「The harness, model calls, and session state remain local; the sandbox is ephemeral, experimental, and absent from shipped compositions by default」。
+  - `grep -rli mcp packages/{sandbox,e2b,subprocess} --include=*.ts`：只有 `subprocess/src/index.ts`（上面的注释）与 `sandbox-windows-acl/src/acl.ts`（子串 `memcpy`，假阳性）。
+- 支持范围：接缝与 MCP 的关系。「E2B 组合下 MCP 服务端仍在宿主机」是由上述读数推出，**未运行**。
+
+## E-30 Codex：两种 stdio 启动器与执行环境解析
+
+- 消费对象：第三轮「逐服务端选择……只有 Codex」「落点解析失败……」「沙箱都不约束 MCP 服务端」；摘要表 Codex 行。
+- 来源：本地 `rmcp-client/src/`、`core/src/`（`5c5308fc`）；远程同 commit `codex-mcp/src/`、`config/src/`。路径相对 `codex-rs/`。
+- 实际观察：
+  - `rmcp-client/src/stdio_server_launcher.rs:1-12` 模块注释（本模块拥有「where does the server process run?」这一决定）；`:70-82` `StdioServerLauncher: private::Sealed`；`:84-93` 命令形状（program/args/env/env_vars/cwd/protocol_mode）；
+    `:175-210` 本地启动器，`fallback_cwd`；`:259-283` 白名单环境、程序解析、`ProcessMode::NewGroup`；`:284-348` Windows Job Object 与退回；`:351-388` stderr 按行进日志、250 ms 排空；
+    `:397-446` Unix 进程组 SIGTERM、2 s 后 SIGKILL；`:475-536` 幂等终止与 `Drop`（执行器进程在 drop 时异步终止，无 Tokio 运行时只记日志）；
+    `:540-549` 执行器启动器注释（「MCP framing still runs in the orchestrator」「Windows executor-backed servers retain the executor's normal descendant lifetime」）；
+    `:589-593` 缺 cwd 报错；`:598-605` 环境覆盖与 Unicode 检查；`:610-626` `ExecParams`（`tty:false`、`pipe_stdin:true`、`sandbox: None`）；`:673-698` 执行器环境策略（`Core` 或 `All`+`include_only`）。
+  - `rmcp-client/src/utils.rs:16-59` 本地环境（白名单 + 点名 + CA 变量 + 字面 env，剔除不可继承项）；`:61-79` 远端覆盖（注释：PATH/HOME 从执行器侧继承）；`:81-101` `source = "remote"` 的两处处理；`:162-175` 11 个白名单变量。
+  - `rmcp-client/src/executor_process_transport.rs:1-19` 模块注释（执行器只搬字节，帧与生命周期在 `RmcpClient`；stderr 只作诊断）；`:152-176`。
+  - `codex-mcp/src/rmcp_client.rs:94` `MCP_SANDBOX_STATE_META_CAPABILITY = "codex/sandbox-state-meta"`；`:1175-1182` 执行器拥有的服务端拒绝托管 ChatGPT 鉴权；`:1204-1220` 按 `is_local_environment` 选启动器，`:1205-1207` TODO。
+  - `codex-mcp/src/runtime.rs:861-893` 环境解析（未知 id、`local` 缺本地环境均报错）；`:895-915` 非本地环境的 HTTP 服务端用 `environment.get_http_client()`。
+  - `config/src/mcp_types.rs:22-23` `DEFAULT_MCP_SERVER_ENVIRONMENT_ID = "local"`；`:226-227` `environment_id` 字段注释「where Codex should start this MCP server」；`:292-294`；`:366-368` 原始配置 `environment_id: Option<String>`；`:492-500` `http_headers_helper` 只限本地；`:512-513` 缺省。
+  - `core/src/mcp.rs:47-79` 环境权限（Pending / Failed → `Unavailable`）；`core/src/mcp_tool_call.rs:846-915` 声明能力的服务端在 `_meta` 收到 `SandboxState`（权限配置、Linux 沙箱可执行文件、沙箱 cwd）。
+  - 在本地与远程两份源上 `grep -rl experimental_environment`：**0 命中**。
+- 支持范围：启动器选择、环境、终止与沙箱关系的源码结构。执行器所在环境自身的隔离（`exec-server/src/process_sandbox.rs`）**未读**。
+
+## E-31 Codex：exec-server 与文档
+
+- 消费对象：同 E-30。
+- 来源：远程 `exec-server/README.md`、`src/process.rs`、`src/local_process.rs`（`5c5308fc`）；文档副本 2026-09-20。
+- 实际观察：
+  - `exec-server/README.md:17-44` 传输（缺省 `ws://IP:PORT`；`--remote URL --environment-id ID` 向注册中心登记、Noise 中继；forward 模式只搬字节、不重放请求）；`:171-172`「If the websocket connection closes, the server terminates any remaining managed processes for that client connection」；
+    `:225-270` `process/start`（`argv`、`cwd` 为 `file:` URI、`env`、`tty`、`pipeStdin`）；`:335-356` `process/terminate`。
+  - `exec-server/src/process.rs:42-56` `ExecProcessEvent::Failed`「e.g. because the remote environment connection disconnected」；`src/local_process.rs:236-255` `shutdown()` 终止全部运行中进程。
+  - 文档：`config-file_config-reference.md:675-678` `mcp_servers.<id>.experimental_environment`「`remote` starts stdio servers through a remote executor environment; streamable HTTP remote placement is not implemented」；
+    `manual.md:25954-25972` STDIO 服务端字段与 `env_vars` 的 `source = "remote"`；`:25987` 头助手不用于 stdio 与远端执行环境；`:17852-17866` 远端主机模式下「MCP servers … come from that host's configuration」；
+    `:11708`、`:11867` 网络代理与域名规则「Does not … restrict … MCP servers」。
+- 支持范围：执行器协议与文档陈述。文档与 E-30 源码在配置项名与 HTTP 远端两处不一致，**未裁决**。
+
+## E-32 官方 TS SDK v1（1.29.0 / 1.30.0）
+
+- 消费对象：第三轮「官方 TS SDK 的 stdio 传输没有 spawn 钩子……」「TS SDK 1.29.0 与 1.30.0 支持的最新协议版本……」；摘要表。
+- 来源：npm 包解包 `package/`（sha256 见总览）。
+- 实际观察：
+  - `dist/esm/client/stdio.js:1` `cross-spawn`；`:8-42` 白名单与 `getDefaultEnvironment()`；`:60-101` `start()`：`env: {...getDefaultEnvironment(), ...this._serverParams.env}`、`stdio: ['pipe','pipe', stderr ?? 'inherit']`、`shell:false`、`cwd`；
+    `:137-172` `close()`：`stdin.end()` → 2 s → `kill('SIGTERM')` → 2 s → `kill('SIGKILL')`，对象是 `processToClose`（直接子进程）。1.30.0 与 1.29.0 的差异只有读缓冲上限（`diff` 结果：`ReadBuffer({maxBufferSize})`、超限 `onerror` 并 `close()`；`shared/stdio.js` 加 `STDIO_DEFAULT_MAX_BUFFER_SIZE = 10 MiB`）。
+  - `dist/esm/client/stdio.d.ts`（1.30.0）`StdioServerParameters`：`command`、`args?`、`env?`（注释「If not specified, the result of getDefaultEnvironment() will be used」）、`stderr?`、`cwd?`、`maxBufferSize?`；无 spawn 函数、无 uid/gid。
+  - `dist/esm/shared/transport.d.ts` `Transport` 接口：`start/send/close`、`onclose/onerror/onmessage`、`sessionId?`、`setProtocolVersion?`。`package.json` `exports` 含 `"./*"`（:62）。
+  - `dist/esm/types.js:2-4`（两版相同）`LATEST_PROTOCOL_VERSION = '2025-11-25'`；`SUPPORTED_PROTOCOL_VERSIONS = [LATEST, '2025-06-18', '2025-03-26', '2024-11-05', '2024-10-07']`。
+- 支持范围：编译产物。「孙进程不在信号范围内」是读代码推断，**未运行**。
+
+## E-33 官方 TS SDK v2（`@modelcontextprotocol/client` 2.0.0）
+
+- 消费对象：同 E-32。
+- 来源：npm 包解包 `package/`。
+- 实际观察：
+  - `dist/stdio.mjs:4` `cross-spawn`；`:10-43` 同 v1 白名单；`:65-110` `start()` 同 v1；`:139-174` 内部 `_dispose()`（旁路进程：SIGTERM、1 s、SIGKILL，等 `exit`）；`:175-199` `close()` 同 v1。
+  - `dist/index.mjs:2441-2446` `DEFAULT_VERSION_NEGOTIATION_MODE = "legacy"`；`:2472-2485` 按 `stderr`/`pid` 访问器结构识别 stdio；`:2746-2763` 只有基类（原型自有 `_dispose`）才走旁路；
+    `:2764-2808` `negotiateStdioViaSibling`（注释「stdio servers built on SDKs that terminate on any pre-`initialize` request exit when the probe arrives」；旁路 `stderr: "ignore"`）；`:3255-3282` 协商连接分派。
+  - 包入口导出 `ReadBuffer`、`serializeMessage`、`deserializeMessage`、`InMemoryTransport`（`dist/index.mjs` 的 `export {…}`）；`package.json` `exports` 含 `"./stdio"`；依赖 `cross-spawn ^7.0.5`（:125）。
+  - `SUPPORTED_MODERN_PROTOCOL_VERSIONS = [FIRST_MODERN_PROTOCOL_VERSION]`（`dist/src-*.mjs:451`）。
+- 支持范围：编译产物；旁路探测未运行。
+
+## E-34 官方 Python SDK `stdio_client`
+
+- 消费对象：第三轮「官方 TS SDK 的 stdio 传输……」一条的代价项；摘要表 Python、OpenAI、LangChain Python 行。
+- 来源：v1.28.1 `src/mcp/client/stdio/__init__.py`；v2.0.0 `src/mcp/client/stdio.py`。
+- 实际观察：v1.28.1 `:28-45` 白名单；`:106-129` `stdio_client`（`env = {**get_default_environment(), **server.env}`、`cwd`）；`:190-210` 关 stdin → 2 s → 进程树终止；`:237-260` POSIX `start_new_session=True`（注释「for killpg support」）；`:262-278` 平台分派的进程树终止。
+  v2.0.0 `:75` `get_default_environment`；`:128` `env=get_default_environment() | (server.env or {})`；`:301` `terminate_posix_process_tree`；`:347` `start_new_session=True`。
+- 支持范围：这两个版本。v1.19～v1.27 未核。
+
+## E-35 OpenAI Agents Python
+
+- 消费对象：第三轮「沙箱都不约束 MCP 服务端」；摘要表 OpenAI 行。
+- 来源：`32edd3c3`。
+- 实际观察：`src/agents/mcp/server.py:1100-1105` 抽象 `create_streams()`；`:1894-1921` `MCPServerStdioParams`（command/args/env/cwd/encoding/encoding_error_handler）；`:2022-2037` 构造 `StdioServerParameters` 并 `stdio_client(self.params)`；
+  `uv.lock:2012-2013` `mcp` 2.0.0；`docs/sandbox/guide.md:17`、`:29`（「The outer runtime still owns approvals, tracing…」「a session does not itself guarantee OS-level confinement」）、`:837-851`、`:870`；
+  `examples/sandbox/sandbox_agent_with_tools.py:6-8`、`:66-97`（「The reference MCP server is another local process」）；`src/agents/sandbox/` 89 个 `.py` 逐个取回后 `grep -il mcp`：只有 `sandbox_agent.py:17-22,72-73`（参数）与 `memory/rollouts.py:38-40`（条目类型）。
+- 支持范围：源码与仓库内文档。
+
+## E-36 LangChain JS 与 Python
+
+- 消费对象：摘要表 LangChain 行。
+- 来源：JS `12626c25` `libs/langchain-mcp-adapters/src/`；Python `52a4535f` `langchain_mcp_adapters/sessions.py`。
+- 实际观察：JS `connection.ts:13` 引官方 v1 `StdioClientTransport`；`:561-573` 构造（`env` 存在时补 `PATH: process.env.PATH`）；`types.ts:212-238` `restart`（enabled、maxAttempts、delayMs）、`:243-308` stdio 连接字段（env、stderr 缺省 inherit、cwd）。
+  Python `sessions.py:35-45` `${VAR}` 用 `os.environ` 展开；`:82-125` `StdioConnection`；`:213-270` `_create_stdio_session` 交给 `stdio_client`。每次调用新建会话见第二轮 E-22。
+- 支持范围：源码。
+
+## E-37 Vercel `@ai-sdk/mcp` stdio
+
+- 消费对象：摘要表 Vercel 行。
+- 来源：`21b2d6c3` `packages/mcp/src/tool/mcp-stdio/`；`content/docs/03-ai-sdk-core/16-mcp-tools.mdx`。
+- 实际观察：`create-child-process.ts:6-27`（`cross-spawn`、`shell:false`、`signal`、`cwd`）；`get-environment.ts:27-40`（先放 `customEnv`，再以白名单宿主值覆盖）；
+  `mcp-stdio-transport.ts:8-14` `StdioConfig`；`:16-17` `supportsProtocolVersionDiscovery = true`；`:101-105` `close()` 只 `abortController.abort()`；文档 `:20`、`:26`（stdio 仅限本地、不能部署到生产）、`:27-31`（内建 stdio 就地探测 `server/discover`）、`:166-168`（自带 `MCPTransport`）。
+- 支持范围：源码与仓库内文档；关闭不升级、`PATH` 被覆盖两条为读代码推断，**未运行**。
+
+## E-38 Claude Code 文档与 Claude Agent SDK 类型
+
+- 消费对象：第三轮「沙箱都不约束 MCP 服务端」；摘要表 Claude Code 行。
+- 来源：code.claude.com 文档（2026-09-23 抓取）；`@anthropic-ai/claude-agent-sdk@0.3.280` `sdk.d.ts`。来源立场：**厂商自述**。
+- 实际观察：`mcp.md:111-117`（stdio「run as local processes on your machine」、`CLAUDE_PROJECT_DIR`、`roots/list`）；`:321-337`（v1/v2 运行时；stdio 须 `MCP_PROTOCOL_NEGOTIATION=auto` 才协商）；`:480-491`（插件服务端生命周期；云会话按需拉起）；`:610-627`（`.mcp.json` 变量展开位置）；
+  `sandboxing.md:9`、`:583`（沙箱只约束 Bash、PowerShell、Monitor 及其子进程）、`:505`（禁写配置，理由含「add a hook or MCP server that Claude Code runs outside the sandbox」）；
+  `sandbox-environments.md:20-30`（隔离方式表；「Built-in file tools, MCP servers, and hooks still run directly on your host」）、`:78-84`（「MCP servers and command hooks are separate processes that run unconstrained on the host」；沙箱运行时包整个进程）、`:117`（同一命令可单独沙箱化 MCP 服务端）、`:130`；
+  `devcontainer.md:139`；`cloud-environments.md:262`、`:270`；`remote-control.md:287`。读遍这七页，无逐服务端远端落点的配置项。
+  `sdk.d.ts:1266-1280` `McpStdioServerConfig`（`type?`、`command`、`args?`、`env?`、`timeout?`、`alwaysLoad?`，无 `cwd`）；`:2350-2371` `spawnClaudeCodeProcess`（「Use this to run Claude Code in VMs, containers, or remote environments」）。
+- 支持范围：厂商对自身行为的陈述；与实现一致性无法核对。
+
+## E-39 Docker MCP Gateway
+
+- 消费对象：第三轮「把 stdio 服务端放进容器或网络代理……」；摘要表 Docker 行。
+- 来源：`a34df45d`。
+- 实际观察：`README.md:20`（每个本地服务端运行在隔离容器）、`:219-229`（网关可用 stdio 或 `sse`/`streaming` 对多客户端）、`:320-325`（架构）；
+  `pkg/gateway/clientpool.go:71-84` `longLived`；`:86-141` `AcquireClient`（长驻按（服务端名, 会话）缓存）；`:143-159` `ReleaseClient`（非长驻即关）；`:161-174`、`:181-188` 关闭与按会话释放；
+  `:324-350` `baseArgs`（`run --rm -i --init --security-opt no-new-privileges`、`--cpus`、`--memory`、`--pull never`、标签）；`:352-395` `argsAndEnv`（`--network none`、`--link`、密钥 `-e NAME` 且缺失填 `<UNKNOWN>`）；
+  `:518-560` `GetClient`（静态模式 `socat STDIO TCP:mcp-<name>:4444`，否则 `docker` + runArgs）；`pkg/gateway/handlers.go:102-119` 每次工具调用 `AcquireClient` / `defer ReleaseClient`；
+  `pkg/mcp/stdio.go:27-65` 以 `exec.CommandContext` + `CommandTransport` 连接；`:67-76` 补 `PATH`。
+  `docs/generator/reference/docker_mcp_gateway_run.yaml:59-62`、`:69-72`、`:99-102`（cpus 缺省 1）、`:180-184`（long-lived「useful for stateful servers」）、`:201-204`（memory 缺省 2Gb）、`:275-278`、`:305-308`、`:326-329`。
+- 支持范围：所读四个文件与参数参考；其他回收时点未读。
+
+## E-40 mcp-proxy 与 supergateway
+
+- 消费对象：同 E-39；摘要表后两行。
+- 来源：mcp-proxy `153a96a6`；supergateway `874951c7`。
+- 实际观察：
+  - mcp-proxy `README.md:28-50`、`:95-133`（两种模式、`--host` 缺省 127.0.0.1、`--env`、`--cwd`、`--pass-environment`）；`src/mcp_proxy/mcp_server.py:149-200`（`AsyncExitStack` 里对缺省与各命名服务端各 `stdio_client` 一次）、`:218-235`（中间件只有可选 CORS）；
+    `src/mcp_proxy/__main__.py:179`、`:409-414`、`:480-481`（`--pass-environment` 与命名服务端继承 base env）。
+  - supergateway `README.md:16-31`（参数）、`:92-111`（有无状态）、`:126-132`（关闭：子服务端须处理 SIGTERM；关 stdin 管道会停网关）、`:166-179`（Docker 用法）；
+    `src/lib/ownedChildProcesses.ts:1-45`（`shell: true`、`detached`、按组 SIGTERM、5 s 后 SIGKILL）；`src/gateways/stdioToStatelessStreamableHttp.ts:130-145`（每请求新建 transport 与子进程）；`stdioToStatefulStreamableHttp.ts:199`（每会话）；`stdioToSse.ts:69-72`（单一子进程）。
+- 支持范围：源码与 README；「mcp-proxy 无服务端鉴权」指所读文件内。
+
+## E-41 MCP 规范 stdio
+
+- 消费对象：报告 §二「MCP 规范」；摘要表第一行。
+- 来源：`c7400a07` `docs/specification/2025-11-25/basic/transports.mdx:20-34`（「The client launches the MCP server as a subprocess」；stderr MAY / SHOULD NOT）、`lifecycle.mdx:226-236`（stdio 关闭顺序 SHOULD）。
+- 支持范围：2025-11-25 版；2026-07-28 版未取得。
+
+第三轮上游升级时，grep 本文件里的 `a34df45d`、`153a96a6`、`874951c7`、`c7400a07`、`777b8d06`、`6f69a375`、`1.29.0`、`1.30.0`、`0.3.280` 与 `5c5308fc` 找需要重核的记录。

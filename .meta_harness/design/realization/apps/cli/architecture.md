@@ -12,7 +12,7 @@
 
 ## 交付面与非目标
 
-本节点是 [PF-016 命令行交付面](../../../product/PF-016-cli-tui-delivery-surface/README.md)（rev 4）
+本节点是 [PF-016 命令行交付面](../../../product/PF-016-cli-tui-delivery-surface/README.md)（rev 5）
 这一个交付面的应用装配：**一个装在用户自己机器上的命令行应用**。
 它给出的是这个应用的形状；交付面自己的定义、边界与产品规则全在那份正文里。
 

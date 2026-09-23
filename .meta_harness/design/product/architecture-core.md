@@ -36,19 +36,19 @@
 |---|---|---|
 | [PF-000 发生的事与记录条目](PF-000-occurrences-and-record-entries/README.md) | **哪些事必须被记下、记下来那条算什么**——后面每个 topic 共用的那一层 | rev 1 |
 | [PF-001 身份、范围与对 Agent 的约束](PF-001-identity-scope-and-agent-constraints/README.md) | **谁是谁、范围怎么划**；一个人在不同组织下的身份如何约束 agent 的组装与行动 | rev 16 |
-| [PF-002 设置、权限与资产的展开](PF-002-assets-settings-and-permissions/README.md) | 设置、权限、资产作为**范围化对象**的样子——挂在哪一层、多层同时有值时怎么合成、**工作区那一级**、**设置项分四类** | rev 13 |
+| [PF-002 设置、权限与资产的展开](PF-002-assets-settings-and-permissions/README.md) | 设置、权限、资产作为**范围化对象**的样子——挂在哪一层、多层同时有值时怎么合成、**工作区那一级**、**设置项分四类** | rev 16 |
 | [PF-003 资产的复制与分享](PF-003-asset-transfer-and-sharing/README.md) | 资产**怎么进到组织里**，所有权与使用权怎么在主体之间流动 | rev 4 |
 | [PF-004 Agent 定义与装配](PF-004-agent-definition-and-assembly/README.md) | **定义、装配、装配清单**三者的关系、**两类 agent**，以及注入进来的是什么 | rev 10 |
 | [PF-005 执行环境与沙箱](PF-005-execution-environments-and-sandboxes/README.md) | 动作**实际落到哪里**，隔离边界在哪，**作用准不准落在宿主机上** | rev 5 |
-| [PF-006 工具与技能](PF-006-tools-and-skills/README.md) | agent **能做什么**——工具与技能的常驻、装载与占位 | rev 16 |
+| [PF-006 工具与技能](PF-006-tools-and-skills/README.md) | agent **能做什么**——工具与技能的常驻、装载与占位 | rev 17 |
 | [PF-007 Meta Capabilities](PF-007-meta-capabilities/README.md) | 系统**自带、关不掉的那几扇门**：agent 怎么问人、怎么看见自己、**一次放行怎么算** | rev 16 |
 | [PF-008 Human in the Loop](PF-008-human-in-the-loop/README.md) | 人**在哪里看到这些问题、怎么答、答完怎么回去** | rev 5 |
-| [PF-009 上下文消息类型](PF-009-context-message-types/README.md) | **一共有哪几种消息** | rev 5 |
+| [PF-009 上下文消息类型](PF-009-context-message-types/README.md) | **一共有哪几种消息** | rev 6 |
 | [PF-010 上下文管理与组装](PF-010-context-management-and-assembly/README.md) | 消息**怎么组装**成给模型看的那一份，装不下时怎么办 | rev 5 |
 | [PF-011 非常态的分层处置](PF-011-off-nominal-handling/README.md) | 事情没按正常走的时候，**谁接手、接不住了往哪交** | rev 4 |
-| [PF-012 Agent Loop 与 Run](PF-012-agent-loop-and-run/README.md) | 一次运行**怎么走完**，停机之后又怎么接着走；**只看日志怎么判断该不该起一副协程**；**agent runtime 与取消怎么传播** | rev 9 |
-| [PF-013 模型档案、调用与切换](PF-013-model-profiles-and-invocation/README.md) | 我们能调哪些模型 · 把请求发出去 · 这一层失败了能做什么 · 什么时候算试尽 · 用户怎么换 | rev 6 |
-| [PF-014 输入的受理与排队](PF-014-inbound-intake-and-queueing/README.md) | 外面进来的事怎么被收下、排队、什么时候被取走；**控制指令的受理** | rev 4 |
+| [PF-012 Agent Loop 与 Run](PF-012-agent-loop-and-run/README.md) | 一次运行**怎么走完**，停机之后又怎么接着走；**只看日志怎么判断该不该起一副协程**；**agent runtime 与取消怎么传播** | rev 10 |
+| [PF-013 模型档案、调用与切换](PF-013-model-profiles-and-invocation/README.md) | 我们能调哪些模型 · 把请求发出去 · 这一层失败了能做什么 · 什么时候算试尽 · 用户怎么换 | rev 7 |
+| [PF-014 输入的受理与排队](PF-014-inbound-intake-and-queueing/README.md) | 外面进来的事怎么被收下、排队、什么时候被取走；**控制指令的受理** | rev 5 |
 | [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md) | 会话怎么建、**活成什么样、什么时候被归档**、会话与会话之间是什么关系、**会话带着哪些 runtime context**、**运行模式**、**存储要守住什么** | rev 11（草稿） |
 
 **十六个全部有正文了。**

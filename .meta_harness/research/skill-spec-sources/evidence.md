@@ -164,6 +164,119 @@ omne-next 与 DSH 以外，没有读任何网络上的 Agent Skills 规格原文
 - 实际观察：技能清单逐条为「名: 描述」；插件技能名为 `plugin:skill`，同时列出 `skill-creator:skill-creator` 与 `anthropic-skills:skill-creator`；目录作用域技能以路径前缀列出（`.meta_harness:design-subagents` 与 `design-subagents` 并列），Skill 工具说明写「when both scoped and unscoped variants of a name exist, pick the one whose directory contains the files you're working on (most specific wins; unscoped otherwise)」；Skill 工具说明「the skill's instructions load into the turn」
 - 支持范围：本会话这一次的呈现；**不支持**对资源、脚本或权限行为的任何结论（未调用 Skill 工具做探针）
 
+## 第二轮：开放格式原文与三家扩展（2026-09-23）
+
+本轮钉法（字节与哈希在 [sources/provenance.json](sources/provenance.json) 与 [sources/SHA256SUMS](sources/SHA256SUMS)）：
+
+| 来源 | 精确 token | 取得方式 |
+|---|---|---|
+| Agent Skills 开放格式 | agentskills/agentskills HEAD `69ef37e9424c0a7ea9dd2293b559e43ec8176379`（2026-08-09）；`docs/specification.mdx` 最后改动 `217be54873`（2026-08-04）；**规格无版本号** | 站点 `https://agentskills.io/specification.md` 与 GitHub raw 于 2026-09-23 约 10:5xZ 抓取，11:01:02Z 重抓站点页字节不变；原样存 `sources/` |
+| 参考库 skills-ref | 同 commit，`skills-ref/pyproject.toml` `0.1.0`；`validator.py` / `parser.py` 最后改动 `547831f3a2`（2025-12-18） | 同上；本轮在 uv venv（Python 3.12.13、strictyaml 1.7.3）里实跑 |
+| omne-next | commit `6263fed5`（同首轮，工作树干净） | 本机仓库直接读；**路径不钉，会失效** |
+| Codex | openai/codex `5c5308fc9a9ee789049d646ef11e5400384b9c6f` | 本机另一会话 scratchpad 里的同 SHA 克隆（工作树干净，路径不钉）`git archive` 出所读路径，钉存 `sources/codex-5c5308f-skills.tar.gz`（sha256 `dd04ceb0…7bd550`）；与主检出 `tmp/sources/codex-5c5308f.tar.gz` 共有的三个文件 `cmp` 一致 |
+| Codex 文档 | `codex-docs-2026-09-20`（主检出 `tmp/sources/`） | 离线副本 `manual.md` |
+| 本机实例 | Codex CLI `0.156.1`（本机安装，不是 `5c5308f` 的构建）；Claude Code `2.1.280` | 本机文件直接读；marketplace 与缓存目录不是 git 检出，无 commit |
+
+### E15. 开放格式规格原文：六个字段、name 规则、metadata、allowed-tools
+
+- 消费对象：[开放格式的字段与必填](research.md#开放格式只定义六个-frontmatter-字段必填只有-name-与-description)、[name](research.md#开放格式的-name-规则五条字符集表述自相含糊参考库接受-unicode-字母)、[metadata](research.md#开放格式规定-metadata-值只许字符串实现与生态实例多处不守)、[allowed-tools](research.md#开放格式的-allowed-tools-是实验性字段没有要求宿主必须执行)、[定界与正文](research.md#开放格式没有规定闭合定界行必须独占一行参考库与-omne-next-core_v1-都会截断)
+- 来源与精确修订：`sources/agentskills-specification-mdx-69ef37e.txt`（= GitHub `docs/specification.mdx` @ `69ef37e`）；站点渲染版 `sources/agentskills-specification-2026-09-23.txt`
+- 来源立场：规格维护方文档（仓库 `skills-ref` 作者邮箱为 anthropic.com；规格本身不署组织）
+- 取得方式：`curl -sL` 原样字节；站点版与 GitHub 源逐词比对（去掉列表符号、表格对齐与 `theme={null}` 后）只差页头包装与 `\~`、`\<` 转义
+- 实际观察：`:21`「must contain YAML frontmatter followed by Markdown content」；`:25-32` 概览表六字段，`name`、`description` Required Yes，其余 No；`:60-65` name 五条（`:62`「May only contain unicode lowercase alphanumeric characters (`a-z`, `0-9`) and hyphens」、`:64` 不得连续连字符、`:65`「Must match the parent directory name」）；`:94` description 1–1024；`:126` compatibility「Must be 1-500 characters if provided」；`:150-152` metadata「A map from string keys to string values」「Clients can use this to store additional properties not defined by the Agent Skills spec」「We recommend making your key names reasonably unique」；`:166-167` allowed-tools「A space-separated string of tools that are pre-approved to run」「Experimental. Support for this field may vary between agent implementations」；`:178` 正文「There are no format restrictions」；`:189`「may contain any files and directories beyond the required `SKILL.md`」；`:224`「Keep your main `SKILL.md` under 500 lines」；全文无版本字段、无宿主合规条款、无关于未知顶层键的语句（全文检索 `unknown`、`additional`、`extra`、`ignore`、`reject`：只有 `:151` 一处 `additional properties`）
+- 支持范围：该 commit 的规格文字；**不支持**「所有宿主按此实现」
+
+### E16. 客户端实现指南：解析、宽松校验、同名、过滤
+
+- 消费对象：[未知键](research.md#开放格式对未知顶层键未作规定参考校验器拒收两家宿主静默忽略)、[name](research.md#开放格式的-name-规则五条字符集表述自相含糊参考库接受-unicode-字母)、[定界与正文](research.md#开放格式没有规定闭合定界行必须独占一行参考库与-omne-next-core_v1-都会截断)
+- 来源与精确修订：`sources/agentskills-adding-skills-support-mdx-69ef37e.txt`（= `docs/client-implementation/adding-skills-support.mdx` @ `69ef37e`，最后改动 `22d6aeb353` 2026-03-10）
+- 来源立场：规格维护方的实现者指南（建议性，不是规格正文）
+- 取得方式：同 E15
+- 实际观察：`:81-87` 同名「project-level skills override user-level skills」为「universal convention」，同 scope 先到或后到皆可、须告警；`:91` 建议项目级 skill 受信任门控；`:111-113` 定界「Find the opening `---` at the start of the file and the closing `---` after it」「Everything after the closing `---`, trimmed, is the skill's body」；`:117-126` 建议对未加引号的冒号值做修复重试；`:128-140` 宽松校验：name 不等于目录名、超 64 字符都「warn, load anyway」，description 缺失则跳过，并注明「deliberately relaxes these」；步骤 2 只说「Extract `name` and `description` (required), plus any optional fields」，**全文没有未知顶层键的处理**；`:226` 以 `disable-model-invocation` 为「opted out of model-driven activation」的例子（该键不在规格六字段里）；`:251` 专用激活工具可「Enforce permissions or prompt for user consent」；`:312` 建议把 skill 目录加进文件读取白名单
+- 支持范围：维护方的建议；不是规格要求
+
+### E17. 参考库 skills-ref：白名单、强转与截断（实跑）
+
+- 消费对象：[未知键](research.md#开放格式对未知顶层键未作规定参考校验器拒收两家宿主静默忽略)、[metadata](research.md#开放格式规定-metadata-值只许字符串实现与生态实例多处不守)、[name](research.md#开放格式的-name-规则五条字符集表述自相含糊参考库接受-unicode-字母)、[allowed-tools](research.md#开放格式的-allowed-tools-是实验性字段没有要求宿主必须执行)、[定界](research.md#开放格式没有规定闭合定界行必须独占一行参考库与-omne-next-core_v1-都会截断)
+- 来源与精确修订：`sources/skills-ref-{validator,parser,models}-69ef37e.txt`；README 自述「intended for demonstration purposes only. It is not meant to be used in production」
+- 来源立场：规格维护方的参考实现
+- 取得方式：源码阅读 + 复现实验；脚本与完整输出在 `sources/skills-ref-probe-2026-09-23.txt`（每个用例建临时目录、写 `SKILL.md`、调用 `validate()` 与 `parse_frontmatter()`）
+- 环境与前提：Python 3.12.13、strictyaml 1.7.3（满足 `pyproject` 的 `>=1.7.3`）；`errors.py` 取自同 commit、未钉
+- 实际观察：`validator.py:14-22` `ALLOWED_FIELDS` 六键；`:104-115` 多出的顶层键报「Unexpected fields in frontmatter」；`:37-58` name 先 NFKC 再逐字符 `isalnum() or '-'`；`parser.py:23` 接受 `SKILL.md` 或 `skill.md`；`:45` `content.split("---", 2)`；`:53` strictyaml；`:62` `metadata` 值 `str(v)` 强转；`models.py:16` allowed_tools 注释「Tool patterns the skill requires」。探针结果（编号同脚本）：2 `user-invocable` → 错误；3、4、9 流式 `[a, b]` → YAML 错误；5 `name: 日本語` → 通过；6 name≠目录 → 错误；7 `a--b` → 错误；8 `description: see a---b here` → 通过，description=`see a`、正文=`b here\n---\nbody`；10 空正文 → 通过；11 未引号冒号 → YAML 错误；12 块写法嵌套 metadata → 通过，值成 `"{'tools': ['a', 'b']}"`；13 `1.0`、`true` → `'1.0'`、`'true'`；14 块写法 `allowed-tools` 列表 → 通过
+- 支持范围：该 commit 参考库的行为；**不支持**「claude.ai 上传或任何宿主用了这个库」
+
+### E18. 规格仓库的 issue 与 PR 状态
+
+- 消费对象：[metadata](research.md#开放格式规定-metadata-值只许字符串实现与生态实例多处不守)、[未知键](research.md#开放格式对未知顶层键未作规定参考校验器拒收两家宿主静默忽略)、[allowed-tools](research.md#开放格式的-allowed-tools-是实验性字段没有要求宿主必须执行)
+- 来源与精确修订：GitHub REST API，2026-09-23 约 10:55Z；#474 原样 JSON 存 `sources/agentskills-issue-474-2026-09-23.json`
+- 来源立场：社区报告与维护者合入记录（独立第三方为主）
+- 取得方式：`curl` GitHub API；commit `3f3bbec813` 的 patch 经 API 读取
+- 实际观察：#474「Clarify whether SKILL.md metadata supports arbitrary values or only strings」2026-08-01 closed，正文举严格 Go 解析器报 `cannot unmarshal !!map into string`；PR #479 合入 `217be54873`（2026-08-04），patch 只改概览表 metadata 一行，追加「(a map from string keys to string values)」；仍 open：#514（2026-08-21，「a shipping runtime stores nested maps and booleans there」，举 Hermes 文档，4 条评论）、#350（2026-04-30，skills-ref `--allow-field`）、#485（2026-08-07，提议机器可求值的 `dependencies` 字段，all/any 语义）、#520 / #144（allowed-tools 字符串还是列表；#520 称约 14% 社区 skill 用列表写法）、#105（2026-01-24，提议吸收 Claude Code 的 `disable-model-invocation`、`model`、`context`、`agent` 等，19 条评论）
+- 支持范围：抓取时刻的状态；open issue 是提议与报告，**不是规格**；#520 的 14%、#514 的 Hermes 文档内容均为**转述，未核原文**
+
+### E19. omne-next 的扩展：复读与补读
+
+- 消费对象：[omne-next 在 SKILL.md 之上的扩展](research.md#omne-next-的扩展都在-skillmd-之外或以不同键名出现)
+- 来源与精确修订：omne-next `6263fed5`：`omne_agent_skills/omne_agent_skills/{types,load}.py`；`omne_core_v1/.../agentic/skill/spec/validator.py`；`omne_agent_capabilities/libs/omne_agent_capabilities/omne_agent_capabilities/domain/{entities,enums,install_models,publish_models,value_objects}.py`
+- 来源立场：自有代码
+- 取得方式：`sed -n`、`grep -n`
+- 实际观察：omne_agent_skills `types.py:41-70` `SkillMetadata.metadata: dict[str, str] | None`、docstring 引「per Agent Skills spec」；`load.py:132-143`（`:133` 取值、`:141` 报错文案）metadata 键或值非字符串即报「all keys and values must be strings」；`load.py:208-225` 只取 name / description / license / compatibility / metadata / allowed-tools 六键，其余顶层键不读也不报。core_v1 `validator.py:152-175` `parse_frontmatter` 只取六键（其中 `allowed_tools` 为下划线），其余不读；`:177-192` 定界 `content.find("---", 3)`（`:180`、`:189`）。omne_agent_capabilities：`value_objects.py:13-24` 的 `SkillFrontmatter` 从 `omne_skill_spec` 再导出（即 core_v1 那份）；`entities.py:26` `VERSION_CAP = 20`、`:30-53` `SkillVersion`（frozen，`content_hash`、`commit_description`、`created_by`）、`:56-126` `Skill` 聚合含 `implementation`、`status`、`compliance_level`、`validation_warnings`、`call_count`、`last_invoked_at`、`agent_editable`、`install_mode`、`upstream`、`import_provenance`、`publish_policy`，不变式 I-4（租户）、I-5、I-8、I-9、I-10（订阅型须有 upstream）；`enums.py:15-50`（`:15`、`:29`、`:41`）`SkillSource`（developer 注「Immutable, stored in codebase」）、`SkillImplementation`（code_based 仅 developer）、`SkillStatus` active / disabled；`install_models.py:11-35` `InstallMode` subscribed / detached、`UpstreamSyncStatus` pristine / diverged / ahead / conflicted、`UpstreamInfo`；`publish_models.py` `PublishTrigger` manual / on_tag / on_commit、`SkillPublishPolicy`（enabled、trigger、`target_tenant_name`、`auto_version_from_tag`）、`TenantPublishSettings`
+- 支持范围：字段与不变式的形状；**未读** application 与 agentic 层，不支持对订阅、发布流程行为的结论
+
+### E20. Codex `5c5308f`：frontmatter 解析、名字与定界
+
+- 消费对象：[Codex 的扩展放在侧车文件](research.md#codex-的-skill-扩展全在侧车文件-agentsopenaiyamlfrontmatter-只读三处)
+- 来源与精确修订：`sources/codex-5c5308f-skills.tar.gz` 内 `codex-rs/skills/src/parser.rs`、`codex-rs/ext/skills/src/loader/{mod,host}.rs`
+- 来源立场：厂商源码
+- 取得方式：`cat -n`、`grep -n`
+- 实际观察：`parser.rs:4` `MAX_NAME_LEN = 64`；`:7-14` `SkillFrontmatter` 只有 `name?`、`description?`、`metadata`，未设 `deny_unknown_fields`；`:17-18` `metadata` 只读 `short-description`；`:52` YAML 失败时 `repair_frontmatter_scalar_fields` 重试（给含 `: ` 的标量加单引号）；`:69` name 缺省时调 `default_name`；`:84` description 为空报 MissingField；name 只做长度校验（全文无字符集检查）；`:200-215` 定界：首行 trim 后为 `---`，下一个 trim 后为 `---` 的行闭合。`loader/host.rs:394-405` `default_skill_name` 取 `SKILL.md` 父目录名；`:320` 插件内 `qualify(&skill.name)` 为 `<namespace>:<name>`；`loader/mod.rs:23` `MAX_QUALIFIED_NAME_LEN = 129`
+- 支持范围：源码阅读，**未编译运行**
+
+### E21. Codex `5c5308f`：侧车文件 `agents/openai.yaml`
+
+- 消费对象：[Codex 的扩展放在侧车文件](research.md#codex-的-skill-扩展全在侧车文件-agentsopenaiyamlfrontmatter-只读三处)、[调用面开关一处在内容一处在配置](research.md#codex-的调用面开关一处在侧车内容里一处在配置层)
+- 来源与精确修订：`sources/codex-5c5308f-skills.tar.gz` 内 `codex-rs/ext/skills/src/loader/{mod,metadata}.rs`、`codex-rs/skills/src/{model,interface}.rs`、`codex-rs/skills/src/assets/samples/skill-creator/references/openai_yaml.md`、`codex-rs/ext/skills/src/loader/{host_merge,environment}.rs`；文档 `codex-docs-2026-09-20/manual.md:22605-22628`
+- 来源立场：厂商源码与文档
+- 取得方式：`cat -n`、`grep -n`
+- 实际观察：`loader/mod.rs:20-21` 路径 `agents/openai.yaml`；`metadata.rs:28-35` 顶层 `interface`、`dependencies`、`policy`；`:83` 注释「Fail open: optional metadata should not block loading SKILL.md」，读失败、解析失败都只 `warn` 并返回空；`interface.rs:13-22` 六个 interface 字段，`:77-122` 图标须为 `assets/` 下相对路径（插件可 `..` 到插件级 `assets/`），`:180-197` `brand_color` 须 `#RRGGBB`；`model.rs:63-68` `SkillPolicy{allow_implicit_invocation, products}`，`:65` 注释「TODO: Enforce product gating in Codex skill selection/injection instead of only parsing and storing this metadata」，但 `host_merge.rs:152`、`environment.rs:184` 加载时按 `restriction_product` 过滤；`openai_yaml.md:3`「an extended, product-specific config intended for the machine/harness to read, not the agent. Other product-specific config can also live in the `agents/` folder」，`:42`「Only `mcp` is supported for now」，`:47-49` `allow_implicit_invocation` false 时不注入目录、`$skill` 显式仍可；`manual.md:22628` 同义
+- 支持范围：源码阅读与文档；**未核**：`skills.read` 或目录渲染是否把 `agents/` 从资源列表里排除
+
+### E22. Codex `5c5308f`：`dependencies` 的实际用途
+
+- 消费对象：[Codex 的 dependencies 只认 mcp](research.md#codex-的-dependencies-只认-mcp用途是点名时提示安装不参与可用性判定)
+- 来源与精确修订：`sources/codex-5c5308f-skills.tar.gz` 内 `codex-rs/core/src/mcp_skill_dependencies.rs`、`codex-rs/core/src/session/turn.rs`、`codex-rs/ext/skills/src/provider/host.rs`
+- 来源立场：厂商源码
+- 取得方式：`sed -n`、`grep -n`
+- 实际观察：`mcp_skill_dependencies.rs:40-83` `maybe_prompt_and_install_mcp_dependencies` 的输入是 `mentioned_skills`（用户显式点名的 skill）；`:48` 非第一方客户端直接返回；`:57` 需特性开关 `SkillMcpDependencyInstall`；`:69-71` 先经托管策略准入；`:279` 提问文案「The following MCP servers are required by the selected skills but are not installed yet: … Install them now?」，选项「Install」「Continue anyway」；`:493` 非 `mcp` 类型跳过；`:379-396` 以 transport + url/command 做规范键，`transport` 缺省 `streamable_http`；`:398-473` 把依赖转成 `McpServerConfig` 写入配置。`turn.rs:984-994` 被点名 skill 的 mcp 依赖名并入本轮 required servers。`provider/host.rs:142` 目录条目只挂 `with_dependencies`。在克隆的 `ext/skills/src` 全目录检索 `dependencies`：命中只在加载（`loader/`）、目录条目挂载（`catalog.rs:187,246`、`provider/{host,executor}.rs`）与动态选择器把依赖名当检索词项（`dynamic_skill_selector/routing_card_lexical.rs:87-166`）三类，未见按依赖隐藏或禁用 skill 的代码（`catalog.rs` 与 `dynamic_skill_selector/` 不在钉存归档内）
+- 支持范围：该 SHA 的源码路径；「不参与可用性判定」是**读遍 `ext/skills/src` 与 `core/src` 相关引用未见**的负面结论，未构造反例
+
+### E23. Codex `5c5308f`：配置层开关、身份与同名、取用与脚本判定、MCP skill 导入
+
+- 消费对象：[调用面开关](research.md#codex-的调用面开关一处在侧车内容里一处在配置层)、[身份与同名](research.md#codex-以-skillmd-路径为身份同名并列)、[逐资源摘要](research.md#openai-插件从-mcp-导入-skill-时逐资源带-sha256-摘要并取静态快照文档级)
+- 来源与精确修订：`sources/codex-5c5308f-skills.tar.gz` 内 `codex-rs/config/src/skills_config.rs`、`codex-rs/ext/skills/src/loader/host_merge.rs`、`codex-rs/skills/src/name_counts.rs`、`codex-rs/ext/skills/src/tools/read.rs`、`codex-rs/ext/skills/src/catalog_prompt.rs`、`codex-rs/ext/skills/src/invocation.rs`；文档 `manual.md:22056-22171`、`:22480-22600`
+- 来源立场：厂商源码与文档
+- 取得方式：`cat -n`、`sed -n`
+- 实际观察：`skills_config.rs:18-47` `SkillConfig{path?, name?, enabled}`、`SkillsConfig{bundled, include_instructions, max_context_tokens, config}`，挂在分层配置 `ConfigLayerStack` 上；`host_merge.rs:232-233` 只按 `path_to_skills_md` 去重，`:244-249` 按 scope Repo < User < System < Admin 再按 name、path 排序，`:262-269` `scope_rank`；`name_counts.rs:8-25` 统计同名次数供 `$name` 歧义判断；`manual.md` 「If two skills share the same `name`, Codex doesn't merge them; both can appear in skill selectors」；`tools/read.rs:34-66` 工具 `skills.read(package, resource?, cursor?)`，说明「pass the file's complete skill:// identifier as resource」；`catalog_prompt.rs:12` 「do not treat `skill://` identifiers as filesystem paths」，主机来源 skill 的提示让模型展开路径后读文件；`invocation.rs:59-63` 执行的文件位于 skill 目录 `scripts/` 下即记为该 skill 的隐式调用；`manual.md:22056-22171` 插件提交时从 MCP server 导入 skill，「currently supports a bounded, static subset of the draft SEP-2640 Skills extension」，条目含 `skill://` URI、「`frontmatter` containing every entry」、每个资源「SHA-256 digest … `sha256:<64 lowercase hexadecimal characters>`」，「The directory containing `SKILL.md` must match the skill name」，上限 100 文件 / 256 KiB / 1 MiB / 5 MiB，「Skills imported from MCP are submission-time snapshots, not live runtime resources」；`:22486-22494` 初始目录 ≤ 上下文 2% 或 8,000 字符，超出先截描述
+- 支持范围：配置、去重与读取为源码；MCP 导入为**文档级**，源码未核
+
+### E24. 本机实例对开放格式规则的机械套用统计
+
+- 消费对象：[本机实例统计](research.md#本机实例对开放格式规则的机械套用结果)
+- 来源与精确修订：`~/.codex/`（Codex CLI `0.156.1`；含 `skills/.system`、`plugins/cache/`、`.tmp/plugins/` 等 marketplace 副本）与 `~/.claude/plugins/`（同首轮 E13）
+- 来源立场：厂商官方与社区插件（`.tmp/plugins/plugins/` 下有 Vercel、NVIDIA、Adobe 等第三方）
+- 取得方式：PyYAML `safe_load`，按「首行 `---`、下一个独占 `---` 行闭合」切 frontmatter；name 按 `^[a-z0-9]+(-[a-z0-9]+)*$` 且 ≤64；未知键按规格六键白名单；侧车按顶层与二级键 `grep` 计数
+- 实际观察：Codex 侧 562 份全部可解析，name 语法合规 561（例外 `.tmp/plugins/plugins/zotero/skills/zotero/SKILL.md` 的 `Zotero`），等于目录名 513，含规格外顶层键 59（`version` 33、`disable-model-invocation` 15、`tier` 9、`tools` 5，其余各 1：`context`、`maintainer`、`command`、`requires_bin`、`references`、`user-invocable`、`permissions`），带 `metadata` 106 份中 71 份含非字符串值（`priority` int、`docs`/`bashPatterns`/`pathPatterns`/`importPatterns`/`tags` list、`promptSignals` dict 等，集中在 `vercel` 插件），`allowed-tools` 字符串 12、列表 3；538 份 `agents/openai.yaml`：`interface` 538、`policy` 155（`allow_implicit_invocation` 154、`products` 1）、`dependencies` 2。Claude 侧 115 份全部可解析，name 语法合规 115、等于目录名 114，含规格外顶层键 68，无 `metadata`，`allowed-tools` 全为列表（8）
+- 支持范围：**规格规则的机械套用，不是任何宿主的实际加载结果**；含重复副本，不代表去重后的 skill 数
+
+### E25. Claude Code 文档的 frontmatter 全表（照引同程钉存字节）
+
+- 消费对象：[Claude Code 在开放格式之上的键](research.md#claude-code-在开放格式之上另加十四个键并放宽-metadata-与-allowed-tools-的类型)、[未知键](research.md#开放格式对未知顶层键未作规定参考校验器拒收两家宿主静默忽略)
+- 来源与精确修订：[`../slash-command-parsing-sources/sources/claude-code-slash-commands-2026-09-23.txt`](../slash-command-parsing-sources/sources/claude-code-slash-commands-2026-09-23.txt)（sha256 `4868ac94…2eb162`，页内最高版本注记 v2.1.280）
+- 来源立场：厂商文档（自述）
+- 取得方式：`grep -n`、`sed -n`，未重抓
+- 实际观察：`:19`「Claude Code skills follow the Agent Skills open standard … extends the standard with additional features」；`:316`「Field names use lowercase words separated by hyphens, except `when_to_use`」；`:329`「Claude Code ignores a field it doesn't recognize without reporting an error」；`:331` 开头 `---` 须在首行，YAML 解析失败时 skill 照载、字段全空；`:333` 布尔取值在 v2.1.218 放宽；`:337-356` 字段表：`name`（No）、`description`（Recommended）、`when_to_use`、`argument-hint`、`arguments`、`disable-model-invocation`、`user-invocable`、`allowed-tools`（「during the turn that invokes this skill. The grant clears when you send your next message. Accepts a space- or comma-separated string, or a YAML list」）、`disallowed-tools`、`model`、`effort`、`context`、`agent`、`background`、`hooks`、`paths`、`shell`、`metadata`（「Free-form YAML map … drops a value that isn't a map」）、`license`、`compatibility`（后两者「accepts the field but doesn't act on it」）；`:358-373` claude.ai 上传、Skills API 与 `package_skill.py` 只收规格六键，多出即「Unexpected key(s) in SKILL.md frontmatter」硬错误；`:603`「The `` !`<command>` `` syntax runs shell commands before the skill content is sent to Claude」；`:639` `disableSkillShellExecution`；`:405-414` 正文变量替换
+- 支持范围：文档级；本机未探针（同首轮局限）
+
 ## 后续核对
 
-升级任何一个来源的对照版本时，在本页 grep 旧 token（`6263fed5`、`c291e796`、`2.1.280`、`1.17.41`）即得需要重核的记录。
+升级任何一个来源的对照版本时，在本页 grep 旧 token（`6263fed5`、`c291e796`、`2.1.280`、`1.17.41`、`69ef37e`、`217be54873`、`5c5308f`、`0.156.1`）即得需要重核的记录。
