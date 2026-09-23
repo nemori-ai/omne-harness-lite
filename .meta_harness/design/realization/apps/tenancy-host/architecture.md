@@ -74,7 +74,7 @@ PF-017 有意不在治理中心身上用「交付面」这个词，本节标题�
 
 | 层 | 包 | 可以依赖 | 不可以依赖 |
 | --- | --- | --- | --- |
-| 应用装配 | `apps/tenancy-host`：装载清单、config 解析与密钥配对自检、**迁移合成**（次序 + 跨 owner 外键的目标与名字）与升级整体性的编排、密钥生成函数 | 下面各层全部；`infra/storage-sql` 另有 config `upgrade` 与两个候选导出（`confirmUpgrade`、`pendingUpgrade`），`infra/clock` 另有一个候选导出（`clockPreflight`）——都已设计、源码尚无 | 被任何包反向依赖 |
+| 应用装配 | `apps/tenancy-host`：装载清单、config 解析与密钥配对自检、**迁移合成**（次序 + 跨 owner 外键的目标与名字）与升级整体性的编排、密钥生成函数 | 下面各层全部；`infra/storage-sql` 另有 config `upgrade: { checks, guard } \| false` 与候选导出 `createUpgradeGuard`（守卫的 `confirm()`／`pending()`），`infra/clock` 另有候选导出 `clockPreflight`，`tenancy/governance-center-entry` 另有候选导出 `governanceCenterPreflight`——都已设计、源码尚无 | 被任何包反向依赖 |
 | 领域 · 线上投影 | `packages/tenancy/governance-center-entry`：入口层与运维面两个插件，导出 `governance_center` 的迁移片段（[该节点](../../packages/tenancy/governance-center-entry/design.md#实现路径与来源)） | 入口层：AI、OG、AR、CV 的服务面类型，`core/*`（含 `core/storage` 协议）；运维面：只 `core/kernel-basis`、`core/storage` 协议、`core/offer-expiry`、Node 内置与本包的事件声明模块（导入白名单，契约 SC-2） | `infra/*`；运维面不得导入任何 `tenancy/*` 包 |
 | 领域 · 组合 | `packages/tenancy/account-registration` | `tenancy/account-identity`、`tenancy/organization-governance` 的服务面类型、`core/identity-values`、`core/kernel-basis` | `infra/*`、存储协议 |
 | 领域 · 能力 | `packages/tenancy/account-identity`、`packages/tenancy/organization-governance`、`packages/tenancy/credential-verification`；**AI、OG 第二程各导出自己表的迁移片段**（OG 的是工厂，收外键目标与名字作参数，**不 import AI 的包**） | `core/*`（含 `core/storage` 的协议与错误类型） | `infra/*`——它们 inject 的是**服务名**，不 import 提供者包；彼此之间不 import 对方的迁移 |
@@ -86,7 +86,7 @@ PF-017 有意不在治理中心身上用「交付面」这个词，本节标题�
 
 1. **迁移片段在各 owner 包，合成在 `apps/tenancy-host`**——表是 owner 事实的存储形状，列跟着 owner 变，片段放在 owner 包里让「迁移随 owner 列变化同步修改」这条代价落在同一个包、同一次修改；跨 owner 那条外键与合成次序只有装配同时看得见两边（[core/storage 节点](../../packages/core/storage/design.md#表结构不在协议里由装配层迁移建立两节点同一约束域)、[design.md 迁移的所有权](design.md#迁移的所有权)）。代价不因此消失：被外键引用的列改名不在编译期暴露，靠本节点的外键存在性与约束名测试在 CI 里挡。
 2. **密钥只出现在三个 config 对象里**：`account-registration` 的 config 持 `activation` 私钥，`organization-governance` 的持 `purge` 私钥，`account-identity` 的持两把公钥；TLS 私钥只在入口层的 config 里；**都不经任何服务**（但挂在各自 fiber 的 config 上，同进程可达，[design.md](design.md#私钥不经服务-store-可达)）。
-3. **`tenancy/*` 与 `infra/*` 之间没有 import 边**，只有 Cordis 服务名（`storage`、`clock`）——换提供者只改本应用的装载清单。升级整体性要的三个候选导出（`confirmUpgrade`、`pendingUpgrade`、`clockPreflight`）由本应用 import、不由任何 `tenancy/*` 包 import。
+3. **`tenancy/*` 与 `infra/*` 之间没有 import 边**，只有 Cordis 服务名（`storage`、`clock`）——换提供者只改本应用的装载清单。升级整体性要的两个 `infra/*` 候选导出（`createUpgradeGuard`、`clockPreflight`）由本应用 import、不由任何 `tenancy/*` 包 import；`governanceCenterPreflight` 由本应用从入口层包 import，那个包也不 import storage-sql（核对形状靠同形的普通数据对上）。
 
 ## 技术栈采用
 
