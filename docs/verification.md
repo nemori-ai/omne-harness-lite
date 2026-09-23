@@ -15,7 +15,7 @@
 | `make docs-check` | 跨仓库 Markdown 本地链接与锚点、Codex/Claude 技能镜像一致 | 内容正确、设计成立或因果理由充分 |
 | `make design-check` | 设计链的身份、资源、引用、冻结登记与形式任务登记（`.meta_harness/design/`）；统一语言、领域对象条目与产品 topic 三家的对账——形态与条目一一对应、出处与依据的 rev 等于 topic 当前 rev、词条索引与分卷一致、派生总表是最新的；实现映射节点的形状对账——kind 与目录名及 `bindings.yaml` 一致、assembly 才有 `architecture.md`、源码位置与节点同名、交付面 PF 的 rev、技术栈采用的状态与依据链、契约坐标在 catalog 里、交付面仍是 draft 时不得登记绑定 | 登记等于执行；`--formal registered` 只确认任务存在。对账通过**不代表**任何条目或节点的内容正确，也查不出「产品正文里冒出一个新对象却没人立词条」；节点通过**不代表**某条绑定的证据真能支持那条条款，也查不出一条应用间的边只写了一侧 |
 | `make test` | 仓库检查器、Meta Harness 编译/链接工具与 `design-subagents` 生成器的离线测试 | 宿主加载与模型行为已验证 |
-| `make product-check` | TS/JS 格式与格式化适配器自测；全部 TS 成员的构建、类型检查（含 `*.spec-d.ts` 类型测试）与 vitest 运行时测试——契约纯模块对 spec `examples.md` 的机检、Cordis 4.0.4 的 8 条 probe、存储一致性套件在 **sqlite** 上的 15 组用例、租约时钟的回拨与重启用例；`tools/ts-checks` 的四条结构规则扫描 `packages/` | 产品能力已实现——四个 tenancy 插件只有服务面类型与 `it.todo` 场景清单；pg 方言未运行（缺 `OMNE_TEST_PG_URL` 时 `describe.skip`，**跳过不是通过**）；跨进程重启的持久证据、真实外键存在性（归装配）与端到端流程都不在其中；结构规则只看文本，不做类型分析 |
+| `make product-check` | TS/JS 格式与格式化适配器自测；全部 TS 成员的构建、类型检查（含 `*.spec-d.ts` 类型测试）与 vitest 运行时测试——契约纯模块对 spec `examples.md` 的机检、Cordis 4.0.4 的 8 条 probe、存储一致性套件在 **sqlite** 上的 15 组用例、租约时钟的回拨与重启用例；`tools/ts-checks` 的结构规则扫描 `packages/`（条数与清单以 [tools/ts-checks](../tools/ts-checks/README.md) 的规则表为准） | 产品能力已端到端验证——tenancy 插件的包内场景已是真实测试，但装配 `apps/tenancy-host` 未建、跨包真实组合只到注册组合那一层；pg 方言未运行（缺 `OMNE_TEST_PG_URL` 时 `describe.skip`，**跳过不是通过**）；跨进程重启的持久证据、真实外键存在性（归装配）与端到端流程都不在其中；结构规则只看文本，不做类型分析 |
 | `make formal-tools` | Java 与 `TLA2TOOLS_JAR`、`ALLOY_ANALYZER_JAR` 指向的实际 JAR 可用 | 任何模型已经跑过 |
 
 `make design-check` 的三个形式模式含义不同：`FORMAL=registered`（默认）只确认任务与工件已登记，
