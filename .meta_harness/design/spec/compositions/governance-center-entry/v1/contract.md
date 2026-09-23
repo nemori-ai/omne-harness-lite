@@ -32,7 +32,8 @@
   `capability.account-identity` v1、`capability.organization-governance` v1、`composition.account-registration` v1
 - **精确语义依赖**：`omne-harness-lite-design-2026-09-15 · data.identity-values · v1`——
   本契约**不复述**任何身份值的定义，线上用它们的规范形式原样传；消费 clauses 见 [S-2](#s-2-参与方与精确承诺)。
-  `data.offer-expiry` v1 只在 [S-36](#s-36-装配给的保证-vs-协议须给的保证) 的「不触发」那一行被提及，**不是消费**。
+  `omne-harness-lite-design-2026-09-15 · data.offer-expiry · v1`——读邀请、读隶属请求与三条列表的返回里带着邀约的两个时刻与派生状态，
+  线上形状引用它的 Schema，不复述；`offerTtl` 的含义取它的 `offer_ttl`。消费 clauses 同见 [S-2](#s-2-参与方与精确承诺)。
 - **为什么是一份组合契约**：判定次序、四种入口答复与身份推导对**每一个**请求都一样，横跨三份契约，
   任何一个单项能力都拥有不了；理由的长期家是
   [提案 · 入口契约为什么是一份 composition 契约](../../../../record/proposals/governance-center-entry/alternatives.md#入口契约为什么是一份-composition-契约)
@@ -68,10 +69,11 @@
 
 | 参与方 | coordinate 与消费 clauses（`rebase_relation` 一律不适用：首版，无前身） | 向本组合提供的保证 | 本组合对它的前提 |
 |---|---|---|---|
-| `capability.account-identity` | `omne-harness-lite-design-2026-09-15 · capability.account-identity · v1`；[`#S-3`](../../../capabilities/account-identity/v1/contract.md#s-3-明确不承诺什么)（时序侧信道不在范围）、[`#S-10`](../../../capabilities/account-identity/v1/contract.md#s-10-撤销是持久记录不是内存生命周期)（撤销是持久记录）、[`#S-15`](../../../capabilities/account-identity/v1/contract.md#s-15-验证凭据并签发登录状态)（登录）、[`#S-16`](../../../capabilities/account-identity/v1/contract.md#s-16-撤销登录状态)（撤销）、[`#S-17`](../../../capabilities/account-identity/v1/contract.md#s-17-校验登录状态)（第 ② 步认人）、[`#S-29`](../../../capabilities/account-identity/v1/contract.md#s-29-撤销不等于强制停止)（撤销只影响下一道准入）、[`#S-30`](../../../capabilities/account-identity/v1/contract.md#s-30-装配给的保证-vs-协议须给的保证)（第 3、6、8 行）、[`#S-37`](../../../capabilities/account-identity/v1/contract.md#s-37-列出本账号有效登录状态)（列出） | S-17 的四个出口封闭、`login-state-rejected` 不区分原因、撤销提交之后必拒；S-15 三种登录失败逐字相同；S-37 列出此刻全部有效的、必含调用方自己那一个 | `LoginStateId` **不可猜测**（[S-36](#s-36-装配给的保证-vs-协议须给的保证) 的「出示物不可伪造」行）——那是出示物安全的地基，由它的提供者兑现 |
-| `capability.organization-governance` | `omne-harness-lite-design-2026-09-15 · capability.organization-governance · v1`；[`#S-16`](../../../capabilities/organization-governance/v1/contract.md#s-16-缺席时的默认答案)（拒绝／不可用／表示层三类收场）、[`#S-21`](../../../capabilities/organization-governance/v1/contract.md#s-21-创建团队组织)～[`#S-37`](../../../capabilities/organization-governance/v1/contract.md#s-37-切换当前租户身份)（十七个操作，其中 [`#S-26`](../../../capabilities/organization-governance/v1/contract.md#s-26-成员资格判定) 兼作补授权、[`#S-36`](../../../capabilities/organization-governance/v1/contract.md#s-36-当前租户身份查询) 兼作身份推导）、[`#S-42`](../../../capabilities/organization-governance/v1/contract.md#s-42-装配给的保证-vs-协议须给的保证)（第 4、5、6、8、9 行）、[`#S-55`](../../../capabilities/organization-governance/v1/contract.md#s-55-读邀请)～[`#S-60`](../../../capabilities/organization-governance/v1/contract.md#s-60-列出组织收到的隶属请求)（六个读面） | 每个操作的失败集合封闭；「判不出来」一律 `unavailable`、表示层一律 `invalidInput`，不与拒绝合并；S-36 给出当前租户身份或 `loginStateNotValid`／`unavailable` | **它的面是能力间内部面**，调用方身份由本组合核实后才交给它（[`#S-42`](../../../capabilities/organization-governance/v1/contract.md#s-42-装配给的保证-vs-协议须给的保证) 第 8、9 行）——本组合就是那道核实 |
+| `capability.account-identity` | `omne-harness-lite-design-2026-09-15 · capability.account-identity · v1`；[`#S-3`](../../../capabilities/account-identity/v1/contract.md#s-3-明确不承诺什么)（时序侧信道不在范围）、[`#S-8`](../../../capabilities/account-identity/v1/contract.md#s-8-凭据材料)（凭据材料的结构属实现选择，线上形状因此推不出）、[`#S-10`](../../../capabilities/account-identity/v1/contract.md#s-10-撤销是持久记录不是内存生命周期)（撤销是持久记录）、[`#S-15`](../../../capabilities/account-identity/v1/contract.md#s-15-验证凭据并签发登录状态)（登录）、[`#S-16`](../../../capabilities/account-identity/v1/contract.md#s-16-撤销登录状态)（撤销）、[`#S-17`](../../../capabilities/account-identity/v1/contract.md#s-17-校验登录状态)（第 ② 步认人）、[`#S-29`](../../../capabilities/account-identity/v1/contract.md#s-29-撤销不等于强制停止)（撤销只影响下一道准入）、[`#S-30`](../../../capabilities/account-identity/v1/contract.md#s-30-装配给的保证-vs-协议须给的保证)（第 3、6、8 行）、[`#S-37`](../../../capabilities/account-identity/v1/contract.md#s-37-列出本账号有效登录状态)（列出） | S-17 的四个出口封闭、`login-state-rejected` 不区分原因、撤销提交之后必拒；S-15 三种登录失败逐字相同；S-37 列出此刻全部有效的、必含调用方自己那一个 | `LoginStateId` **不可猜测**（[S-36](#s-36-装配给的保证-vs-协议须给的保证) 的「出示物不可伪造」行）——那是出示物安全的地基，由它的提供者兑现 |
+| `capability.organization-governance` | `omne-harness-lite-design-2026-09-15 · capability.organization-governance · v1`；[`#S-16`](../../../capabilities/organization-governance/v1/contract.md#s-16-缺席时的默认答案)（拒绝／不可用／表示层三类收场）、[`#S-10`](../../../capabilities/organization-governance/v1/contract.md#s-10-邀请)／[`#S-11`](../../../capabilities/organization-governance/v1/contract.md#s-11-隶属请求)（两种邀约的标识不透明、方向两支——命名表的出处）、[`#S-21`](../../../capabilities/organization-governance/v1/contract.md#s-21-创建团队组织)～[`#S-37`](../../../capabilities/organization-governance/v1/contract.md#s-37-切换当前租户身份)（十七个操作，其中 [`#S-26`](../../../capabilities/organization-governance/v1/contract.md#s-26-成员资格判定) 兼作补授权、[`#S-36`](../../../capabilities/organization-governance/v1/contract.md#s-36-当前租户身份查询) 兼作身份推导）、[`#S-42`](../../../capabilities/organization-governance/v1/contract.md#s-42-装配给的保证-vs-协议须给的保证)（第 4、5、6、8、9 行）、[`#S-55`](../../../capabilities/organization-governance/v1/contract.md#s-55-读邀请)～[`#S-60`](../../../capabilities/organization-governance/v1/contract.md#s-60-列出组织收到的隶属请求)（六个读面） | 每个操作的失败集合封闭；「判不出来」一律 `unavailable`、表示层一律 `invalidInput`，不与拒绝合并；S-36 给出当前租户身份或 `loginStateNotValid`／`unavailable` | **它的面是能力间内部面**，调用方身份由本组合核实后才交给它（[`#S-42`](../../../capabilities/organization-governance/v1/contract.md#s-42-装配给的保证-vs-协议须给的保证) 第 8、9 行）——本组合就是那道核实 |
 | `composition.account-registration` | `omne-harness-lite-design-2026-09-15 · composition.account-registration · v1`；[`#S-2`](../../account-registration/v1/contract.md#s-2-参与方与精确承诺)（「注册入口」一行）、[`#S-4`](../../account-registration/v1/contract.md#s-4-注册成功)、[`#S-5`](../../account-registration/v1/contract.md#s-5-终结结果集合)、[`#S-6`](../../account-registration/v1/contract.md#s-6-每个终结结果的含义与对应的存储状态)、[`#S-8`](../../account-registration/v1/contract.md#s-8-三步次序与责任交接)（被投影的那条动作链）、[`#S-12`](../../account-registration/v1/contract.md#s-12-重试规则)（重发）、[`#S-25`](../../account-registration/v1/contract.md#s-25-装配给的保证-vs-协议须给的保证) | 一次注册尝试的终结结果恰为四个值；`identifier-held-by-expired-record` 在它内部就地消化 | **本组合就是它的「注册入口」**：表示层校验归本组合；四个终结结果原样呈现；`interrupted` 不改写 |
-| `data.identity-values` | `omne-harness-lite-design-2026-09-15 · data.identity-values · v1`；[`#S-7`](../../../data/identity-values/v1/contract.md#s-7-tenantid-的规范序列化形式)、[`#S-9`](../../../data/identity-values/v1/contract.md#s-9-loginstateid)、[`#S-11`](../../../data/identity-values/v1/contract.md#s-11-scopelayeridentity)、[`#S-16`](../../../data/identity-values/v1/contract.md#s-16-按归属层显式携带身份值)～[`#S-21`](../../../data/identity-values/v1/contract.md#s-21-判定依据的构成封闭)、[`#S-23`](../../../data/identity-values/v1/contract.md#s-23-不得冒充隔离)、[`#S-27`](../../../data/identity-values/v1/contract.md#s-27-每道准入现读)、[`#S-28`](../../../data/identity-values/v1/contract.md#s-28-当前租户身份在创建那一刻捕获)、[`#S-30`](../../../data/identity-values/v1/contract.md#s-30-跨边界须重新验证)、[`#S-31`](../../../data/identity-values/v1/contract.md#s-31-不透明标识的交换表示)、[`#S-33`](../../../data/identity-values/v1/contract.md#s-33-表示层校验与判定分开) | 身份值的形状与规范形式；隔离义务 | — |
+| `data.identity-values` | `omne-harness-lite-design-2026-09-15 · data.identity-values · v1`；线上形状引用的值类型 [`#S-1`](../../../data/identity-values/v1/contract.md#s-1-accountid)、[`#S-2`](../../../data/identity-values/v1/contract.md#s-2-登录标识不是-accountid)、[`#S-3`](../../../data/identity-values/v1/contract.md#s-3-organizationid)、[`#S-4`](../../../data/identity-values/v1/contract.md#s-4-organizationkind)、[`#S-8`](../../../data/identity-values/v1/contract.md#s-8-tenantrole)、[`#S-10`](../../../data/identity-values/v1/contract.md#s-10-membershipstanding)，[`#S-12`](../../../data/identity-values/v1/contract.md#s-12-缺席与空值都不是身份值)（可选项缺席不写 `null`）；[`#S-7`](../../../data/identity-values/v1/contract.md#s-7-tenantid-的规范序列化形式)、[`#S-9`](../../../data/identity-values/v1/contract.md#s-9-loginstateid)、[`#S-11`](../../../data/identity-values/v1/contract.md#s-11-scopelayeridentity)、[`#S-16`](../../../data/identity-values/v1/contract.md#s-16-按归属层显式携带身份值)～[`#S-21`](../../../data/identity-values/v1/contract.md#s-21-判定依据的构成封闭)、[`#S-23`](../../../data/identity-values/v1/contract.md#s-23-不得冒充隔离)、[`#S-27`](../../../data/identity-values/v1/contract.md#s-27-每道准入现读)、[`#S-28`](../../../data/identity-values/v1/contract.md#s-28-当前租户身份在创建那一刻捕获)、[`#S-30`](../../../data/identity-values/v1/contract.md#s-30-跨边界须重新验证)、[`#S-31`](../../../data/identity-values/v1/contract.md#s-31-不透明标识的交换表示)、[`#S-33`](../../../data/identity-values/v1/contract.md#s-33-表示层校验与判定分开) | 身份值的形状与规范形式；隔离义务 | — |
+| `data.offer-expiry` | `omne-harness-lite-design-2026-09-15 · data.offer-expiry · v1`；[`#S-4`](../../../data/offer-expiry/v1/contract.md#s-4-offertiming)（`OfferTiming`）、[`#S-7`](../../../data/offer-expiry/v1/contract.md#s-7-派生状态)（派生状态四值）、[`#S-14`](../../../data/offer-expiry/v1/contract.md#s-14-offer_ttl)（`offer_ttl` 的含义与正值约束） | 邀约两个时刻与派生状态的形状；这一份时长的含义 | —（钟与存储同源那一组保证在这条边上不触发，见 [S-36](#s-36-装配给的保证-vs-协议须给的保证)） |
 
 **消费者**（本契约的兑现者与使用者，不是参与方）：兑现客户端一面与运维面的**入口层**（无词条），实现映射节点待立（候选位置 `realization/packages/tenancy/governance-center-entry`）；
 承载它的装配 [`realization/apps/tenancy-host`](../../../../realization/apps/tenancy-host/README.md)（待修订）；据点一侧的客户端代理（`realization/apps/cli`，不在本程实施边界）。
@@ -343,14 +345,72 @@
 | **8 在途归属** | 入口层没有按请求保存的状态。领域操作按它自己那一次提交收场；答复没送达时，事实要么已提交、要么没发生（[§6.8](../../../../product/PF-017-governance-center-as-deployable-application/design.md#68-停机已确认的都在没确认的等于没发生)）；其间的撤销见 [S-33](#s-33-认出人之后登录状态被撤销) | 多步路由写明中途失败留下什么 |
 | **9 装配给／协议给** | 见 [S-36](#s-36-装配给的保证-vs-协议须给的保证) | 相关的那一行 |
 
-**成员名规则**：各路由载荷项与成功返回的线上成员名，**沿被投影条款所在契约的 Schema 里的成员名，入口层不改名、不另起别名**；
-身份值按 `data.identity-values` v1 的规范形式。路由表按被投影条款 ① 的项与 ⑤ 的返回指认它们，形状以那份契约为准。
-本契约自己定名的只有两处：登录成功的返回 `{ loginState, loginStateHandle }`（[S-19](#s-19-免认人的两条路由注册登录)），
-登录状态列表的每一项 `{ loginStateHandle, issuedAt }`（[S-20](#s-20-登录状态的两条路由撤销列出)）。
+**线上形状归本契约**：三份参与契约 v1 不发布 Schema，**27 条路由的载荷与成功返回的线上形状由本契约定义**；
+成员名从各条款 ①／⑤ 的散文措辞推出，列在下面的命名表里，Schema 里每条路由各一个 `Payload_<路由>` 与 `Result_<路由>`，成员封闭。
+身份值一律按 `data.identity-values` v1 的规范形式、引用它的 Schema；邀约的两个时刻与派生状态引用 `data.offer-expiry` v1 的 Schema。
+**载荷里没有「以谁的身份」这一格**（[S-12](#s-12-身份推导)）：下表「推导」一栏的身份值不在载荷里。
+这张表的成员名是本契约**首次命名**，待主线认可（[G-7](#十三已知缺口)）。
 
-> **这条规则此刻只在有 Schema 的地方有着落**：身份值与邀约时效的成员名来自 `data.identity-values` v1 与 `data.offer-expiry` v1 的 Schema；
-> 而三份参与方契约 v1 都明文不发布 Schema，它们 ① 的项与 ⑤ 的返回在正文里是描述，不是成员名。
-> 那些成员在参与方发布 Schema 之前没有可引用的名字，入口层不替它们取。
+#### 命名原则
+
+- camelCase。**标识按它指认的东西取名，不带 `Id` 后缀**，与 `TenantId` 的两个分量 `organization`／`account` 同式：`organization`、`tenant`、`invitation`、`affiliationRequest`。
+- **同一个概念跨路由同名**：发起方组织一律 `issuerOrganization`（与 `issuerIsPersonalOrganization` 同词）；被邀请的账号一律 `invitedAccount`（与 `notTheInvitedAccount` 同词）；接收方组织 `recipientOrganization`；角色一律 `role`（与 `MembershipStanding` 的 `role` 同）；这一份的有效时长 `offerTtl`（`data.offer-expiry` v1 的 `offer_ttl`，与部署参数 `…TtlDefault` 同式）；过滤开关 `includeConcluded`（与 `alreadyConcluded` 同词）、`includeIneffective`（与 `ineffective` 同词）。
+- **已有账本名不另起**：`loginState`、`loginStateHandle`、`issuedAt`；值类型沿用它在 `data.identity-values`／`data.offer-expiry` 里的名字：`organizationKind`、`offerTiming`、`offerState`。
+- **⑤ 是一个值就直接给那个值**，不包一层对象；⑤ 是 `ok` 就是字符串 `"ok"`。**可选项缺席就是不出现**，不写 `null`。
+
+#### 路由的线上成员（命名表）
+
+「IV」= `data.identity-values` v1 的 Schema 定义，「OE」= `data.offer-expiry` v1 的；`?` = 可选（缺席时原样作缺席交给领域，[S-17](#s-17-路由表封闭每条路由的九件事从哪读) 第 7 件事）。
+
+| 路由 | 载荷成员 · 类型 · ← 参与条款 ① 的哪一项 | 推导（不在载荷里） | 成功返回 · ← ⑤ |
+|---|---|---|---|
+| 注册 `composition.account-registration/v1#S-8` | `loginIdentifier` · IV `LoginIdentifier` ← 登录标识；`credential` · **推不出**（见下） ← 凭据材料 | — | `"registered"` ← `registered`（该组合 S-4、S-5） |
+| 登录 `capability.account-identity/v1#S-15` | `loginIdentifier`、`credential`，同上 ← ① 登录标识、凭据材料 | — | `{ loginState, loginStateHandle }` ← LoginStateId（句柄由入口派生，[S-9](#s-9-列表句柄)） |
+| 撤销 `…account-identity/v1#S-16` | `loginStateHandle` · 列表句柄 ← 目标 LoginStateId（经句柄指认，[S-20](#s-20-登录状态的两条路由撤销列出)） | 发起方 LoginStateId = 出示物 | `"ok"` ← `ok` |
+| 列出 `…account-identity/v1#S-37` | 无 | LoginStateId = 出示物 | `[{ loginStateHandle, issuedAt }]`，至少一项 ← 每项的 LoginStateId 换成句柄，签发时间 |
+| `…organization-governance/v1#S-21` | `creationKey?` · 不透明标识 ← 创建键 | 创建者 AccountId | IV `OrganizationId` ← `OrganizationId` |
+| `…#S-22` | `organization` · IV `OrganizationId` ← `OrganizationId` | — | `{ organization, organizationKind, parentOrganization? }` ← `{ OrganizationId, OrganizationKind, 上级组织（有或无） }` |
+| `…#S-23` | `invitedAccount` · IV `AccountId` ← 目标 AccountId；`role?` · IV `TenantRole` ← 指定角色；`offerTtl?` · 整数毫秒 ← 这一份的有效时长 | 发起者 TenantId | `InvitationId` · 不透明标识 ← `InvitationId` |
+| `…#S-24` | `invitation` · `InvitationId` ← `InvitationId` | 发起者 TenantId | `"ok"` |
+| `…#S-25` | `invitation` ← `InvitationId` | 接受者 AccountId | IV `TenantId` ← `TenantId` |
+| `…#S-26` | `tenant` · IV `TenantId` ← `TenantId` | — | IV `MembershipStanding` ← 一个 `MembershipStanding` |
+| `…#S-27` | 无 | AccountId | `[TenantId]`，至少一项 ← `TenantId` 列表 |
+| `…#S-28` | `targetTenant` · IV `TenantId` ← 目标 TenantId；`role` · IV `TenantRole` ← 目标角色 | 发起者 TenantId | `"ok"` |
+| `…#S-29` | `targetTenant` ← 目标 TenantId | 发起者 TenantId | `"ok"` |
+| `…#S-30` | `recipientOrganization` · IV `OrganizationId` ← 接收方 OrganizationId；`direction` · `recipientAsParent`／`recipientAsChild` ← 方向；`offerTtl?` ← 这一份的有效时长 | 发起者 TenantId | `AffiliationRequestId` · 不透明标识 ← `AffiliationRequestId` |
+| `…#S-31` | `affiliationRequest` · `AffiliationRequestId` ← `AffiliationRequestId` | 发起者 TenantId | `"ok"` |
+| `…#S-32` | `affiliationRequest` ← `AffiliationRequestId` | 接受者 TenantId | `"ok"` |
+| `…#S-33` | `childOrganization` · IV `OrganizationId` ← 被解除的那条隶属关系（下级 OrganizationId） | 发起者 TenantId | `"ok"` |
+| `…#S-34` | `organizations` · 一或两个 IV `OrganizationId` ← 一个或两个 `OrganizationId` | — | 一个 ⇒ `[OrganizationId]`（上级链，不含自己）；两个 ⇒ 布尔（有共同上级） |
+| `…#S-35` | `tenant` ← `TenantId` | — | `{ organizationLayer, tenantLayer }`，各一个 IV `ScopeLayerIdentity`（`layer` 分别是 `organization`／`tenant`）← 组织级、租户级 |
+| `…#S-36` | 无 | LoginStateId = 出示物 | IV `TenantId` ← `TenantId` |
+| `…#S-37` | `targetTenant` ← 目标 TenantId | LoginStateId = 出示物 | `"ok"` |
+| `…#S-55` | `invitation` ← `InvitationId`；`callerIdentityKind` · `account`／`tenant` ← 调用方身份的判别式 | 调用方身份值（按判别式取 AccountId 或 TenantId） | `InvitationView` ← ⑤ |
+| `…#S-56` | `affiliationRequest` ← `AffiliationRequestId` | 调用方 TenantId | `AffiliationRequestView` ← ⑤ |
+| `…#S-57` | `includeConcluded?` · 布尔 ← 「连已终结的一起要」 | AccountId | `[InvitationView]` ← 邀请列表 |
+| `…#S-58` | `includeConcluded?` | 调用方 TenantId | `{ invitations: [InvitationView], affiliationRequests: [AffiliationRequestView] }` ← 两段 |
+| `…#S-59` | `includeIneffective?` · 布尔 ← 「连无效的一起要」 | 调用方 TenantId | `[MemberView]` ← 成员关系记录列表 |
+| `…#S-60` | `includeConcluded?` | 调用方 TenantId | `[IncomingAffiliationRequestView]` ← 收到的隶属请求列表 |
+
+| 共用形状 | 成员 | ← 出处 |
+|---|---|---|
+| `OrganizationView` | `organization`、`organizationKind`（IV `OrganizationKind`）、`parentOrganization?` | OG S-22 ⑤；「无上级」⇒ 成员不出现 |
+| `InvitationView` | `invitation`、`issuerOrganization`、`invitedAccount`、`role`、`offerTiming`（OE `OfferTiming`）、`offerState`（OE `OfferState`） | OG S-55 ⑤ `{ InvitationId, 发出它的组织, 被邀请的账号, 指定的角色, OfferTiming, 派生状态 }` |
+| `AffiliationRequestView` | `affiliationRequest`、`issuerOrganization`、`recipientOrganization`、`direction`、`offerTiming`、`offerState` | OG S-56 ⑤ `{ AffiliationRequestId, 发起方组织, 接收方组织, 方向, OfferTiming, 派生状态 }` |
+| `IncomingAffiliationRequestView` | 同上，没有 `recipientOrganization` | OG S-60 ⑤（接收方就是调用方自己，那一条不列它） |
+| `MemberView` | `tenant`、`role`、`effective`（布尔） | OG S-59 ⑤ `{ TenantId, 角色, 有效性 }`；`effective` 是记录此刻的有效性，**不是**一次 `MembershipStanding` 判定 |
+
+**散文推不出、或靠推导补上的地方**，逐条写明，不自造语义：
+
+1. **推不出**：`credential` 的线上形状。`capability.account-identity` v1 S-8 把凭据材料的结构、强度规则与比对方式交给它 S-26 的 `credential_policy`，属实现选择。Schema 对它不收紧；表示层校验与账号能力提供者判凭据材料的规则同源（[S-19](#s-19-免认人的两条路由注册登录)）。
+2. **首次命名的取值**：`direction` 的两个取值 `recipientAsParent`／`recipientAsChild`。OG S-11 与 S-30 ① 只有「请对方作自己的上级／下级」的散文，没有取值名。
+3. **表示上的推导**：
+   - `InvitationId`、`AffiliationRequestId`、创建键的交换表示取 `data.identity-values` v1 S-31（不透明标识）——OG 只说它们不透明；
+   - `offerTtl` 取整数毫秒——与部署参数的两个默认时长同一概念、同一表示。**线上只约束「是整数」**：不是整数是入口的 `invalid-input`；是整数但非正交给领域，得 `invalidOfferDuration`。OG S-23 把「非正或不合形状」都收成 `invalidOfferDuration`，线上「不是整数」这一支因此与它不同名，见 [G-7](#十三已知缺口)；
+   - S-34 的一个操作两种返回，按载荷里组织的个数区分。
+
+**答复不带 `operation`**：只看一个答复判不出它属于哪条路由，所以 Schema 的 `RouteSuccess.result` 是 27 个 `Result_<路由>` 的并；
+按路由的核对用 Schema 的 `Exchange`（把请求的 `operation` 与它的答复放在一起，线上没有这个对象）。
 
 ### S-18 公开体检
 
@@ -400,7 +460,7 @@
 | 路由 `capability.organization-governance/v1#…` | 交给领域的身份 | 载荷（该条款 ① 的哪几项） | 透传的具名值 | 重发 |
 |---|---|---|---|---|
 | [`S-21`](../../../capabilities/organization-governance/v1/contract.md#s-21-创建团队组织) 创建团队组织 | 创建者 `AccountId` ← S-17 | 创建键（可选） | `accountNotActivated`、`accountDoesNotExist` | 带创建键 ⇒ 认回同一个组织；**不带 ⇒ 每次一个新组织**。客户端要安全重发，就带创建键 |
-| [`S-23`](../../../capabilities/organization-governance/v1/contract.md#s-23-发出邀请) 发出邀请 | 发起者 `TenantId` ← S-36 | 目标 `AccountId`、指定角色（可选）、时长（可选） | `issuerIsPersonalOrganization`、`notAuthorized`、`accountNotActivated`、`accountDoesNotExist`、`alreadyAnEffectiveMember`、`invalidOfferDuration` | 不幂等：重发多一份邀请（该条款 ⑦：不制造新状态）。**时长是否为正由领域判**，`invalidOfferDuration` 原样透传；入口层对时长只校验「它是一个时段的交换表示」 |
+| [`S-23`](../../../capabilities/organization-governance/v1/contract.md#s-23-发出邀请) 发出邀请 | 发起者 `TenantId` ← S-36 | 目标 `AccountId`、指定角色（可选）、时长（可选） | `issuerIsPersonalOrganization`、`notAuthorized`、`accountNotActivated`、`accountDoesNotExist`、`alreadyAnEffectiveMember`、`invalidOfferDuration` | 不幂等：重发多一份邀请（该条款 ⑦：不制造新状态）。**时长是否为正由领域判**，`invalidOfferDuration` 原样透传；入口层对 `offerTtl` 只校验它是整数（毫秒），不是整数 ⇒ `invalid-input` |
 | [`S-24`](../../../capabilities/organization-governance/v1/contract.md#s-24-撤回邀请) 撤回邀请 | 发起者 `TenantId` ← S-36 | `InvitationId` | `invitationDoesNotExist`、`notAuthorized`、`alreadyConcluded` | 幂等：已撤回 ⇒ `ok` |
 | [`S-25`](../../../capabilities/organization-governance/v1/contract.md#s-25-接受邀请) 接受邀请 | 接受者 `AccountId` ← S-17 | `InvitationId` | `invitationDoesNotExist`、`offerNoLongerValid`、`notTheInvitedAccount`、`accountNotActivated`、`accountDoesNotExist`、`alreadyAnEffectiveMember` | 已接受、答复丢了之后重发 ⇒ `offerNoLongerValid`；客户端据「我的租户」确认自己已在其中 |
 | [`S-28`](../../../capabilities/organization-governance/v1/contract.md#s-28-调整角色) 调整角色 | 发起者 `TenantId` ← S-36 | 目标 `TenantId`、目标角色 | `notAuthorized`、`membershipNotEffective`、`wouldLeaveNoSuperAdministrator` | 幂等 |
@@ -423,7 +483,7 @@
 | [`S-27`](../../../capabilities/organization-governance/v1/contract.md#s-27-我的租户) 我的租户 | `AccountId` ← S-17 | 无 | 无 | 无具名值。`invalidInput` ⇒ 缺陷。**空列表 ⇒ 缺陷**：认得出的来者是已激活的账号，而已激活的账号[本版不可能一个有效租户都没有](../../../capabilities/organization-governance/v1/contract.md#s-27-我的租户) |
 | [`S-34`](../../../capabilities/organization-governance/v1/contract.md#s-34-上级链与有共同上级) 上级链／有共同上级 | 无 | 有（每一个组织） | 一个或两个 `OrganizationId` | `notAuthorized`（补授权给出）；`organizationDoesNotExist` 经补授权到不了 |
 | [`S-35`](../../../capabilities/organization-governance/v1/contract.md#s-35-层身份) 层身份 | 无 | 有 | `TenantId` | `notAuthorized`（补授权给出）。返回的两个 `ScopeLayerIdentity` 按 [`data.identity-values/v1#S-11`](../../../data/identity-values/v1/contract.md#s-11-scopelayeridentity) 带判别式原样给出 |
-| [`S-55`](../../../capabilities/organization-governance/v1/contract.md#s-55-读邀请) 读邀请 | 调用方身份按载荷里的判别式：`account` ⇒ `AccountId` ← S-17；`tenant` ⇒ `TenantId` ← S-36 | 无 | `InvitationId`、调用方身份的判别式（`account`／`tenant`，不含身份值本身） | `invitationDoesNotExist`。判别式缺席或不在集合内 ⇒ `invalid-input`，**入口层不替它猜是哪一支** |
+| [`S-55`](../../../capabilities/organization-governance/v1/contract.md#s-55-读邀请) 读邀请 | 调用方身份按载荷里的判别式：`account` ⇒ `AccountId` ← S-17；`tenant` ⇒ `TenantId` ← S-36 | 无 | `InvitationId`、调用方身份的判别式 `callerIdentityKind`（`account`／`tenant`，不含身份值本身） | `invitationDoesNotExist`。判别式缺席或不在集合内 ⇒ `invalid-input`，**入口层不替它猜是哪一支** |
 | [`S-56`](../../../capabilities/organization-governance/v1/contract.md#s-56-读隶属请求) 读隶属请求 | 调用方 `TenantId` ← S-36 | 无 | `AffiliationRequestId` | `affiliationRequestDoesNotExist` |
 | [`S-57`](../../../capabilities/organization-governance/v1/contract.md#s-57-列出账号收到的待接受邀请) 列出账号收到的待接受邀请 | `AccountId` ← S-17 | 无 | 过滤开关（可选） | 无具名值 |
 | [`S-58`](../../../capabilities/organization-governance/v1/contract.md#s-58-列出组织发出的邀请与隶属请求) 列出组织发出的邀请与隶属请求 | 调用方 `TenantId` ← S-36 | 无 | 过滤开关（可选） | `notAuthorized` |
@@ -685,7 +745,7 @@
 
 **不选 Alloy**：本契约要检查的是次序与映射，是行为；「路由表封闭」「运维面不引用治理能力」是代码结构的事实，由静态检查守，不需要结构模型。
 
-**建 Schema**：[`governance-center-entry.schema.json`](governance-center-entry.schema.json)——信封、四种入口答复、路由结果、登录成功的返回与登录状态列表的项、公开与完整体检、`GovernanceCenterId`、列表句柄；
+**建 Schema**：[`governance-center-entry.schema.json`](governance-center-entry.schema.json)——信封（按 `operation` 判别到 27 条路由各自的载荷）、四种入口答复、路由结果（27 条路由各自的成功返回；按路由核对用 `Exchange`）、公开与完整体检、`GovernanceCenterId`、列表句柄；
 正反实例在 [examples.md](examples.md)。
 
 ### 规范场景
@@ -753,6 +813,7 @@
 | G-4 | **部署参数里 PF-003 的两项（`copyNoticeTtlDefault`、`sharingInvitationTtlDefault`）没有消费它们的契约。**本版照样要值、校验、在完整体检里可见，但没有任何判定用到它们 | 复制通知与分享邀请的契约（尚未立） | 那两份契约立起来并消费它们 |
 | G-5 | **「登录状态效力不变」以「不经备份恢复」为前提。**恢复会带回备份之后撤销的登录状态；[PF-001 flows §3.2](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#32-登录状态) 的「已失效不可回到有效」没有写这个限定 | PF-001 owner（[PF-017 §9](../../../../product/PF-017-governance-center-as-deployable-application/design.md#九未决项) 已登记） | PF-001 owner 认这个读法，或把「恢复后仍保住撤销」提成对备份与恢复的新要求 |
 | G-6 | **中心自身被拆成多个进程之后**，[S-36](#s-36-装配给的保证-vs-协议须给的保证) 各行右列里的新鲜度界、δ 与「够不着某个领域时的收场」未定义 | 架构设计（本版单机，不阻断） | 分布式演化启动时给出，并作为本契约的新版本发布 |
+| G-7 | **27 条路由的线上成员名为本契约首次命名，账本待认可。**参与契约 v1 不发布 Schema，[S-17 的命名表](#路由的线上成员命名表)从各条款 ①／⑤ 的散文推出载荷与返回的成员名。表下列了三类需要特别看的地方：`credential` 的形状推不出；`direction` 的两个取值是首次命名；几处表示是推导来的，其中 `offerTtl`「不是整数」在线上答 `invalid-input`，而 OG S-23 把「不合形状」收成 `invalidOfferDuration` | 主线（命名账本） | 主线认可命名表 |
 
 ## 十四、版本差异与规范工件
 
