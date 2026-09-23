@@ -4,7 +4,7 @@
 # 只绑「对应断言有变异配置证明它会失败」的条款，外加 S-32 的进展性质（前提写明）。
 # 执行记录在契约 verification「实际执行」（2026-09-23，无反例）；原始输出未入 record/evidence。
 # 本节点自己的测试义务 T-1～T-19 一条都还没有（尚未建包），不写占位，登记在 verification.md。
-# 契约 candidate、主责产品依据 PF-017 rev 1 draft：这些绑定不提升任何一层接受状态。
+# 契约 candidate、主责产品依据 PF-017 rev 1 已接受（2026-09-23）：这些绑定不提升任何一层接受状态。
 version: 1
 node: "governance-center-entry"
 kind: "provider"

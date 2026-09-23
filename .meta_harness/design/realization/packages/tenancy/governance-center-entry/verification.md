@@ -5,7 +5,7 @@
 原始配置、输入与运行结果归 [record/evidence](../../../../record/evidence/README.md)，本页只引用并写范围。
 
 > **当前状态：本节点没有任何运行。**`packages/tenancy/governance-center-entry` 尚未建包，下面每一条节点义务都是「未开始」。
-> 契约 `candidate`，主责产品依据 PF-017 rev 1 `draft`；即便测试将来全绿，也不提升语义接受。
+> 契约 `candidate`，主责产品依据 PF-017 rev 1 已接受（2026-09-23）；即便测试将来全绿，也不提升契约的语义接受。
 
 ## 证据义务
 

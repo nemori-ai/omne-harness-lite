@@ -1,7 +1,7 @@
 # governance-center-entry
 
 - kind：`provider`
-- 对象与设计修订：候选节点，2026-09-23 首稿；兑现 `omne-harness-lite-design-2026-09-15 · composition.governance-center-entry · v1`（[契约](../../../../spec/compositions/governance-center-entry/v1/contract.md)，状态 `candidate`，主责产品依据 [PF-017](../../../../product/PF-017-governance-center-as-deployable-application/README.md)（rev 1）仍是 `draft`）。形状依据[提案 `governance-center-entry`](../../../../record/proposals/governance-center-entry/README.md) 的候选 A（候选，未接受）
+- 对象与设计修订：候选节点，2026-09-23 首稿；兑现 `omne-harness-lite-design-2026-09-15 · composition.governance-center-entry · v1`（[契约](../../../../spec/compositions/governance-center-entry/v1/contract.md)，状态 `candidate`，主责产品依据 [PF-017](../../../../product/PF-017-governance-center-as-deployable-application/README.md) rev 1 已接受（2026-09-23））。形状依据[提案 `governance-center-entry`](../../../../record/proposals/governance-center-entry/README.md) 的候选 A（候选，未接受）
 - 源码位置：`packages/tenancy/governance-center-entry`——**尚未建包**。第二层 `tenancy` 是租户领域这个限界上下文的名字（[D-024](../../../../record/decisions/tenancy-domain-name/README.md)）；布局规则见[两层布局](../../../README.md#packages-的两层布局)
 - 契约采用与边界依据：一个包、两个 Cordis 插件，**都不 provide**，都装在装载清单最后、**同起同停**。
   **入口层** `governance-center-entry`（候选名）必需 inject `logins`、`registration`、`organizations`、`memberships`、`offers`、`storage`、`credentials`（只用 `parse`）、`clock`（只在启动时用）：一个 TLS 监听、一张封闭的路由表、判定次序与答复映射、启动时读或铸中心标识；**启动成功以钟可读为条件**——插件体里等 `clock.now()` 可读，上界是装配给的 config `clockReadyTimeoutMs`（候选名），超界即启动失败；
@@ -14,7 +14,7 @@
 
 四项分别陈述，不互相补齐。
 
-- **语义接受范围：无。**契约 `candidate`（catalog 已登记，`acceptance` 为空），PF-017 rev 1 `draft`——本节点依据的每一条都是候选依据。
+- **语义接受范围：契约 candidate、需求已接受。**契约 `candidate`（catalog 已登记，`acceptance` 为空），所以本节点兑现的每一条契约条款仍是候选依据；主责产品依据 PF-017 rev 1 已接受（2026-09-23）。
   参与方里账号能力改用 v2，它是 `candidate`（未接受）；其余四份契约 v1 已由 [D-023](../../../../record/decisions/tenant-domain-design-acceptance/decision.md) 接受（账号能力 v1 也在其中，本节点已不消费它）；采用版本与名字由 D-025、[D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/decision.md) 接受。本节点的设计与它依据的提案都没有被接受
 - **可实施范围**：本节点声称兑现契约 S-1～S-36 中落在入口层与运维面的部分，逐条见 [design.md 的投影表](design.md#能力到-cordis-的投影)；
   并**认领契约的两条缺口**——**G-10 传输绑定的版本化工件**（候选 `https-json/1`，见[传输绑定](design.md#传输绑定将来冻结的工件)，未采用、未冻结）与 **G-11 防冒充的具体手段**（中心一侧：只有 TLS 监听，证书链与私钥是部署配置输入、不是部署密钥，见[防冒充](design.md#防冒充中心一侧的手段与材料)）。

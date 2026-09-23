@@ -511,7 +511,7 @@ disposer 返回之后仍在跑的请求若再遇到缺陷，只写工程记录�
 | N-7 | 结构检查未建：`restricted-call-sites` 加方法限定；「只碰一张表」；运维面导入白名单；不读对端地址；`credentials` 只调 `parse`；只凭出示物认人（[约束](#本节点约束存储要求之外)第 8 条） | 证据缺口 | 契约 SC-1、SC-2；AI v2 S-30「只有 S-44 认出示物」 | `tools/ts-checks`：各加规则与「故意违反就失败」自测 |
 | N-8 | 请求体大小不设上界：契约没有对应的答复，限流与背压是非目标 | 已知风险 | — | 有测量或产品要求再做；做时先给它一个契约答复 |
 | N-9 | 线上形状的 TS 类型（含 `GovernanceCenterId`）先由本包公开入口导出；据点一侧的客户端代理要用时，按[两层布局](../../../README.md#packages-的两层布局)判是否搬进 `core` | 消费者影响 | `apps/cli` 的客户端代理（不在本程） | 那个消费者出现时 |
-| N-10 | 契约 `candidate`、主责产品依据 PF-017 rev 1 `draft`：本页每一处兑现都是候选依据上的候选实现 | 状态 | 一切依赖本节点的接受 | PF-017 接受、契约接受 |
+| N-10 | 契约 `candidate`（主责产品依据 PF-017 rev 1 已接受，2026-09-23）：本页每一处兑现都是候选契约上的候选实现 | 状态 | 一切依赖本节点的接受 | 契约接受 |
 | N-11 | **已闭合（2026-09-23）**：入口契约改钉 AI v2 的修订成文后逐条核对——S-5（交换表示即 S-45 四条）、S-9（句柄即 `LoginStateId`，入口层判它只到 IV S-31）、S-11、S-14（矛盾清单三项）、S-19、S-20（单次调用）、S-36 与 AI v2 相关的三行、G-1 已闭合、Schema `LoginStatePresentation`／`LoginResult`／`loginStateHandle` 引 IV `LoginStateId`。改过来的：出示物的 Schema 不再比 S-45 宽（[对齐义务](#出示物的线上形状对齐义务)）；撤销句柄在载荷那一步过 Schema、不合不调用（S-20 行）；T-5 加契约 S-41 的备份一支、T-11 按契约 S-46 的三种形式搜；bindings 里 S-11 的前提标已核 | — | — | — |
 | N-12 | **已闭合**：开门那一刻的失败回不到装配（开门在插件体之外，钟超界读不到时 fiber 已是 `ACTIVE`，只能不开门、释放端口、记 error、不发 `serving`）。闭合方式：`apps/tenancy-host` 在兑现 `openSignal` 之后有界地等 `serving`，超时即启动失败、不恢复快照（[两步开闸](../../../apps/tenancy-host/design.md#两步开闸就绪与开闸分开)；那边登记为 U-4） | — | — | — |
 | N-13 | **已闭合（设计层）**：账号能力节点已按 AI v2 修订——`logins.exchange`、`issue` 返回 `{ presentation, loginStateId }`、出示物 32 字节 base64url、导出 `parseLoginStatePresentation`；本页已按它对齐。**源码仍是 v1 骨架**，由那个节点的第二程改，受阻的是本节点认人与登录两处的实现 | — | — | — |
