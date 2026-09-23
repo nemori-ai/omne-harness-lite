@@ -8,7 +8,7 @@
 **贯穿全页的事实：源码不存在。**`packages/tenancy/governance-center-entry` 尚未建包；本页的插件名、事件名、配置字段、常量、列名、函数名**一律候选**；
 参与方服务面与方法名沿各 owner 节点的候选（[account-identity](../account-identity/design.md#能力到-cordis-的投影)、
 [organization-governance](../organization-governance/design.md#能力到-cordis-的投影)、[account-registration](../account-registration/design.md#能力到-cordis-的投影)），以那边为准。
-账号能力按 [`capability.account-identity` v2](../../../../spec/capabilities/account-identity/v2/contract.md)（`candidate`）消费；v2 新增的 [S-44 按出示物换取身份](../../../../spec/capabilities/account-identity/v2/contract.md#s-44-按出示物换取身份)在 account-identity 节点里还没有方法名，本页暂写 `logins.exchange`（候选），那个节点按 v2 修订时以它为准。
+账号能力按 [`capability.account-identity` v2](../../../../spec/capabilities/account-identity/v2/contract.md)（`candidate`）消费；v2 新增的 [S-44 按出示物换取身份](../../../../spec/capabilities/account-identity/v2/contract.md#s-44-按出示物换取身份)在 account-identity 节点里是 `logins.exchange`（候选），出示物的表示层解析器 `parseLoginStatePresentation` 与类型 `LoginStatePresentation` 由那个包导出（[那边的 S-45 行](../account-identity/design.md#能力到-cordis-的投影)），名字以那边为准。
 入口契约正由它的起草者改钉 AI v2（条款号不变）；本页已按 AI v2 写，契约成文后逐条核对（[N-11](#实施缺口与消费者影响)）。
 
 ## 实现路径与来源
@@ -23,11 +23,12 @@
 |---|---|---|
 | `@deepseek-ai/cordis` 4.0.4 | fiber、inject、effect、`emit` | [D-025](../../../../record/decisions/cordis-adoption-version/decision.md)；依赖的内核语义见[下文](#依赖的上游机制语义) |
 | [`core/kernel-basis`](../../core/kernel-basis/design.md#能力到-cordis-的投影) | `definePlugin`（config 校验失败 ⇒ 启动失败的唯一实现点）、`fiberIsActive` | 源码已有 |
-| [`core/identity-values`](../../core/identity-values/design.md#实现路径与来源) | `parseOpaqueIdentifier`（出示物按 S-31 的词法判）、`parseLoginStateId`、`parseLoginIdentifier` 等表示层解析；交换表示的 JSON Schema 校验沿它的做法——`ajv` 8.20.0 的 Draft 2020-12 入口、规范 Schema 的逐字节副本加漂移测试 | 源码已有；本包校验本契约的 [Schema](../../../../spec/compositions/governance-center-entry/v1/governance-center-entry.schema.json)（它 `$ref` identity-values 与 offer-expiry 两份 Schema） |
+| [`core/identity-values`](../../core/identity-values/design.md#实现路径与来源) | `parseLoginIdentifier` 等载荷里身份值的表示层解析（**不用 `parseLoginStateId`**：入口层不解析线上的 `LoginStateId`，[约束](#本节点约束存储要求之外)第 8 条）；交换表示的 JSON Schema 校验沿它的做法——`ajv` 8.20.0 的 Draft 2020-12 入口、规范 Schema 的逐字节副本加漂移测试 | 源码已有；本包校验本契约的 [Schema](../../../../spec/compositions/governance-center-entry/v1/governance-center-entry.schema.json)（它 `$ref` identity-values 与 offer-expiry 两份 Schema） |
+| [`tenancy/account-identity`](../account-identity/design.md#能力到-cordis-的投影) 的公开入口 | `parseLoginStatePresentation`（出示物的表示层，S-45 交换表示的全部四条：非空、首末不在 IV S-31 的空白码点表里、是 Unicode 标量值序列（无孤立代理项）、至多 1024 个标量值）；类型 `LoginStatePresentation`、`LoginStateId`（只作类型导入） | 那个节点已按 v2 设计，源码仍是 v1 骨架；包内还有 `logins` 服务本身，那一半经 inject 取得，不经 import |
 | [`core/offer-expiry`](../../core/offer-expiry/design.md#能力到-cordis-的投影) | `instantToRfc3339`（`issuedAt`、`startedAt` 的线上表示）、`Clock` 形状 | 源码已有 |
 | [`core/storage`](../../core/storage/design.md#协议候选形状) 协议 | `storage.write`／`read`、`UniqueViolation`、`StorageUnavailable`、`StorageDefect` | 源码已有；实例由 [`infra/storage-sql`](../../infra/storage-sql/design.md) provide |
 | Node 内置 `node:https`、`node:http`、`node:crypto` | TLS 监听、本机套接字上的 HTTP、128 位随机、SHA-256（只用于工程记录的关联号） | 运行时自带 |
-| 能检出重复键的 JSON 解析 | **对实现的要求**：请求体里任何一层对象的同名成员出现不止一次，都要被检出并报出它的路径（哪一层、哪个成员名）；只用 `JSON.parse` 不满足——它静默取最后一个 | **库未选，无决定**：成熟库优先，找不到合适的再在本包写一个只做这件事的解析器 |
+| 能检出重复键的 JSON 解析 | **对实现的要求**：请求体里任何一层对象的同名成员出现不止一次，都要被检出并报出它的路径（哪一层、哪个成员名）；只用 `JSON.parse` 不满足——它静默取最后一个。另两条：请求体按 UTF-8 **严格**解码（非法字节序列 ⇒ 解析不了，不以 U+FFFD 顶替）；JSON 文法允许的 `\uD800` 一类转义照常解析成字符串，交给出示物那一步判（否则同一个出示物会因解析器不同而得到 `version-mismatch` 或 `login-state-rejected` 两种答复） | **库未选，无决定**：成熟库优先，找不到合适的再在本包写一个只做这件事的解析器 |
 
 **复杂度声明**：没有缓存、队列、重试、连接池、限流。像「机制」的只有三样，都是正确性所需——
 **分派闸**（开门之前与排空开始之后不分派；开门由装配的 `openSignal` 放行；[S-34](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-34-起来即整体停机时在途请求归谁)）、
@@ -135,10 +136,10 @@
 |---|---|---|---|
 | [S-1](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-1-本契约拥有什么)／[S-2](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-2-参与方与精确承诺) 拥有什么、参与方 | 两个插件都不 provide；参与方的面按[上表](#插件边界服务面与三处关键选择) inject；本节点不做任何治理判定，只决定次序、身份交接与答复映射 | 尚未建包；Cordis 4.0.4 | 认人的安全性依赖出示物猜不中——[AI v2 S-45](../../../../spec/capabilities/account-identity/v2/contract.md#s-45-登录状态出示物) 的熵下限（至少 256 位），由账号能力的提供者兑现；`LoginStateId` 在 v2 里不是秘密，本节点不依赖它不可猜测 |
 | [S-4](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-4-请求信封) 信封与传输落地的两条约束 | 入口：整个信封是请求体里的一个 JSON 对象，四个成员只有这一个承载位置（[传输](#传输机制候选)）；解析器报出重复成员后，**按成员各归判定次序的那一步**：`protocolVersion` 重复 ⇒ ① `version-mismatch`；`operation` 重复 ⇒ ①′ `invalid-input`（认人之前）；`payload` 重复 ⇒ 载荷那一步 `invalid-input`（要认人的路由在认出人之后，免认人的在 ①′ 之后）；出示物重复 ⇒ ②「多个出示物」`login-state-rejected`。载荷内部的成员重复与 `payload` 重复同一步收场 | 尚未实现；解析器未选 | 四个顶层成员按契约 S-4 的裁决；载荷内部那一支是本节点的延伸读法（[N-3](#实施缺口与消费者影响)）；T-15 |
-| [S-5](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-5-出示物) 出示物 | 入口：出示物的线上形状由本契约的 Schema 定（IV [S-31](../../../../spec/data/identity-values/v1/contract.md#s-31-不透明标识的交换表示) 码点表内的非空字符串），按 `parseOpaqueIdentifier` 的同一词法判，得到本包内的品牌类型（候选 `Presentation`），**不是 `LoginStateId`**——两者在类型上不能互传；出示物只交给 `logins.exchange`，只活在一次请求处理的局部变量里 | identity-values 源码已有 | 不保存、不进工程记录；T-11。账号能力产出的出示物须落在这个形状里：[对齐义务](#出示物的线上形状对齐义务) |
+| [S-5](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-5-出示物) 出示物 | 入口：出示物的线上形状由本契约的 Schema 定（IV [S-31](../../../../spec/data/identity-values/v1/contract.md#s-31-不透明标识的交换表示) 码点表内的非空字符串），由账号能力包导出的 `parseLoginStatePresentation` 判——那就是 AI S-44 第 1 步用的同一个函数，规则只有一份；只用 `parseOpaqueIdentifier` 不够：孤立代理项与超过 1024 个标量值的值会过它、再在 S-44 得 `invalid-input`，而契约 S-11 写那一支到不了。解析结果是品牌类型 `LoginStatePresentation`，**不是 `LoginStateId`**，两者在类型上不能互传；出示物只交给 `logins.exchange`，只活在一次请求处理的局部变量里 | 解析器在账号能力包的 v2 设计里，源码尚无（N-13） | 不保存、不进工程记录；T-11。账号能力产出的出示物须落在这个形状里：[对齐义务](#出示物的线上形状对齐义务) |
 | [S-6](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-6-四种入口答复)／[S-7](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-7-答复集合闭合) 四种答复、答复闭合 | 入口：四种答复各一份**完整 HTTP 答复的固定字节**（状态行、固定头、体），插件体里构造一次、之后只写出不再拼接；路由结果 `{ result }`／`{ failure }` 由每条路由的映射函数给出，返回类型是封闭联合 | 尚未实现 | 逐字节相同靠[传输](#传输机制候选)的三处固定（无 `Date` 头、固定 `Connection: close`、无随请求变化的头）；T-2。模型只到「同一个答复值」 |
 | [S-8](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-8-协议版本与跨版本不变的两样) 版本、跨版本不变的两样 | 入口：包内常量 `ACCEPTED_PROTOCOL_VERSIONS`；`version-mismatch` 与公开体检的字节序列在本包里各一处定义，改动它们的测试会红（T-2 的固定字节快照） | 尚未实现 | 「字节序列跨协议版本不变」落在哪个传输上，由传输绑定这份有版本的工件定——契约 G-10，本节点认领（[传输机制候选](#传输机制候选)） |
-| [S-9](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-9-列表句柄) 列表句柄 | 入口：**句柄就是 `LoginStateId` 本身**（AI v2 里它是出示物的 SHA-256，[不是秘密](../../../../spec/capabilities/account-identity/v2/contract.md#s-45-登录状态出示物)）：列表项原样给出，撤销按它指认；入口层不派生、不存任何对照 | 无 | T-5 |
+| [S-9](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-9-列表句柄) 列表句柄 | 入口：**句柄就是 `LoginStateId` 本身**（AI v2 里它是出示物的 SHA-256，[不是秘密](../../../../spec/capabilities/account-identity/v2/contract.md#s-45-登录状态出示物)）：列表项原样给出，撤销按它指认（线上的句柄怎么成为 AI S-16 的目标参数受阻，N-14）；入口层不派生、不存任何对照 | 无 | T-5 |
 | [S-10](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-10-判定次序) 判定次序 | 入口：一个请求处理函数按[阶段表](#一个请求在入口层怎么走)顺序写死，每阶段只有「过」与「答」两个出口，没有回跳、没有并行的判定 | 尚未实现 | 绑定（契约模型的 `VersionFirst`、`InputAfterAuth`）；T-3 |
 | [S-11](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-11-认人) 认人 | 入口：没带／多个／表示层不合格 ⇒ 不查即 `login-state-rejected`；否则 `logins.exchange(出示物)`（[AI v2 S-44](../../../../spec/capabilities/account-identity/v2/contract.md#s-44-按出示物换取身份)）：`{ LoginStateId, AccountId }` ⇒ 两样都往下交（本页称「认人所得」）；`login-state-rejected`、`invalid-input` ⇒ `login-state-rejected`；`storage-unavailable` ⇒ `unavailable`；抛出或集合外 ⇒ 缺陷。**入口层永不把线上收到的任何 `LoginStateId` 当作认人依据**：不调 `logins.verify`（AI S-17 只给进程内调用方），此后凡以登录状态为调用方的调用，实参只取认人所得的那一个（[本节点约束](#本节点约束存储要求之外)第 8 条） | 尚未实现 | 绑定（`CannotJudgeIsUnavailable`、`RejectionUniform`，只到值）；T-2、T-3 |
 | [S-12](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-12-身份推导) 身份推导 | 入口：`AccountId` 取 ② 的结果；只对[路由表](#路由到服务方法)标「TenantId」的路由调 `memberships.currentTenant(认人所得 LoginStateId)`；推导结果随这一次请求交下去，不再重取 | 尚未实现 | 载荷没有「以谁的身份」这一格由 Schema 的封闭成员兑现（夹带即表外成员 ⇒ `invalid-input`）；T-6 |
@@ -148,8 +149,8 @@
 | [S-16](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-16-不记住来访不区别对待来者) 不区别对待来者 | 入口：请求处理不读对端地址、不读除承载信封所需之外的任何头 | 尚未实现 | 候选文本规则：本包源码不出现 `remoteAddress`、`x-forwarded-for` 一类读取（[结构检查](#本节点约束存储要求之外)）；T-16 |
 | [S-17](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-17-路由表封闭每条路由的九件事从哪读) 路由表封闭 | 入口：一个字面量对象，键恰为 27 条路由标识；值是该路由的阶段配置与一个调用函数（[下表](#路由到服务方法)）。**没有按名字解析服务或方法的代码** | 尚未实现 | T-1：路由表的键集合等于 Schema `EnvelopeRouteId` 的枚举；入口层除启动时铸标识外不提交任何东西，逐条核对见[提交点](#提交点入口层在路由上不提交任何东西) |
 | [S-18](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-18-公开体检) 公开体检 | 入口：阶段 0；答复是插件体在标识载入后构造的固定字节 `{ reachable: true, centerId, version }`；不看版本、不看出示物、不读存储、不读钟 | 尚未实现 | 未绑定：`HealthUnconditional` 没有变异证明它会失败；T-8 末项、T-2 |
-| [S-19](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-19-免认人的两条路由注册登录) 注册、登录 | 入口：表示层 = Schema `Payload_AR_S8`／`Payload_AI_S15`（`credential` 只约束为非空字符串）+ `parseLoginIdentifier` + `credentials.parse`；任一不过 ⇒ `invalid-input`，不交进去；合格才调 `registration.register`／`logins.issue`；出示物不看。登录成功时 `logins.issue` 返回 `{ 出示物, LoginStateId }`（[AI v2 S-15](../../../../spec/capabilities/account-identity/v2/contract.md#s-15-验证凭据并签发登录状态)），线上写成 `{ loginState: 出示物, loginStateHandle: LoginStateId }`，入口层不另算任何东西 | 尚未实现 | 未绑定（`ExemptIgnoresPresentation`、`ExemptInputWithoutLookup` 无变异）；T-10、T-17 |
-| [S-20](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-20-登录状态的两条路由撤销列出) 撤销、列出 | 入口：列出 = `logins.listEffective(认人所得 LoginStateId)` → 每项原样写成 `{ loginStateHandle: loginStateId, issuedAt }`；撤销 = 载荷里的句柄过 `parseLoginStateId` 后作目标，`logins.revoke(目标, 认人所得 LoginStateId)`，**一次调用**，不先列出、不匹配。目标不存在或属于别的账号由 AI S-16 自己答 `login-state-not-found` | 尚未实现 | T-5 |
+| [S-19](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-19-免认人的两条路由注册登录) 注册、登录 | 入口：表示层 = Schema `Payload_AR_S8`／`Payload_AI_S15`（`credential` 只约束为非空字符串）+ `parseLoginIdentifier` + `credentials.parse`；任一不过 ⇒ `invalid-input`，不交进去；合格才调 `registration.register`／`logins.issue`；出示物不看。登录成功时 `logins.issue` 返回 `{ presentation, loginStateId }`（[AI v2 S-15](../../../../spec/capabilities/account-identity/v2/contract.md#s-15-验证凭据并签发登录状态)），线上写成 `{ loginState: 出示物, loginStateHandle: LoginStateId }`，入口层不另算任何东西 | 尚未实现 | 未绑定（`ExemptIgnoresPresentation`、`ExemptInputWithoutLookup` 无变异）；T-10、T-17 |
+| [S-20](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-20-登录状态的两条路由撤销列出) 撤销、列出 | 入口：列出 = `logins.listEffective(认人所得 LoginStateId)` → 每项原样写成 `{ loginStateHandle: loginStateId, issuedAt }`；撤销 = `logins.revoke(目标, 认人所得 LoginStateId)`；**目标从哪来受阻（[N-14](#实施缺口与消费者影响)）**：入口契约 S-20 写「目标 = 载荷里的句柄，原样交给 AI S-16，不先列出、不匹配」，而 AI v2 S-16 写「两个 LoginStateId 都按来源读，不得来自线上」，账号能力节点据此把目标参数收窄为品牌 `LoginStateId`，本节点约束第 8 条又不许解析或断言出这个品牌——线上的句柄到目标参数没有一条两边都允许的路径。本节点不选，等两份契约对齐 | 尚未实现；撤销那一半受阻 | T-5 |
 | [S-21](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-21-组织治理写路由)～[S-23](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-23-当前租户身份的两条路由) 组织治理与当前租户身份路由 | 入口：[路由到服务方法](#路由到服务方法)逐行 | 尚未实现 | T-10（27 条路由每个可达失败值） |
 | [S-24](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-24-有意不投影) 有意不投影 | 入口：路由表里没有它们；本包源码不出现 `accounts`、`organization-purge`、`.produce(`、`createPersonal(`、`activate(`、`purge(`、`sweepStaleSelections(` | 尚未实现 | 契约 SC-1；`restricted-call-sites` 已扫 `packages/`、本包在内，三个方法限定待加（[verification](verification.md#证据义务)） |
 | [S-25](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-25-运维面只在中心所在的机器上且没有治理路由) 运维面 | 运维：`socketDirectory` 下一个 Unix 域套接字上的 HTTP；**不看请求内容，任何请求都答完整体检**——没有路由，也就没有第二个操作；只在 `serving` 与 `stopped` 之间应答（与客户端一面同起同停）；不写任何持久事实 | 尚未实现 | 契约 SC-2 由[导入白名单](#本节点约束存储要求之外)兑现；T-9 |
@@ -159,7 +160,7 @@
 | [S-29](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-29-秘密不进任何输出) 秘密不进输出 | 两个插件：输出只有四种答复、路由结果、两种体检、工程记录、启动失败说明；出示物只出现在登录成功的 `result.loginState`；启动失败说明只写阶段与错误类型，不写任何 PEM 或 config 值 | 尚未实现 | TLS 私钥不在 S-29 列举之列，本节点照秘密处理；T-11 |
 | [S-30](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-30-工程记录) 工程记录 | 入口：每个请求一条结构化记录（[字段](#工程记录)），经装配给定的日志汇；账号与租户只以关联号出现；`unavailable` 记的是**入口层自己观察到的失败值**——哪一次调用、参与方给出的哪个值——不推断它背后是存储还是钟 | 尚未实现；日志汇归装配 | T-11 |
 | [S-31](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-31-不变量与安全性质) 性质表 | 各行的保护点即本表其余各行 | — | — |
-| [S-32](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-32-进展性质与前提) 进展 | 入口：不排队、不重试、不等待前提恢复；一个请求的领域调用有上界——认人一次、推导至多一次、补授权至多两次、办事一次，推导与补授权不在同一条路由上出现 | 尚未实现 | 绑定（`EventuallyAnswered`，前提写在绑定里） |
+| [S-32](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-32-进展性质与前提) 进展 | 入口：不排队、不重试、不等待前提恢复；一个请求的领域调用有上界——认人一次、推导至多一次、补授权至多两次、办事一次（撤销路由若按 N-14 的另一种收法取目标，则是列表加撤销两次），推导与补授权不在同一条路由上出现 | 尚未实现 | 绑定（`EventuallyAnswered`，前提写在绑定里） |
 | [S-33](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-33-认出人之后登录状态被撤销) 认出人之后被撤销 | 入口：映射表里 OG S-36／S-37 的 `loginStateNotValid`、AI S-37 的 `login-state-rejected`、AI S-16 的 `not-authorized` 一律写出 `login-state-rejected` 的**同一份固定字节** | 尚未实现 | 绑定（`LateRevocationUniform`，只到值）；T-2 第七次 |
 | [S-34](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-34-起来即整体停机时在途请求归谁) 起来即整体、停机 | 入口：inject 全部消费面 + 装在最后 + 插件体只做到就绪（端口绑好不受理、标识载入、钟可读，超界即启动失败），分派闸等装配的 `openSignal` 兑现、开门那一刻读钟并通知之后才开；撤除在**一个 effect** 里「关闸并通知 → 停止接受连接 → 有界等在途 → 关闭」，未开门时直接释放端口；运维面随 `serving`／`stopped` 同起同停 | 尚未实现 | basis [`inject-has-no-optional-form`](../../../../basis/cordis/inject-has-no-optional-form.md)、[`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)、[`effect-disposal-concurrent-not-ordered`](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)；契约 V-15 归装配与本节点；T-12 |
 | [S-35](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-35-内核不提供由本契约兑现的表) 内核不提供的部分 | 跨进程身份：S-11～S-13 各行；权限边界：S-25 行与导入白名单；有序清理与时序：S-34 行；持久化：S-28 行 | — | — |
@@ -195,8 +196,8 @@
 | 路由 | 推导 | 补授权 | 调用 |
 |---|---|---|---|
 | AR S-8 注册 | — | — | `registration.register(loginIdentifier, credential)` |
-| AI S-15 登录 | — | — | `logins.issue(loginIdentifier, credential)` → `{ 出示物, LoginStateId }` |
-| AI S-16 撤销 | LoginStateId | — | `logins.revoke(载荷 loginStateHandle, LoginStateId)` |
+| AI S-15 登录 | — | — | `logins.issue(loginIdentifier, credential)` → `{ presentation, loginStateId }` |
+| AI S-16 撤销 | LoginStateId | — | `logins.revoke(目标, LoginStateId)`；目标怎么从载荷 `loginStateHandle` 得来受阻（N-14） |
 | AI S-37 列出 | LoginStateId | — | `logins.listEffective(LoginStateId)` |
 | OG S-21 | AccountId | — | `organizations.createTeam(accountId, creationKey?)` |
 | OG S-22 | — | 载荷里的组织 | `organizations.read(organization)` |
@@ -320,8 +321,9 @@
 
 出示物在线上的形状归本契约的 Schema：[IV S-31](../../../../spec/data/identity-values/v1/contract.md#s-31-不透明标识的交换表示) 码点表内的非空字符串（首末不是那张表列出的空白码点，逐码点比较）；
 [AI v2 S-45](../../../../spec/capabilities/account-identity/v2/contract.md#s-45-登录状态出示物) 只定它「高熵、不透明、交换表示同 S-31」，字母表与长度留给实现。
-**对齐义务**：[account-identity 节点](../account-identity/design.md#能力到-cordis-的投影)按 v2 修订时选定的出示物表示（候选 base64url：`A`–`Z`、`a`–`z`、`0`–`9`、`-`、`_`，不带填充）必须落在这个形状里——
+**对齐义务**：[account-identity 节点](../account-identity/design.md#能力到-cordis-的投影)选定的出示物表示（候选：32 字节随机的 base64url，`A`–`Z`、`a`–`z`、`0`–`9`、`-`、`_`，不带填充，43 个字符）必须落在这个形状里——
 base64url 的字母表里没有空白码点，候选本身满足；将来那边换表示，要先核这一条。本节点这一侧的证据是 T-10：登录成功答复连同 `operation` 过 `Exchange`，其中 `loginState` 过出示物的 Schema。
+**入口 Schema 的出示物形状比 S-45 的交换表示宽**：Schema 只要求 S-31 码点表内的非空字符串，S-45 还要求无孤立代理项、至多 1024 个标量值。账号能力签发的 43 个字符的 base64url 两边都过，对齐成立；Schema 挡不住的那两类由第 ② 步的 `parseLoginStatePresentation` 挡（不查即 `login-state-rejected`）。Schema 收不收紧到 S-45 归契约，本节点不改。
 
 ## 工程记录的关联号
 
@@ -352,7 +354,7 @@ base64url 的字母表里没有空白码点，候选本身满足；将来那边�
 
 | 消费的精确契约 | 实际提供者／解析方式与范围 | 工作中绑定与变更生效点 | 缺席、撤回和旧引用政策 |
 |---|---|---|---|
-| [`capability.account-identity/v2`](../../../../spec/capabilities/account-identity/v2/contract.md) S-15、S-16、S-37、S-44、S-45（`candidate`，未接受；v1 由 [D-023](../../../../record/decisions/tenant-domain-design-acceptance/decision.md) 接受，本节点不再消费 v1）；**不消费 S-17** | 入口必需 inject `logins`（[account-identity](../account-identity/README.md)；那个节点仍按 v1 写，按 v2 修订之前 `logins.exchange` 不存在） | 换代 ⇒ 入口层卸载重跑（[`plugin-body-reruns-on-provider-change`](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)）：门随旧实例关上、新实例重新绑定并重读标识；在途请求握着旧引用，按旧实例的返回收场 | 缺席 ⇒ 入口层 `PENDING`，客户端一面不应答（问不到）；装配启动时把它判为清单错误 |
+| [`capability.account-identity/v2`](../../../../spec/capabilities/account-identity/v2/contract.md) S-15、S-16、S-37、S-44、S-45（`candidate`，未接受；v1 由 [D-023](../../../../record/decisions/tenant-domain-design-acceptance/decision.md) 接受，本节点不再消费 v1）；**不消费 S-17** | 入口必需 inject `logins`（[account-identity](../account-identity/README.md)；那个节点的设计已按 v2 修订，源码骨架仍是 v1，没有 `exchange`）；出示物解析器与两个类型经那个包的公开入口 import | 换代 ⇒ 入口层卸载重跑（[`plugin-body-reruns-on-provider-change`](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)）：门随旧实例关上、新实例重新绑定并重读标识；在途请求握着旧引用，按旧实例的返回收场 | 缺席 ⇒ 入口层 `PENDING`，客户端一面不应答（问不到）；装配启动时把它判为清单错误 |
 | 同上契约的凭据那一半（v2 S-8，与 v1 逐字相同） | 入口必需 inject `credentials`（[credential-verification](../credential-verification/README.md)），只调 `parse` | 换代 ⇒ 入口层卸载重跑，同 `logins` | 同 `logins` |
 | `capability.organization-governance/v1` 十七个操作与六个读面（`accepted`） | 入口必需 inject `organizations`、`memberships`、`offers`（[organization-governance](../organization-governance/README.md)）；**不** inject `organization-purge` | 同 `logins` | 同 `logins` |
 | `composition.account-registration/v1` S-8（`accepted`） | 入口必需 inject `registration`（[account-registration](../account-registration/README.md)） | 同上 | 同上 |
@@ -387,7 +389,7 @@ base64url 的字母表里没有空白码点，候选本身满足；将来那边�
 | 5 | 运维面目录只按白名单导入（`kernel-basis`、`storage` 协议、`offer-expiry`、Node 内置、本包的事件声明模块），事件声明模块本身不导入任何 `tenancy/*` 包 | S-25、契约 SC-2 | 候选文本规则；白名单让传递导入图有界，现有规则形式就查得了 |
 | 6 | 工程记录与启动失败说明不含出示物、凭据材料、PEM、任何 config 值、载荷里的值、对端地址 | S-29、S-30 | T-11 |
 | 7 | 对 `credentials` 只调 `parse`；`derive`、`verify`、`checkPolicy` 只由账号能力调用 | S-19（同源的表示层校验，不是凭据判定） | 候选文本规则：本包源码不出现这三个方法的调用 |
-| 8 | **只凭出示物认人**：入口层永不把线上收到的任何 `LoginStateId`（载荷里的句柄、或任何成员）当作认人依据；认人只走 `logins.exchange`，不调 `logins.verify`；以登录状态为发起方或调用方的四处调用（`logins.listEffective`、`logins.revoke` 的发起方、`memberships.currentTenant`、`memberships.switchCurrentTenant`）的实参只取认人所得的那一个 | S-11；[AI v2 S-30](../../../../spec/capabilities/account-identity/v2/contract.md#s-30-装配给的保证-vs-协议须给的保证)「只有 S-44 认出示物」一行 | 类型 + 候选文本规则：认人所得的值是 ② 阶段模块里私有构造的一个类型（候选 `Caller { loginStateId, accountId }`），路由调用函数只从它取发起方；规则查本包源码不出现 `.verify(` 对 `logins` 的调用、`Caller` 的构造只在 ② 阶段模块一处；另有 T-5 的「拿句柄当出示物」一支 |
+| 8 | **只凭出示物认人**：入口层永不把线上收到的任何 `LoginStateId`（载荷里的句柄、或任何成员）当作认人依据；认人只走 `logins.exchange`，不调 `logins.verify`；以登录状态为发起方或调用方的四处调用（`logins.listEffective`、`logins.revoke` 的发起方、`memberships.currentTenant`、`memberships.switchCurrentTenant`）的实参只取认人所得的那一个 | S-11；[AI v2 S-30](../../../../spec/capabilities/account-identity/v2/contract.md#s-30-装配给的保证-vs-协议须给的保证)「只有 S-44 认出示物」一行 | 类型 + 候选文本规则：认人所得的值是 ② 阶段模块里私有构造的一个类型（候选 `Caller { loginStateId, accountId }`），路由调用函数只从它取发起方；规则查本包源码：不出现 `.verify(` 对 `logins` 的调用、**不 import `parseLoginStateId`、不出现 `as LoginStateId` 断言**、`Caller` 的构造只在 ② 阶段模块一处。后两项与账号能力节点把 S-16／S-17／S-37 的参数收窄为品牌 `LoginStateId` 合起来，本包手里的 `LoginStateId` 就只能来自 S-15、S-44、S-37 的返回（[那边的选择](../account-identity/design.md#v2-的四处选择)）；撤销目标因此受阻（N-14）。另有 T-5 的「拿句柄当出示物」一支 |
 
 ## 状态、并发与失败映射
 
@@ -400,7 +402,7 @@ base64url 的字母表里没有空白码点，候选本身满足；将来那边�
 
 | 路由类 | 入口层的读与领域的提交之间可能插进什么 | 收场 | 需要共同存储对象吗 |
 |---|---|---|---|
-| 撤销（② AI S-44 读 → AI S-16 写） | 目标在别处被撤 | S-16 幂等答 `ok`——这次撤销要的状态已成立（契约 S-20 末段） | 否：S-16 在自己那一次提交里重判发起方有效、目标存在与归属 |
+| 撤销（② AI S-44 读 → AI S-16 写；按 S-20 现行写法，N-14 未定） | 目标在别处被撤 | S-16 幂等答 `ok`——这次撤销要的状态已成立（契约 S-20 末段） | 否：S-16 在自己那一次提交里重判发起方有效、目标存在与归属 |
 | 同上 | 出示的那一个被撤 | S-16 答 `not-authorized` ⇒ `login-state-rejected`（S-33） | 否，同上 |
 | 补授权（OG S-26 读 → 被投影的读） | 调用方在该组织里被解除 | 这一次读照常答出——准入在闸上已通过，与 S-33 同一口径；下一个请求在闸上被拒 | 否：两步都是纯读，契约不要求同一快照 |
 | 推导（OG S-36 读 → 领域写） | 当前租户身份被切换 | 以请求到达时推导出的那一个行事（契约 S-12、[`data.identity-values/v1#S-28`](../../../../spec/data/identity-values/v1/contract.md#s-28-当前租户身份在创建那一刻捕获)） | 否：领域在自己的提交里按它收到的身份判授权 |
@@ -408,7 +410,7 @@ base64url 的字母表里没有空白码点，候选本身满足；将来那边�
 
 入口层唯一的写是启动时那一次读或铸，只一个写者（本包），它的两条交错见[上文](#中心标识迁移片段与读或铸)。
 
-**失败映射**：S-14 的表逐格写进每条路由的 `switch`；「交给领域的输入里没有来自载荷的项」那一行（领域答表示层不合格 ⇒ 缺陷）按[路由表](#路由到服务方法)逐条标出：OG S-27、S-36，AI S-37；补授权那几次读的 `invalidInput` 也是缺陷，由契约 S-13 单列。**撤销路由不在其列**：目标来自载荷里的句柄，S-16 的 `invalid-input` 照「有来自载荷的项」那一行答 `invalid-input`。
+**失败映射**：S-14 的表逐格写进每条路由的 `switch`；「交给领域的输入里没有来自载荷的项」那一行（领域答表示层不合格 ⇒ 缺陷）按[路由表](#路由到服务方法)逐条标出：OG S-27、S-36，AI S-37；补授权那几次读的 `invalidInput` 也是缺陷，由契约 S-13 单列。**撤销路由按入口契约 S-20 的现行写法不在其列**：目标来自载荷里的句柄，S-16 的 `invalid-input` 照「有来自载荷的项」那一行答 `invalid-input`；N-14 若改成目标取自列表，这一格随之变成缺陷。
 
 **配置错误**：两个插件的 config 全部经 `definePlugin` 的 Config 校验；证书与私钥解析不了、套接字目录不存在或权限不对、残留套接字有人在听，都在插件体里抛出。一律 ⇒ `FAILED` ⇒ 装配整体启动失败，与同批节点一个政策（T-14）。
 
@@ -510,7 +512,8 @@ disposer 返回之后仍在跑的请求若再遇到缺陷，只写工程记录�
 | N-10 | 契约 `candidate`、主责产品依据 PF-017 rev 1 `draft`：本页每一处兑现都是候选依据上的候选实现 | 状态 | 一切依赖本节点的接受 | PF-017 接受、契约接受 |
 | N-11 | **入口契约改钉 AI v2 的修订在途**（条款号不变）：本页已按 AI v2 写，而契约与 Schema 此刻仍是 v1 的说法——S-5「出示物就是一个 `LoginStateId`」、S-9 句柄由 `LoginStateId` 派生、S-11 调 AI S-17、S-14 矛盾清单第 ③ 项「按句柄匹配到不止一项」、S-19 登录结果、S-20 撤销经句柄匹配、S-36「出示物不可伪造」行、G-1，以及 Schema 的 `presentedLoginState`、`LoginStateHandle`、`LoginResult` | 契约与节点暂时不一致 | 本节点的 T-5、T-10、T-15 的期望值；bindings 里 S-11 那条的前提 | 契约起草者：修订成文后本节点逐条核对，名字或收场不同处以契约为准 |
 | N-12 | **开门那一刻的失败回不到装配**：开门发生在插件体之外，钟在那一刻超界读不到时 fiber 已是 `ACTIVE`，只能不开门、释放端口、记 error、不发 `serving` | 机制限制 | 运维者（装配若不等 `serving`，会把没起来的中心报成起来了） | `apps/tenancy-host`：兑现 `openSignal` 之后等 `serving`、有上界，等不到按启动失败收场（[归装配](#归装配的事项)） |
-| N-13 | **账号能力节点尚未按 AI v2 修订**：S-44 没有方法名（本页暂写 `logins.exchange`）、`logins.issue` 仍只返回 `LoginStateId`、出示物的表示（候选 base64url）未定 | 依赖他节点 | 本节点的认人、登录两处实现；[对齐义务](#出示物的线上形状对齐义务) | account-identity 节点：按 v2 修订，方法名与表示以那边为准；表示须落在本契约 Schema 的出示物形状里 |
+| N-13 | **已闭合（设计层）**：账号能力节点已按 AI v2 修订——`logins.exchange`、`issue` 返回 `{ presentation, loginStateId }`、出示物 32 字节 base64url、导出 `parseLoginStatePresentation`；本页已按它对齐。**源码仍是 v1 骨架**，由那个节点的第二程改，受阻的是本节点认人与登录两处的实现 | — | — | — |
+| N-14 | **撤销目标：两份契约对不上**。入口契约 [S-20](../../../../spec/compositions/governance-center-entry/v1/contract.md#s-20-登录状态的两条路由撤销列出)（在途修订稿）：目标 = 载荷里的 `loginStateHandle`，原样交给 AI S-16，只有一次领域调用、不先读列表、不做匹配。[AI v2 S-16](../../../../spec/capabilities/account-identity/v2/contract.md#s-16-撤销登录状态) 第 1 格（在途修订稿）：「两个 LoginStateId 都按来源读——须来自 S-15／S-44／S-37 的结果或治理契约以它为键的记录，不得来自线上」。账号能力节点据后者把目标参数收窄为品牌类型，本节点约束第 8 条据它不许解析或断言出品牌。**影响提交点**：照 AI 那边，目标只能取自一次 S-37 的现读，撤销路由变成「读列表 → 匹配 → 写」，与入口契约「只有一次领域调用」相左 | 契约冲突 | 撤销路由（T-5 撤销那几支、T-10 撤销那一行）；据点一侧「在列表上撤销」与「退出」 | 两份契约的 owner（主线裁）：要么 AI S-16 把「按来源读」限在发起方、目标只作对象引用（账号能力节点随之给出一条合法的目标入口），要么入口契约 S-20 改成目标取自列表；本节点不选 |
 
 **消费者影响**：`apps/tenancy-host` 要按[归装配](#归装配的事项)修订（含 `openSignal` 的兑现时机与等 `serving`）；`apps/cli` 的两条待立边改指本节点兑现的契约；
 参与方的服务面方法名一旦在 owner 节点改动，[路由到服务方法](#路由到服务方法)跟着改，契约不动。
