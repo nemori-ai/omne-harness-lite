@@ -1313,18 +1313,28 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
         expectEntry(e, 'login-state-rejected')
         expect(sha256(e.wire.received), label).toBe(FIXED_SHA256['login-state-rejected'])
       }
-      for (const presentation of [undefined, login('ada3').presentation, foreign])
-        expectEntry(
-          await call(
-            cA,
-            'createOrganization',
-            {},
-            presentation,
-            'write route while not recognised',
-          ),
-          'login-state-rejected',
-        )
+      // PF-017 §一 第 10 行：什么都没带（以及已撤销、别的中心的）就要建组织、发邀请
+      const issued = async () =>
+        asArray(
+          asRecord(
+            expectResult(await as('ada1', 'listIssuedOffers', { includeConcluded: true })),
+            'issued',
+          )['invitations'],
+          'invitations',
+        ).length
+      const issuedBefore = await issued()
+      const writes: [RouteName, Record<string, unknown>][] = [
+        ['createOrganization', {}],
+        ['invite', { invitedAccount: personal('cy').account }],
+      ]
+      for (const [route, payload] of writes)
+        for (const presentation of [undefined, login('ada3').presentation, foreign])
+          expectEntry(
+            await call(cA, route, payload, presentation, `${route} while not recognised`),
+            'login-state-rejected',
+          )
       expect(await myTenants('ada1')).toEqual(tenantsBefore)
+      expect(await issued()).toBe(issuedBefore)
     })
 
     it('[PF-017 §一「已撤销的登录状态来」] 账号、组织、成员资格原样都在；重新登录得到一个新的登录状态', async () => {
@@ -1778,6 +1788,7 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
         ),
       ).toBe('registered')
       logins.set('erin1', await logIn(cA, account('erin'), 'erin: login'))
+      tenants.set('erin', asTenantId(expectResult(await as('erin1', 'currentTenant'))))
       expectResult(await as('ada1', 'myTenants'))
       await stopA()
       const run = await serveFails('deployment-key-lost', envOf(dA))
@@ -1865,7 +1876,7 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
 
     let backupDir = ''
 
-    it('[PF-017 §一「运维者从备份恢复」] 恢复出来的还是原来那个中心；备份之后签发的不作数、注册的不在；备份之后撤销的又有效、移出的成员又回来了', async () => {
+    it('[PF-017 §一「运维者从备份恢复」] 恢复出来的还是原来那个中心；备份之后签发的不作数，注册、邀请、加入都不在；备份之后撤销的又有效、移出的成员又回来了', async () => {
       scenario('pf017-backup-restore')
       await stopA()
       backupDir = join(root, 'backup')
@@ -1889,6 +1900,10 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
       expect(
         expectResult(await as('ada1', 'removeMember', { targetTenant: tenants.get('X:frank') })),
       ).toBe('ok')
+      const lateInvitation = await invite('ada1', 'erin')
+      const joined = asTenantId(
+        expectResult(await as('erin1', 'acceptInvitation', { invitation: lateInvitation })),
+      )
       await stopA()
       for (const suffix of ['', '-wal', '-shm']) rmSync(`${dA.dbFile}${suffix}`, { force: true })
       for (const suffix of files)
@@ -1914,6 +1929,17 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
       ).toEqual({
         standing: 'effective',
         role: 'member',
+      })
+      // 备份之后的邀请与加入都不在了
+      expectFailure(
+        await as('erin1', 'readInvitation', {
+          invitation: lateInvitation,
+          callerIdentityKind: 'account',
+        }),
+        'invitationDoesNotExist',
+      )
+      expect(expectResult(await as('ada1', 'membershipStanding', { tenant: joined }))).toEqual({
+        standing: 'ineffective',
       })
     })
 
