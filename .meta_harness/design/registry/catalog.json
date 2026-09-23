@@ -444,6 +444,37 @@
           "rebase_relation": null
         }
       ]
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "data.content-blocks",
+        "version": 1
+      },
+      "family": "data",
+      "topic": "content-blocks",
+      "status": "candidate",
+      "contract_path": "spec/data/content-blocks/v1/contract.md",
+      "resources": [
+        "spec/data/content-blocks/v1/contract.md",
+        "spec/data/content-blocks/v1/content-blocks.schema.json",
+        "spec/data/content-blocks/v1/examples.md"
+      ],
+      "acceptance": null,
+      "dependencies": [
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.identity-values",
+            "version": 1
+          },
+          "clauses": [
+            "S-31",
+            "S-34"
+          ],
+          "rebase_relation": null
+        }
+      ]
     }
   ]
 }

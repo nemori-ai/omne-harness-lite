@@ -2785,7 +2785,151 @@
       },
       "reviewed": false,
       "note": "2026-09-23 起草登记：「你不在这个组织里」「这个登录已经不在有效之列」两条反馈的线上落点。未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-009-context-message-types", "clause": "design.md#消息的内容是一串块不是一段文本" },
+      "target": { "contract_id": "data.content-blocks", "version": 1, "clauses": ["S-1", "S-11"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-009-context-message-types", "clause": "design.md#每个块带两个标注给人看吗给模型看吗" },
+      "target": { "contract_id": "data.content-blocks", "version": 1, "clauses": ["S-4"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-009-context-message-types", "clause": "design.md#611-每个块都带给人看--给模型看两个标注" },
+      "target": { "contract_id": "data.content-blocks", "version": 1, "clauses": ["S-4"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-009-context-message-types", "clause": "design.md#半截的工具调用记下来但不给模型看" },
+      "target": { "contract_id": "data.content-blocks", "version": 1, "clauses": ["S-12", "S-13"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-009-context-message-types", "clause": "design.md#工具调用的参数收齐了才算数" },
+      "target": { "contract_id": "data.content-blocks", "version": 1, "clauses": ["S-12", "S-13"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-009-context-message-types", "clause": "design.md#610-没收齐的工具调用参数不解析不执行" },
+      "target": { "contract_id": "data.content-blocks", "version": 1, "clauses": ["S-12", "S-13"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-009-context-message-types", "clause": "design.md#66-内容是块不在进日志时压成文本" },
+      "target": { "contract_id": "data.content-blocks", "version": 1, "clauses": ["S-19"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-010-context-management-and-assembly", "clause": "design.md#那两个标注仍然是这件事的前提" },
+      "target": { "contract_id": "data.content-blocks", "version": 1, "clauses": ["S-4", "S-22"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-010-context-management-and-assembly", "clause": "design.md#要求二成分必须是明确标了给模型读的" },
+      "target": { "contract_id": "data.content-blocks", "version": 1, "clauses": ["S-4", "S-5", "S-26"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-010-context-management-and-assembly", "clause": "design.md#62-没有明确标了给模型读的不进模型那一份" },
+      "target": { "contract_id": "data.content-blocks", "version": 1, "clauses": ["S-4", "S-5", "S-26"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-013-model-profiles-and-invocation", "clause": "design.md#模态" },
+      "target": { "contract_id": "data.content-blocks", "version": 1, "clauses": ["S-6", "S-7", "S-10", "S-11"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-013-model-profiles-and-invocation", "clause": "design.md#转换件" },
+      "target": { "contract_id": "data.content-blocks", "version": 1, "clauses": ["S-19", "S-20"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-013-model-profiles-and-invocation", "clause": "design.md#511-有-transcript-的块不再把任何模型挡在外面" },
+      "target": { "contract_id": "data.content-blocks", "version": 1, "clauses": ["S-19", "S-20"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-006-tools-and-skills", "clause": "design.md#55-一次工具执行的收场有六种" },
+      "target": { "contract_id": "data.content-blocks", "version": 1, "clauses": ["S-15", "S-17"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-006-tools-and-skills", "clause": "design.md#占位消息一律要说清原因" },
+      "target": { "contract_id": "data.content-blocks", "version": 1, "clauses": ["S-18"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-006-tools-and-skills", "clause": "design.md#停机之后它不重来" },
+      "target": { "contract_id": "data.content-blocks", "version": 1, "clauses": ["S-18"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-006-tools-and-skills", "clause": "design.md#它的宿主是谁决定了什么会带走它" },
+      "target": { "contract_id": "data.content-blocks", "version": 1, "clauses": ["S-18"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖一部分：该节「这一次运行被取消而它还在前台」那个被中断的触发源在 S-18 里没有原因取值，S-18 点名为缺口 G-2——那一部分为让缺口可见而登，不表示已覆盖"
+    },
+    {
+      "requirement": { "topic": "PF-006-tools-and-skills", "clause": "design.md#工具的产出" },
+      "target": { "contract_id": "data.content-blocks", "version": 1, "clauses": ["S-11", "S-15", "S-21"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-006-tools-and-skills", "clause": "design.md#卸载" },
+      "target": { "contract_id": "data.content-blocks", "version": 1, "clauses": ["S-11", "S-15", "S-21"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#slash-command" },
+      "target": { "contract_id": "data.content-blocks", "version": 1, "clauses": ["S-8"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只支撑 S-8 的前提（② 型展开成块、参数另成一块）；来路标记本身的裁决尚无设计链落点，见该契约 G-6"
+    },
+    {
+      "requirement": { "topic": "PF-002-assets-settings-and-permissions", "clause": "design.md#身份是类别--name其余归实现" },
+      "target": { "contract_id": "data.content-blocks", "version": 1, "clauses": ["S-20"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-001-identity-scope-and-agent-constraints", "clause": "design.md#范围化对象" },
+      "target": { "contract_id": "data.content-blocks", "version": 1, "clauses": ["S-20"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-012-agent-loop-and-run", "clause": "design.md#会话日志" },
+      "target": { "contract_id": "data.content-blocks", "version": 1, "clauses": ["S-14", "S-22"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": { "topic": "PF-012-agent-loop-and-run", "clause": "design.md#52-会话日志是唯一的真相来源" },
+      "target": { "contract_id": "data.content-blocks", "version": 1, "clauses": ["S-14", "S-22"] },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
     }
   ],
-  "note": "2026-09-22 首次登记，覆盖租户相关领域五份 candidate 契约。每条的 clauses 由两处合并得出：契约正文里带小节链接的条款段落，以及各契约「性质」表的「来源」列。全部 reviewed=false——这是「声称覆盖但尚未逐条复核」的诚实初值，不是复核通过。三处已知不完整，登记时一并记明，不靠留白掩盖：（1）PF-007 也被 data.identity-values 与 capability.organization-governance 的正文引为来源（§4 一笔授权表达有三个维度），本次登记范围只含 PF-001/002/003/015，因此 PF-007 一条未登；（2）foundation 的 SYS-TENANT / SYS-DEPLOY 是全局约束不是产品条款，本清单只登记 PF- 侧，那一侧的覆盖没有家；（3）契约正文里以散文方式引用产品要求、没有给出小节链接的地方，本次登记抓不到。 2026-09-22 评审轮一修订后补登 18 处（见各行 note）。data.identity-values/v1#S-35「交接凭证」没有产品出处（规格层构造），有意不登记 cover。 2026-09-23 补登 composition.governance-center-entry v1（candidate）40 条：PF-017（rev 1，仍是 draft（PF-017 rev 1 已于 2026-09-23 同日接受，各条 note 已改））30 条、PF-016 5 条、PF-001 5 条，全部 reviewed=false；来源是该契约正文里带小节链接的条款段落。该契约的形式工件与规范场景条款（S-37～S-46）只在对到验收判据时登记。 2026-09-23 该契约评审第一轮修订：首登时有若干条的 clauses 在正文对应条款里并没有小节链接，已在正文逐条补齐；逐条核过之后，每条 covers 的产品小节都在所列的每个条款里有链接，唯一例外是 acceptance §二那一条（见其 note）；该条 clauses 补登 S-31。"
+  "note": "2026-09-22 首次登记，覆盖租户相关领域五份 candidate 契约。每条的 clauses 由两处合并得出：契约正文里带小节链接的条款段落，以及各契约「性质」表的「来源」列。全部 reviewed=false——这是「声称覆盖但尚未逐条复核」的诚实初值，不是复核通过。三处已知不完整，登记时一并记明，不靠留白掩盖：（1）PF-007 也被 data.identity-values 与 capability.organization-governance 的正文引为来源（§4 一笔授权表达有三个维度），本次登记范围只含 PF-001/002/003/015，因此 PF-007 一条未登；（2）foundation 的 SYS-TENANT / SYS-DEPLOY 是全局约束不是产品条款，本清单只登记 PF- 侧，那一侧的覆盖没有家；（3）契约正文里以散文方式引用产品要求、没有给出小节链接的地方，本次登记抓不到。 2026-09-22 评审轮一修订后补登 18 处（见各行 note）。data.identity-values/v1#S-35「交接凭证」没有产品出处（规格层构造），有意不登记 cover。 2026-09-23 补登 composition.governance-center-entry v1（candidate）40 条：PF-017（rev 1，仍是 draft（PF-017 rev 1 已于 2026-09-23 同日接受，各条 note 已改））30 条、PF-016 5 条、PF-001 5 条，全部 reviewed=false；来源是该契约正文里带小节链接的条款段落。该契约的形式工件与规范场景条款（S-37～S-46）只在对到验收判据时登记。 2026-09-23 该契约评审第一轮修订：首登时有若干条的 clauses 在正文对应条款里并没有小节链接，已在正文逐条补齐；逐条核过之后，每条 covers 的产品小节都在所列的每个条款里有链接，唯一例外是 acceptance §二那一条（见其 note）；该条 clauses 补登 S-31。 2026-09-23 补登 data.content-blocks v1（candidate）24 条：PF-009 7 条、PF-010 3 条、PF-013 3 条、PF-006 6 条、PF-002 2 条、PF-001 1 条、PF-012 2 条，全部 reviewed=false；来源是该契约的「设计依据」表（按简报口径），不是逐条核对正文链接——不少行只在依据表里对应，所列条款的正文里没有那个小节的链接（如 PF-009 §4 → S-1、PF-013 §4 模态 → S-7）；PF-006 §6.12「它的宿主是谁」一条部分为让缺口 G-2 可见而登，见其 note。"
 }
