@@ -1945,16 +1945,21 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
       } finally {
         db.close()
       }
-      evidence.output(
-        'backup/string-values.txt',
-        `${String(strings.size)} distinct string values tried as presentations\n`,
-      )
       expect(strings.size).toBeGreaterThan(20)
+      // 备份里有凭据的派生材料（盐与散列）：它不进证据。这一段的来往不落 transcript，只留每个值的 SHA-256 与读法；
+      // 凭据材料另登记为秘密，于是整棵证据目录与中心的一切输出都要搜不到它（EC S-29「账号的凭据材料」）
       for (const value of strings)
-        expectEntry(
-          await call(cA, 'myTenants', {}, value, 'backup string as a presentation'),
-          'login-state-rejected',
+        if (value.startsWith('$password-')) evidence.secrets.add(value, 'credential')
+      const quiet = client(address(dA), { observe: e => exchanges.push(e) })
+      const tried: string[] = ['value-sha256\tlength\tread\tanswer-sha256']
+      for (const value of strings) {
+        const e = await call(quiet, 'myTenants', {}, value, 'backup string as a presentation')
+        expectEntry(e, 'login-state-rejected')
+        tried.push(
+          `${sha256(value)}\t${String(value.length)}\t${describeExchange(e)}\t${sha256(e.wire.received)}`,
         )
+      }
+      evidence.output('backup/tried-as-presentations.tsv', `${tried.join('\n')}\n`)
       for (const name of ['ada1', 'bob1']) expectResult(await as(name, 'myTenants'))
     }, 120_000)
   })
