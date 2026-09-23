@@ -814,6 +814,17 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
         role: 'superAdministrator',
       })
       expectFailure(await as('ada1', 'readOrganization', { organization: y }), 'notAuthorized')
+      // 层身份（EC S-22）：两格各带判别式，组织级是那个组织、租户级是那个租户
+      expect(
+        expectResult(await as('ada1', 'layerIdentity', { tenant: tenants.get('X:ada') })),
+      ).toEqual({
+        organizationLayer: { layer: 'organization', organization: x },
+        tenantLayer: { layer: 'tenant', tenant: tenants.get('X:ada') },
+      })
+      expectFailure(
+        await as('ada1', 'layerIdentity', { tenant: tenants.get('Y:cy') }),
+        'notAuthorized',
+      )
     })
 
     it('[PF-001 §1.5、§1.8] 个人组织不能发起邀请；切到团队组织后超管邀请、被邀请者看到并接受、租户产生；默认时长按部署参数', async () => {
@@ -959,6 +970,25 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
         offerState: 'pending',
       })
       expect(millisBetween(view['offerTiming'])).toBe(14 * DAY)
+      const read = expectKeys(
+        expectResult(await as('cy1', 'readAffiliationRequest', { affiliationRequest: request })),
+        [
+          'affiliationRequest',
+          'issuerOrganization',
+          'recipientOrganization',
+          'direction',
+          'offerTiming',
+          'offerState',
+        ],
+        'AffiliationRequestView',
+      )
+      expect(read).toMatchObject({
+        affiliationRequest: request,
+        issuerOrganization: id('X'),
+        recipientOrganization: id('Y'),
+        direction: 'recipientAsParent',
+        offerState: 'pending',
+      })
       const tenantsBefore = [await myTenants('ada1'), await myTenants('cy1')]
       expect(
         expectResult(await as('cy1', 'acceptAffiliationRequest', { affiliationRequest: request })),
