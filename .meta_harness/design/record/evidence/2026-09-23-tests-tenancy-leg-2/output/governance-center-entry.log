@@ -1,0 +1,463 @@
+===== [governance-center-entry] build =====
+$ (cwd=/data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence) pnpm --filter @omne-harness-lite/governance-center-entry run build
+start: 2026-09-23T16:13:38Z
+
+> @omne-harness-lite/governance-center-entry@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence/packages/tenancy/governance-center-entry
+> node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+
+end: 2026-09-23T16:13:41Z
+exit: 0
+
+===== [governance-center-entry] typecheck =====
+$ (cwd=/data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence) pnpm --filter @omne-harness-lite/governance-center-entry run typecheck
+start: 2026-09-23T16:13:41Z
+
+> @omne-harness-lite/governance-center-entry@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence/packages/tenancy/governance-center-entry
+> tsc -p tsconfig.test.json
+
+end: 2026-09-23T16:13:44Z
+exit: 0
+
+===== [governance-center-entry] test =====
+$ (cwd=/data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence) pnpm --filter @omne-harness-lite/governance-center-entry exec vitest run --reporter=verbose --reporter=json --outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence/tmp/w4a/tests/json/governance-center-entry.json
+start: 2026-09-23T16:13:44Z
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence/packages/tenancy/governance-center-entry
+
+ ✓ tests/bytes.spec.ts > examples.md 自洽（前提：页面上的两种写法是同一串字节） > 恰 8 份；每份转义文本与十六进制逐字节相同，总字节数与 SHA-256 与页面所写一致 18ms
+ ✓ tests/bytes.spec.ts > T-2：四种入口答复与 examples §1、§3 逐字节相同 > version-mismatch 1ms
+ ✓ tests/bytes.spec.ts > T-2：四种入口答复与 examples §1、§3 逐字节相同 > login-state-rejected 1ms
+ ✓ tests/bytes.spec.ts > T-2：四种入口答复与 examples §1、§3 逐字节相同 > unavailable 1ms
+ ✓ tests/bytes.spec.ts > T-2：四种入口答复与 examples §1、§3 逐字节相同 > invalid-input 1ms
+ ✓ tests/bytes.spec.ts > T-2：四种入口答复与 examples §1、§3 逐字节相同 > 没有 Date 头，也没有四个头之外的任何头 1ms
+ ✓ tests/bytes.spec.ts > T-2：公开体检（examples §2） > 答复：标识与版本代成 examples 的值后逐字节相同 2ms
+ ✓ tests/bytes.spec.ts > T-2：公开体检（examples §2） > 请求：examples §2 的请求字节经成帧器与判定次序，得到的就是公开体检答复 4ms
+ ✓ tests/bytes.spec.ts > T-2：路由结果与完整体检的形状（examples §4、§5） > §4：列出登录状态的两项，经路由表的投影与写出后逐字节相同（含 .25Z） 4ms
+ ✓ tests/bytes.spec.ts > T-2：路由结果与完整体检的形状（examples §4、§5） > §5：完整体检按 FullHealthReply 的书写次序写出，代入 examples 的值后逐字节相同 7ms
+ ✓ tests/bytes.spec.ts > V-2：任何别的答复的体都不等于 "version-mismatch" 那 18 个字节 > 四种入口答复里只有它一份；每个可透传的具名失败与各路由成功值都不是它 1ms
+ ✓ tests/bytes.spec.ts > V-9：体的写出规则逐例（examples §7） > 字符串 "a\"b\\c" 1ms
+ ✓ tests/bytes.spec.ts > V-9：体的写出规则逐例（examples §7） > 字符串 "\t" 0ms
+ ✓ tests/bytes.spec.ts > V-9：体的写出规则逐例（examples §7） > 字符串 "\u0007" 0ms
+ ✓ tests/bytes.spec.ts > V-9：体的写出规则逐例（examples §7） > 字符串 "\u001f" 0ms
+ ✓ tests/bytes.spec.ts > V-9：体的写出规则逐例（examples §7） > 字符串 "é" 0ms
+ ✓ tests/bytes.spec.ts > V-9：体的写出规则逐例（examples §7） > 字符串 "/" 0ms
+ ✓ tests/bytes.spec.ts > V-9：体的写出规则逐例（examples §7） > 字符串 " " 0ms
+ ✓ tests/bytes.spec.ts > V-9：体的写出规则逐例（examples §7） > 字符串 "" 0ms
+ ✓ tests/bytes.spec.ts > V-9：体的写出规则逐例（examples §7） > 字符串 "\ud800" 0ms
+ ✓ tests/bytes.spec.ts > V-9：体的写出规则逐例（examples §7） > 时间点：UTC、Z，秒小数只在非零时写且取最少位数；不写 .000、不写偏移 1ms
+ ✓ tests/bytes.spec.ts > V-9：体的写出规则逐例（examples §7） > 整数零写 0；TenantId 与没有上级的组织按 Schema 书写次序、缺席的可选成员不写 0ms
+ ✓ tests/decide.spec.ts > T-1 路由表封闭（S-17、S-24；SC-3） > 路由表的键恰等于 Schema EnvelopeRouteId 的枚举；公开体检不在表里、走第 0 步 8ms
+ ✓ tests/decide.spec.ts > T-1 路由表封闭（S-17、S-24；SC-3） > 表外的 operation（含不投影的 AI S-13／S-17／S-18、OG S-20／S-53）⇒ invalid-input，认人没有发生 4ms
+ ✓ tests/decide.spec.ts > T-1 路由表封闭（S-17、S-24；SC-3） > SC-3：本包源码不按名字解析服务或方法（没有 services[…]、没有以变量为参数的 ctx.get） 8ms
+ ✓ tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > composition.account-registration/v1#S-8：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 187ms
+ ✓ tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.account-identity/v2#S-15：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 8ms
+ ✓ tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.account-identity/v2#S-16：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 11ms
+ ✓ tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.account-identity/v2#S-37：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 8ms
+ ✓ tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v1#S-21：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 4ms
+ ✓ tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v1#S-22：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 6ms
+ ✓ tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v1#S-23：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 5ms
+ ✓ tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v1#S-24：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 4ms
+ ✓ tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v1#S-25：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 7ms
+ ✓ tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v1#S-26：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 5ms
+ ✓ tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v1#S-27：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 4ms
+ ✓ tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v1#S-28：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 4ms
+ ✓ tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v1#S-29：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 3ms
+ ✓ tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v1#S-30：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 5ms
+ ✓ tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v1#S-31：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 3ms
+ ✓ tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v1#S-32：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 5ms
+ ✓ tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v1#S-33：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 3ms
+ ✓ tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v1#S-34：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 4ms
+ ✓ tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v1#S-35：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 4ms
+ ✓ tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v1#S-36：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 3ms
+ ✓ tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v1#S-37：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 3ms
+ ✓ tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v1#S-55：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 8ms
+ ✓ tests/json.spec.ts > S-7 四级读法（examples §6） > #1 空请求体、只有空白 ⇒ 第 3 级读不下来 3ms
+ ✓ tests/json.spec.ts > S-7 四级读法（examples §6） > #2 以 EF BB BF 开头 ⇒ 第 2 级读不下来（不跳过）；去掉这三个字节就是一份合格信封 1ms
+ ✓ tests/json.spec.ts > S-7 四级读法（examples §6） > #3 非法 UTF-8 字节 FF ⇒ 第 1 级读不下来 0ms
+ ✓ tests/json.spec.ts > S-7 四级读法（examples §6） > #4 原始字节里的代理码点编码 ED A0 80 ⇒ 第 1 级读不下来；超长编码与越过 U+10FFFF 同样 1ms
+ ✓ tests/json.spec.ts > S-7 四级读法（examples §6） > #5 转义写出的孤立代理码点照常读成字符串的一部分 1ms
+ ✓ tests/json.spec.ts > S-7 四级读法（examples §6） > #6、#7 顶层是数组或字符串：读下来了（第 4 级由调用方判） 1ms
+ ✓ tests/json.spec.ts > S-7 四级读法（examples §6） > #8 值之后还有别的字符 ⇒ 第 3 级读不下来；前后只许 JSON 的四种空白 1ms
+ ✓ tests/json.spec.ts > S-7 四级读法（examples §6） > 第 1、2 级对整个请求体先判：非法 UTF-8 在后、超深嵌套在前 ⇒ 仍是第 1 级读不下来（V-11） 0ms
+ ✓ tests/json.spec.ts > S-7 JSON 值的读法 > #18 成员名与字符串按转义还原后比较：\/ 还原为 / 1ms
+ ✓ tests/json.spec.ts > S-7 JSON 值的读法 > 不做 Unicode 规范化：é 的两种写法是两个不同的名字 1ms
+ ✓ tests/json.spec.ts > S-7 JSON 值的读法 > #15 9007199254740990.5 不是整数；#16 1e3 是 1000；1.0 是 1；越过 2⁵³−1 的整数不被舍入回范围内 1ms
+ ✓ tests/json.spec.ts > S-7 JSON 值的读法 > JSON 数的语法错：前导零、孤立负号、小数点后无数字 ⇒ 第 3 级读不下来 1ms
+ ✓ tests/json.spec.ts > S-7 JSON 值的读法 > 字符串里的控制字符与未知转义 ⇒ 读不下来 0ms
+ ✓ tests/json.spec.ts > S-7 JSON 值的读法 > 成员名 __proto__ 是普通的自有成员，不碰原型 0ms
+ ✓ tests/json.spec.ts > S-8 重复成员：报告每一处，不取其一（examples §6 #9～#14、#17、#19） > #9 顶层 protocolVersion 重复（值相同也报） 0ms
+ ✓ tests/json.spec.ts > S-8 重复成员：报告每一处，不取其一（examples §6 #9～#14、#17、#19） > #10 以转义写出的第二个 operation 还原后就是 operation 0ms
+ ✓ tests/json.spec.ts > S-8 重复成员：报告每一处，不取其一（examples §6 #9～#14、#17、#19） > #11 两个出示物；#13 两个 payload 0ms
+ ✓ tests/json.spec.ts > S-8 重复成员：报告每一处，不取其一（examples §6 #9～#14、#17、#19） > #14 载荷里面的重复报出路径 ["payload"]；更深处报出完整路径（成员名与数组下标） 0ms
+ ✓ tests/json.spec.ts > S-8 重复成员：报告每一处，不取其一（examples §6 #9～#14、#17、#19） > #17、#19 公开体检请求里的其余重复也报（由调用方决定看不看）；三处重复报三处 0ms
+ ✓ tests/json.spec.ts > S-8 重复成员：报告每一处，不取其一（examples §6 #9～#14、#17、#19） > 保留的是第一次出现的值，只供排在前面的步骤照常进行（S-8 不取其一由调用方据重复报告兑现） 0ms
+ ✓ tests/json.spec.ts > S-8 重复成员：报告每一处，不取其一（examples §6 #9～#14、#17、#19） > 只用 JSON.parse 的实现会丢掉重复：同一份文本 JSON.parse 取后一个且无从报告（本读取器的存在理由） 0ms
+ ✓ tests/json.spec.ts > 嵌套深度与成员数两个上界（S-7 表下、S-10；V-11） > 恰在下限上：嵌套 64 层、一个对象 1024 个成员 ⇒ 读下来 12ms
+ ✓ tests/json.spec.ts > 嵌套深度与成员数两个上界（S-7 表下、S-10；V-11） > 上界 + 1：嵌套 65 层、1025 个成员（同名也计）⇒ 超界 7ms
+ ✓ tests/json.spec.ts > 嵌套深度与成员数两个上界（S-7 表下、S-10；V-11） > 超界在前 ⇒ 超界，哪怕之后有语法错 6ms
+ ✓ tests/json.spec.ts > 嵌套深度与成员数两个上界（S-7 表下、S-10；V-11） > 语法错在前 ⇒ 读不下来，哪怕之后有超界 0ms
+ ✓ tests/json.spec.ts > 嵌套深度与成员数两个上界（S-7 表下、S-10；V-11） > ccd39d9：语法错那个码点不计入深度——64 层之内的 `1` 之后紧跟 `[` 是语法错，不是第 65 层 0ms
+ ✓ tests/json.spec.ts > 嵌套深度与成员数两个上界（S-7 表下、S-10；V-11） > ccd39d9：语法错那个码点不计入成员数——第 1024 个成员之后缺逗号就开始的名字是语法错，不是第 1025 个成员 4ms
+ ✓ tests/center-id.spec.ts > T-13 迁移片段（M-1、M-3） > 导出一个片段，名字稳定；经 composeMigrations 合成后迁移完表里恰一行占位 (center, NULL) 93ms
+ ✓ tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v1#S-56：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 8ms
+ ✓ tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v1#S-57：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 3ms
+ ✓ tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v1#S-58：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 5ms
+ ✓ tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v1#S-59：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 3ms
+ ✓ tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v1#S-60：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 3ms
+ ✓ tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > MembershipStanding 的 ineffective 支；组织有上级时 parentOrganization 在 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > composition.account-registration/v1#S-8：identifier-taken ⇒ pass 6ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > composition.account-registration/v1#S-8：credential-rejected ⇒ pass 2ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > composition.account-registration/v1#S-8：interrupted ⇒ pass 2ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > composition.account-registration/v1#S-8：identifier-held-by-expired-record ⇒ defect 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.account-identity/v2#S-15：identifier-or-credential-rejected ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.account-identity/v2#S-15：invalid-input ⇒ invalid-input 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.account-identity/v2#S-15：storage-unavailable ⇒ unavailable 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.account-identity/v2#S-16：login-state-not-found ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.account-identity/v2#S-16：not-authorized ⇒ rejected 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.account-identity/v2#S-16：invalid-input ⇒ invalid-input 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.account-identity/v2#S-16：storage-unavailable ⇒ unavailable 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.account-identity/v2#S-37：login-state-rejected ⇒ rejected 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.account-identity/v2#S-37：storage-unavailable ⇒ unavailable 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.account-identity/v2#S-37：invalid-input ⇒ defect 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-21：accountNotActivated ⇒ defect 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-21：accountDoesNotExist ⇒ defect 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-21：unavailable ⇒ unavailable 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-21：invalidInput ⇒ defect 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-22：organizationDoesNotExist ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-22：unavailable ⇒ unavailable 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-22：invalidInput ⇒ invalid-input 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-23：issuerIsPersonalOrganization ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-23：notAuthorized ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-23：accountNotActivated ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-23：accountDoesNotExist ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-23：alreadyAnEffectiveMember ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-23：invalidOfferDuration ⇒ pass 2ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-23：unavailable ⇒ unavailable 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-23：invalidInput ⇒ invalid-input 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-24：invitationDoesNotExist ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-24：notAuthorized ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-24：alreadyConcluded ⇒ pass 6ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-24：unavailable ⇒ unavailable 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-24：invalidInput ⇒ invalid-input 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-25：invitationDoesNotExist ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-25：offerNoLongerValid ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-25：notTheInvitedAccount ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-25：alreadyAnEffectiveMember ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-25：accountNotActivated ⇒ defect 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-25：accountDoesNotExist ⇒ defect 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-25：unavailable ⇒ unavailable 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-25：invalidInput ⇒ invalid-input 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-26：unavailable ⇒ unavailable 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-26：invalidInput ⇒ invalid-input 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-27：unavailable ⇒ unavailable 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-27：invalidInput ⇒ defect 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-28：notAuthorized ⇒ pass 5ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-28：membershipNotEffective ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-28：wouldLeaveNoSuperAdministrator ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-28：unavailable ⇒ unavailable 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-28：invalidInput ⇒ invalid-input 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-29：personalOrganizationMemberCannotLeave ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-29：notAuthorized ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-29：membershipNotEffective ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-29：wouldLeaveNoSuperAdministrator ⇒ pass 2ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-29：unavailable ⇒ unavailable 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-29：invalidInput ⇒ invalid-input 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-30：personalOrganizationTakesNoPartInAffiliation ⇒ pass 2ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-30：notAuthorized ⇒ pass 2ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-30：organizationDoesNotExist ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-30：wouldFormACycle ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-30：invalidOfferDuration ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-30：unavailable ⇒ unavailable 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-30：invalidInput ⇒ invalid-input 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-31：affiliationRequestDoesNotExist ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-31：notAuthorized ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-31：alreadyConcluded ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-31：unavailable ⇒ unavailable 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-31：invalidInput ⇒ invalid-input 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-32：affiliationRequestDoesNotExist ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-32：offerNoLongerValid ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-32：notAuthorized ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-32：alreadyHasAParentOrganization ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-32：wouldFormACycle ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-32：personalOrganizationTakesNoPartInAffiliation ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-32：unavailable ⇒ unavailable 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-32：invalidInput ⇒ invalid-input 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-33：noSuchAffiliation ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-33：notAuthorized ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-33：unavailable ⇒ unavailable 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-33：invalidInput ⇒ invalid-input 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-34：organizationDoesNotExist ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-34：unavailable ⇒ unavailable 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-34：invalidInput ⇒ invalid-input 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-35：unavailable ⇒ unavailable 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-35：invalidInput ⇒ invalid-input 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-36：loginStateNotValid ⇒ rejected 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-36：unavailable ⇒ unavailable 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-36：invalidInput ⇒ defect 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-37：notOwnTenant ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-37：membershipNotEffective ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-37：loginStateNotValid ⇒ rejected 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-37：unavailable ⇒ unavailable 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-37：invalidInput ⇒ invalid-input 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-55：invitationDoesNotExist ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-55：unavailable ⇒ unavailable 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-55：invalidInput ⇒ invalid-input 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-56：affiliationRequestDoesNotExist ⇒ pass 5ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-56：unavailable ⇒ unavailable 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-56：invalidInput ⇒ invalid-input 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-57：unavailable ⇒ unavailable 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-57：invalidInput ⇒ defect 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-58：notAuthorized ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-58：unavailable ⇒ unavailable 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-58：invalidInput ⇒ defect 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-59：notAuthorized ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-59：unavailable ⇒ unavailable 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-59：invalidInput ⇒ defect 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-60：notAuthorized ⇒ pass 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-60：unavailable ⇒ unavailable 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-60：invalidInput ⇒ defect 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > composition.account-registration/v1#S-8：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷 3ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.account-identity/v2#S-15：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.account-identity/v2#S-16：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.account-identity/v2#S-37：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-21：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷 4ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-22：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-23：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-24：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-25：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-26：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-27：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-28：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-29：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-30：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷 2ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-31：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷 4ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-32：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-33：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-34：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-35：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-36：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-37：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-55：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-56：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷 2ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-57：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-58：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷 2ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-59：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v1#S-60：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > interrupted 原样透传（不改成功、不改 unavailable） 1ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > 矛盾清单：OG S-27 与 AI S-37 空列表、OG S-36 的 account 分量不等于认人所得、成功返回不合 Result_<路由> ⇒ 缺陷 2ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > 撤销：AI S-16 的 invalid-input（桩）⇒ invalid-input（目标来自载荷） 0ms
+ ✓ tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > OG 的 invalidInput 在交进去的输入含载荷项时是 invalid-input，全是入口层产出的值时是缺陷（同一条路由两种载荷） 1ms
+ ✓ tests/decide.spec.ts > T-2 桩那一半：六种不认与其间撤销逐字节相同；表示层不合格不调 exchange > 没带、带了两个、表示层不合格（首或末空白、\uD800 孤立代理、1025 个标量值）、查不到、其间被撤销 ⇒ 同一份 137 字节 9ms
+ ✓ tests/decide.spec.ts > T-2 桩那一半：六种不认与其间撤销逐字节相同；表示层不合格不调 exchange > 工程记录分得出 absent／multiple／malformed／judged 1ms
+ ✓ tests/decide.spec.ts > T-2 桩那一半：六种不认与其间撤销逐字节相同；表示层不合格不调 exchange > exchange 给出 storage-unavailable ⇒ unavailable（不改说成 login-state-rejected）；集合外 ⇒ 缺陷 1ms
+ ✓ tests/decide.spec.ts > T-3 判定次序（桩那一半） > 版本对不上 × 四种出示物 ⇒ 四次 version-mismatch，出示物一眼都不看；公开体检照常 0ms
+ ✓ tests/decide.spec.ts > T-3 判定次序（桩那一半） > ① 的触发：缺席、重复、不是字符串、不被接受；读不下来、顶层不是对象 1ms
+ ✓ tests/decide.spec.ts > T-3 判定次序（桩那一半） > ①′：有表外成员 ⇒ invalid-input，认人没有发生 0ms
+ ✓ tests/decide.spec.ts > T-3 判定次序（桩那一半） > 有效配坏载荷 ⇒ invalid-input；已撤销（桩判不认）配同一份 ⇒ login-state-rejected（认人在前） 1ms
+ ✓ tests/decide.spec.ts > T-3 判定次序（桩那一半） > 数据所在够不着（exchange 给 storage-unavailable）：出示了 ⇒ unavailable；没带 ⇒ login-state-rejected（不用查就判得了） 0ms
+ ✓ tests/decide.spec.ts > T-3 判定次序（桩那一半） > 注册与登录的坏载荷：不调凭据解析之后的任何参与方，存储不可用也照样 invalid-input 1ms
+ ✓ tests/decide.spec.ts > T-3 判定次序（桩那一半） > 免认人的路由不看出示物，也不看它的重复（examples §6 #12） 6ms
+ ✓ tests/decide.spec.ts > T-4 缺陷那一半 > 参与方给出集合外的值 ⇒ unavailable 且记为缺陷；工程记录只写入口层观察到的值 1ms
+ ✓ tests/decide.spec.ts > T-5 桩那一半：句柄、撤销与列表 > 句柄首尾空白 ⇒ invalid-input，revoke 没被调用；合 S-31 的短句柄 abc 原样到达 revoke；撤销路由只有一次领域调用 1ms
+ ✓ tests/decide.spec.ts > T-5 桩那一半：句柄、撤销与列表 > 拿列表里的 LoginStateId 当出示物：桩判不认，与从没签发过的值逐字节相同 0ms
+ ✓ tests/decide.spec.ts > T-6 身份推导与补授权（桩那一半） > 推导所得 TenantId 交给发起者一格；载荷夹带「以组织 B 行事」⇒ invalid-input，没有邀请被发出 1ms
+ ✓ tests/decide.spec.ts > T-6 身份推导与补授权（桩那一半） > 推导：OG S-36 的 account 分量不等于认人所得、invalidInput、集合外 ⇒ 缺陷；unavailable ⇒ unavailable 3ms
+ ✓ tests/decide.spec.ts > T-6 身份推导与补授权（桩那一半） > 补授权：不在（ineffective）⇒ notAuthorized 且不调被投影的操作；读不到 ⇒ unavailable 1ms
+ ✓ tests/decide.spec.ts > T-6 身份推导与补授权（桩那一半） > 上级链两个组织：一个在、一个不在 ⇒ notAuthorized；一个读不到一个 ineffective，两种次序都 unavailable 且两个都被读了 1ms
+ ✓ tests/decide.spec.ts > T-6 身份推导与补授权（桩那一半） > 补授权读给出 invalidInput（桩）或抛出 ⇒ 缺陷，哪怕另一个读出了 ineffective 1ms
+ ✓ tests/decide.spec.ts > T-6 身份推导与补授权（桩那一半） > 补授权读的参数是 (该组织, 认人所得 AccountId) 1ms
+ ✓ tests/decide.spec.ts > T-6 身份推导与补授权（桩那一半） > S-55：判别式 account 交认人所得 AccountId、tenant 交推导所得 TenantId；缺席或不在集合内 ⇒ invalid-input 1ms
+ ✓ tests/decide.spec.ts > T-15 重复成员落在它那一步（S-4；https-json/1 S-8） > protocolVersion 重复 ⇒ version-mismatch 0ms
+ ✓ tests/decide.spec.ts > T-15 重复成员落在它那一步（S-4；https-json/1 S-8） > operation 重复（第二个以转义写出）⇒ invalid-input，认人读面没有被调用 0ms
+ ✓ tests/decide.spec.ts > T-15 重复成员落在它那一步（S-4；https-json/1 S-8） > payload 重复 ⇒ 有效出示物得 invalid-input，已撤销的得 login-state-rejected（认人在前） 0ms
+ ✓ tests/decide.spec.ts > T-15 重复成员落在它那一步（S-4；https-json/1 S-8） > 免认人的路由 payload 重复：注册组合与账号能力都判不了也照样 invalid-input 0ms
+ ✓ tests/decide.spec.ts > T-15 重复成员落在它那一步（S-4；https-json/1 S-8） > 出示物重复（其一有效）⇒ login-state-rejected，认人读面没有被调用 0ms
+ ✓ tests/decide.spec.ts > T-15 重复成员落在它那一步（S-4；https-json/1 S-8） > 载荷内部成员重复 ⇒ 与 payload 重复同一步：有效 ⇒ invalid-input；已撤销 ⇒ login-state-rejected 1ms
+ ✓ tests/decide.spec.ts > T-15 重复成员落在它那一步（S-4；https-json/1 S-8） > examples §6 #15、#16：offerTtl 9007199254740990.5 不是整数 ⇒ invalid-input；1e3 合形状、交给领域的是 1000 1ms
+ ✓ tests/decide.spec.ts > T-15 重复成员落在它那一步（S-4；https-json/1 S-8） > examples §6 #17、#19：公开体检里其余成员与重复一概不看；两个 operation 不是公开体检 2ms
+ ✓ tests/decide.spec.ts > T-15 重复成员落在它那一步（S-4；https-json/1 S-8） > JSON 超出嵌套或成员数上界 ⇒ 不答（关连接不写） 0ms
+ ✓ tests/decide.spec.ts > T-17 凭据表示层跟随 credentials.parse（S-19） > 换成规则不同的桩，判定随之改变；parse 不过或 credential 不是非空字符串 ⇒ invalid-input，注册组合与账号能力都没被调用 2ms
+ ✓ tests/decide.spec.ts > T-17 凭据表示层跟随 credentials.parse（S-19） > parse 抛出 ⇒ 缺陷（不是 invalid-input） 1ms
+ ✓ tests/lifecycle.spec.ts > T-12 inject 缺一即 PENDING ⇒ 装配启动失败 > 拿掉 storage ⇒ 入口层 PENDING，bootAssembly 抛出 110ms
+ ✓ tests/lifecycle.spec.ts > T-12 inject 缺一即 PENDING ⇒ 装配启动失败 > 拿掉 clock ⇒ 入口层 PENDING，bootAssembly 抛出 90ms
+ ✓ tests/center-id.spec.ts > T-13 迁移片段（M-1、M-3） > 片段连跑两次无错、表里恰一行；铸好之后再跑一次，值不变（存在即不插） 55ms
+ ✓ tests/center-id.spec.ts > T-13 迁移片段（M-1、M-3） > 主键约束名是 governance_center_pkey（sqlite；pg 随装配第二程） 56ms
+ ✓ tests/center-id.spec.ts > 迁移前核对 governanceCenterPreflight（R-GC8；三支） > 空库过；只剩两张迁移登记表也算空库，过 1ms
+ ✓ tests/center-id.spec.ts > 迁移前核对 governanceCenterPreflight（R-GC8；三支） > 非空库却没有 governance_center ⇒ 不过，点名这条核对 2ms
+ ✓ tests/center-id.spec.ts > 迁移前核对 governanceCenterPreflight（R-GC8；三支） > 非空库且有 governance_center ⇒ 过 0ms
+ ✓ tests/ops.spec.ts > V-8 运维面的承载（S-20） > 套接字文件恰为目录下的 governance-center-ops.sock；运维面 config 没有网络地址一项（不经网络可达） 175ms
+ ✓ tests/transport.spec.ts > V-5 只看请求体（规范场景 S-26） > GET ⇒ 恰那 137 个字节，此外一个字节都没有 11ms
+ ✓ tests/transport.spec.ts > V-5 只看请求体（规范场景 S-26） > PUT ⇒ 恰那 137 个字节，此外一个字节都没有 6ms
+ ✓ tests/transport.spec.ts > V-5 只看请求体（规范场景 S-26） > HEAD（照样带体） ⇒ 恰那 137 个字节，此外一个字节都没有 7ms
+ ✓ tests/transport.spec.ts > V-5 只看请求体（规范场景 S-26） > 改路径 ⇒ 恰那 137 个字节，此外一个字节都没有 5ms
+ ✓ tests/lifecycle.spec.ts > T-12 inject 缺一即 PENDING ⇒ 装配启动失败 > 拿掉 credentials ⇒ 入口层 PENDING，bootAssembly 抛出 57ms
+ ✓ tests/lifecycle.spec.ts > T-12 inject 缺一即 PENDING ⇒ 装配启动失败 > 拿掉 logins ⇒ 入口层 PENDING，bootAssembly 抛出 59ms
+ ✓ tests/center-id.spec.ts > T-8「表整个丢了」：storage-sql 的迁移前核对拒绝，不重建、不动数据 > 保留迁移登记 ⇒ StorageStartupFailure(preflight)，那张表没有被重建，其余数据原样 119ms
+ ✓ tests/ops.spec.ts > V-8 运维面的承载（S-20） > 目录权限含组或其他用户的位 ⇒ 起不来；目录不存在 ⇒ 起不来 92ms
+ ✓ tests/lifecycle.spec.ts > T-12 inject 缺一即 PENDING ⇒ 装配启动失败 > 拿掉 registration ⇒ 入口层 PENDING，bootAssembly 抛出 62ms
+ ✓ tests/lifecycle.spec.ts > T-12 inject 缺一即 PENDING ⇒ 装配启动失败 > 拿掉 organizations ⇒ 入口层 PENDING，bootAssembly 抛出 48ms
+ ✓ tests/center-id.spec.ts > T-8「表整个丢了」：storage-sql 的迁移前核对拒绝，不重建、不动数据 > 清空迁移登记 ⇒ StorageStartupFailure(preflight)，那张表没有被重建，其余数据原样 96ms
+ ✓ tests/center-id.spec.ts > T-8「表整个丢了」：storage-sql 的迁移前核对拒绝，不重建、不动数据 > 空库首启时核对放行，迁移建表并插入占位行 67ms
+ ✓ tests/center-id.spec.ts > 读或铸（S-28 ④） > 铸出的值合 S-27（32 个小写十六进制），两次铸出不同 1ms
+ ✓ tests/ops.spec.ts > V-8 运维面的承载（S-20） > 有人在听的残留套接字 ⇒ 起不来，那个文件还在；不是套接字的文件 ⇒ 起不来、不删；没人听的残留 ⇒ 被替换、起得来 165ms
+ ✓ tests/lifecycle.spec.ts > T-12 inject 缺一即 PENDING ⇒ 装配启动失败 > 拿掉 memberships ⇒ 入口层 PENDING，bootAssembly 抛出 52ms
+ ✓ tests/lifecycle.spec.ts > T-12 inject 缺一即 PENDING ⇒ 装配启动失败 > 拿掉 offers ⇒ 入口层 PENDING，bootAssembly 抛出 49ms
+ ✓ tests/center.spec.ts > T-2 线上逐字节相同（真实组合） > 没带、两个、三种表示层不合格、查不到、已撤销、撤销落在认人与办事之间：八次都是同一份 137 字节；表示层不合格那三次没调 exchange 303ms
+ ✓ tests/center-id.spec.ts > 读或铸（S-28 ④） > 未铸 ⇒ 铸并写入；已铸合形 ⇒ 用，不再写 55ms
+ ✓ tests/center-id.spec.ts > 读或铸（S-28 ④） > 读不出（写事务在锁与读之前失败）⇒ unreadable，没有铸；修好后按第一次铸 54ms
+ ✓ tests/lifecycle.spec.ts > T-12 inject 缺一即 PENDING ⇒ 装配启动失败 > 不 inject accounts：只有 accounts 缺席时入口层照常 ACTIVE 74ms
+ ✓ tests/lifecycle.spec.ts > T-12 插件体抛出 ⇒ 启动失败且监听已关 > 端口被占 ⇒ 启动失败 63ms
+ ✓ tests/ops.spec.ts > T-9、V-8 运维面的答复（S-21、S-26） > 任意方法、路径、体都答完整体检：成员次序如 FullHealthReply、过 Schema；发信封、公开体检请求、超深超多的 JSON 也照答 188ms
+ ✓ tests/center.spec.ts > T-2 线上逐字节相同（真实组合） > 请求体含非法 UTF-8 ⇒ version-mismatch；公开体检一次运行期间是同一份字节，没有 Date 头 118ms
+ ✓ tests/center-id.spec.ts > 读或铸（S-28 ④） > 已铸之后读不出 ⇒ unreadable，绝不当作未铸 75ms
+ ✓ tests/center-id.spec.ts > 读或铸（S-28 ④） > 写不进（铸的那次提交失败）⇒ unwritable，那一行仍是 NULL；修好后按第一次铸 75ms
+ ✓ tests/transport.spec.ts > V-5 只看请求体（规范场景 S-26） > Connection: keep-alive ⇒ 恰那 137 个字节，此外一个字节都没有 6ms
+ ✓ tests/transport.spec.ts > V-5 只看请求体（规范场景 S-26） > Expect: 100-continue ⇒ 恰那 137 个字节，此外一个字节都没有 6ms
+ ✓ tests/transport.spec.ts > V-5 只看请求体（规范场景 S-26） > 去掉 Host ⇒ 恰那 137 个字节，此外一个字节都没有 6ms
+ ✓ tests/transport.spec.ts > V-5 只看请求体（规范场景 S-26） > 两个 Host ⇒ 恰那 137 个字节，此外一个字节都没有 5ms
+ ✓ tests/transport.spec.ts > V-5 只看请求体（规范场景 S-26） > Authorization 头里带一个有效出示物 ⇒ 仍是没带出示物（examples §6 #20） 25ms
+ ✓ tests/transport.spec.ts > V-5 只看请求体（规范场景 S-26） > 公开体检请求以 GET /x 与 POST / 各发一次：两份答复逐字节相同 13ms
+ ✓ tests/transport.spec.ts > V-5 只看请求体（规范场景 S-26） > Expect: 100-continue：头部收齐后不写 100 Continue，等请求体收齐再答 405ms
+ ✓ tests/framing.spec.ts > 能成帧的报文 > 最短的 POST：头部收齐、按 Content-Length 读满体 4ms
+ ✓ tests/framing.spec.ts > 能成帧的报文 > 没有 Content-Length ⇒ 体长 0（之后按 S-7 第 3 级答 version-mismatch） 1ms
+ ✓ tests/framing.spec.ts > 能成帧的报文 > 逐字节送也一样；报文之后同一批到达的字节计为 trailing（流水线里的下一个请求不当作请求） 2ms
+ ✓ tests/framing.spec.ts > 能成帧的报文 > 方法、路径、其余头都不看：任意 token 方法、四种 request-target、缺 Host、重复 Host 2ms
+ ✓ tests/framing.spec.ts > 能成帧的报文 > Content-Length：剥前后 OWS；前导零按十进制；多处剥后逐字节相同即可 1ms
+ ✓ tests/framing.spec.ts > 成帧不了（S-10） > Transfer-Encoding: chunked 0ms
+ ✓ tests/framing.spec.ts > 成帧不了（S-10） > Transfer-Encoding 任何取值 0ms
+ ✓ tests/framing.spec.ts > 成帧不了（S-10） > 单独 LF 结尾的头部行 0ms
+ ✓ tests/framing.spec.ts > 成帧不了（S-10） > 单独 LF 结尾的请求行 0ms
+ ✓ tests/framing.spec.ts > 成帧不了（S-10） > 以单独 LF 结束头部 0ms
+ ✓ tests/framing.spec.ts > 成帧不了（S-10） > 裸 CR 0ms
+ ✓ tests/framing.spec.ts > 成帧不了（S-10） > obs-fold 续行 0ms
+ ✓ tests/framing.spec.ts > 成帧不了（S-10） > 字段名与冒号之间有空白 0ms
+ ✓ tests/framing.spec.ts > 成帧不了（S-10） > 起始行与第一个头之间的空白 0ms
+ ✓ tests/framing.spec.ts > 成帧不了（S-10） > 请求行之前的空行 0ms
+ ✓ tests/framing.spec.ts > 成帧不了（S-10） > 请求行多一个空格 0ms
+ ✓ tests/framing.spec.ts > 成帧不了（S-10） > 请求行不是 HTTP/1.x 0ms
+ ✓ tests/framing.spec.ts > 成帧不了（S-10） > 不是 HTTP 请求 0ms
+ ✓ tests/framing.spec.ts > 成帧不了（S-10） > 字段值里有 NUL 0ms
+ ✓ tests/framing.spec.ts > 成帧不了（S-10） > 两个不同的 Content-Length 0ms
+ ✓ tests/framing.spec.ts > 成帧不了（S-10） > 05 与 5 不同 0ms
+ ✓ tests/framing.spec.ts > 成帧不了（S-10） > 逗号列表 42, 42 0ms
+ ✓ tests/framing.spec.ts > 成帧不了（S-10） > 正号 0ms
+ ✓ tests/framing.spec.ts > 成帧不了（S-10） > 空值 0ms
+ ✓ tests/framing.spec.ts > 成帧不了（S-10） > 单独 LF 即刻判，不等头部收齐 0ms
+ ✓ tests/framing.spec.ts > 接收上界：恰在下限上照收，上界 + 1 即判（V-11；S-10） > 头部块恰 8192 字节 ⇒ 能成帧；8193 ⇒ 超界 1ms
+ ✓ tests/framing.spec.ts > 接收上界：恰在下限上照收，上界 + 1 即判（V-11；S-10） > 头部块已够上界仍未结束 ⇒ 超界，不等那一行结束 0ms
+ ✓ tests/framing.spec.ts > 接收上界：恰在下限上照收，上界 + 1 即判（V-11；S-10） > 请求体恰 65536 字节 ⇒ 能成帧；Content-Length 65537 ⇒ 头部收齐即判超界，不读体 1ms
+ ✓ tests/framing.spec.ts > 接收上界与时限的取值不低于契约下限（S-10 下限表；V-2 钉住的那几项） > 头部块 ≥ 8192、请求体 ≥ 65536、嵌套 ≥ 64、成员数 ≥ 1024、接收时限 ≥ 30 s；读尽上界与请求体上界同值 1ms
+ ✓ tests/center-id.spec.ts > 读或铸（S-28 ④） > 那一格不存在（表在、行被删）⇒ missing，不铸新的 74ms
+ ✓ tests/center-id.spec.ts > 读或铸（S-28 ④） > 值不合 S-27 ⇒ malformed，不修不重铸；说明里不写那个值 48ms
+ ✓ tests/transport.spec.ts > V-5 只看请求体（规范场景 S-26） > 流水线里的第二个请求（多写的字节在读尽上界之内）不被答，第一份答复完整到达 6ms
+ ✓ tests/transport.spec.ts > V-5 只看请求体（规范场景 S-26） > 写完答复先发 close_notify：客户端发完不关写，也先读完整份答复、再见到对端关写（end），随后全关 7ms
+ ✓ tests/transport.spec.ts > V-5 只看请求体（规范场景 S-26） > OpenSSL 看到的次序：HTTP 答复，然后中心的 close_notify 告警 21ms
+ ✓ tests/transport.spec.ts > V-5 只看请求体（规范场景 S-26） > 读尽中多写的字节超出读尽上界 ⇒ 中心立即全关（不等读尽时限） 15ms
+ ✓ tests/transport.spec.ts > V-1：每一份答复在连接上一次写出 > Http1Connection 只调一次 end(整份答复)，不调 write 7ms
+ ✓ tests/transport.spec.ts > V-6 成帧不了与超界：收不到任何 HTTP 字节，也收不到 4xx > Transfer-Encoding: chunked 6ms
+ ✓ tests/transport.spec.ts > V-6 成帧不了与超界：收不到任何 HTTP 字节，也收不到 4xx > 单独 LF 结尾的头部行 5ms
+ ✓ tests/transport.spec.ts > V-6 成帧不了与超界：收不到任何 HTTP 字节，也收不到 4xx > obs-fold 续行 5ms
+ ✓ tests/transport.spec.ts > V-6 成帧不了与超界：收不到任何 HTTP 字节，也收不到 4xx > 字段名与冒号之间有空白 5ms
+ ✓ tests/transport.spec.ts > V-6 成帧不了与超界：收不到任何 HTTP 字节，也收不到 4xx > 两个不同的 Content-Length 5ms
+ ✓ tests/transport.spec.ts > V-6 成帧不了与超界：收不到任何 HTTP 字节，也收不到 4xx > Content-Length: 42, 42 5ms
+ ✓ tests/transport.spec.ts > V-6 成帧不了与超界：收不到任何 HTTP 字节，也收不到 4xx > 没收齐就断开 5ms
+ ✓ tests/center-id.spec.ts > 读或铸（S-28 ④） > 真并发首启（sqlite）：两个写事务同时读或铸 ⇒ 只铸一次、两者拿到同一个标识 52ms
+ ↓ tests/center-id.spec.ts > 读或铸（S-28 ④） > 真并发首启（pg）——pg 零运行，归装配第二程（W3-A）
+ ✓ tests/center.spec.ts > T-3 判定次序（真实组合） > 版本对不上 × 四种出示物 ⇒ 四次 version-mismatch；公开体检照常 176ms
+ ✓ tests/ops.spec.ts > T-9、V-8 运维面的答复（S-21、S-26） > storageReachable、clockSane 每次读都现探；体检里没有治理事实 124ms
+ ✓ tests/ops.spec.ts > T-18 两张面同起同停与十项的来源 > serving 之前运维面关闭连接不答；开门后三样齐全，startedAt 是开门那一刻读到的时刻（晚于插件体里等钟那一次） 72ms
+ ✓ tests/basis.spec.ts > basis：ctx.on 经 effect 纳管 > 插件里 ctx.on 挂的监听，在该 fiber 撤除后不再被调用；未撤除时照常被调用 13ms
+ ✓ tests/basis.spec.ts > basis：ajv 的 unicodeRegExp 缺省开启 > 缺省选项下 opts.unicodeRegExp 为 true；pattern 按码点求值、maxLength 按码点计 84ms
+ ✓ tests/basis.spec.ts > basis：ajv 的 unicodeRegExp 缺省开启 > 本包的校验器沿用缺省：出示物的 pattern 把一个星形码点当一个字符 3ms
+ ✓ tests/transport.spec.ts > V-6 成帧不了与超界：收不到任何 HTTP 字节，也收不到 4xx > 恰在下限上（V-11；规范场景 S-28）：头部块 8192、请求体 65536、嵌套 64、成员 1024 ⇒ 都得公开体检答复 52ms
+ ✓ tests/transport.spec.ts > V-6 成帧不了与超界：收不到任何 HTTP 字节，也收不到 4xx > 上界 + 1：头部块 8193、请求体 65537、嵌套 65、成员 1025 ⇒ 一个字节都收不到 37ms
+ ✓ tests/transport.spec.ts > V-6 成帧不了与超界：收不到任何 HTTP 字节，也收不到 4xx > Content-Length 大于请求体上界 ⇒ 头部收齐即关，不读请求体（体一个字节都没发也关） 11ms
+ ✓ tests/transport.spec.ts > V-7 与 T-19：只有 TLS、服务端认证、不收早期数据 > 明文 HTTP 请求得不到任何 HTTP 字节（没有明文监听） 2ms
+ ✓ tests/transport.spec.ts > V-7 与 T-19：只有 TLS、服务端认证、不收早期数据 > 只提供 TLS 1.2 的客户端握不了手 4ms
+ ✓ tests/transport.spec.ts > V-7 与 T-19：只有 TLS、服务端认证、不收早期数据 > 握手里出示的证书链与 config 给的那一份逐字节相同（叶子 + 根，DER） 19ms
+ ✓ tests/lifecycle.spec.ts > T-12 插件体抛出 ⇒ 启动失败且监听已关 > 等钟超界 ⇒ 启动失败、端口已释放（插件体里的另两支见 ops.spec.ts） 285ms
+ ✓ tests/center.spec.ts > T-3 判定次序（真实组合） > 数据所在够不着：已撤销得 unavailable、没带得 login-state-rejected；有效配坏载荷 invalid-input、已撤销配同一份 login-state-rejected；注册与登录的坏载荷在存储不可用时仍 invalid-input 176ms
+ ✓ tests/transport.spec.ts > V-7 与 T-19：只有 TLS、服务端认证、不收早期数据 > OpenSSL：会话票据不许早期数据（Max Early Data: 0）；以早期数据送出的注册请求不被当作请求，那件事没有发生 63ms
+ ✓ tests/ops.spec.ts > T-18 两张面同起同停与十项的来源 > 入口层撤除（stopped）之后运维面停答；入口层重跑见到已兑现的 openSignal 即开门，startedAt 与 defectCount 不变，门关本身不加缺陷 229ms
+ ✓ tests/center.spec.ts > T-4 三个出口不合并（真实组合 + 运维面） > 存储不可用时以有效登录状态问事得 unavailable，恢复后同一个登录状态照常；参与方给出集合外的值 ⇒ unavailable 且 defectCount 加一 125ms
+ ✓ tests/transport.spec.ts > V-6：开门之前问不到 > 端口已绑、闸关着：握手完成的连接收到 close_notify，没有任何 HTTP 字节；运维面也不答 68ms
+ ✓ tests/lifecycle.spec.ts > T-8 经插件：中心标识的读或铸 > 两次从零首启得不同标识；同一份数据重启、换监听地址后得同一标识 208ms
+ ✓ tests/lifecycle.spec.ts > T-8 经插件：中心标识的读或铸 > 启动时那一格读不出 ⇒ 起不来、点名「读不到」、没有铸出新的；修好后是原来那个 100ms
+ ✓ tests/ops.spec.ts > T-18 两张面同起同停与十项的来源 > 普通重启：那一行早已铸好，运维面在入口层开门之前不答；运维面插件体不读 governance_center（装载期间没有任何存储读） 180ms
+ ✓ tests/center.spec.ts > T-5 列表句柄、撤销与备份（真实组合） > 登录答复的句柄等于列表里自己那一项；列表项恰 { loginStateHandle, issuedAt }；每个句柄当出示物都得 login-state-rejected，与从没签发过的值逐字节相同，verify 一次都没被调用 128ms
+ ✓ tests/basis.spec.ts > basis：Node 24 的 TLS 服务器与预建的 secureContext > 材料直接交给 createServer ⇒ 握手成功；预建的 secureContext ⇒ 握手失败（ERR_SSL_NO_SUITABLE_SIGNATURE_ALGORITHM） 38ms
+ ✓ tests/basis.spec.ts > 规范 Schema 的包内副本 > 与 spec 目录的那一份逐字节相同 347ms
+ ✓ tests/lifecycle.spec.ts > T-8 经插件：中心标识的读或铸 > 首启时铸的那次提交失败 ⇒ 起不来、点名「写不进」，那一行仍是 NULL；修好后再启动按第一次铸 69ms
+ ✓ tests/lifecycle.spec.ts > T-8 经插件：中心标识的读或铸 > 那一格不存在（表在）⇒ 起不来、点名「那一格不存在」、没有铸出新的 115ms
+ ✓ tests/basis.spec.ts > 规范 Schema 的包内副本 > 每条路由的 Payload_<路由> 与 Result_<路由> 都编得出；另有 Exchange、Envelope、FullHealthReply 199ms
+ ✓ tests/center.spec.ts > T-5 列表句柄、撤销与备份（真实组合） > 按句柄撤销同账号另一个 ⇒ ok，再撤仍 ok；别的账号的句柄与从没签发过的句柄 ⇒ login-state-not-found 逐字节相同；首尾空白 ⇒ invalid-input 且 revoke 未被调用；abc 原样到达 revoke；只有一次领域调用；撤自己之后再来 ⇒ login-state-rejected 207ms
+ ✓ tests/skeleton.spec.ts > 公开入口 > 装配消费的名字都在：两个插件、两份 config Schema、迁移片段、迁移前核对、四个通知名 6ms
+ ✓ tests/lifecycle.spec.ts > T-8 经插件：中心标识的读或铸 > 值不合 S-27 ⇒ 起不来、点名「值不合 S-27」、不修不重铸；公开体检启动之前与失败之后都问不到那个值 110ms
+ ✓ tests/lifecycle.spec.ts > T-8 经插件：中心标识的读或铸 > 存储中途不可用时公开体检照样答出三样 61ms
+ ✓ tests/center.spec.ts > T-5 列表句柄、撤销与备份（真实组合） > 两条交错：认人与撤销之间目标被别处撤掉 ⇒ ok；发起方被撤掉 ⇒ login-state-rejected 134ms
+ ✓ tests/ops.spec.ts > T-18 两张面同起同停与十项的来源 > 插件体里等钟：先若干次 unavailable、在上界内转为可读 ⇒ 插件体等到之后才返回 369ms
+ ✓ tests/lifecycle.spec.ts > T-12 openSignal：就绪与开门分两步 > 兑现之前：入口层 ACTIVE、端口已绑，连接一律被关闭没有答复，运维面也不答，没有 serving；兑现之后才开门并发 serving 73ms
+ ✓ tests/center.spec.ts > T-5 列表句柄、撤销与备份（真实组合） > 备份那一半（契约 S-41 后半）：登录三次、撤销一次、停机备份；备份里每一个字符串值当出示物都得 login-state-rejected，与没带时逐字节相同；两个仍有效的照常能用 248ms
+ ✓ tests/lifecycle.spec.ts > T-12 openSignal：就绪与开门分两步 > 兑现之前撤除 ⇒ 端口立即释放、不发 stopped；其后再兑现也不开门 246ms
+ ✓ tests/ops.spec.ts > T-18 两张面同起同停与十项的来源 > 插件体里等钟一直读不到 ⇒ 启动失败、说明点名是钟、监听已关、没有 serving、运维面始终不答 350ms
+ ✓ tests/center.spec.ts > T-6 身份推导与补授权（真实组合） > 切到组织 A 后发邀请由 A 发出；载荷夹带「以组织 B 行事」⇒ invalid-input 且没有邀请被发出；读不在的与不存在的组织 ⇒ notAuthorized；上级链一个不在 ⇒ notAuthorized 164ms
+ ✓ tests/center.spec.ts > T-6 身份推导与补授权（真实组合） > 个人组织发邀请 ⇒ issuerIsPersonalOrganization 原样透传 90ms
+ ✓ tests/lifecycle.spec.ts > T-12 openSignal：就绪与开门分两步 > 被拒绝 ⇒ 闸不开，没有未处理的 Promise 拒绝 252ms
+ ↓ tests/lifecycle.spec.ts > T-12 openSignal：就绪与开门分两步 > 崩溃落在开闸之前：恢复升级快照后没有任何客户端见过的写丢失——要 apps/tenancy-host 的 boot() 与升级快照，与 U-1 一起归 W3-A
+ ✓ tests/center.spec.ts > T-7 δ = 0：每个请求现读（真实组合） > 撤销之后立刻用它 ⇒ login-state-rejected；切换当前租户身份后下一个请求就以新身份行事；解除成员资格后下一次补授权即 notAuthorized 157ms
+ ✓ tests/center.spec.ts > T-9 客户端一面没有第三张面 > 客户端一面没有读完整体检或写部署事实的路由：发这类 operation 得 invalid-input 94ms
+ ✓ tests/center.spec.ts > T-16 不记住来访、不区别对待来者 > 同一个有效登录状态、同一件事，从两个对端地址、以人用客户端与脚本的写法各发一次 ⇒ 答复逐字节相同 77ms
+ ✓ tests/center.spec.ts > T-11 秘密不进任何输出（本文件全部答复、体检、工程记录） > 部署签名私钥、凭据材料、TLS 私钥、出示物（原样、base64url 带与不带填充、十六进制大小写）只出现在登录成功答复里；工程记录里没有对端地址、AccountId、TenantId、载荷值 67ms
+ ✓ tests/ops.spec.ts > T-18 两张面同起同停与十项的来源 > 插件体里等钟期间撤掉入口层 ⇒ 轮询停止、不抛出 586ms
+ ✓ tests/lifecycle.spec.ts > T-12 两张面同起同停；存储不可用时不卸载 > 入口层撤除 ⇒ 两张面同时停答；存储不可用时两个插件都不卸载、只以返回值收场 96ms
+ ✓ tests/lifecycle.spec.ts > T-12 两张面同起同停；存储不可用时不卸载 > 撤除有界：握手没完成就一直不说话的连接也不挡端口释放 56ms
+ ✓ tests/lifecycle.spec.ts > T-12 停机时的在途请求（S-34） > drainTimeoutMs 内答完的照常答；报文只收了一半的被关闭、收不到字节；停机开始后的新连接被拒 391ms
+ ✓ tests/ops.spec.ts > T-18 两张面同起同停与十项的来源 > 开门那一刻等钟：兑现时读不到、在上界内转为可读 ⇒ 等到才开门 342ms
+ ✓ tests/lifecycle.spec.ts > T-12 停机时的在途请求（S-34） > 超过 drainTimeoutMs 仍未答完的连接被销毁；它的领域写要么完整在、要么完全不在 569ms
+ ✓ tests/lifecycle.spec.ts > T-14 配置错误一个政策：各自 FAILED，没有运行期具名拒绝 > 入口层：缺证书链 ⇒ FAILED 44ms
+ ✓ tests/ops.spec.ts > T-18 两张面同起同停与十项的来源 > 开门那一刻钟一直读不到 ⇒ 不开门、端口释放、一条原因为钟的 error 记录、没有 serving 402ms
+ ✓ tests/lifecycle.spec.ts > T-14 配置错误一个政策：各自 FAILED，没有运行期具名拒绝 > 入口层：缺私钥 ⇒ FAILED 49ms
+ ✓ tests/lifecycle.spec.ts > T-14 配置错误一个政策：各自 FAILED，没有运行期具名拒绝 > 入口层：私钥为空 ⇒ FAILED 33ms
+ ✓ tests/lifecycle.spec.ts > T-14 配置错误一个政策：各自 FAILED，没有运行期具名拒绝 > 入口层：PEM 不合 ⇒ FAILED 35ms
+ ✓ tests/lifecycle.spec.ts > T-14 配置错误一个政策：各自 FAILED，没有运行期具名拒绝 > 入口层：私钥与证书链不配 ⇒ FAILED 34ms
+ ✓ tests/lifecycle.spec.ts > T-14 配置错误一个政策：各自 FAILED，没有运行期具名拒绝 > 入口层：drainTimeoutMs 缺席 ⇒ FAILED 33ms
+ ✓ tests/lifecycle.spec.ts > T-14 配置错误一个政策：各自 FAILED，没有运行期具名拒绝 > 入口层：drainTimeoutMs 非正 ⇒ FAILED 34ms
+ ✓ tests/lifecycle.spec.ts > T-14 配置错误一个政策：各自 FAILED，没有运行期具名拒绝 > 入口层：clockReadyTimeoutMs 缺席 ⇒ FAILED 34ms
+ ✓ tests/lifecycle.spec.ts > T-14 配置错误一个政策：各自 FAILED，没有运行期具名拒绝 > 入口层：clockReadyTimeoutMs 非正 ⇒ FAILED 32ms
+ ✓ tests/lifecycle.spec.ts > T-14 配置错误一个政策：各自 FAILED，没有运行期具名拒绝 > 入口层：openSignal 缺席 ⇒ FAILED 33ms
+ ✓ tests/lifecycle.spec.ts > T-14 配置错误一个政策：各自 FAILED，没有运行期具名拒绝 > 入口层：openSignal 不是 thenable ⇒ FAILED 33ms
+ ✓ tests/lifecycle.spec.ts > T-14 配置错误一个政策：各自 FAILED，没有运行期具名拒绝 > 入口层：监听端口越界 ⇒ FAILED 31ms
+ ✓ tests/lifecycle.spec.ts > T-14 配置错误一个政策：各自 FAILED，没有运行期具名拒绝 > 私钥与证书链不配 ⇒ TlsMaterialError，说明只带 OpenSSL 错误码 35ms
+ ✓ tests/lifecycle.spec.ts > T-14 配置错误一个政策：各自 FAILED，没有运行期具名拒绝 > 运维面：socketDirectory 不是绝对路径 ⇒ FAILED 37ms
+ ✓ tests/lifecycle.spec.ts > T-14 配置错误一个政策：各自 FAILED，没有运行期具名拒绝 > 运维面：deploymentKey 不是两个 true ⇒ FAILED 35ms
+ ✓ tests/lifecycle.spec.ts > T-14 配置错误一个政策：各自 FAILED，没有运行期具名拒绝 > 运维面：deploymentKey 缺席 ⇒ FAILED 49ms
+ ✓ tests/lifecycle.spec.ts > T-14 配置错误一个政策：各自 FAILED，没有运行期具名拒绝 > 运维面：部署参数缺一 ⇒ FAILED 36ms
+ ✓ tests/ops.spec.ts > T-18 两张面同起同停与十项的来源 > 开门那一刻等钟期间撤掉入口层 ⇒ 下一拍停止、不开门、不发任何通知 500ms
+ ✓ tests/lifecycle.spec.ts > T-14 配置错误一个政策：各自 FAILED，没有运行期具名拒绝 > 运维面：部署参数非正 ⇒ FAILED 37ms
+ ✓ tests/lifecycle.spec.ts > T-14 配置错误一个政策：各自 FAILED，没有运行期具名拒绝 > 运维面：套接字目录权限过宽 ⇒ FAILED 33ms
+ ✓ tests/lifecycle.spec.ts > T-14 配置错误一个政策：各自 FAILED，没有运行期具名拒绝 > 全部日志与启动失败说明里没有私钥、没有 config 的值（目录路径） 44ms
+ ✓ tests/ops.spec.ts > T-18 两张面同起同停与十项的来源 > storage 换代演练（入口层先重跑完、运维面后到）：两张面都恢复应答，centerId 不变且只来自 serving 171ms
+ ✓ tests/ops.spec.ts > T-18 两张面同起同停与十项的来源 > storage 换代演练（运维面先重跑完、入口层后到）：两张面都恢复应答，centerId 不变且只来自 serving 167ms
+ ✓ tests/ops.spec.ts > T-18 两张面同起同停与十项的来源 > 运维面装载时的握手处理者抛出只记 error，不改变入口层的行为 46ms
+ ✓ tests/ops.spec.ts > loadPlugin 夹具自检 > 入口层 config 里 openSignal 是同一个引用（z.custom，不重建） 41ms
+ ✓ tests/transport.spec.ts > 读尽时限（S-5；两张面同一连接层） > 写完答复后对端一直不关写 ⇒ 读尽时限到了中心全关（在中心一侧观察连接关闭的时刻） 5005ms
+ ✓ tests/slow.spec.ts > 接收时限：下限 30 秒之内不被切，到了时限还没收齐就关闭不写 > 客户端一面：连接就绪之后慢慢发，约 28 秒才发完最后一个字节的公开体检请求 ⇒ 照常得到答复 28044ms
+ ✓ tests/slow.spec.ts > 接收时限：下限 30 秒之内不被切，到了时限还没收齐就关闭不写 > 客户端一面：到了接收时限仍没收齐 ⇒ 关闭，一个字节都不写；关闭不早于 30 秒 30016ms
+ ✓ tests/slow.spec.ts > 接收时限：下限 30 秒之内不被切，到了时限还没收齐就关闭不写 > 运维面同一时限：约 28 秒才发完的请求照答；没收齐的在 30 秒后关闭不写 40008ms
+ ✓  TS  tests/types.spec-d.ts > 公开入口的类型 > openSignal 是装配构造的 thenable；两份 config 的形状
+ ✓  TS  tests/types.spec-d.ts > 公开入口的类型 > 迁移片段与迁移前核对按 storage 协议的共用接口
+ ✓  TS  tests/types.spec-d.ts > 公开入口的类型 > GovernanceCenterId 是品牌字符串：普通字符串不能当它用
+ ✓  TS  tests/types.spec-d.ts > 公开入口的类型 > Caller 是名义类型：结构相同的普通对象不能当它用（只在认人那一步构造）
+
+ Test Files  13 passed (13)
+      Tests  422 passed | 2 skipped (424)
+Type Errors  no errors
+   Start at  16:13:45
+   Duration  46.94s (transform 4.01s, setup 0ms, import 12.09s, tests 58.96s, environment 2ms, typecheck 3.35s)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence/tmp/w4a/tests/json/governance-center-entry.json
+end: 2026-09-23T16:14:32Z
+exit: 0
+

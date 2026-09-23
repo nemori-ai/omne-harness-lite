@@ -1,0 +1,4 @@
+run	exit	seconds
+storage-sql.conformance.postgres	0	1
+storage-sql.upgrade.postgres	0	2
+tenancy-host.pg	0	7

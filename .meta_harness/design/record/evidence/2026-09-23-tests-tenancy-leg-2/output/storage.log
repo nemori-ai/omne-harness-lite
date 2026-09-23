@@ -1,0 +1,48 @@
+===== [storage] build =====
+$ (cwd=/data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence) pnpm --filter @omne-harness-lite/storage run build
+start: 2026-09-23T16:12:02Z
+
+> @omne-harness-lite/storage@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence/packages/core/storage
+> node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+
+end: 2026-09-23T16:12:04Z
+exit: 0
+
+===== [storage] typecheck =====
+$ (cwd=/data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence) pnpm --filter @omne-harness-lite/storage run typecheck
+start: 2026-09-23T16:12:04Z
+
+> @omne-harness-lite/storage@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence/packages/core/storage
+> tsc -p tsconfig.test.json
+
+end: 2026-09-23T16:12:06Z
+exit: 0
+
+===== [storage] test =====
+$ (cwd=/data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence) pnpm --filter @omne-harness-lite/storage exec vitest run --reporter=verbose --reporter=json --outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence/tmp/w4a/tests/json/storage.json
+start: 2026-09-23T16:12:06Z
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence/packages/core/storage
+
+ ✓ tests/errors.spec.ts > mapStorageError 只折 StorageUnavailable > StorageUnavailable ⇒ 调用方给的字面 2ms
+ ✓ tests/errors.spec.ts > mapStorageError 只折 StorageUnavailable > 其余一律重抛：缺陷、唯一冲突、引用违反、调用方错误 1ms
+ ✓ tests/errors.spec.ts > mapStorageError 只折 StorageUnavailable > 四型各有稳定的 name 与 cause 通道 0ms
+ ✓ tests/migration.spec.ts > composeMigrations > 按数组次序给四位编号，名字 = 编号_片段名 3ms
+ ✓ tests/migration.spec.ts > composeMigrations > 同名片段拒绝合成，不静默覆盖 1ms
+ ✓  TS  tests/types.spec-d.ts > storage 协议类型 > 引用违反恰两向
+ ✓  TS  tests/types.spec-d.ts > storage 协议类型 > 协议面恰 read/write；WriteTx 多 lockRow/lockSentinel
+ ✓  TS  tests/types.spec-d.ts > MigrationFragment 与 PreflightCheck 的形状 > 片段只带稳定名字与 kysely Migration
+ ✓  TS  tests/types.spec-d.ts > MigrationFragment 与 PreflightCheck 的形状 > 核对只读同一事务里读好的表清单与迁移登记，结果是 ok 或具名不过
+
+ Test Files  3 passed (3)
+      Tests  9 passed (9)
+Type Errors  no errors
+   Start at  16:12:07
+   Duration  2.15s (transform 237ms, setup 0ms, import 282ms, tests 11ms, environment 0ms, typecheck 1.81s)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/tenancy-leg-2-evidence/tmp/w4a/tests/json/storage.json
+end: 2026-09-23T16:12:09Z
+exit: 0
+

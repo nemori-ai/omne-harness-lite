@@ -1,0 +1,7 @@
+container: omne-pg-w4 (docker run --rm -d --name omne-pg-w4 -e POSTGRES_PASSWORD=<random hex, not recorded> -p 127.0.0.1:55439:5432 postgres:16)
+image: postgres:16 sha256:88a36c64c1003dad93f56daa12d1f8916ec66d1fa3e5fb1fb0ae7cb77efd56d1
+repo digest: postgres@sha256:33f923b05f64ca54ac4401c01126a6b92afe839a0aa0a52bc5aeb5cc958e5f20
+server: PostgreSQL 16.14 (Debian 16.14-1.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+databases created before tests: w4a_conformance, w4a_upgrade, w4a_host_admin (all fresh, empty)
+databases after tests (observed by `psql -tAc "select datname from pg_database order by 1"` right after the three runs): postgres, template0, template1, w4a_conformance, w4a_host_admin, w4a_upgrade — tenancy-host pg.spec dropped every w3a_* database it created (its afterAll)
+container removed with `docker rm -f omne-pg-w4` right after the line above was observed; `docker ps -a --filter name=omne-pg-w4` then listed nothing (checked at 2026-09-23T16:17:28Z)
