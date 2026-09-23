@@ -25,7 +25,7 @@ bindings:
       - "RejectionUniform 只检查到「同一个答复值」；整个线上答复逐字节相同被「一个答复就是一个值」的建模方式吸收，模型不覆盖，证据形式是节点测试 T-2（契约场景 S-39），未开始"
       - "RejectionOnlyWhenJudged 没有专门变异，本绑定不以它为依据"
       - "前提：参与方 capability.account-identity v2（candidate）的 S-44 把一切判不了收成 storage-unavailable；参与方另给出集合外的值时走 S-14 缺陷路径，不在本条"
-      - "模型的 Authenticate 不区分认人调的是哪个参与方操作；入口契约改钉 AI v2 的修订在途（节点 design N-11），成文后重核本条对齐"
+      - "模型的 Authenticate 不区分认人调的是哪个参与方操作；入口契约改钉 AI v2 之后 S-11 的出口表（AI S-44 的四个出口）与本条前提已逐条核过，契约记 TLC 重跑无变化（节点 design N-11 已闭合）"
     alignment_checked: "2026-09-23"
 
   - clause: "composition.governance-center-entry/v1#S-13"
