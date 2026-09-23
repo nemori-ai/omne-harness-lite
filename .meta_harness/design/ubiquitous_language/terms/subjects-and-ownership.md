@@ -335,17 +335,17 @@
 > layer, **with no door of any kind onto governance facts**.
 
 - **形态**：总称
-- **出处**：[PF-017 §4 运维者](../../product/PF-017-governance-center-delivery-surface/design.md#运维者) ·
-  [§5.5](../../product/PF-017-governance-center-delivery-surface/design.md#55-运维者与超级管理员两条线不交叉) ·
-  [§6.13](../../product/PF-017-governance-center-delivery-surface/design.md#613-运维者没有任何一扇门通向账号能做的事)（rev 1）
+- **出处**：[PF-017 §4 运维者](../../product/PF-017-governance-center-as-deployable-application/design.md#运维者) ·
+  [§5.5](../../product/PF-017-governance-center-as-deployable-application/design.md#55-运维者与超级管理员两条线不交叉) ·
+  [§6.13](../../product/PF-017-governance-center-as-deployable-application/design.md#613-运维者没有任何一扇门通向账号能做的事)（rev 1）
 - **⚠️ 别混**：**不是[超级管理员](#ul-super-administrator--超级管理员--super-administrator)。**超管是一个组织内的最高治理角色，
   凭自己的登录状态做治理动作；运维者凭对机器与数据的控制让中心在，**手上没有任何登录状态可用**。
   同一个人两头都是，产品也当成两个人
 - **注意 ①**：形态判「总称」，因为系统里指不出「这一个运维者」，也没有任何东西引用它；
   判成挂在治理中心上的属性，下游就会去建一份「运维者列表」，而正文明说中心不登记
 - **注意 ②**：「平台管理员」「部署管理员」「内置管理员账号」**不是它的别名**——那几个名字指的东西
-  [本产品没有](../../product/PF-017-governance-center-delivery-surface/design.md#非目标)，刻意不立
+  [本产品没有](../../product/PF-017-governance-center-as-deployable-application/design.md#非目标)，刻意不立
 - **注意 ③**：产品挡的是「产品自己开的门」，不是握着磁盘的人——
-  [边界说实话](../../product/PF-017-governance-center-delivery-surface/design.md#613-运维者没有任何一扇门通向账号能做的事)
+  [边界说实话](../../product/PF-017-governance-center-as-deployable-application/design.md#613-运维者没有任何一扇门通向账号能做的事)
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

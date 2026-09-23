@@ -138,8 +138,8 @@
 > it to "center health check".
 
 - **形态**：视图
-- **出处**：[PF-017 §4 中心体检](../../product/PF-017-governance-center-delivery-surface/design.md#中心体检) ·
-  [§6.17](../../product/PF-017-governance-center-delivery-surface/design.md#617-体检只说部署不说里面有谁)（rev 1）
+- **出处**：[PF-017 §4 中心体检](../../product/PF-017-governance-center-as-deployable-application/design.md#中心体检) ·
+  [§6.17](../../product/PF-017-governance-center-as-deployable-application/design.md#617-体检只说部署不说里面有谁)（rev 1）
 - **⚠️ 别混**：与 [PF-016 本机族的「体检」](../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)是**同一个词的两头**：
   那边是客户端自查「能不能连上中心」，这边是中心自述「我在不在」；**取同一个词是有意的**，两头合起来才是「这条路通不通」
 - **注意**：不是[当下可用性](#ul-current-availability--当下可用性--current-availability)——那是一份能力的依赖解析结果，这是一次部署的自述

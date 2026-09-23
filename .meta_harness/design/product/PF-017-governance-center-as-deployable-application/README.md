@@ -89,7 +89,7 @@ relations:
 ## 本包的文件
 
 ```text
-PF-017-governance-center-delivery-surface/
+PF-017-governance-center-as-deployable-application/
 ├── README.md         本页：定位、关系、状态          ← 必须
 ├── design.md         概念、模型、规则、取舍、边界      ← 必须
 ├── flows.md          旅程、异常分支、状态流转、角色矩阵
