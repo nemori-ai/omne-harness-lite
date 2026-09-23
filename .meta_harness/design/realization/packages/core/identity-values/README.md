@@ -10,15 +10,15 @@
 - 语义接受范围：`data.identity-values` v1 **全部条款**（含其已知缺口作为显式缺口），依据 [D-023](../../../../record/decisions/tenant-domain-design-acceptance/decision.md)（产品负责人，2026-09-22）；本节点的设计随同一决定被接受为实现路径。接受不提升下面三层
 - 可实施范围：本节点声称兑现的条款逐条见 [design.md「能力到 Cordis 的投影」](design.md#能力到-cordis-的投影)——身份值形状（S-1～S-13、S-31～S-34）、`MembershipStandingResult` 的两支形状（S-10）、`ScopeLayerIdentity` 两变体（S-11）、交接凭证的形状与签发／核实原语（S-35），以上**已实现（HUB `c9b5850`）**，验证登记见下两层。**不兑现**：隔离义务 S-16～S-30 的任何一条（只给检查器），成员资格效力怎么算（S-10 的行为面归治理节点），标识的**部署内唯一**（归各持有节点的存储约束）
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) 为**空表**——本契约没有已登记的 formal task。证据义务见 [verification.md](verification.md)：契约 `examples.md` 参与机检的 86 行正反实例、S-35 四类反例、Schema 副本逐字节相同，都由包内测试承担，运行结果登记在那里的「实际执行」
-- 实际验证：运行 `2026-09-23-tests-tenancy-leg-2`：十三个 TS 成员 build／typecheck／test 在 sqlite 下全过（全仓 1184 通过、34 跳过、0 失败），证据登记在 `record/evidence/2026-09-23-tests-tenancy-leg-2/`（HUB）。此前 2026-09-22 的单包运行（211 条测试通过、类型测试无错误；单机、Node 24.18、ajv 8.20.0）见 [verification.md「实际执行」](verification.md#实际执行)；逐条覆盖待 verification 回填
+- 实际验证：运行 `2026-09-23-tests-tenancy-leg-2`：十三个 TS 成员 build／typecheck／test 在 sqlite 下全过（全仓 1184 通过、34 跳过、0 失败），证据登记在 [`record/evidence/2026-09-23-tests-tenancy-leg-2/`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md)（HUB）。此前 2026-09-22 的单包运行（211 条测试通过、类型测试无错误；单机、Node 24.18、ajv 8.20.0）见 [verification.md「实际执行」](verification.md#实际执行)；逐条覆盖待 verification 回填
 
 ## 按当前问题展开
 
-| 当前问题 | 阅读入口 |
-|---|---|
-| 怎样实现、公开面是什么、静态检查义务落到什么形式 | [实现设计](design.md) |
-| 哪条承诺由哪份证据支持、前提是什么 | [绑定表](bindings.yaml)（当前为空） |
-| 实际跑过什么、覆盖到哪里 | [验证与证据](verification.md) |
+| 当前问题                                         | 阅读入口                            |
+| ------------------------------------------------ | ----------------------------------- |
+| 怎样实现、公开面是什么、静态检查义务落到什么形式 | [实现设计](design.md)               |
+| 哪条承诺由哪份证据支持、前提是什么               | [绑定表](bindings.yaml)（当前为空） |
+| 实际跑过什么、覆盖到哪里                         | [验证与证据](verification.md)       |
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。

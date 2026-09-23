@@ -10,15 +10,15 @@
 - 语义接受范围：`capability.organization-governance` v1 **全部条款**（含其已知缺口作为显式缺口），依据 [D-023](../../../../record/decisions/tenant-domain-design-acceptance/decision.md)（产品负责人，2026-09-22）；本节点的设计——含跨 owner「同一提交」靠账号行过期事实加引用约束、四个服务面、无进程内锁——随同一决定被接受为实现路径；S-36／S-37 登录状态参数收窄为品牌这一处修订随 [D-028](../../../../record/decisions/governance-center-design-acceptance/decision.md) 接受（2026-09-23）。接受不提升下面三层
 - 可实施范围：本节点声称兑现 25 个操作的九件事、四条贯穿规矩（S-15～S-18）、S-14 五条（含 ⑤ 残留清扫的**方法**，触发与节奏归装配 G-13）、五个通知事件、S-42 表左列九行里落到本节点或存储要求上的部分，逐条见 [design.md](design.md#能力到-cordis-的投影)，以上**已实现（HUB `c9b5850`）**；S-32 的判定次序与 design 不一致，待主线裁定（[实施缺口](design.md#实施缺口与消费者影响)）。**不兑现**：S-42 右列全部协议给保证；S-38 的「不可达」（资产 owner）；S-49／S-50 的另一半（资产、会话契约尚无）；G-1 会话级层身份；G-2 组织消失的事件源（契约禁止预埋）；G-3 计量；G-6 运行控制
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) **三条**，绑到 `formal:organization-governance-v1-membership`（S-17／S-28／S-29 的序列化不变量；S-39 不绑——模型没有在它被违反时会失败的断言）。Alloy 模型**未登记为 formal task**（退出码归 tooling 的缺口），不可绑；规范场景 S-46～S-54 已有包内测试（见下一项），逐条状态待 [verification.md](verification.md) 回填
-- 实际验证：包内测试（`tests/{scenarios,organizations,memberships,offers,faults,inputs,migrations,plugin}.spec.ts`、`tests/types.spec-d.ts`；跨契约与归别处的写成带指向的 `it.skip`）在运行 `2026-09-23-tests-tenancy-leg-2` 里随十三个 TS 成员 build／typecheck／test 在 sqlite 下全过，证据登记在 `record/evidence/2026-09-23-tests-tenancy-leg-2/`（HUB）；逐条覆盖待 [verification.md](verification.md) 回填
+- 实际验证：包内测试（`tests/{scenarios,organizations,memberships,offers,faults,inputs,migrations,plugin}.spec.ts`、`tests/types.spec-d.ts`；跨契约与归别处的写成带指向的 `it.skip`）在运行 `2026-09-23-tests-tenancy-leg-2` 里随十三个 TS 成员 build／typecheck／test 在 sqlite 下全过，证据登记在 [`record/evidence/2026-09-23-tests-tenancy-leg-2/`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md)（HUB）；逐条覆盖待 [verification.md](verification.md) 回填
 
 ## 按当前问题展开
 
-| 当前问题 | 阅读入口 |
-|---|---|
-| 四个服务面、跨 owner 的「同一提交」为什么落在账号行的事实与引用约束上、序列化落到存储的什么要求、S-53 怎么只给清除链、装卸配对 | [实现设计](design.md) |
-| 哪条承诺由哪份证据支持、前提是什么 | [绑定表](bindings.yaml) |
-| 实际跑过什么、九条场景各缺什么 | [验证与证据](verification.md) |
+| 当前问题                                                                                                                       | 阅读入口                      |
+| ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------- |
+| 四个服务面、跨 owner 的「同一提交」为什么落在账号行的事实与引用约束上、序列化落到存储的什么要求、S-53 怎么只给清除链、装卸配对 | [实现设计](design.md)         |
+| 哪条承诺由哪份证据支持、前提是什么                                                                                             | [绑定表](bindings.yaml)       |
+| 实际跑过什么、九条场景各缺什么                                                                                                 | [验证与证据](verification.md) |
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。

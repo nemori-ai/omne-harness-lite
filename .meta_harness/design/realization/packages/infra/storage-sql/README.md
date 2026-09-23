@@ -10,16 +10,16 @@
 - 语义接受范围：**无契约条款。**本节点不是任何 `spec/` 契约的提供者，「接受」在这里只有两层含义：它兑现的协议接口归 [`core/storage`](../../core/storage/README.md) 节点（同批起草，**尚未被接受**）；协议对应的要求清单随 AI／OG 两个节点的设计被 [D-023](../../../../record/decisions/tenant-domain-design-acceptance/README.md) 接受为实现路径，查询层与驱动的选型被 [D-026](../../../../record/decisions/infrastructure-persistence-choices/decision.md) 接受。到此为止，不提升下面三层。升级守卫承接的 R-U1～R-U8 来自 tenancy-host 对 PF-017 §6.9 的承接（PF-017 rev 2），**不是契约条款**；本节点本程的设计（守卫对象、`upgrade` 显式、快照与恢复次序）随 [D-028](../../../../record/decisions/governance-center-design-acceptance/decision.md) 接受为实现路径（2026-09-23）；入口契约 S-34「存储不可用只以返回值到达」那一前提出自 `composition.governance-center-entry/v1`（D-028 已接受）
 - 可实施范围：本节点声称在 **sqlite 方言**上兑现协议全部四个方法与四种失败类型，并把 AI R-1～R-7、OG R-1～R-6 逐条落到方言机制（[design.md「要求清单到方言机制」](design.md#要求清单到方言机制)）；**升级守卫**在 sqlite 上承接 R-U1～R-U8 与属主排他（[design.md「属主实例」](design.md#属主实例排他迁移前只读核对升级快照与确认)）；以上**已实现（HUB `c9b5850`）**。**pg 方言**：代码同一份，方言由配置切；pg 上的测试只在 `OMNE_TEST_PG_URL` 指向可连的库时运行，design.md 里标「推断」的 pg 行为以那些测试的登记结果为准。**不兑现**：任何业务表的结构与迁移文件（归装配）、跨进程形态下的存储协调（[投影 Q-8](../../../../product/PF-001-identity-scope-and-agent-constraints/projection/v1/projection.md#7-未决项)）、断电级持久（R-4 在 `synchronous=NORMAL` 下的边界，见 design.md）、**pg 上迁移提交之后装配失败的撤回**（tenancy-host 缺口 U-3，[显式缺口](design.md#实施缺口与消费者影响)，受阻消费者：tenancy-host 在 pg 上的 §6.9；守卫在 pg 上如实交出 `migrated ∧ ¬snapshotTaken`）、**非守卫实例打开生产库时的排他**（锁只在守卫实例之间成立，写成运维约定，owner 装配）
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) 为**空表**——无已存在的证据可绑（本节点不兑现契约条款，没有可写进 `clause` 的坐标）；协议级证据是 `core/storage` 的一致性套件在本提供者上的运行，升级守卫各行的证据是包内 `upgrade.*` 测试，义务逐条登记在 [verification.md](verification.md)
-- 实际验证：2026-09-22 `core/storage` 一致性套件在 sqlite 临时文件库上 **18 组用例全绿**（C-1a～C-15，含 C-2b 主键支，含两实例真并发 C-4／C-5／C-7／C-13），插件测试 4 条通过；pg **未运行**（`describe.skip`，跳过不是通过）；见 [verification.md「实际执行」](verification.md#实际执行)。运行 `2026-09-23-tests-tenancy-leg-2`（证据登记在 `record/evidence/2026-09-23-tests-tenancy-leg-2/`，HUB）：sqlite 下本包全部测试（一致性套件 19 组、升级守卫 `upgrade.*`、插件测试）随十三个 TS 成员全过；pg 16 容器上一致性套件 19／19、升级测试 3／3 通过。逐条覆盖待 verification 回填
+- 实际验证：2026-09-22 `core/storage` 一致性套件在 sqlite 临时文件库上 **18 组用例全绿**（C-1a～C-15，含 C-2b 主键支，含两实例真并发 C-4／C-5／C-7／C-13），插件测试 4 条通过；pg **未运行**（`describe.skip`，跳过不是通过）；见 [verification.md「实际执行」](verification.md#实际执行)。运行 `2026-09-23-tests-tenancy-leg-2`（证据登记在 [`record/evidence/2026-09-23-tests-tenancy-leg-2/`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md)，HUB）：sqlite 下本包全部测试（一致性套件 19 组、升级守卫 `upgrade.*`、插件测试）随十三个 TS 成员全过；pg 16 容器上一致性套件 19／19、升级测试 3／3 通过。逐条覆盖待 verification 回填
 
 ## 按当前问题展开
 
-| 当前问题 | 阅读入口 |
-|---|---|
-| 为什么是 Kysely + 自写 `node:sqlite` Driver、方言配置长什么样、两种方言的锁与错误码怎么映射、迁移谁跑、装卸怎么配对 | [实现设计](design.md) |
-| 升级怎么整体成或整体不成：排他、只读核对、快照、恢复、确认，pg 缺什么 | [属主实例](design.md#属主实例排他迁移前只读核对升级快照与确认) |
-| 哪条承诺由哪份证据支持 | [绑定表](bindings.yaml)（当前为空） |
-| 一致性套件每条 R 的义务、方言切换与错误码映射测试、还缺什么 | [验证与证据](verification.md) |
+| 当前问题                                                                                                            | 阅读入口                                                       |
+| ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| 为什么是 Kysely + 自写 `node:sqlite` Driver、方言配置长什么样、两种方言的锁与错误码怎么映射、迁移谁跑、装卸怎么配对 | [实现设计](design.md)                                          |
+| 升级怎么整体成或整体不成：排他、只读核对、快照、恢复、确认，pg 缺什么                                               | [属主实例](design.md#属主实例排他迁移前只读核对升级快照与确认) |
+| 哪条承诺由哪份证据支持                                                                                              | [绑定表](bindings.yaml)（当前为空）                            |
+| 一致性套件每条 R 的义务、方言切换与错误码映射测试、还缺什么                                                         | [验证与证据](verification.md)                                  |
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。

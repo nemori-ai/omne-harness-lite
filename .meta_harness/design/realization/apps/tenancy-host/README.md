@@ -19,18 +19,18 @@
   确认之后到开闸之间的失败支（U-4，**已接受的残余情形（裁 (b)）：无已确认提交丢失、老版本不能再起、核过钟再重启**——入口层在开闸时再读钟、超界即放弃；本节点有界等 `serving`、等不到即启动失败、快照已确认不恢复，说明写「钟读不到或回拨：重启前先核钟」）；进程怎么被拉起（systemd／容器／手动）、pg 作部署目标（pg 上的装配演练只在测试里跑）、密钥轮换、当前租户身份残留清扫的定时器（[OG G-13](../../../spec/capabilities/organization-governance/v1/contract.md#十一已知缺口)）、清扫提供者（[AR G-6](../../../spec/compositions/account-registration/v1/contract.md#九已知缺口)，无枚举读面）。客户端一侧（据点的客户端代理、防冒充的确认）不在本节点。
   声称给出的各项**已实现（HUB `c9b5850`）**；本节点的函数、常量、环境变量名都是实名（公开入口 `src/index.ts`），它装配的九个包也都已实现（各节点 README「源码位置」）。`tools/ts-checks` 的规则扫 `packages/` 与 `apps/`，接进 `pnpm run check`
 - **绑定与证据**：本节点的装配测试（`tests/` 下 `lifecycle`、`migrations`、`upgrade`、`config`、`process`、`slow`、`pg`）与 `tools/ts-checks` 的 `restricted-call-sites` 等规则都已存在；[`bindings.yaml`](bindings.yaml) 的绑定与 [verification.md](verification.md) 的逐条状态待回填。basis probe 证的是内核语义，入口契约的 formal task 证的是契约模型，都不是本节点的条款
-- **实际验证**：运行 `2026-09-23-tests-tenancy-leg-2`（证据登记在 `record/evidence/2026-09-23-tests-tenancy-leg-2/`，HUB）：本包测试随十三个 TS 成员 build／typecheck／test 在 sqlite 下全过（真实 sqlite 文件库、真实 TLS 连接与 Unix 套接字、八个真实插件、两进程真并发与子进程 `SIGKILL`）；pg 16 容器上本包的 pg 用例 11／11 通过——pg 仍不是本版部署目标。逐条覆盖待 verification 回填
+- **实际验证**：运行 `2026-09-23-tests-tenancy-leg-2`（证据登记在 [`record/evidence/2026-09-23-tests-tenancy-leg-2/`](../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md)，HUB）：本包测试随十三个 TS 成员 build／typecheck／test 在 sqlite 下全过（真实 sqlite 文件库、真实 TLS 连接与 Unix 套接字、八个真实插件、两进程真并发与子进程 `SIGKILL`）；pg 16 容器上本包的 pg 用例 11／11 通过——pg 仍不是本版部署目标。逐条覆盖待 verification 回填
 
 ## 按当前问题展开
 
-| 当前问题 | 阅读入口 |
-| --- | --- |
-| 这个应用是什么形状：进程、边、交互面入口、分层、技术栈、分发 | [应用形状](architecture.md) |
-| 装了哪些提供者、按什么顺序、config 从哪来、迁移怎么合成、升级怎么整体成或整体不成、密钥怎么到持钥插件且怎么核配对、入口层与运维面怎么装、启动失败与撤除怎么收口、每条「归装配」在哪一行承接或转交 | [实现设计](design.md) |
-| 入口层与运维面自己怎么工作（路由、判定次序、中心标识、传输、防冒充） | [governance-center-entry 节点](../../packages/tenancy/governance-center-entry/README.md) |
-| 哪条承诺由哪份证据支持、前提是什么 | [绑定表](bindings.yaml) |
-| 要证什么、实际跑过什么、还缺什么 | [验证与证据](verification.md) |
-| 为什么是 Kysely + `node:sqlite`、为什么无 in-memory | [D-026](../../../record/decisions/infrastructure-persistence-choices/README.md) 与[研究](../../../../research/agent-harness-persistence-and-identity-infra/research.md) |
+| 当前问题                                                                                                                                                                                          | 阅读入口                                                                                                                                                                |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 这个应用是什么形状：进程、边、交互面入口、分层、技术栈、分发                                                                                                                                      | [应用形状](architecture.md)                                                                                                                                             |
+| 装了哪些提供者、按什么顺序、config 从哪来、迁移怎么合成、升级怎么整体成或整体不成、密钥怎么到持钥插件且怎么核配对、入口层与运维面怎么装、启动失败与撤除怎么收口、每条「归装配」在哪一行承接或转交 | [实现设计](design.md)                                                                                                                                                   |
+| 入口层与运维面自己怎么工作（路由、判定次序、中心标识、传输、防冒充）                                                                                                                              | [governance-center-entry 节点](../../packages/tenancy/governance-center-entry/README.md)                                                                                |
+| 哪条承诺由哪份证据支持、前提是什么                                                                                                                                                                | [绑定表](bindings.yaml)                                                                                                                                                 |
+| 要证什么、实际跑过什么、还缺什么                                                                                                                                                                  | [验证与证据](verification.md)                                                                                                                                           |
+| 为什么是 Kysely + `node:sqlite`、为什么无 in-memory                                                                                                                                               | [D-026](../../../record/decisions/infrastructure-persistence-choices/README.md) 与[研究](../../../../research/agent-harness-persistence-and-identity-infra/research.md) |
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../spec/README.md)，采用选择回 [record/decisions](../../../record/decisions/README.md)。
