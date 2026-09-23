@@ -362,14 +362,17 @@
 > 且不属于任何组织或租户的那些值的**统称**。每一项各归定义它的 topic（本版五项：未激活记录的留存期限；
 > 加入组织的邀请与隶属请求、待确认的复制通知与分享邀请各自的默认时长）；每一项由
 > [运维者](subjects-and-ownership.md#ul-deployment-operator--运维者--deployment-operator)给值、中心启动时读、缺一不可、不出厂默认；
-> 改了只影响此后的判定。**它不是[范围化对象](scope-and-resolution.md#ul-scoped-object--范围化对象--scoped-object)**，不挂在任何一层、不参与求值。
+> 改了只影响此后的判定——**唯一例外是邀约类业务动作**：一份邀约的时效在发出那一刻定下（填了用填的，没填用那一刻的默认值），此后不随参数变。
+> **它不是[范围化对象](scope-and-resolution.md#ul-scoped-object--范围化对象--scoped-object)**，不挂在任何一层、不参与求值。
 >
 > **EN**: The collective name for the values the product text marks "configured per deployment":
 > in force for everyone on a governance center and belonging to no organization or tenant. Each
 > item is owned by the topic that defines it (five in this version: the retention period of
 > unactivated records, and the default periods of organization invitations, affiliation requests,
 > pending copy notices and sharing invitations); each is set by the deployment operator, read at
-> start, required with no factory default, and a change affects only later judgements.
+> start, required with no factory default, and a change affects only later judgements — with one
+> exception: an offer's validity period is fixed at the moment it is issued (the issuer's own value
+> if given, otherwise that moment's default) and does not follow later parameter changes.
 > **Not a scoped object** — it hangs on no layer and takes no part in evaluation.
 
 - **形态**：总称
