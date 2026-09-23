@@ -47,7 +47,7 @@ N1–N11 都已写进当前产品正文，A、B、C 各自与其中至少两条�
 | Q3：② 型命令的参数放在哪 | [PF-002](../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command) §4 Slash Command、[PF-014](../../../product/PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走) §5.10 | 正文落字；**未落字** |
 | Q7：参数与声明不符时（含 ① 型带声明时） | [PF-016](../../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族) §5.7（参数按声明）、PF-002 §4「自带的属性」 | 同上 |
 | Q8：没有入口权限时报什么 | PF-016 §5.7（未知命令名明说不发送）、PF-002 §4 入口权限 | 同上 |
-| 未决一：受理时认不出了怎么办（PF-014 §9.5 第二行）；台账读法认为作答连带回答了 PF-002「资产增删对进行中会话何时生效」 | [PF-014 §9.5](../../../product/PF-014-inbound-intake-and-queueing/design.md#95-斜杠命令受理时还有两处没说)、PF-002（资产增删的生效时机）、[PF-004](../../../product/PF-004-agent-definition-and-assembly/README.md)（装载时机） | 同上 |
+| 未决一：受理时认不出了怎么办（PF-014 §9.5 第二行）；台账读法认为作答连带回答了 PF-002「资产增删对进行中会话何时生效」 | [PF-014 §9.5](../../../product/PF-014-inbound-intake-and-queueing/design.md#95-斜杠命令受理时还有一处没说)、PF-002（资产增删的生效时机）、[PF-004](../../../product/PF-004-agent-definition-and-assembly/README.md)（装载时机） | 同上 |
 | 未决二：③ 能否由组织或租户创作 | [PF-002 §九](../../../product/PF-002-assets-settings-and-permissions/design.md#九未决项) | 同上 |
 | 未决三：保留名集合变大时已发布的同名 ① ② 型怎么办 | [PF-002 decisions §四](../../../product/PF-002-assets-settings-and-permissions/decisions.md#四已知的来源问题)、PF-002 §4「名字与撞名」 | 同上；保留名的具体分隔符等记法归规格 |
 

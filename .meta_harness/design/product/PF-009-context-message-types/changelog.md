@@ -5,6 +5,22 @@
 
 技术投影用 `provenance.json` 引用具体 rev，所以这里的 rev 不准会直接传导到实现侧。
 
+## rev 6 · `SystemReminderMessage` 的来源补上「恢复时追补的异常中断」 — 2026-09-23
+
+**起因**：[PF-012 rev 10](../PF-012-agent-loop-and-run/changelog.md#rev-10--2026-09-23) 在[恢复时对账](../PF-012-agent-loop-and-run/design.md#先对账再进方程)里新增两条追补：
+前台那次执行没了，追补一条占位 `ToolMessage`「工具执行异常中断」；后台那段执行没了，追补一条 `SystemReminderMessage`「后台工具执行异常中断」。
+后一条落在本 topic 的来源表上，推理在 [decisions「rev 6 的推导」](decisions.md#rev-6-的推导消费-pf-012-rev-10)。
+
+| 位置 | 现在怎么说 |
+|---|---|
+| [§4 SystemReminderMessage](design.md#systemremindermessage) 来源表「后台的工具执行」 | 「跑完了，结果回来了」→ 加上「**或恢复时对账发现它异常中断了（由系统代落）**」 |
+
+**含义变了什么**：后台工具执行这个来源，送进来的不只是「跑完了」，还有「没了」；**仍是同一种消息、同一个来源**。
+
+**不改的**：七种消息、来源是属性不是另一种消息；占位 `ToolMessage` 仍是 `ToolMessage`（本 topic 没有列举占位原因之处）。
+
+**下游要复核什么**：提醒的来源属性取值里，后台工具执行要容得下「异常中断」这一种结束。
+
 ## rev 5 · 视频装进文件块，语音收窄，转换以 PF-013 为准 — 2026-09-23
 
 **产品负责人直接裁决**（[拍板记录](decisions.md#一拍板记录) 2026-09-23 三行），外加两条只有一个自洽答案的 PM 推导。

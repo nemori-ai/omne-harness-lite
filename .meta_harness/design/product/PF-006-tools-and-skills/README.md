@@ -2,7 +2,7 @@
 id: PF-006
 title: 工具与技能
 status: active
-revision: 16
+revision: 17
 relations:
   supersedes: []
   depends-on:
@@ -136,8 +136,9 @@ Tool Definition ──装配──→ 动作空间里的条目 ──调用─�
 
 ## 状态
 
-- 产品设计：**rev 16**，已定稿（[依赖声明](design.md#依赖)是一串必需项的抽象名字；
+- 产品设计：**rev 17**，已定稿（[依赖声明](design.md#依赖)是一串必需项的抽象名字；
   [工具执行自己的 runtime 绑会话，前后台只说 agent runtime 阻不阻塞在它上面](design.md#前台后台说的是-agent-runtime-在不在等它)；
+  [停机时没了的执行落失败，agent 看到追补的「异常中断」，自己决定要不要再调](design.md#停机之后它不重来)；
   [常驻是引用条目上的偏好类设置](design.md#常驻)；[`help` 可选、带了须与 `inspect` 一致](design.md#53-一份工具定义长什么样)；
   [MCP 对端每个动作一个工具条目，连不上即不可用](design.md#613-mcp-接入点带来的动作)）
 - 未决项：**无**

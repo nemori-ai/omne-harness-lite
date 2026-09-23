@@ -3,7 +3,7 @@
 - kind：assembly
 - 对象与设计修订：CLI 交付面的应用装配；**候选**，2026-09-22 随该交付面的产品正文建立，尚无实现修订
 - 源码位置：`apps/cli`（尚未建包）
-- 交付面：[PF-016 命令行交付面](../../../product/PF-016-cli-tui-delivery-surface/README.md)（rev 4）。它新增的斜杠命令交付面规则（只认开头一条、未知命令名不发送、`/` 开头的普通文本可字面发出）待本节点的输入解析契约出现时接住
+- 交付面：[PF-016 命令行交付面](../../../product/PF-016-cli-tui-delivery-surface/README.md)（rev 5）。它的斜杠命令交付面规则（只认开头一条、会话没有的命令名当场明说不发送、带声明的命令按声明解析不通过即不发送、`/` 开头的普通文本可字面发出、保留名一律在 `omne-official` 前缀下）待本节点的输入解析契约出现时接住；解析起点已由 [D-036](../../../record/decisions/slash-command-parsing-baseline/README.md) 定为自研统一解析器
 - 契约采用与边界依据：它消费的五份租户契约里，四份 v1 已由
   [D-023](../../../record/decisions/tenant-domain-design-acceptance/README.md) 接受（[身份清单](../../../registry/README.md)里 `accepted`），账号能力按入口契约钉的 `capability.account-identity/v2`（**`candidate`**；v1 已接受）；
   它们到据点这一侧的线上投影是 `composition.governance-center-entry/v1`（[契约](../../../spec/compositions/governance-center-entry/v1/contract.md)，**`accepted`，D-028**），
@@ -53,7 +53,7 @@
 | 哪条承诺由哪份证据支持、前提是什么 | [绑定表](bindings.yaml) |
 | 实际跑过什么、覆盖到哪里 | [验证与证据](verification.md) |
 | 这些技术选择为什么是它、还有哪些候选 | [提案](../../../record/proposals/cli-tui/README.md)——**推荐不是接受** |
-| 这个交付面在产品上承诺什么 | [PF-016](../../../product/PF-016-cli-tui-delivery-surface/README.md)（rev 4） |
+| 这个交付面在产品上承诺什么 | [PF-016](../../../product/PF-016-cli-tui-delivery-surface/README.md)（rev 5） |
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../spec/README.md)，采用选择回

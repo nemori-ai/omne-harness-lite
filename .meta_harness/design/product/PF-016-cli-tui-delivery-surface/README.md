@@ -2,7 +2,7 @@
 id: PF-016
 title: 这套系统交到人手上的第一面：装在自己机器上的命令行
 status: active
-revision: 4
+revision: 5
 relations:
   supersedes: []
   depends-on:
@@ -96,7 +96,7 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 4**，**定稿**（产品负责人 2026-09-22 正式接受，[decisions §一](decisions.md#一拍板记录)）
+- 产品设计：**rev 5**，**定稿**（产品负责人 2026-09-22 正式接受，[decisions §一](decisions.md#一拍板记录)）
 - 未决项：**5**（见 [design.md 第九节](design.md#九未决项)），都归别的 topic 或技术设计
 - 待裁决：**0**（见 [decisions.md 第三节](decisions.md#三待裁决)）
 - 已知的来源问题：**2**（见 [decisions.md 第四节](decisions.md#四已知的来源问题)）
