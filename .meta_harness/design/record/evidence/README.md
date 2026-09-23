@@ -85,4 +85,6 @@ evidence/
 
 **2026-09-23 另有一次 Alloy 重跑**：[`2026-09-23-alloy-affiliation/`](2026-09-23-alloy-affiliation/README.md)——`Affiliation.als` 自 run `-2` 之后改过一行注释（冻结的是改后的文件），对当前文件重跑四条命令，结论与 run `-2` 逐条相同；同样不是 formal task。
 
+**2026-09-23 黑盒端到端验收**：[`2026-09-23-e2e-governance-center/`](2026-09-23-e2e-governance-center/README.md)——照部署方式起 `serve` 进程，零产品包引用的测试客户端走 PF-001 flows §一／§二 与 PF-017 acceptance §一／§二；46 条场景全过，产品正文与冻结契约说法不一致三处只记观察（`output/anomalies.txt`）。**独立复跑与四态判定**登在同名 `-2` run。
+
 返回[已发生的事](../README.md)。
