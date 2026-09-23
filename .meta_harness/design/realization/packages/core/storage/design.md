@@ -138,7 +138,7 @@ describeStorageConformance(name: string, factory: () => Promise<StorageInstance>
 
 | | `ON CONFLICT DO NOTHING` + 重读，事务出错即废（落选） | **P-2：冲突后事务仍可用，pg 逐语句 SAVEPOINT（已定）** |
 |---|---|---|
-| 调用方写法 | 每个可能撞唯一的插入都要改写成 `onConflict().doNothing()` 并检查影响行数 | 照常插入，catch `UniqueViolation` 后重读——与 [AI S-13 的分支描述](../../tenancy/account-identity/design.md#能力到-cordis-的投影)逐字一致 |
+| 调用方写法 | 每个可能撞唯一的插入都要改写成 `onConflict().doNothing()` 并检查影响行数 | 照常插入，catch `UniqueViolation` 后由调用方收场——OG S-20 在同一提交内重读；[AI S-13](../../tenancy/account-identity/design.md#能力到-cordis-的投影) 则不写、从快照重来一次（凭据计算在事务外） |
 | 引用约束 | `ON CONFLICT` 管不到外键；`missing-target` 仍会废掉 pg 事务 | 同一机制覆盖两种约束 |
 | 代价 | 无 | pg 每条语句一个 SAVEPOINT；sqlite 零成本 |
 | 本方弱点 | — | pg 上每条语句多一次往返；本程 pg 不跑，代价未测量 |
