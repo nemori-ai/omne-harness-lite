@@ -8,7 +8,7 @@
 
 内核层复用 Cordis 与 DSH `agent` 原语；Agent Loop、Harness 层、工具协议、治理和其他子系统由本项目自行定义和实现。不要把 DeepSeek Harness 当作本项目的实现，也不要把本项目称为 Cordis Harness。
 
-Cordis 直接使用官方发布包，其他选定的 DSH 复用组件由本项目 fork 维护；设计时将这些 fork 视为可按需求与项目契约演化的自有模块。维护边界归 [SYS-KERNEL](.meta_harness/design/foundation/cross-system-constraints/requirements.md#sys-kernel)，判断方法见 `harness-design-handbook` skill 的「工程判断」→「复杂度与复用」。
+Cordis 直接使用官方发布包，其他选定的 DSH 复用组件由本项目 fork 维护；设计时将这些 fork 视为可按需求与项目契约演化的自有模块。维护边界归 [SYS-KERNEL](.meta_harness/design/foundation/cross-system-constraints/requirements.md#sys-kernel)，判断方法见 `harness-design-handbook` skill 的 `references/architecture/assurance/judgment.md`「复杂度与复用」。
 
 当前处于设计、规格建模与实验性演进阶段，尚未正式上线或对外提供生产服务。接受有明确设计和验证依据的大胆重构，不为旧版本保留未经要求的实现兼容层；历史材料的保留不构成兼容承诺。
 
@@ -61,26 +61,19 @@ skills 的源归 `.meta_harness/agents/skills/`，roles 的源归 `.meta_harness
 
 ## 研发品味
 
-- 先保护不变量，再选择抽象；抽象必须隔离真实变化或承载明确契约。
-- 先做最小的正确模型，再按真实需求扩展；不为想象中的未来预埋框架。
-- 复杂度必须有收益证据；没有可重复的瓶颈测量，不引入优化性复杂度。
-- 在满足规格、边界和可验证性的前提下，优先复用成熟实现或第三方库；只有现有实现无法满足要求时才从零构建。
-- 同一概念只有一个权威定义，跨能力、服务和实现语言复用；仅在语义确实不同或属于边界投影时采用不同表示，并明确映射。
-- 优先组合和直接表达，删除没有独立行为、契约或边界价值的包装层。
-- 让状态、所有权、生命周期、失败和副作用显式可见；不依赖隐藏的全局状态或隐式顺序。
-- 外部输出不因被运行时调用就变得可逆；恢复、补偿、幂等和撤销必须区分。
-- 让错误尽早暴露；禁止静默吞错、假成功和无法解释的默认行为。
-- 可观测性是运行行为的一部分：在真实边界让状态转换、失败与因果链可解释，生产、研发与 debug 共用结构化 log 和 trace 语义并通过配置调节细节。观测责任、关联、内容裁剪和耐久记录边界见[全局要求](.meta_harness/design/foundation/observability-and-logging/requirements.md)；精确的观测契约要等规格设计做到那里。
-- 每个 subagent 都应明确职责、行动边界、必要输入与停止条件；精确任务限定可写路径，关键歧义或必需规格/计划缺失时暂停依赖工作并澄清，持续区分已知、假设与未知。编写方法见 `design-subagents` skill。
-- 使用 Claude Code、Codex 等 harness 官方工具时，优先选择职责匹配的专用工具，例如编辑或补丁工具、subagent 派发与通信工具；只有专用工具不可用或无法满足需要时，才用 shell 等通用工具兜底。通用性不代表效率更高，不因命令行习惯绕过合适的专用工具；与研发 subagents 的[工具使用约定](.meta_harness/agents/roles/developer-contract.md#工具使用)保持一致。
+几种做法都成立时往哪选，权威正文只有一份：[研发品味](.meta_harness/agents/roles/engineering-taste.md)。
+它由生成器内联进全部设计与研发角色的固定提示，主会话亲自设计或实现时同样适用；
+改品味只改那一处，再重编生成物。下面是它的简短投影，不是全文：
 
-**TS/JS 研发品味：** 追求惯用、直接、可检查的代码，按职责选择函数、普通数据与
-有状态的类，保持抽象和类型复杂度适度。严格类型不能替代运行时校验；异步工作
-必须有明确的所有者、错误去向和释放路径。语法与风格遵循共享工具配置及所属包
-约定，机械格式交给项目统一工具，避免个人流派造成分化；操作与范围见[开发指南](docs/development.md#修改与验证)。
-研发 subagents 的执行要求见[共享契约](.meta_harness/agents/roles/developer-contract.md#tsjs-研发品味)。
+- 先保护不变量，再选抽象；先做最小的正确模型，复杂度要有可重复的收益证据；满足规格时优先复用成熟实现。
+- 同一概念只有一个权威定义；优先组合和直接表达，删掉没有边界价值的包装层。
+- 状态、所有权、生命周期、失败和副作用显式可见；外部输出不因被运行时调用就变得可逆，恢复、补偿、幂等和撤销必须区分。
+- 错误尽早暴露，不静默吞错、不假成功；可观测性是运行行为的一部分。
+- 专用工具优先，shell 兜底；TS/JS 代码的品味在同一文件的专节，格式与检查操作见[开发指南](docs/development.md#修改与验证)。
 
-这些判断按需展开为 `harness-design-handbook` skill 的「工程判断」与[防御指导](docs/defensive-patterns.md)；知识该落在哪一区，归 [design/AGENTS.md](.meta_harness/design/AGENTS.md) 的准入。
+派发 subagent 时，每个 subagent 都应明确职责、行动边界、必要输入与停止条件；精确任务限定可写路径，关键歧义或必需规格/计划缺失时暂停依赖工作并澄清，持续区分已知、假设与未知。编写方法见 `design-subagents` skill。
+
+这些判断在设计中按需展开为 `harness-design-handbook` skill 的 Taste 与 `references/architecture/assurance/judgment.md`，在实现中展开为[防御指导](docs/defensive-patterns.md)；知识该落在哪一区，归 [design/AGENTS.md](.meta_harness/design/AGENTS.md) 的准入。
 
 ## 署名与分支：权责归于人
 
@@ -163,7 +156,7 @@ omne-harness-lite/
 | 撰写或维护规格、模型，以及提供者映射和消费者影响 | 加载同一 skill，按需进入其「规格演进」，定位现有正文、精确版本和消费者 |
 | 已有规格或施工计划待审稿 | 按[评审分工](.meta_harness/agents/roles/README.md#按判断对象选择-reviewer)委派 spec-reviewer 检查规格表达，或 plan-reviewer 检查实施与调度；二者不代替架构判断和接受 |
 | 核对 Cordis API、依赖、插件或生命周期 | 加载 `harness-design-handbook` skill，进入其「来源核对」 |
-| 判断过度设计、抽象价值、复用或复杂度 | 加载 `harness-design-handbook` skill，进入其「工程判断」 |
+| 判断过度设计、抽象价值、复用或复杂度 | 加载 `harness-design-handbook` skill，读其 Taste 与 `references/architecture/assurance/judgment.md` |
 | 放置源码、增加成员或调整开发/CI 入口 | [源码布局与 workspace](docs/workspace.md)及目标目录局部约定；具体命令见[验证规范](docs/verification.md) |
 | 创建、接受、修改或迁移设计材料 | 从 [design 信息包](.meta_harness/design/README.md)定位 family 和本地模板；已有材料按其接受与版本依据接续，迁移须明确来源和消费者切换 |
 | 调整防御辅助或准备切换开发主力模型 | [防御演化](.meta_harness/agents/evaluation/developer-model/README.md)与[开发模型评估](.meta_harness/agents/evaluation/developer-model/README.md) |
