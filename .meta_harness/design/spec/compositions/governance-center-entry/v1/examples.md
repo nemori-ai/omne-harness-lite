@@ -1,7 +1,9 @@
 # 规范实例：合法与非法
 
 属于 `composition.governance-center-entry` v1（候选）的规范实例，是本版的规范工件之一：
-[`governance-center-entry.schema.json`](governance-center-entry.schema.json) 的每个定义项在这里各有一组正反实例。
+[`governance-center-entry.schema.json`](governance-center-entry.schema.json) 的 85 个定义项里，**73 个在这里被直接校验**（各节开头的「校验对象」），每个都至少有一条通过、一条拒绝；
+**其余 12 个没有单列一节**——`ProtocolVersion`、`PublicHealthRouteId`、`EnvelopeRouteId`、`RouteFailureName`、`AffiliationDirection`、`CallerIdentityKind`、五个共用视图（`OrganizationView`、`InvitationView`、`AffiliationRequestView`、`IncomingAffiliationRequestView`、`MemberView`）与 `DeploymentParameterDuration`——
+它们只经由包含它们的对象（信封、公开体检请求、路由结果、各路由的载荷与返回、部署参数）**间接**被求值，没有逐项的正反实例。
 
 **怎么读这张表**：每节开头的「校验对象」给出该节实例要拿去求值的 `$defs`；每张表第一列是实例（JSON 内联代码），
 第二列是 **Schema 这一关**的预期（`通过`／`拒绝`），第三列是依据条款。这个格式也是机检格式——
@@ -167,6 +169,7 @@
 | `{"reachable": true, "centerId": "3f9c1e0a7b2d4c6e8f0a1b2c3d4e5f60", "version": "0.1.0", "startedAt": "2026-09-23T08:00:00Z", "storageReachable": true, "deploymentKeyPresent": true, "deploymentKeyComplete": true, "clockSane": true, "defectCount": -1, "deploymentParameters": {"unactivatedRetention": 604800000, "invitationTtlDefault": 1209600000, "affiliationRequestTtlDefault": 1209600000, "copyNoticeTtlDefault": 604800000, "sharingInvitationTtlDefault": 604800000}}` | 拒绝 | S-26：`defectCount` 是非负整数 |
 | `{"reachable": true, "centerId": "3f9c1e0a7b2d4c6e8f0a1b2c3d4e5f60", "version": "0.1.0", "startedAt": "2026-09-23T08:00:00Z", "storageReachable": true, "deploymentKeyPresent": true, "deploymentKeyComplete": true, "clockSane": true, "defectCount": 0, "deploymentKey": "k-0f9e8d7c", "deploymentParameters": {"unactivatedRetention": 604800000, "invitationTtlDefault": 1209600000, "affiliationRequestTtlDefault": 1209600000, "copyNoticeTtlDefault": 604800000, "sharingInvitationTtlDefault": 604800000}}` | 拒绝 | S-26、[S-29](contract.md#s-29-秘密不进任何输出)：恰此十项；夹带部署密钥的值被挡住 |
 | `{"reachable": true, "centerId": "3f9c1e0a7b2d4c6e8f0a1b2c3d4e5f60", "version": "0.1.0", "startedAt": "2026-09-23T08:00:00Z", "storageReachable": true, "deploymentKeyPresent": true, "deploymentKeyComplete": true, "clockSane": true, "defectCount": 1, "lastDefect": {"route": "capability.organization-governance/v1#S-27"}, "deploymentParameters": {"unactivatedRetention": 604800000, "invitationTtlDefault": 1209600000, "affiliationRequestTtlDefault": 1209600000, "copyNoticeTtlDefault": 604800000, "sharingInvitationTtlDefault": 604800000}}` | 拒绝 | S-26：缺陷的细节只在工程记录里，体检只给计数 |
+| `{"reachable": true, "centerId": "3f9c1e0a7b2d4c6e8f0a1b2c3d4e5f60", "version": "0.1.0", "startedAt": "2026-09-23", "storageReachable": true, "deploymentKeyPresent": true, "deploymentKeyComplete": true, "clockSane": true, "defectCount": 0, "deploymentParameters": {"unactivatedRetention": 604800000, "invitationTtlDefault": 1209600000, "affiliationRequestTtlDefault": 1209600000, "copyNoticeTtlDefault": 604800000, "sharingInvitationTtlDefault": 604800000}}` | 拒绝 | S-26：`startedAt` 是 `data.offer-expiry` v1 的 `Instant`——一个日期不是时间点 |
 
 Schema 挡得住体检里多出的成员；答复与工程记录里的秘密仍由 [S-29](contract.md#s-29-秘密不进任何输出) 与规范场景 [S-46](contract.md#s-46-规范场景输出里搜不到秘密) 守。
 
@@ -192,6 +195,7 @@ Schema 挡得住体检里多出的成员；答复与工程记录里的秘密仍�
 | `{"loginStateHandle": "9b1d5e0f3a7c2b4d6e8f0a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b", "issuedAt": "2026-09-23T08:00:00Z", "loginState": "lgs_3c7e11"}` | 拒绝 | S-20、[S-9](contract.md#s-9-列表句柄)：列表不含 `LoginStateId` |
 | `{"loginStateHandle": "9b1d5e0f3a7c2b4d6e8f0a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b"}` | 拒绝 | S-20：每一项都带签发时间 |
 | `{"loginStateHandle": "lgs_3c7e11", "issuedAt": "2026-09-23T08:00:00Z"}` | 拒绝 | S-9：一个 `LoginStateId` 不是句柄 |
+| `{"loginStateHandle": "9b1d5e0f3a7c2b4d6e8f0a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b", "issuedAt": "2026-09-23T08:00:00"}` | 拒绝 | S-20：`issuedAt` 是 `data.offer-expiry` v1 的 `Instant`，必须带时区偏移 |
 
 ## 14. 各路由的载荷与成功返回
 
@@ -208,6 +212,7 @@ Schema 挡得住体检里多出的成员；答复与工程记录里的秘密仍�
 | `{"loginIdentifier": "ada@example.invalid", "credential": "correct horse battery staple"}` | 通过 | 登录标识、凭据材料 |
 | `{"loginIdentifier": "ada@example.invalid"}` | 拒绝 | 凭据材料必需 |
 | `{"loginIdentifier": " ada@example.invalid", "credential": "correct horse battery staple"}` | 拒绝 | `data.identity-values` v1 S-31：标识禁止首尾空白 |
+| `{"loginIdentifier": "ada@example.invalid", "credential": ""}` | 拒绝 | 凭据材料在线上是非空字符串（[S-17](contract.md#s-17-路由表封闭每条路由的九件事从哪读) 注 1） |
 
 **校验对象**：`$defs/Result_AR_S8`
 
@@ -307,7 +312,9 @@ Schema 挡得住体检里多出的成员；答复与工程记录里的秘密仍�
 |---|---|---|
 | `{"invitedAccount": "acc_91ab40"}` | 通过 | 角色与时长缺席 ⇒ 领域取默认 |
 | `{"invitedAccount": "acc_91ab40", "role": "superAdministrator", "offerTtl": 604800000}` | 通过 | 指定角色与这一份的时长 |
-| `{"invitedAccount": "acc_91ab40", "offerTtl": 0}` | 通过 | 线上只约束「是整数」；非正由领域判，得 `invalidOfferDuration` |
+| `{"invitedAccount": "acc_91ab40", "offerTtl": 0}` | 通过 | 线上只约束「是整数，且不大于 2⁵³−1」；非正由领域判，得 `invalidOfferDuration` |
+| `{"invitedAccount": "acc_91ab40", "offerTtl": 9007199254740991}` | 通过 | 线上的上界；大到越过领域能表示的时刻，由领域按「不合形状」得 `invalidOfferDuration`（S-17 注 3） |
+| `{"invitedAccount": "acc_91ab40", "offerTtl": 9007199254740992}` | 拒绝 | 越过 2⁵³−1 ⇒ `invalid-input` |
 | `{"invitedAccount": "acc_91ab40", "offerTtl": "7d"}` | 拒绝 | 不是整数 ⇒ `invalid-input` |
 | `{"invitedAccount": "acc_91ab40", "issuer": {"organization": "org_kf22", "account": "acc_7f3c91"}}` | 拒绝 | 发起者推导，不在载荷里 |
 
@@ -666,3 +673,51 @@ Schema 挡得住体检里多出的成员；答复与工程记录里的秘密仍�
 | `{"operation": "capability.organization-governance/v1#S-28", "reply": {"failure": "wouldLeaveNoSuperAdministrator"}}` | 通过 | 具名失败 |
 | `{"operation": "capability.account-identity/v1#S-15", "reply": {"result": "lgs_3c7e11"}}` | 拒绝 | 登录的返回是 `{ loginState, loginStateHandle }` |
 | `{"operation": "composition.governance-center-entry/v1#S-18", "reply": {"result": "ok"}}` | 拒绝 | 公开体检不走信封 |
+
+## 16. 本契约自定的值
+
+凭据材料、这一份的时长、三个不透明标识（[S-17](contract.md#s-17-路由表封闭每条路由的九件事从哪读) 注 1、注 3）。三个不透明标识的形状按 `data.identity-values` v1 S-31 的散文，由本契约自己定义，**反例里的尾随换行与前导 U+FEFF 正是那一条点名的两处引擎差异**。
+
+**校验对象**：`$defs/CredentialMaterial`
+
+| 实例 | 预期 | 依据 |
+|---|---|---|
+| `"correct horse battery staple"` | 通过 | 非空字符串；内部格式由凭据方案 owner 的解析规则判，不在 Schema 里 |
+| `""` | 拒绝 | 线上是非空字符串 |
+| `42` | 拒绝 | 线上是字符串 |
+
+**校验对象**：`$defs/OfferTtl`
+
+| 实例 | 预期 | 依据 |
+|---|---|---|
+| `604800000` | 通过 | 整数毫秒 |
+| `-1` | 通过 | 非正交给领域，得 `invalidOfferDuration`，不是入口的 `invalid-input` |
+| `9007199254740991` | 通过 | 上界 2⁵³−1 |
+| `9007199254740992` | 拒绝 | 越过上界 |
+| `1.5` | 拒绝 | 不是整数 |
+| `"604800000"` | 拒绝 | 不是数 |
+
+**校验对象**：`$defs/InvitationId`
+
+| 实例 | 预期 | 依据 |
+|---|---|---|
+| `"inv_5d2a"` | 通过 | 非空、首尾不是空白 |
+| `"inv 5d2a"` | 通过 | 中间的空白不受限（词法归 `data.identity-values` v1 G-04） |
+| `""` | 拒绝 | 非空 |
+| `" inv_5d2a"` | 拒绝 | 首字符是空白 |
+| `"inv_5d2a\n"` | 拒绝 | 尾随换行：绝对结尾判定，不用 `$` |
+| `"﻿inv_5d2a"` | 拒绝 | 前导 U+FEFF 属于那张空白码点表 |
+
+**校验对象**：`$defs/AffiliationRequestId`
+
+| 实例 | 预期 | 依据 |
+|---|---|---|
+| `"aff_81c0"` | 通过 | 同上 |
+| `"aff_81c0　"` | 拒绝 | 末字符 U+3000 属于空白码点表 |
+
+**校验对象**：`$defs/CreationKey`
+
+| 实例 | 预期 | 依据 |
+|---|---|---|
+| `"team-setup-2026-09-23"` | 通过 | 调用方给的去重标识 |
+| `" team-setup"` | 拒绝 | 首字符 U+00A0 属于空白码点表 |

@@ -271,7 +271,9 @@
         "spec/compositions/governance-center-entry/v1/formal/EntryDecision.tla",
         "spec/compositions/governance-center-entry/v1/formal/README.md",
         "spec/compositions/governance-center-entry/v1/formal/Validity_Reachability.cfg",
+        "spec/compositions/governance-center-entry/v1/formal/Validity_authBeforeEnvelope.cfg",
         "spec/compositions/governance-center-entry/v1/formal/Validity_defectAsResult.cfg",
+        "spec/compositions/governance-center-entry/v1/formal/Validity_deriveBeforePayload.cfg",
         "spec/compositions/governance-center-entry/v1/formal/Validity_gateUnavailableAsDenied.cfg",
         "spec/compositions/governance-center-entry/v1/formal/Validity_inputBeforeAuth.cfg",
         "spec/compositions/governance-center-entry/v1/formal/Validity_passthroughStateNotValid.cfg",
@@ -294,6 +296,8 @@
             "S-15",
             "S-16",
             "S-17",
+            "S-20",
+            "S-26",
             "S-29",
             "S-30",
             "S-37"
@@ -395,7 +399,9 @@
           "clauses": [
             "S-4",
             "S-7",
-            "S-14"
+            "S-14",
+            "S-17",
+            "S-22"
           ],
           "rebase_relation": null
         }

@@ -2,10 +2,10 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v1/governance-center-entry.schema.json",
   "title": "composition.governance-center-entry v1 · 治理中心入口的线上形状",
-  "description": "候选（candidate）。本文件只给信封、四种入口答复、路由结果外形、公开与完整体检、GovernanceCenterId 与列表句柄的形状；判定次序、映射与每条路由的语义以 contract.md 为准。身份值不在此复述，一律引用 data.identity-values v1；邀约的时刻与派生状态引用 data.offer-expiry v1。三份参与契约 v1 不发布 Schema，27 条路由的载荷与成功返回的线上形状由本文件定义（Payload_<路由>、Result_<路由>），成员名从各条款 ①／⑤ 的散文推出，见 contract.md S-17 的命名表（2026-09-23 主线认可）。",
+  "description": "候选（candidate）。本文件只给信封、四种入口答复、路由结果外形、公开与完整体检、GovernanceCenterId 与列表句柄的形状；判定次序、映射与每条路由的语义以 contract.md 为准。身份值不在此复述，一律引用 data.identity-values v1；邀约的时刻与派生状态、以及时间点（issuedAt、startedAt）引用 data.offer-expiry v1。InvitationId、AffiliationRequestId、CreationKey 三个不透明标识的值定义归本文件，形状按 data.identity-values v1 S-31 的散文，不引用那份 Schema 的内部基定义。三份参与契约 v1 不发布 Schema，27 条路由的载荷与成功返回的线上形状由本文件定义（Payload_<路由>、Result_<路由>），成员名从各条款 ①／⑤ 的散文推出，见 contract.md S-17 的命名表（2026-09-23 主线认可）。",
   "$defs": {
     "GovernanceCenterId": {
-      "title": "治理中心标识 · Governance Center Id（contract.md S-27）",
+      "title": "治理中心标识 · Governance Center Identifier（contract.md S-27）",
       "description": "128 位随机值；规范形式恰一种：32 个小写十六进制字符。相等即逐字符相等，不做任何规范化。不是地址、不是秘密，不从部署密钥或地址派生。",
       "type": "string",
       "pattern": "^[0-9a-f]{32}$",
@@ -270,35 +270,43 @@
       "properties": {
         "loginStateHandle": { "$ref": "#/$defs/LoginStateHandle" },
         "issuedAt": {
-          "description": "这个登录状态被签发的时刻（中心的钟），RFC 3339。",
-          "type": "string",
-          "format": "date-time"
+          "description": "这个登录状态被签发的时刻（中心的钟）；形状取 data.offer-expiry v1 的 Instant（S-22：带时区偏移的 RFC 3339 时间点）。",
+          "$ref": "../../../data/offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant"
         }
       }
     },
     "InvitationId": {
-      "title": "InvitationId（capability.organization-governance v1 S-10）",
-      "description": "不透明、部署内唯一、由存储生成；交换表示按 data.identity-values v1 S-31（不透明标识）。",
-      "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/OpaqueIdentifier"
+      "title": "InvitationId（capability.organization-governance v1 S-10；值定义归本契约，contract.md S-17 注 3）",
+      "description": "不透明、部署内唯一、由存储生成。交换表示按 data.identity-values v1 S-31 的散文：非空字符串；首字符与末字符都不属于该条列出的空白码点集合；逐码点相等，不做任何规范化。末尾用 (?![\\s\\S]) 判绝对结尾，不用 $。消费者不得解析其内容。",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
     },
     "AffiliationRequestId": {
-      "title": "AffiliationRequestId（capability.organization-governance v1 S-11）",
-      "description": "隶属请求的标识，与 InvitationId 同类；交换表示按 data.identity-values v1 S-31（不透明标识）。",
-      "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/OpaqueIdentifier"
+      "title": "AffiliationRequestId（capability.organization-governance v1 S-11；值定义归本契约，contract.md S-17 注 3）",
+      "description": "隶属请求的标识，与 InvitationId 同类。交换表示按 data.identity-values v1 S-31 的散文：非空字符串；首字符与末字符都不属于该条列出的空白码点集合；逐码点相等，不做任何规范化。消费者不得解析其内容。",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
     },
     "CreationKey": {
-      "title": "创建键（creationKey，capability.organization-governance v1 S-21 ①）",
-      "description": "调用方给出的不透明去重标识；交换表示按 data.identity-values v1 S-31。",
-      "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/OpaqueIdentifier"
+      "title": "创建键（creationKey，capability.organization-governance v1 S-21 ①；值定义归本契约，contract.md S-17 注 3）",
+      "description": "调用方给出的不透明去重标识。交换表示按 data.identity-values v1 S-31 的散文：非空字符串；首字符与末字符都不属于该条列出的空白码点集合；逐码点相等，不做任何规范化。",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
     },
     "CredentialMaterial": {
       "title": "凭据材料（credential，capability.account-identity v1 S-8）",
-      "description": "推不出线上形状：该契约 S-8 把凭据材料的结构、强度规则与比对方式交给 S-26 的 credential_policy，属实现选择。本定义因此不收紧（S-17 命名表下列为推不出的一项）；表示层校验与账号能力提供者判凭据材料的规则同源（contract.md S-19）。"
+      "description": "线上是一个非空字符串。内部格式归凭据方案的 owner（与 capability.account-identity v1 S-26 credential_policy 同一个 owner）；入口层的表示层校验用该 owner 给出的同一条解析规则，解析不过 ⇒ invalid-input（contract.md S-19）。Schema 只断言「非空字符串」这一层，解析规则不在这里。",
+      "type": "string",
+      "minLength": 1
     },
     "OfferTtl": {
       "title": "这一份邀约的有效时长（offerTtl）",
-      "description": "data.offer-expiry v1 S-14 的 offer_ttl 的指定值，与部署参数 invitationTtlDefault／affiliationRequestTtlDefault 同一概念、同一表示：整数毫秒。线上只约束「是整数」：不是整数 ⇒ invalid-input（入口表示层）；是整数但非正 ⇒ 交给领域，由 capability.organization-governance v1 S-23／S-30 给 invalidOfferDuration。",
-      "type": "integer"
+      "description": "data.offer-expiry v1 S-14 的 offer_ttl 的指定值，与部署参数 invitationTtlDefault／affiliationRequestTtlDefault 同一概念、同一表示：整数毫秒。线上只约束「是整数，且不大于 2^53−1」：不合 ⇒ invalid-input（入口表示层）；合这一条但非正，或大到越过领域或 data.offer-expiry 能表示的时刻 ⇒ 交给领域，按 capability.organization-governance v1 S-23／S-30 的「非正或不合形状」一支给 invalidOfferDuration（contract.md S-17 注 3）。",
+      "type": "integer",
+      "maximum": 9007199254740991
     },
     "AffiliationDirection": {
       "title": "隶属请求的方向（direction，capability.organization-governance v1 S-11、S-30 ①）",
@@ -728,9 +736,8 @@
         "centerId": { "$ref": "#/$defs/GovernanceCenterId" },
         "version": { "type": "string", "minLength": 1 },
         "startedAt": {
-          "description": "这一次启动成功的时刻（中心的钟），RFC 3339。",
-          "type": "string",
-          "format": "date-time"
+          "description": "这一次启动成功的时刻（中心的钟）；启动成功以钟可读为条件（contract.md S-34），所以总有定义。形状取 data.offer-expiry v1 的 Instant（S-22）。",
+          "$ref": "../../../data/offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant"
         },
         "storageReachable": {
           "description": "本次读取时现探数据所在；探不通为 false。",

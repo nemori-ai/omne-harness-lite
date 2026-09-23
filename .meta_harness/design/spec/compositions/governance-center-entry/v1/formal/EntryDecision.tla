@@ -22,7 +22,9 @@ Mutations == {"none",
               "readPresentationBeforeVersion", \* 核版本之前先看出示物
               "inputBeforeAuth",            \* 要认人的路由先看载荷再认人
               "gateUnavailableAsDenied",    \* 补授权读不到时答成拒绝
-              "defectAsResult"}             \* 缺陷原样当结果交出
+              "defectAsResult",             \* 缺陷原样当结果交出
+              "authBeforeEnvelope",         \* 要认人的路由先认人再核信封（①′ 排到 ② 之后）
+              "deriveBeforePayload"}        \* 先做身份推导与补授权，再核载荷
 
 ASSUME Mutation \in Mutations
 
@@ -30,7 +32,7 @@ ASSUME Mutation \in Mutations
 Routes     == {"publicHealth", "exempt", "auth", "authGated"}
 AuthRoutes == {"auth", "authGated"}
 
-(* 出示物的七种情形。前三种不用查就判得了；后四种要查（现读 S-17）。 *)
+(* 出示物的七种情形。前三种不用查就判得了；后四种要查（现读 AI S-17）。 *)
 PresKinds     == {"absent", "multiple", "malformed",
                   "valid", "revoked", "neverIssued", "otherCenter"}
 LookupFree    == {"absent", "multiple", "malformed"}
@@ -49,16 +51,17 @@ VARIABLES
     revoked,            \* 出示的那个登录状态此刻已被撤销（环境）
     presentationRead,   \* 入口看过出示物
     passedAuth,         \* 第 ② 步认出了人
+    postAuthRead,       \* 身份推导或补授权做过一次现读
     gatePassed,         \* 补授权通过
     domainCalled,       \* 领域操作被调用
     lookupFailed,       \* 本请求里某一次现读判不了
     rejectionJudged,    \* 「无效」是一次判出来的结论（不用查即知，或查到了）
     stateNotValidSeen,  \* ③ 或身份推导读到「出示的登录状态此刻不作数」
-    defectRecorded      \* 领域给出了其失败集合之外的东西
+    defectRecorded      \* 某一次现读或领域操作给出了失败集合之外的东西（S-14 的缺陷）
 
 vars == <<route, versionOk, envelopeOk, pres, payloadOk, pc, reply, revoked,
-          presentationRead, passedAuth, gatePassed, domainCalled, lookupFailed,
-          rejectionJudged, stateNotValidSeen, defectRecorded>>
+          presentationRead, passedAuth, postAuthRead, gatePassed, domainCalled,
+          lookupFailed, rejectionJudged, stateNotValidSeen, defectRecorded>>
 
 TypeOK ==
     /\ route \in Routes
@@ -67,6 +70,7 @@ TypeOK ==
     /\ pc \in Stages
     /\ reply \in Replies \cup {"none"}
     /\ revoked \in BOOLEAN /\ presentationRead \in BOOLEAN /\ passedAuth \in BOOLEAN
+    /\ postAuthRead \in BOOLEAN
     /\ gatePassed \in BOOLEAN /\ domainCalled \in BOOLEAN /\ lookupFailed \in BOOLEAN
     /\ rejectionJudged \in BOOLEAN /\ stateNotValidSeen \in BOOLEAN
     /\ defectRecorded \in BOOLEAN
@@ -83,6 +87,7 @@ Init ==
     /\ revoked = FALSE
     /\ presentationRead = FALSE
     /\ passedAuth = FALSE
+    /\ postAuthRead = FALSE
     /\ gatePassed = FALSE
     /\ domainCalled = FALSE
     /\ lookupFailed = FALSE
@@ -93,12 +98,15 @@ Init ==
 Answer(r) == /\ reply' = r
              /\ pc' = "done"
 
+(* 缺陷对来者的答复：正确映射是 unavailable；变异 defectAsResult 把它当结果交出。 *)
+DefectReply == IF Mutation = "defectAsResult" THEN "result" ELSE "unavailable"
+
 (* S-18：公开体检不看版本、不看出示物、不读存储。 *)
 PublicHealth ==
     /\ pc = "start" /\ route = "publicHealth"
     /\ Answer("health")
     /\ UNCHANGED <<route, versionOk, envelopeOk, pres, payloadOk, revoked,
-                   presentationRead, passedAuth, gatePassed, domainCalled,
+                   presentationRead, passedAuth, postAuthRead, gatePassed, domainCalled,
                    lookupFailed, rejectionJudged, stateNotValidSeen, defectRecorded>>
 
 (* S-10 第 ① 步：版本核对先于一切；对不上只答 versionMismatch，不读出示物。 *)
@@ -107,23 +115,25 @@ CheckVersion ==
     /\ presentationRead' = (Mutation = "readPresentationBeforeVersion" /\ route \in AuthRoutes)
     /\ IF ~versionOk
          THEN Answer("versionMismatch")
-         ELSE /\ pc' = "envelope"
+         ELSE /\ pc' = IF Mutation = "authBeforeEnvelope" /\ route \in AuthRoutes
+                         THEN "auth" ELSE "envelope"
               /\ UNCHANGED reply
     /\ UNCHANGED <<route, versionOk, envelopeOk, pres, payloadOk, revoked, passedAuth,
-                   gatePassed, domainCalled, lookupFailed, rejectionJudged,
+                   postAuthRead, gatePassed, domainCalled, lookupFailed, rejectionJudged,
                    stateNotValidSeen, defectRecorded>>
 
-(* S-10 第 ①′ 步：信封本身（路由在不在表内、有无表外成员）——不用查。 *)
+(* S-10 第 ①′ 步：信封本身（路由在不在表内、有无表外成员、成员有无重复）——不用查。 *)
 CheckEnvelope ==
     /\ pc = "envelope"
     /\ IF ~envelopeOk
          THEN Answer("invalidInput")
          ELSE /\ pc' = IF route = "exempt" THEN "payload"
                        ELSE IF Mutation = "inputBeforeAuth" THEN "payloadEarly"
+                       ELSE IF Mutation = "authBeforeEnvelope" THEN "payload"
                        ELSE "auth"
               /\ UNCHANGED reply
     /\ UNCHANGED <<route, versionOk, envelopeOk, pres, payloadOk, revoked,
-                   presentationRead, passedAuth, gatePassed, domainCalled,
+                   presentationRead, passedAuth, postAuthRead, gatePassed, domainCalled,
                    lookupFailed, rejectionJudged, stateNotValidSeen, defectRecorded>>
 
 (* 变异 inputBeforeAuth 才会走到这一格：先看载荷，再认人。 *)
@@ -134,7 +144,7 @@ CheckPayloadEarly ==
          ELSE /\ pc' = "auth"
               /\ UNCHANGED reply
     /\ UNCHANGED <<route, versionOk, envelopeOk, pres, payloadOk, revoked,
-                   presentationRead, passedAuth, gatePassed, domainCalled,
+                   presentationRead, passedAuth, postAuthRead, gatePassed, domainCalled,
                    lookupFailed, rejectionJudged, stateNotValidSeen, defectRecorded>>
 
 (* S-11 第 ② 步：认人。不用查即判得了的三种照判「无效」；要查的读不到 ⇒ unavailable。 *)
@@ -157,52 +167,69 @@ Authenticate ==
           /\ UNCHANGED <<lookupFailed, passedAuth>>
        \/ /\ pres = "valid" /\ ~revoked
           /\ passedAuth' = TRUE
-          /\ pc' = IF Mutation = "inputBeforeAuth" THEN "derive" ELSE "payload"
+          /\ pc' = CASE Mutation = "inputBeforeAuth"     -> "derive"
+                     [] Mutation = "authBeforeEnvelope"  -> "envelope"
+                     [] Mutation = "deriveBeforePayload" -> "derive"
+                     [] OTHER                            -> "payload"
           /\ UNCHANGED <<reply, lookupFailed, rejectionJudged>>
-    /\ UNCHANGED <<route, versionOk, envelopeOk, pres, payloadOk, revoked, gatePassed,
-                   domainCalled, stateNotValidSeen, defectRecorded>>
+    /\ UNCHANGED <<route, versionOk, envelopeOk, pres, payloadOk, revoked, postAuthRead,
+                   gatePassed, domainCalled, stateNotValidSeen, defectRecorded>>
 
 (* S-10：载荷的表示层校验。要认人的路由在认出人之后才看；免认人的版本对上就看。不用查。 *)
 CheckPayload ==
     /\ pc = "payload"
     /\ IF ~payloadOk
          THEN Answer("invalidInput")
-         ELSE /\ pc' = IF route = "exempt" THEN "dispatch" ELSE "derive"
+         ELSE /\ pc' = IF route = "exempt" \/ Mutation = "deriveBeforePayload"
+                         THEN "dispatch" ELSE "derive"
               /\ UNCHANGED reply
     /\ UNCHANGED <<route, versionOk, envelopeOk, pres, payloadOk, revoked,
-                   presentationRead, passedAuth, gatePassed, domainCalled,
+                   presentationRead, passedAuth, postAuthRead, gatePassed, domainCalled,
                    lookupFailed, rejectionJudged, stateNotValidSeen, defectRecorded>>
 
-(* S-12：身份推导（现读 OG S-36）。读到「出示的登录状态已不作数」只可能出自其间的撤销。 *)
+(* S-12：身份推导（现读 OG S-36）。读到「出示的登录状态已不作数」只可能出自其间的撤销；
+   invalidInput 或返回的 account 分量不等于认人所得 AccountId 都是缺陷（S-14 矛盾清单 ④）。 *)
 Derive ==
     /\ pc = "derive"
+    /\ postAuthRead' = TRUE
     /\ \/ /\ lookupFailed' = TRUE
           /\ Answer("unavailable")
-          /\ UNCHANGED <<rejectionJudged, stateNotValidSeen>>
+          /\ UNCHANGED <<rejectionJudged, stateNotValidSeen, defectRecorded>>
        \/ /\ revoked
           /\ stateNotValidSeen' = TRUE
           /\ rejectionJudged' = TRUE
           /\ Answer("loginStateRejected")
-          /\ UNCHANGED lookupFailed
-       \/ /\ pc' = IF route = "authGated" THEN "gate" ELSE "dispatch"
-          /\ UNCHANGED <<reply, lookupFailed, rejectionJudged, stateNotValidSeen>>
+          /\ UNCHANGED <<lookupFailed, defectRecorded>>
+       \/ /\ defectRecorded' = TRUE
+          /\ Answer(DefectReply)
+          /\ UNCHANGED <<lookupFailed, rejectionJudged, stateNotValidSeen>>
+       \/ /\ pc' = IF route = "authGated" THEN "gate"
+                   ELSE IF Mutation = "deriveBeforePayload" THEN "payload"
+                   ELSE "dispatch"
+          /\ UNCHANGED <<reply, lookupFailed, rejectionJudged, stateNotValidSeen,
+                         defectRecorded>>
     /\ UNCHANGED <<route, versionOk, envelopeOk, pres, payloadOk, revoked,
-                   presentationRead, passedAuth, gatePassed, domainCalled, defectRecorded>>
+                   presentationRead, passedAuth, gatePassed, domainCalled>>
 
-(* S-13：补授权（现读 OG S-26）。无效 ⇒ notAuthorized，作为路由结果；读不到 ⇒ unavailable。 *)
+(* S-13：补授权（现读 OG S-26，多个组织时全部读完再合成）。无效 ⇒ notAuthorized，作为路由结果；
+   读不到 ⇒ unavailable；invalidInput 或集合之外 ⇒ 缺陷。 *)
 Gate ==
     /\ pc = "gate"
+    /\ postAuthRead' = TRUE
     /\ \/ /\ lookupFailed' = TRUE
           /\ Answer(IF Mutation = "gateUnavailableAsDenied" THEN "result" ELSE "unavailable")
-          /\ UNCHANGED gatePassed
+          /\ UNCHANGED <<gatePassed, defectRecorded>>
        \/ /\ Answer("result")                \* 该组织里无效 ⇒ notAuthorized 原样作为路由结果
+          /\ UNCHANGED <<lookupFailed, gatePassed, defectRecorded>>
+       \/ /\ defectRecorded' = TRUE
+          /\ Answer(DefectReply)
           /\ UNCHANGED <<lookupFailed, gatePassed>>
        \/ /\ gatePassed' = TRUE
-          /\ pc' = "dispatch"
-          /\ UNCHANGED <<reply, lookupFailed>>
+          /\ pc' = IF Mutation = "deriveBeforePayload" THEN "payload" ELSE "dispatch"
+          /\ UNCHANGED <<reply, lookupFailed, defectRecorded>>
     /\ UNCHANGED <<route, versionOk, envelopeOk, pres, payloadOk, revoked,
                    presentationRead, passedAuth, domainCalled, rejectionJudged,
-                   stateNotValidSeen, defectRecorded>>
+                   stateNotValidSeen>>
 
 (* S-14：第 ③ 步，路由到领域操作并映射它的答复。 *)
 Dispatch ==
@@ -213,7 +240,7 @@ Dispatch ==
        \/ /\ lookupFailed' = TRUE            \* unavailable / storage-unavailable
           /\ Answer("unavailable")
           /\ UNCHANGED <<rejectionJudged, stateNotValidSeen, defectRecorded>>
-       \/ /\ Answer("invalidInput")         \* 领域判出载荷的表示层不合格
+       \/ /\ Answer("invalidInput")         \* 领域判出来自载荷的项在表示层不合格
           /\ UNCHANGED <<lookupFailed, rejectionJudged, stateNotValidSeen, defectRecorded>>
        \/ /\ route \in AuthRoutes /\ revoked \* 领域再读登录状态，读到它已不作数
           /\ stateNotValidSeen' = TRUE
@@ -221,18 +248,18 @@ Dispatch ==
           /\ Answer(IF Mutation = "passthroughStateNotValid"
                       THEN "result" ELSE "loginStateRejected")
           /\ UNCHANGED <<lookupFailed, defectRecorded>>
-       \/ /\ defectRecorded' = TRUE          \* 失败集合之外的东西
-          /\ Answer(IF Mutation = "defectAsResult" THEN "result" ELSE "unavailable")
+       \/ /\ defectRecorded' = TRUE          \* 缺陷：集合之外、结构上到不了的值、矛盾清单
+          /\ Answer(DefectReply)
           /\ UNCHANGED <<lookupFailed, rejectionJudged, stateNotValidSeen>>
     /\ UNCHANGED <<route, versionOk, envelopeOk, pres, payloadOk, revoked,
-                   presentationRead, passedAuth, gatePassed>>
+                   presentationRead, passedAuth, postAuthRead, gatePassed>>
 
 (* 环境：出示的那个有效登录状态在答复之前的任何时刻被撤销（AI S-16 的一次提交）。 *)
 Revoke ==
     /\ pc # "done" /\ pres = "valid" /\ ~revoked
     /\ revoked' = TRUE
     /\ UNCHANGED <<route, versionOk, envelopeOk, pres, payloadOk, pc, reply,
-                   presentationRead, passedAuth, gatePassed, domainCalled,
+                   presentationRead, passedAuth, postAuthRead, gatePassed, domainCalled,
                    lookupFailed, rejectionJudged, stateNotValidSeen, defectRecorded>>
 
 Pipeline == PublicHealth \/ CheckVersion \/ CheckEnvelope \/ CheckPayloadEarly
@@ -245,7 +272,8 @@ Spec == Init /\ [][Next]_vars /\ WF_vars(Pipeline)
 -----------------------------------------------------------------------------
 (* 断言。每一条都写明它对着哪一条条款；变异配置各改坏其中至少一条。 *)
 
-(* S-7：答复集合闭合——答了就恰是六类之一，没有第七类。 *)
+(* 答了就恰是六类之一。由 TypeOK 的两个合取项（reply 的取值域、pc = done ⇔ reply # none）
+   直接推出，不单独绑定任何条款；S-7 的闭合见 DefectIsUnavailable 与 Schema。 *)
 AnsweredClosed == pc = "done" => reply \in Replies
 
 (* S-8、S-10 ①：版本对不上时，除公开体检外只答 versionMismatch，且出示物没被看过、领域没被调用。 *)
@@ -254,6 +282,14 @@ VersionFirst ==
         /\ ~presentationRead
         /\ ~domainCalled
         /\ (pc = "done" => reply = "versionMismatch")
+
+(* S-10 ①′ 先于 ②：要认人的路由，版本对得上而信封不合格时，出示物没被看过、领域没被调用，
+   答复是 invalidInput。 *)
+EnvelopeBeforeAuth ==
+    (route \in AuthRoutes /\ versionOk /\ ~envelopeOk) =>
+        /\ ~presentationRead
+        /\ ~domainCalled
+        /\ (pc = "done" => reply = "invalidInput")
 
 (* S-18：公开体检不受任何一关挡，不看出示物，不读存储。 *)
 HealthUnconditional ==
@@ -285,6 +321,14 @@ LateRevocationUniform == (pc = "done" /\ stateNotValidSeen) => reply = "loginSta
 InputAfterAuth ==
     (route \in AuthRoutes /\ envelopeOk /\ reply = "invalidInput") => passedAuth
 
+(* S-10 载荷先于身份推导与补授权：要认人的路由载荷不合格时，身份推导与补授权都没读过、
+   领域没被调用；认出了人的，答复就是 invalidInput（推导或补授权此刻读不读得到都一样）。 *)
+PayloadBeforeDerive ==
+    (route \in AuthRoutes /\ ~payloadOk) =>
+        /\ ~postAuthRead
+        /\ ~domainCalled
+        /\ ((pc = "done" /\ passedAuth) => reply = "invalidInput")
+
 (* S-10、S-19：免认人的路由，载荷不合格不用查就判——存储此刻读不到也照判。 *)
 ExemptInputWithoutLookup ==
     (pc = "done" /\ route = "exempt" /\ versionOk /\ envelopeOk /\ ~payloadOk)
@@ -297,14 +341,14 @@ NoDomainWithoutGates ==
         /\ (route \in AuthRoutes => passedAuth)
         /\ (route = "authGated" => gatePassed)
 
-(* S-14：缺陷对来者一律 unavailable，并留下缺陷记录。 *)
+(* S-7、S-12、S-13、S-14：缺陷——无论出在身份推导、补授权还是领域操作——对来者一律 unavailable。 *)
 DefectIsUnavailable == (pc = "done" /\ defectRecorded) => reply = "unavailable"
 
-Safety == /\ AnsweredClosed /\ VersionFirst /\ HealthUnconditional
+Safety == /\ AnsweredClosed /\ VersionFirst /\ EnvelopeBeforeAuth /\ HealthUnconditional
           /\ ExemptIgnoresPresentation /\ CannotJudgeIsUnavailable
           /\ RejectionOnlyWhenJudged /\ RejectionUniform /\ LateRevocationUniform
-          /\ InputAfterAuth /\ ExemptInputWithoutLookup /\ NoDomainWithoutGates
-          /\ DefectIsUnavailable
+          /\ InputAfterAuth /\ PayloadBeforeDerive /\ ExemptInputWithoutLookup
+          /\ NoDomainWithoutGates /\ DefectIsUnavailable
 
 (* S-10 的进展：流水线有弱公平时，每个请求终会得到答复。 *)
 EventuallyAnswered == <>(pc = "done")
@@ -320,4 +364,5 @@ NeverUnavailable        == reply # "unavailable"
 NeverInvalidInput       == reply # "invalidInput"
 NeverLateRevocation     == ~stateNotValidSeen
 NeverGatePassed         == ~gatePassed
+NeverDefect             == ~defectRecorded
 =============================================================================
