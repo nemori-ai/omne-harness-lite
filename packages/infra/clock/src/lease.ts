@@ -2,6 +2,7 @@
 // 表由本包自带迁移建立，装配把它合进传给 storage-sql 的 MigrationProvider。
 import { sql, type Kysely } from 'kysely'
 import type { Migration } from 'kysely/migration'
+import type { MigrationFragment } from '@omne-harness-lite/storage'
 
 /** 租约宽度与续约周期（候选常量，本版无 config）。 */
 export const LEASE_WIDTH_MS = 10_000
@@ -29,3 +30,11 @@ export const clockLeaseMigration: Migration = {
     await db.schema.dropTable(CLOCK_LEASE_TABLE).ifExists().execute()
   },
 }
+
+/**
+ * 本包的迁移片段（阶段 2 计划 I-1）：名字包内稳定、只追加不重排；装配经 `composeMigrations` 合成。
+ * 片段只带 `up`——升级的整体性靠 storage-sql 的快照，不靠反向迁移；旧导出 `clockLeaseMigration` 原样保留。
+ */
+export const clockMigrations: readonly MigrationFragment[] = Object.freeze([
+  { name: 'clock_lease', migration: { up: clockLeaseMigration.up } },
+])

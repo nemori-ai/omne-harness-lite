@@ -187,5 +187,13 @@ export function openPostgres(options: PostgresOptions): DialectHandles {
     },
     readIsolation: 'repeatable read',
     writeIsolation: 'read committed',
+    async listTables(db) {
+      const { rows } = await sql<{
+        name: string
+      }>`SELECT table_name AS name FROM information_schema.tables WHERE table_schema = current_schema() AND table_type = 'BASE TABLE'`.execute(
+        db,
+      )
+      return rows.map(row => row.name)
+    },
   }
 }
