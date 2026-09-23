@@ -42,10 +42,12 @@ describe('ops-import-whitelist', () => {
       "import { instantToRfc3339 } from '@omne-harness-lite/offer-expiry'",
       "import { serving, stopped } from '../events.ts'",
       "import { fullHealth } from './health.ts'",
+      "import type { Context } from '@deepseek-ai/cordis'",
+      "import { z } from 'zod'",
     ].join('\n'),
   )
 
-  it('合规：白名单内的包、node:*、事件声明模块与 ops 目录内互引', () => {
+  it('合规：白名单内的包、cordis 与 zod、node:*、事件声明模块与 ops 目录内互引', () => {
     expect(opsImportWhitelist.check([events, cleanOps])).toEqual([])
   })
 
@@ -55,7 +57,7 @@ describe('ops-import-whitelist', () => {
       [
         "import { LOGINS_SERVICE } from '@omne-harness-lite/account-identity'",
         "import { ROUTES } from '../routing/table.ts'",
-        "import { z } from 'zod'",
+        "import { Hono } from 'hono'",
         "import { suite } from '@omne-harness-lite/storage/conformance'",
         'const m = await import(moduleName)',
         "import { readFileSync } from 'fs'",
@@ -66,17 +68,31 @@ describe('ops-import-whitelist', () => {
     expect(found.every(v => v.path === bad.path && v.rule === 'ops-import-whitelist')).toBe(true)
   })
 
-  it('事件声明模块导入 tenancy 包或本包模块 ⇒ 报出；导入 node 内置不报', () => {
+  it('事件声明模块导入任何 @omne-harness-lite/*、本包模块或别的第三方 ⇒ 报出', () => {
     const badEvents = file(
       `${E}src/events.ts`,
       [
         "import type { LoginStateId } from '@omne-harness-lite/identity-values'",
         "import { x } from '@omne-harness-lite/organization-governance'",
         "import { y } from './routing/table.ts'",
+        "import mitt from 'mitt'",
         "export const serving = 'governance-center-entry/serving' as const",
       ].join('\n'),
     )
-    expect(opsImportWhitelist.check([badEvents, cleanOps]).map(v => v.line)).toEqual([2, 3])
+    expect(opsImportWhitelist.check([badEvents, cleanOps]).map(v => v.line)).toEqual([1, 2, 3, 4])
+  })
+
+  it('合规：事件声明模块导入 node 内置、cordis 类型与 zod', () => {
+    const okEvents = file(
+      `${E}src/events.ts`,
+      [
+        "import type { Context } from '@deepseek-ai/cordis'",
+        "import { z } from 'zod'",
+        "import { EventEmitter } from 'node:events'",
+        events.text,
+      ].join('\n'),
+    )
+    expect(opsImportWhitelist.check([okEvents, cleanOps])).toEqual([])
   })
 
   it('入口层包不存在 ⇒ 静默通过；包在而运维面目录或事件声明模块缺席 ⇒ 报布局偏离', () => {
@@ -262,6 +278,39 @@ describe('presentation-only-authn', () => {
       ].join('\n'),
     )
     expect(presentationOnlyAuthn.check([clean])).toEqual([])
+  })
+
+  it('入口层解析 accounts 服务（inject、ctx.get、resolveOptional、ACCOUNTS_SERVICE 常量）⇒ 报出', () => {
+    const bad = file(
+      `${E}src/plugin.ts`,
+      [
+        "export const plugin = definePlugin({ inject: ['logins', 'accounts', 'storage'] })", // 1
+        "const accounts = ctx.get('accounts')", // 2
+        "const a = resolveOptional<Accounts>(ctx, 'accounts')", // 3
+        "import { ACCOUNTS_SERVICE } from '@omne-harness-lite/account-identity'", // 4
+      ].join('\n'),
+    )
+    expect(
+      presentationOnlyAuthn
+        .check([bad])
+        .map(v => v.line)
+        .sort(),
+    ).toEqual([1, 2, 3, 4])
+  })
+
+  it('合规：inject 里只有路由表点名的服务；字面量 accounts 出现在别处（日志键）不算解析', () => {
+    const clean = file(
+      `${E}src/plugin.ts`,
+      [
+        "inject: ['logins', 'registration', 'organizations', 'memberships', 'offers', 'storage', 'credentials', 'clock']",
+        "const logins = ctx.get('logins')",
+        "diagnostics.warn('route', { area: 'accounts' })",
+      ].join('\n'),
+    )
+    expect(presentationOnlyAuthn.check([clean])).toEqual([])
+    // 入口层包之外（组织治理 inject accounts）不查
+    const og = file('tenancy/organization-governance/src/plugin.ts', "inject: ['accounts']")
+    expect(presentationOnlyAuthn.check([og])).toEqual([])
   })
 })
 

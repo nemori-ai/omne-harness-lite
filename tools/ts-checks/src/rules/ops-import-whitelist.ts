@@ -1,25 +1,24 @@
 import type { Rule, Violation } from '../rule.ts'
-import {
-  ENTRY_EVENTS,
-  ENTRY_OPS,
-  ENTRY_SRC,
-  productSourceIn,
-  tenancyPackageNames,
-} from '../layout.ts'
+import { ENTRY_EVENTS, ENTRY_OPS, ENTRY_SRC, productSourceIn } from '../layout.ts'
 import { importsOf, lineAt, resolveRelative, withoutExtension } from '../source-text.ts'
 
+/** 非治理的第三方：内核与 config 校验（主线 2026-09-23 裁决纳入白名单）。 */
+const THIRD_PARTY = new Set(['@deepseek-ai/cordis', 'zod'])
 const OPS_PACKAGES = new Set([
   '@omne-harness-lite/kernel-basis',
   '@omne-harness-lite/storage',
   '@omne-harness-lite/offer-expiry',
+  ...THIRD_PARTY,
 ])
 const EVENTS_MODULE = withoutExtension(ENTRY_EVENTS)
 
 /**
  * 入口 verification 契约 SC-2 与 design「本节点约束」第 5 条：运维面源码目录只按白名单导入——
- * `kernel-basis`、`storage`、`offer-expiry`（恰这三个包名，不含子入口）、Node 内置（`node:*`）、
- * 本包事件声明模块，以及运维面目录自己的文件（白名单要让传递导入图有界，目录内互引不越界）。
- * 事件声明模块本身不导入任何 tenancy 包；它在白名单里，所以它的相对导入也会把图带出界，一并不许。
+ * `kernel-basis`、`storage`、`offer-expiry`（恰这三个包名，不含子入口）、`@deepseek-ai/cordis`、`zod`
+ * （非治理的第三方，主线 2026-09-23 裁决纳入）、Node 内置（`node:*`）、本包事件声明模块，
+ * 以及运维面目录自己的文件（白名单要让传递导入图有界，目录内互引不越界）。
+ * 事件声明模块只许导入 Node 内置、`@deepseek-ai/cordis` 与 `zod`：不导入任何 `@omne-harness-lite/*`，
+ * 也不做相对导入——它在白名单里，这两种导入都会把运维面的传递导入图带出界。
  * 入口层包不存在时本规则无事可查；包存在而运维面目录或事件声明模块缺席 ⇒ 布局偏离，报出（规则会静默失效）。
  */
 export const opsImportWhitelist: Rule = {
@@ -27,7 +26,7 @@ export const opsImportWhitelist: Rule = {
   source:
     'composition.governance-center-entry v1 SC-2 · governance-center-entry 节点约束第 5 条与 verification「包布局常量」',
   description:
-    '入口层包 src/ops/** 只许导入 kernel-basis、storage、offer-expiry、node:*、src/events.ts 与 ops 目录内文件；src/events.ts 不导入 tenancy 包与本包其他模块',
+    '入口层包 src/ops/** 只许导入 kernel-basis、storage、offer-expiry、@deepseek-ai/cordis、zod、node:*、src/events.ts 与 ops 目录内文件；src/events.ts 只许 node:*、cordis、zod',
   check(files) {
     const out: Violation[] = []
     const entryFiles = files.filter(f => productSourceIn(f.path, ENTRY_SRC))
@@ -40,7 +39,6 @@ export const opsImportWhitelist: Rule = {
     if (!entryFiles.some(f => f.path.startsWith(ENTRY_OPS))) {
       layoutProblem(`入口层包缺运维面目录 ${ENTRY_OPS}：包布局偏离常量，SC-2 规则失效`)
     }
-    const tenancyNames = tenancyPackageNames(files.map(f => f.path))
     for (const file of entryFiles) {
       const inOps = file.path.startsWith(ENTRY_OPS)
       const isEvents = file.path === ENTRY_EVENTS
@@ -48,7 +46,7 @@ export const opsImportWhitelist: Rule = {
       for (const ref of importsOf(file)) {
         const verdict = inOps
           ? judgeOpsImport(file.path, ref.specifier)
-          : judgeEventsImport(ref.specifier, tenancyNames)
+          : judgeEventsImport(ref.specifier)
         if (verdict !== undefined) {
           out.push({
             rule: this.id,
@@ -73,20 +71,17 @@ function judgeOpsImport(path: string, specifier: string | undefined): string | u
       return undefined
     return `运维面导入了 ${specifier}（${resolved}）；本包内只许导入事件声明模块与运维面目录自己的文件`
   }
-  return `运维面导入了 ${specifier}；白名单只有 kernel-basis、storage、offer-expiry、node:* 与本包事件声明模块`
+  return `运维面导入了 ${specifier}；白名单只有 kernel-basis、storage、offer-expiry、@deepseek-ai/cordis、zod、node:* 与本包事件声明模块`
 }
 
-function judgeEventsImport(
-  specifier: string | undefined,
-  tenancyNames: ReadonlySet<string>,
-): string | undefined {
+function judgeEventsImport(specifier: string | undefined): string | undefined {
   if (specifier === undefined) return '事件声明模块里的动态导入说明符不是字面量，判不了'
-  const pkg = /^@omne-harness-lite\/([^/]+)/.exec(specifier)?.[1]
-  if (pkg !== undefined && tenancyNames.has(pkg)) {
-    return `事件声明模块导入了 tenancy 包 ${specifier}；它在运维面白名单里，不得把治理能力带进来`
+  if (specifier.startsWith('node:') || THIRD_PARTY.has(specifier)) return undefined
+  if (specifier.startsWith('@omne-harness-lite/')) {
+    return `事件声明模块导入了 ${specifier}；它在运维面白名单里，不导入任何 @omne-harness-lite/* 包`
   }
   if (specifier.startsWith('./') || specifier.startsWith('../')) {
     return `事件声明模块导入了本包模块 ${specifier}；它在运维面白名单里，相对导入会让运维面的传递导入图越界`
   }
-  return undefined
+  return `事件声明模块导入了 ${specifier}；它只许导入 node:*、@deepseek-ai/cordis 与 zod`
 }

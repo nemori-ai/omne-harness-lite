@@ -28,18 +28,6 @@ export const CREDENTIAL_VERIFICATION = 'tenancy/credential-verification/'
 export const ORGANIZATION_GOVERNANCE = 'tenancy/organization-governance/'
 export const OFFER_EXPIRY = 'core/offer-expiry/'
 
-/**
- * 已知的 tenancy 包名；扫描时 `tenancy/` 下出现的目录名也算。
- * 依据：现有每个包的 `@omne-harness-lite/<名>` 与其目录同名（2026-09-23 逐个核过 package.json；未成文）。
- */
-export const KNOWN_TENANCY_PACKAGES = [
-  'account-identity',
-  'account-registration',
-  'credential-verification',
-  'organization-governance',
-  'governance-center-entry',
-] as const
-
 /** 产品源码（非测试）且位于 `dir` 之下。 */
 export function productSourceIn(path: string, dir: string): boolean {
   return path.startsWith(dir) && !isTestPath(path)
@@ -49,13 +37,4 @@ export function productSourceIn(path: string, dir: string): boolean {
 export function tenancyPackageOf(path: string): string | undefined {
   const m = /^tenancy\/([^/]+)\/src\//.exec(path)
   return m === null || isTestPath(path) ? undefined : m[1]
-}
-
-export function tenancyPackageNames(paths: readonly string[]): Set<string> {
-  const names = new Set<string>(KNOWN_TENANCY_PACKAGES)
-  for (const path of paths) {
-    const m = /^tenancy\/([^/]+)\//.exec(path)
-    if (m?.[1] !== undefined) names.add(m[1])
-  }
-  return names
 }
