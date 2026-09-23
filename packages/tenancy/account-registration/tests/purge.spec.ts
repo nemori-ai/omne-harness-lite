@@ -217,7 +217,7 @@ describe('S-8 撞上已过期记录：本组合就地跑清除链，两步都 ok
         'INSERT INTO account (account_id, login_identifier, credential_material, activated, produced_at, retention_deadline, expired_at) VALUES (?, ?, ?, 0, ?, ?, NULL)',
         intruder,
         'oscar',
-        'test-sha256$x$y',
+        'opaque-material',
         START,
         START + 1,
       ),

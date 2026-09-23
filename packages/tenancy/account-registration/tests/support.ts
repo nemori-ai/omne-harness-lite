@@ -3,11 +3,9 @@
 //   OG 那条外键的目标表与列取自 AI 导出的常量，不写字面量；带 `migrations` 一律 `upgrade: false`。
 // - 参与方：真实的 account-identity、organization-governance 插件与本包的 registration 插件，装在同一个真实 Cordis Context 里。
 // - 时间：缺省用真实 `clock` 插件；需要前推时间的场景用服从 offer-expiry `Clock` 形状的包内替身。
-// - **凭据：包内替身**（`credentials` 服务面同形）。本包的依赖里没有 credential-verification，锁文件不许改——
-//   换成真实 CV 只改本文件 `credentialsDouble` 一处（见交付说明）。
+// - 凭据：真实 credential-verification 插件（scrypt 低代价测试参数 N=1024，只为跑得快）。
 // - 故障与交错：`InstrumentedStorage` 包在真实存储外面，按语句（种类、表、更新的列）注入 `StorageUnavailable`、
 //   在事务内某条语句之后停住、让某次提交回滚、或在某次提交成立之后、返回调用方之前停住。
-import { createHash, randomBytes } from 'node:crypto'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -31,13 +29,11 @@ import {
   accountIdentityPlugin,
 } from '@omne-harness-lite/account-identity'
 import { clockMigrations, clockPlugin } from '@omne-harness-lite/clock'
+import { credentialsPlugin } from '@omne-harness-lite/credential-verification'
 import {
   type AccountId,
   type HandoffKeyPairPem,
   generateHandoffKeyPair,
-  invalidInput,
-  ok,
-  type Parsed,
 } from '@omne-harness-lite/identity-values'
 import { type Assembly, bootAssembly } from '@omne-harness-lite/kernel-basis/testing'
 import {
@@ -106,41 +102,14 @@ export class TestClock {
   }
 }
 
-// ---- 凭据替身：`credentials` 服务面同形（parse／derive／verify／checkPolicy） ----
+// ---- 凭据：真实 CV 的测试参数（与 AI 包测试同一档） ----
 
-const DOUBLE_SCHEME = 'test-sha256'
-
-/** 与真实 CV 同一组出口：表示层、派生、三值比对、政策三值。派生与比对各让出一次事件循环，保留真实的异步窗口。 */
-export const credentialsDouble = {
-  parse(raw: unknown): Parsed<string> {
-    if (typeof raw !== 'string') return invalidInput('credential: not a string')
-    if (raw.length === 0) return invalidInput('credential: empty')
-    return ok(raw)
-  },
-  async derive(presented: string): Promise<string | 'unavailable'> {
-    await new Promise(resolve => setImmediate(resolve))
-    const salt = randomBytes(16).toString('base64url')
-    return `${DOUBLE_SCHEME}$${salt}$${digest(salt, presented)}`
-  },
-  async verify(material: string, presented: string): Promise<'match' | 'mismatch' | 'unavailable'> {
-    await new Promise(resolve => setImmediate(resolve))
-    const [scheme, salt, hash] = material.split('$')
-    if (scheme !== DOUBLE_SCHEME || salt === undefined || hash === undefined) return 'mismatch'
-    return digest(salt, presented) === hash ? 'match' : 'mismatch'
-  },
-  checkPolicy(policy: unknown, presented: string): 'ok' | { rejected: string } | 'unavailable' {
-    if (typeof policy !== 'object' || policy === null || !('minLength' in policy))
-      return 'unavailable'
-    const { minLength } = policy
-    if (typeof minLength !== 'number') return 'unavailable'
-    return Array.from(presented).length >= minLength
-      ? 'ok'
-      : { rejected: `min-length:${minLength}` }
-  },
-}
-
-function digest(salt: string, presented: string): string {
-  return createHash('sha256').update(`${salt}:${presented}`).digest('hex')
+export const FAST_CREDENTIALS = {
+  cost: 1024,
+  blockSize: 8,
+  parallelization: 1,
+  saltBytes: 16,
+  keyBytes: 32,
 }
 
 // ---- 可手动放行的等待点 ----
@@ -445,7 +414,6 @@ export async function bootComposition(options: CompositionOptions = {}): Promise
   const retention = options.retention ?? HOUR
   const services = [
     { name: 'storage', value: storage },
-    { name: 'credentials', value: credentialsDouble },
     ...(clock === undefined ? [] : [{ name: 'clock', value: clock }]),
   ]
   const participants: Record<Participant, { plugin: Plugin; config: unknown }> = {
@@ -480,6 +448,7 @@ export async function bootComposition(options: CompositionOptions = {}): Promise
       services,
       plugins: [
         ...(clock === undefined ? [{ plugin: clockPlugin, config: {} }] : []),
+        { plugin: credentialsPlugin, config: FAST_CREDENTIALS },
         participants.accountIdentity,
         participants.organizationGovernance,
         participants.registration,
@@ -493,7 +462,8 @@ export async function bootComposition(options: CompositionOptions = {}): Promise
   const messages: Message[] = []
   // 阈值放到 WARN（2）：Cordis 缺省只导出到 INFO，warn 默认看不见（basis logger-level-order-error-lowest）
   ctx.logger.exporter({ levels: { default: 2 }, export: message => messages.push(message) })
-  const offset = clock === undefined ? 2 : 1
+  // fibers：[装配层服务, clock?, credentials, AI, OG, AR]
+  const offset = clock === undefined ? 3 : 2
   const booted = (index: number): Fiber => {
     const fiber = assembly.fibers[index]
     if (fiber === undefined) throw new Error(`fixture: no fiber at ${index}`)
