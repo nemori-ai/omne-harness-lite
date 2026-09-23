@@ -25,11 +25,11 @@
 | 入口层与运维面 | [`tenancy/governance-center-entry`](../../packages/tenancy/governance-center-entry/design.md) 一个包、两个插件（入口层 `governance-center-entry`、运维面 `governance-center-ops`，候选名），**都不 provide**；包另导出 `governance_center` 表的迁移片段。**尚未建包** | 兑现 `composition.governance-center-entry/v1`（`candidate`）；形状依据[提案候选 A](../../../record/proposals/governance-center-entry/alternatives.md#候选-a)（候选，未接受）。为什么入口层不并进本装配见提案[「为什么不拆、为什么不并」第 3 条](../../../record/proposals/governance-center-entry/design.md#为什么不拆为什么不并) |
 | 密钥的形式与自检原语 | Ed25519、PEM（私钥 PKCS#8、公钥 SPKI）；生成用 identity-values 的 `generateHandoffKeyPair()`，装配层的配对自检用它的 `loadSigningKey`／`loadVerificationKey`／`issueHandoffWarrant`／`verifyHandoffWarrant`（源码已有，**不新增任何能力**） | [identity-values 节点「交接凭证走签名」](../../packages/core/identity-values/design.md#交接凭证走签名不走进程内登记)；下发路径两条来自[研究第二部分](../../../../research/agent-harness-persistence-and-identity-infra/research.md#第二部分身份基础设施) |
 
-**本节点自建的只有四样**：① 装载清单与 `boot()`／`dispose()`（候选名）；② 迁移的**合成**（owner 导出片段，本节点定次序并给出跨 owner 那条外键的目标与名字）与**升级整体性的编排**（把只读核对交给存储提供者、启动成功后确认快照，[下文](#升级的整体性迁移前只读核对快照与确认)）；
+**本节点自建的只有四样**：① 装载清单与 `boot()`／`dispose()`（候选名）；② 迁移的**合成**（owner 导出片段，本节点定次序并给出跨 owner 那条外键的目标与名字）与**升级整体性的编排**（把只读核对交给存储提供者、全部 fiber `ACTIVE` 后确认快照、确认之后才放行入口层开闸，[下文](#升级的整体性迁移前只读核对快照与确认)）；
 ③ config 的来源与解析（环境变量／文件 → 各插件 config 对象，含**密钥配对自检**，含入口层与运维面的 config）；④ `keygen`（候选：一个导出函数，命令形态待定）。
 四样里没有任何一样拥有领域事实或判定；[装配胶水不得暗中拥有未定义能力](../../AGENTS.md#红线)——凡是本页写不进上面四样的逻辑，都回它所属的 provider 节点或契约。
 
-**复杂度声明**：本节点没有缓存、池、队列、重试、定时器。三处像「机制」的东西——启动的整体性（任一 fiber 失败 ⇒ 全撤 ⇒ 退出）、密钥配对自检、升级的整体性（只读核对、快照与确认）——
+**复杂度声明**：本节点没有缓存、池、队列、重试；定时器只有两个上界（等 `serving`、撤除总超时），都只把「挂住」变成说得出原因的失败。三处像「机制」的东西——启动的整体性（任一 fiber 失败 ⇒ 全撤 ⇒ 退出）、密钥配对自检、升级的整体性（只读核对、快照、确认与两步开闸）——
 都是正确性检查：第一处保护「配置错误一个政策」与[入口契约 S-34](../../../spec/compositions/governance-center-entry/v1/contract.md#s-34-起来即整体停机时在途请求归谁)「起来即整体」，第二处保护「两份交接凭证不可伪造」的配对前提（[AI S-30 第 9 行](../../../spec/capabilities/account-identity/v1/contract.md#s-30-装配给的保证-vs-协议须给的保证)），
 第三处保护 [PF-017 §6.9](../../../product/PF-017-governance-center-as-deployable-application/design.md#69-升级同一个中心要么整体成要么整体不成)「升级整体成或整体不成」——快照的具体机制归存储提供者，本节点只编排。
 
@@ -44,7 +44,7 @@
 | `data.offer-expiry/v1`（`accepted`）——[S-16](../../../spec/data/offer-expiry/v1/contract.md#s-16-同一时间源) 时间源形状、[S-17](../../../spec/data/offer-expiry/v1/contract.md#s-17-装配给的保证-vs-协议须给的保证) 五行装配给 | [`packages/infra/clock`](../../packages/infra/clock/design.md) 的 `clockPlugin`，`provide('clock')`；源码已有，包内 8 条测试通过 | 根 Context **恰一份**（同源可比）；**config 为空对象**（租约宽度与续约周期是包内常量）；`inject: ['storage']` | 正常：`now()` 同步返回；启动期检出回拨或启动判定写失败 ⇒ 插件体抛出 ⇒ **整个装配启动失败**；运行期落在旧租约窗口或续约失败 ⇒ `'unavailable'`；撤除：它的 disposer 收回租约，所以本节点**先撤它、后撤 `storage`**（[撤除次序](#成对的装载与撤除)） |
 | 存储协议（无契约；[`core/storage`](../../packages/core/storage/design.md#协议候选形状) 的 `Storage`／四型失败） | [`packages/infra/storage-sql`](../../packages/infra/storage-sql/design.md) 的 `storageSqlPlugin`，`provide('storage')`；源码已有，sqlite 一致性套件 15 组通过 | 根 Context **恰一份**；config（源码 `StorageSqlConfig`）：`{ dialect: 'sqlite', file, migrations? }`，pg 为 `{ dialect: 'postgres', connectionString, migrations? }` 只接线；`migrations` 是本节点合成的 `MigrationProvider`，在 `provide` 之前跑。**升级整体性要它多做三件事**（迁移前只读核对、有待跑迁移时先建快照、确认之前的任何失败或撤除都恢复快照）——源码与该节点设计都**还没有**，要求见[下文](#升级的整体性迁移前只读核对快照与确认) | 正常：每次 `read`／`write` 恰一次事务；失败：打不开、只读核对不过、迁移失败 ⇒ 抛出 ⇒ 启动失败；撤除：关准入 → 等在途 → 关句柄，在途事务按各自提交收场，之后的调用 `StorageUnavailable`；快照未确认时关句柄之后恢复快照 |
 | `data.identity-values/v1`（`accepted`） | 纯模块，被四个插件 import；本节点用 `generateHandoffKeyPair`（`keygen`）与 `loadSigningKey`／`loadVerificationKey`／`issueHandoffWarrant`／`verifyHandoffWarrant`（[配对自检](#配对自检起-context-之前签一次核一次)） | 包依赖 | 本节点不为任何领域操作产出或核实凭证；自检用的凭证绑定一个一次性的探针 AccountId，不落库、不外流 |
-| `composition.governance-center-entry/v1`（`candidate`）——客户端一面（27 条路由加公开体检）、运维面（完整体检）、中心标识 | [`packages/tenancy/governance-center-entry`](../../packages/tenancy/governance-center-entry/design.md) 的两个插件；**尚未建包** | 根 Context 各一份，**装在清单最后，运维面先于入口层**；入口层 config：`listen`、`tls`、`version`、`drainTimeoutMs`、`clockReadyTimeoutMs`；运维面 config：`socketDirectory`、`deploymentKey`、`deploymentParameters`——来源见[入口层与运维面的装配](#入口层与运维面的装配) | 正常：入口层开闸即「中心起来了」（[S-34](../../../spec/compositions/governance-center-entry/v1/contract.md#s-34-起来即整体停机时在途请求归谁)）；路由上不提交任何东西，提交点在被投影操作那一次提交（[该节点「提交点」](../../packages/tenancy/governance-center-entry/design.md#提交点入口层在路由上不提交任何东西)）；它唯一的写是启动时读或铸中心标识。失败：两个插件体任一抛出 ⇒ `FAILED` ⇒ 整体启动失败、快照恢复。撤除：入口层在一个 effect 内停机三步；**本节点先撤入口层、再撤运维面**（[撤除次序](#成对的装载与撤除)） |
+| `composition.governance-center-entry/v1`（`candidate`）——客户端一面（27 条路由加公开体检）、运维面（完整体检）、中心标识 | [`packages/tenancy/governance-center-entry`](../../packages/tenancy/governance-center-entry/design.md) 的两个插件；**尚未建包** | 根 Context 各一份，**装在清单最后，运维面先于入口层**；入口层 config：`listen`、`tls`、`version`、`drainTimeoutMs`、`clockReadyTimeoutMs`、`openSignal`；运维面 config：`socketDirectory`、`deploymentKey`、`deploymentParameters`——来源见[入口层与运维面的装配](#入口层与运维面的装配) | 正常：入口层插件体做完一切会失败的准备、闸仍关着；本节点在全部 fiber `ACTIVE` 且快照确认之后兑现 `openSignal`，入口层才开闸——开闸即「中心起来了」（[S-34](../../../spec/compositions/governance-center-entry/v1/contract.md#s-34-起来即整体停机时在途请求归谁)，[两步开闸](#两步开闸就绪与开闸分开)）；路由上不提交任何东西，提交点在被投影操作那一次提交（[该节点「提交点」](../../packages/tenancy/governance-center-entry/design.md#提交点入口层在路由上不提交任何东西)）；它唯一的写是启动时读或铸中心标识。失败：两个插件体任一抛出 ⇒ `FAILED` ⇒ 整体启动失败、快照恢复。撤除：入口层在一个 effect 内停机三步；**本节点先撤入口层、再撤运维面**（[撤除次序](#成对的装载与撤除)） |
 
 **装载清单里每一项都要能指回上表的一行**；指不回去的说明它在偷偷拥有语义。
 
@@ -59,16 +59,17 @@ storage-sql → clock → credential-verification → account-identity → organ
 
 - **顺序 = 依赖序**。`clock`、AI、OG 必需 inject `storage`，AR 必需 inject 三个领域面；迁移在 `provide('storage')` 之前跑，装 `storage` 先于一切让「表已在」对后面每个插件都成立。
 - **运维面与入口层装在最后，运维面先于入口层**（[governance-center-entry「次序由装配保证」](../../packages/tenancy/governance-center-entry/design.md#成对的装载与撤除)；提案[装配草图](../../../record/proposals/governance-center-entry/design.md#装载顺序)）。
-  入口层开闸那一刻就是中心「起来了」的那一刻（[S-34](../../../spec/compositions/governance-center-entry/v1/contract.md#s-34-起来即整体停机时在途请求归谁)），所以它之前的每一步都必须已成；
-  运维面在它之前、且已 `ACTIVE`，入口层开闸前发的 `serving` 通知才有人接（两张面同起同停）。反过来排，运维面失败时入口层已在分派，就是半开。
+  入口层开闸那一刻就是中心「起来了」的那一刻（[S-34](../../../spec/compositions/governance-center-entry/v1/contract.md#s-34-起来即整体停机时在途请求归谁)），而开闸由本节点在全部 fiber `ACTIVE` 之后放行（下文「两步开闸」一条），所以装载时两者谁先谁后都不会半开；
+  这条先后要的是**撤除那一半**：本节点逆序撤除，入口层先撤，它关闸时发的 `stopped` 通知运维面还在听（两张面同起同停）。
   两者之间没有 inject 关系，**这条先后只由本清单保证**。
 - 入口层必需 inject `logins`、`registration`、`organizations`、`memberships`、`offers`、`storage`、`credentials`、`clock`（最后一个只在启动时等钟可读用），运维面必需 inject `storage`、`clock`——都在前面装过；
   所以它们也纳入下一条的同步 `PENDING` 判定：前面任一面没起来（清单错误），入口层停在 `PENDING`，本节点在装它那一步就判清单错误、全撤、启动失败。
-- **入口层不 `PENDING` 之后还要等钟可读**：[S-34](../../../spec/compositions/governance-center-entry/v1/contract.md#s-34-起来即整体停机时在途请求归谁) 以「中心的钟可读」为启动成功的条件，入口层在开闸之前等 `clock.now()` 给出一个时刻，上界是本节点给的 `clockReadyTimeoutMs`；
+- **入口层不 `PENDING` 之后还要等钟可读**：[S-34](../../../spec/compositions/governance-center-entry/v1/contract.md#s-34-起来即整体停机时在途请求归谁) 以「中心的钟可读」为启动成功的条件，入口层在插件体里（开闸之前）等 `clock.now()` 给出一个时刻，上界是本节点给的 `clockReadyTimeoutMs`；
   超界 ⇒ 入口层插件体抛出 ⇒ `FAILED` ⇒ 本节点逆序全撤、恢复快照、启动失败，**说明里点名原因是钟**。这一步是 `await` 入口层 fiber 的一部分，不是本节点另设的等待。
 - **`PENDING` 是结构判定，不是等待**：`ctx.plugin()` 返回后**同步**读 `fiber.state`，为 `PENDING` 即视为**清单错误**（它需要的服务不在前面装的插件里）⇒ 撤已装的 ⇒ 启动失败；**不设等待常量**。`core/kernel-basis` 的 `bootAssembly` 源码已按同一形状写（同步查 `FIBER_STATE.PENDING`，失败时逆序撤已装的）。
 - **不 `PENDING` 就 `await` 它**：config 校验失败或插件体抛出 ⇒ fiber `FAILED` ⇒ `await` 拒绝（basis [`plugin-throw-fails-fiber`](../../../basis/cordis/plugin-throw-fails-fiber.md)）⇒ 按逆序撤除已装的 fiber ⇒ 快照未确认时由存储提供者恢复 ⇒ 进程退出非零。**不半开**：一份漏配 `activation` 私钥的部署，`storage` 与 `clock` 已经 `ACTIVE` 也一起撤掉，而不是让 AI／OG 带病服务、注册每次 `interrupted`；入口层端口被占，前面七条 fiber 一起撤掉，升级的迁移随快照撤回。
-- **全部 fiber `ACTIVE` 之后才确认快照**（[升级的整体性](#升级的整体性迁移前只读核对快照与确认)）；确认完成，`boot()` 才返回成功。
+- **两步开闸**：全部 fiber `ACTIVE` 之后确认快照（[升级的整体性](#升级的整体性迁移前只读核对快照与确认)）；确认成功才兑现入口层的 `openSignal`，入口层开闸、发 `serving`；本节点有界地等到 `serving`，`boot()` 才返回成功，等不到即启动失败（快照已确认、不恢复，缺口 U-4）。
+  确认失败 ⇒ 不兑现（以拒绝结束）⇒ 逆序全撤 ⇒ 恢复快照 ⇒ 启动失败——闸从未开过（[两步开闸](#两步开闸就绪与开闸分开)）。
 - **不用 `isolate`、不用 `intercept`**：一个部署一份实现、一份数据（basis [`isolate-hides-instances-not-data`](../../../basis/cordis/isolate-hides-instances-not-data.md)）；config 在 `ctx.plugin` 时直接传，没有向下注入的政策链。
 
 | | 只 `ctx.plugin` 八次、全靠 inject 自动排序（落选） | **清单顺序 + 同步查 `PENDING` + 逐个 `await`（选）** |
@@ -179,7 +180,9 @@ provider = compose([
   ④ 迁移（pg：一个事务）
   ⑤ provide('storage')
 [其余七条 fiber]    clock … governance-center-entry                  —— 任一失败：逆序全撤，storage 撤除时恢复快照
-[全部 ACTIVE]       确认快照；boot() 返回成功
+                    （入口层到此端口已绑、闸关着；对外没有任何提交）
+[全部 ACTIVE]       确认快照                                          —— 失败：不兑现 openSignal，逆序全撤，恢复快照
+[确认之后]          兑现 openSignal ⇒ 入口层开闸、发 serving ⇒ boot() 返回成功  —— 有界等不到 serving：逆序全撤，不恢复（U-4）
 ```
 
 | 只读核对 | 判据 | 判据归谁 | 不过 ⇒ 告诉运维者 |
@@ -198,7 +201,7 @@ clock 插件启动时仍按自己的判定再核一次回拨（[时钟装配](#�
 | R-U3 | sqlite：有待跑迁移时，在第一条迁移之前建立库的**一致快照**，含已提交但还在预写日志里的内容；首次启动（库不存在）的快照就是「库不存在」这件事。快照与库同一文件系统、权限同库文件；磁盘要多容纳一份库的大小（运维约定） | PF-017 §6.9 |
 | R-U4 | 快照确认之前的任何失败——本插件自己的迁移失败，或之后别的 fiber 失败使本插件被撤——⇒ 关闭全部句柄之后**恢复快照**：恢复后的库与快照等价，附属文件不带入快照之后的任何写；恢复以替换完成，中途断电不留半个文件。首次启动的恢复即删除本次建出的库文件与附属文件，下一次启动仍是第一次（与 S-28 ③ 一致） | PF-017 §6.9；S-28 ③ |
 | R-U5 | 快照确认之前一直留在磁盘上，**它的存在就是「一次升级尚未确认」**：打开库之前先看有没有遗留快照，有就先恢复 | PF-017 §6.9（启动中途断电也是「起不来」） |
-| R-U6 | 确认：本节点在全部 fiber `ACTIVE` 之后调用一次（候选：storage-sql 包导出一个按 config 定位快照的函数，**不进存储协议**），删除快照；确认之后的撤除不再恢复 | PF-017 §6.9 |
+| R-U6 | 确认：本节点在全部 fiber `ACTIVE` 之后、放行开闸之前调用一次（候选：storage-sql 包导出一个按 config 定位快照的函数，**不进存储协议**），删除快照；删除成功才算确认，报错时快照须仍在（随后的恢复要用它）；确认之后的撤除不再恢复 | PF-017 §6.9 |
 | R-U7 | pg：全部待跑迁移在**一个事务**里提交或无痕 | PF-017 §6.9；Kysely `Migrator` 在 pg 上是否把整批包进一个事务**待核** |
 | R-U8 | 核对不过、建快照失败、恢复失败各是**具名的启动失败**，不折成 `StorageUnavailable`；**恢复失败时快照不删**，说明里写出它的位置，下一次启动按 R-U5 再试 | PF-017 §6.6「告诉运维者差的是哪一样」 |
 
@@ -209,17 +212,51 @@ clock 插件启动时仍按自己的判定再核一次回拨（[时钟装配](#�
 | 最强论证 | 不改 storage-sql；整个升级在一处代码里看得见 | 「库是一个文件」「预写日志里还有已提交的内容」「pg 没有文件」只有存储提供者知道；装配知道了就是胶水拥有存储机制（[红线](../../AGENTS.md#红线)），换 pg 整段作废 |
 | 弱点 | 同左 | storage-sql 的设计与源码都要改（R-U1～R-U8 全是新增）；确认要一个存储协议之外的导出函数。置信度：**中高** |
 
-| | 装入口层之前确认（落选） | 在入口层的 `serving` 通知里确认（落选） | **全部 fiber `ACTIVE` 之后、`boot()` 返回之前确认（选）** |
-| --- | --- | --- | --- |
-| 最强论证 | 没有「已开闸、未确认」的窗口 | 通知同步派发、在开闸之前到达，窗口为零 | 清单上每一步失败都撤得回——包括入口层端口被占、TLS 材料不合、读不到标识这几种最常见的运维错误 |
-| 弱点 | 入口层自己的失败都在确认之后：升级了的库撤不回，旧版本起不来——§6.9 在最常见的失败上不成立 | 拿通知做控制：确认失败时否决不了开闸（`emit` 丢弃返回值，[`async-control-not-bail`](../../../basis/cordis/async-control-not-bail.md)）；装配挂到入口层的一条内部通知上 | **开闸到确认之间有一个窗口**，见反证 (b)。置信度：**中** |
+确认放在哪、开闸与它谁先谁后，见下一节[两步开闸](#两步开闸就绪与开闸分开)。
 
 **自构的四条反证**：
 (a) 迁移跑完，clock 启动时检出回拨（或入口层端口被占）⇒ 逆序全撤 ⇒ storage-sql 撤除时恢复快照 ⇒ 库回到升级前、迁移登记仍是旧序列 ⇒ 旧版本的只读核对通过、照常能起。成立。
-(b) 首次启动：入口层铸出标识、开闸，一位同事读到公开体检并注册成功；`boot()` 确认之前进程被杀 ⇒ 下一次启动见遗留快照「库不存在」⇒ 删库 ⇒ 重铸出另一个标识，那位同事的账号也不在了。**反证成立**，非首次时同理丢掉窗口里提交的写。本节点单方面闭合不了：要入口层把「就绪」与「开闸」分成两步、让装配在两步之间确认，那是 governance-center-entry 装卸表的改动——记为缺口 U-1。
+(b) 首次启动：入口层铸出标识、端口已绑；确认之前进程被杀 ⇒ 下一次启动见遗留快照「库不存在」⇒ 删库 ⇒ 重铸出另一个标识。要成为反例，得有人在这之前读到过第一个标识，或有一次对外提交随恢复消失——但入口层的闸在 `openSignal` 兑现之前关着、运维面在 `serving` 之前不答，兑现又在确认之后：**反证不成立**。非首次启动同理，确认之前没有对外提交可丢。残余落在确认之后，见缺口 U-4。
 (c) 两个进程同时对同一份库启动：A 建快照、迁移；B 的只读核对读到 A 迁移到一半的登记，或在 A 恢复时握着被替换掉的文件。本节点挡不住——多实例是 [PF-017 非目标](../../../product/PF-017-governance-center-as-deployable-application/design.md#非目标)，运维面的残留套接字检查在迁移之后才跑。前提写明「同一份库同一时刻只有一个中心进程」；排他机制归存储提供者，记为缺口 U-2。
-(d) pg：迁移事务已提交，之后入口层端口被占 ⇒ 撤不回——R-U7 只给迁移本身的原子，pg 下 §6.9 在迁移之后的失败上**不成立**。pg 本程只接线（D-026），记为缺口 U-3，第一次跑 pg 之前闭合。
-(a) 由 [verification](verification.md#证据义务) 的 `assembly.upgrade-restore-on-boot-failure` 真跑；(b)(c)(d) 眼下写不出会通过的测试，记在 [verification 覆盖缺口](verification.md#覆盖缺口)，闭合之后各加一条真演练（(c) 是两进程同时 `boot()` 的真并发）。
+(d) pg：迁移事务已提交，之后入口层端口被占 ⇒ 撤不回。R-U7 只给迁移本身的原子：pg 上「迁移单事务」成立，「迁移后装配失败回滚」不成立——**PF-017 §6.9 在 pg 上本程不兑现**，显式缺口 U-3，pg 第一次跑之前定手段。
+(a) 由 [verification](verification.md#证据义务) 的 `assembly.upgrade-restore-on-boot-failure` 真跑；(b) 的反面由 `assembly.no-commit-before-open` 演练；(c)(d) 眼下写不出会通过的测试，记在 [verification 覆盖缺口](verification.md#覆盖缺口)，闭合之后各加一条真演练（(c) 是两进程同时 `boot()` 的真并发）。
+
+### 两步开闸：就绪与开闸分开
+
+入口层开闸就是中心「起来了」（[S-34](../../../spec/compositions/governance-center-entry/v1/contract.md#s-34-起来即整体停机时在途请求归谁)），确认快照就是升级的不可回退点（R-U6）。两者做不成一个原子动作；本节点把次序定成**先确认、后开闸**，开闸有没有发生由有界地等 `serving` 判定：
+
+```text
+全部八条 fiber ACTIVE   入口层：端口已绑、闸关着、标识就绪、钟已读到；运维面：套接字已绑、不答
+  ↓ 确认快照（R-U6）     失败 ⇒ 拒绝 openSignal ⇒ 逆序全撤 ⇒ storage 撤除时恢复快照 ⇒ 启动失败
+  ↓ 兑现 openSignal      入口层的续延：再读钟 → emit serving → 开闸
+  ↓ 等 serving（有界）    收到 ⇒ boot() 返回成功；超界 ⇒ 逆序全撤、启动失败，快照已确认、不恢复（U-4）
+```
+
+- **`openSignal`**（候选名）是本节点在装入口层之前构造的一个 Promise，经入口层 config 传入；它是运行时对象，只能由装配在装载时构造，不来自环境变量。入口层插件体**不** `await` 它：插件体不返回，入口层就停在 `LOADING`，本节点等不到「全部 `ACTIVE`」，放行永不发生——入口层节点[就绪与开门为什么分两步](../../packages/tenancy/governance-center-entry/design.md#就绪与开门为什么分两步)。
+- **开闸之前没有任何对外提交**：入口层的闸关着、连接一律关闭不答；运维面在 `serving` 之前不答；其余 fiber 没有自己的对外入口。确认之前的写只有启动自身的写——迁移、`clock_lease`、首次启动铸的中心标识——没有人读到过它们，恢复快照把它们一起撤回（反证 (b)）。
+- **确认失败**：不兑现，以拒绝结束 `openSignal`（入口层的续延吸收这次拒绝，闸保持关着）⇒ 逆序全撤 ⇒ storage-sql 撤除时恢复快照（R-U4）⇒ 启动失败，说明写「升级确认失败」。
+- **确认之后**：此后的进程死亡按「升级已完成、中心停着」收场——库是新版本的完整数据，没有写到一半的东西；下一次用同一版本启动没有遗留快照、没有待跑迁移，照常起来。旧版本起不来是升级完成的正常后果，不是 §6.9 说的「升级到一半」。
+- **本节点对入口层的要求**：兑现之后到开闸，除进程死亡外**不要有让中心起不来的失败支**——那一段在确认之后，失败就是「库已升级、中心没起来、旧版本也起不来」。入口层节点在开闸那一刻再读一次钟、超界即放弃开闸（该节点「`startedAt` 开门那一刻再读一次」一表与其 N-12）：那一支正落在这一段里，记缺口 U-4。
+- **`boot()` 在兑现之后有界地等 `serving`**：入口层在开闸之前已是 `ACTIVE`，开闸那一刻的失败不能再让它 `FAILED`，本节点只能从「等不到 `serving`」得知（入口层节点 N-12）。
+  本节点在装入口层之前，在根 Context 上登记一个 `serving` 通知的监听（只记录、不做控制；`emit` 同步派发，[`async-control-not-bail`](../../../basis/cordis/async-control-not-bail.md)），兑现之后等它，上界 = `clockReadyTimeoutMs` 加 1 s（候选常量，盖住入口层开闸时那一次再读钟的上界）。
+  等到 ⇒ `boot()` 返回成功。超界 ⇒ **启动失败**，说明写「入口层确认之后未开闸」，逆序全撤；**快照不恢复——它在兑现之前已确认、已不存在**（下表）。这一支就是 U-4：库已是新版本的完整数据、没有对外提交，修好原因之后用同一版本再启动照常起来，旧版本起不来。
+  监听随根 Context 的撤除收回（**假设**，与入口层节点「`ctx.on` 经 effect 纳管」同一条，须按 source-check 取证）。
+
+| | 确认挪到收到 `serving` 之后，等不到 `serving` 即恢复快照（落选） | **确认留在兑现之前；等不到 `serving` 即启动失败、不恢复（选）** |
+| --- | --- | --- |
+| 最强论证 | 开闸那一刻的失败也撤得回：U-4 那一支上 §6.9 成立，旧版本照常能起 | 确认之前没有对外提交可丢；已经答复客户端「成了」的写，没有一条会随恢复消失（PF-017 §6.8「已确认的都在」） |
+| 弱点 | `serving` 发出后入口层随即开闸，确认（一次异步删除）完成之前已可能答复过提交：确认失败或进程恰在此刻死亡 ⇒ 下一次启动见遗留快照、恢复 ⇒ 丢掉答复过的写——U-1 的窗口原样回来，且比 U-4 更糟（丢事实，而不是「旧版本起不来」） | 开闸那一刻的失败撤不回（U-4）：库已升级、中心没起来、旧版本起不来；只有入口层去掉那一支、或主线接受这一残余才闭合。置信度：**中高** |
+- **换代重跑**：`openSignal` 兑现之后保持兑现；入口层之后因参与方换代而重跑时，新插件体就绪即开闸（快照早已确认），本节点不再参与。
+
+| | 装入口层之前确认（落选） | 全部 `ACTIVE` 之后确认，入口层在插件体里就开闸（落选） | 在入口层的 `serving` 通知里确认（落选） | **全部 `ACTIVE` 之后确认，确认之后才放行开闸（选）** |
+| --- | --- | --- | --- | --- |
+| 最强论证 | 没有「已开闸、未确认」的窗口 | 入口层不用改；清单上每一步失败都撤得回 | 通知同步派发、在开闸之前到达，窗口为零 | 清单上每一步失败都撤得回（含入口层端口被占、TLS 材料不合、读不到标识这几种最常见的运维错误），**且**确认之前没有对外提交可丢 |
+| 弱点 | 入口层自己的失败都在确认之后：升级了的库撤不回，旧版本起不来——§6.9 在最常见的失败上不成立 | 开闸到确认之间有窗口：窗口里崩溃，恢复快照丢掉窗口里答复过的提交，首次启动还会重铸已被人读到的标识 | 拿通知做控制：确认失败时否决不了开闸（`emit` 丢弃返回值）；装配挂到入口层的一条内部通知上 | 入口层 config 多一个运行时对象；开闸挪到插件体之外的续延里，那里的失败不能让 fiber `FAILED`，本节点要等 `serving` 才知道闸开了；确认之后到开闸仍有一段（U-4 是入口层在这一段里的失败支）。置信度：**中高** |
+
+| | 首次启动的铸造放在 `openSignal` 兑现之后（落选） | **铸造留在入口层插件体里、确认之前（选）** |
+| --- | --- | --- |
+| 最强论证 | 标识在确认之后才写，恢复快照永远撤不到它 | 读或铸失败（存储不可用、读回的形状不合）⇒ 插件体抛出 ⇒ `FAILED` ⇒ 启动失败的形态由内核给、快照照常恢复；公开体检的固定字节在开闸之前就备好 |
+| 弱点 | 铸造变成确认之后的一个失败支（写失败 ⇒ 库已升级、中心没起来），正是上面要求那一段不该有的；续延里的失败不能让 fiber `FAILED` | 首次启动中途失败时，铸过的标识随快照撤回、下一次重铸出另一个值。**不改语义**：首次启动的库里除本次待跑的迁移外没有既有数据，恢复快照等于回到空库、下一次启动仍是第一次（R-U4、[S-28](../../../spec/compositions/governance-center-entry/v1/contract.md#s-28-铸造存放与不变) ③）；开闸之前没有任何人读到过那个值，重铸即同一语义。置信度：**高** |
 
 ### 存储 config 的来源（候选环境变量名）
 
@@ -334,6 +371,7 @@ verifyHandoffWarrant(verification, purpose, PROBE_ACCOUNT_ID, warrant) === 'ok' 
 | `version`（中心所装版本的标识） | 构建常量：本应用构建时写入的版本标识（候选：`apps/tenancy-host` 的包版本），**不是环境变量** | 缺即构建错误 |
 | `drainTimeoutMs`（停机排空上界） | 本节点候选常量 10 s，**不是环境变量**；须小于撤除总超时（下行） | 构造时核「排空 < 总超时」，不成立即启动失败 |
 | `clockReadyTimeoutMs`（启动等钟可读的上界） | `OMNE_TENANCY_CLOCK_READY_TIMEOUT`（[其余 config](#其余-config候选变量名) 表） | 缺或不大于 `LEASE_WIDTH_MS` ⇒ 启动失败；运行中超界 ⇒ 入口层插件体抛出 ⇒ 启动失败，说明点名是钟 |
+| `openSignal`（放行开闸） | `boot()` 在装入口层之前构造的 Promise，**不是环境变量**；快照确认成功后兑现，确认失败以拒绝结束（[两步开闸](#两步开闸就绪与开闸分开)） | 缺或不是 thenable ⇒ 入口层 Config 拒 ⇒ 启动失败（只可能是本节点的缺陷） |
 
 | 运维面 config（候选字段） | 来源 | 缺或非法 |
 | --- | --- | --- |
@@ -368,12 +406,12 @@ verifyHandoffWarrant(verification, purpose, PROBE_ACCOUNT_ID, warrant) === 'ok' 
 
 ## 状态、并发与失败映射
 
-**本节点无领域状态、无提交点、无锁。**运行时状态只有：一个 Context、八条 fiber 的句柄、一个「已进入撤除」的开关。全部提交点在 AI／OG 的 `storage.write` 与入口层启动时那一次读或铸里，全部冲突裁决在存储的行锁、唯一约束与外键上（[core/storage](../../packages/core/storage/design.md#状态并发与失败映射)）。
+**本节点无领域状态、无提交点、无锁。**运行时状态只有：一个 Context、八条 fiber 的句柄、`openSignal` 与它的兑现／拒绝两个把手、一个「已进入撤除」的开关。全部提交点在 AI／OG 的 `storage.write` 与入口层启动时那一次读或铸里，全部冲突裁决在存储的行锁、唯一约束与外键上（[core/storage](../../packages/core/storage/design.md#状态并发与失败映射)）。
 升级快照的「未确认／已确认」是**存储提供者落在磁盘上的状态**（R-U5），不是本节点的内存状态——进程崩溃之后它照样说得出上一次启动有没有确认。
 
 **启动失败**的精确含义：`boot()` 拒绝，已装的 fiber 已按逆序 `dispose()` 完毕（disposer 异常只记日志，basis [`effect-disposal-concurrent-not-ordered`](../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)），快照未确认时已由存储提供者恢复（sqlite：本次跑过的迁移随之撤回，库回到升级前；pg 见缺口 U-3），
 调用方（进程入口，形态待定；测试里是测试本身）据此退出非零，退出前落一条结构化记录，**告诉运维者差的是哪一样**（[PF-017 §6.6](../../../product/PF-017-governance-center-as-deployable-application/design.md#66-要么整个起来要么不起来)）：
-失败的阶段（config 解析／配对自检／遗留快照恢复／只读核对：格式版本或时钟回拨／建快照／迁移／哪条 fiber，入口层等钟超界单列为「钟读不到」／恢复快照）、错误类型与消息（缺了哪个变量、哪个迁移名对不上、哪条 fiber），**不含任何 PEM 文本或 config 值**（[S-29](../../../spec/compositions/governance-center-entry/v1/contract.md#s-29-秘密不进任何输出) 把启动失败说明列在「任何输出」里）。
+失败的阶段（config 解析／配对自检／遗留快照恢复／只读核对：格式版本或时钟回拨／建快照／迁移／哪条 fiber，入口层等钟超界单列为「钟读不到」／升级确认／入口层确认之后未开闸（U-4）／恢复快照）、错误类型与消息（缺了哪个变量、哪个迁移名对不上、哪条 fiber），**不含任何 PEM 文本或 config 值**（[S-29](../../../spec/compositions/governance-center-entry/v1/contract.md#s-29-秘密不进任何输出) 把启动失败说明列在「任何输出」里）。
 恢复快照本身失败时，记录里另写快照的位置，快照不删（R-U8）。
 
 **运行期失败**全部归提供者与契约：`storage` 不可用 ⇒ 各操作的「不可用」字面（经 `core/storage` 的 `mapStorageError`）；`StorageDefect` 与其他异常上抛——那是缺陷，本节点不捕获、不重试，让它在日志里可见（[OG](../../packages/tenancy/organization-governance/design.md#状态并发与失败映射)、[storage-sql 错误码映射](../../packages/infra/storage-sql/design.md#错误码映射表)）。**本节点没有 catch-all**。
@@ -390,8 +428,9 @@ verifyHandoffWarrant(verification, purpose, PROBE_ACCOUNT_ID, warrant) === 'ok' 
 | `clock` fiber：锚、启动判定写、`provide('clock')`、续约定时器 | 该 fiber | 启动判定写失败或检出回拨（`ClockRollbackDetected`）⇒ 抛出 ⇒ `boot()` 撤 `storage` 后拒绝 | 清定时器 → 等在途续约 → 收回租约的写（[clock 装卸表](../../packages/infra/clock/design.md#成对的装载与撤除)）；**本节点保证撤它时 `storage` 仍活**（见次序）。**保留**：`clock_lease` 行 |
 | `credentials`、`accounts`／`logins`、四个治理面、`registration` 五条 fiber | 各 fiber；各自 `ACTIVE` 后可解析 | `ctx.plugin()` 返回即 `PENDING` ⇒ 清单错误；config 校验失败或插件体抛出 ⇒ `FAILED`——两者都 ⇒ `boot()` 逆序撤已装的 ⇒ 拒绝 | 服务从 store 消失；**在途调用跑完，按各自那一次 `storage` 提交收场**——内核不取消在途调用；撤除开始后新发起的 `storage` 调用得 `StorageUnavailable` ⇒ 各契约的「不可用」字面（机制在 storage-sql 的关准入）。**保留**：全部记录（契约 [AI S-28](../../../spec/capabilities/account-identity/v1/contract.md#s-28-依赖不可用撤除与重启时的在途归属)、[OG S-43](../../../spec/capabilities/organization-governance/v1/contract.md#s-43-依赖的提供者不可用)：没有只活在实例里的事实） |
 | `governance-center-ops` fiber：三条通知的监听、本机套接字 | 该 fiber；装载后即可接连接，但只在 `serving` 与 `stopped` 之间作答（[该节点装卸表](../../packages/tenancy/governance-center-entry/design.md#成对的装载与撤除)） | 套接字目录权限不对、残留套接字有人在听、绑定失败 ⇒ 抛出 ⇒ `boot()` 逆序撤前六条 ⇒ 恢复快照 ⇒ 拒绝 | 停止接受 → 关闭连接 → 删套接字文件；`defectCount`、`startedAt` 随实例消失（契约：重启归零）。**本节点保证撤它时入口层已撤完** |
-| `governance-center-entry` fiber：TLS 监听、读或铸中心标识（**首次启动的提交点**，[S-28](../../../spec/compositions/governance-center-entry/v1/contract.md#s-28-铸造存放与不变) ③）、等钟可读（上界 `clockReadyTimeoutMs`，等到的时刻即 `startedAt`）、`serving` 通知、开闸 | 该 fiber；**开闸即中心起来了**（[S-34](../../../spec/compositions/governance-center-entry/v1/contract.md#s-34-起来即整体停机时在途请求归谁)），此刻其余七条都已 `ACTIVE`、钟已读到 | 端口占用、TLS 材料不合、标识读不到或形状不合、**等钟超界** ⇒ 抛出 ⇒ `boot()` 逆序撤前七条 ⇒ 恢复快照（首次启动时连同刚铸的标识一起撤回，下一次启动仍是第一次）⇒ 拒绝，说明点名是哪一样 | 一个 effect 内停机三步：关闸并发 `stopped` → 不再接受连接 → 至多 `drainTimeoutMs` 等在途，到时销毁连接；在途的领域调用跑完、按各自那一次提交收场。**保留**：中心标识与全部治理事实在存储里 |
-| 升级快照的确认（R-U6，调 storage-sql 的候选导出） | `boot()`；全部 fiber `ACTIVE` 之后、返回之前 | 确认失败（删不掉快照）⇒ 按启动失败收场：逆序全撤、恢复快照、拒绝——**此时入口层已开过闸**，窗口里若有提交的写会随恢复消失（与缺口 U-1 同一个窗口） | 确认之后快照不复存在；此后的撤除都是普通停机，不恢复任何东西 |
+| `governance-center-entry` fiber：TLS 监听（闸关着）、读或铸中心标识（**首次启动的提交点**，[S-28](../../../spec/compositions/governance-center-entry/v1/contract.md#s-28-铸造存放与不变) ③）、等钟可读（上界 `clockReadyTimeoutMs`），然后插件体返回；开闸挂在 `openSignal` 的续延上 | 该 fiber；插件体返回即 `ACTIVE`，**此时仍不对外**——端口可达、连接一律关闭不答；开闸（即中心起来了，[S-34](../../../spec/compositions/governance-center-entry/v1/contract.md#s-34-起来即整体停机时在途请求归谁)）要等本节点兑现 `openSignal`（下两行） | 端口占用、TLS 材料不合、标识读不到或形状不合、**等钟超界** ⇒ 抛出 ⇒ `boot()` 逆序撤前七条 ⇒ 恢复快照（首次启动时连同刚铸的标识一起撤回，下一次启动仍是第一次；没有人读到过它）⇒ 拒绝，说明点名是哪一样 | 一个 effect 内停机三步：关闸并发 `stopped` → 不再接受连接 → 至多 `drainTimeoutMs` 等在途，到时销毁连接；在途的领域调用跑完、按各自那一次提交收场；**从未开闸就撤**（确认失败、兑现之前的任何撤除）⇒ 走该节点「未开门」那一支。**保留**：中心标识与全部治理事实在存储里 |
+| 升级快照的确认（R-U6，调 storage-sql 的候选导出）；`serving` 监听（根 Context 上，装入口层之前登记） | `boot()`；全部 fiber `ACTIVE` 之后、兑现 `openSignal` 之前 | 确认失败（删不掉快照，快照仍在）⇒ 拒绝 `openSignal`、逆序全撤、恢复快照、拒绝 `boot()`——**闸从未开过**，没有对外提交随恢复消失 | 确认之后快照不复存在；此后的撤除都是普通停机，不恢复任何东西。监听随根 Context 收回（假设，见[两步开闸](#两步开闸就绪与开闸分开)） |
+| 兑现 `openSignal`；等 `serving` | `boot()`；确认之后。入口层的续延开闸、发 `serving`，本节点收到即 `boot()` 返回成功 | 上界（`clockReadyTimeoutMs` + 1 s）内没等到 ⇒ 启动失败「入口层确认之后未开闸」，逆序全撤，**不恢复**——快照已确认（缺口 U-4；入口层节点 N-12 要本节点承接的就是这一等）；兑现之后进程死亡 ⇒ 升级已完成、中心停着，下一次同版本启动照常 | 兑现不可撤回：入口层之后换代重跑时就绪即开闸 |
 | 进程信号处理（`SIGTERM`／`SIGINT` → `dispose()`） | **本版没有**：只有测试内嵌调用的 `boot()`／`dispose()`，没有独立进程；进程形态见 [architecture](architecture.md#拓扑与进程模型) | — | 有进程时：撤除完成后退出 0；**撤除总超时 30 s（候选常量）**，超时 ⇒ 记录未完成的 fiber 后退出非零 |
 
 **撤除次序**：`dispose()` 按装载的**逆序**逐个 `await fiber.dispose()`：入口层 → 运维面 → AR → OG → AI → credentials → clock → storage。
@@ -465,7 +504,7 @@ verifyHandoffWarrant(verification, purpose, PROBE_ACCOUNT_ID, warrant) === 'ok' 
 | [IV 第六节](../../../spec/data/identity-values/v1/contract.md#六装配给与协议给)其余在客户端这条边上触发的行：S-7 规范形式、S-16 归属层判别式、S-19 读不到即明确失败、S-20／S-23 六路径同判与不得冒充隔离、S-21 不含物理位置、S-27 每道准入现读、S-28 捕获值不重算、S-30 跨边界重新验证、S-33 表示层与判定分开 | 单机由装配给；跨进程须由协议重新兑现 | **转交** governance-center-entry：入口契约 [S-36](../../../spec/compositions/governance-center-entry/v1/contract.md#s-36-装配给的保证-vs-协议须给的保证) 逐行写了这条边上由哪条协议条款兑现；判定仍在各 owner 的数据访问层。S-19 那一行的客户端代理一半归 `apps/cli`（据点一侧，不在本程） | 已转交（设计；契约 candidate） |
 | [offer-expiry S-17 表](../../packages/core/offer-expiry/design.md#状态并发与失败映射) | 第 1 行只 provide 一个 `clock`；第 2、3 行单次提交原子与读写同源；第 4 行默认 `offer_ttl` 在消费者加载配置时校验；第 5 行 `now` 不后退候选形状 owner `apps/` | 第 1 行：[时钟装配](#时钟装配)；第 2、3 行：**转交** storage-sql（OG R-1／R-3c）；第 4 行：本节点解析一次、同一组值交给 OG 与运维面，两者的 Config 都拒非正，失败说明点名是哪一项——入口契约 [S-36](../../../spec/compositions/governance-center-entry/v1/contract.md#s-36-装配给的保证-vs-协议须给的保证)「每一类的默认 `offer_ttl` 取值为正」行把它单列为本应用上触发的装配给，完整体检据此只显示正值；第 5 行：承接者是 `infra/clock`（D-026），本节点装它。第 1、2、3、5 行在客户端这条边上**不触发**（S-36「邀约过期的钟与存储同源」行：时间不进信封） | 已承接／已转交（设计） |
 | [offer-expiry 覆盖缺口](../../packages/core/offer-expiry/verification.md#覆盖缺口) | S-17 五行没有可跑的证据形式，是装配选型声明 + 架构评审 | 本页即那份选型声明；一轮评审已完成，本版按其裁决回填 | 待复评 |
-| [入口契约 S-36](../../../spec/compositions/governance-center-entry/v1/contract.md#s-36-装配给的保证-vs-协议须给的保证)「起来即整体」行（[S-34](../../../spec/compositions/governance-center-entry/v1/contract.md#s-34-起来即整体停机时在途请求归谁)） | 装配给：入口层必需依赖它消费的每一个面；启动中任一步失败即整体失败 | 入口层的 inject 归该节点；**本节点给**：入口层装在最后、同步 `PENDING` 判定覆盖它、任一 fiber 失败逆序全撤（[装载清单](#装载清单与顺序)），升级时连同迁移一起撤回（[升级的整体性](#升级的整体性迁移前只读核对快照与确认)） | 已承接（设计）；`assembly.entry-loads-last` 未开始 |
+| [入口契约 S-36](../../../spec/compositions/governance-center-entry/v1/contract.md#s-36-装配给的保证-vs-协议须给的保证)「起来即整体」行（[S-34](../../../spec/compositions/governance-center-entry/v1/contract.md#s-34-起来即整体停机时在途请求归谁)） | 装配给：入口层必需依赖它消费的每一个面；启动中任一步失败即整体失败 | 入口层的 inject 归该节点；**本节点给**：入口层装在最后、同步 `PENDING` 判定覆盖它、任一 fiber 失败逆序全撤（[装载清单](#装载清单与顺序)），升级时连同迁移一起撤回（[升级的整体性](#升级的整体性迁移前只读核对快照与确认)）；开闸由本节点在全部 `ACTIVE` 且快照确认之后经 `openSignal` 放行（[两步开闸](#两步开闸就绪与开闸分开)） | 已承接（设计）；入口层节点的 `openSignal` 已在该节点设计里、尚未建包；`assembly.entry-loads-last`、`assembly.no-commit-before-open` 未开始 |
 | [S-34](../../../spec/compositions/governance-center-entry/v1/contract.md#s-34-起来即整体停机时在途请求归谁)「存储或时钟不可用只能表现为返回值上的不可用，不得表现为面缺席」 | 由存储与时钟的提供者兑现（实现映射） | **转交** storage-sql（不可用只以 `StorageUnavailable` 返回，协议 P-8）与 clock（`now()` 返回 `'unavailable'`）——两者都不因抖动撤回自己的服务；**本节点给**：运行期不因任何不可用撤除、重装或重启任何 fiber，面缺席只在启动、停机与换代时出现 | 已转交（套件 C-9a 已通过）；已承接（设计） |
 | S-36「运维者没有门」行（[S-25](../../../spec/compositions/governance-center-entry/v1/contract.md#s-25-运维面只在中心所在的机器上且没有治理路由)） | 装配给：通道分离、运维面不引用任何治理能力；进程内没有访问边界 | 通道与导入白名单归 governance-center-entry 与 `tools/ts-checks`（契约 SC-2）；**本节点给**：运维面只 inject `storage`、`clock`，config 里没有任何治理服务或句柄（[入口层与运维面的装配](#入口层与运维面的装配)） | 已承接（设计）；SC-2 规则未建 |
 | S-36「中心标识与治理事实同一存储」行（[S-28](../../../spec/compositions/governance-center-entry/v1/contract.md#s-28-铸造存放与不变) 性质 2）；[governance-center-entry R-GC6](../../packages/tenancy/governance-center-entry/design.md#对存储提供者的要求清单) | 装配：一个存储 | 恰一个 `storage`、`governanceCenterMigration` 合进同一份 `MigrationProvider`（[三件事](#同一存储同一约束域本节点要保证的三件事)第 1 条，互指 R-GC6；R-GC7 由 storage-sql 在 `provide` 前跑迁移兑现） | 已承接（设计）；`assembly.manifest-shape` 未开始 |
@@ -475,8 +514,9 @@ verifyHandoffWarrant(verification, purpose, PROBE_ACCOUNT_ID, warrant) === 'ok' 
 | S-36「登录状态的效力不变」行 | 装配：登录状态记录在存储里、入口不另存 | 存储与入口层各自给；**前提「不经备份恢复」**，入口契约 G-7——备份与恢复在产品之外做，本节点不提供任何恢复入口 | 已转交；前提缺口归契约 |
 | [governance-center-entry「归装配」](../../packages/tenancy/governance-center-entry/design.md#归装配的事项)：装载清单 | 运维面、入口层装在最后，运维先于入口；纳入 `PENDING` 判定；撤除入口先于运维 | [装载清单](#装载清单与顺序)、[撤除次序](#成对的装载与撤除) | 已承接（设计） |
 | 同上：迁移合成 | 合入 `governanceCenterMigration`，次序无关，同一份 provider、同一个库 | [合成规则](#合成规则)、[迁移清单](#迁移清单候选列名逻辑名以各-owner-节点为准) `governance_center` 行 | 已承接（设计） |
-| 同上：迁移原子性与启动前只读核对（PF-017 §6.9、§6.10） | 片段只保证幂等，原子性归装配 | [升级的整体性](#升级的整体性迁移前只读核对快照与确认)：R-U1～R-U8 对存储提供者的要求 + clock 包的只读回拨核对 | 已承接（设计）；**storage-sql 互指条目与 clock 导出未写**；pg 与开闸窗口两处缺口 |
-| 同上：入口层 config 的来源 | 监听地址、TLS 材料（沿密钥规矩，不是部署密钥）、`version`、`drainTimeoutMs` < 撤除总超时、`clockReadyTimeoutMs` > 时钟的租约宽度 | [入口层与运维面的装配](#入口层与运维面的装配)；`clockReadyTimeoutMs` 来自 `OMNE_TENANCY_CLOCK_READY_TIMEOUT`，对 `LEASE_WIDTH_MS` 的核对在装配层（[其余 config](#其余-config候选变量名)） | 已承接（设计） |
+| 同上：迁移原子性与启动前只读核对（PF-017 §6.9、§6.10） | 片段只保证幂等，原子性归装配 | [升级的整体性](#升级的整体性迁移前只读核对快照与确认)：R-U1～R-U8 对存储提供者的要求 + clock 包的只读回拨核对 + [两步开闸](#两步开闸就绪与开闸分开) | 已承接（设计）；**storage-sql 互指条目与 clock 导出未写**；pg 上不兑现（U-3）、确认之后的开闸失败支（U-4） |
+| 同上：入口层 config 的来源 | 监听地址、TLS 材料（沿密钥规矩，不是部署密钥）、`version`、`drainTimeoutMs` < 撤除总超时、`clockReadyTimeoutMs` > 时钟的租约宽度、`openSignal` | [入口层与运维面的装配](#入口层与运维面的装配)；`clockReadyTimeoutMs` 来自 `OMNE_TENANCY_CLOCK_READY_TIMEOUT`，对 `LEASE_WIDTH_MS` 的核对在装配层（[其余 config](#其余-config候选变量名)）；`openSignal` 由 `boot()` 构造，确认之后兑现（[两步开闸](#两步开闸就绪与开闸分开)） | 已承接（设计） |
+| 同上：`openSignal` 的兑现时机与等 `serving`（该节点 N-12） | 全部 fiber `ACTIVE` 且快照确认之后才兑现；确认失败 ⇒ 拒绝再逆序撤除；兑现之后等 `serving`，上界至少 `clockReadyTimeoutMs` 加余量，等不到按启动失败收场 | [两步开闸](#两步开闸就绪与开闸分开)：确认失败拒绝 `openSignal`、逆序全撤、恢复快照；等 `serving` 的上界 `clockReadyTimeoutMs` + 1 s（候选），等不到 ⇒ 启动失败、逆序全撤，**快照已确认、不恢复** | 已承接（设计）；不恢复那一支是缺口 U-4；`assembly.no-commit-before-open` 与该节点 T-12 联合演练，未开始 |
 | [入口契约 S-34](../../../spec/compositions/governance-center-entry/v1/contract.md#s-34-起来即整体停机时在途请求归谁)「启动成功以钟可读为条件；超过承载装配定的界仍读不到 ⇒ 启动失败并告诉运维者原因是钟」；[governance-center-entry 的等钟](../../packages/tenancy/governance-center-entry/design.md#中心标识版本与启动时刻怎么到达运维面) | 界归承载装配 | **本节点给界**：`clockReadyTimeoutMs`，须大于 `LEASE_WIDTH_MS`（快速重启不误判为启动失败）；等待本身在入口层插件体里（它 inject `clock`，只在启动时用）；超界的收场与其余启动失败同一条——全撤、恢复快照、说明点名是钟 | 已承接（设计）；`assembly.clock-ready-timeout` 未开始 |
 | 同上：运维面 config 的来源 | 套接字目录、部署密钥载入结果、五项部署参数（同一组值） | 同上；[密钥装配](#密钥装配两对-ed25519-密钥作为部署配置输入) | 已承接（设计） |
 | 同上：日志汇 | 工程记录落在哪、什么格式 | 经 `ctx.logger`，输出目标候选为标准错误流上的逐行 JSON（同上一节） | 已承接（候选）；`ctx.logger` 的来源为假设 |
@@ -487,9 +527,10 @@ verifyHandoffWarrant(verification, purpose, PROBE_ACCOUNT_ID, warrant) === 'ok' 
 | 缺口 | 挡住什么 | owner 与闭合条件 |
 | --- | --- | --- |
 | **产品依据与入口契约都未接受**：[PF-017](../../../product/PF-017-governance-center-as-deployable-application/README.md)（rev 1）`draft`，`composition.governance-center-entry/v1` `candidate` | 按[准入](../../README.md#应用节点比提供者节点多什么)本节点不得登记任何绑定；入口层与运维面的装配、升级的整体性、部署参数与部署密钥的映射，都是候选依据上的候选设计 | PF-017 接受、契约接受 |
-| **U-1 开闸到确认之间的窗口**：入口层在自己的插件体里开闸，本节点在 `boot()` 返回前才确认快照；进程恰在两者之间崩溃，下一次启动恢复快照，窗口里提交的写随之消失，首次启动时中心标识随之重铸（[反证 (b)](#升级的整体性迁移前只读核对快照与确认)） | PF-017 §6.8「已确认的都在」与 S-28 性质 1 在这个窗口里不成立 | governance-center-entry 节点 + 本节点：入口层把「就绪」与「开闸」分成两步、装配在两步之间确认——那是该节点装卸表的改动，本节点不能单方面闭合 |
+| **U-1 开闸到确认之间的窗口——设计上已闭合**：入口层就绪与开闸分两步，本节点在全部 `ACTIVE` 且快照确认之后才兑现 `openSignal`，确认之前没有对外提交可随恢复消失（[两步开闸](#两步开闸就绪与开闸分开)、[反证 (b)](#升级的整体性迁移前只读核对快照与确认)） | 两边都未建包：`assembly.no-commit-before-open` 起不来，闭合只在设计上 | governance-center-entry 按其设计实现 `openSignal`、本节点实现 `boot()` 的两步开闸；演练通过后改记「已闭合」 |
 | **U-2 同一份库只有一个中心进程**：升级快照的建立与恢复以此为前提；运维面的残留套接字检查在迁移之后才跑，挡不住两个进程同时升级同一份库 | 两个进程同时启动时 §6.9 不成立 | storage-sql：给出从建快照到确认之间的排他手段；在那之前是运维约定（多实例本是 PF-017 非目标） |
-| **U-3 pg 下迁移提交之后的装配失败撤不回**：R-U7 只给迁移本身的原子 | pg 下 §6.9 在迁移之后的失败上不成立（[反证 (d)](#升级的整体性迁移前只读核对快照与确认)） | 本节点 + storage-sql，第一次跑 pg 之前定手段；pg 本程只接线（D-026） |
+| **U-3 pg 上 PF-017 §6.9 本程不兑现（显式缺口）**：pg 上「迁移单事务」成立（R-U7），「迁移后装配失败回滚」不成立——迁移事务提交之后任何一步失败，库都已升级、旧版本起不来（[反证 (d)](#升级的整体性迁移前只读核对快照与确认)） | **受阻消费者：pg 部署**——闭合之前 pg 上的升级不满足 §6.9 | 本节点 + storage-sql；**闭合条件**：pg 首跑前定手段（候选：升级前逻辑备份钩子；或老版本可对新 schema 运行的兼容窗口）；pg 本程只接线（D-026） |
+| **U-4 确认之后到开闸之间的失败支**：[入口层节点](../../packages/tenancy/governance-center-entry/design.md#就绪与开门为什么分两步)在开闸那一刻再读一次钟、超界即放弃开闸（其 N-12），那一支落在确认之后；本节点有界地等 `serving`，等不到即启动失败——但快照已在兑现之前确认，**「等不到 `serving` 即恢复快照」与「确认之后才兑现」不能同时成立**，本节点取后者（[两步开闸](#两步开闸就绪与开闸分开)第二张表） | 那一支上 §6.9 不成立：库已升级、中心没起来、旧版本也起不来（没有对外提交丢失）；受阻消费者：运维者在这一支上的回退 | 主线裁：入口层去掉这一支（例如开闸时读不到钟不放弃），或接受这一残余；若改为「恢复快照」，须同时放弃「确认之后才兑现」、U-1 的窗口随之回来 |
 | **storage-sql 还没有 R-U1～R-U8 的对应条目**，现有正文写「半截 DDL 由幂等收口，本节点不回滚 DDL」 | 迁移前只读核对、升级快照、恢复与确认全都无处实现；`assembly.upgrade-*` 四条测试起不来 | storage-sql 节点：补互指的要求条目、机制与测试，改掉那句；确认函数的导出形状与本节点对齐 |
 | **clock 包没有迁移前的只读回拨核对** | 迁移前只核得了数据格式版本；回拨只在 clock 启动时检出，靠恢复快照撤回 | clock 节点：导出与启动判定同一规则的只读核对（候选） |
 | **运行中墙钟回拨没有承接实现**（S-36 末行；governance-center-entry N-5） | 开着时钟往回倒，要看时间的事照常答、`clockSane` 照常 `true` | clock 节点 |
@@ -506,10 +547,11 @@ verifyHandoffWarrant(verification, purpose, PROBE_ACCOUNT_ID, warrant) === 'ok' 
 | **pg 零运行** | D-026「只改配置切 pg」在本节点无证据 | 装配，第二程 |
 | **`synchronous=FULL`** 不可配 | 断电级持久 | [D-027](../../../record/decisions/infrastructure-names-and-sqlite-durability/README.md) 裁 `NORMAL`（2026-09-23）；要 `FULL` 须新决定并给 storage-sql 加 config 项 |
 | **G-13 残留清扫定时器、G-6 清扫提供者** | 存储卫生；无正确性影响 | 前者：产品负责人定节奏后本节点加 effect；后者：AI v2 枚举读面 |
-| **撤除总超时 30 s、排空上界 10 s** 是候选常量 | 一个挂住的 disposer 让进程不退出；排空太短会多丢答复 | 本节点，落包时定 |
+| **撤除总超时 30 s、排空上界 10 s、等 `serving` 的余量 1 s** 是候选常量 | 一个挂住的 disposer 让进程不退出；排空太短会多丢答复；余量太短会把入口层开闸时那次再读钟误判为未开闸 | 本节点，落包时定 |
 | **`scrypt` 不限流** | 资源上限 | 装配运维关注点；有测量再做 |
 | **进程形态、进程怎么起、信号处理、命令怎么拼**：本版只有测试内嵌的 `boot()` | 分发与运维；运维者没有起停中心、读完整体检的命令 | 本节点（[PF-017 §8](../../../product/PF-017-governance-center-as-deployable-application/design.md#八边界与依赖) 交给技术设计），建包时定 |
 | **跨进程**：两个进程指向同一文件时 `clock` 不保证先后；协调协议未定 | 分布式演化 | 投影 Q-8，架构设计；入口契约 G-8 |
 
 **受阻消费**：在本节点的迁移合成与 `boot()` 落地、且 AI／OG 导出片段之前，AI／OG／AR 三个节点 verification 里标「依赖装配」的全部场景演练（S-32、S-41、S-43 第 2 支、S-47、S-48、S-54、S-27～S-31）都起不来——它们在进程内直接调服务面，不依赖入口层；
-governance-center-entry 的 T-3、T-8、T-12（要可注入故障的存储与本节点的 `boot()`）也挡在这里；升级整体性的四条测试另挡在 storage-sql 与 clock 两个节点的补写上。
+governance-center-entry 的 T-3、T-8、T-12（要可注入故障的存储与本节点的 `boot()`）也挡在这里；升级整体性的四条测试另挡在 storage-sql 与 clock 两个节点的补写上，`assembly.no-commit-before-open` 另挡在 governance-center-entry 建包与 storage-sql 补 R-U6 上；
+**pg 部署**挡在 U-3 上：闭合之前 pg 上的升级不满足 PF-017 §6.9。
