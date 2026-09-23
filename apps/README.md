@@ -1,7 +1,5 @@
 # 产品应用
 
-**当前没有可启动的应用。**
-
 这里放可启动的产品应用及其装配入口。各应用在自己的成员目录维护 `package.json`、
 `src/`、启动配置与测试，消费 [packages/](../packages/README.md) 中的公开能力；
 可复用行为由所属包维护。应用目录不自动等于微服务，也不要求为每个接口创建独立应用。
@@ -9,11 +7,11 @@
 
 ## 现状
 
-租户领域的装配节点 `apps/tenancy-host`（名字已拍板，D-027）已在
-[realization/apps](../.meta_harness/design/realization/README.md) 起草：它只写了存储（含迁移与真实外键）、
-时钟与密钥三半，入口层身份核实等客户端与据点进程之间的契约起草后再补。
-装配是**最后一层**：包已就位（`core/`、`infra/`）但四个 tenancy 插件的实现在第二程，
-所以这里暂不建目录——建了也起不来。
+| 应用 | 是什么 | 状态 |
+| --- | --- | --- |
+| [`tenancy-host`](tenancy-host/README.md) | 治理中心作为一个可部署应用：租户领域四个插件、存储与时钟、入口层与运维面装在一个进程里；迁移合成与升级守卫、两步开闸、逆序撤除；`keygen`／`serve` 两条子命令 | 已建包（阶段 2 波次 3）；sqlite 上装配级测试通过，pg 首跑见其 README「验证」与节点 verification。设计：[realization/apps/tenancy-host](../.meta_harness/design/realization/apps/tenancy-host/README.md) |
+
+客户端一侧（`apps/cli` 的据点进程与客户端代理）尚未建包。
 
 ## 历史
 
