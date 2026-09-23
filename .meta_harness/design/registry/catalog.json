@@ -1114,6 +1114,149 @@
           "rebase_relation": null
         }
       ]
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "capability.tool-execution-runtime",
+        "version": 1
+      },
+      "family": "capabilities",
+      "topic": "tool-execution-runtime",
+      "status": "candidate",
+      "contract_path": "spec/capabilities/tool-execution-runtime/v1/contract.md",
+      "resources": [
+        "spec/capabilities/tool-execution-runtime/v1/contract.md",
+        "spec/capabilities/tool-execution-runtime/v1/examples.md",
+        "spec/capabilities/tool-execution-runtime/v1/formal/README.md",
+        "spec/capabilities/tool-execution-runtime/v1/formal/Execution.tla",
+        "spec/capabilities/tool-execution-runtime/v1/formal/Execution.cfg",
+        "spec/capabilities/tool-execution-runtime/v1/formal/ExecutionProgress.cfg",
+        "spec/capabilities/tool-execution-runtime/v1/formal/Execution_NoFirstWins.cfg",
+        "spec/capabilities/tool-execution-runtime/v1/formal/Execution_VolatileHandoff.cfg",
+        "spec/capabilities/tool-execution-runtime/v1/formal/Execution_StopBeforeWrite.cfg",
+        "spec/capabilities/tool-execution-runtime/v1/formal/Execution_PartialRecovery.cfg",
+        "spec/capabilities/tool-execution-runtime/v1/formal/Execution_RestartOnRecover.cfg",
+        "spec/capabilities/tool-execution-runtime/v1/formal/Execution_NoWaitIndex.cfg"
+      ],
+      "acceptance": null,
+      "dependencies": [
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.content-blocks",
+            "version": 1
+          },
+          "clauses": [
+            "S-12",
+            "S-14",
+            "S-15",
+            "S-17",
+            "S-18",
+            "S-21",
+            "S-22"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.call-accounts",
+            "version": 1
+          },
+          "clauses": [
+            "S-9",
+            "S-10",
+            "S-11",
+            "S-14",
+            "S-17",
+            "S-18",
+            "S-20",
+            "S-21",
+            "S-25",
+            "S-37"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.messages",
+            "version": 1
+          },
+          "clauses": [
+            "S-11",
+            "S-12",
+            "S-13",
+            "S-14",
+            "S-19",
+            "S-22",
+            "S-30",
+            "S-32"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.tool-definition",
+            "version": 1
+          },
+          "clauses": [
+            "S-10",
+            "S-12",
+            "S-13",
+            "S-14",
+            "S-20",
+            "S-21",
+            "S-22",
+            "S-23",
+            "S-24",
+            "S-25",
+            "CS-1"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.loop-extension",
+            "version": 1
+          },
+          "clauses": [
+            "S-14"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.offer-expiry",
+            "version": 1
+          },
+          "clauses": [
+            "S-22"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.identity-values",
+            "version": 1
+          },
+          "clauses": [
+            "S-5",
+            "S-17",
+            "S-18",
+            "S-19",
+            "S-30",
+            "S-31",
+            "S-33"
+          ],
+          "rebase_relation": null
+        }
+      ]
     }
   ]
 }
