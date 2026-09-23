@@ -21,3 +21,18 @@
 - 下游要复核：提案 [mcp-client-adoption](../../design/record/proposals/mcp-client-adoption/README.md) 的 alternatives.md「本版桥到哪一步」表与「证据义务」——
   尤其 SDK 基线（1.29.0 与 v2 包名并存）、`list_changed` 与分页两格、「取消：桥」一格；本轮不给推荐，是否据此修改由提案作者判断。
 - 依据报告：[reports/2026-09-23-round2-wrapper-lessons.md](reports/2026-09-23-round2-wrapper-lessons.md)
+
+## rev 2 — 2026-09-23 · 补充
+
+**第三轮：同行的 MCP stdio 服务端在哪拉起、能否交给执行器或容器、怎么管生命周期。前两轮结论一条未改。**
+
+- 受影响结论：新增「[第三轮：stdio 拉起位置](research.md#第三轮stdio-拉起位置)」一节，含一张「源 × 拉起位置 × 可交外部执行器 × 桥接 × 生命周期」表与七条结论、一张「N-11 两种取值各自撞上什么」对照；
+  其中「[TS SDK 1.29.0 与 1.30.0 支持的最新协议版本是 2025-11-25](research.md#ts-sdk-1290-与-1300-支持的最新协议版本是-2025-11-25不含-2026-07-28)」回答了首轮「未知与下一项证据」表第 1 行与首轮 SDK 那半项「待核实」。前两轮正文按要求**不改写**。
+- 触发：提案 [mcp-client-adoption](../../design/record/proposals/mcp-client-adoption/design.md#必须保留的性质) 的候选假设 N-11（stdio 拉起位置不焊死在宿主机）；产品负责人 2026-09-23 要求「看看同行们都是怎么做的」再裁。
+- 原结论：无，此前未覆盖。
+- 新结论：逐服务端选 stdio 落点的只有 Codex 一家（实验性、自家执行器协议，落点解析失败即启动失败不回退）；DSH 有执行世界接缝但 MCP 因 SDK 自持 spawn 绕过它；
+  官方 TS SDK 的 stdio 传输无 spawn 钩子、要换落点只能自写 Transport；三家的沙箱都不约束 MCP 服务端；容器/代理做法的拉起方都是中间层，进程粒度分每调用 / 每会话 / 全体共用。
+- 证据差异：新增 [E-29～E-41](evidence.md#第三轮stdio-拉起位置2026-09-23)。一处读数不一致被记录而未裁决：Codex 文档写 `experimental_environment = local | remote`，同 commit 源码无此字样（源码字段是 `environment_id`）。
+- 对象版本：新增 MCP 规范 `c7400a07`、官方 SDK 各包、Docker MCP Gateway `a34df45d`、mcp-proxy `153a96a6`、supergateway `874951c7` 等，见 research.md 第三轮开头。
+- 下游要复核：提案 N-11 的取值由产品负责人裁；裁定后提案 design.md「必须保留的性质」N-11 行与 alternatives「本版桥到哪一步」stdio 一格要改写。
+- 依据报告：[reports/2026-09-23-round3-stdio-launch-site.md](reports/2026-09-23-round3-stdio-launch-site.md)

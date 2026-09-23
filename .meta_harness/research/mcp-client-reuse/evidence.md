@@ -392,3 +392,175 @@ Codex 为 `tmp/sources/extracted/codex/`，Codex 文档为 `tmp/sources/extracte
 - 支持范围：版本与发布时间。**不支持**任何关于包内能力（协议版本、自定义传输、elicitation 处理器）的结论——包内容未取。
 
 第二轮上游升级时，grep 本文件里的 `52a4535f`、`12626c25`、`32edd3c3`、`21b2d6c3`、`dce7cdac`、`56f36532`、`2.37.0`、`=3.2.0`、`2.0.0` 找需要重核的记录。
+
+## 第三轮：stdio 拉起位置（2026-09-23）
+
+消费对象：research.md「[第三轮：stdio 拉起位置](research.md#第三轮stdio-拉起位置)」各条；逐源与逐主题论证在
+[第三轮报告](reports/2026-09-23-round3-stdio-launch-site.md)。全部为**源码、发布包与文档阅读，没有运行**任何代码或测试；没有构造反例。
+
+### 第三轮取证条件总览
+
+| 来源 | 精确对象与版本 | 取得方式 | 来源立场 |
+|---|---|---|---|
+| MCP 规范 | `modelcontextprotocol/modelcontextprotocol` `c7400a0796045cbf102cb80b9b41422c7ce8e7af`（2026-09-22），`docs/specification/2025-11-25/basic/{transports,lifecycle}.mdx` | raw 按 SHA 下载 | 规范文字；2026-07-28 版同名页按同路径取回失败 |
+| DSH | 同首轮 `c291e796` | 主检出 `tmp/sources/extracted/dsh/` | 作者自述（README、`.agents/notes/`）+ 源码 |
+| Codex（本地） | 同首轮 `5c5308fc` 的 `rmcp-client`、`core/src`；文档副本 2026-09-20 | 主检出 `tmp/sources/extracted/codex{,-docs}/` | 源码 + 厂商文档 |
+| Codex（远程补件） | **同一 commit** `5c5308fc9a9ee789049d646ef11e5400384b9c6f` 的 `codex-rs/{codex-mcp,exec-server,config/src}` | `git fetch --depth 1 --filter=blob:none` + sparse checkout，`git log -1` 核对 SHA 与提交时间 2026-09-20T03:02:48Z | 源码（一手）+ crate README |
+| 官方 TS SDK | npm `@modelcontextprotocol/sdk@1.29.0`（tarball sha256 `1c51470eca288ae744a5d8bb48e217d3eab5869eb2cbaf587fc29f336d6b096c`）、`@1.30.0`（`2cac3f3e38fec2815ed9efafa2947faf8c6957310684f99703f3d180f3e9af1a`）；`@modelcontextprotocol/client@2.0.0`（`cb470b0249b4a06e262145ab2281ea25344e77608f312a5a52ab4dcc26bfa732`） | `npm pack` | 发布包编译产物（`dist/`），非仓库源码 |
+| 官方 Python SDK | `modelcontextprotocol/python-sdk` tag `v1.28.1` `777b8d06710c140e3606b0d4598e2aa48546c266`、`v2.0.0` `6f69a3758ebf2ee55ce050f58b470ce11af71133` | raw 按 SHA 下载单文件 | 源码 |
+| OpenAI Agents | Python 同第二轮 `32edd3c3` | raw 按 SHA 下载；`gh api` 取树 | 源码 + 仓库内文档与示例 |
+| LangChain | JS 同第二轮 `12626c25`；Python 同第二轮 `52a4535f` | raw 按 SHA 下载 | 源码 |
+| Vercel | 同第二轮 `21b2d6c3` | raw 按 SHA 下载 | 源码 + 仓库内文档 |
+| Claude Code | code.claude.com `docs/en/{mcp,sandboxing,sandbox-environments,devcontainer,cloud-environments,claude-code-on-the-web,remote-control}.md` | `curl`，2026-09-23T11:40Z | **厂商自述**；本体闭源 |
+| Claude Agent SDK | npm `@anthropic-ai/claude-agent-sdk@0.3.280`（tarball sha256 `5d3f5706261215c352d8b41606fb320f92a63cf252f020b47e7eed598bcb7ba8`） | `npm pack`，只读 `sdk.d.ts` | 类型声明 |
+| Docker MCP Gateway | `docker/mcp-gateway` `a34df45d4ec0e941a9853ad768c4f6cd818966b3`（2026-09-16） | raw 按 SHA 下载；`gh api` 取树 | 源码 + README + 参数参考 |
+| mcp-proxy | `sparfenyuk/mcp-proxy` `153a96a61fde2bf5a23961c64a3dd96b5e385108`（2026-05-14） | raw 按 SHA 下载 | 源码 + README |
+| supergateway | `supercorp-ai/supergateway` `874951c7aa5beba23fbba1e6e567795435c47c64`（2026-09-23） | raw 按 SHA 下载；`gh api` 取树 | 源码 + README |
+
+远程源的本地副本放在取证会话的 scratchpad，会被清理；复核按上表 SHA / 版本重新取得。
+
+## E-29 DSH：stdio 拉起与执行世界接缝
+
+- 消费对象：第三轮「DSH 有『执行世界』接缝……」；摘要表 DSH 行。
+- 来源：DSH `c291e796`。
+- 实际观察：
+  - `packages/mcp/mcp-client/src/transport.ts:15-19` 注释「The MCP SDK owns the actual spawn, so this transport shares the scrub definition rather than the spawn path」；`:31-39` `new StdioClientTransport({command,args,env,cwd})`，未设 `stderr`。
+  - `packages/mcp/mcp-client/src/index.ts:49-70` `StdioConfig`（`env`「merged on top of scrubbed ambient env」、`cwd`）；`:113-124` schema，`cwd` 缺省 `''`。
+  - `packages/subprocess/subprocess/src/index.ts:38-78` `SENSITIVE_ENV_PATTERN` 与 `scrubbedParentEnv()`（注释：供「SDK-managed transports」共用）；`:86-114` 接缝语义（可执行文件属于同一执行世界、终止托管范围、服务卸载时终止全部托管进程）。
+  - `packages/subprocess/subprocess/README.md:77`、`:142`「SDK-managed spawns remain outside — a transport that owns its internal spawn (the SDK client, MCP) cannot route that call through this service」。
+  - `.agents/notes/implemented/architecture/2026-07-28-portable-execution-world-consumers.md:17`（`ctx.fs` + `ctx.subprocess` 定义一个执行世界）、`:26`（`dsh-lsp-stdio` 经 `ctx.subprocess` 拉起语言服务端）、`:31-33`（E2B 拥有与宿主拥有的清单；宿主含「prompts and tools」）、`:57`（否决整个 harness 跑进远端）。
+  - `packages/lsp/lsp-stdio/src/connection.ts:58-104` 以 `spawner({argv,cwd,stdio:{stdin:'pipe',stdout:'pipe',stderr:{maxBytes}},graceMs,env})` 拉起；`src/index.ts:146-157` 经 `ctx.subprocess.resolveExecutable` 与 `ctx.subprocess.spawn`。
+  - `packages/e2b/README.md:12`「The harness, model calls, and session state remain local; the sandbox is ephemeral, experimental, and absent from shipped compositions by default」。
+  - `grep -rli mcp packages/{sandbox,e2b,subprocess} --include=*.ts`：只有 `subprocess/src/index.ts`（上面的注释）与 `sandbox-windows-acl/src/acl.ts`（子串 `memcpy`，假阳性）。
+- 支持范围：接缝与 MCP 的关系。「E2B 组合下 MCP 服务端仍在宿主机」是由上述读数推出，**未运行**。
+
+## E-30 Codex：两种 stdio 启动器与执行环境解析
+
+- 消费对象：第三轮「逐服务端选择……只有 Codex」「落点解析失败……」「沙箱都不约束 MCP 服务端」；摘要表 Codex 行。
+- 来源：本地 `rmcp-client/src/`、`core/src/`（`5c5308fc`）；远程同 commit `codex-mcp/src/`、`config/src/`。路径相对 `codex-rs/`。
+- 实际观察：
+  - `rmcp-client/src/stdio_server_launcher.rs:1-12` 模块注释（本模块拥有「where does the server process run?」这一决定）；`:70-82` `StdioServerLauncher: private::Sealed`；`:84-93` 命令形状（program/args/env/env_vars/cwd/protocol_mode）；
+    `:175-210` 本地启动器，`fallback_cwd`；`:259-283` 白名单环境、程序解析、`ProcessMode::NewGroup`；`:284-348` Windows Job Object 与退回；`:351-388` stderr 按行进日志、250 ms 排空；
+    `:397-446` Unix 进程组 SIGTERM、2 s 后 SIGKILL；`:475-536` 幂等终止与 `Drop`（执行器进程在 drop 时异步终止，无 Tokio 运行时只记日志）；
+    `:540-549` 执行器启动器注释（「MCP framing still runs in the orchestrator」「Windows executor-backed servers retain the executor's normal descendant lifetime」）；
+    `:589-593` 缺 cwd 报错；`:598-605` 环境覆盖与 Unicode 检查；`:610-626` `ExecParams`（`tty:false`、`pipe_stdin:true`、`sandbox: None`）；`:673-698` 执行器环境策略（`Core` 或 `All`+`include_only`）。
+  - `rmcp-client/src/utils.rs:16-59` 本地环境（白名单 + 点名 + CA 变量 + 字面 env，剔除不可继承项）；`:61-79` 远端覆盖（注释：PATH/HOME 从执行器侧继承）；`:81-101` `source = "remote"` 的两处处理；`:162-175` 11 个白名单变量。
+  - `rmcp-client/src/executor_process_transport.rs:1-19` 模块注释（执行器只搬字节，帧与生命周期在 `RmcpClient`；stderr 只作诊断）；`:152-176`。
+  - `codex-mcp/src/rmcp_client.rs:94` `MCP_SANDBOX_STATE_META_CAPABILITY = "codex/sandbox-state-meta"`；`:1175-1182` 执行器拥有的服务端拒绝托管 ChatGPT 鉴权；`:1204-1220` 按 `is_local_environment` 选启动器，`:1205-1207` TODO。
+  - `codex-mcp/src/runtime.rs:861-893` 环境解析（未知 id、`local` 缺本地环境均报错）；`:895-915` 非本地环境的 HTTP 服务端用 `environment.get_http_client()`。
+  - `config/src/mcp_types.rs:22-23` `DEFAULT_MCP_SERVER_ENVIRONMENT_ID = "local"`；`:226-227` `environment_id` 字段注释「where Codex should start this MCP server」；`:292-294`；`:366-368` 原始配置 `environment_id: Option<String>`；`:492-500` `http_headers_helper` 只限本地；`:512-513` 缺省。
+  - `core/src/mcp.rs:47-79` 环境权限（Pending / Failed → `Unavailable`）；`core/src/mcp_tool_call.rs:846-915` 声明能力的服务端在 `_meta` 收到 `SandboxState`（权限配置、Linux 沙箱可执行文件、沙箱 cwd）。
+  - 在本地与远程两份源上 `grep -rl experimental_environment`：**0 命中**。
+- 支持范围：启动器选择、环境、终止与沙箱关系的源码结构。执行器所在环境自身的隔离（`exec-server/src/process_sandbox.rs`）**未读**。
+
+## E-31 Codex：exec-server 与文档
+
+- 消费对象：同 E-30。
+- 来源：远程 `exec-server/README.md`、`src/process.rs`、`src/local_process.rs`（`5c5308fc`）；文档副本 2026-09-20。
+- 实际观察：
+  - `exec-server/README.md:17-44` 传输（缺省 `ws://IP:PORT`；`--remote URL --environment-id ID` 向注册中心登记、Noise 中继；forward 模式只搬字节、不重放请求）；`:171-172`「If the websocket connection closes, the server terminates any remaining managed processes for that client connection」；
+    `:225-270` `process/start`（`argv`、`cwd` 为 `file:` URI、`env`、`tty`、`pipeStdin`）；`:335-356` `process/terminate`。
+  - `exec-server/src/process.rs:42-56` `ExecProcessEvent::Failed`「e.g. because the remote environment connection disconnected」；`src/local_process.rs:236-255` `shutdown()` 终止全部运行中进程。
+  - 文档：`config-file_config-reference.md:675-678` `mcp_servers.<id>.experimental_environment`「`remote` starts stdio servers through a remote executor environment; streamable HTTP remote placement is not implemented」；
+    `manual.md:25954-25972` STDIO 服务端字段与 `env_vars` 的 `source = "remote"`；`:25987` 头助手不用于 stdio 与远端执行环境；`:17852-17866` 远端主机模式下「MCP servers … come from that host's configuration」；
+    `:11708`、`:11867` 网络代理与域名规则「Does not … restrict … MCP servers」。
+- 支持范围：执行器协议与文档陈述。文档与 E-30 源码在配置项名与 HTTP 远端两处不一致，**未裁决**。
+
+## E-32 官方 TS SDK v1（1.29.0 / 1.30.0）
+
+- 消费对象：第三轮「官方 TS SDK 的 stdio 传输没有 spawn 钩子……」「TS SDK 1.29.0 与 1.30.0 支持的最新协议版本……」；摘要表。
+- 来源：npm 包解包 `package/`（sha256 见总览）。
+- 实际观察：
+  - `dist/esm/client/stdio.js:1` `cross-spawn`；`:8-42` 白名单与 `getDefaultEnvironment()`；`:60-101` `start()`：`env: {...getDefaultEnvironment(), ...this._serverParams.env}`、`stdio: ['pipe','pipe', stderr ?? 'inherit']`、`shell:false`、`cwd`；
+    `:137-172` `close()`：`stdin.end()` → 2 s → `kill('SIGTERM')` → 2 s → `kill('SIGKILL')`，对象是 `processToClose`（直接子进程）。1.30.0 与 1.29.0 的差异只有读缓冲上限（`diff` 结果：`ReadBuffer({maxBufferSize})`、超限 `onerror` 并 `close()`；`shared/stdio.js` 加 `STDIO_DEFAULT_MAX_BUFFER_SIZE = 10 MiB`）。
+  - `dist/esm/client/stdio.d.ts`（1.30.0）`StdioServerParameters`：`command`、`args?`、`env?`（注释「If not specified, the result of getDefaultEnvironment() will be used」）、`stderr?`、`cwd?`、`maxBufferSize?`；无 spawn 函数、无 uid/gid。
+  - `dist/esm/shared/transport.d.ts` `Transport` 接口：`start/send/close`、`onclose/onerror/onmessage`、`sessionId?`、`setProtocolVersion?`。`package.json` `exports` 含 `"./*"`（:62）。
+  - `dist/esm/types.js:2-4`（两版相同）`LATEST_PROTOCOL_VERSION = '2025-11-25'`；`SUPPORTED_PROTOCOL_VERSIONS = [LATEST, '2025-06-18', '2025-03-26', '2024-11-05', '2024-10-07']`。
+- 支持范围：编译产物。「孙进程不在信号范围内」是读代码推断，**未运行**。
+
+## E-33 官方 TS SDK v2（`@modelcontextprotocol/client` 2.0.0）
+
+- 消费对象：同 E-32。
+- 来源：npm 包解包 `package/`。
+- 实际观察：
+  - `dist/stdio.mjs:4` `cross-spawn`；`:10-43` 同 v1 白名单；`:65-110` `start()` 同 v1；`:139-174` 内部 `_dispose()`（旁路进程：SIGTERM、1 s、SIGKILL，等 `exit`）；`:175-199` `close()` 同 v1。
+  - `dist/index.mjs:2441-2446` `DEFAULT_VERSION_NEGOTIATION_MODE = "legacy"`；`:2472-2485` 按 `stderr`/`pid` 访问器结构识别 stdio；`:2746-2763` 只有基类（原型自有 `_dispose`）才走旁路；
+    `:2764-2808` `negotiateStdioViaSibling`（注释「stdio servers built on SDKs that terminate on any pre-`initialize` request exit when the probe arrives」；旁路 `stderr: "ignore"`）；`:3255-3282` 协商连接分派。
+  - 包入口导出 `ReadBuffer`、`serializeMessage`、`deserializeMessage`、`InMemoryTransport`（`dist/index.mjs` 的 `export {…}`）；`package.json` `exports` 含 `"./stdio"`；依赖 `cross-spawn ^7.0.5`（:125）。
+  - `SUPPORTED_MODERN_PROTOCOL_VERSIONS = [FIRST_MODERN_PROTOCOL_VERSION]`（`dist/src-*.mjs:451`）。
+- 支持范围：编译产物；旁路探测未运行。
+
+## E-34 官方 Python SDK `stdio_client`
+
+- 消费对象：第三轮「官方 TS SDK 的 stdio 传输……」一条的代价项；摘要表 Python、OpenAI、LangChain Python 行。
+- 来源：v1.28.1 `src/mcp/client/stdio/__init__.py`；v2.0.0 `src/mcp/client/stdio.py`。
+- 实际观察：v1.28.1 `:28-45` 白名单；`:106-129` `stdio_client`（`env = {**get_default_environment(), **server.env}`、`cwd`）；`:190-210` 关 stdin → 2 s → 进程树终止；`:237-260` POSIX `start_new_session=True`（注释「for killpg support」）；`:262-278` 平台分派的进程树终止。
+  v2.0.0 `:75` `get_default_environment`；`:128` `env=get_default_environment() | (server.env or {})`；`:301` `terminate_posix_process_tree`；`:347` `start_new_session=True`。
+- 支持范围：这两个版本。v1.19～v1.27 未核。
+
+## E-35 OpenAI Agents Python
+
+- 消费对象：第三轮「沙箱都不约束 MCP 服务端」；摘要表 OpenAI 行。
+- 来源：`32edd3c3`。
+- 实际观察：`src/agents/mcp/server.py:1100-1105` 抽象 `create_streams()`；`:1894-1921` `MCPServerStdioParams`（command/args/env/cwd/encoding/encoding_error_handler）；`:2022-2037` 构造 `StdioServerParameters` 并 `stdio_client(self.params)`；
+  `uv.lock:2012-2013` `mcp` 2.0.0；`docs/sandbox/guide.md:17`、`:29`（「The outer runtime still owns approvals, tracing…」「a session does not itself guarantee OS-level confinement」）、`:837-851`、`:870`；
+  `examples/sandbox/sandbox_agent_with_tools.py:6-8`、`:66-97`（「The reference MCP server is another local process」）；`src/agents/sandbox/` 89 个 `.py` 逐个取回后 `grep -il mcp`：只有 `sandbox_agent.py:17-22,72-73`（参数）与 `memory/rollouts.py:38-40`（条目类型）。
+- 支持范围：源码与仓库内文档。
+
+## E-36 LangChain JS 与 Python
+
+- 消费对象：摘要表 LangChain 行。
+- 来源：JS `12626c25` `libs/langchain-mcp-adapters/src/`；Python `52a4535f` `langchain_mcp_adapters/sessions.py`。
+- 实际观察：JS `connection.ts:13` 引官方 v1 `StdioClientTransport`；`:561-573` 构造（`env` 存在时补 `PATH: process.env.PATH`）；`types.ts:212-238` `restart`（enabled、maxAttempts、delayMs）、`:243-308` stdio 连接字段（env、stderr 缺省 inherit、cwd）。
+  Python `sessions.py:35-45` `${VAR}` 用 `os.environ` 展开；`:82-125` `StdioConnection`；`:213-270` `_create_stdio_session` 交给 `stdio_client`。每次调用新建会话见第二轮 E-22。
+- 支持范围：源码。
+
+## E-37 Vercel `@ai-sdk/mcp` stdio
+
+- 消费对象：摘要表 Vercel 行。
+- 来源：`21b2d6c3` `packages/mcp/src/tool/mcp-stdio/`；`content/docs/03-ai-sdk-core/16-mcp-tools.mdx`。
+- 实际观察：`create-child-process.ts:6-27`（`cross-spawn`、`shell:false`、`signal`、`cwd`）；`get-environment.ts:27-40`（先放 `customEnv`，再以白名单宿主值覆盖）；
+  `mcp-stdio-transport.ts:8-14` `StdioConfig`；`:16-17` `supportsProtocolVersionDiscovery = true`；`:101-105` `close()` 只 `abortController.abort()`；文档 `:20`、`:26`（stdio 仅限本地、不能部署到生产）、`:27-31`（内建 stdio 就地探测 `server/discover`）、`:166-168`（自带 `MCPTransport`）。
+- 支持范围：源码与仓库内文档；关闭不升级、`PATH` 被覆盖两条为读代码推断，**未运行**。
+
+## E-38 Claude Code 文档与 Claude Agent SDK 类型
+
+- 消费对象：第三轮「沙箱都不约束 MCP 服务端」；摘要表 Claude Code 行。
+- 来源：code.claude.com 文档（2026-09-23 抓取）；`@anthropic-ai/claude-agent-sdk@0.3.280` `sdk.d.ts`。来源立场：**厂商自述**。
+- 实际观察：`mcp.md:111-117`（stdio「run as local processes on your machine」、`CLAUDE_PROJECT_DIR`、`roots/list`）；`:321-337`（v1/v2 运行时；stdio 须 `MCP_PROTOCOL_NEGOTIATION=auto` 才协商）；`:480-491`（插件服务端生命周期；云会话按需拉起）；`:610-627`（`.mcp.json` 变量展开位置）；
+  `sandboxing.md:9`、`:583`（沙箱只约束 Bash、PowerShell、Monitor 及其子进程）、`:505`（禁写配置，理由含「add a hook or MCP server that Claude Code runs outside the sandbox」）；
+  `sandbox-environments.md:20-30`（隔离方式表；「Built-in file tools, MCP servers, and hooks still run directly on your host」）、`:78-84`（「MCP servers and command hooks are separate processes that run unconstrained on the host」；沙箱运行时包整个进程）、`:117`（同一命令可单独沙箱化 MCP 服务端）、`:130`；
+  `devcontainer.md:139`；`cloud-environments.md:262`、`:270`；`remote-control.md:287`。读遍这七页，无逐服务端远端落点的配置项。
+  `sdk.d.ts:1266-1280` `McpStdioServerConfig`（`type?`、`command`、`args?`、`env?`、`timeout?`、`alwaysLoad?`，无 `cwd`）；`:2350-2371` `spawnClaudeCodeProcess`（「Use this to run Claude Code in VMs, containers, or remote environments」）。
+- 支持范围：厂商对自身行为的陈述；与实现一致性无法核对。
+
+## E-39 Docker MCP Gateway
+
+- 消费对象：第三轮「把 stdio 服务端放进容器或网络代理……」；摘要表 Docker 行。
+- 来源：`a34df45d`。
+- 实际观察：`README.md:20`（每个本地服务端运行在隔离容器）、`:219-229`（网关可用 stdio 或 `sse`/`streaming` 对多客户端）、`:320-325`（架构）；
+  `pkg/gateway/clientpool.go:71-84` `longLived`；`:86-141` `AcquireClient`（长驻按（服务端名, 会话）缓存）；`:143-159` `ReleaseClient`（非长驻即关）；`:161-174`、`:181-188` 关闭与按会话释放；
+  `:324-350` `baseArgs`（`run --rm -i --init --security-opt no-new-privileges`、`--cpus`、`--memory`、`--pull never`、标签）；`:352-395` `argsAndEnv`（`--network none`、`--link`、密钥 `-e NAME` 且缺失填 `<UNKNOWN>`）；
+  `:518-560` `GetClient`（静态模式 `socat STDIO TCP:mcp-<name>:4444`，否则 `docker` + runArgs）；`pkg/gateway/handlers.go:102-119` 每次工具调用 `AcquireClient` / `defer ReleaseClient`；
+  `pkg/mcp/stdio.go:27-65` 以 `exec.CommandContext` + `CommandTransport` 连接；`:67-76` 补 `PATH`。
+  `docs/generator/reference/docker_mcp_gateway_run.yaml:59-62`、`:69-72`、`:99-102`（cpus 缺省 1）、`:180-184`（long-lived「useful for stateful servers」）、`:201-204`（memory 缺省 2Gb）、`:275-278`、`:305-308`、`:326-329`。
+- 支持范围：所读四个文件与参数参考；其他回收时点未读。
+
+## E-40 mcp-proxy 与 supergateway
+
+- 消费对象：同 E-39；摘要表后两行。
+- 来源：mcp-proxy `153a96a6`；supergateway `874951c7`。
+- 实际观察：
+  - mcp-proxy `README.md:28-50`、`:95-133`（两种模式、`--host` 缺省 127.0.0.1、`--env`、`--cwd`、`--pass-environment`）；`src/mcp_proxy/mcp_server.py:149-200`（`AsyncExitStack` 里对缺省与各命名服务端各 `stdio_client` 一次）、`:218-235`（中间件只有可选 CORS）；
+    `src/mcp_proxy/__main__.py:179`、`:409-414`、`:480-481`（`--pass-environment` 与命名服务端继承 base env）。
+  - supergateway `README.md:16-31`（参数）、`:92-111`（有无状态）、`:126-132`（关闭：子服务端须处理 SIGTERM；关 stdin 管道会停网关）、`:166-179`（Docker 用法）；
+    `src/lib/ownedChildProcesses.ts:1-45`（`shell: true`、`detached`、按组 SIGTERM、5 s 后 SIGKILL）；`src/gateways/stdioToStatelessStreamableHttp.ts:130-145`（每请求新建 transport 与子进程）；`stdioToStatefulStreamableHttp.ts:199`（每会话）；`stdioToSse.ts:69-72`（单一子进程）。
+- 支持范围：源码与 README；「mcp-proxy 无服务端鉴权」指所读文件内。
+
+## E-41 MCP 规范 stdio
+
+- 消费对象：报告 §二「MCP 规范」；摘要表第一行。
+- 来源：`c7400a07` `docs/specification/2025-11-25/basic/transports.mdx:20-34`（「The client launches the MCP server as a subprocess」；stderr MAY / SHOULD NOT）、`lifecycle.mdx:226-236`（stdio 关闭顺序 SHOULD）。
+- 支持范围：2025-11-25 版；2026-07-28 版未取得。
+
+第三轮上游升级时，grep 本文件里的 `a34df45d`、`153a96a6`、`874951c7`、`c7400a07`、`777b8d06`、`6f69a375`、`1.29.0`、`1.30.0`、`0.3.280` 与 `5c5308fc` 找需要重核的记录。
