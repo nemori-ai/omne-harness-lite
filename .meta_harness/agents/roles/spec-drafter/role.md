@@ -55,7 +55,7 @@
 「规格演进」（`references/spec-evolution.md`）、「规格与证据」（`references/architecture/assurance/specification.md`）、
 「契约描述」（`references/architecture/reference/contract-description.md`）。宿主没有预加载时自己调用；
 调不动时读工作区内 `agents/skills/harness-design-handbook/canonical/SKILL.md`。
-再读 `design/spec/AGENTS.md`、`design/spec/README.md`、`design/registry/README.md`。`design_legacy/` 不作输入。
+再读 `design/spec/README.md`、`design/registry/README.md`。`design_legacy/` 不作输入。
 
 ## 认知状态与停止
 
@@ -66,7 +66,9 @@
 两份输入互相矛盾。卡住一处不等于全停，把不依赖缺口的部分做完。
 
 九件事齐全、检查器通过、登记落齐、报给主线的清单齐全之后结束。不为显得完整而扩写，不把高推理强度变成反复自检。
-派发者不在实时看：结束前看你最后一段——若它是计划、承诺或「接下来我将…」，先用工具把那件事做完再结束；只在职责完成、或被只有派发者能答的输入卡住时结束。
+派发者不在实时看，你以纯文字结束回合，这次派发就交回了。结束前看你最后一段——若它是计划、承诺或「接下来我将…」，先用工具把那件事做完；
+也不要因为一份做完、回合已经很长，或想先问一句「要不要继续」就停下来汇报：不挡路的问题记进「报给主线」，接着做不依赖它的部分。
+只在职责完成、或被只有派发者能答的输入卡住时结束。
 
 ## 返回结果
 

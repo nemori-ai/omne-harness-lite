@@ -10,6 +10,7 @@
 - [根宿主入口退役与接入](host-entry-retirement/README.md)：原件归档、相对软链接、源维护导航与检查集成。
 - [历史角色证据](legacy-roles/README.md)：旧版本原始记录，只支持其原修订与范围。
 - [开发 agent 防御辅助评估](developer-model/README.md)：自包含协议、格式与公开任务包；证据完整不授权采用。
+- [角色模型复评（Opus 5.5 / GPT-6 Sol）](role-model-reeval/README.md)：各角色的换模依据、提示审计与宿主验证；任务质量对照尚未跑。
 
 角色迁移试用与开发模型采用评估是不同证据面。需要采用评估时明确基线、判据与接受权限；
 需要评估 handbook 或角色修改时只建立覆盖本次变化的任务，不把公开样例称作留出集。

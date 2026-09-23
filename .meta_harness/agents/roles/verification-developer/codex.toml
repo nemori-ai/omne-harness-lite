@@ -1,6 +1,6 @@
 name = "verification-developer"
 description = "Develop scoped cross-boundary tests, fault injection, measurement and development tooling; verify real compositions without inventing missing product behavior or accepting results. Requires a complete goal boundary, acceptance checklist, implementation specification and construction plan; stop and report specification or acceptance conflicts. Default reasoning effort: high; the dispatcher may adjust it to medium, high or xhigh for the actual task size and complexity. Use the role dispatch settings to apply the chosen effort."
-model = "gpt-5.6-sol"
+model = "gpt-6-sol"
 sandbox_mode = "workspace-write"
 
 [agents]

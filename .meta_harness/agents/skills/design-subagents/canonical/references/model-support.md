@@ -2,15 +2,17 @@
 
 ## 已记录的核对范围
 
-[支持记录](model-support.json)保留其日期与版本下的核对结果；迁移未重新查询。Codex CLI 0.154.0 当时可见的目录
-包含 GPT-6 Astra、GPT-5.6 Sol/Terra/Luna、GPT-5.5、GPT-5.3-Codex-Spark；
+[支持记录](model-support.json)保留其日期与版本下的核对结果。Codex CLI 0.156.1 的目录缓存
+（2026-09-23 读取）可见 GPT-6 Astra/Sol/Luna、GPT-5.6 Sol/Terra/Luna、GPT-5.5；GPT-6 没有 Terra。
 本记录来自本地宿主模型缓存，保存读取时间、缓存时间、客户端版本和摘要哈希。
-隐藏的内部条目不作为可选 subagent 模型。
+隐藏的内部条目不作为可选 subagent 模型。**新模型可能要求新客户端**：GPT-6 Sol 在 0.154.0
+上被服务端拒绝、目录也不列出，升到 0.156.1 后才可见、可调用；目录缺某个已公布的模型时先核客户端版本。
 
-Claude Code 2.1.269 对照[官方宿主模型配置](https://code.claude.com/docs/en/model-config#available-models)
-确认 Fable 5.1、Fable 5、Opus 5、Opus 4.8、Sonnet 5，以及提供方映射中的
+Claude Code 2.1.280 对照[官方宿主模型配置](https://code.claude.com/docs/en/model-config#available-models)
+确认 Opus 5.5（最低 2.1.280）、Fable 5.1、Fable 5、Opus 5、Opus 4.8、Sonnet 5，以及提供方映射中的
 Opus 4.6、Sonnet 4.6/4.5 和 Haiku 4.5。这证明所记版本的宿主支持，不声称本机
-账户或网关已开通全部模型；提供方的别名映射可能不同。
+账户或网关已开通全部模型；提供方的别名映射可能不同。**别名会随宿主版本漂移**：
+2.1.280 起 `opus` 在多数提供方解析为 Opus 5.5，此前为 Opus 5；需要可追溯的角色写精确 ID。
 
 ## 核对方法与证据等级
 
