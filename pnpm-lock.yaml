@@ -188,6 +188,9 @@ importers:
 
   packages/tenancy/account-identity:
     dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
       '@omne-harness-lite/credential-verification':
         specifier: workspace:*
         version: link:../credential-verification
@@ -200,7 +203,22 @@ importers:
       '@omne-harness-lite/offer-expiry':
         specifier: workspace:*
         version: link:../../core/offer-expiry
+      '@omne-harness-lite/storage':
+        specifier: workspace:*
+        version: link:../../core/storage
+      kysely:
+        specifier: 'catalog:'
+        version: 0.29.6
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
     devDependencies:
+      '@omne-harness-lite/clock':
+        specifier: workspace:*
+        version: link:../../infra/clock
+      '@omne-harness-lite/storage-sql':
+        specifier: workspace:*
+        version: link:../../infra/storage-sql
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -213,6 +231,9 @@ importers:
 
   packages/tenancy/account-registration:
     dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
       '@omne-harness-lite/account-identity':
         specifier: workspace:*
         version: link:../account-identity
@@ -225,7 +246,22 @@ importers:
       '@omne-harness-lite/organization-governance':
         specifier: workspace:*
         version: link:../organization-governance
+      '@omne-harness-lite/storage':
+        specifier: workspace:*
+        version: link:../../core/storage
+      kysely:
+        specifier: 'catalog:'
+        version: 0.29.6
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
     devDependencies:
+      '@omne-harness-lite/clock':
+        specifier: workspace:*
+        version: link:../../infra/clock
+      '@omne-harness-lite/storage-sql':
+        specifier: workspace:*
+        version: link:../../infra/storage-sql
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -238,13 +274,31 @@ importers:
 
   packages/tenancy/credential-verification:
     dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../../core/identity-values
       '@omne-harness-lite/kernel-basis':
         specifier: workspace:*
         version: link:../../core/kernel-basis
+      '@omne-harness-lite/storage':
+        specifier: workspace:*
+        version: link:../../core/storage
+      kysely:
+        specifier: 'catalog:'
+        version: 0.29.6
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
     devDependencies:
+      '@omne-harness-lite/clock':
+        specifier: workspace:*
+        version: link:../../infra/clock
+      '@omne-harness-lite/storage-sql':
+        specifier: workspace:*
+        version: link:../../infra/storage-sql
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -257,6 +311,9 @@ importers:
 
   packages/tenancy/organization-governance:
     dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
       '@omne-harness-lite/account-identity':
         specifier: workspace:*
         version: link:../account-identity
@@ -269,7 +326,22 @@ importers:
       '@omne-harness-lite/offer-expiry':
         specifier: workspace:*
         version: link:../../core/offer-expiry
+      '@omne-harness-lite/storage':
+        specifier: workspace:*
+        version: link:../../core/storage
+      kysely:
+        specifier: 'catalog:'
+        version: 0.29.6
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
     devDependencies:
+      '@omne-harness-lite/clock':
+        specifier: workspace:*
+        version: link:../../infra/clock
+      '@omne-harness-lite/storage-sql':
+        specifier: workspace:*
+        version: link:../../infra/storage-sql
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

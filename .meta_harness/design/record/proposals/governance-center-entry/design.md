@@ -342,3 +342,19 @@ tenancy-host 进程（一个根 Context；本版单机、一个进程、一个�
   契约写这条性质；机制归 realization，主线裁定它的材料是部署配置输入（与 TLS 证书同类），不算部署密钥。确认失败时客户端怎么呈现归 PF-016。
 - **撤除总超时的值**：沿用 tenancy-host 的候选常量，未定。
 - **P-5、P-6、P-8 升格为 basis 条目**：主线已排；升格前绑定只能引 kernel-basis 的 probe 作待核对主张。
+
+## 传输候选的采用
+
+2026-09-23 阶段 2 开工时，主线采用[入口节点「传输机制候选」](../../../realization/packages/tenancy/governance-center-entry/design.md#传输机制候选)三张对比表的「选」列，
+并把它们冻结成一份有版本的契约 `composition.governance-center-entry-https-json` v1（接受待 D-029）。每一项的理由：
+
+| 采用 | 理由 | 落选的是 |
+|---|---|---|
+| 整个信封在请求体 | 四个成员只有一个承载位置，[S-4](../../../spec/compositions/governance-center-entry/v1/contract.md#s-4-请求信封) 的「出现不止一次」只在一个解析器里判；「版本先于出示物」不跨头与体两处；公开体检与信封同一入口，[S-8](../../../spec/compositions/governance-center-entry/v1/contract.md#s-8-协议版本与跨版本不变的两样) 那两样只依赖请求体 | `Authorization: Bearer` 头（[cli-tui D11 候选 A](../cli-tui/alternatives.md)）：Node 静默丢弃重复头，「多个出示物」要读原始头；头与体同时带出示物要再立一条规则 |
+| 每个答复固定 `Connection: close` | 答复不随请求的 `Connection` 头变化，[S-6](../../../spec/compositions/governance-center-entry/v1/contract.md#s-6-四种入口答复)「整个线上答复逐字相同」才成立；一连接一请求，排空简单 | keep-alive：每请求省一次握手，有测量证明是瓶颈再换、换前重核 S-6／S-8 |
+| 运维面任何请求都答完整体检 | [S-25](../../../spec/compositions/governance-center-entry/v1/contract.md#s-25-运维面只在中心所在的机器上且没有治理路由)「恰有一个操作」由结构给出，没有路由表可往里加 | `/health` 路径路由：将来好加，正是不要的 |
+| 工件放 spec 作 composition 契约 | [spec/README](../../../spec/README.md#准入门槛与停止条件)「线上形状归把操作送过进程边界的那份 composition」；registry 只冻结 catalog 资源，realization 节点可变、不能按版本引用 | 放节点正文；塞进已冻结的入口契约 v1 目录 |
+| 防冒充：中心只有 TLS 监听，客户端信任方式不区分 | PF-017 §8 把「确认连上的真是那个中心」交给技术设计；中心一侧能给的只是证书链与私钥（部署配置输入）；CA 链还是钉指纹是据点侧的选择，默认由 PF-016 实施时定 | 中心做客户端证书认证（认人只看出示物，S-11） |
+| 入口层自写严格 JSON 解析器 | S-4「同一成员出现不止一次不由实现挑」：`JSON.parse` 静默取后者，主流库不报告重复成员 | 引第三方解析器 |
+
+cli 节点（[apps/cli](../../../realization/apps/cli/README.md)）在 D-029 接受时改写 D11 那一处分歧。

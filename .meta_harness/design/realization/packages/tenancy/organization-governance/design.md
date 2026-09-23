@@ -29,6 +29,8 @@
 | 当前租户身份 | 主键 `loginStateId`、`organizationId`、`accountId` | [S-14 ⑤](../../../../spec/capabilities/organization-governance/v1/contract.md#s-14-当前租户身份是登录状态上的一项选择)：独立记录，以 LoginStateId 引用账号契约的登录状态记录 |
 | 创建键登记 | 复合主键 `(creatorAccount, creationKey)`、`organizationId`、`registeredAt` | [S-21 ⑦](../../../../spec/capabilities/organization-governance/v1/contract.md#s-21-创建团队组织) |
 
+**导出迁移工厂（第二程，2026-09-23 补）**：本包导出 `organizationGovernanceMigrations({ ownerAccountReference: { table, column }, ownerAccountForeignKey })`，返回上表六张表的 `MigrationFragment[]`（类型归 [`core/storage`](../../core/storage/README.md)），列名与显式约束名按 [tenancy-host「迁移清单」](../../../apps/tenancy-host/design.md#迁移清单候选列名逻辑名以各-owner-节点为准)；`organization.owner_account` 的外键在 `CREATE TABLE` 里用参数给的目标与名字声明（`ON DELETE RESTRICT`、不延迟），本包因此只收两个字符串、**迁移模块不 import account-identity 包**（服务面照旧 inject `accounts`／`logins`）。
+
 ### 操作
 
 | 契约责任 | 插件、服务／贡献或公开操作 | 实现／源码与采用版本 | 符合性依据或缺口 |

@@ -249,7 +249,7 @@
 
 ## 传输机制候选
 
-**候选，采用无决定**；与 [cli-tui 提案 D11](../../../../record/proposals/cli-tui/alternatives.md#d11-线上协议与认证) 的候选 A 同向（HTTPS、JSON、请求／响应、无推送），差别在出示物的承载位置，见下表。
+**主线 2026-09-23 采用下表各「选」列（待 D-029 接受；理由记在[提案「传输候选的采用」](../../../../record/proposals/governance-center-entry/design.md#传输候选的采用)），冻结工件为契约 `composition.governance-center-entry-https-json` v1（起草中，candidate）**；与 [cli-tui 提案 D11](../../../../record/proposals/cli-tui/alternatives.md#d11-线上协议与认证) 的候选 A 同向（HTTPS、JSON、请求／响应、无推送），差别在出示物的承载位置，见下表。
 为什么传输不进契约见[提案](../../../../record/proposals/governance-center-entry/alternatives.md#传输机制为什么不进契约)。
 
 | 面 | 候选 |
@@ -292,7 +292,7 @@
 | TLS 的最低版本与服务端认证方式；运维面的套接字承载 | 改了就是新版本的绑定 |
 
 换传输（例如换成 HTTP/2 或经网关）= 发一份**新版本的绑定工件**，不改旧的；两份绑定可以并存，各自的那两样各自冻结。
-工件冻结在哪、怎么登记，随 G-10 的闭合定（契约 owner 与本节点）；在那之前它只是本节的候选，**未采用、未冻结**。验证义务：T-2 的固定字节快照就是这份工件的可执行形式。
+工件冻结在哪、怎么登记，随 G-10 的闭合定（契约 owner 与本节点）；候选已采用（2026-09-23），工件以契约 `composition.governance-center-entry-https-json` v1 起草、接受后冻结；**冻结前 T-2 快照对的是候选**。验证义务：T-2 的固定字节快照就是这份工件的可执行形式。
 
 ### 防冒充：中心一侧的手段与材料
 
