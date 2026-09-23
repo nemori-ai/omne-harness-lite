@@ -1,0 +1,243 @@
+{
+  "format": 1,
+  "topic": "PF-001-identity-scope-and-agent-constraints",
+  "version": "v2",
+  "generated_at": "2026-09-23",
+  "requirements_revision": "PF-001 rev 15 (README.md front-matter revision: 15); PF-003 rev 4 §6.14 for offer expiry only; PF-017 rev 2 §6.7/§6.8 read only for the D-027 durability boundary",
+  "frozen": "contracts-only",
+  "acceptance": [
+    "record/decisions/tenant-domain-design-acceptance/decision.md",
+    "record/decisions/governance-center-design-acceptance/decision.md"
+  ],
+  "drift_note": "The five v1 contract sources are `accepted` under D-023 (2026-09-22) and the two entries below for the entry contract v1 and account-identity v2 are `accepted` under D-028 (2026-09-23); all seven sha256 values are the ones registered in registry/frozen.json and the checker reports any byte change to them. This projection keeps `ai` pinned to v1 because account-registration and organization-governance consume v1; the entry side reads v2 through the PF-017 projection v1. Requirement and realization sources are not in the frozen set, so their sha256 stays null: before implementing from this projection, verify those resources are still the current files (PF-001 rev 15; node design.md/bindings.yaml as of the D-028 commit).",
+  "sources": [
+    {
+      "kind": "requirement",
+      "resource": "product/PF-001-identity-scope-and-agent-constraints/design.md",
+      "revision": 15,
+      "sha256": null
+    },
+    {
+      "kind": "requirement",
+      "resource": "product/PF-001-identity-scope-and-agent-constraints/flows.md",
+      "revision": 15,
+      "sha256": null
+    },
+    {
+      "kind": "requirement",
+      "resource": "product/PF-001-identity-scope-and-agent-constraints/acceptance.md",
+      "revision": 15,
+      "sha256": null
+    },
+    {
+      "kind": "requirement",
+      "resource": "product/PF-003-asset-transfer-and-sharing/design.md",
+      "revision": 4,
+      "sections": [
+        "6.14"
+      ],
+      "sha256": null
+    },
+    {
+      "kind": "contract",
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "data.identity-values",
+        "version": 1
+      },
+      "status": "accepted",
+      "resource": "spec/data/identity-values/v1/contract.md",
+      "sha256": "3d57e58950c0ba202d611450ed66c6ff66178e1fbbb4773615ea0481145be6af"
+    },
+    {
+      "kind": "contract",
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "data.offer-expiry",
+        "version": 1
+      },
+      "status": "accepted",
+      "resource": "spec/data/offer-expiry/v1/contract.md",
+      "sha256": "71165d083892075381b6ab74a56c9550c266ce375ef69a1ee9b431a3da85d07f"
+    },
+    {
+      "kind": "contract",
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "capability.account-identity",
+        "version": 1
+      },
+      "status": "accepted",
+      "resource": "spec/capabilities/account-identity/v1/contract.md",
+      "sha256": "642eb2663732b6e84b1c895a40ea214ecc4baeec5cd6653a95c0e33119aa1023"
+    },
+    {
+      "kind": "contract",
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "capability.organization-governance",
+        "version": 1
+      },
+      "status": "accepted",
+      "resource": "spec/capabilities/organization-governance/v1/contract.md",
+      "sha256": "ba6e748e3fea4cb0566d198ccb821e22e8bdcf0db878b85232adf2c7644a87a4"
+    },
+    {
+      "kind": "contract",
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "composition.account-registration",
+        "version": 1
+      },
+      "status": "accepted",
+      "resource": "spec/compositions/account-registration/v1/contract.md",
+      "sha256": "c0224baff5551e68aa68ae2a82ec5c5424a3194b88407d48cd913092cd246803"
+    },
+    {
+      "kind": "contract",
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "composition.governance-center-entry",
+        "version": 1
+      },
+      "status": "accepted",
+      "resource": "spec/compositions/governance-center-entry/v1/contract.md",
+      "sha256": "7798e378d857118df82b14662f6ad9120909e57f51f69e587a894f6c1a07d963",
+      "role": "entry side only; the full projection of this contract is PF-017 projection v1"
+    },
+    {
+      "kind": "contract",
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "capability.account-identity",
+        "version": 2
+      },
+      "status": "accepted",
+      "resource": "spec/capabilities/account-identity/v2/contract.md",
+      "sha256": "29bf928fd750121b2630778044b5afd981e377d8167a4bc7c7f6e8fb4780984f",
+      "role": "pinned by the entry contract; `ai` coordinates in this projection stay on v1"
+    },
+    {
+      "kind": "realization",
+      "node": "realization/packages/tenancy/governance-center-entry",
+      "resource": "design.md",
+      "sha256": null
+    },
+    {
+      "kind": "realization",
+      "node": "realization/apps/tenancy-host",
+      "resource": "design.md",
+      "sha256": null
+    },
+    {
+      "kind": "realization",
+      "node": "realization/packages/infra/storage-sql",
+      "resource": "design.md",
+      "sha256": null
+    },
+    {
+      "kind": "realization",
+      "node": "realization/packages/infra/clock",
+      "resource": "design.md",
+      "sha256": null
+    },
+    {
+      "kind": "realization",
+      "node": "realization/packages/core/identity-values",
+      "resource": "design.md",
+      "sha256": null
+    },
+    {
+      "kind": "bindings",
+      "node": "realization/packages/core/identity-values",
+      "resource": "bindings.yaml",
+      "sha256": null
+    },
+    {
+      "kind": "realization",
+      "node": "realization/packages/core/offer-expiry",
+      "resource": "design.md",
+      "sha256": null
+    },
+    {
+      "kind": "bindings",
+      "node": "realization/packages/core/offer-expiry",
+      "resource": "bindings.yaml",
+      "sha256": null
+    },
+    {
+      "kind": "realization",
+      "node": "realization/packages/tenancy/account-identity",
+      "resource": "design.md",
+      "sha256": null
+    },
+    {
+      "kind": "bindings",
+      "node": "realization/packages/tenancy/account-identity",
+      "resource": "bindings.yaml",
+      "sha256": null
+    },
+    {
+      "kind": "realization",
+      "node": "realization/packages/tenancy/credential-verification",
+      "resource": "design.md",
+      "sha256": null
+    },
+    {
+      "kind": "bindings",
+      "node": "realization/packages/tenancy/credential-verification",
+      "resource": "bindings.yaml",
+      "sha256": null
+    },
+    {
+      "kind": "realization",
+      "node": "realization/packages/tenancy/organization-governance",
+      "resource": "design.md",
+      "sha256": null
+    },
+    {
+      "kind": "bindings",
+      "node": "realization/packages/tenancy/organization-governance",
+      "resource": "bindings.yaml",
+      "sha256": null
+    },
+    {
+      "kind": "realization",
+      "node": "realization/packages/tenancy/account-registration",
+      "resource": "design.md",
+      "sha256": null
+    },
+    {
+      "kind": "bindings",
+      "node": "realization/packages/tenancy/account-registration",
+      "resource": "bindings.yaml",
+      "sha256": null
+    },
+    {
+      "kind": "formal-tasks",
+      "resource": "registry/formal-tasks.json",
+      "tasks": [
+        "organization-governance-v1-membership",
+        "account-registration-v1-basic",
+        "account-registration-v1-crash",
+        "account-registration-v1-progress"
+      ],
+      "evidence_run": "record/evidence/2026-09-22-formal-tenant-domain-2"
+    },
+    {
+      "kind": "basis",
+      "entries": [
+        "plugin-body-reruns-on-provider-change",
+        "async-control-not-bail",
+        "effect-disposal-concurrent-not-ordered",
+        "isolate-hides-instances-not-data",
+        "inject-has-no-optional-form",
+        "plugin-throw-fails-fiber"
+      ],
+      "checked": "2026-09-22",
+      "probe": "filled against Cordis 4.0.4 (D-025)"
+    }
+  ],
+  "supersedes": "v1",
+  "superseded_by": null
+}

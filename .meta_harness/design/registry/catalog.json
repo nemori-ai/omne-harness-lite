@@ -92,12 +92,12 @@
       },
       "family": "capabilities",
       "topic": "account-identity",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/capabilities/account-identity/v2/contract.md",
       "resources": [
         "spec/capabilities/account-identity/v2/contract.md"
       ],
-      "acceptance": null,
+      "acceptance": "record/decisions/governance-center-design-acceptance/acceptance.json",
       "dependencies": [
         {
           "coordinate": {
@@ -297,7 +297,7 @@
       },
       "family": "compositions",
       "topic": "governance-center-entry",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/compositions/governance-center-entry/v1/contract.md",
       "resources": [
         "spec/compositions/governance-center-entry/v1/contract.md",
@@ -316,7 +316,7 @@
         "spec/compositions/governance-center-entry/v1/formal/Validity_unavailableAsRejected.cfg",
         "spec/compositions/governance-center-entry/v1/governance-center-entry.schema.json"
       ],
-      "acceptance": null,
+      "acceptance": "record/decisions/governance-center-design-acceptance/acceptance.json",
       "dependencies": [
         {
           "coordinate": {

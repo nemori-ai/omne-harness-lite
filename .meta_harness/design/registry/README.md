@@ -114,7 +114,9 @@ catalog 的依赖 clauses 按「正文以坐标引用即消费、只算消费者
 
 **2026-09-23 第二批（治理中心入口）**：新登两条 `candidate`——`composition.governance-center-entry` v1
 与 `capability.account-identity` **v2**（出示物与 LoginStateId 分离）；入口契约带一个 TLC 任务；
-covers 补登 PF-016／PF-017 → 入口契约、PF-001／PF-017 → AI v2；主责产品依据 PF-017 rev 1 已于同日接受。两条都未接受、未冻结。
+covers 补登 PF-016／PF-017 → 入口契约、PF-001／PF-017 → AI v2（含一条「缺口登记型」：§6.9 与 §6.10 第 1 行 → S-34，指 G-12）。
+**同日夜里 [D-028](../record/decisions/governance-center-design-acceptance/README.md) 接受了这两条，本清单据此翻状态并冻结**：
+入口契约 v1 的 15 项资源与账号能力 v2 的 1 项追加进 `frozen.json`；账号能力 v1 与 v2 并存，注册组合与治理契约仍钉 v1。主责产品依据 PF-017 rev 2。
 
 | 清单 | 现在有什么 |
 |---|---|

@@ -327,7 +327,7 @@
 
 - **形态**：属性
 - **出处**：[PF-017 §4 部署密钥](../../product/PF-017-governance-center-as-deployable-application/design.md#部署密钥) ·
-  [§6.11](../../product/PF-017-governance-center-as-deployable-application/design.md#611-部署密钥运维者生成一次自己保管中心永不显示它)（rev 1）
+  [§6.11](../../product/PF-017-governance-center-as-deployable-application/design.md#611-部署密钥运维者生成一次自己保管中心永不显示它)（rev 2）
 - **⚠️ 别混**：不是账号的凭据、不是[模型凭据](capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential)、
   不是[登录状态](subjects-and-ownership.md#ul-login-state--登录状态--login-state)——那三样各归各的拥有者。
   也不是[治理中心标识](#ul-governance-center-identifier--治理中心标识--governance-center-identifier)：一个是秘密、可换，一个是名字、不换
@@ -349,7 +349,8 @@
 
 - **形态**：属性
 - **出处**：[PF-017 §4 中心标识](../../product/PF-017-governance-center-as-deployable-application/design.md#中心标识) ·
-  [§6.12](../../product/PF-017-governance-center-as-deployable-application/design.md#612-同一个中心换了地址还是它另一个中心必须被认出来)（rev 1）
+  [§6.12](../../product/PF-017-governance-center-as-deployable-application/design.md#612-同一个中心换了地址还是它另一个中心必须被认出来)（rev 2）
+- **注意**：「此后不变」对同一份数据成立；机器断电或操作系统崩溃只会**连着数据一起丢它**（刚立起来的中心没立住，下次起来的是另一个中心），不会让同一份数据上的它变成另一个值（[§6.12](../../product/PF-017-governance-center-as-deployable-application/design.md#612-同一个中心换了地址还是它另一个中心必须被认出来)，rev 2）
 - **⚠️ 别混**：不是地址（地址可变，它不变）；不是[部署密钥](#ul-deployment-key--部署密钥--deployment-key)；
   与[登录标识](subjects-and-ownership.md#ul-login-identifier--登录标识--login-identifier)同一取名模式，所指不同——一个指认中心，一个指认账号
 - **注意**：它只管「是不是同一个」，不证明「真的是它」——防冒充归传输那一层
@@ -377,7 +378,7 @@
 
 - **形态**：总称
 - **出处**：[PF-017 §4 部署参数](../../product/PF-017-governance-center-as-deployable-application/design.md#部署参数) ·
-  [§6.15](../../product/PF-017-governance-center-as-deployable-application/design.md#615-部署参数由运维者给值起动时读缺一不可)（rev 1）
+  [§6.15](../../product/PF-017-governance-center-as-deployable-application/design.md#615-部署参数由运维者给值起动时读缺一不可)（rev 2）
 - **⚠️ 别混**：不是范围化对象，也不是[设置](capabilities-and-composition.md#ul-asset--资产--asset)——设置挂在层上、按范围求值，它对全中心一律生效
 - **注意**：「统称」不是一张表——每一项各自有值、各归自己的 topic；本 topic 只说谁给、何时生效、改了怎么算
 

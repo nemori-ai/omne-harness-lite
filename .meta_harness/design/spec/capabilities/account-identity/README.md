@@ -12,9 +12,9 @@
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.account-identity, 1)`；
   候选的下一版是 `(omne-harness-lite-design-2026-09-15, capability.account-identity, 2)`，见下一条
-- **v2（`candidate`）**：[v2 契约](v2/contract.md)——**出示物与登录状态标识分离**：登录时交出一个高熵的[出示物](v2/contract.md#s-45-登录状态出示物)，
+- **v2（`accepted`，已冻结）**：[v2 契约](v2/contract.md)——**出示物与登录状态标识分离**：登录时交出一个高熵的[出示物](v2/contract.md#s-45-登录状态出示物)，
   存储里只存它的不可逆形式（即 LoginStateId），跨进程认人凭出示物走新操作 [S-44](v2/contract.md#s-44-按出示物换取身份)。
-  未接受、未冻结，已登记进 catalog（2026-09-23，`candidate`）；主责产品依据 PF-017 rev 1 已接受（2026-09-23）。
+  [D-028](../../../record/decisions/governance-center-design-acceptance/README.md)（产品负责人，2026-09-23）接受 v2 全部条款并冻结 `v2/contract.md`；catalog `acceptance` 指向该包的 `acceptance.json`。主责产品依据 PF-017 rev 2、PF-001 rev 15。**v1 的消费者（注册组合、治理契约）不自动升到 v2**，入口契约钉 v2。
   与 v1 的逐条差异与消费者影响在 [v2 §十](v2/contract.md#十版本差异与规范工件)。**v1 的状态与下面各条不因它改变**
 - **状态**：`accepted`，资源已冻结——[D-023](../../../record/decisions/tenant-domain-design-acceptance/README.md)（产品负责人，2026-09-22）接受 v1 全部条款，含[已知缺口](v1/contract.md#九已知缺口)作为显式缺口；**此后语义改动发布 v2，不原地改 v1**（D-023 已点名的措辞张力：[S-39](v1/contract.md#s-39-unactivated_retention)「此后的判定」、[S-4](v1/contract.md#s-4-账号记录)「由存储生成」、[S-30](v1/contract.md#s-30-装配给的保证-vs-协议须给的保证) 第 7 行左列——**v2 没有收口它们**，见 [v2 §十](v2/contract.md#本版的规范工件)）。接受不表示已实现或已验证
 - **catalog 映射**：**已登记并接受**（2026-09-22，状态 `accepted`，`acceptance` 指向 D-023 的 [`acceptance.json`](../../../record/decisions/tenant-domain-design-acceptance/acceptance.json)）。`family=capabilities`、`topic=account-identity`、

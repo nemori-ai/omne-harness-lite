@@ -338,7 +338,7 @@
 - **形态**：总称
 - **出处**：[PF-017 §4 运维者](../../product/PF-017-governance-center-as-deployable-application/design.md#运维者) ·
   [§5.5](../../product/PF-017-governance-center-as-deployable-application/design.md#55-运维者与超级管理员两条线不交叉) ·
-  [§6.13](../../product/PF-017-governance-center-as-deployable-application/design.md#613-运维者没有任何一扇门通向账号能做的事)（rev 1）
+  [§6.13](../../product/PF-017-governance-center-as-deployable-application/design.md#613-运维者没有任何一扇门通向账号能做的事)（rev 2）
 - **⚠️ 别混**：**不是[超级管理员](#ul-super-administrator--超级管理员--super-administrator)。**超管是一个组织内的最高治理角色，
   凭自己的登录状态做治理动作；运维者凭对机器与数据的控制让中心在，**手上没有任何登录状态可用**。
   同一个人两头都是，产品也当成两个人

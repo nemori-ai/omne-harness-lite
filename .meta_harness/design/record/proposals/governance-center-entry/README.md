@@ -4,17 +4,17 @@
 在 Cordis 装配里落在哪、由谁拥有。它决定 [PF-017](../../../product/PF-017-governance-center-as-deployable-application/README.md)
 「认出一个来者只有一条路」「要么整个起来要么不起来」「运维者没有任何一扇门」三条各由哪一个结构点保护，也决定入口契约由哪个节点兑现。
 
-- **当前状态：候选；主线裁定方向 A，尚无接受。**本包不产生接受；推荐、评审与模板齐全都不提升状态。
+- **当前状态：候选 A 已由 [D-028](../../decisions/governance-center-design-acceptance/README.md) 接受（产品负责人，2026-09-23）。**本包不产生接受；推荐、评审与模板齐全都不提升状态，接受事实只在那条决定里。
   已有一次 architecture-reviewer 评审（2026-09-23），记录待主线整理进 [review.md](review.md)。
 - **本次终点与范围**：四个实质候选——入口层三个落点（A 独立 fiber、B 并入装配、C 三扇门）与运维面一个替代（D 进程外命令）——
   各自怎样承载性质表、哪条性质失去保护点、哪个反查信号出现、可计数代价；入口契约为什么是一份组合契约、传输为什么不进契约；
   以及装配草图与「为什么不拆、为什么不并」的长期家。**不写契约，不写提供者设计。**
 - **输入基线**：
-  - PF-017 **rev 1，草稿，尚未接受**（§5.1、§5.3、§6.2～§6.6、§6.12、§6.13、§6.17 为主责）——依赖它的一切都是候选依据；
+  - PF-017（§5.1、§5.3、§6.2～§6.6、§6.12、§6.13、§6.17 为主责）——本包起草时是 rev 1 草稿，同日接受为 rev 1，随后升 rev 2（断电边界回写）；
     本包对着它 2026-09-23 第二轮修订之后的正文（草稿内修订，不升 rev）；主线的产品层裁定已落进正文，本包标「主线裁定」的只剩契约层与实现层的裁定；
   - [PF-016](../../../product/PF-016-cli-tui-delivery-surface/README.md) rev 3 §4、§5.6、§6.9；[PF-001](../../../product/PF-001-identity-scope-and-agent-constraints/README.md) rev 15；
   - 五份契约 v1，已由 [D-023](../../decisions/tenant-domain-design-acceptance/README.md) 接受；
-  - [apps/tenancy-host](../../../realization/apps/tenancy-host/README.md)（candidate，入口层身份核实明写为缺口）与 [apps/cli](../../../realization/apps/cli/architecture.md#与其他应用的边) 的两条待立边；
+  - [apps/tenancy-host](../../../realization/apps/tenancy-host/README.md)（本包起草时入口层身份核实明写为缺口）与 [apps/cli](../../../realization/apps/cli/architecture.md#与其他应用的边) 的两条待立边；
   - [basis](../../../basis/README.md) 四条条目；Cordis 4.0.4（[D-025](../../decisions/cordis-adoption-version/README.md)）；
   - 本批双盲读数（领域读数先于任何机制视角封存；机制读数不读领域读数）——它们是任务区过程材料，**本包不以它们为依据**，被引用的理由都已写进本包。
 
@@ -48,4 +48,4 @@
 - **待修订**：[apps/tenancy-host](../../../realization/apps/tenancy-host/README.md)（装载清单末尾加两项、迁移合成加一个片段、撤除次序、监听与本机通道配置；「入口层身份核实——不写」与「不裁本应用与治理中心的关系」两处）；
   [apps/cli](../../../realization/apps/cli/architecture.md#与其他应用的边) 两条边的对端与契约坐标改指入口契约。
 - **结构检查扩展**：`restricted-call-sites` 覆盖入口层并加三个方法限定，新规则两条（主线已排）；本包另建议一条，见 [design.md 交接缺口](design.md#交接缺口)。
-- **消费前提**：PF-017 被接受；P-5、P-6、P-8 升格为 basis 条目。在此之前可以起草契约与节点、跑独立于 PF-017 的结构检查；节点可以把绑定指向已登记的 formal task 或已存在的测试，但**绑定不提升任何状态**——它们和契约一样是候选。
+- **消费前提**：PF-017 被接受（已发生，2026-09-23）；P-5、P-6、P-8 升格为 basis 条目（**未做**，仍是共用主张）。契约与节点已随 D-028 接受；绑定仍只指向已登记的 formal task，**绑定不提升任何状态**。

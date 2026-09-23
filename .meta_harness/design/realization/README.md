@@ -135,11 +135,11 @@ bindings:
 |---|---|---|
 | [`packages/core/identity-values`](packages/core/identity-values/README.md) | `data.identity-values` v1 | 纯模块：身份值类型、Schema 校验、交接凭证签发／核实原语（选签名方案） |
 | [`packages/core/offer-expiry`](packages/core/offer-expiry/README.md) | `data.offer-expiry` v1 | 纯模块：`OfferTiming`、派生状态纯求值、`Clock` 形状；`now` 不后退的候选形状归装配 |
-| [`packages/tenancy/account-identity`](packages/tenancy/account-identity/README.md) | `capability.account-identity` v1（accepted）与 v2（`candidate`，2026-09-23） | 插件，两个服务面；提供 S-15，`credentials` 作可选依赖调用时解析；留存期限在产生时定死。**v2 段**：出示物（32 字节随机、base64url）与 `LoginStateId = SHA-256(出示物)` 分离、`logins.exchange`、参数按是否指认调用方分品牌类型与 `unknown`；源码仍是 v1 骨架 |
+| [`packages/tenancy/account-identity`](packages/tenancy/account-identity/README.md) | `capability.account-identity` v1（accepted，D-023）与 v2（accepted，D-028，2026-09-23） | 插件，两个服务面；提供 S-15，`credentials` 作可选依赖调用时解析；留存期限在产生时定死。**v2 段**：出示物（32 字节随机、base64url）与 `LoginStateId = SHA-256(出示物)` 分离、`logins.exchange`、参数按是否指认调用方分品牌类型与 `unknown`；源码仍是 v1 骨架 |
 | [`packages/tenancy/credential-verification`](packages/tenancy/credential-verification/README.md) | 同上契约的凭据形式那一半 | 插件，可整体替换；本版只有密码方案 |
 | [`packages/tenancy/organization-governance`](packages/tenancy/organization-governance/README.md) | `capability.organization-governance` v1 | 插件，四个服务面（S-53 单列一个只给清除链）；跨 owner「同一提交」靠账号行上的过期事实加组织行对账号行的引用约束，无进程内锁 |
 | [`packages/tenancy/account-registration`](packages/tenancy/account-registration/README.md) | `composition.account-registration` v1 | 薄插件，无事实；两条动作链，签发激活依据；清扫提供者因缺枚举读面本版建不起来 |
-| [`packages/tenancy/governance-center-entry`](packages/tenancy/governance-center-entry/README.md) | `composition.governance-center-entry` v1（`candidate`） | 2026-09-23 首稿，候选，尚未建包：两个插件都不 provide、同起同停——入口层（封闭路由表、判定次序、读或铸中心标识、路由上不提交）与运维面（本机套接字上只答完整体检）；认领契约 G-10（传输绑定）、G-11（防冒充） |
+| [`packages/tenancy/governance-center-entry`](packages/tenancy/governance-center-entry/README.md) | `composition.governance-center-entry` v1（accepted，D-028） | 2026-09-23 首稿，候选，尚未建包：两个插件都不 provide、同起同停——入口层（封闭路由表、判定次序、读或铸中心标识、路由上不提交）与运维面（本机套接字上只答完整体检）；认领契约 G-10（传输绑定）、G-11（防冒充） |
 | [`packages/core/kernel-basis`](packages/core/kernel-basis/README.md) | 无契约条款（D-025、basis 准入） | 纯模块：Cordis 4.0.4 的 8 条 probe、`definePlugin`／`Outcome`／`FIBER_STATE`、测试装配 `bootAssembly`；候选，已建包 |
 | [`packages/core/storage`](packages/core/storage/README.md) | 无契约条款（AI R-1～R-7／OG R-1～R-6 的规格化） | 纯模块：存储协议（一次读／写事务、显式锁、四型失败）与一致性套件；候选，已建包 |
 | [`packages/infra/storage-sql`](packages/infra/storage-sql/README.md) | 无契约条款（D-026） | 插件 `storage-sql`：Kysely 提供者，sqlite（`node:sqlite`）／pg 由配置切换，迁移运行器；候选，已建包，sqlite 上套件全绿。**2026-09-23 修订**：升级整体性（显式 `upgrade` 守卫、属主独占锁、只读核对、快照与恢复、`confirmUpgrade`／`pendingUpgrade`），已设计、无源码 |

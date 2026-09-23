@@ -15,7 +15,7 @@
 
 四项分别陈述，不互相补齐。
 
-- **语义接受范围：契约 candidate、需求已接受。**契约 `candidate`（catalog 已登记，`acceptance` 为空），所以本节点兑现的每一条契约条款仍是候选依据；主责产品依据 PF-017 rev 1 已接受（2026-09-23）。
+- **语义接受范围：入口契约 v1 全部条款（S-1～S-48，含 G-1～G-12 作为显式缺口）与本节点的设计，依据 [D-028](../../../../record/decisions/governance-center-design-acceptance/decision.md)（产品负责人，2026-09-23）。**本节点的设计——独立不 provide 的 fiber、同包运维面、占位行读或铸、`openSignal` 两步开闸、`listening` 握手——随同一决定接受为实现路径；G-10／G-11 归本节点、实施前闭合。主责产品依据 PF-017 rev 2。接受不提升下面三层。
   参与方里账号能力改用 v2，它是 `candidate`（未接受）；其余四份契约 v1 已由 [D-023](../../../../record/decisions/tenant-domain-design-acceptance/decision.md) 接受（账号能力 v1 也在其中，本节点已不消费它）；采用版本与名字由 D-025、[D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/decision.md) 接受。本节点的设计与它依据的提案都没有被接受
 - **可实施范围**：本节点声称兑现契约 S-1～S-36 中落在入口层与运维面的部分，逐条见 [design.md 的投影表](design.md#能力到-cordis-的投影)；
   并**认领契约的两条缺口**——**G-10 传输绑定的版本化工件**（候选 `https-json/1`，见[传输绑定](design.md#传输绑定将来冻结的工件)，未采用、未冻结）与 **G-11 防冒充的具体手段**（中心一侧：只有 TLS 监听，证书链与私钥是部署配置输入、不是部署密钥，见[防冒充](design.md#防冒充中心一侧的手段与材料)）。

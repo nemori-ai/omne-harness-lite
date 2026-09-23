@@ -7,7 +7,7 @@
 
 ## 分层状态
 
-- 语义接受范围：`capability.account-identity` v1 里本节点兑现的 [S-8](../../../../spec/capabilities/account-identity/v1/contract.md#s-8-凭据材料) 第 1 条与 [S-26](../../../../spec/capabilities/account-identity/v1/contract.md#s-26-credential_policy)，依据 [D-023](../../../../record/decisions/tenant-domain-design-acceptance/decision.md)（产品负责人，2026-09-22）；本节点的设计（密码方案、可整体替换的 `credentials` 服务面）随同一决定被接受为实现路径。接受不提升下面三层
+- 语义接受范围：`capability.account-identity` v1 里本节点兑现的 [S-8](../../../../spec/capabilities/account-identity/v1/contract.md#s-8-凭据材料) 第 1 条与 [S-26](../../../../spec/capabilities/account-identity/v1/contract.md#s-26-credential_policy)，依据 [D-023](../../../../record/decisions/tenant-domain-design-acceptance/decision.md)（产品负责人，2026-09-22）；本节点的设计（密码方案、可整体替换的 `credentials` 服务面）随同一决定被接受为实现路径；入口契约 S-19 把凭据解析规则的发布处定在本节点，随 [D-028](../../../../record/decisions/governance-center-design-acceptance/decision.md) 接受（2026-09-23）。接受不提升下面三层
 - 可实施范围：本节点声称兑现 S-8 的第 1 条（材料不以可读形式保存——**派生函数**保证）、S-8 的「比对方式属实现选择」、S-26 的判定与形状。**不兑现**：S-8 的第 2、3 条（材料只在两处被读、读面不含它——那是 account-identity 的数据形状）、S-15 的任何一件事、S-13 的任何一层。本版**只有一个候选实现：密码**；OIDC／passkey 是本节点存在的理由但**没有设计**
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) 空表。证据义务见 [verification.md](verification.md)
 - 实际验证：2026-09-22 骨架的构建、类型检查与类型测试通过；契约场景全部 `it.todo`，**没有任何行为被验证**

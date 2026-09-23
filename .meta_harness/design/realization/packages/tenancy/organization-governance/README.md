@@ -7,7 +7,7 @@
 
 ## 分层状态
 
-- 语义接受范围：`capability.organization-governance` v1 **全部条款**（含其已知缺口作为显式缺口），依据 [D-023](../../../../record/decisions/tenant-domain-design-acceptance/decision.md)（产品负责人，2026-09-22）；本节点的设计——含跨 owner「同一提交」靠账号行过期事实加引用约束、四个服务面、无进程内锁——随同一决定被接受为实现路径。接受不提升下面三层
+- 语义接受范围：`capability.organization-governance` v1 **全部条款**（含其已知缺口作为显式缺口），依据 [D-023](../../../../record/decisions/tenant-domain-design-acceptance/decision.md)（产品负责人，2026-09-22）；本节点的设计——含跨 owner「同一提交」靠账号行过期事实加引用约束、四个服务面、无进程内锁——随同一决定被接受为实现路径；S-36／S-37 登录状态参数收窄为品牌这一处修订随 [D-028](../../../../record/decisions/governance-center-design-acceptance/decision.md) 接受（2026-09-23）。接受不提升下面三层
 - 可实施范围：本节点声称兑现 25 个操作的九件事、四条贯穿规矩（S-15～S-18）、S-14 五条（含 ⑤ 残留清扫的**方法**，触发与节奏归装配 G-13）、五个通知事件、S-42 表左列九行里落到本节点或存储要求上的部分，逐条见 [design.md](design.md#能力到-cordis-的投影)。**不兑现**：S-42 右列全部协议给保证；S-38 的「不可达」（资产 owner）；S-49／S-50 的另一半（资产、会话契约尚无）；G-1 会话级层身份；G-2 组织消失的事件源（契约禁止预埋）；G-3 计量；G-6 运行控制
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) **三条**，绑到 `formal:organization-governance-v1-membership`（S-17／S-28／S-29 的序列化不变量；S-39 不绑——模型没有在它被违反时会失败的断言）。Alloy 模型**未登记为 formal task**（退出码归 tooling 的缺口），不可绑；规范场景 S-46～S-54 全部「未开始」，见 [verification.md](verification.md)
 - 实际验证：2026-09-22 骨架的构建、类型检查与类型测试通过；契约场景全部 `it.todo`，**没有任何行为被验证**

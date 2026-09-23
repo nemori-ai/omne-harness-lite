@@ -87,9 +87,9 @@ Alloy 可按结构关系建立模型，检查断言并探索合法实例；参�
 
 ## 当前状态
 
-**当前有六个 topic**，都属租户相关领域。前五个**为 `accepted`、资源已冻结**
-（[D-023](../record/decisions/tenant-domain-design-acceptance/README.md)，产品负责人，2026-09-22）；
-`compositions/governance-center-entry` 与 `capabilities/account-identity` **v2** 是 **`candidate`**（2026-09-23 登记，未接受、未冻结；主责产品依据 PF-017 rev 1 已接受，2026-09-23），下文关于接受与冻结的段落不适用于它们：
+**当前有六个 topic**，都属租户相关领域，**全部 `accepted`、资源已冻结**：
+前五个 v1 依据 [D-023](../record/decisions/tenant-domain-design-acceptance/README.md)（产品负责人，2026-09-22）；
+`compositions/governance-center-entry` v1 与 `capabilities/account-identity` **v2** 依据 [D-028](../record/decisions/governance-center-design-acceptance/README.md)（产品负责人，2026-09-23；主责产品依据 PF-017 rev 2）。账号能力 v1 与 v2 并存：注册组合与治理契约仍钉 v1，入口契约钉 v2：
 
 | topic | 拥有什么 |
 |---|---|
@@ -98,10 +98,10 @@ Alloy 可按结构关系建立模型，检查断言并探索合法实例；参�
 | [`capabilities/account-identity`](capabilities/account-identity/README.md) | 账号事实、登录状态、凭据校验 |
 | [`capabilities/organization-governance`](capabilities/organization-governance/README.md) | 组织、成员关系、邀请与隶属请求、当前租户身份 |
 | [`compositions/account-registration`](compositions/account-registration/README.md) | 一次注册从入口走到稳定点的整体责任 |
-| [`compositions/governance-center-entry`](compositions/governance-center-entry/README.md) | 客户端 ↔ 治理中心这条边：判定次序、四种入口答复、身份推导与补授权、公开体检与运维面、治理中心标识（`candidate`） |
+| [`compositions/governance-center-entry`](compositions/governance-center-entry/README.md) | 客户端 ↔ 治理中心这条边：判定次序、四种入口答复、身份推导与补授权、公开体检与运维面、治理中心标识 |
 
-**五份已在 [catalog](../registry/README.md) 登记并接受**（登记与接受都在 2026-09-22），
-`acceptance` 一律指向 D-023 的 `acceptance.json`，`frozen.json` 登记了五个 v1 目录的全部 18 项资源。
+**七个版本都在 [catalog](../registry/README.md) 登记并接受**：五份 v1 的 `acceptance` 指向 D-023 的 `acceptance.json`，
+入口契约 v1 与账号能力 v2 指向 D-028 的；`frozen.json` 登记了五个 v1 目录的 18 项资源，加入口契约 v1 的 15 项与账号能力 v2 的 1 项。
 它们之间的依赖带精确坐标与消费 clauses，登记口径是**正文以坐标引用某条款即为消费**，
 只有否定式提及（「不来自」「不同于」）不登；**方向只算消费者 → 提供者**：data 契约正文以坐标引用
 capability／composition 条款作「落点」（谁在用它），不构成 data 契约对它们的依赖；

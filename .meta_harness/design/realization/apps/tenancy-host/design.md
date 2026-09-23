@@ -168,7 +168,7 @@ provider = compose([
 
 ### 升级的整体性：迁移前只读核对、快照与确认
 
-[PF-017](../../../product/PF-017-governance-center-as-deployable-application/README.md)（rev 1，已接受 2026-09-23）[§6.9](../../../product/PF-017-governance-center-as-deployable-application/design.md#69-升级同一个中心要么整体成要么整体不成) 要求升级整体成或整体不成：起不来，数据必须还是升级前的样子，旧版本照常能起；
+[PF-017](../../../product/PF-017-governance-center-as-deployable-application/README.md)（rev 2）[§6.9](../../../product/PF-017-governance-center-as-deployable-application/design.md#69-升级同一个中心要么整体成要么整体不成) 要求升级整体成或整体不成：起不来，数据必须还是升级前的样子，旧版本照常能起；
 [§6.6](../../../product/PF-017-governance-center-as-deployable-application/design.md#66-要么整个起来要么不起来) 与 [§6.10](../../../product/PF-017-governance-center-as-deployable-application/design.md#610-时间不能倒着走) 要求「版本接不了这份数据」「钟比中心用过的最晚时刻早」时不起来、数据原样不动，并告诉运维者差的是哪一样。
 **没有一份契约拥有这一条**——入口契约把启动的收场归承载装配（[S-32 末段](../../../spec/compositions/governance-center-entry/v1/contract.md#s-32-进展性质与前提)）——所以本节点直接承接产品要求：**编排归本节点，快照机制归存储提供者**。
 
