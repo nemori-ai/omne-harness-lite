@@ -24,7 +24,7 @@ describe('emit-listener-throw-propagates', () => {
     expect(seen).toEqual(['first'])
   })
 
-  it('发事件的一方自己 try/catch 之后，别的监听者照常、发方不受影响', () => {
+  it('发方自己 try/catch 只能保住自己：被截断的后续监听者仍然不跑', () => {
     const ctx = new Context()
     const seen: string[] = []
     ctx.on(
