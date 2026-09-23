@@ -1,0 +1,249 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v1/governance-center-entry.schema.json",
+  "title": "composition.governance-center-entry v1 · 治理中心入口的线上形状",
+  "description": "候选（candidate）。本文件只给信封、四种入口答复、路由结果外形、公开与完整体检、GovernanceCenterId 与列表句柄的形状；判定次序、映射与每条路由的语义以 contract.md 为准。身份值不在此复述，一律引用 data.identity-values v1。各路由载荷项与成功返回的线上形状账本未给（contract.md G-5），本版不收紧。",
+  "$defs": {
+    "GovernanceCenterId": {
+      "title": "治理中心标识 · Governance Center Id（contract.md S-27）",
+      "description": "128 位随机值；规范形式恰一种：32 个小写十六进制字符。相等即逐字符相等，不做任何规范化。不是地址、不是秘密，不从部署密钥或地址派生。",
+      "type": "string",
+      "pattern": "^[0-9a-f]{32}$",
+      "examples": ["3f9c1e0a7b2d4c6e8f0a1b2c3d4e5f60"],
+      "x-counterexamples": [
+        { "value": "3F9C1E0A7B2D4C6E8F0A1B2C3D4E5F60", "rejectedBy": "大写不是规范形式；比较不做大小写折叠" },
+        { "value": "3f9c1e0a-7b2d-4c6e-8f0a-1b2c3d4e5f60", "rejectedBy": "带分隔符不是规范形式" },
+        { "value": "3f9c1e0a7b2d4c6e", "rejectedBy": "长度不足 128 位" }
+      ]
+    },
+    "LoginStateHandle": {
+      "title": "列表句柄（无词条）· loginStateHandle（contract.md S-9）",
+      "description": "由 LoginStateId 在同一中心上确定地派生、不可逆、部署内单射；不是出示物、不是秘密。交换表示是候选（G-5）：64 个小写十六进制字符，逐字符比较。",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "ProtocolVersion": {
+      "title": "协议版本（contract.md S-8）",
+      "description": "客户端声明的线上协议版本。哪些值算对得上由具名参数 accepted_protocol_versions 决定（本契约不填值）。交换表示是候选（G-5）。",
+      "type": "string",
+      "minLength": 1
+    },
+    "PublicHealthRouteId": {
+      "title": "公开体检的路由标识（contract.md S-18）",
+      "const": "composition.governance-center-entry/v1#S-18"
+    },
+    "EnvelopeRouteId": {
+      "title": "信封路由标识（contract.md S-17）",
+      "description": "路由表封闭：恰这 27 条，没有泛化分派。每个值是被投影条款的坐标；写法是候选（G-5）。表外的值 ⇒ invalid-input（S-10 ①′）。",
+      "type": "string",
+      "enum": [
+        "composition.account-registration/v1#S-8",
+        "capability.account-identity/v1#S-15",
+        "capability.account-identity/v1#S-16",
+        "capability.account-identity/v1#S-37",
+        "capability.organization-governance/v1#S-21",
+        "capability.organization-governance/v1#S-22",
+        "capability.organization-governance/v1#S-23",
+        "capability.organization-governance/v1#S-24",
+        "capability.organization-governance/v1#S-25",
+        "capability.organization-governance/v1#S-26",
+        "capability.organization-governance/v1#S-27",
+        "capability.organization-governance/v1#S-28",
+        "capability.organization-governance/v1#S-29",
+        "capability.organization-governance/v1#S-30",
+        "capability.organization-governance/v1#S-31",
+        "capability.organization-governance/v1#S-32",
+        "capability.organization-governance/v1#S-33",
+        "capability.organization-governance/v1#S-34",
+        "capability.organization-governance/v1#S-35",
+        "capability.organization-governance/v1#S-36",
+        "capability.organization-governance/v1#S-37",
+        "capability.organization-governance/v1#S-55",
+        "capability.organization-governance/v1#S-56",
+        "capability.organization-governance/v1#S-57",
+        "capability.organization-governance/v1#S-58",
+        "capability.organization-governance/v1#S-59",
+        "capability.organization-governance/v1#S-60"
+      ]
+    },
+    "Envelope": {
+      "title": "请求信封（contract.md S-4）",
+      "description": "恰含这四个成员，没有别的成员。不合这个形状时答哪一种由 S-10 按不合的是哪个成员决定：不可解析或 protocolVersion 缺席／不被接受 ⇒ version-mismatch；operation 表外或有表外成员 ⇒ invalid-input；出示物不合形状或不止一个 ⇒ login-state-rejected（免认人路由不看它）；payload 不合格 ⇒ invalid-input（认出人之后）。信封里没有任何时刻字段。",
+      "type": "object",
+      "required": ["protocolVersion", "operation", "payload"],
+      "additionalProperties": false,
+      "properties": {
+        "protocolVersion": { "$ref": "#/$defs/ProtocolVersion" },
+        "presentedLoginState": {
+          "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/LoginStateId",
+          "description": "出示物（无词条，contract.md S-5）：恰一个 LoginStateId，持有即被认。缺席没有默认值。"
+        },
+        "operation": { "$ref": "#/$defs/EnvelopeRouteId" },
+        "payload": {
+          "description": "这条路由的载荷；没有载荷项时是空对象。各路由的成员名账本未给（G-5）。载荷里没有「以谁的身份」这一格：发起者、调用方、接受者的身份一律推导（S-12）。",
+          "type": "object"
+        }
+      }
+    },
+    "PublicHealthRequest": {
+      "title": "公开体检的请求（contract.md S-18）",
+      "description": "operation 等于公开体检路由标识即可；其余成员一律忽略，包括 protocolVersion 与出示物。形状跨协议版本不变（S-8）。",
+      "type": "object",
+      "required": ["operation"],
+      "properties": {
+        "operation": { "$ref": "#/$defs/PublicHealthRouteId" }
+      }
+    },
+    "EntryAnswer": {
+      "title": "四种入口答复（contract.md S-6）",
+      "description": "四值封闭、互不合并。同一个值的每一次线上答复逐字相同（含传输层状态与头）；答复里没有随请求变化的部分。unavailable 对来者不带原因。",
+      "type": "string",
+      "enum": ["version-mismatch", "login-state-rejected", "unavailable", "invalid-input"]
+    },
+    "RouteFailureName": {
+      "title": "路由结果里可透传的具名失败值（contract.md S-14、S-19～S-23）",
+      "description": "各被投影条款失败集合的并，减去被映射掉的（AI 的 storage-unavailable、invalid-input、not-authorized、login-state-rejected；OG 的 unavailable、invalidInput、loginStateNotValid）。原名透传，不改名、不合并、不加原因。封闭，没有「其他」。",
+      "type": "string",
+      "enum": [
+        "identifier-taken",
+        "credential-rejected",
+        "interrupted",
+        "identifier-or-credential-rejected",
+        "login-state-not-found",
+        "accountNotActivated",
+        "accountDoesNotExist",
+        "issuerIsPersonalOrganization",
+        "notAuthorized",
+        "alreadyAnEffectiveMember",
+        "invalidOfferDuration",
+        "invitationDoesNotExist",
+        "alreadyConcluded",
+        "offerNoLongerValid",
+        "notTheInvitedAccount",
+        "membershipNotEffective",
+        "wouldLeaveNoSuperAdministrator",
+        "personalOrganizationMemberCannotLeave",
+        "personalOrganizationTakesNoPartInAffiliation",
+        "organizationDoesNotExist",
+        "wouldFormACycle",
+        "affiliationRequestDoesNotExist",
+        "alreadyHasAParentOrganization",
+        "noSuchAffiliation",
+        "notOwnTenant"
+      ]
+    },
+    "RouteFailure": {
+      "title": "路由结果：具名失败（contract.md S-7）",
+      "type": "object",
+      "required": ["failure"],
+      "additionalProperties": false,
+      "properties": {
+        "failure": { "$ref": "#/$defs/RouteFailureName" }
+      }
+    },
+    "RouteSuccess": {
+      "title": "路由结果：成功（contract.md S-7）",
+      "description": "result 是被投影操作 ⑤ 的成功返回。成员名 result 与各路由返回的线上形状账本未给（G-5）。身份值按 data.identity-values v1 的规范形式原样给出。列出登录状态的每一项只含列表句柄与签发时间，不含 LoginStateId（S-20）；登录成功的返回是全部输出里出示物唯一出现的一处（S-19、S-29）。",
+      "type": "object",
+      "required": ["result"],
+      "additionalProperties": false,
+      "properties": {
+        "result": true
+      }
+    },
+    "ClientFaceReply": {
+      "title": "客户端一面对一个信封的答复（contract.md S-7）",
+      "description": "恰为三类之一，没有第四类。",
+      "oneOf": [
+        { "$ref": "#/$defs/EntryAnswer" },
+        { "$ref": "#/$defs/RouteSuccess" },
+        { "$ref": "#/$defs/RouteFailure" }
+      ]
+    },
+    "PublicHealthReply": {
+      "title": "公开体检答复（contract.md S-18）",
+      "description": "恰此三样；失败集合为空。reachable 只说中心在应答，数据所在够不着、钟倒退、中心自身故障时照样为 true。不含任何治理事实与秘密。形状跨协议版本不变（S-8）。",
+      "type": "object",
+      "required": ["reachable", "centerId", "version"],
+      "additionalProperties": false,
+      "properties": {
+        "reachable": { "const": true },
+        "centerId": { "$ref": "#/$defs/GovernanceCenterId" },
+        "version": {
+          "description": "中心所装版本的标识；与 accepted_protocol_versions 的对应关系归技术设计。",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "DeploymentParameterDuration": {
+      "title": "一项部署参数的值",
+      "description": "一个时长；交换表示是候选（G-5）：正整数毫秒。没有出厂默认。",
+      "type": "integer",
+      "minimum": 1
+    },
+    "DeploymentParameters": {
+      "title": "五项部署参数此刻生效的值（contract.md S-26）",
+      "description": "启动时读入；五项缺一不可。copyNoticeTtlDefault 与 sharingInvitationTtlDefault 本版没有消费它们的契约（G-4），照样要值、照样可见。",
+      "type": "object",
+      "required": [
+        "unactivatedRetention",
+        "invitationTtlDefault",
+        "affiliationRequestTtlDefault",
+        "copyNoticeTtlDefault",
+        "sharingInvitationTtlDefault"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "unactivatedRetention": { "$ref": "#/$defs/DeploymentParameterDuration" },
+        "invitationTtlDefault": { "$ref": "#/$defs/DeploymentParameterDuration" },
+        "affiliationRequestTtlDefault": { "$ref": "#/$defs/DeploymentParameterDuration" },
+        "copyNoticeTtlDefault": { "$ref": "#/$defs/DeploymentParameterDuration" },
+        "sharingInvitationTtlDefault": { "$ref": "#/$defs/DeploymentParameterDuration" }
+      }
+    },
+    "FullHealthReply": {
+      "title": "完整体检答复（contract.md S-26）",
+      "description": "只在运维面上可读。失败集合为空：读不到的项是 false，不是失败。不含部署密钥或任何凭据的值，不含任何治理事实。「中心自身的故障」一项产品要求可见，但字段名账本未给（G-6）；在 G-6 闭合之前本定义不封闭成员集合，闭合时原地补上并加 additionalProperties: false。",
+      "type": "object",
+      "required": [
+        "reachable",
+        "centerId",
+        "version",
+        "startedAt",
+        "storageReachable",
+        "deploymentKeyPresent",
+        "deploymentKeyComplete",
+        "clockSane",
+        "deploymentParameters"
+      ],
+      "properties": {
+        "reachable": { "const": true },
+        "centerId": { "$ref": "#/$defs/GovernanceCenterId" },
+        "version": { "type": "string", "minLength": 1 },
+        "startedAt": {
+          "description": "这一次启动成功的时刻（中心的钟），RFC 3339。",
+          "type": "string",
+          "format": "date-time"
+        },
+        "storageReachable": {
+          "description": "本次读取时现探数据所在；探不通为 false。",
+          "type": "boolean"
+        },
+        "deploymentKeyPresent": {
+          "description": "启动时载入的结果；中心在应答时恒为 true。",
+          "const": true
+        },
+        "deploymentKeyComplete": {
+          "description": "启动时载入的结果；中心在应答时恒为 true。",
+          "const": true
+        },
+        "clockSane": {
+          "description": "本次读取时现读钟；读不到或比中心用过的最晚时刻早为 false。",
+          "type": "boolean"
+        },
+        "deploymentParameters": { "$ref": "#/$defs/DeploymentParameters" }
+      }
+    }
+  }
+}

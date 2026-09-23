@@ -86,8 +86,9 @@ Alloy 可按结构关系建立模型，检查断言并探索合法实例；参�
 
 ## 当前状态
 
-**当前有五个 topic**，都属租户相关领域，**全部为 `accepted`、资源已冻结**
-（[D-023](../record/decisions/tenant-domain-design-acceptance/README.md)，产品负责人，2026-09-22）：
+**当前有六个 topic**，都属租户相关领域。前五个**为 `accepted`、资源已冻结**
+（[D-023](../record/decisions/tenant-domain-design-acceptance/README.md)，产品负责人，2026-09-22）；
+`compositions/governance-center-entry` 是 **`candidate`**（2026-09-23 登记，未接受、未冻结，主责产品依据 PF-017 rev 1 仍是 draft），下文关于接受与冻结的段落不适用于它：
 
 | topic | 拥有什么 |
 |---|---|
@@ -96,6 +97,7 @@ Alloy 可按结构关系建立模型，检查断言并探索合法实例；参�
 | [`capabilities/account-identity`](capabilities/account-identity/README.md) | 账号事实、登录状态、凭据校验 |
 | [`capabilities/organization-governance`](capabilities/organization-governance/README.md) | 组织、成员关系、邀请与隶属请求、当前租户身份 |
 | [`compositions/account-registration`](compositions/account-registration/README.md) | 一次注册从入口走到稳定点的整体责任 |
+| [`compositions/governance-center-entry`](compositions/governance-center-entry/README.md) | 客户端 ↔ 治理中心这条边：判定次序、四种入口答复、身份推导与补授权、公开体检与运维面、治理中心标识（`candidate`） |
 
 **五份已在 [catalog](../registry/README.md) 登记并接受**（登记与接受都在 2026-09-22），
 `acceptance` 一律指向 D-023 的 `acceptance.json`，`frozen.json` 登记了五个 v1 目录的全部 18 项资源。

@@ -253,6 +253,130 @@
           "rebase_relation": null
         }
       ]
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "composition.governance-center-entry",
+        "version": 1
+      },
+      "family": "compositions",
+      "topic": "governance-center-entry",
+      "status": "candidate",
+      "contract_path": "spec/compositions/governance-center-entry/v1/contract.md",
+      "resources": [
+        "spec/compositions/governance-center-entry/v1/contract.md",
+        "spec/compositions/governance-center-entry/v1/examples.md",
+        "spec/compositions/governance-center-entry/v1/formal/EntryDecision.cfg",
+        "spec/compositions/governance-center-entry/v1/formal/EntryDecision.tla",
+        "spec/compositions/governance-center-entry/v1/formal/README.md",
+        "spec/compositions/governance-center-entry/v1/formal/Validity_Reachability.cfg",
+        "spec/compositions/governance-center-entry/v1/formal/Validity_defectAsResult.cfg",
+        "spec/compositions/governance-center-entry/v1/formal/Validity_gateUnavailableAsDenied.cfg",
+        "spec/compositions/governance-center-entry/v1/formal/Validity_inputBeforeAuth.cfg",
+        "spec/compositions/governance-center-entry/v1/formal/Validity_passthroughStateNotValid.cfg",
+        "spec/compositions/governance-center-entry/v1/formal/Validity_readPresentationBeforeVersion.cfg",
+        "spec/compositions/governance-center-entry/v1/formal/Validity_unavailableAsRejected.cfg",
+        "spec/compositions/governance-center-entry/v1/governance-center-entry.schema.json"
+      ],
+      "acceptance": null,
+      "dependencies": [
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "capability.account-identity",
+            "version": 1
+          },
+          "clauses": [
+            "S-3",
+            "S-10",
+            "S-15",
+            "S-16",
+            "S-17",
+            "S-29",
+            "S-30",
+            "S-37"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "capability.organization-governance",
+            "version": 1
+          },
+          "clauses": [
+            "S-16",
+            "S-21",
+            "S-22",
+            "S-23",
+            "S-24",
+            "S-25",
+            "S-26",
+            "S-27",
+            "S-28",
+            "S-29",
+            "S-30",
+            "S-31",
+            "S-32",
+            "S-33",
+            "S-34",
+            "S-35",
+            "S-36",
+            "S-37",
+            "S-42",
+            "S-55",
+            "S-56",
+            "S-57",
+            "S-58",
+            "S-59",
+            "S-60"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "composition.account-registration",
+            "version": 1
+          },
+          "clauses": [
+            "S-2",
+            "S-4",
+            "S-5",
+            "S-6",
+            "S-8",
+            "S-12",
+            "S-25"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.identity-values",
+            "version": 1
+          },
+          "clauses": [
+            "S-7",
+            "S-9",
+            "S-11",
+            "S-16",
+            "S-17",
+            "S-18",
+            "S-19",
+            "S-20",
+            "S-21",
+            "S-23",
+            "S-27",
+            "S-28",
+            "S-30",
+            "S-31",
+            "S-33"
+          ],
+          "rebase_relation": null
+        }
+      ]
     }
   ]
 }

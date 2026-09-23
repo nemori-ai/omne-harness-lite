@@ -8,3 +8,10 @@
 
 从实际子目录、[规格入口](../README.md)及唯一 catalog 发现精确身份、版本与接受依据；
 本目录索引只导航 topic，不维护另一份版本或接受清单。空索引表示尚未取得对应采用范围。
+
+## 当前 topic
+
+| topic | 拥有什么 |
+|---|---|
+| [`account-registration`](account-registration/README.md) | 一次注册从入口走到稳定点的整体责任 |
+| [`governance-center-entry`](governance-center-entry/README.md) | 客户端 ↔ 治理中心这条边的判定次序、入口答复与身份交接 |
