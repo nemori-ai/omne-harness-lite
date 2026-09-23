@@ -53,7 +53,7 @@ S-15 签发登录状态时要在**同一次提交**里现读账号的激活状�
 | `AccountsService`、`LoginsService` 及各自的返回与失败类型 | 两个服务面的类型 | 消费者 inject 服务时要类型；失败类型是契约集合的逐字投影（S-36） |
 | `parseLoginStatePresentation`、`LoginStatePresentation` | 出示物交换表示的解析（S-45 四条）与它的品牌类型 | 入口层判出示物的表示层须与 S-44 第 1 步是同一个函数（见 S-45 行） |
 | `LoginStateId`（只作类型再导出，定义在 identity-values） | 品牌类型 | 消费者照着 S-16 发起方、S-17、S-37 的签名写代码要这个类型；**只导类型，不导构造它的任何函数** |
-| **不导出**：`generatePresentation`、`deriveLoginStateId`、`judgeLoginState`、服务实现类 | — | 派生规则在本包之外只此一份（S-44「在本契约之外放了第二份派生规则」就是不导出的理由）。**不导出不是防线**：派生式在 S-45 公开，谁都能自己算；挡「算出 LoginStateId 再调 S-17」的是下表的品牌参数与接收边界包的文本规则（S-17 行）。实现类只给测试装配构造（随机源注入） |
+| **不导出**：`generatePresentation`、`deriveLoginStateId`、`judgeLoginState`、服务实现类 | — | 本包之外没有第二份派生规则（S-44「在本契约之外放了第二份派生规则」就是不导出的理由）。**不导出不是防线**：派生式在 S-45 公开，谁都能自己算；挡「算出 LoginStateId 再调 S-17」的是下表的品牌参数与接收边界包的文本规则（S-17 行）。实现类只给测试装配构造（随机源注入） |
 
 **各方法的参数类型**——哪些是品牌、哪些收 `unknown`，按「这个值是不是用来认人」分：
 

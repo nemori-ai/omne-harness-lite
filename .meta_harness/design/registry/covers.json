@@ -2381,12 +2381,26 @@
         "contract_id": "composition.governance-center-entry",
         "version": 1,
         "clauses": [
-          "S-34",
           "S-36"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草登记：本契约只覆盖「运行中回拨 ⇒ unavailable」的映射（S-36）；检出归时钟的提供者。第 1 行的启动前只读核对不归本契约，没有契约家，由承载装配直接承接，缺口见契约 §十三 G-12（S-34 声明）。PF-017 rev 1 已接受（2026-09-23）。未经独立复核"
+      "note": "2026-09-23 起草登记：本契约只覆盖「运行中回拨 ⇒ unavailable」的映射（S-36）；检出归时钟的提供者；跨 OS 崩溃的时钟不后退按 D-027 不承诺（S-32 例外、S-36「已提交事实跨 OS 崩溃」行）。PF-017 rev 1 已接受（2026-09-23）。未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#610-时间不能倒着走"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 1,
+        "clauses": [
+          "S-34"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 评审第二轮（架构 N-6）登记：§6.10 第 1 行的启动前只读核对不归本契约，S-34 只声明它不归本契约；没有契约家，本版由承载装配 tenancy-host 直接承接，缺口见契约 §十三 G-12。本条是为让缺口可见而登，不表示已覆盖。PF-017 rev 1 已接受（2026-09-23）。未经独立复核"
     },
     {
       "requirement": {

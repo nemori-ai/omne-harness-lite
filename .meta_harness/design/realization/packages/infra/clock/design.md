@@ -58,7 +58,7 @@ offer-expiry 节点的候选形状把高水位写成「已读到的最大 `now`�
 | 时机 | 语句 | 守卫 |
 |---|---|---|
 | 启动，行不存在 | `INSERT (1, w + L, w)`，`w` 为此刻墙钟 | 主键冲突 ⇒ 另一实例已建 ⇒ 转读 |
-| 续约（定时器） | `UPDATE SET lease_until = w + L, written_at = w WHERE id = 1 AND lease_until < w + L` | 只增不减：另一个更快的写者已推得更远、或墙钟正落后（`w + L` 不超过现有界）时本次不写——单实例下行里 `lease_until = written_at + L`，所以 `written_at` 在行上也只增不减（两个实例共用一行时不保证，Q-8） |
+| 续约（定时器） | `UPDATE SET lease_until = w + L, written_at = w WHERE id = 1 AND lease_until < w + L` | 只增不减：另一个更快的写者已推得更远、或墙钟正落后（`w + L` 不超过现有界）时本次不写——单实例运行期间行里 `lease_until = written_at + L`（撤除写下的是 `(x, x)`，下一实例启动时的那次续约改回这个形状），所以 `written_at` 在行上也只增不减（两个实例共用一行时不保证，Q-8） |
 | 撤除 | `UPDATE SET lease_until = x, written_at = x WHERE id = 1 AND lease_until = <本实例最后写下的值>`，`x = max(hw, w)` | 比较并写：只收回**自己**推出去的租约；别人推过就不动——快速重启因此不用等。取 `max(hw, w)` 而不是 `w`：撤除时墙钟若正落后于 `hw`，写 `w` 会把「用过的最晚时刻」往回改，下一次启动就查不出这次回拨 |
 
 写都在 `storage.write` 里，一条语句一次提交，不与任何业务行同事务；**没有跨 owner 的「同一提交」**，这一行只有本节点写。

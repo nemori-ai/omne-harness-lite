@@ -197,7 +197,7 @@ provider = compose([
 | --- | --- | --- | --- |
 | 数据格式版本能否接手 | 库里迁移登记的迁移名序列（空库为空序列）是本次合成序列的**前缀**；登记了本版本不认识的名字或次序不同 ⇒ 这份数据来自更新的或别的版本 | 本节点（合成序列与 M-9 在这里）：一个与 storage-sql `PreflightCheck` 同形的函数，只看它在同一读事务里读好的 `appliedMigrations`；读登记归存储提供者 | 「数据格式本版本接不了」，并写出第一个对不上的迁移名 |
 | 时钟未回拨 | 此刻墙钟不早于 `clock_lease.written_at`（中心用过的最晚时刻）；那张表还不存在即无历史 | [`infra/clock`](../../packages/infra/clock/design.md#迁移前的只读回拨核对)：与它启动判定同一个纯函数；clock 包导出 `clockPreflight()`（候选名，**已设计、源码尚无**），本节点放进 `upgrade.checks`。只拒确定回拨：落在旧租约窗口里的按快速重启交给插件启动之后去等（下文[时钟装配](#时钟装配)的窄带） | 「钟比中心用过的最晚时刻早」 |
-| 中心标识表还在 | 非空数据（除迁移登记外还有别的表）里没有 `governance_center` 表 ⇒ 这份数据的中心标识丢了；空库照常通过 | [governance-center-entry R-GC8](../../packages/tenancy/governance-center-entry/design.md#对存储提供者的要求清单)：该包导出 `governanceCenterPreflight`（候选名，与 `clockPreflight` 同形，**已设计、源码尚无**），本节点放进 `upgrade.checks`，与 `clockPreflight` 并列。不核的后果：迁移登记也被清空时迁移会重建这张表与占位行，入口层随即铸出另一个标识（契约 [S-28](../../../spec/compositions/governance-center-entry/v1/contract.md#s-28-铸造存放与不变)「有治理事实却没有标识 ⇒ 启动失败」） | 「非空数据里没有中心标识表」 |
+| 中心标识表还在 | 非空数据（除迁移登记外还有别的表）里没有 `governance_center` 表 ⇒ 这份数据的中心标识丢了；空库照常通过 | [governance-center-entry R-GC8](../../packages/tenancy/governance-center-entry/design.md#对存储提供者的要求清单)：该包导出 `governanceCenterPreflight`（候选名，与 `clockPreflight` 同形，**已设计、源码尚无**），本节点放进 `upgrade.checks`，与 `clockPreflight` 并列。不核的后果：迁移登记也被清空时迁移会重建这张表与占位行，入口层随即铸出另一个标识（契约 [S-28](../../../spec/compositions/governance-center-entry/v1/contract.md#s-28-铸造存放与不变)「前提」段：「存储里已有别的治理事实、却没有那一格所在的表 ⇒ 启动失败，不重建、不铸造」） | 「非空数据里没有中心标识表」 |
 
 三条核对由本节点在装 `storage` 时一次放进 `upgrade.checks`：`[数据格式核对, clockPreflight(), governanceCenterPreflight]`（候选形状），都只读同一读事务里 storage-sql 读好的表清单与迁移登记，失败时数据内容原样。
 
