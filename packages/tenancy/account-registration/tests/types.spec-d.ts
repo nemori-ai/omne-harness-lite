@@ -2,6 +2,7 @@ import { describe, expectTypeOf, it } from 'vitest'
 import type {
   PurgeExpiredResult,
   PurgeFailureClass,
+  RegistrationDefectRecord,
   RegistrationService,
   TerminalOutcome,
 } from '../src/index.ts'
@@ -32,5 +33,18 @@ describe('account-registration 类型闭合', () => {
   })
   it('服务面恰两个方法', () => {
     expectTypeOf<keyof RegistrationService>().toEqualTypeOf<'register' | 'purgeExpired'>()
+  })
+  it('register 的返回恰是四值终结结果（没有 identifier-held-by-expired-record 这类参与方值透出）', () => {
+    expectTypeOf<
+      Awaited<ReturnType<RegistrationService['register']>>
+    >().toEqualTypeOf<TerminalOutcome>()
+  })
+  it('缺陷记录三类、五个步骤位置', () => {
+    expectTypeOf<RegistrationDefectRecord['kind']>().toEqualTypeOf<
+      'composition-defect' | 'entry-defect' | 'contract-violation'
+    >()
+    expectTypeOf<RegistrationDefectRecord['step']>().toEqualTypeOf<
+      1 | 2 | 3 | 'purge-1' | 'purge-2'
+    >()
   })
 })

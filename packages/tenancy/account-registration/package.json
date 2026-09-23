@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "composition.account-registration v1 的提供者：registration 服务面（注册主链与清除链）。第一程只有服务面类型、终结结果与契约场景清单",
+  "description": "composition.account-registration v1 的提供者：registration 服务面（注册主链与清除链）：registrationPlugin、激活依据签发、四值终结结果、清除链三分类与缺陷记录",
   "engines": {
     "node": ">=24 <25"
   },
