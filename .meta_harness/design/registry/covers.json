@@ -5614,7 +5614,727 @@
       },
       "reviewed": false,
       "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#十一个位置是推出来的不是挑出来的"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-1"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-012 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#53-改日志的动作与纯派生的动作"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-1"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-012 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#消息落盘之前每条消息都经过它不只是输入"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-11",
+          "S-14",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-012 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#两个位置带维度"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-2",
+          "S-3"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-012 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#按位置命名不按功能命名"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-1",
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-012 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#能做什么不能做什么"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-19",
+          "S-32"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-012 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#第二条是硬的因为它护着-f-的纯性"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-19",
+          "S-32"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-012 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#干预力三档直接用-pf-000-的"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-4",
+          "S-5",
+          "S-20",
+          "S-25",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-012 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#拓展件是可插拔的服务不可用即卸载报错按策略"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-9",
+          "S-31",
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-012 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#消息落盘之前的否决按消息是谁产生的分三路"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-012 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#没有放宽这一档"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-012 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#改参数先落一条生效参数"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-012 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#三种形态两种装得进一种拆两半"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-13",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-012 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#等人是-loop-的原语"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-012 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#协程不在了靠日志不靠记忆"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-28",
+          "S-32"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-012 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#写拓展件的人要守的一条"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-012 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#一批动作先全部判完再执行任何一个"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-13",
+          "S-14"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-012 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#两个地方等不了"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-21",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-012 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#69-拓展件只能靠改日志起作用"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-32",
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-012 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#610-能干预的拓展件必须留下结论"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-30",
+          "S-31"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-012 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#66-终态不可逆且只有一个出口"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-012 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#运行终态"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-012 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#615-取消先落日志再发信号"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-012 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#617-run-这一层的七条不变式"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-18",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-012 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#执行尝试"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-012 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-000-occurrences-and-record-entries",
+        "clause": "design.md#干预力--intervention-power"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-4"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-000 rev 1"
+    },
+    {
+      "requirement": {
+        "topic": "PF-000-occurrences-and-record-entries",
+        "clause": "design.md#53-干预力只长在瞬态这一半上"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-4",
+          "S-5"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-000 rev 1"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#loop-extension"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-4",
+          "S-6",
+          "S-7",
+          "S-8"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-002 rev 16"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#身份是类别--name其余归实现"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-002 rev 16"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#52-设置与权限是资产的两种属性"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-4",
+          "S-6"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-002 rev 16"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#设置项分四类资产声明每一项时必须标类别"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-6"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-002 rev 16"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#选中模型-与-有效模型"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-013 rev 8"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#510-合法目标集合与展示列表是两件事"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-013 rev 8"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#57-上交带什么原样带着状态码不翻译它"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-013 rev 8"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#614-上交带的成因是封闭枚举外加一个诚实的兜底状态码另外原样带着"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-013 rev 8"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#54-三类事实归本层定死其余照状态码"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-17",
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-013 rev 8"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#还有一种没走完它不在这张表里"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-2",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-013 rev 8"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#612-事实判断归本-topic策略归拓展件"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-013 rev 8"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#512-重试站在一个已经存在的位置上"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-14",
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-013 rev 8"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#52-那个判断函数"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-008 rev 5"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#决策卡片"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-008 rev 5"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#68-三种来源的卡片同一个形状选项与记录不同"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-008 rev 5"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#69-人拒绝之后agent-分得出那是拒绝"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-25",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-008 rev 5"
+    },
+    {
+      "requirement": {
+        "topic": "PF-014-inbound-intake-and-queueing",
+        "clause": "design.md#56-消息落盘之前那一刻看得到什么"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-11",
+          "S-14",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-014 rev 5"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#610-结果太大时卸载而卸载是第三个维度"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-006 rev 17"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#59-循环守卫四级阶梯"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 1,
+        "clauses": [
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 按主线裁定原地修订时补登：L3 落失败由 stop{ terminal: failed } 承载，S-26 正文链接了 §5.9。未经独立复核。PF-012 rev 10"
     }
   ],
-  "note": "2026-09-22 首次登记，覆盖租户相关领域五份 candidate 契约。每条的 clauses 由两处合并得出：契约正文里带小节链接的条款段落，以及各契约「性质」表的「来源」列。全部 reviewed=false——这是「声称覆盖但尚未逐条复核」的诚实初值，不是复核通过。三处已知不完整，登记时一并记明，不靠留白掩盖：（1）PF-007 也被 data.identity-values 与 capability.organization-governance 的正文引为来源（§4 一笔授权表达有三个维度），本次登记范围只含 PF-001/002/003/015，因此 PF-007 一条未登；（2）foundation 的 SYS-TENANT / SYS-DEPLOY 是全局约束不是产品条款，本清单只登记 PF- 侧，那一侧的覆盖没有家；（3）契约正文里以散文方式引用产品要求、没有给出小节链接的地方，本次登记抓不到。 2026-09-22 评审轮一修订后补登 18 处（见各行 note）。data.identity-values/v1#S-35「交接凭证」没有产品出处（规格层构造），有意不登记 cover。 2026-09-23 补登 composition.governance-center-entry v1（candidate）40 条：PF-017（rev 1，仍是 draft（PF-017 rev 1 已于 2026-09-23 同日接受，各条 note 已改））30 条、PF-016 5 条、PF-001 5 条，全部 reviewed=false；来源是该契约正文里带小节链接的条款段落。该契约的形式工件与规范场景条款（S-37～S-46）只在对到验收判据时登记。 2026-09-23 该契约评审第一轮修订：首登时有若干条的 clauses 在正文对应条款里并没有小节链接，已在正文逐条补齐；逐条核过之后，每条 covers 的产品小节都在所列的每个条款里有链接，唯一例外是 acceptance §二那一条（见其 note）；该条 clauses 补登 S-31。 2026-09-23 补登 composition.governance-center-entry-https-json v1（candidate，传输绑定）11 条：PF-017 rev 2 共 10 条、PF-016 rev 4 共 1 条，全部 reviewed=false；来源同一口径——该契约正文里带小节链接的条款段落，每条所列条款都链接了那个小节。 2026-09-23 该传输绑定评审第一轮修订：补登 1 条（PF-017 acceptance §二「冒牌货」一行 → S-30），§8 那一条补 S-30；该契约现 12 条。 2026-09-23 补登 data.content-blocks v1（candidate）24 条：PF-009 7 条、PF-010 3 条、PF-013 3 条、PF-006 6 条、PF-002 2 条、PF-001 1 条、PF-012 2 条，全部 reviewed=false；来源是该契约的「设计依据」表（按简报口径），不是逐条核对正文链接——不少行只在依据表里对应，所列条款的正文里没有那个小节的链接（如 PF-009 §4 → S-1、PF-013 §4 模态 → S-7）；PF-006 §6.12「它的宿主是谁」一条部分为让缺口 G-2 可见而登，见其 note。 2026-09-23 补登 data.call-accounts v1（candidate）12 条：PF-006 1、PF-009 4、PF-012 3（其中 §6.17 一条为缺口登记型，指 G-3）、PF-013 2、PF-001 1、PF-000 1，全部 reviewed=false；每条的 clauses 是该契约正文里带那个小节链接的条款（逐条机械核过）。PF-013 §6.2（凭据挂在范围上）只作「不归本契约」的否定式提及，未点名缺口，不登。 2026-09-23 补登 data.model-response v1（candidate，块 C）26 条：PF-013 rev 8 共 16 条（design 15、flows 1）、PF-009 rev 7 共 4 条、PF-004 rev 10 共 2 条、PF-012 rev 10 共 3 条、PF-001 rev 16 共 1 条，全部 reviewed=false；来源同一口径——该契约正文里带小节链接的条款段落。PF-013 rev 5–8、PF-009 rev 5–7 全文待产品负责人确认。同日主线裁定后修订：「消息落盘之前的否决」一条由缺口登记型改为常规覆盖（原 G-6 闭合），PF-013「已经开口说话了」一条补登 S-14；两条产品裁决（完整响应体、原始响应留存）已落为 D-038（8b／Q14），那是决定不是产品小节，不登 cover。 2026-09-23 补登 data.tool-definition v1（candidate，起草者随契约登记）32 条：PF-006 rev 17 共 21 条、PF-002 rev 16 共 8 条、PF-005 rev 5 共 3 条，全部 reviewed=false；口径同上——所列每个条款的正文都链接了那个小节（由契约正文逐条抽取）。该契约只引不据以立条款的 PF-007 §5.6／§6.1、PF-009、PF-012 §5.10 有意不登；PF-006 §5.5、§非目标只出现在消费者场景与缺口表里，同样不登。 2026-09-23 补登 data.asset-model v1（candidate）53 条：PF-002 38 条（design.md 33、flows.md 5）、PF-001 7 条、PF-003 8 条，全部 reviewed=false；来源是该契约的「设计依据」表（按简报口径），另有 4 条（PF-002 §5.2「由此得到两个推论」、flows §1.4，PF-003 §4「资产复制」、§6.7）取自条款正文里的小节链接；其中 PF-002 §4 MCP／Skill／Connector／Agent Definition、§9、§5.3、flows §3.3 与 PF-001「拥有、获权、选用」各有一部分为让缺口（G-2、G-3、G-5～G-7、G-10）可见而登，见各行 note。设计依据表的工作区一行还列了 PF-002 §4「它是会话选用的」与 PF-015 §6.13，本契约没有条款覆盖「会话选用」，不登；PF-003 flows §3.1 只在缺口 G-2 与走查 CS-3 里指路，不登。"
+  "note": "2026-09-22 首次登记，覆盖租户相关领域五份 candidate 契约。每条的 clauses 由两处合并得出：契约正文里带小节链接的条款段落，以及各契约「性质」表的「来源」列。全部 reviewed=false——这是「声称覆盖但尚未逐条复核」的诚实初值，不是复核通过。三处已知不完整，登记时一并记明，不靠留白掩盖：（1）PF-007 也被 data.identity-values 与 capability.organization-governance 的正文引为来源（§4 一笔授权表达有三个维度），本次登记范围只含 PF-001/002/003/015，因此 PF-007 一条未登；（2）foundation 的 SYS-TENANT / SYS-DEPLOY 是全局约束不是产品条款，本清单只登记 PF- 侧，那一侧的覆盖没有家；（3）契约正文里以散文方式引用产品要求、没有给出小节链接的地方，本次登记抓不到。 2026-09-22 评审轮一修订后补登 18 处（见各行 note）。data.identity-values/v1#S-35「交接凭证」没有产品出处（规格层构造），有意不登记 cover。 2026-09-23 补登 composition.governance-center-entry v1（candidate）40 条：PF-017（rev 1，仍是 draft（PF-017 rev 1 已于 2026-09-23 同日接受，各条 note 已改））30 条、PF-016 5 条、PF-001 5 条，全部 reviewed=false；来源是该契约正文里带小节链接的条款段落。该契约的形式工件与规范场景条款（S-37～S-46）只在对到验收判据时登记。 2026-09-23 该契约评审第一轮修订：首登时有若干条的 clauses 在正文对应条款里并没有小节链接，已在正文逐条补齐；逐条核过之后，每条 covers 的产品小节都在所列的每个条款里有链接，唯一例外是 acceptance §二那一条（见其 note）；该条 clauses 补登 S-31。 2026-09-23 补登 composition.governance-center-entry-https-json v1（candidate，传输绑定）11 条：PF-017 rev 2 共 10 条、PF-016 rev 4 共 1 条，全部 reviewed=false；来源同一口径——该契约正文里带小节链接的条款段落，每条所列条款都链接了那个小节。 2026-09-23 该传输绑定评审第一轮修订：补登 1 条（PF-017 acceptance §二「冒牌货」一行 → S-30），§8 那一条补 S-30；该契约现 12 条。 2026-09-23 补登 data.content-blocks v1（candidate）24 条：PF-009 7 条、PF-010 3 条、PF-013 3 条、PF-006 6 条、PF-002 2 条、PF-001 1 条、PF-012 2 条，全部 reviewed=false；来源是该契约的「设计依据」表（按简报口径），不是逐条核对正文链接——不少行只在依据表里对应，所列条款的正文里没有那个小节的链接（如 PF-009 §4 → S-1、PF-013 §4 模态 → S-7）；PF-006 §6.12「它的宿主是谁」一条部分为让缺口 G-2 可见而登，见其 note。 2026-09-23 补登 data.call-accounts v1（candidate）12 条：PF-006 1、PF-009 4、PF-012 3（其中 §6.17 一条为缺口登记型，指 G-3）、PF-013 2、PF-001 1、PF-000 1，全部 reviewed=false；每条的 clauses 是该契约正文里带那个小节链接的条款（逐条机械核过）。PF-013 §6.2（凭据挂在范围上）只作「不归本契约」的否定式提及，未点名缺口，不登。 2026-09-23 补登 data.model-response v1（candidate，块 C）26 条：PF-013 rev 8 共 16 条（design 15、flows 1）、PF-009 rev 7 共 4 条、PF-004 rev 10 共 2 条、PF-012 rev 10 共 3 条、PF-001 rev 16 共 1 条，全部 reviewed=false；来源同一口径——该契约正文里带小节链接的条款段落。PF-013 rev 5–8、PF-009 rev 5–7 全文待产品负责人确认。同日主线裁定后修订：「消息落盘之前的否决」一条由缺口登记型改为常规覆盖（原 G-6 闭合），PF-013「已经开口说话了」一条补登 S-14；两条产品裁决（完整响应体、原始响应留存）已落为 D-038（8b／Q14），那是决定不是产品小节，不登 cover。 2026-09-23 补登 data.tool-definition v1（candidate，起草者随契约登记）32 条：PF-006 rev 17 共 21 条、PF-002 rev 16 共 8 条、PF-005 rev 5 共 3 条，全部 reviewed=false；口径同上——所列每个条款的正文都链接了那个小节（由契约正文逐条抽取）。该契约只引不据以立条款的 PF-007 §5.6／§6.1、PF-009、PF-012 §5.10 有意不登；PF-006 §5.5、§非目标只出现在消费者场景与缺口表里，同样不登。 2026-09-23 补登 data.asset-model v1（candidate）53 条：PF-002 38 条（design.md 33、flows.md 5）、PF-001 7 条、PF-003 8 条，全部 reviewed=false；来源是该契约的「设计依据」表（按简报口径），另有 4 条（PF-002 §5.2「由此得到两个推论」、flows §1.4，PF-003 §4「资产复制」、§6.7）取自条款正文里的小节链接；其中 PF-002 §4 MCP／Skill／Connector／Agent Definition、§9、§5.3、flows §3.3 与 PF-001「拥有、获权、选用」各有一部分为让缺口（G-2、G-3、G-5～G-7、G-10）可见而登，见各行 note。设计依据表的工作区一行还列了 PF-002 §4「它是会话选用的」与 PF-015 §6.13，本契约没有条款覆盖「会话选用」，不登；PF-003 flows §3.1 只在缺口 G-2 与走查 CS-3 里指路，不登。 2026-09-23 补登 data.loop-extension v1（candidate）45 条：PF-012 rev 10 共 25 条、PF-000 rev 1 共 2 条、PF-002 rev 16 共 4 条、PF-013 rev 8 共 8 条、PF-008 rev 5 共 4 条、PF-014 rev 5 共 1 条、PF-006 rev 17 共 1 条，全部 reviewed=false；来源是该契约的设计依据表（小节 → 条款），未逐条核对每个条款正文是否都链接了那个小节。PF-012 的「系统自带的几件各站在哪」只落在该契约的消费者表，不对应任何 S-n 条款，有意不登。 2026-09-23 该契约按主线裁定原地修订：G-10 关闭，补登 1 条（PF-012 §5.9 → S-26）；该契约现 46 条。"
 }
