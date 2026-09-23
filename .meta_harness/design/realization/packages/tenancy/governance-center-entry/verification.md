@@ -46,6 +46,8 @@
 | 不读对端地址 | 本包源码不出现 `remoteAddress`、`x-forwarded-for` 一类读取 | S-16 | 未开始，owner `tools/ts-checks` |
 | `credentials` 只调 `parse` | 本包源码不出现 `derive(`、`verify(`、`checkPolicy(` 对 `credentials` 的调用 | S-19；[本节点约束](design.md#本节点约束存储要求之外)第 7 条 | 未开始，owner `tools/ts-checks` |
 | 只凭出示物认人 | 本包源码不出现对 `logins` 的 `.verify(` 调用、不 import `parseLoginStateId`、不出现 `as LoginStateId` 断言；认人所得的类型（候选 `Caller`）只在 ② 阶段模块里构造；以登录状态为发起方或调用方的四处调用只从它取实参。带「故意违反就失败」自测（例如把载荷里的句柄交给 `listEffective`） | S-11；AI v2 S-30「只有 S-44 认出示物」；[本节点约束](design.md#本节点约束存储要求之外)第 8 条 | 未开始，owner `tools/ts-checks`；另有 T-5 的「拿句柄当出示物」 |
+| 网络监听只在本包（R-20） | `tenancy/*` 除本包外的源码不得 import `node:http`／`node:https`／`node:net`／`node:tls`（含 `listen(` 调用）；本包之内也只许在客户端面与运维面两个目录里出现 | S-25、[提案「能力间内部面不直接暴露」](../../../../record/proposals/governance-center-entry/design.md#能力间内部面不直接暴露怎样在结构上成立)；主线 2026-09-23 评审裁决 R-20 | 未开始，owner `tools/ts-checks`（阶段 2 W2-C） |
+| 包布局常量（SC-2 白名单的键） | 本包固定布局：`src/ops/**` = 运维面源码目录；`src/events.ts` = 事件声明模块（只导出 `serving`、`stopped`、`defect`、`listening` 四个常量，不 import 任何 `tenancy/*` 包）；`src/transport/**` = 客户端面（TLS 监听与 HTTP 落地）；`src/json.ts` = 严格 JSON 解析器；`src/routing/**` = 路由表与判定次序。规则按这些路径写，包偏离布局即规则失效——布局改动先改这里 | 契约 SC-2；[本节点约束](design.md#本节点约束存储要求之外)第 5 条 | 主线 2026-09-23 定（阶段 2 波次 1→2 门）；owner 本节点 |
 | 现有三条 | `no-bail-control`、`no-wall-clock`、`no-testing-import` 扫 `packages/`，本包建好后自动覆盖 | basis `async-control-not-bail`；offer-expiry SC-OE-3 | 规则已写；运行尚未登记为 evidence run |
 
 ## 实际执行
