@@ -188,7 +188,7 @@ provider = compose([
                     migrated ∧ ¬snapshotTaken（pg）⇒ 不拒起，启动日志具名「本次升级不可撤回（U-3）」
                                                                       —— 抛出（含 UpgradeGuardNotAttached）或断言不成立：不兑现 openSignal，逆序全撤，恢复快照
 [确认之后]          兑现 openSignal ⇒ 入口层开闸、发 serving ⇒ boot() 返回成功  —— 有界等不到 serving：逆序全撤，不恢复（U-4）
-[任一次逆序撤完之后] guard.pending()：仍有未确认的快照 ⇒ 「升级未确认：恢复失败，快照在 X」（R-U8）
+[任一次逆序撤完之后] guard.pending()：`pending { location }` ⇒ 「升级未确认：恢复失败，快照在 X」（R-U8）；`clear` 或 `never-attached`（被占、config 失败等根本没走到守卫）⇒ 不另报
 ```
 
 「不碰数据」在 sqlite 上指**内容**不变：关最后一个句柄时 sqlite 会把预写日志检查点进库文件，已提交内容不变、字节可能变；上一次是干净关闭（预写日志为空）时才逐字节不变（[storage-sql 实施缺口](../../packages/infra/storage-sql/design.md#实施缺口与消费者影响)）。
@@ -212,7 +212,7 @@ clock 插件启动时仍按自己的判定再核一次回拨（[时钟装配](#�
 | R-U3 | sqlite：有待跑迁移时，在第一条迁移之前建立库的**一致快照**，含已提交但还在预写日志里的内容；首次启动（库不存在）的快照就是「库不存在」这件事。快照与库同一文件系统、权限同库文件；磁盘要多容纳一份库的大小（运维约定） | PF-017 §6.9 |
 | R-U4 | 快照确认之前的任何失败——本插件自己的迁移失败，或之后别的 fiber 失败使本插件被撤——⇒ 关闭全部句柄之后**恢复快照**：恢复后的库与快照等价，附属文件不带入快照之后的任何写；恢复以替换完成，中途断电不留半个文件。首次启动的恢复即删除本次建出的库文件与附属文件，下一次启动仍是第一次（与 S-28 ③ 一致） | PF-017 §6.9；S-28 ③ |
 | R-U5 | 快照确认之前一直留在磁盘上，**它的存在就是「一次升级尚未确认」**：打开库之前先看有没有遗留快照，有就先恢复 | PF-017 §6.9（启动中途断电也是「起不来」） |
-| R-U6 | 确认：本节点在全部 fiber `ACTIVE` 之后、放行开闸之前调用一次 `guard.confirm()`——`guard` 是本节点用 `createUpgradeGuard()`（storage-sql 包导出，**不进存储协议**）构造、经 `upgrade.guard` 交给存储插件的守卫对象，插件体把它挂到**本实例**上。`confirm()` 删除本实例的快照且目录落盘之后才返回 `{ migrated, snapshotTaken, snapshotRemoved }`；**守卫没挂到任何实例 ⇒ 抛 `UpgradeGuardNotAttached`**；删除成功才算确认，报错时快照须仍在（随后的恢复要用它）；确认之后的撤除不再恢复。本节点断言 `snapshotTaken ⇒ snapshotRemoved`，不成立 ⇒ 启动失败「升级确认没有删到快照」；`migrated ∧ ¬snapshotTaken`（pg）不拒起，启动日志具名「本次升级不可撤回（U-3）」（[守卫对象](#守卫对象确认绑在实例上不绑在-config-上)） | PF-017 §6.9 |
+| R-U6 | 确认：本节点在全部 fiber `ACTIVE` 之后、放行开闸之前调用一次 `guard.confirm()`——`guard` 是本节点用 `createUpgradeGuard()`（storage-sql 包导出，**不进存储协议**）构造、经 `upgrade.guard` 交给存储插件的守卫对象，插件体把它挂到**本实例**上。`confirm()` 删除本实例的快照且目录落盘之后才返回 `{ migrated, snapshotTaken, snapshotRemoved }`；**守卫没挂到任何实例 ⇒ 抛 `UpgradeGuardNotAttached`**；删除成功才算确认，报错时快照须仍在（随后的恢复要用它）——**一支例外**：删除已生效、目录落盘失败时 `confirm()` 抛出而快照已不在，随后的恢复找不到快照，与 U-4 同类，登记为缺口（owner 本节点加 storage-sql）；确认之后的撤除不再恢复。本节点断言 `snapshotTaken ⇒ snapshotRemoved`，不成立 ⇒ 启动失败「升级确认没有删到快照」；`migrated ∧ ¬snapshotTaken`（pg）不拒起，启动日志具名「本次升级不可撤回（U-3）」（[守卫对象](#守卫对象确认绑在实例上不绑在-config-上)） | PF-017 §6.9 |
 | R-U7 | pg：全部待跑迁移在**一个事务**里提交或无痕 | PF-017 §6.9；Kysely `Migrator` 在 pg 上是否把整批包进一个事务**待核** |
 | R-U8 | 被占、核对不过、建快照失败、恢复失败各是**具名的启动失败**，不折成 `StorageUnavailable`；**恢复失败时快照不删**，说明里写出它的位置，下一次启动按 R-U5 再试。**撤除路径上的恢复失败内核不上抛**（basis [`effect-disposal-concurrent-not-ordered`](../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)：只记日志，`fiber.dispose()` 照常 resolve），所以本节点每次逆序撤完都调一次 `guard.pending()` 回头看：仍有未确认的快照即「升级未确认：恢复失败，快照在 X」 | PF-017 §6.6「告诉运维者差的是哪一样」 |
 
@@ -230,7 +230,7 @@ clock 插件启动时仍按自己的判定再核一次回拨（[时钟装配](#�
 - 本节点 `const guard = createUpgradeGuard()`（storage-sql 包导出），storage 的 config 写 `upgrade: { checks, guard }`；插件体取到独占之后把 `guard` 挂到本实例，快照在哪只有实例自己知道。
 - `guard.confirm()` 返回 `{ migrated, snapshotTaken, snapshotRemoved }`；`guard` 没挂到任何实例 ⇒ 抛 `UpgradeGuardNotAttached`。本节点断言 **`snapshotTaken ⇒ snapshotRemoved`**——「拿了快照就必须删到」是守卫自己的不变量，与方言无关：拿了快照却没删到，说明确认没落在那个快照上 ⇒ 启动失败，具名原因「升级确认没有删到快照」。两种失败都在兑现 `openSignal` 之前，都走「逆序全撤 ⇒ 恢复快照」，闸从未开过。
 - **`migrated ∧ ¬snapshotTaken` 就是 U-3**：pg 上没有快照，`snapshotTaken` 为假、断言自然成立；跑过迁移而没有快照，这次升级在迁移提交之后撤不回。**不拒起**，启动日志具名写「本次升级不可撤回（U-3）」，与[实施缺口 U-3](#实施缺口与消费者影响) 互指。sqlite 上有待跑迁移就一定拿快照（R-U3），这一支只在 pg 上出现。
-- `guard.pending()` 报告本实例是否仍有未确认的快照，是 R-U8 的撤后核查。
+- `guard.pending()` 不抛，三种结果：`never-attached`（守卫从未挂上实例——被占或 config 失败时的常态）、`clear`、`pending { location }`；只有最后一种要在启动失败说明里点出位置，是 R-U8 的撤后核查。
 - **前提**（与入口层的 `openSignal` 同一条）：内核把 `ctx.plugin(plugin, config)` 的 config 对象原样交给插件体——不深拷贝、不冻结、不序列化；**假设，须按 source-check 取证**（[入口层节点「依赖的上游机制语义」](../../packages/tenancy/governance-center-entry/design.md#依赖的上游机制语义)同一行）。不成立时插件体拿到的是拷贝，挂上去的不是本节点手里那一个 ⇒ `confirm()` 抛 `UpgradeGuardNotAttached` ⇒ 启动失败：**失败是响的**，不会退回「找不到 ⇒ 成功」。
 
 | | `confirmUpgrade(config)`／`pendingUpgrade(config)`，以 config 为键（落选） | **守卫对象随 config 传入，确认绑在实例上（选）** |
@@ -576,6 +576,7 @@ verifyHandoffWarrant(verification, purpose, PROBE_ACCOUNT_ID, warrant) === 'ok' 
 | **U-2 同一份库只有一个属主进程——已设计、无源码**：storage-sql 的属主独占（插件体第一步取、撤除最后一步放、随进程死亡释放；[排他为什么是随进程死亡释放的锁](../../packages/infra/storage-sql/design.md#排他为什么是随进程死亡释放的锁)）；sqlite 那一半借 sqlite 文件锁**待核**，pg 的会话锁在锁连接断开时的收场未定 | 源码落地之前两个进程同时升级同一份库时 §6.9 不成立 | storage-sql 落包并过 `upgrade.exclusive-owner`；本节点加两进程同时 `boot()` 的装配演练 |
 | **U-3 pg 上 PF-017 §6.9 本程不兑现（显式缺口）**：pg 上「迁移单事务」成立（R-U7），「迁移后装配失败回滚」不成立——迁移事务提交之后任何一步失败，库都已升级、旧版本起不来（[反证 (d)](#升级的整体性迁移前只读核对快照与确认)）。运行时可见：`guard.confirm()` 返回 `migrated ∧ ¬snapshotTaken` 时不拒起，启动日志具名「本次升级不可撤回（U-3）」（[守卫对象](#守卫对象确认绑在实例上不绑在-config-上)） | **受阻消费者：pg 部署**——闭合之前 pg 上的升级不满足 §6.9 | 本节点 + storage-sql；**闭合条件**：pg 首跑前定手段（候选：升级前逻辑备份钩子；或老版本可对新 schema 运行的兼容窗口）；pg 本程只接线（D-026） |
 | **U-4 确认之后到开闸之间的失败支**：[入口层节点](../../packages/tenancy/governance-center-entry/design.md#就绪与开门为什么分两步)在开闸那一刻再读一次钟、超界即放弃开闸（其 N-12），那一支落在确认之后；本节点有界地等 `serving`，等不到即启动失败——快照已在兑现之前确认，**「等不到 `serving` 即恢复快照」与「确认之后才兑现」不能同时成立**，本节点取后者（[两步开闸](#两步开闸就绪与开闸分开)第二张表） | 那一支上 §6.9 的「旧版本照常能起」不成立：库已升级、中心没起来；说明写「钟读不到或回拨：重启前先核钟」。无受阻消费者 | **已接受的残余情形（裁 (b)）：无已确认提交丢失、老版本不能再起、核过钟再重启**。(b) 即接受这一残余；未取的两条是 (a) 入口层去掉这一支、(c) 等不到 `serving` 即恢复快照（须放弃「确认之后才兑现」，U-1 的窗口随之回来）。同版本重启时装配状态一致；钟若往回拨了，重启会在迁移前的只读核对上失败，所以先核钟 |
+| **U-5 确认删除已生效、目录落盘失败**：`guard.confirm()` 抛出、快照已不在命名空间里，本节点按「确认失败」逆序撤除并期望恢复，但恢复找不到快照——库已升级、答复尚未提交（开闸在确认之后），与 U-4 同类 | 那一支上旧版本起不来、本版本重启即接手（库已升级、迁移登记齐、无快照）；无受阻消费者 | **接受的遗留**，owner 本节点加 storage-sql（[R-U6](../../packages/infra/storage-sql/design.md#属主实例排他迁移前只读核对升级快照与确认)）；证据形式：`assembly.upgrade-confirmed` 加一支「删除后落盘失败 ⇒ 启动失败、无快照可恢复、下一次启动不再重跑迁移」 |
 | **升级守卫：已设计、无源码**——storage-sql 已承接 R-U1～R-U8（[属主实例](../../packages/infra/storage-sql/design.md#属主实例排他迁移前只读核对升级快照与确认)）：config `upgrade: { checks, guard }` 显式给（带 `migrations` 时缺席即配置错误）、属主独占锁、`createUpgradeGuard()` 与守卫的 `confirm()`／`pending()` 导出、具名启动阶段（均为候选名）；源码 `openStorage` 仍是「打开 → ping → 迁移」 | 迁移前只读核对、升级快照、恢复、确认与撤后核查在源码里都还没有；`assembly.upgrade-*` 与 `assembly.no-commit-before-open` 起不来 | storage-sql 节点落包；本节点的 `boot()` 按上面的名字接线 |
 | **迁移前回拨核对：已设计、无源码**——clock 已导出（设计）`clockPreflight()`（候选名），与启动判定同一个纯函数（[迁移前的只读回拨核对](../../packages/infra/clock/design.md#迁移前的只读回拨核对)） | 落包之前迁移前只核得了数据格式版本；回拨只在 clock 启动时检出，靠恢复快照撤回 | clock 节点落包 |
 | **运行中回拨：已设计、无源码**——clock 的 `now()` 每次现读墙钟并与用过的最晚时刻比对，早于它即答 `'unavailable'` 直到追上（[运行中回拨](../../packages/infra/clock/design.md#运行中回拨每次现读墙钟比对用过的最晚时刻)；S-36 末行；governance-center-entry N-5） | 落包之前开着时钟往回倒，要看时间的事照常答、`clockSane` 照常 `true`（已建包的 `now()` 仍按单调钟推算） | clock 节点落包 |
