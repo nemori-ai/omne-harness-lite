@@ -1,0 +1,58 @@
+{
+  "format": 2,
+  "consumer": "本程 proposal「斜杠命令识别与解析基线」（待出现）",
+  "local_cli_version_at_capture": "Claude Code 2.1.280（claude --version）",
+  "capture_date": "2026-09-23",
+  "normalization": "none；扩展名改为 .txt，只为不让仓库的 Markdown 链接检查去解析官方页里的站内绝对链接",
+  "selected": [
+    {
+      "file": "claude-code-slash-commands-2026-09-23.txt",
+      "upstream_url": "https://code.claude.com/docs/en/slash-commands.md",
+      "capture_method": "curl -sL（HTTP 200，无 Location 跳转头，未经模型摘要，原样字节）",
+      "note": "同日抓取 https://code.claude.com/docs/en/skills.md 得到逐字节相同的内容（sha256 相同），页面标题为 Extend Claude with skills；本包只存这一份",
+      "highest_version_mentioned_in_page": "v2.1.280",
+      "target_sha256": "4868ac940606a0a822e6a82b706c233f748e8d568c713f2e93a5e012370eb162"
+    },
+    {
+      "file": "claude-code-commands-2026-09-23.txt",
+      "upstream_url": "https://code.claude.com/docs/en/commands.md",
+      "capture_method": "curl -sL（HTTP 200，原样字节）",
+      "highest_version_mentioned_in_page": "v2.1.269",
+      "target_sha256": "546a2e05530f6d71fb31adb960fa60fd2a07f27ab70501a61a68d28385845369"
+    },
+    {
+      "file": "claude-code-errors-2026-09-23.txt",
+      "upstream_url": "https://code.claude.com/docs/en/errors.md",
+      "capture_method": "curl -sL（HTTP 200，原样字节）",
+      "highest_version_mentioned_in_page": "v2.1.280",
+      "target_sha256": "644b1312175920297723bef5dddb7f2fd8931982c9a3ed19f6a3b137a8b7e5af"
+    },
+    {
+      "file": "claude-code-mcp-2026-09-23.txt",
+      "upstream_url": "https://code.claude.com/docs/en/mcp.md",
+      "capture_method": "curl -sL（HTTP 200，原样字节）",
+      "highest_version_mentioned_in_page": "v2.1.280",
+      "target_sha256": "3ad30f98fcddaf0dd1197529f159f47e7de44a94f2d94182455836e607343a4a"
+    },
+    {
+      "file": "claude-code-interactive-mode-2026-09-23.txt",
+      "upstream_url": "https://code.claude.com/docs/en/interactive-mode.md",
+      "capture_method": "curl -sL（HTTP 200，原样字节）",
+      "highest_version_mentioned_in_page": "v2.1.275",
+      "target_sha256": "8085b82e29ff4fe310a4ec034256dd815ae333615101c1e25a84ace4f948f781"
+    },
+    {
+      "file": "claude-code-cli-reference-2026-09-23.txt",
+      "upstream_url": "https://code.claude.com/docs/en/cli-reference.md",
+      "capture_method": "curl -sL（HTTP 200，原样字节）",
+      "highest_version_mentioned_in_page": "v2.1.275",
+      "target_sha256": "5b572f4bda8984f49787fa43d8c6f78bbe0f815c8f1c4a43da7cf943b210bdd7"
+    }
+  ],
+  "reused_from_sibling_topic": [
+    {
+      "upstream_url": "https://code.claude.com/docs/en/hooks.md",
+      "note": "本轮同日重抓得到的字节与 loop-extension-hooks-compat/sources/claude-code-hooks-2026-09-23.txt 相同（sha256 dc59d7c4fb28b246b15db67fd30819cbc6aca09392be662080b602eeab6d5422），不在本包重复存放"
+    }
+  ]
+}

@@ -2,14 +2,14 @@
 id: PF-016
 title: 这套系统交到人手上的第一面：装在自己机器上的命令行
 status: active
-revision: 3
+revision: 4
 relations:
   supersedes: []
   depends-on:
     - id: PF-001
       for: 账号、登录状态、组织、租户、当前租户身份、角色与隔离——全部动作都是它定义的，本 topic 只提供发起处
     - id: PF-002
-      for: 设置与权限的分层求值——本 topic 只呈现「这一项的值来自哪一层」
+      for: 设置与权限的分层求值——本 topic 只呈现「这一项的值来自哪一层」；斜杠命令的三种绑定目标与系统保留名
     - id: PF-003
       for: 资产的复制与分享，以及待确认的邀约会过期——本 topic 是发起与点头的地方
     - id: PF-005
@@ -96,15 +96,11 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 3**，**定稿**（产品负责人 2026-09-22 正式接受，[decisions §一](decisions.md#一拍板记录)）
-- 未决项：**6**（见 [design.md 第九节](design.md#九未决项)），都归别的 topic 或技术设计
+- 产品设计：**rev 4**，**定稿**（产品负责人 2026-09-22 正式接受，[decisions §一](decisions.md#一拍板记录)）
+- 未决项：**5**（见 [design.md 第九节](design.md#九未决项)），都归别的 topic 或技术设计
 - 待裁决：**0**（见 [decisions.md 第三节](decisions.md#三待裁决)）
-- 已知的来源问题：**1**，一行措辞跟进（见 [decisions.md 第四节](decisions.md#四已知的来源问题)）
+- 已知的来源问题：**2**（见 [decisions.md 第四节](decisions.md#四已知的来源问题)）
 - 技术投影：**尚未开始**
-
-**本 rev 的六条待裁里，[D1](decisions.md#三待裁决) 最要紧**：
-它不是「要不要有个后台进程」这种实现问题，
-**它决定「关上电脑之后我的 agent 还在不在干活」，也决定一条已接受的规则在本形态下还成不成立。**
 
 ## 本包的文件
 

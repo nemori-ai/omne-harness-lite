@@ -95,7 +95,7 @@
 > **disabling does not end it.**
 
 - **形态**：属性
-- **出处**：[PF-002 §5.2 三方分工](../../product/PF-002-assets-settings-and-permissions/design.md#三方分工资产定形状各层配值运行时求值) · [PF-002 §6.4](../../product/PF-002-assets-settings-and-permissions/design.md#64-移除与禁用是两个动作) · [PF-002 flows §3.1 一个资产在某个范围里](../../product/PF-002-assets-settings-and-permissions/flows.md#31-一个资产在某个范围里)（rev 10） · [PF-001 §6.1 层次](../../product/PF-001-identity-scope-and-agent-constraints/design.md#61-层次)（rev 16）
+- **出处**：[PF-002 §5.2 三方分工](../../product/PF-002-assets-settings-and-permissions/design.md#三方分工资产定形状各层配值运行时求值) · [PF-002 §6.4](../../product/PF-002-assets-settings-and-permissions/design.md#64-移除与禁用是两个动作) · [PF-002 flows §3.1 一个资产在某个范围里](../../product/PF-002-assets-settings-and-permissions/flows.md#31-一个资产在某个范围里)（rev 13） · [PF-001 §6.1 层次](../../product/PF-001-identity-scope-and-agent-constraints/design.md#61-层次)（rev 16）
 - **别混**：与[定义所有权](#ul-definition-ownership--定义所有权--definition-ownership)不是一回事——**持有的不一定是自己的**，[被分享来的](#ul-asset-sharing--资产分享--asset-sharing)照样持有。**裸写「持有」不作数**：正文也用它说「持有使用权」「持有待处理消息队列」
 - **注意 ①**：正文**未述它靠什么标识**；工作区那一级持有的资产算不算[自定义件](#ul-customized-asset--自定义件--customized-asset)，正文没说。
   **工作区那一级照样配得了[禁用](#ul-asset-disable--资产禁用--asset-disable)**，
@@ -240,7 +240,7 @@
 > asked about it, the agent can only say it cannot, **without being able to say why**.
 
 - **形态**：过程
-- **出处**：[PF-002 §6.4](../../product/PF-002-assets-settings-and-permissions/design.md#64-移除与禁用是两个动作)（rev 10）
+- **出处**：[PF-002 §6.4](../../product/PF-002-assets-settings-and-permissions/design.md#64-移除与禁用是两个动作)（rev 13）
 - **别混**：与[资产禁用](#ul-asset-disable--资产禁用--asset-disable)**在 agent 那一侧看不出差别**，差的是**配置还在不在、还能不能开回来**
 - **注意**：**这个范围往后不要这份资产了 → 用这个**
 
@@ -263,7 +263,9 @@
 > by any other layer.
 
 - **形态**：属性
-- **出处**：[PF-002 §6.4](../../product/PF-002-assets-settings-and-permissions/design.md#64-移除与禁用是两个动作) · [§6.4 禁用是逐层配的布尔设置](../../product/PF-002-assets-settings-and-permissions/design.md#禁用是逐层配的布尔设置任一层为真即不可见)（rev 10）
+- **出处**：[PF-002 §6.4](../../product/PF-002-assets-settings-and-permissions/design.md#64-移除与禁用是两个动作) · [§6.4 禁用是逐层配的布尔设置](../../product/PF-002-assets-settings-and-permissions/design.md#禁用是逐层配的布尔设置任一层为真即不可见)（rev 13）
+- **注意**：被禁的那份持有**在替换次序上视为不存在，同标识退回下一层**——
+  工作区借「同名替换再禁用」藏不掉租户的资产
 - **别混**：与[当下可用性](reach-and-availability.md#ul-current-availability--当下可用性--current-availability)不是一回事——
   **禁用是不可见，不可用是可见但用了一定失败**
 - **注意**：**只是这一阵不让用、将来还要开回来 → 用这个**。成员据以知道去申请的是**设置页**，不是 agent 的回答

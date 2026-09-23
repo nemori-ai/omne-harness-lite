@@ -1,6 +1,6 @@
 # PF-016：命令行交付面
 
-- 修订：rev 3，2026-09-22 · [变更历史](changelog.md)
+- 修订：rev 4，2026-09-23 · [变更历史](changelog.md)
 - 状态：定稿（2026-09-22 接受）——**没有待裁决**（[decisions §三](decisions.md#三待裁决)）；仍开着的缺口全在 [§9](#九未决项)，都归别的 topic 或技术设计
 
 ---
@@ -345,9 +345,10 @@
 
 | 人在屏上做什么 | 去处 | 谁来看它 |
 |---|---|---|
-| 说一句话、发一条[斜杠命令](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command) | **进[待处理消息队列](../PF-012-agent-loop-and-run/design.md#待处理消息队列)** | loop |
+| 说一句话、发一条绑定提示词或 skill 的[斜杠命令](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command) | **进[待处理消息队列](../PF-012-agent-loop-and-run/design.md#待处理消息队列)** | loop |
 | 在一张[卡片](../PF-008-human-in-the-loop/design.md#决策卡片)上作答，或表示「这个我不答」 | **落到那张卡片上** | 那张卡片背后等着的东西 |
 | 停、强制停、[插队](../PF-014-inbound-intake-and-queueing/design.md#插队)、把一次工具执行切后台、中断一次工具执行 | **就地处置**（一条[控制指令](../PF-014-inbound-intake-and-queueing/design.md#控制指令)） | **没有人「看」它**，它改的是执行权或队列本身 |
+| 发一条绑定系统业务流程的斜杠命令 | **就地处置**（[不是控制指令](../PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走)） | **agent 看不到它**，那条流程自己去办；会话日志里留一条记它发生过的条目 |
 
 #### 第二类：具名的那几条会话动作，它们不经入站到达
 
@@ -365,6 +366,11 @@
 > 就是在承认这一类的存在。**产品上它们的长相已经定完**：即时生效、不排队、留在会话日志里。
 > **它们经哪条通路被受理、怎么落盘，是规格设计的事**（推理链在 [decisions §二](decisions.md#二pm-推导)）；
 > **产品这边只钉死一句**：不论走哪条路，[交付面自己都不写日志](#61-交付面不持有任何领域事实)。
+
+**绑定系统业务流程的斜杠命令不在这一类里。**它是人从交付面用 `/` 触发一条系统业务流程的入口，
+[走受理面、成为一条入站到达](../PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走)，属于第一类；
+能触发哪几条流程，本版不枚举。这一类的几条具名动作则**不经入站到达**，所以它们**不是斜杠命令**——
+换模型、归档在交付面上怎么拼、拼不拼成 `/` 开头，[归技术设计](#57-人要做的事分三族)；**拼成 `/` 开头的，那个名字是[系统保留名](../PF-002-assets-settings-and-permissions/design.md#slash-command)，它仍是这一类的具名动作**。
 
 #### 两类之外的，根本不进任何会话
 
@@ -454,9 +460,21 @@
 | **本机族** | 对这一处的**据点**与交付面自己 | 看这台机器连的是哪个中心、装的是什么版本 · 看一项设置此刻的值[最终来自哪一层](../PF-002-assets-settings-and-permissions/design.md#52-设置与权限是资产的两种属性) · 改[观感偏好](#观感偏好) · 体检（能不能连上中心、这台机器准备好了没有） | **不进任何会话**，也**不改任何对别人成立的事实** |
 
 > **[斜杠命令](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command)属于会话族，不属于本机族。**
-> 它是**一条会被 agent 看到的入站到达**，
-> [PF-014 已经写死了这一条](../PF-014-inbound-intake-and-queueing/design.md#55-控制指令家族)。
-> **它长得像一条命令，但它是内容。**交付面自己的动作则一条都到不了 agent 眼前。
+> 它是[一条进到这个会话里的入站到达](../PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走)。
+> **绑定提示词或 skill 的，长得像一条命令，但它是内容**——agent 看到的是展开后的那条消息。
+> **绑定系统业务流程的，仍属会话族，但它不是内容**——它触发一条系统流程，会话日志里留一条记它发生过的条目，agent 看不到。
+> 交付面自己的动作则一条都到不了 agent 眼前。
+
+**斜杠命令在交付面上怎么敲，产品只定这几条，记法归技术设计：**
+
+| | |
+|---|---|
+| **只认输入开头的一条** | 一条输入至多一条命令；中间出现的 `/xxx` 是正文 |
+| **两种呈现形式一样识别** | 脚本驱动交付面，[做得了人能做的一切](#65-人能做的脚本能做脚本能做的人能做)，[留下的记录条目也必须一样](#55-两种呈现形式同一份事实)——所以机读那一侧同样认得出斜杠命令 |
+| **敲了一个不存在的命令名** | **当场明说「没有这个命令」，不发送**——人当场改，脚本拿到一个明确的失败；不会被当成一句话送给 agent，也不会进队列 |
+| **想发一句以 `/` 开头的普通话** | **必须有一种办法原样发出去**，不被认成命令。具体怎么记，归技术设计 |
+| **命令声明了参数** | 按声明提示人该给什么；[没声明的，命令名之后的整段文字作一个自由参数](../PF-002-assets-settings-and-permissions/design.md#slash-command) |
+| **名字撞了** | 交付面自己的动作名与绑定系统业务流程的命令名是[系统保留名](../PF-002-assets-settings-and-permissions/design.md#slash-command)，别的斜杠命令发布时就占不到——**人敲下一个名字，只可能有一种解释** |
 
 **三族之外没有第四族**：找不到「对谁做的」的动作，本交付面就不提供它。
 
@@ -888,13 +906,13 @@
 | 相邻 topic | 它拥有什么 | 本 topic 与它的关系 |
 |---|---|---|
 | [PF-001](../PF-001-identity-scope-and-agent-constraints/design.md) | 账号、登录状态、组织、租户、当前租户身份、角色、隔离 | **全部动作都是它定义的**；本 topic 只提供发起处，并把「部署」在本形态下落到[治理中心](#治理中心)上 |
-| [PF-002](../PF-002-assets-settings-and-permissions/design.md) | 设置与权限的分层求值 | 本 topic 只**呈现**「这一项此刻的值来自哪一层」，不参与求值；但它定了[这些层的值落在哪一侧](#56-哪些东西在中心一侧哪些在据点一侧) |
+| [PF-002](../PF-002-assets-settings-and-permissions/design.md)（rev 12） | 设置与权限的分层求值；[斜杠命令](../PF-002-assets-settings-and-permissions/design.md#slash-command)的三种绑定目标、只由交付面识别、系统保留名 | 本 topic 只**呈现**「这一项此刻的值来自哪一层」，不参与求值；但它定了[这些层的值落在哪一侧](#56-哪些东西在中心一侧哪些在据点一侧)。斜杠命令在交付面上**怎么敲、敲错了怎么办**归本 topic（[§5.7](#57-人要做的事分三族)），**撞名的规则归那边** |
 | [PF-003](../PF-003-asset-transfer-and-sharing/design.md) | 资产的复制与分享、待确认的邀约会过期 | 本 topic 是**发起与点头的地方**；能不能给、给了之后怎样，一概归那边 |
 | [PF-005](../PF-005-execution-environments-and-sandboxes/design.md) | 落点、宿主机、执行环境权限 | 本形态下**宿主机就是用户自己的电脑**；[必须被显式允许](../PF-005-execution-environments-and-sandboxes/design.md#62-宿主机不提供租户隔离因此必须被显式允许)这条在这里第一次有了真实后果 |
 | [PF-008](../PF-008-human-in-the-loop/design.md) | 卡片、池子、永远等着、答复只在卡片上做 | 本 topic 是那个「人在哪里看到它」的**第一个实例**；[池子在这条形态下按据点各一份](#619-这里看到的池子是这一处的)，定义不改 |
 | [PF-012](../PF-012-agent-loop-and-run/design.md) | 会话日志、运行、终态、agent runtime | 本 topic 只读它的投影，**没有写日志的通路** |
 | [PF-013](../PF-013-model-profiles-and-invocation/design.md) | 模型档案、切换、凭据挂在范围上 | 本 topic 提供看与切换的入口；**凭据的值一概不呈现**（[§6.11](#611-秘密不进任何一份呈现)） |
-| [PF-014](../PF-014-inbound-intake-and-queueing/design.md) | 受理面、三个去处、控制指令家族 | 本 topic 把人做的事**全部接到这三个去处上**，一条新的不开 |
+| [PF-014](../PF-014-inbound-intake-and-queueing/design.md)（rev 4） | 受理面、三个去处、控制指令家族、[斜杠命令受理时怎么走](../PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走) | 本 topic 把人做的事**全部接到这三个去处上**，一条新的不开 |
 | [PF-015](../PF-015-session-lifecycle-and-ownership/design.md) | 会话生命周期、归档、运行模式、存储要守住的两件事 | 本 topic 是这些动作的入口；[存储那两条在这条形态下落到用户的机器上](#会话据点) |
 
 **交出去的：**
@@ -914,4 +932,3 @@
 | **合规意义上的数据清除** | [PF-015 明说它是另一件事、本版不做](../PF-015-session-lifecycle-and-ownership/design.md#为什么没有删除)。**会话落在个人电脑上之后，这件事的份量变了**：离职的人带走的是一台装着组织会话日志的机器 | 本 topic 只承诺[不呈现、不放行](#610-成员资格无效期间本机那些会话不呈现也不删) | 产品负责人——**这块还没有 topic** |
 | **[工作区](../../ubiquitous_language/terms/scope-and-resolution.md#ul-workspace--工作区--workspace)那一层落在哪一侧** | 同一个人在两台机器上对着「同一个工作区」干活时，**看到的是不是同一套配置** | **那个目录只在这台机器上**（[§5.6](#56-哪些东西在中心一侧哪些在据点一侧)）；而工作区[挂在租户下、是设置的一格](../../ubiquitous_language/terms/scope-and-resolution.md#ul-workspace--工作区--workspace)，**它那一层的配值要不要跟着租户走到另一台机器上，本 rev 未定** | PF-002 的 owner |
 | **[会话运行模式](../PF-015-session-lifecycle-and-ownership/design.md#会话运行模式)在哪儿切、谁能切** | 交付面要不要提供这个入口 | 模式本身[PF-015 已经定了三档](../PF-015-session-lifecycle-and-ownership/design.md#会话运行模式)；**谁能改、什么时候改，那边未述** | PF-015 的 owner |
-| **交付面自己的动作与[斜杠命令](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command)撞名时听谁的** | 用户打下同一个名字时，是进了会话还是只在本机发生 | 产品侧已经定了[两者必须分得出](#57-人要做的事分三族)；**撞名的处置归斜杠命令那一侧** | PF-002 / PF-006 的 owner |

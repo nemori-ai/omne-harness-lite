@@ -2,7 +2,7 @@
 id: PF-006
 title: 工具与技能
 status: active
-revision: 14
+revision: 16
 relations:
   supersedes: []
   depends-on:
@@ -15,7 +15,7 @@ relations:
     - id: PF-001
       for: 租户与租户隔离
     - id: PF-007
-      for: meta 的定义、哪些条目恒定占槽位、Tools().inspect 作为查工具用法的唯一入口
+      for: meta 的定义、哪些条目恒定占槽位、Tools().inspect 作为对两种范式都管用的查用法入口、Skills().read 取正文与资源
     - id: PF-009
       for: 帧的到达语法、帧汇成哪一条消息、内容块
   extends: []
@@ -42,8 +42,9 @@ relations:
 | **呈现方式** | 哪些**直接占槽位**，哪些**经代理够得着** | **常驻标记** | 装配时 |
 | **当下可用性** | 现在**做不做得了** | **依赖解析** | **每次 run 开始前重算** |
 
-**常驻标记挂在「装配它」这条引用上**，不在工具自身——上下文预算是装配方的问题，
+**常驻标记是「装配它」这条引用上的一项设置**（偏好类），不在工具自身——上下文预算是装配方的问题，
 工具作者不知道。两处都标了，**agent definition 压 plugin**。
+**常驻只管能力身份看不看得见**；看见的是什么归装配策略——技能是 name 与说明进系统提示词，工具由各模型的适配按供应商的方式呈现。
 
 **不可用时装的是[同形、只换说明的替换件](design.md#替换件)，不是不装。**否则动作空间随环境波动变形，
 [I-4](../PF-004-agent-definition-and-assembly/design.md#61-不变式) 当场作废，
@@ -60,19 +61,20 @@ relations:
 
 ```text
 Tool Definition ──装配──→ 动作空间里的条目 ──调用──→ Tool Execution
-   数据，长期                构成，绑 agent runtime          计算资源，绑 session
+   数据，长期                构成，绑 agent runtime          计算资源，自己的 runtime，绑会话
 ```
 
 这是「数据 vs 计算资源」的**第四次出现**，但这次换了宿主——前三次的计算资源
-都挂在 agent runtime 上，**这次挂在 session 上**。
-正因如此，一次 run 结束了它发起的执行还能继续，结果照样回得到那个 session。
+都挂在 agent runtime 上，**这次挂在会话上，从不由 agent runtime 承载**。
+**前台 / 后台说的是 agent runtime 这副协程有没有阻塞在它上面**，不是它挂在谁身上。
+正因如此，agent runtime 被回收不影响任何一次执行；转了后台的在 run 结束之后还能继续，结果照样回得到那个会话。
 
 ## 一份工具定义，一次返回值
 
 | | 有几种 | 要点 |
 |---|---|---|
 | **定义的范式** | **两种**：单函数 / 多命令 | **多命令把一族动作压进一个槽位**；带多少归工具作者定 |
-| **定义时的可选声明** | **六项**：外部服务 / 存储 / 执行环境 / **调用它要模型给得出哪些模态** / **结果里有哪些模态** / 后台执行 | **全是可选的**，而**声明不是免费的**——多一项就多一个可能不被满足的前提 |
+| **定义时的可选声明** | **六项**：外部服务 / 存储 / 执行环境 / **调用它要模型给得出哪些模态** / **结果里有哪些模态** / 后台执行 | **全是可选的**，而**声明不是免费的**——多一项就多一个可能不被满足的前提。其中**目标环境**（落点与身份类）与**转后台阈值**（偏好类）是[设置项](design.md#其中两项声明的是设置项)：定义给形状与默认值，各层配值 |
 | **返回的写法** | **两种**：普通函数返回 / `ToolResult` | 普通返回**在上报时被转成 `ToolResult`**，[agent-loop](../PF-012-agent-loop-and-run/README.md) 只见一种形状 |
 
 **「不声明」的含义，六项并不一样**：前五项声明的是**我需要什么**（没说就是不需要），
@@ -107,7 +109,7 @@ Tool Definition ──装配──→ 动作空间里的条目 ──调用─�
 | 关系 | 本 topic 的情况 |
 |---|---|
 | `supersedes` | 无 |
-| `depends-on` | [PF-004](../PF-004-agent-definition-and-assembly/README.md)、[PF-005](../PF-005-execution-environments-and-sandboxes/README.md)（**rev 4**）、[PF-002](../PF-002-assets-settings-and-permissions/README.md)（**rev 7**）、[PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)、[PF-009](../PF-009-context-message-types/README.md)（**rev 4**），引用不改写 |
+| `depends-on` | [PF-004](../PF-004-agent-definition-and-assembly/README.md)、[PF-005](../PF-005-execution-environments-and-sandboxes/README.md)（**rev 4**）、[PF-002](../PF-002-assets-settings-and-permissions/README.md)（**rev 11**）、[PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)、[PF-009](../PF-009-context-message-types/README.md)（**rev 4**），引用不改写 |
 | `extends` | 无 |
 
 **与 PF-005 的分界**：执行环境**声明自己提供什么**，归 PF-005；
@@ -134,13 +136,13 @@ Tool Definition ──装配──→ 动作空间里的条目 ──调用─�
 
 ## 状态
 
-- 产品设计：**rev 14**，已定稿（[依赖声明](design.md#依赖)是一串必需项的抽象名字；
-  [工具定义是那份资产的身份与表示、可自带实现](design.md#52-工具这个词指三样东西寿命各不相同)；
-  **[禁用是不可见，不可用是可见但用了一定失败](design.md#63-不可用时装的是同名替换件不是不装)**）
+- 产品设计：**rev 16**，已定稿（[依赖声明](design.md#依赖)是一串必需项的抽象名字；
+  [工具执行自己的 runtime 绑会话，前后台只说 agent runtime 阻不阻塞在它上面](design.md#前台后台说的是-agent-runtime-在不在等它)；
+  [常驻是引用条目上的偏好类设置](design.md#常驻)；[`help` 可选、带了须与 `inspect` 一致](design.md#53-一份工具定义长什么样)；
+  [MCP 对端每个动作一个工具条目，连不上即不可用](design.md#613-mcp-接入点带来的动作)）
 - 未决项：**无**
 - 待裁决：**无**
-- 来源问题：**已全部闭合**（PF-004 的重建触发点已随其 rev 3 精化），
-  处置记录见 [decisions.md 第四节](decisions.md#四已知的来源问题)
+- 来源问题：见 [decisions.md 第四节](decisions.md#四已知的来源问题)
 - 技术投影：**尚未开始**
 
 技术投影按 `harness-design-handbook` skill 展开，

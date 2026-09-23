@@ -5,6 +5,73 @@
 
 技术投影用 `provenance.json` 引用具体 rev，所以这里的 rev 不准会直接传导到实现侧。
 
+## rev 13 · 工作区资产上「能不能用 / 谁可以用」的最严值是挂上它的那个租户本人 — 2026-09-23
+
+**起因**：rev 12 唯一的待裁，产品负责人答「按你的倾向」，原话在
+[decisions](decisions.md#2026-09-23--工作区资产上能不能用--谁可以用的最严值是挂上它的那个租户本人)。
+
+| 位置 | 现在怎么说 |
+|---|---|
+| [§5.7](design.md#57-工作区那一级不参与权限计算) 最严值那张表 | 新增一行：MCP 的「能不能用」、Skill 的「谁可以使用它」、Slash Command 的「谁可以用这个入口」取**挂上这份工作区的那个租户本人**；新增一段说明为什么不是「无人」（那会把仓库带来的 skill、命令、MCP 整个废掉，与「能力可以从项目里来」相抵），以及它没有放出新东西（工作区本来就挂在租户下、别人看不见）。删去「本版未决」那句 |
+| [§九](design.md#九未决项) | 那项**关闭**，两项 → 一项（③ 型命令能否自定义、保留名能否被替换仍悬着） |
+| [decisions §三](decisions.md#三待裁决) | 清空；[§五](decisions.md#五已关闭的问题)加一行 |
+| [acceptance §一](acceptance.md#一可观察场景) | 新增一行：仓库带来的 skill、命令、MCP，挂上它的人当场可用，别人碰不到 |
+
+**下游要复核什么**：规格侧的工作区资产权限最严值，「谁可以用 / 能不能用」一类**不得实现成「无人」**；
+本 topic 所有词条出处与对象依据的 rev（没有改它们的含义）。
+
+## rev 12 · 斜杠命令三种绑定目标；MCP 的动作即工具条目；连接件带身份鉴权；工作区资产的权限取最严值 — 2026-09-23
+
+**起因**：本程四份调研报的缺口与 rev 11 留下的那项未决，产品负责人当日作答，
+原话在 [decisions](decisions.md#2026-09-23--斜杠命令三种绑定目标mcp-的动作即工具条目连接件带身份鉴权工作区资产的权限取最严值)；
+由此推出的结论带推理链在 [decisions「rev 12 新推的」](decisions.md#rev-12-新推的)。
+
+| 位置 | 现在怎么说 |
+|---|---|
+| [§4 Slash Command](design.md#slash-command) | 「绑定一个 skill、一段 prompt 或其他上下文；不含系统命令」→ **绑定目标恰有三种**：① 自定义提示词、② 装配的一个 skill（正文直接成为消息里的一个内容块）、③ 一条系统业务流程（不进队列、不成为消息，会话日志只留一条记它发生过的条目）；③ 的清单本版不枚举。**删去「不含系统命令」**，只留「不含键盘控制与 shell 命令」。新增四行：**只有人用它**（只由交付面识别、人读机读两种呈现形式一样，连接件等不经交付面的来源送来的 `/xxx` 原样是内容，模型不调用）、**为什么单独是一类资产**（为将来的可编程性留口子）、**名字与撞名**（交付面动作名与 ③ 型命令名是系统保留名，① ② 型不得占用）、设置里加**参数声明**。设置里**删去「命令名」**（它是身份）；「谁可以用这个入口」标明**只对人**；新增一段：② 型展开的 skill 照样过它自己的「谁可以使用它」 |
+| [§4 Skill](design.md#skill)「和 Slash Command 的区别」 | 补一句：同一份正文两条路到 agent 眼前——经 `Skills()` 进日志的是工具返回，经 ② 型命令进日志的是用户消息里的内容块 |
+| [§4 MCP](design.md#mcp) | 「和 Tool 的关系跟多命令 tool 与子命令同一个形状」→ **持有与授权上同形，agent 面前不同**：每个动作各自是一个工具条目。新增两行：动作集**在 run 开始前与可用性一起重算、run 内不变**；除动作之外的能力**随采用的客户端**。属性改为：凭据（落点与身份）、**连接超时与单次调用超时分两项**（偏好）；**逐动作的执行权限就是那个条目的执行权限** |
+| [§4 Connector](design.md#connector) | 新增「**它带身份鉴权**」一行：接对面哪个账号是持有上的落点与身份类设置，随租户身份不同而不同；设置加**鉴权绑定**。新增一段：**一人多账户不立新对象**，同一租户身份接两个账号就是两份 name 不同的连接件 |
+| [§4 Loop Extension](design.md#loop-extension) | 新增两段：**干预力没有「放宽」一档**；**外来 hook 按它声明的输出能力定干预力**（一张三行表），`allow` 译为「无意见」并在导入时明示，**工作区带来的一律只观察** |
+| [§5.2 设置项分四类](design.md#设置项分四类资产声明每一项时必须标类别) | 表中例子：落点与身份加 MCP 凭据、Connector 鉴权绑定；偏好里超时注明 MCP 分两项，加参数声明。末句「权限项取什么值本版未决」→「一律取最严值」 |
+| [§5.7](design.md#57-工作区那一级不参与权限计算) | 新增规则：**工作区自己提供的资产，权限项一律取最严值**——执行权限「问一下」、干预力「只观察」；不认它自己声明的出厂值；要放宽就收进租户层 |
+| [§2 非目标](design.md#非目标) | 新增三行：系统业务流程有哪几条、MCP 除动作外桥到哪一步、工作区资产的权限放宽与逐运行配置 |
+| [§7 取舍](design.md#七取舍) | 新增四行：Slash Command 单独一类资产；只由交付面识别；MCP 每动作一条目；工作区资产取最严值 |
+| [§8 边界](design.md#八边界与依赖) | 新增 PF-014（受理时怎么走）与 PF-016（交付面动作名是保留名）两行 |
+| [§九](design.md#九未决项) | rev 11 那项**关闭**（取最严值）。**新增两项**：「能不能用 / 谁可以用」这类项的最严值（待裁）；③ 型能否自定义、保留名能否被同为 ③ 型替换（正文未述） |
+| [acceptance](acceptance.md) | §一新增七行、§二新增四行、§四新增一行，对应上面各处 |
+
+**下游要复核什么**：
+- **统一语言**：[UL-slash-command](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command) 的定义按三种绑定目标重写并删「不含系统命令」；
+  [UL-mcp](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-mcp--mcp--mcp) 补「每个动作是一个工具条目、run 内不变」；
+  [UL-connector](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-connector--连接件--connector) 补「带身份鉴权」；
+  [UL-loop-extension](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension) 与本 topic 所有词条的出处 rev；「系统保留名」「系统业务流程」要不要立词条，由统一语言的维护者判。
+- **别的 PF**：[PF-014](../PF-014-inbound-intake-and-queueing/README.md) 与 [PF-016](../PF-016-cli-tui-delivery-surface/README.md) 同日接住斜杠命令的受理与交付面一侧；
+  [PF-006 §6.13](../PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)（rev 15）与 [PF-012「没有放宽这一档」](../PF-012-agent-loop-and-run/design.md#没有放宽这一档)（rev 8）已同口径，本 rev 指过去；
+  [PF-007 §5.6 放行判断](../PF-007-meta-capabilities/design.md#56-一次放行判断走四步)里「MCP 的动作走接入点那一份执行权限」要跟到「**逐动作**的执行权限，配在接入点那份持有上」。
+- **规格**：MCP 的工具条目投影、逐动作权限项；斜杠命令的三种绑定目标与保留名校验；工作区资产的权限最严值——这三处都不许按「资产自己声明的值」实现。
+
+## rev 11 · 设置项分四类；official 替代的三个例外；先禁用后替换；同标识替换必须可见 — 2026-09-23
+
+**起因**：本程调研 [asset-holding-and-evaluation-peers](../../../research/asset-holding-and-evaluation-peers/README.md) 报了四处缺口，
+产品负责人当日裁决，原话在 [decisions](decisions.md#2026-09-23--设置项分四类official-替代的三个例外先禁用后替换同标识替换必须可见)。
+
+| 位置 | 现在怎么说 |
+|---|---|
+| [§5.2 设置项分四类](design.md#设置项分四类资产声明每一项时必须标类别)（新增） | 偏好 / 绑定 / 落点与身份 / 治理；资产声明每一项设置时必须标类别；**落点与身份类和 `immutable` 不从工作区来**；判类准绳一句：改了会不会换掉这次运行要过的那道权限门；工作区自己带来的资产，落点随资产一起来 |
+| [§5.5](design.md#55-资产替换的层级) | 「official 永远可被替代」→ **可被替代，除三种情形**：meta 能力（结构性）、组织在自己那层把 official 持有标 `immutable`、租户在自己那层标 `immutable`；`immutable` 不问被锁的是 official 还是自定义。**新增：同标识替换必须可见**——设置页与 agent 查看条目时都看得到来自哪一层、替换了哪一层的 |
+| [§5.6 第 1 步](design.md#56-四步资产求值--组装--投影--层级计算) | 「先按持有取，再按禁用滤」→ **两小步次序写死**：先按禁用滤（被滤掉的持有在替换次序上视为不存在），再每个标识取最具体的一份、`immutable` 处截断；写明为什么不能先替换再禁用 |
+| [§5.7](design.md#57-工作区那一级不参与权限计算) 末段 | 「只管授权与权限」→ **管三样**：授权与权限、落点与身份类设置项、`immutable` |
+| [§6.4](design.md#禁用是逐层配的布尔设置任一层为真即不可见) 末段 | 补一句：工作区禁掉的那份退出替换，同标识退回租户那份 |
+| [§九](design.md#九未决项) | **新增一项未决**：工作区提供的资产，权限项取什么值——没有任何一层配得了 |
+
+**下游要复核什么**：统一语言新立 [UL-setting-category](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category)；
+[UL-setting](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-setting--设置--setting)、
+[UL-workspace](../../ubiquitous_language/terms/scope-and-resolution.md#ul-workspace--工作区--workspace)、
+[UL-asset-disable](../../ubiquitous_language/terms/circulation-and-entitlement.md#ul-asset-disable--资产禁用--asset-disable) 的出处 rev；
+[PF-007 `inspect`](../PF-007-meta-capabilities/design.md#61-tools通向任意非常驻工具) 的返回内容要补「来自哪一层、替换了谁」，已记在其[已知的来源问题](../PF-007-meta-capabilities/decisions.md#四已知的来源问题)；
+工具定义的设置项声明（PF-006 §5.3）下一次修订时补类别一栏。
+
 ## rev 10 · 工作区是一级治理，不是目录；会话创建时 opt-in，挂上就自动加载 — 2026-09-22
 
 **产品负责人六条补充说明直接落正文**，原话逐字在

@@ -5,6 +5,82 @@
 
 技术投影用 `provenance.json` 引用具体 rev，所以这里的 rev 不准会直接传导到实现侧。
 
+## rev 16 · 工具执行从不由 agent runtime 承载；MCP 连不上就是不可用 — 2026-09-23
+
+**起因**：产品负责人看了 rev 15，纠正了 PM 推导的宿主模型，并裁了 §9 那项待裁。
+原话在 [decisions](decisions.md#2026-09-23二-工具执行从不由-agent-runtime-承载mcp-连不上就是不可用)：
+「Ask() 以及其他的工具，都是自己独立的 runtime，它们的等待态是它们自己的等待态不是 agent runtime 的等待态呀～是 agent runtime 这个协程在被阻塞等这些工具响应，是两回事……」
+「MCP 连不上视作『不可用』，按照我们的定义不可用就是替换成不可用替换件」。
+
+| 位置 | 现在怎么说 |
+|---|---|
+| [§4 等待态](design.md#等待态) | 补一段：**等待态是工具执行自己的，不是 agent runtime 的**；协程回收，`Ask()` 的卡照样挂着，协程重建后照 Run 接着等 |
+| [§4 Tool Execution](design.md#tool-execution) | 绑在谁身上：**会话**，有自己独立的 runtime，从不由 agent runtime 承载；前台 / 后台说的是 agent runtime 阻不阻塞在它上面 |
+| [§5.2](design.md#52-工具这个词指三样东西寿命各不相同) | 图与表回到「绑会话、不绑 run、不绑 agent runtime」；新增小节[「前台、后台说的是 agent runtime 在不在等它」](design.md#前台后台说的是-agent-runtime-在不在等它)：Run 记着协程在等哪一次执行，重建后接着等 |
+| [§5.5](design.md#55-一次工具执行的收场有六种) | 转后台 = agent runtime 不再阻塞在它上面，仍是前台那次调用的收场 |
+| [§6.5](design.md#65-工具执行有自己的运行时绑定在-session-上) | 宿主就是会话；**agent runtime 被回收不影响任何一次工具执行** |
+| [§6.12](design.md#612-工具执行的运行时可以被单独控制而它停了就不重来) | 停机的主语是**工具自己的 runtime**；回收对任何执行都不是停机；[「它的宿主是谁」那张表](design.md#它的宿主是谁决定了什么会带走它)宿主一列都是会话，「agent runtime 被回收」一列都是「不受影响」；「中断一次运行」一列照 PF-012 §6.13 的取消语义（前台落被中断、后台不停），**取消 ≠ 回收** |
+| [§6.13](design.md#接入点连不上它的动作就是不可用) | 新增小节：**run 前连不上 = 不可用**，照最近一次拿到的清单每个动作装替换件，说明「接入点连不上」 |
+| [§7](design.md#七取舍) | 「宿主分前后台」那行换成「从不由 agent runtime 承载」；新增「MCP 连不上即不可用」 |
+| [§9](design.md#九未决项) | **无未决项** |
+| flows、acceptance、README | 同步：回收不影响前后台执行、`Ask()` 卡不成孤儿、取消落被中断只对前台、MCP 连不上装替换件 |
+
+**作废了什么**：rev 15 的「宿主前台 agent runtime、转后台换到会话」「agent runtime 被回收对前台是停机」。
+**没变的**：转后台是前台那次调用的收场、后台另有收场；归档落被中断；停了不重来不设例外；常驻、help、两项设置、MCP 每动作一条目。
+
+### 下游要复核
+
+- **统一语言**：[UL-tool-execution](../../ubiquitous_language/terms/execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution) 原定义「绑在会话上，不绑 agent runtime」**本来就对**，补「前台 / 后台说的是协程阻不阻塞在它上面；回收不影响它」；[UL-execution-outcome](../../ubiquitous_language/terms/execution-and-outcome.md#ul-execution-outcome--执行收场--execution-outcome) 的「被中断」不含「agent runtime 被回收」。
+- **领域对象** [UL-tool-execution](../../domain_objects/objects.md#ul-tool-execution--工具执行)：宿主改为「会话（前后台都是）」，生灭补「协程回收不影响；工具自己的 runtime 停机 → 失败」。
+- **PF-012 §6.13**：前台那行「宿主 agent runtime」改为会话；「转后台就是换宿主」那句要改。
+- 出处标 PF-006 rev 15 的词条与对象条目逐条复核改 rev。
+
+## rev 15 · help 可选；常驻是引用上的偏好类设置；宿主分前后台；MCP 动作映射成工具 — 2026-09-23
+
+**起因**：本程四份调研报了一批缺口，产品负责人 2026-09-23 裁了其中与本 topic 相关的三条（`help`、常驻、MCP 映射），
+原话在 [decisions](decisions.md#2026-09-23--help-可选常驻由引用上的设置指定展示什么归装配策略mcp-对端动作映射成工具)；
+其余是只有一个自洽答案的 PM 推导，推理链在 [decisions 第二节](decisions.md#二pm-推导)。
+
+| 位置 | 现在怎么说 |
+|---|---|
+| [§4 常驻](design.md#常驻) | 常驻标记是「装配它」这条引用上的**一项设置**，挂在那份 Agent Definition / Plugin 上、由持有它的各层配值，**归偏好类**；**常驻标的是能力身份始终对 agent 可见，可见时呈现成什么归装配策略**——技能是 name 与说明进系统提示词，工具由各模型的适配按供应商的方式呈现 |
+| [§4 技能的说明](design.md#技能的说明)（新增） | 说明是**触发与路由的依据**：常驻时进系统提示词的是它，`Skills().search` 按它找，替换件换掉的也是它；正文与资源经 `Skills().read` 按需取 |
+| [§4 Tool Execution](design.md#tool-execution)、[§5.2](design.md#52-工具这个词指三样东西寿命各不相同) | 分开**宿主**与**收件人**：宿主前台是 agent runtime，**转后台就是换宿主**，换到会话；收件人始终是会话 |
+| [§5.3](design.md#53-一份工具定义长什么样) | **`help` 是多命令工具可选的命令空间**，带了须与 `Tools().inspect` 一致；新增[「其中两项声明的是设置项」](design.md#其中两项声明的是设置项)：**目标环境（落点与身份）、转后台阈值（偏好）**，定义里声明的是形状与默认值；其余是依赖名字或作者的许可，不是设置 |
+| [§5.5](design.md#55-一次工具执行的收场有六种) | 「被中断」补上「所在那一层被有意停掉」；新增一小节：**转后台是前台那一次调用的收场，后台那段执行另有收场**（完成、失败、被中断、等不到应答之一），以提醒到达 |
+| [§6.5](design.md#65-工具执行有自己的运行时绑定在-session-上) | 补「宿主分前后台」；**会话归档时在途执行不论前后台，收场都是被中断** |
+| [§6.6](design.md#66-前台后台-与-等待态是两个维度) | 转后台阈值标为偏好类设置 |
+| [§6.7](design.md#占位消息一律要说清原因) | 原因表加「会话被归档」一行 |
+| [§6.8](design.md#68-工具怎么提执行环境的要求) | 执行环境要求是设置项「目标环境」：作者给形状与默认值，组织、租户可配、工作区不能；求值出来的那一份才是这次的要求；不降级照旧 |
+| [§6.11](design.md#它同时决定了换模型之后哪些工具还在) | 「换完之后动作空间可能变小」→ **动作空间不变，模态不兼容的工具变成不可用替换件** |
+| [§6.12](design.md#612-工具执行的运行时可以被单独控制而它停了就不重来) | 停了不重来**没有「可证明从未开始」的例外**；停机判据改为「与**宿主**失去连续性」——**agent runtime 被回收对前台是停机、对后台不是**；宿主表加「agent runtime 被回收」一列；「被中断」三个触发源；「归档是例外」那段删去，归档是有意收掉、落被中断 |
+| [§6.13](design.md#613-mcp-接入点带来的动作)（新增） | MCP 对端**每个动作一个工具条目**，不常驻、经 `Tools()` 发现，随接入点持有与授权，**每次 run 前与可用性一起重算、run 内不变**；技能不能按能力标识依赖 MCP 动作 |
+| [§2 非目标](design.md#非目标) | 新增两行：定义里带不带返回形状的描述、name 怎么写，归规格；产品只要求 name 同类别内唯一 |
+| [§7 取舍](design.md#七取舍) | `help` 那一行改写；新增四行：常驻只管可见、宿主分前后台、停了不重来不设例外、MCP 每动作一条目 |
+| [§9 未决项](design.md#九未决项) | **新增一项**：MCP 接入点在 run 开始前连不上时，它的动作怎么呈现 |
+| [flows](flows.md)、[acceptance](acceptance.md)、README | 同步：宿主与两个收场、归档落被中断、回收对前后台不同、`help` 一致、常驻由各层配、两项设置的类别、换模型不缩动作空间、MCP 条目 |
+
+**作废了什么**：「常驻标记不是设置、不走层级求值」；「不给多命令工具配 `help`」；「工具执行不绑 agent runtime」（前台时绑）；
+「agent runtime 被回收在这一层眼里与进程没了是同一件事」（只对前台成立）；「换模型后动作空间可能变小」；「归档是停机规则的一个例外」。
+
+**没变的**：三层正交、替换件、六种收场本身、依赖声明、帧、卸载、「停机算失败而不是状态不明」。
+
+### 下游要复核
+
+- **统一语言**：[UL-residency](../../ubiquitous_language/terms/reach-and-availability.md#ul-residency--常驻--residency)（定义与「别混：不是设置」那条）、
+  [UL-prompt-slot](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-prompt-slot--提示词槽位--prompt-slot)（「系统提示词里」→ 始终可见的呈现）、
+  [UL-tool-execution](../../ubiquitous_language/terms/execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution)（宿主那句与注意 ②）、
+  [UL-execution-outcome](../../ubiquitous_language/terms/execution-and-outcome.md#ul-execution-outcome--执行收场--execution-outcome)（被中断的含义、转后台后的第二个收场）、
+  [UL-background-execution](../../ubiquitous_language/terms/execution-and-outcome.md#ul-background-execution--后台执行--background-execution)（阈值是偏好类设置）、
+  [UL-mcp](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-mcp--mcp--mcp)（每动作一个工具条目）、
+  [UL-tool-definition](../../ubiquitous_language/terms/execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition)（两项声明是设置项的形状与默认值）；其余出处标 PF-006 rev 14 的逐条复核改 rev。
+- **领域对象**：[UL-tool-execution](../../domain_objects/objects.md#ul-tool-execution--工具执行) 的宿主、生灭（归档落被中断、回收对前后台不同、转后台后另有收场）。
+- **PF-004**（同日 rev 10）：§5.2 技能那一格与 §5.4「装了哪些技能就得有摘要」对齐常驻。
+- **PF-015**（同日 rev 11）：归档时在途工具执行统一为「被中断」。
+- **PF-007**：`help` 与 `inspect` 一致、`Skills().read` 读资源、§6.2「当前注入的执行环境」，已记在其[来源问题](../PF-007-meta-capabilities/decisions.md#四已知的来源问题)。
+- **PF-002**：§4 MCP 与 Tool 的措辞若提到「动作占几个槽位」「目标环境是什么」，与本版 §6.13、§6.8 对齐。
+- **PF-012 §6.13**：宿主表可补「agent runtime 被回收」一列，与本版 §6.12 对齐。
+
 ## 校准 — 2026-09-22（不升 rev）
 
 **一次正文校准，本 topic 的产品规则一条没动。**
