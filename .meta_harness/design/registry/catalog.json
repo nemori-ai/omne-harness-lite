@@ -1563,6 +1563,77 @@
           "rebase_relation": null
         }
       ]
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "data.skill-package",
+        "version": 1
+      },
+      "family": "data",
+      "topic": "skill-package",
+      "status": "candidate",
+      "contract_path": "spec/data/skill-package/v1/contract.md",
+      "resources": [
+        "spec/data/skill-package/v1/contract.md",
+        "spec/data/skill-package/v1/skill-package.schema.json",
+        "spec/data/skill-package/v1/examples.md"
+      ],
+      "acceptance": null,
+      "dependencies": [
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.asset-model",
+            "version": 1
+          },
+          "clauses": [
+            "S-2",
+            "S-9",
+            "S-10",
+            "S-12",
+            "S-13",
+            "S-15"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.content-blocks",
+            "version": 1
+          },
+          "clauses": [
+            "S-7",
+            "S-20"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.tool-definition",
+            "version": 1
+          },
+          "clauses": [
+            "S-9",
+            "S-11",
+            "S-18"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.identity-values",
+            "version": 1
+          },
+          "clauses": [
+            "S-31"
+          ],
+          "rebase_relation": null
+        }
+      ]
     }
   ]
 }
