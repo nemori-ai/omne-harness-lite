@@ -78,7 +78,7 @@ Cordis 4.0.4 的内核语义（[D-025](../../decisions/cordis-adoption-version/R
 | 认人：本中心签发、此刻有效 | [AI S-17](../../../spec/capabilities/account-identity/v1/contract.md#s-17-校验登录状态)：通过得 AccountId；失败恰为 `login-state-rejected`／`invalid-input`／`storage-unavailable`；不得缓存跨越一次准入 | 入口层对每个非豁免请求调一次，把结果映射成线上答复 | 「没带」在 S-17 没有对应输入，由入口层判；出示物表示层不合格与带了多个出示物，在线上并进「无效」（主线裁定）；把 S-17 的 `invalid-input` 并进「无效」这件事要在入口契约里写明与 [IV S-33](../../../spec/data/identity-values/v1/contract.md#s-33-表示层校验与判定分开) 的关系——出示物是身份，不是输入 |
 | 行事的身份值 | [OG S-36](../../../spec/capabilities/organization-governance/v1/contract.md#s-36-当前租户身份查询)（LoginStateId → 当前租户身份）、AI S-17（→ AccountId） | 入口层先推导，再带身份值调领域面——正是 [OG S-42 第 8 行](../../../spec/capabilities/organization-governance/v1/contract.md#s-42-装配给的保证-vs-协议须给的保证)写给入口层的那一步 | 按登录状态上**当前选中**的租户身份行事（[PF-017 §6.2](../../../product/PF-017-governance-center-as-deployable-application/design.md#62-中心只认登录状态不认客户端)）；请求显式带的租户身份与之不一致时怎么答，是 [PF-017 §9](../../../product/PF-017-governance-center-as-deployable-application/design.md#九未决项) 的未决项，归 PF-001 |
 | 各操作的授权 | 各契约操作自己的前置 | 以推导出的身份值调用 | [OG S-22](../../../spec/capabilities/organization-governance/v1/contract.md#s-22-读组织)、[S-26](../../../spec/capabilities/organization-governance/v1/contract.md#s-26-成员资格判定)、[S-34](../../../spec/capabilities/organization-governance/v1/contract.md#s-34-上级链与有共同上级)、[S-35](../../../spec/capabilities/organization-governance/v1/contract.md#s-35-层身份) 没有授权前置。主线裁定：线上投影补「调用方在该组织有效」，否则映射为 `notAuthorized`（依据 [PF-001 §6.4](../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)） |
-| 登录状态的列表与撤销 | [AI S-37](../../../spec/capabilities/account-identity/v1/contract.md#s-37-列出本账号有效登录状态) 返回 LoginStateId；[AI S-16](../../../spec/capabilities/account-identity/v1/contract.md#s-16-撤销登录状态) | — | 线上出示物若就是可列出的 LoginStateId，一次列表读就能拿走同账号其他设备的出示物——[PF-017 §8](../../../product/PF-017-governance-center-as-deployable-application/design.md#八边界与依赖)「不交出能直接用的凭证」这条硬要求正挡它。主线裁定：线上出示物是 LoginStateId，但列表与撤销的线上投影把它换成不可逆的登录状态列表句柄（无词条），撤销时入口层用调用方自己的登录状态现列一次、按句柄匹配回目标；前提是 LoginStateId 不可猜测（128 位 CSPRNG），写进入口契约的「装配给」表。AI v1 不动。**未闭合的一半**：同一条硬要求还说「中心存下来的登录状态，读到数据或备份的人不能直接拿去用」（[§6.14](../../../product/PF-017-governance-center-as-deployable-application/design.md#614-产品不把任何秘密的值交给运维者) 登录状态那一行同口径）；按上述形状，AI 存下来的 LoginStateId 就是可用的出示物，这一半不成立——见[交接缺口](#交接缺口)。它不随本选择的落点移动 |
+| 登录状态的列表与撤销 | [AI S-37](../../../spec/capabilities/account-identity/v1/contract.md#s-37-列出本账号有效登录状态) 返回 LoginStateId；[AI S-16](../../../spec/capabilities/account-identity/v1/contract.md#s-16-撤销登录状态) | — | 线上出示物若就是可列出的 LoginStateId，一次列表读就能拿走同账号其他设备的出示物——[PF-017 §8](../../../product/PF-017-governance-center-as-deployable-application/design.md#八边界与依赖)「不交出能直接用的凭证」这条硬要求正挡它。提案时的形状（线上出示物就是 LoginStateId，列表换成句柄）只挡得住线上那一半；同一条硬要求还说「中心存下来的登录状态，读到数据或备份的人不能直接拿去用」（[§6.14](../../../product/PF-017-governance-center-as-deployable-application/design.md#614-产品不把任何秘密的值交给运维者) 登录状态那一行同口径），AI 存下来的 LoginStateId 就是可用的出示物，那一半不成立。**已闭合**：产品负责人裁按业界做法办（PF-017 [INT-011](../../../product/PF-017-governance-center-as-deployable-application/interviews/2026-09-23-rulings.md)），[AI v2](../../../spec/capabilities/account-identity/v2/contract.md)（`candidate`）把出示物与 LoginStateId 分开——出示物是高熵秘密、只在签发那一次返回，存储里只有它的不可逆形式 LoginStateId，线上认人走 [S-44](../../../spec/capabilities/account-identity/v2/contract.md#s-44-按出示物换取身份)；列表句柄即 LoginStateId。它不随本选择的落点移动 |
 | 内部面不直接暴露 | OG S-42 末段与第 4 行、AI S-30 第 6、8 行、AR S-25 第 7 行 | tenancy-host [已写明这句话](../../../realization/apps/tenancy-host/design.md#归装配的事项逐条承接) | **没有入口层，这句话没有承载者**；tenancy-host 把它记为缺口 |
 | 版本关、公开体检、答复的先后 | 无 | — | **无承载者**：五份契约都不拥有线上版本，也不拥有「先核版本」这条次序 |
 | 中心标识 | 无 | — | **无持有者、无铸造点**。约束：必须与治理事实在同一个存储里（放在库旁的文件里，只备份库就会丢掉它，「跟着数据走」不成立）；不得从部署密钥、地址或 fiber 的运行时身份派生 |
@@ -131,7 +131,8 @@ tenancy-host 进程（一个根 Context；本版单机、一个进程、一个�
 │                     ; provide organizations, memberships, offers, organization-purge
 ├─ account-registr.   inject accounts, organizations, organization-purge ; provide registration
 ├─ 运维面              inject storage, clock   ; effect：只在本机可达的通道
-└─ 入口层              inject logins, registration, organizations, memberships, offers, storage
+└─ 入口层              inject logins, registration, organizations, memberships, offers, storage,
+                             credentials（只为等它就位）, clock（只为启动时等钟就位）
                       插件体：绑定监听（先不分派）→ 读或铸中心标识 ＝【首次启动的提交点】→ 开始分派
                       判定：公开体检 → ① 版本 → ② 认人 → 身份推导 → ③ 办事 → 答复映射
 ```
@@ -140,15 +141,16 @@ tenancy-host 进程（一个根 Context；本版单机、一个进程、一个�
   在它之前任何一步失败，外面看到的都只是「问不到」，没有半开的中心。
 - **运维面排在入口层之前**：反过来排，运维面失败时入口层已经在分派了，就是半开。
 - 各领域 fiber 的 inject 列表按各自节点的依赖表原样；本草图只新增最后两行。
+- **入口层 inject 八个服务**，其中 `credentials`、`clock` 两个只为让门等它们就位。代价：这八个提供者任一换代，都会让入口层这一面关门再开；本版装配不换代。
 
 ### 入口层与六条领域 fiber 的关系
 
 | fiber | 入口层是否 inject | 投影到线上的 | **有意不投影的**（依据） |
 |---|---|---|---|
 | `storage` | 是，**只为中心标识那一张表** | 无 | 不开任何存储级的面 |
-| `clock` | 否 | 无 | 客户端的钟不参与判定（INV-4） |
-| `credentials` | 否 | 无 | 经 AI 间接使用 |
-| AI（`accounts`、`logins`） | 只 inject `logins` | [S-15](../../../spec/capabilities/account-identity/v1/contract.md#s-15-验证凭据并签发登录状态) 登录（不经 ②）；S-16 退出与撤销、S-37 列出（线上给句柄，不给出示物）；S-17 作为 ② 来用 | [S-13](../../../spec/capabilities/account-identity/v1/contract.md#s-13-产生账号未激活)、[S-14](../../../spec/capabilities/account-identity/v1/contract.md#s-14-激活账号)、[S-38](../../../spec/capabilities/account-identity/v1/contract.md#s-38-清除到期的未激活账号记录) 只归 AR；[S-18](../../../spec/capabilities/account-identity/v1/contract.md#s-18-读账号) 不上线（AI S-30 第 6 行靠不暴露兑现）；「按登录标识找账号」没有这个面 |
+| `clock` | 是，**只为启动时等钟就位**；入口层自己不读钟 | 无 | 客户端的钟不参与判定（INV-4） |
+| `credentials` | 是，**只为等它就位**：AI 在调用时才解析 `credentials`、不 inject 它，入口层 inject 它，门就不会在凭据校验缺席时开着；入口层自己不调用它 | 无 | 经 AI 间接使用 |
+| AI（`accounts`、`logins`） | 只 inject `logins` | [S-15](../../../spec/capabilities/account-identity/v1/contract.md#s-15-验证凭据并签发登录状态) 登录（不经 ②）；S-16 退出与撤销、S-37 列出（线上给句柄，不给出示物）；S-17 作为 ② 来用（[AI v2](../../../spec/capabilities/account-identity/v2/contract.md) 起 ② 改走 S-44，判定同 S-17） | [S-13](../../../spec/capabilities/account-identity/v1/contract.md#s-13-产生账号未激活)、[S-14](../../../spec/capabilities/account-identity/v1/contract.md#s-14-激活账号)、[S-38](../../../spec/capabilities/account-identity/v1/contract.md#s-38-清除到期的未激活账号记录) 只归 AR；[S-18](../../../spec/capabilities/account-identity/v1/contract.md#s-18-读账号) 不上线（AI S-30 第 6 行靠不暴露兑现）；「按登录标识找账号」没有这个面 |
 | OG（四个面） | 三个面：`organizations`、`memberships`、`offers` | 除下列两条外的全部 23 个操作；四条读面补授权 | [S-20](../../../spec/capabilities/organization-governance/v1/contract.md#s-20-创建个人组织) 只归 AR 的注册主链——它与别的操作同在 `organizations` 面上，只能靠路由表封闭加结构检查；[S-53](../../../spec/capabilities/organization-governance/v1/contract.md#s-53-清除未激活账号的个人组织)（`organization-purge`）不 inject、不引用；残留清扫一类方法不上线 |
 | AR（`registration`） | 是 | 注册（不经 ②）；入口层负责表示层校验（[AR S-2 注册入口那一行](../../../spec/compositions/account-registration/v1/contract.md#s-2-参与方与精确承诺)） | 清除链不上线 |
 
@@ -282,10 +284,13 @@ tenancy-host 进程（一个根 Context；本版单机、一个进程、一个�
    一个派发点在零监听者时要解释成放行还是拒绝，这本身就是第四个出口；显式调用的失败集合是封闭的，事件没有；
    [OG S-41](../../../spec/capabilities/organization-governance/v1/contract.md#s-41-本版不开控制类事件) 写明本版不开控制类事件。
    将来若出现参与放行的扩展点（例如限流，本版非目标），只能用 `serial`，不得用 `bail` 或 `emit`（[`async-control-not-bail`](../../../basis/cordis/async-control-not-bail.md)）。
-8. **入口层必须 inject 它消费的服务，不能改成调用时再解析。**inject 让门**只在它消费的服务全部可用时才开**，
-   否则停在 `PENDING`，tenancy-host 把它判为清单错误，「要么整个起来」于是有了结构上的支撑（P-5）；
-   运行中任一被消费的服务换代或不可用，入口层卸载重跑，门随之关上（[`plugin-body-reruns-on-provider-change`](../../../basis/cordis/plugin-body-reruns-on-provider-change.md)）。
-   改成调用时解析，门可以在某个领域服务缺席时照样开着，就是半开。
+8. **入口层必须 inject 它所依赖的服务，不能改成调用时再解析。**inject 让门**只在这些服务的提供者全部就位时才开**，
+   否则停在 `PENDING`，tenancy-host 把它判为清单错误，「要么整个起来」于是有了结构上的支撑（P-5）。
+   运行中要分清两件事：
+   - **换代**（某个被 inject 服务的提供者被换掉，或离开 `ACTIVE`）⇒ 入口层卸载重跑，门关上再开（[`plugin-body-reruns-on-provider-change`](../../../basis/cordis/plugin-body-reruns-on-provider-change.md)）；
+   - **不可用**（提供者仍在 `ACTIVE`，只是这一次调用返回「不可用」，例如存储此刻读不到）只表现为返回值，不卸载任何东西 ⇒ 门开着，答 `unavailable`（「答不出」）。
+
+   改成调用时解析，门可以在某个服务的提供者缺席时照样开着，就是半开。
    入口层能承受重跑：插件体只做「读或铸标识、打开监听」两件事，请求之间没有闭包状态；重跑时在途请求握着旧的服务引用，按旧实例的返回收场。
 
 ## 依赖的上游机制语义
@@ -319,12 +324,12 @@ tenancy-host 进程（一个根 Context；本版单机、一个进程、一个�
 
 ## 交接缺口
 
-- **PF-017 rev 1 尚未接受**；它仍在草稿内修订，本包引用的锚点与措辞以 2026-09-23 第二轮修订后的正文为准，再修订时要重核。
-- **存下来的登录状态能不能直接拿去用**：[PF-017 §8](../../../product/PF-017-governance-center-as-deployable-application/design.md#八边界与依赖)「不交出能直接用的凭证」这条硬要求有两半——
-  线上不交出（由列表句柄兑现），以及「中心存下来的登录状态，读到数据或备份的人不能直接拿去用」。
-  按主线裁定的出示物形状（线上出示物就是 LoginStateId），AI 存下来的 LoginStateId 本身就是可用的出示物，**后一半不成立**；
-  而 AI v1 的 S-37 要在进程内返回 LoginStateId，AI 的提供者也就不能只存它的摘要。能满足它的形状（例如出示物是另一个独立的秘密、存储里只留摘要）要改 AI 的契约或提供者。
-  **这不是本选择的落点问题**，三个入口层候选都一样；报主线在起草入口契约之前重看那条裁定。
+- **PF-017 rev 1 已于 2026-09-23 由产品负责人接受**（[decisions §一](../../../product/PF-017-governance-center-as-deployable-application/decisions.md)）；本包引用的锚点与措辞以接受时的正文为准，它再升 rev 时要重核。
+- **存下来的登录状态能不能直接拿去用——已闭合**：[PF-017 §8](../../../product/PF-017-governance-center-as-deployable-application/design.md#八边界与依赖)「不交出能直接用的凭证」有两半——
+  线上不交出，以及「中心存下来的登录状态，读到数据或备份的人不能直接拿去用」。提案时的形状（线上出示物就是 LoginStateId）只满足前一半，
+  而 AI v1 的 S-37 要在进程内返回 LoginStateId，提供者也就不能只存它的摘要。这不是本选择的落点问题，三个入口层候选都一样。
+  闭合方式：产品负责人裁按业界做法办（[INT-011](../../../product/PF-017-governance-center-as-deployable-application/interviews/2026-09-23-rulings.md)），
+  发 [AI v2](../../../spec/capabilities/account-identity/v2/contract.md)（`candidate`）把出示物与 LoginStateId 分开，入口契约钉 v2。
 - **入口层遇到的「中心自身的故障」怎样到达完整体检，承载者未定**。候选：入口层以通知类事件（`emit`）报告、运维面计数；或由装配提供一个诊断汇。
   选哪一个归将立的提供者节点；若走事件，它是通知不是控制。
 - **入口层持有 `storage` 的访问范围**：它是进程里唯一面向网络的单元，只为一张一行的表而握着存储。
