@@ -16,3 +16,5 @@ export {
   narrow,
 } from './protocol.ts'
 export { mapStorageError } from './map.ts'
+export { type MigrationFragment } from './migration.ts'
+export { type PreflightInput, type PreflightResult, type PreflightCheck } from './preflight.ts'
