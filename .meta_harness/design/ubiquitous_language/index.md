@@ -38,6 +38,7 @@
 | [UL-current-tenant-identity](terms/subjects-and-ownership.md#ul-current-tenant-identity--当前租户身份--current-tenant-identity) | 当前租户身份 | Current Tenant Identity | 登录状态上的一项选择，**创建那一刻被捕获，之后切换不影响已创建的** |
 | [UL-tenant-role](terms/subjects-and-ownership.md#ul-tenant-role--租户角色--tenant-role) | 租户角色 | Tenant Role | 租户在其组织内当前能做什么 |
 | [UL-super-administrator](terms/subjects-and-ownership.md#ul-super-administrator--超级管理员--super-administrator) | 超级管理员 | Super Administrator | 一个组织内的最高治理角色，**不是平台管理员** |
+| [UL-deployment-operator](terms/subjects-and-ownership.md#ul-deployment-operator--运维者--deployment-operator) | 运维者 | Deployment Operator | 握着一次治理中心部署的人，**不是账号、不是租户角色，产品不记它是谁**；对治理事实没有门 |
 
 ## [作用域与求值](terms/scope-and-resolution.md)
 
@@ -160,6 +161,9 @@
 | [UL-execution-environment-permission](terms/grounding-and-isolation.md#ul-execution-environment-permission--执行环境权限--execution-environment-permission) | 执行环境权限 | Execution Environment Permission | per-tool 三态，管**作用落在哪**不管**动作准不准**；`auto_place` 别混 `auto_permission` |
 | [UL-session-base](terms/grounding-and-isolation.md#ul-session-base--会话据点--session-base) | 会话据点 | Session Base | 一个账号的会话、日志、卡片与 runtime 实际所在的那一处，身份是（一处 · 中心 · 账号）；**不是进程**，没人开着屏时照常发生事 |
 | [UL-governance-center](terms/grounding-and-isolation.md#ul-governance-center--治理中心--governance-center) | 治理中心 | Governance Center | 治理事实与组织／租户层范围化对象所在的那一处，**一次部署一个、身份不是它的地址**；**它不知道任何会话** |
+| [UL-deployment-key](terms/grounding-and-isolation.md#ul-deployment-key--部署密钥--deployment-key) | 部署密钥 | Deployment Key | 这一次部署独有的一套秘密，让「只有中心自己能说的话」不可伪造；**不加密任何东西，换了什么都不丢** |
+| [UL-governance-center-identifier](terms/grounding-and-isolation.md#ul-governance-center-identifier--治理中心标识--governance-center-identifier) | 治理中心标识 | Governance Center Identifier | 中心指认自己的名字，首次启动定下、不变、跟着数据走；**不是地址、不是秘密**，搬家还是另一个中心比它 |
+| [UL-deployment-parameter](terms/grounding-and-isolation.md#ul-deployment-parameter--部署参数--deployment-parameter) | 部署参数 | Deployment Parameter | 「按部署配置」那些值的统称，运维者给值、缺一不可、改了只影响此后；**不是范围化对象** |
 
 ## [取用与可用性](terms/reach-and-availability.md)
 
@@ -171,6 +175,7 @@
 | [UL-current-availability](terms/reach-and-availability.md#ul-current-availability--当下可用性--current-availability) | 当下可用性 | Current Availability | **依赖解析的结果，不是开关**；每次 run 前重算。**可见但用了一定失败**，与禁用不同 |
 | [UL-stand-in](terms/reach-and-availability.md#ul-stand-in--替换件--stand-in) | 替换件 | Stand-in | 不可用时占在原位的**同形呈现**：只换说明，调用必得「不可用」 |
 | [UL-dependency-declaration](terms/reach-and-availability.md#ul-dependency-declaration--依赖声明--dependency-declaration) | 依赖声明 | Dependency Declaration | **一串必需项的抽象名字**，种类不限；**只有且，只有必需** |
+| [UL-governance-center-health-check](terms/reach-and-availability.md#ul-governance-center-health-check--治理中心体检--governance-center-health-check) | 治理中心体检 | Governance Center Health Check | 中心「我在不在、能不能答」的自述；公开部分恰三样、登录前可读，**不含治理事实与秘密** |
 
 ## [执行与收场](terms/execution-and-outcome.md)
 

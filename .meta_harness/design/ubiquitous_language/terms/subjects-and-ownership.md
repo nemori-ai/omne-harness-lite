@@ -319,4 +319,33 @@
 - **注意**：**本组织的有效成员名单不在管理类之内**——[它对本组织的每一位有效成员可见](../../product/PF-001-identity-scope-and-agent-constraints/flows.md#四角色与操作)，看得见名单不等于持有这个角色；**[成员资格已失效](#ul-membership-standing--成员资格效力--membership-standing)的那些另算，[只有它看得见](../../product/PF-001-identity-scope-and-agent-constraints/flows.md#四角色与操作)**
 - **注意**：「至少一位」是一条**任何时刻都成立的事实**，不是每次动作各自检查一遍的前置条件——[两位超管同时移除或降级对方时，先成的一方成功、后成的一方被拒](../../product/PF-001-identity-scope-and-agent-constraints/flows.md#33-成员关系)，两次动作各自合法、合起来把超管清空这种结果不允许存在
 
+### UL-deployment-operator · 运维者 · Deployment Operator
+
+> **中**：持有一次[治理中心](grounding-and-isolation.md#ul-governance-center--治理中心--governance-center)部署的控制权的那个人或那几个人：
+> 能把它立起来、停掉、重启、升级，能拿到它所在的机器与它的数据所在。
+> **它不是账号，也不是[租户角色](#ul-tenant-role--租户角色--tenant-role)**——它先于任何账号存在，
+> 作用域是这一次部署而不是某个组织；**产品不给它身份、不记录它是谁**。
+> 它能做的事全在部署这一层，**对治理事实没有任何一扇门**。
+>
+> **EN**: The person or people who hold control of one governance-center deployment: they can
+> stand it up, stop, restart and upgrade it, and can reach the machine it runs on and wherever
+> its data lives. **Not an account and not a tenant role** — they exist before any account does,
+> and their scope is this one deployment rather than any organization; **the product gives them
+> no identity and keeps no record of who they are**. Everything they can do lies at the deployment
+> layer, **with no door of any kind onto governance facts**.
+
+- **形态**：总称
+- **出处**：[PF-017 §4 运维者](../../product/PF-017-governance-center-delivery-surface/design.md#运维者) ·
+  [§5.5](../../product/PF-017-governance-center-delivery-surface/design.md#55-运维者与超级管理员两条线不交叉) ·
+  [§6.13](../../product/PF-017-governance-center-delivery-surface/design.md#613-运维者没有任何一扇门通向账号能做的事)（rev 1）
+- **⚠️ 别混**：**不是[超级管理员](#ul-super-administrator--超级管理员--super-administrator)。**超管是一个组织内的最高治理角色，
+  凭自己的登录状态做治理动作；运维者凭对机器与数据的控制让中心在，**手上没有任何登录状态可用**。
+  同一个人两头都是，产品也当成两个人
+- **注意 ①**：形态判「总称」，因为系统里指不出「这一个运维者」，也没有任何东西引用它；
+  判成挂在治理中心上的属性，下游就会去建一份「运维者列表」，而正文明说中心不登记
+- **注意 ②**：「平台管理员」「部署管理员」「内置管理员账号」**不是它的别名**——那几个名字指的东西
+  [本产品没有](../../product/PF-017-governance-center-delivery-surface/design.md#非目标)，刻意不立
+- **注意 ③**：产品挡的是「产品自己开的门」，不是握着磁盘的人——
+  [边界说实话](../../product/PF-017-governance-center-delivery-surface/design.md#613-运维者没有任何一扇门通向账号能做的事)
+
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)
