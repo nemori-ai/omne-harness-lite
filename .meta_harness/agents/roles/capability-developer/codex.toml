@@ -1,6 +1,6 @@
 name = "capability-developer"
 description = "Implement scoped capability behavior, state transitions and cross-capability composition against supplied contracts; own assigned recovery and control semantics. Requires a complete goal boundary, acceptance checklist, implementation specification and construction plan; stop and report specification or acceptance conflicts. Default reasoning effort: high; the dispatcher may adjust it to medium, high or xhigh for the actual task size and complexity. Use the role dispatch settings to apply the chosen effort."
-model = "gpt-5.6-sol"
+model = "gpt-6-sol"
 sandbox_mode = "workspace-write"
 
 [agents]

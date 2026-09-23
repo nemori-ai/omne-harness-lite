@@ -1,6 +1,6 @@
 # Anthropic 模型提示指导的选择
 
-以下条目先按 Claude Code 官方支持说明及本地 2.1.269 版本确认，再核对精确模型
+以下条目先按 Claude Code 官方支持说明及本地 2.1.280 版本确认，再核对精确模型
 指导。支持范围、提供方条件和账户未验证项见[宿主支持记录](model-support.json)。
 先确认目标仍受当前宿主支持，再按精确模型查官方独立指南；没有独立指南时读
 [通用提示入口](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices)，
@@ -10,6 +10,7 @@
 
 | 官方指导的范围 | 官方建议摘要 | 本技能如何据此提出候选调整 |
 |---|---|---|
+| [Claude Opus 5.5](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5-5) | 思考恒开，effort 是唯一的思考控制，默认 `medium`；同档位比 Opus 5 想得更多，`xhigh`/`max` 留给测得出收益的工作；无人值守时可能以进展汇报收尾，官方建议点名不想要的几种提前收尾 | 派发档位显式给出，先只换模型、再扫档；无人值守角色写明「以纯文字结束就是交回」与不该停的几种形态，同时保留角色自己的停止条件 |
 | [Claude Fable 5.1](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1) | 关注长任务沟通、压缩保留信息、任务范围，以及低 effort 时检索触发；effort 应重新评估 | 明确恢复时必须保留的约束、决定和未知；进展说明与检索触发仅在相关工作需要时补充 |
 | [Claude Opus 5](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5) | 默认会自检，反复要求验证可能造成额外成本；建议控制叙述与无谓委派 | 将必需验收与重复自检区分；写出结果需要保留的信息，不机械添加“再找 agent 检查一次” |
 | [Claude Sonnet 5](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5) | 输出随任务复杂度变化；effort 和 thinking 行为需要按版本重新核对 | 用目标样例校准产物充分性，评估实际 effort；不同代际相同档位不等于相同计算量 |
