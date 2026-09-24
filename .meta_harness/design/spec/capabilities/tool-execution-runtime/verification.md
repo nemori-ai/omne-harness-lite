@@ -26,12 +26,12 @@
 |---|---|---|---|
 | [S-50 前台完成](v1/contract.md#s-50-前台完成) | 演练；断言收场、账、消息、条目**同成同败**（在四者之间注入一次失败） | **未开始** | 受阻：会话日志追加口未定（[G-1](v1/contract.md#十二已知缺口)） |
 | [S-51 前台被用户中断](v1/contract.md#s-51-前台被用户中断) | 演练；执行者在停止后以错误退出 | **未开始** | 断言收场仍是 `interrupted`、三件事分开 |
-| [S-52 自动转后台后完成](v1/contract.md#s-52-自动转后台后完成落一条提醒) | 演练，能操纵时间源；运行在执行完成之前终结 | **未开始** | 账归原运行；`late` 标注受阻于 [G-8](v1/contract.md#十二已知缺口)；落盘前那一关受阻于 [G-6](v1/contract.md#十二已知缺口) |
+| [S-52 自动转后台后完成](v1/contract.md#s-52-自动转后台后完成落一条提醒) | 演练，能操纵时间源；运行在执行完成之前终结 | **未开始** | 账归原运行、标 `late`；落盘前那一关受阻于 [G-6](v1/contract.md#十二已知缺口) |
 | [S-53 等待、再次等待与迟到的答复](v1/contract.md#s-53-等待再次等待与迟到的答复) | 演练 | **未开始** | 答复者形状受阻于 [G-10](v1/contract.md#十二已知缺口) |
 | [S-54 停机后前台与后台各追补一条](v1/contract.md#s-54-停机后前台与后台各追补一条) | **故障注入**：强杀据点进程；**含一个没有协程要恢复的会话** | **未开始** | 卡片关闭受阻于 [G-5](v1/contract.md#十二已知缺口) |
 | [S-55 找得到的不追补](v1/contract.md#s-55-找得到的不追补) | **故障注入**（见下「两个方向」①） | **未开始** | —— |
 | [S-56 归档之后到达的完成不送达](v1/contract.md#s-56-归档之后到达的完成不送达) | 演练；执行者故意在停止之后再交回 | **未开始** | —— |
-| [S-57 取消运行不动后台](v1/contract.md#s-57-取消运行不动后台) | 演练；两级各跑一次 | **未开始** | `run_cancelled` 取值受阻于 [G-2](v1/contract.md#十二已知缺口)：这一条本版**只能验证记录，验证不了消息** |
+| [S-57 取消运行不动后台](v1/contract.md#s-57-取消运行不动后台) | 演练；两级各跑一次 | **未开始** | 记录与消息都可验证（`run_cancelled` 已有取值） |
 | [S-58 插队三行](v1/contract.md#s-58-插队三行) | 演练 | **未开始** | `human_declined` 的判据（等的是不是卡片）受阻于 [G-5](v1/contract.md#十二已知缺口) |
 | [S-59 停止与交回交错](v1/contract.md#s-59-停止与交回交错) | **故障注入**：在收场写下与实际停下之间注入一次交回 | **未开始** | local-execution「停止与 I/O 交错」那组反例的本项目版本 |
 | [S-60 凭据不符与核对不了都整批不执行](v1/contract.md#s-60-凭据不符与核对不了都整批不执行) | 演练；放行核对面可关 | **未开始** | 依赖 `capability.tool-admission` 的核对面（并行起草） |
@@ -123,7 +123,7 @@
 - **并行起草的六份契约**（`data.arrival-events`、`capability.stream-assembly`、`capability.tool-admission`、`capability.asset-registry`、`capability.loop-extension-runner`、`capability.mcp-bridge`）：
   本契约按它们的施工账本或主线转达引名，**未登 catalog 依赖**。合流对齐时：补登坐标与消费 clauses；核对引到的名字
   （`verifyToken(token, call, session)` 的三个结果、`availability` 的三支、`after_action` 的派发与「卸载判定不可用 = 只记可见」、桥换代时挂起调用的收场、`stream-assembly` 的五个操作与 `finish` 的四个 `reason`）是否与定稿一致，不一致按定稿改本契约。
-- **`data.content-blocks` 下一版补上 `run_cancelled`、`backgrounded_at_start`、`terminated_by_agent` 之后**：[G-2](v1/contract.md#十二已知缺口) 闭合，S-10 那三行的「没有」改为「有」，不改任何行为。
+- **三个占位原因**：起草时写作「等 `data.content-blocks` 下一版」；2026-09-24 整批对齐时它们已在 v1 候选里，G-2 闭合，S-10 那三行改为「有」，不改任何行为。
 - **起草途中主线三次转达**（均已并入本版）：核凭据的面与两个失败值（`notAdmitted{why}`、`admissionUnavailable`）；「同一提交」改写为装配给的一行、两种承接形状不在契约里选；
   注册表判为不可用的条目落 `failed` 并带原因（`notAvailable{reason}`，已被 2026-09-24 整批对齐撤回，见下一条）；MCP 动作的撤下例外。
 - **2026-09-24 整批对齐**（主线裁定 2026-09-23，待产品负责人确认；账本 S13-a～h、S19-b/d）：
@@ -132,7 +132,7 @@
   - **工具执行被中断不另补提醒**（S13-d）：S-19 加一条，S-4 `data.messages` 行加 S-21；G-14 闭合，R-15 闭合。
   - **六份并行契约补登**：头部依赖列表与 S-4 表合一，引名逐字核定稿——`stream-assembly` 的操作名是 `start`、`closeOut`（原 `open_target`、`close_out` 作废）；`verifyToken` 的结果是 `valid | invalid{reason}`、失败 `invalidInput | unavailable`（原 `invalid{why} | unavailable` 三结果写法作废），`invalidInput` 收成整批 `invalidInput`（S-23 ⑧）。六份都不反向登记本契约，无环。
   - **MCP 桥**（S19-b/d）：S-11 把桥的失败值按 `capability.mcp-bridge/v1#S-21` 对到 `implementation_error` / `abnormal_interruption`；S-14 按「请求是否已发出」定外部效果；S-37 与桥 S-27 互指；CS-6。
-  - **`data.call-accounts` 下一版**（S13-f）与**三个占位原因**（S13-h）：S-14、G-2、G-8 写明主线已裁的下一版形状；缺口在 v2 发布前不闭合。
+  - **账与占位原因**（S13-f、S13-h）：`data.call-accounts` v1 候选已带 `externalEffect`、`stoppedAt`、`late`，`data.content-blocks` v1 候选已带三个占位原因——S-13 表补 `initiator`、`credentialScope`、`externalEffect`、`stoppedAt`、`late` 五行，S-14 写投影（「不可确定」→ `unknown`），G-2 闭合，G-8 收窄为「晚报的一笔没有 `obtainedVia` 取值」，新立 G-15（`credentialScope` 从哪来）。
   - 不改的：S13-c 采纳的推导（姿态 × 阶段、`preempt` 原子、并发按会话计等）本来就在正文；S13-e 进展任务照登；S13-g 两种承接形状本来就不选。
   - **对消费者**：agent loop 与 `BkgJobs()` 读到的判为不可用的项，从 `notAvailable{reason}` 逐条失败变成 `ended{unavailable}`——调用方不必另补结果这一点不变。
 

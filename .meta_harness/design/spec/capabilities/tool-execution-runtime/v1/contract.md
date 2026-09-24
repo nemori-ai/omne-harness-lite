@@ -50,7 +50,7 @@
   运行终结之后结束的后台执行照样落账并归该运行（PF-012 I-11 的收窄）
 - **主线裁定 2026-09-23，待产品负责人确认**（整批对齐落地，账本 S13-a～h）：注册表判为不可用的条目被调用**一律落收场 `unavailable`**（替换件与关掉的命令同归此，`failed{not_available}` 一支删去，S13-a）；
   声明了卸载的原始结果**由本能力总是存下**，卸载判定只决定给模型看什么（S13-b）；工具执行被中断**不另补** `interrupted` 提醒（S13-d）；
-  执行记录与会话日志同提交写两种承接形状、不选（S13-g）；三个占位原因进 `data.content-blocks` 下一版（S13-h）；`ToolCallAccount` 的三项扩展进 `data.call-accounts` 下一版（S13-f）
+  执行记录与会话日志同提交写两种承接形状、不选（S13-g）；三个占位原因已进 `data.content-blocks` v1 候选（S13-h）；`ToolCallAccount` 的外部效果、停止时刻与 `late` 已进 `data.call-accounts` v1 候选（S13-f）
 - **精确语义依赖**（十三项，消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)，catalog 按它登记）：
   - `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1`（candidate）
   - `omne-harness-lite-design-2026-09-15 · data.call-accounts · v1`（candidate）
@@ -161,7 +161,7 @@
 | 依赖 | 消费的条款 | 据以写出什么 |
 |---|---|---|
 | `data.content-blocks` v1 | [S-12](../../../data/content-blocks/v1/contract.md#s-12-完整的工具调用)、[S-14](../../../data/content-blocks/v1/contract.md#s-14-callid)、[S-15](../../../data/content-blocks/v1/contract.md#s-15-工具结果块)、[S-17](../../../data/content-blocks/v1/contract.md#s-17-六种收场)、[S-18](../../../data/content-blocks/v1/contract.md#s-18-占位原因与它落在哪一格)、[S-21](../../../data/content-blocks/v1/contract.md#s-21-attachmentref)、[S-22](../../../data/content-blocks/v1/contract.md#s-22-落盘之后整块不变) | 调用块、`CallId` 的唯一范围、结果块的形状、六种收场与后台段四种、占位原因与落格、存原始结果得到的引用、落盘不变 |
-| `data.call-accounts` v1 | [S-9](../../../data/call-accounts/v1/contract.md#s-9-costitem一次工具执行里的一笔)、[S-10](../../../data/call-accounts/v1/contract.md#s-10-model_call-那一笔是镜像权威在那份-modelresponse)、[S-11](../../../data/call-accounts/v1/contract.md#s-11-toolcallaccount一次工具执行的账)、[S-14](../../../data/call-accounts/v1/contract.md#s-14-wallclock)、[S-17](../../../data/call-accounts/v1/contract.md#s-17-costcorrection事后补账)、[S-18](../../../data/call-accounts/v1/contract.md#s-18-原账不改)、[S-20](../../../data/call-accounts/v1/contract.md#s-20-缺账或被拒收记未知不伪造)、[S-21](../../../data/call-accounts/v1/contract.md#s-21-账进日志不进给模型看的上下文)、[S-25](../../../data/call-accounts/v1/contract.md#s-25-按尝试记明细按-run-汇总)、[S-37](../../../data/call-accounts/v1/contract.md#s-37-三个归属标识的家runidattemptidmodelcallid) | 一次执行恰一份账、何时写、起止时刻、被拒的一笔怎么记、补账、账不进上下文、按运行归属；`RunId`、`AttemptId` 的家 |
+| `data.call-accounts` v1 | [S-9](../../../data/call-accounts/v1/contract.md#s-9-costitem一次工具执行里的一笔)、[S-10](../../../data/call-accounts/v1/contract.md#s-10-model_call-那一笔是镜像权威在那份-modelresponse)、[S-11](../../../data/call-accounts/v1/contract.md#s-11-toolcallaccount一次工具执行的账)、[S-14](../../../data/call-accounts/v1/contract.md#s-14-wallclock)、[S-17](../../../data/call-accounts/v1/contract.md#s-17-costcorrection事后补账)、[S-18](../../../data/call-accounts/v1/contract.md#s-18-原账不改)、[S-20](../../../data/call-accounts/v1/contract.md#s-20-缺账或被拒收记未知不伪造)、[S-21](../../../data/call-accounts/v1/contract.md#s-21-账进日志不进给模型看的上下文)、[S-25](../../../data/call-accounts/v1/contract.md#s-25-按尝试记明细按-run-汇总)、[S-37](../../../data/call-accounts/v1/contract.md#s-37-三个归属标识的家runidattemptidmodelcallid)、[S-38](../../../data/call-accounts/v1/contract.md#s-38-两种归属用量归凭据那一格成本归发起者)、[S-39](../../../data/call-accounts/v1/contract.md#s-39-晚到的账) | 一次执行恰一份账、何时写、起止时刻、被拒的一笔怎么记、补账、账不进上下文、按运行归属；`RunId`、`AttemptId` 的家；成本归发起者；外部效果与停止时刻的投影；晚到的账标 `late` |
 | `data.messages` v1 | [S-11](../../../data/messages/v1/contract.md#s-11-toolmessage)、[S-12](../../../data/messages/v1/contract.md#s-12-真实结果落哪种消息只看有没有占位)、[S-13](../../../data/messages/v1/contract.md#s-13-toolinternalmessage)、[S-14](../../../data/messages/v1/contract.md#s-14-toolinternalmessage-怎么收的尾)、[S-19](../../../data/messages/v1/contract.md#s-19-后台执行的两种收场提醒)、[S-21](../../../data/messages/v1/contract.md#s-21-中断之后必补一条)、[S-22](../../../data/messages/v1/contract.md#s-22-系统发起的等待答复回来)、[S-30](../../../data/messages/v1/contract.md#s-30-悬着的占位)、[S-32](../../../data/messages/v1/contract.md#s-32-会话日志里的配对与唯一) | 落哪种消息、两种后台收场提醒、工具执行被中断不另补提醒（占位承载）、工具说过程那条消息与它的收尾、工具等待的答复不落消息、日志里的配对与次序 |
 | `data.tool-definition` v1 | [S-10](../../../data/tool-definition/v1/contract.md#s-10-设置项声明)、[S-12](../../../data/tool-definition/v1/contract.md#s-12-后台许可与转后台阈值)、[S-13](../../../data/tool-definition/v1/contract.md#s-13-超时与并发)、[S-14](../../../data/tool-definition/v1/contract.md#s-14-时长的表示)、[S-20](../../../data/tool-definition/v1/contract.md#s-20-两种写法与等价规则)、[S-21](../../../data/tool-definition/v1/contract.md#s-21-toolresult-的三样)、[S-22](../../../data/tool-definition/v1/contract.md#s-22-结果内容里没有工具调用)、[S-23](../../../data/tool-definition/v1/contract.md#s-23-卸载)、[S-24](../../../data/tool-definition/v1/contract.md#s-24-结果与声明对得上)、[S-25](../../../data/tool-definition/v1/contract.md#s-25-toolresult-不是收场)、[CS-1](../../../data/tool-definition/v1/contract.md#cs-1-派发一次多命令调用) | 设置项不声明即没有、后台许可、超时/并发/阈值的语义（替它的 G-6 落地）、返回值两种写法的归一、结果检查与违反声明的收场（替它的 G-15 落地）、参数按所选命令校验 |
 | `data.loop-extension` v1 | [S-14](../../../data/loop-extension/v1/contract.md#s-14-按位置的-subject) | `after_action`（`each`）的 subject：什么收场之下有待落盘的结果块（替它留给本能力的那一句落地） |
@@ -275,18 +275,19 @@
 | 前台跑到转后台阈值，或前台上限到点且允许转后台（[S-44](#s-44-前台上限与转后台阈值)） | `backgrounded` | `backgrounded_auto` | 有 |
 | 用户手动切（[S-27](#s-27-转后台)） | `backgrounded` | `backgrounded_by_user` | 有 |
 | 插队，工具允许转后台且没在等（[S-31](#s-31-插队处置)） | `backgrounded` | `backgrounded_by_preemption` | 有 |
-| 发起时就在后台（[S-23](#s-23-提交一批)） | `backgrounded` | `backgrounded_at_start` | **没有**（[G-2](#十二已知缺口)） |
+| 发起时就在后台（[S-23](#s-23-提交一批)） | `backgrounded` | `backgrounded_at_start` | 有（补） |
 | 用户直接叫停这一次执行（[S-25](#s-25-中断一次执行)、[S-26](#s-26-成批中断)） | `interrupted` | `user_interrupted` | 有 |
 | 插队，工具不允许转后台，或在等但等的不是卡片（[S-31](#s-31-插队处置)） | `interrupted` | `interrupted_by_preemption` | 有 |
 | 插队时这次执行停在一张卡片上等人（[S-31](#s-31-插队处置)） | `interrupted` | `human_declined` | 有 |
-| agent 经 `BkgJobs()` 掐掉（[S-25](#s-25-中断一次执行)） | `interrupted` | `terminated_by_agent` | **没有**（[G-2](#十二已知缺口)） |
-| 这一次运行被取消而它还在前台（[S-28](#s-28-取消一次运行)） | `interrupted` | `run_cancelled` | **没有**（[G-2](#十二已知缺口)；content-blocks 的 G-2） |
+| agent 经 `BkgJobs()` 掐掉（[S-25](#s-25-中断一次执行)） | `interrupted` | `terminated_by_agent` | 有（补） |
+| 这一次运行被取消而它还在前台（[S-28](#s-28-取消一次运行)） | `interrupted` | `run_cancelled` | 有（补） |
 | 会话被归档（[S-29](#s-29-会话归档)） | `interrupted` | `session_archived` | 有 |
 | 前台上限到点且不许转后台（[S-44](#s-44-前台上限与转后台阈值)） | `interrupted` | **本版没有取值**（[G-3](#十二已知缺口)） | —— |
 | 停机，恢复时追补；MCP 桥换代 | `failed` | `abnormal_interruption` | 有 |
 
-**表里标「没有」的四行，本版没有合法的消息表示**：写到这里的一方**停下并上交**，不借用相近的值（`user_interrupted` 说的是用户叫停这一次执行，不是运行被取消或 agent 掐掉）。
-执行记录上的收场与原因照写——记录不受块的取值集约束——**只是那条消息落不下去**，直到 `data.content-blocks` 下一版补齐（主线已裁三值）。
+**三个补上的取值**（`backgrounded_at_start`、`terminated_by_agent`、`run_cancelled`）已进 `data.content-blocks` v1 候选的 [S-18](../../../data/content-blocks/v1/contract.md#s-18-占位原因与它落在哪一格)（主线裁定 2026-09-23，待产品负责人确认；账本 S13-h；原 G-2 闭合）。
+**表里标「本版没有取值」的那一行**，没有合法的消息表示：写到这里的一方**停下并上交**，不借用相近的值（`user_interrupted` 说的是用户叫停这一次执行，不是超时）。
+执行记录上的收场与原因照写——记录不受块的取值集约束——**只是那条消息落不下去**，直到 [G-3](#十二已知缺口) 有答案。
 
 ### S-11 失败的种类
 
@@ -331,6 +332,11 @@
 | 成员 | 本能力怎么填 |
 |---|---|
 | `callId` | 这次执行的 |
+| `initiator` | 提交这次执行时的租户身份（[S-23](#s-23-提交一批) ① 的 `tenant`）——成本归它（[`S-38`](../../../data/call-accounts/v1/contract.md#s-38-两种归属用量归凭据那一格成本归发起者)） |
+| `credentialScope` | 这次执行的自有费用经哪一格上的凭据产生；执行者怎样把这一格报给本能力、没报时缺席是否可信，本版没有答案（[G-15](#十二已知缺口)） |
+| `externalEffect` | 由 [S-14](#s-14-停止与外部效果分开说) 的外部效果确定性投出：「不可确定」→ `unknown`，其余 → `confirmed` |
+| `stoppedAt` | 写账之前已观察到执行者停下的时刻；没观察到就缺席（[`S-14`](../../../data/call-accounts/v1/contract.md#s-14-wallclock)） |
+| `late` | 落账时它归属的尝试已被取代或运行已经终结 → `true`；否则缺席（[`S-39`](../../../data/call-accounts/v1/contract.md#s-39-晚到的账)） |
 | `cost.items` | 执行者报的（`tool_reported`）与本能力从它管得着的服务收来的（`service_reported`、`model_response`），见 [S-40](#s-40-报账) |
 | `usage` | 这次执行经本系统调模型的用量汇总；一次都没调就缺席 |
 | `frames` | 这次执行发了几帧、砍了多少（[S-39](#s-39-发帧)） |
@@ -338,10 +344,10 @@
 | `wallClock.endedAt` | **收场那一刻**；恢复时追补的（停机）**缺席**——结束那一刻没被观察到，**不补成扫描时刻**（[S-14](../../../data/call-accounts/v1/contract.md#s-14-wallclock)） |
 
 - **归属**：账挂在执行记录上，经 `(run, attempt)` 归到提交它的那次运行的那次尝试（[`S-25`](../../../data/call-accounts/v1/contract.md#s-25-按尝试记明细按-run-汇总)）。
-  **运行已经终结之后才结束的后台执行，照样落账并归该运行**（主线裁定，PF-012 I-11 的收窄）；「终结之后落的账」怎样标注，等 `data.call-accounts` 下一版（[G-8](#十二已知缺口)）。
+  **运行已经终结之后才结束的后台执行，照样落账并归该运行，标 `late`**（主线裁定，PF-012 I-11 的收窄；[`data.call-accounts/v1#S-39`](../../../data/call-accounts/v1/contract.md#s-39-晚到的账)）。
 - **不受尝试栅栏约束**：执行的结果与账不属于哪一次尝试的推进，旧尝试发起的执行照样落。
 - **收场之后才到的费用**（停止与交回交错、晚到的报账）**不改那份账**：原账不改；它们作为一条记录条目留下（[S-22](#s-22-关键转换留记录)），
-  能否以补账进入有效费用——`CostCorrection` 对工具执行只收 `manual`——等 `data.call-accounts` 下一版（[G-8](#十二已知缺口)）。
+  进有效费用走 `CostCorrection{ target: tool_execution }`（主线裁定 2026-09-23，账本 S13-f；[`S-17`](../../../data/call-accounts/v1/contract.md#s-17-costcorrection事后补账)）——但那份补账的 `obtainedVia` 只有 `manual` 配得上工具执行，**执行者晚报的一笔没有对应取值**（[G-8](#十二已知缺口)）。
 - **账不进给模型看的上下文**（[`S-21`](../../../data/call-accounts/v1/contract.md#s-21-账进日志不进给模型看的上下文)）：它随执行记录的收场条目进会话日志，不进任何消息的块。
 
 ### S-14 停止与外部效果分开说
@@ -356,7 +362,8 @@
 
 - **「已经停止」不等于「外部效果已经撤销」**；本能力不补偿、不撤销（[S-3](#s-3-本契约明确不承诺什么)）。
 - 正常跑完的执行（`completed`、执行者交回的 `failed`）的外部效果确定性，**本能力不判**：执行者没有报它，而本能力看不见（留空，不填默认值）。
-- `ToolCallAccount` v1 没有承载这三件事的成员；本版它们在执行记录上。**`data.call-accounts` 下一版给 `ToolCallAccount` 加 `externalEffect ∈ confirmed | unknown`、`stoppedAt?`、`late`**（主线裁定 2026-09-23，待产品负责人确认；账本 S13-f），收场之后才到的费用走 `CostCorrection`；三值怎样投到两值，归那一版（[G-8](#十二已知缺口)）。
+- **三件事在执行记录上；账上带它们的投影**（主线裁定 2026-09-23，待产品负责人确认；账本 S13-f；[`data.call-accounts/v1#S-11`](../../../data/call-accounts/v1/contract.md#s-11-toolcallaccount一次工具执行的账)）：
+  `externalEffect` 取 `unknown` 当且仅当这里是「不可确定」，「已确定发生」「已确定未发生」与本能力不判的正常收场都取 `confirmed`（它说的是「在外面的动作收场时已经了结」）；实际停止的时刻进 `stoppedAt`，只在写账之前已观察到停下时出现（[S-13](#s-13-账)）。
 
 ---
 
@@ -518,7 +525,7 @@
 | ① | 租户、会话、运行、尝试；`batch`：一批 `AdmittedCall`，**按调用块在回复里的次序**。每项 `{ call: ToolCallBlock, admission: AdmissionToken, environment: 执行环境引用, definition: ToolDefinitionRef, startInBackground?: 布尔 }`；`startInBackground` 缺席＝否（它不是身份参数；来源见 [G-11](#十二已知缺口)） |
 | ② | **按这个次序判，第一个不成立的就是结果**：本能力在服务（扫描已完成、没在撤除）；会话没归档、这个运行没被取消（[S-28](#s-28-取消一次运行)）；**批里每一项的凭据都核对为相符**：`verifyToken(admission, call, session)`——凭据绑定的是 `(会话, CallId, 生效参数)`，少一样都会留缝（`CallId` 只在一份会话日志内唯一）；**批里每一项在这次尝试的注册表里都读得到条目** |
 | ③ | 无 |
-| ④ | **整批一次提交**：每一项一条执行记录（`queued`，姿态前台或后台）＋ 下面几种**即刻收场**的项的收场、账、消息交付 ＋ 发起即后台的项的占位交付 ＋ 各自的提交条目。**这次提交之前，任何一项的执行者都没起**（[S-17](#s-17-持久意图先于外部效果)）。即刻收场的几种：注册表把这一项判为**不可用**——条目是替换件（`stand_in{for}`）、条目 `unavailable{reason}`、或所选的那条命令在 `commandAvailability` 里是 `unavailable{reason}`——→ `unavailable`（替换件给的说明或注册表给的原因，执行者不起）；`startInBackground` 而工具不许后台 → `failed{background_start_refused}`。发起即后台且允许的 → 姿态后台，前台那次调用收场 `backgrounded{backgrounded_at_start}`（[G-2](#十二已知缺口)） |
+| ④ | **整批一次提交**：每一项一条执行记录（`queued`，姿态前台或后台）＋ 下面几种**即刻收场**的项的收场、账、消息交付 ＋ 发起即后台的项的占位交付 ＋ 各自的提交条目。**这次提交之前，任何一项的执行者都没起**（[S-17](#s-17-持久意图先于外部效果)）。即刻收场的几种：注册表把这一项判为**不可用**——条目是替换件（`stand_in{for}`）、条目 `unavailable{reason}`、或所选的那条命令在 `commandAvailability` 里是 `unavailable{reason}`——→ `unavailable`（替换件给的说明或注册表给的原因，执行者不起）；`startInBackground` 而工具不许后台 → `failed{background_start_refused}`。发起即后台且允许的 → 姿态后台，前台那次调用收场 `backgrounded{backgrounded_at_start}` |
 | ⑤ | 每一项一行：`{ callId, disposition }`，`disposition` ∈ `accepted{posture}` · `ended{outcome}`（即刻收场的那几项）；**逐条失败**同样出现在这里：`backgroundNotAllowed`——它的调用已经收场、消息已交付，调用方不必另补结果；判为不可用的项是 `ended{unavailable}`，不是失败 |
 | ⑥ | **整批失败**（什么都不写）：`invalidInput` · `notAdmitted{why}` · `admissionUnavailable` · `callIdConflict` · `alreadyEnded`（会话已归档或运行已取消） · `runtimeNotReady` · `runtimeStopped` · `dependencyUnavailable{storage \| registry}`。**逐条失败**（这一批照样成立）：`backgroundNotAllowed` |
 | ⑦ | **幂等边界 = `(租户, 会话, CallId)`**：同一个调用再提交一次（同一份生效参数），返回已有那条记录的 `disposition`，**不起第二次执行者**；一批里部分项已登记，登记过的按幂等返回、没登记的照常。**同一个 `CallId` 带不同的生效参数** → 整批 `callIdConflict`（登记方的唯一性被违反，[`data.content-blocks/v1#S-14`](../../../data/content-blocks/v1/contract.md#s-14-callid)） |
@@ -572,7 +579,7 @@
 
 - **中断不是失败**（PF-006 §6.7）：收场是 `interrupted`，不是 `failed`，哪怕执行者因停止而以错误退出（那次退出按 [S-16](#s-16-首胜收场只写一次) 丢弃）。
 - 前台的执行被中断，落 `ToolMessage`；后台的执行被中断，落 `background_execution_finished{outcome: interrupted}` 提醒（[S-19](#s-19-送达)）。
-- `terminated_by_agent` 在 `data.content-blocks` v1 里还没有取值（[S-10](#s-10-占位原因)，[G-2](#十二已知缺口)）：本版 `initiator = agent` 的中断**写得下记录、落不下消息**，按 [S-10](#s-10-占位原因) 末段上交。
+- `terminated_by_agent` 是 `data.content-blocks` v1 候选补上的取值（[S-10](#s-10-占位原因)；原 G-2 闭合）：`initiator = agent` 的中断照常落占位。
 
 ### S-26 成批中断
 
@@ -629,7 +636,7 @@
 
 - **取消跟着宿主走**：前台的跟着停，因为那一步不要了；**后台的不停**（PF-012 §6.13）。**两级的范围相同**，只有停得多快不同（§6.14）。
 - **回收 agent runtime 不是取消**，不调本操作；执行一个都不受影响。
-- `run_cancelled` 在 `data.content-blocks` v1 里还没有取值（[G-2](#十二已知缺口)）：本版这些中断写得下记录、落不下消息，按 [S-10](#s-10-占位原因) 末段上交。
+- `run_cancelled` 是 `data.content-blocks` v1 候选补上的取值（[S-10](#s-10-占位原因)；原 G-2 闭合）。
 
 ### S-29 会话归档
 
@@ -1061,19 +1068,20 @@
 | # | 缺口 | 阻断谁 | 谁来裁 |
 |---|---|---|---|
 | **G-1** | **会话日志的追加口与记录条目的壳未定义**：追加是否能加入本能力的事务、按 `(CallId, 段)` 幂等的追加口、记录条目带什么——执行记录与会话日志之间**当前没有共同的存储对象** | [S-19](#s-19-送达) 两种承接形状选哪一种；[S-22](#s-22-关键转换留记录) 条目的形状 | **主线／loop 与会话那一程**（会话日志的 owner）；形状选择随后归本能力的提供者设计 |
-| **G-2** | **三个占位原因在 `data.content-blocks` v1 里没有取值**：`run_cancelled`、`backgrounded_at_start`、`terminated_by_agent`（主线裁定 2026-09-23 进下一版，账本 S13-h；v1 不原地改） | [S-10](#s-10-占位原因) 那三行、[S-23](#s-23-提交一批)、[S-25](#s-25-中断一次执行)、[S-28](#s-28-取消一次运行)：**记录写得下、消息落不下** | **主线**：`data.content-blocks` v2 补三值；PF-006 §6.7／§6.12 产品修订 |
+| **G-2** | **已闭合（2026-09-24 整批对齐）**：`run_cancelled`、`backgrounded_at_start`、`terminated_by_agent` 已进 `data.content-blocks` v1 候选的 S-18（主线裁定 2026-09-23，账本 S13-h）；PF-006 §6.7／§6.12 的产品修订仍待产品修订批 | — | — |
 | **G-3** | **前台上限到点而不许转后台时的中断原因没有取值** | [S-44](#s-44-前台上限与转后台阈值) 那一行 | **PF-006 的 owner**：补一行原因（「超时被中断」一类），或明说超时对不许后台的工具不适用 |
 | **G-4** | **执行环境引用的家与落点求值**：PF-005 没有契约；引用的形状、「到不了位」由谁判 | [S-38](#s-38-起执行者) 第 3 步、`AdmittedCall.environment` | **PF-005 的 owner**（后续一程） |
 | **G-5** | **决策卡片没有契约**：卡片标识的形状、`superseded` 这个关闭状态（主线裁定 C-B-M5 **待产品负责人确认**）、谁能答卡 | [S-12](#s-12-等待) 的卡片成员、[S-20](#s-20-恢复扫描与停机不重来) 第 4 步、[S-31](#s-31-插队处置) `human_declined` 的判据 | **PF-008 的 owner**（产品补一句）；卡片契约归后续一程 |
 | **G-6** | **落盘前那一关由谁驱动**：后台执行收场时、运行已终结时、协程已回收时，`after_action`（`each`）由哪一方派发、在谁的宿主里跑。**原「那一关不可用时原始结果丢失」一半已闭合**（2026-09-24 整批对齐：原始结果由本能力先存下，账本 S13-b） | [S-42](#s-42-结果落成消息之前的那一关)：后台结果与停机后的送达 | **主线**（PF-012 与 `capability.loop-extension-runner`） |
 | **G-7** | **存储未定义**：`storeRaw` 存进哪个存储、留多久、解引用时谁判能不能读（同 `data.content-blocks` 的 G-1） | [S-36](#s-36-存一份原始结果)、帧里的媒体引用 | **PF-006 的 owner**（B-M14 已指向 `core/storage` ＋ 保留期设置，待落） |
-| **G-8** | **`ToolCallAccount` 装不下的三件事**：外部效果的确定性与实际停止（[S-14](#s-14-停止与外部效果分开说)）、「运行终结之后落的账」的标注（主线裁定 `late`）、收场之后才到的费用怎样进有效费用（补账对工具执行只收 `manual`）。**主线已裁下一版的形状**（2026-09-23，账本 S13-f）：`externalEffect ∈ confirmed | unknown`、`stoppedAt?`、`late`，收场之后到的费用走 `CostCorrection`；v1 装不下，缺口留到那一版发布 | [S-13](#s-13-账)、[S-14](#s-14-停止与外部效果分开说)、[S-40](#s-40-报账) | **主线**：`data.call-accounts` v2（含三值到两值的投影） |
+| **G-8** | **收窄（2026-09-24 整批对齐）**：外部效果、实际停止、`late` 三件已进 `data.call-accounts` v1 候选（S-11、S-39；账本 S13-f），投影写在 [S-13](#s-13-账)、[S-14](#s-14-停止与外部效果分开说)。**仍缺一件**：收场之后执行者晚报的一笔进有效费用走 `CostCorrection`，而它的 `obtainedVia` 对工具执行只有 `manual`，没有「执行者报的」那个取值 | [S-13](#s-13-账)、[S-40](#s-40-报账) | **`data.call-accounts` 的 owner**：`obtainedVia` 补一值，或写明晚报的只留记录条目 |
 | **G-9** | **工具作者以正常返回表达失败的写法**（`data.tool-definition` 的 G-9） | [S-41](#s-41-交回)：本版只有抛出一条路 | **`data.tool-definition` 的 owner** |
 | **G-10** | **答复的形状**：答复者（人：哪个租户成员；agent：`AgentRef` 的家在 `data.messages` 的 G-7）怎样表示；「明确拒绝回复」怎样作为一次答复进来 | [S-30](#s-30-答复等待) | **PF-008 的 owner**（卡片契约）与 PF-007 `Agents()` 的 owner |
 | **G-11** | **发起即后台的请求从哪来**：`Shell()` 的 `run_in_background` 是它自己的一个参数；一般的调用怎样表达「发起时就在后台」、由谁置 `startInBackground` | [S-23](#s-23-提交一批) ① | **PF-007 的 owner** 与 loop 那一程 |
 | **G-12** | **会话标识的类型与撤销归档之后的提交**：`SessionRef` 的家（`data.messages` 的 G-7）；撤销归档之后同一会话能否再提交执行 | [S-6](#s-6-执行记录)、[S-29](#s-29-会话归档) | **会话那一程**（PF-015） |
 | **G-13** | **主线裁定没有落成决定记录**：开头「主线裁定」一条列的各项，设计链里暂无处可链 | 本契约接受时这些依据的可追溯性 | **主线**：落一份决定（`record/decisions/message-and-shape-rulings-2026-09-23/` 或新决定） |
 | **G-14** | **已闭合（2026-09-24 整批对齐）**：工具执行被中断不另补 `interrupted` 提醒，占位承载（主线裁定 2026-09-23，账本 S13-d；`data.messages/v1#S-21` 已写明，本契约 [S-19](#s-19-送达)） | — | — |
+| **G-15** | **账上的 `credentialScope` 从哪来**：`data.call-accounts/v1#S-38` 要这次执行的自有费用经哪一格上的凭据产生；执行者（本地工具、MCP 桥）怎样把这一格报给本能力、没报时缺席（=「没经范围上的凭据」）是否可信，本版没有答案 | [S-13](#s-13-账) | **主线**（`data.call-accounts` S-38 与 `capability.mcp-bridge` 的报账面） |
 
 ---
 
@@ -1087,7 +1095,7 @@ loop 提交一批之后，依赖 [S-23](#s-23-提交一批) ⑤、[S-24](#s-24-�
 #### CS-2 `BkgJobs()` 三命令
 
 `list` → [S-34](#s-34-列出后台执行)；`output` → [S-33](#s-33-读一次执行)（已收场的看收场，没收场的看在途帧）；`terminate` → [S-25](#s-25-中断一次执行) `initiator = agent`——
-**本版停在 [G-2](#十二已知缺口)**：`terminated_by_agent` 没有取值，记录写得下、消息落不下。
+`terminated_by_agent` 已有取值（[S-10](#s-10-占位原因)），这一支落得下消息。
 
 #### CS-3 会话归档流程
 

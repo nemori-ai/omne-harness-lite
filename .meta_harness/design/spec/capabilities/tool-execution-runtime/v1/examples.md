@@ -115,7 +115,7 @@
 | 2 | 当前这一步是一批 `[build(call_a), deploy(call_b)]`：`build` 在跑，`deploy` 排在它后面 | `preempt(T, ses_1, [call_a, call_b])` | **一次写**：`call_a` → `backgrounded{backgrounded_by_preemption}`，照跑；`call_b` → `interrupted{interrupted_by_preemption}`，执行者从没起过、外部效果「已确定未发生」——**它不会在 `call_a` 转后台之后接着在前台起来** | [S-31](contract.md#s-31-插队处置) |
 | 3 | 当前这一步是 `[confirm_plan(call_c)]`，停在 `card_3` 上等人 | `preempt(T, ses_1, [call_c])` | `call_c` → `interrupted{human_declined}`：它在等，本版不能转后台；等的是一张卡片，所以原因是「人拒绝回复」 | [S-31](contract.md#s-31-插队处置)、PF-014 §5.4 |
 
-第 1 步的 `run_cancelled` 在 `data.content-blocks` v1 里还没有取值：记录写得下、消息落不下，停在 [G-2](contract.md#十二已知缺口)。
+第 1 步的 `run_cancelled` 是 `data.content-blocks` v1 候选补上的取值（原 G-2 已闭合），占位 `ToolMessage` 照常落下。
 
 ## 8. 每个失败值一个反例
 
