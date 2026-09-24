@@ -24,8 +24,8 @@
 
 ## 仍未闭合的事项
 
-- 领域名（`tools`、agent loop 那一侧的领域）、包布局与装配节点名：**待产品负责人拍板**。
-- 两条主线裁定待确认：放行判断缺席时整批拒，停机后关闭孤卡（任务区 `tmp/assets-runtimes/pending-user-rulings.md` §一 U-5、U-6 的甲案）。
+- 推荐 C、领域名 `tools` 与 loop 侧 `agent-loop`、装配归 `apps/cli`（不立 `apps/runtime-host`）：已由 [D-039](../../decisions/assets-runtimes-split-and-rulings/README.md) 接受（2026-09-24）。
+- 放行判断不可用（U-5：租户件默认跳过可声明、自带件替换件、放行判断替换件为全拒件）与停机后关闭孤卡（U-6 甲）：同决定裁定。
 - [design.md 交接缺口](design.md#交接缺口)第 1～9 项。
 
 评审完成也不产生接受或发布；实际的处置决定从[包入口](README.md)引用，并逐项标明接受范围。
