@@ -5,23 +5,24 @@
 > **当前状态：几乎全部未开始。**`data.messages` v1 是 `candidate`，未接受、未冻结；尚无提供者设计、尚无源码、尚无装配。
 > 下表登记的是**已经触发的证据义务**，不是已完成的检查。
 > **唯一执行过的是 Alloy 结构模型**（2026-09-23，起草者本机，**未登记为 formal task、未入 `record/evidence/`**，见[形式化工件](#形式化工件)）。
-> **Schema 正反实例校验未运行**：起草时只做了手核（[`examples.md` 第 13 节](v1/examples.md#13-起草者逐条自核)），**没有跑过任何校验器**；
+> **Schema 正反实例只跑过一次本地自检**（整批对齐 2026-09-23，未登记，见[结果与反例](#结果与反例)）；
 > 八条规范场景、七条消费者核对场景、六条静态检查**一条都未执行**——文件存在不代替结果。
 
 ## 证据义务
 
 | # | 义务 | 证据形式 | 覆盖哪些条款 | 实际状态 |
 |---|---|---|---|---|
-| V-1 | **形状校验**：[`examples.md`](v1/examples.md) 第 1～9 节、10.1、11、12 节逐行过 Schema，比对「Schema」一列。10.2 节不参与 | Draft 2020-12 校验器（须支持 `unevaluatedProperties`、`dependentRequired`、`minContains`／`maxContains`，并能按 `$id` 解析到 `data.content-blocks/v1`、`data.offer-expiry/v1` 的 Schema）＋ 该文件按节绑定的 `$defs` | [S-1](v1/contract.md#s-1-七种消息)～[S-27](v1/contract.md#s-27-compactionmessage-与它的名单) 的**形状那一面**、[S-38](v1/contract.md#s-38-判别式与枚举闭合) | **未运行。**起草者手核 110 行（通过 44、拒绝 66），结论与标注一致；**手核不是证据** |
+| V-1 | **形状校验**：[`examples.md`](v1/examples.md) 第 1～9 节、10.1、11、12、14 节逐行过 Schema，比对「Schema」一列。10.2 节不参与 | Draft 2020-12 校验器（须支持 `unevaluatedProperties`、`dependentRequired`、`minContains`／`maxContains`，并能按 `$id` 解析到 `data.content-blocks/v1`、`data.offer-expiry/v1`、`data.call-accounts/v1`、`data.model-profile/v1` 的 Schema）＋ 该文件按节绑定的 `$defs` | [S-1](v1/contract.md#s-1-七种消息)～[S-27](v1/contract.md#s-27-compactionmessage-与它的名单)、[S-49](v1/contract.md#s-49-模型请求运行时写的五种记录不是消息)、[S-50](v1/contract.md#s-50-调用终结的三支) 的**形状那一面**、[S-38](v1/contract.md#s-38-判别式与枚举闭合) | **本地自检，未登记**（[结果与反例](#结果与反例)）：125 行与「Schema」列一致，第 11 节五条消息全部通过。**正式覆盖未开始** |
 | V-2 | **拒绝值的具名与两段优先级**：对 `examples.md` 每个拒绝行，接收边界给出的拒绝值等于「拒绝值」一列；第 12 节六行专验第一段的次序 | 接收边界的一致性用例（同一份输入跨实现比对） | [S-39](v1/contract.md#s-39-表示层拒绝值)、[S-40](v1/contract.md#s-40-表示层拒绝不是判定也不修补) | **未开始。**需要一个实现了接收边界的提供者。**只验 Schema 通过与否不够**——两个实现可以都拒绝、却报不同的名字 |
-| V-3 | **单条消息里 Schema 管不到的约束**：工具消息两个 `callId` 相等；后台收场提醒里工具结果块与 `source` 的 `callId`／`outcome` 相等；名单不点自己；一条消息里块标识唯一（含嵌套） | 接收边界的校验 ＋ [`examples.md` 10.1 节](v1/examples.md#101-单条消息里的跨成员约束) | [S-2](v1/contract.md#s-2-消息底座)、[S-11](v1/contract.md#s-11-toolmessage)、[S-19](v1/contract.md#s-19-后台执行的两种收场提醒)、[S-29](v1/contract.md#s-29-合法名单的判定) ① | **未开始。**块标识唯一这一条是 `data.content-blocks` v1 交过来的义务（它的 V-3），**落点就在本契约的接收边界** |
+| V-3 | **单条消息里 Schema 管不到的约束**：工具消息两个 `callId` 相等；后台收场提醒里工具结果块与 `source` 的 `callId`／`outcome` 相等；名单不点自己；一条消息里块标识唯一（含嵌套，`block_id_duplicate`） | 接收边界的校验 ＋ [`examples.md` 10.1 节](v1/examples.md#101-单条消息里的跨成员约束) | [S-2](v1/contract.md#s-2-消息底座)、[S-11](v1/contract.md#s-11-toolmessage)、[S-19](v1/contract.md#s-19-后台执行的两种收场提醒)、[S-29](v1/contract.md#s-29-合法名单的判定) ① | **未开始。**块标识唯一这一条是 `data.content-blocks` v1 交过来的义务（它的 V-3），**落点就在本契约的接收边界** |
 | V-4 | **日志层的判定**：名单的 ②～⑥、配对与唯一 ①～⑤ | 日志序列检查（给定一份日志前缀，判一次追加合不合法）＋ [`examples.md` 10.2 节](v1/examples.md#102-会话日志层的判定)逐行 | [S-29](v1/contract.md#s-29-合法名单的判定)、[S-30](v1/contract.md#s-30-悬着的占位)、[S-32](v1/contract.md#s-32-会话日志里的配对与唯一) | **未开始。**需要日志写入方的提供者。⑤ 的卡片那一半停在 [G-5](v1/contract.md#九已知缺口)，⑥ 停在 [G-2](v1/contract.md#九已知缺口)——停在缺口如实记为「本版到此为止」 |
 | V-5 | **此刻模型可读的规范场景**：[`examples.md` 第 11 节](v1/examples.md#11-规范场景五条消息此刻哪些块模型可读)的五条消息，实现算出的两个可读集合与手算逐块相同；三个变体各跑一次 | 规范场景演练：真实组装，真实日志 | [S-28](v1/contract.md#s-28-此刻模型可读是算出来的)（[S-47](v1/contract.md#s-47-此刻模型可读)） | **未执行。**需要 PF-010 组装的提供者。**手算不是证据** |
 | V-6 | **规范场景** [S-41](v1/contract.md#s-41-七种之外即拒)～[S-46](v1/contract.md#s-46-名单的合法性)、[S-48](v1/contract.md#s-48-中断必补) | 规范场景演练：真实接收边界、真实落盘 | [S-1](v1/contract.md#s-1-七种消息)、[S-10](v1/contract.md#s-10-assistantmessage-怎么收的尾)～[S-13](v1/contract.md#s-13-toolinternalmessage)、[S-16](v1/contract.md#s-16-性质与来源定死对应)、[S-17](v1/contract.md#s-17-说状态的带前值与现值)、[S-19](v1/contract.md#s-19-后台执行的两种收场提醒)、[S-21](v1/contract.md#s-21-中断之后必补一条)、[S-29](v1/contract.md#s-29-合法名单的判定) | **未执行。**[S-42](v1/contract.md#s-42-工具消息恰一块) 的两个反例**必须同跑**：只跑块数那一个，一个只信 Schema 的实现也会全过 |
 | V-7 | **出门的三条义务**：每接一家，两种我们自己的消息各有落点、不丢；标识由系统加；提醒里的工具结果不译成第二个回答；`ToolInternalMessage` 到不了翻译方 | 传输适配的一致性用例（每家一组） | [S-34](v1/contract.md#s-34-四种直接对应)～[S-36](v1/contract.md#s-36-toolinternalmessage-不进请求) | **未开始。**需要模型请求运行时与传输适配（块 C）的提供者 |
-| V-8 | **消费者路径走查**（[CS-1～CS-7](v1/contract.md#消费者核对场景)） | 结构化走查（评审对象）；有提供者之后升级为真实演练 | 见各场景 | **未开始。**走查**不需要提供者**，现在就做得了；**CS-2 停在 G-2／G-5、CS-4 停在 G-12、CS-6 停在 G-8** |
+| V-8 | **消费者路径走查**（[CS-1～CS-7](v1/contract.md#消费者核对场景)） | 结构化走查（评审对象）；有提供者之后升级为真实演练 | 见各场景 | **未开始。**走查**不需要提供者**，现在就做得了；**CS-2 停在 G-2／G-5**（对齐波之后 CS-4、CS-6 不再停在缺口） |
 | V-9 | **跨进程**：[第五节](v1/contract.md#五装配给与协议给)右列七行逐行演练 | 规范场景演练 | [S-3](v1/contract.md#s-3-messageid)、[S-29](v1/contract.md#s-29-合法名单的判定)、[S-32](v1/contract.md#s-32-会话日志里的配对与唯一)～[S-36](v1/contract.md#s-36-toolinternalmessage-不进请求)、[S-39](v1/contract.md#s-39-表示层拒绝值) | **未开始，且本版装配下无法演练**——单机同进程不构成接收边界。**这不是免除**：跨进程演化启动时必须补做，登记在[变化的影响](#变化的影响) |
 | V-10 | **静态检查**（[SC-1～SC-6](#静态检查义务)） | 实现语言的静态检查（具体形式归 realization） | 见下表 | **未开始；检查器尚不存在** |
+| V-12 | **与别处逐字相同的两份取值**：`model_call_ended.cause` 的四个值与 `data.loop-extension` v1 `FailureCause` 里出门前的四个逐字相同；`ResponseId` 的散文形状与 `data.model-response/v1#S-6` 逐字相同 | 静态检查（两份 Schema 的对应片段做字面比较） | [S-37](v1/contract.md#s-37-规范表示)、[S-50](v1/contract.md#s-50-调用终结的三支) | **未开始。**这两处为避开互为依赖而没有 `$ref`，**任何一边改了而另一边没跟，不会报任何错** |
 | V-11 | **结构模型**：[`formal/Readable.als`](v1/formal/README.md) 的两条 `run` 找到实例、四条 `check` 找不到反例；五个变异各自找到反例 | Alloy 6.2.0 | [S-28](v1/contract.md#s-28-此刻模型可读是算出来的)、[S-29](v1/contract.md#s-29-合法名单的判定) ①②④⑤、[S-30](v1/contract.md#s-30-悬着的占位) 第 1 类 | **执行过一次，结论与预期一致**，见[形式化工件](#形式化工件)；**未登记为 formal task，原始输出未入 `record/evidence/`** |
 
 ### 静态检查义务
@@ -39,9 +40,20 @@
 
 ## 结果与反例
 
+### 已执行：整批对齐时的本地自检（2026-09-23）
+
+| 项 | 值 |
+|---|---|
+| 对象 | 对齐波改过之后的 `v1/messages.schema.json` 与 `v1/examples.md`（未冻结，无 hash 可绑） |
+| 工具 | CPython 3.12 ＋ `jsonschema` 4.26.0（`Draft202012Validator`）＋ `referencing`，工作区锁定 uv 环境，未另装依赖；设计根下全部 `*.schema.json` 按 `$id` 登进同一个解析表，跨契约引用都解析到真身 |
+| 做了什么 | 按各节「校验对象」逐行求值，比对「Schema」一列（第 1～9 节、10.1、12、14 节）；第 11 节五条消息另按 `$defs/Message` 各求一次 |
+| 结果 | **125/125** 与「Schema」列一致（通过 47、拒绝 78）；第 11 节 **5/5** 通过 |
+| 脚本在哪 | 会话暂存区，**未入库** |
+| 范围与局限 | 只核 Schema 这一关；「拒绝值」一列（V-2）与 Schema 管不到的约束（V-3）**未机核**，第 10.1 节的 `通过` 只说明那几行确实需要接收边界另判 |
+
 ### 尚无的记录
 
-V-1～V-10 **一条执行记录也没有**。起草时的手核只保证 `examples.md` 的实例与它们的标注在起草者眼里不互相矛盾，
+V-2～V-10、V-12 **一条执行记录也没有**。起草时的手核只保证 `examples.md` 的实例与它们的标注在起草者眼里不互相矛盾，
 **未登记、无输入快照、未进 [`record/evidence/`](../../../record/evidence/README.md)**，不作为任何一条义务的证据。
 
 首次执行时在此记录工具与版本、环境、配置、输入范围、可复现步骤与原始结果位置；原始产物归 `record/evidence/`。
@@ -66,6 +78,26 @@ V-1～V-10 **一条执行记录也没有**。起草时的手核只保证 `exampl
 登记了会得到一个**永远通过的任务**。起草简报允许「退出 0 且无反例才登记」，但这条前提在这个工具上判不出「无反例」，因此按「拿不准就不登记」处理，**已报主线**。
 
 ## 变化的影响
+
+- **整批对齐（2026-09-23）**，仍是 `candidate`，未冻结，改在 v1 原地：
+
+  | 改的是什么 | 依据 | 对证据与消费者的影响 |
+  |---|---|---|
+  | `ModelCallId` 改 `$ref` `data.call-accounts/v1#S-37`（G-4 关）；`attempt_started.attempt` 改 `$ref` 同处的 `AttemptId` | 简报 §A | 形状不变；catalog 增依赖 `data.call-accounts` [S-37] |
+  | `ResponseId` **保留散文自定义**，不 `$ref` `data.model-response`（G-3 关）：那份契约 `$ref` 本契约的 `AssistantMessage`，反向会成环 | 简报 §C「无环」；**与简报 §A「messages `$ref`」相抵，已报主线** | 新增 V-12 的一半 |
+  | `attempt_started.reason` 三值 `first`／`resumed_after_interruption`／`resumed_after_wait`（G-8 关） | 主线裁定，待产品负责人确认（账本 S3-a） | **表示变化**；examples 第 7、8 节改行；CS-6 走通 |
+  | `loop_guard.level` 改 `level_1`／`level_2` | 主线裁定，待产品负责人确认 | **表示变化**；examples 四行改写 |
+  | 中断提醒去掉 `what: tool_execution` 与 `about` 的工具那一支：工具执行被中断不另补，占位承载 | 主线裁定，待产品负责人确认（简报 §B tool-execution-runtime） | **表示变化**；examples 第 7、8 节改行；S-21 改写 |
+  | 拓展件名字 `LoopExtensionName` = 类别 `loop_extension` 的能力标识的 `name`（G-10 关） | 主线裁定，待产品负责人确认 | 新增一项 `$defs`；形状仍是非空字符串 |
+  | `SessionRef` 的家定在本契约（全树统一） | 主线裁定，待产品负责人确认（账本 S21-c） | `data.connector` 改 `$ref` 它 |
+  | 新拒绝值 `block_id_duplicate`（第一段，排在块层六个之后） | 简报 §B 与块 D 交接（账本 S4） | 拒绝值十四个；examples `m_x5` 改期望；`data.arrival-events`／`capability.stream-assembly` 的 G-6 改指它 |
+  | S-22 读法：答复落卡片、解除等待时追加提醒 | 主线裁定，待产品负责人确认（账本 S3-c） | 无表示变化 |
+  | S-31 有了合法表示（G-12 关）；S-11 占位表改指 `data.content-blocks` S-18，不再列原因个数 | `data.content-blocks` 对齐波补了形状与三个占位原因 | CS-4 走通 |
+  | **新增 S-49、S-50 与 `ModelInvocationRecord` 等六项 `$defs`**：模型请求运行时写的五种记录，不是消息 | 主线裁定，待产品负责人确认（账本 S16-d） | **新增表示**；examples 新增第 14 节十八行；新增 P-13、V-12 的另一半；catalog 增依赖 `data.model-profile` [S-5, S-13] |
+  | 设计依据改链 D-038（Q3、Q15），其余写「主线裁定 2026-09-23，待产品负责人确认」（G-13 关） | 简报 §B | 无 |
+  | 本地自检 125 行 ＋ 第 11 节 5 条 | 简报 | V-1 首次有机检记录 |
+
+  下面「起草」一条里预告的 G-3、G-4、G-8、G-12、G-13 那几行，已由本条兑现。
 
 - **起草（2026-09-23）**：首版候选，建在 PF-009 rev 7、PF-010 rev 5、PF-012 rev 10、PF-014 rev 5、PF-015 rev 11、PF-006 rev 17、PF-004 rev 10、PF-008 rev 5 上。
   **依赖 `data.content-blocks` v1（candidate，未冻结）**：它若在评审或对齐中改 `ContentBlock`、`ToolResultBlock`、`BlockId`、`CallId`、`ExecutionOutcome` 的定义或拒绝值，本契约的 Schema 引用、[S-6](v1/contract.md#s-6-每种消息能装哪几类块) 的表与 [S-39](v1/contract.md#s-39-表示层拒绝值) 的六个借来的名字须同轮复核，V-1 重跑。
