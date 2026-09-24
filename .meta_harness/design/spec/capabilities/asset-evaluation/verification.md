@@ -111,6 +111,7 @@
   - [E-1](v1/examples.md#e-1-四格齐全的一次求值) 的 `assets` 加 `version`／`resident`／`usable` 三列、`values` 加两行 `usableBy`、凭据未配时那一项缺席、落点设置带 `provenance`；[E-4](v1/examples.md#e-4-换了实现设置不跟过去权限的约束跟过去) 组织格的 `network` 改为带锁、三支的期望按界与挑选重写。
   - `Evaluation.als`：加 `Fits`／`Values`／`permBounds`、fact `BoundsFitUnlessEmpty`，`permFrom` 改为「第一条落在界内的挑选」，加断言 (vii) `NonFittingPickNeverSources` 与 `run pickSkipped`；(vi) 改为「带锁的外层配值在界里」。**2026-09-23 那次运行作废**，V-1 按新模型重跑（[上节](#已执行整批对齐后的-alloy-运行2026-09-24)），变异体加 M8。
   - 消费者：`capability.asset-registry` 读 `version`／`resident`／`usable`（它的 G-5 随之闭合）；`capability.mcp-bridge` 读 `provenance`（它的 G-9）。
+  - **同轮稍后（资产治理与流转对齐）**：PRE-2 写明租户格以 `organization` 支持有被分享记录的那份随分享一起判（账本 S11-G2，`data.asset-model` S-19 同轮改）；E-1 会话格那条配值补 `since`（`data.asset-model` S-14 加的必填成员）。规则与 Alloy 模型不受影响。
 - **`data.asset-model` 下一版**若改 `HoldingBasis` 的支或 `versionSelection`，核 C8、C9 与 [S-4](v1/contract.md#s-4-依赖方向与被消费的面) 列的条款号，重登 catalog。
   本契约仍是 candidate，**未冻结之前原地改并在此记录**；冻结之后发布新版本。
 - **跨进程演化**（[G-14](v1/contract.md#十一已知缺口)）：[S-29](v1/contract.md#s-29-装配给的保证-vs-协议须给的保证) 的「装配给」各行转为「协议给」，**语义边界改变，须发布新版本**；本版的全部证据只保留其单机范围。

@@ -793,7 +793,7 @@
 | # | 前提 | 谁兑现 | 不成立会怎样 |
 |---|---|---|---|
 | PRE-1 | 四格的持有、配值、定义与选用版本是**同一时刻的一致读** | 组输入的一方（读持有的面归 `capability.asset-governance`） | 一次求值看到租户新加的持有、却看到组织旧的锁，**锁截断在效果上被绕过** |
-| PRE-2 | **交进来的每份持有此刻仍然成立**：被分享来的，分享方与被分享方此刻仍有共同上级（`data.identity-values/v1#S-15`，现读）；**不成立的不交进来** | 组输入的一方，按 [`capability.asset-transfer/v1#S-9`](../../asset-transfer/v1/contract.md#s-9-分享此刻是否生效) 的判据在组输入时现读（原 G-10 闭合）；读不到按那条判据以不可用收场，不交进来也不当作可用 | 隶属关系解除之后，[分享本该失效](../../../../product/PF-003-asset-transfer-and-sharing/design.md#612-关系解除之后)，**团队资产却继续出现在求值结果里** |
+| PRE-2 | **交进来的每份持有此刻仍然成立**：被分享来的——组织格以 `shared` 支持有的那份，**以及租户格以 `organization` 支持有同一份被分享记录的那份**（`data.asset-model/v1#S-19`；主线裁定 S11-G2）——分享方与被分享方此刻仍有共同上级（`data.identity-values/v1#S-15`，现读）；**不成立的不交进来** | 组输入的一方，按 [`capability.asset-transfer/v1#S-9`](../../asset-transfer/v1/contract.md#s-9-分享此刻是否生效) 的判据在组输入时现读（原 G-10 闭合）；读不到按那条判据以不可用收场，不交进来也不当作可用 | 隶属关系解除之后，[分享本该失效](../../../../product/PF-003-asset-transfer-and-sharing/design.md#612-关系解除之后)，**团队资产却继续出现在求值结果里** |
 | PRE-3 | `tenant` 此刻是有效成员，调用方有权以它求值 | 组输入的一方（`capability.organization-governance` v1 的成员资格判定） | 一个已被解除的成员照旧拿到那个组织的生效配置；或一次求值替别人算出了别人的配置 |
 | PRE-4 | 出厂那一格的持有**齐全**，且 meta 能力的出厂持有带锁 | 装配（[S-29](#s-29-装配给的保证-vs-协议须给的保证) 末行；原 G-11 闭合） | 官方件缺一份时[本该是缺陷](../../../../product/PF-002-assets-settings-and-permissions/flows.md#二分支与异常)，本契约看不见；meta 能力被替换 |
 | PRE-5 | `workspace` 归会话租户持有、确实挂在这次会话上 | 会话创建（[PF-015 §6.13](../../../../product/PF-015-session-lifecycle-and-ownership/design.md#613-工作区在创建时显式指定不指定就是空)） | C3 只核得到键的租户那一半；挂错了一份，读进来的是别人目录里的东西 |

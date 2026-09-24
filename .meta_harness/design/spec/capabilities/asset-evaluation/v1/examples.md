@@ -31,7 +31,7 @@
 - `standing` = `effective`，角色 `member`（形状按 `data.identity-values/v1#S-10`，这里写示意）
 - `workspace` = `{"tenant": {"organization": "org_acme", "account": "acc_alice"}, "directory": "/home/alice/repo"}`
 - `root` = `agent_definition:assistant`
-- `session` = 一条：`agent_definition:assistant` 上 `{"item": "tone", "value": "terse", "immutable": false}`
+- `session` = 一条：`agent_definition:assistant` 上 `{"item": "tone", "value": "terse", "immutable": false, "since": "2026-09-24T09:00:00Z"}`（`since` 是会话创建那一刻）
 
 **definitions**（每份只列本场景用得到的；「引用」「属性项」是选用那一版的正文按 [S-10](contract.md#s-10-各类正文契约须供的两条规则) 给出的；**每份定义都只有第 1 版已发布**，工作区自带的两份也是它们唯一的第 1 版）：
 
