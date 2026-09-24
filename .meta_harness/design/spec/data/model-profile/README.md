@@ -14,7 +14,7 @@
   `contract_path=spec/data/model-profile/v1/contract.md`，`resources` 另含 `spec/data/model-profile/v1/model-profile.schema.json`
   与 `spec/data/model-profile/v1/examples.md`；依赖三项：`data.identity-values` v1（`S-5`／`S-11`／`S-12`／`S-15`／`S-16`／`S-17`／`S-30`／`S-31`）、
   `data.offer-expiry` v1（`S-22`）、`data.content-blocks` v1（`S-6`，2026-09-24 整批对齐补登）。登记在 [registry](../../../registry/README.md)，本行只作索引
-- **提供者/装配映射**：**尚无。**维护档案的能力、模型请求运行时都还没有契约，也没有实现映射节点
+- **提供者/装配映射**：**尚无。**维护档案的能力（`capability.model-profile-directory`）与模型请求运行时（`capability.model-request-runtime`）已有 v1 候选契约，提供者设计与实现映射节点都还没有
 
 ## 准入核对
 
