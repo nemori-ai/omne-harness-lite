@@ -113,6 +113,7 @@
 | 放行判断整批求值与放行凭据的交出不在本契约形状里（推导，已报主线） | S-14 逐行补充 | — | — |
 | G-3、G-17 由 runner S-9、S-30 关闭；G-16 注明 messages S-3 的写入方铸号 | 第十二、十四节 | — | — |
 | `FailureCause` 的下游改为 `$ref`（model-response、arrival-events） | S-17、消费者表 | 描述 | — |
+| （同日续）**声明里的 `name` 是能力标识 name 的镜像，不是第二个身份**：与资产记录的 `capability.name` 逐码点相等（`data.asset-model/v1#S-10`，同 `data.tool-definition/v1#S-2`）；词法改取 `data.asset-model` 的 `CapabilityName`（禁 `/`、许 `:`），依赖表加 `data.asset-model` 一行。**表示收紧**：含 `/` 的拓展件名从收到拒；现有实例无一受影响，本地自检重跑 82 行 ＋ 11 块仍 0 处不符 | S-6、S-7、依赖表 | `LoopExtensionDefinition.name` | — |
 
 **本地自检**（Draft 2020-12，`jsonschema` 按仓库 `uv.lock`；脚本在任务暂存区、不入库）：以对齐后的整棵设计树的全部 Schema 建 registry，
 `examples.md` 第 1～5、7、8 节 82 行（预期通过 25、拒绝 57）逐行按所在节的 `$defs` 求值，**0 处不符**；第 6 节 11 个 JSON 块各自恰过一种 `$defs`（声明 4、输入 1、结论 6）。

@@ -13,7 +13,8 @@
   |---|---|---|
   | `omne-harness-lite-design-2026-09-15 · data.identity-values · v1` | [S-31](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示) 不透明标识的交换表示——`LogHandle` 照它的规则在本契约内定义（不跨契约 `$ref` 那一个 `$def`） | 已接受、已冻结 |
   | `omne-harness-lite-design-2026-09-15 · data.offer-expiry · v1` | [S-22](../../offer-expiry/v1/contract.md#s-22-schema-的范围) 的 `$defs/Instant`——结论落下的时刻 | 已接受、已冻结 |
-  | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1` | `$defs/ToolCallBlock`、`ToolResultBlock`、`CallId`、`ExecutionOutcome`、`CapabilityId`（整个值，与它的 `name` 成员：拓展件名与工具定义名的表示） | 候选 |
+  | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1` | `$defs/ToolCallBlock`、`ToolResultBlock`、`CallId`、`ExecutionOutcome`、`CapabilityId`（整个值，与它的 `name` 成员：工具定义名的表示） | 候选 |
+  | `omne-harness-lite-design-2026-09-15 · data.asset-model · v1` | [S-2](../../asset-model/v1/contract.md#s-2-能力标识名的词法) 的 `$defs/CapabilityName`——拓展件名的词法；[S-10](../../asset-model/v1/contract.md#s-10-八类正文的外壳)——身份只在资产记录的 `capability` 上，声明里的 `name` 是它的镜像 | 候选 |
   | `omne-harness-lite-design-2026-09-15 · data.messages · v1` | `$defs/Message`、`SystemReminderMessage`、`AssistantMessage`、`CompactionMessage`、`ModelCallDispatchedRecord` | 候选 |
   | `omne-harness-lite-design-2026-09-15 · data.model-profile · v1` | `$defs/ModelProfileRef`、`ModelRequestParameters`、`ProviderName`、`ModelProfileSnapshot` | 候选 |
   | `omne-harness-lite-design-2026-09-15 · data.call-accounts · v1` | `$defs/Usage`、`Cost`；`$defs/RunId`、`AttemptId`——运行与执行尝试的标识，家在那份契约 | 候选 |
@@ -296,7 +297,7 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 
 | 成员 | 含义 | 在资产上是什么（[UL-setting-category](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category)） | 缺席 |
 |---|---|---|---|
-| `name` | 身份（[S-7](#s-7-name-是身份)） | 身份，不是设置 | 拒绝（`malformed`） |
+| `name` | 能力标识的 name（[S-7](#s-7-name-是身份)） | 身份的镜像，不是设置 | 拒绝（`malformed`） |
 | `position` | 挂在哪个位置 | **设置 · 绑定类**，这里是出厂值 | 拒绝（`malformed`） |
 | `dimension` | 管哪一种情形 | **设置 · 绑定类**，这里是出厂值 | 按 [S-2](#s-2-两个维度)：那两个位置上拒绝（`dimension_missing`），其余位置本来就不带 |
 | `power` | 干预力 | **权限**，这里是出厂值 | 拒绝（`malformed`） |
@@ -313,7 +314,8 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 ### S-7 name 是身份
 
 **一件拓展件的身份是[能力标识](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier) `{ category: loop_extension, name }`，声明里只带 `name`**（类别由「它是一份拓展件声明」本身给出）。
-`name` 的表示取 `data.content-blocks/v1` 的 `CapabilityId.name`，**相等是逐码点精确相等**。
+**`name` 就是那个能力标识的 `name`，不是第二个身份**：声明作为资产被持有时，资产记录上的 `AssetDefinition.capability`（`data.asset-model/v1#S-10`）是身份的唯一家，`name` 必须与 `capability.name` 逐码点相等，不等的记录是 `malformed`（同 `data.tool-definition/v1#S-2`）。
+`name` 的词法取 `data.asset-model/v1` 的 [`CapabilityName`](../../asset-model/v1/contract.md#s-2-能力标识名的词法)（禁 `/`、许 `:`），**相等是逐码点精确相等**。
 
 - **位置、维度、干预力、实现都不是身份**：同一个位置挂的多件是不同的资产，彼此不构成同标识覆盖；
   覆盖只发生在**同一个 name** 的不同实现之间（[PF-002](../../../../product/PF-002-assets-settings-and-permissions/design.md#身份是类别--name其余归实现)）。

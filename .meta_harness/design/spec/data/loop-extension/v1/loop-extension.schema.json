@@ -67,11 +67,11 @@
 
     "LoopExtensionDefinition": {
       "title": "拓展件的声明 · Loop Extension",
-      "description": "S-6～S-10：一件拓展件（UL-loop-extension，第八类资产）的声明。name 是身份（能力标识 = 类别 loop_extension + name）；position 与 dimension 是绑定类设置的出厂值，power 是干预力这项权限的出厂值（定义给默认值，各层配值、运行时求值）；onError 缺席按求得的干预力取默认；needs 是依赖声明，缺席即不需要任何东西；implementation 说它的实现是装配进来的（builtin）还是一条外部命令（command）。本版没有 order：同一位置的先后按装配清单的顺序。",
+      "description": "S-6～S-10：一件拓展件（UL-loop-extension，第八类资产）的声明。name 是它的能力标识（类别 loop_extension + name）里的那个 name，不是第二个身份：作为资产被持有时，身份只在资产记录的 capability 上（data.asset-model v1 S-10），两者逐码点相等，词法按 data.asset-model v1 S-2；position 与 dimension 是绑定类设置的出厂值，power 是干预力这项权限的出厂值（定义给默认值，各层配值、运行时求值）；onError 缺席按求得的干预力取默认；needs 是依赖声明，缺席即不需要任何东西；implementation 说它的实现是装配进来的（builtin）还是一条外部命令（command）。本版没有 order：同一位置的先后按装配清单的顺序。",
       "$comment": "additionalProperties: false 挡住 order、matcher 这类本版没有的成员（malformed）。策略不高于干预力：observe 只能声明 ignore，rewrite 不得声明 treat_as_veto——否则一件不能注入的件会在报错时注入、一件拦不住任何东西的件会在报错时拦下东西（malformed，S-5）。needs 用 minItems 1：「不需要任何东西」只有缺席这一种写法，不给空数组第二种写法。",
       "type": "object",
       "properties": {
-        "name": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/CapabilityId/properties/name" },
+        "name": { "$ref": "../../asset-model/v1/asset-model.schema.json#/$defs/CapabilityName" },
         "position": { "$ref": "#/$defs/LoopPosition" },
         "dimension": { "$ref": "#/$defs/Dimension" },
         "power": { "$ref": "#/$defs/Power" },
