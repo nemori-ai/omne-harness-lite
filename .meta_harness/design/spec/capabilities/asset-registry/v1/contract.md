@@ -455,7 +455,7 @@
 | `toolNameConflict` | `tool` 表里两条条目在 agent 面前同名（[S-7](#s-7-注册表条目) 末条） | 结论 |
 | `unavailable` | 判定做不出来（[S-19](#s-19-缺席时的默认答案) 第二行） | 失败 |
 
-> **`dependencyUnresolved` 这个名字比它的含义窄**：它说的是组合引用无人提供，而产品把[组合与依赖分成两件事](../../../../product/PF-002-assets-settings-and-permissions/design.md#63-组合的引用指向能力标识)。主线要求改宽，**还没有新名字**——本版照旧，已报主线。
+> **`dependencyUnresolved` 这个名字比它的含义窄**：它说的是组合引用无人提供，而产品把[组合与依赖分成两件事](../../../../product/PF-002-assets-settings-and-permissions/design.md#63-组合的引用指向能力标识)。主线要求改宽，**还没有新名字**——本版照旧，已报主线并接受（D-040 §七 N-18）。
 > **原 `slotConflict` 已改名 `toolNameConflict`**（主线裁定，见 [D-040 §六 N-10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）：[「槽位」专指提示词槽位](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-prompt-slot--提示词槽位--prompt-slot)，而这里冲突的是工具表里的条目名，常驻与否都算。
 
 **谁调用**（本契约的面是据点进程内的能力间面，**不直接暴露给人或 agent**；调用方身份怎么核实见 [S-31](#s-31-装配给的保证-vs-协议须给的保证)）：

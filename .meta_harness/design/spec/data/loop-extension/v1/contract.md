@@ -494,7 +494,7 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 - **放行判断对一批动作整批求值一次**（`capability.tool-admission` v1 S-21 的 `admit`），而统一输入一次只带一个主体：**整批的输入不经本契约的形状交给它**——
   它是 `builtin` 件，整批的来路是 `capability.tool-admission` 自己的服务面；求得的各项结论**仍按 `callId` 各落进各自那一次经过的结论记录**（[S-30](#s-30-每件的结论必留)），`observed`、`veto`、`ask` 之外不多一种。
   **放行凭据不是结论的成员**：凭据指认的就是那条放行结论记录（`capability.tool-admission` v1 S-16），它怎样随效果交到执行运行时归 `capability.loop-extension-runner`（它的 G-16）。
-  这两句是对齐波的推导，已报主线。
+  这两句是对齐波的推导，已报主线并接受（D-040 §七 N-18）。
 - **`after_action`（`each`）**：`result` 是**这一次经过里待落盘的那个结果块**，有才带；带的时候它的 `callId`、`outcome` 必须与外面两个相同。
   什么收场之下没有待落盘的结果块，归工具执行运行时。
 - **`after_action`（`batch`）**：每个 `callId` 恰出现一次，与这一批的 `batch` 一致。

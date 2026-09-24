@@ -120,7 +120,7 @@
 | `environmentRequirement` 的 `bindingLayer` 取值 | [PF-005 §5.1](../../../../product/PF-005-execution-environments-and-sandboxes/design.md#51-四种执行环境) 的四种[执行环境](../../../../ubiquitous_language/terms/grounding-and-isolation.md#ul-execution-environment--执行环境--execution-environment)，逐值对应沿 `data.tool-definition` v1 S-11 |
 | `environmentRequirement` 的 `facilities` | [环境设施 · Environment Facility](../../../../ubiquitous_language/terms/grounding-and-isolation.md#ul-environment-facility--环境设施--environment-facility) |
 
-**下列是规格层的名字或产品正文的说法，不是统一语言词条**，本契约与 Schema 里**不给它们「中文 · English」那种词条式标题**，已报主线：
+**下列是规格层的名字或产品正文的说法，不是统一语言词条**，本契约与 Schema 里**不给它们「中文 · English」那种词条式标题**，已报主线并接受（D-040 §七 N-18）：
 `environmentRequirement`（执行环境要求——PF-006 §6.4「带脚本的技能声明它需要什么样的执行环境」，**无词条**，名字由 D-040 §六 N-13 接受；它的值与[目标环境](../../../../ubiquitous_language/terms/grounding-and-isolation.md#ul-target-environment--目标环境--target-environment)那一项设置的值同形，但**它不是目标环境**：目标环境是工具的一项设置，各层可配；这里是技能内容里的固定声明，各层配不了）、
 `SkillPackage`（技能包——一份技能资产版本的全部内容，**无词条**）、`SkillManifest`（清单头——`SKILL.md` 的 frontmatter，**无词条**）、
 `body`（正文——PF-002 说的「可读的指引正文」，**无词条**）、说明（PF-006 的「技能的说明」，**无独立词条**，[UL-skill](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-skill--技能--skill) 的「注意」提到它）、
@@ -292,7 +292,7 @@
   这条是 PF-007 的红线在数据这一侧的把手：「自己带的」有一个确定的、只看这一版包的答案。
 - **被列入不等于获准运行**：放行、落地在哪个执行环境、跑不跑，都不在本契约（[S-10](#s-10-资源只被读取不因读取而运行) 第 2 条）。
 - **按路径判定是本契约的推导**：开放格式的目录约定（「`scripts/` Contains executable code that agents can run」）与 D-034 采用的候选 B 写明的规则；
-  产品正文只要求「只能跑这份 skill 自己带的脚本」。已报主线。
+  产品正文只要求「只能跑这份 skill 自己带的脚本」。已报主线并接受（D-040 §七 N-18）。
 - 空集合合法：这份技能不带脚本，`exec_script` 对它无事可做。
 
 ### S-12 定义记录
