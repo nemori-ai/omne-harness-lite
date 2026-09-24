@@ -8,7 +8,7 @@
 都读这一份形状，**引用它的 `$defs` 名，不各自复述一份**。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.skill-package, 1)`
-- **状态**：`candidate`——未接受、未冻结，不得据此发布或声称消费者已采用
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审处置修订，见[独立评审](verification.md#独立评审)）——未接受、未冻结，不得据此发布或声称消费者已采用
 - **catalog 映射**：已登记为 `candidate`（`acceptance` 为 `null`）。`family=data`、`topic=skill-package`、
   `contract_path=spec/data/skill-package/v1/contract.md`，`resources` 另含 `v1/skill-package.schema.json` 与 `v1/examples.md`；
   依赖三项：`data.asset-model` v1（`S-2`、`S-3`、`S-9`、`S-10`、`S-12`、`S-13`、`S-15`、`S-36`）、`data.content-blocks` v1（`S-7`）、
@@ -38,7 +38,7 @@
 | 一个值长什么样、什么会被拒、拒绝值叫什么 | [v1 正反实例](v1/examples.md) |
 | 一份 `SKILL.md` 读出来的清单头与正文是什么 | [S-20](v1/contract.md#s-20-skillmd-的文本形式与定界)与[实例第 6 节](v1/examples.md#6-skillmd-的文本形式) |
 | 一个包有好几处不对，报哪个拒绝值 | [S-24](v1/contract.md#s-24-表示层拒绝值与判定次序)与[实例第 8 节](v1/examples.md#8-几处违例同时出现时取哪个拒绝值) |
-| 哪里在等裁决 | [已知缺口](v1/contract.md#九已知缺口)——**G-3（正文变体与资源取用方式）、G-4（作者自声明设置项的生效值谁读）、G-6（资源字节的摘要）、G-7（未收的扩展）**；2026-09-23 那批主线裁定待产品负责人确认 |
+| 哪里在等裁决 | [已知缺口](v1/contract.md#九已知缺口)——**G-6（资源字节的摘要）、G-7（未收的扩展）**；G-3、G-4 已由产品正文闭合（PF-002 rev 19、PF-007 rev 17 §9.3） |
 | 哪些条款有怎样的证据义务，现在到哪一步 | [验证与覆盖](verification.md) |
 
 ## 版本包

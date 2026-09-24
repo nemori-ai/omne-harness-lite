@@ -1,4 +1,4 @@
-# 规范实例：装配、结算与失败值
+# 规范实例：到达装配、结算与失败值
 
 本文件是 `capability.stream-assembly` v1 的规范工件，不是说明材料。每节给一串**交给 `accept` 的事件**（已经过发出一侧的节流）、
 逐步的位置，以及**手算的**快照或结算结果。事件的形状照 `data.arrival-events` v1，块的形状照 `data.content-blocks` v1，账照 `data.call-accounts` v1。
@@ -19,7 +19,7 @@
 | [4](#4-一次完整的模型回复) | `data.arrival-events` v1 examples 第 12 节那条流：解析一次、账 | S-10、S-13 |
 | [5](#5-失败值逐个) | 每个失败值、几处违例时取哪个 | S-23～S-25 |
 | [6](#6-用户叫停与放弃) | 模型侧叫停：半截调用、缺账记全未知；放弃 | S-9、S-13、S-22 |
-| [7](#7-解析不了与被砍过) | 解析不了只标记；被砍过内容的调用落成半截 | S-11、S-12 |
+| [7](#7-解析不了与被砍过) | 解析不了只标记；被砍过内容的调用落成半截；先截短后拒收只计一次 | S-11、S-12、S-14 |
 | [8](#8-首个内容排除空载荷) | 空串的填不算开口；相等不含首个内容 | S-16、S-27 |
 
 ## 2. 并开两块、一次砍、一次整体替换
@@ -27,7 +27,7 @@
 **目标**：`{"kind": "tool_execution", "callId": "call_9"}`（一个构建工具，先往外吐日志，同时开一块截图面板）。
 
 **工具实际交出的帧**有九个：开日志块、日志「a」、开面板、日志「b」、日志「c」、面板第一张图、面板第二张图、封日志块、封面板。
-发出一侧的节流把相邻的日志「b」「c」合成一个填，并说了一个 `rate_merged`（[S-15](contract.md#s-15-节流在装配之前投递一侧的节流不进账)）。**交给 `accept` 的是下面十个事件**：
+发出一侧的节流把相邻的日志「b」「c」合成一个填，并说了一个 `rate_merged`（[S-15](contract.md#s-15-节流在到达装配之前投递一侧的节流不进账)）。**交给 `accept` 的是下面十个事件**：
 
 | # | 事件 | 位置 | 说明 |
 |---|---|---|---|
@@ -91,7 +91,7 @@
   `merged + cut + frame_too_long = 1 ≤ 9` ✓。
 - **结局**：`reason` 照收尾；第一个内容步骤是位置 2 的那个填。
 
-**一次性形式**（[S-27](contract.md#s-27-一次装配等于一次性到达)）：
+**一次性形式**（[S-27](contract.md#s-27-一次到达装配等于一次性到达)）：
 
 | # | 事件 |
 |---|---|
@@ -167,7 +167,7 @@
 | 3 | 同上 | `accept`：`{"t": "trim", "reason": "rejected", "omittedBytes": 4}` | `event_after_finish`——**收尾之后连砍也说不了**（[S-26](contract.md#s-26-被拒不改状态后果归宿主)） | [S-23](contract.md#s-23-本能力自己的失败值) |
 | 4 | 开 0、封 0（文本） | `accept`：`{"t": "open", "index": 0, "kind": "text", "fill": "append", "id": "b_9", "visibility": H1M1}` | `index_reused`——封口之后也不再开 | [S-23](contract.md#s-23-本能力自己的失败值) |
 | 5 | 开 3（文本，开着） | `accept`：开 1（文本） | `index_not_monotonic` | [S-23](contract.md#s-23-本能力自己的失败值) |
-| 6 | 无 | `accept`：`{"t": "open", "index": 0, "kind": "voice", "fill": "append", "id": "b_1", "visibility": H1M1, "head": {"mediaType": "image/png"}}` | `head_modality_mismatch` | [S-23](contract.md#s-23-本能力自己的失败值) |
+| 6 | 无 | `accept`：`{"t": "open", "index": 0, "kind": "voice", "fill": "append", "id": "b_1", "visibility": H1M1, "head": {"mediaType": "image/png"}}` | `head_modality_mismatch` | [S-24](contract.md#s-24-表示层拒绝值原名引用)：表示层拒绝值，原名取自 `data.arrival-events/v1#S-28` |
 | 7 | 开 0（文本） | `accept`：`{"t": "fill", "index": 5, "payload": "x"}` | `block_not_open` | [S-23](contract.md#s-23-本能力自己的失败值) |
 | 8 | 开 0（文本） | `accept`：`{"t": "trim", "index": 5, "reason": "rate_merged", "merged": 1}` | `block_not_open` | [S-23](contract.md#s-23-本能力自己的失败值) |
 | 9 | 开 0、封 0（文本） | `accept`：`{"t": "fill", "index": 0, "payload": "x"}` | `block_already_closed` | [S-23](contract.md#s-23-本能力自己的失败值) |
@@ -184,6 +184,7 @@
 | 20 | 目标同上；未收尾 | `abandon`，`reason` 为 `{"cause": …}` | `malformed`——帧流断了不带成因 | [S-22](contract.md#s-22-abandon放弃) |
 | 21 | — | `start`：`{"kind": "model_call", "callId": "mc_1"}` | `malformed`——缺 `dispatch`，不补成 1 | [S-18](contract.md#s-18-start开一份状态) |
 | 22 | 无 | `accept`：`{"t": "open", "index": 0, "kind": "image", "fill": "append", "id": "b_1", "visibility": H1M1}` | `fill_kind_not_appendable`（`data.arrival-events` 的名字） | [S-24](contract.md#s-24-表示层拒绝值原名引用) |
+| 28 | 目标 `{"kind": "tool_execution", "callId": "call_9"}`；开 0（文本，开着） | `accept`：`{"t": "finish", "reason": "lost", "error": {"cause": "upstream_unavailable"}}` | `malformed`——帧流断了不是一次模型调用的故障，收尾不带成因（编号接在第 27 行之后，只追加） | [S-24](contract.md#s-24-表示层拒绝值原名引用) |
 
 **几处违例同时出现时**（[S-25](contract.md#s-25-判定次序)）：
 
@@ -250,7 +251,7 @@
 { "id": "b_1", "kind": "tool_call", "visibility": { "toHuman": true, "toModel": true }, "complete": true, "callId": "call_4", "tool": "read_file", "rawArguments": "{\"path\": \"a.md\"", "unparseable": true }
 ```
 
-宿主**不执行它**，紧接一条 `outcome = failed` 的结果回给模型（[S-28](contract.md#s-28-宿主要兑现的前提) 第五条）。
+本能力到此为止：**不执行它、以一条 `outcome = failed` 的结果回给模型**，归工具执行运行时（`capability.tool-execution-runtime/v1#S-23`，场景 `#S-64`）。
 
 **7b 开着时被砍过内容**（[S-12](contract.md#s-12-被砍过内容的调用落成半截)）：
 
@@ -274,6 +275,41 @@
 汇总：`cut = 1`、`byReason.rejected = 1`、`omittedBytes = 7`，其余为 `0`。**判不出那一段属于哪一块，不等于它不属于这一块。**
 另一支：把第 3 个事件换成 `{"t": "trim", "index": 0, "reason": "rate_merged", "merged": 1}`——合并不改内容，封口时照常解析，落成完整的调用。
 
+**7c 先截短、后拒收只计一次**（[S-14](contract.md#s-14-砍的汇总)，场景 [S-39](contract.md#s-39-先截短后拒收只计一次)）：
+
+目标 `{"kind": "tool_execution", "callId": "call_8"}`。工具交出七帧：开日志块 0、填一行、封口；开尾部块 1、填一段过长的、封口；**再往已封口的块 0 填一行**（工具的缺陷）。
+发出一侧截短了两个过长的填，各在被截短的那个填之前说一个 `frame_too_long`。
+
+| # | 交进去 | 位置 | 说明 |
+|---|---|---|---|
+| 1 | `{"t": "open", "index": 0, "kind": "text", "fill": "append", "id": "b_log", "visibility": H1M0}` | 1 | |
+| 2 | `{"t": "fill", "index": 0, "payload": "build ok\n"}` | 2 | 第一个内容步骤 |
+| 3 | `{"t": "close", "index": 0, "block": {"kind": "text", "id": "b_log", "visibility": H1M0, "text": "build ok\n"}}` | 3 | |
+| 4 | `{"t": "open", "index": 1, "kind": "text", "fill": "append", "id": "b_tail", "visibility": H1M0}` | 4 | |
+| 5 | `{"t": "trim", "index": 1, "reason": "frame_too_long", "omittedBytes": 512}` | 5 | 紧挨在它截短的那个填之前 |
+| 6 | `{"t": "fill", "index": 1, "payload": "tail …\n"}` | 6 | 截短后的填，**被接受** |
+| 7 | `{"t": "close", "index": 1, "block": {"kind": "text", "id": "b_tail", "visibility": H1M0, "text": "tail …\n"}}` | 7 | |
+| 8 | `{"t": "trim", "index": 0, "reason": "frame_too_long", "omittedBytes": 2048}` | 8 | 带索引的 `trim` 只判 `block_not_open`，块 0 开过，照收 |
+| — | `{"t": "fill", "index": 0, "payload": "late line\n"}` | — | 截短后的填，**被拒** `block_already_closed` |
+| 9 | `{"t": "trim", "index": 0, "reason": "rejected", "omittedBytes": 10}` | 9 | 宿主紧接着替被拒的那一帧说出来（`late line\n` 按 UTF-8 是 10 字节） |
+| 10 | `{"t": "finish", "reason": "end"}` | 10 | |
+
+**配对**：第 5 个 `trim` 之后被接受的下一个事件是第 6 个（一个填）——**不配对**，照计进 `frame_too_long`；
+第 8 个 `trim` 之后被接受的下一个事件是第 9 个（`rejected`）——**配对**，它说的那一帧只按拒收计。
+
+```json
+{ "frames": { "emitted": 7,
+              "trims": { "merged": 0, "cut": 1, "omittedBytes": 2570,
+                         "byReason": { "rate_merged": 0, "frame_too_long": 1, "quota_exhausted": 0, "rejected": 1 } } } }
+```
+
+- `emitted = 6 + 0 + 1 = 7`：接受的 `open`、`fill`、`close` 是 1、2、3、4、6、7，加 `cut = 1`——正是工具交出的七帧。
+- `omittedBytes = 512 + 2048 + 10`：**配对的也计字节**，截掉的与被拒的都没送到。
+- `data.call-accounts/v1#S-15` 三式：`0 = 0`；`1 = 0 + 1`；第三式前件不成立 ✓。`merged + cut + frame_too_long = 0 + 1 + 1 = 2 ≤ 7` ✓。
+- **不去重会怎样**：`frame_too_long` 成了 `2`，第七帧被说成既截短又拒收。只看这一条流不等式仍成立；换一条**只有那一帧**的流就不成立了——
+  工具只交出一个过长的、往没开过的块 0 的填：发出一侧说 `{"t": "trim", "reason": "frame_too_long", "omittedBytes": 100}`（位置 1，没有索引）、那个填被拒（`block_not_open`）、宿主紧接着说 `{"t": "trim", "reason": "rejected", "omittedBytes": 20}`（位置 2）、收尾（位置 3）。
+  去重后 `emitted = 0 + 0 + 1 = 1`、`frame_too_long = 0`，`0 + 1 + 0 = 1 ≤ 1` ✓；不去重是 `0 + 1 + 1 = 2 > 1`——只发了一帧的执行被说成砍了两帧。
+
 ## 8. 首个内容排除空载荷
 
 目标 `{"kind": "tool_execution", "callId": "call_6"}`，一块进度面板：
@@ -290,10 +326,10 @@
 `frames.emitted = 4`（接受的 `open`、`fill` 四个）；`ending` 是 `{ "reason": "interrupted", "firstContentAt": 3 }`。
 
 **它的一次性形式**只有开块、一个载荷为 `""` 的填（归约是最后一次）、收尾：结算出的 `blocks` 与上面**相同**，**`firstContentAt` 却缺席**——
-那块内容在分次到达时确实到过用户眼前，一次性到达时没有。这正是 [S-27](contract.md#s-27-一次装配等于一次性到达) 把首个内容排除在相等之外的理由。
+那块内容在分次到达时确实到过用户眼前，一次性到达时没有。这正是 [S-27](contract.md#s-27-一次到达装配等于一次性到达) 把首个内容排除在相等之外的理由。
 
 ## 9. 起草者自核
 
-- 第 2、3、6、7、8 节的每个事件都按 `data.arrival-events` v1 的 Schema 与 S-28 手核过：帧流上的图都是引用、`toModel` 都是 `false`、工具侧没有 `account`。
+- 第 2、3、6、7、8 节的每个事件都按 `data.arrival-events` v1 的 Schema 与 [S-28](contract.md#s-28-宿主要兑现的前提) 手核过：帧流上的图都是引用、`toModel` 都是 `false`、工具侧没有 `account`；第 7c 节两处「紧挨」按 S-28 第 4 条排。
 - 第 5 节每行只有一处违例，或者（第 23～27 行）写明了按次序取哪一个。
 - **手核不是证据**：这些结果尚未被任何实现、一致性用例或模型运行复现（[验证入口](../verification.md)）。

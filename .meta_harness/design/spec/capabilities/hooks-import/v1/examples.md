@@ -57,8 +57,8 @@
 
 ## 2. 导入报告
 
-**配置里十条 handler，报告里恰十项**（[S-12](contract.md#s-12-导入报告)）。每一项都带 `requires_tenant_enablement`——来源是 `project`（[S-9](contract.md#s-9-工作区来源的-hook导入即禁用)），下表不再逐行重复；
-每一条导入了的 CC 件另带 `nonzero_exit_json_not_read`，同样不逐行重复。
+**配置里十条 handler，报告里恰十项**（[S-12](contract.md#s-12-导入报告)）。**每一条导入了的**（`imported`、`degraded`）都带 `requires_tenant_enablement`——来源是 `project`（[S-9](contract.md#s-9-工作区来源的-hook导入即禁用)），下表不再逐行重复；`skipped` 的几项不带兼容件，也就不带它；
+每一条导入了的 CC 件另带 `nonzero_exit_json_not_read`，它们的声明都显式带 `unavailability: skip`（[S-10](contract.md#s-10-兼容件要带的东西)），同样不逐行重复。
 
 | # | 事件 · `g`.`h` | 项 | name | 位置（维度） · 声明 `power` | 降级说明（除上两条外） | 依据 |
 |---|---|---|---|---|---|---|
@@ -89,7 +89,7 @@
 | 它 stdout `{"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "allow"}}`，退出码 0 | `observed` | 跑出了结论；放行判断照常判 | [S-20](contract.md#s-20-输出怎样译回) 第 7 行 |
 | 它退出码 1（stdout 里有一段合法 JSON 说 `deny`） | **报错**：`skipped: errored`，`error` 写「退出码 1」；处置 `treat_as_veto` 落 `veto` | CC 会读那段 JSON；这里不读（`nonzero_exit_json_not_read`） | [S-19](contract.md#s-19-起不来与报错) |
 | 它超过 600 秒没返回 | 同上，报错 → `veto` | CC 会放行；这里拦（`fails_closed_on_error`） | 同上 |
-| `./hooks/deny-prod-db.sh` 在会话的执行环境里不存在 | **不可用**：`skipped: unavailable`，不带 `output`；链往下走 | 看得见；这一次这道闸没了 | [S-19](contract.md#s-19-起不来与报错)、`capability.loop-extension-runner/v1#S-12` |
+| `./hooks/deny-prod-db.sh` 在会话的执行环境里不存在 | **不可用**：`skipped: unavailable`，不带 `output`，`unavailability: skip`；链往下走 | 看得见；这一次这道闸没了（安装者若在落地前把它改为 `veto`，这里按否决处置、动作不做） | [S-10](contract.md#s-10-兼容件要带的东西)、[S-19](contract.md#s-19-起不来与报错)、`capability.loop-extension-runner/v1#S-12` |
 | `audit.sh` 被收窄成只观察，却退出码 2 | 译出 `veto` → **越档**：`skipped: errored`，`error` 为 `output_not_allowed_for_power`，处置 `ignore` 落 `observed` | 看得见 | [S-22](contract.md#s-22-越档的输出) |
 | 它交回 `permissionDecision: defer` | 报错 → `veto` | 主线裁定 G2 | [S-20](contract.md#s-20-输出怎样译回) 第 4 行 |
 
@@ -123,15 +123,23 @@
 人点了「将来本租户所有会话，这类情况全允许」。下一次尝试回放这一件：**子进程不再跑**；它读到自己那张卡的答复，交回 `observed`。
 **租户层没有任何权限值被写**；这个答复**不交给放行判断**——放行判断在链末照常判，执行权限是「问一下」就再出它自己的卡（[S-21](contract.md#s-21-ask-与回放)）。
 
+**若 hook 同时交回 `ask` 与改写**（`updatedInput` 把命令改成 `psql prod -c 'DROP TABLE t_tmp'`）：上面那条记录的 `card` 多一个成员，说明写的是改写后的那一份：
+
+```json
+"proposedRewrite": { "arguments": { "command": "psql prod -c 'DROP TABLE t_tmp'" } }
+```
+
+人点「这次允许」⇒ 回放交回 `rewrite`，`subject.call.arguments` 恰是 `proposedRewrite.arguments`，其余成员照输入；人点「不允许」⇒ `veto`，改写不生效。**两种情况子进程都只跑过一次**（[S-20](contract.md#s-20-输出怎样译回) 例外、[S-21](contract.md#s-21-ask-与回放) 第 3 条）。
+
 ## 4. 运行时：别的几个事件
 
 | 事件 | 这一次 | 兼容件交回 | 依据 |
 |---|---|---|---|
-| `UserPromptSubmit` | 用户发来一条消息；hook 输出 `{"decision": "block", "reason": "消息里有 API key：sk-…"}` | `veto { reason: "被导入的宿主 hook 拒绝" }`——**宿主的理由引用了被拦的原文，不进日志**；用户那条被拒、他被告知 | [S-20](contract.md#s-20-输出怎样译回) |
+| `UserPromptSubmit` | 用户发来一条消息；hook 输出 `{"decision": "block", "reason": "消息里有 API key：sk-…"}` | `veto { reason: "被导入的 hook 拒绝" }`——**来源产品的理由引用了被拦的原文，不进日志**；用户那条被拒、他被告知 | [S-20](contract.md#s-20-输出怎样译回) |
 | `UserPromptSubmit` | 系统追加的一条提醒要落盘（`producer = system`） | `observed`，**不起子进程** | [S-16](contract.md#s-16-情形筛选) |
 | `PostToolUse` | `Edit` 成功；hook 输出 `{"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": "已格式化"}}` | `inject`：一条以本件名义的提醒，正文「已格式化」 | [S-23](contract.md#s-23-claude-code-映射表) |
 | `PostToolUse` | `Edit` 失败 | `observed`，不起子进程（`PostToolUse` 只管成功那一路） | 同上 |
 | `Stop` | 运行要以「完成」收束；hook 输出 `{"decision": "block", "reason": "测试还没跑"}` | `veto { reason: "测试还没跑" }`：接着转，理由到 agent 眼前 | 同上 |
-| `Stop` | 下一次要收束，`stop_hook_active` 从日志数得为真；hook 无决定 | `observed`：收束 | [S-17](contract.md#s-17-输入怎样译成宿主的原生输入) 第 3 条 |
+| `Stop` | 下一次要收束，`stop_hook_active` 从日志数得为真；hook 无决定 | `observed`：收束 | [S-17](contract.md#s-17-输入怎样译成来源产品的原生输入) 第 3 条 |
 | `Stop` | 运行要以「被取消」收束 | `observed`，不起子进程（CC 对中断不调 Stop） | [S-23](contract.md#s-23-claude-code-映射表) |
 | `SessionStart`（`compact` 部分） | 压缩刚发生；hook 输出纯文本「分支 feat/x」 | `inject`，正文「分支 feat/x」 | 同上 |

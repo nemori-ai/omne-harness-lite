@@ -4,9 +4,11 @@
  * 对应契约条款（均指 data.messages v1）：
  *   S-28  此刻模型可读是算出来的：path(b) 上每一块都标着给模型，
  *         且前缀里没有压缩记录点过 path(b) 的任何一块
- *   S-29  合法名单的判定 ① ② ④ ⑤（③ 被建模方式吸收；⑥ 未建模——见 README）
+ *   S-29  合法名单的判定：① ② 写成事实、断言其推论 A1；⑤ 由断言 A2 检查；
+ *         ③ 被建模方式吸收（按构造，不作证据）；④ 已删去（SystemMessage 不落日志，② 已排除它）；⑥ 未建模——见 README
  *   S-30  悬着的占位的第 1 类：转后台的工具消息，前缀里还没有它的后台收场提醒
- *   S-32  ② 一个调用至多一条工具消息；④ 后台收场提醒排在转后台占位之后，一个调用至多一条
+ *   S-32  ② 一个调用至多一条工具消息；④ 后台收场提醒排在转后台占位之后，一个调用至多一条（都写成事实）；
+ *         ⑦ 日志里没有 SystemMessage——模型里没有这种消息，按构造成立，不作证据
  *
  * 块的嵌套与合取取用的权威不在本契约，坐标如下——本文件按那两条建模：
  *   omne-harness-lite-design-2026-09-15 · data.content-blocks · v1 · S-3（块在一条消息内唯一，含嵌套；
@@ -29,9 +31,8 @@ open util/ordering[Msg]
 
 sig Call {}
 
+// 日志里的六种消息（SystemMessage 不落会话日志，每次组装现算——契约 S-7、S-32 ⑦——所以这里没有它）
 abstract sig Msg {}
-
-sig SystemMsg extends Msg {}
 
 // 工具消息：一次调用恰一条（S-11）；call 是它的 callId
 sig ToolMsg extends Msg { call : one Call }
@@ -89,8 +90,7 @@ fun outstandingIn[P : set Msg] : set Block {
 
 // S-29：一条压缩记录 c 的名单，对它之前的前缀合法
 pred legal[c : Compaction] {
-    c.names.owner in prevs[c]                    // ① 不点自己；② 只点之前的消息
-    no c.names.owner & SystemMsg                 // ④ 不点系统提示词
+    c.names.owner in prevs[c]                    // ① 不点自己；② 只点之前的消息（④ 已删去：系统提示词不在日志里）
     no c.names & outstandingIn[prevs[c]]         // ⑤ 不点在它之前的前缀里悬着的占位
 }
 

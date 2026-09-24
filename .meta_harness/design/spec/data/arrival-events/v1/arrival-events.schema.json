@@ -3,7 +3,7 @@
   "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/arrival-events/v1/arrival-events.schema.json",
   "title": "data.arrival-events v1",
   "description": "到达语法：一条消息分次到达时，生产的一方交出的事件长什么样。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档，一个信封按 $defs/ArrivalEnvelope 校验。条款编号 S-n 指同目录的 contract.md，仅在 data.arrival-events/v1 内有效。",
-  "$comment": "状态 candidate，未接受、未冻结。Schema 只管单个信封的形状；表示层拒绝值的具名与优先级（S-28）、要借开块才判得出的约束（片段合不合那一类、整块合不合开块、封口块与开块是否同一块、块头媒体类型的模态）、序列规则（S-17、S-18、S-24）、帧里任意一层的内联媒体（S-23）由契约条款定，Schema 管不到，逐条列在 contract.md「Schema 管得到什么」。外部引用：ContentBlock、BlockId、Visibility、MediaType、CallId 取自 data.content-blocks v1；Usage、Cost、TrimReason 取自 data.call-accounts v1；ModelCallId 取自 data.call-accounts v1、FailureCause 取自 data.loop-extension v1——这两处此刻解析不到（contract.md G-1、G-2）。正反实例在同目录 examples.md。",
+  "$comment": "状态 candidate，未接受、未冻结。Schema 只管单个信封的形状；表示层拒绝值的具名与优先级（S-28）、要借开块才判得出的约束（片段合不合那一类、整块合不合开块、封口块与开块是否同一块）、块头媒体类型的模态（单个信封判得出，拒绝值 head_modality_mismatch，Schema 不按 modalityOf 写）、序列规则（S-17、S-18、S-24）、帧里任意一层的内联媒体（S-23）由契约条款定，Schema 管不到，逐条列在 contract.md「Schema 管得到什么」。外部引用：ContentBlock、BlockId、Visibility、MediaType、CallId 取自 data.content-blocks v1；Usage、Cost、TrimReason 取自 data.call-accounts v1；ModelCallId 取自 data.call-accounts v1 S-37、FailureCause 取自 data.loop-extension v1 S-17（contract.md G-1、G-2 已闭合）。正反实例在同目录 examples.md。",
 
   "$defs": {
 
@@ -152,7 +152,7 @@
 
     "BlockHead": {
       "title": "块头（contract.md S-9）",
-      "description": "开块时就知道、此后不变的事。mediaType：块的媒体类型，模态须与块的类型相符（voice → audio，image → image，text/thinking → text；这一条 Schema 管不到，由消费一侧判 head_modality_mismatch）。callId：这次工具调用已登记的 CallId。tool：模型面那个工具条目的 name。presentation：呈现提示（S-10）。",
+      "description": "开块时就知道、此后不变的事。mediaType：块的媒体类型，模态须与块的类型相符（voice → audio，image → image，text/thinking → text）——这一条 Schema 不写，由任何接收边界只看这一个事件判定，拒绝值是本契约的 head_modality_mismatch（S-9、S-28）；mediaType 不合规范形式时取 data.content-blocks 的 malformed，不判模态。callId：这次工具调用已登记的 CallId。tool：模型面那个工具条目的 name。presentation：呈现提示（S-10）。",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -263,14 +263,14 @@
 
     "FinishReason": {
       "title": "FinishReason（contract.md S-16）",
-      "description": "一条流的结局。end：生产者正常说完；max_tokens：写到上限被截断（只有 model_call）；interrupted：被有意停下（用户叫停，或宿主把它带走）——不是故障，不带成因；lost：生产的一方失去了连续性（模型侧是故障；工具侧是帧流断了，不影响那次执行的收场）。",
+      "description": "一条流的结局。end：生产者正常说完；max_tokens：写到上限被截断（只有 model_call）；interrupted：被有意停下（用户叫停，或宿主决定把它带走）——不是故障，不带成因；lost：生产的一方失去了连续性（模型侧是故障；工具侧是帧流断了、执行者没有回答、执行者换了代——都不影响那次执行的收场）。工具侧四值怎样对到 ToolInternalMessage 的 ending，对应表在 data.messages v1 S-14。",
       "enum": ["end", "max_tokens", "interrupted", "lost"]
     },
 
     "FinishEvent": {
       "title": "收尾（contract.md S-16）",
       "description": "一条流的结局，每条流恰一次、且是最后一个事件。error 只在 model_call 且 reason 为 lost 时可带：cause 是 data.loop-extension v1 的 FailureCause，statusCode 是上游状态码、原样不翻译。lost 不带 error 合法，不表示没有故障。",
-      "$comment": "error 的 cause 引 data.loop-extension v1 的 FailureCause，那份契约并行起草、此刻解析不到（contract.md G-2）。「只有 model_call」一半在 ArrivalEnvelope 的条件里。",
+      "$comment": "error 的 cause 引 data.loop-extension v1 S-17 的 FailureCause（contract.md G-2 已闭合）。「只有 model_call」一半在 ArrivalEnvelope 的条件里。",
       "type": "object",
       "additionalProperties": false,
       "required": ["t", "reason"],

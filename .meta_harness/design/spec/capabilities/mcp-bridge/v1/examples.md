@@ -86,7 +86,7 @@
 
 | 此前现存副本 | 这一次发生了什么 | 结局 | 之后存储里 | 依据 |
 |---|---|---|---|---|
-| `not_fetched` | 连上，两页拿完，共两项 | 成功，返回 `data.mcp-endpoint` 实例 3.1 那份（`fetchedAt` 是列举完成那刻） | 3.1 那份 | [S-16](contract.md#s-16-refreshactions) ④⑤ |
+| `not_fetched` | 连上，两页拿完，共两项 | 成功，返回 `data.mcp-endpoint` 实例 3.1 那份（`fetchedAt` 是列举开始那刻） | 3.1 那份 | [S-16](contract.md#s-16-refreshactions) ④⑤ |
 | 3.1 那份 | 连上，对端现在一项也没有 | 成功，返回 `{"kind": "fetched", "fetchedAt": "…", "tools": []}` | 那份空清单 | 空清单是一次成立的答案（`data.mcp-endpoint/v1#S-23`） |
 | 3.1 那份 | stdio 程序拉不起来 | `endpointUnreachable`，**随值交出 3.1 那份** | 3.1 那份，原样 | [S-16](contract.md#s-16-refreshactions) ⑥；[S-32](contract.md#s-32-连不上时照上一份清单装替换件) |
 | `not_fetched` | 连不上 | `endpointUnreachable`，随值交出 `{"kind": "not_fetched"}` | `not_fetched` | [S-33](contract.md#s-33-从没连上过的接入点没有条目) |
@@ -97,7 +97,7 @@
 | 3.1 那份 | 两页里各有一项叫 `list_issues` | `protocolError{raw}`（违例说明：对端名重复） | 3.1 那份 | 同上 |
 | 3.1 那份 | 对端给到第 4 页还有游标 | `protocolError{raw}`（违例说明：超出 `maxListPages`） | 3.1 那份 | ④ |
 | 3.1 那份 | 对端有一项叫 `repos/list`、一项的 `inputSchema` 是 `{"type": "object", "minProperties": -1}` | **成功**，两项都进副本 | 新副本含这两项 | 条目名拼不出、schema 不成立在投影时处理（[S-17](contract.md#s-17-projectactions)） |
-| 3.1 那份（`fetchedAt` 08:00） | 两次并发刷新：A 在 08:05 开始、08:07 完成；B 在 08:06 开始、08:06:30 完成 | 两次都成功；A 返回的是**存储里那份 B 写下的**（它更新）| B 那份 | [S-7](contract.md#s-7-动作清单持久副本) 第 4 条：`fetchedAt` 取完成时刻；不晚于已存的即丢弃 |
+| 3.1 那份（`fetchedAt` 08:00） | 两次并发刷新：A 在 08:05 开始、08:07 完成；B 在 08:06 开始、08:06:30 完成 | 两次都成功；B 先写下 `fetchedAt` 08:06 的那份；A 的 `fetchedAt` 是 08:05，不晚于已存的，**被丢弃**，A 返回的是**存储里那份 B 写下的**（它更新）| B 那份 | [S-7](contract.md#s-7-动作清单持久副本) 第 4 条：`fetchedAt` 取**开始**时刻；不晚于已存的即丢弃；P-5 |
 | 任意 | 存储读不到 | `dependencyUnavailable`，**不交副本** | 不变 | [S-11](contract.md#s-11-缺席时的默认答案)：不当它是 `not_fetched` |
 | 任意 | 列举完整成功，写副本时存储不可用 | `dependencyUnavailable` | 不变 | ⑧ |
 | 任意 | 保管方此刻够不着 | `dependencyUnavailable`；**没有不带凭据去连** | 不变 | [S-9](contract.md#s-9-凭据的出示与取用) 第 2 条 |
@@ -161,19 +161,19 @@
 |---|---|---|
 | `{"name": "search", "inputSchema": {"type": "object", "properties": {}}}`（没有 `description`） | 条目 `github:search`，`description` 为 `"对端未提供说明"`，`normalized: true` | [S-17](contract.md#s-17-projectactions) 最小规范化第 1 样：占位说的是「对端没给」，不替对端编说明 |
 | `{"name": "search", "description": "", "inputSchema": {"type": "object", "properties": {}}}` | 同上 | 同上：空串不是非空说明 |
-| `{"name": "repos/list", "inputSchema": {"type": "object", "properties": {}}}` | 进 `excluded`，原因「条目名拼不出」 | `data.mcp-endpoint/v1#S-11`：禁 `/` |
-| `{"name": "list issues", "inputSchema": {"type": "object", "properties": {}}}` | 进 `excluded`，原因「条目名拼不出」 | 含空白 |
-| `{"name": "issues.list", "inputSchema": {"type": "object", "properties": {}}}` | 进 `excluded`，原因「条目名拼不出」 | `.` 不在 `data.tool-definition/v1#S-18` 的字符集里——MCP 协议建议里有它 |
-| `{"name": "_internal", "inputSchema": {"type": "object", "properties": {}}}` | 进 `excluded`，原因「条目名拼不出」 | 拼出 `github:_internal`，拼接处成 `:_` |
+| `{"name": "repos/list", "inputSchema": {"type": "object", "properties": {}}}` | 进 `excluded`，原因 `name_unformable{malformed}`（M25） | `data.mcp-endpoint/v1#S-11`：禁 `/` |
+| `{"name": "list issues", "inputSchema": {"type": "object", "properties": {}}}` | 进 `excluded`，原因 `name_unformable{malformed}`（M25） | 含空白 |
+| `{"name": "issues.list", "inputSchema": {"type": "object", "properties": {}}}` | 进 `excluded`，原因 `name_unformable{malformed}`（M25） | `.` 不在 `data.tool-definition/v1#S-18` 的字符集里——MCP 协议建议里有它 |
+| `{"name": "_internal", "inputSchema": {"type": "object", "properties": {}}}` | 进 `excluded`，原因 `name_unformable{name_reserved_sequence}` | 拼出 `github:_internal`，拼接处成 `:_` |
 | `{"name": "ns:tool", "description": "Tool.", "inputSchema": {"type": "object", "properties": {}}}` | 条目 `github:ns:tool`，`normalized: false` | 条目名允许再有 `:` |
-| `{"name": "bulk", "description": "Bulk.", "inputSchema": {"type": "object", "minProperties": -1}}` | 进 `excluded`，原因「参数 schema 不成立」 | `data.tool-definition/v1` 的 `input_not_schema`；顶层不是恰 `{"type": "object"}`，第 3 样不适用 |
+| `{"name": "bulk", "description": "Bulk.", "inputSchema": {"type": "object", "minProperties": -1}}` | 进 `excluded`，原因 `input_rejected{input_not_schema}` | `data.tool-definition/v1` 的 `input_not_schema`；顶层不是恰 `{"type": "object"}`，第 3 样不适用 |
 | `{"name": "search", "description": "Search.", "inputSchema": {"type": "object"}}` | 条目 `github:search`，`input` 为 `{"type": "object", "properties": {}}`，`normalized: true` | 最小规范化第 3 样：视为无参数（主线裁定 2026-09-24，原 G-18） |
-| `{"name": "search", "description": "Search.", "inputSchema": {"type": "object", "additionalProperties": false}}` | 进 `excluded`，原因「参数 schema 不成立」 | 顶层没带 `properties`（M26），而它不是恰 `{"type": "object"}`——**第 3 样只认那一种写法** |
+| `{"name": "search", "description": "Search.", "inputSchema": {"type": "object", "additionalProperties": false}}` | 进 `excluded`，原因 `input_rejected{malformed}`（M26） | 顶层没带 `properties`（M26），而它不是恰 `{"type": "object"}`——**第 3 样只认那一种写法** |
 | `{"name": "search", "description": "Search.", "inputSchema": {"type": "object", "properties": {"q": {"type": "string"}}}}` | 条目 `github:search`，`input.properties.q` 补上 `"description": "对端未提供说明"`，`normalized: true` | 最小规范化第 1 样（参数那一半） |
-| `{"name": "search", "description": "Search.", "inputSchema": {"type": "object", "properties": {"q": true}}}` | 进 `excluded`，原因「参数 schema 不成立」 | `parameter_description_missing`：成员 schema 是布尔 schema，补不上说明 |
+| `{"name": "search", "description": "Search.", "inputSchema": {"type": "object", "properties": {"q": true}}}` | 进 `excluded`，原因 `input_rejected{parameter_description_missing}` | `parameter_description_missing`：成员 schema 是布尔 schema，补不上说明 |
 | `{"name": "search", "description": "Search.", "inputSchema": {"$schema": "http://json-schema.org/draft-07/schema#", "type": "object", "properties": {}}}` | 条目 `github:search`，`input` 为 `{"type": "object", "properties": {}}`，`normalized: true` | 最小规范化第 2 样：剥掉 `$schema`，之后按 Draft 2020-12 读 |
 | `{"name": "new_issue", "description": "Open an issue.", "inputSchema": {"title": "NewIssueArgs", "type": "object", "properties": {"title": {"type": "string", "title": "Title", "description": "Issue title."}}}}` | 条目 `github:new_issue`，`input` 为 `{"type": "object", "properties": {"title": {"type": "string", "description": "Issue title."}}}`，`normalized: true` | 第 2 样：两处关键字 `title` 剥掉；**名为 `title` 的参数留着**——它是参数名，不是关键字 |
-| `{"name": "search", "description": "Search.", "inputSchema": {"type": "object", "properties": {"q": {"$ref": "#/$defs/Q"}}, "$defs": {"Q": {"type": "string", "description": "Query."}}}}` | 进 `excluded`，原因「参数 schema 不成立」 | `$ref`、`$defs` 不在可呈现子集里（M27）；**不展开引用**——三样之外不做 |
+| `{"name": "search", "description": "Search.", "inputSchema": {"type": "object", "properties": {"q": {"$ref": "#/$defs/Q"}}, "$defs": {"Q": {"type": "string", "description": "Query."}}}}` | 进 `excluded`，原因 `input_rejected{malformed}`（M27） | `$ref`、`$defs` 不在可呈现子集里（M27）；**不展开引用**——三样之外不做 |
 | `{"name": "export", "inputSchema": {"type": "object", "properties": {}}, "execution": {"taskSupport": "required"}}` | 条目 `github:export`，形状照常（说明是占位、`normalized: true`），**标记只能以替换件出现**，原因「本版不支持这个动作的执行方式」 | [S-17](contract.md#s-17-projectactions)；D-037；识别依据未核（[G-6](contract.md#十已知缺口)） |
 | `{"name": "export", "description": "Export.", "inputSchema": {"type": "object", "properties": {}}, "execution": {"taskSupport": "optional"}}` | 普通条目，`normalized: false` | 只有 `required` 才标记 |
 | 副本 `{"kind": "not_fetched"}` | `entries` 与 `excluded` 都为空；**副本那一支是 `not_fetched`** | [S-33](contract.md#s-33-从没连上过的接入点没有条目) |
@@ -253,8 +253,8 @@
 | 应答里的状态参数与这次流程不一致 | `oauthDenied` | [S-23](contract.md#s-23-completeoauth) ② |
 | 换来凭据后保管方此刻不可用 | `dependencyUnavailable`；换来的凭据丢弃；绑定留 `pending`、到 08:15 作废 | [S-23](contract.md#s-23-completeoauth) ⑧ |
 | `beginOAuth` 对 `mcp:github`（stdio） | `oauthNotApplicable` | [S-22](contract.md#s-22-beginoauth) ③ |
-| `beginOAuth` 的 `scope` 是工作区格 | `oauthNotApplicable` | 同上：工作区那一级取不了 |
-| `beginOAuth` 的 `scope` 是组织格 `{"layer": "organization", "organization": "org_t1"}` | `oauthNotApplicable`；不写绑定 | 同上：组织那一层不持有 MCP 凭据（PF-002 rev 18；原 G-13 关闭） |
+| `beginOAuth` 的 `scope` 是工作区格（生效的那份来自工作区） | `oauthNotApplicable` | 同上：连接目标来自工作区，取到的租户凭据不会出示给它 |
+| `beginOAuth` 的 `scope` 是组织格 `{"layer": "organization", "organization": "org_t1"}`（租户格上还没有这份持有） | `oauthNotApplicable`；不写绑定 | 同上：组织那一层不持有 MCP 凭据（PF-002 rev 18）；要先以 `organization` 那一支在租户格持有它、`scope` 成了租户格再来取（`data.asset-model/v1#S-19`） |
 | 08:10 拿到 `cred_91c2`，但写配值时治理中心不可达；人没再试 | 09:10 保管方丢弃那份凭据，`oab_3e1f` 转 `revoked` | [S-37](contract.md#s-37-oauth-取到的引用配不上就作废) |
 
 **7.2 续期与作废**（接 7.1，配值已是 `cred_91c2`）：

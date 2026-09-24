@@ -7,7 +7,7 @@
 **瀑布怎么走、回放怎么跑**变了，只动 runner。操作那一半是 `capability.loop-extension-runner`。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.loop-extension, 1)`
-- **状态**：`candidate`，2026-09-23 起草、同日按主线裁定原地修订一次，2026-09-24 整批对齐再原地改一次（[变化的影响](verification.md#变化的影响)）；**未接受、未冻结**，不得据此发布或声称消费者已采用
+- **状态**：`candidate`，2026-09-23 起草、同日按主线裁定原地修订一次，2026-09-24 整批对齐再原地改一次，同日按第一轮独立评审处置再改一次（[变化的影响](verification.md#变化的影响)、[独立评审](verification.md#独立评审)）；**未接受、未冻结**，不得据此发布或声称消费者已采用
 - **catalog 映射**：已登记为 `candidate`（`acceptance` 为 null）。`family=data`、`topic=loop-extension`、
   `contract_path=spec/data/loop-extension/v1/contract.md`，`resources` 另含同目录的 `loop-extension.schema.json` 与 `examples.md`；
   `dependencies` 列八项——两项已接受（`data.identity-values`、`data.offer-expiry`），六项是候选
@@ -23,7 +23,7 @@
 | 稳定身份 | `data.loop-extension`，版本 1 |
 | 适用范围 | 一个部署之内、一个会话的日志上；跨进程后由协议重新兑现的那几条在[契约第十节](v1/contract.md#十装配给与协议给) |
 | 为什么是 data 而不是 capability | 它**没有操作**：没有状态转移、没有提交点。有行为的是 runner |
-| 精确依赖 | 七项，见[契约抬头](v1/contract.md)；五项是同批候选 |
+| 精确依赖 | 八项，见[契约抬头](v1/contract.md)；两项已接受，六项是候选 |
 | 谁在等它 | `capability.loop-extension-runner`、`capability.hooks-import`、`capability.tool-admission`、`capability.model-request-runtime`、`data.model-response` 与 `data.arrival-events`（`$ref` `FailureCause`）、PF-002 资产领域 |
 | 接受状态 | 未接受 |
 
@@ -34,9 +34,11 @@
 | 本候选版本精确承诺什么 | [v1 契约](v1/contract.md) |
 | 交换与存储表示 | [v1 Schema](v1/loop-extension.schema.json) |
 | 一个声明、一条结论长什么样，什么会被拒 | [v1 正反实例](v1/examples.md)，含四个完整走查 |
+| 一件拓展件此刻不在时怎么办 | [S-6 不可用处置的声明](v1/contract.md#s-6-声明的成员与类别)、[S-33](v1/contract.md#s-33-不可用与报错两分) |
+| 一件拓展件推出哪几项设置与权限 | [S-40 属性项的推出规则](v1/contract.md#s-40-属性项的推出规则) |
 | 某个位置能交回哪几种结论 | [档 × 结论](v1/contract.md#s-20-档与结论的合法组合)、[位置 × 结论](v1/contract.md#s-21-位置与结论的合法组合) |
 | 我在写拓展件，要额外守什么 | [S-35 跨过一次等待只能带已落日志的东西](v1/contract.md#s-35-跨过一次等待只能带已落日志的东西) |
-| 哪里在等裁决 | [已知缺口](v1/contract.md#十四已知缺口)：开着的是 G-1～G-7、G-13、G-15～G-17；G-8～G-12、G-14 已按主线裁定关闭（待产品负责人确认） |
+| 哪里在等裁决 | [已知缺口](v1/contract.md#十四已知缺口)：开着的是 G-1、G-4～G-6、G-15、G-16、G-18；其余已关闭，答案所在条款写在各行 |
 | 哪些条款有怎样的证据义务，现在到哪一步 | [验证与覆盖](verification.md) |
 
 ## 版本包

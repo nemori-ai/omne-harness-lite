@@ -23,10 +23,10 @@
   候选的下一版是 `(omne-harness-lite-design-2026-09-15, capability.organization-governance, 2)`，见下一条
 - **v2（`candidate`，2026-09-24）**：[v2 契约](v2/contract.md)——**加法版**：成员关系记录多一项**成员关系生效时刻**（`membershipEffectiveSince`）、
   上级组织属性多一项**隶属建立时刻**（`parentEstablishedAt`，两者无词条），[读组织](v2/contract.md#s-22-读组织)、[列出组织成员](v2/contract.md#s-59-列出组织成员)、[当前租户身份查询](v2/contract.md#s-36-当前租户身份查询)把它们带出来；
-  **其余条款与 v1 逐字相同**，失败集合不变。为 [PF-003 §6.12](../../../product/PF-003-asset-transfer-and-sharing/design.md#612-关系解除之后)「分享不复活」而出（主线裁定 2026-09-24）。
+  写下它们的几条写路径多一项、三个读面各多一种 `unavailable` 触发、[S-22](v2/contract.md#s-22-读组织) ② 指路更正；**上面这些之外与 v1 同文**，失败值集合不变。为 [PF-003 §6.12](../../../product/PF-003-asset-transfer-and-sharing/design.md#612-关系解除之后)「分享不复活」而出（主线裁定 [D-040 §三 R2-1](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#三2026-09-24-第二轮规格修订的主线裁定简报-r2-1r2-16-原文与-g-24g-25)）。经独立评审第一轮（[处置表](verification.md#独立评审)），未接受。
   **消费者**：v1 仍是 `composition.account-registration`、`composition.governance-center-entry`、`capability.asset-governance`、`capability.model-profile-directory` 与实现映射 tenancy 各包（含 [`realization/packages/tenancy/organization-governance`](../../../realization/packages/tenancy/organization-governance/README.md)）钉的版本；
   **钉 v2 的只有 `capability.asset-transfer` v1**。**v2 的采用是实施侧另一步**，推荐版本不自动升级消费者。
-  逐条差异与消费者影响在 [v2 §十三](v2/contract.md#十三版本差异与规范工件)；v2 **不新增形式工件、沿用 v1 的**（[v2 S-45](v2/contract.md#s-45-本版选用哪些形式工件)）。**v1 的状态与下面各条不因它改变**
+  逐条差异、**逐个 v1 消费者的相容性**与同一提供者服务两版的规则在 [v2 §十三](v2/contract.md#十三版本差异与规范工件)；v2 **不新增形式工件、沿用 v1 的**（[v2 S-45](v2/contract.md#s-45-本版选用哪些形式工件)）。**v1 的状态与下面各条不因它改变**
 - **状态**：`accepted`，资源已冻结——[D-023](../../../record/decisions/tenant-domain-design-acceptance/README.md)（产品负责人，2026-09-22）接受 v1 全部条款，
   含[已知缺口](v1/contract.md#十一已知缺口)作为显式缺口；**此后语义改动发布 v2，不原地改 v1**。接受不表示已实现或已验证
 - **catalog 映射**：**已登记并接受**（2026-09-22，状态 `accepted`，`acceptance` 指向 D-023 的 [`acceptance.json`](../../../record/decisions/tenant-domain-design-acceptance/acceptance.json)）。`family=capabilities`、

@@ -17,7 +17,7 @@
 (*   OutFirst         -- S-15: "out" is written before the request leaves  *)
 (*   SpokeFirst       -- S-15: "spokeA" is written before content is seen  *)
 (*   IntentFirst      -- S-31: interrupt intent is written before abort    *)
-(*   GuardOn          -- S-30: already-spoke and fact-class guards         *)
+(*   GuardOn          -- S-30 guards 1 and 2: already-spoke, fact-class    *)
 (*   IdempotentSettle -- S-17: a settlement writes nothing if a body exists*)
 (***************************************************************************)
 EXTENDS Naturals, FiniteSets
@@ -293,8 +293,14 @@ Reconcile ==
   \* Rows are tried top to bottom (contract S-33, reconciliation table).
   /\ IF callEnd # "none" \/ (nd > 0 /\ outcome[nd] \in TerminalOutcomes)
        THEN phase' = "ended" /\ UNCHANGED <<nbody, outcome, bft, callEnd>>
+     \* Nothing went out.  An interrupt intent is a durable record of this
+     \* call: row 2 ends it as interrupted.  Without one, an open call left
+     \* no trace and is simply gone.
      ELSE IF nd = 0
-       THEN phase' = "gone" /\ UNCHANGED <<nbody, outcome, bft, callEnd>>
+       THEN IF intent # "none"
+              THEN /\ callEnd' = "interrupted" /\ phase' = "ended"
+                   /\ UNCHANGED <<nbody, outcome, bft>>
+            ELSE phase' = "gone" /\ UNCHANGED <<nbody, outcome, bft, callEnd>>
      ELSE IF nbody[nd] = 0
        THEN IF intent # "none"
               THEN /\ WriteBody(nd, IntentOutcome(intent), spokeA[nd])
@@ -360,8 +366,8 @@ EverySentIsAnchored == \A d \in D : sent[d] => (out[d] \/ gapSend = d)
 \* S-15 second row: every content an observer saw is anchored.
 EverySeenIsAnchored == \A d \in D : seen[d] => (spokeA[d] \/ gapSeen = d)
 
-\* S-22 item 4 / S-30 guard 2: once any dispatch spoke, no later dispatch,
-\* across attempts.
+\* S-22 item 4 / S-30 guard 1 (already_spoke): once any dispatch spoke, no
+\* later dispatch, across attempts.
 NoDispatchAfterSpoke ==
   \A d1, d2 \in D : (d1 < d2 /\ spokeA[d1]) => (~out[d2] /\ ~sent[d2])
 

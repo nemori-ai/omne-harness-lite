@@ -2,13 +2,13 @@
 
 **一次工具调用准不准做**——[放行判断](../../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-admission-decision--放行判断--admission-decision)这一件系统自带[拓展件](../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension)**对外的输入与输出**：
 一批调用先全判完；每一项走四步（执行权限三档 → 授权表达 → [会话运行模式](../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-session-run-mode--会话运行模式--session-run-mode)）；
-要问人就交回一张选项定死四档的[决策卡片](../../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-decision-card--决策卡片--decision-card)草稿；放行就给一张凭据，执行运行时凭它核对「放行之后参数没变」。
+要问人就交回一张选项定死四档（第四档写得进去才出现）的[决策卡片](../../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-decision-card--决策卡片--decision-card)草稿；放行就给一张凭据，执行运行时凭它核对「放行之后参数没变」。它在拓展点协议里的能力标识是 `omne-official:admission-judgment`；它不在时由全拒件顶上。
 
 **它是接口型契约**：只定入出、判定次序与凭据。授权表达怎样求值、卡片怎样投递、调用怎样执行，都不在这里；
 **本程实现不交付**，可独立运行的装配里这一件的实现另行决定。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.tool-admission, 1)`
-- **状态**：`candidate`（2026-09-23 起草），**未经独立评审、未接受、未冻结**
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 按第一轮独立评审修订），**未接受、未冻结**
 - **catalog 映射**：已登记为 `candidate`；`family=capabilities`、`topic=tool-admission`、
   `contract_path=spec/capabilities/tool-admission/v1/contract.md`；`resources` 含契约与 `examples.md`；
   依赖五项（`data.identity-values`、`data.content-blocks`、`data.tool-definition`、`data.loop-extension`、`data.asset-model`，均 v1），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)

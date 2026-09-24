@@ -49,11 +49,11 @@
 |---|---|---|---|
 | `{"kind": "session", "session": "ses_4c1e"}` | 通过 | — | [S-4](contract.md#s-4-投递目标) |
 | `{"kind": "Session", "session": "ses_4c1e"}` | 拒绝 | `target_unknown` | [S-4](contract.md#s-4-投递目标)、[S-17](contract.md#s-17-判别式闭合)：大小写不同也是另一个值，**不被当成 `session`** |
-| `{"kind": "thread", "session": "ses_4c1e"}` | 拒绝 | `target_unknown` | [S-17](contract.md#s-17-判别式闭合)：本版只有一支（按线程分会话见 G-3） |
+| `{"kind": "thread", "session": "ses_4c1e"}` | 拒绝 | `target_unknown` | [S-17](contract.md#s-17-判别式闭合)：本版只有一支（按对面线程分会话是 PF-002 的非目标；开新会话那一路不是投递目标的一支，见 [G-10](contract.md#十已知缺口)） |
 | `{"session": "ses_4c1e"}` | 拒绝 | `malformed` | [S-4](contract.md#s-4-投递目标)：`kind` 缺席——判别不出，不当作 `session` |
 | `{"kind": "session"}` | 拒绝 | `malformed` | [S-4](contract.md#s-4-投递目标)：`session` 必填 |
 | `{"kind": "session", "session": ""}` | 拒绝 | `malformed` | [S-4](contract.md#s-4-投递目标)：`SessionRef` 不合 `data.messages` v1 的形状 |
-| `{"kind": "session", "session": "ses_4c1e", "agentDefinition": {"category": "agent_definition", "name": "ops-assistant"}}` | 拒绝 | `malformed` | [S-4](contract.md#s-4-投递目标)：成员闭合；**新建会话的规则本版没有**（G-3），不为它预留成员 |
+| `{"kind": "session", "session": "ses_4c1e", "agentDefinition": {"category": "agent_definition", "name": "ops-assistant"}}` | 拒绝 | `malformed` | [S-4](contract.md#s-4-投递目标)：成员闭合；**开新会话那一路不是投递目标的一支**，它的形状本版未落（[G-10](contract.md#十已知缺口)），不为它预留成员 |
 | `"ses_4c1e"` | 拒绝 | `malformed` | [S-4](contract.md#s-4-投递目标)：投递目标是判别式对象，不是一个裸的会话指认 |
 
 ## 3. ConnectorDefinition
@@ -145,6 +145,7 @@
 
 它的身份在记录的 `capability` 上，例如 `{"category": "connector", "name": "ops-alerts"}`；**要同时接同一服务的另一个账号，就另立一份 name 不同的记录**（[S-12](contract.md#s-12-鉴权绑定那一项)）。
 投递目标与鉴权绑定在持有它的那一格的配值上，例如一份租户格持有的 `assignments` 里 `{"item": "target", "value": {"kind": "session", "session": "ses_4c1e"}, "immutable": false, "since": "2026-09-20T09:00:00Z"}` 与 `{"item": "credential", "value": "cred_5a0e", "immutable": false, "since": "2026-09-20T09:00:00Z"}`。
+`credential` 那一条的值若写成一段明文（例如 `{"token": "xoxb-…"}`）或任何不是 `CredentialRef` 的值：资产治理写面拒绝，拒绝值 **`valueOutOfDomain`**（`capability.asset-governance` v1 的 [S-38](../../../capabilities/asset-governance/v1/contract.md#s-38-assign-配值) ②）——那不是本契约的值（[S-12](contract.md#s-12-鉴权绑定那一项)）。
 
 ## 8. 推出的属性声明
 
@@ -188,7 +189,7 @@
 | 实例 | 结论 | 依据 |
 |---|---|---|
 | 某个实现把 `target` 的 `default` 推成 `{"kind": "session", "session": ""}` 或 `null` | **推出规则违约**——`target` 不带默认，没配就是缺席 | [S-11](contract.md#s-11-推出规则) |
-| 某个实现给 `triggeredSessionRunMode` 推出 `"default": "never"`（或取正文里作者写的一个值） | **推出规则违约**——作者声明的默认也不算数，没配就是缺席、开不出新会话 | [S-11](contract.md#s-11-推出规则)（主线裁定 R2-14） |
+| 某个实现给 `triggeredSessionRunMode` 推出 `"default": "never"`（或取正文里作者写的一个值） | **推出规则违约**——作者声明的默认也不算数，没配就是缺席、开不出新会话 | [S-11](contract.md#s-11-推出规则)（主线裁定，D-040 §三 R2-14） |
 | 某个实现推不出 `triggeredSessionRunMode`，只推出三项落点与身份类设置 | **推出规则违约**——治理类那一项必须产出 | [S-11](contract.md#s-11-推出规则) |
 | 某个实现把它推成 `"category": "placement_identity"` | **推出规则违约**——它是治理类（PF-002 §5.2 那张表） | [S-11](contract.md#s-11-推出规则) |
 | 某个实现推出了 `{"item": "usableBy", …}` 或 `{"item": "enabled", …}` | **推出规则违约**——连接件的权限只有 `install`、`processingIdentity`；启用与否是保留的 `disabled` | [S-11](contract.md#s-11-推出规则)、[S-13](contract.md#s-13-两项权限) |

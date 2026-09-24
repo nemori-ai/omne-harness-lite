@@ -121,7 +121,7 @@
 ```
 
 - **已撤回的档案仍是一份合法文档，仍读得出**；这个引用仍解析到它（[S-10](contract.md#s-10-registration)、[S-14](contract.md#s-14-引用只精确解析不跨层)）。
-  它**可以恢复在册**：恢复之后 `registration` 回到 `"listed"`，其余成员一个不变，这个引用解析到的仍是同一条。
+  它**可以恢复在册**：恢复之后 `registration` 回到 `"listed"`，这个引用解析到的仍是同一条；**单纯的恢复**（维护档案的能力的 `relistProfile`）其余成员与 `updatedAt` 一个不变（[第 8 节](#8-转移不是形状撤回与恢复在册)）。
 - `allowFallback: false` 而列表有两家**合法**：只发往第一家，第二家保留在档案上（[S-6](contract.md#s-6-允不允许回退)）。
 
 ## 2. ModelProfile 的反例
@@ -170,7 +170,7 @@
 | A：＋`"parameters": {"temperature": 2.5}` | 拒绝 | `parameter_out_of_range` | [S-16](contract.md#s-16-各项的取值域) |
 | A：＋`"parameters": {"temperature": "0.2"}` | 拒绝 | `malformed`（M4） | [S-16](contract.md#s-16-各项的取值域)：类型不对是 `malformed`，不是越界 |
 | A：＋`"parameters": {"reasoningEffort": "extreme"}` | 拒绝 | `parameter_out_of_range` | [S-16](contract.md#s-16-各项的取值域)：五档闭合 |
-| A：＋`"parameters": {"maxOutputTokens": 0}` | 拒绝 | `parameter_out_of_range` | [S-16](contract.md#s-16-各项的取值域)：先于第 8 行的跨字段比较命中 |
+| A：＋`"parameters": {"maxOutputTokens": 0}` | 拒绝 | `parameter_out_of_range` | [S-16](contract.md#s-16-各项的取值域)：S-25 第 8 行，先于第 9 行的跨字段比较命中 |
 | A：＋`"parameters": {"maxOutputTokens": 64000}` | 通过 | —— | [S-18](contract.md#s-18-档案参数的输出上限)：等于档案上限可以 |
 | A：＋`"parameters": {"maxOutputTokens": 64001}` | 拒绝 | `max_output_exceeds_profile` | [S-18](contract.md#s-18-档案参数的输出上限)。**Schema 放行、表示层拒绝**——只跑 Schema 的实现会漏掉这一行 |
 | B：`maxOutputTokens` → `2048` | 拒绝 | `max_output_exceeds_profile` | [S-18](contract.md#s-18-档案参数的输出上限)、[S-12](contract.md#s-12-各属性何时定能不能改)：把档案上限改到低于参数值，改完的文档过不了。**所以上游收紧到这里时档案不改**，差额由 adapter 在发出时按「改了值再发出」处理并留痕（[S-21](contract.md#s-21-不静默丢也不静默改)）。**Schema 放行、表示层拒绝** |
@@ -296,6 +296,7 @@
 
 **这一节不是表示层校验**：每一行的拟建档案**都通过表示层校验**，被拒是因为要读别的记录（[S-3](contract.md#s-3-撞名判定同一范围内唯一)、[S-26](contract.md#s-26-表示层拒绝与判定分开)）。
 它是规范场景，由拥有建档操作的能力（`capability.model-profile-directory` v1）演练，状态见[验证入口](../verification.md#证据义务)。
+「结果」一列写的是那条操作**会返回的东西**：自建建档返回「建出」或 `route_name_taken`；**官方发布只经清单装入**，那几行写清单装入的处置（`added`、`relisted`），不写 `route_name_taken`。
 
 **已有的档案**：正例 A（官方，在册）、正例 B（租户 `(org_7fd2c1, acc_91ab40)` 的租户层，在册）、正例 C（组织 `org_7fd2c1` 的组织层，已撤回）。
 **隶属关系**：组织 `org_t3a9` 的上级是 `org_7fd2c1`。**本节的判定一次也不读它**——列在这里只为说明隶属关系不参与撞名判定。
@@ -305,28 +306,32 @@
 |---|---|---|
 | 租户 `(org_7fd2c1, acc_91ab40)` 在自己那层建 `vendor-a/chat-large` | **建出** | 与正例 A（官方）同名，但不在同一格：两条并存；官方引用只解析到官方那一条，自建引用带着这一格（[S-13](contract.md#s-13-modelprofileref)、[S-14](contract.md#s-14-引用只精确解析不跨层)） |
 | 同一租户在自己那层再建 `vendor-b/coder-7b` | `route_name_taken` | 撞同一格里的名字（正例 B） |
-| 组织 `org_7fd2c1` 在组织层建 `vendor-b/coder-7b` | **建出** | 组织层与它某个租户的租户层不是同一格；**这一读法待产品负责人确认**（[G-13](contract.md#十已知缺口)） |
+| 组织 `org_7fd2c1` 在组织层建 `vendor-b/coder-7b` | **建出** | 组织层与它某个租户的租户层不是同一格，同名并存（[PF-013 裁决 39、40](../../../../product/PF-013-model-profiles-and-invocation/decisions.md#2026-09-24--同路由名的档案并存按层从下往上覆盖)、[§4 档案的身份](../../../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名)）；对那个租户，谁生效是运行时按层覆盖的事，不是本判定 |
 | 组织 `org_7fd2c1` 在组织层建 `vendor-c/vision-mini` | `route_name_taken` | 撞同一格里一条**已撤回**的档案（正例 C）：要再用这个名字，是把正例 C **恢复在册**，不是另建（[S-10](contract.md#s-10-registration)） |
 | 组织 `org_t3a9` 在组织层建 `vendor-c/vision-mini` | **建出** | 不在同一格；它的上级是 `org_7fd2c1` 这件事不参与判定 |
-| 系统发布一条新的官方档案 `vendor-b/coder-7b` | **建出** | 出厂默认层那一格里没有这个名字；与正例 B 并存 |
-| 正例 A 被撤回之后，系统再发布一条官方档案 `vendor-a/chat-large` | `route_name_taken` | 同一格（出厂默认层）里已撤回的行仍占着名字；上游把它重新上架，走的是把正例 A 恢复在册（`capability.model-profile-directory` v1 清单装入的「恢复」处置） |
+| 系统发布一条新的官方档案 `vendor-b/coder-7b` | **建出**（清单装入的处置 `added`） | 出厂默认层那一格里没有这个名字；与正例 B 并存 |
+| 正例 A 被撤回之后，系统再发布一条官方档案 `vendor-a/chat-large` | **不另建：把正例 A 恢复在册**（清单装入的处置 `relisted`） | S-3 的结论是名字在同一格（出厂默认层）里被已撤回的正例 A 占着——所以不另建一条。官方发布只经清单装入，那条操作对这种情形给的处置是恢复正例 A（`capability.model-profile-directory` v1 S-18），**不返回 `route_name_taken`**；清单里那一条若带着改过的属性，同一次提交里一并改写（[S-10](contract.md#s-10-registration)） |
 | 租户 `(org_7fd2c1, acc_91ab40)` 在自己那层建 `Vendor-B/Coder-7B` | **建出** | 只差大小写不算同名：逐码点比较，不做大小写折叠与相似字判定 |
 | 任一行，判定时读不到那一格的已有档案 | **明确失败**（值名归能力） | S-3 九件事第 4 行：**不得当作「未被占」** |
 | 两个请求**并发**在租户 `(org_7fd2c1, acc_91ab40)` 那一格建 `vendor-d/new` | **恰一个成功**，另一个 `route_name_taken` | S-3 九件事第 3 行：同一格里，判定读到的名字与写入同一提交 |
-| 租户 `(org_7fd2c1, acc_91ab40)` 在自己那层建 `vendor-d/next`，与系统发布官方档案 `vendor-d/next` **并发** | **两个都建出** | 不在同一格，互不相干 |
-| 两个请求**并发**建 `vendor-d/other`，一个在组织 `org_7fd2c1` 的组织层、一个在它的租户 `(org_7fd2c1, acc_91ab40)` 的租户层 | **两个都建出** | 不在同一格（读法待产品负责人确认，[G-13](contract.md#十已知缺口)） |
+| 租户 `(org_7fd2c1, acc_91ab40)` 在自己那层建 `vendor-d/next`，与系统发布官方档案 `vendor-d/next` **并发** | **两个都建出**（官方那一条是清单装入的 `added`） | 不在同一格，互不相干 |
+| 两个请求**并发**建 `vendor-d/other`，一个在组织 `org_7fd2c1` 的组织层、一个在它的租户 `(org_7fd2c1, acc_91ab40)` 的租户层 | **两个都建出** | 不在同一格（PF-013 裁决 39：组织层与租户层同名并存），两次判定各读各的那一格 |
 
 ## 8. 转移不是形状：撤回与恢复在册
 
 **这一节同样不是 Schema 实例。**把正例 C 的 `registration` 改回 `"listed"`，得到的文档**表示上完全合法**——
 它和一条在册的档案长得一样，而这正是正例 C **恢复在册之后**的样子：恢复是一次**转移**（[S-10](contract.md#s-10-registration)），由维护档案的能力写下，
 表示层看不出、也不需要看出一条档案是新建的还是恢复的。
-**表示层之外要守的是**：恢复的是**同一行**（不另起一行、身份分量不变、其余成员不变、`updatedAt` 不动）；除撤回与恢复在册之外，在册状态**没有别的写路径**；行不删。
+**表示层之外要守的是**：恢复的是**同一行**（不另起一行、身份分量不变）；除撤回与恢复在册之外，在册状态**没有别的写路径**；行不删。
+**「其余成员不变、`updatedAt` 不动」只对单纯的恢复断言**（维护档案的能力的 `relistProfile`，`capability.model-profile-directory` v1 S-33）：
+官方档案的恢复只经清单装入，清单里重现的那一条可以带着改过的属性（同一份契约 S-18 的 `relisted`）——那一次属性按清单改写，
+`updatedAt` 只在五项上游属性里至少一项变了时才动（[S-11](contract.md#s-11-updatedat)）；对它只断言「是同一行、身份分量不变、`registration` 变成 `listed`」。
 它们的证据形式是静态检查与场景，登记在[验证入口](../verification.md#证据义务)。
 
 ## 9. ModelProfileSnapshot
 
 **校验对象**：`$defs/ModelProfileSnapshot`（[S-27](contract.md#s-27-modelprofilesnapshot档案在某一刻的副本)）。它是值，不是一份档案文档：不参与 [S-25](contract.md#s-25-拒绝值闭合一次恰一个) 的拒绝值次序，这里只给形状上的通过与拒绝。
+[S-18](contract.md#s-18-档案参数的输出上限) 的关系在快照上由「照原样复制」保证（写快照一方的义务），**收它的一方不重判**，所以本节没有 `max_output_exceeds_profile` 那样的行。
 
 | 实例 | 预期 | 依据 |
 |---|---|---|
@@ -336,3 +341,42 @@
 | `{"routeName": "vendor-b/coder-7b", "providers": ["provider-z"], "allowFallback": false, "inputModalities": ["text"], "outputModalities": ["text"], "maxInputTokens": 32000, "maxOutputTokens": 8192, "updatedAt": "2026-09-20T02:30:00+08:00"}` | 拒绝 | 不带路由名：指认哪一条档案靠成对交出的引用 |
 | `{"providers": ["provider-z"], "allowFallback": false, "inputModalities": ["text"], "outputModalities": ["text"], "maxInputTokens": 32000, "maxOutputTokens": 8192, "registration": "listed", "updatedAt": "2026-09-20T02:30:00+08:00"}` | 拒绝 | 不带在册状态 |
 | `{"providers": [], "allowFallback": false, "inputModalities": ["text"], "outputModalities": ["text"], "maxInputTokens": 32000, "maxOutputTokens": 8192, "updatedAt": "2026-09-20T02:30:00+08:00"}` | 拒绝 | 取值域与档案同名成员相同：`providers` 非空 |
+
+## 10. 建档内容
+
+**校验对象**：`$defs/ModelProfileContent`（种类：建档内容，[S-28](contract.md#s-28-建档内容产生一条档案时给的那一份)）。拒绝值按 [S-25](contract.md#s-25-拒绝值闭合一次恰一个) 的表与次序；
+「D：…」读作在下面这条正例 D 上改一处，写法同第 2 节。
+
+### 正例 D：正例 B 那一条档案建档时给的那一份
+
+```json
+{
+  "routeName": "vendor-b/coder-7b",
+  "origin": "custom",
+  "providers": ["provider-z"],
+  "allowFallback": false,
+  "inputModalities": ["text"],
+  "outputModalities": ["text"],
+  "maxInputTokens": 32000,
+  "maxOutputTokens": 8192,
+  "inputConstraints": {},
+  "parameters": { "reasoningEffort": "low", "temperature": 0.2, "maxOutputTokens": 4096, "extra": { "top_k": 40 } }
+}
+```
+
+它**通过**。没有 `registration` 与 `updatedAt`：建出来的那一行由维护档案的能力在提交时写上 `listed` 与建档那一刻。
+
+| 实例 | 预期 | 拒绝值 | 依据 |
+|---|---|---|---|
+| D：＋`"registration": "listed"` | 拒绝 | `malformed`（M12） | [S-28](contract.md#s-28-建档内容产生一条档案时给的那一份)：在册状态由产生档案的一方写，**给 `listed` 也不行**——这个成员不该由给内容的一方出现 |
+| D：＋`"updatedAt": "2026-09-20T02:30:00+08:00"` | 拒绝 | `malformed`（M12） | [S-28](contract.md#s-28-建档内容产生一条档案时给的那一份)：「建档那一刻」由写入者定 |
+| D：＋`"registration": "deleted"` | 拒绝 | `malformed`（M12） | 不是 `registration_unknown`：S-25 第 1 行先于第 7 行，而这个成员根本不该出现 |
+| D：＋`"registration": "deleted"`，且 `providers` → `[]` | 拒绝 | `malformed`（M12） | **次序例**：M12 在第 1 行，先于第 3 行的 `providers_empty` |
+| D：−`inputConstraints` | 拒绝 | `malformed`（M2） | 其余必填与 `ModelProfile` 相同：「没有限制」要写 `{}` |
+| D：`providers` → `[]` | 拒绝 | `providers_empty` | [S-5](contract.md#s-5-providername-与允许的供应商) |
+| D：`inputModalities` → `["image"]` | 拒绝 | `input_text_missing` | [S-7](contract.md#s-7-modality-与两组模态) |
+| D：`maxOutputTokens` → `2048` | 拒绝 | `max_output_exceeds_profile` | [S-18](contract.md#s-18-档案参数的输出上限) 对建档内容同样适用。**Schema 放行、表示层拒绝** |
+| D：−`parameters` | 通过 | —— | [S-17](contract.md#s-17-缺席即不带没有人补值)：建档时可以一项参数都不给 |
+| D：＋`"credential": "sk-or-…"` | 拒绝 | `malformed`（M3） | [S-22](contract.md#s-22-凭据价格与实际用了哪条都不在档案上) |
+| D：`origin` → `"official"` | 通过 | —— | **表示层不判来源与那一格对不对得上**：建档要 `custom`、官方清单条目要 `official`，由维护档案的能力各自判（`capability.model-profile-directory` v1 S-14 ①、S-18 ①） |
+| 正例 B 原样（带 `registration` 与 `updatedAt`）当作建档内容 | 拒绝 | `malformed`（M12） | 一份档案不是一份建档内容：把读出来的档案原样送回建档，会在这里被拒 |

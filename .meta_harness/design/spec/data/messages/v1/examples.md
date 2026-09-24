@@ -44,7 +44,8 @@
 |---|---|---|---|
 | `{"id": "m_sys", "type": "system", "blocks": [{"id": "b1", "kind": "text", "visibility": {"toHuman": false, "toModel": true}, "text": "你是这个仓库的代码评审助手。"}], "createdAt": "2026-09-23T08:00:00Z"}` | 通过 | — | [S-7](contract.md#s-7-systemmessage)、[S-5](contract.md#s-5-给谁看在块上)：常态只给模型 |
 | `{"id": "m_sys", "type": "system", "blocks": [{"id": "b1", "kind": "thinking", "visibility": {"toHuman": false, "toModel": true}, "text": "……"}], "createdAt": "2026-09-23T08:00:00Z"}` | 拒绝 | `malformed` | [S-6](contract.md#s-6-每种消息能装哪几类块)：思考只在模型的回复里 |
-| `{"id": "m_sys", "type": "system", "blocks": [{"id": "b1", "kind": "text", "visibility": {"toHuman": false, "toModel": true}, "text": "# 代码评审", "origin": {"kind": "skill_body", "skill": "code-review"}}], "createdAt": "2026-09-23T08:00:00Z"}` | 拒绝 | `malformed` | [S-6](contract.md#s-6-每种消息能装哪几类块)：来源标记只在用户消息的顶层文本块上 |
+| `{"id": "m_sys", "type": "system", "blocks": [{"id": "b1", "kind": "text", "visibility": {"toHuman": false, "toModel": true}, "text": "# 代码评审", "origin": {"kind": "skill_body", "skill": "code-review"}}], "createdAt": "2026-09-23T08:00:00Z"}` | 拒绝 | `malformed` | [S-6](contract.md#s-6-每种消息能装哪几类块)：来路标记只在用户消息的顶层文本块上 |
+| `{"id": "m_sys", "type": "system", "blocks": [{"id": "b1", "kind": "image", "visibility": {"toHuman": false, "toModel": true}, "mediaType": "image/png", "data": {"storage": "attachments", "key": "obj_logo", "mediaType": "image/png"}}], "createdAt": "2026-09-23T08:00:00Z"}` | 拒绝 | `malformed` | [S-6](contract.md#s-6-每种消息能装哪几类块)、[S-7](contract.md#s-7-systemmessage)：系统提示词本版只含文本（PF-010 rev 6） |
 | `{"id": "m_sys", "type": "system", "visibility": {"toHuman": false, "toModel": true}, "blocks": [], "createdAt": "2026-09-23T08:00:00Z"}` | 拒绝 | `malformed` | [S-5](contract.md#s-5-给谁看在块上)、[S-2](contract.md#s-2-消息底座)：**消息不带「给谁看」**——那在块上 |
 | `{"id": "m_sys", "type": "system", "blocks": []}` | 拒绝 | `malformed` | [S-2](contract.md#s-2-消息底座)：`createdAt` 必填 |
 | `{"id": "m_sys", "type": "system", "blocks": [], "createdAt": "2026-09-23"}` | 拒绝 | `malformed` | [S-4](contract.md#s-4-createdat-不是次序)：是时间点，不是日期 |
@@ -122,7 +123,7 @@
 | `{"id": "m_r1", "type": "system_reminder", "nature": "event", "source": {"kind": "background_execution_finished", "callId": "call_04", "outcome": "completed"}, "blocks": [{"id": "b1", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_04", "outcome": "completed", "blocks": [{"id": "b2", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "构建成功，产物在 dist/"}]}], "createdAt": "2026-09-23T08:00:00Z"}` | 通过 | — | [S-19](contract.md#s-19-后台执行的两种收场提醒)：结果就是那一个工具结果块 |
 | `{"id": "m_r2", "type": "system_reminder", "nature": "event", "source": {"kind": "background_execution_interrupted", "callId": "call_05"}, "blocks": [{"id": "b1", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_05", "outcome": "failed", "reason": {"code": "abnormal_interruption", "text": "后台工具执行异常中断"}, "blocks": []}], "createdAt": "2026-09-23T08:00:00Z"}` | 通过 | — | [S-19](contract.md#s-19-后台执行的两种收场提醒)：对账代落，收场是失败 |
 | `{"id": "m_r3", "type": "system_reminder", "nature": "event", "source": {"kind": "attempt_started", "attempt": 2, "reason": "resumed_after_interruption", "at": "2026-09-23T08:05:00Z"}, "blocks": [{"id": "b1", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "这是第 2 次尝试，从一次中断接上来；之前发出的动作可能已经做过一次。"}], "createdAt": "2026-09-23T08:05:00Z"}` | 通过 | — | [S-20](contract.md#s-20-尝试开始) |
-| `{"id": "m_r4", "type": "system_reminder", "nature": "event", "source": {"kind": "interrupted", "what": "model_call", "by": "user", "hadContent": true, "about": {"kind": "model", "callId": "mc_01", "dispatch": 1}}, "blocks": [{"id": "b1", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "刚才用户叫停了你的回复。"}], "createdAt": "2026-09-23T08:00:00Z"}` | 通过 | — | [S-21](contract.md#s-21-中断之后必补一条)：指一次模型调用的第 1 次发出 |
+| `{"id": "m_r4", "type": "system_reminder", "nature": "event", "source": {"kind": "interrupted", "what": "model_call", "by": "user", "hadContent": true, "about": {"kind": "model", "call": "mc_01", "dispatch": 1}}, "blocks": [{"id": "b1", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "刚才用户叫停了你的回复。"}], "createdAt": "2026-09-23T08:00:00Z"}` | 通过 | — | [S-21](contract.md#s-21-中断之后必补一条)：指一次模型调用的第 1 次发出 |
 | `{"id": "m_r5", "type": "system_reminder", "nature": "event", "source": {"kind": "attempt_started", "attempt": 1, "reason": "first", "at": "2026-09-23T08:00:00Z"}, "blocks": [{"id": "b1", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "这是这次运行的第 1 次尝试。"}], "createdAt": "2026-09-23T08:00:00Z"}` | 通过 | — | [S-20](contract.md#s-20-尝试开始)：第一次尝试是 `first` |
 | `{"id": "m_r5b", "type": "system_reminder", "nature": "event", "source": {"kind": "attempt_started", "attempt": 3, "reason": "resumed_after_wait", "at": "2026-09-23T09:00:00Z"}, "blocks": [{"id": "b1", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "你等的答复回来了，这是第 3 次尝试。"}], "createdAt": "2026-09-23T09:00:00Z"}` | 通过 | — | [S-20](contract.md#s-20-尝试开始)：等到的东西回来了 |
 | `{"id": "m_r6", "type": "system_reminder", "nature": "event", "source": {"kind": "interrupted", "what": "run", "by": "system", "hadContent": false}, "blocks": [{"id": "b1", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "上一次运行被取消了。"}], "createdAt": "2026-09-23T08:00:00Z"}` | 通过 | — | [S-21](contract.md#s-21-中断之后必补一条)：`run` 不带 `about` |
@@ -157,7 +158,7 @@
 | `{"id": "m_nd", "type": "system_reminder", "nature": "event", "source": {"kind": "attempt_started", "attempt": 0, "reason": "resumed_after_interruption", "at": "2026-09-23T08:00:00Z"}, "blocks": [], "createdAt": "2026-09-23T08:00:00Z"}` | 拒绝 | `malformed` | [S-20](contract.md#s-20-尝试开始)：序号 ≥ 1 |
 | `{"id": "m_ne", "type": "system_reminder", "nature": "event", "source": {"kind": "interrupted", "what": "tool_execution", "by": "user", "hadContent": false}, "blocks": [], "createdAt": "2026-09-23T08:00:00Z"}` | 拒绝 | `malformed` | [S-21](contract.md#s-21-中断之后必补一条)：工具执行被中断不另补这条，占位承载它 |
 | `{"id": "m_ne2", "type": "system_reminder", "nature": "event", "source": {"kind": "interrupted", "what": "model_call", "by": "user", "hadContent": false, "about": {"kind": "tool", "callId": "call_07"}}, "blocks": [], "createdAt": "2026-09-23T08:00:00Z"}` | 拒绝 | `malformed` | [S-21](contract.md#s-21-中断之后必补一条)：`about` 只有模型调用那一支 |
-| `{"id": "m_nf", "type": "system_reminder", "nature": "event", "source": {"kind": "interrupted", "what": "run", "by": "user", "hadContent": false, "about": {"kind": "model", "callId": "mc_01", "dispatch": 1}}, "blocks": [], "createdAt": "2026-09-23T08:00:00Z"}` | 拒绝 | `malformed` | [S-21](contract.md#s-21-中断之后必补一条)：`run` 不带 `about` |
+| `{"id": "m_nf", "type": "system_reminder", "nature": "event", "source": {"kind": "interrupted", "what": "run", "by": "user", "hadContent": false, "about": {"kind": "model", "call": "mc_01", "dispatch": 1}}, "blocks": [], "createdAt": "2026-09-23T08:00:00Z"}` | 拒绝 | `malformed` | [S-21](contract.md#s-21-中断之后必补一条)：`run` 不带 `about` |
 | `{"id": "m_ng", "type": "system_reminder", "nature": "event", "source": {"kind": "interrupted", "what": "model_call", "by": "user"}, "blocks": [], "createdAt": "2026-09-23T08:00:00Z"}` | 拒绝 | `malformed` | [S-21](contract.md#s-21-中断之后必补一条)：`hadContent` 必填，**不当作 `false`** |
 | `{"id": "m_nh", "type": "system_reminder", "nature": "event", "source": {"kind": "system_wait_answered", "cardId": "card_01", "extension": "admission-decision", "answers": []}, "blocks": [], "createdAt": "2026-09-23T08:00:00Z"}` | 拒绝 | `malformed` | [S-22](contract.md#s-22-系统发起的等待答复回来)：答复回来至少一项 |
 | `{"id": "m_ni", "type": "system_reminder", "nature": "event", "source": {"kind": "loop_guard", "level": "L1", "finding": "……"}, "blocks": [], "createdAt": "2026-09-23T08:00:00Z"}` | 拒绝 | `malformed` | [S-23](contract.md#s-23-循环守卫的干预)：token 是 `level_1`，旧写法 `L1` 不认 |
@@ -200,14 +201,15 @@
 
 ### 10.2 会话日志层的判定
 
-**要看得见这条消息之前的日志才判得出**；下表不是 Schema 实例，是情形。前两行有拒绝值，其余是**判定为不合法**，它们在操作失败集合里的名字归各自的能力契约（[S-29](contract.md#s-29-合法名单的判定)）。
+**要看得见这条消息之前的日志才判得出**；下表不是 Schema 实例，是情形。第一、二、四行有拒绝值，其余是**判定为不合法**，它们在操作失败集合里的名字归各自的能力契约（[S-29](contract.md#s-29-合法名单的判定)）。
 
 | 情形 | 违反 | 结论 |
 |---|---|---|
 | 日志 `[m1, m2, c]`，`c` 的名单点 `(m9, b1)`，而 `m9` 此时不在日志里（之后才出现，或根本不会出现） | [S-29](contract.md#s-29-合法名单的判定) ② | `compaction_forward_reference` |
 | 同上，但 `c` 点的是 `(c, b1)` | [S-29](contract.md#s-29-合法名单的判定) ① | `compaction_self_reference`（第一段就判出，不进第二段） |
 | `c` 点 `(m1, b7)`，`m1` 在前面，但 `m1` 里（任意层）没有 `b7` | [S-29](contract.md#s-29-合法名单的判定) ③ | 名单不合法：点了不存在的块 |
-| `c` 点 `(m_sys, b1)`，`m_sys` 是一条 `SystemMessage` | [S-29](contract.md#s-29-合法名单的判定) ④ | 名单不合法：点了系统提示词 |
+| `c` 点 `(m_sys, b1)`，`m_sys` 是某一次组装出来的 `SystemMessage` 的 `id` | [S-29](contract.md#s-29-合法名单的判定) ② | `compaction_forward_reference`：`SystemMessage` 不落日志（[S-7](contract.md#s-7-systemmessage)），`m_sys` 不是 `c` 之前日志里的一条消息——原来的 ④ 由此删去 |
+| 把一条形状合法的 `SystemMessage` 追加进日志 | [S-32](contract.md#s-32-会话日志里的配对与唯一) ⑦ | 日志不一致：拒绝这次追加——系统提示词每次组装现算，不落日志 |
 | 日志 `[…, t(call_04, backgrounded), …, c]`，中间**没有** `call_04` 的后台收场提醒；`c` 点 `t` 里的 `b1`，**或 `b1` 里嵌着的 `b2`** | [S-29](contract.md#s-29-合法名单的判定) ⑤、[S-30](contract.md#s-30-悬着的占位) | 名单不合法：点了悬着的占位 |
 | 日志 `[…, t(call_04, backgrounded), …, r(background_execution_finished, call_04), …, c]`，`c` 点 `t` 里的 `b1` | — | **合法**：它已经不悬着（[S-46](contract.md#s-46-名单的合法性) 正例） |
 | 日志 `[m1, m2, m3, m4, c]`，最近一次模型请求在 `m3` 之后、`m4` 之前组装；`c` 点 `(m4, b8)` | [S-29](contract.md#s-29-合法名单的判定) ⑥ | 名单不合法：压了模型还没看过的东西 |
@@ -237,7 +239,7 @@
 | m5 | `{"id": "m5", "type": "compaction", "blocks": [{"id": "b9", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "用户问一张图的配色；已对照规范（主色 #1F6FEB、辅色 #F0883E），指出橙色偏离。"}], "silenced": [{"messageId": "m1", "blockId": "b2"}, {"messageId": "m3", "blockId": "b7"}], "createdAt": "2026-09-23T08:10:00Z"}` |
 
 **m5 的名单合法吗**（[S-29](contract.md#s-29-合法名单的判定)，`P` = m1～m4）：
-① 不点 m5 自己 ✓；② m1、m3 都在 `P` 里 ✓；③ `b2` 是 m1 的顶层块，`b7` 嵌在 m3 的 `b5` 里 ✓；④ 两条都不是 `SystemMessage` ✓；
+① 不点 m5 自己 ✓；② m1、m3 都在 `P` 里 ✓；③ `b2` 是 m1 的顶层块，`b7` 嵌在 m3 的 `b5` 里 ✓；（④ 已删去）
 ⑤ `P` 里没有转后台的工具消息，没有悬着的占位 ✓；⑥ m5 之前最近一次模型请求是 R2，它组装时 m1、m3 已在日志里 ✓——**合法**。
 
 **逐块手算**（`path` 从块本身往外列到顶层；「可读」按 [S-28](contract.md#s-28-此刻模型可读是算出来的)）：
@@ -278,25 +280,25 @@
 
 ## 13. 起草者逐条自核
 
-**这是起草时的手核**：本节记录起草者把上面每一行拿契约条款与 Schema 逐条对过的结论。
-整批对齐时第一次用 Draft 2020-12 校验器机检了「Schema」一列（含第 14 节），结果登在[验证入口](../verification.md#结果与反例)；下表是起草时的手核数字，没有随对齐波改写。
+**本节记录每一节的行数与核了什么。**起草时逐行手核；整批对齐（2026-09-23）与第一轮评审修复（2026-09-24）时用 Draft 2020-12 校验器机核了「Schema」一列，结果登在[验证入口](../verification.md#结果与反例)。下表的数字是 2026-09-24 的实际行数。
 
 | 节 | 通过 | 拒绝 | 核了什么 |
 |---|---|---|---|
 | 1 MessageId | 2 | 5 | 首尾空白两条回归用例（尾随换行、前导 U+FEFF）与 `data.identity-values` v1 第 1 节同形 |
-| 2 SystemMessage | 1 | 5 | 每个拒绝实例只动一处；消息上多一个 `visibility` 被 `unevaluatedProperties` 挡住 |
+| 2 SystemMessage | 1 | 6 | 每个拒绝实例只动一处；消息上多一个 `visibility` 被 `unevaluatedProperties` 挡住；图块被「本版只含文本」挡住 |
 | 3 UserMessage | 2 | 7 | 图块的 base64 `iVBORw0KGgo=` 12 字符以 `=` 收尾，是完整的三个四字组；`m_u7` 缺 `type` 定为 `malformed` 而非 `type_unknown`；`m_u8` 的拒绝值来自块层 |
 | 4 AssistantMessage | 4 | 6 | `m_a2` 的半截调用标注为两个 `false`，`ending` 不是 `complete` 所以允许；`m_a4` 的空数组在 `complete` 下没有下限 |
 | 5 ToolMessage | 4 | 5 | 每个通过实例的 `reason` 与收场对上 `data.content-blocks/v1#S-18`；`m_t7` 一块但 `kind` 不对，按 `kind` 数定为 `tool_message_block_count`；`m_t9` 块数对、块缺 `outcome` |
 | 6 ToolInternalMessage | 3 | 5 | `m_i3` 的派生块只给模型，顶层块不给——只查顶层 |
-| 7 提醒正例 | 15 | 0 | 十一种来源各至少一例；每例 `nature` 与定死的对应一致；两条后台收场提醒里恰好一个工具结果块、`callId`／`outcome` 与 `source` 相同 |
-| 8 提醒反例 | 0 | 21 | `m_n5` 未知来源定为 `malformed`；`m_n8` 被「恰好一个工具结果块」挡住；`m_nc` 起草时是 G-8 那一格（对齐波改为作废的旧 token） |
+| 7 提醒正例 | 16 | 0 | 十一种来源各至少一例；每例 `nature` 与定死的对应一致；两条后台收场提醒里恰好一个工具结果块、`callId`／`outcome` 与 `source` 相同 |
+| 8 提醒反例 | 0 | 22 | `m_n5` 未知来源定为 `malformed`；`m_n8` 被「恰好一个工具结果块」挡住；`m_nc` 起草时是 G-8 那一格（对齐波改为作废的旧 token） |
 | 9 CompactionMessage | 3 | 6 | 「不能都空」对 `m_c2`（名单空、摘要在）与 `m_c3`（摘要空、名单在）都不触发，只对 `m_c4` 触发 |
 | 10.1 跨成员 | 5 | 0 | Schema 全通过；拒绝值来自契约 |
 | 11 场景 | 5 | 0 | 五条消息各自通过；逐块手算两个前缀 |
 | 12 优先级 | 0 | 6 | 每行写明同时违反的两条，拒绝值按 [S-39](contract.md#s-39-表示层拒绝值) 第一段的次序取 |
+| 14 五种运行时记录 | 9 | 14 | 「已出门」的每个反例都带齐绑定、只动一处；`released` 的两支（`cause` 缺席、`credential_unavailable`）各一例；第二行的跨记录违约 Schema 管不到 |
 
-**合计 110 行实例（将来交给校验器的范围，本轮只经手核）：预期通过 44、拒绝 66。**第 10.2 节不在其内（它是情形，不是实例）。
+**合计 136 行实例：预期通过 54、拒绝 82**（其中第 11 节 5 行按 `$defs/Message` 各校一次）。第 10.2 节不在其内（它是情形，不是实例）。
 
 ## 14. 模型请求运行时的五种记录（不是消息）
 
@@ -304,20 +306,25 @@
 
 | 实例 | Schema | 拒绝值 | 依据 |
 |---|---|---|---|
-| `{"kind": "model_call_dispatched", "call": "mc_01", "dispatch": 1, "provider": "provider-x", "response": "rsp_01"}` | 通过 | — | [S-49](contract.md#s-49-模型请求运行时写的五种记录不是消息)：已出门 |
+| `{"kind": "model_call_dispatched", "call": "mc_01", "dispatch": 1, "provider": "provider-x", "response": "rsp_01", "profile": {"origin": "official", "routeName": "vendor-a/chat-large"}, "profileSnapshot": {"providers": ["provider-x", "provider-y"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-23T08:00:00Z"}, "parameters": {"temperature": 0.2}, "selectedBy": "session", "credentialScope": {"layer": "factory"}}` | 通过 | — | [S-49](contract.md#s-49-模型请求运行时写的五种记录不是消息)：已出门，带着这次调用的绑定；官方档案走了出厂格那一把 |
+| `{"kind": "model_call_dispatched", "call": "mc_01", "dispatch": 2, "provider": "provider-y", "response": "rsp_02", "profile": {"origin": "official", "routeName": "vendor-a/chat-large"}, "profileSnapshot": {"providers": ["provider-x", "provider-y"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-23T08:00:00Z"}, "parameters": {"temperature": 0.2}, "selectedBy": {"extension": "cheap-first-router"}, "credentialScope": {"layer": "tenant", "tenant": {"organization": "org_7fd2c1", "account": "acc_91ab40"}}}` | 通过 | — | [S-49](contract.md#s-49-模型请求运行时写的五种记录不是消息)：同一次调用的第二次发出；`selectedBy` 是拓展件那一支，凭据在租户格——Schema 不管「同一调用各次发出的绑定逐字相同」，**这一行与上一行的 `selectedBy` 不同，写入方违约**（跨记录，见 S-49） |
 | `{"kind": "model_call_opened", "call": "mc_01", "dispatch": 1, "firstTokenAt": "2026-09-23T08:00:01Z"}` | 通过 | — | 已开口 |
 | `{"kind": "model_call_interrupt_intent", "call": "mc_01", "initiator": "run_cancelled"}` | 通过 | — | 中断意图 |
 | `{"kind": "model_call_ended", "call": "mc_02", "ending": "undispatched", "cause": "credential_unavailable"}` | 通过 | — | [S-50](contract.md#s-50-调用终结的三支)：出门前检查不过 |
-| `{"kind": "model_call_ended", "call": "mc_03", "ending": "released"}` | 通过 | — | [S-50](contract.md#s-50-调用终结的三支)：故障之后放手 |
+| `{"kind": "model_call_ended", "call": "mc_03", "ending": "released"}` | 通过 | — | [S-50](contract.md#s-50-调用终结的三支)：最近一次发出以故障收场、loop 放手；成因在那份响应体上 |
+| `{"kind": "model_call_ended", "call": "mc_06", "ending": "released", "cause": "credential_unavailable"}` | 通过 | — | [S-50](contract.md#s-50-调用终结的三支)：此前发出过，续接或再发之前凭据取不到——**不写 `undispatched`** |
 | `{"kind": "model_call_ended", "call": "mc_04", "ending": "interrupted", "initiator": "user"}` | 通过 | — | [S-50](contract.md#s-50-调用终结的三支)：两次发出之间被中断 |
 | `{"kind": "model_selection_changed", "routeName": "vendor-a/chat-large", "at": "2026-09-23T08:00:00Z"}` | 通过 | — | 切换事实；`routeName` 取 `data.model-profile` 的 `RouteName`（切到的是名字） |
-| `{"kind": "model_call_dispatched", "call": "mc_01", "dispatch": 1, "provider": "provider-x"}` | 拒绝 | `malformed` | 已出门必带 `response`：它在这一刻定下 |
-| `{"kind": "model_call_dispatched", "call": "mc_01", "dispatch": 0, "provider": "provider-x", "response": "rsp_01"}` | 拒绝 | `malformed` | 发出序号 ≥ 1 |
-| `{"kind": "model_call_dispatched", "call": "mc_01", "dispatch": 1, "provider": "provider-x", "response": "rsp_01", "attempt": 2}` | 拒绝 | `malformed` | 尝试在条目上，不在记录里（[S-33](contract.md#s-33-消息不携带租户身份)） |
+| `{"kind": "model_call_dispatched", "call": "mc_01", "dispatch": 1, "provider": "provider-x", "profile": {"origin": "official", "routeName": "vendor-a/chat-large"}, "profileSnapshot": {"providers": ["provider-x", "provider-y"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-23T08:00:00Z"}, "parameters": {"temperature": 0.2}, "selectedBy": "session", "credentialScope": {"layer": "factory"}}` | 拒绝 | `malformed` | 已出门必带 `response`：它在这一刻定下 |
+| `{"kind": "model_call_dispatched", "call": "mc_01", "dispatch": 0, "provider": "provider-x", "response": "rsp_01", "profile": {"origin": "official", "routeName": "vendor-a/chat-large"}, "profileSnapshot": {"providers": ["provider-x", "provider-y"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-23T08:00:00Z"}, "parameters": {"temperature": 0.2}, "selectedBy": "session", "credentialScope": {"layer": "factory"}}` | 拒绝 | `malformed` | 发出序号 ≥ 1 |
+| `{"kind": "model_call_dispatched", "call": "mc_01", "dispatch": 1, "provider": "provider-x", "response": "rsp_01", "profile": {"origin": "official", "routeName": "vendor-a/chat-large"}, "profileSnapshot": {"providers": ["provider-x", "provider-y"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-23T08:00:00Z"}, "parameters": {"temperature": 0.2}, "selectedBy": "session", "credentialScope": {"layer": "factory"}, "attempt": 2}` | 拒绝 | `malformed` | 尝试在条目上，不在记录里（[S-33](contract.md#s-33-消息不携带租户身份)） |
+| `{"kind": "model_call_dispatched", "call": "mc_01", "dispatch": 1, "provider": "provider-x", "response": "rsp_01", "profile": {"origin": "official", "routeName": "vendor-a/chat-large"}, "parameters": {"temperature": 0.2}, "selectedBy": "session", "credentialScope": {"layer": "factory"}}` | 拒绝 | `malformed` | [S-49](contract.md#s-49-模型请求运行时写的五种记录不是消息)：绑定必带——缺了档案快照，续接时只能去内存里找 |
+| `{"kind": "model_call_dispatched", "call": "mc_01", "dispatch": 1, "provider": "provider-x", "response": "rsp_01", "profile": {"origin": "official", "routeName": "vendor-a/chat-large"}, "profileSnapshot": {"providers": ["provider-x", "provider-y"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-23T08:00:00Z"}, "parameters": {"temperature": 0.2}, "selectedBy": "session", "credentialScope": {"layer": "organization", "organization": "org_7fd2c1"}}` | 拒绝 | `malformed` | [S-49](contract.md#s-49-模型请求运行时写的五种记录不是消息)：模型凭据只在租户层与出厂格，没有组织那一格（与 `data.model-response/v1#S-9` 同形） |
+| `{"kind": "model_call_dispatched", "call": "mc_01", "dispatch": 1, "provider": "provider-x", "response": "rsp_01", "profile": {"origin": "official", "routeName": "vendor-a/chat-large"}, "profileSnapshot": {"providers": ["provider-x", "provider-y"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-23T08:00:00Z"}, "parameters": {"temperature": 0.2}, "selectedBy": "user", "credentialScope": {"layer": "factory"}}` | 拒绝 | `malformed` | [S-38](contract.md#s-38-判别式与枚举闭合)：`selectedBy` 闭合（与 `data.model-response/v1#S-10` 同形） |
 | `{"kind": "model_call_interrupt_intent", "call": "mc_01", "initiator": "runtime_lost"}` | 拒绝 | `malformed` | 中断意图没有 `runtime_lost` |
 | `{"kind": "model_call_ended", "call": "mc_02", "ending": "undispatched"}` | 拒绝 | `malformed` | [S-50](contract.md#s-50-调用终结的三支)：出门前那一支必带 `cause` |
 | `{"kind": "model_call_ended", "call": "mc_02", "ending": "undispatched", "cause": "request_rejected"}` | 拒绝 | `malformed` | 出门前的成因只有四个 |
-| `{"kind": "model_call_ended", "call": "mc_03", "ending": "released", "cause": "withdrawn"}` | 拒绝 | `malformed` | 放手那一支不带 `cause` |
+| `{"kind": "model_call_ended", "call": "mc_03", "ending": "released", "cause": "withdrawn"}` | 拒绝 | `malformed` | [S-50](contract.md#s-50-调用终结的三支)：放手那一支的 `cause` 只有 `credential_unavailable`——档案在打开调用时已绑定，续接不重核 |
 | `{"kind": "model_call_ended", "call": "mc_04", "ending": "interrupted"}` | 拒绝 | `malformed` | 被中断那一支必带 `initiator` |
 | `{"kind": "model_call_ended", "call": "mc_05", "ending": "complete"}` | 拒绝 | `malformed` | 经响应体进入终态的调用没有这条记录 |
 | `{"kind": "model_selection_changed", "profile": {"origin": "official", "routeName": "vendor-a/chat-large"}, "at": "2026-09-23T08:00:00Z"}` | 拒绝 | `malformed` | 切到的是一个路由名，不是某一行的引用（成员名也不是 `profile`） |

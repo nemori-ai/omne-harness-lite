@@ -1,7 +1,7 @@
 # 规范实例：判定次序、答复、凭据与每个失败值的反例
 
 属于 `capability.tool-admission` v1 的规范工件。本契约**不附 Schema**，所以这里的实例不是形状校验用例，
-而是**操作层面的输入 → 预期结果 → 依据条款**：前六节各走一条路径，第七节给每个失败值一个反例并演示失败的次序。
+而是**操作层面的输入 → 预期结果 → 依据条款**：前六节各走一条路径，第七节给每个失败值一个反例并演示失败的次序，第八节是第四档、工具的名字与本能力不在时的样子。
 
 **三条读法上的边界：**
 
@@ -17,11 +17,12 @@
 | `c_read` | `{ callId: "call_1", tool: "read_file", arguments: { "path": "a.txt" } }` |
 | `c_rm` | `{ callId: "call_2", tool: "shell", arguments: { "command": "rm -rf build" } }` |
 | `c_mail` | `{ callId: "call_3", tool: "send_mail", arguments: { "to": "ops", "body": "done" } }` |
-| `def(n)` | `definition = { name: n }`，与 `call.tool` 相同 |
+| `c_gh` | `{ callId: "call_4", tool: "github__search_issues", arguments: { "q": "is:open" } }`——MCP 接入点 `github` 的动作 `github:search_issues`，调用块里是它的**模型面名字**（`:` 转写成 `__`） |
+| `def(n)` | `definition = { name: n }`，与 `call.tool` 相同——都是模型面名字 |
 | `P(v, f)` | `effectivePermission = { value: v, from: f }` |
 | `G0` | `S` 此刻的授权上下文；**除非某行另说，`evaluate(call, G0) = undecidable`** |
-| `item(c, P, mode)` | `{ call: c, definition: def(c.tool), effectivePermission: P, grants: G0, runMode: mode }` |
-| `CARD(c)` | 一张 `DecisionCardDraft`：`options` 恰为下面四个、按此顺序；`about = { position: "before_action", callId: c.callId }`；`explanation` 说清五样（[契约 S-15](contract.md#s-15-定死的四档选项与卡片草稿)） |
+| `item(c, P, mode)` | `{ call: c, definition: def(c.tool), effectivePermission: P, grants: G0, runMode: mode, tenantAutoWritable: true }`；`item⁻` 同它，只是 `tenantAutoWritable: false` |
+| `CARD(c)` | 一张 `DecisionCardDraft`：`options` 恰为下面四个、按此顺序；`about = { position: "before_action", callId: c.callId }`；`explanation` 说清五样（[契约 S-15](contract.md#s-15-定死的四档选项与卡片草稿)）；`CARD3(c)` 同它，只是没有第四档 |
 
 ```json
 [
@@ -69,7 +70,7 @@
 | 一批两项：`item(c_read, P(auto, tenant), auto_permission)` ＋ `parent: { permission: auto, runMode: auto_permission }`；`item(c_rm, P(auto, tenant), auto_permission)` ＋ `parent: { permission: ask, runMode: auto_permission }` | **整次 `parentNarrower`**：`c_rm` 那一项 `auto` 比父的 `ask` 宽；**`c_read` 也没有结论** | [S-11](contract.md#s-11-父会话摘要与宽的次序)、[S-24](contract.md#s-24-失败值与它们的次序)：失败是整次的 |
 | `item(c_rm, P(ask, tenant), auto_permission)`，`parent: { permission: ask, runMode: never }` | **整次 `parentNarrower`**：`auto_permission` 比 `never` 宽——**子的这次调用不会走到「问人」** | 同上；[PF-007 §5.8](../../../../product/PF-007-meta-capabilities/design.md#58-子不得宽于父)「父都不问人了，子更不该问」 |
 | `item(c_rm, P(ask, tenant), never)`，`parent: { permission: auto, runMode: bypass-permissions }` | 照常判：子比父窄是合法的；`evaluate = undecidable` ⇒ `[deny{run_mode_never}]` | 同上：只挡「宽」 |
-| runner 这一侧，拿到 `parentNarrower` 之后 | 这一批**每一项**落 `veto`，`reason` 写明「放行判断没有给出结论：`parentNarrower`」；**不借用**任何一个拒绝原因 | [S-29](contract.md#s-29-位置干预力与结论投影)、[S-34](contract.md#s-34-本能力缺席报错或判不出来) |
+| runner 这一侧，拿到 `parentNarrower` 之后 | 这一批**每一项**的那次经过记 `skipped: errored` ＋ `error`（写明「放行判断没有给出结论」与 `parentNarrower`），按 `treat_as_veto` **效果 `vetoed`**；**不借用**任何一个拒绝原因 | [S-29](contract.md#s-29-位置干预力与结论投影)、[S-34](contract.md#s-34-本能力缺席报错或判不出来) |
 
 ## 4. 一批里一条 ask，整批停
 
@@ -116,10 +117,11 @@
 | 5 | 另一次调用：`admit` 刚返回 `allow{tok_9}`，runner **还没落结论**，就拿 `tok_9` 去核对 | `invalid{not_admitted}`；**结论落下之后同一张凭据核对得 `valid`** | 第 3 条；[S-16](contract.md#s-16-admissiontoken-与参数相等) |
 | 6 | 运行 `r1` 被取消，终态已落；`verifyToken(tok_2, c_rm, S)` | `invalid{run_ended}` | 第 5 条 |
 | 7 | `verifyToken(tok_2, c_rm, T)`，`T` 是另一个会话（其中也有一个 `call_2`，但本件没有为它放行） | `invalid{not_admitted}`——**只在 `T` 的日志里找** | [S-25](contract.md#s-25-verifytoken) |
+| 7′ | 同上，但本件在 `T` 里也为 `T` 自己的 `call_2`、同一份参数落了放行结论 | `valid`——**放行它的是 `T` 自己的那条结论**；把 `tok_2` 换成 `T` 那次 `admit` 铸出的凭据，答案相同（同一个 `callId`、同一份参数铸出同一个凭据）。凭据借不来 `S` 的授权 | [S-16](contract.md#s-16-admissiontoken-与参数相等) |
 | 8 | 日志存储读不到；`verifyToken(tok_2, c_rm, S)` | **`unavailable` 失败**，不是 `valid`，也不是 `invalid`；执行运行时**不执行** | [S-25](contract.md#s-25-verifytoken) ⑧ |
 | 9 | 同一张 `tok_2` 核对两次 | 两次答案相同；**核对不消耗凭据**——「只执行一次」归执行运行时按 `CallId` | [S-25](contract.md#s-25-verifytoken) ⑦ |
 
-**以上 2～8 七种情形，执行运行时都不执行。**
+**以上 2～8（不含 7′）七种情形，执行运行时都不执行。**
 
 ## 7. 失败值的反例
 
@@ -131,6 +133,8 @@
 | `item(c_rm, P(ask, factory), —)`，没带 `runMode` | `invalidInput`——**不当作 `auto_permission`** | [S-17](contract.md#s-17-缺席时的默认答案) |
 | 一批两项，`callId` 都是 `call_2` | `invalidInput` | [S-21](contract.md#s-21-admit) ② |
 | `item(c_rm, …)` 但 `definition = { name: "bash" }` | `invalidInput` | [S-7](contract.md#s-7-admissioninput) |
+| `item(c_rm, …)` 但没带 `tenantAutoWritable` | `invalidInput`——**不当作真，也不当作假** | [S-17](contract.md#s-17-缺席时的默认答案) |
+| `effectivePermission = { value: [], from: organization }`（空集，没收成 `forbid`） | `invalidInput`：空集要由组装输入的一方先收成 `forbid` | [S-8](contract.md#s-8-有效执行权限) |
 | `P(auto, workspace)` | **`invalidInput`**：工作区提供的资产只能是 `ask` | [S-8](contract.md#s-8-有效执行权限)、[S-45](contract.md#s-45-工作区来的工具不提权) |
 | `P(ask, workspace)`，`auto_permission`，`evaluate = undecidable` | 照常：`[ask{CARD(c_rm)}]` | 同上 |
 | `effectivePermission = { value: ["ask", "auto"], from: tenant }`（一个集合） | `invalidInput`：本能力不替上游收成一个档位 | [S-8](contract.md#s-8-有效执行权限) |
@@ -141,7 +145,7 @@
 | `parent.runMode = "bypass_permissions"` | `modeUnknown` | 同上 |
 | `item(c_rm, P(auto, tenant), auto_permission)` ＋ `parent: { permission: forbid, runMode: auto_permission }` | `parentNarrower` | [S-11](contract.md#s-11-父会话摘要与宽的次序) |
 | `item(c_rm, P(ask, factory), bypass-permissions)`，**求值读不到授权上下文**（故障注入） | **`unavailable`**——**不是 `allow`**（那是把读失败当成算不出，再被 `bypass-permissions` 放行），**也不是 `deny`** | [S-9](contract.md#s-9-授权上下文与求值)、[S-18](contract.md#s-18-判不出来不是拒绝也不是算不出)、[S-44](contract.md#s-44-判不出来不放行) |
-| 同上，但同一批还有一项 `item(c_read, P(auto, tenant), bypass-permissions)` | **整次 `unavailable`**，`c_read` 也没有结论；runner 这一侧两项都落 `veto` | [S-24](contract.md#s-24-失败值与它们的次序)：失败是整次的 |
+| 同上，但同一批还有一项 `item(c_read, P(auto, tenant), bypass-permissions)` | **整次 `unavailable`**，`c_read` 也没有结论；runner 这一侧两项的那次经过都记 `skipped: errored` ＋ `error`，效果 `vetoed` | [S-24](contract.md#s-24-失败值与它们的次序)：失败是整次的 |
 | `item(c_read, P(auto, tenant), never)`，求值读不到 | `[allow{tok_1}]`：**不走第 ③ 步的项不会引出 `unavailable`** | 同上，第 4 行 |
 | `verifyToken(tok_2, c_rm, —)`，没带会话 | `invalidInput`——**不取「当前会话」** | [S-25](contract.md#s-25-verifytoken) ⑧ |
 
@@ -152,3 +156,32 @@
 | `callId` 重复 ＋ `runMode = "bypass"` | `invalidInput` |
 | `runMode = "bypass"` ＋ 比父宽 | `modeUnknown` |
 | 比父宽 ＋ 求值读不到 | `parentNarrower`——**没有走到第 ③ 步** |
+
+## 8. 第四档、名字与解析不了的调用
+
+**第四档写得进去才出现**（`c_rm`，`P(ask, factory)`，`evaluate = undecidable`，`runMode = auto_permission`）：
+
+| 输入 | 预期 | 依据 |
+|---|---|---|
+| `admit([item(c_rm, …)])` | `[ask{CARD(c_rm)}]`：四档 | [S-15](contract.md#s-15-定死的四档选项与卡片草稿) |
+| `admit([item⁻(c_rm, …)])`——组织把 `shell` 的执行权限锁在 `{ask, forbid}`，租户写「自动」写不进去 | `[ask{CARD3(c_rm)}]`：**恰三档** `deny`、`allow_once`、`allow_session`；`explanation` 不写「将来本租户所有会话」的后果 | 同上；[S-46](contract.md#s-46-第四档写不进去就不出现) |
+| 上一行的卡答完回来，`answer: "allow_session"` | `[allow{tok_2}]` | [S-27](contract.md#s-27-四档答复各落在哪) |
+
+**工具的名字**（比较在模型面名字上做）：
+
+| 输入 | 预期 | 依据 |
+|---|---|---|
+| `admit([item(c_gh, P(ask, tenant), auto_permission)])`，`definition = { name: "github__search_issues" }` | 照常判：`[ask{CARD(c_gh)}]` | [S-7](contract.md#s-7-admissioninput) |
+| 同上，但 `definition = { name: "github:search_issues" }`（定义名，带冒号） | **整次 `invalidInput`**——本能力不做逆转写，定义名与调用块里的模型面名字逐码点不等 | 同上；[S-47](contract.md#s-47-模型面名字逐码点比解析不了的调用不进来) |
+
+**参数解析不了的调用不进来**：
+
+| 输入 | 预期 | 依据 |
+|---|---|---|
+| 一项的 `call` 是 `{ callId: "call_5", tool: "read_file", complete: true, rawArguments: "{\"path\": \"a.md\"", unparseable: true }` | **整次 `invalidInput`**：这种调用不该交来；它由工具执行运行时在提交时即刻收场「失败」，不需要凭据 | [S-7](contract.md#s-7-admissioninput)、[S-17](contract.md#s-17-缺席时的默认答案) |
+
+**本能力不在时**（runner 这一侧；本能力没有被调到）：
+
+| 情形 | runner 落下的 | 依据 |
+|---|---|---|
+| 一批 `c_read`（`P(auto, tenant)`）与 `c_gh`，本能力这一次不可用——它依赖的服务用不了，或 `c_gh` 的有效执行权限在这次尝试的可用性报告里拿不到 | 两项的那次经过都记 `skipped: unavailable`、`unavailability: fallback`、**不带 `output`**；全拒件顶上，**两项都 `vetoed`——执行权限为「自动」的 `c_read` 也被拒**；没有卡片；agent 读到的来由是「放行判断此刻不在」 | [S-29](contract.md#s-29-位置干预力与结论投影)、[S-34](contract.md#s-34-本能力缺席报错或判不出来)、[S-48](contract.md#s-48-本能力不可用时由全拒件顶上) |

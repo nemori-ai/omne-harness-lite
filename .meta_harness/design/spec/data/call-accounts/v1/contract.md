@@ -6,18 +6,22 @@
   `family = data`、`topic = call-accounts`、规范路径 `spec/data/call-accounts/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
 - **状态**：`candidate`——语义可被审阅；接受、采用与冻结均未闭合，不得据此发布或声称消费者已采用
-- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-001 rev 16、PF-006 rev 17、PF-009 rev 7、PF-012 rev 10、PF-013 rev 11** 为准（2026-09-24 核 PF-013 changelog rev 9–11：rev 9 的费用未知与迟到补记归那个 Run 整批对齐时已按主线账本落入；rev 10 只有裁决 33 触及本契约，落为 [S-38](#s-38-两种归属用量归凭据那一格成本归发起者) 用量那一格只剩租户那一支与出厂格；rev 11 不涉及——rev 9–11 此外不改本契约条款；rev 12（同名按层覆盖、设置记路由名）不改本契约条款）；
-  另取 **PF-000 rev 1** 的一节（记录条目上挂什么）
+- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-001 rev 17、PF-006 rev 19、PF-009 rev 8、PF-012 rev 14、PF-013 rev 12、PF-002 rev 20** 为准，
+  另取 **PF-000 rev 1** 的一节（记录条目上挂什么）。2026-09-24 按各 topic 的 changelog 从起草时的 rev 逐版核到当前 rev：PF-012 rev 11 把 I-11 收窄进了产品正文（[S-39](#s-39-晚到的账) 改引它）、PF-009 rev 8 把「已开口」记进那次调用的账（[第二节](#一份账挂在哪)写明它不在本契约的值里），其余不改本契约条款；逐 topic 的记录见[验证入口「变化的影响」](../verification.md#变化的影响)
+- **所引的产品版本**：PF-013 rev 10 起凭据只在租户层与出厂格、PF-002 rev 18 起组织那一层不持有 MCP 凭据——两条到当前 rev 仍成立（[S-38](#s-38-两种归属用量归凭据那一格成本归发起者)）
 - **精确语义依赖**：
 
   | 坐标 | 消费 clauses | 取它的什么 | Schema 里怎么用 |
   |---|---|---|---|
   | `omne-harness-lite-design-2026-09-15 · data.offer-expiry · v1` | [`S-22`](../../offer-expiry/v1/contract.md#s-22-schema-的范围) | 时刻的规范形式 | `$ref` 它的 `$defs/Instant`：`wallClock` 的两个时刻、补账的 `at` |
-  | `omne-harness-lite-design-2026-09-15 · data.identity-values · v1` | [`S-5`](../../identity-values/v1/contract.md#s-5-tenantid-的构成与相等)、[`S-11`](../../identity-values/v1/contract.md#s-11-scopelayeridentity)、[`S-31`](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示) | 租户身份、作用域层身份、不透明标识的交换表示 | `$ref` 它的 `$defs/TenantId`、`$defs/ScopeLayerIdentity`（[S-38](#s-38-两种归属用量归凭据那一格成本归发起者)）；`ResponseId`、`RunId`、`ModelCallId` 按 S-31 散文定形、不 `$ref` |
-  | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1` | [`S-14`](../../content-blocks/v1/contract.md#s-14-callid) | 一次工具调用的身份 `CallId` | `$ref` 它的 `$defs/CallId`：`ToolCallAccount.callId`、补账的工具执行目标 |
+  | `omne-harness-lite-design-2026-09-15 · data.identity-values · v1` | [`S-5`](../../identity-values/v1/contract.md#s-5-tenantid-的构成与相等)、[`S-11`](../../identity-values/v1/contract.md#s-11-scopelayeridentity)、[`S-17`](../../identity-values/v1/contract.md#s-17-身份参数没有默认值)、[`S-31`](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示) | 租户身份、作用域层身份、身份参数没有默认值（`initiator` 不从「当前租户」补）、不透明标识的交换表示 | `$ref` 它的 `$defs/TenantId`、`$defs/ScopeLayerIdentity`（[S-38](#s-38-两种归属用量归凭据那一格成本归发起者)）；`ResponseId`、`RunId`、`ModelCallId` 按 S-31 散文定形、不 `$ref` |
+  | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1` | [`S-14`](../../content-blocks/v1/contract.md#s-14-callid) | 一次工具调用的身份 `CallId` 与它的唯一范围（一份会话日志） | `$ref` 它的 `$defs/CallId`：`ToolCallAccount.callId`、补账的工具执行目标 |
+  | `omne-harness-lite-design-2026-09-15 · data.asset-model · v1` | [`S-3`](../../asset-model/v1/contract.md#s-3-能力标识与它的规范串) | 能力标识的规范串 `<category>/<name>` | 不 `$ref`：`CostItem.service` 只是非空字符串，接入点那一种按规范串写（[S-9](#s-9-costitem一次工具执行里的一笔)） |
 - **本契约不依赖任何 capability 或 composition 契约，也不依赖 `data.model-response`。**正文里出现的 `data.model-response`（拥有 `ModelResponse` 的契约）、
   `capability.tool-execution-runtime`（拥有工具执行记录的契约）、`data.arrival-events`、`capability.stream-assembly`、`capability.model-request-runtime`，**都是落点**：谁兑现、谁读。
   方向是消费者 → 本契约。`ResponseId` 的**含义**以 `data.model-response/v1` S-6 为准，本契约按同一条散文自写形状，**不引用、不登依赖**——那份契约引用本契约，反向引用会成环。
+  **三处以坐标指到消费者、却不登依赖**，各有理由：外部效果确定性的判据指向 `capability.tool-execution-runtime/v1#S-14`、每帧至多计一次的去重指向 `capability.stream-assembly/v1#S-14`——都是**落点**（谁判、谁兑现），本契约只定值的含义；
+  「一帧」的单位取 `data.arrival-events/v1#S-23` ① ——**定义性引用**，那份契约依赖本契约，登记会让依赖图成环（[验证入口「对齐义务」](../verification.md#对齐义务)登了复核）
 - **条款编号**：`S-n`，**只在本契约本版本内有效**；外部引用须写全坐标，如 `data.call-accounts/v1#S-12`
 
 ## 设计依据
@@ -29,7 +33,7 @@
 | 帧是 `ToolInternalMessage` 的到达增量，走同一套语法；帧多了要节流，规则同 §6.16 | [PF-009 §5.8 执行帧就是这条消息的到达增量](../../../../product/PF-009-context-message-types/design.md#执行帧就是这条消息的到达增量) · [帧多了要节流](../../../../product/PF-009-context-message-types/design.md#帧多了要节流规则就是-616-那一条) | S-11、S-15 |
 | 砍了要说，不许默默丢 | [PF-009 §6.16](../../../../product/PF-009-context-message-types/design.md#616-砍了要说不许默默丢) | S-15 |
 | 成本两层：明细按尝试、汇总按 Run；成本重算不出来 | [PF-012 成本两层，缺哪一层都会算错](../../../../product/PF-012-agent-loop-and-run/design.md#成本两层缺哪一层都会算错) | S-23、S-25 |
-| 成本条目至少带哪次尝试、成本项与数量、时间；终结之后不再出现属于它的成本条目（I-11） | [PF-012 §6.16](../../../../product/PF-012-agent-loop-and-run/design.md#616-日志里至少要有这几种-run-相关的条目) · [§6.17](../../../../product/PF-012-agent-loop-and-run/design.md#617-run-这一层的七条不变式) | S-3、S-25、[G-3](#十已知缺口) |
+| 成本条目至少带哪次尝试、成本项与数量、时间；**I-11**：终结之后不再发起新的成本产生动作，已发起的账迟到了照样落、归这个 Run、标明迟到 | [PF-012 §6.16](../../../../product/PF-012-agent-loop-and-run/design.md#616-日志里至少要有这几种-run-相关的条目) · [§6.17](../../../../product/PF-012-agent-loop-and-run/design.md#617-run-这一层的七条不变式)（I-11 自 rev 11 起如此） | S-3、S-25、S-39 |
 | 首 token 之前重发，两笔都照实记；费用拿不到记未知、不是零，拿到了再补一条 | [PF-013 §5.13](../../../../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token) | S-4、S-17～S-20 |
 | 每一次发出只走一家，换一家就是再发一次；试过又失败的那几次是留痕 | [PF-013 §5.5 试过又失败的那几次](../../../../product/PF-013-model-profiles-and-invocation/design.md#试过又失败的那几次留痕不进方程) | S-19；第二节「一份账挂在哪」 |
 | 用量记在凭据所在的那个范围头上 | [UL-model-credential](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential) · [PF-013 §6.2](../../../../product/PF-013-model-profiles-and-invocation/design.md#62-凭据挂在范围上档案自己不存) | S-3（不归本契约） |
@@ -40,8 +44,10 @@
 | 所有模型请求经 OpenRouter | [SYS-LLM](../../../../foundation/cross-system-constraints/requirements.md#sys-llm) | S-8 |
 | 规格形式；单机交付、语义不变地可扩展 | [SYS-SPEC](../../../../foundation/cross-system-constraints/requirements.md#sys-spec) · [SYS-DEPLOY](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy) | S-26～S-29 |
 | **产品负责人 2026-09-23 的三句裁决**：「我们需要完整的响应体带着 input_tokens, output_tokens, cache_tokens 以及 cost_usd」；「ToolCallAccount 这个确实有用，因为工具内部很可能调用其他的服务从而产生费用」；缓存 token「拆两项」 | [D-038 8b、8c、Q13](../../../../record/decisions/message-and-shape-rulings/decision.md#裁决原话与含义) | S-6、S-7、S-8、S-9、S-11 |
-| **主线裁定 2026-09-23，待产品负责人确认**：C-12「用量归凭据所在那一格、成本归发起租户，两种归属并存、账上分记」；PF-012 I-11 收窄为「终结之后不再**发起**新的成本产生动作，已发起的仍可落账、归该运行、标 `late`」；工具执行的账加外部效果的确定性与实际停止时刻；`CostItem.service` 对接入点取能力标识规范串；帧砍汇总的「每帧至多计一次」写成做砍一方的前提 | 主线在任务区账本里的推导，**设计链里尚无决定记录**（D-038 明言不含这些）——[G-11](#十已知缺口) | S-9、S-11、S-14、S-15、S-38、S-39 |
-| 正式名 | [UL-call-account](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-call-account--调用账目--call-account) · [UL-model-call](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call) · [UL-tool-execution](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution) · [UL-execution-frame](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-execution-frame--执行帧--execution-frame) · [UL-incremental-arrival](../../../../ubiquitous_language/terms/record-and-context.md#ul-incremental-arrival--增量到达--incremental-arrival) · [UL-run-attempt](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt) | 全部 |
+| 主线裁定：I-11 收窄与 `late`（S2-d，产品正文已跟上）；工具执行的账加外部效果的确定性、实际停止时刻与 `late`（S13-f）；`CostItem.service` 对接入点取能力标识规范串（S2-e）；帧砍汇总的「每帧至多计一次」是做砍一方的前提（S4-b）；三个归属标识的家在本契约（S8-c） | [D-040 §一](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#一2026-09-23-夜自驱期间的自决账本-二原文)的 [S2](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s2call-accounts报回的)、[S13](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s13tool-execution-runtime报回的)、[S4](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s4arrival-events--stream-assembly报回的)、[S8](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s8model-response报回的) 各节 | S-9、S-11、S-14、S-15、S-37、S-39 |
+| 主线裁定（S25 第一轮修复波）：外部效果的判据只在 `capability.tool-execution-runtime` S-14、本契约只定两值含义（K1）；工具执行的判重键与补账目标身份 = 会话日志归属 ＋ `callId`（K5）；`ModelResponse.late` 与晚到的账同一口径（K14）；在途状态丢了时 `frames` 写 `"unknown"`（K50） | [D-040 §五](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) | S-11、S-15、S-17、S-22、S-23、S-25、S-39 |
+| 两种归属分记：用量记在凭据所在的那一格、成本按租户归属；凭据只在租户层与出厂格，所以两者只在走出厂格那一把时分叉 | [UL-model-credential](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential) · [PF-001 §6.4](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离) · [PF-013 §5.6](../../../../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上)——**规格层推导**：两条产品行合起来，账上缺一项就会把其中一种归属算错 | S-38 |
+| 正式名 | [UL-call-account](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-call-account--调用账目--call-account) · [UL-upstream-send](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-upstream-send--一次发出--upstream-send) · [UL-model-call](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call) · [UL-tool-execution](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution) · [UL-execution-frame](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-execution-frame--执行帧--execution-frame) · [UL-incremental-arrival](../../../../ubiquitous_language/terms/record-and-context.md#ul-incremental-arrival--增量到达--incremental-arrival) · [UL-run-attempt](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt) | 全部 |
 
 > **没有产品行的条款**：[S-16](#s-16-responseid)（标识的表示）、[S-27](#s-27-表示层拒绝值闭合)～[S-29](#s-29-判别式与枚举闭合)（表示与校验）
 > 由 SYS-SPEC 那一行供给；[S-26](#s-26-装配给的保证-vs-协议须给的保证) 由 SYS-DEPLOY 那一行供给。
@@ -83,7 +89,7 @@
 - **不带会话、运行、尝试。**[每条记录条目都无条件带租户身份与寿命宿主](../../../../product/PF-000-occurrences-and-record-entries/design.md#55-挂在每条条目上的字段)，
   [成本条目要带哪次尝试](../../../../product/PF-012-agent-loop-and-run/design.md#616-日志里至少要有这几种-run-相关的条目)——
   **这些挂在承载它的条目上**，汇总据条目分组（[S-25](#s-25-按尝试记明细按-run-汇总)）。
-  **唯一的例外是两项归属**（[S-38](#s-38-两种归属用量归凭据那一格成本归发起者)，主线裁定 C-12）：成本归谁（发起者）、用量归谁（凭据所在那一格）——两者可以不同（唯一分叉点是出厂格那一把），账上分记。
+  **唯一的例外是两项归属**（[S-38](#s-38-两种归属用量归凭据那一格成本归发起者)）：成本归谁（发起者）、用量归谁（凭据所在那一格）——两者可以不同（唯一分叉点是出厂格那一把），账上分记。
 - **不拥有「用哪把凭据」的判定。**一次发出走的是哪一格的[模型凭据](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential)，
   由模型调用一侧判定、记在它的路由留痕上（`data.model-response` 的 `route.credentialScope`）；本契约只定「用量归那一格」这条含义（[S-38](#s-38-两种归属用量归凭据那一格成本归发起者)）。
 - **不拥有计量口径、预算、额度与超限拦截。**[本版到明细为止](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)：
@@ -106,12 +112,13 @@
 
 | 挂在 | 用本契约的什么 | 一份对应什么 |
 |---|---|---|
-| 一次模型调用 | `Usage` ＋ `Cost`，由 `ModelResponse` 携带；`ResponseId` 指认那份响应 | **一次发出**：[每一次发出只走一家，换一家就是再发一次](../../../../product/PF-013-model-profiles-and-invocation/design.md#试过又失败的那几次留痕不进方程)——一次发出一条流、一份账。**一次模型调用发出几次，就有几份** |
+| 一次模型调用 | `Usage` ＋ `Cost`，由 `ModelResponse` 携带；`ResponseId` 指认那份响应 | **[一次发出](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-upstream-send--一次发出--upstream-send)**：[每一次发出只走一家，换一家就是再发一次](../../../../product/PF-013-model-profiles-and-invocation/design.md#试过又失败的那几次留痕不进方程)——一次发出一条流、一份账。**一次模型调用发出几次，就有几份** |
 | 一次工具执行 | `ToolCallAccount`，由工具执行记录携带；`callId` 指认那次执行 | 一次工具执行一份 |
 
-> **「一次发出」没有词条。**产品正文用的是它的散文义（「两次发出、两条流」，PF-013 §5.13）；
-> 本契约只拿它说明「一份账对应什么」，**不给它下定义**。它的正式名、以及「一次模型调用 ↔ 若干次发出」的关系，
-> 归统一语言与模型调用一侧的契约。
+> **一次发出**的定义与「一次模型调用 ↔ 若干次发出」的关系归[那条词条](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-upstream-send--一次发出--upstream-send)；本契约只拿它说明「一份账对应什么」。
+>
+> **「已经开口」不在本契约的值里。**[PF-009 §9.2](../../../../product/PF-009-context-message-types/design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息) 把「已经开口」记进那次模型调用的账目、带开口时刻；
+> 它落成模型请求运行时写的一条日志记录（`data.messages` v1 的「已开口」），**不是** `Usage`／`Cost` 的成员——本契约拥有的是账目里可以被加总、被补、被砍的那一部分。
 
 ### 三种「没有数」，互不替代
 
@@ -145,6 +152,7 @@
 | `Cost` | 一次发出的费用 | [S-8](#s-8-cost一次发出的费用) |
 | `CostItem` | 一次工具执行里的一笔费用 | [S-9](#s-9-costitem一次工具执行里的一笔)、[S-10](#s-10-model_call-那一笔是镜像权威在那份-modelresponse) |
 | `ToolCallAccount` | 一次工具执行的账 | [S-11](#s-11-toolcallaccount一次工具执行的账)～[S-14](#s-14-wallclock) |
+| `FrameAccount` | 一次工具执行发了几帧、砍了多少；数不出来时整份写 `"unknown"` | [S-11](#s-11-toolcallaccount一次工具执行的账)、[S-15](#s-15-trimreason-与-trimsummary砍了要说) |
 | `TrimReason` | 一个增量为什么没有原样送达，四值闭合 | [S-15](#s-15-trimreason-与-trimsummary砍了要说) |
 | `TrimSummary` | 一条消息的增量到达过程里，合并与截掉的汇总 | [S-15](#s-15-trimreason-与-trimsummary砍了要说) |
 | `ResponseId` | 一份 `ModelResponse` 的标识 | [S-16](#s-16-responseid) |
@@ -268,7 +276,7 @@ total_tokens ≝ input_tokens + cache_read_tokens + cache_write_tokens + output_
 
 | 成员 | 含义 |
 |---|---|
-| `service`（必填，非空字符串） | **谁收的这笔钱**，三种来路之一：工具声明的某个依赖的名字（外部服务、附件存储）；某个 MCP 接入点——写成它的**能力标识规范串**（`data.asset-model` v1 [S-3](../../asset-model/v1/contract.md#s-3-能力标识与它的规范串) 的 `<category>/<name>`，例如 `mcp/github`；主线裁定 2026-09-23）；或字面量 `model_call`——**这次执行经本系统发出的一次模型调用**（[S-10](#s-10-model_call-那一笔是镜像权威在那份-modelresponse)）。**`model_call` 是保留值**，不得作任何依赖或接入点的名字；规范串恒含 `/`，永不等于它 |
+| `service`（必填，非空字符串） | **谁收的这笔钱**，三种来路之一：工具声明的某个依赖的名字（外部服务、附件存储）；某个 MCP 接入点——写成它的**能力标识规范串**（`data.asset-model` v1 [S-3](../../asset-model/v1/contract.md#s-3-能力标识与它的规范串) 的 `<category>/<name>`，例如 `mcp/github`；取规范串是主线裁定，见 [D-040 §一 S2-e](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s2call-accounts报回的)，串的写法以 asset-model S-3 为准）；或字面量 `model_call`——**这次执行经本系统发出的一次模型调用**（[S-10](#s-10-model_call-那一笔是镜像权威在那份-modelresponse)）。**`model_call` 是保留值**，不得作任何依赖或接入点的名字；规范串恒含 `/`，永不等于它 |
 | `cost_usd`（必填） | 这笔的金额（[S-5](#s-5-金额美元十进制不截断)），或 `"unknown"` |
 | `quantity`（可缺席） | `{ amount: 数 ≥ 0, unit: 非空字符串 }`：报账方自报的计量——调用次数、字节、秒……**本契约不解释 `unit`、不换算、不跨笔相加**，它只供对账与诊断 |
 | `reference`（可缺席；`model_call` 那一笔必填） | 对方的账单号或请求号，事后对账用；不透明，**本契约不解析** |
@@ -314,10 +322,10 @@ total_tokens ≝ input_tokens + cache_read_tokens + cache_write_tokens + output_
 | `callId`（必填） | 这次执行的 `CallId`（`data.content-blocks` v1 的 `$defs/CallId`，[`#S-14`](../../content-blocks/v1/contract.md#s-14-callid)） |
 | `initiator`（必填） | 发起这次执行所属运行的租户身份——**成本归它**（[S-38](#s-38-两种归属用量归凭据那一格成本归发起者)） |
 | `credentialScope`（可缺席） | 这次执行的自有费用经哪一格上的凭据产生——**用量归它**；没经范围上的凭据就缺席（[S-38](#s-38-两种归属用量归凭据那一格成本归发起者)） |
-| `externalEffect`（必填） | `confirmed`：收场时它在外面的动作已经了结——执行者自己交回，或从没跑过；`unknown`：执行者跑过而被停下、停机后追补、或收场之后又有完成到达——**它在外面还可能做了事、花了钱，账上的费用可能不全**（此后到的费用走补账，[S-17](#s-17-costcorrection事后补账)）。判据与 `capability.tool-execution-runtime` 的外部效果确定性同一（主线裁定 2026-09-23） |
+| `externalEffect`（必填） | 两个取值的含义：`confirmed`——收场时它在外面的动作已经了结（或根本没开始）；`unknown`——**它在外面还可能做了事、花了钱，账上的费用可能不全**（此后到的费用走补账，[S-17](#s-17-costcorrection事后补账)）。**哪一次执行取哪一个值，判据只有一处**：[`capability.tool-execution-runtime/v1#S-14`](../../../capabilities/tool-execution-runtime/v1/contract.md#s-14-停止与外部效果分开说) 的外部效果确定性（它把三值投到这两个值上）；本契约不另列判据（主线裁定，见 [D-040 §五 K1](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)） |
 | `cost`（必填） | `{ total_usd, items }`：`items` 是这次执行的逐笔费用（`CostItem` 的数组，可为空）；`total_usd` 是总额（[S-12](#s-12-总额未知不当零加)） |
 | `usage`（可缺席） | 这次执行经本系统调模型的用量汇总（[S-13](#s-13-经本系统调模型的用量汇总)） |
-| `frames`（必填） | `{ emitted: 整数 ≥ 0, trims: TrimSummary }`：这次执行[发帧](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-frame-emission--发帧--frame-emission)发了几帧，以及砍了多少（[S-15](#s-15-trimreason-与-trimsummary砍了要说)） |
+| `frames`（必填） | `FrameAccount` 或 `"unknown"`。`FrameAccount` 是 `{ emitted: 整数 ≥ 0, trims: TrimSummary }`：这次执行[发帧](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-frame-emission--发帧--frame-emission)发了几帧，以及砍了多少（[S-15](#s-15-trimreason-与-trimsummary砍了要说)）；`"unknown"`：数这两样的那份[在途状态](../../../../ubiquitous_language/terms/record-and-context.md#ul-in-flight-arrival--在途状态--in-flight-arrival)丢了（例如停机，恢复时追补这份账），发了几帧、砍了多少数不出来——**不写 0**（主线裁定，见 [D-040 §五 K50](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)） |
 | `wallClock`（必填） | `{ startedAt, endedAt? }`：这次执行的起止时刻（[S-14](#s-14-wallclock)） |
 | `stoppedAt`（可缺席） | 写账之前**已观察到**执行者停下的时刻（[S-14](#s-14-wallclock)） |
 | `late`（可缺席，只取 `true`） | 这份账落下时它归属的尝试已被取代或运行已经终结（[S-39](#s-39-晚到的账)） |
@@ -329,8 +337,11 @@ total_tokens ≝ input_tokens + cache_read_tokens + cache_write_tokens + output_
 
 **`frames.emitted` 数的是工具自己交出的帧**——[执行帧](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-execution-frame--执行帧--execution-frame)
 [就是它那条 `ToolInternalMessage` 的到达增量](../../../../product/PF-009-context-message-types/design.md#执行帧就是这条消息的到达增量)；
-「一帧」的单位与 `data.arrival-events` 的到达步骤一致（那份契约定义步骤，本契约只数）。
-**一帧都没发是正常形态**：`emitted = 0`，`trims` 各项为零。
+「一帧」的单位是 [`data.arrival-events/v1#S-23`](../../arrival-events/v1/contract.md#s-23-执行帧的另外四条) 第 1 条：工具经发帧交出的一个开块、填或封口（那份契约定义单位，本契约只数；定义性引用，不登依赖，理由见抬头）。
+**一帧都没发是正常形态**：`frames.emitted = 0`，`trims` 各项为零。**`"unknown"` 不是「没发帧」**：它说的是发没发、发了几帧，这份账已经答不出来。
+
+**`frames` 写 `"unknown"` 只有一种情形**：持有帧计数的那份在途状态随它的持有者失去连续性而没了（停机之后恢复时才追补这份账）。
+计数的一方还在、却丢了计数，是它违约，不是 `"unknown"`（[S-15](#s-15-trimreason-与-trimsummary砍了要说)）。**哪一次写 `"unknown"` 由写这份账的一方判**（`capability.tool-execution-runtime`）。
 
 ### S-12 总额：未知不当零加
 
@@ -407,12 +418,12 @@ byReason.quota_exhausted + byReason.rejected = cut
 cut = 0 ∧ byReason.frame_too_long = 0        ⇒ omittedBytes = 0
 ```
 
-在 `ToolCallAccount` 里另有一式：`merged + cut + byReason.frame_too_long ≤ frames.emitted`——砍的不会比发的多。
-**它成立的前提是做砍的那一方对每一帧至多计一次「未原样送达」**：同一帧先被截短、后又被拒收，只按拒收计一次（主线裁定 2026-09-23）；
-这是那一方的义务（`capability.stream-assembly`），不是本契约替它去重。
+在 `ToolCallAccount` 的 `frames` 是 `FrameAccount` 时另有一式：`merged + cut + byReason.frame_too_long ≤ frames.emitted`——砍的不会比发的多；`frames` 是 `"unknown"` 时没有这一式可核。
+**它成立的前提是做砍的那一方对每一帧至多计一次「未原样送达」**：同一帧先被截短、后又被拒收，只按拒收计一次（主线裁定，见 [D-040 §一 S4-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s4arrival-events--stream-assembly报回的)）；
+这条去重规则由做砍的一方承诺（[`capability.stream-assembly/v1#S-14`](../../../capabilities/stream-assembly/v1/contract.md#s-14-砍的汇总)），不是本契约替它去重。
 
-**`TrimSummary` 由做合并与截断的那一方计数**，不来自生产者自报：砍的那一方必然知道自己砍了什么，所以它**没有「拿不到」这一支**，也没有 `"unknown"`。
-那一方丢了计数，是它违约，不是一份未知的账。
+**`TrimSummary` 由做合并与截断的那一方计数**，不来自生产者自报：砍的那一方必然知道自己砍了什么，所以 **`TrimSummary` 没有「拿不到」这一支**，也没有 `"unknown"`。
+那一方活着却丢了计数，是它违约，不是一份未知的账；**它连同在途状态一起没了**，整份 `frames` 写 `"unknown"`（[S-11](#s-11-toolcallaccount一次工具执行的账)），不是一份各项未知的 `TrimSummary`。
 
 > **`byReason` 为什么四项都得在**：缺一项，读的人分不出「这个原因一次都没发生」与「这一项没记」——
 > 那正是把缺席当成零。**写 `0` 才是零。**
@@ -421,7 +432,7 @@ cut = 0 ∧ byReason.frame_too_long = 0        ⇒ omittedBytes = 0
 
 `ResponseId` 指认**一份 `ModelResponse`**——按模型调用一侧的形状，一次发出一份（[第二节那张表](#一份账挂在哪)）。
 **它的家在 `data.model-response`**（那份契约的 S-6，含义以那里为准）；本契约只按同一条散文写出形状供 `CostItem.reference` 与补账目标使用，
-**不 `$ref` 那一份、不登依赖**——那份契约引用本契约的 `Usage`、`Cost`，反向引用会成环（主线裁定 2026-09-23）。
+**不 `$ref` 那一份、不登依赖**——那份契约引用本契约的 `Usage`、`Cost`，反向引用会成环（主线裁定，见 [D-040 §一 S8-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s8model-response报回的)）。
 
 - **不透明。**交换表示按 [`data.identity-values/v1#S-31`](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示) 的散文：
   非空字符串；首字符与末字符都不属于该条逐个列出的那个空白码点集合；相等是逐码点精确相等，不做任何规范化；
@@ -445,8 +456,16 @@ cut = 0 ∧ byReason.frame_too_long = 0        ⇒ omittedBytes = 0
 
 **一个目标可以有多条补账**，按 `at` 取最新的一条（[S-22](#s-22-有效费用)）。
 
-**补账按目标标识的唯一范围找目标**：`ResponseId` 部署内唯一（[S-16](#s-16-responseid)）；`CallId` 只在一份会话日志内唯一（`data.content-blocks/v1` [S-14](../../content-blocks/v1/contract.md#s-14-callid)）——
-所以 `tool_execution` 目标的补账**必须与目标落在同一份会话日志的归属里**才找得到；拿一个 `CallId` 跨会话去找，可能落到另一次执行头上。
+**补账按目标标识的唯一范围找目标，目标的身份因此是：**
+
+| `target.kind` | 目标身份 | 理由 |
+|---|---|---|
+| `model_response` | `responseId` | `ResponseId` 部署内唯一（[S-16](#s-16-responseid)） |
+| `tool_execution` | **（会话日志归属，`callId`）**：补账条目所在的会话日志，与那份 `ToolCallAccount` 的条目所在的会话日志是同一份，且 `callId` 逐码点相等 | `CallId` 只在一份会话日志内唯一（`data.content-blocks/v1` [S-14](../../content-blocks/v1/contract.md#s-14-callid)）：两个会话可以各有一次 `CallId = c1` 的执行，它们是两次执行 |
+
+「会话日志归属」由承载补账与承载那份账的**记录条目**给（[S-3](#s-3-本契约明确不拥有什么)），补账的值里不带它；拿一个 `CallId` 跨会话去找，会落到另一次执行头上。
+工具执行的判重键与补账目标身份取这一对键，是主线裁定（见 [D-040 §五 K5](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)），S-22、S-23、S-25 同用。
+**判重（[S-23](#s-23-汇总已知之和与未知笔数) 第 4 件）用的是同一对键**。
 
 > **`tool_execution` 目标补的是自有部分，不是 `total_usd`。**一次工具执行替自己调的模型各有自己的 `ModelResponse`，
 > 那些钱由 `model_response` 补账去补；一条工具执行补账若覆盖含镜像的总额，同一笔模型费用就会被两条补账各改一次。
@@ -528,6 +547,7 @@ cut = 0 ∧ byReason.frame_too_long = 0        ⇒ omittedBytes = 0
 ```
 
 `current`、`own`、`currentOwn` 是**本条的记号**，不是词条，也不是成员。`own(t)` 就是 [S-17](#s-17-costcorrection事后补账) 说的「自有部分」。
+「以 r／t 为目标的补账」按 [S-17](#s-17-costcorrection事后补账) 的目标身份认：r 按 `responseId`；t 按（会话日志归属，`callId`）。
 
 - **「最新」按 `at` 比**：同一目标的补账里 `at` 最晚的那一条。
   **两条 `at` 相同**：金额也相同，取哪条都一样；**金额不同，就判不出哪条是最新**——这个目标的有效费用**求不出来**，
@@ -560,7 +580,7 @@ unknownCount ≝ |{ r : current(r) = "unknown" }| + |{ t : currentOwn(t) = "unkn
 | **1 输入与授权** | 一组账与补账，**已由承载它们的条目归到同一组**（[S-25](#s-25-按尝试记明细按-run-汇总)）。本契约不定授权：谁读得到这组账，归读面所属的契约 |
 | **2 前置** | 每个输入值表示合法（[S-27](#s-27-表示层拒绝值闭合)）。**有一个不合法就不开始求值**，以那个拒绝值收场——**不跳过它，也不把它当 `"unknown"`** |
 | **3 提交点与原子性** | **没有。**纯计算，不写任何东西；结果**不是账**，不得写回成账或补账（[S-18](#s-18-原账不改)） |
-| **4 返回与失败** | `(knownSum, unknownCount)`；或**明确失败**，恰三种情形：**孤立补账**——一条补账的目标不在这组里；**补账平局**——同一目标两条补账 `at` 相同而金额不同（[S-22](#s-22-有效费用)）；**重复的账**——同一个 `ResponseId`、或同一个 `CallId`，在组里出现两份账。**三种失败的名字归读面所属的契约**；本契约只要求它们**是失败、彼此可分、且不与 `"unknown"` 混同** |
+| **4 返回与失败** | `(knownSum, unknownCount)`；或**明确失败**，恰三种情形：**孤立补账**——一条补账的目标不在这组里；**补账平局**——同一目标两条补账 `at` 相同而金额不同（[S-22](#s-22-有效费用)）；**重复的账**——同一个 `ResponseId`，或同一份会话日志归属下的同一个 `CallId`，在组里出现两份账（判重键就是 [S-17](#s-17-costcorrection事后补账) 的目标身份：**不同会话里相同的 `CallId` 是两次执行，不是重复**）。**三种失败的名字归读面所属的契约**；本契约只要求它们**是失败、彼此可分、且不与 `"unknown"` 混同** |
 | **5 幂等与重发** | 确定性：同一组输入恒得同一结果，与输入的次序无关 |
 | **6 事件** | 无 |
 | **7 缺席时的默认答案** | 空组 ⇒ `(0, 0)`，含义是「**这组里没有账**」；某目标没有补账 ⇒ 用原账；工具执行没有 `usage` ⇒ 它没有经本系统调模型。**一份本该在组里却没归进来的账，求值看不见**——那是归属的缺口（[G-3](#十已知缺口)），不是一个零 |
@@ -597,10 +617,10 @@ unknownCount ≝ |{ r : current(r) = "unknown" }| + |{ t : currentOwn(t) = "unkn
 - 于是[「这个运行的成本减去最后一次尝试的成本，就是崩溃浪费掉的钱」](../../../../product/PF-012-agent-loop-and-run/design.md#成本两层缺哪一层都会算错)
   在两边都 `unknownCount = 0` 时是一个数；**任一边有未知，这个差也是未知**——两个下界相减什么也不界定。
 - **成本按租户逐条列出**（[PF-001 §6.4](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)）：每一份账就是一条；
-  按租户分组同样用 [S-23](#s-23-汇总已知之和与未知笔数)，组由条目上的租户身份决定。
+  按租户分组同样用 [S-23](#s-23-汇总已知之和与未知笔数)，组由条目上的租户身份决定。**这样的组跨会话**，所以组里的工具执行一律按（会话日志归属，`callId`）指认——判重与补账找目标都用这一对键（[S-17](#s-17-costcorrection事后补账)）。
 
-**三种边界情形的归组**（主线裁定 2026-09-23，待产品负责人确认）：跨尝试的工具执行，账归**提交它的那次尝试**（`capability.tool-execution-runtime` 的账挂在执行记录上、经提交时的 `(run, attempt)` 归组）；
-在它发起的运行终结之后才结束的后台执行、运行终结之后才到的补账，**照样归该运行并标 `late`**（[S-39](#s-39-晚到的账)，PF-012 I-11 据此收窄）。
+**三种边界情形的归组**：跨尝试的工具执行，账挂在执行记录上，归哪次尝试由那条记录的条目给——`capability.tool-execution-runtime` 按提交时的 `(run, attempt)` 归（落点，本契约不另定）；
+在它发起的运行终结之后才结束的后台执行、运行终结之后才到的补账，**照样归该运行并标 `late`**（[S-39](#s-39-晚到的账)；[PF-012 I-11](../../../../product/PF-012-agent-loop-and-run/design.md#617-run-这一层的七条不变式) 已如此收窄）。
 **仍无答案的一种**见 [G-3](#十已知缺口)：工具执行替自己发出的模型调用怎样保证与它同组（[S-24](#s-24-汇总不重复计)）。
 
 ## 六、装配给与协议给
@@ -616,7 +636,7 @@ unknownCount ≝ |{ r : current(r) = "unknown" }| + |{ t : currentOwn(t) = "unkn
 | **补账的新旧可比**（[S-17](#s-17-costcorrection事后补账)、[S-22](#s-22-有效费用)） | 同一个时间源写 `at` | 须定义时钟偏差上界，或为同一目标的补账给出与时钟无关的全序；**定义之前不得跨节点比较 `at` 取最新**（[G-8](#十已知缺口)） | 较旧的补账因为时钟快被当成最新，汇总用错数，没有任何报错 |
 | **起止时刻同源**（[S-14](#s-14-wallclock)） | 执行与写账在同一时间源下 | 执行在一个节点、写账在另一个节点时，须说明两个时刻各取自哪一边 | 求出负的或失真的时长 |
 | **镜像与权威同组**（[S-24](#s-24-汇总不重复计)） | 同一本会话日志、同一套条目归属 | 工具执行与它替自己发出的模型调用分落两处时，须保证二者归到同一组 | 那笔模型费用从汇总里消失，且没有任何报错 |
-| **补账找得到目标**（[S-17](#s-17-costcorrection事后补账)、[S-23](#s-23-汇总已知之和与未知笔数)） | 同一存储 | 目标标识的唯一范围跨节点仍成立；补账与目标归到同一组 | 孤立补账：[S-23](#s-23-汇总已知之和与未知笔数) 以失败收场；更糟的是被悄悄忽略 |
+| **补账找得到目标**（[S-17](#s-17-costcorrection事后补账)、[S-23](#s-23-汇总已知之和与未知笔数)） | 同一存储 | 目标身份跨节点仍成立——`ResponseId` 部署内唯一，工具执行的（会话日志归属，`callId`）两段都随补账与账一起过边界；补账与目标归到同一组 | 孤立补账：[S-23](#s-23-汇总已知之和与未知笔数) 以失败收场；更糟的是被悄悄忽略 |
 
 [SYS-DEPLOY](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy) 要求领域语义在分布式演化中不变，
 因此右两列不是「以后再说」，而是**本契约已经记下的待兑现项**（[G-8](#十已知缺口)）。
@@ -625,7 +645,7 @@ unknownCount ≝ |{ r : current(r) = "unknown" }| + |{ t : currentOwn(t) = "unkn
 
 - **规范表示**：[`call-accounts.schema.json`](call-accounts.schema.json)，JSON Schema **Draft 2020-12**。
   `$id` = `https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/call-accounts/v1/call-accounts.schema.json`
-- **定义项**（12 项）：`Unknown`、`ResponseId`、`Usage`、`Cost`、`CostItem`、`ToolCallAccount`、`TrimReason`、`TrimSummary`、`CostCorrection`、`RunId`、`AttemptId`、`ModelCallId`。
+- **定义项**（13 项）：`Unknown`、`ResponseId`、`Usage`、`Cost`、`CostItem`、`ToolCallAccount`、`FrameAccount`、`TrimReason`、`TrimSummary`、`CostCorrection`、`RunId`、`AttemptId`、`ModelCallId`。
   **外部引用**：`Instant` 取自 `data.offer-expiry` v1；`CallId` 取自 `data.content-blocks` v1；`TenantId`、`ScopeLayerIdentity` 取自 `data.identity-values` v1。
   消费者 `$ref` 这些定义，**不复制一份同义类型**——`Usage`、`Cost`、`CostItem`、`CostCorrection`、`TrimReason`、`TrimSummary`、`RunId`、`AttemptId`、`ModelCallId` **在全批契约里只有这一个家**；`ResponseId` 的家在 `data.model-response`，本契约的那一份是为避免成环按同一散文自写的形状。
 - **根模式不约束任何文档**：本文件是共享定义的登记处，不是某个消息的形状。
@@ -638,7 +658,7 @@ unknownCount ≝ |{ r : current(r) = "unknown" }| + |{ t : currentOwn(t) = "unkn
 | 拒绝值 | 什么时候 |
 |---|---|
 | `correction_without_target` | 一条 `CostCorrection` 缺 `target`，或 `target` 不是那两种之一（`kind` 不在两值内、缺对应标识、`kind` 与标识对不上、带多余成员） |
-| `malformed` | **结构不合**：缺必填成员、多出成员、类型不对、枚举外的值；**或组合约束被违反**：`reasoning_tokens ≤ output_tokens`（[S-6](#s-6-usage四项-token-与来源)）；`model_response` 只配 `model_call`、`model_call` 只配 `model_response`／`none`、`model_call` 必带 `reference`、同一个 `ResponseId` 不镜像两次（[S-9](#s-9-costitem一次工具执行里的一笔)、[S-10](#s-10-model_call-那一笔是镜像权威在那份-modelresponse)）；全部是数时 `total_usd` 恰等于各笔之和（[S-12](#s-12-总额未知不当零加)）；`usage` 与 `model_call` 同出同缺（[S-13](#s-13-经本系统调模型的用量汇总)）；`endedAt ≥ startedAt`、`stoppedAt ≥ startedAt`（[S-14](#s-14-wallclock)）；`TrimSummary` 的三式与帧数一式（[S-15](#s-15-trimreason-与-trimsummary砍了要说)）；`generation_endpoint` 只配 `model_response` 目标（[S-17](#s-17-costcorrection事后补账)） |
+| `malformed` | **结构不合**：缺必填成员、多出成员、类型不对、枚举外的值；**或组合约束被违反**：`reasoning_tokens ≤ output_tokens`（[S-6](#s-6-usage四项-token-与来源)）；`model_response` 只配 `model_call`、`model_call` 只配 `model_response`／`none`、`model_call` 必带 `reference`、同一个 `ResponseId` 不镜像两次（[S-9](#s-9-costitem一次工具执行里的一笔)、[S-10](#s-10-model_call-那一笔是镜像权威在那份-modelresponse)）；全部是数时 `total_usd` 恰等于各笔之和（[S-12](#s-12-总额未知不当零加)）；`usage` 与 `model_call` 同出同缺（[S-13](#s-13-经本系统调模型的用量汇总)）；`endedAt ≥ startedAt`、`stoppedAt ≥ startedAt`（[S-14](#s-14-wallclock)）；`TrimSummary` 的三式与帧数一式（后者只在 `frames` 是 `FrameAccount` 时核，[S-15](#s-15-trimreason-与-trimsummary砍了要说)）；`generation_endpoint` 只配 `model_response` 目标（[S-17](#s-17-costcorrection事后补账)） |
 | `negative_amount` | 任一金额、token 数、计量数、帧数、字节数为负 |
 | `unknown_with_source` | 数与来源对不上：`Usage` 的两行（[S-6](#s-6-usage四项-token-与来源)）、`Cost` 的三行（[S-8](#s-8-cost一次发出的费用)）、`CostItem` 的四行（[S-9](#s-9-costitem一次工具执行里的一笔)）——**某个值声称的来源与它实际有没有数不一致** |
 | `total_not_unknown` | `ToolCallAccount` 里有一笔 `cost_usd` 为 `"unknown"`，而 `total_usd` 是数 |
@@ -684,7 +704,7 @@ unknownCount ≝ |{ r : current(r) = "unknown" }| + |{ t : currentOwn(t) = "unkn
 | [S-12](#s-12-总额未知不当零加) 总额 | **管 `total_not_unknown` 那一支** | 全部是数时恰等于各笔之和 |
 | [S-13](#s-13-经本系统调模型的用量汇总) 用量汇总 | 管 `usage` 与 `model_call` 同出同缺 | 汇总的数等于各份响应的逐项和 |
 | [S-14](#s-14-wallclock) wallClock | 管时刻形状（`Instant`） | `endedAt ≥ startedAt`（时刻按时间点语义比较，不按字典序）；同源 |
-| [S-15](#s-15-trimreason-与-trimsummary砍了要说) TrimSummary | 管四个计数非负、`byReason` 四键齐全且只有这四键 | 三式与帧数一式 |
+| [S-15](#s-15-trimreason-与-trimsummary砍了要说) TrimSummary | 管四个计数非负、`byReason` 四键齐全且只有这四键；`frames` 恰是 `FrameAccount` 与 `"unknown"` 之一 | 三式与帧数一式；`"unknown"` 只在在途状态丢了时写（[S-11](#s-11-toolcallaccount一次工具执行的账)） |
 | [S-16](#s-16-responseid) ResponseId | 管非空、首尾不是那个显式空白集合里的码点 | 部署内唯一、不复用、不来自上游请求号 |
 | [S-17](#s-17-costcorrection事后补账) CostCorrection | 管两种目标、金额为数且非负、`generation_endpoint ⇒ model_response` | 目标存在、同一目标的新旧、`at` 同源 |
 | [S-18](#s-18-原账不改)～[S-21](#s-21-账进日志不进给模型看的上下文)、[S-23](#s-23-汇总已知之和与未知笔数)～[S-25](#s-25-按尝试记明细按-run-汇总) | **一概管不到**——它们约束的是写入路径、流、组装与求值 | 场景与静态检查，见[验证入口](../verification.md) |
@@ -708,8 +728,8 @@ unknownCount ≝ |{ r : current(r) = "unknown" }| + |{ t : currentOwn(t) = "unkn
 | P-8 | 账不进给模型看的上下文 | 安全 | [PF-006 §5.4](../../../../product/PF-006-tools-and-skills/design.md#每一次执行都留一份账) | 上下文组装、`capability.stream-assembly`（[S-21](#s-21-账进日志不进给模型看的上下文)） | 给模型看的上下文里出现 token 数或费用 |
 | P-9 | 砍了要说 | 安全 | [PF-009 §6.16](../../../../product/PF-009-context-message-types/design.md#616-砍了要说不许默默丢) | 做砍的那一方的计数（[S-15](#s-15-trimreason-与-trimsummary砍了要说)） | 面板被截短了，`TrimSummary` 却全是零 |
 | P-10 | 汇总的失败不混同为未知，也不被忽略 | 安全 | 缺席即明确失败的通用收场 | 读面（[S-23](#s-23-汇总已知之和与未知笔数) 第 4 件） | 孤立补账被忽略，汇总照常返回一个数 |
-| P-11 | 终结之后落的账不消失，且看得出是晚到的 | 安全 | 主线裁定 2026-09-23（PF-012 I-11 收窄） | 写下它的那一方（[S-39](#s-39-晚到的账)） | 后台工具在运行终结之后收场，那笔钱不在运行的汇总里；或它在里面却分不出是终结之后才落的 |
-| P-12 | 用量与成本的归属分记，不互相推 | 不变量 | 主线裁定 C-12 | 写账的一方（[S-38](#s-38-两种归属用量归凭据那一格成本归发起者)） | 租户用官方档案走了出厂格那一把凭据，钱却记到了出厂格头上 |
+| P-11 | 终结之后落的账不消失，且看得出是晚到的 | 安全 | [PF-012 §6.17 I-11](../../../../product/PF-012-agent-loop-and-run/design.md#617-run-这一层的七条不变式)（rev 11 起） | 写下它的那一方（[S-39](#s-39-晚到的账)） | 后台工具在运行终结之后收场，那笔钱不在运行的汇总里；或它在里面却分不出是终结之后才落的 |
+| P-12 | 用量与成本的归属分记，不互相推 | 不变量 | [PF-001 §6.4](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离) ＋ [UL-model-credential](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential)（规格层推导，[S-38](#s-38-两种归属用量归凭据那一格成本归发起者)） | 写账的一方（[S-38](#s-38-两种归属用量归凭据那一格成本归发起者)） | 租户用官方档案走了出厂格那一把凭据，钱却记到了出厂格头上 |
 
 **进展性质：本契约不拥有任何进展性质。**值不会「最终成为」别的值；补账何时到、会不会到，**本契约不承诺**——
 上游的事后查询可能永远查不到，那一笔就永远是 `"unknown"`，这是一个合法的终态。
@@ -774,11 +794,11 @@ unknownCount ≝ |{ r : current(r) = "unknown" }| + |{ t : currentOwn(t) = "unkn
 | `ModelCallId` | 一次[模型调用](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call)的标识；**会话内唯一**（不属于任何运行的调用也有它，所以不按运行划范围）、不回收不复用，由模型请求运行时在打开一次新调用时产生；一次调用发出多次时，各次发出以 `(ModelCallId, dispatch)` 指认，`dispatch` 归 `data.model-response` | 不透明字符串，同上 |
 
 这三个值的**产生**归各自的能力（loop、模型请求运行时），本契约只定表示与唯一范围；产生前无值，不得用占位值代替。
-主线 2026-09-23 裁定（待产品负责人确认）：家在本契约，理由是它们首先在账上被消费。
+家在本契约，理由是它们首先在账上被消费（主线裁定，见 [D-040 §一 S8-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s8model-response报回的)）。
 
 ### S-38 两种归属：用量归凭据那一格，成本归发起者
 
-**一笔钱有两个「归谁」，两者可以不同，账上分记，不互相推**（主线裁定 C-12，2026-09-23，待产品负责人确认；分记的理由 2026-09-24 随凭据只在租户层与出厂格改写，主线裁定）。
+**一笔钱有两个「归谁」，两者可以不同，账上分记，不互相推**（规格层推导：[成本按租户归属](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)与[用量记在凭据所在的那个范围头上](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential)两条各自成立，账上缺一项就会把其中一种归属算错；出厂格那一把由部署装配给，见 [D-040 §一 S16-f](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s16model-profile-directory--model-request-runtime报回的)）。
 **出厂格那一把是唯一分叉点**：凭据只在租户层与出厂格，租户用的永远是自己那一把，所以用量那一格与发起者只在走出厂格那一把时不同——分记就是为了这一处不被合并掉：
 
 | 归属 | 成员 | 是什么 | 为什么要分记 |
@@ -792,7 +812,8 @@ unknownCount ≝ |{ r : current(r) = "unknown" }| + |{ t : currentOwn(t) = "unkn
   它替自己发出的模型调用各有自己的 `ModelResponse`，那几笔的两种归属在那边记，**镜像那一笔不另记**（[S-10](#s-10-model_call-那一笔是镜像权威在那份-modelresponse)）。
 - **一次发出的账**（`ModelResponse` 上的 `Usage`／`Cost`）：**用量那一格**由 `data.model-response` 的 `route.credentialScope` 记下（它还要能写「出厂格那一把」，形状归那份契约）；
   **发起者**本版**不在响应体上另记**——承载响应体的记录条目[无条件带租户身份](../../../../product/PF-000-occurrences-and-record-entries/design.md#55-挂在每条条目上的字段)，而那条条目的租户就是发起这次运行的租户；
-  响应体上 `initiator` 这个名字已被「谁中断了它」占用（`data.model-response` 的中断发起方），**不再给第二个含义**（已报主线，[G-12](#十已知缺口)）。
+  响应体上 `initiator` 这个名字已被「谁中断了它」占用（`data.model-response` 的中断发起方），**不再给第二个含义**（[G-12](#十已知缺口)）。
+- **同名不同义，按名字跨契约关联会错**：本契约的 `initiator` 是**成本归属的租户**（`TenantId`）；`data.model-response` 与 `data.messages`（[S-49](../../messages/v1/contract.md#s-49-模型请求运行时写的五种记录不是消息)、[S-50](../../messages/v1/contract.md#s-50-调用终结的三支)）里同名的 `initiator` 是**中断的发起方**。两者不互相推，也不因同名而可比较。
 - **`initiator` 不是「当前租户」的现查结果**：它在写账那一刻由写入方按那次运行的事实写下，此后不改（[S-18](#s-18-原账不改)）；身份参数没有默认值（`data.identity-values/v1#S-17`）。
 - **两者都不是授权依据**：账上写着哪一格，不表示那一格的人读得到这份账——谁读得到归读面所属的契约（[S-23](#s-23-汇总已知之和与未知笔数) 第 1 件）。
 
@@ -800,10 +821,10 @@ unknownCount ≝ |{ r : current(r) = "unknown" }| + |{ t : currentOwn(t) = "unkn
 
 **一份账或一条补账落下时，它归属的那次尝试已被新的尝试取代，或它归属的那次运行已经终结——它仍然落下、仍归那次运行（与那次尝试），并标 `late: true`。**
 
-- **依据**：主线裁定 2026-09-23（待产品负责人确认）把 [PF-012 I-11](../../../../product/PF-012-agent-loop-and-run/design.md#617-run-这一层的七条不变式) 收窄为「运行终结之后不再**发起**新的成本产生动作；已发起的账目仍可在终结之后落账、归该运行、标 `late`」。
-  原句「终结之后日志里不再出现属于它的成本条目」与「按 Run 汇总成本」直接相抵——后台工具在运行终结之后结束是产品明写的路径，那笔钱不能凭空消失。
-- **谁会晚到**：运行终结之后才收场的后台执行（`ToolCallAccount`）；尝试被栅栏关掉之后才结算的一次发出（它的 `ModelResponse`，由 `data.model-response` 携带同一个标记）；运行终结之后才拿到的补账（`CostCorrection`）。
-- **缺席的意思是确定的**：落下时它归属的尝试仍是当前的、运行尚未终结。**只取 `true`**，`late: false` 不是合法写法——「不晚」只有一种表示。
+- **依据**：[PF-012 §6.17 I-11](../../../../product/PF-012-agent-loop-and-run/design.md#617-run-这一层的七条不变式)（rev 11 起）：终结之后「不再有新发起的效果与花钱的动作。终结之前已经发起的那些，账在终结之后才到的，照样落账、归这个 Run，并标明是迟到的」；收窄的来由见 [D-040 §一 S2-d](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s2call-accounts报回的)——原句「终结之后日志里不再出现属于它的成本条目」与「按 Run 汇总成本」直接相抵，后台工具在运行终结之后结束是产品明写的路径，那笔钱不能凭空消失。
+- **谁会晚到**：运行终结之后才收场的后台执行（`ToolCallAccount`）；尝试被栅栏关掉之后才结算的一次发出（它的 `ModelResponse`）；运行终结之后才拿到的补账（`CostCorrection`）。
+- **缺席的意思是确定的**：落下时它归属的尝试仍是当前的、运行尚未终结。**可选、只取 `true`**，`late: false` 不是合法写法——「不晚」只有一种表示。
+- **`ModelResponse` 上的 `late` 与本条同一含义、同一写法**：可选、只取 `true`，只在所属尝试被栅栏关掉之后才结算时写；缺席 = 不晚（主线裁定，见 [D-040 §五 K14](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）。形状归 `data.model-response`，那份契约引用本条（本契约不反向引用它，见头部）。
 - **它不改变归属，也不改变汇总**：晚到的账照样按 [S-25](#s-25-按尝试记明细按-run-汇总) 归组、按 [S-23](#s-23-汇总已知之和与未知笔数) 计入；`late` 只让读的人看得出「这笔是终结之后才落的」，
   于是一个运行的汇总在终结之后**仍可能变**（[S-23](#s-23-汇总已知之和与未知笔数) 第 8 件）。
 - **由写下它的那一方判**：它知道那次尝试与运行此刻的状态；本契约不提供判定，只给标记与含义。
@@ -822,6 +843,7 @@ unknownCount ≝ |{ r : current(r) = "unknown" }| + |{ t : currentOwn(t) = "unkn
 | 系统重启 | 已写下的账随会话日志留存；**在途的发出没有账**，由承载记录那一侧追补（[S-20](#s-20-缺账或被拒收记未知不伪造)、[G-10](#十已知缺口)） | 承载记录的契约 |
 | 写账时读不到时间源 | `startedAt` 必填，**本契约不给替代时刻**；写账方不得编一个别处的时刻，怎样收场归它自己的契约 | 工具执行一侧 |
 | 一份账没归进它该在的组 | 汇总看不见它——**不是零，是归属的缺口** | [G-3](#十已知缺口) |
+| 一次执行的在途状态丢了、数不出发了几帧砍了多少 | `frames: "unknown"`（[S-11](#s-11-toolcallaccount一次工具执行的账)）；**不写 0、不写部分计数** | 工具执行一侧（判定在 `capability.tool-execution-runtime`） |
 
 **本契约不定义任何恢复动作，也不承诺任何外部效果可逆**：钱花掉了就是花掉了，账只能如实记、事后补，不能撤。
 
@@ -833,23 +855,23 @@ unknownCount ≝ |{ r : current(r) = "unknown" }| + |{ t : currentOwn(t) = "unkn
 |---|---|---|---|
 | ~~G-1~~ | **已闭合（2026-09-23 对齐波）**：`data.content-blocks` v1 已成稿，`CallId` 的定义在它的 [S-14](../../content-blocks/v1/contract.md#s-14-callid)，catalog 补登依赖；`CallId` 的唯一范围是一份会话日志——[S-17](#s-17-costcorrection事后补账) 的补账目标与 [S-23](#s-23-汇总已知之和与未知笔数) 的「重复的账」按它读：同一 `CallId` 在不同会话里是不同的执行，补账须与目标落在同一份会话日志的归属里 | — | — |
 | ~~G-2~~ | **已闭合**：三句裁决落在 [D-038](../../../../record/decisions/message-and-shape-rulings/decision.md#裁决原话与含义)（8b、8c、Q13），设计依据改为链接 | — | — |
-| G-3 | **收窄**：三种边界情形的归组已按主线裁定写进 [S-25](#s-25-按尝试记明细按-run-汇总)（跨尝试归提交它的那次；终结之后落的归该运行、标 `late`，PF-012 I-11 收窄待产品修订）。**仍无答案**：[S-24](#s-24-汇总不重复计) 要求工具执行替自己发出的模型调用与它同组——一次后台执行在它的尝试被取代之后才调模型，那次调用的 `ModelResponse` 归哪次尝试，**无人给出** | PF-012 的 owner（产品：I-11 收窄的正文）；`capability.tool-execution-runtime` 与 `capability.model-request-runtime`（同组的兑现） | 产品正文落 I-11 收窄；两份能力契约写明工具内部发起的模型调用怎样带上执行所属的 `(run, attempt)` |
+| G-3 | **收窄**：三种边界情形的归组已写进 [S-25](#s-25-按尝试记明细按-run-汇总)（跨尝试归提交它的那次；终结之后落的归该运行、标 `late`——后者的产品依据 PF-012 I-11 自 rev 11 起已在正文）。**仍无答案**：[S-24](#s-24-汇总不重复计) 要求工具执行替自己发出的模型调用与它同组——一次后台执行在它的尝试被取代之后才调模型，那次调用的 `ModelResponse` 归哪次尝试，**无人给出** | `capability.tool-execution-runtime` 与 `capability.model-request-runtime` 的 owner（同组的兑现） | 两份能力契约写明工具内部发起的模型调用怎样带上执行所属的 `(run, attempt)` |
 | G-4 | **收窄**：MCP 接入点那一种已定为能力标识规范串（[S-9](#s-9-costitem一次工具执行里的一笔)）。**依赖名与规范串、保留值 `model_call` 不相交还没有保证**：依赖名的字符集归 `data.tool-definition`（它的 G-1） | `data.tool-definition` 的 owner | 依赖名的词法排除 `/` 与 `model_call` |
 | G-5 | **`items` 为空、或报账被拒之后，账上「没记下」与「没花钱」分不开**（[S-12](#s-12-总额未知不当零加)、[S-20](#s-20-缺账或被拒收记未知不伪造)）：一个声明了外部服务依赖、却一笔都没报的工具，要不要由运行时补一笔 `source: none` 的未知 | PF-006 的 owner；工具执行一侧的契约 | 裁定规则并写进工具执行一侧的契约；若改变本契约的记法，出新版本 |
 | G-6 | **上游语义未核实**：`is_byok` 情形下 `usage.cost` 的确切含义；上游对首 token 之前被中断、首 token 之后断流的请求是否计费、是否仍报回费用；各家上游的 token 字段怎样换算到 [S-6](#s-6-usage四项-token-与来源) 那三项不相交的输入。见[传输复用研究](../../../../../research/model-request-transport-sources/research.md)的未核对各行 | research（`model-request-transport-sources`）；模型调用一侧的传输适配 | 官方文档或受控实测核实；映射写进模型调用一侧的契约。**本契约的记法不因此改变**：上游报什么记什么，没报记未知 |
-| G-7 | **`obtainedVia` 对工具执行目标实际只剩 `manual`**：主线裁定（2026-09-23）「收场之后才到的费用走补账」，而「报账方在收场之后才报来」这条来路**没有取值**；一个外部服务提供可查的账单接口、由运行时自动取回，同样没有 | 主线（取值名）；产品负责人（取值集） | 裁定取值并加进 `obtainedVia`；在那之前工具执行一侧的晚到报账只能以记录条目留下，进不了有效费用 |
+| G-7 | **`obtainedVia` 对工具执行目标实际只剩 `manual`**：收场之后才到的费用走补账（主线裁定，见 [D-040 §一 S13-f](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s13tool-execution-runtime报回的)），而「报账方在收场之后才报来」这条来路**没有取值**；一个外部服务提供可查的账单接口、由运行时自动取回，同样没有 | 主线（取值名）；产品负责人（取值集） | 裁定取值并加进 `obtainedVia`；在那之前工具执行一侧的晚到报账只能以记录条目留下，进不了有效费用 |
 | G-8 | **跨进程的兑现方式未定义**：[S-26](#s-26-装配给的保证-vs-协议须给的保证) 右两列——精确十进制的逐跳保真、账的幂等落盘、补账新旧的全序或时钟偏差上界、起止时刻取自哪一边、镜像与权威同组、补账目标跨节点可达 | 架构设计（本版单机不阻断） | 分布式演化启动时逐行给出协议，作为本契约的新版本发布 |
 | G-9 | **精确十进制在实现里怎样保住**：常见的 JSON 解析把数字读成二进制浮点，超过约 17 位有效数字就丢位，且 `0.1 + 0.2` 不等于 `0.3` | realization | 提供者设计写明这些成员按精确十进制解析、加总与序列化，并有一条会在丢位时失败的测试 |
 | G-10 | **收窄**：拥有 `ModelResponse` 的一侧、拥有工具执行记录的一侧、到达语法与流装配都已成稿（候选）。**仍无契约**：按 Run 汇总的读面（[S-23](#s-23-汇总已知之和与未知笔数) 三种失败的名字）、上下文组装（账不进上下文，[S-21](#s-21-账进日志不进给模型看的上下文)） | PF-012、PF-010 那一侧 | 两份契约成稿，认领 [S-32](#s-32-补账改读数不改原账)、[S-33](#s-33-工具执行三笔一笔未知一笔镜像)、[S-34](#s-34-账不进给模型看的上下文) 各自的演练 |
-| G-11 | **主线裁定没有落成决定记录**：[设计依据](#设计依据)最后一行那几项（C-12 两种归属、I-11 收窄与 `late`、外部效果与停止时刻、接入点规范串、每帧至多计一次）只在任务区账本里 | 主线 | 随产品负责人确认落一份决定，依据行改为链接 |
-| G-12 | **一次发出的账上没有另记发起者**（[S-38](#s-38-两种归属用量归凭据那一格成本归发起者)）：主线裁定要「账上分记两项」，而一次发出的账挂在 `ModelResponse` 上、那里的 `initiator` 已是中断发起方；本版取承载条目的租户作发起者 | 主线 | 确认「一次发出的发起者取条目租户」，或给响应体上的这一项另起一个名字（`data.model-response` 新版本） |
+| ~~G-11~~ | **已闭合（2026-09-24 第一轮评审修复）**：I-11 收窄与 `late`、外部效果与停止时刻、接入点规范串、每帧至多计一次、三个归属标识的家都已落在 [D-040 §一](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#一2026-09-23-夜自驱期间的自决账本-二原文)，依据行已改为链接；两种归属分记改以产品行加规格层推导为依据（[设计依据](#设计依据)倒数第二行） | — | — |
+| G-12 | **一次发出的账上没有另记发起者**（[S-38](#s-38-两种归属用量归凭据那一格成本归发起者)）：[S-38](#s-38-两种归属用量归凭据那一格成本归发起者) 要账上分记两项，而一次发出的账挂在 `ModelResponse` 上、那里的 `initiator` 已是中断发起方；本版取承载条目的租户作发起者 | 主线 | 确认「一次发出的发起者取条目租户」，或给响应体上的这一项另起一个名字（`data.model-response` 新版本） |
 
 ## 十一、明确不承诺
 
 **以下都不在本契约内，消费者不得从本契约推出它们：**
 
 - **不定义承载记录**：`ModelResponse` 的路由留痕、收场、时序、回复，工具执行记录的收场、落点、前后台与等待，都不在这里。
-- **不定义归属**：账里没有租户、会话、运行、尝试；它们在条目上（[S-3](#s-3-本契约明确不拥有什么)）。
+- **不定义归属**：账里没有会话、运行、尝试；它们在条目上（[S-3](#s-3-本契约明确不拥有什么)）。**账里的租户身份只有一处**：`ToolCallAccount.initiator`（成本归谁，[S-38](#s-38-两种归属用量归凭据那一格成本归发起者)）——它是归属的一项，不是这份账属于哪个租户的读取依据，也不是授权依据；条目自己的租户身份仍在条目上。
 - **不定义计价、结算、账单、预算、额度与超限拦截。**
 - **不定义价目表，也不承诺任何估算可用。**
 - **不定义怎么砍**：节流的时机、长度上限、额度、拒收规则。

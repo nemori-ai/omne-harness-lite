@@ -4,42 +4,56 @@
 
 > **当前状态：未开始。**`data.model-profile` v1 是 `candidate`（2026-09-23 起草），未接受、未冻结；
 > 没有提供者、没有装配、没有源码。下表登记的是**已经触发的证据义务**，不是已完成的检查。
-> 唯一跑过的是整批对齐时对 [`examples.md`](v1/examples.md) 正反实例的**本地自检**（未登记、未进 `record/evidence/`），
-> 范围与局限见[下节](#结果与反例)；它只核「通过／拒绝」，**不核拒绝值是哪一个**，也**不支持** S-3、S-14、S-21 任何一条。
+> 跑过的只有对 [`examples.md`](v1/examples.md) 正反实例的两次**本地自检**（未登记、未进 `record/evidence/`），
+> 范围与局限见[下节](#结果与反例)；最近一次（2026-09-24）同时核「通过／拒绝」与表示层的四种文档「拒绝值是哪一个」，**不支持** S-3、S-10、S-14、S-21 任何一条。
 
 ## 证据义务
 
 | 规范条款与性质 | 证据形式 | 实际证据入口、输入与范围 | 未完成义务、责任与受阻消费者 |
 |---|---|---|---|
-| [S-24](v1/contract.md#s-24-表示层校验是一次纯计算)、[S-25](v1/contract.md#s-25-拒绝值闭合一次恰一个) 表示层校验与拒绝值次序（Schema 那一部分） | Draft 2020-12 校验器对 [`model-profile.schema.json`](v1/model-profile.schema.json) 求值，再按 S-25 的表映射成拒绝值；输入是 [`examples.md`](v1/examples.md) 第 1～6 节全部实例 | 「通过／拒绝」一面：**本地自检，未登记**（[下节](#结果与反例)）；「拒绝值是哪一个」一面**未开始** | 责任：规格工具（首次可由整批对齐或评审前的自检承担）。须覆盖两条引擎差异回归例（尾随换行、前导 U+FEFF）、第 6 节四条次序例、`input_text_missing` 一例，以及第 3 节官方／自建两支互斥的各行。**校验通过不支持** S-3、S-14、S-21 任何一条 |
-| [S-18](v1/contract.md#s-18-档案参数的输出上限) `max_output_exceeds_profile` | **不由 Schema 兑现**：表示层校验在 Schema 之外那一步的单元检查；输入是 examples 第 2 节三行与第 6 节末行 | **未开始** | 责任：表示层校验的实现者。**只跑 Schema 的实现会让这几行通过**——这一条必须单独断言 |
-| [S-18](v1/contract.md#s-18-档案参数的输出上限)／[S-21](v1/contract.md#s-21-不静默丢也不静默改) 上游输出上限已低于档案参数：不改档案，发出时改值并留痕 | 规范场景：假上游的输出上限低于档案 `parameters.maxOutputTokens`，发一次；**同时断言**档案记录一个字没变、出站请求里的 `maxOutputTokens` 是上游收得下的值、留痕里记的是实际发出的那个值 | **未开始** | 责任：**模型请求运行时**（adapter）与维护档案的能力（不写那次更新）；留痕形状在 `data.model-response` |
-| [S-3](v1/contract.md#s-3-撞名判定同一范围内唯一) 撞名拒建（只比同一格） | 规范场景演练：examples [第 7 节](v1/examples.md#7-判定撞名拒建不是-schema-实例)十二行——**同一格撞名、同一格撞已撤回行（要走恢复在册）、与官方同名照常建出、组织层与租户层同名照常建出、别的组织同名照常建出、新官方档案与自建同名照常建出、已撤回的官方名挡住同名官方发布、只差大小写照常建出**，**并发三行**（同一格里并发同名恰一次成功、自建与官方发布并发都成功、组织层与租户层并发都成功）与读不到一行（故障注入） | **未开始** | 责任：`capability.model-profile-directory` v1（candidate，建档与装入官方清单的那两个操作）。并发那几行要么真并发演练、要么由那份能力的行为模型检查「判定读到的名字与写入同提交」，**两者择一，不能靠顺序执行的场景代替**。「照常建出」那几行同样要断言——**一个判到别的格去的实现会让它们失败**（P-11） |
-| [S-10](v1/contract.md#s-10-registration) 两条转移、恢复的是同一行、行保留 | **静态检查**：维护档案的能力的写路径里，在册状态只有撤回与恢复在册两条边、没有删行、恢复不另起一行；外加场景：撤回后按引用读，仍读到这一条、`registration = withdrawn`；恢复在册后按同一个引用读，读到**同一行**、`registration = listed`、其余成员与 `updatedAt` 不变 | **未开始** | 责任：`capability.model-profile-directory` v1 |
+| [S-24](v1/contract.md#s-24-表示层校验是一次纯计算)、[S-25](v1/contract.md#s-25-拒绝值闭合一次恰一个) 表示层校验与拒绝值次序 | Draft 2020-12 校验器对 [`model-profile.schema.json`](v1/model-profile.schema.json) 求值加 S-18 那一步，再按 S-25 的表与次序得出拒绝值；输入是 [`examples.md`](v1/examples.md) 第 1～6 节与第 10 节全部实例 | **本地自检，未登记**（[下节](#结果与反例)）：「通过／拒绝」与「拒绝值是哪一个」两面都核过；后一面用的是自检脚本里按 S-25 手写的分类，不是一份独立实现 | 责任：规格工具（首次可由评审前的自检承担）。须覆盖两条引擎差异回归例（尾随换行、前导 U+FEFF）、第 6 节四条与第 10 节一条次序例、`input_text_missing` 一例、M12 各行，以及第 3 节官方／自建两支互斥的各行。**校验通过不支持** S-3、S-14、S-21 任何一条 |
+| [S-18](v1/contract.md#s-18-档案参数的输出上限) `max_output_exceeds_profile` | **不由 Schema 兑现**：表示层校验在 Schema 之外那一步的单元检查；输入是 examples 第 2 节三行、第 6 节末行与第 10 节一行（建档内容） | 实例一面：**本地自检，未登记**；实现的单元检查**未开始** | 责任：表示层校验的实现者。**只跑 Schema 的实现会让这几行通过**——这一条必须单独断言，对档案与建档内容两种都要 |
+| [S-28](v1/contract.md#s-28-建档内容产生一条档案时给的那一份) 建档内容不带在册状态与 `updatedAt`（M12） | Schema（成员集合闭合）＋ examples [第 10 节](v1/examples.md#10-建档内容)；外加场景：以带 `registration` 或 `updatedAt` 的建档内容分别调建档与装入清单，**两边都得 `invalidInput`、`reason = malformed`**，且什么都没写 | 实例一面：**本地自检，未登记**；场景**未开始** | 责任：`capability.model-profile-directory` v1（建档与清单装入收它）。**带了 `registration: "listed"` 也要被拒**——只挡 `withdrawn` 的实现会让那一行失败 |
+| [S-18](v1/contract.md#s-18-档案参数的输出上限)／[S-21](v1/contract.md#s-21-不静默丢也不静默改) 上游输出上限已低于档案参数：`maxOutputTokens` 一项不跟着降，发出时改值并留痕 | 规范场景：假上游的输出上限低于档案 `parameters.maxOutputTokens`，发一次；**同时断言**档案的 `maxOutputTokens` 没变、出站请求里的 `maxOutputTokens` 是上游收得下的值、留痕的 `parameters` 里是实际发出的那个值、`parameterAdjustments` 记下了要求的与发出的两个值。**另一场景**：同一次同步里上游还改了窗口——断言窗口照常更新、`updatedAt` 动了、`maxOutputTokens` 仍是旧值；一份把 `maxOutputTokens` 降到参数值之下的修订整份被拒（`max_output_exceeds_profile`），什么都没写 | **未开始** | 责任：**模型请求运行时**（adapter）与维护档案的能力（写入面整份拒）；留痕形状在 `data.model-response` v1 S-11 |
+| [S-3](v1/contract.md#s-3-撞名判定同一范围内唯一) 撞名拒建（只比同一格） | 规范场景演练：examples [第 7 节](v1/examples.md#7-判定撞名拒建不是-schema-实例)十二行——**同一格撞名、同一格撞已撤回行（要走恢复在册）、与官方同名照常建出、组织层与租户层同名照常建出、别的组织同名照常建出、新官方档案与自建同名照常建出、已撤回的官方档案在清单里重现时走恢复在册（`relisted`，不是 `route_name_taken`，也不另起一行）、只差大小写照常建出**，**并发三行**（同一格里并发同名恰一次成功、自建与官方发布并发都成功、组织层与租户层并发都成功）与读不到一行（故障注入） | **未开始** | 责任：`capability.model-profile-directory` v1（candidate，建档与装入官方清单的那两个操作）。并发那几行要么真并发演练、要么由那份能力的行为模型检查「判定读到的名字与写入同提交」，**两者择一，不能靠顺序执行的场景代替**。「照常建出」那几行同样要断言——**一个判到别的格去的实现会让它们失败**（P-11） |
+| [S-10](v1/contract.md#s-10-registration) 两条转移、恢复的是同一行、行保留 | **静态检查**：维护档案的能力的写路径里，在册状态只有撤回与恢复在册两条边、没有删行、恢复不另起一行；外加场景：撤回后按引用读，仍读到这一条、`registration = withdrawn`；**单纯的恢复**（`relistProfile`）后按同一个引用读，读到**同一行**、`registration = listed`、其余成员与 `updatedAt` 不变；**清单装入的 `relisted`** 只断言同一行、身份分量不变、`registration = listed`，属性按清单改写、`updatedAt` 按 S-11 | **未开始** | 责任：`capability.model-profile-directory` v1 |
 | [S-14](v1/contract.md#s-14-引用只精确解析不跨层) 引用只精确解析，三种收场不折叠 | 规范场景：官方引用读一次、自建引用读一次；再用**名字对、所在范围或来源不对**的引用各读一次（须是「查无此条」，不得顺着名字解析到那一条）；再对不存在的引用、存储不可用各读一次，**三种结果值须两两不同** | **未开始** | 责任：`capability.model-profile-directory` v1 的读面（失败值名在那里） |
 | [S-5](v1/contract.md#s-5-providername-与允许的供应商)、[S-6](v1/contract.md#s-6-允不允许回退) 只发往允许列表里的一家；不允许回退时只走第一家；不把整份列表交给上游回退 | 规范场景：以可控的假上游让第一家失败，分别在 `allowFallback` 为 `true`／`false` 下观察第二次发往哪一家；**检查每一次出站请求只点名一家、且关掉了上游侧的回退** | **未开始** | 责任：`capability.model-request-runtime` v1。只看最终结果不够——上游自己回退成功时，结果与「我们换了一家」长得一样 |
-| [S-21](v1/contract.md#s-21-不静默丢也不静默改) 不静默丢、不静默改 | 规范场景：假上游不认某一项、只认某项的更窄取值域，各发一次；比对「实际发出的请求体」与留痕 | **未开始** | 责任：模型请求运行时的 adapter；留痕形状在 `data.model-response`。**两条都要断言**：没发出去的项在留痕里有名字；改了值的项在留痕里是实际发出的那个值 |
+| [S-21](v1/contract.md#s-21-不静默丢也不静默改) 不静默丢、不静默改 | 规范场景：假上游不认某一项（统一项一次、`extra` 项一次）、只认某项的更窄取值域，各发一次；比对「实际发出的请求体」与留痕 | **未开始** | 责任：模型请求运行时的 adapter；留痕形状在 `data.model-response` v1 S-11。**三条都要断言**：没发出去的项在 `droppedParameters` 里有名字（`extra` 项以键为名）；改了值的项在 `parameters` 里是实际发出的值；同一项在 `parameterAdjustments` 里记着要求的与发出的两个值 |
+| [S-27](v1/contract.md#s-27-modelprofilesnapshot档案在某一刻的副本) 快照是原样副本 | 规范场景：打开一次调用之后改档案、撤回档案，断言那次调用的快照与打开那一刻的档案逐成员相等（[S-28](v1/contract.md#s-28-建档内容产生一条档案时给的那一份) 的相等规则），且 S-18 的关系在快照上成立 | **未开始** | 责任：`capability.model-request-runtime` v1（写快照的一方）。收快照的一方不重判，所以这一条只能在写的一方断言 |
 | [S-17](v1/contract.md#s-17-缺席即不带没有人补值) 缺席不补值 | 规范场景：档案不给某一项、拓展件也不设，检查出站请求体里**没有**这一项 | **未开始** | 责任：模型请求运行时 |
 | [S-22](v1/contract.md#s-22-凭据价格与实际用了哪条都不在档案上) 档案上没有凭据 | Schema（档案文档本身，examples 第 2 节的 `credential` 一行）＋**静态检查**（档案的一切交换表示与读面返回里不出现凭据） | Schema 部分**未运行**；静态检查**未开始** | 责任：维护档案的能力与展示列表的提供者 |
-| [S-11](v1/contract.md#s-11-updatedat) `updatedAt` 何时动、不后退 | 规范场景：改 `providers`（它不动）、改 `maxInputTokens`（它动）、写回同值（它不动） | **未开始** | 责任：`capability.model-profile-directory` v1 |
+| [S-11](v1/contract.md#s-11-updatedat) `updatedAt` 何时动、不后退 | 规范场景：改 `providers`（它不动）、改 `maxInputTokens`（它动）、写回同值（它不动）、把两组模态换个次序写回（它不动：按集合比） | **未开始** | 责任：`capability.model-profile-directory` v1 |
 | [S-13](v1/contract.md#s-13-modelprofileref) 引用的持久形状：`origin` 判别式原样存、自建那一支的 `scope` 存成带判别式的值 | **静态检查**：持久形状里有 `origin`，自建那一支是一个 `ScopeLayerIdentity`、不是两个可空列；**不存在「缺 `scope` 即官方」的读法** | **未开始** | 责任：凡持久化 `ModelProfileRef` 的 owner（Agent 定义、会话、响应留痕） |
 
 ## 对齐义务
 
-- **词条链接待合流后补**（2026-09-24 整批对齐）：正文里「官方档案、自建档案、合法目标集合、模型展示列表」原标「无词条」，词条批已立为词条，本包已改用正式名、去掉标记；那几条词条在 HUB 上、本分支看不到，**链接待合流后补**（主线）。
-
-**这一节登记本包与同批契约之间的对齐项。**整批对齐（2026-09-23）逐项核过，状态写在末列：
+**这一节登记本包与同批契约之间的对齐项。**整批对齐（2026-09-23）逐项核过，2026-09-24 第一轮评审修复后更新，状态写在末列：
 
 | 对齐什么 | 本包现状 | 另一边 | 状态 |
 |---|---|---|---|
 | **`Modality` 只有一份定义** | 两组模态 `$ref` `data.content-blocks` 的 `$defs/Modality`，本包不再自定义 | `data.content-blocks/v1#S-6` 是唯一的家 | **已对齐**：catalog 登记本包 → `data.content-blocks` [S-6] |
 | **`ModelProfileRef` 的消费** | S-13 定形状：按 `origin` 判别两支，官方 `{origin, routeName}`、自建 `{origin, scope, routeName}` | `data.model-response` 的路由留痕取这个值（`data.loop-extension` 请求的 `target` 自 2026-09-24 起改取 `RouteName`） | 一律 `$ref` 本包 `$defs/ModelProfileRef`，**不各自复述两支、不各自加第三支**；核对结果记在那份的验证入口 |
 | **撞名范围与大小写规则** | S-3：同一范围（同一格）内唯一，含已撤回行；不同格可同名（官方与自建、组织层与租户层、不同组织）；逐码点比较，不做大小写折叠与相似字判定 | `capability.model-profile-directory` 的建档与装入官方清单；任何按路由名去重、索引或展示的消费者（展示列表、`data.model-response` 的 `upstreamModel` 对照） | 目录那边按「S-3 定的范围」判、不复述范围；消费者不得自行加大小写不敏感的比较，**也不得假设路由名在格与格之间唯一**——同一个路由名可以出现在几条档案上，指认一条要带来源与所在范围（引用本身就带）；2026-09-24 规格修订批目录与运行时同批改 |
-| **上游输出上限低于档案参数的收场** | S-18：不改档案，义务归模型请求运行时 | `data.model-response` 的「这次实际发出的参数」 | 那一项记**实际发出的**（降过的）值，不记档案里的原值 |
-| **`ModelRequestParameters` 与项名** | S-15～S-21；项名规则在 S-20 | `data.model-response` 的「这次实际发出的参数」与「没发出去的项」；`data.loop-extension` 的「调模型之前」可改的参数 | 前者用本包 S-20 的项名；两者都不得另起一份参数词表；合成规则落在 `capability.model-request-runtime/v1#S-7`，剩余一问是 [G-8](v1/contract.md#十已知缺口) |
+| **上游输出上限低于档案参数的收场** | S-18：`maxOutputTokens` 一项不跟着降（其余四项照常更新），义务归模型请求运行时 | `data.model-response` v1 S-11 的 `parameters` 与 `parameterAdjustments` | **已对齐**：`parameters` 记**实际发出的**（降过的）值，`parameterAdjustments` 记要求的与发出的两个值 |
+| **`ModelRequestParameters` 与项名** | S-15～S-21；项名规则在 S-20；S-21 三种处置 | `data.model-response` v1 S-11 的三个成员（`parameters`、`parameterAdjustments`、`droppedParameters`）；`data.loop-extension` 的「调模型之前」可改的参数 | **已对齐**：前者用本包 S-20 的项名、`droppedParameters` 含 `extra` 项的键；两者都不得另起一份参数词表；合成规则落在 `capability.model-request-runtime/v1#S-7`，剩余一问是 [G-8](v1/contract.md#十已知缺口) |
+| **建档内容** | S-28：`ModelProfile` 去掉 `registration`、`updatedAt`；带了即 `malformed`（M12） | `capability.model-profile-directory` v1 S-5、S-8、S-9、S-14 ①⑧、S-18 ①⑧ 引 `#S-28` | 那份契约已按本条写（`invalidInput{reason: malformed}`）；它的 catalog 依赖应补登 S-28（那份的登记，主线核） |
+| **恢复与属性改写同提交** | S-10：转移本身只改 `registration`；清单装入的 `relisted` 可同时改属性；「其余不变」只对 `relistProfile` | `capability.model-profile-directory` v1 S-18 `relisted`、S-33 | **已对齐**：两边说法一致；本包 examples 第 7、8 节与上表 S-10 一行按此限定 |
+| **快照照原样复制** | S-27：S-18 的关系在快照上由写的一方保证，收的一方不重判 | `capability.model-request-runtime` v1（写）；`data.model-response` 的 `route.profileSnapshot`、`data.loop-extension` 的「调模型之后 · 失败」主体（收） | 收的两份都 `$ref` 本包 `$defs/ModelProfileSnapshot`，不重判；写的一方的证据在上表 S-27 一行 |
 | **`withdrawn` 两处同名** | `Registration` 的 `withdrawn` 是档案的在册状态 | `data.loop-extension` 的失败成因取值 `withdrawn`（已下架） | 两者含义一致（成因「已下架」的依据正是档案 `registration = withdrawn`）；那边的定义引用本包 S-10，不另下定义 |
 
 ## 结果与反例
+
+### 已执行：第一轮评审修复后的本地自检（2026-09-24）
+
+| 项 | 值 |
+|---|---|
+| 对象 | 第一轮评审修复之后的 `v1/model-profile.schema.json`（`$defs` 11 项，新增 `ModelProfileContent`）与 `v1/examples.md`（新增第 10 节），均未冻结，无 hash 可绑 |
+| 工具 | CPython 3.12.13 ＋ `jsonschema` 4.26.0（`Draft202012Validator`）＋ `referencing` 0.37.0，工作区锁定 uv 环境（`uv run --locked`），未另装依赖；设计根下 `spec/*/*/v*/*.schema.json` 按 `$id` 登进同一个解析表，`Modality`、`ScopeLayerIdentity`、`Instant` 都解析到真身 |
+| 做了什么 | **两种求值，逐行与表比对**：① 表示层校验 = Schema ＋ S-18 那一步（对 `ModelProfile` 与建档内容）；② 按 S-25 的表与次序手写的分类，给出拒绝值与命中的 M 编号——只对四种文档（档案、建档内容、引用、参数独立值）的行做。第 1 节四条正例（A、B、C 与第 10 节的 D）与三个引用、第 2／6／10 节「在正例上改一处」的行、第 3～5、9 节的字面实例、5.3 节表里每个取值各算一行 |
+| 结果 | **151 行，与「预期」一列全部一致**（通过 44、拒绝 107）；其中 106 行做了分类，**拒绝值与表里写的逐行相同**，表里注了 M 编号的都在命中的 M 编号之中；四条正例与三个引用两种求值都通过 |
+| 脚本在哪 | 会话暂存区，**未入库** |
+| 范围与局限 | 分类是**同一个人按 S-25 写的第二种读法**，不是独立实现；它与表一致只说明表、Schema 与 S-25 三者自洽。第 7、8 节是判定与写路径场景，不参与。**不支持** S-3、S-10、S-14、S-21、S-27 任何一条 |
 
 ### 已执行：整批对齐时的本地自检（2026-09-23）
 
@@ -58,6 +72,27 @@
 原始产物归 [record/evidence/](../../../record/evidence/README.md)。
 记录时必须分开陈述：Schema 校验的结果、Schema 之外那一步（S-18）的结果、规范场景演练的结果、真实组合的符合性。
 
+## 独立评审
+
+**第一轮**：reviewer 为 spec-reviewer（独立、只读），日期 2026-09-24，基线 HUB `765b01dc`；发现表是那一轮的任务区产物（MP-1～MP-14；与本契约相关的阻断 MR-1 记在 `data.model-response` 的验证入口，这里不重复计）。处置在 2026-09-24 第一轮修复里落（见[变化的影响](#变化的影响)第一条）：
+
+| 发现 | 严重度 | 处置 | 落点 |
+|---|---|---|---|
+| MP-1 建档内容没有文档种类、带了两个成员拒成什么未定 | 应修 | **改**（主线裁定在本契约立）：新立 **S-28 建档内容**（`$defs/ModelProfileContent`）；带 `registration`／`updatedAt` 即 `malformed`（新 **M12**）；S-24 改为四种文档，S-25「适用于」一列逐行补上建档内容 | S-28、S-24、S-25、S-3 九件事第 2 行、S-10、S-12、第三节、P-12；Schema；examples 第 10 节 |
+| MP-2 `relisted` 可同时改属性，与「其余不变」相抵 | 应修 | **改**：S-10 写明转移本身只改 `registration`、恢复可与属性改写同提交（那是改写，不是恢复）；「其余不变、`updatedAt` 不动」只对 `relistProfile` 断言 | S-10；Schema `Registration` 说明；examples 正例 C、第 8 节；本页 S-10 一行 |
+| MP-3 第 7 节要求一个目录永远不返回的值 | 应修 | **改**：那一行的结果改为清单装入的处置 `relisted`，依据写明 `route_name_taken` 是 S-3 的判定结论、不是官方发布的返回值；第 7 节说明「结果」一列写的是操作的返回；官方发布两行补 `added`；S-3 后果表加一行 | examples 第 7 节；S-3；本页 S-3 一行 |
+| MP-4 G-13 已闭合，实例与条款仍写「待确认」 | 应修 | **改**：去掉「待确认」，改指 PF-013 裁决 39、40 与 §4 | examples 第 7 节第 3、12 行；设计依据下的表；S-3；P-11；已关闭缺口 G-13 行 |
+| MP-5 例外的范围是整份还是一项 | 应修 | **改**：例外只管 `maxOutputTokens` 这一项；另四项照常更新、照常推动 `updatedAt`；把这一项降到参数值之下的文档整份被拒，写的一方不带这一项的改动重写（规格层推导，理由写在 S-18） | S-18、S-11、S-12；本页 S-18／S-21 一行 |
+| MP-6 PF-001／PF-004／PF-010 的 rev 过期 | 应修 | **改**：逐版复核后对到 PF-001 rev 17、PF-004 rev 12、PF-010 rev 6（复核内容见[变化的影响](#变化的影响)第一条），条款不改 | 抬头；covers 注记 |
+| MP-7 开放缺口没有闭合条件 | 应修 | **改**：开放缺口表加「闭合条件」一栏，G-2、G-8、G-9、G-10 各写一条 | 第十节 |
+| MP-8 已有词条仍被说成「不是词条」 | 应修 | **改**：第三节改为值名与词条的对应表（`Registration` ↔ 档案在册状态 · Profile Listing Status 等），链上八条词条；Schema 里有词条的定义给词条式标题或在说明里点名；本页「本分支看不到」一条删去 | 第三节、设计依据统一语言一行、S-4、S-5、S-6、S-10、消费者表；Schema；本页对齐义务 |
+| MP-9 消费者表漏了几个消费方 | 应修 | **改**：补 `data.messages`（S-2、S-5）、`capability.modality-projection`（S-7、S-25）、`capability.asset-registry`（S-7）；`data.loop-extension` 一行补 S-27 快照与 S-5；`data.model-response` 一行按参数三处留痕改写；维护档案的能力一行补 S-11、S-28、S-25 | 消费者表；README「谁在等它」 |
+| MP-10 covers 注记与条款语义相反 | 应修 | **改**：「选中模型与有效模型」那一条改写并补 S-2、S-14；§6.1 那一条改写、按设计依据表补 S-1、S-12、S-14；其余各条 rev 对到当前（`reviewed` 保持 false） | registry `covers.json` |
+| MP-11 S-1「选择」易误读 | 建议 | **改**：换成「目录的读面、有效模型的留痕」，并注明切换选中模型记的是路由名 | S-1 |
+| MP-12 快照要不要做 S-18 那一步 | 建议 | **改**：写明 S-18 的关系在快照上成立、由写快照的一方照原样复制保证；快照不是表示层校验的一种文档，收的一方不重判、没有拒绝值 | S-27、S-24；Schema `ModelProfileSnapshot` 注释；examples 第 9 节；本页新增 S-27 一行 |
+| MP-13 「第 8 行」笔误 | 建议 | **改**：改为「S-25 第 8 行，先于第 9 行」 | examples 第 2 节 |
+| MP-14 `Instant` 不在 offer-expiry S-22 的表里 | 建议（两份共有） | **改说明，不改登记**：抬头依赖写明依据是 S-22 末句加上它 Schema 的 `$defs/Instant`；offer-expiry 已冻结 | 抬头；README |
+
 ## 形式化工件
 
 **本契约不选用形式化工件，`formal/` 不建**，理由在[包入口](README.md#版本包)与[契约第十二节](v1/contract.md#十二版本差异与规范工件)。
@@ -65,6 +100,30 @@
 没有 Alloy 或 TLA+ 任务登记到 `formal-tasks.json`。
 
 ## 变化的影响
+
+- **2026-09-24 第一轮独立评审修复**（仍是 `candidate`，未冻结，改在 v1 原地）。依据：第一轮评审发现 MP-1～MP-14（处置表在[独立评审](#独立评审)）与主线对跨契约几处的裁定：
+  参数留痕三处（`data.model-response` 的 `parameters` 记实际发出的值、新增 `parameterAdjustments`、`droppedParameters` 含 `extra` 项）、本契约立「建档内容」这一种文档、恢复在册可与属性改写同提交。
+
+  | 改的是什么 | 条款 | 表示变化 | 对证据与消费者的影响 |
+  |---|---|---|---|
+  | **新立 S-28 建档内容**（`ModelProfileContent`）：`ModelProfile` 去掉 `registration` 与 `updatedAt`；带了即 `malformed`（新 **M12**）；逐成员相等的规则写在这里，S-11 的「值变了」与目录的「同内容认回」共用 | S-28、S-24（四种文档）、S-25（M3、M5、M10 措辞，M12，「适用于」一列）、S-3 九件事第 2 行、S-10、S-11、S-12、第三节、第七节（定义项 11）、P-12 | **有**：`$defs` 增 `ModelProfileContent`；examples 新增第 10 节（12 行） | 新义务：本页 S-28 一行。`capability.model-profile-directory` v1 已按 `#S-28` 写（S-5、S-8、S-9、S-14、S-18），它的 catalog 依赖要补 S-28 |
+  | **恢复与属性改写同提交**：转移本身只改 `registration`；「其余不变」只对 `relistProfile` | S-10 | 无（`Registration` 说明改写） | examples 正例 C、第 8 节；本页 S-10 一行拆成两种断言 |
+  | **S-18 的例外只管 `maxOutputTokens` 一项**；违反的写入整份被拒 | S-18、S-11、S-12 | 无 | 本页 S-18／S-21 一行加一个场景 |
+  | **参数留痕三处**：S-21 的处置表改按 `data.model-response` v1 S-11 的三个成员写；CS-4 改写；S-23 那一行回传「改过的值」 | S-21、S-23、CS-4、消费者表 | 无（形状在 `data.model-response`） | 本页 S-21 一行三条断言 |
+  | **快照上的 S-18**：由写快照的一方照原样复制保证，收的一方不重判 | S-27、S-24 | 无（注释） | 本页新增 S-27 一行（责任在模型请求运行时） |
+  | **官方档案重新发布走 `relisted`**：S-3 后果表加一行；examples 第 7 节那一行改为恢复在册，官方发布两行补 `added` | S-3 | 无 | 本页 S-3 一行 |
+  | **词条与依据**：第三节改为值名与词条对应表，链上八条已有词条；「主线裁定 2026-09-23，待产品负责人确认」一律改为 D-040 §S6 各编号（S-3 比较规则只取 S6-b 的那一半）、C-R1；G-13 相关处改指 PF-013 裁决 39、40；已关闭 G-6 去掉账本编号 | 设计依据、S-3、S-7、S-13、S-18、S-27、P-1、P-10、P-11、第十节 | Schema 各 `description` 与 `Registration` 的标题 | 无 |
+  | **消费者表补齐**：`data.messages`、`capability.modality-projection`、`capability.asset-registry`；`data.loop-extension` 补 S-5、S-27 | 第一节 | 无 | 与 catalog 里七个消费方一致 |
+  | **开放缺口加闭合条件**；S-1 删「选择」；examples 第 2 节「第 8 行」笔误；`Instant` 的依据写明 S-22 末句加 `$defs` | 第十节、S-1、抬头 | 无 | 无 |
+
+  **产品依据复核（G1）**：
+  - **PF-001 rev 16 → 17**：§6.1 两处措辞（工作区「会话创建时选定」；出厂默认一格「它们声明的默认设置与默认权限」）——本契约引 §6.1 的是「出厂默认层由系统充当」「同一范围是同一格」（S-1、S-3），**不受影响**：档案只在出厂默认、组织、租户三格，工作区不是一种身份、不在那张表里；§6.4 末句「实际费用拿不到时记什么，归 PF-013」与 S-22「价格不在档案上」一致；其余（权限锁的是界、提升不动持有）不涉及。**条款不改。**
+  - **PF-004 rev 10 → 12**：rev 11 写明 I-4 的时间尺度，rev 12「构成变小也重新装配」——本契约只引 §6.6（实际用了哪条是可追溯组成、不在档案上），未变。**条款不改。**
+  - **PF-010 rev 5 → 6**：系统提示词本版只含文本；要求五第二行改为「原件 / 派生表示 / transcript」三选一——本契约引要求五的是「组装的输入里有当下生效的那份档案、窗口、模态、送进去之前的限制是同一份记录里的三项」（S-8、S-9、CS-5），未变；取哪一份归组装。**条款不改。**
+  - **PF-013 rev 12**：已是当前；抬头状态说明改为产品正文自己的接受状态。
+
+  **registry**：catalog 本包条目不变（依赖仍是 identity-values、offer-expiry、content-blocks）；covers 本包各条的 note 对到当前 rev、过时说法改写，「选中模型与有效模型」补 S-2、S-14，§6.1 补 S-1、S-12、S-14，flows §3.1 补 S-28（均 `reviewed: false`）。
+  **没有既有证据失效**：上一次本地自检的 139 行全部保留、结果不变；本轮重跑为 151 行（[结果与反例](#结果与反例)）。
 
 - **2026-09-24 规格修订批（PF-013 rev 10 之后）**（仍是 `candidate`，未冻结，改在 v1 原地）。依据：PF-013 rev 10 [裁决 35–38](../../../product/PF-013-model-profiles-and-invocation/decisions.md#2026-09-24--档案的身份是所在范围加路由名列表每条带来源已撤回的可以恢复在册)（账本 U-2）与主线施工简报第三节：
 

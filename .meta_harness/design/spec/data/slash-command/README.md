@@ -6,10 +6,10 @@
 识别与解析是**纯函数**：交付面的两种呈现形式与受理面各跑一遍，必须得出同一个答案，所以写成一份共用的数据契约与一张判定用例集，**不各自实现一套同义规则**。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.slash-command, 1)`
-- **状态**：`candidate`——未接受、未冻结，不得据此发布或声称消费者已采用
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审处置修订，见[独立评审](verification.md#独立评审)）——未接受、未冻结，不得据此发布或声称消费者已采用
 - **catalog 映射**：已登记为 `candidate`（`acceptance` 为 `null`）。`family=data`、`topic=slash-command`、
   `contract_path=spec/data/slash-command/v1/contract.md`，`resources` 另含 `v1/slash-command.schema.json` 与 `v1/examples.md`；
-  依赖四项：`data.asset-model` v1（`S-2`、`S-3`、`S-5`、`S-10`、`S-12`、`S-15`、`S-36`）、`data.content-blocks` v1（`S-8`）、`data.identity-values` v1（`S-31`）、`data.skill-package` v1（`S-8`）。
+  依赖四项：`data.asset-model` v1（`S-2`、`S-3`、`S-5`、`S-10`、`S-12`、`S-15`、`S-27`、`S-36`）、`data.content-blocks` v1（`S-8`）、`data.identity-values` v1（`S-31`）、`data.skill-package` v1（`S-8`）。
   **登记在 [registry](../../../registry/README.md)，本行只作索引**
 - **起点方向**：[D-036](../../../record/decisions/slash-command-parsing-baseline/decision.md)（自研统一解析器，从 Codex 借识别边界、从 omne-next 借失败纪律与声明优先、从 Claude Code 借占位符与留痕形状）
 - **提供者/装配映射**：尚无
@@ -36,7 +36,7 @@
 | 一份命令定义什么会被拒、拒绝值叫什么 | [v1 正反实例](v1/examples.md)与 [S-28 表示层拒绝值](v1/contract.md#s-28-表示层拒绝值) |
 | 名字能不能用 `omne-official:` 开头 | [S-3](v1/contract.md#s-3-保留区与它唯一的拼法)、[S-4](v1/contract.md#s-4-保留区只归系统提供的命令型)、[S-5](v1/contract.md#s-5-保留名在系统内唯一没有优先级) |
 | 没权限的命令敲下去得到什么 | [S-16](v1/contract.md#s-16-名字只按会话斜杠命令集认)：与不存在的名字逐成员相同 |
-| 哪里在等裁决 | [已知缺口](v1/contract.md#十已知缺口)——**G-7（系统业务流程的登记处）、G-8（③ 型条目与具名拒绝条目的形状）、G-9（命令与附件一起走）**；G-10：2026-09-23 那批主线裁定待落决定记录与产品负责人确认 |
+| 哪里在等裁决 | [已知缺口](v1/contract.md#十已知缺口)——**G-7（系统业务流程的登记处）、G-8（③ 型条目与具名拒绝条目的形状）、G-9（命令与附件一起走）**；G-10 已闭合（那批主线裁定已记进 D-040） |
 | 哪些条款有怎样的证据义务，现在到哪一步 | [验证与覆盖](verification.md) |
 
 ## 版本包

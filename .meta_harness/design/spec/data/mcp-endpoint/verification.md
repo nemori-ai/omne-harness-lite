@@ -6,17 +6,18 @@
 > 下表登记的是**已经触发的证据义务**，不是已完成的检查。
 > 起草时只做了手核（[`examples.md` 第 10 节](v1/examples.md#10-起草者逐条自核)）；**整批对齐（2026-09-24）跑过一次 V-1 的本地自检**（只判 Schema 通过与否，见[结果与反例](#结果与反例)）。
 > 四条规范场景、四条消费者核对场景、四条静态检查**一条都未执行**——文件存在不代替结果。
+> 2026-09-24 第一轮独立评审（基线 HUB `765b01dc`）的处置见[独立评审](#独立评审)；改动的实例行补跑了本地自检（见[结果与反例](#本地自检第一轮独立评审处置2026-09-24)）。
 > 唯一跑过的检查器是 `make design-check`：它解析了本包 Schema 的 JSON、核对了 `$id` 与全部 `$ref` 指得到、核对了 Markdown 链接与锚点——**它不校验任何实例**。
 
 ## 证据义务
 
 | # | 义务 | 证据形式 | 覆盖哪些条款 | 实际状态 |
 |---|---|---|---|---|
-| V-1 | **形状校验**：[`examples.md`](v1/examples.md) 第 1～6 节逐行（含变体行）过 Schema，比对「Schema」一列；第 7 节逐条过 `data.asset-model` 的 `AttributeDeclaration` | Draft 2020-12 校验器（能按 `$id` 解析到 `data.asset-model/v1`、`data.tool-definition/v1`、`data.offer-expiry/v1` 及它们各自引用的 Schema）＋ 按节绑定的 `$defs` | [S-1](v1/contract.md#s-1-接入点正文)～[S-14](v1/contract.md#s-14-推出规则五类项) 的**形状那一面** | **本地自检已跑一次**（整批对齐，2026-09-24）：105 处 0 不符；拒绝值是哪一个未机检。**修订批（同日）只补跑新增的 4.1 节**：12 行的 Schema 一列与拒绝值一列都机检、0 不符（见[结果与反例](#本地自检接入点-name修订批2026-09-24)）；第 1～7 节的 JSON 未改、未重跑 |
-| V-2 | **拒绝值的具名与优先级**：对每个拒绝行，接收边界给出的拒绝值等于「拒绝值」一列；第 8 节专验优先级 | 接收边界的一致性用例（同一份输入跨实现比对） | [S-20](v1/contract.md#s-20-表示层拒绝值与判定次序)、[S-21](v1/contract.md#s-21-表示层拒绝不是判定也不修补) | **未开始。**需要一个实现了接收边界校验的提供者。**只验 Schema 通过与否不够**——`credential_plaintext` 与 `malformed` 在 Schema 那里都只是「拒绝」 |
+| V-1 | **形状校验**：[`examples.md`](v1/examples.md) 第 1～6 节逐行（含变体行）过 Schema，比对「Schema」一列；第 7 节逐条过 `data.asset-model` 的 `AttributeDeclaration` | Draft 2020-12 校验器（能按 `$id` 解析到 `data.asset-model/v1`、`data.tool-definition/v1`、`data.offer-expiry/v1` 及它们各自引用的 Schema）＋ 按节绑定的 `$defs` | [S-1](v1/contract.md#s-1-接入点正文)～[S-14](v1/contract.md#s-14-推出规则五类项) 的**形状那一面** | **本地自检已跑一次**（整批对齐，2026-09-24）：105 处 0 不符；拒绝值是哪一个未机检。**修订批（同日）只补跑新增的 4.1 节**：12 行的 Schema 一列与拒绝值一列都机检、0 不符（见[结果与反例](#本地自检接入点-name修订批2026-09-24)）；第 1～7 节的 JSON 未改、未重跑。**第一轮独立评审处置（同日）**：第 2、4、6 节的内联行（45 行）Schema 一列重跑、0 不符，第 4、6 节与第 2 节 userinfo 那一行的拒绝值一列按规则机检、0 不符；第 1 节两条 `credential` 变体与第 8 节新行构造后过 Schema，都拒绝，与表一致 |
+| V-2 | **拒绝值的具名与优先级**：对每个拒绝行，接收边界给出的拒绝值等于「拒绝值」一列；第 8 节专验优先级 | 接收边界的一致性用例（同一份输入跨实现比对） | [S-20](v1/contract.md#s-20-表示层拒绝值与判定次序)、[S-21](v1/contract.md#s-21-表示层拒绝不是判定也不修补) | **未开始。**需要一个实现了接收边界校验的提供者。**只验 Schema 通过与否不够**——`name_reserved_sequence` 与 `malformed`、`url_invalid` 与 `malformed` 在 Schema 那里都只是「拒绝」 |
 | V-3 | **Schema 管不到的约束**：[`examples.md` 第 9 节](v1/examples.md#9-schema-挡不住但同样非法的)逐行 | 接收边界的校验 ＋ 写入方（治理写面、桥）的用例 | [S-9](v1/contract.md#s-9-动作清单副本)、[S-12](v1/contract.md#s-12-oauth-绑定)、[S-13](v1/contract.md#s-13-凭据配值的取值域)、[S-17](v1/contract.md#s-17-工作区格上的这些项) | **未开始。**「副本完整、次序原样」落在桥的写入边界，「凭据引用是保管方发出的」落在治理写面 |
 | V-4 | **规范场景** [S-22](v1/contract.md#s-22-正文里写凭据被拒)～[S-25](v1/contract.md#s-25-仓库带来的接入点没有凭据)：每条一个正例一个反例 | 规范场景演练：真实接收边界、真实推出规则、真实求值 | [S-6](v1/contract.md#s-6-正文不收凭据)、[S-9](v1/contract.md#s-9-动作清单副本)、[S-15](v1/contract.md#s-15-推出规则的输入正文与动作集)～[S-17](v1/contract.md#s-17-工作区格上的这些项) | **未执行。**S-24 **必须观察存储里的那条配值**：只看求值结果会漏掉「配值被清掉之后动作回来是默认值」 |
-| V-5 | **消费者路径走查**（[CS-1～CS-4](v1/contract.md#消费者核对场景)） | 结构化走查（评审对象）；有提供者之后升级为真实演练 | [S-13](v1/contract.md#s-13-凭据配值的取值域)～[S-16](v1/contract.md#s-16-逐动作项按动作名键) | **未开始。**走查**不需要提供者**，现在就做得了；CS-1 停在治理写面不在本工作树，CS-2 停在求值，CS-4 停在 [G-9](v1/contract.md#八已知缺口)——停在缺口不算走不通 |
+| V-5 | **消费者路径走查**（[CS-1～CS-4](v1/contract.md#消费者核对场景)） | 结构化走查（评审对象）；有提供者之后升级为真实演练 | [S-13](v1/contract.md#s-13-凭据配值的取值域)～[S-16](v1/contract.md#s-16-逐动作项按动作名键) | **未开始。**走查**不需要提供者**，现在就做得了；CS-1 走到资产治理写面的 `valueOutOfDomain`（`capability.asset-governance/v1` 的 S-38 ②），CS-2 停在求值，CS-4 走得通（原 G-9 已闭合）——停在别的能力不算走不通 |
 | V-6 | **静态检查**（[SC-1～SC-4](#静态检查义务)） | 实现语言的静态检查（具体形式归 realization） | 见下表 | **未开始；检查器尚不存在** |
 
 ### 静态检查义务
@@ -30,9 +31,26 @@
 | SC-3 | 不存在「把 `not_fetched` 当作空清单」的分支：副本两支在类型上分开，消费处按两支分别处理 | [S-9](v1/contract.md#s-9-动作清单副本) | 未开始 |
 | SC-4 | 逐动作项的键只由 `execute:` 前缀与对端动作名原样拼成；不存在按「当前动作集」清理配值的写路径 | [S-16](v1/contract.md#s-16-逐动作项按动作名键) | 未开始 |
 
-## 对齐义务
+## 独立评审
 
-- **词条链接待合流后补**（2026-09-24 整批对齐）：正文里「连接目标」原标「无词条」，词条批已立为词条，本包已改用正式名、去掉标记；那几条词条在 HUB 上、本分支看不到，**链接待合流后补**（主线）。
+| 项 | 值 |
+|---|---|
+| reviewer | spec-reviewer（只读） |
+| 日期 | 2026-09-24 |
+| 基线 | HUB `765b01dc`（批 R2a） |
+| 处置 | 2026-09-24 修复波 1，候选期内原地改 |
+
+| 发现 | 处置 | 落点 |
+|---|---|---|
+| X-1 产品依据 rev 落后（PF-002 16／18→20、PF-016 5→6、PF-012 10→14） | **改**。逐 rev 复核：PF-002 rev 17 的「谁可以使用它」各类共用（⇒ S-8 改引 asset-model S-36，同 X-7）、§5.7「仓库带来的本地命令型 MCP 接入点默认不启用」已进产品正文（⇒ S-17 改引 PF-002 §5.7）、§4 MCP 按尝试重算（S-15 原已如此）；rev 18 组织层不持有 MCP 凭据（S-12 原已落）；rev 19、20 只动 Skill、Connector、资产求值第 1 步，与本契约无涉。PF-016 rev 6 只改模型凭据的说法，所引 §6.11 不变。PF-012 rev 11～14 改的是运行时对账、拓展件不可用处置与转换件，所引「每一次尝试开始都要做四件事」不变 | 抬头；设计依据表；S-8；S-17 |
+| X-3 / M-1 凭据位写非 `CredentialRef` 报 `credential_plaintext`，写面上没有谁产出它 | **改**（主线裁定：只有资产治理写面的 `valueOutOfDomain` 一个值）：删去 `credential_plaintext`；S-13 改为指 `capability.asset-governance/v1#S-38` ②；正文上的 `credential` 成员并入 M4（`malformed`），`url` 带 userinfo 并入 `url_invalid`（S-5 第 4 条）；S-20 由「第 3 行排在前面」改为「凭据写错地方没有专门的值」；S-22、CS-1 改写（CS-1 由「停在治理写面」改为走得通）；消费者表、P-1、Schema 说明、实例第 1、2、6、8 节同步 | S-5、S-6、S-13、S-20、S-21、S-22、CS-1、P-1；Schema；examples |
+| M-2 条目名含 `__` 报 `malformed`（M13），`data.tool-definition` 对同一违规报 `name_reserved_sequence` | **改**：统一——条目名就是工具定义的 `name`（`$ref` 它的 `ToolName`），三种相邻原名携带那边的 `name_reserved_sequence`（S-20 第 7 行，排在 `malformed` 剩余项之前，与那边次序同向）；M13 收窄为其余词法违例。闭合集合仍是七个（删一加一）。`name_not_projectable` 管的是登记时的接入点 name，与之不是同一对象，S-20 写明 | S-20；抬头依赖表（tool-definition 加 S-26）；Schema `McpActionName` 说明；实例第 4 节两行、第 8 节一行 |
+| X-4 「连接目标」没链词条；`usableBy`「词条链接待合流后补」；「本分支看不到」 | **改**：token 表与设计依据表链 UL-connection-target、UL-usable-by；删去待合流的说法与那条对齐义务 | 二；[对齐义务](#对齐义务) |
+| X-5 G-5 指向 asset-evaluation G-15（已关） | **改**：G-5 与对齐义务改指 `capability.asset-evaluation/v1` 的 S-39 | G-5；对齐义务 |
+| X-6 「主线裁定 2026-09-2x，待产品负责人确认；账本 …」依据只在任务区 | **改**：S19-a、S18-c、S21-b、S1-a、A3、A4 改链 D-040；S-26（原 G-11）改链 D-039「主线自定，待确认」；B-M03、S19-c 已进产品正文，改引 PF-006 §6.13、PF-002 §5.7；A-G15 的那句改为引产品「工作区一级取不了」；S11-G14 的标签删去（答案就是 asset-model S-14）。**D-040 未收录的三项**（`not_fetched` 是显式取值、逐动作项按动作名键、条目名拼法「接入点:动作」）标「主线裁定，D-040 未收录」并报主线补登——按简报 G5，它们有答案，不登缺口 | 设计依据注表；S-6、S-8、S-9、S-11、S-12、S-13、S-15、S-16、S-17、S-26；P-2、P-4～P-6、P-8；G-1、G-3、G-9、G-11；README |
+| X-7 S-8「与技能、斜杠命令共用」 | **改**：改为「八类资产共用一份声明」并引 `data.asset-model/v1#S-36` | S-8 |
+
+## 对齐义务
 
 **这些是本契约与同批或上游契约之间要在整批对齐时处理的事**，不是本契约自己的证据义务。
 
@@ -41,11 +59,13 @@
 | mcp 那一支正文由不透明 `body` 换成 `McpEndpoint` | `data.asset-model` v1 的 S-10 | **已落**（2026-09-24 整批对齐）：那边的壳 `$ref` 本契约 `McpEndpoint`（原 G-10） |
 | 能力标识名的词法（允许 `:`、禁 `/`） | `data.asset-model` v1 的 S-2 | **已落**：两边同一套（原 G-6） |
 | 推出规则的第二个输入（动作集） | `data.asset-model` v1 的 S-12 第 1 条 | **已落**：那边为 `mcp` 写明第二个输入（原 G-1） |
-| 副本与凭据的住处 | 起草简报账本、主线 A-M11 | **主线裁定 2026-09-23 采纳，待产品负责人确认**（账本 S19-a）：两者都按持有存放 |
-| 「能不能用」的取值域与默认 | `data.asset-model` v1 的 S-36；`capability.asset-evaluation` | **已落**：三类正文契约不再各自声明，统一为 asset-model 保留的 `usableBy`（S18-c）；`self` 怎样对上归 asset-evaluation 的 G-15 |
-| 「还没取」的写法 | 本契约的凭据取值域；`data.connector` 的投递目标与凭据 | **已统一**：「未配」只有缺席一种写法（S21-b）；`not_fetched` 这个 token 只剩副本那一支（[S-9](v1/contract.md#s-9-动作清单副本)），与凭据不再共用 |
-| **`name_not_projectable` 的原名携带**：本契约在 `data.asset-model/v1#S-2` 之内收窄 `mcp` 资产的 name（[S-26](v1/contract.md#s-26-接入点-name-登记时收窄)），拒绝值要由那边的 S-27 原名携带、排在它的次序里 | `data.asset-model` v1 的 S-2、S-27 | **已落**（主线裁定 2026-09-24，同日第二轮）：S-27 加了第三种情形「记录的能力标识 name 不合它那一类正文契约对名字的收窄」，名字连同那一份正文交给本契约判、原名携带；S-2 补一句指过去；那边实例第 13、14 节各有本契约的行。本契约对 `data.asset-model` 的依赖加 S-27（抬头依赖表与 catalog） |
-| **登记时判 name** | `capability.asset-governance` v1 的写面（新建、导入、登记官方件）；`data.asset-model` 的工作区承载清单读入 | **待那边落**（主线 2026-09-24：资产治理那一半另有人在改）：写面的失败集合里要有这个值（按 S-27 原名携带），本契约不替它写 |
+| 副本与凭据的住处 | `capability.mcp-bridge` v1 的 S-7 | **已落**：两者都按持有存放（主线裁定，见 [D-040 §S19 S19-a](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的)） |
+| 「能不能用」的取值域与默认 | `data.asset-model` v1 的 S-36；`capability.asset-evaluation` | **已落**：各类正文契约不再各自声明，统一为 asset-model 保留的 `usableBy`（[D-040 §S18 S18-c](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s18skill-package报回的)；八类共用见 asset-model S-36）；`self` 怎样对上答在 asset-evaluation 的 S-39 |
+| 「还没取」的写法 | 本契约的凭据取值域；`data.connector` 的投递目标与凭据 | **已统一**：「未配」只有缺席一种写法（[D-040 §S21 S21-b](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s21connector报回的)）；`not_fetched` 这个 token 只剩副本那一支（[S-9](v1/contract.md#s-9-动作清单副本)），与凭据不再共用 |
+| **`name_not_projectable` 的原名携带**：本契约在 `data.asset-model/v1#S-2` 之内收窄 `mcp` 资产的 name（[S-26](v1/contract.md#s-26-接入点-name-登记时收窄)），拒绝值要由那边的 S-27 原名携带、排在它的次序里 | `data.asset-model` v1 的 S-2、S-27 | **已落**：S-27 加了第三种情形「记录的能力标识 name 不合它那一类正文契约对名字的收窄」，名字连同那一份正文交给本契约判、原名携带；S-2 补一句指过去；那边实例第 13、14 节各有本契约的行。本契约对 `data.asset-model` 的依赖加 S-27（抬头依赖表与 catalog） |
+| **登记时判 name** | `capability.asset-governance` v1 的写面（新建、导入、登记官方件）；`data.asset-model` 的工作区承载清单读入 | **待那边落**：写面的失败集合里要有这个值（按 `data.asset-model` S-27 原名携带），本契约不替它写 |
+| **「凭据位写了非引用值」只有一个拒绝值** | `capability.asset-governance` v1 的 S-38 ②、S-18 | **已落**（2026-09-24 第一轮独立评审的处置）：那边写明凭据类项（取值域为 `CredentialRef`）的非引用值报 `valueOutOfDomain`；本契约删去 `credential_plaintext`，[S-13](v1/contract.md#s-13-凭据配值的取值域) 改为指过去 |
+| **`name_reserved_sequence` 原名携带** | `data.tool-definition` v1 的 S-18 第 2 条、S-26 第 11 行 | **已落**（同上）：条目名含三种相邻时报那边的值、同名同义（[S-20](v1/contract.md#s-20-表示层拒绝值与判定次序) 第 7 行）；那边改名或改次序，这里同轮改。catalog 对 `data.tool-definition` 加登 S-26 |
 
 ## 结果与反例
 
@@ -66,6 +86,14 @@
 **输入与做法**：[`examples.md` 4.1 节](v1/examples.md#41-接入点的-name) 12 行——「Schema」一列按 `$defs/McpEndpointName` 判；「拒绝值」一列按「先 `data.asset-model` 的 `CapabilityName`（不过即 `name_invalid`），再判 `name ＋ ":x"` 合不合 `data.tool-definition` 的 `ToolName` 且转写后 ≤ 128」算出，与表比对。
 另对字母表 `{a, _, :, -, .}` 上长 1～5、合 `CapabilityName` 的全部 3 905 个串，核 [S-26](v1/contract.md#s-26-接入点-name-登记时收窄) 的四条展开与「`name ＋ ":x"` 合 `data.tool-definition/v1#S-18`」逐个等价、且与 `McpEndpointName` 的 Schema 判定一致。
 **结果**：3 917 处，**0 处不符**。**这是拒绝值一列第一次被机检**，只对 4.1 节；**不是** V-2（接收边界的实现）的证据。
+
+### 本地自检：第一轮独立评审处置（2026-09-24）
+
+**工具**：暂存区脚本（不入库）；Draft 2020-12 校验器（`jsonschema` 4.26.0，按仓库 `uv.lock`），以本工作树整棵设计树的全部 Schema 建 registry。
+**输入与做法**：[`examples.md`](v1/examples.md) 第 2 节（`$defs/McpTransport`）、第 4 节（`$defs/McpActionName`）、第 6 节表 6（`data.asset-model` 的 `CredentialRef`）的内联行，Schema 一列逐行比对；
+「拒绝值」一列按规则算——第 4 节：含 `__`、`_:`、`:_` 为 `name_reserved_sequence`，其余为 `malformed`；表 6 一律 `valueOutOfDomain`；第 2 节带 userinfo 的为 `url_invalid`。
+另把第 1 节两条「加 `credential`」变体应用到 1.1、第 8 节新增的条目名构造出来，各过一次 Schema。
+**结果**：45 行 0 处不符；三份构造实例都拒绝，与表一致。**不是** V-2（接收边界的实现）的证据。
 
 ### 尚无的记录
 
@@ -114,5 +142,12 @@ V-2～V-6 **一条执行记录也没有**。起草时的手核只保证 `example
   - **（同日第二轮）`data.asset-model` S-27 落了第三种情形**：对齐义务 `name_not_projectable` 那一行闭合；抬头依赖表与 catalog 对 `data.asset-model` 加 S-27。
 - **跨进程演化启动**：[第五节](v1/contract.md#五装配给与协议给)右列从「待兑现」转为「须由协议兑现」；本版的全部证据只保留其单机范围，不得外推。
 - **（2026-09-24 整批对齐收尾，不改语义）**：「不拥有」与消费者表里「同批」「不在本工作树」的旧说法换成候选坐标（资产治理、求值、注册表、MCP 桥）；README 同步。
+- **2026-09-24 第一轮独立评审的处置（候选，未冻结，原地改）**：逐条见[独立评审](#独立评审)。
+  - **拒绝值集合改了两处（仍是七个）**：删 `credential_plaintext`——凭据配值的非引用值归资产治理写面的 `valueOutOfDomain`，正文上的 `credential` 成员落 `malformed`（M4），`url` 带 userinfo 落 `url_invalid`；加 `name_reserved_sequence`——条目名含三种相邻时原名携带 `data.tool-definition` 的值。S-20 次序重排为 `malformed`（M1、M2）› `transport_unknown` › `command_empty` › `url_invalid` › `snapshot_missing_time` › `name_not_projectable` › `name_reserved_sequence` › `malformed`（其余）。
+  - **表示改变**：同一份坏输入的拒绝值变了——带 `credential` 成员的正文从 `credential_plaintext` 变为 `malformed`，并且不再排在别的毛病前面（与 `command_empty` 同在时报 `command_empty`）；带 userinfo 的 `url` 从 `credential_plaintext` 变为 `url_invalid`；含 `__`、`_:`、`:_` 的条目名从 `malformed` 变为 `name_reserved_sequence`。**Schema 的通过与否一处未变**（只改了三处说明）。
+  - **依据改链**：产品依据升到 PF-002 rev 20、PF-016 rev 6、PF-012 rev 14（逐 rev 复核见独立评审表）；主线裁定改链 D-040／D-039；已进产品正文的（按尝试重算、本地命令型接入点默认不启用）改引产品小节；三项 D-040 未收录的标出并报主线。词条链接补齐；G-5 改指 asset-evaluation S-39；S-8 改引 asset-model S-36 的八类共用。
+  - **对消费者**：没有已采用的消费者，无迁移。`capability.asset-governance` 已在它的 S-38 ② 写明凭据类项的 `valueOutOfDomain`；`capability.mcp-bridge` 对本契约的消费（S-20、S-21）不涉拒绝值的名字，不用改。catalog 对 `data.tool-definition` 加登 S-26。
+  - **证据**：改动的实例行补跑本地自检，45 行 0 不符（见[结果与反例](#本地自检第一轮独立评审处置2026-09-24)）。
+- **2026-09-24 同日稍后（不改语义）**：K 裁定收进 [D-040 §五](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) 之后，设计依据注表里「凭据位写了非引用值」那一行改链 D-040 §五 K7。
 
 结果不改写规范。发现语义问题回到来源设计（PF-002／PF-006），不在这里改契约。

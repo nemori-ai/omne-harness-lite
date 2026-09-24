@@ -3,7 +3,7 @@
   "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/loop-extension/v1/loop-extension.schema.json",
   "title": "data.loop-extension v1",
   "description": "拓展点协议的数据半边：十一个位置与两个维度、干预力三档、报错处置策略、拓展件的声明、运行时交给拓展件的输入、拓展件交回的结论（封闭八种）与结论落日志的记录形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.loop-extension/v1 内有效。",
-  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状与两张合法组合表（档 × 结论、位置 × 结论），表在 Conclusion 的条件约束里；「rewrite 只改可改成员」「inject 的来源名等于本件名」「select_model 在合法目标集合里」「retry 不推翻事实三类」这些要么需要输入与输出两份实例对照，要么是判定，Schema 管不到，归 contract.md 的条款与 runner 能力。引用的同批契约 content-blocks、messages、model-profile、call-accounts、tool-definition 都是并行候选，$ref 目标以它们 v1 定型的 $defs 为准，见 verification.md「变化的影响」；运行与执行尝试的标识 RunId、AttemptId 的家在 data.call-accounts，本文件只引。正反实例在同目录 examples.md。",
+  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状与两张合法组合表（档 × 结论、位置 × 结论），表在 Conclusion 的条件约束里；「rewrite 只改可改成员」「inject 的来源名等于本件名」「select_model 在合法目标集合里」「retry 不推翻事实三类」这些要么需要输入与输出两份实例对照，要么是判定，Schema 管不到，归 contract.md 的条款与 runner 能力。引用的 content-blocks、messages、model-profile、call-accounts、tool-definition、asset-model 都是同一棵设计树里的候选，$ref 目标以它们 v1 的 $defs 为准，见 verification.md「变化的影响」；运行与执行尝试的标识 RunId、AttemptId 的家在 data.call-accounts，本文件只引。正反实例在同目录 examples.md。",
 
   "$defs": {
 
@@ -50,9 +50,9 @@
     },
 
     "Power": {
-      "title": "Power",
+      "title": "干预力 · Intervention Power",
       "description": "S-4：干预力三档（PF-000 §4、PF-012 §5.8）：observe 只观察 / rewrite 可改写 / veto 可否决。没有「放宽」这一档。「落卡片等人」属于 veto，不是第四档。干预力是拓展件的一项权限，不是设置：定义里给的是这项权限的出厂值，各层只能收窄；Conclusion 里记的是这一次经过求得的那个值。",
-      "$comment": "干预力没有统一语言词条（定义在 PF-000 §4），所以标题不写「中文 · English」词条式命名。未知取值即 power_unknown（S-37）。",
+      "$comment": "统一语言词条 UL-intervention-power（产品正文在 PF-000 §4）。未知取值即 power_unknown（S-37）。",
       "type": "string",
       "enum": ["observe", "rewrite", "veto"]
     },
@@ -60,14 +60,22 @@
     "ErrorPolicy": {
       "title": "ErrorPolicy",
       "description": "S-5：拓展件可用却运行时报错时这一次怎么处置。ignore：结论落日志，对 agent 没有任何效果（落下的是 observed）；record：结论落日志，并往日志追加一条以本件名义说「本件这一次没跑成」的系统提醒，下一次组装看得到它（落下的是 inject）；treat_as_veto：fail-closed——在五个「之前」的位置落 veto，在其余「之后」的位置落 stop{ terminal: failed }，即运行不再继续。缺席时按求得的干预力取默认：observe → ignore，rewrite → record，veto → treat_as_veto（PF-012 §5.8 干预力三档表的最后一列）。无论哪一种，处置本身都留在那条 Conclusion 里、可见。",
-      "$comment": "三种策略落下什么是主线裁定 2026-09-23（待产品负责人确认）。record 只许 rewrite、veto 档声明，treat_as_veto 只许 veto 档声明（LoopExtensionDefinition 的条件约束）。after_terminal 上唯一合法的结论是 observed（S-21），三种策略在那里都落 observed。它们是规格层的策略 token，没有统一语言词条。",
+      "$comment": "三种策略落下什么是主线裁定（D-040 §S7 S7-b、S7-c）。onError 是这一件自己的声明，不是设置也不是权限，推出规则不出项（S-40）。record 只许 rewrite、veto 档声明，treat_as_veto 只许 veto 档声明（LoopExtensionDefinition 的条件约束）。after_terminal 上唯一合法的结论是 observed（S-21），三种策略在那里都落 observed。它们是规格层的策略 token，没有统一语言词条。",
       "type": "string",
       "enum": ["ignore", "record", "treat_as_veto"]
     },
 
+    "UnavailabilityPolicy": {
+      "title": "拓展件不可用处置 · Extension Unavailability Policy",
+      "description": "S-6、S-31、S-33：一件拓展件此刻不在（依赖用不了、自己起不来）时，它站的那个位置这一次怎么办，恰三种：skip 跳过（视作已卸载，瀑布里没有它）；veto 否决（当它判了否决，拦住它站的那个状态点）；fallback 替换为指定挂件（系统预先声明的另一件挂件替它过这一次，只有系统自带的五件用、不经声明）。在声明里（LoopExtensionDefinition.unavailability）只收 skip 与 veto、缺席即 skip；在结论记录里（Conclusion.unavailability）是这一次实际采用的那一种。它是这一件自己的声明，不是设置也不是权限，各层不配值。",
+      "$comment": "PF-012 §5.8（rev 12 起）、PF-002 §4「不可用处置是这一件自己的声明」（rev 20）、UL-extension-unavailability-policy。fallback 这个 token 是本契约对「替换为指定挂件」的取名。未知取值即 malformed（S-39）。",
+      "type": "string",
+      "enum": ["skip", "veto", "fallback"]
+    },
+
     "LoopExtensionDefinition": {
       "title": "拓展件的声明 · Loop Extension",
-      "description": "S-6～S-10：一件拓展件（UL-loop-extension，第八类资产）的声明。name 是它的能力标识（类别 loop_extension + name）里的那个 name，不是第二个身份：作为资产被持有时，身份只在资产记录的 capability 上（data.asset-model v1 S-10），两者逐码点相等，词法按 data.asset-model v1 S-2；position 与 dimension 是绑定类设置的出厂值，power 是干预力这项权限的出厂值（定义给默认值，各层配值、运行时求值）；onError 缺席按求得的干预力取默认；needs 是依赖声明，缺席即不需要任何东西；implementation 说它的实现是装配进来的（builtin）还是一条外部命令（command）。本版没有 order：同一位置的先后按装配清单的顺序。",
+      "description": "S-6～S-10：一件拓展件（UL-loop-extension，第八类资产）的声明。name 是它的能力标识（类别 loop_extension + name）里的那个 name，不是第二个身份：作为资产被持有时，身份只在资产记录的 capability 上（data.asset-model v1 S-10），两者逐码点相等，词法按 data.asset-model v1 S-2；position 与 dimension 是绑定类设置的出厂值，power 是干预力这项权限的出厂值（定义给默认值，各层配值、运行时求值）；onError 缺席按求得的干预力取默认；unavailability 是这一件不可用时的处置，只收 skip 与 veto、缺席即 skip，veto 只许声明的 power 为 veto 且 position 是五个「之前」之一（S-6）；onError 与 unavailability 都是这一件自己的声明，不是设置也不是权限；needs 是依赖声明，缺席即不需要任何东西；implementation 说它的实现是装配进来的（builtin）还是一条外部命令（command）。本版没有 order：同一位置的先后按装配清单的顺序。",
       "$comment": "additionalProperties: false 挡住 order、matcher 这类本版没有的成员（malformed）。策略不高于干预力：observe 只能声明 ignore，rewrite 不得声明 treat_as_veto——否则一件不能注入的件会在报错时注入、一件拦不住任何东西的件会在报错时拦下东西（malformed，S-5）。needs 用 minItems 1：「不需要任何东西」只有缺席这一种写法，不给空数组第二种写法。",
       "type": "object",
       "properties": {
@@ -76,6 +84,7 @@
         "dimension": { "$ref": "#/$defs/Dimension" },
         "power": { "$ref": "#/$defs/Power" },
         "onError": { "$ref": "#/$defs/ErrorPolicy" },
+        "unavailability": { "allOf": [{ "$ref": "#/$defs/UnavailabilityPolicy" }, { "enum": ["skip", "veto"] }] },
         "needs": {
           "type": "array",
           "minItems": 1,
@@ -106,14 +115,19 @@
         {
           "if": { "properties": { "power": { "const": "rewrite" } }, "required": ["power"] },
           "then": { "properties": { "onError": { "enum": ["ignore", "record"] } } }
+        },
+        {
+          "$comment": "S-6：声明 unavailability: veto 只许声明的 power 为 veto、position 是五个「之前」之一——「之后」的位置本来就没有可拦的，不收这个声明；拦不住东西的件不在时不得比在时权力更大（malformed）。",
+          "if": { "properties": { "unavailability": { "const": "veto" } }, "required": ["unavailability"] },
+          "then": { "properties": { "power": { "const": "veto" }, "position": { "enum": ["before_persist_message", "before_compaction", "before_model_call", "before_action", "before_terminal"] } } }
         }
       ]
     },
 
     "ExtensionImplementation": {
       "title": "ExtensionImplementation",
-      "description": "S-8：实现恰两种。builtin——实现随部署装配进来、在进程内执行，capability 是装配清单里这份实现的名字（系统自带的五件用提供它的那份能力契约的坐标，如 capability.tool-admission）；command——实现是一条外部命令（兼容件：Claude Code / Codex 的 command hook）：host 是那一家，dialect 是钉住的方言版本，event 是宿主那一侧的事件名，command 是宿主 handler 条目里的命令原样，matcher 原样、按那一家的方言求值（缺席即全匹配），timeout 缺席即那一家那一事件的默认。运行时只认本契约的统一输入与结论，command 件在两边翻译；事件映射表、定档依据、matcher 的求值与导入报告不在本契约（capability.hooks-import）。",
-      "$comment": "主线裁定 2026-09-23，待产品负责人确认（账本 S15-b：兼容件载荷的家）。event 不在账本列出的成员里，是对齐波保留的：导入一侧靠它从映射表取这一事件的情形筛选与原生输入的造法，缺了它一件 command 件译不出宿主的输入。旧的 native、compat 两个取值作废；host 与 kind 闭合，未知取值即 malformed。",
+      "description": "S-8：实现恰两种。builtin——实现随部署装配进来、在进程内执行，capability 是装配清单里这份实现的名字（不透明，逐码点相等；它不是能力标识，与资产记录上的 AssetDefinition.capability 同名不同义；名字怎么取、怎么解析不归本契约）；command——实现是一条外部命令（兼容件：Claude Code / Codex 的 command hook）：host 是那一家，dialect 是钉住的方言版本，event 是宿主那一侧的事件名，command 是宿主 handler 条目里的命令原样，matcher 原样、按那一家的方言求值（缺席即全匹配），timeout 缺席即那一家那一事件的默认。运行时只认本契约的统一输入与结论，command 件在两边翻译；事件映射表、定档依据、matcher 的求值与导入报告不在本契约（capability.hooks-import）。",
+      "$comment": "主线裁定（D-040 §S15 S15-b：兼容件载荷的家）。event 不在 S15-b 列出的成员里，是本契约保留的：导入一侧靠它从映射表取这一事件的情形筛选与原生输入的造法，缺了它一件 command 件译不出宿主的输入。旧的 native、compat 两个取值作废；host 与 kind 闭合，未知取值即 malformed。",
       "oneOf": [
         {
           "title": "装配进来的实现",
@@ -145,8 +159,8 @@
 
     "LogHandle": {
       "title": "LogHandle",
-      "description": "S-12：会话日志的只读句柄，不透明。表示照 data.identity-values/v1#S-31 的规则：非空字符串，首尾不得是那张表里的空白码点，相等是逐码点精确相等，不解析。拿着它只能读，读面由能力给（capability.loop-extension-runner，第二波）；改日志的唯一办法是交回结论。它不是一份日志快照。",
-      "$comment": "按 S-31 的散文在本契约内定义，不 $ref data.identity-values 的 OpaqueIdentifier（主线裁定 2026-09-23）。pattern 与 S-31 的空白码点表逐个一致，尾部用 (?![\\s\\S]) 判绝对结尾。运行与执行尝试的标识不在这里：它们取 data.call-accounts/v1 的 RunId、AttemptId（S-12）。",
+      "description": "S-12：会话日志的只读句柄，不透明。表示照 data.identity-values/v1#S-31 的规则：非空字符串，首尾不得是那张表里的空白码点，相等是逐码点精确相等，不解析。拿着它只能读，读面由 capability.loop-extension-runner v1 S-9 给；改日志的唯一办法是交回结论。它不是一份日志快照。",
+      "$comment": "按 S-31 的散文在本契约内定义，不 $ref data.identity-values 的 OpaqueIdentifier（主线裁定，D-040 §S1 S1-a）。pattern 与 S-31 的空白码点表逐个一致，尾部用 (?![\\s\\S]) 判绝对结尾。运行与执行尝试的标识不在这里：它们取 data.call-accounts/v1 的 RunId、AttemptId（S-12）。",
       "type": "string",
       "minLength": 1,
       "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])",
@@ -199,7 +213,7 @@
 
     "ModelRequest": {
       "title": "ModelRequest",
-      "description": "S-15：调模型之前那个位置看得到的、已经攒好还没发出去的请求，恰四个成员：target 这一次要用的模型——一个路由名（RouteName，PF-013 rev 12；落到哪一行即有效模型，由模型请求运行时按层覆盖解析）、parameters 这一次要发出的请求参数（档案参数与此前改写合成的那一份）、messages 组装出来的消息、tools 这一次带给模型的工具条目（能力标识）。可改的只有 parameters 与 messages（经 rewrite）；target 只经 select_model 改；tools 不可改（S-23、S-24）。成员名与模型请求运行时收的调用请求逐字相同。",
+      "description": "S-15：调模型之前那个位置看得到的、已经攒好还没发出去的请求，恰四个成员：target 这一次要用的模型——一个路由名（RouteName，PF-013 rev 12；落到哪一行即有效模型，由模型请求运行时按层覆盖解析）、parameters 这一次要发出的请求参数（档案参数与此前改写合成的那一份）、messages 组装出来的消息、tools 这一次带给模型的工具条目（每项是那个条目的模型面名字 ModelToolName，data.tool-definition v1 S-6；作者写的工具与 MCP 来源的动作都指认得到）。可改的只有 parameters 与 messages（经 rewrite）；target 只经 select_model 改；tools 不可改（S-23、S-24）。成员名与模型请求运行时收的调用请求逐字相同。",
       "type": "object",
       "properties": {
         "target": { "$ref": "../../model-profile/v1/model-profile.schema.json#/$defs/RouteName" },
@@ -211,7 +225,7 @@
         "tools": {
           "type": "array",
           "uniqueItems": true,
-          "items": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/CapabilityId" }
+          "items": { "$ref": "../../tool-definition/v1/tool-definition.schema.json#/$defs/ModelToolName" }
         }
       },
       "required": ["target", "parameters", "messages", "tools"],
@@ -220,10 +234,10 @@
 
     "ToolDefinitionRef": {
       "title": "ToolDefinitionRef",
-      "description": "S-14：执行动作之前那个位置上，运行时为这次调用找到的那份工具定义的名字。只是引用，不是定义本身。",
+      "description": "S-14：执行动作之前那个位置上，运行时为这次调用找到的那份工具定义的模型面名字（data.tool-definition v1 的 ModelToolName），与调用块里的工具名同一套。只是引用，不是定义本身。",
       "type": "object",
       "properties": {
-        "name": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/CapabilityId/properties/name" }
+        "name": { "$ref": "../../tool-definition/v1/tool-definition.schema.json#/$defs/ModelToolName" }
       },
       "required": ["name"],
       "additionalProperties": false
@@ -539,7 +553,7 @@
     "StopOutput": {
       "title": "stop",
       "description": "S-26：让这次运行不再继续，落哪一种终态由 terminal 定：cancelled（缺席即此）先落一条取消请求（发起方是本件），再落终态「被取消」；failed 直接落终态「失败」，原因指向本件，不落取消请求。reason 必带。",
-      "$comment": "terminal 与缺席即 cancelled 是主线裁定 2026-09-23（待产品负责人确认）；循环守卫 L3 用 failed。取值闭合，completed 不在其中——拓展件不能替运行宣布完成。",
+      "$comment": "terminal 与缺席即 cancelled 是主线裁定（D-040 §S7 S7-a）；循环守卫 L3 用 failed。取值闭合，completed 不在其中——拓展件不能替运行宣布完成。",
       "type": "object",
       "properties": {
         "kind": { "const": "stop" },
@@ -576,7 +590,7 @@
 
     "CardOption": {
       "title": "CardOption",
-      "description": "S-28：卡片上的一个选项，本契约只给不透明形状：id 在这张卡片内唯一，label 给人看，effect 是出卡那一件自己解释的附带数据。选项的语义、放行判断那四档定死的选项归卡片契约（缺口 G-6）。",
+      "description": "S-28：卡片上的一个选项，本契约只给不透明形状：id 在这张卡片内唯一，label 给人看，effect 是出卡那一件自己解释的附带数据。放行判断的定死选项由 capability.tool-admission v1 S-15 定；effect 的含义、CardId 与答复形状归卡片契约（缺口 G-6）。",
       "type": "object",
       "properties": {
         "id": { "type": "string", "minLength": 1 },
@@ -589,12 +603,20 @@
 
     "DecisionCardDraft": {
       "title": "DecisionCardDraft",
-      "description": "S-28：一件拓展件要落的那张决策卡片（UL-decision-card）的草稿：自己写的说明、自己写的选项（至少一个）、这张卡片为哪个位置（与哪个动作）出的。落盘之后它才有 CardId，卡片本身的契约归 PF-008（未起草）。",
-      "$comment": "about.callId 在 before_action 必带；在 after_action 由维度定（each 必带、batch 不带），about 里没有维度，由 Conclusion 那一层对照（S-28）；其余位置不带。",
+      "description": "S-28：一件拓展件要落的那张决策卡片（UL-decision-card）的草稿：自己写的说明、自己写的选项（至少一个）、这张卡片为哪个位置（与哪个动作）出的；在 before_action 可另带 proposedRewrite——出卡那一件对这个动作参数的改写提议，它不是结论、出卡时不生效，人答完之后那一件交回的最终结论若是 rewrite 才照 S-23 生效（兼容件从这一格重建，capability.hooks-import）。落盘之后它才有 CardId，卡片本身的契约归 PF-008（未起草）。",
+      "$comment": "about.callId 在 before_action 必带；在 after_action 由维度定（each 必带、batch 不带），about 里没有维度，由 Conclusion 那一层对照（S-28）；其余位置不带。proposedRewrite 只在 about.position 为 before_action 时可带（malformed）。",
       "type": "object",
       "properties": {
         "explanation": { "type": "string", "minLength": 1 },
         "options": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/CardOption" } },
+        "proposedRewrite": {
+          "type": "object",
+          "properties": {
+            "arguments": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/ToolCallBlock/properties/arguments" }
+          },
+          "required": ["arguments"],
+          "additionalProperties": false
+        },
         "about": {
           "type": "object",
           "properties": {
@@ -616,7 +638,9 @@
         }
       },
       "required": ["explanation", "options", "about"],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "if": { "required": ["proposedRewrite"] },
+      "then": { "properties": { "about": { "properties": { "position": { "const": "before_action" } } } } }
     },
 
     "AskOutput": {
@@ -648,11 +672,11 @@
 
     "Conclusion": {
       "title": "Conclusion",
-      "description": "S-30～S-32：一件拓展件在一次经过里的结论落进日志的那一条。每件必留：跑出了结论的记 output；因不可用被视作卸载的记 skipped: unavailable、不带 output（不替一件没跑的东西编结论）；可用却报错的记 skipped: errored、error 与 output（output 是处置策略实际落下的那个结论）。power、position、dimension 是这一次经过求得的值；callId 指这次结论是为哪一个动作下的（只在 before_action 与 after_action{each}）。",
-      "$comment": "两张合法组合表在这里：下面 allOf 里「档 × 结论」三条、「位置 × 结论」十三条、报错处置只落四种一条、rewrite 的 subject 与位置配对四条。output 缺席时（skipped: unavailable）这些约束空成立。error 在结论被表示层拒绝时恰为那个拒绝值 token（S-31），Schema 只约束到非空字符串。",
+      "description": "S-30～S-32：一件拓展件在一次经过里的结论落进日志的那一条。每件必留：跑出了结论的记 output；不可用的记 skipped: unavailable 与这一次实际采用的 unavailability（skip / veto / fallback）、不带 output（不替一件没跑的东西编结论，但写明「此刻不在、按 X 处置」）；可用却报错的记 skipped: errored、error 与 output（output 是处置策略实际落下的那个结论）。power、position、dimension 是这一次经过求得的值；callId 指这次结论是为哪一个动作下的（只在 before_action 与 after_action{each}）。",
+      "$comment": "两张合法组合表在这里：下面 allOf 里「档 × 结论」三条、「位置 × 结论」十三条、报错处置只落四种一条、不可用按否决处置的前提一条、rewrite 的 subject 与位置配对四条。output 缺席时（skipped: unavailable）这些约束空成立。error 在结论被表示层拒绝时恰为那个拒绝值 token（S-31），Schema 只约束到非空字符串。",
       "type": "object",
       "properties": {
-        "extension": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/CapabilityId/properties/name" },
+        "extension": { "$ref": "../../asset-model/v1/asset-model.schema.json#/$defs/CapabilityName" },
         "position": { "$ref": "#/$defs/LoopPosition" },
         "dimension": { "$ref": "#/$defs/Dimension" },
         "power": { "$ref": "#/$defs/Power" },
@@ -660,6 +684,7 @@
         "output": { "$ref": "#/$defs/ExtensionOutput" },
         "at": { "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant" },
         "skipped": { "enum": ["unavailable", "errored"] },
+        "unavailability": { "$ref": "#/$defs/UnavailabilityPolicy" },
         "error": { "type": "string", "minLength": 1 }
       },
       "required": ["extension", "position", "power", "at"],
@@ -692,20 +717,27 @@
             {
               "title": "跑出了结论",
               "required": ["output"],
-              "not": { "anyOf": [{ "required": ["skipped"] }, { "required": ["error"] }] }
+              "not": { "anyOf": [{ "required": ["skipped"] }, { "required": ["error"] }, { "required": ["unavailability"] }] }
             },
             {
-              "title": "不可用，视作卸载",
+              "title": "不可用，按不可用处置",
               "properties": { "skipped": { "const": "unavailable" } },
-              "required": ["skipped"],
+              "required": ["skipped", "unavailability"],
               "not": { "anyOf": [{ "required": ["output"] }, { "required": ["error"] }] }
             },
             {
               "title": "报错，按策略处置",
               "properties": { "skipped": { "const": "errored" } },
-              "required": ["skipped", "output", "error"]
+              "required": ["skipped", "output", "error"],
+              "not": { "required": ["unavailability"] }
             }
           ]
+        },
+
+        {
+          "$comment": "不可用按否决处置（S-31）：只随求得的干预力 veto、且位置是五个「之前」之一；否则这一次照 skip 办，记 skip。",
+          "if": { "properties": { "unavailability": { "const": "veto" } }, "required": ["unavailability"] },
+          "then": { "properties": { "power": { "const": "veto" }, "position": { "enum": ["before_persist_message", "before_compaction", "before_model_call", "before_action", "before_terminal"] } } }
         },
 
         {

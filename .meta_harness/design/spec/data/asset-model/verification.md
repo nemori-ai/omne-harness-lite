@@ -4,7 +4,7 @@
 
 > **当前状态：未开始。**`data.asset-model` v1 是 `candidate`，未接受、未冻结；尚无提供者设计、尚无源码、尚无装配。
 > 下表登记的是**已经触发的证据义务**，不是已完成的检查。
-> 起草时只做了手核；**整批对齐（2026-09-24）跑过一次 V-1 的本地自检**（只判 Schema 通过与否，见[结果与反例](#结果与反例)）；
+> 起草时只做了手核；**整批对齐（2026-09-24）跑过一次 V-1 的本地自检**（只判 Schema 通过与否，见[结果与反例](#结果与反例)）——**那次结果已作废、待重跑**：其后 Schema 又改过两次（PF-002 rev 20 的治理类、修订第二轮 R2-10），每次只核了改动的那几行；
 > 七条规范场景、八条消费者核对场景、六条静态检查**一条都未执行**——文件存在不代替结果。
 > 唯一跑过的是 `make design-check`：它解析了本包 Schema 的 JSON、核对了 `$id` 与全部 `$ref`／JSON Pointer 指得到、核对了 Markdown 链接与锚点——**它不校验任何实例**。
 
@@ -12,11 +12,11 @@
 
 | # | 义务 | 证据形式 | 覆盖哪些条款 | 实际状态 |
 |---|---|---|---|---|
-| V-1 | **形状校验**：[`examples.md`](v1/examples.md) 第 1～14 节逐行（含变体行，按「在 X 上改动 Y」构造）过 Schema，比对「Schema」一列 | Draft 2020-12 校验器（能按 `$id` 解析到 `data.identity-values/v1`、`data.offer-expiry/v1`、`data.content-blocks/v1` 与六份正文契约的 Schema）＋ 按节绑定的 `$defs` | [S-1](v1/contract.md#s-1-资产类别恰八类)～[S-24](v1/contract.md#s-24-工作区承载清单) 的**形状那一面** | **本地自检已跑一次**（整批对齐，2026-09-24；六类正文契约各自对齐后重跑）：200 处 0 不符；拒绝值是哪一个未机检 |
+| V-1 | **形状校验**：[`examples.md`](v1/examples.md) 第 1～14 节逐行（含变体行，按「在 X 上改动 Y」构造）过 Schema，比对「Schema」一列 | Draft 2020-12 校验器（能按 `$id` 解析到 `data.identity-values/v1`、`data.offer-expiry/v1`、`data.content-blocks/v1` 与六份正文契约的 Schema）＋ 按节绑定的 `$defs` | [S-1](v1/contract.md#s-1-资产类别恰八类)～[S-24](v1/contract.md#s-24-工作区承载清单) 的**形状那一面** | **作废，待重跑**（2026-09-24 独立评审第一轮改判）：整批对齐那次本地自检（200 处 0 不符）对应的是 PF-002 rev 20 与修订第二轮之前的 Schema；此后两次改 Schema 各只核了改动的几行（见[变化的影响](#变化的影响)），**整体没有重跑**，那次结果不再支持当前的 Schema。拒绝值是哪一个从未机检 |
 | V-2 | **拒绝值的具名与优先级**：对每个拒绝行，接收边界给出的拒绝值等于「拒绝值」一列；第 13 节十四行专验优先级 | 接收边界的一致性用例（同一份输入跨实现比对） | [S-27](v1/contract.md#s-27-表示层拒绝值)、[S-28](v1/contract.md#s-28-表示层拒绝不是判定也不修补) | **未开始。**需要一个实现了接收边界校验的提供者。**只验 Schema 通过与否不够**——两个实现可以都拒绝、却报不同的名字 |
 | V-3 | **Schema 管不到的约束**：[`examples.md` 第 14 节](v1/examples.md#14-schema-挡不住但同样非法的)逐行——版本编号连续、`item` 不重复、作者与所有者同属一个组织、`importedBy` 在目标侧、持有与记录一致、`owned`／`official` 与记录对得上、工作区格没有权限配值、声明的 `default` 合取值域 | 接收边界的校验 ＋ 第 14 节 | [S-7](v1/contract.md#s-7-所有者至多变一次)、[S-9](v1/contract.md#s-9-版本线)、[S-10](v1/contract.md#s-10-八类正文的外壳)、[S-12](v1/contract.md#s-12-属性声明由正文推出)、[S-14](v1/contract.md#s-14-属性配值)、[S-18](v1/contract.md#s-18-资产持有)～[S-21](v1/contract.md#s-21-复制血缘)、[S-24](v1/contract.md#s-24-工作区承载清单) | **未开始。**看记录的那几条落在 `capability.asset-governance` 的写入边界，看整个存储的那几条（键唯一、血缘号唯一）落在存储 |
 | V-4 | **规范场景** [S-29](v1/contract.md#s-29-名字里的斜杠)～[S-35](v1/contract.md#s-35-重复复制只改最近一次那四项)：每条一个正例一个反例 | 规范场景演练：真实接收边界、真实存储 | [S-2](v1/contract.md#s-2-能力标识名的词法)、[S-6](v1/contract.md#s-6-所有者与作者分记)、[S-9](v1/contract.md#s-9-版本线)、[S-15](v1/contract.md#s-15-disabled-是保留项名)、[S-18](v1/contract.md#s-18-资产持有)、[S-21](v1/contract.md#s-21-复制血缘)、[S-24](v1/contract.md#s-24-工作区承载清单) | **未执行。**S-31 的两个反例**必须同跑**；S-33 与 S-35 **必须观察存储里的那份记录**，只看操作返回会漏掉「写了第二份」「血缘号被换掉」 |
-| V-5 | **消费者路径走查**（[CS-1～CS-8](v1/contract.md#消费者核对场景)） | 结构化走查（评审对象）；有提供者之后升级为真实演练 | [S-3](v1/contract.md#s-3-能力标识与它的规范串)、[S-6](v1/contract.md#s-6-所有者与作者分记)、[S-7](v1/contract.md#s-7-所有者至多变一次)、[S-9](v1/contract.md#s-9-版本线)、[S-12](v1/contract.md#s-12-属性声明由正文推出)～[S-24](v1/contract.md#s-24-工作区承载清单) | **未开始。**走查**不需要提供者**，现在就做得了；**CS-1 停在 G-6（`agent_definition`）**——停在缺口不算走不通，如实记为「本版到此为止」 |
+| V-5 | **消费者路径走查**（[CS-1～CS-8](v1/contract.md#消费者核对场景)） | 结构化走查（评审对象）；有提供者之后升级为真实演练 | [S-3](v1/contract.md#s-3-能力标识与它的规范串)、[S-6](v1/contract.md#s-6-所有者与作者分记)、[S-7](v1/contract.md#s-7-所有者至多变一次)、[S-9](v1/contract.md#s-9-版本线)、[S-12](v1/contract.md#s-12-属性声明由正文推出)～[S-24](v1/contract.md#s-24-工作区承载清单) | **未开始。**走查**不需要提供者**，现在就做得了；**CS-1 停在 G-6（`agent_definition`）、G-9（plugin）与 G-15（connector 两个「谁能用」）**，`loop_extension` 那一类按 `data.loop-extension/v1#S-40` 走——停在缺口不算走不通，如实记为「本版到此为止」 |
 | V-6 | **跨进程**：[第四节](v1/contract.md#四装配给与协议给)右列九行逐行演练 | 规范场景演练 | [S-4](v1/contract.md#s-4-资产记录号)、[S-7](v1/contract.md#s-7-所有者至多变一次)、[S-9](v1/contract.md#s-9-版本线)、[S-17](v1/contract.md#s-17-工作区键)、[S-18](v1/contract.md#s-18-资产持有)、[S-21](v1/contract.md#s-21-复制血缘)～[S-23](v1/contract.md#s-23-凭据引用)、[S-27](v1/contract.md#s-27-表示层拒绝值) | **未开始，且本版装配下无法演练**——单机同进程不构成接收边界。**这不是免除**：跨进程演化启动时必须补做，登记在[变化的影响](#变化的影响) |
 | V-7 | **静态检查**（[SC-1～SC-6](#静态检查义务)） | 实现语言的静态检查（具体形式归 realization） | 见下表 | **未开始；检查器尚不存在** |
 
@@ -46,10 +46,11 @@
 | 工具定义里的设置项与权限项 | `data.tool-definition` v1 | 若那边另立 `SettingCategory`、设置项声明的形状或权限项的形状，就与本契约的 [`SettingCategory`](v1/contract.md#s-13-设置项类别)、[`AttributeDeclaration`](v1/contract.md#s-12-属性声明由正文推出) 是同一件事两个名字；那边应给出推出规则、引用本契约的名字 |
 | 正文里另立的名字字段 | `data.tool-definition` v1、`data.loop-extension` v1、`data.skill-package` v1（清单头的 `name`） | 身份只在 `AssetDefinition.capability`（[S-10](v1/contract.md#s-10-八类正文的外壳)）；正文里的名字字段若保留，须与 `capability.name` 一致 |
 | reload 一族的命令名 | `data.slash-command` v1、注册表 | 冒号允许、斜杠禁止（[S-29](v1/contract.md#s-29-名字里的斜杠)）；保留前缀 `omne-official:` 合本契约词法 |
-| 「谁可以用」那一项 | 全部六份正文契约；`capability.asset-evaluation`（第 1 步的滤、`values` 里恒有的那一条） | 本契约保留 `usableBy`（[S-36](v1/contract.md#s-36-usableby-是保留项名)），**八类都有**（主线裁定 2026-09-24，原 G-14 关闭）；正文契约的推出规则都不声明它。**connector 的 `install` 即此项**：`data.connector` 推出规则里的 `install` 项名统一为 `usableBy`，**待主线收口那份契约**；Loop Extension 的「谁能挂」同是此项。`capability.asset-evaluation` 里「三类」的说法（它的 S-25 表里那一行、S-39 与实例开头）随之要改——**待那边落** |
+| 「谁可以用」那一项 | 全部六份正文契约；`capability.asset-evaluation`（第 1 步的滤、`values` 里恒有的那一条） | 本契约保留 `usableBy`（[S-36](v1/contract.md#s-36-usableby-是保留项名)），**八类都有**（D-040 §二 S-U24-7，原 G-14 关闭）；正文契约的推出规则都不声明它；Loop Extension 的「谁能挂」即此项。`capability.asset-evaluation` 已按八类写（它的 S-25、S-39 与实例开头）。**connector 的 `install` 与它怎样对应未定**，登为 [G-15](v1/contract.md#八已知缺口)（owner 主线 ＋ `data.connector`，专项讨论后 connector 收口） |
 | 连接件的拒绝值 | `data.connector` v1 | 本契约 [S-27](v1/contract.md#s-27-表示层拒绝值) 原名携带正文契约的值；`envelope_empty` 不会出现在本契约的值里 |
 | 正文契约对能力标识 name 的收窄 | `data.mcp-endpoint` v1（S-26，`name_not_projectable`）、`data.slash-command` v1（命令名词法与保留区，`name_invalid`、`name_reserved`） | **已落**（主线裁定 2026-09-24）：[S-27](v1/contract.md#s-27-表示层拒绝值) 加第三种情形，名字连同那一份正文交给那份契约判、原名携带；**写面的失败集合**要引用这几个名字，归 `capability.asset-governance`（另有人在改） |
-| 词条链接待合流后补 | 统一语言 | 「谁可以使用它」已由词条批立为词条（在 HUB 上，本分支看不到），`usableBy` 的词条对应行暂写正式名、不带链接；**链接待合流后补**（主线） |
+| `usableBy` 的词条链接 | 统一语言 | **已落**（2026-09-24 独立评审第一轮）：token 表那一行链到 [UL-usable-by](../../../ubiquitous_language/terms/circulation-and-entitlement.md#ul-usable-by--谁可以使用它--usable-by) |
+| 「推出规则」的覆盖 | `data.loop-extension` v1 | 那份契约同批新增 [S-40 属性项的推出规则](../loop-extension/v1/contract.md#s-40-属性项的推出规则)（`position`、`dimension` 绑定类，`power` 权限，其余不出项）；本契约 CS-1 已链到它 |
 
 ## 结果与反例
 
@@ -79,6 +80,24 @@ V-2～V-7 **一条执行记录也没有**。手核只保证 `examples.md` 的实
 **本契约不选用形式化工件，`formal/` 不建。**理由在[契约的性质一节](v1/contract.md#性质)末尾：
 没有状态转移；结构约束 Schema 与条款即可表达；求值链上的结构性质归 `capability.asset-evaluation` 的 Alloy 模型，那份模型消费本契约的值定义。
 **这不是把义务省掉**：它们被改写成了 V-1～V-7。本契约**不拥有任何进展性质**；`formal-tasks.json` 里没有、也不应有本契约的任务——**「未运行」如实登记**。
+
+## 独立评审
+
+**第一轮**：spec-reviewer（只读），2026-09-24，基线 HUB `765b01dc`（批 R3，与 `capability.asset-evaluation`、`capability.asset-governance`、`capability.asset-transfer`、`capability.organization-governance` v2 同批）。
+处置按主线的修复简报（2026-09-24，裁定 K9、K44——已收进 [D-040 §五](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)——与全局规矩 G1～G6）；**评审意见不代替接受**，本契约仍是 candidate。
+
+| 发现 | 处置 | 落点 |
+|---|---|---|
+| AM-1（PF-001 rev 16、PF-004 rev 10 落后） | **改**：按 changelog 复核到 PF-001 rev 17（§6.2「一件是界、一件是挑」——S-14 与设计依据表那一行的措辞随之改，形状不变；§6.7 提升不动持有与 S-7 一致）、PF-004 rev 12（只作指路，rev 11、12 改 I-4 时间尺度与装配清单失效条件，不涉形状） | 契约页首、[S-14](v1/contract.md#s-14-属性配值)、设计依据表 |
+| AM-2（S-20 与 S-24 ⑤ 的过滤阶段两种说法） | **改**：按种类写定唯一的丢弃阶段，三处同一句——`immutable` 与指向没列资产的条目在读入时丢（`DropReason`），权限、落点与身份、治理类的配值在第 4 步丢（`FilterReason`）。**与主线裁定字面「读入时丢弃并留痕」的差别**：读入面没有属性声明，判不出后三种（D-040 §一 S10-d），所以那三种只能在第 4 步丢——已报主线 | [S-20](v1/contract.md#s-20-出厂格与工作区格的持有)、[S-24](v1/contract.md#s-24-工作区承载清单) 第 5 条；`capability.asset-evaluation` S-24 |
+| AM-3（connector 的 `install` 与 `usableBy`） | **改**：登 [G-15](v1/contract.md#八已知缺口)（owner 主线 ＋ `data.connector`，闭合条件「专项讨论后 connector 收口」）；S-36 第 2 条删去「`install` 即此项」的断言，只陈述两处现行正文、不作承诺；G-14 注明 connector 那一半移到 G-15 | [S-36](v1/contract.md#s-36-usableby-是保留项名)、G-14、G-15 |
+| AM-4（S-28 引 identity-values S-33 未登记） | **改**：补登（它是 S-28 那条规矩的出处，实质消费）；头部依赖表、README、catalog 三处同改 | 页首依赖表、[S-28](v1/contract.md#s-28-表示层拒绝不是判定也不修补)、catalog |
+| AM-5（`usableBy` 词条链接待补） | **改**：链到 UL-usable-by；对齐义务那一行改为已落 | token 表、[对齐义务](#对齐义务) |
+| AM-6（V-1 声明超过证据；对齐行陈旧） | **改**：V-1 标「作废，待重跑」，当前状态段同改；「谁可以用」对齐行改到现状（求值已八类、connector 登 G-15） | [证据义务](#证据义务) V-1、[对齐义务](#对齐义务) |
+| B-2（CS-1 替 loop_extension 声称一条不存在的规则） | **改**：CS-1 改为五份已给、`loop_extension` 由 `data.loop-extension/v1#S-40` 给（同批新增），停点列全（G-6、G-9、G-15） | [CS-1](v1/contract.md#cs-1-求值读一格的持有) |
+| 走查缺口一（工作区格条目在哪一步滤掉） | 同 AM-2 | 同上 |
+
+**另按全局规矩**：依据改引 D-040（块 A 形状、S18-c、S19-a、S21、§二 S-U24-7、§三 R2-10/R2-11），账本编号与施工标签删去；D-040 未收录的几条（词法、五支、`byAgent`、`versionSelection`、配值只挂本格持有、`carrier` 那份记录、配值带 `since`、租户格经分享持有）标「D-040 尚未收录」并报主线；**G-13 闭合**（依据已在 D-040，剩下的是决定记录的补录，不是本契约的语义缺口）。
 
 ## 变化的影响
 
@@ -119,8 +138,11 @@ V-2～V-7 **一条执行记录也没有**。手核只保证 `examples.md` 的实
   - 顺手：缺席表「声明的 `default`」一行与「Schema 管不到」那一行漏了 rev 20 的治理类（`governance` 也可不带 `default`，`disabled` 除外），`SettingCategory` 的说明残留「本版治理类恰有 disabled 一项」——一并改正（上一轮漏改，不是新语义）。
   - `examples.md`：4.3 改为普通成员本人型复制、所有者 (T2, a1)；第 4 节变体「4.3 改所有者为组织」由拒改为正例（组织型那一份、另一个血缘号），第 14 节加「所有者是租户而 `importedBy` 是别人」一行；第 10 节「10.4 改为租户格」由拒改为正例，另加「10.4 改为工作区格」拒；第 14 节「10.6 带 `execute`」由 `malformed` 改为「不是 `malformed`、由求值滤掉」。本地用 `jsonschema` Draft 2020-12（仓库 `uv.lock` 的 4.26.0，以整棵设计树的全部 Schema 建 registry）核了这七个实例的「Schema」一列，**结论与表里一致**；**V-1 整体未重跑**。
   - **对消费者**：`capability.asset-transfer`（形状的承载方，本轮对齐它 v1 的矩阵）；`capability.asset-evaluation`（PRE-2 同轮按 asset-transfer 的 S-9 改写，第 4 步的过滤不变）；`capability.asset-governance`（写面的 `shared` 行随之指租户格）。
+- **2026-09-24 独立评审第一轮（[处置表](#独立评审)；候选未冻结，原地改）**：产品依据 PF-001 rev 16 → **rev 17**、PF-004 rev 10 → **rev 12**（复核结论在页首）；[S-14](v1/contract.md#s-14-属性配值) 权限值的措辞由「选定一个值就是收窄成单元素集」改为界与挑选；[S-20](v1/contract.md#s-20-出厂格与工作区格的持有)、[S-24](v1/contract.md#s-24-工作区承载清单) 第 5 条与 `capability.asset-evaluation` S-24 写成同一句（每一种条目只在一处丢）；[S-36](v1/contract.md#s-36-usableby-是保留项名) 第 2 条与 G-14 改写、**新 G-15**；**G-13 闭合**；CS-1 改写；`identity-values` S-33 补登依赖；token 表链 UL-usable-by；依据改引 D-040。
+  **形状、Schema 与实例都不变**（`examples.md`、`asset-model.schema.json` 本轮未动），所以不重跑本地自检——V-1 仍是「作废，待重跑」。**对消费者**：没有已采用的消费者；`data.connector` 与主线要答 G-15；`capability.asset-evaluation` 同轮改 S-24 同一句。
 - **[G-6](v1/contract.md#八已知缺口)、[G-9](v1/contract.md#八已知缺口) 被裁决**（Agent Definition 的正文、plugin 的正文）：`AssetContent` 相应的变体换成引用或加成员 ⇒ 表示改变；接受前闭合则原地改并重跑 V-1、V-3、V-5，接受后闭合则**出 v2**。
-- **[G-13](v1/contract.md#八已知缺口) 闭合**（自决与裁定落进设计链）：只改[设计依据](v1/contract.md#设计依据)表的链接，语义与表示不变。
+- **D-040 补录那几条主线裁定**（词法、五支、`byAgent` 等）：只改页首与各条的依据链接，语义与表示不变。
+- **[G-15](v1/contract.md#八已知缺口) 闭合**（connector 收口）：若留 `usableBy`、删 `install`，本契约只删 S-36 第 2 条那一段；若另作对应，S-36 与 `data.connector` 同轮改。
 - **跨进程演化启动**：V-6 从「无法演练」转为**必须演练**；[第四节](v1/contract.md#四装配给与协议给)右列九行从「待兑现」转为「须由协议兑现」，其中工作区键缺宿主分量那一行**多半要出新版**。
   **本版的全部证据只保留其单机范围，不得外推。**
 

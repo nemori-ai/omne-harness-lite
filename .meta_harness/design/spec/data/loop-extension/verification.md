@@ -4,16 +4,17 @@
 
 > **当前状态：未开始。**`data.loop-extension` v1 是 `candidate`（2026-09-23 起草），未接受、未冻结；尚无提供者设计、无源码、无装配。
 > 下表登记的是**已经触发的证据义务**，不是已完成的检查。起草时一条都没有执行过；**整批对齐（2026-09-24）跑过一次 V-1 的本地自检**（见[本节末](#2026-09-24-整批对齐候选未冻结)），其余义务仍未开始。
+> 2026-09-24 第一轮独立评审（基线 HUB `765b01dc`）的处置见[独立评审](#独立评审)；本轮重跑了 V-1 的本地自检（[变化的影响](#2026-09-24-第一轮独立评审的处置候选未冻结)）。
 > **两张合法组合表与 Schema 的逐格对照是人工比对**（[`examples.md` 第 9 节](v1/examples.md#9-两张合法组合表与-schema-逐格对照)），**不是机检**。
 
 ## 证据义务
 
 | # | 义务 | 证据形式 | 覆盖哪些条款 | 实际状态 |
 |---|---|---|---|---|
-| V-1 | **形状校验**：[`examples.md`](v1/examples.md) 第 1～5、7 节的正反实例逐条过 Schema，「Schema」列逐条比对；第 6 节四个走查里的 JSON 同样过对应的 `$defs` | Draft 2020-12 校验器 ＋ 按节绑定的 `$defs`；**前提：五份同批契约 v1 已定型并在同一棵设计树里** | [S-1](v1/contract.md#s-1-十一个位置)、[S-2](v1/contract.md#s-2-两个维度)、[S-4](v1/contract.md#s-4-干预力三档)～[S-18](v1/contract.md#s-18-terminalfact)、[S-19](v1/contract.md#s-19-结论封闭八种)、[S-22](v1/contract.md#s-22-inject)～[S-28](v1/contract.md#s-28-ask)、[S-30](v1/contract.md#s-30-每件的结论必留)、[S-31](v1/contract.md#s-31-三种记录形状)、[S-36](v1/contract.md#s-36-规范表示与定义项)、[S-39](v1/contract.md#s-39-判别式与枚举闭合) 的**形状那一面** | **本地自检已跑一次**（整批对齐，2026-09-24）：82 行 ＋ 第 6 节 11 个 JSON 块，0 处不符；**只判形状、不判拒绝值是哪一个**，也不是评审或接受 |
+| V-1 | **形状校验**：[`examples.md`](v1/examples.md) 第 1～5、7 节的正反实例逐条过 Schema，「Schema」列逐条比对；第 6 节四个走查里的 JSON 同样过对应的 `$defs` | Draft 2020-12 校验器 ＋ 按节绑定的 `$defs`；**前提：五份同批契约 v1 已定型并在同一棵设计树里** | [S-1](v1/contract.md#s-1-十一个位置)、[S-2](v1/contract.md#s-2-两个维度)、[S-4](v1/contract.md#s-4-干预力三档)～[S-18](v1/contract.md#s-18-terminalfact)、[S-19](v1/contract.md#s-19-结论封闭八种)、[S-22](v1/contract.md#s-22-inject)～[S-28](v1/contract.md#s-28-ask)、[S-30](v1/contract.md#s-30-每件的结论必留)、[S-31](v1/contract.md#s-31-三种记录形状)、[S-36](v1/contract.md#s-36-规范表示与定义项)、[S-39](v1/contract.md#s-39-判别式与枚举闭合) 的**形状那一面** | **本地自检已跑**（整批对齐 2026-09-24 一次；第一轮评审处置之后重跑）：最近一次 100 行 ＋ 第 6 节 11 个 JSON 块，0 处不符；**只判形状、不判拒绝值是哪一个**，也不是评审或接受 |
 | V-2 | **两张合法组合表机检**：对 13 个位置（含维度）× 8 种结论 × 3 档逐一构造 `Conclusion`，比对 Schema 结果与 [S-20](v1/contract.md#s-20-档与结论的合法组合)、[S-21](v1/contract.md#s-21-位置与结论的合法组合) 的 ✓/✗，并比对拒绝值次序（[S-37](v1/contract.md#s-37-表示层拒绝值)） | 生成式校验（312 格）＋ Draft 2020-12 校验器 | S-20、S-21、S-37 | **只做了人工逐格比对**（examples 第 9 节）；机检**未开始**，同样被 V-1 的前提阻断 |
 | V-3 | **回放一致**（[PF-012 §6.9](../../../product/PF-012-agent-loop-and-run/design.md#69-拓展件只能靠改日志起作用) 的验收办法）：把一件拓展件上次的结论留在日志里重算，下一步相同；停在 `ask` 的那一件回放到出卡处，**不出第二张卡、不再调模型** | 规范场景演练，**归 runner** | [S-32](v1/contract.md#s-32-结论即走向)、[S-35](v1/contract.md#s-35-跨过一次等待只能带已落日志的东西) | **未开始**；需要 runner 提供者。本契约只登记它已触发 |
-| V-4 | **不可用 ≠ 报错 ≠ 否决，三种策略各落其位**：让一件可否决件的依赖不在场，观察记的是 `skipped: unavailable`、瀑布跳过它、**这一关没有被当成否决**；再让它报错，观察在「之前」的位置落 `veto`、在「之后」的位置落 `stop{ terminal: failed }` 且运行落失败、在 `after_terminal` 落 `observed`，`error` 都可见；让一件可改写件报错，观察 `record` 落了一条以它名义的「没跑成」提醒、下一次组装看得到；`ignore` 对 agent 没有任何效果 | 规范场景 ＋ 故障注入 | [S-5](v1/contract.md#s-5-报错处置策略)、[S-9](v1/contract.md#s-9-依赖声明与不可用)、[S-26](v1/contract.md#s-26-stop)、[S-31](v1/contract.md#s-31-三种记录形状)、[S-33](v1/contract.md#s-33-不可用与报错两分) | **未开始**。这条最容易被一个 `catch { return observed }` 抹掉，**必须真跑** |
+| V-4 | **不可用 ≠ 报错 ≠ 否决，三种策略各落其位**：让一件没声明不可用处置的可否决件的依赖不在场，观察记的是 `skipped: unavailable` ＋ `unavailability: skip`、瀑布跳过它、**这一关没有被当成否决**；让一件声明了 `veto` 的同样不在场，观察记 `unavailability: veto`、这一次经过以否决收场、原因写明「此刻不在、按否决处置」；把它的干预力收窄到 `rewrite` 再来一次，观察照 `skip` 办；让一件系统自带件不在场，观察记 `unavailability: fallback`、效果照 runner S-17 的表；再让它报错，观察在「之前」的位置落 `veto`、在「之后」的位置落 `stop{ terminal: failed }` 且运行落失败、在 `after_terminal` 落 `observed`，`error` 都可见；让一件可改写件报错，观察 `record` 落了一条以它名义的「没跑成」提醒、下一次组装看得到；`ignore` 对 agent 没有任何效果 | 规范场景 ＋ 故障注入 | [S-5](v1/contract.md#s-5-报错处置策略)、[S-6](v1/contract.md#s-6-声明的成员与类别)、[S-9](v1/contract.md#s-9-依赖声明与不可用)、[S-26](v1/contract.md#s-26-stop)、[S-31](v1/contract.md#s-31-三种记录形状)、[S-33](v1/contract.md#s-33-不可用与报错两分) | **未开始**。这条最容易被一个 `catch { return observed }` 抹掉，**必须真跑** |
 | V-11 | **落终态之后不复活，回复被否决不走成因**：让一件 `after_terminal` 的件交回 `inject`，观察被拒、队列没有变非空、没有下一次运行；否决一条模型回复，观察回复没落盘、结论在日志里、那次调用照常结束、`after_model_call` 没有触发、没有产出任何成因 | 规范场景 | [S-2](v1/contract.md#s-2-两个维度)、[S-21](v1/contract.md#s-21-位置与结论的合法组合)、[S-22](v1/contract.md#s-22-inject)、[S-25](v1/contract.md#s-25-veto) | **未开始**；需要 runner 提供者 |
 | V-5 | **每件必留**：一次经过里挂了 N 件，日志里恰有 N 条最终结论（出过卡的另有一条 `ask`） | 规范场景 ＋ runner 的静态检查 | [S-30](v1/contract.md#s-30-每件的结论必留) | **未开始** |
 | V-6 | **不合法的结论按报错处置**：让一件 `rewrite` 档件交回 `veto`、一件件交回冒名的 `inject`、一件 `rewrite` 改了 `callId`，观察三次都记 `skipped: errored`、`error` 恰为拒绝值、**被拒的结论没有生效** | 规范场景 | [S-20](v1/contract.md#s-20-档与结论的合法组合)～[S-23](v1/contract.md#s-23-rewrite)、[S-34](v1/contract.md#s-34-不合法的结论按报错处置)、[S-37](v1/contract.md#s-37-表示层拒绝值) | **未开始**。第三种（改了不可改的成员）Schema 放过，**只有这条演练能抓到** |
@@ -46,6 +47,30 @@
 
 这组报错在本包合入 HUB、`data.messages` 定型之后应当消失；在那之前，本包**不能**被当成已通过检查。
 
+## 独立评审
+
+| 项 | 值 |
+|---|---|
+| reviewer | spec-reviewer（只读） |
+| 日期 | 2026-09-24 |
+| 基线 | HUB `765b01dc`（批 R2a） |
+| 处置 | 2026-09-24 修复波 1，候选期内原地改；标「主线处置裁定」的是主线在修复简报里的裁定，已收进 [D-040 §五](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)（K1～K50） |
+
+| 发现 | 处置 | 落点 |
+|---|---|---|
+| X-1 产品依据 rev 落后（PF-012 10→14、PF-013 8→12、PF-008 5→7、PF-002 16→20、PF-014 5→7、PF-006 17→19） | **改**。逐 rev 复核：PF-012 rev 11 把「回复落盘前被否决」「模型产出的消息只开放否决 ＋ 挂派生表示」「同一步连续被否决有上限」写进产品正文 ⇒ 设计依据改引产品小节，原「与 PF-012 rev 10 措辞不同」的注删去，G-12、G-14、G-17 改指产品正文；rev 12～14 拓展件不可用处置与系统自带件的指定挂件 ⇒ L-1；rev 13/14 转换件不是资产，五件表原已如此。PF-013 rev 9～12：否决回复入产品、默认重试次数（§5.12）归模型请求运行时、路由名（已落）——本契约无别处要改。PF-008 rev 6：搬来的 hook 出的卡不带授权含义、第四档写得进去才出现 ⇒ S-28 改写那一句；rev 7（孤卡、全拒件）无涉。PF-002 rev 17 `usableBy` 八类共用 ⇒ S-40 写明；rev 20 D-5 闭合 ⇒ L-1。PF-014 rev 6/7、PF-006 rev 18/19：所引 §5.6、§6.10 未变 | 抬头、设计依据、S-23、S-25、S-28、S-40、第十四节 |
+| X-4 / L-5 「一次经过」两处说法；干预力、合法目标集合、试尽没链词条；「链接待合流后补」 | **改**：统一链 UL-extension-point-pass、UL-intervention-power、UL-legal-target-set、UL-retry-exhaustion，加 UL-extension-unavailability-policy；删「不定为正式名」与「待合流后补」 | 设计依据末行、二（token 表）、S-17、S-24、S-27；[对齐义务](#对齐义务) |
+| X-5 「放行判断那一行待裁，账本 U-5」 | **改**：U-5 已由 D-039 裁定，改引 D-039 与 PF-012 §5.8「系统自带的几件不可用时各有定法」 | 设计依据、S-33 |
+| X-6 依据只在任务区账本 | **改**：S7-a～e、S8-c、S1-a、S15-b、S15-e、S17-c、S17-d、S16-c、C-R1、C-R3 改链 D-040；已落进产品正文的改引产品；**C-9（`before_model_call` 否决即运行落失败）与 RP-33（不承诺自定义重试件会停）D-040 未收录**，改写为本契约的推导并在条款里写出理由（已报主线） | 设计依据、S-8、S-10、S-14、S-15、S-23、S-25、S-27、第十三、十四节；Schema 四处 `$comment` |
+| X-8(b) S-7 说「同 tool-definition S-2」，那里没给这个拒绝值 | **改**：直接引 `data.asset-model/v1#S-10`，catalog 同登 | S-7；`registry/catalog.json` |
+| L-1 拓展件不可用处置没有落点 | **改**（主线处置裁定）：S-6 加声明成员 `unavailability ∈ skip \| veto`（缺席即 `skip`；不是设置也不是权限；`veto` 只随声明的 `veto` 档与「之前」位置，否则 `malformed`；`fallback` 只给系统自带件、不经声明）；新 `$defs/UnavailabilityPolicy`（`skip`／`veto`／`fallback`，`fallback` 是本契约的取名）；S-31 不可用记录必带实际采用的 `unavailability`；S-33 改写为「租户件按声明；系统自带件由装配预先声明的指定挂件顶上」；S-9、S-13 随之改；删「不在就不许跑本版没有正文」两处；性质加 P-14 | S-6、S-9、S-13、S-31、S-33、S-36、S-37、S-39、第十二、十三、十五节；Schema `UnavailabilityPolicy`、`LoopExtensionDefinition`、`Conclusion`；examples 第 2、5、8 节 |
+| L-2 没有属性项推出规则；asset-evaluation 坐标指错 | **改**（主线处置裁定）：新 [S-40](v1/contract.md#s-40-属性项的推出规则)：`position`、`dimension` 是绑定类设置项、`power` 是权限项，取值域为各自枚举、默认 = 声明值；`onError`、`needs`、`implementation`、`unavailability` 不出项；按 asset-model S-12 四项义务逐条核对。**G-7 随之关闭**（`onError` 是这一件自己的声明）；PF-002 的「它自己的配置」推不出，登 **G-18**（owner 主线）。asset-evaluation 181 行的坐标改指 S-40 由 R3 改（本批不写那份） | S-40、S-5、S-6、G-7、G-18；[对齐义务](#对齐义务) |
+| L-3 `tools` 每项一个能力标识，MCP 来源没有 | **改**（主线处置裁定）：`ModelRequest.tools: ModelToolName[]`（`data.tool-definition` 新立的 `$defs/ModelToolName`）；model-request-runtime 同改由 R5 落 | S-15、抬头；Schema `ModelRequest`；examples 第 3 节加三行 |
+| L-4 `ToolDefinitionRef.name` 与 `Conclusion.extension` 引错了权威；`implementation.capability` 与 `AssetDefinition.capability` 同名；Schema 另写命名规则 | **改三处、不改一处**：`ToolDefinitionRef.name` 改引 `ModelToolName`（与调用块的工具名同一套，主线处置裁定）；`Conclusion.extension` 改引 asset-model `CapabilityName`；Schema 删「五件用能力契约坐标」的命名规则、写明不归本契约。**`implementation.capability` 不换名**：D-040 S15-b 定的就是 `builtin{capability}`，runner 与 hooks-import 按这个名字引用；换名要主线给一个名字并同轮改三份——本轮在 S-8 与 Schema 写明它不是能力标识、与 `AssetDefinition.capability` 同名不同义，换名已报主线 | S-8、S-14；Schema `ExtensionImplementation`、`ToolDefinitionRef`、`Conclusion` |
+| L-6 README 依赖计数不一致；过期的「同批未定型」表；messages 登 S-37 而语义在 S-49 | **改**：README 改八项／六项；过期表删去（留一句沿革）；catalog 的 messages 补登 S-49（S-37 是那份契约的规范表示，`$defs` 都在那里，保留），content-blocks 去掉不再用的 S-20，并补登 content-blocks S-19、asset-model S-12／S-13／S-15／S-36、tool-definition S-6 | README；变化的影响；`registry/catalog.json` |
+| （K13）`before_model_call` 那一行「实际发出的参数留痕在响应体」 | **改**（主线处置裁定，只改这一句）：响应体 `parameters` 记实际发出的值，适配器改动记 `parameterAdjustments`，丢掉的项名（含 `extra`）记 `droppedParameters`，形状归 `data.model-response` | S-23 |
+| （K32）兼容件 `ask` 带改写 | **改**（主线处置裁定）：`DecisionCardDraft.proposedRewrite?: { arguments }`，只在 `before_action`；是提议不是结论 | S-28；Schema `DecisionCardDraft`；examples 第 4 节三行、EX-1 |
+
 ## 形式化工件
 
 **本契约不选用形式化工件，`formal/` 不建。**理由在[契约第十六节](v1/contract.md#十六版本差异与规范工件)：
@@ -55,17 +80,8 @@
 
 ## 变化的影响
 
-- **同批契约未定型**（2026-09-23 起草时）。本契约引用的下列 `$defs` 都来自并行起草中的候选，**`$ref` 目标以它们 v1 定型后的定义为准**；
-  它们任一改名、改结构，本 Schema 的对应 `$ref` 与 examples 里的实例要跟着改，V-1、V-2 要重跑：
-
-  | 契约 | 本契约引的 `$defs` | 本契约据以写出的条款 | 起草时的状态 |
-  |---|---|---|---|
-  | `data.content-blocks` v1 | `ToolCallBlock`、`ToolResultBlock`、`CallId`、`ExecutionOutcome`、`CapabilityId/properties/name` | S-7、S-14、S-23、S-28、S-30 | 在它自己的分支上已有草稿（按其草稿 `204d078`：S-12 完整的工具调用、S-14 CallId、S-15 工具结果块、S-17 六种收场、S-20 能力标识，**catalog 按这五个条款号登记**，它评审改号时要跟着改）；`CapabilityId.name` 用 JSON 指针引到成员一级，它改结构即失效 |
-  | `data.messages` v1 | `Message`、`SystemReminderMessage`、`AssistantMessage`、`CompactionMessage` | S-14、S-15、S-22 | 第二波起草中；`SystemReminderMessage.source` 的 `{ kind: extension, extension }` 形状按其简报账本假定。catalog 暂登 `$defs/<名>` |
-  | `data.model-profile` v1 | `RouteName`（2026-09-24 起，原为 `ModelProfileRef`）、`ModelRequestParameters`、`ProviderName` | S-15、S-24、S-27 | 并行起草中。catalog 暂登 `$defs/<名>` |
-  | `data.call-accounts` v1 | `Usage`、`Cost`、`RunId`、`AttemptId` | S-12、S-14 | 主线裁定 2026-09-23 把 `RunId`、`AttemptId`（整数序号）的家定在那里；HUB `3b99594a` 上合入的那一稿已有这两项（它的 S-37）。本分支的基线上那份契约整份缺席，所以本 Schema 的这三处 `$ref`（`ExtensionInput.run`、`ExtensionInput.attempt`、`AttemptStartedSubject.attempt`）在本分支解析不了。catalog 暂登 `$defs/<名>` |
-  | `data.tool-definition` v1 | `DependencyName`、`Duration` | S-9、S-27 | 并行起草中；**起草简报的依赖清单没有这一项**，本契约为不另立同义定义而引它。catalog 暂登 `$defs/<名>` |
-
+- **引用的别的契约**（content-blocks、messages、model-profile、call-accounts、tool-definition、asset-model，都是同一棵设计树里的候选）：本契约 `$ref` 它们的 `$defs`、catalog 按条款号登记（[契约抬头](v1/contract.md)）。它们任一改名、改结构，本 Schema 的对应 `$ref` 与 examples 里的实例要跟着改，V-1、V-2 要重跑。
+  （2026-09-23 起草时这里有一张「同批契约未定型」表，记各份当时的状态与 catalog 暂登 `$defs` 名的做法；那几份已在同一棵树里、catalog 已换成条款号，表于 2026-09-24 第一轮评审处置时删去。）
 - **`FailureCause` 的下游**：`data.model-response` v1 照抄本契约 [S-17](v1/contract.md#s-17-failurecause) 的八个 token。
   本契约改任何一个 token 或改它们的含义，那一份要同步；**本契约是定名的一方**。
   「回复在落盘之前被否决」**不产出成因**，它在响应体上记成 `replyDisposition` 为 `vetoed`——那一侧的形状归 `data.model-response`，两份要说同一件事。
@@ -129,6 +145,24 @@
 - catalog：`data.loop-extension → data.model-profile` 加 `S-2`；`S-13`（`ModelProfileRef`）随之撤下——本契约已不再据它写出任何形状。
 - **对证据的影响**：上一节的 V-1 本地自检跑在改动之前。改动的两处实例已按同样办法（Draft 2020-12，`jsonschema` 按仓库 `uv.lock`，整棵设计树的 Schema 建 registry，脚本在任务暂存区、不入库）单独复核：EX-3 的结论记录过 `Conclusion`；第 5 节那一行仍拒绝，去掉 `skipped`／`error` 的对照件通过——拒绝仍来自 S-5，不来自 `target`；EX-3 换回旧的引用形状被拒（对照：`$ref` 确实换了）。**只判形状**，其余 80 行未重跑。
 
+### 2026-09-24 第一轮独立评审的处置（候选，未冻结）
+
+逐条见[独立评审](#独立评审)。**表示改变**：声明多一个可选成员 `unavailability`；不可用的结论记录**必带** `unavailability`（此前的不可用记录从合法变为 `malformed`）；`ModelRequest.tools` 的元素由能力标识对象改为模型面名字字符串；`ToolDefinitionRef.name` 改引 `ModelToolName`（`:` 不再合法）、`Conclusion.extension` 改引 `CapabilityName`（禁 `/`）；卡片草稿多一个可选成员 `proposedRewrite`；定义项 40 → 41。
+**语义改变**：不可用不再一律「视作卸载」，按这一件的不可用处置办；`onError` 定为这一件自己的声明（G-7 关）；新 S-40 推出规则；`before_model_call` 否决即运行落失败、不承诺自定义重试件会停两处的依据由「主线裁定」改为本契约的推导（结论不变）。
+**对消费者**：没有已采用的消费者，无迁移；runner、hooks-import、tool-admission、model-request-runtime、model-response、asset-evaluation、asset-model、asset-governance 各自那一半由同一修复波的对方批次落（[对齐义务](#对齐义务)）。
+**证据**：V-1 本地自检重跑（Draft 2020-12，`jsonschema` 4.26.0 按仓库 `uv.lock`，以整棵设计树的全部 Schema 建 registry，脚本在任务暂存区、不入库）：`examples.md` 第 1～5、7 节 **100 行**逐行按所在节的 `$defs` 求值，**0 处不符**；第 6 节 11 个 JSON 块各自恰过一种 `$defs`。**只判 Schema 通过与否**，拒绝值是哪一个不在内；V-2 仍未开始。
+
+**同日稍后（候选，未冻结，原地改）**：K 裁定收进 D-040 第五节之后，正文里标「第一轮评审处置」的几处改链 D-040 §五（K8、K9、K10、K13、K32、K36）；随 `data.model-response` 那一批的交付：[S-2](v1/contract.md#s-2-两个维度) 加一种不触发「调模型之后」的情形——回复被系统拿去用（`replyDisposition = consumed`）的那一次，与落盘前被否决同理（主线裁定，D-040 未收录，已报主线补登）；[S-14](v1/contract.md#s-14-按位置的-subject) 写明失败主体是重试件下结论的唯一依据、不另读响应体（K36）；[S-23](v1/contract.md#s-23-rewrite) 那一句改为「响应体上的 `parameters` 是实际发出的值」。**表示不变**（Schema 与实例未动，未重跑）；语义收紧一处：`consumed` 的那一次从「未写明」变为不触发。
+
 ## 对齐义务
 
-- **词条链接待合流后补**（2026-09-24 整批对齐）：正文里「干预力、一次经过、合法目标集合、试尽」原标「无词条」，词条批已立为词条，本包已改用正式名、去掉标记；那几条词条在 HUB 上、本分支看不到，**链接待合流后补**（主线）。
+**这些是本契约与别的契约之间要一起落的事**，不是本契约自己的证据义务。
+
+| 对齐什么 | 涉及 | 现状 |
+|---|---|---|
+| **不可用处置**：记录的 `unavailability`（`skip`／`veto`／`fallback`）；不可用 ＋ `veto` ⇒ 这一次经过以否决收场、原因写明「此刻不在、按否决处置」；系统自带件记 `fallback`、效果照指定挂件的表；系统自带件的声明不带 `unavailability` 由 runner 核对 | `capability.loop-extension-runner` v1 S-12、S-13、S-17（删去「U-5 待裁」） | 本契约已落（[S-6](v1/contract.md#s-6-声明的成员与类别)、[S-31](v1/contract.md#s-31-三种记录形状)、[S-33](v1/contract.md#s-33-不可用与报错两分)）；runner 由修复波 R4b 同轮改，**待它落条款** |
+| **工具的指认用模型面名字**：`ModelRequest.tools: ModelToolName[]`、`ToolDefinitionRef.name` 是模型面名字；传输适配不做逆转写 | `capability.model-request-runtime` v1 S-7；`capability.tool-admission` v1 S-7（`definition` 带模型面名字） | 本契约已落（[S-14](v1/contract.md#s-14-按位置的-subject)、[S-15](v1/contract.md#s-15-modelrequest)）；R4a／R5 同轮改，**待它们落条款** |
+| **调模型之前改写的参数怎么留痕**：响应体 `parameters` 记实际发出的值、`parameterAdjustments`、`droppedParameters` 含 `extra` 项名 | `data.model-response` v1；`capability.model-request-runtime` v1 S-7 | 本契约只写了指路那一句（[S-23](v1/contract.md#s-23-rewrite)）；形状由 R2b／R5 落 |
+| **`consumed` 的那一次不触发「调模型之后」** | `data.model-response` v1 S-5、G-14 | 本契约已落（[S-2](v1/contract.md#s-2-两个维度)）；那边 G-14 据此关（R2b 已交付） |
+| **`ask` 带改写**：`DecisionCardDraft.proposedRewrite`；改写在答复允许之后生效、回放从这一格重建 `rewrite` | `capability.hooks-import` v1 S-20、S-21 | 本契约已落（[S-28](v1/contract.md#s-28-ask)）；hooks-import 由 R4b 同轮改 |
+| **推出规则的坐标**：拓展件的属性项推出规则在本契约 [S-40](v1/contract.md#s-40-属性项的推出规则) | `capability.asset-evaluation` v1 S-4 末段、S-10、G-3；`data.asset-model` v1 CS-1；`capability.asset-governance` v1 G-5 | 本契约已落；三份的改引由 R3 同轮改 |

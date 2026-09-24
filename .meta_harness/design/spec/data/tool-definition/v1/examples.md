@@ -8,8 +8,8 @@
 - 每节开头的「校验对象」给出该节实例要拿去求值的 `$defs`。完整的正例写成 `json` 代码块，标题写明预期；反例写在表里，
   第一列是实例（JSON 内联代码），第二列是 **Schema 这一关**的预期，第三列是按 [S-26](contract.md#s-26-表示层拒绝值与判定次序) 的次序应报的拒绝值与依据。
 - **`通过` 只说形状合规**，不表示任何条款成立——[S-8](contract.md#s-8-说明与用法)、[S-19](contract.md#s-19-由定义得出的依赖声明)、[S-24](contract.md#s-24-结果与声明对得上)、[S-27](contract.md#s-27-表示层拒绝不是判定) 一条也不在 Schema 的能力范围内。
-- **块与附件引用的写法照 `data.content-blocks` 的账本**（`id`、`kind`、`visibility: { toHuman, toModel }`、`text`；`storage`、`key`、`mediaType`、`bytes`）。
-  那份契约**尚未定型**，它一改，第 7、8 节要重核（[验证入口](../verification.md#变化的影响)）。
+- **块与附件引用的写法照 `data.content-blocks` v1（候选）的 Schema**（`id`、`kind`、`visibility: { toHuman, toModel }`、`text`；`storage`、`key`、`mediaType`、`bytes`）。
+  那份契约一改，第 7、8 节要重核（[验证入口](../verification.md#变化的影响)）。
 - **`name` 的字符集已定**（[S-18](contract.md#s-18-名字的表示与相等)）：示例里的名字都合它；除第 3、11 节那个按桥的规则拼出的 MCP 条目名外，名字本身只是占位，不要从 `notes`、`fetch_page` 这样的写法推出别的规则。
 
 下文用 **B** 指这份最小的合法单函数定义，反例都从它改一处得来：
@@ -101,7 +101,7 @@
     },
     "args": {
       "type": "object",
-      "description": "所选命令的参数；各命令的参数用法经 Tools().inspect（或本工具自带的 help 命令）取得"
+      "description": "所选命令的参数；各命令的参数用法经 Tools().inspect 取得"
     }
   },
   "required": [
@@ -205,10 +205,13 @@
 | B 的 `input` 换成 `{"type": "object", "properties": {"filter": {"type": "object", "description": "过滤条件", "properties": {"field": {"type": "string", "description": ""}}}}}` | **Schema 通过** · 表示层拒绝 | `parameter_description_missing`：嵌套对象里的参数说明是空串——任何一处 `properties` 都算 |
 | B 的 `input` 换成 `{"type": "object", "properties": {"rows": {"type": "array", "description": "数据行", "items": {"type": "object", "properties": {"v": {"type": "number"}}}}}}` | **Schema 通过** · 表示层拒绝 | `parameter_description_missing`：数组 `items` 是对象时，它的参数同样要说明 |
 | B 的 `input` 换成 `{"type": "object", "properties": {"q": {"type": "string"}}}`，**同时** `permissions.execute.default` 换成 `"allow"` | 拒绝 | **`parameter_description_missing`**：第 6 行排在 `permission_unknown`（第 9 行）之前 |
+| B 的 `input` 换成 `{"type": "object", "properties": {"m": {"type": "object", "description": "附加字段", "additionalProperties": {"type": "object", "properties": {"k": {"type": "string"}}}}}}` | **Schema 通过** · 表示层拒绝 | `parameter_description_missing`：对象形的 `additionalProperties` 是一个位置，它的 `properties` 里的 `k` 没带说明（[S-4](contract.md#s-4-单函数工具)「schema 的位置」） |
+| B 的 `input` 换成 `{"type": "object", "properties": {"q": {"type": "string", "description": "查询词", "allOf": [{"properties": {"z": {"type": "string"}}}]}}}` | **Schema 通过** · 表示层拒绝 | `malformed`（M27）：`allOf` 不在可呈现子集里；它下面的 `z` 缺说明**不算**第 2 条违反——清单外的地方不走进去 |
+| B 的 `input` 换成 `{"type": "object", "properties": {"q": {"type": "string", "title": "Q"}}}` | **Schema 通过** · 表示层拒绝 | **`parameter_description_missing`**：`q` 没带说明，又用了子集外的 `title`（M27）——第 2、3 条同时违反报前者（S-4 末段、S-26 第 6 行先于第 12 行） |
 | B 加 `"settings": {"targetEnvironment": {"category": "placement_identity", "default": {"bindingLayer": "vm", "facilities": []}}}` | 拒绝 | `binding_layer_unknown`：[S-11](contract.md#s-11-目标环境)、[S-28](contract.md#s-28-判别式与枚举闭合) |
-| B 加 `"settings": {"timeout": {"category": "security", "default": "PT1M"}}` | 拒绝 | `category_unknown`：[S-10](contract.md#s-10-设置项声明) |
+| B 加 `"settings": {"timeout": {"category": "security", "default": "PT1M"}}` | 拒绝 | `setting_category_unknown`：[S-10](contract.md#s-10-设置项声明) |
 | B 的 `permissions.execute.default` 换成 `"allow"` | 拒绝 | `permission_unknown`：[S-15](contract.md#s-15-执行权限)；**不得**被当成 `auto` |
-| B 的 `origin` 换成 `{"kind": "plugin"}` | 拒绝 | `origin_unknown`：[S-17](contract.md#s-17-来源) |
+| B 的 `origin` 换成 `{"kind": "plugin"}` | 拒绝 | `tool_origin_unknown`：[S-17](contract.md#s-17-来源) |
 | B 的 `name` 换成 `"search__issues"` | 拒绝 | `name_reserved_sequence`：`__` 是转写留给 `:` 的写法，转写之后对不回唯一的名字（[S-18](contract.md#s-18-名字的表示与相等) 第 2 条） |
 | B 的 `name` 换成 `"a_:b"` | 拒绝 | `name_reserved_sequence`：`a_:b` 与 `a:_b` 都转写成 `a___b`——只禁 `__` 不够 |
 | B 的 `paradigm` 换成 `"pipeline"`，**同时** `permissions.execute.default` 换成 `"allow"` | 拒绝 | **`paradigm_unknown`**：两处都不合时报次序靠前的那一行（S-26） |
@@ -379,7 +382,7 @@
 | S-7 | 要求 | 在第 2 节那份生成结果里 | 对得上吗 |
 |---|---|---|---|
 | 第 1 条 | 成员恰此；`args` 不带 `properties` | 顶层恰 `type`、`properties`、`required`（`["command"]`）、`additionalProperties`（`false`）四个；`properties` 恰 `command`、`args`；`command` 恰 `type`（`"string"`）、`enum`、`description`；`args` 恰 `type`（`"object"`）与 `description`——**三个命令的 `id`、`text` 都不在** | 是 |
-| 第 1 条 | `args` 的说明逐字是那一句 | `所选命令的参数；各命令的参数用法经 Tools().inspect（或本工具自带的 help 命令）取得` | 是 |
+| 第 1 条 | `args` 的说明逐字是那一句 | `所选命令的参数；各命令的参数用法经 Tools().inspect 取得` | 是 |
 | 第 2 条 | `enum` 恰是 `commands` 的全部键、码点升序；不为 `help` 多加值 | `["list", "read", "write"]`：`l`（U+006C）< `r`（U+0072）< `w`（U+0077），**与作者在 `commands` 里写的次序（`write`、`list`、`read`）无关**；`read` 带了 `help`，`enum` 里**没有**多出值 | 是 |
 | 第 2 条 | 命令表：每行 `n — 命令说明`，行序同 `enum`，一个换行相连、末行后无换行 | `list — 列出全部笔记的标识。\nread — 读一条笔记。\nwrite — 写入或覆盖一条笔记。`；整个工具的 `description` **不在**生成结果里（它是条目的说明，[S-6](contract.md#s-6-模型面只有一个条目)） | 是 |
 | 第 3、4 条 | 判定以 `commands[c].input` 为准；`args` 缺席按 `{}` 判 | 见下面的调用表 | 是 |
@@ -512,6 +515,7 @@ Anthropic：
 ```
 
 **回来的调用**：模型交回名字 `issue-tracker__search_issues` ⇒ 逆转写得 `issue-tracker:search_issues` ⇒ 第 3 节那份定义；这一步唯一（[S-18](contract.md#s-18-名字的表示与相等) 第 2 条）。
+**逆转写只在工具执行运行时起执行者之前做**（[S-6](contract.md#s-6-模型面只有一个条目)）：在那之前，调用块、日志与放行判断里流转的都是 `issue-tracker__search_issues`（`$defs/ModelToolName`）。
 **Anthropic 的名字正则 `^[a-zA-Z0-9_-]{1,128}$` 收得下它**；转写之前的 `issue-tracker:search_issues` 它收不下——这就是要转写的原因（研究 V-2）。
 
 **多命令工具一样只有一个条目**：第 2 节的三命令工具 `notes`。它的名字不带 `:`，`modelName` 就是 `notes`；`parameters` 是第 2 节那份生成结果。
@@ -536,7 +540,7 @@ Anthropic：
       },
       "args": {
         "type": "object",
-        "description": "所选命令的参数；各命令的参数用法经 Tools().inspect（或本工具自带的 help 命令）取得"
+        "description": "所选命令的参数；各命令的参数用法经 Tools().inspect 取得"
       }
     },
     "required": [
@@ -570,7 +574,7 @@ OpenAI Responses：
       },
       "args": {
         "type": "object",
-        "description": "所选命令的参数；各命令的参数用法经 Tools().inspect（或本工具自带的 help 命令）取得"
+        "description": "所选命令的参数；各命令的参数用法经 Tools().inspect 取得"
       }
     },
     "required": [
@@ -603,7 +607,7 @@ OpenAI Chat Completions ／ OpenRouter：
         },
         "args": {
           "type": "object",
-          "description": "所选命令的参数；各命令的参数用法经 Tools().inspect（或本工具自带的 help 命令）取得"
+          "description": "所选命令的参数；各命令的参数用法经 Tools().inspect 取得"
         }
       },
       "required": [
@@ -635,7 +639,7 @@ Anthropic：
       },
       "args": {
         "type": "object",
-        "description": "所选命令的参数；各命令的参数用法经 Tools().inspect（或本工具自带的 help 命令）取得"
+        "description": "所选命令的参数；各命令的参数用法经 Tools().inspect 取得"
       }
     },
     "required": [

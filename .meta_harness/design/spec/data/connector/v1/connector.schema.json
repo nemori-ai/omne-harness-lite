@@ -8,7 +8,7 @@
     "ConnectorDefinition": {
       "title": "连接件正文",
       "description": "S-1：一份连接件资产的正文——data.asset-model v1 S-10 里 connector 那一行 body 的值（那边 $ref 本定义）。只有一个可选成员 source：作者给的默认来源标识，即由正文推出的 source 那一项落点与身份类设置的 default（S-11）；不给，那一项就不带默认。成员集合闭合：正文里没有名字字段（身份只在 AssetDefinition.capability），没有投递目标与鉴权绑定（S-2：两者只作为持有上的配值存在，没有作者默认），没有权限项的值。",
-      "$comment": "target 与 credential 成员不在这里（S-2；主线裁定 2026-09-23，账本 S21-a、S21-b）；带了即 malformed。空对象合法：作者不给任何默认。",
+      "$comment": "target 与 credential 成员不在这里（S-2；主线裁定，D-040 §S21 S21-a、S21-b）；带了即 malformed。空对象合法：作者不给任何默认。",
       "type": "object",
       "properties": {
         "source": { "$ref": "#/$defs/SourceIdentity" }
@@ -49,7 +49,7 @@
     "DeliveryTarget": {
       "title": "投递目标",
       "description": "S-4：送进来的消息投进哪一个会话——持有上 target 那一项配值的取值域（S-11），没有作者默认，各格都没配即缺席。按 kind 判别，本版恰一支 session：session 是一个 SessionRef（data.messages v1）。它只是指认，不是资格——能不能往那个会话里送由受理按处理身份能不能访问那个会话判定，跨租户默认拒绝；指的会话不存在、已归档或进不去，都不是表示层的事。",
-      "$comment": "kind 出现了但不是 session（含大小写不同、非字符串）的拒绝值是 target_unknown；kind 缺席是 malformed（S-18）。新建会话、按外部线程分会话等规则正文未述（contract.md G-3），不在这里预留分支。",
+      "$comment": "kind 出现了但不是 session（含大小写不同、非字符串）的拒绝值是 target_unknown；kind 缺席是 malformed（S-18）。投递目标只指一个已有的会话；连接件的事件开新会话是另一条路、不是这里的一支（contract.md G-10），按外部线程分会话是产品非目标，不在这里预留分支。",
       "type": "object",
       "properties": {
         "kind": { "const": "session" },

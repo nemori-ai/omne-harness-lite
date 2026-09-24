@@ -1,7 +1,7 @@
 # 规范实例：走通的路径与每个失败值的反例
 
 属于 `capability.tool-execution-runtime` v1 的规范工件。本契约**不附 Schema**，所以这里的实例不是形状校验用例，
-而是**操作层面的输入 → 预期结果 → 依据条款**：前七节各走通一条路径，第八节给每个失败值一个反例。
+而是**操作层面的输入 → 预期结果 → 依据条款**：前七节各走通一条路径，第八节给每个失败值一个反例，第九、十节是提交的判重与租户、执行者一侧的发帧。
 
 **两条读法上的边界：**
 
@@ -87,7 +87,7 @@
 | 步 | 调用或发生 | 预期 | 依据 |
 |---|---|---|---|
 | 1 | 交回检查 | 合形状、合声明 → 收场 `completed`；本能力**不看大小、不改姿态、不截断** | [S-41](contract.md#s-41-交回)、[S-8](contract.md#s-8-姿态与阶段两个维度) |
-| 2 | 本能力存下声明卸载的原始结果（进那一关之前，不看卸载判定在不在） | 内联的 40 MB 存进存储，换成引用 `{ storage, key, mediaType: "text/plain", bytes: 41943040 }` | [S-36](contract.md#s-36-存一份原始结果)（账本 S13-b） |
+| 2 | 本能力存下声明卸载的原始结果（进那一关之前，不看卸载判定在不在） | 内联的 40 MB 存进存储，换成引用 `{ storage, key, mediaType: "text/plain", bytes: 41943040 }` | [S-36](contract.md#s-36-存一份原始结果)（[D-040 §S13 S13-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s13tool-execution-runtime报回的)） |
 | 3 | `after_action`（`each`）：卸载判定拿到 `subject.result`，其中 `offload.raw` 已是第 2 步的引用 | 结论：改写结果块——`blocks` 是作者的摘要加「原始结果 40 MB、怎么取回」，`offloaded` 是那个引用；本能力照结论落 `ToolMessage`；**原始的 40 MB 从头到尾不进会话日志** | [S-42](contract.md#s-42-结果落成消息之前的那一关)；PF-012 §5.10 |
 
 **卸载判定此刻不在**：第 2 步照做，原始结果照样存着；只记可见——落进块的是 `content`（作者的摘要块），`raw` 的位置上**只落第 2 步的引用、摘要缺席**，留一条「落盘前那一关不可用」的条目（[S-15](contract.md#s-15-缺席时的默认答案)、[S-42](contract.md#s-42-结果落成消息之前的那一关)）。
@@ -100,10 +100,10 @@
 | 步 | 调用或发生 | 预期 | 依据 |
 |---|---|---|---|
 | 1 | 本能力重新起来，扫描完成之前 `awaitForeground(T, ses_1, call_b)` | `runtimeNotReady` | [S-20](contract.md#s-20-恢复扫描与停机不重来) |
-| 2 | 恢复扫描 | 范围是**全部**未收场的记录，含 `ses_2` 的 `call_z`（那个会话没有协程要恢复）；每条先回收登记过的进程组，再首胜写 `failed{abnormal_interruption}`，外部效果「不可确定」，实际停止 `unconfirmed`，账的 `endedAt` **缺席** | [S-20](contract.md#s-20-恢复扫描与停机不重来)、[S-13](contract.md#s-13-账) |
+| 2 | 恢复扫描 | 范围是**全部**未收场的记录，含 `ses_2` 的 `call_z`（那个会话没有协程要恢复）；每条先回收登记过的进程组，再首胜写 `failed{abnormal_interruption}`，外部效果「不可确定」，实际停止 `unconfirmed`，账的 `endedAt` **缺席**、`frames` 写 `"unknown"`（装配状态随活体没了，**不写 0**）；执行者停机前报过的钱（`reportedCost`）照样进账 | [S-20](contract.md#s-20-恢复扫描与停机不重来)、[S-13](contract.md#s-13-账) |
 | 3 | 同一次写里交付 | `call_b`：`ToolMessage{ outcome: failed, reason: { code: abnormal_interruption } }`；`call_a`、`call_z`：`SystemReminderMessage{ source: { kind: background_execution_interrupted } }` | [S-19](contract.md#s-19-送达) |
 | 4 | 执行者 | **一个都不重起** | [S-17](contract.md#s-17-持久意图先于外部效果) |
-| 5 | 若 `call_b` 当时停在一张卡片上 | 请求把那张卡关闭为 `superseded`（待产品确认、卡片契约未建立） | [S-20](contract.md#s-20-恢复扫描与停机不重来) 第 4 步、[G-5](contract.md#十二已知缺口) |
+| 5 | 若 `call_b` 当时停在一张卡片上 | 请求把那张卡关闭为 `superseded`（产品正文的「已作废」；卡片契约未建立） | [S-20](contract.md#s-20-恢复扫描与停机不重来) 第 4 步、[G-5](contract.md#十二已知缺口) |
 | 6 | loop 下一次尝试开始 `reconcile(T, ses_1)` | `{ settled: [] }`——扫描已处置过 | [S-32](contract.md#s-32-对账) |
 
 **agent 看到的是「失败，原因异常中断」**：要不要再调由它决定；系统不替它断定那一次做没做过。
@@ -125,7 +125,9 @@
 | `invalidInput` | —— | `answerWait(T, ses_1, call_c, 缺, {value: {choice: "A"}, by: 人})` | `invalidInput` | `waitIndex` 缺席不替它猜成当前那一次（[S-30](contract.md#s-30-答复等待) ⑧）；**不是** `notWaiting`：表示层校验不是一次判定 |
 | `notAdmitted{why}` | `tok_b` 绑定的是 `deploy` 的另一份参数 | `submit(..., [build(call_a)/tok_a, deploy(call_b)/tok_b])` | 整批 `notAdmitted`；**`call_a` 也没有记录** | 一条凭据不符整批拒（[S-23](contract.md#s-23-提交一批) ②） |
 | `admissionUnavailable` | 放行核对面此刻不可用 | 同上一行的 `submit`（凭据都正确） | 整批 `admissionUnavailable`，一项都不执行 | 「判不出来」不是「判为不符」，也不放行（[S-15](contract.md#s-15-缺席时的默认答案)） |
-| `backgroundNotAllowed` | `deploy(call_b)` 在前台跑 | `background(T, ses_1, call_b)` | `backgroundNotAllowed` | 定义没声明 `allowBackground`＝不能（[S-27](contract.md#s-27-转后台) ⑧）；发起即后台的同一种情形在 `submit` 里是逐条的同名值 |
+| `backgroundNotAllowed` | `deploy(call_b)` 在前台跑 | `background(T, ses_1, call_b)` | `backgroundNotAllowed` | 定义没声明 `allowBackground`＝不能（[S-27](contract.md#s-27-转后台) ⑧）；发起即后台的同一种情形在 `submit` 里**不是失败值**，是那一项的收场 `failed{background_start_refused}`（见本节末） |
+| `crossTenant` | `ses_1` 持有 `T` | `submit(T', ses_1, run_1, 1, [build(call_z)/tok_z])`，`T' ≠ T` | 整批 `crossTenant`，什么都不写 | 提交时还没有记录，核对的是会话持有的租户（[S-21](contract.md#s-21-租户与会话范围)、[S-23](contract.md#s-23-提交一批) ②）；**不是** `executionNotFound`：那是对已有记录的读 |
+| `notInForeground` | `build(call_a)` 已转后台，执行者要进一次等待 | 等待原语 | `notInForeground`，执行者自己决定怎么办 | 本版等待只在前台（[S-12](contract.md#s-12-等待) ③）；**不隐式转回前台** |
 | `notInBackground` | `deploy(call_b)` 在前台 | `interrupt(T, ses_1, call_b, agent)` | `notInBackground` | agent 掐掉的是已转后台的执行（[S-25](contract.md#s-25-中断一次执行) ③） |
 | `callIdConflict` | `call_a` 已登记，参数 `{target: x}` | `submit(..., [build(call_a, {target: y})/tok_a'])` | 整批 `callIdConflict` | 同一 `CallId` 不同参数，不是重复提交（[S-23](contract.md#s-23-提交一批) ⑦） |
 | `executionNotFound` | `call_a` 属于 `ses_1`、租户 `T` | `readExecution(T', ses_1, call_a)`，`T' ≠ T` | `executionNotFound` | 不回「属于别的租户」（[S-21](contract.md#s-21-租户与会话范围)） |
@@ -137,7 +139,7 @@
 
 **不是失败值的那一支**：注册表把 `lint` 判为不可用——它是替换件，或所选的那条命令在 `commandAvailability` 里被关掉——`submit(..., [lint(call_d)/tok_d])` 批成立，
 `call_d` 的 `disposition` 是 `ended{unavailable}`，一条 `outcome: unavailable` 的 `ToolMessage` 已交付，块上写替换件的说明或注册表给的原因；执行者不起。
-**不是** `failed`：`failed` 让 agent 以为可以重试，而这个名字在这次尝试里就是用不了（[S-23](contract.md#s-23-提交一批) ④；账本 S13-a）。
+**不是** `failed`：`failed` 让 agent 以为可以重试，而这个名字在这次尝试里就是用不了（[S-23](contract.md#s-23-提交一批) ④；[D-040 §S13 S13-a](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s13tool-execution-runtime报回的)）。
 
 **不是失败值的另一支：参数不合**（[S-23](contract.md#s-23-提交一批) ④ 第 ② 条、[S-11](contract.md#s-11-失败的种类)；场景 [S-61](contract.md#s-61-参数不合即刻失败并带用法)）：
 
@@ -150,3 +152,38 @@
 | `fs(call_h, {command: "peek", args: {anything: 1}})` | `accepted{foreground}` | ——（`peek` 显式写了 `additionalProperties: true`，收任何一个对象，对不对由工具自己判） |
 
 批里其余合格的项照常 `accepted`；**不是** `invalidInput`：那是本操作的输入不合形状，这里是对一次调用的判定。
+
+**不是失败值的第三支：发起即后台而工具不许后台**：`submit(..., [{ call: deploy(call_j), admission: tok_j, environment: env_1, definition: {name: deploy}, startInBackground: true }])` 批成立，
+`call_j` 的 `disposition` 是 `ended{failed}`，记录上种类 `background_start_refused`，一条 `outcome: failed` 的 `ToolMessage` 已交付；执行者不起、外部效果「已确定未发生」。**`submit` 没有逐条失败值**（[S-23](contract.md#s-23-提交一批) ⑤）。
+
+## 9. 提交：判重、解析不了与租户
+
+**多出来的局面**：`call_u` 是一个参数收齐却解析不了的调用块（`tool: "fs"`，参数原文 `{"command": "grep", "args": {"path": "src"`，少一个右括号，按 `data.content-blocks/v1#S-12` 标了 `unparseable`）；`tok_n` 绑定的是 `call_n` 的另一份参数。
+
+| 步 | 调用 | 预期 | 依据 |
+|---|---|---|---|
+| 1 | `submit(T, ses_1, run_1, 1, [build(call_a)/tok_a, fs(call_e, {command: "grep", args: {path: "src", pattern: "TODO", ignore_case: true}})/tok_e, { call: call_u }])` | 批成立：`[call_a: accepted{foreground}, call_e: ended{failed}, call_u: ended{failed}]`；`call_e` 种类 `arguments_invalid`（第 8 节末那张表第一行）；`call_u` 种类 `unparseable`，`ToolMessage` 的块写明参数解析不了——**没有凭据、不查注册表、执行者不起**，外部效果「已确定未发生」 | [S-23](contract.md#s-23-提交一批) ①④、[S-11](contract.md#s-11-失败的种类)、[S-64](contract.md#s-64-参数收齐却解析不了) |
+| 2 | 第 1 步原样再提交一次 | 三行与第 1 步**逐字相同**；没有第二次执行者、没有多一条记录或消息 | [S-23](contract.md#s-23-提交一批) ⑦ |
+| 3 | 第 1 步的三项再加 `deploy(call_n)/tok_n` 一起提交 | 整批 `notAdmitted`；`call_n` 没有记录；**`call_a`、`call_e`、`call_u` 不受影响**（`call_a` 照跑） | [S-23](contract.md#s-23-提交一批) ②⑦ |
+| 4 | `cancelForRun(T, ses_1, run_1, graceful)`，之后第 1 步原样再提交一次 | `call_a` 收场 `interrupted{run_cancelled}`；重放**批成立**，三行仍是第 1 步那三行（`call_a: accepted{foreground}`）——**不是 `alreadyEnded`**：那一批已经收下了；`call_a` 此刻的收场从 `readExecution` 读 | [S-23](contract.md#s-23-提交一批) ⑤⑦、[S-33](contract.md#s-33-读一次执行) |
+| 5 | `submit(T, ses_1, run_1, 1, [build(call_a, {target: y})/tok_a'])`（`call_a` 原参数是 `{target: x}`） | 整批 `callIdConflict`，什么都不写 | [S-23](contract.md#s-23-提交一批) ⑦ |
+| 6 | `submit(T', ses_1, run_1, 1, [build(call_a)/tok_a, build(call_a, {target: y})/tok_a'])`，`T' ≠ T` | 整批 `crossTenant`：**不按幂等返回 `call_a` 的首次结果，也不报 `callIdConflict`**——租户核对在判重之前，别的租户据返回值读不到这个会话里有什么 | [S-23](contract.md#s-23-提交一批) ②、[S-67](contract.md#s-67-租户不符整批不收) |
+| 7 | 会话持有的租户此刻读不到；`submit(T, ses_1, run_1, 1, [build(call_k)/tok_k])` | 整批 `dependencyUnavailable{storage}`：不当作相符放行，也不当作不符拒 | [S-23](contract.md#s-23-提交一批) ⑧、[S-15](contract.md#s-15-缺席时的默认答案) |
+
+**反例**：第 4 步答 `alreadyEnded`——调用方会以为那一批从没进来过，再补一条结果，同一次调用就有了两条结果；第 1 步把 `call_u` 交给 `fs` 的执行者去猜参数，或因为它没有凭据而整批 `notAdmitted`。
+
+## 10. 帧：接受、被拒与收场之后
+
+局面：`build(call_a)` 在前台跑，本能力在起执行者那一下为它开了一份装配状态，目标 `{ kind: tool_execution, callId: call_a }`。帧的写法同 `capability.stream-assembly` v1 的 [examples](../../stream-assembly/v1/examples.md)：`H1M0` 表示 `{"toHuman": true, "toModel": false}`（帧不给模型看，`data.arrival-events/v1#S-23`）。
+
+| 步 | 执行者发帧 | 发帧交回 | 装配状态与观察者 | 依据 |
+|---|---|---|---|---|
+| 1 | `{"t": "open", "index": 0, "kind": "text", "fill": "append", "id": "b_log", "visibility": H1M0}` | `accepted` | 开块 0；推给观察者 | [S-39](contract.md#s-39-发帧) ⑤、[S-62](contract.md#s-62-工具侧到达装配前提的承诺) 第 1、2 条 |
+| 2 | `{"t": "fill", "index": 0, "payload": "compiling…\n"}` | `accepted` | 块 0 多一段；推给观察者 | 同上 |
+| 3 | 再发一次第 1 步那个 `open` | `dropped{ rejected{ index_reused } }` | 状态不变；本能力**紧接着**交一个 `reason: rejected` 的 `trim`，之后才交下一帧；**不推给观察者** | [S-62](contract.md#s-62-工具侧到达装配前提的承诺) 第 4、9 条；`capability.stream-assembly/v1#S-26` |
+| 4 | `{"t": "trim", "reason": "frame_too_long", "omittedBytes": 10}` | `dropped{ notAFrame }` | **不交给装配**：`trim` 只由本能力发 | [S-39](contract.md#s-39-发帧) ③、[S-62](contract.md#s-62-工具侧到达装配前提的承诺) 第 3 条 |
+| 5 | 封块 0：`close` 带块 0 的整块（`kind`、`id`、`visibility` 与开块时相同） | `accepted` | 块 0 封口 | [S-62](contract.md#s-62-工具侧到达装配前提的承诺) 第 2 条 |
+| 6 | 执行者交回 `"built 12 targets"` | ——（交回：`settled{ completed }`） | 本能力交 `finish{ reason: end }` 并收尾结算：块非空 ⇒ 一条 `ToolInternalMessage`，`ending: complete`，与 `ToolMessage` 同一次送达、排在它前面；`frames` 进账恰一次（`emitted` 按 `capability.stream-assembly/v1#S-13` 的算式，第 3 步那个被拒的计进「未原样送达」） | [S-19](contract.md#s-19-送达)、[S-41](contract.md#s-41-交回)、`data.messages/v1#S-14` |
+| 7 | 收场之后又发 `{"t": "fill", "index": 0, "payload": "x"}` | `dropped{ executionEnded }` | 不交给任何状态；留一条记录条目 | [S-62](contract.md#s-62-工具侧到达装配前提的承诺) 第 1 条 |
+
+**两个变体**：一帧不发就交回 ⇒ 没有 `ToolInternalMessage`，账上 `frames.emitted = 0`、各项砍为零；`confirm_plan` 声明了到点、到点时没人答 ⇒ 收场 `no_answer`，本能力对装配状态调 `abandon`，有块时 `ending: lost`——**不是 `interrupted`**：没有谁决定让它停下（[S-39](contract.md#s-39-发帧)、`data.messages/v1#S-14`）。

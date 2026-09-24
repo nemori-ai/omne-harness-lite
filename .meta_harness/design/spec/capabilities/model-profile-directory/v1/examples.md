@@ -23,7 +23,7 @@
 | 步 | 调用 | 预期 | 依据 |
 |---|---|---|---|
 | 1 | 装入清单 #1 | `dispositions`：两条都是 `added`；两行 `listed`，`updatedAt` = 提交时刻 | [S-18](contract.md#s-18-loadmanifest) |
-| 2 | 原样重装清单 #1 | 同样的 `dispositions`（两条 `added`），**什么都没写**、`updatedAt` 不动 | [S-18](contract.md#s-18-loadmanifest) ⑦ |
+| 2 | 原样重装清单 #1（其间目录的提供者重启过也一样） | 同样的 `dispositions`（两条 `added`）——**交回的是第 1 步记下的那一份**，不是按当前行重算出的两条 `unchanged`；**什么都没写**、`updatedAt` 不动 | [S-18](contract.md#s-18-loadmanifest) ⑦、[S-8](contract.md#s-8-官方档案清单与发布序号) |
 | 3 | 装入清单 #2：`ordinal = 2`，只含 `openai/gpt-5`（`maxOutputTokens` 改大）与新条目 `google/gemini-3-pro` | `openai/gpt-5` → `updated`、`updatedAt` 推进；`google/gemini-3-pro` → `added`；`anthropic/claude-sonnet-5` → `withdrawn`，发一次 `profile.withdrawn` | [S-18](contract.md#s-18-loadmanifest) 处置表、[S-21](contract.md#s-21-profilewithdrawn-是通知) |
 | 4 | 再装清单 #1（回滚部署） | **`manifestNotNewer`**，什么都不变——`google/gemini-3-pro` **没有**被撤回 | [S-8](contract.md#s-8-官方档案清单与发布序号)、[S-18](contract.md#s-18-loadmanifest) ⑦ |
 | 5 | 装入清单 #3：`ordinal = 3`，含 `anthropic/claude-sonnet-5`（内容同清单 #1）、`openai/gpt-5` 与 `google/gemini-3-pro`（内容同清单 #2） | `anthropic/claude-sonnet-5` → **`relisted`**：**原来那一行**回到 `listed`（同一个引用），`updatedAt` 不动，不发事件；另两条 `unchanged` | [S-18](contract.md#s-18-loadmanifest) 处置表、`data.model-profile/v1#S-10` |
@@ -89,13 +89,17 @@ B 给自己的租户层配了 `K_B`；B 在个人组织 `P` 里给 `T_P` 配了 
 | `listProfiles(T_C)` | `vendor/new-model` 出现**两次**：`{origin: official, routeName: "vendor/new-model"}` 与 `{origin: custom, scope: organization(Q), routeName: "vendor/new-model"}`，靠引用里的来源与范围分得开 | [S-17](contract.md#s-17-listprofiles) ⑤ |
 | `listProfiles(T_A)` | 只有官方那一条——`Q` 的组织层不在 `O` 的链上 | [S-6](contract.md#s-6-范围链) |
 | `registerProfile(T_C, organization(Q), {routeName: "acme/finetune-7b", …})` | **成功**——不在 `O` 组织层那一格；判定不读别的格，C 也就探不到 `O` 建过这个名字 | [S-14](contract.md#s-14-registerprofile) ④ |
-| `registerProfile(T_A, tenant(T_A), {routeName: "acme/finetune-7b", …})` | **成功**——A 的租户层与 `O` 的组织层不是同一格（读法待产品负责人确认，[G-11](contract.md#十已知缺口)） | [S-14](contract.md#s-14-registerprofile) ④、`data.model-profile/v1#S-3` |
+| `registerProfile(T_A, tenant(T_A), {routeName: "acme/finetune-7b", …})` | **成功**——A 的租户层与 `O` 的组织层不是同一格；同名并存，谁生效按层覆盖（[S-17](contract.md#s-17-listprofiles) 末段） | [S-14](contract.md#s-14-registerprofile) ④、`data.model-profile/v1#S-3` |
+| `胜出行(T_C, "vendor/new-model", A₁)`，`A₁` 含 `"vendor/new-model"` | `Q` 组织层那条自建——两条都在册、名字允许，取最具体一格 | [S-17](contract.md#s-17-listprofiles) 末段 |
+| `胜出行(T_C, "vendor/new-model", A₂)`，**同一个 `T_C`** 的另一个会话格，`A₂` 不含它 | **没有胜出行**；落点是 `Q` 组织层那条，收场「这个范围不允许」——**同一租户同一路由名，胜出行随 `A` 变**，按 `(T, r)` 缓存的实现在这里答错 | 同上 |
+| 允许集合读不到时求 `胜出行(T_C, "vendor/new-model", ·)` | **读的一方以失败收场**，不拿 `∅`（全拒）或全集（全放）顶替 | 同上 |
 
 ## 6. 每个失败值一个反例
 
 | 失败值 | 调用 | 为什么 | 依据 |
 |---|---|---|---|
-| `invalidInput{malformed}` | `registerProfile(T_A, organization(O), {…, registration: listed})` | 建档内容带了 `registration`，由目录写、不由调用方给 | [S-14](contract.md#s-14-registerprofile) ①⑧ |
+| `invalidInput{malformed}` | `registerProfile(T_A, organization(O), {…, registration: listed})` | 建档内容带了 `registration`，由目录写、不由调用方给（`data.model-profile/v1#S-28`）；带 `updatedAt` 同样 | [S-14](contract.md#s-14-registerprofile) ①⑧ |
+| `invalidInput{origin_not_custom}` | `registerProfile(T_A, organization(O), {…, origin: official})` | 建档只收自建档案；官方档案只经清单装入。**不是 `malformed`**——那份文档本身合形状 | [S-14](contract.md#s-14-registerprofile) ⑧ |
 | `invalidInput{route_name_empty}` | `readProfile(T_A, {origin: official, routeName: ""})` | 引用过不了 `data.model-profile/v1#S-24` | [S-9](contract.md#s-9-缺席时的默认答案) |
 | `invalidInput{malformed}` | `resolveCredential(T_A, official, ask = "secret")` | 问法不在两值之内 | [S-9](contract.md#s-9-缺席时的默认答案) 判别式闭合 |
 | `invalidInput{malformed}` | `resolveCredential(T_D, 缺 origin, value)` | 来源必给，**缺它不当作「官方」**——否则自建档案会借缺席用上出厂格那一把 | [S-20](contract.md#s-20-resolvecredential) ⑧ |
@@ -110,9 +114,10 @@ B 给自己的租户层配了 `K_B`；B 在个人组织 `P` 里给 `T_P` 配了 
 | `credentialUnavailable` | 见第 4 节第 5 步 | 自建档案、这个租户没配自己那一把——出厂格那一把配没配都不取 | [S-20](contract.md#s-20-resolvecredential) ⑤⑧ |
 | `unavailable` | `registerProfile(T_A, …)`，成员资格判定以 `unavailable` 失败 | 读不到 ≠ 无权，**不折成 `notAuthorized`** | [S-10](contract.md#s-10-配置资格谁能在哪一格写) |
 
-**判定次序的两条回归例：**
+**判定次序的三条回归例：**
 
 | 调用 | 预期 | 为什么不是另一个 |
 |---|---|---|
 | `registerProfile(T_B, organization(O), {routeName: "acme/finetune-7b", …})` | `notAuthorized` | `O` 的组织层里确有这个名字，但授权先于名字判定——无权者拿不到 `routeNameTaken`（[S-14](contract.md#s-14-registerprofile) 末段） |
+| 同上，**成员资格判定以 `unavailable` 失败**（故障注入） | **`unavailable`** | 授权判不出来，名字不再判：`unavailable` 排在 `routeNameTaken` 之前（[S-13](contract.md#s-13-这一节每个操作写全九件事)）。**得到 `routeNameTaken` 即违约**——那是把名字交给了一个没判出有权的调用方 |
 | `withdrawProfile(T_C, {origin: official, routeName: "openai/gpt-5"})` | `officialProfileReadOnly` | 结构性禁止先于授权（[S-15](contract.md#s-15-withdrawprofile) 末段）；`updateProfile`、`relistProfile` 同样先于授权 |

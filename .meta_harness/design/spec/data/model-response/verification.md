@@ -3,24 +3,25 @@
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
 > **当前状态：未开始。**`data.model-response` v1 是 `candidate`（2026-09-23 起草），未接受、未冻结；没有提供者设计、没有源码、没有装配。
-> 下表登记的是**已经触发的证据义务**，不是已完成的检查。起草时一条都未执行；**整批对齐（2026-09-24）跑过一次 V-1 的本地自检**（只判通过与拒绝，见[结果与反例](#结果与反例)），其余义务仍未开始。
+> 下表登记的是**已经触发的证据义务**，不是已完成的检查。起草时一条都未执行；**V-1 的本地自检跑过三次**（整批对齐、凭据对齐、第一轮评审修复，都只判通过与拒绝，见[结果与反例](#结果与反例)），其余义务仍未开始。
 
 ## 证据义务
 
 | # | 义务 | 证据形式 | 覆盖哪些条款 | 实际状态 |
 |---|---|---|---|---|
-| V-1 | **形状校验**：[`examples.md`](v1/examples.md) 第一、二节的每个 JSON 块过根模式，结果与块前的「预期」逐一对上；拒绝的那些还要核对给出的拒绝值符合 [S-27](v1/contract.md#s-27-表示层拒绝值) 的次序 | Draft 2020-12 校验器；需要五份依赖契约的 Schema 已就位 | [S-6](v1/contract.md#s-6-responseid)～[S-15](v1/contract.md#s-15-故障的成因与原样状态码)、[S-17](v1/contract.md#s-17-首-token-与时序)、[S-19](v1/contract.md#s-19-用量与费用)、[S-20](v1/contract.md#s-20-上游原始响应留存)、[S-26](v1/contract.md#s-26-schema-的范围)、[S-27](v1/contract.md#s-27-表示层拒绝值) 的**形状那一面** | **本地自检已跑一次**（整批对齐，2026-09-24）：35 个块，0 处不符；**给的是哪一个拒绝值没有机判**，只由人按 S-27 次序逐块核过 |
+| V-1 | **形状校验**：[`examples.md`](v1/examples.md) 第一、二节的每个 JSON 块过根模式，结果与块前的「预期」逐一对上；拒绝的那些还要核对给出的拒绝值符合 [S-27](v1/contract.md#s-27-表示层拒绝值) 的次序 | Draft 2020-12 校验器；需要五份依赖契约的 Schema 已就位 | [S-6](v1/contract.md#s-6-responseid)～[S-15](v1/contract.md#s-15-故障的成因与原样状态码)、[S-17](v1/contract.md#s-17-首-token-与时序)、[S-19](v1/contract.md#s-19-用量与费用)、[S-20](v1/contract.md#s-20-上游原始响应留存)、[S-26](v1/contract.md#s-26-schema-的范围)、[S-27](v1/contract.md#s-27-表示层拒绝值)、[S-35](v1/contract.md#s-35-晚到的那一条) 的**形状那一面** | **本地自检，最近一次在第一轮评审修复（2026-09-24）**：42 个块（通过 13、拒绝 29），0 处不符；**给的是哪一个拒绝值没有机判**，只由人按 S-27 次序逐块核过 |
 | V-2 | **两次发出、两条响应体、两笔钱**（[S-29](v1/contract.md#s-29-两次发出两条响应体两笔钱)） | 规范场景演练：注入上游 503，默认重试挂件换一家 | [S-4](v1/contract.md#s-4-一次调用一次发出一条响应体)、[S-8](v1/contract.md#s-8-第几次发出)、[S-19](v1/contract.md#s-19-用量与费用)、[S-23](v1/contract.md#s-23-同一次调用的响应体序列)、[S-24](v1/contract.md#s-24-一条响应体对应上游的一次请求) | **未开始。**需要模型请求运行时的提供者。**必须数响应体的条数**——只看最后一条成功，一个把失败的那次吞掉的实现看起来完全正常 |
 | V-3 | **首 token 之后的故障**（[S-30](v1/contract.md#s-30-首-token-之后的故障)），且换上一件「见 429 就重试」的挂件 | 规范场景演练 ＋ 故障注入（流吐出一段之后断开） | [S-13](v1/contract.md#s-13-收场与其余成员的条件关系)、[S-14](v1/contract.md#s-14-回复与已交付部分)、[S-15](v1/contract.md#s-15-故障的成因与原样状态码)、[S-17](v1/contract.md#s-17-首-token-与时序)、[S-23](v1/contract.md#s-23-同一次调用的响应体序列) | **未开始。**「换上一件会乱重试的挂件」是这条的全部分量：默认挂件本来就不会重试，只跑默认的证明不了「挂件推翻不了」 |
 | V-4 | **用户中断的两支**（[S-31](v1/contract.md#s-31-用户中断的两支)），同一次演练里跑 | 规范场景演练 | [S-12](v1/contract.md#s-12-收场)、[S-13](v1/contract.md#s-13-收场与其余成员的条件关系) | **未开始** |
 | V-5 | **没发出去的调用没有响应体**（[S-32](v1/contract.md#s-32-没发出去的调用没有响应体)）；另加一条**写入者检查**：代码里没有任何一处给响应体写 `withdrawn`、`scope_disallowed`、`modality_mismatch` | 规范场景演练 ＋ 写入者的静态检查（形式归 realization） | [S-4](v1/contract.md#s-4-一次调用一次发出一条响应体)、[S-16](v1/contract.md#s-16-发出了的才有响应体) | **未开始** |
-| V-6 | **参数不静默丢**（[S-33](v1/contract.md#s-33-参数不静默丢)） | 规范场景演练：带一项传输适配认不得的统一参数，同时抓发往上游的请求体 | [S-11](v1/contract.md#s-11-交给传输适配的参数与没发出去的项) | **未开始。**必须同时看响应体与真实请求体；只看响应体，一个「列了名字但其实发出去了」的适配层也会通过 |
+| V-6 | **参数不静默丢、不静默改**（[S-33](v1/contract.md#s-33-参数不静默丢不静默改)）三支：认不得的统一项、认不得的 `extra` 项、上游只认更窄取值域而改值 | 规范场景演练，同时抓发往上游的请求体 | [S-11](v1/contract.md#s-11-实际发出的参数改过的值与没发出去的项) | **未开始。**必须同时看响应体与真实请求体；只看响应体，一个「列了名字但其实发出去了」或「记的值不是发出去的值」的适配层也会通过 |
 | V-7 | **凭据不进响应体**（[S-34](v1/contract.md#s-34-凭据不进响应体)） | 故障注入：上游错误原文与响应头里带已知凭据样式文本 | [S-21](v1/contract.md#s-21-写入之前脱敏) | **未开始，且判据受阻于 [G-5](v1/contract.md#七已知缺口)**：脱敏规则未定，只能用「已知凭据原文不出现」一种判法 |
 | V-8 | **无隐藏重试**：在传输层注入一次可重试的失败，数上游实际收到的请求数与写下的响应体条数，两者相等 | 提供者设计核对（传输适配是否指定单家、禁止回退）＋ 规范场景演练 | [S-24](v1/contract.md#s-24-一条响应体对应上游的一次请求) | **未开始。**需要 pi-ai 定向 fork 的传输适配（D-019）；比较门里「无隐藏重试」那一项与这里是同一件事，**各自记结果，不互相顶替** |
-| V-9 | **写入者的跨字段约束**：`reply.response = id`；三个时刻的先后；`upstreamModel` 不被冒填；`provider` 在档案允许的供应商里；`unrecognized` 带痕迹；`ResponseId` 不取上游 id | 写入者的单元与契约测试（形式归 realization） | [S-6](v1/contract.md#s-6-responseid)、[S-9](v1/contract.md#s-9-路由留痕)、[S-14](v1/contract.md#s-14-回复与已交付部分)、[S-15](v1/contract.md#s-15-故障的成因与原样状态码)、[S-17](v1/contract.md#s-17-首-token-与时序) | **未开始。**这些条款**全在 Schema 之外**（[examples.md 第三节](v1/examples.md#三schema-挡不住但同样非法的)），V-1 全绿也不支持其中任何一条 |
+| V-9 | **写入者的跨字段约束**：`reply.response = id`；`id` 就是「已出门」上定下的那一个，写响应体的各方沿用；`firstTokenAt` 与「已开口」一致；三个时刻的先后；`upstreamModel` 不被冒填；`provider` 在档案允许的供应商里、第一次发出是第一家、不许回退时恒是第一家；`droppedParameters`／`parameterAdjustments`／`parameters` 三处对得上；`unrecognized` 带痕迹；`ResponseId` 不取上游 id | 写入者的单元与契约测试（形式归 realization） | [S-6](v1/contract.md#s-6-responseid)、[S-9](v1/contract.md#s-9-路由留痕)、[S-11](v1/contract.md#s-11-实际发出的参数改过的值与没发出去的项)、[S-14](v1/contract.md#s-14-回复与已交付部分)、[S-15](v1/contract.md#s-15-故障的成因与原样状态码)、[S-17](v1/contract.md#s-17-首-token-与时序) | **未开始。**这些条款**全在 Schema 之外**（[examples.md 第三节](v1/examples.md#三schema-挡不住但同样非法的)），V-1 全绿也不支持其中任何一条 |
 | V-10 | **同一次调用的序列性质**：对任意一次调用读全部响应体，核对 `dispatch` 不重不跳、只有策略那一类失败之后才有下一条、`reply` 至多一条且在最后 | 对演练产生的日志做序列核对；需要时由能力契约的行为模型承担 | [S-8](v1/contract.md#s-8-第几次发出)、[S-23](v1/contract.md#s-23-同一次调用的响应体序列) | **未开始。**停机那一支的补写者与收场已由 `capability.model-request-runtime` v1 S-33 给出（原 G-7） |
 | V-11 | **首 token 缺席是断言**：让运行时在首 token 之后、写响应体之前停机，恢复后核对没有任何一条把这一次写成「没开口」 | 故障注入（杀进程）＋ 恢复演练 | [S-18](v1/contract.md#s-18-首-token-缺席是一条断言) | **未开始**：停机后谁补写、首 token 怎样判得出，已由 `capability.model-request-runtime` v1 S-33、S-15 给出（原 G-7），演练需要它的提供者 |
 | V-12 | **写下即不变**：补账之后原响应体逐字不变；原始响应附件被清理之后响应体逐字不变 | 规范场景演练 | [S-19](v1/contract.md#s-19-用量与费用)、[S-20](v1/contract.md#s-20-上游原始响应留存)、[S-22](v1/contract.md#s-22-写下即不变) | **未开始** |
+| V-14 | **晚到的那一条标 `late`**：①让属于某个运行的调用在「已出门」之后、响应体写下之前停机，新的一次尝试对账补写——核对那一条带 `late: true`、`attemptId` 是出门所在的那次尝试、承载它的条目归到哪一组；②一次尝试被取代时让一次发出仍在途，之后结算——同样带 `late`；③当场写下的、尝试仍是当前的那一条**不带** `late`；④不属于任何运行的调用停机后补写的那一条不带 `late` | 故障注入（杀进程）＋ 恢复演练 ＋ 栅栏演练 | [S-8](v1/contract.md#s-8-第几次发出)、[S-35](v1/contract.md#s-35-晚到的那一条) | **未开始。**需要模型请求运行时与尝试栅栏的提供者；③④是反向断言——一个「补写的一律标 `late`」的实现过得了①却过不了④ |
 | V-13 | **回复在落盘之前被否决**（[examples.md E-8](v1/examples.md#e-8-同一个-run-里前后两次调用前一次的回复被否决) 的场景）：挂一件对第一份回复必定否决的拓展件，核对①那次调用以 `complete`／`truncated` 加 `replyDisposition = { vetoed }` 结束、不带 `failure`；②**这次调用没有第二条响应体**，再试的那一条属于一个新的 `callId`、`dispatch = 1`；③被否决那份 `reply.id` 在会话日志里找不到消息，落盘那份找得到；④两笔用量与费用都在账上 | 规范场景演练；需要 `data.loop-extension` 的否决落点与模型请求运行时的提供者 | [S-13](v1/contract.md#s-13-收场与其余成员的条件关系)、[S-14](v1/contract.md#s-14-回复与已交付部分)、[S-17](v1/contract.md#s-17-首-token-与时序)、[S-19](v1/contract.md#s-19-用量与费用)、[S-23](v1/contract.md#s-23-同一次调用的响应体序列) | **未开始。**②是这条的分量：把再试写成同一调用的 `dispatch = 2`，Schema 放得过（[examples.md 第三节](v1/examples.md#三schema-挡不住但同样非法的)），只有数 `callId` 才看得出首 token 规则被开了例外 |
 
 ## 已知缺口
@@ -30,10 +31,21 @@
 - **pi 传输层不读 OpenRouter 的真实费用。**pi 钉 `3390bd9` 的传输层（`packages/ai/src/api/openai-completions.ts` 的 `parseChunkUsage` 与 `anthropic-messages.ts`）
   **只从上游读四类 token，费用按本地价目表算（`calculateCost`）**，不读 OpenRouter 回的 `usage.cost`。
   所以 [D-019](../../../record/decisions/model-provider-pi-ai-fork/decision.md)「实际费用不能被目录估算冒充」在 fork 时要**自己加**：请求带 `usage: { include: true }`，响应读 `usage.cost` 与 `cost_details`。
-- **这两个字段名出自 OpenRouter 的用量核算文档，未钉存取证。**owner：块 C 提供者设计；闭合条件：钉 SDK 版本时一并取证，结果回填本节。
+- **这两个字段名出自 OpenRouter 的用量核算文档，未钉存取证。**owner：模型请求运行时的提供者设计；闭合条件：钉 SDK 版本时一并取证，结果回填本节。
 - **在这之前，任何实现写出来的 `cost_usd` 若来自本地价目表，都违反 [S-19](v1/contract.md#s-19-用量与费用) 第 2 条**——它必须是 `unknown`，而不是一个估算值。
 
 ## 结果与反例
+
+### 本地自检：Schema 正反实例（第一轮评审修复，2026-09-24）
+
+**工具**：CPython ＋ `jsonschema`（`Draft202012Validator`）＋ `referencing`，按仓库 `uv.lock`（`uv run --locked`），设计树下全部 `*.schema.json` 按 `$id` 建 registry；脚本在会话暂存区，不入库。
+**输入**：[`examples.md`](v1/examples.md) 第一、二节每个 JSON 块作根模式实例（第四节那条 `CostCorrection` 不是响应体，不参与）。
+
+| 预期通过 | 预期拒绝 | 不符 |
+|---|---|---|
+| 13（E-1～E-12，E-6／E-7、E-8a／E-8b 各两块） | 29（R-1～R-29） | **0** |
+
+**只判通过与拒绝**：拒绝值是哪一个仍由人按 S-27 次序逐块核（校验器报的错落在哪一支）；新增的 R-25～R-29 各恰违反一处。第三节不参与。**这不是 V-2 以后任何一条义务的证据。**
 
 ### 本地自检：Schema 正反实例（整批对齐，2026-09-24）
 
@@ -126,9 +138,70 @@
   - [G-8](v1/contract.md#七已知缺口) 若结论是「上游仍可能换家」，要加一个成员，接受之后发新版本。
   - 跨进程演化（[S-25](v1/contract.md#s-25-装配给的保证与协议须给的保证) 右列转为协议给）：语义边界改变，发新版本；本版的全部证据只保留其单机范围。
 - **（2026-09-24 核 PF-013 rev 12，不改语义）**：头部产品依据保持 rev 11，注明 rev 12（同名按层覆盖、设置记路由名）不改本契约条款——`route.profile` 记的仍是有效模型那一行（`ModelProfileRef`），`selectedBy` 不变。对证据无影响。
+- **2026-09-24 第一轮独立评审修复（候选，未冻结，原地改）**。评审见下节；主线对跨契约冲突的裁定按主线修复简报落。改动：
+
+  | 改了什么 | 条款 | Schema | 实例 |
+  |---|---|---|---|
+  | **`route.parameters` 改记实际发出的值**；新增 `route.parameterAdjustments: [{ name, requested, sent }]` 记改值；`droppedParameters` 含 `extra` 项的键（原约束 3「`extra` 不进 `droppedParameters`」删去）；「要求的那一组」怎样还原、实际发出的值要在统一词表里表示得出 | S-11 重写并改名（锚点 `#s-11-实际发出的参数改过的值与没发出去的项`）；S-3、S-9、S-25 新增一行、S-26、S-33 三支 | `Route.parameters` 说明改写；新增 `Route.parameterAdjustments` 与 `$defs/ParameterAdjustment` | E-2 的 `parameters` 去掉 `seed`；新增 E-12、R-28、R-29 |
+  | **新增 `late`**：只取 `true`、缺席即不晚、只在带 `call.runId` 的那一条上；条件与含义照 `data.call-accounts/v1#S-39` | 新增 S-35；S-8、S-22、S-25 新增一行、S-26、S-27、性质表 | `ModelResponse.late`；`allOf` 加一支 `malformed` | E-10 加 `late: true`；新增 R-25、R-26 |
+  | **`ResponseId` 由模型请求运行时在写「已出门」时铸**，写响应体的各方沿用 | S-6、S-25 那一行 | `ResponseId` 说明 | — |
+  | **归属的权威是承载本条的条目**；`attemptId` 是出门所在尝试的事实、不作归属 | S-3、S-5、S-7、S-8、S-19 | `AttemptId`、`attemptId` 说明 | E-10 说明；第三节加一行；第四节改写 |
+  | `initiator` 只指中断发起方，与别处同名的发起者分开 | S-12、成员表 | — | — |
+  | 重试挂件不读响应体，只凭 `data.loop-extension/v1#S-14` 的失败主体；响应体序列是那份主体背后的事实 | S-3、S-5、S-23 | — | — |
+  | `persisted` 那一条由调用方写；`vetoed`／`consumed` 那一条与其余由运行时写 | S-3 | — | — |
+  | 「调模型之后」按 `outcome` 与 `replyDisposition` 判；`consumed` 触不触发登 **G-14** | S-5、第七节 | — | — |
+  | 中断提醒对 `truncated` 同样补 | S-5 | — | — |
+  | 停机恢复读「已开口」记录，不读响应体；首 token 之后停机即被中断、原因运行时失联；指向已关闭 G-7 的三处改为指向兑现它的条款 | S-3、S-5、S-17、S-18、S-25、G-7 行 | — | — |
+  | `provider`：第一次发出走第一家、不许回退时恒是第一家 | S-9 | `Route.provider` 说明 | 档案快照按路由名各取一份（E-2、E-3、E-8a、E-8b 及以它们为底的 R-8、R-16、R-18、R-20）；第三节加一行 |
+  | 出厂格凭据只配官方档案，Schema 管得到 | S-9、S-26、S-27 | `allOf` 加一支 `malformed` | 新增 R-27 |
+  | `selectedBy = session` 的定义补「会话格之上没有锁」，含沿层级继承来的名字；按 PF-013 rev 12 写成「名字从哪来」 | S-10 | `SelectedBy` 说明 | — |
+  | 词条：「一次发出」「模型响应体」「中断提醒」链到词条；「响应体」是本契约内的简称；S-20 改说「上游原始响应的字节」 | S-4、S-5、S-20、S-22 | `RawResponse` 说明 | — |
+  | 依据落持久记录：设计依据表与条内的「主线裁定 2026-09-2x、账本／读数报回／对账块」一律改为 D-040 小节链接或产品小节；缺口 owner 里的施工标签换成能力或提供者设计的名字；S-27 里关于账本括注的一段删去（历史在本节） | 设计依据表、S-7、S-9、S-12、S-13、S-14、S-19、S-23、S-27、第七节 | `CredentialScope` 说明 | — |
+  | 机械修正：S-13 表「六行」→ 七行（性质表、README）；S-19「四件事」→ 五件事；S-15 形状行与 S-21 覆盖清单补 `localError` | S-13 性质表、S-15、S-19、S-21 | — | 第三节两行并成一行的那处拆开；R-8 补回底例的 `replyDisposition`；R-20／R-21／R-23 改回按底例（E-3、E-9）写；「为了短」的删减写全 |
+
+  **产品依据复核（逐版读 changelog）**：
+  - **PF-013 rev 11 → 12**：rev 12 定「用哪个模型」记路由名、同名按层覆盖、锁锁的是名字。`route.profile` 记的仍是落到的那一行；**`selectedBy` 的定义改写为「名字从哪来」**（S-10）。其余条款不受影响。
+  - **PF-009 rev 7 → 8**：①「这次尝试的账」统一为「那次模型调用的账」——S-13、S-14 三处措辞随之改；②「已经开口」是账、最终的那一条引用它——S-17 写明本条经 `(call.callId, dispatch)` 指回「已开口」记录、`firstTokenAt` 与它相同，不另存指针；③ `SystemMessage` 不落日志、工具帧收尾、入站语音——不涉及本契约。
+  - **PF-004 rev 10 → 12**：I-4 的时间尺度（rev 11）、构成变小也重新装配（rev 12）。本契约引用的 §6.6 与 I-5 未变，**条款不改**。
+  - **PF-012 rev 10 → 14**：rev 11 的 I-11 收窄（迟到的账照样落、归这个 Run、标明迟到）落为 **S-35 `late`**；rev 11 的落盘前否决（调用照常结束、不交给重试挂件、另起新调用）本契约已有（S-13、S-14、S-23）；rev 11 的恢复对账两行本契约已有（S-12、S-23）；rev 12 的拓展件不可用处置、rev 13–14 的转换件不是资产——**不涉及本契约**。
+  - **PF-001 rev 16 → 17**：§6.4 末尾补「实际费用拿不到时记什么，归 PF-013」——与 S-19 第 2 条一致，**条款不改**；其余（权限锁的是界、提升不动持有）不涉及本契约。
+  - **PF-011 rev 4**：已是当前 rev。
+
+  catalog：本契约依赖的条款补齐（`data.call-accounts` 加 S-22、S-23、S-39；`data.content-blocks` 加 S-13；`data.messages` 加 S-21、S-49；`data.model-profile` 加 S-6、S-20、S-21；`data.loop-extension` 加 S-2、S-14、S-25）。`data.identity-values` 的 S-33 **不登**：S-28 写的是本契约自己的规矩，「与 S-33 同一规矩」是类比，不是据以写出的消费。
+  covers：各条 note 的 rev 改到当前、过时的说法（G-7 登记、G-12 未定、重试挂件读响应体、参数留痕、有效模型「怎么来的」）改写；按设计依据表补登几条缺的条款（§5.5 补 S-8、S-23，flows §3.2 补 S-16，「选中模型与有效模型」补 S-9，「它看得到什么」补 S-5、S-23，§5.13 补 S-12、S-35）；新增一条 PF-012 §6.17 → S-35。全部 `reviewed: false`。
+  **对证据的影响**：V-1 按新 Schema 重跑（上节，42 块 0 处不符）；V-6、V-9 的判据扩大；新增 V-14。
 
 结果不改写规范。发现语义问题回到来源设计（PF-013／PF-009／PF-012），不在这里改契约。
 
+## 独立评审
+
+**第一轮**：reviewer 为 spec-reviewer（独立、只读），日期 2026-09-24，基线 HUB `765b01dc`；发现表是那一轮的任务区产物（MR-1～MR-20、与 `data.model-profile` 共有的 MP-14）。处置在 2026-09-24 第一轮修复里落（见上节最后一条）：
+
+| 发现 | 严重度 | 处置 | 落点 |
+|---|---|---|---|
+| MR-1 参数留痕两份契约各说各的 | 阻断 | **改**：`parameters` 记实际发出的值；新增 `parameterAdjustments`；`droppedParameters` 含 `extra` 项（主线裁定） | S-11、S-9、S-26、S-33；Schema `Route`、`ParameterAdjustment`；E-2、E-12、R-28、R-29 |
+| MR-2 `late` 无处可写 | 阻断 | **改**：加 `late`（只取 `true`，缺席即不晚，只在属于运行的那一条上） | 新增 S-35；S-8、S-25、S-27；Schema；E-10、R-25、R-26 |
+| MR-3 `ResponseId` 谁在何时铸 | 阻断 | **改**：运行时在写「已出门」时铸，写响应体的各方沿用 | S-6、S-25；Schema 说明 |
+| MR-4 归属两个权威 | 应修 | **改**：权威是条目壳，`attemptId` 只是事实 | S-7、S-8、S-19；examples 第四节、E-10 |
+| MR-5 重试挂件读不读响应体 | 应修 | **改**：它只凭失败主体；序列是主体背后的事实 | S-3、S-5、S-23 |
+| MR-6 「调模型之后」的维度对应 | 应修 | **改**：按 `outcome` 与 `replyDisposition` 判，`vetoed` 不触发；`consumed` 登 **G-14**（owner `data.loop-extension`） | S-5、第七节 |
+| MR-7 停机恢复几处过时 | 应修 | **改**：恢复读「已开口」；指向 G-7 的三处与「待产品修订」一句改写 | S-3、S-5、S-18、S-25、G-7 行 |
+| MR-8 `provider` 约束不全、正例违反 | 应修 | **改**：写全 model-profile S-5／S-6；实例的档案快照按路由名各取一份，第一家就是第一次发出那一家 | S-9；E-2、E-3、E-8a、E-8b、R-8、R-16、R-18、R-20；第三节一行 |
+| MR-9 `truncated` 补不补中断提醒 | 应修 | **改**：补（以 `data.messages/v1#S-10` 为准） | S-5 |
+| MR-10 「六行」 | 应修 | **改**：七行 | 性质表、README |
+| MR-11 产品依据 rev 过期 | 应修 | **改**：逐版复核后对到当前 rev（复核内容见上节）；PF-009 rev 8 的措辞与「引用已开口」落到 S-13、S-14、S-17 | 抬头、S-13、S-14、S-17 |
+| MR-12 统一语言 | 应修 | **改**：词条批已立「模型响应体」（UL-model-response），本契约链它并声明「响应体」为本契约内简称；链一次发出、首 token、中断提醒；「上游原始响应留存」按词条注意 ② 不立 | S-4、S-5、S-20；本页「对齐义务」 |
+| MR-13 依据只在任务区账本 | 应修 | **改**：一律改指 D-040 小节或产品小节；账本括注那段删去，历史在上节 | 设计依据表与各条 |
+| MR-14 `vetoed`／`consumed` 由谁写 | 应修 | **改**：`persisted` 那一条由调用方写，另两种由运行时写（提交归那份能力契约） | S-3 |
+| MR-15 `session` 的定义漏一种情形 | 建议 | **改**：补「会话格之上没有锁，含沿层级继承来的名字」 | S-10；Schema 说明 |
+| MR-16 `localError` 漏写；「四件事」 | 建议 | **改** | S-15、S-19、S-21 |
+| MR-17 catalog 少登 | 建议 | **改**：补登 call-accounts S-22／S-23／S-39、content-blocks S-13、messages S-21／S-49、model-profile S-6／S-20／S-21、loop-extension S-2／S-14／S-25。**不改**：identity-values S-33——S-28 与它是同一规矩的类比，按 registry 口径类比不登 | registry `catalog.json`；抬头依赖表 |
+| MR-18 实例的机械错误与计数 | 建议 | **改**：拆开并成一行的两行；R-20／R-21／R-23 按底例重写；R-8 补回 `replyDisposition`；「为了短」写全；V-1 计数按实际（42 块） | examples 第二、三节；本页 V-1 与结果表 |
+| MR-19 出厂格只供官方档案 | 建议 | **改**：写成 Schema 管得到的跨成员约束 | S-9、S-27；Schema；R-27 |
+| MR-20 `initiator` 同名不同义 | 建议 | **改**：S-12 注明只指中断发起方，发起者由条目给 | S-12 |
+| MP-14 `Instant` 不在 offer-expiry S-22 的表里 | 建议（两份共有） | **改说明，不改登记**：依赖表写明依据是 S-22 末句加上它的 Schema `$defs`；offer-expiry 已冻结 | 抬头依赖表 |
+
 ## 对齐义务
 
-- **词条链接待合流后补**（2026-09-24 整批对齐）：正文里「一次发出」原标「无词条」，词条批已立为词条，本包已改用正式名、去掉标记；那几条词条在 HUB 上、本分支看不到，**链接待合流后补**（主线）。
+- **词条链接已补**（第一轮评审修复）：「一次发出」链 [UL-upstream-send](../../../ubiquitous_language/terms/execution-and-outcome.md#ul-upstream-send--一次发出--upstream-send)，「首 token」链 [UL-first-token](../../../ubiquitous_language/terms/execution-and-outcome.md#ul-first-token--首-token--first-token)，「响应体」是 [UL-model-response](../../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-response--模型响应体--model-response)（模型响应体）在本契约内的简称；「上游原始响应留存」按那条词条的注意 ② 不立词条，是它身上的一项属性。
+- **跨契约同一件事的另一半**（本包不改对方的文件，由主线核对两边）：`capability.model-request-runtime` 的「已出门」铸 `ResponseId`、`route.parameters` 记实际发出的值、`vetoed`／`consumed` 的响应体由它写、`late` 的判定；`data.call-accounts` S-39 与本包 S-35 同一个标记；`data.loop-extension` S-23「它实际发出的参数留痕在响应体」与 S-2 对 `consumed` 的触发（本包 G-14）；`data.messages` S-10／S-21 的中断提醒对 `truncated` 同样补。

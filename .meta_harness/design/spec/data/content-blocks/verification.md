@@ -4,21 +4,21 @@
 
 > **当前状态：未开始。**`data.content-blocks` v1 是 `candidate`，未接受、未冻结；尚无提供者设计、尚无源码、尚无装配。
 > 下表登记的是**已经触发的证据义务**，不是已完成的检查。
-> **Schema 正反实例只跑过一次本地自检**（2026-09-23 对齐波，见[本地自检](#本地自检)）：它只核「Schema」一列，**未登记为证据、未进 `record/evidence/`**；
+> **Schema 正反实例只跑过本地自检**（2026-09-23 对齐波与 2026-09-24 评审修复各一次，见[本地自检](#本地自检)）：它只核「Schema」一列，**未登记为证据、未进 `record/evidence/`**；
 > 六条规范场景、六条消费者核对场景、四条静态检查**一条都未执行**——文件存在不代替结果。
 
 ## 证据义务
 
 | # | 义务 | 证据形式 | 覆盖哪些条款 | 实际状态 |
 |---|---|---|---|---|
-| V-1 | **形状校验**：[`examples.md`](v1/examples.md) 第 1～13 节（带「校验对象」的那些）逐行过 Schema，比对「Schema」一列。第 14、15 节与第 3 节的相等用例不参与 | Draft 2020-12 校验器（须支持 `unevaluatedProperties`、`dependentRequired`，并能按 `$id` 解析到 `data.identity-values/v1` 的 Schema）＋ 该文件按节绑定的 `$defs` | [S-1](v1/contract.md#s-1-七类块)、[S-2](v1/contract.md#s-2-块底座)、[S-4](v1/contract.md#s-4-两个标注)、[S-7](v1/contract.md#s-7-媒体类型的规范形式)～[S-13](v1/contract.md#s-13-半截的工具调用)、[S-15](v1/contract.md#s-15-工具结果块)～[S-21](v1/contract.md#s-21-attachmentref)、[S-25](v1/contract.md#s-25-判别式与枚举闭合) 的**形状那一面** | **本地自检已跑一次**（[下文](#本地自检)：155 行，与「Schema」列逐行一致）；**未登记为证据**，拒绝值一列不在其内（那是 V-2） |
+| V-1 | **形状校验**：[`examples.md`](v1/examples.md) 第 1～13 节（带「校验对象」的那些）逐行过 Schema，比对「Schema」一列。第 14、15 节与第 3 节的相等用例不参与 | Draft 2020-12 校验器（须支持 `unevaluatedProperties`、`dependentRequired`，并能按 `$id` 解析到 `data.identity-values/v1` 的 Schema）＋ 该文件按节绑定的 `$defs` | [S-1](v1/contract.md#s-1-七类块)、[S-2](v1/contract.md#s-2-块底座)、[S-4](v1/contract.md#s-4-两个标注)、[S-7](v1/contract.md#s-7-媒体类型的规范形式)～[S-13](v1/contract.md#s-13-半截的工具调用)、[S-15](v1/contract.md#s-15-工具结果块)～[S-21](v1/contract.md#s-21-attachmentref)、[S-25](v1/contract.md#s-25-判别式与枚举闭合) 的**形状那一面** | **本地自检已跑两次**（[下文](#本地自检)：最近一次 2026-09-24，158 行，与「Schema」列逐行一致）；**未登记为证据**，拒绝值一列不在其内（那是 V-2） |
 | V-2 | **拒绝值的具名与优先级**：对 `examples.md` 每个拒绝行，接收边界给出的拒绝值等于「拒绝值」一列；第 12 节六行专验优先级 | 接收边界的一致性用例（同一份输入跨实现比对） | [S-26](v1/contract.md#s-26-表示层拒绝值)、[S-27](v1/contract.md#s-27-表示层拒绝不是判定也不修补) | **未开始。**需要一个实现了接收边界校验的提供者。**只验 Schema 通过与否不够**——两个实现可以都拒绝、却报不同的名字 |
 | V-3 | **Schema 管不到的四条形状约束**：一条消息内 `id` 重复（含嵌套）、引用形状下两处媒体类型不逐字相同、派生块与原块同一模态、非规范写法不被改写 | 接收边界的校验 ＋ [`examples.md` 第 14 节](v1/examples.md#14-schema-挡不住但同样非法的)前四行 | [S-3](v1/contract.md#s-3-blockid)、[S-7](v1/contract.md#s-7-媒体类型的规范形式)、[S-10](v1/contract.md#s-10-语音块与图块)、[S-19](v1/contract.md#s-19-派生表示与-transcript)、[S-27](v1/contract.md#s-27-表示层拒绝不是判定也不修补) | **未开始。**`id` 唯一那一条要在看得见整条消息的边界上验，**落点归 `data.messages`**（第二波），本页只登记本契约的义务已触发 |
 | V-4 | **规范场景** [S-28](v1/contract.md#s-28-标注缺一即拒)～[S-33](v1/contract.md#s-33-派生表示不含文件块)：每条一个正例一个反例；**三条条件约束**（[S-29](v1/contract.md#s-29-半截调用两边都不给) 半截调用的标注、[S-30](v1/contract.md#s-30-结果里不发起调用) 结果里不发起调用、[S-31](v1/contract.md#s-31-语音与图的模态要对) 语音与图的模态）各在其中 | 规范场景演练：真实接收边界、真实落盘 | [S-4](v1/contract.md#s-4-两个标注)、[S-10](v1/contract.md#s-10-语音块与图块)、[S-13](v1/contract.md#s-13-半截的工具调用)、[S-16](v1/contract.md#s-16-结果里不发起调用)、[S-18](v1/contract.md#s-18-占位原因与它落在哪一格)、[S-19](v1/contract.md#s-19-派生表示与-transcript) | **未执行。**S-31 的两个反例**必须同跑**：只跑模态那一个，一个只信 Schema 的实现也会全过。S-29 要额外观察「`rawArguments` 从未被解析」，**只看拒绝值不够** |
 | V-5 | **合取取用**：工具结果块给模型、里面一块标着不给模型；派生表示里的块只给模型 | PF-010 组装的规范场景 | [S-5](v1/contract.md#s-5-嵌套的块按合取取用) | **未开始。**需要 PF-010 组装的提供者；**本契约只拥有规则，演练归组装** |
 | V-6 | **`opaque` 原样回传**：写入一份含大整数（`9007199254740993`）、嵌套对象与 `null` 的不透明数据，经落盘、读回、每一跳传输后与原值比对；另验缺席与 `null` 各自保留 | 规范场景 ＋ 跨实现一致性用例 | [S-9](v1/contract.md#s-9-思考块与不透明数据) | **未开始。**责任：日志与传输适配的提供者。**这条最容易在一次 JSON 往返里静默失败**，必须真跑 |
 | V-7 | **落盘之后整块不变**：压缩、转换件、卸载各走一遍，前后逐字节比对已落盘的块 | 规范场景 ＋ 日志写路径的静态检查（[SC-1](#静态检查义务)） | [S-22](v1/contract.md#s-22-落盘之后整块不变) | **未开始**。需要日志的提供者 |
-| V-8 | **消费者路径走查**（[CS-1～CS-6](v1/contract.md#消费者核对场景)） | 结构化走查（评审对象）；有提供者之后升级为真实演练 | [S-3](v1/contract.md#s-3-blockid)、[S-5](v1/contract.md#s-5-嵌套的块按合取取用)、[S-6](v1/contract.md#s-6-模态由媒体类型判定)、[S-9](v1/contract.md#s-9-思考块与不透明数据)、[S-12](v1/contract.md#s-12-完整的工具调用)、[S-13](v1/contract.md#s-13-半截的工具调用)、[S-15](v1/contract.md#s-15-工具结果块)、[S-17](v1/contract.md#s-17-六种收场)～[S-19](v1/contract.md#s-19-派生表示与-transcript)、[S-22](v1/contract.md#s-22-落盘之后整块不变)、[S-26](v1/contract.md#s-26-表示层拒绝值) | **未开始。**走查**不需要提供者**，现在就做得了；**CS-4 的「前台上限到点而不许转后台」一支停在 [G-7](v1/contract.md#八已知缺口)**（CS-2 与 CS-4 原先停在 G-3／G-2，已随 2026-09-23 对齐波闭合）——停在缺口不算走不通，如实记为「本版到此为止」 |
+| V-8 | **消费者路径走查**（[CS-1～CS-6](v1/contract.md#消费者核对场景)） | 结构化走查（评审对象）；有提供者之后升级为真实演练 | [S-3](v1/contract.md#s-3-blockid)、[S-5](v1/contract.md#s-5-嵌套的块按合取取用)、[S-6](v1/contract.md#s-6-模态由媒体类型判定)、[S-9](v1/contract.md#s-9-思考块与不透明数据)、[S-12](v1/contract.md#s-12-完整的工具调用)、[S-13](v1/contract.md#s-13-半截的工具调用)、[S-15](v1/contract.md#s-15-工具结果块)、[S-17](v1/contract.md#s-17-六种收场)～[S-19](v1/contract.md#s-19-派生表示与-transcript)、[S-22](v1/contract.md#s-22-落盘之后整块不变)、[S-26](v1/contract.md#s-26-表示层拒绝值) | **未开始。**走查**不需要提供者**，现在就做得了；六条都不再停在缺口（CS-2、CS-4 原先停在 G-3／G-2、CS-4 的前台超时一支停在 G-7，三者都已闭合）；只剩 G-1（存储）挡住「解引用」那一步，不在这六条的路径上 |
 | V-9 | **跨进程**：[第四节](v1/contract.md#四装配给与协议给)右列八行逐行演练 | 规范场景演练 | [S-3](v1/contract.md#s-3-blockid)、[S-4](v1/contract.md#s-4-两个标注)、[S-9](v1/contract.md#s-9-思考块与不透明数据)、[S-10](v1/contract.md#s-10-语音块与图块)、[S-14](v1/contract.md#s-14-callid)、[S-21](v1/contract.md#s-21-attachmentref)～[S-23](v1/contract.md#s-23-块不携带租户身份)、[S-26](v1/contract.md#s-26-表示层拒绝值) | **未开始，且本版装配下无法演练**——单机同进程传参不构成接收边界。**这不是免除**：跨进程演化启动时必须补做，登记在[变化的影响](#变化的影响) |
 | V-10 | **静态检查**（[SC-1～SC-4](#静态检查义务)） | 实现语言的静态检查（具体形式归 realization） | 见下表 | **未开始；检查器尚不存在** |
 
@@ -43,6 +43,9 @@
 - **做法**：逐节按「校验对象」把实例列喂给校验器，与「Schema」一列比对；第 13 节按每行第一列的 `$defs`。脚本在任务区暂存，不入库。
 - **结果**：**155 行（通过 57、拒绝 98），与「Schema」列逐行一致，0 处不符**。
 - **不覆盖**：「拒绝值」一列（V-2）、第 3 节的相等用例与第 14 节（不参与机检）；`contentEncoding` 按 Draft 2020-12 只作注解，base64 的形状由 `pattern` 判。
+
+**2026-09-24，第一轮独立评审修复，一次。**同一口径（`jsonschema` 4.26.0，仓库 `uv.lock` 环境，设计根下全部 Schema 按 `$id` 登进解析表；脚本在任务暂存区，不入库）：
+第 1～13 节 **158 行（通过 58、拒绝 100），0 处不符**。上一次记的 155 行是数错了（评审发现 CB-7：第 10、13 节各少数一两行）；本轮 `terminated_by_agent` 移出 `PlaceholderReason`，第 13 节那一行由通过翻为拒绝。不覆盖的范围同上。
 
 ### 尚无的记录
 
@@ -89,6 +92,19 @@ V-2～V-10 **一条执行记录也没有**。起草时的手核只保证 `exampl
     rev 19（§5.3 说明必填、多命令只有命令清单）：不涉本契约。抬头随之对到 rev 19 并注明。
   - **证据**：Schema 与可机检的实例都没变，上一条的 25 处本地自检结果仍适用。
   - **（同日第三轮）** S-18 `backgrounded_auto` 那一行补「或前台上限到点且允许转后台」（PF-006 rev 18 §6.7 转后台那一行的原话）；措辞，不改取值与落格。
+- **2026-09-24 第一轮独立评审修复（候选未冻结，原地改）**——逐条处置见[独立评审](#独立评审)：
+  - **产品依据复核到当前 rev**（按各 topic changelog 从起草时的 rev 逐版读）：
+    PF-009 rev 7→8（`SystemMessage` 不落日志、在途快照、开口是账、工具帧出错照常收尾、入站语音整条到）——都在消息、到达与账那一层，块的形状与取值不变，**无影响**；
+    PF-010 rev 5→6（系统提示词只含文本、要求五改「原件／派生表示／transcript」三选一）——S-5、S-19 本来就把取哪一份交给 PF-010，**无影响**；
+    PF-013 rev 8→12（rev 9 媒体类型键优先、只交 transcript 不合契约、本版不调模型、登记了用不了当转换失败、投影只算给模型看的块；rev 10 凭据；rev 11 呈现责任；rev 12 路由名按层覆盖）——S-19 的「同有同无」、S-20 的「恒为 `system`」与之一致，**无影响**；
+    PF-002 rev 16→20（锁的是界、「谁可以使用它」、MCP 与连接件凭据只在租户层、连接件事件目录与厚信封）——S-8 来路、S-20 八类、S-34 附件落块都不涉，**无影响**；
+    PF-001 rev 16→17（权限界与挑选、提升不动持有）——**无影响**；
+    PF-012 rev 10→14（rev 11 落盘前对模型回复只能否决、挂派生表示不算改写，rev 12 不可用处置，rev 13–14 转换件本版不是资产）——**无语义影响**；S-20 的依据由「主线裁定」改指 PF-013 §4 与 PF-012 §4 的产品正文。
+  - **依据落持久记录**：正文与 Schema 里「主线裁定 2026-09-2x，待产品负责人确认」改为链接 D-040 的小节（S1、S4、S13、S19、S20、S21）；已进产品正文的（`unparseable`、三个补的占位原因、前台超时）改引 PF-006；G-8 闭合。
+  - **`terminated_by_agent` 移出 `PlaceholderReason`**（CB-3，按 [UL-placeholder-reason](../../../ubiquitous_language/terms/record-and-context.md#ul-placeholder-reason--占位原因--placeholder-reason) 注意 ②）：`PlaceholderReason` 十二值 → 十一值；工具结果块 `reason.code` 仍收那十二个值（`anyOf` 十一个占位原因与 `terminated_by_agent`），**块的表示不变**；`$defs/PlaceholderReason` 单独校验 `"terminated_by_agent"` 由通过变为拒绝（实例第 13 节一行）。**消费者影响**：没有契约单独 `$ref` `PlaceholderReason`；`capability.tool-execution-runtime` 写 `terminated_by_agent` 的那一处不受影响。
+  - **词条**：`origin` 改称来路标记并链 [UL-origin-tag](../../../ubiquitous_language/terms/record-and-context.md#ul-origin-tag--来路标记--origin-tag)（词条第四轮新立）；`MediaType`、`PlaceholderReason` 移进词条对照表。**S-8 的标题「文本块与来源标记」没改**：`data.connector`、`data.slash-command`、`data.skill-package`、`capability.mcp-bridge` 以这个锚点引用它，改名要同轮改那几处链接，已报主线。
+  - **措辞**：S-20 括注改为 asset-model S-2 的真实词法（允许冒号、不含 `/`）；S-12 与 CS-2「由宿主接一条 `failed` 结果」改为由工具执行一侧即刻以失败收场（与 `capability.tool-execution-runtime` 那一侧一致）；P-5、S-16 的依据改为规格层推导。
+  - **证据**：V-1 本地自检重跑，158 行 0 处不符（[本地自检](#本地自检)）。其余义务状态不变。
 - **[G-4](v1/contract.md#八已知缺口) 被裁决**（词法）：Schema 收紧 ⇒ **出 v2**，V-1 按新形状重跑，旧实例中依赖宽松形状的要重新判。
 - **[G-1](v1/contract.md#八已知缺口) 被裁决**（存储）：`AttachmentRef` 的形状多半不变；V-9 的「引用可解引用」一行与 S-23 的落点由那个 topic 给出，届时补进 V-8 走查。
 - **跨进程演化启动**：V-9 从「无法演练」转为**必须演练**；[第四节](v1/contract.md#四装配给与协议给)右列八行从「待兑现」转为「须由协议兑现」。
@@ -96,6 +112,20 @@ V-2～V-10 **一条执行记录也没有**。起草时的手核只保证 `exampl
 
 结果不改写规范。发现语义问题回到来源设计（PF-009／PF-010／PF-013／PF-006／PF-002），不在这里改契约。
 
+## 独立评审
+
+| 评审 | 日期 | 基线 | 发现 | 处置 | 落点 |
+|---|---|---|---|---|---|
+| spec-reviewer，S25 第一轮批 R1 | 2026-09-24 | HUB `765b01dc` | CB-1 产品依据 rev 过时 | **改**：七个 topic 逐版复核，本契约条款无语义变化，抬头对到当前 rev | 抬头；[变化的影响](#变化的影响)本轮一条 |
+| 同上 | 同上 | 同上 | CB-2 `origin` 与词条「来源标记」同名不同义 | **改**：词条第四轮立了 UL-origin-tag「来路标记」，正文、Schema、实例改用它并链接；`source` 才是来源标记。**S-8 标题暂不改**（四份外部契约引用它的锚点），已报主线同轮改 | 第二节对照表、S-8、S-25、Schema `TextBlock` |
+| 同上 | 同上 | 同上 | CB-3 `terminated_by_agent` 与占位原因词条字面相反 | **改**：移出 `PlaceholderReason`（十一值），写成后台那段执行收场的提醒上写的原因；块的 `reason.code` 仍收十二个值 | S-15、S-18、第二节；Schema `PlaceholderReason`、`ToolResultBlock`；实例第 13 节 |
+| 同上 | 同上 | 同上 | CB-4 「非词条」与 verification 自相矛盾 | **改**：`MediaType`、`PlaceholderReason`、`origin` 移进词条对照表并链接；本页对齐义务改写 | 第二节 |
+| 同上 | 同上 | 同上 | CB-5 S-20 括注的词法与 asset-model S-2 不符 | **改**：照 S-2 写「不含空白与 `/`、允许冒号、区分大小写」 | S-20 |
+| 同上 | 同上 | 同上 | CB-6 `origin` 两个取值以 slash-command 条款定义，未登 catalog | **改（写明，不登）**：它是定义性引用，登记会成环（slash-command → content-blocks），在 S-8 与包入口写明，并在下方对齐义务登复核 | S-8；[包入口](README.md)准入核对 |
+| 同上 | 同上 | 同上 | CB-7 实例统计数错 | **改**：重数并重跑自检，158 行（通过 58、拒绝 100） | 实例第 15 节；[本地自检](#本地自检) |
+| 同上 | 同上 | 同上 | CB-8 V-8 仍说 CS-4 停在 G-7 | **改** | V-8 |
+
 ## 对齐义务
 
-- **词条链接待合流后补**（2026-09-24 整批对齐）：正文里「来源标记（原「来路标记」，全文改名）、媒体类型、占位原因」原标「无词条」，词条批已立为词条，本包已改用正式名、去掉标记；那几条词条在 HUB 上、本分支看不到，**链接待合流后补**（主线）。
+- **来路标记的两个取值与 `data.slash-command` v1 的 S-21、S-25 对齐**（定义性引用，不登 catalog）：那两条改了展开物或留痕的所指，[S-8](v1/contract.md#s-8-文本块与来源标记) 的 `slash_command_expansion`、`slash_command_record` 同轮复核。
+- **S-8 标题改名**：标题里的「来源标记」是旧称（所指是 [来路标记](../../../ubiquitous_language/terms/record-and-context.md#ul-origin-tag--来路标记--origin-tag)）；改名要与 `data.connector`、`data.slash-command`、`data.skill-package`、`capability.mcp-bridge` 里指向 `#s-8-文本块与来源标记` 的链接同轮改（主线）。

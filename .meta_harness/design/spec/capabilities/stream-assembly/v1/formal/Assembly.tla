@@ -2,14 +2,15 @@
 (***************************************************************************)
 (* capability.stream-assembly v1 的行为模型：一条到达流的装配状态。        *)
 (*                                                                         *)
-(* 装配器的五个操作都是作用于调用方持有的一个状态值的纯计算；本模型把那个  *)
+(* 本能力的五个操作都是作用于调用方持有的一个状态值的纯计算；本模型把那个  *)
 (* 状态值写成「已接受的事件序列」，把 start、accept、closeOut、abandon 写  *)
 (* 成对它的四种动作（snapshot 只读，不是动作）。被拒的事件不产生新状态。   *)
 (*                                                                         *)
-(* 装配结果由 Assemble 按事件逐个折叠得出——这就是被检查的「装配器」。     *)
+(* 装配结果由 Assemble 按事件逐个折叠得出——这就是被检查的到达装配这一步。 *)
 (* 「一次性到达」由 OneShot 按块声明式地构造：每块开一次、填一次（填的是   *)
 (* 它全部填的归约）、按原样封口或不封口，记账与收尾照旧。SplitInvariance    *)
-(* 断言同一台装配器吃这两种序列，closeOut 交出的块、账、结局相等。         *)
+(* 断言同一个折叠吃这两种序列，closeOut 交出的块、账、结局相等；           *)
+(* OneShotAccepted 断言一次性形式本身逐个过得了 accept 的守卫（S-27 前一半）。*)
 (*                                                                         *)
 (* 条款映射、抽象与省略见同目录 README.md。                                *)
 (***************************************************************************)
@@ -19,11 +20,11 @@ CONSTANTS
     Indices,     \* 块索引：非负整数的有限集
     Frags,       \* 片段符号（内容被抽象成符号序列）
     MaxEvents,   \* 一个状态值最多接受几个事件（有界）
-    Mutation     \* "none"；有效性核对用 "order_by_close" 或 "replace_as_append"
+    Mutation     \* "none"；有效性核对用 "order_by_close"、"replace_as_append" 或 "oneshot_close_first"
 
 ASSUME Indices \subseteq Nat
 ASSUME MaxEvents \in Nat
-ASSUME Mutation \in {"none", "order_by_close", "replace_as_append"}
+ASSUME Mutation \in {"none", "order_by_close", "replace_as_append", "oneshot_close_first"}
 
 NoIdx == -1
 
@@ -85,7 +86,7 @@ Valid(l, k, ev) ==
             k = "tool" => ev.r # "max_tokens"                  \* 工具侧没有 max_tokens（malformed）
 
 (***************************************************************************)
-(* 装配器：按事件逐个折叠                                                  *)
+(* 到达装配这一步：按事件逐个折叠                                          *)
 (***************************************************************************)
 S0 == [ord  |-> <<>>,
        md   |-> [i \in Indices |-> "-"],
@@ -159,11 +160,13 @@ Reduced(l, o) ==
   LET fs == FillsOf(l, o.i)
   IN IF o.m = "append" THEN CatP(fs) ELSE fs[Len(fs)].p
 
+\* 有效性核对 "oneshot_close_first"：把一块的封口排到它的填之前——契约 S-27 的构造次序
+\* （开、填、封）一旦写错，一次性形式本身就过不了 accept，OneShotAccepted 必须因此失败
 BlockSeg(l, o) ==
   LET fs == FillsOf(l, o.i)
-  IN    <<o>>
-     \o (IF fs = <<>> THEN <<>> ELSE <<Ev("fill", o.i, "-", "-", Reduced(l, o), "-")>>)
-     \o (IF o.i \in ClosedIn(l) THEN <<Ev("close", o.i, "-", "-", <<>>, "-")>> ELSE <<>>)
+      F  == IF fs = <<>> THEN <<>> ELSE <<Ev("fill", o.i, "-", "-", Reduced(l, o), "-")>>
+      C  == IF o.i \in ClosedIn(l) THEN <<Ev("close", o.i, "-", "-", <<>>, "-")>> ELSE <<>>
+  IN <<o>> \o (IF Mutation = "oneshot_close_first" THEN C \o F ELSE F \o C)
 
 RECURSIVE Flatten(_)
 Flatten(ss) == IF ss = <<>> THEN <<>> ELSE Head(ss) \o Flatten(Tail(ss))
@@ -217,6 +220,10 @@ Spec == Init /\ [][Next]_vars
 
 (***************************************************************************)
 (* 不变量                                                                  *)
+(* FinishIsLast 到 ResultOnlyWithFinish 六条逐字复述 Valid、CloseOut、      *)
+(* Abandon 的守卫，**按构造成立，不作证据**（证据是规范场景与 examples 第   *)
+(* 5 节）；它们只说明模型没写错。作证据的是后三条：BlockOrderIsOpenOrder、  *)
+(* SplitInvariance、OneShotAccepted，各有一个预期出反例的有效性核对配置。   *)
 (***************************************************************************)
 \* 收尾之后无事件；放弃不会给已收尾的流再补一个收尾
 FinishIsLast == \A j \in Pos(log) : log[j].e = "finish" => j = Len(log)
@@ -247,7 +254,12 @@ BlockOrderIsOpenOrder ==
   st = "out" =>
     \A a, b \in 1..Len(res.blocks) : a < b => res.blocks[a].i < res.blocks[b].i
 
-\* 一次装配 == 一次性到达：同一台装配器吃分次到达的序列与一次性到达的序列，交出的块、账、结局相等
+\* 一次装配 == 一次性到达：同一个折叠吃分次到达的序列与一次性到达的序列，交出的块、账、结局相等
 SplitInvariance == st = "out" => res = Result(OneShot(log), tk)
+
+\* 一次性形式本身逐个被接受（S-27 前一半）：它的每一个事件，都过得了接在它前面那一段之后的 accept 守卫
+AcceptedSeq(l, k) == \A j \in 1..Len(l) : Valid(SubSeq(l, 1, j - 1), k, l[j])
+
+OneShotAccepted == st = "out" => AcceptedSeq(OneShot(log), tk)
 
 =============================================================================

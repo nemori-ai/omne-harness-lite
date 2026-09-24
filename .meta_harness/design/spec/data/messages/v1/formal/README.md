@@ -11,16 +11,17 @@
 | 规范性质／条款 | 所需表达及理由 | 模型里的对象 | 未覆盖范围与相应义务 |
 |---|---|---|---|
 | [S-28](../contract.md#s-28-此刻模型可读是算出来的) 此刻模型可读 | 一个在任意前缀上求值的派生谓词；要核对它与合法名单合起来的推论 | `readable[b, p]`、`path[b]`、`upTo[p]` | 块的标注缺席、表示非法——归 Schema 与接收边界 |
-| [S-29](../contract.md#s-29-合法名单的判定) ① ② 不点自己、只点之前 | **写成事实，断言它的推论**：一块一出生就可读 | 事实 `AllListsLegal` / `legal`；断言 **A1** `NewBlocksBornReadable` | ① ② 在 Schema 之外由接收边界判；本模型只核对「这两条足以让新块不被点掉」 |
-| [S-29](../contract.md#s-29-合法名单的判定) ④ 不点系统提示词 | 与 ⑤ 同一个事实；**不单写断言**——按定义就是事实本身的复述 | `legal` 的第二行 | 证据形式是规范场景 [S-46](../contract.md#s-46-名单的合法性) |
-| [S-29](../contract.md#s-29-合法名单的判定) ⑤ ＋ [S-30](../contract.md#s-30-悬着的占位) 第 1 类：悬着的占位不可点 | 「悬着」按**追加点之前的前缀**判，占位里**每一块含嵌套层**都不可点——这两处最容易写错 | `outstandingIn[P]`；断言 **A2** `OutstandingPlaceholderStaysReadable`（把「悬着」**独立写一遍**，不复用 `outstandingIn`） | 第 2 类（没答完的卡片的占位）不在模型里：它是哪一块本版没有答案（[G-5](../contract.md#九已知缺口)） |
-| [S-28](../contract.md#s-28-此刻模型可读是算出来的) 单调不回退 | 对所有前缀对 `p ≤ q` | 断言 **A3** `ReadabilityMonotone` | 它依赖「块不变」（`data.content-blocks/v1#S-22`）——本模型的块没有可变成员，**这条前提被建模方式吸收**，证据归日志写路径的静态检查 |
+| [S-29](../contract.md#s-29-合法名单的判定) ① ② 不点自己、只点之前 | **写成事实，断言它的推论**：一块一出生就可读 | 事实 `AllListsLegal` / `legal`；断言 **A1** `NewBlocksBornReadable` | **① ② 本身不是被检查的对象**：它们是事实，A1 查的是「这两条足以让新块不被点掉」，有变异核对（M1、M2）。① ② 在接收边界上成不成立，证据是规范场景 [S-46](../contract.md#s-46-名单的合法性) |
+| [S-29](../contract.md#s-29-合法名单的判定) ④ | **已删去**（2026-09-24）：`SystemMessage` 不落会话日志（[S-7](../contract.md#s-7-systemmessage)），② 已把它排除 | 模型里不再有 `SystemMsg`，`legal` 不再有第二行 | — |
+| [S-29](../contract.md#s-29-合法名单的判定) ⑤ ＋ [S-30](../contract.md#s-30-悬着的占位) 第 1 类：悬着的占位不可点 | 「悬着」按**追加点之前的前缀**判，占位里**每一块含嵌套层**都不可点——这两处最容易写错 | `outstandingIn[P]`；断言 **A2** `OutstandingPlaceholderStaysReadable`（把「悬着」**独立写一遍**，不复用 `outstandingIn`） | 有变异核对（M3、M4）。第 2 类（没答完的卡片的占位）不在模型里：它是哪一块本版没有答案（[G-5](../contract.md#九已知缺口)） |
+| [S-28](../contract.md#s-28-此刻模型可读是算出来的) 单调不回退 | 对所有前缀对 `p ≤ q` | 断言 **A3** `ReadabilityMonotone` | **四条里最弱，没有变异核对**。它依赖「块不变」（`data.content-blocks/v1#S-22`）——本模型的块没有可变成员，**这条前提被建模方式吸收：按构造，不作证据**；前提的证据归写路径的静态检查（验证入口 SC-4） |
 | [S-28](../contract.md#s-28-此刻模型可读是算出来的) ＋ `data.content-blocks/v1#S-5` 嵌套块按合取 | 点一个容器，里面的块随之不可读；嵌套块可读则容器可读 | `path[b] = b.*container`；断言 **A4** `NestedReadableImpliesContainersReadable` | — |
 | [S-32](../contract.md#s-32-会话日志里的配对与唯一) ② ④ | **写成事实**，作为 A2 的环境：一个调用至多一条工具消息；收场提醒排在转后台占位之后、一个调用至多一条 | 事实 `LogPairing` | 这些是日志写入方的义务，**本模型不检查它们本身**；证据形式是日志序列检查（验证入口 V-4） |
+| [S-32](../contract.md#s-32-会话日志里的配对与唯一) ⑦ 日志里没有 `SystemMessage` | 模型里的 `Msg` 只有日志里的六种 | 没有 `SystemMsg` | **按构造，不作证据**；证据形式是日志序列检查（V-4） |
 
 **没有建模、也不声称覆盖的：**
 
-- **[S-29](../contract.md#s-29-合法名单的判定) ③ 点了不存在的块**：模型里的 `names` 只能取存在的块，这一条**被建模方式吸收**——模型里没有任何在它被违反时会失败的断言。证据是规范场景。
+- **[S-29](../contract.md#s-29-合法名单的判定) ③ 点了不存在的块**：模型里的 `names` 只能取存在的块，这一条**被建模方式吸收：按构造，不作证据**——模型里没有任何在它被违反时会失败的断言。证据是规范场景 [S-46](../contract.md#s-46-名单的合法性)。
 - **[S-29](../contract.md#s-29-合法名单的判定) ⑥ 输入区间的上界**：「上一次模型请求落在日志哪一处」不在消息里（[G-2](../contract.md#九已知缺口)），本模型没有请求这个对象。
 - **单条消息内的形状**（七种、块能装什么、拒绝值与优先级）：归 Schema 与 [`examples.md`](../examples.md)。
 - **并发与副本**：结构模型表达不了交错；「判定与追加在同一个定序点上线性化」归[契约第五节](../contract.md#五装配给与协议给)。
@@ -33,7 +34,7 @@
   | 模型 | 契约 |
   |---|---|
   | `Msg` 按 `util/ordering` 全序 | 一份会话日志里的先后（[第二节](../contract.md#二含义与使用范围)） |
-  | `SystemMsg` / `ToolMsg` / `EndReminder` / `Compaction` / `OtherMsg` | 系统提示词 / 工具消息 / 两种后台收场提醒合在一起 / 压缩记录 / 其余几种 |
+  | `ToolMsg` / `EndReminder` / `Compaction` / `OtherMsg` | 工具消息 / 两种后台收场提醒合在一起 / 压缩记录 / 其余几种（都是落日志的六种之内的；`SystemMessage` 不落日志，模型里没有它） |
   | `BackgroundedTool in ToolMsg` | 工具结果块 `outcome: backgrounded` 的工具消息——转后台的占位 |
   | `Block.owner`、`Block.container` | 块属于哪条消息、嵌在哪个块里（`data.content-blocks/v1#S-3`） |
   | `ModelVisible in Block` | `visibility.toModel = true` |
@@ -45,13 +46,13 @@
   - `aNestedBlockSilencedAlone`：只点一个嵌套块，它的容器照样可读——说明 A4 的前件在模型里可满足。
 - **变异核对**（验证断言不空；**不是**本版的规范命令，执行时对本文件的副本做一处修改，逐个跑对应的 `check`，都应**找到反例**）：
 
-  | 变异 | 应失败的断言 | 区分的是什么 |
-  |---|---|---|
-  | `legal` 第一行改成 `c.names.owner in upTo[c]` | A1 | 「不点自己」起了作用，与规模太小碰不到自指 |
-  | `legal` 第一行改成 `c.names.owner in Msg` | A1 | 「只点之前」起了作用，与规模太小碰不到前向引用 |
-  | `outstandingIn` 里 `EndReminder & P` 改成 `EndReminder` | A2 | 「悬着」按追加点之前的前缀判，与按整份日志判 |
-  | `outstandingIn` 里加一个合取项 `(no b.container)` | A2 | 占位里的嵌套块同样不可点，与只护顶层块 |
-  | `path` 改成只含 `b` 自己 | A4 | 合取取用真的进了派生规则 |
+  | 编号 | 变异 | 应失败的断言 | 区分的是什么 |
+  |---|---|---|---|
+  | M1 | `legal` 第一行改成 `c.names.owner in upTo[c]` | A1 | 「不点自己」起了作用，与规模太小碰不到自指 |
+  | M2 | `legal` 第一行改成 `c.names.owner in Msg` | A1 | 「只点之前」起了作用，与规模太小碰不到前向引用 |
+  | M3 | `outstandingIn` 里 `EndReminder & P` 改成 `EndReminder` | A2 | 「悬着」按追加点之前的前缀判，与按整份日志判 |
+  | M4 | `outstandingIn` 里加一个合取项 `(no b.container)` | A2 | 占位里的嵌套块同样不可点，与只护顶层块 |
+  | M5 | `path` 改成只含 `b` 自己 | A4 | 合取取用真的进了派生规则 |
 
   **A3 没有对应的变异**：在这份模型里它由 `upTo` 的单调与名单只增直接推出，是四条里最弱的一条；它的实际价值是护住「此后谁往派生规则里加一个会让块恢复可读的项」。
 - **结果入口**：[验证入口「形式化工件」一节](../../verification.md#形式化工件)。**`alloy exec` 的退出码与断言结果无关**（找到反例照样退出 0），

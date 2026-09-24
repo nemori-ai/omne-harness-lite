@@ -54,8 +54,8 @@
 | 在 1.1 上删掉 `env` | 通过 | — | [S-4](contract.md#s-4-stdio)：不声明＝作者不加任何变量 |
 | 在 1.1 上 `args` 改为 `[]` | 通过 | — | [S-4](contract.md#s-4-stdio)：可以为空数组 |
 | 在 1.2 上 `permissions.execute.default` 改为 `"auto"` | 通过 | — | [S-8](contract.md#s-8-执行权限的作者默认)：作者可以声明自动；**被工作区提供时这个值不被认**（[S-17](contract.md#s-17-工作区格上的这些项)） |
-| 在 1.1 上加 `"credential": "ghp_16C7e42F292c6912E7710c838347Ae178B4a"` | 拒绝 | `credential_plaintext` | [S-6](contract.md#s-6-正文不收凭据)：**正文里没有凭据的位置**（[S-22](contract.md#s-22-正文里写凭据被拒) 正例的反面） |
-| 在 1.1 上加 `"credential": "cred_77f0"`（一个引用） | 拒绝 | `credential_plaintext` | [S-6](contract.md#s-6-正文不收凭据)：**引用也不行**——凭据只在持有上 |
+| 在 1.1 上加 `"credential": "ghp_16C7e42F292c6912E7710c838347Ae178B4a"` | 拒绝 | `malformed`（M4） | [S-6](contract.md#s-6-正文不收凭据)：**正文里没有凭据的位置**，不忽略这个成员后接受（[S-22](contract.md#s-22-正文里写凭据被拒)） |
+| 在 1.1 上加 `"credential": "cred_77f0"`（一个引用） | 拒绝 | `malformed`（M4） | [S-6](contract.md#s-6-正文不收凭据)：**引用也不行**——凭据只在持有上 |
 | 在 1.2 上加 `"oauth": {"id": "oab_3e1f", "state": "granted", "since": "2026-09-23T08:00:00Z"}` | 拒绝 | `malformed`（M4） | [S-6](contract.md#s-6-正文不收凭据)：OAuth 绑定按持有保存，不在正文 |
 | 在 1.2 上加 `"actions": {"kind": "not_fetched"}` | 拒绝 | `malformed`（M4） | [S-9](contract.md#s-9-动作清单副本)：副本不在正文 |
 | 在 1.2 上加 `"name": "linear"` | 拒绝 | `malformed`（M4） | [S-2](contract.md#s-2-身份只在能力标识上)：身份只在能力标识上 |
@@ -94,7 +94,7 @@
 | `{"kind": "stdio", "command": "srv", "args": [], "env": {"A=B": "c"}}` | 拒绝 | `malformed`（M9） | [S-4](contract.md#s-4-stdio)：变量名不含 `=` |
 | `{"kind": "stdio", "command": "srv", "args": [], "env": {"LEVEL": 3}}` | 拒绝 | `malformed`（M5） | [S-4](contract.md#s-4-stdio)：值是字符串 |
 | `{"kind": "stdio", "command": "srv", "args": [], "cwd": "/tmp"}` | 拒绝 | `malformed`（M4） | [S-4](contract.md#s-4-stdio)：本版没有工作目录这一项 |
-| `{"kind": "streamable_http", "url": "https://bot:ghp_16C7e42F@mcp.example.com/mcp"}` | 拒绝 | `credential_plaintext` | [S-5](contract.md#s-5-streamable_http) 第 4 条、[S-6](contract.md#s-6-正文不收凭据)：**不是 `url_invalid`**，也不删掉 userinfo 后接受 |
+| `{"kind": "streamable_http", "url": "https://bot:ghp_16C7e42F@mcp.example.com/mcp"}` | 拒绝 | `url_invalid` | [S-5](contract.md#s-5-streamable_http) 第 4 条、[S-6](contract.md#s-6-正文不收凭据)：**不删掉 userinfo 后接受** |
 | `{"kind": "streamable_http", "url": "ftp://mcp.example.com/"}` | 拒绝 | `url_invalid` | [S-5](contract.md#s-5-streamable_http) 第 1 条 |
 | `{"kind": "streamable_http", "url": "HTTPS://mcp.example.com/"}` | 拒绝 | `url_invalid` | [S-5](contract.md#s-5-streamable_http) 第 1 条：scheme 只收小写，**不被改写** |
 | `{"kind": "streamable_http", "url": "mcp.example.com/mcp"}` | 拒绝 | `url_invalid` | [S-5](contract.md#s-5-streamable_http) 第 1 条：不是绝对地址 |
@@ -193,19 +193,19 @@
 |---|---|---|---|
 | `"github:create_issue"` | 通过 | — | [S-11](contract.md#s-11-动作条目名)：接入点 `mcp:github` ＋ 对端 `create_issue` |
 | `"github:issues.list"` | 拒绝 | `malformed`（M13） | [S-11](contract.md#s-11-动作条目名) 第 1 条：`.` 不在 `data.tool-definition/v1#S-18` 的字符集里——MCP 协议建议里有 `.`，**这个对端动作拼不出条目名** |
-| `"github:_private"` | 拒绝 | `malformed`（M13） | [S-11](contract.md#s-11-动作条目名) 第 1 条：拼接处成 `:_`，转写后与别的名字对不回唯一一个 |
-| `"github:list__all"` | 拒绝 | `malformed`（M13） | [S-11](contract.md#s-11-动作条目名) 第 1 条：含 `__` |
+| `"github:_private"` | 拒绝 | `name_reserved_sequence` | [S-11](contract.md#s-11-动作条目名) 第 1 条：拼接处成 `:_`，转写后与别的名字对不回唯一一个 |
+| `"github:list__all"` | 拒绝 | `name_reserved_sequence` | [S-11](contract.md#s-11-动作条目名) 第 1 条：含 `__` |
 | `"a:b:c"` | 通过 | — | [S-11](contract.md#s-11-动作条目名)：**拼法不可拆**——它可能是 `a`＋`b:c`，也可能是 `a:b`＋`c`，这就是 [G-2](contract.md#八已知缺口) 的撞名 |
 | `"github:repo/admin"` | 拒绝 | `malformed`（M13） | [S-11](contract.md#s-11-动作条目名) 第 1 条：含 `/`——**这个对端动作拼不出条目名，本契约不改写它** |
 | `"github:create issue"` | 拒绝 | `malformed`（M13） | [S-11](contract.md#s-11-动作条目名) 第 1 条：含空白 |
 | `"create_issue"` | 拒绝 | `malformed`（M13） | [S-11](contract.md#s-11-动作条目名)：少了接入点那一段 |
 | `"mcp:github/create_issue"` | 拒绝 | `malformed`（M13） | [S-11](contract.md#s-11-动作条目名)：**不是能力标识规范串**，也不嵌一个 |
 
-**说明**：`McpActionName` 是一个派生出来的名字，不是一份被写入存储的输入；这一节的「拒绝」是说**这个串不是一个合法的条目名**。它的拒绝值用 `malformed`（M13）只为让表格完整——实际上它由投影生成，**生成不出时怎样收归 `capability.mcp-bridge`**，不存在「有人交来一个坏条目名」这条路。
+**说明**：`McpActionName` 是一个派生出来的名字，不是一份被写入存储的输入；这一节的「拒绝」是说**这个串不是一个合法的条目名**。它的拒绝值（`malformed`（M13）；含 `__`、`_:`、`:_` 的是 `name_reserved_sequence`，与 `data.tool-definition` 对工具定义 `name` 的同一种违规同值）只为让表格完整——实际上它由投影生成，**生成不出时怎样收归 `capability.mcp-bridge`**，不存在「有人交来一个坏条目名」这条路。
 
 ### 4.1 接入点的 name
 
-**校验对象**：`$defs/McpEndpointName`（[S-26](contract.md#s-26-接入点-name-登记时收窄)，主线裁定 2026-09-24）。这些串是登记一份 `mcp` 资产时它能力标识的 name。
+**校验对象**：`$defs/McpEndpointName`（[S-26](contract.md#s-26-接入点-name-登记时收窄)）。这些串是登记一份 `mcp` 资产时它能力标识的 name。
 
 | 实例 | Schema | 拒绝值 | 依据 |
 |---|---|---|---|
@@ -280,19 +280,19 @@
 
 **同一个人在另一个租户身份 `(T2, a1)` 下**持有 `mcp:linear`：那一份持有有它自己的凭据配值（比如 `cred_c05d`）与它自己的绑定，对端看到的是另一个账号；**`cred_91c2` 抄到那一份上不产生取用资格**（`data.asset-model/v1#S-23` 第 4 条）。
 
-**表 6：凭据配值的值**（按 [S-13](contract.md#s-13-凭据配值的取值域) 的取值域 `schema`）
+**表 6：凭据配值的值**（按 [S-13](contract.md#s-13-凭据配值的取值域) 的取值域 `schema`）。**这一表的「拒绝值」不是本契约的值**：取值域之外的值由写这条配值的资产治理写面判 `valueOutOfDomain`（`capability.asset-governance` v1 的 [S-38](../../../capabilities/asset-governance/v1/contract.md#s-38-assign-配值) ②），「凭据位写了非引用值」只有这一个拒绝值。
 
-| 实例 | Schema | 拒绝值 | 依据 |
+| 实例 | Schema | 拒绝值（资产治理写面） | 依据 |
 |---|---|---|---|
 | `"cred_77f0"` | 通过 | — | [S-13](contract.md#s-13-凭据配值的取值域)：取值域恰是 `CredentialRef` |
-| `{"kind": "not_fetched"}` | 拒绝 | `credential_plaintext` | [S-13](contract.md#s-13-凭据配值的取值域)：**还没取是缺席**，不是一个值；撤掉是删掉那条配值 |
-| `{"token": "ghp_16C7e42F292c6912E7710c838347Ae178B4a"}` | 拒绝 | `credential_plaintext` | [S-13](contract.md#s-13-凭据配值的取值域) |
-| `{"kind": "static", "value": "ghp_16C7e42F"}` | 拒绝 | `credential_plaintext` | [S-13](contract.md#s-13-凭据配值的取值域)：**静态值不是另一种取值**，它经保管方成为一个引用 |
-| `{"kind": "fetched"}` | 拒绝 | `credential_plaintext` | [S-13](contract.md#s-13-凭据配值的取值域)：取值域里没有对象 |
-| `null` | 拒绝 | `credential_plaintext` | [S-13](contract.md#s-13-凭据配值的取值域)：**`null` 不是缺席**——还没取就是不写这条配值 |
-| `""` | 拒绝 | `credential_plaintext` | `data.asset-model/v1#S-23`：引用非空 |
-| `" cred_77f0"` | 拒绝 | `credential_plaintext` | `data.asset-model/v1#S-23`：首字符是空白 |
-| `{"kind": "revoked"}` | 拒绝 | `credential_plaintext` | [S-13](contract.md#s-13-凭据配值的取值域) 末条：**失效不写回配值** |
+| `{"kind": "not_fetched"}` | 拒绝 | `valueOutOfDomain` | [S-13](contract.md#s-13-凭据配值的取值域)：**还没取是缺席**，不是一个值；撤掉是删掉那条配值 |
+| `{"token": "ghp_16C7e42F292c6912E7710c838347Ae178B4a"}` | 拒绝 | `valueOutOfDomain` | [S-13](contract.md#s-13-凭据配值的取值域) |
+| `{"kind": "static", "value": "ghp_16C7e42F"}` | 拒绝 | `valueOutOfDomain` | [S-13](contract.md#s-13-凭据配值的取值域)：**静态值不是另一种取值**，它经保管方成为一个引用 |
+| `{"kind": "fetched"}` | 拒绝 | `valueOutOfDomain` | [S-13](contract.md#s-13-凭据配值的取值域)：取值域里没有对象 |
+| `null` | 拒绝 | `valueOutOfDomain` | [S-13](contract.md#s-13-凭据配值的取值域)：**`null` 不是缺席**——还没取就是不写这条配值 |
+| `""` | 拒绝 | `valueOutOfDomain` | `data.asset-model/v1#S-23`：引用非空 |
+| `" cred_77f0"` | 拒绝 | `valueOutOfDomain` | `data.asset-model/v1#S-23`：首字符是空白 |
+| `{"kind": "revoked"}` | 拒绝 | `valueOutOfDomain` | [S-13](contract.md#s-13-凭据配值的取值域) 末条：**失效不写回配值** |
 
 ## 7. 推出的属性声明
 
@@ -340,14 +340,15 @@
 
 | 实例 | 违反了哪几条 | 拒绝值 |
 |---|---|---|
-| 在 1.1 上 `transport` 改为 `{"kind": "sse", "url": "https://x/sse"}`，再加 `"credential": "tok"` | `transport_unknown`、`credential_plaintext` | `transport_unknown` |
-| 在 1.1 上加 `"credential": "tok"`，`transport.command` 改为 `""` | `credential_plaintext`、`command_empty` | `credential_plaintext` |
-| 在 1.2 上 `transport.url` 改为 `"HTTPS://u:p@x/"` | `credential_plaintext`（userinfo）、`url_invalid`（大写 scheme） | `credential_plaintext` |
+| 在 1.1 上 `transport` 改为 `{"kind": "sse", "url": "https://x/sse"}`，再加 `"credential": "tok"` | `transport_unknown`、`malformed`（M4） | `transport_unknown` |
+| 在 1.1 上加 `"credential": "tok"`，`transport.command` 改为 `""` | `command_empty`、`malformed`（M4） | `command_empty`（第 3 行先于第 8 行；**凭据写错地方没有插队的专门值**） |
+| 在 1.2 上 `transport.url` 改为 `"HTTPS://u:p@x/"`，`timeouts.call` 改为 `"PT0S"` | `url_invalid`（userinfo 与大写 scheme 同在这一行）、`malformed`（M8） | `url_invalid` |
 | 在 1.1 上 `transport.command` 改为 `" "`，`timeouts.call` 改为 `"PT0S"` | `command_empty`、`malformed`（M8） | `command_empty` |
 | `{"kind": "fetched", "tools": [{"name": "a"}]}`（缺时刻，唯一一项缺 `inputSchema`） | `snapshot_missing_time`、`malformed`（M3） | `snapshot_missing_time` |
-| 登记一份 `mcp` 资产：能力标识的 name 为 `"git.hub"`，正文是在 1.1 上 `transport.command` 改为 `""` | `command_empty`、`name_not_projectable` | `command_empty`（第 4 行先于第 7 行） |
+| 登记一份 `mcp` 资产：能力标识的 name 为 `"git.hub"`，正文是在 1.1 上 `transport.command` 改为 `""` | `command_empty`、`name_not_projectable` | `command_empty`（第 3 行先于第 6 行） |
 | 登记一份 `mcp` 资产：name 为 `"git.hub"`，正文是 1.1 原样 | `name_not_projectable` | `name_not_projectable` |
-| `{"transport": {"command": "srv", "args": []}, "credential": "tok", "timeouts": {"connect": "PT1S", "call": "PT1S"}, "permissions": {"execute": {"default": "ask"}}}` | `malformed`（M2：连接目标缺 `kind`）、`credential_plaintext` | `malformed` |
+| `{"transport": {"command": "srv", "args": []}, "credential": "tok", "timeouts": {"connect": "PT1S", "call": "PT1S"}, "permissions": {"execute": {"default": "ask"}}}` | `malformed`（M2：连接目标缺 `kind`）、`malformed`（M4：`credential`） | `malformed`（第 1 行） |
+| 一个派生出的条目名 `"github:list__all.v2"`（`$defs/McpActionName`） | `name_reserved_sequence`（`__`）、`malformed`（M13：`.`） | `name_reserved_sequence`（第 7 行先于第 8 行，与 `data.tool-definition` 的次序同向） |
 
 ## 9. Schema 挡不住，但同样非法的
 

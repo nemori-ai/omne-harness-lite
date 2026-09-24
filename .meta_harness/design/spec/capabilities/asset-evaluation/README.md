@@ -11,12 +11,13 @@
 把结果装进会话归 PF-004 的契约（尚无）。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.asset-evaluation, 1)`
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐），**未经独立评审，未接受，未冻结**
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按独立评审第一轮原地修订——[处置表](verification.md#独立评审)），**未接受，未冻结**
 - **catalog 映射**：已登记为 `candidate`。`family=capabilities`、`topic=asset-evaluation`、
   `contract_path=spec/capabilities/asset-evaluation/v1/contract.md`，
   `resources` 另含 `v1/examples.md`、`v1/formal/Evaluation.als`、`v1/formal/README.md`；
-  依赖三项：`data.identity-values` v1、`data.asset-model` v1、`data.mcp-endpoint` v1（只取「连接目标是不是 stdio」），
-  消费 clauses 取自[契约 S-4 的被消费面表](v1/contract.md#s-4-依赖方向与被消费的面)
+  依赖五项：`data.identity-values` v1、`data.asset-model` v1、`data.mcp-endpoint` v1（连接目标是不是 stdio；逐动作执行权限的推出与动作集）、
+  `data.tool-definition` v1（执行权限三档）、`data.loop-extension` v1（干预力三档、外部命令），
+  消费 clauses 取自[契约 S-4 的被消费面表](v1/contract.md#s-4-依赖方向与被消费的面)；`capability.asset-transfer` 的分享判据是前提、不登（会成环，契约页首写明）
 - **formal-tasks 映射**：**不登记**。`Evaluation.als` 的 runner `alloy exec` 退出码与断言结果无关，登记它只会得到一个永远通过的任务；
   理由与实际运行见[验证入口](verification.md#形式化工件)
 - **提供者/装配映射**：尚无
@@ -29,7 +30,7 @@
 | 稳定身份 | `capability.asset-evaluation`，版本 1 |
 | 适用范围 | 一个租户、一次求值的输入到结果；工作区承载清单到那一格持有的读入。**写入、存储、注册表、装配清单不在范围内** |
 | 为什么是 capability 而不是 data | 它有两个操作，各有失败集合（`invalidInput`）与闭合的判定结果（`filteredOut`、`unresolved`）；输入输出的值类型归 data 契约 |
-| 精确依赖 | `data.identity-values` v1（身份值、成员资格、缺席即拒绝）；`data.asset-model` v1（持有、定义、属性声明与配值的形状，candidate）；`data.mcp-endpoint` v1（连接目标是不是 stdio，candidate） |
+| 精确依赖 | `data.identity-values` v1（身份值、成员资格、缺席即拒绝）；`data.asset-model` v1（持有、定义、属性声明与配值的形状，candidate）；`data.mcp-endpoint` v1（连接目标是不是 stdio、动作集与逐动作执行权限，candidate）；`data.tool-definition` v1、`data.loop-extension` v1（两种分档权限的档，candidate） |
 | 接受状态 | 未接受 |
 
 ## 按当前问题展开

@@ -3,7 +3,7 @@
   "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/content-blocks/v1/content-blocks.schema.json",
   "title": "data.content-blocks v1",
   "description": "内容块的规范形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.content-blocks/v1 内有效。",
-  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状；表示层拒绝值（S-26）的具名与优先级、块标识在一条消息内唯一（S-3）、引用形状下两处媒体类型逐字相同（S-10）、落盘后不变（S-22）等由契约条款定，Schema 管不到，逐条列在 contract.md「Schema 管得到什么」。正反实例在同目录 examples.md。不透明标识（BlockId、CallId、AttachmentRef 的 storage 与 key）的交换表示按 data.identity-values/v1#S-31 的散文在本文件写出形状（主线 2026-09-23 裁定：不跨契约 $ref 那份已冻结契约的 OpaqueIdentifier，它自述不单独被引用）；pattern 照 S-31 逐个列出的空白码点写否定字符类，以 (?![\\s\\S]) 判绝对结尾，不用 \\s 与 $——理由与回归用例见 data.identity-values/v1#S-31。",
+  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状；表示层拒绝值（S-26）的具名与优先级、块标识在一条消息内唯一（S-3）、引用形状下两处媒体类型逐字相同（S-10）、落盘后不变（S-22）等由契约条款定，Schema 管不到，逐条列在 contract.md「Schema 管得到什么」。正反实例在同目录 examples.md。不透明标识（BlockId、CallId、AttachmentRef 的 storage 与 key）的交换表示按 data.identity-values/v1#S-31 的散文在本文件写出形状（不跨契约 $ref 那份已冻结契约的 OpaqueIdentifier，它自述不单独被引用；主线裁定，见 D-040 §一 S1-a）；pattern 照 S-31 逐个列出的空白码点写否定字符类，以 (?![\\s\\S]) 判绝对结尾，不用 \\s 与 $——理由与回归用例见 data.identity-values/v1#S-31。",
 
   "$defs": {
 
@@ -109,7 +109,7 @@
 
     "DerivedRendering": {
       "title": "派生表示 · Derived Rendering",
-      "description": "S-19、S-20：模态转换件从一个块产出、挂在那个原块上的一组别的模态的块（UL-derived-rendering）。它是原块的属性，不是消息里另外的块；在落盘之前写好，之后不变。blocks 至少一块，只能是文本块、图块或语音块——不能是文件块（PF-013 转换件契约），也不能是思考、工具调用或工具结果块；这些块自己不再带派生表示或 transcript。producedBy 是产出它的那一件：本版恒为字面量 system——转换件本版不是资产，只由系统装配层登记（S-20；主线 2026-09-23 裁定，待产品负责人确认）。每一块的模态都不同于原块的模态（原块没有模态时不受此限），这一条跨成员比较，Schema 管不到（S-19）。",
+      "description": "S-19、S-20：模态转换件从一个块产出、挂在那个原块上的一组别的模态的块（UL-derived-rendering）。它是原块的属性，不是消息里另外的块；在落盘之前写好，之后不变。blocks 至少一块，只能是文本块、图块或语音块——不能是文件块（PF-013 转换件契约），也不能是思考、工具调用或工具结果块；这些块自己不再带派生表示或 transcript。producedBy 是产出它的那一件：本版恒为字面量 system——转换件本版不是资产，只由系统装配层登记（S-20；PF-013 §4 转换件、PF-012 §4 拓展件的例外）。每一块的模态都不同于原块的模态（原块没有模态时不受此限），这一条跨成员比较，Schema 管不到（S-19）。",
       "$comment": "这些块照样带 id 与 visibility：id 与消息里其余块共用一个唯一范围（S-3），visibility 与原块按合取生效（S-5）。组装时取哪一份归 PF-010，本定义不给它们排优先级。",
       "type": "object",
       "properties": {
@@ -154,7 +154,7 @@
 
     "TextBlock": {
       "title": "文本块",
-      "description": "S-8：给人和模型看的一段话。text 可以是空串。origin 是可选的来源标记，恰四种：slash_command_args 表示这块是人敲斜杠命令时附带的参数；skill_body 表示这块是 ② 型（技能型）斜杠命令逐字展开的那个 skill 的正文；slash_command_expansion 表示这块是 ① 型（提示词型）斜杠命令展开模板得到的文字；slash_command_record 表示这块是一次 ①／② 型斜杠命令的留痕——text 是人敲下的那段原文，逐字。command 与 skill 是相应的命令名与 skill 名。来源标记只陈述出处，不授予任何资格，也不改变这块的标注。不带派生表示与 transcript。",
+      "description": "S-8：给人和模型看的一段话。text 可以是空串。origin 是可选的来路标记（统一语言 UL-origin-tag；不是来源标记），恰四种：slash_command_args 表示这块是人敲斜杠命令时附带的参数；skill_body 表示这块是 ② 型（技能型）斜杠命令逐字展开的那个 skill 的正文；slash_command_expansion 表示这块是 ① 型（提示词型）斜杠命令展开模板得到的文字；slash_command_record 表示这块是一次 ①／② 型斜杠命令的留痕——text 是人敲下的那段原文，逐字。command 与 skill 是相应的命令名与 skill 名。来源标记只陈述出处，不授予任何资格，也不改变这块的标注。不带派生表示与 transcript。",
       "type": "object",
       "allOf": [{ "$ref": "#/$defs/BlockBase" }],
       "properties": {
@@ -268,7 +268,7 @@
     "ToolCallBlock": {
       "title": "工具调用块（完整）",
       "description": "S-12：模型要调哪个工具、传什么参数，参数已经收齐、在封口那一下解析过一次。complete 恒为 true。callId（S-14）、tool（模型面那个工具条目的 name；多命令工具的子命令在参数里）必填；参数恰为两种之一：解析成功——arguments（解析得到的 JSON 值，任意类型），不带原始参数串；解析不了——rawArguments（收齐的原文）与 unparseable: true 两者同现，不带 arguments。标了 unparseable 的调用同样是一次已登记的调用（callId 进 S-14 的唯一范围），它不被执行，由宿主紧接一条收场为 failed 的结果回给模型；任何一方都不再解析它的 rawArguments。四种标注组合都合法。不带派生表示与 transcript。",
-      "$comment": "unparseable 这一种是主线 2026-09-23 裁定（待产品负责人确认）：参数收齐却解析不了的调用保留原文、不执行、结果记 failed 并回给模型。rawArguments 与 unparseable 缺一，或与 arguments 同现，都是 malformed（S-26）。",
+      "$comment": "unparseable 这一种：参数收齐却解析不了的调用保留原文、不执行、结果记 failed 并回给模型（PF-006 §5.5；形状见 D-040 §一 S1-e）。rawArguments 与 unparseable 缺一，或与 arguments 同现，都是 malformed（S-26）。",
       "type": "object",
       "allOf": [
         { "$ref": "#/$defs/BlockBase" },
@@ -333,7 +333,7 @@
 
     "PlaceholderReason": {
       "title": "PlaceholderReason",
-      "description": "S-18：占位的原因，工具结果块 reason.code 的闭合取值，恰十二个；各自落在哪一种收场是写死的：backgrounded_auto、backgrounded_by_user、backgrounded_by_preemption、backgrounded_at_start → backgrounded；user_interrupted、interrupted_by_preemption、human_declined、session_archived、run_cancelled、terminated_by_agent、foreground_timeout → interrupted；abnormal_interruption → failed。它是规格层的取值名，不是统一语言词条；前八个对应 PF-006 §6.7「占位消息一律要说清原因」表里的行，接着三个（backgrounded_at_start、run_cancelled、terminated_by_agent）是主线 2026-09-23 裁定补的三行（待产品负责人确认、随 PF-006 修订补进那张表），最后一个 foreground_timeout 对应 PF-006 rev 18 §6.7「前台超时」一行（前台上限到点而工具不许转后台），取值名由主线 2026-09-24 定。",
+      "description": "S-18：占位原因（统一语言 UL-placeholder-reason），恰十一个；各自落在哪一种收场是写死的：backgrounded_auto、backgrounded_by_user、backgrounded_by_preemption、backgrounded_at_start → backgrounded；user_interrupted、interrupted_by_preemption、human_declined、session_archived、run_cancelled、foreground_timeout → interrupted；abnormal_interruption → failed。取值名是规格层的；它们对应 PF-006 §6.7「占位消息一律要说清原因」表里的行。工具结果块 reason.code 的取值是这十一个外加 terminated_by_agent——后者不是占位原因，是后台那段执行收场的提醒上写的原因（S-18）。",
       "type": "string",
       "enum": [
         "user_interrupted",
@@ -346,14 +346,13 @@
         "abnormal_interruption",
         "backgrounded_at_start",
         "run_cancelled",
-        "terminated_by_agent",
         "foreground_timeout"
       ]
     },
 
     "ToolResultBlock": {
       "title": "工具结果块",
-      "description": "S-15～S-18：一次工具调用的结果，收场带在块上。callId 指回那次调用（S-14）；outcome 是这次收场的唯一依据（S-17），缺席即表示层拒绝，从不当作 completed；reason 是占位的原因——backgrounded 与 interrupted 必带、failed 可带且只能是 abnormal_interruption、其余三种不带，code 必须落在它那一格（S-18）；blocks 是进上下文的内容，它自己又是一串块（可以是空数组，次序有意义），任意一层都不得含工具调用块（S-16）；offloaded 可选，指向被卸载的原始结果。不带派生表示与 transcript——它里面的块各自可以带。",
+      "description": "S-15～S-18：一次工具调用的结果，收场带在块上。callId 指回那次调用（S-14）；outcome 是这次收场的唯一依据（S-17），缺席即表示层拒绝，从不当作 completed；reason 在占位上是占位原因、在后台收场提醒的结果块上是那段执行的收场原因——backgrounded 与 interrupted 必带、failed 可带且只能是 abnormal_interruption、其余三种不带，code 必须落在它那一格（S-18）；blocks 是进上下文的内容，它自己又是一串块（可以是空数组，次序有意义），任意一层都不得含工具调用块（S-16）；offloaded 可选，指向被卸载的原始结果。不带派生表示与 transcript——它里面的块各自可以带。",
       "type": "object",
       "allOf": [
         { "$ref": "#/$defs/BlockBase" },
@@ -389,7 +388,10 @@
         "reason": {
           "type": "object",
           "properties": {
-            "code": { "$ref": "#/$defs/PlaceholderReason" },
+            "code": {
+              "$comment": "S-18：十一个占位原因，外加只落后台收场提醒结果块的 terminated_by_agent（不是占位原因；它只落那种提醒，块自己看不出，由写入方兑现）。",
+              "anyOf": [ { "$ref": "#/$defs/PlaceholderReason" }, { "const": "terminated_by_agent" } ]
+            },
             "text": { "type": "string", "minLength": 1 }
           },
           "required": ["code", "text"],

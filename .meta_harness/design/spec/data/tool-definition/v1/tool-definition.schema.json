@@ -3,7 +3,7 @@
   "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v1/tool-definition.schema.json",
   "title": "data.tool-definition v1",
   "description": "工具定义与工具返回值的规范形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.tool-definition/v1 内有效。",
-  "$comment": "状态 candidate，未接受、未冻结。块、附件引用、能力标识、模态、媒体类型取自 data.content-blocks v1（同样是候选、在另一处并行起草，尚未定型），本文件只 $ref 其 $defs、不复制定义。Schema 只管形状：参数 schema 是否合法的 Draft 2020-12 schema（S-4，表示层校验在 Schema 之外的那一步）、help 与 inspect 一致（S-8）、声明与实际对得上（S-19、S-24）、表示层拒绝不折成判定（S-27）都管不到。表示层拒绝值、判定次序与 malformed 的来由 M1～M23 见 contract.md S-26。正反实例在同目录 examples.md。",
+  "$comment": "状态 candidate，未接受、未冻结。块、附件引用、能力标识、模态、媒体类型取自 data.content-blocks v1（同样是候选），本文件只 $ref 其 $defs、不复制定义。Schema 只管形状：参数 schema 是否合法的 Draft 2020-12 schema（S-4，表示层校验在 Schema 之外的那一步）、help 与 inspect 一致（S-8）、声明与实际对得上（S-19、S-24）、表示层拒绝不折成判定（S-27）都管不到。表示层拒绝值、判定次序与 malformed 的来由 M1～M27 见 contract.md S-26。正反实例在同目录 examples.md。",
 
   "$defs": {
 
@@ -111,7 +111,7 @@
 
     "CommandDefinition": {
       "title": "命令定义",
-      "description": "S-5：多命令工具里的一个命令。description 必填（说明这一个命令），原样成为生成出的命令表里这个命令那一行（S-7 第 2 条）；input 是这个命令的参数 schema，用于判定所选命令的参数与 Tools().inspect，不进模型面（S-7 第 1、3 条），只带命令清单的写法下写 {\"type\": \"object\", \"properties\": {}}；help 可选，是一个文本字段，带了须与 Tools().inspect 对这个命令的回答一致（S-8）。",
+      "description": "S-5：多命令工具里的一个命令。description 必填（说明这一个命令），原样成为生成出的命令表里这个命令那一行（S-7 第 2 条）；input 是这个命令的参数 schema，用于判定所选命令的参数与 Tools().inspect，不进模型面（S-7 第 1、3 条），只带命令清单的写法下写 {\"type\": \"object\", \"properties\": {}, \"additionalProperties\": true}（判参数时 input 顶层没写 additionalProperties 按 false 读，只写 {\"type\": \"object\", \"properties\": {}} 的命令不收任何参数键，S-5）；help 可选，是一个文本字段，带了须与 Tools().inspect 对这个命令的回答一致（S-8）。",
       "type": "object",
       "properties": {
         "description": { "type": "string", "minLength": 1 },
@@ -139,7 +139,14 @@
         "properties": { "type": "object" }
       },
       "required": ["type", "properties"],
-      "$comment": "不 $ref 官方元 schema（主线 2026-09-23 裁定）：合法性检查是表示层校验在 Schema 之外的那一步。"
+      "$comment": "不 $ref 官方元 schema（主线裁定，D-040 §S5 S5-b）：合法性检查是表示层校验在 Schema 之外的那一步。"
+    },
+
+    "ModelToolName": {
+      "title": "模型面名字",
+      "description": "S-6：模型面上的工具名 modelName(d)——d.name 里每一个 : 换成 __。只含 A–Z a–z 0–9 _ -，1～128 个字符。系统里流转的工具指认用它：发给模型的工具清单、调用块里的 tool、放行判断比较的定义名；逆转写（__ 换回 :，S-18 保证唯一）只由工具执行运行时在起执行者之前做。消费者 $ref 它，不另写一份字符集。",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}(?![\\s\\S])"
     },
 
     "ModelToolEntry": {
@@ -147,7 +154,7 @@
       "description": "S-6：一份工具定义在模型面恰是这一个条目——entry(d) = { name: modelName(d), description: d.description, parameters: modelInput(d) }。三家供应商的线上形状只是把这三样放进不同的键与外壳（OpenAI Responses 的 name/description/parameters、Chat Completions 与 OpenRouter 的 function 外壳、Anthropic 的 input_schema），映射归传输适配，不改写 schema。name 是转写后的名字（: 换成 __），因此只含供应商都收的字符。",
       "type": "object",
       "properties": {
-        "name": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,128}(?![\\s\\S])", "description": "modelName(d)：d.name 里每一个 : 换成 __；逆转写把 __ 换回 :，S-18 保证唯一。" },
+        "name": { "$ref": "#/$defs/ModelToolName", "description": "modelName(d)：d.name 里每一个 : 换成 __；逆转写把 __ 换回 :，S-18 保证唯一。" },
         "description": { "type": "string", "minLength": 1, "description": "d.description 原样；替换件只换这一项。" },
         "parameters": { "$ref": "#/$defs/JsonSchema", "description": "modelInput(d)：单函数是 input 原样，多命令是 S-7 生成出的那一份。" }
       },
@@ -177,7 +184,7 @@
 
     "ToolSettings": {
       "title": "设置项声明",
-      "description": "S-10～S-13：本版恰四项，各自可选；不声明的项不存在，各层无从配值。每一项的类别由本契约定死：targetEnvironment 恒为 placement_identity，其余三项恒为 preference——作者标了别的类别即 malformed（M10），标了四值之外的类别即 category_unknown。定义给的是形状与默认值，不是最终值。",
+      "description": "S-10～S-13：本版恰四项，各自可选；不声明的项不存在，各层无从配值。每一项的类别由本契约定死：targetEnvironment 恒为 placement_identity，其余三项恒为 preference——作者标了别的类别即 malformed（M10），标了四值之外的类别即 setting_category_unknown。定义给的是形状与默认值，不是最终值。",
       "type": "object",
       "properties": {
         "targetEnvironment": {
@@ -195,14 +202,14 @@
           ]
         },
         "timeout": {
-          "description": "S-13：超时；偏好类。到时落哪种收场等语义是缺口 G-6。",
+          "description": "S-13：超时，即产品正文的前台上限；偏好类。语义（只数前台时间、到点许后台的转后台、不许的被中断）由 PF-006 §6.6 给出、执行运行时兑现（原 G-6 已关闭）。",
           "allOf": [
             { "$ref": "#/$defs/SettingDeclaration" },
             { "properties": { "category": { "const": "preference" }, "default": { "$ref": "#/$defs/Duration" } } }
           ]
         },
         "concurrency": {
-          "description": "S-13：并发；偏好类，正整数。计数范围与超出时的收场是缺口 G-6。",
+          "description": "S-13：并发，即产品正文的并发上限；偏好类，正整数。语义（同一会话同一工具计、超出的排队）由 PF-006 §6.6 给出、执行运行时兑现（原 G-6 已关闭）。",
           "allOf": [
             { "$ref": "#/$defs/SettingDeclaration" },
             { "properties": { "category": { "const": "preference" }, "default": { "type": "integer", "minimum": 1 } } }
@@ -271,7 +278,7 @@
 
     "ToolSource": {
       "title": "来源",
-      "description": "S-17：判别成员 kind，恰两种。authored：作者写的定义。mcp：由某个 MCP 接入点的列举结果生成，对端的一个动作一份定义；endpoint 是那个接入点的能力标识（类别必须是 mcp），remoteName 是那个动作在对端的名字、原样保留。未知 kind 即 origin_unknown（S-28）。",
+      "description": "S-17：判别成员 kind，恰两种。authored：作者写的定义。mcp：由某个 MCP 接入点的列举结果生成，对端的一个动作一份定义；endpoint 是那个接入点的能力标识（类别必须是 mcp），remoteName 是那个动作在对端的名字、原样保留。未知 kind 即 tool_origin_unknown（S-28）。",
       "oneOf": [
         {
           "title": "作者写的",

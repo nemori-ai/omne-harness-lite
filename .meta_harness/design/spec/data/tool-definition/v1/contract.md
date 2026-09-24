@@ -5,15 +5,15 @@
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.tool-definition, 1)`——
   `family = data`、`topic = tool-definition`、规范路径 `spec/data/tool-definition/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按 PF-006 rev 19 修订）——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
-- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-006 rev 19**、**PF-002 rev 16**、**PF-005 rev 5** 为准；
-  只引而不据以立条款的：PF-007 rev 16、PF-009 rev 7、PF-012 rev 10
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按 PF-006 rev 19 修订，再按第一轮独立评审处置修订）——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
+- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-006 rev 19**、**PF-002 rev 20**、**PF-005 rev 5** 为准；
+  只引而不据以立条款的：PF-007 rev 18、PF-009 rev 8、PF-012 rev 14
 - **精确语义依赖**（逐项在 catalog 登记）：
 
   | 坐标 | 消费 clauses | 取它的什么 | 状态 |
   |---|---|---|---|
-  | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1` | [S-2](../../content-blocks/v1/contract.md#s-2-块底座)、[S-6](../../content-blocks/v1/contract.md#s-6-模态由媒体类型判定)、[S-7](../../content-blocks/v1/contract.md#s-7-媒体类型的规范形式)、[S-10](../../content-blocks/v1/contract.md#s-10-语音块与图块)、[S-16](../../content-blocks/v1/contract.md#s-16-结果里不发起调用)、[S-17](../../content-blocks/v1/contract.md#s-17-六种收场)、[S-20](../../content-blocks/v1/contract.md#s-20-派生表示的产出者与能力标识)、[S-21](../../content-blocks/v1/contract.md#s-21-attachmentref)、[S-26](../../content-blocks/v1/contract.md#s-26-表示层拒绝值) | `$defs` 的 `ContentBlock`、`AttachmentRef`、`CapabilityId`、`Modality`、`MediaType`、`ExecutionOutcome`、`InlineBytes`；两条规则——「工具结果块里不得含工具调用块」（拒绝值 `call_in_result`）与「块的模态由媒体类型决定」 | 候选 |
-  | `omne-harness-lite-design-2026-09-15 · data.asset-model · v1` | [S-2](../../asset-model/v1/contract.md#s-2-能力标识名的词法)、[S-12](../../asset-model/v1/contract.md#s-12-属性声明由正文推出)、[S-13](../../asset-model/v1/contract.md#s-13-设置项类别)、[S-15](../../asset-model/v1/contract.md#s-15-disabled-是保留项名) | 能力标识名的词法；属性声明的形状与「由正文推出」的义务；设置项类别四值——`SettingCategory` `$ref` 它 | 候选 |
+  | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1` | [S-1](../../content-blocks/v1/contract.md#s-1-七类块)、[S-2](../../content-blocks/v1/contract.md#s-2-块底座)、[S-6](../../content-blocks/v1/contract.md#s-6-模态由媒体类型判定)、[S-7](../../content-blocks/v1/contract.md#s-7-媒体类型的规范形式)、[S-10](../../content-blocks/v1/contract.md#s-10-语音块与图块)、[S-16](../../content-blocks/v1/contract.md#s-16-结果里不发起调用)、[S-17](../../content-blocks/v1/contract.md#s-17-六种收场)、[S-20](../../content-blocks/v1/contract.md#s-20-派生表示的产出者与能力标识)、[S-21](../../content-blocks/v1/contract.md#s-21-attachmentref)、[S-26](../../content-blocks/v1/contract.md#s-26-表示层拒绝值) | 块恰七类（`ToolResult` 的 `blocks` 取其中的块，S-1）；`$defs` 的 `ContentBlock`、`AttachmentRef`、`CapabilityId`、`Modality`、`MediaType`、`ExecutionOutcome`、`InlineBytes`；两条规则——「工具结果块里不得含工具调用块」（拒绝值 `call_in_result`）与「块的模态由媒体类型决定」 | 候选 |
+  | `omne-harness-lite-design-2026-09-15 · data.asset-model · v1` | [S-2](../../asset-model/v1/contract.md#s-2-能力标识名的词法)、[S-10](../../asset-model/v1/contract.md#s-10-八类正文的外壳)、[S-12](../../asset-model/v1/contract.md#s-12-属性声明由正文推出)、[S-13](../../asset-model/v1/contract.md#s-13-设置项类别)、[S-15](../../asset-model/v1/contract.md#s-15-disabled-是保留项名)、[S-36](../../asset-model/v1/contract.md#s-36-usableby-是保留项名) | 能力标识名的词法；「正文的 `name` 与 `capability.name` 逐码点相等、不等即 `malformed`」（S-10，[S-2](#s-2-身份是-name) 据以写）；属性声明的形状与「由正文推出」的义务；设置项类别四值——`SettingCategory` `$ref` 它；两个保留项名 | 候选 |
 
   **只引名字，不复制定义。**`data.asset-model` 的 `tool` 壳 `$ref` 本契约的 `ToolDefinition`，那是结构上的前提，不是本契约对它的消费。
   **本契约不依赖 `data.offer-expiry`**（没有时间点值），**也不依赖 `data.identity-values`**（定义里没有归属身份，见 [S-2](#s-2-身份是-name)）
@@ -52,11 +52,14 @@
 | 附件放在工具定义声明的那个存储里 | [领域对象：附件](../../../../domain_objects/objects.md#ul-attachment--附件) | S-24 |
 | 起点：按 PF-006 §5.3 自研，三源只作参考 | [D-031](../../../../record/decisions/tool-definition-baseline/README.md) | 全文 |
 | 产品负责人对形状草案的裁决：**Q5** 多命令工具的模型面是一份 schema、带 `command` 判别；**Q6** 设置与执行权限的默认值由定义给；**Q7**（备查）作者卸载却没写摘要时占位由运行时给 | [D-038 Q5 / Q6 / Q7](../../../../record/decisions/message-and-shape-rulings/decision.md#十九处分岔) | S-6、S-7（Q5）；S-10、S-15（Q6）；S-23（Q7） |
-| 命令 `input` 里不许有根相对 `$ref` 与 `$id`；设置项与权限项按推出规则产出资产的属性声明；来源改名 `ToolSource`；`name` 就是能力标识的名、不是第二身份；MCP 条目的模态按桥的投影判 | 主线裁定 2026-09-23，待产品负责人确认（账本 S5-f、S19；对齐义务见 `data.asset-model` 验证入口） | S-2、S-7、S-10、S-17、S-24、S-31 |
-| **工具定义必须能直接构造出各家模型供应商要求的工具 payload**：三家的模型面条目都是同一份三元组 `{name, description, 参数 schema}`、只差键名与外壳；参数 schema 顶层 `type: "object"`；每个参数带说明；Anthropic 的工具名正则不含 `:` | [研究 V-1～V-4](../../../../../research/tool-definition-shape-sources/evidence.md)，产品负责人 2026-09-24 要求（V 组取证钉在主检出 `tmp/sources/extracted/`，只对抓取当日的页面成立）；「说明必填」的产品正文是 [PF-006 §5.3](../../../../product/PF-006-tools-and-skills/design.md#工具说明与每个参数的说明必填)（rev 19） | S-4、S-6、S-7、S-18、S-26、[第七节](#七装配给与协议给)、G-1、G-12 |
-| **多命令工具的模型面只支持 flat 形**：`command` 枚举带命令表说明、`args` 只说「是一个对象」，不生成 `oneOf` 判别联合；判定仍按所选命令的 `input` | 产品负责人裁定 2026-09-24，落在 [PF-006 §5.3](../../../../product/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡)（rev 19：模型面前只有命令清单一种样子）；D-038 Q5「一份 schema 带判别字段」的 flat 读法；对照 omne-next `multi_command.py` 默认 `dispatch_mode="flat"`（[研究 O-2](../../../../../research/tool-definition-shape-sources/evidence.md#o-2-多命令范式-basemulticommandtool)） | S-5、S-7、S-8、CS-1、G-3、G-12 |
-| **MCP 来源定义的说明与参数 schema 由桥做最小规范化**（缺说明补占位、剥 `$schema`／`title`、`{"type": "object"}` 视为无参数） | 主线裁定 2026-09-24（`capability.mcp-bridge/v1#S-17`；缘起 [PF-006 decisions §四「MCP 动作缺说明」](../../../../product/PF-006-tools-and-skills/decisions.md#四已知的来源问题)） | S-17 |
-| **判参数时未知键一律拒**：`input` 顶层没写 `additionalProperties` 按 `false` 读，作者显式写 `true` 或一份 schema 才收 | 主线裁定 2026-09-24；依据 [研究 V-5](../../../../../research/tool-definition-shape-sources/evidence.md) 结论 ③（没有 inspect 时模型臆造参数名） | S-5、S-7 |
+| 命令 `input` 里不许有根相对 `$ref` 与 `$id` | 主线裁定，见 [D-040 §S5 S5-f](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s5tool-definition报回的) | S-7 |
+| 设置项与权限项按推出规则产出资产的属性声明 | 主线裁定，见 [D-040 §块 A A3](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#块-a-形状shapes-draft-assets-v0md-a1a10)；规则的义务在 [`data.asset-model/v1#S-12`](../../asset-model/v1/contract.md#s-12-属性声明由正文推出) | S-10、S-31 |
+| `name` 就是能力标识的名、不是第二身份 | [`data.asset-model/v1#S-10`](../../asset-model/v1/contract.md#s-10-八类正文的外壳)（正文的 `name` 与 `capability.name` 逐码点相等） | S-2 |
+| MCP 来源的条目不按结果端模态判 | 主线裁定，见 [D-040 §五 K11](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)（取代 [D-040 §S19 S19-e](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的)「按桥的投影判」），与 `capability.mcp-bridge/v1#S-17` 一致 | S-24 |
+| **工具定义必须能直接构造出各家模型供应商要求的工具 payload**：三家的模型面条目都是同一份三元组 `{name, description, 参数 schema}`、只差键名与外壳；参数 schema 顶层 `type: "object"`；每个参数带说明；Anthropic 的工具名正则不含 `:` | [研究 V-1～V-4](../../../../../research/tool-definition-shape-sources/evidence.md)，产品负责人 2026-09-24 要求（[D-039 U-24-1](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#凭据档案工具拓展件卡片-pf-013-rev-10pf-002-rev-1819pf-006-rev-19pf-012-rev-12pf-007-rev-17pf-008-rev-7pf-016-rev-6)；V 组取证钉在主检出 `tmp/sources/extracted/`，只对抓取当日的页面成立）；「说明必填」的产品正文是 [PF-006 §5.3](../../../../product/PF-006-tools-and-skills/design.md#工具说明与每个参数的说明必填)（rev 19） | S-4、S-6、S-7、S-18、S-26、[第七节](#七装配给与协议给)、G-1、G-12 |
+| **多命令工具的模型面只支持 flat 形**：`command` 枚举带命令表说明、`args` 只说「是一个对象」，不生成 `oneOf` 判别联合；判定仍按所选命令的 `input` | 产品负责人裁定 2026-09-24（[D-039 U-24-2](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#凭据档案工具拓展件卡片-pf-013-rev-10pf-002-rev-1819pf-006-rev-19pf-012-rev-12pf-007-rev-17pf-008-rev-7pf-016-rev-6)），落在 [PF-006 §5.3](../../../../product/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡)（rev 19：模型面前只有命令清单一种样子）；D-038 Q5「一份 schema 带判别字段」的 flat 读法；对照 omne-next `multi_command.py` 默认 `dispatch_mode="flat"`（[研究 O-2](../../../../../research/tool-definition-shape-sources/evidence.md#o-2-多命令范式-basemulticommandtool)） | S-5、S-7、S-8、CS-1、G-3、G-12 |
+| **MCP 来源定义的说明与参数 schema 由桥做最小规范化**（缺说明补占位、剥 `$schema`／`title`、`{"type": "object"}` 视为无参数） | 缺说明补占位是主线裁定，见 [D-040 §二「产品批二报回」⑥](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#二2026-09-24-用户在场期间主线随用户裁决所作的自定账本-二-原文标主线自定的行)，已记进 [PF-006 decisions §四「MCP 动作缺说明」](../../../../product/PF-006-tools-and-skills/decisions.md#四已知的来源问题)；规范化的其余两项由 `capability.mcp-bridge/v1#S-17` 定 | S-17 |
+| **判参数时未知键一律拒**：`input` 顶层没写 `additionalProperties` 按 `false` 读，作者显式写 `true` 或一份 schema 才收；模型面不因此改写 | 主线裁定 2026-09-24（D-040 未收录，已报主线补登）；依据 [研究 V-5](../../../../../research/tool-definition-shape-sources/evidence.md) 结论 ③（没有 inspect 时模型臆造参数名） | S-5、S-7 |
 | 规格形式 | [SYS-SPEC](../../../../foundation/cross-system-constraints/requirements.md#sys-spec) | S-14、S-18、S-26～S-28 |
 | 部署边界 | [SYS-DEPLOY](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy) | [第七节](#七装配给与协议给) |
 
@@ -64,8 +67,8 @@
 > [S-7](#s-7-多命令-input-的生成规则) 的次序（2026-09-24 的 flat 裁定沿用了它）、[S-20](#s-20-两种写法与等价规则) 的两个标注取值是**本契约的推导**，理由写在条款里。
 > 「只占一个条目」另有 PF-002 §4 Tool 与 PF-006 §5.3 的正文依据；D-038 Q6 与 [PF-006 §6.6「定义给默认值」](../../../../product/PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)一致。
 >
-> **主线 2026-09-23 的规格层裁定**（不需问产品负责人的读法与形状）：S-7 生成规则曾改为每命令一支的顶层 `oneOf`（已被产品负责人 2026-09-24 的 flat 裁定取代，见上表）；`JsonSchema` 只要求是对象、合法性由实现校验（S-4、S-26）；
-> 有阈值而无后台许可即拒（S-12）；`help` 是文本字段，由 `Tools().inspect` 呈现（S-8）；无专名的形状错误逐条列为 `malformed` 的 M 条目（S-26）。记录见[验证入口](../verification.md#变化的影响)。
+> **主线的规格层裁定**（不需问产品负责人的读法与形状），见 [D-040 §S5](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s5tool-definition报回的)：S-7 生成规则曾改为每命令一支的顶层 `oneOf`（S5-a，已被产品负责人 2026-09-24 的 flat 裁定取代，见上表）；`JsonSchema` 只要求是对象、合法性由实现校验（S5-b；S-4、S-26）；
+> 有阈值而无后台许可即拒（S5-c；S-12）；`help` 是文本字段，由 `Tools().inspect` 呈现（S5-d；S-8）；无专名的形状错误逐条列为 `malformed` 的 M 条目（S5-e；S-26）。
 
 ## 一、目的与消费者
 
@@ -185,15 +188,21 @@ MCP 列举怎样生成定义（`capability.mcp-bridge` v1 的 S-17）；技能�
   因此布尔 schema（`true`、`false`）不收——它们合法，却不是对象。不是对象、或是对象却不合 Draft 2020-12，都是 `input_not_schema`（[S-26](#s-26-表示层拒绝值与判定次序) 第 5 行）。
 - **不得带 `commands`**，带了即 `commands_forbidden`。
 
-**参数 schema 的三条硬要求**（[研究 V-1～V-4](../../../../../research/tool-definition-shape-sources/evidence.md)，产品负责人 2026-09-24 要求）——`single` 的 `input`、`multi` 每个命令的 `input`（[S-5](#s-5-多命令工具)）、以及生成出的 `modelInput`（[S-7](#s-7-多命令-input-的生成规则)）都要满足：
+**参数 schema 的三条硬要求**（[研究 V-1～V-4](../../../../../research/tool-definition-shape-sources/evidence.md)，产品负责人 2026-09-24 要求，[D-039 U-24-1](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#凭据档案工具拓展件卡片-pf-013-rev-10pf-002-rev-1819pf-006-rev-19pf-012-rev-12pf-007-rev-17pf-008-rev-7pf-016-rev-6)）——`single` 的 `input`、`multi` 每个命令的 `input`（[S-5](#s-5-多命令工具)）、以及生成出的 `modelInput`（[S-7](#s-7-多命令-input-的生成规则)）都要满足（其中「schema 的位置」见列表之后）：
 
 1. **顶层恰带 `"type": "object"` 与 `properties`**：`type` 的值就是字符串 `"object"`，`properties` 是一个对象、**可以为空对象**，`required` 可带可不带。
    不合 ⇒ `malformed`（M26）。依据：OpenAI 明写 `parameters` 顶层须 `type: "object"`（研究 V-1），Anthropic 的 `input_schema` 与它组装进系统提示的写法同（V-2）。
-2. **任何一处 `properties` 的每一个成员 schema 都带非空的 `description`**——顶层的参数、嵌套对象的参数、数组 `items` 是对象时它的参数、`anyOf`／`oneOf` 各支里的参数，一概如此。
+2. **每个位置上的 `properties` 的每一个成员 schema 都带非空的 `description`**——顶层的参数、嵌套对象的参数、数组 `items` 是对象时它的参数、对象形 `additionalProperties` 里的参数、`anyOf`／`oneOf` 各支里的参数，一概如此。
    缺了或为空串 ⇒ `parameter_description_missing`（[S-26](#s-26-表示层拒绝值与判定次序) 第 6 行）。依据：[PF-006 §5.3「工具说明与每个参数的说明，必填」](../../../../product/PF-006-tools-and-skills/design.md#工具说明与每个参数的说明必填)（rev 19）——缺了就不是一份完整的工具定义；两家都把参数说明当作模型用对工具的关键（研究 V-1「推荐」、V-2「最重要的因素」），写成必填代价为零（V-4 第 3 条）。
 3. **只用可呈现子集里的关键字**：`type` `properties` `required` `description` `enum` `const` `items` `additionalProperties` `anyOf` `oneOf` `minimum` `maximum` `minLength` `maxLength` `pattern` `format` `default`。
    别的关键字——含任何 `$ref`、`$id`、`$defs`、`$schema`、`title`、`allOf`、`not`、`if`——⇒ `malformed`（M27）。这一份就是「**非 strict 模式下 OpenAI Chat Completions 与 Anthropic 都直接接受**」的子集（[G-12](#十已知缺口) 收窄到这里）。
-   只在 schema 的位置上数关键字：`properties` 下的成员名是参数名、`enum`／`const`／`default` 的值是数据，都不是关键字；子 schema 的位置恰是 `properties` 的每个成员、`items`、是对象时的 `additionalProperties`、`anyOf` 与 `oneOf` 的每一支。
+   只在下面那份清单里的位置上数关键字：`properties` 下的成员名是参数名、`enum`／`const`／`default` 的值是数据，都不是关键字。
+
+**schema 的位置**（第 2、3 条共用这一份封闭清单）：参数 schema 的根是一个位置；一个位置上的 schema 是 JSON 对象时，下列各处也是位置，依此递归——
+它的 `properties` 的**每一个成员**、它的 `items`、它的 `additionalProperties`（**只在取值是对象时**）、它的 `anyOf` 与 `oneOf` 的**每一支**。**清单以外的地方都不是位置**，第 2、3 条都不走进去：
+清单以外的关键字（`allOf`、`not`、`if`、`$defs` 等）下面的东西，由第 3 条对那个关键字本身报 M27，不再往里数说明或关键字。
+
+**第 2 条与第 3 条同时违反时**：报 `parameter_description_missing`——它在 [S-26](#s-26-表示层拒绝值与判定次序) 的次序里排在 `malformed`（M27）之前。说明缺在清单以外的地方（例如 `allOf` 一支里）不算第 2 条违反，这份 schema 报 M27。
 
 三条与「合法的 Draft 2020-12 schema」一样，是**表示层校验在 Schema 之外的那一步**（第 1 条的顶层两项 Schema 也管）；合在一起保证[第七节](#七装配给与协议给)那一句：**模型面条目投成任何一家的工具声明都不需要改写 schema**。
 
@@ -211,11 +220,11 @@ MCP 列举怎样生成定义（`capability.mcp-bridge` v1 的 S-17）；技能�
   只带命令清单、每个一句话，或带全部命令的完整参数，系统不替他选。**两种写法的模型面相同**（[S-7](#s-7-多命令-input-的生成规则)：模型面不展示任何命令的参数 schema；PF-006 rev 19「模型面前只有紧凑的命令清单一种样子」）；带多少只改变判定有多严、`Tools().inspect` 与 `help` 答得多细。
   **只带命令清单的写法**：各命令的 `input` 写 `{"type": "object", "properties": {}, "additionalProperties": true}`（收任何一个对象作参数——[S-4](#s-4-单函数工具) 第 1 条要它顶层是对象，`additionalProperties: true` 按下一条必须显式写）：交上来的参数系统据以判的只有「是一个对象」，**对不对由工具自己判**；`Tools().inspect` 答得出的只有命令清单（作者带了 `help` 的，还有那段文本）（PF-006 §5.3 那张表第一行）。
   只写 `{"type": "object", "properties": {}}` 的命令是**不收任何参数键**的命令，不是「只带命令清单」。
-- **判参数时，`input` 顶层没写 `additionalProperties` 就按 `false` 读**（主线裁定 2026-09-24）：一次调用的参数按 `input` 判——单函数工具是它的 `input`（[S-4](#s-4-单函数工具)），多命令工具是所选命令的 `commands[c].input`（[S-7](#s-7-多命令-input-的生成规则) 第 3 条）——时，顶层 `properties` 以外的键**一律不收**；
+- **判参数时，`input` 顶层没写 `additionalProperties` 就按 `false` 读**（主线裁定 2026-09-24，见[设计依据](#设计依据)那一行）：一次调用的参数按 `input` 判——单函数工具是它的 `input`（[S-4](#s-4-单函数工具)），多命令工具是所选命令的 `commands[c].input`（[S-7](#s-7-多命令-input-的生成规则) 第 3 条）——时，顶层 `properties` 以外的键**一律不收**；
   作者在 `input` 顶层**显式**写了 `"additionalProperties": true` 才收下这些键，写的是一份 schema 就按那份 schema 判。这是本契约对 `input` 的读法，**不是 Draft 2020-12 的原义**（原义下没写即收）；判由执行运行时做（`capability.tool-execution-runtime/v1` 的 S-11，失败种类 `arguments_invalid`）。
   依据：[研究 V-5](../../../../../research/tool-definition-shape-sources/evidence.md) 结论 ③——没有 `Tools().inspect` 时模型会臆造参数名（`openai/gpt-5.6-sol` 猜了 `ignore_case`），静默收下那个键，它就据错误的结果作答。
   这与上一条「对不对由工具自己判」不冲突：这一条就是判的规则，作者想自己判，就显式写 `true`。
-  **模型面不因此改写**（主线裁定 2026-09-24）：单函数工具的 `parameters` 仍是作者的 `input` 原样（[S-6](#s-6-模型面只有一个条目)），不自动补 `additionalProperties: false`；**模型面允许而运行时拒的键，会以用法文本告知**——那一次调用收场 `failed{arguments_invalid}`，块上写明哪个键不收，并带这个工具（命令）的一行说明与参数表（`capability.tool-execution-runtime/v1` 的 S-11）。
+  **模型面不因此改写**（同一裁定）：单函数工具的 `parameters` 仍是作者的 `input` 原样（[S-6](#s-6-模型面只有一个条目)），不自动补 `additionalProperties: false`；**模型面允许而运行时拒的键，会以用法文本告知**——那一次调用收场 `failed{arguments_invalid}`，块上写明哪个键不收，并带这个工具（命令）的一行说明与参数表（`capability.tool-execution-runtime/v1` 的 S-11）。
   **只管顶层**：`properties` 成员里的对象 schema、`items` 里的对象 schema 按原义读（本契约的推导：裁定说的是 `input`，参数表也只列顶层）。
 
 ### S-6 模型面只有一个条目
@@ -224,7 +233,7 @@ MCP 列举怎样生成定义（`capability.mcp-bridge` v1 的 S-17）；技能�
 依据：[PF-002 §4 Tool](../../../../product/PF-002-assets-settings-and-permissions/design.md#tool)「整套命令在组装时只占一个槽位——命令多了不会让 agent 面前的工具条目变多」；
 [PF-006 §5.3](../../../../product/PF-006-tools-and-skills/design.md#53-一份工具定义长什么样)「多命令范式把一族动作压进一个槽位」；以及 D-038 Q5（一份 schema、带 `command` 判别成员）。
 
-**这个条目的形状由本契约定死**（[研究 V-1～V-4](../../../../../research/tool-definition-shape-sources/evidence.md)，产品负责人 2026-09-24 要求）：`ModelToolEntry = { name, description, parameters }`，三样都必有——
+**这个条目的形状由本契约定死**（[研究 V-1～V-4](../../../../../research/tool-definition-shape-sources/evidence.md)，产品负责人 2026-09-24 要求，[D-039 U-24-1](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#凭据档案工具拓展件卡片-pf-013-rev-10pf-002-rev-1819pf-006-rev-19pf-012-rev-12pf-007-rev-17pf-008-rev-7pf-016-rev-6)；形状见 [D-040「产品负责人追加要求」TD-1](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#产品负责人-2026-09-24-追加要求工具定义须能构造供应商工具-payload已取证已发对齐波)）：`ModelToolEntry = { name, description, parameters }`，三样都必有——
 
 ```text
 entry(d)       ≝  { name: modelName(d), description: d.description, parameters: modelInput(d) }
@@ -244,15 +253,18 @@ modelName(d)   ≝  d.name 里每一个 ":" 换成 "__"     （S-18 保证它可
 
   因此投影是**纯键名映射**：三样原样放进那一家的键里，**不改写 schema、不再改名字**（名字已是 `modelName`）。映射本身由传输适配做；
   **本契约承诺的是「不需要改写 schema 就能映射」**——参数 schema 满足 [S-4](#s-4-单函数工具) 的三条硬要求，名字满足 [S-18](#s-18-名字的表示与相等)；这一句写进[第七节](#七装配给与协议给)。逐字投影见 [`examples.md` 第 11 节](examples.md#11-一份定义投成三家的线上形状)。
+- **模型面名字有自己的 `$def`：`ModelToolName`**（`ModelToolEntry.name` 引它）——字符集 `A`～`Z`、`a`～`z`、`0`～`9`、`_`、`-`，1～128 个字符。
+  **系统里流转的工具指认用的都是模型面名字**（主线裁定，见 [D-040 §五 K10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）：发给模型的工具清单、模型交回的调用块里的 `tool`（`data.content-blocks` 的完整工具调用）、放行判断拿来比较的定义名，都是 `modelName(d)`，消费者 `$ref` 本契约的 `ModelToolName`，**不另写一份字符集**。
 - **回来的调用按逆转写对回定义**：模型交回的调用名 `m`，所指的定义名是 `m` 里每一个 `"__"` 换回 `":"`——[S-18](#s-18-名字的表示与相等) 的名字限制使这一步**唯一**。
-  逆转写由收到调用的一方做（模型请求运行时的传输适配、工具执行运行时；对齐义务见[验证入口](../verification.md#对齐义务)）。
+  **逆转写只在一处做：工具执行运行时起执行者之前**（`capability.tool-execution-runtime` v1；同一裁定）。模型请求运行时的传输适配**不做**逆转写，调用块原样带模型面名字进日志；
+  在逆转写之前比较两个名字，一律比模型面名字（`modelName` 是单射，比模型面名字与比定义名结论相同）。对齐义务见[验证入口](../verification.md#对齐义务)。
 - **[替换件](../../../../ubiquitous_language/terms/reach-and-availability.md#ul-stand-in--替换件--stand-in)与原件同形**：
   `modelName` 与 `modelInput` 与原件相同，**只换 `description`**（[PF-006 §6.3](../../../../product/PF-006-tools-and-skills/design.md#63-不可用时装的是同名替换件不是不装)）。替换件怎么造归执行运行时。
 
 ### S-7 多命令 input 的生成规则
 
 **`generateMultiInput(commands)` 恰是下面这个对象**——**flat 形**：一个 `command` 枚举、一个不展示参数的 `args`
-（产品负责人裁定 2026-09-24，产品正文 [PF-006 §5.3](../../../../product/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡) rev 19：模型面前只有「选哪个命令」「交给它的参数」两格；D-038 Q5「一份 schema 带判别字段」的 flat 读法；对照 omne-next `multi_command.py` 默认 `dispatch_mode="flat"`，[研究 O-2](../../../../../research/tool-definition-shape-sources/evidence.md#o-2-多命令范式-basemulticommandtool)）：
+（产品负责人裁定 2026-09-24，[D-039 U-24-2](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#凭据档案工具拓展件卡片-pf-013-rev-10pf-002-rev-1819pf-006-rev-19pf-012-rev-12pf-007-rev-17pf-008-rev-7pf-016-rev-6)，产品正文 [PF-006 §5.3](../../../../product/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡) rev 19：模型面前只有「选哪个命令」「交给它的参数」两格；D-038 Q5「一份 schema 带判别字段」的 flat 读法；对照 omne-next `multi_command.py` 默认 `dispatch_mode="flat"`，[研究 O-2](../../../../../research/tool-definition-shape-sources/evidence.md#o-2-多命令范式-basemulticommandtool)）：
 
 ```json
 {
@@ -265,7 +277,7 @@ modelName(d)   ≝  d.name 里每一个 ":" 换成 "__"     （S-18 保证它可
     },
     "args": {
       "type": "object",
-      "description": "所选命令的参数；各命令的参数用法经 Tools().inspect（或本工具自带的 help 命令）取得"
+      "description": "所选命令的参数；各命令的参数用法经 Tools().inspect 取得"
     }
   },
   "required": ["command"],
@@ -284,9 +296,9 @@ modelName(d)   ≝  d.name 里每一个 ":" 换成 "__"     （S-18 保证它可
    [第七节](#七装配给与协议给)的「任何节点算出同一个值」就不成立。
 3. **判定仍以 `commands[c].input` 为准**：作者写的完整参数 schema 用于判一次调用的参数、用于 `Tools().inspect` 与作者声明的 `help` 命令给出的用法，**不用于模型面**。
    `modelInput` 只管得到「`command` 是一个命令名、`args` 是一个对象、没有别的成员」，**不替任何命令判参数**。
-   判时 `commands[c].input` 顶层没写 `additionalProperties` 按 `false` 读（[S-5](#s-5-多命令工具) 末条，主线裁定 2026-09-24）。
+   判时 `commands[c].input` 顶层没写 `additionalProperties` 按 `false` 读（[S-5](#s-5-多命令工具) 末条）。
 4. **`args` 缺席等价于 `{}`**：`{"command": c}` 与 `{"command": c, "args": {}}` 是同一次调用，按 `commands[c].input` 判 `{}`。
-5. **命令 `input` 里不许有根相对的 `$ref`（以 `#` 开头）与 `$id`**（主线裁定 2026-09-23，待产品负责人确认；账本 S5-f），违反即 `malformed`（M24）。
+5. **命令 `input` 里不许有根相对的 `$ref`（以 `#` 开头）与 `$id`**（主线裁定，见 [D-040 §S5 S5-f](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s5tool-definition报回的)），违反即 `malformed`（M24）。
    flat 形不再把命令 `input` 嵌进 `modelInput`，**判定时的嵌入问题仍在**：命令 `input` 存在一份更大的定义里，按它自己作根解析还是按所在文档解析，
    根相对的 `$ref` 与 `$id` 会给出两种结果——**禁止是唯一不需要约定解析基准的读法**。它是表示层校验在 Schema 之外的那一步（与「是否合法的 Draft 2020-12 schema」同一步）。
    **可呈现子集（[S-4](#s-4-单函数工具) 第 3 条）不收任何 `$ref` 与 `$id`**，所以这一条如今被 M27 覆盖、对单函数工具同样成立；M24 留着编号与表述，两条重叠不改变报出的值。
@@ -344,7 +356,7 @@ omne-next 另有 `typed_union`（按每个命令的参数合成判别联合、�
 **一项设置在定义里写成 `{ category, default }`**（`SettingDeclaration`）：
 
 - `category`：[设置项类别](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category)，取 [`data.asset-model/v1#S-13`](../../asset-model/v1/contract.md#s-13-设置项类别) 的 `SettingCategory` 四值（[PF-002 §5.2](../../../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)），本契约 `$ref` 它、不另立一份；
-  四值之外即 `category_unknown`。
+  四值之外即 `setting_category_unknown`。
 - `default`：作者给的默认值。**默认值由定义给**（D-038 Q6；[PF-006 §6.6](../../../../product/PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)「定义给默认值，持有它的各层可以改」）。
 
 **定义声明的是设置项的形状与默认值，不是它最终的值**（[PF-006 其中两项声明的是设置项](../../../../product/PF-006-tools-and-skills/design.md#其中两项声明的是设置项)）。持有这个工具的各层按
@@ -460,12 +472,12 @@ omne-next 另有 `typed_union`（按每个命令的参数合成判别联合、�
 3. **`remoteName` 原样保留对端给的名字**，不被改写；`(endpoint, remoteName)` 指认对端那个动作。
 
 `name` 怎样从 `(endpoint, remoteName)` 得出、六项声明与执行权限默认值怎么取，由 `capability.mcp-bridge` v1 S-17（`projectActions`）给出（原 G-8）；
-两端模态怎样判见 [S-24](#s-24-结果与声明对得上)。未知的 `kind` 即 `origin_unknown`。
+两端模态怎样判见 [S-24](#s-24-结果与声明对得上)。未知的 `kind` 即 `tool_origin_unknown`。
 
-**MCP 来源定义的 `description` 与 `input` 是桥投影的结果，不一定是对端原话**：对端缺说明、带 `$schema`／`title`、只写 `{"type": "object"}` 的，桥先做最小规范化再交出定义（`capability.mcp-bridge/v1#S-17`，主线裁定 2026-09-24）。
+**MCP 来源定义的 `description` 与 `input` 是桥投影的结果，不一定是对端原话**：对端缺说明、带 `$schema`／`title`、只写 `{"type": "object"}` 的，桥先做最小规范化再交出定义（`capability.mcp-bridge/v1#S-17`；缺说明补占位的依据见[设计依据](#设计依据)）。
 **规范化只在桥里**：交到本契约的定义照常过表示层校验，本契约不因来源是 `mcp` 放宽任何一条（[S-4](#s-4-单函数工具) 的三条硬要求、[S-26](#s-26-表示层拒绝值与判定次序)）。
 
-**`origin` 的形状在 Schema 里叫 `ToolSource`**（主线裁定 2026-09-23，待产品负责人确认）：`data.asset-model` 的 `AssetOrigin`（`official`／`customized`）说的是资产记录的出处，与这里「定义由谁写、还是由 MCP 列举生成」是两件事，不共用一个名字；成员名 `origin` 不变。
+**`origin` 的形状在 Schema 里叫 `ToolSource`**（本契约的命名选择）：`data.asset-model` 的 `AssetOrigin`（`official`／`customized`）说的是资产记录的出处，与这里「定义由谁写、还是由 MCP 列举生成」是两件事，不共用一个名字；成员名 `origin` 不变。
 
 ### S-18 名字的表示与相等
 
@@ -475,7 +487,7 @@ omne-next 另有 `typed_union`（按每个命令的参数合成判别联合、�
 - **相等是逐码点精确相等**：不做 Unicode 规范化、不折叠大小写、不裁剪空白。**理由**：依赖名要按「谁生效在那个名字上」匹配（[PF-006 §4 依赖](../../../../product/PF-006-tools-and-skills/design.md#依赖)），
   能力标识要按 name 判断替代——两个实现各带一套隐式等价，就会一个判满足、一个判不满足。**这一条是本契约的推导。**
 - **不解析**：消费者不得从这些名字里读出结构（前缀、分隔符、来源）——来源在 `origin`，不在名字里。**`modelName` 的转写与逆转写不是解析**：它按字符整体换，不拆出任何成分（[S-6](#s-6-模型面只有一个条目)）。
-- **`name` 的字符集与长度定死**（[研究 V-1～V-4](../../../../../research/tool-definition-shape-sources/evidence.md)，产品负责人 2026-09-24 要求；[G-1](#十已知缺口) 收窄到其余几种名字）——两种来源的 `name` 都要满足：
+- **`name` 的字符集与长度定死**（[研究 V-1～V-4](../../../../../research/tool-definition-shape-sources/evidence.md)，产品负责人 2026-09-24 要求，[D-040 TD-2](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#产品负责人-2026-09-24-追加要求工具定义须能构造供应商工具-payload已取证已发对齐波)；[G-1](#十已知缺口) 收窄到其余几种名字）——两种来源的 `name` 都要满足：
   1. **只含 `A`～`Z`、`a`～`z`、`0`～`9`、`_`、`:`、`-`**；
   2. **不含 `__`、`_:`、`:_` 三种相邻**——违反 ⇒ `name_reserved_sequence`；
   3. **转写之后不超过 128 个字符**：`name` 的码点数加上其中 `:` 的个数 ≤ 128。
@@ -506,7 +518,7 @@ omne-next 另有 `typed_union`（按每个命令的参数合成判别联合、�
 
 ### S-31 属性项的推出规则
 
-**`data.asset-model/v1#S-12` 要每一份正文契约给出一条推出规则 `声明(正文) → AttributeDeclaration[]`。作者写的工具定义的这一条是**（主线裁定 2026-09-23，待产品负责人确认；对齐义务见 `data.asset-model` 验证入口）：
+**`data.asset-model/v1#S-12` 要每一份正文契约给出一条推出规则 `声明(正文) → AttributeDeclaration[]`。作者写的工具定义的这一条是**（主线裁定，见 [D-040 §块 A A3](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#块-a-形状shapes-draft-assets-v0md-a1a10)）：
 
 | `item` | `kind` | `category` | `domain` | `default` | 什么时候有这一条 |
 |---|---|---|---|---|---|
@@ -520,7 +532,7 @@ omne-next 另有 `typed_union`（按每个命令的参数合成判别联合、�
 
 1. **确定**：只读定义本身，同一份定义永远推出同一组声明；
 2. **`item` 互不相同**：五个项名是定死的，`settings` 闭合（[S-10](#s-10-设置项声明)）；
-3. **不产出 `disabled`、不产出治理类的项**：`settings` 里没有治理类可写，类别由本契约按项定死（M10）；
+3. **不产出 `disabled` 与 `usableBy`、不产出治理类的项**：两个保留项名由 `data.asset-model` 为每一类统一加上（[S-15](../../asset-model/v1/contract.md#s-15-disabled-是保留项名)、[S-36](../../asset-model/v1/contract.md#s-36-usableby-是保留项名)），表里没有它们；`settings` 里没有治理类可写，类别由本契约按项定死（M10）；
 4. **每一条都合 `AttributeDeclaration` 的形状**：`category` 就是定义里写的那个（它必须等于表里那一个），`default` 合取值域由表示层校验兑现（M11、M12、`binding_layer_unknown`）。
 
 - **只对作者写的定义推**：MCP 来源的定义不是资产（[S-2](#s-2-身份是-name)），它的执行权限是接入点那份持有上的逐动作项（`data.mcp-endpoint` 的 `execute:<对端动作名>`）。
@@ -599,8 +611,9 @@ s  ≡  { content: [ { kind: "text", text: s, id: <运行时给>, visibility: { 
 2. **`content`、`offload.summary` 里每一块、以及带媒体类型的 `raw`**，按 `data.content-blocks` 的「块的模态由媒体类型决定」得出的模态，
    **除文本外都必须在 `needs.outputModalities` 里**（「不声明＝只有文本」）；**没有模态的文件**（只是一个引用）不受此限。
 
-3. **MCP 来源的条目按桥的投影判**（主线裁定 2026-09-23，待产品负责人确认；账本 S19-e）：两端模态由 `capability.mcp-bridge` 从对端描述投影；**投不出时是「任意」，不是「不声明＝只有文本」**——
-   对这样的条目，第 2 条不判违反。否则每一个带图的 MCP 结果都会成为「违反声明」。
+3. **`origin.kind = mcp` 的定义不按结果端模态判**（主线裁定，见 [D-040 §五 K11](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)；与 `capability.mcp-bridge/v1#S-17` 一致）：对这样的定义，第 2 条不判违反，**不论它的 `needs.outputModalities` 写了什么、缺没缺席**。
+   判据只看 `origin.kind`，数据层可判；理由：对端动作的结果能带什么模态，列举结果里通常没有可靠的声明，桥投不出时按「不声明＝只有文本」判会把每一个带图的 MCP 结果都判成「违反声明」。
+   第 1 条对它照常成立（MCP 来源的定义不带 `needs.attachmentStorage`，结果就不得带 `attachments`）。
 
 对不上是**违反声明**；这次执行因此落什么收场（或上交），**归执行运行时，[G-15](#十已知缺口)**。
 
@@ -617,7 +630,7 @@ s  ≡  { content: [ { kind: "text", text: s, id: <运行时给>, visibility: { 
 
 - **规范表示**：[`tool-definition.schema.json`](tool-definition.schema.json)，JSON Schema **Draft 2020-12**。
   `$id` = `https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v1/tool-definition.schema.json`
-- **定义项（20 项）**：`ToolDefinition`（按 `paradigm` 判别的 `oneOf`）、`SingleFunctionTool`、`MultiCommandTool`、`CommandDefinition`、`ToolName`、`ModelToolEntry`、
+- **定义项（21 项）**：`ToolDefinition`（按 `paradigm` 判别的 `oneOf`）、`SingleFunctionTool`、`MultiCommandTool`、`CommandDefinition`、`ToolName`、`ModelToolName`、`ModelToolEntry`、
   `ToolNeeds`、`ToolSettings`、`SettingDeclaration`、`TargetEnvironment`、`BindingLayer`、`Facility`、`Duration`、
   `ExecutePermission`、`ToolSource`、`DependencyName`、`ToolReturn`、`ToolResult`、`Offload`、`JsonSchema`。消费者 `$ref` 这些定义，**不复制一份同义类型**。
 - **跨契约引用**：块、附件引用、能力标识、模态、媒体类型、内联字节 `$ref` 到 `data.content-blocks` v1 的 Schema；设置项类别 `$ref` 到 `data.asset-model` v1 的 `SettingCategory`。
@@ -628,7 +641,11 @@ s  ≡  { content: [ { kind: "text", text: s, id: <运行时给>, visibility: { 
 ### S-26 表示层拒绝值与判定次序
 
 **表示层拒绝值是一个闭合集合，恰十二个，没有「其他」**：`malformed`、`paradigm_unknown`、`commands_missing`、`commands_forbidden`、`input_not_schema`、`parameter_description_missing`、
-`binding_layer_unknown`、`category_unknown`、`permission_unknown`、`origin_unknown`、`name_reserved_sequence`、`result_call_in_content`（后两个新名 2026-09-24 加入：[研究 V-1～V-4](../../../../../research/tool-definition-shape-sources/evidence.md)，产品负责人 2026-09-24 要求）。
+`binding_layer_unknown`、`setting_category_unknown`、`permission_unknown`、`tool_origin_unknown`、`name_reserved_sequence`、`result_call_in_content`（后两个新名 2026-09-24 加入：[研究 V-1～V-4](../../../../../research/tool-definition-shape-sources/evidence.md)，产品负责人 2026-09-24 要求）。
+
+**`setting_category_unknown` 与 `tool_origin_unknown` 不与 `data.asset-model` 的值撞名**（主线裁定，见 [D-040 §五 K6](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）：
+那边的 `category_unknown` 指资产类别、`origin_unknown` 指资产记录的来源（`AssetOrigin`），且[「同名的值同义」](../../asset-model/v1/contract.md#s-27-表示层拒绝值)；这里说的是设置项类别与工具定义的来源，是另两件事。
+**「设置项类别不在四值里」在 `data.skill-package` 报同一个 `setting_category_unknown`**——同一错误从工具与技能两侧进来，报同一个值。
 
 **一份输入命中多行时，报下表中最靠前的那一行**——两个实现对同一份坏输入必须给出同一个值。
 **`malformed` 的来由逐条编为 `M1`～`M27`，这份清单就是它的全部来由**：一份输入不合 Schema、却对不上下表任何一行，是本契约的缺陷，不是第十三个值。
@@ -648,9 +665,9 @@ s  ≡  { content: [ { kind: "text", text: s, id: <运行时给>, visibility: { 
 | 5 | `input_not_schema` | `single` 的 `input` 或任一命令的 `input` 在，但不是 JSON 对象（布尔 schema 在此），或是对象却不合 Draft 2020-12（Schema 之外那一步） |
 | 6 | `parameter_description_missing` | 参数 schema（`single` 的 `input` 或任一命令的 `input`）合 Draft 2020-12，但它某一处 `properties` 的某个成员没带 `description`，或 `description` 是空串（[S-4](#s-4-单函数工具) 第 2 条；Schema 之外那一步） |
 | 7 | `binding_layer_unknown` | 目标环境默认值的 `bindingLayer` 在，但不在四值里 |
-| 8 | `category_unknown` | 某一项设置的 `category` 在，但不在四值里 |
+| 8 | `setting_category_unknown` | 某一项设置的 `category` 在，但不在四值里 |
 | 9 | `permission_unknown` | `permissions.execute.default` 在，但不在三档里 |
-| 10 | `origin_unknown` | `origin.kind` 在，但不在两值里 |
+| 10 | `tool_origin_unknown` | `origin.kind` 在，但不在两值里 |
 | 11 | `name_reserved_sequence` | `name` 是非空字符串，却含 `__`、`_:` 或 `:_`（[S-18](#s-18-名字的表示与相等) 第 2 条） |
 | 12 | `malformed` | 下列任一：**M3** 缺其余必填成员——`name`、`description`、`permissions`、`permissions.execute`、`permissions.execute.default`、`origin`、`origin.kind`、MCP 来源的 `endpoint` 或 `remoteName`、`single` 的 `input`、命令的 `description` 或 `input`、设置项的 `category` 或 `default`、目标环境默认值的 `bindingLayer` 或 `facilities`；**M4** 出现未登记的成员（M13 那一种除外）——定义本身、命令定义、`needs`、`settings`、设置项声明、目标环境默认值、`permissions`、`permissions.execute`、`composes`、`origin` 任一处；作者写的来源带了 `endpoint` 或 `remoteName`、声明等待态、发帧、卸载或实现的成员（[S-29](#s-29-不在定义里的三样)、[S-30](#s-30-实现不在定义里)）都在此；**M5** 成员或数组元素的 JSON 类型不对，含 `null`（`paradigm`、`input`、`bindingLayer`、`category`、`permissions.execute.default`、`origin.kind` 六处除外，它们归第 2、5、7～10 行）；**M6** 空串——`name`、`description`、`help`、命令名、命令的 `description` 与 `help`、依赖名、设施名、技能名、`remoteName`；**M7** `externalServices`、两组模态、`facilities`、`composes.skills` 有重复元素；**M8** 两组模态里有不是 `Modality` 的值（取值集归 `data.content-blocks`）；**M9** `origin.endpoint` 不是合法的能力标识，或它的类别不是 `mcp`（[S-17](#s-17-来源)）；**M10** 某项设置的 `category` 在四值之内，却不是该项定死的那一个（[S-10](#s-10-设置项声明)）；**M11** `backgroundThreshold` 或 `timeout` 的默认值不是合 [S-14](#s-14-时长的表示) 写法的字符串；**M12** `concurrency` 的默认值不是 ≥ 1 的整数（[S-13](#s-13-超时与并发)）；**M13** `multi` 带了 `input`（[S-5](#s-5-多命令工具)）；**M14** MCP 来源的定义是 `multi`（[S-17](#s-17-来源)），或带了 `composes`（[S-16](#s-16-组合)）；**M15** 声明了 `settings.backgroundThreshold`，`allowBackground` 却不为 `true`（[S-12](#s-12-后台许可与转后台阈值)）；**M24** 某个命令的 `input` 里（任意深处）有以 `#` 开头的 `$ref`，或有 `$id`（[S-7](#s-7-多命令-input-的生成规则)；Schema 之外那一步）；**M25** `name` 含 `A`～`Z`、`a`～`z`、`0`～`9`、`_`、`:`、`-` 以外的字符，或转写之后超过 128 个字符（[S-18](#s-18-名字的表示与相等) 第 1、3 条；`:` 算两个的那一半在 Schema 之外）；**M26** 参数 schema 的顶层不是 `"type": "object"`，或不带 `properties`，或 `properties` 不是对象（[S-4](#s-4-单函数工具) 第 1 条）；**M27** 参数 schema 在某个 schema 位置上用了可呈现子集以外的关键字（[S-4](#s-4-单函数工具) 第 3 条；Schema 之外那一步） |
 
@@ -753,7 +770,7 @@ Schema 的 `additionalProperties: false` 挡住这类成员。
 | **名字相等**（[S-18](#s-18-名字的表示与相等)） | 值比较 | 不变 |
 | **模型看到的条目与运行时据以校验、派发的定义是同一份** | 同一进程内同一份装配（一次执行尝试之内动作清单不变，[PF-006 §6.13](../../../../product/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)） | **须随调用携带足以指认那一份定义的东西**（资产版本，或 MCP 列举的那一版），接收方按那一份校验；否则一次中途换版会让参数按另一份 schema 被判 |
 | **`help` 与 `inspect` 一致**（[S-8](#s-8-说明与用法)） | 两者读同一份定义 | 两处须读**同一版本**的定义 |
-| **模型面条目投成任何一家的工具声明都不需要改写 schema；回来的调用名按逆转写唯一对回定义**（[S-6](#s-6-模型面只有一个条目)、[S-18](#s-18-名字的表示与相等)） | 本契约的表示层规则保证；键名映射与逆转写由传输适配做 | **不变**——条目与转写都是纯函数；在哪个节点做映射都只换键名与外壳、不碰 schema；逆转写不依赖任何会话状态 |
+| **模型面条目投成任何一家的工具声明都不需要改写 schema；回来的调用名按逆转写唯一对回定义**（[S-6](#s-6-模型面只有一个条目)、[S-18](#s-18-名字的表示与相等)） | 本契约的表示层规则保证；键名映射由传输适配做，逆转写只由工具执行运行时在起执行者之前做（[S-6](#s-6-模型面只有一个条目)） | **不变**——条目与转写都是纯函数；在哪个节点做映射都只换键名与外壳、不碰 schema；逆转写不依赖任何会话状态 |
 | **表示层校验**（[S-26](#s-26-表示层拒绝值与判定次序)） | 加载时校验一次 | **每个接收定义或返回值的边界各自重新校验**；不得因为发送方校验过就跳过 |
 | **裸字符串的等价**（[S-20](#s-20-两种写法与等价规则)） | 接收返回值的那一处兑现 | 不变，但**只兑现一次**：跨进程传的一律是转换后的 `ToolResult`，接收方不得再按字符串解释 |
 
@@ -854,14 +871,14 @@ Schema 的 `additionalProperties: false` 挡住这类成员。
 
 | # | 缺口 | 阻断谁 | 谁来裁 |
 |---|---|---|---|
-| **G-1** | **收窄（2026-09-24）**：`name` 的字符集与长度已定（[S-18](#s-18-名字的表示与相等)，产品负责人 2026-09-24 要求）。**仍缺**命令名、依赖名、设施名、`remoteName`、技能名的字符集与长度——它们不作为名字送进供应商请求 | 需要拿这些名字做键的实现 | **主线**（规格层） |
+| **G-1** | **收窄（2026-09-24）**：`name` 的字符集与长度已定（[S-18](#s-18-名字的表示与相等)，产品负责人 2026-09-24 要求，[D-039 U-24-1](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#凭据档案工具拓展件卡片-pf-013-rev-10pf-002-rev-1819pf-006-rev-19pf-012-rev-12pf-007-rev-17pf-008-rev-7pf-016-rev-6)）。**仍缺**命令名、依赖名、设施名、`remoteName`、技能名的字符集与长度——它们不作为名字送进供应商请求 | 需要拿这些名字做键的实现 | **主线**（规格层） |
 | **G-2** | **设施名集合**：[PF-005 明确不定清单](../../../../product/PF-005-execution-environments-and-sandboxes/design.md#设施)；工具声明的设施名与沙箱实现自报的设施名怎样对上 | 目标环境的匹配（[S-11](#s-11-目标环境)） | **PF-005 的 owner** 与执行运行时 |
-| **G-3** | **已关闭**：原生成规则 `args: oneOf` 不绑定 `command`、命令 schema 相交时误拒、放不下命令的 `description`；2026-09-23 曾改为每个命令一支的顶层 `oneOf`，2026-09-24 产品负责人裁定改为 flat 形——`args` 不展示任何命令的 schema，命令说明进 `command` 的命令表，三处毛病都不再有落脚处（[S-7](#s-7-多命令-input-的生成规则)） | — | — |
-| **G-4** | **已关闭（主线 2026-09-23 裁定）**：`help` 是文本字段，「help 命令空间」由 `Tools().inspect` 呈现该字段（[S-8](#s-8-说明与用法)） | — | — |
+| **G-3** | **已关闭**：原生成规则 `args: oneOf` 不绑定 `command`、命令 schema 相交时误拒、放不下命令的 `description`；2026-09-23 曾改为每个命令一支的顶层 `oneOf`，2026-09-24 产品负责人裁定改为 flat 形（[D-039 U-24-2](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#凭据档案工具拓展件卡片-pf-013-rev-10pf-002-rev-1819pf-006-rev-19pf-012-rev-12pf-007-rev-17pf-008-rev-7pf-016-rev-6)）——`args` 不展示任何命令的 schema，命令说明进 `command` 的命令表，三处毛病都不再有落脚处（[S-7](#s-7-多命令-input-的生成规则)） | — | — |
+| **G-4** | **已关闭**（主线裁定，见 [D-040 §S5 S5-d](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s5tool-definition报回的)）：`help` 是文本字段，「help 命令空间」由 `Tools().inspect` 呈现该字段（[S-8](#s-8-说明与用法)） | — | — |
 | **G-5** | **目标环境的匹配语义**（[S-11](#s-11-目标环境)）：绑定层是恰等还是「至少」（PF-006 [依赖表](../../../../product/PF-006-tools-and-skills/design.md#依赖)写过「至少绑定在会话上」）；与执行环境权限 `always-allow` / `auto_place` / `never-allow` 怎么交互 | 执行运行时算落点；可用性解析 | **执行运行时契约**，产品面问 **PF-005 / PF-006 的 owner** |
 | **G-6** | **已关闭（2026-09-24，按 PF-006 rev 18/19）**：超时即前台上限、并发即并发上限，语义由 [PF-006 §6.6「前台上限与并发上限」](../../../../product/PF-006-tools-and-skills/design.md#前台上限与并发上限)给出、由 `capability.tool-execution-runtime/v1#S-43`、`#S-44` 兑现（[S-13](#s-13-超时与并发)） | — | — |
-| **G-7** | **已关闭（主线 2026-09-23 裁定）**：有阈值而无后台许可即拒，`malformed`（M15，[S-12](#s-12-后台许可与转后台阈值)） | — | — |
-| G-8 | **已关闭（2026-09-24 整批对齐）**：MCP 来源定义的生成由 `capability.mcp-bridge` v1 S-17 给出（名字取 `data.mcp-endpoint/v1#S-11`）；两端模态按桥的投影判（[S-24](#s-24-结果与声明对得上) 第 3 条） | — | — |
+| **G-7** | **已关闭**（主线裁定，见 [D-040 §S5 S5-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s5tool-definition报回的)）：有阈值而无后台许可即拒，`malformed`（M15，[S-12](#s-12-后台许可与转后台阈值)） | — | — |
+| G-8 | **已关闭（2026-09-24 整批对齐）**：MCP 来源定义的生成由 `capability.mcp-bridge` v1 S-17 给出（名字取 `data.mcp-endpoint/v1#S-11`）；MCP 来源的定义不按结果端模态判（[S-24](#s-24-结果与声明对得上) 第 3 条） | — | — |
 | **G-9** | **工具作者怎样以正常返回表达「失败」**（[S-25](#s-25-toolresult-不是收场)）：`ToolResult` 不带收场；实现自己炸了按 PF-006 §5.5 是上交而不是失败 | 执行运行时判定收场；工具作者 | **主线**与**执行运行时契约** |
 | **G-10** | **`ToolResult` 里块的 `id` 唯一范围**（[S-21](#s-21-toolresult-的三样)）：作者给的 `id` 只能在这份返回值里互不相同，却要在包成的那条消息里唯一 | 执行运行时包成工具结果块 | **主线**（与 `data.content-blocks`、`data.messages` 对齐） |
 | **G-11** | **卸载的组合方式**（[S-23](#s-23-卸载)）：`content` 与占位怎么排；PF-006 §6.10「摘要，也就是那条进消息的内容」与本版两个成员怎么对应；原始结果大小取不到时占位怎么说 | 执行运行时构造占位 | **主线**，产品面问 **PF-006 的 owner** |

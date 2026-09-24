@@ -2,7 +2,7 @@
 
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
-> **当前状态：未开始。**`capability.mcp-bridge` v1 是 `candidate`，未接受、未冻结；尚无提供者设计、尚无源码、尚无装配。
+> **当前状态：未开始。**`capability.mcp-bridge` v1 是 `candidate`，经过一轮独立评审（处置见[独立评审](#独立评审)），未接受、未冻结；尚无提供者设计、尚无源码、尚无装配。
 > 下表登记的是**已经触发的证据义务**，不是已完成的检查。
 > 七条规范场景、四条消费者核对场景、六条静态检查**一条都未执行**；[`examples.md`](v1/examples.md) 里的值**没有过任何校验器**——文件存在不代替结果。
 > 起草时跑过的是 `make design-check`：它核对了 Markdown 链接与锚点、registry 登记——**它不校验任何实例、不执行任何场景**。
@@ -26,8 +26,8 @@
 
 | # | 检查什么 | 对应条款 | 状态 |
 |---|---|---|---|
-| SC-1 | 任何操作的签名里没有连接句柄；连接的取用键恰是 (租户, 接入点, 持有, 连接目标值, 凭据值) | [S-6](v1/contract.md#s-6-连接归桥不上签名不跨租户) | 未开始 |
-| SC-2 | 副本的写入只有一处，且是按 `fetchedAt` 的条件写；不存在把列举失败或 `not_fetched` 写成空清单的路径 | [S-7](v1/contract.md#s-7-动作清单持久副本)、[S-16](v1/contract.md#s-16-refreshactions) | 未开始 |
+| SC-1 | 任何操作的签名里没有连接句柄；连接的取用键恰是 (租户, 接入点, 持有, 连接目标值, 凭据引用)——引用本身，不是解引用出的秘密 | [S-6](v1/contract.md#s-6-连接归桥不上签名不跨租户) | 未开始 |
+| SC-2 | 副本的写入只有一处，且是按 `fetchedAt` 的条件写；`fetchedAt` 在发出第一页列举请求之前取；不存在把列举失败或 `not_fetched` 写成空清单的路径 | [S-7](v1/contract.md#s-7-动作清单持久副本)、[S-16](v1/contract.md#s-16-refreshactions) | 未开始 |
 | SC-3 | `invoke` 的发送路径上没有重试、没有重连后重发、没有把在途请求交给另一份桥的路径 | [S-19](v1/contract.md#s-19-invoke)、[S-26](v1/contract.md#s-26-连接的收口次序)、[S-27](v1/contract.md#s-27-桥被替换或卸载) | 未开始 |
 | SC-4 | 投影函数只读三个输入，不读时间、环境、持有方；产出的定义里不存在 `settings`、`allowBackground`、`needs`、`help`、`composes`；**规范化只有三样**（补占位说明、剥 `$schema`／`title`、恰 `{"type": "object"}` 补空 `properties`），没有别的改写 `inputSchema` 的路径，也没有回写副本的路径 | [S-17](v1/contract.md#s-17-projectactions) | 未开始 |
 | SC-5 | stdio 拉起不经 shell；子进程环境由白名单、正文、凭据三部分显式拼出，不以据点进程环境为底 | [S-6](v1/contract.md#s-6-连接归桥不上签名不跨租户) | 未开始 |
@@ -46,7 +46,8 @@
 | 投影规则就是 `data.tool-definition` 那边 G-8 的答案 | `data.tool-definition` v1 的 G-8 | **已对齐（2026-09-24）**：那边 G-8 已关闭并指向本契约 [S-17](v1/contract.md#s-17-projectactions) |
 | 求值交出 `provenance` | `capability.asset-evaluation` | **已对齐（2026-09-24）**：那边 S-40 交出（`Layer` 值），本契约 S-5 的 `provenance` 改为照它，G-9 闭合 |
 | 投影出的定义要过 `data.tool-definition` 的名字收窄与参数 schema 三条硬要求（产品负责人 2026-09-24 要求） | `data.tool-definition` v1 的 S-4、S-18；`data.mcp-endpoint` v1 的 S-11 | **已对齐（2026-09-24）**：[S-17](v1/contract.md#s-17-projectactions) 两种排除原因改写；**同日主线裁定由桥做最小规范化**，[G-18](v1/contract.md#十已知缺口) 关闭；接入点 name 在登记时收窄（`data.mcp-endpoint/v1#S-26`），条目名拼不出只可能因为对端动作名 |
-| 注册表、工具执行运行时、交付面对本契约操作的消费登记 | `capability.asset-registry`、`capability.tool-execution-runtime`；交付面尚无契约 | 依赖方向是它们 → 本契约，由它们各自登记（2026-09-24 两份已登 catalog） |
+| 会话资产注册表、工具执行运行时、交付面对本契约操作的消费登记 | `capability.asset-registry`、`capability.tool-execution-runtime`；交付面尚无契约 | 依赖方向是它们 → 本契约，由它们各自登记（2026-09-24 两份已登 catalog；会话资产注册表同日加登本契约 S-5） |
+| 逐动作执行权限与执行时的接入点持有从哪来（第一轮评审 X2、X3） | `capability.asset-registry` S-11、S-24；`capability.asset-evaluation` S-6；`capability.tool-admission` S-8；`capability.tool-execution-runtime` S-23 | **已对齐（2026-09-24，D-040 §五 K30）**：会话资产注册表以此刻的求值得出持有、钉住动作集后再求一次值，二者钉进报告；本契约 [S-14](v1/contract.md#s-14-桥不做放行判断)、[S-19](v1/contract.md#s-19-invoke) ②、P-9、CS-2、CS-4 改引报告 |
 
 ## 结果与反例
 
@@ -75,8 +76,33 @@ V-1～V-8 **一条执行记录也没有**。起草时的手核只保证 `example
 `formal-tasks.json` 里没有、也不应有本契约的任务——**「未运行」如实登记**。
 **若多据点续期协议立项**（[S-30](v1/contract.md#s-30-装配给与协议给) 那一行的右列），那时要建 TLA+ 模型并登记 formal task：它有真正的并发与失联。
 
+## 独立评审
+
+| 评审者 | 日期 | 基线 | 范围 |
+|---|---|---|---|
+| spec-reviewer（第一轮，批 R4b） | 2026-09-24 | HUB `765b01dc` | 本契约 v1 的 `contract.md`、`examples.md`，registry 里本契约的条目；消费者路径走查（动作条目与 tool-definition 形状） |
+
+| 发现 | 处置 | 落点 |
+|---|---|---|
+| X1（产品依据 rev 落后） | **改**：头部改为 PF-002 rev 20、PF-006 rev 19，只引 PF-012 rev 14、PF-016 rev 6、PF-005 rev 5、PF-001 rev 17、PF-008 rev 7；逐版复核见下「变化的影响」，没有复核出与本契约相抵的变化 | 头部、S-12、P-7、covers 注记 |
+| X2（MCP 逐动作执行权限没有产出者） | **改**（D-040 §五 K30）：权威落点在会话资产注册表（报告的 `effectivePermissions`）与求值（`mcpActionSets`）；本契约 S-14 与 CS-4 改引报告，拿不到即全拒 | S-14、CS-4、头部 |
+| X3（执行时的 `endpointHolding` 没钉） | **改**（K30）：报告的 `endpointHoldings` 钉住，执行运行时按它寻址；P-9 的前提改写为会话资产注册表以此刻的持有与配值求值 | S-12、S-19 ②、P-9、CS-2 |
+| X4（「宿主」同名不同义） | 不涉本契约（本契约写「宿主机」，有词条） | — |
+| M1（`fetchedAt` 规则与目的句、例子相抵） | **改**（K34）：取**列举开始**时刻；规则、目的句、例子、P-5 四处一致 | S-7 第 4 条、S-16 ⑦、P-5、SC-2、examples §3 |
+| M2（`scope` 同名两义） | **改**：`scope` 只有 S-5 那一个含义；凭据要配上去的那一格恒是租户格、不是参数；`beginOAuth` 只在 `scope` 是租户格时发起（此时两者是同一份持有），组织格、出厂格、工作区格各写明为什么不发起 | S-8、S-22 ①③ 与表下、examples §7 |
+| M3（「凭据的值」两读） | **改**：连接的取用键是凭据**引用**本身；续期不换引用、不换连接 | S-6 第 1 条、P-1、SC-1 |
+| M4（排除原因看似举例） | **改**：`excluded` 的原因闭合为两种 `name_unformable{rejection}`、`input_rejected{rejection}`，各带 `data.tool-definition` S-26 的拒绝值；判定次序先名字后参数 | S-17、examples §4 |
+| M5（依赖缺 data.tool-definition S-18） | **改**：S-4 表与 catalog 补登 | S-4、`registry/catalog.json` |
+| M6（covers 注记仍写 G-2 未决） | **改**：注记改为 G-2 已闭合、租户层显式启用的表示归求值的 G-19 | `registry/covers.json` |
+
 ## 变化的影响
 
+- **2026-09-24 第一轮独立评审处置（候选，未冻结，原地改）**：处置逐条见[上表](#独立评审)。
+  - **产品依据 rev 复核**：PF-002 rev 17（MCP 按尝试重算进正文）→ S-12、P-7 改引正文；rev 18（组织层不持有 MCP 凭据）→ 早已落在 S-5、S-9、S-22；rev 19（「谁可以使用它」）、rev 20（连接件、拓展件不可用处置）→ 不涉本契约。PF-012 rev 11～14 → 只引的 §5.7「每一次尝试开始都要做四件事」无变化。PF-016 rev 6（组织层不持有模型凭据）→ 本契约引的 §5.6、§6.11、§6.17、§6.20 无语义变化。PF-001 rev 17 → 引的 §6.6 无变化。PF-008 rev 6～7（§6.1 清卡第三条路）→ 「不替人作答」不变，S-25 那一行照旧。
+  - **语义改变**：`fetchedAt` 由列举完成时刻改为开始时刻——并发刷新留下的是后开始的那一次；`excluded` 的原因由两句散文改为两个带拒绝值的闭合取值；`beginOAuth` 的 `scope` 改按 S-5 读（被拒的情形与先前相同：都是 `scope` 不是租户格）。**操作、失败值集合与条款编号都没有变。**
+  - **依据链**：账本名一律改引 D-040（§块 B PB-4、§S19、§五 K30／K34）；按尝试重算改引产品正文；仍未汇编的三条（连接不上签名、OAuth 落点、最小规范化）留在 G-14。
+  - **对证据的影响**：投影实例的本地自检只判「成条目还是排除」与规范化，排除原因的新写法**未重跑**；第 3、7 节改的几行未机检（行为条款，只对读）。
+  - **消费者要知道的**：执行运行时从会话资产注册表的报告取接入点持有（CS-2）；放行判断的逐动作权限同样从报告取（CS-4）。
 - **起草（2026-09-23）**：首版候选，建在 PF-002 rev 16、PF-006 rev 17 上（PF-012 rev 10、PF-016 rev 5、PF-005 rev 5、PF-001 rev 16、PF-008 rev 5 只引）。
   **依赖 `data.identity-values` v1**（已接受、已冻结），引用目标不会漂移。
   **依赖 `data.mcp-endpoint`、`data.tool-definition`、`data.content-blocks`、`data.asset-model` 四份 v1**（`candidate`，未冻结）：那边若在评审中改了被消费条款的名字或形状，

@@ -174,7 +174,8 @@
 | `open(0, text, append)` → `{"t": "fill", "index": 0, "payload": ""}` | `payload_kind_mismatch` | 消费一侧 | [S-11](contract.md#s-11-填追加片段)：片段非空 |
 | `open(0, text, append)` → `{"t": "close", "index": 0}` | `payload_kind_mismatch` | 消费一侧 | [S-13](contract.md#s-13-封口)：文本块的封口必带块 |
 | `open(0, text, append, id = "b_1")` → 封口块的 `id` 是 `"b_2"` | `payload_kind_mismatch` | 消费一侧 | [S-13](contract.md#s-13-封口)：封口块与开块说的是同一块 |
-| `{"t": "open", "index": 0, "kind": "voice", "fill": "append", "id": "b_1", "visibility": {"toHuman": true, "toModel": true}, "head": {"mediaType": "image/png"}}` | `head_modality_mismatch` | 消费一侧 | [S-9](contract.md#s-9-块头) |
+| `{"t": "open", "index": 0, "kind": "voice", "fill": "append", "id": "b_1", "visibility": {"toHuman": true, "toModel": true}, "head": {"mediaType": "image/png"}}` | `head_modality_mismatch` | 本契约 | [S-9](contract.md#s-9-块头)、[S-28](contract.md#s-28-表示层拒绝值)：只看这一个事件就判得出——不借开块、不看流的历史 |
+| `{"t": "open", "index": 0, "kind": "text", "fill": "append", "id": "b_1", "visibility": {"toHuman": true, "toModel": true}, "head": {"mediaType": "audio/wav"}}` | `head_modality_mismatch` | 本契约 | [S-9](contract.md#s-9-块头)：文本块要 `text` 模态的媒体类型 |
 | `open(1, …)` → `{"t": "open", "index": 1, …}` | `index_reused` | 消费一侧 | [S-7](contract.md#s-7-块索引)：一个索引终身只开一次 |
 | `open(4, …)` → `{"t": "open", "index": 2, …}` | `index_not_monotonic` | 消费一侧 | [S-7](contract.md#s-7-块索引) |
 | `open(0, …)` → `close(0)` → `{"t": "fill", "index": 0, "payload": "late"}` | `block_already_closed` | 消费一侧 | [S-18](contract.md#s-18-块的一生) |
@@ -190,6 +191,7 @@
 | `{"t": "trim", "reason": "throttled", "extra": 1}`（`TrimEvent`） | 原因未知；多出成员 | `trim_reason_unknown` |
 | `{"t": "open", "index": 0, "kind": "image", "fill": "append", "id": "b_1", "visibility": {"toHuman": true}}`（`OpenEvent`） | 标注缺一位；以追加开图 | `visibility_missing`——嵌着的值排在前面 |
 | `{"t": "open", "index": 0, "kind": "image", "fill": "append", "id": "b_1", "visibility": {"toHuman": true, "toModel": true}, "head": {"presentation": {"hint": ""}}}`（`OpenEvent`） | 呈现提示非法；以追加开图 | `presentation_invalid` |
+| `{"t": "open", "index": 0, "kind": "image", "fill": "append", "id": "b_1", "visibility": {"toHuman": true, "toModel": true}, "head": {"mediaType": "audio/wav"}}`（`OpenEvent`） | 块头模态不符；以追加开图 | `head_modality_mismatch`——块头说错了这是什么，排在填法之前 |
 | 目标 `tool_execution`，封口一张内联的图、且它 `toModel` 为真（`ArrivalEnvelope`） | 帧里内联媒体；帧块给模型看 | `frame_media_inline` |
 | 目标 `tool_execution`，`{"t": "account", "usage": {"input_tokens": -1, "output_tokens": 1, "cache_read_tokens": 0, "cache_write_tokens": 0, "source": "upstream"}, "cost": {"cost_usd": 0.001, "source": "upstream_usage"}}`（`ArrivalEnvelope`） | 嵌着的账有负数；工具侧记账 | `negative_amount`——嵌着的值排在 `malformed` 前面 |
 
@@ -213,6 +215,6 @@
 
 ## 13. 起草者自核
 
-起草时逐行手核了第 1～9 节与第 11 节的「Schema」一列（**手核不是证据**）；
-第 1、9、12 节的模型侧目标与第 8 节带 `error` 的行依赖两处尚未解析的 `$ref`，**在对齐波之前连机检都跑不了**。
-**没有跑过任何校验器**；实际状态见[验证入口](../verification.md)。
+起草时逐行手核了第 1～9 节与第 11 节的「Schema」一列（**手核不是证据**）。
+此后用 Draft 2020-12 校验器**机核过第 1～9 节**的「Schema」一列（77 行：通过 29、拒绝 48；整批对齐 2026-09-24 一次、第一轮评审修复 2026-09-24 一次，两处 `$ref` 都解析到真身），结果登在[验证入口](../verification.md#结果与反例)。
+**第 10、11 节没有交给校验器**：第 10 节的实例 Schema 本来就放行、拒绝值要借开块或另判；第 11 节按行写了校验对象，本版只手核。「拒绝值」一列（第三列）全部未机核。

@@ -6,16 +6,18 @@ fork 一份、此后各走各的，按两条通则：**本人型**（同一个�
 给使用权、所有权不动、被动跟随，被分享方是一个组织或一个租户（组织内分享），本人型之外都要对方点头。确认之前的那份待确认件会过期；
 分享结束之后关系又接上，**不复活**；分享方删除那份资产或把它提升到组织，分享随之结束。共守一条边界：**团队资产不出那棵隶属树**。
 
-> **目录名 `asset-transfer` 是施工账本定的契约身份**，与 PF-003 包目录同名；
+> **目录名 `asset-transfer` 是契约身份**，与 PF-003 包目录同名；
 > 这个动作的正式名是「资产复制」，**「转移」是弃用说法**，正文一律不用。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.asset-transfer, 1)`
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按 PF-003 rev 5 原地修订，同日第二轮修订），**未经独立评审、未接受、未冻结**
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按 PF-003 rev 5 原地修订，同日第二轮修订，同日经独立评审第一轮（基线 `765b01dc`）并按[处置表](verification.md#独立评审)原地修订），**未接受、未冻结**
+- **需求 rev**：PF-003 rev 5；相邻 PF-002 rev 20、PF-001 rev 17（2026-09-24 按 changelog 复核到当前，结论在[契约页首](v1/contract.md)）
 - **catalog 映射**：已登记为 `candidate`；`family=capabilities`、`topic=asset-transfer`、
   `contract_path=spec/capabilities/asset-transfer/v1/contract.md`；`resources` 含契约、`examples.md`、`formal/` 下的模型、十六个配置与入口页；
   依赖五项（`capability.organization-governance` **v2**（第二轮由 v1 改钉：不复活要读 v2 新增的两个时刻）、`data.identity-values` v1、`data.offer-expiry` v1、`data.asset-model` v1、`capability.asset-governance` v1），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)（后两项 2026-09-24 整批对齐补登）
 - **formal-tasks 映射**：三个任务——`asset-transfer-v1-transfer`（`Transfer.cfg`，复制那一组）、`asset-transfer-v1-share`（`Transfer_Share.cfg`，分享那一组）、`asset-transfer-v1-revival`（`Transfer_Revival.cfg`，不复活）。
-  **十三个有效性核对配置不登记**：它们期望失败，与该清单的语义相反。执行结果在[验证入口](verification.md)
+  **十三个有效性核对配置不登记**：它们期望失败，与该清单的语义相反。执行结果在[验证入口](verification.md)（当前一次是 2026-09-24d，模型注释改动之后整组重跑）
+- **不登记但须回头核对的读者**（登记会成环）：`capability.asset-evaluation` v1 的 PRE-2 读 [S-9](v1/contract.md#s-9-分享此刻是否生效)；`capability.asset-governance` v1 的 S-27／S-28 ④⑧ 替 [S-52](v1/contract.md#s-52-分享方删除资产或所有权易手分享随之结束) 写下结束——见[契约第十二节](v1/contract.md#十二消费者核对)
 - **提供者/装配映射**：尚无
 
 ## 准入核对

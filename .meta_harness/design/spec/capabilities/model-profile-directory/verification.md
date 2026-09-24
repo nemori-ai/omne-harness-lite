@@ -20,12 +20,14 @@
 | [S-15](v1/contract.md#s-15-withdrawprofile)、[S-33](v1/contract.md#s-33-relistprofile)、[S-16](v1/contract.md#s-16-readprofile) 行不删、撤回与恢复在册都改同一行、各自幂等、撤回不重发事件、恢复不发事件 | [S-25](v1/contract.md#s-25-建档撤回再读已撤回仍读得出)；[examples §2](v1/examples.md#2-自建档案建认回撤回再读) 第 11～14 步 | 对真实存储的集成测试；恢复之后逐成员比对 | 未开始 |
 | [S-14](v1/contract.md#s-14-registerprofile) ④、[S-18](v1/contract.md#s-18-loadmanifest) ④ 判名与写入同提交，边界覆盖那一格；只比同一格（官方与自建、组织层与租户层、不同组织都并存） | [S-26](v1/contract.md#s-26-同名两条只有先成的一条成立) | **必须真跑并发**（同一格两位超管同时建同名；另建租户层、别的组织、官方清单同名各一次，都成功）；前提：提供者的存储兑现 S-22 第一行 | 未开始 |
 | [S-14](v1/contract.md#s-14-registerprofile) ⑦ 认回 | S-26 另一支 | 同一输入原样重发 | 未开始 |
-| [S-18](v1/contract.md#s-18-loadmanifest) 五种处置（含 `relisted`：同一行回到在册）、序号单调、整份不半装、不读自建行 | [S-27](v1/contract.md#s-27-清单的五种处置与旧清单被拒) | 逐支演练；含一份带坏条目的清单、一条与某自建档案同名的条目 | 未开始 |
+| [S-18](v1/contract.md#s-18-loadmanifest) 五种处置（含 `relisted`：同一行回到在册）、序号单调、整份不半装、不读自建行；原样重装交回记下的那一份处置（重启之后也是） | [S-27](v1/contract.md#s-27-清单的五种处置与旧清单被拒) | 逐支演练；含一份带坏条目的清单、一条与某自建档案同名的条目；**重启一支**须对真实存储跑（重启之后再原样重装） | 未开始 |
 | [S-20](v1/contract.md#s-20-resolvecredential) 取哪一把（租户那一把，否则只对官方档案取出厂格那一把）、读不到不落到出厂格、个人范围与组织层永不取；[S-32](v1/contract.md#s-32-unbindcredential) 解绑后按「没配」取；[S-19](v1/contract.md#s-19-bindcredential) 组织身份即 `invalidInput` | [S-28](v1/contract.md#s-28-取最具体的一把读不到不回落) | **故障注入**：让租户那一格的读失败；另跑有无出厂格那一把两种部署；官方与自建两种来源各问一次 | 未开始 |
 | [S-31](v1/contract.md#s-31-updateprofile) 只改可改项、改完整份过校验、`updatedAt` 只随上游五项动、身份分量不可改 | [examples §2](v1/examples.md#2-自建档案建认回撤回再读) 第 8～10 步 | 对真实存储的集成测试；并发两次修订按提交先后 | 未开始 |
 | [S-12](v1/contract.md#s-12-秘密只在一个问法里出现) 秘密与引用不出本契约 | [S-29](v1/contract.md#s-29-秘密不出本契约) | 以已知原文扫全部返回、失败说明与事件；另加静态检查：读面返回类型里没有凭据与引用 | 未开始 |
-| [S-14](v1/contract.md#s-14-registerprofile) 末段、[S-16](v1/contract.md#s-16-readprofile) ② 授权先于解析 | [S-30](v1/contract.md#s-30-无权者探不到名字) | 两次失败逐字比较 | 未开始 |
-| [S-9](v1/contract.md#s-9-缺席时的默认答案) 失败值闭合与判定次序 | [examples §6](v1/examples.md#6-每个失败值一个反例) | 每个失败值一个反例 ＋ 两条次序回归例 | 未开始 |
+| [S-14](v1/contract.md#s-14-registerprofile) 末段、[S-16](v1/contract.md#s-16-readprofile) ② 授权先于解析；[S-13](v1/contract.md#s-13-这一节每个操作写全九件事) 授权依赖不可用时 `unavailable` 先于一切要读存储才判得出的值 | [S-30](v1/contract.md#s-30-无权者探不到名字) | 两次失败逐字比较；**故障注入**：成员资格判定以 `unavailable` 失败、名字已占，须得 `unavailable` 而不是 `routeNameTaken` | 未开始 |
+| [S-9](v1/contract.md#s-9-缺席时的默认答案) 失败值闭合与判定次序 | [examples §6](v1/examples.md#6-每个失败值一个反例) | 每个失败值一个反例 ＋ 三条次序回归例（含成员资格不可用那一条） | 未开始 |
+| [S-14](v1/contract.md#s-14-registerprofile) ⑧、[S-18](v1/contract.md#s-18-loadmanifest) ⑧ 建档内容带 `registration`／`updatedAt` 即 `invalidInput`（`malformed`） | [examples §6](v1/examples.md#6-每个失败值一个反例) 那一行 | 表示层校验的单元测试；前提：`data.model-profile` v1 的建档内容文档种类定稿 | 未开始 |
+| [S-17](v1/contract.md#s-17-listprofiles) 从路由名到一行的规则以允许集合为显式参数、不按 (租户, 路由名) 缓存 | [examples §5](v1/examples.md#5-同路由名不同的格各有一条都成立) 末三行 | 同一租户、同一路由名、两份不同的允许集合各求一次，胜出行随允许集合变；允许集合读不到时失败 | 未开始 |
 
 ### 由别处承担、本契约只写明要求的
 
@@ -34,6 +36,21 @@
 | 跨进程的新鲜度上界、单调读、秘密送达与轮换传播、调用方鉴别 | 中心 ↔ 据点的组合契约（尚未立） | [S-22](v1/contract.md#s-22-装配给的保证-vs-协议须给的保证)、[G-7](v1/contract.md#十已知缺口) |
 | 取值只交传输适配、锚是发起调用的租户、来源取自那次调用绑定的有效模型 | `capability.model-request-runtime` v1 | [S-12](v1/contract.md#s-12-秘密只在一个问法里出现)、[S-20](v1/contract.md#s-20-resolvecredential) ① |
 | 「范围允许」的求值 | `capability.asset-evaluation` v1 | [S-3](v1/contract.md#s-3-本契约明确不承诺什么) |
+
+## 独立评审
+
+**第一轮**：spec-reviewer（只读），2026-09-24，基线 HUB `765b01dc`（批 R5：本契约与 `capability.model-request-runtime`、`capability.modality-projection` 同批）。
+处置按主线的修复简报（2026-09-24，裁定 K17、K35、K42 与全局规矩 G1～G6）；**评审意见不代替接受**，本契约仍是 candidate。
+
+| 发现 | 处置 | 落点 |
+|---|---|---|
+| MPD-1（阻断：⑥ 把 `unavailable` 排在 `routeNameTaken`／`profileNotFound` 之后，授权依赖不可用时字面会漏出名字） | **改**（裁定 K35）：S-13 写明授权所依赖的成员资格判定 `unavailable` 即立即以 `unavailable` 收场，先于一切要读存储才判得出的值；S-14、S-15、S-16、S-18、S-20、S-31、S-33 各张 ⑥ 重排；S-10 补谓词求值次序（第一个合取项不成立用不着成员资格判定）；场景 S-30 加故障注入一支；examples §6 回归例加一条 | [S-10](v1/contract.md#s-10-配置资格谁能在哪一格写)、[S-13](v1/contract.md#s-13-这一节每个操作写全九件事)、各操作 ⑥、[S-30](v1/contract.md#s-30-无权者探不到名字)；examples §6 |
+| MPD-2（输入不带 `registration`／`updatedAt`，却要过要求它们的 S-24） | **改**（裁定 K17）：S-14、S-18 的输入改为 `data.model-profile` v1 S-28 的「建档内容」（`ModelProfileContent`；不带那两个成员，带了即 `malformed`）；建档的 `origin` 不是 `custom` 取本契约自己的 `origin_not_custom`（与那份契约交接时定），清单条目的 `origin` 不是 `official` 按清单形状取 `malformed`；S-4 被消费面与 catalog 加 S-28；examples §6 加两行 | [S-14](v1/contract.md#s-14-registerprofile) ①⑧、[S-18](v1/contract.md#s-18-loadmanifest) ①⑧、[S-4](v1/contract.md#s-4-依赖方向与被消费的面) |
+| MPD-3（原样重装要交回第一次的处置，但处置不是耐久事实） | **改**：把「那一次装入交回的处置」列进本契约的耐久事实，与序号、档案行同一提交；⑦ 改为交回记下的那一份、「内容逐条相等」写明拿当前在册的官方行比；场景 S-27 加重启一支；examples §1 第 2 步随之改 | [S-18](v1/contract.md#s-18-loadmanifest) ④⑥⑦⑧、[S-23](v1/contract.md#s-23-依赖不可用撤除与重启)、第七节不变量、[S-27](v1/contract.md#s-27-清单的五种处置与旧清单被拒) |
+| MPD-4（胜出行只以 (T, r) 为参数，第二道滤依赖未列出的允许集合） | **改**（裁定 K42）：S-17 末段写成三参数 `胜出行(T, r, A)`／`落点(T, r, A)`，`A` 是「用哪个模型」设置在会话格上的允许集合、元素是路由名，不按 (T, r) 缓存、读不到即失败；`capability.model-request-runtime` v1 的 G-4 同轮闭合；examples §5 加三行 | [S-17](v1/contract.md#s-17-listprofiles) 末段；examples §5 |
+| MPD-5（PF-001、PF-002 rev 落后） | **改**：复核到 PF-001 rev 17、PF-002 rev 20（结论见[变化的影响](#变化的影响)本轮一条），不改条款 | 契约页首 |
+| MPD-6（examples §5 仍写「待产品负责人确认，G-11」；S-26「隶属树」一句已无判定意义） | **改**：两处删去或改写 | examples §5、[S-26](v1/contract.md#s-26-同名两条只有先成的一条成立) |
+| MPD-7（「保管方」「官方档案清单」「发布序号」无词条也未标；外部条款没按坐标写） | **改**：设计依据的词条表下列「（无词条）」四项（保管方、官方档案清单、发布序号、建档内容），报给主线；S-16、S-17 等处外部条款改为 `…/v1#S-n` 链接 | 契约「统一语言」一段、[S-16](v1/contract.md#s-16-readprofile)、[S-17](v1/contract.md#s-17-listprofiles) |
 
 ## 实际执行
 
@@ -75,3 +92,10 @@
 - **2026-09-24 主线裁定 G-15（运行时那边闭合；候选，未冻结，原地改）**：同名按层覆盖挑胜者时**先滤掉已撤回的行，再取最具体一格**（类推 PF-002 §5.6）。[S-17](v1/contract.md#s-17-listprofiles) 末段由「按行是否存在判、不看在册状态」改为「只滤已撤回；凭据、范围、模态都不参与挑胜者」，指向运行时 G-15 的那句删去；[S-6](v1/contract.md#s-6-范围链) 那一条补「已撤回的行不参与」；[S-16](v1/contract.md#s-16-readprofile) 末段改写（⑧ 管按引用读，覆盖不放宽它）。不改操作，对证据无影响。
 - **2026-09-24 主线裁定：范围不允许的也在挑胜者前滤掉（候选，未冻结，原地改）**：[S-17](v1/contract.md#s-17-listprofiles) 末段与 [S-6](v1/contract.md#s-6-范围链)、[S-16](v1/contract.md#s-16-readprofile) 末段补「这个范围不允许的行不参与」；这一道滤由读的一方用 `capability.asset-evaluation` 的求值做，本契约不判范围允许（S-3）。不改操作，对证据无影响。
 - **2026-09-24 PF-013 rev 12 最后一轮简化（候选，未冻结，原地改）**：产品正文定「用哪个模型」记路由名；主线裁以产品为准。[S-17](v1/contract.md#s-17-listprofiles) 末段改写为**从路由名到一行的唯一规则**：`C → C₁（在册）→ C₂（范围允许）→ 胜出行`，以及没有胜出行时的「落点」与三种收场（范围不允许／都撤回即「已下架」／链上没有这个名字）；规则归本契约、不另开操作，「范围允许」仍由读的一方用 asset-evaluation 的求值给。[S-16](v1/contract.md#s-16-readprofile) 末段注明按引用读一行供目录内部与治理面用；消费者核对表里「用哪个模型」的取值校验改指 S-17 末段。头部对到 PF-013 rev 12。不改操作；对证据无影响。
+- **2026-09-24 第一轮独立评审处置**（基线 HUB `765b01dc`；逐条见[独立评审](#独立评审)，未冻结，原地改）：
+  - **产品依据复核**：PF-001 rev 16 → 17——「权限锁的是界、不锁的是挑选」「提升不动持有」与三处方向词对齐，本契约只引 PF-001 的配置资格与范围链，无变化。PF-002 rev 19 → 20——连接件的事件目录、订阅、投递与触发会话的默认运行模式，不触模型档案与模型凭据，无变化。PF-013 rev 12、PF-016 rev 6 未变。
+  - **K35／MPD-1**：判定次序改为 `unavailable` 先于一切要读存储才判得出的值；七张 ⑥ 重排。**K17／MPD-2**：输入改为建档内容（`data.model-profile/v1#S-28` 的 `ModelProfileContent`）；建档 `origin` 不是 `custom` 取 `origin_not_custom`。**MPD-3**：装入交回的处置成为耐久事实。**K42／MPD-4**：胜出行三参数。
+  - **依据**：「主线裁定……待产品负责人确认；账本 Sxx」改为 D-040 小节链接，本轮三条链 [D-040 §五 K17、K35、K42](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)；D-040 仍未收录的几条（`officialProfileReadOnly`、`relistProfile`／`loadManifest`／`relisted`、恢复在册不发通知、已撤回可修订）留在 [G-8](v1/contract.md#十已知缺口)，owner 主线。
+  - **catalog**：`data.model-profile` 的消费 clauses 加建档内容那一条；**covers** 本契约条目未增减，改注见各条。
+  - **对证据的影响**：没有既有证据（全部未开始）；场景 S-27、S-30 内容变了，上表对应各行已改；examples §1、§5、§6 改写。
+  - **对消费者**：`capability.model-request-runtime` 调 S-17 末段的规则时须带允许集合 `A`（按会话格取）；中心的管理页与系统发布按建档内容交输入。

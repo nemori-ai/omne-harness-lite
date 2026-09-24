@@ -17,7 +17,7 @@
 | `P_omni` | 一份档案，`inputModalities = [text, image, audio, video]` |
 | `T_A` | 会话所属的租户身份（`TenantId`） |
 | `c_asr`、`c_ocr`、`c_kf`、`c_mp4` | 四件转换件的不透明引用 |
-| 「登记完」 | 系统装配层已宣告它这一份声明全部登记完毕（[S-17](contract.md#s-17-登记转换件-registerconverter) ④）；**除非某行另说，都已登记完** |
+| 「声明已到位」 | 系统装配层已交来一份声明且已生效（[S-17](contract.md#s-17-声明转换件-declareconverters) ④）；**除非某行另说，都已到位** |
 | 标注 `(T,T)` | `visibility = { toHuman: true, toModel: true }`，其余同理 |
 
 ## 1. 语音块：没登记就挡，登记了就不挡，事后登记不回头
@@ -37,7 +37,7 @@
 | 8 | `D1` | `compatible(P_text, ∅)` | `{ ok }`——纯文本档案仍是合法目标（另两项另算） | [S-16](contract.md#s-16-兼容判定-compatible) |
 | 9 | `D0` | 换一份系统装配，在 `{modality: audio}` 上登记 `c_asr`；**对第 1～3 步那个会话重读** `project(L)` | 仍是 `{audio}`；`P_text` 仍被挡；日志里 `v1` 仍没有 transcript | [S-3](contract.md#s-3-本契约明确不承诺什么)「不回头补」、[S-6](contract.md#s-6-只增不减可以逐条并进去重算必得同一答案) 单调 |
 
-> 施工简报把这一例写成「语音块进来 → 被挡 → 转换出 transcript → 不再挡」。**同一个块做不到**：
+> 这一例容易被写成「语音块进来 → 被挡 → 转换出 transcript → 不再挡」。**同一个块做不到**：
 > 它落盘时没有 transcript 就永远没有，投影只增不减。所以拆成两个部署对照，第 9 步证明「事后登记不回头」。
 
 ## 2. 文件块两键都命中，取媒体类型键
@@ -46,7 +46,7 @@
 
 | 块 | 候选键（依次） | 落到 | 预期 | 依据 |
 |---|---|---|---|---|
-| 文件块，`attachment.mediaType = video/mp4` | `{media_type: video/mp4}`，`{modality: video}` | `c_mp4` | **只调 `c_mp4`**；`renderings` 恰一份 | [S-10](contract.md#s-10-一个块落在哪个键上)（主线裁定 S1-g） |
+| 文件块，`attachment.mediaType = video/mp4` | `{media_type: video/mp4}`，`{modality: video}` | `c_mp4` | **只调 `c_mp4`**；`renderings` 恰一份 | [S-10](contract.md#s-10-一个块落在哪个键上)（PF-013 §4 转换件契约表第一行） |
 | 文件块，`video/mp4;codecs=avc1` | 同上（**去掉参数再比**） | `c_mp4` | 同上 | [S-10](contract.md#s-10-一个块落在哪个键上)、[S-8](contract.md#s-8-转换件的键) |
 | 文件块，`video/webm` | `{media_type: video/webm}`，`{modality: video}` | `c_kf` | 媒体类型键没登记，落到模态键 | [S-10](contract.md#s-10-一个块落在哪个键上) |
 | **图块**，`image/png` | `{modality: image}` | — | `noConverter`：**媒体类型键只管文件块**，`c_ocr` 不接图块 | [S-10](contract.md#s-10-一个块落在哪个键上) |
@@ -60,7 +60,7 @@
 
 | 步 | 落进日志的 | `project(L)` | `compatible(P_text, ·)` | 依据 |
 |---|---|---|---|---|
-| 1 | 一条工具说过程的消息，装一张图 `(T,F)` | `∅` | `{ ok }` | [S-5](contract.md#s-5-模态投影是对会话日志的一次折叠) 的 `counted`（主线裁定：只计给模型看的块）；`data.messages/v1#S-13` |
+| 1 | 一条工具说过程的消息，装一张图 `(T,F)` | `∅` | `{ ok }` | [S-5](contract.md#s-5-模态投影是对会话日志的一次折叠) 的 `counted`（只计给模型看的块，PF-013 §4 模态投影）；`data.messages/v1#S-13` |
 | 2 | 一条工具消息，工具结果块 `(T,T)` 里嵌一张图 `(T,T)` | `{image}` | `{ blocked: [image] }` | 嵌在工具结果里的块算 |
 | 3 | 另一条工具消息，工具结果块 `(T,F)` 里嵌一张图 `(T,T)` | 不因这一条变 | — | 合取：容器不给模型，里面那块也不给（`data.content-blocks/v1#S-5`） |
 | 4 | 一条压缩记录，名单点了第 2 步那张图 | **仍含 `image`** | 仍被挡 | 投影看块上那一位、**不看名单**——它不是「此刻模型可读」（[S-5](contract.md#s-5-模态投影是对会话日志的一次折叠)、[S-6](contract.md#s-6-只增不减可以逐条并进去重算必得同一答案)） |
@@ -102,19 +102,25 @@
 | 日志读不到，调用方拿 `∅` 去调 `compatible(P_text, ∅)` | **这次调用本身就违约**：投影不知道时不得调（结果 `{ ok }` 会把每个模型都放成合法目标） | [S-12](contract.md#s-12-缺席时的默认答案) |
 | 一份 `maxImageBytes` 很小的 `P_vision` 遇上 `{image}` | `{ ok }`——**大小上限不归兼容判定** | [S-7](contract.md#s-7-模态兼容) |
 
-## 6. 登记
+## 6. 声明
 
-| 调用（同一份系统装配里依次） | 预期 | 依据 |
-|---|---|---|
-| `registerConverter({kind: modality, modality: image}, c_ocr)` | 成功 | [S-17](contract.md#s-17-登记转换件-registerconverter) |
-| `registerConverter({kind: modality, modality: image}, c_ocr2)` | **`keyTaken`，装配失败**——不是「后者覆盖前者」 | [S-17](contract.md#s-17-登记转换件-registerconverter) ③⑥⑦ |
-| `registerConverter({kind: modality, modality: image}, c_ocr)`（**同一件**再登一次） | **`keyTaken`**——不论是不是同一件 | 同上 |
-| `registerConverter({kind: media_type, mediaType: "image/png"}, c_png)` | 成功——与上面的模态键**不是同一个键** | [S-8](contract.md#s-8-转换件的键) |
-| `registerConverter({kind: modality, modality: text}, c_x)` | `invalidInput`：模态键不收 `text` | [S-8](contract.md#s-8-转换件的键) |
-| `registerConverter({kind: media_type, mediaType: "application/pdf;version=1.7"}, c_pdf)` | `invalidInput`：媒体类型键不带参数。**不截掉参数后登记** | [S-8](contract.md#s-8-转换件的键)、[S-13](contract.md#s-13-输入不合形状收成-invalidinput) |
-| `registerConverter({kind: media_type, mediaType: "Application/PDF"}, c_pdf)` | `invalidInput`：不是规范形式。**不改成小写后登记** | 同上 |
-| `registerConverter({kind: extension, name: "ocr"}, c_ocr)` | `invalidInput`：`kind` 集合闭合 | [S-8](contract.md#s-8-转换件的键) |
-| `registerConverter({kind: modality, modality: image})`（没给 `converter`） | `invalidInput` | [S-17](contract.md#s-17-登记转换件-registerconverter) ⑧ |
+进程刚起来，**还没有任何一份声明生效**；下面依次交进来，「之后登记表」一列是每次返回之后的样子。
+
+| 调用 | 预期 | 之后登记表 | 依据 |
+|---|---|---|---|
+| （尚未调用）`lookupConverter({modality: image})` | `{ unavailable }`——**不是 `{ unregistered }`** | 答不出 | [S-9](contract.md#s-9-登记表同键一件登记是系统装配层的声明) 第 2 条 |
+| `declareConverters([{modality: image} → c_ocr, {media_type: image/png} → c_png])` | 成功——模态键与媒体类型键**不是同一个键** | 这两项 | [S-17](contract.md#s-17-声明转换件-declareconverters)、[S-8](contract.md#s-8-转换件的键) |
+| `declareConverters([{modality: image} → c_ocr, {modality: image} → c_ocr2])` | **`keyTaken`，整份被拒**——不是「后者覆盖前者」 | **不变**（仍是上一行那两项） | [S-17](contract.md#s-17-声明转换件-declareconverters) ③④⑥ |
+| `declareConverters([{modality: image} → c_ocr, {modality: image} → c_ocr])`（**同一件**写两次） | **`keyTaken`**——不论是不是同一件 | 不变 | 同上 |
+| `declareConverters([{modality: text} → c_x])` | `invalidInput`：模态键不收 `text` | 不变 | [S-8](contract.md#s-8-转换件的键) |
+| `declareConverters([{media_type: "application/pdf;version=1.7"} → c_pdf])` | `invalidInput`：媒体类型键不带参数。**不截掉参数后收下** | 不变 | [S-8](contract.md#s-8-转换件的键)、[S-13](contract.md#s-13-输入不合形状收成-invalidinput) |
+| `declareConverters([{media_type: "Application/PDF"} → c_pdf])` | `invalidInput`：不是规范形式。**不改成小写后收下** | 不变 | 同上 |
+| `declareConverters([{kind: extension, name: "ocr"} → c_ocr])` | `invalidInput`：`kind` 集合闭合 | 不变 | [S-8](contract.md#s-8-转换件的键) |
+| `declareConverters([{modality: image}])`（那一项没给 `converter`） | `invalidInput`，**不补默认** | 不变 | [S-17](contract.md#s-17-声明转换件-declareconverters) ⑧ |
+| `declareConverters()`（没给 `declaration`） | `invalidInput`——**不当作空的一份** | 不变 | 同上 |
+| `declareConverters([])` | 成功：一份不为任何键声明转换件的声明 | 空；此后每个键都答 `{ unregistered }` | [S-17](contract.md#s-17-声明转换件-declareconverters) ① |
+
+**「空的一份」与「还没有任何一份」必须同跑**：前者之后 `lookupConverter` 答 `{ unregistered }`，后者答 `{ unavailable }`；把两者做成同一个状态的实现，会让进程刚起来那一段的块以「没有 transcript」落盘。
 
 ## 7. 转换一个块：每个结果一个实例
 
@@ -127,15 +133,15 @@
 | 2 | 一个已带 `renderings` 与 `transcript` 的图块，`T_A` | — | `invalidInput` | 1 |
 | 3 | `img`，**没给 `tenant`** | — | `invalidInput`；不从「当前会话」补 | 1 |
 | 4 | 媒体类型写成 `Image/PNG` 的图块 | — | `invalidInput`，原因 `malformed`（原名，取自 `data.content-blocks/v1#S-26`） | 1 |
-| 5 | `img`，**系统装配尚未宣告登记完** | — | `converterFailed`。**不是 `noConverter`** | 2 |
-| 6 | `img`，登记表是空的、已登记完 | — | `noConverter` | 3 |
-| 7 | `img`，`c_ocr` **起不来** | — | `converterFailed`（主线裁定 C-7）。**不是 `noConverter`** | 4 |
+| 5 | `img`，**还没有任何一份声明生效** | — | `converterFailed`。**不是 `noConverter`** | 2 |
+| 6 | `img`，生效的是空的一份声明 | — | `noConverter` | 3 |
+| 7 | `img`，`c_ocr` **起不来** | — | `converterFailed`（登记了却用不了当转换失败，PF-013 §4）。**不是 `noConverter`** | 4 |
 | 8 | `img`，引用所指的字节**读不到** | — | `converterFailed`；不当作空图 | 4 |
 | 9 | `img` | `{ renderings: [{ system, [文本块 "一张柱状图"] }], transcript: "一张柱状图" }` | 转成了 | — |
 | 10 | `img` | 同上，但 `transcript: ""` | `transcriptMissing` | 5 |
 | 11 | `img` | `{ renderings: [...] }`，没有 `transcript` | `transcriptMissing` | 5 |
 | 12 | `img` | 没有 `transcript`，**且**派生表示里有一个文件块 | `transcriptMissing`——次序 5 先于 6 | 5 |
-| 13 | `img` | `{ transcript: "一张柱状图" }`，**没有 `renderings`** | `converterFailed`：只交 transcript 非法（主线裁定 S1-g） | 6 |
+| 13 | `img` | `{ transcript: "一张柱状图" }`，**没有 `renderings`** | `converterFailed`：只交 transcript 非法（PF-013 §4 转换件契约表第三行） | 6 |
 | 14 | `img` | 派生表示里有一个文件块 | `converterFailed` | 6 |
 | 15 | `img` | 派生表示里是一个**图块** | `converterFailed`：要的是**别的**模态 | 6 |
 | 16 | `img` | **两份**派生表示 | `converterFailed`：只出一份 | 6 |
@@ -153,8 +159,9 @@
 | 2 | 用户：只有文本 | **转换这一侧整个不可用** | `observed` | 照常落盘 | [S-22](contract.md#s-22-没有转换件输入的消息不依赖转换这一侧) |
 | 3 | 用户：文本 ＋ `img1` | 同上 | 按否决处置 | 没有这条消息；投影没变 | [S-21](contract.md#s-21-转换件不可用即转换失败) |
 | 4 | 工具：工具结果块里嵌 `img1` | 转成了 | `rewrite`：派生属性挂在**嵌着的那张图**上，工具结果块自己不动 | 带派生属性落盘 | [S-20](contract.md#s-20-一条消息在落盘之前的转换全有或全无) ①④ |
-| 5 | 工具说过程：`img1` `(T,F)` | `c_ocr` 起不来 | `observed`——**只给人看的块不转**，这一条与转换件在不在无关 | 照常落盘，`img1` 没有派生表示；投影没变 | [S-20](contract.md#s-20-一条消息在落盘之前的转换全有或全无) ①（账本 S17-e） |
-| 6 | 模型回复：文本 ＋ 模型产出的一张图 | 转成了 | `rewrite`：只在那张图上挂派生表示——对模型回复这是唯一许可的改动，只认系统模态转换件交回的 | 带派生属性落盘；模型说的话一字不改 | [S-20](contract.md#s-20-一条消息在落盘之前的转换全有或全无) ⑤；`data.loop-extension/v1#S-23`（账本 S17-c） |
+| 5 | 工具说过程：`img1` `(T,F)` | `c_ocr` 起不来 | `observed`——**只给人看的块不转**，这一条与转换件在不在无关 | 照常落盘，`img1` 没有派生表示；投影没变 | [S-20](contract.md#s-20-一条消息在落盘之前的转换全有或全无) ①、[S-22](contract.md#s-22-没有转换件输入的消息不依赖转换这一侧)（PF-013 §4 模态投影） |
+| 6 | 模型回复：文本 ＋ 模型产出的一张图 | 转成了 | `rewrite`：只在那张图上挂派生表示——对模型回复这是唯一许可的改动，只认系统模态转换件交回的 | 带派生属性落盘；模型说的话一字不改 | [S-20](contract.md#s-20-一条消息在落盘之前的转换全有或全无) ⑤；`data.loop-extension/v1#S-23`（D-040 §S17 S17-c） |
+| 7 | 用户：文本 ＋ 一张**已带派生属性**的图 `img3`（例如从别处转发来、已经带着 transcript） | 转换这一侧整个不可用 | `observed`——`img3` 不是要转的块 | 照常落盘；`img3` 的派生属性原样 | [S-20](contract.md#s-20-一条消息在落盘之前的转换全有或全无) ①、[S-22](contract.md#s-22-没有转换件输入的消息不依赖转换这一侧) |
 
 否决之后按产生者走哪一路（第 1、3 行是用户消息：拒绝这次请求并告知发送方）**不归本契约**，归 `capability.loop-extension-runner`。
 
@@ -164,12 +171,12 @@
 
 | 时刻 | 系统装配 | 登记表对 `{modality: image}` 的答 | 这时落盘的带图消息 |
 |---|---|---|---|
-| t0 | 第一份声明：`c_ocr`，已登记完 | 有（`c_ocr`） | 带 `c_ocr` 的产出落盘 |
-| t1 | 开始换成第二份声明（同一个键登记 `c_ocr2`） | **答不出** | **被否决**（`converterFailed`）——**不是原样落盘** |
-| t2 | 第二份声明登记完 | 有（`c_ocr2`） | 带 `c_ocr2` 的产出落盘 |
-| t1 上正在进行的那一次 `c_ocr` 转换 | — | — | 要么以 `c_ocr` 的合法产出落盘，要么 `converterFailed`；**不拼、不收成 `noConverter`**（[S-28](contract.md#s-28-替换与撤除时在途的转换)） |
+| t0 | 第一份声明生效：`{modality: image} → c_ocr` | 有（`c_ocr`） | 带 `c_ocr` 的产出落盘 |
+| t1 | `declareConverters` 交进第二份声明（同一个键写 `c_ocr2`），**尚未返回** | **有（`c_ocr`）**——旧的一份一直生效到新的一份生效那一刻 | 带 `c_ocr` 的产出落盘 |
+| t2 | 那次 `declareConverters` 返回 | 有（`c_ocr2`） | 带 `c_ocr2` 的产出落盘 |
+| t1～t2 之间正在进行的那一次 `c_ocr` 转换 | — | — | 要么以 `c_ocr` 的合法产出落盘，要么 `converterFailed`；**不拼、不收成 `noConverter`**（[S-28](contract.md#s-28-替换与撤除时在途的转换)） |
 
-**绝不能观察到**：t1 前后任何一条带图的消息，那张图以「没有 transcript」落盘。
+**绝不能观察到**：t0～t2 之间任何一刻 `lookupConverter({modality: image})` 答 `{ unregistered }`；任何一条带图的消息，那张图以「没有 transcript」落盘（[S-9](contract.md#s-9-登记表同键一件登记是系统装配层的声明) 第 3 条、[S-17](contract.md#s-17-声明转换件-declareconverters) ④）。
 
 ## 10. 一个消费者怎么用：工具结果那一端
 
@@ -180,7 +187,7 @@
 |---|---|---|---|
 | `{modality: image} → c_ocr` | `image ∉ P_text.inputModalities` ⇒ `lookupConverter({modality: image})` | `{ registered }` ⇒ 这一项满足，`screenshot` 可用 | [S-19](contract.md#s-19-查登记-lookupconverter) |
 | 空 | 同上 | `{ unregistered }` ⇒ 不满足，`screenshot` 不可用（同名替换件那一套归注册表） | 同上 |
-| 尚未登记完 | 同上 | `{ unavailable }` ⇒ **按不满足处理**，不当 `{ registered }` | [S-19](contract.md#s-19-查登记-lookupconverter) ⑧ |
+| 还没有任何一份声明生效 | 同上 | `{ unavailable }` ⇒ **按不满足处理**，不当 `{ registered }` | [S-19](contract.md#s-19-查登记-lookupconverter) ⑧ |
 | 只有 `{media_type: image/png} → c_png` | 同上 | `{ unregistered }`——**只在一种媒体类型上有兜底，不等于这一种模态有兜底** | [S-19](contract.md#s-19-查登记-lookupconverter) 末段 |
 
 **调用那一端不经本契约**：工具 `sketch-edit` 的参数里要一张图，`P_text.outputModalities = [text]` 不含 `image`——注册表拿两份数据自己比，只有有效模型满足得了（PF-006 §6.11）。

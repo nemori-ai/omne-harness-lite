@@ -7,7 +7,7 @@
 并给受理一侧一个「外部内容在交接那一刻长什么样」的共同定义。**连接件只能送消息进来**：本契约里没有任何一个值能承载读取、管理或控制。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.connector, 1)`
-- **状态**：`candidate`——未接受、未冻结，不得据此发布或声称消费者已采用
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐与第一轮独立评审处置；连接件专项收口未做，见 G-10）——未接受、未冻结，不得据此发布或声称消费者已采用
 - **catalog 映射**：已登记为 `candidate`（`acceptance` 为 `null`）。`family=data`、`topic=connector`、
   `contract_path=spec/data/connector/v1/contract.md`，`resources` 另含 `v1/connector.schema.json` 与 `v1/examples.md`；
   依赖五项：`data.asset-model` v1、`data.messages` v1、`data.content-blocks` v1、`data.offer-expiry` v1、`data.identity-values` v1，
@@ -33,9 +33,9 @@
 | 本候选版本精确承诺什么 | [v1 契约](v1/contract.md) |
 | 交换与存储表示 | [v1 Schema](v1/connector.schema.json) |
 | 一个值长什么样、什么会被拒、拒绝值叫什么 | [v1 正反实例](v1/examples.md) |
-| 鉴权绑定与投递目标为什么不在正文里 | [S-2](v1/contract.md#s-2-鉴权绑定与投递目标不在正文里)——**主线裁定 2026-09-23 采纳，待产品负责人确认** |
+| 鉴权绑定与投递目标为什么不在正文里 | [S-2](v1/contract.md#s-2-鉴权绑定与投递目标不在正文里)——主线裁定，见 [D-040 §S21 S21-a、S21-b](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s21connector报回的) |
 | 连接件到底能让本系统做什么 | [S-14 没有读取面，也没有管理面](v1/contract.md#s-14-没有读取面也没有管理面) |
-| 哪里在等裁决 | [已知缺口](v1/contract.md#十已知缺口)——**G-4 让属性声明整组判不出来（两项权限的取值未定），G-5 让信封的归属没有落点** |
+| 哪里在等裁决 | [已知缺口](v1/contract.md#十已知缺口)——**G-4 让属性声明整组判不出来（两项权限的取值未定），G-5 让信封的归属没有落点，G-10 记着 PF-002 rev 19～20 与 PF-014 rev 7 对连接件的改动还没落（等连接件专项讨论）** |
 | 哪些条款有怎样的证据义务，现在到哪一步 | [验证与覆盖](verification.md) |
 
 ## 版本包

@@ -6,7 +6,7 @@
 **三条读法上的边界：**
 
 - **标识串只是占位**：`run_9a`、`call_07`、`msg_r3` 这类写法不承诺任何词法（`data.identity-values/v1#S-31`）。
-- **系统自带件的名字是占位**：`admission`、`modality-converter`、`default-retry` 的正式能力标识归各自 owner（[G-3](contract.md#十三已知缺口)）。
+- **系统自带件的名字**：放行判断的 name 是 `omne-official:admission-judgment`（`capability.tool-admission/v1#S-26`），JSON 里照写、表格与正文里简写为 `admission`；`modality-converter`、`default-retry` 是占位，正式能力标识归各自 owner（[G-3](contract.md#十三已知缺口)）。
 - **「预期」是契约要求的可观察结果，不是某次执行的记录**；执行状态在[验证入口](../verification.md)。
 
 ## 1. `before_action`：租户的改写件在前，放行判断在末位出卡，答完回放
@@ -18,10 +18,10 @@
 
 | 步 | 发生了什么 | 落下的结论记录 | 依据 |
 |---|---|---|---|
-| 1 | `dispatch(before_action, —, subject={call: call_07 的完整调用, definition, batch: [call_07]}, manifest, run_9a, 1)` | —— | [S-21](contract.md#s-21-dispatch一次经过) |
+| 1 | `dispatch(before_action, —, actions=[{call: call_07 的完整调用, definition, batch: [call_07]}], manifest, run_9a, 1)`——这一批只有一个动作，`actions` 恰凑成 `batch` | —— | [S-21](contract.md#s-21-dispatch一次经过) ① |
 | 2 | `path-normalizer` 拿到原参数、`earlier = []`，交回 `rewrite` | 见下 ① | [S-10](contract.md#s-10-逐件顺序求值先落后算)、`data.loop-extension/v1#S-23` |
-| 3 | ① 落进日志之后，`admission` 才被求值：它拿到的 `subject.call.arguments` 是**改写后的**那一份，`earlier = [①]`；它判出「要问人」，交回 `ask` | 见下 ② | [S-24](contract.md#s-24-before_action-上的改写与生效参数) |
-| 4 | `dispatch` 返回 `{conclusions: [①, ②], effect: asked{card: ② 的草稿, by: admission}}`；loop 经等待原语把卡片落进池子，运行进等人；协程被回收 | —— | [S-15](contract.md#s-15-效果怎么合成)、[S-27](contract.md#s-27-ask交出卡片并停在这一位置) |
+| 3 | ① 落进日志之后，走到放行判断那一格的只有 `call_07`——这一轮就是它；runner 对这一轮发起**一次** `admit`，`admission` 拿到的 `subject.call.arguments` 是**改写后的**那一份，`earlier = [①]`；它判出「要问人」，交回 `ask` | 见下 ② | [S-24](contract.md#s-24-before_action-上的改写与生效参数)、[S-29](contract.md#s-29-一批动作每个动作一次经过) 第 5 条 |
+| 4 | `dispatch` 返回 `[{conclusions: [①, ②], effect: asked{card: ② 的草稿, by: admission}}]`（与 `actions` 同序）；loop 经等待原语把卡片落进池子，运行进等人；协程被回收 | —— | [S-15](contract.md#s-15-效果怎么合成)、[S-21](contract.md#s-21-dispatch一次经过) ⑤、[S-27](contract.md#s-27-ask交出卡片并停在这一位置) |
 
 ① `path-normalizer` 的最终结论（**这就是那一条「生效参数」**，模型回复里的原参数不动）：
 
@@ -51,11 +51,11 @@
 }
 ```
 
-② `admission` 的 `ask` 记录（非终结）。选项是放行判断定死的四档，**`id`、`label` 与含义归 `capability.tool-admission/v1#S-15`**（并行起草，按坐标引），这里照抄；说明文字从简：
+② `admission` 的 `ask` 记录（非终结）。选项是放行判断定死的四档，**`id`、`label` 与含义归 `capability.tool-admission/v1#S-15`**，这里照抄；说明文字从简：
 
 ```json
 {
-  "extension": "admission",
+  "extension": "omne-official:admission-judgment",
   "position": "before_action",
   "power": "veto",
   "callId": "call_07",
@@ -76,7 +76,7 @@
 }
 ```
 
-**人在卡片上选了「这次允许」（`allow_once`）。**执行尝试 2 在 `before_action` 上对 `call_07` 再调一次 `dispatch`：
+**人在卡片上选了「这次允许」（`allow_once`），这一批答完。**执行尝试 2 在 `before_action` 上以同一组 `actions`（只有 `call_07`）再调一次 `dispatch`：
 
 | 步 | 发生了什么 | 依据 |
 |---|---|---|
@@ -84,13 +84,13 @@
 | 6 | `path-normalizer` 已有最终结论，**不再求值** | [S-28](contract.md#s-28-回放) 第 2 条 |
 | 7 | ② 是 `ask`、这一批已答完 ⇒ **回放 `admission`**：输入与步 3 逐值相同（同一个 `subject`、同一串 `earlier`），新句柄读得到 ② 与那条答复；它的答复是 `allow_once`——取自**它自己**那张卡（[S-29](contract.md#s-29-一批动作每个动作一次经过) 第 8 条）；**不出第二张卡** | [S-28](contract.md#s-28-回放) 第 4 条、[S-9](contract.md#s-9-日志只读句柄的读面) |
 | 8 | `admission` 交回 `observed`，另落一条最终结论 ③ | [S-11](contract.md#s-11-每件恰一条最终结论落进会话日志) |
-| 9 | 返回 `{conclusions: [①, ②, ③], effect: proceed{subject: ① 里的那一份}}`；这一批只有这一个动作、已判完，放行凭据随之交出；loop 照 `rm -rf /work/proj/build` 执行 | [S-15](contract.md#s-15-效果怎么合成)、[S-24](contract.md#s-24-before_action-上的改写与生效参数) 第 5 条 |
+| 9 | 返回 `[{conclusions: [①, ②, ③], effect: proceed{subject: ① 里的那一份}}]`；这一批只有这一个动作、已判完，放行凭据随之交出（怎样交出是 [G-16](contract.md#十三已知缺口)）；loop 照 `rm -rf /work/proj/build` 执行 | [S-15](contract.md#s-15-效果怎么合成)、[S-24](contract.md#s-24-before_action-上的改写与生效参数) 第 5 条 |
 
 ③：
 
 ```json
 {
-  "extension": "admission",
+  "extension": "omne-official:admission-judgment",
   "position": "before_action",
   "power": "veto",
   "callId": "call_07",
@@ -115,7 +115,7 @@
 
 | 件 | 结论 | 效果 |
 |---|---|---|
-| `tenant-retry` | `retry { plan: { provider: "provider-b", after: "PT2S" } }`——模型请求运行时判过：未终结、未开口、不属事实三类、`provider-b` 在档案允许的供应商里 | **链到此为止** |
+| `tenant-retry` | `retry { plan: { provider: "provider-b", after: "PT2S" } }`——runner 问 `canDispatchAgain(session, callId, plan)`（`plan` 就是这条 `retry` 带的）得 `{allowed}`（未终结、未开口、不属事实三类、`provider-b` 在档案允许的供应商里） | **链到此为止** |
 | `default-retry` | **不被求值，没有记录** | —— |
 
 效果 `retry{plan: {provider: "provider-b", after: "PT2S"}}`，交给模型请求运行时再发一次（[S-15](contract.md#s-15-效果怎么合成)、[S-26](contract.md#s-26-retry-与它被拒)）。
@@ -126,8 +126,8 @@
 
 | 件 | 发生了什么 | 落下的记录 |
 |---|---|---|
-| `tenant-retry` | 交回 `retry`；模型请求运行时判为 `retryRefused`（撞上事实三类）⇒ 这一次按报错处置；有效策略是可改写档的默认 `record` | 见下 ④ |
-| `default-retry` | **接着被求值**（被拒的 `retry` 不终止这一次经过），它按事实三类不再试，交回 `observed` | `{"extension": "default-retry", "position": "after_model_call", "dimension": {"ending": "failure"}, "power": "rewrite", "output": {"kind": "observed"}, "at": "2026-09-23T11:10:01Z"}` |
+| `tenant-retry` | 交回 `retry`；`canDispatchAgain` 答 `{refused{why: already_spoke}}` ⇒ 这一次按报错处置；有效策略是可改写档的默认 `record` | 见下 ④ |
+| `default-retry` | **接着被求值**（`record` 落下的是一条提醒，不终止这一次经过），它按已开口不再试，交回 `observed` | `{"extension": "default-retry", "position": "after_model_call", "dimension": {"ending": "failure"}, "power": "rewrite", "output": {"kind": "observed"}, "at": "2026-09-23T11:10:01Z"}` |
 
 ④：
 
@@ -138,7 +138,7 @@
   "dimension": { "ending": "failure" },
   "power": "rewrite",
   "skipped": "errored",
-  "error": "运行时拒绝重试（retryRefused）：这次调用已开口",
+  "error": "运行时拒绝重试（canDispatchAgain: already_spoke）：这次调用已开口",
   "output": {
     "kind": "inject",
     "message": {
@@ -158,9 +158,11 @@
 
 效果 `proceed`——**这一层试尽、上交**；经过走完时 `msg_r3` 追加一次（[S-19](contract.md#s-19-注入的提醒怎样追加)）。**拒绝在日志里看得见，不卡住**（[S-26](contract.md#s-26-retry-与它被拒) 第 3 条）。
 
+**变体**：若 `tenant-retry` 是可否决档、报错策略缺省（`treat_as_veto`），同样被拒的 `retry` 在这一位置落 `stop { terminal: failed }`——它**终止**这一次经过，`default-retry` 不被求值，效果 `stopped{by: tenant-retry}`，运行落「失败」（[S-26](contract.md#s-26-retry-与它被拒) 第 3 条、[S-13](contract.md#s-13-报错处置策略的执行)）。
+
 ### 2c. 系统重试件不可用
 
-主体同 2a，`tenant-retry` 交回 `observed`，`default-retry` 的依赖此刻不在：记 `skipped: unavailable`、**不带 `output`**；效果 `proceed`，上交（[S-17](contract.md#s-17-系统自带件不可用时一律关门)）。**没有人替它编一个 `retry`。**
+主体同 2a，`tenant-retry` 交回 `observed`，`default-retry` 的依赖此刻不在：记 `skipped: unavailable`、**不带 `output`**、`unavailability: fallback`；指定挂件「一律不重试」顶上，效果 `proceed`，上交（[S-17](contract.md#s-17-系统自带件不可用时一律关门)）。**没有人替它编一个 `retry`。**
 
 ## 3. 停机之后接着同一次经过，以及接不上的时候
 
@@ -193,7 +195,7 @@ runner 把 `modality-converter` 移到末位——链是 `pii-scrubber` → `mod
 
 **两支变体：**
 
-- **`modality-converter` 此刻不可用**：它记 `skipped: unavailable`、不带 `output`；这条回复含图块 ⇒ **效果 `vetoed{by: modality-converter}`**：回复不落盘、那次调用照常结束、响应体记 `replyDisposition = vetoed`、不触发 `after_model_call`；runner 追加一条以它名义的提醒「这一件此刻不可用，回复未落盘」，并把这次计进连续被否决的回复数（[S-17](contract.md#s-17-系统自带件不可用时一律关门)、[S-23](contract.md#s-23-效果之后的事由谁做)、[S-30](contract.md#s-30-连续被否决的回复)）。
+- **`modality-converter` 此刻不可用**：它记 `skipped: unavailable`、不带 `output`、`unavailability: fallback`；这条回复含图块 ⇒ 指定挂件「一律当转换失败」顶上，**效果 `vetoed{by: modality-converter}`**：回复不落盘、那次调用照常结束、响应体记 `replyDisposition = vetoed`、不触发 `after_model_call`；runner 追加一条以它名义的提醒「这一件此刻不在，回复未落盘」，并把这次计进连续被否决的回复数（[S-17](contract.md#s-17-系统自带件不可用时一律关门)、[S-23](contract.md#s-23-效果之后的事由谁做)、[S-30](contract.md#s-30-连续被否决的回复)）。
   **同一时刻一条纯文字的回复照常落盘**——只有不可用记录，效果不变。
 - **一件外来件交回同样形状的「挂派生表示」**：不生效，按报错处置（[S-14](contract.md#s-14-结论合不合法两类判断) ② 第一行）。
 
@@ -207,3 +209,41 @@ runner 把 `modality-converter` 移到末位——链是 `pii-scrubber` → `mod
 | `before_persist_message` 上 `producer = user`，却带了 `run` | **`invalidInput`** | 外面进来的消息不属于任何运行 | [S-21](contract.md#s-21-dispatch一次经过) ① |
 | `select_model` 的合法目标集合此刻算不出来 | **`unavailable`**，停在那一件之前，它没有记录 | 判不出来 ≠ 判为不合法 | [S-14](contract.md#s-14-结论合不合法两类判断) |
 | `replay` 一次从没开始过的经过 | **空列表** | 与「读不到」（`unavailable`）是两个值 | [S-22](contract.md#s-22-replay从日志重建一次经过) ⑤ |
+| 一批 `[c1, c2]` 只带 `[c1]` 调 `dispatch`（拆批） | **`invalidInput`**，没有记录 | `actions` 凑不成 `batch`；接受子集会让这一轮的 `admit` 看不到整批 | [S-21](contract.md#s-21-dispatch一次经过) ⑥ |
+| 连续否决上限这项运行时设置此刻读不到 | **`unavailable`** | 读不到不是「没有上限」 | [S-30](contract.md#s-30-连续被否决的回复) 第 3 条 |
+
+## 6. 不可用处置：租户件按声明，放行判断整批失败按报错
+
+**6a. 声明了「不可用即否决」的租户把关件。**`before_action` 链是 `injection-guard`（租户挂上的，声明 `unavailability: veto`，求得 `veto` 档）→ `admission`。这一批只有 `call_11`。`injection-guard` 依赖的检测服务此刻不在：
+
+```json
+{
+  "extension": "injection-guard",
+  "position": "before_action",
+  "power": "veto",
+  "callId": "call_11",
+  "skipped": "unavailable",
+  "unavailability": "veto",
+  "at": "2026-09-24T09:00:00Z"
+}
+```
+
+效果 `vetoed{by: injection-guard}`，`admission` 不被求值、没有 `admit`；agent 读到的来由是「这一件此刻不在，按否决处置」（[S-12](contract.md#s-12-不可用与报错runner-怎么分)、[S-23](contract.md#s-23-效果之后的事由谁做)）。
+同一件若被某一层收窄成 `rewrite` 档，这一次记 `unavailability: skip`、链继续到 `admission`——它不在时能做的，不多于它在时能做的。
+
+**6b. `admit` 对一轮整批失败。**一批 `[call_21, call_22]` 都走到末位，这一轮的那一次 `admit` 以 `unavailable` 失败。两项各落一条：
+
+```json
+{
+  "extension": "omne-official:admission-judgment",
+  "position": "before_action",
+  "power": "veto",
+  "callId": "call_21",
+  "skipped": "errored",
+  "error": "放行判断没有给出结论：unavailable",
+  "output": { "kind": "veto", "reason": "放行判断没有给出结论（本件报错，按 treat_as_veto 处置）" },
+  "at": "2026-09-24T09:05:00Z"
+}
+```
+
+`call_22` 同形。两项效果都是 `vetoed{by: admission}`；`reason` 不借用任何一个拒绝原因 token（[S-29](contract.md#s-29-一批动作每个动作一次经过) 第 6、7 条；记录形状与 `capability.tool-admission/v1#S-29`、`#S-34` 一致）。**放行判断不可用**（不是 `admit` 失败）时则是两条 `skipped: unavailable`、`unavailability: fallback`、不带 `output`，效果同为 `vetoed`（[S-17](contract.md#s-17-系统自带件不可用时一律关门)）。

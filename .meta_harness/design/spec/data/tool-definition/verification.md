@@ -4,6 +4,7 @@
 
 > **当前状态：未开始。**`data.tool-definition` v1 是 **`candidate`**（2026-09-23 起草），未接受、未冻结；没有提供者设计、没有源码、没有装配。
 > 下表登记的是**已经触发的证据义务**，不是已完成的检查。
+> 2026-09-24 第一轮独立评审（基线 HUB `765b01dc`）的处置见[独立评审](#独立评审)。
 > 起草时只做过人工对读；**整批对齐（2026-09-24）跑过 V-1 的本地自检与 V-2 的生成结果重算比对**——Schema 一关与 Schema 之外那一步、定义的拒绝值按 S-26 次序比对、由定义重算模型面与实例比较（见[本地自检](#本地自检schema-正反实例整批对齐2026-09-24)）；其余义务仍未开始。
 
 ## 证据义务
@@ -58,9 +59,32 @@ V-1、V-3～V-11 尚无执行记录。首次执行时在此记录工具与版本
 
 | 对齐什么 | 涉及 | 现状 |
 |---|---|---|
-| **模型交回的调用名按逆转写对回定义**（`__` 换回 `:`，[S-6](v1/contract.md#s-6-模型面只有一个条目)、[S-18](v1/contract.md#s-18-名字的表示与相等)）；把条目按键名放进三家外壳 | `capability.model-request-runtime` v1 的传输适配、`capability.tool-execution-runtime` v1（收调用、派发） | 本契约定了转写与唯一性；两份候选还没写这一步，**待它们落条款** |
+| **模型交回的调用名按逆转写对回定义**（`__` 换回 `:`，[S-6](v1/contract.md#s-6-模型面只有一个条目)、[S-18](v1/contract.md#s-18-名字的表示与相等)）——**只在工具执行运行时起执行者之前做**；把条目按键名放进三家外壳 | `capability.tool-execution-runtime` v1（逆转写，登记消费本契约 S-6）；`capability.model-request-runtime` v1 的传输适配（只做键名映射，**不做**逆转写） | 本契约已定（2026-09-24 第一轮评审处置）；两份候选的条款由修复波 R4a／R5 落，**待它们落条款** |
+| **系统里流转的工具指认用模型面名字 `ModelToolName`**（[S-6](v1/contract.md#s-6-模型面只有一个条目)） | `data.loop-extension` v1 的 `ModelRequest.tools` 与 `ToolDefinitionRef.name`（本修复波同轮改）；`capability.model-request-runtime` v1 S-7 的 `tools`；`capability.tool-admission` v1 S-7 的 `definition`（比较在模型面名字上做、S-18 逐码点不变）；`data.content-blocks` v1 调用块的 `tool` | loop-extension 已改；其余由 R4a／R5 落，**待它们落条款** |
 | **PF-006 §5.3「多命令工具的定义里带多少」那张表**：「带全部命令的完整参数 → 一次到位、不必多一趟」与产品负责人 2026-09-24 的 flat 裁定不再一致——模型面不展示任何命令的参数（[S-7](v1/contract.md#s-7-多命令-input-的生成规则) 第 1 条），两种写法的模型面相同 | 产品正文 PF-006（主线另做产品修订） | **已闭合（2026-09-24）**：PF-006 rev 19 §5.3 整节重写为「模型面前只有紧凑的命令清单一种样子」，「一次到位」那一端作废，与本契约一致 |
 | **MCP 条目名要合 `name` 的收窄**（字符集、三种相邻、转写后 ≤ 128），不合即拼不出；对端参数 schema 过不了三条硬要求的，先由桥最小规范化，仍不合才投不成条目 | `data.mcp-endpoint` v1 S-11、S-26（接入点 name 登记时收窄）、`capability.mcp-bridge` v1 S-17 | **已落（2026-09-24，主线裁定）**：桥的 G-18 与接入点的 G-11 关闭 |
+
+## 独立评审
+
+| 项 | 值 |
+|---|---|
+| reviewer | spec-reviewer（只读） |
+| 日期 | 2026-09-24 |
+| 基线 | HUB `765b01dc`（批 R2a：本契约与 loop-extension、skill-package、slash-command、mcp-endpoint、connector） |
+| 处置 | 2026-09-24 修复波 1，候选期内原地改；主线在修复简报里对跨契约的几处作了裁定（下表「主线处置裁定」，已收进 [D-040 §五](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)，K1～K50） |
+
+| 发现 | 处置 | 落点 |
+|---|---|---|
+| X-1 产品依据 rev 落后（PF-002 16→20、PF-007 16→18、PF-009 7→8、PF-012 10→14） | **改**。逐 rev 复核：PF-002 rev 17「谁可以使用它」八类共用 ⇒ [S-31](v1/contract.md#s-31-属性项的推出规则) 第 3 条补「不产出 `usableBy`」并登记消费 `data.asset-model` S-36；rev 18（组织层不持凭据）、rev 19（Skill 两项设置删除）、rev 20（连接件、D-5）与本契约无关。PF-007 rev 17 §5.6 加「放行判断不可用时全拒件」——[S-15](v1/contract.md#s-15-执行权限) 只引三档，不变；§4 多命令措辞与 PF-006 rev 19 对齐，与 S-7/S-8 一致（T-5 同轮收紧）；rev 18（问询出口）无关。PF-009 rev 8（系统消息不落日志）、PF-012 rev 11～14（回复否决、不可用处置、转换件不是资产）与 S-20、S-23 所引无关 | 抬头 |
+| X-2 `category_unknown`／`origin_unknown` 与 `data.asset-model` 同名不同义 | **改**（主线处置裁定：改为 `setting_category_unknown`、`tool_origin_unknown`；技能包同一错误报同一值） | [S-10](v1/contract.md#s-10-设置项声明)、[S-17](v1/contract.md#s-17-来源)、[S-26](v1/contract.md#s-26-表示层拒绝值与判定次序)（加一段说明）；Schema 两处说明；`examples.md` 第 5 节两行 |
+| X-6 依据只在任务区账本 | **改**：S5-b～f、A3 改链 D-040；产品负责人的 U-24-1／U-24-2 链 D-039；「`ToolSource` 改名」D-040 无此项，改写为本契约的命名选择（理由在 S-17）；「未知键一律拒」「模型面不改写」D-040 未收录，保留「主线裁定 2026-09-24」并报主线补登 | 设计依据表、S-4、S-5、S-6、S-7、S-17、S-18、S-26、S-31、G-1、G-3、G-4、G-7 |
+| X-8(a) 正文 `name` 与 `capability.name` 相等由 asset-model S-10 定，却没登 | **改**：抬头依赖表与 catalog 补 `data.asset-model` S-10 | 抬头；`registry/catalog.json` |
+| T-1 Schema 说明与 S-5 冲突；`$comment` 写 M1～M23 | **改** | Schema `CommandDefinition.description`、根 `$comment` |
+| T-2 S-4 第 2、3 条的子 schema 位置集合不同；两条同时违反时报法不定 | **改**：「schema 的位置」写成一份封闭清单，第 2、3 条共用；清单外关键字下面不走（由 M27 报那个关键字）；同时违反报 `parameter_description_missing` | [S-4](v1/contract.md#s-4-单函数工具) |
+| T-3 S-24 第 3 条「投不出时是任意」数据层无判据 | **改**（主线处置裁定：`origin.kind = mcp` 的定义不按结果端模态判，与 `capability.mcp-bridge/v1#S-17` 一致；取代 D-040 S19-e 的写法） | [S-24](v1/contract.md#s-24-结果与声明对得上) 第 3 条、设计依据表、G-8 |
+| T-4 catalog 登 content-blocks 十条含 S-1，抬头写九条 | **改**：抬头补 S-1（`ToolResult` 的块取自那七类） | 抬头 |
+| T-5 `args` 固定说明提「本工具自带的 help 命令」，与 S-8「help 是文本字段」冲突 | **改**：固定说明只写 `Tools().inspect` | [S-7](v1/contract.md#s-7-多命令-input-的生成规则) 固定文本；`examples.md` 第 2、9、11 节六处 |
+| L-3（批内，loop-extension）MCP 来源没有能力标识，`tools` 表达不了 | **本契约一侧改**（主线处置裁定：流转的工具指认用模型面名字）：新 `$defs/ModelToolName`（21 项），`ModelToolEntry.name` 引它；S-6 写明逆转写只在工具执行运行时起执行者之前做、传输适配不做 | [S-6](v1/contract.md#s-6-模型面只有一个条目)、第七节、五（定义项）；Schema；[对齐义务](#对齐义务) |
 
 ## 实际执行
 
@@ -153,7 +177,14 @@ V-1、V-3～V-11 尚无执行记录。首次执行时在此记录工具与版本
   **对消费者**：没有已采用的消费者，无迁移。**语义改变**：只写 `{"type": "object", "properties": {}}` 的命令从「收任何对象」变为「不收任何参数键」；执行运行时的 `arguments_invalid` 按这条判（`capability.tool-execution-runtime/v1#S-11`）。
   **证据**：Schema 与生成规则不变（模型面逐字不变），V-1、V-2 的本地自检结果仍适用；第 9 节的调用表属对读，未机检。
   **（同日第二轮，主线裁定）**单函数工具的模型面保持 [S-6](v1/contract.md#s-6-模型面只有一个条目) 原样、不自动补 `additionalProperties: false`；S-5 末条补一句「模型面允许而运行时拒的键会以用法文本告知」。语义与表示不变。
+- **2026-09-24 第一轮独立评审的处置（修复波 1；候选，未冻结，原地改）**：逐条见[独立评审](#独立评审)。
+  **表示改变**：两个拒绝值改名（`category_unknown` → `setting_category_unknown`、`origin_unknown` → `tool_origin_unknown`）；多命令模型面 `args` 的固定说明改为「所选命令的参数；各命令的参数用法经 Tools().inspect 取得」——**生成出的 `modelInput` 逐字变了**，两个实现须同时换；新 `$defs/ModelToolName`。
+  **语义改变**：MCP 来源的定义不再「按桥的投影判」结果端模态，而是一律不判（第 1 条附件仍判）；逆转写只在工具执行运行时做。**语义收紧、不改结论**：S-4 的位置清单封闭（原两条列法不同，按任一读法判得出的值在清单内一致）。
+  **对消费者**：没有已采用的消费者，无迁移；`data.loop-extension` 同轮改引 `ModelToolName`，model-request-runtime、tool-admission、tool-execution-runtime 由 R4a／R5 同轮改（[对齐义务](#对齐义务)）。
+  **证据**（本轮机检，Draft 2020-12，`jsonschema` 4.26.0 按仓库 `uv.lock`，脚本在任务暂存区、不入库）：`examples.md` 带「校验对象」的 13 个 JSON 块逐个求值，0 处不符；由第 2 节 `commands` 按 S-7 重算 flat 形与第 2 节那份 JSON 值相等（新固定说明），第 11 节两个 `notes` 条目的 `parameters` 与之相等；第 5 节新增三行 Schema 通过、按 S-4 位置清单算出的拒绝值与第三列一致；`ModelToolName` 收 `issue-tracker__search_issues`、`notes`，拒 `a:b` 与 129 个字符。
+  **未重跑**：第 5、6、8 节其余表行的改写还原（上一轮 122 处 0 不符；本轮这些行只改了两个拒绝值的名字）；M 编号仍不机检。
 - **任一已知缺口被裁决**而改变语义或表示：候选期内原地改并在此记一行；**接受之后出 v2**，本版证据只保留原范围。
 - **跨进程演化启动**：[第七节](v1/contract.md#七装配给与协议给)标「须由协议兑现」的三行（同一份定义、`help` 读同一版本、每个边界重新校验）从装配给转为协议给；本版证据只保留其单机范围。
+- **2026-09-24 同日稍后（不改语义）**：K 裁定收进 [D-040 §五](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) 之后，正文里标「第一轮独立评审的处置」的四处改链 D-040 §五（K6、K10、K11）。
 
 结果不改写规范。发现语义问题回到来源设计（PF-006／PF-002／PF-005），不在这里改契约。

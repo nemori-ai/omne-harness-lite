@@ -221,7 +221,7 @@ Init ==
     /\ leak     = {}
 
 (******************************* 环境 **************************************)
-(* organization-governance/v1#S-32：接受隶属请求（含判环）；建立时刻 = 新时钟。 *)
+(* organization-governance/v2#S-32：接受隶属请求（含判环）；建立时刻 = 新时钟。 *)
 Affiliate(c, p) ==
     /\ clock < MaxClock
     /\ c # p
@@ -233,7 +233,7 @@ Affiliate(c, p) ==
     /\ UNCHANGED <<member, effSince, src, off, late, staged, linO2, linA2,
                    sh, conf, mat, leak>>
 
-(* organization-governance/v1#S-33：任一方单方面解除。 *)
+(* organization-governance/v2#S-33：任一方单方面解除。 *)
 Dissolve(c) ==
     /\ parent[c] # None
     /\ parent'   = [parent EXCEPT ![c] = None]
@@ -241,7 +241,7 @@ Dissolve(c) ==
     /\ UNCHANGED <<member, effSince, clock, src, off, late, staged, linO2,
                    linA2, sh, conf, mat, leak>>
 
-(* organization-governance/v1#S-29 / #S-25：退出与再加入（同一租户身份）。 *)
+(* organization-governance/v2#S-29 / #S-25：退出与再加入（同一租户身份）。 *)
 Leave(x) ==
     /\ member[x]
     /\ member' = [member EXCEPT ![x] = FALSE]

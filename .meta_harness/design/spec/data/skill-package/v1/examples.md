@@ -131,6 +131,8 @@
 | `{"item": "targetEnvironment", "kind": "setting", "category": "placement_identity", "domain": {"kind": "open", "schema": {"type": "object"}}, "default": {"bindingLayer": "host_machine", "facilities": []}}` | 拒绝 | `malformed`（M13） | 同上：取值域定死 |
 | `{"item": "targetEnvironment", "kind": "setting", "category": "placement_identity", "domain": {"kind": "open", "schema": {"$ref": "TE"}}, "default": {"bindingLayer": "cloud_vm", "facilities": []}}` | 拒绝 | `binding_layer_unknown` | [S-24](contract.md#s-24-表示层拒绝值与判定次序)：绑定层四值之外——`data.tool-definition` 的值，原名携带；同一违例两处同名 |
 | `{"item": "usableBy", "kind": "setting", "category": "preference", "domain": {"kind": "open", "schema": {"type": "string"}}, "default": "self"}` | 拒绝 | `malformed`（M12） | [S-15](contract.md#s-15-设置项声明与目标环境) 第 3 条：`usableBy` 由 `data.asset-model` 保留 |
+| `{"item": "tone", "kind": "setting", "category": "security", "domain": {"kind": "open", "schema": {"type": "string"}}, "default": "concise"}` | 拒绝 | `setting_category_unknown` | [S-24](contract.md#s-24-表示层拒绝值与判定次序)：设置项类别四值之外——与 `data.tool-definition` 同名同义 |
+| `{"item": "targetEnvironment", "kind": "setting", "category": "placement_identity", "domain": {"kind": "open", "schema": {"$ref": "TE"}}}` | 通过 | — | [S-15](contract.md#s-15-设置项声明与目标环境)：作者可以不给默认；各层也没配时 [S-16](contract.md#s-16-由包得出的依赖声明) 按没声明处理 |
 
 ## 5. 技能包
 
@@ -278,11 +280,12 @@
 | `resource_escapes` | 5.1，`resources` 为 `[{"path": "/etc/passwd"}]` | —— | [S-9](contract.md#s-9-资源条目与包内路径) |
 | `tool_ref_invalid` | 5.1 加 `"definition": {"format": 1, "tools": [{"category": "skill", "name": "style-guide"}]}` | —— | [S-13](contract.md#s-13-组合的工具清单) |
 | `binding_layer_unknown` | 5.3，`targetEnvironment` 的 `default.bindingLayer` 为 `"cloud_vm"` | —— | [S-24](contract.md#s-24-表示层拒绝值与判定次序)：`data.tool-definition` 的值，原名携带 |
+| `setting_category_unknown` | 5.2，`checklist` 的 `category` 为 `"security"` | —— | [S-24](contract.md#s-24-表示层拒绝值与判定次序)：与 `data.tool-definition` 同名同义 |
 | `malformed` | 5.1，`body` 为 `null` | —— | [S-3](contract.md#s-3-技能包的四个部分)（M4） |
 
 ## 8. 几处违例同时出现时取哪个拒绝值
 
-次序：`manifest_missing` > `name_mismatch` > `definition_format_unsupported` > `resource_escapes` > `tool_ref_invalid` > `binding_layer_unknown` > `malformed`（[S-24](contract.md#s-24-表示层拒绝值与判定次序)）。
+次序：`manifest_missing` > `name_mismatch` > `definition_format_unsupported` > `resource_escapes` > `tool_ref_invalid` > `binding_layer_unknown` > `setting_category_unknown` > `malformed`（[S-24](contract.md#s-24-表示层拒绝值与判定次序)）。
 **这一节的实例故意各违反两条以上**；拒绝值只有一个，就是次序里最靠前的那个。
 
 | 实例 | 同时违反 | 拒绝值 |
@@ -294,6 +297,7 @@
 | 5.2 往 `tools` 加一个 `skill`、往 `definition` 加 `"dependencies": ["a", "a"]` | 工具引用不合法；依赖名重复 | `tool_ref_invalid` |
 | 5.3 把 `targetEnvironment` 的 `default.bindingLayer` 改成 `"cloud_vm"`、往 `definition` 加 `"tools": [{"category": "mcp", "name": "github"}]` | 绑定层不认得；工具引用不合法 | `tool_ref_invalid` |
 | 5.3 把 `targetEnvironment` 的 `default.bindingLayer` 改成 `"cloud_vm"`、往 `definition` 加 `"dependencies": [""]` | 绑定层不认得；依赖名为空 | `binding_layer_unknown` |
+| 5.2 把 `checklist` 的 `category` 改成 `"security"`、再加一项同名的 `checklist` | 类别不认得；项名重复 | `setting_category_unknown` |
 | 5.1 把 `manifest.name` 改成 `"code/review"`，所属能力标识 name 为 `code-review` | 名字词法；名字对不上 | `name_mismatch` |
 | 同上，不知道所属能力标识 | 名字词法 | `malformed`（M6） |
 

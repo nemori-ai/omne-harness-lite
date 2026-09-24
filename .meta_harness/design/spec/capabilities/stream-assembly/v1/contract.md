@@ -6,17 +6,18 @@
   `family = capabilities`、`topic = stream-assembly`、规范路径 `spec/capabilities/stream-assembly/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
 - **状态**：`candidate`——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
-- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-009 rev 7、PF-006 rev 17、PF-013 rev 8、PF-012 rev 10** 为准
+- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-009 rev 8、PF-006 rev 19、PF-013 rev 12** 为准（2026-09-24 逐版复核，见[验证入口「变化的影响」](../verification.md#变化的影响)）
 - **精确语义依赖**：
 
   | 坐标 | 消费 clauses | 取它的什么 |
   |---|---|---|
-  | `omne-harness-lite-design-2026-09-15 · data.arrival-events · v1` | [`S-5`](../../../data/arrival-events/v1/contract.md#s-5-信封与目标)、[`S-6`](../../../data/arrival-events/v1/contract.md#s-6-六种事件)、[`S-7`](../../../data/arrival-events/v1/contract.md#s-7-块索引)、[`S-8`](../../../data/arrival-events/v1/contract.md#s-8-开块)、[`S-9`](../../../data/arrival-events/v1/contract.md#s-9-块头)、[`S-11`](../../../data/arrival-events/v1/contract.md#s-11-填追加片段)、[`S-12`](../../../data/arrival-events/v1/contract.md#s-12-填整体替换)、[`S-13`](../../../data/arrival-events/v1/contract.md#s-13-封口)、[`S-14`](../../../data/arrival-events/v1/contract.md#s-14-砍)、[`S-15`](../../../data/arrival-events/v1/contract.md#s-15-记账)、[`S-16`](../../../data/arrival-events/v1/contract.md#s-16-收尾)、[`S-17`](../../../data/arrival-events/v1/contract.md#s-17-一条流的形状)、[`S-18`](../../../data/arrival-events/v1/contract.md#s-18-块的一生)、[`S-19`](../../../data/arrival-events/v1/contract.md#s-19-归约一块此刻是什么)、[`S-20`](../../../data/arrival-events/v1/contract.md#s-20-封口块等于归约)、[`S-21`](../../../data/arrival-events/v1/contract.md#s-21-第一个内容步骤)、[`S-22`](../../../data/arrival-events/v1/contract.md#s-22-节流只动填合并不改结果砍了要说)、[`S-23`](../../../data/arrival-events/v1/contract.md#s-23-执行帧的另外四条)、[`S-24`](../../../data/arrival-events/v1/contract.md#s-24-违反语法由消费一方判定并命名)、[`S-28`](../../../data/arrival-events/v1/contract.md#s-28-表示层拒绝值)、[`S-29`](../../../data/arrival-events/v1/contract.md#s-29-表示层拒绝不是判定也不修补) | 本能力吃的就是这套语法：目标的两种、六种事件的含义、次序规则、归约、「以封口块为准」的前提、首个内容步骤、节流与砍、帧的四条、表示层拒绝值的名字与次序 |
-  | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1` | [`S-6`](../../../data/content-blocks/v1/contract.md#s-6-模态由媒体类型判定)、[`S-10`](../../../data/content-blocks/v1/contract.md#s-10-语音块与图块)、[`S-12`](../../../data/content-blocks/v1/contract.md#s-12-完整的工具调用)、[`S-13`](../../../data/content-blocks/v1/contract.md#s-13-半截的工具调用)、[`S-26`](../../../data/content-blocks/v1/contract.md#s-26-表示层拒绝值) | 交出的块是它的块：完整与半截的工具调用两种形状、「唯一解析点在装配」、半截调用两位皆假、内联语音的形状、块头模态的判定、嵌着的块不合形状时的拒绝值 |
+  | `omne-harness-lite-design-2026-09-15 · data.arrival-events · v1` | [`S-4`](../../../data/arrival-events/v1/contract.md#s-4-到达事件不是记录条目)、[`S-5`](../../../data/arrival-events/v1/contract.md#s-5-信封与目标)、[`S-6`](../../../data/arrival-events/v1/contract.md#s-6-六种事件)、[`S-7`](../../../data/arrival-events/v1/contract.md#s-7-块索引)、[`S-8`](../../../data/arrival-events/v1/contract.md#s-8-开块)、[`S-9`](../../../data/arrival-events/v1/contract.md#s-9-块头)、[`S-11`](../../../data/arrival-events/v1/contract.md#s-11-填追加片段)、[`S-12`](../../../data/arrival-events/v1/contract.md#s-12-填整体替换)、[`S-13`](../../../data/arrival-events/v1/contract.md#s-13-封口)、[`S-14`](../../../data/arrival-events/v1/contract.md#s-14-砍)、[`S-15`](../../../data/arrival-events/v1/contract.md#s-15-记账)、[`S-16`](../../../data/arrival-events/v1/contract.md#s-16-收尾)、[`S-17`](../../../data/arrival-events/v1/contract.md#s-17-一条流的形状)、[`S-18`](../../../data/arrival-events/v1/contract.md#s-18-块的一生)、[`S-19`](../../../data/arrival-events/v1/contract.md#s-19-归约一块此刻是什么)、[`S-20`](../../../data/arrival-events/v1/contract.md#s-20-封口块等于归约)、[`S-21`](../../../data/arrival-events/v1/contract.md#s-21-第一个内容步骤)、[`S-22`](../../../data/arrival-events/v1/contract.md#s-22-节流只动填合并不改结果砍了要说)、[`S-23`](../../../data/arrival-events/v1/contract.md#s-23-执行帧的另外四条)、[`S-24`](../../../data/arrival-events/v1/contract.md#s-24-违反语法由消费一方判定并命名)、[`S-28`](../../../data/arrival-events/v1/contract.md#s-28-表示层拒绝值)、[`S-29`](../../../data/arrival-events/v1/contract.md#s-29-表示层拒绝不是判定也不修补) | 本能力吃的就是这套语法：事件没有身份（所以位置由接受一侧数，跨进程要协议自带序号）、目标的两种、六种事件的含义、次序规则、归约、「以封口块为准」的前提、首个内容步骤、节流与砍、帧的四条、表示层拒绝值的名字与次序 |
+  | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1` | [`S-6`](../../../data/content-blocks/v1/contract.md#s-6-模态由媒体类型判定)、[`S-10`](../../../data/content-blocks/v1/contract.md#s-10-语音块与图块)、[`S-12`](../../../data/content-blocks/v1/contract.md#s-12-完整的工具调用)、[`S-13`](../../../data/content-blocks/v1/contract.md#s-13-半截的工具调用)、[`S-26`](../../../data/content-blocks/v1/contract.md#s-26-表示层拒绝值) | 交出的块是它的块：完整与半截的工具调用两种形状、「唯一解析点在到达装配」、半截调用两位皆假、内联语音的形状、块头模态的判定、嵌着的块不合形状时的拒绝值 |
   | `omne-harness-lite-design-2026-09-15 · data.call-accounts · v1` | [`S-4`](../../../data/call-accounts/v1/contract.md#s-4-未知是一个值不是零也不是缺席)、[`S-11`](../../../data/call-accounts/v1/contract.md#s-11-toolcallaccount一次工具执行的账)、[`S-15`](../../../data/call-accounts/v1/contract.md#s-15-trimreason-与-trimsummary砍了要说)、[`S-19`](../../../data/call-accounts/v1/contract.md#s-19-每条到达流恰一份账两次发出两份)、[`S-20`](../../../data/call-accounts/v1/contract.md#s-20-缺账或被拒收记未知不伪造)、[`S-21`](../../../data/call-accounts/v1/contract.md#s-21-账进日志不进给模型看的上下文)、[`S-27`](../../../data/call-accounts/v1/contract.md#s-27-表示层拒绝值闭合) | 交出的账：「未知」的写法、`frames` 的形状、`TrimSummary` 的成员与三条等式、「恰一份」、缺账记全未知、账不进任何块、嵌着的账不合形状时的拒绝值 |
 
   **不依赖任何 capability 或 composition 契约。**`data.messages` v1 **不是依赖**：本能力不产出消息（[S-3](#s-3-本契约不拥有什么)），
-  正文提到它的四个名字 `AssistantMessage`、`ToolInternalMessage`、`AssistantEnding`、`ToolInternalEnding` 只为指明**宿主把结果包到哪里**。
+  正文提到它的四个名字 `AssistantMessage`、`ToolInternalMessage`、`AssistantEnding`、`ToolInternalEnding` 与 `data.messages/v1#S-14` 那张收尾对应表，只为指明**宿主把结果包到哪里、结局怎样对**。
+  `capability.tool-execution-runtime` v1 同样只被指路（工具侧的宿主在那里逐条承诺 [S-28](#s-28-宿主要兑现的前提)，解析不了的调用在那里收场），不是依赖：依赖方向是它 → 本契约。
   `data.loop-extension` v1 的 `FailureCause` 也不是依赖：本能力把收尾里的 `error` 原样交出，不读它。
 - **本能力不发布 Schema**：线上形状归组合契约（[`spec/README.md`](../../../README.md)）。操作的输入输出以散文定含义，值类型引三份 data 契约的 `$defs` 名。
 - **条款编号**：`S-n`，**只在本契约本版本内有效**；外部引用须写全坐标，如 `capability.stream-assembly/v1#S-10`。
@@ -30,6 +31,7 @@
 | 组装出来的必须与一次性拿到的一模一样 | [§5.5](../../../../product/PF-009-context-message-types/design.md#组装出来的必须与一次性拿到的一模一样) · [§6.8](../../../../product/PF-009-context-message-types/design.md#68-组装的结果与一次性拿到的必须相同) | S-27 |
 | 流断在半路的五种收场；半截的调用记下来、不给模型看 | [§5.6](../../../../product/PF-009-context-message-types/design.md#56-流断在半路) | S-8、S-9、S-28 |
 | 参数收齐了才算数，只解析一次，残缺的不解析 | [§5.6 工具调用的参数](../../../../product/PF-009-context-message-types/design.md#工具调用的参数收齐了才算数) · [§6.10](../../../../product/PF-009-context-message-types/design.md#610-没收齐的工具调用参数不解析不执行) | S-10、S-11、S-12 |
+| 参数说完了却解析不了：不执行，结果记失败回给 agent（那一半归执行一侧） | [PF-006 §5.5](../../../../product/PF-006-tools-and-skills/design.md#参数说完了却解析不了的调用不执行以失败回给-agent) | S-11 |
 | 用户看见了的，日志里必须有 | [§6.9](../../../../product/PF-009-context-message-types/design.md#69-用户看见了的会话日志里必须有) | S-7、S-9 |
 | 砍了要说；帧多了要节流 | [§6.16](../../../../product/PF-009-context-message-types/design.md#616-砍了要说不许默默丢) · [§5.8 节流](../../../../product/PF-009-context-message-types/design.md#帧多了要节流规则就是-616-那一条) | S-12、S-14、S-15 |
 | 执行帧就是那条消息的到达增量；大部分工具一帧不发 | [§5.8](../../../../product/PF-009-context-message-types/design.md#执行帧就是这条消息的到达增量) · [大部分工具不发这个](../../../../product/PF-009-context-message-types/design.md#大部分工具不发这个而那是正常形态) | S-13、S-37 |
@@ -38,52 +40,52 @@
 | 首 token 指交出的第一样内容，不论模态 | [PF-013 §5.4](../../../../product/PF-013-model-profiles-and-invocation/design.md#已经开口说话了优先于其余各类) | S-16 |
 | 两次发出是两条流；停了看首 token | [PF-013 §5.13](../../../../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token) | S-29 |
 | 工具执行停了就不重来 | [PF-006 §6.12](../../../../product/PF-006-tools-and-skills/design.md#612-工具执行的运行时可以被单独控制而它停了就不重来) | S-22、S-29 |
-| 装配器自写，是三层的第三层；唯一的解析点在装配器 | [D-035](../../../../record/decisions/message-and-stream-baseline/decision.md) 选择表第三行、保留前提 1 | S-1、S-10 |
+| 到达装配自写，是三层的第三层（落 core、纯计算）；唯一的解析点在到达装配这一步 | [D-035](../../../../record/decisions/message-and-stream-baseline/decision.md) 选择表第三行、保留前提 1 | S-1、S-4、S-10、S-17～S-22 |
+| 拼到一半的那份由运行时持有、不落日志——本能力只算，状态由宿主持有 | [D-038](../../../../record/decisions/message-and-shape-rulings/decision.md#十九处分岔) Q18 | S-4、S-29 第二行 |
 | 宿主因所依赖的服务换了提供者而重建时，它手里的值随之丢失 | [basis：必需服务换提供者会使插件体重跑](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md) | S-29 第二行 |
 | 规格形式；部署边界 | [SYS-SPEC](../../../../foundation/cross-system-constraints/requirements.md#sys-spec) · [SYS-DEPLOY](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy) | S-23～S-26、S-29 |
-| 统一语言正式名 | [在途状态](../../../../ubiquitous_language/terms/record-and-context.md#ul-in-flight-arrival--在途状态--in-flight-arrival) · [增量到达](../../../../ubiquitous_language/terms/record-and-context.md#ul-incremental-arrival--增量到达--incremental-arrival) · [执行帧](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-execution-frame--执行帧--execution-frame) · [一次模型调用](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call) · [工具执行](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution) · [调用账目](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-call-account--调用账目--call-account) · [消息](../../../../ubiquitous_language/terms/record-and-context.md#ul-message--消息--message) | 全部 |
+| 统一语言正式名 | [到达装配](../../../../ubiquitous_language/terms/record-and-context.md#ul-arrival-assembly--到达装配--arrival-assembly) · [在途状态](../../../../ubiquitous_language/terms/record-and-context.md#ul-in-flight-arrival--在途状态--in-flight-arrival) · [增量到达](../../../../ubiquitous_language/terms/record-and-context.md#ul-incremental-arrival--增量到达--incremental-arrival) · [执行帧](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-execution-frame--执行帧--execution-frame) · [一次模型调用](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call) · [工具执行](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution) · [调用账目](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-call-account--调用账目--call-account) · [消息](../../../../ubiquitous_language/terms/record-and-context.md#ul-message--消息--message) | 全部 |
 
-> **来自主线裁决、设计链里尚无落处的条款，逐条点名**（原话在施工简报；决定记录由主线在
-> `record/decisions/message-and-shape-rulings-2026-09-23/` 落地中，落地之前无处可链——[G-7](#十已知缺口)）：
->
-> | 条款 | 裁决 |
-> |---|---|
-> | [S-4](#s-4-装配状态是调用方持有的一个值)、[S-17](#s-17-每个操作写全九件事)～[S-22](#s-22-abandon放弃) | 操作面是作用于调用方持有的状态值的五个纯操作；路由归宿主；收尾不产出消息 |
-> | [S-7](#s-7-快照交出什么) | 快照含已到达的全部内容，**包括开着的块已到的片段**，并带一个位置 |
-> | [S-11](#s-11-参数收齐却解析不了只标记) | 参数收齐却解析不了：装配只标记，不执行与回 `failed` 结果的义务归宿主 |
-> | [S-15](#s-15-节流在装配之前投递一侧的节流不进账) | 节流分发出一侧与投递一侧，只有前者进账 |
-> | [S-16](#s-16-首个内容的位置)、[S-27](#s-27-一次装配等于一次性到达) | 首个内容排除空载荷；「一次装配 == 一次性到达」的相等不含铸出来的身份与位置 |
-> | [S-29](#s-29-装配给与协议给) 第二行 | 在途状态由宿主持有，宿主重建时丢失 |
->
-> **没有产品行、属规格层推导的条款**：[S-12](#s-12-被砍过内容的调用落成半截) 的「开着时被改过内容的调用一律落成半截」、
-> [S-13](#s-13-账) 的 `frames.emitted` 算式、[S-23](#s-23-本能力自己的失败值) 的 `stream_not_finished`、[S-22](#s-22-abandon放弃) 的放弃也交出账——理由写在各条，已作为待确认项报给主线。
+**没有产品行的条款，依据各落在哪**（产品负责人尚未逐条追认的主线裁定汇编在 [D-040](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md)）：
+
+| 条款 | 依据 |
+|---|---|
+| [S-4](#s-4-装配状态是调用方持有的一个值)、[S-17](#s-17-每个操作写全九件事)～[S-22](#s-22-abandon放弃)：五个作用于调用方持有的状态值的纯操作；路由归宿主；收尾不产出消息 | D-035 选择表第三行（落 core、纯计算）与 D-038 Q18（在途状态由运行时持有），见上表 |
+| [S-7](#s-7-快照交出什么)：快照含开着的块已到的片段、不带砍的汇总 | [PF-009 §9.2](../../../../product/PF-009-context-message-types/design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息)（rev 8） |
+| [S-15](#s-15-节流在到达装配之前投递一侧的节流不进账)：节流分发出一侧与投递一侧，只有前者进账 | `data.arrival-events/v1#S-22` |
+| [S-16](#s-16-首个内容的位置)：首个内容排除空载荷、零次填充就封口的块也算开口 | `data.arrival-events/v1#S-21` |
+| [S-12](#s-12-被砍过内容的调用落成半截)、[S-13](#s-13-账) 的 `frames.emitted` 算式、[S-16](#s-16-首个内容的位置) 的位置进快照与结局、[S-22](#s-22-abandon放弃) 放弃也交出账、[S-23](#s-23-本能力自己的失败值) 的 `stream_not_finished` | 主线裁定，见 [D-040 §S4 S4-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s4arrival-events--stream-assembly报回的) |
+| [S-14](#s-14-砍的汇总) 的去重规则：每一帧至多计一次「未原样送达」，归本能力 | 主线裁定，见 [D-040 §S4 S4-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s4arrival-events--stream-assembly报回的)（每帧至多计一次）与 [§五 K28](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)（归本能力）；`data.call-accounts/v1#S-15` 把它指派给本能力 |
+| [S-2](#s-2-消费者)、[S-28](#s-28-宿主要兑现的前提) 第 7 条：`ToolInternalMessage` 只在交出的 `blocks` 非空时有，结局按 `data.messages/v1#S-14` 的对应表 | 主线裁定，见 [D-040 §五 K2](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) |
+| [S-11](#s-11-参数收齐却解析不了只标记)、[S-28](#s-28-宿主要兑现的前提) 第 5 条：解析不了的调用由工具执行运行时收场；工具侧宿主逐条承诺前提 | 主线裁定，见 [D-040 §五 K24、K23](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) |
 
 ## 一、含义与使用范围
 
 ### S-1 本契约拥有什么
 
-**装配**：按 [`data.arrival-events` v1](../../../data/arrival-events/v1/contract.md) 的到达语法，把**一条**[分次到达](../../../../ubiquitous_language/terms/record-and-context.md#ul-incremental-arrival--增量到达--incremental-arrival)的流拼起来——
+**[到达装配](../../../../ubiquitous_language/terms/record-and-context.md#ul-arrival-assembly--到达装配--arrival-assembly)**：按 [`data.arrival-events` v1](../../../data/arrival-events/v1/contract.md) 的到达语法，把**一条**[分次到达](../../../../ubiquitous_language/terms/record-and-context.md#ul-incremental-arrival--增量到达--incremental-arrival)的流拼起来——
 
 - 一份**装配状态**怎样随每个被接受的事件前进，哪些事件不被接受、失败值叫什么；
 - 块在状态里、在快照里、在收尾时各是什么——**唯一的参数解析点**就在这里（[D-035](../../../../record/decisions/message-and-stream-baseline/decision.md) 保留前提 1）；
 - 收尾时交出哪些块、一份什么账、这条流怎么结束的；
-- 「一次装配等于一次性到达」这条可判定的性质。
+- 「一次[到达装配](../../../../ubiquitous_language/terms/record-and-context.md#ul-arrival-assembly--到达装配--arrival-assembly)等于一次性到达」这条可判定的性质（[S-27](#s-27-一次到达装配等于一次性到达)）。
 
-**它是纯计算**（D-035：三层落 core、装配器自写）：五个操作都作用于**调用方持有**的状态值，
+**它是纯计算**（D-035：三层落 core、自写）：五个操作都作用于**调用方持有**的状态值，
 不持有任何一条流、不按目标查表、不计时、不写日志、不发请求、不执行工具、不通知任何人。
 同样的输入永远得到同样的输出。
 
-**装配器**（做到达装配那件事的纯函数；「到达装配」已立词条，链接待合流后补）、装配状态（无词条）是规格层的名字，不是统一语言词条；它们装着的，是[在途状态](../../../../ubiquitous_language/terms/record-and-context.md#ul-in-flight-arrival--在途状态--in-flight-arrival)那份「拼到一半的」。
+**本能力就是做到达装配的那一方**——词条弃用了「装配器」「流装配器」的说法（与 Agent 装配字面相撞），本文不用。
+**装配状态**（无词条）是规格层的名字，读作「一条流的到达装配此刻做到了哪里」，不是统一语言词条；它装着的，是[在途状态](../../../../ubiquitous_language/terms/record-and-context.md#ul-in-flight-arrival--在途状态--in-flight-arrival)那份「拼到一半的」。
 
 ### S-2 消费者
 
 | 消费者 | 消费什么 |
 |---|---|
-| 模型请求运行时（块 C，契约未建立） | 模型侧：每次发出一份状态；交出的块、账、结局，由它包成 `AssistantMessage`（结局写在 `AssistantEnding`）或不成消息，账落进那次发出的 `data.model-response`；首个内容的位置，是它判「开没开口」的观测点 |
-| 工具执行运行时（块 B，契约未建立） | 工具侧：每次执行至多一份状态；交出的块由它包成 `ToolInternalMessage`（结局写在 `ToolInternalEnding`）或一帧没发时什么也不落；`frames` 落进那次执行的 `ToolCallAccount` |
-| 会话出站流与中途重进的观察者（经宿主，契约未建立） | [S-20](#s-20-snapshot读快照) 的快照与位置：先拿快照，再从那个位置之后接着收事件 |
+| `capability.model-request-runtime` v1（candidate） | 模型侧：每次发出一份状态；交出的块、账、结局，由它包成 `AssistantMessage`（结局写在 `AssistantEnding`）或不成消息，账落进那次发出的 `data.model-response`；首个内容的位置，是它判「开没开口」的观测点 |
+| `capability.tool-execution-runtime` v1（candidate） | 工具侧：每次执行至多一份状态；收尾交出的 `blocks` **非空**时由它包成一条 `ToolInternalMessage`，结局按 `data.messages/v1#S-14` 那张对应表由收尾原因取；`blocks` 为空（一帧没发，或发过的块都没交出内容）就不落这条消息；`frames` 落进那次执行的 `ToolCallAccount` |
+| 会话出站流与中途重进的观察者（经宿主；出站流的契约未建立） | [S-20](#s-20-snapshot读快照) 的快照与位置：先拿快照，再从那个位置之后接着收事件 |
 
-**这三方都是调用方，没有一方是本能力的提供者**；它们各自要兑现的前提列在 [S-28](#s-28-宿主要兑现的前提)。
+**这三方都是调用方，没有一方是本能力的提供者**；两个宿主要兑现的前提列在 [S-28](#s-28-宿主要兑现的前提)——工具侧已在 `capability.tool-execution-runtime` v1 逐条承诺，模型侧见 [G-2](#十已知缺口)。
 
 ### S-3 本契约不拥有什么
 
@@ -91,11 +93,11 @@
 - **路由与持有**：哪份状态对应哪个目标、事件交给哪份状态、状态放在哪、活多久，归**宿主**（模型请求运行时、工具执行运行时）。本能力不知道别的流存在。
 - **消息**：交出的块包成 `AssistantMessage` 还是 `ToolInternalMessage`、`ending` 取哪一格、成不成一条消息——[PF-009 §5.6](../../../../product/PF-009-context-message-types/design.md#56-流断在半路) 那张表——归宿主与 `data.messages` v1。本能力交出做这个决定要的全部事实（[S-8](#s-8-收尾结算交出什么)），**不做这个决定**。
 - **落盘与记账**：把消息与账写进[会话日志](../../../../ubiquitous_language/terms/record-and-context.md#ul-session-log--会话日志--session-log)、写几次，归日志的写入方与承载账的记录一侧（`data.call-accounts/v1#S-19`）。
-- **节流**：合并、截短、限额、拒收由做节流的那一方做；本能力只汇总它说出来的 `trim`（[S-15](#s-15-节流在装配之前投递一侧的节流不进账)）。
+- **节流**：合并、截短、限额、拒收由做节流的那一方做；本能力只汇总它说出来的 `trim`（[S-15](#s-15-节流在到达装配之前投递一侧的节流不进账)）。
 - **时刻**：本能力没有时钟。首个内容**是第几个事件**归本能力，**那一刻是什么时刻**归宿主（[S-16](#s-16-首个内容的位置)）。
-- **拒绝与解析失败的后果**：被拒的事件怎么说、解析不了的调用怎么回给模型，归宿主（[S-26](#s-26-被拒不改状态后果归宿主)、[S-11](#s-11-参数收齐却解析不了只标记)）。
+- **拒绝与解析失败的后果**：被拒的事件怎么说，归宿主（[S-26](#s-26-被拒不改状态后果归宿主)）；解析不了的调用怎么回给模型，归工具执行运行时（[S-11](#s-11-参数收齐却解析不了只标记)）。
 
-**适用范围**：一个部署之内的一条条流。本版单机交付，领域语义跨进程后必须原样成立；哪些由装配给、跨进程后要由协议兑现，见 [S-29](#s-29-装配给与协议给)。
+**适用范围**：一个部署之内的一条条流。本版单机交付，领域语义跨进程后必须原样成立；哪些由部署装配给、跨进程后要由协议兑现，见 [S-29](#s-29-部署装配给与协议给)。
 
 ## 二、装配状态与它交出的值
 
@@ -103,20 +105,21 @@
 
 | 规格层 token | 词条 |
 |---|---|
-| 一份装配状态里已经拼起来的内容 | [在途状态 · In-Flight Arrival](../../../../ubiquitous_language/terms/record-and-context.md#ul-in-flight-arrival--在途状态--in-flight-arrival)——**本契约的快照比词条列举的宽**，见 [S-7](#s-7-快照交出什么) 与 [G-4](#十已知缺口) |
+| 本能力这件事 | [到达装配 · Arrival Assembly](../../../../ubiquitous_language/terms/record-and-context.md#ul-arrival-assembly--到达装配--arrival-assembly) |
+| 一份装配状态里已经拼起来的内容 | [在途状态 · In-Flight Arrival](../../../../ubiquitous_language/terms/record-and-context.md#ul-in-flight-arrival--在途状态--in-flight-arrival)——快照交出的就是词条列举的那三样（[S-7](#s-7-快照交出什么)） |
 | `target.kind = "tool_execution"` 的流上的 `open`、`fill`、`close` | [执行帧 · Execution Frame](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-execution-frame--执行帧--execution-frame) |
 | 收尾时交出的账 | [调用账目 · Call Account](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-call-account--调用账目--call-account) 的一部分：模型侧是那次发出的用量与费用，工具侧是 `frames` 那一项 |
 
-**下列是规格层的名字，不是词条**：装配器、装配状态、位置（`position`）、首个内容的位置（`firstContentAt`）、结局（`ending`）、五个操作名、[S-23](#s-23-本能力自己的失败值) 的失败值。
+**下列是规格层的名字，不是词条（无词条）**：装配状态、位置（`position`）、首个内容的位置（`firstContentAt`）、结局（`ending`）、五个操作名、[S-23](#s-23-本能力自己的失败值) 的失败值。
 
 ### S-4 装配状态是调用方持有的一个值
 
-**一份装配状态对应恰一条流（一个目标）**，由 [`start`](#s-18-start开一份状态) 交出，由 [`accept`](#s-19-accept接一个事件) 交出下一份。
+**一份装配状态——一条流的[到达装配](../../../../ubiquitous_language/terms/record-and-context.md#ul-arrival-assembly--到达装配--arrival-assembly)此刻做到了哪里——对应恰一条流（一个目标）**，由 [`start`](#s-18-start开一份状态) 交出，由 [`accept`](#s-19-accept接一个事件) 交出下一份。
 
 - **它是值，不是对象**：`accept` 交出一份新的状态，**交进去的那份不变**。调用方拿着哪一份，哪一份就是这条流此刻的样子；
-  同一份状态交给 `accept` 两次、各接一个不同的事件，会得到**两份分叉的状态**——只留一份、按次序接，是宿主的事（[S-29](#s-29-装配给与协议给) 第一行）。
+  同一份状态交给 `accept` 两次、各接一个不同的事件，会得到**两份分叉的状态**——只留一份、按次序接，是宿主的事（[S-29](#s-29-部署装配给与协议给) 第一行）。
 - **它的内容由它接受过的事件唯一确定**：两份状态接受过同一串事件，在 `snapshot` 与 `closeOut` 上不可区分。**本契约不规定它的内部表示**，只规定这两个读法交出什么。
-- **它不带会话、不带租户**：一份状态只在持有它的那个宿主、那个会话里有意义（[S-29](#s-29-装配给与协议给) 第三行）。
+- **它不带会话、不带租户**：一份状态只在持有它的那个宿主、那个会话里有意义（[S-29](#s-29-部署装配给与协议给) 第三行）。
 - **它不进会话日志，也不是消息**（[PF-009 §9.2](../../../../product/PF-009-context-message-types/design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息)）；收尾交出结果之后，它**不再有用**。
 
 ### S-5 位置
@@ -151,11 +154,11 @@
 
 - **开着的追加块已到的片段在快照里**：一个后台工具正往日志块里一行行写，中途重进的人**看得到已经写出来的那几行**，
   否则他会先收到一个没见过开头的 `fill`（[PF-009 §6.9](../../../../product/PF-009-context-message-types/design.md#69-用户看见了的会话日志里必须有)）。
-  **这比 [PF-009 §9.2](../../../../product/PF-009-context-message-types/design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息) 与[在途状态词条](../../../../ubiquitous_language/terms/record-and-context.md#ul-in-flight-arrival--在途状态--in-flight-arrival)列举的「已封口的块＋开着的整体替换块最后一次填的内容」宽**——本契约按主线裁决写，两处文字的对齐见 [G-4](#十已知缺口)。
+  这正是 [PF-009 §9.2](../../../../product/PF-009-context-message-types/design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息)（rev 8）与[在途状态词条](../../../../ubiquitous_language/terms/record-and-context.md#ul-in-flight-arrival--在途状态--in-flight-arrival)列举的三样：已封口的块、开着的追加块已到的片段、开着的整体替换块最后一次填的内容。
 - **开着的调用块给的是参数原文，不解析**：它还没收齐（[PF-009 §6.10](../../../../product/PF-009-context-message-types/design.md#610-没收齐的工具调用参数不解析不执行)）。
 - **快照是值**：交出之后，这份状态再接受什么事件，都不改变已交出的快照；快照里也没有任何能反过来改动状态的东西。
 - `position` 见 [S-5](#s-5-位置)；`firstContentAt` 见 [S-16](#s-16-首个内容的位置)，还没开口就缺席。
-- **快照不带到此为止的砍的汇总**：中途重进的人看不到此前砍过什么，要不要让他看到，是 [G-5](#十已知缺口)。
+- **快照不带到此为止的砍的汇总**：中途重进的人看不到此前砍过什么，那份交代收尾时才有（[PF-009 §9.2](../../../../product/PF-009-context-message-types/design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息) rev 8）。
 
 ### S-8 收尾结算交出什么
 
@@ -206,12 +209,13 @@
 
 ### S-11 参数收齐却解析不了：只标记
 
-**参数收齐了（块已封口、开着时没被改过内容），JSON 解析却失败：装配把这块落成 `data.content-blocks/v1` [S-12](../../../data/content-blocks/v1/contract.md#s-12-完整的工具调用) 里「解析不了」的那一种**：
-`complete: true`，`callId` 与 `tool` 取块头，`rawArguments` 是参数原文（原样），`unparseable: true`，**不带 `arguments`**；`id` 与 `visibility` 取开块时说的（主线裁定 2026-09-23，待产品负责人确认；原 G-1）。
+**参数收齐了（块已封口、开着时没被改过内容），JSON 解析却失败：本能力把这块落成 `data.content-blocks/v1` [S-12](../../../data/content-blocks/v1/contract.md#s-12-完整的工具调用) 里「解析不了」的那一种**：
+`complete: true`，`callId` 与 `tool` 取块头，`rawArguments` 是参数原文（原样），`unparseable: true`，**不带 `arguments`**；`id` 与 `visibility` 取开块时说的（形状归 `data.content-blocks/v1#S-12`）。
 
 - **它收齐了、登记了，但没有可用的参数**：它不是解析成功的那一种，**也不是半截的**（半截的参数没收齐、不登记）。
-- **装配只做这一件事——标记**。**不发起执行、紧接一条 `outcome = failed` 的结果回给模型**，是宿主的义务（[S-28](#s-28-宿主要兑现的前提) 第五条，[G-2](#十已知缺口)）：
-  一个恰好读不懂的调用，不能被当作没发生，也不能被猜一个参数去执行。
+- **本能力只做这一件事——标记**。**不发起执行、以一条 `outcome = failed` 的结果回给模型**（[PF-006 §5.5](../../../../product/PF-006-tools-and-skills/design.md#参数说完了却解析不了的调用不执行以失败回给-agent)），
+  这一半的拥有者是**工具执行运行时**：它在提交时收下这种调用、不起执行者、即刻收场 `failed` 并写那条 `ToolMessage`（`capability.tool-execution-runtime/v1#S-23`；`data.messages/v1#S-31`）。
+  一个恰好读不懂的调用，不能被当作没发生，也不能被猜一个参数去执行。**它不是宿主要兑现的前提**：模型侧的宿主只把它照原样包进 `AssistantMessage`。
 - 规范场景：[S-32](#s-32-参数收齐却解析不了)。
 
 ### S-12 被砍过内容的调用落成半截
@@ -231,14 +235,15 @@
 
 - 这份状态接受过 `account` 事件 ⇒ `usage`、`cost` 原样取那一步的（`data.arrival-events/v1#S-15`）。
 - **没接受过** ⇒ `usage` 四项全 `"unknown"`、`source: none`，`cost` 为 `cost_usd: "unknown"`、`source: none`——`data.call-accounts/v1#S-20` 那一份。**不记零、不估算、不借上一次的**：`"unknown"` 是一个值，不是零（`data.call-accounts/v1#S-4`）。
-- `trims` 是 [S-14](#s-14-砍的汇总) 的汇总。**模型侧由宿主写进这次发出的响应体 `trims`**（`data.model-response/v1` 的 [S-19](../../../data/model-response/v1/contract.md#s-19-用量与费用) 第 5 条；主线裁定 2026-09-23，待产品负责人确认，账本 S4-c；原 G-3）；一次也没砍时那边缺席、这边各项为 `0`，两种写法指同一件事。
+- `trims` 是 [S-14](#s-14-砍的汇总) 的汇总。**模型侧由宿主写进这次发出的响应体 `trims`**（`data.model-response/v1` 的 [S-19](../../../data/model-response/v1/contract.md#s-19-用量与费用) 第 5 条）；一次也没砍时那边缺席、这边各项为 `0`，两种写法指同一件事。
 
 **工具侧**：`account = { frames: { emitted, trims } }`，就是 `ToolCallAccount.frames`（`data.call-accounts/v1#S-11`）的那一份——那次执行账的其余各项不来自这条流。
 
 - `trims` 是 [S-14](#s-14-砍的汇总) 的汇总。
 - `emitted` ≝ **这份状态接受过的 `open`、`fill`、`close` 的个数 ＋ `trims.merged` ＋ `trims.cut`**。
   一帧是工具交出的一个 `open`、`fill` 或 `close`（`data.arrival-events/v1#S-23`）：接受了的每个一帧；被合并掉的每个一帧；整个没送达的（额度用完、被拒收）每个一帧；被截短后送达的已经算在接受了的里面。
-- **这条算式成立的前提**：每一帧最多被说成一次「整个没送达」；工具侧的 `trim`、`finish` 由执行一侧的运行时发，不是帧。前提由宿主兑现（[S-28](#s-28-宿主要兑现的前提)）。
+- **这条算式成立的前提**：工具侧的 `trim`、`finish` 由执行一侧的运行时发，不是帧（宿主前提，[S-28](#s-28-宿主要兑现的前提) 第 3 条）；
+  每一帧至多被计一次「未原样送达」——**这一条是本能力的承诺**，由 [S-14](#s-14-砍的汇总) 的去重规则兑现，它认得出的配对靠 [S-28](#s-28-宿主要兑现的前提) 第 4 条的次序。
 - **一帧没发是正常形态**：只有一个 `finish` 的流，`emitted = 0`、各项砍为零（[PF-009 §5.8](../../../../product/PF-009-context-message-types/design.md#大部分工具不发这个而那是正常形态)）。
 
 **账只在收尾结算时交出一次值**；记进哪条记录、只记一次，是宿主的事（`data.call-accounts/v1#S-19`）。账**不进任何块**（`data.call-accounts/v1#S-21`）。
@@ -250,21 +255,30 @@
 ```text
 merged                      = Σ trim.merged           （reason = rate_merged 的那些）
 byReason.rate_merged        = merged
-byReason.frame_too_long     = #{ trim : reason = frame_too_long }
+byReason.frame_too_long     = #{ trim : reason = frame_too_long ∧ ¬ 配对(trim) }
 byReason.quota_exhausted    = #{ trim : reason = quota_exhausted }
 byReason.rejected           = #{ trim : reason = rejected }
 cut                         = byReason.quota_exhausted + byReason.rejected
-omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged 的那些）
+omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged 的那些，配对的也计）
+
+配对(t) ≝ t 的 reason 是 frame_too_long，且这份状态紧接着 t 接受的下一个事件是一个 reason = rejected 的 trim
 ```
 
 - 一个 `trim` 说一次砍（`data.arrival-events/v1#S-14`）：截短与整个没送达的每个说**一个**增量，合并说**一组**。按上式，`data.call-accounts/v1#S-15` 的三条等式自动成立。
+- **每一帧（每一个增量）至多被计一次「未原样送达」——去重是本能力的承诺**（`data.call-accounts/v1#S-15` 指派给本能力）：
+  同一个增量**先被截短、后被拒收**，发出一侧说了一个 `frame_too_long`，宿主又替被拒的它说了一个 `rejected`；它**只按拒收计**——`cut` 里算一次，`byReason.frame_too_long` 里不再算。
+  两个 `trim` 说的是不是同一个增量，本能力**只凭次序认**：截短的 `trim` 紧挨在它截短的那个增量之前交来，被拒的那一次之后宿主紧接着交它的 `rejected`（[S-28](#s-28-宿主要兑现的前提) 第 4 条）——
+  截短后的增量被拒就不进状态，于是那两个 `trim` 在被接受的事件里**恰好相邻**；截短后的增量被接受了，它就夹在两者之间，不构成配对。
+  **字节照计**：截掉的那段与被拒的那段都是没送到的内容，`omittedBytes` 两者都算。
+  **不去重会怎样**：`merged + cut + byReason.frame_too_long ≤ frames.emitted` 那一式把同一帧数两次，只发了一帧的执行可能被说成砍了两帧（`data.call-accounts/v1#S-15`）。
+- 这条规则对模型侧同样成立：模型侧的汇总里一个增量也不得被算两次。
 - **四项 `byReason` 都出现**，没发生过的写 `0`。一个 `trim` 都没接受过，汇总各项全是 `0`。
 - **汇总只算这条流上被接受的 `trim`**：本能力不知道、也不猜没说出来的砍。**砍了不说是做节流那一方的违约**，不是一份未知的账。
 
-### S-15 节流在装配之前，投递一侧的节流不进账
+### S-15 节流在到达装配之前，投递一侧的节流不进账
 
 - **进账的节流只有发出的一侧那一种**：在事件交给 `accept` **之前**合并、截短、限额（`data.arrival-events/v1#S-22`）。它砍了什么，以 `trim` 交给同一份状态，本能力汇总进 `trims`。
-- **投递一侧**在装配之后、为观察者做的节流（出站流把片段合并了再推给界面）**不改变装配的结果，不进账，也不在本契约**——每个观察者合并得不一样，那份计数没有唯一的计数方。
+- **投递一侧**在到达装配之后、为观察者做的节流（出站流把片段合并了再推给界面）**不改变到达装配的结果，不进账，也不在本契约**——每个观察者合并得不一样，那份计数没有唯一的计数方。
 - **本能力自己从不节流**：它不合并、不截短、不丢弃任何被接受的事件。
 
 ### S-16 首个内容的位置
@@ -272,7 +286,7 @@ omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged
 **`firstContentAt` 是这份状态接受「第一个内容步骤」（`data.arrival-events/v1#S-21`）时的位置**；还没有这样的一步，它就缺席。
 
 - 内容步骤是**载荷非空的 `fill`**，或**没收到过填、封口块内容非空的块的 `close`**。**空载荷不算**：空串的填、空文本的封口、参数原文为空串的调用封口——判据是「交出了内容」，一个空串什么也没交出。
-- **零次填充就封口的块也算开口**（主线裁定 RP-26）：它的 `close` 就是那一步，只要封口块内容非空（`data.arrival-events/v1#S-21`）——记录里已经有一个完整的块。
+- **零次填充就封口的块也算开口**：它的 `close` 就是那一步，只要封口块内容非空（`data.arrival-events/v1#S-21`）——记录里已经有一个完整的块。
 - **一经确定不再变**：之后的事件不改变它。
 - **本能力只给位置，不给时刻**：它没有时钟。宿主在 `accept` 交出的状态里第一次看到 `firstContentAt` 出现，那一刻就是[「已经开口说话了」](../../../../product/PF-013-model-profiles-and-invocation/design.md#已经开口说话了优先于其余各类)的时刻；据此判不判重发，归宿主与模型调用一侧。
 - 它同时出现在快照与收尾结果的 `ending` 里：前者给正在进行时的判断，后者给包消息时的「有没有内容到了用户眼前」。
@@ -291,10 +305,10 @@ omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged
 | ⑥ | **事件** |
 | ⑦ | **缺席时的默认答案** |
 | ⑧ | **在途操作的归属**（宿主撤除、换代、失去连续性时） |
-| ⑨ | **装配给 vs 协议给**（[S-29](#s-29-装配给与协议给) 的哪几行） |
+| ⑨ | **部署装配给 vs 协议给**（[S-29](#s-29-部署装配给与协议给) 的哪几行） |
 
 **五个操作都是纯计算**：没有提交点、不写任何存储、不发任何事件、不做授权判定——**持有状态的宿主就是唯一能用它的一方**，
-会话与租户的判定在宿主那一侧已经做完（[S-29](#s-29-装配给与协议给) 第三行）。下面各表照写，不省略。
+会话与租户的判定在宿主那一侧已经做完（[S-29](#s-29-部署装配给与协议给) 第三行）。下面各表照写，不省略。
 
 ### S-18 `start`：开一份状态
 
@@ -318,10 +332,10 @@ omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged
 | ② | 无前置：任何状态都可以交进来；收尾之后的状态接什么都被拒（`event_after_finish`），**那是一次拒绝，不是前置不满足** |
 | ③ | 无提交；**全有或全无**：成功交出一份新状态，拒绝时什么新状态也没有，交进来的那份不变 |
 | ④ | 成功：下一份状态——位置加一，按[第二节](#二装配状态与它交出的值)前进（开块、归约、封口时定下那一块、记账、收尾、汇总砍、首个内容）。失败：[S-24](#s-24-表示层拒绝值原名引用) 的表示层拒绝值与 [S-23](#s-23-本能力自己的失败值) 的八个判定失败之一，**恰一个**，按 [S-25](#s-25-判定次序) 的次序取。**集合闭合** |
-| ⑤ | 纯函数：同一份状态、同一个事件，永远同一个结果。**同一个事件接两次不是「幂等」**：第二次作用在第一次交出的新状态上，追加片段会被接两次——**去重是宿主与传输的事**（[S-29](#s-29-装配给与协议给) 第一行） |
+| ⑤ | 纯函数：同一份状态、同一个事件，永远同一个结果。**同一个事件接两次不是「幂等」**：第二次作用在第一次交出的新状态上，追加片段会被接两次——**去重是宿主与传输的事**（[S-29](#s-29-部署装配给与协议给) 第一行） |
 | ⑥ | 不发。首个内容出现、一块封口、流收尾，都只是新状态里的事实，由宿主去读 |
 | ⑦ | 事件缺席 ⇒ `malformed`；事件里任何必填成员缺席 ⇒ 按 `data.arrival-events/v1#S-28` 取值。**判不出来就拒**：要借开块才判得出的两项，开块不在时取序列失败值（[S-25](#s-25-判定次序)），不放行 |
-| ⑧ | 无在途：一次调用在返回时就完成了。宿主在两次调用之间丢了状态，丢的是宿主手里的值（[S-29](#s-29-装配给与协议给) 第二行） |
+| ⑧ | 无在途：一次调用在返回时就完成了。宿主在两次调用之间丢了状态，丢的是宿主手里的值（[S-29](#s-29-部署装配给与协议给) 第二行） |
 | ⑨ | 第一、二、五、六行 |
 
 **一个事件被接受时，状态怎样前进：**
@@ -339,7 +353,7 @@ omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged
 
 | # | 内容 |
 |---|---|
-| ① | 一份状态，必填。不需要授权：**谁能读到快照，由持有状态的宿主与出站流决定**（[S-29](#s-29-装配给与协议给) 第三行） |
+| ① | 一份状态，必填。不需要授权：**谁能读到快照，由持有状态的宿主与出站流决定**（[S-29](#s-29-部署装配给与协议给) 第三行） |
 | ② | 无：开着的、收尾了的状态都可以读 |
 | ③ | 只读，无提交 |
 | ④ | 成功：`{ blocks, position, firstContentAt? }`（[S-7](#s-7-快照交出什么)）。失败：**无**。任何一份状态都有快照 |
@@ -376,7 +390,7 @@ omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged
 | ⑤ | 同一份状态、同一个缘由，结果相同 |
 | ⑥ | 不发 |
 | ⑦ | `reason` 缺席 ⇒ 结局的 `error` 缺席——**说不出成因，不等于没有故障**，不补一个成因。**有意停下的**（用户叫停、宿主把它带走）不走这里：宿主交给 `accept` 一个 `finish { reason: "interrupted" }` |
-| ⑧ | 本操作本身就是在途归属的收口：**只有状态还在，才放弃得了**。进程没了，状态随之没了（[S-29](#s-29-装配给与协议给) 第二行），**没有东西可以放弃**——那时的收场由宿主一侧追补（[PF-006 §6.12](../../../../product/PF-006-tools-and-skills/design.md#612-工具执行的运行时可以被单独控制而它停了就不重来)），不经本能力 |
+| ⑧ | 本操作本身就是在途归属的收口：**只有状态还在，才放弃得了**。进程没了，状态随之没了（[S-29](#s-29-部署装配给与协议给) 第二行），**没有东西可以放弃**——那时的收场由宿主一侧追补（[PF-006 §6.12](../../../../product/PF-006-tools-and-skills/design.md#612-工具执行的运行时可以被单独控制而它停了就不重来)），不经本能力 |
 | ⑨ | 第二、七行 |
 
 - **放弃也交出账**：一份在放弃之前已经接受过 `account` 的状态，账就在里面；丢掉它，那笔真花掉的钱就从明细里消失了（`data.call-accounts/v1#S-19`）。
@@ -386,14 +400,13 @@ omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged
 
 ### S-23 本能力自己的失败值
 
-**要看这条流此前发生过什么才判得出的，是本能力的判定失败，恰为下面九个，集合闭合**：
+**要看这条流此前发生过什么才判得出的，是本能力的判定失败，恰为下面八个，集合闭合**：
 
 | 失败值 | 什么时候 | 对应的语法规则 |
 |---|---|---|
 | `event_after_finish` | 状态已接受过 `finish`，又交来一个事件；或对它 `abandon` | `data.arrival-events/v1#S-17` |
 | `index_reused` | `open` 的索引这条流开过（不论封没封口） | `data.arrival-events/v1#S-7` |
 | `index_not_monotonic` | `open` 的索引没开过，却不大于此前开过的全部索引 | `data.arrival-events/v1#S-7` |
-| `head_modality_mismatch` | `open` 的块头带了 `mediaType`，它的模态（`data.content-blocks/v1#S-6`）与块的类型不符：`voice` 要 `audio`，`image` 要 `image`，文本与思考要 `text` | `data.arrival-events/v1#S-9` |
 | `block_not_open` | `fill`、`close` 或带索引的 `trim` 的索引这条流没开过 | `data.arrival-events/v1#S-18`、`#S-14` |
 | `block_already_closed` | `fill` 或 `close` 的索引已封口 | `data.arrival-events/v1#S-18` |
 | `payload_kind_mismatch` | 往追加的块里填的不合那一类：不是字符串、是空串、语音的片段不是标准 base64、或填了一整块；或封口不合开块：工具调用块的封口带了块、其余类的封口没带块、封口块的 `kind`、`id`、`visibility` 与开块时说的不同、带了与块头不同的 `mediaType` | `data.arrival-events/v1#S-11`、`#S-13` |
@@ -401,14 +414,15 @@ omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged
 | `stream_not_finished` | 对没接受过 `finish` 的状态 `closeOut` | [S-21](#s-21-closeout收尾结算) |
 
 - **没有 `target_unknown`、`target_already_open`**：本能力不持有目标表，路由归宿主（[S-3](#s-3-本契约不拥有什么)）。
-- **没有「一条消息里 `id` 重复」的失败值**：`data.arrival-events/v1#S-24` 把这条语法规则交给了消费一侧，它在消息落进日志的那一道边界上被拒，值是 `data.messages/v1#S-39` 的 `block_id_duplicate`（账本 S4-d；原 G-6）。**本能力不查它，也不据此修改标识。**
+- **没有「一条消息里 `id` 重复」的失败值**：`data.arrival-events/v1#S-24` 把这条语法规则交给了消费一侧，它在消息落进日志的那一道边界上被拒，值是 `data.messages/v1#S-39` 的 `block_id_duplicate`。**本能力不查它，也不据此修改标识。**
 - **解析不了不是失败**：一个参数原文解析失败的调用块被**接受**，按 [S-11](#s-11-参数收齐却解析不了只标记) 标记。
+- **没有「块头模态不符」的判定失败**：只看这一个 `open` 就判得出，它是表示层拒绝值 `head_modality_mismatch`（`data.arrival-events/v1#S-28`），按 [S-24](#s-24-表示层拒绝值原名引用) 原名引用。
 
 ### S-24 表示层拒绝值原名引用
 
 **`accept` 对一个事件做的表示层判定，就是对信封 `{ target: 这份状态的目标, event }` 按 `data.arrival-events/v1#S-28` 的判定**，拒绝值原名携带、不改名：
 
-- 本身的八个：`event_unknown`、`trim_reason_unknown`、`finish_reason_unknown`、`presentation_invalid`、`fill_kind_not_appendable`、`frame_media_inline`、`replace_payload_shape`、`malformed`；
+- 本身的九个：`event_unknown`、`trim_reason_unknown`、`finish_reason_unknown`、`presentation_invalid`、`head_modality_mismatch`、`fill_kind_not_appendable`、`frame_media_inline`、`replace_payload_shape`、`malformed`；
 - 嵌着的块不合 `data.content-blocks` v1：`kind_unknown`、`visibility_missing`、`incomplete_call_visible`、`call_in_result`、`modality_mismatch`（`data.content-blocks/v1#S-26`）；
 - 嵌着的账不合 `data.call-accounts` v1：`negative_amount`、`unknown_with_source`（`data.call-accounts/v1#S-27`）。
 
@@ -424,11 +438,11 @@ omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged
 ```text
 1. 表示层（S-24），按 data.arrival-events/v1#S-28 的次序：
    event_unknown > trim_reason_unknown = finish_reason_unknown（互斥）> 嵌着的值的拒绝值
-     > presentation_invalid > fill_kind_not_appendable > frame_media_inline > replace_payload_shape > malformed
+     > presentation_invalid > head_modality_mismatch > fill_kind_not_appendable > frame_media_inline > replace_payload_shape > malformed
    —— 其中要借开块的两项，那一块此刻没开着（没开过或已封口）就不参与，往下判
 2. event_after_finish
 3. 按事件种类：
-   open   ：index_reused > index_not_monotonic > head_modality_mismatch
+   open   ：index_reused > index_not_monotonic
    fill   ：block_not_open > block_already_closed > payload_kind_mismatch
    close  ：block_not_open > block_already_closed > payload_kind_mismatch
    trim   ：block_not_open
@@ -445,14 +459,15 @@ omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged
 - **被拒的事件对状态没有任何作用**：位置不加、归约不变、首个内容不动、汇总不计。交进来的那份状态照旧可以接下一个事件。
 - **被拒不是一次判定、不是一次收场**（`data.arrival-events/v1#S-29`）：它不表示那次调用或那次执行失败了；**一个被拒的帧不影响那次执行**（[PF-009 §6.17](../../../../product/PF-009-context-message-types/design.md#617-发帧发不出去不影响这次工具执行)）。
 - **不修补**：不给缺标注的开块补标注，不把追加开的图改成整体替换，不把重开的索引改成下一个，不把收尾之后的片段接进去。
-- **后果归宿主**：被拒的那个增量整个没送达，由宿主以一个 `reason: "rejected"` 的 `trim` 交给同一份状态（`data.arrival-events/v1#S-29`）——这样它才进得了汇总。
+- **后果归宿主**：被拒的那个增量整个没送达，由宿主**紧接着**以一个 `reason: "rejected"` 的 `trim` 交给同一份状态（`data.arrival-events/v1#S-29`）——这样它才进得了汇总。
+  **「增量」只指生产者交出的事件**（模型侧是传输适配交来的事件，工具侧是帧）：宿主自己发的 `trim`、`finish` 被拒，是宿主的缺陷，**不再为它补一个 `rejected`**——那不是一个没送达的增量，补了会让 `emitted` 多算（[S-28](#s-28-宿主要兑现的前提) 第 4 条）。
   **收尾之后被拒的事件无处可说**：那时连 `trim` 也不再被接受（`event_after_finish`），它不进这条流的汇总；宿主要让这次拒绝在自己的观测里看得见（[S-28](#s-28-宿主要兑现的前提)）。
 
-## 五、一次装配等于一次性到达
+## 五、一次到达装配等于一次性到达
 
-### S-27 一次装配等于一次性到达
+### S-27 一次到达装配等于一次性到达
 
-**[组装出来的必须与一次性拿到的一模一样](../../../../product/PF-009-context-message-types/design.md#组装出来的必须与一次性拿到的一模一样)，写成对本能力可判定的性质：**
+**[组装出来的必须与一次性拿到的一模一样](../../../../product/PF-009-context-message-types/design.md#组装出来的必须与一次性拿到的一模一样)——那一节标题里的「组装」就是[到达装配](../../../../ubiquitous_language/terms/record-and-context.md#ul-arrival-assembly--到达装配--arrival-assembly)——写成对本能力可判定的性质：**
 
 对任何一串从 `start` 起被逐个接受、以 `finish` 结尾的事件 σ，构造它的**一次性形式** σ̂：
 
@@ -474,37 +489,44 @@ omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged
 - **前提**：σ 里没有在某个工具调用块开着时被接受的、改变内容的砍（[S-12](#s-12-被砍过内容的调用落成半截)）。
   有这样的砍，那个调用在 σ 里落成半截、在 σ̂ 里（没有砍）会被解析——**被砍过的序列本来就不是同一段内容**，这条性质不对它们作承诺。
 - **违反时可观察到什么**：同一次回复，网络切分不同，落进日志的消息就不同——块的次序、整体替换的块留下哪一次、半截的调用有没有被当作收齐。
-- **证据**：行为模型 `formal/Assembly.tla` 的 `SplitInvariance`（[S-30](#s-30-本版选用的形式工件)）；它的建模范围与盖不到的部分见 [`formal/README.md`](formal/README.md)。
+- **证据**：行为模型 `formal/Assembly.tla`——后一半（结果相等）是 `SplitInvariance`，前一半（σ̂ 也被逐个接受）是 `OneShotAccepted`，各有一个预期出反例的有效性核对配置（[S-30](#s-30-本版选用的形式工件)）；
+  前一半只在模型建出的那几条语法规则上成立（不含载荷形状与块头），建模范围与盖不到的部分见 [`formal/README.md`](formal/README.md)。
 
 ## 六、宿主要兑现的前提
 
 ### S-28 宿主要兑现的前提
 
-**本能力的每一条保证，都建立在持有状态的宿主兑现下面这几条之上**；宿主是 `capability.model-request-runtime` v1 与 `capability.tool-execution-runtime` v1（都是 candidate）；**两份契约都还没有逐条承诺这九条**（[G-2](#十已知缺口)）。在它们写出之前，这些是本契约**登记的前提**，不是已被谁承诺的保证。
+**本能力的每一条保证，都建立在持有状态的宿主兑现下面这几条之上**；宿主是 `capability.model-request-runtime` v1 与 `capability.tool-execution-runtime` v1（都是 candidate）。
+**工具侧的宿主已逐条承诺**第 1～4、6、7、9 条（`capability.tool-execution-runtime/v1#S-62`；第 8 条只对模型侧）；**模型侧的宿主还没有逐条承诺**（[G-2](#十已知缺口)）——在它写出之前，这些对模型侧是本契约**登记的前提**，不是已被谁承诺的保证。
+下面的编号是外部引用的坐标，**只追加、不重排**。
 
 1. **路由**：一个目标恰一份状态；事件按目标交给那一份；**已收尾的目标不再开新状态**，它的迟到事件丢弃，不交给同一次调用的下一次发出（`data.arrival-events/v1#S-5`）。
 2. **串行**：同一份状态按事件的生产次序逐个 `accept`，每次都用上一次交出的新状态，**不让一份状态分叉**。
 3. **工具侧谁发什么**：工具（经[发帧](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-frame-emission--发帧--frame-emission)）只交出 `open`、`fill`、`close`；`trim` 与 `finish` 由执行一侧的运行时发，那一侧没有 `account`（`data.arrival-events/v1#S-23`）。
-4. **砍了要说**：发出一侧的每次合并、截短、限额都以 `trim` 交给同一份状态；**`accept` 拒掉的每个增量，宿主以一个 `rejected` 的 `trim` 说出来，且只说一次**；收尾之后被拒的，宿主在自己的观测里记下（[S-26](#s-26-被拒不改状态后果归宿主)）。
-5. **解析不了的调用**：宿主**不发起执行**，紧接一条 `outcome = failed` 的结果回给模型（[S-11](#s-11-参数收齐却解析不了只标记)）。
+4. **砍了要说**：发出一侧的每次合并、截短、限额都以 `trim` 交给同一份状态，**截短的那个 `trim` 紧挨在它截短的那个增量之前交**；
+   **`accept` 拒掉的每个增量，宿主紧接着（交下一个事件之前）以一个 `rejected` 的 `trim` 说出来，且只说一次**；
+   「增量」只指生产者交出的事件（工具侧即帧），**宿主自己发的 `trim`、`finish` 被拒不补 `rejected`**；收尾之后被拒的，宿主在自己的观测里记下（[S-26](#s-26-被拒不改状态后果归宿主)）。
+   这两处「紧挨」让 [S-14](#s-14-砍的汇总) 认得出「先截短、后拒收」的同一个增量。
+5. **解析不了的调用**：**不再是宿主前提**。不发起执行、以一条 `outcome = failed` 的结果回给模型，归工具执行运行时（[S-11](#s-11-参数收齐却解析不了只标记)；`capability.tool-execution-runtime/v1#S-23`）；编号保留不复用。
 6. **结束一条流**：生产者正常说完、被有意停下，交 `finish`；生产者失去连续性而没给 `finish`，或宿主要在自己被撤下之前结掉在途的流，调 `abandon`。**不让一份状态永远不收尾**。
-7. **包消息与记账**：按 [PF-009 §5.6](../../../../product/PF-009-context-message-types/design.md#56-流断在半路) 与 `data.messages` v1 把结果包成 `AssistantMessage`／`ToolInternalMessage`（或不成消息）；账记进承载它的记录，**恰一次**（`data.call-accounts/v1#S-19`）；出错断时已交付的块按 `data.model-response` v1 的 `delivered` 落。
-8. **首个内容的时刻**：在 `accept` 交出的状态里第一次看到 `firstContentAt` 时取时刻，**先记下这件事，再把那个内容推给观察者**（[S-29](#s-29-装配给与协议给) 第五行）。
+7. **包消息与记账**：按 [PF-009 §5.6](../../../../product/PF-009-context-message-types/design.md#56-流断在半路) 与 `data.messages` v1 把结果包成 `AssistantMessage`／`ToolInternalMessage`（或不成消息；`ToolInternalMessage` 只在交出的 `blocks` 非空时有，结局按 `data.messages/v1#S-14` 的对应表）；账记进承载它的记录，**恰一次**（`data.call-accounts/v1#S-19`）；出错断时已交付的块按 `data.model-response` v1 的 `delivered` 落。
+8. **首个内容的时刻**：在 `accept` 交出的状态里第一次看到 `firstContentAt` 时取时刻，**先记下这件事，再把那个内容推给观察者**（[S-29](#s-29-部署装配给与协议给) 第五行）。
 9. **快照与增量衔接**：给观察者的快照与它此后收到的事件，数的是同一串被接受的事件（[S-5](#s-5-位置)）；被拒的事件不推给观察者。
 
-## 七、装配给与协议给
+## 七、部署装配给与协议给
 
-### S-29 装配给与协议给
+### S-29 部署装配给与协议给
 
 [SYS-DEPLOY](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy)：第一版单机，但语义不变地可扩展为分布式。
+本节的「装配」指**部署装配**（生产者、宿主与本能力怎样放在一个部署里），不是本能力做的[到达装配](../../../../ubiquitous_language/terms/record-and-context.md#ul-arrival-assembly--到达装配--arrival-assembly)。
 
-> **本表只列跨部署形态会变的保证**。左列是单机时由装配（生产者、宿主、本能力在同一进程，宿主按调用次序交事件）顺带给出的；
+> **本表只列跨部署形态会变的保证**。左列是单机时由部署装配（生产者、宿主、本能力在同一进程，宿主按调用次序交事件）顺带给出的；
 > 右列是跨进程后**必须由协议重新兑现什么**，以及**做不到会怎样**。不在表里的条款在任何部署形态下一律成立。
 > **这张表是契约的一部分，不是流程笔记。**
 
 | # | 保证 | 单机由谁给 | 跨进程必须由协议兑现什么 | 做不到会怎样 |
 |---|---|---|---|---|
-| 1 | **同一条流的事件逐个、按生产次序、不重不漏地交给同一份状态**（[S-4](#s-4-装配状态是调用方持有的一个值)、[S-19](#s-19-accept接一个事件)） | 宿主里一个消费循环，按生产者的调用次序 `accept`，拿上一次交出的状态接下一个 | 同一目标的事件**有序、恰好一次**送达接收方（事件没有序号，协议须自带）；装配照旧校验索引 | 乱序：索引倒退、填落在没开的块上被拒——**内容少一段**；重复：`open`、`close` 会被判重拒掉，**一个追加片段却会被接两次，内容静默变长，没有任何一处报错**；丢失：等不到 `finish`，只能放弃成 `lost`；一份状态分叉：其中一支接的事件**静默丢失** |
+| 1 | **同一条流的事件逐个、按生产次序、不重不漏地交给同一份状态**（[S-4](#s-4-装配状态是调用方持有的一个值)、[S-19](#s-19-accept接一个事件)） | 宿主里一个消费循环，按生产者的调用次序 `accept`，拿上一次交出的状态接下一个 | 同一目标的事件**有序、恰好一次**送达接收方（事件没有序号，协议须自带）；本能力照旧校验索引 | 乱序：索引倒退、填落在没开的块上被拒——**内容少一段**；重复：`open`、`close` 会被判重拒掉，**一个追加片段却会被接两次，内容静默变长，没有任何一处报错**；丢失：等不到 `finish`，只能放弃成 `lost`；一份状态分叉：其中一支接的事件**静默丢失** |
 | 2 | **状态随宿主存续**（[S-4](#s-4-装配状态是调用方持有的一个值)、[S-22](#s-22-abandon放弃)） | 状态是宿主手里的一个值，宿主在它就在；宿主因所依赖的服务换了提供者而重建时，它手里的值随之丢失（[basis](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)） | 状态**只在持有它的宿主所在的进程里**，不跨进程共享；别处要读只取快照（值）；宿主迁移时状态随它迁移，否则按丢失处理 | 丢失时这条流**没有结局、没有账**，已到达的内容全部丢失（[PF-009 §9.2](../../../../product/PF-009-context-message-types/design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息)）：模型侧等于这次调用停了，按首 token 判能不能重发（[PF-013 §5.13](../../../../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)）；工具侧是执行宿主失去连续性，按[停了不重来](../../../../product/PF-006-tools-and-skills/design.md#612-工具执行的运行时可以被单独控制而它停了就不重来)追补收场；**那次发出可能已经花掉的钱**要由承载账的一侧追补全未知的一份（`data.call-accounts/v1#S-20`） |
 | 3 | **状态与快照只在所属会话里有意义**（[S-4](#s-4-装配状态是调用方持有的一个值)、[S-20](#s-20-snapshot读快照)） | 宿主绑定在一个会话上，只把它自己的流交给自己的状态，只把快照给这个会话的观察者 | 线上的信封与快照**带上会话与租户**，或通道本身绑定到一个会话；读快照在接收方按调用方的租户身份现判 | 两个会话里恰好相同的 `CallId` 撞到一起，**一个会话的帧落进另一个会话的消息**；或快照被另一个租户读到——跨租户可见 |
 | 4 | **一次发出一份状态，收尾了的不再接**（[S-18](#s-18-start开一份状态)） | 同一进程里，前一次发出的状态收尾后被丢弃，后一次发出 `start` 一份新的 | 目标里的 `dispatch` 原样携带；**已收尾的目标的迟到事件丢弃**，不交给新的一次 | 第一次发出的迟到片段拼进第二次的回复 |
@@ -519,17 +541,17 @@ omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged
 | # | 性质 | 类 | 来源 | 谁在何处保护 | 违反时可观察到什么 | 证据 |
 |---|---|---|---|---|---|---|
 | P-1 | 块的次序是开块次序，与封口次序无关 | 不变量 | [PF-009 §5.5](../../../../product/PF-009-context-message-types/design.md#到达的过程有它自己的语法) · `data.arrival-events/v1#S-7` | `accept`（[S-6](#s-6-一块在状态里是什么)） | 先封口的块排到了前面 | TLA+ `BlockOrderIsOpenOrder` |
-| P-2 | 收尾之后不接受任何事件 | 安全 | [PF-009 §5.5](../../../../product/PF-009-context-message-types/design.md#到达的过程有它自己的语法) | `accept`（`event_after_finish`） | 收尾之后又长出内容 | TLA+ `FinishIsLast` |
-| P-3 | 账至多一次；工具侧没有这一步 | 安全 | 同上 · D-035 | `accept`（`account_duplicate`、`malformed`） | 一次发出两份账，钱翻倍 | TLA+ `AccountAtMostOnce`、`ToolHasNoAccount` |
-| P-4 | 索引终身只开一次，开块索引严格递增 | 不变量 | `data.arrival-events/v1#S-7` | `accept`（`index_reused`、`index_not_monotonic`） | 一个整体替换的块被一个同号的新块顶掉 | TLA+ `OpenIndicesIncrease` |
-| P-5 | 填与封口只落在开着的块上 | 安全 | `data.arrival-events/v1#S-18` | `accept`（`block_not_open`、`block_already_closed`） | 封口之后又长出内容 | TLA+ `FillsLandOnOpenBlocks` |
-| P-6 | 没收尾就没有结算结果；放弃等于补一个 `lost` | 安全 | [PF-009 §5.5](../../../../product/PF-009-context-message-types/design.md#到达的过程有它自己的语法) | `closeOut`（`stream_not_finished`）、`abandon` | 一条没有结局的流被当作正常说完 | TLA+ `ResultOnlyWithFinish` |
-| P-7 | 一次装配等于一次性到达（前提见 [S-27](#s-27-一次装配等于一次性到达)） | 不变量 | [PF-009 §6.8](../../../../product/PF-009-context-message-types/design.md#68-组装的结果与一次性拿到的必须相同) | 定义本身（[S-9](#s-9-一块怎样落)、`data.arrival-events/v1#S-19`） | 网络切分不同，落进日志的消息就不同 | TLA+ `SplitInvariance`（有界） |
+| P-2 | 收尾之后不接受任何事件 | 安全 | [PF-009 §5.5](../../../../product/PF-009-context-message-types/design.md#到达的过程有它自己的语法) | `accept`（`event_after_finish`） | 收尾之后又长出内容 | 规范场景 S-34、examples 第 5 节；TLA+ `FinishIsLast` **按构造，不作证据** |
+| P-3 | 账至多一次；工具侧没有这一步 | 安全 | 同上 · D-035 | `accept`（`account_duplicate`、`malformed`） | 一次发出两份账，钱翻倍 | 规范场景 S-38（examples 第 5 节第 15、19 行）；TLA+ `AccountAtMostOnce`、`ToolHasNoAccount` **按构造，不作证据** |
+| P-4 | 索引终身只开一次，开块索引严格递增 | 不变量 | `data.arrival-events/v1#S-7` | `accept`（`index_reused`、`index_not_monotonic`） | 一个整体替换的块被一个同号的新块顶掉 | 规范场景 S-38（第 4、5、25、26 行）；TLA+ `OpenIndicesIncrease` **按构造，不作证据** |
+| P-5 | 填与封口只落在开着的块上 | 安全 | `data.arrival-events/v1#S-18` | `accept`（`block_not_open`、`block_already_closed`） | 封口之后又长出内容 | 规范场景 S-38（第 7、9、24 行）；TLA+ `FillsLandOnOpenBlocks` **按构造，不作证据** |
+| P-6 | 没收尾就没有结算结果；放弃等于补一个 `lost` | 安全 | [PF-009 §5.5](../../../../product/PF-009-context-message-types/design.md#到达的过程有它自己的语法) | `closeOut`（`stream_not_finished`）、`abandon` | 一条没有结局的流被当作正常说完 | 规范场景 S-35；TLA+ `ResultOnlyWithFinish` **按构造，不作证据** |
+| P-7 | 一次到达装配等于一次性到达（前提见 [S-27](#s-27-一次到达装配等于一次性到达)） | 不变量 | [PF-009 §6.8](../../../../product/PF-009-context-message-types/design.md#68-组装的结果与一次性拿到的必须相同) | 定义本身（[S-9](#s-9-一块怎样落)、`data.arrival-events/v1#S-19`） | 网络切分不同，落进日志的消息就不同 | TLA+ `SplitInvariance`、`OneShotAccepted`（有界，各配一个预期出反例的核对） |
 | P-8 | 参数只在封口那一下解析一次；开着的、被砍过的不解析 | 安全 | [PF-009 §6.10](../../../../product/PF-009-context-message-types/design.md#610-没收齐的工具调用参数不解析不执行) · D-035 保留前提 1 | `accept` 的 `close`（[S-10](#s-10-工具调用在封口那一下解析且只解析这一次)、[S-12](#s-12-被砍过内容的调用落成半截)） | 残缺参数被解析成一个恰好合法、少了一半字段的调用，并被执行 | 规范场景 S-32、S-33；静态检查 SC-1 |
 | P-9 | 被拒不改状态、不修补 | 安全 | `data.arrival-events/v1#S-29` | `accept`（[S-26](#s-26-被拒不改状态后果归宿主)） | 被拒的片段半截进了归约；或被「修好」后接了进去 | 规范场景 S-34、S-38 |
 | P-10 | 快照是值，含已到达的全部内容 | 安全 | [PF-009 §6.9](../../../../product/PF-009-context-message-types/design.md#69-用户看见了的会话日志里必须有) | `snapshot`（[S-7](#s-7-快照交出什么)） | 重进的人看不到已经写出来的那几行；或他手里的快照被后来的事件改了 | 规范场景 S-36 |
 | P-11 | 缺账记全未知，不伪造 | 安全 | `data.call-accounts/v1#S-20` | `closeOut`（[S-13](#s-13-账)） | 断在记账之前的发出记成零元 | 规范场景 S-35 |
-| P-12 | 砍的汇总满足 `data.call-accounts/v1#S-15` 的三条等式；工具侧 `merged + cut + byReason.frame_too_long ≤ emitted` | 不变量 | [PF-009 §6.16](../../../../product/PF-009-context-message-types/design.md#616-砍了要说不许默默丢) | 定义本身（[S-13](#s-13-账)、[S-14](#s-14-砍的汇总)） | 汇总自相矛盾，读的人分不出砍了多少 | 性质测试（随机砍与合并） |
+| P-12 | 砍的汇总满足 `data.call-accounts/v1#S-15` 的三条等式；每一帧至多计一次「未原样送达」；工具侧 `merged + cut + byReason.frame_too_long ≤ emitted` | 不变量 | [PF-009 §6.16](../../../../product/PF-009-context-message-types/design.md#616-砍了要说不许默默丢) | 定义本身（[S-13](#s-13-账)、[S-14](#s-14-砍的汇总) 的去重规则）；配对靠宿主守 [S-28](#s-28-宿主要兑现的前提) 第 4 条的次序 | 汇总自相矛盾，读的人分不出砍了多少；先截短后拒收的一帧被算两次 | 性质测试（随机砍、合并与「先截短后拒收」）；examples 第 7c 节 |
 | P-13 | 首个内容是第一个载荷非空的内容步骤，一经确定不变 | 不变量 | [PF-013 §5.4](../../../../product/PF-013-model-profiles-and-invocation/design.md#已经开口说话了优先于其余各类) | `accept`（[S-16](#s-16-首个内容的位置)） | 一个空串的填被当成开口，本可重发的调用不再重发 | 规范场景 S-31 |
 
 **进展性质：本能力不拥有任何进展性质。**「一条流最终会有结局」要求生产者持续存活，或宿主替它放弃（[S-28](#s-28-宿主要兑现的前提) 第六条）——那是宿主的事。本能力每个操作都在一步之内返回。
@@ -539,7 +561,9 @@ omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged
 **选用一个 TLA+ 行为模型**：[`formal/Assembly.tla`](formal/Assembly.tla)，登记的配置是 [`formal/Assembly.cfg`](formal/Assembly.cfg)。
 
 - **为什么是行为模型**：P-1～P-7 是对**事件序列**的承诺——多块并开、交错、封口次序任意、收尾、放弃——
-  「一次装配等于一次性到达」更是两条序列在同一个折叠上的结果相等。只有行为模型能在有界范围内穷尽这些交错。
+  「一次到达装配等于一次性到达」更是两条序列在同一个折叠上的结果相等。只有行为模型能在有界范围内穷尽这些交错。
+- **模型作证的只有 P-1 与 P-7**：P-2～P-6 在模型里就是 `accept` 的守卫本身，按构造成立，**不作证据**（证据是第八节列的规范场景与 examples 第 5 节）；
+  P-1、P-7 各配一个预期出反例的有效性核对配置（共三份：[`Assembly_OrderByClose.cfg`](formal/Assembly_OrderByClose.cfg)、[`Assembly_ReplaceAsAppend.cfg`](formal/Assembly_ReplaceAsAppend.cfg)、[`Assembly_OneShotCloseFirst.cfg`](formal/Assembly_OneShotCloseFirst.cfg)），不登记为 formal task。
 - **不建 Alloy**：块与账的结构约束归三份 data 契约，它们的 Schema 已经在判；本能力没有独立的结构关系要检查。
 - **不建 JSON Schema**：线上形状归组合契约。
 - 模型的条款映射、常量与前提、**盖不到的部分**（解析、被砍过的调用、快照、首个内容、砍的汇总、全部表示层判定）见 [`formal/README.md`](formal/README.md)；
@@ -557,8 +581,8 @@ omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged
 #### S-32 参数收齐却解析不了
 
 一次模型回复开一个工具调用块，填入 `{"path": "a.md"` 后封口、正常收尾。
-**必须观察到**：`accept` 接受了那个封口；结果里那一块是**解析不了的那一种**（`complete: true`、`rawArguments` 为原文、`unparseable: true`、没有 `arguments`），不是解析成功的那一种，也不是半截的；
-宿主**没有发起执行**，紧接着有一条 `outcome = failed` 的结果回给模型（后一半的证据落在宿主契约，[G-2](#十已知缺口)）。
+**必须观察到**：`accept` 接受了那个封口；结果里那一块是**解析不了的那一种**（`complete: true`、`rawArguments` 为原文、`unparseable: true`、没有 `arguments`），不是解析成功的那一种，也不是半截的。
+「没有发起执行、以一条 `outcome = failed` 的结果回给模型」那一半归工具执行运行时，证据是它的规范场景（`capability.tool-execution-runtime/v1#S-64`）。
 
 #### S-33 被砍过内容的调用落成半截
 
@@ -591,6 +615,12 @@ omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged
 
 把 [`examples.md`](examples.md) 第 5 节的每一行交给 `accept`（或该行写的操作）。**必须观察到**：得到的失败值与那一行写的**逐字相同**；交进去的状态不变。
 
+#### S-39 先截短、后拒收只计一次
+
+一条帧流上，一个过长的填被发出一侧截短（交来一个 `frame_too_long` 的 `trim`，紧接着是截短后的那个填），那个填随即被拒（宿主紧接着交一个 `rejected` 的 `trim`）；另有一个过长的填被截短之后照常被接受。
+**必须观察到**：被拒的那一帧在汇总里**只按拒收计一次**——`byReason.rejected` 算它、`byReason.frame_too_long` 不算它；截短后被接受的那一帧照常计进 `frame_too_long`；`omittedBytes` 两段都算；
+`merged + cut + byReason.frame_too_long ≤ frames.emitted` 成立。实例：[`examples.md` 第 7 节 7c](examples.md#7-解析不了与被砍过)。
+
 ### 消费者核对场景
 
 > 格式：**消费者 X 在情形 Y 下依赖本契约的 S-n，得到 Z。**任一条走不通，缺口在本契约。
@@ -603,12 +633,12 @@ omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged
 #### CS-2 工具执行运行时收一段被中断的帧流
 
 工具执行运行时在**一个后台工具开着日志块与面板、执行被中断**时，交给 `accept` 一个 `finish { reason: "interrupted" }` 再 `closeOut`，依赖 [S-9](#s-9-一块怎样落)、[S-13](#s-13-账)，得到：
-已封口的块原样；开着的日志块是已写出的那几行；面板是最后一次填的那张图；`frames` 数出来了。它据此包成 `ToolInternalMessage`，结局写进 `ToolInternalEnding`；**那次执行怎么收场另走 `ToolMessage`，不看这条流**。
+已封口的块原样；开着的日志块是已写出的那几行；面板是最后一次填的那张图；`frames` 数出来了。`blocks` 非空，它据此包成 `ToolInternalMessage`，结局按 `data.messages/v1#S-14` 的对应表由 `interrupted` 取；**那次执行怎么收场另走 `ToolMessage`，不看这条流**。
 
 #### CS-3 出站流给中途重进的观察者
 
 会话出站流在**用户刷新页面、一条帧流正在进行**时，经宿主取 [S-20](#s-20-snapshot读快照) 的快照，依赖 [S-5](#s-5-位置)、[S-7](#s-7-快照交出什么)，得到：
-已到达的全部内容与一个位置；此后从这个位置之后接着收。**跨进程时这一步要协议兑现**（[S-29](#s-29-装配给与协议给) 第六行）——如实记为「本版单机成立」。
+已到达的全部内容与一个位置；此后从这个位置之后接着收。**跨进程时这一步要协议兑现**（[S-29](#s-29-部署装配给与协议给) 第六行）——如实记为「本版单机成立」。
 
 #### CS-4 宿主的上游流结束了却没给收尾
 
@@ -629,7 +659,7 @@ omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged
 | 一块的封口 | 合法：按已到的样子落；调用落成半截 | [S-9](#s-9-一块怎样落) |
 | 首个内容 | 合法：`firstContentAt` 缺席 = 没开过口 | [S-16](#s-16-首个内容的位置) |
 | 快照里一块的 `content` | 合法：开了口还没交出东西 | [S-7](#s-7-快照交出什么) |
-| 宿主手里的状态（进程没了） | **不是本能力能收的**：没有东西可以放弃，收场由宿主一侧追补 | [S-22](#s-22-abandon放弃)、[S-29](#s-29-装配给与协议给) |
+| 宿主手里的状态（进程没了） | **不是本能力能收的**：没有东西可以放弃，收场由宿主一侧追补 | [S-22](#s-22-abandon放弃)、[S-29](#s-29-部署装配给与协议给) |
 
 **本能力不定义任何恢复动作，也不承诺任何外部效果可逆**：它没有外部效果。
 
@@ -639,13 +669,13 @@ omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged
 
 | # | 缺口 | 阻断谁 | owner |
 |---|---|---|---|
-| **G-1** | **已闭合（2026-09-24 整批对齐）**：解析不了的调用块的形状在 `data.content-blocks/v1#S-12`（`complete: true`、`rawArguments`、`unparseable: true`），[S-11](#s-11-参数收齐却解析不了只标记) 按它交出 | — | — |
-| **G-2** | **宿主契约没有逐条承诺 [S-28](#s-28-宿主要兑现的前提) 的九条**：`capability.model-request-runtime` v1、`capability.tool-execution-runtime` v1 已立（candidate），但路由与迟到事件丢弃、串行接受、拒掉的增量说成 `rejected`、解析不了的调用不执行并回 `failed`、`abandon` 的调用时机、快照与增量衔接，在两份里都没有对应条款 | 本能力的全部保证在真实组合里是否成立 | **两份宿主契约的起草者**（主线派；对齐波只核到「没有」为止） |
-| **G-3** | **已闭合（2026-09-24 整批对齐）**：模型侧 `TrimSummary` 的家是 `data.model-response` 的 `trims`（账本 S4-c） | — | — |
-| **G-4** | **快照的内容与词条、正文的列举不一致**：本契约按主线裁决让快照含开着的追加块的片段；[在途状态词条](../../../../ubiquitous_language/terms/record-and-context.md#ul-in-flight-arrival--在途状态--in-flight-arrival)与 [PF-009 §9.2](../../../../product/PF-009-context-message-types/design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息) 只列「已封口的块＋开着的整体替换块最后一次填的内容」 | 按词条实现快照的一方会丢掉已到的日志行 | **词条批**（UL-in-flight-arrival 出处复核，主线已点名）与 **PF-009 的 owner** |
-| **G-5** | **快照要不要带到此为止的砍的汇总**：中途重进的人现在看不到此前砍过什么（[S-7](#s-7-快照交出什么)） | 呈现一侧能不能对重进的人说「这块被截过」 | **PF-009 的 owner**（产品面：重进的人该看到什么） |
-| **G-6** | **已闭合（2026-09-24 整批对齐）**：一条消息里 `BlockId` 重复在落盘的接收边界上拒，值是 `data.messages/v1#S-39` 的 `block_id_duplicate`；本能力不另加失败值（账本 S4-d） | — | — |
-| **G-7** | **主线裁决的设计链落处**：[设计依据](#设计依据)下方点名的六项只在施工简报里，决定记录落地中 | 本契约接受时这几条的可追溯性 | **主线**：决定落地后把那几行改成链接 |
+| **G-1** | **已闭合**：解析不了的调用块的形状在 `data.content-blocks/v1#S-12`（`complete: true`、`rawArguments`、`unparseable: true`），[S-11](#s-11-参数收齐却解析不了只标记) 按它交出 | — | — |
+| **G-2** | **模型侧宿主没有逐条承诺 [S-28](#s-28-宿主要兑现的前提)**：工具侧已闭合（`capability.tool-execution-runtime/v1#S-62` 承诺第 1～4、6、7、9 条）；`capability.model-request-runtime` v1 还没有对应条款——路由与迟到事件丢弃、串行接受、截短与拒收的两处「紧挨」、`abandon` 的调用时机、首个内容先记后推、快照与增量衔接 | 本能力的保证在模型侧的真实组合里是否成立；模型侧汇总的去重（[S-14](#s-14-砍的汇总)）认不认得出配对 | **`capability.model-request-runtime` 的起草者**；闭合条件：那份契约逐条写出第 1、2、4、6、7、8、9 条的承诺 |
+| **G-3** | **已闭合**：模型侧 `TrimSummary` 的家是 `data.model-response` 的 `trims`（它的 S-19 第 5 条） | — | — |
+| **G-4** | **已闭合（2026-09-24，PF-009 rev 8）**：快照的内容与 [PF-009 §9.2](../../../../product/PF-009-context-message-types/design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息) 及[在途状态词条](../../../../ubiquitous_language/terms/record-and-context.md#ul-in-flight-arrival--在途状态--in-flight-arrival)一致，都含开着的追加块已到的片段 | — | — |
+| **G-5** | **已闭合（2026-09-24，PF-009 rev 8）**：快照**不带**此前砍过什么，那份交代收尾时才有（[S-7](#s-7-快照交出什么)）；语义与本契约原写法相同，不出新版 | — | — |
+| **G-6** | **已闭合**：一条消息里 `BlockId` 重复在落盘的接收边界上拒，值是 `data.messages/v1#S-39` 的 `block_id_duplicate`；本能力不另加失败值 | — | — |
+| **G-7** | **已闭合（2026-09-24）**：原「只在施工简报里」的几项依据都有了持久落处——D-035、D-038 Q18、D-040 §S4 S4-c、PF-009 rev 8 与两份 data 契约，逐条见[设计依据](#设计依据)下的表 | — | — |
 
 ## 十一、明确不承诺
 
@@ -654,9 +684,9 @@ omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged
 - **路由与持有**：目标到状态的对应、状态放在哪、活多久——归宿主。本能力**没有**「目标此刻有没有一条流」这种判定。
 - **消息**：包成哪种消息、结局取哪一格、成不成消息——归宿主与 `data.messages`；[中断提醒](../../../../product/PF-009-context-message-types/design.md#613-只要发生了中断就补一条提醒)归 agent 循环一侧。
 - **落盘与记账**：写进日志、记几次——归宿主与承载记录的一侧。
-- **节流**：怎么砍、上限与额度——归做节流的那一方；投递一侧的节流不在任何账里（[S-15](#s-15-节流在装配之前投递一侧的节流不进账)）。
+- **节流**：怎么砍、上限与额度——归做节流的那一方；投递一侧的节流不在任何账里（[S-15](#s-15-节流在到达装配之前投递一侧的节流不进账)）。
 - **时刻与重发**：首个内容那一刻的时刻、能不能重发——归宿主与模型调用一侧。
-- **执行**：本能力从不执行工具；解析不了的调用怎么回给模型，归宿主（[S-11](#s-11-参数收齐却解析不了只标记)）。
+- **执行**：本能力从不执行工具；解析不了的调用怎么回给模型，归工具执行运行时（[S-11](#s-11-参数收齐却解析不了只标记)）。
 - **恢复**：进程没了之后的在途内容——不在任何地方（[PF-009 §9.2](../../../../product/PF-009-context-message-types/design.md#92-流式不留到达的过程)），收场由宿主一侧追补。
 - **生产者义务的核对**：封口块等于归约（`data.arrival-events/v1#S-20`）本能力**不重算、不比较**，以封口块为准。
 - **不承诺任何已执行的验证。**证据义务与状态在[验证入口](../verification.md)；模型文件存在不表示已检查过，已检查的范围按那里写的为准。
@@ -666,8 +696,7 @@ omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged
 **本版是首版**，没有被采用的旧版本，没有语义或表示差异可记，也没有消费者迁移；`registry/lineage.json` 不因本契约增加条目。
 
 **本版的规范工件**：本文件、[`examples.md`](examples.md)、[`formal/Assembly.tla`](formal/Assembly.tla) 与 [`formal/Assembly.cfg`](formal/Assembly.cfg)；
-[`formal/README.md`](formal/README.md) 拥有条款到模型的映射；两份有效性核对配置（[`formal/Assembly_OrderByClose.cfg`](formal/Assembly_OrderByClose.cfg)、[`formal/Assembly_ReplaceAsAppend.cfg`](formal/Assembly_ReplaceAsAppend.cfg)）**预期出反例、不登记为 formal task**。
+[`formal/README.md`](formal/README.md) 拥有条款到模型的映射；三份有效性核对配置（[`formal/Assembly_OrderByClose.cfg`](formal/Assembly_OrderByClose.cfg)、[`formal/Assembly_ReplaceAsAppend.cfg`](formal/Assembly_ReplaceAsAppend.cfg)、[`formal/Assembly_OneShotCloseFirst.cfg`](formal/Assembly_OneShotCloseFirst.cfg)）**预期出反例、不登记为 formal task**。
 
 **发布后**：本目录下的规范正文、实例与模型不可原地覆盖；修改发布新版本。
-[已知缺口](#十已知缺口)任一项在冻结之后被裁决，凡改变本契约语义的（G-5 让快照带汇总），都出 **v2**；
-G-2 宿主契约写出承诺、G-4 对齐措辞、G-7 补链接，**不改本契约语义**。冻结之前在本候选里原地改，每次改在[验证入口「变化的影响」](../verification.md#变化的影响)记一笔。
+[已知缺口](#十已知缺口)里还开着的只有 G-2（模型侧宿主写出承诺），它闭合**不改本契约语义**。冻结之前在本候选里原地改，每次改在[验证入口「变化的影响」](../verification.md#变化的影响)记一笔。

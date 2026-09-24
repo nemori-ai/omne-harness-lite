@@ -12,7 +12,8 @@
 - **`通过` 只说形状合规。**[S-26](contract.md#s-26-schema-的范围) 列的那些 Schema 管不到的条款，一条也不因通过而成立；第三节专门列它们的反例。
 - **嵌在实例里的外部形状取各自的家**：`AssistantMessage`（`data.messages`）、`ContentBlock` 与 `AttachmentRef`（`data.content-blocks`）、
   `Usage`、`Cost`、`TrimSummary` 与 `RunId`、`AttemptId`、`ModelCallId`（`data.call-accounts`）、`ModelProfileRef`、`ModelProfileSnapshot`、`ProviderName` 与 `ModelRequestParameters`（`data.model-profile`）、`ScopeLayerIdentity`（`data.identity-values`）、`FailureCause`（`data.loop-extension`）。
-  整批对齐（2026-09-24）按它们对齐后的 Schema 把本页每个实例过了一遍（[验证入口](../verification.md#变化的影响)）。为了短，各块的档案快照取同一份，它列出的供应商覆盖了各块用到的那一家。
+  每一轮修订按它们当时的 Schema 把本页每个实例过一遍（[验证入口](../verification.md#结果与反例)）。
+  **档案快照按路由名各取一份**，它的「允许的供应商」把这一块第一次发出走的那一家排在第一——**每一次调用的第一次发出走第一家**（[S-9](contract.md#s-9-路由留痕)）；各份快照的其余成员为了短取同样的值。
 - **标识串、供应商名、路由名只是占位**，不要从 `resp_`、`gen-` 这样的前缀推出任何规则（[S-6](contract.md#s-6-responseid)）。
 
 ## 一、合法实例
@@ -66,7 +67,7 @@
 
 预期：`通过`。依据 [S-13](contract.md#s-13-收场与其余成员的条件关系) 第二行：`ending = truncated_at_limit`，**没长完的工具调用也在 `reply` 里、两位皆假**。
 `selectedBy = layer_lock`：组织在上层锁死了这条（[S-10](contract.md#s-10-有效模型怎么来的)）。
-`droppedParameters` 列出 `seed`——传输适配认不得它，**真正发给上游的只有 `maxOutputTokens`**（[S-11](contract.md#s-11-交给传输适配的参数与没发出去的项)）。
+要求的那一组是 `{ seed: 42, maxOutputTokens: 256 }`，传输适配认不得 `seed`：**`parameters` 只记实际发出的 `maxOutputTokens`**，`droppedParameters` 列出 `seed`（[S-11](contract.md#s-11-实际发出的参数改过的值与没发出去的项)）。
 
 ```json
 {
@@ -76,13 +77,13 @@
   "attemptId": 1,
   "route": {
     "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "openai/gpt-5-mini" },
-    "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
+    "profileSnapshot": { "providers": ["openai", "azure"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
     "selectedBy": "layer_lock",
     "provider": "openai",
     "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } },
     "upstreamModel": "openai/gpt-5-mini-2025-08-07",
     "upstreamRequestId": "gen-1758621700-d4e5f6",
-    "parameters": { "seed": 42, "maxOutputTokens": 256 },
+    "parameters": { "maxOutputTokens": 256 },
     "droppedParameters": ["seed"]
   },
   "outcome": "truncated",
@@ -119,7 +120,7 @@
   "attemptId": 1,
   "route": {
     "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "google/gemini-2.5-flash" },
-    "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
+    "profileSnapshot": { "providers": ["google-vertex", "google-ai-studio"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
     "selectedBy": { "extension": "cheap-first-router" },
     "provider": "google-vertex",
     "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } },
@@ -306,7 +307,7 @@ E-8a，预期：`通过`。前一次调用：有首 token、有 `reply`，但 `r
   "attemptId": 2,
   "route": {
     "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "google/gemini-2.5-flash-image" },
-    "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
+    "profileSnapshot": { "providers": ["google-vertex", "google-ai-studio"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
     "selectedBy": "session",
     "provider": "google-vertex",
     "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } },
@@ -344,7 +345,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "attemptId": 2,
   "route": {
     "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "google/gemini-2.5-flash-image" },
-    "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
+    "profileSnapshot": { "providers": ["google-vertex", "google-ai-studio"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
     "selectedBy": "session",
     "provider": "google-vertex",
     "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } },
@@ -415,7 +416,8 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 
 预期：`通过`。进程在「已开口」写下之后、响应体写下之前停了；下一次尝试的对账补写这一条（`capability.model-request-runtime` v1 S-33）：
 `initiator = runtime_lost`、**有首 token**（取自「已开口」那条记录）、**没有回复**，已交付的块在途内容随进程没了、**缺席**，由中断提醒兜底；账全未知（[S-12](contract.md#s-12-收场)、[S-13](contract.md#s-13-收场与其余成员的条件关系)）。
-这次调用不再发出（[S-23](contract.md#s-23-同一次调用的响应体序列)）。`attemptId` 是**这一次发出**落在的那次尝试，不是补写它的那一次。
+这次调用不再发出（[S-23](contract.md#s-23-同一次调用的响应体序列)）。`attemptId` 是**这一次发出出门时所在的那次尝试**（第 2 次），不是补写它的那一次（第 3 次）——它是事实，不是归属；这一条归到哪一组以承载它的条目为准（[S-8](contract.md#s-8-第几次发出)）。
+补写时第 2 次尝试已被取代，所以带 **`late: true`**（[S-35](contract.md#s-35-晚到的那一条)）。`id` 是「已出门」那条记录上定下的那一个，对账沿用它（[S-6](contract.md#s-6-responseid)）。
 
 ```json
 {
@@ -423,6 +425,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "call": { "runId": "run_7a02", "callId": "mc_4d10" },
   "dispatch": 1,
   "attemptId": 2,
+  "late": true,
   "route": {
     "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" },
     "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
@@ -468,10 +471,60 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 }
 ```
 
+### E-12 传输适配改了两项的值、丢了一项 `extra`
+
+预期：`通过`。要求的那一组是档案参数 `{ reasoningEffort: max, maxOutputTokens: 32000, extra: { top_k: 40 } }`（本次没有覆盖）。这一家的上游**推理强度最高只有 `high`**、**输出上限已降到 16000**（低于档案参数，档案不改，[`data.model-profile/v1#S-18`](../../model-profile/v1/contract.md#s-18-档案参数的输出上限)），**也不认 `top_k`**：
+传输适配把前两项改了值再发出、`top_k` 不发。于是 **`parameters` 记实际发出的两项**，`parameterAdjustments` 记这两项改前改后，`droppedParameters` 记 `extra` 的键 `top_k`（[S-11](contract.md#s-11-实际发出的参数改过的值与没发出去的项)）。
+
+```json
+{
+  "id": "resp_b12001",
+  "call": { "runId": "run_7a02", "callId": "mc_5e12" },
+  "dispatch": 1,
+  "attemptId": 2,
+  "route": {
+    "profile": { "origin": "custom", "scope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "routeName": "vendor-b/reasoner-l" },
+    "profileSnapshot": { "providers": ["provider-z"], "allowFallback": false, "inputModalities": ["text"], "outputModalities": ["text"], "maxInputTokens": 128000, "maxOutputTokens": 64000, "parameters": { "reasoningEffort": "max", "maxOutputTokens": 32000, "extra": { "top_k": 40 } }, "updatedAt": "2026-09-20T08:00:00Z" },
+    "selectedBy": "session",
+    "provider": "provider-z",
+    "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } },
+    "upstreamModel": "vendor-b/reasoner-l-2026-08",
+    "upstreamRequestId": "gen-1758623000-b12b12",
+    "parameters": { "reasoningEffort": "high", "maxOutputTokens": 16000 },
+    "parameterAdjustments": [
+      { "name": "reasoningEffort", "requested": "max", "sent": "high" },
+      { "name": "maxOutputTokens", "requested": 32000, "sent": 16000 }
+    ],
+    "droppedParameters": ["top_k"]
+  },
+  "outcome": "complete",
+  "stopReason": "stop",
+  "reply": {
+    "id": "msg_80",
+    "type": "assistant",
+    "createdAt": "2026-09-23T10:20:09Z",
+    "response": "resp_b12001",
+    "ending": "complete",
+    "blocks": [
+      { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "三种方案里第二种最省：只改一处索引。" }
+    ]
+  },
+  "replyDisposition": "persisted",
+  "timing": { "sentAt": "2026-09-23T10:20:00Z", "firstTokenAt": "2026-09-23T10:20:03Z", "endedAt": "2026-09-23T10:20:09Z" },
+  "usage": { "input_tokens": 5200, "output_tokens": 610, "cache_read_tokens": 4096, "cache_write_tokens": 0, "source": "upstream" },
+  "cost": { "cost_usd": 0.0087, "source": "upstream_usage" }
+}
+```
+
+- **还原要求的那一组**：`parameters` 里把两项换回 `requested`，再加上 `top_k`（它要求的值 40 从档案快照 `parameters.extra` 取）——正是档案参数（[S-11](contract.md#s-11-实际发出的参数改过的值与没发出去的项) 约束 4）。
+- **`maxOutputTokens` 改值是 [`data.model-profile/v1#S-21`](../../model-profile/v1/contract.md#s-21-不静默丢也不静默改) 的固定情形**：上游收紧到档案参数之下，发出时改成收得下的值并记下实际发出的值。
+
 ## 二、非法实例：每个拒绝值至少一个
 
-下面各块都以第一节的某个正例为底，**块前写明是哪一个、改了什么**；为了短，`route` 一律只留必需成员、`raw` 一律省去——
-这两处的删减本身都合法。**每个块按 [S-27](contract.md#s-27-表示层拒绝值) 的次序，第一条被违反的就是块前写的那一个**
+下面各块都以第一节的某个正例为底，**块前写明是哪一个、改了什么**。为了短，各块在底例上还可以做几处**本身合法**的删减：
+`route` 只留必需成员、其中 `parameters` 写成 `{}`；`raw`、`stopReason`、`failure.upstreamError`、`trims` 省去；回复与已交付块的文字缩短。
+**除这几处之外，块前写的就是全部改动。**
+**每个块按 [S-27](contract.md#s-27-表示层拒绝值) 的次序，第一条被违反的就是块前写的那一个**
 （个别块同时违反排在后面的规则，例如 R-7 也缺 `delivered`，那不改变它给出的拒绝值）。
 
 ### R-1 `malformed`：缺必需成员
@@ -494,7 +547,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 
 ### R-2 `malformed`：「一项也没丢」写成了空数组
 
-在 E-6 上加 `"droppedParameters": []`。「一项也没丢」只有一种写法——缺席（[S-11](contract.md#s-11-交给传输适配的参数与没发出去的项)）。预期：`拒绝：malformed`。
+在 E-6 上加 `"droppedParameters": []`。「一项也没丢」只有一种写法——缺席（[S-11](contract.md#s-11-实际发出的参数改过的值与没发出去的项)）。预期：`拒绝：malformed`。
 
 ```json
 {
@@ -618,10 +671,11 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "call": { "runId": "run_7a02", "callId": "mc_1c55" },
   "dispatch": 1,
   "attemptId": 1,
-  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "google/gemini-2.5-flash" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "google-vertex", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "google/gemini-2.5-flash" }, "profileSnapshot": { "providers": ["google-vertex", "google-ai-studio"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": { "extension": "cheap-first-router" }, "provider": "google-vertex", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
   "outcome": "interrupted",
   "initiator": "user",
   "reply": { "id": "msg_53", "type": "assistant", "createdAt": "2026-09-23T10:02:03Z", "response": "resp_r8", "ending": "interrupted_by_user", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "这个问题可以分三步看。第一步" } ] },
+  "replyDisposition": "persisted",
   "delivered": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "这个问题可以分三步看。第一步" } ],
   "timing": { "sentAt": "2026-09-23T10:02:00Z", "firstTokenAt": "2026-09-23T10:02:01Z", "endedAt": "2026-09-23T10:02:03Z" },
   "usage": { "input_tokens": "unknown", "output_tokens": "unknown", "cache_read_tokens": "unknown", "cache_write_tokens": "unknown", "source": "none" },
@@ -782,7 +836,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "call": { "runId": "run_7a02", "callId": "mc_1a08" },
   "dispatch": 1,
   "attemptId": 1,
-  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "openai/gpt-5-mini" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "layer_lock", "provider": "openai", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "openai/gpt-5-mini" }, "profileSnapshot": { "providers": ["openai", "azure"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "layer_lock", "provider": "openai", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
   "outcome": "truncated",
   "reply": { "id": "msg_52", "type": "assistant", "createdAt": "2026-09-23T10:01:09Z", "response": "resp_r16", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "接下来改 main.rs：" } ] },
   "replyDisposition": "persisted",
@@ -822,7 +876,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "call": { "runId": "run_7a02", "callId": "mc_1c55" },
   "dispatch": 1,
   "attemptId": 1,
-  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "google/gemini-2.5-flash" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "google-vertex", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "google/gemini-2.5-flash" }, "profileSnapshot": { "providers": ["google-vertex", "google-ai-studio"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": { "extension": "cheap-first-router" }, "provider": "google-vertex", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
   "outcome": "interrupted",
   "initiator": "user",
   "reply": { "id": "msg_53", "type": "assistant", "createdAt": "2026-09-23T10:02:03Z", "response": "resp_r18", "ending": "interrupted_by_user", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "这个问题可以分三步看。第一步" } ] },
@@ -860,7 +914,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "call": { "runId": "run_7a02", "callId": "mc_1c55" },
   "dispatch": 1,
   "attemptId": 1,
-  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "google/gemini-2.5-flash" }, "profileSnapshot": { "providers": ["google-vertex", "google-ai-studio"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": { "extension": "cheap-first-router" }, "provider": "google-vertex", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
   "outcome": "interrupted",
   "initiator": "runtime_lost",
   "reply": { "id": "msg_53", "type": "assistant", "createdAt": "2026-09-23T10:02:03Z", "response": "resp_r20", "ending": "interrupted_by_user", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "这个问题可以分三步看。第一步" } ] },
@@ -881,13 +935,13 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "call": { "callId": "mc_9c01" },
   "dispatch": 1,
   "attemptId": 1,
-  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
+  "route": { "profile": { "origin": "official", "routeName": "openai/gpt-5-mini" }, "profileSnapshot": { "providers": ["openai"], "allowFallback": false, "inputModalities": ["text"], "outputModalities": ["text"], "maxInputTokens": 128000, "maxOutputTokens": 16000, "updatedAt": "2026-09-01T00:00:00Z" }, "selectedBy": "layer_lock", "provider": "openai", "credentialScope": { "layer": "factory" }, "parameters": {} },
   "outcome": "complete",
   "reply": { "id": "msg_c1", "type": "assistant", "createdAt": "2026-09-23T10:09:04Z", "response": "resp_r21", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": false, "toModel": true }, "text": "摘要：……" } ] },
   "replyDisposition": { "consumed": { "by": "compaction" } },
   "timing": { "sentAt": "2026-09-23T10:09:00Z", "firstTokenAt": "2026-09-23T10:09:01Z", "endedAt": "2026-09-23T10:09:04Z" },
-  "usage": { "input_tokens": "unknown", "output_tokens": "unknown", "cache_read_tokens": "unknown", "cache_write_tokens": "unknown", "source": "none" },
-  "cost": { "cost_usd": "unknown", "source": "none" }
+  "usage": { "input_tokens": 9800, "output_tokens": 140, "cache_read_tokens": 0, "cache_write_tokens": 0, "source": "upstream" },
+  "cost": { "cost_usd": 0.0021, "source": "upstream_usage" }
 }
 ```
 
@@ -919,13 +973,13 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "id": "resp_r23",
   "call": { "callId": "mc_9c01" },
   "dispatch": 1,
-  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
+  "route": { "profile": { "origin": "official", "routeName": "openai/gpt-5-mini" }, "profileSnapshot": { "providers": ["openai"], "allowFallback": false, "inputModalities": ["text"], "outputModalities": ["text"], "maxInputTokens": 128000, "maxOutputTokens": 16000, "updatedAt": "2026-09-01T00:00:00Z" }, "selectedBy": "layer_lock", "provider": "openai", "credentialScope": { "layer": "factory" }, "parameters": {} },
   "outcome": "complete",
   "reply": { "id": "msg_c1", "type": "assistant", "createdAt": "2026-09-23T10:09:04Z", "response": "resp_r23", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": false, "toModel": true }, "text": "摘要：……" } ] },
   "replyDisposition": { "consumed": { "by": "compaction" } },
   "timing": { "sentAt": "2026-09-23T10:09:00Z", "firstTokenAt": "2026-09-23T10:09:01Z", "endedAt": "2026-09-23T10:09:04Z" },
-  "usage": { "input_tokens": "unknown", "output_tokens": "unknown", "cache_read_tokens": "unknown", "cache_write_tokens": "unknown", "source": "none" },
-  "cost": { "cost_usd": "unknown", "source": "none" },
+  "usage": { "input_tokens": 9800, "output_tokens": 140, "cache_read_tokens": 0, "cache_write_tokens": 0, "source": "upstream" },
+  "cost": { "cost_usd": 0.0021, "source": "upstream_usage" },
   "trims": { "merged": 0, "cut": 0, "omittedBytes": 0, "byReason": { "rate_merged": 0, "frame_too_long": 0, "quota_exhausted": 0, "rejected": 0 } }
 }
 ```
@@ -950,6 +1004,106 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 }
 ```
 
+### R-25 `malformed`：「不晚」写成了 `late: false`
+
+在 E-10 上把 `late` 改成 `false`。**「不晚」只有一种写法——缺席**（[S-35](contract.md#s-35-晚到的那一条)）。预期：`拒绝：malformed`。
+
+```json
+{
+  "id": "resp_r25",
+  "call": { "runId": "run_7a02", "callId": "mc_4d10" },
+  "dispatch": 1,
+  "attemptId": 2,
+  "late": false,
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
+  "outcome": "interrupted",
+  "initiator": "runtime_lost",
+  "timing": { "sentAt": "2026-09-23T10:10:00Z", "firstTokenAt": "2026-09-23T10:10:01Z", "endedAt": "2026-09-23T10:12:30Z" },
+  "usage": { "input_tokens": "unknown", "output_tokens": "unknown", "cache_read_tokens": "unknown", "cache_write_tokens": "unknown", "source": "none" },
+  "cost": { "cost_usd": "unknown", "source": "none" }
+}
+```
+
+### R-26 `malformed`：不属于任何运行，却标了晚到
+
+在 E-9 上加 `"late": true`。**没有运行就没有尝试可被栅栏关掉**（[S-35](contract.md#s-35-晚到的那一条)）。预期：`拒绝：malformed`。
+
+```json
+{
+  "id": "resp_r26",
+  "call": { "callId": "mc_9c01" },
+  "dispatch": 1,
+  "late": true,
+  "route": { "profile": { "origin": "official", "routeName": "openai/gpt-5-mini" }, "profileSnapshot": { "providers": ["openai"], "allowFallback": false, "inputModalities": ["text"], "outputModalities": ["text"], "maxInputTokens": 128000, "maxOutputTokens": 16000, "updatedAt": "2026-09-01T00:00:00Z" }, "selectedBy": "layer_lock", "provider": "openai", "credentialScope": { "layer": "factory" }, "parameters": {} },
+  "outcome": "complete",
+  "reply": { "id": "msg_c1", "type": "assistant", "createdAt": "2026-09-23T10:09:04Z", "response": "resp_r26", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": false, "toModel": true }, "text": "摘要：……" } ] },
+  "replyDisposition": { "consumed": { "by": "compaction" } },
+  "timing": { "sentAt": "2026-09-23T10:09:00Z", "firstTokenAt": "2026-09-23T10:09:01Z", "endedAt": "2026-09-23T10:09:04Z" },
+  "usage": { "input_tokens": 9800, "output_tokens": 140, "cache_read_tokens": 0, "cache_write_tokens": 0, "source": "upstream" },
+  "cost": { "cost_usd": 0.0021, "source": "upstream_usage" }
+}
+```
+
+### R-27 `malformed`：出厂格那一把用在了自建档案上
+
+在 E-1 上把 `credentialScope` 换成出厂格。E-1 的有效模型是一条组织层的自建档案；**出厂格那一把只供官方档案**（[S-9](contract.md#s-9-路由留痕)）。预期：`拒绝：malformed`。
+
+```json
+{
+  "id": "resp_r27",
+  "call": { "runId": "run_7a02", "callId": "mc_19f3" },
+  "dispatch": 1,
+  "attemptId": 1,
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "factory" }, "parameters": {} },
+  "outcome": "complete",
+  "reply": { "id": "msg_51", "type": "assistant", "createdAt": "2026-09-23T10:00:04Z", "response": "resp_r27", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "先读一下配置文件。" } ] },
+  "replyDisposition": "persisted",
+  "timing": { "sentAt": "2026-09-23T10:00:00Z", "firstTokenAt": "2026-09-23T10:00:01.2Z", "endedAt": "2026-09-23T10:00:04Z" },
+  "usage": { "input_tokens": 1840, "output_tokens": 212, "cache_read_tokens": 1536, "cache_write_tokens": 0, "source": "upstream" },
+  "cost": { "cost_usd": 0.0031, "source": "upstream_usage" }
+}
+```
+
+### R-28 `malformed`：「一项值也没改」写成了空数组
+
+在 E-7 上加 `"parameterAdjustments": []`。**「一项值也没改」只有一种写法——缺席**（[S-11](contract.md#s-11-实际发出的参数改过的值与没发出去的项)）。预期：`拒绝：malformed`。
+
+```json
+{
+  "id": "resp_r28",
+  "call": { "runId": "run_7a02", "callId": "mc_2b77" },
+  "dispatch": 2,
+  "attemptId": 2,
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "amazon-bedrock", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {}, "parameterAdjustments": [] },
+  "outcome": "complete",
+  "reply": { "id": "msg_60", "type": "assistant", "createdAt": "2026-09-23T10:05:09Z", "response": "resp_r28", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "好的。" } ] },
+  "replyDisposition": "persisted",
+  "timing": { "sentAt": "2026-09-23T10:05:03Z", "firstTokenAt": "2026-09-23T10:05:04Z", "endedAt": "2026-09-23T10:05:09Z" },
+  "usage": { "input_tokens": 3120, "output_tokens": 480, "cache_read_tokens": 0, "cache_write_tokens": 0, "source": "upstream" },
+  "cost": { "cost_usd": 0.0123, "source": "upstream_usage" }
+}
+```
+
+### R-29 `malformed`：改了值，却没记实际发出的是什么
+
+在 E-12 上删掉第二项改值的 `sent`。**改值的留痕要记下实际发出的值**，只记要求的值等于没记（[S-11](contract.md#s-11-实际发出的参数改过的值与没发出去的项)、[`data.model-profile/v1#S-21`](../../model-profile/v1/contract.md#s-21-不静默丢也不静默改)）。预期：`拒绝：malformed`。
+
+```json
+{
+  "id": "resp_r29",
+  "call": { "runId": "run_7a02", "callId": "mc_5e12" },
+  "dispatch": 1,
+  "attemptId": 2,
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "routeName": "vendor-b/reasoner-l" }, "profileSnapshot": { "providers": ["provider-z"], "allowFallback": false, "inputModalities": ["text"], "outputModalities": ["text"], "maxInputTokens": 128000, "maxOutputTokens": 64000, "parameters": { "reasoningEffort": "max", "maxOutputTokens": 32000, "extra": { "top_k": 40 } }, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "provider-z", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": { "reasoningEffort": "high", "maxOutputTokens": 16000 }, "parameterAdjustments": [ { "name": "reasoningEffort", "requested": "max", "sent": "high" }, { "name": "maxOutputTokens", "requested": 32000 } ], "droppedParameters": ["top_k"] },
+  "outcome": "complete",
+  "reply": { "id": "msg_80", "type": "assistant", "createdAt": "2026-09-23T10:20:09Z", "response": "resp_r29", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "三种方案里第二种最省：只改一处索引。" } ] },
+  "replyDisposition": "persisted",
+  "timing": { "sentAt": "2026-09-23T10:20:00Z", "firstTokenAt": "2026-09-23T10:20:03Z", "endedAt": "2026-09-23T10:20:09Z" },
+  "usage": { "input_tokens": 5200, "output_tokens": 610, "cache_read_tokens": 4096, "cache_write_tokens": 0, "source": "upstream" },
+  "cost": { "cost_usd": 0.0087, "source": "upstream_usage" }
+}
+```
+
 ## 三、Schema 挡不住、但同样非法的
 
 **本节不参与机检**——这些值形状上一概合法，只能由写入者的约束、静态检查或规范场景拒绝。
@@ -962,10 +1116,16 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 | 停机恢复后判不出开没开口，写了一条没有 `firstTokenAt` 的 `failed` | [S-18](contract.md#s-18-首-token-缺席是一条断言)：缺席是断言，判不出不得写成缺席 |
 | 上游没回报模型名，`upstreamModel` 填了路由名 | [S-9](contract.md#s-9-路由留痕) |
 | `route.provider` 不在那条档案「允许的供应商」里 | [S-9](contract.md#s-9-路由留痕) |
-| `droppedParameters` 列了一个 `parameters` 里没有的名字，或者丢了项却不写 | [S-11](contract.md#s-11-交给传输适配的参数与没发出去的项) |
+| E-3 的 `route.provider` 换成 `google-ai-studio`（`dispatch = 1`，却不是第一家）；或一次 `profileSnapshot.allowFallback = false` 的调用，第二次发出走了列表里的第二家 | [S-9](contract.md#s-9-路由留痕)：第一次发出走第一家，不许回退时每一次都是第一家 |
+| `droppedParameters` 列了一个仍在 `parameters` 里的名字，或者丢了项却不写 | [S-11](contract.md#s-11-实际发出的参数改过的值与没发出去的项) |
+| E-12 的 `parameters.reasoningEffort` 写回 `max`（记的是要求的值，不是实际发出的），或 `parameterAdjustments` 里 `sent` 与 `parameters` 那一项不一样 | [S-11](contract.md#s-11-实际发出的参数改过的值与没发出去的项)：`parameters` 记实际发出的值 |
+| 改了一项的值再发出，却不写 `parameterAdjustments`；或同一个项名同时出现在 `parameterAdjustments` 与 `droppedParameters` 里 | [S-11](contract.md#s-11-实际发出的参数改过的值与没发出去的项) |
+| 补写的那一条出门所在的尝试早已被取代，却没带 `late`；或一条当场写下的、尝试仍是当前的，带了 `late` | [S-35](contract.md#s-35-晚到的那一条) |
+| 对账补写那一条时另铸了一个 `id`，不是「已出门」上定下的那一个 | [S-6](contract.md#s-6-responseid)：同一次发出从此有两个标识，按标识判重就失效 |
 | 一条 `failed` 带成因 `withdrawn`（档案已撤回） | [S-16](contract.md#s-16-发出了的才有响应体)：撤回在出门之前就上交了，没有「一次发出」 |
 | 一条 `unrecognized` 的 `localError` 是写入者编的一句「未知错误」，真正认不出来的那段上游回应没留 | [S-15](contract.md#s-15-故障的成因与原样状态码)：兜底留的得是认不出来的那样东西本身 |
-| `route.credentialScope` 写出厂格，这一次实际用的是发起租户自己那一把 | [S-9](contract.md#s-9-路由留痕)：用量会记到错的那一格头上 || 运行被取消时写入者手里还有已交付的块，却写了一条没有 `delivered` 的 `interrupted` | [S-13](contract.md#s-13-收场与其余成员的条件关系)：有才带，有就必带 |
+| `route.credentialScope` 写出厂格，这一次实际用的是发起租户自己那一把 | [S-9](contract.md#s-9-路由留痕)：用量会记到错的那一格头上 |
+| 运行被取消时写入者手里还有已交付的块，却写了一条没有 `delivered` 的 `interrupted` | [S-13](contract.md#s-13-收场与其余成员的条件关系)：有才带，有就必带 |
 | 同一次调用有 `dispatch` 1 与 3，没有 2 | [S-8](contract.md#s-8-第几次发出)、[S-23](contract.md#s-23-同一次调用的响应体序列) |
 | 同一次调用里第 1 条是 `failed`、成因 `request_rejected`，之后还有第 2 条 | [S-23](contract.md#s-23-同一次调用的响应体序列)：「重试没用」是事实，重试挂件推翻不了 |
 | 同一次调用里有两条带 `reply` | [S-14](contract.md#s-14-回复与已交付部分)、[S-23](contract.md#s-23-同一次调用的响应体序列) |
@@ -976,14 +1136,15 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 | 传输层在一次发出之内自己换了一家再试，只写下一条响应体 | [S-24](contract.md#s-24-一条响应体对应上游的一次请求) |
 | 拿到了实际费用，回头把那条响应体的 `cost` 改掉 | [S-22](contract.md#s-22-写下即不变)：更正靠追加 `CostCorrection` |
 | `ResponseId` 取上游的 generation id | [S-6](contract.md#s-6-responseid)：上游 id 另记，本系统的身份自己铸 |
+| 按尝试汇总时，E-10 这一条按它的 `attemptId`（第 2 次）归组，而承载它的条目说的是另一组 | [S-8](contract.md#s-8-第几次发出)、[S-19](contract.md#s-19-用量与费用)：归属以条目为准，`attemptId` 只是出门所在尝试的事实 |
 
 ## 四、按尝试记明细、按 Run 汇总
 
-**对象**：E-6 与 E-7——同一次调用（`mc_2b77`）的两次发出，落在运行 `run_7a02` 的第 2 次尝试里。
-**规则**取自 `data.call-accounts`：`unknown` **单独计数、不当零加**；一个目标有 `CostCorrection` 时取 `at` 最新的那一条覆盖它的 `cost_usd`。
+**对象**：E-6 与 E-7——同一次调用（`mc_2b77`）的两次发出，都在运行 `run_7a02` 的第 2 次尝试里出门、当场写下；承载它们的条目也都归到这一次尝试。
+**规则**取自 `data.call-accounts`：`unknown` **单独计数、不当零加**；一个目标有 `CostCorrection` 时取 `at` 最新的那一条覆盖它的 `cost_usd`；**一笔归哪一组由承载它的条目给**（[`data.call-accounts/v1#S-25`](../../call-accounts/v1/contract.md#s-25-按尝试记明细按-run-汇总)）。
 汇总怎样呈现（「已知合计 + 未知条数」这种两元组只是本页的演示写法）归那份契约。
 
-**按尝试记明细**——每次发出一行，**两行都在**：
+**按尝试记明细**——每次发出一行，**两行都在**（「尝试」一列是条目给的归属；这两条当场写下，它与各自的 `attemptId` 相同）：
 
 | 响应体 | 尝试 | `dispatch` | 那一家 | 收场 | `cost_usd` | `input_tokens` | `output_tokens` | `cache_read_tokens` | `cache_write_tokens` |
 |---|---|---|---|---|---|---|---|---|---|
@@ -1018,4 +1179,5 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 - **两条账两笔钱都进了明细**，哪怕第一笔最后被更正成 0——它是**查出来是 0**，不是**当作 0**。
   若 E-6 没有 `upstreamRequestId`，经上游补查这条来路就走不通，只能等人工更正或一直保持 `unknown`（[S-9](contract.md#s-9-路由留痕)、[S-19](contract.md#s-19-用量与费用)）。
 - **「这个 Run 的成本减去最后一次尝试的成本，就是崩溃浪费掉的钱」**（[PF-012 成本两层](../../../../product/PF-012-agent-loop-and-run/design.md#成本两层缺哪一层都会算错)）：
-  这两条都落在第 2 次尝试里，它们之间的差额是**同一次尝试内**换家的代价，不是崩溃造成的——**尝试号来自每一条的 `attemptId`，不来自 `dispatch`**。
+  这两条都归在第 2 次尝试里，它们之间的差额是**同一次尝试内**换家的代价，不是崩溃造成的——**归在哪次尝试由承载它的条目给，不来自 `dispatch`，也不以 `attemptId` 为准**：
+  像 E-10 那样由对账在下一次尝试里补写的一条，`attemptId` 说的是它在哪次尝试里出门，归到哪一组仍看条目（[S-8](contract.md#s-8-第几次发出)）。

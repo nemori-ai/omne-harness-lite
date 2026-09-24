@@ -68,7 +68,7 @@ A 把个人组织里 skill `ast_x`（所有者 `P_A`，已发布 v1、v3）的 *
 | 2 | `listPendingForOrganization((C1,T), {org:C1})` | 一项：复制通知 `cn_1` 与它的 `OfferTiming`；**不带内容、不带源** | [S-48](contract.md#s-48-列出组织收到的待确认件) |
 | 3 | `readCopyNotice((C1,T), cn_1)` | 目标侧投影：**源组织 `G`**、能力标识、源版本号 2、v2 的内容、`pending`、**此刻确认会是首次**；**没有 `ast_m`**，也没有 `ast_m` 的其余版本与草稿、没有 R | [S-23](contract.md#s-23-读复制通知) ⑤ |
 | 4 | `confirmCopy((C1,T), cn_1)` | `created{ asset=ast_k, 已取得持有 }` | [S-22](contract.md#s-22-确认复制) |
-| 5 | 观察 `ast_k` | 所有者 `C1`；**作者 `(C1, T)`**——确认的那位超管；血缘 `importedBy=(C1,T)` | [S-11](contract.md#s-11-复制的收场)、[§6.5](../../../../product/PF-003-asset-transfer-and-sharing/design.md#65-首次复制) |
+| 5 | 观察 `ast_k` | 所有者 `C1`；**作者 `(C1, T)`**——确认的那位超管；血缘 `importedBy=(C1,T)`；**`byAgent = false`**——取 R 发起那一次调用的上下文（复制通知上记着），T 的确认不改它 | [S-11](contract.md#s-11-复制的收场)、[S-5](contract.md#s-5-复制通知)、[§6.5](../../../../product/PF-003-asset-transfer-and-sharing/design.md#65-首次复制) |
 | 6 | `C1` 的普通成员 `(C1,B)` 调 `confirmCopy` | `notPermitted` | [S-22](contract.md#s-22-确认复制) ⑥ |
 
 ## 5. 组织间分享的确认、跟随与撤销
@@ -115,7 +115,7 @@ A 在 `C1` 的租户级有 tool `ast_t`（所有者 `(C1, A)`，已发布）。A
 | 7 | B 试图把 `ast_t` 分享给 `(C1, D)`、复制出去 | `notTransitive`、`notTransitive` | [S-13](contract.md#s-13-发起者一侧的资产) |
 
 第 6 步的「重新加入仍不生效」读 B 的成员关系生效时刻（`capability.organization-governance/v2#S-59`，以 `(C1,B)` 自己为调用方）：重新加入把它改写成新的时刻，晚于 `sh_4` 的确认时刻。
-**第 4 步要等 `data.asset-model` 的修订落地**（[G-14](contract.md#十一已知缺口)，已交主线裁定 R2-10）：它的 v1 还不允许租户格的 `shared`。
+**第 4 步写得进**：`data.asset-model` v1 第二轮修订已放开租户格的 `shared`（原 [G-14](contract.md#十一已知缺口) 闭合）。
 
 ## 8. 分享一个 plugin
 
@@ -163,4 +163,4 @@ A 在 `C1` 的租户级有 tool `ast_t`（所有者 `(C1, A)`，已发布）。A
 | 4 | A 把 `ast_t` 提升到 `C1` 的组织级 | 提升 `ok`——**不因为有 `sh_4` 而被拒**；同一次提交里 `sh_4` 写 `revoked`，原因 `ownerChanged` | [S-52](contract.md#s-52-分享方删除资产或所有权易手分享随之结束)、[S-8](contract.md#s-8-分享)；`capability.asset-governance/v1#S-27` |
 | 5 | 观察 B | B 那层的持有留着、用不上；要用，是 `C1` 的新决定——经组织级资产在本组织里的使用授权给，不续旧的 `sh_4` | [S-52](contract.md#s-52-分享方删除资产或所有权易手分享随之结束) 末段 |
 
-**第 1 步受阻于 [G-15](contract.md#十一已知缺口)**（资产治理的删除还没把这一步列进它那次提交）；第 4、5 步随第 7 节受阻于 [G-14](contract.md#十一已知缺口)。
+**这一节不再受阻**：资产治理的删除与提升都已把这一步列进它们那次提交（原 [G-15](contract.md#十一已知缺口) 闭合），租户格的 `shared` 已放开（原 [G-14](contract.md#十一已知缺口) 闭合）。**分享结束不通知**：第 2 步的读就是被分享方知道它结束的方式（[S-33](contract.md#s-33-本版不发本契约自己的事件)）。

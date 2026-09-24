@@ -46,7 +46,8 @@
 (*   触发源）；执行者交回的内容、结果落成消息之前的那一关、卸载；发帧；账的 *)
 (*   内容；执行环境；超时与转后台阈值（它们只是 Background 与中断的另两个  *)
 (*   触发源）；插队与 agent 掐掉（同一个中断动作的另两种发起者）；多会话与 *)
-(*   租户（本模型是一个会话）；决策卡片的关闭。                            *)
+(*   租户（本模型是一个会话）；决策卡片的关闭；参数不合与参数解析不了的即刻 *)
+(*   收场（与 c4 那一支同形，模型对它们没有断言）；执行者一侧四个原语的返回。*)
 (***************************************************************************)
 EXTENDS Naturals, FiniteSets
 
@@ -219,7 +220,8 @@ Start(c) ==
     /\ UNCHANGED <<posture, callOut, out, why, live, waitIdx, stale, tm, rm, acct,
                    intReq, pendLand, pendPh, up, crashes, archived, cancelled, submitted>>
 
-\* 起不来（参数不合定义、落点不到位、执行者起不来）：收场失败，执行者从没跑过。
+\* 起不来（落点不到位、执行者找不到或起不来，S-38）：收场失败，执行者从没跑过。
+\* 参数不合与参数解析不了不在这里：它们在提交时即刻收场（S-23 ④），模型里没有那两支。
 StartFail(c) ==
     /\ up /\ live[c] /\ phase[c] = "queued" /\ PrevSettled(c) /\ SlotFree(c)
     /\ EndSet({c}, "failed", "startfail")
@@ -251,7 +253,7 @@ WaitExpire(c) ==
     /\ UNCHANGED <<posture, starts, waitIdx, stale, tm, rm, intReq, pendPh,
                    up, crashes, archived, cancelled, submitted>>
 
-\* 执行者交回（S-40）：完成，或执行者自己交回的失败。
+\* 执行者交回（S-41）：完成，或执行者自己交回的失败。
 Return(c, o) ==
     /\ up /\ live[c] /\ phase[c] = "running" /\ o \in {"completed", "failed"}
     /\ EndSet({c}, o, "normal")
@@ -422,7 +424,8 @@ FairSpec ==
 AtMostOneToolMessage == \A c \in Calls : tm[c] <= 1
 AtMostOneReminder    == \A c \in Calls : rm[c] <= 1
 
-\* S-19：收场提醒只落在「已有占位」之后。
+\* S-19：收场提醒只落在「已有占位」之后。按构造成立、不作证据：Drain 一步追加全部、占位先计，
+\* 模型表达不出「提醒先于占位」这种次序；次序的证据是场景 S-52。
 ReminderAfterPlaceholder ==
     \A c \in Calls : rm[c] > 0 => (tm[c] = 1 /\ callOut[c] = "backgrounded")
 

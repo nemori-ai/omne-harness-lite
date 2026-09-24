@@ -276,7 +276,7 @@
 | `{"category": "skill"}` | 拒绝 | `malformed` | [S-10](contract.md#s-10-八类正文的外壳)：`body` 必在，**缺席不当作空** |
 | `{"category": "plugin", "members": []}` | 通过 | — | [S-11](contract.md#s-11-plugin-的成员)：本版不设下限 |
 | `{"category": "plugin", "members": [{"category": "plugin", "name": "base-kit"}]}` | 拒绝 | `plugin_member_is_plugin` | [S-11](contract.md#s-11-plugin-的成员) |
-| `{"category": "plugin", "members": [{"category": "agent_definition", "name": "reviewer"}]}` | 拒绝 | `malformed` | [S-11](contract.md#s-11-plugin-的成员)：Plugin 不含 Agent Definition；账本没有为它单列拒绝值 |
+| `{"category": "plugin", "members": [{"category": "agent_definition", "name": "reviewer"}]}` | 拒绝 | `malformed` | [S-11](contract.md#s-11-plugin-的成员)：Plugin 不含 Agent Definition；不为它单列拒绝值 |
 | `{"category": "plugin", "members": [{"category": "skill", "name": "code-review"}, {"category": "skill", "name": "code-review"}]}` | 拒绝 | `malformed` | [S-11](contract.md#s-11-plugin-的成员)：成员不重复 |
 | `{"category": "plugin", "members": [{"category": "skill", "name": "code/review"}]}` | 拒绝 | `name_invalid` | [S-2](contract.md#s-2-能力标识名的词法)：成员也是能力标识 |
 | `{"category": "widget", "body": {}}` | 拒绝 | `category_unknown` | [S-1](contract.md#s-1-资产类别恰八类) |
@@ -601,7 +601,7 @@
 | 第 7 节的 `concurrency` 声明，`default` 改为 `"4"` | 通过 | `malformed` | [S-12](contract.md#s-12-属性声明由正文推出)：`default` 合那份 `schema` |
 | 某个正文契约的推出规则对一份正文产出了 `disabled` 或 `usableBy` 那一条 | 通过 | 推出规则违约 | [S-12](contract.md#s-12-属性声明由正文推出) 第 3 条 |
 | 一份 tool 资产的属性项里有 `usableBy`（本契约保留的那一条，不是推出的） | 通过 | — 合法 | [S-36](contract.md#s-36-usableby-是保留项名) 第 2 条：八类都有它（主线裁定 2026-09-24；原先按「只有三类」判为违约，已改正例） |
-| 一份 connector 资产的属性项里既有保留的 `usableBy`、又有推出的 `install` | 通过 | 推出规则违约 | [S-36](contract.md#s-36-usableby-是保留项名) 第 2、3 条：Connector 的「能不能安装」就是 `usableBy`，正文契约不另声明（`data.connector` 待主线收口） |
+| 一份 connector 资产的属性项里既有保留的 `usableBy`、又有推出的 `install` | 通过 | **本版不判**（[G-15](contract.md#八已知缺口)） | [S-36](contract.md#s-36-usableby-是保留项名) 第 2 条：两项怎样对应未定，本契约不作承诺；专项讨论后 connector 收口时这一行改成正例或违约（2026-09-24 独立评审第一轮由「推出规则违约」改为未决） |
 | 同一组织格写入第二份 `capability` 相同、`asset` 不同的持有 | 各自通过 | **存储拒绝** | [S-18](contract.md#s-18-资产持有) 第 1 条（[S-33](contract.md#s-33-一格一个能力标识一份持有) 反例） |
 | 两份现存记录的 `lineage.lineage` 都是 `"lin_40e9"` | 各自通过 | **写入方拒绝** | [S-21](contract.md#s-21-复制血缘) 第 5 条 |
 | `"lineage": "ast_7c11"`——血缘号的值就是源记录号 | 通过 | **发号方违约** | [S-22](contract.md#s-22-血缘号与分享号)：不是源记录号或它的可逆编码 |

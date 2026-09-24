@@ -4,11 +4,11 @@
 把副本投影成[工具定义](../../../ubiquitous_language/terms/execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition)、作为这些定义的自带实现把调用送到对端，
 以及经 OAuth 取得 [MCP 凭据](../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-mcp-credential--mcp-凭据--mcp-credential)那一路的状态与续期。
 
-**它不做放行判断、不做属性求值、不决定 agent 面前有哪些条目、不判收场、不写配值**——那些归放行判断、求值、注册表、工具执行运行时与资产治理；
+**它不做放行判断、不做属性求值、不决定 agent 面前有哪些条目、不判收场、不写配值**——那些归放行判断、求值、[会话资产注册表](../../../ubiquitous_language/terms/reach-and-availability.md#ul-session-asset-registry--会话资产注册表--session-asset-registry)、工具执行运行时与资产治理；
 本契约与它们之间的分工写在[契约 S-2](v1/contract.md#s-2-本契约不拥有什么)。它读写的全部形状归 [`data.mcp-endpoint`](../../data/mcp-endpoint/README.md)。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.mcp-bridge, 1)`
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐）——未接受、未冻结，不得据此发布或声称消费者已采用
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订——处置表在[验证入口](verification.md#独立评审)）——未接受、未冻结，不得据此发布或声称消费者已采用
 - **catalog 映射**：已登记为 `candidate`（`acceptance` 为 `null`）。`family=capabilities`、`topic=mcp-bridge`、
   `contract_path=spec/capabilities/mcp-bridge/v1/contract.md`，`resources` 另含 `v1/examples.md`；
   依赖六项：`data.mcp-endpoint` v1、`data.tool-definition` v1、`data.content-blocks` v1、`data.asset-model` v1、`capability.asset-evaluation` v1（五者都是候选）、`data.identity-values` v1——
@@ -24,7 +24,7 @@
 | 适用范围 | 一个据点进程之内；跨进程后要由协议重新兑现的，列在[契约 S-30](v1/contract.md#s-30-装配给与协议给) |
 | 为什么是 capability 而不是 data | 它有操作、提交点（副本的条件写、绑定的迁移）与外部效果（拉起进程、发出调用、用掉授权码） |
 | 精确依赖 | 见上面「catalog 映射」一行 |
-| 谁在等它 | 注册表（尝试开始时列举与投影）、工具执行运行时（自带实现）、交付面（OAuth 的两步、可用性原因）——它们对本契约的引用由各自登记 |
+| 谁在等它 | 会话资产注册表（尝试开始时列举与投影）、工具执行运行时（自带实现）、交付面（OAuth 的两步、可用性原因）——它们对本契约的引用由各自登记 |
 | 接受状态 | 未接受 |
 
 ## 按当前问题展开
@@ -44,7 +44,7 @@
 `v1/` 是本契约的候选版本目录。规范工件恰两份：`contract.md`、`examples.md`——**实例是规范工件，不是说明材料**。
 **本契约不发布 Schema**：值的形状引用各数据契约。
 
-**本包不建 `formal/`**（起草简报：形式工件不触发）。逐条理由在[契约 S-31](v1/contract.md#s-31-本版选用哪些形式工件)；
+**本包不建 `formal/`**（起草时主线判为不触发）。逐条理由在[契约 S-31](v1/contract.md#s-31-本版选用哪些形式工件)；
 [规格模板对此的要求](../../README.md#按需展开形式化工件)是「已触发的义务不因 optional 而消失」——本契约触发的义务是规范场景、静态检查与消费者走查，
 在[验证入口](verification.md)登记，状态**一律为「未开始」**。
 

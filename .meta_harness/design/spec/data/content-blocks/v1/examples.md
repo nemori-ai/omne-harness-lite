@@ -113,7 +113,7 @@
 | `{"id": "", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "hi"}` | 拒绝 | `malformed` | [S-3](contract.md#s-3-blockid)：按 `data.identity-values/v1#S-31` 非空 |
 | `{"id": "b9", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "hi", "modality": "text"}` | 拒绝 | `malformed` | [S-6](contract.md#s-6-模态由媒体类型判定)：块上不存模态 |
 | `{"id": "b10", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "hi", "renderings": [{"producedBy": "system", "blocks": [{"id": "b10r", "kind": "text", "visibility": {"toHuman": false, "toModel": true}, "text": "hi"}]}], "transcript": "hi"}` | 拒绝 | `malformed` | [S-2](contract.md#s-2-块底座)：文本块不是转换件的输入，不带派生属性 |
-| `{"id": "b11", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "hi", "origin": {"kind": "user_typed"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-文本块与来源标记)、[S-25](contract.md#s-25-判别式与枚举闭合)：来源标记恰四种；**缺席才是「没有断言」** |
+| `{"id": "b11", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "hi", "origin": {"kind": "user_typed"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-文本块与来源标记)、[S-25](contract.md#s-25-判别式与枚举闭合)：来路标记恰四种；**缺席才是「没有断言」** |
 | `{"id": "b12", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "hi", "origin": {"kind": "skill_body", "skill": ""}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-文本块与来源标记)：名字给出就非空 |
 | `{"id": "b13", "kind": "slash_command_record", "visibility": {"toHuman": true, "toModel": false}, "text": "/review"}` | 拒绝 | `kind_unknown` | [S-1](contract.md#s-1-七类块)、[S-8](contract.md#s-8-文本块与来源标记)：留痕**不是第八类块**，是文本块上的来路 |
 
@@ -265,9 +265,9 @@
 | `$defs/PlaceholderReason` | `"backgrounded_by_user"` | 通过 | — | [S-18](contract.md#s-18-占位原因与它落在哪一格) |
 | `$defs/PlaceholderReason` | `"abnormal_interruption"` | 通过 | — | [S-18](contract.md#s-18-占位原因与它落在哪一格) |
 | `$defs/PlaceholderReason` | `"backgrounded"` | 拒绝 | `malformed` | [S-18](contract.md#s-18-占位原因与它落在哪一格)：原因不是收场，转后台细分为三个原因 |
-| `$defs/PlaceholderReason` | `"run_cancelled"` | 通过 | — | [S-18](contract.md#s-18-占位原因与它落在哪一格)：主线裁定补的三行之一 |
-| `$defs/PlaceholderReason` | `"terminated_by_agent"` | 通过 | — | [S-18](contract.md#s-18-占位原因与它落在哪一格) |
-| `$defs/PlaceholderReason` | `"foreground_timeout"` | 通过 | — | [S-18](contract.md#s-18-占位原因与它落在哪一格)：前台超时（主线 2026-09-24 定名；原 G-7 闭合） |
+| `$defs/PlaceholderReason` | `"run_cancelled"` | 通过 | — | [S-18](contract.md#s-18-占位原因与它落在哪一格)：补的三行之一 |
+| `$defs/PlaceholderReason` | `"terminated_by_agent"` | 拒绝 | `malformed` | [S-18](contract.md#s-18-占位原因与它落在哪一格)：**不是占位原因**，是后台那段执行收场的提醒上写的原因；它只在工具结果块的 `reason.code` 里合法（第 10 节 `b99b`），不在 `PlaceholderReason` 里 |
+| `$defs/PlaceholderReason` | `"foreground_timeout"` | 通过 | — | [S-18](contract.md#s-18-占位原因与它落在哪一格)：前台超时（原 G-7 闭合） |
 | `$defs/PlaceholderReason` | `"interrupted_by_timeout"` | 拒绝 | `malformed` | [S-18](contract.md#s-18-占位原因与它落在哪一格)：前台超时的取值名是 `foreground_timeout`，**不收近义的另一个名字** |
 | `$defs/Modality` | `"audio"` | 通过 | — | [S-6](contract.md#s-6-模态由媒体类型判定)：对应词条的「语音 Voice」 |
 | `$defs/Modality` | `"voice"` | 拒绝 | `malformed` | [S-6](contract.md#s-6-模态由媒体类型判定)：`voice` 是块的类型，模态的 token 是 `audio` |
@@ -320,11 +320,11 @@
 | 7 语音块与图块 | 4 | 9 | base64 实例逐个数过：`UklGRiQAAABXQVZF` 16 字符、`iVBORw0KGgo=` 12 字符以 `=` 收尾，都是完整的四字组；`b34`／`b35` 的块与引用媒体类型逐字相同，**只**违反模态；`b37` 不判模态 |
 | 8 文件块 | 2 | 3 | 文件块无自己的 `mediaType` |
 | 9 工具调用块 | 5 | 10 | 半截调用的两个拒绝实例只动标注；`b67` 缺 `complete` 两个形状都不匹配；解析不了的那一种（`b66a`）与三个只动一处的反例 |
-| 10 工具结果块 | 12 | 13 | 每个通过实例的 `reason` 与收场对上 [S-18](contract.md#s-18-占位原因与它落在哪一格) 的落格表；拒绝实例每行只违反一格 |
+| 10 工具结果块 | 13 | 14 | 每个通过实例的 `reason` 与收场对上 [S-18](contract.md#s-18-占位原因与它落在哪一格) 的落格表；拒绝实例每行只违反一格 |
 | 11 派生表示 | 3 | 9 | 通过实例的派生块都是文本或图、都不再带派生属性，且 transcript 与 renderings 同在 |
 | 12 优先级 | 0 | 6 | 每行写明同时违反的两条，拒绝值按 `kind_unknown > visibility_missing > incomplete_call_visible > call_in_result > modality_mismatch > malformed` 取 |
-| 13 枚举与内联字节 | 8 | 10 | 取值与契约的闭合集合逐字对过；`InlineBytes` 三行 |
+| 13 枚举与内联字节 | 8 | 11 | 取值与契约的闭合集合逐字对过；`terminated_by_agent` 不在 `PlaceholderReason` 里；`InlineBytes` 三行 |
 
-**合计参与机检的 155 行：通过 57、拒绝 98**（2026-09-23 对齐波由 138 行增至此数）。第 3 节的相等用例表与第 14 节不在其内。
+**合计参与机检的 158 行：通过 58、拒绝 100**（2026-09-24 按实际行数重数；`terminated_by_agent` 移出 `PlaceholderReason` 让第 13 节一行由通过翻为拒绝）。第 3 节的相等用例表与第 14 节不在其内。
 第 7 节的编号从 `b35` 跳到 `b37`：`b36` 这个位置的实例（图块写 `image/png`、引用写 `video/mp4`）同时违反两条，
 不合「每行只违反一条」，放在第 12 节作 `p5`。

@@ -8,10 +8,10 @@
 三份能力契约都读写这些形状，**引用它的 `$defs` 名，不各自复述一份**。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.asset-model, 1)`
-- **状态**：`candidate`——未接受、未冻结，不得据此发布或声称消费者已采用
+- **状态**：`candidate`——未接受、未冻结，不得据此发布或声称消费者已采用；2026-09-24 按独立评审第一轮原地修订（[处置表](verification.md#独立评审)）
 - **catalog 映射**：已登记为 `candidate`（`acceptance` 为 `null`）。`family=data`、`topic=asset-model`、
   `contract_path=spec/data/asset-model/v1/contract.md`，`resources` 另含 `v1/asset-model.schema.json` 与 `v1/examples.md`；
-  依赖三项：`data.identity-values` v1（`S-3`、`S-5`、`S-6`、`S-8`、`S-11`、`S-12`、`S-16`、`S-22`、`S-31`、`S-34`）、`data.offer-expiry` v1（`S-22`）、`data.content-blocks` v1（`S-20`）。
+  依赖三项：`data.identity-values` v1（`S-3`、`S-5`、`S-6`、`S-8`、`S-11`、`S-12`、`S-16`、`S-22`、`S-31`、`S-33`、`S-34`）、`data.offer-expiry` v1（`S-22`）、`data.content-blocks` v1（`S-20`）。
   **六份正文契约不登为依赖**：壳 `$ref` 它们是结构上的前提，它们反过来消费本契约（catalog 须无环）。
   **登记在 [registry](../../../registry/README.md)，本行只作索引**
 - **提供者/装配映射**：尚无
@@ -37,7 +37,7 @@
 | 一个值长什么样、什么会被拒、拒绝值叫什么 | [v1 正反实例](v1/examples.md) |
 | 一个值有好几处不对，报哪个拒绝值 | [S-27 表示层拒绝值](v1/contract.md#s-27-表示层拒绝值)与[实例第 13 节](v1/examples.md#13-几处违例同时出现时取哪个拒绝值) |
 | 我是正文契约，推出属性项要守什么 | [S-12](v1/contract.md#s-12-属性声明由正文推出)、[S-13](v1/contract.md#s-13-设置项类别)、[S-15](v1/contract.md#s-15-disabled-是保留项名)、[S-36](v1/contract.md#s-36-usableby-是保留项名)、[S-23](v1/contract.md#s-23-凭据引用) |
-| 哪里在等裁决 | [已知缺口](v1/contract.md#八已知缺口)——**G-6（Agent Definition 的正文）与 G-9（plugin 的正文）**；2026-09-23 那批主线裁定待产品负责人确认（G-13） |
+| 哪里在等裁决 | [已知缺口](v1/contract.md#八已知缺口)——**G-6（Agent Definition 的正文）、G-9（plugin 的正文）与 G-15（Connector 的 `install` 与 `usableBy`）**；主线裁定的依据在 D-040（G-13 已闭合） |
 | 哪些条款有怎样的证据义务，现在到哪一步 | [验证与覆盖](verification.md) |
 
 ## 版本包
