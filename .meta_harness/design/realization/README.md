@@ -137,7 +137,7 @@ governance-center-entry 的设计由 [D-028](../record/decisions/governance-cent
 | [`packages/core/offer-expiry`](packages/core/offer-expiry/README.md)                             | `data.offer-expiry` v1                                                                  | 纯模块：`OfferTiming`、派生状态纯求值、`Clock` 形状；`now` 不后退由 `infra/clock` 兑现                                                                                                                                                                |
 | [`packages/tenancy/account-identity`](packages/tenancy/account-identity/README.md)               | `capability.account-identity` v1（accepted，D-023）与 v2（accepted，D-028，2026-09-23） | 插件，两个服务面；提供 S-15，`credentials` 作可选依赖调用时解析；留存期限在产生时定死。**v2 段**：出示物（32 字节随机、base64url）与 `LoginStateId = SHA-256(出示物)` 分离、`logins.exchange`、参数按是否指认调用方分品牌类型与 `unknown`；按 v2 实现 |
 | [`packages/tenancy/credential-verification`](packages/tenancy/credential-verification/README.md) | 同上契约的凭据形式那一半                                                                | 插件，可整体替换；本版只有密码方案                                                                                                                                                                                                                    |
-| [`packages/tenancy/organization-governance`](packages/tenancy/organization-governance/README.md) | `capability.organization-governance` v1                                                 | 插件，四个服务面（S-53 单列一个只给清除链）；跨 owner「同一提交」靠账号行上的过期事实加组织行对账号行的引用约束，无进程内锁                                                                                                                           |
+| [`packages/tenancy/organization-governance`](packages/tenancy/organization-governance/README.md) | `capability.organization-governance` v1                                                 | 插件，四个服务面（S-53 单列一个只给清除链）；跨 owner「同一提交」靠账号行上的过期事实加组织行对账号行的引用约束，无进程内锁。**2026-09-25 按 v2（candidate）修订、尚未实现**：两个时刻、v2 读面另起服务名、存量记录不补时刻、给资产提供者的事务内读入口与三项外部依赖 |
 | [`packages/tenancy/account-registration`](packages/tenancy/account-registration/README.md)       | `composition.account-registration` v1                                                   | 薄插件，无事实；两条动作链，签发激活依据；清扫提供者因缺枚举读面本版建不起来                                                                                                                                                                          |
 | [`packages/tenancy/governance-center-entry`](packages/tenancy/governance-center-entry/README.md) | `composition.governance-center-entry` v1（accepted，D-028）                             | 2026-09-23 首稿：两个插件都不 provide、同起同停——入口层（封闭路由表、判定次序、读或铸中心标识、路由上不提交）与运维面（本机套接字上只答完整体检）；认领契约 G-10（传输绑定）、G-11（防冒充）                                                          |
 | [`packages/core/kernel-basis`](packages/core/kernel-basis/README.md)                             | 无契约条款（D-025、basis 准入）                                                         | 纯模块：Cordis 4.0.4 的 8 条 probe、`definePlugin`／`Outcome`／`FIBER_STATE`、测试装配 `bootAssembly`                                                                                                                                                 |
@@ -146,6 +146,47 @@ governance-center-entry 的设计由 [D-028](../record/decisions/governance-cent
 | [`packages/infra/clock`](packages/infra/clock/README.md)                                         | offer-expiry S-16 形状／S-17「`now` 不后退」的承接                                      | 插件 `clock`：写在前的租约。**2026-09-23 修订**：`now()` 每次现读墙钟并与最晚已用时刻比对（运行中回拨与启动窗口同一规则）、`clockPreflight` 导出                                                                                                      |
 
 `tenancy` 是租户领域这个限界上下文的名字，产品负责人 2026-09-22 拍板（[D-024](../record/decisions/tenancy-domain-name/README.md)）。六个节点共用的上游主张（可选 inject、`ctx.provide` 纳管、插件体抛出后的 fiber 状态）已由 [basis](../basis/README.md) 条目或 kernel-basis 的 probe 在 4.0.4 上取证；对存储提供者的要求清单各记在节点里。
+
+**2026-09-25 资产领域（`assets`，[D-039](../record/decisions/assets-runtimes-split-and-rulings/README.md) 拍板）**——节点状态 `candidate`，所兑现的契约 `candidate`、待 [D-041](../record/decisions/assets-runtimes-contract-acceptance/README.md)，**尚未建包**：
+
+| 节点 | 兑现的契约 | 形态 |
+| --- | --- | --- |
+| [`packages/assets/asset-governance`](packages/assets/asset-governance/README.md) | `capability.asset-governance` v1、`capability.asset-transfer` v1 | 中心一个插件、一条 fiber、四个服务面（资产、持有、流转、快照；快照面无契约条款）；由 `apps/tenancy-host` 装配、据点不 import；跨 owner「同一提交」落在组织治理的隶属哨兵、组织行与它导出的事务内读函数上 |
+
+**2026-09-25 工具领域（`tools`，[D-039](../record/decisions/assets-runtimes-split-and-rulings/README.md) 拍板，取候选 C）**——节点状态 `candidate`，所兑现的契约 `candidate`、待 D-041，**尚未建包**。`capability.tool-admission` v1 本批无提供者（runner 以全拒件顶上）：
+
+| 节点 | 兑现的契约 | 形态 |
+| --- | --- | --- |
+| [`packages/tools/tool-execution-runtime`](packages/tools/tool-execution-runtime/README.md) | `capability.tool-execution-runtime` v1 | 一个插件、一条 fiber，只 inject 存储与时钟；执行是一个 effect 持有的活体表项（不开子 fiber）；同会话写由存储哨兵序列化；送达走发件箱、共同对象是会话日志的幂等键（提供者尚无）；9 条形式绑定（契约模型） |
+| [`packages/tools/asset-registry`](packages/tools/asset-registry/README.md) | `capability.asset-registry` v1 | 一个插件，必需 inject 装配清单与时钟、不 inject 存储；求值纯 import；缓存每次对清单头校验、换表靠清单条件追加定序；装配清单无提供者，本批整体 `PENDING` |
+| [`packages/tools/mcp-bridge`](packages/tools/mcp-bridge/README.md) | `capability.mcp-bridge` v1 | 官方 SDK 上的薄桥（D-037）：桥本体（inject 存储、时钟，连接表在一个 effect 里）＋ 零状态的执行者贡献插件；OAuth 完成的「同一提交」落在绑定行状态列与保管方凭据行的引用约束上（保管方尚无节点） |
+
+**2026-09-25 本程的六个 `core` 纯模块**（都不是插件）——节点状态 `candidate`，所兑现的契约 `candidate`、待 [D-041](../record/decisions/assets-runtimes-contract-acceptance/README.md) 接受；源码都**尚未建包**。
+其中四个数据契约节点按现划分在包级别成环、建不出来，划分待主线定（[message-model 缺口 MSG-1](packages/core/message-model/design.md#包级依赖成环)）：
+
+| 节点 | 兑现的契约 | 形态 |
+| --- | --- | --- |
+| [`packages/core/asset-model`](packages/core/asset-model/README.md) | `data.asset-model` v1 | 纯模块：资产形状、名字词法与规范串、表示层校验（正文判定经端口注入，不 import 正文契约）、工作区提供的资产的记录号导法 |
+| [`packages/core/asset-evaluation`](packages/core/asset-evaluation/README.md) | `capability.asset-evaluation` v1 | 纯计算：四步求值与清单读入；`evaluate` 在契约 G-3 闭合前没有合规的返回 |
+| [`packages/core/message-model`](packages/core/message-model/README.md) | `data.content-blocks`、`data.messages`、`data.call-accounts`、`data.arrival-events` v1 | 纯模块：块、消息、账、到达事件的形状与表示层校验；此刻模型可读、合法名单、有效费用与汇总、归约；金额与不透明数据的无损读写 |
+| [`packages/core/tool-model`](packages/core/tool-model/README.md) | `data.tool-definition`、`data.loop-extension`、`data.skill-package`、`data.slash-command`、`data.mcp-endpoint`、`data.connector` v1 | 纯模块：六类正文的形状与校验、模型面条目与名字转写、参数判定、`SKILL.md` 读法、斜杠命令识别与解析、推出规则与 asset-model 正文端口的实现 |
+| [`packages/core/model-model`](packages/core/model-model/README.md) | `data.model-profile`、`data.model-response` v1 | 纯模块：档案、引用、参数词表、响应体的形状与校验；几处副本定义的对齐测试 |
+| [`packages/core/stream-assembly`](packages/core/stream-assembly/README.md) | `capability.stream-assembly` v1 | 纯计算的装配状态机（状态是持久结构的值），模型请求运行时与工具执行运行时两个宿主 import；绑定 2 条（formal task，证的是模型） |
+
+**2026-09-25 模型领域（`model`，[D-039](../record/decisions/assets-runtimes-split-and-rulings/README.md) 拍板，取 P1-A／P2-A／P3-A）**——节点状态 `candidate`，所兑现的契约 `candidate`、待 D-041，**尚未建包**。会话日志、装配清单读面、凭据保管方三处上游没有提供者：
+
+| 节点 | 兑现的契约 | 形态 |
+| --- | --- | --- |
+| [`packages/model/model-profile-directory`](packages/model/model-profile-directory/README.md) | `capability.model-profile-directory` v1 | 中心插件 P-1（三个服务键，取值问法单列），inject 存储、时钟、成员关系；另有只读副本插件 P-1r，待入口 v2 |
+| [`packages/model/model-request-runtime`](packages/model/model-request-runtime/README.md) | `capability.model-request-runtime` v1 | 插件 P-2（inject 目录读面、凭据问法、会话日志、存储、时钟；在途表与连接池一个 effect）＋ 自带重试挂件 P-5；传输按 D-019 fork；绑定 6 条（formal task） |
+| [`packages/model/modality-projection`](packages/model/modality-projection/README.md) | `capability.modality-projection` v1 | 纯计算＋转换器登记插件 P-3、声明插件、各转换器插件 P-4*；不 inject 存储；模态转换这一件缺 `tenant`（MP-N1） |
+
+**2026-09-25 loop 侧（`agent-loop`，D-039 拍板）**——节点状态 `candidate`，所兑现的契约 `candidate`、待 D-041，**尚未建包**；runner 的行为模型未建（契约 G-14），两个节点都没有绑定：
+
+| 节点 | 兑现的契约 | 形态 |
+| --- | --- | --- |
+| [`packages/agent-loop/loop-extension-runner`](packages/agent-loop/loop-extension-runner/README.md) | `capability.loop-extension-runner` v1 | 一个插件，只 inject 会话日志；实现经贡献者登记在场，runner 从不 inject 贡献者；放行判断经 `toolAdmission`（本批全拒） |
+| [`packages/agent-loop/hooks-import`](packages/agent-loop/hooks-import/README.md) | `capability.hooks-import` v1 | 导入是包导出的纯函数；兼容插件向 runner 登记一个命令执行器；D-033 fork 边界；会话级执行环境无提供者，兼容件一律「起不来」 |
 
 ## 当前状态
 
@@ -156,7 +197,8 @@ governance-center-entry 的设计由 [D-028](../record/decisions/governance-cent
 [`packages/tenancy/governance-center-entry`](packages/tenancy/governance-center-entry/README.md)（`implemented`），由 `apps/tenancy-host` 装配；`apps/cli` 两条跨应用边的对端已指向它们。
 [`apps/tenancy-host/`](apps/tenancy-host/README.md)（名字由 [D-027](../record/decisions/infrastructure-names-and-sqlite-durability/README.md) 拍板）是租户领域的采用型装配节点（2026-09-22），状态 `assembled`（源码修订 HUB `c9b5850`）：
 存储（迁移合成与真实外键）、时钟与密钥；2026-09-23 随 PF-017 与入口契约补入口层与运维面的装配、升级整体性（迁移前只读核对、快照与确认），设计随 D-028 接受；
-本节点测试在运行 `2026-09-23-tests-tenancy-leg-2` 里通过（sqlite 下全过，pg 16 上 pg 用例 11／11），逐条覆盖与绑定待 verification 回填。`apps/cli` 的绑定仍为 0：客户端代理与源码都不存在。
+本节点测试在运行 `2026-09-23-tests-tenancy-leg-2` 里通过（sqlite 下全过，pg 16 上 pg 用例 11／11），逐条覆盖与绑定待 verification 回填。
+**2026-09-25 修订（候选，尚未实现）**：再装资产提供者与模型档案目录的中心插件 P-1、组织治理按 v2 采用；迁移末尾追加三组片段，官方件与官方档案清单随应用发布、启动时交进插件；中心各面本版对外不可达（入口契约 v2 未出）。`apps/cli` 的绑定仍为 0：客户端代理与源码都不存在。
 
 判断方法按需读 `harness-design-handbook` skill 的「插件投影」。
 返回[设计链入口](../README.md)。
