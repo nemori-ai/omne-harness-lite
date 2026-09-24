@@ -106,7 +106,7 @@
 > ones. Not a new concept, merely a word to set against "personal organization".
 
 - **形态**：变体（父：[组织](#ul-organization--组织--organization)）
-- **出处**：[PF-003 §4 承接](../../product/PF-003-asset-transfer-and-sharing/design.md#承接-pf-001-与-pf-002)（rev 4）
+- **出处**：[PF-003 §4 承接](../../product/PF-003-asset-transfer-and-sharing/design.md#承接-pf-001-与-pf-002)（rev 5）
 
 ### UL-parent-organization · 上级组织 · Parent Organization
 
@@ -140,7 +140,7 @@
 > root); that tree **is exactly the boundary** within which assets may circulate.
 
 - **形态**：视图
-- **出处**：[PF-001 §4 组织](../../product/PF-001-identity-scope-and-agent-constraints/design.md#组织)（rev 17） · [PF-003 §5.2](../../product/PF-003-asset-transfer-and-sharing/design.md#52-边界是那棵隶属树不是单个组织)（rev 4）
+- **出处**：[PF-001 §4 组织](../../product/PF-001-identity-scope-and-agent-constraints/design.md#组织)（rev 17） · [PF-003 §5.2](../../product/PF-003-asset-transfer-and-sharing/design.md#52-边界是那棵隶属树不是单个组织)（rev 5）
 - **别混**：**「有共同上级」不是「两条不含自己的链有交集」。**照那种读法，[一个组织与它自己的上级会被判成没有共同上级](../../product/PF-001-identity-scope-and-agent-constraints/design.md#组织)，而它们分明在同一棵树上——团队与它所属的公司反倒成了出树。**必须先把各自算进自己的链**
 - **注意**：个人组织的上级链恒为空，把它自己算进来也只有它一个，所以**任何两个个人组织都不会有共同上级**——不是把门放宽了，**是那把尺子量不到它们**
 
@@ -151,7 +151,7 @@
 > 而发出时发起者可以指定这一份的**；**它指向的那个东西不存在了，它随即自动过期**。三种收场**完全相同**：
 > **什么都没建立**，要它成立只能重新发一份。**当前恰有四样**：
 > [邀请](#ul-invitation--邀请--invitation)、[隶属请求](#ul-affiliation-request--隶属请求--affiliation-request)、
-> 待确认的复制通知、待确认的分享邀请。
+> [复制通知](circulation-and-entitlement.md#ul-copy-notice--复制通知--copy-notice)、[分享邀请](circulation-and-entitlement.md#ul-sharing-invitation--分享邀请--sharing-invitation)。
 >
 > **EN**: The collective name for **things that take effect only once the other side says yes**.
 > Once issued it hangs pending, and **acceptance is what makes it count**; while pending it may
@@ -163,16 +163,14 @@
 > pending sharing invitation.
 
 - **形态**：总称
-- **出处**：[PF-001 §4 两种邀约都会过期](../../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期)（rev 17） · [PF-003 §6.14 待确认的复制通知与分享邀请会过期](../../product/PF-003-asset-transfer-and-sharing/design.md#614-待确认的复制通知与分享邀请会过期)（rev 4）
-- **⚠️ 别混**：**这四样不是同一类东西，也不共享一套身份机制。**[邀请](#ul-invitation--邀请--invitation)与[隶属请求](#ul-affiliation-request--隶属请求--affiliation-request)**各是一个对象**；
-  另两样**不是对象**——它们是[资产复制](circulation-and-entitlement.md#ul-asset-copy--资产复制--asset-copy)与[资产分享](circulation-and-entitlement.md#ul-asset-sharing--资产分享--asset-sharing)**各自状态机上的「待确认」那一态**，
-  [PF-003 已裁决不另立概念](../../product/PF-003-asset-transfer-and-sharing/decisions.md#二pm-推导)。
-  **这个词只用来归类，不给这四样一套共同的身份、存储或状态机**
+- **出处**：[PF-001 §4 两种邀约都会过期](../../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期)（rev 17） · [PF-003 §6.14 待确认的复制通知与分享邀请会过期](../../product/PF-003-asset-transfer-and-sharing/design.md#614-待确认的复制通知与分享邀请会过期)（rev 5）
+- **⚠️ 别混**：**这四样不是同一类东西，也不共享一套身份机制。**四样**各是一个对象**——[邀请](#ul-invitation--邀请--invitation)、[隶属请求](#ul-affiliation-request--隶属请求--affiliation-request)、
+  [复制通知](circulation-and-entitlement.md#ul-copy-notice--复制通知--copy-notice)、[分享邀请](circulation-and-entitlement.md#ul-sharing-invitation--分享邀请--sharing-invitation)各有词条与条目，
+  关系主体与接受后建立的东西各不相同。**这个词只用来归类，不给这四样一套共同的身份、存储或状态机**
 - **注意 ①**：**它自身不会有实例**——指得到的永远是那四样里的某一份
 - **注意 ②**：**过期那条规则是同一条裁决的两半**——[PF-001 这一半](../../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期)管邀请与隶属请求，[PF-003 那一半](../../product/PF-003-asset-transfer-and-sharing/design.md#614-待确认的复制通知与分享邀请会过期)管复制通知与分享邀请，**两处口径一致**
 - **注意 ③**：**「已经接受了的」不在这个词的论域里**——[确认之后的使用权没有到期](circulation-and-entitlement.md#ul-usage-right--使用权--usage-right)，[接受产生的租户](#ul-tenant--租户--tenant)也不会过期
-- **待裁决**：**复制通知与分享邀请「不是对象」这一判，PF-003 自己前后说法不一**——flows §3.4 已经逐份指名它们（「重新发起的是一份新的邀约，不是旧的复活」）。
-  登记在[领域对象待裁](../../domain_objects/pending.md#待确认的复制通知与分享邀请)，由 PF-003 的 owner 裁；**下游要用到它们的身份之前，先让这一项闭合**
+- **注意 ④**：**本人型的[资产复制](circulation-and-entitlement.md#ul-asset-copy--资产复制--asset-copy)与[资产分享](circulation-and-entitlement.md#ul-asset-sharing--资产分享--asset-sharing)不产生邀约**——两侧都是同一个人，发起即生效，没有要等的另一方
 
 ### UL-invitation · 邀请 · Invitation
 

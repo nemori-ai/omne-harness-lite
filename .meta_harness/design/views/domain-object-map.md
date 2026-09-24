@@ -7,7 +7,7 @@
 - 生成时间：2026-09-24
 - 生成：`python tooling/src/domain_objects.py --root design --write`
 
-对象 **38** 个，变体 **24** 个，形态未定的词条 **0** 个，待裁 **10** 项。
+对象 **41** 个，变体 **24** 个，形态未定的词条 **0** 个，待裁 **8** 项。
 
 **按统一语言的分卷排**——分卷「按它回答什么问题」，是全链里唯一不随对象重新分解而搬家的维度。这不是能力边界，也不是限界上下文；那是系统架构设计的事。
 
@@ -29,7 +29,15 @@
 | [资产](../domain_objects/objects.md#ul-asset--资产) | [UL-asset](../ubiquitous_language/terms/capabilities-and-composition.md#ul-asset--资产--asset) | — | 技能、工具、MCP、连接件、拓展件、模态转换件、斜杠命令、插件、Agent 定义、官方件、自定义件 | PF-002 | 001 |
 | [资产版本](../domain_objects/objects.md#ul-asset-version--资产版本) | [UL-asset-version](../ubiquitous_language/terms/capabilities-and-composition.md#ul-asset-version--资产版本--asset-version) | [资产](../domain_objects/objects.md#ul-asset--资产)——每一份资产有自己独立的一条版本线 | — | PF-002 | 003 |
 | [meta 能力](../domain_objects/objects.md#ul-meta-capability--meta-能力) | [UL-meta-capability](../ubiquitous_language/terms/capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability) | 正文未述。只说每个 agent 装配起来之后，十三个各恒定占一个常驻槽位 | — | PF-007 | 002 |
-| [模型档案](../domain_objects/objects.md#ul-model-profile--模型档案) | [UL-model-profile](../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-profile--模型档案--model-profile) | —。建在组织或租户自己那一层；它不是资产，「用哪个模型」那项设置的取值是对它的引用 | 官方档案、自建档案 | PF-013 | — |
+| [模型档案](../domain_objects/objects.md#ul-model-profile--模型档案) | [UL-model-profile](../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-profile--模型档案--model-profile) | —。建在出厂默认、组织或租户自己那一层；它不是资产，「用哪个模型」那项设置的取值是对它的引用（引用的是下面那一对） | 官方档案、自建档案 | PF-013 | — |
+
+## 流转与授权
+
+| 对象 | 词条 | 宿主 | 变体 | 依据所在 | 还有谁在讲 |
+|---|---|---|---|---|---|
+| [复制通知](../domain_objects/objects.md#ul-copy-notice--复制通知) | [UL-copy-notice](../ubiquitous_language/terms/circulation-and-entitlement.md#ul-copy-notice--复制通知--copy-notice) | 正文未述。由源组织的超级管理员发起、指向目标组织；它指向的那份资产不存在了它随即过期，但正文没说它的寿命跟着哪一头的组织走 | — | PF-003 | — |
+| [分享邀请](../domain_objects/objects.md#ul-sharing-invitation--分享邀请) | [UL-sharing-invitation](../ubiquitous_language/terms/circulation-and-entitlement.md#ul-sharing-invitation--分享邀请--sharing-invitation) | 正文未述。由分享方发起、指向接收方（一个组织，或一个租户）；它指向的那份资产不存在了它随即过期 | — | PF-003 | — |
+| [分享关系](../domain_objects/objects.md#ul-sharing-relationship--分享关系) | [UL-sharing-relationship](../ubiquitous_language/terms/circulation-and-entitlement.md#ul-sharing-relationship--分享关系--sharing-relationship) | 正文未述。它建立在某层关系上——两个组织的隶属关系，或任一方作为租户的成员关系——那层关系断了它就结束，但正文没说它寄宿于分享方还是接收方 | — | PF-003 | — |
 
 ## 执行与收场
 
@@ -130,12 +138,10 @@
 | [agent 之间的消息](../domain_objects/pending.md#agent-之间的消息) | PF-007 与 PF-014 的 owner |
 | [外部 harness 的 agent](../domain_objects/pending.md#外部-harness-的-agent) | PF-007 的 owner |
 | [使用成本明细](../domain_objects/pending.md#使用成本明细) | 产品负责人——「观测与计量」这一块还没有 topic |
-| [待确认的复制通知与分享邀请](../domain_objects/pending.md#待确认的复制通知与分享邀请) | PF-003 的 owner；已记入该 topic decisions「已知的来源问题」 |
-| [一段分享关系](../domain_objects/pending.md#一段分享关系) | PF-003 的 owner，涉及「隶属解除后再隶属算不算恢复」时上交产品负责人；已记入该 topic decisions「已知的来源问题」 |
 | [压缩策略](../domain_objects/pending.md#压缩策略) | PF-010 与 PF-015 的 owner |
 
 ### 没有任何产品正文链接到的对象词条
 
 产品正文提到它却没有链到词条，「还有谁在讲」那一列就是空的——这一列的空，多半是链接稀疏，不是没人讲。
 
-装配清单、资产、资产版本、模型档案、被卸载的原始结果、执行环境、沙箱实现、无状态沙箱、租户级沙箱、沙箱数据、派发报告、决策卡片、会话授权上下文、记录条目、待办条目、账号、登录状态、邀请、隶属请求。
+装配清单、资产、资产版本、模型档案、复制通知、分享邀请、分享关系、被卸载的原始结果、执行环境、沙箱实现、无状态沙箱、租户级沙箱、沙箱数据、派发报告、决策卡片、会话授权上下文、记录条目、待办条目、账号、登录状态、邀请、隶属请求。

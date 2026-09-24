@@ -24,29 +24,41 @@
 ### UL-tool-definition · 工具定义 · Tool Definition
 
 > **中**：**一个[工具](capabilities-and-composition.md#ul-tool--工具--tool)在数据与治理层面的
-> 身份与表示**——叫什么、收什么参数、返回什么，以及它的可选声明（能不能后台、需要什么设施等）；
+> 身份与表示**——叫什么、干什么的说明、收什么参数（每个参数各带说明）、返回什么，以及它的可选声明（能不能后台、需要什么设施等）；
+> **工具说明与每个参数的说明必填**，缺了就不是一份完整的定义。
 > 其中**目标环境与转后台阈值两项声明的是[设置项](capabilities-and-composition.md#ul-setting--设置--setting)的形状与默认值**，各层配值；
 > 声明之外，**前台上限与并发上限两项偏好类设置的默认值也由它给**。
+> **多命令工具在模型面前只有一种样子——一份一行一命令的紧凑命令清单**：每个命令那一行说明必填；
+> 作者带不带各命令的完整参数由他定，带了只供系统校验与 `inspect`/`help` 答用法，**不进模型面前**。
 > **它可以自带实现，直到自带一份完整的实现 package**。
 > **它是数据，长期存在**，谁持有它就归谁。
 >
 > **EN**: **A tool's identity and representation at the data and governance level** — its
-> name, the arguments it takes, what it returns, plus its optional declarations (whether it
-> may run in the background, which facilities it needs, and so on); of these, **target
+> name, a description of what it does, the arguments it takes (each with its own description),
+> what it returns, plus its optional declarations (whether it may run in the background, which
+> facilities it needs, and so on); **the tool description and every argument's description are
+> required** — without them the definition is incomplete. Of the declarations, **target
 > environment and the background-conversion threshold declare the shape and default of a
 > setting entry**, whose values the layers assign; beyond the declarations, **it also gives
 > the defaults of two preference settings, the foreground limit and the concurrency limit**.
+> **A multi-command tool has exactly one shape in front of the model — a compact one-line-per-command
+> list**: each command's line of description is required; whether the author includes each command's
+> full arguments is the author's call, and if included they serve only validation and `inspect`/`help`,
+> **never reaching the model**.
 > **It may carry its own implementation, up to a complete implementation package**. **It is
 > data and long-lived**, belonging to whoever holds it.
 
 - **形态**：属性
-- **出处**：[PF-006 §5.2](../../product/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同) · [§5.3](../../product/PF-006-tools-and-skills/design.md#53-一份工具定义长什么样)（rev 18） · [PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 17）
+- **出处**：[PF-006 §5.2](../../product/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同) · [§5.3](../../product/PF-006-tools-and-skills/design.md#53-一份工具定义长什么样) ·
+  [工具说明与每个参数的说明，必填](../../product/PF-006-tools-and-skills/design.md#工具说明与每个参数的说明必填) ·
+  [多命令工具的定义里带多少](../../product/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡)（rev 19） · [PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 19）
 - **别混**：与[工具](capabilities-and-composition.md#ul-tool--工具--tool)不是一回事——
   工具是那一类资产，**工具定义是它在数据与治理层面的那一份表示**；
   **同一个身份下可以有平台、组织、租户各自的一份**
-- **注意**：**有三样刻意不在定义里**——[等待态](#ul-tool-wait-state--工具等待态--tool-wait-state)、[发帧](#ul-frame-emission--发帧--frame-emission)，
+- **注意 ①**：**有三样刻意不在定义里**——[等待态](#ul-tool-wait-state--工具等待态--tool-wait-state)、[发帧](#ul-frame-emission--发帧--frame-emission)，
   以及[这一次的结果要不要卸载](#ul-result-offloading--结果卸载--result-offloading)。
   **三样都取决于这一次跑成什么样**，而定义里写的是这个工具跟参数无关的固有属性
+- **注意 ②**：**两种写法的多命令工具在模型面前一模一样**——agent 对不熟的命令动手前仍要先经 `Tools().inspect` 或 `help` 问一次详细用法
 
 ### UL-tool-execution · 工具执行 · Tool Execution
 
@@ -64,7 +76,7 @@
 > and the new coroutine resumes waiting.
 
 - **形态**：对象
-- **出处**：[PF-006 §4 Tool Execution](../../product/PF-006-tools-and-skills/design.md#tool-execution)（rev 18） · [§5.2](../../product/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同)（rev 18） · [§6.5](../../product/PF-006-tools-and-skills/design.md#65-工具执行有自己的运行时绑定在-session-上)（rev 18）
+- **出处**：[PF-006 §4 Tool Execution](../../product/PF-006-tools-and-skills/design.md#tool-execution)（rev 19） · [§5.2](../../product/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同)（rev 19） · [§6.5](../../product/PF-006-tools-and-skills/design.md#65-工具执行有自己的运行时绑定在-session-上)（rev 19）
 - **注意 ①**：**是哪次运行、哪个 agent runtime 发起的，都记得下来，但都不绑生命周期**；取消一次运行时前台的落「被中断」、原因「运行被取消」，是因为那一步不要了
 - **注意 ②**：**[会话被归档](../../product/PF-015-session-lifecycle-and-ownership/design.md#63-归档先停活儿再落状态)时仍未结束的，不论前后台，收场都是[被中断](#ul-execution-outcome--执行收场--execution-outcome)**——
   收件人都没了；**这一刀不可逆**，撤销归档不会把它接回来
@@ -84,7 +96,7 @@
 > values. It is **a dimension separate from the wait state** — all four combinations are possible.
 
 - **形态**：状态
-- **出处**：[PF-006 §6.6](../../product/PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)（rev 18）
+- **出处**：[PF-006 §6.6](../../product/PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)（rev 19）
 - **注意 ①**：**默认往保守的那一边倒**——**没表过态，不等于表了同意**
 - **注意 ②**：**「发起时就在后台」与「中途转后台」的决定权不同**——
   前者[由 agent 自己定](../../product/PF-007-meta-capabilities/design.md#64-shell通向命令行)，前台那一次调用当场以转后台收场，**不算一次「转」**；
@@ -108,8 +120,8 @@
 > limit**.
 
 - **形态**：属性
-- **出处**：[PF-006 §6.6 前台上限与并发上限](../../product/PF-006-tools-and-skills/design.md#前台上限与并发上限)（rev 18） ·
-  [PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 17）
+- **出处**：[PF-006 §6.6 前台上限与并发上限](../../product/PF-006-tools-and-skills/design.md#前台上限与并发上限)（rev 19） ·
+  [PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 19）
 - **别混**：**不是「前台跑多久自动转后台」那一项**——那是允许后台的工具[另一项偏好设置](../../product/PF-006-tools-and-skills/design.md#其中两项声明的是设置项)；前台上限对不许后台的工具同样起作用，到点被中断
 - **注意**：**等人的时间不算，是有意的**——[`Ask()`](../../product/PF-007-meta-capabilities/design.md#611-ask通向人) 停在前台等人永不过期，把等人算进来，它就成了一个替人签字的到点
 
@@ -124,8 +136,8 @@
 > holding layer may change it; **left unset, there is no such limit**.
 
 - **形态**：属性
-- **出处**：[PF-006 §6.6 前台上限与并发上限](../../product/PF-006-tools-and-skills/design.md#前台上限与并发上限)（rev 18） ·
-  [PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 17）
+- **出处**：[PF-006 §6.6 前台上限与并发上限](../../product/PF-006-tools-and-skills/design.md#前台上限与并发上限)（rev 19） ·
+  [PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 19）
 - **别混**：**裸写「并发上限」不作数**——它只数同一个会话里的同一个工具，不是会话、租户或整个系统的并发
 
 ### UL-model-call · 一次模型调用 · Model Call
@@ -142,10 +154,10 @@
 > that belongs to no run are model calls too**, under the same rules.
 
 - **形态**：对象
-- **出处**：[PF-013 flows §3.2 一次模型调用](../../product/PF-013-model-profiles-and-invocation/flows.md#32-一次模型调用)（rev 9） ·
-  [PF-013 §5.13](../../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)（rev 9） ·
+- **出处**：[PF-013 flows §3.2 一次模型调用](../../product/PF-013-model-profiles-and-invocation/flows.md#32-一次模型调用)（rev 11） ·
+  [PF-013 §5.13](../../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)（rev 11） ·
   [PF-011 §5.3](../../product/PF-011-off-nominal-handling/design.md#53-层的顺序不是排出来的是推出来的)（rev 4） ·
-  [PF-012 §5.4](../../product/PF-012-agent-loop-and-run/design.md#54-一步的骨架)（rev 11）
+  [PF-012 §5.4](../../product/PF-012-agent-loop-and-run/design.md#54-一步的骨架)（rev 13）
 - **别混**：**不是那次请求的内容**——请求体怎么攒出来归 [PF-010](../../product/PF-010-context-management-and-assembly/README.md)；
   **也不是回复怎么流式拼起来**，那归 [PF-009](../../product/PF-009-context-message-types/README.md)
 - **注意**：**这一层归 [PF-013](../../product/PF-013-model-profiles-and-invocation/README.md)**——
@@ -176,7 +188,7 @@
 - **形态**：过程
 - **出处**：[PF-013 §5.5 试过又失败的那几次，留痕，不进方程](../../product/PF-013-model-profiles-and-invocation/design.md#试过又失败的那几次留痕不进方程) ·
   [§5.12 系统自带一件默认的](../../product/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试) ·
-  [§5.13 停机之后](../../product/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)（rev 9）
+  [§5.13 停机之后](../../product/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)（rev 11）
 - **别混 ①**：**不是一次模型调用**——调用有头有尾、有三个终态；发出是调用里的一次尝试
 - **别混 ②**：**不是[执行尝试](agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)**——那是一次运行里第几次起 agent runtime
 - **注意 ①**：**[首 token](#ul-first-token--首-token--first-token) 之后不再有第二次发出**——「说话中」不回「在途」
@@ -199,7 +211,7 @@
 
 - **形态**：规则
 - **出处**：[PF-013 §5.4「已经开口说话了」优先于其余各类](../../product/PF-013-model-profiles-and-invocation/design.md#已经开口说话了优先于其余各类) ·
-  [§5.13 停机之后](../../product/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)（rev 9） ·
+  [§5.13 停机之后](../../product/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)（rev 11） ·
   [PF-009 §9.2](../../product/PF-009-context-message-types/design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息)（rev 8）
 - **注意 ①**：**「已经开口」是账，不是在途**——它在第一份内容交到任何人眼前之前，就作为那次调用[账目](#ul-call-account--调用账目--call-account)里的一笔落进日志、带着开口的时刻；停机之后靠它判断
 - **注意 ②**：**判据挂在到达方式上，不挂在模态清单上**——将来多一种内容块，它归哪种到达方式，首 token 就落在哪个时刻
@@ -233,7 +245,7 @@
 > system knows it is waiting, and knows what shape it waits for.**
 
 - **形态**：状态
-- **出处**：[PF-006 §4 等待态](../../product/PF-006-tools-and-skills/design.md#等待态)（rev 18）
+- **出处**：[PF-006 §4 等待态](../../product/PF-006-tools-and-skills/design.md#等待态)（rev 19）
 - **⚠️ 别混**：**裸写「等待态」不作数。**它有两个所指——
   这一条挂在**一次工具执行**上，另一条
   [运行等待态](interaction-and-dispatch.md#ul-run-wait-state--运行等待态--run-wait-state)挂在**一个运行**上，
@@ -263,7 +275,7 @@
 > opened, how it is to be filled), **with nothing declared up front**.
 
 - **形态**：过程
-- **出处**：[PF-006 §4 发帧](../../product/PF-006-tools-and-skills/design.md#发帧)（rev 18） ·
+- **出处**：[PF-006 §4 发帧](../../product/PF-006-tools-and-skills/design.md#发帧)（rev 19） ·
   [PF-009 §5.8](../../product/PF-009-context-message-types/design.md#执行帧就是这条消息的到达增量)（rev 8）
 - **注意**：它补的是一个具体的窟窿——用户看着界面写着「正在调用某个工具」，**然后就没有下文了**：
   **它是卡住了，还是在正常地跑一件慢活，此前分不出来**
@@ -314,7 +326,7 @@
 > cannot see at all**.
 
 - **形态**：总称
-- **出处**：[PF-006 §4 工具的产出](../../product/PF-006-tools-and-skills/design.md#工具的产出)（rev 18）
+- **出处**：[PF-006 §4 工具的产出](../../product/PF-006-tools-and-skills/design.md#工具的产出)（rev 19）
 - **注意 ①**：前两部分要分，**是因为有些产出根本不适合进对话**——一张图、一个几十兆的文件。
   硬塞进去，**一条消息就把上下文吃光了**
 - **注意 ②**：**帧不顶替结果。**一个工具把过程播报得再细，**跑完照样要给结果**——
@@ -335,10 +347,10 @@
 > attempt, summed per run.
 
 - **形态**：属性
-- **出处**：[PF-006 §5.4 每一次执行都留一份账](../../product/PF-006-tools-and-skills/design.md#每一次执行都留一份账)（rev 18） ·
+- **出处**：[PF-006 §5.4 每一次执行都留一份账](../../product/PF-006-tools-and-skills/design.md#每一次执行都留一份账)（rev 19） ·
   [PF-009 §5.5](../../product/PF-009-context-message-types/design.md#到达的过程有它自己的语法)（rev 8） ·
-  [PF-012 成本两层](../../product/PF-012-agent-loop-and-run/design.md#成本两层缺哪一层都会算错)（rev 11） ·
-  [PF-013 §5.13](../../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)（rev 9） ·
+  [PF-012 成本两层](../../product/PF-012-agent-loop-and-run/design.md#成本两层缺哪一层都会算错)（rev 13） ·
+  [PF-013 §5.13](../../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)（rev 11） ·
   [PF-001 §6.4](../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)（rev 17）
 - **别混**：**不是[工具产出](#ul-tool-output--工具产出--tool-output)**——产出是给读者的东西，账是关于这次的事实
 - **注意**：工具内部调外部服务产生的费用也记在这里，一次执行可以有多笔
@@ -357,7 +369,7 @@
 > agent fetches it itself**.
 
 - **形态**：对象
-- **出处**：[PF-006 §4 工具的产出](../../product/PF-006-tools-and-skills/design.md#工具的产出)（rev 18）
+- **出处**：[PF-006 §4 工具的产出](../../product/PF-006-tools-and-skills/design.md#工具的产出)（rev 19）
 - **注意**：**产出带附件的工具需要[声明自己依赖的存储](reach-and-availability.md#ul-dependency-declaration--依赖声明--dependency-declaration)**，
   并且得有一个能从那个存储把它读出来的工具
 
@@ -376,7 +388,7 @@
 > doing**.
 
 - **形态**：过程
-- **出处**：[PF-006 §4 卸载](../../product/PF-006-tools-and-skills/design.md#卸载)（rev 18） · [§6.10](../../product/PF-006-tools-and-skills/design.md#610-结果太大时卸载而卸载是第三个维度)（rev 18）
+- **出处**：[PF-006 §4 卸载](../../product/PF-006-tools-and-skills/design.md#卸载)（rev 19） · [§6.10](../../product/PF-006-tools-and-skills/design.md#610-结果太大时卸载而卸载是第三个维度)（rev 19）
 - **别混**：**裸写「卸载」不作数**——那个词在别处指卸载插件、卸载软件
 - **⚠️ 注意**：**「换成」说的是相对于原始结果，不是在记录里替换。**
   [会话日志里从头到尾只有占位那一条](../../product/PF-012-agent-loop-and-run/design.md#510-卸载结果落成消息之前的那一关)——
@@ -399,9 +411,9 @@
 > than putting the original back where the placeholder sits.
 
 - **形态**：对象
-- **出处**：[PF-006 §4 卸载](../../product/PF-006-tools-and-skills/design.md#卸载)（rev 18） ·
-  [§6.10](../../product/PF-006-tools-and-skills/design.md#610-结果太大时卸载而卸载是第三个维度)（rev 18） ·
-  [PF-012 §5.10](../../product/PF-012-agent-loop-and-run/design.md#510-卸载结果落成消息之前的那一关)（rev 11）
+- **出处**：[PF-006 §4 卸载](../../product/PF-006-tools-and-skills/design.md#卸载)（rev 19） ·
+  [§6.10](../../product/PF-006-tools-and-skills/design.md#610-结果太大时卸载而卸载是第三个维度)（rev 19） ·
+  [PF-012 §5.10](../../product/PF-012-agent-loop-and-run/design.md#510-卸载结果落成消息之前的那一关)（rev 13）
 - **别混 ①**：**不是那条占位**——占位进了消息，带着够用的那部分、有多大、怎么取；
   **这一条是被留在外面的那份全的**
 - **别混 ②**：**不是[附件](#ul-attachment--附件--attachment)**——
@@ -433,15 +445,15 @@
 > arrives as a reminder) carrying the semantics; **not one of them is raised at it as an error.**
 
 - **形态**：状态
-- **出处**：[PF-006 §5.5](../../product/PF-006-tools-and-skills/design.md#55-一次工具执行的收场有六种)（rev 18） · [§6.7](../../product/PF-006-tools-and-skills/design.md#67-用户可以中断而中断不是失败)（rev 18）
+- **出处**：[PF-006 §5.5](../../product/PF-006-tools-and-skills/design.md#55-一次工具执行的收场有六种)（rev 19） · [§6.7](../../product/PF-006-tools-and-skills/design.md#67-用户可以中断而中断不是失败)（rev 19）
 - **别混**：**与 [Run 的「收束」不是一回事](agent-runtime-loop.md#ul-run--运行--run)**——
   **粒度差着好几层**。**裸写「收场」只指工具这一层的这六种**
 - **注意 ①**：**四种「非完成」里只有一种是失败。**混成一种，agent 的下一步必然错：
   **该绕路时死磕，该等待时重来，用户刚叫停它又跑一遍**
 - **注意 ②**：**报错不带语义，agent 只能猜**——这是六种都走正常返回的理由
 - **注意 ③**：**「异常中断」属于失败那一格写给 agent 的原因，不是「被中断」**——
-  据点停机时没了的工具执行[停了就不重来](../../product/PF-006-tools-and-skills/design.md#停机之后它不重来)（rev 18），
-  恢复时[对账追补](../../product/PF-012-agent-loop-and-run/design.md#先对账再进方程)的那一条收场是失败、原因写异常中断（rev 11）
+  据点停机时没了的工具执行[停了就不重来](../../product/PF-006-tools-and-skills/design.md#停机之后它不重来)（rev 19），
+  恢复时[对账追补](../../product/PF-012-agent-loop-and-run/design.md#先对账再进方程)的那一条收场是失败、原因写异常中断（rev 13）
 - **注意 ④**：**参数说完了却解析不了的调用，收场是失败**——[不执行，原因写参数解析不了，照常回给 agent](../../product/PF-006-tools-and-skills/design.md#参数说完了却解析不了的调用不执行以失败回给-agent)；
   与流断在半路时没长完的半截调用不是一回事
 - **注意 ⑤**：**「原因」是这几种收场上的取值，不是更多的收场**——
@@ -458,9 +470,9 @@
 > cause pointing at the vetoing extension.
 
 - **形态**：属性
-- **出处**：[PF-012 §5.8 消息落盘之前的否决，按消息是谁产生的分三路](../../product/PF-012-agent-loop-and-run/design.md#消息落盘之前的否决按消息是谁产生的分三路)（rev 11） ·
+- **出处**：[PF-012 §5.8 消息落盘之前的否决，按消息是谁产生的分三路](../../product/PF-012-agent-loop-and-run/design.md#消息落盘之前的否决按消息是谁产生的分三路)（rev 13） ·
   [PF-013 §4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件) ·
-  [§5.4](../../product/PF-013-model-profiles-and-invocation/design.md#已经开口说话了优先于其余各类)（rev 9）
+  [§5.4](../../product/PF-013-model-profiles-and-invocation/design.md#已经开口说话了优先于其余各类)（rev 11）
 - **别混**：**不是[试尽](#ul-retry-exhaustion--试尽--retry-exhaustion)**——试尽只管故障；被否决的回复不是故障，不交给重试挂件，也不算试过一家
 - **注意**：**它非有不可**——一件回回都否决的拓展件，否则会让 loop 永远另起新调用。它挂在哪一层、默认多少，正文只说是一项运行时设置
 
@@ -547,7 +559,7 @@
 
 - **形态**：状态
 - **出处**：[PF-013 §4 什么时候算试尽](../../product/PF-013-model-profiles-and-invocation/design.md#什么时候算试尽) ·
-  [§5.12](../../product/PF-013-model-profiles-and-invocation/design.md#512-重试站在一个已经存在的位置上)（rev 9）
+  [§5.12](../../product/PF-013-model-profiles-and-invocation/design.md#512-重试站在一个已经存在的位置上)（rev 11）
 - **别混 ①**：**不是「这一次失败了」**——失败之后还有手段可试，这一层就还没了结不了
 - **别混 ②**：**「所有模型都试过了」不是试尽**——换模型是用户的命令，不是这一层的手段
 - **注意 ①**：**只管故障这一维**——落盘前被否决的回复不算，那道上限是[连续否决上限](#ul-consecutive-veto-limit--连续否决上限--consecutive-veto-limit)
@@ -568,7 +580,7 @@
 
 - **形态**：属性
 - **出处**：[PF-013 §5.7 上交带什么](../../product/PF-013-model-profiles-and-invocation/design.md#57-上交带什么原样带着状态码不翻译它) ·
-  [§6.14](../../product/PF-013-model-profiles-and-invocation/design.md#614-上交带的成因是封闭枚举外加一个诚实的兜底状态码另外原样带着)（rev 9）
+  [§6.14](../../product/PF-013-model-profiles-and-invocation/design.md#614-上交带的成因是封闭枚举外加一个诚实的兜底状态码另外原样带着)（rev 11）
 - **别混**：**被中断不在这里**——用户中断不是非常态，不产出任何成因；落盘前被否决的回复同样不带成因
 - **注意 ①**：**只按「下一步不同」分取值**——「连不上」「超时」「5xx」「被限流」答案一律是「没人，等」，并成一个；差在哪由状态码说
 - **注意 ②**：**成因给分层处置用，状态码给排查的人与重试策略用**

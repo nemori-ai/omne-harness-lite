@@ -30,7 +30,7 @@
 | [UL-team-organization](terms/subjects-and-ownership.md#ul-team-organization--团队组织--team-organization) | 团队组织 | Team Organization | 个人组织之外的所有组织 |
 | [UL-parent-organization](terms/subjects-and-ownership.md#ul-parent-organization--上级组织--parent-organization) | 上级组织 | Parent Organization | 一项属性，不是一层，也不带来继承 |
 | [UL-ancestor-chain](terms/subjects-and-ownership.md#ul-ancestor-chain--上级链--ancestor-chain) | 上级链 | Ancestor Chain | 顺着上级往上那条链，**不含自己**；「有共同上级」= 各自算进来后两条链有交集 = 同一棵隶属树，那就是资产流转的边界 |
-| [UL-offer](terms/subjects-and-ownership.md#ul-offer--邀约--offer) | 邀约 | Offer | 要对方点头才生效的那类东西的**统称**，**当前四样**；**只归类，四样不共享身份机制** |
+| [UL-offer](terms/subjects-and-ownership.md#ul-offer--邀约--offer) | 邀约 | Offer | 要对方点头才生效的那类东西的**统称**，**当前四样、各是一个对象**；**只归类，四样不共享身份机制** |
 | [UL-invitation](terms/subjects-and-ownership.md#ul-invitation--邀请--invitation) | 邀请 | Invitation | 发给某个账号的加入邀约，**接受即产生租户**；**会过期** |
 | [UL-affiliation-request](terms/subjects-and-ownership.md#ul-affiliation-request--隶属请求--affiliation-request) | 隶属请求 | Affiliation Request | 发给另一个组织的建立隶属邀约，**接受即填上上级组织属性、不产生租户**；**与邀请是两种对象，只是过期规则相同** |
 | [UL-tenant](terms/subjects-and-ownership.md#ul-tenant--租户--tenant) | 租户 | Tenant | (组织, 账号) 这一组合，归属与隔离的单位 |
@@ -124,9 +124,12 @@
 | [UL-asset-origin](terms/circulation-and-entitlement.md#ul-asset-origin--资产来源--asset-origin) | 资产来源 | Asset Origin | official 还是 customized |
 | [UL-official-asset](terms/circulation-and-entitlement.md#ul-official-asset--官方件--official-asset) | 官方件 | Official Asset | 组装的最小必需，**不可禁用** |
 | [UL-customized-asset](terms/circulation-and-entitlement.md#ul-customized-asset--自定义件--customized-asset) | 自定义件 | Customized Asset | 自定义来源，对 official 只有「替代」一种关系 |
-| [UL-asset-copy](terms/circulation-and-entitlement.md#ul-asset-copy--资产复制--asset-copy) | 资产复制 | Asset Copy | 同一个人两个租户身份之间的搬运，**断链**；**「资产转移」是它的弃用说法** |
-| [UL-asset-sharing](terms/circulation-and-entitlement.md#ul-asset-sharing--资产分享--asset-sharing) | 资产分享 | Asset Sharing | 主体之间的授权，所有权不动，**被动跟随** |
-| [UL-copy-lineage](terms/circulation-and-entitlement.md#ul-copy-lineage--复制血缘--copy-lineage) | 复制血缘 | Copy Lineage | 再复制一次该更新哪一份；**「转移血缘」是它的弃用说法** |
+| [UL-asset-copy](terms/circulation-and-entitlement.md#ul-asset-copy--资产复制--asset-copy) | 资产复制 | Asset Copy | 本人型（同一个人两个租户身份之间）或组织型（同树两个团队组织之间）的搬运，落下的独立拥有，**断链**；**「资产转移」是它的弃用说法** |
+| [UL-asset-sharing](terms/circulation-and-entitlement.md#ul-asset-sharing--资产分享--asset-sharing) | 资产分享 | Asset Sharing | 向另一个组织或一个租户开放使用权，所有权不动，**被动跟随**；组织内分享是它 |
+| [UL-copy-lineage](terms/circulation-and-entitlement.md#ul-copy-lineage--复制血缘--copy-lineage) | 复制血缘 | Copy Lineage | 再复制一次该更新目标组织那一层里的哪一份，层与层各算各的；**「转移血缘」是它的弃用说法** |
+| [UL-copy-notice](terms/circulation-and-entitlement.md#ul-copy-notice--复制通知--copy-notice) | 复制通知 | Copy Notice | 组织型复制发起后、目标超管确认前悬着的那一份邀约；可撤回、会过期，再发是新的一份 |
+| [UL-sharing-invitation](terms/circulation-and-entitlement.md#ul-sharing-invitation--分享邀请--sharing-invitation) | 分享邀请 | Sharing Invitation | 分享发起后、接收方确认前悬着的那一份邀约；**不是加入组织的邀请** |
+| [UL-sharing-relationship](terms/circulation-and-entitlement.md#ul-sharing-relationship--分享关系--sharing-relationship) | 分享关系 | Sharing Relationship | 一次分享立起来的那一段：待确认 → 分享中 → 结束，**结束不复活**，再分享是新的一段 |
 | [UL-asset-removal](terms/circulation-and-entitlement.md#ul-asset-removal--资产移除--asset-removal) | 资产移除 | Asset Removal | 不再持有，配的值随之消失；**agent 不知道有这回事** |
 | [UL-asset-disable](terms/circulation-and-entitlement.md#ul-asset-disable--资产禁用--asset-disable) | 资产禁用 | Asset Disable | 每份持有资产上的一项布尔设置：为真则**装配时不可见**、配置原样保留；**任一层为真即为真** |
 

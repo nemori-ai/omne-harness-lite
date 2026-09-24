@@ -27,7 +27,7 @@
 > change the action space**.
 
 - **形态**：对象
-- **出处**：[PF-004 §4 执行环境](../../product/PF-004-agent-definition-and-assembly/design.md#执行环境)（rev 10） · [PF-005 §4](../../product/PF-005-execution-environments-and-sandboxes/design.md#执行环境)（rev 5） · [PF-005 §6.1](../../product/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)（rev 5）
+- **出处**：[PF-004 §4 执行环境](../../product/PF-004-agent-definition-and-assembly/design.md#执行环境)（rev 11） · [PF-005 §4](../../product/PF-005-execution-environments-and-sandboxes/design.md#执行环境)（rev 5） · [PF-005 §6.1](../../product/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)（rev 5）
 - **注意 ①**：**它的存活与 agent runtime 无关**——可能短得多（一次工具调用就结束），也可能长得多（绑定在租户）
 - **⚠️ 注意 ②**：**它不是一个被注入的取值。**装配留下的是
   「需要哪几类环境」与「装进来哪些[沙箱实现](#ul-sandbox-implementation--沙箱实现--sandbox-implementation)」两样，
@@ -197,7 +197,7 @@
 > environment**, so when it goes, **all of them go with it**.
 
 - **形态**：对象
-- **出处**：[PF-007 §6.4 `Shell()`](../../product/PF-007-meta-capabilities/design.md#64-shell通向命令行)（rev 16） · [PF-005 §6.3](../../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 5）
+- **出处**：[PF-007 §6.4 `Shell()`](../../product/PF-007-meta-capabilities/design.md#64-shell通向命令行)（rev 18） · [PF-005 §6.3](../../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 5）
 - **⚠️ 别混**：**不是[会话](agent-runtime-loop.md#ul-session--会话--session)。**
   两者**毫无关系**——一个是协作的归属边界，一个是执行环境里的一条命令行。
   **`Shell()` 的命令名 `create_session` / `close_session` 不改**（那是接口），
@@ -258,8 +258,8 @@
 
 - **形态**：属性
 - **出处**：[PF-006 §6.8 工具怎么提执行环境的要求](../../product/PF-006-tools-and-skills/design.md#68-工具怎么提执行环境的要求) ·
-  [§5.3 其中两项声明的是设置项](../../product/PF-006-tools-and-skills/design.md#其中两项声明的是设置项)（rev 18） ·
-  [PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 17）
+  [§5.3 其中两项声明的是设置项](../../product/PF-006-tools-and-skills/design.md#其中两项声明的是设置项)（rev 19） ·
+  [PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 19）
 - **别混**：**它说的是「要什么」**；[执行环境权限](#ul-execution-environment-permission--执行环境权限--execution-environment-permission)说的是「许落在哪」；
   这次执行实际落在哪，是按两者**每次现算**出来的——执行环境权限改了，下一次执行按新值现算，不必重建任何东西
 - **注意**：**不声明就是没有特殊要求**——它是工具定义里那项「需要什么样的执行环境」声明落成的设置
@@ -290,7 +290,7 @@
 - **出处**：[PF-016 §4 会话据点](../../product/PF-016-cli-tui-delivery-surface/design.md#会话据点) ·
   [§5.2](../../product/PF-016-cli-tui-delivery-surface/design.md#52-一个账号在一处怎么被装起来) ·
   [§5.6](../../product/PF-016-cli-tui-delivery-surface/design.md#56-哪些东西在中心一侧哪些在据点一侧) ·
-  [§6.16](../../product/PF-016-cli-tui-delivery-surface/design.md#616-没人开着屏这一处照常发生事)（rev 5）
+  [§6.16](../../product/PF-016-cli-tui-delivery-surface/design.md#616-没人开着屏这一处照常发生事)（rev 6）
 - **⚠️ 别混**：**不是[宿主机](#ul-host-machine--宿主机--host-machine)。**
   本交付形态下两者**恰好是同一台机器**，但**回答的问题不同**：
   宿主机回答「一次[工具执行](execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution)的作用**落在哪**」，
@@ -325,7 +325,7 @@
 - **形态**：对象
 - **出处**：[PF-016 §4 治理中心](../../product/PF-016-cli-tui-delivery-surface/design.md#治理中心) ·
   [§5.1](../../product/PF-016-cli-tui-delivery-surface/design.md#51-三处地方各自拥有什么) ·
-  [§5.6](../../product/PF-016-cli-tui-delivery-surface/design.md#56-哪些东西在中心一侧哪些在据点一侧)（rev 5）
+  [§5.6](../../product/PF-016-cli-tui-delivery-surface/design.md#56-哪些东西在中心一侧哪些在据点一侧)（rev 6）
 - **⚠️ 别混**：**不是[会话据点](#ul-session-base--会话据点--session-base)。**
   **分界不是「治理 vs 会话」那么粗**：**对同一个组织里的别人也成立的**在中心一侧，
   **只对这台机器上这个人的这段协作成立的**在据点一侧
