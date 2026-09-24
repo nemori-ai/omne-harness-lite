@@ -401,15 +401,16 @@
 
     "AttributeAssignment": {
       "title": "属性配值 · Attribute Assignment",
-      "description": "S-14：某一级在一份资产持有上、为一个属性项配下的一个值（UL-attribute-assignment）。设置项的 value 是一个合该项取值域的 JSON 值；权限项的 value 是一个 PermissionValue。immutable 是不可覆盖标记——true 即「必须这样」，更具体的层改不了；它必填，缺席不当作 false。item 为 disabled 时 value 只能是布尔、immutable 只能是 false（S-15）。",
+      "description": "S-14：某一级在一份资产持有上、为一个属性项配下的一个值（UL-attribute-assignment）。设置项的 value 是一个合该项取值域的 JSON 值；权限项的 value 是一个 PermissionValue。immutable 是不可覆盖标记——true 即「必须这样」，更具体的层改不了；它必填，缺席不当作 false。since 是这条配值此刻的值被写下的时刻，只加锁解锁不改它。item 为 disabled 时 value 只能是布尔、immutable 只能是 false（S-15）。",
       "$comment": "value 该是设置值还是 PermissionValue、是否合取值域，要看这份持有所指资产推出的声明，Schema 表达不了（S-27 malformed）；项已不在当前声明里的配值是合法的留存（S-14）。",
       "type": "object",
       "properties": {
         "item": { "type": "string", "minLength": 1 },
         "value": true,
-        "immutable": { "type": "boolean" }
+        "immutable": { "type": "boolean" },
+        "since": { "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant" }
       },
-      "required": ["item", "value", "immutable"],
+      "required": ["item", "value", "immutable", "since"],
       "additionalProperties": false,
       "if": { "properties": { "item": { "const": "disabled" } }, "required": ["item"] },
       "then": {

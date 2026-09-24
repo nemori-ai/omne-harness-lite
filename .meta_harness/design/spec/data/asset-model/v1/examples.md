@@ -326,16 +326,17 @@
 
 | 实例 | Schema | 拒绝值 | 依据 |
 |---|---|---|---|
-| `{"item": "concurrency", "value": 2, "immutable": false}` | 通过 | — | [S-14](contract.md#s-14-属性配值)：默认这样，下层可以改 |
-| `{"item": "execute", "value": {"allowed": ["ask"]}, "immutable": true}` | 通过 | — | [S-14](contract.md#s-14-属性配值)：收窄到单元素集并锁住——「必须问一下」 |
-| `{"item": "execute", "value": {"allowed": []}, "immutable": true}` | 通过 | — | [S-14](contract.md#s-14-属性配值)：收空——装得上、每次调用被拒；**不是禁用** |
-| `{"item": "disabled", "value": true, "immutable": false}` | 通过 | — | [S-15](contract.md#s-15-disabled-是保留项名)（[S-32](contract.md#s-32-禁用只是一个布尔) 正例） |
-| `{"item": "concurrency", "value": null, "immutable": false}` | 通过 | — | 形状合法；`null` 合不合这一项的取值域要看声明（第 14 节） |
-| `{"item": "disabled", "value": true, "immutable": true}` | 拒绝 | `malformed` | [S-15](contract.md#s-15-disabled-是保留项名) 第 3 条（[S-32](contract.md#s-32-禁用只是一个布尔) 反例一） |
-| `{"item": "disabled", "value": "yes", "immutable": false}` | 拒绝 | `malformed` | [S-15](contract.md#s-15-disabled-是保留项名)（[S-32](contract.md#s-32-禁用只是一个布尔) 反例二） |
-| `{"item": "concurrency", "value": 2}` | 拒绝 | `malformed` | [S-14](contract.md#s-14-属性配值)：`immutable` 缺席**不当作 `false`** |
-| `{"item": "concurrency", "immutable": false}` | 拒绝 | `malformed` | [S-14](contract.md#s-14-属性配值)：没有值就不是一条配值——要表达「这一格没意见」，就是不配 |
-| `{"item": "", "value": 2, "immutable": false}` | 拒绝 | `malformed` | [S-14](contract.md#s-14-属性配值) |
+| `{"item": "concurrency", "value": 2, "immutable": false, "since": "2026-09-15T08:00:00Z"}` | 通过 | — | [S-14](contract.md#s-14-属性配值)：默认这样，下层可以改 |
+| `{"item": "execute", "value": {"allowed": ["ask"]}, "immutable": true, "since": "2026-09-15T08:00:00Z"}` | 通过 | — | [S-14](contract.md#s-14-属性配值)：收窄到单元素集并锁住——「必须问一下」 |
+| `{"item": "execute", "value": {"allowed": []}, "immutable": true, "since": "2026-09-15T08:00:00Z"}` | 通过 | — | [S-14](contract.md#s-14-属性配值)：收空——装得上、每次调用被拒；**不是禁用** |
+| `{"item": "disabled", "value": true, "immutable": false, "since": "2026-09-15T08:00:00Z"}` | 通过 | — | [S-15](contract.md#s-15-disabled-是保留项名)（[S-32](contract.md#s-32-禁用只是一个布尔) 正例） |
+| `{"item": "concurrency", "value": null, "immutable": false, "since": "2026-09-15T08:00:00Z"}` | 通过 | — | 形状合法；`null` 合不合这一项的取值域要看声明（第 14 节） |
+| `{"item": "disabled", "value": true, "immutable": true, "since": "2026-09-15T08:00:00Z"}` | 拒绝 | `malformed` | [S-15](contract.md#s-15-disabled-是保留项名) 第 3 条（[S-32](contract.md#s-32-禁用只是一个布尔) 反例一） |
+| `{"item": "disabled", "value": "yes", "immutable": false, "since": "2026-09-15T08:00:00Z"}` | 拒绝 | `malformed` | [S-15](contract.md#s-15-disabled-是保留项名)（[S-32](contract.md#s-32-禁用只是一个布尔) 反例二） |
+| `{"item": "concurrency", "value": 2, "since": "2026-09-15T08:00:00Z"}` | 拒绝 | `malformed` | [S-14](contract.md#s-14-属性配值)：`immutable` 缺席**不当作 `false`** |
+| `{"item": "concurrency", "immutable": false, "since": "2026-09-15T08:00:00Z"}` | 拒绝 | `malformed` | [S-14](contract.md#s-14-属性配值)：没有值就不是一条配值——要表达「这一格没意见」，就是不配 |
+| `{"item": "", "value": 2, "immutable": false, "since": "2026-09-15T08:00:00Z"}` | 拒绝 | `malformed` | [S-14](contract.md#s-14-属性配值) |
+| `{"item": "concurrency", "value": 2, "immutable": false}` | 拒绝 | `malformed` | [S-14](contract.md#s-14-属性配值)：`since` 缺席——这个值什么时候写下的必须答得出 |
 | `{"allowed": ["ask", "ask"]}` | 拒绝 | `malformed` | [S-14](contract.md#s-14-属性配值)：允许集合元素各不相同 |
 | `{"allowed": "ask"}` | 拒绝 | `malformed` | [S-14](contract.md#s-14-属性配值)：选一个也写成单元素集 |
 
@@ -387,7 +388,7 @@
   "versionSelection": { "kind": "pinned", "number": 3 },
   "immutable": true,
   "assignments": [
-    { "item": "strictness", "value": "high", "immutable": true }
+    { "item": "strictness", "value": "high", "immutable": true, "since": "2026-09-15T08:00:00Z" }
   ],
   "since": "2026-09-15T08:00:00Z"
 }
@@ -406,8 +407,8 @@
   "versionSelection": { "kind": "current" },
   "immutable": false,
   "assignments": [
-    { "item": "disabled", "value": true, "immutable": false },
-    { "item": "concurrency", "value": 1, "immutable": false }
+    { "item": "disabled", "value": true, "immutable": false, "since": "2026-09-16T09:30:00Z" },
+    { "item": "concurrency", "value": 1, "immutable": false, "since": "2026-09-15T08:00:00Z" }
   ],
   "since": "2026-09-15T08:00:00Z"
 }
@@ -426,7 +427,7 @@
   "versionSelection": { "kind": "current" },
   "immutable": false,
   "assignments": [
-    { "item": "execute", "value": { "allowed": ["ask"] }, "immutable": false }
+    { "item": "execute", "value": { "allowed": ["ask"] }, "immutable": false, "since": "2026-09-18T00:00:00Z" }
   ],
   "since": "2026-09-18T00:00:00Z"
 }
@@ -449,7 +450,7 @@
   "versionSelection": { "kind": "current" },
   "immutable": false,
   "assignments": [
-    { "item": "disabled", "value": true, "immutable": false }
+    { "item": "disabled", "value": true, "immutable": false, "since": "2026-09-22T12:00:00Z" }
   ],
   "since": "2026-09-22T12:00:00Z"
 }
@@ -459,8 +460,8 @@
 
 **10.7 租户为组织持有的 Agent Definition 配默认模型**——Schema：通过 · 拒绝值：— · 依据：[S-19](contract.md#s-19-使用权来路) 的 `organization` 支
 
-在 10.2 上改动：`holder` 为 `{"layer": "tenant", "tenant": {"organization": "org_t1", "account": "acc_a1"}}`，`capability` 为 `{"category": "agent_definition", "name": "code-assistant"}`，`asset` 为 `"ast_2c66"`（所有者是组织 T1，组织 T1 的组织格持有它），`basis` 为 `{"kind": "organization"}`，`versionSelection` 为 `{"kind": "current"}`，`immutable` 为 `false`，`assignments` 为 `[{"item": "default_model", "value": "b", "immutable": false}]`。
-这就是 [PF-002 §5.3](../../../../product/PF-002-assets-settings-and-permissions/design.md#53-两个例子两种合成) 的那个例子：值挂在租户**自己的**持有上（主线裁定 A-G3）；组织那一格不再持有它，这份持有与它的配值随之不在。
+在 10.2 上改动：`holder` 为 `{"layer": "tenant", "tenant": {"organization": "org_t1", "account": "acc_a1"}}`，`capability` 为 `{"category": "agent_definition", "name": "code-assistant"}`，`asset` 为 `"ast_2c66"`（所有者是组织 T1，组织 T1 的组织格持有它），`basis` 为 `{"kind": "organization"}`，`versionSelection` 为 `{"kind": "current"}`，`immutable` 为 `false`，`assignments` 为 `[{"item": "default_model", "value": "b", "immutable": false, "since": "2026-09-19T10:00:00Z"}]`。
+这就是 [PF-002 §5.3](../../../../product/PF-002-assets-settings-and-permissions/design.md#53-两个例子两种合成) 的那个例子：值挂在租户**自己的**持有上（主线裁定 A-G3）。记录归组织 T1 所有，所以组织那一格不持有它时这份持有照样成立；若它是被分享给 T1 的那一份，组织那一格不再持有它，这份持有与它的配值随之不在（[S-19](contract.md#s-19-使用权来路)，主线裁定 S11-G2）。
 
 **变体：**
 
@@ -468,7 +469,7 @@
 |---|---|---|---|
 | 在 10.1 上把 `basis` 改为 `{"kind": "owned"}` | 拒绝 | `malformed` | [S-20](contract.md#s-20-出厂格与工作区格的持有)：出厂格只持有 official |
 | 在 10.1 上把 `immutable` 改为 `true` | 拒绝 | `malformed` | [S-20](contract.md#s-20-出厂格与工作区格的持有)：没有谁在出厂格上锁 |
-| 在 10.1 上把 `assignments` 改为 `[{"item": "timeout", "value": "PT5S", "immutable": false}]` | 拒绝 | `malformed` | [S-20](contract.md#s-20-出厂格与工作区格的持有)：出厂格的值就是声明里的 `default` |
+| 在 10.1 上把 `assignments` 改为 `[{"item": "timeout", "value": "PT5S", "immutable": false, "since": "2026-09-15T08:00:00Z"}]` | 拒绝 | `malformed` | [S-20](contract.md#s-20-出厂格与工作区格的持有)：出厂格的值就是声明里的 `default` |
 | 在 10.6 上把 `immutable` 改为 `true` | 拒绝 | `malformed` | [S-20](contract.md#s-20-出厂格与工作区格的持有)：`immutable` 不从工作区来 |
 | 在 10.6 上把 `basis` 改为 `{"kind": "owned"}` | 拒绝 | `malformed` | [S-19](contract.md#s-19-使用权来路)：`owned` 不在工作区格 |
 | 在 10.6 上把 `versionSelection` 改为 `{"kind": "pinned", "number": 1}` | 拒绝 | `malformed` | [S-18](contract.md#s-18-资产持有) 第 6 条：工作区提供的只跟当前 |
@@ -477,7 +478,7 @@
 | 在 10.4 上把 `versionSelection` 改为 `{"kind": "pinned", "number": 2}` | 拒绝 | `malformed` | [S-18](contract.md#s-18-资产持有) 第 6 条：分享来的只跟当前（主线裁定 A-G7） |
 | 在 10.6 上把那条配值的 `immutable` 改为 `true` | 拒绝 | `malformed` | [S-20](contract.md#s-20-出厂格与工作区格的持有)、[S-15](contract.md#s-15-disabled-是保留项名) |
 | 在 10.4 上把 `holder` 改为 `{"layer": "tenant", "tenant": {"organization": "org_c", "account": "acc_b2"}}` | 拒绝 | `malformed` | [S-19](contract.md#s-19-使用权来路)：分享在组织之间 |
-| 在 10.1 上把 `holder` 改为 `{"layer": "organization", "organization": "org_t1"}`，`assignments` 改为 `[{"item": "disabled", "value": false, "immutable": false}]` | 拒绝 | `malformed` | [S-15](contract.md#s-15-disabled-是保留项名) 第 4 条：official 的持有上没有 `disabled`，**配 `false` 也不行**（[S-32](contract.md#s-32-禁用只是一个布尔) 反例三） |
+| 在 10.1 上把 `holder` 改为 `{"layer": "organization", "organization": "org_t1"}`，`assignments` 改为 `[{"item": "disabled", "value": false, "immutable": false, "since": "2026-09-15T08:00:00Z"}]` | 拒绝 | `malformed` | [S-15](contract.md#s-15-disabled-是保留项名) 第 4 条：official 的持有上没有 `disabled`，**配 `false` 也不行**（[S-32](contract.md#s-32-禁用只是一个布尔) 反例三） |
 | 在 10.1 上把 `holder` 改为 `{"layer": "organization", "organization": "org_t1"}`，`immutable` 改为 `true` | 通过 | — | [S-18](contract.md#s-18-资产持有)：组织锁住自己对 official 的持有——租户与工作区替换不了它 |
 | 在 10.2 上把 `basis` 改为 `{"kind": "inherited"}` | 拒绝 | `malformed` | [S-19](contract.md#s-19-使用权来路)：五支闭合，**不自造第六支** |
 | 在 10.4 上把 `basis` 改为 `{"kind": "shared"}` | 拒绝 | `malformed` | [S-19](contract.md#s-19-使用权来路)：经分享的必带分享号 |
@@ -574,7 +575,7 @@
 |---|---|---|---|
 | 在 4.2 上把第 2 版的 `number` 改为 `3` | 通过 | `version_sequence_broken` | [S-9](contract.md#s-9-版本线)（[S-31](contract.md#s-31-版本编号断了即拒) 反例） |
 | 在 4.2 上把两版对调（`number` 依次为 2、1） | 通过 | `version_sequence_broken` | 同上：**必须与上一行同跑** |
-| 在 10.3 上把 `concurrency` 那条改为 `{"item": "disabled", "value": false, "immutable": false}` | 通过 | `assignment_item_duplicate` | [S-18](contract.md#s-18-资产持有) 第 3 条：同一持有上两条 `disabled` |
+| 在 10.3 上把 `concurrency` 那条改为 `{"item": "disabled", "value": false, "immutable": false, "since": "2026-09-15T08:00:00Z"}` | 通过 | `assignment_item_duplicate` | [S-18](contract.md#s-18-资产持有) 第 3 条：同一持有上两条 `disabled` |
 | 在 12.1 上把第三条配值的 `capability` 与 `item` 改成与第一条相同 | 通过 | `assignment_item_duplicate` | [S-24](contract.md#s-24-工作区承载清单) 第 4 条 |
 | 在 12.1 上把第二项 `assets` 的 `capability` 改成与第一项相同 | 通过 | `malformed` | [S-24](contract.md#s-24-工作区承载清单) 第 4 条 |
 | 在 4.3 上把 `author` 改为 `{"organization": "org_t1", "account": "acc_a1"}` | 通过 | `malformed` | [S-7](contract.md#s-7-所有者至多变一次) 第 4 条：所有者是 T2，作者却在 T1 |
@@ -588,7 +589,7 @@
 | 10.2，但 `ast_9d02` 所指记录只有两版 | 通过 | `malformed` | [S-18](contract.md#s-18-资产持有) 第 6 条：`pinned` 的那一版在版本线上 |
 | 10.7，但组织 T1 的组织格没有持有 `ast_2c66` | 通过 | **这份持有失效**，读作这一格没有持有 | [S-19](contract.md#s-19-使用权来路)：`organization` 支要外层确有同一份持有 |
 | 10.6，但 `ast_wk01` 是组织 T1 自建的一份 skill | 通过 | `malformed` | [S-19](contract.md#s-19-使用权来路)：`carrier` 一支双向，只指工作区提供的那份记录 |
-| 10.6，但 `assignments` 里有一条 `{"item": "execute", "value": {"allowed": ["auto"]}, "immutable": false}`（`execute` 是权限项） | 通过 | `malformed` | [S-20](contract.md#s-20-出厂格与工作区格的持有)：工作区格没有权限项的配值 |
+| 10.6，但 `assignments` 里有一条 `{"item": "execute", "value": {"allowed": ["auto"]}, "immutable": false, "since": "2026-09-22T12:00:00Z"}`（`execute` 是权限项） | 通过 | `malformed` | [S-20](contract.md#s-20-出厂格与工作区格的持有)：工作区格没有权限项的配值 |
 | 第 7 节的权限声明，`default` 改为 `"yolo"` | 通过 | `malformed` | [S-12](contract.md#s-12-属性声明由正文推出)：权限的 `default` 在 `values` 里 |
 | 第 7 节的 `concurrency` 声明，`default` 改为 `"4"` | 通过 | `malformed` | [S-12](contract.md#s-12-属性声明由正文推出)：`default` 合那份 `schema` |
 | 某个正文契约的推出规则对一份正文产出了 `disabled` 或 `usableBy` 那一条 | 通过 | 推出规则违约 | [S-12](contract.md#s-12-属性声明由正文推出) 第 3 条 |

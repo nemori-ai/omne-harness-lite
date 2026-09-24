@@ -399,12 +399,13 @@
 
 ### S-14 属性配值
 
-**`AttributeAssignment` 是某一格在一份持有上、为一个属性项配下的一个值：`{ item, value, immutable }`，三个成员都必填。**
+**`AttributeAssignment` 是某一格在一份持有上、为一个属性项配下的一个值：`{ item, value, immutable, since }`，四个成员都必填。**
 
 - **`value`**：设置项是一个合该项取值域的 JSON 值；权限项是一个 `PermissionValue`——`{ allowed: string[] }`，
   是该项 `values` 的**子集**，元素各不相同，**可以为空**（[收窄为空集](../../../../product/PF-002-assets-settings-and-permissions/design.md#53-两个例子两种合成)不是禁用：装得上、每次调用被拒）；选定一个值就是收窄成单元素集。
 - **`immutable`**：`true` 即「**必须**这样」，更具体的格改不了；`false` 即「**默认**这样」。**缺席不当作 `false`**，是 `malformed`。
   解锁（改回 `false`）[不回溯](../../../../product/PF-002-assets-settings-and-permissions/flows.md#32-一份持有上一个属性项的属性配值)：只影响此后的求值。
+- **`since`**：这条配值**此刻的值**被写下的时刻（`Instant`，`data.offer-expiry/v1#S-22`）；只加锁、解锁不改值，它不动（主线裁定 2026-09-23，待产品负责人确认；账本 S11-G14：MCP 凭据要呈现「什么时候取的」）。
 - **配值挂在持有上**，因此**配值没有自己的租户字段**——它的归属由宿主持有决定（`data.identity-values/v1` 的 [CS-1](../../identity-values/v1/contract.md#cs-1-资产持有的键与属性配值)）；
   持有被移除，它随之消失；持有被禁用，它原样保留。
 - **写下它的那一刻它必须合当时的声明**——那是写入方（`capability.asset-governance`）的义务。
@@ -504,13 +505,13 @@
 | `kind` | 含义 | 在哪几格 | 约束 |
 |---|---|---|---|
 | `owned` | 持有这一格就是这份资产的定义所有者——[自己拥有的定义可直接作为权利依据](../../../../ubiquitous_language/terms/circulation-and-entitlement.md#ul-definition-ownership--定义所有权--definition-ownership) | 组织、租户 | `asset` 的 `owner` 与 `holder` 对得上：组织格对 `{ kind: organization }` 且组织相同，租户格对 `{ kind: tenant }` 且租户相同 |
-| `organization` | 资格来自外层的持有：外层某一格持有**同一份实现**，本格为了给它配值或锁它而持有 | 租户、工作区 | 租户格：它所在组织的组织格持有同一个 `capability`、同一个 `asset`；工作区格：它所挂租户的租户格，或那个租户所在组织的组织格，持有同一个 `capability`、同一个 `asset` |
+| `organization` | 资格来自本组织：这份实现归本组织所有，或外层某一格持有**同一份实现**，本格为了给它配值或锁它而持有 | 租户、工作区 | 租户格：**记录归它所在的组织所有**，或它所在组织的组织格持有同一个 `capability`、同一个 `asset`（经分享持有的那一份也算——主线裁定 2026-09-23，待产品负责人确认；账本 S11-G2：租户格持有本组织可用的，拥有的或被分享的）；工作区格：它所挂租户的租户格，或那个租户所在组织的组织格，持有同一个 `capability`、同一个 `asset` |
 | `official` | 它是 official 资产，[不需要授权](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#来源official-与-customized) | 任一格 | **双向**：`official` 的记录只以这一支被持有；这一支只指 `official` 的记录 |
 | `shared` | 经一段确认之后的[资产分享](../../../../product/PF-003-asset-transfer-and-sharing/design.md#610-分享给的是获权不是拥有)获得使用权，带那段分享的 `SharingId` | 组织 | 分享是在组织之间；那段分享的被分享方、所指资产与状态归 `capability.asset-transfer` |
 | `carrier` | 工作区从承载目录提供的资产（[S-24](#s-24-工作区承载清单)） | 工作区 | **双向**：工作区提供的那份记录只以这一支、只在提供它的那份工作区的那一格被持有；这一支只指那样的记录 |
 
 - **配值只挂在本格自己的持有上**（账本 A-G3）：租户或工作区要给外层持有的资产配值或加锁，先以 `organization` 这一支持有它，再在这份持有上配。
-  **外层那份持有不在了，本格这份 `organization` 持有随之失效，它上面的配值一起不在**（[PF-002 flows §3.1](../../../../product/PF-002-assets-settings-and-permissions/flows.md#31-一个资产在某个范围里)）；连带收场归 `capability.asset-governance`，
+  **资格只来自外层那份持有时，外层那份不在了，本格这份 `organization` 持有随之失效，它上面的配值一起不在**（[PF-002 flows §3.1](../../../../product/PF-002-assets-settings-and-permissions/flows.md#31-一个资产在某个范围里)）——被分享来的那一份就是这样；外层那份在而此刻不可用（分享不再生效），本格这份随之不可用（`capability.asset-transfer` 的判据）。记录归本组织所有的，不靠外层持有。连带收场归 `capability.asset-governance`，
   读到一份外层已不在的 `organization` 持有的一方，把它当作这一格没有持有，**不得把它读成 `owned`**。
 - **`carrier` 那份记录**（账本 A-M13/M16）：
   - 所有者 `{ kind: tenant, tenant: WorkspaceKey.tenant }`，作者同一个租户，`origin` 是 `customized`，`byAgent` 是 `false`（它不是本系统里一次 agent 运行产出的）；
@@ -781,9 +782,9 @@ manifest_format_unsupported  >  category_unknown  >  origin_unknown  >  owner_ki
 
 #### S-32 禁用只是一个布尔
 
-正例：一份组织格持有带 `{"item": "disabled", "value": true, "immutable": false}` 被接受。
+正例：一份组织格持有带 `{"item": "disabled", "value": true, "immutable": false, "since": "2026-09-16T09:30:00Z"}` 被接受。
 反例一：同一条配值写成 `"immutable": true`——`malformed`。反例二：`"value": "yes"`——`malformed`。
-反例三：一份 `basis: {"kind": "official"}` 的持有带 `{"item": "disabled", "value": false, "immutable": false}`——`malformed`，**配 `false` 也不行**。
+反例三：一份 `basis: {"kind": "official"}` 的持有带 `{"item": "disabled", "value": false, "immutable": false, "since": "2026-09-16T09:30:00Z"}`——`malformed`，**配 `false` 也不行**。
 
 #### S-33 一格一个能力标识一份持有
 
