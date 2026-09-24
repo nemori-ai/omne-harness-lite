@@ -217,6 +217,54 @@
         "spec/capabilities/model-request-runtime/v1/formal/Invocation.tla"
       ],
       "timeout_seconds": 180
+    },
+    {
+      "id": "tool-execution-runtime-v1-execution",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/tool-execution-runtime/v1/formal/Execution.tla",
+        "spec/capabilities/tool-execution-runtime/v1/formal/Execution.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/tool-execution-runtime-v1-execution",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/tool-execution-runtime/v1/formal/Execution.cfg",
+        "spec/capabilities/tool-execution-runtime/v1/formal/Execution.tla"
+      ],
+      "timeout_seconds": 300
+    },
+    {
+      "id": "tool-execution-runtime-v1-execution-progress",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/tool-execution-runtime/v1/formal/Execution.tla",
+        "spec/capabilities/tool-execution-runtime/v1/formal/ExecutionProgress.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/tool-execution-runtime-v1-execution-progress",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/tool-execution-runtime/v1/formal/ExecutionProgress.cfg",
+        "spec/capabilities/tool-execution-runtime/v1/formal/Execution.tla"
+      ],
+      "timeout_seconds": 2400
     }
   ]
 }
