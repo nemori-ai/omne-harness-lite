@@ -307,7 +307,7 @@ DisplayList(会话)  ≝  LegalTargetSet(会话)  ∪  { 选中模型 }
 | `withdrawn` | 选中的档案已被撤回——**「已下架」** | 读到 `registration = withdrawn` |
 | `scope_disallowed` | 这个范围不再允许 | 范围允许不成立 |
 | `modality_mismatch` | 和会话里的模态对不上（含本据点传输送不出） | 兼容或传输那一项不成立 |
-| `credential_missing` | 链上两格都没配凭据（**附加注记**，可与 `legal` 并存） | `capability.model-profile-directory/v1#S-20` 的有没有问法答 `{ present: false }` |
+| `credential_missing` | 链上三格都没有凭据（**附加注记**，可与 `legal` 并存） | `capability.model-profile-directory/v1#S-20` 的有没有问法答 `{ present: false }` |
 
 - **选中模型不在合法目标里时，它仍在列表上**，并带上它不合法的那一条原因——**不呈现「未知模型」**，也不从列表里消失。
 - 同时不合法的几条原因，**全列**，不只取一条。
@@ -416,10 +416,10 @@ DisplayList(会话)  ≝  LegalTargetSet(会话)  ∪  { 选中模型 }
 
 ### S-19 凭据每次发出现取，取值只交给传输适配
 
-- **每一次发出之前，以发起租户为锚现取凭据**（`capability.model-profile-directory/v1#S-20` 取值问法）：取「最具体的一把」——租户层有则租户层，否则组织层（主线裁定 C-12）。**不缓存到下一次发出**：凭据轮换零通知，下一次发出就用新值。
+- **每一次发出之前，以发起租户为锚现取凭据**（`capability.model-profile-directory/v1#S-20` 取值问法）：取「最具体的一把」——租户层有则租户层，否则组织层，否则出厂格那一把（部署装配配了时；主线裁定 C-12，出厂格那一把按 2026-09-23 主线裁定改判、待产品负责人确认，账本 S16-f）。**不缓存到下一次发出**：凭据轮换零通知，下一次发出就用新值。
 - **取值只交给传输适配**，由它放进这一次请求；**不进任何记录、任何结论、任何事件、任何失败说明**，也不进档案快照。
 - **账上分记两件事**：这一次用的是**哪个范围**的凭据（响应体 `route.credentialScope`，`data.model-response/v1#S-9`）、**发起者**是谁（明细的 `initiator`，`data.call-accounts/v1#S-38`）。**用量记在凭据所在的范围头上，成本算到发起它的租户头上**——两件事都要，缺一个都会算错。
-- **取不到**：链上两格都没有、或保管方判解不出 ⇒ 这一次不发，`undispatched{credential_unavailable}`（首次发出）或按 [S-29](#s-29-dispatch) ⑧（再发时）；保管方够不着 ⇒ `unavailable`，**不改用别的范围的凭据**。
+- **取不到**：链上三格都没有、或保管方判解不出 ⇒ 这一次不发，`undispatched{credential_unavailable}`（首次发出）或按 [S-29](#s-29-dispatch) ⑧（再发时）；保管方够不着 ⇒ `unavailable`，**不改用别的范围的凭据**。
 
 ### S-20 写入之前脱敏
 
