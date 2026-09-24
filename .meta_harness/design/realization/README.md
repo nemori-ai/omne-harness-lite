@@ -170,15 +170,15 @@ governance-center-entry 的设计由 [D-028](../record/decisions/governance-cent
 | [`packages/core/call-accounts`](packages/core/call-accounts/README.md) | `data.call-accounts` v1 | 纯模块：账的形状、有效费用与汇总；金额精确十进制 |
 | [`packages/core/arrival-events`](packages/core/arrival-events/README.md) | `data.arrival-events` v1 | 纯模块：到达事件的形状与表示层校验（借开块查询）、填的归约 |
 | [`packages/core/asset-model`](packages/core/asset-model/README.md) | `data.asset-model` v1 | 纯模块：资产形状、名字词法与规范串、表示层校验（正文判定经端口注入，不 import 正文包）、工作区提供的资产的记录号导法 |
-| [`packages/core/tool-definition`](packages/core/tool-definition/README.md) | `data.tool-definition` v1 | 纯模块：工具定义与返回值、模型面条目与名字转写、参数判定（ajv；`format` 只作注解、`schema_unsupported`，M37） |
-| [`packages/core/loop-extension`](packages/core/loop-extension/README.md) | `data.loop-extension` v1 | 纯模块：位置、干预力、结论的形状与两张合法组合表、推出规则 |
+| [`packages/core/tool-definition`](packages/core/tool-definition/README.md) | `data.tool-definition` v1 | 纯模块：工具定义与返回值、模型面条目与名字转写、参数判定（ajv；`format` 只作注解、`schema_unsupported`，M37）；为契约 G-16 登记上限候选值（`u` 方言、`pattern` ≤ 1024 码点、三种回溯形态） |
+| [`packages/core/loop-extension`](packages/core/loop-extension/README.md) | `data.loop-extension` v1 | 纯模块：位置、干预力、结论的形状与两张合法组合表、推出规则；执行环境句柄只定形状（M38，解析归 runner） |
 | [`packages/core/skill-package`](packages/core/skill-package/README.md) | `data.skill-package` v1 | 纯模块：技能包形状、`SKILL.md` 读法（YAML 1.2）、目录形式读法的纯半 |
 | [`packages/core/slash-command`](packages/core/slash-command/README.md) | `data.slash-command` v1 | 纯模块：命令定义、识别与解析（按码点）、两种展开 |
 | [`packages/core/mcp-endpoint`](packages/core/mcp-endpoint/README.md) | `data.mcp-endpoint` v1 | 纯模块：接入点正文、动作清单副本两支、条目名拼法、登记时收窄、推出规则 |
 | [`packages/core/connector`](packages/core/connector/README.md) | `data.connector` v1 | 纯模块：连接件正文与入站信封（不带归属）；推出规则本版返回「推不出」（契约 G-4） |
 | [`packages/core/model-profile`](packages/core/model-profile/README.md) | `data.model-profile` v1 | 纯模块：档案、引用的精确匹配、参数词表与表示层校验 |
 | [`packages/core/model-response`](packages/core/model-response/README.md) | `data.model-response` v1 | 纯模块：响应体的形状与表示层校验；`ResponseId` 等副本定义的对齐测试（依赖方一侧） |
-| [`packages/core/asset-evaluation`](packages/core/asset-evaluation/README.md) | `capability.asset-evaluation` v1 | 纯计算：四步求值（组合根引用集 M31、`compositionCycle` M32）与清单读入；另导出 S-23 界与挑选供资产治理写时守卫；组合里走到 plugin 或 sub-agent 时没有合规的返回 |
+| [`packages/core/asset-evaluation`](packages/core/asset-evaluation/README.md) | `capability.asset-evaluation` v1 | 纯计算：四步求值（组合根引用集 M31；三个失败值 `invalidInput` → `compositionCycle` → `categoryUnsupported`，M32、M45）与清单读入；另导出 S-23 界与挑选供资产治理写时守卫 |
 | [`packages/core/stream-assembly`](packages/core/stream-assembly/README.md) | `capability.stream-assembly` v1 | 纯计算的装配状态机（状态是持久结构的值），模型请求运行时与工具执行运行时两个宿主 import；绑定 2 条（formal task，证的是模型） |
 
 **2026-09-25 模型领域（`model`，[D-039](../record/decisions/assets-runtimes-split-and-rulings/README.md) 拍板，取 P1-A／P2-A／P3-A）**——节点状态 `candidate`，所兑现的契约 `candidate`、待 D-041，**尚未建包**。会话日志、装配清单读面、凭据保管方三处上游没有提供者：
@@ -187,14 +187,14 @@ governance-center-entry 的设计由 [D-028](../record/decisions/governance-cent
 | --- | --- | --- |
 | [`packages/model/model-profile-directory`](packages/model/model-profile-directory/README.md) | `capability.model-profile-directory` v1 | 中心插件 P-1（三个服务键，取值问法单列），inject 存储、时钟、成员关系；另有只读副本插件 P-1r，待入口 v2 |
 | [`packages/model/model-request-runtime`](packages/model/model-request-runtime/README.md) | `capability.model-request-runtime` v1 | 插件 P-2（inject 目录读面、凭据问法、会话日志、存储、时钟；在途表与连接池一个 effect）＋ 自带重试挂件 P-5；传输按 D-019 fork；绑定 6 条（formal task） |
-| [`packages/model/modality-projection`](packages/model/modality-projection/README.md) | `capability.modality-projection` v1 | 纯计算＋转换器登记插件 P-3、声明插件、各转换器插件 P-4*；不 inject 存储；模态转换这一件缺 `tenant`（MP-N1） |
+| [`packages/model/modality-projection`](packages/model/modality-projection/README.md) | `capability.modality-projection` v1 | 纯计算＋转换器登记插件 P-3、声明插件、各转换器插件 P-4*；不 inject 存储；模态转换这一件经执行环境句柄取 `tenant`，来路待 runner 契约 G-20 |
 
 **2026-09-25 loop 侧（`agent-loop`，D-039 拍板）**——节点状态 `candidate`，所兑现的契约 `candidate`、待 D-041，**尚未建包**；runner 的行为模型未建（契约 G-14），两个节点都没有绑定：
 
 | 节点 | 兑现的契约 | 形态 |
 | --- | --- | --- |
-| [`packages/agent-loop/loop-extension-runner`](packages/agent-loop/loop-extension-runner/README.md) | `capability.loop-extension-runner` v1 | 一个插件，只 inject 会话日志；实现经贡献者登记在场，runner 从不 inject 贡献者；放行判断经 `toolAdmission`（本批全拒） |
-| [`packages/agent-loop/hooks-import`](packages/agent-loop/hooks-import/README.md) | `capability.hooks-import` v1 | 导入是包导出的纯函数；兼容插件向 runner 登记一个命令执行器；D-033 fork 边界；会话级执行环境无提供者，兼容件一律「起不来」 |
+| [`packages/agent-loop/loop-extension-runner`](packages/agent-loop/loop-extension-runner/README.md) | `capability.loop-extension-runner` v1 | 一个插件，只 inject 会话日志；实现经贡献者登记在场，runner 从不 inject 贡献者；执行环境句柄每次调用一只、按会话解析；叫停即 `cancelled`、不等在途那一件；放行判断经 `toolAdmission`（本批全拒） |
+| [`packages/agent-loop/hooks-import`](packages/agent-loop/hooks-import/README.md) | `capability.hooks-import` v1 | 导入是包导出的纯函数；兼容插件向 runner 登记一个命令执行器；D-033 fork 边界；子进程的执行环境经句柄取，执行环境无提供者，兼容件一律「起不来」 |
 
 ## 当前状态
 
@@ -203,6 +203,7 @@ governance-center-entry 的设计由 [D-028](../record/decisions/governance-cent
 **assembly 节点**：`apps/cli/` 是第一个应用节点，随 CLI-TUI 交付面的 PF 一起建立（2026-09-22），状态 `candidate`——
 源码尚未落地，`bindings.yaml` 为空表。治理中心那一侧的 PF-017 rev 2（rev 1 于 2026-09-23 接受），入口层与运维面落在
 [`packages/tenancy/governance-center-entry`](packages/tenancy/governance-center-entry/README.md)（`implemented`），由 `apps/tenancy-host` 装配；`apps/cli` 两条跨应用边的对端已指向它们。
+**2026-09-25 修订（候选）**：按 [D-039](../record/decisions/assets-runtimes-split-and-rulings/README.md) 把工具运行时与模型请求运行时归本应用装配——据点装配 core 纯模块、`tools`／`agent-loop`／`model` 三个领域的八个提供者与 P-1r 读提供者，`architecture.md` 的进程、边、包家族随之更新；「可独立运行」以只供测试的装配变体体现；C-1～C-12 是本装配今天装不起来的缺口，owner 与闭合条件在节点 design.md，多数留待下一程（D-040 §八 M43）。
 [`apps/tenancy-host/`](apps/tenancy-host/README.md)（名字由 [D-027](../record/decisions/infrastructure-names-and-sqlite-durability/README.md) 拍板）是租户领域的采用型装配节点（2026-09-22），状态 `assembled`（源码修订 HUB `c9b5850`）：
 存储（迁移合成与真实外键）、时钟与密钥；2026-09-23 随 PF-017 与入口契约补入口层与运维面的装配、升级整体性（迁移前只读核对、快照与确认），设计随 D-028 接受；
 本节点测试在运行 `2026-09-23-tests-tenancy-leg-2` 里通过（sqlite 下全过，pg 16 上 pg 用例 11／11），逐条覆盖与绑定待 verification 回填。
