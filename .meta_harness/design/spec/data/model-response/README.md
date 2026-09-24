@@ -5,14 +5,13 @@
 **一次调用可能发出多次，每次一条**——试过又失败的那几次同样各是一条留痕。
 
 **本契约只拥有「这条记录是什么、哪些组合合法」。**请求怎么发、三类事实怎么判、要不要重试、什么时候算试尽，
-归模型请求运行时的能力契约（第二波起草）；成因的名字归 `data.loop-extension`，账的形状归 `data.call-accounts`。
+归模型请求运行时的能力契约；成因的名字归 `data.loop-extension`，账的形状归 `data.call-accounts`。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.model-response, 1)`
-- **状态**：`candidate`（2026-09-23 起草）——**未接受、未冻结**；接受前可原地修订，每次修订记在[验证入口「变化的影响」](verification.md#变化的影响)
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐原地改一次）——**未接受、未冻结**；接受前可原地修订，每次修订记在[验证入口「变化的影响」](verification.md#变化的影响)
 - **catalog 映射**：已登记为 `candidate`，`family=data`、`topic=model-response`、
   `contract_path=spec/data/model-response/v1/contract.md`，`resources` 另含 `v1/model-response.schema.json` 与 `v1/examples.md`，`acceptance` 为 null。
-  依赖七项：`data.call-accounts`、`data.content-blocks`、`data.messages`、`data.model-profile`、`data.loop-extension`（**五份并行起草、未定型**，
-  依赖的 `clauses` 暂填被消费的 `$defs` 名，待它们定型后换成条款号）、`data.offer-expiry`（`S-22`）、`data.identity-values`（`S-16`、`S-31`）
+  依赖七项：`data.call-accounts`、`data.content-blocks`、`data.messages`、`data.model-profile`、`data.loop-extension`（五份同批候选）、`data.offer-expiry`（`S-22`）、`data.identity-values`（`S-11`、`S-16`、`S-31`）
 - **提供者/装配映射**：尚无。写它的是模型请求运行时（块 C），其提供者设计未起草
 
 ## 准入核对
@@ -23,7 +22,7 @@
 | 稳定身份 | `data.model-response`，版本 1 |
 | 适用范围 | 一次发出结束之后写下的那一条。**一次都没发出的调用没有响应体**（「发不出去」那一类、在待发出时就被中断的） |
 | 为什么是 data 而不是 capability | 它没有操作：没有状态转移、没有提交点、没有自己的授权前提。**写它、读它、据它决定重试的那些动作**各有授权与失败，归各自的能力契约 |
-| 精确依赖 | 七项，见[契约抬头](v1/contract.md)；其中五项并行起草、未定型，已在[验证入口](verification.md#变化的影响)登记要复核什么 |
+| 精确依赖 | 七项，见[契约抬头](v1/contract.md)；其中五项是同批候选 |
 | 接受状态 | 未接受 |
 
 ## 按当前问题展开

@@ -10,9 +10,9 @@
 **三条读法上的边界：**
 
 - **`通过` 只说形状合规。**[S-26](contract.md#s-26-schema-的范围) 列的那些 Schema 管不到的条款，一条也不因通过而成立；第三节专门列它们的反例。
-- **嵌在实例里的外部形状按施工简报的账本写**：`AssistantMessage`（`data.messages`）、`ContentBlock` 与 `AttachmentRef`（`data.content-blocks`）、
-  `Usage`、`Cost` 与 `RunId`、`AttemptId`、`ModelCallId`（`data.call-accounts`）、`ModelProfileRef`、`ProviderName` 与 `ModelRequestParameters`（`data.model-profile`）、`FailureCause`（`data.loop-extension`）。
-  **这五份契约都还没定型**，它们定型后本页的每个实例要按实际的成员名与取值复核一遍（[验证入口「变化的影响」](../verification.md#变化的影响)）。
+- **嵌在实例里的外部形状取各自的家**：`AssistantMessage`（`data.messages`）、`ContentBlock` 与 `AttachmentRef`（`data.content-blocks`）、
+  `Usage`、`Cost`、`TrimSummary` 与 `RunId`、`AttemptId`、`ModelCallId`（`data.call-accounts`）、`ModelProfileRef`、`ModelProfileSnapshot`、`ProviderName` 与 `ModelRequestParameters`（`data.model-profile`）、`ScopeLayerIdentity`（`data.identity-values`）、`FailureCause`（`data.loop-extension`）。
+  整批对齐（2026-09-24）按它们对齐后的 Schema 把本页每个实例过了一遍（[验证入口](../verification.md#变化的影响)）。为了短，各块的档案快照取同一份，它列出的供应商覆盖了各块用到的那一家。
 - **标识串、供应商名、路由名只是占位**，不要从 `resp_`、`gen-` 这样的前缀推出任何规则（[S-6](contract.md#s-6-responseid)）。
 
 ## 一、合法实例
@@ -25,12 +25,15 @@
 ```json
 {
   "id": "resp_4c1e9a",
-  "call": { "runId": "run_7a02", "attemptId": 1, "callId": "mc_19f3" },
+  "call": { "runId": "run_7a02", "callId": "mc_19f3" },
   "dispatch": 1,
+  "attemptId": 1,
   "route": {
-    "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" },
+    "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" },
+    "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
     "selectedBy": "session",
     "provider": "anthropic",
+    "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" },
     "upstreamModel": "anthropic/claude-4.5-sonnet-20250929",
     "upstreamRequestId": "gen-1758621600-a1b2c3",
     "parameters": { "reasoningEffort": "medium", "temperature": 0.7 }
@@ -68,12 +71,15 @@
 ```json
 {
   "id": "resp_7d20b4",
-  "call": { "runId": "run_7a02", "attemptId": 1, "callId": "mc_1a08" },
+  "call": { "runId": "run_7a02", "callId": "mc_1a08" },
   "dispatch": 1,
+  "attemptId": 1,
   "route": {
-    "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "openai/gpt-5-mini" },
+    "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "openai/gpt-5-mini" },
+    "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
     "selectedBy": "layer_lock",
     "provider": "openai",
+    "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" },
     "upstreamModel": "openai/gpt-5-mini-2025-08-07",
     "upstreamRequestId": "gen-1758621700-d4e5f6",
     "parameters": { "seed": 42, "maxOutputTokens": 256 },
@@ -101,23 +107,27 @@
 
 ### E-3 用户中断，已有内容
 
-预期：`通过`。依据 [S-13](contract.md#s-13-收场与其余成员的条件关系) 第三行：`ending = interrupted_by_user`，内容是已交付的那部分；**不带 `failure`**——中断不是故障（[S-12](contract.md#s-12-收场)）。
+预期：`通过`。依据 [S-13](contract.md#s-13-收场与其余成员的条件关系) 第三行：`initiator = user`、`ending = interrupted_by_user`，内容是已交付的那部分；它同样过了「消息落盘之前」那一关，`replyDisposition = persisted`；**不带 `failure`**——中断不是故障（[S-12](contract.md#s-12-收场)）。
 `selectedBy` 是一件拓展件：调模型之前它以 `select_model` 定了这一次（[S-10](contract.md#s-10-有效模型怎么来的)）。
 流在交出用量之前就断了，所以用量与费用按「来源 = 无」记 `unknown`（[S-19](contract.md#s-19-用量与费用)）。
 
 ```json
 {
   "id": "resp_0b3f71",
-  "call": { "runId": "run_7a02", "attemptId": 1, "callId": "mc_1c55" },
+  "call": { "runId": "run_7a02", "callId": "mc_1c55" },
   "dispatch": 1,
+  "attemptId": 1,
   "route": {
-    "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "google/gemini-2.5-flash" },
+    "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "google/gemini-2.5-flash" },
+    "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
     "selectedBy": { "extension": "cheap-first-router" },
     "provider": "google-vertex",
+    "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" },
     "upstreamModel": "google/gemini-2.5-flash",
     "parameters": {}
   },
   "outcome": "interrupted",
+  "initiator": "user",
   "reply": {
     "id": "msg_53",
     "type": "assistant",
@@ -128,6 +138,7 @@
       { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "这个问题可以分三步看。第一步" }
     ]
   },
+  "replyDisposition": "persisted",
   "timing": { "sentAt": "2026-09-23T10:02:00Z", "firstTokenAt": "2026-09-23T10:02:01Z", "endedAt": "2026-09-23T10:02:03Z" },
   "usage": { "input_tokens": "unknown", "output_tokens": "unknown", "cache_read_tokens": "unknown", "cache_write_tokens": "unknown", "source": "none" },
   "cost": { "cost_usd": "unknown", "source": "none" }
@@ -136,23 +147,27 @@
 
 ### E-4 用户中断，还没有内容——费用未知
 
-预期：`通过`。依据 [S-13](contract.md#s-13-收场与其余成员的条件关系) 第四行：**没有 `reply`、没有 `firstTokenAt`、不带 `failure`**——[不伪造一条空的消息](../../../../product/PF-009-context-message-types/design.md#56-流断在半路)，这次只留一笔账。
+预期：`通过`。依据 [S-13](contract.md#s-13-收场与其余成员的条件关系) 最后一行（没开口）：**没有 `reply`、没有 `firstTokenAt`、不带 `failure`**——[不伪造一条空的消息](../../../../product/PF-009-context-message-types/design.md#56-流断在半路)，这次只留一笔账。
 **这是「费用未知」的那一条**：请求到了上游、上游可能已经开始计费，但没交出用量就被叫停了——记 `unknown`，**不是零**（[S-19](contract.md#s-19-用量与费用)）。
 **响应头已经到了，照样不算首 token**（[S-17](contract.md#s-17-首-token-与时序)）：`raw.headers` 在，`firstTokenAt` 不在。
 
 ```json
 {
   "id": "resp_52e0c8",
-  "call": { "runId": "run_7a02", "attemptId": 1, "callId": "mc_1d90" },
+  "call": { "runId": "run_7a02", "callId": "mc_1d90" },
   "dispatch": 1,
+  "attemptId": 1,
   "route": {
-    "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" },
+    "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" },
+    "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
     "selectedBy": "session",
     "provider": "anthropic",
+    "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" },
     "upstreamRequestId": "gen-1758621900-0a9b8c",
     "parameters": { "reasoningEffort": "high" }
   },
   "outcome": "interrupted",
+  "initiator": "user",
   "timing": { "sentAt": "2026-09-23T10:03:00Z", "endedAt": "2026-09-23T10:03:02Z" },
   "usage": { "input_tokens": "unknown", "output_tokens": "unknown", "cache_read_tokens": "unknown", "cache_write_tokens": "unknown", "source": "none" },
   "cost": { "cost_usd": "unknown", "source": "none" },
@@ -162,19 +177,22 @@
 
 ### E-5 首 token 之后的故障，上游最后回 429
 
-预期：`通过`。依据 [S-13](contract.md#s-13-收场与其余成员的条件关系) 最后一行：**没有 `reply`、有 `delivered`、成因 `interrupted_mid_reply`、有 `firstTokenAt`**。
+预期：`通过`。依据 [S-13](contract.md#s-13-收场与其余成员的条件关系)「`failed`，首 token 之后」那一行：**没有 `reply`、有 `delivered`、成因 `interrupted_mid_reply`、有 `firstTokenAt`**。
 **上游最后回的是 429，状态码原样带着，但成因不因此变成 `upstream_unavailable`**——首 token 已经出来，[无论上游最后返回什么，都归「说到一半断了」](../../../../product/PF-013-model-profiles-and-invocation/design.md#已经开口说话了优先于其余各类)。
 `upstreamError.message` 是**脱敏之后的原样**（[S-21](contract.md#s-21-写入之前脱敏)）。这次调用**不会再有下一次发出**（[S-23](contract.md#s-23-同一次调用的响应体序列)）。
 
 ```json
 {
   "id": "resp_9a61d2",
-  "call": { "runId": "run_7a02", "attemptId": 1, "callId": "mc_1f04" },
+  "call": { "runId": "run_7a02", "callId": "mc_1f04" },
   "dispatch": 1,
+  "attemptId": 1,
   "route": {
-    "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" },
+    "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" },
+    "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
     "selectedBy": "session",
     "provider": "anthropic",
+    "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" },
     "upstreamModel": "anthropic/claude-4.5-sonnet-20250929",
     "upstreamRequestId": "gen-1758622000-77aa01",
     "parameters": {}
@@ -205,12 +223,15 @@ E-6，预期：`通过`。首 token 之前的故障：没有 `firstTokenAt`，�
 ```json
 {
   "id": "resp_e6a001",
-  "call": { "runId": "run_7a02", "attemptId": 2, "callId": "mc_2b77" },
+  "call": { "runId": "run_7a02", "callId": "mc_2b77" },
   "dispatch": 1,
+  "attemptId": 2,
   "route": {
-    "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" },
+    "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" },
+    "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
     "selectedBy": "session",
     "provider": "anthropic",
+    "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" },
     "upstreamRequestId": "gen-1758622100-e6e6e6",
     "parameters": { "temperature": 0.2 }
   },
@@ -235,12 +256,15 @@ E-7，预期：`通过`。同一次调用的第二次发出，正常收尾；`re
 ```json
 {
   "id": "resp_e7b002",
-  "call": { "runId": "run_7a02", "attemptId": 2, "callId": "mc_2b77" },
+  "call": { "runId": "run_7a02", "callId": "mc_2b77" },
   "dispatch": 2,
+  "attemptId": 2,
   "route": {
-    "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" },
+    "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" },
+    "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
     "selectedBy": "session",
     "provider": "amazon-bedrock",
+    "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" },
     "upstreamModel": "anthropic/claude-4.5-sonnet-20250929",
     "upstreamRequestId": "gen-1758622103-e7e7e7",
     "parameters": { "temperature": 0.2 }
@@ -277,12 +301,15 @@ E-8a，预期：`通过`。前一次调用：有首 token、有 `reply`，但 `r
 ```json
 {
   "id": "resp_8a0001",
-  "call": { "runId": "run_7a02", "attemptId": 2, "callId": "mc_3a01" },
+  "call": { "runId": "run_7a02", "callId": "mc_3a01" },
   "dispatch": 1,
+  "attemptId": 2,
   "route": {
-    "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "google/gemini-2.5-flash-image" },
+    "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "google/gemini-2.5-flash-image" },
+    "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
     "selectedBy": "session",
     "provider": "google-vertex",
+    "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" },
     "upstreamModel": "google/gemini-2.5-flash-image",
     "upstreamRequestId": "gen-1758622200-8a8a8a",
     "parameters": {}
@@ -312,12 +339,15 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 ```json
 {
   "id": "resp_8b0002",
-  "call": { "runId": "run_7a02", "attemptId": 2, "callId": "mc_3a02" },
+  "call": { "runId": "run_7a02", "callId": "mc_3a02" },
   "dispatch": 1,
+  "attemptId": 2,
   "route": {
-    "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "google/gemini-2.5-flash-image" },
+    "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "google/gemini-2.5-flash-image" },
+    "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
     "selectedBy": "session",
     "provider": "google-vertex",
+    "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" },
     "upstreamModel": "google/gemini-2.5-flash-image",
     "upstreamRequestId": "gen-1758622210-8b8b8b",
     "parameters": {}
@@ -341,6 +371,103 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 }
 ```
 
+### E-9 压缩摘要的那次调用：不属于任何运行，回复被系统拿去用了
+
+预期：`通过`。**不属于任何运行**：`call` 只有 `callId`，也就没有 `attemptId`（[S-7](contract.md#s-7-所属的那次调用)、[S-8](contract.md#s-8-第几次发出)）。
+回复是压缩要的那份摘要，**本来就不成为消息**：`replyDisposition = { consumed: { by: compaction } }`，账照记（[S-14](contract.md#s-14-回复与已交付部分)）。
+**用的是出厂格那一把凭据**：有效模型是一条官方档案（[S-9](contract.md#s-9-路由留痕)）。这条流上合并过 3 个增量，`trims` 如实写出（[S-19](contract.md#s-19-用量与费用)）。
+
+```json
+{
+  "id": "resp_9c0001",
+  "call": { "callId": "mc_9c01" },
+  "dispatch": 1,
+  "route": {
+    "profile": { "origin": "official", "routeName": "openai/gpt-5-mini" },
+    "profileSnapshot": { "providers": ["openai"], "allowFallback": false, "inputModalities": ["text"], "outputModalities": ["text"], "maxInputTokens": 128000, "maxOutputTokens": 16000, "updatedAt": "2026-09-01T00:00:00Z" },
+    "selectedBy": "layer_lock",
+    "provider": "openai",
+    "credentialScope": { "layer": "factory" },
+    "upstreamModel": "openai/gpt-5-mini-2025-08-07",
+    "parameters": { "maxOutputTokens": 2000 }
+  },
+  "outcome": "complete",
+  "stopReason": "stop",
+  "reply": {
+    "id": "msg_c1",
+    "type": "assistant",
+    "createdAt": "2026-09-23T10:09:04Z",
+    "response": "resp_9c0001",
+    "ending": "complete",
+    "blocks": [
+      { "id": "b1", "kind": "text", "visibility": { "toHuman": false, "toModel": true }, "text": "摘要：用户要把配置迁到 TOML，已改完三处，剩测试未跑。" }
+    ]
+  },
+  "replyDisposition": { "consumed": { "by": "compaction" } },
+  "timing": { "sentAt": "2026-09-23T10:09:00Z", "firstTokenAt": "2026-09-23T10:09:01Z", "endedAt": "2026-09-23T10:09:04Z" },
+  "usage": { "input_tokens": 9800, "output_tokens": 140, "cache_read_tokens": 0, "cache_write_tokens": 0, "source": "upstream" },
+  "cost": { "cost_usd": 0.0021, "source": "upstream_usage" },
+  "trims": { "merged": 3, "cut": 0, "omittedBytes": 0, "byReason": { "rate_merged": 3, "frame_too_long": 0, "quota_exhausted": 0, "rejected": 0 } }
+}
+```
+
+### E-10 开了口之后失去连续性：恢复时补写
+
+预期：`通过`。进程在「已开口」写下之后、响应体写下之前停了；下一次尝试的对账补写这一条（`capability.model-request-runtime` v1 S-33）：
+`initiator = runtime_lost`、**有首 token**（取自「已开口」那条记录）、**没有回复**，已交付的块在途内容随进程没了、**缺席**，由中断提醒兜底；账全未知（[S-12](contract.md#s-12-收场)、[S-13](contract.md#s-13-收场与其余成员的条件关系)）。
+这次调用不再发出（[S-23](contract.md#s-23-同一次调用的响应体序列)）。`attemptId` 是**这一次发出**落在的那次尝试，不是补写它的那一次。
+
+```json
+{
+  "id": "resp_a10001",
+  "call": { "runId": "run_7a02", "callId": "mc_4d10" },
+  "dispatch": 1,
+  "attemptId": 2,
+  "route": {
+    "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" },
+    "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
+    "selectedBy": "session",
+    "provider": "anthropic",
+    "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } },
+    "parameters": {}
+  },
+  "outcome": "interrupted",
+  "initiator": "runtime_lost",
+  "timing": { "sentAt": "2026-09-23T10:10:00Z", "firstTokenAt": "2026-09-23T10:10:01Z", "endedAt": "2026-09-23T10:12:30Z" },
+  "usage": { "input_tokens": "unknown", "output_tokens": "unknown", "cache_read_tokens": "unknown", "cache_write_tokens": "unknown", "source": "none" },
+  "cost": { "cost_usd": "unknown", "source": "none" }
+}
+```
+
+### E-11 运行被取消时已经开了口，宿主没先让调用方写下回复
+
+预期：`通过`。`initiator = run_cancelled`、有首 token、**没有回复**，写入者手里还有已交付的块，**就必带在 `delivered`**（[S-13](contract.md#s-13-收场与其余成员的条件关系)、[S-14](contract.md#s-14-回复与已交付部分)）。
+
+```json
+{
+  "id": "resp_a11001",
+  "call": { "runId": "run_7a02", "callId": "mc_4d11" },
+  "dispatch": 1,
+  "attemptId": 2,
+  "route": {
+    "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" },
+    "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
+    "selectedBy": "session",
+    "provider": "anthropic",
+    "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" },
+    "parameters": {}
+  },
+  "outcome": "interrupted",
+  "initiator": "run_cancelled",
+  "delivered": [
+    { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "我先把迁移脚本跑一遍，" }
+  ],
+  "timing": { "sentAt": "2026-09-23T10:13:00Z", "firstTokenAt": "2026-09-23T10:13:01Z", "endedAt": "2026-09-23T10:13:02Z" },
+  "usage": { "input_tokens": "unknown", "output_tokens": "unknown", "cache_read_tokens": "unknown", "cache_write_tokens": "unknown", "source": "none" },
+  "cost": { "cost_usd": "unknown", "source": "none" }
+}
+```
+
 ## 二、非法实例：每个拒绝值至少一个
 
 下面各块都以第一节的某个正例为底，**块前写明是哪一个、改了什么**；为了短，`route` 一律只留必需成员、`raw` 一律省去——
@@ -354,9 +481,10 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 ```json
 {
   "id": "resp_r1",
-  "call": { "runId": "run_7a02", "attemptId": 2, "callId": "mc_2b77" },
+  "call": { "runId": "run_7a02", "callId": "mc_2b77" },
   "dispatch": 1,
-  "route": { "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "selectedBy": "session", "provider": "anthropic", "parameters": {} },
+  "attemptId": 2,
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
   "outcome": "failed",
   "failure": { "cause": "upstream_unavailable", "statusCode": 503 },
   "timing": { "sentAt": "2026-09-23T10:05:00Z", "endedAt": "2026-09-23T10:05:01Z" },
@@ -371,9 +499,10 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 ```json
 {
   "id": "resp_r2",
-  "call": { "runId": "run_7a02", "attemptId": 2, "callId": "mc_2b77" },
+  "call": { "runId": "run_7a02", "callId": "mc_2b77" },
   "dispatch": 1,
-  "route": { "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "selectedBy": "session", "provider": "anthropic", "parameters": {}, "droppedParameters": [] },
+  "attemptId": 2,
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {}, "droppedParameters": [] },
   "outcome": "failed",
   "failure": { "cause": "upstream_unavailable", "statusCode": 503 },
   "timing": { "sentAt": "2026-09-23T10:05:00Z", "endedAt": "2026-09-23T10:05:01Z" },
@@ -389,9 +518,10 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 ```json
 {
   "id": "resp_r3",
-  "call": { "runId": "run_7a02", "attemptId": 2, "callId": "mc_2b77" },
+  "call": { "runId": "run_7a02", "callId": "mc_2b77" },
   "dispatch": 2,
-  "route": { "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "selectedBy": "session", "provider": "amazon-bedrock", "parameters": {} },
+  "attemptId": 2,
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "amazon-bedrock", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
   "outcome": "success",
   "reply": { "id": "msg_60", "type": "assistant", "createdAt": "2026-09-23T10:05:09Z", "response": "resp_r3", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "好的。" } ] },
   "replyDisposition": "persisted",
@@ -408,9 +538,10 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 ```json
 {
   "id": "resp_r4",
-  "call": { "runId": "run_7a02", "attemptId": 2, "callId": "mc_2b77" },
+  "call": { "runId": "run_7a02", "callId": "mc_2b77" },
   "dispatch": 0,
-  "route": { "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "selectedBy": "session", "provider": "anthropic", "parameters": {} },
+  "attemptId": 2,
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
   "outcome": "failed",
   "failure": { "cause": "upstream_unavailable", "statusCode": 503 },
   "timing": { "sentAt": "2026-09-23T10:05:00Z", "endedAt": "2026-09-23T10:05:01Z" },
@@ -426,9 +557,10 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 ```json
 {
   "id": "resp_r5",
-  "call": { "runId": "run_7a02", "attemptId": 2, "callId": "mc_2b77" },
+  "call": { "runId": "run_7a02", "callId": "mc_2b77" },
   "dispatch": 1,
-  "route": { "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "selectedBy": "session", "provider": "anthropic", "parameters": {} },
+  "attemptId": 2,
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
   "outcome": "failed",
   "failure": { "cause": "rate_limited", "statusCode": 429 },
   "timing": { "sentAt": "2026-09-23T10:05:00Z", "endedAt": "2026-09-23T10:05:01Z" },
@@ -444,9 +576,10 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 ```json
 {
   "id": "resp_r6",
-  "call": { "runId": "run_7a02", "attemptId": 2, "callId": "mc_2b77" },
+  "call": { "runId": "run_7a02", "callId": "mc_2b77" },
   "dispatch": 2,
-  "route": { "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "selectedBy": "session", "provider": "amazon-bedrock", "parameters": {} },
+  "attemptId": 2,
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "amazon-bedrock", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
   "outcome": "complete",
   "replyDisposition": "persisted",
   "timing": { "sentAt": "2026-09-23T10:05:03Z", "endedAt": "2026-09-23T10:05:09Z" },
@@ -462,9 +595,10 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 ```json
 {
   "id": "resp_r7",
-  "call": { "runId": "run_7a02", "attemptId": 1, "callId": "mc_1f04" },
+  "call": { "runId": "run_7a02", "callId": "mc_1f04" },
   "dispatch": 1,
-  "route": { "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "selectedBy": "session", "provider": "anthropic", "parameters": {} },
+  "attemptId": 1,
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
   "outcome": "failed",
   "reply": { "id": "msg_61", "type": "assistant", "createdAt": "2026-09-23T10:04:06Z", "response": "resp_r7", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "我先检查一下测试为什么失败，看起来是" } ] },
   "failure": { "cause": "interrupted_mid_reply", "statusCode": 429 },
@@ -481,10 +615,12 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 ```json
 {
   "id": "resp_r8",
-  "call": { "runId": "run_7a02", "attemptId": 1, "callId": "mc_1c55" },
+  "call": { "runId": "run_7a02", "callId": "mc_1c55" },
   "dispatch": 1,
-  "route": { "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "google/gemini-2.5-flash" }, "selectedBy": "session", "provider": "google-vertex", "parameters": {} },
+  "attemptId": 1,
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "google/gemini-2.5-flash" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "google-vertex", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
   "outcome": "interrupted",
+  "initiator": "user",
   "reply": { "id": "msg_53", "type": "assistant", "createdAt": "2026-09-23T10:02:03Z", "response": "resp_r8", "ending": "interrupted_by_user", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "这个问题可以分三步看。第一步" } ] },
   "delivered": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "这个问题可以分三步看。第一步" } ],
   "timing": { "sentAt": "2026-09-23T10:02:00Z", "firstTokenAt": "2026-09-23T10:02:01Z", "endedAt": "2026-09-23T10:02:03Z" },
@@ -500,9 +636,10 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 ```json
 {
   "id": "resp_r9",
-  "call": { "runId": "run_7a02", "attemptId": 2, "callId": "mc_2b77" },
+  "call": { "runId": "run_7a02", "callId": "mc_2b77" },
   "dispatch": 1,
-  "route": { "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "selectedBy": "session", "provider": "anthropic", "parameters": {} },
+  "attemptId": 2,
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
   "outcome": "failed",
   "timing": { "sentAt": "2026-09-23T10:05:00Z", "endedAt": "2026-09-23T10:05:01Z" },
   "usage": { "input_tokens": "unknown", "output_tokens": "unknown", "cache_read_tokens": "unknown", "cache_write_tokens": "unknown", "source": "none" },
@@ -517,11 +654,13 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 ```json
 {
   "id": "resp_r10",
-  "call": { "runId": "run_7a02", "attemptId": 1, "callId": "mc_1d90" },
+  "call": { "runId": "run_7a02", "callId": "mc_1d90" },
   "dispatch": 1,
-  "route": { "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "selectedBy": "session", "provider": "anthropic", "parameters": {} },
+  "attemptId": 1,
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
   "outcome": "interrupted",
-  "failure": { "cause": "unrecognized" },
+  "initiator": "user",
+  "failure": { "cause": "unrecognized", "localError": "stream closed by client" },
   "timing": { "sentAt": "2026-09-23T10:03:00Z", "endedAt": "2026-09-23T10:03:02Z" },
   "usage": { "input_tokens": "unknown", "output_tokens": "unknown", "cache_read_tokens": "unknown", "cache_write_tokens": "unknown", "source": "none" },
   "cost": { "cost_usd": "unknown", "source": "none" }
@@ -535,9 +674,10 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 ```json
 {
   "id": "resp_r11",
-  "call": { "runId": "run_7a02", "attemptId": 2, "callId": "mc_2b77" },
+  "call": { "runId": "run_7a02", "callId": "mc_2b77" },
   "dispatch": 1,
-  "route": { "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "selectedBy": "session", "provider": "anthropic", "parameters": {} },
+  "attemptId": 2,
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
   "outcome": "failed",
   "failure": { "cause": "interrupted_mid_reply", "statusCode": 503 },
   "timing": { "sentAt": "2026-09-23T10:05:00Z", "endedAt": "2026-09-23T10:05:01Z" },
@@ -557,9 +697,10 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 ```json
 {
   "id": "resp_r12",
-  "call": { "runId": "run_7a02", "attemptId": 1, "callId": "mc_1f04" },
+  "call": { "runId": "run_7a02", "callId": "mc_1f04" },
   "dispatch": 1,
-  "route": { "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "selectedBy": "session", "provider": "anthropic", "parameters": {} },
+  "attemptId": 1,
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
   "outcome": "failed",
   "delivered": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "我先检查一下测试为什么失败，看起来是" } ],
   "failure": { "cause": "upstream_unavailable", "statusCode": 429 },
@@ -576,9 +717,10 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 ```json
 {
   "id": "resp_r13",
-  "call": { "runId": "run_7a02", "attemptId": 2, "callId": "mc_2b77" },
+  "call": { "runId": "run_7a02", "callId": "mc_2b77" },
   "dispatch": 2,
-  "route": { "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "selectedBy": "session", "provider": "amazon-bedrock", "parameters": {} },
+  "attemptId": 2,
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "amazon-bedrock", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
   "outcome": "complete",
   "reply": { "id": "msg_60", "type": "assistant", "createdAt": "2026-09-23T10:05:09Z", "response": "resp_r13", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "好的。" } ] },
   "replyDisposition": "persisted",
@@ -588,18 +730,22 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 }
 ```
 
-### R-14 `first_token_inconsistent`：没有回复的中断，却有首 token
+### R-14 `first_token_inconsistent`：没开口的中断，却带着已交付的块
 
-在 E-4 上加一个 `firstTokenAt`。**用户叫停时已经有内容，就必定落成一条消息**；有首 token 而没有回复，就是已交付的内容丢了（Schema 第八支的⑥）。预期：`拒绝：first_token_inconsistent`。
+在 E-4 上加一份 `delivered`。**有已交付的块就交出过内容**，没有首 token 说不通（Schema 第八支的⑤）。预期：`拒绝：first_token_inconsistent`。
+（原来的「没有回复的中断却有首 token」现在是合法的：开了口之后被中断、没有交出回复——见 E-10、E-11。）
 
 ```json
 {
   "id": "resp_r14",
-  "call": { "runId": "run_7a02", "attemptId": 1, "callId": "mc_1d90" },
+  "call": { "runId": "run_7a02", "callId": "mc_1d90" },
   "dispatch": 1,
-  "route": { "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "selectedBy": "session", "provider": "anthropic", "parameters": {} },
+  "attemptId": 1,
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
   "outcome": "interrupted",
-  "timing": { "sentAt": "2026-09-23T10:03:00Z", "firstTokenAt": "2026-09-23T10:03:01Z", "endedAt": "2026-09-23T10:03:02Z" },
+  "initiator": "user",
+  "delivered": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "先看" } ],
+  "timing": { "sentAt": "2026-09-23T10:03:00Z", "endedAt": "2026-09-23T10:03:02Z" },
   "usage": { "input_tokens": "unknown", "output_tokens": "unknown", "cache_read_tokens": "unknown", "cache_write_tokens": "unknown", "source": "none" },
   "cost": { "cost_usd": "unknown", "source": "none" }
 }
@@ -612,9 +758,10 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 ```json
 {
   "id": "resp_r15",
-  "call": { "runId": "run_7a02", "attemptId": 2, "callId": "mc_2b77" },
+  "call": { "runId": "run_7a02", "callId": "mc_2b77" },
   "dispatch": 2,
-  "route": { "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "selectedBy": "session", "provider": "amazon-bedrock", "parameters": {} },
+  "attemptId": 2,
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "amazon-bedrock", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
   "outcome": "complete",
   "reply": { "id": "msg_60", "type": "assistant", "createdAt": "2026-09-23T10:05:09Z", "response": "resp_r15", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "好的。" } ] },
   "replyDisposition": "persisted",
@@ -632,9 +779,10 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 ```json
 {
   "id": "resp_r16",
-  "call": { "runId": "run_7a02", "attemptId": 1, "callId": "mc_1a08" },
+  "call": { "runId": "run_7a02", "callId": "mc_1a08" },
   "dispatch": 1,
-  "route": { "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "openai/gpt-5-mini" }, "selectedBy": "layer_lock", "provider": "openai", "parameters": {} },
+  "attemptId": 1,
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "openai/gpt-5-mini" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "layer_lock", "provider": "openai", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
   "outcome": "truncated",
   "reply": { "id": "msg_52", "type": "assistant", "createdAt": "2026-09-23T10:01:09Z", "response": "resp_r16", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "接下来改 main.rs：" } ] },
   "replyDisposition": "persisted",
@@ -652,9 +800,10 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 ```json
 {
   "id": "resp_r17",
-  "call": { "runId": "run_7a02", "attemptId": 2, "callId": "mc_2b77" },
+  "call": { "runId": "run_7a02", "callId": "mc_2b77" },
   "dispatch": 2,
-  "route": { "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "selectedBy": "session", "provider": "amazon-bedrock", "parameters": {} },
+  "attemptId": 2,
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "amazon-bedrock", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
   "outcome": "complete",
   "reply": { "id": "msg_60", "type": "assistant", "createdAt": "2026-09-23T10:05:09Z", "response": "resp_r17", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "好的。" } ] },
   "timing": { "sentAt": "2026-09-23T10:05:03Z", "firstTokenAt": "2026-09-23T10:05:04Z", "endedAt": "2026-09-23T10:05:09Z" },
@@ -663,23 +812,121 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 }
 ```
 
-### R-18 `malformed`：用户中断的回复带了 `replyDisposition`
+### R-18 `malformed`：被中断的回复没说有没有成为消息
 
-在 E-3 上加 `"replyDisposition": { "vetoed": { "by": "image-transcriber" } }`。**`interrupted` 的那份回复不带它**；它被否决时怎样表示本版没有定（[S-14](contract.md#s-14-回复与已交付部分)、[G-12](contract.md#七已知缺口)），
-**本版拒绝，不让实现先挑一种写法**。预期：`拒绝：malformed`。
+在 E-3 上删掉 `replyDisposition`。**凡有回复就要说它成没成为消息**，被叫停时交出的半截回复也一样要过「消息落盘之前」那一关（[S-14](contract.md#s-14-回复与已交付部分)、原 G-12）。预期：`拒绝：malformed`。
 
 ```json
 {
   "id": "resp_r18",
-  "call": { "runId": "run_7a02", "attemptId": 1, "callId": "mc_1c55" },
+  "call": { "runId": "run_7a02", "callId": "mc_1c55" },
   "dispatch": 1,
-  "route": { "profile": { "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "google/gemini-2.5-flash" }, "selectedBy": "session", "provider": "google-vertex", "parameters": {} },
+  "attemptId": 1,
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "google/gemini-2.5-flash" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "google-vertex", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
   "outcome": "interrupted",
+  "initiator": "user",
   "reply": { "id": "msg_53", "type": "assistant", "createdAt": "2026-09-23T10:02:03Z", "response": "resp_r18", "ending": "interrupted_by_user", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "这个问题可以分三步看。第一步" } ] },
-  "replyDisposition": { "vetoed": { "by": "image-transcriber" } },
   "timing": { "sentAt": "2026-09-23T10:02:00Z", "firstTokenAt": "2026-09-23T10:02:01Z", "endedAt": "2026-09-23T10:02:03Z" },
   "usage": { "input_tokens": "unknown", "output_tokens": "unknown", "cache_read_tokens": "unknown", "cache_write_tokens": "unknown", "source": "none" },
   "cost": { "cost_usd": "unknown", "source": "none" }
+}
+```
+
+### R-19 `malformed`：被中断，却不说是谁中断的
+
+在 E-4 上删掉 `initiator`。**用户叫停、运行被取消、失去连续性是三件事**，缺席不读作其中任何一件（[S-12](contract.md#s-12-收场)）。预期：`拒绝：malformed`。
+
+```json
+{
+  "id": "resp_r19",
+  "call": { "runId": "run_7a02", "callId": "mc_1d90" },
+  "dispatch": 1,
+  "attemptId": 1,
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
+  "outcome": "interrupted",
+  "timing": { "sentAt": "2026-09-23T10:03:00Z", "endedAt": "2026-09-23T10:03:02Z" },
+  "usage": { "input_tokens": "unknown", "output_tokens": "unknown", "cache_read_tokens": "unknown", "cache_write_tokens": "unknown", "source": "none" },
+  "cost": { "cost_usd": "unknown", "source": "none" }
+}
+```
+
+### R-20 `malformed`：失去连续性补写的那一条带了回复
+
+在 E-3 上把 `initiator` 改成 `runtime_lost`。**补写时没有人还拿着一份回复**——在途内容随进程没了（[S-13](contract.md#s-13-收场与其余成员的条件关系)）。预期：`拒绝：malformed`。
+
+```json
+{
+  "id": "resp_r20",
+  "call": { "runId": "run_7a02", "callId": "mc_1c55" },
+  "dispatch": 1,
+  "attemptId": 1,
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
+  "outcome": "interrupted",
+  "initiator": "runtime_lost",
+  "reply": { "id": "msg_53", "type": "assistant", "createdAt": "2026-09-23T10:02:03Z", "response": "resp_r20", "ending": "interrupted_by_user", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "这个问题可以分三步看。第一步" } ] },
+  "replyDisposition": "persisted",
+  "timing": { "sentAt": "2026-09-23T10:02:00Z", "firstTokenAt": "2026-09-23T10:02:01Z", "endedAt": "2026-09-23T10:02:03Z" },
+  "usage": { "input_tokens": "unknown", "output_tokens": "unknown", "cache_read_tokens": "unknown", "cache_write_tokens": "unknown", "source": "none" },
+  "cost": { "cost_usd": "unknown", "source": "none" }
+}
+```
+
+### R-21 `malformed`：不属于任何运行，却带着尝试序号
+
+在 E-9 上加 `"attemptId": 1`。**尝试序号只与运行合起来才有意义**；这次调用不属于任何运行（[S-7](contract.md#s-7-所属的那次调用)、[S-8](contract.md#s-8-第几次发出)）。预期：`拒绝：malformed`。
+
+```json
+{
+  "id": "resp_r21",
+  "call": { "callId": "mc_9c01" },
+  "dispatch": 1,
+  "attemptId": 1,
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
+  "outcome": "complete",
+  "reply": { "id": "msg_c1", "type": "assistant", "createdAt": "2026-09-23T10:09:04Z", "response": "resp_r21", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": false, "toModel": true }, "text": "摘要：……" } ] },
+  "replyDisposition": { "consumed": { "by": "compaction" } },
+  "timing": { "sentAt": "2026-09-23T10:09:00Z", "firstTokenAt": "2026-09-23T10:09:01Z", "endedAt": "2026-09-23T10:09:04Z" },
+  "usage": { "input_tokens": "unknown", "output_tokens": "unknown", "cache_read_tokens": "unknown", "cache_write_tokens": "unknown", "source": "none" },
+  "cost": { "cost_usd": "unknown", "source": "none" }
+}
+```
+
+### R-22 `malformed`：「没认出来」却什么痕迹都没留
+
+在 E-6 上把成因改成 `unrecognized`，同时删掉 `statusCode`、`upstreamError` 与 `raw`。**兜底值不许用来偷懒**（[S-15](contract.md#s-15-故障的成因与原样状态码)）。预期：`拒绝：malformed`。
+
+```json
+{
+  "id": "resp_r22",
+  "call": { "runId": "run_7a02", "callId": "mc_2b77" },
+  "dispatch": 1,
+  "attemptId": 2,
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
+  "outcome": "failed",
+  "failure": { "cause": "unrecognized" },
+  "timing": { "sentAt": "2026-09-23T10:05:00Z", "endedAt": "2026-09-23T10:05:01Z" },
+  "usage": { "input_tokens": "unknown", "output_tokens": "unknown", "cache_read_tokens": "unknown", "cache_write_tokens": "unknown", "source": "none" },
+  "cost": { "cost_usd": "unknown", "source": "none" }
+}
+```
+
+### R-23 `malformed`：「一次也没砍」写成了全零的汇总
+
+在 E-9 上把 `trims` 换成四项全零。**「没砍」只有一种写法——缺席**（[S-19](contract.md#s-19-用量与费用)）。预期：`拒绝：malformed`。
+
+```json
+{
+  "id": "resp_r23",
+  "call": { "callId": "mc_9c01" },
+  "dispatch": 1,
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
+  "outcome": "complete",
+  "reply": { "id": "msg_c1", "type": "assistant", "createdAt": "2026-09-23T10:09:04Z", "response": "resp_r23", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": false, "toModel": true }, "text": "摘要：……" } ] },
+  "replyDisposition": { "consumed": { "by": "compaction" } },
+  "timing": { "sentAt": "2026-09-23T10:09:00Z", "firstTokenAt": "2026-09-23T10:09:01Z", "endedAt": "2026-09-23T10:09:04Z" },
+  "usage": { "input_tokens": "unknown", "output_tokens": "unknown", "cache_read_tokens": "unknown", "cache_write_tokens": "unknown", "source": "none" },
+  "cost": { "cost_usd": "unknown", "source": "none" },
+  "trims": { "merged": 0, "cut": 0, "omittedBytes": 0, "byReason": { "rate_merged": 0, "frame_too_long": 0, "quota_exhausted": 0, "rejected": 0 } }
 }
 ```
 
@@ -697,7 +944,9 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 | `route.provider` 不在那条档案「允许的供应商」里 | [S-9](contract.md#s-9-路由留痕) |
 | `droppedParameters` 列了一个 `parameters` 里没有的名字，或者丢了项却不写 | [S-11](contract.md#s-11-交给传输适配的参数与没发出去的项) |
 | 一条 `failed` 带成因 `withdrawn`（档案已撤回） | [S-16](contract.md#s-16-发出了的才有响应体)：撤回在出门之前就上交了，没有「一次发出」 |
-| 一条 `unrecognized` 既没有 `statusCode`、也没有 `upstreamError` 和 `raw` | [S-15](contract.md#s-15-故障的成因与原样状态码)：兜底也要留痕 |
+| 一条 `unrecognized` 的 `localError` 是写入者编的一句「未知错误」，真正认不出来的那段上游回应没留 | [S-15](contract.md#s-15-故障的成因与原样状态码)：兜底留的得是认不出来的那样东西本身 |
+| `route.credentialScope` 写出厂格，这一次实际用的是组织那一把 | [S-9](contract.md#s-9-路由留痕)：用量会记到错的那一格头上 |
+| 运行被取消时写入者手里还有已交付的块，却写了一条没有 `delivered` 的 `interrupted` | [S-13](contract.md#s-13-收场与其余成员的条件关系)：有才带，有就必带 |
 | 同一次调用有 `dispatch` 1 与 3，没有 2 | [S-8](contract.md#s-8-第几次发出)、[S-23](contract.md#s-23-同一次调用的响应体序列) |
 | 同一次调用里第 1 条是 `failed`、成因 `request_rejected`，之后还有第 2 条 | [S-23](contract.md#s-23-同一次调用的响应体序列)：「重试没用」是事实，重试挂件推翻不了 |
 | 同一次调用里有两条带 `reply` | [S-14](contract.md#s-14-回复与已交付部分)、[S-23](contract.md#s-23-同一次调用的响应体序列) |
@@ -712,7 +961,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 ## 四、按尝试记明细、按 Run 汇总
 
 **对象**：E-6 与 E-7——同一次调用（`mc_2b77`）的两次发出，落在运行 `run_7a02` 的第 2 次尝试里。
-**规则**取自 `data.call-accounts`（施工简报账本口径，契约定型后复核）：`unknown` **单独计数、不当零加**；一个目标有 `CostCorrection` 时取 `at` 最新的那一条覆盖它的 `cost_usd`。
+**规则**取自 `data.call-accounts`：`unknown` **单独计数、不当零加**；一个目标有 `CostCorrection` 时取 `at` 最新的那一条覆盖它的 `cost_usd`。
 汇总怎样呈现（「已知合计 + 未知条数」这种两元组只是本页的演示写法）归那份契约。
 
 **按尝试记明细**——每次发出一行，**两行都在**：
@@ -750,4 +999,4 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 - **两条账两笔钱都进了明细**，哪怕第一笔最后被更正成 0——它是**查出来是 0**，不是**当作 0**。
   若 E-6 没有 `upstreamRequestId`，经上游补查这条来路就走不通，只能等人工更正或一直保持 `unknown`（[S-9](contract.md#s-9-路由留痕)、[S-19](contract.md#s-19-用量与费用)）。
 - **「这个 Run 的成本减去最后一次尝试的成本，就是崩溃浪费掉的钱」**（[PF-012 成本两层](../../../../product/PF-012-agent-loop-and-run/design.md#成本两层缺哪一层都会算错)）：
-  这两条都落在第 2 次尝试里，它们之间的差额是**同一次尝试内**换家的代价，不是崩溃造成的——**尝试号来自 `call.attemptId`，不来自 `dispatch`**。
+  这两条都落在第 2 次尝试里，它们之间的差额是**同一次尝试内**换家的代价，不是崩溃造成的——**尝试号来自每一条的 `attemptId`，不来自 `dispatch`**。
