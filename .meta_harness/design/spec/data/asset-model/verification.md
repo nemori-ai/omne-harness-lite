@@ -31,7 +31,7 @@
 | SC-3 | 持有的存储在 `(holder, capability)` 上有唯一约束；它的写入不绕过这个约束 | [S-18](v1/contract.md#s-18-资产持有) | 未开始 |
 | SC-4 | 不存在改写 `lineage.lineage` 的路径；给一份已有记录添上或去掉 `lineage` 的路径不存在 | [S-21](v1/contract.md#s-21-复制血缘) | 未开始 |
 | SC-5 | 面向目标组织的读面、日志与导出里不出现从血缘号到源记录号或源组织的映射；凭据配值的写入只接受凭据保管方发出的引用，任何呈现里不出现 `CredentialRef` 的值 | [S-22](v1/contract.md#s-22-血缘号与分享号)、[S-23](v1/contract.md#s-23-凭据引用) | 未开始 |
-| SC-6 | 各类正文契约的推出规则不读正文以外的任何输入（持有方、所在格、时间、环境），不产出 `disabled`、`usableBy` 与治理类的项；`agent_definition` 的 `body` 在它的正文契约成立之前没有读取点 | [S-10](v1/contract.md#s-10-八类正文的外壳)、[S-12](v1/contract.md#s-12-属性声明由正文推出)、[S-13](v1/contract.md#s-13-设置项类别)、[S-15](v1/contract.md#s-15-disabled-是保留项名)、[S-36](v1/contract.md#s-36-usableby-是保留项名) | 未开始 |
+| SC-6 | 各类正文契约的推出规则不读正文以外的任何输入（持有方、所在格、时间、环境），不产出 `disabled`、`usableBy`，治理类的项只在产品点名的那几项上产出（本版只有连接件的触发会话的默认运行模式，且不带 `default`）；`agent_definition` 的 `body` 在它的正文契约成立之前没有读取点 | [S-10](v1/contract.md#s-10-八类正文的外壳)、[S-12](v1/contract.md#s-12-属性声明由正文推出)、[S-13](v1/contract.md#s-13-设置项类别)、[S-15](v1/contract.md#s-15-disabled-是保留项名)、[S-36](v1/contract.md#s-36-usableby-是保留项名) | 未开始 |
 
 ## 对齐义务
 
@@ -109,6 +109,9 @@ V-2～V-7 **一条执行记录也没有**。手核只保证 `examples.md` 的实
   `examples.md` 第 14 节「tool 资产带 `usableBy`」由违约改为合法，另加一行（connector 推出 `install` 与保留的 `usableBy` 并存 → 推出规则违约，待那份契约收口）。
   **语义扩张**：tool、loop_extension、connector、agent_definition、plugin 五类的属性项多了 `usableBy` 一条（默认 `self`）。**对消费者**：`data.connector`（`install` 改名）、`capability.asset-evaluation`（第 1 步的滤与 `values` 恒有的那一条从三类扩到八类）要跟上——已报主线；Schema 不变（`usableBy` 那条声明的形状本来就不按类别判）。
 - **2026-09-24 随 `capability.asset-evaluation` 对齐 PF-002 rev 19 第一步三小步（候选未冻结，原地改；不改语义与表示）**：[S-36](v1/contract.md#s-36-usableby-是保留项名) 第 1 条原指向那份契约的 G-15（已关闭），改指它的 S-39 并写明 `self` 的两种所指；第十节「Schema 管不到」那一行残留的「`usableBy` 只在三类上」改为八类（G-14 那轮漏改）；[S-20](v1/contract.md#s-20-出厂格与工作区格的持有) 里指向那份契约 S-18 的链接随它的标题改名（「第一步之二」→「第一步之三」）改锚点。Schema、实例与 V-1～V-6 不受影响。
+- **2026-09-24 随 PF-002 rev 20 的治理类（主线派发；候选未冻结，原地改）**：产品依据 rev 19 → **rev 20**。[S-13](v1/contract.md#s-13-设置项类别)：治理类由「恰有一项 `disabled`」改为「`disabled`（保留项）加各正文契约推出的治理类项」，本版推得出的只有连接件的触发会话的默认运行模式；治理类里除 `disabled` 之外的项不从工作区来（[S-20](v1/contract.md#s-20-出厂格与工作区格的持有) 同改）。[S-12](v1/contract.md#s-12-属性声明由正文推出)：推出规则第 3 条改为治理类只产出产品点名的那几项；**`governance` 类设置项与 `placement_identity` 一样可以不带 `default`**（「作者声明的默认也不算数」）。
+  **Schema 改了**：`AttributeDeclaration` 的「可不带 `default`」由 `placement_identity` 扩到 `governance`，保留项 `disabled` 的那一支加 `required: ["default"]`（否则它借这条规则就能不带默认值）。`examples.md` 第 7 节加两行（不带默认值的 `disabled` 拒绝、不带默认值的治理类项通过），本地用 `jsonschema` Draft 2020-12 对 `$defs/AttributeDeclaration` 核了这两行与五行旧行，**结论与表里一致**；**V-1 整体未重跑**。SC-6 同步。
+  **对消费者**：`data.connector` 的推出规则要产出这一项、且不带 `default`（它现在写着「不产出治理类的项」，已报主线）；`capability.asset-evaluation` 同轮在 S-24 滤工作区的治理类配值。
 - **[G-6](v1/contract.md#八已知缺口)、[G-9](v1/contract.md#八已知缺口) 被裁决**（Agent Definition 的正文、plugin 的正文）：`AssetContent` 相应的变体换成引用或加成员 ⇒ 表示改变；接受前闭合则原地改并重跑 V-1、V-3、V-5，接受后闭合则**出 v2**。
 - **[G-13](v1/contract.md#八已知缺口) 闭合**（自决与裁定落进设计链）：只改[设计依据](v1/contract.md#设计依据)表的链接，语义与表示不变。
 - **跨进程演化启动**：V-6 从「无法演练」转为**必须演练**；[第四节](v1/contract.md#四装配给与协议给)右列九行从「待兑现」转为「须由协议兑现」，其中工作区键缺宿主分量那一行**多半要出新版**。

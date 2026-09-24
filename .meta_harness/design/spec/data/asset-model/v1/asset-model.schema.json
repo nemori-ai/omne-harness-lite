@@ -326,7 +326,7 @@
 
     "AttributeDeclaration": {
       "title": "属性声明",
-      "description": "S-12：一份资产自带的一个属性项——项名、是设置还是权限、设置的类别、取值域、作者给的默认值。它由这份资产的正文按类别推出（推出规则归各类正文契约），不作为一个成员存在资产记录上。设置项必带 category、取值域为 open、default 合那份 schema；权限项不带 category、取值域为 enum、default 是 values 里的一个。default 是这一项在设置层序最外一格（出厂默认）上的值；只有 placement_identity 类设置项可以不带 default——缺席即没有作者默认，各格都没配时求值得到缺席、读作「未配」（S-12）。项名 disabled 与 usableBy 由本契约保留（S-15、S-36），它们的声明只能是本定义里写死的那一份。",
+      "description": "S-12：一份资产自带的一个属性项——项名、是设置还是权限、设置的类别、取值域、作者给的默认值。它由这份资产的正文按类别推出（推出规则归各类正文契约），不作为一个成员存在资产记录上。设置项必带 category、取值域为 open、default 合那份 schema；权限项不带 category、取值域为 enum、default 是 values 里的一个。default 是这一项在设置层序最外一格（出厂默认）上的值；只有 placement_identity 与 governance 类设置项可以不带 default——缺席即没有作者默认，各格都没配时求值得到缺席、读作「未配」（S-12；governance 那一半随 PF-002 rev 20：连接件的触发会话的默认运行模式「作者声明的默认也不算数」）；保留项 disabled 恒带 default: false。项名 disabled 与 usableBy 由本契约保留（S-15、S-36），它们的声明只能是本定义里写死的那一份。",
       "$comment": "「default 合 schema」「权限 default ∈ values」「同一资产内 item 互不相同」Schema 表达不了，由 S-27 在 Schema 之外判为 malformed。",
       "type": "object",
       "properties": {
@@ -340,7 +340,7 @@
       "additionalProperties": false,
       "allOf": [
         {
-          "if": { "properties": { "kind": { "const": "setting" }, "category": { "const": "placement_identity" } }, "required": ["kind", "category"] },
+          "if": { "properties": { "kind": { "const": "setting" }, "category": { "enum": ["placement_identity", "governance"] } }, "required": ["kind", "category"] },
           "else": { "required": ["default"] }
         },
         {
@@ -363,6 +363,7 @@
         {
           "if": { "properties": { "item": { "const": "disabled" } }, "required": ["item"] },
           "then": {
+            "required": ["default"],
             "properties": {
               "kind": { "const": "setting" },
               "category": { "const": "governance" },

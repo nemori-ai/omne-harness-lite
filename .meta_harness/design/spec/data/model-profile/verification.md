@@ -33,7 +33,7 @@
 | 对齐什么 | 本包现状 | 另一边 | 状态 |
 |---|---|---|---|
 | **`Modality` 只有一份定义** | 两组模态 `$ref` `data.content-blocks` 的 `$defs/Modality`，本包不再自定义 | `data.content-blocks/v1#S-6` 是唯一的家 | **已对齐**：catalog 登记本包 → `data.content-blocks` [S-6] |
-| **`ModelProfileRef` 的消费** | S-13 定形状：按 `origin` 判别两支，官方 `{origin, routeName}`、自建 `{origin, scope, routeName}` | `data.loop-extension` 请求的 `target`、`data.model-response` 的路由留痕都取这个值 | 两份一律 `$ref` 本包 `$defs/ModelProfileRef`，**不各自复述两支、不各自加第三支**；核对结果记在那两份的验证入口 |
+| **`ModelProfileRef` 的消费** | S-13 定形状：按 `origin` 判别两支，官方 `{origin, routeName}`、自建 `{origin, scope, routeName}` | `data.model-response` 的路由留痕取这个值（`data.loop-extension` 请求的 `target` 自 2026-09-24 起改取 `RouteName`） | 一律 `$ref` 本包 `$defs/ModelProfileRef`，**不各自复述两支、不各自加第三支**；核对结果记在那份的验证入口 |
 | **撞名范围与大小写规则** | S-3：同一范围（同一格）内唯一，含已撤回行；不同格可同名（官方与自建、组织层与租户层、不同组织）；逐码点比较，不做大小写折叠与相似字判定 | `capability.model-profile-directory` 的建档与装入官方清单；任何按路由名去重、索引或展示的消费者（展示列表、`data.model-response` 的 `upstreamModel` 对照） | 目录那边按「S-3 定的范围」判、不复述范围；消费者不得自行加大小写不敏感的比较，**也不得假设路由名在格与格之间唯一**——同一个路由名可以出现在几条档案上，指认一条要带来源与所在范围（引用本身就带）；2026-09-24 规格修订批目录与运行时同批改 |
 | **上游输出上限低于档案参数的收场** | S-18：不改档案，义务归模型请求运行时 | `data.model-response` 的「这次实际发出的参数」 | 那一项记**实际发出的**（降过的）值，不记档案里的原值 |
 | **`ModelRequestParameters` 与项名** | S-15～S-21；项名规则在 S-20 | `data.model-response` 的「这次实际发出的参数」与「没发出去的项」；`data.loop-extension` 的「调模型之前」可改的参数 | 前者用本包 S-20 的项名；两者都不得另起一份参数词表；合成规则落在 `capability.model-request-runtime/v1#S-7`，剩余一问是 [G-8](v1/contract.md#十已知缺口) |

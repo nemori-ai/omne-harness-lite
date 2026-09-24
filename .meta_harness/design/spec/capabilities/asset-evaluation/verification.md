@@ -2,7 +2,7 @@
 
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
-> **当前状态：规范场景与静态检查未开始；Alloy 模型随 PF-002 rev 19「第一步三小步」改过之后 2026-09-24 重跑一次（十五条命令、十一个变异体），原始输出在主检出 `tmp/formal-runs/asset-evaluation-v1-2026-09-24b/`，未登记为 formal task。**
+> **当前状态：规范场景与静态检查未开始；Alloy 模型随吸收 PF-002 rev 17～20（「禁止」是界、界不同时是挑选、治理类项）改过之后 2026-09-24 重跑一次（十八条命令、十三个变异体），原始输出在主检出 `tmp/formal-runs/asset-evaluation-v1-2026-09-24b/-c/`，未登记为 formal task。**
 > `capability.asset-evaluation` v1 是 `candidate`，未接受、未冻结；尚无提供者设计、尚无源码、尚无装配。
 > 下表登记的是**已经触发的证据义务**，不是已完成的检查。
 > **六条规范场景（S-33～S-37、S-41）一条都未执行**——文件存在不代替结果。
@@ -12,14 +12,14 @@
 
 | # | 义务 | 证据形式 | 覆盖哪些条款 | 实际状态 |
 |---|---|---|---|---|
-| V-1 | **结构性质 (i)～(ix)**：团队资产不出那棵树、锁截断、禁用析取、工作区滤权（权限与落点类）、官方件下界、换了实现逃不出外层对这个能力标识锁下的界、与界不交的挑选不给出值、判为用不了的不生效、用不了的那份不带走外层的界 | Alloy：[`Evaluation.als`](v1/formal/Evaluation.als) 的十五条命令 ＋ 十一个变异体 | [S-17](v1/contract.md#s-17-第一步之一先按禁用滤)～[S-19](v1/contract.md#s-19-官方件是下界)、[S-39](v1/contract.md#s-39-谁可以使用它值与判定) 的结构后果、[S-22](v1/contract.md#s-22-第四步设置)～[S-25](v1/contract.md#s-25-工作区自带资产的权限项一律取最严值) 的「来自哪一格」那一面 | **2026-09-24 执行一次，未登记**（[下节](#已执行第一步三小步之后的-alloy-运行2026-09-24b)） |
+| V-1 | **结构性质 (i)～(x)**：团队资产不出那棵树、锁截断、禁用析取、工作区滤权（权限、落点类、治理类）、官方件下界、换了实现逃不出外层对这个能力标识锁下的界、与界不交的挑选不给出值、判为用不了的不生效、用不了的那份不带走外层的界、不锁的「禁止」也是界 | Alloy：[`Evaluation.als`](v1/formal/Evaluation.als) 的十八条命令 ＋ 十三个变异体 | [S-17](v1/contract.md#s-17-第一步之一先按禁用滤)～[S-19](v1/contract.md#s-19-官方件是下界)、[S-39](v1/contract.md#s-39-谁可以使用它值与判定) 的结构后果、[S-22](v1/contract.md#s-22-第四步设置)～[S-25](v1/contract.md#s-25-工作区自带资产的权限项一律取最严值) 的「来自哪一格」那一面 | **2026-09-24 执行一次，未登记**（[下节](#已执行吸收-pf-002-rev-17-到-rev-20-之后的-alloy-运行2026-09-24c)） |
 | V-2 | **四格齐全的一次求值**（[S-33](v1/contract.md#s-33-四格齐全的一次求值)）：五个集合与 [E-1](v1/examples.md#e-1-四格齐全的一次求值) 逐项相等；同一输入重放；改一项权限只动那一项的值 | 规范场景演练，**同一次演练比对全部五个集合** | [S-8](v1/contract.md#s-8-求值结果-effectiveassembly)、[S-11](v1/contract.md#s-11-纯计算)、[S-17](v1/contract.md#s-17-第一步之一先按禁用滤)～[S-26](v1/contract.md#s-26-每份持有都有去处) | **未开始。**需要一个实现；且第 2 步要 Agent Definition 的两条规则（[G-3](v1/contract.md#十一已知缺口)），闭合前只能以 examples 里「给定的正文」替身跑。**凭据那一条（E-1 第 1 件事）必须真核**：它失败的形态是外泄，不是报错。2026-09-24 起五个集合里的 `assets` 多了 `version`、`resident` 两列（`usable` 同日加上、又随第一步三小步删去）、`values` 多了落点设置的 `provenance`，同一次演练一并比对 |
 | V-3 | **先禁用后替换**（[S-34](v1/contract.md#s-34-先禁用后替换)）：[E-2a、E-2b](v1/examples.md#e-2-先禁用后替换) | 规范场景演练 | [S-17](v1/contract.md#s-17-第一步之一先按禁用滤)、[S-18](v1/contract.md#s-18-第一步之三最后取最具体的一份锁在最外那一把处截断) | **未开始** |
 | V-4 | **清单读入的留痕**（[S-35](v1/contract.md#s-35-清单读入的留痕)）：[E-3](v1/examples.md#e-3-一次清单读入)，并与 E-1 连起来看 | 规范场景演练 | [S-16](v1/contract.md#s-16-readworkspacecarrier)、[S-27](v1/contract.md#s-27-自带资产变成工作区那一格的持有)、[S-28](v1/contract.md#s-28-配值与禁用只对自带资产生效丢掉的留痕) | **未开始。**记录号怎么铸未定（[G-6](v1/contract.md#十一已知缺口)），演练比对的是结构 |
-| V-5 | **设置不跟过去、权限的约束跟过去**（[S-36](v1/contract.md#s-36-换了实现设置不跟过去权限的约束跟过去)）：[E-4](v1/examples.md#e-4-换了实现设置不跟过去权限的约束跟过去) 三支同跑 | 规范场景演练 | [S-22](v1/contract.md#s-22-第四步设置)、[S-23](v1/contract.md#s-23-第四步权限) | **未开始。**G-16、G-17 已闭合（账本 S10-a、S10-b），E-4 三支按「界与挑选」改写后的期望跑 |
+| V-5 | **设置不跟过去、权限的约束跟过去**（[S-36](v1/contract.md#s-36-换了实现设置不跟过去权限的约束跟过去)）：[E-4](v1/examples.md#e-4-换了实现设置不跟过去权限的约束跟过去) 五支同跑 | 规范场景演练 | [S-22](v1/contract.md#s-22-第四步设置)、[S-23](v1/contract.md#s-23-第四步权限) | **未开始。**G-16、G-17 已闭合（账本 S10-a、S10-b），E-4 按「界与挑选」「『禁止』是界」「界不同时是挑选」「没挑到界内取最近一档」的期望跑；A、B、C 三支执行权限的 `from` 2026-09-24 由 organization 改为 factory（界不再同时是挑选） |
 | V-6 | **输入不合法时整体拒绝**（[S-37](v1/contract.md#s-37-输入不合法时整体拒绝)）：[E-5](v1/examples.md#e-5-不合法的输入) 八份 | 规范场景演练，**核返回里没有任何 `EffectiveAssembly`** | [S-7](v1/contract.md#s-7-输入的一致性条件)、[S-13](v1/contract.md#s-13-invalidinput-是没开始判filteredout-与-unresolved-是判出来的结果) | **未开始** |
 | V-7 | **装配给的保证**（[S-29](v1/contract.md#s-29-装配给的保证-vs-协议须给的保证) 左列）：一致读、分享此刻成立、调用方已核实、清单就是目录里那份 | 装配设计的选型声明 ＋ 架构评审 | [第七节前提](v1/contract.md#前提由别人兑现本契约不检查) PRE-1～PRE-3、PRE-7 | **未开始。**不是可跑的义务；它们失效的形态都是**静默算错**（锁截断被绕过、团队资产出树），上面的场景测不出 |
-| V-8 | **判下来用不了的退回下一层**（[S-41](v1/contract.md#s-41-判下来用不了的退回下一层)）：[E-6](v1/examples.md#e-6-判下来用不了的退回下一层) 六支同跑 | 规范场景演练 | [S-39](v1/contract.md#s-39-谁可以使用它值与判定)、[S-18](v1/contract.md#s-18-第一步之三最后取最具体的一份锁在最外那一把处截断)、[S-19](v1/contract.md#s-19-官方件是下界)、[S-26](v1/contract.md#s-26-每份持有都有去处) | **未开始。**E 支的期望（锁随被滤掉的那份不起作用）是本契约推导，已报主线；主线改判则 E、F 两支随之改 |
+| V-8 | **判下来用不了的退回下一层**（[S-41](v1/contract.md#s-41-判下来用不了的退回下一层)）：[E-6](v1/examples.md#e-6-判下来用不了的退回下一层) 六支同跑 | 规范场景演练 | [S-39](v1/contract.md#s-39-谁可以使用它值与判定)、[S-18](v1/contract.md#s-18-第一步之三最后取最具体的一份锁在最外那一把处截断)、[S-19](v1/contract.md#s-19-官方件是下界)、[S-26](v1/contract.md#s-26-每份持有都有去处) | **未开始。**E 支的期望（锁随被滤掉的那份不起作用）是本契约推导，已报主线；主线改判则 E、F 两支随之改。**PF-002 acceptance §一「成员乙写了一个 tool，组织持有了它」那一行说的是组织直接持有**（不经 plugin），按主线读法（2026-09-24）与 [S-31](v1/contract.md#s-31-unresolved-交到装配手上怎么收场) 不冲突：没有同名 official 时，E-6 C 支的求值结果是这个标识进 `unresolved`，装配据它怎么收场归 S-31 |
 
 ### 静态检查义务
 
@@ -33,7 +33,63 @@
 
 ## 结果与反例
 
-### 已执行：第一步三小步之后的 Alloy 运行（2026-09-24b）
+### 已执行：吸收 PF-002 rev 17 到 rev 20 之后的 Alloy 运行（2026-09-24c）
+
+| 项 | 值 |
+|---|---|
+| 对象 | [`v1/formal/Evaluation.als`](v1/formal/Evaluation.als)，加 `ForbidAssign`（执行权限上的 `{forbid}` 是界）、`permPicks`（界不同时是挑选，删 fact `BoundsFitUnlessEmpty` 与 `Values.emptyBound`）、`GovernanceItem`（工作区的治理类配值不参与）、断言 (iv″)(x) 与 `run unlockedForbid` 之后的内容（未冻结）；SHA-256 `4a79c2f98168ae9418c78ec4a80c0df4ef6f640285d2793c151790c4baaf126a` |
+| 工具 | 本机 `/usr/local/bin/alloy` 6.2.0（`/opt/alloy/alloy.jar`，JRE 21），`alloy exec -f -o out Evaluation.als` |
+| 怎么跑的 | 复制到主检出 `tmp/formal-runs/asset-evaluation-v1-2026-09-24b/-c/` 再跑（目录名以 `-` 开头，shell 里写 `./-c` 或 `-- -c`）：`run.log`、`out/`、`sha256.txt`；变异体 `mutants/M1.als`～`M13.als` 与各自的 `.out`，差异与偏离预期的行汇总在 `mutants-summary.txt`；**未入库** |
+| 判读 | `check` 行 `UNSAT` 读作**本范围内无反例**、`SAT` 读作找到反例；`run` 行 `SAT` 读作前件可满足（账本 S10-c） |
+| 结果 | 全部十八条与预期一致，墙钟约 12 秒；退出码 0： |
+
+```text
+00. run   fourLayerInstance                    SAT
+01. run   replacementConstrained               SAT
+02. run   pickSkipped                          SAT
+03. run   usableByFallback                     SAT
+04. run   unusableConstrains                   SAT
+05. run   unlockedForbid                       SAT
+06. check TeamAssetsStayInTree                 UNSAT
+07. check LockTruncates                        UNSAT
+08. check DisableIsDisjunction                 UNSAT
+09. check WorkspaceNeverSourcesPermission      UNSAT
+10. check WorkspaceNeverSourcesPlacement       UNSAT
+11. check WorkspaceNeverSourcesGovernance      UNSAT
+12. check OfficialLowerBound                   UNSAT
+13. check ReplacementCannotEscapePermission    UNSAT
+14. check NonFittingPickNeverSources           UNSAT
+15. check UnusableNeverEffective               UNSAT
+16. check UnusableKeepsBounds                  UNSAT
+17. check ForbidIsBound                        UNSAT
+```
+
+**变异体**（M1～M11 按原来的改法在新模型上重做，M6 只拿掉落点类那一半；M12、M13 是新加的；每个只改一处，全部退出 0）：
+
+| # | 拿掉什么 | 找到反例的断言 | 与预期 |
+|---|---|---|---|
+| M1 | `candidates` 的锁条件 | `LockTruncates`、`ReplacementCannotEscapePermission` | 一致（同上一次） |
+| M2 | 禁用滤（`notDisabled = Holding`） | `DisableIsDisjunction` | 一致 |
+| M3 | `permParticipating` 放进 `Workspace` | `WorkspaceNeverSourcesPermission` | 一致 |
+| M4 | fact `OfficialNeverDisabled` | `OfficialLowerBound` | 一致 |
+| M5 | fact `InputHoldingsStayInTree` | `TeamAssetsStayInTree` | 一致 |
+| M6 | `settingParticipating` 对落点类的滤（治理类的留着） | `WorkspaceNeverSourcesPlacement` | 一致 |
+| M7 | `permParticipating` 改回只看指向生效资产的持有 | `ReplacementCannotEscapePermission`、`UnusableKeepsBounds` | 一致（同上一次） |
+| M8 | `permFrom` 改回「参与的最里面那一格」 | `NonFittingPickNeverSources`；同时 `run pickSkipped` 变 `UNSAT` | 一致 |
+| M9 | 「谁可以使用它」滤（`surviving = notDisabled`） | `UnusableNeverEffective` | 一致 |
+| M10 | fact `OfficialNotJudged` | `OfficialLowerBound` | 一致 |
+| M11 | `permParticipating` 改用 `candidates` | `UnusableKeepsBounds` | 一致 |
+| M12 | `permBounds` 只取带锁的 | `ForbidIsBound` | 一致 |
+| M13 | `settingParticipating` 对治理类的滤（落点类的留着） | `WorkspaceNeverSourcesGovernance` | 一致 |
+
+**范围与局限**（下两节那几条仍然成立，另加两条）：
+
+- (x) 按构造贴近 `permBounds` 的定义，价值在 M12；「配成恰 `{forbid}`」「这一项是执行权限」取给定子集 `ForbidAssign`，**它压过更里面的挑选、没挑到界内时落哪一档**都要算值，由 V-5（E-4 D、E 支）兜。
+- plugin「启用哪些成员」就地求值与命令型拓展件默认禁用**不在模型**（见 [formal 入口](v1/formal/README.md)「没有进模型的」）。
+
+### 已作废：第一步三小步之后的 Alloy 运行（2026-09-24b）
+
+**这一次对应改前的模型**（界同时是挑选、没有 `ForbidAssign` 与 `GovernanceItem`），被上一节取代；原始输出仍在主检出 `tmp/formal-runs/asset-evaluation-v1-2026-09-24b/`，只作历史。下面照原样保留。
 
 | 项 | 值 |
 |---|---|
@@ -184,7 +240,19 @@
   - [S-23](v1/contract.md#s-23-第四步权限) 的「在效」改写为「没被禁用、且不在锁以里指向另一份资产」，**被 `not_usable` 滤掉的照同一条判、仍在效**（推导：否则会话格挑一个空集就能甩掉外层锁下的执行权限）；C9 改为引它。
   - [S-18](v1/contract.md#s-18-第一步之三最后取最具体的一份锁在最外那一把处截断) 标题「第一步之二」→「**第一步之三**」（锚点随之改；本包之外 `data.asset-model` 契约里那一处链接同改）；第五节开头加三小步次序说明；[S-17](v1/contract.md#s-17-第一步之一先按禁用滤)、[S-19](v1/contract.md#s-19-官方件是下界)、[S-20](v1/contract.md#s-20-第二步组装)（「谁可以使用它」是唯一在第 1 步起作用的权限项，引 PF-004 rev 12 §6.5）、[S-25](v1/contract.md#s-25-工作区自带资产的权限项一律取最严值)（最严值 `{self}` 在第一步就用）改措辞；第七节加三行安全性质；新规范场景 **[S-41](v1/contract.md#s-41-判下来用不了的退回下一层)**；消费者核对两行改写。
   - `examples.md`：开头那条改写；E-1 定义表加作者（组织那份 `skill:audit` 的作者是 `acc_alice`，所以结果不变）、`assets` 删 `usable` 列并加一段第一步之二的说明；E-2a 删 `usable`；附表第 6 行改为「锁以里的 `h8` 照样参与」；**新 E-6 六支**。
-  - `Evaluation.als`：加 `Unusable`（判定作给定）与 fact `OfficialNotJudged`、`JudgedPerAsset`，`surviving` = 过了禁用与这一滤，新 `inEffect` 供 `permParticipating`，加断言 (viii) `UnusableNeverEffective`、(ix) `UnusableKeepsBounds` 与 `run usableByFallback`、`run unusableConstrains`；**2026-09-24 那次运行作废**，V-1 按新模型重跑，变异体 M1～M8 重做、加 M9～M11（[上节](#已执行第一步三小步之后的-alloy-运行2026-09-24b)）。
+  - `Evaluation.als`：加 `Unusable`（判定作给定）与 fact `OfficialNotJudged`、`JudgedPerAsset`，`surviving` = 过了禁用与这一滤，新 `inEffect` 供 `permParticipating`，加断言 (viii) `UnusableNeverEffective`、(ix) `UnusableKeepsBounds` 与 `run usableByFallback`、`run unusableConstrains`；**2026-09-24 那次运行作废**，V-1 按新模型重跑，变异体 M1～M8 重做、加 M9～M11（[那一节](#已作废第一步三小步之后的-alloy-运行2026-09-24b)，已被 2026-09-24c 取代）。
   - **消费者**：`capability.asset-registry` v1 的 S-20 第 2、5 条与 G-5 读已删的 `EffectiveAsset.usable`，且它「新得到的等 reload、只收窄」与「下一次运行起按此刻求值装入、退回下一层」要对一遍——**未改那份，已报主线**；`data.asset-model/v1#S-36` 第 1 条原指向本契约 G-15，同轮改指 S-39。
+
+- **2026-09-24 吸收 PF-002 rev 17～20（主线派发；G-20、G-13 关；候选未冻结，原地改）**：
+  - 头部产品依据 rev 19 → **rev 20**；新依赖 `data.tool-definition` v1（S-15 执行权限三档）与 `data.loop-extension` v1（S-4 干预力三档、S-8 外部命令），[S-4](v1/contract.md#s-4-依赖方向与被消费的面) 加一节、catalog 加两条依赖。
+  - [S-23](v1/contract.md#s-23-第四步权限)：执行权限上配成恰 `{forbid}` 的配值**锁不锁都是界**（`lockedAt` 照此取）；**界不同时是挑选**——原先「带锁的那条同时也是这一格的挑选」删去（产品「往外找第一个落在界内的挑选，是作者的默认」要求如此；那一句是 2026-09-24 整批对齐时的推导，本轮改判，已报主线）；
+    **分档的权限**（取值域恰是执行权限三档或干预力三档的，档序由宽到严 `auto`→`ask`→`forbid`、`veto`→`rewrite`→`observe`）没有挑选落在界内时取界内离最具体那条挑选最近的一档、一样近取严；产品原话表改两行、加两行；[G-9](v1/contract.md#十一已知缺口) 收窄。
+  - [S-17](v1/contract.md#s-17-第一步之一先按禁用滤)：工作区自带的命令型拓展件与 stdio 接入点同列默认禁用，G-19 扩到两样；从别家导入的工作区来源 hook 落为租户格禁用（`capability.hooks-import/v1` S-9），只指路。
+  - [S-24](v1/contract.md#s-24-工作区那一格在第四步只贡献设置) 加治理类一行、`FilterReason` 六值 → **七值**（`workspace_governance`，本契约拟名，已报主线）；[S-12](v1/contract.md#s-12-缺席时的默认答案)、S-16、S-28 同步；治理类项没有作者默认时各格没配就是缺席。
+  - [S-20](v1/contract.md#s-20-第二步组装)：plugin「启用哪些成员」在第 2 步就地求值、没启用的成员不进可达集合也不进 `unresolved`；斜杠命令的绑定目标是命令本身；G-13 关，G-3 注明这一项仍等 plugin 的属性项。
+  - S-32、[S-36](v1/contract.md#s-36-换了实现设置不跟过去权限的约束跟过去)（三支 → 五支）、第七节加三行安全性质、消费者核对「准入判断」一行改为大半够。
+  - `examples.md`：E-1「改一项权限」那一支加 `lockedAt = tenant`（`{禁止}` 是界）；**E-4 A、B、C 执行权限的 `from` 由 organization 改为 factory**（界不再同时是挑选，作者默认落在界内），加 D（不锁的「禁止」）、E（界内没人挑到取最近一档）两支；E-6 F 支的说法；附表记号。
+  - `Evaluation.als`：见[上节](#已执行吸收-pf-002-rev-17-到-rev-20-之后的-alloy-运行2026-09-24c)；2026-09-24b 那次作废。
+  - **消费者**：`capability.asset-governance` 写入面「拒绝写界外的值」要认不锁的 `{forbid}` 也是界；`data.connector` 的推出规则要产出治理类的触发会话默认运行模式、且不带 `default`（`data.asset-model` S-12、S-13 同轮改）；`capability.asset-registry` 同轮改读 `assets` 而不是 `usable`。都已报主线或同轮落。
 
 结果不改写规范。发现语义问题回到来源设计（PF-002／PF-001／PF-003／PF-004），不在这里改契约。

@@ -89,7 +89,7 @@
 | **合法目标集合的求值与模型展示列表**（`capability.model-request-runtime` v1） | `registration`（[S-10](#s-10-registration)）、`inputModalities`（[S-7](#s-7-modality-与两组模态)）、档案与引用成对交出（[S-1](#s-1-档案的身份所在范围与路由名)）；**官方与自建同一份**（[PF-013 §6.3](../../../../product/PF-013-model-profiles-and-invocation/design.md#63-官方与自建在同一份列表里)） |
 | **组装**（[PF-010 要求五](../../../../product/PF-010-context-management-and-assembly/design.md#要求五组装的输入里必须有当下生效的那份模型档案)） | 窗口 `maxInputTokens`（[S-8](#s-8-两个上限)）、收得下的模态（[S-7](#s-7-modality-与两组模态)）、送进去之前的限制（[S-9](#s-9-inputconstraints)）——**同一份档案里的三个事实** |
 | **模态投影与模态转换件**（[PF-013 §4](../../../../product/PF-013-model-profiles-and-invocation/design.md#模态)） | `Modality` 四个取值（[S-7](#s-7-modality-与两组模态)） |
-| **`data.loop-extension` v1** | 「调模型之前」可改的请求里 `target` 取 `ModelProfileRef`、`parameters` 取 `ModelRequestParameters`（PF-013 rev 12 之后设置记路由名，`target` 该不该也改记路由名待那份契约对齐） |
+| **`data.loop-extension` v1** | 「调模型之前」可改的请求里 `target` 与 `select_model` 的 `profile` 取 `RouteName`（PF-013 rev 12：用哪个模型记路由名，2026-09-24 主线裁定）、`parameters` 取 `ModelRequestParameters` |
 | **`data.model-response` v1** | 路由留痕的 `profile`（`ModelProfileRef`）、档案快照（本契约 `ModelProfile` 的属性子集与 `updatedAt`）、`provider`（`ProviderName`）、`parameters`（`ModelRequestParameters`）；未发出项的名字按 [S-20](#s-20-项与项名)，留痕义务来自 [S-21](#s-21-不静默丢也不静默改) |
 | **`capability.model-profile-directory` v1**（建档、改、撤回、恢复在册、读） | [S-3](#s-3-撞名判定同一范围内唯一) 的判定与 `route_name_taken`、[S-10](#s-10-registration) 的两条转移、[S-12](#s-12-各属性何时定能不能改) 的写路径约束、[S-24](#s-24-表示层校验是一次纯计算) 的表示层校验 |
 

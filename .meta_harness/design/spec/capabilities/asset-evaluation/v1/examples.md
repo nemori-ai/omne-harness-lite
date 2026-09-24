@@ -124,7 +124,7 @@
 
 - **重放**：同一份输入再求一次，五个集合**逐项相同**（[S-11](contract.md#s-11-纯计算)）。
 - **改一项权限**：把 `h6` 的 `execution` 改成 `{禁止}` 再求——`assets`、`composition`、`unresolved`、`filteredOut` **与上面逐项相同**，
-  `values` 只有 `tool:shell / execution` 这一条变成 `{禁止}`、`from = tenant`（[PF-004 I-4](../../../../product/PF-004-agent-definition-and-assembly/design.md#61-不变式)）。
+  `values` 只有 `tool:shell / execution` 这一条变成 `{禁止}`、`from = tenant`、**`lockedAt = tenant`**——配成「禁止」锁不锁都是界（[S-23](contract.md#s-23-第四步权限)，PF-002 rev 17 §5.3）（[PF-004 I-4](../../../../product/PF-004-agent-definition-and-assembly/design.md#61-不变式)）。
 
 ---
 
@@ -239,38 +239,45 @@
 
 ## E-4 换了实现，设置不跟过去，权限的约束跟过去
 
-对应 [S-36](contract.md#s-36-换了实现设置不跟过去权限的约束跟过去)。**三支同跑。**三支的 `tool:shell` 都另有 `version = 1`、`resident = true`，略；每份持有的 `versionSelection` 都是 `current`。
+对应 [S-36](contract.md#s-36-换了实现设置不跟过去权限的约束跟过去)。**五支同跑。**五支的 `tool:shell` 都另有 `version = 1`、`resident = true`，略；每份持有的 `versionSelection` 都是 `current`。
 
 **共同输入**：`tenant`、`standing` 同 E-1；无 `workspace`、无 `session`；`root` = `agent_definition:helper3`。
 definitions：`ast_off_helper3`（`agent_definition:helper3`，official，引用 `tool:shell`（标常驻），无属性项）；
 `ast_off_shell`、`ast_t_shell` 同 E-1——**`ast_t_shell` 没有声明 `network`**。
 
-| 支 | holdings（三支都另有 f：`agent_definition:helper3 → ast_off_helper3`、f：`tool:shell → ast_off_shell`） |
+| 支 | holdings（五支都另有 f：`agent_definition:helper3 → ast_off_helper3`、f：`tool:shell → ast_off_shell`） |
 |---|---|
 | **A 不锁替换** | org：`tool:shell → ast_off_shell`，锁 **否**，`timeout_s = 120` 🔒、`execution = {问一下}` 🔒、`network = {允许}` 🔒；tenant：`tool:shell → ast_t_shell`，**不带配值** |
 | **B 组织锁替换** | 同 A，唯一的差别：org 那份持有的锁为 **是** |
 | **C 锁住的档又被改了** | 同 A，唯一的差别：tenant 那份持有指向 **`ast_off_shell`**（为配值而持有出厂那一份，不是替换），`execution = {自动}`——组织加锁之前写下的那一条 |
+| **D 不锁的「禁止」** | 同 C，唯一的差别：org 那份持有上的 `execution` 是 **`{禁止}`、不带锁** |
+| **E 界内没人挑到** | 只有 f 那两份与 org：`tool:shell → ast_off_shell`，锁 **否**，只配 `execution = {问一下, 禁止}` 🔒；**这一支里 `ast_off_shell` 的 `execution` 声明默认是 `{自动}`**（其余声明同 E-1） |
 
-**期望结果**（`agent_definition:helper3` 那一条三支相同，略；三支的 `unresolved` 都为空）：
+**期望结果**（`agent_definition:helper3` 那一条五支相同，略；五支的 `unresolved` 都为空；各支 `values` 里的 `(tool:shell, usableBy)` 都是 `{self}` · factory · —，略）：
 
 | 支 | `tool:shell` 的 assets 条目 | `timeout_s` | `execution` | `network` | filteredOut |
 |---|---|---|---|---|---|
-| A | `ast_t_shell` · from tenant · replaced factory、organization | `45` · factory · — | `{问一下}` · organization · organization | `{}`（空集）· organization · organization | 空 |
-| B | `ast_off_shell` · from organization · replaced 空 · lockedAt organization | `120` · organization · organization | `{问一下}` · organization · organization | `{允许}` · organization · organization | `(tool:shell, tenant, locked_below)` |
-| C | `ast_off_shell` · from tenant · replaced 空 | `120` · organization · organization | `{问一下}` · organization · organization | `{允许}` · organization · organization | 空 |
+| A | `ast_t_shell` · from tenant · replaced factory、organization | `45` · factory · — | `{问一下}` · factory · organization | `{}`（空集）· organization · organization | 空 |
+| B | `ast_off_shell` · from organization · replaced 空 · lockedAt organization | `120` · organization · organization | `{问一下}` · factory · organization | `{允许}` · organization · organization | `(tool:shell, tenant, locked_below)` |
+| C | `ast_off_shell` · from tenant · replaced 空 | `120` · organization · organization | `{问一下}` · factory · organization | `{允许}` · organization · organization | 空 |
+| D | `ast_off_shell` · from tenant · replaced 空 | `120` · organization · organization | **`{禁止}` · organization · organization** | `{允许}` · organization · organization | 空 |
+| E | `ast_off_shell` · from organization · replaced 空 | `60` · factory · — | **`{问一下}` · organization · organization** | `{禁止}` · factory · — | 空 |
 
 值的写法是 `value · from · lockedAt`。
 
-**三支合起来说的是**：
+**五支合起来说的是**：
 
 - **A——设置不跟过去，权限的界跟过去**：组织锁住的 `timeout_s = 120` 挂在指向出厂那一份的持有上，租户换了实现就不在新实现的链上，取 `ast_t_shell` 声明的 `45`（[S-22](contract.md#s-22-第四步设置) 代价那一段）；
-  组织锁住的 `execution = {问一下}` 却是界，按能力标识约束新实现：`X = {问一下}`，最里一条落在界内的挑选是组织那条自己，`from = organization`（[S-23](contract.md#s-23-第四步权限)）。
+  组织锁住的 `execution = {问一下}` 却是界，按能力标识约束新实现：`X = {问一下}`；界不同时是挑选，最里一条落在界内的挑选是新实现 `ast_t_shell` 的声明默认值 `{问一下}` ⇒ `from = factory`、`lockedAt = organization`（[S-23](contract.md#s-23-第四步权限)）。
   **`ast_t_shell` 没有 `network` 这一项**，组织锁住的 `{允许}` 也不算数：外层锁过、替换件缺的项取最严，表外项的最严值是空集，`{} ∩ {允许}` = 空集。
   **组织那条若不带锁**，它只是一条挑选——挑选不造出项，`network` 就不在 `values` 里。
 - **B——锁替换是设置那一侧的杠杆**：租户那份以 `locked_below` 退出，**不在效，既不给界也不给挑选**；生效的是组织配过值的那一份，组织的设置与权限都照常生效。
-  `network` 的界是组织锁住的 `{允许}`；声明默认值 `{禁止}` 这条挑选与界不交，被跳过，组织那条落在界内 ⇒ `{允许}`。
-- **C——锁住的档被下层改过**：租户那条 `{自动}` 本该在组织加锁时被写入面挡住；它仍在输入里，它是一条**与界不交的挑选**，被跳过——
-  值是组织锁住的 `{问一下}`，**不是空集**，与产品原话「[组织锁死『问一下』，成员改不了](../../../../product/PF-002-assets-settings-and-permissions/design.md#54-默认与强制一个机制三处适用)」一致（账本 S10-b；原 G-16 闭合）。
+  `network` 的界是组织锁住的 `{允许}`；声明默认值 `{禁止}` 这条挑选与界不交，被跳过，再没有别的挑选 ⇒ 值取界 `{允许}`，`from` 是给了界的那一格（`network` 不是分档的权限，[S-23](contract.md#s-23-第四步权限) 合成第 3 条）。
+- **C——锁住的档被下层改过**：租户那条 `{自动}` 本该在组织加锁时被写入面挡住；它仍在输入里，它是一条**与界不交的挑选**，被跳过；再往外是作者默认 `{问一下}`，落在界内——
+  值是 `{问一下}`，**不是空集**，与产品原话「[组织锁死『问一下』，成员改不了](../../../../product/PF-002-assets-settings-and-permissions/design.md#54-默认与强制一个机制三处适用)」一致（账本 S10-b；原 G-16 闭合）。
+- **D——不锁的「禁止」照样是界**（PF-002 rev 17 §5.3）：组织那条 `{禁止}` 没带锁，照一般的挑选读它会被租户的 `{自动}` 覆盖；它是执行权限上的 `{forbid}`，所以是界：`X = {禁止}`，租户的 `{自动}` 与作者默认 `{问一下}` 都不落在界内，界内只有一档 ⇒ `{禁止}`，`from`、`lockedAt` 都是 organization。
+- **E——界内没人挑到，取离作者默认最近的一档**（PF-002 rev 17 §5.3 与 acceptance「作者声明的默认是『自动』，也没有哪一层在界内挑过」那一行）：`X = {问一下, 禁止}`，唯一的挑选是作者默认 `{自动}`，不落在界内；
+  档序 `自动 → 问一下 → 禁止`，离「自动」一格的是「问一下」、两格的是「禁止」⇒ **`{问一下}`**，不是更严的「禁止」，也**不是**两档的 `{问一下, 禁止}`；`from` 是给了界的 organization。
 
 ---
 
@@ -326,7 +333,7 @@ definitions：`ast_off_helper3`（`agent_definition:helper3`，official，引用
 | C | 同 B | **不在 `assets` 里**；`composition` 只有 `agent_definition:helper6` | —（不在 `composition` 里） | `(tool:fmt, organization, not_usable)` | `{ tool:fmt, referencedBy: agent_definition:helper6 }` |
 | D | org 那份：最里一条挑选是组织配的 `{member}` ⇒ `U = {member}`，甲的角色在里面 ⇒ 用得了 | `ast_org_fmt` · from organization · replaced factory | `{member}` · organization · — | 空 | 空 |
 | E | org 那份：`U = {self}`，乙不是甲 ⇒ **用不了**；tenant 那份：`U = {self}`，作者就是甲 ⇒ 用得了 | `ast_t_fmt` · from tenant · replaced factory · **`lockedAt` 缺席** | `{self}` · factory · — | `(tool:fmt, organization, not_usable)` | 空 |
-| F | org 那份：界 `{superAdministrator, member}`，由里到外第一条落在界内的挑选是组织那条自己 ⇒ `U = {superAdministrator, member}`，甲是 `member` ⇒ 用得了；tenant 那份同样用得了 | `ast_org_fmt` · from organization · replaced factory · lockedAt organization | `{superAdministrator, member}` · organization · organization | `(tool:fmt, tenant, locked_below)` | 空 |
+| F | org 那份：界 `{superAdministrator, member}`；唯一的挑选是声明默认值 `{self}`，与界不交 ⇒ 没有挑选落在界内，这一项不分档 ⇒ `U` 取界 `{superAdministrator, member}`，甲是 `member` ⇒ 用得了；tenant 那份同样用得了 | `ast_org_fmt` · from organization · replaced factory · lockedAt organization | `{superAdministrator, member}` · organization · organization | `(tool:fmt, tenant, locked_below)` | 空 |
 
 **六支合起来说的是**：
 
@@ -344,7 +351,7 @@ definitions：`ast_off_helper3`（`agent_definition:helper3`，official，引用
 
 **记号**：一格写出的值 = 这一格对这一项给出了参与合成的值（设置），或界与挑选（权限）；「—」= 不给，括号里写为什么。
 设置按 `factory < organization < tenant < workspace < session` 由外到里，**只看指向生效资产的持有**，第一条带锁的截断，否则取最里面给了值的；出厂那一格也没有值时这一项不进 `values`（[S-22](contract.md#s-22-第四步设置)）；
-权限**按能力标识**：组织、租户两格的在效持有（不论指向哪份资产）与会话格给值——**带锁的是界，不带锁的与声明默认值是挑选**；`X` = 声明域 ∩ 各界，由里到外取第一条落在界内的挑选、值取它与 `X` 的交，没有就取 `X`（[S-23](contract.md#s-23-第四步权限)）；
+权限**按能力标识**：组织、租户两格的在效持有（不论指向哪份资产）与会话格给值——**带锁的（以及执行权限上的 `{forbid}`）是界，其余不带锁的与声明默认值是挑选，界不同时是挑选**；`X` = 声明域 ∩ 各界，由里到外取第一条落在界内的挑选、值取它与 `X` 的交，没有就：分档的取界内离最具体那条挑选最近的一档，其余取 `X`（[S-23](contract.md#s-23-第四步权限)）；
 工作区自带资产的权限项以最严值为出厂那一格的界、那一格不给挑选（[S-25](contract.md#s-25-工作区自带资产的权限项一律取最严值)）。
 
 | # | 项 | factory | organization | tenant | workspace | session | 结果 · from · lockedAt |

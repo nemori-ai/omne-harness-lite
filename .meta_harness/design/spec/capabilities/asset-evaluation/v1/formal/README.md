@@ -16,11 +16,13 @@
 | [S-17](../contract.md#s-17-第一步之一先按禁用滤) | **(iii) 禁用析取**：组织、租户任一格把某份资产禁用，或工作区把它自带的那份禁用，这份资产就不在任何能力标识的生效结果里 | 断言 `DisableIsDisjunction` | 「先禁用后替换」的次序后果（标识退回外一层）**不是断言**，证据形式是规范场景 [S-34](../contract.md#s-34-先禁用后替换) |
 | [S-23](../contract.md#s-23-第四步权限)、[S-24](../contract.md#s-24-工作区那一格在第四步只贡献设置)、[S-25](../contract.md#s-25-工作区自带资产的权限项一律取最严值) | **(iv) 工作区滤权**：组合里任何一项权限的值都不来自工作区那一格 | 断言 `WorkspaceNeverSourcesPermission` | 只核「来自哪一格」，不核值；工作区自带资产的**最严值**是值域上的事，证据形式是规范场景 [S-33](../contract.md#s-33-四格齐全的一次求值)（E-1 附表第 10～12 行） |
 | [S-24](../contract.md#s-24-工作区那一格在第四步只贡献设置) | **(iv′) 落点与身份类设置项的值不来自工作区那一格** | 断言 `WorkspaceNeverSourcesPlacement` | 同上 |
+| [S-24](../contract.md#s-24-工作区那一格在第四步只贡献设置) | **(iv″) 治理类设置项的值不来自工作区那一格**（PF-002 rev 20 §5.7） | 断言 `WorkspaceNeverSourcesGovernance` | 同上；`disabled` 不是这里的项（它在第 1 步用掉） |
 | [S-19](../contract.md#s-19-官方件是下界) | **(v) 官方件是下界**：出厂那一格持有的每个能力标识都有生效资产 | 断言 `OfficialLowerBound`；**它同时守「official 不参与『谁可以使用它』那一滤」**（fact `OfficialNotJudged`，M10） | **出厂持有齐全**是前提 PRE-4，由装配给（[S-29](../contract.md#s-29-装配给的保证-vs-协议须给的保证) 末行），不在模型 |
 | [S-39](../contract.md#s-39-谁可以使用它值与判定) | **(viii) 判为用不了的不生效**：这次求值的租户用不了的那份资产，不出现在任何能力标识的生效结果里 | 断言 `UnusableNeverEffective`；`run usableByFallback` 给出两种退回的实例（退回出厂那一份；锁随被滤掉的那份不起作用、更具体的一份生效） | **判定本身不在模型**：`Unusable` 是给定的持有子集，只加两条 fact——official 不判（`OfficialNotJudged`）、指向同一份资产的持有同判（`JudgedPerAsset`）。值怎么求、`self` 对作者、角色在不在值里，证据形式是规范场景 [S-41](../contract.md#s-41-判下来用不了的退回下一层) |
 | [S-23](../contract.md#s-23-第四步权限) 的「在效」 | **(ix) 用不了的那份不带走外层的界**：组织或租户那一格对 `c` 的持有被滤掉、却仍在效，且那一格对生效资产声明的权限项 `i` 配了带锁的值——那条值就在 `i` 的界里 | 断言 `UnusableKeepsBounds`；`run unusableConstrains` 给出前件成立的实例 | 与 (vi) 同样贴近 `permBounds` 的定义，价值在 M11：**把「被滤掉的仍在效」钉进模型**。「谁可以使用它」这一项自己的参与者不看锁截断（[S-39](../contract.md#s-39-谁可以使用它值与判定) 第 1 条），模型的 `PermissionItem` 不含它 |
 | [S-23](../contract.md#s-23-第四步权限) | **(vi) 换了实现逃不出外层对这个能力标识锁下的界**：组织或租户那一格对 `c` 的在效持有指向被替换的那一份、且给生效资产声明的权限项 `i` 配了**带锁**的值——那条值就在 `i` 的界里 | 断言 `ReplacementCannotEscapePermission` | **它与 `permBounds` 的定义很近**：它的用处是把「按能力标识」钉住，把参与条件改回「只看指向生效资产的持有」时必须失败（下面的 M7）。**替换件没声明、外层锁过的那一项**（S-23 最后一段）不在断言范围——模型只对生效资产声明的项下断言；证据形式是规范场景 [S-36](../contract.md#s-36-换了实现设置不跟过去权限的约束跟过去)（E-4 A 支的 `network`） |
-| [S-23](../contract.md#s-23-第四步权限) | **(vii) 与界不交的挑选不给出值**：有挑选落在界内时，值来自其中一条，且没有一条落在界内的挑选比它更里（账本 S10-b） | 断言 `NonFittingPickNeverSources`；`run pickSkipped` 给出「更里的一条被跳过」的实例 | 「落在界内」是值域上的事，模型把它当作给定的布尔 `Fits`、`defaultFits`，只加一条 fact：界非空时每条界自己落在界内（`BoundsFitUnlessEmpty`）。值本身由规范场景 [S-36](../contract.md#s-36-换了实现设置不跟过去权限的约束跟过去)（E-4 C 支）兜 |
+| [S-23](../contract.md#s-23-第四步权限) | **(vii) 与界不交的挑选不给出值**：有挑选落在界内时，值来自其中一条，且没有一条落在界内的挑选比它更里（账本 S10-b） | 断言 `NonFittingPickNeverSources`；`run pickSkipped` 给出「更里的一条被跳过」的实例 | 「落在界内」是值域上的事，模型把它当作给定的布尔 `Fits`、`defaultFits`。**挑选不含界**（`permPicks` = 参与的配值减去界；2026-09-24 随 rev 17 §5.3 改，原先的 fact `BoundsFitUnlessEmpty` 随「界同时是挑选」一起删去）。值本身与「没有挑选落在界内」时的落档由规范场景 [S-36](../contract.md#s-36-换了实现设置不跟过去权限的约束跟过去)（E-4 C、D、E 支）兜 |
+| [S-23](../contract.md#s-23-第四步权限) | **(x) 不锁的「禁止」也是界**：执行权限上配成恰 `{forbid}` 的参与配值在界里（PF-002 rev 17 §5.3） | 断言 `ForbidIsBound`；`run unlockedForbid` 给出一条不带锁的 `{forbid}` 参与的实例 | 贴近 `permBounds` 的定义，价值在 M12。「配成恰 `{forbid}`」「这一项是执行权限」是值域上的事实，模型取给定的子集 `ForbidAssign`；它压过更里面的挑选这件事要算值，由 E-4 D 支兜 |
 
 **没有进模型的，各自的理由**：
 
@@ -28,6 +30,7 @@
   证据形式是规范场景 [S-33](../contract.md#s-33-四格齐全的一次求值)、[S-36](../contract.md#s-36-换了实现设置不跟过去权限的约束跟过去)。
 - **组装里成环的收场值**：未定（[G-1](../contract.md#十一已知缺口)）。模型的 `reached` 用传递闭包，环在里面不影响可达集合的定义，但**不代表对含环输入的结果有承诺**。
 - **版本选用**（`data.asset-model/v1#S-18` 第 6 条）：模型把「生效资产的引用与属性项」当作资产的固定属性，等于假定选用的那一版已经定了。
+- **没有挑选落在界内时的落档**（[S-23](../contract.md#s-23-第四步权限) 合成第 3 条）、**plugin「启用哪些成员」在第 2 步就地求值**（[S-20](../contract.md#s-20-第二步组装)）、**工作区自带的命令型拓展件默认禁用**（[S-17](../contract.md#s-17-第一步之一先按禁用滤) 第三条）：前两样是值域上的事（模型只算来自哪一格、可达集合按固定的引用算），第三样只是模型里给定的 `Disabled` 的又一个来源；证据形式分别是规范场景 [S-36](../contract.md#s-36-换了实现设置不跟过去权限的约束跟过去)（E-4 E 支）、暂无（等 plugin 的属性项，[G-3](../contract.md#十一已知缺口)）、暂无（同 stdio 那一条，[G-19](../contract.md#十一已知缺口)）。
 - **2026-09-24 加的三样输出**：常驻值（[S-38](../contract.md#s-38-常驻值)）、「谁可以使用它」的值与判定本身（[S-39](../contract.md#s-39-谁可以使用它值与判定)；它的**结构后果**——用不了的不生效、退回下一层、不带走外层的界——已进模型，见 (viii)(ix)）、落点设置的来处（[S-40](../contract.md#s-40-落点与身份类设置的来处)），以及工作区提供的 stdio 接入点默认禁用（[S-17](../contract.md#s-17-第一步之一先按禁用滤) 第三条）——都是逐条的映射或值，不是结构关系；证据形式是规范场景 [S-33](../contract.md#s-33-四格齐全的一次求值)。
 - **读入面**（[S-27](../contract.md#s-27-自带资产变成工作区那一格的持有)、[S-28](../contract.md#s-28-配值与禁用只对自带资产生效丢掉的留痕)，一个映射，没有结构约束可反驳）。
 - **同输入同输出**（[S-11](../contract.md#s-11-纯计算)）：Alloy 里的函数按定义确定，写成断言是空的；证据形式是规范场景的重放支与静态检查。
@@ -51,10 +54,11 @@
   | `lockers`、`lockHolding`、`candidates`、`selected`、`effective` | [S-18](../contract.md#s-18-第一步之三最后取最具体的一份锁在最外那一把处截断)：工作区的锁不算；最外一把截断；锁以里同一份资产的持有留下。锁只从 `surviving` 里找——被滤掉的那份，它的锁不起作用 |
   | `inEffect` | [S-23](../contract.md#s-23-第四步权限) 的**在效**：没被禁用滤掉、不在锁以里指向另一份资产；被 `Unusable` 滤掉的照同一条判。对没被滤掉的持有，它就是 `candidates` |
   | `refStep`、`reached`、`composition`、`unresolvedCaps` | [S-20](../contract.md#s-20-第二步组装)：引用指向能力标识，沿生效资产走 |
-  | `settingParticipating` | [S-22](../contract.md#s-22-第四步设置)：持有层只有**指向生效资产**的持有给值；会话格按能力标识；工作区的落点类配值不参与 |
+  | `GovernanceItem` | 设置项里治理那一类（`disabled` 之外，[S-24](../contract.md#s-24-工作区那一格在第四步只贡献设置)） |
+  | `settingParticipating` | [S-22](../contract.md#s-22-第四步设置)：持有层只有**指向生效资产**的持有给值；会话格按能力标识；工作区的落点类、治理类配值不参与 |
   | `permParticipating` | [S-23](../contract.md#s-23-第四步权限)：组织、租户两格的**在效**持有（`inEffect`）参与，**不论指向哪份资产**；会话格；工作区一律不参与 |
-  | `permBounds`；fact `BoundsFitUnlessEmpty` | 带锁的那几条是界；界非空时每条界自己落在界内 |
-  | `Fits`、`Values.defaultFits`、`Values.emptyBound` | 一条挑选（配值、声明默认值）落不落在界内；界是不是空集——值域上的事实，模型只取布尔 |
+  | `ForbidAssign`；`permBounds`、`permPicks` | 执行权限上配成恰 `{forbid}` 的配值；带锁的与 `ForbidAssign` 是界，其余参与的配值是挑选，界不同时是挑选 |
+  | `Fits`、`Values.defaultFits` | 一条挑选（配值、声明默认值）落不落在界内——值域上的事实，模型只取布尔 |
   | `permFrom` | 由里到外第一条落在界内的挑选那一格；否则出厂那一格的挑选（工作区自带资产没有）；否则给了界的最里面那一格；否则 `Factory`——[S-25](../contract.md#s-25-工作区自带资产的权限项一律取最严值) 的最严值落在最后一支 |
   | `settingFrom` | 最外那一条带锁的配值所在的格（工作区的锁不算）；否则最里面给了值的那一格；否则 `Factory` |
 
@@ -67,20 +71,23 @@
   | `run pickSkipped` | 同上 | **找到实例**（(vii) 的前件不是空泛的） |
   | `run usableByFallback` | `for 6 but 4 Cap, 7 Holding, 4 Assign, 3 Item, 3 Owner` | **找到实例**（两种退回都能发生） |
   | `run unusableConstrains` | `for 6 but 4 Cap, 4 Assign, 3 Item, 3 Owner` | **找到实例**（(ix) 的前件可满足） |
+  | `run unlockedForbid` | 同上 | **找到实例**（(x) 的前件不是空泛的） |
   | `check TeamAssetsStayInTree` | `for 6 but 4 Cap, 4 Assign, 3 Item, 3 Owner` | 无反例 |
   | `check LockTruncates` | 同上 | 无反例 |
   | `check DisableIsDisjunction` | 同上 | 无反例 |
   | `check WorkspaceNeverSourcesPermission` | `for 6 but 4 Cap, 5 Assign, 3 Item, 3 Owner` | 无反例 |
   | `check WorkspaceNeverSourcesPlacement` | 同上 | 无反例 |
+  | `check WorkspaceNeverSourcesGovernance` | 同上 | 无反例 |
   | `check OfficialLowerBound` | `for 6 but 4 Cap, 4 Assign, 3 Item, 3 Owner` | 无反例 |
   | `check ReplacementCannotEscapePermission` | 同上 | 无反例 |
   | `check NonFittingPickNeverSources` | 同上 | 无反例 |
   | `check UnusableNeverEffective` | 同上 | 无反例 |
   | `check UnusableKeepsBounds` | 同上 | 无反例 |
+  | `check ForbidIsBound` | 同上 | 无反例 |
 
 - **一致性核对**：`run fourLayerInstance` 必须给出一个租户替换了出厂那份、一把锁挡住了更具体层的另一份、
-  工作区自带的一份生效并带权限项、有一个引用求不出、有一份被禁用的实例；`run replacementConstrained`、`run pickSkipped`、`run unusableConstrains` 必须给出
-  (vi)、(vii)、(ix) 的前件成立的实例，`run usableByFallback` 必须给出两种退回的实例。给不出说明 fact 把模型约束空了，那时各条 check 的「无反例」毫无意义。
+  工作区自带的一份生效并带权限项、有一个引用求不出、有一份被禁用的实例；`run replacementConstrained`、`run pickSkipped`、`run unusableConstrains`、`run unlockedForbid` 必须给出
+  (vi)、(vii)、(ix)、(x) 的前件成立的实例，`run usableByFallback` 必须给出两种退回的实例。给不出说明 fact 把模型约束空了，那时各条 check 的「无反例」毫无意义。
 - **非平凡核对**（每条断言都要**在它守的那一处被拿掉时失败**；变异体不入库，原始输出在主检出 `tmp/formal-runs/` 下，目录名见[验证入口](../../verification.md#结果与反例)，结果在[验证入口](../../verification.md)）：
 
   | # | 拿掉什么 | 必须失败的断言 |
@@ -90,12 +97,14 @@
   | M3 | `permParticipating` 放进 `Workspace` | `WorkspaceNeverSourcesPermission` |
   | M4 | fact `OfficialNeverDisabled`（C7） | `OfficialLowerBound` |
   | M5 | fact `InputHoldingsStayInTree`（前提 PRE-2） | `TeamAssetsStayInTree` |
-  | M6 | `settingParticipating` 里对落点类的滤 | `WorkspaceNeverSourcesPlacement` |
+  | M6 | `settingParticipating` 里对落点类的滤（治理类的滤留着） | `WorkspaceNeverSourcesPlacement` |
   | M7 | `permParticipating` 改回「只看指向生效资产的持有」（追加裁定之前的读法） | `ReplacementCannotEscapePermission`（连带 `UnusableKeepsBounds`：被滤掉的那份从不指向生效资产） |
   | M8 | `permFrom` 改回「参与的最里面那一格」，不问落不落在界内（账本 S10-b 之前的读法） | `NonFittingPickNeverSources` |
   | M9 | 「谁可以使用它」滤（`surviving = notDisabled`） | `UnusableNeverEffective` |
   | M10 | fact `OfficialNotJudged`（official 也参与这一滤） | `OfficialLowerBound` |
   | M11 | `permParticipating` 改用 `candidates`（被滤掉的那份连同它的界一起不算） | `UnusableKeepsBounds` |
+  | M12 | `permBounds` 只取带锁的（不锁的「禁止」不算界） | `ForbidIsBound` |
+  | M13 | `settingParticipating` 里对治理类的滤（落点类的滤留着） | `WorkspaceNeverSourcesGovernance` |
 
 - **判读**：`check` 行是 `UNSAT` 读作**本范围内无反例**，是 `SAT` 读作找到反例；`run` 行反之（账本 S10-c）。
 - **为什么不登记为 formal task**：`alloy exec` **找到反例照样退出 0**，[检查器只以退出码判成败](../../../../../registry/README.md#当前状态)，

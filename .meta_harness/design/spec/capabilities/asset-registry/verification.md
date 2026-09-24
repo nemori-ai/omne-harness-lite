@@ -61,6 +61,11 @@
   - [S-30](v1/contract.md#s-30-可用性变化不出提醒) 改为「可用性变化不出提醒」（S22-d，标题与锚点随之改）；[S-28](v1/contract.md#s-28-onassetchange权限收回之后收窄) 只收窄已裁（S22-a）；`slotConflict` 改名 `toolNameConflict`；`dependencyUnresolved` 待账本给名。
   - [S-12](v1/contract.md#s-12-mcp-动作条目在一次尝试内钉住) 按桥 `refreshActions` 的四种结局重写（不再另调 `availability`；「只能以替换件出现」「被排除」「没有结论」三处补齐）；[S-8](v1/contract.md#s-8-当下可用性的三个取值) 加第 8 条工具两端的模态；[S-14](v1/contract.md#s-14-会话斜杠命令集是-slash_command-那张表的视图) 写明交出「命令名 ＋ 正文」一对；[S-7](v1/contract.md#s-7-注册表条目)、[S-20](v1/contract.md#s-20-谁可以用门控哪两类按哪个租户身份什么时候判) 取求值的 `version`／`resident`／`usable`，缺席即 `unavailable`。
   - G-4、G-5、G-8、G-10 闭合；G-1、G-3、G-6、G-12 改写；新缺口 G-13。实例第 3、8 节随之改。**条款编号不变**；外部引用的 S-10、S-20 含义不变。
+- **2026-09-24 随 `capability.asset-evaluation` 的第一步三小步（PF-002 rev 19；主线派发，候选未冻结，原地改）**：那份契约删去 `EffectiveAsset.usable`，「谁可以使用它」在求值第一步判掉。
+  - [S-20](v1/contract.md#s-20-谁可以用门控哪两类按哪个租户身份什么时候判) 第 2、5 条：**进了 `assets` 的就是用得了的**；读时现读改为看此刻的求值有没有把这份资产以 `not_usable` 滤掉；删去「`usable` 缺席」一句。S-20 末段加「与『下一次运行起按此刻求值装入、退回下一层』怎样对上」：一次尝试内不变、装入与退回归下一次装配的 `fill`、`onAssetChange` 与读时现读只收窄——主线读法。
+  - [S-4](v1/contract.md#s-4-依赖方向与被消费的面) 表那一行、S-16 ②、[S-22](v1/contract.md#s-22-fill装配时填六张) ④⑥、G-5、消费者核对末行同步去掉 `usable`。
+  - **新缺口 [G-14](v1/contract.md#十已知缺口)**：每次运行之前是不是一次装配、`skill` 表在一次已经开始的运行里被收窄、钉住的单位是尝试还是运行——三处对不上，已报主线。
+  - 证据义务表里「求值给出所选版本、常驻值、『谁可以用』的答案」那一行：「谁可以用」的答案现在是「在不在 `assets` 里」，实例（第 3、8 节）的期望不变：没有权限的命令不在表里。
 - 此后 G-2、G-3 任一改判，**[S-41](v1/contract.md#s-41-无权即不存在收回此刻起不存在再授予要等-reload)、[S-42](v1/contract.md#s-42-没人发-reload增删禁用不进来) 的预期要跟着重写**，并按上文「触发条件」重判形式工件。
 
 ## 对齐义务
