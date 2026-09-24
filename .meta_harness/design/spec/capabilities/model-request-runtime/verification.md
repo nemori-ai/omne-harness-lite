@@ -30,7 +30,7 @@
 | [S-11](v1/contract.md#s-11-合法目标集合)、[S-12](v1/contract.md#s-12-展示列表) 已下架、模态挡在这一刻 | [S-44](v1/contract.md#s-44-已下架的档案)、[S-45](v1/contract.md#s-45-模态不兼容挡在算合法目标那一刻) | 纯计算的表驱动测试 ＋ 集成 | 未开始 |
 | [S-18](v1/contract.md#s-18-成因按来源分类三类事实由守卫兑现) 成因按来源、[S-20](v1/contract.md#s-20-写入之前脱敏) 脱敏 | [S-46](v1/contract.md#s-46-成因按来源分类与脱敏) | 哨兵串扫全部记录；前提：`status_cause_table` 与三个脱敏参数有值（G-5、G-6） | 未开始（被 G-5、G-6 阻断） |
 | [S-13](v1/contract.md#s-13-模态投影读到的必须追到日志尾) 投影追到日志尾 | **性质测试**：任意日志前缀上，追补之后的读 = 对全日志重算；**伸缩测量**：读的代价与历史长度无关 | 随机日志生成器 | 未开始 |
-| [S-35](v1/contract.md#s-35-默认重试件可替换) 默认件逐家一遍、不允许回退不试 | 表驱动测试（它是一个纯函数） | —— | 未开始 |
+| [S-35](v1/contract.md#s-35-默认重试件可替换) 默认件逐家一遍、不允许回退时同家至多再试一次 | 表驱动测试（它是一个纯函数） | —— | 未开始 |
 | [S-14](v1/contract.md#s-14-缺席时的默认答案与失败集合) 失败值闭合与判定次序 | [examples §8](v1/examples.md#8-每个失败值一个反例) 与次序回归例 | —— | 未开始 |
 | [S-38](v1/contract.md#s-38-装配给的保证-vs-协议须给的保证) 传输适配九条 | 适配层的契约测试（脚本化上游）：单家、禁止回退、不开库重试、状态码、首 token 映射、不回落环境变量、不送会话标识、不换占位文本、固定 base URL | 前提：G-10 的 basis 条目 | 未开始 |
 
@@ -72,6 +72,11 @@
 ## 变化的影响
 
 - **2026-09-23 起草**：首版，无旧证据。
-- **`data.model-response` / `data.call-accounts` 对齐波（[G-1](v1/contract.md#十二已知缺口)）落地时**：模型里的 `lost_silent`／`lost_spoken`、`int_user`／`int_cancel` 对应那边新增的 `interrupted{initiator}`；若对齐波改了「首 token 之前失联之后能否再发」的口径，`ContinuationOnlyAfterStrategyOrSilentLoss` 与对账表第三行一起改，模型须重跑。
-- **G-7 若判回「说到一半断了」为故障**：模型里 `lost_spoken` 改为一种故障收场，`AtMostOneTerminal` 与 `CauseMatchesFirstToken` 随之改，重跑。
-- **五种记录的形状定下（G-2）**：不影响模型；场景的核对对象改为那份 data 契约的成员名。
+- **2026-09-24 整批对齐（候选，未冻结，原地改）**：依据行写「主线裁定 2026-09-23，待产品负责人确认」的，出处在主线的裁定清单（账本 S16-b～S16-i、U-11）。
+  - **G-1 闭合**：`data.model-response` 的 `interrupted{initiator}` 三值、`attemptId` 在每一次发出上、`route.profileSnapshot`／`route.credentialScope`，`data.call-accounts` 的 `late` 与 `initiator` 都已落；「首 token 之前失联之后能否再发」的口径与本契约一致（那边 S-23 第 2 条）。**模型不变**：`lost_silent`／`lost_spoken`、`int_user`／`int_cancel` 正是那几支，`ContinuationOnlyAfterStrategyOrSilentLoss` 与对账表第三行不改。
+  - **G-2 闭合**：五种记录的形状归 `data.messages/v1#S-49`、`#S-50`；场景的核对对象改为那里的成员名。不影响模型。
+  - **G-3 闭合**：`ModelCallRequest` 定形（`parameters`、`tools: CapabilityId[]`、`targetChangedBy?`，与 `data.loop-extension` 的 `ModelRequest` 同名成员逐字相同）。
+  - **`retryRefused{call_ended}` 删去**（S16-b）：已终结的调用在 `dispatch`／`dispatchAgain` 上一律 `alreadyEnded`；`why` 剩三值、守卫重新编号。模型里守卫是谓词、不带这个名字，**不需重跑**。
+  - **默认重试件**：不允许回退的档案同家至多再试一次（S16-g）；它不在模型里（模型把 `dispatchAgain` 建成非确定选择，守卫是唯一约束），`Invocation_NoFallback.cfg` 的 `ProviderAllowed`（每一次都是第一家）照旧成立。实例第 7 节已改写。
+  - **G-7 闭合**（S16-g：首 token 之后停机 = `interrupted{runtime_lost}`）；**G-8、G-9 收窄**；**G-4 改为产品缺口**（「范围允许」的输入是 asset-evaluation 求值结果里「用哪个模型」那一项的允许集合，S16-i）；**G-14 闭合**（四份并行契约登进 catalog）。
+  - **对证据的影响**：没有既有证据失效；两个登记任务在本轮 `FORMAL=run` 重跑。

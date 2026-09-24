@@ -11,8 +11,7 @@
 - **状态**：`candidate`（2026-09-23 起草）——未经独立评审、未接受、未冻结
 - **catalog 映射**：已登记为 candidate。`family=capabilities`、`topic=model-request-runtime`、
   `contract_path=spec/capabilities/model-request-runtime/v1/contract.md`；`resources` 另含 `v1/examples.md`、`v1/formal/README.md`、`v1/formal/Invocation.tla` 与十份配置；
-  依赖十项，消费 clauses 取自[契约 S-4 的被消费面表](v1/contract.md#s-4-依赖方向与被消费的面)。
-  **四份并行契约与块 A 作用域求值尚不在 catalog**，本契约对它们的消费只按名引用（[G-14](v1/contract.md#十二已知缺口)）
+  依赖十四项（2026-09-24 整批对齐补登 `capability.stream-assembly`、`capability.modality-projection`、`capability.loop-extension-runner`、`capability.asset-evaluation`），消费 clauses 取自[契约 S-4 的被消费面表](v1/contract.md#s-4-依赖方向与被消费的面)
 - **formal-tasks 映射**：两个任务——`model-request-runtime-v1-invocation`（`Invocation.cfg`）与 `model-request-runtime-v1-invocation-no-fallback`（`Invocation_NoFallback.cfg`），本机 TLC 退出 0、无反例；
   八份否定与可达性配置**按设计不登记**（它们预期出反例），执行结果在[验证入口](verification.md)
 - **提供者／装配映射**：尚无
@@ -21,7 +20,7 @@
 
 - **独立责任**：一次调用的发出、收场与恢复住在据点、跟着 agent runtime 生灭；它的变化原因（上游行为、传输、首 token 与停机规则）与中心侧档案目录不同，消费者也不同（loop、拓展件、交付面的切换与停止）。
 - **稳定身份与版本**：首版 v1，候选。
-- **依赖**：两份已接受（`data.identity-values`、`data.offer-expiry`），其余候选——候选依赖改动时本契约须重核；[G-1](v1/contract.md#十二已知缺口) 列出了本契约要求 `data.model-response` 与 `data.call-accounts` 对齐的各项。
+- **依赖**：两份已接受（`data.identity-values`、`data.offer-expiry`），其余候选——候选依赖改动时本契约须重核；原 G-1 列出的 `data.model-response` 与 `data.call-accounts` 对齐项已在 2026-09-24 整批对齐落地。
 
 ## 按当前问题展开
 
