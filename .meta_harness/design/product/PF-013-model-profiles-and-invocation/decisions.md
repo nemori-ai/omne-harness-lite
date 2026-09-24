@@ -519,6 +519,7 @@ rev 1 把不兼容的模型全挡在候选之外，**转换件于是永远没有
 
 | 问题 | 影响 | 处置 |
 |---|---|---|
+| **§4「压缩只翻『给模型看』那一位」的措辞**与 [PF-009 rev 8](../PF-009-context-message-types/README.md) 已裁的压缩机制（`CompactionMessage` 自带按块名单，块的标注不改；规格 `data.messages` S-27、`data.content-blocks` S-22 都按「不翻位、另带名单」写）字面相反 | 读者会以为压缩改写块上的标注；两份规格都按后者成立，只是本 topic 的说法旧了 | 主线 2026-09-24（S25 评审 R5 报出）：本 topic 下一次升 rev 时把那句改成「压缩只在名单上把它排除出下一次组装，块本身不动」；在此之前以 PF-009 与规格为准 |
 | **转换件既是「[拓展件](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)的变体」，而 [PF-002 把 Loop Extension 定为一类资产](../PF-002-assets-settings-and-permissions/design.md#loop-extension)；裁决 23 却说它本版不是资产** | 读者会从「拓展件是资产」推出「转换件是资产」，于是按资产的持有与同标识覆盖去实现它的替换——**与裁决 23 相反**，且 PF-002 说同一位置的多个拓展件「彼此不构成同标识覆盖」，与「同键替换」也对不上 | **不静默改。**本 topic 的读法：转换件是 [PF-012「系统自带的几件」](../PF-012-agent-loop-and-run/design.md#系统自带的几件各站在哪)里站在那个位置上的那一件，**按键登记、随系统装配**（P24），不是租户持有的资产。**词条形态与 PF-002 那一句要不要注明例外，交统一语言维护者与 PF-002 owner** |
 | **[PF-012 §5.8](../PF-012-agent-loop-and-run/design.md#模态转换为什么必须落在这里)仍写转换件「就地给那个内容块记录文本的那个字段赋值」「块进块出、写进块上的哪个字段」，系统自带表里它的干预力只写「可改写」** | 与裁决 22–24 对不上 | **归 PF-012 rev 8 回补**：改成「一组派生表示与 transcript 挂在原块上」，干预力改为「可改写 · 可否决」（P21） |
 | **design.md 抬头曾写「草稿，部分待定」，而 rev 4 已正式接受、待裁决为 0** | 抬头与 README 对不上 | rev 5 的抬头照实写：rev 4 已接受、rev 5 待确认、一项待裁 |
