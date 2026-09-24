@@ -2,7 +2,7 @@
 id: PF-004
 title: Agent 定义与装配
 status: active
-revision: 10
+revision: 11
 relations:
   supersedes: []
   depends-on:
@@ -82,7 +82,9 @@ PF-002 因对象的种类或组合形状变，本 topic 因装配与资源治理
 
 ## 状态
 
-- 产品设计：**rev 10**，已定稿（**rev 10 让[技能在系统提示词里的那一格](design.md#52-三段结构是递归的)跟上
+- 产品设计：**rev 11**，已定稿（**rev 11 写明 [I-4](design.md#61-不变式) 的时间尺度是一次运行**：一次运行之内权限怎么变都不改变动作空间，运行之间下一次装配按当时的权限求值——
+  [「谁可以使用它」被收回的自下一次运行起不再装入](design.md#65-权限变化动作空间不变)，跟上 [PF-002 rev 19](../PF-002-assets-settings-and-permissions/changelog.md)；
+  **rev 10 让[技能在系统提示词里的那一格](design.md#52-三段结构是递归的)跟上
   [PF-006 rev 15 的常驻](../PF-006-tools-and-skills/design.md#常驻)**：常驻的才进，进的是 name 与说明；
   rev 9 接住[工作区那一级的内容在装配时自动进来](design.md#装配)——跟上 [PF-002 rev 10](../PF-002-assets-settings-and-permissions/changelog.md)；
   rev 8 把[执行环境](design.md#执行环境)从「注入的三样之一」改判为「装配留下两样、落点每次执行现算」——跟上 [PF-005 rev 4](../PF-005-execution-environments-and-sandboxes/changelog.md)）
@@ -90,7 +92,7 @@ PF-002 因对象的种类或组合形状变，本 topic 因装配与资源治理
   [`spawn`/`delegate` 能不能派一份 master 定义](design.md#九未决项)
 - 待裁决：**两项**（[D-1、D-2](decisions.md#三待裁决)，即上面那两条）。
   **第一条更要紧**：`non-master` 是由 master 反向定义的，**那份清单不全，这条线就划不准**
-- 来源问题：**新增一条并已修掉**（[§7 引用了不存在的 §6.8](decisions.md#四已知的来源问题)）；其余仍按原处置
+- 来源问题：**新增一条，未处置**——[§6.3 的判据只看系统提示词的成分](decisions.md#四已知的来源问题)，一个非常驻条目被移除、禁用或收回「谁可以使用它」时成分不变，照字面清单继续复用，与「下一次运行起不再装入」对不上；其余仍按原处置
 - 技术投影：**尚未开始**
 
 技术投影按 `harness-design-handbook` skill 展开，
