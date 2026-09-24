@@ -764,7 +764,7 @@
 | ③ | 无 |
 | ④ | **单次提交**：解除这次等待（阶段回 `running`）＋ 条目；答复交给执行者。**与到点（`no_answer`）、中断等竞争同一行，首胜** |
 | ⑤ | `{ resumed: waitIndex }` |
-| ⑥ | `invalidInput`（身份缺席；`value` 不合声明的形状） · `executionNotFound` · `notWaiting`（没在等，或 `waitIndex` 不是当前这一次） · `alreadyEnded` · `runtimeNotReady` · `runtimeStopped` · `dependencyUnavailable{storage}` |
+| ⑥ | `invalidInput`（身份缺席；`value` 不合声明的形状；**形状校验判不了**——声明的形状编不出、超出 `data.tool-definition/v1` G-16 登记的上限或校验超时，同一个值、说明写明「校验超时」，[D-040 §八 N-25](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） · `executionNotFound` · `notWaiting`（没在等，或 `waitIndex` 不是当前这一次） · `alreadyEnded` · `runtimeNotReady` · `runtimeStopped` · `dependencyUnavailable{storage}` |
 | ⑦ | **同一次等待只解除一次**：第二个答给同一次的答复 → `notWaiting`。**一次执行可以等多次**，每次用自己的 `waitIndex` |
 | ⑧ | `waitIndex` 缺席 → `invalidInput`：**不替它猜「答的是当前这一次」**——迟到的、答给上一次的答复会因此解除这一次（模型否定配置 `CheckWaitIndex = FALSE`） |
 | ⑨ | 不发 |
