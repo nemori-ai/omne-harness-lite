@@ -206,11 +206,11 @@
 
 ### UL-model-call · 一次模型调用
 
-- **宿主**：[agent runtime](#ul-agent-runtime--agent-runtime)（永远；转不了后台）——主流程那一次、拓展件为运行发起的、压缩时生成摘要的、**不属于任何运行的旁路提问**都一样；不属于任何运行的那几次，花的钱归会话那一级
+- **宿主**：[agent runtime](#ul-agent-runtime--agent-runtime)（永远；转不了后台）——主流程那一次、拓展件为运行发起的、压缩时生成摘要的、**不属于任何运行的[旁路提问](../ubiquitous_language/terms/agent-runtime-loop.md#ul-side-question--旁路提问--side-question)**都一样；不属于任何运行的那几次，花的钱归会话那一级。**转换件本版不发起模型调用**
 - **身份**：正文未述；每次调用要留下「实际用了哪条档案」的留痕
 - **生灭**：待发出 → 在途（可在本层换一家或退避）→ 说话中（首 token 到，不可逆）→ 完整一份。三个终态：完整一份 · 上交 · 被中断。完整一份在落盘前被否决，**这次调用仍停在「完整一份」**，记下被谁否决，loop 另起新调用。停机恢复看首 token：之前可重发，之后一律不重发、收场原因记为运行时失联
 - **依据**：[PF-013 flows §3.2](../product/PF-013-model-profiles-and-invocation/flows.md#32-一次模型调用)（rev 9）；[PF-013 §5.2](../product/PF-013-model-profiles-and-invocation/design.md#52-这一层的四要素填-pf-011-那一格)（rev 9）；[PF-013 §5.13](../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)（rev 9）
-- **并入**：「模型请求运行时」「模型请求」「进行中的模型响应」——正文没给它们各自的身份，是这一个对象的运行时面
+- **并入**：「模型请求的运行时」（PF-013 §5.13 的叫法，指执行这一次调用的那个协程——**不是规格里以「模型请求运行时」为名的那项能力**，见 [C-31](../ubiquitous_language/conflicts.md#现有冲突)）「模型请求」「进行中的模型响应」——正文没给它们各自的身份，是这一个对象的运行时面。**一次调用里的每一次[发出](../ubiquitous_language/terms/execution-and-outcome.md#ul-upstream-send--一次发出--upstream-send)不另立对象**：它是过程，留下的是留痕
 
 ### UL-attachment · 附件
 

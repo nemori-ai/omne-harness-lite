@@ -66,6 +66,20 @@
 - **谁来裁**：产品负责人——「观测与计量」这一块还没有 topic
 - **闭合条件**：有 topic 认领计量，并说明一条明细是什么
 
+### 待确认的复制通知与分享邀请
+
+- **现象**：[UL-offer](../ubiquitous_language/terms/subjects-and-ownership.md#ul-offer--邀约--offer) 与 PF-003 的 PM 推导把它们定为[资产复制](../ubiquitous_language/terms/circulation-and-entitlement.md#ul-asset-copy--资产复制--asset-copy)、[资产分享](../ubiquitous_language/terms/circulation-and-entitlement.md#ul-asset-sharing--资产分享--asset-sharing)各自状态机上的「待确认」一态，不另立概念，理由是「正文一句都没说它靠什么标识、寿命跟谁——也没有人需要单独指名它」。**但正文已经在逐份指名它**：它有自己的状态机，「重新发起产生的是一份新的邀约，不是旧的复活」，接收方看得见、确认的是那一份；交付面要人一进来就看得见每一份等着他点头的邀约。同形的[邀请](objects.md#ul-invitation--邀请)与[隶属请求](objects.md#ul-affiliation-request--隶属请求)各是对象、各有条目，这两样没有——缺的是它们到底是不是有身份的对象，是的话靠什么指认、宿主是谁
+- **牵涉**：[PF-003 flows §3.4](../product/PF-003-asset-transfer-and-sharing/flows.md#34-一份待确认的邀约复制通知与分享邀请同形)（rev 4）；[PF-003 §6.14](../product/PF-003-asset-transfer-and-sharing/design.md#614-待确认的复制通知与分享邀请会过期)（rev 4）；[PF-016 §6.14](../product/PF-016-cli-tui-delivery-surface/design.md#614-没有带外通知所以进来就要看得见等着的事)（rev 5）
+- **谁来裁**：PF-003 的 owner；已记入该 topic decisions「已知的来源问题」
+- **闭合条件**：PF-003 写明它们是否被逐份指认——是，就立词条（形态为对象）并在 objects.md 立条目；不是，就改掉 flows §3.4「新的一份，不是旧的复活」的说法，并写明接收方凭什么确认「那一份」
+
+### 一段分享关系
+
+- **现象**：PF-003 把「一段分享关系」画成 待确认 → 分享中 → 结束 的状态机，结束有三个来路（分享方撤销、被分享方移除、隶属关系解除）、都向后生效；「要暂时不让对方用，就撤销，要用再分享一次」。词表里[使用权](../ubiquitous_language/terms/circulation-and-entitlement.md#ul-usage-right--使用权--usage-right)是属性（C-15 已裁）、[资产分享](../ubiquitous_language/terms/circulation-and-entitlement.md#ul-asset-sharing--资产分享--asset-sharing)是过程，**「这一段关系」本身没有词条**：它有没有身份、再分享一次是不是另一段，正文未述。规格侧若按读时判定实现「隶属关系解除即结束」，重新隶属之后这段分享会「复活」，与 flows §3.2「结束」是终态相左——那一问同样系于这一段关系有没有自己的身份与记录
+- **牵涉**：[PF-003 flows §3.2](../product/PF-003-asset-transfer-and-sharing/flows.md#32-一段分享关系)（rev 4）；[PF-003 §4 分享](../product/PF-003-asset-transfer-and-sharing/design.md#分享)（rev 4）；[PF-003 §6.12](../product/PF-003-asset-transfer-and-sharing/design.md#612-关系解除之后)（rev 4）
+- **谁来裁**：PF-003 的 owner，涉及「隶属解除后再隶属算不算恢复」时上交产品负责人；已记入该 topic decisions「已知的来源问题」
+- **闭合条件**：PF-003 写明一段分享关系是被单独指认的对象（立词条并立条目），或写明它只是资产分享这个过程的状态、使用权的来处，不另有身份
+
 ### 压缩策略
 
 - **现象**：PF-015 把「当前使用的 ContextCompactionSettings」列为一项 meta runtime context，没有指明它定义在哪；它是一份独立的设置对象，还是某个对象上的一项值，无从判断
