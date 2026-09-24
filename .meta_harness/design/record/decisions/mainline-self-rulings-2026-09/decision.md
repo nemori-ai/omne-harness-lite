@@ -402,6 +402,7 @@ product-design-drafter 把约 57 处裁定落进 PF-001/002/006/008/009/010/012/
 | K44「读入时丢弃」一句 | R3 落法：`immutable` 标记与未列资产在读入时以 DropReason 丢；权限、落点与身份类、治理类在第 4 步以 FilterReason 滤（读入时没有声明可判） | 按种类分两处，一处只滤一次 |
 | S18-a「目标环境作 settings 保留项 `targetEnvironment`」 | 修复波 1b L3：技能包删掉该保留项——PF-002 rev 19「系统不为技能另规定设置项」，PF-006 §6.8 的目标环境是工具的设置 | rev 19 之前的读法；K12 随之作废 |
 | D-038 Q1 关于文本块 `origin` 的措辞 | 词条 UL-origin-tag（来路标记）与 UL-source-tag（来源标记）分立后以词条为准 | 决定原话不改，用词以词表为准 |
+| L3「技能包删掉 `targetEnvironment` 保留项」 | L3′（2026-09-25）：技能包恢复「执行环境要求」为**定义记录里的固定声明成员**（作者声明需要哪几种设施、要求绑定在哪一层；各层不能配值、不参与设置求值）——PF-006 §6.4「工具，以及带脚本的技能，声明它需要什么样的执行环境」与 PF-007 §6.2 主线漏核；PF-002 rev 19 只说系统不为技能另规定**设置项**，固定声明成员不是设置项，三处同时成立 | 主线改判；skill-package G-8 关 |
 
 ## 五、S25 第一轮修复波的主线裁定（K1～K50，2026-09-24 夜，追加）
 
@@ -466,7 +467,7 @@ product-design-drafter 把约 57 处裁定落进 PF-001/002/006/008/009/010/012/
 
 | 编号 | 裁定或接受的命名 | 来源 |
 |---|---|---|
-| L1～L12 | 见 `tmp/assets-runtimes/briefs/S25-fix-1b-2026-09-24.md`「主线裁定」表（原文抄录如下）：L1 content-blocks S-8 标题改「文本块与来路标记」；L2 `implementation.capability`→`implementation.builtinName`；L3 技能包删 `targetEnvironment`；L4 已出门记录带 `parameterAdjustments`／`droppedParameters`；L5 「切换事实」改「模型切换落下的那条记录」；L6 MRR 逐条承诺到达装配前提 1、2、4、6、7、8、9；L7 `tenantAutoWritable` 取自 asset-evaluation 输出；L8 注册表二次求值「配方同装配、持有与配值取此刻」；L9 hooks-import 不给会话标识；L10 替换件由会话资产注册表判、怎么造归执行运行时；L11 asset-model examples 行号、asset-governance 收 `name_not_projectable`；L12 content-blocks 登 G | 修复波 1b |
+| L1～L12 | 见 `tmp/assets-runtimes/briefs/S25-fix-1b-2026-09-24.md`「主线裁定」表（原文抄录如下）：L1 content-blocks S-8 标题改「文本块与来路标记」；L2 `implementation.capability`→`implementation.builtinName`；L3 技能包删 `targetEnvironment`（**已被 L3′ 取代，见第四节**）；L4 已出门记录带 `parameterAdjustments`／`droppedParameters`；L5 「切换事实」改「模型切换落下的那条记录」；L6 MRR 逐条承诺到达装配前提 1、2、4、6、7、8、9；L7 `tenantAutoWritable` 取自 asset-evaluation 输出；L8 注册表二次求值「配方同装配、持有与配值取此刻」；L9 hooks-import 不给会话标识；L10 替换件由会话资产注册表判、怎么造归执行运行时；L11 asset-model examples 行号、asset-governance 收 `name_not_projectable`；L12 content-blocks 登 G | 修复波 1b |
 | N-1 | tool-definition：判参数时未知键一律拒；模型面不改写 schema；`ToolSource` 命名；`ModelToolName` | R2a |
 | N-2 | loop-extension：C-9 `before_model_call` 否决即运行落失败；RP-33 不承诺自定义重试件会停；`consumed` 不触发「调模型之后」；`UnavailabilityPolicy` 记录值 `fallback`；PF-002「谁可以安装它」读作 `usableBy` | R2a |
 | N-3 | mcp-endpoint：`not_fetched` 是显式取值；逐动作项按动作名键（A-G12）；条目名拼法「接入点:动作」 | R2a |
