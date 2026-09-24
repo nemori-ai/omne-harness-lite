@@ -3,7 +3,7 @@
   "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-profile/v1/model-profile.schema.json",
   "title": "data.model-profile v1",
   "description": "模型档案、指向它的引用与统一请求参数词表的规范形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.model-profile/v1 内有效。",
-  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状：route_name_taken（路由名在全部档案里撞名）是判定，要读别的记录，Schema 管不到；max_output_exceeds_profile 是同一文档内的跨字段比较，Draft 2020-12 表达不了，由表示层校验在 Schema 之外补上（S-18、S-24）。一份被拒的文档对应哪一个拒绝值，按 contract.md S-25 的表与次序判，不按校验器报错的先后。正反实例在同目录 examples.md。",
+  "$comment": "状态 candidate，未接受、未冻结。模态取 data.content-blocks/v1 的 Modality（该契约 S-6），本文件不另列。Schema 只管形状：route_name_taken（撞名判定，S-3）是判定，要读别的记录，Schema 管不到；max_output_exceeds_profile 是同一文档内的跨字段比较，Draft 2020-12 表达不了，由表示层校验在 Schema 之外补上（S-18、S-24）。一份被拒的文档对应哪一个拒绝值，按 contract.md S-25 的表与次序判，不按校验器报错的先后。正反实例在同目录 examples.md。",
 
   "$defs": {
 
@@ -29,7 +29,7 @@
         "inputModalities": {
           "description": "S-7：收得下的模态，非空集合，无重复，次序无意义，必含 text（缺它即 input_text_missing）。",
           "type": "array",
-          "items": { "$ref": "#/$defs/Modality" },
+          "items": { "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/content-blocks/v1/content-blocks.schema.json#/$defs/Modality" },
           "minItems": 1,
           "uniqueItems": true,
           "contains": { "const": "text" }
@@ -37,7 +37,7 @@
         "outputModalities": {
           "description": "S-7：给得出的模态，非空集合，无重复，次序无意义。",
           "type": "array",
-          "items": { "$ref": "#/$defs/Modality" },
+          "items": { "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/content-blocks/v1/content-blocks.schema.json#/$defs/Modality" },
           "minItems": 1,
           "uniqueItems": true
         },
@@ -82,7 +82,7 @@
     "ModelProfileRef": {
       "title": "ModelProfileRef",
       "description": "S-13、S-14：对一条模型档案的引用，「用哪个模型」那项设置、会话的选中模型与一次请求的有效模型都取这个值。按 origin 判别，恰两支：指向官方档案的是 {origin: official, routeName}；指向自建档案的是 {origin: custom, scope, routeName}，scope 是档案所在那一格的作用域层身份（data.identity-values/v1 的 ScopeLayerIdentity，该契约 S-11），没有默认值、不从环境推断（该契约 S-12、S-17）。解析只按给出的分量精确匹配，不跨层搜索、不回退到别层的同名档案。它是规格层的引用值名，不是统一语言词条，因此不给「中文 · English」那种词条式标题。",
-      "$comment": "官方那一支不带 scope：出厂默认层没有身份对象（data.identity-values/v1 S-11），本契约不为它铸一个。它能只凭 routeName 指认一条官方档案，前提是 S-3：路由名在全部档案（所有层、含已撤回）里唯一，官方名因此对所有层保留——这个前提不成立，官方引用就指不清。自建那一支的 scope 存成带判别式的 ScopeLayerIdentity，不得压平成两个可空字段（data.identity-values/v1 S-16）。",
+      "$comment": "官方那一支不带 scope：出厂默认层没有身份对象（data.identity-values/v1 S-11），本契约不为它铸一个。它能只凭 routeName 指认一条官方档案，前提是 S-3：官方名对所有层保留（含已撤回），任何一条别的档案都不与它同名——这个前提不成立，官方引用就指不清。自建名只在登记那一刻、在所在隶属树内唯一（S-3），不同的树里可以同名，所以自建那一支必须带 scope；它存成带判别式的 ScopeLayerIdentity，不得压平成两个可空字段（data.identity-values/v1 S-16）。",
       "type": "object",
       "oneOf": [
         {
@@ -147,14 +147,6 @@
       "examples": ["provider-x"]
     },
 
-    "Modality": {
-      "title": "模态 · Modality",
-      "description": "S-7：一类内容的形态（UL-modality），恰四种：text ↔ 文本、image ↔ 图、audio ↔ 语音（词条英文 voice）、video ↔ 视频。闭合，未知取值一律拒绝。文件不是一种模态：文件块的模态看它的媒体类型。",
-      "$comment": "data.content-blocks 在并行起草中，预定有同名定义、同样四个 token。两份定型后本定义改为 $ref 那一份，不留两份同义定义；对齐义务登记在 verification.md。",
-      "type": "string",
-      "enum": ["text", "image", "audio", "video"]
-    },
-
     "InputConstraints": {
       "title": "InputConstraints",
       "description": "S-9：送进去之前的限制——上游对内容本身的额外要求。开放的一组，可以一条都没有（写 {}）；本版登记的恰一条 maxImageBytes：一张图送进去时最多多少字节。某一条缺席即档案记载上游对此没有限制。加一条是新版本；出现未登记的键即拒（constraint_unknown），不忽略。规格层值名，不是统一语言词条。",
@@ -168,7 +160,7 @@
 
     "Registration": {
       "title": "Registration",
-      "description": "S-10：在册状态，恰两值。档案产生时为 listed；listed → withdrawn 是唯一一条转移，withdrawn 是终态，没有回到 listed 的写路径。撤回不删行：已撤回的档案仍读得出，它的路由名在所在范围里仍被占着。「这个范围不允许它」不是这里的取值，是作用域求值的结果。规格层判别式名，不是统一语言词条。",
+      "description": "S-10：在册状态，恰两值。档案产生时为 listed；listed → withdrawn 是唯一一条转移，withdrawn 是终态，没有回到 listed 的写路径。撤回不删行：已撤回的档案仍读得出，它的路由名按 S-3 仍被占着。「这个范围不允许它」不是这里的取值，是作用域求值的结果。规格层判别式名，不是统一语言词条。",
       "type": "string",
       "enum": ["listed", "withdrawn"]
     },
