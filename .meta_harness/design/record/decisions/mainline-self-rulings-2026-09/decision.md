@@ -396,3 +396,59 @@ product-design-drafter 把约 57 处裁定落进 PF-001/002/006/008/009/010/012/
 | S8-c 工具清单 `ToolDefinitionRef` | S16-c | 用 `CapabilityId[]`（S25 第一轮 L-3 又指出 MCP 来源无能力标识，待第一轮修复裁定） |
 | 「写一条界不查外层的界」（drafter 乙 2026-09-24 推导） | G-25 落条款 | 所有界都须落在外层界内 |
 
+## 五、S25 第一轮修复波的主线裁定（K1～K50，2026-09-24 夜，追加）
+
+七批独立评审（`spec-reviewer`，基线 HUB `765b01dc`）报出的跨契约分歧，由主线按同一授权裁定如下（简报 `briefs/S25-fix-1-2026-09-24.md` 原文）。「落点」一列写的是哪份契约改哪一半；追认状态同上：产品负责人尚未逐条追认。
+
+| 编号 | 裁定 | 落点（谁改） |
+|---|---|---|
+| K1 | 外部效果（`externalEffect`）的判据权威是 tool-execution-runtime S-14；call-accounts S-11 只定义两个取值的含义并以坐标引 S-14 | call-accounts（R1）；TER 不改 |
+| K2 | `ToolInternalEnding` ↔ `FinishReason` 的对应表由 **data.messages S-14** 拥有；stream-assembly、TER 引用它。`ToolInternalMessage` 成立的判据 = `closeOut` 交出的 `blocks` 非空（messages S-13 原话）。执行者无回答（`no_answer`）与桥换代都不是「有意停下」，映射到 `lost`（arrival-events `FinishReason` 若无此值则加，含义「生产者失去连续性」） | messages（R1）给表并加映射；arrival-events（R1）按需加值；stream-assembly S-2、TER S-19/S-39（R4a）改引 |
+| K3 | messages 按 PF-009 rev 8：`SystemMessage` 不落日志、每次组装现算（G-9 关，S-7、S-29 ④ 与 Alloy 的 `SystemMsg` 映射改写或删）；按 PF-010 rev 6：S-6 表 `system` 列只文本 | messages（R1） |
+| K4 | 模态不符的块头由 arrival-events 自己拒，值 `head_modality_mismatch` 进 S-28 表；S-9、S-24、Schema、examples 一致 | arrival-events（R1） |
+| K5 | 工具 `CallId` 的判重键与补账目标身份 = 会话日志归属 + `CallId`（call-accounts S-22/S-23/S-25） | call-accounts（R1） |
+| K6 | tool-definition 两个撞名值改 `setting_category_unknown`、`tool_origin_unknown`；skill-package M12「设置项类别未知」报同一个 `setting_category_unknown` | tool-definition、skill-package（R2a） |
+| K7 | 「凭据位写了非引用值」只有一个拒绝值：asset-governance 写面 `valueOutOfDomain`（取值域校验）；mcp-endpoint 删 `credential_plaintext`，connector 同引 | mcp-endpoint、connector（R2a）；asset-governance（R3）在 S-38 写明凭据项取值域 `CredentialRef` 也走 `valueOutOfDomain` |
+| K8 | 拓展件不可用处置：data.loop-extension S-6 加声明成员 `unavailability ∈ skip \| veto`（缺席 = skip；它是拓展件自己的声明，不是设置也不是权限，词条 UL-extension-unavailability-policy）；S-31 记录带「按什么处置」；S-33 改写为「租户件按声明；系统自带件由装配预先声明的指定挂件顶上」。runner S-12/S-13/S-17 对齐：不可用 + `veto` ⇒ 这一次经过以否决收场、记录写明「此刻不在、按否决处置」；U-5 已裁（D-039），删「待裁」 | loop-extension（R2a）；runner（R4b） |
+| K9 | loop-extension 补属性项推出规则（asset-model S-12 四项义务）：`position`、`dimension` 是绑定类设置项、`power` 是权限项（取值域为各自枚举、默认 = 声明值）；`onError`、`needs`、`implementation`、`unavailability` 不出项。asset-evaluation S-4 末段／S-10／G-3、asset-model CS-1、asset-governance G-5 改指这条 | loop-extension（R2a）；asset-evaluation、asset-model、asset-governance（R3）改引 |
+| K10 | **工具的指认**：调用块与 `ModelRequest.tools` 里流转的都是**模型面名字**（tool-definition `ModelToolEntry.name`，`:`→`__`）；tool-admission 的比较在模型面名字上做（S-7 `definition` 由 runner 组装时带模型面名，S-18 逐码点比较不变）；**逆转写只在 tool-execution-runtime 起执行者之前做**（登记消费 tool-definition S-6），模型请求运行时的传输适配不做逆转写。`ModelRequest.tools: ModelToolName[]`（loop-extension S-15 与 model-request-runtime S-7 同改，元素引 tool-definition 的模型面名 `$def`） | loop-extension（R2a）；tool-admission、TER（R4a）；MRR（R5） |
+| K11 | MCP 来源的工具定义不按结果端模态判（tool-definition S-24 ③ 改成可判写法，与 mcp-bridge S-17 一致） | tool-definition（R2a） |
+| K12 | skill-package `targetEnvironment` 无默认且无配值时，S-16 按未声明处理（Schema 不加 required） | skill-package（R2a） |
+| K13 | model-response：`parameters` 记**实际发出**的值；新增 `parameterAdjustments: [{name, requested, sent}]`（adapter 改值留痕）；`droppedParameters` 含 `extra` 项的名字。model-request-runtime S-7、loop-extension S-23、model-profile 消费者表同步 | model-response、model-profile（R2b）；MRR（R5）；loop-extension（R2a）只改 S-23 那一句 |
+| K14 | `ModelResponse` 加可选 `late: true`（只在所属尝试被栅栏关掉之后才结算时写；缺席 = 不晚），与 call-accounts S-39 对上 | model-response（R2b）；call-accounts（R1）核 S-39 措辞 |
+| K15 | `ResponseId` 由模型请求运行时在写「已出门」时铸；写响应体的一方（调用方、恢复对账）沿用；model-response S-6 改成这句 | model-response（R2b）；MRR S-8 不改 |
+| K16 | 一笔账归哪次尝试／运行／租户的权威 = call-accounts 条目壳（S-25）；响应体的 `attemptId` 是「发出所在尝试」的事实、不作归属；`initiator`（发起者）由条目给，响应体的 `initiator` 只指中断发起方并在 S-12 注明 | model-response（R2b）；MRR S-19（R5） |
+| K17 | data.model-profile 立「建档内容」文档种类（不带 `registration`、`updatedAt`，其余同 `ModelProfile`）及其拒绝值；directory S-14/S-18 用它做表示层校验，带了这两个成员即 `malformed`（M-新） | model-profile（R2b）；directory（R5） |
+| K18 | 恢复在册（`relisted`）可与属性改写落同一次提交；model-profile S-10 与 examples §8 的「其余不变」断言限定到 `relistProfile`（directory S-33） | model-profile（R2b） |
+| K19 | `ModelCallId` **会话内唯一**（call-accounts S-37 为准）；MRR S-5 改；六个调用操作 ① 加 `session`（身份参数无默认，先判归属，不符 `callNotFound`） | MRR（R5） |
+| K20 | 绑定持久化：messages S-49「已出门」记录加 `profile`（引用）、`profileSnapshot`、`parameters`、`selectedBy`、`credentialScope`；MRR S-28/S-33/S-38 改读它；model-response 不放宽 | messages（R1）；MRR（R5） |
+| K21 | 上交成因：messages S-50 允许 `released` 带 `cause`；`undispatched` 仍只指「一次也没发出」；MRR S-29 ⑧／S-30 ⑧「续接或再发时凭据取不到」写 `released{cause: credential_missing}`，S-6 补入口；模型补分支或列进「吸收」 | messages（R1）；MRR（R5） |
+| K22 | MRR 暴露只读守卫判定 `canDispatchAgain(session, callId) → {allowed} \| {refused{why}}`，与 S-30 同表；runner S-14 第②类改用它 | MRR（R5）；runner（R4b） |
+| K23 | TER 逐条承诺 stream-assembly S-28 的第 1～4、6、9 条（路由与迟到丢弃、串行不分叉、执行者只交 open/fill/close、被拒增量恰一次 `rejected` trim、快照衔接）；stream-assembly G-2 关 | TER（R4a）；stream-assembly（R4a） |
+| K24 | 参数收齐却解析不了的调用：**拥有者 = tool-execution-runtime**——`submit` 接受它并即刻收场 `failed{unparseable}`、写 `ToolMessage{failed}`；tool-admission S-7 写明这种调用不进 `admit` 输入；stream-assembly S-11/S-28 第 5 条改指 TER | TER、tool-admission、stream-assembly（R4a） |
+| K25 | TER 整批拒收之后那些调用落什么收场：登显式缺口，owner = agent loop 契约（PF-012 那一程），闭合条件「loop 契约写明由谁写 `ToolMessage` 与哪种收场」 | TER（R4a） |
+| K26 | `admit` 失败的记录 = `skipped: errored` + `error`（tool-admission S-29/S-34 为权威）；S-40、S-44、examples、runner S-48 对齐 | tool-admission（R4a）；runner（R4b） |
+| K27 | 放行凭据核对按 (session, callId, 生效参数)（TER S-23 ②）；tool-admission S-16「不绑会话」那句改写为「凭据本身不含会话，核对时带会话」 | TER、tool-admission（R4a） |
+| K28 | 「每帧至多计一次未原样送达」归 stream-assembly S-14 去重规则（本能力承诺），call-accounts S-15 的指派对上 | stream-assembly（R4a） |
+| K29 | 系统自带件的能力标识：放行判断 `omne-official:admission-judgment`（tool-admission S-26 给出）、卸载判定 `omne-official:offload-judgment`（TER S-1 给出，卸载判定归 TER）；runner S-7 引用 | tool-admission、TER（R4a）；runner（R4b） |
+| K30 | MCP 逐动作执行权限：注册表钉住动作集之后**再求一次值**——asset-evaluation `EvaluationInput` 加可选 `mcpActionSets: {endpointHolding → actions[]}`，输出里逐动作 `execute:<动作名>` 的生效值；asset-registry `refreshAvailability` 在钉住后发起这次求值（依据装配时那次求值的输入 + 动作集），结果与每个接入点的 `endpointHolding` 一起钉进报告（`effectivePermissions`、`endpointHoldings`）交放行判断与 TER；拿不到 = `unavailable`（放行判断全拒）。凭据改值对下一次尝试生效（bridge P-9 保持）。mcp-bridge CS-2/CS-4 改引报告 | asset-evaluation（R3）；asset-registry、mcp-bridge（R4b）；TER（R4a）S-23 取 `endpointHolding` 自报告 |
+| K31 | runner 的 `dispatch` **一次针对一批动作**（输入 `actions[]`，同一位置同一轮），不逐个；`admit` 由这一次 dispatch 发起一次、结果分给各动作；回放后的下一轮 = 同一批答复到齐；写进 S-21/S-29 与 S-32 | runner（R4b） |
+| K32 | hooks `ask` 带改写：data.loop-extension S-28 `DecisionCardDraft` 加结构化 `proposedRewrite?: {arguments}`；hooks-import S-20 写例外「`ask` 带改写时改写在答复允许之后生效」、S-21 回放从该槽位重建 `rewrite` | loop-extension（R2a）；hooks-import（R4b） |
+| K33 | 被引用的能力无人可用且无下一层：装配失败（PF-004 I-9）；收口方 = 装配——会话创建失败／`reload` 失败对交付面可见；asset-registry S-20 写明 | asset-registry（R4b） |
+| K34 | mcp-bridge `fetchedAt` 取**列举开始时刻**，单调规则、目的句、例子、P-5 四处一致 | mcp-bridge（R4b） |
+| K35 | directory：授权依赖不可用时立即 `unavailable`，先于一切需解析的值（S-13 ⑥ 重排）；examples 加故障注入例 | directory（R5） |
+| K36 | 重试挂件只凭 loop-extension S-14 的失败主体下结论（model-response S-5/S-23 改成「这条序列是那份主体背后的事实」）；`truncated` 收场也补中断提醒（messages S-10 为准）；`vetoed`／`consumed` 的响应体由 MRR 在同一提交写（model-response S-3 改「`persisted` 那条由调用方写」） | model-response（R2b）；MRR（R5） |
+| K37 | 读组织治理 v2 两项时刻的调用主体 = 运行时**代行**（装配给；单机可串行化读即满足）；跨进程由服务身份兑现（协议给）——asset-transfer S-9/S-34 与 OG v2 §十二 写同一句 | asset-transfer、OG v2（R3） |
+| K38 | 复制落地的 `byAgent` 由 asset-transfer S-11 写集合给（取发起复制的调用上下文） | asset-transfer（R3） |
+| K39 | 分享结束**不通知**，被分享方经 `listSharings`（S-30）读结束原因；asset-governance S-27/S-28 ⑨ 与 asset-transfer S-33 同句 | asset-governance、asset-transfer（R3） |
+| K40 | 合法目标集合仍是三项（词条不动）；「本据点传输能承载」是**可发出**的另一前置，MRR S-11 分开写 | MRR（R5） |
+| K41 | modality-projection 补整份声明操作 `declareConverters(set)`（原子替换、`keyTaken` 在整份内判） | modality-projection（R5） |
+| K42 | 「用哪个模型」设置的允许集合取值域是**路由名**（与 U-24-5「设置记路由名」一致）；MRR G-4 关，directory S-17 把允许集合写成显式参数 | MRR、directory（R5） |
+| K43 | asset-evaluation S-16 ⑧：列表缺席 ⇒ `invalidInput`（asset-model S-24 为准），为空 ⇒ 没配值；`workspace_immutable` 删（读入时 `immutable_flag` 已丢）；配值的 `since` 由读入方按清单读入时刻填（S-27/S-28 写明） | asset-evaluation（R3） |
+| K44 | asset-model S-36 的 connector `install` vs `usableBy`：登 G（owner 主线 + data.connector，闭合条件「专项讨论后 connector 收口」）；工作区格条目过滤阶段统一为「读入时丢弃并留痕」（asset-model S-20/S-24 与 asset-evaluation S-24 一句） | asset-model、asset-evaluation（R3） |
+| K45 | asset-governance S-24 ① 与 S-46 一致：调用方即作者，`author` 不作输入 | asset-governance（R3） |
+| K46 | OG v2 第十三节：逐个 v1 消费者列出消费条款的变化与相容性（返回多一项／失败多一种）；同一提供者同时服务两版的规则；S-45 覆盖声明收窄；S-22 ② 删「（超管）」 | OG v2（R3） |
+| K47 | hooks-import：导入的兼容件不可用处置 = `skip`（租户件缺省），S-10 写明、报告明示；「宿主」改称「来源产品（Claude Code／Codex）」，不与 runner 的宿主撞 | hooks-import（R4b） |
+| K48 | tool-admission S-15「第四档恒为四个」改为按 PF-008 §5.2「写得进去才出现」：由放行判断出草稿时滤（S-15、S-39 场景同改）；G-10 按 PF-012 rev 11「放行到执行之间不重判」关闭 | tool-admission（R4a） |
+| K49 | runner S-30 ③ 连续否决上限就是 PF-012 那项运行时设置（与循环守卫 L2 分开，各自阈值）；写清 | runner（R4b） |
+| K50 | TER S-23 ④⑤⑥「发起即后台而不许后台」只保留**收场** `failed{background_start_refused}`，删逐条失败值 `backgroundNotAllowed`；判重在 ② 之前（同 callId 同参数 ⇒ 返回已有 disposition；同 callId 不同参数 ⇒ `callIdConflict`）；`submit` 核对会话租户（不符 `crossTenant`）；丢失在途状态时 `frames` 写 `unknown`（call-accounts S-11 加 `frames: FrameAccount \| unknown`）；等待／发帧／报账／交回四原语补返回值与失败集合 | TER（R4a）；call-accounts（R1）加 `unknown` 支 |
