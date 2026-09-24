@@ -70,12 +70,12 @@
 
 | 不拥有 | 归谁 |
 |---|---|
-| 连接、列举、刷新副本、把动作投影成工具定义、调用动作、判可用性、OAuth 流程与状态迁移 | [`capability.mcp-bridge`](../../../capabilities/mcp-bridge/v1/contract.md) v1（同一执行者同批起草） |
+| 连接、列举、刷新副本、把动作投影成工具定义、调用动作、判可用性、OAuth 流程与状态迁移 | [`capability.mcp-bridge`](../../../capabilities/mcp-bridge/v1/contract.md) v1（candidate） |
 | 副本存在哪、以什么为键、谁写 | 同上（[`capability.mcp-bridge/v1#S-7`](../../../capabilities/mcp-bridge/v1/contract.md#s-7-动作清单持久副本)） |
 | 凭据本体的存储、加密、解引用与续期写回 | 凭据保管方的提供者设计（`data.asset-model/v1#S-23` 第 7 条）；OAuth 那一路的义务见 `capability.mcp-bridge` |
-| 资产记录、版本线、持有与配值的写路径 | `data.asset-model` v1 与 `capability.asset-governance`（同批，不在本工作树） |
-| 属性项的层级求值（谁覆盖谁、权限怎样求交、工作区最严值怎样取） | `capability.asset-evaluation`（同批，不在本工作树） |
-| 一次尝试里 agent 面前有哪些条目、按尝试钉住 | 注册表（`capability.asset-registry`，同批，不在本工作树） |
+| 资产记录、版本线、持有与配值的写路径 | `data.asset-model` v1 与 [`capability.asset-governance`](../../../capabilities/asset-governance/v1/contract.md) v1（candidate） |
+| 属性项的层级求值（谁覆盖谁、权限怎样求交、工作区最严值怎样取） | [`capability.asset-evaluation`](../../../capabilities/asset-evaluation/v1/contract.md) v1（candidate） |
+| 一次尝试里 agent 面前有哪些条目、按尝试钉住 | 注册表（[`capability.asset-registry`](../../../capabilities/asset-registry/v1/contract.md) v1（candidate）） |
 | MCP 协议本身（握手、JSON-RPC、分页、通知的线上形状） | 官方 SDK（D-037）；本契约只在需要时引协议版本 |
 
 ### 消费者
@@ -84,9 +84,9 @@
 |---|---|
 | `capability.mcp-bridge` v1 | 全部形状：连接用 [S-3](#s-3-连接目标两种闭合)～[S-5](#s-5-streamable_http)，副本用 [S-9](#s-9-动作清单副本)、[S-10](#s-10-对端动作描述)，投影用 [S-11](#s-11-动作条目名) 与 [S-8](#s-8-执行权限的作者默认)，OAuth 用 [S-12](#s-12-oauth-绑定)、[S-13](#s-13-凭据配值的取值域) |
 | `data.asset-model` v1 | mcp 那一支正文 `$ref` 本契约的 `McpEndpoint`（结构上的前提，不是依赖）；[S-20](#s-20-表示层拒绝值与判定次序) 的拒绝值原名携带进它的 S-27 |
-| `capability.asset-evaluation`（同批） | [S-14](#s-14-推出规则五类项)～[S-17](#s-17-工作区格上的这些项) 推出的属性声明；逐动作项要的那份动作集 |
-| `capability.asset-governance`（同批） | 凭据配值写入时按 [S-13](#s-13-凭据配值的取值域) 判取值域；`credential_plaintext` 这个拒绝值 |
-| 注册表（同批） | 动作条目名（[S-11](#s-11-动作条目名)）；副本的两支（[S-9](#s-9-动作清单副本)）——`not_fetched` 与空清单是两回事 |
+| `capability.asset-evaluation` v1（candidate） | [S-14](#s-14-推出规则五类项)～[S-17](#s-17-工作区格上的这些项) 推出的属性声明；逐动作项要的那份动作集 |
+| `capability.asset-governance` v1（candidate） | 凭据配值写入时按 [S-13](#s-13-凭据配值的取值域) 判取值域；`credential_plaintext` 这个拒绝值 |
+| 注册表（`capability.asset-registry` v1，candidate） | 动作条目名（[S-11](#s-11-动作条目名)）；副本的两支（[S-9](#s-9-动作清单副本)）——`not_fetched` 与空清单是两回事 |
 | 设置页与交付面（PF-002 §6.1、PF-016，无契约） | 属性声明长出表单；OAuth 绑定的三个状态与 `since` 用于呈现「有没有、哪一层的、什么时候取的」 |
 | `data.call-accounts` v1 | 一笔 MCP 对端收的钱记到哪个接入点：那边用接入点的能力标识规范串，**不用**本契约的动作条目名（两者拼法相近、含义不同，见 [S-11](#s-11-动作条目名)） |
 
