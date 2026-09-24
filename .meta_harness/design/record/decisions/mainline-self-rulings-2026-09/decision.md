@@ -397,6 +397,11 @@ product-design-drafter 把约 57 处裁定落进 PF-001/002/006/008/009/010/012/
 | 「写一条界不查外层的界」（drafter 乙 2026-09-24 推导） | G-25 落条款 | 所有界都须落在外层界内 |
 | S2-e `CostItem.service` 规范串写成 `"<category>:<name>"` | `data.asset-model` v1 S-3 的规范串 `<category>/<name>`（call-accounts S-9 已按它写） | 分隔符以 asset-model 为准；S2-e 的 `:` 是早期笔误 |
 | K21 的成因名 `credential_missing` | 修复波 1 落条款时取已有值 `credential_unavailable`（与出门前分支、`FailureCause` 同名） | 同一情形同一个名 |
+| K29「卸载判定的能力标识在 TER S-1 给出」 | 实际落在 `capability.tool-execution-runtime` v1 S-63（S-1 只作指路） | 条款号以契约为准 |
+| S22-a 括注「去掉被收回权限／被移除／被禁用的条目」 | asset-registry S-28：`onAssetChange` 只去掉此刻用不了的（权限收回）；被移除、被禁用的按 PF-002 §4 等 reload | 括注写宽了，契约为准 |
+| K44「读入时丢弃」一句 | R3 落法：`immutable` 标记与未列资产在读入时以 DropReason 丢；权限、落点与身份类、治理类在第 4 步以 FilterReason 滤（读入时没有声明可判） | 按种类分两处，一处只滤一次 |
+| S18-a「目标环境作 settings 保留项 `targetEnvironment`」 | 修复波 1b L3：技能包删掉该保留项——PF-002 rev 19「系统不为技能另规定设置项」，PF-006 §6.8 的目标环境是工具的设置 | rev 19 之前的读法；K12 随之作废 |
+| D-038 Q1 关于文本块 `origin` 的措辞 | 词条 UL-origin-tag（来路标记）与 UL-source-tag（来源标记）分立后以词条为准 | 决定原话不改，用词以词表为准 |
 
 ## 五、S25 第一轮修复波的主线裁定（K1～K50，2026-09-24 夜，追加）
 
@@ -454,3 +459,22 @@ product-design-drafter 把约 57 处裁定落进 PF-001/002/006/008/009/010/012/
 | K48 | tool-admission S-15「第四档恒为四个」改为按 PF-008 §5.2「写得进去才出现」：由放行判断出草稿时滤（S-15、S-39 场景同改）；G-10 按 PF-012 rev 11「放行到执行之间不重判」关闭 | tool-admission（R4a） |
 | K49 | runner S-30 ③ 连续否决上限就是 PF-012 那项运行时设置（与循环守卫 L2 分开，各自阈值）；写清 | runner（R4b） |
 | K50 | TER S-23 ④⑤⑥「发起即后台而不许后台」只保留**收场** `failed{background_start_refused}`，删逐条失败值 `backgroundNotAllowed`；判重在 ② 之前（同 callId 同参数 ⇒ 返回已有 disposition；同 callId 不同参数 ⇒ `callIdConflict`）；`submit` 核对会话租户（不符 `crossTenant`）；丢失在途状态时 `frames` 写 `unknown`（call-accounts S-11 加 `frames: FrameAccount \| unknown`）；等待／发帧／报账／交回四原语补返回值与失败集合 | TER（R4a）；call-accounts（R1）加 `unknown` 支 |
+
+## 六、修复波 1b 的主线裁定与接受的命名（2026-09-25，追加）
+
+修复波 1 各批报回「D-040 没有登」的裁定与起草者取的名字，主线在此接受登记；同样待产品负责人追认。
+
+| 编号 | 裁定或接受的命名 | 来源 |
+|---|---|---|
+| L1～L12 | 见 `tmp/assets-runtimes/briefs/S25-fix-1b-2026-09-24.md`「主线裁定」表（原文抄录如下）：L1 content-blocks S-8 标题改「文本块与来路标记」；L2 `implementation.capability`→`implementation.builtinName`；L3 技能包删 `targetEnvironment`；L4 已出门记录带 `parameterAdjustments`／`droppedParameters`；L5 「切换事实」改「模型切换落下的那条记录」；L6 MRR 逐条承诺到达装配前提 1、2、4、6、7、8、9；L7 `tenantAutoWritable` 取自 asset-evaluation 输出；L8 注册表二次求值「配方同装配、持有与配值取此刻」；L9 hooks-import 不给会话标识；L10 替换件由会话资产注册表判、怎么造归执行运行时；L11 asset-model examples 行号、asset-governance 收 `name_not_projectable`；L12 content-blocks 登 G | 修复波 1b |
+| N-1 | tool-definition：判参数时未知键一律拒；模型面不改写 schema；`ToolSource` 命名；`ModelToolName` | R2a |
+| N-2 | loop-extension：C-9 `before_model_call` 否决即运行落失败；RP-33 不承诺自定义重试件会停；`consumed` 不触发「调模型之后」；`UnavailabilityPolicy` 记录值 `fallback`；PF-002「谁可以安装它」读作 `usableBy` | R2a |
+| N-3 | mcp-endpoint：`not_fetched` 是显式取值；逐动作项按动作名键（A-G12）；条目名拼法「接入点:动作」 | R2a |
+| N-4 | connector：起草时主线给定的形状（其 G-9 所列），专项讨论后按收口结果取代 | R2a |
+| N-5 | call-accounts／messages／arrival-events：C-12 两种成本归属；`level_1`～`level_4`；loop-extension 名字空间；`block_id_duplicate`；「一个回复只有一份权威内容」；`released` 名；`about`；AE 各处规格层推导 | R1 |
+| N-6 | model-profile：`$defs/ModelProfileContent`；MP-5 例外只管 `maxOutputTokens`；S-28 逐成员相等规则；model-response S-11 ⑤ 发出值须能用统一词表表示 | R2b |
+| N-7 | asset-governance：S11-G2/G9/G14/G17/G18/G19 与命名、持有默认取当前、钉官方版本、官方资产由部署清单登记、`creationKey`、分享结束后 shared 持有不动、删除即归档；asset-transfer：T-1 失败名、T-2 `listPendingForOrganization`、S11 名、A-M21、A-M25；asset-model：词法、五支来路、`byAgent`、`versionSelection`、`carrier`；asset-evaluation 2026-09-23 追加裁定；evaluation S-21 `execute:` 前缀即权限项；K38 推导（组织型复制通知发出时记 `byAgent`；缺席 `unavailable`）；K37 代行 = 以被读租户的 TenantId 为调用方、跨进程服务身份归 OG v2 G-7；OG v2 §十三 双版本服务规则（写按 v2、答按钉住版本、无时刻的旧记录 v2 读 `unavailable` 不回填） | R3 |
+| N-8 | TER：`notInForeground`、`AdmittedCall`／`UnparseableCall`、`reportedCost`、四原语交回值（等待 `answered`／`ended`；发帧 `accepted`／`dropped{rejected\|notAFrame\|executionEnded}`；报账 `recorded`／`rejected`／`executionEnded`；交回 `settled`／`discarded`／`escalated`）；租户核对先于判重（R-29）；交回写不下去 `escalated`（R-30）；报告写「没有持有」却提交了动作 ⇒ `dependencyUnavailable{registry}`（R-33）；G-13 七条（一批依次、本地实现撤下不影响在途、落点不到位 `failed{environment_unavailable}`、参数不合即刻失败带用法、未知键一律拒、单函数同规则、即刻收场次序）；tool-admission `tenantAutoWritable` | R4a |
+| N-9 | MRR：`basis`（openCall／settleReply 输入）、`canDispatchAgain(session, callId, plan)`、`reply_pending`、`settleReply` 单次提交写 `vetoed`／`consumed` 体、不属于任何 Run 的调用在会话重新承载时对账；directory：`origin_not_custom`、官方清单 origin 非 official 取 `malformed`、`officialProfileReadOnly`／`relistProfile`／`loadManifest`／`relisted`、恢复在册不发通知、已撤回的行可修订 | R5 |
+| N-10 | runner：G-13 两条（`before_model_call` 否决等于运行落失败；回复落盘前被否决追加一条提醒）；asset-registry：G-16（`onAssetChange` 作触发操作、`commandAvailability`、`slotConflict`→`toolNameConflict`）、K30 读法（配方同装配、持有与配值取此刻）；mcp-bridge：G-14（连接不上签名、按持有寻址、收口次序、OAuth 落据点、最小规范化） | R4b |
+
