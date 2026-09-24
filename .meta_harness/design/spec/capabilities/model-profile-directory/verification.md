@@ -17,11 +17,11 @@
 
 | 条款与性质 | 场景 | 证据形式与前提 | 状态 |
 |---|---|---|---|
-| [S-15](v1/contract.md#s-15-withdrawprofile)、[S-16](v1/contract.md#s-16-readprofile) 行不删、已撤回终态、撤回幂等且不重发事件 | [S-25](v1/contract.md#s-25-建档撤回再读已撤回仍读得出) | 对真实存储的集成测试 | 未开始 |
-| [S-14](v1/contract.md#s-14-registerprofile) ④、[S-18](v1/contract.md#s-18-装入官方档案清单) ④ 判名与写入同提交，边界覆盖全部档案行；自建名只在同一棵隶属树里比 | [S-26](v1/contract.md#s-26-同名两条只有先成的一条成立) | **必须真跑并发**（同一棵树上两个组织同时建同名，另一棵树同名成功；建档与清单装入交错）；前提：提供者的存储兑现 S-22 第一行 | 未开始 |
+| [S-15](v1/contract.md#s-15-withdrawprofile)、[S-33](v1/contract.md#s-33-恢复在册)、[S-16](v1/contract.md#s-16-readprofile) 行不删、撤回与恢复在册都改同一行、各自幂等、撤回不重发事件、恢复不发事件 | [S-25](v1/contract.md#s-25-建档撤回再读已撤回仍读得出)；[examples §2](v1/examples.md#2-自建档案建认回撤回再读) 第 11～14 步 | 对真实存储的集成测试；恢复之后逐成员比对 | 未开始 |
+| [S-14](v1/contract.md#s-14-registerprofile) ④、[S-18](v1/contract.md#s-18-装入官方档案清单) ④ 判名与写入同提交，边界覆盖那一格；只比同一格（官方与自建、组织层与租户层、不同组织都并存） | [S-26](v1/contract.md#s-26-同名两条只有先成的一条成立) | **必须真跑并发**（同一格两位超管同时建同名；另建租户层、别的组织、官方清单同名各一次，都成功）；前提：提供者的存储兑现 S-22 第一行 | 未开始 |
 | [S-14](v1/contract.md#s-14-registerprofile) ⑦ 认回 | S-26 另一支 | 同一输入原样重发 | 未开始 |
-| [S-18](v1/contract.md#s-18-装入官方档案清单) 五种处置、序号单调、整份不半装 | [S-27](v1/contract.md#s-27-清单的五种处置与旧清单被拒) | 逐支演练；含一份带坏条目的清单 | 未开始 |
-| [S-20](v1/contract.md#s-20-resolvecredential) 最具体的一把（含出厂格那一把排最末）、读不到不回落、个人范围永不取；[S-32](v1/contract.md#s-32-unbindcredential) 解绑后落到下一格 | [S-28](v1/contract.md#s-28-取最具体的一把读不到不回落) | **故障注入**：让租户那一格的读失败；另跑有无出厂格那一把两种部署 | 未开始 |
+| [S-18](v1/contract.md#s-18-装入官方档案清单) 五种处置（含 `relisted`：同一行回到在册）、序号单调、整份不半装、不读自建行 | [S-27](v1/contract.md#s-27-清单的五种处置与旧清单被拒) | 逐支演练；含一份带坏条目的清单、一条与某自建档案同名的条目 | 未开始 |
+| [S-20](v1/contract.md#s-20-resolvecredential) 取哪一把（租户那一把，否则只对官方档案取出厂格那一把）、读不到不落到出厂格、个人范围与组织层永不取；[S-32](v1/contract.md#s-32-unbindcredential) 解绑后按「没配」取；[S-19](v1/contract.md#s-19-bindcredential) 组织身份即 `invalidInput` | [S-28](v1/contract.md#s-28-取最具体的一把读不到不回落) | **故障注入**：让租户那一格的读失败；另跑有无出厂格那一把两种部署；官方与自建两种来源各问一次 | 未开始 |
 | [S-31](v1/contract.md#s-31-updateprofile) 只改可改项、改完整份过校验、`updatedAt` 只随上游五项动、身份分量不可改 | [examples §2](v1/examples.md#2-自建档案建认回撤回再读) 第 8～10 步 | 对真实存储的集成测试；并发两次修订按提交先后 | 未开始 |
 | [S-12](v1/contract.md#s-12-秘密只在一个问法里出现) 秘密与引用不出本契约 | [S-29](v1/contract.md#s-29-秘密不出本契约) | 以已知原文扫全部返回、失败说明与事件；另加静态检查：读面返回类型里没有凭据与引用 | 未开始 |
 | [S-14](v1/contract.md#s-14-registerprofile) 末段、[S-16](v1/contract.md#s-16-readprofile) ② 授权先于解析 | [S-30](v1/contract.md#s-30-无权者探不到名字) | 两次失败逐字比较 | 未开始 |
@@ -32,7 +32,7 @@
 | 要求 | 由谁承担 | 本契约位置 |
 |---|---|---|
 | 跨进程的新鲜度上界、单调读、秘密送达与轮换传播、调用方鉴别 | 中心 ↔ 据点的组合契约（尚未立） | [S-22](v1/contract.md#s-22-装配给的保证-vs-协议须给的保证)、[G-7](v1/contract.md#十已知缺口) |
-| 取值只交传输适配、锚是发起调用的租户 | `capability.model-request-runtime` v1 | [S-12](v1/contract.md#s-12-秘密只在一个问法里出现) |
+| 取值只交传输适配、锚是发起调用的租户、来源取自那次调用绑定的有效模型 | `capability.model-request-runtime` v1 | [S-12](v1/contract.md#s-12-秘密只在一个问法里出现)、[S-20](v1/contract.md#s-20-resolvecredential) ① |
 | 「范围允许」的求值 | `capability.asset-evaluation` v1 | [S-3](v1/contract.md#s-3-本契约明确不承诺什么) |
 
 ## 实际执行
@@ -51,4 +51,10 @@
   - **出厂格那一把**（S16-f）：S-6、S-7、S-20 改为链的最末一格、由装配给、写面够不着；**G-3 闭合**；它是否只供官方档案另立 **G-10**（PF-013 owner）。
   - **两个新写面**（S16-e）：[S-31](v1/contract.md#s-31-updateprofile) `updateProfile`、[S-32](v1/contract.md#s-32-unbindcredential) `unbindCredential`，九件事写全；**G-5、G-6 闭合**；实例第 2、4 节加五步。
   - **对证据的影响**：没有既有证据（全部未开始）；S-26、S-28 的场景内容变了，首次执行按新内容。
-- **U-2 裁定（[G-1](v1/contract.md#十已知缺口)）**会改 S-15 ⑦ 与 S-18 处置表，S-25、S-27 随改。
+- **2026-09-24 规格修订批（PF-013 rev 10 之后；候选，未冻结，原地改）**。依据：PF-013 rev 10 裁决 33–38 与 decisions P33–P36（账本 U-1、U-2），主线施工简报第三节：
+  - **凭据只在租户层**（裁决 33）：[S-7](v1/contract.md#s-7-凭据绑定) 绑定改以 `TenantId` 为键、没有组织那一支；[S-19](v1/contract.md#s-19-bindcredential)、[S-32](v1/contract.md#s-32-unbindcredential) 的输入由 `scope: ScopeLayerIdentity` 改为 `tenant: TenantId`，给组织身份即 `invalidInput`；[S-6](v1/contract.md#s-6-范围链) 写明凭据那一侧只有租户那一格与出厂格。**G-4 闭合**。
+  - **[S-20](v1/contract.md#s-20-resolvecredential) resolveCredential 删「否则组织层」**：输入改为 `tenant` 加这次要用的档案的来源 `origin`；租户有则租户那一把（不论来源），否则只对官方档案取出厂格那一把，自建档案不落到出厂格（P33、P34）。**G-10 闭合**；`present` 答出的 `scope` 只剩租户一支与出厂格。
+  - **撤回可恢复**（裁决 37、P35、P36）：新增 [S-33](v1/contract.md#s-33-恢复在册) 恢复在册（九件事写全；服务面名账本未给）；[S-18](v1/contract.md#s-18-装入官方档案清单) 处置表 `notRelisted` 改 `relisted`；[S-15](v1/contract.md#s-15-withdrawprofile) ⑦ 改指 S-33；[S-8](v1/contract.md#s-8-官方档案清单与发布序号) 序号的理由改写（撤回可恢复，但旧清单仍不该有效力）。**G-1 闭合**。
+  - **同一范围内唯一**（裁决 35、38）：[S-14](v1/contract.md#s-14-registerprofile) ④ 只比同一格、不读隶属关系，提交边界收窄到那一格；[S-18](v1/contract.md#s-18-装入官方档案清单) 的 `routeNameTaken` 处置删去（清单装入不读自建行）；catalog 去掉对 `capability.organization-governance` S-34 与 `data.identity-values` S-15 的消费。组织层与租户层同名并存这一读法另立 **G-11**（待产品负责人确认）。
+  - **对证据的影响**：没有既有证据（全部未开始）；S-25、S-26、S-27、S-28 的场景内容变了，上表对应各行已改；examples 第 1、2、4、5、6 节改写。
+- **U-2 裁定（原 [G-1](v1/contract.md#十已知缺口)）**已由上一条落地。

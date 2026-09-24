@@ -1,12 +1,12 @@
 # 模型档案目录
 
-**系统里有哪些[模型档案](../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-profile--模型档案--model-profile)、各自在册还是已撤回，以及每个范围的[模型凭据](../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential)绑在哪。**
+**系统里有哪些[模型档案](../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-profile--模型档案--model-profile)、各自在册还是已撤回，以及每个租户的[模型凭据](../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential)绑在哪**（组织那一层不持有凭据）。
 它住在[治理中心](../../../ubiquitous_language/terms/grounding-and-isolation.md#ul-governance-center--治理中心--governance-center)一侧：
-管理员在这里建档、修订、撤回、配凭据与解除；官方档案随系统发布的清单装入；
+组织超管与租户在这里建档、修订、撤回、恢复在册，租户配、换、解除自己那一把凭据；官方档案随系统发布的清单装入（撤回与恢复也只经清单）；
 [会话据点](../../../ubiquitous_language/terms/grounding-and-isolation.md#ul-session-base--会话据点--session-base)上的模型请求运行时从这里读档案、取凭据。
 
 **它不拥有**档案记录的形状与路由名唯一的规则（`data.model-profile` v1）、合法目标集合与一次模型调用（`capability.model-request-runtime` v1）、
-「这个范围允许哪几条档案」（`capability.asset-evaluation` v1），也不拥有凭据本体的保管（提供者设计）。**依赖方向是单向的：本契约 → 档案形状、身份值、组织治理**；
+「这个范围允许哪几条档案」（`capability.asset-evaluation` v1），也不拥有凭据本体的保管（提供者设计）。**依赖方向是单向的：本契约 → 档案形状、身份值、组织治理（只取成员资格判定）**；
 模型请求运行时消费本契约，本契约不消费它。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.model-profile-directory, 1)`

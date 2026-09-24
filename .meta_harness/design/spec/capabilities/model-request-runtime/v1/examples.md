@@ -1,7 +1,7 @@
 # 规范实例：走通的路径与每个失败值的反例
 
 属于 `capability.model-request-runtime` v1 的规范工件。本契约**不附 Schema**，这里的实例不是形状校验用例，
-而是**操作层面的输入 → 预期结果 → 依据条款**：前七节各走通一条路径，第八节给每个失败值一个反例。
+而是**操作层面的输入 → 预期结果 → 依据条款**：前七节各走通一条路径，第八节给每个失败值一个反例，第九节（2026-09-24 追加）再走一条同路由名、按来源取凭据的路径。
 
 **两条读法上的边界：**
 
@@ -71,6 +71,8 @@
 | `openCall(…)`（没有拓展件改目标） | `{ state: handed_up, undispatched: withdrawn }`；日志里一条调用终结记录；**没有响应体** | [S-28](contract.md#s-28-opencall) 出门前检查第 1 行 |
 | `effectiveModel(s1)` | `{ profile: M1, … }`——**不替用户改选** | [S-9](contract.md#s-9-选中模型) |
 | `selectModel(s1, M1, T)` | `notLegalTarget{because: [withdrawn]}` | [S-27](contract.md#s-27-selectmodel) |
+| 随后 `M1` 恢复在册（经官方清单装入），用户什么都没做；`legalTargets(s1)` | 又含 `M1`；`displayList` 上 `M1` 注记 `{ legal }`、标「选中」 | [S-11](contract.md#s-11-合法目标集合)、`data.model-profile/v1#S-10` |
+| 接着 `openCall(…)` | `{ state: open }`，有效模型仍是 `M1`；日志里没有新的切换事实 | [S-9](contract.md#s-9-选中模型) |
 
 ## 6. 模态不兼容挡在算合法目标那一刻（场景 [S-45](contract.md#s-45-模态不兼容挡在算合法目标那一刻)）
 
@@ -115,3 +117,14 @@
 | `wrongPhase{phase: in_flight}` | `dispatch` 在途时另一路又调 `releaseCall(c1)` | 这次发出还没收场 | [S-32](contract.md#s-32-releasecall) |
 
 **判定次序的一条回归例**：一次开过口、此刻在 `awaiting_decision` 的调用上 `dispatch(c2)` ⇒ **`retryRefused{already_spoke}`**，不是 `wrongPhase`（[S-30](contract.md#s-30-dispatchagain) 末条、[S-29](contract.md#s-29-dispatch) ⑥ 的次序）。
+
+## 9. 同路由名的两条：来源不同，取凭据也不同（场景 [S-48](contract.md#s-48-同路由名的两条来源不同取凭据也不同)）
+
+另一个会话 `s2` 属于租户 `U = (O, B)`；**`U` 没配自己那一把**，部署给出厂格配了 `K_F`。除 `M1`、`M2` 外，`O` 的组织层建了一条自建档案 `M1c`，**路由名与 `M1` 相同**、输入模态 `text`。
+
+| 调用 | 预期 | 依据 |
+|---|---|---|
+| `displayList(s2)` | `M1` 与 `M1c` 各一条：`M1` 的 `ref = { origin: official, routeName }`、注记 `{ legal }`；`M1c` 的 `ref = { origin: custom, scope: organization(O), routeName }`、注记 `{ legal, credential_missing }` | [S-12](contract.md#s-12-展示列表) |
+| 有效模型为 `M1c` 的 `openCall(…)` | `{ state: handed_up, undispatched: credential_unavailable }`——自建档案不落到出厂格那一把 | [S-19](contract.md#s-19-凭据每次发出现取取值只交给传输适配)、[S-28](contract.md#s-28-opencall) 出门前检查第 4 行 |
+| 有效模型为 `M1` 的 `openCall` → `dispatch` | 照常发出；响应体 `route.credentialScope` 是出厂格 | [S-19](contract.md#s-19-凭据每次发出现取取值只交给传输适配) |
+| `U` 配上自己那一把之后再 `displayList(s2)` 与两次发出 | 两条都不带 `credential_missing`；两次发出的 `route.credentialScope` 都是 `U` 的租户层——组织层建的档案，成员调它用成员自己那一把 | 同上 |

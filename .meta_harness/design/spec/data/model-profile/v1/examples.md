@@ -16,7 +16,7 @@
 
 **两条读法上的边界：**
 
-- **`通过` 只说表示合法。**它不表示路由名没被占（[S-3](contract.md#s-3-撞名判定官方名对所有层保留自建名在所在隶属树内唯一)，见[第 7 节](#7-判定撞名拒建不是-schema-实例)）、
+- **`通过` 只说表示合法。**它不表示路由名没被占（[S-3](contract.md#s-3-撞名判定同一范围内唯一)，见[第 7 节](#7-判定撞名拒建不是-schema-实例)）、
   不表示引用解析得到（[S-14](contract.md#s-14-引用只精确解析不跨层)），更不表示谁能用它。
 - **示例里的路由名、供应商名与身份值都是占位。**`vendor-a/chat-large`、`provider-x` 不是任何真实目录里的条目，
   也不是对词法的承诺（[G-2](contract.md#十已知缺口)）；`org_7fd2c1`、`acc_91ab40` 的形状归 `data.identity-values`。
@@ -45,7 +45,8 @@
 
 - 它在出厂默认层（[S-4](contract.md#s-4-profileorigin)）；**不含凭据**（[S-22](contract.md#s-22-凭据价格与实际用了哪条都不在档案上)），凭据在装配阶段配置。
 - 指向它的引用只带路由名（[S-13](contract.md#s-13-modelprofileref)）：`{"origin": "official", "routeName": "vendor-a/chat-large"}`——
-  能这样写，是因为官方名对所有层保留，没有别的档案与它同名（[S-3](contract.md#s-3-撞名判定官方名对所有层保留自建名在所在隶属树内唯一)）。
+  能这样写，是因为官方档案全在出厂默认层这一格、同一格里路由名不重复（[S-3](contract.md#s-3-撞名判定同一范围内唯一)）；
+  别的格里即使有一条同名的自建档案，官方引用也只在官方档案里解析（[S-14](contract.md#s-14-引用只精确解析不跨层)）。
 - 没有 `parameters`：本档案一项都不给（[S-17](contract.md#s-17-缺席即不带没有人补值)）。
 
 ### 正例 B：租户层的自建档案，带请求参数
@@ -120,6 +121,7 @@
 ```
 
 - **已撤回的档案仍是一份合法文档，仍读得出**；这个引用仍解析到它（[S-10](contract.md#s-10-registration)、[S-14](contract.md#s-14-引用只精确解析不跨层)）。
+  它**可以恢复在册**：恢复之后 `registration` 回到 `"listed"`，其余成员一个不变，这个引用解析到的仍是同一条。
 - `allowFallback: false` 而列表有两家**合法**：只发往第一家，第二家保留在档案上（[S-6](contract.md#s-6-允不允许回退)）。
 
 ## 2. ModelProfile 的反例
@@ -131,7 +133,7 @@
 | A：`routeName` → `""` | 拒绝 | `route_name_empty` | [S-2](contract.md#s-2-routename) |
 | A：−`routeName` | 拒绝 | `malformed`（M2） | [S-25](contract.md#s-25-拒绝值闭合一次恰一个)：缺必填成员报 `malformed`，不报 `route_name_empty` |
 | A：`routeName` → `null` | 拒绝 | `malformed`（M4） | 同上：`null` 不是一个空路由名 |
-| A：`routeName` → `" vendor-a/chat-large"` | 拒绝 | `malformed`（M7） | [S-2](contract.md#s-2-routename)：首尾不得是空白，否则一个空格就绕过 [S-3](contract.md#s-3-撞名判定官方名对所有层保留自建名在所在隶属树内唯一) |
+| A：`routeName` → `" vendor-a/chat-large"` | 拒绝 | `malformed`（M7） | [S-2](contract.md#s-2-routename)：首尾不得是空白，否则一个空格就绕过 [S-3](contract.md#s-3-撞名判定同一范围内唯一) |
 | A：`routeName` → `"vendor-a/chat-large\n"` | 拒绝 | `malformed`（M7） | [S-2](contract.md#s-2-routename)：**`$` 的回归用例**——用 `$` 收尾的 pattern 在 Python 下会放它通过 |
 | A：`routeName` → `"﻿vendor-a/chat-large"`（前导 U+FEFF） | 拒绝 | `malformed`（M7） | [S-2](contract.md#s-2-routename)：**`\s` 的回归用例**——U+FEFF 在显式空白集合里 |
 | A：`origin` → `"builtin"` | 拒绝 | `malformed`（M5） | [S-4](contract.md#s-4-profileorigin)：恰两值 |
@@ -184,7 +186,7 @@
 
 | 实例 | 预期 | 拒绝值 | 依据 |
 |---|---|---|---|
-| `{"origin": "official", "routeName": "vendor-a/chat-large"}`（正例 A 的引用） | 通过 | —— | [S-13](contract.md#s-13-modelprofileref)：官方那一支只带路由名，前提是 [S-3](contract.md#s-3-撞名判定官方名对所有层保留自建名在所在隶属树内唯一) |
+| `{"origin": "official", "routeName": "vendor-a/chat-large"}`（正例 A 的引用） | 通过 | —— | [S-13](contract.md#s-13-modelprofileref)：官方那一支只带路由名，前提是 [S-3](contract.md#s-3-撞名判定同一范围内唯一) |
 | 正例 B 的引用 | 通过 | —— | [S-13](contract.md#s-13-modelprofileref) |
 | 正例 C 的引用 | 通过 | —— | [S-13](contract.md#s-13-modelprofileref)：已撤回的档案照样可被引用 |
 | `{"routeName": "vendor-b/coder-7b", "scope": {"layer": "tenant", "tenant": {"account": "acc_91ab40", "organization": "org_7fd2c1"}}, "origin": "custom"}` | 通过 | —— | [S-13](contract.md#s-13-modelprofileref)：成员次序不参与相等，与正例 B 的引用**是同一个引用** |
@@ -248,7 +250,7 @@
 | `"vendor-a/chat-large"` | 通过 | [S-2](contract.md#s-2-routename) |
 | `"a"` | 通过 | [S-2](contract.md#s-2-routename)：最短的合法路由名是一个非空白码点 |
 | `"vendor a/chat"` | 通过 | [S-2](contract.md#s-2-routename)：**中间**的空白不受本条限制；词法归上游 |
-| `"Vendor-A/Chat-Large"` | 通过 | [S-2](contract.md#s-2-routename)：与 `vendor-a/chat-large` **是两个名字**（逐码点相等）；只差大小写不算撞名（[S-3](contract.md#s-3-撞名判定官方名对所有层保留自建名在所在隶属树内唯一)） |
+| `"Vendor-A/Chat-Large"` | 通过 | [S-2](contract.md#s-2-routename)：与 `vendor-a/chat-large` **是两个名字**（逐码点相等）；只差大小写不算撞名（[S-3](contract.md#s-3-撞名判定同一范围内唯一)） |
 | `""` | 拒绝 | [S-2](contract.md#s-2-routename) |
 | `"vendor-a/chat-large "` | 拒绝 | [S-2](contract.md#s-2-routename)：尾随空白 |
 | `12345` | 拒绝 | [S-2](contract.md#s-2-routename)：字符串 |
@@ -266,7 +268,7 @@
 | 校验对象 | 通过 | 拒绝 | 依据 |
 |---|---|---|---|
 | `$defs/Modality`（`data.content-blocks` 的定义，本契约 `$ref`） | `"text"`、`"image"`、`"audio"`、`"video"` | `"file"`、`"voice"`、`"Text"`、`null` | [S-7](contract.md#s-7-modality-与两组模态) |
-| `$defs/Registration` | `"listed"`、`"withdrawn"` | `"deleted"`、`"disallowed"`、`"relisted"` | [S-10](contract.md#s-10-registration)：没有「重新上架」这一态 |
+| `$defs/Registration` | `"listed"`、`"withdrawn"` | `"deleted"`、`"disallowed"`、`"relisted"` | [S-10](contract.md#s-10-registration)：恢复在册回到的就是 `"listed"`，没有第三个取值 |
 | `$defs/ProfileOrigin` | `"official"`、`"custom"` | `"builtin"`、`"customized"` | [S-4](contract.md#s-4-profileorigin)：`customized` 是资产那一套的说法，不在这里 |
 | `$defs/ReasoningEffort` | `"none"`、`"low"`、`"medium"`、`"high"`、`"max"` | `"minimal"`、`"xhigh"`、`""` | [S-16](contract.md#s-16-各项的取值域) |
 
@@ -292,34 +294,35 @@
 
 ## 7. 判定：撞名拒建（不是 Schema 实例）
 
-**这一节不是表示层校验**：每一行的拟建档案**都通过表示层校验**，被拒是因为要读别的记录（[S-3](contract.md#s-3-撞名判定官方名对所有层保留自建名在所在隶属树内唯一)、[S-26](contract.md#s-26-表示层拒绝与判定分开)）。
+**这一节不是表示层校验**：每一行的拟建档案**都通过表示层校验**，被拒是因为要读别的记录（[S-3](contract.md#s-3-撞名判定同一范围内唯一)、[S-26](contract.md#s-26-表示层拒绝与判定分开)）。
 它是规范场景，由拥有建档操作的能力（`capability.model-profile-directory` v1）演练，状态见[验证入口](../verification.md#证据义务)。
 
 **已有的档案**：正例 A（官方，在册）、正例 B（租户 `(org_7fd2c1, acc_91ab40)` 的租户层，在册）、正例 C（组织 `org_7fd2c1` 的组织层，已撤回）。
-**隶属关系**（判定那一刻现读）：组织 `org_t3a9` 的上级是 `org_7fd2c1`，两者在同一棵隶属树上；组织 `org_kf22` 与它们没有共同上级。
+**隶属关系**：组织 `org_t3a9` 的上级是 `org_7fd2c1`。**本节的判定一次也不读它**——列在这里只为说明隶属关系不参与撞名判定。
+下表各行都是**在上面三条已有档案上单独做的一次**，行与行之间不累积；行内另写了前提的，按行内。
 
 | 拟建 | 结果 | 依据 |
 |---|---|---|
-| 租户 `(org_7fd2c1, acc_91ab40)` 建自建档案 `vendor-a/chat-large` | `route_name_taken` | 撞官方名：官方名对所有层保留 |
-| 同一租户再建 `vendor-b/coder-7b` | `route_name_taken` | 撞同一格里的名字 |
-| 组织 `org_7fd2c1` 建 `vendor-b/coder-7b` | `route_name_taken` | 撞它某个租户的租户层里的名字：同一个组织在同一棵树上，不看是哪一层 |
-| 组织 `org_t3a9` 建 `vendor-c/vision-mini` | `route_name_taken` | 撞同一棵树上一条**已撤回**的自建档案：已撤回的行仍占着名字（[S-10](contract.md#s-10-registration)）；上游重新上架同名模型时怎么办是 [G-6](contract.md#十已知缺口) |
-| 组织 `org_kf22` 建 `vendor-c/vision-mini` | **建出** | 不在同一棵树上，**不跨树比较**——拒建因此探不出别的树里建过什么名字 |
-| 系统发布一条新的官方档案 `vendor-b/coder-7b` | `route_name_taken` | 新官方档案与**全部档案**比，撞任何一棵树里的自建名都**同样拒建**；处置归发布方，已有档案改不了名（[S-2](contract.md#s-2-routename)） |
-| 正例 A 被撤回之后，租户 `(org_7fd2c1, acc_91ab40)` 建 `vendor-a/chat-large` | `route_name_taken` | 不论在册还是已撤回 |
-| 租户 `(org_7fd2c1, acc_91ab40)` 建 `Vendor-A/Chat-Large` | **建出** | 只差大小写不算同名：逐码点比较，不做大小写折叠与相似字判定 |
-| 任一行，判定时读不到已有档案，或有没有共同上级判不出 | **明确失败**（值名归能力） | S-3 九件事第 4 行：**不得当作「未被占」** |
-| 两个请求**并发**建自建档案 `vendor-d/new`，一个来自租户 `(org_7fd2c1, acc_91ab40)`、一个来自组织 `org_t3a9` | **恰一个成功**，另一个 `route_name_taken` | S-3 九件事第 3 行：同一棵树里，判定读到的名字与写入同一提交 |
-| 租户 `(org_7fd2c1, acc_91ab40)` 建自建档案 `vendor-d/next`，与系统发布官方档案 `vendor-d/next` **并发** | **恰一个成功**，另一个 `route_name_taken` | 同上：官方发布读全部名字，自建建档读全部官方名，两者不得都判「未被占」 |
-| 两个请求**并发**建自建档案 `vendor-d/other`，一个来自组织 `org_7fd2c1`、一个来自组织 `org_kf22` | **两个都建出** | 两棵树互不比较 |
-| 组织 `org_kf22` 与 `org_7fd2c1` 各已有一条自建档案 `vendor-e/shared`，随后一次隶属建立使 `org_kf22` 的上级成为 `org_7fd2c1` | **两条都留着**，不是违例；此后 `org_t3a9` 建 `vendor-e/shared` 得 `route_name_taken` | S-3「只在登记那一刻核」：隶属变化不回头改判，但并成一棵之后的新建档照新树判 |
+| 租户 `(org_7fd2c1, acc_91ab40)` 在自己那层建 `vendor-a/chat-large` | **建出** | 与正例 A（官方）同名，但不在同一格：两条并存；官方引用只解析到官方那一条，自建引用带着这一格（[S-13](contract.md#s-13-modelprofileref)、[S-14](contract.md#s-14-引用只精确解析不跨层)） |
+| 同一租户在自己那层再建 `vendor-b/coder-7b` | `route_name_taken` | 撞同一格里的名字（正例 B） |
+| 组织 `org_7fd2c1` 在组织层建 `vendor-b/coder-7b` | **建出** | 组织层与它某个租户的租户层不是同一格；**这一读法待产品负责人确认**（[G-13](contract.md#十已知缺口)） |
+| 组织 `org_7fd2c1` 在组织层建 `vendor-c/vision-mini` | `route_name_taken` | 撞同一格里一条**已撤回**的档案（正例 C）：要再用这个名字，是把正例 C **恢复在册**，不是另建（[S-10](contract.md#s-10-registration)） |
+| 组织 `org_t3a9` 在组织层建 `vendor-c/vision-mini` | **建出** | 不在同一格；它的上级是 `org_7fd2c1` 这件事不参与判定 |
+| 系统发布一条新的官方档案 `vendor-b/coder-7b` | **建出** | 出厂默认层那一格里没有这个名字；与正例 B 并存 |
+| 正例 A 被撤回之后，系统再发布一条官方档案 `vendor-a/chat-large` | `route_name_taken` | 同一格（出厂默认层）里已撤回的行仍占着名字；上游把它重新上架，走的是把正例 A 恢复在册（`capability.model-profile-directory` v1 清单装入的「恢复」处置） |
+| 租户 `(org_7fd2c1, acc_91ab40)` 在自己那层建 `Vendor-B/Coder-7B` | **建出** | 只差大小写不算同名：逐码点比较，不做大小写折叠与相似字判定 |
+| 任一行，判定时读不到那一格的已有档案 | **明确失败**（值名归能力） | S-3 九件事第 4 行：**不得当作「未被占」** |
+| 两个请求**并发**在租户 `(org_7fd2c1, acc_91ab40)` 那一格建 `vendor-d/new` | **恰一个成功**，另一个 `route_name_taken` | S-3 九件事第 3 行：同一格里，判定读到的名字与写入同一提交 |
+| 租户 `(org_7fd2c1, acc_91ab40)` 在自己那层建 `vendor-d/next`，与系统发布官方档案 `vendor-d/next` **并发** | **两个都建出** | 不在同一格，互不相干 |
+| 两个请求**并发**建 `vendor-d/other`，一个在组织 `org_7fd2c1` 的组织层、一个在它的租户 `(org_7fd2c1, acc_91ab40)` 的租户层 | **两个都建出** | 不在同一格（读法待产品负责人确认，[G-13](contract.md#十已知缺口)） |
 
-## 8. 没有这条写路径：撤回不可逆
+## 8. 转移不是形状：撤回与恢复在册
 
 **这一节同样不是 Schema 实例。**把正例 C 的 `registration` 改回 `"listed"`，得到的文档**表示上完全合法**——
-它和一条在册的档案长得一样。违反的是**转移**，不是形状：[S-10](contract.md#s-10-registration) 说**没有 `withdrawn → listed` 这条边**，
-所以维护档案的能力**不提供**任何写出这次转移的操作，本契约也因此**没有**给它一个失败值。
-它的证据形式是静态检查（写路径里找不到这条边），登记在[验证入口](../verification.md#证据义务)。
+它和一条在册的档案长得一样，而这正是正例 C **恢复在册之后**的样子：恢复是一次**转移**（[S-10](contract.md#s-10-registration)），由维护档案的能力写下，
+表示层看不出、也不需要看出一条档案是新建的还是恢复的。
+**表示层之外要守的是**：恢复的是**同一行**（不另起一行、身份分量不变、其余成员不变、`updatedAt` 不动）；除撤回与恢复在册之外，在册状态**没有别的写路径**；行不删。
+它们的证据形式是静态检查与场景，登记在[验证入口](../verification.md#证据义务)。
 
 ## 9. ModelProfileSnapshot
 
