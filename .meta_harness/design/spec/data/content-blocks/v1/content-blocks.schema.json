@@ -99,19 +99,12 @@
 
     "InlineBytes": {
       "title": "InlineBytes",
-      "description": "S-10：内联在值里的一份字节——{ inline: <base64> }。标准字母表（RFC 4648 §4）、带填充、非空、不含换行与空白。它是语音块与图块 data 的内联形状，也是别的契约需要内联一份字节时唯一引用的定义（例如工具定义的内联结果），不另写一份。它是规格层的名字，不是统一语言词条。",
-      "$comment": "与 AttachmentRef 可判别：一个带 inline 成员且只有它，一个带 storage 与 key。媒体类型不在本定义上——它由承载它的那一处给出（语音块、图块的 mediaType）。",
-      "type": "object",
-      "properties": {
-        "inline": {
-          "type": "string",
-          "contentEncoding": "base64",
-          "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)(?![\\s\\S])"
-        }
-      },
-      "required": ["inline"],
-      "additionalProperties": false,
-      "examples": [{ "inline": "iVBORw0KGgo=" }]
+      "description": "S-10：内联在值里的一份字节的 base64 串——标准字母表（RFC 4648 §4）、带填充、非空、不含换行与空白。语音块与图块的内联形状是 { inline: InlineBytes }；别的契约需要在值里内联一份字节（例如工具定义里卸载的内联原始结果）时，承载它的那一成员一律 $ref 本定义，不另写一份编码规则。它是规格层的名字，不是统一语言词条。",
+      "$comment": "只定编码规则，不带媒体类型——媒体类型由承载它的那一处给出（语音块、图块的 mediaType；卸载原始结果旁的 mediaType）。结尾用 (?![\\s\\S]) 而不是 $，理由同 MediaType。",
+      "type": "string",
+      "contentEncoding": "base64",
+      "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)(?![\\s\\S])",
+      "examples": ["iVBORw0KGgo="]
     },
 
     "DerivedRendering": {
@@ -201,8 +194,8 @@
 
     "VoiceBlock": {
       "title": "语音块",
-      "description": "S-10：说出来的话。mediaType 必填且其 type 必须是 audio（模态为 audio）。data 恰为两种可判别形状之一：内联字节（InlineBytes），或一个 AttachmentRef——后者的 mediaType 同样必须是 audio/*，并且与块的 mediaType 逐字相同（后一半 Schema 管不到，见 S-10）。可以带派生表示与 transcript。",
-      "$comment": "内联形状是 $defs/InlineBytes，与 ImageBlock 共用。「执行帧里的媒体块只许引用」是 data.arrival-events 的规则，本定义只把两种形状做成可判别。",
+      "description": "S-10：说出来的话。mediaType 必填且其 type 必须是 audio（模态为 audio）。data 恰为两种可判别形状之一：内联字节 { inline: InlineBytes }，或一个 AttachmentRef——后者的 mediaType 同样必须是 audio/*，并且与块的 mediaType 逐字相同（后一半 Schema 管不到，见 S-10）。可以带派生表示与 transcript。",
+      "$comment": "内联形状 { inline } 的串是 $defs/InlineBytes，与 ImageBlock 相同。「执行帧里的媒体块只许引用」是 data.arrival-events 的规则，本定义只把两种形状做成可判别。",
       "type": "object",
       "allOf": [{ "$ref": "#/$defs/BlockBase" }],
       "properties": {
@@ -210,7 +203,13 @@
         "mediaType": { "$ref": "#/$defs/MediaType", "pattern": "^audio/" },
         "data": {
           "oneOf": [
-            { "$ref": "#/$defs/InlineBytes" },
+            {
+              "title": "内联字节",
+              "type": "object",
+              "properties": { "inline": { "$ref": "#/$defs/InlineBytes" } },
+              "required": ["inline"],
+              "additionalProperties": false
+            },
             {
               "title": "引用",
               "$ref": "#/$defs/AttachmentRef",
@@ -225,8 +224,8 @@
 
     "ImageBlock": {
       "title": "图块",
-      "description": "S-10：图片本身。mediaType 必填且其 type 必须是 image（模态为 image）。data 恰为两种可判别形状之一：内联字节（InlineBytes），或一个 AttachmentRef——后者的 mediaType 同样必须是 image/*，并且与块的 mediaType 逐字相同（后一半 Schema 管不到，见 S-10）。可以带派生表示与 transcript。",
-      "$comment": "内联形状是 $defs/InlineBytes，与 VoiceBlock 共用。",
+      "description": "S-10：图片本身。mediaType 必填且其 type 必须是 image（模态为 image）。data 恰为两种可判别形状之一：内联字节 { inline: InlineBytes }，或一个 AttachmentRef——后者的 mediaType 同样必须是 image/*，并且与块的 mediaType 逐字相同（后一半 Schema 管不到，见 S-10）。可以带派生表示与 transcript。",
+      "$comment": "内联形状 { inline } 的串是 $defs/InlineBytes，与 VoiceBlock 相同。",
       "type": "object",
       "allOf": [{ "$ref": "#/$defs/BlockBase" }],
       "properties": {
@@ -234,7 +233,13 @@
         "mediaType": { "$ref": "#/$defs/MediaType", "pattern": "^image/" },
         "data": {
           "oneOf": [
-            { "$ref": "#/$defs/InlineBytes" },
+            {
+              "title": "内联字节",
+              "type": "object",
+              "properties": { "inline": { "$ref": "#/$defs/InlineBytes" } },
+              "required": ["inline"],
+              "additionalProperties": false
+            },
             {
               "title": "引用",
               "$ref": "#/$defs/AttachmentRef",

@@ -72,7 +72,7 @@ V-2～V-10 **一条执行记录也没有**。起草时的手核只保证 `exampl
   - **G-3 闭合**：完整调用块多一种形状（`rawArguments` ＋ `unparseable: true`）；原来「完整调用带 `rawArguments` 即 `malformed`」收窄为「不与 `unparseable` 同现即 `malformed`」。**消费者影响**：`capability.stream-assembly` 的 S-11 与它的 G-1。
   - **来路标记二值 → 四值**（`slash_command_expansion`、`slash_command_record`）。**消费者影响**：`data.slash-command` 的 S-21、S-25 与它的 G-4。
   - **`producedBy` 收为常量 `system`**：原先的能力标识一支删去（本版没有合法的产出者走它）；**表示收紧**，写能力标识的实例由通过变为拒绝。
-  - **新增**：`$defs/InlineBytes`（内联形状抽成共用定义，语音块与图块改 `$ref` 它，**形状不变**）；S-19「派生块模态不同于原块」一条（Schema 管不到，V-3 多一项）；S-34 附件落块规则。
+  - **新增**：`$defs/InlineBytes`（内联那一串 base64 的编码规则抽成共用定义，语音块与图块的 `inline` 改 `$ref` 它，**形状不变**；工具定义卸载的内联原始结果随之引用它）；S-19「派生块模态不同于原块」一条（Schema 管不到，V-3 多一项）；S-34 附件落块规则。
   - **措辞**：S-3 执行帧块由「帧入口」编号（与 `data.arrival-events` S-8 统一）；S-18 `abnormal_interruption` 的触发加「桥换代」；G-5（指路）、G-6（D-038）闭合；新增 G-7（前台上限的中断原因）、G-8（主线裁定无决定记录）。
   - V-1 已按新形状本地自检一次（[上文](#本地自检)）；V-4 的 S-32 那条场景的原因集合以 S-18 新表为准。
 - **[G-7](v1/contract.md#八已知缺口) 被裁决**（前台上限的中断原因）：若补一行，`PlaceholderReason` 多一个取值 ⇒ **表示改变**（冻结后出 v2），V-1 与 V-4 的 S-32 重跑。

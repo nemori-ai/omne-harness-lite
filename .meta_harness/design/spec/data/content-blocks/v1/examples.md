@@ -270,9 +270,9 @@
 | `$defs/Modality` | `"voice"` | 拒绝 | `malformed` | [S-6](contract.md#s-6-模态由媒体类型判定)：`voice` 是块的类型，模态的 token 是 `audio` |
 | `$defs/Modality` | `"file"` | 拒绝 | `malformed` | [S-6](contract.md#s-6-模态由媒体类型判定)：文件不是一种模态 |
 | `$defs/Modality` | `"none"` | 拒绝 | `malformed` | [S-6](contract.md#s-6-模态由媒体类型判定)：「无模态」不是第五个取值 |
-| `$defs/InlineBytes` | `{"inline": "iVBORw0KGgo="}` | 通过 | — | [S-10](contract.md#s-10-语音块与图块)：共用的内联形状 |
-| `$defs/InlineBytes` | `{"inline": "iVBORw0KGgo=", "mediaType": "image/png"}` | 拒绝 | `malformed` | [S-10](contract.md#s-10-语音块与图块)：媒体类型不在内联形状上，由承载它的那一处给 |
-| `$defs/InlineBytes` | `{"inline": "iVBORw0KGgo"}` | 拒绝 | `malformed` | [S-10](contract.md#s-10-语音块与图块)：带填充，长度是四的倍数 |
+| `$defs/InlineBytes` | `"iVBORw0KGgo="` | 通过 | — | [S-10](contract.md#s-10-语音块与图块)：共用的编码规则 |
+| `$defs/InlineBytes` | `"iVBORw0KGgo"` | 拒绝 | `malformed` | [S-10](contract.md#s-10-语音块与图块)：带填充，长度是四的倍数 |
+| `$defs/InlineBytes` | `"iVBORw0K Ggo="` | 拒绝 | `malformed` | [S-10](contract.md#s-10-语音块与图块)：不含空白 |
 
 ## 14. Schema 挡不住，但同样非法的
 

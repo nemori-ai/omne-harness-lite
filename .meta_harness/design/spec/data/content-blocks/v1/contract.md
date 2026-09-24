@@ -110,7 +110,7 @@
 | `FileBlock.attachment` 指向的那一份 | [附件 · Attachment](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-attachment--附件--attachment)（工具产出的附件；也可以是别处存进存储、以文件块引用的一份，见下） |
 
 **下列是规格层的名字，不是统一语言词条**，因此本契约与 Schema 里**不给它们「中文 · English」那种词条式标题**：
-`BlockId`、`CallId`、`BlockBase`、`MediaType`（媒体类型，**无词条**）、`AttachmentRef`（**无词条**）、`InlineBytes`（内联的一份字节）、
+`BlockId`、`CallId`、`BlockBase`、`MediaType`（媒体类型，**无词条**）、`AttachmentRef`（**无词条**）、`InlineBytes`（内联字节的 base64 串）、
 `PlaceholderReason`（占位的原因，取值对应 PF-006 §6.7 那张表的行）、`origin`（来路标记，**无词条**）、
 `IncompleteToolCallBlock`（没长完的工具调用，[增量到达词条](../../../../ubiquitous_language/terms/record-and-context.md#ul-incremental-arrival--增量到达--incremental-arrival)的注意 ① 说的就是它，本身无词条）。
 
@@ -143,7 +143,7 @@
 | `ExecutionOutcome`、`PlaceholderReason` | 收场与占位原因 | [S-17](#s-17-六种收场)、[S-18](#s-18-占位原因与它落在哪一格) |
 | `DerivedRendering`、`CapabilityId` | 派生表示与它的产出者 | [S-19](#s-19-派生表示与-transcript)、[S-20](#s-20-派生表示的产出者与能力标识) |
 | `AttachmentRef` | 存储里一份字节的引用；只给了引用的附件落成哪类块 | [S-21](#s-21-attachmentref)、[S-34](#s-34-只给了引用的附件落成哪一类块) |
-| `InlineBytes` | 内联在值里的一份字节 | [S-10](#s-10-语音块与图块) |
+| `InlineBytes` | 内联在值里的一份字节的 base64 串 | [S-10](#s-10-语音块与图块) |
 
 ### S-1 七类块
 
@@ -305,7 +305,7 @@ modalityOf(mediaType) ≝   按 mediaType 在第一个 "/" 之前的那一段 t�
 
 | `data` 的形状 | 长什么样 | 约束 |
 |---|---|---|
-| **内联** | `{ "inline": "<base64>" }`（`$defs/InlineBytes`） | 标准字母表（RFC 4648 §4）、带填充、**非空**、不含换行与空白 |
+| **内联** | `{ "inline": <InlineBytes> }` | 标准字母表（RFC 4648 §4）、带填充、**非空**、不含换行与空白 |
 | **引用** | 一个 [`AttachmentRef`](#s-21-attachmentref) | 它的 `mediaType` 的 type 同样必须是 `audio`／`image`，**且与块的 `mediaType` 逐字相同** |
 
 - **模态不对是表示层拒绝 `modality_mismatch`**：语音块或图块上出现的任一个媒体类型（块自己的、引用里的）合乎规范形式、type 却不对。
@@ -314,7 +314,7 @@ modalityOf(mediaType) ≝   按 mediaType 在第一个 "/" 之前的那一段 t�
 - **两处媒体类型模态一致但不逐字相同**（例如块写 `image/png`、引用里写 `image/jpeg`）是 `malformed`：
   一个块只能有一个媒体类型，**两份说法下游不知道该信哪一份**。这一条 Schema 管不到，由接收边界的校验兑现。
 - 两种形状**可判别**，所以「执行帧里的媒体块只许引用」这条 `data.arrival-events` 的规则能在形状上判；**那条规则本身不在这里**。
-- **内联形状是一个共用定义 `InlineBytes`**：语音块与图块共用它；别的契约需要在值里内联一份字节（例如工具的内联结果）时**引用它，不另写一份**。
+- **内联那一串的编码规则是一个共用定义 `InlineBytes`**（base64 串本身）：语音块与图块的 `inline` 取它；别的契约需要在值里内联一份字节（例如工具卸载的内联原始结果）时，**承载它的成员引用它，不另写一份编码规则**。
   它不带媒体类型——媒体类型由承载它的那一处给出。
 - 语音块在本版就是一种普通的块（[PF-009 §5.9](../../../../product/PF-009-context-message-types/design.md#本版的语音是普通的输入与输出不是全双工)），不带播放进度。
 
