@@ -95,7 +95,8 @@
 
 - **形态**：变体（父：[执行环境](#ul-execution-environment--执行环境--execution-environment)）
 - **出处**：[PF-005 §4 宿主机](../../product/PF-005-execution-environments-and-sandboxes/design.md#宿主机)（rev 5） · [§6.1](../../product/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)（rev 5） · [§6.2](../../product/PF-005-execution-environments-and-sandboxes/design.md#62-宿主机不提供租户隔离因此必须被显式允许)（rev 5）
-- **⚠️ 别混**：**不是[会话据点](#ul-session-base--会话据点--session-base)。**命令行交付形态下两者恰好是同一台机器（[PF-016](../../product/PF-016-cli-tui-delivery-surface/design.md#会话据点)），但宿主机回答「一次工具执行的作用落在哪」、每次执行现算，据点回答「这些会话的事实存在哪」
+- **⚠️ 别混 ①**：**不是[会话据点](#ul-session-base--会话据点--session-base)。**命令行交付形态下两者恰好是同一台机器（[PF-016](../../product/PF-016-cli-tui-delivery-surface/design.md#会话据点)），但宿主机回答「一次工具执行的作用落在哪」、每次执行现算，据点回答「这些会话的事实存在哪」
+- **⚠️ 别混 ②**：**裸写「宿主」不是它**——词表里「宿主」指承载一个协程或一段执行、它没了那一段就跟着没了的那一方（agent runtime、会话；见[取消跟着宿主走](agent-runtime-loop.md#ul-cancellation-follows-host--取消跟着宿主走--cancellation-follows-host)），在[领域对象条目](../../domain_objects/conventions.md#一条对象条目长什么样)里是「寿命跟着谁」那一栏；hooks 来自的第三方 agent 产品（Claude Code、Codex）也不是宿主，规格里另有称呼。这几个所指都不是宿主机
 - **注意 ①**：**它不被装配**——要装配的是[沙箱实现](#ul-sandbox-implementation--沙箱实现--sandbox-implementation)，而且是可选的
 - **注意 ②**：**沙箱创建失败不得退回宿主机**——那等于绕过安全判断
 - **注意 ③**：**[工作区](scope-and-resolution.md#ul-workspace--工作区--workspace)的承载目录不是它上面的边界**——

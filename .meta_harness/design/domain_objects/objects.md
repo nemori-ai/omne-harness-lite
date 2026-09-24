@@ -237,7 +237,16 @@
 - **身份**：正文未述；每次调用要留下「实际用了哪条档案」的留痕
 - **生灭**：待发出 → 在途（可在本层换一家或退避）→ 说话中（首 token 到，不可逆）→ 完整一份。三个终态：完整一份 · 上交 · 被中断。完整一份在落盘前被否决，**这次调用仍停在「完整一份」**，记下被谁否决，loop 另起新调用。停机恢复看首 token：之前可重发，之后一律不重发、收场原因记为运行时失联
 - **依据**：[PF-013 flows §3.2](../product/PF-013-model-profiles-and-invocation/flows.md#32-一次模型调用)（rev 12）；[PF-013 §5.2](../product/PF-013-model-profiles-and-invocation/design.md#52-这一层的四要素填-pf-011-那一格)（rev 12）；[PF-013 §5.13](../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)（rev 12）
-- **并入**：「模型请求的运行时」（PF-013 §5.13 的叫法，指执行这一次调用的那个协程——**不是规格里以「模型请求运行时」为名的那项能力**，见 [C-31](../ubiquitous_language/conflicts.md#现有冲突)）「模型请求」「进行中的模型响应」——正文没给它们各自的身份，是这一个对象的运行时面。**一次调用里的每一次[发出](../ubiquitous_language/terms/execution-and-outcome.md#ul-upstream-send--一次发出--upstream-send)不另立对象**：它是过程，留下的是留痕
+- **并入**：「模型请求的运行时」（PF-013 §5.13 的叫法，指执行这一次调用的那个协程——**不是规格里以「模型请求运行时」为名的那项能力**，见 [C-31](../ubiquitous_language/conflicts.md#现有冲突)）「模型请求」「进行中的模型响应」——正文没给它们各自的身份，是这一个对象的运行时面。**一次调用里的每一次[发出](../ubiquitous_language/terms/execution-and-outcome.md#ul-upstream-send--一次发出--upstream-send)不另立对象**：它是过程，留下的是[模型响应体](#ul-model-response--模型响应体)
+
+### UL-model-response · 模型响应体
+
+- **宿主**：[会话日志](#ul-session-log--会话日志)——它是一条效力为留痕的[记录条目](#ul-record-entry--记录条目)的载荷，随日志留着；试过又失败的那几条不进方程、不进模型的上下文
+- **身份**：正文未述；只要求分得出是哪次[模型调用](#ul-model-call--一次模型调用)的哪一次发出——哪一家、什么时候、上游回了什么状态码
+- **生灭**：一次发出结束（成了 · 断了 · 被中断）时写下 → 写下后不改，要补靠追加（费用晚到的补一条）→ 随会话日志留着；一次都没发出的调用没有它；首 token 之后这次调用不再有下一条
+- **依据**：[PF-013 §5.5 试过又失败的那几次，留痕，不进方程](../product/PF-013-model-profiles-and-invocation/design.md#试过又失败的那几次留痕不进方程)（rev 12）；[PF-013 §5.13 停机之后](../product/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)（rev 12）；[PF-000 §4 条目效力](../product/PF-000-occurrences-and-record-entries/design.md#条目效力--entry-standing)（rev 1）
+- **并入**：「留痕」（PF-013 §5.5 对试过又失败的那几次的叫法）——正文当同一物用：每一家一条、哪一家、什么时候、状态码
+- **未裁**：正文只对失败的那几次说「每一家一条留痕」；成功那一次「实际用了哪条档案、带了什么参数」的留痕，正文放在「那次请求的可追溯组成」里（[PF-004 §6.6](../product/PF-004-agent-definition-and-assembly/design.md#66-模型在每次请求时确定)，rev 12；[PF-013 §4 模型档案](../product/PF-013-model-profiles-and-invocation/design.md#模型档案)，rev 12）——两者是不是同一条记录，正文未述；规格 `data.model-response` 按「每一次发出恰一条」把两样合在一条上。归 PF-013 的 owner；本轮未记入其 decisions
 
 ### UL-attachment · 附件
 

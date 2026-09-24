@@ -207,7 +207,7 @@
 | [UL-current-availability](terms/reach-and-availability.md#ul-current-availability--当下可用性--current-availability) | 当下可用性 | Current Availability | **依赖解析的结果，不是开关**；每一次执行尝试开始前重算。**可见但用了一定失败**，与禁用不同 |
 | [UL-stand-in](terms/reach-and-availability.md#ul-stand-in--替换件--stand-in) | 替换件 | Stand-in | 不可用时占在原位的**同形呈现**：只换说明，调用必得「不可用」 |
 | [UL-dependency-declaration](terms/reach-and-availability.md#ul-dependency-declaration--依赖声明--dependency-declaration) | 依赖声明 | Dependency Declaration | **一串必需项的抽象名字**，种类不限；**只有且，只有必需** |
-| [UL-session-asset-registry](terms/reach-and-availability.md#ul-session-asset-registry--会话资产注册表--session-asset-registry) | 会话资产注册表 | Session Asset Registry | 会话里一类资产此刻认得的那一批，**经它取**；reload 只重填对应那一张，权限收回即时去掉 |
+| [UL-session-asset-registry](terms/reach-and-availability.md#ul-session-asset-registry--会话资产注册表--session-asset-registry) | 会话资产注册表 | Session Asset Registry | 会话里一类资产此刻认得的那一批，**经它取**；reload 只重填对应那一张；权限收回不等 reload——**命令即时去掉，装进运行的资产自下一次运行起** |
 | [UL-governance-center-health-check](terms/reach-and-availability.md#ul-governance-center-health-check--治理中心体检--governance-center-health-check) | 治理中心体检 | Governance Center Health Check | 中心「我在不在、能不能答」的自述；公开部分恰三样、登录前可读，**不含治理事实与秘密** |
 
 ## [执行与收场](terms/execution-and-outcome.md)
@@ -224,6 +224,7 @@
 | [UL-model-call](terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call) | 一次模型调用 | Model Call | 发出请求到拿回完整一份；**与工具执行是兄弟** |
 | [UL-upstream-send](terms/execution-and-outcome.md#ul-upstream-send--一次发出--upstream-send) | 一次发出 | Upstream Send | 调用里经**一家**供应商发出的那一次；失败的每次留痕、不进方程；**一次调用可多次发出、只有一份回复** |
 | [UL-first-token](terms/execution-and-outcome.md#ul-first-token--首-token--first-token) | 首 token | First Token | 回复交出的**第一样内容**，不论模态；它之后一律不重发、不回在途 |
+| [UL-model-response](terms/execution-and-outcome.md#ul-model-response--模型响应体--model-response) | 模型响应体 | Model Response | 一次发出结束后留下的那条耐久记录，**每次发出恰一条**，进日志不进上下文；**裸写「响应体」不作数** |
 | [UL-tool-wait-state](terms/execution-and-outcome.md#ul-tool-wait-state--工具等待态--tool-wait-state) | 工具等待态 | Tool Wait State | 一次工具执行停下来等一个应答，**「谁来应答」不是它的一部分** |
 | [UL-frame-emission](terms/execution-and-outcome.md#ul-frame-emission--发帧--frame-emission) | 发帧 | Frame Emission | 跑的过程中交出「我正在干什么」，**不承诺任何事** |
 | [UL-execution-frame](terms/execution-and-outcome.md#ul-execution-frame--执行帧--execution-frame) | 执行帧 | Execution Frame | **一条 `ToolInternalMessage` 的到达增量**，走与模型回复同一套到达语法 |
@@ -285,7 +286,8 @@
 | [UL-interruption-reminder](terms/record-and-context.md#ul-interruption-reminder--中断提醒--interruption-reminder) | 中断提醒 | Interruption Reminder | 回复流断在半路后**不分情形都补**的那条提醒；**不算触发** |
 | [UL-placeholder-message](terms/record-and-context.md#ul-placeholder-message--占位消息--placeholder-message) | 占位消息 | Placeholder Message | 交不出真实结果时放在调用位置上的 `ToolMessage`，**必须写明原因**；不是失败 |
 | [UL-placeholder-reason](terms/record-and-context.md#ul-placeholder-reason--占位原因--placeholder-reason) | 占位原因 | Placeholder Reason | 占位上写的「为什么此刻没有结果」；**是原因不是收场** |
-| [UL-source-tag](terms/record-and-context.md#ul-source-tag--来源标记--source-tag) | 来源标记 | Source Tag | 入站到达与提醒上的「谁捎来的」，**是属性不是另一类**；**不是资产来源** |
+| [UL-source-tag](terms/record-and-context.md#ul-source-tag--来源标记--source-tag) | 来源标记 | Source Tag | 入站到达与提醒上的「谁捎来的」，**是属性不是另一类**；**不是资产来源、不是来路标记** |
+| [UL-origin-tag](terms/record-and-context.md#ul-origin-tag--来路标记--origin-tag) | 来路标记 | Origin Tag | 一块文本上「这段字从哪条路来」：斜杠命令的留痕、展开物或附带的参数；**是块上的属性，不是来源标记** |
 | [UL-content-block](terms/record-and-context.md#ul-content-block--内容块--content-block) | 内容块 | Content Block | 一条消息装的是若干个块，**不是一段文本** |
 | [UL-derived-rendering](terms/record-and-context.md#ul-derived-rendering--派生表示--derived-rendering) | 派生表示 | Derived Rendering | 转换件产出、挂在原块上的一组别的模态的块；原块不动，落盘前写好不变 |
 | [UL-transcript](terms/record-and-context.md#ul-transcript--transcript--transcript) | transcript | Transcript | 转换件为一个块产出的纯文本兜底；有它的块不再把模型挡在合法目标外 |

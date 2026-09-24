@@ -218,6 +218,29 @@
 - **注意 ③**：**首 token 之后的任何故障一律不重试**，而且**优先于策略**——重试挂件也推翻不了；用户插队中断不是故障，不走这一条
 - **注意 ④**：调用状态机上「在途 → 说话中」那一步，就是首 token 到了；**「已开口」「已出门」不另立词条**——前者即首 token 之后，后者即过了出门前两道、进入在途
 
+### UL-model-response · 模型响应体 · Model Response
+
+> **中**：**一次[发出](#ul-upstream-send--一次发出--upstream-send)结束之后留下的那一条耐久记录**——
+> 这一次走了哪一家、什么时候、上游回了什么状态码、这一次是怎么收场的。
+> **每一次发出恰好留一条**：成了、断了、被中断都留；一次都没发出的调用没有它。
+> 它进[会话日志](record-and-context.md#ul-session-log--会话日志--session-log)；**试过又失败的那几条不进方程、也不进模型的上下文**，读它们的是重试挂件与排查的人。
+> 回复是另一样东西——**落成消息的是回复，不是这条记录**。
+>
+> **EN**: **The durable record one upstream send leaves behind once it is over** — which provider this send went
+> through, when, what status the upstream returned, and how this send ended. **Exactly one per send**: a send that
+> succeeded, broke or was interrupted each leaves one; a call that never sent has none. It goes into the session log;
+> **the failed ones enter neither the transition function nor the model-facing context** — the retry extension and
+> whoever investigates read them. The reply is a different thing: **what becomes a message is the reply, not this record**.
+
+- **形态**：对象
+- **出处**：[PF-013 §5.5 试过又失败的那几次，留痕，不进方程](../../product/PF-013-model-profiles-and-invocation/design.md#试过又失败的那几次留痕不进方程) ·
+  [§5.13 停机之后](../../product/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)（rev 12）
+- **⚠️ 别混 ①**：**裸写「响应体」在跨 topic 的文字里不作数**——HTTP 里那个词指上游回来的那段字节；那段字节至多是本条身上的一项留存（注意 ②），不是本条
+- **别混 ②**：**不是[一次发出](#ul-upstream-send--一次发出--upstream-send)**——发出是过程，本条是它留下的东西；**也不是[调用账目](#ul-call-account--调用账目--call-account)**——账是「花了什么」，一次发出的用量与费用落在哪一条上归规格
+- **注意 ①**：**有几条，看首 token 之前发了几次**——[首 token](#ul-first-token--首-token--first-token) 之后不再有第二次发出，所以带回复的至多一条、且是最后一条；停机后照常再发的那一次也是新的一条，两笔钱两条都照实记
+- **注意 ②**：**规格里的「上游原始响应留存」（响应头、原始字节）是它身上的一项属性，排查用，不进上下文、不进任何给人的呈现——不另立词条**；产品正文只要求[状态码原样带着](../../product/PF-013-model-profiles-and-invocation/design.md#57-上交带什么原样带着状态码不翻译它)、[错误信息外泄之前脱敏](../../product/PF-013-model-profiles-and-invocation/design.md#616-错误信息外泄之前要脱敏)
+- **注意 ③**：正文对失败那几次的叫法是「留痕」；成功那一次「实际用了哪条档案、带了什么参数」的留痕，正文放在「那次请求的可追溯组成」里（[PF-004 §6.6](../../product/PF-004-agent-definition-and-assembly/design.md#66-模型在每次请求时确定)、[PF-013 §4 模型档案](../../product/PF-013-model-profiles-and-invocation/design.md#模型档案)）——**两者是不是同一条记录，正文未述**，[对象条目](../../domain_objects/objects.md#ul-model-response--模型响应体)记为未裁
+
 ## 跑的过程中，跟外面说的两种话
 
 > **方向相反，性质也相反。两个都不在[工具定义](#ul-tool-definition--工具定义--tool-definition)里。**

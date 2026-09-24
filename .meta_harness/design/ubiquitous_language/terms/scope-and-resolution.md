@@ -127,6 +127,7 @@
   据点上记着的「这个租户身份用过哪些目录」是[给人挑的清单，不是治理对象](../../product/PF-002-assets-settings-and-permissions/design.md#它是会话选用的不指定就是空)
 - **注意 ⑥**：**它带来的本地命令型 MCP 接入点与命令型 hook 默认不启用**，由持有它的租户在自己的设置里逐件打开——
   [开关不在仓库里](../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算)
+- **注意 ⑦**：**正文说的「工作区提供的资产」「工作区自带的资产」，是它这一级[持有](circulation-and-entitlement.md#ul-asset-holding--资产持有--asset-holding)的那一批**——由承载目录带来，[权限项一律取最严值](../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算)；**不另立词条**，跨 topic 写「工作区提供的资产」并链本条
 
 ### UL-scoped-object · 范围化对象 · Scoped Object
 

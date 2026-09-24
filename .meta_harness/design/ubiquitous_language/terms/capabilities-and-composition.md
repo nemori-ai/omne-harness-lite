@@ -26,7 +26,8 @@
 - **形态**：对象
 - **出处**：[PF-001 §4 设置、权限、资产](../../product/PF-001-identity-scope-and-agent-constraints/design.md#设置权限资产)（rev 17） · [资产的种类](../../product/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 17）
 - **别混**：知识、经验、报告、附件与文件**都不是资产**——它们是 agent **读写的对象**，**不参与组装**
-- **注意**：判据是**它在 agent definition 里被声明、被持有、被授权、按层级求值**——**这四件事**，不是「它提供动作」
+- **注意 ①**：判据是**它在 agent definition 里被声明、被持有、被授权、按层级求值**——**这四件事**，不是「它提供动作」
+- **注意 ②**：**规格里的「资产记录」指的是同一个[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)下的一份具体资产**——所有者、来源、草稿与版本线都挂在它身上；它是本条身份的下层（[对象条目](../../domain_objects/objects.md#ul-asset--资产)），**不另立词条**。**草稿是它身上还没发布的那份内容**，[不是版本](#ul-asset-version--资产版本--asset-version)，也不另立
 
 ### UL-setting · 设置 · Setting
 

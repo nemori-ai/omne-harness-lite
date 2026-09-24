@@ -127,23 +127,29 @@
 
 > **中**：**一个会话里，某一类资产此刻被认得的那一批所在的那一张表**——会话认得的斜杠命令、装进来的技能、plugin 这类东西各住一张；
 > 用到它们的地方**都经它取**。它的内容是某一次求值的结果：会话创建时装配填入；**人发对应的 reload，只按此刻的求值结果重填那一张**；
-> ③ 型斜杠命令背后的服务不在了，系统自动刷新命令那一张；一次完整的重新装配把全部重填。**权限收回即时去掉，不等 reload。**
+> ③ 型斜杠命令背后的服务不在了，系统自动刷新命令那一张；一次完整的重新装配把全部重填。
+> **权限收回不等 reload，但落到哪一刻看那一类资产在不在运行里**：斜杠命令是人的入口、不在运行里，收回了**此刻起就不在命令那一张**；
+> 装进运行的资产（技能这类），**已经开始的运行不变，自下一次运行起不再装入**。
 >
 > **EN**: **The table in which a session keeps the set of one asset category it currently recognizes** —
 > the slash commands it knows, the skills and plugins loaded into it, each category in a table of its own;
 > **everything that uses them reads through it**. Its content is the result of an evaluation: filled at
 > session assembly; **refilled, for that one table only, from the current evaluation when the person issues
 > the matching reload**; refreshed automatically for commands when the service behind a type-③ slash command
-> is gone; and refilled entirely by a full re-assembly. **A withdrawn permission is removed at once, without
-> waiting for a reload.**
+> is gone; and refilled entirely by a full re-assembly. **A withdrawn permission never waits for a reload, but
+> when it lands depends on whether that category lives inside a run**: a slash command is a person's entry point
+> and is not in the run, so it **leaves the command table at once**; an asset loaded into runs (a skill, say)
+> **stays for the run already under way and is no longer loaded from the next run on**.
 
 - **形态**：视图
-- **出处**：[PF-002 §4 会话认得哪些命令，什么时候变](../../product/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变)（rev 20） ·
+- **出处**：[PF-002 §4 会话认得哪些命令，什么时候变](../../product/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变) ·
+  [§4「谁可以使用它」是各类资产共用的一项权限](../../product/PF-002-assets-settings-and-permissions/design.md#谁可以使用它是各类资产共用的一项权限)（rev 20） ·
   [PF-016 §5.7 人要做的事分三族](../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)（rev 6）
 - **别混 ①**：**不是[装配清单](agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest)**——reload 重填的是注册表，不是一次完整的重新装配，**不改写正在跑的运行已经捕获的构成**
 - **别混 ②**：**裸写「注册表」不作数**——设计链里的 registry 是设计对象的身份清单，另有所指
 - **注意 ①**：命令那一张装的就是这个会话的[会话斜杠命令集](capabilities-and-composition.md#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set)
 - **注意 ②**：**资产的增删与禁用不让它自己变**——变化发生在人自己选的那一刻（reload）；热更新对进行中的运行何时可见，正文未述（[PF-004 已知的来源问题](../../product/PF-004-agent-definition-and-assembly/decisions.md#四已知的来源问题)）
+- **注意 ③**：**「收回即时」只对命令那一张成立**——技能这类装进运行的，[撤销管的是下一道准入，不是强制停止](circulation-and-entitlement.md#ul-revocation-is-not-stop--撤销不等于强制停止--revocation-is-not-a-stop)，这次运行照样用得上它
 
 ### UL-governance-center-health-check · 治理中心体检 · Governance Center Health Check
 

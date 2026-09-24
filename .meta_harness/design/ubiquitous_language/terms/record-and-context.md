@@ -248,8 +248,31 @@
 - **出处**：[PF-009 §6.5 来源是一个属性，不是另一种消息](../../product/PF-009-context-message-types/design.md#65-来源是一个属性不是另一种消息) ·
   [§4 SystemReminderMessage](../../product/PF-009-context-message-types/design.md#systemremindermessage)（rev 8） ·
   [PF-014 §4 入站到达](../../product/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 7）
-- **别混**：**不是[资产来源](circulation-and-entitlement.md#ul-asset-origin--资产来源--asset-origin)**（official / customized）——那个词条已写明裸写「来源」不作数；**这里的正式名是「来源标记」**
+- **别混 ①**：**不是[资产来源](circulation-and-entitlement.md#ul-asset-origin--资产来源--asset-origin)**（official / customized）——那个词条已写明裸写「来源」不作数；**这里的正式名是「来源标记」**
+- **⚠️ 别混 ②**：**不是[来路标记](#ul-origin-tag--来路标记--origin-tag)**——那是**一块文本**身上「这段字从哪条路来」（斜杠命令的留痕、展开物、附带的参数），挂在块上；来源标记挂在到达与消息那一层，答的是「谁捎来的」。人敲一条斜杠命令，**来源仍是用户，来路才是命令**——同一条消息上两者可以都有
 - **弃用**：~~「来源属性」~~（正文的叙述说法，指的就是它）
+
+### UL-origin-tag · 来路标记 · Origin Tag
+
+> **中**：**一块文本身上记着的「这段文字是从哪条路来的」**——人敲[斜杠命令](capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command)时附带的参数、
+> 受理时从命令展开出来的那段正文（① 型的提示词正文、② 型逐字装进来的 skill 正文），还是原命令本身的留痕。
+> **它是[内容块](#ul-content-block--内容块--content-block)上的一项属性，不是另一类块**：原命令与展开后的全文一起留在同一条消息里，靠它分得出哪块是哪个。
+> 它只说出处——不说这块给谁看，也不代表任何资格已经判过。**本版只有斜杠命令的受理会打上它**；取值怎么划分归规格。
+>
+> **EN**: **The mark on a text block recording which path the text came by** — the arguments a person attached
+> when typing a slash command, the text expanded from that command at intake (a type-① prompt body, a type-② skill
+> body copied verbatim), or the record of the command itself as typed. **It is an attribute of a content block, not
+> another kind of block**: the original command and the expanded text sit together in one message, and this mark tells
+> them apart. It states provenance only — nothing about who reads the block, and no entitlement is implied by it.
+> **In this version only slash-command intake writes it**; how its values are divided belongs to the specification.
+
+- **形态**：属性
+- **出处**：[PF-014 §5.10 斜杠命令在受理时分两路走](../../product/PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走) ·
+  [§5.6「消息落盘之前」那一刻，看得到什么](../../product/PF-014-inbound-intake-and-queueing/design.md#56-消息落盘之前那一刻看得到什么)（rev 7）
+- **⚠️ 别混 ①**：**不是[来源标记](#ul-source-tag--来源标记--source-tag)**——那是入站到达与提醒上的「谁捎来的」，挂在到达与消息那一层；来路标记挂在一块文本上，说的是这段字怎么来的
+- **别混 ②**：**不是[块标注](#ul-block-annotation--块标注--block-annotation)**——标注答「给人看吗、给模型看吗」；来路标记不改变标注，留痕块与展开物各给不给模型读，由受理那一方定
+- **别混 ③**：**不是[资产来源](circulation-and-entitlement.md#ul-asset-origin--资产来源--asset-origin)**（official / customized）
+- **注意**：正文的叙述说法是「原命令的标注」（PF-014 §5.6、§5.10）——那里的「标注」指的是它，不是块标注
 
 ### UL-content-block · 内容块 · Content Block
 
