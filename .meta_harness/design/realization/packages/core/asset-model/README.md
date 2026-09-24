@@ -1,8 +1,8 @@
 # asset-model
 
 - kind：`provider`
-- 对象与设计修订：状态 `candidate`，2026-09-25 首稿；兑现 `omne-harness-lite-design-2026-09-15 · data.asset-model · v1`（[契约](../../../../spec/data/asset-model/v1/contract.md)，状态 `candidate`，接受待 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）
-- 源码位置：`packages/core/asset-model`——**尚未建包**。归 `core`：它是 `data.*`，中心的资产治理与据点的装配、注册表两侧都 import（[D-039](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md) 接受 assets 候选 B：「资产模型与求值进 `core` 作数据契约与纯计算」）。**与另三个 core 节点成环**，按现划分建不出来，见 [message-model 缺口 MSG-1](../message-model/design.md#包级依赖成环)
+- 对象与设计修订：状态 `candidate`，2026-09-25 首稿，同日按 [D-040 §八 M36、M41、M44](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 对齐；兑现 `omne-harness-lite-design-2026-09-15 · data.asset-model · v1`（[契约](../../../../spec/data/asset-model/v1/contract.md)，状态 `candidate`，接受待 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）
+- 源码位置：`packages/core/asset-model`——**尚未建包**。归 `core`：它是 `data.*`，中心的资产治理与据点的装配、注册表两侧都 import（[D-039](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md) 接受 assets 候选 B：「资产模型与求值进 `core` 作数据契约与纯计算」）。包依赖只有 identity-values、offer-expiry、[content-blocks](../content-blocks/README.md)；六份正文契约的判定经端口注入，不 import 正文包
 - 契约采用与边界依据：本节点是**纯模块，不是 Cordis 插件**——契约写明它[没有操作、没有提交点、没有状态转移，因此不需要插件](../../../../spec/data/asset-model/v1/contract.md#这份契约拥有什么)。它提供资产领域全部静态形状的类型、表示层校验（十个拒绝值加嵌着的正文契约的值，固定次序）、能力标识的规范串、保留的两条属性声明、工作区提供的资产的记录号导法。**标识唯一、所有者至多变一次、版本线只增、一格一份持有这些行为约束不在这里**，归资产治理的写路径与存储
 
 ## 分层状态

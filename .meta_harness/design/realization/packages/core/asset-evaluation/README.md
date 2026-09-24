@@ -1,14 +1,14 @@
 # asset-evaluation
 
 - kind：`provider`
-- 对象与设计修订：状态 `candidate`，2026-09-25 首稿；兑现 `omne-harness-lite-design-2026-09-15 · capability.asset-evaluation · v1`（[契约](../../../../spec/capabilities/asset-evaluation/v1/contract.md)，状态 `candidate`，接受待 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）
+- 对象与设计修订：状态 `candidate`，2026-09-25 首稿，同日按 [D-040 §八 M31、M32、M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 对齐，并单独导出 S-23 的界与挑选；兑现 `omne-harness-lite-design-2026-09-15 · capability.asset-evaluation · v1`（[契约](../../../../spec/capabilities/asset-evaluation/v1/contract.md)，状态 `candidate`，接受待 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）
 - 源码位置：`packages/core/asset-evaluation`——**尚未建包**。归 `core`：契约是纯计算（[S-11](../../../../spec/capabilities/asset-evaluation/v1/contract.md#s-11-纯计算)），被 `assets`（资产治理的设置视图）、`tools`（注册表、MCP 桥）、`agent-loop`（拓展件派发）与据点装配消费（[D-039](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md) 接受 assets 候选 B：「资产模型与求值进 `core` 作数据契约与纯计算」）
-- 契约采用与边界依据：本节点是**纯模块，不是 Cordis 插件**——两个操作都是输入的函数，不读存储、时钟、文件与进程状态，没有在途工作（[S-11](../../../../spec/capabilities/asset-evaluation/v1/contract.md#s-11-纯计算)、[S-30](../../../../spec/capabilities/asset-evaluation/v1/contract.md#s-30-本能力没有在途工作)）。**组输入**（一致读、分享此刻成立、调用方已核实、清单就是目录里那份）是前提 PRE-1～PRE-8，归组输入的一方，不在本节点
+- 契约采用与边界依据：本节点是**纯模块，不是 Cordis 插件**——两个操作都是输入的函数，不读存储、时钟、文件与进程状态，没有在途工作（[S-11](../../../../spec/capabilities/asset-evaluation/v1/contract.md#s-11-纯计算)、[S-30](../../../../spec/capabilities/asset-evaluation/v1/contract.md#s-30-本能力没有在途工作)）。**组输入**（一致读、分享此刻成立、调用方已核实、清单就是目录里那份）是前提 PRE-1～PRE-9，归组输入的一方，不在本节点。除两个操作外，另导出 S-23「界与挑选」的三个纯函数，供资产治理的写时守卫用，与 `evaluate` 第 4 步共用同一实现
 
 ## 分层状态
 
 - 语义接受范围：**未接受**（候选，待 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）
-- 可实施范围：声称兑现 S-5～S-28、S-38～S-42 的求值与读入规则（四步、两轮、三条层序、输入一致性 C1～C13、`invalidInput` 与判出结果分开、清单读入与留痕）。**有两处按契约现状兑现不了**：[G-3](../../../../spec/capabilities/asset-evaluation/v1/contract.md#十一已知缺口)（Agent Definition 的两条规则缺席，第 2 步从 `root` 起不了步）使 `evaluate` 对任何合法输入都给不出合规的结果；G-1（成环的收场值没有名字）使含环输入没有合规的返回——见 [design.md 缺口 AE-1、AE-2](design.md#实施缺口与消费者影响)。逐条见 [design.md 投影表](design.md#契约责任--模块公开入口--实现--符合性依据或缺口)。源码不存在，以上**全部未实现**
+- 可实施范围：声称兑现 S-5～S-28、S-38～S-42 的求值与读入规则（四步、两轮、三条层序、组合根引用集、输入一致性 C1～C14、`invalidInput`／`compositionCycle` 与判出结果分开、清单读入与留痕）。**有一处按契约现状兑现不了**：组合里走到 plugin（「启用哪些成员」推不出，[G-21](../../../../spec/capabilities/asset-evaluation/v1/contract.md#十一已知缺口)）或 sub-agent（G-3）时 `evaluate` 没有合规的返回——见 [design.md 缺口 AE-1](design.md#实施缺口与消费者影响)。逐条见 [design.md 投影表](design.md#契约责任--模块公开入口--实现--符合性依据或缺口)。源码不存在，以上**全部未实现**
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) **为空表**——契约没有登记的 formal task（`Evaluation.als` 是 Alloy 模型，不是 formal task，不可绑定）；源码不存在。证据义务见 [verification.md](verification.md)，全部未开始
 - 实际验证：**无**（源码不存在）
 

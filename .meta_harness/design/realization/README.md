@@ -161,16 +161,24 @@ governance-center-entry 的设计由 [D-028](../record/decisions/governance-cent
 | [`packages/tools/asset-registry`](packages/tools/asset-registry/README.md) | `capability.asset-registry` v1 | 一个插件，必需 inject 装配清单与时钟、不 inject 存储；求值纯 import；缓存每次对清单头校验、换表靠清单条件追加定序；装配清单无提供者，本批整体 `PENDING` |
 | [`packages/tools/mcp-bridge`](packages/tools/mcp-bridge/README.md) | `capability.mcp-bridge` v1 | 官方 SDK 上的薄桥（D-037）：桥本体（inject 存储、时钟，连接表在一个 effect 里）＋ 零状态的执行者贡献插件；OAuth 完成的「同一提交」落在绑定行状态列与保管方凭据行的引用约束上（保管方尚无节点） |
 
-**2026-09-25 本程的六个 `core` 纯模块**（都不是插件）——节点状态 `candidate`，所兑现的契约 `candidate`、待 [D-041](../record/decisions/assets-runtimes-contract-acceptance/README.md) 接受；源码都**尚未建包**。
-其中四个数据契约节点按现划分在包级别成环、建不出来，划分待主线定（[message-model 缺口 MSG-1](packages/core/message-model/design.md#包级依赖成环)）：
+**2026-09-25 本程的 `core` 纯模块**（都不是插件；数据契约一契约一包，包依赖与 catalog 的契约依赖同构、无环——[D-040 §八 M41](../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）——十三个数据契约节点与两个纯计算节点，节点状态 `candidate`，所兑现的契约 `candidate`、待 [D-041](../record/decisions/assets-runtimes-contract-acceptance/README.md) 接受；源码都**尚未建包**：
 
 | 节点 | 兑现的契约 | 形态 |
 | --- | --- | --- |
-| [`packages/core/asset-model`](packages/core/asset-model/README.md) | `data.asset-model` v1 | 纯模块：资产形状、名字词法与规范串、表示层校验（正文判定经端口注入，不 import 正文契约）、工作区提供的资产的记录号导法 |
-| [`packages/core/asset-evaluation`](packages/core/asset-evaluation/README.md) | `capability.asset-evaluation` v1 | 纯计算：四步求值与清单读入；`evaluate` 在契约 G-3 闭合前没有合规的返回 |
-| [`packages/core/message-model`](packages/core/message-model/README.md) | `data.content-blocks`、`data.messages`、`data.call-accounts`、`data.arrival-events` v1 | 纯模块：块、消息、账、到达事件的形状与表示层校验；此刻模型可读、合法名单、有效费用与汇总、归约；金额与不透明数据的无损读写 |
-| [`packages/core/tool-model`](packages/core/tool-model/README.md) | `data.tool-definition`、`data.loop-extension`、`data.skill-package`、`data.slash-command`、`data.mcp-endpoint`、`data.connector` v1 | 纯模块：六类正文的形状与校验、模型面条目与名字转写、参数判定、`SKILL.md` 读法、斜杠命令识别与解析、推出规则与 asset-model 正文端口的实现 |
-| [`packages/core/model-model`](packages/core/model-model/README.md) | `data.model-profile`、`data.model-response` v1 | 纯模块：档案、引用、参数词表、响应体的形状与校验；几处副本定义的对齐测试 |
+| [`packages/core/content-blocks`](packages/core/content-blocks/README.md) | `data.content-blocks` v1 | 纯模块：块的形状与表示层校验、此刻模型可读；严格无损 JSON 读写（M36，全批共用） |
+| [`packages/core/messages`](packages/core/messages/README.md) | `data.messages` v1 | 纯模块：消息的形状与校验、合法名单；`MessageId` 的铸号方未定（下一程） |
+| [`packages/core/call-accounts`](packages/core/call-accounts/README.md) | `data.call-accounts` v1 | 纯模块：账的形状、有效费用与汇总；金额精确十进制 |
+| [`packages/core/arrival-events`](packages/core/arrival-events/README.md) | `data.arrival-events` v1 | 纯模块：到达事件的形状与表示层校验（借开块查询）、填的归约 |
+| [`packages/core/asset-model`](packages/core/asset-model/README.md) | `data.asset-model` v1 | 纯模块：资产形状、名字词法与规范串、表示层校验（正文判定经端口注入，不 import 正文包）、工作区提供的资产的记录号导法 |
+| [`packages/core/tool-definition`](packages/core/tool-definition/README.md) | `data.tool-definition` v1 | 纯模块：工具定义与返回值、模型面条目与名字转写、参数判定（ajv；`format` 只作注解、`schema_unsupported`，M37） |
+| [`packages/core/loop-extension`](packages/core/loop-extension/README.md) | `data.loop-extension` v1 | 纯模块：位置、干预力、结论的形状与两张合法组合表、推出规则 |
+| [`packages/core/skill-package`](packages/core/skill-package/README.md) | `data.skill-package` v1 | 纯模块：技能包形状、`SKILL.md` 读法（YAML 1.2）、目录形式读法的纯半 |
+| [`packages/core/slash-command`](packages/core/slash-command/README.md) | `data.slash-command` v1 | 纯模块：命令定义、识别与解析（按码点）、两种展开 |
+| [`packages/core/mcp-endpoint`](packages/core/mcp-endpoint/README.md) | `data.mcp-endpoint` v1 | 纯模块：接入点正文、动作清单副本两支、条目名拼法、登记时收窄、推出规则 |
+| [`packages/core/connector`](packages/core/connector/README.md) | `data.connector` v1 | 纯模块：连接件正文与入站信封（不带归属）；推出规则本版返回「推不出」（契约 G-4） |
+| [`packages/core/model-profile`](packages/core/model-profile/README.md) | `data.model-profile` v1 | 纯模块：档案、引用的精确匹配、参数词表与表示层校验 |
+| [`packages/core/model-response`](packages/core/model-response/README.md) | `data.model-response` v1 | 纯模块：响应体的形状与表示层校验；`ResponseId` 等副本定义的对齐测试（依赖方一侧） |
+| [`packages/core/asset-evaluation`](packages/core/asset-evaluation/README.md) | `capability.asset-evaluation` v1 | 纯计算：四步求值（组合根引用集 M31、`compositionCycle` M32）与清单读入；另导出 S-23 界与挑选供资产治理写时守卫；组合里走到 plugin 或 sub-agent 时没有合规的返回 |
 | [`packages/core/stream-assembly`](packages/core/stream-assembly/README.md) | `capability.stream-assembly` v1 | 纯计算的装配状态机（状态是持久结构的值），模型请求运行时与工具执行运行时两个宿主 import；绑定 2 条（formal task，证的是模型） |
 
 **2026-09-25 模型领域（`model`，[D-039](../record/decisions/assets-runtimes-split-and-rulings/README.md) 拍板，取 P1-A／P2-A／P3-A）**——节点状态 `candidate`，所兑现的契约 `candidate`、待 D-041，**尚未建包**。会话日志、装配清单读面、凭据保管方三处上游没有提供者：

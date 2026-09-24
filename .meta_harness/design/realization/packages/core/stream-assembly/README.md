@@ -1,7 +1,7 @@
 # stream-assembly
 
 - kind：`provider`
-- 对象与设计修订：状态 `candidate`，2026-09-25 首稿；兑现 `omne-harness-lite-design-2026-09-15 · capability.stream-assembly · v1`（[契约](../../../../spec/capabilities/stream-assembly/v1/contract.md)，状态 `candidate`，接受待 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）
+- 对象与设计修订：状态 `candidate`，2026-09-25 首稿，同日按 [D-040 §八 M36、M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 对齐（严格无损解析；依赖 arrival-events、content-blocks、call-accounts 三包）；兑现 `omne-harness-lite-design-2026-09-15 · capability.stream-assembly · v1`（[契约](../../../../spec/capabilities/stream-assembly/v1/contract.md)，状态 `candidate`，接受待 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）
 - 源码位置：`packages/core/stream-assembly`——**尚未建包**。归 `core`：它是纯计算（[S-1](../../../../spec/capabilities/stream-assembly/v1/contract.md#s-1-本契约拥有什么)），被 `model` 领域的模型请求运行时与 `tools` 领域的工具执行运行时两个宿主 import（[D-035](../../../../record/decisions/message-and-stream-baseline/decision.md) 选择表第三行「落 core、纯计算、自写」；[两层布局](../../../README.md#packages-的两层布局)）
 - 契约采用与边界依据：本节点是**纯模块，不是 Cordis 插件**——五个操作都作用于调用方持有的状态值，没有提交点、不持有任何一条流、不发事件（[S-1](../../../../spec/capabilities/stream-assembly/v1/contract.md#s-1-本契约拥有什么)、[S-17](../../../../spec/capabilities/stream-assembly/v1/contract.md#s-17-每个操作写全九件事)）。路由、持有、包消息、只记一次、首个内容的时刻都归宿主（[S-3](../../../../spec/capabilities/stream-assembly/v1/contract.md#s-3-本契约不拥有什么)、[S-28](../../../../spec/capabilities/stream-assembly/v1/contract.md#s-28-宿主要兑现的前提)），不在本节点
 

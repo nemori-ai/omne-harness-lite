@@ -1,9 +1,0 @@
-# 条款到证据的绑定表。
-# 空表：四份契约（data.content-blocks、data.messages、data.call-accounts、data.arrival-events v1）都没有登记的 formal task；
-# data.messages 的 Alloy 模型 formal/Readable.als 不是 formal task（alloy exec 的退出码不判断言，登记它会得到一个永远通过的任务），不可绑定。
-# 源码不存在，也就没有测试可绑。证据义务与缺口记在 verification.md。
-version: 1
-node: "message-model"
-kind: "provider"
-
-bindings: []
