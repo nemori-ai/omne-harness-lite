@@ -15,7 +15,7 @@
 | 规范条款与性质 | 模型／配置 | 实际证据入口、输入与范围 | 未完成义务、责任与受阻消费者 |
 |---|---|---|---|
 | [S-16](v1/contract.md#s-16-首胜收场只写一次) · [S-17](v1/contract.md#s-17-持久意图先于外部效果) · [S-18](v1/contract.md#s-18-收场先落停止后发) · [S-19](v1/contract.md#s-19-送达) · [S-20](v1/contract.md#s-20-恢复扫描与停机不重来) · [S-29](v1/contract.md#s-29-会话归档) · [S-30](v1/contract.md#s-30-答复等待) 的安全性质 | TLC 对 [`Execution.tla`](v1/formal/Execution.tla)，配置 [`Execution.cfg`](v1/formal/Execution.cfg)；formal task `tool-execution-runtime-v1-execution` | **已执行**（[下文](#实际执行)）：**无反例**，741,344 个不同状态、完整穷尽、深度 22 | 结论只在模型的固定规模内、**且存储真的兑现同一行条件写与「不只成一半」**这个前提下成立；跨进程不自动成立（[S-46](v1/contract.md#s-46-装配给的保证-vs-协议须给的保证)） |
-| [S-19](v1/contract.md#s-19-送达) · [S-20](v1/contract.md#s-20-恢复扫描与停机不重来) · [S-18](v1/contract.md#s-18-收场先落停止后发) 的进展性质 | 同一模型，配置 [`ExecutionProgress.cfg`](v1/formal/ExecutionProgress.cfg)（`FairSpec`）；formal task `tool-execution-runtime-v1-execution-progress` | **已执行**：见[下文](#实际执行) | 三条公平性是**前提**：恢复终会发生、日志追加终会成功、强制停止终会生效（后一条依赖 X-5，未核） |
+| [S-19](v1/contract.md#s-19-送达) · [S-20](v1/contract.md#s-20-恢复扫描与停机不重来) · [S-18](v1/contract.md#s-18-收场先落停止后发) 的进展性质 | 同一模型，配置 [`ExecutionProgress.cfg`](v1/formal/ExecutionProgress.cfg)（`FairSpec`，`MaxWaits = 1`）；formal task `tool-execution-runtime-v1-execution-progress` | **已执行**（[下文](#实际执行)）：**无反例**，524,448 个不同状态、完整穷尽、深度 20；**约 16 分钟**，是本分支最慢的一个 formal task | 三条公平性是**前提**：恢复终会发生、日志追加终会成功、强制停止终会生效（后一条依赖 X-5，未核） |
 | 同上的**有效性**（六处保护各自去掉） | 六个 `Execution_*.cfg`，**预期找到反例** | **已执行**：六个都**按预期违反**，轨迹对得上各配置注释写的局面（[结果与反例](#结果与反例)） | **必须与第一行成对报告**。它们**不登记为 formal task**——期望失败的检查与该清单的语义相反 |
 
 ### 规范场景
@@ -91,13 +91,16 @@
 | 配置 | 退出码 | 结果 | 规模 |
 |---|---|---|---|
 | `Execution.cfg` | **0** | `Model checking completed. No error has been found.` | 2,656,347 generated · **741,344 distinct** · 0 left · 深度 22 · 1 min 12 s |
-| `ExecutionProgress.cfg` | 待填 | 待填 | 待填 |
+| `ExecutionProgress.cfg` | **0** | `Model checking completed. No error has been found.`（`LostSettles`、`HandoffLands`、`StopsTakeEffect`，12 个时序分支） | 1,858,831 generated · **524,448 distinct** · 0 left · 深度 20 · 15 min 56 s（与别的检查并跑；登记的超时 2400 s） |
 | `Execution_NoFirstWins.cfg` | 13 | `Action property OutcomeStable is violated.` | 轨迹 5 步 |
 | `Execution_VolatileHandoff.cfg` | 12 | `Invariant EndedIsLanded is violated.` | 轨迹 3 步 |
 | `Execution_StopBeforeWrite.cfg` | 12 | `Invariant InterruptHonored is violated.` | 轨迹 4 步 |
 | `Execution_PartialRecovery.cfg` | 12 | `Invariant ServingConsistent is violated.` | 轨迹 4 步 |
 | `Execution_RestartOnRecover.cfg` | 12 | `Invariant AtMostOneStart is violated.` | 轨迹 5 步 |
 | `Execution_NoWaitIndex.cfg` | 12 | `Invariant NoStaleAnswer is violated.` | 轨迹 7 步 |
+
+**经登记的 runner 再跑一遍**：`JAVA_BIN=/usr/local/bin/java TLA2TOOLS_JAR=/opt/tlaplus/tla2tools.jar make design-check FORMAL=run`（2026-09-24 本机，提交 `dfef00fd` 的模型与配置）：
+本分支登记的八个 formal task 全部 `exit=0`，其中 `tool-execution-runtime-v1-execution` 与 `tool-execution-runtime-v1-execution-progress` 两个是本契约的；整次 18 min 05 s，`PASS: design tree … formal=run`。
 
 ### 结果与反例
 
@@ -146,4 +149,6 @@
 | R-14 | **消费了 `data.identity-values` v1**（简报 catalog 依赖清单里没有它）：租户身份、身份参数无默认、缺席即拒、表示层校验与判定分开 | S-4 | 简报补项 |
 | R-15 | **执行结束不另补 `interrupted` 提醒**：`data.messages` S-21「只要中断就补」对工具执行是否适用未定，本版只落占位 | G-14 | 与其他契约的疑似冲突 |
 | R-16 | **归档流程里工具执行与模型请求「先停谁」**：PF-015 §6.3 列的次序本契约不管，只保证调用之后没有未收场的执行 | S-29 | 归会话那一程 |
-| R-17 | **词条描述过时**：[UL-cancellation-follows-host](../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-cancellation-follows-host--取消跟着宿主走--cancellation-follows-host) 的索引描述仍写「转后台就是换宿主」，与 PF-006 rev 17、PF-012 §6.13「转后台不换宿主」相抵（主线已知，B-M06(ul)） | —— | 词条 |
+| R-17 | **注册表判为不可用的条目落 `failed` 与 PF-006 的「换替换件、落 `unavailable`」对不上**：主线转达把「关掉的命令、依赖未解析、MCP 连不上的原位顶替」列为落 `failed{…}` 带注册表原因；而 PF-006 [flows §二](../../../product/PF-006-tools-and-skills/flows.md#二异常分支)、[§6.3](../../../product/PF-006-tools-and-skills/design.md#63-不可用时装的是同名替换件不是不装)、[§6.13](../../../product/PF-006-tools-and-skills/design.md#接入点连不上它的动作就是不可用) 把依赖连不上、MCP 连不上都写成装替换件、调用得「不可用」（绕路、别重试）。`failed` 给 agent 的下一步是「重试、换招」，与「别重试」相反。本契约按注册表给的支走：`stand_in` → `unavailable`，`unavailable{reason}` → `failed{not_available}`；**请主线确认哪些情形该落哪一支**，并同步给 `capability.asset-registry` | S-23 ④、S-11 | 与产品正文的冲突 |
+| R-18 | **进展任务慢**：`tool-execution-runtime-v1-execution-progress` 本机约 16 分钟（超时登 2400 s），`make design-check FORMAL=run` 的总时长随之翻倍；安全任务约 75 秒。要不要把进展任务移出例行运行、或再缩场景，由主线定 | formal-tasks | 工具与流程 |
+| R-19 | **词条描述过时**：[UL-cancellation-follows-host](../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-cancellation-follows-host--取消跟着宿主走--cancellation-follows-host) 的索引描述仍写「转后台就是换宿主」，与 PF-006 rev 17、PF-012 §6.13「转后台不换宿主」相抵（主线已知，B-M06(ul)） | —— | 词条 |
