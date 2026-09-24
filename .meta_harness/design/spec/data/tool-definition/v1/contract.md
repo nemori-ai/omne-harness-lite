@@ -462,7 +462,7 @@ omne-next 另有 `typed_union`（按每个命令的参数合成判别联合、�
   2. **不含 `__`、`_:`、`:_` 三种相邻**——违反 ⇒ `name_reserved_sequence`；
   3. **转写之后不超过 128 个字符**：`name` 的码点数加上其中 `:` 的个数 ≤ 128。
 
-  违反第 1、3 条 ⇒ `malformed`（M25）。**理由**：Anthropic 的工具名必须合 `^[a-zA-Z0-9_-]{1,128}$`（研究 V-2），而本项目的 `name` 允许 `:`——MCP 条目名「接入点:动作」（`data.mcp-endpoint/v1#S-11`）、斜杠命令的保留前缀 `omne-official:`。
+  违反第 1、3 条 ⇒ `malformed`（M25）。三条的 Schema 那一面是 `$defs/ToolName`（第 3 条里 `:` 多算的那一半在 Schema 之外）；`data.mcp-endpoint` 的动作条目名 `$ref` 它，不另写一份。**理由**：Anthropic 的工具名必须合 `^[a-zA-Z0-9_-]{1,128}$`（研究 V-2），而本项目的 `name` 允许 `:`——MCP 条目名「接入点:动作」（`data.mcp-endpoint/v1#S-11`）、斜杠命令的保留前缀 `omne-official:`。
   `modelName` 把 `:` 换成 `__`，恰落进那个字符集与长度；**第 2 条使逆转写唯一**：转写后每一段连续的 `_`，长 1 就是原来的 `_`，长 2m 就是原来 m 个 `:`，奇数长 ≥ 3 不会出现。
   **只禁 `__` 不够**：`a_:b` 与 `a:_b` 都转写成 `a___b`，回来的调用对不回唯一一份定义——第 2 条多禁的两种相邻就是为这个（规格层推导，已报主线）。
   这一条是 `data.asset-model/v1#S-2` 之内的收窄（那里允许「正文契约再收窄，不得放宽」）；MCP 条目名拼出来不合它的，就是拼不出（`capability.mcp-bridge` v1 S-17）。
@@ -599,7 +599,7 @@ s  ≡  { content: [ { kind: "text", text: s, id: <运行时给>, visibility: { 
 
 - **规范表示**：[`tool-definition.schema.json`](tool-definition.schema.json)，JSON Schema **Draft 2020-12**。
   `$id` = `https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v1/tool-definition.schema.json`
-- **定义项（19 项）**：`ToolDefinition`（按 `paradigm` 判别的 `oneOf`）、`SingleFunctionTool`、`MultiCommandTool`、`CommandDefinition`、`ModelToolEntry`、
+- **定义项（20 项）**：`ToolDefinition`（按 `paradigm` 判别的 `oneOf`）、`SingleFunctionTool`、`MultiCommandTool`、`CommandDefinition`、`ToolName`、`ModelToolEntry`、
   `ToolNeeds`、`ToolSettings`、`SettingDeclaration`、`TargetEnvironment`、`BindingLayer`、`Facility`、`Duration`、
   `ExecutePermission`、`ToolSource`、`DependencyName`、`ToolReturn`、`ToolResult`、`Offload`、`JsonSchema`。消费者 `$ref` 这些定义，**不复制一份同义类型**。
 - **跨契约引用**：块、附件引用、能力标识、模态、媒体类型、内联字节 `$ref` 到 `data.content-blocks` v1 的 Schema；设置项类别 `$ref` 到 `data.asset-model` v1 的 `SettingCategory`。
