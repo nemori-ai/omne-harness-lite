@@ -10,8 +10,8 @@
 - **状态**：`candidate`——未接受、未冻结，不得据此发布或声称消费者已采用
 - **catalog 映射**：已登记为 `candidate`（2026-09-23，`acceptance` 为 null）。`family=data`、`topic=call-accounts`、
   `contract_path=spec/data/call-accounts/v1/contract.md`，`resources` 另含 `spec/data/call-accounts/v1/call-accounts.schema.json`
-  与 `spec/data/call-accounts/v1/examples.md`；依赖两项：`data.offer-expiry` v1（`S-22`）、`data.identity-values` v1（`S-31`）。
-  **对 `data.content-blocks` v1 的依赖尚未登记**——那份契约同批并行起草、条款号未定，见[缺口 G-1](v1/contract.md#十已知缺口)
+  与 `spec/data/call-accounts/v1/examples.md`；依赖三项：`data.offer-expiry` v1（`S-22`）、`data.identity-values` v1（`S-5`、`S-11`、`S-31`）、`data.content-blocks` v1（`S-14`）。
+  **登记在 registry，本行只作索引**
 - **提供者/装配映射**：无。尚无提供者设计、尚无源码
 
 ## 准入核对
@@ -22,7 +22,7 @@
 | 稳定身份 | `data.call-accounts`，版本 1 |
 | 适用范围 | **一个部署之内。**本版单机，每条的领域语义在跨进程之后必须原样成立；哪些由装配给、哪些须由协议重新兑现，见[契约第六节](v1/contract.md#六装配给与协议给) |
 | 为什么是 data 而不是 capability | 它**没有操作**：没有状态转移、没有提交点、没有自己的授权前提。有状态的是承载它的记录（`ModelResponse`、工具执行记录、补账），它们的写入归各自的契约；本契约唯一的求值是一个纯计算（[汇总](v1/contract.md#s-23-汇总已知之和与未知笔数)） |
-| 精确依赖 | `data.offer-expiry` v1 的 `Instant`（S-22）；`data.identity-values` v1 的不透明标识交换表示（S-31）；`data.content-blocks` v1 的 `CallId`（**未登**，G-1） |
+| 精确依赖 | `data.offer-expiry` v1 的 `Instant`（S-22）；`data.identity-values` v1 的 `TenantId`（S-5）、`ScopeLayerIdentity`（S-11）与不透明标识交换表示（S-31）；`data.content-blocks` v1 的 `CallId`（S-14）。**不依赖 `data.model-response`**：`ResponseId` 按同一散文自写形状，避免成环 |
 | 谁在等它 | 同批第二波的 `data.arrival-events`（「记一次账」那一步的载荷）与 `capability.stream-assembly`；工具执行一侧与模型调用一侧的契约；按运行汇总的读面与成本明细。完整清单见[契约的消费者表](v1/contract.md#s-2-消费者) |
 | 接受状态 | 未接受 |
 
