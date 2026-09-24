@@ -20,9 +20,8 @@
   - `omne-harness-lite-design-2026-09-15 · data.offer-expiry · v1`（accepted，只取时间点 `Instant`）
   - `omne-harness-lite-design-2026-09-15 · capability.stream-assembly · v1`（candidate）
   - `omne-harness-lite-design-2026-09-15 · capability.modality-projection · v1`（candidate）
-  - `omne-harness-lite-design-2026-09-15 · capability.loop-extension-runner · v1`（candidate）
   - `omne-harness-lite-design-2026-09-15 · capability.asset-evaluation · v1`（candidate）——「用哪个模型」这项设置与「这个范围允许哪几条档案」的求值
-  - 以上四份在 2026-09-24 整批对齐登记进 catalog（原 G-14）。`data.arrival-events` v1 只是指路（到达事件的语法归它），本契约不据以写出任何承诺，不登依赖
+  - 以上三份在 2026-09-24 整批对齐登记进 catalog（原 G-14）。`data.arrival-events` v1 与 `capability.loop-extension-runner` v1 只是指路（到达事件的语法归前者；被拒的 `retry` 怎样记下、系统自带重试件不可用怎样关门归后者），本契约不据以写出任何承诺，不登依赖——**runner 反过来消费本契约的合法目标与再发守卫**，登这一条会成环
 - **条款编号**：`S-n`，**只在本契约本版本内有效**；外部引用须写全坐标，如
   `capability.model-request-runtime/v1#S-30`；缺口 `G-n` 同理。编号在本版本内只追加、不重排
 
@@ -179,7 +178,6 @@
 | `data.content-blocks` `#S-20` `CapabilityId`（`ModelCallRequest.tools` 与 `targetChangedBy`） | [S-28](#s-28-opencall) |
 | `capability.stream-assembly` `#S-16` 首个内容的位置 | [S-16](#s-16-首-token-判据) |
 | `capability.modality-projection` `#S-15` 读投影、`#S-16` 兼容判定 | [S-11](#s-11-合法目标集合)、[S-13](#s-13-模态投影读到的必须追到日志尾) |
-| `capability.loop-extension-runner` `#S-17` 系统自带件不可用一律关门、`#S-26` `retry` 与它被拒 | [S-30](#s-30-dispatchagain)、[S-35](#s-35-默认重试件可替换) |
 | `capability.asset-evaluation` `#S-8` 求值结果、`#S-22` 设置、`#S-23` 权限 | [S-9](#s-9-选中模型)、[S-10](#s-10-有效模型四步每步来源可查)、[S-11](#s-11-合法目标集合) |
 
 ---
@@ -947,7 +945,7 @@ M1 若是选中模型，`displayList` 上它带 `modality_mismatch`；**第三�
 | G-11 | **宿主停止时有内容的那一次调用**：宿主先 `interrupt(run_cancelled)` 再停，是 loop 一程的义务；没做到时本能力写的那一条没有回复 | loop 那一程（主线） | loop 契约写明宿主停止的次序 |
 | G-12 | **中心 ↔ 据点的线上形状与协议义务**：[S-38](#s-38-装配给的保证-vs-协议须给的保证) 右两列里跨中心与据点的几行 | 架构（组合契约起草） | 那份组合契约成立并逐行兑现 |
 | G-13 | **设计依据里的主线裁定无处可链**：C-2、C-10～C-14、RP-5、RP-9、RP-12、RP-24、RP-25、U-11 与拆分都在任务区 | 主线 | 落决定记录，[设计依据](#设计依据)改为链接 |
-| G-14 | **已闭合（2026-09-24 整批对齐）**：`capability.stream-assembly`、`capability.modality-projection`、`capability.loop-extension-runner`、`capability.asset-evaluation` 登进 catalog，S-4 表补齐；`data.arrival-events` 只是指路、不登 | — | — |
+| G-14 | **已闭合（2026-09-24 整批对齐）**：`capability.stream-assembly`、`capability.modality-projection`、`capability.asset-evaluation` 登进 catalog，S-4 表补齐；`data.arrival-events` 与 `capability.loop-extension-runner` 只是指路、不登（后者消费本契约，反向登记会成环） | — | — |
 
 ---
 
