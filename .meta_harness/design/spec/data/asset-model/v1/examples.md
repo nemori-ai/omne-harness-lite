@@ -141,14 +141,14 @@
 
 正文按 `data.skill-package` v1 校验；清单头的 `name` 等于 `capability.name`（那份契约的 S-6）。`byAgent: false`：这份是人写的。
 
-**4.3 4.2 那份的 v2 被 a1 复制到有共同上级的团队 T2，带血缘**——Schema：通过 · 拒绝值：— · 依据：[S-6](contract.md#s-6-所有者与作者分记)、[S-9](contract.md#s-9-版本线)、[S-21](contract.md#s-21-复制血缘)
+**4.3 4.2 那份的 v2 被普通成员 a1 本人型复制到有共同上级的团队 T2，落在他自己的租户级，带血缘**——Schema：通过 · 拒绝值：— · 依据：[S-6](contract.md#s-6-所有者与作者分记)、[S-9](contract.md#s-9-版本线)、[S-21](contract.md#s-21-复制血缘)
 
 ```json
 {
   "id": "ast_8e20",
   "capability": { "category": "skill", "name": "code-review" },
   "origin": "customized",
-  "owner": { "kind": "organization", "organization": "org_t2" },
+  "owner": { "kind": "tenant", "tenant": { "organization": "org_t2", "account": "acc_a1" } },
   "author": { "organization": "org_t2", "account": "acc_a1" },
   "byAgent": false,
   "lineage": {
@@ -169,9 +169,9 @@
 }
 ```
 
-- 所有者是 **T2**，作者与 `importedBy` 都是 **(T2, a1)**——不是源侧的 (T1, a1)，所以**看不出源组织**。
+- 所有者、作者与 `importedBy` 都是 **(T2, a1)**——不是源侧的 (T1, a1)，所以**看不出源组织**（[S-21](contract.md#s-21-复制血缘) 第 3、4 条；PF-003 rev 5「普通成员落租户级」）。
 - 源侧的 **v2** 在这边是 **v1**：`sourceVersion` 记源侧第几版，`versions` 是目标侧自己的线。
-- **带血缘的记录只能是组织所有**：「一份租户所有、带血缘的记录」不是任何一次合法复制的产物，见下表第 4 行。
+- **同一个来源若再由 T2 的超管组织型复制进 T2 的组织级**，那是另一份记录、另一个血缘号：所有者是组织 T2、`importedBy` 是确认的那位超管——见下表第 7 行（2026-09-24 修订第二轮 R2-10：此前「带血缘的记录只能是组织所有」作废）。
 
 **4.4 4.3 那份被重复复制一次之后**——Schema：通过 · 拒绝值：— · 依据：[S-21](contract.md#s-21-复制血缘)（[S-35](contract.md#s-35-重复复制只改最近一次那四项) 正例）
 
@@ -242,7 +242,7 @@
 | 在 4.2 上删去 `byAgent` | 拒绝 | `malformed` | [S-8](contract.md#s-8-资产记录)：customized 必有，**缺席不读作 `false`** |
 | 在 4.2 上把 `byAgent` 改为 `"no"` | 拒绝 | `malformed` | [S-8](contract.md#s-8-资产记录)：布尔 |
 | 在 4.1 上加 `"byAgent": false` | 拒绝 | `malformed` | [S-8](contract.md#s-8-资产记录)：official 必无 |
-| 在 4.3 上把 `owner` 改为 `{"kind": "tenant", "tenant": {"organization": "org_t2", "account": "acc_a1"}}` | 拒绝 | `malformed` | [S-21](contract.md#s-21-复制血缘) 第 4 条：有血缘即组织所有 |
+| 在 4.3 上把 `owner` 改为 `{"kind": "organization", "organization": "org_t2"}`、`lineage.lineage` 改为 `"lin_51a2"`（组织型复制落进 T2 组织级的那一份，a1 是确认的超管） | 通过 | — | [S-21](contract.md#s-21-复制血缘) 第 4、5 条：有血缘的所有者是落进的那一层的所有者；层与层各算各的（2026-09-24 R2-10 由「拒绝」改为正例） |
 | 在 4.1 上加 4.3 的那个 `lineage` | 拒绝 | `malformed` | [S-21](contract.md#s-21-复制血缘) 第 4 条：official 不是复制来的 |
 | 在 4.2 上把 `origin` 改为 `"builtin"` | 拒绝 | `origin_unknown` | [S-5](contract.md#s-5-资产来源) |
 | 在 4.2 上把 `owner.kind` 改为 `"account"` | 拒绝 | `owner_kind_unknown` | [S-6](contract.md#s-6-所有者与作者分记) |
@@ -435,7 +435,7 @@
 }
 ```
 
-所有者仍是 G；C 配的是**自己这一格**的值（[PF-003 §6.10](../../../../product/PF-003-asset-transfer-and-sharing/design.md#610-分享给的是获权不是拥有)）；分享来的只跟当前版。
+所有者仍是 G；C 配的是**自己这一格**的值（[PF-003 §6.10](../../../../product/PF-003-asset-transfer-and-sharing/design.md#610-分享给的是获权不是拥有)）；分享来的只跟当前版。这份持有此刻生不生效归 `capability.asset-transfer`（它的 S-9），本实例只校形状。
 
 **10.5 租户 (T1, a1) 持有自己那份 `code-review`**——Schema：通过 · 拒绝值：— · 依据：[S-18](contract.md#s-18-资产持有)
 
@@ -479,7 +479,8 @@
 | 在 10.2 上把 `basis` 改为 `{"kind": "organization"}` | 拒绝 | `malformed` | [S-19](contract.md#s-19-使用权来路)：`organization` 只在租户与工作区格——组织格的外面没有别的持有格 |
 | 在 10.4 上把 `versionSelection` 改为 `{"kind": "pinned", "number": 2}` | 拒绝 | `malformed` | [S-18](contract.md#s-18-资产持有) 第 6 条：分享来的只跟当前（主线裁定 A-G7） |
 | 在 10.6 上把那条配值的 `immutable` 改为 `true` | 拒绝 | `malformed` | [S-20](contract.md#s-20-出厂格与工作区格的持有)、[S-15](contract.md#s-15-disabled-是保留项名) |
-| 在 10.4 上把 `holder` 改为 `{"layer": "tenant", "tenant": {"organization": "org_c", "account": "acc_b2"}}` | 拒绝 | `malformed` | [S-19](contract.md#s-19-使用权来路)：分享在组织之间 |
+| 在 10.4 上把 `holder` 改为 `{"layer": "tenant", "tenant": {"organization": "org_c", "account": "acc_b2"}}` | 通过 | — | [S-19](contract.md#s-19-使用权来路)：接收方是一个租户（组织内分享、本人型分享）时落在那个租户的格上（2026-09-24 R2-10 由「拒绝」改为正例） |
+| 在 10.4 上把 `holder` 改为 10.6 的那个工作区格 | 拒绝 | `malformed` | [S-19](contract.md#s-19-使用权来路)：分享只落组织与租户格 |
 | 在 10.1 上把 `holder` 改为 `{"layer": "organization", "organization": "org_t1"}`，`assignments` 改为 `[{"item": "disabled", "value": false, "immutable": false, "since": "2026-09-15T08:00:00Z"}]` | 拒绝 | `malformed` | [S-15](contract.md#s-15-disabled-是保留项名) 第 4 条：official 的持有上没有 `disabled`，**配 `false` 也不行**（[S-32](contract.md#s-32-禁用只是一个布尔) 反例三） |
 | 在 10.1 上把 `holder` 改为 `{"layer": "organization", "organization": "org_t1"}`，`immutable` 改为 `true` | 通过 | — | [S-18](contract.md#s-18-资产持有)：组织锁住自己对 official 的持有——租户与工作区替换不了它 |
 | 在 10.2 上把 `basis` 改为 `{"kind": "inherited"}` | 拒绝 | `malformed` | [S-19](contract.md#s-19-使用权来路)：五支闭合，**不自造第六支** |
@@ -583,9 +584,10 @@
 | 在 10.3 上把 `concurrency` 那条改为 `{"item": "disabled", "value": false, "immutable": false, "since": "2026-09-15T08:00:00Z"}` | 通过 | `assignment_item_duplicate` | [S-18](contract.md#s-18-资产持有) 第 3 条：同一持有上两条 `disabled` |
 | 在 12.1 上把第三条配值的 `capability` 与 `item` 改成与第一条相同 | 通过 | `assignment_item_duplicate` | [S-24](contract.md#s-24-工作区承载清单) 第 4 条 |
 | 在 12.1 上把第二项 `assets` 的 `capability` 改成与第一项相同 | 通过 | `malformed` | [S-24](contract.md#s-24-工作区承载清单) 第 4 条 |
-| 在 4.3 上把 `author` 改为 `{"organization": "org_t1", "account": "acc_a1"}` | 通过 | `malformed` | [S-7](contract.md#s-7-所有者至多变一次) 第 4 条：所有者是 T2，作者却在 T1 |
+| 在 4.3 上把 `author` 改为 `{"organization": "org_t1", "account": "acc_a1"}` | 通过 | `malformed` | [S-7](contract.md#s-7-所有者至多变一次) 第 4 条：所有者是租户 (T2, a1)，作者却在 T1 |
 | 在 4.2 上把 `author` 改为 `{"organization": "org_t1", "account": "acc_b2"}` | 通过 | `malformed` | [S-7](contract.md#s-7-所有者至多变一次) 第 4 条：租户所有的，作者就是那个租户 |
 | 在 4.3 上把 `lineage.importedBy` 改为 `{"organization": "org_t1", "account": "acc_a1"}` | 通过 | `malformed` | [S-21](contract.md#s-21-复制血缘) 第 3 条：那是源侧的身份，会暴露源组织 |
+| 在 4.3 上把 `lineage.importedBy` 改为 `{"organization": "org_t2", "account": "acc_b2"}` | 通过 | `malformed` | [S-21](contract.md#s-21-复制血缘) 第 3 条：所有者是租户时 `importedBy` 就是它——落在租户级的只有本人型 |
 | 在 4.1 上把第 1 版 `definition` 的 `name` 改为 `"write_file"`（正文里的名字与 `capability.name` 不一致） | 通过 | `malformed` | [S-10](contract.md#s-10-八类正文的外壳)：身份只在 `capability` |
 | 在 4.2 上把第 1 版正文的 `manifest.name` 改为 `"Code-Review"` | 通过 | `name_mismatch` | [S-27](contract.md#s-27-表示层拒绝值)：`data.skill-package` v1 的值，原名携带 |
 | 10.2，但 `ast_9d02` 所指记录的 `capability` 是 `skill/code-review` | 通过 | `malformed` | [S-18](contract.md#s-18-资产持有) 第 2 条 |
@@ -594,7 +596,7 @@
 | 10.2，但 `ast_9d02` 所指记录只有两版 | 通过 | `malformed` | [S-18](contract.md#s-18-资产持有) 第 6 条：`pinned` 的那一版在版本线上 |
 | 10.7，但组织 T1 的组织格没有持有 `ast_2c66` | 通过 | **这份持有失效**，读作这一格没有持有 | [S-19](contract.md#s-19-使用权来路)：`organization` 支要外层确有同一份持有 |
 | 10.6，但 `ast_wk01` 是组织 T1 自建的一份 skill | 通过 | `malformed` | [S-19](contract.md#s-19-使用权来路)：`carrier` 一支双向，只指工作区提供的那份记录 |
-| 10.6，但 `assignments` 里有一条 `{"item": "execute", "value": {"allowed": ["auto"]}, "immutable": false, "since": "2026-09-22T12:00:00Z"}`（`execute` 是权限项） | 通过 | `malformed` | [S-20](contract.md#s-20-出厂格与工作区格的持有)：工作区格没有权限项的配值 |
+| 10.6，但 `assignments` 里有一条 `{"item": "execute", "value": {"allowed": ["auto"]}, "immutable": false, "since": "2026-09-22T12:00:00Z"}`（`execute` 是权限项） | 通过 | **不是 `malformed`**：照常读入，不参与求值——由 `capability.asset-evaluation` 第 4 步滤掉并以 `workspace_permission` 留痕 | [S-20](contract.md#s-20-出厂格与工作区格的持有)（2026-09-24 R2-11 由 `malformed` 改判）。**这一行是反回归用例**：一个在读入时就拒掉整份持有的实现，会让那个仓库的 skill 连同禁用一起消失 |
 | 第 7 节的权限声明，`default` 改为 `"yolo"` | 通过 | `malformed` | [S-12](contract.md#s-12-属性声明由正文推出)：权限的 `default` 在 `values` 里 |
 | 第 7 节的 `concurrency` 声明，`default` 改为 `"4"` | 通过 | `malformed` | [S-12](contract.md#s-12-属性声明由正文推出)：`default` 合那份 `schema` |
 | 某个正文契约的推出规则对一份正文产出了 `disabled` 或 `usableBy` 那一条 | 通过 | 推出规则违约 | [S-12](contract.md#s-12-属性声明由正文推出) 第 3 条 |

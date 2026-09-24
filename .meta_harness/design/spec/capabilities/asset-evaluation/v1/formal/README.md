@@ -11,7 +11,7 @@
 
 | 契约条款 | 性质 | 模型与定义 | 未覆盖范围与相应义务 |
 |---|---|---|---|
-| [S-18](../contract.md#s-18-第一步之三最后取最具体的一份锁在最外那一把处截断) ＋ [第七节前提 PRE-2](../contract.md#前提由别人兑现本契约不检查) | **(i) 团队资产不出那棵树**：每份生效资产要么是官方件，要么所有者在租户那棵隶属树内 | [`Evaluation.als`](Evaluation.als)：断言 `TeamAssetsStayInTree`，**在 fact `InputHoldingsStayInTree`（即前提 PRE-2）之下** | **它靠前提成立**，断言核对的是求值**没有别的来路**——生效资产只从持有里选，不从 `definitions` 多带的一份、plugin 或组合关系里带进一份。前提本身由组输入的一方按 `capability.asset-transfer/v1#S-9` 兑现，不在本模型 |
+| [S-18](../contract.md#s-18-第一步之三最后取最具体的一份锁在最外那一把处截断) ＋ [第七节前提 PRE-2](../contract.md#前提由别人兑现本契约不检查) | **(i) 团队资产不出那棵树**（求值一侧的投影）：每份生效资产要么是官方件，要么所有者是 PRE-2 容许的所有者 | [`Evaluation.als`](Evaluation.als)：断言 `TeamAssetsStayInTree`，**在 fact `InputHoldingsStayInTree`（即前提 PRE-2）之下** | **它靠前提成立**，断言核对的是求值**没有别的来路**——生效资产只从持有里选，不从 `definitions` 多带的一份、plugin 或组合关系里带进一份。前提本身由组输入的一方按 `capability.asset-transfer/v1#S-9` 兑现（三个合取项、「不复活」都在那里），不在本模型 |
 | [S-18](../contract.md#s-18-第一步之三最后取最具体的一份锁在最外那一把处截断) | **(ii) 锁截断**：有起作用的锁，生效的就是最外那一把锁住的那份；锁那一格以里、指向别的资产的同标识持有不出现在生效结果里 | 断言 `LockTruncates` | 锁以里**指向同一份资产**的持有留下（配值用），模型按此建；`filteredOut` 那一条留痕不在模型（[S-26](../contract.md#s-26-每份持有都有去处)，证据形式是规范场景 [S-33](../contract.md#s-33-四格齐全的一次求值)） |
 | [S-17](../contract.md#s-17-第一步之一先按禁用滤) | **(iii) 禁用析取**：组织、租户任一格把某份资产禁用，或工作区把它自带的那份禁用，这份资产就不在任何能力标识的生效结果里 | 断言 `DisableIsDisjunction` | 「先禁用后替换」的次序后果（标识退回外一层）**不是断言**，证据形式是规范场景 [S-34](../contract.md#s-34-先禁用后替换) |
 | [S-23](../contract.md#s-23-第四步权限)、[S-24](../contract.md#s-24-工作区那一格在第四步只贡献设置)、[S-25](../contract.md#s-25-工作区自带资产的权限项一律取最严值) | **(iv) 工作区滤权**：组合里任何一项权限的值都不来自工作区那一格 | 断言 `WorkspaceNeverSourcesPermission` | 只核「来自哪一格」，不核值；工作区自带资产的**最严值**是值域上的事，证据形式是规范场景 [S-33](../contract.md#s-33-四格齐全的一次求值)（E-1 附表第 10～12 行） |
@@ -48,6 +48,7 @@
   | `WsAsset` | [S-9](../contract.md#s-9-工作区自带资产) 工作区自带资产 |
   | `PermissionItem`、`PlacementItem` | 权限项；设置项里落点与身份那一类（由生效资产的声明定，[S-24](../contract.md#s-24-工作区那一格在第四步只贡献设置) 末段） |
   | fact `HoldingShape`、`FactoryHoldsOnlyOfficial`、`OfficialNeverDisabled`、`WorkspaceHoldsOnlyItsOwn`、`AssignShape` | [S-7](../contract.md#s-7-输入的一致性条件) 的 C4、C6、C7、C8 与「配值挂在持有上」 |
+  | `TreeOwner` | **前提 PRE-2 容许的所有者**：租户所在的组织、租户自己，以及此刻生效、被分享方就是持有那一层的分享的分享方。模型只把它当作 `Owner` 的一个给定子集，**不算它怎么来**；名字与 `.als` 里那两行注释沿用 R2-12 之前「租户那棵隶属树」的说法——那个说法漏了个人—个人、个人→团队与组织内分享的分享方，**模型的内容不依赖它**，2026-09-24 改读不改模型（理由见[验证入口](../../verification.md#变化的影响)） |
   | fact `InputHoldingsStayInTree` | **不是 S-7 的条件**，是第七节前提 PRE-2——求值不检查它 |
   | `disabledAssets`、`notDisabled` | [S-17](../contract.md#s-17-第一步之一先按禁用滤) 资产级析取；工作区的禁用只对 `WsAsset` 参与 |
   | `Unusable`；fact `OfficialNotJudged`、`JudgedPerAsset`；`surviving` | [S-39](../contract.md#s-39-谁可以使用它值与判定) 第一步之二：判下来用不了的持有（判定作给定）；official 不判；同一份资产同判。`surviving` = 过了之一与之二 |

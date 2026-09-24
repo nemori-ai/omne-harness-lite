@@ -149,7 +149,7 @@
 ## 8. 推出的属性声明
 
 **校验对象**：`data.asset-model` v1 的 `$defs/AttributeDeclaration`，逐条——Schema：通过。[S-11](contract.md#s-11-推出规则) 是一条规则，不是本 Schema 的定义项。
-从第 3 节那一个连接件定义，**本版推得出的是下面三项设置**：
+从第 3 节那一个连接件定义，**本版推得出的是下面四项设置**（三项落点与身份类、一项治理类）：
 
 ```json
 [
@@ -171,17 +171,26 @@
     "kind": "setting",
     "category": "placement_identity",
     "domain": { "kind": "open", "schema": { "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/asset-model/v1/asset-model.schema.json#/$defs/CredentialRef" } }
+  },
+  {
+    "item": "triggeredSessionRunMode",
+    "kind": "setting",
+    "category": "governance",
+    "domain": { "kind": "open", "schema": { "enum": ["never", "auto_permission", "bypass-permissions"] } }
   }
 ]
 ```
 
 从 `{}` 那一份正文推出的，`source` 一项同样**不带 `default`**。
 **这不是这份连接件的全部属性项**：`install`、`processingIdentity` 两项权限的取值域与默认未定（[G-4](contract.md#十已知缺口)），**整组声明本版判不出来**；
-消费者读到这三项之后**停在缺口**，不得把它们当成全部，也不得替两项权限补值。`disabled` 由 `data.asset-model` 保留，不在推出的这一组里；连接件没有 `usableBy`。
+消费者读到这四项之后**停在缺口**，不得把它们当成全部，也不得替两项权限补值。`disabled` 由 `data.asset-model` 保留，不在推出的这一组里；连接件没有 `usableBy`。
 
 | 实例 | 结论 | 依据 |
 |---|---|---|
 | 某个实现把 `target` 的 `default` 推成 `{"kind": "session", "session": ""}` 或 `null` | **推出规则违约**——`target` 不带默认，没配就是缺席 | [S-11](contract.md#s-11-推出规则) |
+| 某个实现给 `triggeredSessionRunMode` 推出 `"default": "never"`（或取正文里作者写的一个值） | **推出规则违约**——作者声明的默认也不算数，没配就是缺席、开不出新会话 | [S-11](contract.md#s-11-推出规则)（主线裁定 R2-14） |
+| 某个实现推不出 `triggeredSessionRunMode`，只推出三项落点与身份类设置 | **推出规则违约**——治理类那一项必须产出 | [S-11](contract.md#s-11-推出规则) |
+| 某个实现把它推成 `"category": "placement_identity"` | **推出规则违约**——它是治理类（PF-002 §5.2 那张表） | [S-11](contract.md#s-11-推出规则) |
 | 某个实现推出了 `{"item": "usableBy", …}` 或 `{"item": "enabled", …}` | **推出规则违约**——连接件的权限只有 `install`、`processingIdentity`；启用与否是保留的 `disabled` | [S-11](contract.md#s-11-推出规则)、[S-13](contract.md#s-13-两项权限) |
 
 ## 9. 一份信封落成的那一条消息

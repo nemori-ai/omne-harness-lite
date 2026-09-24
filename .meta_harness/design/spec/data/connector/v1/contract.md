@@ -6,7 +6,7 @@
   `family = data`、`topic = connector`、规范路径 `spec/data/connector/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
 - **状态**：`candidate`——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
-- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-002 rev 16、PF-014 rev 5、PF-000 rev 1、PF-015 rev 11、PF-003 rev 4** 为准（后两份各只取一处：会话持有租户身份、复制与分享带走正文）
+- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-002 rev 16、PF-014 rev 5、PF-000 rev 1、PF-015 rev 11、PF-003 rev 4** 为准（后两份各只取一处：会话持有租户身份、复制与分享带走正文）；[S-11](#s-11-推出规则) 的触发会话的默认运行模式一项按 **PF-002 rev 20**（主线裁定 2026-09-24 R2-14，只改这一条；PF-015 另取会话运行模式三档原词）
 - **精确语义依赖**：
 
   | 坐标 | 消费的条款 | 取它的什么 | 本契约怎么用 |
@@ -28,6 +28,7 @@
 | 身份是「类别 ＋ name」，其余归实现 | [PF-002 §4 身份是类别＋name](../../../../product/PF-002-assets-settings-and-permissions/design.md#身份是类别--name其余归实现) · [UL-capability-identifier](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier) | S-1、S-3 |
 | 三方分工；设置项分四类，落点与身份类（含连接件的来源标识、投递目标与鉴权绑定）不从工作区来 | [PF-002 三方分工](../../../../product/PF-002-assets-settings-and-permissions/design.md#三方分工资产定形状各层配值运行时求值) · [设置项分四类](../../../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别) | S-1、S-11 |
 | 凭据类设置一份持有一份、不跨租户身份共用——「与连接件的鉴权绑定同一个形状」；值永不呈现 | [PF-002 MCP 凭据](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的) | S-2、S-12 |
+| 触发会话的默认运行模式：持有上的治理类设置，三档之一，配置的人必须给、作者声明的默认也不算数，工作区配不了 | [PF-002 rev 20 §4 触发会话的默认运行模式](../../../../product/PF-002-assets-settings-and-permissions/design.md#触发会话的默认运行模式) · [PF-015 §4 会话运行模式](../../../../product/PF-015-session-lifecycle-and-ownership/design.md#会话运行模式) | S-11（主线裁定 2026-09-24 R2-14） |
 | 斜杠命令只有人用它：不经交付面的来源送来的 `/xxx` 原样是内容 | [PF-002 §4 Slash Command](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command) · [PF-014 §5.10](../../../../product/PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走) | S-10 |
 | 入站到达：归属于恰好一个会话、有一个来源、送不进任何会话的在受理这一步具名拒绝；来源是属性不是类别 | [PF-014 §4 入站到达](../../../../product/PF-014-inbound-intake-and-queueing/design.md#入站到达) · [UL-inbound-arrival](../../../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival) | S-4、S-5、S-8 |
 | 经连接件送达的一条外部消息落成 `UserMessage` | [PF-014 §5.7](../../../../product/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空) | S-9 |
@@ -287,18 +288,20 @@
 | `source` | `setting` | `placement_identity` | `{ "kind": "open", "schema": { "$ref": "<本 Schema 的 $id>#/$defs/SourceIdentity" } }` | 正文的 `source`；正文没给就**不带** | PF-002：来源标识 |
 | `target` | `setting` | `placement_identity` | `{ "kind": "open", "schema": { "$ref": "<本 Schema 的 $id>#/$defs/DeliveryTarget" } }` | **不带**——没配即缺席 | PF-002：投递目标 |
 | `credential` | `setting` | `placement_identity` | `{ "kind": "open", "schema": { "$ref": "<data.asset-model v1 Schema 的 $id>#/$defs/CredentialRef" } }` | **不带**——没绑即缺席（[S-12](#s-12-鉴权绑定那一项)） | PF-002：鉴权绑定 |
+| `triggeredSessionRunMode` | `setting` | `governance` | `{ "kind": "open", "schema": { "enum": ["never", "auto_permission", "bypass-permissions"] } }` | **不带**——作者声明的默认也不算数 | PF-002 rev 20：[触发会话的默认运行模式](../../../../product/PF-002-assets-settings-and-permissions/design.md#触发会话的默认运行模式)；主线裁定 2026-09-24 R2-14 |
 | `install` | `permission` | — | **取值未定**（[G-4](#十已知缺口)） | 未定 | PF-002：能不能安装；[S-13](#s-13-两项权限) |
 | `processingIdentity` | `permission` | — | **取值未定**（[G-4](#十已知缺口)） | 未定 | PF-002：送进来的消息按什么身份处理；[S-13](#s-13-两项权限) |
 
-- **项名**：前三项取 PF-002 三项设置的规格层名字（`source`、`target`、`credential`）；后两项按 PF-002 原话定为 `install`、`processingIdentity`（主线裁定 2026-09-23，待产品负责人确认；账本 S21-c）。
-- **三项设置都不带默认，除非作者在正文里给了来源标识**：`data.asset-model/v1#S-12` 允许落点与身份类的设置项不带 `default`；「没配」就是各格都没有配值、求值得到缺席——**不是一个值，取值域里没有「未配」「未绑」这样的取值**（主线裁定 S21-b，与 `data.mcp-endpoint` v1 的凭据同一种写法）。
+- **项名**：前三项取 PF-002 三项设置的规格层名字（`source`、`target`、`credential`）；两项权限按 PF-002 原话定为 `install`、`processingIdentity`（主线裁定 2026-09-23，待产品负责人确认；账本 S21-c）。**`triggeredSessionRunMode`** 由主线 2026-09-24 接受为项名。
+- **触发会话的默认运行模式**（主线裁定 2026-09-24 R2-14，随 PF-002 rev 20）：**治理类**设置项（[`data.asset-model/v1#S-13`](../../asset-model/v1/contract.md#s-13-设置项类别)），取值域是[会话运行模式](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-session-run-mode--会话运行模式--session-run-mode)的三档原词（`never`、`auto_permission`、`bypass-permissions`，[PF-015 §4](../../../../product/PF-015-session-lifecycle-and-ownership/design.md#会话运行模式)）——**取值的权威是那条词条**：本契约只是把它的三档原词内联进取值域，**不依赖 `capability.tool-admission`**（主线裁定 2026-09-24）；词条改了档，这里随之改；**不带 `default`**——PF-002 写明「配置连接件的人必须给这一项……作者声明的默认也不算数」，`data.asset-model/v1#S-12` 允许治理类项不带。各格都没配就是求值得到缺席；**那份连接件的事件开不出新会话**、受理时明说缺这一项——那是受理新会话一方的收场，不归本契约。
+- **三项落点与身份类设置都不带默认，除非作者在正文里给了来源标识**：`data.asset-model/v1#S-12` 允许落点与身份类的设置项不带 `default`；「没配」就是各格都没有配值、求值得到缺席——**不是一个值，取值域里没有「未配」「未绑」这样的取值**（主线裁定 S21-b，与 `data.mcp-endpoint` v1 的凭据同一种写法）。
 - 它满足那四条义务里定得下来的部分：**是正文的确定函数**（只有 `source` 的 `default` 取自正文，其余与正文无关）；**`item` 互不相同**；
-  **不产出 `disabled`、`usableBy`，也不产出治理类的项**——[「启用与否」就是 `disabled` 那一项](../../asset-model/v1/contract.md#s-15-disabled-是保留项名)，由 `data.asset-model` 保留、每一份资产都有；
-  `usableBy` 只属技能、MCP 接入点、斜杠命令三类（`data.asset-model/v1#S-36` 第 2 条），连接件的「谁能装、按谁的身份处理」是下面两项。
+  **不产出 `disabled`、`usableBy`**——[「启用与否」就是 `disabled` 那一项](../../asset-model/v1/contract.md#s-15-disabled-是保留项名)，由 `data.asset-model` 保留、每一份资产都有；**治理类只产出触发会话的默认运行模式这一项**（2026-09-24 改：此前「不产出治理类的项」作废）。
+  `usableBy` 与本条的 `install` 怎样对上（`data.asset-model/v1#S-36` 第 2 条现写「连接件的『能不能安装』就是 `usableBy`」）**待连接件专项收口，本轮不动**（主线裁定 R2-14「只改这一条」）；「按谁的身份处理」是 `processingIdentity`。
 - **两项权限在缺口上，所以本版整组声明判不出来。**消费者**停在缺口**：**不得把前三项当成连接件的全部属性项**，也不得替两项权限补一个取值域或默认值——
   「推不出」是「判不出来」，**不是「没有这几项」**（与 `data.asset-model/v1#S-12` 对不透明壳的规矩相同）。
-- **三项设置都是落点与身份类**：[PF-002 设置项分四类](../../../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)那张表把「Connector 的来源标识、投递目标与鉴权绑定」点名列在这一类。
-  **工作区格一项都配不了**（`data.asset-model/v1#S-20`）——一个仓库改不了连接件从哪收、往哪送、以谁的名义接。
+- **三项设置是落点与身份类，触发会话的默认运行模式是治理类**：[PF-002 设置项分四类](../../../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)那张表把「Connector 的来源标识、投递目标与鉴权绑定」点名列在落点与身份类，把「Connector 的触发会话的默认运行模式」列在治理类。
+  **工作区格四项都配不了**（`data.asset-model/v1#S-20`）——一个仓库改不了连接件从哪收、往哪送、以谁的名义接，也改不了它开出来的会话遇事问不问人；工作区格上真写了，求值以 `workspace_placement`／`workspace_governance` 滤掉（`capability.asset-evaluation` 的 S-24）。
 
 ### S-12 鉴权绑定那一项
 
@@ -497,7 +500,7 @@ target_unknown  >  channel_empty  >  envelope_empty  >  malformed
 #### CS-1 求值推出一份连接件的属性项
 
 `capability.asset-evaluation` 在**组装一个装了连接件的 agent、要为它列出属性项**时，依赖 [S-11](#s-11-推出规则)～[S-13](#s-13-两项权限)，得到：
-`source`、`target`、`credential` 三项的类别与取值域（`source` 的默认取自正文、可以不带；另两项不带默认）、两项权限的项名；`disabled` 来自 `data.asset-model` 的保留。
+`source`、`target`、`credential` 三项落点与身份类设置与治理类的 `triggeredSessionRunMode` 的类别与取值域（`source` 的默认取自正文、可以不带；另三项不带默认）、两项权限的项名；`disabled` 来自 `data.asset-model` 的保留。
 **停在 [G-4](#十已知缺口)**：两项权限的取值域与默认没有表示——**本版到此为止**，整组声明判不出来。
 
 #### CS-2 受理一份信封

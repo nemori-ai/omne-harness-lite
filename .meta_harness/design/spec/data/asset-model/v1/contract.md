@@ -6,7 +6,7 @@
   `family = data`、`topic = asset-model`、规范路径 `spec/data/asset-model/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
 - **状态**：`candidate`——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
-- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-002 rev 20**（2026-09-24 由 rev 19 对到 rev 20：rev 20 §5.2 治理一行「管别的设置与权限怎么起作用」与连接件的**触发会话的默认运行模式**是治理类、没有作者默认，§5.7「管三样」的第三样是治理类里除禁用之外的项——落进 [S-12](#s-12-属性声明由正文推出)、[S-13](#s-13-设置项类别)、[S-20](#s-20-出厂格与工作区格的持有)；其余各条是连接件的事件目录与投递，归 `data.connector`。此前同日由 rev 16 对到 rev 19：按 changelog rev 17→19 逐条核过——rev 18「组织那一层不持有 MCP 凭据与连接件鉴权绑定」落进 S-23 第 7 条、原 G-10 关闭；rev 17 §5.2「谁可以使用它」**每一类资产都有**——[S-36](#s-36-usableby-是保留项名) 原只给三类，已按主线裁定 2026-09-24 改为八类（原 G-14 关闭）；其余各条不涉本契约的条款）、**PF-001 rev 16、PF-003 rev 4、PF-015 rev 11** 为准；PF-004 rev 10 只作指路
+- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-002 rev 20**（2026-09-24 由 rev 19 对到 rev 20：rev 20 §5.2 治理一行「管别的设置与权限怎么起作用」与连接件的**触发会话的默认运行模式**是治理类、没有作者默认，§5.7「管三样」的第三样是治理类里除禁用之外的项——落进 [S-12](#s-12-属性声明由正文推出)、[S-13](#s-13-设置项类别)、[S-20](#s-20-出厂格与工作区格的持有)；其余各条是连接件的事件目录与投递，归 `data.connector`。此前同日由 rev 16 对到 rev 19：按 changelog rev 17→19 逐条核过——rev 18「组织那一层不持有 MCP 凭据与连接件鉴权绑定」落进 S-23 第 7 条、原 G-10 关闭；rev 17 §5.2「谁可以使用它」**每一类资产都有**——[S-36](#s-36-usableby-是保留项名) 原只给三类，已按主线裁定 2026-09-24 改为八类（原 G-14 关闭）；其余各条不涉本契约的条款）、**PF-001 rev 16、PF-003 rev 5**（2026-09-24 由 rev 4 对到 rev 5：§4 分享的接收方有组织与租户两种、§4 复制血缘挂在落进目标组织那一层的那一份上、§6.2「落在哪一层」、§6.5 所有者与作者按落进的那一层——落进 [S-6](#s-6-所有者与作者分记)、[S-7](#s-7-所有者至多变一次)、[S-19](#s-19-使用权来路)、[S-21](#s-21-复制血缘)；主线裁定 2026-09-24，修订第二轮 R2-10：**流转语义以 `capability.asset-transfer` v1 为准，本契约只承载形状**）、**PF-015 rev 11** 为准；PF-004 rev 10 只作指路
 - **精确语义依赖**：
 
   | 坐标 | 消费的条款 | 取它的什么 | 本契约怎么用 |
@@ -45,10 +45,10 @@
 | official 与 customized；official 不需要授权、不可禁用 | [PF-001 §4 来源](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#来源official-与-customized) | S-5、S-15、S-19 |
 | 拥有、获权、选用三件事 | [PF-001 §4 拥有、获权、选用](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#拥有获权选用) | S-18、S-19 |
 | 路径是地址，不是钥匙 | [PF-001 §6.5](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#路径是地址不是钥匙) | S-17 |
-| 复制血缘：首次产生此后不变、不传递、对目标只见「谁、何时、第几版」 | [PF-003 §4 复制血缘](../../../../product/PF-003-asset-transfer-and-sharing/design.md#复制血缘) | S-21、S-22 |
-| 首次复制：所有者是目标组织、作者是 (目标组织, 执行者)、版本线独立、不暴露源组织 | [PF-003 §6.4](../../../../product/PF-003-asset-transfer-and-sharing/design.md#64-可复制的对象) · [§6.5](../../../../product/PF-003-asset-transfer-and-sharing/design.md#65-首次复制) | S-9、S-21 |
+| 复制血缘：首次产生此后不变、不传递、挂在落进目标组织那一层的那一份上（层与层各算各的）、对目标只见「谁、何时、第几版」 | [PF-003 §4 复制血缘](../../../../product/PF-003-asset-transfer-and-sharing/design.md#复制血缘) | S-21、S-22 |
+| 首次复制：落在哪一层就归谁（租户级归那个租户，组织级归目标组织）、作者本人型是 (目标组织, 本人)、组织型是 (目标组织, 确认的那位超管)、版本线独立、不暴露源组织 | [PF-003 §6.4](../../../../product/PF-003-asset-transfer-and-sharing/design.md#64-可复制的对象) · [§6.5](../../../../product/PF-003-asset-transfer-and-sharing/design.md#65-首次复制) · [§6.2 落在哪一层](../../../../product/PF-003-asset-transfer-and-sharing/design.md#62-谁能流向谁) | S-6、S-9、S-21 |
 | 判首次还是重复只看血缘、撞标识无血缘是新增 | [PF-003 §6.8](../../../../product/PF-003-asset-transfer-and-sharing/design.md#68-能力标识撞车但没有血缘) | S-18、S-21 |
-| 分享：给的是获权不是拥有、分享在组织之间 | [PF-003 §4 分享](../../../../product/PF-003-asset-transfer-and-sharing/design.md#分享) · [§6.10](../../../../product/PF-003-asset-transfer-and-sharing/design.md#610-分享给的是获权不是拥有) | S-19、S-22 |
+| 分享：给的是获权不是拥有；接收方是一个组织，或一个租户（组织内分享、本人型分享） | [PF-003 §4 分享](../../../../product/PF-003-asset-transfer-and-sharing/design.md#分享) · [§6.10](../../../../product/PF-003-asset-transfer-and-sharing/design.md#610-分享给的是获权不是拥有) | S-19、S-22 |
 | 资产持有的键、作者与所有者分记、工作区宿主为租户；目录那一半留给资产领域 | `data.identity-values/v1` 的 [CS-1](../../identity-values/v1/contract.md#cs-1-资产持有的键与属性配值)、[CS-2](../../identity-values/v1/contract.md#cs-2-作者与所有者分记)、[CS-6](../../identity-values/v1/contract.md#cs-6-工作区宿主为租户)、[G-07](../../identity-values/v1/contract.md#十已知缺口) | S-6、S-16、S-17、S-18 |
 | 规格形式；部署边界；租户隔离 | [SYS-SPEC](../../../../foundation/cross-system-constraints/requirements.md#sys-spec) · [SYS-DEPLOY](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy) · [SYS-TENANT](../../../../foundation/cross-system-constraints/requirements.md#sys-tenant) | 见下方引文 |
 | 统一语言正式名 | [能力与构成](../../../../ubiquitous_language/terms/capabilities-and-composition.md) · [作用域与求值](../../../../ubiquitous_language/terms/scope-and-resolution.md) · [流转与获权](../../../../ubiquitous_language/terms/circulation-and-entitlement.md) | 全部英文名 |
@@ -252,7 +252,7 @@
 | 成员在自己的租户范围创作 | `{ "kind": "tenant", "tenant": (O, 账号) }` | 同一个租户 |
 | 人在自己的个人组织里创作 | 他的个人组织 | 该租户 |
 | agent 产出 | 它运行所在范围的所有者 | 它运行所在的那个租户；**另记 `byAgent: true`**（[S-8](#s-8-资产记录)） |
-| 首次复制落下的那份（[PF-003 §6.5](../../../../product/PF-003-asset-transfer-and-sharing/design.md#65-首次复制)） | 目标组织 | (目标组织, 执行者) |
+| 首次复制落下的那份（[PF-003 §6.5](../../../../product/PF-003-asset-transfer-and-sharing/design.md#65-首次复制)） | **落进的那一层的所有者**：落在租户级是那个租户，落在组织级是目标组织 | 本人型：(目标组织, 本人)；组织型：(目标组织, 确认的那位超管) |
 | official 资产 | **缺席** | **缺席** |
 
 - **official 的两处缺席是合法缺席，不是空值**（`data.identity-values/v1` 的 [S-12](../../identity-values/v1/contract.md#s-12-缺席与空值都不是身份值) 与 [CS-2](../../identity-values/v1/contract.md#cs-2-作者与所有者分记)）：
@@ -270,8 +270,8 @@
 4. **作者与所有者同属一个组织**：所有者是组织 O 时，作者的组织分量是 O；所有者是租户时，作者就是那个租户。
    这一条是 PF-001 §6.7 那张表的每一行的共同结论（规格层推导）；违反即 `malformed`。
 
-**为什么要写成数据层的不变量**：[组织级的资产不能复制](../../../../product/PF-003-asset-transfer-and-sharing/design.md#64-可复制的对象)，
-一份已提升的资产若能退回租户级，就能被带出组织——第 2 条堵的就是这个口子。
+**为什么要写成数据层的不变量**：[交给组织之后就是组织的，不能退回租户级、再以本人型带走——要流出去，只能是组织型，也就是组织自己的决定](../../../../product/PF-003-asset-transfer-and-sharing/design.md#64-可复制的对象)（PF-003 rev 5）。
+一份已提升的资产若能退回租户级，就能不经组织点头被带出组织——第 2 条堵的就是这个口子。
 **谁在写路径上守它**：`capability.asset-governance` 的提升操作；本契约只定它必须成立。
 
 ### S-8 资产记录
@@ -507,7 +507,7 @@
 | `owned` | 持有这一格就是这份资产的定义所有者——[自己拥有的定义可直接作为权利依据](../../../../ubiquitous_language/terms/circulation-and-entitlement.md#ul-definition-ownership--定义所有权--definition-ownership) | 组织、租户 | `asset` 的 `owner` 与 `holder` 对得上：组织格对 `{ kind: organization }` 且组织相同，租户格对 `{ kind: tenant }` 且租户相同 |
 | `organization` | 资格来自本组织：这份实现归本组织所有，或外层某一格持有**同一份实现**，本格为了给它配值或锁它而持有 | 租户、工作区 | 租户格：**记录归它所在的组织所有**，或它所在组织的组织格持有同一个 `capability`、同一个 `asset`（经分享持有的那一份也算——主线裁定 2026-09-23，待产品负责人确认；账本 S11-G2：租户格持有本组织可用的，拥有的或被分享的）；工作区格：它所挂租户的租户格，或那个租户所在组织的组织格，持有同一个 `capability`、同一个 `asset` |
 | `official` | 它是 official 资产，[不需要授权](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#来源official-与-customized) | 任一格 | **双向**：`official` 的记录只以这一支被持有；这一支只指 `official` 的记录 |
-| `shared` | 经一段确认之后的[资产分享](../../../../product/PF-003-asset-transfer-and-sharing/design.md#610-分享给的是获权不是拥有)获得使用权，带那段分享的 `SharingId` | 组织 | 分享是在组织之间；那段分享的被分享方、所指资产与状态归 `capability.asset-transfer` |
+| `shared` | 经一段确认之后的[资产分享](../../../../product/PF-003-asset-transfer-and-sharing/design.md#610-分享给的是获权不是拥有)获得使用权，带那段分享的 `SharingId` | 组织、租户 | 这一格就是那段分享的被分享方：[接收方是一个组织](../../../../product/PF-003-asset-transfer-and-sharing/design.md#分享)（组织—组织、个人—个人）落组织格，是一个租户（组织内分享、本人型分享）落租户格——那个租户的使用权来自分享，不来自他的组织（PF-003 rev 5；主线裁定 2026-09-24，修订第二轮 R2-10）。那段分享的被分享方、所指资产、状态与此刻是否生效归 `capability.asset-transfer` |
 | `carrier` | 工作区从承载目录提供的资产（[S-24](#s-24-工作区承载清单)） | 工作区 | **双向**：工作区提供的那份记录只以这一支、只在提供它的那份工作区的那一格被持有；这一支只指那样的记录 |
 
 - **配值只挂在本格自己的持有上**（账本 A-G3）：租户或工作区要给外层持有的资产配值或加锁，先以 `organization` 这一支持有它，再在这份持有上配。
@@ -520,7 +520,7 @@
     [S-9](#s-9-版本线) 的「已发布不变」**对它不成立**。两次读入是不是同一份内容，按内容指纹判（指纹的算法归实现）；**不得按「记录号＋版本号」缓存它的内容**。
   - 它由读入承载清单的一方产生（`capability.asset-evaluation`），不经 `capability.asset-governance` 的创作与发布。
 - 出厂格只有 `official` 一支（[S-20](#s-20-出厂格与工作区格的持有)）。
-- **消费者碰到一格与一支对不上**（例如工作区格上的 `owned`、租户格上的 `shared`），那是 `malformed`，**不挑一支充数**。
+- **消费者碰到一格与一支对不上**（例如工作区格上的 `owned`、工作区格上的 `shared`），那是 `malformed`，**不挑一支充数**。
 
 ### S-20 出厂格与工作区格的持有
 
@@ -534,29 +534,39 @@
 
 - **`basis` 只有 `official`、`organization`、`carrier` 三支**（[S-19](#s-19-使用权来路)）；
 - **`immutable` 恒为 `false`**，**每一条配值的 `immutable` 恒为 `false`**——`immutable` 不能从工作区来；
-- **没有权限项的配值，没有落点与身份类设置项的配值，没有 `disabled` 之外的治理类项的配值**——它们在读入时就被滤掉（`capability.asset-evaluation`）；一份带着它们的工作区格持有是 `malformed`。
+- **权限项的配值、落点与身份类设置项的配值、`disabled` 之外的治理类项的配值，不属于良构的工作区格**：[工作区配不了这三样](../../../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算)，它们**不参与任何求值**。
+  **但它们不是 `malformed`**（主线裁定 2026-09-24，修订第二轮 R2-11）：工作区格的持有来自承载目录里的文件（[S-24](#s-24-工作区承载清单)），**没有一个写入面可以在写下它们之前拒绝**；
+  读入方照常读进来，由 `capability.asset-evaluation` 在求值第 4 步滤掉并以 `FilterReason` 留痕（它的 S-24：`workspace_permission`、`workspace_placement`、`workspace_governance`）——**那一道就是这条限定的兑现处**，不静默丢、也不在表示层拒。
+  是不是权限项、属于哪一类，要看那份资产的属性声明（[S-12](#s-12-属性声明由正文推出)），配值本身看不出，所以这一条本来也不是表示层判得了的。
   工作区**自己带来的**资产，它的落点类设置随资产的正文与声明一起来，不是配值——这条限定挡的是改别人资产的落点。
 
 ### S-21 复制血缘
 
 **`CopyLineage = { lineage, sourceVersion, importedBy, importedAt, imports }`，是目标侧这份记录的一项属性**（[复制血缘词条](../../../../ubiquitous_language/terms/circulation-and-entitlement.md#ul-copy-lineage--复制血缘--copy-lineage)，主线自决 A7）。
+**它挂在落进目标组织某一层的那一份上**——来源 → 目标组织那一层里的那一份（[PF-003 rev 5 §4 复制血缘](../../../../product/PF-003-asset-transfer-and-sharing/design.md#复制血缘)）。
+**流转语义以 `capability.asset-transfer` v1 为准**：哪一种复制落哪一层、谁点头、首次还是重复怎么判、血缘号对应哪个（源, 层），都归那份契约；**本契约只承载这份属性的形状与它在记录上必须成立的几条**（主线裁定 2026-09-24，修订第二轮 R2-10）。
 
 | 成员 | 含义 | 何时写 |
 |---|---|---|
 | `lineage` | 血缘号（[S-22](#s-22-血缘号与分享号)）——**这就是词条说的「首次复制时产生，此后不变」的那条对应** | 首次复制，此后永不改 |
 | `sourceVersion` | 最近一次送入的是**源侧**第几版（≥ 1，与目标侧的版本号无关） | 首次复制；每次重复复制改写 |
-| `importedBy` | 最近一次执行复制的人**在目标组织里的租户身份** | 同上 |
+| `importedBy` | 最近一次落地的行为人**在落点组织里的租户身份**：本人型是本人 (目标组织, 本人)；组织型是**确认的那位超管** (目标组织, 他)（[PF-003 §6.5](../../../../product/PF-003-asset-transfer-and-sharing/design.md#65-首次复制)） | 同上 |
 | `importedAt` | 最近一次送入的时刻 | 同上 |
 | `imports` | 送入过几次：首次为 1，每次重复复制加 1 | 同上 |
 
 1. **有没有血缘在记录产生时就定了**：复制产生的记录一出生就带着它；**已有的记录不会得到一条，也不会失去它**——撞标识无血缘的复制是**新增一份带血缘的新记录**，原来那份照旧没有（[PF-003 §6.8](../../../../product/PF-003-asset-transfer-and-sharing/design.md#68-能力标识撞车但没有血缘)）。
 2. **`lineage` 永不改。**另外四项只随一次**重复复制**改写，且与目标侧新增的那一版一起成立——提交边界归 `capability.asset-transfer`（规格层推导：词条说的「此后不变」是那条对应关系；「由某租户在某时送进来第几版」按最近一次读）。
-3. **`importedBy` 是执行者在目标侧的租户身份，不是他在源侧的那个**——与[首次复制时作者记成 (目标组织, 执行者)](../../../../product/PF-003-asset-transfer-and-sharing/design.md#65-首次复制) 同一个理由：**它不暴露源组织**。因此 `importedBy` 的组织分量等于记录的所有者组织（违反即 `malformed`）。
-4. **有血缘的记录是 `customized`、所有者是组织**——复制的目标是一个团队组织（[PF-003 §4 资产复制](../../../../product/PF-003-asset-transfer-and-sharing/design.md#资产复制)）。
-5. **一个血缘号至多挂在一份现存的记录上**——「再复制一次该更新哪一份」必须只有一个答案。守它的是 `capability.asset-transfer`。
-6. **不传递**：一份带血缘的记录若成了另一次复制的源，新目标得到的是一条新的血缘，不继承这一条。本版这条不会被走到——有血缘的记录归组织所有，而[组织级的资产不能复制](../../../../product/PF-003-asset-transfer-and-sharing/design.md#64-可复制的对象)。
+3. **`importedBy` 是落地一侧的租户身份，不是源侧的那个**——与[首次复制时作者记成落点组织里的那个人](../../../../product/PF-003-asset-transfer-and-sharing/design.md#65-首次复制)同一个理由：**它不暴露源组织**。因此：
+   **`importedBy` 的组织分量等于记录所有者所在的组织**（所有者是组织即它，是租户即那个租户的组织分量）；
+   **所有者是租户时，`importedBy` 就是那个租户**——落在租户级的只有本人型，落地的行为人就是那一层的主人（规格层推导）。违反任一句即 `malformed`。
+4. **有血缘的记录是 `customized`；所有者是它落进的那一层的所有者**（[PF-003 §6.5](../../../../product/PF-003-asset-transfer-and-sharing/design.md#65-首次复制)、[§6.2「落在哪一层」](../../../../product/PF-003-asset-transfer-and-sharing/design.md#62-谁能流向谁)）：
+   普通成员本人型复制进来的，落在**他自己的租户级**、归那个租户；超级管理员从个人组织复制进本团队的，**他选层**——组织级或他自己的租户级；组织型的落在目标组织的组织级。
+   **落点组织恒是团队组织**（团队资产不出那棵树、个人组织之间不复制，边界归 `capability.asset-transfer`），Schema 判不出是不是团队组织。
+   一份带血缘、租户所有的记录此后被[提升](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#作者用租户身份标识)到组织级，所有者变成组织、血缘照旧（[S-7](#s-7-所有者至多变一次)）——第 3 条的第一句仍成立。
+5. **一个血缘号至多挂在一份现存的记录上**——「再复制一次该更新哪一份」必须只有一个答案。**血缘按（源, 落进的那一层）算**：同一个来源在一个组织里可以有两份——某人租户级一份、组织级一份，各有各的血缘号（[PF-003 §4 复制血缘](../../../../product/PF-003-asset-transfer-and-sharing/design.md#复制血缘)「层与层各算各的」）。守它的是 `capability.asset-transfer`。
+6. **不传递**：一份带血缘的记录若成了另一次复制的源——本人型从它所在的租户级带出去，或组织型从它所在的组织级送出去——新落点得到的是一条新的血缘，不继承这一条。
 7. **目标组织从它看得到的只有「谁、何时、送进来第几版、送了几次」**，看不到源资产本身（[PF-003 §4 复制血缘](../../../../product/PF-003-asset-transfer-and-sharing/design.md#复制血缘)）。
-8. **首次还是重复，只按血缘判，不按能力标识判**——那是 `capability.asset-transfer` 的规则；本契约给的是那个判据的把手。
+8. **首次还是重复，只按血缘、只在落进的那一层里判，不按能力标识判**——那是 `capability.asset-transfer` 的规则；本契约给的是那个判据的把手。
 
 ### S-22 血缘号与分享号
 
@@ -564,7 +574,7 @@
 
 - 不透明、部署内唯一、不回收不复用。
 - **不可解引用回源**：它的值**不是**源记录号、源组织标识，也**不是**二者的任何可逆编码；**对目标组织的任何读面都不提供从它到源记录或源组织的解引用**。
-  「这个血缘号对应哪个源」只由 `capability.asset-transfer` 自己保管、只用于它自己的首次／重复判定——理由是[目标组织不该拿到能推出源组织的引用](../../../../product/PF-003-asset-transfer-and-sharing/design.md#复制血缘)（主线自决 A7）。
+  「这个血缘号对应哪个（源, 落进的那一层）」只由 `capability.asset-transfer` 自己保管、只用于它自己的首次／重复判定——理由是[目标组织不该拿到能推出源组织的引用](../../../../product/PF-003-asset-transfer-and-sharing/design.md#复制血缘)（主线自决 A7）。
 
 **`SharingId`：一段确认之后的资产分享的标识。**
 
@@ -722,11 +732,11 @@ manifest_format_unsupported  >  category_unknown  >  origin_unknown  >  owner_ki
 | [S-8](#s-8-资产记录) | **管得到**：正文类别与能力标识一致、草稿或版本至少一样、`byAgent` 按来源有无 | `capability` 一生不变归写路径 |
 | [S-9](#s-9-版本线) | 管单个版本的形状、`publishedBy` 按来源有无 | **编号连续**管不到（`version_sequence_broken` 由接收边界判）；「已发布不变」归写路径 |
 | [S-10](#s-10-八类正文的外壳)、[S-11](#s-11-plugin-的成员) | **管得到**：八个形状、六类正文按各自的正文 Schema、plugin 成员不是 plugin 或 Agent Definition、不重复 | 各正文契约自己的 Schema 之外那一步；正文里另立的名字与 `capability.name` 一致 |
-| [S-12](#s-12-属性声明由正文推出)、[S-13](#s-13-设置项类别)、[S-36](#s-36-usableby-是保留项名) | 管声明的形状：设置必带类别且取值域开放、权限不带类别且取值域为枚举、`default` 只在落点与身份类设置上可缺、`disabled` 与 `usableBy` 的声明只能是那一份 | `default` 合取值域、同一资产内 `item` 唯一、推出规则确定、`usableBy` 八类都有、各类正文不另声明——管不到 |
+| [S-12](#s-12-属性声明由正文推出)、[S-13](#s-13-设置项类别)、[S-36](#s-36-usableby-是保留项名) | 管声明的形状：设置必带类别且取值域开放、权限不带类别且取值域为枚举、`default` 只在落点与身份类、治理类设置上可缺（`disabled` 恒带）、`disabled` 与 `usableBy` 的声明只能是那一份 | `default` 合取值域、同一资产内 `item` 唯一、推出规则确定、`usableBy` 八类都有、各类正文不另声明——管不到 |
 | [S-14](#s-14-属性配值)、[S-15](#s-15-disabled-是保留项名) | 管三个成员必填、`disabled` 只能是布尔且不锁 | 值合那一项的取值域、权限值是 `values` 的子集——要看声明，管不到 |
 | [S-16](#s-16-持有范围)、[S-17](#s-17-工作区键) | **管得到**：四格闭合、判别式与载荷对得上 | 「绝对、规范形式」与平台相关，由写下这个键的一方兑现 |
-| [S-18](#s-18-资产持有)～[S-20](#s-20-出厂格与工作区格的持有) | 管出厂格只有 official、不配值；工作区格不锁、只有 official、organization、carrier 三支；`owned` 只在组织与租户格、`organization` 只在租户与工作区格、分享只在组织格、`carrier` 只在工作区格；`shared` 与 `carrier` 只选 `current`；official 持有上没有 `disabled` | **键唯一**、`asset` 与 `capability` 一致、`item` 不重复、`owned` 时所有者对得上、`organization` 时外层确有同一份持有、`carrier` 时记录是那份工作区提供的、`pinned` 的版本存在、工作区格没有权限与落点配值、出厂格的锁只在 meta 能力上——要看记录、整个存储或部署清单，管不到 |
-| [S-21](#s-21-复制血缘) | 管成员形状、有血缘即 customized 且组织所有 | `lineage` 不变、`importedBy` 的组织等于所有者组织、一个血缘号只在一份记录上——管不到 |
+| [S-18](#s-18-资产持有)～[S-20](#s-20-出厂格与工作区格的持有) | 管出厂格只有 official、不配值；工作区格不锁、只有 official、organization、carrier 三支；`owned` 只在组织与租户格、`organization` 只在租户与工作区格、分享只在组织与租户格、`carrier` 只在工作区格；`shared` 与 `carrier` 只选 `current`；official 持有上没有 `disabled` | **键唯一**、`asset` 与 `capability` 一致、`item` 不重复、`owned` 时所有者对得上、`organization` 时外层确有同一份持有、`carrier` 时记录是那份工作区提供的、`pinned` 的版本存在、出厂格的锁只在 meta 能力上——要看记录、整个存储或部署清单，管不到。**工作区格上的权限、落点与身份类、治理类配值不归 Schema 拒，也不是 `malformed`**——由求值滤掉（[S-20](#s-20-出厂格与工作区格的持有)） |
+| [S-21](#s-21-复制血缘) | 管成员形状、有血缘即 customized | `lineage` 不变、`importedBy` 的组织等于所有者所在的组织、所有者是租户时 `importedBy` 就是它、一个血缘号只在一份记录上——管不到 |
 | [S-24](#s-24-工作区承载清单) | 管 `format`、三个列表必填、`source` 的写法、`disabled` 不重复 | `assets` 与 `assignments` 的按键不重复；符号链接逃逸 |
 
 **非法输入的含义**：Schema 校验失败 ⇒ 该输入**不是**本契约的一个值 ⇒ 按 [S-27](#s-27-表示层拒绝值) 取拒绝值、按 [S-28](#s-28-表示层拒绝不是判定也不修补) 收场。
@@ -747,8 +757,8 @@ manifest_format_unsupported  >  category_unknown  >  origin_unknown  >  owner_ki
 | P-7 | 属性声明由正文确定地推出，不另存第二份 | 不变量 | [PF-002 §5.2 三方分工](../../../../product/PF-002-assets-settings-and-permissions/design.md#三方分工资产定形状各层配值运行时求值) · 主线自决 A3 | 各类正文契约的推出规则（[S-12](#s-12-属性声明由正文推出)） | 设置页长出来的表单与资产正文对不上 |
 | P-8 | 一格一个能力标识至多一份持有 | 不变量 | 起草简报裁定 · [PF-002 §5.5](../../../../product/PF-002-assets-settings-and-permissions/design.md#55-资产替换的层级) | 存储的唯一约束（[S-18](#s-18-资产持有)；[第四节](#四装配给与协议给)） | 同一输入两次装配出不同的 agent |
 | P-9 | official 的持有上没有禁用；禁用只是一个布尔、不加锁 | 安全 | [PF-001 §4 来源](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#来源official-与-customized) · [PF-002 §6.4](../../../../product/PF-002-assets-settings-and-permissions/design.md#禁用是逐层配的布尔设置任一层为真即不可见) | Schema（[S-15](#s-15-disabled-是保留项名)） | 某一格把底座关掉，agent 组装不出来 |
-| P-10 | 工作区格不加锁、出厂格只在 meta 能力上加锁；工作区格没有权限与落点身份类配值 | 安全 | [PF-002 §5.7](../../../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算) | Schema（工作区格的锁）＋ 官方件登记按部署清单写（出厂格的锁）＋ 读入方的过滤与接收边界（配值）（[S-20](#s-20-出厂格与工作区格的持有)） | 一个仓库给自己提权，或锁死了用户自己会话级的设置 |
-| P-11 | 血缘产生后不变且只在一份记录上；目标组织推不出源 | 安全 | [PF-003 §4 复制血缘](../../../../product/PF-003-asset-transfer-and-sharing/design.md#复制血缘) | `capability.asset-transfer` ＋ 读面（[S-21](#s-21-复制血缘)、[S-22](#s-22-血缘号与分享号)） | 重复复制冲掉了对方自己做的同名组件；或目标组织看到了源组织 |
+| P-10 | 工作区格不加锁、出厂格只在 meta 能力上加锁；工作区格上的权限、落点与身份类、治理类配值不参与任何求值（形状照样合法，不是 `malformed`） | 安全 | [PF-002 §5.7](../../../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算) · 主线裁定 2026-09-24 R2-11 | Schema（工作区格的锁）＋ 官方件登记按部署清单写（出厂格的锁）＋ `capability.asset-evaluation` 第 4 步的过滤与留痕（配值）（[S-20](#s-20-出厂格与工作区格的持有)） | 一个仓库给自己提权，或锁死了用户自己会话级的设置；或整份清单因为一条权限配值被拒、那个仓库什么都没提供上 |
+| P-11 | 血缘产生后不变且只在一份记录上；按（源, 落进的那一层）各算各的；目标组织推不出源 | 安全 | [PF-003 §4 复制血缘](../../../../product/PF-003-asset-transfer-and-sharing/design.md#复制血缘) | `capability.asset-transfer` ＋ 读面（[S-21](#s-21-复制血缘)、[S-22](#s-22-血缘号与分享号)） | 重复复制冲掉了对方自己做的同名组件；或目标组织看到了源组织 |
 | P-12 | 凭据不进配值；引用不跨持有、不呈现 | 安全 | [PF-002 §4 MCP 凭据](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的) | 写入方 ＋ 凭据保管方（[S-23](#s-23-凭据引用)） | 凭据出现在一份求值结果或一次呈现里 |
 | P-13 | 清单里的来路字面上不出承载目录 | 安全 | 主线自决 A8 · [PF-002 §4 工作区不是目录](../../../../product/PF-002-assets-settings-and-permissions/design.md#工作区不是目录) | 接收边界（[S-24](#s-24-工作区承载清单)）；解析后的逃逸归读入方 | 一个仓库把宿主机上别处的文件（可能是另一个租户的工作区）读成自己提供的资产 |
 | P-14 | 缺席不补、表示非法即拒、拒绝值唯一 | 安全 | SYS-SPEC | 每个接收边界（[S-27](#s-27-表示层拒绝值)、[S-28](#s-28-表示层拒绝不是判定也不修补)） | 两个实现对同一份坏输入报不同的拒绝值；或缺的 `immutable` 被当成 `false` 落进存储 |
@@ -824,20 +834,22 @@ agent 创作的那一份另记 `byAgent: true`（[S-8](#s-8-资产记录)）。
 
 #### CS-3 首次复制与重复复制
 
-`capability.asset-transfer` 在**一个人把团队 T1 里他租户级的 skill 复制到有共同上级的 T2、之后再复制一次**时，依赖 [S-21](#s-21-复制血缘)、[S-22](#s-22-血缘号与分享号)、[S-18](#s-18-资产持有)，得到：
-首次在 T2 产生一份新记录，所有者 T2、作者与 `importedBy` 都是 (T2, 他)、带一个新血缘号、`imports` 为 1；重复复制按血缘号找到这一份，追加一版、改写最近一次那四项、`lineage` 不动；T2 为它配的值不动。
-**若 T2 此前已持有一份同标识、无血缘的 skill**：新记录照样产生，但 T2 这一格已经有那个键——**新记录不会自动被持有**（[S-18](#s-18-资产持有) 第 1 条），用哪一份由 T2 决定。[PF-003 flows §3.1](../../../../product/PF-003-asset-transfer-and-sharing/flows.md#31-一份复制来的资产在目标组织里) 画的「首次复制 → 持有·v1」在这种情形下怎样呈现，归 `capability.asset-transfer`。
+`capability.asset-transfer` 在**一个普通成员把团队 T1 里他租户级的 skill 本人型复制到有共同上级的 T2、之后再复制一次**时，依赖 [S-21](#s-21-复制血缘)、[S-22](#s-22-血缘号与分享号)、[S-18](#s-18-资产持有)，得到：
+首次在 T2 产生一份新记录，**落在他自己的租户级**：所有者是租户 (T2, 他)、作者与 `importedBy` 都是 (T2, 他)、带一个新血缘号、`imports` 为 1；重复复制按血缘号在同一层找到这一份，追加一版、改写最近一次那四项、`lineage` 不动；(T2, 他) 为它配的值不动。
+**若 (T2, 他) 此前已持有一份同标识、无血缘的 skill**：新记录照样产生，但他那一格已经有那个键——**新记录不会自动被持有**（[S-18](#s-18-资产持有) 第 1 条），用哪一份由他决定。
+**若之后 T2 的超管把同一个来源组织型复制进 T2 的组织级**：那是（源, 组织级）的首次复制，得到**另一份**记录与另一个血缘号，所有者是 T2、`importedBy` 是 (T2, 确认的那位超管)；两份各算各的（[S-21](#s-21-复制血缘) 第 5 条）。[PF-003 flows §3.1](../../../../product/PF-003-asset-transfer-and-sharing/flows.md#31-一份复制来的资产在目标组织里) 画的「首次复制 → 持有·v1」在这种情形下怎样呈现，归 `capability.asset-transfer`。
 
 #### CS-4 分享确认之后
 
 `capability.asset-transfer` 在**集团 G 把一个工具分享给子公司 C、C 确认**时，依赖 [S-19](#s-19-使用权来路)、[S-22](#s-22-血缘号与分享号)，得到：
 C 的组织格上多一份 `basis: { kind: "shared", sharing: <分享号> }` 的持有，`asset` 指 G 的那份记录；所有者不动。
 这份持有的 `versionSelection` 只能是 `{ kind: "current" }`——**C 追随 G 当前发布的那一版**（[S-18](#s-18-资产持有)）。
+**接收方是一个租户时**（组织内分享、本人型分享），同一形状的持有落在**那个租户的格上**（[S-19](#s-19-使用权来路)）；这份持有此刻生不生效——分享记录有效、关系此刻成立、自确认以来未断过——归 `capability.asset-transfer`，本契约只承载形状。
 
 #### CS-5 读入一份承载清单
 
 `capability.asset-evaluation` 在**会话挂上一份工作区、装配时读 `.omne/workspace.json`**时，依赖 [S-24](#s-24-工作区承载清单)、[S-17](#s-17-工作区键)、[S-20](#s-20-出厂格与工作区格的持有)，得到：
-一份形状合法的清单；清单里写了 `immutable`、权限项、落点项的，形状照样合法，由它滤掉并留痕；`source` 字面上不出目录。
+一份形状合法的清单；清单里写了 `immutable`、权限项、落点与身份类项、治理类项的，形状照样合法、**不是 `malformed`**，由它在第 4 步滤掉并以 `FilterReason` 留痕（它的 S-24）；`source` 字面上不出目录。
 清单里每一份资产读成一份记录（所有者是挂上工作区的那个租户、记录号由 `(WorkspaceKey, capability)` 导出、恰一版）和这一格上一份 `basis: { kind: "carrier" }`、`versionSelection: { kind: "current" }` 的持有（[S-19](#s-19-使用权来路)）。
 
 #### CS-6 一笔账记到一个 MCP 接入点
@@ -870,7 +882,7 @@ C 的组织格上多一份 `basis: { kind: "shared", sharing: <分享号> }` 的
 | `draft` | **合法**：此刻没有在改的内容（但草稿与版本不能都没有） | [S-8](#s-8-资产记录) |
 | 配值或持有的 `immutable` | **拒绝**（`malformed`），**从不当作 `false`** | [S-14](#s-14-属性配值)、[S-18](#s-18-资产持有) |
 | 设置项声明的 `category` | **拒绝**（`malformed`）——资产声明每一项设置时必须标类别 | [S-12](#s-12-属性声明由正文推出) |
-| 声明的 `default` | `placement_identity` 类设置项：**合法**，这一项没有作者默认，求值得到缺席即「未配」；其余一切：**拒绝**（`malformed`） | [S-12](#s-12-属性声明由正文推出) |
+| 声明的 `default` | `placement_identity` 与 `governance` 类设置项（保留项 `disabled` 除外）：**合法**，这一项没有作者默认，求值得到缺席即「未配」；其余一切：**拒绝**（`malformed`） | [S-12](#s-12-属性声明由正文推出) |
 | 一格上某一项没有配值 | **合法**：这一格没意见，沿用外面一格的结果（求值的事） | [S-14](#s-14-属性配值) |
 | 清单的三个列表之一 | **拒绝**（`malformed`），不当作空列表 | [S-24](#s-24-工作区承载清单) |
 | 承载目录里没有清单文件 | **不是一份空清单**；怎么收归读入方 | [S-24](#s-24-工作区承载清单) |

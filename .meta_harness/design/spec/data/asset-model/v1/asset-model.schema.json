@@ -198,7 +198,7 @@
 
     "CopyLineage": {
       "title": "复制血缘 · Copy Lineage",
-      "description": "S-21：目标侧这份资产与它的来源之间的对应关系（UL-copy-lineage）。lineage 在首次复制时产生，此后不变——这就是词条说的「此后不变」的那条对应；sourceVersion、importedBy、importedAt 是最近一次送入的事实（源侧第几版、目标侧哪个租户、何时），imports 是送入次数，这四项只随一次重复复制改写。importedBy 是执行者在目标组织里的租户身份，不是他在源侧的那个。",
+      "description": "S-21：目标侧这份资产与它的来源之间的对应关系（UL-copy-lineage）。lineage 在首次复制时产生，此后不变——这就是词条说的「此后不变」的那条对应；sourceVersion、importedBy、importedAt 是最近一次送入的事实（源侧第几版、落地一侧哪个租户、何时），imports 是送入次数，这四项只随一次重复复制改写。它挂在落进目标组织某一层的那一份上，按（源, 落进的那一层）各算各的。importedBy 是最近一次落地的行为人在落点组织里的租户身份——本人型是本人，组织型是确认的那位超管——不是他在源侧的那个。流转语义归 capability.asset-transfer v1，本定义只承载形状（R2-10）。",
       "type": "object",
       "properties": {
         "lineage": { "$ref": "#/$defs/LineageId" },
@@ -214,7 +214,7 @@
     "AssetDefinition": {
       "title": "资产记录",
       "description": "S-8：一份具体资产。id 是记录号；capability 是它实现的那个能力标识，记录的一生中不变；origin 产生时定死；customized 的必有 owner、author 与 byAgent（作者与所有者分记，PF-001 §6.7；byAgent 标这份记录是不是本系统里一次 agent 运行产出的，缺席不读作 false），official 的三者都缺席（data.identity-values v1 CS-2）；lineage 只在复制产生的记录上有，产生时就有，此后不增不删；draft 可反复改；versions 是已发布、不可变、从 1 连续编号的版本线。草稿与每一版正文的 category 都等于 capability.category。属性声明不存在这里——它们由正文按类别推出（S-12）。",
-      "$comment": "版本编号连续（version_sequence_broken）、作者与所有者同属一个组织、importedBy 的组织等于所有者组织，Schema 表达不了，由 S-27 在 Schema 之外判。",
+      "$comment": "版本编号连续（version_sequence_broken）、作者与所有者同属一个组织、importedBy 的组织等于所有者所在的组织、所有者是租户时 importedBy 就是它，Schema 表达不了，由 S-27 在 Schema 之外判。",
       "type": "object",
       "properties": {
         "id": { "$ref": "#/$defs/AssetRecordId" },
@@ -248,8 +248,7 @@
           "if": { "required": ["lineage"] },
           "then": {
             "properties": {
-              "origin": { "const": "customized" },
-              "owner": { "properties": { "kind": { "const": "organization" } } }
+              "origin": { "const": "customized" }
             }
           }
         },
@@ -287,7 +286,7 @@
 
     "SettingCategory": {
       "title": "设置项类别 · Setting Category",
-      "description": "S-13：资产声明每一项设置时必须标上的类别（UL-setting-category），恰四个：preference（偏好）、binding（绑定）、placement_identity（落点与身份）、governance（治理），闭合。类别决定这项值能从哪些层来：placement_identity 不从工作区来。本版治理类恰有本契约保留的 disabled 一项（S-15）。",
+      "description": "S-13：资产声明每一项设置时必须标上的类别（UL-setting-category），恰四个：preference（偏好）、binding（绑定）、placement_identity（落点与身份）、governance（治理），闭合。类别决定这项值能从哪些层来：placement_identity 与 governance 不从工作区来。治理类是本契约保留的 disabled（S-15）加各正文契约推出的治理类项（本版有 data.connector 的触发会话的默认运行模式一项）。",
       "type": "string",
       "enum": ["preference", "binding", "placement_identity", "governance"]
     },
@@ -471,7 +470,7 @@
 
     "HoldingBasis": {
       "title": "使用权来路",
-      "description": "S-19：这份持有的资格从哪来，五支闭合。owned：持有方就是这份资产的定义所有者（组织、租户格）；organization：外层某一格持有同一份实现，本格为配值或加锁而持有（租户、工作区格）；official：它是 official 资产，不需要授权（任一格）；shared：经一段确认之后的分享获得使用权，带那段分享的 SharingId（组织格）；carrier：工作区从承载目录提供的资产（工作区格）。",
+      "description": "S-19：这份持有的资格从哪来，五支闭合。owned：持有方就是这份资产的定义所有者（组织、租户格）；organization：外层某一格持有同一份实现，本格为配值或加锁而持有（租户、工作区格）；official：它是 official 资产，不需要授权（任一格）；shared：经一段确认之后的分享获得使用权，带那段分享的 SharingId（组织格或租户格：接收方是组织落组织格，是租户落那个租户的格；此刻生不生效归 capability.asset-transfer）；carrier：工作区从承载目录提供的资产（工作区格）。",
       "$comment": "判别成员 kind 的未知取值拒绝值是 malformed（S-27）。",
       "type": "object",
       "oneOf": [
@@ -537,8 +536,8 @@
 
     "AssetHolding": {
       "title": "资产持有 · Asset Holding",
-      "description": "S-18：一个持有范围与一份资产之间的持有关系（UL-asset-holding）。键是 (holder, capability)，同一个键至多一份持有；asset 是这一格用的那份实现，它的 capability 必须等于本持有的 capability；basis 是资格来路；versionSelection 是这一格用哪一版；immutable 是锁替换——持有它的这一格以下不许再替换这个能力标识（PF-002 §5.5）；assignments 是这一格为它配下的值，item 互不相同，禁用就是其中名为 disabled 的那一项；since 是这份持有成立的时刻。出厂格只持有 official、不带配值、不加锁；工作区格不加锁、配值不加锁；owned 只在组织与租户格，organization 只在租户与工作区格，shared 只在组织格，carrier 只在工作区格；shared 与 carrier 只选 current；official 的持有上没有 disabled 项（S-20、S-19、S-18、S-15）。",
-      "$comment": "同一个键至多一份、asset 与 capability 一致、item 不重复（assignment_item_duplicate）、工作区格上没有权限项与落点与身份类的配值、owned 时所有者等于持有方、organization 时外层确有同一份持有、carrier 时记录是那份工作区提供的、pinned 的版本存在——都要看记录或整个存储，Schema 表达不了（S-27）。",
+      "description": "S-18：一个持有范围与一份资产之间的持有关系（UL-asset-holding）。键是 (holder, capability)，同一个键至多一份持有；asset 是这一格用的那份实现，它的 capability 必须等于本持有的 capability；basis 是资格来路；versionSelection 是这一格用哪一版；immutable 是锁替换——持有它的这一格以下不许再替换这个能力标识（PF-002 §5.5）；assignments 是这一格为它配下的值，item 互不相同，禁用就是其中名为 disabled 的那一项；since 是这份持有成立的时刻。出厂格只持有 official、不带配值、不加锁；工作区格不加锁、配值不加锁；owned 只在组织与租户格，organization 只在租户与工作区格，shared 只在组织与租户格，carrier 只在工作区格；shared 与 carrier 只选 current；official 的持有上没有 disabled 项（S-20、S-19、S-18、S-15）。",
+      "$comment": "同一个键至多一份、asset 与 capability 一致、item 不重复（assignment_item_duplicate）、owned 时所有者等于持有方、organization 时外层确有同一份持有、carrier 时记录是那份工作区提供的、pinned 的版本存在——都要看记录或整个存储，Schema 表达不了（S-27）。工作区格上的权限、落点与身份类、治理类配值形状合法、不是 malformed，由 capability.asset-evaluation 在求值第 4 步滤掉并留痕（S-20，R2-11）。",
       "type": "object",
       "properties": {
         "holder": { "$ref": "#/$defs/HoldingScope" },
@@ -575,7 +574,7 @@
           "if": { "properties": { "basis": { "properties": { "kind": { "const": "shared" } }, "required": ["kind"] } }, "required": ["basis"] },
           "then": {
             "properties": {
-              "holder": { "properties": { "layer": { "const": "organization" } } },
+              "holder": { "properties": { "layer": { "enum": ["organization", "tenant"] } } },
               "versionSelection": { "properties": { "kind": { "const": "current" } } }
             }
           }

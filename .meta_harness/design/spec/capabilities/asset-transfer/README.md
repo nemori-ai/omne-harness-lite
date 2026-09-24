@@ -4,18 +4,18 @@
 fork 一份、此后各走各的，按两条通则：**本人型**（同一个人的两个租户身份之间，发起即落地）与**组织型**（同一棵树上两个团队组织的组织级之间，目标超管确认才落地）；
 [资产分享](../../../ubiquitous_language/terms/circulation-and-entitlement.md#ul-asset-sharing--资产分享--asset-sharing)——
 给使用权、所有权不动、被动跟随，被分享方是一个组织或一个租户（组织内分享），本人型之外都要对方点头。确认之前的那份待确认件会过期；
-分享结束之后关系又接上，**不复活**。共守一条边界：**团队资产不出那棵隶属树**。
+分享结束之后关系又接上，**不复活**；分享方删除那份资产或把它提升到组织，分享随之结束。共守一条边界：**团队资产不出那棵隶属树**。
 
 > **目录名 `asset-transfer` 是施工账本定的契约身份**，与 PF-003 包目录同名；
 > 这个动作的正式名是「资产复制」，**「转移」是弃用说法**，正文一律不用。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.asset-transfer, 1)`
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按 PF-003 rev 5 原地修订），**未经独立评审、未接受、未冻结**
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按 PF-003 rev 5 原地修订，同日第二轮修订），**未经独立评审、未接受、未冻结**
 - **catalog 映射**：已登记为 `candidate`；`family=capabilities`、`topic=asset-transfer`、
-  `contract_path=spec/capabilities/asset-transfer/v1/contract.md`；`resources` 含契约、`examples.md`、`formal/` 下的模型、十四个配置与入口页；
-  依赖五项（`capability.organization-governance` v1、`data.identity-values` v1、`data.offer-expiry` v1、`data.asset-model` v1、`capability.asset-governance` v1），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)（后两项 2026-09-24 整批对齐补登）
+  `contract_path=spec/capabilities/asset-transfer/v1/contract.md`；`resources` 含契约、`examples.md`、`formal/` 下的模型、十六个配置与入口页；
+  依赖五项（`capability.organization-governance` **v2**（第二轮由 v1 改钉：不复活要读 v2 新增的两个时刻）、`data.identity-values` v1、`data.offer-expiry` v1、`data.asset-model` v1、`capability.asset-governance` v1），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)（后两项 2026-09-24 整批对齐补登）
 - **formal-tasks 映射**：三个任务——`asset-transfer-v1-transfer`（`Transfer.cfg`，复制那一组）、`asset-transfer-v1-share`（`Transfer_Share.cfg`，分享那一组）、`asset-transfer-v1-revival`（`Transfer_Revival.cfg`，不复活）。
-  **十一个有效性核对配置不登记**：它们期望失败，与该清单的语义相反。执行结果在[验证入口](verification.md)
+  **十三个有效性核对配置不登记**：它们期望失败，与该清单的语义相反。执行结果在[验证入口](verification.md)
 - **提供者/装配映射**：尚无
 
 ## 准入核对
@@ -37,6 +37,7 @@ fork 一份、此后各走各的，按两条通则：**本人型**（同一个�
 | 谁的东西能到哪一层、是哪一种、要谁点头 | [契约 S-49](v1/contract.md#s-49-方向与落点矩阵逐格) |
 | 「团队资产不出那棵树」在哪几处挡住 | [契约 S-12](v1/contract.md#s-12-流转边界团队资产不出那棵树) |
 | 隶属解除之后分享为什么不靠事件失效、为什么不复活 | [契约 S-9](v1/contract.md#s-9-分享此刻是否生效)、[S-31](v1/contract.md#s-31-隶属解除分享在使用时失效不靠事件) |
+| 分享方删除那份资产、或把它提升到组织之后，分享怎样 | [契约 S-52](v1/contract.md#s-52-分享方删除资产或所有权易手分享随之结束)（资产治理那两次提交一并写本契约的分享记录，不读本契约的判定） |
 | 单机给的哪些保证，跨进程后要由协议重新兑现 | [契约 S-34](v1/contract.md#s-34-装配给的保证-vs-协议须给的保证) |
 | 走通的路径与每个失败值的反例 | [examples](v1/examples.md) |
 | 哪些条款映射到模型、模型盖不到什么 | [formal 入口](v1/formal/README.md) |

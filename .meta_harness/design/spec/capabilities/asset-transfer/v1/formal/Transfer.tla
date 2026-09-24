@@ -15,8 +15,9 @@
 (*   S-22  组织型复制只由目标组织的有效超管确认                             *)
 (*   S-31  关系断开：分享在使用时失效，不靠事件，也不复活                   *)
 (*   S-49  方向与落点：跨组织不落别人的租户级，租户级落不进别人的组织级     *)
+(*   S-52  分享方删除资产、或把它提升到组织（所有权易手）：分享随之结束     *)
 (*                                                                         *)
-(* 六个布尔常量各对应一处保护，主配置全 TRUE；去掉任何一处都应给出反例：     *)
+(* 七个布尔常量各对应一处保护，主配置全 TRUE；去掉任何一处都应给出反例：     *)
 (*   SameCommit     —— 确认的重判、落地与终结记录落在同一动作里（S-18）。    *)
 (*   ConfirmRecheck —— 确认时现读发起者资格与边界（S-17）。                  *)
 (*   UseTimeCheck   —— 每次使用现读关系（S-9、S-31）；FALSE 时只看一个由     *)
@@ -25,9 +26,12 @@
 (*                     成员关系，建立时刻都不晚于确认时刻（不复活）。        *)
 (*   LayerCheck     —— 发起时的落点判定（S-49）。                           *)
 (*   ConfirmerCheck —— 组织型复制的确认者是目标组织的有效超管（S-22）。      *)
+(*   SourceEndCheck —— 删除与提升的那一次提交里，以那份资产为资产的全部    *)
+(*                     active 分享一并写 revoked（S-52）。                 *)
 (* MaxClock 是规模上界，不是契约性质：隶属建立与重新加入合计至多这么多次。   *)
 (* Scene 把复制与分享两组场景分开检查（合在一起的状态空间超出登记任务的时限）；*)
-(* 两组共享同一个环境（隶属、成员关系、时间、资产移除），互不交互。          *)
+(* 两组共享同一个环境（隶属、成员关系、时间、资产移除），互不交互；删除与   *)
+(* 提升只在分享那一组里走（对复制那一组，它们与「移除」效果相同）。          *)
 (*                                                                         *)
 (* 本模型**不**表达的（各有自己的证据形式，见 ../../verification.md）：      *)
 (*   覆盖不碰配值（S-41，写集合的约束在模型里是 UNCHANGED，被建模方式吸收）； *)
@@ -44,6 +48,7 @@ CONSTANTS
     SinceCheck,       \* BOOLEAN（S-9 第三个合取项）
     LayerCheck,       \* BOOLEAN（S-49）
     ConfirmerCheck,   \* BOOLEAN（S-22）
+    SourceEndCheck,   \* BOOLEAN（S-52）
     MaxClock,         \* 自然数：规模上界
     Scene             \* "copy" 或 "share"：两组场景分开检查
 
@@ -54,7 +59,7 @@ None == "none"
 (*   A1 = (t1, a) 超管   A2 = (t2, a) 普通成员                              *)
 (*   B1 = (t1, b) 普通成员   B2 = (t2, b) 超管                              *)
 (* 角色不变；A1、B1 的成员关系会解除与重新建立，A2、B2 恒有效。              *)
-(* 两份资产：x 在 t1 组织级；w 在 A1 的租户级。                              *)
+(* 两份资产：x 在 t1 组织级；w 在 A1 的租户级（A1 可以把它提升到 t1）。     *)
 (*                                                                         *)
 (* 待确认件：c1、c2——组织型复制通知，x → t2 组织级（A1 发起，同源同落点，  *)
 (*   才测得出首次被判两次）；s1、s2——组织—组织分享邀请，x → t2（同一对，    *)
@@ -86,6 +91,7 @@ OfferStates == {"unissued", "pending", "accepted", "withdrawn"}
 (* 撤销与移除在模型里是同一个终态记录 "ended"：两者只差写下者（S-28 / S-29）。 *)
 RecStates   == {"none", "active", "ended"}
 Stages      == {"no", "first", "repeat", "new", "twin"}
+SrcStates   == {"held", "removed", "promoted", "deleted"}
 
 VARIABLES
     parent,    \* Team -> Team \cup {None}：上级组织属性（环境）
@@ -93,7 +99,9 @@ VARIABLES
     member,    \* Mutable -> BOOLEAN：成员关系此刻有效（环境）
     effSince,  \* Mutable -> Nat：成员关系最近一次成为有效的时刻
     clock,     \* 逻辑时钟：只在隶属建立与重新加入时前进
-    live,      \* Assets -> BOOLEAN：S-7 的指向对象此刻存在；一旦 FALSE 不回来
+    src,       \* Assets -> SrcStates：那份资产此刻怎样。"held"：S-7 的指向对象此刻存在；
+               \*   "removed"：所有者那一层移除了它；"promoted"：提升到组织、所有者易手；
+               \*   "deleted"：记录被删除。离开 "held" 之后不回来（标识不复用、所有者至多变一次）
     off,       \* Offers -> OfferStates
     late,      \* Offers -> BOOLEAN：now > expiresAt
     staged,    \* (Offers \cup Owns) -> Stages：拆步时第一步的判定（仅 ~SameCommit）
@@ -104,7 +112,7 @@ VARIABLES
     mat,       \* Recs -> BOOLEAN：「已记为解除」标记（仅 ~UseTimeCheck）
     leak       \* 历史：发生过的违反种类
 
-vars == <<parent, affSince, member, effSince, clock, live, off, late, staged,
+vars == <<parent, affSince, member, effSince, clock, src, off, late, staged,
           linO2, linA2, sh, conf, mat, leak>>
 
 (****************************** 派生 ***************************************)
@@ -156,8 +164,15 @@ Effective(s) == sh[s] = "active" /\ Rel(s) /\ (SinceCheck => ~Stale(s))
 (* S-8：同一 (资产, 被分享方那一层) 此刻已有一份生效的分享。模型里只有 s1、s2 同对。 *)
 LiveTwin(o) == \E s \in Invites : s # o /\ {s, o} = {"s1", "s2"} /\ Effective(s)
 
+(* S-7 的存在性：记录在、所有者那一层此刻持有发起时那一份。移除、提升（所有者  *)
+(* 那一层换成 t1 的组织级，它不持有发起时那一份）、删除都使它为假，且不回来。   *)
+Live(a) == src[a] = "held"
+
+(* S-52：分享跟随的那份资产已不归分享方——被删除，或所有权易手。               *)
+Gone(a) == src[a] \in {"promoted", "deleted"}
+
 (* data.offer-expiry/v1#S-8：时间到，或指向的对象不存在。 *)
-Expired(o) == late[o] \/ ~live[AssetOf(o)]
+Expired(o) == late[o] \/ ~Live(AssetOf(o))
 
 (* S-22 / S-26 再判：发起者仍是有效成员（A1 的超管身份不变）、关系仍成立。 *)
 CopyOK      == Member("A1") /\ TreeRel
@@ -166,7 +181,7 @@ ShareOK(o)  == IF o = "s3" THEN Member("A1") /\ Member("B1")
 Ok(o)       == IF o \in Copies THEN CopyOK ELSE ShareOK(o)
 
 (* S-20 本人型：源侧与目标侧成员资格有效、同树、源还在。 *)
-OwnOK == live["w"] /\ Member("A1") /\ Member("A2") /\ TreeRel
+OwnOK == Live("w") /\ Member("A1") /\ Member("A2") /\ TreeRel
 
 TargetAdmin(who) == OrgOf(who) = "t2" /\ IsAdmin(who)
 
@@ -176,7 +191,7 @@ TypeOK ==
     /\ member   \in [Mutable -> BOOLEAN]
     /\ effSince \in [Mutable -> 0..MaxClock]
     /\ clock    \in 0..MaxClock
-    /\ live     \in [Assets -> BOOLEAN]
+    /\ src      \in [Assets -> SrcStates]
     /\ off      \in [Offers -> OfferStates]
     /\ late     \in [Offers -> BOOLEAN]
     /\ staged   \in [Offers \cup Owns -> Stages]
@@ -186,7 +201,7 @@ TypeOK ==
     /\ conf     \in [Recs -> 0..MaxClock]
     /\ mat      \in [Recs -> BOOLEAN]
     /\ leak     \subseteq {"accept", "copy", "use", "ended", "revived",
-                           "foreign", "orgbypass"}
+                           "foreign", "orgbypass", "gone"}
 
 Init ==
     /\ parent   = [t \in Team |-> None]
@@ -194,7 +209,7 @@ Init ==
     /\ member   = [x \in Mutable |-> TRUE]
     /\ effSince = [x \in Mutable |-> 0]
     /\ clock    = 0
-    /\ live     = [a \in Assets |-> TRUE]
+    /\ src      = [a \in Assets |-> "held"]
     /\ off      = [o \in Offers |-> "unissued"]
     /\ late     = [o \in Offers |-> FALSE]
     /\ staged   = [o \in Offers \cup Owns |-> "no"]
@@ -215,7 +230,7 @@ Affiliate(c, p) ==
     /\ clock'    = clock + 1
     /\ parent'   = [parent EXCEPT ![c] = p]
     /\ affSince' = [affSince EXCEPT ![c] = clock + 1]
-    /\ UNCHANGED <<member, effSince, live, off, late, staged, linO2, linA2,
+    /\ UNCHANGED <<member, effSince, src, off, late, staged, linO2, linA2,
                    sh, conf, mat, leak>>
 
 (* organization-governance/v1#S-33：任一方单方面解除。 *)
@@ -223,14 +238,14 @@ Dissolve(c) ==
     /\ parent[c] # None
     /\ parent'   = [parent EXCEPT ![c] = None]
     /\ affSince' = [affSince EXCEPT ![c] = 0]
-    /\ UNCHANGED <<member, effSince, clock, live, off, late, staged, linO2,
+    /\ UNCHANGED <<member, effSince, clock, src, off, late, staged, linO2,
                    linA2, sh, conf, mat, leak>>
 
 (* organization-governance/v1#S-29 / #S-25：退出与再加入（同一租户身份）。 *)
 Leave(x) ==
     /\ member[x]
     /\ member' = [member EXCEPT ![x] = FALSE]
-    /\ UNCHANGED <<parent, affSince, effSince, clock, live, off, late, staged,
+    /\ UNCHANGED <<parent, affSince, effSince, clock, src, off, late, staged,
                    linO2, linA2, sh, conf, mat, leak>>
 
 Rejoin(x) ==
@@ -239,7 +254,7 @@ Rejoin(x) ==
     /\ clock'    = clock + 1
     /\ member'   = [member EXCEPT ![x] = TRUE]
     /\ effSince' = [effSince EXCEPT ![x] = clock + 1]
-    /\ UNCHANGED <<parent, affSince, live, off, late, staged, linO2, linA2,
+    /\ UNCHANGED <<parent, affSince, src, off, late, staged, linO2, linA2,
                    sh, conf, mat, leak>>
 
 (* 时间走过 expiresAt。 *)
@@ -248,25 +263,58 @@ Tick(o) ==
     /\ off[o] = "pending"
     /\ ~late[o]
     /\ late' = [late EXCEPT ![o] = TRUE]
-    /\ UNCHANGED <<parent, affSince, member, effSince, clock, live, off,
+    /\ UNCHANGED <<parent, affSince, member, effSince, clock, src, off,
                    staged, linO2, linA2, sh, conf, mat, leak>>
 
-(* 指向的资产被所有者那一层移除或删除（S-7）；标识不复用，不回来。 *)
+(* 指向的资产被所有者那一层移除（S-7）；复制那一组里它同时代表删除。不回来。  *)
+(* 移除不结束已确认的分享：记录还在，分享跟随的仍是分享方当前发布的那一版。   *)
 RemoveAsset(a) ==
-    /\ live[a]
-    /\ live' = [live EXCEPT ![a] = FALSE]
+    /\ src[a] = "held"
+    /\ src' = [src EXCEPT ![a] = "removed"]
     /\ UNCHANGED <<parent, affSince, member, effSince, clock, off, late,
                    staged, linO2, linA2, sh, conf, mat, leak>>
+
+(* S-52 的写集合：以 a 为资产的全部 active 分享（含派生为 dissolved 的）写结束。*)
+EndOf(a)   == [s \in Recs |-> IF AssetOf(s) = a /\ sh[s] = "active" THEN "ended" ELSE sh[s]]
+ConfOf(a)  == [s \in Recs |-> IF AssetOf(s) = a /\ sh[s] = "active" THEN 0 ELSE conf[s]]
+
+(* capability.asset-governance/v1#S-28 删除：记录不再存在。SourceEndCheck：同一次 *)
+(* 提交里以它为资产的全部 active 分享写 revoked（原因 sourceDeleted，S-52）。     *)
+DeleteAsset(a) ==
+    /\ ShareScene
+    /\ src[a] # "deleted"
+    /\ src' = [src EXCEPT ![a] = "deleted"]
+    /\ IF SourceEndCheck
+          THEN /\ sh'   = EndOf(a)
+               /\ conf' = ConfOf(a)
+          ELSE UNCHANGED <<sh, conf>>
+    /\ UNCHANGED <<parent, affSince, member, effSince, clock, off, late,
+                   staged, linO2, linA2, mat, leak>>
+
+(* capability.asset-governance/v1#S-27 提升：A1 把他租户级的 w 提升到 t1，所有者 *)
+(* 易手，至多一次、不可逆。提升不被分享挡住（S-8）。SourceEndCheck：同一次提交 *)
+(* 里 A1 作为分享方的全部 active 分享写 revoked（原因 ownerChanged，S-52）。     *)
+Promote ==
+    /\ ShareScene
+    /\ src["w"] \in {"held", "removed"}
+    /\ Member("A1")
+    /\ src' = [src EXCEPT !["w"] = "promoted"]
+    /\ IF SourceEndCheck
+          THEN /\ sh'   = EndOf("w")
+               /\ conf' = ConfOf("w")
+          ELSE UNCHANGED <<sh, conf>>
+    /\ UNCHANGED <<parent, affSince, member, effSince, clock, off, late,
+                   staged, linO2, linA2, mat, leak>>
 
 (************************ 组织型与邀请：发起与撤回 **************************)
 (* S-20 组织型 / S-24 组织—组织、组织内：发起时判边界与资格。 *)
 Issue(o) ==
     /\ o \in SceneOffers
     /\ off[o] = "unissued"
-    /\ live[AssetOf(o)]
+    /\ Live(AssetOf(o))
     /\ Ok(o)
     /\ off' = [off EXCEPT ![o] = "pending"]
-    /\ UNCHANGED <<parent, affSince, member, effSince, clock, live, late,
+    /\ UNCHANGED <<parent, affSince, member, effSince, clock, src, late,
                    staged, linO2, linA2, sh, conf, mat, leak>>
 
 (* S-21 / S-25：已过期的不写终结记录。 *)
@@ -274,7 +322,7 @@ Withdraw(o) ==
     /\ off[o] = "pending"
     /\ ~Expired(o)
     /\ off' = [off EXCEPT ![o] = "withdrawn"]
-    /\ UNCHANGED <<parent, affSince, member, effSince, clock, live, late,
+    /\ UNCHANGED <<parent, affSince, member, effSince, clock, src, late,
                    staged, linO2, linA2, sh, conf, mat, leak>>
 
 (******************************* 确认 **************************************)
@@ -289,7 +337,7 @@ ConfirmCopy(o, who) ==
     /\ linO2' = IF linO2 = 0 THEN 1 ELSE linO2
     /\ leak'  = leak \cup (IF CopyOK THEN {} ELSE {"copy"})
                      \cup (IF TargetAdmin(who) THEN {} ELSE {"orgbypass"})
-    /\ UNCHANGED <<parent, affSince, member, effSince, clock, live, late,
+    /\ UNCHANGED <<parent, affSince, member, effSince, clock, src, late,
                    staged, linA2, sh, conf, mat>>
 
 (* S-26：分享确认。同一对已有生效的就认回，否则新建，确认时刻记下。       *)
@@ -303,7 +351,7 @@ ConfirmShare(o) ==
           THEN UNCHANGED <<sh, conf>>
           ELSE /\ sh'   = [sh EXCEPT ![o] = "active"]
                /\ conf' = [conf EXCEPT ![o] = clock]
-    /\ UNCHANGED <<parent, affSince, member, effSince, clock, live, late,
+    /\ UNCHANGED <<parent, affSince, member, effSince, clock, src, late,
                    staged, linO2, linA2, mat, leak>>
 
 (* ~SameCommit：第一步读、判定并记下打算做什么；第二步照记下的写，不再复查。 *)
@@ -318,7 +366,7 @@ ConfirmBegin(o) ==
                     IF o \in Copies
                        THEN IF linO2 = 0 THEN "first" ELSE "repeat"
                        ELSE IF LiveTwin(o) THEN "twin" ELSE "new"]
-    /\ UNCHANGED <<parent, affSince, member, effSince, clock, live, off, late,
+    /\ UNCHANGED <<parent, affSince, member, effSince, clock, src, off, late,
                    linO2, linA2, sh, conf, mat, leak>>
 
 ConfirmEnd(o) ==
@@ -332,7 +380,7 @@ ConfirmEnd(o) ==
     /\ sh'     = IF staged[o] = "new" THEN [sh EXCEPT ![o] = "active"] ELSE sh
     /\ conf'   = IF staged[o] = "new" THEN [conf EXCEPT ![o] = clock] ELSE conf
     /\ staged' = [staged EXCEPT ![o] = "no"]
-    /\ UNCHANGED <<parent, affSince, member, effSince, clock, live, late,
+    /\ UNCHANGED <<parent, affSince, member, effSince, clock, src, late,
                    linA2, mat>>
 
 (************************** 本人型：发起即落地 ******************************)
@@ -346,7 +394,7 @@ OwnCopy(tgt) ==
     /\ linA2' = IF tgt = "A2" /\ linA2 = 0 THEN 1 ELSE linA2
     /\ leak'  = leak \cup (IF tgt = "B2" THEN {"foreign"} ELSE {})
                      \cup (IF tgt = "O2" THEN {"orgbypass"} ELSE {})
-    /\ UNCHANGED <<parent, affSince, member, effSince, clock, live, off, late,
+    /\ UNCHANGED <<parent, affSince, member, effSince, clock, src, off, late,
                    staged, linO2, sh, conf, mat>>
 
 (* ~SameCommit 下的本人型复制：拆成读—写两步（只为同落点序列化的核对）。 *)
@@ -356,7 +404,7 @@ OwnBegin(k) ==
     /\ staged[k] = "no"
     /\ OwnOK
     /\ staged' = [staged EXCEPT ![k] = IF linA2 = 0 THEN "first" ELSE "repeat"]
-    /\ UNCHANGED <<parent, affSince, member, effSince, clock, live, off, late,
+    /\ UNCHANGED <<parent, affSince, member, effSince, clock, src, off, late,
                    linO2, linA2, sh, conf, mat, leak>>
 
 OwnEnd(k) ==
@@ -364,7 +412,7 @@ OwnEnd(k) ==
     /\ linA2'  = IF staged[k] = "first" THEN linA2 + 1 ELSE linA2
     /\ leak'   = leak \cup (IF OwnOK THEN {} ELSE {"copy"})
     /\ staged' = [staged EXCEPT ![k] = "no"]
-    /\ UNCHANGED <<parent, affSince, member, effSince, clock, live, off, late,
+    /\ UNCHANGED <<parent, affSince, member, effSince, clock, src, off, late,
                    linO2, sh, conf, mat>>
 
 (* S-24 本人型分享：w → tgt，发起即成立。一段本人型分享在模型里只建一次；   *)
@@ -383,7 +431,7 @@ OwnShare(tgt) ==
                /\ UNCHANGED leak
           ELSE /\ leak' = leak \cup {"foreign"}
                /\ UNCHANGED <<sh, conf>>
-    /\ UNCHANGED <<parent, affSince, member, effSince, clock, live, off, late,
+    /\ UNCHANGED <<parent, affSince, member, effSince, clock, src, off, late,
                    staged, linO2, linA2, mat>>
 
 (***************************** 分享的结束与使用 *****************************)
@@ -392,18 +440,20 @@ EndSharing(s) ==
     /\ sh[s] = "active"
     /\ sh'   = [sh EXCEPT ![s] = "ended"]
     /\ conf' = [conf EXCEPT ![s] = 0]
-    /\ UNCHANGED <<parent, affSince, member, effSince, clock, live, off, late,
+    /\ UNCHANGED <<parent, affSince, member, effSince, clock, src, off, late,
                    staged, linO2, linA2, mat, leak>>
 
 (* 一次使用（求值时认这份持有）。UseTimeCheck：按 S-9 现读；否则只看标记。 *)
-(* 使用只在违反时留下历史：越出那棵树、某一端的成员关系已解除、断过又接上。*)
+(* 使用只在违反时留下历史：越出那棵树、某一端的成员关系已解除、断过又接上、 *)
+(* 跟随的资产已被删除或已不归分享方。                                     *)
 Use(s) ==
     /\ IF UseTimeCheck THEN Effective(s) ELSE (sh[s] = "active" /\ ~mat[s])
     /\ leak' = leak
                \cup (IF s \in {"s1", "s2", "o1"} /\ ~TreeRel THEN {"use"} ELSE {})
                \cup (IF ~MemberRel(s) THEN {"ended"} ELSE {})
                \cup (IF Stale(s) THEN {"revived"} ELSE {})
-    /\ UNCHANGED <<parent, affSince, member, effSince, clock, live, off, late,
+               \cup (IF Gone(AssetOf(s)) THEN {"gone"} ELSE {})
+    /\ UNCHANGED <<parent, affSince, member, effSince, clock, src, off, late,
                    staged, linO2, linA2, sh, conf, mat>>
 
 (* 仅 ~UseTimeCheck：对「关系已断」的事件反应，可能发生也可能永远不发生。 *)
@@ -413,7 +463,7 @@ Materialize(s) ==
     /\ ~Rel(s)
     /\ ~mat[s]
     /\ mat' = [mat EXCEPT ![s] = TRUE]
-    /\ UNCHANGED <<parent, affSince, member, effSince, clock, live, off, late,
+    /\ UNCHANGED <<parent, affSince, member, effSince, clock, src, off, late,
                    staged, linO2, linA2, sh, conf, leak>>
 
 Next ==
@@ -424,7 +474,8 @@ Next ==
                          \/ ConfirmBegin(o) \/ ConfirmEnd(o)
     \/ \E o \in Copies, who \in {"A1", "A2", "B2"} : ConfirmCopy(o, who)
     \/ \E o \in Invites : ConfirmShare(o)
-    \/ \E a \in Assets : RemoveAsset(a)
+    \/ \E a \in Assets : RemoveAsset(a) \/ DeleteAsset(a)
+    \/ Promote
     \/ \E tgt \in {"A2", "B2", "O2"} : OwnCopy(tgt)
     \/ \E k \in Owns : OwnBegin(k) \/ OwnEnd(k)
     \/ \E tgt \in {"A2", "B2"} : OwnShare(tgt)
@@ -460,6 +511,15 @@ AtMostOneLineageTarget == linO2 <= 1 /\ linA2 <= 1
 
 (* S-8 / S-18：同一 (资产, 被分享方那一层) 至多一份生效的分享。 *)
 AtMostOneLiveSharingPerPair == ~(Effective("s1") /\ Effective("s2"))
+
+(* S-52：跟随的资产被删除或所有权易手之后，没有一份以它为资产的分享记录仍为   *)
+(* active——既包括那一刻已有的（同一次提交里写结束），也包括此后才会被确认或  *)
+(* 发起的（S-7 的存在性已为假，确认与本人型发起都过不去）。                   *)
+SharingEndsWithSource ==
+    \A s \in Recs : Gone(AssetOf(s)) => sh[s] # "active"
+
+(* S-52 在使用点上的形式：那样的分享不被使用。 *)
+NoUseAfterSourceGone == "gone" \notin leak
 
 (* S-7：效果只来自一次确认（邀请产生的分享、组织型复制的落地）。 *)
 EffectsOnlyFromConfirmation ==

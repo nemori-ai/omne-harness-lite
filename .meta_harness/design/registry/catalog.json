@@ -224,6 +224,103 @@
     {
       "coordinate": {
         "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "capability.organization-governance",
+        "version": 2
+      },
+      "family": "capabilities",
+      "topic": "organization-governance",
+      "status": "candidate",
+      "contract_path": "spec/capabilities/organization-governance/v2/contract.md",
+      "resources": [
+        "spec/capabilities/organization-governance/v2/contract.md"
+      ],
+      "acceptance": null,
+      "dependencies": [
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.identity-values",
+            "version": 1
+          },
+          "clauses": [
+            "S-1",
+            "S-3",
+            "S-4",
+            "S-5",
+            "S-6",
+            "S-7",
+            "S-8",
+            "S-9",
+            "S-10",
+            "S-11",
+            "S-12",
+            "S-14",
+            "S-15",
+            "S-16",
+            "S-17",
+            "S-18",
+            "S-19",
+            "S-26",
+            "S-27",
+            "S-28",
+            "S-29",
+            "S-30",
+            "S-31",
+            "S-32",
+            "S-33",
+            "S-34",
+            "S-35"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.offer-expiry",
+            "version": 1
+          },
+          "clauses": [
+            "S-2",
+            "S-4",
+            "S-5",
+            "S-6",
+            "S-7",
+            "S-8",
+            "S-9",
+            "S-10",
+            "S-11",
+            "S-12",
+            "S-13",
+            "S-14",
+            "S-16",
+            "S-17",
+            "S-18",
+            "S-19",
+            "S-20"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "capability.account-identity",
+            "version": 1
+          },
+          "clauses": [
+            "S-14",
+            "S-17",
+            "S-18",
+            "S-20",
+            "S-22",
+            "S-38"
+          ],
+          "rebase_relation": null
+        }
+      ]
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
         "contract_id": "composition.account-registration",
         "version": 1
       },
@@ -1034,7 +1131,9 @@
         "spec/capabilities/asset-transfer/v1/formal/Transfer_NoSinceCheck_Use.cfg",
         "spec/capabilities/asset-transfer/v1/formal/Transfer_NoLayerCheck.cfg",
         "spec/capabilities/asset-transfer/v1/formal/Transfer_NoLayerCheck_Share.cfg",
-        "spec/capabilities/asset-transfer/v1/formal/Transfer_NoConfirmerCheck.cfg"
+        "spec/capabilities/asset-transfer/v1/formal/Transfer_NoConfirmerCheck.cfg",
+        "spec/capabilities/asset-transfer/v1/formal/Transfer_NoSourceEnd.cfg",
+        "spec/capabilities/asset-transfer/v1/formal/Transfer_NoSourceEnd_Record.cfg"
       ],
       "acceptance": null,
       "dependencies": [
@@ -1042,17 +1141,20 @@
           "coordinate": {
             "baseline_id": "omne-harness-lite-design-2026-09-15",
             "contract_id": "capability.organization-governance",
-            "version": 1
+            "version": 2
           },
           "clauses": [
             "S-6",
+            "S-7",
+            "S-8",
             "S-12",
             "S-22",
             "S-26",
             "S-33",
             "S-34",
             "S-38",
-            "S-40"
+            "S-40",
+            "S-59"
           ],
           "rebase_relation": null
         },
@@ -1121,12 +1223,14 @@
             "S-25",
             "S-26",
             "S-27",
+            "S-28",
             "S-30",
             "S-31",
             "S-42",
             "S-43",
             "S-46",
-            "S-48"
+            "S-48",
+            "S-64"
           ],
           "rebase_relation": null
         },
@@ -1412,6 +1516,17 @@
             "S-31"
           ],
           "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "capability.asset-evaluation",
+            "version": 1
+          },
+          "clauses": [
+            "S-23"
+          ],
+          "rebase_relation": null
         }
       ]
     },
@@ -1444,7 +1559,6 @@
             "S-8",
             "S-10",
             "S-12",
-            "S-15",
             "S-17",
             "S-18",
             "S-27",

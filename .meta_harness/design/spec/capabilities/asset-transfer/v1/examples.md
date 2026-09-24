@@ -1,7 +1,7 @@
 # 规范实例：走通的路径与每个失败值的反例
 
 属于 `capability.asset-transfer` v1 的规范工件。本契约**不附 Schema**，所以这里的实例不是形状校验用例，
-而是**操作层面的输入 → 预期结果 → 依据条款**：前八节各走通一条路径，第九节给每个失败值一个反例。
+而是**操作层面的输入 → 预期结果 → 依据条款**：前八节与第十节各走通一条路径，第九节给每个失败值一个反例。
 
 **两条读法上的边界：**
 
@@ -46,6 +46,8 @@ A 把个人组织里 skill `ast_x`（所有者 `P_A`，已发布 v1、v3）的 *
 | 2 | 观察 `ast_y` | 记录号不变；**v2** 内容整体等于 `ast_x` 的 v4；v1 仍在、可查可回退；血缘 `lineage=ln_1` **不变**，`sourceVersion=4`、`imports=2` | [S-10](contract.md#s-10-复制血缘怎么判怎么记) |
 | 3 | 观察 A 那层的持有与配值 | **那一项配值与锁照旧**；持有照旧 | [S-11](contract.md#s-11-复制的收场)、[§6.7](../../../../product/PF-003-asset-transfer-and-sharing/design.md#67-覆盖的范围内容覆盖配置不动) |
 
+**带尝试键的重放**（[S-20](contract.md#s-20-发起复制) ⑦）：第 1 步若带键 `k_1` 发起、回执丢了，A 用 `k_1` 再调一次 ⇒ 返回**同一个** `landed{ overwritten{ newVersion=2 } }`，`ast_y` **没有 v3**；不带键再调 ⇒ 一次新的重复复制，`ast_y` 多出 v3（`imports=3`）。
+
 ## 3. 撞标识无血缘 = 新增；血缘只在落进的那一层里找
 
 `C2` 自己做过一份与 `ast_x` 同能力标识的 `ast_c2`，并在组织层持有它。第 1 节末尾 A 已把 `ast_x` 复制进 `{org:C2}`（`ast_z`）——那一次就是撞标识无血缘。
@@ -64,7 +66,7 @@ A 把个人组织里 skill `ast_x`（所有者 `P_A`，已发布 v1、v3）的 *
 |---|---|---|---|
 | 1 | `issueCopyNotice((G,R), {ast_m, 2}, {org:C1})` | `pending{ cn_1 }` | [S-20](contract.md#s-20-发起复制) 组织型；[S-49](contract.md#s-49-方向与落点矩阵逐格) 复制表第四行 |
 | 2 | `listPendingForOrganization((C1,T), {org:C1})` | 一项：复制通知 `cn_1` 与它的 `OfferTiming`；**不带内容、不带源** | [S-48](contract.md#s-48-列出组织收到的待确认件) |
-| 3 | `readCopyNotice((C1,T), cn_1)` | 目标侧投影：能力标识、源版本号 2、v2 的内容、`pending`、**此刻确认会是首次**；**没有 `ast_m`、没有 `G`**（源组织给不给看待 [G-13](contract.md#十一已知缺口)） | [S-23](contract.md#s-23-读复制通知) |
+| 3 | `readCopyNotice((C1,T), cn_1)` | 目标侧投影：**源组织 `G`**、能力标识、源版本号 2、v2 的内容、`pending`、**此刻确认会是首次**；**没有 `ast_m`**，也没有 `ast_m` 的其余版本与草稿、没有 R | [S-23](contract.md#s-23-读复制通知) ⑤ |
 | 4 | `confirmCopy((C1,T), cn_1)` | `created{ asset=ast_k, 已取得持有 }` | [S-22](contract.md#s-22-确认复制) |
 | 5 | 观察 `ast_k` | 所有者 `C1`；**作者 `(C1, T)`**——确认的那位超管；血缘 `importedBy=(C1,T)` | [S-11](contract.md#s-11-复制的收场)、[§6.5](../../../../product/PF-003-asset-transfer-and-sharing/design.md#65-首次复制) |
 | 6 | `C1` 的普通成员 `(C1,B)` 调 `confirmCopy` | `notPermitted` | [S-22](contract.md#s-22-确认复制) ⑥ |
@@ -83,7 +85,7 @@ A 把个人组织里 skill `ast_x`（所有者 `P_A`，已发布 v1、v3）的 *
 | 6 | 观察 `C1` | 下一次使用被拒；**`C1` 那层的持有与配值还在**，不可用 | [S-9](contract.md#s-9-分享此刻是否生效)、[S-28](contract.md#s-28-撤销分享) |
 | 7 | `removeShared((C1,T), sh_1)` | `ok`；`C1` 那份 shared 持有**连同配值**一起没了；`sh_1` 仍是 `revoked`，**不改写** | [S-29](contract.md#s-29-移除收到的分享) ⑦ |
 
-**在 [G-11](contract.md#十一已知缺口) 闭合之前**，第 3、6 步的「用到」一律以不可用收场——组织间分享的第三个合取项求不出。本节写的是闭合之后的预期。
+第 3 步的「用到」要求那一刻三个合取项都成立：第三个合取项读 `C1` 的隶属建立时刻（`capability.organization-governance/v2#S-22`），它不晚于 `sh_1` 的确认时刻（[S-9](contract.md#s-9-分享此刻是否生效)）。
 
 ## 6. 隶属解除之后：分享失效，复制留着，不复活
 
@@ -112,7 +114,8 @@ A 在 `C1` 的租户级有 tool `ast_t`（所有者 `(C1, A)`，已发布）。A
 | 6 | B 退出 `C1`，再重新加入 | `sh_4` 是 **`dissolved`**，重新加入之后**仍是**；B 用不上 | [S-32](contract.md#s-32-成员关系解除复制执行不了已确认的不动) |
 | 7 | B 试图把 `ast_t` 分享给 `(C1, D)`、复制出去 | `notTransitive`、`notTransitive` | [S-13](contract.md#s-13-发起者一侧的资产) |
 
-**本节受阻于 [G-14](contract.md#十一已知缺口)**（`data.asset-model` 还不允许租户格的 `shared`）与 [G-11](contract.md#十一已知缺口)（第 6 步的「重新加入仍不生效」要读成员关系生效时刻）。
+第 6 步的「重新加入仍不生效」读 B 的成员关系生效时刻（`capability.organization-governance/v2#S-59`，以 `(C1,B)` 自己为调用方）：重新加入把它改写成新的时刻，晚于 `sh_4` 的确认时刻。
+**第 4 步要等 `data.asset-model` 的修订落地**（[G-14](contract.md#十一已知缺口)，已交主线裁定 R2-10）：它的 v1 还不允许租户格的 `shared`。
 
 ## 8. 分享一个 plugin
 
@@ -146,4 +149,18 @@ A 在 `C1` 的租户级有 tool `ast_t`（所有者 `(C1, A)`，已发布）。A
 | `offerNoLongerValid` | 确认一份已过期的；**以及**确认一份已撤回的、再确认一份已确认的——**三者值逐字相同** | [S-19](contract.md#s-19-这一节每个操作写全九件事) 总表、`data.offer-expiry/v1#S-13` |
 | `alreadyConcluded` | 撤回第 4 节已确认的 `cn_1`；撤回一份已过期的——**两者值逐字相同，都不写终结记录** | [S-21](contract.md#s-21-撤回复制通知) ⑦ |
 | `notPermitted`（列表） | 普通成员 B 调 `listPendingForOrganization((C1,B), {org:C1})`——按层定位，不是 `noticeNotFound` | [S-48](contract.md#s-48-列出组织收到的待确认件) |
-| `unavailable` | 让 `C1`–`G` 的上级链读面不可用，再确认第 4 节那份通知——**不是 `outsideTree`**；或在 [G-11](contract.md#十一已知缺口) 闭合之前求值第 5 节那份 shared 持有——**不是可用** | [S-16](contract.md#s-16-缺席时的默认答案)、[S-12](contract.md#s-12-流转边界团队资产不出那棵树)、[S-9](contract.md#s-9-分享此刻是否生效) |
+| `unavailable` | 让 `C1`–`G` 的上级链读面不可用，再确认第 4 节那份通知——**不是 `outsideTree`**；或让 `C1` 的隶属建立时刻读不到，再求值第 5 节那份 shared 持有——**不是可用**，也不是 `dissolved`；或让尝试键登记读不到，再带键重放第 1 节的复制——**不是一次新的落地** | [S-16](contract.md#s-16-缺席时的默认答案)、[S-12](contract.md#s-12-流转边界团队资产不出那棵树)、[S-9](contract.md#s-9-分享此刻是否生效)、[S-20](contract.md#s-20-发起复制) ⑧ |
+
+## 10. 分享方删除与提升：分享随之结束
+
+接第 5 节第 2 步（`sh_1` 为 `active`，`C1` 组织层以 `shared{sh_1}` 持有 `ast_s` 并为它配过一项权限），并接第 7 节第 4 步（`sh_4` 为 `active`）。另设 A 在 `C1` 被授予了组织范围创作权。
+
+| 步 | 调用 | 预期 | 依据 |
+|---|---|---|---|
+| 1 | R 经资产治理删除 `ast_s`（先告知：`C1` 是持有方） | 删除 `ok`；**同一次提交里** `sh_1` 写 `revoked`，原因 `sourceDeleted`，写下者 `(G,R)`，时刻是删除那一刻 | [S-52](contract.md#s-52-分享方删除资产或所有权易手分享随之结束)；`capability.asset-governance/v1#S-28` |
+| 2 | `listSharings((C1,T), C1, 全部)` | `sh_1` 是 `revoked`、带 `sourceDeleted`；资产那一项答「已删除」 | [S-30](contract.md#s-30-列出组织的分享) ⑤ |
+| 3 | 观察 `C1` | 那份 shared 持有与配值**还在**、不可用；T 可以 `removeShared((C1,T), sh_1)` 把它们清掉，`sh_1` 仍是 `revoked`、不改写 | [S-52](contract.md#s-52-分享方删除资产或所有权易手分享随之结束)、[S-29](contract.md#s-29-移除收到的分享) ⑦ |
+| 4 | A 把 `ast_t` 提升到 `C1` 的组织级 | 提升 `ok`——**不因为有 `sh_4` 而被拒**；同一次提交里 `sh_4` 写 `revoked`，原因 `ownerChanged` | [S-52](contract.md#s-52-分享方删除资产或所有权易手分享随之结束)、[S-8](contract.md#s-8-分享)；`capability.asset-governance/v1#S-27` |
+| 5 | 观察 B | B 那层的持有留着、用不上；要用，是 `C1` 的新决定——经组织级资产在本组织里的使用授权给，不续旧的 `sh_4` | [S-52](contract.md#s-52-分享方删除资产或所有权易手分享随之结束) 末段 |
+
+**第 1 步受阻于 [G-15](contract.md#十一已知缺口)**（资产治理的删除还没把这一步列进它那次提交）；第 4、5 步随第 7 节受阻于 [G-14](contract.md#十一已知缺口)。
