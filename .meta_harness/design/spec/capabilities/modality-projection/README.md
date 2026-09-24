@@ -4,7 +4,7 @@
 两件事共用同一个事实——**一个块有没有 [transcript](../../../ubiquitous_language/terms/record-and-context.md#ul-transcript--transcript--transcript)**：
 转换那一半在「消息落盘之前」决定它，[模态投影](../../../ubiquitous_language/terms/record-and-context.md#ul-modality-projection--模态投影--modality-projection)那一半在落盘之后读它，再由合法目标拿去判一份[模型档案](../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-profile--模型档案--model-profile)能不能用。
 
-> **目录名 `modality-projection` 是施工账本定的契约身份**；它实际拥有的还有[模态转换件](../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)的键、登记表与一次转换。
+> **目录名 `modality-projection` 是施工账本定的契约身份，它拥有两件事：投影判定 ＋ 转换件**——[模态投影](../../../ubiquitous_language/terms/record-and-context.md#ul-modality-projection--模态投影--modality-projection)与兼容判定，以及[模态转换件](../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)的键、登记表（查登记面 `lookupConverter`）与一次转换（主线裁定 2026-09-23，待产品负责人确认；账本 S17-h：身份沿用，改名收益不够）。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.modality-projection, 1)`
 - **状态**：`candidate`（2026-09-23 起草），**未经独立评审、未接受、未冻结**

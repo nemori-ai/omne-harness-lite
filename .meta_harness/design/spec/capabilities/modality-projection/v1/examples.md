@@ -153,8 +153,8 @@
 | 2 | 用户：只有文本 | **转换这一侧整个不可用** | `observed` | 照常落盘 | [S-22](contract.md#s-22-没有转换件输入的消息不依赖转换这一侧) |
 | 3 | 用户：文本 ＋ `img1` | 同上 | 按否决处置 | 没有这条消息；投影没变 | [S-21](contract.md#s-21-转换件不可用即转换失败) |
 | 4 | 工具：工具结果块里嵌 `img1` | 转成了 | `rewrite`：派生属性挂在**嵌着的那张图**上，工具结果块自己不动 | 带派生属性落盘 | [S-20](contract.md#s-20-一条消息在落盘之前的转换全有或全无) ①④ |
-| 5 | 工具说过程：`img1` `(T,F)` | `c_ocr` 起不来 | 按否决处置——**本版按字面也转只给人看的块** | 没有这条过程消息 | [S-20](contract.md#s-20-一条消息在落盘之前的转换全有或全无) ①；**这一行的结论等 [G-1](contract.md#十一已知缺口)** |
-| 6 | 模型回复：文本 ＋ 模型产出的一张图 | 转成了 | 应交回 `rewrite`——**但按主线裁定 D-5 那一格对模型回复只开否决**，这一行**本版走不通** | — | [S-20](contract.md#s-20-一条消息在落盘之前的转换全有或全无)；[G-2](contract.md#十一已知缺口) |
+| 5 | 工具说过程：`img1` `(T,F)` | `c_ocr` 起不来 | `observed`——**只给人看的块不转**，这一条与转换件在不在无关 | 照常落盘，`img1` 没有派生表示；投影没变 | [S-20](contract.md#s-20-一条消息在落盘之前的转换全有或全无) ①（账本 S17-e） |
+| 6 | 模型回复：文本 ＋ 模型产出的一张图 | 转成了 | `rewrite`：只在那张图上挂派生表示——对模型回复这是唯一许可的改动，只认系统模态转换件交回的 | 带派生属性落盘；模型说的话一字不改 | [S-20](contract.md#s-20-一条消息在落盘之前的转换全有或全无) ⑤；`data.loop-extension/v1#S-23`（账本 S17-c） |
 
 否决之后按产生者走哪一路（第 1、3 行是用户消息：拒绝这次请求并告知发送方）**不归本契约**，归 `capability.loop-extension-runner`。
 
@@ -178,10 +178,10 @@
 
 | 登记表 | 注册表做的事 | 预期 | 依据 |
 |---|---|---|---|
-| `{modality: image} → c_ocr` | `image ∉ P_text.inputModalities` ⇒ 查登记 `{modality: image}` | 「有」⇒ 这一项满足，`screenshot` 可用 | [S-19](contract.md#s-19-查登记服务面名待账本) |
-| 空 | 同上 | 「无」⇒ 不满足，`screenshot` 不可用（同名替换件那一套归注册表） | 同上 |
-| 尚未登记完 | 同上 | 「答不出」⇒ **按不满足处理**，不当「有」 | [S-19](contract.md#s-19-查登记服务面名待账本) ⑥ |
-| 只有 `{media_type: image/png} → c_png` | 同上 | 「无」——**只在一种媒体类型上有兜底，不等于这一种模态有兜底** | [S-19](contract.md#s-19-查登记服务面名待账本) 末段 |
+| `{modality: image} → c_ocr` | `image ∉ P_text.inputModalities` ⇒ `lookupConverter({modality: image})` | `{ registered }` ⇒ 这一项满足，`screenshot` 可用 | [S-19](contract.md#s-19-查登记-lookupconverter) |
+| 空 | 同上 | `{ unregistered }` ⇒ 不满足，`screenshot` 不可用（同名替换件那一套归注册表） | 同上 |
+| 尚未登记完 | 同上 | `{ unavailable }` ⇒ **按不满足处理**，不当 `{ registered }` | [S-19](contract.md#s-19-查登记-lookupconverter) ⑧ |
+| 只有 `{media_type: image/png} → c_png` | 同上 | `{ unregistered }`——**只在一种媒体类型上有兜底，不等于这一种模态有兜底** | [S-19](contract.md#s-19-查登记-lookupconverter) 末段 |
 
 **调用那一端不经本契约**：工具 `sketch-edit` 的参数里要一张图，`P_text.outputModalities = [text]` 不含 `image`——注册表拿两份数据自己比，只有有效模型满足得了（PF-006 §6.11）。
 **只用 [S-16](contract.md#s-16-兼容判定-compatible) 答不了结果那一端**：它不知道转换件。
