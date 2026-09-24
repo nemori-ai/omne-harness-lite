@@ -198,7 +198,7 @@
 2. 这块若在开着时被改过内容（[S-12](#s-12-被砍过内容的调用落成半截)），**不解析**，落成半截的调用。
 3. 否则按 JSON 解析一次：
    - **成功** ⇒ 完整的调用块（`data.content-blocks/v1#S-12`）：`complete: true`，`callId` 与 `tool` 取块头，`arguments` 是解析得到的值，`id` 与 `visibility` 取开块时说的；
-   - **失败** ⇒ 标了解析不了的调用块（[S-11](#s-11-参数收齐却解析不了只标记)）。
+   - **失败** ⇒ 解析不了的那一种调用块（[S-11](#s-11-参数收齐却解析不了只标记)，`data.content-blocks/v1#S-12`）。
 
 - **此后不再解析**：快照与收尾交出的都是封口那一下定下的那一块；**不从参数原文重算**。收尾时把它包进消息的宿主、执行它的一方，**直接用 `arguments`**。
 - **封口之前从不解析**：开着的调用块在快照里是原文，收尾时仍开着就落成半截的——[残缺的 JSON 解析出来的东西比解析失败更危险](../../../../product/PF-009-context-message-types/design.md#工具调用的参数收齐了才算数)。
@@ -206,10 +206,10 @@
 
 ### S-11 参数收齐却解析不了：只标记
 
-**参数收齐了（块已封口、开着时没被改过内容），JSON 解析却失败：装配把这块落成一个带原文、标了 `unparseable` 的调用块。**
+**参数收齐了（块已封口、开着时没被改过内容），JSON 解析却失败：装配把这块落成 `data.content-blocks/v1` [S-12](../../../data/content-blocks/v1/contract.md#s-12-完整的工具调用) 里「解析不了」的那一种**：
+`complete: true`，`callId` 与 `tool` 取块头，`rawArguments` 是参数原文（原样），`unparseable: true`，**不带 `arguments`**；`id` 与 `visibility` 取开块时说的（主线裁定 2026-09-23，待产品负责人确认；原 G-1）。
 
-- **它不是完整的调用**：没有可用的 `arguments`，`complete` 不是 `true`；**也不是半截的**：它收齐了。
-  它的形状由 `data.content-blocks` 的下一版给出（[G-1](#十已知缺口)）；**本版没有合法的块形状能装下它**。
+- **它收齐了、登记了，但没有可用的参数**：它不是解析成功的那一种，**也不是半截的**（半截的参数没收齐、不登记）。
 - **装配只做这一件事——标记**。**不发起执行、紧接一条 `outcome = failed` 的结果回给模型**，是宿主的义务（[S-28](#s-28-宿主要兑现的前提) 第五条，[G-2](#十已知缺口)）：
   一个恰好读不懂的调用，不能被当作没发生，也不能被猜一个参数去执行。
 - 规范场景：[S-32](#s-32-参数收齐却解析不了)。
@@ -231,7 +231,7 @@
 
 - 这份状态接受过 `account` 事件 ⇒ `usage`、`cost` 原样取那一步的（`data.arrival-events/v1#S-15`）。
 - **没接受过** ⇒ `usage` 四项全 `"unknown"`、`source: none`，`cost` 为 `cost_usd: "unknown"`、`source: none`——`data.call-accounts/v1#S-20` 那一份。**不记零、不估算、不借上一次的**：`"unknown"` 是一个值，不是零（`data.call-accounts/v1#S-4`）。
-- `trims` 是 [S-14](#s-14-砍的汇总) 的汇总。**它在模型侧的承载处还没有**（[G-3](#十已知缺口)）。
+- `trims` 是 [S-14](#s-14-砍的汇总) 的汇总。**模型侧由宿主写进这次发出的响应体 `trims`**（`data.model-response/v1` 的 [S-19](../../../data/model-response/v1/contract.md#s-19-用量与费用) 第 5 条；主线裁定 2026-09-23，待产品负责人确认，账本 S4-c；原 G-3）；一次也没砍时那边缺席、这边各项为 `0`，两种写法指同一件事。
 
 **工具侧**：`account = { frames: { emitted, trims } }`，就是 `ToolCallAccount.frames`（`data.call-accounts/v1#S-11`）的那一份——那次执行账的其余各项不来自这条流。
 
@@ -272,6 +272,7 @@ omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged
 **`firstContentAt` 是这份状态接受「第一个内容步骤」（`data.arrival-events/v1#S-21`）时的位置**；还没有这样的一步，它就缺席。
 
 - 内容步骤是**载荷非空的 `fill`**，或**没收到过填、封口块内容非空的块的 `close`**。**空载荷不算**：空串的填、空文本的封口、参数原文为空串的调用封口——判据是「交出了内容」，一个空串什么也没交出。
+- **零次填充就封口的块也算开口**（主线裁定 RP-26）：它的 `close` 就是那一步，只要封口块内容非空（`data.arrival-events/v1#S-21`）——记录里已经有一个完整的块。
 - **一经确定不再变**：之后的事件不改变它。
 - **本能力只给位置，不给时刻**：它没有时钟。宿主在 `accept` 交出的状态里第一次看到 `firstContentAt` 出现，那一刻就是[「已经开口说话了」](../../../../product/PF-013-model-profiles-and-invocation/design.md#已经开口说话了优先于其余各类)的时刻；据此判不判重发，归宿主与模型调用一侧。
 - 它同时出现在快照与收尾结果的 `ending` 里：前者给正在进行时的判断，后者给包消息时的「有没有内容到了用户眼前」。
@@ -400,7 +401,7 @@ omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged
 | `stream_not_finished` | 对没接受过 `finish` 的状态 `closeOut` | [S-21](#s-21-closeout收尾结算) |
 
 - **没有 `target_unknown`、`target_already_open`**：本能力不持有目标表，路由归宿主（[S-3](#s-3-本契约不拥有什么)）。
-- **没有「一条消息里 `id` 重复」的失败值**：`data.arrival-events/v1#S-24` 把这条语法规则交给了消费一侧，本版没有给它名字，它仍在消息落进日志的那一道边界上被拒（[G-6](#十已知缺口)）。**本能力不查它，也不据此修改标识。**
+- **没有「一条消息里 `id` 重复」的失败值**：`data.arrival-events/v1#S-24` 把这条语法规则交给了消费一侧，它在消息落进日志的那一道边界上被拒，值是 `data.messages/v1#S-39` 的 `block_id_duplicate`（账本 S4-d；原 G-6）。**本能力不查它，也不据此修改标识。**
 - **解析不了不是失败**：一个参数原文解析失败的调用块被**接受**，按 [S-11](#s-11-参数收齐却解析不了只标记) 标记。
 
 ### S-24 表示层拒绝值原名引用
@@ -479,7 +480,7 @@ omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged
 
 ### S-28 宿主要兑现的前提
 
-**本能力的每一条保证，都建立在持有状态的宿主兑现下面这几条之上**；宿主是模型请求运行时（块 C）与工具执行运行时（块 B），**两份契约都还没建立**（[G-2](#十已知缺口)）。在它们建立之前，这些是本契约**登记的前提**，不是已被谁承诺的保证。
+**本能力的每一条保证，都建立在持有状态的宿主兑现下面这几条之上**；宿主是 `capability.model-request-runtime` v1 与 `capability.tool-execution-runtime` v1（都是 candidate）；**两份契约都还没有逐条承诺这九条**（[G-2](#十已知缺口)）。在它们写出之前，这些是本契约**登记的前提**，不是已被谁承诺的保证。
 
 1. **路由**：一个目标恰一份状态；事件按目标交给那一份；**已收尾的目标不再开新状态**，它的迟到事件丢弃，不交给同一次调用的下一次发出（`data.arrival-events/v1#S-5`）。
 2. **串行**：同一份状态按事件的生产次序逐个 `accept`，每次都用上一次交出的新状态，**不让一份状态分叉**。
@@ -556,7 +557,7 @@ omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged
 #### S-32 参数收齐却解析不了
 
 一次模型回复开一个工具调用块，填入 `{"path": "a.md"` 后封口、正常收尾。
-**必须观察到**：`accept` 接受了那个封口；结果里那一块**标了 `unparseable`、带原文**，**不是 `complete: true`**，也不是半截的；
+**必须观察到**：`accept` 接受了那个封口；结果里那一块是**解析不了的那一种**（`complete: true`、`rawArguments` 为原文、`unparseable: true`、没有 `arguments`），不是解析成功的那一种，也不是半截的；
 宿主**没有发起执行**，紧接着有一条 `outcome = failed` 的结果回给模型（后一半的证据落在宿主契约，[G-2](#十已知缺口)）。
 
 #### S-33 被砍过内容的调用落成半截
@@ -638,12 +639,12 @@ omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged
 
 | # | 缺口 | 阻断谁 | owner |
 |---|---|---|---|
-| **G-1** | **标了 `unparseable` 的调用块没有形状**：主线已裁它是「带原文、标记解析失败」的调用块，形状由 `data.content-blocks` 下一版补（那份契约的 [G-3](../../../data/content-blocks/v1/contract.md#八已知缺口)）；它的标注取哪两位也随之定 | [S-11](#s-11-参数收齐却解析不了只标记) 交出的那一块在本版**没有合法的块形状**；宿主据它回 `failed` 结果 | **`data.content-blocks` 的下一版（对齐波）** |
-| **G-2** | **宿主契约未建立**：[S-28](#s-28-宿主要兑现的前提) 的九条前提没有一份契约承诺——尤其是「解析不了的调用不执行、回 `failed` 结果」「拒掉的增量说成 `rejected`」「一个目标一份状态、串行接受」 | 本能力的全部保证在真实组合里是否成立 | **模型请求运行时（块 C）与工具执行运行时（块 B）的契约** |
-| **G-3** | **模型侧的 `TrimSummary` 没有承载处**：`data.call-accounts` v1 只在 `ToolCallAccount.frames` 里有它，模型侧的 `ModelResponse` 没有这一栏 | 模型侧 `account.trims` 交出之后落不进任何记录——**砍了要说，说了却没处记** | **主线（对齐波）**：加进 `data.model-response` 或 `data.call-accounts` |
-| **G-4** | **快照的内容与词条、正文的列举不一致**：本契约按主线裁决让快照含开着的追加块的片段；[在途状态词条](../../../../ubiquitous_language/terms/record-and-context.md#ul-in-flight-arrival--在途状态--in-flight-arrival)与 [PF-009 §9.2](../../../../product/PF-009-context-message-types/design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息) 只列「已封口的块＋开着的整体替换块最后一次填的内容」 | 按词条实现快照的一方会丢掉已到的日志行 | **统一语言词条的维护者与 PF-009 的 owner**：对齐措辞 |
+| **G-1** | **已闭合（2026-09-24 整批对齐）**：解析不了的调用块的形状在 `data.content-blocks/v1#S-12`（`complete: true`、`rawArguments`、`unparseable: true`），[S-11](#s-11-参数收齐却解析不了只标记) 按它交出 | — | — |
+| **G-2** | **宿主契约没有逐条承诺 [S-28](#s-28-宿主要兑现的前提) 的九条**：`capability.model-request-runtime` v1、`capability.tool-execution-runtime` v1 已立（candidate），但路由与迟到事件丢弃、串行接受、拒掉的增量说成 `rejected`、解析不了的调用不执行并回 `failed`、`abandon` 的调用时机、快照与增量衔接，在两份里都没有对应条款 | 本能力的全部保证在真实组合里是否成立 | **两份宿主契约的起草者**（主线派；对齐波只核到「没有」为止） |
+| **G-3** | **已闭合（2026-09-24 整批对齐）**：模型侧 `TrimSummary` 的家是 `data.model-response` 的 `trims`（账本 S4-c） | — | — |
+| **G-4** | **快照的内容与词条、正文的列举不一致**：本契约按主线裁决让快照含开着的追加块的片段；[在途状态词条](../../../../ubiquitous_language/terms/record-and-context.md#ul-in-flight-arrival--在途状态--in-flight-arrival)与 [PF-009 §9.2](../../../../product/PF-009-context-message-types/design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息) 只列「已封口的块＋开着的整体替换块最后一次填的内容」 | 按词条实现快照的一方会丢掉已到的日志行 | **词条批**（UL-in-flight-arrival 出处复核，主线已点名）与 **PF-009 的 owner** |
 | **G-5** | **快照要不要带到此为止的砍的汇总**：中途重进的人现在看不到此前砍过什么（[S-7](#s-7-快照交出什么)） | 呈现一侧能不能对重进的人说「这块被截过」 | **PF-009 的 owner**（产品面：重进的人该看到什么） |
-| **G-6** | **一条消息里 `BlockId` 重复没有在流上被拒的失败值**（承 `data.arrival-events` v1 的 G-6） | 生产者给错 `id` 时，整条消息在落盘时被拒 | **主线**：是否给本能力加一个失败值 |
+| **G-6** | **已闭合（2026-09-24 整批对齐）**：一条消息里 `BlockId` 重复在落盘的接收边界上拒，值是 `data.messages/v1#S-39` 的 `block_id_duplicate`；本能力不另加失败值（账本 S4-d） | — | — |
 | **G-7** | **主线裁决的设计链落处**：[设计依据](#设计依据)下方点名的六项只在施工简报里，决定记录落地中 | 本契约接受时这几条的可追溯性 | **主线**：决定落地后把那几行改成链接 |
 
 ## 十一、明确不承诺
@@ -668,5 +669,5 @@ omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged
 [`formal/README.md`](formal/README.md) 拥有条款到模型的映射；两份有效性核对配置（[`formal/Assembly_OrderByClose.cfg`](formal/Assembly_OrderByClose.cfg)、[`formal/Assembly_ReplaceAsAppend.cfg`](formal/Assembly_ReplaceAsAppend.cfg)）**预期出反例、不登记为 formal task**。
 
 **发布后**：本目录下的规范正文、实例与模型不可原地覆盖；修改发布新版本。
-[已知缺口](#十已知缺口)任一项被裁决后，凡改变本契约语义的（G-1 给出形状而改变 [S-11](#s-11-参数收齐却解析不了只标记) 交出的值、G-5 让快照带汇总、G-6 加失败值），都出 **v2**；
-G-2 建立宿主契约、G-3 给出承载处、G-4 对齐措辞、G-7 补链接，**不改本契约语义**。
+[已知缺口](#十已知缺口)任一项在冻结之后被裁决，凡改变本契约语义的（G-5 让快照带汇总），都出 **v2**；
+G-2 宿主契约写出承诺、G-4 对齐措辞、G-7 补链接，**不改本契约语义**。冻结之前在本候选里原地改，每次改在[验证入口「变化的影响」](../verification.md#变化的影响)记一笔。

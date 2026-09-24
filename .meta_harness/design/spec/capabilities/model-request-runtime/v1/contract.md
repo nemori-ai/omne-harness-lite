@@ -379,7 +379,7 @@ DisplayList(会话)  ≝  LegalTargetSet(会话)  ∪  { 选中模型 }
 
 - 能一点点长的块（文本、思考、工具调用的参数、语音）：**第一片到了**；
 - 整个交出的块（图、文件）：**整块交出来了**；
-- **一个开了口、零次填充就封口的块，也算开口**——记录里已经有一个完整的块（主线裁定 RP-26；装配器侧的判据是 `capability.stream-assembly` v1 的 [S-16](../../stream-assembly/v1/contract.md#s-16-首个内容的位置)）；
+- **一个开了口、零次填充就封口的块，也算开口**，只要封口块内容非空（`data.arrival-events/v1#S-21`）——记录里已经有一个完整的块（主线裁定 RP-26；装配器侧的判据是 `capability.stream-assembly` v1 的 [S-16](../../stream-assembly/v1/contract.md#s-16-首个内容的位置)）；
 - **响应头到了不算；整交的块开了口还没交出来也不算**。
 
 **观察到首 token 就写「已开口」**（[S-15](#s-15-两个锚点先写后行)），响应体的 `timing.firstTokenAt` 与它一致（`data.model-response/v1#S-17`）。

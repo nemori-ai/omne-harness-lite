@@ -153,7 +153,7 @@
 
 - 思考块取封口块；调用块的 `callId`、`tool` 取块头，`id`、`visibility` 取开块，`arguments` 是解析得到的值。
 - 位置 5 之后取快照，调用块是 `{ "index": 1, "closed": false, …, "content": "{\"path\": " }`——**原文，不解析**。
-- 模型侧的 `trims` 此刻没有承载处（[G-3](contract.md#十已知缺口)）。
+- 模型侧的 `trims` 由宿主写进这次发出的响应体（`data.model-response/v1#S-19` 第 5 条）；这条流一次也没砍，那边缺席。
 
 ## 5. 失败值逐个
 
@@ -244,8 +244,12 @@
 | 3 | `{"t": "close", "index": 0}` | 3 |
 | 4 | `{"t": "finish", "reason": "end"}` | 4 |
 
-位置 3 的封口**被接受**；参数原文 `{"path": "a.md"`（少一个 `}`）解析失败 ⇒ 这一块是**标了 `unparseable`、带原文 `{"path": "a.md"` 的调用块**，
-不是 `complete: true`，也不是半截的。**它的精确形状本版没有**（[G-1](contract.md#十已知缺口)），此处不给 JSON。
+位置 3 的封口**被接受**；参数原文 `{"path": "a.md"`（少一个 `}`）解析失败 ⇒ 这一块是 `data.content-blocks/v1#S-12` 里**解析不了的那一种**，不是解析成功的那一种，也不是半截的：
+
+```json
+{ "id": "b_1", "kind": "tool_call", "visibility": { "toHuman": true, "toModel": true }, "complete": true, "callId": "call_4", "tool": "read_file", "rawArguments": "{\"path\": \"a.md\"", "unparseable": true }
+```
+
 宿主**不执行它**，紧接一条 `outcome = failed` 的结果回给模型（[S-28](contract.md#s-28-宿主要兑现的前提) 第五条）。
 
 **7b 开着时被砍过内容**（[S-12](contract.md#s-12-被砍过内容的调用落成半截)）：
