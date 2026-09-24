@@ -764,11 +764,12 @@
 | ③ | 无 |
 | ④ | **单次提交**：解除这次等待（阶段回 `running`）＋ 条目；答复交给执行者。**与到点（`no_answer`）、中断等竞争同一行，首胜** |
 | ⑤ | `{ resumed: waitIndex }` |
-| ⑥ | `invalidInput`（身份缺席；`value` 不合声明的形状；**形状校验判不了**——声明的形状编不出、超出 `data.tool-definition/v1` G-16 登记的上限或校验超时，同一个值、说明写明「校验超时」，[D-040 §八 N-25](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） · `executionNotFound` · `notWaiting`（没在等，或 `waitIndex` 不是当前这一次） · `alreadyEnded` · `runtimeNotReady` · `runtimeStopped` · `dependencyUnavailable{storage}` |
+| ⑥ | `invalidInput`（身份缺席；`value` 不合声明的形状——**判得出「不合」才是它**；校验判不了不在此，见表下） · `executionNotFound` · `notWaiting`（没在等，或 `waitIndex` 不是当前这一次） · `alreadyEnded` · `runtimeNotReady` · `runtimeStopped` · `dependencyUnavailable{storage}` |
 | ⑦ | **同一次等待只解除一次**：第二个答给同一次的答复 → `notWaiting`。**一次执行可以等多次**，每次用自己的 `waitIndex` |
 | ⑧ | `waitIndex` 缺席 → `invalidInput`：**不替它猜「答的是当前这一次」**——迟到的、答给上一次的答复会因此解除这一次（模型否定配置 `CheckWaitIndex = FALSE`） |
 | ⑨ | 不发 |
 
+- **形状校验判不了不是答复不合**：声明的形状编不出、超出 `data.tool-definition/v1` G-16 登记的上限或校验超时，都是「判不出」而不是「判为拒绝」（[S-15](#s-15-判不出来与判为拒绝是两个值)）——这一次答复照 ④ 受理、等待解除，**这一次执行随即以 `failed{schema_unsupported}` 收场**（说明写明「答复形状校验超时」或「编不出」），与参数判定 T-16 同口径；不以 `invalidInput` 回给答复者、不让人反复重答（[D-040 §八 M75](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)，覆盖 N-25 的后半）。
 - **本能力不判谁有资格答**：人能不能答这张卡（「能访问这个会话的人」）归卡片那一侧与会话访问控制；本能力只要求 `by` 的租户与记录上的相同，不同按 `executionNotFound`（[S-21](#s-21-租户与会话范围)）。
 - **答复不落成一条消息**：它是那次执行的输入（`data.messages/v1#S-22` 末段）；卡片上的答复记录归 PF-008。
 - **「明确拒绝回复」怎样作为一次答复进来**，本版没有表示（[G-10](#十二已知缺口)）；插队时的「人拒绝回复」走 [S-31](#s-31-插队处置)，那是一次中断，不是一次答复。
