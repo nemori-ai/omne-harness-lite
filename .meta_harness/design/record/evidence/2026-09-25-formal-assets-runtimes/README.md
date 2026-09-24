@@ -27,6 +27,7 @@
 - 修复波 1／1b／2 的新增承诺凡「不在模型里」的（各 formal README「模型吸收了什么」之外的条款），本 run 不作证据。
 - `asset-transfer-v1-revival` 按登记用 4 workers，其余 1 worker。
 - 租户领域 5 个任务未重跑：模型自 [`2026-09-23-formal-governance-center-entry`](../2026-09-23-formal-governance-center-entry/README.md) 之后未变。
+- run id 用本程工作日 `2026-09-25`；`exit-codes.tsv`、`environment.txt` 与日志里的时间戳是 UTC（`2026-09-24T12:53Z` 起），两者不冲突。三份 stream-assembly 有效性核对配置（预期出反例）不在本 run，见 [`2026-09-25-validity-stream-assembly`](../2026-09-25-validity-stream-assembly/README.md)。
 - Alloy 模型（`messages`、`asset-evaluation`）不是 formal task（`alloy exec` 退出码无意义），本 run 不含；它们的场景证据在各契约验证入口按构造登记。
 
 ## 工具与环境

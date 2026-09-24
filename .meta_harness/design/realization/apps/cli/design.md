@@ -18,7 +18,7 @@ MP＝`capability.modality-projection/v1`、SA＝`capability.stream-assembly/v1`�
 两块运行时本质上是 CLI 这个应用里的东西，「可独立运行」是验收要求、不是装配边界。插件边界与服务键照抄三份被接受的拆分提案——
 [tools 候选 C](../../../record/proposals/capability-split-tools/design.md#装配草图与为什么这样切)、[model A／A／A](../../../record/proposals/capability-split-model/design.md#装配草图与切分理由)、
 [assets 候选 B](../../../record/proposals/capability-split-assets/alternatives.md)（据点只 import 纯模块）——**本页不重新设计**；本页已按各 provider 节点与修复波 3（D-040 §八 M31～M46）对齐，此后两边不一致仍以 provider 节点为准、回改本页。
-服务键一律取各 provider 节点的**候选名**（`toolExecution`、`assetRegistry`、`mcpBridge`、`loopExtensionRunner`、`loopExtensionImplementations`、`converterRegistry`、`converterAssembly`、`modelCatalogRead`、`credentialLookup`、`modelRuntime`），**键名归各 provider 节点**；承接者尚不存在的服务（`sessionLog`、`assemblyManifest`、`evaluationInputs`、`centerConnection`、凭据保管方、`sessionExecutionEnvironment`、`toolAdmission`）也用那些节点给的候选名。
+服务键一律取各 provider 节点的**候选名**（`toolExecution`、`assetRegistry`、`mcpBridge`、`loopExtensionRunner`、`loopExtensionImplementations`、`converterRegistry`、`converterAssembly`、`modelCatalogRead`、`credentialLookup`、`modelRuntime`），**键名归各 provider 节点**；承接者尚不存在的服务（`sessionLog`、`assemblyManifest`、`evaluationInputs`、`centerConnection`、凭据保管方、`sessionTenancy`、`executionEnvironments`、`dependencyPresence`、`toolAdmission`）也用那些节点给的候选名。
 
 ## 选择与动作链
 
@@ -34,9 +34,9 @@ MP＝`capability.modality-projection/v1`、SA＝`capability.stream-assembly/v1`�
 | BR（candidate）——到 MCP 对端的桥：连接、列举与副本、投影、调用、OAuth 落点 | `packages/tools/mcp-bridge` 的两个插件：桥本体 `mcp-bridge`（服务 `mcpBridge`）与执行者贡献插件 `mcp-bridge-executor`（向 `toolExecution` 登记「MCP 来源」那一格，M44）；协议层是官方 SDK（D-037）；**尚未建包** | 根各一份；桥本体必需 inject `storage`、`clock`，贡献插件必需 inject `mcpBridge`、`toolExecution`；凭据保管方调用时取用（**承接者缺**）；BR G-12 七个具名参数加节点的 `idleConnectionTimeout` 值未定 | 正常：注册表在尝试开始时经它刷新副本与投影，执行时工具执行运行时调它的 `invoke`；失败：连不上是「不可用」不是故障（BR S-10）；撤除：先给在途 `invoke` 交 `bridgeWithdrawn`、再收口连接（BR S-27）；**何时替换由本节点定：只在排空重启**（BR S-27 ⑥） |
 | REG（candidate）——会话资产注册表：六张表的快照、可用性报告、斜杠命令集 | `packages/tools/asset-registry` 的注册表插件 `asset-registry`（服务 `assetRegistry`）；求值调 `packages/core/asset-evaluation` 纯模块；**尚未建包** | 根一份；必需 inject `assemblyManifest`、`clock`，**不 inject `storage`**；快照按（会话, 类别）键控、不持久；求值输入读面 `evaluationInputs` 调用时取用；**装配清单与求值输入（中心事实副本、工作区承载目录读入、会话事实）的承接者都缺**（REG S-31 第 1、2、6 行，[缺口 C-2、C-3](#实施缺口与消费者影响)） | 正常：`fill`／`reload`／`refreshAvailability`；失败：输入读不到即 `unavailable`、不当空表（REG S-19）；撤除：快照随实例消失，按装配清单重建（REG S-33） |
 | TA（candidate）——放行判断的接口 | **本程无提供者**（[D-040 §块 B](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#块-b-拆分提案报回的推荐-c按拥有者分领域) PB-1；契约 README「本程实现不交付」）；产品据点清单里这一关由派发器的全拒件顶上（RUN S-17）；[验收装配](#验收装配)另装一件只供验收的放行件 | — | 产品据点里每一批动作都被全拒、一个工具也执行不了——**已知后果，不是缺陷**（tools 提案交接缺口第 1 条的第二种收法）；验收放行件**不进产品清单**（[结构检查](verification.md#证据义务)） |
-| RUN（candidate）——拓展点派发：逐件顺序求值、结论落日志、效果合成、回放 | `packages/agent-loop/loop-extension-runner` 的派发器插件 `loop-extension-runner`（服务 `loopExtensionRunner` 与实现登记面 `loopExtensionImplementations`）；**尚未建包** | 根一份；必需 inject 只有 `sessionLog`（**提供者不存在**，[缺口 C-1](#实施缺口与消费者影响)）；`assemblyManifest`、`modelRuntime` 的两道判定、`toolAdmission`、`dependencyPresence` 调用时取用（RUN S-32 第 11 行）；五件系统自带件的指定挂件按 RUN S-17 那张表由本装配预先声明 | 派发跑在调用方（agent runtime）的协程上；它拥有的事实全在日志里（RUN S-8），撤下不交接（RUN S-33）；实现在求值中途被撤下按报错记（RUN S-34）。调用方要交来的三样——同一份带 `attempt` 的报告（M33／M46）、叫停（M39，`cancelled`）、执行环境句柄的两样来路（M38）——**归装配／待 loop 契约**（A-19～A-21、C-8） |
-| HI（candidate）——Claude Code／Codex hooks 的导入与兼容件 | `packages/agent-loop/hooks-import` 的兼容插件 `hooks-compat`（不 provide；导入是包导出的纯函数 `importHostHooks`）；D-033 fork 边界；**尚未建包** | 根一份；必需 inject `loopExtensionImplementations`，向派发器登记外部命令执行器；`sessionExecutionEnvironment` 调用时取用——兼容件子进程落在会话级执行环境（**PF-005 无契约**，[缺口 C-7](#实施缺口与消费者影响)）；运行被取消时的停止信号随派发器的叫停送到（HI S-26 第 2 行，来路 C-8） | 导入是纯翻译（HI S-11）；落成资产走中心的资产治理写面，据点到中心那条路待入口组合 v2（[缺口 C-4](#实施缺口与消费者影响)） |
-| MPD（candidate）——**据点一侧只装读提供者 P-1r**；中心一侧的目录 P-1 由 [`apps/tenancy-host`](../tenancy-host/README.md) 装配（D-039） | `packages/model/model-profile-directory` 的 P-1r 插件 `model-catalog-read`，服务 `modelCatalogRead`、`credentialLookup`（候选名，`credentialLookup` 单列只放取值问法，M44）；**尚未建包** | 根**恰一份**；必需 inject `storage`（只读副本）与 `centerConnection`（入口 v2 的据点客户端，**无契约、无节点**，[缺口 C-4](#实施缺口与消费者影响)）；断线重连在实例内部处理、**不因中心不可达换代**；**不持久凭据**（M44）；**出厂格那一把在本装配里缺席**（[关键选择 4](#关键选择)） | 正常：读副本或现读中心；失败：读不到即 `unavailable`，不当「没配」「不存在」（MPD S-9）；撤除：不持有在途事实 |
+| RUN（candidate）——拓展点派发：逐件顺序求值、结论落日志、效果合成、回放 | `packages/agent-loop/loop-extension-runner` 的派发器插件 `loop-extension-runner`（服务 `loopExtensionRunner` 与实现登记面 `loopExtensionImplementations`）；**尚未建包** | 根一份；必需 inject 只有 `sessionLog`（**提供者不存在**，[缺口 C-1](#实施缺口与消费者影响)）；`assemblyManifest`、`modelRuntime` 的两道判定、`toolAdmission`、`dependencyPresence` 调用时取用（RUN S-32 第 11 行）；五件系统自带件的指定挂件按 RUN S-17 那张表由本装配预先声明 | 派发跑在调用方（agent runtime）的协程上；它拥有的事实全在日志里（RUN S-8），撤下不交接（RUN S-33）；实现在求值中途被撤下按报错记（RUN S-34）。调用方要交来的两样——同一份带 `attempt` 的报告（M33／M46）、叫停（M39，`cancelled`）——**归装配／待 loop 契约**（A-19、A-20，C-8）；执行环境句柄的两样来路（M38）调用时取用 `sessionTenancy`、`executionEnvironments`（A-21，C-13、C-7） |
+| HI（candidate）——Claude Code／Codex hooks 的导入与兼容件 | `packages/agent-loop/hooks-import` 的兼容插件 `hooks-compat`（不 provide；导入是包导出的纯函数 `importHostHooks`）；D-033 fork 边界；**尚未建包** | 根一份；必需 inject `loopExtensionImplementations`，向派发器登记外部命令执行器；`executionEnvironments` 调用时取用——兼容件子进程落在会话级执行环境（**PF-005 无契约**，[缺口 C-7](#实施缺口与消费者影响)）；运行被取消时的停止信号随派发器的叫停送到（HI S-26 第 2 行，来路 C-8） | 导入是纯翻译（HI S-11）；落成资产走中心的资产治理写面，据点到中心那条路待入口组合 v2（[缺口 C-4](#实施缺口与消费者影响)） |
+| MPD（candidate）——**据点一侧只装读提供者 P-1r**；中心一侧的目录 P-1 由 [`apps/tenancy-host`](../tenancy-host/README.md) 装配（D-039） | `packages/model/model-profile-directory` 的 P-1r 插件 `model-catalog-read`，服务 `modelCatalogRead`、`credentialLookup`（候选名，`credentialLookup` 单列只放取值问法，M44）；**尚未建包** | 根**恰一份**；必需 inject `storage`（只读副本）与 `centerConnection`（入口 v2 的据点客户端，**无契约、无节点**，[缺口 C-4](#实施缺口与消费者影响)）；断线重连在实例内部处理、**不因中心不可达换代**；租户那一把模型凭据的副本**经凭据保管方落在据点**（加密、按登录状态归属），取值先读本地副本、中心可达时刷新——[D-040 §八 M47](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 改判了 M44 的「P-1r 不持久凭据」；保管方（C-5）缺席的本版离线调模型如实失败；**出厂格那一把在本装配里缺席**（[关键选择 4](#关键选择)） | 正常：读副本或现读中心；失败：读不到即 `unavailable`，不当「没配」「不存在」（MPD S-9）；撤除：不持有在途事实 |
 | MRR（candidate）——选模型、每一次模型调用的发出与收场、停机对账 | `packages/model/model-request-runtime` 的 P-2（服务 `modelRuntime`）与同包第二个零依赖小插件 P-5 默认重试件；传输适配是 P-2 的内部依赖（pi-ai 定向 fork，[D-019](../../../record/decisions/model-provider-pi-ai-fork/decision.md)）；**尚未建包** | 根一份；P-2 必需 inject `modelCatalogRead`、`credentialLookup`、`sessionLog`、`storage`、`clock`（M44），`assemblyManifest` 调用时取用、从它拿求值结果；base URL 固定为 OpenRouter（[SYS-LLM](../../../foundation/cross-system-constraints/requirements.md#sys-llm)）；P-5（插件 `model-default-retry`）inject `loopExtensionImplementations` 向派发器登记，`defaultRetryBackoff` 没有值就不装它 | 一次调用是宿主（agent runtime）上的一个 effect，追加口随调用由调用方交来、带尝试栅栏（MRR S-2、S-28）；撤除按 MRR S-36（在途流 `abandon`，收场 `interrupted{run_cancelled}`） |
 | MP（candidate）——转换件登记表与落盘前的模态转换那一件 | `packages/model/modality-projection` 的三种插件：P-3 `modality-projection`（服务 `converterRegistry` 与受限面 `converterAssembly`）、声明者 `converter-declarer`、每件转换件一个 P-4\*——**声明者与 P-4\* 由本装配加载、inject `converterAssembly`，不是 P-3 的子 fiber**（M44）；**尚未建包** | 根各一份；P-3 必需 inject `loopExtensionImplementations`；**整份转换件声明是声明者插件的配置**，在本机 socket 开闸之前生效（MP S-9 第 2 条、S-17 ②）；P-4\* 够不着 `modelRuntime`（MP S-24，[结构检查](verification.md#证据义务)） | 模态转换那一件钉在 `before_persist_message` 链末（RUN S-6）；P-3 整件不在时只否决含转换件输入类块的消息（MP S-22）；撤除时在途转换按 MP S-28 收 |
 | SA（candidate）与工具侧六份数据契约（`data.tool-definition/v1`、`data.loop-extension/v1`、`data.skill-package/v1`、`data.slash-command/v1`、`data.mcp-endpoint/v1`、`data.connector/v1`，均 candidate） | `packages/core/stream-assembly` 与 `packages/core/{tool-definition, loop-extension, skill-package, slash-command, mcp-endpoint, connector}` 纯模块（一契约一包，M41），**不是插件、不进装配清单**；另经 provider 包传递依赖 `packages/core/{content-blocks, messages, call-accounts, arrival-events}`、`packages/core/{model-profile, model-response}`、`packages/core/{asset-model, asset-evaluation}` | 包依赖：两个宿主（执行宿主、P-2）import `stream-assembly`；**交付面与受理面各 import `slash-command` 一次**，做斜杠命令的识别与解析（`data.slash-command/v1` S-12～S-16：两处拿到同一个会话斜杠命令集必得同一结果，以受理那一次为准） | 状态是宿主手里的值、随宿主存续（SA S-29 第 2 行）；纯函数没有撤除责任 |
@@ -52,7 +52,7 @@ MP＝`capability.modality-projection/v1`、SA＝`capability.stream-assembly/v1`�
 ```text
 storage-sql → clock
   → [sessionLog] → [assemblyManifest] → [evaluationInputs：中心事实副本与求值输入] → [凭据保管方]
-  → [附件字节存储] → [centerConnection] → [sessionExecutionEnvironment]
+  → [附件字节存储] → [centerConnection] → [sessionTenancy] → [executionEnvironments] → [dependencyPresence]
   → 执行宿主 tool-execution-runtime → 桥本体 mcp-bridge → 执行者贡献 mcp-bridge-executor
   → 派发器 loop-extension-runner → P-3 modality-projection → 声明者 converter-declarer → P-4* × k
   → P-5 model-default-retry → hooks-compat
@@ -67,6 +67,7 @@ storage-sql → clock
 - **不用 `isolate`、不用 `intercept`**：租户、会话、范围之间差的是数据，不是实现（basis [`isolate-hides-instances-not-data`](../../../basis/cordis/isolate-hides-instances-not-data.md)；tools 提案「为什么这样切」第 6 条、model 提案 N-5、N-6）。
 - **这份清单今天装不起来**：派发器与 P-2 必需 inject `sessionLog`、注册表必需 inject `assemblyManifest`、P-1r 必需 inject `centerConnection`，都没有提供者 ⇒ `PENDING` ⇒ 清单错误；连带 inject 登记面的 P-3、P-5、hooks-compat 也起不来。**这是如实的缺口，不用替身在产品清单里补**——替身只进[验收装配](#验收装配)。
 - **运行期不换代**：本装配不配 loader／HMR，也不在运行中对任何插件调 `fiber.update`；换任何提供者都走[排空重启](architecture.md#分发与升级)（[关键选择 2](#关键选择)）。
+- **撤除次序由本应用显式驱动，不依赖内核的逆序**（D-040 §八 M48）：排空重启与正常停机时，在对根 Context 撤除之前，本应用按 **P-2 → 执行宿主 → 桥本体 → 派发器** 依次撤除各自那条 fiber，每一步 `await` 到它结算完才撤下一步；`storage`、`clock` 与其余插件随根撤除最后走。理由：同一 fiber 的各 effect 撤除并发驱动（basis [`effect-disposal-concurrent-not-ordered`](../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)），inject 下游与提供者的撤除谁先结算 basis 没有保证——若 `storage` 先关，执行宿主 S-48 的收场写就落空，只能等下一任扫描（执行宿主节点「归装配」点名的撤除次序）。**这一驱动本身依赖一条待补 probe 的假设**：`await` 一条 fiber 的撤除，会等到它的 async disposer 结算完（登 [C-11](#实施缺口与消费者影响)，与执行宿主节点的 A-1 同类）；不成立时正确性仍由下一任恢复扫描兜住，但排空演练（verification 据点义务第 5 条）的预期不成立。进程被杀时一个撤除都不跑，收口全在下一次启动。
 
 ### 验收装配
 
@@ -76,16 +77,19 @@ storage-sql → clock
 | 替身 | 顶的是谁 | 只许做什么 | 真承接者与闭合条件 |
 |---|---|---|---|
 | 放行件（bypass：全放） | `toolAdmission`：放行判断 `omne-official:admission-judgment` 的 `admit` 与它的 `verifyToken`（派发器经它调，M44） | 对每一项给放行结论、铸与核同一实现里的凭据；**标明「非产品行为、只供本装配验收」**（D-040 PB-1） | 放行判断的提供者，本程不交付（子选择二到它的提供者设计时再定） |
-| 会话日志 | 会话日志读写与追加口 | 只回放消费契约允许的序列：多条目原子追加、按 `ResponseId`／(`CallId`, 段)／`MessageId` 判重、尝试栅栏；**落在真实 JSONL 文件上**（D-026 不提供 in-memory；[D-035](../../../record/decisions/message-and-stream-baseline/decision.md)「两条链各自能从脚本化输入跑到真实 JSONL 日志」） | loop 与会话那一程的契约与提供者 |
-| 装配清单 | 装配清单的读与追加 | 给一份固定清单（各件次序、求得的位置与干预力），追加照记 | PF-004 的契约 |
-| 中心事实副本与到中心的连接 | `evaluationInputs`（求值输入里的持有、配值、成员资格与角色）；P-1r inject 的 `centerConnection` | 从测试种子读，**不连治理中心** | [缺口 C-3、C-4](#实施缺口与消费者影响) |
+| 会话日志 | `sessionLog`：会话日志读写与追加口 | 只回放消费契约允许的序列：多条目原子追加、按 `ResponseId`／(`CallId`, 段)／`MessageId` 判重、尝试栅栏；**落在真实 JSONL 文件上**（D-026 不提供 in-memory；[D-035](../../../record/decisions/message-and-stream-baseline/decision.md)「两条链各自能从脚本化输入跑到真实 JSONL 日志」）。**半径最大的一个替身**：它做的正是 C-1 提供者的 L-a～L-f，所以 C-1 闭合时删掉、换成真提供者 | loop 与会话那一程的契约与提供者（C-1） |
+| 装配清单 | `assemblyManifest`：装配清单的读与追加 | 给一份固定清单（各件次序、求得的位置与干预力），追加照记；**清单里没有一件声明 `needs`**（所以用不到 `dependencyPresence`） | PF-004 的契约（C-2） |
+| 中心事实副本与到中心的连接 | `evaluationInputs`（求值输入里的持有、配值、成员资格与角色）；P-1r inject 的 `centerConnection` | 从测试种子读，**不连治理中心**；`centerConnection` 能按测试脚本**模拟断线与重连，且不以换代表达**（verification 据点义务「切断到中心的连接」那一条要用） | [缺口 C-3、C-4](#实施缺口与消费者影响) |
+| 会话持有租户读面 | `sessionTenancy`：执行宿主 `submit` 读会话持有的那一个租户（TER G-12）、派发器解析执行环境句柄里的租户（RUN S-50）、注册表 `evaluationInputs` 里「会话事实」那一片——**同一读面、一份替身**（M48） | 从测试种子答「这个会话持有的租户身份」；读不到即失败，不答「没有租户」 | 会话那一程（PF-015）的契约与提供者（[C-13](#实施缺口与消费者影响)） |
+| 执行环境 | `executionEnvironments`：执行宿主起执行者第 2 步的落点求值（TER S-38）、派发器 `resolveExecutionEnvironment`、兼容件起停子进程 | **只答「宿主机、已被显式允许」**（PF-005 §6.2）；按进程组起、按进程组停并确认退出；**不判租户、不选落点**——要它判断契约没定义的东西，就不再是替身能做的事 | PF-005 的契约与提供者（C-7） |
 | 凭据保管方 | 模型凭据与 MCP 凭据的解引用 | 给测试凭据；值不进任何输出（与产品同一条哨兵检查） | `infra/secrets` 候选节点 |
 | agent loop 驱动 | 调 `openCall`（P-2）、`dispatch`（派发器）、`submit`（执行宿主）的那一方 | 按脚本走一次尝试：对账 → 调模型 → 放行 → 执行 → 落盘；**把同一份带 `attempt` 的可用性报告交给 `dispatch` 与 `submit`**，能对在途的 `dispatch` 叫停（A-19、A-20） | PF-012 那一程（C-8） |
 | 脚本化传输 | P-2 的传输适配 | 按脚本交到达事件、状态码与用量（model 提案 N-2：一个构造参数级的接口即可注入） | 不需要：产品装配用 pi-ai 定向 fork |
 
-- **替身里「看起来合理」的行为都是缺口，不是设计**：每个替身只回放它所顶的那份契约允许的序列；它们的存在不构成任何一行「装配给」的承接。
+- **替身里「看起来合理」的行为都是缺口，不是设计**：每个替身只回放它所顶的那份契约允许的序列；它们的存在不构成任何一行「装配给」的承接，**它们的行为不进任何 `bindings` 作证据**；真承接者一立起来，对应替身就删掉。
 - **结构检查**：产品据点清单里不得出现上表任何一个替身；放行件与替身不在任何 `packages/*` 里（[verification](verification.md#证据义务)）。
-- 执行环境（PF-005）在验收装配里也没有承接者：本地工具与兼容件子进程落在宿主机上，**这是验收环境的前提，不是产品行为**（PF-005 §6.2 宿主机须被显式允许）。
+- 本地工具与兼容件子进程落在宿主机上，是**执行环境替身给出的答复**，不是装配的前提：执行宿主与兼容层都「不降级、不回退宿主机」（TER S-38 第 2 步、HI S-18），没有这个替身它们只会收成 `failed{environment_unavailable}` 与「起不来」。
+- **替身一共九个**，比上一稿多了会话持有租户读面与执行环境两个（M48）。独立评审给的翻盘条件是「替身超过八个、或某个替身必须做契约未定义的判断」——前一半已触发，后一半没有：九个替身都只回放契约允许的序列，执行环境替身不判租户、不选落点。是否据此复议 D-039「不另立应用」，报主线。
 
 ## 契约到 Cordis 的投影（据点一侧）
 
@@ -99,17 +103,17 @@ storage-sql → clock
 |---|---|---|---|---|
 | storage-sql（[`packages/infra/storage-sql`](../../packages/infra/storage-sql/README.md)） | `storage` | — | — | — |
 | clock（[`packages/infra/clock`](../../packages/infra/clock/README.md)） | `clock` | `storage` | — | — |
-| 执行宿主 `tool-execution-runtime`（`packages/tools/tool-execution-runtime`） | `toolExecution` | `storage`、`clock` | `assetRegistry`（`lookup`）、`toolAdmission`（`verifyToken`）、`sessionLog`（排空器的幂等追加） | —（卸载判定那一件本批不建，由指定挂件顶上） |
+| 执行宿主 `tool-execution-runtime`（`packages/tools/tool-execution-runtime`） | `toolExecution` | `storage`、`clock` | `assetRegistry`（`lookup`）、`toolAdmission`（`verifyToken`）、`sessionLog`（排空器的幂等追加）、`sessionTenancy`（`submit` 读会话持有的租户）、`executionEnvironments`（起执行者第 2 步） | —（卸载判定那一件本批不建，由指定挂件顶上） |
 | 桥本体 `mcp-bridge`（`packages/tools/mcp-bridge`） | `mcpBridge` | `storage`、`clock` | 凭据保管方 | — |
 | 执行者贡献 `mcp-bridge-executor`（同上） | — | `mcpBridge`、`toolExecution` | — | 「MCP 来源」那一格执行者 → `toolExecution` |
-| 派发器 `loop-extension-runner`（`packages/agent-loop/loop-extension-runner`） | `loopExtensionRunner`、`loopExtensionImplementations` | `sessionLog` | `assemblyManifest`、`modelRuntime`（两道判定）、`toolAdmission`（`admit`）、`dependencyPresence` | — |
+| 派发器 `loop-extension-runner`（`packages/agent-loop/loop-extension-runner`） | `loopExtensionRunner`、`loopExtensionImplementations` | `sessionLog` | `assemblyManifest`、`modelRuntime`（两道判定）、`toolAdmission`（`admit`）、`dependencyPresence`、`sessionTenancy` 与 `executionEnvironments`（只在解析执行环境句柄时） | — |
 | P-3 `modality-projection`（`packages/model/modality-projection`） | `converterRegistry`、`converterAssembly`（受限面） | `loopExtensionImplementations` | — | 模态转换那一件 → 派发器 |
 | 声明者 `converter-declarer`（同上） | — | `converterAssembly` | — | 整份转换件声明 → P-3 |
 | P-4\* × k（同上，由本装配加载，不是 P-3 的子） | — | `converterAssembly` | — | 按转换件引用挂上实现 → P-3 |
 | P-5 `model-default-retry`（`packages/model/model-request-runtime`） | — | `loopExtensionImplementations` | — | 默认重试件 → 派发器 |
-| `hooks-compat`（`packages/agent-loop/hooks-import`） | — | `loopExtensionImplementations` | `sessionExecutionEnvironment` | 外部命令执行器 → 派发器 |
-| 注册表 `asset-registry`（`packages/tools/asset-registry`） | `assetRegistry` | `assemblyManifest`、`clock` | `evaluationInputs`、`mcpBridge`、`converterRegistry`（`lookupConverter`） | — |
-| P-1r `model-catalog-read`（`packages/model/model-profile-directory`） | `modelCatalogRead`、`credentialLookup` | `storage`、`centerConnection` | — | — |
+| `hooks-compat`（`packages/agent-loop/hooks-import`） | — | `loopExtensionImplementations` | `executionEnvironments` | 外部命令执行器 → 派发器 |
+| 注册表 `asset-registry`（`packages/tools/asset-registry`） | `assetRegistry` | `assemblyManifest`、`clock` | `evaluationInputs`（其中「会话事实」那一片与 `sessionTenancy` 是同一读面，M48）、`mcpBridge`、`converterRegistry`（`lookupConverter`） | — |
+| P-1r `model-catalog-read`（`packages/model/model-profile-directory`） | `modelCatalogRead`、`credentialLookup` | `storage`、`centerConnection` | 凭据保管方（租户那一把的据点副本经它落地与读取，M47；取用方式以 P-1r 节点按 M47 修订后为准） | — |
 | P-2 `model-request-runtime`（同 P-5 的包） | `modelRuntime` | `modelCatalogRead`、`credentialLookup`、`sessionLog`、`storage`、`clock` | `assemblyManifest` | — |
 
 **依据**：以各 provider 节点 design.md 的「插件、服务键」一节为准（它们照 tools 提案[服务面与依赖边](../../../record/proposals/capability-split-tools/design.md#服务面与依赖边)与 model 提案 [inject 边](../../../record/proposals/capability-split-model/design.md#inject-边以及消费者能不能承受被卸载重跑)起草，与草图不同的几处——执行宿主无子 fiber、桥的独立执行者插件、P-2 inject 会话日志／存储／时钟、声明者插件与 P-4\* 由装配加载、`credentialLookup` 单列——已由主线接受，D-040 §八 M44）。
@@ -219,7 +223,7 @@ Cordis 内部事件（`internal/*`）本装配不监听、不改写。
 | 3 「已开口」先于内容被看见 | P-2 先写锚点再交内容；门面只转发宿主推给它的，与 P-2 同进程 | 转交；门面未建 |
 | 4 「已出门」先于出网 | 传输适配是 P-2 的进程内依赖，不另起进程 | 转交 ＋ 承接 |
 | 5 在册状态变化后按新状态准入 | CLI 形态里目录在中心、调用在据点，**单机「现读同一存储」这一格不成立**；新鲜度上界与单调读归入口组合 v2（MPD S-22 第 2 行） | 缺口 |
-| 6 凭据值只在发出时出现；来源如实 | 值由保管方交给 P-2、P-2 只交给传输适配；出厂格那一把本装配缺席 | 受阻（保管方） |
+| 6 凭据值只在发出时出现；来源如实 | P-2 每次发出前经 `credentialLookup` 现取，P-1r 先读保管方里的据点本地副本（M47），P-2 只交给传输适配；出厂格那一把本装配缺席 | 受阻（保管方，C-5） |
 | 7 一次调用内各次发出用同一份档案快照 | 绑定落在「已出门」 | 转交 |
 | 8 投影 = 从日志重算 | 缓存读时追到日志尾 | 转交；受阻于会话日志 |
 | 9 同一次调用只有一个写入者 | 一个据点进程、一个 P-2 实例；S-g／L-f | 承接 |
@@ -232,7 +236,7 @@ Cordis 内部事件（`internal/*`）本装配不监听、不改写。
 |---|---|---|
 | 1 同一范围内路由名唯一 | 不在据点：P-1r 只读，不提供写面 | 承接（据点不写） |
 | 2 在册状态变化后按新状态准入 | 新鲜度上界、单调读未定义；中心不可达时读副本是已接受的代价（PF-016 §6.17） | 缺口（入口 v2） |
-| 3 凭据值只在取值问法里出现 | 秘密送达据点与据点落地 | 缺口（MPD G-7）＋ 受阻（保管方） |
+| 3 凭据值只在取值问法里出现 | 据点落地按 [D-040 §八 M47](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)：P-1r 把租户那一把的副本经凭据保管方落在据点（加密、按登录状态归属），值只经 `credentialLookup` 交给 P-2；秘密从中心**送到**据点那一段归入口组合 v2 | 受阻（保管方 C-5；送达 C-4） |
 | 4 取值问法只由运行时调用、来源如实 | 进程内只有 P-2 inject `credentialLookup`；来源取自那次调用绑定的有效模型 | 承接（[结构检查](verification.md#证据义务)） |
 | 5 取哪一把 | 据点只有租户那一格；读不到即失败，不落到出厂格——本装配根本没有出厂格那一把 | 承接 |
 | 6 出厂格那一把不可经写面改 | 据点没有它 | 承接 |
@@ -250,7 +254,7 @@ Cordis 内部事件（`internal/*`）本装配不监听、不改写。
 | 4 只有模态转换那一件调转换 | `converterRegistry.convert` 只许模态转换那一件的实现模块调 | 转交 ＋ 承接（结构检查） |
 | 5 转换产出与原消息同一次落盘 | L-a | 受阻 |
 | 6 读引用所指的字节以 `tenant` 进行 | 附件字节存储未定义（`data.content-blocks/v1` G-1、MP G-6） | 缺口 |
-| 7 `tenant` 就是这条消息所属会话的租户 | 派发器按这一次经过所在的会话造执行环境句柄，转换件经它解析；解析的两样来路（会话持有的租户、会话级执行环境）**归装配／待 loop 契约**（[A-21](#归装配的事项逐条承接)） | 受阻（C-8、C-7） |
+| 7 `tenant` 就是这条消息所属会话的租户 | 派发器按这一次经过所在的会话造执行环境句柄，转换件经它解析；解析的两样来路 `sessionTenancy`（会话持有的租户）、`executionEnvironments`（会话级执行环境）**归装配**（[A-21](#归装配的事项逐条承接)）；模态转换那一件只在有块要转时才取租户 | 受阻（C-13、C-7） |
 | 8 判合法目标用的投影覆盖到日志尾 | 转交 P-2 | 转交；受阻于会话日志 |
 
 **SA S-29**：七行都由「生产者、宿主、本能力在同一进程」给——两个宿主（执行宿主、P-2）与 `packages/core/stream-assembly` 都在据点进程里：第 1、4、6 行**转交**宿主；第 2 行**承接**（宿主不跨进程，运行期不换代）；第 3 行**转交**宿主按（会话，目标）路由 ＋ **承接**门面按连接核会话归属；第 5 行**转交** P-2，门面同 MRR 第 3 行；第 7 行**受阻**（L-b）。
@@ -264,7 +268,7 @@ Cordis 内部事件（`internal/*`）本装配不监听、不改写。
 | 3 「谁可以用」现读的新鲜度 | 据点上的中心事实副本读面 `evaluationInputs`——**本程不立节点**，随入口组合 v2 一并起草（M43）；陈旧读不得放宽 | 受阻（[C-3](#实施缺口与消费者影响)） |
 | 4 资产变化通知转到据点、分发到会话 | 副本更新时直接调 `onAssetChange`；正确性不依赖它 | 受阻（C-3、C-4） |
 | 5 一次尝试内报告不变；报告带会话、`runId`、`attempt` | 报告作为值交给那一次尝试的调用方；调用方如实带上 `runId` 与 `attempt`，同一个值交给派发器与执行宿主（M46） | 转交（注册表）＋ 受阻（agent loop，C-8；[A-19](#归装配的事项逐条承接)） |
-| 6 求值的输入被收齐 | 副本、工作区承载目录读入、会话事实——三样的承接者都缺 | 受阻（C-3、C-1） |
+| 6 求值的输入被收齐 | 副本、工作区承载目录读入、会话事实——三样的承接者都缺；会话事实与 `sessionTenancy` 同一读面（M48） | 受阻（C-3、C-13） |
 | 7 调用方身份已核实 | 注册表的面只在据点进程内；门面不直通它 | 承接 |
 | 8 提供者的自报 | 桥的可用性、转换件登记表是同进程读面（注册表不依赖执行者表） | 承接 |
 
@@ -291,7 +295,7 @@ Cordis 内部事件（`internal/*`）本装配不监听、不改写。
 | 4 无运行的经过条件写入 | L-d | 受阻 |
 | 5 一批一次会合 | agent loop 带齐一组 `actions` | 转交（agent loop，缺） |
 | 6 放行输入的来路 | agent loop 把这一次尝试开始时拿到的报告（带 `attempt`，M46）、授权上下文与运行模式作为值交给 `dispatch`，**报告与交给执行宿主 `submit` 的是同一个值**——**归装配／待 loop 契约**（[A-19](#归装配的事项逐条承接)） | 受阻（C-8） |
-| 7 执行环境句柄只及本会话、只在这一次调用里有效（M38） | 派发器按 `manifest` 指认的会话造句柄、随调用返回失效；解析它要的两样——会话持有的租户身份、这一会话的执行环境——**归装配／待 loop 契约与 PF-005**（[A-21](#归装配的事项逐条承接)） | 转交（派发器）＋ 受阻（C-8、C-7） |
+| 7 执行环境句柄只及本会话、只在这一次调用里有效（M38） | 派发器按 `manifest` 指认的会话造句柄、随调用返回失效；解析它要的两样——会话持有的租户身份经 `sessionTenancy`、这一会话的执行环境经 `executionEnvironments`——**归装配**（[A-21](#归装配的事项逐条承接)） | 转交（派发器）＋ 受阻（C-13、C-7） |
 | 8 叫停（M39，⑥ `cancelled`） | 调用方与派发器、正在求值的那一件同进程，叫停当场送到；**叫停通道由 agent loop 随 `dispatch` 交来，交换格式归组合契约**——归装配／待 loop 契约（[A-20](#归装配的事项逐条承接)） | 受阻（C-8） |
 | 9 调用方身份 | 派发器的面只在据点进程内 | 承接 |
 | 10 句柄只及本会话、只在这一次调用里有效 | 派发器的只读视图 | 转交 |
@@ -351,14 +355,14 @@ Cordis 内部事件（`internal/*`）本装配不监听、不改写。
 | 情形                                   | 本节点的收场                                                                                                                                                                             | 归谁                                                                                                                                                                                                                                  |
 | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 中心不可达，而这件事属于必须现读的三类 | **明确失败，并说清是因为问不到**                                                                                                                                                         | [`organization-governance/v1#S-18`](../../../spec/capabilities/organization-governance/v1/contract.md#s-18-每道准入现读)、[`#S-43`](../../../spec/capabilities/organization-governance/v1/contract.md#s-43-依赖的提供者不可用)        |
-| 中心不可达，而已开会话还在干活         | **照常**：据点用手上那份组织层／租户层值的副本与自己那把凭据继续受理、跑运行、调工具，不设离线时长上限；屏上标明连不上中心。再连上后按新读到的成员资格重算，该收的收，在途那一次跑完即止 | [PF-016 §6.17](../../../product/PF-016-cli-tui-delivery-surface/design.md#617-治理中心不可达已经开着的会话照常干活)、[§6.10](../../../product/PF-016-cli-tui-delivery-surface/design.md#610-成员资格无效期间本机那些会话不呈现也不删) |
+| 中心不可达，而已开会话还在干活         | **照常**：据点用手上那份组织层／租户层值的副本与自己那把凭据继续受理、跑运行、调工具，不设离线时长上限；屏上标明连不上中心。再连上后按新读到的成员资格重算，该收的收，在途那一次跑完即止。**「自己那把凭据」这一半在本版有缺口**：它的据点副本要经凭据保管方落地（M47），保管方（C-5）缺席时离线调模型如实失败，见下一行 | [PF-016 §6.17](../../../product/PF-016-cli-tui-delivery-surface/design.md#617-治理中心不可达已经开着的会话照常干活)、[§6.10](../../../product/PF-016-cli-tui-delivery-surface/design.md#610-成员资格无效期间本机那些会话不呈现也不删) |
 | 据点进程被杀                           | 等同停机：恢复先对账再重算；后台执行随它退出算失败；**退出不是取消也不是失败**                                                                                                           | [PF-012](../../../product/PF-012-agent-loop-and-run/design.md)                                                                                                                                                                        |
 | 客户端进程退出                         | 只是观察者走了，**不撤销任何领域动作**；终端必须被还原                                                                                                                                   | 本节点 + 待立契约                                                                                                                                                                                                                     |
 | 强制停止一次运行                       | 落请求 → 向该运行的前台进程组发信号、宽限、强杀 → 写终结事实并标「可能有未收尾的外部效果」。**外部效应不假定可回滚**                                                                     | [PF-012](../../../product/PF-012-agent-loop-and-run/design.md)                                                                                                                                                                        |
 | 结果未知（发出去了但不知道成没成）     | 按契约的失败集合如实上报，**不折成成功，也不自行重试**                                                                                                                                   | 各契约                                                                                                                                                                                                                                |
 | 产品据点里模型要调工具 | 放行判断本程无提供者 ⇒ 全拒件顶上，那一批**一个都不执行**、运行继续，agent 与人看得到否决与来由 | RUN S-17；TA S-34；D-040 PB-1 |
 | 租户没配自己那把模型凭据，调官方档案 | `undispatched{credential_unavailable}` 上交，**不落到出厂格那一把**（本装配没有它） | MRR S-19、S-28；MPD S-20；[PF-016 §6.20](../../../product/PF-016-cli-tui-delivery-surface/design.md#620-每台机器上只有自己那一把凭据) |
-| 中心不可达时要调模型、调 MCP | 用据点上的副本与本机那一把凭据照常（PF-016 §6.17）；副本从没取到过的一格读不到 ⇒ `unavailable`，**不当成「没配」** | MPD S-9；REG S-19；BR S-29 |
+| 中心不可达时要调模型、调 MCP | 档案与持有读据点上的副本；**凭据取值先读据点本地副本**——P-1r 把租户那一把经凭据保管方落在据点、中心可达时刷新（M47，改判 M44 那一条；PF-016 §6.17、§6.20「离线时用手上那份副本」）；MCP 的静态凭据与 OAuth 令牌同样在保管方。**保管方缺席的本版**（C-5 未立），离线调模型如实收成 `undispatched{credential_unavailable}`、要凭据的 MCP 操作 `dependencyUnavailable`——**这是显式缺口，不是「照常」**；副本从没取到过的一格读不到 ⇒ `unavailable`，不当成「没配」 | MPD S-9、S-20；MRR S-19；BR S-29；D-040 §八 M47；缺口 C-5 |
 | 排空重启时在途的工具执行、模型调用、MCP 调用 | 执行宿主先 `abandon` 在途帧流、再首胜写 `failed{abnormal_interruption}`；P-2 对在途流 `abandon`、收 `interrupted{run_cancelled}`；桥先交 `bridgeWithdrawn` 再收口连接。**重启之后都不重发** | TER S-48；MRR S-36；BR S-27 |
 | 运行被取消时在途的那一次 `dispatch` | 派发器以 `cancelled` 收场：已提交的结论都在，正在求值的那一件收到停止信号、这一次不留记录，后面的件不再求值；兼容件的子进程按进程组停下。**叫停由 agent loop 随 `dispatch` 交来**，本装配只保证它与派发器同进程、当场送到；来路归装配／待 loop 契约（A-20） | RUN S-21 ⑥、S-34；HI S-26 第 2 行；D-040 §八 M39 |
 | 存储读写失败 | 各插件按自己的条款明确失败；执行宿主写不下收场即上交并撤下自己（TER S-47），**本节点不自动重启它**，等排空重启或进程重启后由恢复扫描收 | TER S-47、S-48 |
@@ -384,12 +388,12 @@ Cordis 内部事件（`internal/*`）本装配不监听、不改写。
 | 机读那一份对输出流的接管与输入流的读取              | 客户端进程的机读那一份                                     | 接管成功但输入流读不了 → 释放接管再报错                                       | 撤除时把缓冲刷干净；**输出通道只承载契约内容**，诊断一律走另一条流                                                                                             |
 | 工具执行的子进程组                                  | 据点进程；前台每个运行一组，后台每次执行一组               | 进程组建了但工具启动失败 → 连同进程组一起回收                                 | 前台组随该运行的取消或强制停止被带走；后台组随会话归档或据点进程退出被带走。**发出信号不等于已静止**，要等收尾或超时后强杀，并如实记「可能有未收尾的外部效果」 |
 | agent runtime 协程                                  | 据点进程，每个活跃会话一副（提供者未设计）                 | 起不来按非常态处理，**不伪装成没发生**                                        | 据点进程退出即随之消失；**这不是取消、不是失败**，恢复按 PF-012 的对账规则；它上面挂的每一次模型调用的 effect 按 MRR S-36 结算（在途流 `abandon`，`interrupted{run_cancelled}`） |
-| `storage` 与 `clock` 两个实例 | 据点进程根作用域各恰一份；迁移在 `provide('storage')` 之前跑完 | 迁移失败、属主被占、钟回拨 ⇒ 启动失败，已装的逆序撤（同 tenancy-host） | **最后撤**：它们一撤，全部 inject 下游先被卸载；执行宿主、桥先按各自条款收掉在途。已提交的行仍然为真 |
+| `storage` 与 `clock` 两个实例 | 据点进程根作用域各恰一份；迁移在 `provide('storage')` 之前跑完 | 迁移失败、属主被占、钟回拨 ⇒ 启动失败，已装的逆序撤（同 tenancy-host） | **最后撤**：本应用在根撤除之前按 P-2 → 执行宿主 → 桥本体 → 派发器依次 `await` 各自撤除（[撤除次序](#据点装载清单与顺序)，M48），它们按各自条款收掉在途之后，`storage`、`clock` 才随根撤除走——**不靠内核对 inject 下游的撤除次序**。已提交的行仍然为真 |
 | 执行宿主的核心 effect（活体表、执行者表、调度、排空器；一条 fiber、没有子 fiber） | 据点进程；**恢复扫描完成之后**才对外提供服务 | 扫描抛出 ⇒ `FAILED` ⇒ 整个据点启动失败（不半开） | 有序撤下按 TER S-48：先 `abandon` 在途帧流、再首胜写收场、再发停止收口；**本节点只在排空重启时撤它**；写不下的留给下一任扫描 |
 | 桥本体的宿主 effect（连接表、在途操作、续期调度、孤儿回收）与 stdio 服务端进程组；执行者贡献插件的「MCP 来源」登记 | 桥本体；连接惰性建立，列举完成、副本写回之后可用；贡献插件登记即可用，注销函数包进它自己的 effect | 握手失败 ⇒ 那条连接不可用，不是故障（BR S-10）；贡献插件 `PENDING` ⇒ MCP 那一格没有执行者，执行宿主收成 `failed{start_failed}` | 桥撤下按 BR S-27：先给在途 `invoke` 交 `bridgeWithdrawn`、再按 BR S-26 关传输 → 终止进程组 → 排空 stderr；**不迁移、不重发**；据点被强杀留下的孤儿由重启后的桥回收、不复用（BR S-28） |
 | 派发器登记面上的登记（模态转换那一件、P-5、兼容件的外部命令执行器）与指定挂件 | 各贡献者 fiber；登记即可用；指定挂件随派发器在场 | 贡献者 `FAILED` ⇒ 没有登记 ⇒ 那一件「此刻不在」，按 RUN S-12／S-17 处置并记一笔 | 注销 ⇒ 下一次经过记「此刻不在」；求值中途被撤下按报错记（RUN S-34） |
 | 声明者交给 P-3 的整份转换件声明；P-4\* 挂上的实现 | P-3 持有登记表；声明者 `ACTIVE` 即声明生效，开闸在它之后；P-4\* 挂上即可用 | 声明不合形状（`invalidInput`、`keyTaken`）⇒ 声明者插件体抛出 ⇒ 整个据点启动失败（配置错误一个政策）；同一引用第二件挂上 ⇒ 那个 P-4\* `FAILED` ⇒ 同一收场 | 撤下 P-3 ⇒ 登记表答不出 ⇒ 含转换件输入类块的消息被否决、纯文本照常（MP S-22、S-27）；在途转换按 MP S-28；撤下一个 P-4\* ⇒ 那个引用没有实现 ⇒ `converterFailed`，不是 `noConverter` |
-| P-1r 的副本（存储里）与经 `centerConnection` 的读 | P-1r；**只维持一个实例**，断线重连在实例内部；**不持久凭据**（M44） | 建连失败 ⇒ 读副本；副本没有的一格 ⇒ `unavailable` | 撤下 ⇒ P-2 与 agent runtime 连带重跑——所以只在排空重启时撤；副本是持久的，重启后照旧 |
+| P-1r 的副本（存储里）与经 `centerConnection` 的读 | P-1r；**只维持一个实例**，断线重连在实例内部；凭据副本不进它自己的副本表，经凭据保管方落地（M47） | 建连失败 ⇒ 读副本；副本没有的一格 ⇒ `unavailable` | 撤下 ⇒ P-2 与 agent runtime 连带重跑——所以只在排空重启时撤；副本是持久的，重启后照旧 |
 | P-2 的在途表与传输连接池（节点合成**一个** effect，次序写死在撤除函数里） | P-2 | 起不来（含 `statusCauseTable`、脱敏三参数缺值）⇒ 据点启动失败 | 置「停止中」→ 对表里每一次在途调用结算（幂等、先到者赢）→ 关连接池（MRR S-36） |
 | 验收放行件与各替身 | **只在验收装配里**（`apps/cli` 测试代码） | —— | 随测试装配撤；产品清单里出现即结构检查失败 |
 
@@ -415,7 +419,7 @@ Cordis 内部事件（`internal/*`）本装配不监听、不改写。
 |          | 各 provider 包自测，不做装配级验收（落选） | 另立一个独立运行的装配（落选；D-039 已否） | **据点清单的只供测试变体（选）** |
 | -------- | ------------------------------------------ | ------------------------------------------ | -------------------------------- |
 | 最强论证 | 替身最少；各包本来就有自己的场景测试 | 边界最清楚：那份装配里没有交付面，也没有替身顶交付面 | 验收的是**真实的据点清单、真实的装载次序与 inject 边**——「执行宿主不在 agent runtime 之下」「开闸之前声明已生效」「运行期没有换代通路」这类只有装配给得出的性质，包自测看不到 |
-| 弱点     | 看不到清单错误与装配给的性质 | 没有 PF，按准入不建节点 | 替身多（七个），它们的行为有漂成事实语义的风险，只靠「只回放契约允许的序列」与结构检查兜住。置信度：**中高**（框架由 D-039 定，变体的形态是本节点的选择） |
+| 弱点     | 看不到清单错误与装配给的性质 | 没有 PF，按准入不建节点 | 替身多（九个，M48 补了会话持有租户读面与执行环境），它们的行为有漂成事实语义的风险，只靠「只回放契约允许的序列」、真承接者一立即删、不进 bindings 与结构检查兜住。**翻盘条件**：某个替身必须做契约没定义的判断（例如执行环境替身要判租户、选落点），说明「可独立运行」实际需要一个有 PF 的独立装配。置信度：**中**（框架由 D-039 定，变体的形态是本节点的选择；替身数已过独立评审给的「八个」线） |
 
 **2. 运行期不换代，换任何提供者都走排空重启**
 
@@ -447,12 +451,12 @@ provider 节点只能写「归装配」的事，在本节点逐条落处；承�
 | A-1 | SQL 存储 | TER S-46 第 3、4 行；BR S-30 第 2、4 行 | `storage-sql` 一份；owner 导出迁移片段、本节点合成；要求 S-a～S-i | 承接（设计）；文件位置未钉 |
 | A-2 | 会话日志存储 | D-026；要求 L-a～L-f | —— | 缺口 C-1 |
 | A-3 | 时钟 | TER S-46 第 10 行；`data.call-accounts/v1` S-26；`data.arrival-events/v1` S-25 | `clock` 一份，与 tenancy-host 同一提供者 | 承接 |
-| A-4 | 凭据保管方（模型凭据的据点副本、MCP 静态凭据、OAuth 令牌） | MRR S-19、S-38 第 6 行；BR S-9、S-30 第 3、4 行；[D-040 §S19](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的) S19-f | 对它的要求：凭据行落同一 `storage`、对桥的绑定行立引用约束、解引用时读绑定行判定列（S-h）；按持有、按租户解引用；值不进任何输出；OAuth 凭据跟机器（BR S-8）。**它的服务键两个节点叫法不一**：桥节点 `credentialCustody`、模型档案目录节点 `credentialCustodian`——立节点时定一个 | 缺口 C-5 |
+| A-4 | 凭据保管方（模型凭据的据点副本、MCP 静态凭据、OAuth 令牌） | MRR S-19、S-38 第 6 行；BR S-9、S-30 第 3、4 行；[D-040 §S19](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的) S19-f | 对它的要求：凭据行落同一 `storage`、对桥的绑定行立引用约束、解引用时读绑定行判定列（S-h）；按持有、按租户解引用；值不进任何输出；OAuth 凭据跟机器（BR S-8）；**租户那一把模型凭据的据点副本由 P-1r 经它落地**，加密、按登录状态归属，取值先本地、中心可达时刷新（M47）——它缺席时离线调模型如实 `undispatched{credential_unavailable}`。**它的服务键两个节点叫法不一**：桥节点 `credentialCustody`、模型档案目录节点 `credentialCustodian`——立节点时定一个 | 缺口 C-5 |
 | A-5 | 秘密与中心事实送到据点 | MPD G-7；MRR G-12；REG S-31 第 3、4 行 | 入口组合 v2 | 缺口 C-4 |
 | A-6 | 据点上的中心事实副本与求值输入收集 | REG S-31 第 3、4、6 行；assets 提案 MR-3；model 提案 N-10 | P-1r 只覆盖模型目录那一片；资产持有、配值、成员资格与角色那一片（注册表节点的 `evaluationInputs`）**本程不立节点**，随入口组合 v2 起草一并定（D-040 §八 M43） | 缺口 C-3 |
 | A-7 | 装配清单的读与追加 | REG S-18、G-1；RUN S-6 | —— | 缺口 C-2 |
 | A-8 | 附件字节存储 | `data.content-blocks/v1` G-1；TER S-36、G-7；MP G-6；BR G-4 | —— | 缺口 C-6 |
-| A-9 | 执行环境 | TER S-38 第 2 步、G-4；HI S-26 第 1 行 | —— | 缺口 C-7 |
+| A-9 | 执行环境 `executionEnvironments`（执行宿主、派发器、兼容件三个消费者共用这一个服务键） | TER S-38 第 2 步、G-4；HI S-26 第 1 行；RUN S-50 | 产品清单里没有；验收装配由替身给，只答「宿主机、已被显式允许」＋按进程组起停（M48） | 缺口 C-7 |
 | A-10 | 转换件声明 | MP S-9、S-17 ② | 声明者插件 `converter-declarer` 的配置里恰一份整份声明，开闸之前生效；本装配加载声明里指认的每一个 P-4\*；**声明的内容（哪些键、哪几件）归 modality-projection 节点与产品**，本节点不填 | 承接（时点与唯一来源）；内容待定 |
 | A-11 | 系统自带件的指定挂件 | RUN S-17；`data.loop-extension/v1` S-33 | 按 RUN S-17 那张表为五件各声明一件，行为就是那张表 | 承接 |
 | A-12 | 放行判断件 | TA S-26、S-32；D-040 PB-1 | 产品清单没有；验收装配装只供验收的放行件 | 承接 |
@@ -464,7 +468,7 @@ provider 节点只能写「归装配」的事，在本节点逐条落处；承�
 | A-18 | 据点一侧的调用方身份核实 | MRR S-38 第 10 行；RUN S-32 第 9 行；REG S-31 第 7 行 | 本机 socket 每条连接出示登录状态、由门面核对；能力间内部面不直通客户端连接 | 承接（设计已有）；门面与客户端代理未建 |
 | A-19 | **同一份可用性报告（带 `attempt`）交给派发器与执行宿主** | TER S-46 第 7 行、S-23 ①；RUN S-32 第 6 行、S-21 ②；REG S-31 第 5 行、S-11；D-040 §八 M33、M46 | 调用方（agent loop）在一次尝试开始时从注册表拿到报告，把**同一个值**交给 `dispatch.admission.report` 与 `submit.report`；两个接收方各核会话、`runId`、`attempt`，对不上即 `invalidInput`；接收一侧不现算、不向注册表要「最近一次」。本装配给出的只有「三方同一进程、值在进程内原样传」 | **归装配／待 loop 契约**（C-8） |
 | A-20 | **给 `dispatch` 的叫停通道** | RUN S-21 ② 末句、⑥ `cancelled`、S-34；HI S-26 第 2 行；D-040 §八 M39 | 取消请求先落日志，之后 agent loop 经随 `dispatch` 交来的通道叫停；派发器不再开始下一件、把停止转给在途的那一件（兼容件按进程组停子进程）。通道的交换格式归组合契约；本装配给出「同一进程、当场送到」 | **归装配／待 loop 契约**（C-8） |
-| A-21 | **按会话作用域造执行环境句柄所需的两样** | RUN S-50、S-32 第 7 行；`data.loop-extension/v1` S-41；MP S-26 第 7 行；HI S-18；D-040 §八 M38 | 句柄由派发器按这一次经过所在的会话造、随调用返回失效；解析它要的**会话持有的租户身份**由会话那一程给、**这一会话的执行环境**由 PF-005 给，两者在据点进程内按会话交给派发器（形状未定）；取不到即解析失败，不回退宿主机、不拿别的会话那一份顶上 | **归装配／待 loop 契约**（C-8）＋ PF-005（C-7） |
+| A-21 | **按会话作用域造执行环境句柄所需的两样** | RUN S-50、S-32 第 7 行；`data.loop-extension/v1` S-41；MP S-26 第 7 行；HI S-18；D-040 §八 M38 | 句柄由派发器按这一次经过所在的会话造、随调用返回失效；解析它要的**会话持有的租户身份**经 `sessionTenancy`、**这一会话的执行环境**经 `executionEnvironments`，派发器调用时取用（服务键取派发器节点的候选名）；取不到即解析失败，不回退宿主机、不拿别的会话那一份顶上。验收装配里两者各由一个替身顶上（M48） | **归装配**：`sessionTenancy` 的真承接者是会话那一程（PF-015，C-13），`executionEnvironments` 的是 PF-005（C-7）——M48 把前者从 C-8 分出 |
 | A-22 | P-1r 到中心的连接 `centerConnection` | MPD S-22 第 2 行；P-1r 节点 | 入口 v2 的据点客户端；断线不以换代表达（[换代表](#提供者换代或缺席时谁被重跑)后一段） | 缺口 C-4 |
 
 ## 实施缺口与消费者影响
@@ -477,27 +481,29 @@ provider 节点只能写「归装配」的事，在本节点逐条落处；承�
 | 交付面呈现与受理契约**尚未起草**                                                                                                                                                                                                                                                                                                                                                                                                                                                               | 人读与机读两个包、传输两端、门面的服务面**全部无从实现**；「两种呈现形式留下同一串记录条目」这条最要紧的性质**没有可绑定的条款**              | 架构与规格设计；起草并接受后回填 [选择与动作链](#选择与动作链)                               |
 | **C-1** 会话日志的契约与提供者**不存在**（D-026 已定它落 JSONL，格式、目录未定） | 派发器与 P-2 停在 `PENDING`，产品据点清单装不起来；TER S-46 第 4～6 行、MRR S-38 第 1、2、8、11 行、MP S-26 第 5 行、RUN S-32 第 1、3、4 行都受阻；执行宿主的出站项没有追加方 | **主线**（[D-040 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M43：本程不补、留给下一程）；闭合条件：会话日志契约写出 L-a～L-f 与记录条目的壳，提供者立节点 |
 | **C-2** 装配清单的读与追加**没有契约**（PF-004） | 注册表停在 `PENDING`，每一个换表操作的提交点无处落（REG S-18、G-1）；派发器的链与不可用处置声明无处读（RUN S-6）；P-2 取不到求值结果 | **主线**（M43，下一程）；闭合条件：PF-004 的契约写出注册表节点 R-M1～R-M8 的对应条 |
-| **C-3** **据点上的中心事实副本读面**（注册表节点的 `evaluationInputs`：资产持有、配值、成员资格与角色，工作区承载目录读入、会话事实）**本程不立节点**；model 那一片由 P-1r 承接。本区红线不许[装配胶水暗中拥有未定义能力](../../AGENTS.md#红线)，**本节点不在 `apps/cli` 里补这段逻辑** | 注册表的 `fill`／`reload`／`refreshAvailability`（REG S-31 第 3、4、6 行），经报告连带桥的接入点持有、放行判断的授权上下文；P-2 要的求值输入（MRR 另有 G-19） | **主线**（M43）；闭合条件：**随入口组合 v2（C-4）起草一并定**这份读面的契约与提供者 |
+| **C-3** **据点上的中心事实副本读面**（注册表节点的 `evaluationInputs`：资产持有、配值、成员资格与角色，工作区承载目录读入；「会话事实」那一片按 M48 归 C-13）**本程不立节点**；model 那一片由 P-1r 承接。本区红线不许[装配胶水暗中拥有未定义能力](../../AGENTS.md#红线)，**本节点不在 `apps/cli` 里补这段逻辑** | 注册表的 `fill`／`reload`／`refreshAvailability`（REG S-31 第 3、4、6 行），经报告连带桥的接入点持有、放行判断的授权上下文；P-2 要的求值输入（MRR 另有 G-19） | **主线**（M43）；闭合条件：**随入口组合 v2（C-4）起草一并定**这份读面的契约与提供者 |
 | **C-4** 入口组合契约 v2（路由表开放资产与模型目录各面、凭据跨进程送达）与它的据点客户端 `centerConnection` **未立** | P-1r 停在 `PENDING`（必需 inject `centerConnection`）；C-3 副本的来源、租户那一把模型凭据送到据点（MPD G-7、MRR G-12）、hooks 导入与 OAuth 取得之后落成资产或配值的那一次写 | **主线**（M43，下一程；[D-040](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#块-c-拆分提案报回的推荐-aaa目录独立插件中心运行时选择与调用同在据点模态转换独立登记表据点) PA-5、PC-3 已记为「归装配」） |
 | **C-5** 凭据保管方（`infra/secrets` 候选节点）**未立** | MRR 取凭据、BR 解引用与 OAuth（BR S-30 第 3、4 行）、MPD S-22 第 3 行 | **主线**（M43，下一程；D-040 S19-f）；闭合条件：节点写出要求 A-4——凭据行与桥的绑定行同一 `storage`、立引用约束（S-h）——并定下服务键名 |
 | **C-6** 附件字节存储未定义（`data.content-blocks/v1` G-1） | 执行宿主的 `storeRaw`、帧里的媒体引用、转换件读写字节、MCP 内嵌二进制资源 | **主线**（M43，下一程）；PF-006 与存储那一程 |
 | **C-7** 执行环境（PF-005）**没有契约** | 执行宿主起执行者的第 2 步（TER S-38）、兼容件子进程（HI S-26 第 1 行）、执行环境句柄解析出的「这一会话的执行环境」（A-21） | **主线**（M43，下一程）；PF-005 那一程 |
-| **C-8** agent loop 与 agent runtime **没有契约** | 执行宿主、P-2、派发器、注册表的调用方全都不在；RUN S-32 第 5 行、REG S-31 第 5 行转交不出去；修复波 3 新加给调用方的三样**都归它**：同一份带 `attempt` 的报告交给派发器与执行宿主（A-19：TER S-46 第 7 行、RUN S-32 第 6 行）、给 `dispatch` 的叫停通道（A-20：RUN S-32 第 8 行、HI S-26 第 2 行）、按会话作用域给派发器造执行环境句柄的来路（A-21：RUN S-32 第 7 行、MP S-26 第 7 行） | **主线**（M43，下一程）；闭合条件：loop 契约写出这三样的交付方与失败收场，叫停的交换格式进组合契约 |
+| **C-8** agent loop 与 agent runtime **没有契约**（受理与队列同在） | 执行宿主、P-2、派发器、注册表的调用方全都不在；RUN S-32 第 5 行、REG S-31 第 5 行转交不出去；修复波 3 新加给调用方的两样归它：同一份带 `attempt` 的报告交给派发器与执行宿主（A-19：TER S-46 第 7 行、RUN S-32 第 6 行）、给 `dispatch` 的叫停通道（A-20：RUN S-32 第 8 行、HI S-26 第 2 行）；执行环境句柄的来路（A-21）按 M48 改归 C-13 与 C-7。**排空重启的第一步「关闭新运行的准入」也没有承接者**（[architecture 分发与升级](architecture.md#分发与升级)）——只影响升级流程，不影响正确性 | **主线**（M43，下一程）；闭合条件：loop 契约写出这两样的交付方与失败收场，叫停的交换格式进组合契约，受理一侧给出「停止接受新运行」的操作 |
 | **C-9** 具名参数的部署取值未定（A-16） | 产品据点清单缺值即启动失败 | 各契约 G 的 owner（TER、BR G-12、MRR G-5／G-6） |
 | **C-10** ~~三份契约正文仍写已被 D-039 取代的 `apps/runtime-host`~~ | —— | **已闭合**：修复波 3 已改为 `apps/cli`（D-040 §八 M40） |
-| **C-11** 假设待补 probe：`ctx.effect` 的撤除函数可提前调用（H-2，P-2 依赖它，MRR 节点 MRR-N5）、没有 inject 时插件体不重跑（H-4）、不带 `thisArg` 的派发不过滤（H-7）；子 fiber 随父卸载（H-1）**本装配已不依赖**（执行宿主无子 fiber、P-4\* 不是 P-3 的子） | 「事件与过滤」按不过滤处理；P-2 的「一次调用是宿主上的 effect」按 H-2 写 | `packages/core/kernel-basis`，按 source-check 补 probe、登 basis |
+| **C-11** 假设待补 probe：`ctx.effect` 的撤除函数可提前调用（H-2，P-2 依赖它，MRR 节点 MRR-N5）、没有 inject 时插件体不重跑（H-4）、不带 `thisArg` 的派发不过滤（H-7）；**`await` 一条 fiber 的撤除会等到它的 async disposer 结算完**（本装配显式驱动撤除次序时依赖它，与执行宿主节点的 A-1「换代时等旧任 async disposer 结算完再重跑」同类）；子 fiber 随父卸载（H-1）**本装配已不依赖**（执行宿主无子 fiber、P-4\* 不是 P-3 的子） | 「事件与过滤」按不过滤处理；P-2 的「一次调用是宿主上的 effect」按 H-2 写；[撤除次序](#据点装载清单与顺序)与排空演练（verification 据点义务第 5 条）以最后一条为前提——不成立时正确性由下一任恢复扫描兜住，演练预期不成立 | `packages/core/kernel-basis`，按 source-check 补 probe、登 basis |
 | **C-12** 本程留给下一程、会牵动本装配的 provider 缺口（M43）：传输 fork 的包节点（MRR-N4）、执行宿主落盘前那一关的驱动方与按（租户，会话）订阅的观察者推送面（T-2、T-3）、`late` 读面与模型调用的成本路由（T-4、T-5） | 技术栈表里的 pi-ai 定向 fork 没有包可装；门面拿不到工具帧的推送面，只能读日志 | **主线**（M43，下一程） |
+| **C-13** **会话持有租户读面 `sessionTenancy` 没有契约、没有提供者**：执行宿主 `submit` 读会话持有的那一个租户（TER G-12、执行宿主节点 T-8）、派发器解析执行环境句柄里的租户（RUN S-50）、注册表 `evaluationInputs` 里的「会话事实」——同一读面的三个消费者（M48，与 C-3 分开登记） | 产品装配里 `submit` 恒为整批 `dependencyUnavailable{storage}`；执行环境句柄解析不出租户，要用它的拓展件（模态转换、兼容件）「起不来」或报错；REG S-31 第 6 行受阻 | **主线**（M48）；真承接者会话那一程（PF-015）；闭合条件：会话契约写出这份读面，提供者立节点；验收装配的替身随之删掉 |
+| **C-14** **依赖在场判定面 `dependencyPresence` 没有契约**（派发器节点 RUN-N5；RUN S-12 ①） | 声明了 `needs` 的拓展件判不出 ⇒ 那一次 `unavailable`；不带 `needs` 的件不受影响。验收装配的固定清单里没有一件声明 `needs` | **主线**（M48 照评审建议登记）；派发器契约的 owner 定这份判定面的来路 |
 | 据点 ↔ 治理中心的线上投影 `composition.governance-center-entry/v1` 已 `accepted`（D-028）（五份租户契约里四份 v1 已 `accepted`，账号能力 v2 已 `accepted`（D-028））                                                                                                                                                                                                                                                                                                                           | 路由表与传输绑定都已冻结（D-028、D-029），命令清单可按它们列；客户端代理仍不存在                                                              | 客户端代理的设计另立，不在本程                                                               |
 | 治理中心那一侧**节点已立**：[`apps/tenancy-host`](../tenancy-host/README.md) 与 [`packages/tenancy/governance-center-entry`](../../packages/tenancy/governance-center-entry/README.md)；产品依据 PF-017 rev 2 已接受，契约与传输绑定已冻结（D-028、D-029），两个节点已实现（HUB `c9b5850`）                                                                                                                                                                                                         | 两条跨应用边的对端有了身份与实现；防冒充的客户端确认规则已由 D-029 定（[下节](#客户端信任中心的规则d-029)）；**据点一侧的客户端代理仍无处落** | 客户端代理由据点一侧的设计另立，不在本程                                                     |
 | **出示物放在哪**：已定——整个信封含出示物在请求体，跟随冻结的传输绑定（[D-029](../../../record/decisions/governance-center-transport-binding-acceptance/decision.md)）；本节点 [D11](../../../record/proposals/cli-tui/alternatives.md#d11-线上协议与认证) 的「`Authorization: Bearer` 头」候选被取代，其余（HTTPS、JSON、请求／响应、显式版本协商、无推送）不变                                                                                                                                | 已闭合；客户端代理按绑定实现                                                                                                                  | —                                                                                            |
 | 五个区分实验**一个都没跑**                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | 渲染层、呈现路线与第二阶段分发的采用只是纸面结论                                                                                              | 本节点；见[提案](../../../record/proposals/cli-tui/alternatives.md#进入实施前的最小区分实验) |
-| 凭据的值**怎么到据点**：[每台机器上只有自己那一把、配在租户层](../../../product/PF-016-cli-tui-delivery-surface/design.md#620-每台机器上只有自己那一把凭据)已裁，但它随组织层／租户层的值一起同步到据点副本的那条通路**没有契约**。`composition.governance-center-entry/v1` 只投影账号、组织治理与注册的操作（[S-47](../../../spec/compositions/governance-center-entry/v1/contract.md#s-47-本版是首版)），**不承载范围化的值与凭据的同步**；它的 v2 已记为「归装配」（C-4） | 模型请求运行时取租户那一把的据点副本、客户端永不见值——同步那一段与据点落地（C-5）仍无坐标；观感偏好的中心一侧副本同样无通路 | 同 C-4、C-5 |
+| 凭据的值**怎么到据点**：[每台机器上只有自己那一把、配在租户层](../../../product/PF-016-cli-tui-delivery-surface/design.md#620-每台机器上只有自己那一把凭据)已裁，但它随组织层／租户层的值一起同步到据点副本的那条通路**没有契约**。`composition.governance-center-entry/v1` 只投影账号、组织治理与注册的操作（[S-47](../../../spec/compositions/governance-center-entry/v1/contract.md#s-47-本版是首版)），**不承载范围化的值与凭据的同步**；它的 v2 已记为「归装配」（C-4） | 模型请求运行时取租户那一把的据点副本、客户端永不见值——据点落地已按 M47 定为 P-1r 经凭据保管方（C-5 未立），同步那一段（C-4）仍无坐标；观感偏好的中心一侧副本同样无通路 | 同 C-4、C-5 |
 | [「一处 = 一台机器」是本形态的落法、不进语义](../../../product/PF-016-cli-tui-delivery-surface/design.md#会话据点)——PF-016 rev 3 已说明它不违反 [SYS-DEPLOY](../../../foundation/cross-system-constraints/requirements.md#sys-deploy)                                                                                                                                                                                                                                                          | 拓扑一节按字面读法写，**不必复核**；这一行留着只为说明那条回询已闭                                                                            | —                                                                                            |
 | DSH `agent` 原语是否假定与会话存储同进程**未核**                                                                                                                                                                                                                                                                                                                                                                                                                                               | 演化边（每会话工作进程）能否直接复用它未知                                                                                                    | 来源核对：读采用版本源码，按 basis 的形状记条目                                              |
 
 **受阻消费**：C-1～C-8 闭合之前，产品据点清单装不起来。本节点能独立推进的只有——
-区分实验、待立契约的起草、[验收装配](#验收装配)与它的七个替身（只回放契约允许的序列；治理那一侧的替身按 `composition.governance-center-entry/v1` 的四种入口答复与路由表回放），
+区分实验、待立契约的起草、[验收装配](#验收装配)与它的九个替身（只回放契约允许的序列；治理那一侧的替身按 `composition.governance-center-entry/v1` 的四种入口答复与路由表回放），
 几条不依赖任何缺口的结构检查（据点依赖图、产品清单里没有替身、只有 P-2 取用 `credentialLookup`、P-4\* 够不着 `modelRuntime`、`converterAssembly` 只被声明者与转换件包解析），以及与 harness 无关的体检、终端还原与非 TTY 拒绝。
 **替身里「看起来合理」的行为都是 gap，不是设计。**
 
-**报给主线**（不在本节点改）：MRR S-38 第 5 行在 CLI 形态下本来就是「协议给」、单机那一格不成立（与 MPD S-22 第 2 行同一件事，入口 v2 要一并兑现）；凭据保管方的服务键两个 provider 节点叫法不一（`credentialCustody`／`credentialCustodian`，A-4）；RUN S-50 定的是「派发器造句柄」，本节点把 M38「按会话作用域构造、交给 runner」读成「句柄由派发器造、解析它的两样来路由 loop 与 PF-005 按会话交给派发器」（A-21）——若主线本意是 agent loop 造好句柄再交进来，RUN S-50 第 1 条要改。已由修复波 3 处置、不再报的：C-3 的二选一（M43）、C-10（M40）、形状②与出站项（M44）。
+**报给主线**（不在本节点改）：MRR S-38 第 5 行在 CLI 形态下本来就是「协议给」、单机那一格不成立（与 MPD S-22 第 2 行同一件事，入口 v2 要一并兑现）；凭据保管方的服务键两个 provider 节点叫法不一（`credentialCustody`／`credentialCustodian`，A-4）；验收装配的替身按 M48 增到九个，已触发独立评审给关键选择 1 的翻盘条件的前一半（「超过八个」），后一半（替身要做契约未定义的判断）没有触发——是否据此复议 D-039「不另立应用」，由主线定；本装配显式驱动撤除次序所依赖的「`await` 一条 fiber 的撤除等到 async disposer 结算完」没有 probe（C-11）。已处置、不再报的：C-3 的二选一（M43）、C-10（M40）、形状②与出站项（M44）、A-21 的来路（M48：`sessionTenancy` 归 PF-015，C-13）、离线凭据来源（M47）。

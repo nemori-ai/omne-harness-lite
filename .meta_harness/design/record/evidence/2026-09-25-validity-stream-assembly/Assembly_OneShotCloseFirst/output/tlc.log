@@ -1,0 +1,67 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Warning: Please run the Java VM, which executes TLC with a throughput optimized garbage collector, by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 123 and seed 1271201445241436269 with 1 worker on 8 cores with 7824MB heap and 64MB offheap memory [pid: 46716] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/assets-runtimes/.meta_harness/design/spec/capabilities/stream-assembly/v1/formal/Assembly.tla
+Parsing file /tmp/tlc-9211222361208930935/Integers.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Integers.tla)
+Parsing file /tmp/tlc-9211222361208930935/Sequences.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file /tmp/tlc-9211222361208930935/FiniteSets.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-9211222361208930935/Naturals.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Semantic processing of module Naturals
+Semantic processing of module Integers
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Assembly
+Linting of module Assembly
+Starting... (2026-09-24 16:30:23)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-24 16:30:23.
+Error: Invariant OneShotAccepted is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ log = <<>>
+/\ res = "-"
+/\ st = "none"
+/\ tk = "-"
+
+State 2: <Start("model") line 187, col 13 to line 190, col 37 of module Assembly>
+/\ log = <<>>
+/\ res = "-"
+/\ st = "live"
+/\ tk = "model"
+
+State 3: <Accept([e |-> "open", i |-> 0, k |-> "grow", m |-> "append", p |-> <<>>, r |-> "-"]) line 192, col 15 to line 196, col 42 of module Assembly>
+/\ log = <<[e |-> "open", i |-> 0, k |-> "grow", m |-> "append", p |-> <<>>, r |-> "-"]>>
+/\ res = "-"
+/\ st = "live"
+/\ tk = "model"
+
+State 4: <Accept([e |-> "fill", i |-> 0, k |-> "-", m |-> "-", p |-> <<"a">>, r |-> "-"]) line 192, col 15 to line 196, col 42 of module Assembly>
+/\ log = << [e |-> "open", i |-> 0, k |-> "grow", m |-> "append", p |-> <<>>, r |-> "-"],
+   [e |-> "fill", i |-> 0, k |-> "-", m |-> "-", p |-> <<"a">>, r |-> "-"] >>
+/\ res = "-"
+/\ st = "live"
+/\ tk = "model"
+
+State 5: <Accept([e |-> "close", i |-> 0, k |-> "-", m |-> "-", p |-> <<>>, r |-> "-"]) line 192, col 15 to line 196, col 42 of module Assembly>
+/\ log = << [e |-> "open", i |-> 0, k |-> "grow", m |-> "append", p |-> <<>>, r |-> "-"],
+   [e |-> "fill", i |-> 0, k |-> "-", m |-> "-", p |-> <<"a">>, r |-> "-"],
+   [e |-> "close", i |-> 0, k |-> "-", m |-> "-", p |-> <<>>, r |-> "-"] >>
+/\ res = "-"
+/\ st = "live"
+/\ tk = "model"
+
+State 6: <Abandon line 206, col 12 to line 212, col 26 of module Assembly>
+/\ log = << [e |-> "open", i |-> 0, k |-> "grow", m |-> "append", p |-> <<>>, r |-> "-"],
+   [e |-> "fill", i |-> 0, k |-> "-", m |-> "-", p |-> <<"a">>, r |-> "-"],
+   [e |-> "close", i |-> 0, k |-> "-", m |-> "-", p |-> <<>>, r |-> "-"],
+   [e |-> "finish", i |-> -1, k |-> "-", m |-> "-", p |-> <<>>, r |-> "lost"] >>
+/\ res = [ blocks |-> <<[i |-> 0, k |-> "grow", st |-> "sealed", c |-> <<"a">>]>>,
+  account |-> "unknown",
+  ending |-> "lost" ]
+/\ st = "out"
+/\ tk = "model"
+
+3362 states generated, 3323 distinct states found, 2848 states left on queue.
+The depth of the complete state graph search is 6.
+Finished in 00s at (2026-09-24 16:30:24)
