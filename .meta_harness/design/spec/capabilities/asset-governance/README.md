@@ -12,7 +12,7 @@
 **它不拥有数据形状**（`data.asset-model` v1）、复制与分享（`capability.asset-transfer` v1）、工作区那一级的持有（由承载目录读入）。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.asset-governance, 1)`
-- **状态**：`candidate`，2026-09-23 起草；**未评审、未接受、未冻结**。候选期间语义改动直接落在 v1，每次改动记进[验证入口的「变化的影响」](verification.md#变化的影响)
+- **状态**：`candidate`，2026-09-23 起草，2026-09-24 整批对齐；**未评审、未接受、未冻结**。候选期间语义改动直接落在 v1，每次改动记进[验证入口的「变化的影响」](verification.md#变化的影响)
 - **需求 rev**：PF-001 rev 16、PF-002 rev 16、PF-003 rev 4（后者本批账本未列，取工作区当前值）
 - **提供者／装配映射**：尚无
 
@@ -20,14 +20,13 @@
 
 - **已登记**：`status = candidate`、`family = capabilities`、`topic = asset-governance`、
   `contract_path = spec/capabilities/asset-governance/v1/contract.md`、`resources` = `v1/contract.md`、`v1/examples.md`，`acceptance = null`。
-- **依赖三项已登记**，clauses 取自[契约 S-4 的被消费面表](v1/contract.md#s-4-依赖方向与被消费的面)：
+- **依赖九项已登记**，clauses 取自[契约 S-4 的被消费面表](v1/contract.md#s-4-依赖方向与被消费的面)：
   - `data.identity-values · v1`：`S-3`、`S-5`、`S-6`、`S-8`、`S-10`、`S-11`、`S-12`、`S-16`～`S-21`、`S-23`、`S-26`、`S-27`、`S-29`～`S-34`、`CS-1`、`CS-2`、`CS-5`；
   - `data.offer-expiry · v1`：`S-6`、`S-19`；
-  - `capability.organization-governance · v1`：`S-22`、`S-26`、`S-38`。
-- **第四项依赖 `data.asset-model · v1` 本版没有登进 catalog**：它与本契约并行起草，**在本分支的 catalog 里还没有它的坐标**，
-  而检查器拒收指向未知坐标的依赖；它的条款号本契约只拿到主线转达的两个。**闭合条件**：两份合流之后、对齐那一轮补登这一项，
-  `clauses` 取本契约用到的：`#S-2`（能力标识词法）、`#S-18`（同一格同一能力标识至多一份持有）、`disabled` 保留项那一条，以及 `$defs` 与 `versionSelection`、`byAgent`、`HoldingBasis` 五支所在的那几条。
-  在那之前，这条依赖只在[契约抬头](v1/contract.md)与本页以文字存在。
+  - `capability.organization-governance · v1`：`S-22`、`S-26`、`S-38`；
+  - `data.asset-model · v1`：`S-1`～`S-16`、`S-18`～`S-23`、`S-36`（2026-09-24 整批对齐补登）；
+  - 各类正文契约的两条规则与斜杠命令保留区（同日补登）：`data.tool-definition · v1` `S-16`、`S-31`；`data.skill-package · v1` `S-13`、`S-17`；`data.slash-command · v1` `S-3`、`S-4`、`S-6`、`S-11`；`data.mcp-endpoint · v1` `S-14`、`S-15`；`data.connector · v1` `S-11`。
+  **不登** `capability.asset-transfer`：组合入口是它调本契约，同一次提交的约定引它的 S-18 只作指路。
 - **covers**：PF-001／PF-002／PF-003 → 本契约，全部 `reviewed: false`（2026-09-23 起草时按设计依据登记，未经独立复核）。
 - **formal-tasks**：不登记——本版不建形式工件（[契约 S-53](v1/contract.md#s-53-本版选用哪些形式工件)）。
 
@@ -39,7 +38,7 @@
 | 稳定身份 | `capability.asset-governance`，版本 1 |
 | 适用范围 | 组织层与租户层的写面，出厂层只经官方件登记；**工作区那一级不经本契约**；求值、复制与分享、正文内部都不在 |
 | 为什么是 capability 而不是 data | 每个写操作都有授权前置与失败模式，并有别人要调用的读面 |
-| 精确依赖 | `data.identity-values` v1、`data.offer-expiry` v1、`capability.organization-governance` v1、`data.asset-model` v1（并行，见上） |
+| 精确依赖 | `data.identity-values` v1、`data.offer-expiry` v1、`capability.organization-governance` v1、`data.asset-model` v1、五份正文契约（见上） |
 | 接受状态 | 候选，无接受依据 |
 
 ## 按当前问题展开
@@ -47,7 +46,7 @@
 | 当前问题 | 阅读入口 |
 |---|---|
 | 本候选版本精确承诺什么 | [v1 契约](v1/contract.md) |
-| 二十二个操作各自的前置、提交点、失败集合与缺席默认 | [契约第四节](v1/contract.md#四操作) |
+| 二十四个操作各自的前置、提交点、失败集合与缺席默认 | [契约第四节](v1/contract.md#四操作) |
 | 十七个失败值与判定次序 | [契约 S-18](v1/contract.md#s-18-失败值闭合)、[S-19](v1/contract.md#s-19-判定次序) |
 | 谁能做哪件事、每格出自哪里 | [契约 S-16](v1/contract.md#s-16-谁能做角色矩阵落成的四种资格)、[examples 第四节](v1/examples.md#四角色矩阵--操作) |
 | 走一遍产品旅程与每个失败值的反例 | [examples](v1/examples.md) |
