@@ -3,7 +3,7 @@
 本页登记这个节点**触发了哪些证据义务、实际跑过什么、覆盖到哪里**。
 原始配置、输入快照与运行结果归 [record/evidence](../../../record/evidence/README.md)，本页只引用并解释范围。
 
-> **一句话状态：什么都没跑过。**下面 32 条义务（租户边与交付面 11 条、据点装配 21 条）全部「未开始」，
+> **一句话状态：什么都没跑过。**下面 33 条义务（租户边与交付面 11 条、据点装配 22 条）全部「未开始」，
 > [实际执行](#实际执行)是空表，[bindings.yaml](bindings.yaml) 是空表。
 > **这不是「还没来得及记」，是真的没有任何运行。**
 
@@ -46,11 +46,12 @@
 | [`capability.mcp-bridge/v1#S-6`](../../../spec/capabilities/mcp-bridge/v1/contract.md#s-6-连接归桥不上签名不跨租户)（P-8） | 哨兵：据点进程环境里放一个不在白名单上的变量与一个秘密，stdio 服务端进程里两个都读不到 | **未开始** | 本节点 + 桥节点。闭合条件：桥建包，`stdioEnvAllowlist` 定值（BR G-12） |
 | [`capability.mcp-bridge/v1#S-28`](../../../spec/capabilities/mcp-bridge/v1/contract.md#s-28-据点停机与重启) | 演练：stdio 服务端在跑时对据点进程 SIGKILL；重启后的桥回收那个孤儿进程组、不复用它、不向它发任何请求 | **未开始** | 桥节点（回收是它的义务）+ 本节点（给出以据点身份起、有权终止的前提）。闭合条件：桥建包 |
 | [`capability.hooks-import/v1#S-26`](../../../spec/capabilities/hooks-import/v1/contract.md#s-26-装配给的保证-vs-协议须给的保证) 第 3 行 | 演练：hook 命令再起一个孙进程；超时之后整组都不在 | **未开始** | 兼容层节点 + 本节点。闭合条件：兼容层建包；执行环境（`executionEnvironments`）在验收装配里由替身给（M48），否则兼容件只会「起不来」、没有子进程可停 |
-| [D-039](../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#拆分领域名与装配g3)、[D-035](../../../record/decisions/message-and-stream-baseline/decision.md)「两条链各自能从脚本化输入跑到真实 JSONL 日志」；本节点[验收装配](design.md#验收装配) | 不起客户端进程、不连治理中心：模型链（脚本化传输 → P-2 → 日志）与工具链（放行件 → 执行宿主 → 本地工具与 MCP stdio 工具各一次 → 送达 → 日志）各自跑通，日志落在**真实 JSONL 文件**上 | **未开始** | 本节点。闭合条件：各 provider 建包、九个替身按「只回放契约允许的序列」写成——其中会话持有租户读面（否则 `submit` 整批 `dependencyUnavailable{storage}`）与执行环境（否则每一项 `failed{environment_unavailable}`）两个是 M48 补的 |
+| [D-039](../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#拆分领域名与装配g3)、[D-035](../../../record/decisions/message-and-stream-baseline/decision.md)「两条链各自能从脚本化输入跑到真实 JSONL 日志」；本节点[验收装配](design.md#验收装配) | 不起客户端进程、不连治理中心：模型链（脚本化传输 → P-2 → 日志）与工具链（放行件 → 执行宿主 → 本地工具与 MCP stdio 工具各一次 → 送达 → 日志）各自跑通，日志落在**真实 JSONL 文件**上 | **未开始** | 本节点。闭合条件：各 provider 建包、十个替身按「只回放契约允许的序列」写成——其中会话持有租户读面（否则 `submit` 整批 `dependencyUnavailable{storage}`）与执行环境（否则每一项 `failed{environment_unavailable}`）两个是 M48 补的，尝试与运行的事实（否则落账算不出 `late`）是 M74 补的 |
 | [`data.slash-command/v1#S-16`](../../../spec/data/slash-command/v1/contract.md#s-16-名字只按会话斜杠命令集认) 及 S-12～S-15 | 同一份用例集在交付面预判与受理面再判两侧各跑一遍：拿到同一个会话斜杠命令集时**逐条同一结果** | **未开始** | 本节点 + `packages/core/slash-command` 节点。闭合条件：该纯模块建包；受理面受阻于受理那一程 |
 | 本节点：P-1r 恰一个实例（[换代表](design.md#提供者换代或缺席时谁被重跑)后一段） | 演练：模型调用在途时切断到中心的连接；P-2 与 agent runtime 不被重跑、在途调用不被放弃，读副本照常 | **未开始** | 本节点 + P-1r 节点 + `centerConnection` 的提供者。闭合条件：P-1r 建包；远端读受阻于入口组合 v2（C-4），验收装配里用副本与连接替身，连接替身按脚本模拟断线与重连、不以换代表达 |
 | [`capability.tool-execution-runtime/v1#S-46`](../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-46-装配给的保证-vs-协议须给的保证) 第 7 行；[`capability.loop-extension-runner/v1#S-32`](../../../spec/capabilities/loop-extension-runner/v1/contract.md#s-32-装配给的保证-vs-协议须给的保证) 第 6～8 行；[`capability.hooks-import/v1#S-26`](../../../spec/capabilities/hooks-import/v1/contract.md#s-26-装配给的保证-vs-协议须给的保证) 第 2 行；归装配 A-19～A-21 | 在验收装配里由 agent loop 驱动替身演练三件：① 同一份报告交给 `dispatch` 与 `submit`，两侧都收；换成同一运行**上一次尝试**的报告，两侧都答 `invalidInput`；② 兼容件的 hook 在跑时叫停 `dispatch`，收场 `cancelled`、那一件不留记录、子进程组不在；③ 执行环境句柄在调用返回之后再解析即失败，执行环境取不到时解析失败而不回退宿主机 | **未开始** | 本节点（验收装配的驱动替身）+ 派发器、执行宿主、兼容层节点。**产品装配里 ①② 归 loop 契约（C-8），③ 的两样来路归会话持有租户读面（C-13）与执行环境（C-7）**，那时证据由那几程出；闭合条件：各 provider 建包、验收装配存在（含会话持有租户读面与执行环境两个替身） |
 | [`capability.model-profile-directory/v1#S-22`](../../../spec/capabilities/model-profile-directory/v1/contract.md#s-22-装配给的保证-vs-协议须给的保证) 第 3 行；[`capability.model-request-runtime/v1#S-38`](../../../spec/capabilities/model-request-runtime/v1/contract.md#s-38-装配给的保证-vs-协议须给的保证) 第 6 行；[PF-016 §6.17](../../../product/PF-016-cli-tui-delivery-surface/design.md#617-治理中心不可达已经开着的会话照常干活)、[§6.20](../../../product/PF-016-cli-tui-delivery-surface/design.md#620-每台机器上只有自己那一把凭据)；D-040 §八 M47 | 演练：① 保管方在场、租户那一把已落副本，切断到中心的连接之后调模型——照常发出，凭据取自本地副本；② 保管方缺席——同一场景如实收成 `undispatched{credential_unavailable}`，不是别的收场；③ 同一台机器上另一个账号的据点读不到这份副本（按登录状态归属）；④ 副本值不出现在任何日志、呈现与机读输出里（哨兵） | **未开始** | 本节点 + P-1r 节点（按 M47 修订）+ 凭据保管方（缺，C-5）。① ③ ④ 受阻于 C-5；② 在验收装配里不装保管方替身即可演练 |
+| [`capability.tool-execution-runtime/v1#S-13`](../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-13-账) 的 `late`、G-18；D-040 §八 M74 | 在验收装配里由 `runAttemptFacts` 替身演练：① 同一运行的新尝试开始之后，旧尝试里那次执行才落账 ⇒ 账上 `late: true`；② 运行已终结之后才落账 ⇒ `late: true`；③ 两者皆否 ⇒ `late` 缺席；④ 替身答不出 ⇒ 不给过渡值（不以「`late` 缺席」冒充「不晚」），收场按执行宿主节点的处置 | **未开始** | 本节点（替身）+ 执行宿主节点（按 M74 修订）。**产品装配里这份读面归会话日志与 loop 那一程（C-16）**，那时证据由那一程出；闭合条件：执行宿主建包、验收装配存在 |
 
 **受阻项写明阻塞原因**：上面每一条的阻塞原因都是同一族——
 **契约未立或未接受、提供者不存在、源码未建包**。
@@ -79,8 +80,8 @@
 | --- | --- | --- |
 | 本节点消费的五份租户契约**一条绑定都没有** | 五份租户契约与入口契约都已接受（D-023、D-028），但本节点的代理提供者不存在、据点与客户端之间的契约未起草，没有任何可引用的测试 | 据点侧代理提供者与本应用建包之后，由本节点回填 |
 | 交付面自己那份契约的全部性质**没有可绑定的条款** | 契约尚未起草 | 架构与规格设计 |
-| 据点装配承接的「装配给」行（[逐行](design.md#装配给逐行承接)）**一条绑定都没有** | 契约 candidate（待 D-041）；provider 与本应用都未建包；运行 [`2026-09-25-formal-assets-runtimes`](../../../record/evidence/2026-09-25-formal-assets-runtimes/README.md) 的八个 formal task 核的是契约模型，**本节点给的那几样在模型里被吸收**（追加口原子、同一存储、同一时钟都是「一步」；执行宿主的 fiber 位置根本不建模），装配给被违反时这些任务不会失败——所以不引作本节点的证据 | 上表 21 条义务逐条闭合；契约接受后回填 bindings |
-| 标「受阻」的装配给行 | 会话日志、装配清单、中心事实副本、到中心的连接、凭据保管方、附件字节存储、执行环境、agent loop、会话持有租户读面这些承接者不存在（[缺口 C-1～C-8、C-13](design.md#实施缺口与消费者影响)；D-040 §八 M43、M48：本程不补、留给下一程） | 主线（M43、M48） |
+| 据点装配承接的「装配给」行（[逐行](design.md#装配给逐行承接)）**一条绑定都没有** | 契约 candidate（待 D-041）；provider 与本应用都未建包；运行 [`2026-09-25-formal-assets-runtimes`](../../../record/evidence/2026-09-25-formal-assets-runtimes/README.md) 的八个 formal task 核的是契约模型，**本节点给的那几样在模型里被吸收**（追加口原子、同一存储、同一时钟都是「一步」；执行宿主的 fiber 位置根本不建模），装配给被违反时这些任务不会失败——所以不引作本节点的证据 | 上表 22 条义务逐条闭合；契约接受后回填 bindings |
+| 标「受阻」的装配给行 | 会话日志、装配清单、中心事实副本、到中心的连接、凭据保管方、附件字节存储、执行环境、agent loop、会话持有租户读面、尝试与运行的事实读面这些承接者不存在（[缺口 C-1～C-8、C-13、C-16](design.md#实施缺口与消费者影响)；D-040 §八 M43、M48、M74：本程不补、留给下一程） | 主线（M43、M48、M74） |
 | 标「缺口」的装配给行（MRR S-38 第 5 行、MPD S-22 第 2 行、MP S-26 第 6 行、HI S-26 第 1 行；MPD S-22 第 3 行按 M47 改为受阻于保管方） | 单机没有承接方式：目录在中心而调用在据点、附件字节存储未定义、执行环境无契约 | 入口组合 v2（C-4）、附件字节存储（C-6）、PF-005（C-7） |
 | 四条假设（`ctx.effect` 撤除函数可提前调用、没有 inject 时插件体不重跑、不带 `thisArg` 的派发不过滤、`await` 一条 fiber 的撤除等到它的 async disposer 结算完）**没有 probe** | 第四条是本装配显式驱动撤除次序的前提（据点义务第 5 条）；前两条由 provider 节点依赖；第三条按「全进程可见」处理，且已进契约（TER S-46 第 11 行），事件越界的义务（上表第 10 条）不靠它。「子 fiber 随父卸载」本装配已不依赖 | `packages/core/kernel-basis`（缺口 C-11） |
 | harness 其余能力族的任何条款 | 契约与提供者都还没设计 | 各能力的设计 |
@@ -102,5 +103,14 @@
 | A-6（建议） | 「切断到中心的连接」演练与连接替身「从测试种子读」不匹配 | 替身「只许做什么」补「按脚本模拟断线与重连、不以换代表达」 | design.md 验收装配替身行；本页据点义务第 19 条 |
 | 范围外 1 | G-7 与 M44 的张力 | M47 消解：产品正文优先 | 同 B-2 |
 | 范围外 2 | 会话持有租户读面的 owner：PF-015 还是随入口 v2 的 C-3 | M48 定：会话那一程（PF-015），与 C-3 分开登记 | design.md C-3、C-13 |
-| 反证清单 · 关键选择 1 | 「替身超过八个、或某个替身必须做契约未定义的判断」即应复议 D-039「不另立应用」 | 替身现为九个，前一半已触发；后一半未触发（执行环境替身不判租户、不选落点）。**不在本节点裁**，报主线 | design.md 验收装配末条、关键选择 1、报给主线 |
+| 反证清单 · 关键选择 1 | 「替身超过八个、或某个替身必须做契约未定义的判断」即应复议 D-039「不另立应用」 | 替身现为十个，前一半已触发；后一半未触发（`sessionTenancy`、`executionEnvironments`、`runAttemptFacts` 都只答测试种子，不判租户、不选落点）。主线裁定**不复议 D-039**（D-040 §八 N-27），关键选择 1 置信度「中」保留 | design.md 验收装配末条、关键选择 1 |
 | 转交表达评审 | C-10 已闭合仍占位的写法 | 保留为已闭合一行（删除线加闭合依据 M40），编号不复用；逐字核对 README 与 design 的承接行号留给表达评审 | design.md C-10 |
+
+**N3／N4 批评审的裁定落到本节点的几处**（同属 D-040 §八，本节点不是那两批的评审对象，这里只登落点）：
+
+| 编号 | 裁定 | 处置 | 落点 |
+| --- | --- | --- | --- |
+| M74（N3 范围外 1） | `late` 的两件事实经据点读面 `runAttemptFacts` 读；真承接者会话日志／loop；验收装配以替身供它；`late` 不给过渡值 | 加第十个验收替身，只答测试种子；执行宿主 inject 边补调用时取用；新登缺口 C-16（C-15 已由 M58 的 `infra/clock` 修订占用）；新增一条据点义务 | design.md 开头候选名、装载清单、验收装配替身表与说明、inject 边表执行宿主行、A-24、C-8、C-16 与编号说明；本页据点义务第 22 条、第 17 条闭合条件、覆盖缺口 |
+| M69（N4、N5） | 凭据保管方服务键定为 `credentialCustodian` | 本节点各处统一，A-4 里「两个节点叫法不一」一句删掉 | design.md 开头候选名、装载清单、A-4、报给主线 |
+| M67（N4 M-3、M-4） | P-5 带候选默认退避 `[1000, 2000, 4000]` ms 装载，G-8 只待产品负责人确认数值；`openCall` 宿主句柄形状归 C-8 | 装载清单给出 P-5 的 config；「归装配」表新增 A-23，A-17 去掉「默认重试件退避」（它是 P-5 的配置，不是设置项）；C-8 补宿主句柄一句 | design.md 装载清单、选择与动作链 MRR 行、A-17、A-23、C-8 |
+| N-27（壬回报） | 替身过八不复议 D-039；「`await` 一条 fiber 的撤除等到 async disposer 结算完」登 kernel-basis 待补 probe | 关键选择 1 置信度「中」保留、写明后半条件未触发；那条假设已在 C-11 | design.md 验收装配末条、关键选择 1、C-11、报给主线；本页上表「反证清单 · 关键选择 1」一行 |
