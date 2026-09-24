@@ -54,10 +54,10 @@
 
 | 来自 | 条款 | 本契约落在哪 | 核对状态 |
 |---|---|---|---|
-| `capability.tool-admission` v1 S-15 | 四档选项的 `id` 与 `label` | [S-21](v1/contract.md#s-21-ask-与回放) 第 1 条 | **未核对**：本分支看不到它的正文，`id`／`label` 取自主线转述与 HUB 上的那一稿 |
-| `capability.tool-admission` v1 S-28 | 兼容件复用四档选项的卡，答复不带授权、不交给放行判断 | [S-21](v1/contract.md#s-21-ask-与回放) 第 2 条 | **未核对** |
+| `capability.tool-admission` v1 S-15 | 四档选项的 `id` 与 `label` | [S-21](v1/contract.md#s-21-ask-与回放) 第 1 条 | **已核对（2026-09-24 整批对齐）**：本契约按坐标引用、不复述；那边四档 `deny`／`allow_once`／`allow_session`／`allow_tenant` 与 PF-008 原词 `label` 在同一棵树里 |
+| `capability.tool-admission` v1 S-28 | 兼容件复用四档选项的卡，答复不带授权、不交给放行判断 | [S-21](v1/contract.md#s-21-ask-与回放) 第 2 条 | **已核对（2026-09-24 整批对齐）**：那边 S-28 写明兼容件复用的卡答复不带授权、不交给放行判断，与本条同 |
 
-**`capability.tool-admission` 的坐标没有登进 catalog**——合流对齐时补登，clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)。
+**`capability.tool-admission` 的坐标于 2026-09-24 整批对齐登进 catalog**，clauses（`S-15`、`S-28`）取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)。
 
 ## 实际执行
 

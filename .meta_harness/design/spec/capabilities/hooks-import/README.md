@@ -11,8 +11,8 @@
 - **状态**：`candidate`（2026-09-23 起草），**未经独立评审、未接受、未冻结**
 - **catalog 映射**：已登记为 `candidate`；`family=capabilities`、`topic=hooks-import`、
   `contract_path=spec/capabilities/hooks-import/v1/contract.md`；`resources` 含契约与 `examples.md`；
-  依赖六项（`capability.loop-extension-runner`、`data.loop-extension`、`data.asset-model`、`data.messages`、`data.content-blocks`、`data.identity-values`，均为 v1），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)。
-  **另一项依赖尚未登记**：`capability.tool-admission` v1 与本契约并行起草，本分支的 catalog 里还没有它的坐标——**合流对齐时补登**
+  依赖七项（`capability.loop-extension-runner`、`capability.tool-admission`、`data.loop-extension`、`data.asset-model`、`data.messages`、`data.content-blocks`、`data.identity-values`，均为 v1），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)；
+  `capability.tool-admission` 于 2026-09-24 整批对齐补登
 - **formal-tasks 映射**：无——导入是纯函数、映射是有限查表，理由见[契约 S-28](v1/contract.md#s-28-本版不选用形式工件)
 - **提供者/装配映射**：尚无。起点已由 [D-033](../../../record/decisions/hooks-compat-baseline/decision.md) 选定（fork DSH `hook-protocol` 无运行时的一半，其余自写），fork 尚未做
 

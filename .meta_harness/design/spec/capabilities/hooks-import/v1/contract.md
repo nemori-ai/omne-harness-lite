@@ -104,7 +104,7 @@
 | `data.messages` | `#S-15` SystemReminderMessage、`#S-26` 拓展件追加的提醒 | [S-20](#s-20-输出怎样译回) 的 `inject` |
 | `data.content-blocks` | `#S-12` 完整的工具调用、`#S-15` 工具结果块 | [S-17](#s-17-输入怎样译成宿主的原生输入)、[S-20](#s-20-输出怎样译回) |
 | `data.identity-values` | `#S-17` 身份参数没有默认值、`#S-18` 缺席即拒绝、`#S-33` 表示层校验与判定分开 | [S-11](#s-11-importhosthooks) |
-| `capability.tool-admission`（**未登 catalog**，合流对齐时补登） | `#S-15` 定死的四档选项、`#S-28` 四档选项只在它出的卡上带授权含义 | [S-21](#s-21-ask-与回放) |
+| `capability.tool-admission`（2026-09-24 整批对齐登入 catalog） | `#S-15` 定死的四档选项、`#S-28` 四档选项只在它出的卡上带授权含义 | [S-21](#s-21-ask-与回放) |
 
 ---
 
