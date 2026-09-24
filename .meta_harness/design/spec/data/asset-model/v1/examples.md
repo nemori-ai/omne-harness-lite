@@ -301,7 +301,6 @@
 |---|---|---|---|
 | `{"item": "concurrency", "kind": "setting", "category": "preference", "domain": {"kind": "open", "schema": {"type": "integer", "minimum": 1}}, "default": 4}` | 通过 | — | [S-12](contract.md#s-12-属性声明由正文推出) |
 | `{"item": "execute", "kind": "permission", "domain": {"kind": "enum", "values": ["ask", "auto", "forbid"]}, "default": "ask"}` | 通过 | — | [S-12](contract.md#s-12-属性声明由正文推出)：`default` 是作者给的**那一个值**，**不是**出厂那一格的允许集合 |
-| `{"item": "credential", "kind": "setting", "category": "placement_identity", "domain": {"kind": "open", "schema": {"oneOf": [{"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/asset-model/v1/asset-model.schema.json#/$defs/CredentialRef"}, {"type": "null"}]}}, "default": null}` | 通过 | — | [S-23](contract.md#s-23-凭据引用) 第 2 条：凭据类项的取值域引用 `CredentialRef`；「还没取」怎么表示归 MCP 的正文契约，这里用 `null` 只是示意 |
 | `{"item": "disabled", "kind": "setting", "category": "governance", "domain": {"kind": "open", "schema": {"type": "boolean"}}, "default": false}` | 通过 | — | [S-15](contract.md#s-15-disabled-是保留项名) 第 1 条：本契约写死的那一份。**它合法，但不得由正文契约的推出规则产出**（第 14 节） |
 | `{"item": "disabled", "kind": "setting", "category": "governance", "domain": {"kind": "open", "schema": {"type": "boolean"}}, "default": true}` | 拒绝 | `malformed` | [S-15](contract.md#s-15-disabled-是保留项名)：`disabled` 的声明只能是那一份 |
 | `{"item": "usableBy", "kind": "permission", "domain": {"kind": "enum", "values": ["superAdministrator", "member", "self"]}, "default": "self"}` | 通过 | — | [S-36](contract.md#s-36-usableby-是保留项名)：本契约写死的那一份。**它合法，但不得由正文契约的推出规则产出**（第 14 节） |
@@ -316,6 +315,8 @@
 | `{"item": "concurrency", "kind": "setting", "category": "security", "domain": {"kind": "open", "schema": true}, "default": 4}` | 拒绝 | `malformed` | [S-13](contract.md#s-13-设置项类别)：设置项类别恰四个。**不是 `category_unknown`——那个名字只指资产的八类** |
 | `{"item": "concurrency", "kind": "flag", "domain": {"kind": "open", "schema": true}, "default": 4}` | 拒绝 | `malformed` | [S-12](contract.md#s-12-属性声明由正文推出)：`kind` 闭合 |
 | `{"item": "concurrency", "kind": "setting", "category": "preference", "domain": {"kind": "open", "schema": true}}` | 拒绝 | `malformed` | [S-12](contract.md#s-12-属性声明由正文推出)：`default` 必在 |
+| `{"item": "credential", "kind": "setting", "category": "placement_identity", "domain": {"kind": "open", "schema": {"$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/asset-model/v1/asset-model.schema.json#/$defs/CredentialRef"}}}` | 通过 | — | [S-12](contract.md#s-12-属性声明由正文推出)、[S-23](contract.md#s-23-凭据引用) 第 2 条：落点与身份类项可以没有作者默认——**「未配」只有缺席一种写法** |
+| `{"item": "execute", "kind": "permission", "domain": {"kind": "enum", "values": ["ask", "auto"]}}` | 拒绝 | `malformed` | [S-12](contract.md#s-12-属性声明由正文推出)：权限项的 `default` 必在 |
 
 ## 8. 属性配值
 
