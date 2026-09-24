@@ -185,15 +185,15 @@ governance-center-entry 的设计由 [D-028](../record/decisions/governance-cent
 
 | 节点 | 兑现的契约 | 形态 |
 | --- | --- | --- |
-| [`packages/model/model-profile-directory`](packages/model/model-profile-directory/README.md) | `capability.model-profile-directory` v1 | 中心插件 P-1（三个服务键，取值问法单列），inject 存储、时钟、成员关系；另有只读副本插件 P-1r，待入口 v2 |
-| [`packages/model/model-request-runtime`](packages/model/model-request-runtime/README.md) | `capability.model-request-runtime` v1 | 插件 P-2（inject 目录读面、凭据问法、会话日志、存储、时钟；在途表与连接池一个 effect）＋ 自带重试挂件 P-5；传输按 D-019 fork；绑定 6 条（formal task） |
+| [`packages/model/model-profile-directory`](packages/model/model-profile-directory/README.md) | `capability.model-profile-directory` v1 | 中心插件 P-1（三个服务键，取值问法单列），inject 存储、时钟、成员关系；另有只读副本插件 P-1r（租户那一把的据点副本经凭据保管方落地，M47），待入口 v2 与保管方 |
+| [`packages/model/model-request-runtime`](packages/model/model-request-runtime/README.md) | `capability.model-request-runtime` v1 | 插件 P-2（inject 目录读面、凭据问法、会话日志、存储、时钟；在途表与连接池一个 effect；发起租户经会话持有租户读面）＋ 自带重试挂件 P-5（候选默认退避，M67）；传输按 D-019 fork；绑定 6 条（formal task） |
 | [`packages/model/modality-projection`](packages/model/modality-projection/README.md) | `capability.modality-projection` v1 | 纯计算＋转换器登记插件 P-3（不 inject 任何服务）、声明插件、各转换器插件 P-4*、系统自带转换件的零状态贡献者插件；不 inject 存储；模态转换这一件经执行环境句柄取 `tenant`，来路待 runner 契约 G-20 |
 
 **2026-09-25 loop 侧（`agent-loop`，D-039 拍板）**——节点状态 `candidate`，所兑现的契约 `candidate`、待 D-041，**尚未建包**；runner 的行为模型未建（契约 G-14），两个节点都没有绑定：
 
 | 节点 | 兑现的契约 | 形态 |
 | --- | --- | --- |
-| [`packages/agent-loop/loop-extension-runner`](packages/agent-loop/loop-extension-runner/README.md) | `capability.loop-extension-runner` v1 | 一个插件，只 inject 会话日志；实现经贡献者登记在场，runner 从不 inject 贡献者；执行环境句柄每次调用一只、按会话解析；叫停即 `cancelled`、不等在途那一件；放行判断经 `toolAdmission`（本批全拒） |
+| [`packages/agent-loop/loop-extension-runner`](packages/agent-loop/loop-extension-runner/README.md) | `capability.loop-extension-runner` v1 | 一个插件，只 inject 会话日志；实现经贡献者登记在场，runner 从不 inject 贡献者；执行环境句柄每次调用一只、按会话解析；叫停即 `cancelled`、不等在途那一件；本实例被撤除时在途 `dispatch` 以 `unavailable` 收场、不落记录（M63）；放行判断经 `toolAdmission`（本批全拒） |
 | [`packages/agent-loop/hooks-import`](packages/agent-loop/hooks-import/README.md) | `capability.hooks-import` v1 | 导入是包导出的纯函数；兼容插件向 runner 登记一个命令执行器；D-033 fork 边界；子进程的执行环境经句柄取，执行环境无提供者，兼容件一律「起不来」 |
 
 ## 当前状态

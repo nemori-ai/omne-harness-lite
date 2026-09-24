@@ -1,9 +1,9 @@
 # modality-projection
 
 - kind：`provider`
-- 对象与设计修订：状态 `candidate`，2026-09-25 首稿；兑现 `omne-harness-lite-design-2026-09-15 · capability.modality-projection · v1`（[契约](../../../../spec/capabilities/modality-projection/v1/contract.md)，状态 `candidate`、未冻结）。插件边界取自 [D-039](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#拆分领域名与装配g3) 接受的 model 拆分 A/A/A 的[装配草图](../../../../record/proposals/capability-split-model/design.md#装配草图与切分理由)（P-3、P-4\*）；草图早于契约把逐键登记改为整份声明（D-040 §五 K41），因此有两处不同，理由在 [design.md](design.md#与装配草图不同的两处)
+- 对象与设计修订：状态 `candidate`，2026-09-25 首稿；兑现 `omne-harness-lite-design-2026-09-15 · capability.modality-projection · v1`（[契约](../../../../spec/capabilities/modality-projection/v1/contract.md)，状态 `candidate`、未冻结）。插件边界取自 [D-039](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#拆分领域名与装配g3) 接受的 model 拆分 A/A/A 的[装配草图](../../../../record/proposals/capability-split-model/design.md#装配草图与切分理由)（P-3、P-4\*）；草图早于契约把逐键登记改为整份声明（D-040 §五 K41），因此有两处不同；第三处（登记系统自带转换件交给一个零状态贡献者插件）按 D-040 §八 M68。理由在 [design.md](design.md#与装配草图不同的三处)
 - 源码位置：`packages/model/modality-projection`——尚未建包。第二层 `model` 由 D-039 拍板，布局见[两层布局](../../../README.md#packages-的两层布局)
-- 契约采用与边界依据：**判定那一半是纯函数**——`project` 的逐条贡献、`compatible`、键的解析、合法产出的校验——按包导出，模型请求运行时 import 它们、不 inject（草图 Y-2）。**转换那一半是插件**：P-3（候选插件名 `modality-projection`）持有登记表，provide `converterRegistry`（转换、查登记）与受限的 `converterAssembly`（整份声明、挂上实现），并向 runner 登记系统自带的模态转换那一件；**声明者**（候选插件名 `converter-declarer`，配置即系统装配层的那一份声明）替装配把声明交进来；**k 个转换件插件 P-4\*** 各自挂上一件实现。本契约没有耐久状态，不用存储。Cordis 采用版本 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/decision.md)）
+- 契约采用与边界依据：**判定那一半是纯函数**——`project` 的逐条贡献、`compatible`、键的解析、合法产出的校验——按包导出，模型请求运行时 import 它们、不 inject（草图 Y-2）。**转换那一半是插件**：P-3（候选插件名 `modality-projection`）持有登记表，provide `converterRegistry`（转换、查登记）与受限的 `converterAssembly`（整份声明、挂上实现），**不 inject 任何服务**；**贡献者**（候选插件名 `modality-conversion-builtin`，零状态）向 runner 登记系统自带的模态转换那一件；**声明者**（候选插件名 `converter-declarer`，配置即系统装配层的那一份声明）替装配把声明交进来；**k 个转换件插件 P-4\*** 各自挂上一件实现。本契约没有耐久状态，不用存储。Cordis 采用版本 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/decision.md)）
 
 ## 分层状态
 

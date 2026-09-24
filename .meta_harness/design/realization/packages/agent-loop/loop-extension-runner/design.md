@@ -17,7 +17,7 @@
 
 | 单元 | 服务键（候选）与方法 | 必需 inject | 调用时取用（`resolveOptional`） | 配置 |
 |---|---|---|---|---|
-| 插件 `loop-extension-runner` | `loopExtensionRunner`：`dispatch`（另收调用方的中止信号，投影层参数）、`replay`（契约 S-21、S-22）；`loopExtensionImplementations`：`registerBuiltin(builtinName, 实现) → 注销函数`、`registerCommandExecutor(执行器) → 注销函数`、`resolveTenant(environment)`、`resolveExecutionEnvironment(environment)`（契约 S-50） | `sessionLog`（块 D，无契约） | `assemblyManifest`（装配清单读面，PF-004 的契约未起草）；`modelRuntime`（`legalTargets`、`canDispatchAgain`）；`toolAdmission`（`admit`，本批无提供者）；依赖在场判定面（候选 `dependencyPresence`，无契约）；会话持有租户的读面（候选 `sessionTenancy`，PF-015，无契约）与会话级执行环境那一侧（候选 `executionEnvironments`，PF-005，无契约）——后两者只供句柄解析（契约 G-20） | 无 |
+| 插件 `loop-extension-runner` | `loopExtensionRunner`：`dispatch`（另收调用方的中止信号，投影层参数）、`replay`（契约 S-21、S-22）；`loopExtensionImplementations`：`registerBuiltin(builtinName, 实现) → 注销函数`、`registerCommandExecutor(执行器) → 注销函数`、`resolveTenant(environment)`、`resolveExecutionEnvironment(environment)`（契约 S-50） | `sessionLog`（块 D，无契约） | `assemblyManifest`（装配清单读面，PF-004 的契约未起草）；`modelRuntime`（`legalTargets`、`canDispatchAgain`）；`toolAdmission`（`admit`，本批无提供者）；依赖在场判定面（候选 `dependencyPresence`，无契约）；会话持有租户的读面（候选 `sessionTenancy`，PF-015，无契约，D-040 §八 M48 的 C-13）与会话级执行环境那一侧（候选 `executionEnvironments`，PF-005，无契约，C-7）——后两者只供句柄解析（契约 G-20） | 无 |
 
 - **只 inject 会话日志**：草图写派发器「inject：会话日志读写」、其余一律可选取用——`inject` 没有可选形式（basis [`inject-has-no-optional-form`](../../../../basis/cordis/inject-has-no-optional-form.md)），写进去就等于「没有它我不跑」，而本契约要的是「实现缺席即那一件不可用，不是 runner 不可用」（契约 S-4）。
 - **配置错误政策**：本插件没有配置。重复登记同一个 `builtinName` 或第二个命令执行器 ⇒ 登记方法抛出 ⇒ **登记者**的插件体抛出、`FAILED`、装配启动失败——与同批各节点同一条「配置错误即启动失败」；runner 自己不受影响。
@@ -28,7 +28,7 @@
 
 | 贡献者 | 登记什么 | 节点 |
 |---|---|---|
-| 模态转换那一件 | `registerBuiltin` | [modality-projection](../../model/modality-projection/README.md) 的 P-3 |
+| 模态转换那一件 | `registerBuiltin` | [modality-projection](../../model/modality-projection/README.md) 的零状态贡献者插件（D-040 §八 M68：持有登记表的 P-3 不 inject 本插件的登记面） |
 | 默认重试件 | `registerBuiltin` | [model-request-runtime](../../model/model-request-runtime/README.md) 的 P-5 |
 | 卸载判定 | `registerBuiltin` | `packages/tools/tool-execution-runtime`（同批，由那边定） |
 | 循环探测 | `registerBuiltin` | agent loop 那一程（尚无节点） |
@@ -43,7 +43,7 @@
 契约 S-50 的读面在本节点的样子：
 
 - **造**：每调一件实现，runner 用 `generateOpaqueIdentifier()` 造一只新串放进输入的 `environment`，并在本实例的**句柄表**里登一行：串 → (`manifest` 指认的会话, 这一件, 这一次经过, 调用代际)。**表里只有会话的内部指认，串本身不承载它**；输入里没有会话标识（契约 S-50 第 2 条）。
-- **失效**：那一次调用返回（或按叫停被放弃）时删掉那一行；此后解析即失败，不返回上一次的值（S-50 第 3 条）。句柄表随 runner 实例生灭（[装卸表](#成对的装载与撤除)），runner 换代之后旧实例造的句柄一律解析失败——那一件按 S-50 第 4 条自己归「起不来」或报错。
+- **失效**：那一次调用返回（或按叫停被放弃）时删掉那一行；此后解析即失败，不返回上一次的值（S-50 第 3 条）。句柄表随 runner 实例生灭（[装卸表](#成对的装载与撤除)），runner 换代之后旧实例造的句柄一律解析失败——那一件按 S-50 第 4 条自己归「起不来」或报错，而它交回的东西不会落：那一次 `dispatch` 在下一处检查点以 `unavailable` 收场（[runner 自身被撤除](#状态并发与失败映射)）。
 - **解析**：两样**分开解析、按需才取**——`resolveTenant` 只经 `sessionTenancy` 取那个会话持有的租户身份，`resolveExecutionEnvironment` 只经 `executionEnvironments` 取那个会话的执行环境（交回的是执行环境那一侧的不透明引用，形状归 PF-005 的契约）。模态转换那一件只在有块要转时取租户（D-040 §八 N-20），它不必因为执行环境那一侧不在而失败。
 - **解析不出**（行已删、来源缺席或答不出）⇒ 那一次解析以可识别的失败收场（候选 `environmentUnresolved`），**不给默认、不回退宿主机、不拿别的会话的顶上**；归「起不来」还是报错由那一件按它开始与否判（S-50 第 4 条），runner 在它交回时照 S-12 记。
 - **受限**：两个解析方法与登记方法同在受限面 `loopExtensionImplementations` 上，只有登记过实现的系统包够得着（RUN-N6 的同一条静态检查）。
@@ -52,7 +52,7 @@
 |---|---|---|---|
 | **输入里放串、解析走受限面**（本方） | 随调用直接交一个解析闭包：进程内最简单，闭包随调用结束自然失效，不必有句柄表 | 多一张随实例生灭的表 | 高：输入的形状是契约的 `EnvironmentHandle` 串（`data.loop-extension/v1#S-41`）；跨进程之后闭包过不去，解析请求要带会话与租户身份在接收边界重验（S-32），串＋解析面与那时的协议同形 |
 | **两样分开解析**（本方） | 一个 `resolveEnvironment` 一次交回两样，面更小 | 两个方法 | 高：执行环境那一侧本版没有提供者，合成一个方法会让只要租户的模态转换也跟着解析失败 |
-| **句柄表在 runner 实例里，不落日志** | 落进日志，runner 换代后旧句柄仍解析得出 | 换代时在途的那一件解析失败 | 高：句柄只在一次调用里有效（S-50 第 3 条），它不是正确性事实（S-8）；换代时在途的那一次本来就按 S-34 记报错 |
+| **句柄表在 runner 实例里，不落日志** | 落进日志，runner 换代后旧句柄仍解析得出 | 换代时在途的那一件解析失败、白跑一趟 | 高：句柄只在一次调用里有效（S-50 第 3 条），它不是正确性事实（S-8）；换代时那一件交回什么都不落——旧 `dispatch` 在下一处检查点以 `unavailable` 收场（D-040 §八 M63），下一次 `dispatch` 回放时它重新求值、拿新句柄 |
 
 ### 操作落点
 
@@ -82,7 +82,7 @@
 
 | 边（消费者 → 提供者） | 必需／调用时 | 提供者换代或撤除时收掉什么 | 对齐的契约条款 |
 |---|---|---|---|
-| runner → `sessionLog` | 必需 | runner 插件体重跑，两个服务重新 provide；登记表随旧实例没了，**贡献者都 inject 登记面、随之重跑并重新登记**；inject `loopExtensionRunner` 的调用方重跑。**在途的 `dispatch` 跑在调用方的协程上、拿着旧引用继续**：已提交的结论留在日志里，后面的提交若写不进即 `unavailable`；下一次对同一次经过的 `dispatch` 从日志接着走（回放）。**没有需要交接的活状态** | S-8、S-33 末段 |
+| runner → `sessionLog` | 必需 | runner 插件体重跑，两个服务重新 provide；登记表随旧实例没了，**贡献者都 inject 登记面、随之重跑并重新登记**；inject `loopExtensionRunner` 的调用方重跑。**在途的 `dispatch` 跑在调用方的协程上，不继续**：它在下一处检查点见旧实例已撤除，以 `unavailable` 收场、**不再落任何结论记录**（D-040 §八 M63，[runner 自身被撤除](#状态并发与失败映射)）——旧登记表已被贡献者注销，接着求值只会把「此刻不在」读成指定挂件的否决写进日志。已提交的结论留在日志里；下一次对同一次经过的 `dispatch` 从日志接着走（回放）。**没有需要交接的活状态** | S-8、S-33 末段 |
 | runner ⇢ `assemblyManifest` | 调用时 | 不重跑；缺席或读不到 ⇒ `unavailable`，不当空链 | S-16、S-33 |
 | runner ⇢ `modelRuntime` | 调用时 | 不重跑；缺席 ⇒ 那一件判不出 ⇒ `unavailable`、不留记录，不当「合法」也不当「不合法」 | S-14、S-33 |
 | runner ⇢ `toolAdmission` | 调用时 | 不重跑；缺席 ⇒ 放行判断不可用 ⇒ 全拒件 | S-17、S-29 第 7 条 |
@@ -162,27 +162,33 @@ runner 的每一次写都是一次追加，**没有「同一提交」要跨 owne
 
 ## 状态、并发与失败映射
 
-**一次 `dispatch` 的步骤**：核输入（身份参数无默认值；`before_action` 上核 `admission.report` 的三者）→ 读清单定链（钉末位）→ 按锚读已落结论并核前缀（对不上即 `replayInconsistent`）→ 从第一件没有最终结论的件起逐件：查叫停 → 判在场 → 造输入（新的日志句柄与执行环境句柄）→ `await` 实现（与叫停竞速）→ 删句柄 → 查叫停 → 两类判断 → 追加结论（RL-1～RL-3）→ 下一件；遇终止即停 → 按链序追加提醒（RL-4，每条一次嵌套经过）→ 交出效果。
+**一次 `dispatch` 的步骤**：核输入（身份参数无默认值；`before_action` 上核 `admission.report` 的三者）→ 读清单定链（钉末位）→ 按锚读已落结论并核前缀（对不上即 `replayInconsistent`）→ 从第一件没有最终结论的件起逐件：查叫停与实例撤除 → 判在场 → 造输入（新的日志句柄与执行环境句柄）→ `await` 实现（与叫停、实例停止竞速）→ 删句柄 → 两类判断 → 查叫停与实例撤除 → 追加结论（RL-1～RL-3）→ 下一件；遇终止即停 → 按链序追加提醒（RL-4，每条一次嵌套经过）→ 交出效果。
 **写权**：runner 只写结论与提醒；终态、取消请求、上交条目、卡片都不是它写（契约 S-23 末条）。
 **并发**：件与件之间不并行；一批动作各自的经过之间可以并行，各自只读自己已落的结论。**不加进程内锁**：两副协程之间的次序只落在 RL-2、RL-3 上。
-**失败映射**：日志不可用 ⇒ `unavailable`；RL-2 拒收 ⇒ `attemptSuperseded`；RL-3 冲突 ⇒ 读已有那一条继续；实现抛出 ⇒ 按「开始之后即报错」记（契约 S-12），它报「起不来」且在开始之前 ⇒ 不可用；判定来源缺席 ⇒ `unavailable`。没有 catch-all：runner 自己的缺陷上抛。
+**失败映射**：日志不可用 ⇒ `unavailable`；RL-2 拒收 ⇒ `attemptSuperseded`；RL-3 冲突 ⇒ 读已有那一条继续；实现抛出 ⇒ 按「开始之后即报错」记（契约 S-12），它报「起不来」且在开始之前 ⇒ 不可用；判定来源缺席 ⇒ `unavailable`；本实例已撤除 ⇒ `unavailable`、不落记录（见下）。没有 catch-all：runner 自己的缺陷上抛。
 **取消**（契约 S-21 ② 末句、⑥ `cancelled`、S-34；D-040 §八 M39）：调用方随 `dispatch` 交来它的中止信号（候选，投影层参数；叫停跨进程怎样送到归组合契约，契约 S-21 ②）。runner 把同一个信号随调用交给正在求值的那一件（实现据此停下它的在途工作，例如[兼容件执行器](../hooks-import/design.md#一次被调到的子进程起限时停)停子进程组），并在三处查它：**开始下一件之前**、**追加那一件的结论之前**、**追加提醒之前**。已中止 ⇒ 这一次经过不再写任何东西（不落在途那一件的结论、不开始后面的件、不补提醒），`dispatch` 以 `cancelled` 收场，已提交的结论都在。
-- **不等在途那一件结束**：它可能不理信号，而拓展件本版没有时间上界（契约 G-7）；等它就是让一个不守约的件拖住整个运行的取消。那一件的调用照常跑完（内核不取消在途调用），它的 Promise 仍由这一次 `dispatch` 托管——交回的东西丢弃、拒绝只记一条 info 级结构化日志，不落日志条目。停下子进程之类的在途工作是那一件自己的义务。
+- **不等在途那一件结束，也不跟踪它**：它可能不理信号，而拓展件本版没有时间上界（契约 G-7）；等它就是让一个不守约的件拖住整个运行的取消。那一件的调用照常跑完（内核不取消在途调用），它的 Promise 只挂着一个丢弃结果、拒绝记一条 info 级结构化日志的收尾，不落日志条目；**runner 不再持有它的任何状态、不计入任何 effect**。上界：件与件不并行，所以每一次经过、每一次叫停至多留下一件（一批动作各经过各一件）；runner 撤除时也不等它。停下子进程之类的在途工作是那一件自己的义务。
 - **叫停 ‖ 结论追加**：信号在那一件已交回、runner 已查过信号、追加尚未确认时到来——那一件此时已不在求值中，它的结论照常提交（契约「不留记录」说的是收到信号时还在求值的那一件）；追加确认后 runner 在下一处检查点看到信号，以 `cancelled` 收场。两种次序的结果都是「一条结论要么完整落下、要么不落」，没有半条。**取消的权威在日志里的取消请求**（PF-012 §6.15），不在信号本身；信号丢了之后那一件还能写进什么归尝试栅栏与 loop 那一程（契约 G-8）。
 
 | 选择 | 落选方的最强论证 | 本方的弱点 | 置信度 |
 |---|---|---|---|
 | **收到叫停即返回 `cancelled`，不等在途那一件** | 等它结束再返回：`dispatch` 返回时这一次经过里没有任何东西还在跑，取消路径更干净 | 返回之后那一件可能还在跑一小段（兼容件要等子进程确认退出），它的外部效果不因返回而停止 | 中：契约只要「它这一次求值不留记录」，没有要求等；等则取消的时长受一个无上界的件支配 |
 
+**runner 自身被撤除**（dispose，或因 `sessionLog` 换代而重跑；D-040 §八 M63）：在途的 `dispatch` **不继续**，以 `unavailable` 收场、**不再落任何结论记录**。
+- **检查点**：复用上面三处，查叫停的同时查「本实例已撤除」——判 `fiberIsActive(ctx)`（[kernel-basis](../../core/kernel-basis/README.md) 共用件，与 account-registration「每步之前检查本 fiber 是否仍 `ACTIVE`」同一写法）。等在途那一件时，与叫停一起竞速的还有**实例的停止信号**（执行环境句柄表那个 effect 的撤除函数第一步触发），一件慢件拖不住这次收场。在途那一件不另收停止信号：它的贡献者 inject 了本插件的登记面，随之重跑、自己收场（兼容件经撤除函数停子进程）。
+- **为什么查 fiber 状态、不只查撤除函数里的标记**：撤除开始时 runner fiber 先离开 `ACTIVE`，服务随后消失，贡献者的注销在那之后——所以一次「因撤除而查不到实现」一定发生在离开 `ACTIVE` 之后，而追加之前的检查排在查表之后，**必然看得见撤除**，指定挂件的否决写不进日志。撤除开始之前就已发出的追加照常落下：它依据的是撤除之前的登记表，是一条正当的结论。
+- **待核对主张**：「撤除开始即离开 `ACTIVE`，先于任何 effect 撤除」。kernel-basis 的 `fiber-state-readable` 没有观察到 `UNLOADING`（那个节点记下的缺口），basis [`effect-disposal-concurrent-not-ordered`](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md) 第三条（`UNLOADING` 之后再建 effect 即抛）与它一致但不是它的 probe。会失败的证据是 [verification](verification.md#证据义务) 的最小场景：它不成立，场景里就会看到撤除之后落下的否决。
+- **不申请 S-8 例外**：已提交的结论都在；下一次对同一次经过的 `dispatch`（新实例上）从日志接着走、在途那一件重新求值——「换一个 runner 实例不改变任何一次经过的结果」（契约 S-8、S-33 末段）由此守住。
+
 ## 成对的装载与撤除
 
 | 取得的资源／注册贡献 | 实例拥有者与对外可用时点 | 部分初始化失败 | 撤除、静止／交接与保留范围 |
 |---|---|---|---|
-| `ctx.provide`：`loopExtensionRunner`、`loopExtensionImplementations` | runner fiber；`ACTIVE` 即可解析 | provide 由 effect 纳管（kernel-basis probe `provide-is-effect-managed`，未升格为 basis 条目）；第二个失败则第一个随 fiber 撤 | 服务消失；调用方与贡献者重跑或 `PENDING`；**在途的 `dispatch` 跑完**，按各自那一次提交收场；**保留**：日志里的全部结论与提醒 |
-| 登记表（实现句柄） | runner 实例；表项的寿命归各贡献者的 effect | 重复登记 ⇒ 抛给登记者 | 随实例没了；贡献者重跑后重新登记。注销时正在跑的那一次按「中途被撤下」记报错 |
+| `ctx.provide`：`loopExtensionRunner`、`loopExtensionImplementations` | runner fiber；`ACTIVE` 即可解析 | provide 由 effect 纳管（kernel-basis probe `provide-is-effect-managed`，未升格为 basis 条目）；第二个失败则第一个随 fiber 撤 | 服务消失；调用方与贡献者重跑或 `PENDING`；**在途的 `dispatch` 在下一处检查点见实例已撤除，以 `unavailable` 收场、不再写**（M63）；**保留**：日志里的全部结论与提醒 |
+| 登记表（实现句柄） | runner 实例；表项的寿命归各贡献者的 effect | 重复登记 ⇒ 抛给登记者 | 随实例没了；贡献者重跑后重新登记。runner 仍在、贡献者自己撤下时，正在跑的那一次按「中途被撤下」记报错；随 runner 一起没了的按上一行收场 |
 | 每一次调用的日志只读句柄 | 那一次调用；不是 effect | — | 调用返回即作废 |
-| 执行环境句柄表 | runner 实例；包进 `ctx.effect`，每一行的寿命是一次调用 | — | 撤除函数清空整张表：旧实例造的、仍在途的句柄此后解析失败，那一件按契约 S-50 第 4 条归「起不来」或报错；**什么仍为真**：已经解析出去的执行环境引用不被收回——它指向的执行环境归执行环境那一侧，本节点不拥有 |
-| 叫停后仍在跑的那一件的调用 | 那一次 `dispatch` 托管它的 Promise（结果丢弃、拒绝记日志）；不是 effect | — | 跑完即了；它的外部效果不回滚，停下它是那一件自己的义务 |
+| 执行环境句柄表 | runner 实例；包进 `ctx.effect`，每一行的寿命是一次调用 | — | 撤除函数先触发实例的停止信号（叫醒正在等在途那一件的 `dispatch`，M63），再清空整张表：旧实例造的、仍在途的句柄此后解析失败，那一件按契约 S-50 第 4 条归「起不来」或报错；**什么仍为真**：已经解析出去的执行环境引用不被收回——它指向的执行环境归执行环境那一侧，本节点不拥有 |
+| 叫停或实例撤除后仍在跑的那一件的调用 | **不跟踪**：只挂一个丢弃结果、拒绝记 info 日志的收尾；不是 effect，runner 不持有它的状态 | — | 每一次经过至多一件；runner 撤除不等它、不收它；跑完即了，它的外部效果不回滚，停下它是那一件自己的义务 |
 | 无定时器 | — | — | 一件不返回的实现没有时间上界（契约 G-7），runner 不替它设 |
 
 ## 实施缺口与消费者影响
