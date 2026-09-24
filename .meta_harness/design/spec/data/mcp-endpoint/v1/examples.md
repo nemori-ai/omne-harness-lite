@@ -228,8 +228,8 @@
   "versionSelection": { "kind": "current" },
   "immutable": false,
   "assignments": [
-    { "item": "credential", "value": "cred_77f0", "immutable": false },
-    { "item": "execute:create_issue", "value": { "allowed": ["ask"] }, "immutable": false }
+    { "item": "credential", "value": "cred_77f0", "immutable": false, "since": "2026-09-20T09:00:00Z" },
+    { "item": "execute:create_issue", "value": { "allowed": ["ask"] }, "immutable": false, "since": "2026-09-20T09:00:00Z" }
   ],
   "since": "2026-09-20T02:00:00Z"
 }
@@ -247,7 +247,7 @@
   "basis": { "kind": "owned" },
   "versionSelection": { "kind": "current" },
   "immutable": false,
-  "assignments": [ { "item": "credential", "value": "cred_91c2", "immutable": false } ],
+  "assignments": [ { "item": "credential", "value": "cred_91c2", "immutable": false, "since": "2026-09-23T08:10:00Z" } ],
   "since": "2026-09-23T08:00:00Z"
 }
 ```

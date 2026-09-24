@@ -81,7 +81,7 @@ V-2～V-6 **一条执行记录也没有**。起草时的手核只保证 `example
   - **凭据「还没取」改为缺席**（S21-b）：[S-13](v1/contract.md#s-13-凭据配值的取值域) 的取值域只剩 `CredentialRef`，`credential` 一项不带默认；`{"kind": "not_fetched"}` 作凭据配值改判 `credential_plaintext`；「撤掉」是删掉那条配值。**表示改变**：表 6 与 7.1 已改写。
   - **工作区提供的 stdio 接入点默认禁用**（S19-c）：[S-17](v1/contract.md#s-17-工作区格上的这些项) 加一条；怎样落进求值归 `capability.asset-evaluation`。
   - **G-1、G-6、G-10 闭合，G-5 移交**（`data.asset-model` 已为 `mcp` 写明第二个输入、改了能力标识名词法、壳 `$ref` 本契约；「能不能用」的默认归它的 `usableBy` 与 asset-evaluation 的 G-15）。
-  - 实例里的两份持有补上 `versionSelection`（`data.asset-model` 本轮加的必填成员）。
+  - 实例里的两份持有补上 `versionSelection`（`data.asset-model` 本轮加的必填成员）；同轮稍后，配值补上 `since`（`data.asset-model` 的 S-14 加的必填成员，账本 S11-G14），G-9 随之闭合——静态凭据的「什么时候取的」就是那条配值的 `since`。
   - **对证据的影响**：V-1 首次有了本地自检；CS-1、CS-2、CS-4 按新写法改写。
 - **[G-3](v1/contract.md#八已知缺口)（组织格能否持有凭据）被裁决**：本契约形状不变。
 - **跨进程演化启动**：[第五节](v1/contract.md#五装配给与协议给)右列从「待兑现」转为「须由协议兑现」；本版的全部证据只保留其单机范围，不得外推。
