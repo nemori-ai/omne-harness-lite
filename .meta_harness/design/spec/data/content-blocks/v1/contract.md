@@ -428,7 +428,7 @@ modalityOf(mediaType) ≝   按 mediaType 在第一个 "/" 之前的那一段 t�
 | `code` | 那张表的哪一行 | 收场 |
 |---|---|---|
 | `user_interrupted` | 用户手动中断（叫停的是这一次执行） | `interrupted` |
-| `backgrounded_auto` | 转后台（自动：前台跑超过声明的时长） | `backgrounded` |
+| `backgrounded_auto` | 转后台（自动：前台跑超过声明的时长，或前台上限到点且允许转后台） | `backgrounded` |
 | `backgrounded_by_user` | 转后台（用户手动切） | `backgrounded` |
 | `backgrounded_by_preemption` | 因插队转后台 | `backgrounded` |
 | `interrupted_by_preemption` | 因插队被中断 | `interrupted` |

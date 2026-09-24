@@ -6,7 +6,7 @@
   `family = data`、`topic = asset-model`、规范路径 `spec/data/asset-model/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
 - **状态**：`candidate`——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
-- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-002 rev 16、PF-001 rev 16、PF-003 rev 4、PF-015 rev 11** 为准；PF-004 rev 10 只作指路
+- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-002 rev 19**（2026-09-24 由 rev 16 对到 rev 19：按 changelog rev 17→19 逐条核过——rev 18「组织那一层不持有 MCP 凭据与连接件鉴权绑定」落进 S-23 第 7 条、原 G-10 关闭；rev 17 §5.2「谁可以使用它」**每一类资产都有**与 [S-36](#s-36-usableby-是保留项名) 只给三类**不一致，未自行改**，记 [G-14](#八已知缺口)；其余各条不涉本契约的条款）、**PF-001 rev 16、PF-003 rev 4、PF-015 rev 11** 为准；PF-004 rev 10 只作指路
 - **精确语义依赖**：
 
   | 坐标 | 消费的条款 | 取它的什么 | 本契约怎么用 |
@@ -28,7 +28,7 @@
 | 八类资产；身份是「类别 ＋ name」，其余归实现 | [PF-002 §4 八类资产](../../../../product/PF-002-assets-settings-and-permissions/design.md#八类资产) · [身份是「类别 ＋ name」](../../../../product/PF-002-assets-settings-and-permissions/design.md#身份是类别--name其余归实现) · [PF-001 §4 资产的种类](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类) | S-1、S-3、S-10 |
 | 斜杠命令的保留名在 `omne-official` 前缀下，分隔符与拼法归规格 | [PF-002 §4 Slash Command](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command) | S-2 |
 | Tool、MCP、Connector、Loop Extension、Skill、Agent Definition 各自是什么、自带哪些属性 | [PF-002 §4 Tool](../../../../product/PF-002-assets-settings-and-permissions/design.md#tool) · [MCP](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp) · [Connector](../../../../product/PF-002-assets-settings-and-permissions/design.md#connector) · [Loop Extension](../../../../product/PF-002-assets-settings-and-permissions/design.md#loop-extension) · [Skill](../../../../product/PF-002-assets-settings-and-permissions/design.md#skill) · [Agent Definition](../../../../product/PF-002-assets-settings-and-permissions/design.md#agent-definition) | S-10、S-12 |
-| MCP 凭据：一份持有一份值、不跨租户身份共用、值永不呈现、续期不算换值、组织层能否持有未决 | [PF-002 §4 MCP 凭据](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的) · [§9 未决项](../../../../product/PF-002-assets-settings-and-permissions/design.md#九未决项) | S-23、[G-10](#八已知缺口) |
+| MCP 凭据：一份持有一份值、不跨租户身份共用、值永不呈现、续期不算换值、**组织那一层不持有**（rev 18；连接件的鉴权绑定同一条理由） | [PF-002 §4 MCP 凭据](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的)（「归谁」一行按 rev 18） · [§4 Connector](../../../../product/PF-002-assets-settings-and-permissions/design.md#connector) | S-23 |
 | Plugin：打包分发、内含成员不取得独立生命周期、能组合哪几类；刻意不做的组合 | [PF-002 §4 Plugin](../../../../product/PF-002-assets-settings-and-permissions/design.md#plugin) · [谁能组合谁](../../../../product/PF-002-assets-settings-and-permissions/design.md#谁能组合谁) · [几个刻意不做的组合](../../../../product/PF-002-assets-settings-and-permissions/design.md#几个刻意不做的组合) | S-11、[G-9](#八已知缺口) |
 | 组合是一种关系；组合的引用指向能力标识 | [PF-002 §5.1](../../../../product/PF-002-assets-settings-and-permissions/design.md#51-组合是一种关系不是几种) · [§6.3](../../../../product/PF-002-assets-settings-and-permissions/design.md#63-组合的引用指向能力标识) | S-11 |
 | 工作区：一级归属、不是目录、挂在租户下、会话选用、挂上之后特定命名的文件自动进来 | [PF-002 §4 工作区](../../../../product/PF-002-assets-settings-and-permissions/design.md#工作区) · [工作区不是目录](../../../../product/PF-002-assets-settings-and-permissions/design.md#工作区不是目录) · [它挂在租户下](../../../../product/PF-002-assets-settings-and-permissions/design.md#它挂在租户下) · [它是会话选用的](../../../../product/PF-002-assets-settings-and-permissions/design.md#它是会话选用的不指定就是空) · [挂上之后自动进来](../../../../product/PF-002-assets-settings-and-permissions/design.md#挂上之后它的内容在装配时自动进来) · [PF-015 §6.13](../../../../product/PF-015-session-lifecycle-and-ownership/design.md#613-工作区在创建时显式指定不指定就是空) | S-16、S-17、S-24 |
@@ -426,7 +426,7 @@
 
 ### S-36 `usableBy` 是保留项名
 
-**[谁可以使用它](../../../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算)是 `skill`、`mcp`、`slash_command` 三类资产各有的一项权限，项名 `usableBy`，声明由本契约写死**
+**[谁可以使用它](../../../../product/PF-002-assets-settings-and-permissions/design.md#谁可以使用它是各类资产共用的一项权限)是 `skill`、`mcp`、`slash_command` 三类资产各有的一项权限，项名 `usableBy`，声明由本契约写死**
 （主线裁定 2026-09-23，待产品负责人确认；账本 S18-c、A-G14）：
 
 ```json
@@ -583,7 +583,7 @@
 4. **只在它被配上去的那一份持有上有效**：抄到另一份持有上**不产生取用资格**——MCP 凭据[一份持有一份，不跨租户身份共用](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的)。解引用时由凭据本体的保管方按调用方的持有判定。
 5. **引用本身也不作为呈现内容**（规格层推导）：产品正文说那个值[永不呈现，呈现得出的只有有没有、哪一层的、什么时候取的](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的)；引用能换来凭据，把它呈现出去就等于绕开了那一句。
 6. **经 OAuth 取得的那一份续期不算换值**：续期换的是保管方那边的本体，**这条配值不变**。
-7. 凭据本体存在哪、怎么加密、谁来续、多台据点上的副本——**归提供者设计**。**组织格能不能持有一份 MCP 凭据**产品未决（[G-10](#八已知缺口)）；两种答案下本条的形状都不变。
+7. 凭据本体存在哪、怎么加密、谁来续、多台据点上的副本——**归提供者设计**。**组织格不持有 MCP 凭据，也不配连接件的鉴权绑定**（[PF-002 rev 18 §4 MCP 凭据「归谁」](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的)、[§4 Connector](../../../../product/PF-002-assets-settings-and-permissions/design.md#connector)；原 G-10 关闭）：这两项只配在租户格的持有上，组织格上的配值由写面拒（`capability.asset-governance`）；本条的形状不变。
 8. [重复复制不动配值](../../../../product/PF-003-asset-transfer-and-sharing/design.md#67-覆盖的范围内容覆盖配置不动)，所以它不会被一次复制冲掉。
 
 交换表示按 `data.identity-values/v1` 的 [S-31](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示) 的散文自定义。
@@ -896,10 +896,11 @@ C 的组织格上多一份 `basis: { kind: "shared", sharing: <分享号> }` 的
 | **G-7** | **已闭合（2026-09-24 整批对齐）**：`data.connector` 已成稿，`connector` 的壳改为 `$ref` 它的 `ConnectorDefinition`（[S-10](#s-10-八类正文的外壳)）；鉴权绑定与投递目标是持有上的配值（主线裁定 S21-a、S21-b） | — | — |
 | **G-8** | **已闭合（2026-09-24 整批对齐）**：`tool` 与 `loop_extension` 的壳改为 `$ref` `data.tool-definition` v1 与 `data.loop-extension` v1（[S-10](#s-10-八类正文的外壳)）；那两份反过来消费本契约，壳的 `$ref` 不登为本契约的依赖（见头部依赖表下的说明） | — | — |
 | **G-9** | **plugin 的正文不完整**：成员的实现落在哪份记录、是否随 plugin 的版本一起定死（[PF-002 §4 Plugin](../../../../product/PF-002-assets-settings-and-permissions/design.md#plugin) 说成员随 plugin 的版本治理，[§6.3](../../../../product/PF-002-assets-settings-and-permissions/design.md#63-组合的引用指向能力标识) 又说引用指向能力标识）；Rules 这类声明性成员无处可放；plugin 自己的属性项（启用哪些成员、成员的默认配置、谁可以启用它）没有推出规则 | 持有一个 plugin 时成员怎样一并进来；plugin 的设置页 | **PF-002 的 owner**（成员与 Rules 的产品含义）；随后由主线定形状 |
-| **G-10** | **组织格能不能持有一份 MCP 凭据**：[PF-002 §9](../../../../product/PF-002-assets-settings-and-permissions/design.md#九未决项) 唯一未决 | 组织格上 MCP 凭据配值的写面；**本契约的形状两种答案下都不变**（[S-23](#s-23-凭据引用)） | **产品负责人** |
+| **G-10** | **已关闭（PF-002 rev 18，主线 2026-09-24 落）**：组织那一层不持有 MCP 凭据，也不配连接件的鉴权绑定（[S-23](#s-23-凭据引用) 第 7 条）；形状不变 | — | — |
 | **G-11** | **已闭合（2026-09-24 整批对齐）**：名字词法改为禁斜杠、许冒号（主线裁定 S9-c）；保留前缀的拼法 `omne-official:` 由 `data.slash-command/v1` 的 S-3 定，合 [S-2](#s-2-能力标识名的词法) | — | — |
 | **G-12** | **项还在、取值域却变了的留存配值怎么求值**：资产出新版或被重复复制之后，某一项仍被声明但取值域变了，旧配值不再合（[PF-003 §6.7](../../../../product/PF-003-asset-transfer-and-sharing/design.md#67-覆盖的范围内容覆盖配置不动) 只答了项被删、项新增、项不变三种） | 求值第 4 步；设置页怎样呈现一条失效的值 | **`capability.asset-evaluation`** 定求值；是否要告知配值方归 **PF-002 的 owner** |
 | **G-13** | **主线的自决与裁定没有设计链内的依据**：A1（记录号）、A3（声明由正文推出）、A4（凭据引用）、A7（血缘号）、A8（承载清单）是主线自决；S9-b（五支来路、`byAgent`）、S9-c（禁斜杠许冒号）、A-G3、A-G7、A-G14、S18-c（`usableBy`）、S21（吸收连接件的拒绝值）是主线 2026-09-23 的裁定、**待产品负责人确认**。都还没落进任何决定或产品正文，[设计依据](#设计依据)无处可链 | 本契约接受时这些条款（S-2、S-3、S-4、S-8、S-18、S-19、S-27、S-36）的可追溯性 | **主线**：落一份决定记录；**产品负责人**确认 2026-09-23 那几项 |
+| **G-14** | **「谁可以使用它」有哪几类**：[PF-002 rev 17 §5.2](../../../../product/PF-002-assets-settings-and-permissions/design.md#谁可以使用它是各类资产共用的一项权限)「**每一类资产都有这一项，而且是同一项**」；本契约 [S-36](#s-36-usableby-是保留项名) 按主线裁定（S18-c、A-G14）只给 `skill`、`mcp`、`slash_command` 三类，第 2 条写「其余五类……先回 PF-002」。两处相左，本契约未自行改 | 其余五类（tool、loop_extension、connector、agent_definition、plugin）的属性项里有没有 `usableBy`；`capability.asset-evaluation` 第 1 步的「谁可以使用它」滤对这五类做不做 | **主线**（改判 S-36 或请产品负责人确认 rev 17 的范围） |
 
 ## 九、明确不承诺
 
