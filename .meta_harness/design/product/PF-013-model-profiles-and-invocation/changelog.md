@@ -42,7 +42,7 @@ rev 4 已于 2026-09-23 正式接受（[记录](decisions.md#2026-09-23--接受�
 **不改的**：一条档案的身份是（范围，路由名）；同一个范围里一个路由名只有一条；撤回不删行、可恢复；凭据挂在范围上；选中与有效两分；合法目标不得拒绝；不替用户改选（选的是名字，名字没变）。
 
 **下游要复核什么**：
-- **规格**：[`data.model-profile` v1](../../spec/data/model-profile/v1/contract.md) 的引用与解析（[S-13](../../spec/data/model-profile/v1/contract.md#s-13-modelprofileref)、[S-14](../../spec/data/model-profile/v1/contract.md#s-14-引用只精确解析不跨层)：「那项设置的取值是一条精确引用」与「设置记的是路由名、按层取胜者」要对上）、[`capability.model-profile-directory` v1](../../spec/capabilities/model-profile-directory/v1/contract.md) 的列表、[`capability.model-request-runtime` v1](../../spec/capabilities/model-request-runtime/v1/contract.md) 的有效模型、合法目标与展示列表——按「名字按层覆盖、先滤已撤回与这个范围不允许的、被盖住的只作标注、链上同名都撤回才『已下架』」对一遍。
+- **规格**（候选契约，随本程规格批次入库，坐标见[身份清单](../../registry/README.md)）：`data.model-profile` v1 的引用与解析（S-13、S-14：「那项设置的取值是一条精确引用」与「设置记的是路由名、按层取胜者」要对上）、`capability.model-profile-directory` v1 的列表、`capability.model-request-runtime` v1 的有效模型、合法目标与展示列表——按「名字按层覆盖、先滤已撤回与这个范围不允许的、被盖住的只作标注、链上同名都撤回才『已下架』」对一遍。
 - **[PF-016](../PF-016-cli-tui-delivery-surface/README.md)**：展示列表里被盖住的同名条目怎么呈现。
 - **统一语言与领域对象**：出处标 PF-013 rev 11 的词条与对象条目逐条复核；档案相关词条与「模型档案」对象条目要写进按层覆盖；[选中模型](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-selected-model--选中模型--selected-model)、[模型切换](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-switch--模型切换--model-switch)的定义要写明设置值是名字。
 

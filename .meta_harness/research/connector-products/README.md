@@ -1,7 +1,7 @@
 # 主流 AI 助手产品里与「连接件」相近的功能：完整产品设计是什么样
 
 以 [PF-002 §4 Connector](../../design/product/PF-002-assets-settings-and-permissions/design.md#connector) 与候选契约
-[`data.connector` v1](../../design/spec/data/connector/README.md) 定义的连接件（唯一方向朝里、无读取面无管理面、带身份鉴权、
+`data.connector` v1（随本程规格批次入库，坐标见[身份清单](../../design/registry/README.md)）定义的连接件（唯一方向朝里、无读取面无管理面、带身份鉴权、
 来源标识／投递目标／鉴权绑定是持有上的配值）为对照基准，核对 Anthropic 与 OpenAI 两家产品里方向相近的功能怎么设计，
 并取 Slack Events API、GitHub Webhooks、Zapier、IFTTT 作为「事件目录 + 订阅」的成熟范式参照。
 
