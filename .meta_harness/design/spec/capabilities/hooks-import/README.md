@@ -41,7 +41,7 @@
 
 ## 版本包
 
-`v1/` 含 `contract.md` 与 `examples.md`。**不建 Schema**：导入报告与兼容件载荷的线上形状归组合契约；兼容件载荷在数据契约里还没有家（[G-1](v1/contract.md#十一已知缺口)）。
+`v1/` 含 `contract.md` 与 `examples.md`。**不建 Schema**：导入报告与兼容件载荷的线上形状归组合契约；兼容件载荷的家是 `data.loop-extension` 的 `implementation.command` 一支；导入留痕还没有家（[G-1](v1/contract.md#十一已知缺口)）。
 **不建 `formal/`**。**钉住的宿主版本一升级就出新版本**，不原地改。
 
 本入口不代替唯一 catalog；推荐版本不会自动升级消费者。返回[能力契约](../README.md)。
