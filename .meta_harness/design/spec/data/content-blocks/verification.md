@@ -4,21 +4,21 @@
 
 > **当前状态：未开始。**`data.content-blocks` v1 是 `candidate`，未接受、未冻结；尚无提供者设计、尚无源码、尚无装配。
 > 下表登记的是**已经触发的证据义务**，不是已完成的检查。
-> **Schema 正反实例校验未运行**：起草时只做了手核（[`examples.md` 第 15 节](v1/examples.md#15-起草者逐条自核)），**没有跑过任何校验器**；
+> **Schema 正反实例只跑过一次本地自检**（2026-09-23 对齐波，见[本地自检](#本地自检)）：它只核「Schema」一列，**未登记为证据、未进 `record/evidence/`**；
 > 六条规范场景、六条消费者核对场景、四条静态检查**一条都未执行**——文件存在不代替结果。
 
 ## 证据义务
 
 | # | 义务 | 证据形式 | 覆盖哪些条款 | 实际状态 |
 |---|---|---|---|---|
-| V-1 | **形状校验**：[`examples.md`](v1/examples.md) 第 1～13 节（带「校验对象」的那些）逐行过 Schema，比对「Schema」一列。第 14、15 节与第 3 节的相等用例不参与 | Draft 2020-12 校验器（须支持 `unevaluatedProperties`、`dependentRequired`，并能按 `$id` 解析到 `data.identity-values/v1` 的 Schema）＋ 该文件按节绑定的 `$defs` | [S-1](v1/contract.md#s-1-七类块)、[S-2](v1/contract.md#s-2-块底座)、[S-4](v1/contract.md#s-4-两个标注)、[S-7](v1/contract.md#s-7-媒体类型的规范形式)～[S-13](v1/contract.md#s-13-半截的工具调用)、[S-15](v1/contract.md#s-15-工具结果块)～[S-21](v1/contract.md#s-21-attachmentref)、[S-25](v1/contract.md#s-25-判别式与枚举闭合) 的**形状那一面** | **未运行。**起草者手核 138 行（通过 48、拒绝 90），结论与标注一致；**手核不是证据** |
+| V-1 | **形状校验**：[`examples.md`](v1/examples.md) 第 1～13 节（带「校验对象」的那些）逐行过 Schema，比对「Schema」一列。第 14、15 节与第 3 节的相等用例不参与 | Draft 2020-12 校验器（须支持 `unevaluatedProperties`、`dependentRequired`，并能按 `$id` 解析到 `data.identity-values/v1` 的 Schema）＋ 该文件按节绑定的 `$defs` | [S-1](v1/contract.md#s-1-七类块)、[S-2](v1/contract.md#s-2-块底座)、[S-4](v1/contract.md#s-4-两个标注)、[S-7](v1/contract.md#s-7-媒体类型的规范形式)～[S-13](v1/contract.md#s-13-半截的工具调用)、[S-15](v1/contract.md#s-15-工具结果块)～[S-21](v1/contract.md#s-21-attachmentref)、[S-25](v1/contract.md#s-25-判别式与枚举闭合) 的**形状那一面** | **本地自检已跑一次**（[下文](#本地自检)：155 行，与「Schema」列逐行一致）；**未登记为证据**，拒绝值一列不在其内（那是 V-2） |
 | V-2 | **拒绝值的具名与优先级**：对 `examples.md` 每个拒绝行，接收边界给出的拒绝值等于「拒绝值」一列；第 12 节六行专验优先级 | 接收边界的一致性用例（同一份输入跨实现比对） | [S-26](v1/contract.md#s-26-表示层拒绝值)、[S-27](v1/contract.md#s-27-表示层拒绝不是判定也不修补) | **未开始。**需要一个实现了接收边界校验的提供者。**只验 Schema 通过与否不够**——两个实现可以都拒绝、却报不同的名字 |
-| V-3 | **Schema 管不到的三条形状约束**：一条消息内 `id` 重复（含嵌套）、引用形状下两处媒体类型不逐字相同、非规范写法不被改写 | 接收边界的校验 ＋ [`examples.md` 第 14 节](v1/examples.md#14-schema-挡不住但同样非法的)前四行 | [S-3](v1/contract.md#s-3-blockid)、[S-7](v1/contract.md#s-7-媒体类型的规范形式)、[S-10](v1/contract.md#s-10-语音块与图块)、[S-27](v1/contract.md#s-27-表示层拒绝不是判定也不修补) | **未开始。**`id` 唯一那一条要在看得见整条消息的边界上验，**落点归 `data.messages`**（第二波），本页只登记本契约的义务已触发 |
+| V-3 | **Schema 管不到的四条形状约束**：一条消息内 `id` 重复（含嵌套）、引用形状下两处媒体类型不逐字相同、派生块与原块同一模态、非规范写法不被改写 | 接收边界的校验 ＋ [`examples.md` 第 14 节](v1/examples.md#14-schema-挡不住但同样非法的)前四行 | [S-3](v1/contract.md#s-3-blockid)、[S-7](v1/contract.md#s-7-媒体类型的规范形式)、[S-10](v1/contract.md#s-10-语音块与图块)、[S-19](v1/contract.md#s-19-派生表示与-transcript)、[S-27](v1/contract.md#s-27-表示层拒绝不是判定也不修补) | **未开始。**`id` 唯一那一条要在看得见整条消息的边界上验，**落点归 `data.messages`**（第二波），本页只登记本契约的义务已触发 |
 | V-4 | **规范场景** [S-28](v1/contract.md#s-28-标注缺一即拒)～[S-33](v1/contract.md#s-33-派生表示不含文件块)：每条一个正例一个反例；**三条条件约束**（[S-29](v1/contract.md#s-29-半截调用两边都不给) 半截调用的标注、[S-30](v1/contract.md#s-30-结果里不发起调用) 结果里不发起调用、[S-31](v1/contract.md#s-31-语音与图的模态要对) 语音与图的模态）各在其中 | 规范场景演练：真实接收边界、真实落盘 | [S-4](v1/contract.md#s-4-两个标注)、[S-10](v1/contract.md#s-10-语音块与图块)、[S-13](v1/contract.md#s-13-半截的工具调用)、[S-16](v1/contract.md#s-16-结果里不发起调用)、[S-18](v1/contract.md#s-18-占位原因与它落在哪一格)、[S-19](v1/contract.md#s-19-派生表示与-transcript) | **未执行。**S-31 的两个反例**必须同跑**：只跑模态那一个，一个只信 Schema 的实现也会全过。S-29 要额外观察「`rawArguments` 从未被解析」，**只看拒绝值不够** |
 | V-5 | **合取取用**：工具结果块给模型、里面一块标着不给模型；派生表示里的块只给模型 | PF-010 组装的规范场景 | [S-5](v1/contract.md#s-5-嵌套的块按合取取用) | **未开始。**需要 PF-010 组装的提供者；**本契约只拥有规则，演练归组装** |
 | V-6 | **`opaque` 原样回传**：写入一份含大整数（`9007199254740993`）、嵌套对象与 `null` 的不透明数据，经落盘、读回、每一跳传输后与原值比对；另验缺席与 `null` 各自保留 | 规范场景 ＋ 跨实现一致性用例 | [S-9](v1/contract.md#s-9-思考块与不透明数据) | **未开始。**责任：日志与传输适配的提供者。**这条最容易在一次 JSON 往返里静默失败**，必须真跑 |
 | V-7 | **落盘之后整块不变**：压缩、转换件、卸载各走一遍，前后逐字节比对已落盘的块 | 规范场景 ＋ 日志写路径的静态检查（[SC-1](#静态检查义务)） | [S-22](v1/contract.md#s-22-落盘之后整块不变) | **未开始**。需要日志的提供者 |
-| V-8 | **消费者路径走查**（[CS-1～CS-6](v1/contract.md#消费者核对场景)） | 结构化走查（评审对象）；有提供者之后升级为真实演练 | [S-3](v1/contract.md#s-3-blockid)、[S-5](v1/contract.md#s-5-嵌套的块按合取取用)、[S-6](v1/contract.md#s-6-模态由媒体类型判定)、[S-9](v1/contract.md#s-9-思考块与不透明数据)、[S-12](v1/contract.md#s-12-完整的工具调用)、[S-13](v1/contract.md#s-13-半截的工具调用)、[S-15](v1/contract.md#s-15-工具结果块)、[S-17](v1/contract.md#s-17-六种收场)～[S-19](v1/contract.md#s-19-派生表示与-transcript)、[S-22](v1/contract.md#s-22-落盘之后整块不变)、[S-26](v1/contract.md#s-26-表示层拒绝值) | **未开始。**走查**不需要提供者**，现在就做得了；**CS-2 停在 [G-3](v1/contract.md#八已知缺口)、CS-4 停在 [G-2](v1/contract.md#八已知缺口)**——停在缺口不算走不通，如实记为「本版到此为止」 |
+| V-8 | **消费者路径走查**（[CS-1～CS-6](v1/contract.md#消费者核对场景)） | 结构化走查（评审对象）；有提供者之后升级为真实演练 | [S-3](v1/contract.md#s-3-blockid)、[S-5](v1/contract.md#s-5-嵌套的块按合取取用)、[S-6](v1/contract.md#s-6-模态由媒体类型判定)、[S-9](v1/contract.md#s-9-思考块与不透明数据)、[S-12](v1/contract.md#s-12-完整的工具调用)、[S-13](v1/contract.md#s-13-半截的工具调用)、[S-15](v1/contract.md#s-15-工具结果块)、[S-17](v1/contract.md#s-17-六种收场)～[S-19](v1/contract.md#s-19-派生表示与-transcript)、[S-22](v1/contract.md#s-22-落盘之后整块不变)、[S-26](v1/contract.md#s-26-表示层拒绝值) | **未开始。**走查**不需要提供者**，现在就做得了；**CS-4 的「前台上限到点而不许转后台」一支停在 [G-7](v1/contract.md#八已知缺口)**（CS-2 与 CS-4 原先停在 G-3／G-2，已随 2026-09-23 对齐波闭合）——停在缺口不算走不通，如实记为「本版到此为止」 |
 | V-9 | **跨进程**：[第四节](v1/contract.md#四装配给与协议给)右列八行逐行演练 | 规范场景演练 | [S-3](v1/contract.md#s-3-blockid)、[S-4](v1/contract.md#s-4-两个标注)、[S-9](v1/contract.md#s-9-思考块与不透明数据)、[S-10](v1/contract.md#s-10-语音块与图块)、[S-14](v1/contract.md#s-14-callid)、[S-21](v1/contract.md#s-21-attachmentref)～[S-23](v1/contract.md#s-23-块不携带租户身份)、[S-26](v1/contract.md#s-26-表示层拒绝值) | **未开始，且本版装配下无法演练**——单机同进程传参不构成接收边界。**这不是免除**：跨进程演化启动时必须补做，登记在[变化的影响](#变化的影响) |
 | V-10 | **静态检查**（[SC-1～SC-4](#静态检查义务)） | 实现语言的静态检查（具体形式归 realization） | 见下表 | **未开始；检查器尚不存在** |
 
@@ -35,9 +35,18 @@
 
 ## 结果与反例
 
+### 本地自检
+
+**2026-09-23，整批对齐波，一次。**不是登记的证据：没有输入快照、没有进 [`record/evidence/`](../../../record/evidence/README.md)，只说明本版 `examples.md` 的「Schema」一列与 Schema 在这一刻对得上。
+
+- **工具**：锁定 uv 环境里的 `jsonschema` 4.26.0（`Draft202012Validator`）＋ `referencing`，把设计根下全部 `*.schema.json` 按 `$id` 登进同一个解析表，跨契约 `$ref` 按 `$id` 解析。
+- **做法**：逐节按「校验对象」把实例列喂给校验器，与「Schema」一列比对；第 13 节按每行第一列的 `$defs`。脚本在任务区暂存，不入库。
+- **结果**：**155 行（通过 57、拒绝 98），与「Schema」列逐行一致，0 处不符**。
+- **不覆盖**：「拒绝值」一列（V-2）、第 3 节的相等用例与第 14 节（不参与机检）；`contentEncoding` 按 Draft 2020-12 只作注解，base64 的形状由 `pattern` 判。
+
 ### 尚无的记录
 
-V-1～V-10 **一条执行记录也没有**。起草时的手核只保证 `examples.md` 的实例与它们的标注在起草者眼里不互相矛盾，
+V-2～V-10 **一条执行记录也没有**。起草时的手核只保证 `examples.md` 的实例与它们的标注在起草者眼里不互相矛盾，
 **未登记、无输入快照、未进 [`record/evidence/`](../../../record/evidence/README.md)**，不作为任何一条义务的证据。
 
 首次执行时在此记录工具与版本、环境、配置、输入范围、可复现步骤与原始结果位置；
@@ -57,12 +66,18 @@ V-1～V-10 **一条执行记录也没有**。起草时的手核只保证 `exampl
   **依赖 `data.identity-values` v1**（已接受、已冻结）的 `#S-31`、`#S-34`；Schema 经 `$ref` 取它的 `$defs/OpaqueIdentifier`——
   那一版不可原地改，**这条引用的目标不会漂移**；它若出 v2，本契约不自动跟随。
   **`data.call-accounts` v1 同批并行起草、`$ref` 本契约的 `$defs/CallId`**：那边的引用以本契约 v1 为准；本契约若在评审中改 `CallId` 的定义，须同轮通知那份契约。
-- **[G-2](v1/contract.md#八已知缺口) 被裁决**（运行取消的占位原因）：若补一行，`PlaceholderReason` 多一个取值、落格表多一行 ⇒ **表示改变，出 v2**，V-1 与 V-4 的 S-32 重跑；
-  若裁定归 `user_interrupted`，只改 S-18 那一行的说明，表示不变。
-- **[G-3](v1/contract.md#八已知缺口) 被裁决**（收齐却解析不了的调用）：多半要新增一个形状或一个成员 ⇒ **出 v2**，V-1 与 CS-2 重做。
-- **[G-4](v1/contract.md#八已知缺口)／[G-5](v1/contract.md#八已知缺口) 被裁决**（词法）：Schema 收紧 ⇒ **出 v2**，V-1 按新形状重跑，旧实例中依赖宽松形状的要重新判。
+- **整批对齐（2026-09-23，候选未冻结，原地改）**：
+  - **不透明标识改按 S-31 散文自写**：`BlockId`、`CallId`、`AttachmentRef.storage`／`key` 不再跨契约 `$ref` `data.identity-values/v1` 的 `OpaqueIdentifier`，pattern 与那边逐字相同——**形状不变**；catalog 依赖仍是 `S-31`、`S-34`。
+  - **G-2 闭合**：`PlaceholderReason` 八值 → 十一值（`backgrounded_at_start`、`run_cancelled`、`terminated_by_agent`），落格表与 Schema 的条件分支随之扩；`b99` 由拒绝翻为通过。**消费者影响**：`capability.tool-execution-runtime` 的 S-10 那三行「没有」转为「有」。
+  - **G-3 闭合**：完整调用块多一种形状（`rawArguments` ＋ `unparseable: true`）；原来「完整调用带 `rawArguments` 即 `malformed`」收窄为「不与 `unparseable` 同现即 `malformed`」。**消费者影响**：`capability.stream-assembly` 的 S-11 与它的 G-1。
+  - **来路标记二值 → 四值**（`slash_command_expansion`、`slash_command_record`）。**消费者影响**：`data.slash-command` 的 S-21、S-25 与它的 G-4。
+  - **`producedBy` 收为常量 `system`**：原先的能力标识一支删去（本版没有合法的产出者走它）；**表示收紧**，写能力标识的实例由通过变为拒绝。
+  - **新增**：`$defs/InlineBytes`（内联形状抽成共用定义，语音块与图块改 `$ref` 它，**形状不变**）；S-19「派生块模态不同于原块」一条（Schema 管不到，V-3 多一项）；S-34 附件落块规则。
+  - **措辞**：S-3 执行帧块由「帧入口」编号（与 `data.arrival-events` S-8 统一）；S-18 `abnormal_interruption` 的触发加「桥换代」；G-5（指路）、G-6（D-038）闭合；新增 G-7（前台上限的中断原因）、G-8（主线裁定无决定记录）。
+  - V-1 已按新形状本地自检一次（[上文](#本地自检)）；V-4 的 S-32 那条场景的原因集合以 S-18 新表为准。
+- **[G-7](v1/contract.md#八已知缺口) 被裁决**（前台上限的中断原因）：若补一行，`PlaceholderReason` 多一个取值 ⇒ **表示改变**（冻结后出 v2），V-1 与 V-4 的 S-32 重跑。
+- **[G-4](v1/contract.md#八已知缺口) 被裁决**（词法）：Schema 收紧 ⇒ **出 v2**，V-1 按新形状重跑，旧实例中依赖宽松形状的要重新判。
 - **[G-1](v1/contract.md#八已知缺口) 被裁决**（存储）：`AttachmentRef` 的形状多半不变；V-9 的「引用可解引用」一行与 S-23 的落点由那个 topic 给出，届时补进 V-8 走查。
-- **[G-6](v1/contract.md#八已知缺口) 闭合**（`origin`／`opaque` 的裁决落进设计链）：只改[设计依据](v1/contract.md#设计依据)表的链接，语义与表示不变。
 - **跨进程演化启动**：V-9 从「无法演练」转为**必须演练**；[第四节](v1/contract.md#四装配给与协议给)右列八行从「待兑现」转为「须由协议兑现」。
   **本版的全部证据只保留其单机范围，不得外推。**
 
