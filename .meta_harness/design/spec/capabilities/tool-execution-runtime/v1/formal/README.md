@@ -19,7 +19,7 @@
 | [S-30](../contract.md#s-30-答复等待) · [S-12](../contract.md#s-12-等待) | 答复只解除它所答的那一次等待 | `NoStaleAnswer` | `CheckWaitIndex = FALSE`（[`Execution_NoWaitIndex.cfg`](Execution_NoWaitIndex.cfg)）：答给第 1 次的迟到答复解除了第 2 次 | 答复值的形状校验、答复者身份不在模型里 |
 | [S-29](../contract.md#s-29-会话归档) | 归档之后没有未收场的执行；归档之后没有新的交付 | `ArchiveSettlesAll`、`NoNewDeliveryAfterArchive` | `FirstWins = FALSE` 反驳后一条（晚到的完成在归档后被再交付一次）；前一条由 `Archive` 的写集合给出 | 撤销归档不在模型里 |
 | [S-13](../contract.md#s-13-账) | 一次执行恰一份账，只在收场时落 | `OneAccountPerEnded` | `FirstWins = FALSE` 会让晚到的完成再落一份（同一反例） | 账的内容（费用、起止时刻、被拒的一笔）不在模型里 |
-| [S-8](../contract.md#s-8-姿态与阶段两个维度) · [S-28](../contract.md#s-28-取消一次运行) · [S-43](../contract.md#s-43-一批依次与同一工具的并发上限) · [S-9](../contract.md#s-9-两个收场) | 等待只在前台；取消运行不动后台；批内依次；并发上限；`unavailable` 只出自替换件；执行的收场不是 `backgrounded`；后台段只在四种里；姿态单向 | `WaitOnlyForeground`、`RunCancelSparesBackground`、`SequentialBatch`、`ConcurrencyCap`、`UnavailableOnlyFromStandIn`、`NoExecutionBackgrounded`、`BackgroundSegmentOutcome`、`PostureOneWay` | **无对应的有效性核对**：它们由动作的守卫直接给出，去掉守卫是改模型，不是去掉一处契约保护 | **这几条只说明模型没写错，不单独作为证据**；证据形式是场景 [S-52](../contract.md#s-52-自动转后台后完成落一条提醒)、[S-57](../contract.md#s-57-取消运行不动后台)、[S-58](../contract.md#s-58-插队三行) |
+| [S-8](../contract.md#s-8-姿态与阶段两个维度) · [S-28](../contract.md#s-28-取消一次运行) · [S-43](../contract.md#s-43-一批依次与同一工具的并发上限) · [S-9](../contract.md#s-9-两个收场) | 等待只在前台；取消运行不动后台；批内依次；并发上限；`unavailable` 只出自注册表判为不可用的项；执行的收场不是 `backgrounded`；后台段只在四种里；姿态单向 | `WaitOnlyForeground`、`RunCancelSparesBackground`、`SequentialBatch`、`ConcurrencyCap`、`UnavailableOnlyFromStandIn`、`NoExecutionBackgrounded`、`BackgroundSegmentOutcome`、`PostureOneWay` | **无对应的有效性核对**：它们由动作的守卫直接给出，去掉守卫是改模型，不是去掉一处契约保护 | **这几条只说明模型没写错，不单独作为证据**；证据形式是场景 [S-52](../contract.md#s-52-自动转后台后完成落一条提醒)、[S-57](../contract.md#s-57-取消运行不动后台)、[S-58](../contract.md#s-58-插队三行) |
 
 **`TypeOK` 只约束模型自己变量的值域**，不绑任何条款。
 
@@ -33,7 +33,8 @@
 
   | 模型里的 | 契约里的 |
   |---|---|
-  | `Submit(b)` | [S-23](../contract.md#s-23-提交一批) 整批一次提交；替换件即刻 `unavailable`、发起即后台即刻交付占位 |
+  | `Submit(b)` | [S-23](../contract.md#s-23-提交一批) 整批一次提交；判为不可用的项即刻 `unavailable`、发起即后台即刻交付占位 |
+  | 常量 `StandIn`、原因 `"standin"`、不变量名 `UnavailableOnlyFromStandIn` | **注册表判为不可用的项**：替换件、条目 `unavailable{reason}`、关掉的命令三支（账本 S13-a 之后同归收场 `unavailable`）。三支在模型里行为相同，只用一个集合表示；名字沿用起草时的，不改模型 |
   | `Start` / `StartFail` | [S-38](../contract.md#s-38-起执行者)：起来了，或参数、落点、执行者任一不成立（执行者没跑过） |
   | `EnterWait` / `Answer(c, k)` / `WaitExpire` | [S-12](../contract.md#s-12-等待)、[S-30](../contract.md#s-30-答复等待)；`k` 是答复所指的第几次等待 |
   | `Return(c, o)` | [S-41](../contract.md#s-41-交回)：交回完成或失败 |

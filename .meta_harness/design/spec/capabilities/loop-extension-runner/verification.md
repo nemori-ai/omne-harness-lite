@@ -29,10 +29,10 @@
 | [S-42 系统自带件不可用时关门](v1/contract.md#s-42-系统自带件不可用时关门) | **故障注入**，五件各一次；另跑「清单里没有放行判断」「转换件不可用 × 纯文本」 | **未开始** | 受阻：五件的能力标识未定（[G-3](v1/contract.md#十三已知缺口)）；「放行判断不可用 = 全拒」那一行待产品负责人裁（账本 U-5） |
 | [S-43 找不到清单不是空链](v1/contract.md#s-43-找不到清单不是空链) | 演练 ＋ 故障注入 | **未开始** | —— |
 | [S-44 连续被否决的回复被收住](v1/contract.md#s-44-连续被否决的回复被收住) | 演练 ＋ **在第 N−1 次之后停机** | **未开始** | 受阻：循环守卫 L2 的阈值名与取值归循环守卫（未起草） |
-| [S-45 模型的回复落盘之前改不了](v1/contract.md#s-45-模型的回复落盘之前改不了) | 演练，四支 | **未开始** | 转换件那一支受阻于 `data.loop-extension` 的可改成员表（[G-15](v1/contract.md#十三已知缺口) ①） |
+| [S-45 模型的回复落盘之前改不了](v1/contract.md#s-45-模型的回复落盘之前改不了) | 演练，四支 | **未开始** | 原受阻于 `data.loop-extension` 的可改成员表，已在那边 S-23 写明（原 G-15 ①） |
 | [S-46 retry 被拒，按上交继续](v1/contract.md#s-46-retry-被拒按上交继续) | 演练，**跨契约**（本契约 ＋ 模型请求运行时） | **未开始** | `retryRefused` 由模型请求运行时判，只跑本契约这一半证明不了 |
 | [S-47 过期的协程写不进](v1/contract.md#s-47-过期的协程写不进) | **故障注入**（两副协程） | **未开始** | 受阻：尝试栅栏归 loop 那一程的契约（G-8） |
-| [S-48 放行判断一轮汇合、凭据扣住、答复只认自己的卡](v1/contract.md#s-48-放行判断一轮汇合凭据扣住答复只认自己的卡) | 演练，**跨契约**（本契约 ＋ 放行判断 ＋ 执行运行时 ＋ 兼容层） | **未开始** | 受阻：整批输入与凭据交出的表示（[G-16](v1/contract.md#十三已知缺口)）、自由作答落成授权表达的写入者（`capability.tool-admission` 的 G-2） |
+| [S-48 放行判断一轮汇合、凭据扣住、答复只认自己的卡](v1/contract.md#s-48-放行判断一轮汇合凭据扣住答复只认自己的卡) | 演练，**跨契约**（本契约 ＋ 放行判断 ＋ 执行运行时 ＋ 兼容层） | **未开始** | 受阻：凭据交出的表示（[G-16](v1/contract.md#十三已知缺口)）、自由作答落成授权表达的写入者（`capability.tool-admission` 的 G-2） |
 
 ### 由别处承担、本契约只写明要求的
 
@@ -47,30 +47,53 @@
 
 ## 对齐义务
 
-**与并行起草、本分支基线里还没有的契约之间，已按主线转来的条款写进本契约、尚未经合流核对的项**。合流对齐时逐行核对对方正文；对不上的报主线，不在这里改判。
+- **词条链接待合流后补**（2026-09-24 整批对齐）：正文里「一次经过」原标「无词条」，词条批已立为词条，本包已改用正式名、去掉标记；那几条词条在 HUB 上、本分支看不到，**链接待合流后补**（主线）。
+
+**与并行起草的契约之间，按主线转来的条款写进本契约的项**。2026-09-24 整批对齐逐行核对了对方正文，结果在右列。
 
 | 来自 | 条款 | 本契约落在哪 | 核对状态 |
 |---|---|---|---|
-| `capability.tool-admission` v1 S-29／S-30 | ① 放行判断钉 `before_action` 链末（装配清单义务，runner 强制） | [S-6](v1/contract.md#s-6-拓展件链从装配清单来) 第 2 条 | **未核对** |
-| `capability.tool-admission` v1 S-14／S-29 | ② 拒绝投影成 `veto` 时 `reason` 原样带拒绝原因 token；runner 自己写的 `reason` 不借用它们 | [S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 6 条 | **未核对** |
-| `capability.tool-admission` v1 S-24／S-29／S-34 | ③ 它整批失败（含 `unavailable`）或不可用时，同批每一项都落否决 | [S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 7 条、[S-17](v1/contract.md#s-17-系统自带件不可用时一律关门) | **未核对**；**措辞差异**：对方写「每一项都落 `veto`」，本契约在「不可用」那一支按 `data.loop-extension/v1#S-31` 记不带 `output` 的不可用记录、**效果**为 `vetoed`——含义相同，记录形状不同，已报主线 |
-| `capability.tool-admission` v1 S-12／S-22 | ④ 答复以四个选项 id 或 `declined` 交回重判；自由作答不作为答复，先落授权表达再不带答复重判 | [S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 8 条、[S-28](v1/contract.md#s-28-回放) 第 4 条（新一轮 `ask`） | **未核对** |
-| `capability.tool-admission` v1 S-31 | ⑤ 同批有等人的项时扣住已放行项的放行凭据，不交给执行运行时 | [S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 9 条 | **未核对**；表示缺口 [G-16](v1/contract.md#十三已知缺口) |
-| `capability.tool-admission` v1 S-28 | ⑥ 兼容件复用四档选项的卡，答复不带授权、不作为答复交给放行判断 | [S-28](v1/contract.md#s-28-回放) 第 4 条、[S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 8 条 | **未核对**；兼容件一侧由 `capability.hooks-import` v1 同时写明 |
-| `capability.tool-admission` v1 S-21／S-23 | 整批一次、按轮 | [S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 5 条 | **未核对**；表示缺口 G-16 |
-| `capability.modality-projection` v1 S-23 | 转换件在 `before_persist_message` 上是最后一个动块的 | [S-6](v1/contract.md#s-6-拓展件链从装配清单来) 第 2 条（本契约取整条链的末位） | **未核对**；本契约的兑现强于对方的性质，已报主线 |
-| `capability.modality-projection` v1 S-20／G-2 | 转换件对模型回复交回「挂派生表示」的 `rewrite`，不算 D-5 要防的改写 | [S-14](v1/contract.md#s-14-结论合不合法两类判断) ② 前两行 | **未核对**；`data.loop-extension` 一侧见 [G-15](v1/contract.md#十三已知缺口) ① |
-| `capability.modality-projection` v1 S-21／S-22 | 转换件不可用只否决含非文本模态块或文件块的消息 | [S-17](v1/contract.md#s-17-系统自带件不可用时一律关门) 转换件那一行 | **未核对** |
-| `capability.model-request-runtime` v1 | `select_model` 的合法目标判定、`retry` 的三道守卫与 `retryRefused` | [S-14](v1/contract.md#s-14-结论合不合法两类判断)、[S-26](v1/contract.md#s-26-retry-与它被拒) | **未核对**：本分支看不到它的正文，名字 `retryRefused` 取自主线转述 |
-| `capability.asset-evaluation` v1 | 各件求得的四样值 | [S-6](v1/contract.md#s-6-拓展件链从装配清单来) | **未核对**；表示缺口 [G-2](v1/contract.md#十三已知缺口) |
+| `capability.tool-admission` v1 S-29／S-30 | ① 放行判断钉 `before_action` 链末（装配清单义务，runner 强制） | [S-6](v1/contract.md#s-6-拓展件链从装配清单来) 第 2 条 | **已核对，一致**（对方 S-29、S-30） |
+| `capability.tool-admission` v1 S-14／S-29 | ② 拒绝投影成 `veto` 时 `reason` 原样带拒绝原因 token；runner 自己写的 `reason` 不借用它们 | [S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 6 条 | **已核对，一致** |
+| `capability.tool-admission` v1 S-24／S-29／S-34 | ③ 它整批失败（含 `unavailable`）或不可用时，同批每一项都落否决 | [S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 7 条、[S-17](v1/contract.md#s-17-系统自带件不可用时一律关门) | **已核对，已统一**（账本 S15-d）：对方 S-29、S-34 改为本契约这一种写法——不可用记录不带 `output`、效果 `vetoed`；报错记 `skipped: errored`、按 `treat_as_veto` 效果 `vetoed` |
+| `capability.tool-admission` v1 S-12／S-22 | ④ 答复以四个选项 id 或 `declined` 交回重判；自由作答不作为答复，先落授权表达再不带答复重判 | [S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 8 条、[S-28](v1/contract.md#s-28-回放) 第 4 条（新一轮 `ask`） | **已核对，一致**（对方 S-12） |
+| `capability.tool-admission` v1 S-31 | ⑤ 同批有等人的项时扣住已放行项的放行凭据，不交给执行运行时 | [S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 9 条 | **已核对，一致**（对方 S-31：本能力不扣住，扣住归 runner 与执行运行时）；凭据交出的表示仍是 [G-16](v1/contract.md#十三已知缺口) |
+| `capability.tool-admission` v1 S-28 | ⑥ 兼容件复用四档选项的卡，答复不带授权、不作为答复交给放行判断 | [S-28](v1/contract.md#s-28-回放) 第 4 条、[S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 8 条 | **已核对，一致**（对方 S-28；`capability.hooks-import` v1 的 S-21 同） |
+| `capability.tool-admission` v1 S-21／S-23 | 整批一次、按轮 | [S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 5 条 | **已核对，一致**（对方 S-21、S-23）；整批输入的来路由 `data.loop-extension/v1#S-14` 的注答复 |
+| `capability.modality-projection` v1 S-23 | 转换件在 `before_persist_message` 上是最后一个动块的 | [S-6](v1/contract.md#s-6-拓展件链从装配清单来) 第 2 条（本契约取整条链的末位） | **已核对**：对方要「最后一个动块的」，本契约取整条链的末位——强于对方的性质，不冲突；取法已报主线 |
+| `capability.modality-projection` v1 S-20／G-2 | 转换件对模型回复交回「挂派生表示」的 `rewrite`，不算 D-5 要防的改写 | [S-14](v1/contract.md#s-14-结论合不合法两类判断) ② 前两行 | **已核对，一致**；`data.loop-extension` 一侧已在 S-23 写明（原 G-15 ①） |
+| `capability.modality-projection` v1 S-21／S-22 | 转换件不可用只否决含非文本模态块或文件块的消息 | [S-17](v1/contract.md#s-17-系统自带件不可用时一律关门) 转换件那一行 | **已核对，一致**（对方 S-21、S-22） |
+| `capability.model-request-runtime` v1 | `select_model` 的合法目标判定、`retry` 的三道守卫与 `retryRefused` | [S-14](v1/contract.md#s-14-结论合不合法两类判断)、[S-26](v1/contract.md#s-26-retry-与它被拒) | **已核对**：对方 S-24 `legalTargets`、S-30 `dispatchAgain`；已终结的调用对方统一为 `alreadyEnded`（账本 S16-b），`retryRefused` 剩三值——本契约 S-26 照此读 |
+| `capability.asset-evaluation` v1 | 各件求得的四样值 | [S-6](v1/contract.md#s-6-拓展件链从装配清单来) | **已核对**：四样值是对方 S-8 `values` 里的项；它们在装配清单里怎样表示仍是 [G-2](v1/contract.md#十三已知缺口) |
 
-**这四份契约的坐标都没有登进 catalog**（检查器拒绝未知坐标）——合流对齐时补登，clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面) 末表。
+**这四份契约已在 2026-09-24 整批对齐登进 catalog**，clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面) 末表。
+
+### 形式义务：回放的行为模型（触发，未建）
+
+**主线已改判要建**（主线裁定 2026-09-23，待产品负责人确认；账本 S15-c）：`formal/Runner.tla` 在整批对齐之后单独派一小任务建，**本版目录里还没有它，也没有登记 formal task**——「未运行」如实登记。
+它要能失败的断言至少三条，前提写在模型与配置里：
+
+| 性质 | 对应条款 | 断言在什么时候失败 | 前提 |
+|---|---|---|---|
+| **回放不产生第二条最终结论** | [S-11](v1/contract.md#s-11-每件恰一条最终结论落进会话日志)、[S-28](v1/contract.md#s-28-回放) | 停机落在「结论已提交、提醒未追加」「`ask` 已落、卡片未落」之后，新尝试回放出第二条结论或第二张卡 | 日志追加原子；尝试栅栏（G-8）建成开关 |
+| **先落后算** | [S-10](v1/contract.md#s-10-逐件顺序求值先落后算) | 一件的效果在它的结论落日志之前被交出或被下一件读到 | 同上 |
+| **同一位置同一次经过只跑一轮** | [S-18](v1/contract.md#s-18-同一位置同一次经过只跑一轮) | 注入改了日志之后同一锚上的同一位置被再求值一次 | 锚的表示（G-1）在模型里是抽象的 |
+
+另配否定配置（关掉「先落」或「按锚判重」）作 validity-check，预期出反例、**不登记为 formal task**。
 
 ## 实际执行
 
 **无。**本版没有形式工件，也没有实现；本页不记任何「通过」。
 
 ## 变化的影响
+
+- **2026-09-24 整批对齐（候选，未冻结，原地改）**：依据行写「主线裁定 2026-09-23，待产品负责人确认」的，出处在主线的裁定清单（账本 S14-d、S15-a～S15-g）。
+  - **四项并行依赖登进 catalog**（G-12 闭合），对齐义务表逐行核对完毕（上表右列）。
+  - **放行判断件不得被替换、禁用或收窄**（S14-d）：[S-17](v1/contract.md#s-17-系统自带件不可用时一律关门) 末条改写，G-4 闭合。
+  - **`data.loop-extension` 的四处已对齐**（G-15 闭合）；整批输入的来路由那边 S-14 的注答复，G-16 收窄为「凭据经哪一格交出」。
+  - **回放要建行为模型**（S15-c）：[S-35](v1/contract.md#s-35-本版不选用形式工件) 与 G-14 改写，义务登在上面「形式义务」一节。
+  - `retryRefused` 的读法随 `capability.model-request-runtime` 改（已终结归 `alreadyEnded`）。
+  - **对证据的影响**：没有既有证据；S-45 的受阻原因解除，S-48 只剩凭据交出与授权写入者两处受阻。
 
 - **2026-09-23 起草**：首版，没有旧证据可作废。起草途中按主线转来的补充原地修订了四处（候选未冻结）：
   系统自带件不可用的关门表与挂载写法、同位置两件 `retry` 取第一个、`retry` 被拒按上交继续；

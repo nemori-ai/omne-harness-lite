@@ -29,14 +29,14 @@
 | 要求 | 写在哪 | 由谁兑现 | 证据落点 |
 |---|---|---|---|
 | 本件钉在 `before_action` 瀑布最后 | [S-29](v1/contract.md#s-29-位置干预力与结论投影)、[S-30](v1/contract.md#s-30-放行之后参数不再变) | `capability.loop-extension-runner` ＋ 装配 | runner 的场景；排错位置时 [S-43](v1/contract.md#s-43-放行之后参数变了令牌作废) 的第二道仍挡得住 |
-| 本能力不在、报错或没给出结论时这一批全拒 | [S-29](v1/contract.md#s-29-位置干预力与结论投影)、[S-34](v1/contract.md#s-34-本能力缺席报错或判不出来) | runner（主线裁定，待确认） | runner 的故障注入场景 |
+| 本能力不在、报错或没给出结论时这一批全拒（不可用记录不带 `output`、效果 `vetoed`） | [S-29](v1/contract.md#s-29-位置干预力与结论投影)、[S-34](v1/contract.md#s-34-本能力缺席报错或判不出来) | runner 的 S-17（主线裁定，U-5 待产品负责人裁） | runner 的故障注入场景 |
 | 一批里还有一条在等，谁都不执行 | [S-31](v1/contract.md#s-31-一批里还有一条在等谁都不执行) | runner ＋ 执行运行时 | 两者的行为模型与场景 |
 | 提交前必核对凭据；`unavailable` 与 `invalid` 都不执行 | [S-25](v1/contract.md#s-25-verifytoken)、[S-34](v1/contract.md#s-34-本能力缺席报错或判不出来) | `capability.tool-execution-runtime` | 它的场景 |
 | `veto.reason` 原样带拒绝原因 token | [S-29](v1/contract.md#s-29-位置干预力与结论投影) | runner | runner 的场景；agent 侧可观察 |
 | 求值：失败不折成 `undecidable`；确定 | [S-9](v1/contract.md#s-9-授权上下文与求值) | 求值的实现（[G-1](v1/contract.md#十一已知缺口)） | 实现的单元测试：**停掉授权上下文存储，求值必须报失败而不是 `undecidable`** |
 | 空集收成 `forbid`；一个档位而不是集合 | [S-8](v1/contract.md#s-8-有效执行权限) | `capability.asset-evaluation` | 它的场景 |
 | 第四档的资格；四档选项在别处出的卡上不带授权 | [S-15](v1/contract.md#s-15-定死的四档选项与卡片草稿)、[S-28](v1/contract.md#s-28-四档选项只在本能力出的卡上带授权含义) | PF-008 卡片契约 ＋ runner | 那两份契约的场景 |
-| 这一件不可替换、不可禁用、不可收窄 | [S-32](v1/contract.md#s-32-这一件不得被替换禁用或收窄) | 待裁（[G-7](v1/contract.md#十一已知缺口)） | 裁定之后由资产领域的场景承担 |
+| 这一件不可替换、不可禁用、不可收窄；核对只认装配钉死的那一件 | [S-32](v1/contract.md#s-32-这一件不得被替换禁用或收窄)、[S-26](v1/contract.md#s-26-令牌有效的条件) | 装配（runner 的装配清单）＋ `capability.asset-evaluation`／`capability.asset-governance`（主线裁定 S14-d） | 资产领域与 runner 的场景 |
 
 ## 实际执行
 
@@ -55,5 +55,16 @@
   「宽」的两条次序（[S-11](v1/contract.md#s-11-父会话摘要与宽的次序)）；
   `from = workspace ⇒ value = ask`（[S-8](v1/contract.md#s-8-有效执行权限)）；
   账本名 `ExecutionPermission` 不立（[S-8](v1/contract.md#s-8-有效执行权限) 末段）。
+- **2026-09-24 整批对齐（候选，未冻结，原地改）**：依据行写「主线裁定 2026-09-23，待产品负责人确认」的，出处在主线的裁定清单（账本 S14-a～S14-g、S15-d）。
+  - **上面「待主线确认的推导项」全部采纳**（S14-b）；token 与 `data.loop-extension` 的 `ask`（四档选项只以本契约 S-15 为准、那边不另立常量）、`capability.hooks-import`（复用 S-15、S-28）逐字核过，一致。
+  - **三档 token 只用 `ExecutePermission`**（S14-a）：[S-8](v1/contract.md#s-8-有效执行权限) 末段改写，G-11 的说明随之改。
+  - **不可用的写法统一为 runner 那一种**（S15-d）：[S-29](v1/contract.md#s-29-位置干预力与结论投影) 与 [S-34](v1/contract.md#s-34-本能力缺席报错或判不出来) 改为「记录不带 `output`、效果 `vetoed`」，原写「每一项落 `veto`」。
+  - **这一件不得被替换、禁用或收窄**（S14-d）：[S-32](v1/contract.md#s-32-这一件不得被替换禁用或收窄) 的前提有了兑现方，[S-26](v1/contract.md#s-26-令牌有效的条件) 写明只认装配钉死的那一件；**G-7 闭合**。
+  - `verifyToken` 失败在执行运行时那边的收场名核对为 `notAdmitted{why}`／`admissionUnavailable`（[S-34](v1/contract.md#s-34-本能力缺席报错或判不出来)）。
+  - **对证据的影响**：没有既有证据（全部未开始）；义务表两行改了承担方。
 - **四份 candidate 依赖**（`data.content-blocks`、`data.tool-definition`、`data.loop-extension`、`data.asset-model`）改号或改义时，逐条核对 [契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面) 的表并同步 catalog 的 clauses。
 - **并行起草的 `capability.loop-extension-runner`、`capability.tool-execution-runtime`、`capability.asset-evaluation`、`capability.hooks-import`** 定型后：本契约只以名字提到它们、不登依赖（它们是消费者，或是上游输入值的产出方）；对齐时核对 [第六节](v1/contract.md#六在拓展点协议里) 与 [S-25](v1/contract.md#s-25-verifytoken) 的义务在它们那一侧是否有对应条款。
+
+## 对齐义务
+
+- **词条链接待合流后补**（2026-09-24 整批对齐）：正文里「干预力」原标「无词条」，词条批已立为词条，本包已改用正式名、去掉标记；那几条词条在 HUB 上、本分支看不到，**链接待合流后补**（主线）。

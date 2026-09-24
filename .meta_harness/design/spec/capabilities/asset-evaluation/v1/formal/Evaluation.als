@@ -8,18 +8,21 @@
  *   S-19  官方件是下界
  *   S-20  第 2 步：组装（沿生效资产正文里的引用求可达集合）
  *   S-22  第 4 步：设置——按资产：只有指向生效资产的持有给值；锁截断的覆盖链（本模型只算 from，不算值）
- *   S-23  第 4 步：权限——按能力标识：组织、租户两格的在效持有（不论指向哪份资产）与会话格给约束；
- *         本模型只算 from（给了约束的最里面那一格），不算允许集合
+ *   S-23  第 4 步：权限——按能力标识：组织、租户两格的在效持有（不论指向哪份资产）与会话格给值；
+ *         带锁的配值是界，不带锁的配值与声明默认值是挑选；由里到外第一条落在界内的挑选给出 from，
+ *         没有就取给了界的最里面那一格（账本 S10-b）。本模型只算 from，不算允许集合；
+ *         「一条挑选落不落在界内」是值域上的事实，模型把它当作给定的布尔（Fits、defaultFits）
  *   S-24  工作区那一级在第 4 步只贡献设置，且不贡献落点与身份类
  *   S-25  工作区自带资产的权限项以最严值为出厂那一格的约束（不改变 from 的求法）
  *
- * 六条断言（前四条即施工简报 A6 点名的四条，第五条是契约 S-19 的下界，第六条是主线追加裁定）：
+ * 七条断言（前四条即施工简报 A6 点名的四条，第五条是契约 S-19 的下界，第六、七条是主线裁定：按能力标识、界与挑选）：
  *   (i)   TeamAssetsStayInTree              团队资产不出那棵树
  *   (ii)  LockTruncates                     锁截断
  *   (iii) DisableIsDisjunction              禁用析取
  *   (iv)  WorkspaceNeverSourcesPermission   工作区滤权（另附 WorkspaceNeverSourcesPlacement）
  *   (v)   OfficialLowerBound                官方件下界
- *   (vi)  ReplacementCannotEscapePermission 换了实现逃不出外层对这个能力标识的权限约束
+ *   (vi)  ReplacementCannotEscapePermission 换了实现逃不出外层对这个能力标识锁下的界
+ *   (vii) NonFittingPickNeverSources        与界不交的挑选不给出值（值来自最里一条落在界内的挑选）
  *
  * 本模型**不**表达：配值的取值本身（覆盖得到哪个值、允许集合交出哪几档、作者建议取不取）——
  * 那是值域上的计算，不是结构关系，证据形式是契约 S-33～S-36 的规范场景；
@@ -139,6 +142,13 @@ fact WorkspaceHoldsOnlyItsOwn {
   all h: Holding | h.layer = Workspace iff h.asset in WsAsset
 }
 
+// 一条挑选落不落在界内（它与界相交，或它本身是空集）——值域上的事实，模型不算值，只取这个布尔。
+sig Fits in Assign {}
+one sig Values {
+  defaultFits: Cap -> Item,   // 生效资产声明的默认值（出厂那一格的挑选）落在界内
+  emptyBound: Cap -> Item     // 界是空集
+}
+
 // 配值挂在持有上：持有层的配值必须有那一格对同一能力标识的持有；同一格同一项至多一条。
 fact AssignShape {
   all x: Assign | x.at != Session implies some h: Holding | h.layer = x.at and h.hcap = x.acap
@@ -219,20 +229,32 @@ fun settingParticipating[c: Cap, i: Item] : set Assign {
 
 // 权限（S-23）：按能力标识。
 //   - 组织、租户两格对 c 的持有**在效**（过了禁用、不在锁以里——即在 candidates 里）时，
-//     那份持有上的配值给约束，**不论它指向哪一份资产**；
-//   - 会话格的配值给约束；
-//   - 工作区那一格不在权限层序上，一律不给（S-24）；出厂那一格不带配值（C6），
-//     工作区自带资产的最严值是出厂那一格的约束，不改变 from 的求法（S-25）。
+//     那份持有上的配值参与，**不论它指向哪一份资产**；会话格的配值参与；
+//   - 工作区那一格不在权限层序上，一律不参与（S-24）；出厂那一格不带配值（C6）。
 fun permParticipating[c: Cap, i: Item] : set Assign {
   { x: Assign | x.acap = c and x.item = i
       and (x.at = Session
            or (x.at in Organization + Tenant and some h: candidates[c] | h.layer = x.at)) }
 }
 
-// 给了约束的最里面那一格；没有一格给约束时取出厂。
+// 界：参与的配值里带锁的那些（账本 S10-b）。工作区自带资产的最严值也是界，但它在出厂那一格、
+// 不是一条配值——它只在「没有挑选落在界内」时让 from 取 factory，由 permFrom 最后一支兑现。
+fun permBounds[c: Cap, i: Item] : set Assign { permParticipating[c, i] & LockedAssign }
+
+// 界非空时，每条界自己一定落在界内（交集包含于每一条界）。
+fact BoundsFitUnlessEmpty {
+  all c: Cap, i: Item | (c -> i) not in Values.emptyBound implies permBounds[c, i] in Fits
+}
+
+fun permInnermost[ls: set Layer] : set Layer { { l: ls | no l2: ls | l -> l2 in permissionLt } }
+
+// 由里到外第一条落在界内的挑选；否则出厂那一格的挑选（声明默认值，工作区自带资产没有这一条）；
+// 否则给了界的最里面那一格；都没有取出厂。
 fun permFrom[c: Cap, i: Item] : set Layer {
-  (no permParticipating[c, i]) => Factory
-  else { l: permParticipating[c, i].at | no l2: permParticipating[c, i].at | l -> l2 in permissionLt }
+  (some permParticipating[c, i] & Fits) => permInnermost[(permParticipating[c, i] & Fits).at]
+  else ((c -> i) in Values.defaultFits and effective[c] not in WsAsset) => Factory
+  else (some permBounds[c, i]) => permInnermost[permBounds[c, i].at]
+  else Factory
 }
 
 // 设置：最外那一把锁所在的格；没有锁取最具体的有值格；都没有取出厂。
@@ -301,16 +323,28 @@ assert OfficialLowerBound {
   all h: Holding | h.layer = Factory implies some effective[h.hcap]
 }
 
-/* (vi) 换了实现逃不出外层对这个能力标识的权限约束（契约 S-23；主线追加裁定）。
+/* (vi) 换了实现逃不出外层对这个能力标识锁下的界（契约 S-23；主线追加裁定与账本 S10-b）。
    组合里的 c、生效资产声明的权限项 i：组织或租户那一格对 c 的在效持有**指向另一份资产**
-   （被替换掉、但仍在效的那一份），且那一格对 i 配了值——i 的值就来自那一格或更里的一格，不来自出厂。
-   它与 permParticipating 的定义很近，作用是把「按能力标识」钉住：
+   （被替换掉、但仍在效的那一份），且那一格对 i 配了**带锁**的值——这条值就在 i 的界里。
+   它与 permBounds 的定义很近，作用是把「按能力标识」钉住：
    把参与条件改回「只看指向生效资产的持有」，本断言必须给出反例（formal/README 的非平凡核对）。 */
 assert ReplacementCannotEscapePermission {
-  all c: composition, i: effective[c].items & PermissionItem, x: Assign |
+  all c: composition, i: effective[c].items & PermissionItem, x: LockedAssign |
     (x.acap = c and x.item = i and x.at in Organization + Tenant
        and (some h: candidates[c] | h.layer = x.at and h.asset not in effective[c]))
-    implies (valueFrom[c, i] = x.at or x.at -> valueFrom[c, i] in permissionLt)
+    implies x in permBounds[c, i]
+}
+
+/* (vii) 与界不交的挑选不给出值（契约 S-23 合成第 2 条；账本 S10-b）。
+   有挑选落在界内时，值来自其中一条，且没有一条落在界内的挑选比它更里。
+   这一条把「内层覆盖外层、但只在界内算数」钉住：把 from 改回「参与的最里面那一格」（不问落不落在界内），
+   本断言必须给出反例（formal/README 的非平凡核对）。 */
+assert NonFittingPickNeverSources {
+  all c: composition, i: effective[c].items & PermissionItem |
+    some (permParticipating[c, i] & Fits) implies {
+      permFrom[c, i] in (permParticipating[c, i] & Fits).at
+      no x: permParticipating[c, i] & Fits | permFrom[c, i] -> x.at in permissionLt
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -334,15 +368,22 @@ pred fourLayerInstance {
   some Disabled
 }
 
-// (vi) 的前件可以成立：外层一份被替换、仍在效的持有，对生效资产声明的一项权限配了值。
+// (vi) 的前件可以成立：外层一份被替换、仍在效的持有，对生效资产声明的一项权限配了带锁的值。
 pred replacementConstrained {
-  some c: composition, i: effective[c].items & PermissionItem, x: Assign |
+  some c: composition, i: effective[c].items & PermissionItem, x: LockedAssign |
     x.acap = c and x.item = i and x.at in Organization + Tenant
     and (some h: candidates[c] | h.layer = x.at and h.asset not in effective[c])
 }
 
+// (vii) 的前件不是空泛的：有一条更里的挑选与界不交、被跳过，值来自更外的一条。
+pred pickSkipped {
+  some c: composition, i: effective[c].items & PermissionItem, x: permParticipating[c, i] - Fits |
+    some (permParticipating[c, i] & Fits) and permFrom[c, i] -> x.at in permissionLt
+}
+
 run fourLayerInstance for 6 but 4 Cap, 7 Holding, 4 Assign, 4 Item, 3 Owner
 run replacementConstrained for 6 but 4 Cap, 4 Assign, 3 Item, 3 Owner
+run pickSkipped for 6 but 4 Cap, 4 Assign, 3 Item, 3 Owner
 
 check TeamAssetsStayInTree for 6 but 4 Cap, 4 Assign, 3 Item, 3 Owner
 check LockTruncates for 6 but 4 Cap, 4 Assign, 3 Item, 3 Owner
@@ -351,3 +392,4 @@ check WorkspaceNeverSourcesPermission for 6 but 4 Cap, 5 Assign, 3 Item, 3 Owner
 check WorkspaceNeverSourcesPlacement for 6 but 4 Cap, 5 Assign, 3 Item, 3 Owner
 check OfficialLowerBound for 6 but 4 Cap, 4 Assign, 3 Item, 3 Owner
 check ReplacementCannotEscapePermission for 6 but 4 Cap, 4 Assign, 3 Item, 3 Owner
+check NonFittingPickNeverSources for 6 but 4 Cap, 4 Assign, 3 Item, 3 Owner

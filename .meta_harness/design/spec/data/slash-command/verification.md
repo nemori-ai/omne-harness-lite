@@ -4,7 +4,7 @@
 
 > **当前状态：未开始。**`data.slash-command` v1 是 `candidate`，未接受、未冻结；尚无提供者设计、尚无源码、尚无装配。
 > 下表登记的是**已经触发的证据义务**，不是已完成的检查。
-> **Schema 正反实例校验未运行**：[`examples.md`](v1/examples.md) 第 1～3、5、6 节**没有跑过任何校验器**，只经起草者手核。
+> **整批对齐（2026-09-24）跑过一次 Schema 正反实例的本地自检**（只判通过与否，见[结果与反例](#结果与反例)）。
 > **判定用例集未在任何实现上运行**：第 4 节五十行的期望值由起草者按条款写出，再用起草者自己对文法的一份一次性演算核对过一遍——
 > **写条款与演算是同一个人、同一种读法**，这只说明表里的值与起草者的读法不互相矛盾，**不是**证据（[`examples.md` 第 7 节](v1/examples.md#7-起草者的自核不是证据)）。
 > 唯一跑过的是 `make design-check`：它解析了本包 Schema 的 JSON、核对了 `$id` 与全部 `$ref`／JSON Pointer 指得到、核对了 Markdown 链接与锚点——**它不校验任何实例，也不执行任何文法**。
@@ -13,7 +13,7 @@
 
 | # | 义务 | 证据形式 | 覆盖哪些条款 | 实际状态 |
 |---|---|---|---|---|
-| V-1 | **形状校验**：[`examples.md`](v1/examples.md) 第 1～3、6 节逐行过 Schema，比对「Schema」一列。第 5 节不参与 | Draft 2020-12 校验器（能按 `$id` 解析到 `data.asset-model` v1 及它引用的 Schema）＋ 按节绑定的 `$defs` | [S-1](v1/contract.md#s-1-斜杠命令定义是资产的正文)～[S-10](v1/contract.md#s-10-提示词模板与占位符)、[S-14](v1/contract.md#s-14-commandinvocation-与位置)、[S-20](v1/contract.md#s-20-parseresult-四支) 的**形状那一面** | **未运行。**起草者手核，结论与标注一致；**手核不是证据** |
+| V-1 | **形状校验**：[`examples.md`](v1/examples.md) 第 1～3、6 节逐行过 Schema，比对「Schema」一列；第 4 节每行的值与固定命令集、第 5 节的实例也过一遍（都应通过） | Draft 2020-12 校验器（能按 `$id` 解析到 `data.asset-model` v1 及它引用的 Schema）＋ 按节绑定的 `$defs` | [S-1](v1/contract.md#s-1-斜杠命令定义是资产的正文)～[S-10](v1/contract.md#s-10-提示词模板与占位符)、[S-14](v1/contract.md#s-14-commandinvocation-与位置)、[S-20](v1/contract.md#s-20-parseresult-四支) 的**形状那一面** | **本地自检已跑一次**（整批对齐，2026-09-24）：第 1～3、6 节 64 处，外加第 4 节每行的 `Recognition`／`CommandInvocation`／`ParseResult` 与固定命令集、第 5 节的 Schema 一列共 161 处，0 不符；拒绝值是哪一个未机检 |
 | V-2 | **判定用例集**：[`examples.md` 第 4 节](v1/examples.md#4-判定用例集)五十行，在**每一个**实现上逐行跑通（交付面人读、交付面机读、受理面） | 按第 4 节「机检格式」的一致性用例；同一张表跨实现比对 | [S-12](v1/contract.md#s-12-只识别经交付面的输入)～[S-23](v1/contract.md#s-23-命令型的参数) | **未开始**：没有任何实现。D-26 一行**受阻于 [G-3](v1/contract.md#十已知缺口)**，闭合前只比 `kind` 与 `at` |
 | V-3 | **拒绝值的具名与优先级**：第 1、5、6 节每个拒绝行，接收边界给出的拒绝值等于「拒绝值」一列 | 接收边界的一致性用例（同一份输入跨实现比对） | [S-28](v1/contract.md#s-28-表示层拒绝值)、[S-29](v1/contract.md#s-29-表示层拒绝与解析失败分开都不修补) | **未开始。****只验 Schema 通过与否不够**——两个实现可以都拒绝、却报不同的名字；第 5 节整节 Schema 都放行 |
 | V-4 | **消费者路径走查**（[CS-1～CS-7](v1/contract.md#消费者核对场景)） | 结构化走查（评审对象）；有提供者之后升级为真实演练 | [S-3](v1/contract.md#s-3-保留区与它唯一的拼法)～[S-4](v1/contract.md#s-4-保留区只归系统提供的命令型)、[S-10](v1/contract.md#s-10-提示词模板与占位符)、[S-11](v1/contract.md#s-11-属性项的推出规则)、[S-13](v1/contract.md#s-13-识别的三种结果)～[S-25](v1/contract.md#s-25-留痕) | **未开始。**走查**不需要提供者**，现在就做得了；**CS-2 停在 G-8、CS-3 停在 G-2 与 G-4、CS-7 停在 G-5**——停在缺口不算走不通，如实记为「本版到此为止」 |
@@ -35,26 +35,40 @@
 
 ## 对齐义务
 
+- **词条链接待合流后补**（2026-09-24 整批对齐）：正文里「命令参数声明」原标「无词条」，词条批已立为词条，本包已改用正式名、去掉标记；那几条词条在 HUB 上、本分支看不到，**链接待合流后补**（主线）。
+
 **这些是本契约与同批或上游契约之间要在整批对齐时处理的事**，不是本契约自己的证据义务；列在这里，免得散在各处被漏掉。
 
 | 对齐什么 | 涉及 | 现状 |
 |---|---|---|
-| **能力标识名禁 `/`、许 `:`**（主线裁定） | `data.asset-model` v1 的 S-2、S-3（规范串改 `<category>/<name>`）、S-29（反例要翻过来）、G-11（保留前缀的拼法由本契约 [S-3](v1/contract.md#s-3-保留区与它唯一的拼法) 闭合） | 那边仍是「禁 `:`、许 `/`」；本契约的 `CommandName` 因此自写 pattern（[G-1](v1/contract.md#十已知缺口)）。对齐之后改为在它的 `CapabilityName` 之上收紧，并补登 catalog 条款 |
-| `slash_command` 类正文的形状 | `data.asset-model` v1 的 S-10 与它的 G-5 | 那边的 `body` 不透明；形状是本契约的 `SlashCommandDefinition`。**注意依赖方向**：本契约已依赖那边（`CapabilityId`、S-2、S-12），那边若 `$ref` 本契约的定义，catalog 上会成一个环——对齐时选一个方向（例如那边只在散文里指路、不 `$ref`），不要两边互引 |
-| 正文里另立的名字字段 | `data.asset-model` v1 的 S-10（「正文契约最好不另立名字字段」） | 起草账本给 `SlashCommandDefinition` 定了 `name`；本契约写明它必须等于记录的 `capability.name`（[S-1](v1/contract.md#s-1-斜杠命令定义是资产的正文)） |
-| `origin.command` 的词法 | `data.content-blocks` v1 的 S-8 与它的 G-5 | 那边只到「非空」；应采用本契约的 `CommandName` |
-| ① 型展开的正文没有来路标记值 | `data.content-blocks` v1 的 S-8 | 只有 `slash_command_args` 与 `skill_body` 两种；本契约让 ① 的展开块不带来路标记、出处由留痕块陈述（[S-21](v1/contract.md#s-21-提示词型的展开)）。要不要补一个值归那边 |
-| 留痕块 | `data.content-blocks` 下一版；`data.messages` v1 的 S-6（用户消息能装哪几类块） | 判别值 `slash_command_invocation` 已定，形状未定（[G-4](v1/contract.md#十已知缺口)）；若成第八类块，内容块词条与 PF-009 的「七类」要先改，`data.messages` 那张表要加一列 |
-| 技能「正文」是哪一段 | `data.skill-package` v1（同批并行） | catalog 依赖未登（[G-2](v1/contract.md#十已知缺口)） |
-| 「谁可以用」这一项的项名 | `data.skill-package`、`data.mcp-endpoint`、连接件的形状条款（同批并行） | 全批共用一个项名；账本未给（[G-5](v1/contract.md#十已知缺口)） |
-| reload 一族的命令名 | `capability.asset-registry` v1（同批并行） | 名字须在保留区里、绑定为 `command`、拼法照 [S-3](v1/contract.md#s-3-保留区与它唯一的拼法)；有哪几条、各叫什么归那边 |
-| 位置与识别结果没有定义名 | 起草账本 | 位置 `{ start, end }` 以 JSON Pointer 引 `CommandInvocation` 的 `span`；「普通文字／字面发送／命令尝试」三选一只在散文与判定用例集里（[S-26](v1/contract.md#s-26-规范表示)）。要不要给定义名由主线定 |
+| **能力标识名禁 `/`、许 `:`** | `data.asset-model` v1 的 S-2、S-3、S-29 | **已落**（2026-09-24 整批对齐）：`CommandName` 改为 `$ref` 那边的 `CapabilityName` 再加保留区（原 G-1） |
+| `slash_command` 类正文的形状 | `data.asset-model` v1 的 S-10 | **已落**：那边的壳 `$ref` 本契约的 `SlashCommandDefinition`。**依赖方向**：catalog 只登本契约 → `data.asset-model`；那边的 `$ref` 是结构上的前提、不登依赖，catalog 不成环 |
+| 正文里另立的名字字段 | `data.asset-model` v1 的 S-10 | **已落**：正文不带 `name`，命令名就是记录的 `capability.name`（[S-1](v1/contract.md#s-1-斜杠命令定义是资产的正文)） |
+| `origin.command` 的词法 | `data.content-blocks` v1 的 S-8 | 那边只约束到「非空」、不反向引用本契约（避免成环）——保持 |
+| ① 型展开的正文与留痕 | `data.content-blocks` v1 的 S-8 | **已落**：`slash_command_expansion` 与 `slash_command_record` 两种来源标记（原 G-4；留痕不是第八类块） |
+| 技能「正文」是哪一段 | `data.skill-package` v1 的 S-8 | **已落**：依赖已登（原 G-2） |
+| 「谁可以用」这一项 | `data.asset-model` v1 的 S-36 | **已落**：三类共用 `usableBy`，本契约的推出规则产出空集（原 G-5） |
+| reload 一族的命令名 | `capability.asset-registry` v1 | 名字须在保留区里、绑定为 `command`、拼法照 [S-3](v1/contract.md#s-3-保留区与它唯一的拼法)；有哪几条、各叫什么归那边 |
+| 位置与识别结果的定义名 | 账本 S20-b | **已落**：`Span`、`Recognition` 两个 `$defs` |
+| 产品正文把参数声明、参数提示、绑定目标列为「设置」 | PF-002 §4 Slash Command | 主线裁定它们是正文成员（账本 S20-d）；**产品修订批**改那一处（原 G-6） |
 
 ## 结果与反例
 
+### 本地自检：Schema 正反实例（整批对齐，2026-09-24）
+
+**工具**：Draft 2020-12 校验器（`jsonschema`，按仓库 `uv.lock`），以对齐后整棵设计树的全部 Schema 建 registry；脚本在任务暂存区，不入库。
+**输入**：[`examples.md`](v1/examples.md) 第 1～3、6 节按「校验对象」逐行（64 处：24 预期通过、40 预期拒绝）；
+第 4 节固定命令集的每个命令名与正文、每一行的 `Recognition`、`CommandInvocation` 与 `ParseResult`（`failed` 补一个非空 `explanation` 再校验），第 5 节能构造成实例的那几行（161 处，全部预期通过）。
+
+| 处数 | 不符 |
+|---|---|
+| 225 | **0** |
+
+**只判通过与拒绝**：拒绝值是哪一个、判定用例集的识别与解析结果对不对，校验器不回答——后者是 V-2，要在实现上跑。**这不是 V-2 以后任何一条义务的证据。**
+
 ### 尚无的记录
 
-V-1～V-6 **一条执行记录也没有**。起草时的手核与一次性演算只保证 `examples.md` 的实例、期望值与它们的标注在起草者眼里不互相矛盾，
+V-2～V-6 **一条执行记录也没有**。起草时的手核与一次性演算只保证 `examples.md` 的实例、期望值与它们的标注在起草者眼里不互相矛盾，
 **不支持**任何一条规范场景、任何一个实现的符合性、任何一条消费者走查。
 
 首次执行时在此记录工具与版本、环境、配置、输入范围、可复现步骤与原始结果位置；原始产物归 [record/evidence/](../../../record/evidence/README.md)。
@@ -69,18 +83,19 @@ V-1～V-6 **一条执行记录也没有**。起草时的手核与一次性演算
 ## 变化的影响
 
 - **起草（2026-09-23）**：首版候选，建在 PF-002 rev 16、PF-014 rev 5、PF-016 rev 5 上；起点方向 D-036。
-  **依赖 `data.identity-values` v1**（已接受、已冻结）的 `S-8`、`S-31`——那一版不可原地改，**这些引用的目标不会漂移**；它若出 v2，本契约不自动跟随。
+  **依赖 `data.identity-values` v1**（已接受、已冻结）的 `S-31`（起草时另有 `S-8`，2026-09-24 去掉）——那一版不可原地改，**这些引用的目标不会漂移**；它若出 v2，本契约不自动跟随。
   **依赖 `data.asset-model` v1**（`candidate`，未冻结）的六条：那边在对齐波里按主线裁定改 S-2、S-3、S-29（[G-1](v1/contract.md#十已知缺口)），本契约的 `CommandName` 与 V-1 须同轮复核；
   那边若改 `CapabilityId` 或 S-12 的推出义务，[S-6](v1/contract.md#s-6-三种绑定目标)、[S-11](v1/contract.md#s-11-属性项的推出规则) 随之复核。
-  **依赖 `data.content-blocks` v1**（`candidate`，未冻结）的 `S-8`：那边若改来路标记的取值或成员名，[S-22](v1/contract.md#s-22-技能型的引用与两块展开物) 随之改。
-- **[G-3](v1/contract.md#十已知缺口) 闭合**（引号没闭合的失败原因有了名字）：Schema 的 `reason` 枚举加一个值、[S-17](v1/contract.md#s-17-参数文字的切分)、[S-19](v1/contract.md#s-19-解析失败取第一处)、[S-20](v1/contract.md#s-20-parseresult-四支) 与判定用例 D-26 改写 ⇒ **表示改变**；接受前闭合则原地改并重跑 V-1、V-2，接受后闭合则**出 v2**。
-- **[G-4](v1/contract.md#十已知缺口) 闭合**（留痕块形状）：本契约只把 [S-25](v1/contract.md#s-25-留痕) 的指路换成那边的坐标；判别值若被那边改名，本契约随之改。
-- **[G-5](v1/contract.md#十已知缺口) 闭合**（「谁可以用」的项名与默认值）：[S-11](v1/contract.md#s-11-属性项的推出规则) 补全；若默认值要由正文承载，`SlashCommandDefinition` 加一个成员 ⇒ 表示改变，同上。
-- **[G-6](v1/contract.md#十已知缺口) 闭合**：若产品确认绑定目标或参数声明要按层可配，推出规则与正文形状都要改 ⇒ 语义改变，同上；若确认只是正文，G-6 只剩「参数提示」放在哪一项。
-- **[G-1](v1/contract.md#十已知缺口)、[G-2](v1/contract.md#十已知缺口) 闭合**（整批对齐）：Schema 改为 `$ref`、catalog 补依赖与条款号；语义不变。
+  **依赖 `data.content-blocks` v1**（`candidate`，未冻结）的 `S-8`：那边若改来源标记的取值或成员名，[S-22](v1/contract.md#s-22-技能型的引用与两块展开物) 随之改。
+- **2026-09-24 整批对齐（候选，未冻结，原地改）**：依据行写「主线裁定 2026-09-23，待产品负责人确认」的，出处在主线的裁定清单（账本 S9-c、S18-c、S20-a～S20-e）。
+  - **正文去掉 `name`**：命令名就是所在记录的 `capability.name`；会话斜杠命令集改为「命令名 → 正文」一对；[S-4](v1/contract.md#s-4-保留区只归系统提供的命令型) 三行都改由看得见记录的接收边界判，Schema 里那两段 `if/then` 删掉。**表示改变**：旧实例里带 `name` 的正文不再合法，已改写。
+  - **`CommandName` `$ref` `data.asset-model` 的 `CapabilityName`**（G-1）；**依赖登 `data.skill-package` 的 S-8**（G-2）；对 `data.identity-values` 的 S-8 依赖去掉（取值域经 `usableBy` 取得）。
+  - **`reason` 加 `unterminated_quote`**（G-3）；**立 `Span`、`Recognition`**；**留痕是 `slash_command_record` 来源标记、① 型展开物带 `slash_command_expansion`**（G-4）；**推出规则产出空集，「谁可以用」是 `usableBy`**（G-5）；**参数提示是 `ParameterDeclaration.hint`**（G-6，产品正文待修订）。
+  - **对证据的影响**：V-1 首次有了本地自检；判定用例 D-26 从「受阻于 G-3」转为正常一行；V-4 的 CS-3、CS-7 走通。
 - **[G-7](v1/contract.md#十已知缺口)～[G-9](v1/contract.md#十已知缺口) 闭合**：各归受理契约或登记处，本契约只换指路；若那边要求 `CommandInvocation` 或 `ParseResult` 多带东西，按表示改变处理。
-- **[G-10](v1/contract.md#十已知缺口) 闭合**（两项主线裁定落进决定记录）：只改[设计依据](v1/contract.md#设计依据)表的链接，语义与表示不变。
+- **[G-10](v1/contract.md#十已知缺口) 闭合**（主线裁定落进决定记录、产品负责人确认）：只改[设计依据](v1/contract.md#设计依据)表的链接，语义与表示不变。
 - **交付面与受理面分成两个实现**：V-2 必须在每个实现上跑，V-5 从「无法演练」转为**必须演练**；[第六节](v1/contract.md#六装配给与协议给)右列从「待兑现」转为「须由协议兑现」。
   **本版的全部证据只保留其单机范围，不得外推。**
+- **（2026-09-24 整批对齐收尾，不改语义）**：「不拥有」与消费者表里「同批」「同批并行起草」的旧说法换成候选坐标（注册表、求值、资产治理）。
 
 结果不改写规范。发现语义问题回到来源设计（PF-002／PF-014／PF-016），不在这里改契约。

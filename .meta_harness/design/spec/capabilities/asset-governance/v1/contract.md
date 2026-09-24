@@ -4,7 +4,7 @@
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.asset-governance, 1)`——
   `family = capabilities`、`topic = asset-governance`、规范路径 `spec/capabilities/asset-governance/v1/contract.md`
-- **状态**：`candidate`，2026-09-23 起草，未评审、未接受、未冻结
+- **状态**：`candidate`，2026-09-23 起草，2026-09-24 整批对齐；未评审、未接受、未冻结
 - **设计依据**（PF-002 rev 16 · PF-001 rev 16 · PF-003 rev 4）：
   - PF-002：[§二 非目标](../../../../product/PF-002-assets-settings-and-permissions/design.md#非目标)、
     [§4 八类资产](../../../../product/PF-002-assets-settings-and-permissions/design.md#八类资产)、
@@ -49,9 +49,20 @@
   - `omne-harness-lite-design-2026-09-15 · data.identity-values · v1`
   - `omne-harness-lite-design-2026-09-15 · data.offer-expiry · v1`
   - `omne-harness-lite-design-2026-09-15 · capability.organization-governance · v1`
-  - `omne-harness-lite-design-2026-09-15 · data.asset-model · v1`——**与本契约并行起草、尚未定型**。
-    本契约**只引它的 `$defs` 名、成员名与主线转达的两个条款号**（`#S-2`、`#S-18`），不复述它的定义；
-    **这一条依赖本版未登进 catalog**，理由与闭合条件见[包入口](../README.md#catalog-映射)
+  - `omne-harness-lite-design-2026-09-15 · data.asset-model · v1`（2026-09-24 整批对齐按条款号补登）
+  - 各类正文契约的两条规则（属性项推出、组合引用）与斜杠命令的保留区：`data.tool-definition` v1、`data.skill-package` v1、
+    `data.slash-command` v1、`data.mcp-endpoint` v1、`data.connector` v1（同上）
+- **主线裁定 2026-09-23，待产品负责人确认**（整批对齐 2026-09-24 落地）：
+  租户格以 `organization` 依据持有本组织可用的那一份——拥有的或经分享持有的（账本 S11-G2，原 G-2 闭合）；
+  替换是同一能力标识的**另一份**记录，同一份记录不算替换（S11-G19，原 G-19 闭合）；
+  所有者一侧对本组织成员租户层的持有只见份数，删除的告知发给各持有租户本人（S11-G18，原 G-18 闭合）；
+  组合图成环按「沿谁能组合谁的有向引用回到自身」读（S11-G6，G-6 ① 闭合）；
+  新增 `readAsset`／`readVersion`（S11-G9，原 G-9 闭合）；配值带 `since`（S11-G14，原 G-14 闭合）；审计就是事件落成的记录条目（S11-G17，原 G-17 闭合）；
+  `hold` 缺省 `current`，读面看得见即不算静默（S11-1）；钉官方件的旧版本允许（S11-5）；
+  `unavailable`、`versionNotPublished`、`assignmentNotFound` 与 `version_pinned`／`version_unpinned` 采纳（S11-names）；
+  官方件在装配启动时按部署清单登记，不是运行时操作（A-M17）；创建类操作带幂等键——`createDraft` 的 `creationKey` 即是，配值写的过期编辑守卫缺名字，记 G-21（A-M15）；
+  组合入口的写入并入资产流转确认的那一次提交，两份契约同一提供者（A-M5、PA-3）；
+  分享结束之后被分享方那份持有留着（A-M21）；「资产不存在」指记录被删除（A-M22）；删除之后已发布版本作不可解引用的归档保留，引用方读到「已删除」（A-M25）
 - **条款编号**：`S-n`，只在本契约本版本内有效；外部引用写全坐标，如 `capability.asset-governance/v1#S-30`。
   缺口编号 `G-n`，同一作用域
 
@@ -70,20 +81,20 @@
 | 3 | **持有治理**：组织层与租户层的加入、移除、禁用、启用、锁替换、解锁、[版本选用](../../../../ubiquitous_language/terms/circulation-and-entitlement.md#ul-version-selection--版本选用--version-selection) | [S-9](#s-9-持有本契约写得到的两层与写不到的两层)、[S-11](#s-11-禁用)、[S-30](#s-30-hold-加入持有)～[S-37](#s-37-unpinversion-回到追随当前版本) |
 | 4 | **配值治理**：组织层与租户层的配值、清除、加锁、解锁 | [S-10](#s-10-属性配值与两把锁)、[S-38](#s-38-assign-配值)～[S-41](#s-41-unlockassignment-解除该项的锁) |
 | 5 | **拒绝规则与角色矩阵**：[PF-002 flows §二](../../../../product/PF-002-assets-settings-and-permissions/flows.md#二分支与异常)落在写面上的那几条，与 [flows §四](../../../../product/PF-002-assets-settings-and-permissions/flows.md#四角色与操作) 逐格落成的「谁能做」 | [S-14](#s-14-可见与不泄漏存在性)～[S-22](#s-22-先告知再移除或删除) |
-| 6 | **读面**：某范围持有了什么、一份持有的配值、「组织的设置」这个视图、一份记录的引用方 | [S-12](#s-12-组织的设置是视图不是对象)、[S-13](#s-13-引用方)、[S-42](#s-42-listholdings-列出某范围的持有)～[S-45](#s-45-listreferrers-列出一份记录的引用方) |
+| 6 | **读面**：某范围持有了什么、一份持有的配值、「组织的设置」这个视图、一份记录的引用方、一份记录与它的已发布版本 | [S-12](#s-12-组织的设置是视图不是对象)、[S-13](#s-13-引用方)、[S-42](#s-42-listholdings-列出某范围的持有)～[S-45](#s-45-listreferrers-列出一份记录的引用方)、[S-64](#s-64-readasset-读一份资产记录)、[S-65](#s-65-readversion-读一个已发布版本) |
 
 ### S-2 本契约不拥有什么
 
 | 不拥有 | 归谁 |
 |---|---|
-| 资产记录、版本、持有、配值、属性声明**长什么样**（全部数据形状） | `data.asset-model` v1（并行）。本契约只写**怎样被写、谁能写、写不了时收什么** |
-| **求值**：禁用析取、替换次序与锁截断、属性投影、层级计算、工作区滤权、「这次实际用了什么」 | `capability.asset-evaluation` v1（并行）。**本契约写下的锁、禁用与配值，要到求值里才产生效果**；本契约的写时守卫（[S-38](#s-38-assign-配值) 的 `lockedAbove` 等）是**提前拒绝**，不是效果的权威 |
-| 复制与分享（复制通知、分享邀请、分享、血缘判定） | `capability.asset-transfer` v1（并行）。本契约只给它**落地用的写面**（[S-46](#s-46-组合入口资产流转的确认步骤)） |
-| 八类正文**内部**的校验与语义 | 各类正文契约（`data.tool-definition`、`data.loop-extension` 起草中；其余见 [G-5](#十二已知缺口)） |
+| 资产记录、版本、持有、配值、属性声明**长什么样**（全部数据形状） | `data.asset-model` v1。本契约只写**怎样被写、谁能写、写不了时收什么** |
+| **求值**：禁用析取、替换次序与锁截断、属性投影、层级计算、工作区滤权、「这次实际用了什么」 | `capability.asset-evaluation` v1。**本契约写下的锁、禁用与配值，要到求值里才产生效果**；本契约的写时守卫（[S-38](#s-38-assign-配值) 的 `lockedAbove` 等）是**提前拒绝**，不是效果的权威 |
+| 复制与分享（复制通知、分享邀请、分享、血缘判定） | `capability.asset-transfer` v1。本契约只给它**落地用的写入**（[S-46](#s-46-组合入口资产流转的确认步骤)）；两份契约由同一提供者提供（PA-3） |
+| 八类正文**内部**的校验与语义 | 各类正文契约（`data.tool-definition`、`data.loop-extension`、`data.skill-package`、`data.slash-command`、`data.mcp-endpoint`、`data.connector`，都是候选；`agent_definition` 归 PF-004，[G-5](#十二已知缺口)） |
 | 工作区那一级的持有与配值 | **不经本契约写**：它们由承载目录读入，归 `capability.asset-evaluation` v1 的读入面（[UL-workspace](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-workspace--工作区--workspace)） |
 | 组织、成员关系、角色、层身份 | `capability.organization-governance` v1（本契约**消费**它两个读面，[S-4](#s-4-依赖方向与被消费的面)） |
 | 身份值的形状与隔离义务 | `data.identity-values` v1 |
-| 设置页的界面、注册表、运行时装载与卸载 | 交付面、注册表能力（块 B）、PF-004 的契约 |
+| 设置页的界面、注册表、运行时装载与卸载 | 交付面、`capability.asset-registry` v1（候选）、PF-004 的契约 |
 
 ### S-3 本契约明确不承诺什么
 
@@ -96,12 +107,14 @@
 - **不写求值结论。**哪一份生效、某一项取什么值，本契约一概不答。
 - **不附 Schema**：操作的输入与返回用散文写清含义，值的形状引 `data.asset-model` v1 与 `data.identity-values` v1
   （[规格入口的口径](../../../README.md#准入门槛与停止条件)：能力契约自己不发布 Schema）。
-- **不定义审计记录。**[PF-001 §6.8](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#68-管理结果) 要求「审计保留操作者、范围、对象、变更与依据」，
-  本契约的每个写操作都带齐这五样作输入或结果，但**审计记录本身归谁**本版无 owner（[G-17](#十二已知缺口)）。
+- **不另立审计记录。**[PF-001 §6.8](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#68-管理结果) 要求「审计保留操作者、范围、对象、变更与依据」：
+  **审计就是本契约的事件（[S-48](#s-48-事件都是通知)）落成的[记录条目](../../../../ubiquitous_language/terms/record-and-context.md#ul-record-entry--记录条目--record-entry)**
+  （[PF-000 记录条目](../../../../product/PF-000-occurrences-and-record-entries/design.md#记录条目)；主线裁定 2026-09-23，待产品负责人确认；账本 S11-G17，原 G-17 闭合）。
+  事件为此带齐那五样（[S-48](#s-48-事件都是通知)）；**条目随写入同一次提交落下**，不靠任何监听者收到事件——事件本身仍只是通知。
 
 ### S-4 依赖方向与被消费的面
 
-**依赖方向单向：本契约 → 组织治理、身份值、过期语义、资产数据形状。**它们都不得反向依赖本契约。
+**依赖方向单向：本契约 → 组织治理、身份值、过期语义、资产数据形状、各类正文契约。**它们都不得反向依赖本契约。
 
 #### 组织治理侧（`capability.organization-governance` v1，三条）
 
@@ -149,22 +162,52 @@
 | 被消费的条款 | 用在哪 |
 |---|---|
 | [`#S-6` 指向的对象](../../../data/offer-expiry/v1/contract.md#s-6-指向的对象) | 复制通知与分享邀请指向的是**一份资产记录**——本契约是那个对象的持有者 |
-| [`#S-19` 规则与读面归属](../../../data/offer-expiry/v1/contract.md#s-19-规则与读面归属) | 那条写明「**资产**：标识不回收、不复用——这条承诺本版无人给」。**本契约是 `AssetRecordId` 的分配方，这条由 [S-5](#s-5-资产记录与它的两个标识) 给**。同一条要求的**存在性读面**本版仍没有（[G-9](#十二已知缺口)） |
+| [`#S-19` 规则与读面归属](../../../data/offer-expiry/v1/contract.md#s-19-规则与读面归属) | 那条写明「**资产**：标识不回收、不复用——这条承诺本版无人给」。**本契约是 `AssetRecordId` 的分配方，这条由 [S-5](#s-5-资产记录与它的两个标识) 给**。同一条要求的**存在性读面**归资产流转（[它的 S-7](../../asset-transfer/v1/contract.md#s-7-两类待确认件共用的过期语义)，读本契约的 [S-42](#s-42-listholdings-列出某范围的持有)、[S-43](#s-43-readholding-读一份持有)） |
 
-#### 资产数据形状侧（`data.asset-model` v1，并行，只引 `$defs` 名）
+#### 资产数据形状侧（`data.asset-model` v1）
 
-用到的名字：`CapabilityId`、`AssetCategory`、`CapabilityName`、`AssetRecordId`、`AssetOrigin`、`AssetOwner`、
-`AssetDefinition`、`AssetVersion`、`AssetContent`、`AttributeDeclaration`、`AttributeDomain`、`AttributeAssignment`、
-`PermissionValue`、`HoldingScope`、`AssetHolding`、`HoldingBasis`、`SharingId`、`CopyLineage`、`CredentialRef`；
-以及两个成员：`AssetDefinition` 的 `byAgent`（布尔）、`AssetHolding` 的 `versionSelection`（`{kind: current}` 或 `{kind: pinned, number}`；它的 `$defs` 名随那份契约下一版定型）。
-`HoldingBasis` 按那份契约是五支：`owned`、`organization`、`official`、`shared{sharing}`、`carrier`。
-**另引它三条判定条款的内容**：`#S-2` 能力标识的词法（规范串 `<category>/<name>`）；`#S-18` 同一格对同一能力标识至多一份持有；`disabled` 是保留项名（条款号待定型）。
+**下表每个 `#S-n` 的完整坐标是 `omne-harness-lite-design-2026-09-15 · data.asset-model · v1`；catalog 的 `clauses` 以本表为准。**本契约只引它的定义，不复述。
+
+| 被消费的条款 | 用在哪 |
+|---|---|
+| [`#S-1`](../../../data/asset-model/v1/contract.md#s-1-资产类别恰八类) 八类、[`#S-2`](../../../data/asset-model/v1/contract.md#s-2-能力标识名的词法) 能力标识名的词法、[`#S-3`](../../../data/asset-model/v1/contract.md#s-3-能力标识与它的规范串) `CapabilityId` | [S-24](#s-24-createdraft-创建草稿) ③、[S-29](#s-29-registerofficial-登记官方件) ③ 的类别对照；[S-18](#s-18-失败值闭合) `invalidInput` 的能力标识词法 |
+| [`#S-4`](../../../data/asset-model/v1/contract.md#s-4-资产记录号) `AssetRecordId` | [S-5](#s-5-资产记录与它的两个标识)：本契约是它的产生方 |
+| [`#S-5`](../../../data/asset-model/v1/contract.md#s-5-资产来源) `AssetOrigin` | [S-5](#s-5-资产记录与它的两个标识)：来源产生时定 |
+| [`#S-6`](../../../data/asset-model/v1/contract.md#s-6-所有者与作者分记) 所有者与作者分记、[`#S-7`](../../../data/asset-model/v1/contract.md#s-7-所有者至多变一次) 所有者至多变一次 | [S-7](#s-7-所有者与作者)、[S-27](#s-27-promotetoorganization-提升到组织) |
+| [`#S-8`](../../../data/asset-model/v1/contract.md#s-8-资产记录) `AssetDefinition`（含 `byAgent`） | [S-24](#s-24-createdraft-创建草稿) ④、[S-64](#s-64-readasset-读一份资产记录) ⑤ |
+| [`#S-9`](../../../data/asset-model/v1/contract.md#s-9-版本线) `AssetVersion` 与版本线 | [S-6](#s-6-草稿与版本线)、[S-26](#s-26-publish-发布)、[S-65](#s-65-readversion-读一个已发布版本) |
+| [`#S-10`](../../../data/asset-model/v1/contract.md#s-10-八类正文的外壳) `AssetContent` 八个壳、[`#S-11`](../../../data/asset-model/v1/contract.md#s-11-plugin-的成员) plugin 的成员 | [S-24](#s-24-createdraft-创建草稿) ③；[S-13](#s-13-引用方) 的组合引用 |
+| [`#S-12`](../../../data/asset-model/v1/contract.md#s-12-属性声明由正文推出) 属性声明由正文推出、[`#S-13`](../../../data/asset-model/v1/contract.md#s-13-设置项类别) 设置项类别 | [S-10](#s-10-属性配值与两把锁)、[S-38](#s-38-assign-配值) 的取值域、[S-44](#s-44-organizationsettingsview-组织的设置视图) 的表单 |
+| [`#S-14`](../../../data/asset-model/v1/contract.md#s-14-属性配值) `AttributeAssignment`（含 `since`）、[`#S-15`](../../../data/asset-model/v1/contract.md#s-15-disabled-是保留项名) `disabled`、[`#S-36`](../../../data/asset-model/v1/contract.md#s-36-usableby-是保留项名) `usableBy` | [S-10](#s-10-属性配值与两把锁)、[S-11](#s-11-禁用)、[S-38](#s-38-assign-配值)～[S-41](#s-41-unlockassignment-解除该项的锁) |
+| [`#S-16`](../../../data/asset-model/v1/contract.md#s-16-持有范围) `HoldingScope` | [S-9](#s-9-持有本契约写得到的两层与写不到的两层)、[S-42](#s-42-listholdings-列出某范围的持有) |
+| [`#S-18`](../../../data/asset-model/v1/contract.md#s-18-资产持有) `AssetHolding`（含 `versionSelection`、`immutable`、`since`；同一格同一能力标识至多一份） | [S-9](#s-9-持有本契约写得到的两层与写不到的两层)、[S-30](#s-30-hold-加入持有) |
+| [`#S-19`](../../../data/asset-model/v1/contract.md#s-19-使用权来路) `HoldingBasis` 五支 | [S-9](#s-9-持有本契约写得到的两层与写不到的两层) 的依据表 |
+| [`#S-20`](../../../data/asset-model/v1/contract.md#s-20-出厂格与工作区格的持有) 出厂格与工作区格的持有 | [S-8](#s-8-official-记录与出厂默认层的持有)、[S-29](#s-29-registerofficial-登记官方件) |
+| [`#S-21`](../../../data/asset-model/v1/contract.md#s-21-复制血缘) `CopyLineage`、[`#S-22`](../../../data/asset-model/v1/contract.md#s-22-血缘号与分享号) `SharingId` | [S-46](#s-46-组合入口资产流转的确认步骤) |
+| [`#S-23`](../../../data/asset-model/v1/contract.md#s-23-凭据引用) `CredentialRef` | [S-38](#s-38-assign-配值) 的凭据类配值 |
+| [`#S-25`](../../../data/asset-model/v1/contract.md#s-25-规范表示) 规范表示：全部值可序列化、没有进程内身份 | [S-50](#s-50-装配给的保证-vs-协议须给的保证) 末行：本契约的事实可整体导出、导入 |
+
+#### 各类正文契约侧（两条规则与斜杠命令的保留区）
+
+[S-10](#s-10-属性配值与两把锁) 的属性项推出与 [S-13](#s-13-引用方) 的组合引用抽取，按类别取自下面各条；**缺的那几格就是 [G-5](#十二已知缺口)**。
+
+| 类别 | 属性项推出 | 组合引用 |
+|---|---|---|
+| `tool` | [`data.tool-definition/v1#S-31`](../../../data/tool-definition/v1/contract.md#s-31-属性项的推出规则) | [`#S-16`](../../../data/tool-definition/v1/contract.md#s-16-组合)：`composes.skills` |
+| `skill` | [`data.skill-package/v1#S-17`](../../../data/skill-package/v1/contract.md#s-17-属性项投影规则) | [`#S-13`](../../../data/skill-package/v1/contract.md#s-13-组合的工具清单)：`definition.tools` |
+| `slash_command` | [`data.slash-command/v1#S-11`](../../../data/slash-command/v1/contract.md#s-11-属性项的推出规则)；保留区 [`#S-3`](../../../data/slash-command/v1/contract.md#s-3-保留区与它唯一的拼法)、[`#S-4`](../../../data/slash-command/v1/contract.md#s-4-保留区只归系统提供的命令型) 用在 [S-24](#s-24-createdraft-创建草稿)、[S-25](#s-25-updatedraft-修订草稿)、[S-29](#s-29-registerofficial-登记官方件) 的 ③ | [`#S-6`](../../../data/slash-command/v1/contract.md#s-6-三种绑定目标)：`skill` 型绑定的那一个能力标识 |
+| `mcp` | [`data.mcp-endpoint/v1#S-14`](../../../data/mcp-endpoint/v1/contract.md#s-14-推出规则五类项)、[`#S-15`](../../../data/mcp-endpoint/v1/contract.md#s-15-推出规则的输入正文与动作集)：逐动作项另要一份动作集 | 不组合任何资产 |
+| `connector` | [`data.connector/v1#S-11`](../../../data/connector/v1/contract.md#s-11-推出规则) | 不组合任何资产 |
+| `loop_extension` | **缺**：`data.loop-extension` v1 只标了哪几个成员是设置、属哪一类，没有推出规则 | 不组合任何资产 |
+| `agent_definition` | **缺**（PF-004） | **缺**（PF-004） |
+| `plugin` | 它自己的项**缺**（`data.asset-model/v1#S-11` 与它的 G-9） | 成员清单（`data.asset-model/v1#S-11`） |
 
 #### 不消费什么
 
 - **不消费 `data.identity-values/v1#S-13`**（`sameAccountDistinctTenants`）：那是复制前提，消费者是资产流转。
 - **不消费组织治理的层身份读面**（`#S-35`）：`scope` 由调用方显式给出，本契约只判它与调用方身份的关系。
 - **不消费上级链**：分享边界归资产流转。
+- **不消费 `capability.asset-transfer` 的条款**：组合入口（[S-46](#s-46-组合入口资产流转的确认步骤)）是它调本契约；同一次提交的约定引它的 S-18 只作指路。
 
 ---
 
@@ -241,7 +284,7 @@
 
 **official 记录只由 [S-29](#s-29-registerofficial-登记官方件) 产生；每个能力标识至多一份 official 记录。**
 [S-29](#s-29-registerofficial-登记官方件) 在第一次登记某个能力标识时同时产生**出厂默认层的那份持有**
-（`holder = {layer: factory}`、`basis = official`、`versionSelection = current`，此后没有写路径）；[那一层的设置与权限就是官方件自带的那一份](../../../../product/PF-002-assets-settings-and-permissions/design.md#由此得到两个推论)，
+（`holder = {layer: factory}`、`basis = official`、`versionSelection = current`，**`immutable` 等于部署清单对这个能力标识的 meta 标记**；此后只有 [S-29](#s-29-registerofficial-登记官方件) 按清单改写这一个标记）；[那一层的设置与权限就是官方件自带的那一份](../../../../product/PF-002-assets-settings-and-permissions/design.md#由此得到两个推论)，
 所以这份持有上**没有配值**。
 
 [官方件](../../../../ubiquitous_language/terms/circulation-and-entitlement.md#ul-official-asset--官方件--official-asset)身上的五条**结构性禁止**，失败值一律 **`officialImmutable`**：
@@ -252,7 +295,7 @@
 | 2 | **不能被编辑、发布新版本或删除** | [PF-001 §4 角色](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#角色)：超级管理员「不因此取得……官方原件的编辑权」 | [S-25](#s-25-updatedraft-修订草稿)、[S-26](#s-26-publish-发布)、[S-28](#s-28-delete-删除一份资产记录) |
 | 3 | **不能被提升** | 它的所有者是平台，不是某个租户 | [S-27](#s-27-promotetoorganization-提升到组织) |
 | 4 | **出厂默认层的那份持有不能被移除** | [PF-001 §6.1](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#61-层次)：「任何层不得清空」 | **结构兑现**：写操作的 `scope` 是 `ScopeLayerIdentity`，出厂层**在写面上构造不出来**（[S-9](#s-9-持有本契约写得到的两层与写不到的两层)） |
-| 5 | **meta 能力不能被替换** | [PF-002 §5.5](../../../../product/PF-002-assets-settings-and-permissions/design.md#55-资产替换的层级) 的第一个例外；[UL-meta-capability](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability)「不可禁用、不可替换」 | [S-30](#s-30-hold-加入持有)：自定义件以 meta 能力的标识被加入持有 ⇒ 拒绝。**哪些能力标识是 meta，本版没有数据落点，这一支本版不可达**（[G-11](#十二已知缺口)） |
+| 5 | **meta 能力不能被替换** | [PF-002 §5.5](../../../../product/PF-002-assets-settings-and-permissions/design.md#55-资产替换的层级) 的第一个例外；[UL-meta-capability](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability)「不可禁用、不可替换」 | [S-30](#s-30-hold-加入持有)：以出厂层带锁的能力标识持有**另一份**记录 ⇒ 拒绝。**出厂层只对 meta 能力带锁**，锁由 [S-29](#s-29-registerofficial-登记官方件) 按部署清单的 meta 标记写（[`data.asset-model/v1#S-20`](../../../data/asset-model/v1/contract.md#s-20-出厂格与工作区格的持有)；原 G-11 闭合） |
 
 **「official 不可移除」不等于「组织不能不持有它」。**组织或租户为了配值或锁替换而持有一份官方件（`basis = official`），
 [S-31](#s-31-unhold-移除持有) 照常能把**这一层的**那份持有移掉——出厂层那份还在，[那个能力标识下仍然有东西](../../../../product/PF-002-assets-settings-and-permissions/flows.md#13-用自定义资产替换-official)。
@@ -286,16 +329,16 @@
 |---|---|---|
 | `official` | 记录是 official | [S-30](#s-30-hold-加入持有)；出厂层那一份由 [S-29](#s-29-registerofficial-登记官方件) |
 | `owned` | 记录的所有者**就是**这一格（组织层 ↔ 该组织；租户层 ↔ 该租户） | [S-30](#s-30-hold-加入持有) |
-| `organization` | 这一格是租户层 `T`，记录的所有者是 `T` 所在的组织 | [S-30](#s-30-hold-加入持有)；以及 [S-27](#s-27-promotetoorganization-提升到组织) 把 `T` 自己那份 `owned` 改写成它 |
+| `organization` | 这一格是租户层 `T`，而记录**归 `T` 所在的组织所有**，或 **`T` 所在组织的组织层持有同一份记录**（含经分享持有的那一份；[`data.asset-model/v1#S-19`](../../../data/asset-model/v1/contract.md#s-19-使用权来路)，主线裁定 S11-G2） | [S-30](#s-30-hold-加入持有)；以及 [S-27](#s-27-promotetoorganization-提升到组织) 把 `T` 自己那份 `owned` 改写成它 |
 | `shared{sharing}` | **本契约不核对**：只经[组合入口](#s-46-组合入口资产流转的确认步骤)由资产流转的确认步骤带着 `sharing` 写入，分享成不成立由那一侧在它自己的提交里判 | 组合入口；直接入口够不着（[装配给](#s-50-装配给的保证-vs-协议须给的保证)） |
 | `carrier` | 工作区从承载目录提供 | **不经本契约写** |
 
 **一个都不成立 ⇒ `notOwner`**：这一格对这份记录没有任何使用权依据。
 
-> **租户层要持有「被分享给本组织的那一份」时，五支仍然都不合。**[PF-003 flows §四](../../../../product/PF-003-asset-transfer-and-sharing/flows.md#四角色与操作)末行要「目标侧普通成员在自己租户级配置被分享资产的设置与权限」，
-> [配值的资格来自持有](../../../../product/PF-002-assets-settings-and-permissions/design.md#三方分工资产定形状各层配值运行时求值)，
-> 租户就得持有那份记录；可它不归本组织（不是 `organization`），分享又是组织对组织的（`shared` 只落在组织层）。
-> **本版这类持有写不进来，是 [G-2](#十二已知缺口)**，不在这里补一支。
+**`organization` 的第二种来路靠组织层那一份持有。**组织层移除它（[S-31](#s-31-unhold-移除持有)），或那段分享不再生效（`capability.asset-transfer`），
+成员租户层那份就失去依据——**本契约不删它**：组织层的写入碰不到成员的租户层（[S-15](#s-15-结构性禁止不是权限判定)）。它留在原处，
+读到它的一方按 [`data.asset-model/v1#S-19`](../../../data/asset-model/v1/contract.md#s-19-使用权来路) 当作这一格没有持有；成员自己能 [S-31](#s-31-unhold-移除持有) 它；组织层再持有同一份，它的依据就又成立。
+**被分享方组织层那份 `shared` 持有在分享结束之后同样留着**，配值随它留（主线裁定 2026-09-23，待产品负责人确认；账本 A-M21）；可不可用由求值按分享的判据定。
 
 **每份持有带一个[版本选用](../../../../ubiquitous_language/terms/circulation-and-entitlement.md#ul-version-selection--版本选用--version-selection)** `versionSelection`：
 `current`（追随所指记录此刻最新的已发布版本）或 `pinned`（钉在某个已发布版本号上）。
@@ -324,7 +367,7 @@
 那些值与持有留在原处，求值时被截断（归 `capability.asset-evaluation` v1）。
 
 **配值的取值域来自资产正文推出的属性声明**（`AttributeDeclaration`；[三方分工](../../../../product/PF-002-assets-settings-and-permissions/design.md#三方分工资产定形状各层配值运行时求值)「资产定形状」）。
-声明**不存在记录上**，由各类正文契约给出的**属性项投影规则**从正文推出；本契约写入前按它校验（[S-38](#s-38-assign-配值)）：
+声明**不存在记录上**，由各类正文契约给出的**属性项投影规则**从正文推出（逐类的出处见 [S-4](#s-4-依赖方向与被消费的面) 的正文契约侧），再加 `data.asset-model` 保留的两项——`disabled`（[`#S-15`](../../../data/asset-model/v1/contract.md#s-15-disabled-是保留项名)，只经 [S-32](#s-32-disable-禁用)／[S-33](#s-33-enable-启用) 写）与 `usableBy`（[`#S-36`](../../../data/asset-model/v1/contract.md#s-36-usableby-是保留项名)，`skill`、`mcp`、`slash_command` 三类，经 [S-38](#s-38-assign-配值) 照常配）；本契约写入前按它校验（[S-38](#s-38-assign-配值)）：
 
 - 设置项：值过该项声明的 `domain.schema`；
 - 权限项：值是 `PermissionValue`，其允许集合是该项枚举的**子集**（[「选择就是收窄到只剩一个」](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#两轮合成作用对象不同)）；
@@ -366,16 +409,18 @@
 | **持有方** | 每一份 `asset` 指向这份记录的持有（`holder` ＋ `basis`） | 删了记录，这些持有就指向一份不存在的东西 |
 | **组合引用方** | 在**列入的范围**里，被该范围持有、且[组合引用](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-asset-composition--资产组合--asset-composition)了这份记录的**能力标识**的每一份资产（这份记录是 plugin 时，也算引用了它任一成员能力标识的那些） | [引用指向能力标识](../../../../product/PF-002-assets-settings-and-permissions/design.md#63-组合的引用指向能力标识)：移走这一层的提供者，它们在这一层就换了一个提供者或没有提供者 |
 
-**组合引用怎样从正文取出来，归各类正文契约的「组合引用抽取规则」**。本版已知的只有两处：
-plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体）；以及 [PF-002「谁能组合谁」](../../../../product/PF-002-assets-settings-and-permissions/design.md#谁能组合谁)写死**不组合任何资产**的三类（MCP、Connector、Loop Extension），它们**不必抽取**。
-其余四类（skill、tool、slash_command、agent_definition）的规则缺席是 [G-5](#十二已知缺口)；**缺席时引用方求不出，以 `unavailable` 失败，不返回一份少了几项的清单**。
+**组合引用怎样从正文取出来，归各类正文契约**（逐类的出处见 [S-4](#s-4-依赖方向与被消费的面) 的正文契约侧）：tool 的 `composes.skills`、skill 的 `definition.tools`、slash_command 的 `skill` 型绑定、plugin 的成员清单；
+[PF-002「谁能组合谁」](../../../../product/PF-002-assets-settings-and-permissions/design.md#谁能组合谁)写死**不组合任何资产**的三类（MCP、Connector、Loop Extension）**不必抽取**。
+**agent_definition 的规则缺席**是 [G-5](#十二已知缺口)；**缺席时引用方求不出，以 `unavailable` 失败，不返回一份少了几项的清单**。
 
 **只在调用方看得见的范围里求**：调用方治理的范围（它是管理者的组织层或它自己的租户层），
 外加——**当调用方是这份记录所有者一侧时**——经分享持有它的其他组织（只列出组织与 `basis`，**不列它们里面的组合引用方**）。
 [超级管理员管不到成员租户级的私有部分](../../../../product/PF-002-assets-settings-and-permissions/flows.md#四角色与操作)，所以别人的租户层**不列**。
-**这留下一个真实的洞**：组织拥有的记录可以被成员以 `organization` 依据持有在他们自己的租户层（[S-9](#s-9-持有本契约写得到的两层与写不到的两层)），
-这些持有方对所有者一侧**不列、不进确认比对**，删除之后它们留着（[G-7](#十二已知缺口)）。
-**要不要、以什么不暴露成员的方式告知**，本版不答（[G-18](#十二已知缺口)）；本契约不为了告知而泄漏成员租户级的持有。
+**本组织成员租户层的持有方对所有者一侧只给份数**（主线裁定 2026-09-23，待产品负责人确认；账本 S11-G18，原 G-18 闭合）：
+记录归组织 `O` 所有时，`O` 的成员以 `organization` 依据持有它的那些租户层，给所有者一侧的只是「**租户层持有 N 份**」，**不给是哪些租户**；
+份数进删除的确认比对（[S-22](#s-22-先告知再移除或删除)），**删除的告知发给各持有租户本人**（[S-48](#s-48-事件都是通知) 的 `AssetDeleted`）。
+**别的组织里成员的租户层不计份数**：那个组织以分享持有它的那一层已经列出，份数再跨组织给，就是把另一个组织的内部透露给所有者（推导）。
+本契约不为了告知而泄漏成员租户级的持有。
 
 **资产之外的引用方不在其列**：[PF-001 acceptance](../../../../product/PF-001-identity-scope-and-agent-constraints/acceptance.md#一可观察场景) 点名的「被日程引用」，本版无 owner（[G-13](#十二已知缺口)）。
 
@@ -385,7 +430,7 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 
 ### S-14 可见与不泄漏存在性
 
-**按 `AssetRecordId` 定位的操作**（[S-25](#s-25-updatedraft-修订草稿)～[S-28](#s-28-delete-删除一份资产记录)、[S-30](#s-30-hold-加入持有)、[S-45](#s-45-listreferrers-列出一份记录的引用方)），
+**按 `AssetRecordId` 定位的操作**（[S-25](#s-25-updatedraft-修订草稿)～[S-28](#s-28-delete-删除一份资产记录)、[S-30](#s-30-hold-加入持有)、[S-45](#s-45-listreferrers-列出一份记录的引用方)、[S-64](#s-64-readasset-读一份资产记录)、[S-65](#s-65-readversion-读一个已发布版本)），
 对调用方**看不见**的记录返回 **`assetNotFound`**，与记录真的不存在**逐字相同**。一份记录对调用方 `T = (O, a)` **可见**，当且仅当：
 
 - 它是 official；或
@@ -452,9 +497,10 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 | `acknowledged`（调用方确认过的引用方集合） | [S-28](#s-28-delete-删除一份资产记录)、[S-31](#s-31-unhold-移除持有) | **空集**——「我什么都没确认」。有任何引用方即 `hasReferrers`，所以这个默认**只会拒，不会放** |
 | `creationKey` | [S-24](#s-24-createdraft-创建草稿) | **本次不去重**。它不是一个值被补上，是「不带键」这种取值 |
 | `lineage`、`sharing` | [S-24](#s-24-createdraft-创建草稿)、[S-30](#s-30-hold-加入持有) | **不是复制落地、不是分享确认**（直接入口永远缺席，[S-46](#s-46-组合入口资产流转的确认步骤)） |
-| `versionSelection` | [S-30](#s-30-hold-加入持有) | **`current`**。**这一格是主线裁定**，不是起草者补的初值；它与「缺席即拒绝」不冲突的理由与 `creationKey` 同型：不带它是「不钉版本」这种取值，不是一个身份被补上。它与「不静默替换已选用的版本」的关系见 [S-30](#s-30-hold-加入持有) 末段 |
+| `versionSelection` | [S-30](#s-30-hold-加入持有) | **`current`**。**这一格是主线裁定**（账本 S11-1），不是起草者补的初值；它与「缺席即拒绝」不冲突的理由与 `creationKey` 同型：不带它是「不钉版本」这种取值，不是一个身份被补上。它与「不静默替换已选用的版本」的关系见 [S-30](#s-30-hold-加入持有) 末段 |
 | `byAgent` | [S-24](#s-24-createdraft-创建草稿) | **必填，缺席即 `invalidInput`**。**不得默认为 `false`**——那正是把 agent 产出记成人产出 |
-| `basedOn`、`expected`、`number`、`value`、`content` | [S-25](#s-25-updatedraft-修订草稿)、[S-26](#s-26-publish-发布)、[S-36](#s-36-pinversion-钉住一个版本)、[S-38](#s-38-assign-配值)、[S-24](#s-24-createdraft-创建草稿)／[S-25](#s-25-updatedraft-修订草稿)／[S-29](#s-29-registerofficial-登记官方件) | **必填，缺席即 `invalidInput`**——它们各自是那次写入的实质，缺了就没有可写的东西 |
+| `meta` | [S-29](#s-29-registerofficial-登记官方件) | **必填，缺席即 `invalidInput`**。**不得默认为 `false`**——那正是让一个 meta 能力可被替换 |
+| `basedOn`、`expected`、`number`、`value`、`content` | [S-25](#s-25-updatedraft-修订草稿)、[S-26](#s-26-publish-发布)、[S-36](#s-36-pinversion-钉住一个版本)／[S-65](#s-65-readversion-读一个已发布版本)、[S-38](#s-38-assign-配值)、[S-24](#s-24-createdraft-创建草稿)／[S-25](#s-25-updatedraft-修订草稿)／[S-29](#s-29-registerofficial-登记官方件) | **必填，缺席即 `invalidInput`**——它们各自是那次写入的实质，缺了就没有可写的东西 |
 
 **判不出来与判为拒绝永远是两个值**：依据读不到 ⇒ `unavailable`（[S-18](#s-18-失败值闭合)），不得折成 `notPermitted`、`…NotFound` 或空列表。
 
@@ -464,23 +510,23 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 
 | 值 | 类 | 含义 | 与谁分开、为什么 |
 |---|---|---|---|
-| `invalidInput` | 表示层 | 输入不合形状：缺席、类型不对、判别式在集合外、不透明标识不合词法、能力标识不合 `data.asset-model/v1#S-2` 的词法、`versionSelection` 不合形状（`pinned` 的号不是正整数）、`content` 过不了它那一类正文的校验、`content` 的类别与能力标识不符、写面收到出厂或工作区的 `scope`、配值面与项锁收到保留项名 `disabled`、自定义斜杠命令的名字带系统保留前缀 | [`data.identity-values/v1#S-33`](../../../data/identity-values/v1/contract.md#s-33-表示层校验与判定分开)：**不是判定结果**，不表示对象不存在或主体无资格；重试一万次也不会成功，所以不能收成 `unavailable` |
+| `invalidInput` | 表示层 | 输入不合形状：缺席、类型不对、判别式在集合外、不透明标识不合词法、能力标识不合 `data.asset-model/v1#S-2` 的词法、`versionSelection` 不合形状（`pinned` 的号不是正整数）、`content` 过不了它那一类正文的校验、`content` 的类别与能力标识不符、写面收到出厂或工作区的 `scope`、配值面与项锁收到保留项名 `disabled`、斜杠命令违反保留区规则（[`data.slash-command/v1#S-4`](../../../data/slash-command/v1/contract.md#s-4-保留区只归系统提供的命令型)）、`registerOfficial` 缺 `meta` | [`data.identity-values/v1#S-33`](../../../data/identity-values/v1/contract.md#s-33-表示层校验与判定分开)：**不是判定结果**，不表示对象不存在或主体无资格；重试一万次也不会成功，所以不能收成 `unavailable` |
 | `crossTenant` | 结构性 | [S-15](#s-15-结构性禁止不是权限判定) | 与 `notPermitted` 分开：它与角色无关 |
 | `scopeNotFound` | 判定 | 目标范围所在的组织不存在（[`organization-governance/v1#S-22`](../../organization-governance/v1/contract.md#s-22-读组织) 的 `organizationDoesNotExist`） | 与 `notPermitted` 分开：不是「你不是成员」，是那个范围不在了 |
 | `notPermitted` | 授权 | 调用方此刻 `ineffective`，或角色不够（[S-16](#s-16-谁能做角色矩阵落成的四种资格)）；以及组织层的 MCP 凭据配值（[G-10](#十二已知缺口)） | 不区分「不是成员」与「是成员但不是超管」——两者都是成立的授权拒绝 |
 | `assetNotFound` | 判定 | 记录不存在，或对调用方不可见（[S-14](#s-14-可见与不泄漏存在性)） | 与 `holdingNotFound` 分开：记录在不在，与某个范围持不持有它，是两件事 |
 | `holdingNotFound` | 判定 | 该范围没有该能力标识的持有（含：想单独卸载 plugin 的一个成员） | 与 `assetNotFound` 分开，同上 |
-| `assignmentNotFound` | 判定 | 这一层该持有上**该项没有配值**，没有值可锁（仅 [S-40](#s-40-lockassignment-锁住该项)） | **本批账本未列这个值。**与 `holdingNotFound` 分开：持有在，只是这一级对这一项「没意见」（[flows §3.2](../../../../product/PF-002-assets-settings-and-permissions/flows.md#32-一份持有上一个属性项的属性配值) 的「未配」没有「加锁」这条边） |
+| `assignmentNotFound` | 判定 | 这一层该持有上**该项没有配值**，没有值可锁（仅 [S-40](#s-40-lockassignment-锁住该项)） | 主线裁定采纳（账本 S11-names）。与 `holdingNotFound` 分开：持有在，只是这一级对这一项「没意见」（[flows §3.2](../../../../product/PF-002-assets-settings-and-permissions/flows.md#32-一份持有上一个属性项的属性配值) 的「未配」没有「加锁」这条边） |
 | `alreadyHeld` | 判定 | 该范围已持有该能力标识的**另一份**记录；或同一份记录，但依据或版本选用与这次不同 | 完全相同的重放不是失败（[S-30](#s-30-hold-加入持有) ⑦）；要换版本走 [S-36](#s-36-pinversion-钉住一个版本)／[S-37](#s-37-unpinversion-回到追随当前版本) |
-| `lockedAbove` | 判定 | 上层锁住了：租户层要持有、或要钉版本于组织层已加替换锁的能力标识；或租户层要配组织层已加项锁的那一项 | [flows §二](../../../../product/PF-002-assets-settings-and-permissions/flows.md#二分支与异常)：「拒绝，说明是组织锁定的——让成员知道这不是系统故障，也不是他权限不够可以去申请」。**所以它不能是 `notPermitted`** |
+| `lockedAbove` | 判定 | 上层锁住了：租户层要持有组织层已加替换锁的能力标识的**另一份**记录、以 `pinned` 持有它、或要钉它的版本；或租户层要配组织层已加项锁的那一项 | [flows §二](../../../../product/PF-002-assets-settings-and-permissions/flows.md#二分支与异常)：「拒绝，说明是组织锁定的——让成员知道这不是系统故障，也不是他权限不够可以去申请」。**所以它不能是 `notPermitted`** |
 | `lockedHere` | 判定 | 本层这一项已上锁，改值或清除之前先解锁 | 与 `lockedAbove` 分开：自己解得开，上层的解不开 |
 | `officialImmutable` | 结构性 | [S-8](#s-8-official-记录与出厂默认层的持有) 的五条 | 与 `notOwner` 分开：官方件对**任何**人都不可动 |
 | `notOwner` | 结构性 | [S-15](#s-15-结构性禁止不是权限判定) | 与 `notPermitted` 分开：所有权事实，不随角色变 |
 | `hasReferrers` | 判定 | 移除或删除时，**此刻的引用方不在调用方确认过的集合里**；提升时**除调用方自己租户层那一份之外仍有持有指向它**（[S-22](#s-22-先告知再移除或删除)）。**随失败返回此刻的引用方集合** | 它是「先告知」本身：拒绝的同时把该告知的交给调用方 |
 | `versionSequenceBroken` | 判定 | 调用方说的版本号与版本线此刻的末尾对不上：发布时 `expected ≠ 末尾 + 1`（且不是认回）；修订草稿时 `basedOn ≠ 末尾` | [PF-001 §6.8](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#68-管理结果)「过期编辑不得静默覆盖他人已确认的修改」 |
-| `versionNotPublished` | 判定 | 要持有的记录**一个已发布版本都没有**；或要钉的那个号**不是**这份记录的已发布版本 | **本批账本在本契约名下未列，取资产流转那一份账本里的同名值**——它的「复制草稿被拒」是同一件事，同一收场一个值 |
+| `versionNotPublished` | 判定 | 要持有的记录**一个已发布版本都没有**；或要钉、要读（[S-65](#s-65-readversion-读一个已发布版本)）的那个号**不是**这份记录的已发布版本 | 与资产流转同名（主线裁定采纳，账本 S11-names）——它的「复制草稿被拒」是同一件事，同一收场一个值 |
 | `valueOutOfDomain` | 判定 | （项, 值）不在该持有所指记录声明的取值域里：**该项未声明**，或值过不了该项的 `domain`，或权限值不是该项枚举的子集 | 与 `invalidInput` 分开：值本身形状合法，判的是它**对这一项**合不合 |
-| `unavailable` | 失败 | 判定依据读不到：存储、组织治理的读面、某一类正文的属性项投影规则或组合引用抽取规则缺席 | **本批账本未列这个值，取 [`data.identity-values/v1#S-19`](../../../data/identity-values/v1/contract.md#s-19-不可用即明确失败) 要求的那个失败、与组织治理同名**。不是结论，按当时状态重试可能不同 |
+| `unavailable` | 失败 | 判定依据读不到：存储、组织治理的读面、某一类正文的属性项投影规则或组合引用抽取规则缺席 | **即 [`data.identity-values/v1#S-19`](../../../data/identity-values/v1/contract.md#s-19-不可用即明确失败) 要求的那个失败、与组织治理同名**（主线裁定采纳，账本 S11-names）。不是结论，按当时状态重试可能不同 |
 
 **三样一律以返回值承载，不走带外通道**：成功结果、具名拒绝、`unavailable`。
 **不得把任何失败折进成功支**（空列表、`ok`、缺了字段的结果）。
@@ -499,7 +545,7 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 6. 结构性的记录规则 ⇒ `officialImmutable`，再 `notOwner`；
 7. 状态前置 ⇒ `versionNotPublished`、`alreadyHeld`、`lockedHere`、`lockedAbove`、`valueOutOfDomain`、`hasReferrers`，按各操作⑥列出的先后。
 
-**按记录定位的操作**（[S-25](#s-25-updatedraft-修订草稿)、[S-26](#s-26-publish-发布)、[S-28](#s-28-delete-删除一份资产记录)、[S-45](#s-45-listreferrers-列出一份记录的引用方)）：
+**按记录定位的操作**（[S-25](#s-25-updatedraft-修订草稿)、[S-26](#s-26-publish-发布)、[S-28](#s-28-delete-删除一份资产记录)、[S-45](#s-45-listreferrers-列出一份记录的引用方)、[S-64](#s-64-readasset-读一份资产记录)、[S-65](#s-65-readversion-读一个已发布版本)）：
 表示层 ⇒ 调用方此刻有效（否则 `notPermitted`）⇒ 记录可见（否则 `assetNotFound`）⇒ `officialImmutable` ⇒ `notOwner` ⇒ 角色（`notPermitted`）⇒ 状态前置。
 **「调用方有效」排在「记录可见」之前**，所以一个失效的身份拿到的永远是 `notPermitted`，**从它身上问不出任何记录在不在**。
 
@@ -526,6 +572,7 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 | 本层没锁（`lockedHere`） | 本层的 [S-40](#s-40-lockassignment-锁住该项) | 本层那一行持有 |
 | 记录的所有者、存在、版本线（[S-30](#s-30-hold-加入持有) 定的 `basis`、[S-30](#s-30-hold-加入持有)／[S-36](#s-36-pinversion-钉住一个版本) 的 `versionNotPublished`） | [S-27](#s-27-promotetoorganization-提升到组织)、[S-28](#s-28-delete-删除一份资产记录)、[S-26](#s-26-publish-发布) | 那份记录那一行 |
 | 版本号连续（[S-26](#s-26-publish-发布)）、`basedOn`（[S-25](#s-25-updatedraft-修订草稿)） | 另一次对同一记录的 [S-26](#s-26-publish-发布) | 那份记录那一行 |
+| 依据 `organization` 的第二种来路：组织层持有同一份记录（[S-9](#s-9-持有本契约写得到的两层与写不到的两层)） | 组织层对同一能力标识的 [S-31](#s-31-unhold-移除持有)、[S-30](#s-30-hold-加入持有) | 组织层（组织, 能力标识）那一行持有 |
 | 引用方集合（[S-27](#s-27-promotetoorganization-提升到组织)、[S-28](#s-28-delete-删除一份资产记录)、[S-31](#s-31-unhold-移除持有)） | 同时在列入范围里写入一份新持有的 [S-30](#s-30-hold-加入持有) | **「该范围的全部持有」这个谓词读**。存储须保护它（谓词锁或等价物），或让同一范围的持有写入串行化——**只锁已存在的行挡不住新插进来的那一行** |
 
 **这是[装配给](#s-50-装配给的保证-vs-协议须给的保证)的保证**：单机由同一存储兑现，跨进程须由协议重新兑现。
@@ -541,17 +588,17 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 
 1. 调用方先读 [S-45](#s-45-listreferrers-列出一份记录的引用方)，把引用方呈现给做决定的人；
 2. 发起 [S-31](#s-31-unhold-移除持有)／[S-28](#s-28-delete-删除一份资产记录) 时带上他**确认过的那个集合** `acknowledged`；
-3. 提交内现求引用方：**此刻的集合 ⊆ `acknowledged` 才写**；否则 `hasReferrers`，**连同此刻的集合一并返回**，不写任何东西。
+3. 提交内现求引用方：**此刻的集合 ⊆ `acknowledged` 才写**（份数那一项：此刻的份数不大于确认过的份数）；否则 `hasReferrers`，**连同此刻的集合一并返回**，不写任何东西。
 
 | 操作 | 算哪些引用方 | 收不收确认 |
 |---|---|---|
 | [S-31 移除](#s-31-unhold-移除持有) | 落在**被移除的那个范围里**的组合引用方 | 收 |
-| [S-28 删除](#s-28-delete-删除一份资产记录) | [S-45](#s-45-listreferrers-列出一份记录的引用方) 给所有者一侧的全部：持有方 ＋ 组合引用方 | 收 |
+| [S-28 删除](#s-28-delete-删除一份资产记录) | [S-45](#s-45-listreferrers-列出一份记录的引用方) 给所有者一侧的全部：持有方 ＋ 组合引用方 ＋ 本组织成员租户层的持有份数（[S-13](#s-13-引用方)） | 收 |
 | [S-27 提升](#s-27-promotetoorganization-提升到组织) | 调用方自己租户层那一份之外的持有方 | **不收**：有就拒（理由在那一条） |
 
 **「不级联」写死**：移除只删那一份持有与它上面的配值；删除只删那一份记录；**两者都不改动任何引用方**。
 引用方此后怎样（换一个提供者、在装配时「无人提供」明确失败）是求值的事。
-**删除之后仍指向它的持有**留在原处，求值怎样对待它们本版未定（[G-7](#十二已知缺口)）。
+**删除之后仍指向它的持有**留在原处，读到的是「已删除」（[S-64](#s-64-readasset-读一份资产记录)），求值怎样对待它们本版未定（[G-7](#十二已知缺口)）。
 
 > **「确认过的集合」而不是一个「我已知悉」的布尔**，理由是正文那一句「旧菜单或预览不构成永久授权」：
 > 布尔会让一次旧预览为此后出现的新引用方一并放行。集合比对使**新冒出来的引用方一定会再被告知一次**。
@@ -575,9 +622,9 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 | ⑧ | 缺席时的默认答案（[S-17](#s-17-缺席时的默认答案)） |
 | ⑨ | 事件（[S-48](#s-48-事件都是通知)） |
 
-**本节二十二个操作**：创作与发布五个（[S-24](#s-24-createdraft-创建草稿)～[S-28](#s-28-delete-删除一份资产记录)），official 登记一个（[S-29](#s-29-registerofficial-登记官方件)），
+**本节二十四个操作**：创作与发布五个（[S-24](#s-24-createdraft-创建草稿)～[S-28](#s-28-delete-删除一份资产记录)），official 登记一个（[S-29](#s-29-registerofficial-登记官方件)），
 持有八个（[S-30](#s-30-hold-加入持有)～[S-37](#s-37-unpinversion-回到追随当前版本)），配值四个（[S-38](#s-38-assign-配值)～[S-41](#s-41-unlockassignment-解除该项的锁)），
-读面四个（[S-42](#s-42-listholdings-列出某范围的持有)～[S-45](#s-45-listreferrers-列出一份记录的引用方)）。
+读面六个（[S-42](#s-42-listholdings-列出某范围的持有)～[S-45](#s-45-listreferrers-列出一份记录的引用方)、[S-64](#s-64-readasset-读一份资产记录)、[S-65](#s-65-readversion-读一个已发布版本)）。
 **每个操作的⑥都含 `invalidInput`；除 [S-29](#s-29-registerofficial-登记官方件) 外都含 `unavailable`**，下面逐条列出、不省略。
 **除提交成功外，任何一支都不留下部分效果。**
 
@@ -589,7 +636,7 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 |---|---|
 | ① | `caller`（**即作者**）、`owner`（`AssetOwner`：组织或租户）、`capability`（`CapabilityId`）、`content`（`AssetContent`）、`byAgent`（布尔：这次创作是不是 agent 产出，[S-7](#s-7-所有者与作者)）；**可选** `creationKey`（调用方生成的不透明去重标识，[`data.identity-values/v1#S-31`](../../../data/identity-values/v1/contract.md#s-31-不透明标识的交换表示) 的词法）。组合入口另收 `author` 与 `lineage`（[S-46](#s-46-组合入口资产流转的确认步骤)） |
 | ② | `owner = {tenant: caller}` ⇒ caller 有**租户范围创作权**；`owner = {organization: caller 的组织}` ⇒ caller 有**组织范围创作权**（[S-16](#s-16-谁能做角色矩阵落成的四种资格)） |
-| ③ | `owner` 既不是 caller 本人也不是 caller 所在的组织 ⇒ `crossTenant`。`content` 的类别与 `capability.category` 不符、`content` 过不了它那一类正文的校验、**`capability` 是自定义斜杠命令而名字带系统保留前缀** ⇒ `invalidInput`（[PF-002 Slash Command「名字与撞名」](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)：「① ② 型的名字不得使用这个前缀，发布时带了就被拒」；本版自定义斜杠命令只能是 ① ② 型，所以按名字就判得出；前缀的精确拼法见 [G-15](#十二已知缺口)） |
+| ③ | `owner` 既不是 caller 本人也不是 caller 所在的组织 ⇒ `crossTenant`。`content` 的类别与 `capability.category` 不符、`content` 过不了它那一类正文的校验、**`capability` 是斜杠命令而违反 [`data.slash-command/v1#S-4`](../../../data/slash-command/v1/contract.md#s-4-保留区只归系统提供的命令型)**——① ② 型的名字在保留区 `omne-official:` 里（[`#S-3`](../../../data/slash-command/v1/contract.md#s-3-保留区与它唯一的拼法)），或 ③ 型出现在自定义件里 ⇒ `invalidInput`（[PF-002 Slash Command「名字与撞名」](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)：「① ② 型的名字不得使用这个前缀，发布时带了就被拒」；原 G-15 闭合） |
 | ④ | **单次提交**：一份新记录——新分配的 `AssetRecordId`（[S-5](#s-5-资产记录与它的两个标识)）、`capability`、`origin = customized`、`owner`、作者 = `caller`、`byAgent`、草稿 = `content`、版本线为空；**带键时**创建键登记与记录同提交。这是 [flows §1.7](../../../../product/PF-002-assets-settings-and-permissions/flows.md#17-创作一个资产) 第 1 步「在某个范围里创作 ⇒ 产生草稿」 |
 | ⑤ | `AssetRecordId` |
 | ⑥ | `invalidInput` · `crossTenant` · `scopeNotFound` · `notPermitted` · `unavailable` |
@@ -606,7 +653,7 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 |---|---|
 | ① | `caller`、`asset`、`basedOn`（整数 ≥ 0：调用方这次编辑**据以出发的**那个已发布版本号；0 = 尚无已发布版本）、`content` |
 | ② | caller 此刻有效；记录可见（[S-14](#s-14-可见与不泄漏存在性)）；caller 对记录所有者有创作权（所有者是 caller 本人 ⇒ 租户范围创作权；是 caller 的组织 ⇒ 组织范围创作权）；**`basedOn` 等于版本线此刻的末尾** |
-| ③ | 记录是 official ⇒ `officialImmutable`；所有者既不是 caller 本人也不是 caller 的组织 ⇒ `notOwner`（被分享方改不了，[PF-003 §6.10](../../../../product/PF-003-asset-transfer-and-sharing/design.md#610-分享给的是获权不是拥有)）；`content` 类别与记录的能力标识不符或过不了正文校验 ⇒ `invalidInput` |
+| ③ | 记录是 official ⇒ `officialImmutable`；所有者既不是 caller 本人也不是 caller 的组织 ⇒ `notOwner`（被分享方改不了，[PF-003 §6.10](../../../../product/PF-003-asset-transfer-and-sharing/design.md#610-分享给的是获权不是拥有)）；`content` 类别与记录的能力标识不符、过不了正文校验，或违反斜杠命令的保留区规则（同 [S-24](#s-24-createdraft-创建草稿) ③）⇒ `invalidInput` |
 | ④ | **单次提交**：草稿整体替换为 `content`；`basedOn` 的比对与写入同提交（[S-21](#s-21-读到的依据与写入落在同一次可串行化的提交里)）。能力标识、所有者、作者、血缘、版本一概不动 |
 | ⑤ | `ok` |
 | ⑥ | `invalidInput` · `notPermitted` · `assetNotFound` · `officialImmutable` · `notOwner` · `versionSequenceBroken` · `unavailable` |
@@ -635,7 +682,7 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 **两次并发发布同一个号，恰一次成**：两次都说 `expected = n`，先提交的写下 v`n`，后提交的看到末尾已是 `n`——
 它不是认回（草稿或发布者不同）就收 `versionSequenceBroken`。**版本线上不会出现空号，也不会出现两个 v`n`。**
 
-**组合图成环在定义时拒绝**（[flows §二](../../../../product/PF-002-assets-settings-and-permissions/flows.md#二分支与异常)、[acceptance §三](../../../../product/PF-002-assets-settings-and-permissions/acceptance.md#三判据)「在定义时就被拒」）**本版不在这里兑现**，理由三条见 [G-6](#十二已知缺口)。
+**组合图成环在定义时拒绝**（[flows §二](../../../../product/PF-002-assets-settings-and-permissions/flows.md#二分支与异常)、[acceptance §三](../../../../product/PF-002-assets-settings-and-permissions/acceptance.md#三判据)「在定义时就被拒」）**本版不在这里兑现**，理由见 [G-6](#十二已知缺口)。
 
 ### S-27 promoteToOrganization 提升到组织
 
@@ -665,15 +712,15 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 | ① | `caller`、`asset`、**可选** `acknowledged`（引用方集合，缺席 = 空集，[S-17](#s-17-缺席时的默认答案)） |
 | ② | caller 此刻有效；记录可见；caller 对记录所有者有创作权（同 [S-25](#s-25-updatedraft-修订草稿) ②）；**此刻的引用方（[S-45](#s-45-listreferrers-列出一份记录的引用方) 给所有者一侧的全部）⊆ `acknowledged`**（[S-22](#s-22-先告知再移除或删除)） |
 | ③ | 记录是 official ⇒ `officialImmutable`；所有者既不是 caller 本人也不是 caller 的组织 ⇒ `notOwner` |
-| ④ | **单次提交**：这份记录不再存在——草稿、全部版本、血缘随之不再可读；**任何持有、任何引用方都不被改动**（不级联）；引用方现求与删除同提交。`AssetRecordId` 不回收（[S-5](#s-5-资产记录与它的两个标识)） |
+| ④ | **单次提交**：这份记录不再存在——草稿与血缘随之不再可读；**已发布版本的内容作为不可解引用的归档保留**：本契约没有任何读面再返回它，仍指向它的持有方读到的是「已删除」（[S-64](#s-64-readasset-读一份资产记录)、[S-65](#s-65-readversion-读一个已发布版本)、[S-44](#s-44-organizationsettingsview-组织的设置视图)；主线裁定 2026-09-23，待产品负责人确认；账本 A-M25）；**任何持有、任何引用方都不被改动**（不级联）；引用方现求与删除同提交。`AssetRecordId` 不回收（[S-5](#s-5-资产记录与它的两个标识)） |
 | ⑤ | `ok` |
 | ⑥ | `invalidInput` · `notPermitted` · `assetNotFound` · `officialImmutable` · `notOwner` · `hasReferrers`（携此刻的引用方集合） · `unavailable` |
 | ⑦ | 重放 ⇒ `assetNotFound`，无二次效果 |
 | ⑧ | 读不到、**或引用方求不出**（某一类的组合引用抽取规则缺席，[S-13](#s-13-引用方)）⇒ `unavailable`，不删。**不得在求不出时当成「没有引用方」** |
-| ⑨ | `AssetDeleted` |
+| ⑨ | `AssetDeleted`；它的订阅者含每个在自己租户层持有这份记录的租户本人——**这就是对他们的告知**（[S-13](#s-13-引用方)，账本 S11-G18） |
 
-**删除之后的三件事，写明谁的**：指向它的**待确认邀约**按 [`data.offer-expiry/v1#S-19`](../../../data/offer-expiry/v1/contract.md#s-19-规则与读面归属) 过期（它们的判定归资产流转；**存在性读面本版没有**，[G-9](#十二已知缺口)）；
-**仍指向它的持有**留在原处、由持有方自己移除（[S-31](#s-31-unhold-移除持有) 对它照常成立），求值怎样对待它归 [G-7](#十二已知缺口)；
+**删除之后的三件事，写明谁的**：指向它的**待确认邀约**按 [`data.offer-expiry/v1#S-19`](../../../data/offer-expiry/v1/contract.md#s-19-规则与读面归属) 过期（判定与存在性读面都归资产流转，[它的 S-7](../../asset-transfer/v1/contract.md#s-7-两类待确认件共用的过期语义)）；
+**仍指向它的持有**留在原处、读到「已删除」、由持有方自己移除（[S-31](#s-31-unhold-移除持有) 对它照常成立），求值怎样对待它归 [G-7](#十二已知缺口)；
 **从它复制出去的那些**不受影响——[复制之后各走各的](../../../../product/PF-003-asset-transfer-and-sharing/flows.md#33-一份资产在源侧与目标侧的关系)。
 
 #### official 登记
@@ -682,17 +729,20 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 
 | # | 内容 |
 |---|---|
-| ① | `capability`、`content`。**没有调用方身份**：这是出厂装载的面，不是任何租户的操作 |
-| ② | **无授权前置**。它的授权是「够得着」：只有平台的出厂装载调用得到它（[装配给](#s-50-装配给的保证-vs-协议须给的保证)） |
-| ③ | `content` 的类别与 `capability.category` 不符、过不了它那一类正文的校验 ⇒ `invalidInput`。官方的 ① ② 型斜杠命令同样不得用系统保留前缀（[PF-002 Slash Command](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)「官方提供的 ① ② 型也一样」），由斜杠命令正文契约的校验兑现（[G-15](#十二已知缺口)） |
-| ④ | **单次提交**。该能力标识**尚无** official 记录 ⇒ 建一份（`origin = official`；所有者与作者按 `data.asset-model` v1 对官方件的表示——平台，不是租户，[`data.identity-values/v1#CS-2`](../../../data/identity-values/v1/contract.md#cs-2-作者与所有者分记)；没有草稿；v1 = `content`）**并**建出厂默认层的那份持有（[S-8](#s-8-official-记录与出厂默认层的持有)）。**已有** ⇒ `content` 与最新版本内容相等（[S-26](#s-26-publish-发布) ⑦的相等）则不写，否则追加下一个版本 |
+| ① | `capability`、`content`、`meta`（布尔：部署的官方件清单是否把这个能力标识标为 [meta 能力](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability)）。**没有调用方身份**：这是**装配启动时**按部署的官方件清单登记的面，不是运行时操作，也不是任何租户的操作（主线裁定 2026-09-23，待产品负责人确认；账本 A-M17） |
+| ② | **无授权前置**。它的授权是「够得着」：只有装配启动时的官方件登记调用得到它（[装配给](#s-50-装配给的保证-vs-协议须给的保证)） |
+| ③ | `content` 的类别与 `capability.category` 不符、过不了它那一类正文的校验 ⇒ `invalidInput`。斜杠命令按 [`data.slash-command/v1#S-4`](../../../data/slash-command/v1/contract.md#s-4-保留区只归系统提供的命令型) 判：官方的 ① ② 型也不得在保留区里（[PF-002 Slash Command](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)「官方提供的 ① ② 型也一样」），③ 型必须在保留区里；违反 ⇒ `invalidInput`（原 G-15 闭合） |
+| ④ | **单次提交**。该能力标识**尚无** official 记录 ⇒ 建一份（`origin = official`；所有者与作者按 `data.asset-model` v1 对官方件的表示——平台，不是租户，[`data.identity-values/v1#CS-2`](../../../data/identity-values/v1/contract.md#cs-2-作者与所有者分记)；没有草稿；v1 = `content`）**并**建出厂默认层的那份持有（[S-8](#s-8-official-记录与出厂默认层的持有)），`immutable = meta`。**已有** ⇒ `content` 与最新版本内容相等（[S-26](#s-26-publish-发布) ⑦的相等）则不写版本，否则追加下一个版本；出厂层那份持有的 `immutable` 与 `meta` 不同则改写成 `meta`——部署清单是它唯一的依据 |
 | ⑤ | （`AssetRecordId`, 版本号）：新建或追加的那一个，或不写时的最新那一个 |
 | ⑥ | `invalidInput` · `unavailable` |
-| ⑦ | **幂等到内容为止**：同内容重放不写、返回同一对值。出厂装载每次启动都跑一遍，**不会因此多出版本** |
-| ⑧ | 读不到 ⇒ `unavailable`，不写 |
-| ⑨ | `AssetPublished`（追加或新建了版本时）；`HoldingChanged`（建出厂层持有时，`change = added`） |
+| ⑦ | **幂等到内容与标记为止**：同内容、同标记重放不写，返回同一对值。装配每次启动都跑一遍，**不会因此多出版本** |
+| ⑧ | 读不到 ⇒ `unavailable`，不写；`meta` 缺席 ⇒ `invalidInput`（[S-17](#s-17-缺席时的默认答案)） |
+| ⑨ | `AssetPublished`（追加或新建了版本时）；`HoldingChanged`（建出厂层持有时 `change = added`；改写了标记时 `replacement_locked`／`replacement_unlocked`） |
 
 **official 记录只加不删**：本契约没有退役一个官方能力标识的路径（[S-3](#s-3-本契约明确不承诺什么)）。
+
+**登记是装配启动的一部分**：清单里任何一份登记失败，这次启动就不成立（[PF-017 §6.6](../../../../product/PF-017-governance-center-as-deployable-application/design.md#66-要么整个起来要么不起来)「要么整个起来，要么不起来」）——
+`capability.asset-evaluation` 的前提「出厂那一格的持有齐全、meta 能力的出厂持有带锁」在这里兑现（原 G-11 闭合）。
 
 #### 持有
 
@@ -701,8 +751,8 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 | # | 内容 |
 |---|---|
 | ① | `caller`、`scope`（`ScopeLayerIdentity`）、`asset`；**可选** `versionSelection`（缺席 ⇒ `current`，[S-17](#s-17-缺席时的默认答案)）。**不收 `basis`**（[S-9](#s-9-持有本契约写得到的两层与写不到的两层)）。组合入口另收 `sharing`（`SharingId`，[S-46](#s-46-组合入口资产流转的确认步骤)） |
-| ② | caller 是该范围的**管理者**；记录可见（带 `sharing` 时例外，[S-46](#s-46-组合入口资产流转的确认步骤)）；**记录至少有一个已发布版本**，`pinned` 时那个号是它的已发布版本；该范围**尚无**该能力标识的持有；**这一格与记录之间有一种依据成立**（[S-9](#s-9-持有本契约写得到的两层与写不到的两层) 那张表，自上而下取第一个）；**`scope` 是租户层时，所在组织层对该能力标识的持有没有加替换锁** |
-| ③ | `scope` 越界 ⇒ `crossTenant`；自定义件以 meta 能力的标识被持有 ⇒ `officialImmutable`（[S-8](#s-8-official-记录与出厂默认层的持有) 第 5 条，[G-11](#十二已知缺口)）；没有一种依据成立，或带 `sharing` 而 `versionSelection` 是 `pinned` ⇒ `notOwner`；`scope` 是出厂或工作区 ⇒ `invalidInput`（构造不出来，[S-9](#s-9-持有本契约写得到的两层与写不到的两层)） |
+| ② | caller 是该范围的**管理者**；记录可见（带 `sharing` 时例外，[S-46](#s-46-组合入口资产流转的确认步骤)）；**记录至少有一个已发布版本**，`pinned` 时那个号是它的已发布版本；该范围**尚无**该能力标识的持有；**这一格与记录之间有一种依据成立**（[S-9](#s-9-持有本契约写得到的两层与写不到的两层) 那张表，自上而下取第一个）；**`scope` 是租户层而所在组织层对该能力标识的持有加了替换锁时，这次持有的是组织层那同一份记录、且版本选用是 `current`**（下文） |
+| ③ | `scope` 越界 ⇒ `crossTenant`；以出厂层带锁（meta）的能力标识持有另一份记录 ⇒ `officialImmutable`（[S-8](#s-8-official-记录与出厂默认层的持有) 第 5 条）；没有一种依据成立，或带 `sharing` 而 `versionSelection` 是 `pinned` ⇒ `notOwner`；`scope` 是出厂或工作区 ⇒ `invalidInput`（构造不出来，[S-9](#s-9-持有本契约写得到的两层与写不到的两层)） |
 | ④ | **单次提交**：写入持有 `{ holder: scope, capability: 记录的能力标识, asset, basis: 按 S-9 定的那一支, versionSelection, immutable: false, assignments: [], since: 本次提交时刻 }`（`AssetHolding`）；唯一性、上层替换锁、记录的三项事实（所有者与来源、存在、版本线）与写入同提交（[S-21](#s-21-读到的依据与写入落在同一次可串行化的提交里)）。plugin 的成员随它进来，**不各自成为持有**。这是 [flows §3.1](../../../../product/PF-002-assets-settings-and-permissions/flows.md#31-一个资产在某个范围里)「未持有 ──加入──→ 持有·启用」、[flows §1.1](../../../../product/PF-002-assets-settings-and-permissions/flows.md#11-给组织加一个资产) 第 2 步 |
 | ⑤ | `ok` |
 | ⑥ | `invalidInput` · `crossTenant` · `scopeNotFound` · `notPermitted` · `assetNotFound` · `officialImmutable` · `notOwner` · `versionNotPublished` · `alreadyHeld` · `lockedAbove` · `unavailable` |
@@ -711,8 +761,11 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 | ⑨ | `HoldingChanged`（`change = added`） |
 
 **`lockedAbove` 是 [flows §1.4](../../../../product/PF-002-assets-settings-and-permissions/flows.md#14-组织锁死一个自定义资产) 的「租户层的替换被拒绝」**：
-组织层把某个能力标识的持有标了替换锁，租户层**任何**一份同标识的持有都写不进来（含以 `organization` 依据持有同一份记录，[G-19](#十二已知缺口)）——换成官方件、换成自己的，[都算替换](../../../../product/PF-002-assets-settings-and-permissions/acceptance.md#一可观察场景)。
-组织层之上只有出厂层，它不加锁，所以组织层的 [S-30](#s-30-hold-加入持有) 没有 `lockedAbove`。
+组织层把某个能力标识的持有标了替换锁，租户层持有同标识的**另一份**记录就写不进来——换成官方件、换成自己的，[都算替换](../../../../product/PF-002-assets-settings-and-permissions/acceptance.md#一可观察场景)。
+**同一份记录不算替换**（主线裁定 2026-09-23，待产品负责人确认；账本 S11-G19，原 G-19 闭合）：租户以 `organization` 依据持有组织层那一份，是为了在自己那一层配值，配值仍受组织层的项锁（[S-38](#s-38-assign-配值)）；
+这与求值的截断同一个判据——`capability.asset-evaluation` 只截断指向另一份资产的持有。**它只能以 `current` 进来**：以 `pinned` 进来会让这一层用上与组织层不同的一版，与 [S-36](#s-36-pinversion-钉住一个版本) 在锁下钉不了同一个理由；
+锁下的版本选用能不能与组织层不同，是 [G-20](#十二已知缺口)。
+出厂层只对 meta 能力带锁，那一支收 `officialImmutable`（[S-8](#s-8-official-记录与出厂默认层的持有) 第 5 条），所以组织层的 [S-30](#s-30-hold-加入持有) 没有 `lockedAbove`。
 
 **替换 official 就是这一条**：组织或租户持有一份与官方件同标识的自定义件（依据 `owned` 或 `organization`）。
 [成员在个人组织里替换 official 是允许的](../../../../product/PF-002-assets-settings-and-permissions/acceptance.md#一可观察场景)——个人组织的成员就是那里的超级管理员（[S-16](#s-16-谁能做角色矩阵落成的四种资格)）。
@@ -720,7 +773,7 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 **租户持有「本组织拥有的那一份」也是这一条**（依据 `organization`）：[PF-002 §5.3 的例子](../../../../product/PF-002-assets-settings-and-permissions/design.md#53-两个例子两种合成)里租户为组织共享的 agent definition 配自己的默认模型，
 先要在自己那一层持有它，再在那份持有上配值。
 
-**缺省 `current` 的依据是主线裁定，不是产品正文。**正文那一句是「发现有新版本**不静默替换**已选用的版本——[选用哪个版本是消费方的决定](../../../../product/PF-002-assets-settings-and-permissions/flows.md#33-一个资产定义的版本)」：
+**缺省 `current` 的依据是主线裁定（账本 S11-1），不是产品正文。**正文那一句是「发现有新版本**不静默替换**已选用的版本——[选用哪个版本是消费方的决定](../../../../product/PF-002-assets-settings-and-permissions/flows.md#33-一个资产定义的版本)」：
 `current` 本身是一个选择（「追随」），**只有让做选择的人看得见它才不算静默**。所以本契约的读面（[S-42](#s-42-listholdings-列出某范围的持有)～[S-44](#s-44-organizationsettingsview-组织的设置视图)）返回的每份持有都带着 `versionSelection`。
 
 ### S-31 unhold 移除持有
@@ -745,6 +798,8 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 **移除一份 `basis = official` 的持有是允许的**：那是组织或租户自己那一层的持有，出厂层那份原样在（[S-8](#s-8-official-记录与出厂默认层的持有)）。
 
 **持有所指的记录已被删除，本操作照常成立**：引用方按这份持有的能力标识求。
+
+**组织层移除一份它经分享持有的记录，成员租户层以 `organization` 依据持有同一份的那些不被删**：它们失去依据、留在原处（[S-9](#s-9-持有本契约写得到的两层与写不到的两层)）。
 
 ### S-32 disable 禁用
 
@@ -824,8 +879,8 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 | ⑧ | 读不到 ⇒ `unavailable`；`number` 缺席或不是正整数 ⇒ `invalidInput` |
 | ⑨ | `HoldingChanged`（`change = version_pinned`）——只在真的改了时 |
 
-**钉官方件的版本是允许的**（推导）：依据 `official` 的持有是组织或租户自己那一层的，选哪一版是那一层的决定；出厂层那一份恒为 `current`（[S-8](#s-8-official-记录与出厂默认层的持有)），**钉住不是编辑，也不是替换**。
-**租户层在组织加了替换锁之后钉不了**：它换的是那个能力标识在这一层实际用的内容，与 [S-30](#s-30-hold-加入持有) 的 `lockedAbove` 同一个理由。
+**钉官方件的版本是允许的**（主线裁定采纳，账本 S11-5）：依据 `official` 的持有是组织或租户自己那一层的，选哪一版是那一层的决定；出厂层那一份恒为 `current`（[S-8](#s-8-official-记录与出厂默认层的持有)），**钉住不是编辑，也不是替换**。
+**租户层在组织加了替换锁之后钉不了**：它换的是那个能力标识在这一层实际用的内容，与 [S-30](#s-30-hold-加入持有) 以 `pinned` 进来收 `lockedAbove` 同一个理由（[G-20](#十二已知缺口)）。
 组织层钉自己那一份不受自己的替换锁约束：替换锁锁的是「这一层**以下**」（[§5.5](../../../../product/PF-002-assets-settings-and-permissions/design.md#55-资产替换的层级)）。
 
 ### S-37 unpinVersion 回到追随当前版本
@@ -855,11 +910,11 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 | ① | `caller`、`scope`、`capability`、`item`、`value`（设置项：JSON 值；权限项：`PermissionValue`） |
 | ② | caller 是该范围的管理者；该范围持有该能力标识；**（`item`, `value`）在这份持有选用的那一版推出的声明里**（[S-10](#s-10-属性配值与两把锁)）；这一层该项没上锁；**`scope` 是租户层时，组织层对同一能力标识的持有上该项没有项锁**；**`scope` 是组织层且该项是 MCP 凭据时，本版不收**（[PF-002 §九](../../../../product/PF-002-assets-settings-and-permissions/design.md#九未决项)的唯一未决项，[G-10](#十二已知缺口)）。**配值的资格来自持有**（[flows §1.2](../../../../product/PF-002-assets-settings-and-permissions/flows.md#12-配置一个资产的设置或权限)） |
 | ③ | `scope` 越界 ⇒ `crossTenant`；`item = disabled` ⇒ `invalidInput` |
-| ④ | **单次提交**：写入或替换这一层该项的配值 `{ item, value, immutable: false }`；两道锁的判定与写入同提交 |
+| ④ | **单次提交**：写入或替换这一层该项的配值 `{ item, value, immutable: false, since: 本次提交时刻 }`（[`data.asset-model/v1#S-14`](../../../data/asset-model/v1/contract.md#s-14-属性配值)）；两道锁的判定与写入同提交 |
 | ⑤ | `ok` |
 | ⑥ | `invalidInput` · `crossTenant` · `scopeNotFound` · `notPermitted` · `holdingNotFound` · `lockedHere` · `lockedAbove` · `valueOutOfDomain` · `unavailable`。**`notPermitted` 在这里有两个判定点**：第 4 步的资格；以及组织层的凭据项（[G-10](#十二已知缺口)）——它排在 `valueOutOfDomain` **之后**，因为先要由声明知道这一项是凭据 |
-| ⑦ | 同值重放 ⇒ `ok`，无二次效果 |
-| ⑧ | 读不到 ⇒ `unavailable`。**声明推不出**（这一类的属性项投影规则缺席，[G-5](#十二已知缺口)）⇒ `unavailable`——**不得当成 `valueOutOfDomain`，也不得不校验就写**。持有所指的记录已被删除 ⇒ 没有任何声明 ⇒ `valueOutOfDomain` |
+| ⑦ | 同值重放 ⇒ `ok`，无二次效果，**`since` 不动** |
+| ⑧ | 读不到 ⇒ `unavailable`。**声明推不出**（这一类的属性项投影规则缺席，[G-5](#十二已知缺口)）⇒ `unavailable`——**不得当成 `valueOutOfDomain`，也不得不校验就写**。**`mcp` 的逐动作项**（`execute:` 开头）写时拿哪一份动作集推声明本版未定（[`data.mcp-endpoint/v1#S-15`](../../../data/mcp-endpoint/v1/contract.md#s-15-推出规则的输入正文与动作集)）⇒ 这一类项 `unavailable`（[G-5](#十二已知缺口)）。持有所指的记录已被删除 ⇒ 没有任何声明 ⇒ `valueOutOfDomain` |
 | ⑨ | `AssignmentChanged`（`change = assigned`）——只在真的改了时 |
 
 **`lockedAbove` 在这里是 [acceptance](../../../../product/PF-002-assets-settings-and-permissions/acceptance.md#一可观察场景) 的「组织给某 tool 的执行权限配『问一下』并加锁 ⇒ 成员改不了，且被告知这是组织锁定的」。**
@@ -871,7 +926,9 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 
 **凭据类配值的值是 `CredentialRef`，不是凭据本身**（`data.asset-model` v1）。本契约的读面原样返回这个引用、**从不返回凭据本体**；
 [呈现得出的只有有没有、哪一层的、什么时候取的](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的)那一半归交付面——
-「什么时候取的」本版**没有落点**：配值上没有时间戳（[G-14](#十二已知缺口)）。
+「什么时候取的」就是那条配值的 `since`（主线裁定 2026-09-23，待产品负责人确认；账本 S11-G14，原 G-14 闭合）。
+
+**配值写没有过期编辑守卫**：同一项的两次并发配值，后提交的照写（[G-21](#十二已知缺口)）。
 
 ### S-39 clearAssignment 清除配值
 
@@ -896,7 +953,7 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 | ① | `caller`、`scope`、`capability`、`item` |
 | ② | caller 是该范围的管理者；该范围持有该能力标识；**这一层该项有配值** |
 | ③ | `scope` 越界 ⇒ `crossTenant`；`item = disabled` ⇒ `invalidInput` |
-| ④ | **单次提交**：这一层该项配值的 `immutable` 为真。**不动下层已写下的值**：它们留着，求值时被截断 |
+| ④ | **单次提交**：这一层该项配值的 `immutable` 为真，`since` 不动（值没变）。**不动下层已写下的值**：它们留着，求值时被截断 |
 | ⑤ | `ok` |
 | ⑥ | `invalidInput` · `crossTenant` · `scopeNotFound` · `notPermitted` · `holdingNotFound` · `assignmentNotFound` · `unavailable` |
 | ⑦ | 已上锁 ⇒ `ok`，无二次效果 |
@@ -912,7 +969,7 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 | ① | `caller`、`scope`、`capability`、`item` |
 | ② | caller 是该范围的管理者；该范围持有该能力标识 |
 | ③ | `scope` 越界 ⇒ `crossTenant`；`item = disabled` ⇒ `invalidInput` |
-| ④ | **单次提交**：这一层该项配值的 `immutable` 为假；值不变。**不回溯** |
+| ④ | **单次提交**：这一层该项配值的 `immutable` 为假；值与 `since` 不变。**不回溯** |
 | ⑤ | `ok` |
 | ⑥ | `invalidInput` · `crossTenant` · `scopeNotFound` · `notPermitted` · `holdingNotFound` · `unavailable` |
 | ⑦ | 没锁、或这一层没有配值 ⇒ `ok`，无二次效果（「没有锁」这个结果本来就成立） |
@@ -921,7 +978,7 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 
 #### 读面
 
-**四个读面都现读，都不写，都不发事件。**读不到 ⇒ `unavailable`，**不得返回空列表或少了几项的列表**；空列表在能成立的地方是一个正常答案。
+**六个读面都现读，都不写，都不发事件。**读不到 ⇒ `unavailable`，**不得返回空列表或少了几项的列表**；空列表在能成立的地方是一个正常答案。
 
 ### S-42 listHoldings 列出某范围的持有
 
@@ -979,13 +1036,45 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 | ② | caller 此刻有效；记录可见；caller 是**记录所有者一侧**（所有者是 caller 本人，或是 caller 的组织而 caller 有组织范围创作权），**或**是某个持有它的范围的管理者 |
 | ③ | 无 |
 | ④ | 只读，现读 |
-| ⑤ | `{ 持有方: [ { holder, basis } ], 组合引用方: [ { holder, asset, capability } ] }`，**只含 [S-13](#s-13-引用方) 给 caller 列入的范围**；两段都**可以为空** |
+| ⑤ | `{ 持有方: [ { holder, basis } ], 组合引用方: [ { holder, asset, capability } ], 租户层持有份数: N }`——前两段**只含 [S-13](#s-13-引用方) 给 caller 列入的范围**，都**可以为空**；**份数只在 caller 是所有者一侧时出现**（[S-13](#s-13-引用方)），其余调用方的结果里没有这一项，**不是 0** |
 | ⑥ | `invalidInput` · `notPermitted` · `assetNotFound` · `unavailable` |
 | ⑦ | 只读。**它是给「先告知」用的一次读数**，写操作以提交时现求为准（[S-22](#s-22-先告知再移除或删除)） |
 | ⑧ | 读不到、**或某一类的组合引用抽取规则缺席** ⇒ `unavailable`，**不得返回一份少了几项的清单**。记录已不存在 ⇒ `assetNotFound` |
 | ⑨ | 不发 |
 
 **②不满足时给 `notPermitted`，不给 `assetNotFound`**：走到②的调用方已经看得见这份记录（[S-14](#s-14-可见与不泄漏存在性)），没有存在性可泄漏。
+
+### S-64 readAsset 读一份资产记录
+
+| # | 内容 |
+|---|---|
+| ① | `caller`、`asset` |
+| ② | caller 此刻有效；记录可见（[S-14](#s-14-可见与不泄漏存在性)） |
+| ③ | 无 |
+| ④ | 只读，现读 |
+| ⑤ | 这份记录：能力标识、来源、所有者与作者（official 两者缺席，[`data.asset-model/v1#S-6`](../../../data/asset-model/v1/contract.md#s-6-所有者与作者分记)）、`byAgent`、血缘（有则给，[`#S-21`](../../../data/asset-model/v1/contract.md#s-21-复制血缘)）、版本线上每一版的号、`publishedAt`、`publishedBy`——**不含各版正文**（经 [S-65](#s-65-readversion-读一个已发布版本) 读）。**草稿只给对所有者有创作权的调用方**（同 [S-25](#s-25-updatedraft-修订草稿) ②）；其余调用方的结果里草稿位置是一个显式的「不向你展示」，**不是**「没有草稿」。**记录已被删除而调用方那一层仍持有它** ⇒ 结果是「已删除」，不返回任何内容（[S-28](#s-28-delete-删除一份资产记录) ④） |
+| ⑥ | `invalidInput` · `notPermitted` · `assetNotFound` · `unavailable` |
+| ⑦ | 只读；结果不得缓存复用而不写明失效条件（[S-20](#s-20-每道准入现读)）——草稿与版本线都会变 |
+| ⑧ | 读不到 ⇒ `unavailable`，**不得收成 `assetNotFound`** |
+| ⑨ | 不发 |
+
+**它是创作界面、资产流转与求值组输入读记录的那个面**（原 G-9 闭合，账本 S11-G9）。**它不是指向资产的邀约要的存在性读面**：那一个归资产流转自己（[它的 S-7](../../asset-transfer/v1/contract.md#s-7-两类待确认件共用的过期语义)），不带本条的授权前置。
+
+### S-65 readVersion 读一个已发布版本
+
+| # | 内容 |
+|---|---|
+| ① | `caller`、`asset`、`number`（正整数） |
+| ② | caller 此刻有效；记录可见（[S-14](#s-14-可见与不泄漏存在性)）；**`number` 是它的已发布版本** |
+| ③ | 无 |
+| ④ | 只读，现读 |
+| ⑤ | 那一版 `AssetVersion`（[`data.asset-model/v1#S-9`](../../../data/asset-model/v1/contract.md#s-9-版本线)：号、正文、`publishedAt`、`publishedBy`）。**记录已被删除而调用方那一层仍持有它** ⇒ 结果是「已删除」，**不返回正文**——归档不可解引用（[S-28](#s-28-delete-删除一份资产记录) ④） |
+| ⑥ | `invalidInput` · `notPermitted` · `assetNotFound` · `versionNotPublished` · `unavailable` |
+| ⑦ | 只读。已发布版本不可变，**唯一的失效条件是记录被删除或调用方不再看得见它** |
+| ⑧ | 读不到 ⇒ `unavailable`；`number` 缺席或不是正整数 ⇒ `invalidInput` |
+| ⑨ | 不发 |
+
+**`current` 落到哪个号**：读 [S-64](#s-64-readasset-读一份资产记录) 的版本线取末尾，再用本条读那一版；两次读之间有新发布时，按第二次读到的为准——求值要的「此刻」由组输入的一方写明（`capability.asset-evaluation`）。
 
 ---
 
@@ -1001,9 +1090,11 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 | 重复复制 | [S-25](#s-25-updatedraft-修订草稿) ＋ [S-26](#s-26-publish-发布) | 无差别：`caller` 是确认的人，`publishedBy` 因此记他。**配值不动**——本契约的发布本来就不碰配值（[S-10](#s-10-属性配值与两把锁)） |
 | 分享确认 | [S-30](#s-30-hold-加入持有) 带 `sharing` | 依据是 `shared{sharing}`，版本选用恒为 `current`（[S-9](#s-9-持有本契约写得到的两层与写不到的两层)）。**本契约不核对分享成不成立**，也不要求记录对 caller 可见；那是这一侧的前置 |
 
-**本条对组合入口承担的只有这三样**：它们各自是本契约的一次单提交；其余前置照原条款判（资格、`crossTenant`、唯一性……）。
-**「确认、建记录、发版本、写持有」是否落在同一次提交、怎么不留半截**，归资产流转——**跨 owner 的同一提交要指出两边共同触碰的存储对象**，本契约不替它声明。
+**本条对组合入口承担的**：三种写入各自的前置照原条款判（资格、`crossTenant`、唯一性……），写下的东西与直接入口相同。
+**它们不自成提交**：本契约与资产流转由**同一提供者**提供，组合入口的写入与资产流转自己的确认落在**同一次提交**里——任何一步被拒，整次确认不留任何效果
+（主线裁定 2026-09-23，待产品负责人确认；拆分提案 PA-3、账本 A-M5；[`capability.asset-transfer/v1#S-18`](../../asset-transfer/v1/contract.md#s-18-确认是一次提交同一落点的确认序列化)）。那一次提交覆盖的全部存储对象由提供者设计逐一指出。
 **直接入口够不着 `lineage`、`author ≠ caller` 与 `sharing`**（[装配给](#s-50-装配给的保证-vs-协议须给的保证)）。
+**分享结束之后，经它写下的那份 `shared` 持有留着**，配值随它留（账本 A-M21）；可不可用由求值按分享的判据定，本契约不因分享结束写任何东西。
 
 **撞标识的那一种要由那一侧处理**：目标组织已持有同一能力标识时，[S-30](#s-30-hold-加入持有) 给 `alreadyHeld`；
 [PF-003 flows §二](../../../../product/PF-003-asset-transfer-and-sharing/flows.md#二分支与异常)要的是「新增，并告知目标组织现在同一能力标识下有两份」——
@@ -1034,11 +1125,13 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 |---|---|---|
 | `AssetPublished` | [S-26](#s-26-publish-发布)、[S-29](#s-29-registerofficial-登记官方件) 追加或新建了版本之后 | `AssetRecordId`、`CapabilityId`、版本号 |
 | `AssetPromoted` | [S-27](#s-27-promotetoorganization-提升到组织) 改写了所有者之后 | `AssetRecordId`、新的所有者（组织） |
-| `AssetDeleted` | [S-28](#s-28-delete-删除一份资产记录) 之后 | `AssetRecordId`、`CapabilityId` |
+| `AssetDeleted` | [S-28](#s-28-delete-删除一份资产记录) 之后 | `AssetRecordId`、`CapabilityId`；订阅者含在自己租户层持有它的租户本人（[S-13](#s-13-引用方)） |
 | `HoldingChanged` | [S-29](#s-29-registerofficial-登记官方件)（建出厂层持有）、[S-30](#s-30-hold-加入持有)～[S-37](#s-37-unpinversion-回到追随当前版本) 改变了状态之后 | `holder`、`CapabilityId`、`change` ∈ `added` `removed` `disabled` `enabled` `replacement_locked` `replacement_unlocked` `version_pinned` `version_unpinned`（闭合） |
 | `AssignmentChanged` | [S-38](#s-38-assign-配值)～[S-41](#s-41-unlockassignment-解除该项的锁) 改变了状态之后 | `holder`、`CapabilityId`、`item`、`change` ∈ `assigned` `cleared` `locked` `unlocked`（闭合） |
 
 **必发，只在状态真的改变时发，每次改变恰一次**；幂等的重放不发。**事件不携带配值的值**——要值就去读，读要过资格。
+
+**每个事件另带操作者与依据**：操作者是这次写入的 `caller`（组合入口是替目标组织确认的那个人；[S-29](#s-29-registerofficial-登记官方件) 没有调用方，读作装配）；依据是放行它的那一种资格（[S-16](#s-16-谁能做角色矩阵落成的四种资格)；组合入口是资产流转的确认，[S-29](#s-29-registerofficial-登记官方件) 是部署清单）。连同表里的范围、对象与变更，[PF-001 §6.8](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#68-管理结果) 要的五样齐了——**这些事件落成的记录条目就是审计**（[S-3](#s-3-本契约明确不承诺什么)，账本 S11-G17）。
 
 **五个都是通知，含义是三条负向承诺**（与[组织治理 S-40](../../organization-governance/v1/contract.md#s-40-事件都是通知)同一口径）：
 发出方不等待、不读返回值；监听者失败、缺席或没有，不改变已提交的事实；**没有任何一条性质靠「某个监听者收到了它」成立**。
@@ -1070,8 +1163,9 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 | **作者不变；所有者只从租户变成它所在的组织，且只一次** | [S-7](#s-7-所有者与作者)、[S-27](#s-27-promotetoorganization-提升到组织) | — | [PF-001 §6.7](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#67-创作与归属) |
 | **任何一层都没有为官方件配过 `disabled = 真`** | [S-32](#s-32-disable-禁用) 的 `officialImmutable` | — | [PF-001 §4 来源](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#来源official-与-customized) |
 | **出厂层的持有只增不减** | [S-9](#s-9-持有本契约写得到的两层与写不到的两层)：写面构造不出出厂层 | — | [PF-001 §6.1](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#61-层次) |
+| **出厂层持有带锁，当且仅当它的能力标识是 meta 能力** | [S-29](#s-29-registerofficial-登记官方件) 按部署清单写 `immutable`；别的写面构造不出出厂层 | `meta` 如实（[S-50](#s-50-装配给的保证-vs-协议须给的保证)） | [PF-002 §5.5](../../../../product/PF-002-assets-settings-and-permissions/design.md#55-资产替换的层级)、[`data.asset-model/v1#S-20`](../../../data/asset-model/v1/contract.md#s-20-出厂格与工作区格的持有) |
 | **配值只存在于存在的持有上** | [S-31](#s-31-unhold-移除持有) 同提交删掉配值；[S-38](#s-38-assign-配值) 要求持有在 | — | [flows §3.2](../../../../product/PF-002-assets-settings-and-permissions/flows.md#32-一份持有上一个属性项的属性配值) |
-| **所指记录存在时，每份 `owned`／`organization`／`official` 持有的依据此刻成立** | [S-30](#s-30-hold-加入持有) 自动定依据；所有者唯一的写路径 [S-27](#s-27-promotetoorganization-提升到组织) 同提交改写 caller 那一份、有其余持有方即拒 | 同提交（[S-21](#s-21-读到的依据与写入落在同一次可串行化的提交里)）。`shared` 成不成立归资产流转 | [PF-001 §4 拥有、获权、选用](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#拥有获权选用) |
+| **所指记录存在时，每份 `owned`／`official` 持有与靠所有权的 `organization` 持有，依据此刻成立**；靠组织层持有同一份的 `organization` 持有，依据在写入那一刻成立，此后只会因组织层那份被移除或分享不再生效而失去，失去时读作这一格没有持有（[S-9](#s-9-持有本契约写得到的两层与写不到的两层)） | [S-30](#s-30-hold-加入持有) 自动定依据；所有者唯一的写路径 [S-27](#s-27-promotetoorganization-提升到组织) 同提交改写 caller 那一份、有其余持有方即拒 | 同提交（[S-21](#s-21-读到的依据与写入落在同一次可串行化的提交里)）。`shared` 成不成立归资产流转 | [PF-001 §4 拥有、获权、选用](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#拥有获权选用) |
 | **`shared` 的持有版本选用恒为 `current`；`pinned` 的号是所指记录的已发布版本** | [S-30](#s-30-hold-加入持有)、[S-36](#s-36-pinversion-钉住一个版本) 的 `notOwner` 与 `versionNotPublished`；本契约没有删除单个版本的路径 | — | [PF-003 §6.11](../../../../product/PF-003-asset-transfer-and-sharing/design.md#611-分享的同步与自保)、[flows §3.3](../../../../product/PF-002-assets-settings-and-permissions/flows.md#33-一个资产定义的版本) |
 | **`AssetRecordId` 不指向第二份记录** | [S-5](#s-5-资产记录与它的两个标识) | 单一生成点（[S-50](#s-50-装配给的保证-vs-协议须给的保证)） | [`data.offer-expiry/v1#S-19`](../../../data/offer-expiry/v1/contract.md#s-19-规则与读面归属) |
 
@@ -1083,7 +1177,7 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 |---|---|---|---|
 | **一个租户写进或读到另一个租户那一层——含超级管理员读写成员的租户层** | [S-15](#s-15-结构性禁止不是权限判定) 的 `crossTenant`：纯值比较，先于一切读取 | 调用方身份已核实（[S-50](#s-50-装配给的保证-vs-协议须给的保证)） | [acceptance §二](../../../../product/PF-002-assets-settings-and-permissions/acceptance.md#二绝不能发生的事)、[PF-001 §6.4](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离) |
 | **普通成员写组织层** | [S-16](#s-16-谁能做角色矩阵落成的四种资格) 的管理者资格 | 成员资格现读 | [flows §四](../../../../product/PF-002-assets-settings-and-permissions/flows.md#四角色与操作) |
-| **组织加了替换锁或项锁之后，租户层的替换、改版本或覆盖写得进去** | [S-30](#s-30-hold-加入持有)、[S-36](#s-36-pinversion-钉住一个版本)、[S-38](#s-38-assign-配值) 的 `lockedAbove`，与组织层的锁写入串行化（[S-21](#s-21-读到的依据与写入落在同一次可串行化的提交里)） | 可串行化 | [acceptance §二](../../../../product/PF-002-assets-settings-and-permissions/acceptance.md#二绝不能发生的事)「成员绕过组织的 immutable」 |
+| **组织加了替换锁或项锁之后，租户层的替换（持有另一份记录）、改版本或覆盖写得进去** | [S-30](#s-30-hold-加入持有)、[S-36](#s-36-pinversion-钉住一个版本)、[S-38](#s-38-assign-配值) 的 `lockedAbove`，与组织层的锁写入串行化（[S-21](#s-21-读到的依据与写入落在同一次可串行化的提交里)） | 可串行化 | [acceptance §二](../../../../product/PF-002-assets-settings-and-permissions/acceptance.md#二绝不能发生的事)「成员绕过组织的 immutable」 |
 | **一个层为它不持有的资产配值** | [S-38](#s-38-assign-配值) 的 `holdingNotFound` | — | [flows §二](../../../../product/PF-002-assets-settings-and-permissions/flows.md#二分支与异常) |
 | **被分享方改了被分享来的资产** | [S-25](#s-25-updatedraft-修订草稿)、[S-26](#s-26-publish-发布)、[S-28](#s-28-delete-删除一份资产记录) 的 `notOwner` | — | [PF-003 flows §二](../../../../product/PF-003-asset-transfer-and-sharing/flows.md#二分支与异常) |
 | **官方件被禁用、编辑、删除，或出厂层那份被移除** | [S-8](#s-8-official-记录与出厂默认层的持有) 的五条 | — | [PF-001 acceptance §二](../../../../product/PF-001-identity-scope-and-agent-constraints/acceptance.md#二绝不能发生的事) |
@@ -1092,7 +1186,7 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 | **被分享方把被分享来的资产钉在某个版本上** | [S-30](#s-30-hold-加入持有)、[S-36](#s-36-pinversion-钉住一个版本) 的 `notOwner` | — | [PF-003 §6.11](../../../../product/PF-003-asset-transfer-and-sharing/design.md#611-分享的同步与自保) |
 | **agent 产出被记成人产出** | [S-24](#s-24-createdraft-创建草稿) 的 `byAgent` 必填、无默认 | `byAgent` 如实（[S-50](#s-50-装配给的保证-vs-协议须给的保证)） | [PF-001 §6.7](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#作者用租户身份标识) |
 | **已发布的版本被就地改写** | 本契约没有这条路径 | — | [acceptance §二](../../../../product/PF-002-assets-settings-and-permissions/acceptance.md#二绝不能发生的事) |
-| **一条 ① ② 型斜杠命令带着系统保留前缀创建或发布成功** | [S-24](#s-24-createdraft-创建草稿) 的 `invalidInput`（自定义件）；正文契约（官方件，[G-15](#十二已知缺口)） | — | [acceptance §二](../../../../product/PF-002-assets-settings-and-permissions/acceptance.md#二绝不能发生的事) |
+| **一条 ① ② 型斜杠命令带着系统保留前缀创建或发布成功** | [S-24](#s-24-createdraft-创建草稿)、[S-25](#s-25-updatedraft-修订草稿)、[S-29](#s-29-registerofficial-登记官方件) 按 [`data.slash-command/v1#S-4`](../../../data/slash-command/v1/contract.md#s-4-保留区只归系统提供的命令型) 收 `invalidInput` | — | [acceptance §二](../../../../product/PF-002-assets-settings-and-permissions/acceptance.md#二绝不能发生的事) |
 | **解除成员把他的租户级持有清掉** | [S-47](#s-47-解除成员不动任何持有)：没有这条写路径 | — | [PF-001 acceptance §二](../../../../product/PF-001-identity-scope-and-agent-constraints/acceptance.md#二绝不能发生的事) |
 | **读不到被说成「没有」「无权」或空列表** | [S-18](#s-18-失败值闭合) 的 `unavailable`、各操作⑧ | — | [`data.identity-values/v1#S-19`](../../../data/identity-values/v1/contract.md#s-19-不可用即明确失败) |
 | **从拒绝值里试探出别人的私有记录在不在** | [S-14](#s-14-可见与不泄漏存在性) | — | [PF-001 §6.4](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离) |
@@ -1118,13 +1212,15 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 | 保证 | 本版（单机）由谁给 | 跨进程之后谁重新兑现 | 做不到会怎样 |
 |---|---|---|---|
 | **调用方身份已经核实过**（除 [S-29](#s-29-registerofficial-登记官方件) 外全部操作） | **装配给**：本契约的面是能力间内部面；入口层先把登录状态换成当前租户身份，再带着 `caller` 调本契约 | **协议给**：携带授权依据，在接收边界重新验证（[`data.identity-values/v1#S-30`](../../../data/identity-values/v1/contract.md#s-30-跨边界须重新验证)） | 谁拿到一个 `TenantId` 就能以它的名义改那一层的持有与配值——**全部资格判定都以「身份值是真的」为前提** |
-| **[S-29](#s-29-registerofficial-登记官方件) 只由平台出厂装载调用** | **装配给**：只有出厂装载够得着它 | **协议给**：在接收边界鉴别平台调用方 | 任何人都能往出厂层塞一份官方件，**它不可禁、不可删**（[S-8](#s-8-official-记录与出厂默认层的持有)） |
+| **[S-29](#s-29-registerofficial-登记官方件) 只在装配启动时按部署的官方件清单调用，`meta` 如实取自清单** | **装配给**：只有装配够得着它 | **协议给**：在接收边界鉴别调用方是这一份部署的装配 | 任何人都能往出厂层塞一份官方件，**它不可禁、不可删**（[S-8](#s-8-official-记录与出厂默认层的持有)）；或把一个 meta 能力标成非 meta，让它可被替换 |
 | **`byAgent` 如实**（[S-24](#s-24-createdraft-创建草稿)） | **装配给**：入口层按这次调用从哪来定它——agent 的运行里发起的为真，人经交付面发起的为假；**不取自请求体** | **协议给**：随授权依据携带，在接收边界重新验证 | agent 产出被记成人产出（或反之）：[PF-002 acceptance](../../../../product/PF-002-assets-settings-and-permissions/acceptance.md#一可观察场景)的「记录标明由 agent 产出」与审计一起失真 |
 | **组合入口只由资产流转的确认步骤调用**（[S-46](#s-46-组合入口资产流转的确认步骤)） | **装配给**：直接入口不暴露 `lineage`、`author ≠ caller`、`sharing` | **协议给**：鉴别调用方是资产流转能力 | 任何人都能伪造血缘（让下一次复制覆盖错的那一份）、以别人的名义署名、凭空声称「被分享」而持有别人的资产 |
+| **组合入口的写入与资产流转的确认同一次提交**（[S-46](#s-46-组合入口资产流转的确认步骤)） | **装配给**：同一提供者、同一存储、同一事务 | **协议给**：两份契约若分到两个节点，要跨节点原子提交，或重新合到同一个写者 | 记录建了、通知还悬着，或通知确认了、记录没建 |
 | **同一范围 × 能力标识至多一份持有** | **装配给**：存储唯一约束 | **协议给**：跨节点唯一分配 | 同一层出现两份同标识持有，「谁生效」有两个答案 |
 | **读到的依据与写入同提交、可串行化**（[S-21](#s-21-读到的依据与写入落在同一次可串行化的提交里)，含谓词读） | **装配给**：同一存储 | **协议给**：跨节点协调（单一写者或等价协议），并定义谓词读的一致性 | 锁生效之后租户层照样写进去；两次发布写出两个 v`n`；确认过的引用方集合之外冒出一个新的而删除照样成功 |
 | **`AssetRecordId` 部署内唯一、不回收** | **装配给**：单一生成点 | **协议给**：跨节点分配 | 一份指向已删除资产的邀约在别的节点上「复活」、指到另一份东西（[`data.offer-expiry/v1#S-19`](../../../data/offer-expiry/v1/contract.md#s-19-规则与读面归属)） |
 | **成员资格与角色的新鲜度**（[S-20](#s-20-每道准入现读)） | **装配给**：写后即可被下一次读看到 | **协议给**：传播时延上界，写进契约 | 被降级的超管在上界内仍能改组织层——**上界不能默认为零** |
+| **本契约拥有的全部事实可整体导出、在另一处导入后原样成立**（记录、版本、持有、配值、锁、创建键登记；[S-51](#s-51-依赖的提供者不可用)） | **装配给**：它们都在同一存储里，以显式身份值为键，值按 `data.asset-model/v1#S-25` 可序列化，没有一条只活在运行实例内 | **协议给**：云端存储与双向同步时，导出与导入保持标识不回收、版本线只增、同一格同一能力标识至多一份 | 一次迁移或同步之后同一个 `AssetRecordId` 指到两份东西，或一份持有指到一个从没分配过的号 |
 | **事件在提交之后才派发** | **装配给**：同进程里提交返回之后再派发 | **协议给**：跨进程派发不得早于提交可见（本契约本来就**不承诺送达**，这一行只管「不早于」） | 监听者据一次随后被回滚的变化去重填或提示——**重填读的是此刻状态，结果仍对，但人会看到一次没发生过的「已变更」** |
 
 ---
@@ -1138,7 +1234,7 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 
 **本能力自己被撤除或替换时**，它拥有的全部事实都在存储里（记录、版本、持有、配值、锁、创建键登记），
 **没有一条只活在运行实例内**；所有写操作都在单次提交内结算，**没有在途的多步事务需要交接**。
-组合入口那几步之间的交接归资产流转（[S-46](#s-46-组合入口资产流转的确认步骤)）。
+组合入口的写入与资产流转的确认同一次提交（[S-46](#s-46-组合入口资产流转的确认步骤)），**也没有在途的交接**。
 **这是一条可被推翻的承诺**：任何引入跨提交在途状态的修改都会使它失效，那时回到本节重写交接责任。
 
 ### S-52 撤销不发出停止信号
@@ -1176,7 +1272,7 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 #### S-55 上层锁住的，下层写不进去；解锁不回溯
 
 组织层持有能力标识 `C` 并对项 `x` 配值加锁、对持有加替换锁。租户层 `T`（已先持有 `C` 并配过 `x = v0`）随后：
-[S-38](#s-38-assign-配值) 配 `x` ⇒ `lockedAbove`；另一个租户 `T'` [S-30](#s-30-hold-加入持有) 一份同标识自己的记录 ⇒ `lockedAbove`；
+[S-38](#s-38-assign-配值) 配 `x` ⇒ `lockedAbove`；另一个租户 `T'` [S-30](#s-30-hold-加入持有) 一份同标识自己的记录 ⇒ `lockedAbove`；第三个租户 `T''` [S-30](#s-30-hold-加入持有) 以 `current` 持有组织层那**同一份** ⇒ `ok`（依据 `organization`；同一份记录不算替换），以 `pinned` 持有 ⇒ `lockedAbove`，它配 `x` ⇒ `lockedAbove`（项锁照挡）；
 组织解除两把锁之后，`T` 配 `x` ⇒ `ok`，`T'` 持有 ⇒ `ok`。**`T` 那条 `x = v0` 在加锁、解锁前后都原样在**（锁不删下层，解锁不回溯）。
 **并发一支**：`T` 的配值与组织的加锁**真并发**，**必须观察到**要么配值先成（随后被锁截断），要么被拒，**不出现「锁已提交而配值在它之后写进去」**。
 
@@ -1238,24 +1334,27 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 | # | 缺口 | 本版怎么收 | owner |
 |---|---|---|---|
 | G-1 | **已闭合**（2026-09-23 本候选内）：版本选用落在持有的 `versionSelection` 上（[S-9](#s-9-持有本契约写得到的两层与写不到的两层)、[S-36](#s-36-pinversion-钉住一个版本)、[S-37](#s-37-unpinversion-回到追随当前版本)）。**编号保留不复用** | — | — |
-| G-2 | **租户层持有「被分享给本组织的那一份」**：[PF-003 flows §四](../../../../product/PF-003-asset-transfer-and-sharing/flows.md#四角色与操作)末行要「目标侧普通成员在自己租户级配置被分享资产」，`HoldingBasis` 五支里没有这一支（`organization` 只认本组织拥有的，`shared` 只落在组织层）。**本组织拥有的那一份已由 `organization` 闭合** | 这类持有写不进来：[S-30](#s-30-hold-加入持有) 定不出依据，收 `notOwner`。**租户为分享来的资产配自己那一层的值，本版做不到** | `data.asset-model` v1 ＋ `capability.asset-transfer` v1 ＋ 主线 |
+| G-2 | **已闭合（2026-09-24 整批对齐）**：租户格以 `organization` 依据持有本组织可用的那一份——拥有的或经分享持有的（主线裁定 2026-09-23，待产品负责人确认；账本 S11-G2；[`data.asset-model/v1#S-19`](../../../data/asset-model/v1/contract.md#s-19-使用权来路)），[S-9](#s-9-持有本契约写得到的两层与写不到的两层) 那一行已改。原缺口：租户层持有「被分享给本组织的那一份」：[PF-003 flows §四](../../../../product/PF-003-asset-transfer-and-sharing/flows.md#四角色与操作)末行要「目标侧普通成员在自己租户级配置被分享资产」，`HoldingBasis` 五支里没有这一支（`organization` 只认本组织拥有的，`shared` 只落在组织层）。**本组织拥有的那一份已由 `organization` 闭合**。**编号保留不复用** | — | — |
 | G-3 | **普通成员「按被授予的权限」在组织范围创作**：授予的是什么、由谁授予，正文无定义 | 普通成员一律 `notPermitted` | PF-002／PF-001 产品负责人 |
 | G-4 | **已闭合**（2026-09-23 本候选内）：`AssetDefinition` 的 `byAgent`，由 [S-24](#s-24-createdraft-创建草稿) 必填写入，如实由装配给（[S-50](#s-50-装配给的保证-vs-协议须给的保证)）。**编号保留不复用** | — | — |
-| G-5 | **各类正文契约的两条规则**：属性项投影规则（从正文推出 `AttributeDeclaration`）、组合引用抽取规则。plugin 的成员清单已在 `data.asset-model` v1；MCP、Connector、Loop Extension 不组合任何资产；**其余类别缺** | 缺的那一类：[S-38](#s-38-assign-配值) `unavailable`；[S-44](#s-44-organizationsettingsview-组织的设置视图) 那一份标「推不出」；[S-45](#s-45-listreferrers-列出一份记录的引用方)、[S-28](#s-28-delete-删除一份资产记录)、[S-31](#s-31-unhold-移除持有) 求引用方时 `unavailable` | 各类正文契约（`data.tool-definition`、`data.loop-extension` 起草中；skill 包、斜杠命令另起；agent_definition 归 PF-004） |
-| G-6 | **组合图成环在定义时拒绝**本版不兑现，三条理由：① 正文 [§4「组合图不得成环」](../../../../product/PF-002-assets-settings-and-permissions/design.md#谁能组合谁)与 [§5.1 的 Skill ⇄ Tool 互相引用](../../../../product/PF-002-assets-settings-and-permissions/design.md#51-组合是一种关系不是几种)字面相抵，哪些环该拒待裁；② 抽取规则见 G-5；③ 失败值不在账本 | [S-26](#s-26-publish-发布) 不判环；环只能在求值那一侧被发现 | PF-002 产品负责人（①）＋ 主线账本（③） |
-| G-7 | **删除之后仍指向它的持有**（「删除之后如何，正文未述」，[对象清单](../../../../domain_objects/objects.md#ul-asset--资产)） | [S-28](#s-28-delete-删除一份资产记录) 不改动它们；[S-31](#s-31-unhold-移除持有) 能移除它们；[S-38](#s-38-assign-配值) 对它们给 `valueOutOfDomain`。**求值怎样对待它们不由本契约答** | `capability.asset-evaluation` v1 ＋ PF-002 产品负责人 |
+| G-5 | **各类正文契约的两条规则缺的那几格**（[S-4](#s-4-依赖方向与被消费的面) 正文契约侧那张表）：属性项推出缺 `loop_extension`（`data.loop-extension` v1 只标了类别）、`agent_definition` 与 plugin 自己的项；组合引用缺 `agent_definition`。**另有一处输入未定**：`mcp` 的逐动作项在写时拿哪一份动作集推（[`data.mcp-endpoint/v1#S-15`](../../../data/mcp-endpoint/v1/contract.md#s-15-推出规则的输入正文与动作集)、它的 G-4）。tool、skill、slash_command、mcp 的固定项与 connector 已有规则（2026-09-24 整批对齐收窄） | 缺的那一格：[S-38](#s-38-assign-配值) `unavailable`；[S-44](#s-44-organizationsettingsview-组织的设置视图) 那一份标「推不出」；范围里有 `agent_definition` 时 [S-45](#s-45-listreferrers-列出一份记录的引用方)、[S-28](#s-28-delete-删除一份资产记录)、[S-31](#s-31-unhold-移除持有) 求引用方 `unavailable`；`mcp` 的 `execute:` 项 [S-38](#s-38-assign-配值) `unavailable` | `data.loop-extension` v1（推出规则）；PF-004 的契约（agent_definition）；`data.asset-model` v1（plugin 自己的项，它的 G-9）；`data.mcp-endpoint` v1（动作集，它的 G-4） |
+| G-6 | **组合图成环在定义时拒绝**本版不兑现。① 「环」怎么读已裁：沿[谁能组合谁](../../../../product/PF-002-assets-settings-and-permissions/design.md#谁能组合谁)的有向引用回到自身；那张表允许的互相引用（如 [§5.1 的 Skill ⇄ Tool](../../../../product/PF-002-assets-settings-and-permissions/design.md#51-组合是一种关系不是几种)）不算环（主线裁定 2026-09-23，待产品负责人确认；账本 S11-G6，产品修订 PF-002 owner 澄清）；② `agent_definition` 的组合引用规则缺（G-5）；③ 失败值不在账本 | [S-26](#s-26-publish-发布) 不判环；环只能在求值那一侧被发现 | 主线账本（③，与 `capability.asset-evaluation` 的 G-1 同名）＋ G-5（②）＋ PF-002 产品负责人（① 的确认） |
+| G-7 | **删除之后仍指向它的持有，求值怎样对待**（「删除之后如何，正文未述」，[对象清单](../../../../domain_objects/objects.md#ul-asset--资产)；删除语义本身已裁：已发布版本作不可解引用的归档保留、持有方读到「已删除」，账本 A-M25） | [S-28](#s-28-delete-删除一份资产记录) 不改动它们；[S-31](#s-31-unhold-移除持有) 能移除它们；[S-38](#s-38-assign-配值) 对它们给 `valueOutOfDomain`。**求值怎样对待它们不由本契约答** | `capability.asset-evaluation` v1 ＋ PF-002 产品负责人 |
 | G-8 | **已闭合**（2026-09-23 本候选内）：[S-27](#s-27-promotetoorganization-提升到组织) 在同一提交把 caller 那一份持有的依据改为 `organization`，配值不动。**编号保留不复用** | — | — |
-| G-9 | **资产记录的读面缺席**：读草稿、读版本、读存在性。消费者：创作界面（要看得见草稿才能改）、资产流转（复制源内容；[`data.offer-expiry/v1#S-19`](../../../data/offer-expiry/v1/contract.md#s-19-规则与读面归属) 要求的存在性读面）、求值（输入里的记录） | 本版没有这个面；[S-45](#s-45-listreferrers-列出一份记录的引用方) 的 `assetNotFound` **不得被当作存在性读面借用**——它带授权前置 | 主线（账本无此操作） |
-| G-10 | **组织层能否持有 MCP 凭据**（[PF-002 §九](../../../../product/PF-002-assets-settings-and-permissions/design.md#九未决项)）；以及「哪一项是凭据」由 MCP 接入点契约的属性声明标出 | 组织层的凭据配值 [S-38](#s-38-assign-配值) 一律 `notPermitted`；租户层照常 | 产品负责人（前半）；MCP 接入点契约（后半） |
-| G-11 | **哪些能力标识是 meta 能力**没有数据落点；meta 与「资产」的关系在[对象清单](../../../../domain_objects/objects.md#ul-meta-capability--meta-能力)记为未裁 | [S-30](#s-30-hold-加入持有) ⑥的 `officialImmutable` 在「替换 meta」这一支**本版不可达**：本契约认不出哪一个能力标识是 meta，**挡不住**一份与 meta 同标识的自定义件被持有。**「meta 不可替换」在 G-11 闭合前只能由求值一侧兑现**——这是一处承认的缺口，不是本契约的承诺 | PF-007 的契约 ＋ `data.asset-model` v1 ＋ `capability.asset-evaluation` v1 |
+| G-9 | **已闭合（2026-09-24 整批对齐）**：资产记录的读面是 [S-64 readAsset](#s-64-readasset-读一份资产记录) 与 [S-65 readVersion](#s-65-readversion-读一个已发布版本)（主线裁定 2026-09-23，待产品负责人确认；账本 S11-G9）；指向资产的邀约要的存在性读面归资产流转（[它的 S-7](../../asset-transfer/v1/contract.md#s-7-两类待确认件共用的过期语义)）。**编号保留不复用** | — | — |
+| G-10 | **组织层能否持有 MCP 凭据**（[PF-002 §九](../../../../product/PF-002-assets-settings-and-permissions/design.md#九未决项)；账本 U-1，与模型凭据同一道）。「哪一项是凭据」已由 [`data.mcp-endpoint/v1#S-14`](../../../data/mcp-endpoint/v1/contract.md#s-14-推出规则五类项) 标出（`credential`，2026-09-24 收窄） | 组织层的凭据配值 [S-38](#s-38-assign-配值) 一律 `notPermitted`；租户层照常 | 产品负责人（U-1） |
+| G-11 | **已闭合（2026-09-24 整批对齐）**：哪些能力标识是 meta 能力由部署的官方件清单给出，[S-29](#s-29-registerofficial-登记官方件) 按它写出厂层持有的锁（装配给，账本 A-M17 与 S10-f）；[S-30](#s-30-hold-加入持有) 据锁收 `officialImmutable`，与求值的截断同一把锁。**编号保留不复用** | — | — |
 | G-12 | **plugin 成员的表单与配值挂在哪** | [S-44](#s-44-organizationsettingsview-组织的设置视图) 只列成员能力标识；成员配值本版写不进来 | `data.asset-model` v1 ＋ `capability.asset-evaluation` v1 |
 | G-13 | **资产之外的引用方**（日程等，[PF-001 acceptance](../../../../product/PF-001-identity-scope-and-agent-constraints/acceptance.md#一可观察场景)） | [S-13](#s-13-引用方) 不列 | 产品负责人（日程尚无 topic） |
-| G-14 | **配值没有时间戳**：MCP 凭据要呈现「什么时候取的」 | 读面答不出 | `data.asset-model` v1 |
-| G-15 | **斜杠命令保留前缀的精确拼法**，与官方 ① ② 型的前缀校验 | [S-24](#s-24-createdraft-创建草稿) 按「以系统保留前缀开头」判；拼法以斜杠命令正文契约为准 | 斜杠命令正文契约 |
+| G-14 | **已闭合（2026-09-24 整批对齐）**：配值带 `since`，[S-38](#s-38-assign-配值) 写、锁与解锁不动（账本 S11-G14）。**编号保留不复用** | — | — |
+| G-15 | **已闭合（2026-09-24 整批对齐）**：保留前缀是 `omne-official:`（[`data.slash-command/v1#S-3`](../../../data/slash-command/v1/contract.md#s-3-保留区与它唯一的拼法)），[S-24](#s-24-createdraft-创建草稿)、[S-25](#s-25-updatedraft-修订草稿)、[S-29](#s-29-registerofficial-登记官方件) 按它的 [S-4](../../../data/slash-command/v1/contract.md#s-4-保留区只归系统提供的命令型) 判。**编号保留不复用** | — | — |
 | G-16 | **跨进程的协调、传播上界与谓词读一致性**（[S-50](#s-50-装配给的保证-vs-协议须给的保证) 右列） | 本版单机不阻断 | 架构设计 |
-| G-17 | **审计记录归谁**（[PF-001 §6.8](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#68-管理结果)） | 本契约的写操作带齐操作者、范围、对象、变更与依据；落成审计记录的那一方未定 | 主线（观测与记录的 owner） |
-| G-18 | **成员租户层以 `organization` 依据持有组织拥有的记录时，所有者一侧怎样被告知**：这些持有方不列给组织一侧（[超级管理员管不到成员租户级的私有部分](../../../../product/PF-002-assets-settings-and-permissions/flows.md#四角色与操作)），删除组织的记录之后它们留着 | [S-13](#s-13-引用方) 不列、[S-28](#s-28-delete-删除一份资产记录) 不比对它们；**不为了告知而泄漏成员的持有** | PF-002 产品负责人 |
-| G-19 | **组织层替换锁之下，租户以 `organization` 依据持有同一份记录**（为了在自己那一层配值）**算不算替换** | 算：[S-30](#s-30-hold-加入持有) 收 `lockedAbove`。写时守卫不能比求值宽松，按严的收；**这使组织一旦加替换锁，成员就不能再为那个资产配自己那一层的值**（不在项锁之内的项也不行） | `capability.asset-evaluation` v1 ＋ PF-002 产品负责人 |
+| G-17 | **已闭合（2026-09-24 整批对齐）**：审计就是本契约的事件落成的记录条目，不另立（[S-3](#s-3-本契约明确不承诺什么)、[S-48](#s-48-事件都是通知)；账本 S11-G17）。**编号保留不复用** | — | — |
+| G-18 | **已闭合（2026-09-24 整批对齐）**：所有者一侧只见本组织成员租户层的持有份数，份数进删除的确认比对，删除的告知发给各持有租户本人（[S-13](#s-13-引用方)、[S-45](#s-45-listreferrers-列出一份记录的引用方)、[S-28](#s-28-delete-删除一份资产记录)；账本 S11-G18）。**编号保留不复用** | — | — |
+| G-19 | **已闭合（2026-09-24 整批对齐）**：同一份记录不算替换，[S-30](#s-30-hold-加入持有) 在替换锁之下放行租户以 `organization` 依据、`current` 持有组织层那同一份，配值仍受项锁（账本 S11-G19）。锁下的版本选用见 G-20。**编号保留不复用** | — | — |
+| G-20 | **替换锁之下，同一份记录的版本选用能不能与组织层不同**：主线裁定只说同一份记录不算替换，没说版本 | [S-30](#s-30-hold-加入持有) 在锁下只收 `current`、[S-36](#s-36-pinversion-钉住一个版本) 在锁下 `lockedAbove`、[S-37](#s-37-unpinversion-回到追随当前版本) 照常。**组织层自己钉着一版而租户层追随当前版时，两层用的版本不同**——锁没有挡住版本上的分歧；求值取租户层那份的选用 | PF-002 产品负责人 ＋ `capability.asset-evaluation` v1 |
+| G-21 | **配值写的过期编辑守卫**（账本 A-M15 后半：配值写带 `expectedVersion`）：守的是配值上的哪个值、对不上收什么失败值，账本都没有 | [S-38](#s-38-assign-配值)～[S-41](#s-41-unlockassignment-解除该项的锁) 不收 `expectedVersion`；同一项的并发配值后提交的照写——**[PF-001 §6.8](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#68-管理结果)「过期编辑不得静默覆盖」在配值上本版没有兑现**，这是承认的缺口 | 主线账本（输入与失败值的名字）＋ `data.asset-model` v1（配值上的版本） |
+| G-22 | **个人组织被清除之后，它名下的资产记录与持有去向**：[`capability.organization-governance/v1#S-53`](../../organization-governance/v1/contract.md#s-53-清除未激活账号的个人组织) 只清未激活账号的个人组织，产品正文没说那里的资产怎么办（对账报回 R-A1，低） | 本契约没有以组织清除为触发的写路径（与 [S-47](#s-47-解除成员不动任何持有) 同）；那些记录与持有留在存储里，对它们的按范围操作在 [S-19](#s-19-判定次序) 第 3 步收 `scopeNotFound` | PF-001／PF-002 产品负责人 |
 
 ---
 
@@ -1266,12 +1365,12 @@ plugin 的成员清单（`data.asset-model` v1 的 `AssetContent` plugin 变体�
 | 消费者 | 它要什么 | 本契约给什么 | 够不够 |
 |---|---|---|---|
 | **治理中心，组织层写面**（[flows §1.1](../../../../product/PF-002-assets-settings-and-permissions/flows.md#11-给组织加一个资产)、[§1.3](../../../../product/PF-002-assets-settings-and-permissions/flows.md#13-用自定义资产替换-official)～[§1.5](../../../../product/PF-002-assets-settings-and-permissions/flows.md#15-不让成员用某个工具)） | 加入、替换、锁、禁用、移除、配值；设置页 | [S-30](#s-30-hold-加入持有)～[S-41](#s-41-unlockassignment-解除该项的锁)、[S-44](#s-44-organizationsettingsview-组织的设置视图) | **够**；plugin 成员的表单 **不够**（G-12） |
-| **治理中心与 CLI/TUI，创作**（[flows §1.7](../../../../product/PF-002-assets-settings-and-permissions/flows.md#17-创作一个资产)） | 建草稿、改、发布、提升 | [S-24](#s-24-createdraft-创建草稿)～[S-27](#s-27-promotetoorganization-提升到组织) | **写面够，读面不够**：看不到草稿（G-9）；普通成员在组织范围创作（G-3）。agent 创作经 `byAgent` 写得进来 |
-| **CLI/TUI，租户层** | 自己那一层的持有与配值 | 同组织层那一套，`scope` 换成自己 | **够**：本组织拥有的那一份以 `organization` 依据持有、再配值；**除了**为分享给本组织的资产配自己那一层（G-2），以及组织加了替换锁的（G-19） |
-| **资产流转（复制落地、分享确认）** | 建目标侧记录并带血缘、覆盖成新版本、写持有 | [S-46](#s-46-组合入口资产流转的确认步骤) | **写面够**；读复制源的内容、判指向的资产在不在 **不够**（G-9）；同一提交归它自己 |
+| **治理中心与 CLI/TUI，创作**（[flows §1.7](../../../../product/PF-002-assets-settings-and-permissions/flows.md#17-创作一个资产)） | 建草稿、改、发布、提升 | [S-24](#s-24-createdraft-创建草稿)～[S-27](#s-27-promotetoorganization-提升到组织)、[S-64](#s-64-readasset-读一份资产记录)、[S-65](#s-65-readversion-读一个已发布版本) | **够**：草稿与各版经两个读面；普通成员在组织范围创作仍是 G-3。agent 创作经 `byAgent` 写得进来 |
+| **CLI/TUI，租户层** | 自己那一层的持有与配值 | 同组织层那一套，`scope` 换成自己 | **够**：本组织拥有的与经分享持有的那一份都以 `organization` 依据持有、再配值；组织加了替换锁的也能以 `current` 持有同一份（[S-30](#s-30-hold-加入持有)），锁下的版本选用见 G-20 |
+| **资产流转（复制落地、分享确认）** | 建目标侧记录并带血缘、覆盖成新版本、写持有 | [S-46](#s-46-组合入口资产流转的确认步骤) | **够**：写经组合入口、与它的确认同一次提交（[S-46](#s-46-组合入口资产流转的确认步骤)）；复制源的内容经 [S-65](#s-65-readversion-读一个已发布版本)；指向的资产在不在由它自己的存在性读面判，读的是 [S-42](#s-42-listholdings-列出某范围的持有)、[S-43](#s-43-readholding-读一份持有) |
 | **注册表（reload 一族）** | 知道该刷了；刷时读到此刻的持有 | [S-48](#s-48-事件都是通知) ＋ [S-42](#s-42-listholdings-列出某范围的持有) | **够**：事件只是提示，重填靠读 |
-| **资产求值** | 出厂、组织、租户三层此刻的持有与配值；被引用的记录；各持有用哪一版 | [S-42](#s-42-listholdings-列出某范围的持有) | **持有与版本选用够**（每份持有带 `versionSelection`）；**记录不够（G-9）**：`current` 要落到哪个号、那一版的正文，都要读记录 |
-| **`data.offer-expiry/v1#S-19`**（指向资产的邀约） | 标识不回收；存在性读面 | [S-5](#s-5-资产记录与它的两个标识) | **前一半够，后一半不够（G-9）** |
+| **资产求值** | 出厂、组织、租户三层此刻的持有与配值；被引用的记录；各持有用哪一版 | [S-42](#s-42-listholdings-列出某范围的持有) | **够**：持有与版本选用经 [S-42](#s-42-listholdings-列出某范围的持有)；`current` 落到哪个号、那一版的正文经 [S-64](#s-64-readasset-读一份资产记录)、[S-65](#s-65-readversion-读一个已发布版本) |
+| **`data.offer-expiry/v1#S-19`**（指向资产的邀约） | 标识不回收；存在性读面 | [S-5](#s-5-资产记录与它的两个标识) | **够**：标识不回收由 S-5 给；存在性读面归资产流转（[它的 S-7](../../asset-transfer/v1/contract.md#s-7-两类待确认件共用的过期语义)） |
 | **`data.identity-values/v1#CS-1`／`#CS-2`／`#CS-5`** | 持有键、作者与所有者分记、不可达不销毁 | [S-9](#s-9-持有本契约写得到的两层与写不到的两层)、[S-7](#s-7-所有者与作者)、[S-47](#s-47-解除成员不动任何持有) | **够**；CS-2 的 agent 那一行由 `byAgent` 兑现 |
 | **`data.identity-values/v1#CS-9`**（「全局」一档授权表达落成租户层配值） | 写租户层的权限配值，写的人要有资格 | [S-38](#s-38-assign-配值)，`scope` 是那个租户、`caller` 必须是他本人 | **够**：[会话里坐着的那个人未必是设权限的那个人](../../../data/identity-values/v1/contract.md#cs-9-全局授权表达落成租户层配值)——本契约只认 `caller` |
 | **`capability.organization-governance/v1#S-38`**（资产 owner 不因无效删持有） | 资产一侧的承诺 | [S-47](#s-47-解除成员不动任何持有) | **够** |

@@ -59,7 +59,7 @@
 |---|---|---|---|
 | 1 | 尝试一开始 → `refreshAvailability(s1)` | 报告里 `gh` 那一行 `available`；`tool` 表另有三条 `gh` 的动作条目，`available`、`resident = false`，名字由桥起 | [S-12](contract.md#s-12-mcp-动作条目在一次尝试内钉住) 第一行 |
 | 2 | 尝试一进行中，对端新增第四个动作 | 这一次尝试里**仍是三条**；`list(s1, tool)` 不变 | [S-11](contract.md#s-11-一次执行尝试的可用性报告) 第 1 条 |
-| 3 | 对端下线；尝试二开始 → `refreshAvailability(s1)` | `gh` 那一行 `unavailable{reason}`，原因原样取桥给的「连不上」；**动作条目仍在**——按最近一次取到的那份清单（尝试一开始时取到的三个）投影，每条 **`stand_in{for}`**，名字与参数形状和那份清单一样，说明换成「现在用不了、连不上」 | [S-12](contract.md#s-12-mcp-动作条目在一次尝试内钉住) 第二行、[S-10](contract.md#s-10-替换件同形只换说明) |
+| 3 | 对端下线；尝试二开始 → `refreshAvailability(s1)` | `gh` 那一行 `unavailable{reason}`，原因原样取桥给的失败值 `endpointUnreachable`；**动作条目仍在**——按最近一次取到的那份清单（尝试一开始时取到的三个）投影，每条 **`stand_in{for}`**，名字与参数形状和那份清单一样，说明换成「现在用不了、连不上」 | [S-12](contract.md#s-12-mcp-动作条目在一次尝试内钉住) 第二行、[S-10](contract.md#s-10-替换件同形只换说明) |
 | 4 | agent 在尝试二里调其中一个动作 | 落「不可用」收场（`data.content-blocks/v1#S-17`）——**由工具执行运行时兑现**，本契约只给出「这是替换件」 | [S-10](contract.md#s-10-替换件同形只换说明) |
 | 5 | 对端恢复；尝试三开始 | 那几条回到 `available`，**没人发 reload**；动作集按这一次取到的清单 | [S-24](contract.md#s-24-refreshavailability每次执行尝试开始时现算) |
 | 6 | 另一个接入点 `db` 从来没连上过 | 报告里 `db` 那一行 `unavailable{reason}`，原因写「从未取得动作清单」；**没有任何 `db` 的动作条目** | [S-12](contract.md#s-12-mcp-动作条目在一次尝试内钉住) 第三行 |
@@ -126,7 +126,7 @@
 | `categoryNotRegistered` | `reload(s1, agent_definition)` | 八类之一，但不建表 | [S-5](contract.md#s-5-八类里登记六张表) |
 | `sessionNotFound` | `list(s9, tool)`，装配清单里没有 `s9` 的装配记录 | 从没为它成功填过表；「会话不存在」与「没装配成功」同一个值 | [S-21](contract.md#s-21-这一节每个操作写全九件事) 总表 |
 | `dependencyUnresolved{missing}` | 组织把 `kit` 的成员改成引用一个谁都没有的技能 `ghost`，人发 `omne-official:reload-plugin` | 求值的 `unresolved` 非空；`missing` 列出 `ghost` 与引用它的 `kit`；**三张表都不换**。**不是**依赖声明不满足——那是第 5 节的替换件 | [S-23](contract.md#s-23-reload按类别重填) ⑥ |
-| `slotConflict` | 桥给 `gh` 的某个动作起的名字恰好等于 `grep` → `refreshAvailability(s1)` | `tool` 表在 agent 面前两条同名；**不静默丢一条** | [S-7](contract.md#s-7-注册表条目)、[S-24](contract.md#s-24-refreshavailability每次执行尝试开始时现算) |
+| `toolNameConflict` | 桥给 `gh` 的某个动作起的名字恰好等于 `grep` → `refreshAvailability(s1)` | `tool` 表在 agent 面前两条同名；**不静默丢一条** | [S-7](contract.md#s-7-注册表条目)、[S-24](contract.md#s-24-refreshavailability每次执行尝试开始时现算) |
 | `unavailable` | 「谁可以用」的读面不可用时 `lookup(s1, slash_command, "/fmt")` | 判不出来——**不是**「没有」 | [S-25](contract.md#s-25-lookup查一条) ⑧ |
 | `unavailable` | 工作区 `W` 的承载目录此刻读不到时 `reload(s1, skill)` | 不当作「工作区是空的」；表不换 | [S-23](contract.md#s-23-reload按类别重填) ⑧ |
 | `unavailable` | 装配清单追加失败时 `fill(s1, …, ev_1)` | 一张表都没有；装配清单里也没有这一次 | [S-17](contract.md#s-17-换表同一会话串行多表一次成败同一) 第 4 条 |

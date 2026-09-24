@@ -18,10 +18,11 @@
 | 条款与性质 | 场景 | 证据形式与前提 | 状态 |
 |---|---|---|---|
 | [S-15](v1/contract.md#s-15-withdrawprofile)、[S-16](v1/contract.md#s-16-readprofile) 行不删、已撤回终态、撤回幂等且不重发事件 | [S-25](v1/contract.md#s-25-建档撤回再读已撤回仍读得出) | 对真实存储的集成测试 | 未开始 |
-| [S-14](v1/contract.md#s-14-registerprofile) ④、[S-18](v1/contract.md#s-18-装入官方档案清单) ④ 判名与写入同提交，边界覆盖整个名字空间 | [S-26](v1/contract.md#s-26-同名两条只有先成的一条成立) | **必须真跑并发**（两个不相干范围同时建同名；建档与清单装入交错）；前提：提供者的存储兑现 S-22 第一行 | 未开始 |
+| [S-14](v1/contract.md#s-14-registerprofile) ④、[S-18](v1/contract.md#s-18-装入官方档案清单) ④ 判名与写入同提交，边界覆盖全部档案行；自建名只在同一棵隶属树里比 | [S-26](v1/contract.md#s-26-同名两条只有先成的一条成立) | **必须真跑并发**（同一棵树上两个组织同时建同名，另一棵树同名成功；建档与清单装入交错）；前提：提供者的存储兑现 S-22 第一行 | 未开始 |
 | [S-14](v1/contract.md#s-14-registerprofile) ⑦ 认回 | S-26 另一支 | 同一输入原样重发 | 未开始 |
 | [S-18](v1/contract.md#s-18-装入官方档案清单) 五种处置、序号单调、整份不半装 | [S-27](v1/contract.md#s-27-清单的五种处置与旧清单被拒) | 逐支演练；含一份带坏条目的清单 | 未开始 |
-| [S-20](v1/contract.md#s-20-resolvecredential) 最具体的一把、读不到不回落、个人范围永不取 | [S-28](v1/contract.md#s-28-取最具体的一把读不到不回落) | **故障注入**：让租户那一格的读失败 | 未开始 |
+| [S-20](v1/contract.md#s-20-resolvecredential) 最具体的一把（含出厂格那一把排最末）、读不到不回落、个人范围永不取；[S-32](v1/contract.md#s-32-unbindcredential) 解绑后落到下一格 | [S-28](v1/contract.md#s-28-取最具体的一把读不到不回落) | **故障注入**：让租户那一格的读失败；另跑有无出厂格那一把两种部署 | 未开始 |
+| [S-31](v1/contract.md#s-31-updateprofile) 只改可改项、改完整份过校验、`updatedAt` 只随上游五项动、身份分量不可改 | [examples §2](v1/examples.md#2-自建档案建认回撤回再读) 第 8～10 步 | 对真实存储的集成测试；并发两次修订按提交先后 | 未开始 |
 | [S-12](v1/contract.md#s-12-秘密只在一个问法里出现) 秘密与引用不出本契约 | [S-29](v1/contract.md#s-29-秘密不出本契约) | 以已知原文扫全部返回、失败说明与事件；另加静态检查：读面返回类型里没有凭据与引用 | 未开始 |
 | [S-14](v1/contract.md#s-14-registerprofile) 末段、[S-16](v1/contract.md#s-16-readprofile) ② 授权先于解析 | [S-30](v1/contract.md#s-30-无权者探不到名字) | 两次失败逐字比较 | 未开始 |
 | [S-9](v1/contract.md#s-9-缺席时的默认答案) 失败值闭合与判定次序 | [examples §6](v1/examples.md#6-每个失败值一个反例) | 每个失败值一个反例 ＋ 两条次序回归例 | 未开始 |
@@ -32,7 +33,7 @@
 |---|---|---|
 | 跨进程的新鲜度上界、单调读、秘密送达与轮换传播、调用方鉴别 | 中心 ↔ 据点的组合契约（尚未立） | [S-22](v1/contract.md#s-22-装配给的保证-vs-协议须给的保证)、[G-7](v1/contract.md#十已知缺口) |
 | 取值只交传输适配、锚是发起调用的租户 | `capability.model-request-runtime` v1 | [S-12](v1/contract.md#s-12-秘密只在一个问法里出现) |
-| 「范围允许」的求值 | 作用域求值（块 A） | [S-3](v1/contract.md#s-3-本契约明确不承诺什么) |
+| 「范围允许」的求值 | `capability.asset-evaluation` v1 | [S-3](v1/contract.md#s-3-本契约明确不承诺什么) |
 
 ## 实际执行
 
@@ -45,4 +46,9 @@
 ## 变化的影响
 
 - **2026-09-23 起草**：首版，无旧证据。
-- **依赖改动时要重核的地方**：`data.model-profile` 的 S-3 唯一范围改判（RP-22）会使 S-14、S-18 的判定读隶属关系，并新增对 `capability.organization-governance/v1#S-34` 的消费（[G-2](v1/contract.md#十已知缺口)）；S-26 场景要加「隶属建立之后」一支。U-2 裁定（[G-1](v1/contract.md#十已知缺口)）会改 S-15 ⑦ 与 S-18 处置表，S-25、S-27 随改。
+- **2026-09-24 整批对齐（候选，未冻结，原地改）**：依据行写「主线裁定 2026-09-23，待产品负责人确认」的，出处在主线的裁定清单（账本 S16-e、S16-f、PC-2、RP-22）。
+  - **撞名改判落地**（RP-22、PC-2）：S-14 ④ 的比较范围读判定那一刻的隶属树，新增对 `capability.organization-governance/v1#S-34`、`data.identity-values/v1#S-15` 的消费；提交边界改为「全部档案行」；隶属变化后的同名并存被 `data.model-profile` 接受。S-26 场景改为「同一棵树里恰一条成功、另一棵树同名成功」；实例的 `routeNameTaken` 反例改为同一棵树里的一次，另加跨树成功的一行。**G-2 闭合**。
+  - **出厂格那一把**（S16-f）：S-6、S-7、S-20 改为链的最末一格、由装配给、写面够不着；**G-3 闭合**；它是否只供官方档案另立 **G-10**（PF-013 owner）。
+  - **两个新写面**（S16-e）：[S-31](v1/contract.md#s-31-updateprofile) `updateProfile`、[S-32](v1/contract.md#s-32-unbindcredential) `unbindCredential`，九件事写全；**G-5、G-6 闭合**；实例第 2、4 节加五步。
+  - **对证据的影响**：没有既有证据（全部未开始）；S-26、S-28 的场景内容变了，首次执行按新内容。
+- **U-2 裁定（[G-1](v1/contract.md#十已知缺口)）**会改 S-15 ⑦ 与 S-18 处置表，S-25、S-27 随改。

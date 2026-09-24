@@ -4,27 +4,27 @@
 一件拓展件的声明、运行时交给它的输入、它交回的结论（封闭八种）、结论落日志的记录。
 
 它与 runner 分开，因为两者的失效事件不同：**形状与合法组合**变了，所有拓展件作者、兼容层、状态转移表都要跟着改；
-**瀑布怎么走、回放怎么跑**变了，只动 runner。操作那一半是 `capability.loop-extension-runner`（第二波，未起草）。
+**瀑布怎么走、回放怎么跑**变了，只动 runner。操作那一半是 `capability.loop-extension-runner`。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.loop-extension, 1)`
-- **状态**：`candidate`，2026-09-23 起草、同日按主线裁定原地修订一次（[变化的影响](verification.md#变化的影响)）；**未接受、未冻结**，不得据此发布或声称消费者已采用
+- **状态**：`candidate`，2026-09-23 起草、同日按主线裁定原地修订一次，2026-09-24 整批对齐再原地改一次（[变化的影响](verification.md#变化的影响)）；**未接受、未冻结**，不得据此发布或声称消费者已采用
 - **catalog 映射**：已登记为 `candidate`（`acceptance` 为 null）。`family=data`、`topic=loop-extension`、
   `contract_path=spec/data/loop-extension/v1/contract.md`，`resources` 另含同目录的 `loop-extension.schema.json` 与 `examples.md`；
-  `dependencies` 列七项——两项已接受（`data.identity-values`、`data.offer-expiry`），五项是并行起草中的候选
-  （`data.content-blocks`、`data.messages`、`data.model-profile`、`data.call-accounts`、`data.tool-definition`），
-  **这五项的消费 clauses 暂以 `$defs/<名>` 登记，待它们定型后换成条款号**；`data.call-accounts` 那一项另含运行与执行尝试的标识 `RunId`、`AttemptId`（[验证入口「变化的影响」](verification.md#变化的影响)）
+  `dependencies` 列八项——两项已接受（`data.identity-values`、`data.offer-expiry`），六项是候选
+  （`data.content-blocks`、`data.messages`、`data.model-profile`、`data.call-accounts`、`data.tool-definition`、`data.asset-model`），
+  消费 clauses 按[契约头部的依赖表](v1/contract.md)登为条款号（2026-09-24 整批对齐由 `$defs` 名换成条款号）；`data.call-accounts` 那一项另含运行与执行尝试的标识 `RunId`、`AttemptId`（[验证入口「变化的影响」](verification.md#变化的影响)）
 - **提供者/装配映射**：**尚无**。它是纯数据契约，提供者会是 core 下的一个纯模块（形状、Schema 校验、两张合法组合表的判定）；节点未立
 
 ## 准入核对
 
 | 准入问题 | 答 |
 |---|---|
-| 语义拥有者 | 本契约。拓展件作者（原生件与兼容件）、runner、状态转移表、系统自带五件、资产领域都读同一套位置、结论与记录；写两遍必然分叉 |
+| 语义拥有者 | 本契约。拓展件作者（装配进来的与外部命令）、runner、状态转移表、系统自带五件、资产领域都读同一套位置、结论与记录；写两遍必然分叉 |
 | 稳定身份 | `data.loop-extension`，版本 1 |
 | 适用范围 | 一个部署之内、一个会话的日志上；跨进程后由协议重新兑现的那几条在[契约第十节](v1/contract.md#十装配给与协议给) |
 | 为什么是 data 而不是 capability | 它**没有操作**：没有状态转移、没有提交点。有行为的是 runner |
-| 精确依赖 | 七项，见[契约抬头](v1/contract.md)；五项是并行候选，**本包在它们定型之前不能机检、设计检查器在本分支上报它们缺席** |
-| 谁在等它 | `capability.loop-extension-runner`（第二波）、`data.model-response`（照抄 `FailureCause` 八值）、兼容层（D-033）、PF-002 资产领域 |
+| 精确依赖 | 七项，见[契约抬头](v1/contract.md)；五项是同批候选 |
+| 谁在等它 | `capability.loop-extension-runner`、`capability.hooks-import`、`capability.tool-admission`、`capability.model-request-runtime`、`data.model-response` 与 `data.arrival-events`（`$ref` `FailureCause`）、PF-002 资产领域 |
 | 接受状态 | 未接受 |
 
 ## 按当前问题展开

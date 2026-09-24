@@ -12,9 +12,8 @@
 - **状态**：`candidate`（2026-09-23 起草），**未经独立评审、未接受、未冻结**
 - **catalog 映射**：已登记为 `candidate`；`family=capabilities`、`topic=loop-extension-runner`、
   `contract_path=spec/capabilities/loop-extension-runner/v1/contract.md`；`resources` 含契约与 `examples.md`；
-  依赖六项（`data.loop-extension`、`data.messages`、`data.content-blocks`、`data.call-accounts`、`data.model-response`、`data.identity-values`，均为 v1），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)。
-  **另四项依赖尚未登记**：`capability.tool-admission`、`capability.model-request-runtime`、`capability.asset-evaluation`、`capability.modality-projection` 与本契约并行起草，
-  本分支的 catalog 里还没有它们的坐标（检查器拒绝未知坐标）——**合流对齐时补登**，消费面见 S-4 末表
+  依赖十项：六项数据契约（`data.loop-extension`、`data.messages`、`data.content-blocks`、`data.call-accounts`、`data.model-response`、`data.identity-values`，均为 v1），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)；
+  另四项并行起草的能力契约（`capability.tool-admission`、`capability.model-request-runtime`、`capability.asset-evaluation`、`capability.modality-projection`）在 2026-09-24 整批对齐补登，消费面见 S-4 末表
 - **formal-tasks 映射**：无——本版不建形式工件，理由与张力见[契约 S-35](v1/contract.md#s-35-本版不选用形式工件)
 - **提供者/装配映射**：尚无
 
@@ -47,6 +46,6 @@
 ## 版本包
 
 `v1/` 含 `contract.md` 与 `examples.md`。**不建 Schema**：本契约交换与记下的形状全部属 `data.loop-extension` v1 与 `data.messages` v1；
-`DispatchResult` 与五种效果的线上形状归把这些操作送过进程边界的那份 composition。**不建 `formal/`**：施工简报裁定不触发，与数据半边的交接有张力，已登缺口（[G-14](v1/contract.md#十三已知缺口)）。
+`DispatchResult` 与五种效果的线上形状归把这些操作送过进程边界的那份 composition。**本版还没有 `formal/`**：主线已改判回放要建行为模型（账本 S15-c），`Runner.tla` 在整批对齐之后单独派任务建，义务登在[验证入口](verification.md)（[G-14](v1/contract.md#十三已知缺口)）。
 
 本入口不代替唯一 catalog；推荐版本不会自动升级消费者。返回[能力契约](../README.md)。

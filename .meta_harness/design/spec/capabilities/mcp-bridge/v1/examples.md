@@ -15,7 +15,7 @@
 
 ## 1. 接入点持有的寻址
 
-**值的形状**：`body` 按 `data.mcp-endpoint/v1` 的 `$defs/McpEndpoint`；`scope` 与 `provenance` 的两格按 `data.asset-model/v1` 的 `$defs/HoldingScope`；`settings.credential` 按 `data.mcp-endpoint/v1#S-13` 的取值域。
+**值的形状**：`body` 按 `data.mcp-endpoint/v1` 的 `$defs/McpEndpoint`；`scope` 按 `data.asset-model/v1` 的 `$defs/HoldingScope`；`provenance` 的两项是 `capability.asset-evaluation/v1` 的 `Layer` 值（它的 S-5、S-40）；`settings.credential` 按 `data.mcp-endpoint/v1#S-13` 的取值域（还没取即缺席）。
 `endpointHolding` 自己没有 Schema：它是求值交来的一组值，不跨进程（[S-5](contract.md#s-5-接入点持有的寻址)）。
 
 **1.1 租户 `(T1, a1)` 的 `mcp:github`**（正文 `data.mcp-endpoint` 实例 1.1，持有是那边的 6.1）：
@@ -33,8 +33,8 @@
     "callTimeout": "PT60S"
   },
   "provenance": {
-    "connectionTarget": { "layer": "tenant", "tenant": { "organization": "org_t1", "account": "acc_a1" } },
-    "credential": { "layer": "tenant", "tenant": { "organization": "org_t1", "account": "acc_a1" } }
+    "connectionTarget": "tenant",
+    "credential": "tenant"
   }
 }
 ```
@@ -42,19 +42,22 @@
 **1.2 租户 `(T1, a1)` 的 `mcp:linear`**：同 1.1 的写法，`settings.connectionTarget` 是 `{"kind": "streamable_http", "url": "https://mcp.linear.app/mcp"}`，`credential` 是 `"cred_91c2"`（经 OAuth 取得，绑定 `oab_3e1f` 为 `granted`），两格来处都是租户格。
 
 **1.3 仓库经工作区带来一份同名 `mcp:linear`**（[S-34](contract.md#s-34-仓库的同名接入点拿不到租户的凭据)）：生效的正文来自工作区，`connectionTarget` 是 `{"kind": "streamable_http", "url": "https://collector.example/mcp"}`；
-`credential` 仍是租户格上那个 `"cred_91c2"`；`provenance.connectionTarget` 是工作区格、`provenance.credential` 是租户格。
+`credential` 仍是租户格上那个 `"cred_91c2"`；`provenance.connectionTarget` 是 `"workspace"`、`provenance.credential` 是 `"tenant"`。
 
 | 输入 | 操作 | 结局 | 依据 |
 |---|---|---|---|
 | 1.1 | `refreshActions` | 成功（见第 3 节） | [S-16](contract.md#s-16-refreshactions) |
 | 1.3 | `refreshActions` | `credentialUnavailable`，随值交出现存副本；**`cred_91c2` 没有被交给保管方解引用** | [S-9](contract.md#s-9-凭据的出示与取用) 第 3 条：连接目标的来处（工作区）比凭据的来处（租户）更具体 |
-| 1.3，但 `settings.credential` 为 `{"kind": "not_fetched"}`、`provenance.credential` 缺席 | `refreshActions` | 照连，不出示凭据；对端要鉴权则 `oauthRequired` 或 `credentialUnavailable` | [S-9](contract.md#s-9-凭据的出示与取用) 第 1 条 |
-| 1.1，`provenance.connectionTarget` 是组织格 `{"layer": "organization", "organization": "org_t1"}`、`provenance.credential` 是租户格 | `refreshActions` | 照常出示：组织格比租户格靠外 | [S-9](contract.md#s-9-凭据的出示与取用) 第 3 条 |
-| 1.1，但 `provenance` 整个缺席 | 任一需要出示凭据的操作 | `credentialUnavailable` | [S-5](contract.md#s-5-接入点持有的寻址) 末条：交不出来源就不出示（[G-9](contract.md#十已知缺口)） |
+| 1.3，但 `settings.credential` 缺席（还没取）、`provenance.credential` 随之缺席 | `refreshActions` | 照连，不出示凭据；对端要鉴权则 `oauthRequired` 或 `credentialUnavailable` | [S-9](contract.md#s-9-凭据的出示与取用) 第 1 条 |
+| 1.1，`provenance.connectionTarget` 是 `"organization"`、`provenance.credential` 是 `"tenant"` | `refreshActions` | 照常出示：组织格比租户格靠外 | [S-9](contract.md#s-9-凭据的出示与取用) 第 3 条 |
+| 1.1，但 `provenance` 整个缺席 | 任一操作 | `invalidInput` | [S-5](contract.md#s-5-接入点持有的寻址)：`provenance` 不合形状不当它是「来处未知、照常出示」 |
+| 1.1，但 `settings.credential` 缺席而 `provenance.credential` 是 `"tenant"` | 任一操作 | `invalidInput` | 同上：两者一在一缺 |
+| 1.1，`provenance.credential` 是 `"session"`（会话创建参数把一个引用配在了会话格） | 任一需要出示凭据的操作 | `credentialUnavailable`，不出示 | [S-9](contract.md#s-9-凭据的出示与取用) 第 2 条：会话格不持有资产，没有可解引用的持有 |
+| 1.1，`provenance.connectionTarget` 是 `"session"`、`provenance.credential` 是 `"tenant"` | 任一需要出示凭据的操作 | `credentialUnavailable`，不出示 | [S-9](contract.md#s-9-凭据的出示与取用) 第 3 条：会话格在设置层序上比租户格更具体 |
 | 1.1 去掉 `tenant` | 任一操作 | `invalidInput` | [S-5](contract.md#s-5-接入点持有的寻址)：身份参数没有默认值 |
 | 1.1 的 `endpoint` 改为 `{"category": "tool", "name": "github"}` | 任一操作 | `invalidInput` | [S-5](contract.md#s-5-接入点持有的寻址)：类别必须是 `mcp` |
 | 1.1 的 `body.timeouts.call` 改为 `"PT0S"` | 任一操作 | `invalidInput`，带 `malformed` | [S-11](contract.md#s-11-缺席时的默认答案) 第三行；`data.mcp-endpoint/v1#S-20` |
-| 1.1 的 `scope` 是工作区格而 `settings.credential` 是 `"cred_77f0"` | 任一需要出示凭据的操作 | `credentialUnavailable`，不出示 | [S-5](contract.md#s-5-接入点持有的寻址)：工作区格上凭据恒为 `not_fetched`，本契约自己守 |
+| 1.1 的 `scope` 是工作区格而 `settings.credential` 是 `"cred_77f0"` | 任一需要出示凭据的操作 | `credentialUnavailable`，不出示 | [S-5](contract.md#s-5-接入点持有的寻址)：工作区格上凭据恒缺席，本契约自己守 |
 
 ## 2. stdio 服务端拿到的环境
 
@@ -114,7 +117,10 @@
       "paradigm": "single",
       "input": {
         "type": "object",
-        "properties": { "owner": { "type": "string" }, "repo": { "type": "string" } },
+        "properties": {
+          "owner": { "type": "string", "description": "Repository owner." },
+          "repo": { "type": "string", "description": "Repository name." }
+        },
         "required": ["owner", "repo"]
       },
       "permissions": { "execute": { "default": "ask" } },
@@ -130,10 +136,10 @@
       "input": {
         "type": "object",
         "properties": {
-          "owner": { "type": "string" },
-          "repo": { "type": "string" },
-          "title": { "type": "string" },
-          "body": { "type": "string" }
+          "owner": { "type": "string", "description": "Repository owner." },
+          "repo": { "type": "string", "description": "Repository name." },
+          "title": { "type": "string", "description": "Issue title." },
+          "body": { "type": "string", "description": "Issue body." }
         },
         "required": ["owner", "repo", "title"]
       },
@@ -149,14 +155,19 @@
 
 | 副本里的一项（或副本本身） | 投影结局 | 依据 |
 |---|---|---|
-| `{"name": "search", "inputSchema": {"type": "object"}}`（没有 `description`） | 条目 `github:search`，`description` 为 `"search"` | [S-17](contract.md#s-17-projectactions)：不替对端编说明 |
-| `{"name": "search", "description": "", "inputSchema": {"type": "object"}}` | 同上 | 同上：空串不是非空说明 |
-| `{"name": "repos/list", "inputSchema": {"type": "object"}}` | 进 `excluded`，原因「条目名拼不出」 | `data.mcp-endpoint/v1#S-11`：禁 `/` |
-| `{"name": "list issues", "inputSchema": {"type": "object"}}` | 进 `excluded`，原因「条目名拼不出」 | 含空白 |
-| `{"name": "ns:tool", "inputSchema": {"type": "object"}}` | 条目 `github:ns:tool` | 条目名允许再有 `:` |
+| `{"name": "search", "inputSchema": {"type": "object", "properties": {}}}`（没有 `description`） | 条目 `github:search`，`description` 为 `"search"` | [S-17](contract.md#s-17-projectactions)：不替对端编说明 |
+| `{"name": "search", "description": "", "inputSchema": {"type": "object", "properties": {}}}` | 同上 | 同上：空串不是非空说明 |
+| `{"name": "repos/list", "inputSchema": {"type": "object", "properties": {}}}` | 进 `excluded`，原因「条目名拼不出」 | `data.mcp-endpoint/v1#S-11`：禁 `/` |
+| `{"name": "list issues", "inputSchema": {"type": "object", "properties": {}}}` | 进 `excluded`，原因「条目名拼不出」 | 含空白 |
+| `{"name": "issues.list", "inputSchema": {"type": "object", "properties": {}}}` | 进 `excluded`，原因「条目名拼不出」 | `.` 不在 `data.tool-definition/v1#S-18` 的字符集里——MCP 协议建议里有它 |
+| `{"name": "_internal", "inputSchema": {"type": "object", "properties": {}}}` | 进 `excluded`，原因「条目名拼不出」 | 拼出 `github:_internal`，拼接处成 `:_` |
+| `{"name": "ns:tool", "inputSchema": {"type": "object", "properties": {}}}` | 条目 `github:ns:tool` | 条目名允许再有 `:` |
 | `{"name": "bulk", "inputSchema": {"type": "object", "minProperties": -1}}` | 进 `excluded`，原因「参数 schema 不成立」 | `data.tool-definition/v1` 的 `input_not_schema` |
-| `{"name": "export", "inputSchema": {"type": "object"}, "execution": {"taskSupport": "required"}}` | 条目 `github:export`，形状照常，**标记只能以替换件出现**，原因「本版不支持这个动作的执行方式」 | [S-17](contract.md#s-17-projectactions)；D-037；识别依据未核（[G-6](contract.md#十已知缺口)） |
-| `{"name": "export", "inputSchema": {"type": "object"}, "execution": {"taskSupport": "optional"}}` | 普通条目 | 只有 `required` 才标记 |
+| `{"name": "search", "inputSchema": {"type": "object"}}` | 进 `excluded`，原因「参数 schema 不成立」 | 顶层没带 `properties`（`data.tool-definition/v1` 的 M26）——**不替对端补一个空的** |
+| `{"name": "search", "inputSchema": {"type": "object", "properties": {"q": {"type": "string"}}}}` | 进 `excluded`，原因「参数 schema 不成立」 | 参数 `q` 没带说明（`parameter_description_missing`）——**不替对端编一句**（[G-18](contract.md#十已知缺口)） |
+| `{"name": "search", "inputSchema": {"$schema": "http://json-schema.org/draft-07/schema#", "type": "object", "properties": {}}}` | 进 `excluded`，原因「参数 schema 不成立」 | `$schema` 不在可呈现子集里（M27）——**不替对端删掉** |
+| `{"name": "export", "inputSchema": {"type": "object", "properties": {}}, "execution": {"taskSupport": "required"}}` | 条目 `github:export`，形状照常，**标记只能以替换件出现**，原因「本版不支持这个动作的执行方式」 | [S-17](contract.md#s-17-projectactions)；D-037；识别依据未核（[G-6](contract.md#十已知缺口)） |
+| `{"name": "export", "inputSchema": {"type": "object", "properties": {}}, "execution": {"taskSupport": "optional"}}` | 普通条目 | 只有 `required` 才标记 |
 | 副本 `{"kind": "not_fetched"}` | `entries` 与 `excluded` 都为空；**副本那一支是 `not_fetched`** | [S-33](contract.md#s-33-从没连上过的接入点没有条目) |
 | 副本 `{"kind": "fetched", "fetchedAt": "…", "tools": []}` | `entries` 与 `excluded` 都为空；副本那一支是 `fetched` | 与上一行**必须分得开** |
 | 正文改为 `permissions.execute.default = "auto"` | 每个条目的 `permissions.execute.default` 都是 `"auto"` | 与 `data.mcp-endpoint` 推出的 `execute:<对端名>` 那一项的默认是同一个值 |
@@ -183,7 +194,7 @@
 
 | 对端应答里的一项 | `ToolResult.content` 里的那一块 | 依据 |
 |---|---|---|
-| `{"type": "image", "data": "iVBORw0KGgo=", "mimeType": "image/png"}` | `{"kind": "image", "mediaType": "image/png", "data": {"inline": "iVBORw0KGgo="}, …}` | [S-20](contract.md#s-20-对端结果怎样成为-toolresult)；结果端模态见 [G-3](contract.md#十已知缺口) |
+| `{"type": "image", "data": "iVBORw0KGgo=", "mimeType": "image/png"}` | `{"kind": "image", "mediaType": "image/png", "data": {"inline": "iVBORw0KGgo="}, …}` | [S-20](contract.md#s-20-对端结果怎样成为-toolresult)；结果端是「任意」，不判违反（[S-17](contract.md#s-17-projectactions)） |
 | `{"type": "audio", "data": "UklGRg==", "mimeType": "audio/wav"}` | 语音块，内联，`mediaType` `audio/wav` | 同上 |
 | `{"type": "resource_link", "uri": "file:///srv/docs/a.md", "name": "a.md"}` | 文本块 `"a.md\nfile:///srv/docs/a.md"` | 资源链接不丢 |
 | `{"type": "resource", "resource": {"uri": "file:///srv/docs/a.md", "text": "# A"}}` | 文本块 `"file:///srv/docs/a.md\n# A"` | 内嵌文本资源 |
@@ -216,7 +227,7 @@
 
 **值的形状**：绑定按 `data.mcp-endpoint/v1` 的 `$defs/OAuthBinding`；引用按 `data.asset-model/v1` 的 `$defs/CredentialRef`。**演示取值**：`oauthPendingTtl = PT10M`，`unassignedCredentialRetention = PT1H`。
 
-**7.1 一次完整的取值**：租户 `(T1, a1)` 的 `mcp:linear`，此前没有凭据（`settings.credential` 为 `{"kind": "not_fetched"}`）。
+**7.1 一次完整的取值**：租户 `(T1, a1)` 的 `mcp:linear`，此前没有凭据（`settings.credential` 缺席）。
 
 | 时刻 | 谁 | 做了什么 | 结局 | 之后 |
 |---|---|---|---|---|
@@ -245,8 +256,9 @@
 | 令牌到期前，桥向授权服务器续上 | 配值仍是 `cred_91c2`，绑定仍是 `granted`、`since` 仍是 08:10；**没有卡片、没有一次「设置被改」** | [S-24](contract.md#s-24-续期清值与作废) 第 1 条；[S-36](contract.md#s-36-续期不打扰任何人) |
 | 授权服务器明确拒绝续期 | `oab_3e1f` 转 `revoked`；此后解引用得 `credentialUnavailable`；下一次尝试 `mcp:linear` 的动作不可用、原因可查 | 第 2 条 |
 | 授权服务器暂时够不着 | 绑定仍 `granted`；续上之前 `credentialUnavailable`；按间隔重试；**不出示已过期的令牌** | 第 2 条 |
-| 有人把配值改成 `{"kind": "not_fetched"}` | `cred_91c2` 解引用不出；`oab_3e1f` 转 `revoked`；保管方丢弃本体；正在用它的连接不再接新调用，在途的照常完成 | 第 3 条 |
+| 有人把那一格的 `credential` 配值清掉（`capability.asset-governance` 的 `clearAssignment`） | `cred_91c2` 解引用不出；`oab_3e1f` 转 `revoked`；保管方丢弃本体；正在用它的连接不再接新调用，在途的照常完成 | 第 3 条 |
 | 同一个人切到 `(T2, a1)` | 那一份持有看不到 `cred_91c2`；抄过去也解引用不出 | P-1；`data.asset-model/v1#S-23` 第 4 条 |
+| 同一个 `(T1, a1)` 在第二台机器上用 `mcp:linear` | 那台机器上没有 `oab_3e1f`，`cred_91c2` 解引用不出 ⇒ `credentialUnavailable`；在那台机器上再取一次、配上 `cred_b204` 之后，第一台机器上的 `oab_3e1f` 转 `revoked` | [S-8](contract.md#s-8-oauth-绑定状态与迁移)：凭据跟机器；后果见 [G-17](contract.md#十已知缺口) |
 
 ## 8. 通知、收口与换代
 

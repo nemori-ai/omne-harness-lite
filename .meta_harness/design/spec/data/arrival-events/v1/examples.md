@@ -12,9 +12,7 @@
 
 - **`通过` 只说单个信封的形状合规。**序列规则（索引唯一与单调、填只落在开着的块上、账至多一次、收尾之后无事件）
   与要借开块才判得出的约束，都不在 Schema 的能力范围内——见[第 10 节](#10-schema-通过但仍然非法的)。
-- **引到 `ModelCallId`（第 1、9、12 节的模型侧目标）与 `FailureCause`（第 8 节带 `error` 的两行）的实例，此刻机检不了**：
-  那两个 `$ref` 要等对齐波（[G-1](contract.md#九已知缺口)、[G-2](contract.md#九已知缺口)）。它们的「Schema」一列写的是那两处解析之后的预期。
-- **示例里的标识串只是占位**，词法未定；不要从 `mc_`、`call_`、`b_`、`obj_` 这样的前缀推出任何规则。`FailureCause` 的取值照草案写成 `upstream_unavailable`，**以 `data.loop-extension` v1 定稿为准**。
+- **示例里的标识串只是占位**，词法未定；不要从 `mc_`、`call_`、`b_`、`obj_` 这样的前缀推出任何规则。`FailureCause` 的取值取 `data.loop-extension/v1#S-17` 的八值。
 - **除[第 11 节](#11-几处违例同时出现时取哪个拒绝值)外，每个非法实例只违反一条规则**。
 
 下文反复出现的片段一律原样写全：两位都真 `{"toHuman": true, "toModel": true}`，只给人 `{"toHuman": true, "toModel": false}`。
@@ -138,8 +136,8 @@
 | `{"t": "finish", "reason": "end"}` | 通过 | — | [S-16](contract.md#s-16-收尾) |
 | `{"t": "finish", "reason": "max_tokens"}` | 通过 | — | [S-16](contract.md#s-16-收尾)：模型侧；工具侧见第 9 节 |
 | `{"t": "finish", "reason": "lost"}` | 通过 | — | [S-16](contract.md#s-16-收尾)：说不出为什么断，**不补成因** |
-| `{"t": "finish", "reason": "lost", "error": {"cause": "upstream_unavailable", "statusCode": 502}}` | 通过（待 G-2） | — | [S-16](contract.md#s-16-收尾)：状态码原样 |
-| `{"t": "finish", "reason": "interrupted", "error": {"cause": "upstream_unavailable"}}` | 拒绝（待 G-2） | `malformed` | [S-16](contract.md#s-16-收尾)：用户叫停不是故障，不带成因 |
+| `{"t": "finish", "reason": "lost", "error": {"cause": "upstream_unavailable", "statusCode": 502}}` | 通过 | — | [S-16](contract.md#s-16-收尾)：状态码原样 |
+| `{"t": "finish", "reason": "interrupted", "error": {"cause": "upstream_unavailable"}}` | 拒绝 | `malformed` | [S-16](contract.md#s-16-收尾)：用户叫停不是故障，不带成因 |
 | `{"t": "finish", "reason": "stop"}` | 拒绝 | `finish_reason_unknown` | [S-16](contract.md#s-16-收尾)：上游的 stop 由适配层译成 `end`，不原样进来 |
 | `{"t": "finish"}` | 拒绝 | `malformed` | [S-16](contract.md#s-16-收尾) |
 
@@ -182,7 +180,7 @@
 | `open(0, …)` → `close(0)` → `{"t": "fill", "index": 0, "payload": "late"}` | `block_already_closed` | 消费一侧 | [S-18](contract.md#s-18-块的一生) |
 | `account` → `account` | `account_duplicate` | 消费一侧 | [S-15](contract.md#s-15-记账) |
 | `finish(end)` → 任何事件 | `event_after_finish` | 消费一侧 | [S-17](contract.md#s-17-一条流的形状) |
-| 两次开块用了同一个 `id`（索引不同） | 流上**本版不拒**；消息落日志时整条被拒（`data.content-blocks/v1#S-3` 的 `malformed`） | 消息落日志的边界 | [S-8](contract.md#s-8-开块)、[G-6](contract.md#九已知缺口) |
+| 两次开块用了同一个 `id`（索引不同） | 流上**不拒**；消息落日志时整条被拒（`data.messages` 的 `block_id_duplicate`） | 消息落日志的边界 | [S-8](contract.md#s-8-开块)、[S-24](contract.md#s-24-违反语法由消费一方判定并命名) |
 
 ## 11. 几处违例同时出现时取哪个拒绝值
 

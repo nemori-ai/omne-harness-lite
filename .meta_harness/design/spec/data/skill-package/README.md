@@ -4,15 +4,15 @@
 本项目的包内定义记录（组合的工具清单、外部服务依赖、设置项声明）、由包得出的依赖声明与属性项投影规则，
 以及 `SKILL.md` 的文本形式与包的目录形式怎样读成这份表示——还有一个值不合这些形状时，拒绝值叫什么。
 
-它填实 `data.asset-model` v1 留给技能的那个不透明壳（那边的 S-10）；注册表、`Skills()`、斜杠命令的 ② 型展开、工作区读入与外部技能目录的导入
+它是 `data.asset-model` v1 里 skill 类正文的形状（那边的 S-10 `$ref` 本契约）；注册表、`Skills()`、斜杠命令的 ② 型展开、工作区读入与外部技能目录的导入
 都读这一份形状，**引用它的 `$defs` 名，不各自复述一份**。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.skill-package, 1)`
 - **状态**：`candidate`——未接受、未冻结，不得据此发布或声称消费者已采用
 - **catalog 映射**：已登记为 `candidate`（`acceptance` 为 `null`）。`family=data`、`topic=skill-package`、
   `contract_path=spec/data/skill-package/v1/contract.md`，`resources` 另含 `v1/skill-package.schema.json` 与 `v1/examples.md`；
-  依赖四项：`data.asset-model` v1（`S-2`、`S-9`、`S-10`、`S-12`、`S-13`、`S-15`）、`data.content-blocks` v1（`S-7`、`S-20`）、
-  `data.tool-definition` v1（`S-9`、`S-11`、`S-18`）、`data.identity-values` v1（`S-31`）。
+  依赖三项：`data.asset-model` v1（`S-2`、`S-3`、`S-9`、`S-10`、`S-12`、`S-13`、`S-15`、`S-36`）、`data.content-blocks` v1（`S-7`）、
+  `data.tool-definition` v1（`S-9`、`S-11`、`S-18`、`S-26`）。
   **登记在 [registry](../../../registry/README.md)，本行只作索引**
 - **提供者/装配映射**：尚无
 
@@ -26,7 +26,7 @@
 | 为什么是 data 而不是 capability | 它**没有操作**：没有提交点、没有状态转移、没有自己的授权前提。技能怎样被装载、取用、运行、持有与配值，归注册表、`Skills()`、执行运行时与资产的三份能力契约 |
 | 精确依赖 | 见上面「catalog 映射」一行 |
 | 起点 | [D-034](../../../record/decisions/skill-spec-adoption/README.md)：Agent Skills 开放格式为载体与核心字段、规则层自持、扩展声明走包内定义记录；开放格式钉 `69ef37e` |
-| 谁在等它 | `data.asset-model` 的下一版（壳换成引用）、`capability.asset-registry`、`Skills()` 的契约、斜杠命令的数据契约、`capability.asset-evaluation`、导入器。完整清单见[契约的消费者表](v1/contract.md#消费者)——**那里是唯一的一份** |
+| 谁在等它 | `data.asset-model`（壳 `$ref` 本契约）、`capability.asset-registry`、`Skills()` 的契约、斜杠命令的数据契约、`capability.asset-evaluation`、导入器。完整清单见[契约的消费者表](v1/contract.md#消费者)——**那里是唯一的一份** |
 | 接受状态 | 未接受 |
 
 ## 按当前问题展开
@@ -38,7 +38,7 @@
 | 一个值长什么样、什么会被拒、拒绝值叫什么 | [v1 正反实例](v1/examples.md) |
 | 一份 `SKILL.md` 读出来的清单头与正文是什么 | [S-20](v1/contract.md#s-20-skillmd-的文本形式与定界)与[实例第 6 节](v1/examples.md#6-skillmd-的文本形式) |
 | 一个包有好几处不对，报哪个拒绝值 | [S-24](v1/contract.md#s-24-表示层拒绝值与判定次序)与[实例第 8 节](v1/examples.md#8-几处违例同时出现时取哪个拒绝值) |
-| 哪里在等裁决 | [已知缺口](v1/contract.md#九已知缺口)——**G-1（定义记录的保留路径名）挡住目录形式的定义记录，G-2（「谁可以使用它」）挡住属性项投影的完整性** |
+| 哪里在等裁决 | [已知缺口](v1/contract.md#九已知缺口)——**G-3（正文变体与资源取用方式）、G-4（作者自声明设置项的生效值谁读）、G-6（资源字节的摘要）、G-7（未收的扩展）**；2026-09-23 那批主线裁定待产品负责人确认 |
 | 哪些条款有怎样的证据义务，现在到哪一步 | [验证与覆盖](verification.md) |
 
 ## 版本包

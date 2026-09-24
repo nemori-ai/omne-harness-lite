@@ -99,10 +99,12 @@
 
 | 实例 | Schema | 拒绝值 | 依据 |
 |---|---|---|---|
-| `{"id": "b1", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "帮我看看这个仓库的 README"}` | 通过 | — | [S-8](contract.md#s-8-文本块与来路标记) |
-| `{"id": "b2", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": ""}` | 通过 | — | [S-8](contract.md#s-8-文本块与来路标记)：可以是空串 |
-| `{"id": "b3", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "--dry-run src/", "origin": {"kind": "slash_command_args", "command": "review"}}` | 通过 | — | [S-8](contract.md#s-8-文本块与来路标记)：人敲命令时附带的参数，另成一块 |
-| `{"id": "b4", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "# 代码评审\n逐个文件读……", "origin": {"kind": "skill_body", "command": "review", "skill": "code-review"}}` | 通过 | — | [S-8](contract.md#s-8-文本块与来路标记)：② 型展开的 skill 正文，逐字 |
+| `{"id": "b1", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "帮我看看这个仓库的 README"}` | 通过 | — | [S-8](contract.md#s-8-文本块与来源标记) |
+| `{"id": "b2", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": ""}` | 通过 | — | [S-8](contract.md#s-8-文本块与来源标记)：可以是空串 |
+| `{"id": "b3", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "--dry-run src/", "origin": {"kind": "slash_command_args", "command": "review"}}` | 通过 | — | [S-8](contract.md#s-8-文本块与来源标记)：人敲命令时附带的参数，另成一块 |
+| `{"id": "b4", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "# 代码评审\n逐个文件读……", "origin": {"kind": "skill_body", "command": "review", "skill": "code-review"}}` | 通过 | — | [S-8](contract.md#s-8-文本块与来源标记)：② 型展开的 skill 正文，逐字 |
+| `{"id": "b4a", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "请按下面的清单逐项检查 src/ 的改动", "origin": {"kind": "slash_command_expansion", "command": "checklist"}}` | 通过 | — | [S-8](contract.md#s-8-文本块与来源标记)：① 型展开模板得到的文字 |
+| `{"id": "b4b", "kind": "text", "visibility": {"toHuman": true, "toModel": false}, "text": "/review --dry-run src/", "origin": {"kind": "slash_command_record", "command": "review"}}` | 通过 | — | [S-8](contract.md#s-8-文本块与来源标记)：留痕块是带来路的文本块，`text` 是人敲的原文；标注由受理一方定 |
 | `{"id": "b5", "kind": "text", "text": "hi"}` | 拒绝 | `visibility_missing` | [S-4](contract.md#s-4-两个标注) |
 | `{"id": "b6", "kind": "text", "visibility": {"toHuman": true}, "text": "hi"}` | 拒绝 | `visibility_missing` | [S-4](contract.md#s-4-两个标注)：缺一即拒 |
 | `{"id": "b7", "kind": "Text", "visibility": {"toHuman": true, "toModel": true}, "text": "hi"}` | 拒绝 | `kind_unknown` | [S-25](contract.md#s-25-判别式与枚举闭合)：区分大小写，不做「最接近」映射 |
@@ -111,8 +113,9 @@
 | `{"id": "", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "hi"}` | 拒绝 | `malformed` | [S-3](contract.md#s-3-blockid)：按 `data.identity-values/v1#S-31` 非空 |
 | `{"id": "b9", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "hi", "modality": "text"}` | 拒绝 | `malformed` | [S-6](contract.md#s-6-模态由媒体类型判定)：块上不存模态 |
 | `{"id": "b10", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "hi", "renderings": [{"producedBy": "system", "blocks": [{"id": "b10r", "kind": "text", "visibility": {"toHuman": false, "toModel": true}, "text": "hi"}]}], "transcript": "hi"}` | 拒绝 | `malformed` | [S-2](contract.md#s-2-块底座)：文本块不是转换件的输入，不带派生属性 |
-| `{"id": "b11", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "hi", "origin": {"kind": "user_typed"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-文本块与来路标记)、[S-25](contract.md#s-25-判别式与枚举闭合)：来路标记恰两种；**缺席才是「没有断言」** |
-| `{"id": "b12", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "hi", "origin": {"kind": "skill_body", "skill": ""}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-文本块与来路标记)：名字给出就非空 |
+| `{"id": "b11", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "hi", "origin": {"kind": "user_typed"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-文本块与来源标记)、[S-25](contract.md#s-25-判别式与枚举闭合)：来源标记恰四种；**缺席才是「没有断言」** |
+| `{"id": "b12", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "hi", "origin": {"kind": "skill_body", "skill": ""}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-文本块与来源标记)：名字给出就非空 |
+| `{"id": "b13", "kind": "slash_command_record", "visibility": {"toHuman": true, "toModel": false}, "text": "/review"}` | 拒绝 | `kind_unknown` | [S-1](contract.md#s-1-七类块)、[S-8](contract.md#s-8-文本块与来源标记)：留痕**不是第八类块**，是文本块上的来路 |
 
 ## 6. 思考块
 
@@ -172,7 +175,11 @@
 | `{"id": "b63", "kind": "tool_call", "visibility": {"toHuman": false, "toModel": false}, "complete": false, "rawArguments": ""}` | 通过 | — | [S-13](contract.md#s-13-半截的工具调用)：`callId`、`tool` 还没到就缺席，原始串可以是空的 |
 | `{"id": "b64", "kind": "tool_call", "visibility": {"toHuman": true, "toModel": false}, "complete": false, "rawArguments": "{\"pa"}` | 拒绝 | `incomplete_call_visible` | [S-13](contract.md#s-13-半截的工具调用)：**不被改成 `false` 后接受** |
 | `{"id": "b65", "kind": "tool_call", "visibility": {"toHuman": true, "toModel": true}, "complete": false, "rawArguments": "{\"pa"}` | 拒绝 | `incomplete_call_visible` | [S-13](contract.md#s-13-半截的工具调用) |
-| `{"id": "b66", "kind": "tool_call", "visibility": {"toHuman": true, "toModel": true}, "complete": true, "callId": "call_01", "tool": "read_file", "rawArguments": "{\"path\": \"README.md\"}"}` | 拒绝 | `malformed` | [S-12](contract.md#s-12-完整的工具调用)：完整调用带的是解析过的 `arguments`，不带原始串 |
+| `{"id": "b66", "kind": "tool_call", "visibility": {"toHuman": true, "toModel": true}, "complete": true, "callId": "call_01", "tool": "read_file", "rawArguments": "{\"path\": \"README.md\"}"}` | 拒绝 | `malformed` | [S-12](contract.md#s-12-完整的工具调用)：带原始串却没标 `unparseable`——两者同现才是「解析不了」那一种 |
+| `{"id": "b66a", "kind": "tool_call", "visibility": {"toHuman": true, "toModel": true}, "complete": true, "callId": "call_18", "tool": "read_file", "rawArguments": "{\"path\": \"a.md\"", "unparseable": true}` | 通过 | — | [S-12](contract.md#s-12-完整的工具调用)：收齐了却解析不了——登记、不执行、宿主接一条 `failed` 结果 |
+| `{"id": "b66b", "kind": "tool_call", "visibility": {"toHuman": true, "toModel": true}, "complete": true, "callId": "call_18", "tool": "read_file", "rawArguments": "{\"path\": \"a.md\"", "unparseable": true, "arguments": {"path": "a.md"}}` | 拒绝 | `malformed` | [S-12](contract.md#s-12-完整的工具调用)：解析不了就没有 `arguments`，**不替它猜一个** |
+| `{"id": "b66c", "kind": "tool_call", "visibility": {"toHuman": true, "toModel": true}, "complete": true, "callId": "call_18", "tool": "read_file", "unparseable": true}` | 拒绝 | `malformed` | [S-12](contract.md#s-12-完整的工具调用)：`unparseable` 与 `rawArguments` 同现，缺原文不行 |
+| `{"id": "b66d", "kind": "tool_call", "visibility": {"toHuman": true, "toModel": true}, "complete": true, "callId": "call_18", "tool": "read_file", "rawArguments": "{", "unparseable": false}` | 拒绝 | `malformed` | [S-12](contract.md#s-12-完整的工具调用)：`unparseable` 只有 `true` 这一个取值 |
 | `{"id": "b67", "kind": "tool_call", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_01", "tool": "read_file", "arguments": {}}` | 拒绝 | `malformed` | [S-12](contract.md#s-12-完整的工具调用)：`complete` 必填，**缺席不当 `true`** |
 | `{"id": "b68", "kind": "tool_call", "visibility": {"toHuman": true, "toModel": true}, "complete": true, "tool": "read_file", "arguments": {}}` | 拒绝 | `malformed` | [S-12](contract.md#s-12-完整的工具调用)：`callId` 必填 |
 | `{"id": "b69", "kind": "tool_call", "visibility": {"toHuman": false, "toModel": false}, "complete": false, "rawArguments": "{\"pa", "arguments": {"pa": null}}` | 拒绝 | `malformed` | [S-13](contract.md#s-13-半截的工具调用)：半截的参数**不解析**，一个解析结果出现在这里就是违反 |
@@ -202,7 +209,11 @@
 | `{"id": "b96", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_06", "outcome": "failed", "reason": {"code": "user_interrupted", "text": "用户叫停"}, "blocks": []}` | 拒绝 | `malformed` | [S-18](contract.md#s-18-占位原因与它落在哪一格)：用户叫停落在被中断，**不改格** |
 | `{"id": "b97", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_05", "outcome": "interrupted", "reason": {"code": "backgrounded_auto", "text": "超时转后台"}, "blocks": []}` | 拒绝 | `malformed` | [S-18](contract.md#s-18-占位原因与它落在哪一格)：配错格 |
 | `{"id": "b98", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_01", "outcome": "completed", "reason": {"code": "user_interrupted", "text": "……"}, "blocks": []}` | 拒绝 | `malformed` | [S-18](contract.md#s-18-占位原因与它落在哪一格)：完成不带原因 |
-| `{"id": "b99", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_05", "outcome": "interrupted", "reason": {"code": "run_cancelled", "text": "运行被取消"}, "blocks": []}` | 拒绝 | `malformed` | [S-18](contract.md#s-18-占位原因与它落在哪一格)：取值闭合。**这正是 [G-2](contract.md#八已知缺口) 那个没有取值的触发源**——停下报缺口，不自造取值 |
+| `{"id": "b99", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_05", "outcome": "interrupted", "reason": {"code": "run_cancelled", "text": "运行被取消"}, "blocks": []}` | 通过 | — | [S-18](contract.md#s-18-占位原因与它落在哪一格)：运行被取消而它还在前台——**不借** `user_interrupted` |
+| `{"id": "b99a", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_19", "outcome": "backgrounded", "reason": {"code": "backgrounded_at_start", "text": "发起时就在后台，跑完会通知"}, "blocks": []}` | 通过 | — | [S-18](contract.md#s-18-占位原因与它落在哪一格) |
+| `{"id": "b99b", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_20", "outcome": "interrupted", "reason": {"code": "terminated_by_agent", "text": "已被 agent 掐掉"}, "blocks": []}` | 通过 | — | [S-18](contract.md#s-18-占位原因与它落在哪一格) |
+| `{"id": "b99c", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_05", "outcome": "backgrounded", "reason": {"code": "run_cancelled", "text": "运行被取消"}, "blocks": []}` | 拒绝 | `malformed` | [S-18](contract.md#s-18-占位原因与它落在哪一格)：`run_cancelled` 只配被中断 |
+| `{"id": "b99d", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_19", "outcome": "interrupted", "reason": {"code": "backgrounded_at_start", "text": "……"}, "blocks": []}` | 拒绝 | `malformed` | [S-18](contract.md#s-18-占位原因与它落在哪一格)：配错格 |
 | `{"id": "b9a", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_05", "outcome": "interrupted", "reason": {"code": "user_interrupted", "text": ""}, "blocks": []}` | 拒绝 | `malformed` | [S-15](contract.md#s-15-工具结果块)：原因要说清，`text` 非空 |
 | `{"id": "b9b", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_01", "outcome": "completed"}` | 拒绝 | `malformed` | [S-15](contract.md#s-15-工具结果块)：`blocks` 必填（可以是空数组，不能缺） |
 
@@ -222,7 +233,8 @@
 | `{"id": "b107", "kind": "image", "visibility": {"toHuman": true, "toModel": true}, "mediaType": "image/png", "data": {"storage": "attachments", "key": "obj_5f2c", "mediaType": "image/png"}, "renderings": [], "transcript": "一张图"}` | 拒绝 | `malformed` | [S-19](contract.md#s-19-派生表示与-transcript)：`renderings` 给出就非空 |
 | `{"id": "b108", "kind": "image", "visibility": {"toHuman": true, "toModel": true}, "mediaType": "image/png", "data": {"storage": "attachments", "key": "obj_5f2c", "mediaType": "image/png"}, "renderings": [{"producedBy": "system", "blocks": [{"id": "b108r", "kind": "text", "visibility": {"toHuman": false, "toModel": true}, "text": "一张图"}]}], "transcript": ""}` | 拒绝 | `malformed` | [S-19](contract.md#s-19-派生表示与-transcript)：transcript 非空 |
 | `{"id": "b109", "kind": "voice", "visibility": {"toHuman": true, "toModel": true}, "mediaType": "audio/wav", "data": {"inline": "UklGRiQAAABXQVZF"}, "renderings": [{"producedBy": "system", "blocks": [{"id": "b109r", "kind": "image", "visibility": {"toHuman": false, "toModel": true}, "mediaType": "image/png", "data": {"inline": "iVBORw0KGgo="}, "renderings": [{"producedBy": "system", "blocks": [{"id": "b109s", "kind": "text", "visibility": {"toHuman": false, "toModel": true}, "text": "声谱图"}]}], "transcript": "声谱图"}]}], "transcript": "一段语音"}` | 拒绝 | `malformed` | [S-19](contract.md#s-19-派生表示与-transcript)：派生块自己不再带派生属性 |
-| `{"id": "b110", "kind": "image", "visibility": {"toHuman": true, "toModel": true}, "mediaType": "image/png", "data": {"storage": "attachments", "key": "obj_5f2c", "mediaType": "image/png"}, "renderings": [{"producedBy": "image-describer", "blocks": [{"id": "b110r", "kind": "text", "visibility": {"toHuman": false, "toModel": true}, "text": "一张图"}]}], "transcript": "一张图"}` | 拒绝 | `malformed` | [S-20](contract.md#s-20-派生表示的产出者与能力标识)：产出者是一个能力标识或字面量 `system`，不是一个裸名字 |
+| `{"id": "b110", "kind": "image", "visibility": {"toHuman": true, "toModel": true}, "mediaType": "image/png", "data": {"storage": "attachments", "key": "obj_5f2c", "mediaType": "image/png"}, "renderings": [{"producedBy": "image-describer", "blocks": [{"id": "b110r", "kind": "text", "visibility": {"toHuman": false, "toModel": true}, "text": "一张图"}]}], "transcript": "一张图"}` | 拒绝 | `malformed` | [S-20](contract.md#s-20-派生表示的产出者与能力标识)：产出者本版恒为字面量 `system`，不是一个裸名字 |
+| `{"id": "b111", "kind": "image", "visibility": {"toHuman": true, "toModel": true}, "mediaType": "image/png", "data": {"storage": "attachments", "key": "obj_5f2c", "mediaType": "image/png"}, "renderings": [{"producedBy": {"category": "loop_extension", "name": "image-describer"}, "blocks": [{"id": "b111r", "kind": "text", "visibility": {"toHuman": false, "toModel": true}, "text": "一张图"}]}], "transcript": "一张图"}` | 拒绝 | `malformed` | [S-20](contract.md#s-20-派生表示的产出者与能力标识)：**本版转换件不是资产**，没有能力标识那一支 |
 
 ## 12. 几处违例同时出现时取哪个拒绝值
 
@@ -237,7 +249,7 @@
 | `{"id": "p5", "kind": "image", "visibility": {"toHuman": true, "toModel": true}, "mediaType": "image/png", "data": {"storage": "attachments", "key": "obj_91aa", "mediaType": "video/mp4"}}` | 拒绝 | `modality_mismatch` | 引用里的媒体类型是视频（`modality_mismatch`）＋ 两处媒体类型不逐字相同（`malformed`）⇒ 前者优先 |
 | `{"id": "p6", "kind": "voice", "visibility": {"toHuman": true, "toModel": true}, "mediaType": "video/webm", "data": {"inline": "GkXfow=="}, "caption": "录音"}` | 拒绝 | `modality_mismatch` | 媒体类型不是语音 ＋ 多出成员 `caption`（`malformed`）⇒ 前者优先 |
 
-## 13. 三个闭合枚举
+## 13. 三个闭合枚举与内联字节
 
 **校验对象**：各行第一列标注的 `$defs`（本节格式比别节多一列在最前，其余三列含义不变）。
 
@@ -251,11 +263,16 @@
 | `$defs/PlaceholderReason` | `"backgrounded_by_user"` | 通过 | — | [S-18](contract.md#s-18-占位原因与它落在哪一格) |
 | `$defs/PlaceholderReason` | `"abnormal_interruption"` | 通过 | — | [S-18](contract.md#s-18-占位原因与它落在哪一格) |
 | `$defs/PlaceholderReason` | `"backgrounded"` | 拒绝 | `malformed` | [S-18](contract.md#s-18-占位原因与它落在哪一格)：原因不是收场，转后台细分为三个原因 |
-| `$defs/PlaceholderReason` | `"run_cancelled"` | 拒绝 | `malformed` | [S-18](contract.md#s-18-占位原因与它落在哪一格)、[G-2](contract.md#八已知缺口) |
+| `$defs/PlaceholderReason` | `"run_cancelled"` | 通过 | — | [S-18](contract.md#s-18-占位原因与它落在哪一格)：主线裁定补的三行之一 |
+| `$defs/PlaceholderReason` | `"terminated_by_agent"` | 通过 | — | [S-18](contract.md#s-18-占位原因与它落在哪一格) |
+| `$defs/PlaceholderReason` | `"interrupted_by_timeout"` | 拒绝 | `malformed` | [S-18](contract.md#s-18-占位原因与它落在哪一格)、[G-7](contract.md#八已知缺口)：前台上限到点而不许转后台**没有取值**——停下报缺口，不自造取值 |
 | `$defs/Modality` | `"audio"` | 通过 | — | [S-6](contract.md#s-6-模态由媒体类型判定)：对应词条的「语音 Voice」 |
 | `$defs/Modality` | `"voice"` | 拒绝 | `malformed` | [S-6](contract.md#s-6-模态由媒体类型判定)：`voice` 是块的类型，模态的 token 是 `audio` |
 | `$defs/Modality` | `"file"` | 拒绝 | `malformed` | [S-6](contract.md#s-6-模态由媒体类型判定)：文件不是一种模态 |
 | `$defs/Modality` | `"none"` | 拒绝 | `malformed` | [S-6](contract.md#s-6-模态由媒体类型判定)：「无模态」不是第五个取值 |
+| `$defs/InlineBytes` | `"iVBORw0KGgo="` | 通过 | — | [S-10](contract.md#s-10-语音块与图块)：共用的编码规则 |
+| `$defs/InlineBytes` | `"iVBORw0KGgo"` | 拒绝 | `malformed` | [S-10](contract.md#s-10-语音块与图块)：带填充，长度是四的倍数 |
+| `$defs/InlineBytes` | `"iVBORw0K Ggo="` | 拒绝 | `malformed` | [S-10](contract.md#s-10-语音块与图块)：不含空白 |
 
 ## 14. Schema 挡不住，但同样非法的
 
@@ -274,7 +291,10 @@
 | 某一层把 `opaque` 里的整数 `9007199254740993` 读成双精度再写回 | [S-9](contract.md#s-9-思考块与不透明数据) | 每一跳的实现 |
 | 日志层为了「展示签名」把 `opaque` 解出来改写 | [S-9](contract.md#s-9-思考块与不透明数据) | 每一层的实现 |
 | 从工具结果的文字里读到 `Error:` 就当它是 `failed` | [S-15](contract.md#s-15-工具结果块) | 读者的实现 |
-| 用 `user_interrupted` 表示「这一次运行被取消而它还在前台」 | [S-18](contract.md#s-18-占位原因与它落在哪一格)、[G-2](contract.md#八已知缺口) | 写入方 |
+| 用 `user_interrupted` 表示「这一次运行被取消而它还在前台」 | [S-18](contract.md#s-18-占位原因与它落在哪一格)：该用 `run_cancelled` | 写入方 |
+| 图块的派生表示里放了一张图（原块与派生块都是 `image` 模态） | [S-19](contract.md#s-19-派生表示与-transcript)——`malformed` | 接收边界 |
+| 为了「再试一次」去解析一个标了 `unparseable` 的调用的 `rawArguments`，或执行它 | [S-12](contract.md#s-12-完整的工具调用) | 流装配、宿主与执行运行时的实现 |
+| 受理连接件送来的信封时，把一个 `image/png` 的附件引用落成文件块 | [S-34](contract.md#s-34-只给了引用的附件落成哪一类块) | 落块那一方的规范场景 |
 | 为了「猜」调用意图去解析半截调用的 `rawArguments` | [S-13](contract.md#s-13-半截的工具调用) | 流装配与组装的实现 |
 | 一份会话日志里两个完整的工具调用块 `callId` 相同 | [S-14](contract.md#s-14-callid) | 登记调用的一方 |
 | 按 `AttachmentRef.key` 的前缀 `tenants/org_7fd2c1/` 判断它归哪个组织 | [S-21](contract.md#s-21-attachmentref)、`data.identity-values/v1#S-34` | 静态检查 |
@@ -283,7 +303,7 @@
 ## 15. 起草者逐条自核
 
 **这是手核，不是机检。**本节记录起草者把上面每一行拿契约条款逐条对过的结论；
-**Draft 2020-12 校验器一次也没有跑过**，[验证入口](../verification.md)登记为「未运行」。
+**第二列（Schema 一关）的机检结果不写在这里**，在[验证入口](../verification.md#本地自检)——那是版本外、可更新的证据；本节只陈述每节有几行、各核了什么。
 
 | 节 | 通过 | 拒绝 | 核了什么 |
 |---|---|---|---|
@@ -291,16 +311,16 @@
 | 2 MediaType | 4 | 8 | 通过的四个都小写、参数紧挨、值为 token；拒绝的各违反一处：大写、空白、引号、参数名大写、通配、缺 subtype、尾随换行、空串 |
 | 3 AttachmentRef | 3 | 6 | 必填三项、`bytes` ≥ 0、`name` 非空、闭合成员、`storage`／`key` 的首尾空白；另三条相等用例只看 `(storage, key)` |
 | 4 CapabilityId | 2 | 4 | 八类闭合；两个分量都必填 |
-| 5 文本块 | 4 | 10 | 每个拒绝实例只动一处；`b8` 缺 `kind` 按 [S-26](contract.md#s-26-表示层拒绝值) 定为 `malformed` 而非 `kind_unknown` |
+| 5 文本块 | 6 | 11 | 每个拒绝实例只动一处；`b8` 缺 `kind` 按 [S-26](contract.md#s-26-表示层拒绝值) 定为 `malformed` 而非 `kind_unknown` |
 | 6 思考块 | 4 | 3 | `opaque` 缺席与 `null` 都通过且是两种状态 |
 | 7 语音块与图块 | 4 | 9 | base64 实例逐个数过：`UklGRiQAAABXQVZF` 16 字符、`iVBORw0KGgo=` 12 字符以 `=` 收尾，都是完整的四字组；`b34`／`b35` 的块与引用媒体类型逐字相同，**只**违反模态；`b37` 不判模态 |
 | 8 文件块 | 2 | 3 | 文件块无自己的 `mediaType` |
-| 9 工具调用块 | 4 | 7 | 半截调用的两个拒绝实例只动标注；`b67` 缺 `complete` 两个形状都不匹配 |
-| 10 工具结果块 | 9 | 12 | 每个通过实例的 `reason` 与收场对上 [S-18](contract.md#s-18-占位原因与它落在哪一格) 的落格表；拒绝实例每行只违反一格 |
-| 11 派生表示 | 3 | 8 | 通过实例的派生块都是文本或图、都不再带派生属性，且 transcript 与 renderings 同在 |
+| 9 工具调用块 | 5 | 10 | 半截调用的两个拒绝实例只动标注；`b67` 缺 `complete` 两个形状都不匹配；解析不了的那一种（`b66a`）与三个只动一处的反例 |
+| 10 工具结果块 | 12 | 13 | 每个通过实例的 `reason` 与收场对上 [S-18](contract.md#s-18-占位原因与它落在哪一格) 的落格表；拒绝实例每行只违反一格 |
+| 11 派生表示 | 3 | 9 | 通过实例的派生块都是文本或图、都不再带派生属性，且 transcript 与 renderings 同在 |
 | 12 优先级 | 0 | 6 | 每行写明同时违反的两条，拒绝值按 `kind_unknown > visibility_missing > incomplete_call_visible > call_in_result > modality_mismatch > malformed` 取 |
-| 13 枚举 | 5 | 8 | 取值与契约的闭合集合逐字对过 |
+| 13 枚举与内联字节 | 8 | 10 | 取值与契约的闭合集合逐字对过；`InlineBytes` 三行 |
 
-**合计参与机检的 138 行：通过 48、拒绝 90。**第 3 节的相等用例表与第 14 节不在其内。
+**合计参与机检的 155 行：通过 57、拒绝 98**（2026-09-23 对齐波由 138 行增至此数）。第 3 节的相等用例表与第 14 节不在其内。
 第 7 节的编号从 `b35` 跳到 `b37`：`b36` 这个位置的实例（图块写 `image/png`、引用写 `video/mp4`）同时违反两条，
 不合「每行只违反一条」，放在第 12 节作 `p5`。

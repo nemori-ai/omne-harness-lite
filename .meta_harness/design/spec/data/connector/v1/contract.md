@@ -11,9 +11,9 @@
 
   | 坐标 | 消费的条款 | 取它的什么 | 本契约怎么用 |
   |---|---|---|---|
-  | `omne-harness-lite-design-2026-09-15 · data.asset-model · v1` | [S-10](../../asset-model/v1/contract.md#s-10-八类正文的外壳)、[S-12](../../asset-model/v1/contract.md#s-12-属性声明由正文推出)、[S-13](../../asset-model/v1/contract.md#s-13-设置项类别)、[S-15](../../asset-model/v1/contract.md#s-15-disabled-是保留项名)、[S-18](../../asset-model/v1/contract.md#s-18-资产持有)、[S-20](../../asset-model/v1/contract.md#s-20-出厂格与工作区格的持有)、[S-23](../../asset-model/v1/contract.md#s-23-凭据引用) | connector 那一支的正文外壳、推出规则的四条义务、设置项类别、保留项 `disabled`、一格一个能力标识一份持有、工作区格不配落点与身份类、凭据引用 | [S-1](#s-1-连接件正文) 填那一支的 `body`；[S-2](#s-2-鉴权绑定不在正文里)、[S-11](#s-11-推出规则)～[S-13](#s-13-两项权限) 按它写；**Schema 不 `$ref` 它**——凭据引用只出现在推出的声明里，那是一条规则，不是本 Schema 的定义项 |
-  | `omne-harness-lite-design-2026-09-15 · data.messages · v1` | [S-2](../../messages/v1/contract.md#s-2-消息底座)、[S-6](../../messages/v1/contract.md#s-6-每种消息能装哪几类块)、[S-8](../../messages/v1/contract.md#s-8-usermessage)、[S-24](../../messages/v1/contract.md#s-24-别的会话捎话与到点了) | 消息成员闭合、来路标记只在哪、经连接件送达的落成 `UserMessage`、会话的不透明指认 | `$ref` 它的 `$defs/SessionRef`：`DeliveryTarget.session`；[S-9](#s-9-信封落成一条用户消息) 按它写 |
-  | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1` | [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来路标记)、[S-21](../../content-blocks/v1/contract.md#s-21-attachmentref)、[S-23](../../content-blocks/v1/contract.md#s-23-块不携带租户身份)、[S-26](../../content-blocks/v1/contract.md#s-26-表示层拒绝值) | 来路标记的两个取值与它的出处、附件引用的形状与相等、引用不带来读的资格、附件引用违例时的拒绝值 | `$ref` 它的 `$defs/AttachmentRef`：`InboundEnvelope.attachments` |
+  | `omne-harness-lite-design-2026-09-15 · data.asset-model · v1` | [S-10](../../asset-model/v1/contract.md#s-10-八类正文的外壳)、[S-12](../../asset-model/v1/contract.md#s-12-属性声明由正文推出)、[S-13](../../asset-model/v1/contract.md#s-13-设置项类别)、[S-15](../../asset-model/v1/contract.md#s-15-disabled-是保留项名)、[S-18](../../asset-model/v1/contract.md#s-18-资产持有)、[S-20](../../asset-model/v1/contract.md#s-20-出厂格与工作区格的持有)、[S-23](../../asset-model/v1/contract.md#s-23-凭据引用) | connector 那一支的正文外壳、推出规则的四条义务（落点与身份类设置项可不带 `default`）、设置项类别、保留项 `disabled`、一格一个能力标识一份持有、工作区格不配落点与身份类、凭据引用与「未配即缺席」 | [S-1](#s-1-连接件正文) 就是那一支 `body` 的值（那边 `$ref` 本契约）；[S-2](#s-2-鉴权绑定与投递目标不在正文里)、[S-11](#s-11-推出规则)～[S-13](#s-13-两项权限) 按它写；**Schema 不 `$ref` 它**——凭据引用只出现在推出的声明里，那是一条规则，不是本 Schema 的定义项 |
+  | `omne-harness-lite-design-2026-09-15 · data.messages · v1` | [S-2](../../messages/v1/contract.md#s-2-消息底座)、[S-6](../../messages/v1/contract.md#s-6-每种消息能装哪几类块)、[S-8](../../messages/v1/contract.md#s-8-usermessage)、[S-24](../../messages/v1/contract.md#s-24-别的会话捎话与到点了) | 消息成员闭合、来源标记只在哪、经连接件送达的落成 `UserMessage`、会话的不透明指认 | `$ref` 它的 `$defs/SessionRef`：`DeliveryTarget.session`；[S-9](#s-9-信封落成一条用户消息) 按它写 |
+  | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1` | [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来源标记)、[S-21](../../content-blocks/v1/contract.md#s-21-attachmentref)、[S-23](../../content-blocks/v1/contract.md#s-23-块不携带租户身份)、[S-26](../../content-blocks/v1/contract.md#s-26-表示层拒绝值)、[S-34](../../content-blocks/v1/contract.md#s-34-只给了引用的附件落成哪一类块) | 来源标记的取值与它的出处、附件引用的形状与相等、引用不带来读的资格、附件引用违例时的拒绝值、只给了引用的附件落成哪一类块 | `$ref` 它的 `$defs/AttachmentRef`：`InboundEnvelope.attachments`；[S-9](#s-9-信封落成一条用户消息) 第 2 条按 S-34 写 |
   | `omne-harness-lite-design-2026-09-15 · data.offer-expiry · v1` | [S-22](../../offer-expiry/v1/contract.md#s-22-schema-的范围) | 时刻的规范形式 | `$ref` 它的 `$defs/Instant`：`receivedAt` |
   | `omne-harness-lite-design-2026-09-15 · data.identity-values · v1` | [S-16](../../identity-values/v1/contract.md#s-16-按归属层显式携带身份值)、[S-17](../../identity-values/v1/contract.md#s-17-身份参数没有默认值)、[S-31](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示)、[S-34](../../identity-values/v1/contract.md#s-34-语义身份与实现地址分开) | 身份按归属层显式携带、身份参数没有默认值、不透明标识的交换表示、地址不是身份 | 三个外部标识按 S-31 的散文写 pattern，**不 `$ref` 它的 `OpaqueIdentifier`**；[S-3](#s-3-来源标识)、[S-8](#s-8-信封不带归属) 按 S-16／S-17／S-34 写 |
 
@@ -36,7 +36,7 @@
 | 外部来源能做的到此为止：把一条消息放进队尾；资格与「能不能访问这个会话」是同一个判断 | [PF-014 flows §四](../../../../product/PF-014-inbound-intake-and-queueing/flows.md#四角色与操作) | S-4、S-14 |
 | 时间戳顺序与因果先后分别表达 | [PF-000 §5.5](../../../../product/PF-000-occurrences-and-record-entries/design.md#55-挂在每条条目上的字段) | S-7 |
 | 会话持有创建那一刻的租户身份 | [PF-015 §6.12](../../../../product/PF-015-session-lifecycle-and-ownership/design.md#612-会话持有创建那一刻的租户身份) | S-4 |
-| 复制与分享带走的是正文 | [PF-003 §6.4](../../../../product/PF-003-asset-transfer-and-sharing/design.md#64-可复制的对象) · [§6.10](../../../../product/PF-003-asset-transfer-and-sharing/design.md#610-分享给的是获权不是拥有) | S-2、[G-2](#十已知缺口) |
+| 复制与分享带走的是正文 | [PF-003 §6.4](../../../../product/PF-003-asset-transfer-and-sharing/design.md#64-可复制的对象) · [§6.10](../../../../product/PF-003-asset-transfer-and-sharing/design.md#610-分享给的是获权不是拥有) | S-2 |
 | 规格形式；部署边界；租户隔离 | [SYS-SPEC](../../../../foundation/cross-system-constraints/requirements.md#sys-spec) · [SYS-DEPLOY](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy) · [SYS-TENANT](../../../../foundation/cross-system-constraints/requirements.md#sys-tenant) | 见下方引文 |
 
 > **没有产品行、或产品行不足以单独支撑的条款，逐条点名：**
@@ -44,8 +44,10 @@
 > | 条款 | 依据来自哪 |
 > |---|---|
 > | [S-3](#s-3-来源标识) 的两个分量、[S-4](#s-4-投递目标) 的那一支、[S-5](#s-5-入站信封) 的五个成员、[S-18](#s-18-表示层拒绝值) 的四个拒绝值 | **起草简报的账本**（主线 2026-09-23）。产品正文只到「来源标识、投递目标、鉴权绑定」三项设置的名字；**这份账本尚未落进设计链里任何一处**，本表无处可链——见 [G-9](#十已知缺口) |
-> | [S-2](#s-2-鉴权绑定不在正文里) 正文不收凭据引用 | **偏离账本**：账本给的正文带可选的 `credential`；本版按产品正文与 `data.asset-model/v1#S-23` 不收，理由写在条款里，**待主线确认**——[G-1](#十已知缺口) |
-> | [S-1](#s-1-连接件正文) 正文的两项是默认值、[S-11](#s-11-推出规则) 的推出规则 | **规格层推导**：`data.asset-model/v1#S-12` 要求每份正文契约给出推出规则、声明必带 `default` |
+> | [S-1](#s-1-连接件正文) 正文只留可选的来源标识、[S-2](#s-2-鉴权绑定与投递目标不在正文里) 鉴权绑定与投递目标都不在正文里、[S-11](#s-11-推出规则) 与 [S-12](#s-12-鉴权绑定那一项) 的「未配即缺席」 | **主线裁定 2026-09-23，待产品负责人确认**（账本 S21-a、S21-b：两者都是持有配值、无作者默认；「未配」只有缺席一种写法，与 MCP 接入点的凭据同） |
+> | [S-11](#s-11-推出规则)、[S-13](#s-13-两项权限) 两项权限按 PF-002 原话、项名 `install` 与 `processingIdentity` | **主线裁定 2026-09-23，待产品负责人确认**（账本 S21-c：简报的「谁可以用」「启用」作废；项名由整批对齐按原话定） |
+> | [S-4](#s-4-投递目标) 的 `SessionRef` 取自 `data.messages`、[S-9](#s-9-信封落成一条用户消息) 第 2 条附件按媒体类型落块 | **主线裁定 2026-09-23，待产品负责人确认**（账本 S21-d、S21-e；后者落在 `data.content-blocks/v1#S-34`） |
+> | [S-11](#s-11-推出规则) 推出规则的形状 | **规格层推导**：`data.asset-model/v1#S-12` 要求每份正文契约给出推出规则 |
 > | [S-5](#s-5-入站信封) 的「非空才给」、[S-6](#s-6-externalid-是同一件事的说法) 的相等范围、[S-9](#s-9-信封落成一条用户消息) 的四条 | **规格层推导**，依据写在各条正文里 |
 > | [S-8](#s-8-信封不带归属) | **SYS-TENANT** 加 `data.identity-values/v1#S-16`、`#S-17` |
 > | [S-16](#s-16-规范表示)～[S-19](#s-19-表示层拒绝不是判定也不修补) | **SYS-SPEC** |
@@ -61,7 +63,7 @@
 由正文推出哪几项属性声明——以及一个值不合这些形状时，**拒绝值叫什么**。
 
 它是一份**数据契约**：没有操作、没有提交点、没有状态转移，**因此不需要插件**。
-它把 `data.asset-model` v1 里 connector 那一支的不透明正文（那边的 [G-7](../../asset-model/v1/contract.md#八已知缺口)）填实，
+它是 `data.asset-model` v1 里 connector 那一支正文的家（那边 `$ref` 本契约的 `ConnectorDefinition`），
 并给受理一侧一个**外部内容在交接那一刻长什么样**的共同定义。
 
 **它不拥有**：
@@ -81,9 +83,9 @@
 
 | 消费者 | 消费什么 |
 |---|---|
-| `data.asset-model` v1 | connector 那一支的 `body` 就是 [`ConnectorDefinition`](#s-1-连接件正文)（**一项对齐**，见[验证入口](../verification.md#对齐义务)） |
-| `capability.asset-evaluation`（同程） | [S-11](#s-11-推出规则)～[S-13](#s-13-两项权限) 推出的声明——**本版判不出来**，停在缺口 |
-| `capability.asset-governance`（同程） | [S-2](#s-2-鉴权绑定不在正文里)、[S-12](#s-12-鉴权绑定那一项)：鉴权绑定只作为持有上的配值写入 |
+| `data.asset-model` v1 | connector 那一支的 `body` 就是 [`ConnectorDefinition`](#s-1-连接件正文)（那边的壳 `$ref` 它——结构上的前提，不是依赖）；[S-18](#s-18-表示层拒绝值) 的拒绝值原名携带进它的 S-27 |
+| `capability.asset-evaluation`（同程） | [S-11](#s-11-推出规则)～[S-13](#s-13-两项权限) 推出的声明——两项权限的取值域与默认**本版判不出来**，停在缺口 |
+| `capability.asset-governance`（同程） | [S-2](#s-2-鉴权绑定与投递目标不在正文里)、[S-12](#s-12-鉴权绑定那一项)：鉴权绑定与投递目标只作为持有上的配值写入 |
 | 受理（PF-014，契约未立） | [S-5](#s-5-入站信封)～[S-10](#s-10-信封里的文本不是命令)、[S-14](#s-14-没有读取面也没有管理面)、[S-15](#s-15-送进来的就要被处理) |
 | 连接件接入端（未立） | [S-3](#s-3-来源标识)～[S-8](#s-8-信封不带归属)：它产出信封 |
 | 设置页（PF-002 §6.1，无契约） | [S-11](#s-11-推出规则)：一份连接件有哪几项可配 |
@@ -107,10 +109,12 @@
 | 信封落成的那一条 | [消息 · Message](../../../../ubiquitous_language/terms/record-and-context.md#ul-message--消息--message) 的 `UserMessage` |
 | `DeliveryTarget.session` 指的那一个 | [会话 · Session](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-session--会话--session) |
 | `credential` 那一项的值指向的那一份 | 凭据本体（MCP 那一类的词条是 [MCP 凭据](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-mcp-credential--mcp-凭据--mcp-credential)；连接件这一份**无词条**） |
+| `install` 项 | PF-002 §4 Connector 的权限「**能不能安装**」（**无词条**） |
+| `processingIdentity` 项 | PF-002 §4 Connector 的权限「**送进来的消息按什么身份处理**」（**无词条**；正文里简称「处理身份」） |
 
 **下列是规格层的名字或无词条的概念**，本契约与 Schema 里**不给它们「中文 · English」那种词条式标题**：
 `ConnectorDefinition`（连接件正文）、`SourceIdentity`（来源标识）、`DeliveryTarget`（投递目标）、`InboundEnvelope`（**入站信封，无词条**）、
-`channel`、`externalAccount`、`externalId`、`receivedAt`。「来源标识」「投递目标」「鉴权绑定」是 PF-002 给连接件列的三项设置的名字，**不是词条**。
+`channel`、`externalAccount`、`externalId`、`receivedAt`。「来源标识」「鉴权绑定」是 PF-002 给连接件列的设置的名字，**不是词条**；「投递目标」已由词条批立为词条（正式名即此，链接待合流后补）。
 
 ### 与相近概念的差异
 
@@ -126,27 +130,30 @@
 
 | 元素 | 精确含义 | 条款 |
 |---|---|---|
-| `ConnectorDefinition` | 一份连接件的正文 | [S-1](#s-1-连接件正文)、[S-2](#s-2-鉴权绑定不在正文里) |
+| `ConnectorDefinition` | 一份连接件的正文 | [S-1](#s-1-连接件正文)、[S-2](#s-2-鉴权绑定与投递目标不在正文里) |
 | `SourceIdentity` | 从外面哪一处、以哪个账号收消息 | [S-3](#s-3-来源标识) |
 | `DeliveryTarget` | 送进哪一个会话 | [S-4](#s-4-投递目标) |
 | `InboundEnvelope` | 交给受理的那一份 | [S-5](#s-5-入站信封)～[S-10](#s-10-信封里的文本不是命令) |
 
 ### S-1 连接件正文
 
-**`ConnectorDefinition` 是一份连接件资产的正文：`{ source, target }`，两个成员都必填，成员集合闭合。**
+**`ConnectorDefinition` 是一份连接件资产的正文：`{ source? }`——只有一个可选成员，成员集合闭合。**
 
-- 它填的是 `data.asset-model/v1` 的 [S-10](../../asset-model/v1/contract.md#s-10-八类正文的外壳) 那张表里 `connector` 那一行的 `body`；
+- 它就是 `data.asset-model/v1` 的 [S-10](../../asset-model/v1/contract.md#s-10-八类正文的外壳) 那张表里 `connector` 那一行 `body` 的值（那边 `$ref` 本条）；
   外壳的判别（`category`）、这份资产的身份（`capability`）、所有者与版本线**仍归那份契约**。
-- **`source` 与 `target` 是作者给的默认值**：它们是由正文推出的 `source`、`target` 两项设置的 `default`（[S-11](#s-11-推出规则)）——
-  设置层序最外一格的值，不论这份资产是不是 official（`data.asset-model/v1#S-12`）。持有它的组织格、租户格可以**各配各的值**；
-  两项都是[落点与身份类](../../../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)，**工作区格配不了**（`data.asset-model/v1#S-20`），
-  工作区自己带来的连接件，这两项就是它正文里的这一份。
+- **`source` 是作者给的默认来源标识**：它是由正文推出的 `source` 那一项设置的 `default`（[S-11](#s-11-推出规则)）——
+  设置层序最外一格的值，不论这份资产是不是 official（`data.asset-model/v1#S-12`）。**作者不给，那一项就不带默认**：
+  各格都没配时求值得到缺席——**说不出从哪收，不放行**（「未配」只有缺席一种写法；主线裁定 2026-09-23，待产品负责人确认，账本 S21-b）。
+  持有它的组织格、租户格可以**各配各的值**。
+- **投递目标与鉴权绑定都不在正文里**（[S-2](#s-2-鉴权绑定与投递目标不在正文里)）：两者都是持有上的配值，**没有作者默认**（[S-11](#s-11-推出规则)）。
+- 三项设置都是[落点与身份类](../../../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)，**工作区格配不了**（`data.asset-model/v1#S-20`）。
+  由此，**工作区自己带来的连接件**，来源标识只能是它正文里的那一份（或缺席），投递目标与鉴权绑定**恒缺席——它送不进任何会话**（规格层推导；与工作区带来的 MCP 接入点恒无凭据同理）。
 - **正文里没有名字字段**：身份只在 `AssetDefinition.capability`。
-- **正文里没有鉴权绑定**（[S-2](#s-2-鉴权绑定不在正文里)），**也没有权限项的值**——权限的值在各格的配值上。
+- **正文里没有权限项的值**——权限的值在各格的配值上。
 
-### S-2 鉴权绑定不在正文里
+### S-2 鉴权绑定与投递目标不在正文里
 
-**正文不带任何凭据引用。`ConnectorDefinition` 上出现 `credential`（或任何别的成员）即 `malformed`。**
+**正文不带任何凭据引用，也不带投递目标。`ConnectorDefinition` 上出现 `credential`、`target`（或任何别的成员）即 `malformed`。**
 [鉴权绑定](../../../../product/PF-002-assets-settings-and-permissions/design.md#connector)只作为**持有上的一项配值**存在（[S-12](#s-12-鉴权绑定那一项)）。三条理由：
 
 1. **产品正文把它放在持有上**：「接的是对面哪个账号（鉴权绑定），是持有上的一项落点与身份类设置」；
@@ -155,7 +162,10 @@
 3. **正文跟着记录走**：一份记录的正文被**每一份持有它的格**读到，组织资产会被[分享](../../../../product/PF-003-asset-transfer-and-sharing/design.md#610-分享给的是获权不是拥有)到别的组织，
    租户资产会被[复制](../../../../product/PF-003-asset-transfer-and-sharing/design.md#64-可复制的对象)到别的组织。写在正文里的凭据引用会跟着到那些租户身份与组织手里——那正是「不跨租户身份共用」要挡的。
 
-**这一条偏离了起草账本**（账本的正文带可选的 `credential`），**待主线确认**：[G-1](#十已知缺口)。
+**投递目标不在正文里，是同一组理由的另一面**：它是持有上的一项落点与身份类设置；正文里写一个会话指认，official 与组织所有的连接件写不出一个对每份持有都有意义的值，
+一份被复制或分享出去的正文还会把一个会话指认带到别的组织（上面第 3 条）。它只作为**持有上 `target` 那一项的配值**存在（[S-4](#s-4-投递目标)）。
+
+**两者都采纳为主线裁定**（2026-09-23，待产品负责人确认；账本 S21-a、S21-b——起草账本原给正文带可选的 `credential` 与必填的 `target`，已作废）；原 G-1、G-2 闭合。
 
 ### S-3 来源标识
 
@@ -181,14 +191,15 @@
 
 **`DeliveryTarget` 按 `kind` 判别，本版恰一支：`{ kind: "session", session }`——送进来的消息投进哪一个会话。**
 
-- `session` 是 `data.messages/v1` 在 [S-24](../../messages/v1/contract.md#s-24-别的会话捎话与到点了) 定义的 `SessionRef`：一个会话的不透明指认。它的家在会话那一侧，见 [G-8](#十已知缺口)。
+- `session` 是 `data.messages/v1` 在 [S-24](../../messages/v1/contract.md#s-24-别的会话捎话与到点了) 定义的 `SessionRef`：一个会话的不透明指认。**全树指认一个会话只用这一个名字，家在 `data.messages`**（主线裁定 2026-09-23，待产品负责人确认；账本 S21-d；原 G-8）。
 - **`kind` 集合闭合**：出现了但不是 `session`（含大小写不同、不是字符串）是 **`target_unknown`**；缺席是 `malformed`。
 - **`target_unknown` 只是「表示层判别不出是哪一种目标」**。
   指的会话**不存在、已归档、或以处理身份进不去**，都**不是**表示层的事：[送不进任何会话的东西，在受理这一步就被具名拒绝](../../../../product/PF-014-inbound-intake-and-queueing/design.md#入站到达)——
   那个拒绝值归受理，**本契约不给它们取名，也不把它们算成 `target_unknown`**。
 - **它只是指认，不是资格。**能不能往那个会话里送，受理按[「他能不能访问这个会话」](../../../../product/PF-014-inbound-intake-and-queueing/flows.md#四角色与操作)判——这里的「他」是[处理身份](#s-13-两项权限)，
   会话持有[创建那一刻的租户身份](../../../../product/PF-015-session-lifecycle-and-ownership/design.md#612-会话持有创建那一刻的租户身份)，**跨租户默认拒绝**。
-- **投递目标是持有上的一项设置，外部送来的内容选不了它**：信封里没有目标（[S-8](#s-8-信封不带归属)）。
+- **投递目标是持有上 `target` 那一项的配值**，本定义是它的取值域（[S-11](#s-11-推出规则)）；**没有作者默认**，各格都没配时求值得到缺席——**判不出往哪送，不放行**（送不进任何会话的，在受理这一步具名拒绝；那个值归受理）。
+- **外部送来的内容选不了它**：信封里没有目标（[S-8](#s-8-信封不带归属)）。
 - **本版只有「指定一个会话」这一支**：每条外部消息各开一个会话、按外部的会话或线程分会话——产品正文都没说，见 [G-3](#十已知缺口)。**不为它们预留分支**。
 
 ### S-5 入站信封
@@ -247,8 +258,9 @@
 **一份被受理、进了队列的信封，落成恰好一条 `UserMessage`**（`data.messages/v1#S-8`；[PF-014 §5.7](../../../../product/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空)）。
 **落成它的是受理那一方**；本条是那一方必须守的四条：
 
-1. **文本原样成为一块文本块，不带来路标记**：来路标记的两个取值都出自人敲的斜杠命令（`data.content-blocks/v1#S-8`），外部送来的文本不是。
-2. **每一个附件引用原样出现在这条消息里**：引用不变、次序不变、不丢一个。**落成哪一类块**（文件块，还是按媒体类型落成图块、语音块的引用形状）归受理那一方——[G-6](#十已知缺口)。
+1. **文本原样成为一块文本块，不带来源标记**：来源标记的两个取值都出自人敲的斜杠命令（`data.content-blocks/v1#S-8`），外部送来的文本不是。
+2. **每一个附件引用原样出现在这条消息里**：引用不变、次序不变、不丢一个。**落成哪一类块按 `data.content-blocks/v1` 的 [S-34](../../content-blocks/v1/contract.md#s-34-只给了引用的附件落成哪一类块) 定死**：
+   媒体类型的 type 是 `image` 落成图块、`audio` 落成语音块（都取引用形状），其余落成文件块——没有选择（主线裁定 2026-09-23，待产品负责人确认；账本 S21-e；原 G-6）。
 3. **`externalId`、`receivedAt`、`source` 不进消息**：消息的成员集合是闭合的（`data.messages/v1#S-2`）。它们是这条入站到达的[来源](../../../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival)，那条记录的形状未立（[G-5](#十已知缺口)）。
 4. **一份信封一条消息**：不拆成两条，也不与别的信封并成一条（规格层推导：[S-6](#s-6-externalid-是同一件事的说法) 的「同一件事」要能对到恰好一条）。
 
@@ -272,17 +284,19 @@
 
 | `item` | `kind` | `category` | `domain` | `default` | 依据 |
 |---|---|---|---|---|---|
-| `source` | `setting` | `placement_identity` | `{ "kind": "open", "schema": { "$ref": "<本 Schema 的 $id>#/$defs/SourceIdentity" } }` | 正文的 `source` | PF-002：来源标识 |
-| `target` | `setting` | `placement_identity` | `{ "kind": "open", "schema": { "$ref": "<本 Schema 的 $id>#/$defs/DeliveryTarget" } }` | 正文的 `target` | PF-002：投递目标 |
-| `credential` | `setting` | `placement_identity` | 凭据引用或「未绑」——**「未绑」这个取值本版没有名字**（[G-2](#十已知缺口)） | 「未绑」（[G-2](#十已知缺口)） | PF-002：鉴权绑定；[S-12](#s-12-鉴权绑定那一项) |
-| 能不能安装（**名字未定**） | `permission` | — | **取值未定**（[G-4](#十已知缺口)） | 未定 | PF-002：能不能安装；[S-13](#s-13-两项权限) |
-| 送进来的消息按什么身份处理（**名字未定**） | `permission` | — | **取值未定**（[G-4](#十已知缺口)） | 未定 | PF-002：送进来的消息按什么身份处理；[S-13](#s-13-两项权限) |
+| `source` | `setting` | `placement_identity` | `{ "kind": "open", "schema": { "$ref": "<本 Schema 的 $id>#/$defs/SourceIdentity" } }` | 正文的 `source`；正文没给就**不带** | PF-002：来源标识 |
+| `target` | `setting` | `placement_identity` | `{ "kind": "open", "schema": { "$ref": "<本 Schema 的 $id>#/$defs/DeliveryTarget" } }` | **不带**——没配即缺席 | PF-002：投递目标 |
+| `credential` | `setting` | `placement_identity` | `{ "kind": "open", "schema": { "$ref": "<data.asset-model v1 Schema 的 $id>#/$defs/CredentialRef" } }` | **不带**——没绑即缺席（[S-12](#s-12-鉴权绑定那一项)） | PF-002：鉴权绑定 |
+| `install` | `permission` | — | **取值未定**（[G-4](#十已知缺口)） | 未定 | PF-002：能不能安装；[S-13](#s-13-两项权限) |
+| `processingIdentity` | `permission` | — | **取值未定**（[G-4](#十已知缺口)） | 未定 | PF-002：送进来的消息按什么身份处理；[S-13](#s-13-两项权限) |
 
-- **前三项的项名取账本给正文的成员名**（`source`、`target`、`credential`）：正文的成员就是那一项的默认值，一项一个名字。后两项账本没有名字，**不自造**。
-- 它满足那四条义务里定得下来的部分：**是正文的确定函数**（前两项的 `default` 取自正文，其余与正文无关）；**`item` 互不相同**；
-  **不产出 `disabled`，也不产出治理类的项**——[「启用与否」就是 `disabled` 那一项](../../asset-model/v1/contract.md#s-15-disabled-是保留项名)，由 `data.asset-model` 保留、每一份资产都有，本规则不声明它。
-- **后三项在缺口上，所以本版整组声明判不出来。**消费者**停在缺口**：**不得把前两项当成连接件的全部属性项**，也不得替后三项补一个取值域或默认值——
-  「推不出」是「判不出来」，**不是「没有这几项」**（与 `data.asset-model/v1#S-12` 对五类不透明壳的规矩相同）。
+- **项名**：前三项取 PF-002 三项设置的规格层名字（`source`、`target`、`credential`）；后两项按 PF-002 原话定为 `install`、`processingIdentity`（主线裁定 2026-09-23，待产品负责人确认；账本 S21-c）。
+- **三项设置都不带默认，除非作者在正文里给了来源标识**：`data.asset-model/v1#S-12` 允许落点与身份类的设置项不带 `default`；「没配」就是各格都没有配值、求值得到缺席——**不是一个值，取值域里没有「未配」「未绑」这样的取值**（主线裁定 S21-b，与 `data.mcp-endpoint` v1 的凭据同一种写法）。
+- 它满足那四条义务里定得下来的部分：**是正文的确定函数**（只有 `source` 的 `default` 取自正文，其余与正文无关）；**`item` 互不相同**；
+  **不产出 `disabled`、`usableBy`，也不产出治理类的项**——[「启用与否」就是 `disabled` 那一项](../../asset-model/v1/contract.md#s-15-disabled-是保留项名)，由 `data.asset-model` 保留、每一份资产都有；
+  `usableBy` 只属技能、MCP 接入点、斜杠命令三类（`data.asset-model/v1#S-36` 第 2 条），连接件的「谁能装、按谁的身份处理」是下面两项。
+- **两项权限在缺口上，所以本版整组声明判不出来。**消费者**停在缺口**：**不得把前三项当成连接件的全部属性项**，也不得替两项权限补一个取值域或默认值——
+  「推不出」是「判不出来」，**不是「没有这几项」**（与 `data.asset-model/v1#S-12` 对不透明壳的规矩相同）。
 - **三项设置都是落点与身份类**：[PF-002 设置项分四类](../../../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)那张表把「Connector 的来源标识、投递目标与鉴权绑定」点名列在这一类。
   **工作区格一项都配不了**（`data.asset-model/v1#S-20`）——一个仓库改不了连接件从哪收、往哪送、以谁的名义接。
 
@@ -292,15 +306,15 @@
 
 - **一份持有一份值，不跨租户身份共用**：同一个人在两个租户下各配各的，[接的可以是对面两个不同的账号](../../../../product/PF-002-assets-settings-and-permissions/design.md#connector)。
 - **同一个租户身份要接同一个服务的两个账号，就是两份 name 不同的连接件**：同一身份在同一格对同一个能力标识只有一份持有、一份配值（`data.asset-model/v1#S-18`）。
-- **它不在正文里**（[S-2](#s-2-鉴权绑定不在正文里)），**不从工作区来**（[S-11](#s-11-推出规则)），**不作为呈现内容**（`data.asset-model/v1#S-23` 第 5 条）。
-- **「还没配」怎样作为一个显式取值进这一项的取值域、并作为它的 `default`**——`data.asset-model/v1#S-23` 第 2 条把这件事交给本契约；
-  账本没有给这个取值一个名字，**本版不自造**：[G-2](#十已知缺口)。它**不是**一个真凭据，**也不是**缺席。
+- **它不在正文里**（[S-2](#s-2-鉴权绑定与投递目标不在正文里)），**不从工作区来**（[S-11](#s-11-推出规则)），**不作为呈现内容**（`data.asset-model/v1#S-23` 第 5 条）。
+- **「还没绑」是缺席**（`data.asset-model/v1#S-23` 第 2 条；主线裁定 S21-b）：这一项不带默认，各格都没为它配值时求值得到缺席——**连不上对面，不放行**。
+  **撤掉就是删掉那一格的那条配值**，不是写回一个表示「没有」的值；取值域里**没有**这样的值，一个不是 `CredentialRef` 的配值按 `data.asset-model` 的取值域校验被拒。
 - **组织格能不能配这一项**，产品正文只对 MCP 凭据问过（[PF-002 §九](../../../../product/PF-002-assets-settings-and-permissions/design.md#九未决项)），连接件没问：[G-4](#十已知缺口)。**两种答案下本条的形状都不变。**
 
 ### S-13 两项权限
 
 **连接件自带两项权限：「能不能安装」与「送进来的消息按什么身份处理」**（[PF-002 §4 Connector](../../../../product/PF-002-assets-settings-and-permissions/design.md#connector)）。
-按 `data.asset-model/v1#S-12`，它们是 `permission` 类的项、不带类别、取值域是一个枚举。**项名、取值与默认值，产品正文与账本都没给**：[G-4](#十已知缺口)。
+按 `data.asset-model/v1#S-12`，它们是 `permission` 类的项、不带类别、取值域是一个枚举。**项名是 `install`、`processingIdentity`**（[S-11](#s-11-推出规则)；主线裁定 2026-09-23，待产品负责人确认）；**取值与默认值产品正文没给**：[G-4](#十已知缺口)。
 
 - **「送进来的消息按什么身份处理」是租户隔离在入口处的那一道**：外部消息进了系统就要被某个身份承接，
   [不定这一项，租户隔离会在入口处破掉](../../../../product/PF-002-assets-settings-and-permissions/decisions.md#设置项为什么分这四类)（PF-002 decisions「PM 推导」表的 rev 2 一行）。
@@ -385,7 +399,7 @@
 | `target_unknown` | 某个投递目标的 `kind` 出现了，但不是 `session`（大小写不同、不是字符串也算不是） | [S-4](#s-4-投递目标)、[S-17](#s-17-判别式闭合) |
 | `channel_empty` | 某个来源标识的 `channel` 恰是空串 `""` | [S-3](#s-3-来源标识) |
 | `envelope_empty` | 一份信封里 `text` 与 `attachments` **两个成员都缺席** | [S-5](#s-5-入站信封) |
-| `malformed` | 其余一切不合形状：缺必填成员（含 `kind` 缺席）、多出成员（含正文上的 `credential`、信封上的任何归属或标志）、类型不对、`text` 为空串、`attachments` 为空数组、任一外部标识首尾有空白或为空（`channel` 为空串除外）、嵌着的 `SessionRef`／`AttachmentRef`／`Instant` 不合它们各自的契约。**判据只有一条**：不合 Schema；上面只是举例 | 各条 |
+| `malformed` | 其余一切不合形状：缺必填成员（含 `kind` 缺席）、多出成员（含正文上的 `credential`、`target`、信封上的任何归属或标志）、类型不对、`text` 为空串、`attachments` 为空数组、任一外部标识首尾有空白或为空（`channel` 为空串除外）、嵌着的 `SessionRef`／`AttachmentRef`／`Instant` 不合它们各自的契约。**判据只有一条**：不合 Schema；上面只是举例 | 各条 |
 
 **一份输入里有多处违例时，拒绝值取其中优先级最高的那个**，次序固定：
 
@@ -398,7 +412,7 @@ target_unknown  >  channel_empty  >  envelope_empty  >  malformed
 
 - **嵌着的值用哪个名字**：一份信封里嵌着的 `AttachmentRef` 不合 `data.content-blocks` v1 的形状，在本契约里是 `malformed`——
   那份契约的 [S-26](../../content-blocks/v1/contract.md#s-26-表示层拒绝值) 对 `AttachmentRef` 本身只有 `malformed` 一种拒绝，本契约不改名、不细分。`SessionRef`、`Instant` 同理。
-- **本契约的值嵌在别人的值里时**（一份 `AssetDefinition` 的 connector 正文），拒绝值怎样落进那份契约的闭合集合，**归那份契约**（`data.asset-model/v1#S-27`；[对齐义务](../verification.md#对齐义务)）。
+- **本契约的值嵌在别人的值里时**（一份 `AssetDefinition` 的 connector 正文、一条 `target` 配值），拒绝值怎样落进那份契约的闭合集合，**归那份契约**：`data.asset-model` v1 的 [S-27](../../asset-model/v1/contract.md#s-27-表示层拒绝值) 原名携带本条的值——`channel_empty` 从正文来，`target_unknown` 从 `target` 配值来，`envelope_empty` 不会出现在那边的值里。
 - 拒绝值怎样落进各个操作自己的失败集合（交接、受理、写面），归那些契约；**它们引用本条的名字，不另起一套同义值**。
 
 ### S-19 表示层拒绝不是判定，也不修补
@@ -413,7 +427,7 @@ target_unknown  >  channel_empty  >  envelope_empty  >  malformed
 
 | 条款 | Schema 管得到吗 | 管不到的那部分归谁 |
 |---|---|---|
-| [S-1](#s-1-连接件正文)、[S-2](#s-2-鉴权绑定不在正文里) | **管得到**：两个成员必填、成员闭合（`credential` 带了即拒） | 两项是默认值、正文跟着记录走——那是含义，归 `data.asset-model` 与求值 |
+| [S-1](#s-1-连接件正文)、[S-2](#s-2-鉴权绑定与投递目标不在正文里) | **管得到**：唯一成员可选、成员闭合（`credential`、`target` 带了即拒） | `source` 是默认值、正文跟着记录走——那是含义，归 `data.asset-model` 与求值 |
 | [S-3](#s-3-来源标识) | **管得到**：两个分量必填、非空、首尾无空白 | 拒绝值是 `channel_empty` 还是 `malformed` 由 [S-18](#s-18-表示层拒绝值) 定；「不得反查归属」「`externalAccount` 与凭据一致」管不到 |
 | [S-4](#s-4-投递目标)、[S-17](#s-17-判别式闭合) | **管得到**：一支、闭合 | 会话存在、进得去——受理 |
 | [S-5](#s-5-入站信封) | **管得到**：必填、至少一样内容、非空、成员闭合 | 附件可读——存储 owner |
@@ -432,7 +446,7 @@ target_unknown  >  channel_empty  >  envelope_empty  >  malformed
 
 | # | 性质 | 类 | 来源 | 谁在何处保护 | 违反时可观察到什么 |
 |---|---|---|---|---|---|
-| P-1 | 连接件正文不含凭据引用；鉴权绑定一份持有一份，不跨租户身份共用 | 安全 | [PF-002 §4 Connector](../../../../product/PF-002-assets-settings-and-permissions/design.md#connector) · `data.asset-model/v1#S-23` | Schema（[S-2](#s-2-鉴权绑定不在正文里)）＋ 写面（[S-12](#s-12-鉴权绑定那一项)，`capability.asset-governance`） | 一个租户接进来的外部账号，出现在另一个租户或另一个组织的连接件上 |
+| P-1 | 连接件正文不含凭据引用与投递目标；鉴权绑定一份持有一份，不跨租户身份共用 | 安全 | [PF-002 §4 Connector](../../../../product/PF-002-assets-settings-and-permissions/design.md#connector) · `data.asset-model/v1#S-23` | Schema（[S-2](#s-2-鉴权绑定与投递目标不在正文里)）＋ 写面（[S-12](#s-12-鉴权绑定那一项)，`capability.asset-governance`） | 一个租户接进来的外部账号，出现在另一个租户或另一个组织的连接件上 |
 | P-2 | 来源标识与投递目标都不是身份，也不是资格 | 安全 | [PF-002 身份是类别＋name](../../../../product/PF-002-assets-settings-and-permissions/design.md#身份是类别--name其余归实现) · `data.identity-values/v1#S-34` | 消费者与受理（[S-3](#s-3-来源标识)、[S-4](#s-4-投递目标)） | 两个租户接同一个外部渠道，一边的消息按另一边的持有处理；或拿着一个会话指认就送进去了 |
 | P-3 | 信封不带归属；归属由交接显式携带、没有默认值 | 安全 | SYS-TENANT · `data.identity-values/v1#S-16`、`#S-17` | Schema（信封上没有）＋ 交接（[S-8](#s-8-信封不带归属)，[G-5](#十已知缺口)） | 外部内容写了一个租户字段，消息落进了那个租户的会话 |
 | P-4 | 信封里的文本不被识别成命令，触发不了系统业务流程 | 安全 | [PF-002 §4 Slash Command](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command) · [PF-014 §5.10](../../../../product/PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走) | 受理（[S-10](#s-10-信封里的文本不是命令)） | 外部来源替人压缩了上下文、重载了装配 |
@@ -466,14 +480,14 @@ target_unknown  >  channel_empty  >  envelope_empty  >  malformed
 
 #### S-22 外面送来的斜杠开头的话
 
-正例：一份 `text` 为 `"/compact 把上午的讨论压一下"` 的信封被受理，落成一条 `UserMessage`，那一块文本逐字相同、**不带来路标记**。
+正例：一份 `text` 为 `"/compact 把上午的讨论压一下"` 的信封被受理，落成一条 `UserMessage`，那一块文本逐字相同、**不带来源标记**。
 反例：同一份信封触发了压缩流程、被展开成某条提示词、或落成的文本块带了 `origin`——**违反 [S-10](#s-10-信封里的文本不是命令)、[S-9](#s-9-信封落成一条用户消息)**。
 **必须观察会话日志**：只看受理返回成功，看不出它有没有顺手触发一条流程。
 
 #### S-23 正文里写了凭据
 
-正例：`{ source, target }` 两个成员的正文被接受。
-反例：同一份正文加上 `"credential": "cred_5a0e"`——**`malformed`**，**不被丢掉那个成员后收下**。
+正例：`{ source }` 与 `{}` 两份正文都被接受。
+反例：同一份正文加上 `"credential": "cred_5a0e"`，或加上一个 `target`——**`malformed`**，**不被丢掉那个成员后收下**。
 **判据是「拒绝」**：一个收下它的实现，就让这份资产的每一个持有者、每一个被分享到的组织都拿到了同一个凭据引用。
 
 ### 消费者核对场景
@@ -483,19 +497,19 @@ target_unknown  >  channel_empty  >  envelope_empty  >  malformed
 #### CS-1 求值推出一份连接件的属性项
 
 `capability.asset-evaluation` 在**组装一个装了连接件的 agent、要为它列出属性项**时，依赖 [S-11](#s-11-推出规则)～[S-13](#s-13-两项权限)，得到：
-`source`、`target` 两项的类别、取值域与默认值；`disabled` 来自 `data.asset-model` 的保留。
-**停在 [G-2](#十已知缺口) 与 [G-4](#十已知缺口)**：`credential` 的「未绑」取值与两项权限都没有表示——**本版到此为止**，整组声明判不出来。
+`source`、`target`、`credential` 三项的类别与取值域（`source` 的默认取自正文、可以不带；另两项不带默认）、两项权限的项名；`disabled` 来自 `data.asset-model` 的保留。
+**停在 [G-4](#十已知缺口)**：两项权限的取值域与默认没有表示——**本版到此为止**，整组声明判不出来。
 
 #### CS-2 受理一份信封
 
 受理在**连接件接入端交来一份信封与它的交接上下文**时，依赖 [S-5](#s-5-入站信封)～[S-10](#s-10-信封里的文本不是命令)，得到：
 一份形状合法的信封；归属不从信封读；`(source, externalId)` 给出「同一件事」的说法；文本原样是内容；进队列的落成恰好一条 `UserMessage`。
-**停三处**：交接上下文长什么样（[G-5](#十已知缺口)）、附件落成哪一类块（[G-6](#十已知缺口)）、处理身份怎么求（[G-4](#十已知缺口)）。
+附件按 `data.content-blocks/v1#S-34` 落块。**停两处**：交接上下文长什么样（[G-5](#十已知缺口)）、处理身份怎么求（[G-4](#十已知缺口)）。
 
 #### CS-3 同一个人在两个租户下各接一次
 
-`capability.asset-governance` 在**同一个人以 (O1, a) 与 (O2, a) 两个租户身份各持有同一个连接件、各配一个鉴权绑定**时，依赖 [S-2](#s-2-鉴权绑定不在正文里)、[S-12](#s-12-鉴权绑定那一项)，得到：
-两份持有、两条 `credential` 配值，互不可见；正文里没有凭据，谁也不会从正文拿到另一边的。**「未绑」那一格的写法停在 [G-2](#十已知缺口)**。
+`capability.asset-governance` 在**同一个人以 (O1, a) 与 (O2, a) 两个租户身份各持有同一个连接件、各配一个鉴权绑定**时，依赖 [S-2](#s-2-鉴权绑定与投递目标不在正文里)、[S-12](#s-12-鉴权绑定那一项)，得到：
+两份持有、两条 `credential` 配值，互不可见；正文里没有凭据，谁也不会从正文拿到另一边的。还没绑的那一边，就是那份持有上没有这条配值。
 
 #### CS-4 同一个租户身份接同一个服务的两个账号
 
@@ -504,8 +518,8 @@ target_unknown  >  channel_empty  >  envelope_empty  >  malformed
 
 #### CS-5 资产模型收下一份连接件记录
 
-`data.asset-model` 在**一份 `category` 为 `connector` 的资产记录进它的接收边界**时，依赖 [S-1](#s-1-连接件正文)、[S-2](#s-2-鉴权绑定不在正文里)，得到：
-`body` 就是一个 `ConnectorDefinition`。**本版那边的 `body` 仍是不透明壳**——把它换成 `$ref`、把本契约的三个具名拒绝值落进那边的闭合集合，是[一项对齐](../verification.md#对齐义务)。
+`data.asset-model` 在**一份 `category` 为 `connector` 的资产记录进它的接收边界**时，依赖 [S-1](#s-1-连接件正文)、[S-2](#s-2-鉴权绑定与投递目标不在正文里)，得到：
+`body` 就是一个 `ConnectorDefinition`（那边的壳 `$ref` 它）；正文里的 `channel_empty` 按那边的 S-27 原名携带。
 
 ## 九、缺席怎么收
 
@@ -513,8 +527,8 @@ target_unknown  >  channel_empty  >  envelope_empty  >  malformed
 
 | 缺席的是什么 | 意思 | 条款 |
 |---|---|---|
-| 正文的 `source` 或 `target` | **拒绝**（`malformed`），不补成任何默认来源或目标 | [S-1](#s-1-连接件正文) |
-| 正文里没有凭据引用 | **合法且唯一合法**：鉴权绑定在持有上 | [S-2](#s-2-鉴权绑定不在正文里) |
+| 正文的 `source` | **合法**：作者不给默认来源标识；`source` 那一项不带默认，各格都没配时缺席——**判不出从哪收，不放行**，不补成任何来源 | [S-1](#s-1-连接件正文)、[S-11](#s-11-推出规则) |
+| 正文里没有凭据引用、没有投递目标 | **合法且唯一合法**：两者在持有上 | [S-2](#s-2-鉴权绑定与投递目标不在正文里) |
 | 来源标识的任一分量 | **拒绝**（`malformed`） | [S-3](#s-3-来源标识) |
 | 投递目标的 `kind` | **拒绝**（`malformed`）——判别不出是哪一种目标 | [S-4](#s-4-投递目标) |
 | 信封的 `externalId` | **拒绝**（`malformed`），**不现铸一个补上**——那等于替连接件说了「这是新的一件」 | [S-6](#s-6-externalid-是同一件事的说法) |
@@ -523,8 +537,9 @@ target_unknown  >  channel_empty  >  envelope_empty  >  malformed
 | 信封只缺其中一样 | **合法**：一条只有文本、或只有附件的外部消息 | [S-5](#s-5-入站信封) |
 | 信封上的租户、持有、目标、处理身份 | **合法且必须缺席**：它们由交接携带；交接里缺了，**判不出来，不放行** | [S-8](#s-8-信封不带归属) |
 | 处理身份判不出来 | **没有默认身份**；不拿持有方、目标会话或「当前租户」顶上 | [S-13](#s-13-两项权限) |
-| 连接件的后三项属性声明 | **判不出来**，不是「没有这几项」；消费者停在缺口 | [S-11](#s-11-推出规则) |
-| 持有上 `credential` 没有配值 | 这一格没意见，沿用外面一格——而外面一格的「未绑」写法停在 [G-2](#十已知缺口) | [S-12](#s-12-鉴权绑定那一项) |
+| 连接件的两项权限声明 | **判不出来**，不是「没有这几项」；消费者停在缺口 | [S-11](#s-11-推出规则) |
+| 持有上 `credential` 没有配值 | 这一格没意见，沿用外面一格；**各格都没配就是缺席**——连不上对面，不放行 | [S-12](#s-12-鉴权绑定那一项) |
+| 持有上 `target` 没有配值 | 同上；**各格都没配就是缺席**——判不出往哪送，不放行；送不进任何会话的具名拒绝归受理 | [S-4](#s-4-投递目标) |
 
 **本契约不定义任何恢复动作，也不承诺任何外部效果可逆**：一条外部消息被受理之后落进了日志，就不会因为连接件被移除或禁用而被撤回。
 
@@ -534,15 +549,15 @@ target_unknown  >  channel_empty  >  envelope_empty  >  malformed
 
 | # | 缺口 | 阻断谁 | 谁来裁 |
 |---|---|---|---|
-| **G-1** | **账本与产品正文在鉴权绑定的位置上对不上**：账本给的正文带可选的 `credential: CredentialRef`；本版按 PF-002「鉴权绑定是持有上的一项设置」与 `data.asset-model/v1#S-23` 第 4 条**不收**（[S-2](#s-2-鉴权绑定不在正文里)） | 正文的形状；若主线维持账本，本版须回答「正文里的引用依附在哪份持有上」与「复制、分享时它跟不跟着走」 | **主线**（确认或改判） |
-| **G-2** | **没有自然出厂值的两项设置，「未配」没有写法**：`credential` 的「未绑」取值没有名字（`data.asset-model/v1#S-23` 第 2 条把它交给本契约，账本没给名字）；`target` 只有「指定一个会话」一支，**正文必须写一个会话**——official 与组织所有的连接件写不出有意义的默认值，而一份被复制或分享出去的正文会把一个会话指认带到别的组织 | [S-11](#s-11-推出规则) 的 `credential` 一行（整组声明因此判不出来）；official 连接件的正文；复制与分享 | **主线**（「未配」取值的名字与形状；正文里的 `target` 是否改为可以写「未配」） |
-| **G-3** | **投递目标只有一支**：每条外部消息各开一个会话、按外部的会话或线程分会话、新建会话用哪个 Agent Definition 与哪个租户身份——产品正文都没说 | 想让外部消息开新会话的连接件；DSH 式「一事一会话」的接入 | **PF-002 的 owner**（会同 PF-014、PF-015 的 owner） |
-| **G-4** | **PF-002 没定的三件**：「能不能安装」「送进来的消息按什么身份处理」两项权限的项名、取值与默认值；**组织格能不能配鉴权绑定**（PF-002 §九只问了 MCP 凭据） | [S-11](#s-11-推出规则)、[S-13](#s-13-两项权限)；受理求处理身份（CS-2）；组织格上鉴权绑定的写面 | **PF-002 的 owner**（取值与语义）；项名随后由**主线**定 |
-| **G-5** | **连接件接入端与它的那一次交接没有契约**：交接携带哪些归属（持有、租户身份、目标、处理身份）、接入端怎样被认证、入站到达的来源信息记什么；`externalAccount` 与鉴权绑定实际认的账号由谁核、核不上怎么收 | [S-8](#s-8-信封不带归属) 的落点；[S-14](#s-14-没有读取面也没有管理面)「接入端只有一个动作」的落点；P-3、P-5 的保护者 | **主线**（接入端本程不投影；受理那一侧的契约起草时一并定） |
-| **G-6** | **附件落成哪一类块**：文件块，还是按媒体类型落成图块、语音块的引用形状；两种都合 `data.content-blocks` v1，**两个受理实现可能各选一种** | [S-9](#s-9-信封落成一条用户消息) 第 2 条的确定性 | **主线**（受理那一侧的契约） |
+| **G-1** | **已闭合（2026-09-24 整批对齐）**：鉴权绑定不进正文，采纳为主线裁定（账本 S21-a，待产品负责人确认） | — | — |
+| **G-2** | **已闭合（2026-09-24 整批对齐）**：投递目标也不进正文；`target` 与 `credential` 都是持有配值、无作者默认，「未配」即缺席（账本 S21-b，待产品负责人确认）；`data.asset-model` 的 S-12 允许落点与身份类设置项不带 `default` | — | — |
+| **G-3** | **投递目标只有一支**：每条外部消息各开一个会话、按外部的会话或线程分会话、新建会话用哪个 Agent Definition 与哪个租户身份——产品正文都没说（主线已列入产品修订批，R-N2） | 想让外部消息开新会话的连接件；DSH 式「一事一会话」的接入 | **PF-002 的 owner**（会同 PF-014、PF-015 的 owner） |
+| **G-4** | **PF-002 没定的三件**：`install`（能不能安装）、`processingIdentity`（送进来的消息按什么身份处理）两项权限的**取值域与默认值**（项名已由主线裁定，S21-c）；**组织格能不能配鉴权绑定**（PF-002 §九只问了 MCP 凭据；主线并入同一道产品未决题） | [S-11](#s-11-推出规则)、[S-13](#s-13-两项权限)；受理求处理身份（CS-2）；组织格上鉴权绑定的写面 | **PF-002 的 owner** |
+| **G-5** | **连接件接入端与它的那一次交接没有契约**：交接携带哪些归属（持有、租户身份、目标、处理身份）、接入端怎样被认证、入站到达的来源信息记什么；`externalAccount` 与鉴权绑定实际认的账号由谁核、核不上怎么收 | [S-8](#s-8-信封不带归属) 的落点；[S-14](#s-14-没有读取面也没有管理面)「接入端只有一个动作」的落点；P-3、P-5 的保护者 | **PF-014 入站那一程**（主线裁定 S21-f：本程不立，归受理那一侧的契约） |
+| **G-6** | **已闭合（2026-09-24 整批对齐）**：附件按 `data.content-blocks/v1#S-34` 由媒体类型定死落块（账本 S21-e，待产品负责人确认） | — | — |
 | **G-7** | **外部消息被编辑之后算不算同一件事**：同一个 `(source, externalId)`、内容不同的两份信封，去重该吞掉后一份，还是当作一件新的事 | 受理的去重；接编辑频繁的来源（聊天工具） | **PF-014 的 owner** |
-| **G-8** | **`SessionRef` 的家**：`data.messages` v1 的 [G-7](../../messages/v1/contract.md#九已知缺口) 说它的家在还没开题的能力里；账本写的是 `SessionId`，全树没有这个定义，本版 `$ref` 了唯一现有的 `SessionRef` | `DeliveryTarget.session` 的精确类型 | **主线**（对齐波：会话标识的正式名与家） |
-| **G-9** | **本契约依据的账本尚未落进设计链**：来源标识的两个分量、投递目标那一支、信封的五个成员、四个拒绝值 | 本契约接受时这几条的可追溯性；[设计依据](#设计依据)无处可链 | **主线** |
+| **G-8** | **已闭合（2026-09-24 整批对齐）**：`SessionRef` 的家定在 `data.messages`，全树不再出现 `SessionId`（账本 S21-d，待产品负责人确认） | — | — |
+| **G-9** | **本契约依据的账本与主线裁定尚未落进设计链**：来源标识的两个分量、投递目标那一支、信封的五个成员、四个拒绝值（起草账本）；S21-a～S21-e 的裁定 | 本契约接受时这几条的可追溯性；[设计依据](#设计依据)无处可链 | **主线** |
 
 ## 十一、明确不承诺
 
@@ -566,5 +581,5 @@ target_unknown  >  channel_empty  >  envelope_empty  >  malformed
 **不建 `formal/`**：理由在[性质一节](#性质)末尾。**这不是把义务省掉**：本契约触发的义务是 Schema 正反实例校验、接收边界的拒绝值、规范场景与静态检查，逐条登记在[验证入口](../verification.md)。
 
 **发布后**：本目录下的规范正文、Schema 与实例不可原地覆盖；修改发布新版本。
-[已知缺口](#十已知缺口)里 G-1～G-4、G-6、G-8 任一项在**冻结之后**被裁决，凡改变本契约语义或表示的，都出 **v2**；
+[已知缺口](#十已知缺口)里 G-3、G-4、G-7 任一项在**冻结之后**被裁决，凡改变本契约语义或表示的，都出 **v2**；
 **冻结之前**在本候选里原地改，每次改在[验证入口「变化的影响」](../verification.md#变化的影响)记一笔。G-9 只改依据链接，不改语义。**推荐版本不自动升级消费者。**

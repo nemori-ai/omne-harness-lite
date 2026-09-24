@@ -13,10 +13,9 @@
 
   | 坐标 | 消费的条款 | 取它的什么 | 本契约怎么用 |
   |---|---|---|---|
-  | `omne-harness-lite-design-2026-09-15 · data.asset-model · v1`（候选） | [S-2](../../asset-model/v1/contract.md#s-2-能力标识名的词法)、[S-9](../../asset-model/v1/contract.md#s-9-版本线)、[S-10](../../asset-model/v1/contract.md#s-10-八类正文的外壳)、[S-12](../../asset-model/v1/contract.md#s-12-属性声明由正文推出)、[S-13](../../asset-model/v1/contract.md#s-13-设置项类别)、[S-15](../../asset-model/v1/contract.md#s-15-disabled-是保留项名) | 能力标识名词法的家、已发布版本不变、skill 类正文的外壳与「正文里的名字字段必须等于能力标识」、属性声明的形状与推出规则的四条义务、设置项类别、保留项名 `disabled` | `$ref` 它的 `$defs/AttributeDeclaration`；技能名按主线裁定的新词法写（**S-2 的文本尚待对齐**，见 [S-2](#s-2-技能名的词法)）；本契约就是 S-10 说的「skill 包的数据契约」 |
-  | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1`（候选） | [S-7](../../content-blocks/v1/contract.md#s-7-媒体类型的规范形式)、[S-20](../../content-blocks/v1/contract.md#s-20-派生表示的产出者与能力标识) | 媒体类型的规范形式；能力标识的形状与相等规则 | `$ref` 它的 `$defs/MediaType`（资源条目）与 `$defs/CapabilityId`（组合的工具清单） |
-  | `omne-harness-lite-design-2026-09-15 · data.tool-definition · v1`（候选） | [S-9](../../tool-definition/v1/contract.md#s-9-四项依赖名)、[S-11](../../tool-definition/v1/contract.md#s-11-目标环境)、[S-18](../../tool-definition/v1/contract.md#s-18-名字的表示与相等) | 依赖名（外部服务）的形状；目标环境「绑定层 × 设施」的形状与「不声明＝没有特殊要求」；名字的相等与不解析 | `$ref` 它的 `$defs/DependencyName` 与 `$defs/TargetEnvironment` |
-  | `omne-harness-lite-design-2026-09-15 · data.identity-values · v1`（已接受、已冻结） | [S-31](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示) | 那个显式的空白码点集合 | 技能名词法的「不含空白」按它逐个列出的码点集合，不按某个正则引擎的 `\s` |
+  | `omne-harness-lite-design-2026-09-15 · data.asset-model · v1`（候选） | [S-2](../../asset-model/v1/contract.md#s-2-能力标识名的词法)、[S-3](../../asset-model/v1/contract.md#s-3-能力标识与它的规范串)、[S-9](../../asset-model/v1/contract.md#s-9-版本线)、[S-10](../../asset-model/v1/contract.md#s-10-八类正文的外壳)、[S-12](../../asset-model/v1/contract.md#s-12-属性声明由正文推出)、[S-13](../../asset-model/v1/contract.md#s-13-设置项类别)、[S-15](../../asset-model/v1/contract.md#s-15-disabled-是保留项名)、[S-36](../../asset-model/v1/contract.md#s-36-usableby-是保留项名) | 能力标识名的词法与能力标识的形状、已发布版本不变、skill 类正文的外壳与「正文里的名字字段必须等于能力标识」、属性声明的形状与推出规则的四条义务、设置项类别、保留项名 `disabled` 与 `usableBy` | `$ref` 它的 `$defs/CapabilityName`（技能名）、`$defs/CapabilityId`（组合的工具清单）与 `$defs/AttributeDeclaration`；本契约就是 S-10 里 skill 那一行 `$ref` 的正文契约 |
+  | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1`（候选） | [S-7](../../content-blocks/v1/contract.md#s-7-媒体类型的规范形式) | 媒体类型的规范形式 | `$ref` 它的 `$defs/MediaType`（资源条目） |
+  | `omne-harness-lite-design-2026-09-15 · data.tool-definition · v1`（候选） | [S-9](../../tool-definition/v1/contract.md#s-9-四项依赖名)、[S-11](../../tool-definition/v1/contract.md#s-11-目标环境)、[S-18](../../tool-definition/v1/contract.md#s-18-名字的表示与相等)、[S-26](../../tool-definition/v1/contract.md#s-26-表示层拒绝值与判定次序) | 依赖名（外部服务）的形状；目标环境「绑定层 × 设施」的形状与「不声明＝没有特殊要求」；名字的相等与不解析；绑定层不认得时的拒绝值 | `$ref` 它的 `$defs/DependencyName` 与 `$defs/TargetEnvironment`；`targetEnvironment` 的默认值不合时原名携带它的 `binding_layer_unknown`（[S-24](#s-24-表示层拒绝值与判定次序)） |
 
 - **条款编号**：`S-n`，**只在本契约本版本内有效**；外部引用须写全坐标，如 `data.skill-package/v1#S-8`。
   缺口 `G-n`、性质 `P-n`、消费者核对场景 `CS-n`、`malformed` 的来由 `M1`～`M17`（[S-24](#s-24-表示层拒绝值与判定次序)）同此范围。
@@ -48,10 +47,10 @@
 >
 > | 条款 | 依据来自哪 |
 > |---|---|
-> | [S-2](#s-2-技能名的词法) 技能名的词法 | **主线 2026-09-23 裁定**：能力标识名禁 `/`、允许 `:`（`data.asset-model` v1 的 S-2 在整批对齐时改）；起草简报定技能名 = 能力标识名的词法、不另收窄 |
-> | [S-3](#s-3-技能包的四个部分) 的 `body` 成员 | **起草者推导**：简报把「SKILL.md 的正文」列为本契约拥有，账本的 `SkillPackage` 却没有它的位置；放进清单头会与 frontmatter 的键名空间相撞。已报主线 |
+> | [S-2](#s-2-技能名的词法) 技能名的词法 | **主线裁定 2026-09-23，待产品负责人确认**（账本 S9-c、S18-e）：技能名就是能力标识名，禁 `/`、允许 `:`，不收窄到开放格式的名字规则；词法的家是 `data.asset-model` v1 的 S-2 |
+> | [S-3](#s-3-技能包的四个部分) 的 `body`、[S-12](#s-12-定义记录) 不收常驻与权限项、[S-15](#s-15-设置项声明与目标环境) 的保留项名 `targetEnvironment`、[S-21](#s-21-包的目录形式) 的保留路径 `.omne/skill.json` | **主线裁定 2026-09-23，待产品负责人确认**（账本 S18-a、S18-b）：起草时偏离账本的五处全采纳；保留路径与工作区承载清单 `.omne/workspace.json` 同在一个保留目录 |
+> | [S-10](#s-10-资源只被读取不因读取而运行) 资源只读、没有执行位成员；[S-17](#s-17-属性项投影规则) 「谁可以使用它」归 `data.asset-model` 的 `usableBy` | **主线裁定 2026-09-23，待产品负责人确认**（账本 S18-d、S18-c） |
 > | [S-11](#s-11-脚本集合) 脚本集合按 `scripts/` 判定 | **起草者推导**：开放格式的目录约定（「`scripts/` Contains executable code that agents can run」）＋ D-034 采用的候选 B 写明「规则表写『`scripts/` 下的文件即自带脚本集合』」。产品正文只要求「只能跑这份 skill 自己带的脚本」 |
-> | [S-15](#s-15-设置项声明与目标环境) 的保留项名 `targetEnvironment` | **起草者推导**：账本的定义记录没有执行环境要求的位置；PF-006 §6.4 要求带脚本的技能声明它，PF-007 §6.2 说「与工具声明设施需求是同一个形状」——本契约沿用 `data.tool-definition` 给同一件事的名字与形状 |
 > | [S-15](#s-15-设置项声明与目标环境) 「没有脚本就不得声明目标环境」 | **起草者推导**：与 `data.tool-definition` 的「有阈值无许可即拒」同理——永远用不上的声明只会误导读定义与配值的人 |
 > | [S-20](#s-20-skillmd-的文本形式与定界) 定界规则、YAML 版本、不去 BOM | **起草者推导**：开放格式没写（研究第二轮）；D-034 定「规则层自持」，这几条是为了两个实现对同一份 SKILL.md 得出同一份清单头与正文 |
 > | [S-22](#s-22-规范表示)～[S-25](#s-25-表示层拒绝不是判定也不修补) | **SYS-SPEC**：规范表示、闭合枚举、表示层拒绝值与「表示层不等于判定」是规格形式的要求；六个拒绝值的名字来自起草简报的账本，判定次序是本契约的推导 |
@@ -73,9 +72,9 @@
 
 | 不拥有 | 归谁 |
 |---|---|
-| 技能的加载、取用、可用性重算与替换件 | `capability.asset-registry`（第四波并行起草）与运行时 |
+| 技能的加载、取用、可用性重算与替换件 | [`capability.asset-registry`](../../../capabilities/asset-registry/v1/contract.md) v1（candidate）与运行时 |
 | `Skills()` 的 `search`／`read`／`exec_script` 三个命令，脚本在哪落地、谁放行 | PF-007 §6.2 的契约（尚未建立）、工具执行运行时、放行判断 |
-| 持有、配值与求值（谁持有这份技能、各层给它的设置配了什么、生效值是什么） | `capability.asset-governance`、`capability.asset-evaluation`（同程并行） |
+| 持有、配值与求值（谁持有这份技能、各层给它的设置配了什么、生效值是什么） | [`capability.asset-governance`](../../../capabilities/asset-governance/v1/contract.md) v1（candidate）、[`capability.asset-evaluation`](../../../capabilities/asset-evaluation/v1/contract.md) v1（candidate） |
 | 资产记录、版本线、复制血缘 | `data.asset-model` |
 | 常驻标记（挂在引用条目上） | Agent Definition 与 Plugin 的正文（[S-18](#s-18-常驻不在包里)） |
 | 把 Claude Code、Codex 等外部技能目录带进来的映射 | 导入器的提供者设计（尚未起草）；它产出的必须是本契约的一个合法值 |
@@ -85,17 +84,16 @@
 
 | 消费者 | 消费什么 |
 |---|---|
-| `data.asset-model`（下一版） | [S-3](#s-3-技能包的四个部分) 的 `SkillPackage`：它的 `AssetContent` 的 skill 变体由不透明壳换成对本契约的引用（[对齐义务](../verification.md#对齐义务)）；[S-6](#s-6-名字与所属能力标识一致) 的名字一致性 |
-| `capability.asset-registry`（第四波并行） | 技能那张注册表收的值（[S-3](#s-3-技能包的四个部分)）；名字与说明（[S-6](#s-6-名字与所属能力标识一致)、[S-7](#s-7-说明)）；依赖声明（[S-16](#s-16-由包得出的依赖声明)） |
+| `data.asset-model` v1（candidate） | [S-3](#s-3-技能包的四个部分) 的 `SkillPackage`：它的 `AssetContent` 的 skill 变体 `$ref` 本契约（2026-09-24 整批对齐已落，[对齐义务](../verification.md#对齐义务)）；[S-6](#s-6-名字与所属能力标识一致) 的名字一致性 |
+| [`capability.asset-registry`](../../../capabilities/asset-registry/v1/contract.md) v1（candidate） | 技能那张注册表收的值（[S-3](#s-3-技能包的四个部分)）；名字与说明（[S-6](#s-6-名字与所属能力标识一致)、[S-7](#s-7-说明)）；依赖声明（[S-16](#s-16-由包得出的依赖声明)） |
 | `Skills()`（PF-007 §6.2 的契约，尚未建立） | `read` 读的正文与资源（[S-8](#s-8-正文逐字不展开不执行)、[S-9](#s-9-资源条目与包内路径)）；`exec_script` 能跑的脚本集合（[S-11](#s-11-脚本集合)）；`search` 按的说明（[S-7](#s-7-说明)） |
-| 斜杠命令的数据契约（第四波并行） | ② 型绑定：能力标识指向一份技能；展开的就是 [S-8](#s-8-正文逐字不展开不执行) 的正文 |
-| `data.content-blocks` | 它的 [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来路标记) `skill_body` 来路标记的那段文本，就是本契约的正文（**方向是它引用本契约**） |
-| `capability.asset-evaluation`（同程并行） | 属性项投影（[S-17](#s-17-属性项投影规则)）；工作区承载清单里 `source` 指向的技能包目录怎样读（[S-21](#s-21-包的目录形式)） |
+| [`data.slash-command`](../../slash-command/v1/contract.md) v1（candidate） | ② 型绑定：能力标识指向一份技能；展开的就是 [S-8](#s-8-正文逐字不展开不执行) 的正文 |
+| `data.content-blocks` | 它的 [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来源标记) `skill_body` 来源标记的那段文本，就是本契约的正文（**方向是它引用本契约**） |
+| [`capability.asset-evaluation`](../../../capabilities/asset-evaluation/v1/contract.md) v1（candidate） | 属性项投影（[S-17](#s-17-属性项投影规则)）；工作区承载清单里 `source` 指向的技能包目录怎样读（[S-21](#s-21-包的目录形式)） |
 | `capability.asset-transfer` | 复制覆盖的「内容」就是整份包（[S-19](#s-19-包是版本内容的一个整体)） |
 | 导入器（提供者设计，尚未起草） | 键的四类（[S-5](#s-5-键的四类处置)）、文本形式与目录形式（[S-20](#s-20-skillmd-的文本形式与定界)、[S-21](#s-21-包的目录形式)） |
 
 > 上表没有一行是本契约的依赖：方向一律是消费者 → 本契约，登记在各消费者自己的 catalog 条目里。
-> 第四波并行起草的几份契约此刻不在本工作树，本包里不链接它们。
 
 ## 二、含义与使用范围
 
@@ -122,7 +120,7 @@
 `SkillPackage`（技能包——一份技能资产版本的全部内容，**无词条**）、`SkillManifest`（清单头——`SKILL.md` 的 frontmatter，**无词条**）、
 `body`（正文——PF-002 说的「可读的指引正文」，**无词条**）、说明（PF-006 的「技能的说明」，**无独立词条**，[UL-skill](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-skill--技能--skill) 的「注意」提到它）、
 `ResourceEntry`（资源条目——PF-002 说的「资源文件」，**无词条**）、脚本集合（**无词条**）、`SkillDefinitionRecord`（定义记录——D-034 的「包内定义记录」，**无词条**）、
-目标环境（`data.tool-definition` 的说法，**无词条**）、外部服务（[依赖声明词条](../../../../ubiquitous_language/terms/reach-and-availability.md#ul-dependency-declaration--依赖声明--dependency-declaration)的「别混」提到它，**无独立词条**）、
+目标环境（`data.tool-definition` 的说法）、外部服务（[依赖声明词条](../../../../ubiquitous_language/terms/reach-and-availability.md#ul-dependency-declaration--依赖声明--dependency-declaration)的「别混」提到它，**无独立词条**）、
 开放格式（Agent Skills 开放格式，一个外部规格的名字）。
 
 ### 与相近概念的差异
@@ -136,7 +134,7 @@
 - **`compatibility` ≠ 目标环境。**前者是开放格式的一段自由文本，系统不据它判任何事；执行环境要求只由目标环境表达（[S-5](#s-5-键的四类处置)、[S-15](#s-15-设置项声明与目标环境)）。
 - **`allowed-tools` ≠ 组合的工具清单。**前者是外部生态的预批准，在本系统里不生效；后者是本项目的组合与依赖（[S-5](#s-5-键的四类处置)、[S-13](#s-13-组合的工具清单)）。
 - **包里的设置项声明 ≠ 设置的配值。**声明是内容，随版本走、随复制覆盖；配值挂在持有上，复制不动（[S-19](#s-19-包是版本内容的一个整体)）。
-- **`executable: false` ≠ 「这份资源不是脚本」。**它说的是包的表示不携带执行资格；一份资源是不是脚本只看路径（[S-10](#s-10-资源只被读取不因读取而运行)、[S-11](#s-11-脚本集合)）。
+- **资源条目上没有「可执行」这一位。**包的表示不携带执行资格；一份资源是不是脚本只看路径（[S-10](#s-10-资源只被读取不因读取而运行)、[S-11](#s-11-脚本集合)）。
 
 ## 三、值、身份与结构关系
 
@@ -161,23 +159,16 @@
 带着哪些资源文件、组合了哪些工具、还要哪些东西在场、自带哪些设置项。
 
 - **它是数据**：没有进程内对象、没有代码入口、没有运行时状态；读它的一方**不回写它**。这使它可以被存储、复制、跨进程原样交换。
-- **它在资产模型里的位置**：`data.asset-model` v1 的 [S-10](../../asset-model/v1/contract.md#s-10-八类正文的外壳) 把 skill 类正文留作不透明壳，说它的家是「skill 包的数据契约」——**就是本契约**。
-  那边的壳换成对本契约 `SkillPackage` 的引用，是它下一版的事（[对齐义务](../verification.md#对齐义务)）。
+- **它在资产模型里的位置**：`data.asset-model` v1 的 [S-10](../../asset-model/v1/contract.md#s-10-八类正文的外壳) 里 skill 那一行的 `body` 就是本契约的 `SkillPackage`（2026-09-24 整批对齐起 `$ref` 本契约）。
 - **它不带归属与版本号**：哪一层的哪一份、第几版，由资产记录与版本线给出，不是包的成员。
 
 ### S-2 技能名的词法
 
-**`SkillName` 是技能的名字——它的能力标识的 name 分量。词法恰是能力标识名的词法，本版四条：**
+**`SkillName` 是技能的名字——它的能力标识的 name 分量。它就是 `data.asset-model` v1 的 [`CapabilityName`](../../asset-model/v1/contract.md#s-2-能力标识名的词法)**：
+非空、不含空白、不含斜杠、允许冒号、区分大小写，逐码点相等。**词法的家在那里，本契约不复述、不收窄**（主线裁定 2026-09-23，待产品负责人确认；账本 S9-c、S18-e）。
 
-1. **非空。**
-2. **任何位置都不含空白**——「空白」恰是 `data.identity-values/v1` 的 [S-31](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示) 逐个列出的那个码点集合。
-3. **不含 `/`（U+002F）；允许 `:`。**
-4. **区分大小写**：相等是逐码点精确相等，不做 Unicode 规范化、大小写折叠或裁剪。
-
-- **这条词法的家是 `data.asset-model` 的 [S-2](../../asset-model/v1/contract.md#s-2-能力标识名的词法)。**主线 2026-09-23 已裁定把那里的「禁 `:`」改成「禁 `/`、允许 `:`」，
-  **那份候选的文本要到整批对齐才改**。在那之前两处不一致，**以裁定为准**：本契约的 Schema 按裁定写成本地 pattern，对齐时改成 `$ref` 那边的定义（[对齐义务](../verification.md#对齐义务)）。
 - **本契约不在其上收窄。**开放格式对 `name` 另有五条（1–64 个字符、小写字母数字与连字符、不以连字符起止、不连用连字符、等于父目录名），**它们不是本系统技能名的约束**。
-  **代价**：一个本系统里合法的技能名（例如 `Review_Checklist`）写出的 `SKILL.md`，在按开放格式严格校验的外部工具上会被判不合格——已报主线。
+  **代价**：一个本系统里合法的技能名（例如 `Review_Checklist`）写出的 `SKILL.md`，在按开放格式严格校验的外部工具上会被判不合格；外部导入时由导入器先映射（账本 S18-e）。
 - 同一条词法也管[组合清单](#s-13-组合的工具清单)里工具的 name：两者都是能力标识名。
 
 ### S-3 技能包的四个部分
@@ -193,7 +184,7 @@
 
 - **`SKILL.md` 不是资源**：它的内容恰是 `manifest` 与 `body` 两个成员，不再以一个资源条目出现（[S-9](#s-9-资源条目与包内路径) 挡住名为 `SKILL.md` 的资源）。
 - **`body` 是账本之外的成员**：起草简报把「`SKILL.md` 的正文」列为本契约拥有，而账本给的 `SkillPackage` 没有它的位置；
-  放进 `manifest` 会让一个名为 `body` 的 frontmatter 键与它相撞。已报主线。
+  放进 `manifest` 会让一个名为 `body` 的 frontmatter 键与它相撞。主线裁定 2026-09-23 采纳（账本 S18-a），待产品负责人确认。
 
 ### S-4 清单头：开放格式的六个键
 
@@ -238,7 +229,7 @@
 - 知道的地方有三处：一份资产记录的草稿与每一版（能力标识是记录的 `capability`，类别恒为 `skill`）；工作区承载清单里指向这份包的那一条（`data.asset-model` v1 的 S-24）；导入器给它定下的能力标识。
 - **身份只在能力标识。**`manifest.name` 是开放格式要求写在文件里的那个名字，本契约要求它是身份的镜像——**它不是第二个身份**，不参与「是不是同一个东西」的判断，也不能拿来改名：要换名字就是另一个能力标识、另一份记录。
 - **目录名不是身份，本契约不检查它**：开放格式要求 `name` 等于父目录名；在本系统里目录只是地址（[PF-001 §6.5](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#路径是地址不是钥匙)），包作为资产时根本没有父目录。
-- `data.asset-model` v1 的 S-10 对「正文里另立的名字字段与 `capability.name` 不一致」给的拒绝值是 `malformed`；**本契约对技能给出专名 `name_mismatch`**——同一违例两个名字，登在[对齐义务](../verification.md#对齐义务)。
+- **本契约对技能给出专名 `name_mismatch`**；一份资产记录里的技能正文违反它，`data.asset-model` v1 的 [S-27](../../asset-model/v1/contract.md#s-27-表示层拒绝值) 原名携带这个值——**同一违例在两处同名**。
 - **不知道所属能力标识时**（例如只对一份包单独做形状校验），这一条无从判；`manifest.name` 不合 [S-2](#s-2-技能名的词法) 的词法是 `malformed`。
 
 ### S-7 说明
@@ -252,7 +243,7 @@
 
 **`body` 是 `SKILL.md` 闭合定界行之后的全部文本，逐字**（[S-20](#s-20-skillmd-的文本形式与定界)）。可以为空串。
 
-1. **同一份正文，两条路到 agent 眼前是同一段文字**：经 `Skills().read` 读到的，与 [② 型斜杠命令](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)展开成用户消息里那一个内容块的（`data.content-blocks` v1 [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来路标记) 的 `skill_body`），**都是这一个成员的值，逐码点相等**。
+1. **同一份正文，两条路到 agent 眼前是同一段文字**：经 `Skills().read` 读到的，与 [② 型斜杠命令](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)展开成用户消息里那一个内容块的（`data.content-blocks` v1 [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来源标记) 的 `skill_body`），**都是这一个成员的值，逐码点相等**。
    两条路进日志的形状不同（一次工具执行的返回 / 用户消息里的一块），文字相同。
 2. **不经任何展开**：正文里看起来像占位符的（`$ARGUMENTS`、`${CLAUDE_SKILL_DIR}`）或像内嵌命令的（`` !`cmd` ``）**一律是文本**。本契约不定义任何展开；
    **读正文、送正文的任何一方都不得替换其中的占位、不得执行其中的命令**。
@@ -263,7 +254,7 @@
 
 ### S-9 资源条目与包内路径
 
-**`ResourceEntry = { path, mediaType?, executable }`：包里 `SKILL.md` 与定义记录以外的每一份文件，恰一条。**
+**`ResourceEntry = { path, mediaType? }`：包里 `SKILL.md` 与定义记录以外的每一份文件，恰一条。**
 
 **`path` 是相对包根的规范路径**：
 
@@ -271,7 +262,7 @@
 2. **字面上不出包**：不以 `/` 开头，不以盘符（如 `C:`）开头，没有 `..` 这一段，不含反斜杠——**违反任一条即 `resource_escapes`**。
 3. 规范写法：没有 `.` 这一段、不以 `/` 结尾——不合即 `malformed`（`.` 段会让两个串指同一份文件，第 4 条的「互不相同」就不再有意义）。
 4. **同一个包里 `path` 互不相同**（逐码点比较）；**任何一条的 `path` 都不是另一条的目录前缀**（有了 `scripts` 就不能再有 `scripts/a.py`：一个路径不能既是文件又是目录）。违反即 `malformed`。
-5. **不是 `SKILL.md`**（它的内容在 `manifest` 与 `body`，[S-3](#s-3-技能包的四个部分)），**也不是定义记录的保留路径**（那个名字未定，[G-1](#九已知缺口)）。违反即 `malformed`。
+5. **不是 `SKILL.md`**（它的内容在 `manifest` 与 `body`，[S-3](#s-3-技能包的四个部分)），**也不是定义记录的保留路径 `.omne/skill.json`**（[S-12](#s-12-定义记录)）。违反即 `malformed`。
 
 - **`mediaType` 可选**，取 `data.content-blocks` v1 的 [`MediaType`](../../content-blocks/v1/contract.md#s-7-媒体类型的规范形式)。**缺席不作任何断言**：它不表示「未知类型的文件」，也不表示「文本」；谁要知道，自己判。
 - **路径是包内的地址，不是宿主机上的位置**：资源的字节存在哪归提供者（[PF-007 §6.2](../../../../product/PF-007-meta-capabilities/design.md#62-skills通向任意技能)「资源存在哪是实现细节」），消费者只按（这一版，`path`）指认一份资源。
@@ -279,13 +270,12 @@
 
 ### S-10 资源只被读取，不因读取而运行
 
-**`executable` 恒为 `false`。**它说的是：**包的表示不携带任何执行资格。**
+**资源只读：包的表示不携带任何执行资格。**资源条目上没有「可执行」这一位（主线裁定 2026-09-23，待产品负责人确认；账本 S18-d：原来那个恒为 `false` 的成员删掉，改成本条）。
 
 1. **读取一份资源永远不运行它**；读取整份包也不自动装载它的资源（[PF-002 §4 Skill](../../../../product/PF-002-assets-settings-and-permissions/design.md#skill)）。
-2. **一份资源能不能经 `exec_script` 运行，不由这一位决定**：先看它在不在[脚本集合](#s-11-脚本集合)里，再由运行它的那一方另行放行（执行权随 skill 走，PF-007 §6.2；放行归放行判断）。
-3. **外部来源里的执行位不进表示**：文件系统上的可执行权限位、外部生态的「可运行」标记，读成本表示时一律是 `false`；**写成 `true` 即 `malformed`**。
-   理由：若它能为真，一份被复制或导入的包就能自带「这个可以跑」的声明——那是一种随内容走的执行资格，与第 2 条相抵。
-4. **这一位的名字容易误读**（`scripts/` 下的文件也是 `false`），已报主线。
+2. **一份资源能不能经 `exec_script` 运行，不由包决定**：先看它在不在[脚本集合](#s-11-脚本集合)里，再由运行它的那一方另行放行（执行权随 skill 走，PF-007 §6.2；放行归放行判断）。
+3. **外部来源里的执行位不进表示**：文件系统上的可执行权限位、外部生态的「可运行」标记，读成本表示时一律丢掉；资源条目上写了这类成员即 `malformed`（M3）。
+   理由：若它能进表示，一份被复制或导入的包就能自带「这个可以跑」的声明——那是一种随内容走的执行资格，与第 2 条相抵。
 
 ### S-11 脚本集合
 
@@ -308,9 +298,9 @@
 4. **缺席即：不组合工具、不声明外部服务依赖、不声明设置项。**一份 `{ "format": 1 }` 与缺席同义。
 5. **四个成员之外即 `malformed`**。特别是：
    - **不收常驻标记**（[S-18](#s-18-常驻不在包里)）；
-   - **不收权限项**：本版技能只有「谁可以使用它」一项权限，它由本契约的投影规则给出（[S-17](#s-17-属性项投影规则)），不由作者声明；作者自定义的权限项本版没有判定点（[G-5](#九已知缺口)）。
-     **这两条偏离了起草简报的账本**（账本给了 `resident?` 与 `permissions?`），理由在各自条款里，已报主线。
-6. **在目录形式里它住在包内一个保留路径上，那个名字未定**（[G-1](#九已知缺口)）。
+   - **不收权限项**：本版技能只有「谁可以使用它」一项权限，它是 `data.asset-model` v1 保留的 [`usableBy`](../../asset-model/v1/contract.md#s-36-usableby-是保留项名)，不由作者声明；作者自定义的权限项本版不收（原 G-5）。
+     **这两条偏离了起草简报的账本**（账本给了 `resident?` 与 `permissions?`），主线裁定 2026-09-23 采纳（账本 S18-a），待产品负责人确认。
+6. **在目录形式里它住在包内的保留路径 `.omne/skill.json`**（[S-21](#s-21-包的目录形式)；主线裁定 2026-09-23，待产品负责人确认；账本 S18-b）。
 
 ### S-13 组合的工具清单
 
@@ -319,7 +309,7 @@
 1. **每一项指向一个能力标识，不指向某一份具体的工具资产**（[PF-002 §6.3](../../../../product/PF-002-assets-settings-and-permissions/design.md#63-组合的引用指向能力标识)）：组织换上自己的同标识实现之后，这份技能自动用上新的；技能作者不能假定零件不被替换。
 2. **类别只能是 `tool`**：[谁能组合谁](../../../../product/PF-002-assets-settings-and-permissions/design.md#谁能组合谁)那张表的 Skill 一行只有 Tool。
    指向 `skill`（[刻意不做 Skill 组合 Skill](../../../../product/PF-002-assets-settings-and-permissions/design.md#几个刻意不做的组合)）、`mcp`（Skill 不组合 MCP）或别的类别，**即 `tool_ref_invalid`**；
-   name 不合能力标识名的词法（[S-2](#s-2-技能名的词法)）同样是 `tool_ref_invalid`。
+   name 不合能力标识名的词法（[S-2](#s-2-技能名的词法)）同样是 `tool_ref_invalid`。每一项的形状是 `data.asset-model` v1 的 [`CapabilityId`](../../asset-model/v1/contract.md#s-3-能力标识与它的规范串)。
 3. **MCP 对端的动作无从指**：它们不是资产、没有能力标识；技能要那个对端在场，声明一项外部服务（[S-14](#s-14-外部服务依赖)；[PF-006 §6.13](../../../../product/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)）。
 4. **这一份清单同时是依赖**：产品正文对技能把两件事写在同一个声明上——PF-002 说 Skill「能组合 Tool——声明『我这套方法要用到这些动作』」，
    [PF-006 §4 依赖](../../../../product/PF-006-tools-and-skills/design.md#依赖)表第一行与 [§6.4](../../../../product/PF-006-tools-and-skills/design.md#64-依赖声明与解析) 第一条说技能用能力标识声明它要用的工具、缺了就不可用。
@@ -347,7 +337,7 @@
 
 1. **`kind` 恒为 `setting`**；带 `permission` 的声明不在这里（[S-12](#s-12-定义记录) 第 5 条）。
 2. **类别不是 `governance`**（`data.asset-model` v1 的 [S-13](../../asset-model/v1/contract.md#s-13-设置项类别)：正文契约的推出规则不产出治理类的项）；其余三类由作者标，**必须标**。
-3. **项名不是 `disabled`**（那一项由 `data.asset-model` v1 的 [S-15](../../asset-model/v1/contract.md#s-15-disabled-是保留项名) 保留）。
+3. **项名不是 `disabled`，也不是 `usableBy`**（两项由 `data.asset-model` v1 的 [S-15](../../asset-model/v1/contract.md#s-15-disabled-是保留项名)、[S-36](../../asset-model/v1/contract.md#s-36-usableby-是保留项名) 保留）。
 4. **同一份包里项名互不相同**（逐码点）。
 5. **`default` 合它自己的取值域**（那份 schema）。
 6. 违反第 1～5 条的任一条即 `malformed`。
@@ -391,20 +381,17 @@
 **`data.asset-model` v1 的 [S-12](../../asset-model/v1/contract.md#s-12-属性声明由正文推出) 要每一份正文契约给出一条推出规则 `声明(正文) → AttributeDeclaration[]`。技能的这一条是：**
 
 ```text
-声明(p)  ≝  p.definition.settings（缺席即空）  ∪  { W }
+声明(p)  ≝  p.definition.settings（缺席即空）
 ```
 
-- **`W` 是「谁可以使用它」这一项权限**（[PF-002 §4 Skill](../../../../product/PF-002-assets-settings-and-permissions/design.md#skill) 的权限行）。**每一份技能都有它，恰一项，由本契约给出，不由作者声明**——
-  D-034 把「谁可以用」这类属性划在包的内容之外。
-- **`W` 的项名、取值域的正式 token 与默认值本版未定（[G-2](#九已知缺口)）**。取值域已由主线裁定为「租户角色 ＋ `self`」，但这组值的 token、它的家（本契约，还是斜杠命令、MCP 接入点、连接件共用的一份定义）都没有定。
-  **在 G-2 闭合之前，这条规则对任何一份包都推不完整**：推得出的是设置项那一部分，`W` 那一项是**判不出来**——
-  **消费者不得把「判不出来」当成「没有使用限制」**，也不得替它填一个值。
+- **「谁可以使用它」不由本规则产出**：它是 `data.asset-model` v1 保留的 [`usableBy`](../../asset-model/v1/contract.md#s-36-usableby-是保留项名)，声明写死在那里，对每一份技能都有、恰一项（主线裁定 2026-09-23，待产品负责人确认；账本 S18-c）。
+  一份技能的全部属性项 = 本规则推出的 ∪ `disabled` ∪ `usableBy`（`data.asset-model` v1 的 [S-12](../../asset-model/v1/contract.md#s-12-属性声明由正文推出)）。
 - 对 `data.asset-model` v1 S-12 那四条义务的兑现：
-  1. **是包的确定函数**：只读包本身，不读谁持有它、在哪一格、什么时候、在什么环境——`W` 那一项对每一份包都相同；
-  2. **推出的项名互不相同**：设置项之间由 [S-15](#s-15-设置项声明与目标环境) 第 4 条保证；设置项与 `W` 不撞名，要等 `W` 的项名定下（G-2）；
-  3. **不产出 `disabled` 与治理类的项**：[S-15](#s-15-设置项声明与目标环境) 第 2、3 条；
+  1. **是包的确定函数**：只读包本身，不读谁持有它、在哪一格、什么时候、在什么环境；
+  2. **推出的项名互不相同**：[S-15](#s-15-设置项声明与目标环境) 第 4 条；
+  3. **不产出 `disabled`、`usableBy` 与治理类的项**：[S-15](#s-15-设置项声明与目标环境) 第 2、3 条；
   4. **每一条合 `AttributeDeclaration` 的形状**：Schema 与 [S-15](#s-15-设置项声明与目标环境) 第 5 条。
-- **权限只有 `W` 一项**：本版技能不带作者自定义的权限项（[S-12](#s-12-定义记录) 第 5 条）。
+- **本版技能不带作者自定义的权限项**（[S-12](#s-12-定义记录) 第 5 条）。
 
 ### S-18 常驻不在包里
 
@@ -415,7 +402,7 @@
   **上下文预算是装配方的问题，技能作者根本不知道**——所以它不进技能的内容。
 - **表示上**：定义记录里出现 `resident` 这类成员即 `malformed`（[S-12](#s-12-定义记录) 第 5 条）；`SKILL.md` frontmatter 里外部生态的同类键（如 `disable-model-invocation`、`paths`）是外部属性类，**不生效**（[S-5](#s-5-键的四类处置)）。
 - **这偏离了起草简报的账本**（账本给了 `resident?: boolean` 并写「只是可声明、压不压归 agent definition」）。依据按产品正文：PF-006 §4 常驻原话、UL-residency 的定义、产品负责人对常驻的裁决「常驻由装配时 tools/skills 引用上的设置项指定」；
-  D-034 所据提案的 P6 也把常驻列为「不进规格内容」。已报主线。
+  D-034 所据提案的 P6 也把常驻列为「不进规格内容」。主线裁定 2026-09-23 采纳（账本 S18-a），待产品负责人确认。
 
 ### S-19 包是版本内容的一个整体
 
@@ -456,12 +443,12 @@
 **一个技能包的目录形式是一个目录（包根）：**
 
 1. **包根下名为 `SKILL.md` 的那个普通文件**（名字逐码点比较，不按文件系统的大小写规则放宽）按 [S-20](#s-20-skillmd-的文本形式与定界) 读成 `manifest` 与 `body`。**没有这个文件即 `manifest_missing`**。
-2. **定义记录**是包内一个保留路径上的 JSON 文件，**那个路径名本版未定（[G-1](#九已知缺口)）**。**在 G-1 闭合之前，目录形式的包没有定义记录**：包里的每一个其余文件都是资源。
+2. **定义记录**是包根下 `.omne/skill.json` 这个 JSON 文件（与工作区承载清单 `.omne/workspace.json` 同在一个保留目录；账本 S18-b）。**没有这个文件即没有定义记录**；它在却不是一份合法的 `SkillDefinitionRecord`，拒绝值按 [S-24](#s-24-表示层拒绝值与判定次序)。
 3. **其余每一个普通文件是一条资源**，`path` 是它相对包根的路径（[S-9](#s-9-资源条目与包内路径)）。**不按名字过滤任何文件**，不猜哪些是「附带的杂物」；目录本身不是资源。
 4. **符号链接**：解析之后落在包根之外即 `resource_escapes`；解析不了或成环即 `malformed`；落在包根之内的，这条资源的字节就是它指向的那份文件的字节。
    **这一条只有读目录的一方看得见**，由它在解析之后判（`data.asset-model` v1 的 S-24 对承载清单的 `source` 是同一个分工）。
 5. **普通文件与目录之外的东西**（套接字、设备文件等）即 `malformed`。
-6. **`executable` 一律是 `false`**，不看文件系统的执行位（[S-10](#s-10-资源只被读取不因读取而运行) 第 3 条）。
+6. **文件系统的执行位不进表示**（[S-10](#s-10-资源只被读取不因读取而运行) 第 3 条）。
 7. **目录名不是身份**（[S-6](#s-6-名字与所属能力标识一致)）。
 
 - **路径是包内地址**：包根在宿主机上的哪里，不进本表示，也不产生任何资格（[PF-001 §6.5](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#路径是地址不是钥匙)）。
@@ -493,14 +480,13 @@
 - **定义项（5 项）**：`SkillName`、`SkillManifest`、`ResourceEntry`、`SkillDefinitionRecord`、`SkillPackage`。
   消费者 `$ref` 这些定义，**不复制一份同义类型**。**根模式不约束任何文档**：本文件是共享定义的登记处。
 - **成员名**：本项目自己的成员一律 camelCase；**清单头的键逐字取开放格式**（`allowed-tools` 带连字符），不改写成 camelCase——改了就不再是那个格式。
-- **外部引用**：`CapabilityId`、`MediaType` 取自 `data.content-blocks` v1；`AttributeDeclaration` 取自 `data.asset-model` v1；`DependencyName`、`TargetEnvironment` 取自 `data.tool-definition` v1。
-  `SkillName` 按主线裁定写成本地 pattern，**对齐时改为 `$ref` `data.asset-model` 的 `CapabilityName`**（[S-2](#s-2-技能名的词法)）。
+- **外部引用**：`MediaType` 取自 `data.content-blocks` v1；`CapabilityName`（`SkillName` 就是它）、`CapabilityId`、`AttributeDeclaration` 取自 `data.asset-model` v1；`DependencyName`、`TargetEnvironment` 取自 `data.tool-definition` v1。
 - **文本形式与目录形式不是 JSON**，不在 Schema 的范围内；它们的规则是 [S-20](#s-20-skillmd-的文本形式与定界)、[S-21](#s-21-包的目录形式) 的条款本身。
 - **正反实例**：[`examples.md`](examples.md)。它是本版的规范工件，不是说明材料。
 
 ### S-23 判别式与枚举闭合
 
-`definition.format`（恒为 `1`）、`ResourceEntry.executable`（恒为 `false`）、组合清单里每一项的类别（恒为 `tool`）、清单头的键集合（恰六个）、
+`definition.format`（恒为 `1`）、组合清单里每一项的类别（恒为 `tool`）、清单头的键集合（恰六个）、
 设置项声明的 `kind`（恒为 `setting`）与 `category`（三值）、`targetEnvironment` 的 `bindingLayer`（`data.tool-definition` 的四值）各是一个**闭合集合**，没有「其他」。
 
 遇到集合之外的取值**一律作表示非法拒绝**：**不得**映射到「最接近」的已知值、**不得**当作缺省、**不得**忽略该成员继续。
@@ -508,14 +494,13 @@
 | 枚举 | 静默降级会变成什么 |
 |---|---|
 | `format` | 一份按未来格式写的定义记录被按 `1` 读，其中新加的约束被当作不存在 |
-| `executable` | 一份写着 `true` 的资源被静默当成 `false` 收下——作者以为包里带着一个执行资格，系统丢掉了它，谁也看不见 |
 | 组合清单的类别 | 一份技能「组合」了另一份技能或一个 MCP 接入点，组合图多出产品刻意不做的边 |
 | 设置项的 `category` | 一个落点类的项被当成偏好——工作区配得到它 |
 | `bindingLayer` | 一个要求隔离的脚本被「最接近」地放进一个更弱的环境 |
 
 ### S-24 表示层拒绝值与判定次序
 
-**一个值不合本契约的形状时，拒绝值恰为下面六个之一，集合闭合：**
+**一个值不合本契约的形状时，拒绝值恰为下面七个之一，集合闭合：**
 
 | 拒绝值 | 什么时候 | 条款 |
 |---|---|---|
@@ -524,25 +509,26 @@
 | `definition_format_unsupported` | `definition` 是对象、`format` 在，却不等于 `1` | [S-12](#s-12-定义记录) |
 | `resource_escapes` | 某条资源的 `path` 是字符串，却以 `/` 或盘符开头、有 `..` 这一段、或含反斜杠；目录形式里一条符号链接解析后落在包根之外 | [S-9](#s-9-资源条目与包内路径)、[S-21](#s-21-包的目录形式) |
 | `tool_ref_invalid` | `definition.tools` 的某一项是含字符串 `category` 与字符串 `name` 两个成员（且只有这两个）的对象，但 `category` 不是 `tool`，或 `name` 不合 [S-2](#s-2-技能名的词法) | [S-13](#s-13-组合的工具清单) |
+| `binding_layer_unknown` | `targetEnvironment` 那一项的 `default` 是对象、`bindingLayer` 在，却不在四值里——**这是 `data.tool-definition` v1 [S-26](../../tool-definition/v1/contract.md#s-26-表示层拒绝值与判定次序) 的值，原名携带**：同一违例在两份契约里同名（2026-09-24 整批对齐） | [S-15](#s-15-设置项声明与目标环境) |
 | `malformed` | 其余一切，恰为下面 M1～M17 | 各条 |
 
-**`malformed` 的来由逐条编为 `M1`～`M17`，这份清单就是它的全部来由**：一份输入不合 Schema 或本契约第三、四节，却对不上前五个值、也对不上下列任何一条，是本契约的缺陷，不是第七个值。
+**`malformed` 的来由逐条编为 `M1`～`M17`，这份清单就是它的全部来由**：一份输入不合 Schema 或本契约第三、四节，却对不上前六个值、也对不上下列任何一条，是本契约的缺陷，不是第八个值。
 
 | # | 来由 | 条款 |
 |---|---|---|
 | **M1** | 包、清单头、定义记录或资源条目不是 JSON 对象 | [S-3](#s-3-技能包的四个部分) |
-| **M2** | 缺其余必填成员：`body`、`resources`、`manifest.name`、`manifest.description`、`definition.format`、资源条目的 `path` 或 `executable`、设置项声明的 `category`（及 `data.asset-model` 的属性声明本身要求的成员） | 各条 |
-| **M3** | 出现未登记的成员：包、定义记录（含 `resident`、`permissions` 这类，[S-12](#s-12-定义记录) 第 5 条、[S-18](#s-18-常驻不在包里)）、资源条目上多出成员；清单头出现六键之外的键 | [S-4](#s-4-清单头开放格式的六个键)、[S-12](#s-12-定义记录) |
+| **M2** | 缺其余必填成员：`body`、`resources`、`manifest.name`、`manifest.description`、`definition.format`、资源条目的 `path`、设置项声明的 `category`（及 `data.asset-model` 的属性声明本身要求的成员） | 各条 |
+| **M3** | 出现未登记的成员：包、定义记录（含 `resident`、`permissions` 这类，[S-12](#s-12-定义记录) 第 5 条、[S-18](#s-18-常驻不在包里)）、资源条目上多出成员（含 `executable` 这类执行位，[S-10](#s-10-资源只被读取不因读取而运行) 第 3 条）；清单头出现六键之外的键 | [S-4](#s-4-清单头开放格式的六个键)、[S-10](#s-10-资源只被读取不因读取而运行)、[S-12](#s-12-定义记录) |
 | **M4** | 成员或数组元素的 JSON 类型不对（含 `null`）：`body` 不是字符串、`resources`／`tools`／`dependencies`／`settings` 不是数组、清单头的值类型不对（`metadata` 里有非字符串值） | [S-4](#s-4-清单头开放格式的六个键) |
 | **M5** | 清单头的值超出开放格式的约束：`description` 为空或长于 1024 个字符、`compatibility` 为空或长于 500 个字符 | [S-4](#s-4-清单头开放格式的六个键) |
 | **M6** | 不知道所属能力标识时，`manifest.name` 不合 [S-2](#s-2-技能名的词法) 的词法 | [S-6](#s-6-名字与所属能力标识一致) |
-| **M7** | 资源 `path` 不是规范写法：空串、空段、`.` 这一段、以 `/` 结尾；或恰为 `SKILL.md` | [S-9](#s-9-资源条目与包内路径) |
+| **M7** | 资源 `path` 不是规范写法：空串、空段、`.` 这一段、以 `/` 结尾；或恰为 `SKILL.md` 或 `.omne/skill.json` | [S-9](#s-9-资源条目与包内路径) |
 | **M8** | 资源 `path` 重复，或一条是另一条的目录前缀 | [S-9](#s-9-资源条目与包内路径) |
-| **M9** | `executable` 不是 `false`；`mediaType` 不合 `MediaType` | [S-9](#s-9-资源条目与包内路径)、[S-10](#s-10-资源只被读取不因读取而运行) |
+| **M9** | `mediaType` 不合 `MediaType` | [S-9](#s-9-资源条目与包内路径) |
 | **M10** | `definition.tools` 里某一项不是「只含字符串 `category` 与字符串 `name`」的对象；或有重复项 | [S-13](#s-13-组合的工具清单) |
 | **M11** | `definition.dependencies` 里有空串或重复名 | [S-14](#s-14-外部服务依赖) |
-| **M12** | 设置项声明违反 [S-15](#s-15-设置项声明与目标环境) 第 1～5 条：`kind` 不是 `setting`、类别是 `governance` 或不在四值里、项名是 `disabled`、项名重复、`default` 不合取值域；或不合 `AttributeDeclaration` 本身的形状 | [S-15](#s-15-设置项声明与目标环境) |
-| **M13** | `targetEnvironment` 那一项的类别、取值域或默认值不是 [S-15](#s-15-设置项声明与目标环境) 表里定死的样子（含 `bindingLayer` 不在四值里） | [S-15](#s-15-设置项声明与目标环境) |
+| **M12** | 设置项声明违反 [S-15](#s-15-设置项声明与目标环境) 第 1～5 条：`kind` 不是 `setting`、类别是 `governance` 或不在四值里、项名是 `disabled` 或 `usableBy`、项名重复、`default` 不合取值域；或不合 `AttributeDeclaration` 本身的形状 | [S-15](#s-15-设置项声明与目标环境) |
+| **M13** | `targetEnvironment` 那一项的类别、取值域或默认值不是 [S-15](#s-15-设置项声明与目标环境) 表里定死的样子（`bindingLayer` 不在四值里的那一种除外，它是 `binding_layer_unknown`） | [S-15](#s-15-设置项声明与目标环境) |
 | **M14** | 脚本集合为空，却声明了 `targetEnvironment` | [S-15](#s-15-设置项声明与目标环境) |
 | **M15** | `definition.format` 缺席 | [S-12](#s-12-定义记录) |
 | **M16** | 文本形式：没有开头行、找不到闭合行、frontmatter 不是 YAML 1.2 的映射、键重复、核心键的值类型不对 | [S-20](#s-20-skillmd-的文本形式与定界) |
@@ -551,13 +537,13 @@
 **一份输入里有多处违例时，拒绝值取其中优先级最高的那个**，次序固定：
 
 ```text
-manifest_missing  >  name_mismatch  >  definition_format_unsupported  >  resource_escapes  >  tool_ref_invalid  >  malformed
+manifest_missing  >  name_mismatch  >  definition_format_unsupported  >  resource_escapes  >  tool_ref_invalid  >  binding_layer_unknown  >  malformed
 ```
 
 - **理由**：先问「这是不是一份技能包」（有没有清单头），再问「它是不是它自称的那一份」（名字），再问「本项目的扩展读不读得懂」（格式），
   然后才是包里某一条资源、某一项引用的问题。越靠前越说明这份值在根上不可读。
-- **非对象的输入只可能是 `malformed`**（M1）：前五个值的条件都要求一个对象。
-- **格式不认得的定义记录，其余成员不再判**：`definition_format_unsupported` 之后，定义记录里的 `tool_ref_invalid` 与 M10～M15 都不再适用。
+- **非对象的输入只可能是 `malformed`**（M1）：前六个值的条件都要求一个对象。
+- **格式不认得的定义记录，其余成员不再判**：`definition_format_unsupported` 之后，定义记录里的 `tool_ref_invalid`、`binding_layer_unknown` 与 M10～M15 都不再适用。
 - **同一个值不同的上下文**：`manifest.name` 不合词法时，知道所属能力标识就是 `name_mismatch`（它必然不等于一个合法的能力标识名），不知道就是 `malformed`（M6）——**输入包含上下文**，同一输入仍是同一答案。
 - 拒绝值怎样落进各个操作自己的失败集合（注册表的装载、治理写面的发布、工作区读入、导入），归那些契约；**它们引用本条的名字，不另起一套同义值**。
 
@@ -566,7 +552,7 @@ manifest_missing  >  name_mismatch  >  definition_format_unsupported  >  resourc
 - **表示非法的包在进入任何判定之前被拒绝。**这次拒绝**不表示**「这份技能不存在」「这份技能不可用」「这个人无权使用它」，
   也**不得被记成一次判定结果**——与 `data.identity-values/v1` 的 S-33 是同一条规矩。
   尤其**不得折成可用性的「不可用」**：替换件要与原件同形，形状本身不合法的东西没有原件形状可同。
-- **不修补、不降级、不尽力而为**：不把非字符串的 `metadata` 值转成字符串、不把 `executable: true` 改成 `false`、不把大写的类别改成小写、
+- **不修补、不降级、不尽力而为**：不把非字符串的 `metadata` 值转成字符串（外部导入由导入器先映射，账本 S18-e）、不丢掉资源条目上的执行位、不把大写的类别改成小写、
   不丢掉坏的那一项留下其余的、不把找不到闭合行的 frontmatter 截到某个 `---` 为止。**修补等于替作者做了一个他没做的决定。**
 - **唯一的例外有明文**：文本形式里六键之外的键不进表示（[S-5](#s-5-键的四类处置)）——那是 D-034「不生效」的定义本身，**并且必须留痕**。
 - **表示合法不表示任何资格**：Schema 校验通过只说明形状合规，不说明这份技能可用、谁有权使用它、它的脚本能不能跑。
@@ -575,15 +561,15 @@ manifest_missing  >  name_mismatch  >  definition_format_unsupported  >  resourc
 
 | 条款 | Schema 管得到吗 | 管不到的那部分归谁 |
 |---|---|---|
-| [S-2](#s-2-技能名的词法) | **管得到**：四条词法 | 与 `data.asset-model` 的对齐 |
+| [S-2](#s-2-技能名的词法) | **管得到**：`$ref` `data.asset-model` 的 `CapabilityName` | —— |
 | [S-3](#s-3-技能包的四个部分)、[S-4](#s-4-清单头开放格式的六个键) | **管得到**：成员集合、必填、六键、长度与值类型 | —— |
 | [S-5](#s-5-键的四类处置) | 只管「表示里恰六键」 | 读入时丢掉了哪些键、留什么痕——读入方 |
 | [S-6](#s-6-名字与所属能力标识一致) | **管不到**：要看所属能力标识 | 知道能力标识的那一方（资产写面、工作区读入、导入器） |
 | [S-7](#s-7-说明)、[S-8](#s-8-正文逐字不展开不执行) | 只管 `description` 长度、`body` 是字符串 | 「两条路同一段文字」「不展开不执行」——读正文、送正文的每一方 |
 | [S-9](#s-9-资源条目与包内路径) | 管单条 `path` 的写法、不是 `SKILL.md` | **路径互不相同、互不为前缀**——接收边界 |
-| [S-10](#s-10-资源只被读取不因读取而运行)、[S-11](#s-11-脚本集合) | 管 `executable` 恒为 `false` | 「读取不运行」「只跑脚本集合」——`Skills()` 与执行运行时 |
+| [S-10](#s-10-资源只被读取不因读取而运行)、[S-11](#s-11-脚本集合) | 管资源条目上没有执行位成员 | 「读取不运行」「只跑脚本集合」——`Skills()` 与执行运行时 |
 | [S-12](#s-12-定义记录)～[S-14](#s-14-外部服务依赖) | **管得到**：`format`、成员集合、类别恒为 `tool`、名字词法、不重复 | 「不是资源、读面不列它」——`Skills()`；组合图成环——装配 |
-| [S-15](#s-15-设置项声明与目标环境) | 管 `kind`、类别不是治理、项名不是 `disabled`、`targetEnvironment` 定死的样子、**没有脚本不得声明它** | **项名互不相同、`default` 合取值域**——接收边界 |
+| [S-15](#s-15-设置项声明与目标环境) | 管 `kind`、类别不是治理、项名不是 `disabled` 与 `usableBy`、`targetEnvironment` 定死的样子、**没有脚本不得声明它** | **项名互不相同、`default` 合取值域**——接收边界 |
 | [S-16](#s-16-由包得出的依赖声明)、[S-17](#s-17-属性项投影规则) | **管不到**——它们是派生 | 注册表、求值 |
 | [S-18](#s-18-常驻不在包里) | **管得到**：定义记录不收 `resident` | —— |
 | [S-19](#s-19-包是版本内容的一个整体) | **管不到** | 存储与持有资源字节的一方 |
@@ -600,13 +586,13 @@ manifest_missing  >  name_mismatch  >  definition_format_unsupported  >  resourc
 |---|---|---|---|---|---|
 | P-1 | 技能的身份只在能力标识；清单头的名字与之相等 | 不变量 | [PF-002 §4 Skill](../../../../product/PF-002-assets-settings-and-permissions/design.md#skill) | 知道能力标识的接收边界（[S-6](#s-6-名字与所属能力标识一致)） | 改了文件里的 `name` 之后被当成另一份技能，或两份名字不同的记录被当成同一个东西 |
 | P-2 | 正文逐字：两条路同一段文字，不展开、不执行 | 安全 | [PF-002 §4 Skill、Slash Command](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command) · [PF-007 §6.2](../../../../product/PF-007-meta-capabilities/design.md#62-skills通向任意技能) | 读正文、送正文的每一方（[S-8](#s-8-正文逐字不展开不执行)）＋ 定界规则（[S-20](#s-20-skillmd-的文本形式与定界)） | 读正文时跑了一段 shell；或 ② 型展开与 `read` 读到的文字不同 |
-| P-3 | 包的表示不携带执行资格；只有脚本集合里的资源可能被运行 | 安全 | [PF-007 §6.2](../../../../product/PF-007-meta-capabilities/design.md#62-skills通向任意技能) | Schema（`executable` 恒为 `false`）＋ `exec_script` 的契约（[S-10](#s-10-资源只被读取不因读取而运行)、[S-11](#s-11-脚本集合)） | 一份 `references/` 下的文件被 `exec_script` 跑了；或导入的包带着「可以跑」的声明 |
+| P-3 | 包的表示不携带执行资格；只有脚本集合里的资源可能被运行 | 安全 | [PF-007 §6.2](../../../../product/PF-007-meta-capabilities/design.md#62-skills通向任意技能) | Schema（资源条目没有执行位成员）＋ `exec_script` 的契约（[S-10](#s-10-资源只被读取不因读取而运行)、[S-11](#s-11-脚本集合)） | 一份 `references/` 下的文件被 `exec_script` 跑了；或导入的包带着「可以跑」的声明 |
 | P-4 | 资源路径字面上不出包；目录形式解析后也不出包 | 安全 | PF-007 §6.2（资源不在 agent 的文件系统视野里） | 接收边界（[S-9](#s-9-资源条目与包内路径)）＋ 读目录的一方（[S-21](#s-21-包的目录形式)） | 一份技能把宿主机上别处的文件（可能是另一个租户的）读成自己的资源 |
 | P-5 | 技能只组合工具；引用指向能力标识 | 不变量 | [PF-002 谁能组合谁](../../../../product/PF-002-assets-settings-and-permissions/design.md#谁能组合谁) · [§6.3](../../../../product/PF-002-assets-settings-and-permissions/design.md#63-组合的引用指向能力标识) | Schema（[S-13](#s-13-组合的工具清单)） | 组合图里出现技能 → 技能或技能 → MCP 的边 |
 | P-6 | 调用面开关、预批准、常驻不在内容里，也不从内容生效 | 安全 | [PF-003 §6.7](../../../../product/PF-003-asset-transfer-and-sharing/design.md#67-覆盖的范围内容覆盖配置不动) · [PF-006 §4 常驻](../../../../product/PF-006-tools-and-skills/design.md#常驻) · D-034 | 读入方（[S-5](#s-5-键的四类处置)）＋ Schema（[S-18](#s-18-常驻不在包里)） | 复制过去的技能自带「不用问就能跑某个工具」；或技能作者决定了它在别人 agent 里常不常驻 |
 | P-7 | 目标环境是落点与身份类，作者改不了；没有脚本不得声明 | 安全 | [PF-002 §5.2 设置项分四类](../../../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别) · [PF-006 §6.4](../../../../product/PF-006-tools-and-skills/design.md#64-依赖声明与解析) | Schema（[S-15](#s-15-设置项声明与目标环境)） | 工作区配到了某份技能的脚本落点 |
 | P-8 | 依赖声明只由组合清单、外部服务依赖与求值后的目标环境组成 | 不变量 | [PF-006 §4 依赖](../../../../product/PF-006-tools-and-skills/design.md#依赖) · [§6.4](../../../../product/PF-006-tools-and-skills/design.md#64-依赖声明与解析) | 注册表按 [S-16](#s-16-由包得出的依赖声明) 计算 | `compatibility` 或 `allowed-tools` 让一份技能被判不可用 |
-| P-9 | 属性项由包确定地推出；「谁可以使用它」恰一项、不由作者声明 | 不变量 | [PF-002 §5.2 三方分工](../../../../product/PF-002-assets-settings-and-permissions/design.md#三方分工资产定形状各层配值运行时求值) · D-034 | 推出规则（[S-17](#s-17-属性项投影规则)） | 设置页长出来的表单与包对不上；或某份技能没有使用权限这一项 |
+| P-9 | 属性项由包确定地推出；「谁可以使用它」是 `data.asset-model` 保留的 `usableBy`、不由作者声明 | 不变量 | [PF-002 §5.2 三方分工](../../../../product/PF-002-assets-settings-and-permissions/design.md#三方分工资产定形状各层配值运行时求值) · D-034 | 推出规则（[S-17](#s-17-属性项投影规则)） | 设置页长出来的表单与包对不上；或某份技能没有使用权限这一项 |
 | P-10 | 包整体属于一份版本；资源字节随版本不变 | 不变量 | `data.asset-model` v1 S-9 | 存储与持有资源字节的一方（[S-19](#s-19-包是版本内容的一个整体)） | 同一版本号前后两次读到不同的脚本 |
 | P-11 | 缺席不补、表示非法即拒、拒绝值唯一 | 安全 | SYS-SPEC | 每个接收边界（[S-24](#s-24-表示层拒绝值与判定次序)、[S-25](#s-25-表示层拒绝不是判定也不修补)） | 两个实现对同一份坏包报不同的拒绝值；或一份坏包被装成替换件 |
 
@@ -661,9 +647,8 @@ manifest_missing  >  name_mismatch  >  definition_format_unsupported  >  resourc
 
 #### CS-1 资产模型收一份技能
 
-`data.asset-model` 的下一版在**把 skill 类正文从不透明壳换成本契约的引用**时，依赖 [S-3](#s-3-技能包的四个部分)、[S-6](#s-6-名字与所属能力标识一致)、[S-19](#s-19-包是版本内容的一个整体)，得到：
-一份技能记录的草稿与每一版的内容都是一个 `SkillPackage`；每一份的 `manifest.name` 等于记录的 `capability.name`；包整体随版本不变。
-那边的外壳里这个成员叫什么，**归那份契约**。
+`data.asset-model` v1 在**skill 类正文的壳 `$ref` 本契约**时（它的 [S-10](../../asset-model/v1/contract.md#s-10-八类正文的外壳)），依赖 [S-3](#s-3-技能包的四个部分)、[S-6](#s-6-名字与所属能力标识一致)、[S-19](#s-19-包是版本内容的一个整体)，得到：
+一份技能记录的草稿与每一版的内容都是一个 `SkillPackage`；每一份的 `manifest.name` 等于记录的 `capability.name`，不等时那边原名携带 `name_mismatch`；包整体随版本不变。
 
 #### CS-2 注册表装一份技能并算它可不可用
 
@@ -679,24 +664,24 @@ manifest_missing  >  name_mismatch  >  definition_format_unsupported  >  resourc
 #### CS-4 `Skills().exec_script` 跑一个脚本
 
 `Skills()` 的契约与工具执行运行时在**agent 要跑 `scripts/extract.py`**时，依赖 [S-11](#s-11-脚本集合)、[S-15](#s-15-设置项声明与目标环境)、[S-17](#s-17-属性项投影规则)，得到：
-这个路径在脚本集合里；落点要求是求值后的目标环境（没声明即没有特殊要求）。**「这个人能不能用这份技能」停在 [G-2](#九已知缺口)**——`W` 的项名与取值域未定，判不出来，**不得当成可以**。
+这个路径在脚本集合里；落点要求是求值后的目标环境（没声明即没有特殊要求）。**「这个人能不能用这份技能」按 `data.asset-model` 的 `usableBy` 求值**；`self` 在求值里指谁停在 `capability.asset-evaluation` 的 G-15——判不出来时**不得当成可以**。
 要跑 `references/helper.py`：不在脚本集合里，**一概不能**。
 
 #### CS-5 ② 型斜杠命令展开一份技能
 
 斜杠命令的契约在**人敲一条绑定了某份技能的命令并附几句话**时，依赖 [S-8](#s-8-正文逐字不展开不执行)，得到：
-用户消息里一个文本块，`text` 就是那一版的 `body`，逐字、不展开，来路标记 `skill_body`（`data.content-blocks` v1 S-8）；附言另成一块。那份技能自己的「谁可以使用它」照样要过——**同样停在 G-2**。
+用户消息里一个文本块，`text` 就是那一版的 `body`，逐字、不展开，来源标记 `skill_body`（`data.content-blocks` v1 S-8）；附言另成一块。那份技能自己的「谁可以使用它」（`usableBy`）照样要过。
 
 #### CS-6 工作区读入目录里的一份技能
 
 `capability.asset-evaluation` 在**装配时读 `.omne/workspace.json`、其中一条 `assets` 指向 `skills/review` 这个目录**时，依赖 [S-21](#s-21-包的目录形式)、[S-20](#s-20-skillmd-的文本形式与定界)、[S-5](#s-5-键的四类处置)、[S-6](#s-6-名字与所属能力标识一致)，得到：
 一份合法的 `SkillPackage`，`manifest.name` 等于那一条的能力标识；六键之外的键不生效、留痕；符号链接不出包。
-**这份包里的定义记录读不出来——停在 [G-1](#九已知缺口)**（保留路径名未定）：目录里的每个其余文件都是资源。把它读成这一格的持有，另停在 `data.asset-model` 的 G-3。
+定义记录从 `.omne/skill.json` 读（[S-21](#s-21-包的目录形式)），其余每个文件都是资源；它在这一格成为一份 `carrier` 支的持有（`data.asset-model` v1 的 [S-19](../../asset-model/v1/contract.md#s-19-使用权来路)）。
 
 #### CS-7 属性项投影长出设置页
 
 `capability.asset-evaluation` 在**第 3 步为一份持有推出这份技能的属性项**时，依赖 [S-17](#s-17-属性项投影规则)、[S-15](#s-15-设置项声明与目标环境)，得到：
-定义记录里的每一项设置（含 `targetEnvironment`，落点与身份类，工作区配不了）。**「谁可以使用它」那一项推不出——停在 G-2**，不得当成「没有这一项」。
+定义记录里的每一项设置（含 `targetEnvironment`，落点与身份类，工作区配不了），再加 `data.asset-model` 保留的 `disabled` 与 `usableBy`。
 作者自声明的设置项长出了表单，**但本版没有谁读它们的生效值——停在 [G-4](#九已知缺口)**。
 
 #### CS-8 复制一份技能到另一个组织
@@ -719,12 +704,11 @@ manifest_missing  >  name_mismatch  >  definition_format_unsupported  >  resourc
 | `definition.format` | **拒绝**（`malformed`，M15） | [S-12](#s-12-定义记录) |
 | `tools`、`dependencies`、`settings` | **合法**，与空数组同义 | [S-13](#s-13-组合的工具清单)～[S-15](#s-15-设置项声明与目标环境) |
 | `targetEnvironment` 这一项 | **合法**：对执行环境没有特殊要求；这份技能没有这一项设置 | [S-15](#s-15-设置项声明与目标环境) |
-| 资源条目的 `executable` | **拒绝**（`malformed`，M2）——不补成 `false` | [S-10](#s-10-资源只被读取不因读取而运行) |
 | 资源条目的 `mediaType` | **合法**，不作任何断言 | [S-9](#s-9-资源条目与包内路径) |
 | 设置项声明的 `category` | **拒绝**（`malformed`，M2）——资产声明每一项设置时必须标类别 | [S-15](#s-15-设置项声明与目标环境) |
 | 目录形式里的 `SKILL.md` | **拒绝**（`manifest_missing`） | [S-21](#s-21-包的目录形式) |
-| 目录形式里的定义记录 | **本版读不出来**（保留路径名未定，[G-1](#九已知缺口)）——**不是**「作者没写」 | [S-21](#s-21-包的目录形式) |
-| 「谁可以使用它」那一项的声明 | **判不出来**，不是「没有这一项」、也不是「谁都能用」；消费者停在缺口 | [S-17](#s-17-属性项投影规则)、[G-2](#九已知缺口) |
+| 目录形式里的 `.omne/skill.json` | **合法**：没有定义记录，与 `definition` 缺席同义 | [S-21](#s-21-包的目录形式) |
+| 「谁可以使用它」那一项的声明 | **不在本契约**：`data.asset-model` 写死，每一份技能都有 | [S-17](#s-17-属性项投影规则) |
 
 **本契约不定义任何恢复动作，也不承诺任何外部效果可逆。**
 
@@ -734,11 +718,11 @@ manifest_missing  >  name_mismatch  >  definition_format_unsupported  >  resourc
 
 | # | 缺口 | 阻断谁 | 谁来裁 |
 |---|---|---|---|
-| **G-1** | **定义记录在目录形式里的保留路径名**：D-034 说「保留路径的名字归规格」，起草简报的账本没有给这个名字；本契约不自造 | 目录形式的包带定义记录——工作区承载目录里的技能（CS-6）、导出 | **主线**（给名字；随后本契约在 [S-21](#s-21-包的目录形式) 与 [S-9](#s-9-资源条目与包内路径) 第 5 条落下它） |
-| **G-2** | **「谁可以使用它」这一项**（[S-17](#s-17-属性项投影规则) 的 `W`）：项名；取值域已由主线裁定为「租户角色 ＋ `self`」，但这组值的正式 token 未定；作者能不能给默认值、不能的话默认是什么；**它的家**——斜杠命令、MCP 接入点、连接件各有同一项「谁可以用」，四份契约各定一份就是同一件事四个定义 | 属性项投影的完整性（CS-7）；`exec_script` 与 ② 型展开的使用权限判定（CS-4、CS-5）；求值 | **主线**（名字、token 与家——一个可行的家是 `data.asset-model`，像保留 `disabled` 那样保留它）；默认值的产品含义问 **PF-002 的 owner** |
+| **G-1** | **已闭合（2026-09-24 整批对齐）**：定义记录的保留路径是 `.omne/skill.json`——主线裁定 2026-09-23，待产品负责人确认（账本 S18-b）；见 [S-12](#s-12-定义记录)、[S-21](#s-21-包的目录形式) | — | — |
+| **G-2** | **已闭合（2026-09-24 整批对齐）**：「谁可以使用它」是 `data.asset-model` v1 保留的 `usableBy`（项名、取值域 `superAdministrator`／`member`／`self`、默认 `self`，三类共用一份）——主线裁定 2026-09-23，待产品负责人确认（账本 S18-c、A-G14）；见 [S-17](#s-17-属性项投影规则)。`self` 在求值里指谁归 `capability.asset-evaluation`（它的 G-15） | — | — |
 | **G-3** | **「正文变体」与「资源的取用方式」**：[PF-002 §4 Skill](../../../../product/PF-002-assets-settings-and-permissions/design.md#skill) 列为技能自带的设置，§5.2 把前者归偏好、后者归绑定；但产品正文没说它们是什么——多份正文放在包的哪里、按什么选；资源取用方式取哪几种值、改变什么。三个参考源都没有正文变体（研究首轮） | 这两项作为系统认得的设置；`Skills().read` 按设置选正文 | **PF-002 的 owner**（含义），随后**主线**（形状，本契约出新版） |
 | **G-4** | **作者自声明设置项的生效值由谁读**：`Skills().read` 是否把生效值一并交给 agent、脚本是否收到它们、什么时候读——都没有定义 | 作者自声明的设置项在本版不起任何作用（CS-7） | **PF-007 的 owner**（`Skills()` 的产品面），随后 `Skills()` 的契约 |
-| **G-5** | **作者自定义的权限项**：起草简报的账本给了 `permissions?`；本契约不收——PF-002 只给技能列了「谁可以使用它」，D-034 把「谁可以用」这类划在内容之外，自定义的权限项没有任何判定点会据它放行或拒绝（一项没人守的权限只会让人以为有人守） | 需要自定义权限的技能作者 | **主线**；产品面问 **PF-002 / PF-007 的 owner**（有没有这种需要、谁来判） |
+| **G-5** | **已闭合（2026-09-24 整批对齐）**：作者自定义的权限项本版不收——主线裁定 2026-09-23 采纳（账本 S18-a），待产品负责人确认 | — | — |
 | **G-6** | **资源字节的携带与核对**：本表示不内联资源字节、不带摘要（账本的 `ResourceEntry` 没有这两样）；D-034 要的「规范化摘要覆盖整个包」本版没有表示。版本的不可变对字节由持有它们的一方兑现，跨进程与复制时字节怎样随版本走、接收方怎样核对是同一份，没有契约面 | 复制与分享落地（CS-8）；据点副本；[第五节](#五装配给与协议给)第一行的协议 | **主线**（形状：逐资源摘要，或整包摘要）；搬运归 `capability.asset-transfer` 与提供者设计 |
 | **G-7** | **研究盘点里本版未收的扩展**：omne-next 的导入来源记录（`ImportProvenance`）与 `omne_agent_capabilities` 聚合根字段（安装方式、上游同步、发布策略、`agent_editable`）；Codex 的 `interface`（显示名、图标、品牌色、`default_prompt`）、`policy`、`dependencies.tools[]`；逐资源 `sha256` 摘要（并入 G-6）。**产品正文没有要求它们**，按起草简报只收产品正文要求的 | 需要这些能力的消费者（导入来源追溯、交付面的图标与显示名） | **主线**（要不要收、收进内容还是资产属性）；导入来源记录多半归**导入器的提供者设计** |
 
@@ -769,5 +753,5 @@ manifest_missing  >  name_mismatch  >  definition_format_unsupported  >  resourc
 **不建 `formal/`**：理由在[性质一节](#性质)末尾。**这不是把义务省掉**：本契约触发的义务在[验证入口](../verification.md)逐条登记。
 
 **发布后**：本目录下的规范正文、Schema 与实例不可原地覆盖；修改发布新版本。
-`data.asset-model` 的词法对齐（[S-2](#s-2-技能名的词法)）若在接受之前完成，原地把 `SkillName` 改为 `$ref`；[已知缺口](#九已知缺口)里 G-1、G-2、G-3、G-6 任一项被裁决都会改变本契约的表示，
+[已知缺口](#九已知缺口)里 G-3、G-6 任一项被裁决都会改变本契约的表示（G-1、G-2、G-5 已于 2026-09-24 整批对齐原地闭合），
 **接受之前闭合则原地改，接受之后闭合则出 v2**。开放格式的新快照要进来，同样出新版。**推荐版本不自动升级消费者。**

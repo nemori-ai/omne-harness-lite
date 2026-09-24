@@ -3,15 +3,13 @@
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
 > **当前状态：未开始。**`data.model-response` v1 是 `candidate`（2026-09-23 起草），未接受、未冻结；没有提供者设计、没有源码、没有装配。
-> 下表登记的是**已经触发的证据义务**，不是已完成的检查。**一条都未执行**——文件存在不代替结果。
-> **连 Schema 正反实例的自检也未运行**：本 Schema 引用的五份契约与它并行起草、在本分支里还不存在，引用解析不了；
-> 起草派发也只允许运行 `make design-check` 与 `make docs-check`。见[结果与反例](#结果与反例)。
+> 下表登记的是**已经触发的证据义务**，不是已完成的检查。起草时一条都未执行；**整批对齐（2026-09-24）跑过一次 V-1 的本地自检**（只判通过与拒绝，见[结果与反例](#结果与反例)），其余义务仍未开始。
 
 ## 证据义务
 
 | # | 义务 | 证据形式 | 覆盖哪些条款 | 实际状态 |
 |---|---|---|---|---|
-| V-1 | **形状校验**：[`examples.md`](v1/examples.md) 第一、二节的每个 JSON 块过根模式，结果与块前的「预期」逐一对上；拒绝的那些还要核对给出的拒绝值符合 [S-27](v1/contract.md#s-27-表示层拒绝值) 的次序 | Draft 2020-12 校验器；需要五份依赖契约的 Schema 已就位 | [S-6](v1/contract.md#s-6-responseid)～[S-15](v1/contract.md#s-15-故障的成因与原样状态码)、[S-17](v1/contract.md#s-17-首-token-与时序)、[S-19](v1/contract.md#s-19-用量与费用)、[S-20](v1/contract.md#s-20-上游原始响应留存)、[S-26](v1/contract.md#s-26-schema-的范围)、[S-27](v1/contract.md#s-27-表示层拒绝值) 的**形状那一面** | **未运行。**阻断在依赖契约未定型；整批对齐之后第一件事 |
+| V-1 | **形状校验**：[`examples.md`](v1/examples.md) 第一、二节的每个 JSON 块过根模式，结果与块前的「预期」逐一对上；拒绝的那些还要核对给出的拒绝值符合 [S-27](v1/contract.md#s-27-表示层拒绝值) 的次序 | Draft 2020-12 校验器；需要五份依赖契约的 Schema 已就位 | [S-6](v1/contract.md#s-6-responseid)～[S-15](v1/contract.md#s-15-故障的成因与原样状态码)、[S-17](v1/contract.md#s-17-首-token-与时序)、[S-19](v1/contract.md#s-19-用量与费用)、[S-20](v1/contract.md#s-20-上游原始响应留存)、[S-26](v1/contract.md#s-26-schema-的范围)、[S-27](v1/contract.md#s-27-表示层拒绝值) 的**形状那一面** | **本地自检已跑一次**（整批对齐，2026-09-24）：35 个块，0 处不符；**给的是哪一个拒绝值没有机判**，只由人按 S-27 次序逐块核过 |
 | V-2 | **两次发出、两条响应体、两笔钱**（[S-29](v1/contract.md#s-29-两次发出两条响应体两笔钱)） | 规范场景演练：注入上游 503，默认重试挂件换一家 | [S-4](v1/contract.md#s-4-一次调用一次发出一条响应体)、[S-8](v1/contract.md#s-8-第几次发出)、[S-19](v1/contract.md#s-19-用量与费用)、[S-23](v1/contract.md#s-23-同一次调用的响应体序列)、[S-24](v1/contract.md#s-24-一条响应体对应上游的一次请求) | **未开始。**需要模型请求运行时的提供者。**必须数响应体的条数**——只看最后一条成功，一个把失败的那次吞掉的实现看起来完全正常 |
 | V-3 | **首 token 之后的故障**（[S-30](v1/contract.md#s-30-首-token-之后的故障)），且换上一件「见 429 就重试」的挂件 | 规范场景演练 ＋ 故障注入（流吐出一段之后断开） | [S-13](v1/contract.md#s-13-收场与其余成员的条件关系)、[S-14](v1/contract.md#s-14-回复与已交付部分)、[S-15](v1/contract.md#s-15-故障的成因与原样状态码)、[S-17](v1/contract.md#s-17-首-token-与时序)、[S-23](v1/contract.md#s-23-同一次调用的响应体序列) | **未开始。**「换上一件会乱重试的挂件」是这条的全部分量：默认挂件本来就不会重试，只跑默认的证明不了「挂件推翻不了」 |
 | V-4 | **用户中断的两支**（[S-31](v1/contract.md#s-31-用户中断的两支)），同一次演练里跑 | 规范场景演练 | [S-12](v1/contract.md#s-12-收场)、[S-13](v1/contract.md#s-13-收场与其余成员的条件关系) | **未开始** |
@@ -20,8 +18,8 @@
 | V-7 | **凭据不进响应体**（[S-34](v1/contract.md#s-34-凭据不进响应体)） | 故障注入：上游错误原文与响应头里带已知凭据样式文本 | [S-21](v1/contract.md#s-21-写入之前脱敏) | **未开始，且判据受阻于 [G-5](v1/contract.md#七已知缺口)**：脱敏规则未定，只能用「已知凭据原文不出现」一种判法 |
 | V-8 | **无隐藏重试**：在传输层注入一次可重试的失败，数上游实际收到的请求数与写下的响应体条数，两者相等 | 提供者设计核对（传输适配是否指定单家、禁止回退）＋ 规范场景演练 | [S-24](v1/contract.md#s-24-一条响应体对应上游的一次请求) | **未开始。**需要 pi-ai 定向 fork 的传输适配（D-019）；比较门里「无隐藏重试」那一项与这里是同一件事，**各自记结果，不互相顶替** |
 | V-9 | **写入者的跨字段约束**：`reply.response = id`；三个时刻的先后；`upstreamModel` 不被冒填；`provider` 在档案允许的供应商里；`unrecognized` 带痕迹；`ResponseId` 不取上游 id | 写入者的单元与契约测试（形式归 realization） | [S-6](v1/contract.md#s-6-responseid)、[S-9](v1/contract.md#s-9-路由留痕)、[S-14](v1/contract.md#s-14-回复与已交付部分)、[S-15](v1/contract.md#s-15-故障的成因与原样状态码)、[S-17](v1/contract.md#s-17-首-token-与时序) | **未开始。**这些条款**全在 Schema 之外**（[examples.md 第三节](v1/examples.md#三schema-挡不住但同样非法的)），V-1 全绿也不支持其中任何一条 |
-| V-10 | **同一次调用的序列性质**：对任意一次调用读全部响应体，核对 `dispatch` 不重不跳、只有策略那一类失败之后才有下一条、`reply` 至多一条且在最后 | 对演练产生的日志做序列核对；需要时由能力契约的行为模型承担 | [S-8](v1/contract.md#s-8-第几次发出)、[S-23](v1/contract.md#s-23-同一次调用的响应体序列) | **未开始。**停机那一支受阻于 [G-7](v1/contract.md#七已知缺口) |
-| V-11 | **首 token 缺席是断言**：让运行时在首 token 之后、写响应体之前停机，恢复后核对没有任何一条把这一次写成「没开口」 | 故障注入（杀进程）＋ 恢复演练 | [S-18](v1/contract.md#s-18-首-token-缺席是一条断言) | **未开始，且受阻于 [G-7](v1/contract.md#七已知缺口)**：停机后谁补写、首 token 怎样判得出，本版无答案 |
+| V-10 | **同一次调用的序列性质**：对任意一次调用读全部响应体，核对 `dispatch` 不重不跳、只有策略那一类失败之后才有下一条、`reply` 至多一条且在最后 | 对演练产生的日志做序列核对；需要时由能力契约的行为模型承担 | [S-8](v1/contract.md#s-8-第几次发出)、[S-23](v1/contract.md#s-23-同一次调用的响应体序列) | **未开始。**停机那一支的补写者与收场已由 `capability.model-request-runtime` v1 S-33 给出（原 G-7） |
+| V-11 | **首 token 缺席是断言**：让运行时在首 token 之后、写响应体之前停机，恢复后核对没有任何一条把这一次写成「没开口」 | 故障注入（杀进程）＋ 恢复演练 | [S-18](v1/contract.md#s-18-首-token-缺席是一条断言) | **未开始**：停机后谁补写、首 token 怎样判得出，已由 `capability.model-request-runtime` v1 S-33、S-15 给出（原 G-7），演练需要它的提供者 |
 | V-12 | **写下即不变**：补账之后原响应体逐字不变；原始响应附件被清理之后响应体逐字不变 | 规范场景演练 | [S-19](v1/contract.md#s-19-用量与费用)、[S-20](v1/contract.md#s-20-上游原始响应留存)、[S-22](v1/contract.md#s-22-写下即不变) | **未开始** |
 | V-13 | **回复在落盘之前被否决**（[examples.md E-8](v1/examples.md#e-8-同一个-run-里前后两次调用前一次的回复被否决) 的场景）：挂一件对第一份回复必定否决的拓展件，核对①那次调用以 `complete`／`truncated` 加 `replyDisposition = { vetoed }` 结束、不带 `failure`；②**这次调用没有第二条响应体**，再试的那一条属于一个新的 `callId`、`dispatch = 1`；③被否决那份 `reply.id` 在会话日志里找不到消息，落盘那份找得到；④两笔用量与费用都在账上 | 规范场景演练；需要 `data.loop-extension` 的否决落点与模型请求运行时的提供者 | [S-13](v1/contract.md#s-13-收场与其余成员的条件关系)、[S-14](v1/contract.md#s-14-回复与已交付部分)、[S-17](v1/contract.md#s-17-首-token-与时序)、[S-19](v1/contract.md#s-19-用量与费用)、[S-23](v1/contract.md#s-23-同一次调用的响应体序列) | **未开始。**②是这条的分量：把再试写成同一调用的 `dispatch = 2`，Schema 放得过（[examples.md 第三节](v1/examples.md#三schema-挡不住但同样非法的)），只有数 `callId` 才看得出首 token 规则被开了例外 |
 
@@ -37,16 +35,17 @@
 
 ## 结果与反例
 
-### 未执行：Schema 正反实例自检
+### 本地自检：Schema 正反实例（整批对齐，2026-09-24）
 
-**未运行，不是通过。**两个原因：
+**工具**：Draft 2020-12 校验器（`jsonschema`，按仓库 `uv.lock`），以对齐后整棵设计树的全部 Schema 建 registry；脚本在任务暂存区，不入库。
+**输入**：[`examples.md`](v1/examples.md) 第一、二节每个 JSON 块作根模式实例，块前「预期」给出通过或拒绝。
 
-1. 本 Schema 以相对路径引用 `data.call-accounts`、`data.content-blocks`、`data.messages`、`data.model-profile`、`data.loop-extension` 五份契约的 Schema，
-   它们在本分支里不存在，校验器解析不了引用；
-2. 本次起草派发只允许 `make design-check` 与 `make docs-check` 两条命令。
+| 预期通过 | 预期拒绝 | 不符 |
+|---|---|---|
+| 12（E-1～E-11，E-6／E-7、E-8a／E-8b 各两块） | 23（R-1～R-23） | **0** |
 
-**建议整批对齐时第一件事就跑 V-1**：本 Schema 的条件约束（`allOf` 里的 `if/then` 共十六处）是最容易写错而肉眼看不出的部分，
-而 [`examples.md`](v1/examples.md) 已按「预期」列写成可以直接喂给校验器的格式。
+**只判通过与拒绝**：给出的是不是块前写的那个拒绝值，校验器不回答——Schema 只报「不合法」，给哪个值由 S-27 的次序定；本轮按错误落在哪一支逐块人工核过，每个反例恰违反一处（R-10 为此补了一条 `localError`）。
+第三节的反例不参与，它们本来就过得了 Schema。**这不是 V-2 以后任何一条义务的证据。**
 
 ### 尚无的记录
 
@@ -100,10 +99,28 @@
   catalog：`data.call-accounts` 那条依赖的 `clauses` 补了 `$defs/RunId`、`$defs/AttemptId`、`$defs/ModelCallId`。
   covers：PF-012「消息落盘之前的否决」由缺口登记改为常规覆盖（S-13、S-14、S-23），PF-013「已经开口说话了」的注记与全局注记去掉 G-6／G-11 的说法。
 
+- **2026-09-24 整批对齐（候选，未冻结，原地改）**：依据行写「主线裁定 2026-09-23，待产品负责人确认」的，出处在主线的裁定清单。
+
+  | 改了什么 | 依据 | 条款 | Schema | 实例 |
+  |---|---|---|---|---|
+  | `replyDisposition` 加第三值 `{ consumed: { by: compaction \| side_query } }`；改为与 `reply` 同在同缺（含被中断有回复的那支）；G-12 闭合 | 对账块 D；读数报回 S8-e | S-1、S-5、S-13、S-14、S-23、S-27 | `ReplyDisposition`；两支 `malformed` 改判据 | E-3 补 `persisted`；R-18 改成「被中断的回复不带它」；新增 E-9 |
+  | `interrupted` 带 `initiator ∈ user \| run_cancelled \| runtime_lost`；开了口却没有回复的被中断一行（`delivered` 有才带）；`runtime_lost` 不带回复；首 token 之前失联可续接再发；G-7 闭合 | 账本 RP-24、S16-g；`capability.model-request-runtime` S-33、S-36 | S-8、S-12、S-13、S-14、S-23 | `initiator`；删 `first_token_inconsistent` 第⑥支；加两支 `malformed` | 全部被中断的块补 `initiator`；R-14 换题；新增 E-10、E-11、R-19、R-20 |
+  | `attemptId` 从 `call` 挪到每一次发出，跨尝试连续；`call.runId` 对不属于任何运行的调用必无 | 账本 C-R7、C-14 | S-7、S-8、S-19、成员表 | `ModelCallRef`、`attemptId`；一支 `malformed` | 全部 27 块改写；新增 R-21 |
+  | `route.profileSnapshot`（`$ref` `data.model-profile` 的 `ModelProfileSnapshot`）、`route.credentialScope`（出厂格或 `ScopeLayerIdentity`，新 `$defs` `CredentialScope`） | 账本 C-R1、C-12、S16-f | S-9、S-26 | `Route`、`CredentialScope` | 全部块补两项；E-9 用出厂格 |
+  | `trims?`（`$ref` `data.call-accounts` 的 `TrimSummary`；缺席即没砍，全零拒绝） | 对账块 D；账本 S4 | S-19、S-26、S-27 | `trims` | E-9；新增 R-23 |
+  | `unrecognized` 必带痕迹改为 Schema 管得到；`failure` 加 `localError` | 对账块 C（SAF-17）；与 `capability.model-request-runtime` S-18「本地错误」对齐 | S-15、S-26、S-27 | `Failure.localError`；一支 `malformed` | R-10 补痕迹；新增 R-22；第三节那一行换题 |
+  | `ModelProfileRef` 按 `data.model-profile` 带 `origin` | `data.model-profile` S-13 | — | — | 全部块 |
+  | D-038 依据补成链接；G-11 文字、G-1 文字更新；新立 G-13（`run_cancelled` 交出的回复 `ending` 名不副实） | 合入后补链接 | 设计依据、第七节 | — | — |
+
+  **对证据的影响**：V-1 首次有了本地自检；V-10、V-11 解除阻断（仍需提供者）。
+
 - **将来的触发点**：
-  - [G-12](v1/contract.md#七已知缺口) 闭合且要表示：`replyDisposition` 放宽到 `interrupted` 上，Schema 标 `malformed` 的第十支要改、R-18 翻成正例；接受之后即是表示变更，发新版本。
-  - [G-7](v1/contract.md#七已知缺口) 闭合：V-10 的停机那一支与 V-11 解除阻断；若要加「判不出」这一取值，是表示变更，接受之后发新版本。
+  - [G-13](v1/contract.md#七已知缺口) 闭合：若运行被取消时的半截回复不落成消息，本契约把那一支收成「没有回复、带 `delivered`」，是表示变更，接受之后发新版本。
   - [G-8](v1/contract.md#七已知缺口) 若结论是「上游仍可能换家」，要加一个成员，接受之后发新版本。
   - 跨进程演化（[S-25](v1/contract.md#s-25-装配给的保证与协议须给的保证) 右列转为协议给）：语义边界改变，发新版本；本版的全部证据只保留其单机范围。
 
 结果不改写规范。发现语义问题回到来源设计（PF-013／PF-009／PF-012），不在这里改契约。
+
+## 对齐义务
+
+- **词条链接待合流后补**（2026-09-24 整批对齐）：正文里「一次发出」原标「无词条」，词条批已立为词条，本包已改用正式名、去掉标记；那几条词条在 HUB 上、本分支看不到，**链接待合流后补**（主线）。

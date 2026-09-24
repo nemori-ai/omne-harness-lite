@@ -2,7 +2,7 @@
 
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
-> **当前状态（2026-09-23 起草当日）：形式工件已在起草者本机执行一次；规范场景一条都没演练。**
+> **当前状态（2026-09-24 整批对齐后）：形式工件已在起草者本机执行一次；规范场景一条都没演练。**
 > `capability.asset-transfer` v1 是 `candidate`，**未经独立评审、未接受**；尚无提供者设计、尚无源码。
 > 下表登记的是**已经触发的证据义务**。模型那几条「无反例」**之所以有内容**，是因为同一次执行里五个去保护配置都按预期给出了反例；
 > 两条按构造成立的性质（`EndedStable`、`EffectsOnlyFromConfirmation`）**不作为证据**，理由在 [formal 入口](v1/formal/README.md#本版选用什么)。
@@ -25,7 +25,7 @@
 | 场景 | 证据形式 | 状态 | 说明、责任与受阻 |
 |---|---|---|---|
 | [S-39 两类待确认件的三种收场](v1/contract.md#s-39-两类待确认件的三种收场) | 演练，**关掉后台清理**，能操纵时间源 | **未开始** | 三路同值必须**同一次**对比；**可与 `data.offer-expiry` 的 S-23～S-25 一次执行两边兑现**，两边各自记结果 |
-| [S-40 首次、重复、撞标识无血缘](v1/contract.md#s-40-首次重复撞标识无血缘) | 演练 | **未开始** | 受阻：落地要的资产治理写面未定（[G-10](v1/contract.md#十一已知缺口)） |
+| [S-40 首次、重复、撞标识无血缘](v1/contract.md#s-40-首次重复撞标识无血缘) | 演练 | **未开始** | 落地走资产治理的组合入口（`capability.asset-governance/v1#S-46`，原 G-10 闭合）；需要一个实现 |
 | [S-41 覆盖不碰配值](v1/contract.md#s-41-覆盖不碰配值) | 演练 | **未开始** | **这是「覆盖不碰配值」唯一的证据**——模型里它是 `UNCHANGED`，被建模方式吸收 |
 | [S-42 边界在每条路径上都挡住](v1/contract.md#s-42-边界在每条路径上都挡住) | 演练，**发起者一律用超级管理员** | **未开始** | 发起者不是超管就区分不了结构性禁止与权限判定 |
 | [S-43 分享的建立、跟随与三种结束](v1/contract.md#s-43-分享的建立跟随与三种结束) | 演练，**跨契约**（本契约 ＋ 资产求值） | **未开始** | 「下一次求值就用到新版本」「撤销后下一次使用被拒」由求值兑现，只跑本契约这一半证明不了 |
@@ -39,9 +39,9 @@
 | 要求 | 写在哪 | 由谁兑现 | 证据落点 |
 |---|---|---|---|
 | basis 为 shared 的持有**在使用那一刻**按 (资产, 被分享方) 判可用，读不到即失败 | [S-9](v1/contract.md#s-9-分享此刻是否生效) | `capability.asset-evaluation` | 那份契约的场景；本契约 S-43／S-44 跨契约演练 |
-| 求值取持有记录**当前发布的那一版** | [S-11](v1/contract.md#s-11-复制的收场)、[十二](v1/contract.md#十二消费者核对) | `capability.asset-evaluation` | 同上 |
-| 落地的写集合能进本契约确认的同一次提交 | [S-18](v1/contract.md#s-18-确认是一次提交同一落点的确认序列化) | `capability.asset-governance` ＋ 装配 | 提供者设计须指出事务覆盖的全部存储对象；[G-10](v1/contract.md#十一已知缺口) |
-| 资产记录号不复用、持有可辨实例 | [S-7](v1/contract.md#s-7-两类待确认件共用的过期语义) | `data.asset-model` | [G-3](v1/contract.md#十一已知缺口) |
+| 求值取持有记录**当前发布的那一版**（追随当前版的持有） | [S-11](v1/contract.md#s-11-复制的收场)、[十二](v1/contract.md#十二消费者核对) | `data.asset-model`（S-18 第 6 条）＋ `capability.asset-evaluation`（C9） | 同上 |
+| 落地的写集合能进本契约确认的同一次提交 | [S-18](v1/contract.md#s-18-确认是一次提交同一落点的确认序列化) | 同一提供者（拆分提案 PA-3）经 `capability.asset-governance` 的组合入口 ＋ 装配 | 提供者设计须指出事务覆盖的全部存储对象 |
+| 资产记录号不复用、持有可辨实例 | [S-7](v1/contract.md#s-7-两类待确认件共用的过期语义) | `data.asset-model`（S-4 已给前一半）、`capability.asset-governance` | 后一半仍在 [G-3](v1/contract.md#十一已知缺口) |
 
 ## 实际执行
 
@@ -85,4 +85,8 @@
 
 - **2026-09-23 起草**：首版，没有旧证据可作废。
 - **同日 `make design-check FORMAL=run`**：检查器执行 `asset-transfer-v1-transfer`，退出 0（检查器只记退出码，TLC 的完整输出以上一节为准）。
+- **2026-09-24 整批对齐（简报 S23；主线裁定 2026-09-23，待产品负责人确认）：原地改了候选，模型与配置未动。**
+  - 失败值改名：确认路径 `expired` → **`offerNoLongerValid`**，撤回路径 `alreadyConfirmed`／`expired` → **`alreadyConcluded`**，与 `capability.organization-governance` v1 同名（账本 T-1）；[S-7](v1/contract.md#s-7-两类待确认件共用的过期语义)、[S-19](v1/contract.md#s-19-这一节每个操作写全九件事)、S-21～S-26、第七节、S-39、S-45、S-47 与实例第 7 节随之改。**派生状态 `expired`（`OfferState`）不变。**
+  - 新操作 [S-48 `listPendingForOrganization`](v1/contract.md#s-48-列出组织收到的待确认件)（T-2，G-1 闭合）；G-6、G-10 闭合，G-3、G-4、G-9 改写；依赖 `data.asset-model`、`capability.asset-governance` 按条款号登记；[S-18](v1/contract.md#s-18-确认是一次提交同一落点的确认序列化) 写明同一提供者同一提交（PA-3）；[S-34](v1/contract.md#s-34-装配给的保证-vs-协议须给的保证) 加隶属哨兵一行（PA-4）；[S-8](v1/contract.md#s-8-分享) 写明已分享出去的记录不能被提升、[S-9](v1/contract.md#s-9-分享此刻是否生效) 写明租户格的 `organization` 持有随分享判（S11-G2）；[S-4](v1/contract.md#s-4-依赖方向与被消费的面) 更正「求值读本契约」为组输入的一方读。
+  - **对证据的影响**：TLC 那一次运行对应的模型与配置未改，结论不受影响（它只看效果，不看失败值名）；本轮 `make design-check FORMAL=run` 重跑 `asset-transfer-v1-transfer`，结果记在整批对齐的交付里。
 - 此后模型或任一配置改动，**上表全部重跑**：主配置与五个去保护配置必须成对重跑，否则「无反例」失去有效性支撑。

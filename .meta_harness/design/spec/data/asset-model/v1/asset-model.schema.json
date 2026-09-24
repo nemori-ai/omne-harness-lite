@@ -3,7 +3,7 @@
   "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/asset-model/v1/asset-model.schema.json",
   "title": "data.asset-model v1",
   "description": "资产领域的静态数据形状：能力标识的词法、资产记录与版本线、八类正文的外壳、属性声明与属性配值、持有范围与工作区键、资产持有、复制血缘、工作区承载清单。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.asset-model/v1 内有效。",
-  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状与一部分组合约束；Schema 表达不了的跨成员与跨对象约束（版本编号连续、同一持有上 item 不重复、作者与所有者同属一个组织、持有与记录的能力标识一致、同一范围同一能力标识至多一份持有、血缘号只挂在一份记录上等）由 contract.md S-27 归入具名拒绝值或 malformed，由接收边界在 Schema 之外兑现。Schema 校验失败只说明「拒绝」，是十个拒绝值里的哪一个按 S-27 的次序定。外部引用：CapabilityId 与类别取值集取自 data.content-blocks v1（S-20）；TenantId、OrganizationId、ScopeLayerIdentity 取自 data.identity-values v1（S-5、S-3、S-11）；Instant 取自 data.offer-expiry v1（S-22）。tool 与 loop_extension 两类正文本应 $ref data.tool-definition v1 与 data.loop-extension v1，那两份契约同批并行起草、不在本工作树，引用暂缺（contract.md G-8），此处只约束到「是一个对象」。正反实例在同目录 examples.md。",
+  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状与一部分组合约束；Schema 表达不了的跨成员与跨对象约束（版本编号连续、同一持有上 item 不重复、作者与所有者同属一个组织、持有与记录的能力标识一致、同一范围同一能力标识至多一份持有、血缘号只挂在一份记录上等）由 contract.md S-27 归入具名拒绝值或 malformed，由接收边界在 Schema 之外兑现。Schema 校验失败只说明「拒绝」，是十个拒绝值里的哪一个按 S-27 的次序定。外部引用：CapabilityId 与类别取值集取自 data.content-blocks v1（S-20）；TenantId、OrganizationId、ScopeLayerIdentity 取自 data.identity-values v1（S-5、S-3、S-11）；Instant 取自 data.offer-expiry v1（S-22）。六类正文 $ref 各自的正文契约（data.tool-definition、data.loop-extension、data.skill-package、data.mcp-endpoint、data.slash-command、data.connector，均 v1，S-10）；那几份契约反过来引用本文件的定义，Schema 之间成环是 $ref 的正常用法，catalog 只登那几份 → 本契约的方向。正反实例在同目录 examples.md。",
   "$defs": {
     "AssetCategory": {
       "title": "资产类别",
@@ -14,18 +14,18 @@
 
     "CapabilityName": {
       "title": "能力标识名",
-      "description": "S-2：能力标识的 name 分量。非空；任何位置都不含 data.identity-values v1 S-31 逐个列出的空白码点；不含 ':'（U+003A）；区分大小写，相等是逐码点精确相等，不做 Unicode 规范化、大小写折叠或裁剪。各类正文契约可以在本规则之内再收窄，不得放宽。",
-      "$comment": "pattern 是 S-31 那个显式空白码点集合加上 ':' 的否定字符类，以 (?![\\s\\S]) 作绝对结尾——不用 \\s 与 $，理由与回归用例见 data.identity-values v1 S-31（Python 的 $ 会匹配到末尾换行之前）。禁 ':' 是为了让 S-3 的规范串 <category>:<name> 单射。",
+      "description": "S-2：能力标识的 name 分量。非空；任何位置都不含 data.identity-values v1 S-31 逐个列出的空白码点；不含 '/'（U+002F），冒号允许；区分大小写，相等是逐码点精确相等，不做 Unicode 规范化、大小写折叠或裁剪。各类正文契约可以在本规则之内再收窄，不得放宽。",
+      "$comment": "pattern 是 S-31 那个显式空白码点集合加上 '/' 的否定字符类，以 (?![\\s\\S]) 作绝对结尾——不用 \\s 与 $，理由与回归用例见 data.identity-values v1 S-31（Python 的 $ 会匹配到末尾换行之前）。禁 '/' 是为了让 S-3 的规范串 <category>/<name> 单射（主线裁定 2026-09-23，待产品负责人确认）。",
       "type": "string",
       "minLength": 1,
-      "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF:]+(?![\\s\\S])",
-      "examples": ["read_file", "code-review", "image-describer"]
+      "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF/]+(?![\\s\\S])",
+      "examples": ["read_file", "code-review", "image-describer", "omne-official:reload-skills"]
     },
 
     "CapabilityId": {
       "title": "能力标识 · Capability Identifier",
       "description": "S-3：资产的身份——类别加 name（UL-capability-identifier）。形状与相等规则是 data.content-blocks v1 的 CapabilityId（S-20：两个分量、逐码点相等、类别恰八个），本契约在它之上只加 name 的词法（S-2）。它回答「是不是同一个东西」；「哪一份实现」由 AssetRecordId 回答（S-4）。",
-      "$comment": "content-blocks S-20 把 name 的词法留给资产领域的契约（它的缺口 G-5）；本定义用 allOf 收紧 name，不复制那边的形状。<category>:<name> 规范串不是 CapabilityId 的交换表示，交换表示恒为两分量对象。",
+      "$comment": "content-blocks S-20 把 name 的词法留给资产领域的契约（它的缺口 G-5）；本定义用 allOf 收紧 name，不复制那边的形状。<category>/<name> 规范串不是 CapabilityId 的交换表示，交换表示恒为两分量对象。",
       "allOf": [
         { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/CapabilityId" },
         { "properties": { "name": { "$ref": "#/$defs/CapabilityName" } } }
@@ -80,18 +80,15 @@
 
     "AssetContent": {
       "title": "一份资产的正文外壳",
-      "description": "S-10：按 category 判别的八个变体。tool 与 loop_extension 的正文归各自的数据契约（data.tool-definition v1、data.loop-extension v1）；skill、mcp、slash_command、connector、agent_definition 五类本版是不透明壳 { body }，body 的形状归各自的正文契约（G-5、G-6、G-7），在那之前任何一方不得解释它；plugin 的正文是成员能力标识的列表（S-11）。",
-      "$comment": "八个变体内联在 oneOf 里，本版不给它们单独的 $defs 名（账本未给名）。category 未知的拒绝值是 category_unknown；plugin 成员里有 plugin 的拒绝值是 plugin_member_is_plugin（S-27）。",
+      "description": "S-10：按 category 判别的八个变体。tool、loop_extension、skill、mcp、slash_command、connector 六类的正文 $ref 各自的正文契约；agent_definition 本版是不透明壳 { body }，body 的形状归 PF-004 的契约（G-6），在那之前任何一方不得解释它；plugin 的正文是成员能力标识的列表（S-11）。",
+      "$comment": "八个变体内联在 oneOf 里，本版不给壳单独的 $defs 名。category 未知的拒绝值是 category_unknown；plugin 成员里有 plugin 的拒绝值是 plugin_member_is_plugin；正文不合它那份正文契约时，拒绝值取那份契约的值、原名携带（S-27）。",
       "type": "object",
       "oneOf": [
         {
           "title": "tool",
           "properties": {
             "category": { "const": "tool" },
-            "definition": {
-              "$comment": "目标形状是 data.tool-definition v1 的 $defs/ToolDefinition；那份契约并行起草、不在本工作树，引用在整批对齐时补上（G-8）。在那之前本 Schema 只约束到对象，契约正文照样以 ToolDefinition 为准。",
-              "type": "object"
-            }
+            "definition": { "$ref": "../../tool-definition/v1/tool-definition.schema.json#/$defs/ToolDefinition" }
           },
           "required": ["category", "definition"],
           "additionalProperties": false
@@ -100,46 +97,43 @@
           "title": "loop_extension",
           "properties": {
             "category": { "const": "loop_extension" },
-            "extension": {
-              "$comment": "目标形状是 data.loop-extension v1 的 $defs/LoopExtensionDefinition；同上，引用在整批对齐时补上（G-8）。",
-              "type": "object"
-            }
+            "extension": { "$ref": "../../loop-extension/v1/loop-extension.schema.json#/$defs/LoopExtensionDefinition" }
           },
           "required": ["category", "extension"],
           "additionalProperties": false
         },
         {
-          "title": "skill（不透明壳）",
+          "title": "skill",
           "properties": {
             "category": { "const": "skill" },
-            "body": { "$comment": "不透明：skill 包的正文契约本程另起（G-5），在那之前不得解释。" }
+            "body": { "$ref": "../../skill-package/v1/skill-package.schema.json#/$defs/SkillPackage" }
           },
           "required": ["category", "body"],
           "additionalProperties": false
         },
         {
-          "title": "mcp（不透明壳）",
+          "title": "mcp",
           "properties": {
             "category": { "const": "mcp" },
-            "body": { "$comment": "不透明：MCP 接入点的正文契约本程另起（G-5）。" }
+            "body": { "$ref": "../../mcp-endpoint/v1/mcp-endpoint.schema.json#/$defs/McpEndpoint" }
           },
           "required": ["category", "body"],
           "additionalProperties": false
         },
         {
-          "title": "slash_command（不透明壳）",
+          "title": "slash_command",
           "properties": {
             "category": { "const": "slash_command" },
-            "body": { "$comment": "不透明：斜杠命令的正文契约本程另起（G-5）。" }
+            "body": { "$ref": "../../slash-command/v1/slash-command.schema.json#/$defs/SlashCommandDefinition" }
           },
           "required": ["category", "body"],
           "additionalProperties": false
         },
         {
-          "title": "connector（不透明壳）",
+          "title": "connector",
           "properties": {
             "category": { "const": "connector" },
-            "body": { "$comment": "不透明：产品正文只定「只送消息进来、无读面无管理面」，正文契约没有（G-7）。" }
+            "body": { "$ref": "../../connector/v1/connector.schema.json#/$defs/ConnectorDefinition" }
           },
           "required": ["category", "body"],
           "additionalProperties": false
@@ -219,7 +213,7 @@
 
     "AssetDefinition": {
       "title": "资产记录",
-      "description": "S-8：一份具体资产。id 是记录号；capability 是它实现的那个能力标识，记录的一生中不变；origin 产生时定死；customized 的必有 owner 与 author（作者与所有者分记，PF-001 §6.7），official 的两者都缺席（data.identity-values v1 CS-2）；lineage 只在复制产生的记录上有，产生时就有，此后不增不删；draft 可反复改；versions 是已发布、不可变、从 1 连续编号的版本线。草稿与每一版正文的 category 都等于 capability.category。属性声明不存在这里——它们由正文按类别推出（S-12）。",
+      "description": "S-8：一份具体资产。id 是记录号；capability 是它实现的那个能力标识，记录的一生中不变；origin 产生时定死；customized 的必有 owner、author 与 byAgent（作者与所有者分记，PF-001 §6.7；byAgent 标这份记录是不是本系统里一次 agent 运行产出的，缺席不读作 false），official 的三者都缺席（data.identity-values v1 CS-2）；lineage 只在复制产生的记录上有，产生时就有，此后不增不删；draft 可反复改；versions 是已发布、不可变、从 1 连续编号的版本线。草稿与每一版正文的 category 都等于 capability.category。属性声明不存在这里——它们由正文按类别推出（S-12）。",
       "$comment": "版本编号连续（version_sequence_broken）、作者与所有者同属一个组织、importedBy 的组织等于所有者组织，Schema 表达不了，由 S-27 在 Schema 之外判。",
       "type": "object",
       "properties": {
@@ -228,6 +222,7 @@
         "origin": { "$ref": "#/$defs/AssetOrigin" },
         "owner": { "$ref": "#/$defs/AssetOwner" },
         "author": { "$ref": "../../identity-values/v1/identity-values.schema.json#/$defs/TenantId" },
+        "byAgent": { "type": "boolean" },
         "lineage": { "$ref": "#/$defs/CopyLineage" },
         "draft": { "$ref": "#/$defs/AssetContent" },
         "versions": { "type": "array", "items": { "$ref": "#/$defs/AssetVersion" } }
@@ -238,14 +233,14 @@
         {
           "if": { "properties": { "origin": { "const": "customized" } }, "required": ["origin"] },
           "then": {
-            "required": ["owner", "author"],
+            "required": ["owner", "author", "byAgent"],
             "properties": { "versions": { "items": { "required": ["publishedBy"] } } }
           }
         },
         {
           "if": { "properties": { "origin": { "const": "official" } }, "required": ["origin"] },
           "then": {
-            "not": { "anyOf": [{ "required": ["owner"] }, { "required": ["author"] }, { "required": ["lineage"] }] },
+            "not": { "anyOf": [{ "required": ["owner"] }, { "required": ["author"] }, { "required": ["byAgent"] }, { "required": ["lineage"] }] },
             "properties": { "versions": { "items": { "not": { "required": ["publishedBy"] } } } }
           }
         },
@@ -331,7 +326,7 @@
 
     "AttributeDeclaration": {
       "title": "属性声明",
-      "description": "S-12：一份资产自带的一个属性项——项名、是设置还是权限、设置的类别、取值域、作者给的默认值。它由这份资产的正文按类别推出（推出规则归各类正文契约），不作为一个成员存在资产记录上。设置项必带 category、取值域为 open、default 合那份 schema；权限项不带 category、取值域为 enum、default 是 values 里的一个。default 是这一项在设置层序最外一格（出厂默认）上的值。项名 disabled 由本契约保留（S-15），它的声明只能是本定义里写死的那一份。",
+      "description": "S-12：一份资产自带的一个属性项——项名、是设置还是权限、设置的类别、取值域、作者给的默认值。它由这份资产的正文按类别推出（推出规则归各类正文契约），不作为一个成员存在资产记录上。设置项必带 category、取值域为 open、default 合那份 schema；权限项不带 category、取值域为 enum、default 是 values 里的一个。default 是这一项在设置层序最外一格（出厂默认）上的值；只有 placement_identity 类设置项可以不带 default——缺席即没有作者默认，各格都没配时求值得到缺席、读作「未配」（S-12）。项名 disabled 与 usableBy 由本契约保留（S-15、S-36），它们的声明只能是本定义里写死的那一份。",
       "$comment": "「default 合 schema」「权限 default ∈ values」「同一资产内 item 互不相同」Schema 表达不了，由 S-27 在 Schema 之外判为 malformed。",
       "type": "object",
       "properties": {
@@ -341,9 +336,13 @@
         "domain": { "$ref": "#/$defs/AttributeDomain" },
         "default": true
       },
-      "required": ["item", "kind", "domain", "default"],
+      "required": ["item", "kind", "domain"],
       "additionalProperties": false,
       "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "setting" }, "category": { "const": "placement_identity" } }, "required": ["kind", "category"] },
+          "else": { "required": ["default"] }
+        },
         {
           "if": { "properties": { "kind": { "const": "setting" } }, "required": ["kind"] },
           "then": {
@@ -371,6 +370,16 @@
               "default": { "const": false }
             }
           }
+        },
+        {
+          "if": { "properties": { "item": { "const": "usableBy" } }, "required": ["item"] },
+          "then": {
+            "properties": {
+              "kind": { "const": "permission" },
+              "domain": { "const": { "kind": "enum", "values": ["superAdministrator", "member", "self"] } },
+              "default": { "const": "self" }
+            }
+          }
         }
       ]
     },
@@ -392,15 +401,16 @@
 
     "AttributeAssignment": {
       "title": "属性配值 · Attribute Assignment",
-      "description": "S-14：某一级在一份资产持有上、为一个属性项配下的一个值（UL-attribute-assignment）。设置项的 value 是一个合该项取值域的 JSON 值；权限项的 value 是一个 PermissionValue。immutable 是不可覆盖标记——true 即「必须这样」，更具体的层改不了；它必填，缺席不当作 false。item 为 disabled 时 value 只能是布尔、immutable 只能是 false（S-15）。",
+      "description": "S-14：某一级在一份资产持有上、为一个属性项配下的一个值（UL-attribute-assignment）。设置项的 value 是一个合该项取值域的 JSON 值；权限项的 value 是一个 PermissionValue。immutable 是不可覆盖标记——true 即「必须这样」，更具体的层改不了；它必填，缺席不当作 false。since 是这条配值此刻的值被写下的时刻，只加锁解锁不改它。item 为 disabled 时 value 只能是布尔、immutable 只能是 false（S-15）。",
       "$comment": "value 该是设置值还是 PermissionValue、是否合取值域，要看这份持有所指资产推出的声明，Schema 表达不了（S-27 malformed）；项已不在当前声明里的配值是合法的留存（S-14）。",
       "type": "object",
       "properties": {
         "item": { "type": "string", "minLength": 1 },
         "value": true,
-        "immutable": { "type": "boolean" }
+        "immutable": { "type": "boolean" },
+        "since": { "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant" }
       },
-      "required": ["item", "value", "immutable"],
+      "required": ["item", "value", "immutable", "since"],
       "additionalProperties": false,
       "if": { "properties": { "item": { "const": "disabled" } }, "required": ["item"] },
       "then": {
@@ -460,13 +470,19 @@
 
     "HoldingBasis": {
       "title": "使用权来路",
-      "description": "S-19：这份持有的资格从哪来。owned：持有方就是这份资产的定义所有者；official：它是 official 资产，不需要授权；shared：经一段确认之后的分享获得使用权（带那段分享的 SharingId）。三支闭合。本版另有三种持有没有一支能诚实表达（G-3）。",
+      "description": "S-19：这份持有的资格从哪来，五支闭合。owned：持有方就是这份资产的定义所有者（组织、租户格）；organization：外层某一格持有同一份实现，本格为配值或加锁而持有（租户、工作区格）；official：它是 official 资产，不需要授权（任一格）；shared：经一段确认之后的分享获得使用权，带那段分享的 SharingId（组织格）；carrier：工作区从承载目录提供的资产（工作区格）。",
       "$comment": "判别成员 kind 的未知取值拒绝值是 malformed（S-27）。",
       "type": "object",
       "oneOf": [
         {
           "title": "拥有",
           "properties": { "kind": { "const": "owned" } },
+          "required": ["kind"],
+          "additionalProperties": false
+        },
+        {
+          "title": "外层持有",
+          "properties": { "kind": { "const": "organization" } },
           "required": ["kind"],
           "additionalProperties": false
         },
@@ -484,25 +500,56 @@
           },
           "required": ["kind", "sharing"],
           "additionalProperties": false
+        },
+        {
+          "title": "工作区提供",
+          "properties": { "kind": { "const": "carrier" } },
+          "required": ["kind"],
+          "additionalProperties": false
+        }
+      ]
+    },
+
+    "VersionSelection": {
+      "title": "版本选用",
+      "description": "S-18：这一格用所指记录的哪一版（UL-version-selection）。current 跟随此刻的最新已发布版；pinned 固定在第 number 版（≥ 1）。新版发布不改任何一份 pinned 持有。",
+      "$comment": "判别成员 kind 的未知取值拒绝值是 malformed（S-26、S-27）。pinned 的版本在所指记录的版本线上存在，Schema 表达不了。",
+      "type": "object",
+      "oneOf": [
+        {
+          "title": "跟随当前",
+          "properties": { "kind": { "const": "current" } },
+          "required": ["kind"],
+          "additionalProperties": false
+        },
+        {
+          "title": "固定一版",
+          "properties": {
+            "kind": { "const": "pinned" },
+            "number": { "type": "integer", "minimum": 1 }
+          },
+          "required": ["kind", "number"],
+          "additionalProperties": false
         }
       ]
     },
 
     "AssetHolding": {
       "title": "资产持有 · Asset Holding",
-      "description": "S-18：一个持有范围与一份资产之间的持有关系（UL-asset-holding）。键是 (holder, capability)，同一个键至多一份持有；asset 是这一格用的那份实现，它的 capability 必须等于本持有的 capability；basis 是资格来路；immutable 是锁替换——持有它的这一格以下不许再替换这个能力标识（PF-002 §5.5）；assignments 是这一格为它配下的值，item 互不相同，禁用就是其中名为 disabled 的那一项；since 是这份持有成立的时刻。出厂格只持有 official、不带配值、不加锁；工作区格不加锁、配值不加锁；经分享的只在组织格；official 的持有上没有 disabled 项（S-20、S-19、S-15）。",
-      "$comment": "同一个键至多一份、asset 与 capability 一致、item 不重复（assignment_item_duplicate）、工作区格上没有权限项与落点与身份类的配值、owned 时所有者等于持有方——都要看记录或整个存储，Schema 表达不了（S-27）。",
+      "description": "S-18：一个持有范围与一份资产之间的持有关系（UL-asset-holding）。键是 (holder, capability)，同一个键至多一份持有；asset 是这一格用的那份实现，它的 capability 必须等于本持有的 capability；basis 是资格来路；versionSelection 是这一格用哪一版；immutable 是锁替换——持有它的这一格以下不许再替换这个能力标识（PF-002 §5.5）；assignments 是这一格为它配下的值，item 互不相同，禁用就是其中名为 disabled 的那一项；since 是这份持有成立的时刻。出厂格只持有 official、不带配值、不加锁；工作区格不加锁、配值不加锁；owned 只在组织与租户格，organization 只在租户与工作区格，shared 只在组织格，carrier 只在工作区格；shared 与 carrier 只选 current；official 的持有上没有 disabled 项（S-20、S-19、S-18、S-15）。",
+      "$comment": "同一个键至多一份、asset 与 capability 一致、item 不重复（assignment_item_duplicate）、工作区格上没有权限项与落点与身份类的配值、owned 时所有者等于持有方、organization 时外层确有同一份持有、carrier 时记录是那份工作区提供的、pinned 的版本存在——都要看记录或整个存储，Schema 表达不了（S-27）。",
       "type": "object",
       "properties": {
         "holder": { "$ref": "#/$defs/HoldingScope" },
         "capability": { "$ref": "#/$defs/CapabilityId" },
         "asset": { "$ref": "#/$defs/AssetRecordId" },
         "basis": { "$ref": "#/$defs/HoldingBasis" },
+        "versionSelection": { "$ref": "#/$defs/VersionSelection" },
         "immutable": { "type": "boolean" },
         "assignments": { "type": "array", "items": { "$ref": "#/$defs/AttributeAssignment" } },
         "since": { "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant" }
       },
-      "required": ["holder", "capability", "asset", "basis", "immutable", "assignments", "since"],
+      "required": ["holder", "capability", "asset", "basis", "versionSelection", "immutable", "assignments", "since"],
       "additionalProperties": false,
       "allOf": [
         {
@@ -510,7 +557,6 @@
           "then": {
             "properties": {
               "basis": { "properties": { "kind": { "const": "official" } } },
-              "immutable": { "const": false },
               "assignments": { "maxItems": 0 }
             }
           }
@@ -526,7 +572,29 @@
         },
         {
           "if": { "properties": { "basis": { "properties": { "kind": { "const": "shared" } }, "required": ["kind"] } }, "required": ["basis"] },
-          "then": { "properties": { "holder": { "properties": { "layer": { "const": "organization" } } } } }
+          "then": {
+            "properties": {
+              "holder": { "properties": { "layer": { "const": "organization" } } },
+              "versionSelection": { "properties": { "kind": { "const": "current" } } }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "basis": { "properties": { "kind": { "const": "owned" } }, "required": ["kind"] } }, "required": ["basis"] },
+          "then": { "properties": { "holder": { "properties": { "layer": { "enum": ["organization", "tenant"] } } } } }
+        },
+        {
+          "if": { "properties": { "basis": { "properties": { "kind": { "const": "organization" } }, "required": ["kind"] } }, "required": ["basis"] },
+          "then": { "properties": { "holder": { "properties": { "layer": { "enum": ["tenant", "workspace"] } } } } }
+        },
+        {
+          "if": { "properties": { "basis": { "properties": { "kind": { "const": "carrier" } }, "required": ["kind"] } }, "required": ["basis"] },
+          "then": {
+            "properties": {
+              "holder": { "properties": { "layer": { "const": "workspace" } } },
+              "versionSelection": { "properties": { "kind": { "const": "current" } } }
+            }
+          }
         },
         {
           "if": { "properties": { "basis": { "properties": { "kind": { "const": "official" } }, "required": ["kind"] } }, "required": ["basis"] },

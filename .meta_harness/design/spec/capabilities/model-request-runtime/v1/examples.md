@@ -89,8 +89,9 @@
 
 | 步 | 预期 | 依据 |
 |---|---|---|
-| 默认件读到策略类，但档案不允许回退 | **不给 `retry`**，交回 ⇒ loop `releaseCall`，上交 | [S-35](contract.md#s-35-默认重试件可替换) 第 3 条 |
-| 一件自定义件给 `retry { provider: B }` | `retryRefused{provider_not_allowed}` | [S-30](contract.md#s-30-dispatchagain) 守卫 4 |
+| 默认件读到策略类，档案不允许回退 | 给一次 `retry { provider: A }`（同家）⇒ 第 2 次发出仍给 `A` | [S-35](contract.md#s-35-默认重试件可替换) 第 3 条 |
+| 第 2 次发出 `A` 又回 503 | 默认件**不再给 `retry`**（同家至多一次），交回 ⇒ loop `releaseCall`，上交 | 同上 |
+| 一件自定义件给 `retry { provider: B }` | `retryRefused{provider_not_allowed}` | [S-30](contract.md#s-30-dispatchagain) 守卫 3 |
 | 一件自定义件给 `retry { provider: A }` | 放行：第 2 次发出仍给 `A` | 同上 |
 
 ## 8. 每个失败值一个反例
@@ -99,18 +100,18 @@
 |---|---|---|---|
 | `invalidInput{malformed}` | `openCall({ run: run_1, session: s1, … })`（缺 `attempt`） | `run` 与 `attempt` 只给了一个 | [S-28](contract.md#s-28-opencall) ① |
 | `invalidInput{malformed}` | `dispatchAgain(c1, { provider: B, target: M2 })` | 计划里出现目标——换模型不是重试能做的 | [S-30](contract.md#s-30-dispatchagain) |
-| `invalidInput{parameter_out_of_range}` | `openCall` 的 `parametersOverride` 把 `temperature` 给成域外值 | 合并之后过不了参数校验；**不是一次上交** | [S-28](contract.md#s-28-opencall) 出门前检查第 5 行 |
+| `invalidInput{parameter_out_of_range}` | `openCall` 的 `parameters` 把 `temperature` 给成域外值 | 合并之后过不了参数校验；**不是一次上交** | [S-28](contract.md#s-28-opencall) 出门前检查第 5 行 |
 | `unavailable` | `legalTargets(s1)`，作用域求值读不到 | 判不出来，**不返回空集** | [S-24](contract.md#s-24-legaltargets) ⑧ |
 | `unavailable` | `interrupt(c1, user)`，中断意图写不进 | **不发中止信号** | [S-31](contract.md#s-31-interrupt) ⑧ |
 | `profileNotFound` | `selectModel(s1, { origin: official, routeName: "vendor/never" }, T)` | 引用解析到零行 | [S-27](contract.md#s-27-selectmodel) |
 | `notLegalTarget{because: [modality_mismatch]}` | 第 6 节的局面里 `selectModel(s1, M1, T)` | `M1` 不收图 | [S-27](contract.md#s-27-selectmodel) |
 | `callNotFound` | `interrupt(c_other_session, user)` | 这个 `callId` 不在这个会话里 | [S-14](contract.md#s-14-缺席时的默认答案与失败集合) |
 | `alreadyEnded` | 第 1 节之后 `interrupt(c1, user)` | `c1` 已在终态 | [S-31](contract.md#s-31-interrupt) |
+| `alreadyEnded` | 第 1 节之后 `dispatchAgain(c1, { provider: A })` | 调用已终结——**不是 `retryRefused`**，已终结只有一个值 | [S-30](contract.md#s-30-dispatchagain) |
 | `runtimeStopped` | 宿主停止中 `openCall(…)` | 不开新调用 | [S-36](contract.md#s-36-宿主停止与撤除) |
-| `retryRefused{call_ended}` | 第 1 节之后 `dispatchAgain(c1, { provider: A })` | 调用已终结 | [S-30](contract.md#s-30-dispatchagain) 守卫 1 |
-| `retryRefused{already_spoke}` | 见第 2 节第 3 步 | 开过口 | 守卫 2 |
-| `retryRefused{fact_class}` | 第一次发出上游回 401（`credential_unavailable`）之后 `dispatchAgain` | 重试没用 | 守卫 3 |
-| `retryRefused{provider_not_allowed}` | 见第 7 节 | 不允许回退 | 守卫 4 |
+| `retryRefused{already_spoke}` | 见第 2 节第 3 步 | 开过口 | [S-30](contract.md#s-30-dispatchagain) 守卫 1 |
+| `retryRefused{fact_class}` | 第一次发出上游回 401（`credential_unavailable`）之后 `dispatchAgain` | 重试没用 | 守卫 2 |
+| `retryRefused{provider_not_allowed}` | 见第 7 节 | 不允许回退 | 守卫 3 |
 | `wrongPhase{phase: in_flight}` | `dispatch` 在途时另一路又调 `releaseCall(c1)` | 这次发出还没收场 | [S-32](contract.md#s-32-releasecall) |
 
 **判定次序的一条回归例**：一次开过口、此刻在 `awaiting_decision` 的调用上 `dispatch(c2)` ⇒ **`retryRefused{already_spoke}`**，不是 `wrongPhase`（[S-30](contract.md#s-30-dispatchagain) 末条、[S-29](contract.md#s-29-dispatch) ⑥ 的次序）。

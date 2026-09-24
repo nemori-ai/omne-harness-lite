@@ -86,11 +86,11 @@
 | 步 | 调用或发生 | 预期 | 依据 |
 |---|---|---|---|
 | 1 | 交回检查 | 合形状、合声明 → 收场 `completed`；本能力**不看大小、不改姿态、不截断** | [S-41](contract.md#s-41-交回)、[S-8](contract.md#s-8-姿态与阶段两个维度) |
-| 2 | `after_action`（`each`）：卸载判定拿到 `subject.result` 与 `offload` | 它调 `storeRaw(T, ses_1, call_a, <40 MB>, "text/plain")` → `{ storage, key, mediaType: "text/plain", bytes: 41943040 }` | [S-36](contract.md#s-36-存一份原始结果)、[S-42](contract.md#s-42-结果落成消息之前的那一关) |
-| 3 | 卸载判定的结论：改写结果块——`blocks` 是作者的摘要加「原始结果 40 MB、怎么取回」，`offloaded` 是第 2 步的引用 | 本能力照结论落 `ToolMessage`；**原始的 40 MB 从头到尾不进会话日志** | [S-42](contract.md#s-42-结果落成消息之前的那一关)；PF-012 §5.10 |
+| 2 | 本能力存下声明卸载的原始结果（进那一关之前，不看卸载判定在不在） | 内联的 40 MB 存进存储，换成引用 `{ storage, key, mediaType: "text/plain", bytes: 41943040 }` | [S-36](contract.md#s-36-存一份原始结果)（账本 S13-b） |
+| 3 | `after_action`（`each`）：卸载判定拿到 `subject.result`，其中 `offload.raw` 已是第 2 步的引用 | 结论：改写结果块——`blocks` 是作者的摘要加「原始结果 40 MB、怎么取回」，`offloaded` 是那个引用；本能力照结论落 `ToolMessage`；**原始的 40 MB 从头到尾不进会话日志** | [S-42](contract.md#s-42-结果落成消息之前的那一关)；PF-012 §5.10 |
 
-**卸载判定此刻不在**：原样落——落进块的是 `content`（作者的摘要块），`offload.raw` 不进消息、**也没有人把它存下**，留一条「落盘前那一关不可用、原始结果未存」的条目（[S-15](contract.md#s-15-缺席时的默认答案)、[S-42](contract.md#s-42-结果落成消息之前的那一关)）。这是「卸载判定不可用 = 只记可见」的直接后果，停在 [G-6](contract.md#十二已知缺口)。
-**存储未定义**，第 2 步停在 [G-7](contract.md#十二已知缺口)。
+**卸载判定此刻不在**：第 2 步照做，原始结果照样存着；只记可见——落进块的是 `content`（作者的摘要块），`raw` 的位置上**只落第 2 步的引用、摘要缺席**，留一条「落盘前那一关不可用」的条目（[S-15](contract.md#s-15-缺席时的默认答案)、[S-42](contract.md#s-42-结果落成消息之前的那一关)）。
+**存储未定义**，第 2 步停在 [G-7](contract.md#十二已知缺口)；存不下时收场照写、落盘写不下去就上交（[S-36](contract.md#s-36-存一份原始结果)）。
 
 ## 6. 停机：前台与后台各追补一条
 
@@ -115,7 +115,7 @@
 | 2 | 当前这一步是一批 `[build(call_a), deploy(call_b)]`：`build` 在跑，`deploy` 排在它后面 | `preempt(T, ses_1, [call_a, call_b])` | **一次写**：`call_a` → `backgrounded{backgrounded_by_preemption}`，照跑；`call_b` → `interrupted{interrupted_by_preemption}`，执行者从没起过、外部效果「已确定未发生」——**它不会在 `call_a` 转后台之后接着在前台起来** | [S-31](contract.md#s-31-插队处置) |
 | 3 | 当前这一步是 `[confirm_plan(call_c)]`，停在 `card_3` 上等人 | `preempt(T, ses_1, [call_c])` | `call_c` → `interrupted{human_declined}`：它在等，本版不能转后台；等的是一张卡片，所以原因是「人拒绝回复」 | [S-31](contract.md#s-31-插队处置)、PF-014 §5.4 |
 
-第 1 步的 `run_cancelled` 在 `data.content-blocks` v1 里还没有取值：记录写得下、消息落不下，停在 [G-2](contract.md#十二已知缺口)。
+第 1 步的 `run_cancelled` 是 `data.content-blocks` v1 候选补上的取值（原 G-2 已闭合），占位 `ToolMessage` 照常落下。
 
 ## 8. 每个失败值一个反例
 
@@ -124,7 +124,6 @@
 | `invalidInput` | —— | `answerWait(T, ses_1, call_c, 缺, {value: {choice: "A"}, by: 人})` | `invalidInput` | `waitIndex` 缺席不替它猜成当前那一次（[S-30](contract.md#s-30-答复等待) ⑧）；**不是** `notWaiting`：表示层校验不是一次判定 |
 | `notAdmitted{why}` | `tok_b` 绑定的是 `deploy` 的另一份参数 | `submit(..., [build(call_a)/tok_a, deploy(call_b)/tok_b])` | 整批 `notAdmitted`；**`call_a` 也没有记录** | 一条凭据不符整批拒（[S-23](contract.md#s-23-提交一批) ②） |
 | `admissionUnavailable` | 放行核对面此刻不可用 | 同上一行的 `submit`（凭据都正确） | 整批 `admissionUnavailable`，一项都不执行 | 「判不出来」不是「判为不符」，也不放行（[S-15](contract.md#s-15-缺席时的默认答案)） |
-| `notAvailable{reason}` | 注册表把 `lint` 判为不可用（依赖没解析），没有替换件顶上 | `submit(..., [lint(call_d)/tok_d])` | 批成立；`call_d` 逐条 `notAvailable{reason}`，收场 `failed{not_available}`，一条 `failed` 的 `ToolMessage` 已交付 | **不是** `unavailable` 收场：那只出自替换件（[S-23](contract.md#s-23-提交一批)） |
 | `backgroundNotAllowed` | `deploy(call_b)` 在前台跑 | `background(T, ses_1, call_b)` | `backgroundNotAllowed` | 定义没声明 `allowBackground`＝不能（[S-27](contract.md#s-27-转后台) ⑧）；发起即后台的同一种情形在 `submit` 里是逐条的同名值 |
 | `notInBackground` | `deploy(call_b)` 在前台 | `interrupt(T, ses_1, call_b, agent)` | `notInBackground` | agent 掐掉的是已转后台的执行（[S-25](contract.md#s-25-中断一次执行) ③） |
 | `callIdConflict` | `call_a` 已登记，参数 `{target: x}` | `submit(..., [build(call_a, {target: y})/tok_a'])` | 整批 `callIdConflict` | 同一 `CallId` 不同参数，不是重复提交（[S-23](contract.md#s-23-提交一批) ⑦） |
@@ -134,3 +133,7 @@
 | `runtimeNotReady` | 本能力刚起来，恢复扫描没完成 | `listLive(T, ses_1)` | `runtimeNotReady`，**不返回空表** | 扫描前的空表会被读成「全都没了」（[S-35](contract.md#s-35-列出活体) ⑧） |
 | `runtimeStopped` | 本能力正在撤除 | `submit(...)` | `runtimeStopped` | 与 `runtimeNotReady` 分开：要换到下一任，不是稍后重试（[S-48](contract.md#s-48-本能力自己的撤除与换代)） |
 | `dependencyUnavailable{which}` | 存储读不到 | `listBackground(T, ses_1)` | `dependencyUnavailable{storage}`，**不返回空表** | 读不到不等于没有（[S-34](contract.md#s-34-列出后台执行) ⑧）；注册表读不到时 `submit` 是 `{registry}` |
+
+**不是失败值的那一支**：注册表把 `lint` 判为不可用——它是替换件，或所选的那条命令在 `commandAvailability` 里被关掉——`submit(..., [lint(call_d)/tok_d])` 批成立，
+`call_d` 的 `disposition` 是 `ended{unavailable}`，一条 `outcome: unavailable` 的 `ToolMessage` 已交付，块上写替换件的说明或注册表给的原因；执行者不起。
+**不是** `failed`：`failed` 让 agent 以为可以重试，而这个名字在这次尝试里就是用不了（[S-23](contract.md#s-23-提交一批) ④；账本 S13-a）。

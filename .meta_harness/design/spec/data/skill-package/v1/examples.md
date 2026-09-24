@@ -17,7 +17,7 @@
 
 - **`通过` 只说形状合规。**资源路径互不相同、设置项的项名互不相同、`default` 合取值域、清单头的名字等于所属能力标识——都不在 Schema 的能力范围内，见[第 9 节](#9-schema-挡不住但同样非法的)。
 - **`name_mismatch` 需要上下文**：一份包单独过 Schema 时没有「所属能力标识」，这个值无从判；凡用到它的行都写明上下文。
-- **技能名的词法按主线裁定写**（禁 `/`、允许 `:`，[S-2](contract.md#s-2-技能名的词法)）；`data.asset-model` v1 候选的 S-2 文本对齐前仍写着禁 `:`——**本节的 `:` 行以本契约为准**。
+- **技能名就是 `data.asset-model` 的 `CapabilityName`**（禁 `/`、允许 `:`，[S-2](contract.md#s-2-技能名的词法)）。
 - **示例里的名字只是占位**：工具名 `read_file`、`run_tests`，依赖名 `github-api`，设施名 `python` 都不来自任何清单。
 - **除[第 8 节](#8-几处违例同时出现时取哪个拒绝值)外，每个非法实例只违反一条规则**，拒绝值因此不需要优先级就能定；第 8 节专门演示优先级。
 
@@ -69,26 +69,27 @@
 
 | 实例 | Schema | 拒绝值 | 依据 |
 |---|---|---|---|
-| `{"path": "references/checklist.md", "executable": false}` | 通过 | — | [S-9](contract.md#s-9-资源条目与包内路径) |
-| `{"path": "scripts/extract.py", "mediaType": "text/x-python", "executable": false}` | 通过 | — | [S-10](contract.md#s-10-资源只被读取不因读取而运行)：脚本也是 `false`——**表示不携带执行资格**；它在脚本集合里（[S-11](contract.md#s-11-脚本集合)） |
-| `{"path": "assets/logo.png", "mediaType": "image/png", "executable": false}` | 通过 | — | [S-9](contract.md#s-9-资源条目与包内路径) |
-| `{"path": "agents/openai.yaml", "executable": false}` | 通过 | — | [S-5](contract.md#s-5-键的四类处置) 第 3 条：外部生态的侧车文件**只是一份普通资源** |
-| `{"path": ".hidden/..notes", "executable": false}` | 通过 | — | [S-9](contract.md#s-9-资源条目与包内路径)：以点开头的段不是 `.` 或 `..` 段 |
-| `{"path": "skill.md", "executable": false}` | 通过 | — | [S-9](contract.md#s-9-资源条目与包内路径)：逐码点比较，它不是 `SKILL.md`（大小写不敏感文件系统上的撞名归读入方，[契约第十节](contract.md#十明确不承诺)） |
-| `{"path": "scripts/extract.py", "executable": true}` | 拒绝 | `malformed`（M9） | [S-10](contract.md#s-10-资源只被读取不因读取而运行) 第 3 条：**不被改成 `false` 后收下** |
-| `{"path": "scripts/extract.py"}` | 拒绝 | `malformed`（M2） | [S-10](contract.md#s-10-资源只被读取不因读取而运行)：缺席不补成 `false` |
-| `{"path": "a.md", "mediaType": "Text/Markdown", "executable": false}` | 拒绝 | `malformed`（M9） | `data.content-blocks/v1#S-7`：媒体类型要小写 |
-| `{"path": "a.md", "executable": false, "sha256": "9f86"}` | 拒绝 | `malformed`（M3） | [S-9](contract.md#s-9-资源条目与包内路径)：本版表示里没有摘要（[G-6](contract.md#九已知缺口)） |
-| `{"path": "../other-skill/SKILL.md", "executable": false}` | 拒绝 | `resource_escapes` | [S-9](contract.md#s-9-资源条目与包内路径) 第 2 条：`..` 段 |
-| `{"path": "a/../../b", "executable": false}` | 拒绝 | `resource_escapes` | 同上：中间的 `..` 段也算 |
-| `{"path": "/etc/passwd", "executable": false}` | 拒绝 | `resource_escapes` | 同上：以 `/` 开头 |
-| `{"path": "C:/skills/x", "executable": false}` | 拒绝 | `resource_escapes` | 同上：以盘符开头 |
-| `{"path": "scripts\\run.py", "executable": false}` | 拒绝 | `resource_escapes` | 同上：含反斜杠 |
-| `{"path": "scripts//run.py", "executable": false}` | 拒绝 | `malformed`（M7） | [S-9](contract.md#s-9-资源条目与包内路径) 第 3 条：空段——**写法不规范，不是逃逸** |
-| `{"path": "./a.md", "executable": false}` | 拒绝 | `malformed`（M7） | 同上：`.` 段 |
-| `{"path": "references/", "executable": false}` | 拒绝 | `malformed`（M7） | 同上：以 `/` 结尾 |
-| `{"path": "", "executable": false}` | 拒绝 | `malformed`（M7） | 同上：空串 |
-| `{"path": "SKILL.md", "executable": false}` | 拒绝 | `malformed`（M7） | [S-9](contract.md#s-9-资源条目与包内路径) 第 5 条：`SKILL.md` 不是资源 |
+| `{"path": "references/checklist.md"}` | 通过 | — | [S-9](contract.md#s-9-资源条目与包内路径) |
+| `{"path": "scripts/extract.py", "mediaType": "text/x-python"}` | 通过 | — | [S-10](contract.md#s-10-资源只被读取不因读取而运行)：脚本的条目上也没有执行位——**表示不携带执行资格**；它在脚本集合里（[S-11](contract.md#s-11-脚本集合)） |
+| `{"path": "assets/logo.png", "mediaType": "image/png"}` | 通过 | — | [S-9](contract.md#s-9-资源条目与包内路径) |
+| `{"path": "agents/openai.yaml"}` | 通过 | — | [S-5](contract.md#s-5-键的四类处置) 第 3 条：外部生态的侧车文件**只是一份普通资源** |
+| `{"path": ".hidden/..notes"}` | 通过 | — | [S-9](contract.md#s-9-资源条目与包内路径)：以点开头的段不是 `.` 或 `..` 段 |
+| `{"path": "skill.md"}` | 通过 | — | [S-9](contract.md#s-9-资源条目与包内路径)：逐码点比较，它不是 `SKILL.md`（大小写不敏感文件系统上的撞名归读入方，[契约第十节](contract.md#十明确不承诺)） |
+| `{"path": "scripts/extract.py", "executable": true}` | 拒绝 | `malformed`（M3） | [S-10](contract.md#s-10-资源只被读取不因读取而运行) 第 3 条：条目上没有执行位，**不被丢掉这一位后收下** |
+| `{"path": "scripts/extract.py", "executable": false}` | 拒绝 | `malformed`（M3） | 同上：写 `false` 也不行——原来那个恒为 `false` 的成员已删（账本 S18-d） |
+| `{"path": "a.md", "mediaType": "Text/Markdown"}` | 拒绝 | `malformed`（M9） | `data.content-blocks/v1#S-7`：媒体类型要小写 |
+| `{"path": "a.md", "sha256": "9f86"}` | 拒绝 | `malformed`（M3） | [S-9](contract.md#s-9-资源条目与包内路径)：本版表示里没有摘要（[G-6](contract.md#九已知缺口)） |
+| `{"path": "../other-skill/SKILL.md"}` | 拒绝 | `resource_escapes` | [S-9](contract.md#s-9-资源条目与包内路径) 第 2 条：`..` 段 |
+| `{"path": "a/../../b"}` | 拒绝 | `resource_escapes` | 同上：中间的 `..` 段也算 |
+| `{"path": "/etc/passwd"}` | 拒绝 | `resource_escapes` | 同上：以 `/` 开头 |
+| `{"path": "C:/skills/x"}` | 拒绝 | `resource_escapes` | 同上：以盘符开头 |
+| `{"path": "scripts\\run.py"}` | 拒绝 | `resource_escapes` | 同上：含反斜杠 |
+| `{"path": "scripts//run.py"}` | 拒绝 | `malformed`（M7） | [S-9](contract.md#s-9-资源条目与包内路径) 第 3 条：空段——**写法不规范，不是逃逸** |
+| `{"path": "./a.md"}` | 拒绝 | `malformed`（M7） | 同上：`.` 段 |
+| `{"path": "references/"}` | 拒绝 | `malformed`（M7） | 同上：以 `/` 结尾 |
+| `{"path": ""}` | 拒绝 | `malformed`（M7） | 同上：空串 |
+| `{"path": "SKILL.md"}` | 拒绝 | `malformed`（M7） | [S-9](contract.md#s-9-资源条目与包内路径) 第 5 条：`SKILL.md` 不是资源 |
+| `{"path": ".omne/skill.json"}` | 拒绝 | `malformed`（M7） | 同上：定义记录的保留路径不是资源 |
 
 ## 4. 定义记录
 
@@ -107,7 +108,7 @@
 | `{"format": 1, "tools": [{"category": "mcp", "name": "github"}]}` | 拒绝 | `tool_ref_invalid` | 同上：Skill 不组合 MCP |
 | `{"format": 1, "tools": [{"category": "converter", "name": "x"}]}` | 拒绝 | `tool_ref_invalid` | 同上：不是 `tool` 就是不合法的引用，不论它是不是八类之一 |
 | `{"format": 1, "tools": [{"category": "tool", "name": "read/file"}]}` | 拒绝 | `tool_ref_invalid` | 同上：name 不合能力标识名的词法 |
-| `{"format": 1, "tools": ["tool:read_file"]}` | 拒绝 | `malformed`（M10） | [S-13](contract.md#s-13-组合的工具清单)：能力标识恒是两分量对象 |
+| `{"format": 1, "tools": ["tool/read_file"]}` | 拒绝 | `malformed`（M10） | [S-13](contract.md#s-13-组合的工具清单)：能力标识恒是两分量对象 |
 | `{"format": 1, "tools": [{"category": "tool"}]}` | 拒绝 | `malformed`（M10） | 同上：缺 name |
 | `{"format": 1, "tools": [{"category": "tool", "name": "read_file"}, {"category": "tool", "name": "read_file"}]}` | 拒绝 | `malformed`（M10） | [S-13](contract.md#s-13-组合的工具清单)：不重复 |
 | `{"format": 1, "dependencies": [""]}` | 拒绝 | `malformed`（M11） | [S-14](contract.md#s-14-外部服务依赖)：依赖名非空 |
@@ -128,7 +129,8 @@
 | `{"item": "tone", "kind": "setting", "domain": {"kind": "open", "schema": {"type": "string"}}, "default": "concise"}` | 拒绝 | `malformed`（M2） | [S-15](contract.md#s-15-设置项声明与目标环境)：资产声明每一项设置时必须标类别 |
 | `{"item": "targetEnvironment", "kind": "setting", "category": "preference", "domain": {"kind": "open", "schema": {"$ref": "TE"}}, "default": {"bindingLayer": "host_machine", "facilities": []}}` | 拒绝 | `malformed`（M13） | [S-15](contract.md#s-15-设置项声明与目标环境)：类别恒为落点与身份，**作者改不了** |
 | `{"item": "targetEnvironment", "kind": "setting", "category": "placement_identity", "domain": {"kind": "open", "schema": {"type": "object"}}, "default": {"bindingLayer": "host_machine", "facilities": []}}` | 拒绝 | `malformed`（M13） | 同上：取值域定死 |
-| `{"item": "targetEnvironment", "kind": "setting", "category": "placement_identity", "domain": {"kind": "open", "schema": {"$ref": "TE"}}, "default": {"bindingLayer": "cloud_vm", "facilities": []}}` | 拒绝 | `malformed`（M13） | 同上：绑定层四值之外——`data.tool-definition` 在这里报 `binding_layer_unknown`，本契约的集合里没有这个值（[对齐义务](../verification.md#对齐义务)） |
+| `{"item": "targetEnvironment", "kind": "setting", "category": "placement_identity", "domain": {"kind": "open", "schema": {"$ref": "TE"}}, "default": {"bindingLayer": "cloud_vm", "facilities": []}}` | 拒绝 | `binding_layer_unknown` | [S-24](contract.md#s-24-表示层拒绝值与判定次序)：绑定层四值之外——`data.tool-definition` 的值，原名携带；同一违例两处同名 |
+| `{"item": "usableBy", "kind": "setting", "category": "preference", "domain": {"kind": "open", "schema": {"type": "string"}}, "default": "self"}` | 拒绝 | `malformed`（M12） | [S-15](contract.md#s-15-设置项声明与目标环境) 第 3 条：`usableBy` 由 `data.asset-model` 保留 |
 
 ## 5. 技能包
 
@@ -185,20 +187,20 @@
     ]
   },
   "resources": [
-    { "path": "references/strict.md", "mediaType": "text/markdown", "executable": false },
-    { "path": "references/lenient.md", "mediaType": "text/markdown", "executable": false }
+    { "path": "references/strict.md", "mediaType": "text/markdown" },
+    { "path": "references/lenient.md", "mediaType": "text/markdown" }
   ]
 }
 ```
 
-它的依赖声明（[S-16](contract.md#s-16-由包得出的依赖声明)）恰两项：能力标识 `tool:read_file`、`tool:run_tests` 下各有一个生效且可用的工具。
-它推出的属性项（[S-17](contract.md#s-17-属性项投影规则)）是 `checklist` 一项加「谁可以使用它」那一项——**后者本版推不出（[G-2](contract.md#九已知缺口)）**。
+它的依赖声明（[S-16](contract.md#s-16-由包得出的依赖声明)）恰两项：能力标识 `tool/read_file`、`tool/run_tests` 下各有一个生效且可用的工具。
+它推出的属性项（[S-17](contract.md#s-17-属性项投影规则)）是 `checklist` 一项；这份技能的全部属性项另有 `data.asset-model` 保留的 `disabled` 与 `usableBy`。
 
 | 变体 | Schema | 拒绝值 | 依据 |
 |---|---|---|---|
 | 在 5.2 上把 `definition.format` 改成 `2` | 拒绝 | `definition_format_unsupported` | [S-12](contract.md#s-12-定义记录)（[S-30](contract.md#s-30-定义记录的格式不认得即拒且先于其余) 反例） |
 | 在 5.2 上往 `tools` 加 `{"category": "skill", "name": "style-guide"}` | 拒绝 | `tool_ref_invalid` | [S-13](contract.md#s-13-组合的工具清单)（[S-29](contract.md#s-29-组合清单只收工具) 反例） |
-| 在 5.2 上往 `resources` 加 `{"path": "../shared/strict.md", "executable": false}` | 拒绝 | `resource_escapes` | [S-9](contract.md#s-9-资源条目与包内路径)（[S-28](contract.md#s-28-资源路径不出包) 反例） |
+| 在 5.2 上往 `resources` 加 `{"path": "../shared/strict.md"}` | 拒绝 | `resource_escapes` | [S-9](contract.md#s-9-资源条目与包内路径)（[S-28](contract.md#s-28-资源路径不出包) 反例） |
 | 在 5.2 上往 `definition` 加 `"permissions": []` | 拒绝 | `malformed`（M3） | [S-12](contract.md#s-12-定义记录) 第 5 条 |
 | 在 5.2 上把 `checklist` 的 `default` 改成 `"references/other.md"` | 通过 | `malformed`（M12） | [S-15](contract.md#s-15-设置项声明与目标环境) 第 5 条：**Schema 管不到**——`default` 不合它自己的取值域 |
 
@@ -226,8 +228,8 @@
     ]
   },
   "resources": [
-    { "path": "scripts/triage.py", "mediaType": "text/x-python", "executable": false },
-    { "path": "references/labels.md", "mediaType": "text/markdown", "executable": false }
+    { "path": "scripts/triage.py", "mediaType": "text/x-python" },
+    { "path": "references/labels.md", "mediaType": "text/markdown" }
   ]
 }
 ```
@@ -273,22 +275,25 @@
 | `manifest_missing` | `{"body": "x", "resources": []}` | —— | [S-3](contract.md#s-3-技能包的四个部分) |
 | `name_mismatch` | 5.1 | 所属能力标识 `{"category": "skill", "name": "Code-Review"}` | [S-6](contract.md#s-6-名字与所属能力标识一致) |
 | `definition_format_unsupported` | 5.2，`definition.format` 为 `2` | —— | [S-12](contract.md#s-12-定义记录) |
-| `resource_escapes` | 5.1，`resources` 为 `[{"path": "/etc/passwd", "executable": false}]` | —— | [S-9](contract.md#s-9-资源条目与包内路径) |
+| `resource_escapes` | 5.1，`resources` 为 `[{"path": "/etc/passwd"}]` | —— | [S-9](contract.md#s-9-资源条目与包内路径) |
 | `tool_ref_invalid` | 5.1 加 `"definition": {"format": 1, "tools": [{"category": "skill", "name": "style-guide"}]}` | —— | [S-13](contract.md#s-13-组合的工具清单) |
+| `binding_layer_unknown` | 5.3，`targetEnvironment` 的 `default.bindingLayer` 为 `"cloud_vm"` | —— | [S-24](contract.md#s-24-表示层拒绝值与判定次序)：`data.tool-definition` 的值，原名携带 |
 | `malformed` | 5.1，`body` 为 `null` | —— | [S-3](contract.md#s-3-技能包的四个部分)（M4） |
 
 ## 8. 几处违例同时出现时取哪个拒绝值
 
-次序：`manifest_missing` > `name_mismatch` > `definition_format_unsupported` > `resource_escapes` > `tool_ref_invalid` > `malformed`（[S-24](contract.md#s-24-表示层拒绝值与判定次序)）。
+次序：`manifest_missing` > `name_mismatch` > `definition_format_unsupported` > `resource_escapes` > `tool_ref_invalid` > `binding_layer_unknown` > `malformed`（[S-24](contract.md#s-24-表示层拒绝值与判定次序)）。
 **这一节的实例故意各违反两条以上**；拒绝值只有一个，就是次序里最靠前的那个。
 
 | 实例 | 同时违反 | 拒绝值 |
 |---|---|---|
-| `{"body": "x", "resources": [{"path": "/etc/passwd", "executable": false}], "definition": {"format": 2}}` | 缺清单头；资源逃逸；格式不认得 | `manifest_missing` |
-| 5.1 把 `resources` 改成 `[{"path": "../x", "executable": false}]`，所属能力标识 name 为 `other` | 名字对不上；资源逃逸 | `name_mismatch` |
+| `{"body": "x", "resources": [{"path": "/etc/passwd"}], "definition": {"format": 2}}` | 缺清单头；资源逃逸；格式不认得 | `manifest_missing` |
+| 5.1 把 `resources` 改成 `[{"path": "../x"}]`，所属能力标识 name 为 `other` | 名字对不上；资源逃逸 | `name_mismatch` |
 | 5.2 把 `definition.format` 改成 `2`、`tools` 加一个 `skill` | 格式不认得；工具引用不合法 | `definition_format_unsupported`——**格式不认得，其余成员不再判**（[S-30](contract.md#s-30-定义记录的格式不认得即拒且先于其余)） |
-| 5.2 往 `resources` 加 `{"path": "C:/x", "executable": false}`、`tools` 加一个 `mcp` | 资源逃逸；工具引用不合法 | `resource_escapes` |
+| 5.2 往 `resources` 加 `{"path": "C:/x"}`、`tools` 加一个 `mcp` | 资源逃逸；工具引用不合法 | `resource_escapes` |
 | 5.2 往 `tools` 加一个 `skill`、往 `definition` 加 `"dependencies": ["a", "a"]` | 工具引用不合法；依赖名重复 | `tool_ref_invalid` |
+| 5.3 把 `targetEnvironment` 的 `default.bindingLayer` 改成 `"cloud_vm"`、往 `definition` 加 `"tools": [{"category": "mcp", "name": "github"}]` | 绑定层不认得；工具引用不合法 | `tool_ref_invalid` |
+| 5.3 把 `targetEnvironment` 的 `default.bindingLayer` 改成 `"cloud_vm"`、往 `definition` 加 `"dependencies": [""]` | 绑定层不认得；依赖名为空 | `binding_layer_unknown` |
 | 5.1 把 `manifest.name` 改成 `"code/review"`，所属能力标识 name 为 `code-review` | 名字词法；名字对不上 | `name_mismatch` |
 | 同上，不知道所属能力标识 | 名字词法 | `malformed`（M6） |
 
@@ -298,8 +303,8 @@
 
 | 实例 | 拒绝值 | 为什么 Schema 挡不住 | 依据 |
 |---|---|---|---|
-| 5.1，`resources` 为 `[{"path": "a.md", "executable": false}, {"path": "a.md", "mediaType": "text/markdown", "executable": false}]` | `malformed`（M8） | 两项不全等，`uniqueItems` 看不出它们指同一个路径 | [S-9](contract.md#s-9-资源条目与包内路径) 第 4 条 |
-| 5.1，`resources` 为 `[{"path": "scripts", "executable": false}, {"path": "scripts/a.py", "executable": false}]` | `malformed`（M8） | 前缀关系要跨两项比 | 同上：一个路径不能既是文件又是目录 |
+| 5.1，`resources` 为 `[{"path": "a.md"}, {"path": "a.md", "mediaType": "text/markdown"}]` | `malformed`（M8） | 两项不全等，`uniqueItems` 看不出它们指同一个路径 | [S-9](contract.md#s-9-资源条目与包内路径) 第 4 条 |
+| 5.1，`resources` 为 `[{"path": "scripts"}, {"path": "scripts/a.py"}]` | `malformed`（M8） | 前缀关系要跨两项比 | 同上：一个路径不能既是文件又是目录 |
 | 5.2，`settings` 里两项都叫 `checklist` | `malformed`（M12） | `item` 相同、其余成员不同，`uniqueItems` 看不出 | [S-15](contract.md#s-15-设置项声明与目标环境) 第 4 条 |
 | 5.2，`checklist` 的 `default` 为 `"references/other.md"` | `malformed`（M12） | 要拿 `default` 去过它自己的那份 schema | [S-15](contract.md#s-15-设置项声明与目标环境) 第 5 条 |
 | 5.1 作为能力标识 name 为 `Code-Review` 的记录的内容 | `name_mismatch` | 包里没有所属能力标识 | [S-6](contract.md#s-6-名字与所属能力标识一致) |
@@ -310,19 +315,20 @@
 
 | 目录 | 读出 | 依据 |
 |---|---|---|
-| `SKILL.md`（5.1 的文本形式）、`references/a.md`、`scripts/run.sh`（文件系统上带执行位） | 一份包：`resources` 两条，**两条的 `executable` 都是 `false`**；脚本集合为 `scripts/run.sh` | 第 3、6 条 |
+| `SKILL.md`（5.1 的文本形式）、`references/a.md`、`scripts/run.sh`（文件系统上带执行位） | 一份包：`resources` 两条，**文件系统的执行位不进表示**；脚本集合为 `scripts/run.sh` | 第 3、6 条 |
 | `skill.md`、`references/a.md`（没有 `SKILL.md`） | `manifest_missing`——**不按大小写放宽** | 第 1 条 |
 | `SKILL.md`、`references/shared` → `../../other-skill` | `resource_escapes`，由读目录的一方在解析之后判（[S-28](contract.md#s-28-资源路径不出包) 目录反例） | 第 4 条 |
 | `SKILL.md`、`references/loop` → `references/loop` | `malformed`（M17） | 第 4 条：成环 |
 | `SKILL.md`、`agents/openai.yaml` | 一份包：`agents/openai.yaml` 是一条普通资源，**其中的 `policy`、`dependencies` 不生效** | 第 3 条；[S-5](contract.md#s-5-键的四类处置) 第 3 条 |
-| `SKILL.md`、一份作者想当定义记录用的 JSON 文件（不论叫什么名字） | 一份包：**那个文件只是一条资源**，这份包没有定义记录——保留路径名未定（[G-1](contract.md#九已知缺口)） | 第 2 条 |
+| `SKILL.md`、`.omne/skill.json`（内容是 `{"format": 1}`） | 一份包：`definition` 是 `{"format": 1}`，`.omne/skill.json` **不是**一条资源 | 第 2 条 |
+| `SKILL.md`、`skill.json`（包根下，作者想当定义记录用） | 一份包：**那个文件只是一条资源**，这份包没有定义记录——定义记录只在 `.omne/skill.json` | 第 2 条 |
 | `SKILL.md`、`.DS_Store` | 一份包：`.DS_Store` 是一条资源——**不按名字过滤任何文件** | 第 3 条 |
 
 ## 11. 起草者逐条自核
 
-- **Schema 校验未运行。**起草时没有跑任何 Draft 2020-12 校验器；第 1～5、7～9 节的「Schema」一列是起草者按 Schema 逐条手核的结论，**手核不是证据**（[验证入口](../verification.md) V-1）。
+- **Schema 列跑过一次本地自检**（整批对齐，2026-09-24，结果在[验证入口](../verification.md#结果与反例)）；「拒绝值」一列仍是手核，**手核不是证据**。
 - 手核时特别看过的几处：`SkillName` 与 `ResourceEntry.path` 两条 pattern 的首尾（`(?![\s\S])` 收尾、`..` 段在中间与末尾都被挡、以点开头的普通段不被挡）；
   `targetEnvironment` 的 `domain` 是 `const` 比较——`"$ref": "TE"` 必须替换成完整的串才会通过；
   5.3 的 `if`／`then` 只在定义记录的 `settings` 含 `targetEnvironment` 时要求 `scripts/` 资源。
-- **跨契约的 `$ref`**（`content-blocks` 的 `CapabilityId`、`MediaType`，`asset-model` 的 `AttributeDeclaration`，`tool-definition` 的 `DependencyName`、`TargetEnvironment`）按它们此刻的候选文本手核；
+- **跨契约的 `$ref`**（`content-blocks` 的 `MediaType`，`asset-model` 的 `CapabilityName`、`CapabilityId`、`AttributeDeclaration`，`tool-definition` 的 `DependencyName`、`TargetEnvironment`）按它们此刻的候选文本校验；
   那几份契约在评审或对齐中改了这些定义，本节须同轮重核。

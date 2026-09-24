@@ -21,7 +21,7 @@
       "description": "S-4：paradigm = single。没有命令，全是参数：input 就是参数 schema，原样进模型面（S-6）。不得带 commands（拒绝值 commands_forbidden）。MCP 来源的定义恒为这一种（S-17），且不得带 composes（S-16）。",
       "type": "object",
       "properties": {
-        "name": { "type": "string", "minLength": 1, "description": "S-2、S-18：作者写的定义以它为身份（能力标识 = 类别 tool + name）；逐码点相等；字符集与长度是缺口 G-1。" },
+        "name": { "$ref": "#/$defs/ToolName", "description": "S-2：作者写的定义以它为身份（能力标识 = 类别 tool + name）；MCP 来源的定义以它为动作空间里那个条目的名字。" },
         "description": { "type": "string", "minLength": 1, "description": "S-8：模型面那个条目的说明。替换件与原件同形，只换这一项。" },
         "paradigm": { "const": "single" },
         "input": { "$ref": "#/$defs/JsonSchema", "description": "S-4：参数 schema，原样即 modelInput（S-6）。" },
@@ -42,7 +42,7 @@
           "properties": { "skills": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true } },
           "additionalProperties": false
         },
-        "origin": { "$ref": "#/$defs/ToolOrigin" }
+        "origin": { "$ref": "#/$defs/ToolSource" }
       },
       "required": ["name", "description", "paradigm", "input", "permissions", "origin"],
       "additionalProperties": false,
@@ -67,7 +67,7 @@
       "description": "S-5：paradigm = multi。先选命令，再给那个命令的参数。必带非空的 commands（缺或空即 commands_missing）；不带 input——它的模型面 input 由 commands 按 S-7 生成，不是一个被存下的成员。命令是工具的内部结构，不是资产。MCP 来源的定义不得是这一种（S-17）。",
       "type": "object",
       "properties": {
-        "name": { "type": "string", "minLength": 1, "description": "S-2、S-18。" },
+        "name": { "$ref": "#/$defs/ToolName", "description": "S-2：同单函数工具的 name。" },
         "description": { "type": "string", "minLength": 1, "description": "S-8：整个工具的说明。" },
         "paradigm": { "const": "multi" },
         "commands": {
@@ -77,7 +77,7 @@
           "propertyNames": { "minLength": 1 },
           "additionalProperties": { "$ref": "#/$defs/CommandDefinition" }
         },
-        "help": { "type": "string", "minLength": 1, "description": "S-8：整个工具的用法总览，可选，是一个文本字段；带了须与 Tools().inspect 一致。不因它生成任何一支（S-7 第 1 条）。" },
+        "help": { "type": "string", "minLength": 1, "description": "S-8：整个工具的用法总览，可选，是一个文本字段；带了须与 Tools().inspect 一致。不因它往生成出的 command 枚举里多加一个值（S-7 第 2 条）。" },
         "needs": { "$ref": "#/$defs/ToolNeeds" },
         "settings": { "$ref": "#/$defs/ToolSettings" },
         "allowBackground": { "type": "boolean", "description": "S-12。" },
@@ -97,7 +97,7 @@
         "origin": {
           "description": "S-17：多命令工具只能是作者写的。",
           "allOf": [
-            { "$ref": "#/$defs/ToolOrigin" },
+            { "$ref": "#/$defs/ToolSource" },
             { "properties": { "kind": { "const": "authored" } } }
           ]
         }
@@ -111,7 +111,7 @@
 
     "CommandDefinition": {
       "title": "命令定义",
-      "description": "S-5：多命令工具里的一个命令。description 必填（说明这一个命令），原样成为生成规则里那一支的 description（S-7 第 4 条）；input 是这个命令的参数 schema，原样成为那一支的 args（S-7 第 3 条），只带命令清单的写法下写 {}；help 可选，是一个文本字段，带了须与 Tools().inspect 对这个命令的回答一致（S-8）。",
+      "description": "S-5：多命令工具里的一个命令。description 必填（说明这一个命令），原样成为生成出的命令表里这个命令那一行（S-7 第 2 条）；input 是这个命令的参数 schema，用于判定所选命令的参数与 Tools().inspect，不进模型面（S-7 第 1、3 条），只带命令清单的写法下写 {\"type\": \"object\", \"properties\": {}}；help 可选，是一个文本字段，带了须与 Tools().inspect 对这个命令的回答一致（S-8）。",
       "type": "object",
       "properties": {
         "description": { "type": "string", "minLength": 1 },
@@ -122,11 +122,37 @@
       "additionalProperties": false
     },
 
+    "ToolName": {
+      "title": "工具定义的名字",
+      "description": "S-18：每一份工具定义的 name（作者写的与 MCP 来源的同一套）。只含 A–Z a–z 0–9 _ : -；不含 __、_:、:_ 三种相邻（拒绝值 name_reserved_sequence）；逐码点相等；转写（: 换成 __）之后不超过 128 个字符——: 算两个的那一半 Schema 管不到，在表示层校验的 Schema 之外那一步（M25）。它是 data.asset-model v1 S-2 能力标识名词法之内的收窄；data.mcp-endpoint v1 的动作条目名 $ref 它。",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^(?!.*(?:__|_:|:_))[A-Za-z0-9_:-]+(?![\\s\\S])"
+    },
     "JsonSchema": {
       "title": "JSON Schema（Draft 2020-12）",
-      "description": "S-4、S-5：参数 schema。取值必须是 JSON Schema Draft 2020-12 的合法 schema，由实现校验，不由本 Schema 表达；本 Schema 只要求它是一个 JSON 对象，因此布尔 schema 不收。不是对象、或是对象却不合 Draft 2020-12，都是 input_not_schema（S-26 第 5 行）。本契约不约束它用哪些关键字、顶层是否 type object、能不能引用外部资源——各家供应商能呈现的子集是缺口 G-12。",
+      "description": "S-4、S-5：参数 schema。取值必须是 JSON Schema Draft 2020-12 的合法 schema，由实现校验，不由本 Schema 表达；本 Schema 只要求它是一个 JSON 对象（布尔 schema 不收），且顶层 type 恰为 \"object\"、带一个对象 properties（可以为空对象）——S-4 三条硬要求的第 1 条（M26）。另两条——任何一处 properties 的每个成员带非空 description（parameter_description_missing）、只用可呈现子集的十七个关键字（M27）——与 Draft 2020-12 的合法性一样在 Schema 之外那一步校验。不是对象、或是对象却不合 Draft 2020-12，都是 input_not_schema（S-26 第 5 行）。",
       "type": "object",
+      "properties": {
+        "type": { "const": "object" },
+        "properties": { "type": "object" }
+      },
+      "required": ["type", "properties"],
       "$comment": "不 $ref 官方元 schema（主线 2026-09-23 裁定）：合法性检查是表示层校验在 Schema 之外的那一步。"
+    },
+
+    "ModelToolEntry": {
+      "title": "模型面条目",
+      "description": "S-6：一份工具定义在模型面恰是这一个条目——entry(d) = { name: modelName(d), description: d.description, parameters: modelInput(d) }。三家供应商的线上形状只是把这三样放进不同的键与外壳（OpenAI Responses 的 name/description/parameters、Chat Completions 与 OpenRouter 的 function 外壳、Anthropic 的 input_schema），映射归传输适配，不改写 schema。name 是转写后的名字（: 换成 __），因此只含供应商都收的字符。",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,128}(?![\\s\\S])", "description": "modelName(d)：d.name 里每一个 : 换成 __；逆转写把 __ 换回 :，S-18 保证唯一。" },
+        "description": { "type": "string", "minLength": 1, "description": "d.description 原样；替换件只换这一项。" },
+        "parameters": { "$ref": "#/$defs/JsonSchema", "description": "modelInput(d)：单函数是 input 原样，多命令是 S-7 生成出的那一份。" }
+      },
+      "required": ["name", "description", "parameters"],
+      "additionalProperties": false
     },
 
     "ToolNeeds": {
@@ -188,21 +214,14 @@
 
     "SettingDeclaration": {
       "title": "一项设置的声明",
-      "description": "S-10：{ category, default }——资产声明一项设置时必须标的类别（UL-setting-category），以及作者给的默认值。两者都必填。各层配值与运行时求值不在本契约。",
+      "description": "S-10、S-31：{ category, default }——资产属性声明（data.asset-model 的 AttributeDeclaration）在工具定义里的写法：项名由 settings 的键给、种类恒为设置、取值域由本契约按项定死，作者只写类别与默认值；S-31 的推出规则由它得出 AttributeDeclaration。不是第二种声明。两者都必填。各层配值与运行时求值不在本契约。",
       "type": "object",
       "properties": {
-        "category": { "$ref": "#/$defs/SettingCategory" },
+        "category": { "$ref": "../../asset-model/v1/asset-model.schema.json#/$defs/SettingCategory" },
         "default": true
       },
       "required": ["category", "default"],
       "additionalProperties": false
-    },
-
-    "SettingCategory": {
-      "title": "设置项类别 · Setting Category",
-      "description": "S-10：恰四值，取自 PF-002 §5.2 与 UL-setting-category：preference 偏好 · binding 绑定 · placement_identity 落点与身份 · governance 治理。闭合枚举，未知取值即 category_unknown（S-28）。",
-      "type": "string",
-      "enum": ["preference", "binding", "placement_identity", "governance"]
     },
 
     "TargetEnvironment": {
@@ -250,7 +269,7 @@
       "additionalProperties": false
     },
 
-    "ToolOrigin": {
+    "ToolSource": {
       "title": "来源",
       "description": "S-17：判别成员 kind，恰两种。authored：作者写的定义。mcp：由某个 MCP 接入点的列举结果生成，对端的一个动作一份定义；endpoint 是那个接入点的能力标识（类别必须是 mcp），remoteName 是那个动作在对端的名字、原样保留。未知 kind 即 origin_unknown（S-28）。",
       "oneOf": [
@@ -325,7 +344,7 @@
               "title": "内联",
               "type": "object",
               "properties": {
-                "inline": { "type": "string", "minLength": 1, "contentEncoding": "base64", "pattern": "^[A-Za-z0-9+/]*={0,2}(?![\\s\\S])" },
+                "inline": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/InlineBytes" },
                 "mediaType": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/MediaType" }
               },
               "required": ["inline", "mediaType"],
@@ -346,7 +365,7 @@
       },
       "required": ["raw"],
       "additionalProperties": false,
-      "$comment": "内联形式的成员名 inline 与 base64 表示照 data.content-blocks 给语音、图块定的内联写法；那边的账本没有一个可 $ref 的内联字节定义名，这里因此内联写出一份，已作为「同一概念一份权威」的对齐项报主线。"
+      "$comment": "内联形式的 inline 取 data.content-blocks 的 InlineBytes（该契约 S-10），编码规则只在那里写一份。"
     }
   }
 }

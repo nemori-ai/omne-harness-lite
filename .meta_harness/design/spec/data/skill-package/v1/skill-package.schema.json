@@ -3,16 +3,12 @@
   "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/skill-package/v1/skill-package.schema.json",
   "title": "data.skill-package v1",
   "description": "技能包的交换与存储表示：一份技能（UL-skill）资产版本的全部内容——SKILL.md 的清单头（Agent Skills 开放格式 69ef37e 的六个键）、SKILL.md 的正文、本项目的包内定义记录（组合的工具清单、外部服务依赖、设置项声明）、包内资源条目。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.skill-package/v1 内有效。",
-  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状与一部分组合约束；Schema 表达不了的跨成员约束（资源路径互不相同且互不为前缀、设置项 item 互不相同、设置项 default 合它的取值域、清单头 name 等于所属能力标识的 name）由 contract.md S-24 归入具名拒绝值或 malformed，由接收边界在 Schema 之外兑现。Schema 校验失败只说明「拒绝」，是六个拒绝值里的哪一个按 S-24 的次序定。SKILL.md 的文本形式与包的目录形式（S-20、S-21）不是 JSON，不在本 Schema 的范围内。外部引用：CapabilityId 与 MediaType 取自 data.content-blocks v1（S-20、S-7）；AttributeDeclaration 取自 data.asset-model v1（S-12）；DependencyName 与 TargetEnvironment 取自 data.tool-definition v1（S-9、S-11）。正反实例在同目录 examples.md。",
+  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状与一部分组合约束；Schema 表达不了的跨成员约束（资源路径互不相同且互不为前缀、设置项 item 互不相同、设置项 default 合它的取值域、清单头 name 等于所属能力标识的 name）由 contract.md S-24 归入具名拒绝值或 malformed，由接收边界在 Schema 之外兑现。Schema 校验失败只说明「拒绝」，是七个拒绝值里的哪一个按 S-24 的次序定。SKILL.md 的文本形式与包的目录形式（S-20、S-21）不是 JSON，不在本 Schema 的范围内。外部引用：MediaType 取自 data.content-blocks v1（S-7）；CapabilityName、CapabilityId、AttributeDeclaration 取自 data.asset-model v1（S-2、S-3、S-12）；DependencyName 与 TargetEnvironment 取自 data.tool-definition v1（S-9、S-11）。正反实例在同目录 examples.md。",
   "$defs": {
     "SkillName": {
       "title": "技能名",
-      "description": "S-2：技能的名字，就是它的能力标识的 name 分量，词法恰是能力标识名的词法——主线 2026-09-23 裁定：非空；任何位置都不含 data.identity-values v1 S-31 逐个列出的空白码点；不含 '/'（U+002F）；允许 ':'；区分大小写，相等是逐码点精确相等，不做 Unicode 规范化、大小写折叠或裁剪。本契约不在其上收窄——开放格式自己的名字规则（小写字母数字与连字符、至多 64 个字符）不是本系统技能名的约束。",
-      "$comment": "这条词法的家是 data.asset-model 的 CapabilityName（S-2）。该契约 v1 候选此刻的文本仍是「禁 ':'、不禁 '/'」，主线裁定的新词法由它在整批对齐时改；在那之前本定义按裁定写成本地 pattern，对齐时改成 $ref 那边的 CapabilityName（对齐义务，见 verification.md）。pattern 是 S-31 的显式空白码点集合加上 '/' 的否定字符类，以 (?![\\s\\S]) 作绝对结尾——不用 \\s 与 $，理由与回归用例见 data.identity-values v1 S-31。",
-      "type": "string",
-      "minLength": 1,
-      "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF/]+(?![\\s\\S])",
-      "examples": ["code-review", "pdf-processing", "Review_Checklist"]
+      "description": "S-2：技能的名字，就是它的能力标识的 name 分量——data.asset-model v1 的 CapabilityName（非空、不含空白、不含 '/'、允许 ':'、区分大小写）。本契约不在其上收窄：开放格式自己的名字规则（小写字母数字与连字符、至多 64 个字符）不是本系统技能名的约束。",
+      "$ref": "../../asset-model/v1/asset-model.schema.json#/$defs/CapabilityName"
     },
 
     "SkillManifest": {
@@ -40,27 +36,26 @@
 
     "ResourceEntry": {
       "title": "资源条目",
-      "description": "S-9、S-10：包内的一份资源文件——SKILL.md 与定义记录以外的任何文件。path 是相对包根的规范路径，只用 '/' 分隔，每一段非空、不是 '.' 或 '..'，不含反斜杠，不以 '/' 或盘符开头，不是 SKILL.md。mediaType 可选，缺席不作任何断言。executable 恒为 false：包的表示不携带任何执行资格——读取一份资源永远不运行它；哪些资源能经 Skills().exec_script 运行由脚本集合（S-11）判定、由运行它的那一方另行放行，都不来自这一位。资源的字节属于这份资产版本的内容，本表示不内联它们（S-19）。",
-      "$comment": "path 以盘符开头、含 '..' 段、含反斜杠、以 '/' 开头的拒绝值是 resource_escapes；其余不规范写法（空串、空段、'.' 段、以 '/' 结尾）是 malformed；path 恰为 SKILL.md 是 malformed（S-24）。末尾用 (?![\\s\\S]) 判绝对结尾，不用 $。",
+      "description": "S-9、S-10：包内的一份资源文件——SKILL.md 与定义记录以外的任何文件。path 是相对包根的规范路径，只用 '/' 分隔，每一段非空、不是 '.' 或 '..'，不含反斜杠，不以 '/' 或盘符开头，不是 SKILL.md 或 .omne/skill.json。mediaType 可选，缺席不作任何断言。资源只读：包的表示不携带任何执行资格，条目上没有执行位成员——读取一份资源永远不运行它；哪些资源能经 Skills().exec_script 运行由脚本集合（S-11）判定、由运行它的那一方另行放行。资源的字节属于这份资产版本的内容，本表示不内联它们（S-19）。",
+      "$comment": "path 以盘符开头、含 '..' 段、含反斜杠、以 '/' 开头的拒绝值是 resource_escapes；其余不规范写法（空串、空段、'.' 段、以 '/' 结尾）是 malformed；path 恰为 SKILL.md 或 .omne/skill.json 是 malformed；条目上带 executable 这类执行位是 malformed（M3，S-24）。末尾用 (?![\\s\\S]) 判绝对结尾，不用 $。",
       "type": "object",
       "properties": {
         "path": {
           "type": "string",
           "minLength": 1,
           "pattern": "^(?![A-Za-z]:)(?!(?:[\\s\\S]*/)?\\.\\.?(?:/|(?![\\s\\S])))[^/\\\\]+(?:/[^/\\\\]+)*(?![\\s\\S])",
-          "not": { "const": "SKILL.md" }
+          "not": { "enum": ["SKILL.md", ".omne/skill.json"] }
         },
-        "mediaType": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/MediaType" },
-        "executable": { "const": false }
+        "mediaType": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/MediaType" }
       },
-      "required": ["path", "executable"],
+      "required": ["path"],
       "additionalProperties": false
     },
 
     "SkillDefinitionRecord": {
       "title": "定义记录",
-      "description": "S-12～S-15：本项目对一份技能的扩展声明，与 SKILL.md、资源同属一份资产版本的内容（D-034 子路径 B-2b），不在 SKILL.md 的 frontmatter 里。format 恒为 1。tools：这份技能组合的工具——能力标识，类别只能是 tool，不重复；同一份清单也是它依赖声明里的工具那几项（S-13、S-16）。dependencies：它要连上的外部服务的依赖名，不重复（S-14）。settings：它声明的设置项（S-15）——每一项是一份设置类的属性声明，类别不是治理，项名不是 disabled；项名 targetEnvironment 由本契约保留给执行环境要求，它的类别、取值域与默认值的形状由本契约定死。定义记录不是资源，任何列举资源的读面都不列它。它不收常驻标记（S-18），也不收权限项（本版技能只有「谁可以使用它」一项权限，由本契约的投影规则给出，S-17）。",
-      "$comment": "format 在但不等于 1 的拒绝值是 definition_format_unsupported，且先于定义记录里其余一切判定；tools 里一项是能力标识的形状、类别却不是 tool 或名字不合能力标识名的词法，拒绝值是 tool_ref_invalid（S-24）。工具名借 SkillName 的 pattern 是因为两者是同一条词法（能力标识名的词法）；整批对齐时这一处改为 $ref data.asset-model 的 CapabilityId。settings 里 item 互不相同、default 合它的取值域，Schema 表达不了（S-24 malformed）。",
+      "description": "S-12～S-15：本项目对一份技能的扩展声明，与 SKILL.md、资源同属一份资产版本的内容（D-034 子路径 B-2b），不在 SKILL.md 的 frontmatter 里。format 恒为 1。tools：这份技能组合的工具——能力标识，类别只能是 tool，不重复；同一份清单也是它依赖声明里的工具那几项（S-13、S-16）。dependencies：它要连上的外部服务的依赖名，不重复（S-14）。settings：它声明的设置项（S-15）——每一项是一份设置类的属性声明，类别不是治理，项名不是 disabled 或 usableBy；项名 targetEnvironment 由本契约保留给执行环境要求，它的类别、取值域与默认值的形状由本契约定死。定义记录不是资源，任何列举资源的读面都不列它。它不收常驻标记（S-18），也不收权限项（本版技能只有「谁可以使用它」一项权限，是 data.asset-model 保留的 usableBy，S-17）。在目录形式里它住在包根下的 .omne/skill.json（S-21）。",
+      "$comment": "format 在但不等于 1 的拒绝值是 definition_format_unsupported，且先于定义记录里其余一切判定；tools 里一项是能力标识的形状、类别却不是 tool 或名字不合能力标识名的词法，拒绝值是 tool_ref_invalid（S-24）。tools 的每一项是 data.asset-model 的 CapabilityId 再加「类别恒为 tool」。targetEnvironment 的 default 里 bindingLayer 不在四值里，拒绝值是 data.tool-definition 的 binding_layer_unknown（原名携带）。settings 里 item 互不相同、default 合它的取值域，Schema 表达不了（S-24 malformed）。",
       "type": "object",
       "properties": {
         "format": { "const": 1 },
@@ -69,13 +64,8 @@
           "uniqueItems": true,
           "items": {
             "allOf": [
-              { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/CapabilityId" },
-              {
-                "properties": {
-                  "category": { "const": "tool" },
-                  "name": { "$ref": "#/$defs/SkillName" }
-                }
-              }
+              { "$ref": "../../asset-model/v1/asset-model.schema.json#/$defs/CapabilityId" },
+              { "properties": { "category": { "const": "tool" } } }
             ]
           }
         },
@@ -93,7 +83,7 @@
                 "properties": {
                   "kind": { "const": "setting" },
                   "category": { "not": { "const": "governance" } },
-                  "item": { "not": { "const": "disabled" } }
+                  "item": { "not": { "enum": ["disabled", "usableBy"] } }
                 }
               },
               {

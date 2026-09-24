@@ -1,7 +1,7 @@
 # capability.asset-registry v1
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.asset-registry, 1)`
-- **状态**：`candidate`——2026-09-23 起草，**未经独立评审、未接受、未冻结**；接受与采用只从 [catalog](../../../../registry/README.md) 读
+- **状态**：`candidate`——2026-09-23 起草，2026-09-24 整批对齐，**未经独立评审、未接受、未冻结**；接受与采用只从 [catalog](../../../../registry/README.md) 读
 - **设计依据**（PF-002 rev 16、PF-006 rev 17、PF-004 rev 10）：
   PF-002 [§4 Slash Command](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)、
   [§4「会话认得哪些命令，什么时候变」](../../../../product/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变)、
@@ -31,22 +31,23 @@
   [SYS-COMPOSITION.C4](../../../../foundation/definition-and-runtime-composition/requirements.md#sys-compositionc4变化作用于下一次装配)
 - **主线裁定**（2026-09-23，**尚未落进设计链里任何一处，本文无处可链**，待产品负责人确认的在条款里逐处标明）：
   注册表按类别一张、reload 一族一条刷一张、plugin 连带（A9）；热更新对进行中运行的呈现时机留缺口（A10）；
-  MCP 动作集按**执行尝试**钉住（B-M03）；可用性变化要提醒 agent（B-M04）；技能「谁可以用」在装配时判（B-M10）；
+  MCP 动作集按**执行尝试**钉住（B-M03）；技能「谁可以用」在装配时判（B-M10）；
   快照不持久、重启由装配清单重填（C-B-M11）；进程里单服务、按 (会话, 类别) 键控；
   补充裁定两条：权限收回的触发操作 `onAssetChange`、可用性到命令粒度（`commandAvailability`）
-- **精确语义依赖**（已登记六项，消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)）：
+- **主线裁定 2026-09-23，待产品负责人确认**（整批对齐 2026-09-24 落地，账本 S22-a～g）：`onAssetChange` 只收窄、早先「权限收回触发 reload」（R-B3）作废（S22-a）；`markFailed` 只去掉失败那一条（S22-b）；`filledBy` 加 `asset_change`、`unavailable` 沿用 `capability.organization-governance` 的收场名（S22-c）；**可用性变化不出提醒**，B-M04 作废（S22-d）；重启按装配清单记下的构成与那一版正文重填（S22-e）；替换件与关掉的命令被调用落收场 `unavailable`（S22-f，经账本 S13-a 改定）；装配清单的追加面与 reload 记录形状归 PF-004 的契约（后续程），热更新对进行中运行何时可见留缺口（S22-g）；`slotConflict` 改名 `toolNameConflict`（简报 S23）
+- **精确语义依赖**（十五项，消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)，catalog 按它登记）：
   - `omne-harness-lite-design-2026-09-15 · data.asset-model · v1`
   - `omne-harness-lite-design-2026-09-15 · data.tool-definition · v1`
   - `omne-harness-lite-design-2026-09-15 · data.loop-extension · v1`
   - `omne-harness-lite-design-2026-09-15 · data.messages · v1`
   - `omne-harness-lite-design-2026-09-15 · data.offer-expiry · v1`
   - `omne-harness-lite-design-2026-09-15 · data.identity-values · v1`
-- **并行起草、尚未登记的七项**（**未定型**，只引各自施工账本里的名字；本分支 catalog 里没有它们的坐标，检查器拒绝未知坐标，**合流对齐时按 [S-4](#s-4-依赖方向与被消费的面) 末表补登**）：
-  `capability.asset-evaluation`、`capability.asset-governance`、`data.skill-package`、`data.slash-command`、`data.mcp-endpoint`、`capability.mcp-bridge`、`capability.tool-admission`
+  - `capability.asset-evaluation`、`capability.asset-governance`、`data.skill-package`、`data.slash-command`、`data.mcp-endpoint`、`capability.mcp-bridge`、`capability.tool-admission` 七份 v1（起草时并行、未登记；2026-09-24 整批对齐按条款号登记）
+  - `capability.modality-projection` v1 与 `data.model-profile` v1（2026-09-24 整批对齐新增：工具两端模态的判法，[S-8](#s-8-当下可用性的三个取值) 第 8 条）
 - **条款编号**：`S-n`，**只在本契约本版本内有效**；外部引用写全坐标，如 `capability.asset-registry/v1#S-15`。缺口编号 `G-n`，见[十](#十已知缺口)
 - **用到但没有词条的概念**，本文标「（无词条）」、**不在这里下定义**，只给它们在本契约里的记录形状：
   **注册表**（产品散文与 [UL-session-slash-command-set](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set) 的定义里当名词用）、
-  **注册表快照**、**可用性报告**、**动作清单持久副本**（`data.mcp-endpoint` 的 `ActionSnapshot`）、**资产的「谁可以用」**（一项[权限](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-permission--权限--permission)，项名归各类正文契约）。
+  **注册表快照**、**可用性报告**、**动作清单持久副本**（`data.mcp-endpoint` 的 `ActionSnapshot`）。**会话资产注册表**与**谁可以使用它**已由词条批立为词条（正式名即此，链接待合流后补）；后者是一项[权限](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-permission--权限--permission)，项名是 `data.asset-model` 保留的 `usableBy`。
   类型名 `RegistrySnapshot`／`RegistryEntry`／`AvailabilityReport`／`EvaluationRef` 取自施工账本
 
 ---
@@ -60,7 +61,7 @@
 
 | # | 拥有的事实与判定 | 正文 |
 |---|---|---|
-| 1 | 每个会话、每个登记类别一份**注册表快照**（无词条）：它由谁填、何时换、换成什么 | [S-5](#s-5-八类里登记六张表)～[S-7](#s-7-注册表条目)、[S-15](#s-15-快照只在这几个时刻换) |
+| 1 | 每个会话、每个登记类别一份**注册表快照**（会话资产注册表此刻的那张表）：它由谁填、何时换、换成什么 | [S-5](#s-5-八类里登记六张表)～[S-7](#s-7-注册表条目)、[S-15](#s-15-快照只在这几个时刻换) |
 | 2 | **reload 一族**有哪几条、各刷哪张表、plugin 那张怎么连带（产品把这件事[明文交给规格](../../../../product/PF-002-assets-settings-and-permissions/design.md#非目标)） | [S-23](#s-23-reload按类别重填) |
 | 3 | [会话斜杠命令集](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set)的兑现：装配时只装有权用的、收回此刻起不存在、③ 型失败后自动去掉 | [S-14](#s-14-会话斜杠命令集是-slash_command-那张表的视图)、[S-20](#s-20-谁可以用门控哪两类按哪个租户身份什么时候判)、[S-27](#s-27-markfailed命令型服务报错之后去掉那一条)、[S-28](#s-28-onassetchange权限收回之后收窄) |
 | 4 | [当下可用性](../../../../ubiquitous_language/terms/reach-and-availability.md#ul-current-availability--当下可用性--current-availability)——依赖解析的「只有且，只有必需」、替换件的判定、按命令的可用性——以及**一次执行尝试内它不变** | [S-8](#s-8-当下可用性的三个取值)～[S-12](#s-12-mcp-动作条目在一次尝试内钉住)、[S-24](#s-24-refreshavailability每次执行尝试开始时现算) |
@@ -70,14 +71,14 @@
 
 | 不拥有 | 归谁 |
 |---|---|
-| **求值**：哪份资产生效、来自哪层、替换与锁、禁用、工作区读入与滤权、属性值、选用哪一版 | `capability.asset-evaluation`（并行）。本契约**只消费它的结果**（[S-16](#s-16-注册表不求值只消费求值结果)） |
-| 持有与配值的写面；资产变化的事件 | `capability.asset-governance`（并行） |
-| 各类正文的形状、校验与属性推出 | `data.tool-definition` v1、`data.loop-extension` v1，以及并行的 `data.skill-package`、`data.slash-command`、`data.mcp-endpoint` |
-| MCP 的连接、列举、动作投影成工具定义、接入点可用性的判定本身、凭据 | `capability.mcp-bridge`（并行） |
+| **求值**：哪份资产生效、来自哪层、替换与锁、禁用、工作区读入与滤权、属性值、选用哪一版、常驻值、「谁可以使用它」的判定 | `capability.asset-evaluation` v1。本契约**只消费它的结果**（[S-16](#s-16-注册表不求值只消费求值结果)） |
+| 持有与配值的写面；资产变化的事件 | `capability.asset-governance` v1 |
+| 各类正文的形状、校验与属性推出 | `data.tool-definition` v1、`data.loop-extension` v1、`data.skill-package` v1、`data.slash-command` v1、`data.mcp-endpoint` v1 |
+| MCP 的连接、列举、动作投影成工具定义、接入点可用性的判定本身、凭据 | `capability.mcp-bridge` v1 |
 | **装配清单**本身：形状、只追加、定义版本、失效 | PF-004 的契约（**未建立**，[G-1](#十已知缺口)） |
-| 斜杠命令的识别与参数解析；③ 型流程的派发与执行结果落日志 | `data.slash-command`（并行）；受理与交付面（PF-014、PF-016） |
-| 一次工具执行（含**替换件被调用时落「不可用」收场**） | `capability.tool-execution-runtime`（并行）；收场取值见 `data.content-blocks/v1#S-17` |
-| 放行判断 | `capability.tool-admission`（并行） |
+| 斜杠命令的识别与参数解析；③ 型流程的派发与执行结果落日志 | `data.slash-command` v1；受理与交付面（PF-014、PF-016） |
+| 一次工具执行（含**替换件与关掉的命令被调用时落收场 `unavailable`**） | `capability.tool-execution-runtime` v1（它的 S-23 ④）；收场取值见 `data.content-blocks/v1#S-17` |
+| 放行判断 | `capability.tool-admission` v1 |
 | 系统提示词怎么组装；提醒怎么落进会话日志 | agent loop 一侧（PF-010、PF-012） |
 | 热更新对**进行中运行**怎么呈现 | PF-004（产品未决，[G-2](#十已知缺口)） |
 | 依赖项各类提供者的在场与自报：外部服务、执行环境设施、存储、有效模型的模态能力 | 各自的 owner（[G-6](#十已知缺口)） |
@@ -89,13 +90,13 @@
 - **不推送。**表换了不通知任何消费者；消费者在自己的时机来读（[S-29](#s-29-本版不发本契约自己的事件)）。
 - **不持久快照**（[S-18](#s-18-快照不持久装配清单是唯一权威)）。「会话装了什么」只有一个权威：装配清单。
 - **不决定进行中的运行是否看得见一次 reload**——[G-2](#十已知缺口)；本契约只保证两种答案下形状都不用改。
-- **不承诺投递**：可用性变化的提醒由会话日志的写入方落（[S-30](#s-30-可用性变化的提醒内容由报告给落日志归日志写入方)）。
+- **不出可用性变化的提醒**（[S-30](#s-30-可用性变化不出提醒)；主线裁定 S22-d）。
 - **不附 Schema。**操作的输入与返回用散文写含义，值类型引用 data 契约；线上形状归把这些操作送过进程边界的那份 composition（[规格容器的规矩](../../../README.md#准入门槛与停止条件)）。
 - **不排除资产的云端存储与双向同步**（[PF-002 §2 非目标](../../../../product/PF-002-assets-settings-and-permissions/design.md#非目标)要求留口子）：表的内容全部由求值结果与不可变版本派生，不在本契约里存任何只有据点才有的资产事实。
 
 ### S-4 依赖方向与被消费的面
 
-**依赖方向**：本契约 → 资产形状、各类正文、求值、资产治理、MCP 桥、放行、身份值、过期语义里的时刻。
+**依赖方向**：本契约 → 资产形状、各类正文、求值、资产治理、MCP 桥、放行、模态投影、模型档案、会话指认、身份值、过期语义里的时刻。
 **反方向**：agent loop、`Tools()`/`Skills()`、斜杠命令识别、放行判断取工具定义、装配器、工具执行运行时读本契约——都是消费者 → 本契约。
 
 #### `data.asset-model` v1 侧
@@ -133,8 +134,9 @@
 
 | 被消费的条款 | 用在哪 |
 |---|---|
-| [`#S-15`](../../../data/messages/v1/contract.md#s-15-systemremindermessage正文给模型读来源给系统认) 提醒由系统产生、一律追加 | [S-30](#s-30-可用性变化的提醒内容由报告给落日志归日志写入方) 可用性变化的提醒落成的形态 |
-| [`#S-18`](../../../data/messages/v1/contract.md#s-18-来源闭合拓展件走兜底) 来源闭合 | [S-30](#s-30-可用性变化的提醒内容由报告给落日志归日志写入方)：**这一种提醒在 v1 的来源表里没有位置**——[G-8](#十已知缺口) |
+| [`#S-24`](../../../data/messages/v1/contract.md#s-24-别的会话捎话与到点了) `SessionRef` 的家 | 本契约的每个操作按它指认会话；拿着它不等于有权访问那个会话（[S-31](#s-31-装配给的保证-vs-协议须给的保证)） |
+
+2026-09-24 整批对齐前这里登的是 `#S-15`、`#S-18`（可用性变化的提醒）；主线裁定 S22-d 之后本契约不出提醒，那两条不再被消费。
 
 #### `data.offer-expiry` v1 与 `data.identity-values` v1 侧
 
@@ -149,19 +151,19 @@
 | [`#S-31`](../../../data/identity-values/v1/contract.md#s-31-不透明标识的交换表示) 不透明标识的交换表示 | `EvaluationRef`（[S-13](#s-13-evaluationref)） |
 | [`#S-32`](../../../data/identity-values/v1/contract.md#s-32-判别式集合闭合)、[`#S-33`](../../../data/identity-values/v1/contract.md#s-33-表示层校验与判定分开) | [S-19](#s-19-缺席时的默认答案) 的 `invalidInput` |
 
-#### 并行契约侧（合流后补登 catalog；**以名字为界**，对方改名本表失效）
+#### 其余被消费的契约（2026-09-24 整批对齐由施工账本名换成条款号）
 
-| 被消费的（施工账本名） | 用在哪 |
-|---|---|
-| `capability.asset-evaluation`：`EffectiveAssembly`（`assets` 的 `capability`／`asset`／`from`，`composition` 的次序，`values`，`unresolved`）、`Layer` | [S-16](#s-16-注册表不求值只消费求值结果)、[S-22](#s-22-fill装配时填六张)、[S-23](#s-23-reload按类别重填)；**本契约还要三样它的账本里没有的**——[G-5](#十已知缺口) |
-| `capability.asset-governance`：通知 `HoldingChanged`、`AssignmentChanged` | [S-28](#s-28-onassetchange权限收回之后收窄) 的输入 |
-| `data.skill-package`：`SkillDefinitionRecord.dependencies` | [S-8](#s-8-当下可用性的三个取值) 技能条目的依赖解析 |
-| `data.slash-command`：`CommandBinding` 的三支（`command` 支即 ③ 型）、`CommandName` | [S-27](#s-27-markfailed命令型服务报错之后去掉那一条)、[S-23](#s-23-reload按类别重填) reload 一族的名字 |
-| `data.mcp-endpoint`：`ActionSnapshot`（含「还没取过」那一支） | [S-12](#s-12-mcp-动作条目在一次尝试内钉住) |
-| `capability.mcp-bridge`：`refreshActions`、`projectActions`、`availability` | [S-12](#s-12-mcp-动作条目在一次尝试内钉住)、[S-24](#s-24-refreshavailability每次执行尝试开始时现算) |
-| `capability.tool-admission`：`SessionRunMode`（`never`） | [S-9](#s-9-按命令的可用性) |
-
-> **条款号为什么没写**：七份并行契约的 `S-n` 此刻还没定型，写号等于猜。合流对齐时把上表换成号并登进 catalog。
+| 坐标 | 被消费的条款 | 用在哪 |
+|---|---|---|
+| `capability.asset-evaluation` v1 | [`#S-5`](../../asset-evaluation/v1/contract.md#s-5-层与三条层序) `Layer`；[`#S-8`](../../asset-evaluation/v1/contract.md#s-8-求值结果-effectiveassembly) `EffectiveAssembly`（`assets` 的 `capability`／`asset`／`version`／`from`／`resident`／`usable`，`composition` 的次序，`values`，`unresolved`）；[`#S-31`](../../asset-evaluation/v1/contract.md#s-31-unresolved-交到装配手上怎么收场) `unresolved` 交到装配手上；[`#S-38`](../../asset-evaluation/v1/contract.md#s-38-常驻值) 常驻值；[`#S-39`](../../asset-evaluation/v1/contract.md#s-39-谁可以使用它值与判定) 「谁可以使用它」的判定 | [S-7](#s-7-注册表条目)、[S-16](#s-16-注册表不求值只消费求值结果)、[S-20](#s-20-谁可以用门控哪两类按哪个租户身份什么时候判)、[S-22](#s-22-fill装配时填六张)、[S-23](#s-23-reload按类别重填) |
+| `capability.asset-governance` v1 | [`#S-48`](../../asset-governance/v1/contract.md#s-48-事件都是通知) `HoldingChanged`、`AssignmentChanged`，都是通知 | [S-28](#s-28-onassetchange权限收回之后收窄) 的输入 |
+| `data.skill-package` v1 | [`#S-16`](../../../data/skill-package/v1/contract.md#s-16-由包得出的依赖声明) 由包得出的依赖声明 | [S-8](#s-8-当下可用性的三个取值) 技能条目的依赖解析 |
+| `data.slash-command` v1 | [`#S-2`](../../../data/slash-command/v1/contract.md#s-2-命令名的词法) 命令名、[`#S-3`](../../../data/slash-command/v1/contract.md#s-3-保留区与它唯一的拼法) 保留区、[`#S-6`](../../../data/slash-command/v1/contract.md#s-6-三种绑定目标) 三种绑定目标（`command` 支即 ③ 型）、[`#S-16`](../../../data/slash-command/v1/contract.md#s-16-名字只按会话斜杠命令集认) 会话斜杠命令集的元素是「命令名 ＋ 正文」一对 | [S-14](#s-14-会话斜杠命令集是-slash_command-那张表的视图)、[S-23](#s-23-reload按类别重填) reload 一族的名字、[S-27](#s-27-markfailed命令型服务报错之后去掉那一条) |
+| `data.mcp-endpoint` v1 | [`#S-9`](../../../data/mcp-endpoint/v1/contract.md#s-9-动作清单副本) 动作清单副本（含「还没取过」那一支）、[`#S-11`](../../../data/mcp-endpoint/v1/contract.md#s-11-动作条目名) 动作条目名 | [S-12](#s-12-mcp-动作条目在一次尝试内钉住) |
+| `capability.mcp-bridge` v1 | [`#S-16`](../../mcp-bridge/v1/contract.md#s-16-refreshactions) `refreshActions`（成功与判定类失败随值交出的副本）、[`#S-17`](../../mcp-bridge/v1/contract.md#s-17-projectactions) `projectActions`（条目、「只能以替换件出现」、排除、结果端「任意」） | [S-8](#s-8-当下可用性的三个取值) 第 8 条、[S-12](#s-12-mcp-动作条目在一次尝试内钉住)、[S-24](#s-24-refreshavailability每次执行尝试开始时现算) |
+| `capability.tool-admission` v1 | [`#S-10`](../../tool-admission/v1/contract.md#s-10-会话运行模式) `SessionRunMode`（`never`） | [S-9](#s-9-按命令的可用性) |
+| `capability.modality-projection` v1 | [`#S-19`](../../modality-projection/v1/contract.md#s-19-查登记-lookupconverter) `lookupConverter` | [S-8](#s-8-当下可用性的三个取值) 第 8 条：工具结果那一端 |
+| `data.model-profile` v1 | [`#S-7`](../../../data/model-profile/v1/contract.md#s-7-modality-与两组模态) 两组模态 | [S-8](#s-8-当下可用性的三个取值) 第 8 条：工具两端 |
 
 ---
 
@@ -169,7 +171,7 @@
 
 **身份值一律引用 `data.identity-values` v1，资产侧的值一律引用 `data.asset-model` v1，不复制定义。**
 本契约不铸任何标识；`EvaluationRef` 由装配清单的记录给出（[S-13](#s-13-evaluationref)）。
-**会话**的指认是它的会话标识（家在会话的契约，[`data.messages` 的 G-7](../../../data/messages/v1/contract.md#九已知缺口) 已登记那一格）；本契约只按它键控，**拿着它不等于有权访问那个会话**（[S-31](#s-31-装配给的保证-vs-协议须给的保证)）。
+**会话**的指认是 `SessionRef`（`data.messages/v1#S-24`：全树只用这一个名字，主线裁定 2026-09-23，待产品负责人确认）；本契约只按它键控，**拿着它不等于有权访问那个会话**（[S-31](#s-31-装配给的保证-vs-协议须给的保证)）。
 
 ### S-5 八类里登记六张表
 
@@ -189,14 +191,14 @@
 
 ### S-6 注册表快照
 
-**`RegistrySnapshot`（注册表快照，无词条）是一个会话、一个类别此刻的那张表**：`{ category, entries, filledAt, filledBy, basedOn }`。
+**`RegistrySnapshot`（注册表快照）是一个会话、一个类别此刻的那张表**——会话资产注册表此刻的样子：`{ category, entries, filledAt, filledBy, basedOn }`。
 
 | 成员 | 含义 |
 |---|---|
 | `category` | 六类之一（[S-5](#s-5-八类里登记六张表)） |
 | `entries` | `RegistryEntry` 的序列（[S-7](#s-7-注册表条目)），**次序是求值结果给出的次序**（装配清单顺序）；换表、算可用性都不改次序 |
 | `filledAt` | 这份快照成立的时刻（`Instant`）；**同一 (会话, 类别) 上严格递增**，因此 (会话, 类别, `filledAt`) 指认一份快照 |
-| `filledBy` | 它为什么成立，闭合：`assembly`（装配，含完整重新装配）· `reload{command}`（人发的那条 reload，`command` 是那条命令的名字）· `auto_refresh_after_failure`（③ 型失败后自动去掉一条）· `asset_change`（权限收回后收窄）。**第四个值不在施工账本里**，随补充裁定的 `onAssetChange` 一并加上——[G-4](#十已知缺口) |
+| `filledBy` | 它为什么成立，闭合：`assembly`（装配，含完整重新装配）· `reload{command}`（人发的那条 reload，`command` 是那条命令的名字）· `auto_refresh_after_failure`（③ 型失败后自动去掉一条）· `asset_change`（权限收回后收窄）。**第四个值由主线裁定补名**（2026-09-23，待产品负责人确认；账本 S22-c；原 G-4 闭合），随 `onAssetChange` 一并产生 |
 | `basedOn` | 它所依的那次求值（[S-13](#s-13-evaluationref)）；`auto_refresh_after_failure` 与 `asset_change` 只删不增，**沿用被收窄那份的 `basedOn`** |
 
 1. **每个 (会话, 类别) 至多一份当前快照**；按 (会话, 类别) 键控，**一个会话的条目不会出现在另一个会话的读里**。
@@ -213,15 +215,15 @@
 | `capability` | 能力标识（`data.asset-model/v1#S-3`）。**MCP 动作条目**填它所随的那个接入点的能力标识（动作不是资产，[S-12](#s-12-mcp-动作条目在一次尝试内钉住)） |
 | `asset` | 这一次生效的那份资产记录（`data.asset-model/v1#S-4`），**求值选定的，注册表不另选** |
 | `from` | 它来自哪一格：`factory`、`organization`、`tenant`、`workspace`——`capability.asset-evaluation` 的 `Layer`，与 `data.asset-model/v1#S-16` 的持有格同词；**`session` 不会出现在这里**（会话不是持有格） |
-| `content` | 那份记录**被选用的那一版**的正文（`data.asset-model/v1#S-10`）。版本由求值按持有的版本选用定，注册表不猜「最新已发布」；MCP 动作条目是一份 `tool` 类正文，装着桥投影出的工具定义（`data.tool-definition/v1#S-17` 的 `mcp` 来源） |
+| `content` | 那份记录**被选用的那一版**的正文（`data.asset-model/v1#S-10`）。版本取 `EffectiveAsset.version`（[`capability.asset-evaluation/v1#S-8`](../../asset-evaluation/v1/contract.md#s-8-求值结果-effectiveassembly)），注册表不猜「最新已发布」；MCP 动作条目是一份 `tool` 类正文，装着桥投影出的工具定义（`data.tool-definition/v1#S-17` 的 `mcp` 来源） |
 | `availability` | [S-8](#s-8-当下可用性的三个取值) |
 | `commandAvailability` | [S-9](#s-9-按命令的可用性) |
 | `resident` | **恰在 `tool` 与 `skill` 两类的条目上出现**（[常驻](../../../../ubiquitous_language/terms/reach-and-availability.md#ul-residency--常驻--residency)只对工具与技能有意义）；其余类别缺席——缺席在那里的意思是「这一类没有常驻这回事」，不是 `false` |
 
-- **常驻值来自求值结果，注册表不计算**：[PF-006 §4 常驻](../../../../product/PF-006-tools-and-skills/design.md#常驻)与 [§6.1](../../../../product/PF-006-tools-and-skills/design.md#61-常驻标记挂在引用条目上agent-definition-压-plugin) 的「标在引用上、agent definition 压 plugin」由求值兑现。**`capability.asset-evaluation` 的账本里还没有这一项输出**——[G-5](#十已知缺口)。
+- **常驻值来自求值结果，注册表不计算**：[PF-006 §4 常驻](../../../../product/PF-006-tools-and-skills/design.md#常驻)与 [§6.1](../../../../product/PF-006-tools-and-skills/design.md#61-常驻标记挂在引用条目上agent-definition-压-plugin) 的「标在引用上、agent definition 压 plugin」由求值兑现：取 `EffectiveAsset.resident`（[`capability.asset-evaluation/v1#S-38`](../../asset-evaluation/v1/contract.md#s-38-常驻值)）。**它缺席（判不出）时 `fill`、`reload` 收 `unavailable`**，不当作 `true` 也不当作 `false`（那份契约的 G-3、G-18）。
 - **槽位按条目计**：每条 `resident: true` 的条目占一个[提示词槽位](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-prompt-slot--提示词槽位--prompt-slot)；多命令工具是**一条**条目，整套命令只占一个（[PF-006 §4 槽位](../../../../product/PF-006-tools-and-skills/design.md#槽位)、[PF-002 §4 Tool](../../../../product/PF-002-assets-settings-and-permissions/design.md#tool)、`data.tool-definition/v1#S-6`）。MCP 动作条目恒为 `false`（[PF-006 §6.13](../../../../product/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)）。
 - **meta 门条目**（[PF-006 §6.1](../../../../product/PF-006-tools-and-skills/design.md#61-常驻标记挂在引用条目上agent-definition-压-plugin) 末段、[PF-007 meta 与常驻](../../../../product/PF-007-meta-capabilities/design.md#meta-与常驻的关系)）：**注册表自己的任何操作都不把它从 `tool` 表里去掉、不把它标成非常驻**——`markFailed`、`onAssetChange` 都碰不到它（它们只动 `slash_command` 与 `skill` 两张表）。它**不可禁用、不被资产替换顶掉、恒常驻**——这三条由求值兑现，注册表照抄；**权限关不掉这扇门**：它的 `availability` 与别的条目一样只由依赖解析算出，权限从不让它变成替换件；**门后单条命令可以关**，走 [S-9](#s-9-按命令的可用性)。哪些能力标识是 meta 门，没有契约家——[G-7](#十已知缺口)。
-- **`tool` 表里的名字在 agent 面前唯一**：条目在模型面的名字（作者写的工具是它的 `name`，即能力标识的 name；MCP 动作条目是桥给它起的名字）两两不同。**撞了就是 `slotConflict`**（[S-21](#s-21-这一节每个操作写全九件事) 总表），**不静默丢一个**。
+- **`tool` 表里的名字在 agent 面前唯一**：条目在模型面的名字（作者写的工具是它的 `name`，即能力标识的 name；MCP 动作条目是桥给它起的名字）两两不同。**撞了就是 `toolNameConflict`**（[S-21](#s-21-这一节每个操作写全九件事) 总表），**不静默丢一个**。
 
 ### S-8 当下可用性的三个取值
 
@@ -240,6 +242,7 @@
 5. **没有写入口**：没有任何一个操作能把一条条目设成可用或不可用，**只有依赖解析算得出它**。
 6. **它不是快照的构成**：算可用性不增删条目、不改次序、不产生新快照；**不持久、不重放**（[PF-015 §5.8](../../../../product/PF-015-session-lifecycle-and-ownership/design.md#58-存储要守住的两件事)：实时算的那些没有「恢复」这回事）。
 7. **与禁用分得开**：被[禁用](../../../../ubiquitous_language/terms/circulation-and-entitlement.md#ul-asset-disable--资产禁用--asset-disable)的资产在求值时就被滤掉，**根本不进表**；进了表的，最多是不可用、原位可见。
+8. **工具两端的模态那两项**（`data.tool-definition/v1#S-19` 由 `needs` 得出）：**调用那一端**，`needs.inputModalities` 的每一种都在有效模型档案的输出模态里（[`data.model-profile/v1#S-7`](../../../data/model-profile/v1/contract.md#s-7-modality-与两组模态)），注册表自己比；**结果那一端**，声明的每一种结果模态 `m`：在有效模型档案的输入模态里，或 [`capability.modality-projection/v1#S-19`](../../modality-projection/v1/contract.md#s-19-查登记-lookupconverter) `lookupConverter({ modality: m })` 答 `{ registered }`——答 `{ unregistered }` 即这一项不满足，答 `{ unavailable }` 按第 3 条写「读不到」。MCP 动作条目的结果端是「任意」（`capability.mcp-bridge/v1#S-17`；`data.tool-definition/v1#S-24` 第 3 条），不产生结果那一端的项。**一次执行尝试开始时「有效模型」指哪一份档案，本版没有答案**——有效模型要到每次调模型之前才定（`data.model-response/v1#S-10`），[G-6](#十已知缺口)；在它有答案之前，这两项按第 3 条判为不满足。
 
 一条条目读出来时带的 `availability`，是**这个会话最近一次算出的那一份**：填表或重填时算一次（PF-006 §6.4「装配与每次 run 前」），每次执行尝试开始时再算一次（[S-24](#s-24-refreshavailability每次执行尝试开始时现算)）。
 
@@ -280,18 +283,21 @@
 
 **[MCP](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-mcp--mcp--mcp) 对端的每一个动作是 `tool` 表里的一条不常驻条目**（[PF-006 §6.13](../../../../product/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)）。**动作集在每次执行尝试开始时与可用性一起重算，一次尝试之内不变**（主线裁定 B-M03，把产品正文的「一次 run 之内不变」读成「一次尝试之内不变」——产品修订在途）。
 
-对 `mcp` 表里的每一个接入点，[S-24](#s-24-refreshavailability每次执行尝试开始时现算) 做下面三者之一：
+对 `mcp` 表里的每一个接入点，[S-24](#s-24-refreshavailability每次执行尝试开始时现算) 以求值交来的接入点持有调一次 `capability.mcp-bridge/v1#S-16` `refreshActions`，按它的结局做下面四者之一：
 
-| 接入点此刻 | 动作条目 | 接入点那一行 |
+| `refreshActions` 的结局 | 动作条目 | 接入点那一行 |
 |---|---|---|
-| **连得上**（`capability.mcp-bridge` 的 `availability` 说可用，`refreshActions` 取到这一次的动作清单） | 桥把这一次的清单投影成工具定义（`projectActions`），每个动作一条，`available` | `available` |
-| **连不上**，但有**上一次取到的那份动作清单**（`data.mcp-endpoint` 的 `ActionSnapshot`） | 照上一次那份清单投影，每个动作一条 **`stand_in{for}`**，原因原样取桥给的（[「接入点连不上」](../../../../product/PF-006-tools-and-skills/design.md#接入点连不上它的动作就是不可用)：替换件替的是最近一次拿到的那份） | `unavailable{reason}` |
-| **从没取到过动作清单**（`ActionSnapshot` 是「还没取过」那一支） | **没有**——没有原件形状可同 | `unavailable{reason}`，原因写明「从未取得动作清单」 |
+| **成功**：这一次完整拿到的副本 | 桥把它投影成工具定义（`capability.mcp-bridge/v1#S-17` `projectActions`），每个动作一条，`available`；**桥标了「只能以替换件出现」的那几条**是 `stand_in{for}`，原因取桥给的 | `available` |
+| **判定类失败**（`endpointUnreachable`、`credentialUnavailable`、`oauthRequired`、`protocolError`），随值交出的副本是**上一次取到的那份**（`data.mcp-endpoint` 的 `ActionSnapshot`，`fetched` 那一支） | 照那份副本投影，每个动作一条 **`stand_in{for}`**，原因是那个失败值（[「接入点连不上」](../../../../product/PF-006-tools-and-skills/design.md#接入点连不上它的动作就是不可用)：替换件替的是最近一次拿到的那份） | `unavailable{reason}` |
+| **判定类失败**，随值交出的副本是「还没取过」那一支 | **没有**——没有原件形状可同 | `unavailable{reason}`，原因写明「从未取得动作清单」与那个失败值 |
+| **没有结论**（`dependencyUnavailable`、`bridgeWithdrawn`、`invalidInput`；桥不交副本） | **没有**——手上没有可同的形状 | `unavailable{reason}`，原因写「读不到」，`invalidInput` 另写「输入不合形状」（求值或本契约一侧的缺陷），两者分得开 |
 
 - **动作条目不是快照的构成**：它们是接入点的内容，每次尝试现取；**不进装配清单**，重启不重建，下一次尝试再取。动作集在尝试与尝试之间变，**不破 [PF-004 I-4](../../../../product/PF-004-agent-definition-and-assembly/design.md#61-不变式)**——装进来的是这个接入点。
 - **对端中途增删动作**：这一次尝试的条目不变，下一次尝试开始时才变。
 - **每个动作条目的执行权限配在接入点的持有上**，常驻恒为 `false`——那是求值与桥的事，本契约只照抄。
-- **名字由桥起**；与 `tool` 表里别的条目撞名即 `slotConflict`（[S-7](#s-7-注册表条目) 末条）——命名规则应当让它碰不上，[G-13](#十已知缺口)。
+- **名字由桥起**（`capability.mcp-bridge/v1#S-17`，拼法 `data.mcp-endpoint/v1#S-11`）；与 `tool` 表里别的条目撞名即 `toolNameConflict`（[S-7](#s-7-注册表条目) 末条）——命名规则应当让它碰不上，[G-12](#十已知缺口)。
+- **被桥排除的动作**（`projectActions` 的 `excluded`：条目名拼不出、参数 schema 不成立）不进表——没有名字可占位；要不要另告诉 agent，[G-13](#十已知缺口)。
+- **结果那一端是「任意」**（`capability.mcp-bridge/v1#S-17`），动作条目的依赖解析不含结果模态那一项（[S-8](#s-8-当下可用性的三个取值) 第 8 条）。
 
 ### S-13 EvaluationRef
 
@@ -303,7 +309,7 @@
 
 ### S-14 会话斜杠命令集是 slash_command 那张表的视图
 
-**[会话斜杠命令集](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set) = 这个会话当前 `slash_command` 快照里的条目，减去此刻读来已经无权使用的那些**（[S-20](#s-20-谁可以用门控哪两类按哪个租户身份什么时候判)）。
+**[会话斜杠命令集](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set) = 这个会话当前 `slash_command` 快照里的条目，减去此刻读来已经无权使用的那些**（[S-20](#s-20-谁可以用门控哪两类按哪个租户身份什么时候判)）。**交出时每一条是「命令名 ＋ 正文」一对**：命令名是条目能力标识的 name，正文是那一版的 `SlashCommandDefinition`——`data.slash-command/v1#S-16` 的解析只读这一组对。
 
 - **交付面只按它识别命令**；对它之外的名字，[S-25](#s-25-lookup查一条) 给「没有」——**与一个从来不存在的名字逐字相同**（[PF-002 §4「没有权限，就等于不存在」](../../../../product/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变)）。**本契约没有「有这条、但你不能用」这第二种回答**。
 - 它**不因资产的增删与禁用而自己变**；变只发生在 [S-15](#s-15-快照只在这几个时刻换) 列的那几个时刻，外加读时现读的收回。
@@ -360,18 +366,18 @@
 
 | 情形 | 结果 | 为什么不合并 |
 |---|---|---|
-| 判定得出「不行」 | 具名值：`categoryNotRegistered`、`dependencyUnresolved{missing}`、`slotConflict`、`sessionNotFound` | 成立的结论，原样重试不会变 |
+| 判定得出「不行」 | 具名值：`categoryNotRegistered`、`dependencyUnresolved{missing}`、`toolNameConflict`、`sessionNotFound` | 成立的结论，原样重试不会变 |
 | 判定**做不出来**：会话事实、求值、「谁可以用」的现读、装配清单（读或追加）、重建所需的正文任一取不到 | **`unavailable`** | 没有结论；按当时实际状态重试可能不同（`data.identity-values/v1#S-19`） |
 | 输入**根本不构成这个请求**：成员缺席、类型不对、类别不在八类之内、名字不合 `data.asset-model/v1#S-3` 的形状、`EvaluationRef` 不合 `data.identity-values/v1#S-31` 的词法、求值结果不合它自己契约的形状 | **`invalidInput`**，在任何判定之前 | 表示层校验不是判定结果（`data.identity-values/v1#S-33`） |
 
-- **`unavailable` 这个名字取自 `capability.organization-governance` v1 的同一收场**；本契约的施工账本失败值表里没有它，**已报主线**。没有它，「判不出来」就只能折进某个拒绝值——那正是本条要禁的。
+- **`unavailable` 这个名字取自 `capability.organization-governance` v1 的同一收场**（主线裁定 2026-09-23 沿用，待产品负责人确认；账本 S22-c）。没有它，「判不出来」就只能折进某个拒绝值——那正是本条要禁的。
 - **读时判不出来不等于「没有」**：`lookup` 现读「谁可以用」读不到时收 `unavailable`，**不回答「没有这个命令」**——那会把一次读失败说成这个人没有权限。
 - **任何身份参数都没有默认值**：会话、类别、能力标识、名字、通知，缺席即 `invalidInput`，不得由当前租户身份、进程上下文或「上一次那个会话」补齐（`data.identity-values/v1#S-17`、`#S-18`）。
 - **本契约的操作没有带默认值的非身份参数。**
 
 ### S-20 「谁可以用」门控：哪两类、按哪个租户身份、什么时候判
 
-**资产的「谁可以用」（无词条）这项权限，本契约只在两类上把它当成「进不进表」的门**：
+**资产的「谁可以使用它」这项权限，本契约只在两类上把它当成「进不进表」的门**：
 
 | 类别 | 依据 |
 |---|---|
@@ -381,13 +387,13 @@
 **其余四类不在这里判权限**：工具的执行权限在放行判断里判（[PF-004 §6.5](../../../../product/PF-004-agent-definition-and-assembly/design.md#65-权限变化动作空间不变) 权限变了动作空间不变），拓展件的干预力在派发时判。
 
 1. **按谁判**：**会话创建那一刻捕获的租户身份**（`data.identity-values/v1#S-5` 的 `TenantId`；[PF-015 §6.12](../../../../product/PF-015-session-lifecycle-and-ownership/design.md#612-会话持有创建那一刻的租户身份)），**不是**这个账号此刻切换到的那个租户身份。
-2. **判什么**：求值给出的「这个租户身份此刻可不可以使用它」——取值域与求值规则归 `capability.asset-evaluation`；注册表**只读这个答案**，不自己解释那项权限的取值。
+2. **判什么**：求值给出的「这个租户身份此刻可不可以使用它」——进表时取 `EffectiveAsset.usable`（[`capability.asset-evaluation/v1#S-39`](../../asset-evaluation/v1/contract.md#s-39-谁可以使用它值与判定)），读时现读按同一判法对此刻的值再判一次；取值域与求值规则归那份契约，注册表**只读这个答案**，不自己解释那项权限的取值。
 3. **何时判，三处**：
    - **进表时**：`fill`、`reload` 只把可以用的放进这两张表；
    - **每一次读时现读**（`data.identity-values/v1#S-27`）：`lookup`、`list` 对这两张表里的每一条再判一次，此刻不可以用的**当作不在**——**这是「收回此刻起不存在」的兑现点**，它不依赖任何通知送达；
    - **收到资产变化的通知时**：`onAssetChange` 把此刻不可以用的从快照里去掉（[S-28](#s-28-onassetchange权限收回之后收窄)）。
 4. **只收窄不放宽**：读时判出可以用的，**也只在它本来就在快照里时**才出现；快照之外新得到权限的，等 reload 或重新装配。
-5. **读不到 ⇒ `unavailable`**，不当作可以、也不当作不可以。
+5. **读不到 ⇒ `unavailable`**，不当作可以、也不当作不可以。**`usable` 缺席（判不出）同此**——值里只有 `self` 而资产不是工作区自带的，本版就是这种情形（那份契约的 G-15）。
 6. **据点上读到的是中心事实的副本**：副本的新鲜度由装配给（[S-31](#s-31-装配给的保证-vs-协议须给的保证)）；治理中心不可达时，收回在这台机器上的生效时刻是再连上的那一刻（[PF-016 §6.17](../../../../product/PF-016-cli-tui-delivery-surface/design.md#617-治理中心不可达已经开着的会话照常干活)，已接受的代价）。
 
 ---
@@ -407,11 +413,11 @@
 | `sessionNotFound` | 装配清单里没有这个会话的装配记录——注册表从没为它成功填过表。**注册表分不出「会话不存在」与「会话在、但从没装配成功」**，两者同一个值 | 定位 |
 | `categoryNotRegistered` | 类别是 `connector` 或 `agent_definition`（[S-5](#s-5-八类里登记六张表)） | 结构 |
 | `dependencyUnresolved{missing}` | 所依的求值结果里**有引用无人提供**（`EffectiveAssembly.unresolved` 非空）；`missing` 列出那些能力标识与引用它们的是谁。**依赖声明不满足从来不是这个值**——那是可用性（[S-8](#s-8-当下可用性的三个取值)）；这个值说的是「装配缺了必需的东西」（[PF-004 I-9](../../../../product/PF-004-agent-definition-and-assembly/design.md#61-不变式)） | 结论 |
-| `slotConflict` | `tool` 表里两条条目在 agent 面前同名（[S-7](#s-7-注册表条目) 末条） | 结论 |
+| `toolNameConflict` | `tool` 表里两条条目在 agent 面前同名（[S-7](#s-7-注册表条目) 末条） | 结论 |
 | `unavailable` | 判定做不出来（[S-19](#s-19-缺席时的默认答案) 第二行） | 失败 |
 
-> **`dependencyUnresolved` 这个名字比它的含义窄**：它说的是组合引用无人提供，而产品把[组合与依赖分成两件事](../../../../product/PF-002-assets-settings-and-permissions/design.md#63-组合的引用指向能力标识)。
-> **`slotConflict` 也是**：[「槽位」专指提示词槽位](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-prompt-slot--提示词槽位--prompt-slot)，而这里冲突的是工具表里的条目名，常驻与否都算。两处都照账本用名，**已报主线**。
+> **`dependencyUnresolved` 这个名字比它的含义窄**：它说的是组合引用无人提供，而产品把[组合与依赖分成两件事](../../../../product/PF-002-assets-settings-and-permissions/design.md#63-组合的引用指向能力标识)。简报 S23 要求改宽，**账本没给新名字**——本版照旧，已报主线。
+> **原 `slotConflict` 已改名 `toolNameConflict`**（简报 S23）：[「槽位」专指提示词槽位](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-prompt-slot--提示词槽位--prompt-slot)，而这里冲突的是工具表里的条目名，常驻与否都算。
 
 **谁调用**（本契约的面是据点进程内的能力间面，**不直接暴露给人或 agent**；调用方身份怎么核实见 [S-31](#s-31-装配给的保证-vs-协议须给的保证)）：
 
@@ -435,7 +441,7 @@
 | ③ | 无 |
 | ④ | 对六类各建一份快照：条目 = 求值结果里**生效、且在组合里**的这一类资产，按求值结果的次序；`skill`、`slash_command` 两类只放 [S-20](#s-20-谁可以用门控哪两类按哪个租户身份什么时候判) 判为可以用的；每条带填表这一刻算出的 `availability`（MCP 动作条目要等第一次尝试开始才钉）。**六份快照与装配清单里那一条构成记录一次成立**（[S-17](#s-17-换表同一会话串行多表一次成败同一)、[S-18](#s-18-快照不持久装配清单是唯一权威)）。这个会话已有表时，这就是一次完整重新装配，**六张整批顶替** |
 | ⑤ | 六份 `RegistrySnapshot`，一类一份，`filledBy = assembly` |
-| ⑥ | `invalidInput`（含 `EvaluationRef` 不属于这个会话、求值结果不合形状）→ `sessionNotFound` → `dependencyUnresolved{missing}` → `slotConflict`；**任一步读不到 ⇒ `unavailable`** |
+| ⑥ | `invalidInput`（含 `EvaluationRef` 不属于这个会话、求值结果不合形状）→ `sessionNotFound` → `dependencyUnresolved{missing}` → `toolNameConflict`；**任一步读不到 ⇒ `unavailable`**（含求值结果里 `resident`、`usable` 缺席） |
 | ⑦ | **同一个 `EvaluationRef` 再 `fill` 一次**：当前六张正是这一次填出来的 ⇒ 原样返回这六份，**不再记一条**——回执丢了的重试认回同一次；否则按一次新的装配处理 |
 | ⑧ | 装配清单读不到、写不进，「谁可以用」读不到 ⇒ `unavailable`，**不留一张半张**（[PF-004 I-9](../../../../product/PF-004-agent-definition-and-assembly/design.md#61-不变式) 的同形：不产生残缺的构成）；**不得把门控读不到的命令当作可以用装进去，也不得当作不可以用漏掉** |
 | ⑨ | 不发（[S-29](#s-29-本版不发本契约自己的事件)） |
@@ -450,7 +456,7 @@
 `omne-official:reload-tool`、`omne-official:reload-skill`、`omne-official:reload-slash_command`、
 `omne-official:reload-loop_extension`、`omne-official:reload-mcp`、`omne-official:reload-plugin`。
 它们是系统提供的 ③ 型命令（[PF-002 §4 Slash Command](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)：保留名一律在 `omne-official` 前缀下）；派发到的就是本操作，参数是那一类。
-**这几个名字依赖能力标识名允许冒号**——`data.asset-model` v1 的 S-2 现在禁冒号，主线已裁改为允许，待对齐波落地（[G-10](#十已知缺口)）。
+**这几个名字合 `data.asset-model/v1#S-2` 的能力标识名词法（允许冒号）与 `data.slash-command/v1#S-3` 的保留区拼法**（原 G-10 闭合）。
 
 | # | 内容 |
 |---|---|
@@ -459,7 +465,7 @@
 | ③ | `connector`、`agent_definition` ⇒ `categoryNotRegistered` |
 | ④ | **按此刻的求值结果重填**：请求一次此刻的求值——此刻的持有与配值，**连同工作区承载目录此刻的内容**（[PF-002 §4](../../../../product/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变)「工作区承载目录里对应文件的改动都在这一次进来」），**定义版本仍是这个会话装配清单所依的那一个**；把这次求值记进装配清单、得到新的 `EvaluationRef`；然后按 `fill` 的同一套规则重建**目标表**，一次成立。**目标表**：就是那一类；**类别是 `plugin` 时另加连带**——旧 plugin 表与新 plugin 表里全部 plugin 的成员所属的那几类（去掉不建表的类别），**重填的依据是同一次求值** |
 | ⑤ | 每张目标表一份 `RegistrySnapshot`，`filledBy = reload{command}`，`command` 是那条命令的名字（连带的几张记 `omne-official:reload-plugin`）。**后置**：装配清单里**恰多了一条 reload 记录**——这次求值、每张目标表的完整构成、`filledBy`、`filledAt`（[S-18](#s-18-快照不持久装配清单是唯一权威) 第 1 条）；**记录形状 `data.messages` v1 与 PF-004 都没有**，[G-1](#十已知缺口) |
-| ⑥ | `invalidInput` → `categoryNotRegistered` → `sessionNotFound` → `dependencyUnresolved{missing}` → `slotConflict`；读不到 ⇒ `unavailable` |
+| ⑥ | `invalidInput` → `categoryNotRegistered` → `sessionNotFound` → `dependencyUnresolved{missing}` → `toolNameConflict`；读不到 ⇒ `unavailable` |
 | ⑦ | **每调一次重填一次**：没变化也产生新快照（新的 `filledAt`），条目与前一份相同。**不去重**——人敲两次 reload 就是两次 |
 | ⑧ | 工作区承载目录此刻读不到或解析不了 ⇒ `unavailable`，**表不换**（不当作「工作区是空的」）；求值、「谁可以用」、装配清单任一读不到或写不进 ⇒ `unavailable`，**表不换** |
 | ⑨ | 不发 |
@@ -477,12 +483,12 @@
 | ① | 会话 |
 | ② | 这个会话有表（或能重建）；**调用方是这一次执行尝试的开头**，在 agent loop 读取常驻条目之前 |
 | ③ | 无 |
-| ④ | **只读快照、不换快照、不写装配清单**。对当前六张表的每一条算 `availability`（[S-8](#s-8-当下可用性的三个取值)）：工具按 `data.tool-definition/v1#S-19` 得出的依赖声明（目标环境那一项用求值后的值），技能按 `data.skill-package` 的依赖声明，拓展件按 `data.loop-extension/v1#S-9`，接入点按 MCP 桥；**先工具、后技能**；对每个接入点按 [S-12](#s-12-mcp-动作条目在一次尝试内钉住) 钉住这一次的动作条目；对多命令工具算 `commandAvailability`（[S-9](#s-9-按命令的可用性)）；查 `tool` 表加上动作条目之后的名字冲突 |
+| ④ | **只读快照、不换快照、不写装配清单**。对当前六张表的每一条算 `availability`（[S-8](#s-8-当下可用性的三个取值)）：工具按 `data.tool-definition/v1#S-19` 得出的依赖声明（目标环境那一项用求值后的值），技能按 `data.skill-package` 的依赖声明，拓展件按 `data.loop-extension/v1#S-9`，接入点按 `capability.mcp-bridge/v1#S-16`；**先工具、后技能**；对每个接入点按 [S-12](#s-12-mcp-动作条目在一次尝试内钉住) 钉住这一次的动作条目；对多命令工具算 `commandAvailability`（[S-9](#s-9-按命令的可用性)）；查 `tool` 表加上动作条目之后的名字冲突 |
 | ⑤ | 一份 `AvailabilityReport`（[S-11](#s-11-一次执行尝试的可用性报告)） |
-| ⑥ | `invalidInput` → `sessionNotFound` → `slotConflict`；快照读不到、重建不了 ⇒ `unavailable` |
+| ⑥ | `invalidInput` → `sessionNotFound` → `toolNameConflict`；快照读不到、重建不了 ⇒ `unavailable` |
 | ⑦ | **无状态副作用**，可以重复调；同一次尝试里以它拿到的那一份为准（[S-11](#s-11-一次执行尝试的可用性报告) 第 1、3 条） |
 | ⑧ | **某一项依赖的提供者读不到，只让那一条不满足**（[S-8](#s-8-当下可用性的三个取值) 第 3 条）、不让整个操作失败；有效运行模式读不到，只让 `request_approval` 那一条命令关（[S-9](#s-9-按命令的可用性) 第 3 条）；MCP 桥连不上或读不到，按 [S-12](#s-12-mcp-动作条目在一次尝试内钉住) 的第二、三行——**没有一种情形把读不到当成「可用」** |
-| ⑨ | 不发；可用性变化的提醒见 [S-30](#s-30-可用性变化的提醒内容由报告给落日志归日志写入方) |
+| ⑨ | 不发；可用性变化也不出提醒（[S-30](#s-30-可用性变化不出提醒)） |
 
 **依赖恢复之后**，下一次尝试开始时这条条目自动换回真身，无人干预；**一直没有新的尝试，它就一直是替换件**——那不是故障（可用性只在开始时重算）。
 
@@ -539,7 +545,7 @@
 | ⑨ | 不发 |
 
 - **确切时刻：本操作返回之前就换好**——此后任何一次识别都不认得它，早于「下一次尝试开始之前」这条上界。
-- **只删不增是推导**，依据有两条：[PF-002 §4](../../../../product/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变) 写「③ 型不等 reload」的理由是「它的消失不是谁对资产做的一个决定，是系统那一侧的一个事实」——这一次自动刷新答的只是那个事实；而 ① ② 型的增删禁用「要让它在这个会话里生效，人发对应的那条 reload」。**全量重填会让后者在人不知情时进来**。
+- **只删不增**（主线裁定 2026-09-23，待产品负责人确认；账本 S22-b），依据有两条：[PF-002 §4](../../../../product/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变) 写「③ 型不等 reload」的理由是「它的消失不是谁对资产做的一个决定，是系统那一侧的一个事实」——这一次自动刷新答的只是那个事实；而 ① ② 型的增删禁用「要让它在这个会话里生效，人发对应的那条 reload」。**全量重填会让后者在人不知情时进来**。
 - **reload 一族不因本操作消失**：它们的服务就是注册表自己，注册表在就答得出；它们的 `unavailable` 是一次判不出来，不是「服务不在了」。去掉了，人就再也没有办法重填这张表。
 - **那条命令什么时候回来**：人发 `omne-official:reload-slash_command`，或一次完整的重新装配——那时按此刻求值，服务回来了它就在。
 
@@ -551,7 +557,7 @@
 
 | # | 内容 |
 |---|---|
-| ① | 会话、一条资产变化通知（`capability.asset-governance` 的 `HoldingChanged` 或 `AssignmentChanged`，名字取自那份契约的施工账本，**未定型**） |
+| ① | 会话、一条资产变化通知（`capability.asset-governance/v1#S-48` 的 `HoldingChanged` 或 `AssignmentChanged`） |
 | ② | 这个会话有表（或能重建） |
 | ③ | 无 |
 | ④ | 对 `skill`、`slash_command` 两张当前快照里的每一条，**现读**它此刻可不可以用（[S-20](#s-20-谁可以用门控哪两类按哪个租户身份什么时候判)）；有不可以用的 ⇒ 每张有变化的表产生一份去掉那些条的新快照，**一次提交、记进装配清单**；没有 ⇒ 什么都不换。**只删不增**；其余四张表不动 |
@@ -561,10 +567,10 @@
 | ⑧ | 门控读不到 ⇒ `unavailable`，**什么都不去**（此时读时的现读照样把它们挡在外面，[S-20](#s-20-谁可以用门控哪两类按哪个租户身份什么时候判) 第 3 条） |
 | ⑨ | 不发 |
 
-**本操作只做收窄，与主线裁定原文不同，是有意的**：原文是「做一次等价于 `reload(category)` 的重填」。**一次全量重填会把 ① ② 型的增删禁用与新得到的权限一并带进进行中的会话**——
+**本操作只做收窄**（主线裁定 2026-09-23，待产品负责人确认；账本 S22-a：早先「做一次等价于 `reload(category)` 的重填」作废）。理由：**一次全量重填会把 ① ② 型的增删禁用与新得到的权限一并带进进行中的会话**——
 与 [PF-002 §4](../../../../product/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变) 的两句「① ② 型的增删与禁用，不会自己改变进行中的会话」「进行中新得到权限的，要等下一次 reload 或重新装配才出现」直接相抵；
 对工具等其余类别，也与 [PF-004 §6.3](../../../../product/PF-004-agent-definition-and-assembly/design.md#63-三类变化三种传播)「构成性变化作用于下一次装配」相抵。
-**本稿取裁定要的那一半**（收回的即时写进快照），**不取会违背产品正文的那一半**——[G-3](#十已知缺口)，请主线改判或送产品负责人。
+收回的即时写进快照，违背产品正文的那一半不做。
 
 **正确性不靠本操作**：通知是[通知](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy)，不承诺送达，中心发的到不了据点；「收回此刻起不存在」由读时现读兑现（[S-20](#s-20-谁可以用门控哪两类按哪个租户身份什么时候判) 第 3 条）。
 **本操作买到的是「重新授予要等 reload」**：收回被写进了快照（也写进了装配清单），之后再授予，它也不会自己回来。
@@ -580,13 +586,13 @@
 
 施工账本里没有事件名，本契约不自造。将来开事件，**只能是通知**：任何参与判定的都走直接调用，不靠某个监听者收到了什么。
 
-### S-30 可用性变化的提醒：内容由报告给，落日志归日志写入方
+### S-30 可用性变化不出提醒
 
-**可用性变了要提醒 agent**（主线裁定 B-M04，**待产品负责人确认**：[PF-012「每一次尝试开始」](../../../../product/PF-012-agent-loop-and-run/design.md#每一次尝试开始都要做四件事)现文写的是「不必额外告知 agent 差异」，产品修订在途）。
+**可用性变了，本版不向 agent 出提醒**（主线裁定 2026-09-23，待产品负责人确认；账本 S22-d：早先「可用性变化要提醒 agent」B-M04 作废）。
+[PF-012「每一次尝试开始」](../../../../product/PF-012-agent-loop-and-run/design.md#每一次尝试开始都要做四件事)现文写的是「不必额外告知 agent 差异」，现文优先。
 
-- **注册表给内容**：每份报告带每一条条目此刻的可用性与原因、每一条命令的可用性（[S-11](#s-11-一次执行尝试的可用性报告)）——**说清「现在是什么样」所需的全部**。
-- **比较与落日志归会话日志的写入方**（agent loop 一侧）：前值取会话日志里这个会话**最后感知到的**那一份，与本次报告不同才落一条，落成一条 `SystemReminderMessage`（`data.messages/v1#S-15`）——与 runtime context 变更同一个做法。**注册表不存「上一次」**：那会是日志之外的第二份状态。
-- **这种提醒在 `data.messages` v1 的来源表里没有 `kind`**（`#S-18` 来源闭合）——[G-8](#十已知缺口)。
+- **agent 从哪里知道**：每次尝试开始时的报告决定它面前是真身还是替换件（[S-11](#s-11-一次执行尝试的可用性报告)），替换件的说明写着原因（[S-10](#s-10-替换件同形只换说明)）；`Tools()`／`Skills()` 读到的就是这一份。
+- **注册表不存「上一次」**，也没有任何一方需要比较前后两份报告。
 
 ---
 
@@ -603,7 +609,7 @@
 | **可用性只由依赖解析算出**：没有第三态、没有写入口 | [S-8](#s-8-当下可用性的三个取值) 第 1、5 条 | 提供者的自报与作者的声明是真的 | [PF-006 §4 可用性](../../../../product/PF-006-tools-and-skills/design.md#可用性)、[§6.4](../../../../product/PF-006-tools-and-skills/design.md#64-依赖声明与解析) |
 | **不可用不改条目集合与次序**；替换件沿用原条目的身份、同形只换说明 | [S-8](#s-8-当下可用性的三个取值) 第 6 条、[S-10](#s-10-替换件同形只换说明) | — | [PF-006 §6.3](../../../../product/PF-006-tools-and-skills/design.md#63-不可用时装的是同名替换件不是不装) |
 | **一次执行尝试内，可用性与 MCP 动作集不变** | [S-11](#s-11-一次执行尝试的可用性报告)、[S-12](#s-12-mcp-动作条目在一次尝试内钉住) | 调用方在一次尝试里只用它开始时拿到的报告 | [PF-006 §6.13](../../../../product/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)（主线裁定 B-M03 读作「尝试内」） |
-| **常驻只来自求值结果**；meta 门条目注册表从不去掉、从不标非常驻；多命令工具一个槽位 | [S-7](#s-7-注册表条目) | 求值给出常驻值（[G-5](#十已知缺口)） | [PF-006 §6.1](../../../../product/PF-006-tools-and-skills/design.md#61-常驻标记挂在引用条目上agent-definition-压-plugin)、[槽位](../../../../product/PF-006-tools-and-skills/design.md#槽位) |
+| **常驻只来自求值结果**；meta 门条目注册表从不去掉、从不标非常驻；多命令工具一个槽位 | [S-7](#s-7-注册表条目) | 求值给出常驻值（`capability.asset-evaluation/v1#S-38`；缺席时填表 `unavailable`） | [PF-006 §6.1](../../../../product/PF-006-tools-and-skills/design.md#61-常驻标记挂在引用条目上agent-definition-压-plugin)、[槽位](../../../../product/PF-006-tools-and-skills/design.md#槽位) |
 | **「会话装了什么」只有装配清单一个权威**；每一次换表都在清单里 | [S-18](#s-18-快照不持久装配清单是唯一权威) | 装配清单有追加面（[G-1](#十已知缺口)） | [PF-004 §4 装配清单](../../../../product/PF-004-agent-definition-and-assembly/design.md#装配清单) |
 | **一个会话的条目只来自这个会话自己的求值**，不出现在别的会话的读里 | [S-6](#s-6-注册表快照) 第 1 条、[S-22](#s-22-fill装配时填六张) ② | — | [SYS-TENANT](../../../../foundation/cross-system-constraints/requirements.md#sys-tenant) |
 
@@ -663,7 +669,7 @@
 
 ### S-33 本能力重启与重建
 
-**快照不持久；重启之后按装配清单重建，不按此刻求值重填。**
+**快照不持久；重启之后按装配清单重建，不按此刻求值重填**（主线裁定 2026-09-23，待产品负责人确认；账本 S22-e）。
 
 1. **何时重建**：注册表第一次为一个会话做任何操作、而它手上没有这个会话的表时。
 2. **怎么重建**：按装配清单重填——**每一类取装配清单里这一类的最后一条换表记录**（`fill`、`reload`、`markFailed`、`onAssetChange` 的哪一种都算）：条目取记录下的身份与次序，正文取那份记录**那一版**的不可变正文（[`data.asset-model/v1#S-9`](../../../data/asset-model/v1/contract.md#s-9-版本线) 版本线）。**不以此刻的持有与配值重跑一次求值**：那样用的就是此刻的持有，等于一次没人发起的 reload。
@@ -711,7 +717,7 @@
 #### S-38 MCP 接入点连不上，动作原位顶替
 
 一个接入点上一次取到五个动作。断开对端，开始一次尝试。
-**必须观察到**：报告里接入点那一行 `unavailable{reason}`，**五条动作条目都在**、每条 `stand_in{for}`、名字与参数形状与上一次相同、原因是「连不上」；条目数与断开之前相同。
+**必须观察到**：报告里接入点那一行 `unavailable{reason}`，**五条动作条目都在**、每条 `stand_in{for}`、名字与参数形状与上一次相同、原因是桥给的失败值（`endpointUnreachable`）；条目数与断开之前相同。
 **再跑两支**：① 尝试进行中恢复对端并新增第六个动作 ⇒ 这一次尝试里仍是五条替换件，下一次尝试开始时六条 `available`；② 一个从没连上过的接入点 ⇒ 没有动作条目，接入点那一行原因写「从未取得动作清单」。
 
 #### S-39 命令型服务报错之后，命令不再可见
@@ -746,7 +752,7 @@
 #### S-44 依赖未解析与同名冲突
 
 ① 求值结果里有一个引用无人提供 ⇒ `fill` 与 `reload` 都收 `dependencyUnresolved{missing}`，`missing` 指出缺哪个、谁引用的，**表不换**。
-② 一个接入点的某个动作被桥起的名字恰好等于一个工具的名字 ⇒ `refreshAvailability` 收 `slotConflict`，**不静默丢掉任何一条**。
+② 一个接入点的某个动作被桥起的名字恰好等于一个工具的名字 ⇒ `refreshAvailability` 收 `toolNameConflict`，**不静默丢掉任何一条**。
 
 #### S-45 不可用时明确失败
 
@@ -761,18 +767,19 @@
 
 | # | 缺口 | owner | 闭合条件 |
 |---|---|---|---|
-| G-1 | **装配清单的追加面与记录形状**：本契约每一次换表都要在装配清单里落一条（[S-18](#s-18-快照不持久装配清单是唯一权威)），重建要能按它重放（[S-33](#s-33-本能力重启与重建)）。PF-004 的清单只写到「实际构成，只可追加」，**没有契约、没有追加面，也没说 reload 一族与 ③ 型失败之后的换表记在哪**；`data.messages` v1 里也没有这种记录的形状（[PF-004 decisions §四](../../../../product/PF-004-agent-definition-and-assembly/decisions.md#四已知的来源问题)第四行已登记：§6.7 没有列出这两个发起者） | PF-004 的契约（未建立）；产品面问 PF-004 owner | 那份契约给出「追加一次换表」的面与记录形状，能表达 [S-18](#s-18-快照不持久装配清单是唯一权威) 第 1 条列的各项；本契约的换表提交点改指它 |
+| G-1 | **装配清单的追加面与记录形状**：本契约每一次换表都要在装配清单里落一条（[S-18](#s-18-快照不持久装配清单是唯一权威)），重建要能按它重放（[S-33](#s-33-本能力重启与重建)）。PF-004 的清单只写到「实际构成，只可追加」，**没有契约、没有追加面，也没说 reload 一族与 ③ 型失败之后的换表记在哪**；`data.messages` v1 里也没有这种记录的形状（[PF-004 decisions §四](../../../../product/PF-004-agent-definition-and-assembly/decisions.md#四已知的来源问题)第四行已登记：§6.7 没有列出这两个发起者） | PF-004 的契约（后续程，主线裁定 2026-09-23，账本 S22-g）；产品面问 PF-004 owner | 那份契约给出「追加一次换表」的面与记录形状，能表达 [S-18](#s-18-快照不持久装配清单是唯一权威) 第 1 条列的各项；本契约的换表提交点改指它 |
 | G-2 | **热更新对进行中运行的呈现时机**：reload 之后，正在跑的那次运行下一次经注册表取就是新的，还是下一次运行才是（主线裁定 A10：产品未决；[PF-004 decisions §四](../../../../product/PF-004-agent-definition-and-assembly/decisions.md#四已知的来源问题)第四行同一问） | 产品负责人（PF-004） | 产品裁定；裁「下一次运行」则 `lookup`／`list` 出新版本加一个按报告所依快照读的参数（[S-34](#s-34-进行中的运行与撤销)） |
-| G-3 | **`onAssetChange` 的范围**：主线补充裁定原文「等价于 `reload(category)` 的重填」，全量重填会让 ① ② 型增删禁用与新得到的权限不经 reload 进入会话，与 [PF-002 §4](../../../../product/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变) 两句相抵；**本稿只收窄**（[S-28](#s-28-onassetchange权限收回之后收窄)）。连带一处边界：收回的通知丢失、随后又重新授予时，那条命令不经 reload 重新可见 | 主线（改判）；若坚持全量，产品负责人（PF-002） | 主线确认「只收窄」，或产品修订 PF-002 §4 那两句 |
-| G-4 | **`filledBy` 的第四个值 `asset_change`** 不在施工账本里；它随 `onAssetChange` 一并产生（[S-6](#s-6-注册表快照)） | 主线（施工账本） | 账本确认或给名；只改 [S-6](#s-6-注册表快照) 与 [S-28](#s-28-onassetchange权限收回之后收窄) ⑤ |
-| G-5 | **求值结果缺三样本契约要的输出**：① 每份被选中资产**用的是哪一版**（或那一版的正文）——没有它 `content` 取不到；② **常驻值**（[S-7](#s-7-注册表条目)）；③ 这个租户身份**可不可以使用**每一个技能与斜杠命令（[S-20](#s-20-谁可以用门控哪两类按哪个租户身份什么时候判)）。`capability.asset-evaluation` 施工账本的 `EffectiveAssembly` 里三样都没有 | `capability.asset-evaluation`（对齐波） | 那份契约给出这三样；本契约 [S-4](#s-4-依赖方向与被消费的面) 末表换成条款号 |
-| G-6 | **依赖项提供者的读面**：外部服务由谁提供、谁自报；执行环境设施（PF-005 无契约）；存储（pending「存储」，且**「哪个工具能读回哪个存储」没有任何声明**）；有效模型的模态能力（块 C）。**在它们有家之前，声明了这些项的工具与技能按 [S-8](#s-8-当下可用性的三个取值) 第 3、4 条一律判为不满足**——这是缺席默认拒绝的直接后果，不是可用性规则本身 | 各自 owner：PF-005、PF-006（存储）、块 C（模态投影）；「外部服务的提供者」无 owner，交主线 | 各读面有契约；本契约 [S-4](#s-4-依赖方向与被消费的面) 补登 |
+| G-3 | **收窄**：「只收窄」已由主线裁定（2026-09-23，待产品负责人确认；账本 S22-a），[S-28](#s-28-onassetchange权限收回之后收窄)。**仍在**：收回的通知丢失、随后又重新授予时，那条命令不经 reload 重新可见——本版的已知边界，正确性由读时现读兜住 | 主线（确认接受为已知边界）；产品负责人（PF-002 §4「新得到权限要等 reload」的适用范围） | 接受为边界并写进 PF-002 的取舍，或给出不依赖通知送达的兑现点 |
+| G-4 | **已闭合（2026-09-24 整批对齐）**：`asset_change` 由主线裁定补名（2026-09-23，待产品负责人确认；账本 S22-c） | — | — |
+| G-5 | **已闭合（2026-09-24 整批对齐）**：求值交出 `EffectiveAsset.version`、`resident`、`usable`（`capability.asset-evaluation/v1#S-8`、`#S-38`、`#S-39`）。**它们缺席（判不出）时本契约收 `unavailable`**（[S-7](#s-7-注册表条目)、[S-20](#s-20-谁可以用门控哪两类按哪个租户身份什么时候判)）——那份契约的 G-3、G-15、G-18 因此直接挡住填表 | — | — |
+| G-6 | **依赖项提供者的读面**：外部服务由谁提供、谁自报；执行环境设施（PF-005 无契约）；存储（pending「存储」，且**「哪个工具能读回哪个存储」没有任何声明**）；有效模型的模态能力——两端的判法已定（[S-8](#s-8-当下可用性的三个取值) 第 8 条），**仍缺**一次执行尝试开始时「有效模型」指哪一份档案。**在它们有家之前，声明了这些项的工具与技能按 [S-8](#s-8-当下可用性的三个取值) 第 3、4 条一律判为不满足**——这是缺席默认拒绝的直接后果，不是可用性规则本身 | 各自 owner：PF-005、PF-006（存储）；尝试开始时按哪一份档案算，问 PF-006 / PF-013 的 owner；「外部服务的提供者」无 owner，交主线 | 各读面有契约；本契约 [S-4](#s-4-依赖方向与被消费的面) 补登 |
 | G-7 | **meta 门的能力标识清单无契约家**：「注册表不去掉 meta 门」（[S-7](#s-7-注册表条目)）与「`Ask()` 的 `request_approval`」（[S-9](#s-9-按命令的可用性)）都要能指认它们；PF-007 列了十三扇门，但没有一份契约给出它们的能力标识与命令名 | PF-007 / 块 B 对齐 | 有一份契约列出 meta 门的能力标识与 `Ask()` 的命令名 |
-| G-8 | **可用性变化提醒的来源 `kind`**：`data.messages` v1 的来源表闭合（`#S-18`），没有这一种（[S-30](#s-30-可用性变化的提醒内容由报告给落日志归日志写入方)）；并且主线裁定 B-M04 待产品负责人确认 | `data.messages`（对齐波）；产品面问 PF-012 owner | messages 出新版加这一种来源；PF-012 §5.7 那句修订 |
+| G-8 | **已闭合（2026-09-24 整批对齐）**：可用性变化不出提醒（主线裁定 2026-09-23，待产品负责人确认；账本 S22-d），[S-30](#s-30-可用性变化不出提醒) | — | — |
 | G-9 | **会话事实的读面**：会话创建时捕获的租户身份、挂的工作区、此刻有效的运行模式——PF-015 没有契约；有效运行模式怎么求归 `capability.tool-admission` 与会话 | PF-015 的契约（未建立）；`capability.tool-admission` | 会话契约给出这三项的读面 |
-| G-10 | **reload 一族的名字**依赖能力标识名允许冒号：`data.asset-model` v1 的 S-2 现在禁冒号，主线裁定改为允许（待对齐波）；拼法还要合 `data.slash-command` 的 `CommandName` | 对齐波（`data.asset-model`、`data.slash-command`） | 两份契约落定后，[S-23](#s-23-reload按类别重填) 的六个名字对得上它们的词法 |
+| G-10 | **已闭合（2026-09-24 整批对齐）**：`data.asset-model/v1#S-2` 允许冒号，`data.slash-command/v1#S-3` 给出保留区拼法；[S-23](#s-23-reload按类别重填) 的六个名字合二者 | — | — |
 | G-11 | **跨进程**：[S-31](#s-31-装配给的保证-vs-协议须给的保证) 右列 | 架构设计（本版单机不阻断） | 分布式演化启动时给出，**作为本契约的新版本发布** |
-| G-12 | **MCP 动作的命名应当让 `slotConflict` 碰不上**：工具名与「接入点名:动作名」在能力标识名允许冒号之后可能相撞（`data.tool-definition` v1 的 [G-8](../../../data/tool-definition/v1/contract.md#十已知缺口) 把动作条目的起名交给了 MCP 桥） | `capability.mcp-bridge`；`data.asset-model`（名词法） | 命名规则写出「与作者写的工具名不相交」，[S-7](#s-7-注册表条目) 的冲突检查成为兜底 |
+| G-12 | **MCP 动作的命名应当让 `toolNameConflict` 碰不上**：动作条目名是「接入点名:动作名」（`capability.mcp-bridge/v1#S-17`、`data.mcp-endpoint/v1#S-11`），而作者写的工具名也允许冒号，两者可能相撞 | `capability.mcp-bridge`；`data.asset-model`（名词法） | 命名规则写出「与作者写的工具名不相交」，[S-7](#s-7-注册表条目) 的冲突检查成为兜底 |
+| G-13 | **被桥排除的动作要不要告诉 agent**（[S-12](#s-12-mcp-动作条目在一次尝试内钉住)）：它们没有名字可占位、不进表；本版不出可用性提醒（S22-d），而排除不是一次可用性变化；后果是 agent 不知道对端还有一个它看不见的动作（`capability.mcp-bridge` 的 G-15 同一件事） | PF-006 的 owner（产品面） | 产品给出要不要告诉、告诉在哪；若要，本契约出新版 |
 
 ---
 
@@ -789,11 +796,11 @@
 | **② 型命令展开** | 那个技能此刻这个人能不能用 | [S-25](#s-25-lookup查一条) 查 `skill` 表 | **够**；「展开失败」的值归 `data.slash-command` |
 | **③ 型派发** | reload 一族派到哪；服务失败之后怎么让命令消失 | [S-23](#s-23-reload按类别重填)、[S-27](#s-27-markfailed命令型服务报错之后去掉那一条) | **够**；它必须先把失败记进会话日志再调 `markFailed` |
 | **放行判断（`before_action`）** | 那个调用对应的工具定义 | [S-25](#s-25-lookup查一条) 查 `tool` 表 | **够** |
-| **工具执行运行时** | 一次调用是不是打在替换件上、是不是打在一条关掉的命令上 | 报告里的 `availability` 与 `commandAvailability` | **形状够**；**替换件被调用、关掉的命令被调用都落「不可用」收场，是那份契约要写的**——关掉的命令这一支已报主线 |
+| **工具执行运行时** | 一次调用是不是打在替换件上、是不是打在一条关掉的命令上 | 报告里的 `availability` 与 `commandAvailability` | **够**：两种都落收场 `unavailable`（`capability.tool-execution-runtime/v1#S-23` ④；账本 S13-a） |
 | **装配（PF-004）** | 创建时与完整重新装配时填表；清单与注册表不重复拥有 | [S-22](#s-22-fill装配时填六张)、[S-18](#s-18-快照不持久装配清单是唯一权威) | **不够**：清单的追加面缺（[G-1](#十已知缺口)） |
 | **拓展件派发器** | 这个会话某个位置上的那几件、次序、此刻在不在 | [S-26](#s-26-list列一类) 的 `loop_extension` 表 + 报告 | **够**；位置过滤由它按正文做 |
-| **会话日志写入方（提醒）** | 可用性变了什么 | 报告 | **形状够**；来源 `kind` 缺（[G-8](#十已知缺口)） |
-| **`capability.asset-evaluation`** | —（它不读本契约） | — | 反方向：本契约要它三样输出（[G-5](#十已知缺口)） |
+| **会话日志写入方（提醒）** | 可用性变了什么 | —— | **本版不需要**：可用性变化不出提醒（[S-30](#s-30-可用性变化不出提醒)，主线裁定 S22-d） |
+| **`capability.asset-evaluation`** | —（它不读本契约） | — | 反方向：它交出的 `version`、`resident`、`usable` 就是本契约要的三样（原 G-5 闭合）；缺席时本契约收 `unavailable` |
 
 ---
 

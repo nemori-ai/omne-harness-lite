@@ -11,7 +11,7 @@
 - **状态**：`candidate`——未接受、未冻结，不得据此发布或声称消费者已采用
 - **catalog 映射**：已登记为 `candidate`（`acceptance` 为 `null`）。`family=data`、`topic=messages`、
   `contract_path=spec/data/messages/v1/contract.md`，`resources` 另含 `v1/messages.schema.json`、`v1/examples.md`、`v1/formal/README.md`、`v1/formal/Readable.als`；
-  依赖三项：`data.content-blocks` v1（15 条）、`data.offer-expiry` v1（`S-22`）、`data.identity-values` v1（`S-31`）。**登记在 [registry](../../../registry/README.md)，本行只作索引**
+  依赖五项：`data.content-blocks` v1、`data.offer-expiry` v1（`S-22`）、`data.identity-values` v1（`S-31`）、`data.call-accounts` v1（`S-37`）、`data.model-profile` v1（`S-5`、`S-13`）。**登记在 [registry](../../../registry/README.md)，本行只作索引**
 - **提供者/装配映射**：尚无
 
 ## 准入核对
@@ -22,8 +22,8 @@
 | 稳定身份 | `data.messages`，版本 1 |
 | 适用范围 | 一个部署之内的一份会话日志；跨进程后要由协议重新兑现的，逐行列在[契约第五节](v1/contract.md#五装配给与协议给) |
 | 为什么是 data 而不是 capability | 它**没有操作**：没有提交点、没有状态转移、没有自己的授权前提。消息怎样到达、怎样落盘、怎样被组装与压缩，归各自的契约；本契约定的是它们交换的那个值、以及「合法」与「此刻可读」这两个从日志算出来的判断 |
-| 精确依赖 | `data.content-blocks` v1（块的全部定义）、`data.offer-expiry` v1 `#S-22`（时刻）、`data.identity-values` v1 `#S-31`（不透明标识的散文，不 `$ref`）；**不依赖 `data.call-accounts`** |
-| 谁在等它 | 会话日志与条目壳、PF-010 组装与压缩、`capability.stream-assembly`、`data.arrival-events`、`data.model-response`、工具运行时、模型请求运行时与传输适配、PF-014 受理、PF-012 对账与循环守卫、卡片、runtime context。完整清单见[契约的消费者表](v1/contract.md#消费者)——**那里是唯一的一份** |
+| 精确依赖 | `data.content-blocks` v1（块的全部定义）、`data.offer-expiry` v1 `#S-22`（时刻）、`data.identity-values` v1 `#S-31`（不透明标识的散文，不 `$ref`）、`data.call-accounts` v1 `#S-37`（`ModelCallId`、`AttemptId`）、`data.model-profile` v1 `#S-5`／`#S-13`（运行时记录里的供应商与档案引用）。`data.model-response` 是 `ResponseId` 的家，但反向依赖本契约，不登为依赖 |
+| 谁在等它 | 会话日志与条目壳、PF-010 组装与压缩、`capability.stream-assembly`、`data.arrival-events`、`data.model-response`、`data.loop-extension`、`data.connector`、`capability.tool-execution-runtime`、`capability.model-request-runtime` 与传输适配、PF-014 受理、PF-012 对账与循环守卫、卡片、runtime context。完整清单见[契约的消费者表](v1/contract.md#消费者)——**那里是唯一的一份** |
 | 接受状态 | 未接受 |
 
 ## 按当前问题展开

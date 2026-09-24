@@ -11,12 +11,11 @@
 
   | 坐标 | 消费的条款 | 取它的什么 | 本契约怎么用 |
   |---|---|---|---|
-  | `omne-harness-lite-design-2026-09-15 · data.asset-model · v1` | [S-2](../../asset-model/v1/contract.md#s-2-能力标识名的词法)、[S-3](../../asset-model/v1/contract.md#s-3-能力标识与它的规范串)、[S-5](../../asset-model/v1/contract.md#s-5-资产来源)、[S-10](../../asset-model/v1/contract.md#s-10-八类正文的外壳)、[S-12](../../asset-model/v1/contract.md#s-12-属性声明由正文推出)、[S-15](../../asset-model/v1/contract.md#s-15-disabled-是保留项名) | 能力标识名的词法（「正文契约可再收窄、不得放宽」）、能力标识的形状、资产来源、`slash_command` 类正文的外壳、属性项推出规则的义务、`disabled` 保留项 | `$ref` 它的 `$defs/CapabilityId`（skill 型的绑定目标）；**`CommandName` 按主线裁定自写 pattern、暂不 `$ref` 它的 `CapabilityName`**（[G-1](#十已知缺口)）；本契约的 `SlashCommandDefinition` 就是那个外壳里 `body` 的形状 |
-  | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1` | [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来路标记) | 文本块与它的两种来路标记 `slash_command_args`、`skill_body` | skill 型展开成的那两块就是这两种来路的文本块（[S-22](#s-22-技能型的引用与两块展开物)）；不 `$ref` 它的 Schema |
-  | `omne-harness-lite-design-2026-09-15 · data.identity-values · v1` | [S-8](../../identity-values/v1/contract.md#s-8-tenantrole)、[S-31](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示) | 租户角色的两个取值；显式空白码点集合与不透明标识的交换表示 | 「谁可以用」的取值域（[S-11](#s-11-属性项的推出规则)）；命令名、参数文字、系统业务流程名的「空白」一律是那个集合；`ServiceName` 按它的散文自定义，**不 `$ref` 它的 `OpaqueIdentifier`** |
-  | `data.skill-package` v1（同批并行起草） | **未登**（[G-2](#十已知缺口)） | 技能「正文」是哪一段 | skill 型展开时「正文逐字」的那段文字 |
+  | `omne-harness-lite-design-2026-09-15 · data.asset-model · v1` | [S-2](../../asset-model/v1/contract.md#s-2-能力标识名的词法)、[S-3](../../asset-model/v1/contract.md#s-3-能力标识与它的规范串)、[S-5](../../asset-model/v1/contract.md#s-5-资产来源)、[S-10](../../asset-model/v1/contract.md#s-10-八类正文的外壳)、[S-12](../../asset-model/v1/contract.md#s-12-属性声明由正文推出)、[S-15](../../asset-model/v1/contract.md#s-15-disabled-是保留项名)、[S-36](../../asset-model/v1/contract.md#s-36-usableby-是保留项名) | 能力标识名的词法（「正文契约可再收窄、不得放宽」）、能力标识的形状、资产来源、`slash_command` 类正文的外壳与「身份只在 `capability`」、属性项推出规则的义务、保留项 `disabled` 与 `usableBy` | `$ref` 它的 `$defs/CapabilityName`（`CommandName` 在其上加保留区）与 `$defs/CapabilityId`（skill 型的绑定目标）；本契约就是 S-10 里 `slash_command` 那一行 `$ref` 的正文契约 |
+  | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1` | [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来源标记) | 文本块与它的四种来源标记 `slash_command_args`、`skill_body`、`slash_command_expansion`、`slash_command_record` | ① ② 的展开物与留痕就是这四种来路的文本块（[S-21](#s-21-提示词型的展开)、[S-22](#s-22-技能型的引用与两块展开物)、[S-25](#s-25-留痕)）；不 `$ref` 它的 Schema |
+  | `omne-harness-lite-design-2026-09-15 · data.identity-values · v1` | [S-31](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示) | 显式空白码点集合与不透明标识的交换表示 | 识别文法与参数切分的「空白」一律是那个集合；`ServiceName` 按它的散文自定义，**不 `$ref` 它的 `OpaqueIdentifier`** |
+  | `omne-harness-lite-design-2026-09-15 · data.skill-package · v1` | [S-8](../../skill-package/v1/contract.md#s-8-正文逐字不展开不执行) | 技能的「正文」是哪一段，逐字、不展开 | skill 型展开时第一块的文字（[S-22](#s-22-技能型的引用与两块展开物)） |
 
-  最后一份与本契约同批并行起草、**不在本工作树**；catalog 的依赖必须指向已登记的精确坐标、`clauses` 必须是实有条款号，因此它**暂不登记**，也不在本包里链接它
 - **条款编号**：`S-n`，**只在本契约本版本内有效**；外部引用须写全坐标，如 `data.slash-command/v1#S-13`。
   本文引另一份契约的条款一律带坐标，**`S-8` 这类裸号只指本契约**
 
@@ -46,9 +45,9 @@
 >
 > | 条款 | 依据来自哪 |
 > |---|---|
-> | [S-2](#s-2-命令名的词法) 名字许冒号、禁斜杠 | **主线 2026-09-23 裁定**（能力标识名禁 `/`、许 `:`；起草简报「主线追加裁定」）。**这项裁定尚未落进设计链里任何一处**，本表无处可链——见 [G-10](#十已知缺口)；它与 `data.asset-model` v1 当前的 S-2 方向相反，见 [G-1](#十已知缺口) |
+> | [S-2](#s-2-命令名的词法) 名字许冒号、禁斜杠 | **主线裁定 2026-09-23，待产品负责人确认**（账本 S9-c）；`data.asset-model` v1 的 S-2 已同向。**尚未落进设计链里任何一处**，本表无处可链——见 [G-10](#十已知缺口) |
 > | [S-3](#s-3-保留区与它唯一的拼法) 保留区按 ASCII 不区分大小写判定、`omne-official:` 以冒号作分隔符 | 起草简报定分隔符为冒号；**按 ASCII 不区分大小写判保留区是本契约的推导**，理由在条款正文 |
-> | [S-11](#s-11-属性项的推出规则) 「谁可以用」的取值域 | **主线 2026-09-23 裁定**（取值域 = 租户角色 ＋ `self`），同样无处可链（[G-10](#十已知缺口)） |
+> | [S-11](#s-11-属性项的推出规则) 「谁可以用」是 `data.asset-model` 的 `usableBy`；[S-1](#s-1-斜杠命令定义是资产的正文) 正文不带名字；[S-8](#s-8-参数声明) 的参数提示 `hint`；[S-17](#s-17-参数文字的切分) 的 `unterminated_quote`；[S-13](#s-13-识别的三种结果)、[S-14](#s-14-commandinvocation-与位置) 的 `Recognition`、`Span`；[S-25](#s-25-留痕) 留痕是一种来源标记 | **主线裁定 2026-09-23，待产品负责人确认**（账本 S20-b～S20-e、S18-c），同样无处可链（[G-10](#十已知缺口)） |
 > | [S-8](#s-8-参数声明)～[S-10](#s-10-提示词模板与占位符)、[S-17](#s-17-参数文字的切分)～[S-19](#s-19-解析失败取第一处) 的具体文法 | 产品只说「像命令行程序那样按声明解析」、「语法长什么样归规格」；**切分、绑定、取值与判定次序是本契约的推导**，借用来源逐条写在正文 |
 > | [S-26](#s-26-规范表示)～[S-29](#s-29-表示层拒绝与解析失败分开都不修补) | **SYS-SPEC**：规范表示、闭合枚举、表示层拒绝值与「表示层不等于判定」是规格形式的要求 |
 > | [第六节](#六装配给与协议给) | **SYS-DEPLOY** |
@@ -59,7 +58,7 @@
 
 **三样东西，都是纯粹的值与纯函数：**
 
-1. **斜杠命令定义**——一份 `slash_command` 资产的正文：命令名与保留前缀、恰一个绑定目标、可选的参数声明、提示词模板的占位符，
+1. **斜杠命令定义**——一份 `slash_command` 资产的正文：恰一个绑定目标、可选的参数声明、提示词模板的占位符；命令名（所在记录能力标识的 name）的保留前缀，
    以及它按 `data.asset-model` v1 的 [S-12](../../asset-model/v1/contract.md#s-12-属性声明由正文推出) 推出的属性项。
 2. **识别文法**——交付面上的一段输入，是普通文字、字面发送，还是一次命令尝试；是的话，名字与参数文字各是哪一段。
 3. **解析规则与解析结果**——一次命令尝试按会话斜杠命令集与命令定义解析成什么：展开成的文字、所指的技能、所指的系统业务流程与参数，
@@ -73,13 +72,13 @@
 
 | 不拥有 | 归谁 |
 |---|---|
-| 一个会话认得哪些命令、什么时候换、reload 一族有哪几条与各刷哪张注册表 | `capability.asset-registry`（同批并行起草）＋ `capability.asset-evaluation`（同批） |
+| 一个会话认得哪些命令、什么时候换、reload 一族有哪几条与各刷哪张注册表 | [`capability.asset-registry`](../../../capabilities/asset-registry/v1/contract.md) v1（candidate）＋ [`capability.asset-evaluation`](../../../capabilities/asset-evaluation/v1/contract.md) v1（candidate） |
 | 「谁可以用」各层取哪个值、怎样求交 | `capability.asset-evaluation` |
-| 发布、登记官方件时的写面与拒绝值怎样落进写面的失败集合 | `capability.asset-governance`（同批） |
+| 发布、登记官方件时的写面与拒绝值怎样落进写面的失败集合 | [`capability.asset-governance`](../../../capabilities/asset-governance/v1/contract.md) v1（candidate） |
 | 受理：预判之后受理面以此刻为准再判、① ② 展开成消息、② 的 skill 权限、③ 交给流程、条目落账 | 受理契约（PF-014 的规格化，**未立**） |
 | 交付面怎样呈现失败、菜单与补全、交付面自己的动作表 | 交付面呈现与受理契约（**未立**） |
 | 任何一条系统业务流程的语义、时机与结果摘要 | 定义那条流程的一侧；登记处见 [G-7](#十已知缺口) |
-| 留痕块的完整形状与标注 | `data.content-blocks` 下一版（[G-4](#十已知缺口)） |
+| 留痕块与展开物的标注 | 写下它们的受理一方（`data.content-blocks` v1 的 [S-4](../../content-blocks/v1/contract.md#s-4-两个标注)） |
 | 外部格式（Claude Code 命令文件与 skill、pi 提示词模板、omne-next 绑定表）的导入映射 | 导入器（[D-036](../../../../record/decisions/slash-command-parsing-baseline/decision.md) 起点；未立） |
 
 ### 消费者
@@ -88,16 +87,15 @@
 |---|---|
 | 交付面呈现与受理契约（PF-016，**未立**） | [S-12](#s-12-只识别经交付面的输入)～[S-15](#s-15-一条输入至多一条命令)（识别，两种呈现形式同一文法）、[S-16](#s-16-名字只按会话斜杠命令集认)～[S-20](#s-20-parseresult-四支)（预判：当场明说、不发送）、[S-24](#s-24-解析失败即什么都不发) |
 | 受理契约（PF-014，**未立**） | 同上的识别与解析（以受理那一刻的命令集再判）；[S-21](#s-21-提示词型的展开)～[S-23](#s-23-命令型的参数)（① ② 的展开物、③ 的参数）；[S-25](#s-25-留痕)（留痕块的判别值） |
-| `capability.asset-registry` v1（同批） | `SlashCommandDefinition`（会话斜杠命令集的元素）、[S-2](#s-2-命令名的词法)～[S-5](#s-5-保留名在系统内唯一没有优先级)（名字与保留区） |
-| `capability.asset-evaluation` v1（同批） | [S-11](#s-11-属性项的推出规则)（`slash_command` 类的属性项推出规则） |
-| `capability.asset-governance` v1（同批） | [S-26](#s-26-规范表示)～[S-29](#s-29-表示层拒绝与解析失败分开都不修补)（发布与登记官方件时的表示层拒绝值），[S-4](#s-4-保留区只归系统提供的命令型)（`customized` 记录不带 `command` 绑定） |
-| `data.asset-model` v1（对齐） | `SlashCommandDefinition` 作为 `AssetContent` 里 `slash_command` 外壳 `body` 的形状（它的 [G-5](../../asset-model/v1/contract.md#八已知缺口)）；[S-3](#s-3-保留区与它唯一的拼法)（它的 G-11「保留前缀的拼法」） |
-| `data.content-blocks` 下一版 | [S-25](#s-25-留痕) 的判别值 `slash_command_invocation`；`CommandName` 作为它 S-8 `origin.command` 的词法（它的 G-5） |
+| `capability.asset-registry` v1（candidate） | 命令名与 `SlashCommandDefinition` 这一对（会话斜杠命令集的元素）、[S-2](#s-2-命令名的词法)～[S-5](#s-5-保留名在系统内唯一没有优先级)（名字与保留区） |
+| `capability.asset-evaluation` v1（candidate） | [S-11](#s-11-属性项的推出规则)（`slash_command` 类的属性项推出规则） |
+| `capability.asset-governance` v1（candidate） | [S-26](#s-26-规范表示)～[S-29](#s-29-表示层拒绝与解析失败分开都不修补)（发布与登记官方件时的表示层拒绝值），[S-4](#s-4-保留区只归系统提供的命令型)（`customized` 记录不带 `command` 绑定） |
+| `data.asset-model` v1 | `SlashCommandDefinition` 作为 `AssetContent` 里 `slash_command` 外壳 `body` 的形状（它的 [S-10](../../asset-model/v1/contract.md#s-10-八类正文的外壳)，结构上的 `$ref`）；[S-28](#s-28-表示层拒绝值) 的拒绝值原名携带进它的 S-27 |
+| `data.content-blocks` v1 | `CommandName` 作为它 S-8 `origin.command` 的词法（它只约束到非空，不反向引用） |
 | 提供 ③ 型流程的一侧（本版只点名 reload 一族） | `ServiceName`（[S-7](#s-7-servicename)）、[S-23](#s-23-命令型的参数)（参数怎样交到手上） |
 | 导入器（未立） | [S-10](#s-10-提示词模板与占位符)（占位符子集与它与 Claude Code 的差异）、[S-8](#s-8-参数声明) |
 
 > 上表没有一行是本契约的依赖：方向一律是消费者 → 本契约，登记在各消费者自己的 catalog 条目里。
-> 同批的几份能力契约此刻不在本工作树，本包里不链接它们。
 
 ## 二、含义与使用范围
 
@@ -110,15 +108,15 @@
 
 | 规格层 token | 词条 |
 |---|---|
-| `SlashCommandDefinition`（一份 `slash_command` 资产的正文） | [斜杠命令 · Slash Command](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command) 的一份具体实现的内容 |
+| `SlashCommandDefinition`（一份 `slash_command` 资产的正文，不带名字） | [斜杠命令 · Slash Command](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command) 的一份具体实现的内容 |
 | `CommandName` | [能力标识 · Capability Identifier](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier) 在 `slash_command` 类上的 name 分量 |
 | `CommandBinding.kind`：`prompt` · `skill` · `command` | 斜杠命令词条的三种绑定目标：一段自定义提示词 · 装配的一个 [技能 · Skill](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-skill--技能--skill) · 一条系统业务流程 |
 | 会话斜杠命令集（本契约的解析输入，不是一个 `$defs`） | [会话斜杠命令集 · Session Slash-Command Set](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set) |
 | 「经交付面的输入」「人读／机读」 | [交付面 · Delivery Surface](../../../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-delivery-surface--交付面--delivery-surface) · [呈现形式 · Presentation Form](../../../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-presentation-form--呈现形式--presentation-form) |
 
 **下列是规格层的名字，不是统一语言词条**，因此本契约与 Schema 里**不给它们「中文 · English」那种词条式标题**：
-`ServiceName`（系统业务流程名——「系统业务流程」只在斜杠命令词条的定义里出现，**自己无词条**）、`ParameterDeclaration`（参数声明，**无词条**）、
-`CommandInvocation`（一次命令尝试，**无词条**）、`ParseResult`（解析结果，**无词条**）、保留区（**无词条**）、
+`ServiceName`（系统业务流程名——「系统业务流程」只在斜杠命令词条的定义里出现，**自己无词条**）、`ParameterDeclaration`（命令参数声明）、
+`CommandInvocation`（一次命令尝试，**无词条**）、`Recognition`（识别结果，**无词条**）、`Span`（位置区间，**无词条**）、`ParseResult`（解析结果，**无词条**）、保留区（**无词条**）、
 字面发送（**无词条**）、占位符（**无词条**）、留痕块（**无词条**）。它们在本契约里各有精确定义，**不是产品概念**。
 
 ### 与相近概念的差异
@@ -136,7 +134,7 @@
 | 元素 | 精确含义 | 条款 |
 |---|---|---|
 | `SlashCommandDefinition` | 一份 `slash_command` 资产的正文 | [S-1](#s-1-斜杠命令定义是资产的正文) |
-| `CommandName` | 命令名的词法与保留区 | [S-2](#s-2-命令名的词法)～[S-5](#s-5-保留名在系统内唯一没有优先级) |
+| `CommandName` | 命令名（所在记录能力标识的 name）的词法与保留区 | [S-2](#s-2-命令名的词法)～[S-5](#s-5-保留名在系统内唯一没有优先级) |
 | `CommandBinding` | 恰一个绑定目标 | [S-6](#s-6-三种绑定目标) |
 | `ServiceName` | 系统业务流程名 | [S-7](#s-7-servicename) |
 | `ParameterDeclaration` | 参数声明 | [S-8](#s-8-参数声明)、[S-9](#s-9-参数声明的结构约束) |
@@ -145,40 +143,30 @@
 
 ### S-1 斜杠命令定义是资产的正文
 
-**`SlashCommandDefinition` 是一份 `slash_command` 资产的正文：`{ name, description, binding, parameters? }`。**
+**`SlashCommandDefinition` 是一份 `slash_command` 资产的正文：`{ description, binding, parameters? }`。**
 
 | 成员 | 必填 | 含义 |
 |---|---|---|
-| `name` | 是 | 命令名（[S-2](#s-2-命令名的词法)、[S-3](#s-3-保留区与它唯一的拼法)） |
 | `description` | 是 | 给人看的一句说明，非空。**不是身份，也不进任何给模型的内容** |
 | `binding` | 是 | 恰一个绑定目标（[S-6](#s-6-三种绑定目标)） |
 | `parameters` | 否 | 参数声明的数组（[S-8](#s-8-参数声明)）。**缺席与空数组是两个不同的意思**：缺席 = 没有声明，命令名之后的整段文字作一个自由参数；`[]` = 声明了「不收任何参数」，给了就是 `unexpected_argument` |
 
-- **身份只在所在资产记录的 `capability`**（`data.asset-model` v1 的 [S-10](../../asset-model/v1/contract.md#s-10-八类正文的外壳)）。
-  `name` 是那个 name 分量在正文里的一份：**它必须等于记录的 `capability.name`**，不等即 `malformed`——这一条要看记录，由看得见记录的接收边界判。
-  正文里留这一份，是因为会话斜杠命令集按名字认命令（[S-16](#s-16-名字只按会话斜杠命令集认)），它的元素就是这份正文，不带记录。
+- **正文里没有名字**（主线裁定 2026-09-23，待产品负责人确认；账本 S20）：**命令名就是所在资产记录 `capability` 的 name 分量**（`data.asset-model` v1 的 [S-10](../../asset-model/v1/contract.md#s-10-八类正文的外壳)），不在正文里另存一份——两份就会分叉。
+  会话斜杠命令集按名字认命令（[S-16](#s-16-名字只按会话斜杠命令集认)），它的元素因此是「命令名 ＋ 这份正文」一对，由提供它的一方从记录里一起取（`capability.asset-registry`）。
 - **一条命令恰绑一个目标**（规格层推导：产品正文的三行表每行一个目标，没有「一条命令同时绑两种」的读法）。
-- **本版没有「参数提示」这一成员**：产品正文把它列为斜杠命令的一项设置，但起草账本未给它位置——见 [G-6](#十已知缺口)。
-  有声明的命令，交付面可以从声明本身（名字、种类、必填、枚举取值）长出提示；没有声明的命令本版没有提示可给。
-- 与 `data.asset-model` v1 的关系：它的 `AssetContent` 里 `slash_command` 那一支现在是不透明的 `{ category, body }`（它的 G-5）；
-  **`body` 的形状就是本条**。那边怎样改成引用本契约，是一项[对齐义务](../verification.md#对齐义务)。
+- **参数提示在参数声明上**（`ParameterDeclaration.hint`，[S-8](#s-8-参数声明)；账本 S20-d）。
+- 它就是 `data.asset-model` v1 的 `AssetContent` 里 `slash_command` 那一支 `body` 的形状（那边 `$ref` 本条）。
 
 ### S-2 命令名的词法
 
-**`CommandName` 是命令名。本版的词法恰是四条，外加 [S-3](#s-3-保留区与它唯一的拼法) 的保留区规则：**
-
-1. **非空。**
-2. **任何位置都不含空白**——「空白」恰是 `data.identity-values` v1 的 [S-31](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示) 逐个列出的那个码点集合，**不是某个正则引擎的 `\s`**。
-3. **不含斜杠 `/`（U+002F）。冒号 `:`（U+003A）允许。**
-4. **区分大小写**：相等是逐码点精确相等，不做 Unicode 规范化、大小写折叠或裁剪。
-
-**这四条是能力标识名的词法本身**（主线裁定：能力标识名禁 `/`、许 `:`）；本契约对它**不再收窄字符集**，只加保留区一条。
+**`CommandName` 是命令名——所在资产记录能力标识的 name 分量。它的词法就是 `data.asset-model` v1 的 [`CapabilityName`](../../asset-model/v1/contract.md#s-2-能力标识名的词法)**：
+非空、任何位置都不含空白、不含斜杠 `/`、允许冒号 `:`、区分大小写（主线裁定 2026-09-23，待产品负责人确认；账本 S9-c）。
+本契约对它**不再收窄字符集**，只加 [S-3](#s-3-保留区与它唯一的拼法) 的保留区一条。
 **它恰好保证每一个合法的命令名都敲得出、认得回**：对任何合法命令名 `n`，输入 `"/" + n` 在[识别文法](#s-13-识别的三种结果)下必定得出一次名字为 `n` 的命令尝试——
 名字里没有空白，所以不会被截断；没有 `/`，所以不会落进「名字里有斜杠即普通文字」那一支，也不会以 `//` 开头。
 
-- **与 `data.asset-model` v1 当前文本相反**：那边的 [S-2](../../asset-model/v1/contract.md#s-2-能力标识名的词法) 仍是「禁冒号、许斜杠」，它的 [S-29](../../asset-model/v1/contract.md#s-29-名字里的冒号) 甚至把 `omne-official:reload-skills` 列为 `name_invalid` 的反例。
-  主线裁定已把那边改判，对齐波改过来之前，**同一个名字在两份契约里一收一拒**——[G-1](#十已知缺口)。本契约的 Schema 因此**暂不 `$ref`** 那边的 `CapabilityName`。
-- 违反四条之一的拒绝值是 **`name_invalid`**（[S-28](#s-28-表示层拒绝值)）。
+- **与 `data.asset-model` v1 一致**：那边的 [S-29](../../asset-model/v1/contract.md#s-29-名字里的斜杠) 把 `omne-official:reload-skills` 列为正例；本契约的 Schema `$ref` 那边的 `CapabilityName`（原 G-1）。
+- 违反词法的拒绝值是 **`name_invalid`**（[S-28](#s-28-表示层拒绝值)）——与 `data.asset-model` v1 的同名值同义。
 
 ### S-3 保留区与它唯一的拼法
 
@@ -206,7 +194,7 @@
 | `command` 型（③）的名字不在保留区里 | `name_reserved` | 同上：③ 型命令名是系统保留名，一律在前缀下 |
 | `command` 型的定义出现在一份 `origin` 不是 `official` 的资产记录里 | `name_reserved` | [PF-002 §2 非目标](../../../../product/PF-002-assets-settings-and-permissions/design.md#非目标)：③ 型本版只由系统提供；资产来源见 `data.asset-model` v1 的 [S-5](../../asset-model/v1/contract.md#s-5-资产来源) |
 
-- **前两行在一份定义之内就判得出**，Schema 管得到；**第三行要看所在记录的 `origin`**，由看得见记录的接收边界判——登记官方件与发布的写面（`capability.asset-governance`）、以及接收资产记录的任何一方。
+- **三行都要看所在记录**：前两行看记录的 `capability.name` 与正文的绑定种类，第三行看记录的 `origin`；由看得见记录的接收边界判——登记官方件与发布的写面（`capability.asset-governance`）、以及接收资产记录的任何一方（`data.asset-model` v1 的 [S-27](../../asset-model/v1/contract.md#s-27-表示层拒绝值) 原名携带 `name_reserved`）。
 - **判这一条的前提是 `binding.kind` 认得出**：`kind` 缺席或不是三个取值之一时，保留区规则无从判起，拒绝值按 [S-28](#s-28-表示层拒绝值) 的次序是 `malformed` 或 `binding_unknown`。
 - **直接后果**：① ② 型的名字与保留区**从定义上不相交**，系统将来再添多少 ③ 型流程与交付面动作，都撞不上已发布的 ① ② 型；
   ③ 型本版无人能新建，也就无人能顶替系统那一条（[PF-002 §2 非目标](../../../../product/PF-002-assets-settings-and-permissions/design.md#非目标)）。
@@ -249,7 +237,7 @@
 
 ### S-8 参数声明
 
-**`ParameterDeclaration` 是命令声明的一个参数：`{ name, kind, values?, required, positional? }`。**
+**`ParameterDeclaration` 是命令声明的一个参数：`{ name, kind, values?, required, positional?, hint? }`。**
 
 | 成员 | 必填 | 含义 |
 |---|---|---|
@@ -258,6 +246,7 @@
 | `values` | `enum` 必有，其余必无 | 非空、各不相同的非空字符串数组：这个参数只能取其中之一 |
 | `required` | 是 | 这个参数必须给 |
 | `positional` | 否 | **只取 `true`**：位置参数，按声明次序依次取值。**缺席即具名参数**，以 `--name` 给出。写成 `false` 是 `malformed`——一个含义只留一种写法 |
+| `hint` | 否 | 参数提示：给人看的一句话，非空，交付面据以提示这个参数怎样填。**不进任何给模型的内容，不参与解析**（主线裁定 2026-09-23，待产品负责人确认；账本 S20-d）。缺席即作者没给提示 |
 
 - **没有 `default`**：没给的参数在解析结果里**缺席**，不补一个值（[S-18](#s-18-参数的绑定与取值)）。它缺席时意味着什么，归拿到它的那一方。
 - **没有可变数量的位置参数、没有短选项（`-x`）、没有「重复同一个具名参数得到多个值」**（借 omne-next 的「禁可变数量位置参数」，[提案「D 的组成」](../../../../record/proposals/slash-command-parsing-baseline/alternatives.md#d-的组成借什么从哪借为什么只借这些)）。
@@ -309,23 +298,16 @@ Claude Code 按 `arguments` 前置声明的具名 `$name` 不借；`${CLAUDE_*}`
 
 ### S-11 属性项的推出规则
 
-**`声明(SlashCommandDefinition) → AttributeDeclaration[]` 恰产出一项：「谁可以用这个入口」这一项权限。**
-这是 `data.asset-model` v1 [S-12](../../asset-model/v1/contract.md#s-12-属性声明由正文推出) 要每份正文契约交出的那条确定函数；它对任何一份合法的命令定义都产出同一项，与持有方、所在格、时间、环境无关。
+**`声明(SlashCommandDefinition) → AttributeDeclaration[]` 恒为空。**
+这是 `data.asset-model` v1 [S-12](../../asset-model/v1/contract.md#s-12-属性声明由正文推出) 要每份正文契约交出的那条确定函数；它对任何一份合法的命令定义都产出同一个结果，与持有方、所在格、时间、环境无关。
 
-| `AttributeDeclaration` 成员 | 取值 |
-|---|---|
-| `item` | **账本未给名**——[G-5](#十已知缺口)。这一项与技能、MCP 接入点、连接件的「谁可以用」是同一个意思，名字要全批共用一个 |
-| `kind` | `permission` |
-| `category` | 无（权限项不带类别，`data.asset-model` v1 的 [S-13](../../asset-model/v1/contract.md#s-13-设置项类别)） |
-| `domain` | `{ "kind": "enum", "values": ["superAdministrator", "member", "self"] }`——[租户角色](../../identity-values/v1/contract.md#s-8-tenantrole)的两个取值加 `self`（主线裁定） |
-| `default` | **未定**——[G-5](#十已知缺口)。它是作者给的那一个取值（`data.asset-model` v1 的 [S-12](../../asset-model/v1/contract.md#s-12-属性声明由正文推出)），而本契约的正文里没有让作者给它的位置 |
-
-- **只对人**：这一项管「哪个人能敲这个命令」。模型不调用斜杠命令（[PF-002 §4「只有人用它」](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)），这一项与模型无关。
-- **它不替 skill 放权**：skill 型命令展开的那个技能，还要过**技能自己的**「谁可以使用它」（[S-22](#s-22-技能型的引用与两块展开物)）。
-- **不产出 `disabled`**（`data.asset-model` v1 的 [S-15](../../asset-model/v1/contract.md#s-15-disabled-是保留项名)），也**不产出治理类的项**。
-- **绑定目标、参数声明、说明都不作属性项**：它们是正文，不是各层能配的值。产品正文把「参数声明、参数提示、绑定目标」列在「设置」一栏，这个读法与本条不一致——[G-6](#十已知缺口)。
+- **「谁可以用这个入口」不由本规则产出**：它是 `data.asset-model` v1 保留的 [`usableBy`](../../asset-model/v1/contract.md#s-36-usableby-是保留项名)——取值域是租户角色两值加 `self`、默认 `self`，与技能、MCP 接入点共用一份声明（主线裁定 2026-09-23，待产品负责人确认；账本 S18-c、S20-b）。
+  一条斜杠命令的全部属性项因此恰是 `disabled` 与 `usableBy` 两项。
+- **只对人**：`usableBy` 在这里管「哪个人能敲这个命令」。模型不调用斜杠命令（[PF-002 §4「只有人用它」](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)）。
+- **它不替 skill 放权**：skill 型命令展开的那个技能，还要过**技能自己的** `usableBy`（[S-22](#s-22-技能型的引用与两块展开物)）。
+- **绑定目标、参数声明（含参数提示）、说明都不作属性项**：它们是正文，不是各层能配的值（主线裁定 2026-09-23，待产品负责人确认；账本 S20-d）。
+  产品正文把「参数声明、参数提示、绑定目标」列在「设置」一栏——**那一处要随产品修订改成正文成员**（已报主线，产品修订批）。
 - **这一项的值怎样求、没权限的命令怎样不进会话斜杠命令集**，归 `capability.asset-evaluation` 与 `capability.asset-registry`。
-- 在 [G-5](#十已知缺口) 闭合之前，这条规则**推得出「有且只有这一项、是权限、取值域是什么」，推不出它叫什么、默认是什么**——消费者停在缺口，**不得把「推不全」当成「没有这一项」**。
 
 ## 四、识别文法
 
@@ -362,8 +344,8 @@ recognize(T) ≝
   **不借** Codex「前导空格即字面、提交时再裁掉」那条出口：它看不见、易误触，而且机读形式里没有对应物（[提案「D 的组成」](../../../../record/proposals/slash-command-parsing-baseline/alternatives.md#d-的组成借什么从哪借为什么只借这些)）。
 - **识别不查任何命令集**：结果只由 `T` 决定。一个不存在的名字照样是「一次命令尝试」——判它不存在是解析的事（[S-16](#s-16-名字只按会话斜杠命令集认)），
   而那一步的结果是**明说失败、不发送**，**不是**退回普通文字。所以 `/tmp 满了` 得到的是「没有这个命令」；要把它当话发出去，写 `//tmp 满了`。
-- 「普通文字」与「字面发送」两种结果**不是斜杠命令的数据**，本契约不为它们立 `$defs`；它们交出去的是一段文字，落成什么块归受理。
-  **交出去的就是上面写的那段，一个码点不改**：不裁剪、不规范化、不改换行。
+- **三种结果的形状是 `Recognition`**（账本 S20-b）：`{ kind: "text", text }`（普通文字，`text` 是 `T` 原样）、`{ kind: "literal", text }`（字面发送，`text` 是 `T` 去掉第一个码点）、`{ kind: "invocation", invocation }`（一次命令尝试，[S-14](#s-14-commandinvocation-与位置)）。
+  前两种交出去的是一段文字，落成什么块归受理。**交出去的就是上面写的那段，一个码点不改**：不裁剪、不规范化、不改换行。
 
 ### S-14 CommandInvocation 与位置
 
@@ -376,7 +358,7 @@ recognize(T) ≝
 | `argumentText` | `N` 之后的全部文字，**去掉开头与结尾的空白**（空白恒是 `W`），中间原样，含换行；可以是空串，空串即「人没有附带参数」 |
 | `span` | `/name` 这一段在 `raw` 里的位置，恒为 `{ start: 0, end: 1 + N 的码点数 }` |
 
-**位置的单位**：本契约里的一切位置（`span` 与解析失败的 `at`）都是 **`{ start, end }`，以 Unicode 码点计、从 0 起、左闭右开，相对 `raw`**。
+**位置的单位**：本契约里的一切位置（`span` 与解析失败的 `at`）都是 **`Span` = `{ start, end }`，以 Unicode 码点计、从 0 起、左闭右开，相对 `raw`**（账本 S20-b）。
 **不是 UTF-16 码元，也不是字节**——两个语言的实现要对同一段输入指出同一处。`raw` 必须是合法的 Unicode 码点序列（没有落单的代理项）。
 
 - **一致性**：一个 `CommandInvocation` 的 `name`、`argumentText`、`span` 必须恰是对它的 `raw` 重新识别得出的那三样；不一致即 `malformed`。
@@ -392,12 +374,12 @@ recognize(T) ≝
 ## 五、解析
 
 **解析是纯函数 `parse(invocation, S) → ParseResult`**：`invocation` 是一次命令尝试，`S` 是这一刻这个会话的[会话斜杠命令集](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set)——
-一组 `SlashCommandDefinition`，名字两两不同，每一份都合本契约的形状（这是提供它的一方的义务，`capability.asset-registry`）。
+一组「命令名 ＋ `SlashCommandDefinition`」对，命令名两两不同，每一份正文都合本契约的形状（这是提供它的一方的义务，`capability.asset-registry`；命令名取自那份记录的 `capability.name`）。
 **同一个 `invocation`、同一个 `S`，结果永远相同**；它不读 `S` 以外的任何东西——不读权限、不读别处有没有这条命令、不读时间。
 
 ### S-16 名字只按会话斜杠命令集认
 
-**在 `S` 里找 `name` 逐码点等于 `invocation.name` 的那一份定义；找不到，结果是 `failed`，`reason` 为 `unknown_command`，`at` 为 `invocation.span`。**
+**在 `S` 里找命令名逐码点等于 `invocation.name` 的那一对；找不到，结果是 `failed`，`reason` 为 `unknown_command`，`at` 为 `invocation.span`。**
 
 - **没权限的与不存在的，回答完全相同。**没权限用的命令本来就不在 `S` 里（它在装配时就没装进来，或权限收回时已被去掉，归 `capability.asset-registry`）；
   而解析**只读 `S`**，所以一个名字「根本不存在」「存在但这个人没权限」「被 reload 下架了」「刚被收回权限」，对同一个 `S` 得出**逐成员相同**的结果——
@@ -422,8 +404,8 @@ recognize(T) ≝
 5. 相邻的段拼成同一个记号：`a"b c"d` 是一个记号，文字为 `ab cd`。`""` 与 `''` 是一个文字为空串的记号——**它与「没有这个记号」不同**。
 6. 一个记号的位置从它的第一个码点（含开引号）到它的最后一个码点（含闭引号）之后。
 
-**引号没有闭合**——`"` 或 `'` 开了、到整段末尾也没等到对应的闭引号——**解析失败、什么都不发**，`at` 从那个开引号到 `raw` 的末尾。
-**这一种失败的 `reason` 值起草账本没有给**：五个值里没有一个说的是它，本契约**不借用**其中任何一个顶替，也**不**把没闭合的引号当成字面照收——[G-3](#十已知缺口)。
+**引号没有闭合**——`"` 或 `'` 开了、到整段末尾也没等到对应的闭引号——**解析失败、什么都不发**，`reason` 为 **`unterminated_quote`**（主线裁定 2026-09-23，待产品负责人确认；账本 S20-b），`at` 从那个开引号到 `raw` 的末尾。
+**不**把没闭合的引号当成字面照收。
 
 切分规则借 Claude Code 的 shell 式引号（[CC-6](../../../../../research/slash-command-parsing-sources/notes/claude-code.md#cc-6)），但在这里**钉死成上面六条**：
 「用现成的 shell 词法库」会把参数文法交给库去定义，不同库在转义与引号上各不相同（[提案「D 的组成」](../../../../record/proposals/slash-command-parsing-baseline/alternatives.md#d-的组成借什么从哪借为什么只借这些)）。
@@ -462,7 +444,7 @@ recognize(T) ≝
 
 ```text
 1. 名字：S 里没有这个名字                               → unknown_command
-2. 切分：引号没有闭合（仅当有参数声明）                  → [G-3]
+2. 切分：引号没有闭合（仅当有参数声明）                  → unterminated_quote
 3. 绑定：从左到右的第一个出错的记号                      → unexpected_argument / type_mismatch / enum_out_of_range / missing_required（具名写法缺值）
 4. 必填：按声明次序第一个没取到值的必填参数               → missing_required（无 at）
 ```
@@ -480,8 +462,8 @@ recognize(T) ≝
 | `command` | `service`；`arguments`（**出现当且仅当这条命令有参数声明**） | `command` 型解析通过：所指的系统业务流程与解析出的参数（[S-23](#s-23-命令型的参数)） |
 | `failed` | `reason`；`at`（按 [S-18](#s-18-参数的绑定与取值)、[S-19](#s-19-解析失败取第一处) 该有时有）；`explanation`：非空 | 解析没通过 |
 
-- **`reason` 恰五个取值，闭合**：`unknown_command`、`missing_required`、`type_mismatch`、`unexpected_argument`、`enum_out_of_range`——
-  外加 [G-3](#十已知缺口) 那一个尚未命名的。**没有「你不能用」，也没有「其他」。**
+- **`reason` 恰六个取值，闭合**：`unknown_command`、`unterminated_quote`、`missing_required`、`type_mismatch`、`unexpected_argument`、`enum_out_of_range`。
+  **没有「你不能用」，也没有「其他」。**
 - **`ParseResult` 恒与产生它的那个 `CommandInvocation` 一起用**：原文、名字与参数文字都在后者里，前者**不重复携带**——两份会分叉，而没有人知道该信哪一份。
 - **`failed` 是一个判定结果值，不是表示层拒绝**（[S-29](#s-29-表示层拒绝与解析失败分开都不修补)）：输入的形状完全合法，只是人敲的东西对不上。
 
@@ -496,22 +478,21 @@ recognize(T) ≝
 **它保证人附带的文字不会被一条没写占位符的模板悄悄吞掉**；有参数声明的命令不需要它——[S-10](#s-10-提示词模板与占位符) 第 2 条已在发布时保证每个参数都有去处。
 
 - `text` 可以是空串以外的任何文字，也可以恰是空串（例如模板只有 `$ARGUMENTS`、人又什么都没附带）。
-- 这段文字在受理时成为那条用户消息的内容（[PF-014 §5.10](../../../../product/PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走)）；落成一个文本块，块怎样标注归受理与 `data.content-blocks`。
-  `data.content-blocks` v1 的来路标记里**没有**「这是 ① 型展开的正文」这一值，这块因此不带来路标记——它的出处由留痕块陈述（[S-25](#s-25-留痕)）。
+- 这段文字在受理时成为那条用户消息的内容（[PF-014 §5.10](../../../../product/PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走)）：一个文本块，来源标记 `{ kind: "slash_command_expansion", command: <命令名> }`（`data.content-blocks` v1 [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来源标记)）；块的标注归受理。
 
 ### S-22 技能型的引用与两块展开物
 
-**`skill` 型解析通过时，结果是 `{ kind: "skill", skill }`：只是一个引用。**展开发生在受理时，由受理面做，展开物恰是 `data.content-blocks` v1 [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来路标记) 的两种来路块：
+**`skill` 型解析通过时，结果是 `{ kind: "skill", skill }`：只是一个引用。**展开发生在受理时，由受理面做，展开物恰是 `data.content-blocks` v1 [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来源标记) 的两种来路块：
 
-| 次序 | 块 | 文字 | 来路标记 |
+| 次序 | 块 | 文字 | 来源标记 |
 |---|---|---|---|
-| 1 | 文本块 | 那个技能此刻生效的那份实现的**正文，逐字**（「正文」是哪一段归技能包的契约，[G-2](#十已知缺口)） | `{ kind: "skill_body", command: <命令名>, skill: <技能名> }` |
+| 1 | 文本块 | 那个技能此刻生效的那份实现的**正文，逐字**——`data.skill-package` v1 [S-8](../../skill-package/v1/contract.md#s-8-正文逐字不展开不执行) 的 `body` | `{ kind: "skill_body", command: <命令名>, skill: <技能名> }` |
 | 2 | 文本块，**仅当 `argumentText` 非空** | `argumentText`，原样 | `{ kind: "slash_command_args", command: <命令名> }` |
 
 - **参数不拼进正文**（[PF-002 decisions 原话（一）问题一「另成一个内容块」](../../../../product/PF-002-assets-settings-and-permissions/decisions.md#2026-09-23--斜杠命令参数无权限即不存在会话认得哪些命令③-型不开放保留名前缀)）。
   有参数声明的 skill 型命令，参数先按声明验过（不通过即 `failed`），通过之后第二块的文字**仍是 `argumentText` 原样**，不是解析出的那张表。
 - 两块的次序是本契约的推导：先方法、后人给的话，与人敲下去的次序一致。
-- **技能自己的「谁可以使用它」不在解析里判**：解析看不到技能的权限。受理面展开时以**敲命令的那个人**的身份判它；不通过由受理面具名拒绝，**不是**本契约的失败值（[PF-002 §4 表后一段](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)）。
+- **技能自己的「谁可以使用它」（`usableBy`）不在解析里判**：解析看不到技能的权限。受理面展开时以**敲命令的那个人**的身份判它；不通过由受理面具名拒绝，**不是**本契约的失败值（[PF-002 §4 表后一段](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)）。
   所指的技能此刻不在这个会话的装配里、或者是一份不可用的同名替换件时展开什么，也归受理与 `capability.asset-evaluation`。
 
 ### S-23 命令型的参数
@@ -535,15 +516,16 @@ recognize(T) ≝
 
 ### S-25 留痕
 
-**① ② 型：受理面产出的那条用户消息里，除展开物之外另有一块留痕块，判别值是 `slash_command_invocation`。**
-它记下这一次的**原文与解析**——那个 `CommandInvocation`、那个成功的 `ParseResult`、以及同一条消息里哪几块是它的展开物——
+**① ② 型：受理面产出的那条用户消息里，除展开物之外另有一块留痕块——一个来源标记为 `{ kind: "slash_command_record", command: <命令名> }` 的文本块，`text` 是这次的 `raw`，逐字**
+（`data.content-blocks` v1 [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来源标记)；主线裁定 2026-09-23，待产品负责人确认；账本 S20-c：**留痕不是第八类块，是一种来源标记**）。
+它与同一条消息里 `command` 相同、来源标记为 `slash_command_expansion`、`skill_body`、`slash_command_args` 的那几块一起，
 兑现「原命令与展开后的全文都留」「消息落盘之前看得到原命令的标注」（[PF-014 §5.10](../../../../product/PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走)、[§5.6](../../../../product/PF-014-inbound-intake-and-queueing/design.md#56-消息落盘之前那一刻看得到什么)）。留痕的形状借 Claude Code 「原命令一份、展开全文一份」（[CC-7](../../../../../research/slash-command-parsing-sources/notes/claude-code.md#cc-7)）。
 
-- **本契约只定这个判别值与它必须装下的三样**；它是一类新的块，还是文本块上的一种来路，以及成员名、两个标注的取值，**归 `data.content-blocks` 下一版**——[G-4](#十已知缺口)。
-  注意：`data.content-blocks` v1 [S-1](../../content-blocks/v1/contract.md#s-1-七类块) 与内容块词条都说块「恰七类」，若它是第八类，要先动词条与 PF-009。
+- **`ParseResult` 不另存**：成功的解析结果就是那几块展开物本身；要重看「当时解析成什么」，读展开物，**不按此刻的命令集重新解析**（命令集会变）。
+- **留痕块与展开物的标注**由写下它们的受理一方定（`data.content-blocks` v1 的 [S-4](../../content-blocks/v1/contract.md#s-4-两个标注)）；本契约不预设留痕块给不给模型读。
 - **③ 型不产生消息**：会话日志里那一条「记它发生过的条目」（命令名、参数、结果摘要）装的正是这里的 `CommandInvocation` 与 `command` 那一支的 `ParseResult`，再加流程交回的结果摘要；
   **条目的形状归受理契约**（[G-8](#十已知缺口)）。受理面再判得到 `failed` 时的具名拒绝条目同理。
-- **留痕不改变展开物**：展开物照常是给模型读的内容；留痕块给审计看「人敲的是什么」，它给不给模型读由 [G-4](#十已知缺口) 定，本契约不预设。
+- **留痕不改变展开物**：展开物照常是给模型读的内容。
 
 ## 六、装配给与协议给
 
@@ -568,18 +550,17 @@ recognize(T) ≝
 
 - **规范表示**：[`slash-command.schema.json`](slash-command.schema.json)，JSON Schema **Draft 2020-12**。
   `$id` = `https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/slash-command/v1/slash-command.schema.json`
-- **定义项（7 项）**：`CommandName`、`ServiceName`、`CommandBinding`、`ParameterDeclaration`、`SlashCommandDefinition`、`CommandInvocation`、`ParseResult`。
+- **定义项（9 项）**：`CommandName`、`ServiceName`、`CommandBinding`、`ParameterDeclaration`、`SlashCommandDefinition`、`Span`、`CommandInvocation`、`Recognition`、`ParseResult`。
   消费者 `$ref` 这些定义，**不复制一份同义类型**。**根模式不约束任何文档**：本文件是共享定义的登记处。
-- **没有自己定义名的两处形状**：位置 `{ start, end }` 只定义一次，在 `CommandInvocation` 的 `span` 上，`ParseResult` 的 `at` 以 JSON Pointer 引它；
-  `ParseResult` 的 `skill` 支以 JSON Pointer 引 `CommandBinding` 的 `skill` 支。**起草账本没有给它们定义名，本契约不自立**；要不要给，是[整批对齐](../verification.md#对齐义务)时的一个问题。
+- **位置 `Span` 只定义一次**，`span` 与 `at` 都引它（账本 S20-b）；`ParseResult` 的 `skill` 支以 JSON Pointer 引 `CommandBinding` 的 `skill` 支，不另立定义名。
 - **识别与解析是函数，Schema 表达不了**：它们的规范表达是本文件第四、五节的条款与 [`examples.md` 的判定用例集](examples.md#4-判定用例集)。
 - **成员名一律 camelCase**，枚举值一律 snake_case 字符串；判别成员一律叫 `kind`。
-- **外部引用**：`CapabilityId` 取自 `data.asset-model` v1。
+- **外部引用**：`CapabilityName`、`CapabilityId` 取自 `data.asset-model` v1。
 - **正反实例与判定用例集**：[`examples.md`](examples.md)。它是本版的规范工件，不是说明材料。
 
 ### S-27 判别式与枚举闭合
 
-`CommandBinding.kind`、`ParameterDeclaration.kind`、`ParseResult.kind`、`ParseResult` 里 `failed` 的 `reason` 各是一个**闭合集合**，没有「其他」。
+`CommandBinding.kind`、`ParameterDeclaration.kind`、`Recognition.kind`、`ParseResult.kind`、`ParseResult` 里 `failed` 的 `reason` 各是一个**闭合集合**，没有「其他」。
 
 遇到未知取值**一律作表示非法拒绝**：**不得**映射到「最接近」的已知值、**不得**当作缺省、**不得**忽略该成员继续。
 一个未知的绑定种类被当成 `prompt`，一条本该交给流程的命令就成了一段送给模型的话；一个未知的失败原因被当成成功，**什么都不发**就变成了发出去。
@@ -591,11 +572,11 @@ recognize(T) ≝
 | 拒绝值 | 什么时候 | 条款 |
 |---|---|---|
 | `binding_unknown` | 绑定目标的 `kind` 出现了，但不是 `prompt`、`skill`、`command` 之一 | [S-6](#s-6-三种绑定目标) |
-| `name_invalid` | 命令定义的 `name` 是字符串，但违反 [S-2](#s-2-命令名的词法)（空串、含空白、含 `/`）或 [S-3](#s-3-保留区与它唯一的拼法) 第 2 条（保留区里的名字前缀拼法不对、或前缀之后什么都没有） | S-2、S-3 |
-| `name_reserved` | 绑定目标的 `kind` 认得出，而名字与保留区的对应违反 [S-4](#s-4-保留区只归系统提供的命令型)：① ② 型在保留区里、③ 型不在、或 ③ 型定义出现在非 `official` 的记录里 | S-4 |
+| `name_invalid` | 一份 `slash_command` 记录的 `capability.name`（或一个单独校验的 `CommandName`）是字符串，但违反 [S-2](#s-2-命令名的词法)（空串、含空白、含 `/`）或 [S-3](#s-3-保留区与它唯一的拼法) 第 2 条（保留区里的名字前缀拼法不对、或前缀之后什么都没有） | S-2、S-3 |
+| `name_reserved` | 绑定目标的 `kind` 认得出，而所在记录的命令名与保留区的对应违反 [S-4](#s-4-保留区只归系统提供的命令型)：① ② 型在保留区里、③ 型不在、或 ③ 型定义出现在非 `official` 的记录里 | S-4 |
 | `parameter_duplicate` | `parameters` 里两个参数同名 | [S-9](#s-9-参数声明的结构约束) |
 | `positional_after_named` | `parameters` 里一个位置参数排在一个具名参数之后 | [S-9](#s-9-参数声明的结构约束) |
-| `malformed` | 其余一切不合形状：缺必填成员（含判别成员缺席）、多出成员、类型不对、`positional` 写成 `false`、`enum` 型缺 `values` 或别的型带了 `values`、`values` 有重复、参数名不合词法、必填位置参数排在可选位置参数之后、skill 型的目标类别不是 `skill`、模板为空或占位符对不上声明（[S-10](#s-10-提示词模板与占位符)）、`ServiceName` 首尾有空白、定义的 `name` 与所在记录的 `capability.name` 不同、`CommandInvocation` 与它的 `raw` 重新识别的结果不一致、位置越界或 `start > end`、`ParseResult` 的 `reason` 不认得或带了多余的成员。**判据只有一条**：不合 Schema，或违反本契约第三、四节的约束；上面只是举例 | 各条 |
+| `malformed` | 其余一切不合形状：缺必填成员（含判别成员缺席）、多出成员、类型不对、`positional` 写成 `false`、`enum` 型缺 `values` 或别的型带了 `values`、`values` 有重复、参数名不合词法、必填位置参数排在可选位置参数之后、skill 型的目标类别不是 `skill`、模板为空或占位符对不上声明（[S-10](#s-10-提示词模板与占位符)）、`ServiceName` 首尾有空白、正文里带了 `name` 这类未登记成员、`CommandInvocation` 与它的 `raw` 重新识别的结果不一致、位置越界或 `start > end`、`ParseResult` 的 `reason` 或 `Recognition` 的 `kind` 不认得、带了多余的成员。**判据只有一条**：不合 Schema，或违反本契约第三、四节的约束；上面只是举例 | 各条 |
 
 **一份输入里有多处违例时，拒绝值取其中优先级最高的那个**，次序固定：
 
@@ -607,13 +588,14 @@ binding_unknown  >  name_invalid  >  name_reserved  >  parameter_duplicate  >  p
 绑定种类决定其余规则怎么判（保留区规则要先知道是不是 ③ 型），所以排第一；名字的拼写先于名字的归属；参数在名字之后；`malformed` 是剩余项，不是「其他」——它有确定的判据，只是不再细分。
 
 拒绝值怎样落进各个操作自己的失败集合（发布、登记官方件、受理面收到一份 `CommandInvocation`），归那些契约；**它们引用本条的名字，不另起一套同义值**。
+一份资产记录里的命令正文违反本条，`data.asset-model` v1 的 [S-27](../../asset-model/v1/contract.md#s-27-表示层拒绝值) 原名携带这里的值；`name_invalid` 与那边同名值同义。
 
 ### S-29 表示层拒绝与解析失败分开，都不修补
 
 - **表示非法的输入在进入任何判定之前被拒绝**，这次拒绝**不表示**「这条命令不存在」「这个人没资格」，也**不得被记成一次判定结果**——
   与 `data.asset-model` v1 的 S-28 是同一条规矩。
 - **解析失败不是表示层拒绝**：`ParseResult` 的 `failed` 是对一份**形状合法**的命令尝试做出的判定——人敲的名字这个会话没有、参数对不上声明。
-  它的五个 `reason` 与上面六个拒绝值**不是同一个集合，不得混用**：一份合法的 `CommandInvocation` 永远不会得到 `malformed`，一份坏的命令定义也永远不会得到 `unknown_command`。
+  它的六个 `reason` 与上面六个拒绝值**不是同一个集合，不得混用**：一份合法的 `CommandInvocation` 永远不会得到 `malformed`，一份坏的命令定义也永远不会得到 `unknown_command`。
 - **不修补、不降级、不尽力而为**：不把 `OMNE-OFFICIAL:` 改成小写后接受、不把带 `/` 的名字「清洗」一下、不补缺的 `required`、不把 `positional: false` 读成具名、
   不把一个没闭合的引号当字面照收、不把类型不对的参数值「尽量转一下」、不把 `unknown_command` 改当普通话送出。**修补等于替写的人或敲的人做了一个他没做的决定。**
 - **表示合法不表示任何资格**：Schema 校验通过只说明形状合规，不说明这个人能用这条命令、这个技能他用得了、这条流程此刻办得了。
@@ -622,16 +604,16 @@ binding_unknown  >  name_invalid  >  name_reserved  >  parameter_duplicate  >  p
 
 | 条款 | Schema 管得到吗 | 管不到的那部分归谁 |
 |---|---|---|
-| [S-1](#s-1-斜杠命令定义是资产的正文) | 管四个成员、必填与否、不多成员 | `name` 等于记录的 `capability.name`——要看记录，归接收边界 |
-| [S-2](#s-2-命令名的词法)、[S-3](#s-3-保留区与它唯一的拼法) | **管得到**：四条词法、保留区的判定与唯一拼法 | 拒绝值的名字由 [S-28](#s-28-表示层拒绝值) 定 |
-| [S-4](#s-4-保留区只归系统提供的命令型) | 前两行管得到（按绑定种类的 `if/then`） | 第三行（非 `official` 记录带 `command` 绑定）要看记录，归写面与接收边界 |
+| [S-1](#s-1-斜杠命令定义是资产的正文) | 管三个成员、必填与否、不多成员（正文里带 `name` 即拒） | —— |
+| [S-2](#s-2-命令名的词法)、[S-3](#s-3-保留区与它唯一的拼法) | **管得到**（对一个单独的 `CommandName`）：`data.asset-model` 的名字词法、保留区的判定与唯一拼法 | 一份记录的 `capability.name` 是不是合 `CommandName`——`data.asset-model` 的 Schema 只管到通用词法，保留区拼法归接收边界 |
+| [S-4](#s-4-保留区只归系统提供的命令型) | **管不到**：三行都要看所在记录 | 写面与接收边界 |
 | [S-5](#s-5-保留名在系统内唯一没有优先级) | **管不到** | 静态检查 [SC-2](../verification.md#静态检查义务) |
 | [S-6](#s-6-三种绑定目标)、[S-7](#s-7-servicename) | **管得到**：三支、skill 类别、`ServiceName` 的首尾 | `ServiceName` 解不解得到归登记处（[G-7](#十已知缺口)） |
-| [S-8](#s-8-参数声明) | **管得到**：成员、四种 `kind`、`values` 与 `kind` 的对应、`positional` 只取 `true`、参数名词法 | — |
+| [S-8](#s-8-参数声明) | **管得到**：成员、四种 `kind`、`values` 与 `kind` 的对应、`positional` 只取 `true`、参数名词法、`hint` 非空 | — |
 | [S-9](#s-9-参数声明的结构约束) | **管不到**（要看整个数组） | 接收边界；[`examples.md` 第 5 节](examples.md#5-schema-挡不住但同样非法的) |
 | [S-10](#s-10-提示词模板与占位符) | 只管模板非空 | 占位符对得上声明——接收边界 |
 | [S-11](#s-11-属性项的推出规则) | 不是形状 | 推出规则的实现与 `capability.asset-evaluation` |
-| [S-12](#s-12-只识别经交付面的输入)～[S-25](#s-25-留痕) | 只管 `CommandInvocation` 与 `ParseResult` 的形状 | **识别与解析是函数**：判定用例集（[`examples.md` 第 4 节](examples.md#4-判定用例集)）＋ 两处实现的符合性 |
+| [S-12](#s-12-只识别经交付面的输入)～[S-25](#s-25-留痕) | 只管 `Recognition`、`CommandInvocation`、`Span` 与 `ParseResult` 的形状 | **识别与解析是函数**：判定用例集（[`examples.md` 第 4 节](examples.md#4-判定用例集)）＋ 两处实现的符合性 |
 
 **非法输入的含义**：Schema 校验失败 ⇒ 该输入**不是**本契约的一个值 ⇒ 按 [S-28](#s-28-表示层拒绝值) 取拒绝值、按 [S-29](#s-29-表示层拒绝与解析失败分开都不修补) 收场。
 **Schema 通过也可能仍然非法**——上表「管不到」那一列里属于形状的那些，由接收边界的校验兑现。
@@ -648,7 +630,7 @@ binding_unknown  >  name_invalid  >  name_reserved  >  parameter_duplicate  >  p
 | P-4 | 以 `/` 开头的普通话有一条独立的字面出路，不经「先失败再回退」 | 安全 | [PF-016 §5.7](../../../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族) | 文法（[S-13](#s-13-识别的三种结果)）＋ [S-24](#s-24-解析失败即什么都不发) | 拼错的命令悄悄变成一句话、一次付费调用 |
 | P-5 | 没权限用的命令与不存在的名字得到逐成员相同的回答 | 安全 | [PF-002 §4](../../../../product/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变) | 解析只读 `S`（[S-16](#s-16-名字只按会话斜杠命令集认)）＋ 注册表不把无权命令装进 `S` ＋ 各跳不加料（第六节） | 回答里出现「你不能用」；或能据回答探出别人有哪些命令 |
 | P-6 | 解析失败时什么都不发出，并说得出哪里不对 | 安全 | [PF-002 §4](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)、[PF-016 §5.7](../../../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族) | `failed` 是一个值（[S-20](#s-20-parseresult-四支)）＋ 消费者义务（[S-24](#s-24-解析失败即什么都不发)） | 参数对不上声明的命令照样进了队列或触发了流程 |
-| P-7 | 保留区只归系统提供的 ③ 型；① ② 型从定义上撞不上任何保留名 | 安全 | [PF-002 §4「名字与撞名」](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)、[§2 非目标](../../../../product/PF-002-assets-settings-and-permissions/design.md#非目标) | Schema（[S-3](#s-3-保留区与它唯一的拼法)、[S-4](#s-4-保留区只归系统提供的命令型) 前两行）＋ 写面（第三行） | 一个仓库发布的提示词顶掉了「压缩上下文」；一个名字从此有两种解释 |
+| P-7 | 保留区只归系统提供的 ③ 型；① ② 型从定义上撞不上任何保留名 | 安全 | [PF-002 §4「名字与撞名」](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)、[§2 非目标](../../../../product/PF-002-assets-settings-and-permissions/design.md#非目标) | Schema（[S-3](#s-3-保留区与它唯一的拼法) 的拼法）＋ 写面与接收边界（[S-4](#s-4-保留区只归系统提供的命令型) 三行） | 一个仓库发布的提示词顶掉了「压缩上下文」；一个名字从此有两种解释 |
 | P-8 | 声明了参数的按声明解析；没声明的整段一个自由参数、永不因参数失败 | 不变量 | [PF-002 §4「自带的属性」](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command) | [S-17](#s-17-参数文字的切分)～[S-19](#s-19-解析失败取第一处) | 没声明参数的命令因为一个引号被拒；或声明了参数的命令照收了对不上的参数 |
 | P-9 | 人附带的每一段参数都进 ① 的展开物，不被悄悄丢掉 | 不变量 | [PF-002 §4 三行表 ①](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)（「带上参数」） | 模板合法性（[S-10](#s-10-提示词模板与占位符) 第 2 条）＋ 追加规则（[S-21](#s-21-提示词型的展开)） | 验过的参数没进消息，模型不知道人给过它 |
 | P-10 | ② 的技能正文逐字成一块、参数另成一块 | 不变量 | [PF-002 §4 三行表 ②](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command) | 展开物的对应（[S-22](#s-22-技能型的引用与两块展开物)）；受理面照做 | 参数被拼进了技能正文，正文不再逐字 |
@@ -680,19 +662,19 @@ binding_unknown  >  name_invalid  >  name_reserved  >  parameter_duplicate  >  p
 
 受理面在**人敲 `/code-review focus on error handling`** 时，依赖 [S-20](#s-20-parseresult-四支)、[S-22](#s-22-技能型的引用与两块展开物)、[S-25](#s-25-留痕)，得到：
 `skill{code-review}`；以敲命令的人的身份判技能自己的使用权限（不在本契约）；通过之后，技能正文逐字一块（`skill_body`）、`focus on error handling` 一块（`slash_command_args`）；
-**「正文」是哪一段停在 [G-2](#十已知缺口)，留痕块的形状停在 [G-4](#十已知缺口)**。
+另有一块 `slash_command_record` 留痕，`text` 是 `/code-review focus on error handling` 原样（[S-25](#s-25-留痕)）。
 
 #### CS-4 注册表装一个会话的命令集
 
 `capability.asset-registry` 在**会话创建时装配、以及人发 `/omne-official:reload-slash_command` 这类 reload 时重填命令那一张注册表**时，依赖 [S-1](#s-1-斜杠命令定义是资产的正文)～[S-4](#s-4-保留区只归系统提供的命令型)，得到：
-会话斜杠命令集的元素就是 `SlashCommandDefinition`，名字两两不同；reload 一族的名字都在保留区里、绑定是 `command`。
+会话斜杠命令集的元素是「命令名（记录的 `capability.name`）＋ `SlashCommandDefinition`」一对，命令名两两不同；reload 一族的名字都在保留区里、绑定是 `command`。
 **一族里有哪几条、各叫什么归那份契约**——本契约只保证它们的名字合法、在保留区里（示例用的 `omne-official:reload-skill` 只是示意）。
 
 #### CS-5 发布一条名字带保留前缀的提示词命令
 
-`capability.asset-governance` 在**某组织发布 `{ name: "omne-official:summarize", binding: { kind: "prompt", … } }`** 时，依赖 [S-4](#s-4-保留区只归系统提供的命令型)、[S-28](#s-28-表示层拒绝值)，得到：
+`capability.asset-governance` 在**某组织发布一份能力标识为 `slash_command/omne-official:summarize`、正文 `{ binding: { kind: "prompt", … } }` 的记录**时，依赖 [S-4](#s-4-保留区只归系统提供的命令型)、[S-28](#s-28-表示层拒绝值)，得到：
 拒绝值 `name_reserved`，发布不成立；说明「这个前缀留给系统」是写面的呈现（[PF-002 acceptance](../../../../product/PF-002-assets-settings-and-permissions/acceptance.md)）。
-同一份定义若写成 `OMNE-OFFICIAL:summarize`，得到的是 `name_invalid`——**两个名字、两个拒绝值，都不会被改写后接受**。
+同一份记录的名字若写成 `OMNE-OFFICIAL:summarize`，得到的是 `name_invalid`——**两个名字、两个拒绝值，都不会被改写后接受**。
 
 #### CS-6 导入一个 Claude Code 命令文件
 
@@ -703,7 +685,7 @@ binding_unknown  >  name_invalid  >  name_reserved  >  parameter_duplicate  >  p
 #### CS-7 资产求值推一条命令的属性项
 
 `capability.asset-evaluation` 在**第 3 步投影一条斜杠命令的属性项**时，依赖 [S-11](#s-11-属性项的推出规则)，得到：
-恰一项权限，取值域是两个租户角色加 `self`；**项名与默认值停在 [G-5](#十已知缺口)**——本版到此为止，不得把它当成「这条命令没有权限项」。
+推出规则产出空集；全部属性项是 `data.asset-model` 保留的 `disabled` 与 `usableBy` 两项。
 
 ## 九、缺席怎么收
 
@@ -722,9 +704,7 @@ binding_unknown  >  name_invalid  >  name_reserved  >  parameter_duplicate  >  p
 | `failed` 的 `at` | 只在「必填参数没给」时缺席；别的失败缺 `at` 即 `malformed` | [S-18](#s-18-参数的绑定与取值)、[S-20](#s-20-parseresult-四支) |
 | 会话斜杠命令集里没有这个名字 | **明确失败**：`unknown_command`，**不是**普通文字 | [S-16](#s-16-名字只按会话斜杠命令集认) |
 | 输入不经交付面 | 不调用识别文法，`/xxx` 原样是内容 | [S-12](#s-12-只识别经交付面的输入) |
-| 引号没闭合的失败值 | **本版没有表示**（[G-3](#十已知缺口)）；实现停在缺口，**不借用**别的失败值，也不照收 | [S-17](#s-17-参数文字的切分) |
-| 「谁可以用」的项名与默认值 | **推不全**（[G-5](#十已知缺口)）；消费者停在缺口，不当成「没有这一项」 | [S-11](#s-11-属性项的推出规则) |
-| 留痕块的形状 | **本版没有表示**（[G-4](#十已知缺口)）；只有判别值 | [S-25](#s-25-留痕) |
+| 参数声明的 `hint` | **合法**：作者没给提示；交付面可从声明本身长出提示 | [S-8](#s-8-参数声明) |
 
 **本契约不定义任何恢复动作，也不承诺任何外部效果可逆**：它什么外部效果也不产生。
 
@@ -734,16 +714,16 @@ binding_unknown  >  name_invalid  >  name_reserved  >  parameter_duplicate  >  p
 
 | # | 缺口 | 阻断谁 | 谁来裁 |
 |---|---|---|---|
-| **G-1** | **命令名的词法与 `data.asset-model` v1 当前的 S-2 相反**：主线裁定能力标识名禁 `/`、许 `:`（规范串随之改为 `<category>/<name>`），那边 v1 文本仍是禁 `:`、许 `/`，它的 S-29 把 `omne-official:reload-skills` 列为反例、G-11 等本契约定保留前缀的分隔符 | 用那边的 Schema 校验一份保留区里的命令记录，**会拒掉本契约认为合法的名字**；本契约的 `CommandName` 因此暂不 `$ref` 那边的 `CapabilityName` | **整批对齐**：`data.asset-model` 按裁定改 S-2、S-3、S-29 并闭合 G-11；之后本契约的 `CommandName` 改为在它之上收紧（候选未冻结，原地改） |
-| **G-2** | **对 `data.skill-package` v1 的依赖未登**：技能的「正文」是技能包里的哪一段，归那份契约；它同批并行起草、不在本工作树 | [S-22](#s-22-技能型的引用与两块展开物) 的第一块「正文逐字」指的是哪一段文字 | **整批对齐**：补 catalog 依赖与条款号，把 S-22 里的指路换成那份契约的坐标 |
-| **G-3** | **引号没有闭合时的失败原因值**：起草账本给的五个 `reason` 里没有一个说的是它 | [S-17](#s-17-参数文字的切分)：这一种失败本版 `ParseResult` 表达不了；带参数声明的命令一旦遇到它，实现无值可报 | **主线**（账本加一个名字；本契约随之改 Schema 的枚举与 S-19、S-20） |
-| **G-4** | **留痕块的形状**：本契约只定判别值 `slash_command_invocation` 与它必须装下的三样；它是第八类块还是文本块上的一种来路、成员名、两个标注各取什么 | 受理面写 ① ② 型那条用户消息；「消息落盘之前」的拓展件读原命令的标注 | **`data.content-blocks` 下一版**；若是第八类块，先要**内容块词条与 PF-009 的 owner** 同意把「七类」改成八类 |
-| **G-5** | **「谁可以用」这一项的项名与默认值**：项名要与技能、MCP 接入点、连接件的同一项共用；默认值是作者给的，而本契约的正文里没有让作者给它的成员 | [S-11](#s-11-属性项的推出规则) 推不全；设置页长不出这一格；求值第 3、4 步停在这里 | **主线**（全批共用的项名；默认值由正文承载还是写成一个具名政策参数） |
-| **G-6** | **产品正文把「参数声明、参数提示、绑定目标」列为斜杠命令的设置**，起草账本把参数声明与绑定目标放在正文里、没有「参数提示」 | 若产品的意思是这几样可以按层配值（例如组织把一条命令改绑另一个技能），本契约的形状装不下；「参数提示」本版无处可放 | **主线**与 **PF-002 的 owner**：确认读法；要按层可配，属性项推出规则与本契约的形状都要改 |
+| **G-1** | **已闭合（2026-09-24 整批对齐）**：`data.asset-model` v1 已改为禁斜杠、许冒号；`CommandName` 改为 `$ref` 那边的 `CapabilityName` 再加保留区（[S-2](#s-2-命令名的词法)） | — | — |
+| **G-2** | **已闭合（2026-09-24 整批对齐）**：对 `data.skill-package` v1 的依赖已登（它的 S-8），[S-22](#s-22-技能型的引用与两块展开物) 的第一块指它的 `body` | — | — |
+| **G-3** | **已闭合（2026-09-24 整批对齐）**：引号没闭合的 `reason` 是 `unterminated_quote`——主线裁定 2026-09-23，待产品负责人确认（账本 S20-b）；见 [S-17](#s-17-参数文字的切分)、[S-19](#s-19-解析失败取第一处)、[S-20](#s-20-parseresult-四支) | — | — |
+| **G-4** | **已闭合（2026-09-24 整批对齐）**：留痕不是第八类块，是 `data.content-blocks` v1 S-8 的来源标记 `slash_command_record`（① 型展开物另用 `slash_command_expansion`）——主线裁定 2026-09-23，待产品负责人确认（账本 S20-c）；见 [S-25](#s-25-留痕) | — | — |
+| **G-5** | **已闭合（2026-09-24 整批对齐）**：「谁可以用」是 `data.asset-model` v1 保留的 `usableBy`（项名、取值域、默认 `self`）——主线裁定 2026-09-23，待产品负责人确认（账本 S18-c、S20-b）；见 [S-11](#s-11-属性项的推出规则) | — | — |
+| **G-6** | **已闭合（2026-09-24 整批对齐），产品正文待修订**：参数声明、参数提示、绑定目标是正文成员，不随持有配值；参数提示是 `ParameterDeclaration.hint`——主线裁定 2026-09-23，待产品负责人确认（账本 S20-d）。PF-002 §4 把它们列在「设置」一栏的那一处由产品修订批改 | — | **产品修订**（PF-002 的 owner） |
 | **G-7** | **系统业务流程的登记处**：`ServiceName` 解到哪个服务的哪个动作、此刻办不办得了、结果摘要什么形状，没有契约 | [S-7](#s-7-servicename)、[S-23](#s-23-命令型的参数) 交出去之后的那一段；③ 型条目里的「结果摘要」 | **主线**（登记处落在哪份契约）；每条流程的语义归定义它的 topic |
 | **G-8** | **③ 型那条「记它发生过的条目」与受理面具名拒绝条目的形状** | [S-24](#s-24-解析失败即什么都不发)、[S-25](#s-25-留痕)：条目要装 `CommandInvocation` 与 `ParseResult`，装在哪、叫什么没有定 | **受理契约**（PF-014 的规格化，未立）与 PF-000 记录条目 |
 | **G-9** | **同一次提交里人还带了附件时，命令与附件怎样一起走**：① ② 型展开出的那条用户消息带不带那些附件，③ 型遇到附件怎么办 | 交付面允许在一次提交里带附件时的受理 | **受理契约**（PF-014 的规格化，未立） |
-| **G-10** | **两项主线裁定没有设计链内的依据**：能力标识名禁 `/` 许 `:`；「谁可以用」的取值域是租户角色加 `self` | 本契约接受时 [S-2](#s-2-命令名的词法)、[S-11](#s-11-属性项的推出规则) 的可追溯性 | **主线**：落一份决定记录 |
+| **G-10** | **主线裁定没有设计链内的依据**：能力标识名禁 `/` 许 `:`；「谁可以用」= `usableBy`；`unterminated_quote`、`Span`、`Recognition`、留痕是来源标记、参数提示在正文、正文不带名字——主线 2026-09-23 裁定（账本 S9-c、S18-c、S20-b～S20-e），**待产品负责人确认** | 本契约接受时 [S-1](#s-1-斜杠命令定义是资产的正文)、[S-2](#s-2-命令名的词法)、[S-8](#s-8-参数声明)、[S-11](#s-11-属性项的推出规则)、[S-13](#s-13-识别的三种结果)、[S-17](#s-17-参数文字的切分)、[S-25](#s-25-留痕) 的可追溯性 | **主线**：落进决定记录（D-039 汇编，账本 S20-e）；**产品负责人**确认 |
 
 **一件曾经像缺口、现已不是的事**：「交付面自己的动作与斜杠命令撞名听谁的」——产品正文已由保留名规则闭合，**没有优先级要定**（[S-5](#s-5-保留名在系统内唯一没有优先级)）。
 
@@ -774,5 +754,4 @@ binding_unknown  >  name_invalid  >  name_reserved  >  parameter_duplicate  >  p
 **这不是把义务省掉**：本契约触发的义务是 Schema 正反实例校验、接收边界校验、判定用例集、跨实现一致与静态检查，逐条登记在[验证入口](../verification.md)。
 
 **发布后**：本目录下的规范正文、Schema 与实例不可原地覆盖；修改发布新版本。
-[已知缺口](#十已知缺口)里 G-3、G-4、G-5、G-6 任一项被裁决，都会改变本契约的表示或语义——接受之前闭合则原地改，接受之后闭合则**出 v2**；
-G-1、G-2 是整批对齐，若在接受之前闭合，原地补引用。**推荐版本不自动升级消费者。**
+G-1～G-6 已于 2026-09-24 整批对齐原地闭合（影响记在[验证入口](../verification.md#变化的影响)）；[已知缺口](#十已知缺口)里 G-7、G-8、G-9 任一项被裁决若改变本契约的表示，接受之前闭合则原地改，接受之后闭合则**出 v2**。**推荐版本不自动升级消费者。**
