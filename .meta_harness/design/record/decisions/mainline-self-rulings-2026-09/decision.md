@@ -393,7 +393,7 @@ product-design-drafter 把约 57 处裁定落进 PF-001/002/006/008/009/010/012/
 | S22-f `failed{not_available}` | S13-a | 不可用一律落收场 `unavailable` |
 | A-G2「设置项同理（跨层跟随替换件）」 | S10-a | 设置按资产取值 |
 | R-B3「权限收回触发 reload(slash_command)」 | S22-a | 只收窄不重填 |
-| S8-c 工具清单 `ToolDefinitionRef` | S16-c | 用 `CapabilityId[]`（S25 第一轮 L-3 又指出 MCP 来源无能力标识，待第一轮修复裁定） |
+| S8-c 工具清单 `ToolDefinitionRef` | S16-c | 用 `CapabilityId[]`（S25 第一轮 L-3 又指出 MCP 来源无能力标识，已被 K10 取代（见本节 S16-c 行；2026-09-25 补注）） |
 | 「写一条界不查外层的界」（drafter 乙 2026-09-24 推导） | G-25 落条款 | 所有界都须落在外层界内 |
 | S2-e `CostItem.service` 规范串写成 `"<category>:<name>"` | `data.asset-model` v1 S-3 的规范串 `<category>/<name>`（call-accounts S-9 已按它写） | 分隔符以 asset-model 为准；S2-e 的 `:` 是早期笔误 |
 | K21 的成因名 `credential_missing` | 修复波 1 落条款时取已有值 `credential_unavailable`（与出门前分支、`FailureCause` 同名） | 同一情形同一个名 |
@@ -529,3 +529,5 @@ product-design-drafter 把约 57 处裁定落进 PF-001/002/006/008/009/010/012/
 
 其余应修与建议按各批发现表原文由修复波 2 落，不另裁；反对某条时在 verification 处置表写理由。
 
+| N-15 | TER（丙，修复波 2）：批项 `UnlistedCall`（报告里查不到条目、没进放行判断的调用）；`UnlistedCall` 在注册表却查得到条目 ⇒ 整批 `notAdmitted`；`{no_such_entry}` 只在执行记录上（`unavailable` 块不带 reason）；事件缺席不补 trim；`why` 取批内最前不符项；有序撤下按 S-18 先写收场再发停止；stream-assembly S-28 第 1 条、S-29 按（会话, 目标）路由；tool-admission G-15（meta 门「不可收窄」的声明层表达） | 丙报回 |
+| N-16 | 乙（修复波 2）三条推导接受：M4 按维度成员分三类（带维度的两个位置改不了位置）；M3 连带把 asset-evaluation S-23／asset-governance S-38 ② 对分档权限的认法改为「干预力三档里含 `observe` 的非空子集」（求值规则不改）；M26 依赖记录的 `invalidInput` 排在角色核对之后。契约里仍标「已报主线」的规格层推导一并接受为契约推导：tool-definition S-18 禁 `_:`／`:_`、loop-extension S-14 整批求值与放行凭据两句、skill-package S-11 按路径判脚本集合、asset-evaluation「锁随被滤掉的那份一起不存在」、asset-transfer 收进 `invalidInput`——各处改为「契约推导，主线接受（N-16）」 | 乙报回 |
