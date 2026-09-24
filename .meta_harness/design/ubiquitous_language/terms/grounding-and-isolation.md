@@ -243,6 +243,27 @@
 - **弃用**：~~「执行安全策略」~~（指的是**把这一项配成 `never-allow`** 那件事，是同一项权限的配值） ·
   ~~「使用宿主机的资格」~~（＝**这一项不是 `never-allow`**）
 
+### UL-target-environment · 目标环境 · Target Environment
+
+> **中**：**工具的一项[落点与身份类](capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category)设置：这个工具的执行需要一个什么样的[执行环境](#ul-execution-environment--执行环境--execution-environment)**，
+> 形状是「绑定在哪一层 × 要哪几种[设施](#ul-environment-facility--环境设施--environment-facility)」。
+> 默认值是工具作者的判断；持有它的组织、租户可以在自己那一层改，**工作区改不了**。
+> **求值出来的那一份就是这次执行的要求**，运行时按它自动匹配；**满足不了，这个工具就不可用——绝不降级满足**。
+>
+> **EN**: **A placement-and-identity setting on a tool: what kind of execution environment its executions
+> require**, shaped as "bound at which level × needing which facilities". The default is the tool author's
+> judgement; holding organizations and tenants may change it at their own level, **the workspace may not**.
+> **The evaluated value is this execution's requirement**, matched automatically at run time; **if it cannot
+> be met, the tool is unavailable — never satisfied by a lesser environment**.
+
+- **形态**：属性
+- **出处**：[PF-006 §6.8 工具怎么提执行环境的要求](../../product/PF-006-tools-and-skills/design.md#68-工具怎么提执行环境的要求) ·
+  [§5.3 其中两项声明的是设置项](../../product/PF-006-tools-and-skills/design.md#其中两项声明的是设置项)（rev 18） ·
+  [PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 17）
+- **别混**：**它说的是「要什么」**；[执行环境权限](#ul-execution-environment-permission--执行环境权限--execution-environment-permission)说的是「许落在哪」；
+  这次执行实际落在哪，是按两者**每次现算**出来的——执行环境权限改了，下一次执行按新值现算，不必重建任何东西
+- **注意**：**不声明就是没有特殊要求**——它是工具定义里那项「需要什么样的执行环境」声明落成的设置
+
 ### UL-session-base · 会话据点 · Session Base
 
 > **中**：一个[账号](subjects-and-ownership.md#ul-account--账号--account)的[会话](agent-runtime-loop.md#ul-session--会话--session)、

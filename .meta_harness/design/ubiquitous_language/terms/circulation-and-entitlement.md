@@ -108,6 +108,30 @@
   持有上还记着[版本选用](#ul-version-selection--版本选用--version-selection)：钉在某一版，或追随当前版
 - **注意 ④**：**把资产从租户范围提升到组织范围，只换所有者，不动任何一份持有**
   （[PF-001 §6.7](../../product/PF-001-identity-scope-and-agent-constraints/design.md#67-创作与归属)）
+- **注意 ⑤**：**形态是「属性」说的是它的所指，不是它的存储**——它是范围与资产之间的一层关系，
+  [C-17](../conflicts.md#现有冲突) 已由产品负责人裁为属性；**它存不存成一条独立的记录、怎么标识，归系统架构设计**，不因此改变形态
+
+### UL-usable-by · 谁可以使用它 · Usable By
+
+> **中**：**每一类资产都有、而且是同一项的那一项[权限](capabilities-and-composition.md#ul-permission--权限--permission)：这份资产，哪些人够得着。**
+> 取值是**一组[租户角色](subjects-and-ownership.md#ul-tenant-role--租户角色--tenant-role)，外加一个「自己」**；作者不另说时**只有「自己」**。
+> 它与[禁用](#ul-asset-disable--资产禁用--asset-disable)一样挂在每一份[持有](#ul-asset-holding--资产持有--asset-holding)上。
+> Skill 的「谁可以使用它」、Slash Command 的「谁可以用这个入口」，说的都是它。
+>
+> **EN**: **The one permission every asset category carries — the same one in each: who can reach this
+> asset.** Its value is **a set of tenant roles plus "self"**; left unspecified by the author, it is
+> **"self" alone**. Like disabling, it hangs on every holding. A skill's "who may use it" and a slash
+> command's "who may use this entry point" are both this.
+
+- **形态**：属性
+- **出处**：[PF-002 §5.2「谁可以使用它」是各类资产共用的一项权限](../../product/PF-002-assets-settings-and-permissions/design.md#谁可以使用它是各类资产共用的一项权限) ·
+  [§4 Slash Command](../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)（rev 17） ·
+  [PF-007 §6.2](../../product/PF-007-meta-capabilities/design.md#62-skills通向任意技能)（rev 16）
+- **别混**：**不是[使用权](#ul-usage-right--使用权--usage-right)**——使用权说的是**一个范围**对一份资产有没有使用的权利（定义者直接有、被分享方确认后有）；
+  这一项是那份持有上配的「**这个范围里哪些人**能用」
+- **注意 ①**：**「自己」在组织、租户持有的资产上指谁，本版未定**（[PF-002 §九](../../product/PF-002-assets-settings-and-permissions/design.md#九未决项)）；在工作区自带的资产上，指挂上那份工作区的租户本人
+- **注意 ②**：**② 型斜杠命令展开的那个 skill，照样要过它自己的这一项**——入口的权限不替 skill 放权
+- **注意 ③**：**权限项只有各类别列出的那些，作者不能另加**——没有哪一道关口去看的权限，只会让人以为有人守
 
 ## 来源
 

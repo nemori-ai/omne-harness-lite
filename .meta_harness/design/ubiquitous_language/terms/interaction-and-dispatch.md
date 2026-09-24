@@ -422,6 +422,26 @@
   交付面、连接件送达、定时到点、别的会话捎话，**同一套受理规矩，差别只在取值**；
   **斜杠命令不是来源取值**，它是经交付面进来的到达在受理时被认出的内容标注
 
+### UL-inbound-target · 投递目标 · Inbound Target
+
+> **中**：**[连接件](capabilities-and-composition.md#ul-connector--连接件--connector)的一项[落点与身份类](capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category)设置：它送进来的外部消息进哪个[会话](agent-runtime-loop.md#ul-session--会话--session)。**
+> **本版只能指一个已有的会话**——送进来的都落进那一个；按一条消息新建一个会话、按对面的线程分进不同会话，本版都没有。
+> 各层按持有配值，**工作区那一级配不了它**。
+>
+> **EN**: **A placement-and-identity setting on a connector: which session the external messages it
+> brings in go to.** **In this version it can only name one existing session** — everything the connector
+> brings in lands there; creating a session per message, or splitting the far side's threads across sessions,
+> does not exist in this version. Layers assign it through their holdings; **the workspace level cannot set
+> it**.
+
+- **形态**：属性
+- **出处**：[PF-002 §4 Connector](../../product/PF-002-assets-settings-and-permissions/design.md#connector) ·
+  [§5.2 设置项分四类](../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 17） ·
+  [PF-014 §5.7 穷举一](../../product/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空)（rev 6）
+- **别混 ①**：**不是[交付面](#ul-delivery-surface--交付面--delivery-surface)**（Delivery Surface）——那是人碰到这个系统的那一面，这里是连接件把外面的消息送往哪里
+- **别混 ②**：**不是[连接目标](capabilities-and-composition.md#ul-connection-target--连接目标--connection-target)**——那是 MCP 接入点往外连到哪，方向相反
+- **注意**：送进来的消息**受理之后怎么走**，归[入站到达](#ul-inbound-arrival--入站到达--inbound-arrival)那一套，与它无关
+
 ### UL-business-flow-extension-point · 业务流程拓展点 · Business Flow Extension Point
 
 > **中**：**业务流程上一个开放的位置，挂在那里的东西可以拦住一次请求，

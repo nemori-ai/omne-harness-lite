@@ -171,6 +171,8 @@
 - **注意 ①**：**它自身不会有实例**——指得到的永远是那四样里的某一份
 - **注意 ②**：**过期那条规则是同一条裁决的两半**——[PF-001 这一半](../../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期)管邀请与隶属请求，[PF-003 那一半](../../product/PF-003-asset-transfer-and-sharing/design.md#614-待确认的复制通知与分享邀请会过期)管复制通知与分享邀请，**两处口径一致**
 - **注意 ③**：**「已经接受了的」不在这个词的论域里**——[确认之后的使用权没有到期](circulation-and-entitlement.md#ul-usage-right--使用权--usage-right)，[接受产生的租户](#ul-tenant--租户--tenant)也不会过期
+- **待裁决**：**复制通知与分享邀请「不是对象」这一判，PF-003 自己前后说法不一**——flows §3.4 已经逐份指名它们（「重新发起的是一份新的邀约，不是旧的复活」）。
+  登记在[领域对象待裁](../../domain_objects/pending.md#待确认的复制通知与分享邀请)，由 PF-003 的 owner 裁；**下游要用到它们的身份之前，先让这一项闭合**
 
 ### UL-invitation · 邀请 · Invitation
 
