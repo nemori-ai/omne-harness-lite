@@ -479,3 +479,7 @@ product-design-drafter 把约 57 处裁定落进 PF-001/002/006/008/009/010/012/
 | N-9 | MRR：`basis`（openCall／settleReply 输入）、`canDispatchAgain(session, callId, plan)`、`reply_pending`、`settleReply` 单次提交写 `vetoed`／`consumed` 体、不属于任何 Run 的调用在会话重新承载时对账；directory：`origin_not_custom`、官方清单 origin 非 official 取 `malformed`、`officialProfileReadOnly`／`relistProfile`／`loadManifest`／`relisted`、恢复在册不发通知、已撤回的行可修订 | R5 |
 | N-10 | runner：G-13 两条（`before_model_call` 否决等于运行落失败；回复落盘前被否决追加一条提醒）；asset-registry：G-16（`onAssetChange` 作触发操作、`commandAvailability`、`slotConflict`→`toolNameConflict`）、K30 读法（配方同装配、持有与配值取此刻）；mcp-bridge：G-14（连接不上签名、按持有寻址、收口次序、OAuth 落据点、最小规范化） | R4b |
 
+| L13 | **`tool` 表里每条条目的执行权限都按尝试钉进可用性报告**：asset-registry S-11 的 `effectivePermissions` 由「每条钉住的 MCP 动作条目恰一项」扩为「`tool` 表里每条条目恰一项」——常驻与作者写的工具取第二次求值（S-24 ④）里该工具执行权限项的 `EffectiveValue`（含 `tenantAutoWritable`），MCP 动作照旧；runner S-29 第 5 条统一从报告取，一次尝试内不变（与 S-11 第 1 条同一口径）。runner G-18 关。理由：作者写的工具与 MCP 动作在放行判断面前没有区别，两处取值就要有两套新鲜度口径 | 修复波 1b 丁报回 6 |
+| L14 | **asset-evaluation S-42 的三条推导接受**：① 生效资产没声明该项为假；② 工作区提供的资产为假；③ 组织格的界按项名对齐、不论那份持有在不在效（与写面 `lockedAbove` 同口径，分叉时取更严）。租户格无该资产持有时第四档怎样落地（先加持有再配值、还是要求已有持有）并入 tool-admission G-2 的范围，本位只答界与锁 | 丁报回 4、5 |
+| N-11 | asset-evaluation PRE-2：租户格以 `organization` 支持有同一份被分享记录时，随它所在组织那份 `shared` 持有一起判「此刻仍然成立」（2026-09-24 R3 修复时的规格层推导，主线追认） | 丁报回 7 |
+| N-12 | hooks-import 缺 `session_id` 不在导入报告里另说明，与 `transcript_path`、`permission_mode` 同一处理；asset-evaluation G-6 闭合时读入工作区承载清单那条路也要判 `name_not_projectable`（mcp-endpoint S-26 已列该登记点） | 丁报回 8、9 |
