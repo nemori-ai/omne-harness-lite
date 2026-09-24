@@ -281,7 +281,7 @@
 > running towards strictness: **it cannot be replaced, disabled or narrowed**.
 
 - **形态**：过程
-- **出处**：[PF-008 §4 放行判断](../../product/PF-008-human-in-the-loop/design.md#放行判断) · [§5.2](../../product/PF-008-human-in-the-loop/design.md#52-那个判断函数)（rev 7） · [PF-012 §5.8 系统自带的几件](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件各站在哪) · [系统自带的几件，不可用时各有定法](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件不可用时各有定法)（rev 13）
+- **出处**：[PF-008 §4 放行判断](../../product/PF-008-human-in-the-loop/design.md#放行判断) · [§5.2](../../product/PF-008-human-in-the-loop/design.md#52-那个判断函数)（rev 7） · [PF-012 §5.8 系统自带的几件](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件各站在哪) · [系统自带的几件，不可用时各有定法](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件不可用时各有定法)（rev 14）
 - **注意 ①**：**没有任何一样单独说了算。**获批不等于自动放行，有权限设置也不等于请示没意义
 - **注意 ②**：**权限设置里明确禁止的，会话授权翻不了案**——
   否则任何禁止都能靠「让用户在会话里点个同意」绕过去，
@@ -412,7 +412,7 @@
 > and **both leave a trace**.
 
 - **形态**：对象
-- **出处**：[PF-014 §4 入站到达](../../product/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 6）
+- **出处**：[PF-014 §4 入站到达](../../product/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 7）
 - **别混 ①**：**它不是一条[消息](record-and-context.md#ul-message--消息--message)。**
   消息回答**谁在说话**；入站到达回答**外面送进来了一件什么事**。
   **有的到达会成为消息**（进[待处理消息队列](agent-runtime-loop.md#ul-pending-message-queue--待处理消息队列--pending-message-queue)），
@@ -427,19 +427,23 @@
 ### UL-inbound-target · 投递目标 · Inbound Target
 
 > **中**：**[连接件](capabilities-and-composition.md#ul-connector--连接件--connector)的一项[落点与身份类](capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category)设置：它送进来的外部消息进哪个[会话](agent-runtime-loop.md#ul-session--会话--session)。**
-> **本版只能指一个已有的会话**——送进来的都落进那一个；按一条消息新建一个会话、按对面的线程分进不同会话，本版都没有。
+> **它是连接件[两种投递方式](../../product/PF-002-assets-settings-and-permissions/design.md#两种投递方式动作主体不同)里 ①「已有的会话开口接收」那一路的配置，本版只指一个已有的会话**——走这一路送进来的都落进那一个；按对面的线程分进不同会话，本版没有。
+> **连接件的事件经受理开出一个新会话是另一种方式（②）**，它的配置是触发会话的默认运行模式，不是这一项；受理怎么开那个新会话归 PF-014，新会话怎么建归 PF-015。
 > 各层按持有配值，**工作区那一级配不了它**。
 >
 > **EN**: **A placement-and-identity setting on a connector: which session the external messages it
-> brings in go to.** **In this version it can only name one existing session** — everything the connector
-> brings in lands there; creating a session per message, or splitting the far side's threads across sessions,
-> does not exist in this version. Layers assign it through their holdings; **the workspace level cannot set
+> brings in go to.** **It configures mode ① of the connector's two delivery modes — an existing session
+> opening itself to receive — and in this version names exactly one existing session**; everything delivered
+> that way lands there, and splitting the far side's threads across sessions does not exist in this version.
+> **A connector event opening a new session through intake is the other mode (②)**, configured by the default
+> run mode for triggered sessions, not by this entry; how intake opens that session belongs to PF-014 and how
+> the session is created to PF-015. Layers assign it through their holdings; **the workspace level cannot set
 > it**.
 
 - **形态**：属性
-- **出处**：[PF-002 §4 Connector](../../product/PF-002-assets-settings-and-permissions/design.md#connector) ·
-  [§5.2 设置项分四类](../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 19） ·
-  [PF-014 §5.7 穷举一](../../product/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空)（rev 6）
+- **出处**：[PF-002 §4 Connector](../../product/PF-002-assets-settings-and-permissions/design.md#connector) · [两种投递方式](../../product/PF-002-assets-settings-and-permissions/design.md#两种投递方式动作主体不同) ·
+  [§5.2 设置项分四类](../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 20） ·
+  [PF-014 §5.7 穷举一](../../product/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空)（rev 7）
 - **别混 ①**：**不是[交付面](#ul-delivery-surface--交付面--delivery-surface)**（Delivery Surface）——那是人碰到这个系统的那一面，这里是连接件把外面的消息送往哪里
 - **别混 ②**：**不是[连接目标](capabilities-and-composition.md#ul-connection-target--连接目标--connection-target)**——那是 MCP 接入点往外连到哪，方向相反
 - **注意**：送进来的消息**受理之后怎么走**，归[入站到达](#ul-inbound-arrival--入站到达--inbound-arrival)那一套，与它无关
@@ -483,7 +487,7 @@
 > defines that action**.
 
 - **形态**：变体（父：[入站到达](#ul-inbound-arrival--入站到达--inbound-arrival)）
-- **出处**：[PF-014 §4 控制指令](../../product/PF-014-inbound-intake-and-queueing/design.md#控制指令)（rev 6）
+- **出处**：[PF-014 §4 控制指令](../../product/PF-014-inbound-intake-and-queueing/design.md#控制指令)（rev 7）
 - **别混 ①**：**与[斜杠命令](capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command)不是一回事。**
   绑定提示词或 skill 的斜杠命令是**内容**——它要 agent 去做一件事，因此进队列；
   绑定系统业务流程的那种不进队列，但它触发的是一条业务流程、留一条记录，也不是处置；
@@ -509,7 +513,7 @@
 > why**.
 
 - **形态**：变体（父：[控制指令](#ul-control-command--控制指令--control-command)）
-- **出处**：[PF-014 §4 插队](../../product/PF-014-inbound-intake-and-queueing/design.md#插队)（rev 6）
+- **出处**：[PF-014 §4 插队](../../product/PF-014-inbound-intake-and-queueing/design.md#插队)（rev 7）
 - **别混 ①**：**它不终止[运行](agent-runtime-loop.md#ul-run--运行--run)。**
   这是它与**取消**最要紧的差别：取消让运行落终态，
   **插队只是把运行推到下一次取消息那一点**，运行一直活着

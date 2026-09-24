@@ -98,7 +98,7 @@
   [此后不随这个账号切换到别的租户身份而变](../../product/PF-015-session-lifecycle-and-ownership/design.md#612-会话持有创建那一刻的租户身份)
 - **注意 ⑥**：**它指向哪条模型，是它的[选中模型](capabilities-and-composition.md#ul-selected-model--选中模型--selected-model)**；
   这个取值的每一次改变都以一条[模型切换](capabilities-and-composition.md#ul-model-switch--模型切换--model-switch)事实记在[会话日志](record-and-context.md#ul-session-log--会话日志--session-log)里，
-  [不是一个当场改掉的开关](../../product/PF-013-model-profiles-and-invocation/design.md#66-切换先是一条要被记录的事实)（PF-013 rev 11）
+  [不是一个当场改掉的开关](../../product/PF-013-model-profiles-and-invocation/design.md#66-切换先是一条要被记录的事实)（PF-013 rev 12）
 
 ### UL-primary-session · 主会话 · Primary Session
 
@@ -260,7 +260,7 @@
 
 - **形态**：对象
 - **出处**：[UL-D-1](../decisions.md#ul-d-1--会话与运行--2026-09-18)（产品负责人 2026-09-18 直接裁决，定义由 PM 起草）；
-  **边界那两句来自 2026-09-20 与 2026-09-22 的裁决**，见 [PF-012 §4 Run](../../product/PF-012-agent-loop-and-run/design.md#run)（rev 13）
+  **边界那两句来自 2026-09-20 与 2026-09-22 的裁决**，见 [PF-012 §4 Run](../../product/PF-012-agent-loop-and-run/design.md#run)（rev 14）
 - **别混 ⓪**：**它是纯粹的逻辑概念**。「一次 Run」不对应任何一段进程、一个连接或一次请求——
   **换一个 agent runtime 接着跑，还是这一个**；**队列没空就退不出去，哪怕模型已经没话说了**
 - **别混 ⓪′**：**「未终结」不等于「有一副 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime) 活着」**——
@@ -292,7 +292,7 @@
 - **形态**：属性
 - **出处**：[UL-D-1](../decisions.md#ul-d-1--会话与运行--2026-09-18)（PM 起草）；
   **「队列从空变非空」这个精确形式来自 2026-09-20 的裁决**，
-  见 [PF-012 §4 Run](../../product/PF-012-agent-loop-and-run/design.md#run)（rev 13）
+  见 [PF-012 §4 Run](../../product/PF-012-agent-loop-and-run/design.md#run)（rev 14）
 - **别混 ①**：**裸写「触发」作动词时不是术语**——这里指的是**那个起点本身**，它是一个可被记录、可被归因的事实
 - **别混 ②**：**它与「收束」不是两个独立的概念，是同一条规则的两端**——
   收束就是**队列重新变空**。**所以不存在一张「触发有哪几种」的独立清单**，
@@ -316,7 +316,7 @@
 > itself. Messages are taken **in arrival order**, the sole exception being a queue jump.
 
 - **形态**：视图
-- **出处**：[PF-012 §4 待处理消息队列](../../product/PF-012-agent-loop-and-run/design.md#待处理消息队列)（rev 13）
+- **出处**：[PF-012 §4 待处理消息队列](../../product/PF-012-agent-loop-and-run/design.md#待处理消息队列)（rev 14）
 - **别混 ①**：**它不是一个收件箱。**收件箱是东西送到的地方，
   **而这里的每一项都已经是日志里的一条消息了**——[到达要先被受理并落账](interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival)，才谈得上排队
 - **别混 ②**：**[控制指令](interaction-and-dispatch.md#ul-control-command--控制指令--control-command)不进这个队列**——
@@ -343,7 +343,7 @@
 
 - **形态**：过程
 - **出处**：[PF-012 §4 边界](../../product/PF-012-agent-loop-and-run/design.md#边界什么让它开始什么让它结束) ·
-  [§6.16](../../product/PF-012-agent-loop-and-run/design.md#616-日志里至少要有这几种-run-相关的条目)（rev 13）
+  [§6.16](../../product/PF-012-agent-loop-and-run/design.md#616-日志里至少要有这几种-run-相关的条目)（rev 14）
 - **别混**：**不是[入站到达](interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival)**——
   到达说的是**东西进了日志**，承接说的是 **loop 把它取走去做**。两者之间就是排队那段时间
 - **注意 ①**：**一次运行的承接范围会在它跑着的时候继续长**——
@@ -367,7 +367,7 @@
 - **形态**：视图
 - **出处**：[UL-D-1 的推理链](../decisions.md#定义正文是-pm-起草的依据在这里)（PM 起草；与前身系统「logical Run / physical attempt」同构）；
   **与 agent runtime 的对应关系于 2026-09-20 写明**，见 [UL-D-3](../decisions.md#ul-d-3--runtime-与活体--2026-09-20)；
-  **形态与身份于 2026-09-22 定死**，见 [PF-012 §4 执行尝试](../../product/PF-012-agent-loop-and-run/design.md#执行尝试)（rev 13）
+  **形态与身份于 2026-09-22 定死**，见 [PF-012 §4 执行尝试](../../product/PF-012-agent-loop-and-run/design.md#执行尝试)（rev 14）
 - **别混**：**不是第二个执行体**——执行体只有一个，就是 agent runtime。
   **这一条是「从运行的角度看它」**：同一副协程，站在治理那一侧叫「这次运行的第几次尝试」
 - **注意 ①**：**它有一个指得到的身份，但没有自己的存储**——内存态重算即得，
@@ -389,7 +389,7 @@
 > holds while still alive.
 
 - **形态**：状态
-- **出处**：[PF-012 §6.6](../../product/PF-012-agent-loop-and-run/design.md#66-终态不可逆且只有一个出口)（rev 13）
+- **出处**：[PF-012 §6.6](../../product/PF-012-agent-loop-and-run/design.md#66-终态不可逆且只有一个出口)（rev 14）
 - **别混**：**不是[终局](execution-and-outcome.md#ul-terminal-disposition--终局--terminal-disposition)**——
   终局说的是**一件[非常态](execution-and-outcome.md#ul-off-nominal--非常态--off-nominal)**走完了整条阶梯，
   这一条说的是**这一次运行**的结局。**两条线各走各的**：Run 已经落了终态，那件非常态可能还在往外交
@@ -413,7 +413,7 @@
 > and the same conditions always yield the same next step.
 
 - **形态**：规则
-- **出处**：[PF-012 §4 Agent Loop](../../product/PF-012-agent-loop-and-run/design.md#agent-loop)（rev 13）
+- **出处**：[PF-012 §4 Agent Loop](../../product/PF-012-agent-loop-and-run/design.md#agent-loop)（rev 14）
 - **别混 ①**：**不是 [Run](#ul-run--运行--run)**——Run 是那次运行本身，Agent Loop 是推进它的那套逻辑
 - **别混 ②**：**不是 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime)**——
   **这一条是被求值的那个函数，那一条是求值它的那个协程**。
@@ -460,7 +460,7 @@
 > there is **at most one model call**, plus whatever tool executions it calls for.
 
 - **形态**：过程
-- **出处**：[PF-012 §4 agent 的一步](../../product/PF-012-agent-loop-and-run/design.md#agent-的一步) · [§5.4](../../product/PF-012-agent-loop-and-run/design.md#54-一步的骨架)（rev 13）
+- **出处**：[PF-012 §4 agent 的一步](../../product/PF-012-agent-loop-and-run/design.md#agent-的一步) · [§5.4](../../product/PF-012-agent-loop-and-run/design.md#54-一步的骨架)（rev 14）
 - **别混**：**不是一次[模型调用](execution-and-outcome.md#ul-model-call--一次模型调用--model-call)**——
   模型调用是它**里面**的一段，两者差着一层
 - **注意**：它是 [PF-011 那棵树上的一层](../../product/PF-011-off-nominal-handling/design.md#53-层的顺序不是排出来的是推出来的)，
@@ -478,8 +478,8 @@
 > cost is attributed at the session level**.
 
 - **形态**：过程
-- **出处**：[PF-012 §4 Run 是三样东西的归属单位](../../product/PF-012-agent-loop-and-run/design.md#run-是三样东西的归属单位)（rev 13） ·
-  [PF-013 §5.13 它只有一个宿主](../../product/PF-013-model-profiles-and-invocation/design.md#它只有一个宿主所以只有一种结局)（rev 11）
+- **出处**：[PF-012 §4 Run 是三样东西的归属单位](../../product/PF-012-agent-loop-and-run/design.md#run-是三样东西的归属单位)（rev 14） ·
+  [PF-013 §5.13 它只有一个宿主](../../product/PF-013-model-profiles-and-invocation/design.md#它只有一个宿主所以只有一种结局)（rev 12）
 - **别混**：**不是[插队](interaction-and-dispatch.md#ul-queue-jump--插队--queue-jump)**——插队的那句话要进队列、被这次运行看到；旁路提问碰不到运行
 - **注意**：**模型调用的全套规则对它照样成立**——宿主是 agent runtime，同样按档案与有效模型出门、看首 token、由重试挂件决定试不试；
   归属规则本身归 [PF-015](../../product/PF-015-session-lifecycle-and-ownership/README.md)
@@ -497,7 +497,7 @@
 > is recomputed every time.**
 
 - **形态**：视图
-- **出处**：[PF-012 §4 当下条件](../../product/PF-012-agent-loop-and-run/design.md#当下条件)（rev 13）
+- **出处**：[PF-012 §4 当下条件](../../product/PF-012-agent-loop-and-run/design.md#当下条件)（rev 14）
 - **别混**：**不是[记录条目](record-and-context.md#ul-record-entry--记录条目--record-entry)**——
   条目是发生过的事，写下就不再改变；当下条件是此刻算出来的，**不留存**
 - **注意**：**它变了，同一份日志会算出不同的下一步**——这不动摇
@@ -516,7 +516,7 @@
 > same position, each doing its own thing.**
 
 - **形态**：位置
-- **出处**：[PF-012 §4 Loop 拓展点](../../product/PF-012-agent-loop-and-run/design.md#loop-拓展点) · [§5.8](../../product/PF-012-agent-loop-and-run/design.md#58-loop-拓展点)（rev 13）
+- **出处**：[PF-012 §4 Loop 拓展点](../../product/PF-012-agent-loop-and-run/design.md#loop-拓展点) · [§5.8](../../product/PF-012-agent-loop-and-run/design.md#58-loop-拓展点)（rev 14）
 - **⚠️ 别混**：**它不是[拓展件](capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension)**——
   **拓展点是位置，拓展件是挂上去的东西**（第八类资产）
 - **注意 ①**：**位置由状态点推出，因此数目有限且可穷举**——
@@ -544,8 +544,8 @@
 - **出处**：[PF-000 §4 干预力](../../product/PF-000-occurrences-and-record-entries/design.md#干预力--intervention-power) ·
   [§5.3](../../product/PF-000-occurrences-and-record-entries/design.md#53-干预力只长在瞬态这一半上)（rev 1） ·
   [PF-012 §5.8 干预力三档](../../product/PF-012-agent-loop-and-run/design.md#干预力三档直接用-pf-000-的) ·
-  [没有「放宽」这一档](../../product/PF-012-agent-loop-and-run/design.md#没有放宽这一档)（rev 13） ·
-  [PF-002 §4 Loop Extension](../../product/PF-002-assets-settings-and-permissions/design.md#loop-extension)（rev 19）
+  [没有「放宽」这一档](../../product/PF-012-agent-loop-and-run/design.md#没有放宽这一档)（rev 14） ·
+  [PF-002 §4 Loop Extension](../../product/PF-002-assets-settings-and-permissions/design.md#loop-extension)（rev 20）
 - **注意 ①**：**在拓展件上它是一项[权限](capabilities-and-composition.md#ul-permission--权限--permission)，不是设置**——各层按收窄合成，组织锁在「只观察」，租户就放不宽
 - **注意 ②**：**三档挂了的后果相反**——只观察那一档不影响正在发生的事；可改写那一档不影响，但留一笔「它没跑成」；可否决那一档报错默认当作否决。**「不可用」不是报错**，另有定法
 - **注意 ③**：**否决只在「之前」的位置上有意义**；可否决那一档站在「之后」，多出来的只有等人
@@ -566,11 +566,11 @@
 > error policy**: unavailable means it never ran; an error means it ran and failed.
 
 - **形态**：属性（一件拓展件登记上的一项；系统自带的那几件由系统预先给定）
-- **出处**：[PF-012 §5.8 拓展件是可插拔的服务](../../product/PF-012-agent-loop-and-run/design.md#拓展件是可插拔的服务不可用即卸载报错按策略) · [系统自带的几件](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件不可用时各有定法)（rev 13）
+- **出处**：[PF-012 §5.8 拓展件是可插拔的服务](../../product/PF-012-agent-loop-and-run/design.md#拓展件是可插拔的服务不可用即卸载报错按策略) · [系统自带的几件](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件不可用时各有定法)（rev 14） · [PF-002 §4 不可用处置是这一件自己的声明](../../product/PF-002-assets-settings-and-permissions/design.md#不可用处置是这一件自己的声明)（rev 20）
 - **⚠️ 别混**：与[干预力](#ul-intervention-power--干预力--intervention-power)里「报错默认当作否决」那条是两回事——那条管跑了出错，这条管根本没跑
 - **注意 ①**：**「此刻不在」无论按哪种处置，都必须看得见**——日志里有一笔「这一件此刻不在、按 X 处置」
 - **注意 ②**：系统自带的[放行判断](../../product/PF-008-human-in-the-loop/design.md#52-那个判断函数)的指定挂件是**全拒件**——它不在时，需要判断的动作一律拒绝，不放行、也不出卡问人
-- **注意 ③**：**它在拓展件身上算设置、权限还是这一件本身，PF-002 记为待裁（D-5）**——本条只定取值与谁能用哪一种
+- **注意 ③**：**它是拓展件自己的一项声明，不是设置，也不是权限**——持有它的各层不给它配值、也收窄不了它（PF-002 D-5 已裁）；本条只定取值与谁能用哪一种。声明了否决，也要干预力求出来是可否决才算数——被收窄到另两档的，不在时照跳过办
 
 ### UL-extension-point-pass · 一次经过 · Extension-Point Pass
 
@@ -584,9 +584,9 @@
 > again, **but that position is not visited again**.
 
 - **形态**：过程
-- **出处**：[PF-012 §5.8 改了日志就重新组装，同一位置同一次经过只跑一轮](../../product/PF-012-agent-loop-and-run/design.md#改了日志就重新组装同一位置同一次经过只跑一轮)（rev 13）
+- **出处**：[PF-012 §5.8 改了日志就重新组装，同一位置同一次经过只跑一轮](../../product/PF-012-agent-loop-and-run/design.md#改了日志就重新组装同一位置同一次经过只跑一轮)（rev 14）
 - **注意 ①**：**与压缩那一圈同构**——压完再量一次，还超就上交，不再压一轮；不定这条，一个爱改日志的挂件就能把自己无限触发下去
-- **注意 ②**：同一个位置上几件的先后，[就是它们在装配清单里的顺序](../../product/PF-002-assets-settings-and-permissions/design.md#loop-extension)（PF-002 rev 19），后一件看得到前一件的结论
+- **注意 ②**：同一个位置上几件的先后，[就是它们在装配清单里的顺序](../../product/PF-002-assets-settings-and-permissions/design.md#loop-extension)（PF-002 rev 20），后一件看得到前一件的结论
 
 ### UL-wait-primitive · 等待原语 · Wait Primitive
 
@@ -606,7 +606,7 @@
 > and the two are never merged.
 
 - **形态**：规则
-- **出处**：[PF-012 §5.8 等人是 loop 的原语](../../product/PF-012-agent-loop-and-run/design.md#等人是-loop-的原语)（rev 13） · [PF-008 §4 等待态的两个维度](../../product/PF-008-human-in-the-loop/design.md#等待态的两个维度)（rev 7）
+- **出处**：[PF-012 §5.8 等人是 loop 的原语](../../product/PF-012-agent-loop-and-run/design.md#等人是-loop-的原语)（rev 14） · [PF-008 §4 等待态的两个维度](../../product/PF-008-human-in-the-loop/design.md#等待态的两个维度)（rev 7）
 - **注意 ①**：**两个位置等不了**——消息落盘之前（那条消息还没进日志，拿不准只能否决）与落终态之后（Run 已收束）
 - **注意 ②**：**一批动作先全部判完再执行**——各动作并行过执行动作之前那一串拓展件，都到了结论或等人，Run 才进等人，卡片成批落
 - **注意 ③**：**agent runtime 被回收，Run 还在等、卡片还在、工具执行照跑**；Run 被取消，悬着的卡片才作废
@@ -627,7 +627,7 @@
 > gone after it.**
 
 - **形态**：过程
-- **出处**：[PF-012 §5.8 等人是 loop 的原语](../../product/PF-012-agent-loop-and-run/design.md#等人是-loop-的原语)（rev 13）
+- **出处**：[PF-012 §5.8 等人是 loop 的原语](../../product/PF-012-agent-loop-and-run/design.md#等人是-loop-的原语)（rev 14）
 - **别混**：**不是「重跑挂件」**——「新尝试里不重跑挂件」那条现在精确为：有结论的不重跑，挂起中的回放到挂起点
 - **注意 ①**：回放时走到的地方与上次不同，**停住并可见**——那说明拓展件没守住上面那一条
 - **注意 ②**：**回放只针对挂起中的拓展件，不涉及工具执行**——工具执行不因回收而停，接着等就是
@@ -657,8 +657,8 @@
 > scope at that time.
 
 - **形态**：过程
-- **出处**：[PF-004 §4 装配](../../product/PF-004-agent-definition-and-assembly/design.md#装配)（rev 11） ·
-  [PF-002 §5.6](../../product/PF-002-assets-settings-and-permissions/design.md#56-四步资产求值--组装--投影--层级计算)（rev 19）
+- **出处**：[PF-004 §4 装配](../../product/PF-004-agent-definition-and-assembly/design.md#装配)（rev 12） ·
+  [PF-002 §5.6](../../product/PF-002-assets-settings-and-permissions/design.md#56-四步资产求值--组装--投影--层级计算)（rev 20）
 - **别混 ①**：**裸写「装配 / assembly」在跨领域的文字里不作数**——它专指把 agent 定义求值成清单的这个动作
 - **别混 ②**：**它的产物不是一个活物**——
   **2026-09-20 之前本条写的是「变成一个运行实例」，那个说法已退役**，见 [UL-D-3](../decisions.md#ul-d-3--runtime-与活体--2026-09-20)
@@ -680,7 +680,7 @@
 > mid-run **adds** an entry, it never edits one.
 
 - **形态**：对象
-- **出处**：[PF-004 §4 装配清单](../../product/PF-004-agent-definition-and-assembly/design.md#装配清单)（rev 11）
+- **出处**：[PF-004 §4 装配清单](../../product/PF-004-agent-definition-and-assembly/design.md#装配清单)（rev 12）
 - **别混**：**不是 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime)**——
   **清单是照着起协程的那份图纸，协程是照它起来的那个东西**。
   复用清单**不等于**复用协程：协程每次尝试都是新的
@@ -702,7 +702,7 @@
 > arrive this way.**
 
 - **形态**：过程
-- **出处**：[PF-004 §4 注入](../../product/PF-004-agent-definition-and-assembly/design.md#注入)（rev 11）
+- **出处**：[PF-004 §4 注入](../../product/PF-004-agent-definition-and-assembly/design.md#注入)（rev 12）
 - **别混 ①**：**不是依赖注入**（DI）。那是技术设计里的容器机制；**裸写「注入」不作数**
 - **⚠️ 别混 ②**：**[执行环境](grounding-and-isolation.md#ul-execution-environment--执行环境--execution-environment)不是注入进来的**——
   它**每扇门每次执行现算**。两者共享同一条性质（变了不必重新装配、协程不必重起），**来路不同**
@@ -721,7 +721,7 @@
 > which goes through graceful cancellation and a fresh start.
 
 - **形态**：过程
-- **出处**：[PF-004 §6.3](../../product/PF-004-agent-definition-and-assembly/design.md#63-三类变化三种传播) · [§5.3](../../product/PF-004-agent-definition-and-assembly/design.md#53-三个时刻)（rev 11）
+- **出处**：[PF-004 §6.3](../../product/PF-004-agent-definition-and-assembly/design.md#63-三类变化三种传播) · [§5.3](../../product/PF-004-agent-definition-and-assembly/design.md#53-三个时刻)（rev 12）
 - **注意**：**两条路殊途同归**——热装不了就重新装配，**[动作空间](capabilities-and-composition.md#ul-action-space--动作空间--action-space)照样由构成决定**
 
 ## 怎么没
@@ -747,7 +747,7 @@
 
 - **形态**：规则
 - **出处**：产品负责人 2026-09-20 直接裁决，见 [UL-D-3](../decisions.md#ul-d-3--runtime-与活体--2026-09-20)；**2026-09-23 产品负责人纠正**：工具执行有自己独立的 runtime，前台后台都绑会话——
-  [PF-006 §5.2](../../product/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同)（rev 19） · [PF-012 §6.13](../../product/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)（rev 13）
+  [PF-006 §5.2](../../product/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同)（rev 19） · [PF-012 §6.13](../../product/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)（rev 14）
 - **它推出来的四条**（**不必分别记忆**，都是同一条规则）：
 
   | 谁 | 中断一次运行 | 终止 / 归档 / 回收会话 | agent runtime 被回收 |
@@ -774,7 +774,7 @@
 > unreported failures **must each reach an outcome** in the process.
 
 - **形态**：过程
-- **出处**：[PF-012 §6.13](../../product/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走) · [§6.14](../../product/PF-012-agent-loop-and-run/design.md#614-停止有两级)（rev 13）
+- **出处**：[PF-012 §6.13](../../product/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走) · [§6.14](../../product/PF-012-agent-loop-and-run/design.md#614-停止有两级)（rev 14）
 - **弃用的说法**：**「实例退役 / Instance Retirement」**——
   2026-09-20 之前的名字，主语是已退役的「运行实例」，见 [UL-D-3](../decisions.md#ul-d-3--runtime-与活体--2026-09-20)
 - **注意**：**等人回话时 agent runtime 可以被取消**——**等待是一个持久的事实，不是一个协程的姿势**。
@@ -791,7 +791,7 @@
 
 - **形态**：过程
 - **出处**：[PF-012 §6.14 停止有两级](../../product/PF-012-agent-loop-and-run/design.md#614-停止有两级) ·
-  [§6.15](../../product/PF-012-agent-loop-and-run/design.md#615-取消先落日志再发信号)（rev 13）
+  [§6.15](../../product/PF-012-agent-loop-and-run/design.md#615-取消先落日志再发信号)（rev 14）
 - **别混 ①**：**「已经停止」与「外部效果已经撤销」不是一回事**
 - **注意 ⓪**：**被它杀掉的那副协程写不了终结条目**——
   所以[终结条目由会话这一侧写，并标注「可能存在未收尾的外部效果」](../../product/PF-012-agent-loop-and-run/design.md#强制停止的三步闭环)
