@@ -73,6 +73,7 @@
 - **整批对齐（2026-09-23，候选未冻结，原地改）**：
   - **G-1 闭合**：`data.content-blocks` v1 成稿，`$defs/CallId` 名字未变、定义在它的 S-14，catalog 补登依赖（`S-14`）；`CallId` 的唯一范围是一份会话日志——S-17 那句据此改写。替身不再需要，[上节自检](#已执行整批对齐时的本地自检2026-09-23)按真身重跑。
   - **G-2 闭合**：三句裁决链到 D-038。
+  - **与块 C 对齐**：`ResponseId` 的产生时刻改为「那一次发出出门时由模型请求运行时定下」（与 `capability.model-request-runtime` S-8 一致）；`ModelCallId` 的唯一范围由「运行内」改为「会话内」——不属于任何运行的调用也有它。形状不变，自检不受影响。
   - **新增**：`ToolCallAccount` 加 `initiator`（必填）、`credentialScope`（可缺席）、`externalEffect`（必填）、`stoppedAt`（可缺席）、`late`（只取 `true`）；`CostCorrection` 加 `late`；新条款 S-38（两种归属）、S-39（晚到的账）。
     **表示改变**：旧的 `ToolCallAccount` 实例缺 `initiator` 与 `externalEffect`，按新 Schema 一律被拒。**消费者影响**：`capability.tool-execution-runtime` 的 S-13 与 G-8（三件事装不下）、`data.model-response`（`route.credentialScope` 与 `late` 由它携带）、`capability.model-request-runtime`（它 G-1 里的 `late`）。
   - **收窄**：G-3（三种边界情形按主线裁定归组，剩「同组」一项）、G-4（接入点规范串已定）、G-10（落点契约已成稿）；新增 G-11（主线裁定无决定记录）、G-12（一次发出的发起者不另记）。

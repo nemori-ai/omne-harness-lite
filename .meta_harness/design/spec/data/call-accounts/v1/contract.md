@@ -427,7 +427,7 @@ cut = 0 ∧ byReason.frame_too_long = 0        ⇒ omittedBytes = 0
   非空字符串；首字符与末字符都不属于该条逐个列出的那个空白码点集合；相等是逐码点精确相等，不做任何规范化；
   **消费者不解析它**，不从中读出时间、次序或归属。Schema 按那条散文写出形状，**不另立一套空白定义**。
 - **部署内唯一，不回收、不复用。**补账靠它找目标（[S-17](#s-17-costcorrection事后补账)）；一个被复用的 `ResponseId` 会让一条补账落到另一次发出头上。
-- **由拥有 `ModelResponse` 的一侧在写下那份响应时产生**；具体词法（长度、字符集）归实现。
+- **由模型请求运行时在那一次发出出门时定下**，此后这次发出的任何结算都用它；具体词法（长度、字符集）归实现。
 - **它不是上游的请求号。**上游回的请求号（事后向上游查账用）是 `ModelResponse` 的另一个成员，归模型调用一侧，本契约不定义它。
 
 ### S-17 `CostCorrection`：事后补账
@@ -771,7 +771,7 @@ unknownCount ≝ |{ r : current(r) = "unknown" }| + |{ t : currentOwn(t) = "unkn
 |---|---|---|
 | `RunId` | 一次[运行](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run--运行--run)的标识；会话内唯一、不回收不复用，由 loop 在开始一次运行时产生 | 不透明字符串，按 `data.identity-values` v1 S-31 的散文（同 [S-16](#s-16-responseid)） |
 | `AttemptId` | 一次运行的第几次[执行尝试](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)：尝试的身份是 (运行, 第几次)、不另存，所以它是**从 1 起的整数序号**，与 `RunId` 合起来才完整 | `integer ≥ 1` |
-| `ModelCallId` | 一次[模型调用](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call)的标识；运行内唯一、不回收不复用，由模型请求运行时在受理调用时产生；一次调用发出多次时，各次发出以 `(ModelCallId, dispatch)` 指认，`dispatch` 归 `data.model-response` | 不透明字符串，同上 |
+| `ModelCallId` | 一次[模型调用](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call)的标识；**会话内唯一**（不属于任何运行的调用也有它，所以不按运行划范围）、不回收不复用，由模型请求运行时在打开一次新调用时产生；一次调用发出多次时，各次发出以 `(ModelCallId, dispatch)` 指认，`dispatch` 归 `data.model-response` | 不透明字符串，同上 |
 
 这三个值的**产生**归各自的能力（loop、模型请求运行时），本契约只定表示与唯一范围；产生前无值，不得用占位值代替。
 主线 2026-09-23 裁定（待产品负责人确认）：家在本契约，理由是它们首先在账上被消费。

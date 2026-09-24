@@ -12,7 +12,7 @@
     },
     "ResponseId": {
       "title": "ResponseId（contract.md S-16）",
-      "description": "一份 ModelResponse 的标识。不透明、部署内唯一、不回收不复用，由拥有 ModelResponse 的一侧在写下那份响应时产生；它不是上游的请求号。交换表示按 data.identity-values v1 S-31 的散文：非空字符串；首字符与末字符都不属于该条逐个列出的空白码点集合；逐码点相等，不做任何规范化；消费者不解析其内容。",
+      "description": "一份 ModelResponse 的标识。不透明、部署内唯一、不回收不复用，由模型请求运行时在那一次发出出门时定下；它不是上游的请求号。交换表示按 data.identity-values v1 S-31 的散文：非空字符串；首字符与末字符都不属于该条逐个列出的空白码点集合；逐码点相等，不做任何规范化；消费者不解析其内容。",
       "$comment": "pattern 照 S-31 的显式空白码点集合写否定字符类，末尾用 (?![\\s\\S]) 判绝对结尾，不用 $ 与 \\s——理由与回归用例见 data.identity-values v1 S-31。具体词法（长度、字符集）归实现。",
       "type": "string",
       "minLength": 1,
@@ -792,7 +792,7 @@
     },
     "ModelCallId": {
       "title": "ModelCallId（contract.md S-37）",
-      "description": "一次模型调用（UL-model-call）的标识；一次调用可发出多次，各次发出以 (ModelCallId, dispatch) 指认。不透明、运行内唯一、不回收不复用，由模型请求运行时在受理调用时产生。交换表示同 RunId。本定义的家在本契约。",
+      "description": "一次模型调用（UL-model-call）的标识；一次调用可发出多次，各次发出以 (ModelCallId, dispatch) 指认。不透明、会话内唯一（不属于任何运行的调用也有它）、不回收不复用，由模型请求运行时在打开一次新调用时产生。交换表示同 RunId。本定义的家在本契约。",
       "$comment": "pattern 照 S-31 的显式空白码点集合写否定字符类，末尾用 (?![\\s\\S]) 判绝对结尾，不用 $ 与 \\s——理由与回归用例见 data.identity-values v1 S-31。具体词法（长度、字符集）归实现。",
       "type": "string",
       "minLength": 1,
