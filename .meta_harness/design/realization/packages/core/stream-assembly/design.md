@@ -114,7 +114,7 @@
 
 本节点自己的缺口（契约的 G-1～G-7 已全部闭合，不重抄；编号不重排）：
 
-- **SA-1 已关闭**：工具调用参数的解析口径由 [D-040 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 裁定、已落进契约 S-10 第 3 条：RFC 8259 严格解析，**重复键即解析失败**——在本能力里这就是 S-11「参数收齐却解析不了」那一种调用块（M36 原文写的「`malformed`」是接收边界读 JSON 文本时的拒绝值；到达装配的解析失败不是拒绝，是落成解析不了的那一块，按契约 S-10 第 3 条读），超出 2^53 的整数与小数无损保留原文。实现走 content-blocks 的 `readJsonStrict`。
+- **SA-1 已关闭**：工具调用参数的解析口径由 [D-040 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 裁定、已落进契约 S-10 第 3 条：RFC 8259 严格解析，**重复键即解析失败**——在本能力里这就是 S-11「参数收齐却解析不了」那一种调用块：封口**被接受**，块落 `unparseable: true`、原样留 `rawArguments`，**不是** `malformed`（`malformed` 只在读 JSON 文本的接收边界，`data.content-blocks/v1#S-24`；这一读法由 [D-040 §八 N-20](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 接受）；超出 2^53 的整数与小数无损保留原文。实现走 content-blocks 的 `readJsonStrict`，它交 `{ failed }` 时本模块落解析不了的那一块。契约 examples 第 7 节 7d 两行是这一条的用例。
 - **SA-2 标准 base64 的严格判定**：`payload_kind_mismatch` 要求「语音的片段不是标准 base64」即拒；Node 的 `Buffer.from(s, "base64")` 对非法字符宽容、不报错。这一判定在 `data.arrival-events` 的表示层里，执行点是 arrival-events 的 `judgeArrivalEnvelope`，本模块只在物化快照时把字节重编成标准 base64。候选：先用正则核标准字母表与填充，再解码；Node 24 是否已带严格的 `Uint8Array.fromBase64`——**假设，须按 source-check 取证**（basis 无此条目；它是 Node 事实，不是 Cordis 语义）。owner：arrival-events 节点落包时（本节点随之）。
 - **SA-3 一致性用例的机读形式**：V-2 要「同一份语言无关用例」，`examples.md` 第 2～8 节是表格与手算，还没有机读的 JSON 用例集。owner：本节点起草用例文件、契约 owner 核对它与 examples 逐项相同；在那之前 V-2 只能按表手抄进测试。
 - **跨节点交接**：S-28 第 1～9 条由两个宿主节点落（模型请求运行时、工具执行运行时）；本节点对它们只有一个要求——**宿主撤除时在途的流调 `abandon`，不交 `finish { interrupted }`**（S-28 第 6 条），写进各自的装卸配对表。

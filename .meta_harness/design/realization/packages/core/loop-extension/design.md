@@ -18,7 +18,7 @@
 | 服务键 | 无 | — |
 | `inject` 关系 | **无**；`loopExtensionBodyContract`（asset-model 端口的那一份）是普通值 | — |
 | effect 装卸 | **无装载效应**（0 行） | — |
-| 事件派发 | **不发、不听**。「位置」是 agent loop 的一个时点、结论是一个值，都不是 Cordis 事件；派发器怎样逐件调用归派发器。没有事件能越过租户或会话边界：统一输入**不暴露会话标识**，M38 的 `environment` 句柄按会话作用域、不透明（[D-040 §八 M38](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） | — |
+| 事件派发 | **不发、不听**。「位置」是 agent loop 的一个时点、结论是一个值，都不是 Cordis 事件；派发器怎样逐件调用归派发器。没有事件能越过租户或会话边界：统一输入**不暴露会话标识**；`environment` 句柄（[S-41](../../../../spec/data/loop-extension/v1/contract.md#s-41-执行环境句柄)，[D-040 §八 M38](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）按会话作用域、不透明、每次调用一只新的，解析归 runner | S-41 |
 | 存储 | **无**：结论落日志归派发器 | S-30～S-32 |
 
 ### 装配给 vs 协议给
@@ -33,7 +33,7 @@
 | 契约责任 | 模块公开入口（候选） | 实现（候选做法） | 符合性依据或缺口 |
 |---|---|---|---|
 | [S-1](../../../../spec/data/loop-extension/v1/contract.md#s-1-十一个位置)～[S-10](../../../../spec/data/loop-extension/v1/contract.md#s-10-本版没有-order) 位置、维度、干预力、报错处置、声明、身份 | 类型 `Position`、`Dimension`、`Power`、`LoopExtensionDefinition` | — | V-1 |
-| [S-11](../../../../spec/data/loop-extension/v1/contract.md#s-11-输入的成员)～[S-18](../../../../spec/data/loop-extension/v1/contract.md#s-18-terminalfact) 统一输入、三个引用、瀑布、按位置的 Subject、`FailureCause` 等 | 类型 `ExtensionInput` 等；M38 的 `environment` 是不透明句柄类型，本包只定名字与「不暴露会话标识」，**取得什么由派发器给** | — | V-1；`environment` 的形状随修复波 3 落进 S-11 |
+| [S-11](../../../../spec/data/loop-extension/v1/contract.md#s-11-输入的成员)～[S-18](../../../../spec/data/loop-extension/v1/contract.md#s-18-terminalfact) 统一输入、三个引用、瀑布、按位置的 Subject、`FailureCause` 等 | 类型 `ExtensionInput` 等；[S-41](../../../../spec/data/loop-extension/v1/contract.md#s-41-执行环境句柄) 的 `EnvironmentHandle` 是不透明串类型（照 `data.identity-values/v1#S-31`：非空、首尾不是空白、逐码点相等），本包**不导出任何解析它的函数**——它经什么取得租户身份与执行环境归 runner（契约 S-41 指到 `capability.loop-extension-runner/v1` S-50） | 输入缺 `environment` ⇒ `malformed`，**不补** | V-1（`$defs` 由 41 项变 42 项，含 `EnvironmentHandle`） |
 | [S-19](../../../../spec/data/loop-extension/v1/contract.md#s-19-结论封闭八种)～[S-29](../../../../spec/data/loop-extension/v1/contract.md#s-29-没有放宽) 八种结论、档与位置的合法组合 | 类型 `Conclusion`；常量表 `POWER_CONCLUSIONS`（S-20）、`POSITION_CONCLUSIONS`（S-21） | 两张表写成数据，Schema 之外的判定由同一张表驱动 | V-2（13 位置 × 8 结论 × 3 档机检） |
 | [S-36](../../../../spec/data/loop-extension/v1/contract.md#s-36-规范表示与定义项)～[S-39](../../../../spec/data/loop-extension/v1/contract.md#s-39-判别式与枚举闭合) 十个拒绝值与次序 | `judgeConclusion(value, ctx)` | 第 9、10 行（改了不可改的成员、冒名的 `inject`）要对照输入与本件 name，经 `ctx` 交进来 | V-2；「不合法的结论按报错处置」（S-34）归派发器 |
 | [S-40](../../../../spec/data/loop-extension/v1/contract.md#s-40-属性项的推出规则) 推出规则 | `loopExtensionBodyContract`：推属性（`position`、`dimension`、`power`）；规则一恒为空集 | 只读声明本身 | asset-model SC-6 |

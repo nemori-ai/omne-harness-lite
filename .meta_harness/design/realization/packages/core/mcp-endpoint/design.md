@@ -39,7 +39,7 @@
 | [S-14](../../../../spec/data/mcp-endpoint/v1/contract.md#s-14-推出规则五类项)～[S-17](../../../../spec/data/mcp-endpoint/v1/contract.md#s-17-工作区格上的这些项) 推出规则（正文＋动作集） | `mcpBodyContract` 的推属性（显式收动作集副本） | 逐动作项的键 = `execute:` ＋ 对端动作名原样 | SC-2、SC-4 |
 | [S-18](../../../../spec/data/mcp-endpoint/v1/contract.md#s-18-规范表示)～[S-21](../../../../spec/data/mcp-endpoint/v1/contract.md#s-21-表示层拒绝不是判定也不修补) 七个拒绝值、M1～M13 | `judgeMcpEndpoint(value)` | `url` 的四条（S-5）用 WHATWG `URL` 解析后逐条判，带 userinfo 即 `url_invalid` | V-2 |
 
-**远端参数 schema 不在这里判**：对端 `inputSchema` 能不能成为工具定义的参数，由 MCP 桥在投影时用 [tool-definition](../tool-definition/design.md#参数判定用-ajv-编译作者的-schema) 判；编译不了或 `pattern` 超出实现上限 ⇒ `schema_unsupported`，那一条动作条目在注册表里是 `stand_in{for: schema_unsupported}`（[D-040 §八 M37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)；契约条款由修复波落，本节点在条款落定后对齐引用）。
+**远端参数 schema 不在这里判**：本模块照 [S-10](../../../../spec/data/mcp-endpoint/v1/contract.md#s-10-对端动作描述) 把 `inputSchema` **原样存下**、只判「是对象」。它能不能成为工具定义的参数，由 MCP 桥在投影时用 [tool-definition](../tool-definition/design.md#schema_unsupported-的上限登记g-16) 判：过了 `data.tool-definition/v1#S-26` 前十二行、却编不出来或 `pattern` 超出 tool-definition 登记的上限 ⇒ `schema_unsupported`——**不被排除**，以同形替换件出现、原因 `schema_unsupported`（注册表的 `stand_in{for: schema_unsupported}`），同形照的正是这里原样存下的 `inputSchema`（S-10 末段，[D-040 §八 M37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。**上限用的是 tool-definition 那一份登记，本节点不另登记**——同一份 schema 在投影与判参数两处必须得出同一个结论。
 
 ## 依赖、作用域与绑定
 
@@ -76,5 +76,5 @@
 
 契约的已知缺口（第八节，G-2、G-4、G-7、G-8 未决）不重抄。本节点自己的：
 
-- **ME-1 `schema_unsupported` 的引用坐标**：M37 裁定的拒绝值由修复波落进 `data.tool-definition/v1#S-4` 与本契约；落定之前本节点的说法以 D-040 §八 M37 的措辞为准。owner：本节点（条款落定后对齐）。
+- **ME-1 已关闭**：`schema_unsupported` 已落进 `data.tool-definition/v1#S-4` 末段、`#S-26` 第 13 行与本契约 S-10 末段；上限的登记在 [tool-definition](../tool-definition/design.md#schema_unsupported-的上限登记g-16)（契约 G-16）。打「只能以替换件出现」标记的是 `capability.mcp-bridge` S-17 的投影——那份契约尚未同步（契约验证入口已报主线），**不在本节点**。
 - **ME-2 端口的组合根**：见 [asset-model AM-5](../asset-model/design.md#实施缺口与消费者影响)。

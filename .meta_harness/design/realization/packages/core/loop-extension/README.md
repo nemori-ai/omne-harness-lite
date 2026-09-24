@@ -7,8 +7,8 @@
 
 ## 分层状态
 
-- 语义接受范围：**未接受**（候选，待 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）；[D-040 §八 M38](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 给统一输入加的 `environment` 句柄由修复波 3 落进 S-11，本节点照裁定措辞对齐
-- 可实施范围：声称兑现 S-1～S-29、S-36～S-40 的形状、合法组合表、推出规则与表示层面。**不兑现**：S-30～S-35（每件的结论必留、记录形状落日志、不可用与报错两分、不合法结论按报错处置、跨过等待只带已落日志的东西）——归派发器与写拓展件的人。逐条见 [design.md 投影表](design.md#契约责任--模块公开入口--实现--符合性依据或缺口)。源码不存在，以上**全部未实现**
+- 语义接受范围：**未接受**（候选，待 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）；[D-040 §八 M38](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 给统一输入加的 `environment` 句柄已落进契约（S-11 的成员、[S-41](../../../../spec/data/loop-extension/v1/contract.md#s-41-执行环境句柄) `EnvironmentHandle`，名字由 N-20 接受），本节点对齐的是契约终稿
+- 可实施范围：声称兑现 S-1～S-29、S-36～S-40 的形状、合法组合表、推出规则与表示层面，以及 S-41 执行环境句柄的**形状**（解析归 runner）。**不兑现**：S-30～S-35（每件的结论必留、记录形状落日志、不可用与报错两分、不合法结论按报错处置、跨过等待只带已落日志的东西）——归派发器与写拓展件的人。逐条见 [design.md 投影表](design.md#契约责任--模块公开入口--实现--符合性依据或缺口)。源码不存在，以上**全部未实现**
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) **为空表**——契约没有登记的 formal task；源码不存在。证据义务见 [verification.md](verification.md)，全部未开始
 - 实际验证：**无**（源码不存在）
 

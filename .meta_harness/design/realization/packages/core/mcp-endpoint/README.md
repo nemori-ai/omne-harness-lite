@@ -7,7 +7,7 @@
 
 ## 分层状态
 
-- 语义接受范围：**未接受**（候选，待 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）
+- 语义接受范围：**未接受**（候选，待 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）；已对齐 2026-09-25 修复波 3 的契约终稿（S-10 末段 `schema_unsupported` 的动作不被排除）
 - 可实施范围：声称兑现 S-1～S-21、S-26 的形状、条目名拼法、登记时收窄、推出规则与表示层面。**不兑现**：S-12 绑定号的唯一与不可猜（单一生成点）、S-4 的拉起（MCP 桥）。逐条见 [design.md 投影表](design.md#契约责任--模块公开入口--实现--符合性依据或缺口)。源码不存在，以上**全部未实现**
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) **为空表**——契约没有登记的 formal task；源码不存在。证据义务见 [verification.md](verification.md)，全部未开始
 - 实际验证：**无**（源码不存在）

@@ -6,7 +6,7 @@
 ## 实现路径与来源
 
 **自建一个 TypeScript 纯模块**，写法与 [content-blocks](../content-blocks/design.md#实现路径与来源) 相同：`ajv` 8.20.0 的 Draft 2020-12 入口（V-1 要求 `unevaluatedProperties`、`dependentRequired`），Schema 从 spec 原样复制进包并逐字节核对；
-拒绝值[按契约次序逐条判](../content-blocks/design.md#拒绝值按契约的次序逐条判不从-schema-错误里反推)；从 JSON 文本读消息一律经 content-blocks 的[严格无损读写](../content-blocks/design.md#严格的无损-json-读写)（[D-040 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。
+拒绝值[按契约次序逐条判](../content-blocks/design.md#拒绝值按契约的次序逐条判不从-schema-错误里反推)；从 JSON 文本读消息（与运行时记录）一律经 content-blocks 的[严格无损读写](../content-blocks/design.md#严格的无损-json-读写)：契约 [S-37](../../../../spec/data/messages/v1/contract.md#s-37-规范表示) 的读写口径与 `data.content-blocks/v1#S-24` 同一条（[D-040 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）——任何一层对象里重复的成员名 ⇒ `malformed`（读不出即拒，不挑一个再交给第一段判定），数无损、落盘与回读同一个十进制数。
 `MessageId` 的词法候选与 `BlockId` 同一个（[那里的选择](../content-blocks/design.md#标识的词法沿用-identity-values-的生成器)）。**Cordis 版本**：采用 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；本模块不依赖 Cordis。
 
 ## 契约到 Cordis 的投影
@@ -43,7 +43,7 @@
 | [S-28](../../../../spec/data/messages/v1/contract.md#s-28-此刻模型可读是算出来的) 此刻模型可读 | `isReadable(ref, prefix: LogPrefixView)`；`LogPrefixView`（候选）是调用方给的只读视图：按标识找消息、找块、列出前缀里的压缩名单 | 纯函数：`path(b)` 上每块 `toModel` 为真，且没有任何名单点过 `path(b)` 里的块；**不缓存、不写下「当前可读集合」** | V-5（examples 第 11 节）；`Readable.als` 不是 formal task，不可绑定 |
 | [S-29](../../../../spec/data/messages/v1/contract.md#s-29-合法名单的判定) 合法名单 | `judgeCompactionList(c, prefix, ctx)` → 合法，或 ③⑤⑥ 之一，或「判不了」 | ① ② 走表示层；③ 查前缀；⑤ 要「悬着的占位」与卡片 owner 的答复、⑥ 要「最近一次模型请求落在日志哪一处」，**都由调用方经 `ctx` 给**；缺输入时**不给「合法」**，交回「判不了」，由调用方按不合法处理 | V-4；⑤⑥ 的输入卡在契约 G-5、G-2 上（MSG-2） |
 | [S-32](../../../../spec/data/messages/v1/contract.md#s-32-会话日志里的配对与唯一) 配对与唯一 | `judgePairing(message, prefix)` 只给判定 | 纯判定；**追加、幂等、去重不在本模块** | V-4 |
-| [S-37](../../../../spec/data/messages/v1/contract.md#s-37-规范表示)～[S-40](../../../../spec/data/messages/v1/contract.md#s-40-表示层拒绝不是判定也不修补) 两段式拒绝值 | `judgeMessage(value)`（第一段，只看这一条）；`judgeMessageInLog(value, prefix)`（第一段通过后判 `compaction_forward_reference`） | 第一段嵌入 content-blocks 的六个值、原名；`block_id_duplicate` 在整棵块树（含嵌套与派生表示）上查 | V-2；两个边界对同一坏输入给同一个值 |
+| [S-37](../../../../spec/data/messages/v1/contract.md#s-37-规范表示)～[S-40](../../../../spec/data/messages/v1/contract.md#s-40-表示层拒绝不是判定也不修补) 两段式拒绝值 | `judgeMessage(value)`（第一段，只看这一条）；`judgeMessageInLog(value, prefix)`（第一段通过后判 `compaction_forward_reference`）；从文本读的边界先 `readJsonStrict`，读不出即 `{ rejected: "malformed" }`（S-37，M36） | 第一段嵌入 content-blocks 的六个值、原名；`block_id_duplicate` 在整棵块树（含嵌套与派生表示）上查 | V-2；两个边界对同一坏输入给同一个值；examples 新加的重复成员名那几行 |
 | [S-34](../../../../spec/data/messages/v1/contract.md#s-34-四种直接对应)～[S-36](../../../../spec/data/messages/v1/contract.md#s-36-toolinternalmessage-不进请求) 出门的三条义务 | 类型：`OutboundMessage`（候选）= `Message` 去掉 `ToolInternalMessage`；判别联合配穷尽检查（`never`） | 翻译本身在传输适配 | SC-5 的类型面：漏一种编译不过 |
 
 ## 依赖、作用域与绑定

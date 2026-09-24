@@ -47,10 +47,10 @@
 | [S-1](../../../../spec/data/content-blocks/v1/contract.md#s-1-七类块)～[S-21](../../../../spec/data/content-blocks/v1/contract.md#s-21-attachmentref)、[S-34](../../../../spec/data/content-blocks/v1/contract.md#s-34-只给了引用的附件落成哪一类块) 七类块、标注、标识、模态、媒体类型、工具调用三种形状、结果块、收场、占位原因、派生表示、附件引用 | 判别联合 `ContentBlock` 与各变体类型；`modalityOf(mediaType)`（S-6）；`isCanonicalMediaType`（S-7，只认规范写法、不折叠大小写） | 类型与 Schema 同名；值一律冻结 | V-1、V-3、V-4 |
 | [S-20](../../../../spec/data/content-blocks/v1/contract.md#s-20-派生表示的产出者与能力标识) `CapabilityId`（**形状与相等的唯一家**） | 类型 `CapabilityId`；`capabilityIdEquals` | 两个分量逐码点比较 | 名字词法与规范串在 [asset-model](../asset-model/design.md) |
 | [S-12](../../../../spec/data/content-blocks/v1/contract.md#s-12-完整的工具调用) 的 `ModelToolName` | 类型 `ModelToolName`（本包是 `data.tool-definition/v1#S-6` 的逐字副本） | Schema 副本 | **家在 tool-definition**；对齐测试放在 [tool-definition](../tool-definition/design.md#实施缺口与消费者影响)（它依赖本包，本包不依赖它） |
-| S-9 `opaque`、S-12 `arguments` 的数值与解析口径（[D-040 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） | `readJsonStrict(text)`、`writeJsonLossless(value)`；数值类型 `JsonNumber = number \| LosslessNumber` | [下文](#严格的无损-json-读写) | V-6；「每一跳都用它」是缺口 [CB-2](#实施缺口与消费者影响) |
+| S-9 `opaque`、[S-12](../../../../spec/data/content-blocks/v1/contract.md#s-12-完整的工具调用)「怎样才算解析成功」、[S-24](../../../../spec/data/content-blocks/v1/contract.md#s-24-规范表示)「读写块的 JSON 文本的口径」（[D-040 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） | `readJsonStrict(text) → { ok: value } \| { failed: "syntax" \| "duplicate_member" }`、`writeJsonLossless(value)`；数值类型 `JsonNumber = number \| LosslessNumber` | [下文](#严格的无损-json-读写)。**同一个读法，两处各自映射失败**：接收边界读块（或消息）的文本失败 ⇒ `malformed`（S-24）；参数串的那一次解析失败 ⇒ 解析不了的调用块（S-12，执行点在 stream-assembly） | V-6；「每一跳都用它」是缺口 [CB-2](#实施缺口与消费者影响) |
 | [S-3](../../../../spec/data/content-blocks/v1/contract.md#s-3-blockid)、[S-14](../../../../spec/data/content-blocks/v1/contract.md#s-14-callid) 两种标识的词法（G-4 交给 realization） | 类型 `BlockId`、`CallId`；生成器即 identity-values 的 `generateOpaqueIdentifier()`，本包不另写 | [下文](#标识的词法沿用-identity-values-的生成器) | 唯一性由铸号方保证（CB-1） |
 | [S-22](../../../../spec/data/content-blocks/v1/contract.md#s-22-落盘之后整块不变)、[S-23](../../../../spec/data/content-blocks/v1/contract.md#s-23-块不携带租户身份) 落盘不变、不带租户 | 类型上没有租户成员；值冻结 | 就地更新的写路径归会话日志写入方（SC-1） | 不在本节点 |
-| [S-24](../../../../spec/data/content-blocks/v1/contract.md#s-24-规范表示)～[S-27](../../../../spec/data/content-blocks/v1/contract.md#s-27-表示层拒绝不是判定也不修补) 六个拒绝值与次序、不修补 | `judgeContentBlock(value: unknown) → { ok } \| { rejected }` | `kind_unknown` 起、`malformed` 止，[逐条判](#拒绝值按契约的次序逐条判不从-schema-错误里反推)；「一条消息里 `id` 重复」在消息层的接收边界判（`data.messages/v1#S-39` 的 `block_id_duplicate`） | V-2；拒绝时不交出任何「修好的」值 |
+| [S-24](../../../../spec/data/content-blocks/v1/contract.md#s-24-规范表示)～[S-27](../../../../spec/data/content-blocks/v1/contract.md#s-27-表示层拒绝不是判定也不修补) 六个拒绝值与次序、不修补 | `judgeContentBlock(value: unknown) → { ok } \| { rejected }`；从文本读的边界先 `readJsonStrict`，失败即 `{ rejected: "malformed" }`（S-24 读写口径：任何一层重复成员名即 `malformed`），不把一个挑过键的值交给 `judgeContentBlock` | `kind_unknown` 起、`malformed` 止，[逐条判](#拒绝值按契约的次序逐条判不从-schema-错误里反推)；「一条消息里 `id` 重复」在消息层的接收边界判（`data.messages/v1#S-39` 的 `block_id_duplicate`） | V-2；拒绝时不交出任何「修好的」值 |
 
 ### 拒绝值按契约的次序逐条判，不从 Schema 错误里反推
 
@@ -79,11 +79,12 @@ S-3、S-14 的词法交给 realization（契约 G-4）；`data.messages` 的 G-1
 
 ### 严格的无损 JSON 读写
 
-[D-040 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 定了口径：按 RFC 8259 严格解析；**重复键 ⇒ 解析失败**；超出 2^53 的整数与金额一律**无损保留原文**，落盘与回读走无损读写。
+[D-040 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 定了口径，契约 S-12、S-24 已落：按 RFC 8259 严格解析；**任何一层对象里重复的成员名 ⇒ 读不出**（不取前一个、不取后一个）；超出 ±2^53 的整数与金额一律**无损保留原文**，落盘与回读走无损读写。
+**读不出之后是什么，两处不同**（契约 S-24 末段，[N-20](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 接受）：参数串的那一次解析（S-12）读不出 ⇒ 落成解析不了的调用块、**仍是一次已登记的调用**；接收边界读块或消息的文本（S-24、`data.messages/v1#S-37`）读不出 ⇒ `malformed`、**这份文本不是一个块**。所以读法只交中性的 `{ failed }`，映射留给调用处。
 S-9 的 `opaque`、S-12 的 `arguments`、`data.call-accounts` 的金额、`data.asset-model` 清单的「成员名重复即 `malformed`」都落在这一件上，所以它的家在本包（本批包依赖图的底，所有用它的包本来就依赖本包）。
 
 - **值的表示**：`readJsonStrict` 交出普通的 JSON 值，只有数字多一种：**一个数字字面量转成双精度再转回去仍是同一个十进制数值，就交 `number`；否则交 `LosslessNumber`（不透明，内部是原文）**。所以 `9007199254740993` 与 `0.1000000000000000055511151231257827` 交原文，`0.1`、`42` 交 `number`——数值上都不丢。金额的精确加法在 `data.call-accounts` 那一层把两种都换成十进制再算。
-- **读**：先用 `JSON.parse`（reviver 的第三个参数 `context.source` 取每个数字的原文）判语法并取值；通过之后再扫一遍文本，按对象收集**解码后的**成员名（`"a"` 与 `"a"` 是同一个名字），有重复即失败。失败一律交 `{ malformed }`，不交半份值。
+- **读**：先用 `JSON.parse`（reviver 的第三个参数 `context.source` 取每个数字的原文）判语法并取值；通过之后再扫一遍文本，按对象收集**解码后的**成员名（`"a"` 与 `"a"` 是同一个名字），有重复即失败。失败一律交 `{ failed }`（语法不合 RFC 8259 或重复成员名两种原因作诊断），不交半份值、不交挑过键的值。
 - **写**：`writeJsonLossless` 用 `JSON.rawJSON(原文)` 把 `LosslessNumber` 原样写回。
 
 | | 第三方无损 JSON 库 | 手写一个完整的 RFC 8259 解析器 | **`JSON.parse`（取原文）＋ 第二遍查重复键（本节点选）** |
@@ -108,7 +109,7 @@ S-9 的 `opaque`、S-12 的 `arguments`、`data.call-accounts` 的金额、`data
 
 **无状态、无提交点、无并发。**全部入口是纯函数。
 
-**失败映射**：表示层拒绝 ⇒ `{ rejected: 值 }`（六个之一，恰一个）；严格读入失败 ⇒ `{ malformed }`（由调用方按自己契约的剩余项收）。**都不抛异常**；抛出只留给本模块自身的缺陷。拒绝不是判定：被拒的工具结果块**不是**一次 `failed`（S-27）。
+**失败映射**：表示层拒绝 ⇒ `{ rejected: 值 }`（六个之一，恰一个）；严格读入失败 ⇒ `{ failed }`，由调用处按契约映射：读块或消息文本的接收边界 ⇒ `malformed`（S-24、`data.messages/v1#S-37`），参数串的那一次解析 ⇒ 解析不了的调用块（S-12）。**都不抛异常**；抛出只留给本模块自身的缺陷。拒绝不是判定：被拒的工具结果块**不是**一次 `failed`（S-27）。
 
 ## 成对的装载与撤除
 
@@ -129,5 +130,5 @@ S-9 的 `opaque`、S-12 的 `arguments`、`data.call-accounts` 的金额、`data
 契约的已知缺口（G-1、G-4、G-10）不重抄。本节点自己的缺口：
 
 - **CB-1 铸号方**：本节点给了词法候选，**铸号在别处**——`BlockId` 由模型侧传输适配与工具侧帧入口、落盘前补派生表示的一方铸；`CallId` 是否沿用上游调用 id、会话日志内唯一由登记它的模型请求运行时守。几处要用同一个生成器。owner：主线协调；落在 model-request-runtime、tool-execution-runtime 两个节点。
-- **CB-2 无损读写只在用它的边界上有效**：`opaque`、`arguments`、金额从 JSON 文本读成值的**每一处**（存储提供者读 JSON 列、传输适配读上游响应、工具运行时收工具返回、跨进程的每一跳）都要走 `readJsonStrict`／`writeJsonLossless`（M36「落盘与回读走无损读写」）。owner：主线把它写进 `infra/storage-sql` 与两个运行时节点的要求清单；本节点另欠一条「丢位或放过重复键即失败」的测试。
+- **CB-2 无损读写只在用它的边界上有效**：`opaque`、`arguments`、金额从 JSON 文本读成值的**每一处**（存储提供者读 JSON 列、传输适配读上游响应、工具运行时收工具返回、跨进程的每一跳）都要走 `readJsonStrict`／`writeJsonLossless`（M36「落盘与回读走无损读写」；契约第四节新加的「数无损、重复键不被挑一个」一行把它写成**每一跳**的协议义务）。owner：主线把它写进 `infra/storage-sql` 与两个运行时节点的要求清单；本节点另欠一条「丢位或放过重复键即失败」的测试。
 - **CB-3 附件存储**：`AttachmentRef` 的解引用与租户判定（契约 G-1）属 [D-040 §八 M43](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 的 C-6，**本程不补、留给下一程**，owner 主线。

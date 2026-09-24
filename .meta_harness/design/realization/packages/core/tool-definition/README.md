@@ -7,8 +7,8 @@
 
 ## 分层状态
 
-- 语义接受范围：**未接受**（候选，待 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）；[D-040 §八 M37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 的新拒绝值 `schema_unsupported` 与「`format` 只作注解」由修复波 3 落进契约，本节点按裁定措辞先对齐
-- 可实施范围：声称兑现 S-1～S-28、S-31 的形状、纯函数、参数判定与表示层面（S-29、S-30 是「不在定义里」的界）。**不兑现**：`help` 与 `inspect` 的一致、声明与实际对得上、裸字符串只兑现一次、卸载、后台许可——归执行运行时与注册表。逐条见 [design.md 投影表](design.md#契约责任--模块公开入口--实现--符合性依据或缺口)。源码不存在，以上**全部未实现**
+- 语义接受范围：**未接受**（候选，待 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）。[D-040 §八 M37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 已落进契约（S-4 末段、S-26 第 13 行 `schema_unsupported`、G-16），本节点对齐的是契约终稿
+- 可实施范围：声称兑现 S-1～S-28、S-31 的形状、纯函数、参数判定与表示层面（S-29、S-30 是「不在定义里」的界），并为契约 G-16 **登记 `schema_unsupported` 的上限候选值**（[U-1～U-7](design.md#schema_unsupported-的上限登记g-16)：`u` 标志方言、`pattern` ≤ 1024 码点、嵌套无界量词、反向引用、计数量词上界 1000）。**不兑现**：`help` 与 `inspect` 的一致、声明与实际对得上、裸字符串只兑现一次、卸载、后台许可——归执行运行时与注册表。逐条见 [design.md 投影表](design.md#契约责任--模块公开入口--实现--符合性依据或缺口)。源码不存在，以上**全部未实现**
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) **为空表**——契约没有登记的 formal task；源码不存在。证据义务见 [verification.md](verification.md)，全部未开始
 - 实际验证：**无**（源码不存在）
 

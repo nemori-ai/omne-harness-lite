@@ -48,7 +48,7 @@
 | `data.content-blocks` v1（`CallId`；严格无损读写） | [content-blocks](../content-blocks/README.md) | 随包版本 | 静态 import |
 | `data.asset-model` v1（能力标识的规范串） | [asset-model](../asset-model/README.md) | 同上 | 同上 |
 | `data.identity-values`、`data.offer-expiry` v1 | 已实现的 core 包 | 同上 | 同上 |
-| 被消费 | messages、arrival-events、model-response、loop-extension、stream-assembly、两个运行时、读面 | 普通包依赖；契约出 v2 另开入口 | 不改 v1 导出 |
+| 被消费 | messages、arrival-events、model-response、loop-extension、stream-assembly、两个运行时、拓展件 runner、会话资产注册表（可用性报告带 `attempt`，取本包的 `AttemptId`——[D-040 §八 M46](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）、读面 | 普通包依赖；契约出 v2 另开入口 | 不改 v1 导出 |
 
 包依赖与 catalog 的契约依赖同构（[D-040 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），无环。**没有配置项**。
 
