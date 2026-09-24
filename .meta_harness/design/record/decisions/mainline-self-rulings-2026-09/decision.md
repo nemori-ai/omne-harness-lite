@@ -395,6 +395,8 @@ product-design-drafter 把约 57 处裁定落进 PF-001/002/006/008/009/010/012/
 | R-B3「权限收回触发 reload(slash_command)」 | S22-a | 只收窄不重填 |
 | S8-c 工具清单 `ToolDefinitionRef` | S16-c | 用 `CapabilityId[]`（S25 第一轮 L-3 又指出 MCP 来源无能力标识，待第一轮修复裁定） |
 | 「写一条界不查外层的界」（drafter 乙 2026-09-24 推导） | G-25 落条款 | 所有界都须落在外层界内 |
+| S2-e `CostItem.service` 规范串写成 `"<category>:<name>"` | `data.asset-model` v1 S-3 的规范串 `<category>/<name>`（call-accounts S-9 已按它写） | 分隔符以 asset-model 为准；S2-e 的 `:` 是早期笔误 |
+| K21 的成因名 `credential_missing` | 修复波 1 落条款时取已有值 `credential_unavailable`（与出门前分支、`FailureCause` 同名） | 同一情形同一个名 |
 
 ## 五、S25 第一轮修复波的主线裁定（K1～K50，2026-09-24 夜，追加）
 
