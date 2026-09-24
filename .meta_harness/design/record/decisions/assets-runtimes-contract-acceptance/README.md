@@ -19,12 +19,12 @@
 
 | 契约 | 版本 | 条款范围 |
 |---|---|---|
-| `capability.asset-evaluation` | 1 | S-1..S-42 |
+| `capability.asset-evaluation` | 1 | S-1..S-44 |
 | `capability.asset-governance` | 1 | S-1..S-65 |
 | `capability.asset-registry` | 1 | S-1..S-47 |
 | `capability.asset-transfer` | 1 | S-1..S-53 |
 | `capability.hooks-import` | 1 | S-1..S-36 |
-| `capability.loop-extension-runner` | 1 | S-1..S-49 |
+| `capability.loop-extension-runner` | 1 | S-1..S-52 |
 | `capability.mcp-bridge` | 1 | S-1..S-38 |
 | `capability.modality-projection` | 1 | S-1..S-37 |
 | `capability.model-profile-directory` | 1 | S-1..S-33 |
@@ -38,7 +38,7 @@
 | `data.call-accounts` | 1 | S-1..S-39 |
 | `data.connector` | 1 | S-1..S-23 |
 | `data.content-blocks` | 1 | S-1..S-34 |
-| `data.loop-extension` | 1 | S-1..S-40 |
+| `data.loop-extension` | 1 | S-1..S-41 |
 | `data.mcp-endpoint` | 1 | S-1..S-26 |
 | `data.messages` | 1 | S-1..S-50 |
 | `data.model-profile` | 1 | S-1..S-28 |

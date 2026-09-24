@@ -80,7 +80,7 @@
         "version": 1
       },
       "scope_clauses": [
-        "S-1..S-40"
+        "S-1..S-41"
       ]
     },
     {
@@ -120,7 +120,7 @@
         "version": 1
       },
       "scope_clauses": [
-        "S-1..S-42"
+        "S-1..S-44"
       ]
     },
     {
@@ -230,7 +230,7 @@
         "version": 1
       },
       "scope_clauses": [
-        "S-1..S-49"
+        "S-1..S-52"
       ]
     },
     {
