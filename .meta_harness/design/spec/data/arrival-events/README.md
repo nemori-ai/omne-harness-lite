@@ -9,11 +9,10 @@
 装配状态由宿主（模型请求运行时、工具执行运行时）持有，包成哪种消息也归宿主。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.arrival-events, 1)`
-- **状态**：`candidate`——未接受、未冻结，不得据此发布或声称消费者已采用
+- **状态**：`candidate`（2026-09-24 整批对齐原地改一次）——未接受、未冻结，不得据此发布或声称消费者已采用
 - **catalog 映射**：已登记为 `candidate`（`acceptance` 为 `null`）。`family=data`、`topic=arrival-events`、
   `contract_path=spec/data/arrival-events/v1/contract.md`，`resources` 另含 `v1/arrival-events.schema.json` 与 `v1/examples.md`；
-  依赖两项：`data.content-blocks` v1 与 `data.call-accounts` v1（消费 clauses 见[契约头部](v1/contract.md)）。
-  **`data.loop-extension` v1（`FailureCause`）与 `data.call-accounts` v1 的 `ModelCallId` 未登**——前者不在本工作树，后者要等对齐波补进去（[G-1、G-2](v1/contract.md#九已知缺口)）。
+  依赖三项：`data.content-blocks` v1、`data.call-accounts` v1（含 `ModelCallId`，S-37）与 `data.loop-extension` v1（`FailureCause`，S-17），消费 clauses 见[契约头部](v1/contract.md)。
   **登记在 [registry](../../../registry/README.md)，本行只作索引**
 - **提供者/装配映射**：尚无
 

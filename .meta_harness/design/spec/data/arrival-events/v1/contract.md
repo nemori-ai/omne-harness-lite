@@ -12,12 +12,9 @@
   | 坐标 | 消费 clauses | 取它的什么 | Schema 里怎么用 |
   |---|---|---|---|
   | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1` | [`S-1`](../../content-blocks/v1/contract.md#s-1-七类块)、[`S-3`](../../content-blocks/v1/contract.md#s-3-blockid)、[`S-4`](../../content-blocks/v1/contract.md#s-4-两个标注)、[`S-6`](../../content-blocks/v1/contract.md#s-6-模态由媒体类型判定)、[`S-7`](../../content-blocks/v1/contract.md#s-7-媒体类型的规范形式)、[`S-10`](../../content-blocks/v1/contract.md#s-10-语音块与图块)、[`S-12`](../../content-blocks/v1/contract.md#s-12-完整的工具调用)、[`S-13`](../../content-blocks/v1/contract.md#s-13-半截的工具调用)、[`S-14`](../../content-blocks/v1/contract.md#s-14-callid)、[`S-26`](../../content-blocks/v1/contract.md#s-26-表示层拒绝值) | 七类块、块标识、两个标注、模态判定、媒体类型、语音与图的两种 `data` 形状、工具调用的两种形状与「解析点在装配一侧」、`CallId`、嵌着的块不合形状时的拒绝值 | `$ref` 它的 `ContentBlock`、`BlockId`、`Visibility`、`MediaType`、`CallId` |
-  | `omne-harness-lite-design-2026-09-15 · data.call-accounts · v1` | [`S-4`](../../call-accounts/v1/contract.md#s-4-未知是一个值不是零也不是缺席)、[`S-6`](../../call-accounts/v1/contract.md#s-6-usage四项-token-与来源)、[`S-8`](../../call-accounts/v1/contract.md#s-8-cost一次发出的费用)、[`S-15`](../../call-accounts/v1/contract.md#s-15-trimreason-与-trimsummary砍了要说)、[`S-19`](../../call-accounts/v1/contract.md#s-19-每条到达流恰一份账两次发出两份)、[`S-20`](../../call-accounts/v1/contract.md#s-20-缺账或被拒收记未知不伪造)、[`S-27`](../../call-accounts/v1/contract.md#s-27-表示层拒绝值闭合) | 记账那一步的载荷、「未知」的写法、砍的四个原因与汇总口径、「至多一次」归语法、缺账记未知、嵌着的账不合形状时的拒绝值 | `$ref` 它的 `Usage`、`Cost`、`TrimReason`；**`ModelCallId` 也 `$ref` 它，但那一项要等对齐波补进去**（[G-1](#九已知缺口)） |
-  | `omne-harness-lite-design-2026-09-15 · data.loop-extension · v1` | **未登**（[G-2](#九已知缺口)） | 故障成因 `FailureCause` | `$ref` 它的 `$defs/FailureCause`（并行起草中，此刻解析不到） |
+  | `omne-harness-lite-design-2026-09-15 · data.call-accounts · v1` | [`S-4`](../../call-accounts/v1/contract.md#s-4-未知是一个值不是零也不是缺席)、[`S-6`](../../call-accounts/v1/contract.md#s-6-usage四项-token-与来源)、[`S-8`](../../call-accounts/v1/contract.md#s-8-cost一次发出的费用)、[`S-15`](../../call-accounts/v1/contract.md#s-15-trimreason-与-trimsummary砍了要说)、[`S-19`](../../call-accounts/v1/contract.md#s-19-每条到达流恰一份账两次发出两份)、[`S-20`](../../call-accounts/v1/contract.md#s-20-缺账或被拒收记未知不伪造)、[`S-27`](../../call-accounts/v1/contract.md#s-27-表示层拒绝值闭合)、[`S-37`](../../call-accounts/v1/contract.md#s-37-三个归属标识的家runidattemptidmodelcallid) | 记账那一步的载荷、「未知」的写法、砍的四个原因与汇总口径、「至多一次」归语法、缺账记未知、嵌着的账不合形状时的拒绝值、模型调用的标识 | `$ref` 它的 `Usage`、`Cost`、`TrimReason`、`ModelCallId` |
+  | `omne-harness-lite-design-2026-09-15 · data.loop-extension · v1` | [`S-17`](../../loop-extension/v1/contract.md#s-17-failurecause) | 故障成因 `FailureCause` | `$ref` 它的 `$defs/FailureCause` |
 
-  **第三行与第二行里的 `ModelCallId` 此刻都解析不到**：`data.loop-extension` 与本契约并行起草、不在本工作树里；
-  `ModelCallId` 由主线裁定落在 `data.call-accounts` v1，由对齐波补进那份 Schema。catalog 的 `clauses` 必须是实有的条款号，
-  **不填猜测**，因此这两项暂不登记——[G-1](#九已知缺口)、[G-2](#九已知缺口)。
 - **本契约不依赖任何 capability 或 composition 契约。**正文里出现的 `capability.stream-assembly`、`data.messages`、`data.model-response`
   都是**落点**：谁消费本语法、装出来的东西落在哪。方向是它们 → 本契约。
 - **条款编号**：`S-n`，**只在本契约本版本内有效**；外部引用须写全坐标，如 `data.arrival-events/v1#S-12`。
@@ -47,16 +44,17 @@
 | 规格形式；部署边界 | [SYS-SPEC](../../../../foundation/cross-system-constraints/requirements.md#sys-spec) · [SYS-DEPLOY](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy) | S-25～S-29 |
 | 统一语言正式名 | [增量到达](../../../../ubiquitous_language/terms/record-and-context.md#ul-incremental-arrival--增量到达--incremental-arrival) · [在途状态](../../../../ubiquitous_language/terms/record-and-context.md#ul-in-flight-arrival--在途状态--in-flight-arrival) · [执行帧](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-execution-frame--执行帧--execution-frame) · [发帧](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-frame-emission--发帧--frame-emission) · [内容块](../../../../ubiquitous_language/terms/record-and-context.md#ul-content-block--内容块--content-block) · [模态](../../../../ubiquitous_language/terms/record-and-context.md#ul-modality--模态--modality) | 全部 |
 
-> **来自主线裁决、设计链里尚无落处的条款，逐条点名**（原话见施工简报，决定记录由主线在
-> `record/decisions/message-and-shape-rulings-2026-09-23/` 落地中；在它落地之前本表无处可链——[G-7](#九已知缺口)）：
+> **来自裁决的条款，逐条点名**：
 >
-> | 条款 | 裁决 |
-> |---|---|
-> | [S-7](#s-7-块索引) | 块索引由生产者给、装配一侧校验单调与唯一（草案 Q4） |
-> | [S-10](#s-10-呈现提示) | 块头带可选的呈现提示，取值集本版不定，非法值具名拒绝（Q17） |
-> | [S-5](#s-5-信封与目标) 的 `dispatch` | 模型调用的目标按「哪一次发出」分开（主线 2026-09-23 对齐裁定） |
-> | [S-15](#s-15-记账) | 记账那一步就是 `{ usage, cost }`，引 `data.call-accounts` v1（主线补充裁决） |
-> | [S-16](#s-16-收尾) 的 `error` | 成因引 `data.loop-extension` v1 的 `FailureCause`，不自定义（主线对齐裁定） |
+> | 条款 | 裁决 | 出处 |
+> |---|---|---|
+> | [S-7](#s-7-块索引) | 块索引由生产者给、装配一侧校验单调与唯一 | [D-038 Q4](../../../../record/decisions/message-and-shape-rulings/decision.md#十九处分岔) |
+> | [S-10](#s-10-呈现提示) | 块头带可选的呈现提示，取值集本版不定，非法值具名拒绝 | [D-038 Q17](../../../../record/decisions/message-and-shape-rulings/decision.md#十九处分岔) |
+> | [S-5](#s-5-信封与目标) 的 `dispatch` | 模型调用的目标按「哪一次发出」分开 | 主线裁定 2026-09-23，待产品负责人确认（读数报回 S8-c） |
+> | [S-15](#s-15-记账) | 记账那一步就是 `{ usage, cost }`，引 `data.call-accounts` v1 | 主线裁定 2026-09-23，待产品负责人确认 |
+> | [S-16](#s-16-收尾) 的 `error` | 成因引 `data.loop-extension` v1 的 `FailureCause`，不自定义 | 主线裁定 2026-09-23，待产品负责人确认 |
+> | [S-8](#s-8-开块) 的「帧入口」 | 工具侧块的 `id` 由宿主的帧入口编，与 `data.content-blocks/v1#S-3` 同一处 | 主线裁定 2026-09-23，待产品负责人确认（账本 S4-a） |
+> | [S-24](#s-24-违反语法由消费一方判定并命名) 的 `id` 重复 | 一条消息里块 `id` 重复在消息层的接收边界拒，拒绝值 `block_id_duplicate` 归 `data.messages` | 主线裁定 2026-09-23，待产品负责人确认（账本 S4） |
 >
 > **没有产品行、属规格层推导的条款**：[S-8](#s-8-开块) 的 `id` 与 `visibility`、[S-13](#s-13-封口) 的「工具调用的封口不带块」、
 > [S-15](#s-15-记账) 的「工具执行这一侧没有记账这一步」、[S-22](#s-22-节流只动填合并不改结果砍了要说) 的「节流只动填」——理由写在各条正文里，
@@ -94,7 +92,7 @@
   谁持有装配状态、按目标路由事件、把交出的块包成哪种消息、首个内容那一刻是什么时刻，归宿主（模型请求运行时与工具执行运行时）。
 - **不拥有消息**：`AssistantMessage`、`ToolInternalMessage` 长什么样归 `data.messages` v1；出错断时已交付的块放在 `data.model-response` v1 的 `delivered`。
 - **不拥有「怎么砍」的参数**：长度上限、额度、拒收规则是做节流的那一方的具名参数（[G-4](#九已知缺口)）；本契约只拥有**砍了之后怎样在流上说**（[S-14](#s-14-砍)）。
-- **不拥有成因的取值**：故障成因的八个值归 `data.loop-extension` v1（[G-2](#九已知缺口)）。
+- **不拥有成因的取值**：故障成因的八个值归 [`data.loop-extension/v1#S-17`](../../loop-extension/v1/contract.md#s-17-failurecause)。
 - **不拥有传输**：事件经什么通道、按什么编码从生产者送到消费者，本契约不定；跨进程之后必须兑现什么，列在 [S-25](#s-25-装配给与协议给)。
 
 ## 二、含义与使用范围
@@ -161,7 +159,7 @@
   `(callId, dispatch)` 与 `data.model-response` v1 里那份响应体的「哪次调用、第几次发出」**是同一对值**。
 - **工具执行一次一条流**：[一次工具执行对应一条 `ToolInternalMessage`](../../../../product/PF-009-context-message-types/design.md#执行帧就是这条消息的到达增量)，**转了后台之后仍是同一条**。
 - **`ModelCallId` 与 `CallId` 都不透明**：本契约不解析它们，不从中读出会话、租户或次序。
-  `ModelCallId` 的形状由 `data.call-accounts` v1 给出（[G-1](#九已知缺口)）；`CallId` 的形状与唯一范围归 `data.content-blocks/v1#S-14`。
+  `ModelCallId` 的形状由 [`data.call-accounts/v1#S-37`](../../call-accounts/v1/contract.md#s-37-三个归属标识的家runidattemptidmodelcallid) 给出（会话内唯一）；`CallId` 的形状与唯一范围归 `data.content-blocks/v1#S-14`。
 - **目标里没有会话、没有租户**：一个目标**只在它所属的那个会话里有意义**——这是装配给的（[S-25](#s-25-装配给与协议给) 第二行）。
 
 ### S-6 六种事件
@@ -214,7 +212,8 @@
   补一个标注就是[替没表过态的一方表了态](../../../../product/PF-010-context-management-and-assembly/design.md#要求二成分必须是明确标了给模型读的)。
   工具调用块更是**从不带着封口块到达**（[S-13](#s-13-封口)）。
 - **`visibility` 缺一即拒**：缺席或缺任一位，拒绝值取 `data.content-blocks/v1#S-26` 的 `visibility_missing`——**是同一件事：这一块没表过态**。
-- **`id` 的唯一范围是这条流装出的那整条消息**，含这条流里交出的块内嵌的块（`data.content-blocks/v1#S-3`）。分配它的是**生产的一方**：它是这条流里唯一看得见整条消息的生产者。
+- **`id` 的唯一范围是这条流装出的那整条消息**，含这条流里交出的块内嵌的块（`data.content-blocks/v1#S-3`）。分配它的一方要看得见整条消息：
+  **模型侧是生产的一方**（传输适配），**工具侧是宿主的帧入口**——工具作者与 MCP 桥经它交帧，它是工具侧唯一看得见整条消息的一处（与 `data.content-blocks/v1#S-3` 同一处，主线裁定 2026-09-23，账本 S4-a）。
   一条消息里 `id` 重复在哪一步被拒，见 [S-24](#s-24-违反语法由消费一方判定并命名)。
 
 ### S-9 块头
@@ -347,7 +346,7 @@
 | `lost` | **生产的一方失去了连续性** | [故障](../../../../product/PF-013-model-profiles-and-invocation/design.md#54-三类事实归本层定死其余照状态码)：流断了、上游出错了 | **帧流**断了——**不影响那次执行的收场**，那一次怎么收场另走 `ToolMessage`（[§6.17](../../../../product/PF-009-context-message-types/design.md#617-发帧发不出去不影响这次工具执行)） |
 
 - **`error` 只在 `model_call` 且 `reason = lost` 时可带**，是 `{ cause, statusCode? }` 那一类的故障描述：
-  `$ref` `data.loop-extension` v1 的 `FailureCause`（[G-2](#九已知缺口)），[状态码原样带着、不翻译](../../../../product/PF-013-model-profiles-and-invocation/design.md#57-上交带什么原样带着状态码不翻译它)。
+  `$ref` [`data.loop-extension/v1#S-17`](../../loop-extension/v1/contract.md#s-17-failurecause) 的 `FailureCause`，[状态码原样带着、不翻译](../../../../product/PF-013-model-profiles-and-invocation/design.md#57-上交带什么原样带着状态码不翻译它)。
   **别的组合带了是 `malformed`**：被中断不是故障，不带成因；帧流断了不是一次模型调用的故障。
 - **`lost` 不带 `error` 是合法的**：生产者知道断了、却说不出为什么。**缺席不等于「没有故障」**，成因怎样定归模型调用一侧（`data.model-response` v1），本契约不替它补。
 - **生产者自己断了、连 `finish` 都没来得及发**的情形，由消费一侧的放弃动作补上一个 `lost`（`capability.stream-assembly`）；
@@ -477,8 +476,8 @@ replace 块： content ≝ fillₙ.payload                                      
 **事件属于哪一条流，不是一条序列规则**：宿主按目标把事件交给那条流的装配状态；
 一个目标此刻没有对应的流，是宿主路由的事，不是一个到达语法的失败值。
 
-**「一条消息里 `id` 不重复」这一条，消费一侧的失败集合本版没有对应的名字**：它在消息落进日志的那一道边界上按 `data.content-blocks/v1#S-3` 被拒——
-晚于这条流本身。**更早拒它要一个新的失败值**（[G-6](#九已知缺口)）。
+**「一条消息里 `id` 不重复」这一条，消费一侧的失败集合里没有对应的名字**：它在消息落进日志的那一道边界上被拒，拒绝值是 `data.messages` 的 `block_id_duplicate`——
+晚于这条流本身，那时整条消息被拒（主线裁定 2026-09-23，待产品负责人确认；原 G-6）。流上不另设失败值。
 
 **判定时机不在本契约**：单个信封就判得出的，是本契约的表示层拒绝（[S-28](#s-28-表示层拒绝值)）；要看这条流此前发生过什么才判得出的，是消费一侧的判定。
 例外有两个——`replace_payload_shape` 与帧流上往语音块填字节的 `frame_media_inline`：它们要借开块，却归本契约（[S-12](#s-12-填整体替换)、[S-23](#s-23-执行帧的另外四条)）。
@@ -510,8 +509,8 @@ replace 块： content ≝ fillₙ.payload                                      
   `$id` = `https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/arrival-events/v1/arrival-events.schema.json`
 - **定义项（14 项）**：`ArrivalEnvelope`、`ArrivalTarget`、`ArrivalEvent`、`OpenEvent`、`FillEvent`、`CloseEvent`、`TrimEvent`、`AccountEvent`、`FinishEvent`、
   `BlockKind`、`FillMode`、`BlockHead`、`PresentationHint`、`FinishReason`。消费者 `$ref` 这些定义，**不复制一份同义类型**。
-- **外部引用**：`ContentBlock`、`BlockId`、`Visibility`、`MediaType`、`CallId` 取自 `data.content-blocks` v1；`Usage`、`Cost`、`TrimReason` 取自 `data.call-accounts` v1；
-  **`ModelCallId` 取自 `data.call-accounts` v1、`FailureCause` 取自 `data.loop-extension` v1——这两处此刻解析不到**（[G-1](#九已知缺口)、[G-2](#九已知缺口)）。
+- **外部引用**：`ContentBlock`、`BlockId`、`Visibility`、`MediaType`、`CallId` 取自 `data.content-blocks` v1；`Usage`、`Cost`、`TrimReason`、`ModelCallId` 取自 `data.call-accounts` v1；
+  `FailureCause` 取自 `data.loop-extension` v1。
 - **根模式不约束任何文档**：本文件是共享定义的登记处；一个信封按 `$defs/ArrivalEnvelope` 校验。
 - **成员名一律 camelCase**；枚举值一律 snake_case 字符串；事件的判别成员叫 `t`，目标的判别成员叫 `kind`（与块的 `kind` 不相干）。
 - **正反实例**：[`examples.md`](examples.md)。它是本版的规范工件，不是说明材料。
@@ -577,7 +576,7 @@ event_unknown  >  trim_reason_unknown = finish_reason_unknown（互斥，不会�
 | [S-5](#s-5-信封与目标) 目标 | **管得到**：两种形状、`dispatch ≥ 1`、无多余成员 | 目标此刻有没有一条流、属于哪个会话——消费一侧 |
 | [S-6](#s-6-六种事件)、[S-27](#s-27-判别式与枚举闭合) 六种事件与闭合 | **管得到**：`oneOf` 六种 | 拒绝值的**名字**由 [S-28](#s-28-表示层拒绝值) 定 |
 | [S-7](#s-7-块索引) 索引 | 管非负整数 | 唯一、单调——消费一侧（[S-24](#s-24-违反语法由消费一方判定并命名)） |
-| [S-8](#s-8-开块) 开块 | **管得到**：必填成员、`append` 只对四类 | `id` 在消息内唯一——消息落日志的边界（[G-6](#九已知缺口)） |
+| [S-8](#s-8-开块) 开块 | **管得到**：必填成员、`append` 只对四类 | `id` 在消息内唯一——消息落日志的边界（`data.messages` 的 `block_id_duplicate`，[S-24](#s-24-违反语法由消费一方判定并命名)） |
 | [S-9](#s-9-块头) 块头 | **管得到**：哪类必带、哪类不得带 | 媒体类型的模态与类型相符——消费一侧 |
 | [S-10](#s-10-呈现提示) 呈现提示 | 管形状 | 取值集——[G-3](#九已知缺口)；本版一律拒 |
 | [S-11](#s-11-填追加片段)、[S-12](#s-12-填整体替换) 填 | 管 `payload` 是字符串或三类之一的整块 | 片段合不合那一类、整块合不合开块——要看开块 |
@@ -706,13 +705,13 @@ event_unknown  >  trim_reason_unknown = finish_reason_unknown（互斥，不会�
 
 | # | 缺口 | 阻断谁 | owner |
 |---|---|---|---|
-| **G-1** | **`ModelCallId` 的定义还不在 `data.call-accounts` v1 里**：主线已裁定它的家在那份契约（连同 `RunId`、`AttemptId`），由对齐波补进 Schema 与条款；本契约的 Schema 已按那个位置 `$ref`，**此刻解析不到**，catalog 也因条款号未定而不登这一项 | Schema 校验；catalog 的依赖登记 | **整批对齐的执行者（主线）**：补进 `data.call-accounts` v1 后，本契约 catalog 补登对应条款号，`$ref` 解析通过 |
-| **G-2** | **`FailureCause` 在 `data.loop-extension` v1**：那份契约并行起草、不在本工作树；本契约 `$ref` 它的 `$defs/FailureCause`，**此刻解析不到**，catalog 不登 | Schema 校验；[S-16](#s-16-收尾) 的 `error` 的精确形状 | **整批对齐的执行者（主线）**：那份契约并入后补登依赖（坐标 ＋ 定义 `FailureCause` 的条款号），核对它就是「成因 ＋ 可选的原样状态码」这一形状 |
+| G-1 | **已闭合（2026-09-24 整批对齐）**：`ModelCallId` 已在 [`data.call-accounts/v1#S-37`](../../call-accounts/v1/contract.md#s-37-三个归属标识的家runidattemptidmodelcallid)，`$ref` 解析通过，catalog 补登 | — | — |
+| G-2 | **已闭合（2026-09-24 整批对齐）**：`FailureCause` 在 [`data.loop-extension/v1#S-17`](../../loop-extension/v1/contract.md#s-17-failurecause)，`$ref` 解析通过、形状就是八值枚举（状态码是本契约 `error` 的另一个成员），catalog 补登 | — | — |
 | **G-3** | **呈现提示的取值集未定**：`hint` 与 `language` 各取哪些值（草案对照 omne-next 列过九种渲染提示） | 任何要带呈现提示的生产者——**本版一律 `presentation_invalid`** | **呈现层（PF-016）**；取值集定下后以新版本加入本契约或由它引用 |
 | **G-4** | **节流的参数与执行者未定**：单个增量的长度上限、一条流可送达的额度、哪些帧会被拒收，由谁（发帧原语、出站流）施行；模型回复一侧是否允许改变内容的砍 | 任何要节流的一方；`TrimSummary` 里三种改变内容的原因能否在模型侧出现 | **工具执行运行时的契约（块 B）与 PF-006 的 owner**；模型侧那一问归 **PF-009 的 owner** |
 | **G-5** | **整块载荷与不带载荷的事件怎样计 `omittedBytes`**：`data.call-accounts/v1#S-15` 只给了文本与二进制两种口径 | 砍掉或拒收一个整块的填、一个开块或封口时的字节数 | **整批对齐的执行者（主线）**，必要时回 `data.call-accounts` |
-| **G-6** | **一条消息里 `BlockId` 重复，没有在流上被拒的失败值**：它只能在消息落进日志时按 `data.content-blocks/v1#S-3` 被拒，那时整条消息被拒 | 生产者给错 `id` 时，一整条帧消息或回复在落盘时丢掉，而不是只拒那一块 | **主线**：是否给 `capability.stream-assembly` 加一个失败值 |
-| **G-7** | **主线裁决的设计链落处**：[设计依据](#设计依据)下方点名的五项（索引由生产者给、呈现提示、`dispatch`、记账载荷、成因 `$ref`）只在施工简报里，决定记录 `record/decisions/message-and-shape-rulings-2026-09-23/` 落地中 | 本契约接受时这几条的可追溯性 | **主线**：决定落地后把那几行改成链接 |
+| G-6 | **已闭合（2026-09-24 整批对齐）**：主线裁定一条消息里块 `id` 重复在消息层的接收边界拒，拒绝值 `block_id_duplicate` 归 `data.messages`；流上不另设失败值（[S-24](#s-24-违反语法由消费一方判定并命名)） | — | — |
+| G-7 | **已闭合（2026-09-24 整批对齐）**：Q4、Q17 已落为 [D-038](../../../../record/decisions/message-and-shape-rulings/decision.md)；其余三项是主线裁定、依据行已写明（[设计依据](#设计依据)下方那张表） | — | —
 
 ## 十、明确不承诺
 
@@ -739,5 +738,4 @@ event_unknown  >  trim_reason_unknown = finish_reason_unknown（互斥，不会�
 **不建 `formal/`**：理由在[性质一节](#性质)末尾——序列行为的模型在 `capability.stream-assembly` v1，本契约不另造平行模型。
 
 **发布后**：本目录下的规范正文、Schema 与实例不可原地覆盖；修改发布新版本。
-[已知缺口](#九已知缺口)任一项被裁决后，凡改变本契约语义或表示的（G-3 给出取值集、G-4 改变可砍的事件、G-6 前移判定），都出 **v2**；
-G-1、G-2 只让已写的 `$ref` 解析通过、补登 catalog，**不改语义**。接受状态、冻结记录与执行结果都在本版本目录之外维护。
+[已知缺口](#九已知缺口)任一项被裁决后，凡改变本契约语义或表示的（G-3 给出取值集、G-4 改变可砍的事件），都出 **v2**。接受状态、冻结记录与执行结果都在本版本目录之外维护。

@@ -81,7 +81,7 @@
           }
         }
       ],
-      "$comment": "ModelCallId 由主线裁定落在 data.call-accounts v1，由对齐波补进那份 Schema；此刻这个 $ref 解析不到（contract.md G-1）。"
+      "$comment": "ModelCallId 的家在 data.call-accounts v1（该契约 S-37，会话内唯一）；本契约只引用。"
     },
 
     "ArrivalEvent": {
