@@ -1,0 +1,23 @@
+# model-profile-directory
+
+- kind：`provider`
+- 对象与设计修订：状态 `candidate`，2026-09-25 首稿；兑现 `omne-harness-lite-design-2026-09-15 · capability.model-profile-directory · v1`（[契约](../../../../spec/capabilities/model-profile-directory/v1/contract.md)，状态 `candidate`、未冻结）。插件边界与服务键取自 [D-039](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#拆分领域名与装配g3) 接受的 model 拆分 A/A/A 的[装配草图](../../../../record/proposals/capability-split-model/design.md#装配草图与切分理由)（P-1、P-1r）；取值问法单列一个服务键是本节点的细化，理由在 [design.md](design.md#三个服务键取值问法单列)
+- 源码位置：`packages/model/model-profile-directory`——尚未建包。第二层 `model` 由 D-039 拍板，布局见[两层布局](../../../README.md#packages-的两层布局)
+- 契约采用与边界依据：一个包、两个插件。**P-1**（中心侧，候选插件名 `model-profile-directory`）拥有档案行、凭据绑定与官方清单的装入状态，provide `modelCatalog`（候选），兑现契约十个操作；`loadManifest` 不上任何服务面，只在插件体里对装配交来的发布清单调一次。单进程的开发与验收装配里，P-1 按配置另 provide 据点侧的两个服务键。**P-1r**（据点侧，候选插件名 `model-catalog-read`）是同两个服务键的另一个提供者：`modelCatalogRead`（读、列、「有没有」）与 `credentialLookup`（只有取值问法），后端是治理中心入口的客户端加只读副本——**入口 v2 未起草，P-1r 受阻**。中心侧由 [tenancy-host](../../../apps/tenancy-host/README.md) 装配，据点侧由 [cli](../../../apps/cli/README.md) 装配。Cordis 采用版本 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/decision.md)）
+
+## 分层状态
+
+- 语义接受范围：未接受（候选，待 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）
+- 可实施范围：P-1 声称兑现 S-5～S-12（存储事实与贯穿规矩）、S-14～S-20 与 S-31～S-33（十个操作）、S-21（通知）、S-22 左列、S-23，逐条落点见 [design.md](design.md#操作落点)。**尚未建包，没有任何实现。**阻断两处（[缺口](design.md#实施缺口与消费者影响)）：凭据保管方没有契约也没有提供者，取值问法恒 `unavailable`（MPD-N1）；P-1r 依赖的入口 v2 与据点副本的新鲜度上界都未定义（契约 G-7；MPD-N2），据点侧读面整体受阻
+- 绑定与证据：[`bindings.yaml`](bindings.yaml) **空表**——契约 S-24 不选用形式工件，没有登记的 formal task 可绑；证据形式是规范场景 S-25～S-30 与一条静态检查，都没有实现可跑，登记在 [verification.md](verification.md#证据义务)
+- 实际验证：无
+
+## 按当前问题展开
+
+| 当前问题 | 阅读入口 |
+|---|---|
+| 两个插件、三个服务键、清单怎样只由发布装入、存储要求、事件边界、装配给怎样兑现 | [实现设计](design.md) |
+| 哪条承诺由哪份证据支持 | [绑定表](bindings.yaml)（空）与[验证与证据](verification.md) |
+
+状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
+契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。

@@ -1,0 +1,9 @@
+# 条款到证据的绑定表。
+# 空表：capability.asset-evaluation v1 没有登记的 formal task。formal/Evaluation.als 是 Alloy 结构模型，
+# 契约 S-32 写明它不登记为 formal task（alloy exec 的退出码与断言结果无关），因此不可绑定。
+# 源码不存在，没有测试可绑。证据义务与缺口记在 verification.md。
+version: 1
+node: "asset-evaluation"
+kind: "provider"
+
+bindings: []

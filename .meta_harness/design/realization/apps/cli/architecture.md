@@ -28,18 +28,25 @@
 | **不画整个系统的拓扑总图**     | 总图由 [views](../../../views/README.md) 从各节点 join，[不手写](../../AGENTS.md#红线)                                                                                                                                                                                                                              |
 | **不承诺 Windows**             | pty、命名管道、进程组语义三处都未验；登记为 gap（见[分发与升级](#分发与升级)）                                                                                                                                                                                                                                      |
 | **不做单文件分发**             | v1 只发 npm 包；单文件是第二阶段，两条路各有已知门槛（[提案 D8](../../../record/proposals/cli-tui/alternatives.md#d8-分发形态)）                                                                                                                                                                                    |
+| **不为两块运行时另立应用**     | 工具执行运行时与模型请求运行时装在据点进程里；「可独立运行」是验收要求、不是装配边界（[D-039](../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#拆分领域名与装配g3)），由据点清单的[只供测试的验收变体](design.md#验收装配)体现 |
+| **不实现放行判断**             | 本程没有它的提供者（[D-040 §块 B](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#块-b-拆分提案报回的推荐-c按拥有者分领域) PB-1）；产品据点里每一批动作被派发器的全拒件否决，只供验收的放行件**不进产品清单** |
+| **不在据点放出厂格的模型凭据** | [PF-016 §6.20](../../../product/PF-016-cli-tui-delivery-surface/design.md#620-每台机器上只有自己那一把凭据)：每台机器上只有那个人自己那一把（[design.md 关键选择 4](design.md#关键选择)） |
+| **不在运行中替换插件**         | 换任何提供者都走[排空重启](#分发与升级)；进程内换代是登记在案的收窄，改选条件在 [design.md 关键选择 2](design.md#关键选择) |
+| **据点不装资产治理**           | 资产治理与模型档案目录的写面在中心、由 [`apps/tenancy-host`](../tenancy-host/README.md) 装配；据点依赖图里不得出现 `packages/assets/asset-governance`（结构检查，见 [verification](verification.md#证据义务)） |
 
 ## 拓扑与进程模型
 
-**本应用起三类进程。**一个可执行文件按命令决定装哪一份装配清单；
+**本应用自己起两类进程，据点进程再按需拉起三类子进程。**一个可执行文件按命令决定装哪一份装配清单；
 [会话、运行与工具执行都在用户本机](../../../record/decisions/cli-tui-delivery-form/decision.md)，
 治理中心在远端且**不知道任何会话**。
 
 | 进程                                                                                                                               | 生命周期与所有者                                                                                                                                                                                                                                                                                                                                                                                               | 承载什么                                                                                                                                                                                                                                                                                  | 崩溃或退出时谁收口                                                                                                                                                 |
 | ---------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **客户端进程**（人读 / 机读两种[呈现形式](../../../product/PF-016-cli-tui-delivery-surface/design.md#呈现形式)共用一个可执行文件） | 每个终端一个或每次调用一个；用户起、用户停                                                                                                                                                                                                                                                                                                                                                                     | 呈现与输入：终端渲染或逐行输出、界面自己的临时状态、[观感偏好](../../../product/PF-016-cli-tui-delivery-surface/design.md#观感偏好)、所选登录状态凭据的引用。**零领域事实**（[PF-016 §6.1](../../../product/PF-016-cli-tui-delivery-surface/design.md#61-交付面不持有任何领域事实)）      | **只是观察者走了**：不撤销任何领域动作、不改变任何会话事实。终端还原由本进程负责，且不只靠撤除路径（见 [design.md](design.md#成对的装载与撤除)）                   |
-| **据点进程**（承载[会话据点](../../../product/PF-016-cli-tui-delivery-surface/design.md#会话据点)的常驻进程，按操作系统用户一个）  | **机器开着时始终在运转**（[PF-016 §6.16：没人开着屏这一处照常发生事](../../../product/PF-016-cli-tui-delivery-surface/design.md#616-没人开着屏这一处照常发生事)）：随操作系统用户登录自启（launchd / systemd user unit 一类，形态**未钉**），任一命令也能拉起；**不因空闲退出**，机器关机才是停机。提案里的 Q-常驻[已由产品裁为常驻](../../../product/PF-016-cli-tui-delivery-surface/decisions.md#一拍板记录) | 据点一侧的全部事实：会话与会话日志、等着的决策卡片、受理与队列、每个活跃会话一副 agent runtime、模型传输、治理侧的客户端代理与只用于显示的副本；并监听本机 socket。**本机唯一的写者**                                                                                                     | 等同停机：恢复按 [PF-012](../../../product/PF-012-agent-loop-and-run/design.md) 的「先对账再重算」；在途工具执行按该 PF 的对账规则判。**退出不是取消，也不是失败** |
+| **据点进程**（承载[会话据点](../../../product/PF-016-cli-tui-delivery-surface/design.md#会话据点)的常驻进程，按操作系统用户一个）  | **机器开着时始终在运转**（[PF-016 §6.16：没人开着屏这一处照常发生事](../../../product/PF-016-cli-tui-delivery-surface/design.md#616-没人开着屏这一处照常发生事)）：随操作系统用户登录自启（launchd / systemd user unit 一类，形态**未钉**），任一命令也能拉起；**不因空闲退出**，机器关机才是停机。提案里的 Q-常驻[已由产品裁为常驻](../../../product/PF-016-cli-tui-delivery-surface/decisions.md#一拍板记录) | 据点一侧的全部事实：会话与会话日志、等着的决策卡片、受理与队列、每个活跃会话一副 agent runtime；**工具执行宿主、MCP 桥、拓展点派发器与 hooks 兼容层、会话资产注册表、模型档案读提供者、模型请求运行时（含传输）、转换件登记表**（[装载清单](design.md#据点装载清单与顺序)）；治理侧的客户端代理与只用于显示的副本；并监听本机 socket。**本机唯一的写者**：一份 SQL 存储、一本 JSONL 会话日志 | 等同停机：恢复按 [PF-012](../../../product/PF-012-agent-loop-and-run/design.md) 的「先对账再重算」——下一次启动时执行宿主做恢复扫描、MCP 桥回收上次的 stdio 孤儿、模型调用由 loop 在新尝试开始时对账（[design.md](design.md#提供者换代或缺席时谁被重跑)最后一行）。**退出不是取消，也不是失败** |
 | **工具执行子进程组**                                                                                                               | 由据点进程起：前台每个[运行](../../../product/PF-012-agent-loop-and-run/design.md)一组，已转后台的每次执行自己一组                                                                                                                                                                                                                                                                                             | 一次[工具执行](../../../ubiquitous_language/terms/execution-and-outcome.md)的实际作用落点——本形态下[宿主机就是用户自己的电脑](../../../product/PF-016-cli-tui-delivery-surface/design.md#三用户与场景)，[沙箱实现可选装配](../../../ubiquitous_language/terms/grounding-and-isolation.md) | 前台组随该运行的取消或强制停止被带走；后台组随会话归档或据点进程退出被带走，**不随该运行的取消**；两者都不假定外部效应可回滚                                       |
+| **MCP stdio 服务端进程组** | 由据点进程里的 MCP 桥在连接惰性建立时拉起，每条连接一组；**本版一律在据点机拉起**（[D-037](../../../record/decisions/mcp-client-adoption/decision.md)） | 一个第三方 MCP 服务端程序；受宿主机约束（[PF-005 §6.2](../../../product/PF-005-execution-environments-and-sandboxes/design.md#62-宿主机不提供租户隔离因此必须被显式允许)：不提供租户隔离、须显式允许）；环境变量按白名单给 | 桥撤下或据点退出：关传输 → 终止进程组 → 排空 stderr（`capability.mcp-bridge/v1` S-26）；据点被强杀留下的孤儿由重启后的桥回收、不复用（S-28）。**本应用不随包分发任何 MCP 服务端程序** |
+| **hooks 兼容件子进程** | 由 hooks 兼容层在一次拓展点经过里起，每次一个 | 用户导入的 Claude Code／Codex hook 命令 | 超时后按进程组停下（`capability.hooks-import/v1` S-26 第 2 行）；应落在会话级执行环境，**执行环境没有契约**（[design.md 缺口 C-7](design.md#实施缺口与消费者影响)） |
 
 **演化边（v1 不启用）**：把 agent runtime 搬进每会话工作进程。
 Cordis 的 fiber 树、服务解析、重载与 effect 释放**只在一个进程内**成立
@@ -48,6 +55,9 @@ Cordis 的 fiber 树、服务解析、重载与 effect 释放**只在一个进�
 所以**能切的是装配，不是能力**：每个进程一棵根 context、一份清单，跨进程的服务面靠远端代理提供者兑现。
 切分前要闭合的先决核对与四条约束在[提案](../../../record/proposals/cli-tui/design.md#契约与-cordis-投影)，
 本节点在测出瓶颈之前不展开它。
+
+**第二条演化边（v1 不启用）**：把执行宿主、MCP 桥或 stdio 服务端的落点搬出据点进程或据点机（执行环境在远端、「可换落点」是 [D-037](../../../record/decisions/mcp-client-adoption/decision.md) 记下的将来拓展点）。
+切过去之后，本节点今天在[装配给逐行承接](design.md#装配给逐行承接)里标「承接」的那几行——同一 `storage`、同一 `clock`、执行宿主不在 agent runtime 之下、按进程组停——要改由各契约「装配给 vs 协议给」表的右列经协议重新兑现（`capability.tool-execution-runtime/v1` S-46、`capability.mcp-bridge/v1` S-30、`capability.hooks-import/v1` S-26）。触发条件是出现要在别处执行的具名需求，不是预感。
 
 ### 本应用内部的进程边
 
@@ -67,6 +77,25 @@ Cordis 的 fiber 树、服务解析、重载与 effect 释放**只在一个进�
 
 **这两条边上没有任何绑定**：线上投影已接受（D-028）、传输绑定已冻结（D-029），但客户端代理不存在，源码不存在。
 
+**第三条到中心的边待立**：据点要从中心读模型档案目录、资产持有与配值、租户那一把模型凭据，并把 hooks 导入与 OAuth 取得之后的结果写回中心——`composition.governance-center-entry/v1` 的封闭路由表**不承载这些面**。它归入口组合 v2（[design.md 缺口 C-4](design.md#实施缺口与消费者影响)），下表先占位：
+
+| 边 | 对端 | 契约坐标 | 本侧责任 |
+| --- | --- | --- | --- |
+| 据点一侧 → 治理中心：模型档案目录、资产持有与配值、范围化的值与凭据的送达、资产写面 | [`apps/tenancy-host`](../tenancy-host/README.md) | **待立：入口组合契约 v2**（拟议；要投影的能力是 `capability.model-profile-directory/v1` 的读面与凭据取值问法、`capability.asset-governance/v1` 的读写面） | 本侧是消费方：P-1r 与据点上的中心事实副本经它读、断线读副本且不当成「没配」；秘密落地归凭据保管方。**新鲜度上界与单调读由它定义**（`capability.model-profile-directory/v1` S-22 第 2 行、`capability.model-request-runtime/v1` S-38 第 5 行的右列） |
+
+### 与外部服务的边
+
+据点进程直接连出去的两类对端，与它拉起的两类第三方程序。**对端不是本项目的应用**，边上的保证全部由本侧契约的提供者兑现。
+
+| 边 | 对端 | 契约坐标 | 本侧责任 |
+| --- | --- | --- | --- |
+| 据点 → 模型服务（HTTPS） | OpenRouter，**唯一出口**（[SYS-LLM](../../../foundation/cross-system-constraints/requirements.md#sys-llm)） | `capability.model-request-runtime/v1`（传输十一条在它的 [S-38](../../../spec/capabilities/model-request-runtime/v1/contract.md#s-38-装配给的保证-vs-协议须给的保证)），到达形状 `data.arrival-events/v1`、回复形状 `data.model-response/v1`（均 candidate） | 传输适配是 P-2 的进程内依赖（pi-ai 定向 fork，D-019），**不另起进程**；base URL 是构建内常量、不是用户配置项；凭据值只在发出那一刻出现、只交给传输适配（[S-19](../../../spec/capabilities/model-request-runtime/v1/contract.md#s-19-凭据每次发出现取取值只交给传输适配)）；「已出门」先于出网 |
+| 据点 → 远端 MCP 服务端（Streamable HTTP）与它的 OAuth 授权方 | 第三方 | `capability.mcp-bridge/v1`、接入点形状 `data.mcp-endpoint/v1`（均 candidate） | 协议层归官方 SDK（D-037）；连接归桥、不跨租户（[S-6](../../../spec/capabilities/mcp-bridge/v1/contract.md#s-6-连接归桥不上签名不跨租户)）；已发出的调用不重放；OAuth 绑定与令牌落据点、跟机器（[S-8](../../../spec/capabilities/mcp-bridge/v1/contract.md#s-8-oauth-绑定状态与迁移)），落处归凭据保管方（[design.md 缺口 C-5](design.md#实施缺口与消费者影响)） |
+| 据点 ↔ 本机 MCP stdio 服务端（子进程的标准输入输出） | 第三方程序 | `capability.mcp-bridge/v1`（candidate） | 只给白名单上的环境变量、正文的变量与它自己那份凭据，不继承据点进程的其余环境（[S-6](../../../spec/capabilities/mcp-bridge/v1/contract.md#s-6-连接归桥不上签名不跨租户)）；stderr 持续排空、遮掉凭据后留存；收口次序按 [S-26](../../../spec/capabilities/mcp-bridge/v1/contract.md#s-26-连接的收口次序) |
+| 据点 ↔ hooks 兼容件子进程 | 用户导入的命令 | `capability.hooks-import/v1`（candidate） | 输入译成来源产品的原生形状、输出译回拓展点结论；超时按进程组停（[S-26](../../../spec/capabilities/hooks-import/v1/contract.md#s-26-装配给的保证-vs-协议须给的保证) 第 2 行）；**落在会话级执行环境是缺口**（同 S-26 第 1 行） |
+
+**这四条边上也没有任何绑定**：契约全部 candidate（待 [D-041](../../../record/decisions/assets-runtimes-contract-acceptance/README.md)），提供者与源码都不存在。
+
 ## 交互面
 
 **人用的面与脚本用的面消费同一份投影、走同一条受理**
@@ -77,7 +106,9 @@ Cordis 的 fiber 树、服务解析、重载与 effect 释放**只在一个进�
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **人用**（人读那一份）   | 界面模式的入口，加会话族 · 治理族 · 本机族三族一等子命令与界面骨架；[斜杠命令属于会话族](../../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)，与子命令共享同一份命令定义 | [PF-016 §5.7](../../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)、[§5.4](../../../product/PF-016-cli-tui-delivery-surface/design.md#54-人做的每一件事走的都是已有的路)                                                                                                     | **待立：交付面呈现与受理契约**（拟议名）                                                                                                                                                                                                             |
 | **脚本用**（机读那一份） | 无界面模式的逐行 JSON 进出、日志投影的可续读输出、退出码族                                                                                                                                           | [PF-016 §5.5](../../../product/PF-016-cli-tui-delivery-surface/design.md#55-两种呈现形式同一份事实)、[§6.6](../../../product/PF-016-cli-tui-delivery-surface/design.md#66-机读那一份只承载事实)、[§6.5](../../../product/PF-016-cli-tui-delivery-surface/design.md#65-人能做的脚本能做脚本能做的人能做) | **待立：同上**（退出码族与逐行输出的精确形状是那份契约的一部分，不是本页的自由度）                                                                                                                                                                   |
-| **治理族直通**           | 治理族的每个动作与租户契约的操作一一对应；**精确清单从[身份清单](../../../registry/README.md)生成，本页不抄一份**                                                                                    | [PF-016 §5.7 治理族](../../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)                                                                                                                                                                                                    | `capability.account-identity/v1`、`capability.organization-governance/v1`、`composition.account-registration/v1` 各自的操作，线上形状按 `composition.governance-center-entry/v1` 的封闭路由表（`candidate`）；**据点一侧不重写语义、不补造请求身份** |
+| **治理族直通**           | 治理族的每个动作与租户契约的操作一一对应；**精确清单从[身份清单](../../../registry/README.md)生成，本页不抄一份**                                                                                    | [PF-016 §5.7 治理族](../../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)                                                                                                                                                                                                    | `capability.account-identity/v2`、`capability.organization-governance/v1`、`composition.account-registration/v1` 各自的操作，线上形状按 `composition.governance-center-entry/v1` 的封闭路由表（`accepted`，D-028）；资产的复制与分享、组织层与租户层的设置与模型档案（`capability.asset-transfer/v1`、`capability.asset-governance/v1`、`capability.model-profile-directory/v1` 的写面，均 candidate）那几件的线上形状**待立：入口组合契约 v2**；**据点一侧不重写语义、不补造请求身份** |
+| **斜杠命令**（会话族）   | 人读那一份的输入框、机读那一份的输入行，以 `/` 开头的一条；交付面预判、受理面再判，两处以受理那一次为准                                                                                              | [PF-016 §5.7](../../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)、[PF-002 §4](../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)                                                                                                                  | `data.slash-command/v1`（candidate）S-12～S-24；识别与解析由 `packages/core/tool-model` 兑现，交付面与受理面各 import 一次（[D-036](../../../record/decisions/slash-command-parsing-baseline/decision.md)）                                           |
+| **会话里的模型与资产**（会话族） | 给这个会话换一个模型、reload 换成新的一批命令与资产、看这个会话此刻能用什么；MCP 接入点的 OAuth 授权、导入 hooks                                                                               | [PF-016 §5.7](../../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)、[PF-013 §6.6](../../../product/PF-013-model-profiles-and-invocation/design.md#66-切换先是一条要被记录的事实)                                                                                                    | 背后的操作：`capability.model-request-runtime/v1`（选模型）、`capability.asset-registry/v1`（`reload`、可用性报告）、`capability.mcp-bridge/v1`（`beginOAuth`／`completeOAuth`）、`capability.hooks-import/v1`（导入，落成资产那一次写走中心）；交付面上的呈现与受理形状**待立：交付面呈现与受理契约** |
 | **非 TTY 与能力不足**    | 界面模式在非 TTY 下拒绝启动并指向机读那一份；终端能力按白名单与协商判定，**不静默降级**                                                                                                              | [PF-016 §6.15](../../../product/PF-016-cli-tui-delivery-surface/design.md#615-环境不支持的时候明说不静默降级)                                                                                                                                                                                           | **待立：同上**（退出码属于那份契约）                                                                                                                                                                                                                 |
 
 **调试流不在上表**：它走另一条流、由旗标开启，且
@@ -87,8 +118,8 @@ Cordis 的 fiber 树、服务解析、重载与 effect 释放**只在一个进�
 ## 包分层与依赖规则
 
 产品包按 `packages/<能力族>/<职责包>/` 两层：**第一层只组织相关能力，不是成员**。
-下表是本应用的装配对象；**各包内部的设计归它自己的 provider 节点**，现在一个都还没有。
-**全部包尚未建立**——只在规格接受后建成员。
+下表是本应用的装配对象；**各包内部的设计归它自己的 provider 节点**——`tools`、`model`、`agent-loop` 与两个 `core` 纯模块的节点与本节点并行起草，`frontend` 与租户客户端代理还没有节点。
+**除 `infra` 两个包与 `core/storage` 外全部尚未建立**——只在规格接受后建成员。
 
 | 层             | 包                                                                                                                                              | 可以依赖                                                                                                                                                            | 不可以依赖                                                                              |
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
@@ -96,27 +127,36 @@ Cordis 的 fiber 树、服务解析、重载与 effect 释放**只在一个进�
 | 交互层 · 契约  | `packages/frontend/contract`                                                                                                                    | 无——**只有形状没有行为**，不进 `ctx`                                                                                                                                | harness 能力族、渲染库、任何传输实现                                                    |
 | 交互层 · 门面  | `packages/frontend/facade`                                                                                                                      | `contract` + harness 能力族的服务面 + 租户契约的客户端代理                                                                                                          | 渲染库、具体传输实现。**它是 harness 的消费者，不是它的一部分**，自己不持有任何领域事实 |
 | 交互层 · 传输  | `packages/frontend/transport-socket`（两端）                                                                                                    | `contract`                                                                                                                                                          | harness 能力族——**跨进程的事一律是协议消息，不是内核事件**                              |
-| 交互层 · 人读  | `packages/frontend/tui`（渲染层适配边界在这里）                                                                                                 | `contract`，经传输客户端拿到实现                                                                                                                                    | harness 内部、`facade`。换渲染库只改这一个包                                            |
-| 交互层 · 机读  | `packages/frontend/headless`                                                                                                                    | `contract`                                                                                                                                                          | 同上                                                                                    |
+| 交互层 · 人读  | `packages/frontend/tui`（渲染层适配边界在这里）                                                                                                 | `contract`，经传输客户端拿到实现；`packages/core/tool-model`（斜杠命令的识别与解析，纯模块）                                                                                                                                  | harness 内部、`facade`。换渲染库只改这一个包                                            |
+| 交互层 · 机读  | `packages/frontend/headless`                                                                                                                    | `contract`；`packages/core/tool-model`（同上） | 同上                                                                                    |
 | 租户契约实现   | `packages/tenancy/<职责包>`（本节点只装 HTTP 客户端代理提供者；职责包名待规格接受后定）                                                         | 租户契约的类型与线上投影（线上形状的类型现由 `packages/tenancy/governance-center-entry` 的公开入口导出，客户端代理要用时按两层布局判是否搬进 `core`——该节点的 N-9） | `frontend` 家族、harness 能力族                                                         |
-| harness 能力族 | **尚未设计**；v1 全部本地提供者，装在据点进程里                                                                                                 | —                                                                                                                                                                   | —                                                                                       |
+| 工具           | `packages/tools/{tool-execution-runtime, asset-registry, mcp-bridge}`（节点与本节点并行起草，**尚未建包**）；据点一侧装                          | `core` 纯模块、`core/storage` 协议；桥另依赖官方 MCP SDK（D-037）；互相之间只经服务面、调用时取用                                                                   | `frontend` 家族、`packages/assets/asset-governance`、别的领域包的运行时实现（规矩 6） |
+| 模型           | `packages/model/{model-request-runtime, modality-projection}`，与 `packages/model/model-profile-directory` 里的据点读提供者 P-1r（中心的 P-1 同包、**据点不装**）；**尚未建包** | `core` 纯模块；P-2 另依赖 pi-ai 定向 fork（D-019）                                                                                                                  | `frontend` 家族、`packages/assets/asset-governance`、别的领域包的运行时实现（规矩 6） |
+| 拓展点         | `packages/agent-loop/{loop-extension-runner, hooks-import}`；**尚未建包**                                                                        | `core` 纯模块；兼容层另依赖 fork 的 DSH `hook-protocol` 无运行时一半（D-033）                                                                                       | `frontend` 家族、`packages/assets/asset-governance`、别的领域包的运行时实现（规矩 6） |
+| 纯模块         | `packages/core/{tool-model, stream-assembly}`，经传递依赖 `packages/core/{message-model, model-model, asset-model, asset-evaluation}`；**尚未建包** | 只依赖 `core` 内别的纯模块                                                                                                                                          | 任何插件包、`ctx`、存储与传输                                                         |
+| 基础设施       | [`packages/infra/storage-sql`](../../packages/infra/storage-sql/README.md)、[`packages/infra/clock`](../../packages/infra/clock/README.md)，协议在 [`packages/core/storage`](../../packages/core/storage/README.md)（**已建**，由 tenancy-host 先装配） | 见各自节点                                                                                                                                                          | 领域包                                                                                |
+| harness 其余能力族 | 会话日志、装配清单、agent loop 与 agent runtime、受理与队列、决策池：**契约尚未起草**；v1 全部本地提供者，装在据点进程里                     | —                                                                                                                                                                   | —                                                                                     |
 | 内核           | `@deepseek-ai/cordis` 官方包 + 本项目 fork 的 DSH 原语（[SYS-KERNEL](../../../foundation/cross-system-constraints/requirements.md#sys-kernel)） | —                                                                                                                                                                   | —                                                                                       |
 
-**四条依赖方向的规矩：**
+**七条依赖方向的规矩：**
 
-1. **人读与机读两个包只依赖契约**，经传输客户端拿到实现，对 harness 内部零感知。
+1. **人读与机读两个包只依赖契约**，经传输客户端拿到实现，对 harness 内部零感知；唯一的例外是纯模块 `packages/core/tool-model`——交付面在发送之前用它预判斜杠命令（会话斜杠命令集随投影下发），受理面再判一次、以受理那一次为准。
 2. **`frontend` 家族里只有 `facade` 依赖 harness**；它不持有任何领域事实。
 3. **两份装配清单属于 `apps/cli`**，同一个可执行文件按命令决定装哪一份。两份装进同一进程、传输换成进程内**只供验证与调试**——那种形态下成立的「零序列化」「同步可见」**不得被任何测试当成契约保证**。
-4. **治理中心是另一个完整的应用**（[`apps/tenancy-host`](../tenancy-host/architecture.md)），与本应用之间只有[上面那两条边](#与其他应用的边)；共用的只有租户契约与它的线上投影 `composition.governance-center-entry/v1`。
+4. **治理中心是另一个完整的应用**（[`apps/tenancy-host`](../tenancy-host/architecture.md)），与本应用之间只有[上面那几条边](#与其他应用的边)；共用的只有契约、它们的线上投影与 `core` 纯模块（资产的形状与求值两侧各 import 一次）。
+5. **据点不依赖资产治理**：`packages/assets/asset-governance` 不在据点的依赖图里，据点只 import `packages/core/asset-model` 与 `packages/core/asset-evaluation`（assets 候选 B）。这是结构检查，不是约定。
+6. **领域包之间只经服务面**：`tools`、`model`、`agent-loop` 三族互不 import 对方的运行时实现；调用都经服务键、在调用时取用或经 `inject`（[design.md 插件与 inject 边](design.md#插件服务与-inject-边)）。服务面的类型要跨包共享时按两层布局放进 `core`，由各 provider 节点定。
+7. **验收替身只在 `apps/cli` 的测试代码里**：只供验收的放行件与各替身不进任何 `packages/*`，产品据点清单里一个都不出现（[验收装配](design.md#验收装配)）。
 
 `frontend` 这个家族名由 [D-022 第⑤条](../../../record/decisions/cli-tui-delivery-form/decision.md)接受；
-**成员划分仍是设计判断，不是被接受的事实**。
+**成员划分仍是设计判断，不是被接受的事实**。`tools`、`model`、`agent-loop` 三个领域名由 [D-039](../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#拆分领域名与装配g3) 接受；各领域下的职责包名同样是设计判断。
 
 ## 技术栈采用
 
 **下表每一行的状态都不是「已经这么做了」，而是「这一版设计选了什么」。**
-除模型传输层外**没有一条被接受**——`candidate` 的依据一律链到提案，
-[提案自己也写明推荐不等于接受](../../../record/proposals/cli-tui/alternatives.md)。
+交付面自己的那几行（渲染、呈现、终端、命令体系、分发、测试驱动）**没有一条被接受**——`candidate` 的依据一律链到提案，
+[提案自己也写明推荐不等于接受](../../../record/proposals/cli-tui/alternatives.md)；
+「已采用」的那几行是据点一侧的内核、存储与各运行时的实现起点，**精确范围都只到采用方向**，契约、提供者与实现都未被接受。
 精确版本未钉的照实写「未钉」，**不填一个看起来合理的值**。
 
 | 选型点               | 采用                                                                                                                                                                                                                                                                                                                                                   | 精确版本                                                                                                                                            | 状态      | 依据                                                                                                                                                                                                     |
@@ -133,12 +173,21 @@ Cordis 的 fiber 树、服务解析、重载与 effect 释放**只在一个进�
 | 观感偏好的存放形态   | **是[个人 context](../../../product/PF-016-cli-tui-delivery-surface/design.md#观感偏好) 的一部分，随账号走**：值在中心一侧，据点留一份副本供离线用，客户端不另存；不参与作用域求值。提案 D10 推荐的「随机器走」**被产品裁决推翻**，本行只保留它对本机副本文件形态的判断                                                                                | 副本文件格式**未钉**                                                                                                                                | candidate | [提案 D10](../../../record/proposals/cli-tui/alternatives.md#d10-配置文件形态)                                                                                                                           |
 | 线上协议与认证       | 据点 ↔ 中心：HTTP/1.1 over TLS 1.3 请求/响应、整个信封含出示物在请求体、显式版本协商、无推送，按 [`composition.governance-center-entry-https-json` v1](../../../spec/compositions/governance-center-entry-https-json/README.md)；客户端必须核中心证书（[规则](design.md#客户端信任中心的规则d-029)）；客户端 ↔ 据点：本机 socket，每条连接出示登录状态 | 据点 ↔ 中心：契约与绑定已冻结（D-028、D-029）；客户端 ↔ 据点的契约未立                                                                              | candidate | [提案 D11](../../../record/proposals/cli-tui/alternatives.md#d11-线上协议与认证)，其「Bearer 头」一处被 [D-029](../../../record/decisions/governance-center-transport-binding-acceptance/README.md) 取代 |
 | 模型传输层           | `pi-ai` 定向 fork，与 agent runtime 同进程                                                                                                                                                                                                                                                                                                             | 取证基线 `@earendil-works/pi-ai@0.85.1`；**fork 的采用版本未钉**（[决定明确不钉](../../../record/decisions/model-provider-pi-ai-fork/decision.md)） | 已采用    | [D-019](../../../record/decisions/model-provider-pi-ai-fork/decision.md)                                                                                                                                 |
+| 内核 | `@deepseek-ai/cordis` 官方发布包，直接采用；插件形态经 `core/kernel-basis` | 4.0.4 | 已采用 | [D-025](../../../record/decisions/cordis-adoption-version/decision.md) |
+| 据点的 SQL 存储 | `packages/infra/storage-sql` 一份实例：Kysely 上的 sqlite 文件库（`node:sqlite`），`synchronous=NORMAL`；文件位置**未钉** | Kysely 0.29.6（workspace catalog）；sqlite 随 Node `>=24 <25` | 已采用 | [D-026](../../../record/decisions/infrastructure-persistence-choices/decision.md)、[D-027](../../../record/decisions/infrastructure-names-and-sqlite-durability/decision.md) |
+| 会话日志的落盘形态 | 本机文件系统 JSONL；**格式、目录与提供者都未定**（[design.md 缺口 C-1](design.md#实施缺口与消费者影响)） | 不适用 | 已采用 | [D-026](../../../record/decisions/infrastructure-persistence-choices/decision.md) |
+| in-memory 存储 | **不提供**；验收装配的会话日志替身也落真实 JSONL 文件 | — | 已采用 | [D-026](../../../record/decisions/infrastructure-persistence-choices/decision.md)、[D-035](../../../record/decisions/message-and-stream-baseline/decision.md) |
+| MCP 协议层 | 官方 `@modelcontextprotocol/sdk` 作一般第三方依赖、不 fork，其上自写薄桥；stdio 服务端一律在据点机拉起 | **未钉**（决定明确未定；钉时精确钉版、不用 `^`） | 已采用 | [D-037](../../../record/decisions/mcp-client-adoption/decision.md) |
+| hooks 兼容层 | fork DSH `hook-protocol` 无运行时的一半，其余自写；改动过半即改选全自研（随决定一起被接受的翻盘判据） | fork 起点 DSH `c291e79`；**fork 尚不存在** | 已采用 | [D-033](../../../record/decisions/hooks-compat-baseline/decision.md) |
+| 工具执行运行时 | 自研；DSH jobs 与 local-execution 只借鉴避坑 | 不适用 | 已采用 | [D-032](../../../record/decisions/tool-execution-runtime-baseline/decision.md) |
+| 消息、到达语法与流装配 | 数据形状自研；到达语法取 `StreamChunk` 骨架加条款化；流装配器自写；纯计算落 `core` | 不适用 | 已采用 | [D-035](../../../record/decisions/message-and-stream-baseline/decision.md) |
+| 斜杠命令识别与解析 | 自研统一解析器，交付面与受理面共用一份 | 不适用 | 已采用 | [D-036](../../../record/decisions/slash-command-parsing-baseline/decision.md) |
 
 **模型传输层那一行「已采用」的精确范围只到采用方向**：fork 代码、API 形状、装配与符合性
 **都没有被接受，也都没有被验证**；所有模型请求经 OpenRouter 是
 [SYS-LLM](../../../foundation/cross-system-constraints/requirements.md#sys-llm) 的硬约束，不是本行的选择。
 **凭据落在哪已裁**（提案的 Q-凭据）：[每台机器上只有那个人自己那一把，配在租户层，中心不签发不轮换](../../../product/PF-016-cli-tui-delivery-surface/design.md#620-每台机器上只有自己那一把凭据)；
-模型传输取据点上那份租户层副本，客户端永不见值。它随范围值同步到据点的通路**尚无契约**：据点 ↔ 中心那份已起草的契约只投影账号、组织治理与注册的操作，不承载范围化的值（[design.md 缺口](design.md#实施缺口与消费者影响)）。
+模型传输取据点上那份租户层副本，客户端永不见值。它随范围值同步到据点的通路**尚无契约**：据点 ↔ 中心那份已起草的契约只投影账号、组织治理与注册的操作，不承载范围化的值——送达归入口组合 v2、据点落地归凭据保管方（[design.md 缺口 C-4、C-5](design.md#实施缺口与消费者影响)）。
 
 ## 分发与升级
 
@@ -149,7 +198,10 @@ Cordis 的 fiber 树、服务解析、重载与 effect 释放**只在一个进�
 - **版本偏差是生产常态**：客户端每次连接出示构建标识；与据点进程不一致时，
   据点进程**先排空再重启**——关闭新运行的准入、等在途工具执行到上限、写完在途日志，然后退出重来。
   **「发出退出」不等于已静止**，收口按[成对的装载与撤除](design.md#成对的装载与撤除)。
-- **存储带格式版本**，据点进程启动时迁移；会话事实在磁盘上，客户端升级不影响它。
+- **排空到上限仍没结束的在途**，各按自己契约的撤除条款收场、**重启之后都不重发**：工具执行落 `failed{abnormal_interruption}`（`capability.tool-execution-runtime/v1` S-48），模型调用落 `interrupted{run_cancelled}`（`capability.model-request-runtime/v1` S-36），MCP 调用落 `bridgeWithdrawn`（`capability.mcp-bridge/v1` S-27）。等多久是具名参数，**值未定**（[design.md 缺口 C-9](design.md#实施缺口与消费者影响)）。
+- **更新任何一个插件都走这一条**：本应用不在运行中替换插件（[design.md 关键选择 2](design.md#关键选择)），所以一次升级就是一次整个据点的排空重启，比必要的多停一批在途——这是登记在案的 v1 收窄。
+- **存储带格式版本**，据点进程启动时迁移：各 owner 导出迁移片段、本应用合成，迁移在 `storage` 对外可用之前跑完，失败即启动失败（与 [`apps/tenancy-host`](../tenancy-host/design.md#装载清单与顺序) 同形）；会话事实在磁盘上，客户端升级不影响它。
+- **MCP 服务端程序不随包分发**：stdio 接入点指向的程序由用户或租户自己装，本应用只负责拉起、收口与回收孤儿。
 - **升级期间的语义保证不归本页**：「不丢东西」归 [PF-012](../../../product/PF-012-agent-loop-and-run/design.md) 与
   [PF-015](../../../product/PF-015-session-lifecycle-and-ownership/design.md)，协议版本协商归那份待立的契约；
   本页只写本应用的排空次序与安装渠道。

@@ -1,0 +1,8 @@
+# 条款到证据的绑定表。
+# 空表：data.model-profile v1 与 data.model-response v1 都没有登记的 formal task；源码不存在，没有测试可绑。
+# 证据义务与缺口记在 verification.md。
+version: 1
+node: "model-model"
+kind: "provider"
+
+bindings: []

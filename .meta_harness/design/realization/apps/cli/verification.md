@@ -3,7 +3,7 @@
 本页登记这个节点**触发了哪些证据义务、实际跑过什么、覆盖到哪里**。
 原始配置、输入快照与运行结果归 [record/evidence](../../../record/evidence/README.md)，本页只引用并解释范围。
 
-> **一句话状态：什么都没跑过。**下面 11 条义务全部「未开始」，
+> **一句话状态：什么都没跑过。**下面 30 条义务（租户边与交付面 11 条、据点装配 19 条）全部「未开始」，
 > [实际执行](#实际执行)是空表，[bindings.yaml](bindings.yaml) 是空表。
 > **这不是「还没来得及记」，是真的没有任何运行。**
 
@@ -14,20 +14,44 @@
 
 | 来源条款 | 需要什么证据 | 当前状态 | owner 与闭合条件 |
 | --- | --- | --- | --- |
-| [`capability.account-identity/v1#S-30`](../../../spec/capabilities/account-identity/v1/contract.md#s-30-装配给的保证-vs-协议须给的保证) | 该条列出的「装配给的保证」在本节点这条跨进程边上**逐条**由协议重新兑现的证据：撤销传播时延上界 δ 进契约、激活可见性窗口内 fail-closed、同提交的等价表述、标识释放的传播界 | **未开始** | 本节点 + 该契约 owner。入口契约 [`composition.governance-center-entry/v1#S-36`](../../../spec/compositions/governance-center-entry/v1/contract.md#s-36-装配给的保证-vs-协议须给的保证)（candidate）已逐行写明这条边上由谁兑现：领域没有被拆开，同存储／同提交类的保证仍由装配给，改由协议给的是与调用方身份和流向调用方的值有关的那几行（含中心一侧 δ = 0）；据点侧副本的陈旧归 PF-016。闭合条件：入口契约接受；在此之前**本节点不得声称这些保证已成立** |
+| [`capability.account-identity/v2#S-30`](../../../spec/capabilities/account-identity/v2/contract.md#s-30-装配给的保证-vs-协议须给的保证) | 该条列出的「装配给的保证」在本节点这条跨进程边上**逐条**由协议重新兑现的证据：撤销传播时延上界 δ 进契约、激活可见性窗口内 fail-closed、同提交的等价表述、标识释放的传播界 | **未开始** | 本节点 + 该契约 owner。入口契约 [`composition.governance-center-entry/v1#S-36`](../../../spec/compositions/governance-center-entry/v1/contract.md#s-36-装配给的保证-vs-协议须给的保证)（`accepted`，D-028）已逐行写明这条边上由谁兑现：领域没有被拆开，同存储／同提交类的保证仍由装配给，改由协议给的是与调用方身份和流向调用方的值有关的那几行（含中心一侧 δ = 0）；据点侧副本的陈旧归 PF-016。闭合条件：据点侧客户端代理立起来并出证据；在此之前**本节点不得声称这些保证已成立** |
 | [`capability.organization-governance/v1#S-42`](../../../spec/capabilities/organization-governance/v1/contract.md#s-42-装配给的保证-vs-协议须给的保证) | 同上，针对组织治理那一侧列出的各条 | **未开始** | 同上 |
-| [`composition.account-registration/v1#S-25`](../../../spec/compositions/account-registration/v1/contract.md) | 注册组合链跨这条边之后的同提交与重跑语义证据 | **未开始** | 同上 |
+| [`composition.account-registration/v1#S-25`](../../../spec/compositions/account-registration/v1/contract.md#s-25-装配给的保证-vs-协议须给的保证) | 注册组合链跨这条边之后的同提交与重跑语义证据 | **未开始** | 同上 |
 | [`data.identity-values/v1#S-30`](../../../spec/data/identity-values/v1/contract.md#s-30-跨边界须重新验证) | 接收边界重新鉴别调用方的结构检查：**持有标识不构成资格** | **未开始** | 同上 |
-| [`data.offer-expiry/v1#S-17`](../../../spec/data/offer-expiry/v1/contract.md) | 跨这条边之后时间源与参数下发的一致性证据，或把「已过期」改成由单点判定并携带的事实 | **未开始** | 同上 |
+| [`data.offer-expiry/v1#S-17`](../../../spec/data/offer-expiry/v1/contract.md#s-17-装配给的保证-vs-协议须给的保证) | 跨这条边之后时间源与参数下发的一致性证据，或把「已过期」改成由单点判定并携带的事实 | **未开始** | 同上 |
 | [`capability.organization-governance/v1#S-18`](../../../spec/capabilities/organization-governance/v1/contract.md#s-18-每道准入现读)、[`#S-43`](../../../spec/capabilities/organization-governance/v1/contract.md#s-43-依赖的提供者不可用) | 中心不可达注入：[必须现读的三类](../../../product/PF-016-cli-tui-delivery-surface/design.md#69-需要现读成员资格的那几件事不拿副本放行)**明确失败且说清是问不到**，副本一次都没有被当成准入依据 | **未开始** | 本节点。闭合条件：代理提供者与据点进程存在 |
-| [`capability.account-identity/v1#S-17`](../../../spec/capabilities/account-identity/v1/contract.md#s-17-校验登录状态) | 本机连接的认证证据：不出示登录状态、出示已撤销的登录状态、同一台机器上另一个账号的连接**三种都被拒**；账号**不从操作系统用户推断** | **未开始** | 本节点。闭合条件：传输两端存在 |
+| [`capability.account-identity/v2#S-17`](../../../spec/capabilities/account-identity/v2/contract.md#s-17-校验登录状态) | 本机连接的认证证据：不出示登录状态、出示已撤销的登录状态、同一台机器上另一个账号的连接**三种都被拒**；账号**不从操作系统用户推断** | **未开始** | 本节点。闭合条件：传输两端存在 |
 | **待立：交付面呈现与受理契约**——[两种呈现形式留下同一串记录条目](../../../product/PF-016-cli-tui-delivery-surface/design.md#55-两种呈现形式同一份事实) | 同一场景分别用人读与机读各跑一遍，记录条目序列**逐条相同** | **未开始** | 本节点。**这是「交付面不是能力」唯一可核的证据**；闭合条件：契约起草接受 + 两种呈现形式都存在 |
 | **待立：同上**——投影顺序等于日志顺序、每条带来源坐标与单调序号、断线续读、有界缓冲与慢消费者处置 | 断线与慢消费者注入下的续读对照；**内核不提供背压与可靠投递**，所以这几条必须由传输端出证据 | **未开始** | 本节点。闭合条件：同上 |
 | **待立：同上**——[机读通道只承载契约内容](../../../product/PF-016-cli-tui-delivery-surface/design.md#66-机读那一份只承载事实)、[秘密不进任何呈现](../../../product/PF-016-cli-tui-delivery-surface/design.md#611-秘密不进任何一份呈现)、[调试开关不改变领域行为](../../../product/PF-016-cli-tui-delivery-surface/design.md#612-观感偏好不改变任何领域行为) | 哨兵串在任何输出面都搜不到；开关调试前后的记录条目序列相同 | **未开始** | 本节点；凭据归属[已裁](../../../product/PF-016-cli-tui-delivery-surface/design.md#620-每台机器上只有自己那一把凭据)，等待立契约 |
 | **待立：同上**——进程以任何方式退出后终端被还原 | 真 pty 冒烟：正常退出、异常退出、收到终止信号三种下终端状态复原。**`kill -9` 与远程连接中断明确不在覆盖内**，因为[撤除路径本身不保证被执行](../../../basis/cordis/effect-disposal-concurrent-not-ordered.md) | **未开始** | 本节点。闭合条件：人读那一份存在 |
 
+**据点装配的义务**（2026-09-25 起）。来源契约全部 candidate（待 [D-041](../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）；「本节点」一列指的是 [design.md](design.md) 里本节点自己作的选择。**结构检查**指对依赖图、装配清单与 inject 声明的静态断言，**演练**指真进程、真文件上的注入。
+
+| 来源条款 | 需要什么证据 | 当前状态 | owner 与闭合条件 |
+| --- | --- | --- | --- |
+| 本节点：[包分层规矩 5](architecture.md#包分层与依赖规则)（assets 候选 B） | 结构检查：据点的依赖图（`apps/cli` 据点入口的传递 import）里没有 `packages/assets/asset-governance` | **未开始** | 本节点。闭合条件：`apps/cli` 建包 |
+| [`capability.tool-admission/v1#S-33`](../../../spec/capabilities/tool-admission/v1/contract.md#s-33-装配给的保证-vs-协议须给的保证)；本节点 [验收装配](design.md#验收装配) | 结构检查：产品据点清单里没有放行件与任何一个替身；它们只在 `apps/cli` 的测试代码里、不在任何 `packages/*` 里 | **未开始** | 本节点。闭合条件：同上 |
+| [`capability.tool-execution-runtime/v1#S-46`](../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-46-装配给的保证-vs-协议须给的保证) 第 1 行 | 演练：一次工具执行在途时回收发起它的那副 agent runtime，执行照常跑到收场、结果照常送达；结构检查：执行宿主的 fiber 父链上没有 agent runtime | **未开始** | 本节点。闭合条件：执行宿主与验收装配的 agent loop 驱动存在（受阻于缺口 C-8 只影响产品装配） |
+| 同上第 3 行；[`capability.mcp-bridge/v1#S-30`](../../../spec/capabilities/mcp-bridge/v1/contract.md#s-30-装配给与协议给) 第 2、4 行；要求 S-a | 装配测试：清单里每个 inject `storage` 的插件拿到的是同一个实例，清单里恰有一份 `storage-sql` | **未开始** | 本节点。闭合条件：执行宿主、桥建包 |
+| 同上第 7 行；[`capability.mcp-bridge/v1#S-27`](../../../spec/capabilities/mcp-bridge/v1/contract.md#s-27-桥被替换或卸载) ⑥；[`capability.modality-projection/v1#S-26`](../../../spec/capabilities/modality-projection/v1/contract.md#s-26-装配给的保证-vs-协议须给的保证) 第 3 行；本节点关键选择 2 | 结构检查：据点装配里没有 loader／HMR、没有对任何插件的 `fiber.update`。演练（排空重启）：在途的一次工具执行、一次模型调用、一次 MCP 调用分别收成 `failed{abnormal_interruption}`、`interrupted{run_cancelled}`、`bridgeWithdrawn`，重启后三者都**没有被重发** | **未开始** | 本节点 + 三个 provider 节点（各自的撤除条款 [TER S-48](../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-48-本能力自己的撤除与换代)、[MRR S-36](../../../spec/capabilities/model-request-runtime/v1/contract.md#s-36-宿主停止与撤除)、BR S-27）。闭合条件：三者建包、验收装配存在 |
+| [`capability.modality-projection/v1#S-9`](../../../spec/capabilities/modality-projection/v1/contract.md#s-9-登记表同键一件登记是系统装配层的声明) 第 2 条、S-26 第 2 行 | 启动序列测试：本机 socket 开闸之前没有任何受理；开闸之后，已声明的键一次也不答「没登记」 | **未开始** | 本节点。闭合条件：P-3 与门面存在（门面受阻于待立的交付面契约，验收装配里用直接调用代替） |
+| [`capability.model-profile-directory/v1#S-22`](../../../spec/capabilities/model-profile-directory/v1/contract.md#s-22-装配给的保证-vs-协议须给的保证) 第 5、6 行；本节点关键选择 4 | 租户没配自己那一把时调官方档案得 `undispatched{credential_unavailable}`；在据点的存储、配置与进程环境里放一个出厂凭据哨兵的反面检查——**哨兵搜不到，因为本装配根本不配它** | **未开始** | 本节点 + P-1r、P-2 节点。闭合条件：两者建包 |
+| 同上第 4 行 | 结构检查：清单里只有 P-2 inject `credentialLookup` | **未开始** | 本节点。闭合条件：P-1r、P-2 建包 |
+| [`capability.modality-projection/v1#S-24`](../../../spec/capabilities/modality-projection/v1/contract.md#s-24-转换件不发起模型调用)；S-26 第 1、4 行 | 结构检查：P-4\* 的 inject 与依赖图里没有 `modelRuntime`；转换件声明面与转换面只被 P-3 自己与模态转换那一件取用 | **未开始** | 本节点。闭合条件：P-3、P-4\* 建包 |
+| [`capability.tool-execution-runtime/v1#S-45`](../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-45-送达通知)；[`capability.model-request-runtime/v1#S-51`](../../../spec/capabilities/model-request-runtime/v1/contract.md#s-51-模型侧到达装配前提的承诺)；[PF-016 §6.4](../../../product/PF-016-cli-tui-delivery-surface/design.md#64-一台机器上账号之间互不可见但宿主机那一层不隔离)（F ③） | 两个账号、同一账号的两个租户身份各开一个会话，同时产生送达通知与观察者推送：每条客户端连接收到的**只属于它出示的账号、它的当前租户身份与它订阅的会话**；两个会话复用同一个 `CallId` 也不串 | **未开始** | 本节点。闭合条件：门面与传输存在（受阻于待立的交付面契约） |
+| 本节点：配置错误一个政策（[失败映射](design.md#状态并发与失败映射)末行） | 逐项注入：每个具名参数缺值或非法、转换件声明不合形状、存储文件不可写——据点进程**启动失败、退出非零**，诊断点名那一项、**不含值**，没有 fiber 留在 `ACTIVE`、本机 socket 没有开闸 | **未开始** | 本节点。闭合条件：清单与各插件建包；具名参数的名单随各契约 G 定值（缺口 C-9）更新 |
+| 要求 S-g、L-f；[`capability.tool-execution-runtime/v1#S-46`](../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-46-装配给的保证-vs-协议须给的保证) 第 3、5 行；[设计反证 ②](design.md#存储要求清单与跨-owner-的同一提交) | 演练：第二个据点进程对同一份 SQL 库与同一本会话日志**起不来**；排空重启时旧进程未退、新进程已起的重叠窗口里，只有一个进程能写 | **未开始** | 本节点 + `storage-sql`（SQL 一半已有子进程测试）+ 会话日志提供者（缺，C-1） |
+| 同上第 4、5 行；要求 L-b；[设计反证 ①](design.md#存储要求清单与跨-owner-的同一提交) | 演练：结果消息已追加、出站项尚未标送达时杀掉据点进程；重启后日志里那条结果消息**恰有一条** | **未开始** | 本节点 + 执行宿主节点 + 会话日志提供者。闭合条件：C-1 闭合、执行宿主选定出站项形状 |
+| [`capability.mcp-bridge/v1#S-6`](../../../spec/capabilities/mcp-bridge/v1/contract.md#s-6-连接归桥不上签名不跨租户)（P-8） | 哨兵：据点进程环境里放一个不在白名单上的变量与一个秘密，stdio 服务端进程里两个都读不到 | **未开始** | 本节点 + 桥节点。闭合条件：桥建包，`stdioEnvAllowlist` 定值（BR G-12） |
+| [`capability.mcp-bridge/v1#S-28`](../../../spec/capabilities/mcp-bridge/v1/contract.md#s-28-据点停机与重启) | 演练：stdio 服务端在跑时对据点进程 SIGKILL；重启后的桥回收那个孤儿进程组、不复用它、不向它发任何请求 | **未开始** | 桥节点（回收是它的义务）+ 本节点（给出以据点身份起、有权终止的前提）。闭合条件：桥建包 |
+| [`capability.hooks-import/v1#S-26`](../../../spec/capabilities/hooks-import/v1/contract.md#s-26-装配给的保证-vs-协议须给的保证) 第 2 行 | 演练：hook 命令再起一个孙进程；超时之后整组都不在 | **未开始** | 兼容层节点 + 本节点。闭合条件：兼容层建包 |
+| [D-039](../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#拆分领域名与装配g3)、[D-035](../../../record/decisions/message-and-stream-baseline/decision.md)「两条链各自能从脚本化输入跑到真实 JSONL 日志」；本节点[验收装配](design.md#验收装配) | 不起客户端进程、不连治理中心：模型链（脚本化传输 → P-2 → 日志）与工具链（放行件 → 执行宿主 → 本地工具与 MCP stdio 工具各一次 → 送达 → 日志）各自跑通，日志落在**真实 JSONL 文件**上 | **未开始** | 本节点。闭合条件：各 provider 建包、七个替身按「只回放契约允许的序列」写成 |
+| [`data.slash-command/v1#S-16`](../../../spec/data/slash-command/v1/contract.md#s-16-名字只按会话斜杠命令集认) 及 S-12～S-15 | 同一份用例集在交付面预判与受理面再判两侧各跑一遍：拿到同一个会话斜杠命令集时**逐条同一结果** | **未开始** | 本节点 + `packages/core/tool-model` 节点。闭合条件：该纯模块建包；受理面受阻于受理那一程 |
+| 本节点：P-1r 恰一个实例（[换代表](design.md#提供者换代或缺席时谁被重跑)后一段） | 演练：模型调用在途时切断到中心的连接；P-2 与 agent runtime 不被重跑、在途调用不被放弃，读副本照常 | **未开始** | 本节点 + P-1r 节点。闭合条件：P-1r 建包；远端读受阻于入口组合 v2（C-4），验收装配里用副本替身 |
+
 **受阻项写明阻塞原因**：上面每一条的阻塞原因都是同一族——
-**契约未立、提供者不存在、源码未建包**。
+**契约未立或未接受、提供者不存在、源码未建包**。
 不用「待补充」掩盖，也**不新设一个「无法验证」的状态**把缺证据登记成已处理。
 
 ## 实际执行
@@ -36,7 +60,7 @@
 | --- | --- | --- | --- |
 
 **本表为空，因为没有任何运行。**没有测试、没有形式任务、没有真实集成，
-[record/evidence](../../../record/evidence/README.md) 下也没有属于本节点的 run。
+[record/evidence](../../../record/evidence/README.md) 下也没有属于本节点的 run（`2026-09-25-formal-assets-runtimes` 核的是契约模型，理由见[覆盖缺口](#覆盖缺口)）。
 [提案登记的五个区分实验](../../../record/proposals/cli-tui/alternatives.md#进入实施前的最小区分实验)
 同样**一个都没跑过**——它们是选型的改选触发，不是本节点的符合性证据，
 但在跑之前，[技术栈采用表](architecture.md#技术栈采用)里的渲染层、呈现路线与第二阶段分发**都只是纸面结论**。
@@ -51,7 +75,11 @@
 
 | 缺什么 | 为什么 | 谁能补 |
 | --- | --- | --- |
-| 本节点消费的五份租户契约**一条绑定都没有** | 五份租户契约已接受（D-023），但本节点的代理提供者不存在、据点与客户端之间的契约未起草、入口契约仍是 candidate，没有任何可引用的测试或形式任务 | PF 接受 + 规格与实现推进之后，由本节点回填 |
+| 本节点消费的五份租户契约**一条绑定都没有** | 五份租户契约与入口契约都已接受（D-023、D-028），但本节点的代理提供者不存在、据点与客户端之间的契约未起草，没有任何可引用的测试 | 据点侧代理提供者与本应用建包之后，由本节点回填 |
 | 交付面自己那份契约的全部性质**没有可绑定的条款** | 契约尚未起草 | 架构与规格设计 |
-| harness 能力族的任何条款 | 契约与提供者都还没设计 | 各能力的设计 |
-| 跨进程之后失效的那批保证 | 入口契约（candidate）已把这批保证逐行分派；**在它被接受、且据点侧代理立起来之前，这批保证在本节点这条边上是缺口，不是假设** | 入口契约 `composition.governance-center-entry/v1` 的接受；据点侧代理提供者 |
+| 据点装配承接的「装配给」行（[逐行](design.md#装配给逐行承接)）**一条绑定都没有** | 契约 candidate（待 D-041）；provider 与本应用都未建包；运行 [`2026-09-25-formal-assets-runtimes`](../../../record/evidence/2026-09-25-formal-assets-runtimes/README.md) 的八个 formal task 核的是契约模型，**本节点给的那几样在模型里被吸收**（追加口原子、同一存储、同一时钟都是「一步」；执行宿主的 fiber 位置根本不建模），装配给被违反时这些任务不会失败——所以不引作本节点的证据 | 上表 19 条义务逐条闭合；契约接受后回填 bindings |
+| 标「受阻」的装配给行 | 会话日志、装配清单、中心事实副本、凭据保管方、附件字节存储、执行环境、agent loop 七个承接者不存在（[缺口 C-1～C-8](design.md#实施缺口与消费者影响)） | 各缺口的 owner |
+| 标「缺口」的装配给行（MRR S-38 第 5 行、MPD S-22 第 2、3 行、MP S-26 第 6 行、HI S-26 第 1 行） | 单机没有承接方式：目录在中心而调用在据点、附件字节存储未定义、执行环境无契约 | 入口组合 v2（C-4）、附件字节存储（C-6）、PF-005（C-7） |
+| 两条假设（子 fiber 随父卸载、不带 `thisArg` 的派发不过滤）**没有 probe** | 本装配不依赖前者成立；后者按「全进程可见」处理，事件越界的义务（上表第 10 条）不靠它 | `packages/core/kernel-basis`（缺口 C-11） |
+| harness 其余能力族的任何条款 | 契约与提供者都还没设计 | 各能力的设计 |
+| 跨进程之后失效的那批保证 | 入口契约（`accepted`，D-028）已把这批保证逐行分派；**据点侧代理立起来之前，这批保证在本节点这条边上是缺口，不是假设** | 据点侧代理提供者 |
