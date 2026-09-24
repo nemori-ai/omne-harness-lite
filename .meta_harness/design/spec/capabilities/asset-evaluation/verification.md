@@ -40,6 +40,7 @@
 | 工具 | 本机 `/usr/local/bin/alloy` 6.2.0，`alloy exec -f -c '*' <file>` |
 | 怎么跑的 | 把模型**复制到主检出 `tmp/formal-runs/asset-evaluation-v1-evaluation/`** 再跑（`alloy exec` 会在文件旁写输出目录，不在版本目录里跑）；变异体在同目录 `mutants/`；原始输出与回执留在那里，**未入库** |
 | 判读 | `check` 行 `UNSAT` 读作**本范围内无反例**、`SAT` 读作找到反例；`run` 行 `SAT` 读作前件可满足（账本 S10-c） |
+| 复跑 | 2026-09-24 整批对齐收尾时对同一 SHA-256 的文件复制到主检出 `tmp/formal-runs/asset-evaluation-v1-evaluation-2026-09-24/` 再跑（`alloy exec -f -o out Evaluation.als`）：十一条与下表逐条相同，退出 0；变异体未复跑 |
 | 结果 | 全部十一条与预期一致，耗时约 10 秒；退出码 0： |
 
 ```text
