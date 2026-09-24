@@ -283,6 +283,7 @@ modelName(d)   ≝  d.name 里每一个 ":" 换成 "__"     （S-18 保证它可
 （[PF-006 §5.3](../../../../product/PF-006-tools-and-skills/design.md#53-一份工具定义长什么样)）。
 omne-next 另有 `typed_union`（按每个命令的参数合成判别联合、模型一次看到全部参数），是受 LangChain Tool 的严格类型校验所迫（[研究 O-2](../../../../../research/tool-definition-shape-sources/evidence.md#o-2-多命令范式-basemulticommandtool)）；
 本项目自己做判定（第 3 条），不需要在模型面展示全部参数。
+实测见[研究 V-5](../../../../../research/tool-definition-shape-sources/evidence.md)（四家真实请求都接受 flat 形；有 `Tools().inspect` 时模型先查用法再调用，没有时会猜参数名）。
 
 **由此得到**（逐字核对见 [`examples.md` 第 9 节](examples.md#9-生成规则的逐字核对)）：
 
