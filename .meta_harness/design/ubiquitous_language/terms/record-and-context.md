@@ -123,7 +123,7 @@
 > projection's own tradeoff, **and does not change what it is**.
 
 - **形态**：视图
-- **出处**：[PF-015 §5.8](../../product/PF-015-session-lifecycle-and-ownership/design.md#58-存储要守住的两件事)（rev 11）·
+- **出处**：[PF-015 §5.8](../../product/PF-015-session-lifecycle-and-ownership/design.md#58-存储要守住的两件事)（rev 12）·
   [PF-013 §4 模态投影](../../product/PF-013-model-profiles-and-invocation/design.md#模态投影)（rev 12）**给出了第一个实例**
 - **⚠️ 别混**：**不是 [runtime context](scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context)。**
   runtime context 是**会话内那三个角色**消费的；**投影多半是给会话外的服务用的**。
@@ -518,7 +518,7 @@
 
 - **形态**：对象
 - **出处**：[PF-007 §6.9 `TodoItems()`](../../product/PF-007-meta-capabilities/design.md#69-todoitems通向自己手上的待办)（rev 18）·
-  [PF-015 §5.6 第 13 项](../../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 11）
+  [PF-015 §5.6 第 13 项](../../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 12）
 - **别混**：**与「目标」不是一回事**——那是**跨会话**的东西，
   [PF-007 明写它不装在这扇门后面，而设计链里还没有它的家](../../product/PF-007-meta-capabilities/design.md#69-todoitems通向自己手上的待办)
 - **⚠️ 注意 ①**：**它是给 agent 自己看的，不是给系统执行的**——

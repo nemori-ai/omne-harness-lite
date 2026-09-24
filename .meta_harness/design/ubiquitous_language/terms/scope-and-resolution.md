@@ -38,7 +38,7 @@
 > and session. A workspace is **not an identity**, so it is not in the table above.
 
 - **形态**：属性
-- **出处**：[PF-001 §6.1 层次](../../product/PF-001-identity-scope-and-agent-constraints/design.md#61-层次)（rev 17） · [PF-002 §5.8 三条层序](../../product/PF-002-assets-settings-and-permissions/design.md#58-三条层序各答一个问题)（rev 20）
+- **出处**：[PF-001 §6.1 层次](../../product/PF-001-identity-scope-and-agent-constraints/design.md#61-层次)（rev 18） · [PF-002 §5.8 三条层序](../../product/PF-002-assets-settings-and-permissions/design.md#58-三条层序各答一个问题)（rev 21）
 - **别混 ①**：**账号不在这四层里**——它的[求值是恒等的](#ul-scope-evaluation--作用域求值--scope-evaluation)，不占一格
 - **别混 ②**：[上级组织](subjects-and-ownership.md#ul-parent-organization--上级组织--parent-organization)**不进这四层**——否则层数会随隶属链变化，且把「隶属」悄悄变成「被管辖」
 - **别混 ③**：**裸写「层」不作数。**系统里到处是层
@@ -65,7 +65,7 @@
 > **session** layer to this collaboration, which is to say that session.
 
 - **形态**：属性
-- **出处**：[PF-001 §6.1 层次](../../product/PF-001-identity-scope-and-agent-constraints/design.md#61-层次)（rev 17） · [PF-002 §5.8 它不因此多一重身份](../../product/PF-002-assets-settings-and-permissions/design.md#它不因此多一重身份)（rev 20）
+- **出处**：[PF-001 §6.1 层次](../../product/PF-001-identity-scope-and-agent-constraints/design.md#61-层次)（rev 18） · [PF-002 §5.8 它不因此多一重身份](../../product/PF-002-assets-settings-and-permissions/design.md#它不因此多一重身份)（rev 21）
 - **别混 ①**：**不是[作用域层](#ul-scope-layer--作用域层--scope-layer)本身**——层是那一格，层身份是**占着那一格的那个对象**
 - **别混 ②**：**[工作区](#ul-workspace--工作区--workspace)不在其列。**它[不是一重身份](../../product/PF-002-assets-settings-and-permissions/design.md#它不因此多一重身份)，只在**设置**与**资产归属**两条层序上各占一格；它**挂在租户下**
 - **别混 ③**：**[账号](subjects-and-ownership.md#ul-account--账号--account)不充当任何一格**——它的[求值是恒等的](#ul-scope-evaluation--作用域求值--scope-evaluation)，早已完成，也不接受任何配置
@@ -73,60 +73,41 @@
 
 ### UL-workspace · 工作区 · Workspace
 
-> **中**：**组织、租户之下再多的一级[资产](capabilities-and-composition.md#ul-asset--资产--asset)归属：
-> 由[租户](subjects-and-ownership.md#ul-tenant--租户--tenant)持有、由[会话](agent-runtime-loop.md#ul-session--会话--session)在创建时显式挂上的一份资产与配值的归属单位。**
-> 与组织、租户**同形**：那八类资产它一样能持有、一样能配值——
-> **权限、[落点与身份类的设置项](capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category)与治理类里除禁用之外的项（`immutable`、连接件的触发会话的默认运行模式）除外，那三样它配了也不加载**；**它不是一重身份**。
-> **它不是目录**——本版它**由宿主机文件系统上的一个目录承载**，那个目录里特定命名的文件是它持有什么、配了什么的来路，
-> 挂上之后在装配时自动解析进来；别的承载形态本版不定义。
-> **同一个租户下**，同一个目录被两个会话挂上，**两边看到的是同一份**；
-> **换一个租户身份挂上同一个目录，那是另一份**。会话创建时不指定，**这一级就是空的**。
->
-> **EN**: **One more level of asset ownership beneath organization and tenant: a unit of
-> held assets and assigned values, owned by a tenant and explicitly attached by a session at
-> creation.** Structurally identical to organization and tenant — it holds the same eight
-> kinds and assigns values to them, **except permissions, placement-and-identity settings
-> and every governance setting other than disable (`immutable`, a connector's default run mode for
-> triggered sessions), which are never loaded from it** — **but it is not an identity**. **It is not a directory**:
-> in this version it is **backed by a directory on the host file system**, whose specially
-> named files are where its holdings and values come from, parsed automatically at assembly
-> once attached; other backings are undefined in this version. **Within one tenant**, two
-> sessions attached to the same directory see the same workspace; the same directory attached
-> under a different tenant identity is a different one. A session created without naming one
-> **has an empty level**.
+> **中**：由[租户](subjects-and-ownership.md#ul-tenant--租户--tenant)拥有、带有自身身份、跨会话持续的完整资源聚合包。
+> 它可以聚合文件、代码、数据、知识和自定义资产，访问它的 agent 类型可以不同；它不绑定一个固定目标，
+> 也不是会话、agent、本地目录或执行环境边界。工作区可以有多个[工作区地址](#ul-workspace-address--工作区地址--workspace-address)，
+> 并在部署节点上被装载为多个[工作区实例](#ul-workspace-instance--工作区实例--workspace-instance)。
+> 工作区实例中的资产进入 PF-002 定义的工作区资产层：设置和资产可以按层求值，权限、落点与身份类及治理类例外
+> 不从工作区放宽。
+
+> **EN**: A tenant-owned, identity-bearing, persistent resource aggregate that spans sessions. It may contain files, code, data, knowledge, and custom assets; it has no fixed goal and is neither a session, agent, local directory, nor execution boundary. A workspace may have multiple addresses and multiple materialized instances. Assets from its instance enter the PF-002 workspace asset layer, while permissions and placement/identity governance cannot be widened from the workspace.
 
 - **形态**：对象
-- **出处**：[PF-002 §4 工作区](../../product/PF-002-assets-settings-and-permissions/design.md#工作区) · [工作区不是目录](../../product/PF-002-assets-settings-and-permissions/design.md#工作区不是目录) · [它是会话选用的，不指定就是空](../../product/PF-002-assets-settings-and-permissions/design.md#它是会话选用的不指定就是空) · [§5.7](../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算) · [§5.8 三条层序](../../product/PF-002-assets-settings-and-permissions/design.md#58-三条层序各答一个问题) · [§6.4 禁用是逐层配的布尔设置](../../product/PF-002-assets-settings-and-permissions/design.md#禁用是逐层配的布尔设置任一层为真即不可见)（rev 20）
-- **弃用说法**：~~项目~~——**同一个东西**，正文统一写工作区。
-  「项目」在别处指的东西太多，**收窄它代价过大**；
-  ~~会话挂上的那个宿主机目录~~——那是它的**承载**，不是它
-- **⚠️ 别混 ①**：**不是承载它的那个目录。**目录是宿主机上的一个位置，归操作系统；
-  工作区是租户持有的一级归属。[路径是地址，不是钥匙](../../product/PF-001-identity-scope-and-agent-constraints/design.md#路径是地址不是钥匙)，
-  而且**那个目录不是 agent 在宿主机上的活动边界**（[PF-005 §4](../../product/PF-005-execution-environments-and-sandboxes/design.md#工作区的承载目录不是宿主机上的边界)）
-- **⚠️ 别混 ②**：**不是「会话级」。**会话级的东西[一律不外溢](agent-runtime-loop.md#ul-session--会话--session)，
-  **工作区级的留在那个目录上**——这个会话没了，同一租户的下一个会话挂上来还看得见
-- **⚠️ 注意 ①**：**它在三条层序上各站各的位置**——
-  **[设置](capabilities-and-composition.md#ul-setting--设置--setting)它压过租户**（除非上层加了
-  [不可覆盖标记](#ul-immutable-marker--不可覆盖标记--immutable-marker)），
-  **同[能力标识](#ul-capability-identifier--能力标识--capability-identifier)的资产它替换租户的**，
-  **[权限](capabilities-and-composition.md#ul-permission--权限--permission)它一概不参与**
-- **⚠️ 注意 ②**：**授权与权限相关的配置，它一概不参与。**
-  [系统加载的时候就把工作区来的那部分过滤掉](../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算)——
-  **不是「加载了不许放宽」，也不是「只取收紧的那些」，是那条路根本不走**。
-  **一个仓库不能给自己提权**
-- **注意 ③**：**这条管三样：授权与权限、落点与身份类的设置项、治理类里除禁用之外的项（`immutable`、连接件的触发会话的默认运行模式）。**其余资产与设置照常从它这一级求值——
-  **能力和偏好可以从项目里来，权力不行**。
-  [禁用](circulation-and-entitlement.md#ul-asset-disable--资产禁用--asset-disable)是一项布尔设置，
-  **它这一级照样配得了、照样参与过滤**，
-  **但只对它自己提供的那批资产生效**——别的层提供的资产，它配的值不参与
-- **⚠️ 注意 ④**：**它不是[作用域层](#ul-scope-layer--作用域层--scope-layer)表里的一格。**
-  那张表列的是**由身份带来的**四层，而工作区不是一重身份；
-  [它只在设置那条层序上占一格](../../product/PF-002-assets-settings-and-permissions/design.md#58-三条层序各答一个问题)，
-  插在租户级与会话级之间
-- **注意 ⑤**：**没有「登记」「撤销」一份工作区这两个动作**——会话创建时指定了目录，（租户，目录）这一份就在；
-  据点上记着的「这个租户身份用过哪些目录」是[给人挑的清单，不是治理对象](../../product/PF-002-assets-settings-and-permissions/design.md#它是会话选用的不指定就是空)
-- **注意 ⑥**：**它带来的本地命令型 MCP 接入点与命令型 hook 默认不启用**，由持有它的租户在自己的设置里逐件打开——
-  [开关不在仓库里](../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算)
+- **出处**：[PF-020](../../product/PF-020-workspace/design.md)（rev 1） · [PF-002 工作区资产层](../../product/PF-002-assets-settings-and-permissions/design.md#工作区)（rev 21）
+- **别混**：地址和实例是它的访问与装载关系，不是另一个工作区；目录只是一个可能的地址/本地承载。
+- **资产层规则**：工作区提供的自定义资产仍遵循 PF-002 的设置覆盖、同标识替换、权限过滤和禁用规则。
+
+### UL-workspace-instance · 工作区实例 · Workspace Instance
+
+> **中**：一个工作区在某个部署节点上被装载或物化后、供会话和 agent 读写资源的具体工作入口。
+> 一个工作区可以有多个实例；实例卸载不等于工作区消失。实例的精确身份、状态与同步生命周期本版尚未定义。
+
+> **EN**: A materialized realization of a workspace on a deployment node through which a session and agent read and write resources. One workspace may have multiple instances; exact identity, state, and synchronization lifecycle remain open.
+
+- **形态**：对象
+- **出处**：[PF-020 工作区实例](../../product/PF-020-workspace/design.md)（rev 1）
+- **未定**：实例的精确身份、并发和终止状态由 PF-020 后续修订决定。
+
+### UL-workspace-address · 工作区地址 · Workspace Address
+
+> **中**：找到或访问工作区或工作区实例的地址，可以是本地文件系统路径、GitHub 地址、云端存储地址或其他未来地址。
+> 地址不是工作区身份，也不是访问凭据；同一工作区可以有多个地址，地址不可达不自动删除工作区。
+
+> **EN**: A location or access address for a workspace or workspace instance, such as a local filesystem path, GitHub URL, or cloud storage address. It is neither the workspace identity nor a credential, and a workspace may have multiple addresses.
+
+- **形态**：属性
+- **出处**：[PF-020 工作区地址](../../product/PF-020-workspace/design.md)（rev 1）
+- **别混**：地址不是工作区实例本身；知道地址不能绕过租户授权。
 
 ### UL-scoped-object · 范围化对象 · Scoped Object
 
@@ -141,7 +122,7 @@
 > an owning layer, and composition semantics.
 
 - **形态**：总称
-- **出处**：[PF-001 §4 范围化对象](../../product/PF-001-identity-scope-and-agent-constraints/design.md#范围化对象)（rev 17）
+- **出处**：[PF-001 §4 范围化对象](../../product/PF-001-identity-scope-and-agent-constraints/design.md#范围化对象)（rev 18）
 - **别混**：[个人 context](#ul-personal-context--个人-context--personal-context) **不是**范围化对象——它在另一个轴上。账号的身份事实（登录标识、凭据、激活状态）**也不是**
 
 ### UL-capability-identifier · 能力标识 · Capability Identifier
@@ -162,7 +143,7 @@
 > a routing name, and among same-named profiles the most specific one on the scope chain wins.
 
 - **形态**：属性
-- **出处**：[PF-001 §4 范围化对象](../../product/PF-001-identity-scope-and-agent-constraints/design.md#范围化对象) · [§6.3](../../product/PF-001-identity-scope-and-agent-constraints/design.md#63-依赖与组合)（rev 17） · [PF-002 §4 身份是「类别 ＋ name」](../../product/PF-002-assets-settings-and-permissions/design.md#身份是类别--name其余归实现)（rev 20） · [PF-013 §4 档案的身份](../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名)（rev 12）
+- **出处**：[PF-001 §4 范围化对象](../../product/PF-001-identity-scope-and-agent-constraints/design.md#范围化对象) · [§6.3](../../product/PF-001-identity-scope-and-agent-constraints/design.md#63-依赖与组合)（rev 18） · [PF-002 §4 身份是「类别 ＋ name」](../../product/PF-002-assets-settings-and-permissions/design.md#身份是类别--name其余归实现)（rev 21） · [PF-013 §4 档案的身份](../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名)（rev 12）
 - **注意**：**同一层可以有好几份同标识的资产，但一层对一个能力标识至多持有一份**——替代发生在持有上，复制进来不自动顶掉原来持有的那份
 
 ## 怎么算
@@ -179,7 +160,7 @@
 > **requiring no mechanism at all**.
 
 - **形态**：过程
-- **出处**：[PF-001 §4 账号](../../product/PF-001-identity-scope-and-agent-constraints/design.md#账号) · [§6.2](../../product/PF-001-identity-scope-and-agent-constraints/design.md#62-三种合成语义)（rev 17）
+- **出处**：[PF-001 §4 账号](../../product/PF-001-identity-scope-and-agent-constraints/design.md#账号) · [§6.2](../../product/PF-001-identity-scope-and-agent-constraints/design.md#62-三种合成语义)（rev 18）
 - **注意**：**求值与[装配](agent-runtime-loop.md#ul-agent-assembly--agent-装配--agent-assembly)不能合并**——合并的话，「组织禁用了某个 skill」与「这个 agent 没引用它」会变成同一件事，而两者的产品含义完全不同
 
 ### UL-scope-composition-semantics · 作用域合成语义 · Scope Composition Semantics
@@ -206,7 +187,7 @@ identifiers coexist; for one identifier the most specific layer's asset wins). "
 specific.
 
 - **形态**：规则
-- **出处**：[PF-001 §6.2 三种合成语义](../../product/PF-001-identity-scope-and-agent-constraints/design.md#62-三种合成语义)（rev 17）
+- **出处**：[PF-001 §6.2 三种合成语义](../../product/PF-001-identity-scope-and-agent-constraints/design.md#62-三种合成语义)（rev 18）
 - **别混**：**裸写「组合 / composition」不作数**——[资产组合](capabilities-and-composition.md#ul-asset-composition--资产组合--asset-composition)是另一回事
 - **注意**：**权限上，锁下的才是界，不锁的只是在界里挑**——组织配「问一下」不锁，成员挑「自动」就生效；**配成「禁止」的锁不锁都是界**。
   组织锁成空集，租户再怎么挑也拿不到——**空集与谁的交集都是空集**
@@ -223,7 +204,7 @@ specific.
 > takes).
 
 - **形态**：规则
-- **出处**：[PF-001 §6.2 两轮合成](../../product/PF-001-identity-scope-and-agent-constraints/design.md#两轮合成作用对象不同)（rev 17） · [PF-002 §5.6](../../product/PF-002-assets-settings-and-permissions/design.md#56-四步资产求值--组装--投影--层级计算)（rev 20）
+- **出处**：[PF-001 §6.2 两轮合成](../../product/PF-001-identity-scope-and-agent-constraints/design.md#两轮合成作用对象不同)（rev 18） · [PF-002 §5.6](../../product/PF-002-assets-settings-and-permissions/design.md#56-四步资产求值--组装--投影--层级计算)（rev 21）
 - **别混**：混为一谈就会得出「**改一项设置等于换一个资产**」这种结论——而实际上租户改默认模型时，用的还是**组织共享的那一个**资产
 - **注意 ①**：第一轮内部有三小步，次序写死：**先按[禁用](circulation-and-entitlement.md#ul-asset-disable--资产禁用--asset-disable)滤，
   再按[「谁可以使用它」](circulation-and-entitlement.md#ul-usable-by--谁可以使用它--usable-by)滤（official 那一份不参与），最后同标识取最具体的一份**；
@@ -242,7 +223,7 @@ specific.
 > cases**: a setting's field value, a permission's value, and an asset substitution.
 
 - **形态**：属性
-- **出处**：[PF-001 §6.2 默认与强制](../../product/PF-001-identity-scope-and-agent-constraints/design.md#默认与强制immutable)（rev 17） · [PF-002 §5.4](../../product/PF-002-assets-settings-and-permissions/design.md#54-默认与强制一个机制三处适用)（rev 20）
+- **出处**：[PF-001 §6.2 默认与强制](../../product/PF-001-identity-scope-and-agent-constraints/design.md#默认与强制immutable)（rev 18） · [PF-002 §5.4](../../product/PF-002-assets-settings-and-permissions/design.md#54-默认与强制一个机制三处适用)（rev 21）
 - **注意 ①**：对权限而言，`immutable(v)` 就是把允许集合**收窄到单元素** `{v}`——**强制是收窄的特例**；权限上**带它的配值是界、不带的只是挑选**，唯独配成「禁止」的不带也是界
 - **注意 ③**：锁资产替换时**不问被锁的是 official 还是自定义**——组织或租户在自己那层把某份 official 的持有标上它，
   下面就换不掉；[工作区](#ul-workspace--工作区--workspace)那一级**配不了它**
@@ -268,7 +249,7 @@ specific.
 > removes it, while disabling the holding leaves it untouched.
 
 - **形态**：属性
-- **出处**：[PF-002 §5.2「组织的设置」是视图，不是对象](../../product/PF-002-assets-settings-and-permissions/design.md#组织的设置是视图不是对象) · [PF-002 flows §3.2](../../product/PF-002-assets-settings-and-permissions/flows.md#32-一份持有上一个属性项的属性配值)（rev 20）
+- **出处**：[PF-002 §5.2「组织的设置」是视图，不是对象](../../product/PF-002-assets-settings-and-permissions/design.md#组织的设置是视图不是对象) · [PF-002 flows §3.2](../../product/PF-002-assets-settings-and-permissions/flows.md#32-一份持有上一个属性项的属性配值)（rev 21）
 - **别混**：不是[属性投影](#ul-attribute-projection--属性投影--attribute-projection)——投影是**从一批配值算出来的视图**，配值是被投影的那一格。**裸写「配值」不作数**：正文也用它说「各层配值」这个动作
 - **注意**：**每一级各配各的。**同一份资产在组织、租户、[工作区](#ul-workspace--工作区--workspace)上各是一份持有，各有各的配值；
   [几级都配了听谁的，看那一维的层序](../../product/PF-002-assets-settings-and-permissions/design.md#58-三条层序各答一个问题)
@@ -285,7 +266,7 @@ specific.
 > **attribute assignment**.
 
 - **形态**：视图
-- **出处**：[PF-001 §4 设置、权限、资产](../../product/PF-001-identity-scope-and-agent-constraints/design.md#设置权限资产)（rev 17） · [PF-002 §5.2](../../product/PF-002-assets-settings-and-permissions/design.md#组织的设置是视图不是对象)（rev 20）
+- **出处**：[PF-001 §4 设置、权限、资产](../../product/PF-001-identity-scope-and-agent-constraints/design.md#设置权限资产)（rev 18） · [PF-002 §5.2](../../product/PF-002-assets-settings-and-permissions/design.md#组织的设置是视图不是对象)（rev 21）
 - **注意**：**没有「组织的设置」这个对象。**把它当对象实现，就会出现一份**独立于资产的字段表**，两者各自演化，最终对不上
 
 ### UL-permission-bound · 权限界 · Permission Bound
@@ -302,8 +283,8 @@ specific.
 
 - **形态**：属性
 - **出处**：[PF-002 §5.3 两个例子，两种合成](../../product/PF-002-assets-settings-and-permissions/design.md#53-两个例子两种合成) ·
-  [§5.5 替换是一条路径](../../product/PF-002-assets-settings-and-permissions/design.md#替换是一条路径不是一扇后门)（rev 20） ·
-  [PF-001 §6.2 三种合成语义](../../product/PF-001-identity-scope-and-agent-constraints/design.md#62-三种合成语义)（rev 17）
+  [§5.5 替换是一条路径](../../product/PF-002-assets-settings-and-permissions/design.md#替换是一条路径不是一扇后门)（rev 21） ·
+  [PF-001 §6.2 三种合成语义](../../product/PF-001-identity-scope-and-agent-constraints/design.md#62-三种合成语义)（rev 18）
 - **别混**：**不锁的配值不是界**——那是[权限挑选](#ul-permission-pick--权限挑选--permission-pick)；组织说「默认问一下」而不锁，是在说「没人另挑就用它」，不是「只许问一下」
 - **注意**：**界跟着[能力标识](#ul-capability-identifier--能力标识--capability-identifier)走**——同标识替换之后，外层为这个标识锁下的界照样管着替换它的那一份；替换件的声明里少了被锁的那一项，那一项按最严算
 - **注意 ②**：**裸写「界」不作数**——单字，到处都是
@@ -321,8 +302,8 @@ specific.
 > specific pick, the stricter one on a tie.**
 
 - **形态**：属性
-- **出处**：[PF-002 §5.3 两个例子，两种合成](../../product/PF-002-assets-settings-and-permissions/design.md#53-两个例子两种合成)（rev 20） ·
-  [PF-001 §6.2 三种合成语义](../../product/PF-001-identity-scope-and-agent-constraints/design.md#62-三种合成语义)（rev 17）
+- **出处**：[PF-002 §5.3 两个例子，两种合成](../../product/PF-002-assets-settings-and-permissions/design.md#53-两个例子两种合成)（rev 21） ·
+  [PF-001 §6.2 三种合成语义](../../product/PF-001-identity-scope-and-agent-constraints/design.md#62-三种合成语义)（rev 18）
 - **别混**：**「设成自动」看着像放宽，其实是在界内挑一个**——界不空，分档的权限（执行权限、干预力）求出来就恰好是一档
 - **注意**：**执行权限配成「禁止」的不是挑选，是界**——任何一层的「禁止」都不能被更具体的一层挑掉
 
@@ -395,7 +376,7 @@ specific.
 > among its blocks.
 
 - **形态**：总称
-- **出处**：[PF-015 §4 runtime context](../../product/PF-015-session-lifecycle-and-ownership/design.md#runtime-context)（rev 11）；块的两类来源沿用 [PF-001 §4 Context](../../product/PF-001-identity-scope-and-agent-constraints/design.md#contextagent-运行时可感知的上下文信息)（rev 17）
+- **出处**：[PF-015 §4 runtime context](../../product/PF-015-session-lifecycle-and-ownership/design.md#runtime-context)（rev 12）；块的两类来源沿用 [PF-001 §4 Context](../../product/PF-001-identity-scope-and-agent-constraints/design.md#contextagent-运行时可感知的上下文信息)（rev 18）
 - **弃用说法**：~~会话上下文感知域~~——**同一个概念**，正文统一写 runtime context
 - **别混 ①**：**不是 Cordis 的 `Context`**——那是依赖注入与生命周期的容器，属技术设计。指它时**必须写全 `Cordis Context`**
 - **别混 ②**：**不是[给模型看的上下文](../index.md#记录与上下文)**。**裸写「上下文 / context」在跨 topic 的文字里一律不作数**，[已记为冲突](../conflicts.md#现有冲突)
@@ -431,7 +412,7 @@ specific.
 > may be missing.**
 
 - **形态**：总称
-- **出处**：[PF-015 §4 meta runtime context](../../product/PF-015-session-lifecycle-and-ownership/design.md#meta-runtime-context) · [§5.6 十四项](../../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 11）
+- **出处**：[PF-015 §4 meta runtime context](../../product/PF-015-session-lifecycle-and-ownership/design.md#meta-runtime-context) · [§5.6 十四项](../../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 12）
 - **注意 ①**：**与 [meta 能力](capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability)同构**——
   那边是每个 agent 必不可少的**能力**，这边是每个会话必不可少的**感知**。**两边都不可禁用、不可替换**
 - **注意 ②**：**当前恰有十四项**，[逐项的生产者、消费者与至少提供什么见正文](../../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)
@@ -450,7 +431,7 @@ specific.
 > four scope layers are the layers **inside it**.
 
 - **形态**：视图
-- **出处**：[PF-001 §4 Context](../../product/PF-001-identity-scope-and-agent-constraints/design.md#contextagent-运行时可感知的上下文信息)（rev 17）
+- **出处**：[PF-001 §4 Context](../../product/PF-001-identity-scope-and-agent-constraints/design.md#contextagent-运行时可感知的上下文信息)（rev 18）
 - **别混**：**不是[当前租户身份](subjects-and-ownership.md#ul-current-tenant-identity--当前租户身份--current-tenant-identity)。**那一条只是「**此刻以哪个租户身份行事**」那**一项选择**；这一条是由它算出来的**整块信息**——在哪个组织、什么租户身份、什么角色
 
 ### UL-personal-context · 个人 context · Personal Context
@@ -464,7 +445,7 @@ specific.
 > and **takes part in no layer composition**.
 
 - **形态**：属性
-- **出处**：[PF-001 §4 Context](../../product/PF-001-identity-scope-and-agent-constraints/design.md#contextagent-运行时可感知的上下文信息)（rev 17）
+- **出处**：[PF-001 §4 Context](../../product/PF-001-identity-scope-and-agent-constraints/design.md#contextagent-运行时可感知的上下文信息)（rev 18）
 - **注意**：「**正交**」的意思是两者**独立变化**——切换组织不改界面语言，改界面语言也不影响自己在哪个组织。因此**不能用同一套层次去合成**
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

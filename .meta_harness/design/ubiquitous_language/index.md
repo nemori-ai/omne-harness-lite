@@ -48,7 +48,9 @@
 |---|---|---|---|
 | [UL-scope-layer](terms/scope-and-resolution.md#ul-scope-layer--作用域层--scope-layer) | 作用域层 | Scope Layer | 身份带来的出厂默认 / 组织级 / 租户级 / 会话级这四层；**设置这一维还多一格工作区** |
 | [UL-scope-layer-identity](terms/scope-and-resolution.md#ul-scope-layer-identity--作用域层身份--scope-layer-identity) | 作用域层身份 | Scope Layer Identity | 一格由哪重身份充当：组织 / 租户 / 会话；**出厂默认那一格没有身份**，**工作区不在其列** |
-| [UL-workspace](terms/scope-and-resolution.md#ul-workspace--工作区--workspace) | 工作区 | Workspace | 租户持有、会话创建时显式挂上的一级资产归属，**由目录承载而不是目录本身**，不指定就空；**设置压过租户，权限、落点与身份类、治理类（禁用除外）一概不从它来**；旧说法 ~~项目~~、~~会话挂上的那个宿主机目录~~ |
+| [UL-workspace](terms/scope-and-resolution.md#ul-workspace--工作区--workspace) | 工作区 | Workspace | 租户拥有、带身份、跨会话持续的完整资源聚合包；不绑定固定目标，可有多个地址并装载为多个实例 |
+| [UL-workspace-instance](terms/scope-and-resolution.md#ul-workspace-instance--工作区实例--workspace-instance) | 工作区实例 | Workspace Instance | 工作区在部署节点上的装载结果，供会话和 agent 工作；同一工作区可有多个 |
+| [UL-workspace-address](terms/scope-and-resolution.md#ul-workspace-address--工作区地址--workspace-address) | 工作区地址 | Workspace Address | 找到或访问工作区/实例的本地或远端地址，不是工作区身份或访问凭据 |
 | [UL-scoped-object](terms/scope-and-resolution.md#ul-scoped-object--范围化对象--scoped-object) | 范围化对象 | Scoped Object | 归属于某一层、参与求值的那类对象 |
 | [UL-capability-identifier](terms/scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier) | 能力标识 | Capability Identifier | 判定两个对象能否互相覆盖的那个标识，资产上是**类别 ＋ name**；模型档案以路由名充当 |
 | [UL-scope-evaluation](terms/scope-and-resolution.md#ul-scope-evaluation--作用域求值--scope-evaluation) | 作用域求值 | Scope Evaluation | 沿层算出这次实际生效的那一份 |

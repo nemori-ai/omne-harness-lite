@@ -2,7 +2,7 @@
 id: PF-001
 title: 身份、范围与对 Agent 的约束
 status: active
-revision: 17
+revision: 18
 relations:
   supersedes: []
   depends-on: []
@@ -42,7 +42,7 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 17**。rev 16 已定稿（2026-09-23 按产品负责人「rev 完翻正式」的裁决登记为接受，[decisions §一](decisions.md#一拍板记录)）；**rev 17 待产品负责人确认**（改了什么见[变更历史](changelog.md)）
+- 产品设计：**rev 18**。rev 16 已定稿（2026-09-23 按产品负责人「rev 完翻正式」的裁决登记为接受）；rev 17–18 的变化仍待产品负责人确认（改了什么见[变更历史](changelog.md)）
 - 未决项：**无**
 - 待裁决：**无**
 - 技术投影：**v3**（2026-09-23，**依据 rev 16**——rev 17 的变化要对它复核，见[变更历史](changelog.md)；记录实现与验收对账；覆盖租户相关领域；由 [D-023](../../record/decisions/tenant-domain-design-acceptance/README.md) 与 [D-028](../../record/decisions/governance-center-design-acceptance/README.md) 接受为实施入口；版本表在[投影目录](projection/README.md)）

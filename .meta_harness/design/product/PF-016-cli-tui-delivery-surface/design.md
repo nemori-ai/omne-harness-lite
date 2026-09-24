@@ -1,6 +1,6 @@
 # PF-016：命令行交付面
 
-- 修订：rev 6，2026-09-24 · [变更历史](changelog.md)
+- 修订：rev 7，2026-09-24 · [变更历史](changelog.md)
 - 状态：定稿（2026-09-22 接受）——**没有待裁决**（[decisions §三](decisions.md#三待裁决)）；仍开着的缺口全在 [§9](#九未决项)，都归别的 topic 或技术设计
 
 ---
@@ -86,7 +86,7 @@
 | 概念 | 归谁 |
 |---|---|
 | [账号](../PF-001-identity-scope-and-agent-constraints/design.md#账号)、[登录标识](../../ubiquitous_language/terms/subjects-and-ownership.md#ul-login-identifier--登录标识--login-identifier)、[登录状态](../PF-001-identity-scope-and-agent-constraints/design.md#登录状态)、[组织](../PF-001-identity-scope-and-agent-constraints/design.md#组织)、[个人组织](../PF-001-identity-scope-and-agent-constraints/design.md#个人组织)、[租户](../PF-001-identity-scope-and-agent-constraints/design.md#租户)、[当前租户身份](../PF-001-identity-scope-and-agent-constraints/design.md#当前租户身份)、[角色](../PF-001-identity-scope-and-agent-constraints/design.md#角色)、[个人 context](../../ubiquitous_language/terms/scope-and-resolution.md#ul-personal-context--个人-context--personal-context) | [PF-001](../PF-001-identity-scope-and-agent-constraints/design.md) |
-| [设置与权限的分层求值](../PF-002-assets-settings-and-permissions/design.md#52-设置与权限是资产的两种属性)、[工作区](../../ubiquitous_language/terms/scope-and-resolution.md#ul-workspace--工作区--workspace) | [PF-002](../PF-002-assets-settings-and-permissions/design.md) |
+| [设置与权限的分层求值](../PF-002-assets-settings-and-permissions/design.md#52-设置与权限是资产的两种属性)、[工作区](../PF-020-workspace/README.md) | [PF-002 / PF-020](../PF-020-workspace/README.md) |
 | [资产复制](../PF-003-asset-transfer-and-sharing/design.md#资产复制)、[分享](../PF-003-asset-transfer-and-sharing/design.md#分享)、[待确认的复制通知与分享邀请会过期](../PF-003-asset-transfer-and-sharing/design.md#614-待确认的复制通知与分享邀请会过期) | [PF-003](../PF-003-asset-transfer-and-sharing/design.md) |
 | [宿主机](../PF-005-execution-environments-and-sandboxes/design.md#宿主机)、[执行环境权限](../PF-005-execution-environments-and-sandboxes/design.md#执行环境权限) | [PF-005](../PF-005-execution-environments-and-sandboxes/design.md) |
 | [决策卡片](../PF-008-human-in-the-loop/design.md#决策卡片)、[决策池](../PF-008-human-in-the-loop/design.md#决策池)、[答复只在卡片上做](../PF-008-human-in-the-loop/design.md#55-两条入口一件事)、[永远等着](../PF-008-human-in-the-loop/design.md#61-永远等着系统不替人作答) | [PF-008](../PF-008-human-in-the-loop/design.md) |
@@ -417,7 +417,7 @@
 | **各人的[个人 context](../../ubiquitous_language/terms/scope-and-resolution.md#ul-personal-context--个人-context--personal-context)**，[观感偏好](#观感偏好)在内 | **中心** | 它跟着账号走、换台机器还在（[裁定](decisions.md#一拍板记录)）；据点上留一份副本供离线时用 |
 | **各人自带的那把[模型凭据](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential)** | **中心**（配在租户层） | [PF-013 定了它是范围的属性](../PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上)；据点调用时取所在范围那一把，[值本身永不呈现](#611-秘密不进任何一份呈现)（[§6.20](#620-每台机器上只有自己那一把凭据)） |
 | 会话、[会话日志](../PF-012-agent-loop-and-run/design.md#会话日志)、等着的卡片、正在跑的运行 | **据点** | [裁定](decisions.md#一拍板记录)：会话、运行、工具执行在用户本机 |
-| [工作区](../../ubiquitous_language/terms/scope-and-resolution.md#ul-workspace--工作区--workspace)那个**目录本身**，以及会话层的那些值 | **据点** | 目录就在这台机器上；会话层的值只对这一个会话成立 |
+| [工作区](../../ubiquitous_language/terms/scope-and-resolution.md#ul-workspace--工作区--workspace)的本地实例或地址，以及会话层的那些值 | **据点**（实例所在处） | 工作区本体可以通过多个地址访问；会话层的值只对这一个会话成立 |
 
 **为什么组织层与租户层那些东西只能在中心一侧**——只有这一个答案自洽：
 
@@ -821,25 +821,24 @@
 > **为什么不选「断了就停」**：那样撤销立刻咬合，**但网线一断就干不了活，而会话与工具明明都在本机**。
 > 治理中心是治理事实的权威，[不是会话的权威](#治理中心)；**让它的可达性决定一个本机会话能不能继续，等于把它做成了每一句话的必经之路**。
 
-### 6.18 进来没指定会话就是新的；当前目录是本租户的工作区就默认挂上
+### 6.18 进来没指定会话就是新的；当前目录可作为本租户工作区地址的默认候选
 
 **人进来时没有指定会话，交付面开一个新的，不接上次那个**（[裁定](decisions.md#一拍板记录)）。
 **要接着上次的，他得指名**——进来时最近的几个会话要摆在他看得见的地方，接上去是一次显式选择。
 **不论哪种，有一条不变：[他在说第一句话之前必须知道这句话会落进哪个会话](#62-没准备好就开不了会话)。**
 
-**开新会话时，交付面按运行命令时的当前目录判定它是不是
-[当前租户身份](../PF-001-identity-scope-and-agent-constraints/design.md#当前租户身份)名下某份[工作区](../../ubiquitous_language/terms/scope-and-resolution.md#ul-workspace--工作区--workspace)的承载目录；
-是，就把那份工作区作为[创建时显式指定的那一项](../PF-015-session-lifecycle-and-ownership/design.md#613-工作区在创建时显式指定不指定就是空)的默认值挂上。**
+**开新会话时，交付面可以按运行命令时的当前目录寻找本租户工作区地址或实例；
+找到后只把对应工作区作为[创建时显式指定的那一项](../PF-015-session-lifecycle-and-ownership/design.md#613-工作区在创建时显式指定不指定就是空)的默认候选。用户仍可更换或不选择。**
 
 **这条与[「系统不替会话猜一份工作区」](../PF-015-session-lifecycle-and-ownership/design.md#613-工作区在创建时显式指定不指定就是空)相容，界线有三道：**
 
 | 界线 | 具体是什么 |
 |---|---|
-| **只认租户记下的** | 这台机器上记着这个租户身份用过哪些工作区——那是一份[拿来给人挑、给默认值的清单，不是治理对象](../PF-002-assets-settings-and-permissions/design.md#它是会话选用的不指定就是空)，工作区本身[由会话创建时给出的那条路径指认](../PF-002-assets-settings-and-permissions/design.md#工作区不是目录)。**当前目录不在这份清单里，那一级就是空**——不会因为 agent 在某个目录里起来就把那个目录当成工作区 |
-| **只认当前租户身份名下的** | [同一个目录被两个租户身份分别挂上是两份工作区](../PF-002-assets-settings-and-permissions/design.md#它挂在租户下)。别的租户记下的，**不算** |
+| **只认租户记下的** | 这台机器上记着这个租户身份可访问的工作区地址/实例——那是一份[拿来给人挑、给默认值的清单，不是治理对象](../PF-002-assets-settings-and-permissions/design.md#它是会话选用的不指定就是空)。**当前目录不在这份清单里，那一级就是空** |
+| **只认当前租户身份名下的** | [同一个地址被两个租户身份分别访问仍须各自授权](../PF-002-assets-settings-and-permissions/design.md#它挂在租户下)。别的租户记下的，**不算** |
 | **填的是默认值，不是替人定** | 挂了哪一份**在他说第一句话之前看得见**，可以换一份、也可以不挂。**会话创建时收到的仍然是一项显式指定** |
 
-**当前目录在承载目录之下的子目录里，也算在那份工作区里；嵌套时取最近的一层**
+**当前目录若落在某个本地工作区地址的子目录里，可以作为该地址的默认候选；嵌套时取最近的一层**
 （推理链在 [decisions §二](decisions.md#二pm-推导)，可被推翻）。
 
 > **为什么默认是新的**：接着上次那个打开就能继续，
@@ -945,5 +944,5 @@
 | **[到期自动归档](../PF-015-session-lifecycle-and-ownership/design.md#62-归档有两条来路人手动或到期自动)的时钟，机器关机期间怎么算** | [PF-015 定了「系统按一个时限自动收，出厂默认 30 天」](../PF-015-session-lifecycle-and-ownership/design.md#62-归档有两条来路人手动或到期自动)。[机器开着时它照常走](#616-没人开着屏这一处照常发生事)；**关机的那几天算不算在时限里、开机后是立刻补收还是从头计**，未述 | 另有一问同样未述：**一个人被移出组织之后，他机器上那些[保留着的会话](#610-成员资格无效期间本机那些会话不呈现也不删)，这个时钟照不照走** | PF-015 的 owner |
 | **怎么确认两个地址后面是同一个[治理中心](#治理中心)** | 中心的身份[不是它的地址](#治理中心)，而这台机器上记的偏偏是地址。**分不出「中心搬家了」与「连到了另一个中心」，人就可能在另一套账号体系上重新注册而不自知** | 已定的是：同一个中心换地址，账号、组织、成员资格一条不变；**怎么判定「是同一个」未定** | 产品负责人，连带部署那一侧 |
 | **合规意义上的数据清除** | [PF-015 明说它是另一件事、本版不做](../PF-015-session-lifecycle-and-ownership/design.md#为什么没有删除)。**会话落在个人电脑上之后，这件事的份量变了**：离职的人带走的是一台装着组织会话日志的机器 | 本 topic 只承诺[不呈现、不放行](#610-成员资格无效期间本机那些会话不呈现也不删) | 产品负责人——**这块还没有 topic** |
-| **[工作区](../../ubiquitous_language/terms/scope-and-resolution.md#ul-workspace--工作区--workspace)那一层落在哪一侧** | 同一个人在两台机器上对着「同一个工作区」干活时，**看到的是不是同一套配置** | **那个目录只在这台机器上**（[§5.6](#56-哪些东西在中心一侧哪些在据点一侧)）；而工作区[挂在租户下、是设置的一格](../../ubiquitous_language/terms/scope-and-resolution.md#ul-workspace--工作区--workspace)，**它那一层的配值要不要跟着租户走到另一台机器上，本 rev 未定** | PF-002 的 owner |
+| **[工作区](../../ubiquitous_language/terms/scope-and-resolution.md#ul-workspace--工作区--workspace)那一层落在哪一侧** | 同一个人在两台机器上对着「同一个工作区」干活时，**实例与配置如何保持一致** | 工作区可以有多个地址和实例；中心存储、同步与并发仍由 [PF-020](../PF-020-workspace/README.md) 后续决定 | PF-020 的 owner |
 | **[会话运行模式](../PF-015-session-lifecycle-and-ownership/design.md#会话运行模式)在哪儿切、谁能切** | 交付面要不要提供这个入口 | 模式本身[PF-015 已经定了三档](../PF-015-session-lifecycle-and-ownership/design.md#会话运行模式)；**谁能改、什么时候改，那边未述** | PF-015 的 owner |

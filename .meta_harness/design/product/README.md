@@ -20,8 +20,8 @@
 | Topic | 状态 | rev |
 |---|---|---|
 | [PF-000 发生的事与记录条目](PF-000-occurrences-and-record-entries/README.md) | active | 1 |
-| [PF-001 身份、范围与对 Agent 的约束](PF-001-identity-scope-and-agent-constraints/README.md) | active | 17 |
-| [PF-002 设置、权限与资产的展开](PF-002-assets-settings-and-permissions/README.md) | active | 20 |
+| [PF-001 身份、范围与对 Agent 的约束](PF-001-identity-scope-and-agent-constraints/README.md) | active | 18 |
+| [PF-002 设置、权限与资产的展开](PF-002-assets-settings-and-permissions/README.md) | active | 21 |
 | [PF-003 资产的复制与分享](PF-003-asset-transfer-and-sharing/README.md) | active | 5 |
 | [PF-004 Agent 定义与装配](PF-004-agent-definition-and-assembly/README.md) | active | 12 |
 | [PF-005 执行环境与沙箱](PF-005-execution-environments-and-sandboxes/README.md) | active | 5 |
@@ -34,12 +34,21 @@
 | [PF-012 Agent Loop 与 Run](PF-012-agent-loop-and-run/README.md) | active | 14 |
 | [PF-013 模型档案、调用与切换](PF-013-model-profiles-and-invocation/README.md) | active | 12 |
 | [PF-014 输入的受理与排队](PF-014-inbound-intake-and-queueing/README.md) | active | 7 |
-| [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md) | draft | 11 |
-| [PF-016 命令行交付面](PF-016-cli-tui-delivery-surface/README.md) | active | 6 |
+| [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md) | draft | 12 |
+| [PF-016 命令行交付面](PF-016-cli-tui-delivery-surface/README.md) | active | 7 |
 | [PF-017 治理中心作为一个可部署应用](PF-017-governance-center-as-deployable-application/README.md) | active | 2 |
+| [PF-020 工作区](PF-020-workspace/README.md) | draft | 1 |
 ## 已排定、尚未开题的编号
 
-**这一栏现在是空的。**
+这里只登记编号和主题，不提前创建空的 topic 包；正式开题时再按准入规则建包。
+
+| 编号 | 预留主题 | 当前安排 |
+|---|---|---|
+| PF-018 | WebUI 交付面 | 预留编号，尚未开题 |
+| PF-019 | Desktop 交付面 | 预留编号，尚未开题 |
+| PF-021 | 日程和日历 | PF-020 之后讨论的第二个独立主题，尚未开题 |
+
+**接下来从 PF-020 开始使用编号**：本会话先讨论 PF-020「工作区」，再讨论 PF-021「日程和日历」。
 
 **PF-015 于 2026-09-21 开题**，见 [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md)。
 它是 2026-09-17「agent-loop / session / inbound 会是多个 PF，不是单个」那条裁决
