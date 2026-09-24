@@ -22,11 +22,11 @@
 
 | 步 | 调用 | 预期 | 依据 |
 |---|---|---|---|
-| 1 | 装入清单 #1 | `dispositions`：两条都是 `added`；两行 `listed`，`updatedAt` = 提交时刻 | [S-18](contract.md#s-18-装入官方档案清单) |
-| 2 | 原样重装清单 #1 | 同样的 `dispositions`（两条 `added`），**什么都没写**、`updatedAt` 不动 | [S-18](contract.md#s-18-装入官方档案清单) ⑦ |
-| 3 | 装入清单 #2：`ordinal = 2`，只含 `openai/gpt-5`（`maxOutputTokens` 改大）与新条目 `google/gemini-3-pro` | `openai/gpt-5` → `updated`、`updatedAt` 推进；`google/gemini-3-pro` → `added`；`anthropic/claude-sonnet-5` → `withdrawn`，发一次 `profile.withdrawn` | [S-18](contract.md#s-18-装入官方档案清单) 处置表、[S-21](contract.md#s-21-profilewithdrawn-是通知) |
-| 4 | 再装清单 #1（回滚部署） | **`manifestNotNewer`**，什么都不变——`google/gemini-3-pro` **没有**被撤回 | [S-8](contract.md#s-8-官方档案清单与发布序号)、[S-18](contract.md#s-18-装入官方档案清单) ⑦ |
-| 5 | 装入清单 #3：`ordinal = 3`，含 `anthropic/claude-sonnet-5`（内容同清单 #1）、`openai/gpt-5` 与 `google/gemini-3-pro`（内容同清单 #2） | `anthropic/claude-sonnet-5` → **`relisted`**：**原来那一行**回到 `listed`（同一个引用），`updatedAt` 不动，不发事件；另两条 `unchanged` | [S-18](contract.md#s-18-装入官方档案清单) 处置表、`data.model-profile/v1#S-10` |
+| 1 | 装入清单 #1 | `dispositions`：两条都是 `added`；两行 `listed`，`updatedAt` = 提交时刻 | [S-18](contract.md#s-18-loadmanifest) |
+| 2 | 原样重装清单 #1 | 同样的 `dispositions`（两条 `added`），**什么都没写**、`updatedAt` 不动 | [S-18](contract.md#s-18-loadmanifest) ⑦ |
+| 3 | 装入清单 #2：`ordinal = 2`，只含 `openai/gpt-5`（`maxOutputTokens` 改大）与新条目 `google/gemini-3-pro` | `openai/gpt-5` → `updated`、`updatedAt` 推进；`google/gemini-3-pro` → `added`；`anthropic/claude-sonnet-5` → `withdrawn`，发一次 `profile.withdrawn` | [S-18](contract.md#s-18-loadmanifest) 处置表、[S-21](contract.md#s-21-profilewithdrawn-是通知) |
+| 4 | 再装清单 #1（回滚部署） | **`manifestNotNewer`**，什么都不变——`google/gemini-3-pro` **没有**被撤回 | [S-8](contract.md#s-8-官方档案清单与发布序号)、[S-18](contract.md#s-18-loadmanifest) ⑦ |
+| 5 | 装入清单 #3：`ordinal = 3`，含 `anthropic/claude-sonnet-5`（内容同清单 #1）、`openai/gpt-5` 与 `google/gemini-3-pro`（内容同清单 #2） | `anthropic/claude-sonnet-5` → **`relisted`**：**原来那一行**回到 `listed`（同一个引用），`updatedAt` 不动，不发事件；另两条 `unchanged` | [S-18](contract.md#s-18-loadmanifest) 处置表、`data.model-profile/v1#S-10` |
 
 ## 2. 自建档案：建、认回、撤回、再读
 
@@ -85,7 +85,7 @@ B 给自己的租户层配了 `K_B`；B 在个人组织 `P` 里给 `T_P` 配了 
 
 | 调用 | 预期 | 依据 |
 |---|---|---|
-| 装入清单 #4 | `vendor/new-model` → **`added`**：官方那一格里没有这个名字；`Q` 的自建那条不参与 | [S-18](contract.md#s-18-装入官方档案清单) 处置表、`data.model-profile/v1#S-3` |
+| 装入清单 #4 | `vendor/new-model` → **`added`**：官方那一格里没有这个名字；`Q` 的自建那条不参与 | [S-18](contract.md#s-18-loadmanifest) 处置表、`data.model-profile/v1#S-3` |
 | `listProfiles(T_C)` | `vendor/new-model` 出现**两次**：`{origin: official, routeName: "vendor/new-model"}` 与 `{origin: custom, scope: organization(Q), routeName: "vendor/new-model"}`，靠引用里的来源与范围分得开 | [S-17](contract.md#s-17-listprofiles) ⑤ |
 | `listProfiles(T_A)` | 只有官方那一条——`Q` 的组织层不在 `O` 的链上 | [S-6](contract.md#s-6-范围链) |
 | `registerProfile(T_C, organization(Q), {routeName: "acme/finetune-7b", …})` | **成功**——不在 `O` 组织层那一格；判定不读别的格，C 也就探不到 `O` 建过这个名字 | [S-14](contract.md#s-14-registerprofile) ④ |
@@ -105,7 +105,7 @@ B 给自己的租户层配了 `K_B`；B 在个人组织 `P` 里给 `T_P` 配了 
 | `notAuthorized` | `readProfile(T_C, {origin: custom, scope: organization(O), …})` | `O` 不在 `T_C` 的链上；**先于解析，C 得不到「那里有没有」** | [S-16](contract.md#s-16-readprofile) ② |
 | `routeNameTaken` | `registerProfile(T_B, tenant(T_B), {routeName: "b/local-proxy", …与第 3 节那一条内容不同})` | 同一格（B 的租户层）里已有这个名字 | [S-14](contract.md#s-14-registerprofile)、`data.model-profile/v1#S-3` |
 | `officialProfileReadOnly` | `withdrawProfile(T_A, {origin: official, routeName: "openai/gpt-5"})`；`updateProfile`、`relistProfile` 对同一引用同值 | 官方档案谁都撤不了、改不了、恢复不了——**结构性，不是权限**；只经清单装入变化 | [S-15](contract.md#s-15-withdrawprofile) ③、[S-31](contract.md#s-31-updateprofile) ③、[S-33](contract.md#s-33-relistprofile) ③ |
-| `manifestNotNewer` | 已装入序号 3 时装入 `ordinal = 3`、内容与清单 #3 不同 | 同序号不同内容 | [S-18](contract.md#s-18-装入官方档案清单) ⑦ |
+| `manifestNotNewer` | 已装入序号 3 时装入 `ordinal = 3`、内容与清单 #3 不同 | 同序号不同内容 | [S-18](contract.md#s-18-loadmanifest) ⑦ |
 | `profileNotFound` | `readProfile(T_A, {origin: custom, scope: organization(O), routeName: "acme/never"})` | 解析到零行 | [S-16](contract.md#s-16-readprofile) ⑧ |
 | `credentialUnavailable` | 见第 4 节第 5 步 | 自建档案、这个租户没配自己那一把——出厂格那一把配没配都不取 | [S-20](contract.md#s-20-resolvecredential) ⑤⑧ |
 | `unavailable` | `registerProfile(T_A, …)`，成员资格判定以 `unavailable` 失败 | 读不到 ≠ 无权，**不折成 `notAuthorized`** | [S-10](contract.md#s-10-配置资格谁能在哪一格写) |

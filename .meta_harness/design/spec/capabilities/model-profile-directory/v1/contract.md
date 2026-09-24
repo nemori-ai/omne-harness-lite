@@ -6,7 +6,7 @@
   `family = capabilities`、`topic = model-profile-directory`、规范路径 `spec/capabilities/model-profile-directory/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
 - **状态**：`candidate`（2026-09-23 起草）——未经独立评审、未接受、未冻结
-- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-013 rev 11** 为准（rev 5–11 全文待产品负责人确认；rev 11 只动转换件呈现的落点——P40，落在 PF-016 §6.21——不影响本契约条款），另引 PF-001 rev 16、PF-002 rev 16、PF-016 rev 5
+- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-013 rev 11** 为准（rev 5–11 全文待产品负责人确认；rev 11 只动转换件呈现的落点——P40，落在 PF-016 §6.21——不影响本契约条款），另引 PF-001 rev 16、PF-002 rev 19、PF-016 rev 6（2026-09-24 核两份 changelog：PF-016 rev 6 把「组织那一把」改为不存在、新增 §6.21 转换件呈现，本契约引的 §6.11 未变；PF-002 rev 17–19 不涉及模型档案与模型凭据，rev 18 组织那一层不持有 MCP 凭据与本契约 S-7 同向——都不改本契约条款）
 - **精确语义依赖**（消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)，catalog 按它登记）：
   - `omne-harness-lite-design-2026-09-15 · data.model-profile · v1`（candidate）
   - `omne-harness-lite-design-2026-09-15 · data.identity-values · v1`（accepted）
@@ -21,7 +21,7 @@
 | 依据 | 位置 | 本契约取它的什么 |
 |---|---|---|
 | 档案是一个对象；属性表；官方与自建；在册／已撤回，已撤回可恢复在册 | [PF-013 §4 模型档案](../../../../product/PF-013-model-profiles-and-invocation/design.md#模型档案) · [在册 / 已撤回](../../../../product/PF-013-model-profiles-and-invocation/design.md#在册--已撤回) · [官方档案 / 自建档案](../../../../product/PF-013-model-profiles-and-invocation/design.md#官方档案--自建档案) | S-5、S-8、S-14、S-15、S-18、S-33 |
-| 档案的身份是所在范围加路由名；同一范围里要再用已撤回档案的路由名就是恢复那一条 | [PF-013 §4 档案的身份](../../../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名) | S-5、S-14、S-18 |
+| 档案的身份是所在范围加路由名；同一范围里要再用已撤回档案的路由名就是恢复那一条；**同名的几条在运行时按层覆盖，租户 > 组织 > 官方**（产品负责人 2026-09-24 裁定，[G-11](#十已知缺口) 原话；PF-013 rev 12 将补进本节，锚点不变） | [PF-013 §4 档案的身份](../../../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名) | S-5、S-6、S-14、S-17、S-18 |
 | 「这个范围有哪些档案」就是作用域求值，不是新机制 | [PF-013 §5.1](../../../../product/PF-013-model-profiles-and-invocation/design.md#51-一条档案三种身份的人碰得到它) | S-3、S-17（本契约只列行，不判「范围允许」） |
 | 凭据只在租户层，一个租户一把，档案不存；组织那一层不持有；自建档案要调它的人自己那一把 | [PF-013 §5.6](../../../../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上) · [组织那一层为什么不持有](../../../../product/PF-013-model-profiles-and-invocation/design.md#组织那一层为什么不持有) · [§6.2](../../../../product/PF-013-model-profiles-and-invocation/design.md#62-凭据挂在范围上档案自己不存) · [decisions P33、P34](../../../../product/PF-013-model-profiles-and-invocation/decisions.md#rev-10-随裁决-3338-推出的2026-09-24) | S-6、S-7、S-19、S-20、S-32 |
 | 取值是对档案的引用；路由名定下不可改 | [PF-013 §6.1](../../../../product/PF-013-model-profiles-and-invocation/design.md#61-档案是一个对象那项设置的取值是对它的引用) | S-5、S-16 |
@@ -44,11 +44,11 @@
 > | [S-20](#s-20-resolvecredential) 的出厂格那一把「由装配给、不可经写面改」 | 主线裁定 2026-09-23，待产品负责人确认（账本 S16-f）；产品正文 rev 9 起已写（[PF-013 §5.6](../../../../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上)）。**取用次序本身已有产品行**：租户那一把，否则（只对官方档案）出厂格那一把——PF-013 rev 10 §5.6 与 decisions P33、P34（原主线裁定 C-12 的「否则组织层」随裁决 33 删去） |
 > | [S-31](#s-31-updateprofile) 修订自建档案、[S-32](#s-32-unbindcredential) 解除凭据绑定 | 主线裁定 2026-09-23，待产品负责人确认（账本 S16-e）；项与前置按 `data.model-profile/v1#S-12`；产品正文 rev 9 起 flows §4 已有这两行 |
 > | [S-20](#s-20-resolvecredential) 两种问法（有没有 ／ 取值） | 主线 2026-09-23 补充（对账 D「需补条款」S16a） |
-> | [S-18](#s-18-装入官方档案清单) 官方清单装入：消失即标撤回、重现即恢复在册 | 同上；机制读数 O-3；「重现即恢复」随 PF-013 rev 10 裁决 37 改（官方档案的恢复只经清单，P35） |
+> | [S-18](#s-18-loadmanifest) 官方清单装入：消失即标撤回、重现即恢复在册 | 同上；机制读数 O-3；「重现即恢复」随 PF-013 rev 10 裁决 37 改（官方档案的恢复只经清单，P35） |
 > | [S-14](#s-14-registerprofile) 失败值 `routeNameTaken` | 同上 |
-> | [S-18](#s-18-装入官方档案清单) 的发布序号与 `manifestNotNewer` | **规格层推导**：旧清单被重放会把新档案撤掉、把已撤掉的恢复——撤回虽可恢复，在下一次正确装入之前指着它们的会话都受影响；失败值**账本里没有**，已报给主线 |
+> | [S-18](#s-18-loadmanifest) 的发布序号与 `manifestNotNewer` | **规格层推导**：旧清单被重放会把新档案撤掉、把已撤掉的恢复——撤回虽可恢复，在下一次正确装入之前指着它们的会话都受影响；失败值名 `manifestNotNewer` 由主线 2026-09-24 裁定收入账本 |
 > | [S-15](#s-15-withdrawprofile)、[S-31](#s-31-updateprofile)、[S-33](#s-33-relistprofile) 的 `officialProfileReadOnly` | **主线裁定 2026-09-24**：官方档案经写面撤回、修订、恢复都是同一条结构性禁止（[flows §4](../../../../product/PF-013-model-profiles-and-invocation/flows.md#四角色与操作)「撤回、恢复或修订官方档案：不可」对全部四种身份），三处用同一个具名拒绝值；取代起草时的 `officialProfileNotWithdrawable`（只用于撤回）与修订、恢复两处的 `invalidInput` |
-> | [S-33](#s-33-relistprofile) 服务面名 `relistProfile`；[S-18](#s-18-装入官方档案清单) 处置值 `relisted`；恢复在册不加通知 | **主线裁定 2026-09-24**；操作本身有产品行（裁决 37、P35） |
+> | [S-33](#s-33-relistprofile) 服务面名 `relistProfile`；[S-18](#s-18-loadmanifest) 服务面名 `loadManifest`、处置值 `relisted`；恢复在册不加通知 | **主线裁定 2026-09-24**；操作本身有产品行（裁决 37、P35） |
 > | [S-31](#s-31-updateprofile) 已撤回的行也改得动 | **主线裁定 2026-09-24**：[flows §3.1](../../../../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)「恢复之后照常修订」说的是恢复之后可以修订，**不是禁止修订已撤回的行** |
 
 ---
@@ -62,13 +62,13 @@
 | # | 拥有的事实 | 正文 |
 |---|---|---|
 | 1 | **档案行**：每条档案存在哪一格、它的记录、在册还是已撤回；**行永远不删** | [S-5](#s-5-档案行一条档案在目录里的存储事实) |
-| 2 | **同一范围内路由名唯一的执行**：`data.model-profile/v1#S-3` 那条判定在建档与装入官方清单时落到存储上 | [S-14](#s-14-registerprofile)、[S-18](#s-18-装入官方档案清单) |
-| 3 | **官方档案清单的装入**：随系统发布的那一批怎样进目录、消失的怎样被标为已撤回、重现的怎样恢复在册 | [S-8](#s-8-官方档案清单与发布序号)、[S-18](#s-18-装入官方档案清单) |
+| 2 | **同一范围内路由名唯一的执行**：`data.model-profile/v1#S-3` 那条判定在建档与装入官方清单时落到存储上 | [S-14](#s-14-registerprofile)、[S-18](#s-18-loadmanifest) |
+| 3 | **官方档案清单的装入**：随系统发布的那一批怎样进目录、消失的怎样被标为已撤回、重现的怎样恢复在册 | [S-8](#s-8-官方档案清单与发布序号)、[S-18](#s-18-loadmanifest) |
 | 4 | **凭据绑定**：一个租户身上那一把凭据的引用，以及它是什么时候配的；**组织那一层不持有** | [S-7](#s-7-凭据绑定) |
 | 5 | **凭据的取用规则**：给发起调用的租户与这次要用的档案的来源，取哪一把；两种问法 | [S-20](#s-20-resolvecredential) |
 
 **十个操作**：登记（`registerProfile`）、撤回（`withdrawProfile`）、恢复在册（`relistProfile`）、修订（`updateProfile`）、读（`readProfile`）、列（`listProfiles`）、
-装入官方档案清单、配凭据（`bindCredential`）、解除凭据（`unbindCredential`）、取凭据（`resolveCredential`），见[第四节](#四操作)；
+装入官方档案清单（`loadManifest`）、配凭据（`bindCredential`）、解除凭据（`unbindCredential`）、取凭据（`resolveCredential`），见[第四节](#四操作)；
 外加一个通知（[S-21](#s-21-profilewithdrawn-是通知)）。
 
 ### S-2 本契约不拥有什么
@@ -86,7 +86,7 @@
 
 - **不判「范围允许」。**[S-17](#s-17-listprofiles) 列出一条范围链上**存在**的档案；它们在那个范围能不能用，是作用域求值（`capability.asset-evaluation` v1）的结果（[PF-013 §5.1](../../../../product/PF-013-model-profiles-and-invocation/design.md#51-一条档案三种身份的人碰得到它)）。把列表当成可用集合，锁死与配成不允许就被绕过去了。
 - **不呈现凭据的值。**除了[取值问法](#s-12-秘密只在一个问法里出现)，本契约的任何返回、事件、失败说明里都没有凭据的值，**也没有 `CredentialRef`**（引用能换来凭据，呈现它就等于绕开 [PF-016 §6.11](../../../../product/PF-016-cli-tui-delivery-surface/design.md#611-秘密不进任何一份呈现)；与 `data.asset-model/v1#S-23` 第 5 条同一口径）。
-- **不提供改身份分量的写面**：[S-31](#s-31-updateprofile) 只改可改的项；官方档案只经[清单装入](#s-18-装入官方档案清单)变化（撤回、恢复在册、修订都在内）。
+- **不提供改身份分量的写面**：[S-31](#s-31-updateprofile) 只改可改的项；官方档案只经[清单装入](#s-18-loadmanifest)变化（撤回、恢复在册、修订都在内）。
 - **不改出厂格那一把凭据**：它由装配给（[S-7](#s-7-凭据绑定)），[S-19](#s-19-bindcredential)、[S-32](#s-32-unbindcredential) 都够不着。
 - **不保留档案的历史取值。**一次调用用的是哪一份属性，由模型请求运行时绑定在那次调用上、留痕在响应体里（`data.model-response/v1#S-9` 的 `route.profileSnapshot`）；目录只有**当前**那一份。
 - **不发出任何控制事件**（[S-21](#s-21-profilewithdrawn-是通知)）。
@@ -103,10 +103,10 @@
 |---|---|
 | `data.model-profile` `#S-1` 档案身份（所在范围 + 路由名）、档案与引用成对交出 | [S-5](#s-5-档案行一条档案在目录里的存储事实)、[S-16](#s-16-readprofile)、[S-17](#s-17-listprofiles) |
 | `data.model-profile` `#S-2` 路由名建档后不可改 | [S-5](#s-5-档案行一条档案在目录里的存储事实) |
-| `data.model-profile` `#S-3` 撞名判定（同一范围内唯一、含已撤回行、只比同一格）、失败值 `route_name_taken` | [S-5](#s-5-档案行一条档案在目录里的存储事实)、[S-14](#s-14-registerprofile) ④、[S-18](#s-18-装入官方档案清单) ④ |
-| `data.model-profile` `#S-4` 来源由产生方式决定、与所在范围一一对应 | [S-14](#s-14-registerprofile)、[S-18](#s-18-装入官方档案清单)、[S-20](#s-20-resolvecredential) ①（取用按来源） |
-| `data.model-profile` `#S-10` 在册状态：初值、两条转移（撤回、恢复在册）、恢复的是同一行、名字在同一格里仍被占 | [S-15](#s-15-withdrawprofile)、[S-18](#s-18-装入官方档案清单)、[S-33](#s-33-relistprofile) |
-| `data.model-profile` `#S-11` `updatedAt` 何时动 | [S-14](#s-14-registerprofile)、[S-18](#s-18-装入官方档案清单)、[S-31](#s-31-updateprofile)、[S-33](#s-33-relistprofile) |
+| `data.model-profile` `#S-3` 撞名判定（同一范围内唯一、含已撤回行、只比同一格）、失败值 `route_name_taken` | [S-5](#s-5-档案行一条档案在目录里的存储事实)、[S-14](#s-14-registerprofile) ④、[S-18](#s-18-loadmanifest) ④ |
+| `data.model-profile` `#S-4` 来源由产生方式决定、与所在范围一一对应 | [S-14](#s-14-registerprofile)、[S-18](#s-18-loadmanifest)、[S-20](#s-20-resolvecredential) ①（取用按来源） |
+| `data.model-profile` `#S-10` 在册状态：初值、两条转移（撤回、恢复在册）、恢复的是同一行、名字在同一格里仍被占 | [S-15](#s-15-withdrawprofile)、[S-18](#s-18-loadmanifest)、[S-33](#s-33-relistprofile) |
+| `data.model-profile` `#S-11` `updatedAt` 何时动 | [S-14](#s-14-registerprofile)、[S-18](#s-18-loadmanifest)、[S-31](#s-31-updateprofile)、[S-33](#s-33-relistprofile) |
 | `data.model-profile` `#S-12` 各属性何时定、能不能改 | [S-5](#s-5-档案行一条档案在目录里的存储事实)、[S-31](#s-31-updateprofile) |
 | `data.model-profile` `#S-18` 档案参数的输出上限 | [S-31](#s-31-updateprofile) ④ |
 | `data.model-profile` `#S-13` `ModelProfileRef` 两支 | 全部操作的输入与返回 |
@@ -128,7 +128,7 @@
 
 > **`data.model-profile/v1#S-3` 的撞名范围按 PF-013 rev 10 改为「同一范围内唯一」**（裁决 35、38）：判定只比同一格，**不读隶属关系**，
 > 所以本契约不再消费 `capability.organization-governance/v1#S-34` 与 `data.identity-values/v1#S-15`（2026-09-24 规格修订批）。
-> 「组织层与租户层的自建档案同名并存」这一读法待产品负责人确认（[G-11](#十已知缺口)）。
+> 「组织层与租户层的自建档案同名并存」由产品负责人 2026-09-24 裁定（[G-11](#十已知缺口) 已闭合）；并存之后谁生效按链的先后覆盖（[S-17](#s-17-listprofiles) 末段）。
 
 ---
 
@@ -140,7 +140,7 @@
 
 - **行的键是 (所在范围, 路由名)**（`data.model-profile/v1#S-1`）；同一格里路由名不重复（`data.model-profile/v1#S-3`），官方档案全在出厂默认层，所以**官方档案单凭路由名就挑得出至多一行**，自建档案由（所在范围, 路由名）挑出——**同一个路由名可以在不同的格里各有一行**（官方那一格、组织层、租户层）。
 - **记录里不带所在范围**（`data.model-profile/v1#S-1`）；凡本契约交出一条档案，**都与指向它的 `ModelProfileRef` 成对交出**。
-- **行不删**：撤回与恢复在册只改 `registration`（[S-15](#s-15-withdrawprofile)、[S-33](#s-33-relistprofile)）；官方清单里消失的条目只标撤回、重现的只恢复在册（[S-18](#s-18-装入官方档案清单)）。**本契约没有任何删行的写路径**；**恢复的永远是原来那一行，不另起一行**。
+- **行不删**：撤回与恢复在册只改 `registration`（[S-15](#s-15-withdrawprofile)、[S-33](#s-33-relistprofile)）；官方清单里消失的条目只标撤回、重现的只恢复在册（[S-18](#s-18-loadmanifest)）。**本契约没有任何删行的写路径**；**恢复的永远是原来那一行，不另起一行**。
 - **身份分量建档后不变**：路由名、所在范围、来源（`data.model-profile/v1#S-2`、`#S-12`）。本契约没有改它们的写路径；**改名就是新登记一条、撤回旧的**（[S-31](#s-31-updateprofile)）。
 - **`registration` 与 `updatedAt` 由本契约写，不由调用方给**：建档与装入时，输入里的档案内容**不带**这两个成员（[S-14](#s-14-registerprofile) ①）；本契约在提交时写 `listed` 与提交时刻。
 
@@ -157,6 +157,7 @@
 - **输入里的范围链就用它的锚给出**：接收 `scopeChain` 的操作收一个 `TenantId`，链由上式派生，**不收一张调用方自排的列表**——一张自排的列表可以把别的租户、别的组织、或本人的个人组织塞进来。
 - **链上只有这三格。**别的租户、别的组织、上级组织、**本人在别处的个人组织**（「个人范围」）都**不在**任何一条不以它为锚的链上——凭据的「永不取」（[S-20](#s-20-resolvecredential)）与档案的读边界（[S-16](#s-16-readprofile)）都由这一条兑现，**不靠一个额外的检查**。
 - **档案那一侧三格都贡献**：出厂默认层贡献官方档案，组织层与租户层各贡献建在那一格的自建档案。
+- **链的先后就是同名覆盖的先后**：同一个路由名在链上有几条时，**越具体的一格越优先——租户层 > 组织层 > 出厂默认层**（产品负责人 2026-09-24 裁定，[S-17](#s-17-listprofiles) 末段）。
 - **凭据那一侧只有两处**：租户层那一格的绑定（[S-7](#s-7-凭据绑定)），与出厂默认层那一把（部署装配配了时）。**组织层那一格不贡献凭据**——组织那一层不持有（[PF-013 §5.6](../../../../product/PF-013-model-profiles-and-invocation/design.md#组织那一层为什么不持有)）。
 - **出厂默认层没有身份值**（`data.identity-values/v1#S-11` 刻意不含它）：链上那一格由系统充当；它的那一把凭据由部署装配配置，**任何写面都改不了它**（主线裁定 2026-09-23，待产品负责人确认；账本 S16-f），**只供官方档案**（[S-20](#s-20-resolvecredential)）。
 
@@ -222,7 +223,7 @@
 - **成员资格判定取 `capability.organization-governance/v1#S-26`**：返回 `effective`（带角色）／`ineffective`，或失败支 `unavailable`。
   **`ineffective` ⇒ `notAuthorized`；失败支 ⇒ `unavailable`，绝不折成 `notAuthorized`**——那会把「读不到」说成「无权」。
 - **`notAuthorized` 不区分「不是这个组织的成员」「是成员但不是超管」「不是这个租户本人」**：分开会让调用方据失败值反推别的组织的成员名单。
-- **出厂默认层不在这个谓词的定义域里**：它没有身份值，没有任何 `TenantId` 能写它；官方档案只经[清单装入](#s-18-装入官方档案清单)。
+- **出厂默认层不在这个谓词的定义域里**：它没有身份值，没有任何 `TenantId` 能写它；官方档案只经[清单装入](#s-18-loadmanifest)。
 - **个人组织不另设禁止**：个人组织的超管就是那个账号自己（`capability.organization-governance` v1），他在自己的组织层建档照上式判；凭据他配在自己的租户层。
 
 ### S-11 每道准入现读
@@ -262,9 +263,9 @@
 
 **判定次序**：凡一个操作可能同时命中几个失败值，按 ⑥ 里**从左到右**的次序取第一个——同一个坏输入在两个实现里报同一个值。
 
-**十个操作**：写七个（[S-14](#s-14-registerprofile)、[S-15](#s-15-withdrawprofile)、[S-33](#s-33-relistprofile)、[S-31](#s-31-updateprofile)、[S-18](#s-18-装入官方档案清单)、[S-19](#s-19-bindcredential)、[S-32](#s-32-unbindcredential)），
+**十个操作**：写七个（[S-14](#s-14-registerprofile)、[S-15](#s-15-withdrawprofile)、[S-33](#s-33-relistprofile)、[S-31](#s-31-updateprofile)、[S-18](#s-18-loadmanifest)、[S-19](#s-19-bindcredential)、[S-32](#s-32-unbindcredential)），
 读三个（[S-16](#s-16-readprofile)、[S-17](#s-17-listprofiles)、[S-20](#s-20-resolvecredential)）。[S-31](#s-31-updateprofile)、[S-32](#s-32-unbindcredential) 是整批对齐加的，[S-33](#s-33-relistprofile) 是 2026-09-24 规格修订批加的，编号追加在末尾、写在本节里。
-**服务面候选名取施工简报与主线补充的账本**；[S-18](#s-18-装入官方档案清单) 那一个账本没有给名字，本稿只用中文标题，已报给主线；[S-33](#s-33-relistprofile) 的 `relistProfile` 是主线 2026-09-24 裁定的。
+**服务面候选名取施工简报与主线补充的账本**；[S-18](#s-18-loadmanifest) 的 `loadManifest` 与 [S-33](#s-33-relistprofile) 的 `relistProfile` 是主线 2026-09-24 裁定的。
 
 ### S-14 registerProfile
 
@@ -274,7 +275,7 @@
 |---|---|
 | ① | `initiator: TenantId`；`scope: ScopeLayerIdentity`（`organization` 或 `tenant` 一支）；**建档内容**：一份 `ModelProfile` 文档，**不带 `registration` 与 `updatedAt`**（[S-5](#s-5-档案行一条档案在目录里的存储事实)），`origin` 必须是 `custom` |
 | ② | `可写(initiator, scope)`（[S-10](#s-10-配置资格谁能在哪一格写)） |
-| ③ | 无。**出厂默认层不是 `scope` 的取值**——`ScopeLayerIdentity` 没有那一支，官方档案只经 [S-18](#s-18-装入官方档案清单) |
+| ③ | 无。**出厂默认层不是 `scope` 的取值**——`ScopeLayerIdentity` 没有那一支，官方档案只经 [S-18](#s-18-loadmanifest) |
 | ④ | **单次提交**：按 `data.model-profile/v1#S-3` 判路由名——**比较范围是 `scope` 那一格里的全部档案行（在册与已撤回）**，不读别的格、不读隶属关系——再写入行（`registration = listed`，`updatedAt` = 提交时刻）。**判定与写入在同一个提交边界里，这个边界覆盖 `scope` 那一格的档案行**；否则同一格里两次并发的同名建档都判「未被占」、各自写入。不同格上的建档（以及官方清单装入）互不相干。**授权那次现读不在这个边界里**（[S-11](#s-11-每道准入现读)） |
 | ⑤ | `{ ref: ModelProfileRef（custom 支，scope 与 routeName 取自输入）, profile: 写下的那份 ModelProfile }`——成对交出 |
 | ⑥ | `invalidInput` · `notAuthorized` · `routeNameTaken` · `unavailable` |
@@ -293,7 +294,7 @@
 |---|---|
 | ① | `initiator: TenantId`；`ref: ModelProfileRef` |
 | ② | `ref` 为 custom 支：`可写(initiator, ref.scope)`（[S-10](#s-10-配置资格谁能在哪一格写)）——**只有那一格有写资格的人撤得动那一格的档案**（[flows §4](../../../../product/PF-013-model-profiles-and-invocation/flows.md#四角色与操作)「自己那层建的」） |
-| ③ | **有**：`ref.origin = official` ⇒ **`officialProfileReadOnly`**。**这不是权限判定**——任何角色都没有这个动作（[flows §4](../../../../product/PF-013-model-profiles-and-invocation/flows.md#四角色与操作)「撤回、恢复或修订官方档案：不可」对全部四种身份）；官方档案只因[清单里消失](#s-18-装入官方档案清单)而撤回。[S-31](#s-31-updateprofile) ③、[S-33](#s-33-relistprofile) ③ 用同一个值 |
+| ③ | **有**：`ref.origin = official` ⇒ **`officialProfileReadOnly`**。**这不是权限判定**——任何角色都没有这个动作（[flows §4](../../../../product/PF-013-model-profiles-and-invocation/flows.md#四角色与操作)「撤回、恢复或修订官方档案：不可」对全部四种身份）；官方档案只因[清单里消失](#s-18-loadmanifest)而撤回。[S-31](#s-31-updateprofile) ③、[S-33](#s-33-relistprofile) ③ 用同一个值 |
 | ④ | **单次提交**：`registration` 由 `listed` 改为 `withdrawn`。**行不删，`updatedAt` 不动**（`data.model-profile/v1#S-11`：它只随五项上游属性动） |
 | ⑤ | `{ ref, registration: withdrawn }` |
 | ⑥ | `invalidInput` · `officialProfileReadOnly` · `notAuthorized` · `profileNotFound` · `unavailable` |
@@ -321,6 +322,7 @@
 | ⑨ | 不发 |
 
 **`notAuthorized` 先于解析**：只看 `ref.scope` 与链就判得出，不读行；链外的人拿不到「那里有没有这条」。
+**按引用读就是读那一条，不做同名覆盖**：同名按层覆盖（[S-17](#s-17-listprofiles) 末段）是求有效模型时按路由名取最具体一格的那一步，归读它的一方；它产出另一个引用、再按本操作读。⑧ 禁止的「回退到别层的同名档案」是另一个方向——那一条找不到就去更一般的格里找——覆盖不放宽它。
 
 ### S-17 listProfiles
 
@@ -340,9 +342,17 @@
 
 **它不是合法目标集合，也不是展示列表**：两者都要再经「范围允许」与「模态兼容」两道（[PF-013 §5.10](../../../../product/PF-013-model-profiles-and-invocation/design.md#510-合法目标集合与展示列表是两件事)），那是 `capability.model-request-runtime` 的求值；本列表只是它们的输入之一。
 
-### S-18 装入官方档案清单
+**同名按层覆盖：同一路由名在链上有多条时，取最具体一格的那条——租户层 > 组织层 > 出厂默认层（官方）。**
+产品负责人 2026-09-24 裁定（[G-11](#十已知缺口) 原话）：路由名当能力标识，像资产一样从下往上在运行时覆盖。
 
-**把一份官方档案清单装进目录。**服务面候选名：**账本未给**（已报给主线）。
+- **本列表照旧列出全部行**（⑤）：被覆盖的那几条也在，靠 `ref` 的来源与所在范围分得开——读的一方按引用逐条算合法目标与展示列表（`capability.model-request-runtime` v1），要的是每一条。
+- **「最具体一格的那条」按行是否存在判，不看在册状态**：一格里有这个路由名的行（在册或已撤回）就是它；**不因为它已撤回、用不了就落到更一般的一格**——那是回退（[S-9](#s-9-缺席时的默认答案)）。已撤回（或用不了）的最具体那条要不要让出位置，是 `capability.model-request-runtime` v1 [G-15](../../model-request-runtime/v1/contract.md#十二已知缺口) 登记的产品缺口；本契约只给链的先后。
+- **同一格里不重名**（`data.model-profile/v1#S-3`），所以每一格至多一条，「最具体的那条」至多一条。
+- **覆盖不是读边界的放宽**：链上只有三格（[S-6](#s-6-范围链)），覆盖只在这三格之间比先后；按引用读仍是精确的（[S-16](#s-16-readprofile) 末段）。
+
+### S-18 loadManifest
+
+**装入官方档案清单：把一份官方档案清单装进目录。**服务面名 `loadManifest`（主线裁定 2026-09-24）。
 
 | # | 内容 |
 |---|---|
@@ -416,7 +426,7 @@
 |---|---|
 | ① | `initiator: TenantId`；`ref: ModelProfileRef`（custom 支）；`patch`：要替换的成员与新值，外加要去掉的可缺席成员——成员只能取自 `data.model-profile/v1#S-12` 标为「可改」或「随上游变化更新」的那几项（`providers`、`allowFallback`、`parameters`，以及五项上游属性）；**给出的成员整项替换，没提到的不动**；`patch` 至少提到一项。`patch` 的交换表示随 [G-7](#十已知缺口) 那份组合契约定 |
 | ② | `可写(initiator, ref.scope)`（[S-10](#s-10-配置资格谁能在哪一格写)）——只有那一格有写资格的人改得动那一格的档案 |
-| ③ | **有**：身份分量（路由名、所在范围、来源）、`registration`、`updatedAt` **不在 `patch` 的定义域里**，出现即 `invalidInput`——改名就是用新名字 [registerProfile](#s-14-registerprofile) 再 [withdrawProfile](#s-15-withdrawprofile) 旧的，**不存在「把一条档案改名」**。`ref` 是 official 支 ⇒ `officialProfileReadOnly`：官方档案只经[清单装入](#s-18-装入官方档案清单)改，与 [withdrawProfile](#s-15-withdrawprofile) ③、[relistProfile](#s-33-relistprofile) ③ 同一个值 |
+| ③ | **有**：身份分量（路由名、所在范围、来源）、`registration`、`updatedAt` **不在 `patch` 的定义域里**，出现即 `invalidInput`——改名就是用新名字 [registerProfile](#s-14-registerprofile) 再 [withdrawProfile](#s-15-withdrawprofile) 旧的，**不存在「把一条档案改名」**。`ref` 是 official 支 ⇒ `officialProfileReadOnly`：官方档案只经[清单装入](#s-18-loadmanifest)改，与 [withdrawProfile](#s-15-withdrawprofile) ③、[relistProfile](#s-33-relistprofile) ③ 同一个值 |
 | ④ | **单次提交**：读出那一行、应用 `patch`、**改完的整份文档过 `data.model-profile/v1#S-24`**（尤其输出上限与参数的关系，`data.model-profile/v1#S-18`）、写回。五项上游属性里至少一项的值变了 ⇒ `updatedAt` = 提交时刻；否则不动（`data.model-profile/v1#S-11`）。`registration` 不动：**已撤回的行也改得动，改了也不回到在册**——回到在册走[恢复在册](#s-33-relistprofile)。[flows §3.1](../../../../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)「恢复之后照常修订」说的是恢复之后可以修订，不是禁止修订已撤回的行（主线裁定 2026-09-24） |
 | ⑤ | `{ ref, profile: 改完的那份 ModelProfile }` |
 | ⑥ | `invalidInput` · `officialProfileReadOnly` · `notAuthorized` · `profileNotFound` · `unavailable` |
@@ -454,7 +464,7 @@
 |---|---|
 | ① | `initiator: TenantId`；`ref: ModelProfileRef`（custom 支） |
 | ② | `可写(initiator, ref.scope)`（[S-10](#s-10-配置资格谁能在哪一格写)）——**谁撤得了它，谁就恢复得了它**：与 [withdrawProfile](#s-15-withdrawprofile) 同一条谓词（P35） |
-| ③ | **有**：`ref.origin = official` ⇒ `officialProfileReadOnly`——官方档案的恢复只经[清单装入](#s-18-装入官方档案清单)（清单里重现即 `relisted`），与 [withdrawProfile](#s-15-withdrawprofile) ③、[updateProfile](#s-31-updateprofile) ③ 同一个值；[flows §4](../../../../product/PF-013-model-profiles-and-invocation/flows.md#四角色与操作)「撤回、恢复或修订官方档案：不可」对全部四种身份 |
+| ③ | **有**：`ref.origin = official` ⇒ `officialProfileReadOnly`——官方档案的恢复只经[清单装入](#s-18-loadmanifest)（清单里重现即 `relisted`），与 [withdrawProfile](#s-15-withdrawprofile) ③、[updateProfile](#s-31-updateprofile) ③ 同一个值；[flows §4](../../../../product/PF-013-model-profiles-and-invocation/flows.md#四角色与操作)「撤回、恢复或修订官方档案：不可」对全部四种身份 |
 | ④ | **单次提交**：`registration` 由 `withdrawn` 改为 `listed`。**同一行**：身份分量、其余成员一个不变，**`updatedAt` 不动**（`data.model-profile/v1#S-11`：它只随五项上游属性动）。**不做撞名判定**——恢复不写新名字，那一格里这个名字本来就只属于这一行（`data.model-profile/v1#S-3`） |
 | ⑤ | `{ ref, registration: listed }` |
 | ⑥ | `invalidInput` · `officialProfileReadOnly` · `notAuthorized` · `profileNotFound` · `unavailable` |
@@ -474,12 +484,12 @@
 
 | 事件 | 何时发出 | 携带什么 |
 |---|---|---|
-| `profile.withdrawn` | 一条档案行 `listed → withdrawn` 的提交**之后**（[S-15](#s-15-withdrawprofile)、[S-18](#s-18-装入官方档案清单)） | 被撤回的那条档案的 `ModelProfileRef` |
+| `profile.withdrawn` | 一条档案行 `listed → withdrawn` 的提交**之后**（[S-15](#s-15-withdrawprofile)、[S-18](#s-18-loadmanifest)） | 被撤回的那条档案的 `ModelProfileRef` |
 
 - **必发，不是可选**：一个发的部署与一个不发的部署在消费者看来是两份契约；必发让消费者写得出一条会失败的断言（与 `capability.organization-governance/v1` 事件条款同一口径，本契约不引为依据）。**必发不等于必达**。
 - **三条负向承诺**：发出方不等待、不读取任何监听者的返回；监听者失败、缺席或根本没有，不改变已经提交的撤回；**没有任何一条性质靠某个监听者收到了它**——「撤回之后不再被新准入」靠的是每道准入现读（[S-11](#s-11-每道准入现读)），不靠这个事件。
 - **它的用处是让据点侧提前刷新**；刷新是性能，不是正确性。
-- **恢复在册不发事件**（[S-33](#s-33-relistprofile) ⑨、[S-18](#s-18-装入官方档案清单) 的 `relisted`）：本版只有这一个通知；恢复靠现读被看到。
+- **恢复在册不发事件**（[S-33](#s-33-relistprofile) ⑨、[S-18](#s-18-loadmanifest) 的 `relisted`）：本版只有这一个通知；恢复靠现读被看到。
 - **本契约没有控制类事件**：建档、撤回、配凭据的放行全是操作自身的同步前置。
 
 ---
@@ -492,11 +502,11 @@
 
 | 性质 | 谁在何处保护 | 前提 | 来源 |
 |---|---|---|---|
-| **（所在范围, 路由名）不重复**（含已撤回行；`data.model-profile/v1#S-3`）；官方档案全在出厂默认层，因而官方档案之间路由名不重复 | [S-14](#s-14-registerprofile) ④、[S-18](#s-18-装入官方档案清单) ④：判定与写入同一提交、边界覆盖那一格的档案行 | 存储兑现每一格的那个提交边界（[S-22](#s-22-装配给的保证-vs-协议须给的保证) 第一行） | [PF-013 §4 档案的身份](../../../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名)（rev 10，裁决 35） |
-| **行不删；在册状态只经撤回与恢复在册两条边变化，恢复的是同一行** | 本契约没有删行的写路径；`listed → withdrawn` 只由 [S-15](#s-15-withdrawprofile)、[S-18](#s-18-装入官方档案清单) 写，`withdrawn → listed` 只由 [S-33](#s-33-relistprofile)、[S-18](#s-18-装入官方档案清单) 写，都改同一行（[S-5](#s-5-档案行一条档案在目录里的存储事实)） | —— | [PF-013 §6.4](../../../../product/PF-013-model-profiles-and-invocation/design.md#64-撤回不删行会话指向被撤回的档案时说已下架)、[flows §3.1](../../../../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案) |
-| **官方档案只来自清单，也只经清单变化；自建档案只来自有写资格的建档** | [S-14](#s-14-registerprofile) ①③（只收 custom、不收出厂层）、[S-18](#s-18-装入官方档案清单) ①（只收 official）；[S-15](#s-15-withdrawprofile)、[S-31](#s-31-updateprofile)、[S-33](#s-33-relistprofile) ③ 对 official 支一律 `officialProfileReadOnly` | 发布动作是清单装入唯一的调用方（装配给） | [PF-013 §4 官方档案 / 自建档案](../../../../product/PF-013-model-profiles-and-invocation/design.md#官方档案--自建档案) |
+| **（所在范围, 路由名）不重复**（含已撤回行；`data.model-profile/v1#S-3`）；官方档案全在出厂默认层，因而官方档案之间路由名不重复 | [S-14](#s-14-registerprofile) ④、[S-18](#s-18-loadmanifest) ④：判定与写入同一提交、边界覆盖那一格的档案行 | 存储兑现每一格的那个提交边界（[S-22](#s-22-装配给的保证-vs-协议须给的保证) 第一行） | [PF-013 §4 档案的身份](../../../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名)（rev 10，裁决 35） |
+| **行不删；在册状态只经撤回与恢复在册两条边变化，恢复的是同一行** | 本契约没有删行的写路径；`listed → withdrawn` 只由 [S-15](#s-15-withdrawprofile)、[S-18](#s-18-loadmanifest) 写，`withdrawn → listed` 只由 [S-33](#s-33-relistprofile)、[S-18](#s-18-loadmanifest) 写，都改同一行（[S-5](#s-5-档案行一条档案在目录里的存储事实)） | —— | [PF-013 §6.4](../../../../product/PF-013-model-profiles-and-invocation/design.md#64-撤回不删行会话指向被撤回的档案时说已下架)、[flows §3.1](../../../../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案) |
+| **官方档案只来自清单，也只经清单变化；自建档案只来自有写资格的建档** | [S-14](#s-14-registerprofile) ①③（只收 custom、不收出厂层）、[S-18](#s-18-loadmanifest) ①（只收 official）；[S-15](#s-15-withdrawprofile)、[S-31](#s-31-updateprofile)、[S-33](#s-33-relistprofile) ③ 对 official 支一律 `officialProfileReadOnly` | 发布动作是清单装入唯一的调用方（装配给） | [PF-013 §4 官方档案 / 自建档案](../../../../product/PF-013-model-profiles-and-invocation/design.md#官方档案--自建档案) |
 | **一个租户至多一把凭据；没有以组织为键的凭据** | [S-19](#s-19-bindcredential) ④：再绑即替换；[S-32](#s-32-unbindcredential) 删掉即「没配」；两者的输入只收 `TenantId` | 存储上「租户 → 绑定」一一；出厂格那一把由装配给 | [PF-013 §5.6](../../../../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上)（rev 10，裁决 33） |
-| **已装入的最高发布序号只增** | [S-18](#s-18-装入官方档案清单) ⑥⑦ | 单一装入点（装配给） | 规格层推导（[S-8](#s-8-官方档案清单与发布序号)） |
+| **已装入的最高发布序号只增** | [S-18](#s-18-loadmanifest) ⑥⑦ | 单一装入点（装配给） | 规格层推导（[S-8](#s-8-官方档案清单与发布序号)） |
 
 ### 安全性质（绝不能发生）
 
@@ -508,7 +518,7 @@
 | **租户那一格读不到时落到出厂格那一把** | [S-20](#s-20-resolvecredential) ⑧ | —— | [PF-001 §6.4](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)「目标范围不可用时不静默回退」同一形状 |
 | **读别的租户的自建档案** | [S-16](#s-16-readprofile) ②、[S-17](#s-17-listprofiles) ⑤ | —— | [SYS-TENANT](../../../../foundation/cross-system-constraints/requirements.md#sys-tenant) |
 | **任何人经写面撤回、恢复或修订一条官方档案** | [S-15](#s-15-withdrawprofile) ③、[S-33](#s-33-relistprofile) ③、[S-31](#s-31-updateprofile) ③ | —— | [flows §4](../../../../product/PF-013-model-profiles-and-invocation/flows.md#四角色与操作) |
-| **一份旧清单把新的官方档案撤掉、把已撤掉的恢复** | [S-18](#s-18-装入官方档案清单) `manifestNotNewer` | 发布序号由发布方单调给出（[G-9](#十已知缺口)） | 规格层推导 |
+| **一份旧清单把新的官方档案撤掉、把已撤掉的恢复** | [S-18](#s-18-loadmanifest) `manifestNotNewer` | 发布序号由发布方单调给出（[G-9](#十已知缺口)） | 规格层推导 |
 | **「读不到」被说成「不存在」「无权」「没配」** | [S-9](#s-9-缺席时的默认答案)；各操作的⑧ | —— | `data.identity-values/v1#S-19` |
 | **拒绝之后留下部分效果** | 全部写操作的④：单次提交 | 存储原子性 | [PF-013 flows §2](../../../../product/PF-013-model-profiles-and-invocation/flows.md#二分支与异常) |
 
@@ -531,14 +541,14 @@
 
 | 保证 | 单机由谁给（装配给） | 跨进程之后谁重新兑现（协议给） | 做不到会怎样 |
 |---|---|---|---|
-| **同一范围内路由名唯一**（[S-14](#s-14-registerprofile)、[S-18](#s-18-装入官方档案清单)） | 中心单一存储，判定与写入同一提交 | **只在中心写**：据点不持有可写的档案行；任何据点侧缓存只读。每一格须有单一裁决点或条件写入（按格分片成立） | 同一格里两处各放行同一个名字：两条同一身份的档案，引用指不清 |
+| **同一范围内路由名唯一**（[S-14](#s-14-registerprofile)、[S-18](#s-18-loadmanifest)） | 中心单一存储，判定与写入同一提交 | **只在中心写**：据点不持有可写的档案行；任何据点侧缓存只读。每一格须有单一裁决点或条件写入（按格分片成立） | 同一格里两处各放行同一个名字：两条同一身份的档案，引用指不清 |
 | **在册状态变化之后按新状态准入**（[S-11](#s-11-每道准入现读)、[S-15](#s-15-withdrawprofile)、[S-33](#s-33-relistprofile)） | 运行时现读同一存储 | 中心 → 据点的读须定义**新鲜度上界**，并把「上界之内仍可能按旧状态准入」写进契约（RP-36）；读须**按写入先后单调**：读到过某一次转移之后的状态的一方，此后不得再读到那次转移之前的状态 | 撤回之后一段时间内仍被选中、仍被发出，且没人知道这段时间有多长；或恢复之后时而在册、时而「已下架」 |
 | **凭据值只在取值问法里出现**（[S-12](#s-12-秘密只在一个问法里出现)） | 进程内交给运行时 | **秘密怎样送到据点、是否在据点落地、轮换怎样传播**（[G-7](#十已知缺口)）。组织层不持有凭据，只剩租户那一把与出厂格那一把两种要送 | 值留在用户本机之外的地方；或轮换之后据点仍用旧值 |
 | **取值问法只由运行时调用、来源如实**（[S-20](#s-20-resolvecredential) ①②） | 装配：只有运行时够得着；来源取自那次调用绑定的有效模型 | 接收边界**鉴别调用方是某个据点上的模型请求运行时**，并按那次调用的发起租户重验锚（`data.identity-values/v1#S-30`）；来源随那次调用的有效模型引用一起到达、不由调用方另填 | 任何够得着接口的一方都能取出任意租户的凭据值；或借一个假的「官方」来源让自建档案用上部署那一把 |
 | **取哪一把**（[S-20](#s-20-resolvecredential)） | 同一存储里读租户那一格，出厂格那一把在装配里 | 租户那一格读不到即失败；**不得**以「租户那一格暂时读不到」落到出厂格 | 用错的凭据，账记到错的头上 |
 | **出厂格那一把不可经写面改**（[S-7](#s-7-凭据绑定)） | 装配：它不在任何写面的输入域里 | 部署凭据怎样送到据点、怎样轮换，归装配与组合契约（[G-7](#十已知缺口)） | 一个租户借写面改掉整个部署的凭据 |
 | **调用方身份已核实**（全部写面与读面的 `initiator`、`scopeChain`、`tenant`） | **装配给**：这些是能力间内部面；入口层先把登录状态换成当前租户身份再带着它来调 | 携带授权依据、**在接收边界重新验证**（`data.identity-values/v1#S-30`）；不得只靠「上游已经验过了」 | 任何拿到一个 `TenantId` 的调用方都能以那个身份建档、撤回、配凭据、读别人的自建档案 |
-| **清单只由发布动作装入、序号单调**（[S-18](#s-18-装入官方档案清单)） | 装配：只有发布动作够得着；单一装入点 | 鉴别发布方；序号由单一来源给出（[G-9](#十已知缺口)） | 任何一方都能借「清单里没有」撤掉官方档案、借「清单里又有」恢复已下架的——在下一次正确装入之前一直如此 |
+| **清单只由发布动作装入、序号单调**（[S-18](#s-18-loadmanifest)） | 装配：只有发布动作够得着；单一装入点 | 鉴别发布方；序号由单一来源给出（[G-9](#十已知缺口)） | 任何一方都能借「清单里没有」撤掉官方档案、借「清单里又有」恢复已下架的——在下一次正确装入之前一直如此 |
 | **表示层校验**（[S-9](#s-9-缺席时的默认答案)） | 纯计算 | **不变**；但每个接收边界各自重校，上游校验过不算数 | —— |
 
 ---
@@ -585,16 +595,16 @@
 
 组织 O 的两位超管**同时**在 O 的组织层建同一个路由名的档案；再让 O 里的租户 T 在自己那层建同名的一条；再让另一个组织 Q（与 O 在不在同一棵隶属树上都跑一遍）的超管在 Q 的组织层建同名的一条；最后让发布动作装入一份含这个路由名的官方清单。
 
-**必须观察到**：O 组织层那两次建档恰一次成功，另一次 `routeNameTaken`；T 那一次**成功**（不同的格；这一读法待产品负责人确认，[G-11](#十已知缺口)）；Q 那一次**成功**；装入的处置里这一条是 `added`（官方那一格里没有这个名字）；**O 的组织层里这个名字恰一行，全目录四行**，每一行的引用各不相同。
+**必须观察到**：O 组织层那两次建档恰一次成功，另一次 `routeNameTaken`；T 那一次**成功**（不同的格；产品负责人 2026-09-24 裁定并存）；Q 那一次**成功**；装入的处置里这一条是 `added`（官方那一格里没有这个名字）；**O 的组织层里这个名字恰一行，全目录四行**，每一行的引用各不相同。
 **这条必须真跑并发**，两次顺序调用不经过同提交要保护的那个窗口。
 **另跑一支**：同一个超管把成功那次原样重发 ⇒ 认回同一行，不报 `routeNameTaken`（[S-14](#s-14-registerprofile) ⑦）。
 
 #### S-27 清单的五种处置与旧清单被拒
 
-按 [S-18](#s-18-装入官方档案清单) 的表构造一份清单，使五种处置各至少出现一次；再装一份序号更小的清单；再把第一份原样重装一次。
+按 [S-18](#s-18-loadmanifest) 的表构造一份清单，使五种处置各至少出现一次；再装一份序号更小的清单；再把第一份原样重装一次。
 
 **必须观察到**：五种处置逐条对得上；被撤回的官方行各有一次 `profile.withdrawn`；`relisted` 的那一行是**原来那一行**、没有事件；某一格里与清单条目同名的自建档案**不影响**任何处置；序号更小的那份 `manifestNotNewer`、**什么都没变**；原样重装返回相同处置、什么都没写。
-**绝不能观察到**：一份含不合形状条目的清单装进了一半（[S-18](#s-18-装入官方档案清单) ⑧）。
+**绝不能观察到**：一份含不合形状条目的清单装进了一半（[S-18](#s-18-loadmanifest) ⑧）。
 
 #### S-28 取最具体的一把，读不到不回落
 
@@ -626,7 +636,7 @@
 
 | # | 缺口 | owner | 闭合条件 |
 |---|---|---|---|
-| G-1 | **已闭合（2026-09-24 规格修订批）**：产品负责人裁定（PF-013 rev 10，裁决 35–38；账本 U-2）——已撤回可恢复在册，恢复的是同一条；官方档案与自建档案同路由名并存。落为：[S-33](#s-33-relistprofile) 恢复在册（自建）、[S-18](#s-18-装入官方档案清单) 处置表 `notRelisted` 改 `relisted`、`routeNameTaken` 处置删去（清单装入不读自建行）、[S-15](#s-15-withdrawprofile) ⑦ 改指 S-33。U-2 当时乙读法里「撞名的自建件改名前官方件不进该组织的展示列表」没有采用 | — | — |
+| G-1 | **已闭合（2026-09-24 规格修订批）**：产品负责人裁定（PF-013 rev 10，裁决 35–38；账本 U-2）——已撤回可恢复在册，恢复的是同一条；官方档案与自建档案同路由名并存。落为：[S-33](#s-33-relistprofile) 恢复在册（自建）、[S-18](#s-18-loadmanifest) 处置表 `notRelisted` 改 `relisted`、`routeNameTaken` 处置删去（清单装入不读自建行）、[S-15](#s-15-withdrawprofile) ⑦ 改指 S-33。U-2 当时乙读法里「撞名的自建件改名前官方件不进该组织的展示列表」没有采用 | — | — |
 | G-2 | **已闭合（2026-09-24 整批对齐）**；**2026-09-24 规格修订批再改**：`data.model-profile` 的 S-3 现为「同一范围内唯一」，不读隶属关系；本契约不再消费上级链读面 | — | — |
 | G-3 | **已闭合（2026-09-24 整批对齐）**：出厂格可有一把由部署装配配置的凭据、不可经写面改（账本 S16-f）；规格修订批起**只供官方档案**（见 G-10） | — | — |
 | G-4 | **已闭合（2026-09-24 规格修订批）**：产品负责人裁定组织那一层不持有凭据、每人租户层自取（PF-013 rev 10 裁决 33；账本 U-1）——「组织层那一把下不下发」不再存在；租户那一把怎样送到据点仍在 [G-7](#十已知缺口) | — | — |
@@ -636,7 +646,7 @@
 | G-8 | **设计依据里的主线裁定无处可链**：拆分、C-12、两种问法、单调装入、`routeNameTaken` 的来源都在任务区的简报与对账产物里 | 主线 | 落一份决定记录，[设计依据](#设计依据)改为链接 |
 | G-9 | **发布序号由谁、怎样给出**；发布动作的身份与鉴别 | 架构／运维（发布流程） | 提供者设计与发布流程写明序号的单一来源；跨进程时鉴别方式进 G-7 那份组合契约 |
 | G-10 | **已闭合（2026-09-24 规格修订批）**：出厂格那一把只供官方档案——PF-013 rev 10 decisions P33（自建档案要自己的 key，不落到出厂那一把上，裁决 3）、P34；[S-20](#s-20-resolvecredential) 的输入加这次要用的档案来源 `origin` | — | — |
-| G-11 | **「组织层与租户层的自建档案可同路由名并存」这一读法待产品负责人确认**（`data.model-profile` v1 G-13 同题）。本版按并存写：[S-14](#s-14-registerprofile) ④ 只比同一格 | **产品负责人**（待产品负责人确认） | 确认即闭合；若另裁为「自建名在隶属树内唯一」，S-14 ④ 要重新读隶属关系、提交边界要覆盖整棵树，catalog 恢复对 `capability.organization-governance` S-34 与 `data.identity-values` S-15 的消费 |
+| G-11 | **已闭合（2026-09-24 产品负责人裁定）**：组织层与租户层的自建档案可同路由名并存（`data.model-profile` v1 G-13 同题）。原话：「允许并存，它就像资产一样，路由名就是能力，从下往上（租户 -> 组织 -> official）在运行时覆盖」。落为：[S-14](#s-14-registerprofile) ④ 仍只比同一格（不变）；[S-6](#s-6-范围链) 与 [S-17](#s-17-listprofiles) 末段写明链的先后就是同名覆盖的先后；[S-16](#s-16-readprofile) 写明按引用读不做覆盖。PF-013 正文将在 rev 12 补「同名按层覆盖」一句（锚点不变） | — | — |
 
 ---
 
@@ -646,12 +656,12 @@
 
 | 消费者 | 它要什么 | 本契约给什么 | 够不够 |
 |---|---|---|---|
-| **模型请求运行时：合法目标与展示列表** | 这个会话的范围链上有哪些档案、各自在册否、各自的模态、各自的来源与范围；每一条「调它时有没有凭据可用」 | [S-17](#s-17-listprofiles)（每项带引用）＋ [S-20](#s-20-resolvecredential) `present`（按每一条的来源问） | **够**。「范围允许」不在这里（[S-3](#s-3-本契约明确不承诺什么)），归 `capability.asset-evaluation` |
+| **模型请求运行时：合法目标、展示列表与有效模型** | 这个会话的范围链上有哪些档案、各自在册否、各自的模态、各自的来源与范围；同名几条谁覆盖谁；每一条「调它时有没有凭据可用」 | [S-17](#s-17-listprofiles)（每项带引用；末段给同名覆盖的先后）＋ [S-20](#s-20-resolvecredential) `present`（按每一条的来源问） | **够**。「范围允许」不在这里（[S-3](#s-3-本契约明确不承诺什么)），归 `capability.asset-evaluation` |
 | **模型请求运行时：出门前检查与绑定快照** | 有效模型那一条的当前取值（含已撤回、恢复在册） | [S-16](#s-16-readprofile) | **够**。快照由运行时在打开调用时绑定，本契约不存历史 |
 | **模型请求运行时：一次发出** | 这一次发出用的凭据值与它来自哪一格 | [S-20](#s-20-resolvecredential) `value`（带有效模型的来源） | **够**，前提 G-7（秘密送达） |
 | **交付面（PF-016）：管理员与用户建档、撤回、恢复、配凭据** | 写操作；「有没有、哪个范围、什么时候配的」 | [S-14](#s-14-registerprofile)、[S-15](#s-15-withdrawprofile)、[S-33](#s-33-relistprofile)、[S-19](#s-19-bindcredential)、[S-20](#s-20-resolvecredential) `present` | **够**（修订 [S-31](#s-31-updateprofile)、解绑 [S-32](#s-32-unbindcredential)、恢复在册 `relistProfile`） |
 | **Agent 定义「用哪个模型」那项设置的取值校验** | 一个引用解析得到、在册否 | [S-16](#s-16-readprofile) | **够**。那项设置的求值归 `capability.asset-evaluation` |
-| **系统发布** | 装入官方清单，看得到每一条的处置 | [S-18](#s-18-装入官方档案清单) | **够**，前提 G-9 |
+| **系统发布** | 装入官方清单，看得到每一条的处置 | [S-18](#s-18-loadmanifest) | **够**，前提 G-9 |
 | **据点侧的只读副本**（若提供者设计采用） | 撤回的提前通知 | [S-21](#s-21-profilewithdrawn-是通知) | **够**；正确性不靠它 |
 
 ---
@@ -664,4 +674,4 @@
 
 **本版的规范工件**：本文件与 [`examples.md`](examples.md)（逐操作的正反例与手算）。接受状态、冻结记录与执行结果都在本版本目录之外维护，本文件不填进度、通过状态或哈希。
 
-**发布后**：本目录下的规范正文与实例不可原地覆盖；修改发布新版本。[已知缺口](#十已知缺口)任一项在冻结之后被裁决，凡改变本契约语义的（尤其 G-11），都出新版本；冻结之前在本候选里原地改，每次改在[验证入口「变化的影响」](../verification.md#变化的影响)记一笔。
+**发布后**：本目录下的规范正文与实例不可原地覆盖；修改发布新版本。[已知缺口](#十已知缺口)任一项在冻结之后被裁决，凡改变本契约语义的，都出新版本；冻结之前在本候选里原地改，每次改在[验证入口「变化的影响」](../verification.md#变化的影响)记一笔。

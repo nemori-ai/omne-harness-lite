@@ -117,7 +117,8 @@
 - **2026-09-24 跨契约对齐：凭据只在租户层与出厂格（候选，未冻结，原地改）**。依据 [PF-013 rev 10 裁决 33](../../../product/PF-013-model-profiles-and-invocation/decisions.md#2026-09-24--组织那一层不持有凭据每人租户层自取)（组织那一层不持有模型凭据），主线派发：
   - **`CredentialScope` 去掉组织那一支**：[S-9](v1/contract.md#s-9-路由留痕) 成员表、Schema 类型表、「引用的形状由各自的家决定」三处改为「出厂格或 `ScopeLayerIdentity` 的租户那一支」；Schema `$defs/CredentialScope` 第二支由 `$ref ScopeLayerIdentity` 改为 `allOf [$ref ScopeLayerIdentity, layer = tenant]`——形状仍归 `data.identity-values`，不另写一份。**表示变更**：带组织那一格的旧实例按新 Schema 被拒（`malformed`）。
   - **实例**：第一、二节 33 处组织那一格的 `credentialScope` 改为租户那一格（同一租户 `org_7fd2c1`/`acc_91ab40`）；新增 R-24（组织那一格 ⇒ `malformed`）；第三节「实际用的是组织那一把」改为「发起租户自己那一把」。本地自检：第一、二节 36 块按「预期」逐块过 Draft 2020-12 校验器，36 块全部与预期相符（只核通过／拒绝，不核拒绝值名）。
-  - **catalog 不变**：仍消费 `data.identity-values` S-11（`ScopeLayerIdentity`）；契约头部产品依据 PF-013 rev 8 未随本条整体升版，只 S-9 这一处引 rev 10 裁决 33。
+  - **catalog 不变**：仍消费 `data.identity-values` S-11（`ScopeLayerIdentity`）。**covers 新增一条**：PF-013 §5.6（裁决 33 所在）→ S-9，`reviewed: false`。
+  - **头部产品依据对到 PF-013 rev 11**（主线裁定 2026-09-24 后核 changelog rev 9–11）：rev 9 的相关项（落盘前被否决不算故障、首 token 之后停机记运行时失联、出厂格凭据、调用规则对每一次模型调用都成立）整批对齐时已按主线账本落入；rev 10 只有裁决 33 触及本契约（即本条）；rev 11 不涉及。
   - **对证据的影响**：V-1 的自检须按新 Schema 重跑（本条已跑一次本地自检，见上）；其余不受影响。
 
 - **将来的触发点**：

@@ -34,7 +34,7 @@
 | 用户中断不是故障 | [还有一种没走完](../../../../product/PF-013-model-profiles-and-invocation/design.md#还有一种没走完它不在这张表里) | S-31 |
 | 每一次发出只走一家；试过又失败的留痕 | [PF-013 §5.5](../../../../product/PF-013-model-profiles-and-invocation/design.md#55-上交交给谁看模型说没说出话) · [试过又失败的那几次](../../../../product/PF-013-model-profiles-and-invocation/design.md#试过又失败的那几次留痕不进方程) | S-22、S-38 |
 | 凭据只在租户层：这个租户发起的调用都用他那一把，不管档案建在哪一层；出厂格那一把只供官方档案 | [PF-013 §5.6](../../../../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上) · [§6.2](../../../../product/PF-013-model-profiles-and-invocation/design.md#62-凭据挂在范围上档案自己不存) · [decisions P33、P34](../../../../product/PF-013-model-profiles-and-invocation/decisions.md#rev-10-随裁决-3338-推出的2026-09-24) | S-12、S-19、S-28 |
-| 官方与自建在同一份列表里，每一条标着来源（官方 / 自建，自建的再带建在哪一层）；同一个路由名可以出现不止一次 | [PF-013 §6.3](../../../../product/PF-013-model-profiles-and-invocation/design.md#63-官方与自建在同一份列表里) · [§5.10](../../../../product/PF-013-model-profiles-and-invocation/design.md#510-合法目标集合与展示列表是两件事) · [§4 档案的身份](../../../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名) | S-12、S-25 |
+| 官方与自建在同一份列表里，每一条标着来源（官方 / 自建，自建的再带建在哪一层）；同一个路由名可以出现不止一次；**同名的几条在运行时按层覆盖，租户 > 组织 > 官方**（产品负责人 2026-09-24 裁定：「允许并存，它就像资产一样，路由名就是能力，从下往上（租户 -> 组织 -> official）在运行时覆盖」；PF-013 rev 12 将补进 §4「档案的身份」，锚点不变） | [PF-013 §6.3](../../../../product/PF-013-model-profiles-and-invocation/design.md#63-官方与自建在同一份列表里) · [§5.10](../../../../product/PF-013-model-profiles-and-invocation/design.md#510-合法目标集合与展示列表是两件事) · [§4 档案的身份](../../../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名) | S-10、S-11、S-12、S-25、S-26、S-28 |
 | 已撤回的可以恢复在册；指着它的会话不用换就接得上 | [PF-013 §6.4](../../../../product/PF-013-model-profiles-and-invocation/design.md#64-撤回不删行会话指向被撤回的档案时说已下架) · [flows §1.4](../../../../product/PF-013-model-profiles-and-invocation/flows.md#14-走一遍选中的模型被下架了) 第 6′ 步 | S-9、S-12 |
 | 上交带八个成因与原样状态码 | [PF-013 §5.7](../../../../product/PF-013-model-profiles-and-invocation/design.md#57-上交带什么原样带着状态码不翻译它) · [§6.11](../../../../product/PF-013-model-profiles-and-invocation/design.md#611-成因在这个边界上分类不丢进外层按异常形态分) · [§6.14](../../../../product/PF-013-model-profiles-and-invocation/design.md#614-上交带的成因是封闭枚举外加一个诚实的兜底状态码另外原样带着) | S-18 |
 | 换模型：一条事实、一个生效点、零个新分支 | [PF-013 §5.9](../../../../product/PF-013-model-profiles-and-invocation/design.md#59-换模型一条事实一个生效点零个新分支) · [§6.5](../../../../product/PF-013-model-profiles-and-invocation/design.md#65-切换是用户的直接命令合法目标不得拒绝)～[§6.8](../../../../product/PF-013-model-profiles-and-invocation/design.md#68-不为切换新增分支) · [flows §3.3](../../../../product/PF-013-model-profiles-and-invocation/flows.md#33-一个会话的选中模型) | S-9、S-27 |
@@ -267,21 +267,28 @@
 |---|---|---|---|
 | 1 | 取**选中模型** | [S-9](#s-9-选中模型) | 切换事实（或设置求值） |
 | 2 | **层级求值**「用哪个模型」这项设置：会话格之上若有一格带[不可覆盖标记](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-immutable-marker--不可覆盖标记--immutable-marker)，**取那一格，压过选中模型** | `capability.asset-evaluation` v1 的设置求值（主线裁定 C-10） | 响应体 `selectedBy = layer_lock`；否则 `session` |
+| 2′ | **[同标识覆盖](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-scope-composition-semantics--作用域合成语义--scope-composition-semantics)**：以前一步结果的**路由名为[能力标识](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)**，在会话的范围链上取**最具体一格**的那条同名档案——租户层 > 组织层 > 出厂默认层（产品负责人 2026-09-24 裁定：「路由名就是能力，从下往上在运行时覆盖」）。第 3 步拓展件给出的目标同样先经这一步 | `capability.model-profile-directory/v1#S-17` 末段的先后，链上档案同 [S-11](#s-11-合法目标集合) | **`selectedBy` 不变**（`session`、`layer_lock` 或拓展件照旧）；被覆盖时 `effectiveModel` 的 `profile` 与前一步路由名相同、引用不同，响应体 `route.profile` 是覆盖之后那条 |
 | 3 | **「调模型之前」的拓展件**可能给出 `select_model`，只改这一次 | `capability.loop-extension-runner`（它先按 [S-24](#s-24-legaltargets) 核合法，`data.loop-extension/v1#S-24`） | 拓展件的结论条目；响应体 `selectedBy = { extension: <name> }` |
 | 4 | **出门前检查**：对前三步的结果核在册、范围允许、模态兼容、凭据有无 | [S-28](#s-28-opencall) | 不过 ⇒ 调用终结记录 `undispatched{cause}`；过 ⇒ 响应体 `route.profile` |
 
-- **第 1、2 步由 [`effectiveModel`](#s-26-effectivemodel) 给出**；第 3 步在 loop 里发生；第 4 步在打开调用时发生。
+- **第 1、2、2′ 步由 [`effectiveModel`](#s-26-effectivemodel) 给出**；第 3 步在 loop 里发生，它给出的目标在打开调用时经 2′；第 4 步在打开调用时发生。
+- **同标识覆盖按行存在取，不看能不能用**：最具体那一格里有这个路由名的行（在册或已撤回）就是它；它已撤回、这个范围不允许、模态对不上或缺凭据，**第 4 步照样以相应成因挡下，不落到更一般一格的同名档案**——落下去就是回退（[S-14](#s-14-缺席时的默认答案与失败集合)）。最具体那条用不了时要不要让位，是产品缺口 [G-15](#十二已知缺口)。
+- **覆盖不改选中模型、不写切换事实**：选中模型仍是用户选的那个引用（[S-9](#s-9-选中模型)）；覆盖只决定这一次用哪一条。更具体一格里后来才建出同名的一条，下一次求有效模型就是它——每次都现读链上档案；在途调用不受影响（[S-7](#s-7-一次调用绑定了什么)）。
 - **锁压过选中模型，请求照常发出**（主线裁定 C-10）；选中模型不变，展示列表照样显示用户选的那条。
 - **有效模型算不出来**（任何一步的输入读不到）是明确失败（`unavailable`），**不猜一个、不回退到上一次用过的**。
 
 ### S-11 合法目标集合
 
 ```text
-LegalTargetSet(会话)  ≝  { p ∈ 链上档案 |  p 在册
-                                        ∧ 范围允许(p)
-                                        ∧ compatible(p, 投影(会话))
+覆盖(p)               ≝  链上档案里与 p 同路由名、所在那一格最具体的那一条      （S-10 第 2′ 步）
+
+LegalTargetSet(会话)  ≝  { p ∈ 链上档案 |  覆盖(p) 在册
+                                        ∧ 范围允许(覆盖(p))
+                                        ∧ compatible(覆盖(p), 投影(会话))
                                         ∧ 投影(会话) ⊆ 本据点传输能承载的模态 }
 ```
+
+同名没有更具体一条时 `覆盖(p) = p`，式子与覆盖之前一样。
 
 | 输入 | 从哪来 |
 |---|---|
@@ -294,7 +301,9 @@ LegalTargetSet(会话)  ≝  { p ∈ 链上档案 |  p 在册
 - **最后一个合取项的作用**：一条声明了语音输入的档案，在一个传输送不出语音的据点上，**只要会话里真有语音就不进合法目标**——否则它会进合法目标、出门才送不出，成因无处归。
 - **任何一个输入读不到 ⇒ `unavailable`**，**不返回空集**——空集会被读成「现在没有任何模型能用」，据此替用户改选或弹错（[§6.9](../../../../product/PF-013-model-profiles-and-invocation/design.md#69-合法目标算不出来时不替用户改选)）。
 - **凭据有无不在这里**：缺凭据的档案仍是合法目标，出门前检查才以 `credential_unavailable` 挡下；展示列表把它标出来（[S-12](#s-12-展示列表)）。
-- **同一个路由名可以有几条在集合里**（官方与自建、组织层与租户层，`data.model-profile/v1#S-3`）：集合的元素是引用，不是路由名，它们各是一个元素。
+- **同一个路由名可以有几条在集合里**（官方与自建、组织层与租户层，`data.model-profile/v1#S-3`）：集合的元素是引用，不是路由名，**按引用各算、各是一个元素**。
+- **判的是覆盖之后那条**：选一个被覆盖的引用，这一次用的是覆盖它的那条（[S-10](#s-10-有效模型四步每步来源可查) 第 2′ 步），所以它合不合法按那条算——否则一个判为合法的引用会在出门前检查被挡下。**同名几条的判定因此相同**：它们都落到同一条上。
+  被覆盖的那几条在列表上怎样说明「实际用的是哪一条」，是产品缺口 [G-16](#十二已知缺口)。
 
 ### S-12 展示列表
 
@@ -312,13 +321,14 @@ DisplayList(会话)  ≝  LegalTargetSet(会话)  ∪  { 选中模型 }
 | 注记 | 含义 | 判据 |
 |---|---|---|
 | `legal` | 是合法目标 | [S-11](#s-11-合法目标集合) |
-| `withdrawn` | 选中的档案已被撤回——**「已下架」** | 读到 `registration = withdrawn` |
+| `withdrawn` | 选中的档案已被撤回——**「已下架」** | 读到覆盖之后那条（[S-11](#s-11-合法目标集合) 的 `覆盖(p)`）`registration = withdrawn` |
 | `scope_disallowed` | 这个范围不再允许 | 范围允许不成立 |
 | `modality_mismatch` | 和会话里的模态对不上（含本据点传输送不出） | 兼容或传输那一项不成立 |
-| `credential_missing` | **调它时没有凭据可用**（**附加注记**，可与 `legal` 并存）：自建档案——这个租户没配自己那一把；官方档案——这个租户没配、部署也没给出厂格配一把 | 以会话持有的租户与**这一条的来源**问 `capability.model-profile-directory/v1#S-20` 的有没有，答 `{ present: false }` |
+| `credential_missing` | **调它时没有凭据可用**（**附加注记**，可与 `legal` 并存）：自建档案——这个租户没配自己那一把；官方档案——这个租户没配、部署也没给出厂格配一把 | 以会话持有的租户与**这一条覆盖之后那条的来源**问 `capability.model-profile-directory/v1#S-20` 的有没有，答 `{ present: false }` |
 
 - **选中模型不在合法目标里时，它仍在列表上**，并带上它不合法的那一条原因——**不呈现「未知模型」**，也不从列表里消失。
-- **`credential_missing` 按每一条的来源各问一次**：同一个租户没配自己那一把时，官方档案（部署配了出厂格那一把）可用、自建档案标明缺凭据——一条都不能按别的条目的答案代答。
+- **`credential_missing` 按每一条覆盖之后那条的来源各问一次**：同一个租户没配自己那一把时，没被覆盖的官方档案（部署配了出厂格那一把）可用、自建档案标明缺凭据——一条都不能按别的条目的答案代答。**被同名自建档案覆盖的官方档案按那条自建档案问**：选它，这一次用的是那条自建档案（[S-10](#s-10-有效模型四步每步来源可查) 第 2′ 步）。
+- **同名几条各是一条，每条标着自己的来源**（`ref` 就是那一条的引用，不换成覆盖之后那条的）；注记按覆盖之后那条算（[S-11](#s-11-合法目标集合)），所以同名几条的注记相同。被覆盖的那几条怎样说明「实际用的是哪一条」是 [G-16](#十二已知缺口)。
 - 同时不合法的几条原因，**全列**，不只取一条。
 - **选中模型的档案读成「查无此条」**（`profileNotFound`：它曾被引用，如今存储里没有这一行）：列表**以 `unavailable` 失败**，不自造一个注记把它说成「已下架」。
 
@@ -431,7 +441,7 @@ DisplayList(会话)  ≝  LegalTargetSet(会话)  ∪  { 选中模型 }
   **不缓存到下一次发出**：凭据轮换零通知，下一次发出就用新值。
 - **来源取自这次调用绑定的有效模型引用的 `origin`**（[S-7](#s-7-一次调用绑定了什么)），**不另填、不替它换**：带错了，自建档案就会用上部署那一把、钱记到部署头上。
 - **取值只交给传输适配**，由它放进这一次请求；**不进任何记录、任何结论、任何事件、任何失败说明**，也不进档案快照。
-- **账上分记两件事**：这一次用的是**哪个范围**的凭据（响应体 `route.credentialScope`，`data.model-response/v1#S-9`）、**发起者**是谁（明细的 `initiator`，`data.call-accounts/v1#S-38`）。**用量记在凭据所在的范围头上，成本算到发起它的租户头上**——两件事都要，缺一个都会算错。
+- **账上分记两件事**：这一次用的是**哪个范围**的凭据（响应体 `route.credentialScope`，`data.model-response/v1#S-9`）、**发起者**是谁（明细的 `initiator`，`data.call-accounts/v1#S-38`）。**用量记在凭据所在的范围头上，成本算到发起它的租户头上**——两件事都要，缺一个都会算错；两者只在走出厂格那一把时分叉（用租户自己那一把时那一格就是发起租户），出厂格那一把是唯一分叉点（`data.call-accounts/v1#S-38`）。
 - **取不到**：没有可用的凭据、或保管方判解不出 ⇒ 这一次不发，`undispatched{credential_unavailable}`（首次发出）或按 [S-29](#s-29-dispatch) ⑧（再发时）；租户那一格或保管方够不着 ⇒ `unavailable`，**不改用出厂格那一把或别的范围的凭据**。
 
 ### S-20 写入之前脱敏
@@ -527,7 +537,7 @@ DisplayList(会话)  ≝  LegalTargetSet(会话)  ∪  { 选中模型 }
 
 ### S-26 effectiveModel
 
-**给出 [S-10](#s-10-有效模型四步每步来源可查) 第 1、2 步的结果**——loop 据它填 `ModelRequest.target`（`data.loop-extension/v1#S-15`），交给「调模型之前」的拓展件。
+**给出 [S-10](#s-10-有效模型四步每步来源可查) 第 1、2、2′ 步的结果**——loop 据它填 `ModelRequest.target`（`data.loop-extension/v1#S-15`），交给「调模型之前」的拓展件。
 
 | # | 内容 |
 |---|---|
@@ -535,7 +545,7 @@ DisplayList(会话)  ≝  LegalTargetSet(会话)  ∪  { 选中模型 }
 | ② | 无额外授权 |
 | ③ | 无 |
 | ④ | 只读，无提交；每次现算 |
-| ⑤ | `{ profile: ModelProfileRef, selectedBy: session | layer_lock, selected: ModelProfileRef }`——`selected` 是第 1 步的选中模型，`profile` 是第 2 步之后的结果；两者不同即被锁压过。**不判合法**：结果可能已下架，出门前检查才挡（[S-10](#s-10-有效模型四步每步来源可查) 第 4 步） |
+| ⑤ | `{ profile: ModelProfileRef, selectedBy: session | layer_lock, selected: ModelProfileRef }`——`selected` 是第 1 步的选中模型，`profile` 是第 2、2′ 步之后的结果；两者不同，是被锁压过（`selectedBy = layer_lock`）、被同名更具体一格的那条覆盖（路由名相同、引用不同，`selectedBy` 不变），或两者都有。**不判合法**：结果可能已下架，出门前检查才挡（[S-10](#s-10-有效模型四步每步来源可查) 第 4 步） |
 | ⑥ | `invalidInput` · `unavailable` |
 | ⑦ | 只读，天然可重复 |
 | ⑧ | 会话日志、层级求值读不到 ⇒ `unavailable`；**不回退到设置初值或上一次用过的** |
@@ -569,7 +579,7 @@ DisplayList(会话)  ≝  LegalTargetSet(会话)  ∪  { 选中模型 }
 | ① | **`ModelCallRequest`**：`callId?`（缺席 = 打开一次**新**调用，由本能力产生；给出 = **续接**一次处于 `resumable` 的调用）、`run`、`attempt`、`session`、`messages`（组装出来、这一次要发的消息）、`target?`（「调模型之前」的拓展件改过的有效模型）、`targetChangedBy?`（改它的那件拓展件的能力标识，`data.content-blocks` 的 `CapabilityId`；**与 `target` 同在同缺**，写进 `selectedBy`）、`parameters?`（这一次对档案 `parameters` 的逐项覆盖；缺席 = 不覆盖）、`tools`（这一次带给模型的工具条目，`CapabilityId[]`，可以是空数组；每项在 `data.tool-definition/v1#S-6` 的模型面上恰一个条目）；外加**宿主**与**会话日志的追加入口**。**`target`、`parameters`、`messages`、`tools` 与 `data.loop-extension/v1#S-15` 的 `ModelRequest` 同名成员逐字相同**（主线裁定 2026-09-23，待产品负责人确认；账本 S16-c，`parametersOverride` 与 `ToolDefinitionRef` 作废；原 G-3）。**`run` 与 `attempt` 同时出现或同时缺席**：同时缺席是调用方的显式陈述「这次调用不属于任何 Run」（C-14），不是默认值 |
 | ② | 宿主不在停止中；`session` 存在；续接时 `callId` 属于这个 `session` 且处于 `resumable` |
 | ③ | **有**：`target` 不能由本操作以外的路径改——`parameters` 里出现目标、`messages` 之外塞进换模型的指示、`target` 与 `targetChangedBy` 只给一个，一律 `invalidInput`（`data.loop-extension/v1#S-15`：`target` 只经 `select_model`） |
-| ④ | **新调用**：求有效模型（`target` 给出则取它，否则 [S-26](#s-26-effectivemodel)）→ 读档案 → 合并参数 → **出门前检查**（下表）→ 绑定（[S-7](#s-7-一次调用绑定了什么)）。**检查不过**：写一条调用终结记录 `undispatched{cause}`，这次调用即在终态 `handed_up`。**检查通过**：不写任何记录——一次还没出门的调用，停机之后不留痕迹、也没有要追补的东西。**续接**：重新绑定宿主与追加入口，**档案快照与参数沿用原绑定**，不重做出门前检查（这次调用已经被准入过） |
+| ④ | **新调用**：求有效模型（`target` 给出则取它、再经 [S-10](#s-10-有效模型四步每步来源可查) 第 2′ 步的同标识覆盖，否则 [S-26](#s-26-effectivemodel)，已含覆盖）→ 读档案 → 合并参数 → **出门前检查**（下表）→ 绑定（[S-7](#s-7-一次调用绑定了什么)）。**检查不过**：写一条调用终结记录 `undispatched{cause}`，这次调用即在终态 `handed_up`。**检查通过**：不写任何记录——一次还没出门的调用，停机之后不留痕迹、也没有要追补的东西。**续接**：重新绑定宿主与追加入口，**档案快照与参数沿用原绑定**，不重做出门前检查（这次调用已经被准入过） |
 | ⑤ | `{ callId, state: open | resumable }`，或 `{ callId, state: handed_up, undispatched: cause }` |
 | ⑥ | `invalidInput` · `runtimeStopped` · `callNotFound` · `wrongPhase` · `unavailable` · `profileNotFound` |
 | ⑦ | **新调用不幂等**：同一份请求打开两次是两次调用、两个 `callId`——**防重归调用方**（loop 在同一步只打开一次）。**续接可重复**：已在 `resumable` 且已重新绑定到同一宿主 ⇒ 返回同样的 ⑤ |
@@ -878,7 +888,7 @@ DisplayList(会话)  ≝  LegalTargetSet(会话)  ∪  { 选中模型 }
 | 性质 | 表达 | 为什么 |
 |---|---|---|
 | 一次调用 × 多次发出 × 停机 × 中断 × 宿主撤除的交错：锚点次序、守卫、结算幂等、对账 | **TLA+** [`formal/Invocation.tla`](formal/Invocation.tla) ＋ [`Invocation.cfg`](formal/Invocation.cfg)，映射与前提见 [formal 入口](formal/README.md) | 这是跨提交、跨尝试、有停机的状态机：**锚点写在前还是后、意图先落还是中止先发、结算判不判重**，只有在交错里才分得出对错。每条被检查的性质都有一份把对应开关拧反的配置，**预期出反例**——证明断言能失败 |
-| 合法目标、展示列表（含来源标注、按来源取凭据）、有效模型四步 | **规范场景**（[S-43](#s-43-切换先落事实后生效)～[S-45](#s-45-模态不兼容挡在算合法目标那一刻)、[S-48](#s-48-同路由名的两条来源不同取凭据也不同)）＋ [examples](examples.md) | 纯计算，没有交错 |
+| 合法目标、展示列表（含来源标注、按覆盖之后那条的来源取凭据）、有效模型四步（含同标识覆盖） | **规范场景**（[S-43](#s-43-切换先落事实后生效)～[S-45](#s-45-模态不兼容挡在算合法目标那一刻)、[S-48](#s-48-同路由名按层覆盖选哪条都用最具体那条)）＋ [examples](examples.md) | 纯计算，没有交错 |
 | 成因按来源分类、脱敏 | **规范场景**（[S-46](#s-46-成因按来源分类与脱敏)） | 分类表逐行演练；脱敏只能对真实输出核对 |
 | 投影追到日志尾 | **性质测试**：任意日志前缀上，追补之后的读 = 对全日志重算；**伸缩测量**：读的代价与历史长度无关 | 「等于重算」是一条可随机化的等式 |
 | 形状 | **不建 Schema**：值形状归 data 契约；本契约写的几种记录（[S-8](#s-8-调用在会话日志里留下的六种记录)）形状归 `data.messages/v1#S-49`、`#S-50`；线上形状归组合契约 | [规格入口](../../../README.md#准入门槛与停止条件) |
@@ -942,14 +952,18 @@ M1 若是选中模型，`displayList` 上它带 `modality_mismatch`；**第三�
 **必须观察到**：对账按意图行追补 `interrupted`（`initiator = user`）、没有首 token；调用终结；**不是 `resumable`，不再发出**。
 **绝不能观察到**：追补成 `runtime_lost` 然后续接——那是把用户叫停的东西又跑了起来。
 
-#### S-48 同路由名的两条，来源不同，取凭据也不同
+#### S-48 同路由名按层覆盖：选哪条都用最具体那条
 
-（2026-09-24 规格修订批追加。）会话属于租户 T，T 没配自己那一把；部署给出厂格配了一把。有一条官方档案与 T 所在组织的组织层建的一条自建档案，**路由名相同**。
+（2026-09-24 规格修订批追加；同日按产品负责人裁定「路由名就是能力，从下往上在运行时覆盖」改写。）会话属于租户 T，T 没配自己那一把；部署给出厂格配了一把。有一条官方档案与 T 所在组织的组织层建的一条自建档案，**路由名相同**。
 
-**必须观察到**：`displayList` 里两条都在（都合法时），`ref` 不同——一条 `origin = official`，一条 `origin = custom`、`scope` 是那个组织层；官方那条没有 `credential_missing`、自建那条带 `credential_missing`。
-以自建那条为有效模型的 `openCall` 以 `undispatched{credential_unavailable}` 结束；以官方那条为有效模型的照常打开，发出时 `route.credentialScope` 是出厂格。
-**T 配上自己那一把之后**：两条都不带 `credential_missing`，两条发出时 `route.credentialScope` 都是 T 的租户层。
-**绝不能观察到**：自建那条的发出用上出厂格那一把；两条在列表里无法区分。
+**必须观察到**：
+- `displayList` 里两条都在，`ref` 不同——一条 `origin = official`，一条 `origin = custom`、`scope` 是那个组织层；**两条都带 `credential_missing`**：官方那条被组织层那条覆盖，按那条的来源问（[S-12](#s-12-展示列表)）。
+- 选中官方那条时，`effectiveModel` 给出 `profile` = 组织层那条、`selected` = 官方那条、`selectedBy = session`；`openCall` 以 `undispatched{credential_unavailable}` 结束——**不落到官方那条去用出厂格那一把**（[G-15](#十二已知缺口)）。
+- **T 配上自己那一把之后**：两条都不带 `credential_missing`；选哪条，发出时 `route.profile` 都是组织层那条、`route.credentialScope` 都是 T 的租户层。
+- **T 在自己那层再建一条同名的**：选三条里任何一条，`route.profile` 都是 T 租户层那条。
+- **另跑一支（组织锁）**：组织把「用哪个模型」锁成官方那条——`selectedBy = layer_lock`，`profile` 仍是覆盖之后那条（路由名相同）。
+
+**绝不能观察到**：被覆盖的官方那条经出厂格那一把发出；任何一条自建档案的发出用上出厂格那一把；同名几条在列表里无法区分；覆盖改写了选中模型或写了切换事实。
 
 ---
 
@@ -973,6 +987,8 @@ M1 若是选中模型，`displayList` 上它带 `modality_mismatch`；**第三�
 | G-12 | **中心 ↔ 据点的线上形状与协议义务**：[S-38](#s-38-装配给的保证-vs-协议须给的保证) 右两列里跨中心与据点的几行 | 架构（组合契约起草） | 那份组合契约成立并逐行兑现 |
 | G-13 | **设计依据里的主线裁定无处可链**：C-2、C-10～C-14、RP-5、RP-9、RP-12、RP-24、RP-25、U-11 与拆分都在任务区 | 主线 | 落决定记录，[设计依据](#设计依据)改为链接 |
 | G-14 | **已闭合（2026-09-24 整批对齐）**：`capability.stream-assembly`、`capability.modality-projection`、`capability.asset-evaluation` 登进 catalog，S-4 表补齐；`data.arrival-events` 与 `capability.loop-extension-runner` 只是指路、不登（后者消费本契约，反向登记会成环） | — | — |
+| G-15 | **同标识覆盖选中的最具体那条用不了时要不要让位**：它已撤回、这个范围不允许、模态对不上或缺凭据时，是照本版写的**不落下去、以相应成因挡下**（[S-10](#s-10-有效模型四步每步来源可查) 第 2′ 步，缺席默认取拒绝），还是像资产那样「用不了的退出、落到下一层同名的」。本版的后果：租户建过同名自建档案又撤回，同名官方档案对这个租户就一直挡着（行不删），直到他恢复在册；组织层建了同名自建档案，成员没配自己那一把之前同名官方档案也用不上 | 产品负责人（PF-013 rev 12 补「同名按层覆盖」时一并答） | 裁定落进 PF-013，本契约 S-10、S-11、S-12 与 `capability.model-profile-directory` v1 S-17 末段同改 |
+| G-16 | **被覆盖的同名条目在展示列表上怎样说明「实际用的是哪一条」**：本版每条标自己的来源、注记按覆盖之后那条算（[S-12](#s-12-展示列表)），但不说选它实际落到哪一条 | 产品负责人（PF-013 §6.3）与交付面（PF-016） | 产品定下呈现（标明被哪一条覆盖、或不列被覆盖的），本契约 S-12、S-25 ⑤ 随之补 |
 
 ---
 

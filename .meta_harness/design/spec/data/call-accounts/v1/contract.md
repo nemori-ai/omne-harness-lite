@@ -6,7 +6,7 @@
   `family = data`、`topic = call-accounts`、规范路径 `spec/data/call-accounts/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
 - **状态**：`candidate`——语义可被审阅；接受、采用与冻结均未闭合，不得据此发布或声称消费者已采用
-- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-001 rev 16、PF-006 rev 17、PF-009 rev 7、PF-012 rev 10、PF-013 rev 8** 为准；
+- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-001 rev 16、PF-006 rev 17、PF-009 rev 7、PF-012 rev 10、PF-013 rev 11** 为准（2026-09-24 核 PF-013 changelog rev 9–11：rev 9 的费用未知与迟到补记归那个 Run 整批对齐时已按主线账本落入；rev 10 只有裁决 33 触及本契约，落为 [S-38](#s-38-两种归属用量归凭据那一格成本归发起者) 用量那一格只剩租户那一支与出厂格；rev 11 不涉及——rev 9–11 此外不改本契约条款）；
   另取 **PF-000 rev 1** 的一节（记录条目上挂什么）
 - **精确语义依赖**：
 
@@ -83,7 +83,7 @@
 - **不带会话、运行、尝试。**[每条记录条目都无条件带租户身份与寿命宿主](../../../../product/PF-000-occurrences-and-record-entries/design.md#55-挂在每条条目上的字段)，
   [成本条目要带哪次尝试](../../../../product/PF-012-agent-loop-and-run/design.md#616-日志里至少要有这几种-run-相关的条目)——
   **这些挂在承载它的条目上**，汇总据条目分组（[S-25](#s-25-按尝试记明细按-run-汇总)）。
-  **唯一的例外是两项归属**（[S-38](#s-38-两种归属用量归凭据那一格成本归发起者)，主线裁定 C-12）：成本归谁（发起者）、用量归谁（凭据所在那一格）——两者可以不同，账上分记。
+  **唯一的例外是两项归属**（[S-38](#s-38-两种归属用量归凭据那一格成本归发起者)，主线裁定 C-12）：成本归谁（发起者）、用量归谁（凭据所在那一格）——两者可以不同（唯一分叉点是出厂格那一把），账上分记。
 - **不拥有「用哪把凭据」的判定。**一次发出走的是哪一格的[模型凭据](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential)，
   由模型调用一侧判定、记在它的路由留痕上（`data.model-response` 的 `route.credentialScope`）；本契约只定「用量归那一格」这条含义（[S-38](#s-38-两种归属用量归凭据那一格成本归发起者)）。
 - **不拥有计量口径、预算、额度与超限拦截。**[本版到明细为止](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)：
@@ -778,12 +778,13 @@ unknownCount ≝ |{ r : current(r) = "unknown" }| + |{ t : currentOwn(t) = "unkn
 
 ### S-38 两种归属：用量归凭据那一格，成本归发起者
 
-**一笔钱有两个「归谁」，两者可以不同，账上分记，不互相推**（主线裁定 C-12，2026-09-23，待产品负责人确认）：
+**一笔钱有两个「归谁」，两者可以不同，账上分记，不互相推**（主线裁定 C-12，2026-09-23，待产品负责人确认；分记的理由 2026-09-24 随凭据只在租户层与出厂格改写，主线裁定）。
+**出厂格那一把是唯一分叉点**：凭据只在租户层与出厂格，租户用的永远是自己那一把，所以用量那一格与发起者只在走出厂格那一把时不同——分记就是为了这一处不被合并掉：
 
 | 归属 | 成员 | 是什么 | 为什么要分记 |
 |---|---|---|---|
 | **成本归发起者** | `initiator: TenantId`（`data.identity-values` v1 [S-5](../../identity-values/v1/contract.md#s-5-tenantid-的构成与相等)） | 发起这次运行的那个租户身份 | [成本按租户归属](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)；用了别的组织分享来的资产，钱也记在**用的一方**头上 |
-| **用量归凭据那一格** | `credentialScope`（`data.identity-values` v1 [S-11](../../identity-values/v1/contract.md#s-11-scopelayeridentity) 的 `ScopeLayerIdentity` 的租户那一支；模型调用那边另有出厂格一支，形状归 `data.model-response`） | 这笔花费经哪一格上的凭据产生 | [用量记在凭据所在的那个范围头上](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential)。**凭据只在租户层与出厂格**（[PF-013 rev 10 裁决 33](../../../../product/PF-013-model-profiles-and-invocation/decisions.md#2026-09-24--组织那一层不持有凭据每人租户层自取)；MCP 凭据只在租户层，[PF-002 rev 18](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的)）：租户没配自己那一把、用官方档案走了出厂格那一把时，用量落在出厂格，钱仍归发起这次运行的租户 |
+| **用量归凭据那一格** | `credentialScope`（`data.identity-values` v1 [S-11](../../identity-values/v1/contract.md#s-11-scopelayeridentity) 的 `ScopeLayerIdentity` 的租户那一支；模型调用那边另有出厂格一支，形状归 `data.model-response`） | 这笔花费经哪一格上的凭据产生 | [用量记在凭据所在的那个范围头上](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential)。**凭据只在租户层与出厂格**（[PF-013 rev 10 裁决 33](../../../../product/PF-013-model-profiles-and-invocation/decisions.md#2026-09-24--组织那一层不持有凭据每人租户层自取)；MCP 凭据只在租户层，[PF-002 rev 18](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的)）。用租户自己那一把时，用量那一格就是发起租户，两项归属重合；**唯一的分叉点是出厂格那一把**：租户没配自己那一把、用官方档案走了它时，用量落在出厂格，钱仍归发起这次运行的租户。不分记，这一笔要么让出厂格背了钱，要么让租户的用量里混进出厂格那一把的用量 |
 
 **落在哪**：
 

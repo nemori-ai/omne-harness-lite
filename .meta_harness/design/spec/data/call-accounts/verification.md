@@ -83,7 +83,9 @@
   - P-12 违例示例改为「走了出厂格那一把，钱却记到了出厂格头上」。
   - **Schema**：`ToolCallAccount.credentialScope` 由 `$ref ScopeLayerIdentity` 改为 `allOf [$ref ScopeLayerIdentity, layer = tenant]`；**表示变更**：带组织那一格的旧实例按新 Schema 被拒（`malformed`）。
   - **实例**：第 7 节 T-4 的凭据改在发起租户那一格；新增一行组织那一格 ⇒ `malformed`；工作区那一行的理由改写。本地自检：第 7 节 17 行可机检的实例逐行过 `$defs/ToolCallAccount`，全部与预期相符。
-  - **catalog 不变**：仍消费 `data.identity-values` S-5、S-11。契约头部产品依据未整体升版。
+  - **分记的理由改写**（主线裁定 2026-09-24）：S-38 引言、表中那一行与第一节「唯一的例外」一句写明**出厂格那一把是唯一分叉点**——用租户自己那一把时用量那一格就是发起租户，只有走出厂格那一把时两项归属不同。C-12 本身不变。
+  - **catalog 不变**：仍消费 `data.identity-values` S-5、S-11。**covers 新增一条**：PF-013 §5.6（裁决 33 所在）→ S-38，`reviewed: false`。
+  - **头部产品依据对到 PF-013 rev 11**：核 changelog rev 9–11——rev 9 的费用未知与迟到补记归那个 Run 整批对齐时已按主线账本落入；rev 10 只有裁决 33 触及本契约（即本条）；rev 11 不涉及。
   - **消费者影响**：`capability.tool-execution-runtime`（写 `ToolCallAccount`）若曾允许把组织那一格报上来，须收窄；它的 G-15（这一格从哪来）不受影响。
 - **`data.content-blocks` v1 尚未定型，`$ref` 目标以其 v1 为准**（2026-09-23 起草时；**已由上一条闭合**）。
   本契约 Schema 两处 `$ref` 它的 `$defs/CallId`（`ToolCallAccount.callId`、补账的工具执行目标）；**在它成稿并登进 catalog 之前，
