@@ -483,3 +483,4 @@ product-design-drafter 把约 57 处裁定落进 PF-001/002/006/008/009/010/012/
 | L14 | **asset-evaluation S-42 的三条推导接受**：① 生效资产没声明该项为假；② 工作区提供的资产为假；③ 组织格的界按项名对齐、不论那份持有在不在效（与写面 `lockedAbove` 同口径，分叉时取更严）。租户格无该资产持有时第四档怎样落地（先加持有再配值、还是要求已有持有）并入 tool-admission G-2 的范围，本位只答界与锁 | 丁报回 4、5 |
 | N-11 | asset-evaluation PRE-2：租户格以 `organization` 支持有同一份被分享记录时，随它所在组织那份 `shared` 持有一起判「此刻仍然成立」（2026-09-24 R3 修复时的规格层推导，主线追认） | 丁报回 7 |
 | N-12 | hooks-import 缺 `session_id` 不在导入报告里另说明，与 `transcript_path`、`permission_mode` 同一处理；asset-evaluation G-6 闭合时读入工作区承载清单那条路也要判 `name_not_projectable`（mcp-endpoint S-26 已列该登记点） | 丁报回 8、9 |
+| N-13 | skill-package（L3′ 落地）：成员名 `environmentRequirement`（值沿用 tool-definition `$defs/TargetEnvironment`，不叫 `targetEnvironment`——那是工具的落点与身份类设置词条，技能这里是固定声明）；M13 多收「多带 `default` 即拒」；「没有脚本不得声明」的理由补「平白让技能在满足不了那项要求的部署里不可用」；拒绝值仍八个，`binding_layer_unknown` 改落在该成员上 | 丙报回 |
