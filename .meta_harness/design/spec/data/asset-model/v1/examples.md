@@ -97,12 +97,12 @@
   "versions": [
     {
       "number": 1,
-      "content": { "category": "tool", "definition": { "name": "read_file", "description": "Read one file.", "paradigm": "single", "input": { "type": "object" }, "permissions": { "execute": { "default": "auto" } }, "origin": { "kind": "authored" } } },
+      "content": { "category": "tool", "definition": { "name": "read_file", "description": "Read one file.", "paradigm": "single", "input": { "type": "object", "properties": { "path": { "type": "string", "description": "File path." } }, "required": ["path"] }, "permissions": { "execute": { "default": "auto" } }, "origin": { "kind": "authored" } } },
       "publishedAt": "2026-09-01T00:00:00Z"
     },
     {
       "number": 2,
-      "content": { "category": "tool", "definition": { "name": "read_file", "description": "Read one file, with offset and limit.", "paradigm": "single", "input": { "type": "object" }, "permissions": { "execute": { "default": "auto" } }, "origin": { "kind": "authored" } } },
+      "content": { "category": "tool", "definition": { "name": "read_file", "description": "Read one file, with offset and limit.", "paradigm": "single", "input": { "type": "object", "properties": { "path": { "type": "string", "description": "File path." }, "offset": { "type": "integer", "description": "First line to read." }, "limit": { "type": "integer", "description": "Max lines to read." } }, "required": ["path"] }, "permissions": { "execute": { "default": "auto" } }, "origin": { "kind": "authored" } } },
       "publishedAt": "2026-09-20T00:00:00Z"
     }
   ]
