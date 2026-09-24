@@ -127,7 +127,7 @@
 | [UL-official-asset](terms/circulation-and-entitlement.md#ul-official-asset--官方件--official-asset) | 官方件 | Official Asset | 组装的最小必需，**不可禁用** |
 | [UL-customized-asset](terms/circulation-and-entitlement.md#ul-customized-asset--自定义件--customized-asset) | 自定义件 | Customized Asset | 自定义来源，对 official 只有「替代」一种关系 |
 | [UL-asset-copy](terms/circulation-and-entitlement.md#ul-asset-copy--资产复制--asset-copy) | 资产复制 | Asset Copy | 本人型（同一个人两个租户身份之间）或组织型（同树两个团队组织之间）的搬运，落下的独立拥有，**断链**；**「资产转移」是它的弃用说法** |
-| [UL-asset-sharing](terms/circulation-and-entitlement.md#ul-asset-sharing--资产分享--asset-sharing) | 资产分享 | Asset Sharing | 向另一个组织或一个租户开放使用权，所有权不动，**被动跟随**；组织内分享是它 |
+| [UL-asset-sharing](terms/circulation-and-entitlement.md#ul-asset-sharing--资产分享--asset-sharing) | 资产分享 | Asset Sharing | 向另一个组织或一个租户开放使用权，所有权不动，**被动跟随**；组织内分享、本人型分享都是它 |
 | [UL-copy-lineage](terms/circulation-and-entitlement.md#ul-copy-lineage--复制血缘--copy-lineage) | 复制血缘 | Copy Lineage | 再复制一次该更新目标组织那一层里的哪一份，层与层各算各的；**「转移血缘」是它的弃用说法** |
 | [UL-copy-notice](terms/circulation-and-entitlement.md#ul-copy-notice--复制通知--copy-notice) | 复制通知 | Copy Notice | 组织型复制发起后、目标超管确认前悬着的那一份邀约；可撤回、会过期，再发是新的一份 |
 | [UL-sharing-invitation](terms/circulation-and-entitlement.md#ul-sharing-invitation--分享邀请--sharing-invitation) | 分享邀请 | Sharing Invitation | 分享发起后、接收方确认前悬着的那一份邀约；**不是加入组织的邀请** |
