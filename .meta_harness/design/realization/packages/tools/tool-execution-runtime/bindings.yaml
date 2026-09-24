@@ -4,6 +4,8 @@
 # 每条只绑「有去保护配置或补充否定配置证明它会失败」的性质；那几次否定运行的结果记在契约验证入口
 # spec/capabilities/tool-execution-runtime/verification.md 的「实际执行」（2026-09-24，与本 run 同一份 Execution.tla），
 # 不在上面那个 run 目录里——那一侧的原始输出没有落进 record/evidence/，这是本表每条共同的弱点。
+# evidence 字段按 realization README 写 formal:<task-id>，run id 写在 assumptions（D-040 §八 N-19 的口径）。
+# 契约修复波 3（M33、M42、M46 等）没有改 Execution.tla 与配置（模型里没有报告、送达通知与账的内容），九条绑定照旧成立。
 #
 # 共同前提（除非条目另写）：
 # - 证的是契约模型，不是本节点的代码：本节点尚未建包，没有源码、没有测试。
@@ -101,6 +103,6 @@ bindings:
     evidence: "formal:tool-execution-runtime-v1-execution"
     assumptions:
       - "只证「一次执行恰一份账、只在收场时落」：性质 OneAccountPerEnded；补充否定配置 Execution_NoFirstWins_Account.cfg 按预期反驳"
-      - "账的内容（费用、起止时刻、被拒的一笔、frames 与 reportedCost、late）不在模型里；late 的判定读面本节点没有（design.md T-4）"
+      - "账的内容（费用、起止时刻、被拒的一笔、frames 与 reportedCost、late）不在模型里；late 的判定读面没有（契约 G-18，M43 下一程），这一格兑现不了"
       - "run：record/evidence/2026-09-25-formal-assets-runtimes，退出 0"
     alignment_checked: 2026-09-25

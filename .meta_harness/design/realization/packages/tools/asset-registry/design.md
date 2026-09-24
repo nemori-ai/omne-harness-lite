@@ -8,10 +8,11 @@
 
 | 用什么 | 从哪来 | 用来做什么 |
 |---|---|---|
-| 求值 `evaluate(EvaluationInput) → EffectiveAssembly`（纯计算） | `packages/core/asset-evaluation`（本批节点，起草中；D-039 assets 候选 B：进 `core` 作纯模块） | `reload` 一次、`refreshAvailability` 两次、读时的「谁可以用」现读——**本节点只调用、不重算**（契约 S-16） |
-| 资产形状、能力标识、版本线 | `packages/core/asset-model`（本批节点，起草中） | 条目的 `capability`／`asset`／`content`、类别取值 |
-| 工具定义形状、`ModelToolName`、由定义得出的依赖声明 | `packages/core/tool-model`（本批节点，起草中） | `tool` 表的查找键、名字冲突、依赖解析 |
-| 技能包、斜杠命令、拓展件、MCP 接入点的形状与依赖声明 | 对应 `data.*` 契约的纯模块（本批节点，起草中） | 依赖解析与门控 |
+| 求值 `evaluate(EvaluationInput) → EffectiveAssembly`（纯计算；失败集合 `invalidInput`、`compositionCycle{cycle}`、`categoryUnsupported{category}`，M32、M45） | [`core/asset-evaluation`](../../core/asset-evaluation/README.md)（D-039 assets 候选 B：进 `core` 作纯模块） | `reload` 一次、`refreshAvailability` 两次、读时的「谁可以用」现读——**本节点只调用、不重算**（契约 S-16）；两个判定类失败原样转交 |
+| 资产形状、能力标识、版本线 | [`core/asset-model`](../../core/asset-model/README.md) | 条目的 `capability`／`asset`／`content`、类别取值 |
+| 工具定义形状、`ModelToolName`、由定义得出的依赖声明 | [`core/tool-definition`](../../core/tool-definition/README.md) | `tool` 表的查找键、名字冲突、依赖解析 |
+| 技能包、斜杠命令、拓展件、MCP 接入点的形状与依赖声明 | [`core/skill-package`](../../core/skill-package/README.md)、[`core/slash-command`](../../core/slash-command/README.md)、[`core/loop-extension`](../../core/loop-extension/README.md)、[`core/mcp-endpoint`](../../core/mcp-endpoint/README.md)（[D-040 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)：一契约一包） | 依赖解析与门控 |
+| 运行与尝试标识 `RunId`、`AttemptId` | [`core/call-accounts`](../../core/call-accounts/README.md) | 报告带的运行与尝试（M46） |
 | 时间源 `clock`（`now(): Instant \| 'unavailable'`，毫秒整数，不后退） | [`infra/clock`](../../infra/clock/README.md)（形状归 [`core/offer-expiry`](../../core/offer-expiry/README.md)） | `filledAt`、报告的 `computedAt` |
 | `definePlugin`、`resolveOptional` | [`core/kernel-basis`](../../core/kernel-basis/README.md) | 插件骨架、可选依赖的现取 |
 
@@ -29,7 +30,7 @@
 
 | 持有 | 是什么 | 权威 |
 |---|---|---|
-| 会话缓存 | 会话 → { 它所依的装配清单头（候选：记录序号）、六份当前快照、每条条目「最近一次算出的」可用性 } | **不是权威**：装配清单才是（契约 S-18）；缓存随时可丢、可按清单重建（S-33） |
+| 会话缓存 | 会话 → { 它所依的装配清单头（候选：记录序号）、六份当前快照、**每类上一份被顶替的快照**（按 (类别, `filledAt`) 指认）、每条条目「最近一次算出的」可用性 } | **不是权威**：装配清单才是（契约 S-18）；缓存随时可丢、可按清单重建（S-33）。被顶替的快照另见[关键选择四](#关键选择) |
 | 换表队列 | 会话 → 一条进程内的先后队列 | **不是正确性机制**，只免去同进程里并发换表的无谓冲突；正确性靠装配清单的条件追加（[关键选择三](#关键选择)） |
 | 撤除标记 | 本实例是否已撤 | 撤除之后到达的调用答 `unavailable` |
 
@@ -73,17 +74,26 @@
 
 **反证不了、要真并发演练的**：两个实例同时对同一会话 `fill` 与 `reload(plugin)`（多表一次，S-17 ②）——见 [verification](verification.md#证据义务) N-2。
 
+**四、报告所依的被顶替快照：装配清单是它的留存处，内存只留上一份（选）。**[D-040 §八 M35](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 让 `within = run{report}` 的读只在报告所依的快照里找，由此带来「有报告依它就不得回收」的留存义务（N-21，交提供者设计承接）。
+
+| | 按报告计数：每发出一份报告就给它所依的快照加一，报告不再用了减一 | 被顶替的快照在内存里一直留到会话的缓存被丢 | **装配清单里那条换表记录就是这份快照的留存；内存只留每类上一份被顶替的，更早的按清单记录现建（选）** |
+|---|---|---|---|
+| 落选方的最强论证 | 精确：留得恰好够 | 最简单，读永不落空 | —— |
+| 本方弱点 | —— | —— | 读更早的被顶替快照要按那条记录取回各条目那一版的正文（慢）；**工作区提供的资产**目录已改就取不回原样，那一次读答 `unavailable`（契约 S-25 ⑧ 已写明这一支） |
+| 为什么选它 | **做不到**：报告是交给调用方的值（S-11 ②），本节点不知道它什么时候不再被用——没有「减一」的时刻 | 长期待机的会话每 reload 一次多一份快照，内存随会话寿命无界增长 | 契约 S-18 ① 已要求每条换表记录带齐那几张表的完整构成——**留存是现成的**，只要清单在会话存续期不删这些记录（R-M9）；「一次尝试进行中来了一次 reload」是常见情形，内存里的上一份就接住了，不必现建 |
+| 置信度 | 中高；「只留上一份」没有测量依据，是最小的起点（缺口 A-8） | | |
+
 ### 契约责任到插件、服务与操作
 
 契约的九件事本表不复述，只写兑现点与缺口。**每个换表操作恰一次装配清单追加，追加在任何其他调用（求值输入、桥、自报）之后**；方法名取契约，其余名字标候选；全部**尚未实现**。
 
 | 契约责任 | 插件、服务／贡献或公开操作 | 实现／源码与采用版本 | 符合性依据或缺口 |
 |---|---|---|---|
-| [S-5](../../../../spec/capabilities/asset-registry/v1/contract.md#s-5-八类里登记六张表)～[S-7](../../../../spec/capabilities/asset-registry/v1/contract.md#s-7-注册表条目) 六张表、快照、条目 | 会话缓存里六份快照，每份不可变；换表 = 换引用 | 尚未建包 | `connector`／`agent_definition` 在任何求值与读之前答 `categoryNotRegistered`；`tool` 表按 `ModelToolName`（由定义名正向推出，`core/tool-model`）建索引，撞名即 `toolNameConflict` |
+| [S-5](../../../../spec/capabilities/asset-registry/v1/contract.md#s-5-八类里登记六张表)～[S-7](../../../../spec/capabilities/asset-registry/v1/contract.md#s-7-注册表条目) 六张表、快照、条目 | 会话缓存里六份快照，每份不可变；换表 = 换引用 | 尚未建包 | `connector`／`agent_definition` 在任何求值与读之前答 `categoryNotRegistered`；`tool` 表按 `ModelToolName`（由定义名正向推出，`core/tool-definition`）建索引，撞名即 `toolNameConflict` |
 | [S-6](../../../../spec/capabilities/asset-registry/v1/contract.md#s-6-注册表快照) `filledAt` 同一 (会话, 类别) 严格递增 | 取 `max(clock.now(), 上一份的 filledAt + 1 毫秒)`（本节点推导：`clock` 只保证不后退，不保证两次不同值） | 尚未建包 | `clock` 答 `'unavailable'` ⇒ 这次换表 `unavailable` |
 | [S-8](../../../../spec/capabilities/asset-registry/v1/contract.md#s-8-当下可用性的三个取值)～[S-10](../../../../spec/capabilities/asset-registry/v1/contract.md#s-10-替换件同形只换说明) 可用性、按命令可用性、替换件 | 一个纯函数：(条目, 依赖声明, 各项自报的读数, 有效运行模式) → `availability`／`commandAvailability`；先工具后技能 | 尚未建包 | 每一项的自报经各自读面现取，**本批一个都没有**（契约 G-6）：凡声明了外部服务、设施、存储或模态项的条目一律 `stand_in`／`unavailable`，原因写「读不到」。有效运行模式读不到（G-9）⇒ `request_approval` 关。模态转换登记经 `capability.modality-projection` 的 `lookupConverter` 现取 |
-| [S-11](../../../../spec/capabilities/asset-registry/v1/contract.md#s-11-一次执行尝试的可用性报告) 报告 | `refreshAvailability` 的返回值，**本节点不留副本** | 尚未建包 | 报告交不到执行运行时（执行运行时节点缺口 T-1，本节点缺口 A-7）；meta 门清单无家（G-7）⇒ 本节点不把任何条目当 meta 门，`effectivePermissions` 全取求值 |
-| [S-12](../../../../spec/capabilities/asset-registry/v1/contract.md#s-12-mcp-动作条目在一次尝试内钉住) MCP 动作条目 | `refreshAvailability` 第 4 步：对 `mcp` 表每个接入点现取 MCP 桥（候选服务名 `mcpBridge`）调 `refreshActions`、`projectActions`；桥缺席 ⇒ 按「没有结论」那一行 | 尚未建包 | 各接入点**依次**调（本版不并发；接入点多了再议，没有测量不引入） |
+| [S-11](../../../../spec/capabilities/asset-registry/v1/contract.md#s-11-一次执行尝试的可用性报告) 报告 | `refreshAvailability` 的返回值，带会话、`runId`、调用方交来的 `attempt`（M46）与所依各类快照的 (类别, `filledAt`)；**本节点不留副本** | 尚未建包 | 调用方把同一份交给 runner 与执行运行时的 `submit`（M33；原缺口 A-7 闭合）；meta 门清单无家（G-7）⇒ 本节点不把任何条目当 meta 门，`effectivePermissions` 全取求值 |
+| [S-12](../../../../spec/capabilities/asset-registry/v1/contract.md#s-12-mcp-动作条目在一次尝试内钉住) MCP 动作条目 | `refreshAvailability` 第 4 步：对 `mcp` 表每个接入点现取 MCP 桥（候选服务名 `mcpBridge`）调 `refreshActions`、`projectActions`；桥缺席 ⇒ 按「没有结论」那一行；桥标了「只能以替换件出现」的条目按桥给的原因 `stand_in{for}`——**含 `schema_unsupported`**（M37：远端参数 schema 形状合法、只是这个实现编不出来，`stand_in{for: schema_unsupported}`） | 尚未建包 | 各接入点**依次**调（本版不并发；接入点多了再议，没有测量不引入） |
 | [S-13](../../../../spec/capabilities/asset-registry/v1/contract.md#s-13-evaluationref) `EvaluationRef` | `fill` 用装配交来的那个作记录的键；`reload` 的由清单在追加时给出（R-M3） | 尚未建包 | 本节点不解析、不铸 |
 | [S-14](../../../../spec/capabilities/asset-registry/v1/contract.md#s-14-会话斜杠命令集是-slash_command-那张表的视图) 会话斜杠命令集 | `list(slash_command, session)` 的结果 | 尚未建包 | 「命令名 ＋ 正文」一对，正文取条目那一版的 `SlashCommandDefinition` |
 | [S-15](../../../../spec/capabilities/asset-registry/v1/contract.md#s-15-快照只在这几个时刻换)、[S-17](../../../../spec/capabilities/asset-registry/v1/contract.md#s-17-换表同一会话串行多表一次成败同一) 换表时刻、串行、多表一次 | 只有 `fill`／`reload`／`markFailed`／`onAssetChange` 产生新快照；一次操作的全部目标表写进**一条**清单记录；条件追加成功之后才替换缓存 | 尚未建包 | 串行见[关键选择三](#关键选择)；追加失败 ⇒ 缓存不动（S-17 ④） |
@@ -91,17 +101,17 @@
 | [S-18](../../../../spec/capabilities/asset-registry/v1/contract.md#s-18-快照不持久装配清单是唯一权威) 清单是唯一权威 | 每次换表追加一条记录，带齐被换每张表的完整构成、`filledBy`、`basedOn`、`filledAt`；本节点**不建表** | 尚未建包；清单**没有提供者**（契约 G-1） | 对清单提供者的要求见[下节](#对装配清单提供者的要求清单) |
 | [S-19](../../../../spec/capabilities/asset-registry/v1/contract.md#s-19-缺席时的默认答案) 缺席默认 | 表示层校验在一切判定之前；每个外部读失败逐一映射 | 尚未建包 | 见[失败映射](#状态并发与失败映射) |
 | [S-20](../../../../spec/capabilities/asset-registry/v1/contract.md#s-20-谁可以用门控哪两类按哪个租户身份什么时候判) 「谁可以用」门控 | 进表照求值；`slash_command` 每次读现求一次值、看该持有是否以 `not_usable` 被滤掉；`skill` 按 `within` 分：`session` 现读、`run` 按报告钉住的那一份 | 尚未建包 | 读时现读的结果**不跨调用缓存**（S-25 ⑦）；**每次读现求值**，代价随命令数与读频率——没有测量之前不加缓存，要加时按 `data.identity-values/v1#S-27` 写明失效条件与最大陈旧窗口 |
-| [S-22](../../../../spec/capabilities/asset-registry/v1/contract.md#s-22-fill装配时填六张) `fill` | 表示层 → 读清单头与「这个 `EvaluationRef` 的记录在不在」→ 建六份快照（正文经据点读面按 (资产, 版本) 取）→ 算一次可用性 → 条件追加一条以该 `EvaluationRef` 为键的记录 | 尚未建包 | ⑦ 重试：追加撞 `EvaluationRef` 唯一 ⇒ 读回那条、它正是当前六张 ⇒ 原样返回。**记录在、当前六张已不是它**那一支契约说「按一次新的装配处理」，而一个 `EvaluationRef` 只指认一条记录——**两处对不上**（缺口 A-5），本节点不替它选 |
-| [S-23](../../../../spec/capabilities/asset-registry/v1/contract.md#s-23-reload按类别重填) `reload` | 读头 → 现取求值输入（含工作区承载目录此刻的内容）→ 求值 → 建目标表（`plugin` 连带成员各类）→ 条件追加一条 → 由清单给出新的 `EvaluationRef` | 尚未建包 | 不去重（⑦）；工作区读不到 ⇒ `unavailable`、表不换 |
-| [S-24](../../../../spec/capabilities/asset-registry/v1/contract.md#s-24-refreshavailability每次执行尝试开始时现算) `refreshAvailability` | 按契约 ④ 的六步；**不写清单、不换快照**；把算出的可用性记作会话缓存里「最近一次算出的」 | 尚未建包 | 两次求值都经据点读面取此刻的持有与配值；第二次只在钉住了动作集时另求 |
-| [S-25](../../../../spec/capabilities/asset-registry/v1/contract.md#s-25-lookup查一条)、[S-26](../../../../spec/capabilities/asset-registry/v1/contract.md#s-26-list列一类) `lookup`／`list` | 读头 → 必要时重建 → 在快照里找；`within = run` 时并入报告钉住的动作条目 | 尚未建包 | **报告所依的快照被 reload 顶替之后**，`within = run` 读到的新条目在报告里没有可取的 `availability`——契约 S-25 ⑤ 要求取报告里的，S-34 把这一格交给 G-2（缺口 A-6） |
+| [S-22](../../../../spec/capabilities/asset-registry/v1/contract.md#s-22-fill装配时填六张) `fill` | 表示层 → 读清单头与「这个 `EvaluationRef` 的记录在不在」→ 建六份快照（正文经据点读面按 (资产, 版本) 取）→ 算一次可用性 → 条件追加一条以该 `EvaluationRef` 为键的记录 | 尚未建包 | ⑦ 重试（M34）：追加撞 `EvaluationRef` 唯一 ⇒ 读回那条；**六份当前快照都是 `filledBy = assembly` 且 `basedOn` 是它** ⇒ 原样返回、不再追加；**任一份不是**（此后有过 `reload`、`markFailed`、`onAssetChange` 或另一次装配）⇒ `invalidInput{evaluationSuperseded}`、表不换、不追加（判据取最严，N-21）。原缺口 A-5 闭合。求值以 `compositionCycle`／`categoryUnsupported` 失败时没有结果可交，`fill` 不会被调到 |
+| [S-23](../../../../spec/capabilities/asset-registry/v1/contract.md#s-23-reload按类别重填) `reload` | 读头 → 现取求值输入（含工作区承载目录此刻的内容）→ 求值 → 建目标表（`plugin` 连带成员各类）→ 条件追加一条 → 由清单给出新的 `EvaluationRef` | 尚未建包 | 不去重（⑦）；工作区读不到 ⇒ `unavailable`、表不换；求值以 `compositionCycle{cycle}`、`categoryUnsupported{category}` 失败 ⇒ **原样转交**（结论，不收成 `unavailable`；M32、M45、N-21），表不换、不追加 |
+| [S-24](../../../../spec/capabilities/asset-registry/v1/contract.md#s-24-refreshavailability每次执行尝试开始时现算) `refreshAvailability` | 按契约 ④ 的六步；**不写清单、不换快照**；把算出的可用性记作会话缓存里「最近一次算出的」；`attempt` 必填、原样写进报告（M46，本节点不铸、不推） | 尚未建包 | 两次求值都经据点读面取此刻的持有与配值；第二次只在钉住了动作集时另求；第一次求值以 `compositionCycle`／`categoryUnsupported` 失败 ⇒ 原样转交、不交报告、**桥不被调到** |
+| [S-25](../../../../spec/capabilities/asset-registry/v1/contract.md#s-25-lookup查一条)、[S-26](../../../../spec/capabilities/asset-registry/v1/contract.md#s-26-list列一类) `lookup`／`list` | 读头 → 选快照：`within = session` ⇒ 当前那一份；`within = run{report}` ⇒ **报告所依的那一份**（M35）——当前的、内存里上一份被顶替的、或按装配清单那条记录现建（[关键选择四](#关键选择)）→ 在那一份里找；`within = run` 时并入报告钉住的动作条目 | 尚未建包 | reload 之后的新条目对仍在跑的那一次尝试是「没有」、下一次尝试起可见（M35，原缺口 A-6 闭合）。报告所依的那一份此刻取不回（工作区资产的原样正文已不在）⇒ `unavailable`，**不改读当前那一份**（S-25 ⑧） |
 | [S-27](../../../../spec/capabilities/asset-registry/v1/contract.md#s-27-markfailed命令型服务报错之后去掉那一条) `markFailed` | 读头 → 去掉那一条 → 条件追加 | 尚未建包 | 不求值；幂等：已不在 ⇒ 原样返回、不追加 |
 | [S-28](../../../../spec/capabilities/asset-registry/v1/contract.md#s-28-onassetchange权限收回之后收窄) `onAssetChange` | 对 `slash_command` 每条现求值判门控，有要去的 ⇒ 条件追加 | 尚未建包 | **本批没有调用方**：资产治理的通知发在治理中心进程里，据点上没有转发者（缺口 A-3）；正确性不依赖它（读时现读），但「再授予要等 reload」本批一直不成立 |
 | [S-29](../../../../spec/capabilities/asset-registry/v1/contract.md#s-29-本版不发本契约自己的事件)、[S-30](../../../../spec/capabilities/asset-registry/v1/contract.md#s-30-可用性变化不出提醒) 不发事件、不出提醒 | 不 `emit`，不监听 | —— | 见[事件与过滤器](#事件与过滤器) |
 | [S-31](../../../../spec/capabilities/asset-registry/v1/contract.md#s-31-装配给的保证-vs-协议须给的保证) 装配给 vs 协议给 | 见[下节](#装配给与协议给本节点单机怎样兑现左列) | —— | —— |
 | [S-32](../../../../spec/capabilities/asset-registry/v1/contract.md#s-32-依赖的提供者不可用) 依赖不可用 | 失败映射表 | 尚未建包 | —— |
 | [S-33](../../../../spec/capabilities/asset-registry/v1/contract.md#s-33-本能力重启与重建) 重启与重建 | 会话缓存缺这个会话、或头对不上 ⇒ 读每一类最后一条换表记录、按记下的版本取回正文、算一次可用性 | 尚未建包 | 取不回原样正文（工作区资产、目录已改）⇒ 那一类不重建、读答 `unavailable`；「取不回」要据点读面分得开「没有这一版」与「读不到」（A-2） |
-| [S-34](../../../../spec/capabilities/asset-registry/v1/contract.md#s-34-进行中的运行与撤销) 进行中的运行 | 不发任何停止、中断、取消信号 | —— | G-2 未决 |
+| [S-34](../../../../spec/capabilities/asset-registry/v1/contract.md#s-34-进行中的运行与撤销) 进行中的运行 | 不发任何停止、中断、取消信号 | —— | 一次读在哪一份快照里找已由 M35 定下（原 G-2 闭合）；换表不改写正在跑的尝试已拿到的构成 |
 
 ### 事件与过滤器
 
@@ -120,7 +130,7 @@
 | 时间源 `clock` | **必需 inject**；`infra/clock` | 同上 | `'unavailable'` ⇒ 要写 `filledAt`／`computedAt` 的操作 `unavailable` |
 | 据点读面（候选 `evaluationInputs`：此刻的求值输入、按 (资产, 版本) 取正文、工作区资产正文能否原样取回、会话事实） | **可选**：每次操作 `resolveOptional` 现取（basis `inject-has-no-optional-form`） | 每次操作现取 | 缺席或读不到 ⇒ `reload`、`refreshAvailability`、`fill`、重建、门控现读 `unavailable`。**没有 provider 节点**（A-2） |
 | `capability.mcp-bridge` v1 [S-16](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-16-refreshactions)、[S-17](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-17-projectactions)（[`packages/tools/mcp-bridge`](../mcp-bridge/README.md)） | **可选**，现取 | 每次 `refreshAvailability` 现取 | 缺席 ⇒ 每个接入点按 S-12「没有结论」那一行，原因「读不到」 |
-| `capability.modality-projection` v1 `lookupConverter`（`packages/model/modality-projection`，本批节点） | **可选**，现取 | 同上 | 缺席 ⇒ 那一项「读不到」、不满足 |
+| `capability.modality-projection` v1 `lookupConverter`（[`packages/model/modality-projection`](../../model/modality-projection/README.md)） | **可选**，现取 | 同上 | 缺席 ⇒ 那一项「读不到」、不满足 |
 | 有效运行模式（G-9）、各依赖项提供者的自报（G-6）、有效模型档案（G-6） | **可选**；本批一个都没有读面 | —— | 按 S-8 ③ 那一项不满足、原因「读不到」 |
 | 求值、资产形状、工具定义等 | **纯 import**，不经 Cordis | 随包版本 | —— |
 
@@ -140,6 +150,7 @@
 | R-M6 | 能答「这个会话没有装配记录」，且与「读不到」可区分 | S-21 `sessionNotFound`、S-19 | —— |
 | R-M7 | 追加答成功即持久。**边界**：sqlite `synchronous = NORMAL` 下操作系统崩溃或断电可能丢最后一段已提交事务（[D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/README.md)）——那时重建出来的少了最后一次换表，而调用方已被告知成功（S-43「逐条与重启之前相同」对断电不成立） | S-18、S-33 | —— |
 | R-M8 | 不可用可识别：不返回空、不返回旧快照 | S-19、S-32 | —— |
+| R-M9 | **历史换表记录可按 (会话, 类别, `filledAt`) 读回，会话存续期内不删** | S-25 ④⑧、S-6 第 2 条（M35） | 报告所依的被顶替快照以它为留存（[关键选择四](#关键选择)）；删了，仍在跑的尝试的读只能答 `unavailable` |
 
 ## 状态、并发与失败映射
 
@@ -149,11 +160,13 @@
 
 | 情形 | 映射 |
 |---|---|
-| 表示层不合（含 `within`／`run` 缺席、报告不是这个会话或这个 `runId` 的） | `invalidInput` |
+| 表示层不合（含 `within`／`run`／`attempt` 缺席、报告不是这个会话或这个 `runId` 的） | `invalidInput` |
+| `fill` 带的 `EvaluationRef` 那条记录已落下、六份当前快照任一不是它填出的 | `invalidInput{evaluationSuperseded}`（M34） |
 | 清单答「这个会话没有装配记录」 | `sessionNotFound` |
+| 此刻的求值以 `compositionCycle{cycle}`／`categoryUnsupported{category}` 失败 | **原样转交**（结论；M32、M45），表不换、不追加、不交报告 |
 | 求值结果 `unresolved` 非空 | `dependencyUnresolved{missing}` |
 | `tool` 表撞名（含加上动作条目之后） | `toolNameConflict` |
-| 清单读不到、追加答不可用、据点读面缺席或读不到、`clock` 答 `'unavailable'`、求值结果里 `resident` 缺席、重建取不回原样正文 | `unavailable`；缓存不动 |
+| 清单读不到、追加答不可用、据点读面缺席或读不到、`clock` 答 `'unavailable'`、求值结果里 `resident` 缺席、重建取不回原样正文、`within = run` 的报告所依那一份此刻取不回 | `unavailable`；缓存不动；**不改读当前那一份** |
 | 条件追加答「冲突」 | 按清单重建、从头重做一次；再冲突 ⇒ `unavailable` |
 | 第二次求值（S-24 第 5 步）拿不到 | 报告照交，`effectivePermissions` 各项 `unavailable` |
 | 桥、模态登记、自报、运行模式读不到 | 只让那一项或那一行不满足，原因「读不到」 |
@@ -167,7 +180,7 @@
 | `ctx.provide('assetRegistry')` | 本 fiber；两个必需依赖都在时插件体运行、立即可解析 | 抛出 ⇒ 随 fiber 撤（`provide` 由 effect 纳管：kernel-basis probe `provide-is-effect-managed`，**待核对主张**） | 服务消失 |
 | 会话缓存、换表队列、撤除标记（一个 effect） | 本 fiber；空缓存起步，按需重建 | —— | 置撤除标记、清空缓存。**在途的操作跑完，按各自那一次追加收场**：追加成功的在清单里、下一任读头时看得见；失败的什么都没留。**保留**：无——清单是权威，本插件没有只活在实例里的事实 |
 
-**提供者换代时收掉什么**（F 第二问）：装配清单或时钟换代 ⇒ 缓存丢弃、插件重跑、下一任按清单懒重建；**没有要收的在途事实**——报告是调用方手上的值，照旧有效到那一次尝试结束（S-11 ①）；「最近一次算出的」可用性在重建时再算一次（S-33 ⑤）。
+**提供者换代时收掉什么**（F 第二问）：装配清单或时钟换代 ⇒ 缓存丢弃、插件重跑、下一任按清单懒重建；**没有要收的在途事实**——报告是调用方手上的值，照旧有效到那一次尝试结束（S-11 ①）；它所依的快照若已被顶替，下一任按装配清单那条记录现建（R-M9）；「最近一次算出的」可用性在重建时再算一次（S-33 ⑤）。
 
 ## 装配给与协议给：本节点单机怎样兑现左列
 
@@ -179,7 +192,7 @@
 | 换表先记进清单再生效 | 追加成功之后才换缓存；每个操作先对头 | 本节点 ＋ 装配清单提供者 |
 | 「谁可以用」现读的新鲜度 | 每次读现求值；新鲜度是据点读面给的副本的新鲜度 | **装配**（据点读面，A-2） |
 | 资产变化通知转到据点 | 不监听；`onAssetChange` 等转发者调 | **装配**（`apps/cli`；本批没有，A-3） |
-| 一次尝试内不变、技能门控一次运行内不变 | 报告作为值交出；本节点不在尝试中途重算 | 本节点 ＋ 调用方（agent loop，无节点）如实带 `runId` |
+| 一次尝试内不变、技能门控一次运行内不变 | 报告作为值交出；本节点不在尝试中途重算 | 本节点 ＋ 调用方（agent loop，无节点）如实带 `runId` 与 `attempt`（M46），把同一份报告交给 runner 与执行运行时（M33） |
 | 求值的输入被收齐 | 据点读面 | **装配**（A-2） |
 | 调用方身份已核实 | 进程内能力间面；不暴露给终端 | **装配**（`apps/cli` 不把本服务接到任何入口） |
 | 提供者的自报 | 同一进程里的读面，现取 | 各项 owner（契约 G-6） |
@@ -188,17 +201,17 @@
 
 ## 实施缺口与消费者影响
 
-契约第十节的缺口不重抄；下表是**本节点自己的**缺口，编号 A-n 只在本节点内有效。
+契约第十节的缺口不重抄；下表是**本节点自己的**缺口，编号 A-n 只在本节点内有效。A-1、A-2 所指的装配清单契约与据点读面按 [D-040 §八 M43](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)（C-2、C-3）**本程不补、下一程补**，owner 主线。
 
 | # | 缺口 | 受阻的消费或条款 | owner | 闭合条件 |
 |---|---|---|---|---|
-| A-1 | 对装配清单提供者的要求 R-M1～R-M8 没有对端（清单无契约、无节点，契约 G-1） | 本插件整批 `PENDING`；执行运行时的 `submit`、agent loop 的尝试开始、`Tools()`／`Skills()`、斜杠命令识别 | PF-004 的契约与它的提供者节点 | 那个节点写出对应要求并互指 |
-| **A-2** | **据点读面没有 provider 节点**：此刻的求值输入（副本 ＋ 工作区读入 ＋ 会话值）、按 (资产, 版本) 取正文、工作区资产正文能否原样取回、会话事实。assets 提案把它归「据点装配、不另立契约」（[MR-3](../../../../record/proposals/capability-split-assets/design.md#本包依赖的主线裁定尚无决定记录)），`apps/cli` 的设计也登记了它没有承接者 | `fill`、`reload`、`refreshAvailability`、门控现读、重建 | 主线：立一个据点读提供者节点，或把 MR-3 改成一份读面契约 | 二选一落定；本节点改指它 |
+| A-1 | 对装配清单提供者的要求 R-M1～R-M9 没有对端（清单无契约、无节点，契约 G-1） | 本插件整批 `PENDING`；执行运行时的 `submit`（它的 `report` 从本节点来）、agent loop 的尝试开始、`Tools()`／`Skills()`、斜杠命令识别 | 主线（M43 C-2：PF-004 的契约与它的提供者节点，下一程） | 那个节点写出对应要求并互指 |
+| **A-2** | **据点读面没有 provider 节点**：此刻的求值输入（副本 ＋ 工作区读入 ＋ 会话值）、按 (资产, 版本) 取正文、工作区资产正文能否原样取回、会话事实。assets 提案把它归「据点装配、不另立契约」（[MR-3](../../../../record/proposals/capability-split-assets/design.md#本包依赖的主线裁定尚无决定记录)），`apps/cli` 的设计也登记了它没有承接者 | `fill`、`reload`、`refreshAvailability`、门控现读、重建、被顶替快照的现建 | 主线（M43 C-3：随入口组合 v2 一并起草，下一程） | 读面落定；本节点改指它 |
 | A-3 | **资产变化没有转发者**：资产治理在治理中心进程发通知；据点上谁转、转给哪些会话（本节点不提供会话枚举）未定 | S-28；「再授予要等 reload」（契约 G-3 的边界在本批恒成立） | `apps/cli` | 装配写明转发者与会话扇出 |
 | A-4 | 同一 (会话, 类别) 的 `filledAt` 严格递增靠「上一份 + 1 毫秒」兜底——本节点推导；`Instant` 是毫秒整数（`core/offer-expiry`） | S-6 | 本节点 | 实现时按此；若 `Instant` 刻度改变回来改 |
-| **A-5** | **`fill` 的重试与 `EvaluationRef` 一对一对不上**：[S-22](../../../../spec/capabilities/asset-registry/v1/contract.md#s-22-fill装配时填六张) ⑦ 说「记录已落下、当前六张不是它填的 ⇒ 按一次新的装配处理」，而 [S-13](../../../../spec/capabilities/asset-registry/v1/contract.md#s-13-evaluationref) 说一个 `EvaluationRef` 指认的就是那一条记录——新的一次装配要么复用这个键（撞 R-M2），要么需要装配另给一个 | 装配（PF-004）的重试语义 | 主线（契约 owner） | 契约写明这一支答什么 |
-| **A-6** | **报告所依快照被顶替之后的 `within = run` 读**：[S-25](../../../../spec/capabilities/asset-registry/v1/contract.md#s-25-lookup查一条) ⑤ 要取报告里的 `availability`，而 reload 之后当前快照里的新条目在那份报告里没有；[S-34](../../../../spec/capabilities/asset-registry/v1/contract.md#s-34-进行中的运行与撤销) 把「进行中的运行看不看得见 reload」交给 G-2 | agent loop、`Tools()`／`Skills()`、执行运行时在 reload 之后同一尝试里的读 | 主线（契约 owner）＋ 产品（G-2） | 契约写明这一格 |
-| A-7 | 报告只是交给调用方的值；执行运行时 `submit` 要以它查 `tool` 表，却拿不到（执行运行时节点缺口 T-1） | 执行运行时 `submit` | 主线 | 同 T-1 |
-| A-8 | 读时门控每次现求值：代价随读频率与命令数增长，没有测量 | `lookup`／`list` 的延迟 | 实现者 | 有测量再决定缓存，并按 `data.identity-values/v1#S-27` 写失效条件 |
+| A-5 | **已闭合（修复波 3，M34）**：同一 `EvaluationRef` 再 `fill` 而六张已不是它填出的 ⇒ `invalidInput{evaluationSuperseded}` | —— | —— | —— |
+| A-6 | **已闭合（修复波 3，M35）**：`within = run{report}` 只在报告所依的快照里找；带来的留存义务由[关键选择四](#关键选择)与 R-M9 承接 | —— | —— | —— |
+| A-7 | **已闭合（修复波 3，M33）**：执行运行时的 `submit` 带报告 | —— | —— | —— |
+| A-8 | **两处没有测量的取舍**：读时门控每次现求值（代价随读频率与命令数增长）；内存只留每类上一份被顶替的快照（更早的现建，慢） | `lookup`／`list` 的延迟 | 实现者 | 有测量再决定：门控缓存按 `data.identity-values/v1#S-27` 写失效条件；留存代数按真实的尝试内 reload 频率定 |
 
-**报给主线**（不在本节点改）：A-5、A-6（契约内部对不上）；A-2（据点读面没有节点——与 `apps/cli` 登记的同一缺口）；草图「注册表 inject 资产求值」一格已被 D-039 assets 候选 B 取代，本节点按纯 import 写。
+**报给主线**（不在本节点改）：A-2（据点读面没有节点——与 `apps/cli` 登记的同一缺口，M43 C-3）；M35 带来的留存义务本节点读作「装配清单那条记录就是留存」，要求清单在会话存续期不删历史换表记录（R-M9），对清单提供者（下一程）是一条新要求。A-5、A-6、A-7 已随修复波 3 闭合；草图「注册表 inject 资产求值」一格已被 D-039 assets 候选 B 取代，本节点按纯 import 写。

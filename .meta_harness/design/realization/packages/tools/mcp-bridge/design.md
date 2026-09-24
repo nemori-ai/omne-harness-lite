@@ -8,7 +8,7 @@
 **本节点用到的 SDK 能力全部待取证**（契约 G-6；basis 没有 MCP 条目，每一项是「假设，须按 source-check 取证」，登在[缺口 B-1](#实施缺口与消费者影响)）：stdio 传输能否拿到子进程标识并让它成为独立进程组、它在给定环境之外是否另并默认变量、stderr 能否接管；按请求的取消与进度回调；OAuth 客户端钩子（令牌的读写、PKCE、401 时续期）；列举分页的游标 API；列举结果里 `execution.taskSupport` 是否原样保留。
 **同行避坑清单**（D-037「只借鉴，目的是避坑」）逐条落到下文：跨连接清单缓存且凭据类排除 → 副本按 (租户, 接入点, 持有格) 键控；翻页守卫 → `maxListPages`；四种超时分开 → 连接超时、调用超时、收口宽限、续期间隔各自一项；断连收掉全部挂起请求、不重放 → S-26／S-27 行；进程组终止、stderr 排空、环境白名单 → S-6、S-26 行；错误保留分类与原始码 → `protocolError{raw}`。
 
-**复用的本仓库节点**：存储协议 [`core/storage`](../../core/storage/README.md)（实例 [`infra/storage-sql`](../../infra/storage-sql/README.md)）；时间源 [`infra/clock`](../../infra/clock/README.md)；[`core/kernel-basis`](../../core/kernel-basis/README.md) 的 `definePlugin`、`resolveOptional`；工具定义形状与表示层校验 `packages/core/tool-model`、接入点形状 `data.mcp-endpoint` 的纯模块（本批节点，起草中）。
+**复用的本仓库节点**：存储协议 [`core/storage`](../../core/storage/README.md)（实例 [`infra/storage-sql`](../../infra/storage-sql/README.md)）；时间源 [`infra/clock`](../../infra/clock/README.md)；[`core/kernel-basis`](../../core/kernel-basis/README.md) 的 `definePlugin`、`resolveOptional`；工具定义形状与表示层校验（含 `schema_unsupported` 的实现上限，它的 TD-2）[`core/tool-definition`](../../core/tool-definition/README.md)、接入点形状与动作清单副本 [`core/mcp-endpoint`](../../core/mcp-endpoint/README.md)、结果块与**严格的无损 JSON 读写**（候选 `readJsonStrict`／`writeJsonLossless`，[D-040 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）[`core/content-blocks`](../../core/content-blocks/README.md)（[D-040 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)：一契约一包）。
 **Cordis 版本**：`@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）。
 **配置错误一个政策**：config 经 `definePlugin` 的 `Config` 在插件体之前校验，不过即 fiber `FAILED`、装配启动失败（basis [`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)）。
 
@@ -81,9 +81,9 @@
 
 | 契约责任 | 插件、服务／贡献或公开操作 | 实现／源码与采用版本 | 符合性依据或缺口 |
 |---|---|---|---|
-| [S-5](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-5-接入点持有的寻址) 按持有寻址 | 每个方法先表示层校验 `endpointHolding`（三个身份参数、`provenance` 与 `settings.credential` 的一在一缺）；工作区格或非租户格却带凭据引用 ⇒ `credentialUnavailable` | 尚未建包 | 本节点不求值；**执行运行时交来的持有在本批没有来路**（执行运行时节点缺口 T-1） |
+| [S-5](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-5-接入点持有的寻址) 按持有寻址 | 每个方法先表示层校验 `endpointHolding`（三个身份参数、`provenance` 与 `settings.credential` 的一在一缺）；工作区格或非租户格却带凭据引用 ⇒ `credentialUnavailable` | 尚未建包 | 本节点不求值；执行运行时交来的持有就是它 `submit` 带的那份报告里钉住的那一份（M33，原 B-6 闭合） |
 | [S-6](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-6-连接归桥不上签名不跨租户) 连接 | 连接表：键 = (租户, 接入点, `scope_key`, 连接目标的规范值, 凭据引用或「缺席」)；惰性建立，同键的并发建立共用一次；`connectTimeout` 封顶建立加第一份清单。stdio：据点机上拉起，**不经 shell**，环境恰是「白名单变量 ∪ 正文 env ∪ 凭据 env」、后者压前者 | 尚未建包；SDK 的 stdio 传输是否另并默认变量**待取证**（B-1）——若并，本节点自己拉起进程、只借 SDK 的消息分帧 | 同键之外一律不复用（P-1）；设置换值、凭据换引用 ⇒ 新键新连接，同一 (租户, 接入点, 持有格) 的旧连接转入「排空」：不接新调用，在途归零即按 S-26 关；闲置 `idleConnectionTimeout` 即关 |
-| [S-7](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-7-动作清单持久副本) 副本 | `mcp_action_snapshot`；条件写见 R-B1 | 尚未建包 | 持有移除后不再读到；删行是整理，**本批不做**（没有「持有已移除」的读面，B-3） |
+| [S-7](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-7-动作清单持久副本) 副本 | `mcp_action_snapshot`；条件写见 R-B1；`tools` 列是对端原话，严格无损读写（R-B9） | 尚未建包 | 持有移除后不再读到；删行是整理，**本批不做**（没有「持有已移除」的读面，B-3） |
 | [S-8](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-8-oauth-绑定状态与迁移) OAuth 绑定 | `mcp_oauth_binding`；过期是读时判定（`since + oauthPendingTtl` 对 `clock.now()`），不靠定时器 | 尚未建包 | 「引用不再被配着」「取得之后迟迟没配上」两条迁移要读据点上的配值副本——**没有读面**（B-3），本批这两条不触发 |
 | [S-9](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-9-凭据的出示与取用) 凭据出示 | 建连前：缺席 ⇒ 不出示；有引用 ⇒ 先判来处规则（第 3 条），再现取保管方（候选服务名 `credentialCustody`）按租户格解引用；stdio 作环境变量、HTTP 作请求头、OAuth 取得的作持有者令牌 | 尚未建包；**保管方没有节点**（契约 G-7，B-2） | 保管方缺席或够不着 ⇒ `dependencyUnavailable`，**不改成不带凭据去连**；说「不在那份持有上、已作废」⇒ `credentialUnavailable` |
 | [S-10](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-10-对端可用性不由本系统掌握)、[S-11](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-11-缺席时的默认答案) 不可用不是故障、缺席默认 | 失败映射表 | 尚未建包 | 见[状态、并发与失败映射](#状态并发与失败映射) |
@@ -91,9 +91,9 @@
 | [S-13](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-13-凭据与引用不进任何呈现) 凭据不进呈现 | 每条连接记下它出示过的凭据文字；stderr、日志通知、协议错误原文留存之前逐段替换成固定遮罩；结构化日志只写接入点、持有格、失败值名，不写 `settings.credential` | 尚未建包 | 引用只在 `completeOAuth` 的返回里出现一次；**不承诺遮得掉对端变形过的秘密**（契约原话） |
 | [S-14](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-14-桥不做放行判断) 不做放行 | `invoke` 不读执行权限、不核 `action` 是否在最新副本里 | —— | —— |
 | [S-16](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-16-refreshactions) `refreshActions` | 取 `fetchedAt = clock.now()`（发出第一页之前）→ 取用或建立连接 → 分页列举到底（页数 > `maxListPages` ⇒ `protocolError`）→ 逐项核形状与名字不重复 → 一次写事务做条件写 → 返回 | 尚未建包 | 判定类失败交出现存副本（一次读事务）；「这一次的条件写被更晚的丢弃」⇒ 同一事务里读回存储那份交出 |
-| [S-17](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-17-projectactions) `projectActions` | 纯函数：三样最小规范化 → 名字 → 参数 schema（表示层校验借 `core/tool-model`）→ `entries`／`excluded`／副本那一支；`execution.taskSupport = required` ⇒ 「只能以替换件出现」 | 尚未建包 | 被排除的动作写一条结构化日志（不静默丢）；`taskSupport` 能否从 SDK 的列举结果读到**待取证**（B-1） |
+| [S-17](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-17-projectactions) `projectActions` | 纯函数：三样最小规范化 → 名字 → 参数 schema（表示层校验借 `core/tool-definition`）→ `entries`／`excluded`／副本那一支；`execution.taskSupport = required` ⇒ 「只能以替换件出现」。**参数 schema 过了前十二道、只是这个实现编不出来或 `pattern` 超上限（`data.tool-definition` 的 `schema_unsupported`，第 13 行）⇒ 不排除**，照常投影成同形的一项、标「只能以替换件出现」、原因 `schema_unsupported`（M37；`data.mcp-endpoint` S-10 同步）；过不了前十二道的照旧进 `excluded` 的 `input_rejected` | 尚未建包；上限的值与筛查清单归 `core/tool-definition`（TD-2），本节点只照它的判定打标记 | 被排除的动作写一条结构化日志（不静默丢）；`taskSupport` 能否从 SDK 的列举结果读到**待取证**（B-1）。同一个实现、同一份登记的上限，对同一份副本投影结果恒同——原件与替换件出自同一次投影，同形照样成立 |
 | [S-18](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-18-availability) `availability` | 取用或建立连接、握手，不列举；已建立且未出错的连接即 `available` | 尚未建包 | 与 `refreshActions` 同一套连接与失败判定 |
-| [S-19](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-19-invoke) `invoke` | 取用或建立连接 → 在途登记 → 发出（此刻起「已发出」）→ 等应答，`callTimeout` 到点 ⇒ 发取消通知、`callTimedOut`；进度通知经执行运行时交来的发帧原语发帧；日志通知遮掉后记日志 | 尚未建包；按请求取消与进度路由**待取证**（B-1） | **中断**：执行运行时的停止请求到达 ⇒ 发取消通知、在途登记撤掉，这次调用以一个内部的「无结局」值结算，执行者贡献把它丢弃、不向执行运行时交回（执行运行时那时已写下 `interrupted`，契约 S-18「先落后发」）。任何失败都带「是否已发出」 |
+| [S-19](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-19-invoke) `invoke` | 取用或建立连接 → 在途登记 → 发出（此刻起「已发出」）→ 等应答，`callTimeout` 到点 ⇒ 发取消通知、`callTimedOut`；进度通知经执行运行时交来的发帧原语发帧；日志通知遮掉后记日志 | 尚未建包；按请求取消与进度路由**待取证**（B-1）；**参数送出与应答读入是两跳**（M36）：交来的参数是无损值（大数保留原文），SDK 若以普通 `JSON.stringify`／`JSON.parse` 读写线上消息，送出时须经无损写、读入对端应答时严格无损读、重复键即 `protocolError`——SDK 能不能换掉这一层**待取证**（B-1） | **中断**：执行运行时的停止请求到达 ⇒ 发取消通知、在途登记撤掉，这次调用以一个内部的「无结局」值结算，执行者贡献把它丢弃、不向执行运行时交回（执行运行时那时已写下 `interrupted`，契约 S-18「先落后发」）。任何失败都带「是否已发出」 |
 | [S-20](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-20-对端结果怎样成为-toolresult)、[S-21](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-21-失败值与收场的对应) 结果映射、收场对应 | 纯函数：应答 → `ToolResult` ＋ `isError`；执行者贡献把 `bridgeWithdrawn` 交回为「异常中断」、其余失败交回为执行者失败，带「是否已发出」 | 尚未建包；执行者接口是执行运行时节点定的候选形状（执行运行时节点缺口 T-14） | 非图、非音的内嵌二进制只留一行说明（契约 G-4） |
 | [S-22](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-22-beginoauth) `beginOAuth` | ③ 判 → 取授权服务器元数据（事务外）→ 生成 PKCE 与状态参数 → 一次写事务：取持有哨兵（R-B3）、把这份持有上的 `pending` 迁 `revoked`、插入新的 `pending` | 尚未建包；SDK 的 OAuth 钩子**待取证**（B-1） | 不幂等（⑦）；同意地址只含协议的一次性参数 |
 | [S-23](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-23-completeoauth) `completeOAuth` | 读事务：绑定 `pending`、未过期、状态参数一致 → 事务外用授权码换凭据 → 保管方把凭据收成「待生效」、行上引用这个绑定 → 一次写事务：锁绑定行、仍 `pending` 且未过期 ⇒ 迁 `granted`、记下引用、`since = now` | 尚未建包；**保管方没有节点**（B-2） | [关键选择三](#关键选择)；交错反证见[下节](#跨-owner-的同一提交oauth-绑定行与保管方的凭据行) |
@@ -152,6 +152,7 @@
 | R-B6 | 只读事务快照一致 | S-16 ⑥、S-23 ② | P-6 |
 | R-B7 | 持久：副本、绑定、进程登记跨重启仍在。**边界**：sqlite `synchronous = NORMAL` 下操作系统崩溃或断电可能丢最后一段已提交事务（[D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/README.md)）——丢的若是进程登记行，那个进程成了回收不了的孤儿；丢的若是 `granted` 迁移，人要重取一次 | S-7 ⑤、S-28 | P-7 |
 | R-B8 | 不可用可识别：读失败不当 `not_fetched`、不当空清单 | S-11、S-16 ⑧ | P-8 |
+| R-B9 | **JSON 列按文本存、严格无损读写**：副本的 `tools`（对端原话，`inputSchema` 里可能有超出 ±2^53 的数）、绑定的授权服务器元数据以文本落盘，经 `core/content-blocks` 的 `writeJsonLossless`／`readJsonStrict`；不交给方言的 JSON 类型解析 | 副本是替换件同形的唯一依据（S-7 ⑤）；`data.content-blocks/v1#S-24`（M36：每一跳严格、数无损） | 存储协议只见文本列；无损由本节点在列的两端兑现 |
 
 ### 对凭据保管方的要求清单
 
@@ -229,13 +230,13 @@
 
 | # | 缺口 | 受阻的消费或条款 | owner | 闭合条件 |
 |---|---|---|---|---|
-| **B-1** | **SDK 能力待取证**（契约 G-6 在本节点上的展开）：精确钉版；stdio 子进程标识、独立进程组、环境是否另并默认变量、stderr 接管；按请求取消与进度回调；OAuth 钩子（令牌读写、PKCE、401 续期）；分页游标；`execution.taskSupport` 是否保留。**任一项不成立，那一格改为自写**（如自己拉起进程、只借 SDK 的消息分帧），不改契约 | S-6、S-17、S-19、S-22～S-26、S-28 | 实现者（按来源核对取证，结果进 basis 或登待核对主张） | 每项一条 probe；钉版写进一份决定 |
-| **B-2** | **凭据保管方没有节点**：本节点给出要求 C-1～C-6 | 一切带凭据引用的接入点（`dependencyUnavailable`）；OAuth 全路；续期 | 主线（立保管方节点，D-040 S19-f 的候选） | 那个节点写出对应要求并互指 |
-| **B-3** | **据点上的配值副本读面没有节点**：「引用还配没配着」「持有是否已移除」 | S-8 两条迁移、S-24 ③④、S-37 场景；副本整理 | 主线 ＋ `apps/cli`（与注册表节点缺口 A-2 同一个读面） | 读面落定 |
+| **B-1** | **SDK 能力待取证**（契约 G-6 在本节点上的展开）：精确钉版；stdio 子进程标识、独立进程组、环境是否另并默认变量、stderr 接管；按请求取消与进度回调；OAuth 钩子（令牌读写、PKCE、401 续期）；分页游标；`execution.taskSupport` 是否保留；**线上 JSON 的读写能否换成严格无损的那一对**（M36：参数里的大数不被舍入、对端应答的重复键被拒）。**任一项不成立，那一格改为自写**（如自己拉起进程、只借 SDK 的消息分帧，或自写传输层的编解码），不改契约 | S-6、S-17、S-19、S-20、S-22～S-26、S-28 | 实现者（按来源核对取证，结果进 basis 或登待核对主张） | 每项一条 probe；钉版写进一份决定 |
+| **B-2** | **凭据保管方没有节点**：本节点给出要求 C-1～C-6 | 一切带凭据引用的接入点（`dependencyUnavailable`）；OAuth 全路；续期 | 主线（`infra/secrets`，D-040 S19-f 的候选；M43 C-5：本程不补、下一程） | 那个节点写出对应要求并互指 |
+| **B-3** | **据点上的配值副本读面没有节点**：「引用还配没配着」「持有是否已移除」 | S-8 两条迁移、S-24 ③④、S-37 场景；副本整理 | 主线（[D-040 §八 M43](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) C-3：随入口组合 v2，下一程）＋ `apps/cli`（与注册表节点缺口 A-2 同一个读面） | 读面落定 |
 | B-4 | 续期者唯一依赖 A-1（[关键选择四](#关键选择)） | S-24、S-30 第 4 行 | `core/kernel-basis`（A-1 的 probe） | probe 成立，或改用存储认领 |
 | B-5 | 执行者接口的形状由执行运行时节点定候选（它的 T-14）；本节点依赖其中「停止请求」「发帧原语」「交回失败带是否已发出」「交回异常中断」四样 | S-19、S-21 | 执行运行时节点 | 形状进执行运行时包的公开入口 |
-| B-6 | 执行运行时交来的接入点持有在本批没有来路（执行运行时节点 T-1） | `invoke` 全部 | 主线 | T-1 闭合 |
+| B-6 | **已闭合（修复波 3，M33）**：执行运行时的 `submit` 带这一次尝试的报告，MCP 动作的接入点持有取自它、原样记进执行记录，再交给本节点的 `invoke` | —— | —— | —— |
 | B-7 | 拉起到写下进程登记行之间的窗口（同执行运行时的 X-5） | S-28 孤儿回收 | 实现者 | 实验定下窗口大小；必要时改为先写意图行 |
 | B-8 | 闲置关闭 `idleConnectionTimeout` 是本节点加的一项 config，契约 G-12 没列 | S-6 ⑤ | 主线（给值） | 装配给值 |
 
-**报给主线**（不在本节点改）：B-2、B-3（缺节点，前者 D-040 已定为候选节点）；关键选择一（连接表不用子 fiber）与执行运行时节点同一处偏离草图；关键选择四（续期者唯一只到 A-1 为止）。
+**报给主线**（不在本节点改）：B-2、B-3（缺节点，M43 下一程）；关键选择四（续期者唯一只到 A-1 为止）；M36 在桥上多出两跳（参数送出、应答读入），SDK 能否换编解码待取证（B-1）。关键选择一（连接表不用子 fiber）与三（OAuth 的「同一提交」读作两次提交一个可见提交点）已由 [D-040 §八 M44](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 接受为推导；B-6 已随 M33 闭合；M37 的替换件口子已进 S-17 行。

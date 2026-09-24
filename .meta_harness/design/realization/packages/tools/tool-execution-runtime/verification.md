@@ -19,13 +19,13 @@
 
 | 场景 | 本节点上受阻于 | 状态 |
 |---|---|---|
-| [S-50](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-50-前台完成)、[S-51](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-51-前台被用户中断)、[S-53](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-53-等待再次等待与迟到的答复)、[S-55](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-55-找得到的不追补)、[S-56](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-56-归档之后到达的完成不送达)、[S-57](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-57-取消运行不动后台)、[S-59](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-59-停止与交回交错) | 每条都要走 `submit`：受阻于 T-8（会话持有租户的读面，否则恒为 `dependencyUnavailable{storage}`）、T-1（查注册表要报告）与 T-7（会话日志追加面）。**可做的最小形态**：验收装配里用标明「非产品行为」的替身顶上这三个读写面与 PB-1 放行件——那是本节点的测试，不是契约场景的通过 | 未开始 |
-| [S-52](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-52-自动转后台后完成落一条提醒) | 同上 ＋ T-2（落盘前那一关，本批一律「不可用」）＋ T-4（`late` 的读面） | 未开始 |
+| [S-50](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-50-前台完成)、[S-51](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-51-前台被用户中断)、[S-53](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-53-等待再次等待与迟到的答复)、[S-55](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-55-找得到的不追补)、[S-56](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-56-归档之后到达的完成不送达)、[S-57](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-57-取消运行不动后台)、[S-59](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-59-停止与交回交错) | 每条都要走 `submit`：受阻于 T-8（会话持有租户的读面，否则恒为 `dependencyUnavailable{storage}`）与 T-7（会话日志追加面）；`submit` 必带的 `report` 要一份注册表算出的报告，而注册表本批 `PENDING`（装配清单无提供者）。**可做的最小形态**：验收装配里用标明「非产品行为」的替身顶上这几个读写面、报告与 PB-1 放行件——那是本节点的测试，不是契约场景的通过 | 未开始 |
+| [S-52](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-52-自动转后台后完成落一条提醒) | 同上 ＋ 契约 G-6（落盘前那一关，本批一律「不可用」）＋ 契约 G-18（`late` 兑现不了——这一格断言不了） | 未开始 |
 | [S-54](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-54-停机后前台与后台各追补一条) | 同上 ＋ T-9（关卡请求没有接收方）＋ X-5 | 未开始 |
 | [S-58](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-58-插队三行) | 同上 ＋ 「等的是不是卡片」只读得到 `wait.card` 有没有（G-5） | 未开始 |
 | [S-60](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-60-凭据不符与核对不了都整批不执行) | `capability.tool-admission` **本批无提供者**：「核对不了」那一支现在就能做（缺席即 `admissionUnavailable`）；「凭据不符」一支要一个会答 `invalid` 的核对面 | 未开始 |
 | [S-61](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-61-参数不合即刻失败并带用法)、[S-64](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-64-参数收齐却解析不了)、[S-65](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-65-重放同一批返回首次的结果)、[S-67](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-67-租户不符整批不收)、[S-69](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-69-查不到条目的调用即刻收场不可用) | 同第一行；S-61 另受阻于 `Tools().inspect` 无契约；S-65 要断言「重放照 `submit_disposition` 答」 | 未开始 |
-| [S-66](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-66-帧被拒报一次收场之后的帧不进) | 同第一行；装配状态依赖 `packages/core/stream-assembly`（本批节点，未建包） | 未开始 |
+| [S-66](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-66-帧被拒报一次收场之后的帧不进) | 同第一行；装配状态依赖 [`core/stream-assembly`](../../core/stream-assembly/README.md)（尚未建包） | 未开始 |
 | [S-68](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-68-有序撤下收尾在途的帧流上交之后撤下) | 同第一行；「有序替换本能力」要替换存储或时钟的提供者——**依赖假设 A-1**（N-6） | 未开始 |
 
 ### 两源反例、故障注入与读面
@@ -52,7 +52,10 @@
 | N-9 | 配置错误同一政策：缺 `executionStopGrace`／`deliveryRetryInterval` 或非正 ⇒ 装配启动失败、服务不出现 | 单元测试 | 未开始 | 本节点 |
 | N-10 | `execution.delivered` 监听者抛出不改已追加的事实、只记一条 error 诊断（basis `emit-listener-throw-propagates`） | 单元测试 | 未开始 | 本节点 |
 | N-11 | 计时只以 `clock.now()` 判：宿主计时器提前或推迟醒来都不改判；时钟答不可用时不触发 | 可前推、可答不可用的时间替身 | 未开始 | 本节点 |
-| N-12 | 静态检查：每个写事务开头取会话哨兵；`storage.write(fn)` 内不调用任何别的插件的服务（P-13）；不以 `ctx.bail` 做异步控制；本包不 inject 执行者、不 inject 可选依赖 | 结构检查（`tools/ts-checks` 的规则，候选），各带一条「故意违反就失败」的自测 | 未开始 | 本节点 ＋ ts-checks owner |
+| N-12 | 静态检查：每个写事务开头取会话哨兵；`storage.write(fn)` 内不调用任何别的插件的服务（P-13）；不以 `ctx.bail` 做异步控制；本包不 inject 执行者、不 inject 可选依赖；JSON 列只经 `readJsonStrict`／`writeJsonLossless` 读写（R-T9）；`execution.delivered` 不接任何跨进程转发（M42） | 结构检查（`tools/ts-checks` 的规则，候选），各带一条「故意违反就失败」的自测 | 未开始 | 本节点 ＋ ts-checks owner |
+| N-13 | **报告的三方核对**（M33、M46）：`report` 缺席（一批全是 `UnparseableCall` 也一样）、带的会话／运行／尝试任一不是本次的（含同一运行上一次尝试的那份）⇒ 整批 `invalidInput`、什么都没写；**排在服务闸之前**——扫描未完成时带错报告答 `invalidInput` 而不是 `runtimeNotReady`；MCP 动作记下的接入点持有就是交来的报告里那一份 | 单元测试 ＋ 演练（报告用替身） | 未开始 | 本节点 |
+| N-14 | **JSON 每一跳无损**（M36，R-T9）：参数里有 `12345678901234567890` 与超精度金额的调用，经 `submit` 落盘、恢复扫描回读、交给执行者、落成消息之后逐字不变；存储里一段带重复键的 JSON 回读 ⇒ 缺陷，不挑一个 | 单元测试（sqlite 与 pg 各一遍：两种方言的 JSON 列与文本列行为不同） | 未开始 | 本节点 |
+| N-15 | **T-16 的两处**：病态 `pattern` 卡住参数判定时据点进程是否还活着；作者工具 `schema_unsupported` 的收场 | —— | **受阻**：判定超时与 `schema_unsupported` 的收场契约没有值（T-16） | 主线 ＋ `data.tool-definition` owner |
 
 ## 实际执行
 
@@ -71,11 +74,12 @@
 本节点**没有任何实现证据**：不存在源码、测试与集成运行。按缺口分：
 
 - **契约兑现不了、受阻的**（设计里的编号见 [design 的缺口表](design.md#实施缺口与消费者影响)）：
-  - T-1 可用性报告交不到本能力——`submit` 整个操作与 MCP 寻址；受阻消费者 agent loop、桥。
-  - T-2 落盘前那一关——S-42 全部、S-52 的那一关；受阻消费者 `after_action` 上的拓展件（hooks 的 PostToolUse、卸载判定、租户件）。
-  - T-3 观察者推送面——S-62 第 9 条；受阻消费者交付面。
-  - T-4 `late`、T-5 模型调用的费用来路——S-13 账的这几列。
-  - T-6～T-10（落点、会话日志、会话持有租户、卡片、附件存储）——对应契约 G-4、G-1、G-12、G-5、G-7。
+  - 契约 G-6（原 T-2）落盘前那一关——S-42 全部、S-52 的那一关；受阻消费者 `after_action` 上的拓展件（hooks 的 PostToolUse、卸载判定、租户件）。
+  - 契约 G-17（原 T-3）观察者推送面——S-62 第 9 条；受阻消费者交付面。
+  - 契约 G-18、G-19（原 T-4、T-5）`late` 与模型调用的费用来路——S-13 账的这几列，兑现不了、不写过渡值。
+  - T-6～T-10（落点、会话日志、会话持有租户、卡片、附件存储）——对应契约 G-4、G-1、G-12、G-5、G-7；M43 本程不补。
+  - T-16 参数判定超时与作者工具 `schema_unsupported` 的收场——契约没有值。
+  - 原 T-1（报告交不到本能力）已随 M33、M46 闭合；它的证据义务是 N-13。
 - **模型盖不到、本节点要自己证的**：N-1～N-4（真并发与故障注入，存储前提的实证）；帧流与到达装配（S-39、S-62）只有场景 S-66；有序撤下与上交（S-47、S-48）只有场景 S-68 与 N-8。
 - **待核对主张与假设**：A-1（N-6）、`provide-is-effect-managed`（N-7）、X-5（N-5）。
 - **不绑的形式结论**（与 [bindings](bindings.yaml) 文件头一致）：进展任务；十条按构造的性质与 `TypeOK`；`BackgroundHasPlaceholder`（反例停在 `EndedIsLanded`，没有单独被反驳）；`CallOutcomeStable`、`AtMostOneReminder`（没有否定配置）。
