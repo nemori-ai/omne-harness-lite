@@ -709,7 +709,7 @@ unknownCount ≝ |{ r : current(r) = "unknown" }| + |{ t : currentOwn(t) = "unkn
 | P-9 | 砍了要说 | 安全 | [PF-009 §6.16](../../../../product/PF-009-context-message-types/design.md#616-砍了要说不许默默丢) | 做砍的那一方的计数（[S-15](#s-15-trimreason-与-trimsummary砍了要说)） | 面板被截短了，`TrimSummary` 却全是零 |
 | P-10 | 汇总的失败不混同为未知，也不被忽略 | 安全 | 缺席即明确失败的通用收场 | 读面（[S-23](#s-23-汇总已知之和与未知笔数) 第 4 件） | 孤立补账被忽略，汇总照常返回一个数 |
 | P-11 | 终结之后落的账不消失，且看得出是晚到的 | 安全 | 主线裁定 2026-09-23（PF-012 I-11 收窄） | 写下它的那一方（[S-39](#s-39-晚到的账)） | 后台工具在运行终结之后收场，那笔钱不在运行的汇总里；或它在里面却分不出是终结之后才落的 |
-| P-12 | 用量与成本的归属分记，不互相推 | 不变量 | 主线裁定 C-12 | 写账的一方（[S-38](#s-38-两种归属用量归凭据那一格成本归发起者)） | 租户用了组织那一把凭据，钱却记到了组织头上 |
+| P-12 | 用量与成本的归属分记，不互相推 | 不变量 | 主线裁定 C-12 | 写账的一方（[S-38](#s-38-两种归属用量归凭据那一格成本归发起者)） | 租户用官方档案走了出厂格那一把凭据，钱却记到了出厂格头上 |
 
 **进展性质：本契约不拥有任何进展性质。**值不会「最终成为」别的值；补账何时到、会不会到，**本契约不承诺**——
 上游的事后查询可能永远查不到，那一笔就永远是 `"unknown"`，这是一个合法的终态。
@@ -783,11 +783,11 @@ unknownCount ≝ |{ r : current(r) = "unknown" }| + |{ t : currentOwn(t) = "unkn
 | 归属 | 成员 | 是什么 | 为什么要分记 |
 |---|---|---|---|
 | **成本归发起者** | `initiator: TenantId`（`data.identity-values` v1 [S-5](../../identity-values/v1/contract.md#s-5-tenantid-的构成与相等)） | 发起这次运行的那个租户身份 | [成本按租户归属](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)；用了别的组织分享来的资产，钱也记在**用的一方**头上 |
-| **用量归凭据那一格** | `credentialScope`（`data.identity-values` v1 [S-11](../../identity-values/v1/contract.md#s-11-scopelayeridentity) 的 `ScopeLayerIdentity`） | 这笔花费经哪一格上的凭据产生 | [用量记在凭据所在的那个范围头上](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential)：租户用组织那一把时，用量落在组织头上，钱仍归这个租户 |
+| **用量归凭据那一格** | `credentialScope`（`data.identity-values` v1 [S-11](../../identity-values/v1/contract.md#s-11-scopelayeridentity) 的 `ScopeLayerIdentity` 的租户那一支；模型调用那边另有出厂格一支，形状归 `data.model-response`） | 这笔花费经哪一格上的凭据产生 | [用量记在凭据所在的那个范围头上](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential)。**凭据只在租户层与出厂格**（[PF-013 rev 10 裁决 33](../../../../product/PF-013-model-profiles-and-invocation/decisions.md#2026-09-24--组织那一层不持有凭据每人租户层自取)；MCP 凭据只在租户层，[PF-002 rev 18](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的)）：租户没配自己那一把、用官方档案走了出厂格那一把时，用量落在出厂格，钱仍归发起这次运行的租户 |
 
 **落在哪**：
 
-- **工具执行的账**：`ToolCallAccount.initiator` 必填；`ToolCallAccount.credentialScope` 在这次执行的自有费用经范围上的凭据产生时出现（本版只有 [MCP 凭据](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-mcp-credential--mcp-凭据--mcp-credential)，它不在工作区格与出厂格上），否则缺席。
+- **工具执行的账**：`ToolCallAccount.initiator` 必填；`ToolCallAccount.credentialScope` 在这次执行的自有费用经范围上的凭据产生时出现（本版只有 [MCP 凭据](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-mcp-credential--mcp-凭据--mcp-credential)，**它只在租户那一格**：组织那一层不持有它（PF-002 rev 18），它也不在工作区格与出厂格上），否则缺席。
   它替自己发出的模型调用各有自己的 `ModelResponse`，那几笔的两种归属在那边记，**镜像那一笔不另记**（[S-10](#s-10-model_call-那一笔是镜像权威在那份-modelresponse)）。
 - **一次发出的账**（`ModelResponse` 上的 `Usage`／`Cost`）：**用量那一格**由 `data.model-response` 的 `route.credentialScope` 记下（它还要能写「出厂格那一把」，形状归那份契约）；
   **发起者**本版**不在响应体上另记**——承载响应体的记录条目[无条件带租户身份](../../../../product/PF-000-occurrences-and-record-entries/design.md#55-挂在每条条目上的字段)，而那条条目的租户就是发起这次运行的租户；

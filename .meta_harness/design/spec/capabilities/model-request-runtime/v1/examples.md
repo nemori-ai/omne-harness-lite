@@ -44,7 +44,7 @@
 | 情形 | 日志里 `c3` 最后一次发出 | `reconcile(s1, 尝试 2)` 追补 | `c3` 随之 | 之后 |
 |---|---|---|---|---|
 | 首 token 之前停机 | 「已出门」（第 1 次、`A`、`r_5`）；无「已开口」；无响应体 | `r_5`：`interrupted{runtime_lost}`、没有 `firstTokenAt`、账全未知 | `resumable` | `openCall({ callId: c3, run: run_1, attempt: 2, … })` → `dispatch(c3, 尝试 2)`：第 **2** 次发出、发给 **`A`**、所在尝试 2 |
-| 首 token 之后停机 | 「已出门」「已开口」；无响应体 | `r_5`：`interrupted{runtime_lost}`、`firstTokenAt` 取自「已开口」、账全未知、没有 `reply` | `interrupted` | **不再发出**；`dispatch(c3)` 得 `retryRefused{call_ended}`；中断提醒由 loop 补 |
+| 首 token 之后停机 | 「已出门」「已开口」；无响应体 | `r_5`：`interrupted{runtime_lost}`、`firstTokenAt` 取自「已开口」、账全未知、没有 `reply` | `interrupted` | **不再发出**；`dispatch(c3)` 得 `alreadyEnded`（调用已终结，先于 `retryRefused` 判）；中断提醒由 loop 补 |
 | 用户叫停之后停机 | 「已出门」、中断意图（`user`）；无响应体 | `r_5`：`interrupted`、`initiator = user` | `interrupted` | **不是 `resumable`**（场景 [S-47](contract.md#s-47-用户叫停之后停机不再发出)） |
 
 依据：[S-33](contract.md#s-33-reconcile) 对账表。再对一次账：什么都不追补，返回同样的结果（⑦）。

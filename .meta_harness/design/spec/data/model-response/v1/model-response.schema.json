@@ -114,8 +114,8 @@
 
     "CredentialScope": {
       "title": "这一次发出用的凭据在哪一格（contract.md S-9）",
-      "description": "factory：出厂格那一把，由部署装配配置（主线裁定 2026-09-23）；否则是组织格或租户格，取 data.identity-values 的 ScopeLayerIdentity。用量记在这一格头上（data.call-accounts/v1#S-38）。它不是凭据本身，也不是凭据的引用。",
-      "$comment": "ScopeLayerIdentity 刻意不含出厂那一格（identity-values S-11），所以本契约在它之外加一支 {layer: factory}，不带身份值；token factory 与 data.asset-model HoldingScope.layer 同词。",
+      "description": "factory：出厂格那一把，由部署装配配置（主线裁定 2026-09-23）；否则是租户格，取 data.identity-values 的 ScopeLayerIdentity 的租户那一支。模型凭据只在租户层与出厂格（PF-013 rev 10 裁决 33），没有组织那一支。用量记在这一格头上（data.call-accounts/v1#S-38）。它不是凭据本身，也不是凭据的引用。",
+      "$comment": "ScopeLayerIdentity 刻意不含出厂那一格（identity-values S-11），所以本契约在它之外加一支 {layer: factory}，不带身份值；token factory 与 data.asset-model HoldingScope.layer 同词。租户那一支 $ref ScopeLayerIdentity 再把 layer 限为 tenant，形状仍归 identity-values，不另写一份。",
       "oneOf": [
         {
           "title": "出厂格",
@@ -124,9 +124,15 @@
           "required": ["layer"],
           "properties": { "layer": { "const": "factory" } }
         },
-        { "$ref": "../../identity-values/v1/identity-values.schema.json#/$defs/ScopeLayerIdentity" }
+        {
+          "title": "租户格",
+          "allOf": [
+            { "$ref": "../../identity-values/v1/identity-values.schema.json#/$defs/ScopeLayerIdentity" },
+            { "properties": { "layer": { "const": "tenant" } } }
+          ]
+        }
       ],
-      "examples": [{ "layer": "factory" }, { "layer": "organization", "organization": "org_7fd2c1" }]
+      "examples": [{ "layer": "factory" }, { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }]
     },
 
     "Route": {

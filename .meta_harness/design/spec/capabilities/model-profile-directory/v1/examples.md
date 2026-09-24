@@ -42,10 +42,10 @@
 | 8 | `updateProfile(T_A, 第 1 步的 ref, patch: providers 换成另一组)` | 改完的那一份；`registration` 仍是 `withdrawn`（改了也不回到在册）；**`updatedAt` 不动**——`providers` 不是五项上游属性 | [S-31](contract.md#s-31-updateprofile) ④ |
 | 9 | `updateProfile(T_A, 第 1 步的 ref, patch 提到 routeName)` | **`invalidInput`**——路由名不可改；改名就是新登记一条、撤回旧的 | [S-31](contract.md#s-31-updateprofile) ③ |
 | 10 | `updateProfile(T_B, 第 1 步的 ref, …)` | **`notAuthorized`**——B 在 `O` 是普通成员，组织层只归超管 | [S-31](contract.md#s-31-updateprofile) ② |
-| 11 | 恢复在册（`T_A`，第 1 步的 ref） | `{ ref, registration: listed }`——**同一行**：第 8 步改过的 `providers` 还在，`updatedAt` 不动；不发事件 | [S-33](contract.md#s-33-恢复在册) ④⑨ |
-| 12 | 再恢复一次 | 同第 11 步的返回，什么都不写 | [S-33](contract.md#s-33-恢复在册) ⑦ |
-| 13 | 恢复在册（`T_B`，第 1 步的 ref） | **`notAuthorized`**——谁撤得了它，谁就恢复得了它；B 撤不了组织层的档案 | [S-33](contract.md#s-33-恢复在册) ② |
-| 14 | 恢复在册（`T_A`，`{origin: official, routeName: "openai/gpt-5"}`） | **`invalidInput`**——官方档案的恢复只经清单装入 | [S-33](contract.md#s-33-恢复在册) ③ |
+| 11 | `relistProfile(T_A, 第 1 步的 ref)` | `{ ref, registration: listed }`——**同一行**：第 8 步改过的 `providers` 还在，`updatedAt` 不动；不发事件 | [S-33](contract.md#s-33-relistprofile) ④⑨ |
+| 12 | 再恢复一次 | 同第 11 步的返回，什么都不写 | [S-33](contract.md#s-33-relistprofile) ⑦ |
+| 13 | `relistProfile(T_B, 第 1 步的 ref)` | **`notAuthorized`**——谁撤得了它，谁就恢复得了它；B 撤不了组织层的档案 | [S-33](contract.md#s-33-relistprofile) ② |
+| 14 | `relistProfile(T_A, {origin: official, routeName: "openai/gpt-5"})` | **`officialProfileReadOnly`**——官方档案的恢复只经清单装入；撤回、修订官方档案得同一个值 | [S-33](contract.md#s-33-relistprofile) ③ |
 
 ## 3. 列表：链上三格，官方与自建同一份
 
@@ -104,7 +104,7 @@ B 给自己的租户层配了 `K_B`；B 在个人组织 `P` 里给 `T_P` 配了 
 | `notAuthorized` | `bindCredential(T_A, T_B, …)` | 租户那一把只归租户自己，超管也不行 | 同上、[S-19](contract.md#s-19-bindcredential) ② |
 | `notAuthorized` | `readProfile(T_C, {origin: custom, scope: organization(O), …})` | `O` 不在 `T_C` 的链上；**先于解析，C 得不到「那里有没有」** | [S-16](contract.md#s-16-readprofile) ② |
 | `routeNameTaken` | `registerProfile(T_B, tenant(T_B), {routeName: "b/local-proxy", …与第 3 节那一条内容不同})` | 同一格（B 的租户层）里已有这个名字 | [S-14](contract.md#s-14-registerprofile)、`data.model-profile/v1#S-3` |
-| `officialProfileNotWithdrawable` | `withdrawProfile(T_A, {origin: official, routeName: "openai/gpt-5"})` | 官方档案谁都撤不了——**结构性，不是权限** | [S-15](contract.md#s-15-withdrawprofile) ③ |
+| `officialProfileReadOnly` | `withdrawProfile(T_A, {origin: official, routeName: "openai/gpt-5"})`；`updateProfile`、`relistProfile` 对同一引用同值 | 官方档案谁都撤不了、改不了、恢复不了——**结构性，不是权限**；只经清单装入变化 | [S-15](contract.md#s-15-withdrawprofile) ③、[S-31](contract.md#s-31-updateprofile) ③、[S-33](contract.md#s-33-relistprofile) ③ |
 | `manifestNotNewer` | 已装入序号 3 时装入 `ordinal = 3`、内容与清单 #3 不同 | 同序号不同内容 | [S-18](contract.md#s-18-装入官方档案清单) ⑦ |
 | `profileNotFound` | `readProfile(T_A, {origin: custom, scope: organization(O), routeName: "acme/never"})` | 解析到零行 | [S-16](contract.md#s-16-readprofile) ⑧ |
 | `credentialUnavailable` | 见第 4 节第 5 步 | 自建档案、这个租户没配自己那一把——出厂格那一把配没配都不取 | [S-20](contract.md#s-20-resolvecredential) ⑤⑧ |
@@ -115,4 +115,4 @@ B 给自己的租户层配了 `K_B`；B 在个人组织 `P` 里给 `T_P` 配了 
 | 调用 | 预期 | 为什么不是另一个 |
 |---|---|---|
 | `registerProfile(T_B, organization(O), {routeName: "acme/finetune-7b", …})` | `notAuthorized` | `O` 的组织层里确有这个名字，但授权先于名字判定——无权者拿不到 `routeNameTaken`（[S-14](contract.md#s-14-registerprofile) 末段） |
-| `withdrawProfile(T_C, {origin: official, routeName: "openai/gpt-5"})` | `officialProfileNotWithdrawable` | 结构性禁止先于授权（[S-15](contract.md#s-15-withdrawprofile) 末段） |
+| `withdrawProfile(T_C, {origin: official, routeName: "openai/gpt-5"})` | `officialProfileReadOnly` | 结构性禁止先于授权（[S-15](contract.md#s-15-withdrawprofile) 末段）；`updateProfile`、`relistProfile` 同样先于授权 |

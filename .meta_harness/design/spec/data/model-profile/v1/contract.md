@@ -6,7 +6,7 @@
   `family = data`、`topic = model-profile`、规范路径 `spec/data/model-profile/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
 - **状态**：`candidate`——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
-- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-013 rev 10** 为准（rev 5–10 全文待产品负责人确认），另引 PF-001 rev 16、PF-004 rev 10、PF-010 rev 5
+- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-013 rev 11** 为准（rev 5–11 全文待产品负责人确认；rev 11 只动转换件呈现的落点——P40，落在 PF-016 §6.21——不影响本契约条款），另引 PF-001 rev 16、PF-004 rev 10、PF-010 rev 5
 - **精确语义依赖**（catalog 已按此登记）：
   - `omne-harness-lite-design-2026-09-15 · data.identity-values · v1`——
     取 **[S-11](../../identity-values/v1/contract.md#s-11-scopelayeridentity)** 的 `ScopeLayerIdentity` 作引用的范围分量（`$ref`，不复制），

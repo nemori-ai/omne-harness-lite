@@ -78,6 +78,13 @@
     **表示改变**：旧的 `ToolCallAccount` 实例缺 `initiator` 与 `externalEffect`，按新 Schema 一律被拒。**消费者影响**：`capability.tool-execution-runtime` 的 S-13 与 G-8（三件事装不下）、`data.model-response`（`route.credentialScope` 与 `late` 由它携带）、`capability.model-request-runtime`（它 G-1 里的 `late`）。
   - **收窄**：G-3（三种边界情形按主线裁定归组，剩「同组」一项）、G-4（接入点规范串已定）、G-10（落点契约已成稿）；新增 G-11（主线裁定无决定记录）、G-12（一次发出的发起者不另记）。
   - S-15 的帧数一式改写成「做砍的一方每帧至多计一次」的前提下成立。
+- **2026-09-24 跨契约对齐：凭据只在租户层与出厂格（候选，未冻结，原地改）**。依据 [PF-013 rev 10 裁决 33](../../../product/PF-013-model-profiles-and-invocation/decisions.md#2026-09-24--组织那一层不持有凭据每人租户层自取)（组织那一层不持有模型凭据）与 [PF-002 rev 18](../../../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的)（组织那一层不持有 MCP 凭据），主线派发：
+  - [S-38](v1/contract.md#s-38-两种归属用量归凭据那一格成本归发起者) 表「用量归凭据那一格」一行重写：成员限 `ScopeLayerIdentity` 的租户那一支（模型调用那边另有出厂格一支，形状归 `data.model-response`）；例子由「租户用组织那一把」改为「租户用官方档案走了出厂格那一把：用量落在出厂格，钱仍归发起租户」。「落在哪」一条写明 MCP 凭据只在租户那一格。
+  - P-12 违例示例改为「走了出厂格那一把，钱却记到了出厂格头上」。
+  - **Schema**：`ToolCallAccount.credentialScope` 由 `$ref ScopeLayerIdentity` 改为 `allOf [$ref ScopeLayerIdentity, layer = tenant]`；**表示变更**：带组织那一格的旧实例按新 Schema 被拒（`malformed`）。
+  - **实例**：第 7 节 T-4 的凭据改在发起租户那一格；新增一行组织那一格 ⇒ `malformed`；工作区那一行的理由改写。本地自检：第 7 节 17 行可机检的实例逐行过 `$defs/ToolCallAccount`，全部与预期相符。
+  - **catalog 不变**：仍消费 `data.identity-values` S-5、S-11。契约头部产品依据未整体升版。
+  - **消费者影响**：`capability.tool-execution-runtime`（写 `ToolCallAccount`）若曾允许把组织那一格报上来，须收窄；它的 G-15（这一格从哪来）不受影响。
 - **`data.content-blocks` v1 尚未定型，`$ref` 目标以其 v1 为准**（2026-09-23 起草时；**已由上一条闭合**）。
   本契约 Schema 两处 `$ref` 它的 `$defs/CallId`（`ToolCallAccount.callId`、补账的工具执行目标）；**在它成稿并登进 catalog 之前，
   设计检查器会报这两处引用解析不到**，catalog 也暂不登这条依赖（[G-1](v1/contract.md#十已知缺口)）。它成稿之后须核：

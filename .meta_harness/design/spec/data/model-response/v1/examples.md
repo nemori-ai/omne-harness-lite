@@ -33,7 +33,7 @@
     "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
     "selectedBy": "session",
     "provider": "anthropic",
-    "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" },
+    "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } },
     "upstreamModel": "anthropic/claude-4.5-sonnet-20250929",
     "upstreamRequestId": "gen-1758621600-a1b2c3",
     "parameters": { "reasoningEffort": "medium", "temperature": 0.7 }
@@ -79,7 +79,7 @@
     "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
     "selectedBy": "layer_lock",
     "provider": "openai",
-    "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" },
+    "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } },
     "upstreamModel": "openai/gpt-5-mini-2025-08-07",
     "upstreamRequestId": "gen-1758621700-d4e5f6",
     "parameters": { "seed": 42, "maxOutputTokens": 256 },
@@ -122,7 +122,7 @@
     "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
     "selectedBy": { "extension": "cheap-first-router" },
     "provider": "google-vertex",
-    "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" },
+    "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } },
     "upstreamModel": "google/gemini-2.5-flash",
     "parameters": {}
   },
@@ -162,7 +162,7 @@
     "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
     "selectedBy": "session",
     "provider": "anthropic",
-    "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" },
+    "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } },
     "upstreamRequestId": "gen-1758621900-0a9b8c",
     "parameters": { "reasoningEffort": "high" }
   },
@@ -192,7 +192,7 @@
     "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
     "selectedBy": "session",
     "provider": "anthropic",
-    "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" },
+    "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } },
     "upstreamModel": "anthropic/claude-4.5-sonnet-20250929",
     "upstreamRequestId": "gen-1758622000-77aa01",
     "parameters": {}
@@ -231,7 +231,7 @@ E-6，预期：`通过`。首 token 之前的故障：没有 `firstTokenAt`，�
     "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
     "selectedBy": "session",
     "provider": "anthropic",
-    "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" },
+    "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } },
     "upstreamRequestId": "gen-1758622100-e6e6e6",
     "parameters": { "temperature": 0.2 }
   },
@@ -264,7 +264,7 @@ E-7，预期：`通过`。同一次调用的第二次发出，正常收尾；`re
     "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
     "selectedBy": "session",
     "provider": "amazon-bedrock",
-    "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" },
+    "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } },
     "upstreamModel": "anthropic/claude-4.5-sonnet-20250929",
     "upstreamRequestId": "gen-1758622103-e7e7e7",
     "parameters": { "temperature": 0.2 }
@@ -309,7 +309,7 @@ E-8a，预期：`通过`。前一次调用：有首 token、有 `reply`，但 `r
     "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
     "selectedBy": "session",
     "provider": "google-vertex",
-    "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" },
+    "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } },
     "upstreamModel": "google/gemini-2.5-flash-image",
     "upstreamRequestId": "gen-1758622200-8a8a8a",
     "parameters": {}
@@ -347,7 +347,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
     "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
     "selectedBy": "session",
     "provider": "google-vertex",
-    "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" },
+    "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } },
     "upstreamModel": "google/gemini-2.5-flash-image",
     "upstreamRequestId": "gen-1758622210-8b8b8b",
     "parameters": {}
@@ -454,7 +454,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
     "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" },
     "selectedBy": "session",
     "provider": "anthropic",
-    "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" },
+    "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } },
     "parameters": {}
   },
   "outcome": "interrupted",
@@ -484,7 +484,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "call": { "runId": "run_7a02", "callId": "mc_2b77" },
   "dispatch": 1,
   "attemptId": 2,
-  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
   "outcome": "failed",
   "failure": { "cause": "upstream_unavailable", "statusCode": 503 },
   "timing": { "sentAt": "2026-09-23T10:05:00Z", "endedAt": "2026-09-23T10:05:01Z" },
@@ -502,7 +502,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "call": { "runId": "run_7a02", "callId": "mc_2b77" },
   "dispatch": 1,
   "attemptId": 2,
-  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {}, "droppedParameters": [] },
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {}, "droppedParameters": [] },
   "outcome": "failed",
   "failure": { "cause": "upstream_unavailable", "statusCode": 503 },
   "timing": { "sentAt": "2026-09-23T10:05:00Z", "endedAt": "2026-09-23T10:05:01Z" },
@@ -521,7 +521,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "call": { "runId": "run_7a02", "callId": "mc_2b77" },
   "dispatch": 2,
   "attemptId": 2,
-  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "amazon-bedrock", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "amazon-bedrock", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
   "outcome": "success",
   "reply": { "id": "msg_60", "type": "assistant", "createdAt": "2026-09-23T10:05:09Z", "response": "resp_r3", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "好的。" } ] },
   "replyDisposition": "persisted",
@@ -541,7 +541,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "call": { "runId": "run_7a02", "callId": "mc_2b77" },
   "dispatch": 0,
   "attemptId": 2,
-  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
   "outcome": "failed",
   "failure": { "cause": "upstream_unavailable", "statusCode": 503 },
   "timing": { "sentAt": "2026-09-23T10:05:00Z", "endedAt": "2026-09-23T10:05:01Z" },
@@ -560,7 +560,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "call": { "runId": "run_7a02", "callId": "mc_2b77" },
   "dispatch": 1,
   "attemptId": 2,
-  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
   "outcome": "failed",
   "failure": { "cause": "rate_limited", "statusCode": 429 },
   "timing": { "sentAt": "2026-09-23T10:05:00Z", "endedAt": "2026-09-23T10:05:01Z" },
@@ -579,7 +579,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "call": { "runId": "run_7a02", "callId": "mc_2b77" },
   "dispatch": 2,
   "attemptId": 2,
-  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "amazon-bedrock", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "amazon-bedrock", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
   "outcome": "complete",
   "replyDisposition": "persisted",
   "timing": { "sentAt": "2026-09-23T10:05:03Z", "endedAt": "2026-09-23T10:05:09Z" },
@@ -598,7 +598,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "call": { "runId": "run_7a02", "callId": "mc_1f04" },
   "dispatch": 1,
   "attemptId": 1,
-  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
   "outcome": "failed",
   "reply": { "id": "msg_61", "type": "assistant", "createdAt": "2026-09-23T10:04:06Z", "response": "resp_r7", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "我先检查一下测试为什么失败，看起来是" } ] },
   "failure": { "cause": "interrupted_mid_reply", "statusCode": 429 },
@@ -618,7 +618,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "call": { "runId": "run_7a02", "callId": "mc_1c55" },
   "dispatch": 1,
   "attemptId": 1,
-  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "google/gemini-2.5-flash" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "google-vertex", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "google/gemini-2.5-flash" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "google-vertex", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
   "outcome": "interrupted",
   "initiator": "user",
   "reply": { "id": "msg_53", "type": "assistant", "createdAt": "2026-09-23T10:02:03Z", "response": "resp_r8", "ending": "interrupted_by_user", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "这个问题可以分三步看。第一步" } ] },
@@ -639,7 +639,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "call": { "runId": "run_7a02", "callId": "mc_2b77" },
   "dispatch": 1,
   "attemptId": 2,
-  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
   "outcome": "failed",
   "timing": { "sentAt": "2026-09-23T10:05:00Z", "endedAt": "2026-09-23T10:05:01Z" },
   "usage": { "input_tokens": "unknown", "output_tokens": "unknown", "cache_read_tokens": "unknown", "cache_write_tokens": "unknown", "source": "none" },
@@ -657,7 +657,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "call": { "runId": "run_7a02", "callId": "mc_1d90" },
   "dispatch": 1,
   "attemptId": 1,
-  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
   "outcome": "interrupted",
   "initiator": "user",
   "failure": { "cause": "unrecognized", "localError": "stream closed by client" },
@@ -677,7 +677,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "call": { "runId": "run_7a02", "callId": "mc_2b77" },
   "dispatch": 1,
   "attemptId": 2,
-  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
   "outcome": "failed",
   "failure": { "cause": "interrupted_mid_reply", "statusCode": 503 },
   "timing": { "sentAt": "2026-09-23T10:05:00Z", "endedAt": "2026-09-23T10:05:01Z" },
@@ -700,7 +700,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "call": { "runId": "run_7a02", "callId": "mc_1f04" },
   "dispatch": 1,
   "attemptId": 1,
-  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
   "outcome": "failed",
   "delivered": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "我先检查一下测试为什么失败，看起来是" } ],
   "failure": { "cause": "upstream_unavailable", "statusCode": 429 },
@@ -720,7 +720,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "call": { "runId": "run_7a02", "callId": "mc_2b77" },
   "dispatch": 2,
   "attemptId": 2,
-  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "amazon-bedrock", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "amazon-bedrock", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
   "outcome": "complete",
   "reply": { "id": "msg_60", "type": "assistant", "createdAt": "2026-09-23T10:05:09Z", "response": "resp_r13", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "好的。" } ] },
   "replyDisposition": "persisted",
@@ -741,7 +741,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "call": { "runId": "run_7a02", "callId": "mc_1d90" },
   "dispatch": 1,
   "attemptId": 1,
-  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
   "outcome": "interrupted",
   "initiator": "user",
   "delivered": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "先看" } ],
@@ -761,7 +761,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "call": { "runId": "run_7a02", "callId": "mc_2b77" },
   "dispatch": 2,
   "attemptId": 2,
-  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "amazon-bedrock", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "amazon-bedrock", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
   "outcome": "complete",
   "reply": { "id": "msg_60", "type": "assistant", "createdAt": "2026-09-23T10:05:09Z", "response": "resp_r15", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "好的。" } ] },
   "replyDisposition": "persisted",
@@ -782,7 +782,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "call": { "runId": "run_7a02", "callId": "mc_1a08" },
   "dispatch": 1,
   "attemptId": 1,
-  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "openai/gpt-5-mini" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "layer_lock", "provider": "openai", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "openai/gpt-5-mini" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "layer_lock", "provider": "openai", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
   "outcome": "truncated",
   "reply": { "id": "msg_52", "type": "assistant", "createdAt": "2026-09-23T10:01:09Z", "response": "resp_r16", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "接下来改 main.rs：" } ] },
   "replyDisposition": "persisted",
@@ -803,7 +803,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "call": { "runId": "run_7a02", "callId": "mc_2b77" },
   "dispatch": 2,
   "attemptId": 2,
-  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "amazon-bedrock", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "amazon-bedrock", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
   "outcome": "complete",
   "reply": { "id": "msg_60", "type": "assistant", "createdAt": "2026-09-23T10:05:09Z", "response": "resp_r17", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "好的。" } ] },
   "timing": { "sentAt": "2026-09-23T10:05:03Z", "firstTokenAt": "2026-09-23T10:05:04Z", "endedAt": "2026-09-23T10:05:09Z" },
@@ -822,7 +822,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "call": { "runId": "run_7a02", "callId": "mc_1c55" },
   "dispatch": 1,
   "attemptId": 1,
-  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "google/gemini-2.5-flash" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "google-vertex", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "google/gemini-2.5-flash" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "google-vertex", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
   "outcome": "interrupted",
   "initiator": "user",
   "reply": { "id": "msg_53", "type": "assistant", "createdAt": "2026-09-23T10:02:03Z", "response": "resp_r18", "ending": "interrupted_by_user", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "这个问题可以分三步看。第一步" } ] },
@@ -842,7 +842,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "call": { "runId": "run_7a02", "callId": "mc_1d90" },
   "dispatch": 1,
   "attemptId": 1,
-  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
   "outcome": "interrupted",
   "timing": { "sentAt": "2026-09-23T10:03:00Z", "endedAt": "2026-09-23T10:03:02Z" },
   "usage": { "input_tokens": "unknown", "output_tokens": "unknown", "cache_read_tokens": "unknown", "cache_write_tokens": "unknown", "source": "none" },
@@ -860,7 +860,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "call": { "runId": "run_7a02", "callId": "mc_1c55" },
   "dispatch": 1,
   "attemptId": 1,
-  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
   "outcome": "interrupted",
   "initiator": "runtime_lost",
   "reply": { "id": "msg_53", "type": "assistant", "createdAt": "2026-09-23T10:02:03Z", "response": "resp_r20", "ending": "interrupted_by_user", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "这个问题可以分三步看。第一步" } ] },
@@ -881,7 +881,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "call": { "callId": "mc_9c01" },
   "dispatch": 1,
   "attemptId": 1,
-  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
   "outcome": "complete",
   "reply": { "id": "msg_c1", "type": "assistant", "createdAt": "2026-09-23T10:09:04Z", "response": "resp_r21", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": false, "toModel": true }, "text": "摘要：……" } ] },
   "replyDisposition": { "consumed": { "by": "compaction" } },
@@ -901,7 +901,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "call": { "runId": "run_7a02", "callId": "mc_2b77" },
   "dispatch": 1,
   "attemptId": 2,
-  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
   "outcome": "failed",
   "failure": { "cause": "unrecognized" },
   "timing": { "sentAt": "2026-09-23T10:05:00Z", "endedAt": "2026-09-23T10:05:01Z" },
@@ -919,7 +919,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "id": "resp_r23",
   "call": { "callId": "mc_9c01" },
   "dispatch": 1,
-  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "parameters": {} },
+  "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
   "outcome": "complete",
   "reply": { "id": "msg_c1", "type": "assistant", "createdAt": "2026-09-23T10:09:04Z", "response": "resp_r23", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": false, "toModel": true }, "text": "摘要：……" } ] },
   "replyDisposition": { "consumed": { "by": "compaction" } },
@@ -927,6 +927,26 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "usage": { "input_tokens": "unknown", "output_tokens": "unknown", "cache_read_tokens": "unknown", "cache_write_tokens": "unknown", "source": "none" },
   "cost": { "cost_usd": "unknown", "source": "none" },
   "trims": { "merged": 0, "cut": 0, "omittedBytes": 0, "byReason": { "rate_merged": 0, "frame_too_long": 0, "quota_exhausted": 0, "rejected": 0 } }
+}
+```
+
+### R-24 `malformed`：凭据记在组织那一格
+
+在 E-9 上把 `credentialScope` 换成组织那一格。**模型凭据只在租户层与出厂格**，组织那一层不持有凭据（[S-9](contract.md#s-9-路由留痕)、PF-013 rev 10 裁决 33）。预期：`拒绝：malformed`。
+
+```json
+{
+  "id": "resp_r24",
+  "call": { "callId": "mc_9c01" },
+  "dispatch": 1,
+  "route": { "profile": { "origin": "official", "routeName": "openai/gpt-5-mini" }, "profileSnapshot": { "providers": ["openai"], "allowFallback": false, "inputModalities": ["text"], "outputModalities": ["text"], "maxInputTokens": 128000, "maxOutputTokens": 16000, "updatedAt": "2026-09-01T00:00:00Z" }, "selectedBy": "layer_lock", "provider": "openai", "credentialScope": { "layer": "organization", "organization": "org_7fd2c1" }, "upstreamModel": "openai/gpt-5-mini-2025-08-07", "parameters": { "maxOutputTokens": 2000 } },
+  "outcome": "complete",
+  "stopReason": "stop",
+  "reply": { "id": "msg_c1", "type": "assistant", "createdAt": "2026-09-23T10:09:04Z", "response": "resp_r24", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": false, "toModel": true }, "text": "摘要：……" } ] },
+  "replyDisposition": { "consumed": { "by": "compaction" } },
+  "timing": { "sentAt": "2026-09-23T10:09:00Z", "firstTokenAt": "2026-09-23T10:09:01Z", "endedAt": "2026-09-23T10:09:04Z" },
+  "usage": { "input_tokens": 9800, "output_tokens": 140, "cache_read_tokens": 0, "cache_write_tokens": 0, "source": "upstream" },
+  "cost": { "cost_usd": 0.0021, "source": "upstream_usage" }
 }
 ```
 
@@ -945,8 +965,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 | `droppedParameters` 列了一个 `parameters` 里没有的名字，或者丢了项却不写 | [S-11](contract.md#s-11-交给传输适配的参数与没发出去的项) |
 | 一条 `failed` 带成因 `withdrawn`（档案已撤回） | [S-16](contract.md#s-16-发出了的才有响应体)：撤回在出门之前就上交了，没有「一次发出」 |
 | 一条 `unrecognized` 的 `localError` 是写入者编的一句「未知错误」，真正认不出来的那段上游回应没留 | [S-15](contract.md#s-15-故障的成因与原样状态码)：兜底留的得是认不出来的那样东西本身 |
-| `route.credentialScope` 写出厂格，这一次实际用的是组织那一把 | [S-9](contract.md#s-9-路由留痕)：用量会记到错的那一格头上 |
-| 运行被取消时写入者手里还有已交付的块，却写了一条没有 `delivered` 的 `interrupted` | [S-13](contract.md#s-13-收场与其余成员的条件关系)：有才带，有就必带 |
+| `route.credentialScope` 写出厂格，这一次实际用的是发起租户自己那一把 | [S-9](contract.md#s-9-路由留痕)：用量会记到错的那一格头上 || 运行被取消时写入者手里还有已交付的块，却写了一条没有 `delivered` 的 `interrupted` | [S-13](contract.md#s-13-收场与其余成员的条件关系)：有才带，有就必带 |
 | 同一次调用有 `dispatch` 1 与 3，没有 2 | [S-8](contract.md#s-8-第几次发出)、[S-23](contract.md#s-23-同一次调用的响应体序列) |
 | 同一次调用里第 1 条是 `failed`、成因 `request_rejected`，之后还有第 2 条 | [S-23](contract.md#s-23-同一次调用的响应体序列)：「重试没用」是事实，重试挂件推翻不了 |
 | 同一次调用里有两条带 `reply` | [S-14](contract.md#s-14-回复与已交付部分)、[S-23](contract.md#s-23-同一次调用的响应体序列) |

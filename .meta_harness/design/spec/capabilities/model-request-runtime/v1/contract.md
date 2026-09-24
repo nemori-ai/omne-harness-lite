@@ -6,7 +6,7 @@
   `family = capabilities`、`topic = model-request-runtime`、规范路径 `spec/capabilities/model-request-runtime/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
 - **状态**：`candidate`（2026-09-23 起草）——未经独立评审、未接受、未冻结
-- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-013 rev 10** 为准（rev 5–10 全文待产品负责人确认），另引 PF-012 rev 10、PF-009 rev 7、PF-004 rev 10、PF-001 rev 16、PF-015 rev 11
+- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-013 rev 11** 为准（rev 5–11 全文待产品负责人确认；rev 11 只动转换件呈现的落点——P40，落在 PF-016 §6.21——不影响本契约条款），另引 PF-012 rev 10、PF-009 rev 7、PF-004 rev 10、PF-001 rev 16、PF-015 rev 11
 - **精确语义依赖**（消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)，catalog 按它登记）：
   - `omne-harness-lite-design-2026-09-15 · capability.model-profile-directory · v1`（candidate）
   - `omne-harness-lite-design-2026-09-15 · data.model-profile · v1`（candidate）
@@ -902,7 +902,7 @@ DisplayList(会话)  ≝  LegalTargetSet(会话)  ∪  { 选中模型 }
 
 **必须观察到**：「已开口」在第一片内容交给观察者之前写下；响应体 `failed{interrupted_mid_reply}`、有首 token、已交付的块在 `delivered`、没有回复；
 随后任何 `dispatchAgain` 得 `retryRefused{already_spoke}`，**哪怕 `plan` 是一家从没试过的**。
-**停机一支**：在「已开口」写下之后、响应体写下之前杀掉进程；新尝试的对账追补 `interrupted{runtime_lost}`、有首 token，调用终结，**不再发出**；`dispatch` 得 `retryRefused{already_spoke}`。
+**停机一支**：在「已开口」写下之后、响应体写下之前杀掉进程；新尝试的对账追补 `interrupted{runtime_lost}`、有首 token，调用终结，**不再发出**；`dispatch` 得 `alreadyEnded`——调用已在终态，按 [S-29](#s-29-dispatch) ⑥ 的次序先于 `retryRefused{already_spoke}` 判。
 **另一支（首 token 之前停机）**：在「已出门」之后、首 token 之前杀掉进程；对账追补 `interrupted{runtime_lost}`、没有首 token、账全未知；调用 `resumable`；续接之后第 2 次发出给**同一家**、序号 2、所在尝试是新的那一次。
 
 #### S-43 切换先落事实后生效

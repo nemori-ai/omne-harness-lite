@@ -212,7 +212,7 @@
 | `profileSnapshot` | **这次调用打开时绑定的那条档案在那一刻的副本**（[`data.model-profile/v1#S-27`](../../model-profile/v1/contract.md#s-27-modelprofilesnapshot档案在某一刻的副本) 的 `ModelProfileSnapshot`）：发出与重试消费的那些属性与 `updatedAt`。档案后来改了、被撤回了，这里不变——「当时用的是哪条档案」由 `profile` 指认、「它当时是什么样」由它回答；**档案不另有修订身份**（主线裁定 2026-09-23，待产品负责人确认；账本 C-R1） | 不许缺 |
 | `selectedBy` | 有效模型怎么来的，[S-10](#s-10-有效模型怎么来的) | 不许缺 |
 | `provider` | **本层为这一次发出指定的那一家**。每一次发出只走一家（[S-24](#s-24-一条响应体对应上游的一次请求)），它必须是 `profileSnapshot` 里「允许的供应商」之一 | 不许缺 |
-| `credentialScope` | **这一次发出用的凭据在哪一格**：出厂格（`{ layer: factory }`，那一把由部署装配配置，主线裁定 2026-09-23，账本 S16-f），或组织格、租户格（`data.identity-values` 的 `ScopeLayerIdentity`）。**用量记在这一格头上**（[`data.call-accounts/v1#S-38`](../../call-accounts/v1/contract.md#s-38-两种归属用量归凭据那一格成本归发起者)）。它不是凭据本身，也不是凭据的引用——凭据不进任何记录（[S-21](#s-21-写入之前脱敏)） | 不许缺：出了门就用过一把凭据 |
+| `credentialScope` | **这一次发出用的凭据在哪一格**：出厂格（`{ layer: factory }`，那一把由部署装配配置，主线裁定 2026-09-23，账本 S16-f），或租户格（`data.identity-values` 的 `ScopeLayerIdentity` 的租户那一支）。**没有组织那一支**：模型凭据只在租户层与出厂格（[PF-013 rev 10 裁决 33](../../../../product/PF-013-model-profiles-and-invocation/decisions.md#2026-09-24--组织那一层不持有凭据每人租户层自取)，2026-09-24 规格修订批收窄）。**用量记在这一格头上**（[`data.call-accounts/v1#S-38`](../../call-accounts/v1/contract.md#s-38-两种归属用量归凭据那一格成本归发起者)）。它不是凭据本身，也不是凭据的引用——凭据不进任何记录（[S-21](#s-21-写入之前脱敏)） | 不许缺：出了门就用过一把凭据 |
 | `upstreamModel` | **上游回报的模型名，原样**——可能与路由名不同 | **上游没有回报**：没连上、首字节之前断了、错误响应里没带。**不得以路由名、档案里的任何名字或 `provider` 填充**——那是把「我们请求了什么」冒充成「上游说它用了什么」 |
 | `upstreamRequestId` | 上游给这次请求的 id，原样；经 [OpenRouter](../../../../foundation/cross-system-constraints/requirements.md#sys-llm) 发出时即它的 generation id，用于事后对账与补账（[S-19](#s-19-用量与费用)） | 上游没给 |
 | `parameters` | [S-11](#s-11-交给传输适配的参数与没发出去的项) | 不许缺；一项参数都没有时是空的那一组，不是缺席 |
@@ -489,7 +489,7 @@
 | `ReplyDisposition` | `persisted`、`{ vetoed: { by, reason? } }` 或 `{ consumed: { by } }` | [S-14](#s-14-回复与已交付部分) |
 | `ModelCallRef` | `{ runId?, callId }` | [S-7](#s-7-所属的那次调用) |
 | `RunId`、`AttemptId`、`ModelCallId` | 运行标识、尝试序号、模型调用标识；三者都只 `$ref` `data.call-accounts` 的同名定义 | [S-7](#s-7-所属的那次调用)、[S-8](#s-8-第几次发出) |
-| `CredentialScope` | 凭据那一格：`{ layer: factory }` 或 `ScopeLayerIdentity` | [S-9](#s-9-路由留痕) |
+| `CredentialScope` | 凭据那一格：`{ layer: factory }` 或 `ScopeLayerIdentity` 的租户那一支 | [S-9](#s-9-路由留痕) |
 | `Route` | 路由留痕 | [S-9](#s-9-路由留痕)～[S-11](#s-11-交给传输适配的参数与没发出去的项) |
 | `SelectedBy` | 有效模型怎么来的 | [S-10](#s-10-有效模型怎么来的) |
 | `ResponseOutcome` | 收场四值 | [S-12](#s-12-收场) |
@@ -507,7 +507,7 @@
 同一次调用的序列性质（[S-23](#s-23-同一次调用的响应体序列)）；脱敏（[S-21](#s-21-写入之前脱敏)）；无隐藏重试（[S-24](#s-24-一条响应体对应上游的一次请求)）；写下即不变（[S-22](#s-22-写下即不变)）。
 **Schema 校验通过不表示这些条款成立**；它们的证据形式在[验证入口](../verification.md)。
 
-**引用的形状由各自的家决定**：`call.runId`、`attemptId`、`call.callId`、`usage`、`cost`、`trims`（`data.call-accounts`），`reply`（`data.messages`），`delivered`、`raw.body`（`data.content-blocks`），`route.profile`、`route.profileSnapshot`、`route.provider`、`route.parameters`（`data.model-profile`），`route.credentialScope` 的组织与租户两支（`data.identity-values`），`failure.cause`（`data.loop-extension`）；整批对齐核过引用解析（[验证入口「变化的影响」](../verification.md#变化的影响)）。
+**引用的形状由各自的家决定**：`call.runId`、`attemptId`、`call.callId`、`usage`、`cost`、`trims`（`data.call-accounts`），`reply`（`data.messages`），`delivered`、`raw.body`（`data.content-blocks`），`route.profile`、`route.profileSnapshot`、`route.provider`、`route.parameters`（`data.model-profile`），`route.credentialScope` 的租户那一支（`data.identity-values`），`failure.cause`（`data.loop-extension`）；整批对齐核过引用解析（[验证入口「变化的影响」](../verification.md#变化的影响)）。
 
 ### S-27 表示层拒绝值
 

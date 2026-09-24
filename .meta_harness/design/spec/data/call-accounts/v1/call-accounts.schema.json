@@ -504,7 +504,7 @@
     },
     "ToolCallAccount": {
       "title": "一次工具执行的账（contract.md S-11～S-14、S-38、S-39）",
-      "description": "一次工具执行恰一份，由工具执行记录携带，不进给模型看的上下文。initiator 是发起这次执行所属运行的租户身份——成本归它；credentialScope 是这次执行的自有费用经哪一格上的凭据产生（本版只有 MCP 凭据），没经范围上的凭据就缺席——用量归它（S-38，主线裁定 C-12）。externalEffect：confirmed 收场时它在外面的动作已经了结（执行者自己交回，或从没跑过），unknown 执行者跑过而被停下、停机后追补、或收场之后又有完成到达——账上的费用可能不全（S-11）。stoppedAt 是写账之前已观察到执行者停下的时刻，写账时还没观察到就缺席（S-14）。late 为 true 表示这份账落下时它归属的尝试已被取代或运行已经终结（S-39）。cost.total_usd：items 全为数时恰等于各笔之和（精确十进制），有一笔 \"unknown\" 就是 \"unknown\"，items 为空时是 0（含义是没记下任何一笔，不是没花钱）；total_usd 含 model_call 镜像，汇总不用它（S-24）。usage 出现当且仅当 items 里有 model_call，是那几份 ModelResponse 的 Usage 的逐项汇总。frames.emitted 是工具自己交出的帧数。wallClock.endedAt 缺席 ⇔ 写账时没有可记的结束时刻。",
+      "description": "一次工具执行恰一份，由工具执行记录携带，不进给模型看的上下文。initiator 是发起这次执行所属运行的租户身份——成本归它；credentialScope 是这次执行的自有费用经哪一格上的凭据产生（本版只有 MCP 凭据，只在租户那一格），没经范围上的凭据就缺席——用量归它（S-38，主线裁定 C-12）。externalEffect：confirmed 收场时它在外面的动作已经了结（执行者自己交回，或从没跑过），unknown 执行者跑过而被停下、停机后追补、或收场之后又有完成到达——账上的费用可能不全（S-11）。stoppedAt 是写账之前已观察到执行者停下的时刻，写账时还没观察到就缺席（S-14）。late 为 true 表示这份账落下时它归属的尝试已被取代或运行已经终结（S-39）。cost.total_usd：items 全为数时恰等于各笔之和（精确十进制），有一笔 \"unknown\" 就是 \"unknown\"，items 为空时是 0（含义是没记下任何一笔，不是没花钱）；total_usd 含 model_call 镜像，汇总不用它（S-24）。usage 出现当且仅当 items 里有 model_call，是那几份 ModelResponse 的 Usage 的逐项汇总。frames.emitted 是工具自己交出的帧数。wallClock.endedAt 缺席 ⇔ 写账时没有可记的结束时刻。",
       "$comment": "total_usd 恰等于各笔之和、merged + cut + byReason.frame_too_long ≤ frames.emitted（在「每帧至多计一次」的前提下，S-15）、endedAt ≥ startedAt、stoppedAt ≥ startedAt，Schema 表达不了（S-27 malformed）。callId 引用 data.content-blocks v1 的 $defs/CallId。",
       "type": "object",
       "additionalProperties": false,
@@ -524,7 +524,19 @@
           "$ref": "../../identity-values/v1/identity-values.schema.json#/$defs/TenantId"
         },
         "credentialScope": {
-          "$ref": "../../identity-values/v1/identity-values.schema.json#/$defs/ScopeLayerIdentity"
+          "description": "ScopeLayerIdentity 的租户那一支：本版只有 MCP 凭据，组织那一层不持有它（PF-002 rev 18，S-38）。",
+          "allOf": [
+            {
+              "$ref": "../../identity-values/v1/identity-values.schema.json#/$defs/ScopeLayerIdentity"
+            },
+            {
+              "properties": {
+                "layer": {
+                  "const": "tenant"
+                }
+              }
+            }
+          ]
         },
         "externalEffect": {
           "enum": [
