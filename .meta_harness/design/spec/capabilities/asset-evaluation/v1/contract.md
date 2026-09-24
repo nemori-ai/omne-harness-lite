@@ -252,7 +252,7 @@
 
 | 成员 | 元素 | 含义 | 出自 |
 |---|---|---|---|
-| `assets` | `EffectiveAsset` = `{ capability, asset, version, from, replaced, lockedAt?, resident?, usable? }` | 每个能力标识**一份**生效资产：它是哪份资产（`AssetRecordId`）、**用的是它的哪一版**（`AssetVersion` 的编号，按选中那份持有的 `versionSelection` 定，[S-6](#s-6-求值输入-evaluationinput)）、来自哪一格、**替换了哪几格的那一份**、锁在哪一格；`resident` 恰在 `tool`、`skill` 两类上出现（[S-38](#s-38-常驻值)）；`usable` 只在 `skill`、`mcp`、`slash_command` 三类上、且判得出时出现（[S-39](#s-39-谁可以使用它值与判定)） | 第 1 步，[S-18](#s-18-第一步之二再取最具体的一份锁在最外那一把处截断) |
+| `assets` | `EffectiveAsset` = `{ capability, asset, version, from, replaced, lockedAt?, resident?, usable? }` | 每个能力标识**一份**生效资产：它是哪份资产（`AssetRecordId`）、**用的是它的哪一版**（`AssetVersion` 的编号，按选中那份持有的 `versionSelection` 定，[S-6](#s-6-求值输入-evaluationinput)）、来自哪一格、**替换了哪几格的那一份**、锁在哪一格；`resident` 恰在 `tool`、`skill` 两类上出现（[S-38](#s-38-常驻值)）；`usable` 在判得出时出现（八类都有，[S-39](#s-39-谁可以使用它值与判定)） | 第 1 步，[S-18](#s-18-第一步之二再取最具体的一份锁在最外那一把处截断) |
 | `composition` | `CapabilityId` | 从 `root` 沿组合图展开、**实际装上的**能力标识 | 第 2 步，[S-20](#s-20-第二步组装) |
 | `values` | `EffectiveValue` = `{ capability, item, value, from, lockedAt?, provenance? }` | `composition` 里每份生效资产的每个属性项——保留项 `usableBy`（[S-39](#s-39-谁可以使用它值与判定)），以及外层锁过、它却没声明的权限项（[S-23](#s-23-第四步权限)）——取什么值、来自哪一格、锁在哪一格；落点与身份类设置另带 `provenance`（[S-40](#s-40-落点与身份类设置的来处)）。设置的 `value` 是一个 JSON 值；权限的 `value` 是一个 `PermissionValue`（允许集合） | 第 3、4 步，[S-21](#s-21-第三步投影)～[S-25](#s-25-工作区自带资产的权限项一律取最严值) |
 | `filteredOut` | `FilteredOut` = `{ capability, from, reason }` | 某一格的某样东西**没有进入结果**，以及为什么 | 第 1、4 步 |
@@ -627,7 +627,7 @@
 |---|---|---|
 | **执行权限**（Tool 的；MCP 每一个动作的） | `{问一下}`（[三档：问一下 / 自动 / 禁止](../../../../product/PF-007-meta-capabilities/design.md#611-ask通向人)） | [PF-002 §5.7 表](../../../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算) |
 | **干预力**（Loop Extension） | `{只观察}`（[三档：只观察 / 可改写 / 可否决](../../../../product/PF-012-agent-loop-and-run/design.md#干预力三档直接用-pf-000-的)） | 同上 |
-| **谁可以使用它**（`usableBy`：`skill`、`mcp`、`slash_command` 三类共用的保留项，[`data.asset-model/v1#S-36`](../../../data/asset-model/v1/contract.md#s-36-usableby-是保留项名)） | `{self}`——**只有挂上这份工作区的那个租户**。取值域是租户角色（`data.identity-values/v1#S-8`）加 `self`；**在工作区自带资产上 `self` 就指挂上工作区的那个租户**（PF-002 §5.7 原话），别处 `self` 指谁见 [G-15](#十一已知缺口) | 同上；[「谁可以用」的最严值不取「无人」](../../../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算) |
+| **谁可以使用它**（`usableBy`：八类共用的保留项，[`data.asset-model/v1#S-36`](../../../data/asset-model/v1/contract.md#s-36-usableby-是保留项名)） | `{self}`——**只有挂上这份工作区的那个租户**。取值域是租户角色（`data.identity-values/v1#S-8`）加 `self`；**在工作区自带资产上 `self` 就指挂上工作区的那个租户**（PF-002 §5.7 原话），别处 `self` 指谁见 [G-15](#十一已知缺口) | 同上；[「谁可以用」的最严值不取「无人」](../../../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算) |
 | **表外的其余权限项** | **空集** | [S-12](#s-12-缺席时的默认答案)；产品未给这些项的最严值（[G-8](#十一已知缺口)） |
 
 - **值永远落在最严值之内**：`X` ⊆ 最严值。组织、租户、会话对这个能力标识的界**照常按 [S-23](#s-23-第四步权限) 参与，只会更严**；它们的挑选在界内算数——
@@ -669,17 +669,18 @@
 
 ### S-39 「谁可以使用它」：值与判定
 
-**`skill`、`mcp`、`slash_command` 三类的生效资产，`values` 里恒有一条 `(c, usableBy)`**：它是保留项（[`data.asset-model/v1#S-36`](../../../data/asset-model/v1/contract.md#s-36-usableby-是保留项名)：取值域是 `TenantRole` 的两个值加 `self`，默认 `self`），**不由 [S-10](#s-10-各类正文契约须供的两条规则) 规则二推出**，按 [S-23](#s-23-第四步权限) 求值；工作区自带资产按 [S-25](#s-25-工作区自带资产的权限项一律取最严值) 取最严值 `{self}`。
+**每一份生效资产（八类都有，主线裁定 2026-09-24，以 PF-002 rev 19 §5.2「每一类资产都有这一项」为准），`values` 里恒有一条 `(c, usableBy)`**：它是保留项（[`data.asset-model/v1#S-36`](../../../data/asset-model/v1/contract.md#s-36-usableby-是保留项名)：取值域是 `TenantRole` 的两个值加 `self`，默认 `self`），**不由 [S-10](#s-10-各类正文契约须供的两条规则) 规则二推出**，按 [S-23](#s-23-第四步权限) 求值；工作区自带资产按 [S-25](#s-25-工作区自带资产的权限项一律取最严值) 取最严值 `{self}`。
 
 **`EffectiveAsset.usable` 是对这次求值的租户身份（输入的 `tenant` 与 `standing`）判出来的「此刻可不可以使用它」**：
 
 | 值 | 当且仅当 |
 |---|---|
-| `true` | `standing` 的角色在 `(c, usableBy)` 的值里；或值里有 `self`、且 `self` 在这里判得到这个租户——**本版只在工作区自带资产上判得到**（[S-25](#s-25-工作区自带资产的权限项一律取最严值)） |
-| `false` | 值是空集；或值里既没有 `standing` 的角色、也没有 `self` |
-| **缺席** | 值里有 `self`、没有 `standing` 的角色，且生效资产不是工作区自带的——`self` 在组织、租户、出厂那几格上指谁未定（[G-15](#十一已知缺口)） |
+| `true` | 生效资产是 official 的（**official 那一份不受它管**：PF-002 §5.2「official 不需要授权」、`data.asset-model/v1#S-36` 第 2 条；不按值判）；或 `standing` 的角色在 `(c, usableBy)` 的值里；或值里有 `self`、且 `self` 在这里判得到这个租户——**本版只在工作区自带资产上判得到**（[S-25](#s-25-工作区自带资产的权限项一律取最严值)） |
+| `false` | 生效资产不是 official，且值是空集、或值里既没有 `standing` 的角色也没有 `self` |
+| **缺席** | 生效资产不是 official，值里有 `self`、没有 `standing` 的角色，且生效资产不是工作区自带的——`self` 在组织、租户、出厂那几格上指谁未定（[G-15](#十一已知缺口)） |
 
 - **缺席是「判不出」**，消费者不得当作可以、也不得当作不可以（`capability.asset-registry` v1 S-20 第 5 条按「读不到」处置）。
+- **official 那一行是随八类同步补的**（2026-09-24；依 PF-002 §5.2 原话与 `data.asset-model/v1#S-36` 第 2 条「求值怎样对 official 跳过这一项归本契约」）：official 生效资产的 `(c, usableBy)` 照样在 `values` 里（保留项八类都有），只是 `usable` 不按它判。
 - **它不改变 `assets` 与 `composition`**：判为不可以用的仍在组装里（[PF-004 I-4](../../../../product/PF-004-agent-definition-and-assembly/design.md#61-不变式)）；进不进注册表的表、用不用得上，由消费者按它判。
 
 ### S-40 落点与身份类设置的来处
@@ -956,7 +957,7 @@
 | **装配时读入工作区**（[PF-004 §4 装配](../../../../product/PF-004-agent-definition-and-assembly/design.md#装配)） | 清单 → 工作区那一格 | [S-16](#s-16-readworkspacecarrier) | **不完全**：工作区给别层资产配设置接不上（G-4）；自带资产的定义要调用方另行解析（G-6） |
 | **会话资产注册表填表与重填**（`capability.asset-registry` v1 的 fill、reload） | 此刻每类有哪些生效资产、用的是哪一版、常驻与否、这个租户可不可以使用 | `assets`（含 `from`、`version`、`resident`、`usable`）、`composition`、`values` | **够，挡在 G-3、G-15、G-18**：常驻标记取不到时（G-3），`resident` 按 [S-38](#s-38-常驻值) 得不出；`self` 判不到时 `usable` 缺席，注册表按「读不到」处置 |
 | **准入判断**（[PF-007 §6.11](../../../../product/PF-007-meta-capabilities/design.md#611-ask通向人) 第 ② 步） | 这个动作的执行权限求值结果：三档之一 | `values` 里那一项的允许集合；换了实现时外层的界与挑选已经算进去（[S-23](#s-23-第四步权限)） | **不够**：从集合到一档的规则缺（G-9） |
-| **「谁可以用」的判断**（Skill、斜杠命令、MCP） | 这个租户能不能用 | `values` 里的 `(c, usableBy)` 与 `EffectiveAsset.usable`（[S-39](#s-39-谁可以使用它值与判定)） | **部分够**：角色判得出；`self` 在非工作区资产上指谁缺（[G-15](#十一已知缺口)） |
+| **「谁可以用」的判断**（八类资产） | 这个租户能不能用 | `values` 里的 `(c, usableBy)` 与 `EffectiveAsset.usable`（[S-39](#s-39-谁可以使用它值与判定)） | **部分够**：角色判得出；`self` 在非工作区资产上指谁缺（[G-15](#十一已知缺口)） |
 | **设置页**（[§6.1](../../../../product/PF-002-assets-settings-and-permissions/design.md#61-设置页是长出来的不是画出来的)、[§5.5 替换必须可见](../../../../product/PF-002-assets-settings-and-permissions/design.md#55-资产替换的层级)） | 某个租户此刻生效的是哪一份、来自哪一格、替换了哪一格、锁在哪一格；每项值来自哪一格 | `EffectiveAsset` 的 `from`／`replaced`／`lockedAt`，`EffectiveValue` 的 `from`／`lockedAt`，`filteredOut` | **够**。「组织的设置」那一页是[属性投影](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-attribute-projection--属性投影--attribute-projection)——组织自己持有的那批与其配值，**不需要求值**，直接读持有 |
 | **模型请求运行时**（`capability.model-request-runtime` v1 读「用哪个模型」的允许集合）、**拓展件执行器与工具执行运行时读设置** | 某项设置或权限此刻的值 | `values` | **够**；新鲜度按 [S-30](#s-30-本能力没有在途工作) 由它们自己管。「用哪个模型」挂在哪类资产上、取值域是什么，产品未定义（那份契约的 G-4） |
 | **MCP 桥**（`capability.mcp-bridge` v1 的接入点持有寻址） | 连接目标、凭据、两项超时的值，以及落点两项各出自哪一格 | `values` 与落点设置的 `provenance`（[S-40](#s-40-落点与身份类设置的来处)）；凭据未配时那一项缺席 | **够** |

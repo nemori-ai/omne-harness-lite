@@ -118,4 +118,8 @@
 - **跨进程演化**（[G-14](v1/contract.md#十一已知缺口)）：[S-29](v1/contract.md#s-29-装配给的保证-vs-协议须给的保证) 的「装配给」各行转为「协议给」，**语义边界改变，须发布新版本**；本版的全部证据只保留其单机范围。
 - **（2026-09-24 整批对齐收尾，不改语义）**：前提表 PRE-4 的「谁给」一格加指路——出厂持有与 meta 锁由资产治理 S-29 官方件登记写出（`data.asset-model` S-20 已改为出厂格 `immutable` 当且仅当 meta，与 PRE-4 不再相抵）。不登依赖。
 
+- **2026-09-24 随 `data.asset-model` S-36 八类（主线裁定 G-14；候选未冻结，原地改）**：「谁可以使用它」由 `skill`、`mcp`、`slash_command` 三类扩到八类——[S-25](v1/contract.md#s-25-工作区自带资产的权限项一律取最严值) 表那一行、[S-39](v1/contract.md#s-39-谁可以使用它值与判定) 首句、`EffectiveAsset.usable` 的定义、消费者核对表那一行改措辞；S-39 的 `usable` 判定表加 **official 恒为 `true`**（PF-002 §5.2「official 那一份不受它管」，`data.asset-model/v1#S-36` 第 2 条把「求值怎样对 official 跳过」交给本契约——**这一行是随同步补的，报主线确认**）。
+  `examples.md`：开头那条改八类；E-1 的 `assets` 里 `agent_definition:assistant` 的 `usable` 为 `true`（official）、`tool:shell` 的为缺席（G-15），`values` 十一条 → 十三条（加两条 `usableBy`），附表加第 13、14 行、「核对要点」的行号与计数同改；E-2a 的 `values` 加 `agent_definition:helper` 那条保留项、它的 `usable` 为 `true`。**Alloy 模型不涉**（它不建 `usableBy`），formal task 不重跑。
+  **未改、已报主线**：PF-002 rev 19 §5.6 第 1 步把「谁可以使用它」滤放在组装之前（「判下来不能用的不装」），与本契约 S-39「判为不可以用的仍在组装里」相左；G-15（`self` 指谁）已由 PF-002 rev 19 §5.2 答为「作者本人」，本契约仍记为缺口。
+
 结果不改写规范。发现语义问题回到来源设计（PF-002／PF-001／PF-003／PF-004），不在这里改契约。

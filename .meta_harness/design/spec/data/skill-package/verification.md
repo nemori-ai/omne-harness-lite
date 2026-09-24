@@ -45,7 +45,7 @@
 | **skill 类正文的外壳** | `data.asset-model` v1 的 S-10、S-12 | **已落**：那边的壳 `$ref` 本契约 `SkillPackage` |
 | **同一违例两个名字**：正文里的名字与能力标识不一致 | `data.asset-model` v1 的 S-27 | **已统一**：那边原名携带本契约的 `name_mismatch` |
 | **同一违例两个名字**：绑定层不在四值里 | `data.tool-definition` v1 的 S-26 | **已统一**：本契约原名携带那边的 `binding_layer_unknown`（[S-24](v1/contract.md#s-24-表示层拒绝值与判定次序)） |
-| **「谁可以使用它」的共用定义** | `data.asset-model` v1 的 S-36；`data.mcp-endpoint`、`data.slash-command` | **已落**：三类共用 `usableBy`，本契约不再产出它（连接件没有这一项——主线裁定 S21-c 给它另两项权限） |
+| **「谁可以使用它」的共用定义** | `data.asset-model` v1 的 S-36；`data.mcp-endpoint`、`data.slash-command` | **已落**：八类共用 `usableBy`（主线裁定 2026-09-24，原为三类），本契约不再产出它；连接件的「能不能安装」即此项（`data.connector` 的 `install` 待主线收口改名） |
 | **② 型展开的正文** | 斜杠命令的数据契约（第四波并行）、`data.content-blocks` v1 的 S-8 | 展开的就是 [S-8](v1/contract.md#s-8-正文逐字不展开不执行) 的 `body`，逐字、不展开；那边若另定「展开时替换占位」之类的规则，与本契约第 2 条相抵 |
 | **工作区承载清单里指向技能包的 `source`** | `data.asset-model` v1 的 S-24、`capability.asset-evaluation` | 那个目录按本契约 [S-21](v1/contract.md#s-21-包的目录形式) 读；读入方留痕的形状归 asset-evaluation |
 

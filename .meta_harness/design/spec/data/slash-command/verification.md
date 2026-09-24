@@ -47,7 +47,7 @@
 | `origin.command` 的词法 | `data.content-blocks` v1 的 S-8 | 那边只约束到「非空」、不反向引用本契约（避免成环）——保持 |
 | ① 型展开的正文与留痕 | `data.content-blocks` v1 的 S-8 | **已落**：`slash_command_expansion` 与 `slash_command_record` 两种来源标记（原 G-4；留痕不是第八类块） |
 | 技能「正文」是哪一段 | `data.skill-package` v1 的 S-8 | **已落**：依赖已登（原 G-2） |
-| 「谁可以用」这一项 | `data.asset-model` v1 的 S-36 | **已落**：三类共用 `usableBy`，本契约的推出规则产出空集（原 G-5） |
+| 「谁可以用」这一项 | `data.asset-model` v1 的 S-36 | **已落**：八类共用 `usableBy`（主线裁定 2026-09-24，原为三类；斜杠命令的「谁可以用这个入口」即此项），本契约的推出规则产出空集（原 G-5） |
 | reload 一族的命令名 | `capability.asset-registry` v1 | 名字须在保留区里、绑定为 `command`、拼法照 [S-3](v1/contract.md#s-3-保留区与它唯一的拼法)；有哪几条、各叫什么归那边 |
 | 位置与识别结果的定义名 | 账本 S20-b | **已落**：`Span`、`Recognition` 两个 `$defs` |
 | 产品正文把参数声明、参数提示、绑定目标列为「设置」 | PF-002 §4 Slash Command | 主线裁定它们是正文成员（账本 S20-d）；**产品修订批**改那一处（原 G-6） |
