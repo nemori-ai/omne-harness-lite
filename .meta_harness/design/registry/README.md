@@ -83,7 +83,7 @@ catalog 的稳定键是 `(baseline_id, contract_id, version)`。资源位置为
 「为让缺口可见而登，不表示已覆盖」并指到缺口号；缺口闭合（有契约家）时把 `target` 改指真正的承接条款。
 没有点名缺口的否定式提及仍不登。
 
-**互引成环的登记口径（2026-09-25，D-040 §七 M2）**：两份 data 契约要共用同一形状而互相引用会成环时，一侧 `$ref` 并在 catalog 登依赖，另一侧**逐字自定义**、不登依赖，在自己的 `verification.md` 登「对齐义务」（指明以哪一侧为家、逐字同步）。定义性引用（只为说明形状、不据以写出承诺）同样不登。已用此法的：messages↔model-response 的 `ParameterAdjustment`／`droppedParameters`、`SelectedBy`／`CredentialScope`；content-blocks↔slash-command 的来路标记。
+**互引成环的登记口径（2026-09-25，D-040 §七 M2）**：两份 data 契约要共用同一形状而互相引用会成环时，一侧 `$ref` 并在 catalog 登依赖，另一侧**逐字自定义**、不登依赖，在自己的 `verification.md` 登「对齐义务」（指明以哪一侧为家、逐字同步）。定义性引用（只为说明形状、不据以写出承诺）同样不登。已用此法的：messages↔model-response 的 `ParameterAdjustment`／`droppedParameters`、`SelectedBy`／`CredentialScope`；content-blocks↔slash-command 的来路标记；content-blocks↔tool-definition 的 `ModelToolName`（家在 tool-definition S-6）。
 
 每项覆盖带 `reviewed` 标记。批量导入时 `reviewed: false` 是诚实的初值——
 它表示「声称覆盖但尚未逐条复核」，与「已复核确认覆盖」必须可区分；

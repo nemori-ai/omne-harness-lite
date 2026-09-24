@@ -531,3 +531,6 @@ product-design-drafter 把约 57 处裁定落进 PF-001/002/006/008/009/010/012/
 
 | N-15 | TER（丙，修复波 2）：批项 `UnlistedCall`（报告里查不到条目、没进放行判断的调用）；`UnlistedCall` 在注册表却查得到条目 ⇒ 整批 `notAdmitted`；`{no_such_entry}` 只在执行记录上（`unavailable` 块不带 reason）；事件缺席不补 trim；`why` 取批内最前不符项；有序撤下按 S-18 先写收场再发停止；stream-assembly S-28 第 1 条、S-29 按（会话, 目标）路由；tool-admission G-15（meta 门「不可收窄」的声明层表达） | 丙报回 |
 | N-16 | 乙（修复波 2）三条推导接受：M4 按维度成员分三类（带维度的两个位置改不了位置）；M3 连带把 asset-evaluation S-23／asset-governance S-38 ② 对分档权限的认法改为「干预力三档里含 `observe` 的非空子集」（求值规则不改）；M26 依赖记录的 `invalidInput` 排在角色核对之后。契约里仍标「已报主线」的规格层推导一并接受为契约推导：tool-definition S-18 禁 `_:`／`:_`、loop-extension S-14 整批求值与放行凭据两句、skill-package S-11 按路径判脚本集合、asset-evaluation「锁随被滤掉的那份一起不存在」、asset-transfer 收进 `invalidInput`——各处改为「契约推导，主线接受（N-16）」 | 乙报回 |
+| M30 | content-blocks G-10（模型交回不合模型面字符集的调用名）：本版在到达装配处拒该增量（`malformed`，MRR S-51 第 4 条只报一次），这次调用不落任何记录；模型侧怎样被告知归 agent loop 契约（PF-012 那一程），G-10 的 owner 改为它、本版保持开着 | 甲报回 |
+| N-17 | 甲（修复波 2）推导接受：messages S-10 回复流对应表补「流还没开始就失败或停机 → 不写消息」；中断提醒按一次模型调用算、重发不另补；S-11／S-19 补「有意撤下」；S-7 `createdAt` 由组装方给、不作先后比较；arrival-events 宿主放弃不带 `error`；model-response S-13「`run_cancelled` 配回复」只在用户发起时成立、写入方义务；catalog 两处对 model-profile 加 `S-19`；`ModelToolName` 为具名 `$def`。**有意的不对称**：模型侧系统取消 → 回复 `lost`＋响应体 `interrupted{run_cancelled}`，工具侧系统取消 → TER `interrupted`——回复的 `ending` 只有 PF-009 给的三值，没有「系统中断」一值；已列账本 ⑥ 请产品负责人过目 | 甲报回 3 |
+
