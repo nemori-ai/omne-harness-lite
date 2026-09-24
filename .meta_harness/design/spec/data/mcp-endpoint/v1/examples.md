@@ -1,7 +1,7 @@
 # 规范实例：合法与非法
 
 属于 `data.mcp-endpoint` v1 的规范实例。它是**本版的规范工件之一**，不是说明材料：
-[`mcp-endpoint.schema.json`](mcp-endpoint.schema.json) 的六个定义项在这里各有一组正反实例，
+[`mcp-endpoint.schema.json`](mcp-endpoint.schema.json) 的七个定义项在这里各有一组正反实例，
 非法的一律注明**拒绝值**与**被哪一条挡住**。连接、投影、调用与 OAuth 流程的实例在 [`capability.mcp-bridge` v1 的实例](../../../capabilities/mcp-bridge/v1/examples.md)。
 
 **怎么读**：
@@ -203,6 +203,27 @@
 
 **说明**：`McpActionName` 是一个派生出来的名字，不是一份被写入存储的输入；这一节的「拒绝」是说**这个串不是一个合法的条目名**。它的拒绝值用 `malformed`（M13）只为让表格完整——实际上它由投影生成，**生成不出时怎样收归 `capability.mcp-bridge`**，不存在「有人交来一个坏条目名」这条路。
 
+### 4.1 接入点的 name
+
+**校验对象**：`$defs/McpEndpointName`（[S-26](contract.md#s-26-接入点-name-登记时收窄)，主线裁定 2026-09-24）。这些串是登记一份 `mcp` 资产时它能力标识的 name。
+
+| 实例 | Schema | 拒绝值 | 依据 |
+|---|---|---|---|
+| `"github"` | 通过 | — | 接上 `:x` 得 `github:x`，合 `data.tool-definition/v1#S-18` |
+| `"issue-tracker"` | 通过 | — | `-` 在字符集里 |
+| `"acme:search"` | 通过 | — | 名字里可以再有 `:`（`data.asset-model/v1#S-2` 许冒号）；撞名归 [G-2](contract.md#八已知缺口) |
+| `"acme:"` | 通过 | — | 以 `:` 结尾不犯规：拼出 `acme::x`，转写成 `acme____x`，逆转写唯一 |
+| `"git.hub"` | 拒绝 | `name_not_projectable` | 第 1 条：`.` 不在字符集里——合 `data.asset-model/v1#S-2`，却一个动作也拼不出 |
+| `"my_mcp_"` | 拒绝 | `name_not_projectable` | 第 3 条：以 `_` 结尾，拼接处成 `_:` |
+| `"a__b"` | 拒绝 | `name_not_projectable` | 第 2 条：含 `__` |
+| `"a:_b"` | 拒绝 | `name_not_projectable` | 第 2 条：含 `:_` |
+| 126 个 `a` | 拒绝 | `name_not_projectable` | 第 4 条：码点数已超过 125 |
+| `"x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x"` | **通过** · 表示层拒绝 | `name_not_projectable` | 第 4 条：85 个码点、其中 42 个 `:`，转写后 127 个字符——`:` 算两个的那一半 Schema 管不到 |
+| `"git/hub"` | 拒绝 | **`name_invalid`**（`data.asset-model` 的） | 违反 `data.asset-model/v1#S-2` 本身（含 `/`），报那边的值，不是本契约的 |
+| `""` | 拒绝 | **`name_invalid`**（`data.asset-model` 的） | 同上：空串 |
+
+**不修补**：`"git.hub"` 不会被改成 `"git_hub"` 接受，`"my_mcp_"` 不会被去掉结尾的 `_`（[S-26](contract.md#s-26-接入点-name-登记时收窄)）。
+
 ## 5. OAuth 绑定
 
 **校验对象**：`$defs/OAuthBinding`
@@ -324,6 +345,8 @@
 | 在 1.2 上 `transport.url` 改为 `"HTTPS://u:p@x/"` | `credential_plaintext`（userinfo）、`url_invalid`（大写 scheme） | `credential_plaintext` |
 | 在 1.1 上 `transport.command` 改为 `" "`，`timeouts.call` 改为 `"PT0S"` | `command_empty`、`malformed`（M8） | `command_empty` |
 | `{"kind": "fetched", "tools": [{"name": "a"}]}`（缺时刻，唯一一项缺 `inputSchema`） | `snapshot_missing_time`、`malformed`（M3） | `snapshot_missing_time` |
+| 登记一份 `mcp` 资产：能力标识的 name 为 `"git.hub"`，正文是在 1.1 上 `transport.command` 改为 `""` | `command_empty`、`name_not_projectable` | `command_empty`（第 4 行先于第 7 行） |
+| 登记一份 `mcp` 资产：name 为 `"git.hub"`，正文是 1.1 原样 | `name_not_projectable` | `name_not_projectable` |
 | `{"transport": {"command": "srv", "args": []}, "credential": "tok", "timeouts": {"connect": "PT1S", "call": "PT1S"}, "permissions": {"execute": {"default": "ask"}}}` | `malformed`（M2：连接目标缺 `kind`）、`credential_plaintext` | `malformed` |
 
 ## 9. Schema 挡不住，但同样非法的
@@ -347,4 +370,4 @@
 已知的局限：
 
 - 第 6、7 节引用 `data.asset-model` v1 与 `data.tool-definition` v1 的定义项；那两份是**同批候选**，它们的 `$defs` 名或形状若在评审中改了，这两节要同轮重核。
-- 第 4 节的「拒绝值」只为表格完整（见该节说明）。
+- 第 4 节的「拒绝值」只为表格完整（见该节说明）；4.1 节的拒绝值是登记时真会报出的值（[S-26](contract.md#s-26-接入点-name-登记时收窄)）。

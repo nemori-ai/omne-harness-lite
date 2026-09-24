@@ -3,7 +3,7 @@
   "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/mcp-endpoint/v1/mcp-endpoint.schema.json",
   "title": "data.mcp-endpoint v1",
   "description": "MCP 接入点这一类资产的数据形状：接入点正文（作者写下的连接目标与四项属性的默认值）、连接目标的两种传输、动作清单副本及其中每一项对端动作描述、动作条目名、OAuth 绑定。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.mcp-endpoint/v1 内有效。",
-  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状与一部分组合约束；Schema 表达不了的约束（动作清单里对端动作名不重复、凭据配值的取值域、属性项推出规则等）由 contract.md S-20 归入具名拒绝值或 malformed，由接收边界在 Schema 之外兑现。Schema 校验失败只说明「拒绝」，是六个拒绝值里的哪一个按 S-20 的次序定。外部引用：Instant 取自 data.offer-expiry v1（S-22）；Duration 与 ExecutePermission 取自 data.tool-definition v1（S-14、S-15）。凭据配值的取值域引用 data.asset-model v1 的 CredentialRef（S-23），它写在推出的属性声明里（S-13、S-14），不是本文件的一个定义项。正反实例在同目录 examples.md。",
+  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状与一部分组合约束；Schema 表达不了的约束（动作清单里对端动作名不重复、凭据配值的取值域、属性项推出规则等）由 contract.md S-20 归入具名拒绝值或 malformed，由接收边界在 Schema 之外兑现。Schema 校验失败只说明「拒绝」，是七个拒绝值里的哪一个按 S-20 的次序定。外部引用：Instant 取自 data.offer-expiry v1（S-22）；Duration 与 ExecutePermission 取自 data.tool-definition v1（S-14、S-15），McpActionName 的词法取它的 ToolName（S-18）；McpEndpointName 在 data.asset-model v1 的 CapabilityName（S-2）之上收窄。凭据配值的取值域引用 data.asset-model v1 的 CredentialRef（S-23），它写在推出的属性声明里（S-13、S-14），不是本文件的一个定义项。正反实例在同目录 examples.md。",
   "$defs": {
     "McpEndpoint": {
       "title": "MCP 接入点正文",
@@ -205,6 +205,18 @@
       "pattern": ":",
       "examples": [
         "github:create_issue"
+      ]
+    },
+    "McpEndpointName": {
+      "title": "接入点的 name",
+      "description": "S-26（主线裁定 2026-09-24）：一份 category = mcp 资产能力标识的 name 分量，在 data.asset-model v1 S-2 之内的收窄——它后面接上「:」与一个字母，拼出的串合 data.tool-definition v1 S-18 对 name 的收窄。即：只含 A–Z a–z 0–9 _ : -；不含 __、_:、:_ 三种相邻；不以 _ 结尾；转写（: 换成 __）之后不超过 125 个字符——: 算两个的那一半 Schema 管不到。不合的拒绝值 name_not_projectable（S-20 第 7 行）；违反 data.asset-model v1 S-2 本身的（空串、含空白、含 /）仍是那边的 name_invalid。",
+      "$ref": "../../asset-model/v1/asset-model.schema.json#/$defs/CapabilityName",
+      "maxLength": 125,
+      "pattern": "^(?![\\s\\S]*(?:__|_:|:_))[A-Za-z0-9_:-]*[A-Za-z0-9:-](?![\\s\\S])",
+      "examples": [
+        "github",
+        "issue-tracker",
+        "acme:search"
       ]
     },
     "OAuthBinding": {

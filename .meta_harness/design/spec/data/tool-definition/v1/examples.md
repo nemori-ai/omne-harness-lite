@@ -137,7 +137,8 @@
 ```
 
 **`name` 按 `data.mcp-endpoint/v1#S-11` 拼出**：接入点能力标识的 name `issue-tracker` ＋ `:` ＋ 对端动作名 `search_issues`（`capability.mcp-bridge` v1 S-17；原 G-8 已关闭）；它合 [S-18](contract.md#s-18-名字的表示与相等) 对 `name` 的限制。
-这份定义**没有能力标识**（[S-2](contract.md#s-2-身份是-name)）；`description` 与 `input` 取自对端描述原样——**对端的参数若没带说明，这个动作就投不成条目**（[S-4](contract.md#s-4-单函数工具) 第 2 条；桥 S-17 的排除原因）；`permissions.execute.default` 取接入点正文给的那一档，这里写 `ask`。
+这份定义**没有能力标识**（[S-2](contract.md#s-2-身份是-name)）；`description` 与 `input` 是桥的投影——对端给全了说明、没带子集外关键字时就是对端原话（这里如此）；
+对端缺说明、带 `$schema`／`title`、只写 `{"type": "object"}` 的，桥先做最小规范化（`capability.mcp-bridge/v1#S-17`，主线裁定 2026-09-24），**交到这里的定义照常过 [S-4](contract.md#s-4-单函数工具) 的三条硬要求**，规范化之后仍不合的由桥排除；`permissions.execute.default` 取接入点正文给的那一档，这里写 `ask`。
 
 ## 4. 带全部六项声明的工具
 
@@ -237,7 +238,7 @@
 | B 的 `input` 换成 `{"type": "array", "properties": {}}` | 拒绝 | `malformed`（M26）：顶层须恰是 `"type": "object"`——两家的参数 schema 都要一个对象（[S-4](contract.md#s-4-单函数工具) 第 1 条） |
 | B 的 `input` 换成 `{"type": "object"}` | 拒绝 | `malformed`（M26）：顶层没带 `properties`——空对象也要写出来 |
 | B 的 `input` 换成 `{"type": "object", "properties": {"q": {"type": "string", "description": "查询词", "title": "Query"}}}` | **Schema 通过** · 表示层拒绝 | `malformed`（M27）：`title` 不在可呈现子集里（[S-4](contract.md#s-4-单函数工具) 第 3 条） |
-| B 的 `input` 换成 `{"type": "object", "properties": {}, "$schema": "http://json-schema.org/draft-07/schema#"}` | **Schema 通过** · 表示层拒绝 | `malformed`（M27）：`$schema` 同样不在——不少 MCP 服务端的参数 schema 带着它，那样的动作投不成条目（桥 S-17） |
+| B 的 `input` 换成 `{"type": "object", "properties": {}, "$schema": "http://json-schema.org/draft-07/schema#"}` | **Schema 通过** · 表示层拒绝 | `malformed`（M27）：`$schema` 同样不在——本契约对任何来源都这样判；不少 MCP 服务端的参数 schema 带着它，**桥在投影时先剥掉**（`capability.mcp-bridge/v1#S-17` 的最小规范化），交到这里的 MCP 来源定义里已经没有它 |
 
 ## 6. 小值的正反实例
 
@@ -371,7 +372,7 @@
 
 ## 9. 生成规则的逐字核对
 
-**对象**：第 2 节的三命令工具 `notes`，与它下面那份生成出的 input；规则是 [S-7](contract.md#s-7-多命令-input-的生成规则) 的五条（flat 形，产品负责人裁定 2026-09-24）。
+**对象**：第 2 节的三命令工具 `notes`，与它下面那份生成出的 input；规则是 [S-7](contract.md#s-7-多命令-input-的生成规则) 的五条（flat 形，产品负责人裁定 2026-09-24；[PF-006 §5.3](../../../../product/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡) rev 19「模型面前只有紧凑的命令清单一种样子」）。
 **方式**：起草者逐字对读（2026-09-23；2026-09-24 按 flat 形重做）；**另经暂存区脚本机检**——从第 2 节的 `commands` 按 S-7 重算一遍，与第 2 节那份生成结果作 JSON 值比较，
 并对它走 Schema 之外那一步（合法性、三条硬要求）；结果记在[验证入口](../verification.md#本地自检schema-正反实例整批对齐2026-09-24)。
 
@@ -403,8 +404,8 @@
 
 第二、三、五条调用**过了模型面、判定不过**——这正是 [S-7](contract.md#s-7-多命令-input-的生成规则) 第 3 条的义务：过模型面不等于参数合格，参数只由 `commands[c].input` 判。
 
-**只带命令清单的写法**：把三个命令的 `input` 都换成 `{"type": "object", "properties": {}}`（[S-5](contract.md#s-5-多命令工具)），生成结果**逐字不变**——`enum` 与命令表只来自命令名与命令说明。
-变的只是判定：第二、三、五条调用此时判定也过；`{"command": "read", "args": 5}` 仍在模型面就不过，`{"command": "remove", "args": {}}` 仍不过。
+**只带命令清单的写法**：把三个命令的 `input` 都换成 `{"type": "object", "properties": {}}`（[S-5](contract.md#s-5-多命令工具)），生成结果**逐字不变**——`enum` 与命令表只来自命令名与命令说明；这正是 PF-006 §5.3「两种写法在模型面前一模一样」。
+变的只是判定：第二、三、五条调用此时判定也过——**参数对不对由工具自己判**（PF-006 §5.3 那张表第一行）；`{"command": "read", "args": 5}` 仍在模型面就不过，`{"command": "delete", "args": {}}` 仍不过。
 
 ## 10. Schema 挡不住、但同样非法的
 

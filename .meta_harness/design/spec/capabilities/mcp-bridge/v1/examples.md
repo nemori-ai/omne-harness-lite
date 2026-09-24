@@ -126,7 +126,8 @@
       "permissions": { "execute": { "default": "ask" } },
       "origin": { "kind": "mcp", "endpoint": { "category": "mcp", "name": "github" }, "remoteName": "list_issues" }
     },
-    "standInOnly": null
+    "standInOnly": null,
+    "normalized": false
   },
   {
     "definition": {
@@ -146,28 +147,34 @@
       "permissions": { "execute": { "default": "ask" } },
       "origin": { "kind": "mcp", "endpoint": { "category": "mcp", "name": "github" }, "remoteName": "create_issue" }
     },
-    "standInOnly": null
+    "standInOnly": null,
+    "normalized": false
   }
 ]
 ```
 
-`definition` 与 `standInOnly` 这两个外层名只是本实例的排版，**不是线上成员名**（[十二](contract.md#十二版本差异与规范工件)：本契约不发布 Schema）。`permissions.execute` 的形状以 `data.tool-definition` 的 `ExecutePermission` 为准。
+两项都是 `normalized: false`：对端给全了说明、没带 `$schema`／`title`，三样最小规范化一样都用不上。
+`definition`、`standInOnly` 两个外层名只是本实例的排版；`normalized` 是契约 [S-17](contract.md#s-17-projectactions) 用的名字（主线裁定 2026-09-24 给的）。三者都**不是线上成员名**（[十二](contract.md#十二版本差异与规范工件)：本契约不发布 Schema）。`permissions.execute` 的形状以 `data.tool-definition` 的 `ExecutePermission` 为准。
 
 | 副本里的一项（或副本本身） | 投影结局 | 依据 |
 |---|---|---|
-| `{"name": "search", "inputSchema": {"type": "object", "properties": {}}}`（没有 `description`） | 条目 `github:search`，`description` 为 `"search"` | [S-17](contract.md#s-17-projectactions)：不替对端编说明 |
+| `{"name": "search", "inputSchema": {"type": "object", "properties": {}}}`（没有 `description`） | 条目 `github:search`，`description` 为 `"对端未提供说明"`，`normalized: true` | [S-17](contract.md#s-17-projectactions) 最小规范化第 1 样：占位说的是「对端没给」，不替对端编说明 |
 | `{"name": "search", "description": "", "inputSchema": {"type": "object", "properties": {}}}` | 同上 | 同上：空串不是非空说明 |
 | `{"name": "repos/list", "inputSchema": {"type": "object", "properties": {}}}` | 进 `excluded`，原因「条目名拼不出」 | `data.mcp-endpoint/v1#S-11`：禁 `/` |
 | `{"name": "list issues", "inputSchema": {"type": "object", "properties": {}}}` | 进 `excluded`，原因「条目名拼不出」 | 含空白 |
 | `{"name": "issues.list", "inputSchema": {"type": "object", "properties": {}}}` | 进 `excluded`，原因「条目名拼不出」 | `.` 不在 `data.tool-definition/v1#S-18` 的字符集里——MCP 协议建议里有它 |
 | `{"name": "_internal", "inputSchema": {"type": "object", "properties": {}}}` | 进 `excluded`，原因「条目名拼不出」 | 拼出 `github:_internal`，拼接处成 `:_` |
-| `{"name": "ns:tool", "inputSchema": {"type": "object", "properties": {}}}` | 条目 `github:ns:tool` | 条目名允许再有 `:` |
-| `{"name": "bulk", "inputSchema": {"type": "object", "minProperties": -1}}` | 进 `excluded`，原因「参数 schema 不成立」 | `data.tool-definition/v1` 的 `input_not_schema` |
-| `{"name": "search", "inputSchema": {"type": "object"}}` | 进 `excluded`，原因「参数 schema 不成立」 | 顶层没带 `properties`（`data.tool-definition/v1` 的 M26）——**不替对端补一个空的** |
-| `{"name": "search", "inputSchema": {"type": "object", "properties": {"q": {"type": "string"}}}}` | 进 `excluded`，原因「参数 schema 不成立」 | 参数 `q` 没带说明（`parameter_description_missing`）——**不替对端编一句**（[G-18](contract.md#十已知缺口)） |
-| `{"name": "search", "inputSchema": {"$schema": "http://json-schema.org/draft-07/schema#", "type": "object", "properties": {}}}` | 进 `excluded`，原因「参数 schema 不成立」 | `$schema` 不在可呈现子集里（M27）——**不替对端删掉** |
-| `{"name": "export", "inputSchema": {"type": "object", "properties": {}}, "execution": {"taskSupport": "required"}}` | 条目 `github:export`，形状照常，**标记只能以替换件出现**，原因「本版不支持这个动作的执行方式」 | [S-17](contract.md#s-17-projectactions)；D-037；识别依据未核（[G-6](contract.md#十已知缺口)） |
-| `{"name": "export", "inputSchema": {"type": "object", "properties": {}}, "execution": {"taskSupport": "optional"}}` | 普通条目 | 只有 `required` 才标记 |
+| `{"name": "ns:tool", "description": "Tool.", "inputSchema": {"type": "object", "properties": {}}}` | 条目 `github:ns:tool`，`normalized: false` | 条目名允许再有 `:` |
+| `{"name": "bulk", "description": "Bulk.", "inputSchema": {"type": "object", "minProperties": -1}}` | 进 `excluded`，原因「参数 schema 不成立」 | `data.tool-definition/v1` 的 `input_not_schema`；顶层不是恰 `{"type": "object"}`，第 3 样不适用 |
+| `{"name": "search", "description": "Search.", "inputSchema": {"type": "object"}}` | 条目 `github:search`，`input` 为 `{"type": "object", "properties": {}}`，`normalized: true` | 最小规范化第 3 样：视为无参数（主线裁定 2026-09-24，原 G-18） |
+| `{"name": "search", "description": "Search.", "inputSchema": {"type": "object", "additionalProperties": false}}` | 进 `excluded`，原因「参数 schema 不成立」 | 顶层没带 `properties`（M26），而它不是恰 `{"type": "object"}`——**第 3 样只认那一种写法** |
+| `{"name": "search", "description": "Search.", "inputSchema": {"type": "object", "properties": {"q": {"type": "string"}}}}` | 条目 `github:search`，`input.properties.q` 补上 `"description": "对端未提供说明"`，`normalized: true` | 最小规范化第 1 样（参数那一半） |
+| `{"name": "search", "description": "Search.", "inputSchema": {"type": "object", "properties": {"q": true}}}` | 进 `excluded`，原因「参数 schema 不成立」 | `parameter_description_missing`：成员 schema 是布尔 schema，补不上说明 |
+| `{"name": "search", "description": "Search.", "inputSchema": {"$schema": "http://json-schema.org/draft-07/schema#", "type": "object", "properties": {}}}` | 条目 `github:search`，`input` 为 `{"type": "object", "properties": {}}`，`normalized: true` | 最小规范化第 2 样：剥掉 `$schema`，之后按 Draft 2020-12 读 |
+| `{"name": "new_issue", "description": "Open an issue.", "inputSchema": {"title": "NewIssueArgs", "type": "object", "properties": {"title": {"type": "string", "title": "Title", "description": "Issue title."}}}}` | 条目 `github:new_issue`，`input` 为 `{"type": "object", "properties": {"title": {"type": "string", "description": "Issue title."}}}`，`normalized: true` | 第 2 样：两处关键字 `title` 剥掉；**名为 `title` 的参数留着**——它是参数名，不是关键字 |
+| `{"name": "search", "description": "Search.", "inputSchema": {"type": "object", "properties": {"q": {"$ref": "#/$defs/Q"}}, "$defs": {"Q": {"type": "string", "description": "Query."}}}}` | 进 `excluded`，原因「参数 schema 不成立」 | `$ref`、`$defs` 不在可呈现子集里（M27）；**不展开引用**——三样之外不做 |
+| `{"name": "export", "inputSchema": {"type": "object", "properties": {}}, "execution": {"taskSupport": "required"}}` | 条目 `github:export`，形状照常（说明是占位、`normalized: true`），**标记只能以替换件出现**，原因「本版不支持这个动作的执行方式」 | [S-17](contract.md#s-17-projectactions)；D-037；识别依据未核（[G-6](contract.md#十已知缺口)） |
+| `{"name": "export", "description": "Export.", "inputSchema": {"type": "object", "properties": {}}, "execution": {"taskSupport": "optional"}}` | 普通条目，`normalized: false` | 只有 `required` 才标记 |
 | 副本 `{"kind": "not_fetched"}` | `entries` 与 `excluded` 都为空；**副本那一支是 `not_fetched`** | [S-33](contract.md#s-33-从没连上过的接入点没有条目) |
 | 副本 `{"kind": "fetched", "fetchedAt": "…", "tools": []}` | `entries` 与 `excluded` 都为空；副本那一支是 `fetched` | 与上一行**必须分得开** |
 | 正文改为 `permissions.execute.default = "auto"` | 每个条目的 `permissions.execute.default` 都是 `"auto"` | 与 `data.mcp-endpoint` 推出的 `execute:<对端名>` 那一项的默认是同一个值 |

@@ -18,6 +18,7 @@
 | `deploy` | 工具：没有 `allowBackground`（不能后台），没有 `timeout` |
 | `confirm_plan` | 工具：执行中会进一次等待，挂一张决策卡片，不给到点 |
 | `search_web` | 这次尝试里注册表放在原位上的**替换件**（对端连不上） |
+| `fs` | 多命令工具；命令 `grep` 的说明是「按正则在文件里找行」，`input` 是 `{ path: string（必填，要找的路径）, pattern: string（必填，正则）, ignoreCase: boolean（可选，是否忽略大小写） }`、`additionalProperties: false`；命令 `peek` 只带命令清单（`input` 为 `{"type": "object", "properties": {}}`） |
 | `tok_*` | 放行凭据，各自绑定 `(ses_1, CallId, 生效参数)` |
 
 「交付」指消息与执行记录在同一次写里定下、耐久地等着追加；「送达」指追加进会话日志成功（[S-19](contract.md#s-19-送达)）。
@@ -26,8 +27,8 @@
 
 | 步 | 调用或发生 | 预期 | 依据 |
 |---|---|---|---|
-| 1 | `submit(T, ses_1, run_1, 1, [{ call: build(call_a), admission: tok_a, environment: env_1, definition: {name: build} }])` | `[{ callId: call_a, disposition: accepted{foreground} }]`；执行记录 `queued`；一条提交条目 | [S-23](contract.md#s-23-提交一批) |
-| 2 | 起执行者 | 参数合 `input`、落点到位、执行者起来 → `running`；一条起执行者条目 | [S-38](contract.md#s-38-起执行者) |
+| 1 | `submit(T, ses_1, run_1, 1, [{ call: build(call_a), admission: tok_a, environment: env_1, definition: {name: build} }])` | 参数合 `build` 的 `input`；`[{ callId: call_a, disposition: accepted{foreground} }]`；执行记录 `queued`；一条提交条目 | [S-23](contract.md#s-23-提交一批) ④ |
+| 2 | 起执行者 | 落点到位、执行者起来 → `running`；一条起执行者条目 | [S-38](contract.md#s-38-起执行者) |
 | 3 | loop `awaitForeground(T, ses_1, call_a)` | 等着 | [S-24](contract.md#s-24-等前台那一次调用落定) |
 | 4 | 执行者 3 分钟后交回字符串 `"built 12 targets"` | 归一成只含一个文本块的 `ToolResult`；收场 `completed`；`subject.result` 带着它经过 `after_action`，卸载判定给「原样」 | [S-41](contract.md#s-41-交回)、[S-42](contract.md#s-42-结果落成消息之前的那一关) |
 | 5 | 送达 | 一次写里：记录收场 `completed` ＋ `ToolCallAccount`（`startedAt` = 第 1 步那一刻，`endedAt` = 收场那一刻，`frames.emitted = 0`）＋ 一条 `ToolMessage{ outcome: completed }` ＋ 收场条目；之后 `execution.delivered{segment: call}` | [S-19](contract.md#s-19-送达)、[S-13](contract.md#s-13-账)、[S-45](contract.md#s-45-送达通知) |
@@ -137,3 +138,14 @@
 **不是失败值的那一支**：注册表把 `lint` 判为不可用——它是替换件，或所选的那条命令在 `commandAvailability` 里被关掉——`submit(..., [lint(call_d)/tok_d])` 批成立，
 `call_d` 的 `disposition` 是 `ended{unavailable}`，一条 `outcome: unavailable` 的 `ToolMessage` 已交付，块上写替换件的说明或注册表给的原因；执行者不起。
 **不是** `failed`：`failed` 让 agent 以为可以重试，而这个名字在这次尝试里就是用不了（[S-23](contract.md#s-23-提交一批) ④；账本 S13-a）。
+
+**不是失败值的另一支：参数不合**（[S-23](contract.md#s-23-提交一批) ④ 第 ② 条、[S-11](contract.md#s-11-失败的种类)；场景 [S-61](contract.md#s-61-参数不合即刻失败并带用法)）：
+
+| 调用（都在同一批里、各带相符的凭据） | `disposition` | 那条 `ToolMessage` 的块上写什么 |
+|---|---|---|
+| `fs(call_e, {command: "grep", args: {path: "src", pattern: "TODO", ignore_case: true}})` | `ended{failed}`，记录上种类 `arguments_invalid`，执行者不起、外部效果「已确定未发生」 | `ignore_case` 这个键 `grep` 不收；用法：`grep — 按正则在文件里找行`，参数表 `path`（string，必填，要找的路径）· `pattern`（string，必填，正则）· `ignoreCase`（boolean，可选，是否忽略大小写） |
+| `fs(call_f, {command: "grep", args: {path: "src"}})` | 同上 | 缺必填键 `pattern`；用法同上 |
+| `fs(call_g, {command: "find", args: {}})` | 同上 | `find` 不是 `fs` 的命令；带 `fs` 的命令清单（每个命令一行，同模型面前那一份） |
+| `fs(call_h, {command: "peek", args: {anything: 1}})` | `accepted{foreground}` | ——（`peek` 只带命令清单，收任何一个对象，对不对由工具自己判） |
+
+批里其余合格的项照常 `accepted`；**不是** `invalidInput`：那是本操作的输入不合形状，这里是对一次调用的判定。

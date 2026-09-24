@@ -5,14 +5,14 @@
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.mcp-endpoint, 1)`——
   `family = data`、`topic = mcp-endpoint`、规范路径 `spec/data/mcp-endpoint/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：`candidate`（2026-09-23 起草）——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
-- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-002 rev 16、PF-006 rev 17** 为准；PF-016 rev 5、PF-005 rev 5、PF-012 rev 10 只引
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日修订批）——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
+- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-002 rev 16、PF-006 rev 19** 为准；PF-016 rev 5、PF-005 rev 5、PF-012 rev 10 只引
 - **精确语义依赖**：
 
   | 坐标 | 消费的条款 | 取它的什么 | 本契约怎么用 |
   |---|---|---|---|
   | `omne-harness-lite-design-2026-09-15 · data.asset-model · v1`（**candidate**） | [S-2](../../asset-model/v1/contract.md#s-2-能力标识名的词法)、[S-10](../../asset-model/v1/contract.md#s-10-八类正文的外壳)、[S-12](../../asset-model/v1/contract.md#s-12-属性声明由正文推出)、[S-13](../../asset-model/v1/contract.md#s-13-设置项类别)、[S-14](../../asset-model/v1/contract.md#s-14-属性配值)、[S-15](../../asset-model/v1/contract.md#s-15-disabled-是保留项名)、[S-18](../../asset-model/v1/contract.md#s-18-资产持有)、[S-20](../../asset-model/v1/contract.md#s-20-出厂格与工作区格的持有)、[S-23](../../asset-model/v1/contract.md#s-23-凭据引用)、[S-36](../../asset-model/v1/contract.md#s-36-usableby-是保留项名) | 能力标识名的词法、mcp 那一支正文外壳、属性声明的形状与推出义务、设置项类别、属性配值与留存、保留项 `disabled` 与 `usableBy`、持有的键、工作区格的限制、凭据引用与「未配即缺席」 | 本契约的 `McpEndpoint` 就是 S-10 里 mcp 那一支 `$ref` 的值；[S-14](#s-14-推出规则五类项) 按 S-12 的形状给推出规则；凭据取值域引用它的 `$defs/CredentialRef`（写在推出的声明里，不在本契约 Schema 里） |
-  | `omne-harness-lite-design-2026-09-15 · data.tool-definition · v1`（**candidate**） | [S-14](../../tool-definition/v1/contract.md#s-14-时长的表示)、[S-15](../../tool-definition/v1/contract.md#s-15-执行权限) | 时长的表示；执行权限三档 | `$ref` 它的 `$defs/Duration`（两项超时）与 `$defs/ExecutePermission`（逐动作执行权限的作者默认） |
+  | `omne-harness-lite-design-2026-09-15 · data.tool-definition · v1`（**candidate**） | [S-14](../../tool-definition/v1/contract.md#s-14-时长的表示)、[S-15](../../tool-definition/v1/contract.md#s-15-执行权限)、[S-18](../../tool-definition/v1/contract.md#s-18-名字的表示与相等) | 时长的表示；执行权限三档；工具定义 `name` 的收窄（字符集、三种相邻、转写后长度） | `$ref` 它的 `$defs/Duration`（两项超时）与 `$defs/ExecutePermission`（逐动作执行权限的作者默认）；动作条目名 `$ref` 它的 `$defs/ToolName`（[S-11](#s-11-动作条目名)）；接入点 name 的收窄由它推出（[S-26](#s-26-接入点-name-登记时收窄)） |
   | `omne-harness-lite-design-2026-09-15 · data.identity-values · v1` | [S-31](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示)、[S-33](../../identity-values/v1/contract.md#s-33-表示层校验与判定分开) | 不透明标识的交换表示与空白码点集合；表示层校验与判定分开 | OAuth 绑定号与各处「空白」按 S-31 的散文自定义，**不 `$ref` 它的 `OpaqueIdentifier`**（主线 2026-09-23 S1-a 口径） |
   | `omne-harness-lite-design-2026-09-15 · data.offer-expiry · v1` | [S-22](../../offer-expiry/v1/contract.md#s-22-schema-的范围) | 时刻的规范形式 | `$ref` 它的 `$defs/Instant`：`fetchedAt`、`since` |
 
@@ -31,8 +31,8 @@
 | 设置项分四类、资产声明每一项时必须标类别 | [PF-002 §5.2](../../../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别) | S-14 |
 | 项的目录不需要单独维护；项的存在性由组装决定 | [PF-002 §5.2 两个推论](../../../../product/PF-002-assets-settings-and-permissions/design.md#由此得到两个推论) | S-15 |
 | 工作区那一级不参与权限计算；落点与身份类与 `immutable` 同样滤掉；工作区自己提供的资产权限取最严值、不认它自己声明的出厂值 | [PF-002 §5.7](../../../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算) | S-8、S-17 |
-| 对端动作在动作空间里是工具条目；随接入点持有与授权；每次开始前与可用性一起重算；连不上即不可用、替换件照最近一次拿到的清单装 | [PF-006 §6.13](../../../../product/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作) · [连不上就是不可用](../../../../product/PF-006-tools-and-skills/design.md#接入点连不上它的动作就是不可用) | S-9、S-11 |
-| 每一次执行尝试也算一次「开始」（**主线 2026-09-23 裁定 B-M03：动作集「一次运行之内不变」读作「一次尝试之内不变」**，产品修订待落） | [PF-012 §5.7 每一次尝试开始都要做四件事](../../../../product/PF-012-agent-loop-and-run/design.md#每一次尝试开始都要做四件事) | S-9、S-15 |
+| 对端动作在动作空间里是工具条目；随接入点持有与授权；每一次执行尝试开始前与可用性一起重取、一次尝试之内不变（rev 18）；连不上即不可用、替换件照最近一次拿到的清单装 | [PF-006 §6.13](../../../../product/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作) · [连不上就是不可用](../../../../product/PF-006-tools-and-skills/design.md#接入点连不上它的动作就是不可用) | S-9、S-11、S-15 |
+| 每一次执行尝试也算一次「开始」（主线 2026-09-23 裁定 B-M03，已落进 PF-006 rev 18 §6.13） | [PF-012 §5.7 每一次尝试开始都要做四件事](../../../../product/PF-012-agent-loop-and-run/design.md#每一次尝试开始都要做四件事) | S-9、S-15 |
 | MCP 客户端的采用：官方 SDK 上自写薄桥；本版桥 tools 列举与调用、取消与日志通知、静态鉴权（请求头 / stdio 环境变量）、stdio 与 Streamable HTTP、elicitation、进度、OAuth；不桥 resources 条目、prompts、sampling、roots、任务式动作、旧式 SSE；stdio 一律在据点机拉起 | [D-037](../../../../record/decisions/mcp-client-adoption/decision.md) | S-3～S-5、S-9 |
 | 统一语言正式名 | [MCP](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-mcp--mcp--mcp) · [MCP 凭据](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-mcp-credential--mcp-凭据--mcp-credential) · [工具定义](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition) · [资产持有](../../../../ubiquitous_language/terms/circulation-and-entitlement.md#ul-asset-holding--资产持有--asset-holding) · [属性配值](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-attribute-assignment--属性配值--attribute-assignment) · [能力标识](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier) | 全部英文名 |
 | 规格形式；部署边界；租户隔离 | [SYS-SPEC](../../../../foundation/cross-system-constraints/requirements.md#sys-spec) · [SYS-DEPLOY](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy) · [SYS-TENANT](../../../../foundation/cross-system-constraints/requirements.md#sys-tenant) | S-18～S-21；[第五节](#五装配给与协议给) |
@@ -48,6 +48,7 @@
 > | [S-13](#s-13-凭据配值的取值域) 凭据「还没取」即缺席、[S-14](#s-14-推出规则五类项) 不产出「能不能用」 | **主线裁定 2026-09-23，待产品负责人确认**（账本 S21-b：「未配」只有缺席一种写法；S18-c：「谁可以用」是 `data.asset-model` 保留的 `usableBy`） |
 > | [S-6](#s-6-正文不收凭据)、[S-9](#s-9-动作清单副本) 的「不在正文里」、[S-17](#s-17-工作区格上的这些项) 工作区的 stdio 接入点默认禁用 | **主线裁定 2026-09-23，待产品负责人确认**（账本 S19-a：副本、OAuth 绑定、凭据都按持有存放；S19-c：权力不从项目来） |
 > | [S-18](#s-18-规范表示)～[S-21](#s-21-表示层拒绝不是判定也不修补) | **SYS-SPEC** |
+> | [S-26](#s-26-接入点-name-登记时收窄) 接入点 name 登记时收窄、拒绝值 `name_not_projectable` | **主线裁定 2026-09-24**（修订批简报第五节；原 [G-11](#八已知缺口)）；收窄的具体内容由 `data.tool-definition/v1#S-18` 推出 |
 
 ## 一、目的与消费者
 
@@ -58,7 +59,7 @@
 1. **接入点正文**（`McpEndpoint`）——作者写下的连接目标，以及两项超时与逐动作执行权限的作者默认值；
 2. **连接目标的两种传输**（`McpTransport`）；
 3. **动作清单副本**（`ActionSnapshot`）与其中每一项**对端动作描述**（`McpToolDescriptor`）的形状；
-4. **动作条目名**（`McpActionName`）的拼法；
+4. **动作条目名**（`McpActionName`）的拼法，与**接入点 name 在 `mcp` 这一类里的收窄**（`McpEndpointName`，[S-26](#s-26-接入点-name-登记时收窄)）；
 5. **OAuth 绑定**（`OAuthBinding`）的形状与三个状态的含义；
 6. **凭据配值的取值域**——只有凭据引用；「还没取」是缺席；
 7. **属性项推出规则**——一个接入点有哪些设置项、哪些权限项，各自类别、取值域与默认值；
@@ -85,7 +86,7 @@
 | `capability.mcp-bridge` v1 | 全部形状：连接用 [S-3](#s-3-连接目标两种闭合)～[S-5](#s-5-streamable_http)，副本用 [S-9](#s-9-动作清单副本)、[S-10](#s-10-对端动作描述)，投影用 [S-11](#s-11-动作条目名) 与 [S-8](#s-8-执行权限的作者默认)，OAuth 用 [S-12](#s-12-oauth-绑定)、[S-13](#s-13-凭据配值的取值域) |
 | `data.asset-model` v1 | mcp 那一支正文 `$ref` 本契约的 `McpEndpoint`（结构上的前提，不是依赖）；[S-20](#s-20-表示层拒绝值与判定次序) 的拒绝值原名携带进它的 S-27 |
 | `capability.asset-evaluation` v1（candidate） | [S-14](#s-14-推出规则五类项)～[S-17](#s-17-工作区格上的这些项) 推出的属性声明；逐动作项要的那份动作集 |
-| `capability.asset-governance` v1（candidate） | 凭据配值写入时按 [S-13](#s-13-凭据配值的取值域) 判取值域；`credential_plaintext` 这个拒绝值 |
+| `capability.asset-governance` v1（candidate） | 凭据配值写入时按 [S-13](#s-13-凭据配值的取值域) 判取值域；`credential_plaintext` 这个拒绝值；登记一份 `mcp` 资产时按 [S-26](#s-26-接入点-name-登记时收窄) 判 name，`name_not_projectable` 这个拒绝值 |
 | 注册表（`capability.asset-registry` v1，candidate） | 动作条目名（[S-11](#s-11-动作条目名)）；副本的两支（[S-9](#s-9-动作清单副本)）——`not_fetched` 与空清单是两回事 |
 | 设置页与交付面（PF-002 §6.1、PF-016，无契约） | 属性声明长出表单；OAuth 绑定的三个状态与 `since` 用于呈现「有没有、哪一层的、什么时候取的」 |
 | `data.call-accounts` v1 | 一笔 MCP 对端收的钱记到哪个接入点：那边用接入点的能力标识规范串，**不用**本契约的动作条目名（两者拼法相近、含义不同，见 [S-11](#s-11-动作条目名)） |
@@ -135,6 +136,7 @@
 | `ActionSnapshot` | 动作清单副本 | [S-9](#s-9-动作清单副本) |
 | `McpToolDescriptor` | 对端动作描述 | [S-10](#s-10-对端动作描述) |
 | `McpActionName` | 动作条目名 | [S-11](#s-11-动作条目名) |
+| `McpEndpointName` | 一份 `mcp` 资产能力标识的 name（收窄后的） | [S-26](#s-26-接入点-name-登记时收窄) |
 | `OAuthBinding` | OAuth 绑定 | [S-12](#s-12-oauth-绑定) |
 | 凭据配值的取值域 | `CredentialRef`；「还没取」是缺席 | [S-13](#s-13-凭据配值的取值域) |
 
@@ -304,13 +306,30 @@
 **由此**：
 
 - **一个对端动作能不能成条目，看拼出的名字合不合第 1 条。**MCP 协议只**建议**工具名用字母、数字、`_`、`-`、`.`，并非强制；
-  **对端动作名带 `.`、空白、`/` 或 `__`，以 `_` 开头（拼接处成 `:_`），或拼出的名字转写后过长的，拼不出条目名**——那个动作怎样收（不进条目、留下可见记录）归 `capability.mcp-bridge`（它的 S-17）。
-  **接入点的 name 合 `data.asset-model` 的 S-2、却不合第 1 条的**（例如带 `.`、以 `_` 结尾），它的**每一个**动作都拼不出条目名（[G-11](#八已知缺口)）。**本契约不改写它**：改写（替换字符、截断、加哈希）会让两个对端动作撞到同一个名字上。
+  **对端动作名带 `.`、空白、`/` 或 `__`，以 `_` 开头（拼接处成 `:_`），或拼出的名字转写后过长的，拼不出条目名**——那个动作怎样收（不进条目、留下可见记录）归 `capability.mcp-bridge`（它的 S-17）。**本契约不改写它**：改写（替换字符、截断、加哈希）会让两个对端动作撞到同一个名字上。
+  **接入点那一段不会是拼不出的原因**：接入点的 name 在登记时已收窄到拼得出条目名的词法，不合的登不上（[S-26](#s-26-接入点-name-登记时收窄)，主线裁定 2026-09-24；原 G-11）。
 - **在同一个接入点之内，条目名与对端动作名一一对应**：前缀固定，余下部分就是对端动作名原样（[S-9](#s-9-动作清单副本) 第 3 条保证对端名不重复）。
 - **跨接入点可能撞名**：能力标识名允许 `:`，接入点 `a`＋动作 `b:c` 与接入点 `a:b`＋动作 `c` 拼出同一个 `a:b:c`；与作者写的工具名也可能相同。**本契约保证不了跨接入点唯一**——撞名怎样判归把条目装进动作空间的一方（注册表），见 [G-2](#八已知缺口)。
 - **条目名不可拆**：消费者**不得**从中拆出接入点或对端动作名（`data.tool-definition/v1` 的 [S-18](../../tool-definition/v1/contract.md#s-18-名字的表示与相等)「不解析」）——那两样在工具定义的 `origin` 里（`data.tool-definition/v1` 的 [S-17](../../tool-definition/v1/contract.md#s-17-来源)）。
 - **它不是能力标识，也不是规范串**：对端动作不是资产、没有能力标识（[PF-006 §6.13](../../../../product/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)）。一笔 MCP 对端收的钱记到的是**接入点**（`data.call-accounts` 用接入点能力标识的规范串），**不是**条目名。
 - **供应商对工具名的字符与长度限制由 `data.tool-definition/v1` 承担**：条目名在模型面转写成 `modelName`（`:` 换成 `__`，它的 [S-6](../../tool-definition/v1/contract.md#s-6-模型面只有一个条目)），逆转写唯一（它的 S-18）；本契约不另做呈现与映射。
+
+### S-26 接入点 name 登记时收窄
+
+**一份 `category = mcp` 资产的能力标识 name（`McpEndpointName`），在 `data.asset-model/v1` 的 [S-2](../../asset-model/v1/contract.md#s-2-能力标识名的词法) 四条之内再收窄一条：它后面接上 `:` 与一个字母，拼出的串合 `data.tool-definition/v1` 的 [S-18](../../tool-definition/v1/contract.md#s-18-名字的表示与相等) 对 `name` 的收窄**（主线裁定 2026-09-24；原 [G-11](#八已知缺口)）。
+「接一个字母」只是把「至少有一个对端动作名拼得出条目名」写成可判定的式子。展开恰是四条：
+
+1. 只含 `A`～`Z`、`a`～`z`、`0`～`9`、`_`、`:`、`-`；
+2. 不含 `__`、`_:`、`:_` 三种相邻；
+3. **不以 `_` 结尾**——否则拼接处成 `_:`；
+4. **转写之后不超过 125 个字符**：码点数加上其中 `:` 的个数 ≤ 125——给拼接处的 `:`（转写成两个字符）与至少一个字符的对端动作名留出位置。
+
+- **不合即拒，拒绝值 `name_not_projectable`**（[S-20](#s-20-表示层拒绝值与判定次序)）。它在**登记**一份 `mcp` 资产时判——资产治理的写面收下一份记录（新建、导入、登记官方件、读入工作区承载清单）时，与正文的校验一起做；
+  拒绝值由 `data.asset-model/v1` 的 [S-27](../../asset-model/v1/contract.md#s-27-表示层拒绝值) 原名携带（与 `data.slash-command` 收窄命令名同一条路，对齐义务见[验证入口](../verification.md#对齐义务)）。
+- **违反 `data.asset-model/v1#S-2` 本身的**（空串、含空白、含 `/`）仍是那边的 `name_invalid`；本条只管在它之内再收窄的那一部分。
+- **不修补**：不替换字符、不截断、不去掉结尾的 `_`——那会让两个接入点落到同一个名字上，也让这个接入点的身份不再是写入方给的那一个（[S-21](#s-21-表示层拒绝不是判定也不修补)）。
+- **为什么在登记时判**：不收窄，这样的接入点登得上、它的每一个动作却都拼不出条目名，要到投影时才看见；在登记时拒，名字由谁起、改成什么，都还在写入方手里。
+- **它保证了什么**：登得上的接入点，条目名拼不出只可能因为对端动作名（[S-11](#s-11-动作条目名)、`capability.mcp-bridge/v1#S-17`）。它**不保证**跨接入点不撞名（[G-2](#八已知缺口)）。
 
 ### S-12 OAuth 绑定
 
@@ -388,7 +407,7 @@
 
 - **`data.asset-model/v1#S-12` 第 1 条为 `mcp` 写明了这第二个输入**（2026-09-24 整批对齐；原 G-1）：逐动作项「随对端此刻提供的动作而有」（PF-002 §4 MCP），而对端此刻有什么不在正文里（[S-9](#s-9-动作清单副本)）；
   给定正文与动作集，推出仍是确定的——动作集不是「谁持有、在哪一格、什么时候」这类外部状态，而是推出的一个显式输入。
-- **动作集是哪一份，由求值的一方决定并写明**：一次执行尝试里用的，是注册表为这次尝试钉住的那一份（主线 2026-09-23 裁定 B-M03：动作集「一次尝试之内不变」）；设置页上呈现的，是哪一份副本——**未定**（[G-4](#八已知缺口)）。
+- **动作集是哪一份，由求值的一方决定并写明**：一次执行尝试里用的，是注册表为这次尝试钉住的那一份（动作集「一次尝试之内不变」：主线 2026-09-23 裁定 B-M03，已落进 [PF-006 §6.13](../../../../product/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作) rev 18）；设置页上呈现的，是哪一份副本——**未定**（[G-4](#八已知缺口)）。
 - **动作集是 `not_fetched` 时，逐动作项一条也推不出来**：那是「不知道有哪些动作」，**不是**「没有逐动作项」——与 `data.asset-model/v1#S-12` 对不透明壳的那一句是同一条规矩。**求值的一方不得把它当作「这个接入点没有动作」**；这时这个接入点没有工具条目（`capability.mcp-bridge`），逐动作项也就无从生效。
 
 ### S-16 逐动作项按动作名键
@@ -434,11 +453,11 @@
 
 - **规范表示**：[`mcp-endpoint.schema.json`](mcp-endpoint.schema.json)，JSON Schema **Draft 2020-12**。
   `$id` = `https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/mcp-endpoint/v1/mcp-endpoint.schema.json`
-- **定义项（6 项）**：`McpEndpoint`、`McpTransport`、`ActionSnapshot`、`McpToolDescriptor`、`McpActionName`、`OAuthBinding`。
+- **定义项（7 项）**：`McpEndpoint`、`McpTransport`、`ActionSnapshot`、`McpToolDescriptor`、`McpActionName`、`McpEndpointName`、`OAuthBinding`。
   消费者 `$ref` 这些定义，**不复制一份同义类型**。**根模式不约束任何文档**：本文件是共享定义的登记处。
 - **凭据配值的取值域不是一个定义项**：它写在推出的属性声明里（[S-13](#s-13-凭据配值的取值域)），引用 `data.asset-model` 的 `CredentialRef`。
 - **成员名一律 camelCase**，枚举值一律 snake_case 字符串；判别成员一律叫 `kind`。
-- **外部引用**：`Instant` 取自 `data.offer-expiry/v1`；`Duration`、`ExecutePermission` 取自 `data.tool-definition/v1`。
+- **外部引用**：`Instant` 取自 `data.offer-expiry/v1`；`Duration`、`ExecutePermission`、`ToolName`（`McpActionName` 用）取自 `data.tool-definition/v1`；`CapabilityName`（`McpEndpointName` 在其上收窄）取自 `data.asset-model/v1`。
 - **正反实例**：[`examples.md`](examples.md)，本版的规范工件。
 
 ### S-19 判别式与枚举闭合
@@ -450,10 +469,10 @@
 
 ### S-20 表示层拒绝值与判定次序
 
-**表示层拒绝值是一个闭合集合，恰六个，没有「其他」**：`malformed`、`transport_unknown`、`credential_plaintext`、`command_empty`、`url_invalid`、`snapshot_missing_time`。
+**表示层拒绝值是一个闭合集合，恰七个，没有「其他」**：`malformed`、`transport_unknown`、`credential_plaintext`、`command_empty`、`url_invalid`、`snapshot_missing_time`、`name_not_projectable`（最后一个 2026-09-24 加入，主线裁定，[S-26](#s-26-接入点-name-登记时收窄)）。
 
 **一份输入命中多行时，报下表中最靠前的那一行**——两个实现对同一份坏输入必须给出同一个值。
-**`malformed` 的来由逐条编为 `M1`～`M13`，这份清单就是它的全部来由**：一份输入不合 Schema、却对不上下表任何一行，是本契约的缺陷，不是第七个值。
+**`malformed` 的来由逐条编为 `M1`～`M13`，这份清单就是它的全部来由**：一份输入不合 Schema、却对不上下表任何一行，是本契约的缺陷，不是第八个值。
 同属 `malformed` 的几条可以重叠（一个数字形式的超时既是 M5 也是 M8），重叠不改变报出的值。
 
 | 次序 | 拒绝值 | 条件 |
@@ -464,7 +483,8 @@
 | 4 | `command_empty` | stdio 的 `command` 是字符串，但为空串或全是空白 |
 | 5 | `url_invalid` | streamable_http 的 `url` 是字符串，但不合 [S-5](#s-5-streamable_http) 第 1～3 条（带 userinfo 的已在第 3 行报） |
 | 6 | `snapshot_missing_time` | `ActionSnapshot.kind` 是 `fetched`，却没有 `fetchedAt` |
-| 7 | `malformed` | 下列任一：**M3** 缺其余必填成员——正文的 `transport`、`timeouts`、`permissions`，`timeouts` 的两项，`permissions.execute` 与它的 `default`，stdio 的 `command`、`args`，streamable_http 的 `url`，`fetched` 的 `tools`，对端动作描述的 `name`、`inputSchema`，OAuth 绑定的三项；**M4** 出现未登记的成员（第 3 行那一种除外）——正文、`timeouts`、`permissions`、`execute`、两种传输、副本两支、OAuth 绑定任一处；`actions`、`oauth`、`headers`、`permissions.use` 出现在正文上都在此；**M5** 成员或数组元素的 JSON 类型不对，含 `null`（第 2、3、4、5 行各自那一处除外）；**M6** `ActionSnapshot.kind`、`OAuthBinding.state`、`permissions.execute.default` 在，但不在各自的闭合集合里；**M7** `fetchedAt` 或 `since` 不合 `Instant`；**M8** 两项超时不合 `Duration`，或为零；**M9** `env` 的名为空、含 `=` 或 NUL，或值含 NUL；**M10** 同一份副本里两项对端动作的 `name` 相同；**M11** 对端动作描述的 `name` 是空串，或 `description` 在却不是字符串；**M12** OAuth 绑定号为空、或首末字符属于空白码点集合；**M13** 一个串被当作动作条目名，却不合 [S-11](#s-11-动作条目名) 的词法（只在检查一个派生出的条目名时出现，见[实例第 4 节](examples.md#4-动作条目名)） |
+| 7 | `name_not_projectable` | 登记的一份 `mcp` 资产，能力标识的 name 合 `data.asset-model/v1#S-2`（否则是那边的 `name_invalid`），却不合 [S-26](#s-26-接入点-name-登记时收窄) 四条中的任一条（第 4 条里 `:` 算两个的那一半在 Schema 之外） |
+| 8 | `malformed` | 下列任一：**M3** 缺其余必填成员——正文的 `transport`、`timeouts`、`permissions`，`timeouts` 的两项，`permissions.execute` 与它的 `default`，stdio 的 `command`、`args`，streamable_http 的 `url`，`fetched` 的 `tools`，对端动作描述的 `name`、`inputSchema`，OAuth 绑定的三项；**M4** 出现未登记的成员（第 3 行那一种除外）——正文、`timeouts`、`permissions`、`execute`、两种传输、副本两支、OAuth 绑定任一处；`actions`、`oauth`、`headers`、`permissions.use` 出现在正文上都在此；**M5** 成员或数组元素的 JSON 类型不对，含 `null`（第 2、3、4、5 行各自那一处除外）；**M6** `ActionSnapshot.kind`、`OAuthBinding.state`、`permissions.execute.default` 在，但不在各自的闭合集合里；**M7** `fetchedAt` 或 `since` 不合 `Instant`；**M8** 两项超时不合 `Duration`，或为零；**M9** `env` 的名为空、含 `=` 或 NUL，或值含 NUL；**M10** 同一份副本里两项对端动作的 `name` 相同；**M11** 对端动作描述的 `name` 是空串，或 `description` 在却不是字符串；**M12** OAuth 绑定号为空、或首末字符属于空白码点集合；**M13** 一个串被当作动作条目名，却不合 [S-11](#s-11-动作条目名) 的词法（只在检查一个派生出的条目名时出现，见[实例第 4 节](examples.md#4-动作条目名)） |
 
 - **第 3 行排在前面是有意的**：一份输入既有凭据写错了地方、又有别的毛病时，先告诉写入方「秘密放错了地方」。这是本契约对 [SYS-SPEC](../../../../foundation/cross-system-constraints/requirements.md#sys-spec)「同一输入同一答案」之外的唯一取舍，理由是那个错误的后果最大。
 - **这些拒绝值在哪一个操作的失败集合里出现，归调用那个操作的契约**：资产治理的写面（写正文、写凭据配值）、`capability.mcp-bridge` 的副本写入与投影。**它们引用本条的名字，不另起一套同义值**；一份资产记录里的接入点正文违反本条，`data.asset-model` v1 的 [S-27](../../asset-model/v1/contract.md#s-27-表示层拒绝值) 原名携带这里的值。
@@ -483,6 +503,7 @@
 | [S-3](#s-3-连接目标两种闭合)～[S-5](#s-5-streamable_http) | **管得到**：两种闭合、`command` 非空白、`env` 的名与值、`url` 的写法 | 「不做 shell 展开与插值」是桥的行为；`url` 查询串里的秘密管不到 |
 | [S-9](#s-9-动作清单副本)、[S-10](#s-10-对端动作描述) | 管两支、`fetched` 三个成员、描述的三个受约束成员 | **对端动作名不重复**（M10）管不到；「完整」「原样」「只由桥写」是行为约束，归 `capability.mcp-bridge` |
 | [S-11](#s-11-动作条目名) | 管词法 | 拼法（前缀就是接入点的 name）与跨接入点撞名管不到 |
+| [S-26](#s-26-接入点-name-登记时收窄) | `McpEndpointName` 管字符集、三种相邻、不以 `_` 结尾、码点数 ≤ 125 | `:` 算两个的那一半（转写后长度）；「在登记时判」是写面的义务 |
 | [S-12](#s-12-oauth-绑定) | 管形状与三值 | 唯一、不可猜、迁移规则——行为约束 |
 | [S-13](#s-13-凭据配值的取值域) | 由推出的声明里那份 `schema` 管，不在本文件 | 「引用是保管方发出的」管不到（写入方义务） |
 | [S-14](#s-14-推出规则五类项)～[S-17](#s-17-工作区格上的这些项) | 不是一个形状 | 推出规则的实现与 `capability.asset-evaluation` |
@@ -503,6 +524,7 @@
 | P-5 | 动作消失再出现，原配值照旧生效 | 安全 | 主线 A-G12 | 推出规则按动作名键（[S-16](#s-16-逐动作项按动作名键)）＋ `data.asset-model/v1#S-14` 的留存 | 组织配的「禁止」在对端撤下又加回之后悄悄回到作者默认 |
 | P-6 | 条目名在一个接入点内与对端动作名一一对应；本契约不改写对端动作名 | 不变量 | 起草简报账本 · [PF-006 §6.3](../../../../product/PF-006-tools-and-skills/design.md#63-不可用时装的是同名替换件不是不装) 同形 | 拼法（[S-11](#s-11-动作条目名)） | 两个对端动作落到同一个条目上；或替换件与原件不同名 |
 | P-7 | 缺席不补、表示非法即拒、拒绝值唯一 | 安全 | SYS-SPEC | 每个接收边界（[S-20](#s-20-表示层拒绝值与判定次序)、[S-21](#s-21-表示层拒绝不是判定也不修补)） | 两个实现对同一份坏输入报不同的拒绝值；或缺的执行权限被补成 `auto` |
+| P-8 | 登得上的接入点，它的 name 拼得出条目名的前缀 | 不变量 | 主线裁定 2026-09-24 | 登记时的写面校验（[S-26](#s-26-接入点-name-登记时收窄)） | 一个接入点登得上、它的每一个动作却都被桥以「条目名拼不出」排除 |
 
 **本契约不拥有任何进展性质**：它没有状态转移。**不建 `formal/`**：结构约束 Schema 与条款即可表达，没有需要在给定规模里找反例的关系；
 属性项在各格上怎样求值的结构性质归 `capability.asset-evaluation` 的 Alloy 模型（`data.asset-model` 的验证入口已登记），那份模型消费本契约推出的声明。
@@ -570,7 +592,7 @@
 | **G-8** | **是否禁止明文 `http` 连外网地址**（[S-5](#s-5-streamable_http)） | 凭据可能在明文信道上出示 | **产品负责人**（治理政策）；本版不禁 |
 | **G-9** | **已闭合（2026-09-24 整批对齐）**：属性配值带 `since`（`data.asset-model/v1#S-14`；主线裁定 2026-09-23，待产品负责人确认，账本 S11-G14） | — | — |
 | **G-10** | **已闭合（2026-09-24 整批对齐）**：`data.asset-model` v1 的 mcp 一支已 `$ref` 本契约的 `McpEndpoint` | — | — |
-| **G-11** | **接入点的 name 要不要收窄到工具名的词法**：`data.asset-model` 的 S-2 允许 `.` 等字符、允许以 `_` 结尾，而条目名要合 `data.tool-definition/v1#S-18`（[S-11](#s-11-动作条目名)）；这样的接入点照样登得上，它的每一个动作却都拼不出条目名。收窄（S-2 许正文契约收窄）会让这类名字在登记时就被拒 | 名字不合的接入点「登得上、用不了」，要到投影时才看见 | **主线**（规格层；本版不收窄） |
+| **G-11** | **已关闭（主线裁定 2026-09-24）**：接入点 name 在登记时收窄到拼得出条目名的词法，不合即拒，拒绝值 `name_not_projectable`（[S-26](#s-26-接入点-name-登记时收窄)） | — | — |
 
 **它们都不是默认值**：消费者碰上时停在缺口，不挑一个看起来合理的答案。
 

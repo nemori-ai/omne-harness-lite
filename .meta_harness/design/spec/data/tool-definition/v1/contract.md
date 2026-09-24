@@ -5,8 +5,8 @@
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.tool-definition, 1)`——
   `family = data`、`topic = tool-definition`、规范路径 `spec/data/tool-definition/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐）——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
-- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-006 rev 17**、**PF-002 rev 16**、**PF-005 rev 5** 为准；
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按 PF-006 rev 19 修订）——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
+- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-006 rev 19**、**PF-002 rev 16**、**PF-005 rev 5** 为准；
   只引而不据以立条款的：PF-007 rev 16、PF-009 rev 7、PF-012 rev 10
 - **精确语义依赖**（逐项在 catalog 登记）：
 
@@ -26,7 +26,8 @@
 |---|---|---|
 | 「工具」指三样东西，定义是数据 | [PF-006 §5.2](../../../../product/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同) | S-1、S-30 |
 | 一份工具定义长什么样：两种范式 | [PF-006 §5.3](../../../../product/PF-006-tools-and-skills/design.md#53-一份工具定义长什么样) | S-3～S-7 |
-| 多命令定义里带多少是作者的权衡；`help` 可选、带了须与 `inspect` 一致 | [PF-006 §5.3 那一小节](../../../../product/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡) | S-5、S-7、S-8 |
+| 多命令工具在模型面前只有紧凑的命令清单一种样子；带不带每个命令的完整参数是作者的权衡——带了用于校验与答用法、不进模型面前，没带则参数对不对由工具自己判；`help` 可选、带了须与 `inspect` 一致 | [PF-006 §5.3 那一小节](../../../../product/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡)（rev 19） | S-5、S-7、S-8 |
+| 工具说明与每个参数的说明必填；多命令工具每个命令那一行说明也必填 | [PF-006 §5.3 说明必填](../../../../product/PF-006-tools-and-skills/design.md#工具说明与每个参数的说明必填)（rev 19） | S-4、S-5、S-8 |
 | 六项可选声明及各自的缺省 | [PF-006 §5.3 六项可选声明](../../../../product/PF-006-tools-and-skills/design.md#六项可选声明) | S-9、S-11 |
 | 其中两项是设置项：形状与默认值由定义给 | [PF-006 §5.3 其中两项声明的是设置项](../../../../product/PF-006-tools-and-skills/design.md#其中两项声明的是设置项) | S-10～S-12 |
 | 不在定义里的三样 | [PF-006 §5.3 不在定义里的三样](../../../../product/PF-006-tools-and-skills/design.md#不在定义里的三样) · [帧由协议约定，不由定义声明](../../../../product/PF-006-tools-and-skills/design.md#帧长什么样由一份协议约定不由工具定义声明) | S-29 |
@@ -34,6 +35,7 @@
 | 依赖：一串必需项的抽象名字 | [PF-006 §4 依赖](../../../../product/PF-006-tools-and-skills/design.md#依赖) · [只有且，只有必需](../../../../product/PF-006-tools-and-skills/design.md#只有且只有必需) · [§6.4](../../../../product/PF-006-tools-and-skills/design.md#64-依赖声明与解析) | S-9、S-19、S-24 |
 | 替换件同形、只换说明 | [PF-006 §6.3](../../../../product/PF-006-tools-and-skills/design.md#63-不可用时装的是同名替换件不是不装) | S-6、S-8、S-27 |
 | 后台许可与转后台阈值 | [PF-006 §6.6](../../../../product/PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度) | S-12 |
+| 前台上限与并发上限是偏好类设置：定义给默认值、各层配值，不设就没有这一项限制 | [PF-006 §6.6 前台上限与并发上限](../../../../product/PF-006-tools-and-skills/design.md#前台上限与并发上限) | S-13 |
 | 工具怎么提执行环境的要求 | [PF-006 §6.8](../../../../product/PF-006-tools-and-skills/design.md#68-工具怎么提执行环境的要求) | S-11 |
 | 卸载的两条来路；系统不替作者写摘要 | [PF-006 §6.10](../../../../product/PF-006-tools-and-skills/design.md#610-结果太大时卸载而卸载是第三个维度) · [两条来路，产物不同](../../../../product/PF-006-tools-and-skills/design.md#两条来路产物不同) · [§4 卸载](../../../../product/PF-006-tools-and-skills/design.md#卸载) | S-23 |
 | 工具两端各要什么模态 | [PF-006 §6.11](../../../../product/PF-006-tools-and-skills/design.md#611-工具两端各要什么模态) | S-9、S-19、S-24 |
@@ -51,8 +53,9 @@
 | 起点：按 PF-006 §5.3 自研，三源只作参考 | [D-031](../../../../record/decisions/tool-definition-baseline/README.md) | 全文 |
 | 产品负责人对形状草案的裁决：**Q5** 多命令工具的模型面是一份 schema、带 `command` 判别；**Q6** 设置与执行权限的默认值由定义给；**Q7**（备查）作者卸载却没写摘要时占位由运行时给 | [D-038 Q5 / Q6 / Q7](../../../../record/decisions/message-and-shape-rulings/decision.md#十九处分岔) | S-6、S-7（Q5）；S-10、S-15（Q6）；S-23（Q7） |
 | 命令 `input` 里不许有根相对 `$ref` 与 `$id`；设置项与权限项按推出规则产出资产的属性声明；来源改名 `ToolSource`；`name` 就是能力标识的名、不是第二身份；MCP 条目的模态按桥的投影判 | 主线裁定 2026-09-23，待产品负责人确认（账本 S5-f、S19；对齐义务见 `data.asset-model` 验证入口） | S-2、S-7、S-10、S-17、S-24、S-31 |
-| **工具定义必须能直接构造出各家模型供应商要求的工具 payload**：三家的模型面条目都是同一份三元组 `{name, description, 参数 schema}`、只差键名与外壳；参数 schema 顶层 `type: "object"`；每个参数带说明；Anthropic 的工具名正则不含 `:` | [研究 V-1～V-4](../../../../../research/tool-definition-shape-sources/evidence.md)，产品负责人 2026-09-24 要求（V 组取证钉在主检出 `tmp/sources/extracted/`，只对抓取当日的页面成立） | S-4、S-6、S-7、S-18、S-26、[第七节](#七装配给与协议给)、G-1、G-12 |
-| **多命令工具的模型面只支持 flat 形**：`command` 枚举带命令表说明、`args` 只说「是一个对象」，不生成 `oneOf` 判别联合；判定仍按所选命令的 `input` | 产品负责人裁定 2026-09-24；D-038 Q5「一份 schema 带判别字段」的 flat 读法；对照 omne-next `multi_command.py` 默认 `dispatch_mode="flat"`（[研究 O-2](../../../../../research/tool-definition-shape-sources/evidence.md#o-2-多命令范式-basemulticommandtool)） | S-5、S-7、S-8、CS-1、G-3、G-12 |
+| **工具定义必须能直接构造出各家模型供应商要求的工具 payload**：三家的模型面条目都是同一份三元组 `{name, description, 参数 schema}`、只差键名与外壳；参数 schema 顶层 `type: "object"`；每个参数带说明；Anthropic 的工具名正则不含 `:` | [研究 V-1～V-4](../../../../../research/tool-definition-shape-sources/evidence.md)，产品负责人 2026-09-24 要求（V 组取证钉在主检出 `tmp/sources/extracted/`，只对抓取当日的页面成立）；「说明必填」的产品正文是 [PF-006 §5.3](../../../../product/PF-006-tools-and-skills/design.md#工具说明与每个参数的说明必填)（rev 19） | S-4、S-6、S-7、S-18、S-26、[第七节](#七装配给与协议给)、G-1、G-12 |
+| **多命令工具的模型面只支持 flat 形**：`command` 枚举带命令表说明、`args` 只说「是一个对象」，不生成 `oneOf` 判别联合；判定仍按所选命令的 `input` | 产品负责人裁定 2026-09-24，落在 [PF-006 §5.3](../../../../product/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡)（rev 19：模型面前只有命令清单一种样子）；D-038 Q5「一份 schema 带判别字段」的 flat 读法；对照 omne-next `multi_command.py` 默认 `dispatch_mode="flat"`（[研究 O-2](../../../../../research/tool-definition-shape-sources/evidence.md#o-2-多命令范式-basemulticommandtool)） | S-5、S-7、S-8、CS-1、G-3、G-12 |
+| **MCP 来源定义的说明与参数 schema 由桥做最小规范化**（缺说明补占位、剥 `$schema`／`title`、`{"type": "object"}` 视为无参数） | 主线裁定 2026-09-24（`capability.mcp-bridge/v1#S-17`；缘起 [PF-006 decisions §四「MCP 动作缺说明」](../../../../product/PF-006-tools-and-skills/decisions.md#四已知的来源问题)） | S-17 |
 | 规格形式 | [SYS-SPEC](../../../../foundation/cross-system-constraints/requirements.md#sys-spec) | S-14、S-18、S-26～S-28 |
 | 部署边界 | [SYS-DEPLOY](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy) | [第七节](#七装配给与协议给) |
 
@@ -186,7 +189,7 @@ MCP 列举怎样生成定义（`capability.mcp-bridge` v1 的 S-17）；技能�
 1. **顶层恰带 `"type": "object"` 与 `properties`**：`type` 的值就是字符串 `"object"`，`properties` 是一个对象、**可以为空对象**，`required` 可带可不带。
    不合 ⇒ `malformed`（M26）。依据：OpenAI 明写 `parameters` 顶层须 `type: "object"`（研究 V-1），Anthropic 的 `input_schema` 与它组装进系统提示的写法同（V-2）。
 2. **任何一处 `properties` 的每一个成员 schema 都带非空的 `description`**——顶层的参数、嵌套对象的参数、数组 `items` 是对象时它的参数、`anyOf`／`oneOf` 各支里的参数，一概如此。
-   缺了或为空串 ⇒ `parameter_description_missing`（[S-26](#s-26-表示层拒绝值与判定次序) 第 6 行）。依据：两家都把参数说明当作模型用对工具的关键（研究 V-1「推荐」、V-2「最重要的因素」），写成必填代价为零（V-4 第 3 条）。
+   缺了或为空串 ⇒ `parameter_description_missing`（[S-26](#s-26-表示层拒绝值与判定次序) 第 6 行）。依据：[PF-006 §5.3「工具说明与每个参数的说明，必填」](../../../../product/PF-006-tools-and-skills/design.md#工具说明与每个参数的说明必填)（rev 19）——缺了就不是一份完整的工具定义；两家都把参数说明当作模型用对工具的关键（研究 V-1「推荐」、V-2「最重要的因素」），写成必填代价为零（V-4 第 3 条）。
 3. **只用可呈现子集里的关键字**：`type` `properties` `required` `description` `enum` `const` `items` `additionalProperties` `anyOf` `oneOf` `minimum` `maximum` `minLength` `maxLength` `pattern` `format` `default`。
    别的关键字——含任何 `$ref`、`$id`、`$defs`、`$schema`、`title`、`allOf`、`not`、`if`——⇒ `malformed`（M27）。这一份就是「**非 strict 模式下 OpenAI Chat Completions 与 Anthropic 都直接接受**」的子集（[G-12](#十已知缺口) 收窄到这里）。
    只在 schema 的位置上数关键字：`properties` 下的成员名是参数名、`enum`／`const`／`default` 的值是数据，都不是关键字；子 schema 的位置恰是 `properties` 的每个成员、`items`、是对象时的 `additionalProperties`、`anyOf` 与 `oneOf` 的每一支。
@@ -204,8 +207,8 @@ MCP 列举怎样生成定义（`capability.mcp-bridge` v1 的 S-17）；技能�
 - **命令是工具的内部结构，不是资产**（[PF-002 §4 Tool](../../../../product/PF-002-assets-settings-and-permissions/design.md#tool)）：
   命令没有自己的能力标识、持有、设置或权限，随工具一起被持有、配置与授权；命令名只在这个工具之内有意义。
 - **定义里带多少，是作者的权衡**（[PF-006 §5.3](../../../../product/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡)）：
-  只带命令清单、每个一句话，或带全部命令的完整参数，系统不替他选。**两种写法的模型面相同**（[S-7](#s-7-多命令-input-的生成规则)：模型面不展示任何命令的参数 schema，产品负责人裁定 2026-09-24）；带多少只改变判定有多严、`Tools().inspect` 与 `help` 答得多细。
-  **只带命令清单的写法**：各命令的 `input` 写 `{"type": "object", "properties": {}}`（收任何一个对象作参数——[S-4](#s-4-单函数工具) 第 1 条要它顶层是对象），用法由 `help` 与 `Tools().inspect` 给。
+  只带命令清单、每个一句话，或带全部命令的完整参数，系统不替他选。**两种写法的模型面相同**（[S-7](#s-7-多命令-input-的生成规则)：模型面不展示任何命令的参数 schema；PF-006 rev 19「模型面前只有紧凑的命令清单一种样子」）；带多少只改变判定有多严、`Tools().inspect` 与 `help` 答得多细。
+  **只带命令清单的写法**：各命令的 `input` 写 `{"type": "object", "properties": {}}`（收任何一个对象作参数——[S-4](#s-4-单函数工具) 第 1 条要它顶层是对象）：交上来的参数系统据以判的只有「是一个对象」，**对不对由工具自己判**；`Tools().inspect` 答得出的只有命令清单（作者带了 `help` 的，还有那段文本）（PF-006 §5.3 那张表第一行）。
 
 ### S-6 模型面只有一个条目
 
@@ -241,7 +244,7 @@ modelName(d)   ≝  d.name 里每一个 ":" 换成 "__"     （S-18 保证它可
 ### S-7 多命令 input 的生成规则
 
 **`generateMultiInput(commands)` 恰是下面这个对象**——**flat 形**：一个 `command` 枚举、一个不展示参数的 `args`
-（产品负责人裁定 2026-09-24；D-038 Q5「一份 schema 带判别字段」的 flat 读法；对照 omne-next `multi_command.py` 默认 `dispatch_mode="flat"`，[研究 O-2](../../../../../research/tool-definition-shape-sources/evidence.md#o-2-多命令范式-basemulticommandtool)）：
+（产品负责人裁定 2026-09-24，产品正文 [PF-006 §5.3](../../../../product/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡) rev 19：模型面前只有「选哪个命令」「交给它的参数」两格；D-038 Q5「一份 schema 带判别字段」的 flat 读法；对照 omne-next `multi_command.py` 默认 `dispatch_mode="flat"`，[研究 O-2](../../../../../research/tool-definition-shape-sources/evidence.md#o-2-多命令范式-basemulticommandtool)）：
 
 ```json
 {
@@ -299,7 +302,8 @@ omne-next 另有 `typed_union`（按每个命令的参数合成判别联合、�
 
 ### S-8 说明与用法
 
-- **`description` 必填、非空**：模型面那个条目的说明（多命令工具是整个工具的说明）。每个命令各自的 `description` 必填，说明那一个命令。
+- **`description` 必填、非空**：模型面那个条目的说明（多命令工具是整个工具的说明）。每个命令各自的 `description` 必填，说明那一个命令——它就是模型面前命令清单里的那一行（[S-7](#s-7-多命令-input-的生成规则) 第 2 条）。
+  依据 [PF-006 §5.3「工具说明与每个参数的说明，必填」](../../../../product/PF-006-tools-and-skills/design.md#工具说明与每个参数的说明必填)（rev 19）；参数的说明见 [S-4](#s-4-单函数工具) 第 2 条。
 - **`help` 可选**——工具一层一份，多命令工具的每个命令还可以各带一份——**不强制**。
 - **带了，就必须与 [`Tools().inspect`](../../../../product/PF-007-meta-capabilities/design.md#61-tools通向任意非常驻工具) 对这个工具（这个命令）给出的用法一致**：
   同一个工具的用法有两处说法，对不上 agent 就分不出该信哪个——**两处不一致是缺陷，不是风格差异**（[PF-006 §5.3](../../../../product/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡)）。
@@ -377,7 +381,7 @@ omne-next 另有 `typed_union`（按每个命令的参数合成判别联合、�
   **它不是设置**：没有任何一层能改它；人可以决定「现在切」，不能决定「它能不能切」。
 - **`settings.backgroundThreshold`：前台跑超过多久自动转后台**，`Duration`，类别恒为 `preference`。
 - **阈值不授予许可**：`allowBackground` 不为 `true` 的工具，**不论哪个触发源都不转后台**——
-  三个触发源（阈值到了、用户手动切、插队顺带）**都不绕开这条声明**（PF-006 §6.6）。
+  三个触发源（阈值或前台上限到了、用户手动切、插队顺带）**都不绕开这条声明**，「发起时就在后台」同样不绕开（PF-006 §6.6）。
 - **所以声明了阈值，就必须同时声明 `allowBackground: true`**；否则即 `malformed`（M15）。
   **理由**：没有许可的阈值永远用不上，声明一个永远用不上的值只会误导读定义与配值的人。
 - `allowBackground` 为 `true` 而没声明阈值：这个工具**没有**「转后台阈值」这一项（[S-10](#s-10-设置项声明)），**不会因时长自动转后台**；
@@ -388,9 +392,10 @@ omne-next 另有 `typed_union`（按每个命令的参数合成判别联合、�
 - `settings.timeout`：`Duration`，类别恒为 `preference`。
 - `settings.concurrency`：正整数（≥ 1），类别恒为 `preference`。
 - 依据：[PF-002 §4 Tool](../../../../product/PF-002-assets-settings-and-permissions/design.md#tool)「设置：超时、并发、目标环境等」，
-  以及 [PF-002 §5.2](../../../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)把「超时」「并发」列在偏好那一行的例子里。
-- **本契约只定形状、类别与默认值的位置。**超时到了落哪种收场、计不计等待态与转后台之后的时段、零值是什么意思；
-  并发按什么范围计数、超出时排队还是拒绝——**都未定，[G-6](#十已知缺口)**；消费者**不得自行补一个解释**。
+  以及 [PF-002 §5.2](../../../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)把「超时」「并发」列在偏好那一行的例子里；
+  [PF-006 §6.6「前台上限与并发上限」](../../../../product/PF-006-tools-and-skills/design.md#前台上限与并发上限)：`timeout` 就是产品正文的**前台上限**，`concurrency` 就是**并发上限**，都是偏好类、定义给默认值、各层配值，**不设就没有这一项限制**。
+- **本契约只定形状、类别与默认值的位置。**两项的语义——前台上限只数在前台跑的时间、到点许后台的转后台、不许的被中断；并发上限按同一会话同一工具计、超出的排队——
+  是产品正文 PF-006 §6.6 那一小节给的，由执行运行时兑现（`capability.tool-execution-runtime/v1#S-43`、`#S-44`；原 [G-6](#十已知缺口) 关闭）。**零值**对前台上限意味着什么，由执行运行时那一条写（它的 S-44）。
 - 不声明：这个工具没有这一项设置（[S-10](#s-10-设置项声明)）。运行时是否另有别的限制不在本契约。
 
 ### S-14 时长的表示
@@ -399,7 +404,7 @@ omne-next 另有 `typed_union`（按每个命令的参数合成判别联合、�
 **不给数值上限**——本契约不出现任何时长数值。例：`PT30S`、`PT1H30M`、`PT0.5S`。
 
 - **不收年、月、周、日**：它们是日历单位，长度取决于从哪一天算起，两个实现会对 `P1M` 算出两个时长。两天写 `PT48H`。**这一条是本契约的推导。**
-- **不收负号。**`PT0S` 合法；它对某一项设置意味着什么归那一项（[S-12](#s-12-后台许可与转后台阈值)、[G-6](#十已知缺口)）。
+- **不收负号。**`PT0S` 合法；它对某一项设置意味着什么归那一项（[S-12](#s-12-后台许可与转后台阈值)、[S-13](#s-13-超时与并发)）。
 - **相等按时长值比较，不按字面**：`PT60S` 与 `PT1M` 是同一个时长。
 
 ### S-15 执行权限
@@ -447,6 +452,9 @@ omne-next 另有 `typed_union`（按每个命令的参数合成判别联合、�
 
 `name` 怎样从 `(endpoint, remoteName)` 得出、六项声明与执行权限默认值怎么取，由 `capability.mcp-bridge` v1 S-17（`projectActions`）给出（原 G-8）；
 两端模态怎样判见 [S-24](#s-24-结果与声明对得上)。未知的 `kind` 即 `origin_unknown`。
+
+**MCP 来源定义的 `description` 与 `input` 是桥投影的结果，不一定是对端原话**：对端缺说明、带 `$schema`／`title`、只写 `{"type": "object"}` 的，桥先做最小规范化再交出定义（`capability.mcp-bridge/v1#S-17`，主线裁定 2026-09-24）。
+**规范化只在桥里**：交到本契约的定义照常过表示层校验，本契约不因来源是 `mcp` 放宽任何一条（[S-4](#s-4-单函数工具) 的三条硬要求、[S-26](#s-26-表示层拒绝值与判定次序)）。
 
 **`origin` 的形状在 Schema 里叫 `ToolSource`**（主线裁定 2026-09-23，待产品负责人确认）：`data.asset-model` 的 `AssetOrigin`（`official`／`customized`）说的是资产记录的出处，与这里「定义由谁写、还是由 MCP 列举生成」是两件事，不共用一个名字；成员名 `origin` 不变。
 
@@ -688,7 +696,7 @@ s  ≡  { content: [ { kind: "text", text: s, id: <运行时给>, visibility: { 
 | [S-8](#s-8-说明与用法) `help` 与 `inspect` 一致 | **管不到** | 给出 `inspect` 答案的那一方；证据义务 V-3 |
 | [S-9](#s-9-四项依赖名)～[S-15](#s-15-执行权限) 声明、设置、权限 | **管得到**：成员集合、类别定死、枚举、时长、并发下限、执行权限必填、有阈值必有许可（M15） | 各层配值与求值、依赖解析 |
 | [S-12](#s-12-后台许可与转后台阈值)「没有许可不转后台」 | **管不到** | 执行运行时 |
-| [S-16](#s-16-组合)、[S-17](#s-17-来源) 组合与来源 | 管得到：MCP 来源单函数、不组合、端点类别 | `name` 的生成与撞名（[G-8](#十已知缺口)）、组合图成环 |
+| [S-16](#s-16-组合)、[S-17](#s-17-来源) 组合与来源 | 管得到：MCP 来源单函数、不组合、端点类别 | `name` 的生成、说明与参数 schema 的规范化（`capability.mcp-bridge/v1#S-17`）；撞名（`data.mcp-endpoint` 的 G-2）；组合图成环 |
 | [S-18](#s-18-名字的表示与相等) 名字 | `name` 见 S-2 那一行；其余名字只管非空 | 逐码点相等、不解析是用法约束；`name` 转写后的长度在 Schema 之外 |
 | [S-19](#s-19-由定义得出的依赖声明)、[S-24](#s-24-结果与声明对得上) 声明与实际 | **管不到**——Schema 看不到定义与结果的配对 | 执行运行时；证据义务 V-4 |
 | [S-20](#s-20-两种写法与等价规则) 等价规则 | 只管两种写法 | 转换本身归接收返回值的运行时 |
@@ -734,7 +742,7 @@ Schema 的 `additionalProperties: false` 挡住这类成员。
 |---|---|---|
 | **`modelInput` 由定义算出**（[S-6](#s-6-模型面只有一个条目)、[S-7](#s-7-多命令-input-的生成规则)） | 纯函数 | **不变**——任何节点对同一份定义算出同一个值；[S-7](#s-7-多命令-input-的生成规则) 第 2 条的次序正是为此 |
 | **名字相等**（[S-18](#s-18-名字的表示与相等)） | 值比较 | 不变 |
-| **模型看到的条目与运行时据以校验、派发的定义是同一份** | 同一进程内同一份装配（一次 run 之内动作清单不变，[PF-006 §6.13](../../../../product/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)） | **须随调用携带足以指认那一份定义的东西**（资产版本，或 MCP 列举的那一版），接收方按那一份校验；否则一次中途换版会让参数按另一份 schema 被判 |
+| **模型看到的条目与运行时据以校验、派发的定义是同一份** | 同一进程内同一份装配（一次执行尝试之内动作清单不变，[PF-006 §6.13](../../../../product/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)） | **须随调用携带足以指认那一份定义的东西**（资产版本，或 MCP 列举的那一版），接收方按那一份校验；否则一次中途换版会让参数按另一份 schema 被判 |
 | **`help` 与 `inspect` 一致**（[S-8](#s-8-说明与用法)） | 两者读同一份定义 | 两处须读**同一版本**的定义 |
 | **模型面条目投成任何一家的工具声明都不需要改写 schema；回来的调用名按逆转写唯一对回定义**（[S-6](#s-6-模型面只有一个条目)、[S-18](#s-18-名字的表示与相等)） | 本契约的表示层规则保证；键名映射与逆转写由传输适配做 | **不变**——条目与转写都是纯函数；在哪个节点做映射都只换键名与外壳、不碰 schema；逆转写不依赖任何会话状态 |
 | **表示层校验**（[S-26](#s-26-表示层拒绝值与判定次序)） | 加载时校验一次 | **每个接收定义或返回值的边界各自重新校验**；不得因为发送方校验过就跳过 |
@@ -791,8 +799,8 @@ Schema 的 `additionalProperties: false` 挡住这类成员。
 
 #### CS-5 由 MCP 列举生成定义
 
-**MCP 桥**依赖 [S-17](#s-17-来源)、[S-18](#s-18-名字的表示与相等)、[S-15](#s-15-执行权限)：对端每个动作一份单函数定义，`origin` 带 `endpoint` 与原样的 `remoteName`，不带 `composes`。
-**走到这里停在 [G-8](#十已知缺口)**：`name` 怎么起、六项声明与执行权限默认值怎么取——停在缺口不算走不通，如实记为本版到此为止。
+**MCP 桥**依赖 [S-17](#s-17-来源)、[S-18](#s-18-名字的表示与相等)、[S-15](#s-15-执行权限)、[S-4](#s-4-单函数工具)：对端每个动作一份单函数定义，`origin` 带 `endpoint` 与原样的 `remoteName`，不带 `composes`；
+`name` 怎么起、说明与参数 schema 怎样规范化、六项声明与执行权限默认值怎么取，按 `capability.mcp-bridge/v1#S-17`（原 G-8 已关闭）；交出的定义照常过本契约的表示层校验。**本场景走得通。**
 
 #### CS-6 回答一个工具的用法
 
@@ -822,7 +830,7 @@ Schema 的 `additionalProperties: false` 挡住这类成员。
 | `settings` 或其中任一项 | 这个工具**没有这一项设置**；各层无从配值 | [S-10](#s-10-设置项声明) |
 | `targetEnvironment` | 对执行环境没有特殊要求 | [S-11](#s-11-目标环境)，产品正文明写 |
 | `backgroundThreshold`（而许可为真） | 不因时长自动转后台 | [S-12](#s-12-后台许可与转后台阈值) |
-| `timeout`、`concurrency` | 这个工具没有这一项；语义见 G-6 | [S-13](#s-13-超时与并发) |
+| `timeout`、`concurrency` | 这个工具没有这一项，**也就没有这一项限制**（PF-006 §6.6） | [S-13](#s-13-超时与并发) |
 | `help` | 没有定义内的用法说明；`inspect` 照样答 | [S-8](#s-8-说明与用法) |
 | `composes` | 不组合任何技能 | [S-16](#s-16-组合) |
 | `ToolResult.offload` | 作者没声明卸载（系统兜底的截断另走一路） | [S-23](#s-23-卸载) |
@@ -842,7 +850,7 @@ Schema 的 `additionalProperties: false` 挡住这类成员。
 | **G-3** | **已关闭**：原生成规则 `args: oneOf` 不绑定 `command`、命令 schema 相交时误拒、放不下命令的 `description`；2026-09-23 曾改为每个命令一支的顶层 `oneOf`，2026-09-24 产品负责人裁定改为 flat 形——`args` 不展示任何命令的 schema，命令说明进 `command` 的命令表，三处毛病都不再有落脚处（[S-7](#s-7-多命令-input-的生成规则)） | — | — |
 | **G-4** | **已关闭（主线 2026-09-23 裁定）**：`help` 是文本字段，「help 命令空间」由 `Tools().inspect` 呈现该字段（[S-8](#s-8-说明与用法)） | — | — |
 | **G-5** | **目标环境的匹配语义**（[S-11](#s-11-目标环境)）：绑定层是恰等还是「至少」（PF-006 [依赖表](../../../../product/PF-006-tools-and-skills/design.md#依赖)写过「至少绑定在会话上」）；与执行环境权限 `always-allow` / `auto_place` / `never-allow` 怎么交互 | 执行运行时算落点；可用性解析 | **执行运行时契约**，产品面问 **PF-005 / PF-006 的 owner** |
-| **G-6** | **超时与并发的语义**（[S-13](#s-13-超时与并发)）：到时落哪种收场、计不计等待态与后台时段、零值；并发的计数范围、超出时排队还是拒绝 | 执行运行时 | **执行运行时契约**，收场归属问 **PF-006 的 owner** |
+| **G-6** | **已关闭（2026-09-24，按 PF-006 rev 18/19）**：超时即前台上限、并发即并发上限，语义由 [PF-006 §6.6「前台上限与并发上限」](../../../../product/PF-006-tools-and-skills/design.md#前台上限与并发上限)给出、由 `capability.tool-execution-runtime/v1#S-43`、`#S-44` 兑现（[S-13](#s-13-超时与并发)） | — | — |
 | **G-7** | **已关闭（主线 2026-09-23 裁定）**：有阈值而无后台许可即拒，`malformed`（M15，[S-12](#s-12-后台许可与转后台阈值)） | — | — |
 | G-8 | **已关闭（2026-09-24 整批对齐）**：MCP 来源定义的生成由 `capability.mcp-bridge` v1 S-17 给出（名字取 `data.mcp-endpoint/v1#S-11`）；两端模态按桥的投影判（[S-24](#s-24-结果与声明对得上) 第 3 条） | — | — |
 | **G-9** | **工具作者怎样以正常返回表达「失败」**（[S-25](#s-25-toolresult-不是收场)）：`ToolResult` 不带收场；实现自己炸了按 PF-006 §5.5 是上交而不是失败 | 执行运行时判定收场；工具作者 | **主线**与**执行运行时契约** |
@@ -860,7 +868,7 @@ Schema 的 `additionalProperties: false` 挡住这类成员。
 - **不定义执行**：派发、参数校验的时机、设置求值、落点匹配、收场判定、前后台切换、等待、发帧、卸载的执行——归工具执行运行时。
 - **不定义各层怎样配值、怎样求值**（覆盖与收窄）——归资产持有与配值；**不定义放行四步**——归 PF-007 那一侧。
 - **不定义依赖怎样解析、可用性什么时候重算、替换件怎样构造**——归执行运行时与装配。
-- **不定义 MCP 列举怎样变成定义**——归 MCP 桥接契约（[G-8](#十已知缺口)）。
+- **不定义 MCP 列举怎样变成定义**——归 MCP 桥接契约（`capability.mcp-bridge/v1#S-17`，原 G-8）。
 - **不定义实现工件怎样随资产包到达、怎样装载**——归提供者设计（[S-30](#s-30-实现不在定义里)）。
 - **不定义技能**、**不定义每一次执行的账**（`data.call-accounts`）、**不定义块、消息与到达语法**（`data.content-blocks` 等）。
 - **不定义资产持有键、版本与归属**——定义里不带它们（[S-2](#s-2-身份是-name)）。

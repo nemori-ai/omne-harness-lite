@@ -6,7 +6,7 @@
   `family = capabilities`、`topic = mcp-bridge`、规范路径 `spec/capabilities/mcp-bridge/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
 - **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐）——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
-- **设计依据**（PF-002 rev 16、PF-006 rev 17 为主责；PF-012 rev 10、PF-016 rev 5、PF-005 rev 5、PF-001 rev 16、PF-008 rev 5 只引）：
+- **设计依据**（PF-002 rev 16、PF-006 rev 19 为主责；PF-012 rev 10、PF-016 rev 5、PF-005 rev 5、PF-001 rev 16、PF-008 rev 5 只引）：
   [PF-002 §4 MCP](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp)、
   [§4 MCP 凭据](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的)、
   [§5.7](../../../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算)、
@@ -14,6 +14,7 @@
   [acceptance §一](../../../../product/PF-002-assets-settings-and-permissions/acceptance.md#一可观察场景)；
   [PF-006 §6.13](../../../../product/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)（两小节）、
   [§5.3 可自带实现](../../../../product/PF-006-tools-and-skills/design.md#53-一份工具定义长什么样)（经 [PF-002 §4 Tool](../../../../product/PF-002-assets-settings-and-permissions/design.md#tool)「它可以自带实现」）、
+  [§5.3 工具说明与每个参数的说明必填](../../../../product/PF-006-tools-and-skills/design.md#工具说明与每个参数的说明必填)（rev 19）、
   [§5.5](../../../../product/PF-006-tools-and-skills/design.md#55-一次工具执行的收场有六种)、
   [§6.3](../../../../product/PF-006-tools-and-skills/design.md#63-不可用时装的是同名替换件不是不装)、
   [§6.12](../../../../product/PF-006-tools-and-skills/design.md#612-工具执行的运行时可以被单独控制而它停了就不重来)；
@@ -26,6 +27,8 @@
   OAuth 流程本版落在据点一侧、只写义务与状态、交互归 PF-016（S19 简报）；桥被替换或卸载时经它在途的调用各自落「失败 · 异常中断」、不迁移不重发，桥的换代时机由装配给（块 B 拆分提案 PB-4，主线追加）；
   机制读数的连接归属（桥下每条连接各自收口）作「装配给」一列的输入
 - **主线裁定 2026-09-23，待产品负责人确认**（整批对齐 2026-09-24 落地，账本 S19-a～g）：副本、OAuth 绑定、凭据都按持有存放（S19-a，原 G-1 闭合）；四个新失败值与 `oauthDenied` 四来由合一采纳（S19-b）；工作区提供的 stdio 接入点默认禁用、租户层显式启用（S19-c，原 G-2 闭合）；桥换代时在途调用落 `failed{abnormal_interruption}`（S19-d，原 G-16 闭合）；两端模态由桥投影、投不出即「任意」（S19-e，原 G-3 闭合）；凭据保管方作装配给、求值交出 `provenance`（S19-f，原 G-9 闭合、G-7 收窄）；多据点下 OAuth 凭据跟机器（S19-g，原 G-8 闭合，后果见 G-17）
+- **主线裁定 2026-09-24**（修订批简报第五节；原 [G-18](#十已知缺口) 关闭）：**由桥做最小规范化**——缺说明的动作与参数补占位说明「对端未提供说明」、在动作条目上标 `normalized: true`；剥掉 `$schema`／`title`；`{"type": "object"}` 视为无参数；规范化之后仍不合的才排除（[S-17](#s-17-projectactions)）。
+  缘起是 [PF-006 decisions §四](../../../../product/PF-006-tools-and-skills/decisions.md#四已知的来源问题)「MCP 对端给的动作若不带说明……正文未述它算什么」——那一行记为交产品负责人、规格侧留缺口；**主线自定：不当它不可用**
 - **精确语义依赖**（消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)）：
   - `omne-harness-lite-design-2026-09-15 · data.mcp-endpoint · v1`（**candidate**）
   - `omne-harness-lite-design-2026-09-15 · data.tool-definition · v1`（**candidate**）
@@ -81,7 +84,7 @@
 
 | 坐标 | 消费的条款 | 取它的什么 |
 |---|---|---|
-| `data.mcp-endpoint · v1` | [S-1](../../../data/mcp-endpoint/v1/contract.md#s-1-接入点正文)、[S-3](../../../data/mcp-endpoint/v1/contract.md#s-3-连接目标两种闭合)～[S-14](../../../data/mcp-endpoint/v1/contract.md#s-14-推出规则五类项)、[S-17](../../../data/mcp-endpoint/v1/contract.md#s-17-工作区格上的这些项)、[S-20](../../../data/mcp-endpoint/v1/contract.md#s-20-表示层拒绝值与判定次序)、[S-21](../../../data/mcp-endpoint/v1/contract.md#s-21-表示层拒绝不是判定也不修补) | 全部形状；凭据不在正文、「还没取」即缺席；逐动作执行权限的默认；推出规则（投影出的执行权限默认与它一致）；工作区格上凭据恒缺席、工作区提供的 stdio 接入点默认禁用；表示层拒绝值与不修补 |
+| `data.mcp-endpoint · v1` | [S-1](../../../data/mcp-endpoint/v1/contract.md#s-1-接入点正文)、[S-3](../../../data/mcp-endpoint/v1/contract.md#s-3-连接目标两种闭合)～[S-14](../../../data/mcp-endpoint/v1/contract.md#s-14-推出规则五类项)、[S-17](../../../data/mcp-endpoint/v1/contract.md#s-17-工作区格上的这些项)、[S-20](../../../data/mcp-endpoint/v1/contract.md#s-20-表示层拒绝值与判定次序)、[S-21](../../../data/mcp-endpoint/v1/contract.md#s-21-表示层拒绝不是判定也不修补)、[S-26](../../../data/mcp-endpoint/v1/contract.md#s-26-接入点-name-登记时收窄) | 全部形状；凭据不在正文、「还没取」即缺席；逐动作执行权限的默认；推出规则（投影出的执行权限默认与它一致）；工作区格上凭据恒缺席、工作区提供的 stdio 接入点默认禁用；表示层拒绝值与不修补；**登得上的接入点 name 都拼得出条目名的前缀**（拼不出只可能因为对端动作名） |
 | `data.tool-definition · v1` | [S-2](../../../data/tool-definition/v1/contract.md#s-2-身份是-name)、[S-4](../../../data/tool-definition/v1/contract.md#s-4-单函数工具)、[S-6](../../../data/tool-definition/v1/contract.md#s-6-模型面只有一个条目)、[S-8](../../../data/tool-definition/v1/contract.md#s-8-说明与用法)、[S-12](../../../data/tool-definition/v1/contract.md#s-12-后台许可与转后台阈值)、[S-15](../../../data/tool-definition/v1/contract.md#s-15-执行权限)～[S-17](../../../data/tool-definition/v1/contract.md#s-17-来源)、[S-20](../../../data/tool-definition/v1/contract.md#s-20-两种写法与等价规则)、[S-21](../../../data/tool-definition/v1/contract.md#s-21-toolresult-的三样)、[S-23](../../../data/tool-definition/v1/contract.md#s-23-卸载)、[S-24](../../../data/tool-definition/v1/contract.md#s-24-结果与声明对得上)、[S-26](../../../data/tool-definition/v1/contract.md#s-26-表示层拒绝值与判定次序) | 投影的目标形状（单函数、说明非空、来源 `mcp`、不组合、不声明后台）；执行权限三档；返回值的形状与两个标注；卸载的第二条来路；MCP 条目的两端模态按本契约的投影判（S-24 第 3 条）；`input_not_schema` |
 | `data.content-blocks · v1` | [S-7](../../../data/content-blocks/v1/contract.md#s-7-媒体类型的规范形式)、[S-8](../../../data/content-blocks/v1/contract.md#s-8-文本块与来源标记)、[S-10](../../../data/content-blocks/v1/contract.md#s-10-语音块与图块)、[S-17](../../../data/content-blocks/v1/contract.md#s-17-六种收场)、[S-18](../../../data/content-blocks/v1/contract.md#s-18-占位原因与它落在哪一格) | 对端结果映射成的三类块与媒体类型的规范写法；失败值对到的收场；`failed` 只在异常中断时带原因码，桥换代是异常中断的一条来路 |
 | `data.asset-model · v1` | [S-16](../../../data/asset-model/v1/contract.md#s-16-持有范围)、[S-18](../../../data/asset-model/v1/contract.md#s-18-资产持有)、[S-23](../../../data/asset-model/v1/contract.md#s-23-凭据引用) | 持有的格与键；凭据引用只在它被配上去的那份持有上有效、续期不算换值 |
@@ -213,7 +216,7 @@
 ### S-12 每次执行尝试重新列举，尝试内不变
 
 **动作集在每一次[执行尝试](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)开始前与可用性一起重算，一次尝试之内不变。**
-（产品正文写「每次 run 开始前重算、run 内不变」；[PF-012](../../../../product/PF-012-agent-loop-and-run/design.md#每一次尝试开始都要做四件事)「每一次尝试也算作一次开始」是更具体的那条——**主线 2026-09-23 裁定 B-M03 读作「一次尝试之内不变」，产品修订待落**。）
+（主线 2026-09-23 裁定 B-M03，已落进产品正文：[PF-006 §6.13](../../../../product/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作) rev 18「每一次执行尝试开始前重取、一次尝试之内不变」，与 [PF-012](../../../../product/PF-012-agent-loop-and-run/design.md#每一次尝试开始都要做四件事)「每一次尝试也算作一次开始」一致。）
 
 - **本契约的那一半**：注册表在尝试开始时调 [S-16](#s-16-refreshactions)，本契约交出**在这一次调用里完整拿到**的清单，或一个失败值连同那份旧副本。
 - **注册表的那一半**：把交来的那份钉在这次尝试上，照它投影、照它装替换件；**钉住的那份此后不因副本被别的会话刷新而变**。
@@ -302,7 +305,7 @@
 | ② | 无授权前置 |
 | ③ | 无 |
 | ④ | 只算，无提交、无外部效果 |
-| ⑤ | **三样**：`entries`——按副本里 `tools` 的次序，每个能投影的对端动作一项，每项是一份工具定义，外加「**只能以替换件出现**」的标记与原因（见下）；`excluded`——投影不了的对端动作，每项是 (对端动作名, 原因)；以及副本本身的那一支（`fetched` / `not_fetched`），**消费者据它分辨「没有条目」是哪一种** |
+| ⑤ | **三样**：`entries`——按副本里 `tools` 的次序，每个能投影的对端动作一项，每项是一份工具定义，外加「**只能以替换件出现**」的标记与原因、以及**是否经过最小规范化**的标记 `normalized`（布尔，恒在；见下）；`excluded`——投影不了的对端动作，每项是 (对端动作名, 原因)；以及副本本身的那一支（`fetched` / `not_fetched`），**消费者据它分辨「没有条目」是哪一种** |
 | ⑥ | `invalidInput`（三个输入任一不合形状） |
 | ⑦ | 纯函数：同样的三个输入，逐字相同的输出 |
 | ⑧ | 输入缺席 ⇒ `invalidInput` |
@@ -315,9 +318,9 @@
 | 工具定义的成员 | 取值 | 依据 |
 |---|---|---|
 | `name` | 动作条目名：`endpoint.name` ＋ `:` ＋ `d.name` | `data.mcp-endpoint/v1#S-11` |
-| `description` | `d.description`，若它是非空字符串；否则 `d.name` | `data.tool-definition/v1#S-8` 要求非空；**不替对端编一句说明** |
+| `description` | `d.description`，若它是非空字符串；否则固定文本 `对端未提供说明`（最小规范化第 1 样） | `data.tool-definition/v1#S-8` 要求非空；[PF-006 §5.3](../../../../product/PF-006-tools-and-skills/design.md#工具说明与每个参数的说明必填) 说明必填；**占位说的是「对端没给」，不替对端编一句说明** |
 | `paradigm` | `single` | `data.tool-definition/v1#S-17` 第 1 条：MCP 来源恒为单函数 |
-| `input` | `d.inputSchema`，**原样** | 替换件同形的依据（[PF-006 §6.3](../../../../product/PF-006-tools-and-skills/design.md#63-不可用时装的是同名替换件不是不装)） |
+| `input` | `d.inputSchema` 经最小规范化（见下）；三样都用不上时就是 `d.inputSchema` 原样 | 替换件同形的依据（[PF-006 §6.3](../../../../product/PF-006-tools-and-skills/design.md#63-不可用时装的是同名替换件不是不装)）：规范化是本函数的一部分，原件与替换件出自同一次投影 |
 | `permissions.execute.default` | `body.permissions.execute.default` | 与 `data.mcp-endpoint/v1` 推出的 `execute:<d.name>` 那一项的 `default` 是**同一个值** |
 | `origin` | `{ "kind": "mcp", "endpoint": endpoint, "remoteName": d.name }` | `data.tool-definition/v1#S-17` |
 | `help`、`needs`、`settings`、`allowBackground`、`composes` | **全部不带** | 见下 |
@@ -329,15 +332,29 @@
   结果那一端，对端描述里没有可投的东西，**投不出，读作「任意」**（`data.tool-definition/v1#S-24` 第 3 条）：本版每一个 MCP 条目的结果端都是「任意」，结果里的图块、语音块不判违反。**不把「任意」写成 `outputModalities` 的一组取值**——那会成为「只有这几种」的声明。
 - **不带 `composes`**：MCP 不组合任何资产（`data.tool-definition/v1#S-16`）。
 
+**最小规范化**（主线裁定 2026-09-24；原 [G-18](#十已知缺口)）：投影之前，对 `d` 恰做下面三样改写，**不做别的**：
+
+1. **缺说明补占位**：`d.description` 缺席或为空串 ⇒ 条目的 `description` 取固定文本 `对端未提供说明`；`d.inputSchema` 里任何一处 `properties` 的某个成员 schema 是 JSON 对象、却没有 `description` 或它是空串 ⇒ 给它补 `"description": "对端未提供说明"`。
+   「任何一处 `properties`」与「schema 的位置」都按 `data.tool-definition/v1#S-4` 第 2、3 条数；成员 schema 是布尔 schema 的补不上、不改。
+2. **剥掉 `$schema` 与 `title`**：在 `d.inputSchema` 的每一个 schema 位置上删掉这两个关键字。`properties` 下名为 `title` 或 `$schema` 的是**参数名**，不是关键字，不动。
+3. **`{"type": "object"}` 视为无参数**：做完第 2 样之后，`d.inputSchema` 顶层恰是 `{"type": "object"}` ⇒ 取 `{"type": "object", "properties": {}}`。顶层另有别的关键字而没有 `properties` 的，不在此列。
+
+- **`normalized`**：三样里至少做了一样 ⇒ 这个条目 `normalized: true`；一样都没做 ⇒ `false`。**消费者据它知道这份定义不是对端原话**（呈现、可观测记录、排查「说明为什么是占位」）；它不改变条目能不能用、也不改变它的形状。
+- **三样都不改变参数 schema 收哪些值**：`description`、`title` 是注解，`properties: {}` 不收窄一个没写 `properties` 的对象 schema——同一次调用的参数，规范化前后判得一样。
+  剥掉 `$schema` 之后一律按 Draft 2020-12 读：对端按别的草案写、在 2020-12 下读法不同的写法（例如数组形 `items`），过不了合法性一关，照第 2 种原因排除。
+- **替换件同形照样成立**：规范化是 `projectActions` 这个纯函数的一部分，只读输入；原件与替换件都由同一份副本经同一次投影得出（`capability.asset-registry/v1#S-12`），改写一字不差。**副本仍存对端原话**（`data.mcp-endpoint/v1#S-10`），规范化不回写副本。
+- **只有这三样**：删别的关键字（`$ref`、`$defs`、`$id`、`allOf`……）、补 `required`、改 `type`、展开或合并子 schema，一概不做——那些会改变参数 schema 收哪些值，交出的定义就与对端对参数的说法各执一词。
+
 **只能以替换件出现**：对端声明某个动作**必须以任务方式执行**（MCP 协议 2025-11-25 版的 `execution.taskSupport` 为 `required`，从副本里原样保留的那一项读），本版不桥这类动作（D-037）——
 它照样投影成一份工具定义（形状照常），标记为只能以替换件出现，原因是「本版不支持这个动作的执行方式」。**能否在列举结果里可靠地识别它，D-037 记为未核**（[G-6](#十已知缺口)）；识别不出的，按普通动作投影，调用时对端报错落 `protocolError`。
 
 **`excluded` 的两种原因**，都**不改写对端动作名、不丢掉副本里的那一项**：
 
-1. **条目名拼不出**：`endpoint.name` ＋ `:` ＋ `d.name` 不合 `data.mcp-endpoint/v1#S-11`——那一条取 `data.tool-definition/v1` 的 [S-18](../../../data/tool-definition/v1/contract.md#s-18-名字的表示与相等) 对 `name` 的收窄：带 `.`、空白、`/` 或 `__`，拼接处成 `_:`／`:_`，或转写后过长，都拼不出；
-2. **参数 schema 不成立**：以 `d.inputSchema` 作 `input` 的那份定义，在 `data.tool-definition/v1` 的表示层校验里因参数 schema 被拒——不是合法 schema（`input_not_schema`）、有参数不带说明（`parameter_description_missing`）、顶层不是带 `properties` 的对象（M26）、用了可呈现子集之外的关键字（M27）；即它的 [S-4](../../../data/tool-definition/v1/contract.md#s-4-单函数工具) 与三条硬要求（产品负责人 2026-09-24 要求）。
+1. **条目名拼不出**：`endpoint.name` ＋ `:` ＋ `d.name` 不合 `data.mcp-endpoint/v1#S-11`——那一条取 `data.tool-definition/v1` 的 [S-18](../../../data/tool-definition/v1/contract.md#s-18-名字的表示与相等) 对 `name` 的收窄：带 `.`、空白、`/` 或 `__`，拼接处成 `_:`／`:_`，或转写后过长，都拼不出。
+   **接入点的 name 在登记时已收窄**（`data.mcp-endpoint/v1#S-26`，主线裁定 2026-09-24），所以拼不出只可能因为对端动作名；名字不做规范化——改写名字会让两个对端动作撞到同一个条目上；
+2. **参数 schema 不成立**：以**规范化之后**的 `d.inputSchema` 作 `input` 的那份定义，在 `data.tool-definition/v1` 的表示层校验里因参数 schema 被拒——不是合法 schema（`input_not_schema`）、有参数不带说明（`parameter_description_missing`：规范化之后只剩成员 schema 是布尔 schema 那一种）、顶层不是带 `properties` 的对象（M26：顶层恰是 `{"type": "object"}` 的已由第 3 样补上）、用了可呈现子集之外的关键字（M27：`$schema`、`title` 已剥掉，剩下的如 `$ref`、`$defs`、`$id`、`allOf`）；即它的 [S-4](../../../data/tool-definition/v1/contract.md#s-4-单函数工具) 与三条硬要求（产品负责人 2026-09-24 要求）。
 
-**第 2 种在实际的 MCP 服务端很常见**（参数不带说明、带 `$schema` 或 `title`、只写 `{"type": "object"}`）：本版照排除，**不替对端补说明、不删关键字**——改写会让桥交出的定义与对端对参数的说法各执一词，替换件与原件也不再同形。要不要由桥规范化，见 [G-18](#十已知缺口)。
+**规范化之后仍排除的，常见的是参数 schema 里用了引用**（`$ref` 加 `$defs`／`definitions`）或不合 Draft 2020-12 的写法：本版不展开引用、不改写——那会改变参数 schema 收哪些值。
 
 **被排除的动作对 agent 不可见**——没有名字可占位；它们必须作为可观测记录留下，并由注册表决定是否告诉 agent（**不静默丢**）。
 
@@ -542,6 +559,7 @@
 | P-6 | 已发出的调用不重放，也不迁移到接替的那一份桥上 | 安全 | [PF-006 §6.12](../../../../product/PF-006-tools-and-skills/design.md#612-工具执行的运行时可以被单独控制而它停了就不重来)；D-037 | [S-19](#s-19-invoke) ④、[S-26](#s-26-连接的收口次序)、[S-27](#s-27-桥被替换或卸载)、[S-28](#s-28-据点停机与重启) | 对端上同一件事被做了两遍 |
 | P-7 | 一次尝试钉住的动作集不因对端通知、别的会话的刷新而变 | 安全 | PF-006 §6.13「一次之内不变」（按尝试读，B-M03） | 本契约不改钉住的东西（[S-12](#s-12-每次执行尝试重新列举尝试内不变)、[S-25](#s-25-对端来的通知与请求)）＋ 注册表钉住 | agent 在一次尝试里看到两个不同的动作空间 |
 | P-8 | stdio 服务端只拿到白名单变量、正文的变量与自己那份凭据，不继承据点进程的其余环境 | 安全 | [SYS-TENANT](../../../../foundation/cross-system-constraints/requirements.md#sys-tenant) 跨租户默认拒绝 | [S-6](#s-6-连接归桥不上签名不跨租户) 第 3 条 | 一个租户的 MCP 服务端读到另一个租户的秘密 |
+| P-14 | 投影只做三样最小规范化，不改变参数 schema 收哪些值；做过的条目标 `normalized: true`；原件与替换件改写一字不差 | 不变量 | 主线裁定 2026-09-24 · [PF-006 §6.3](../../../../product/PF-006-tools-and-skills/design.md#63-不可用时装的是同名替换件不是不装) 同形 | [S-17](#s-17-projectactions)（纯函数） | 一次调用的参数按规范化后的定义判过、对端却拒收（或反过来）；替换件的 `input` 与原件不同；说明是占位却标 `normalized: false` |
 
 ### 进展性质（全部带前提）
 
@@ -651,7 +669,7 @@
 | **G-15** | **被排除与只能以替换件出现的动作要不要告诉 agent**：本契约交出了它们，告不告诉、怎样告诉归注册表 | agent 不知道对端还有一个它看不见的动作 | **注册表**（主线裁定 S22-d：可用性变化不出提醒、B-M04 作废；被排除的动作是否另告 agent 仍未定） |
 | **G-16** | **已闭合（2026-09-24 整批对齐）**：`data.content-blocks/v1#S-18` 那一行已加桥换代的来路；`capability.tool-execution-runtime/v1` 已为 MCP 条目开例外（它的 S-37） | — | — |
 | **G-17** | **OAuth 凭据跟机器，而一份持有上的 `credential` 只有一个值**：同一个租户在第二台机器上再取一次、配上之后，第一台机器上那个引用不再被配着，它的绑定按 [S-8](#s-8-oauth-绑定状态与迁移) 作废——**同一时刻只有一台机器连得上这个接入点** | 一个人在两台机器上交替用同一个要 OAuth 的接入点，每换一次机器取一次 | **PF-016 / PF-002 的 owner**（产品面：接受这个后果，还是凭据值按机器区分——后者改 `data.asset-model` 的配值形状） |
-| **G-18** | **对端参数 schema 不合 `data.tool-definition/v1` 三条硬要求的动作一律排除**（[S-17](#s-17-projectactions) 第 2 种原因）：常见服务端的写法（参数无说明、带 `$schema`／`title`、只写 `{"type": "object"}`）都在其中，要不要由桥做规范化（补占位说明、删子集外关键字、补空 `properties`）、规范化之后替换件同形与「不替对端编说明」怎样成立，本版未定 | 许多 MCP 动作对 agent 不可见；按常见服务端的写法，可能占多数 | **主线**（产品负责人 2026-09-24 要求与 MCP 可用面之间的取舍） |
+| **G-18** | **已关闭（主线裁定 2026-09-24）**：由桥做最小规范化——缺说明补占位「对端未提供说明」并标 `normalized: true`、剥 `$schema`／`title`、`{"type": "object"}` 视为无参数，仍不合的才排除；替换件同形与「不替对端编说明」怎样成立写在 [S-17](#s-17-projectactions)。产品侧 [PF-006 decisions §四](../../../../product/PF-006-tools-and-skills/decisions.md#四已知的来源问题)那一行仍记「交产品负责人」 | — | — |
 
 **它们都不是默认值**：消费者碰上时停在缺口，不挑一个看起来合理的答案。
 

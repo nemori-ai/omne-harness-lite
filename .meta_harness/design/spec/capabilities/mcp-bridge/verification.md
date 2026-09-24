@@ -29,7 +29,7 @@
 | SC-1 | 任何操作的签名里没有连接句柄；连接的取用键恰是 (租户, 接入点, 持有, 连接目标值, 凭据值) | [S-6](v1/contract.md#s-6-连接归桥不上签名不跨租户) | 未开始 |
 | SC-2 | 副本的写入只有一处，且是按 `fetchedAt` 的条件写；不存在把列举失败或 `not_fetched` 写成空清单的路径 | [S-7](v1/contract.md#s-7-动作清单持久副本)、[S-16](v1/contract.md#s-16-refreshactions) | 未开始 |
 | SC-3 | `invoke` 的发送路径上没有重试、没有重连后重发、没有把在途请求交给另一份桥的路径 | [S-19](v1/contract.md#s-19-invoke)、[S-26](v1/contract.md#s-26-连接的收口次序)、[S-27](v1/contract.md#s-27-桥被替换或卸载) | 未开始 |
-| SC-4 | 投影函数只读三个输入，不读时间、环境、持有方；产出的定义里不存在 `settings`、`allowBackground`、`needs`、`help`、`composes` | [S-17](v1/contract.md#s-17-projectactions) | 未开始 |
+| SC-4 | 投影函数只读三个输入，不读时间、环境、持有方；产出的定义里不存在 `settings`、`allowBackground`、`needs`、`help`、`composes`；**规范化只有三样**（补占位说明、剥 `$schema`／`title`、恰 `{"type": "object"}` 补空 `properties`），没有别的改写 `inputSchema` 的路径，也没有回写副本的路径 | [S-17](v1/contract.md#s-17-projectactions) | 未开始 |
 | SC-5 | stdio 拉起不经 shell；子进程环境由白名单、正文、凭据三部分显式拼出，不以据点进程环境为底 | [S-6](v1/contract.md#s-6-连接归桥不上签名不跨租户) | 未开始 |
 | SC-6 | 本契约的任何类型里，凭据本体与令牌只出现在「出示」那一处；凭据引用只出现在 `completeOAuth` 的返回 | [S-13](v1/contract.md#s-13-凭据与引用不进任何呈现) | 未开始 |
 
@@ -45,7 +45,7 @@
 | MCP 条目的结果端模态 | `data.tool-definition` v1 的 S-24 | **已对齐（2026-09-24）**：那边第 3 条按本契约的投影判，投不出即「任意」（账本 S19-e），G-3 闭合 |
 | 投影规则就是 `data.tool-definition` 那边 G-8 的答案 | `data.tool-definition` v1 的 G-8 | **已对齐（2026-09-24）**：那边 G-8 已关闭并指向本契约 [S-17](v1/contract.md#s-17-projectactions) |
 | 求值交出 `provenance` | `capability.asset-evaluation` | **已对齐（2026-09-24）**：那边 S-40 交出（`Layer` 值），本契约 S-5 的 `provenance` 改为照它，G-9 闭合 |
-| 投影出的定义要过 `data.tool-definition` 的名字收窄与参数 schema 三条硬要求（产品负责人 2026-09-24 要求） | `data.tool-definition` v1 的 S-4、S-18；`data.mcp-endpoint` v1 的 S-11 | **已对齐（2026-09-24）**：[S-17](v1/contract.md#s-17-projectactions) 两种排除原因改写；是否由桥规范化留作 [G-18](v1/contract.md#十已知缺口) |
+| 投影出的定义要过 `data.tool-definition` 的名字收窄与参数 schema 三条硬要求（产品负责人 2026-09-24 要求） | `data.tool-definition` v1 的 S-4、S-18；`data.mcp-endpoint` v1 的 S-11 | **已对齐（2026-09-24）**：[S-17](v1/contract.md#s-17-projectactions) 两种排除原因改写；**同日主线裁定由桥做最小规范化**，[G-18](v1/contract.md#十已知缺口) 关闭；接入点 name 在登记时收窄（`data.mcp-endpoint/v1#S-26`），条目名拼不出只可能因为对端动作名 |
 | 注册表、工具执行运行时、交付面对本契约操作的消费登记 | `capability.asset-registry`、`capability.tool-execution-runtime`；交付面尚无契约 | 依赖方向是它们 → 本契约，由它们各自登记（2026-09-24 两份已登 catalog） |
 
 ## 结果与反例
@@ -55,6 +55,12 @@
 **工具**：暂存区脚本（不入库），复用 `data.tool-definition` 本地自检的表示层判定（Draft 2020-12 校验器按仓库 `uv.lock` ＋ Schema 之外那一步：合法 schema、三条硬要求、名字收窄）。
 **输入**：[`examples.md` 第 4 节](v1/examples.md#4-projectactions-的结局)——4.1 那一块与按 [S-17](v1/contract.md#s-17-projectactions) 由 `data.mcp-endpoint` 实例 3.1 重算的投影作 JSON 值比较；两份定义各过一次表示层校验；表里以对端动作描述开头的每一行，投影后判「成条目」还是「排除」、排除的原因是名字还是参数 schema。
 **结果**：16 处，0 处不符。**只判投影结局**：不判 `standInOnly` 标记、不判其余操作；**这不是 V-1～V-8 任何一条义务的证据**。
+
+### 本地自检：最小规范化之后的投影实例（修订批，2026-09-24）
+
+**工具**：暂存区脚本（不入库）；Draft 2020-12 校验器（`jsonschema` 4.26.0，按仓库 `uv.lock`），以本工作树整棵设计树的全部 Schema 建 registry；`data.tool-definition` 表示层的 Schema 之外那一步按它 S-4 三条硬要求与 S-26 的次序另写判定（合法 schema 用官方元 schema 判）；最小规范化按 [S-17](v1/contract.md#s-17-projectactions) 的三样照写。
+**输入**：[`examples.md` 第 4 节](v1/examples.md#4-projectactions-的结局)表里以对端动作描述开头的 **17 行**（判「成条目」还是「排除」、排除原因是名字还是参数 schema、`normalized` 的值、行里写明的 `description` 与 `input`）；4.1 那一块与按 S-17 由 `data.mcp-endpoint` 实例 1.1、3.1 重算的投影作 JSON 值比较（**1 处**，含两项 `normalized: false`）。
+**结果**：18 处，**0 处不符**。**只判投影结局与规范化**：不判 `standInOnly`、不判其余操作；不判规范化前后同一次调用的参数判得一样（P-14 的那一半要表驱动测试，V-2）。**这不是 V-1～V-8 任何一条义务的证据。**
 
 ### 尚无的记录
 
@@ -88,6 +94,13 @@ V-1～V-8 **一条执行记录也没有**。起草时的手核只保证 `example
   [S-17](v1/contract.md#s-17-projectactions) 的两种排除原因改写——条目名按 `data.mcp-endpoint/v1#S-11`（即 `data.tool-definition/v1#S-18` 的收窄）拼不出；参数 schema 过不了 `data.tool-definition` 的 S-4 与三条硬要求（`input_not_schema`、`parameter_description_missing`、M26、M27）。**不替对端补说明、不删关键字**；新缺口 G-18（要不要由桥规范化）。
   实例第 4 节：4.1 两个动作的参数补上说明（随 `data.mcp-endpoint` 实例 3.1），表里各行的 `inputSchema` 补上空 `properties`，加五行（`.`、拼接处 `:_`、顶层无 `properties`、参数无说明、`$schema`）。
   **语义改变**：常见 MCP 服务端的许多动作（参数无说明、带 `$schema`／`title`、名字带 `.`）从成条目变为被排除、对 agent 不可见——后果已报主线。操作、失败值集合与条款编号都没有变。
+- **2026-09-24 修订批第五节：主线裁定 G-18（候选，未冻结，原地改）**：
+  [S-17](v1/contract.md#s-17-projectactions) 加「最小规范化」一段——缺说明的动作与参数补固定占位 `对端未提供说明`、剥 `$schema`／`title`、顶层恰 `{"type": "object"}` 补空 `properties`，做过任一样的条目标 `normalized: true`（`entries` 每项恒带这个布尔）；`description` 的兜底由 `d.name` 改为占位；两种排除原因改写（名字那一种注明接入点 name 已在登记时收窄；参数 schema 那一种按规范化之后判）；**G-18 关闭**；新性质 P-14。
+  抬头：PF-006 升到 rev 19、补 §5.3「说明必填」链接与主线裁定一条；[S-12](v1/contract.md#s-12-每次执行尝试重新列举尝试内不变) 的「产品修订待落」改为指 PF-006 rev 18 §6.13；S-4 对 `data.mcp-endpoint` 加 S-26。
+  实例第 4 节：4.1 两项加 `normalized: false`；表里六行由「排除」或 `d.name` 兜底改为规范化后成条目，另加四行（`title` 剥掉而同名参数留着、`$ref`／`$defs` 仍排除、布尔成员 schema 仍排除、`additionalProperties` 而无 `properties` 仍排除）。
+  **语义改变**：参数无说明、带 `$schema`／`title`、只写 `{"type": "object"}` 的常见 MCP 动作从「被排除、对 agent 不可见」变为成条目；缺说明的动作在 agent 面前的说明由它的名字变为「对端未提供说明」。**操作、失败值集合与条款编号都没有变**；注册表不因 `normalized` 改变行为（`capability.asset-registry/v1#S-12` 未消费它）。
+  **证据**：投影实例的本地自检重跑，18 处 0 不符（见[结果与反例](#本地自检最小规范化之后的投影实例修订批2026-09-24)）。
+  **不写进本契约、已报主线**：修订批简报同一条里「反向转写由桥拥有」与 `data.tool-definition/v1#S-6` 的「逆转写由收到调用的一方做」相左，且桥的 `invoke` 拿到的是 `origin.remoteName`、从不见模型面前的名字——等主线改判。
 - **[G-5](v1/contract.md#十已知缺口) 就位**（elicitation）：出 v2，[S-25](v1/contract.md#s-25-对端来的通知与请求) 那一行与 [S-21](v1/contract.md#s-21-失败值与收场的对应) 的 `no_answer` 一起改。
 - **跨进程演化启动**：[S-30](v1/contract.md#s-30-装配给与协议给) 右列从「待兑现」转为「须由协议兑现」；本版的全部证据只保留其单机范围，不得外推。
 

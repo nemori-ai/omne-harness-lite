@@ -35,7 +35,7 @@
   |---|---|
   | `Submit(b)` | [S-23](../contract.md#s-23-提交一批) 整批一次提交；判为不可用的项即刻 `unavailable`、发起即后台即刻交付占位 |
   | 常量 `StandIn`、原因 `"standin"`、不变量名 `UnavailableOnlyFromStandIn` | **注册表判为不可用的项**：替换件、条目 `unavailable{reason}`、关掉的命令三支（账本 S13-a 之后同归收场 `unavailable`）。三支在模型里行为相同，只用一个集合表示；名字沿用起草时的，不改模型 |
-  | `Start` / `StartFail` | [S-38](../contract.md#s-38-起执行者)：起来了，或参数、落点、执行者任一不成立（执行者没跑过） |
+  | `Start` / `StartFail` | [S-38](../contract.md#s-38-起执行者)：起来了，或落点、执行者任一不成立（执行者没跑过）。**参数不合不在这里**：2026-09-24 起它在提交时即刻收场 `failed{arguments_invalid}`（[S-23](../contract.md#s-23-提交一批) ④ 第 ② 条），**模型里没有这一支、对它没有断言**；证据是场景 [S-61](../contract.md#s-61-参数不合即刻失败并带用法)。模型文件与配置未改 |
   | `EnterWait` / `Answer(c, k)` / `WaitExpire` | [S-12](../contract.md#s-12-等待)、[S-30](../contract.md#s-30-答复等待)；`k` 是答复所指的第几次等待 |
   | `Return(c, o)` | [S-41](../contract.md#s-41-交回)：交回完成或失败 |
   | `Background(c)` | [S-27](../contract.md#s-27-转后台)，也代表阈值、上限到点与插队顺带那三个触发源（[S-44](../contract.md#s-44-前台上限与转后台阈值)、[S-31](../contract.md#s-31-插队处置)） |

@@ -20,7 +20,7 @@
 
 ### 规范场景
 
-**十一条全部未开始**——它们要的是真实实现，而实现不存在。
+**十二条全部未开始**——它们要的是真实实现，而实现不存在。
 
 | 场景 | 证据形式 | 状态 | 说明、责任与受阻 |
 |---|---|---|---|
@@ -35,6 +35,7 @@
 | [S-58 插队三行](v1/contract.md#s-58-插队三行) | 演练 | **未开始** | `human_declined` 的判据（等的是不是卡片）受阻于 [G-5](v1/contract.md#十二已知缺口) |
 | [S-59 停止与交回交错](v1/contract.md#s-59-停止与交回交错) | **故障注入**：在收场写下与实际停下之间注入一次交回 | **未开始** | local-execution「停止与 I/O 交错」那组反例的本项目版本 |
 | [S-60 凭据不符与核对不了都整批不执行](v1/contract.md#s-60-凭据不符与核对不了都整批不执行) | 演练；放行核对面可关 | **未开始** | 依赖 `capability.tool-admission` 的核对面（并行起草） |
+| [S-61 参数不合即刻失败并带用法](v1/contract.md#s-61-参数不合即刻失败并带用法) | 演练：四支（未知键、缺必填、命令不在命令表、只带命令清单收任意对象）各一次；断言执行者没起、块上用法与 `Tools().inspect` 答的一致 | **未开始** | 「与 `inspect` 一致」受阻于 `Tools()` 没有契约（PF-007）；**模型里没有这一支**，TLC 的结果对它不作证 |
 
 ### 故障注入：「找得到／找不到」的两个方向
 
@@ -83,7 +84,7 @@
 
 | 对齐什么 | 依据 | 涉及 | 现状 |
 |---|---|---|---|
-| **多命令调用在起执行者之前按所选命令的 `commands[c].input` 校验 `args`**（缺必填、未知键、类型不合）；**不合即不起执行者、收场 `failed`**，新失败种类 `arguments_invalid`，结果内容**必须带该命令的参数用法**（与 `Tools().inspect` 给出的同一份文本），让模型能自纠。落点：[S-23](v1/contract.md#s-23-提交一批) 的九件事与 S-42 之前那一步 | 研究 V-5 结论 ③（`tool-definition-shape-sources`，HUB `1867ceb0`），产品负责人 2026-09-24；`data.tool-definition/v1#S-7` 第 3、4 条（判定以 `commands[c].input` 为准、`args` 缺席按 `{}` 判——flat 形的模型面不替它判参数） | 本契约 S-11（失败种类由七个变八个）、S-23、S-42；`data.content-blocks` 的收场与结果块；`Tools().inspect`（PF-007 的契约，尚未建立） | **只登记，正文未改**（2026-09-24 整批对齐时本契约已过完）；主线合流后补正文 |
+| **多命令调用在起执行者之前按所选命令的 `commands[c].input` 校验 `args`**（缺必填、未知键、类型不合）；**不合即不起执行者、收场 `failed`**，新失败种类 `arguments_invalid`，结果内容**必须带该命令的参数用法**（与 `Tools().inspect` 给出的同一份文本），让模型能自纠。落点：[S-23](v1/contract.md#s-23-提交一批) 的九件事与 S-42 之前那一步 | 研究 V-5 结论 ③（`tool-definition-shape-sources`，HUB `1867ceb0`），产品负责人 2026-09-24；`data.tool-definition/v1#S-7` 第 3、4 条（判定以 `commands[c].input` 为准、`args` 缺席按 `{}` 判——flat 形的模型面不替它判参数） | 本契约 S-11、S-23、S-42；`data.content-blocks` 的收场与结果块；`Tools().inspect`（PF-007 的契约，尚未建立） | **已落正文（2026-09-24 修订批第五节）**：原有的 `arguments_rejected` 就是这一种，改名为账本名 `arguments_invalid`，**种类仍是七个**（本行原写的「七个变八个」不成立）；判定从起执行者移到提交时（S-23 ④ 第 ② 条）；S-42 列明它不经卸载那一关；新场景 S-61。**仍待**：`Tools().inspect` 的契约建立后核「同一份用法」 |
 
 ## 实际执行
 
@@ -109,6 +110,15 @@
 
 **经登记的 runner 再跑一遍**：`JAVA_BIN=/usr/local/bin/java TLA2TOOLS_JAR=/opt/tlaplus/tla2tools.jar make design-check FORMAL=run`（2026-09-24 本机，提交 `dfef00fd` 的模型与配置）：
 本分支登记的八个 formal task 全部 `exit=0`，其中 `tool-execution-runtime-v1-execution` 与 `tool-execution-runtime-v1-execution-progress` 两个是本契约的；整次 18 min 05 s，`PASS: design tree … formal=run`。
+
+**2026-09-24 修订批（第五节）之后复跑两个 formal task**（起草者本机，run 未落进 `record/evidence/`）：本批**没改** `Execution.tla` 与任何 `.cfg`（参数不合那一支不在模型里，见 [formal/README](v1/formal/README.md)），复跑只为确认结论不随正文改动失效。同一 TLC2 版本，命令形制同上（`-metadir tmp/tlc/te-rev0924-<配置>`），两个配置先后串行跑：
+
+| 配置 | 退出码 | 结果 | 规模 |
+|---|---|---|---|
+| `Execution.cfg` | **0** | `Model checking completed. No error has been found.` | 2,656,347 generated · **741,344 distinct** · 0 left · 深度 22 · 1 min 10 s |
+| `ExecutionProgress.cfg` | **0** | `Model checking completed. No error has been found.`（12 个时序分支，时序检查 3 min 01 s） | 1,858,831 generated · **524,448 distinct** · 0 left · 深度 20 · 19 min 42 s（与其他代理的检查并跑） |
+
+规模与 2026-09-23 那次逐位相同。六个否定配置本批没有复跑。
 
 ### 结果与反例
 
@@ -143,6 +153,12 @@
   - **账与占位原因**（S13-f、S13-h）：`data.call-accounts` v1 候选已带 `externalEffect`、`stoppedAt`、`late`，`data.content-blocks` v1 候选已带三个占位原因——S-13 表补 `initiator`、`credentialScope`、`externalEffect`、`stoppedAt`、`late` 五行，S-14 写投影（「不可确定」→ `unknown`），G-2 闭合，G-8 收窄为「晚报的一笔没有 `obtainedVia` 取值」，新立 G-15（`credentialScope` 从哪来）。
   - 不改的：S13-c 采纳的推导（姿态 × 阶段、`preempt` 原子、并发按会话计等）本来就在正文；S13-e 进展任务照登；S13-g 两种承接形状本来就不选。
   - **对消费者**：agent loop 与 `BkgJobs()` 读到的判为不可用的项，从 `notAvailable{reason}` 逐条失败变成 `ended{unavailable}`——调用方不必另补结果这一点不变。
+- **2026-09-24 修订批第五节（候选，未冻结，原地改）**：
+  - **参数不合 → `failed{arguments_invalid}`**：原失败种类 `arguments_rejected` 改为账本名 `arguments_invalid`（同一件事，种类仍七个）；判定由起执行者（原 S-38 第 2 步）移到提交时，成为即刻收场的第 ② 种（[S-23](v1/contract.md#s-23-提交一批) ④，与「判为不可用」「发起即后台被拒」排定次序）；单函数工具按它的 `input`、多命令工具按所选命令的 `commands[c].input` 判；块上必带「哪里不合」与该命令的一行说明加参数表（命令不在命令表里时带命令清单），与 `Tools().inspect` 一致（[S-11](v1/contract.md#s-11-失败的种类)）；S-42 列明它不经卸载那一关；S-9、S-2、S-4 相应几处；安全性质表加一行；新场景 [S-61](v1/contract.md#s-61-参数不合即刻失败并带用法)；examples 共用局面加 `fs`、第 1 节第 1～2 步、第 8 节末加一张表。
+    **S-38 的步骤号顺移**：原第 3、4、5 步成为第 2、3、4 步，G-4 那一格跟着改；外部没有引用这几个步号。
+  - **产品依据升到 PF-006 rev 19**：抬头与设计依据表加 §5.3「多命令工具的定义里带多少」（→ S-11、S-23）与 §6.6「前台上限与并发上限」（→ S-43、S-44）；S-43 的计数范围、S-44 的「等待不计、转后台不再计」由「本契约的推导」改为引产品正文；**G-3 收窄**：产品已定原因「前台超时」，缺的只剩 `data.content-blocks` 的取值（R-25）。
+  - **formal**：`Execution.tla` 与八个配置**未改**；`formal/README.md` 语义映射里 `StartFail` 一行去掉「参数」、写明参数那一支不在模型里。catalog 对 `data.tool-definition` 的依赖加 S-4、S-5、S-7；covers 加两条。
+  - **对消费者**：没有已采用的消费者，无迁移。**语义改变**：参数不合的调用不再占排队位置、不等轮到它，提交那一次写就落定；它的块上多了用法。agent loop 读到的仍是 `ended{failed}`、不必另补结果。
 
 ## 报给主线
 
@@ -173,3 +189,7 @@
 | R-21 | **声明卸载的原始结果存不下时上交**：S13-b 让本能力总是存，存储读写不了时按「执行记录读写不了」同一处置（收场照写、落盘写不下去就上交），不假装存下 | S-36 | 推导待确认（2026-09-24） |
 | R-22 | **失败种类由八个变七个**：S13-c 采纳的「失败种类八值」数的是 S13-a 之前的表；删去 `not_available` 之后是七个 | S-11 | 账本数字过时（2026-09-24） |
 | R-23 | **简报写「MCP 例外条款与 mcp-bridge S-27/S-38 互指」**：mcp-bridge v1 没有 S-38；按本契约 S-37（执行者登记与撤下）↔ 桥 S-27（桥被替换或卸载）互指，另引桥 S-21（失败值与收场的对应） | S-37 | 简报坐标（2026-09-24） |
+| R-24 | **「未知键都拒」的读法**：修订批简报写「未知键与缺必填键都拒」。本契约读作「`input` 不收的键」——`input` 用 `additionalProperties: false` 关住了才拒，没关的照 Draft 2020-12 收下。若读成「`properties` 里没有的键一律拒」，会与 `data.tool-definition/v1#S-5` 的「只带命令清单」写法（`{"type": "object", "properties": {}}` 收任何一个对象）和 PF-006 §5.3「对不对由工具自己判」相抵——那种写法下任何参数都会被拒。**请主线确认**；若取后一种读法，TD S-5 与 PF-006 §5.3 那一行要一起改 | S-11、S-23 ④ | 简报读法待确认（2026-09-24） |
+| R-25 | **「前台超时」没有 token**：PF-006 rev 18 §6.6／§6.7 定了占位原因「前台超时」，`data.content-blocks` v1 的 S-18 没有对应的 `reason.code`，账本也没给名字；本契约不自造。前台上限到点而不许后台时，记录照写、那条消息落不下去（S-10 那一行「停下并上交」） | S-10、S-44、G-3 | 账本缺名（2026-09-24） |
+| R-26 | **参数判定的两个次序是推导**：同一项既被注册表判为不可用又参数不合时报 `unavailable`；参数不合又发起即后台被拒时报 `arguments_invalid`。简报只说「按所选命令的 `input` 校验」，没说与另两种即刻收场谁先 | S-23 ④ | 推导待确认（2026-09-24） |
+| R-27 | **单函数工具同样判参数**：简报写「按所选命令的 `input`」；本契约把单函数工具（按它的 `input`）一并纳入同一种类——否则 MCP 条目与单函数工具的坏参数会原样交给执行者，与多命令工具两套规矩 | S-11、S-23 ④ | 推导待确认（2026-09-24） |

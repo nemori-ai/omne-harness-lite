@@ -3603,7 +3603,7 @@
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。「不能被新选中」「说得出已下架」是读档案的能力的义务，本契约只定状态语义与不可逆。PF-013 rev 9"
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。「不能被新选中」「说得出已下架」是读档案的能力的义务，本契约只定状态语义与两条转移（撤回、恢复在册）。2026-09-24 规格修订批按 rev 10「能恢复在册」改写。PF-013 rev 10"
     },
     {
       "requirement": {
@@ -3615,11 +3615,12 @@
         "version": 1,
         "clauses": [
           "S-1",
+          "S-3",
           "S-4"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-013 rev 9"
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。2026-09-24 规格修订批补 S-3：表里新增「两者可以同路由名」一行。PF-013 rev 10"
     },
     {
       "requirement": {
@@ -3737,11 +3738,12 @@
         "contract_id": "data.model-profile",
         "version": 1,
         "clauses": [
-          "S-3"
+          "S-4",
+          "S-13"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。S-3 引本节作撞名拒建的理由；「路由名在全部档案里唯一」本身来自产品负责人 2026-09-23 的撞名裁决与主线同日的推广裁定，尚未落进 PF-013 正文。PF-013 rev 9"
+      "note": "2026-09-24 规格修订批改登，未经独立复核。本节不再是撞名拒建的理由（裁决 38 撤了「自建撞官方拒建」）；只覆盖「每一条标着来源」在档案一侧的依据：来源取值（S-4）与引用里的 origin、scope（S-13）。列表本身与来源标注的呈现归 capability.model-request-runtime。PF-013 rev 10"
     },
     {
       "requirement": {
@@ -3767,12 +3769,13 @@
         "contract_id": "data.model-profile",
         "version": 1,
         "clauses": [
+          "S-3",
           "S-10",
           "S-14"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。「不能被新选中」「说已下架」是读档案的能力的义务。PF-013 rev 9"
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。「不能被新选中」「说已下架」是读档案的能力的义务。2026-09-24 规格修订批补 S-3：同一范围里再用已撤回档案的路由名是恢复那一条、不另建。PF-013 rev 10"
     },
     {
       "requirement": {
@@ -3829,11 +3832,30 @@
         "contract_id": "data.model-profile",
         "version": 1,
         "clauses": [
+          "S-3",
           "S-10"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖状态语义（初值、唯一转移、终态）；建档与撤回的操作面不归本契约。PF-013 rev 9"
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖状态语义（初值、两条转移、没有终态）与建档前提「这个范围里还没有同路由名的档案」（S-3）；建档、撤回、恢复在册的操作面不归本契约。2026-09-24 规格修订批按 rev 10 改写。PF-013 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#档案的身份所在范围加路由名"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 1,
+        "clauses": [
+          "S-1",
+          "S-3",
+          "S-13",
+          "S-14"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-24 规格修订批按设计依据表登记，未经独立复核。PF-013 rev 10 新增小节（裁决 35）；其中「组织层与租户层各建一条同名的都成立」这一读法待产品负责人确认（契约 G-13）。PF-013 rev 10"
     },
     {
       "requirement": {
@@ -4586,7 +4608,39 @@
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。S-7 于同日按主线裁定改写生成规则时补入（只带命令清单的写法）。PF-006 rev 18"
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。S-7 于同日按主线裁定改写生成规则时补入（只带命令清单的写法）。PF-006 rev 18。2026-09-24 修订批按 PF-006 rev 19 重写后的这一小节（模型面前只有命令清单一种样子）复核三条的措辞，条款不变，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#工具说明与每个参数的说明必填"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 1,
+        "clauses": [
+          "S-4",
+          "S-5",
+          "S-8"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-24 修订批（PF-006 rev 19 新小节）补登：所列条款的正文与设计依据表都链接了这一小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#前台上限与并发上限"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 1,
+        "clauses": [
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-24 修订批（PF-006 rev 18 新小节）补登：S-13 正文与设计依据表链接了这一小节（前台上限与并发上限是偏好类设置、定义给默认值、不设即无限制），未经独立复核"
     },
     {
       "requirement": {
@@ -12539,11 +12593,12 @@
         "clauses": [
           "S-9",
           "S-11",
+          "S-15",
           "S-16"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。2026-09-24 修订批补 S-15：该条款改写时带上了这一小节链接（动作集一次尝试之内不变，PF-006 rev 18），未经独立复核"
     },
     {
       "requirement": {
@@ -12574,7 +12629,7 @@
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。动作集「一次尝试之内不变」是主线 2026-09-23 裁定 B-M03 的读法，产品修订（PF-006 §6.13、PF-002 §4 MCP）待落"
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。动作集「一次尝试之内不变」是主线 2026-09-23 裁定 B-M03 的读法，已落进 PF-006 rev 18 §6.13（2026-09-24 修订批改此注）"
     },
     {
       "requirement": {
@@ -12679,11 +12734,27 @@
         "contract_id": "capability.mcp-bridge",
         "version": 1,
         "clauses": [
+          "S-12",
           "S-14"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按条款正文里的小节链接登记，未经独立复核"
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记，未经独立复核。2026-09-24 修订批补 S-12：该条款改为引 PF-006 rev 18 这一小节（动作集每一次执行尝试开始前重取、尝试之内不变），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#工具说明与每个参数的说明必填"
+      },
+      "target": {
+        "contract_id": "capability.mcp-bridge",
+        "version": 1,
+        "clauses": [
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-24 修订批补登：S-17 的 description 一行与最小规范化（主线裁定 2026-09-24）据这一小节（PF-006 rev 19 说明必填）补占位说明，正文链接了它，未经独立复核"
     },
     {
       "requirement": {
@@ -12761,7 +12832,7 @@
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按条款正文里的小节链接登记，未经独立复核。「一次尝试之内不变」是主线 2026-09-23 裁定 B-M03 的读法，产品修订待落"
+      "note": "2026-09-23 起草时按条款正文里的小节链接登记，未经独立复核。「一次尝试之内不变」是主线 2026-09-23 裁定 B-M03 的读法，已落进 PF-006 rev 18 §6.13（2026-09-24 修订批改此注）"
     },
     {
       "requirement": {
@@ -13625,11 +13696,12 @@
         "clauses": [
           "S-5",
           "S-15",
-          "S-18"
+          "S-18",
+          "S-33"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表与条款正文的小节链接登记，未经独立复核"
+      "note": "2026-09-23 起草时按设计依据表与条款正文的小节链接登记，未经独立复核；2026-09-24 规格修订批补 S-33（能恢复在册，PF-013 rev 10）"
     },
     {
       "requirement": {
@@ -13673,13 +13745,15 @@
         "contract_id": "capability.model-profile-directory",
         "version": 1,
         "clauses": [
+          "S-6",
           "S-7",
           "S-19",
-          "S-20"
+          "S-20",
+          "S-32"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表与条款正文的小节链接登记，未经独立复核"
+      "note": "2026-09-23 起草时按设计依据表与条款正文的小节链接登记，未经独立复核；2026-09-24 规格修订批按 PF-013 rev 10（凭据只在租户层、出厂格那一把只供官方档案）补 S-6、S-32"
     },
     {
       "requirement": {
@@ -13722,13 +13796,15 @@
         "contract_id": "capability.model-profile-directory",
         "version": 1,
         "clauses": [
+          "S-6",
           "S-7",
           "S-19",
-          "S-20"
+          "S-20",
+          "S-32"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表与条款正文的小节链接登记，未经独立复核"
+      "note": "2026-09-23 起草时按设计依据表与条款正文的小节链接登记，未经独立复核；2026-09-24 规格修订批按 PF-013 rev 10 补 S-6、S-32（解绑即照「没配」处理）"
     },
     {
       "requirement": {
@@ -13756,11 +13832,13 @@
         "clauses": [
           "S-5",
           "S-15",
-          "S-16"
+          "S-16",
+          "S-18",
+          "S-33"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表与条款正文的小节链接登记，未经独立复核"
+      "note": "2026-09-23 起草时按设计依据表与条款正文的小节链接登记，未经独立复核；2026-09-24 规格修订批补 S-18（清单重现即 relisted）、S-33（恢复在册，谁撤得了谁恢复得了）"
     },
     {
       "requirement": {
@@ -13803,11 +13881,12 @@
         "clauses": [
           "S-14",
           "S-15",
-          "S-18"
+          "S-18",
+          "S-33"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表与条款正文的小节链接登记，未经独立复核"
+      "note": "2026-09-23 起草时按设计依据表与条款正文的小节链接登记，未经独立复核；2026-09-24 规格修订批补 S-33（恢复在册转移）"
     },
     {
       "requirement": {
@@ -13821,11 +13900,50 @@
           "S-10",
           "S-14",
           "S-15",
-          "S-19"
+          "S-19",
+          "S-31",
+          "S-32",
+          "S-33"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表与条款正文的小节链接登记，未经独立复核"
+      "note": "2026-09-23 起草时按设计依据表与条款正文的小节链接登记，未经独立复核；2026-09-24 规格修订批补 S-31、S-32、S-33（修订、解绑、恢复在册三行；组织超管配凭据改为不可）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#档案的身份所在范围加路由名"
+      },
+      "target": {
+        "contract_id": "capability.model-profile-directory",
+        "version": 1,
+        "clauses": [
+          "S-5",
+          "S-14",
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-24 规格修订批按设计依据表登记，未经独立复核。PF-013 rev 10 新增小节；组织层与租户层同名并存这一读法待产品负责人确认（契约 G-11）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#组织那一层为什么不持有"
+      },
+      "target": {
+        "contract_id": "capability.model-profile-directory",
+        "version": 1,
+        "clauses": [
+          "S-6",
+          "S-7",
+          "S-19",
+          "S-20",
+          "S-32"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-24 规格修订批按设计依据表登记，未经独立复核。PF-013 rev 10 新增小节（裁决 33）"
     },
     {
       "requirement": {
@@ -14182,11 +14300,94 @@
         "contract_id": "capability.model-request-runtime",
         "version": 1,
         "clauses": [
-          "S-19"
+          "S-12",
+          "S-19",
+          "S-28"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表与条款正文的小节链接登记，未经独立复核"
+      "note": "2026-09-23 起草时按设计依据表与条款正文的小节链接登记，未经独立复核；2026-09-24 规格修订批按 PF-013 rev 10（凭据只在租户层、出厂格那一把只供官方档案）补 S-12（按来源标缺凭据）、S-28（出门前检查第 4 行）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#62-凭据挂在范围上档案自己不存"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 1,
+        "clauses": [
+          "S-12",
+          "S-19",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-24 规格修订批按设计依据表登记，未经独立复核。PF-013 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#63-官方与自建在同一份列表里"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 1,
+        "clauses": [
+          "S-12",
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-24 规格修订批按设计依据表登记，未经独立复核。每一条标着来源（裁决 36）：来源即条目引用里的 origin 与 scope。PF-013 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#档案的身份所在范围加路由名"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 1,
+        "clauses": [
+          "S-12",
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-24 规格修订批按设计依据表登记，未经独立复核。只覆盖「同一个路由名在列表里出现不止一次、靠来源分得开」这一侧。PF-013 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#64-撤回不删行会话指向被撤回的档案时说已下架"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 1,
+        "clauses": [
+          "S-9",
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-24 规格修订批按设计依据表登记，未经独立复核。只覆盖「已下架」的标注与恢复在册之后会话自然接上；撤回与恢复本身归 capability.model-profile-directory。PF-013 rev 10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "flows.md#14-走一遍选中的模型被下架了"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 1,
+        "clauses": [
+          "S-9",
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-24 规格修订批按设计依据表登记，未经独立复核。含第 6′ 步（恢复在册后不用换就接得上）。PF-013 rev 10"
     },
     {
       "requirement": {
@@ -14443,7 +14644,7 @@
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表与条款正文的小节链接登记，未经独立复核；首 token 之后停机的收场与本小节原话不一致（契约 G-7），部分为让该缺口可见而登"
+      "note": "2026-09-23 起草时按设计依据表与条款正文的小节链接登记，未经独立复核；首 token 之后停机的收场 = interrupted{runtime_lost}，与本小节原话已一致（契约 G-7 于 2026-09-24 整批对齐闭合，产品修订批改原话），不再有为缺口而登的部分"
     },
     {
       "requirement": {
@@ -14538,7 +14739,7 @@
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表与条款正文的小节链接登记，未经独立复核；不允许回退时默认件一次都不重试与本小节「开箱就有重试」的张力见契约 G-8"
+      "note": "2026-09-23 起草时按设计依据表与条款正文的小节链接登记，未经独立复核；不允许回退时默认件同家至多再试一次（账本 S16-g），与本小节「开箱就有重试」一致；契约 G-8 只剩退避取值 default_retry_backoff 待产品定"
     },
     {
       "requirement": {
@@ -15049,6 +15250,38 @@
       },
       "reviewed": false,
       "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。PF-006 rev 17"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#多命令工具的定义里带多少是工具作者的权衡"
+      },
+      "target": {
+        "contract_id": "capability.tool-execution-runtime",
+        "version": 1,
+        "clauses": [
+          "S-11",
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-24 修订批按设计依据表补登（参数按所选命令的完整参数校验，不合即 failed{arguments_invalid}；只带命令清单时对不对由工具自己判），未经独立复核。PF-006 rev 19"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#前台上限与并发上限"
+      },
+      "target": {
+        "contract_id": "capability.tool-execution-runtime",
+        "version": 1,
+        "clauses": [
+          "S-43",
+          "S-44"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-24 修订批按设计依据表补登（并发上限按会话计、超出排队；前台上限只数前台在跑的时间、到点许后台的转后台不许的被中断），未经独立复核。PF-006 rev 18。S-10 与 G-3 对这一小节「前台超时」的引用是缺口指路，不登"
     },
     {
       "requirement": {
@@ -15746,5 +15979,5 @@
       "note": "2026-09-24 整批对齐补登：该条款本轮新增或改写时带上了这个小节链接，未经独立复核。PF-016 rev 5"
     }
   ],
-  "note": "全部 reviewed=false——这是「声称覆盖、尚未逐条复核」的诚实初值，不是复核通过。每条的 clauses 取自该契约三种来源之一或其并：条款正文里带那个产品小节链接的条款段落、契约「设计依据」表的「小节 → 条款」行（同一依据行链到多个小节的每个小节各登一条、条款相同）、「性质」表以那个小节为来源的那一行的保护条款；各契约用了哪一种列在下面。一律不登：规范场景条款与形式工件条款；只在消费者表、缺口表、「明确不承诺」、导航表里出现，或只作指路、否定式（「不归本契约」）提及的小节；主线裁定与决定记录（D-0xx）等不是产品小节的依据；foundation 的 SYS-* 全局约束（那一侧的覆盖在本清单里没有家）。「缺口登记型」条目为让某个缺口可见而登、不表示已覆盖，各见其行 note。已知不完整三处：（1）PF-007 被 data.identity-values 与 capability.organization-governance 引为来源（§4 一笔授权表达有三个维度），首批登记范围只含 PF-001/002/003/015，未登；（2）SYS-* 同上；（3）正文以散文引用产品要求、没有给出小节链接的地方抓不到。data.identity-values/v1#S-35「交接凭证」没有产品出处（规格层构造），有意不登。各契约的条目数与来源口径（2026-09-24 整批对齐后）：租户领域五份（2026-09-22 首登，评审轮一修订后补登 18 处）——data.identity-values 24、data.offer-expiry 10、capability.account-identity v1 19、capability.organization-governance 32、composition.account-registration 12，正文链接与性质表「来源」列合并；capability.account-identity v2 23；composition.governance-center-entry 42（首登后正文逐条补齐链接，每条的小节都在所列每个条款里有链接，唯一例外是 acceptance §二那一条）；composition.governance-center-entry-https-json 12（正文链接）；data.content-blocks 24、data.messages 74、data.arrival-events 25、capability.stream-assembly 17、data.connector 17、data.skill-package 21、data.slash-command 15、data.mcp-endpoint 11、data.loop-extension 46、capability.modality-projection 14、capability.model-profile-directory 19、capability.loop-extension-runner 35、capability.hooks-import 14、capability.tool-execution-runtime 57、data.model-profile 21、capability.tool-admission 38、data.asset-model 53、capability.asset-transfer 32——以设计依据表为主（按各自简报口径），部分并入正文链接或性质表来源列，未逐条核对每个所列条款的正文都链接了那个小节；data.call-accounts 12、data.model-response 26、data.tool-definition 32、capability.asset-governance 61、capability.asset-evaluation 33、capability.asset-registry 36、capability.mcp-bridge 18、capability.model-request-runtime 46——正文链接（逐条机械抽取；asset-governance 与 asset-evaluation 另并性质表来源列）。PF-013 rev 5–8、PF-009 rev 5–7 全文待产品负责人确认。2026-09-24 整批对齐补登 6 条、给 10 条追加条款：凡本轮新增或改写的条款正文带上了产品小节链接而原先未登的（call-accounts S-38／S-39、tool-definition S-7、asset-model S-8／S-19／S-20／S-36、messages S-22、asset-governance S-3／S-29／S-48、asset-evaluation S-38／S-39、mcp-bridge S-8），note 写明「整批对齐补」；起草时有意不登的条款链接（多为指路与否定式）未重判。各条的来源细节见各行 note。"
+  "note": "全部 reviewed=false——这是「声称覆盖、尚未逐条复核」的诚实初值，不是复核通过。每条的 clauses 取自该契约三种来源之一或其并：条款正文里带那个产品小节链接的条款段落、契约「设计依据」表的「小节 → 条款」行（同一依据行链到多个小节的每个小节各登一条、条款相同）、「性质」表以那个小节为来源的那一行的保护条款；各契约用了哪一种列在下面。一律不登：规范场景条款与形式工件条款；只在消费者表、缺口表、「明确不承诺」、导航表里出现，或只作指路、否定式（「不归本契约」）提及的小节；主线裁定与决定记录（D-0xx）等不是产品小节的依据；foundation 的 SYS-* 全局约束（那一侧的覆盖在本清单里没有家）。「缺口登记型」条目为让某个缺口可见而登、不表示已覆盖，各见其行 note。已知不完整三处：（1）PF-007 被 data.identity-values 与 capability.organization-governance 引为来源（§4 一笔授权表达有三个维度），首批登记范围只含 PF-001/002/003/015，未登；（2）SYS-* 同上；（3）正文以散文引用产品要求、没有给出小节链接的地方抓不到。data.identity-values/v1#S-35「交接凭证」没有产品出处（规格层构造），有意不登。各契约的条目数与来源口径（2026-09-24 整批对齐后）：租户领域五份（2026-09-22 首登，评审轮一修订后补登 18 处）——data.identity-values 24、data.offer-expiry 10、capability.account-identity v1 19、capability.organization-governance 32、composition.account-registration 12，正文链接与性质表「来源」列合并；capability.account-identity v2 23；composition.governance-center-entry 42（首登后正文逐条补齐链接，每条的小节都在所列每个条款里有链接，唯一例外是 acceptance §二那一条）；composition.governance-center-entry-https-json 12（正文链接）；data.content-blocks 24、data.messages 74、data.arrival-events 25、capability.stream-assembly 17、data.connector 17、data.skill-package 21、data.slash-command 15、data.mcp-endpoint 11、data.loop-extension 46、capability.modality-projection 14、capability.model-profile-directory 19、capability.loop-extension-runner 35、capability.hooks-import 14、capability.tool-execution-runtime 59、data.model-profile 21、capability.tool-admission 38、data.asset-model 53、capability.asset-transfer 32——以设计依据表为主（按各自简报口径），部分并入正文链接或性质表来源列，未逐条核对每个所列条款的正文都链接了那个小节；data.call-accounts 12、data.model-response 26、data.tool-definition 34、capability.asset-governance 61、capability.asset-evaluation 33、capability.asset-registry 36、capability.mcp-bridge 19、capability.model-request-runtime 46——正文链接（逐条机械抽取；asset-governance 与 asset-evaluation 另并性质表来源列）。PF-013 rev 5–8、PF-009 rev 5–7 全文待产品负责人确认。2026-09-24 整批对齐补登 6 条、给 10 条追加条款：凡本轮新增或改写的条款正文带上了产品小节链接而原先未登的（call-accounts S-38／S-39、tool-definition S-7、asset-model S-8／S-19／S-20／S-36、messages S-22、asset-governance S-3／S-29／S-48、asset-evaluation S-38／S-39、mcp-bridge S-8），note 写明「整批对齐补」；起草时有意不登的条款链接（多为指路与否定式）未重判。2026-09-24 修订批第五节（PF-006 rev 18/19）补登 5 条——data.tool-definition 2 条（说明必填、前台上限与并发上限）、capability.tool-execution-runtime 2 条（多命令带多少、前台上限与并发上限）、capability.mcp-bridge 1 条（说明必填）——并给 2 条追加条款（mcp-bridge 的 PF-006 §6.13 加 S-12、mcp-endpoint 的 PF-006 §6.13 加 S-15），改 2 条「产品修订待落」的注。各条的来源细节见各行 note。"
 }
