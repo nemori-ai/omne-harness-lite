@@ -160,7 +160,7 @@ agent loop、系统自带五件、兼容件、`apps/runtime-host` 依赖本契�
 | `capability.asset-evaluation` v1 | `#S-8` 求值结果：各件求得的位置、维度、干预力、报错策略（经装配清单） | [S-6](#s-6-拓展件链从装配清单来) |
 | `capability.modality-projection` v1 | `#S-20` 转换件对一条消息的产出（挂派生表示或否决）、`#S-22` 没有转换件输入的消息不依赖转换这一侧、`#S-23` 转换之后不再动块 | [S-6](#s-6-拓展件链从装配清单来) 转换件的位置、[S-14](#s-14-结论合不合法两类判断) 挂派生表示的出口、[S-17](#s-17-系统自带件不可用时一律关门) 转换件那一行 |
 
-> **`data.model-profile` 与 `data.offer-expiry` 不在上面，是有意的。**`select_model` 的档案引用与 `retry` 的供应商经 `data.loop-extension` 的形状到达，
+> **`data.model-profile` 与 `data.offer-expiry` 不在上面，是有意的。**`select_model` 换上的路由名与 `retry` 的供应商经 `data.loop-extension` 的形状到达，
 > 判定归模型请求运行时；结论记录的时刻表示也由数据半边引过。本契约没有一处据它们两份的条款写出承诺、判定或映射——按
 > [登记口径](../../../README.md#当前状态)，提到不是消费。
 
@@ -541,7 +541,7 @@ agent loop、系统自带五件、兼容件、`apps/runtime-host` 依赖本契�
 
 ### S-25 before_model_call 上的换模型与重新组装
 
-1. **`select_model` 换的是这一次请求的有效模型**：生效的那条把 `subject.request.target` 换成它的 `profile`，后一件拿到的就是换过的（`data.loop-extension/v1#S-13`）；后写的盖前写的。
+1. **`select_model` 换的是这一次请求的路由名**（有效模型随之是这个名字按层覆盖落到的那一行，解析归模型请求运行时）：生效的那条把 `subject.request.target` 换成它的 `profile`（一个路由名），后一件拿到的就是换过的（`data.loop-extension/v1#S-13`）；后写的盖前写的。
 2. **谁换的**：链上最后一条生效的 `select_model` 的那一件——模型请求运行时据此在响应体上记 `route.selectedBy = { extension }`（`data.model-response/v1#S-10`）。本契约只保证它从 `conclusions` 读得出。
 3. **这一次经过里有注入**（任何件的 `inject`，或 `record` 落下的提醒）：提醒在经过走完时追加（[S-19](#s-19-注入的提醒怎样追加)），然后 **agent loop 重新组装一次请求，不再回到这个位置**。
    发出去的请求 = **重新组装得到的 `messages`** ＋ **合成后 `subject` 的 `parameters` 与 `target`**。

@@ -101,3 +101,4 @@
   放行判断的六条对齐（上表）；回放时「答复之后再出卡」由「回放偏离」改为**新的一轮等人**，偏离改由等待原语检出、`replayInconsistent` 收场。
   **没有任何证据因此作废**——此前也没有证据。
 - 此后契约任何一处改动涉及上表场景的，**对应场景重新登记为「未开始」**；对齐义务表中任一行核对出差异，先报主线，改判后在这里记一条。
+- **（2026-09-24 措辞对齐 PF-013 rev 12，主线裁定，不改语义）**：`data.loop-extension` v1 的 `request.target` 与 `select_model` 的 `profile` 改为路由名（`RouteName`）之后，本契约第 163 行附近「`select_model` 的档案引用」改为「换上的路由名」，[S-25](v1/contract.md#s-25-before_model_call-上的换模型与重新组装) 第 1 条注明 `profile` 是一个路由名、有效模型是它落到的那一行；成员名 `profile` 不改，catalog 不变（本契约仍不据 `data.model-profile` 的条款写出承诺）。没有证据因此作废。
