@@ -24,7 +24,7 @@
   - `data.identity-values · v1`：`S-3`、`S-5`、`S-6`、`S-8`、`S-10`、`S-11`、`S-12`、`S-16`～`S-21`、`S-23`、`S-26`、`S-27`、`S-29`～`S-34`、`CS-1`、`CS-2`、`CS-5`；
   - `data.offer-expiry · v1`：`S-6`、`S-19`；
   - `capability.organization-governance · v1`：`S-22`、`S-26`、`S-38`；
-  - `data.asset-model · v1`：`S-1`～`S-16`、`S-18`～`S-23`、`S-36`（2026-09-24 整批对齐补登）；
+  - `data.asset-model · v1`：`S-1`～`S-16`、`S-18`～`S-23`、`S-25`、`S-36`（2026-09-24 整批对齐补登）；
   - 各类正文契约的两条规则与斜杠命令保留区（同日补登）：`data.tool-definition · v1` `S-16`、`S-31`；`data.skill-package · v1` `S-13`、`S-17`；`data.slash-command · v1` `S-3`、`S-4`、`S-6`、`S-11`；`data.mcp-endpoint · v1` `S-14`、`S-15`；`data.connector · v1` `S-11`。
   **不登** `capability.asset-transfer`：组合入口是它调本契约，同一次提交的约定引它的 S-18 只作指路。
 - **covers**：PF-001／PF-002／PF-003 → 本契约，全部 `reviewed: false`（2026-09-23 起草时按设计依据登记，未经独立复核）。
