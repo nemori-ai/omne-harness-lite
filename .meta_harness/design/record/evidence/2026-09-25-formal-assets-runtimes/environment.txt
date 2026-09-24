@@ -1,0 +1,6 @@
+git_head=1667ea4c37f0e8412cfe1c7e18d0774f34b3e53c
+git_branch=panqiwei/assets-runtimes
+java=openjdk version "21.0.12.1" 2026-08-18 LTS
+tla2tools_sha256=db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1
+host=Linux 5.15.0-1084-aws x86_64
+date_utc=2026-09-24T12:53:59Z
