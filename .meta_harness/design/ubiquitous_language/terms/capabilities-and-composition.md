@@ -167,6 +167,23 @@
 - **注意**：它连对端用的是 [MCP 凭据](#ul-mcp-credential--mcp-凭据--mcp-credential)，挂在持有上，不是[模型凭据](#ul-model-credential--模型凭据--model-credential)
 - **能组合**：**不组合任何资产**
 
+### UL-connection-target · 连接目标 · Connection Target
+
+> **中**：**[MCP](#ul-mcp--mcp--mcp) 接入点的一项[落点与身份类](#ul-setting-category--设置项类别--setting-category)设置：这个接入点连到对端的哪里。**
+> 它与 [MCP 凭据](#ul-mcp-credential--mcp-凭据--mcp-credential)一起决定这个接入点接的是哪一处、以哪个账号进门；
+> 各层按持有配值，**工作区那一级配不了它**。**它不是接入点的身份**——身份是接入点的 name。
+>
+> **EN**: **A placement-and-identity setting on an MCP access point: where on the far side the access
+> point connects.** Together with the MCP credential it decides which endpoint the access point reaches
+> and under which account it gets in; layers assign it through their holdings, and **the workspace level
+> cannot set it**. **It is not the access point's identity** — that is the access point's name.
+
+- **形态**：属性
+- **出处**：[PF-002 §4 MCP](../../product/PF-002-assets-settings-and-permissions/design.md#mcp) ·
+  [§5.2 设置项分四类](../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 17）
+- **别混**：**不是[投递目标](interaction-and-dispatch.md#ul-inbound-target--投递目标--inbound-target)**——那是连接件把外面的消息送进哪个会话，方向相反
+- **注意**：连不上（含凭据还没取或已失效），这个接入点带来的动作[一律不可用](../../product/PF-006-tools-and-skills/design.md#接入点连不上它的动作就是不可用)（PF-006 rev 18）
+
 ### UL-connector · 连接件 · Connector
 
 > **中**：**一个外部消息来源的接入件**，把外部的消息送进来。
@@ -192,7 +209,7 @@
 ### UL-loop-extension · 拓展件 · Loop Extension
 
 > **中**：挂在某个 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)上的**一段判断或动作**。
-> 它声明自己**挂在哪个位置**、**管哪些情形**，以及自己的**[干预力](../../product/PF-000-occurrences-and-record-entries/design.md#干预力--intervention-power)**——
+> 它声明自己**挂在哪个位置**、**管哪些情形**，以及自己的**[干预力](agent-runtime-loop.md#ul-intervention-power--干预力--intervention-power)**——
 > 只观察 / 可改写 / 可否决——**没有「放宽」一档**，拓展件不能把「问一下」变成放行。
 > **可否决那一档含「落一张[决策卡片](interaction-and-dispatch.md#ul-decision-card--决策卡片--decision-card)等人」**：拓展件用的是 loop 自己等外部应答的那个原语，与主流程共用。
 > **它是 opt-in 的可插拔服务**：不可用（它依赖的服务用不了）视作已卸载——这一次这个位置没有它，日志可见；
@@ -289,8 +306,26 @@
 - **注意 ①**：**名字**——交付面自己的动作名与系统业务流程型命令名是**系统保留名**，**一律在 `omne-official` 前缀下**；前两种绑定的命令**不得使用这个前缀**；同能力标识按资产替换规则
 - **注意 ②**：**为什么单独是一类资产**：为将来的可编程性留口子——出处同上
 - **注意 ③**：一个会话认得哪些，是它的[会话斜杠命令集](#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set)——**没有权限用的，对这个会话就不存在**
-- **注意 ④**：**绑定目标与参数声明是这条命令本身，不是设置**——各层配不出不同的值；想改一条命令展开什么，换一份同名的
+- **注意 ④**：**绑定目标与[参数声明](#ul-command-parameter-declaration--命令参数声明--command-parameter-declaration)是这条命令本身，不是设置**——各层配不出不同的值；想改一条命令展开什么，换一份同名的
 - **能组合**：Skill（绑定）
+
+### UL-command-parameter-declaration · 命令参数声明 · Command Parameter Declaration
+
+> **中**：**一条[斜杠命令](#ul-slash-command--斜杠命令--slash-command)可选带的那份参数说明，每个参数配一句给人看的提示。**
+> 它是这条命令本身的一部分，**不是设置**——不随持有它的那一层配出不同的值。
+> **声明了的，按声明解析**，解析不通过就当场明说哪里不对、不发送；**没声明的，命令名之后的整段文本作一个自由参数**。三种绑定目标一条规则。
+>
+> **EN**: **The optional description of a slash command's parameters, each carrying a short hint for
+> the person typing it.** It is part of the command itself, **not a setting** — no holding layer can give
+> it a different value. **Where declared, input is parsed against it**, and a failed parse is reported on
+> the spot, saying what is wrong, and nothing is sent; **where not, everything after the command name is
+> one free-form argument**. The same rule holds for all three binding targets.
+
+- **形态**：属性
+- **出处**：[PF-002 §4 Slash Command](../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)（rev 17） ·
+  [PF-016 §5.7 人要做的事分三族](../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)（rev 5）
+- **别混**：**不是工具调用的参数**——那是模型给出、按工具定义收齐之后才解析的；这里解析的是人敲进交付面的那一行
+- **注意**：② 型命令里，人附带的参数**另成一个内容块**，不拼进 skill 的正文
 
 ### UL-plugin · 插件 · Plugin
 
@@ -574,6 +609,88 @@
 - **注意 ②**：**「已撤回」与「这个范围不允许它」是两件事**——
   后者那条档案照样在册，只是在这个范围[求值](scope-and-resolution.md#ul-scope-evaluation--作用域求值--scope-evaluation)算不出来
 
+### UL-official-model-profile · 官方档案 · Official Model Profile
+
+> **中**：**随系统发布、位于出厂默认层的那种[模型档案](#ul-model-profile--模型档案--model-profile)。**
+> 它自己**不含凭据**——出厂默认那一格可以有一把，由部署装配时配好，产品里没有任何操作能配、换或解绑它；
+> 它与自建档案**在同一份列表里**展示。
+>
+> **EN**: **A model profile that ships with the system and sits at the factory-default layer.** It
+> **carries no credential** of its own — the factory-default slot may have one, set up at deployment
+> assembly and beyond the reach of any operation in the product; it is shown **in the same single list**
+> as custom profiles.
+
+- **形态**：变体（父：[模型档案](#ul-model-profile--模型档案--model-profile)）
+- **出处**：[PF-013 §4 官方档案 / 自建档案](../../product/PF-013-model-profiles-and-invocation/design.md#官方档案--自建档案) ·
+  [§5.6](../../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上) ·
+  [§6.3](../../product/PF-013-model-profiles-and-invocation/design.md#63-官方与自建在同一份列表里)（rev 9）
+- **⚠️ 别混**：**不是[官方件](circulation-and-entitlement.md#ul-official-asset--官方件--official-asset)**——官方件说的是资产的来源，而档案不是资产；**所以这里叫「档案」不叫「件」**
+
+### UL-custom-model-profile · 自建档案 · Custom Model Profile
+
+> **中**：**组织的超级管理员或租户在自己那一层建的[模型档案](#ul-model-profile--模型档案--model-profile)。**
+> 它自己**不存凭据**，调用时取所在范围的那一把[模型凭据](#ul-model-credential--模型凭据--model-credential)；
+> 在册期间可以修订，**路由名与来源除外**——换路由名就是另建一条。
+>
+> **EN**: **A model profile that an organization's super administrator, or a tenant, creates at their
+> own layer.** It **stores no credential** and uses its scope's model credential at call time; while
+> listed it may be revised, **except for its routing name and origin** — a new routing name means a new
+> profile.
+
+- **形态**：变体（父：[模型档案](#ul-model-profile--模型档案--model-profile)）
+- **出处**：[PF-013 §4 官方档案 / 自建档案](../../product/PF-013-model-profiles-and-invocation/design.md#官方档案--自建档案) ·
+  [§5.6](../../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上)（rev 9） ·
+  [flows §四 角色与操作](../../product/PF-013-model-profiles-and-invocation/flows.md#四角色与操作)（rev 9）
+- **⚠️ 别混**：**不是[自定义件](circulation-and-entitlement.md#ul-customized-asset--自定义件--customized-asset)**——理由同上
+
+### UL-profile-listing-status · 档案在册状态 · Profile Listing Status
+
+> **中**：**一条[模型档案](#ul-model-profile--模型档案--model-profile)是「在册」还是「已撤回」。**
+> 在册的能被新选中；已撤回的不能，**但行还在、读得出来**——会话还指着它时，说得出「已下架」，而不是「未知模型」。
+> 在册 → 已撤回单向不可逆，**已撤回是终态**。
+>
+> **EN**: **Whether a model profile is listed or withdrawn.** A listed profile can be newly selected;
+> a withdrawn one cannot, **yet its row remains and can still be read** — a session still pointing at it
+> can say "withdrawn" rather than "unknown model". Listed → withdrawn is one-way; **withdrawn is
+> terminal**.
+
+- **形态**：状态
+- **出处**：[PF-013 §4 在册 / 已撤回](../../product/PF-013-model-profiles-and-invocation/design.md#在册--已撤回) ·
+  [§6.4](../../product/PF-013-model-profiles-and-invocation/design.md#64-撤回不删行会话指向被撤回的档案时说已下架)（rev 9） ·
+  [flows §3.1](../../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 9）
+- **别混**：**「这个范围不允许它」不是这里的取值**——那是求值的结果，档案照样在册；两者要用户做的事不同：已下架要换一个，不被允许要去找管理员
+
+### UL-allowed-providers · 允许的供应商 · Allowed Providers
+
+> **中**：**[模型档案](#ul-model-profile--模型档案--model-profile)上的一项属性：这条档案允许走哪几家供应商、按什么次序。**
+> 有序、非空；**顺序就是重试挂件逐家去试的顺序**，每一次发出只走其中一家。建档时给，可改。
+>
+> **EN**: **An attribute of a model profile: which providers the profile may go through, and in what
+> order.** Ordered and non-empty; **the order is the order in which the retry extension tries them**,
+> each send going through exactly one. Set when the profile is created; may be changed.
+
+- **形态**：属性
+- **出处**：[PF-013 §4 模型档案](../../product/PF-013-model-profiles-and-invocation/design.md#模型档案) ·
+  [§5.12 系统自带一件默认的](../../product/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试)（rev 9）
+- **注意**：它是[试尽](execution-and-outcome.md#ul-retry-exhaustion--试尽--retry-exhaustion)这个判断的**输入**，不是试尽的定义
+- **别混**：**不是「各家一把凭据」**——所有模型请求统一经 OpenRouter 出去，一个范围一把[模型凭据](#ul-model-credential--模型凭据--model-credential)，不分供应商
+
+### UL-provider-fallback · 供应商回退 · Provider Fallback
+
+> **中**：**[模型档案](#ul-model-profile--模型档案--model-profile)上的一项是 / 否属性：第一家不行时，允不允许往后换一家。**
+> 允许时，默认的重试件顺着[次序](#ul-allowed-providers--允许的供应商--allowed-providers)每家至多试一次；
+> 不允许时，**同一家退避之后至多再试一次**——不许的是换家，不是再试。建档时给，可改。
+>
+> **EN**: **A yes/no attribute of a model profile: whether, when the first provider fails, the call may
+> move on to the next.** If allowed, the default retry extension tries each provider in order at most
+> once; if not, **it retries the same provider at most once after back-off** — what is forbidden is
+> switching provider, not retrying. Set when the profile is created; may be changed.
+
+- **形态**：属性
+- **出处**：[PF-013 §4 模型档案](../../product/PF-013-model-profiles-and-invocation/design.md#模型档案) ·
+  [§5.12 系统自带一件默认的](../../product/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试)（rev 9）
+- **注意**：它同样只是[试尽](execution-and-outcome.md#ul-retry-exhaustion--试尽--retry-exhaustion)的输入；租户换掉默认重试件之后，怎么读它由那一件定
+
 ### UL-model-credential · 模型凭据 · Model Credential
 
 > **中**：一个[组织](subjects-and-ownership.md#ul-organization--组织--organization)或
@@ -650,18 +767,22 @@
 ### UL-selected-model · 选中模型 · Selected Model
 
 > **中**：**[会话](agent-runtime-loop.md#ul-session--会话--session)当前指向的那条[模型档案](#ul-model-profile--模型档案--model-profile)。**
-> 它是一个**被记下来的取值**，**只因一次切换而变**；它摆在那儿，不会算不出来。
+> 它是一个**被记下来的取值**，**只因一次[模型切换](#ul-model-switch--模型切换--model-switch)而变**；它摆在那儿，不会算不出来。
+> **会话从没切换过时，它取「用哪个模型」这项设置沿层级求值出来的那一条**——这就是它的初值。
 > **它不是这一次请求实际用的那条**——那是[有效模型](#ul-effective-model--有效模型--effective-model)。
 >
 > **EN**: **The model profile a session currently points at** — a **recorded value** that
-> **changes only through a switch**, and is always simply there. **Not the profile a given
-> request actually goes out with**: that is the effective model.
+> **changes only through a model switch**, and is always simply there. **Until the session has ever
+> switched, it is the profile that the "which model" setting evaluates to across the layers** — that is
+> its initial value. **Not the profile a given request actually goes out with**: that is the effective
+> model.
 
 - **形态**：属性
 - **出处**：[PF-013 §4 选中模型 与 有效模型](../../product/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型) ·
   [§5.9](../../product/PF-013-model-profiles-and-invocation/design.md#59-换模型一条事实一个生效点零个新分支)（rev 9）
 - **⚠️ 别混**：用户界面上「你正在用 X」说的是它；**「刚才那句话是 X 说的」说的是另一件事**，两者完全可以不是同一个答案
-- **注意**：它是「用哪个模型」这项[设置](#ul-setting--设置--setting)在**会话那一格**的值；**会话从没切换过时那一格没有值**，选中模型取这项设置沿层级求值出来的那一条
+- **注意**：它是「用哪个模型」这项[设置](#ul-setting--设置--setting)在**会话那一格**的值；切换就是改这一格，**从没切换过时那一格没有值**，所以初值取沿层级求值的那一条
+- **注意 ②**：**它的每一次改变，都先是会话日志里的一条[切换](#ul-model-switch--模型切换--model-switch)事实**——[条目落盘即改变](../../product/PF-013-model-profiles-and-invocation/flows.md#33-一个会话的选中模型)（PF-013 rev 9），没有「自动从 A 变成别的」这条转移
 
 ### UL-effective-model · 有效模型 · Effective Model
 
@@ -686,5 +807,30 @@
 - **注意**：拓展件改掉它**不是静默的**——它[必须留下结论](../../product/PF-012-agent-loop-and-run/design.md#610-能干预的拓展件必须留下结论)
 - **注意 ②**：**出门之前核的是它，不是选中模型**——上层锁死了另一条，请求就用锁定的那条照常发出，不算失败；
   [只有它算不出来、或不是合法目标，这一次才失败](../../product/PF-013-model-profiles-and-invocation/design.md#69-合法目标算不出来时不替用户改选)
+
+### UL-model-switch · 模型切换 · Model Switch
+
+> **中**：**用户把一个会话的[选中模型](#ul-selected-model--选中模型--selected-model)换成另一条[合法目标](scope-and-resolution.md#ul-legal-target-set--合法目标集合--legal-target-set)的那个动作。**
+> 它先是一条落进[会话日志](record-and-context.md#ul-session-log--会话日志--session-log)的事实——**条目一落盘，切换就已经发生**，之后走不走得通不回头推翻它；
+> **生效点在收到那条事实之后、下一次模型请求之前**：正在进行的那次调用照常跑完，仍用原来那条。
+> 用户选了合法目标，切换就发生，**没有第二种结果**；它不给 loop 添任何分支。
+>
+> **EN**: **The act by which a user changes a session's selected model to another legal target.** It
+> is first a fact written to the session log — **once the entry is written, the switch has happened**,
+> and whatever follows does not undo it; **it takes effect after that fact and before the next model
+> request**, so a call already under way runs to its end on the old profile. Choosing a legal target
+> always succeeds — **there is no second outcome**; the switch adds no branch to the loop.
+
+- **形态**：过程
+- **出处**：[PF-013 §5.9 换模型](../../product/PF-013-model-profiles-and-invocation/design.md#59-换模型一条事实一个生效点零个新分支) ·
+  [§6.5](../../product/PF-013-model-profiles-and-invocation/design.md#65-切换是用户的直接命令合法目标不得拒绝) ·
+  [§6.6](../../product/PF-013-model-profiles-and-invocation/design.md#66-切换先是一条要被记录的事实) ·
+  [§6.7](../../product/PF-013-model-profiles-and-invocation/design.md#67-生效点收到那条事实之后下一次模型请求之前)（rev 9） ·
+  [flows §3.3](../../product/PF-013-model-profiles-and-invocation/flows.md#33-一个会话的选中模型)（rev 9）
+- **别混 ①**：**选中模型变了，不等于[有效模型](#ul-effective-model--有效模型--effective-model)变了**——上层锁死过，求值出来的可能仍是别的
+- **别混 ②**：**不是[当前租户身份](subjects-and-ownership.md#ul-current-tenant-identity--当前租户身份--current-tenant-identity)的切换**。裸写「切换」不作数
+- **注意 ①**：**窗口更小、看着更「差」都不构成拒绝**——装不装得下，下一次请求前照常量、照常压缩
+- **注意 ②**：**agent 可以代用户执行一条明确的切换指令，但不能为了绕开一次失败自己换**——[换模型不是模型调用那一层的手段](../../product/PF-013-model-profiles-and-invocation/flows.md#四角色与操作)
+- **弃用**：~~「切换事实」~~作为概念名——那是这个动作落下的那条[记录条目](record-and-context.md#ul-record-entry--记录条目--record-entry)，不另立
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)
