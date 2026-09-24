@@ -96,6 +96,9 @@
 - **注意 ⑤**：**它归哪个租户，在创建那一刻就定了**——它持有
   [创建那一刻的当前租户身份](subjects-and-ownership.md#ul-current-tenant-identity--当前租户身份--current-tenant-identity)，
   [此后不随这个账号切换到别的租户身份而变](../../product/PF-015-session-lifecycle-and-ownership/design.md#612-会话持有创建那一刻的租户身份)
+- **注意 ⑥**：**它指向哪条模型，是它的[选中模型](capabilities-and-composition.md#ul-selected-model--选中模型--selected-model)**；
+  这个取值的每一次改变都以一条[模型切换](capabilities-and-composition.md#ul-model-switch--模型切换--model-switch)事实记在[会话日志](record-and-context.md#ul-session-log--会话日志--session-log)里，
+  [不是一个当场改掉的开关](../../product/PF-013-model-profiles-and-invocation/design.md#66-切换先是一条要被记录的事实)（PF-013 rev 9）
 
 ### UL-primary-session · 主会话 · Primary Session
 
@@ -463,6 +466,24 @@
 - **注意**：它是 [PF-011 那棵树上的一层](../../product/PF-011-off-nominal-handling/design.md#53-层的顺序不是排出来的是推出来的)，
   父节点是[运行](#ul-run--运行--run)
 
+### UL-side-question · 旁路提问 · Side Question
+
+> **中**：**用户趁 agent 干活时顺口问的一句，由一次不属于任何[运行](#ul-run--运行--run)的[模型调用](execution-and-outcome.md#ul-model-call--一次模型调用--model-call)来答。**
+> 它读得到[会话日志](record-and-context.md#ul-session-log--会话日志--session-log)，**但问与答都不进日志，也不改变下一步**。
+> 它花钱、会失败，却不属于任何一次尝试、任何一个 Run；**花的钱归会话那一级**。
+>
+> **EN**: **A question the user asks aside while the agent is working, answered by a model call that
+> belongs to no run.** It can read the session log, **but neither question nor answer enters the log, and it
+> does not change the next step**. It costs money and can fail, yet belongs to no attempt and no run; **its
+> cost is attributed at the session level**.
+
+- **形态**：过程
+- **出处**：[PF-012 §4 Run 是三样东西的归属单位](../../product/PF-012-agent-loop-and-run/design.md#run-是三样东西的归属单位)（rev 11） ·
+  [PF-013 §5.13 它只有一个宿主](../../product/PF-013-model-profiles-and-invocation/design.md#它只有一个宿主所以只有一种结局)（rev 9）
+- **别混**：**不是[插队](interaction-and-dispatch.md#ul-queue-jump--插队--queue-jump)**——插队的那句话要进队列、被这次运行看到；旁路提问碰不到运行
+- **注意**：**模型调用的全套规则对它照样成立**——宿主是 agent runtime，同样按档案与有效模型出门、看首 token、由重试挂件决定试不试；
+  归属规则本身归 [PF-015](../../product/PF-015-session-lifecycle-and-ownership/README.md)
+
 ### UL-current-conditions · 当下条件 · Current Conditions
 
 > **中**：算下一步时，**[会话日志](record-and-context.md#ul-session-log--会话日志--session-log)之外**
@@ -504,6 +525,46 @@
   [组装](record-and-context.md#ul-context-assembly--上下文组装--context-assembly)与「量一量」都不构成挂点
 - **注意 ③**：挂在这里的东西**只能靠改[会话日志](record-and-context.md#ul-session-log--会话日志--session-log)起作用**，
   **不改方程本身**
+
+### UL-intervention-power · 干预力 · Intervention Power
+
+> **中**：**收到一条瞬态条目的那一方——在 loop 里就是一件[拓展件](capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension)——能对正在发生的事做到什么。**恰三档：
+> **只观察**（看，不改）· **可改写**（追加一条，或决定下一条还没落盘的东西长什么样）·
+> **可否决**（拦住它站的那个状态点，不让它发生；也能落一张卡片，让运行停下来等人）。**没有「放宽」这一档。**
+> 只有「成为条目之前」那一刻才谈得上干预——已经写下的条目不干预任何事。
+>
+> **EN**: **What the receiver of a transient entry — in the loop, an extension — can do to what is
+> happening.** Exactly three grades: **observe only** (look, change nothing); **may rewrite** (append an
+> entry, or decide the shape of the next one not yet written); **may veto** (stop the state point it stands
+> at from happening, including by posting a card and making the run wait for a person). **There is no
+> "loosen" grade.** Intervention exists only at the moment before something becomes an entry — an entry
+> already written intervenes in nothing.
+
+- **形态**：属性
+- **出处**：[PF-000 §4 干预力](../../product/PF-000-occurrences-and-record-entries/design.md#干预力--intervention-power) ·
+  [§5.3](../../product/PF-000-occurrences-and-record-entries/design.md#53-干预力只长在瞬态这一半上)（rev 1） ·
+  [PF-012 §5.8 干预力三档](../../product/PF-012-agent-loop-and-run/design.md#干预力三档直接用-pf-000-的) ·
+  [没有「放宽」这一档](../../product/PF-012-agent-loop-and-run/design.md#没有放宽这一档)（rev 11） ·
+  [PF-002 §4 Loop Extension](../../product/PF-002-assets-settings-and-permissions/design.md#loop-extension)（rev 17）
+- **注意 ①**：**在拓展件上它是一项[权限](capabilities-and-composition.md#ul-permission--权限--permission)，不是设置**——各层按收窄合成，组织锁在「只观察」，租户就放不宽
+- **注意 ②**：**三档挂了的后果相反**——只观察那一档不影响正在发生的事；可改写那一档不影响，但留一笔「它没跑成」；可否决那一档报错默认当作否决。**「不可用」不是报错**，另有定法
+- **注意 ③**：**否决只在「之前」的位置上有意义**；可否决那一档站在「之后」，多出来的只有等人
+
+### UL-extension-point-pass · 一次经过 · Extension-Point Pass
+
+> **中**：**loop 走到某个 [Loop 拓展点](#ul-loop-extension-point--loop-拓展点--loop-extension-point)的一次**——从到了那个状态点，到越过它。
+> 这一次里，挂在那里的各件按顺序各跑一轮。**同一个位置，同一次经过只跑一轮**：
+> 「调模型之前」有挂件改了日志，就重新组装一次，**但不再回到这个位置**。
+>
+> **EN**: **One arrival of the loop at a given loop extension point** — from reaching that state point to
+> moving past it. Within one pass the extensions hung there each run once, in order. **A position runs only
+> one round per pass**: if an extension at "before model call" changes the log, the request is assembled
+> again, **but that position is not visited again**.
+
+- **形态**：过程
+- **出处**：[PF-012 §5.8 改了日志就重新组装，同一位置同一次经过只跑一轮](../../product/PF-012-agent-loop-and-run/design.md#改了日志就重新组装同一位置同一次经过只跑一轮)（rev 11）
+- **注意 ①**：**与压缩那一圈同构**——压完再量一次，还超就上交，不再压一轮；不定这条，一个爱改日志的挂件就能把自己无限触发下去
+- **注意 ②**：同一个位置上几件的先后，[就是它们在装配清单里的顺序](../../product/PF-002-assets-settings-and-permissions/design.md#loop-extension)（PF-002 rev 17），后一件看得到前一件的结论
 
 ### UL-wait-primitive · 等待原语 · Wait Primitive
 
