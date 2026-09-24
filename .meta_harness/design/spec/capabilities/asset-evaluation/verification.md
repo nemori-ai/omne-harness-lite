@@ -21,6 +21,7 @@
 | V-6 | **输入不合法时整体拒绝**（[S-37](v1/contract.md#s-37-输入不合法时整体拒绝)）：[E-5](v1/examples.md#e-5-不合法的输入) 八份 | 规范场景演练，**核返回里没有任何 `EffectiveAssembly`** | [S-7](v1/contract.md#s-7-输入的一致性条件)、[S-13](v1/contract.md#s-13-invalidinput-是没开始判filteredout-与-unresolved-是判出来的结果) | **未开始** |
 | V-7 | **装配给的保证**（[S-29](v1/contract.md#s-29-装配给的保证-vs-协议须给的保证) 左列）：一致读、分享此刻成立、调用方已核实、清单就是目录里那份 | 装配设计的选型声明 ＋ 架构评审 | [第七节前提](v1/contract.md#前提由别人兑现本契约不检查) PRE-1～PRE-3、PRE-7、PRE-8（动作集就是这次尝试钉住的那一份，由会话资产注册表兑现） | **未开始。**不是可跑的义务；它们失效的形态都是**静默算错**（锁截断被绕过、团队资产出树），上面的场景测不出 |
 | V-8 | **判下来用不了的退回下一层**（[S-41](v1/contract.md#s-41-判下来用不了的退回下一层)）：[E-6](v1/examples.md#e-6-判下来用不了的退回下一层) 六支同跑 | 规范场景演练 | [S-39](v1/contract.md#s-39-谁可以使用它值与判定)、[S-18](v1/contract.md#s-18-第一步之三最后取最具体的一份锁在最外那一把处截断)、[S-19](v1/contract.md#s-19-官方件是下界)、[S-26](v1/contract.md#s-26-每份持有都有去处) | **未开始。**E 支的期望（锁随被滤掉的那份不起作用）是本契约推导，已报主线；主线改判则 E、F 两支随之改。**PF-002 acceptance §一「成员乙写了一个 tool，组织持有了它」那一行说的是组织直接持有**（不经 plugin），按主线读法（2026-09-24）与 [S-31](v1/contract.md#s-31-unresolved-交到装配手上怎么收场) 不冲突：没有同名 official 时，E-6 C 支的求值结果是这个标识进 `unresolved`，装配据它怎么收场归 S-31 |
+| V-9 | **执行权限项的 `tenantAutoWritable`**（[S-42](v1/contract.md#s-42-执行权限项另带租户那一层写得进自动吗)）：[E-1](v1/examples.md#e-1-四格齐全的一次求值) 的真、假两种与「`h6` 带锁」一支，[E-4](v1/examples.md#e-4-换了实现设置不跟过去权限的约束跟过去) 五支皆假 | 规范场景演练，随 V-2、V-5 同一次演练比对 | [S-42](v1/contract.md#s-42-执行权限项另带租户那一层写得进自动吗)、[S-8](v1/contract.md#s-8-求值结果-effectiveassembly) | **未开始** |
 
 ### 静态检查义务
 
@@ -296,5 +297,14 @@
   - `examples.md`：E-1 输入加 `mcpActionSets`、MCP 的四个项名改用 `data.mcp-endpoint` S-14 的真名（`connectionTarget`、`callTimeout`、`execute:search`、`execute:push`）、附加支加两支；E-3 的项名同改；开头读法边界那一条改写。
   - **Alloy 不重跑，理由**：本轮对模型没有语义变化。① (i) 只是**判读**改为「按构造」，断言与 fact 不动；② 工作区那一格的锁在合法输入里不再出现——模型仍容许它、照旧不算，是更宽的输入空间，断言在收窄后照样成立；③ 逐动作项只是生效资产「声明了哪些项」多一个来源，模型把声明当给定。`Evaluation.als` 一个字节未改（SHA-256 `4a79c2f9…126a`），2026-09-24c 那次运行继续对应它；两行注释里的「S-24」沿用旧说法，写在 [formal/README](v1/formal/README.md) 语义映射表。
   - **对消费者**：`capability.asset-registry` 的 `refreshAvailability` 在钉住后发起这次求值、把 `execute:*` 与每个接入点的持有钉进报告（同批由它写）；`capability.tool-admission`、`capability.tool-execution-runtime` 从那份报告读；`capability.mcp-bridge` 的 S-5「`scope` 由求值结果的 `from` 得出」不变。
+
+- **2026-09-25 修复波 1b（候选未冻结，原地改）**：裁定出处 [D-040 §六](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)（L7、L8、N-7、N-8）。
+  - **L7**：新条款 [S-42](v1/contract.md#s-42-执行权限项另带租户那一层写得进自动吗)——`values` 里每条执行权限项另带布尔 `tenantAutoWritable`（租户那一层此刻写不写得进一条不带锁的「自动」）；四条判据：生效资产声明了这一项、不是工作区提供的资产、组织那一格的界含「自动」、租户那一格没锁住这一项。第 3 条「不论组织那份持有在不在效」是**本契约推导**（取写面 `lockedAbove` 的口径，分叉时取严），已报主线。`EffectiveValue` 形状加可选成员（[S-8](v1/contract.md#s-8-求值结果-effectiveassembly)）；S-32 表、S-33、S-36 的必须观察、消费者核对加一行；examples E-1 加真假两种与「`h6` 带锁」一支、E-4 注五支皆假；上表加 V-9。`capability.tool-admission` v1 的 G-14 随之闭合（那份契约同轮改），`capability.loop-extension-runner` v1 S-29 第 5 条组装时带上。
+  - **L8**：[S-6](v1/contract.md#s-6-求值输入-evaluationinput) `mcpActionSets` 一行、[S-8](v1/contract.md#s-8-求值结果-effectiveassembly) 末段与消费者核对里注册表那一行，二次求值的措辞由「以装配那一次的输入」改为「沿用装配那一次的配方（`root` 与 `workspace`），持有与配值取此刻的」（K30 的读法）。
+  - **引用补齐**：页首「2026-09-23 的另几条追加裁定」由「D-040 尚未收录」改链 §六 N-7；[S-21](v1/contract.md#s-21-第三步投影) 末段「按项名认种类」改为主线接受（N-7）；[S-24](v1/contract.md#s-24-工作区那一格在第四步只贡献设置) K44 一句改链 §四（R3 落法取代「读入时丢弃」）；页首加修复波 1b 一条。PRE-2 里「租户格以 `organization` 支持有同一份被分享记录」一句当时仍写「D-040 尚未收录」，已报主线，同轮由 N-11 追认（见下一条）。
+  - **L3 引用清理**：本包没有 `targetEnvironment` 的引用，无改动。
+  - **registry**：catalog 本契约的依赖不变（S-42 只读已消费的 `data.tool-definition` S-15、`data.mcp-endpoint` S-14、`data.asset-model` S-19）；covers 加一条 PF-008「第三档和第四档各有约束」→ S-42；formal-tasks、id-namespaces 不变。
+  - **同轮追加（主线回裁）**：[D-040 §六](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) L13、L14、N-11、N-12。**L14**：S-42 的三条推导（第 1、2 条与第 3 条「不论在不在效」）主线接受——「推导」字样保留、补链 L14；「租户格无持有时第四档怎样落地」并入 `capability.tool-admission` 的 G-2，S-42 末段与消费者核对那一行改指。**L13**：S-42 写明这一位经会话资产注册表每次尝试的可用性报告交到 runner（`capability.asset-registry/v1#S-11` 同轮扩到全部工具条目）。**N-11**：PRE-2 里租户格以 `organization` 支持有被分享记录那一句由「D-040 尚未收录」改链 N-11。**N-12**：[G-6](v1/contract.md#十一已知缺口) 补一句——闭合时读入工作区承载清单那条路也要判 `name_not_projectable`。catalog、covers 不因此变。
+  - **对证据的影响**：Alloy 模型不含 `tenantAutoWritable`，也不含二次求值的输入怎么组（[formal 入口](v1/formal/README.md)已补一条盖不到），`Evaluation.als` 未改，**本轮未运行 Alloy**；规范场景全部未开始，V-2、V-5、V-9 首次执行按新内容。
 
 结果不改写规范。发现语义问题回到来源设计（PF-002／PF-001／PF-003／PF-004），不在这里改契约。

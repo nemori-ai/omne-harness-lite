@@ -2,7 +2,7 @@
 
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
-> **当前状态（2026-09-24，第一轮独立评审处置之后）：没有任何证据。**
+> **当前状态（2026-09-24，第一轮独立评审处置之后；2026-09-25 修复波 1b 原地改）：没有任何证据。**
 > `capability.loop-extension-runner` v1 是 `candidate`，**经过第一轮独立评审、未接受**；尚无提供者设计、尚无源码。
 > 回放的行为模型 **已触发、尚未建**（[契约 S-35](v1/contract.md#s-35-形式工件回放的行为模型已触发尚未闭合)、[G-14](v1/contract.md#十三已知缺口)）；下面登记的规范场景**十四条一条都没演练**。
 > **在模型建成之前，回放、先落后算、只跑一轮这几条只有场景这一种证据形式。**
@@ -110,6 +110,15 @@
 | K29（两件能力标识） | **改**：S-7 引 `omne-official:admission-judgment`（tool-admission S-26）与 `omne-official:offload-judgment`（TER 的给出处是 S-63，K29 写的 S-1 是它的拥有表）；G-3 收窄为其余三件；catalog 加 TER 依赖（S-63） | S-4、S-7、G-3、examples |
 
 ## 变化的影响
+
+- **2026-09-25 修复波 1b（候选，未冻结，原地改）**：裁定出处 [D-040 §六](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)（L2、L7、N-10）。
+  - **L7**：[S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 5 条写明 runner 组装每一项 `AdmissionInput`，`effectivePermission` 与 `tenantAutoWritable` 取自同一条执行权限项的 `EffectiveValue`（`capability.asset-evaluation/v1#S-42`）：MCP 动作取可用性报告的 `effectivePermissions`（`capability.asset-registry/v1#S-11`）；取不到、`unavailable` 或缺那一位即这一轮按放行判断不可用、全拒件顶上（**本契约推导**：与 `capability.tool-admission/v1#S-8` 对 MCP 那一项缺席的收场一致，不交缺项输入换 `invalidInput`）。**作者写的工具取哪一次求值未定，立 [G-18](v1/contract.md#十三已知缺口)**（owner 主线 ＋ `capability.asset-registry`）。场景 [S-48](v1/contract.md#s-48-放行判断一轮汇合凭据扣住答复只认自己的卡) 加「放行输入的组装」一支；设计依据表加一行；消费者核对「放行判断」一行补 G-18。
+  - **同轮追加：L13，G-18 闭合**（[D-040 §六 L13](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）：可用性报告的 `effectivePermissions` 扩到 `tool` 表每条条目（`capability.asset-registry/v1#S-11` 同轮改）；[S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 5 条改为一律从报告取、不另求值；S-4 末表与页首依赖表 asset-registry 那一行、设计依据表那一行、消费者核对「放行判断」一行随之改；G-18 行改为已闭合；S-48 那一支改成「作者写的工具 ＋ MCP 动作」。catalog 里对 `capability.asset-registry` 的 `S-11` 保留。
+  - **同轮追加：L15**（[D-040 §六 L15](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）：报告里写着 `not_in_composition` 的项照常交进 `admit`（`effectivePermission = not_in_composition`、不带 `tenantAutoWritable`），放行判断单独判 `deny{not_held}`、不牵连同批；只有取不到、`unavailable` 或缺那一位才整轮全拒。[S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 5 条、设计依据表那一行、场景 [S-48](v1/contract.md#s-48-放行判断一轮汇合凭据扣住答复只认自己的卡) 那一支随之改。
+  - **N-10，G-13 闭合**：两条主线裁定（`before_model_call` 的否决 ≡ 运行落失败；回复落盘前被否决追加提醒）已登 D-040 §六；设计依据表那一行、[S-23](v1/contract.md#s-23-效果之后的事由谁做) 表、[S-30](v1/contract.md#s-30-连续被否决的回复) 第 1 条改链。
+  - **L2**：本包没有 `implementation.capability` 的引用（`builtin` 一支只经 `data.loop-extension` 的形状到达、本契约不点名成员），无改动。
+  - **registry**：catalog 本契约对 `capability.asset-evaluation` 补 `S-42`、对 `capability.tool-admission` 补 `S-7`、`S-8`，新增依赖 `capability.asset-registry` `["S-11"]`（已核无环：注册表的依赖闭包里没有本契约）；页首依赖表与 S-4 末表同改，「后五项」改「后六项」。covers、formal-tasks、id-namespaces 不变。
+  - **对证据的影响**：没有既有证据；S-48 多一支，仍「未开始」。回放的行为模型（S-35、G-14）仍未建，本轮不涉。
 
 - **2026-09-24 第一轮独立评审处置（候选，未冻结，原地改）**：处置逐条见上表。
   - **产品依据 rev 复核**：PF-012 rev 11（落盘前对模型回复只能否决；转换件没登记 vs 不可用；系统自带件不走卸载；放行判断不能替换；连续否决上限；中断提醒不开 Run）、rev 12（**不可用处置**：租户件跳过／声明否决、系统自带件指定挂件、放行判断全拒件、「此刻不在、按 X 处置」可见）→ S-12、S-17、S-23、S-30 已落；rev 13～14（转换件本版不是资产、组织与租户换不了）→ 本契约原本就不许非系统件挂派生表示，无改动。PF-008 rev 6（写不出卡＝不放行、兼容件的卡不带授权）→ 原已落；rev 7（清卡第三条路「它等的执行已终局关成已作废」、放行判断不可用全拒件）→ S-27 第 6 条、S-29 第 8 条、S-17。PF-002 rev 17（同一位置先后＝装配清单顺序）→ 原已落；rev 19～20（不可用处置是这一件自己的声明）→ S-6 第 3 条、S-12。PF-004 rev 11～12（I-4 一次运行之内；构成变小也重新装配）→ 清单在两次尝试之间变了的处置不变（S-28 第 1 条），无改动。PF-013 rev 9～12（落盘前否决不是调用失败、转换件替换只在系统装配层）→ 与 S-23、S-17 一致，无改动。PF-014 rev 6～7（中断提醒不让队列非空、连接件开新会话）→ G-6 的描述改写，无条款改动。

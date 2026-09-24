@@ -9,11 +9,11 @@
 **兼容件对本契约与任何一件原生件没有区别**。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.loop-extension-runner, 1)`
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订），**未接受、未冻结**
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订，2026-09-25 修复波 1b 原地补放行输入的组装、闭合 G-13；同轮新立的 G-18 已由 L13 闭合），**未接受、未冻结**
 - **catalog 映射**：已登记为 `candidate`；`family=capabilities`、`topic=loop-extension-runner`、
   `contract_path=spec/capabilities/loop-extension-runner/v1/contract.md`；`resources` 含契约与 `examples.md`；
-  依赖十一项：六项数据契约（`data.loop-extension`、`data.messages`、`data.content-blocks`、`data.call-accounts`、`data.model-response`、`data.identity-values`，均为 v1），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)；
-  另五项能力契约（`capability.tool-admission`、`capability.model-request-runtime`、`capability.asset-evaluation`、`capability.modality-projection`、`capability.tool-execution-runtime`），消费面见 S-4 末表
+  依赖十二项：六项数据契约（`data.loop-extension`、`data.messages`、`data.content-blocks`、`data.call-accounts`、`data.model-response`、`data.identity-values`，均为 v1），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)；
+  另六项能力契约（`capability.tool-admission`、`capability.model-request-runtime`、`capability.asset-evaluation`、`capability.asset-registry`、`capability.modality-projection`、`capability.tool-execution-runtime`），消费面见 S-4 末表（`capability.asset-registry` 与 `capability.asset-evaluation` 的 `S-42` 是 2026-09-25 修复波 1b 补登：组装放行输入）
 - **formal-tasks 映射**：无——回放的行为模型**已触发、尚未建**，要检查的七条义务与前提见[契约 S-35](v1/contract.md#s-35-形式工件回放的行为模型已触发尚未闭合)（[G-14](v1/contract.md#十三已知缺口)）
 - **提供者/装配映射**：尚无
 

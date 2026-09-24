@@ -66,7 +66,7 @@
 | L-1 拓展件不可用处置没有落点 | **改**（主线处置裁定）：S-6 加声明成员 `unavailability ∈ skip \| veto`（缺席即 `skip`；不是设置也不是权限；`veto` 只随声明的 `veto` 档与「之前」位置，否则 `malformed`；`fallback` 只给系统自带件、不经声明）；新 `$defs/UnavailabilityPolicy`（`skip`／`veto`／`fallback`，`fallback` 是本契约的取名）；S-31 不可用记录必带实际采用的 `unavailability`；S-33 改写为「租户件按声明；系统自带件由装配预先声明的指定挂件顶上」；S-9、S-13 随之改；删「不在就不许跑本版没有正文」两处；性质加 P-14 | S-6、S-9、S-13、S-31、S-33、S-36、S-37、S-39、第十二、十三、十五节；Schema `UnavailabilityPolicy`、`LoopExtensionDefinition`、`Conclusion`；examples 第 2、5、8 节 |
 | L-2 没有属性项推出规则；asset-evaluation 坐标指错 | **改**（主线处置裁定）：新 [S-40](v1/contract.md#s-40-属性项的推出规则)：`position`、`dimension` 是绑定类设置项、`power` 是权限项，取值域为各自枚举、默认 = 声明值；`onError`、`needs`、`implementation`、`unavailability` 不出项；按 asset-model S-12 四项义务逐条核对。**G-7 随之关闭**（`onError` 是这一件自己的声明）；PF-002 的「它自己的配置」推不出，登 **G-18**（owner 主线）。asset-evaluation 181 行的坐标改指 S-40 由 R3 改（本批不写那份） | S-40、S-5、S-6、G-7、G-18；[对齐义务](#对齐义务) |
 | L-3 `tools` 每项一个能力标识，MCP 来源没有 | **改**（主线处置裁定）：`ModelRequest.tools: ModelToolName[]`（`data.tool-definition` 新立的 `$defs/ModelToolName`）；model-request-runtime 同改由 R5 落 | S-15、抬头；Schema `ModelRequest`；examples 第 3 节加三行 |
-| L-4 `ToolDefinitionRef.name` 与 `Conclusion.extension` 引错了权威；`implementation.capability` 与 `AssetDefinition.capability` 同名；Schema 另写命名规则 | **改三处、不改一处**：`ToolDefinitionRef.name` 改引 `ModelToolName`（与调用块的工具名同一套，主线处置裁定）；`Conclusion.extension` 改引 asset-model `CapabilityName`；Schema 删「五件用能力契约坐标」的命名规则、写明不归本契约。**`implementation.capability` 不换名**：D-040 S15-b 定的就是 `builtin{capability}`，runner 与 hooks-import 按这个名字引用；换名要主线给一个名字并同轮改三份——本轮在 S-8 与 Schema 写明它不是能力标识、与 `AssetDefinition.capability` 同名不同义，换名已报主线 | S-8、S-14；Schema `ExtensionImplementation`、`ToolDefinitionRef`、`Conclusion` |
+| L-4 `ToolDefinitionRef.name` 与 `Conclusion.extension` 引错了权威；`implementation.capability` 与 `AssetDefinition.capability` 同名；Schema 另写命名规则 | **改三处、不改一处**：`ToolDefinitionRef.name` 改引 `ModelToolName`（与调用块的工具名同一套，主线处置裁定）；`Conclusion.extension` 改引 asset-model `CapabilityName`；Schema 删「五件用能力契约坐标」的命名规则、写明不归本契约。**`implementation.capability` 不换名**：D-040 S15-b 定的就是 `builtin{capability}`；换名要主线给一个名字（runner、hooks-import 无该字段引用，2026-09-25 核对）——本轮在 S-8 与 Schema 写明它不是能力标识、与 `AssetDefinition.capability` 同名不同义，换名已报主线 | S-8、S-14；Schema `ExtensionImplementation`、`ToolDefinitionRef`、`Conclusion` |
 | L-6 README 依赖计数不一致；过期的「同批未定型」表；messages 登 S-37 而语义在 S-49 | **改**：README 改八项／六项；过期表删去（留一句沿革）；catalog 的 messages 补登 S-49（S-37 是那份契约的规范表示，`$defs` 都在那里，保留），content-blocks 去掉不再用的 S-20，并补登 content-blocks S-19、asset-model S-12／S-13／S-15／S-36、tool-definition S-6 | README；变化的影响；`registry/catalog.json` |
 | （K13）`before_model_call` 那一行「实际发出的参数留痕在响应体」 | **改**（主线处置裁定，只改这一句）：响应体 `parameters` 记实际发出的值，适配器改动记 `parameterAdjustments`，丢掉的项名（含 `extra`）记 `droppedParameters`，形状归 `data.model-response` | S-23 |
 | （K32）兼容件 `ask` 带改写 | **改**（主线处置裁定）：`DecisionCardDraft.proposedRewrite?: { arguments }`，只在 `before_action`；是提议不是结论 | S-28；Schema `DecisionCardDraft`；examples 第 4 节三行、EX-1 |
@@ -154,6 +154,14 @@
 
 **同日稍后（候选，未冻结，原地改）**：K 裁定收进 D-040 第五节之后，正文里标「第一轮评审处置」的几处改链 D-040 §五（K8、K9、K10、K13、K32、K36）；随 `data.model-response` 那一批的交付：[S-2](v1/contract.md#s-2-两个维度) 加一种不触发「调模型之后」的情形——回复被系统拿去用（`replyDisposition = consumed`）的那一次，与落盘前被否决同理（主线裁定，D-040 未收录，已报主线补登）；[S-14](v1/contract.md#s-14-按位置的-subject) 写明失败主体是重试件下结论的唯一依据、不另读响应体（K36）；[S-23](v1/contract.md#s-23-rewrite) 那一句改为「响应体上的 `parameters` 是实际发出的值」。**表示不变**（Schema 与实例未动，未重跑）；语义收紧一处：`consumed` 的那一次从「未写明」变为不触发。
 
+### 2026-09-24 修复波 1b（候选，未冻结）
+
+主线裁定 [D-040 §六](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) L2，原地改。
+**表示改变**：[S-8](v1/contract.md#s-8-装配进来的实现与外部命令) 装配进来的实现那一格的成员名 `capability` 改为 **`builtinName`**（装配清单里那件系统自带实现的名字，不是能力标识；免得与资产记录的 `AssetDefinition.capability` 同名）。带旧成员名的实例由合法变为 `malformed`；Schema `ExtensionImplementation` 的 builtin 一支同改（成员、`required`、描述），取值规则不变。
+**语义不变**。**消费者影响**：`data.asset-model` 的壳 `$ref` `LoopExtensionDefinition`，自动随之生效，它的实例第 272 行同轮改（同一位起草者）；runner、hooks-import 无该字段引用（2026-09-25 核对）。
+实例：第 2、6、7 节 21 处改成员名；第 2 节加一行旧成员名的反例；第 5 节第 125 行（现第 126 行）的系统自带件名由 `omne-official:tool-admission` 改为放行判断的能力标识 name `omne-official:admission-judgment`（[D-040 §五 K29](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）。
+**证据**：V-1 只重跑受影响的部分——`jsonschema` 4.26.0（`Draft202012Validator` ＋ `referencing`，锁定 uv 环境，设计根下全部 Schema 按 `$id` 登表，脚本在会话暂存区、不入库）：第 2 节 **27 行**按 `$defs/LoopExtensionDefinition`、第 5 节 **18 行**按 `$defs/Conclusion`、第 6 节带 `implementation` 的声明块与第 7 节十行按各自注明的 `$defs`（共 **15 处**），**0 处不符**；第 1、3、4 节未改、未重跑。
+
 ## 对齐义务
 
 **这些是本契约与别的契约之间要一起落的事**，不是本契约自己的证据义务。
@@ -166,3 +174,4 @@
 | **`consumed` 的那一次不触发「调模型之后」** | `data.model-response` v1 S-5、G-14 | 本契约已落（[S-2](v1/contract.md#s-2-两个维度)）；那边 G-14 据此关（R2b 已交付） |
 | **`ask` 带改写**：`DecisionCardDraft.proposedRewrite`；改写在答复允许之后生效、回放从这一格重建 `rewrite` | `capability.hooks-import` v1 S-20、S-21 | 本契约已落（[S-28](v1/contract.md#s-28-ask)）；hooks-import 由 R4b 同轮改 |
 | **推出规则的坐标**：拓展件的属性项推出规则在本契约 [S-40](v1/contract.md#s-40-属性项的推出规则) | `capability.asset-evaluation` v1 S-4 末段、S-10、G-3；`data.asset-model` v1 CS-1；`capability.asset-governance` v1 G-5 | 本契约已落；三份的改引由 R3 同轮改 |
+| **`implementation.builtinName`**（原 `implementation.capability`）：装配清单里那件系统自带实现的名字；JSON 路径 `LoopExtensionDefinition.implementation.builtinName`（`kind = builtin` 那一支，Schema `#/$defs/ExtensionImplementation/oneOf/0/properties/builtinName`） | `data.asset-model` v1（壳 `$ref` `LoopExtensionDefinition`，随之生效；它的实例第 272 行已同轮改） | 本契约已落（[S-8](v1/contract.md#s-8-装配进来的实现与外部命令)）；runner、hooks-import 无该字段引用（2026-09-25 核对） |

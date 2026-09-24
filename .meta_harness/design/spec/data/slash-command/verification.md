@@ -62,7 +62,7 @@
 | `slash_command` 类正文的形状 | `data.asset-model` v1 的 S-10 | **已落**：那边的壳 `$ref` 本契约的 `SlashCommandDefinition`。**依赖方向**：catalog 只登本契约 → `data.asset-model`；那边的 `$ref` 是结构上的前提、不登依赖，catalog 不成环 |
 | 正文里另立的名字字段 | `data.asset-model` v1 的 S-10 | **已落**：正文不带 `name`，命令名就是记录的 `capability.name`（[S-1](v1/contract.md#s-1-斜杠命令定义是资产的正文)） |
 | `origin.command` 的词法 | `data.content-blocks` v1 的 S-8 | 那边只约束到「非空」、不反向引用本契约（避免成环）——保持 |
-| ① 型展开的正文与留痕 | `data.content-blocks` v1 的 S-8 | **已落**：`slash_command_expansion` 与 `slash_command_record` 两种来源标记（原 G-4；留痕不是第八类块） |
+| ① 型展开的正文与留痕 | `data.content-blocks` v1 的 S-8 | **已落**：`slash_command_expansion` 与 `slash_command_record` 两种来路标记（原 G-4；留痕不是第八类块） |
 | 技能「正文」是哪一段 | `data.skill-package` v1 的 S-8 | **已落**：依赖已登（原 G-2） |
 | 「谁可以用」这一项 | `data.asset-model` v1 的 S-36 | **已落**：八类共用 `usableBy`（主线裁定 2026-09-24，原为三类；斜杠命令的「谁可以用这个入口」即此项），本契约的推出规则产出空集（原 G-5） |
 | reload 一族的命令名 | `capability.asset-registry` v1 | 名字须在保留区里、绑定为 `command`、拼法照 [S-3](v1/contract.md#s-3-保留区与它唯一的拼法)；有哪几条、各叫什么归那边 |
@@ -115,5 +115,8 @@ V-2～V-6 **一条执行记录也没有**。起草时的手核与一次性演算
 - **交付面与受理面分成两个实现**：V-2 必须在每个实现上跑，V-5 从「无法演练」转为**必须演练**；[第六节](v1/contract.md#六装配给与协议给)右列从「待兑现」转为「须由协议兑现」。
   **本版的全部证据只保留其单机范围，不得外推。**
 - **（2026-09-24 整批对齐收尾，不改语义）**：「不拥有」与消费者表里「同批」「同批并行起草」的旧说法换成候选坐标（注册表、求值、资产治理）。
+
+- **2026-09-24 修复波 1b（主线裁定 [D-040 §六 L1](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)；候选未冻结，原地改）**：`data.content-blocks` 的 S-8 标题改为「文本块与来路标记」，本契约依赖表、S-21、S-22、S-25 里指向它的锚点改为 `#s-8-文本块与来路标记`；
+  同时把正文里指 `origin` 的「来源标记」一律改称「来路标记」（[UL-origin-tag](../../../ubiquitous_language/terms/record-and-context.md#ul-origin-tag--来路标记--origin-tag)，依赖表那一处链词条；「来源标记」是入站到达与提醒上的另一个词条）——依赖表、设计依据的注表、S-21、S-22、S-25 与 G-4、G-10 两行；本页对齐义务表「① 型展开的正文与留痕」一行同改。**语义与表示都不变**，V-1 不重跑。
 
 结果不改写规范。发现语义问题回到来源设计（PF-002／PF-014／PF-016），不在这里改契约。

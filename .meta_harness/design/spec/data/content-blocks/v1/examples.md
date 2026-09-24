@@ -99,12 +99,12 @@
 
 | 实例 | Schema | 拒绝值 | 依据 |
 |---|---|---|---|
-| `{"id": "b1", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "帮我看看这个仓库的 README"}` | 通过 | — | [S-8](contract.md#s-8-文本块与来源标记) |
-| `{"id": "b2", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": ""}` | 通过 | — | [S-8](contract.md#s-8-文本块与来源标记)：可以是空串 |
-| `{"id": "b3", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "--dry-run src/", "origin": {"kind": "slash_command_args", "command": "review"}}` | 通过 | — | [S-8](contract.md#s-8-文本块与来源标记)：人敲命令时附带的参数，另成一块 |
-| `{"id": "b4", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "# 代码评审\n逐个文件读……", "origin": {"kind": "skill_body", "command": "review", "skill": "code-review"}}` | 通过 | — | [S-8](contract.md#s-8-文本块与来源标记)：② 型展开的 skill 正文，逐字 |
-| `{"id": "b4a", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "请按下面的清单逐项检查 src/ 的改动", "origin": {"kind": "slash_command_expansion", "command": "checklist"}}` | 通过 | — | [S-8](contract.md#s-8-文本块与来源标记)：① 型展开模板得到的文字 |
-| `{"id": "b4b", "kind": "text", "visibility": {"toHuman": true, "toModel": false}, "text": "/review --dry-run src/", "origin": {"kind": "slash_command_record", "command": "review"}}` | 通过 | — | [S-8](contract.md#s-8-文本块与来源标记)：留痕块是带来路的文本块，`text` 是人敲的原文；标注由受理一方定 |
+| `{"id": "b1", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "帮我看看这个仓库的 README"}` | 通过 | — | [S-8](contract.md#s-8-文本块与来路标记) |
+| `{"id": "b2", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": ""}` | 通过 | — | [S-8](contract.md#s-8-文本块与来路标记)：可以是空串 |
+| `{"id": "b3", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "--dry-run src/", "origin": {"kind": "slash_command_args", "command": "review"}}` | 通过 | — | [S-8](contract.md#s-8-文本块与来路标记)：人敲命令时附带的参数，另成一块 |
+| `{"id": "b4", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "# 代码评审\n逐个文件读……", "origin": {"kind": "skill_body", "command": "review", "skill": "code-review"}}` | 通过 | — | [S-8](contract.md#s-8-文本块与来路标记)：② 型展开的 skill 正文，逐字 |
+| `{"id": "b4a", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "请按下面的清单逐项检查 src/ 的改动", "origin": {"kind": "slash_command_expansion", "command": "checklist"}}` | 通过 | — | [S-8](contract.md#s-8-文本块与来路标记)：① 型展开模板得到的文字 |
+| `{"id": "b4b", "kind": "text", "visibility": {"toHuman": true, "toModel": false}, "text": "/review --dry-run src/", "origin": {"kind": "slash_command_record", "command": "review"}}` | 通过 | — | [S-8](contract.md#s-8-文本块与来路标记)：留痕块是带来路的文本块，`text` 是人敲的原文；标注由受理一方定 |
 | `{"id": "b5", "kind": "text", "text": "hi"}` | 拒绝 | `visibility_missing` | [S-4](contract.md#s-4-两个标注) |
 | `{"id": "b6", "kind": "text", "visibility": {"toHuman": true}, "text": "hi"}` | 拒绝 | `visibility_missing` | [S-4](contract.md#s-4-两个标注)：缺一即拒 |
 | `{"id": "b7", "kind": "Text", "visibility": {"toHuman": true, "toModel": true}, "text": "hi"}` | 拒绝 | `kind_unknown` | [S-25](contract.md#s-25-判别式与枚举闭合)：区分大小写，不做「最接近」映射 |
@@ -113,9 +113,9 @@
 | `{"id": "", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "hi"}` | 拒绝 | `malformed` | [S-3](contract.md#s-3-blockid)：按 `data.identity-values/v1#S-31` 非空 |
 | `{"id": "b9", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "hi", "modality": "text"}` | 拒绝 | `malformed` | [S-6](contract.md#s-6-模态由媒体类型判定)：块上不存模态 |
 | `{"id": "b10", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "hi", "renderings": [{"producedBy": "system", "blocks": [{"id": "b10r", "kind": "text", "visibility": {"toHuman": false, "toModel": true}, "text": "hi"}]}], "transcript": "hi"}` | 拒绝 | `malformed` | [S-2](contract.md#s-2-块底座)：文本块不是转换件的输入，不带派生属性 |
-| `{"id": "b11", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "hi", "origin": {"kind": "user_typed"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-文本块与来源标记)、[S-25](contract.md#s-25-判别式与枚举闭合)：来路标记恰四种；**缺席才是「没有断言」** |
-| `{"id": "b12", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "hi", "origin": {"kind": "skill_body", "skill": ""}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-文本块与来源标记)：名字给出就非空 |
-| `{"id": "b13", "kind": "slash_command_record", "visibility": {"toHuman": true, "toModel": false}, "text": "/review"}` | 拒绝 | `kind_unknown` | [S-1](contract.md#s-1-七类块)、[S-8](contract.md#s-8-文本块与来源标记)：留痕**不是第八类块**，是文本块上的来路 |
+| `{"id": "b11", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "hi", "origin": {"kind": "user_typed"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-文本块与来路标记)、[S-25](contract.md#s-25-判别式与枚举闭合)：来路标记恰四种；**缺席才是「没有断言」** |
+| `{"id": "b12", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "hi", "origin": {"kind": "skill_body", "skill": ""}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-文本块与来路标记)：名字给出就非空 |
+| `{"id": "b13", "kind": "slash_command_record", "visibility": {"toHuman": true, "toModel": false}, "text": "/review"}` | 拒绝 | `kind_unknown` | [S-1](contract.md#s-1-七类块)、[S-8](contract.md#s-8-文本块与来路标记)：留痕**不是第八类块**，是文本块上的来路 |
 
 ## 6. 思考块
 

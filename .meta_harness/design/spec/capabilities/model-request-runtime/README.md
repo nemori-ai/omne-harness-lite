@@ -7,8 +7,8 @@
 **上交条目、中断提醒、回复消息的写入归 loop**——本契约把带回复的响应体交回，落盘成消息的那一条由调用方与消息同一提交写下；被否决、被系统拿去用的那一条由调用方交回处置、本能力写下（`settleReply`）。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.model-request-runtime, 1)`
-- **状态**：`candidate`（2026-09-23 起草；2026-09-24 第一轮独立评审之后原地修复，处置表在[验证入口](verification.md#独立评审)）——未接受、未冻结；修复稿尚未复审
-- **操作**：十三个（S-24～S-34、S-49、S-50；S-35 默认重试件是一件拓展件，不是服务面操作），服务面名 `settleReply` 与输入成员 `basis` 待主线定名（[G-13](v1/contract.md#十二已知缺口)）
+- **状态**：`candidate`（2026-09-23 起草；2026-09-24 第一轮独立评审之后原地修复，处置表在[验证入口](verification.md#独立评审)；修复波 1b 补 S-51 模型侧到达装配前提的承诺与追补体参数三项的来源）——未接受、未冻结；修复稿尚未复审
+- **操作**：十三个（S-24～S-34、S-49、S-50；S-35 默认重试件是一件拓展件，不是服务面操作）；服务面名 `settleReply` 与输入成员 `basis` 已由主线接受（D-040 §六 N-9，原 G-13 闭合）
 - **catalog 映射**：已登记为 candidate。`family=capabilities`、`topic=model-request-runtime`、
   `contract_path=spec/capabilities/model-request-runtime/v1/contract.md`；`resources` 另含 `v1/examples.md`、`v1/formal/README.md`、`v1/formal/Invocation.tla` 与十份配置；
   依赖十三项（2026-09-24 整批对齐补登 `capability.stream-assembly`、`capability.modality-projection`、`capability.asset-evaluation`；`capability.loop-extension-runner` 只指路，它反过来消费本契约），消费 clauses 取自[契约 S-4 的被消费面表](v1/contract.md#s-4-依赖方向与被消费的面)，与它逐项相同

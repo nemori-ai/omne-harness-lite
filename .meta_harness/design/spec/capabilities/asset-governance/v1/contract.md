@@ -4,7 +4,7 @@
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.asset-governance, 1)`——
   `family = capabilities`、`topic = asset-governance`、规范路径 `spec/capabilities/asset-governance/v1/contract.md`
-- **状态**：`candidate`，2026-09-23 起草，2026-09-24 整批对齐，同日按 PF-003 rev 5 与 PF-002 rev 18 的凭据一条原地修订，同日修订第二轮（[D-040 §三](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#三2026-09-24-第二轮规格修订的主线裁定简报-r2-1r2-16-原文与-g-24g-25) R2-7、R2-8、R2-9、R2-16、G-24、G-25，及资产流转 S-52 的同提交写入），同日按独立评审第一轮原地修订（[处置表](../verification.md#独立评审)）；未接受、未冻结
+- **状态**：`candidate`，2026-09-23 起草，2026-09-24 整批对齐，同日按 PF-003 rev 5 与 PF-002 rev 18 的凭据一条原地修订，同日修订第二轮（[D-040 §三](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#三2026-09-24-第二轮规格修订的主线裁定简报-r2-1r2-16-原文与-g-24g-25) R2-7、R2-8、R2-9、R2-16、G-24、G-25，及资产流转 S-52 的同提交写入），同日按独立评审第一轮原地修订（[处置表](../verification.md#独立评审)），2026-09-25 修复波 1b 原地补 name 收窄的诊断；未接受、未冻结
 - **设计依据**（**PF-002 rev 20 · PF-001 rev 17 · PF-003 rev 5**；2026-09-24 按 changelog 由 PF-002 rev 16、PF-001 rev 16 逐条复核到当前）：
   PF-002 rev 17 §5.3 的界与挑选（[S-38](#s-38-assign-配值)、[S-41](#s-41-unlockassignment-解除该项的锁)）与 PF-001 rev 17 §6.7「提升只换所有者，不动任何一份持有」（[S-27](#s-27-promotetoorganization-提升到组织)）早已吸收；
   **复核出的变化**：rev 17 谁能组合谁规则 2「环指展开不完的那一种、Skill⇄Tool 互引不算环」已是产品正文——[G-6](#十二已知缺口) ① 改引它；rev 17 §5.7「仓库带来的本地命令型 MCP 接入点与命令型 hook 默认不启用，由持有工作区的租户逐件打开」——**本契约没有那个「打开」的写面**，登 [G-26](#十二已知缺口)；
@@ -59,12 +59,12 @@
   - `omne-harness-lite-design-2026-09-15 · data.asset-model · v1`（2026-09-24 整批对齐按条款号补登）
   - `omne-harness-lite-design-2026-09-15 · capability.asset-evaluation · v1`（只取 S-23 的界、挑选与分档，[S-38](#s-38-assign-配值) 的写时守卫据它；2026-09-24 修订第二轮新增，catalog 已登）
   - 各类正文契约的两条规则（属性项推出、组合引用）与斜杠命令的保留区：`data.tool-definition` v1、`data.skill-package` v1、
-    `data.slash-command` v1、`data.mcp-endpoint` v1、`data.connector` v1（同上；凭据类项的取值域另引 `data.mcp-endpoint/v1#S-13`、`data.connector/v1#S-12`，2026-09-24 修订补登）、
+    `data.slash-command` v1、`data.mcp-endpoint` v1、`data.connector` v1（同上；凭据类项的取值域另引 `data.mcp-endpoint/v1#S-13`、`data.connector/v1#S-12`，2026-09-24 修订补登；接入点 name 的收窄另引 `data.mcp-endpoint/v1#S-26`，修复波 1b 补登）、
     `data.loop-extension` v1（只取 `#S-40` 属性项的推出规则；2026-09-24 独立评审第一轮新增，catalog 已登）
 - **主线裁定**（不是产品依据；产品负责人追认或推翻由后续决定取代）：
   - 组合入口的写入并入资产流转确认的那一次提交、两份契约同一提供者——见 [D-040 §一 PA-3](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#块-a-拆分提案报回的推荐-bcore-纯模块--治理与流转一个插件)；
     分享期间提升、删除结束分享（`ownerChanged`、`sourceDeleted`）、组织层凭据类项用 `layerNotAllowed`、写入面认不锁的 `{forbid}` 也是界、挑选恰一档、提升不动持有、`shared` 持有可落组织格或租户格、随值加锁与替换自己的界——见 [D-040 §三 R2-4、R2-7、R2-8、R2-9、R2-10、R2-16、G-24、G-25](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#三2026-09-24-第二轮规格修订的主线裁定简报-r2-1r2-16-原文与-g-24g-25)；
-  - 下列几条 **D-040 尚未收录**（已报主线补录），本契约按它们写：
+  - 下列几条由主线接受登记，见 [D-040 §六 N-7](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)：
     租户格以 `organization` 依据持有本组织可用的那一份——拥有的或经分享持有的（原 G-2 闭合）；
     替换是同一能力标识的**另一份**记录，同一份记录不算替换（原 G-19 闭合）；
     所有者一侧对本组织成员租户层的持有只见份数，删除的告知发给各持有租户本人（原 G-18 闭合）；
@@ -74,6 +74,7 @@
     官方件在装配启动时按部署清单登记，不是运行时操作；创建类操作带幂等键——`createDraft` 的 `creationKey` 即是，配值写的过期编辑守卫缺名字，记 G-21；
     分享结束之后被分享方那份持有留着；「资产不存在」指记录被删除；删除之后已发布版本作不可解引用的归档保留，引用它的读到「已删除」
   - 独立评审第一轮的主线裁定——凭据项的非引用值走 `valueOutOfDomain`（K7，[S-18](#s-18-失败值闭合)、[S-38](#s-38-assign-配值)）；`loop_extension` 的推出规则由它的正文契约给（K9，[S-4](#s-4-依赖方向与被消费的面)、G-5）；复制落地的 `byAgent` 由资产流转给（K38，[S-46](#s-46-组合入口资产流转的确认步骤)）；分享结束不通知（K39，[S-27](#s-27-promotetoorganization-提升到组织)、[S-28](#s-28-delete-删除一份资产记录) ⑨）；调用方即作者（K45，[S-24](#s-24-createdraft-创建草稿)）——见 [D-040 §五](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)
+  - 修复波 1b 的主线裁定——写面收下一份记录时，name 不合正文契约的收窄（`name_not_projectable`）经 `data.asset-model/v1#S-27` 原名携带、随 `invalidInput` 作诊断（L11，[S-18](#s-18-失败值闭合)、[S-24](#s-24-createdraft-创建草稿)、[S-25](#s-25-updatedraft-修订草稿)、[S-29](#s-29-registerofficial-登记官方件) 的 ③）——见 [D-040 §六](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)
 - **条款编号**：`S-n`，只在本契约本版本内有效；外部引用写全坐标，如 `capability.asset-governance/v1#S-30`。
   缺口编号 `G-n`，同一作用域
 
@@ -197,6 +198,7 @@
 | [`#S-21`](../../../data/asset-model/v1/contract.md#s-21-复制血缘) `CopyLineage`、[`#S-22`](../../../data/asset-model/v1/contract.md#s-22-血缘号与分享号) `SharingId` | [S-46](#s-46-组合入口资产流转的确认步骤) |
 | [`#S-23`](../../../data/asset-model/v1/contract.md#s-23-凭据引用) `CredentialRef`（第 2 条：凭据类项的取值域就是它；第 7 条：组织格上的配值由写面拒） | [S-38](#s-38-assign-配值) 认出凭据类项、拒组织层的那一格 |
 | [`#S-25`](../../../data/asset-model/v1/contract.md#s-25-规范表示) 规范表示：全部值可序列化、没有进程内身份 | [S-50](#s-50-装配给的保证-vs-协议须给的保证) 末行：本契约的事实可整体导出、导入 |
+| [`#S-27`](../../../data/asset-model/v1/contract.md#s-27-表示层拒绝值) 表示层拒绝值（含原名携带的正文契约拒绝值） | [S-18](#s-18-失败值闭合) `invalidInput` 附带的诊断；[S-24](#s-24-createdraft-创建草稿)、[S-25](#s-25-updatedraft-修订草稿)、[S-29](#s-29-registerofficial-登记官方件) 的 ③ 判记录的 name 不合正文契约收窄的那一种（修复波 1b 补登，[D-040 §六 L11](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)） |
 
 #### 资产求值侧（`capability.asset-evaluation` v1，一条）
 
@@ -213,7 +215,7 @@
 | `tool` | [`data.tool-definition/v1#S-31`](../../../data/tool-definition/v1/contract.md#s-31-属性项的推出规则) | [`#S-16`](../../../data/tool-definition/v1/contract.md#s-16-组合)：`composes.skills` |
 | `skill` | [`data.skill-package/v1#S-17`](../../../data/skill-package/v1/contract.md#s-17-属性项投影规则) | [`#S-13`](../../../data/skill-package/v1/contract.md#s-13-组合的工具清单)：`definition.tools` |
 | `slash_command` | [`data.slash-command/v1#S-11`](../../../data/slash-command/v1/contract.md#s-11-属性项的推出规则)；保留区 [`#S-3`](../../../data/slash-command/v1/contract.md#s-3-保留区与它唯一的拼法)、[`#S-4`](../../../data/slash-command/v1/contract.md#s-4-保留区只归系统提供的命令型) 用在 [S-24](#s-24-createdraft-创建草稿)、[S-25](#s-25-updatedraft-修订草稿)、[S-29](#s-29-registerofficial-登记官方件) 的 ③ | [`#S-6`](../../../data/slash-command/v1/contract.md#s-6-三种绑定目标)：`skill` 型绑定的那一个能力标识 |
-| `mcp` | [`data.mcp-endpoint/v1#S-14`](../../../data/mcp-endpoint/v1/contract.md#s-14-推出规则五类项)、[`#S-15`](../../../data/mcp-endpoint/v1/contract.md#s-15-推出规则的输入正文与动作集)：逐动作项另要一份动作集；凭据那一项的取值域 [`#S-13`](../../../data/mcp-endpoint/v1/contract.md#s-13-凭据配值的取值域) 用在 [S-38](#s-38-assign-配值) ② | 不组合任何资产 |
+| `mcp` | [`data.mcp-endpoint/v1#S-14`](../../../data/mcp-endpoint/v1/contract.md#s-14-推出规则五类项)、[`#S-15`](../../../data/mcp-endpoint/v1/contract.md#s-15-推出规则的输入正文与动作集)：逐动作项另要一份动作集；凭据那一项的取值域 [`#S-13`](../../../data/mcp-endpoint/v1/contract.md#s-13-凭据配值的取值域) 用在 [S-38](#s-38-assign-配值) ②；接入点 name 的收窄 [`#S-26`](../../../data/mcp-endpoint/v1/contract.md#s-26-接入点-name-登记时收窄)（`name_not_projectable`）用在 [S-24](#s-24-createdraft-创建草稿)、[S-25](#s-25-updatedraft-修订草稿)、[S-29](#s-29-registerofficial-登记官方件) 的 ③ | 不组合任何资产 |
 | `connector` | [`data.connector/v1#S-11`](../../../data/connector/v1/contract.md#s-11-推出规则)；鉴权绑定那一项 [`#S-12`](../../../data/connector/v1/contract.md#s-12-鉴权绑定那一项) 用在 [S-38](#s-38-assign-配值) ② | 不组合任何资产 |
 | `loop_extension` | [`data.loop-extension/v1#S-40`](../../../data/loop-extension/v1/contract.md#s-40-属性项的推出规则)（同批新增；主线裁定 [D-040 §五 K9](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)：`position`、`dimension` 是绑定类设置项，`power` 是权限项，取值域各为本枚举、默认是声明值；`onError`、`needs`、`implementation`、`unavailability` 不出项） | 不组合任何资产 |
 | `agent_definition` | **缺**（PF-004） | **缺**（PF-004） |
@@ -437,7 +439,7 @@
 都只列层与 `basis`，**不列它们里面的组合引用方**。分享方本来就看得见自己分享给了谁（`capability.asset-transfer` 的分享记录），列出它们不泄漏什么；
 [分享方删除之前要先告知受影响的一方](../../../../product/PF-003-asset-transfer-and-sharing/flows.md#二分支与异常)，漏掉租户格的被分享方就告知不到他（推导）。
 [超级管理员管不到成员租户级的私有部分](../../../../product/PF-002-assets-settings-and-permissions/flows.md#四角色与操作)，所以**除上面那一类以外**，别人的租户层**不列**。
-**本组织成员租户层的持有方对所有者一侧只给份数**（主线裁定，D-040 尚未收录；原 G-18 闭合）：
+**本组织成员租户层的持有方对所有者一侧只给份数**（主线裁定，见 [D-040 §六 N-7](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)；原 G-18 闭合）：
 记录归组织 `O` 所有时，`O` 的成员以 `organization` 依据持有它的那些租户层，给所有者一侧的只是「**租户层持有 N 份**」，**不给是哪些租户**；
 份数进删除的确认比对（[S-22](#s-22-先告知再移除或删除)），**删除的告知发给各持有租户本人**（[S-48](#s-48-事件都是通知) 的 `AssetDeleted`）。
 **别的组织里成员的租户层不计份数**：那个组织以分享持有它的那一层已经列出，份数再跨组织给，就是把另一个组织的内部透露给所有者（推导）。
@@ -533,7 +535,7 @@
 
 | 值 | 类 | 含义 | 与谁分开、为什么 |
 |---|---|---|---|
-| `invalidInput` | 表示层 | 输入不合形状：缺席、类型不对、判别式在集合外、不透明标识不合词法、能力标识不合 `data.asset-model/v1#S-2` 的词法、`versionSelection` 不合形状（`pinned` 的号不是正整数）、`content` 过不了它那一类正文的校验、`content` 的类别与能力标识不符、写面收到出厂或工作区的 `scope`、配值面与项锁收到保留项名 `disabled`、斜杠命令违反保留区规则（[`data.slash-command/v1#S-4`](../../../data/slash-command/v1/contract.md#s-4-保留区只归系统提供的命令型)）、`registerOfficial` 缺 `meta` | [`data.identity-values/v1#S-33`](../../../data/identity-values/v1/contract.md#s-33-表示层校验与判定分开)：**不是判定结果**，不表示对象不存在或主体无资格；重试一万次也不会成功，所以不能收成 `unavailable` |
+| `invalidInput` | 表示层 | 输入不合形状：缺席、类型不对、判别式在集合外、不透明标识不合词法、能力标识不合 `data.asset-model/v1#S-2` 的词法、`versionSelection` 不合形状（`pinned` 的号不是正整数）、`content` 过不了它那一类正文的校验、`content` 的类别与能力标识不符、写面收到出厂或工作区的 `scope`、配值面与项锁收到保留项名 `disabled`、斜杠命令违反保留区规则（[`data.slash-command/v1#S-4`](../../../data/slash-command/v1/contract.md#s-4-保留区只归系统提供的命令型)）、记录的能力标识 name 不合它那一类正文契约对名字的收窄（例如 `mcp` 接入点的 name 拼不出条目名，[`data.mcp-endpoint/v1#S-26`](../../../data/mcp-endpoint/v1/contract.md#s-26-接入点-name-登记时收窄)）、`registerOfficial` 缺 `meta`。**资产的值不合形状时，[`data.asset-model/v1#S-27`](../../../data/asset-model/v1/contract.md#s-27-表示层拒绝值) 的那一个拒绝值随它作诊断附带**——含那条原名携带的正文契约拒绝值（`name_not_projectable`、斜杠命令的 `name_invalid`／`name_reserved` 等）；**失败值仍只有 `invalidInput` 一个**，本契约不另起同义值 | [`data.identity-values/v1#S-33`](../../../data/identity-values/v1/contract.md#s-33-表示层校验与判定分开)：**不是判定结果**，不表示对象不存在或主体无资格；重试一万次也不会成功，所以不能收成 `unavailable` |
 | `crossTenant` | 结构性 | [S-15](#s-15-结构性禁止不是权限判定) | 与 `notPermitted` 分开：它与角色无关 |
 | `scopeNotFound` | 判定 | 目标范围所在的组织不存在（[`organization-governance/v1#S-22`](../../organization-governance/v1/contract.md#s-22-读组织) 的 `organizationDoesNotExist`） | 与 `notPermitted` 分开：不是「你不是成员」，是那个范围不在了 |
 | `notPermitted` | 授权 | 调用方此刻 `ineffective`，或角色不够（[S-16](#s-16-谁能做角色矩阵落成的四种资格)） | 不区分「不是成员」与「是成员但不是超管」——两者都是成立的授权拒绝 |
@@ -662,7 +664,7 @@
 |---|---|
 | ① | `caller`（**即作者**）、`owner`（`AssetOwner`：组织或租户）、`capability`（`CapabilityId`）、`content`（`AssetContent`）、`byAgent`（布尔：这次创作是不是 agent 产出，[S-7](#s-7-所有者与作者)）；**可选** `creationKey`（调用方生成的不透明去重标识，[`data.identity-values/v1#S-31`](../../../data/identity-values/v1/contract.md#s-31-不透明标识的交换表示) 的词法）。**作者不是输入**：直接入口与组合入口都以 `caller` 为作者，没有哪一处收一个 `author` 参数——收了就是让调用方把别人写成作者；组合入口另收的只有 `lineage`（[S-46](#s-46-组合入口资产流转的确认步骤)） |
 | ② | `owner = {tenant: caller}` ⇒ caller 有**租户范围创作权**；`owner = {organization: caller 的组织}` ⇒ caller 有**组织范围创作权**（[S-16](#s-16-谁能做角色矩阵落成的四种资格)） |
-| ③ | `owner` 既不是 caller 本人也不是 caller 所在的组织 ⇒ `crossTenant`。`content` 的类别与 `capability.category` 不符、`content` 过不了它那一类正文的校验、**`capability` 是斜杠命令而违反 [`data.slash-command/v1#S-4`](../../../data/slash-command/v1/contract.md#s-4-保留区只归系统提供的命令型)**——① ② 型的名字在保留区 `omne-official:` 里（[`#S-3`](../../../data/slash-command/v1/contract.md#s-3-保留区与它唯一的拼法)），或 ③ 型出现在自定义件里 ⇒ `invalidInput`（[PF-002 Slash Command「名字与撞名」](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)：「① ② 型的名字不得使用这个前缀，发布时带了就被拒」；原 G-15 闭合） |
+| ③ | `owner` 既不是 caller 本人也不是 caller 所在的组织 ⇒ `crossTenant`。`content` 的类别与 `capability.category` 不符、`content` 过不了它那一类正文的校验、**`capability` 是斜杠命令而违反 [`data.slash-command/v1#S-4`](../../../data/slash-command/v1/contract.md#s-4-保留区只归系统提供的命令型)**——① ② 型的名字在保留区 `omne-official:` 里（[`#S-3`](../../../data/slash-command/v1/contract.md#s-3-保留区与它唯一的拼法)），或 ③ 型出现在自定义件里 ⇒ `invalidInput`（[PF-002 Slash Command「名字与撞名」](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)：「① ② 型的名字不得使用这个前缀，发布时带了就被拒」；原 G-15 闭合）；**`capability` 的 name 不合它那一类正文契约对名字的收窄**（[`data.asset-model/v1#S-27`](../../../data/asset-model/v1/contract.md#s-27-表示层拒绝值) 第三种情形；例如 `mcp` 接入点的 name 要拼得出条目名，[`data.mcp-endpoint/v1#S-26`](../../../data/mcp-endpoint/v1/contract.md#s-26-接入点-name-登记时收窄)，诊断值 `name_not_projectable`） ⇒ `invalidInput`，拒绝值作诊断附带（[S-18](#s-18-失败值闭合)） |
 | ④ | **单次提交**：一份新记录——新分配的 `AssetRecordId`（[S-5](#s-5-资产记录与它的两个标识)）、`capability`、`origin = customized`、`owner`、作者 = `caller`、`byAgent`、草稿 = `content`、版本线为空；**带键时**创建键登记与记录同提交。这是 [flows §1.7](../../../../product/PF-002-assets-settings-and-permissions/flows.md#17-创作一个资产) 第 1 步「在某个范围里创作 ⇒ 产生草稿」 |
 | ⑤ | `AssetRecordId` |
 | ⑥ | `invalidInput` · `crossTenant` · `scopeNotFound` · `notPermitted` · `unavailable` |
@@ -679,7 +681,7 @@
 |---|---|
 | ① | `caller`、`asset`、`basedOn`（整数 ≥ 0：调用方这次编辑**据以出发的**那个已发布版本号；0 = 尚无已发布版本）、`content` |
 | ② | caller 此刻有效；记录可见（[S-14](#s-14-可见与不泄漏存在性)）；caller 对记录所有者有创作权（所有者是 caller 本人 ⇒ 租户范围创作权；是 caller 的组织 ⇒ 组织范围创作权）；**`basedOn` 等于版本线此刻的末尾** |
-| ③ | 记录是 official ⇒ `officialImmutable`；所有者既不是 caller 本人也不是 caller 的组织 ⇒ `notOwner`（被分享方改不了，[PF-003 §6.10](../../../../product/PF-003-asset-transfer-and-sharing/design.md#610-分享给的是获权不是拥有)）；`content` 类别与记录的能力标识不符、过不了正文校验，或违反斜杠命令的保留区规则（同 [S-24](#s-24-createdraft-创建草稿) ③）⇒ `invalidInput` |
+| ③ | 记录是 official ⇒ `officialImmutable`；所有者既不是 caller 本人也不是 caller 的组织 ⇒ `notOwner`（被分享方改不了，[PF-003 §6.10](../../../../product/PF-003-asset-transfer-and-sharing/design.md#610-分享给的是获权不是拥有)）；`content` 类别与记录的能力标识不符、过不了正文校验，或违反斜杠命令的保留区规则、记录的 name 不合那一类正文契约对名字的收窄（同 [S-24](#s-24-createdraft-创建草稿) ③；名字随每一份草稿再判一次，`data.asset-model/v1#S-27`）⇒ `invalidInput` |
 | ④ | **单次提交**：草稿整体替换为 `content`；`basedOn` 的比对与写入同提交（[S-21](#s-21-读到的依据与写入落在同一次可串行化的提交里)）。能力标识、所有者、作者、血缘、版本一概不动 |
 | ⑤ | `ok` |
 | ⑥ | `invalidInput` · `notPermitted` · `assetNotFound` · `officialImmutable` · `notOwner` · `versionSequenceBroken` · `unavailable` |
@@ -760,7 +762,7 @@
 |---|---|
 | ① | `capability`、`content`、`meta`（布尔：部署的官方件清单是否把这个能力标识标为 [meta 能力](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability)）。**没有调用方身份**：这是**装配启动时**按部署的官方件清单登记的面，不是运行时操作，也不是任何租户的操作（主线裁定，文首） |
 | ② | **无授权前置**。它的授权是「够得着」：只有装配启动时的官方件登记调用得到它（[装配给](#s-50-装配给的保证-vs-协议须给的保证)） |
-| ③ | `content` 的类别与 `capability.category` 不符、过不了它那一类正文的校验 ⇒ `invalidInput`。斜杠命令按 [`data.slash-command/v1#S-4`](../../../data/slash-command/v1/contract.md#s-4-保留区只归系统提供的命令型) 判：官方的 ① ② 型也不得在保留区里（[PF-002 Slash Command](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)「官方提供的 ① ② 型也一样」），③ 型必须在保留区里；违反 ⇒ `invalidInput`（原 G-15 闭合） |
+| ③ | `content` 的类别与 `capability.category` 不符、过不了它那一类正文的校验 ⇒ `invalidInput`。斜杠命令按 [`data.slash-command/v1#S-4`](../../../data/slash-command/v1/contract.md#s-4-保留区只归系统提供的命令型) 判：官方的 ① ② 型也不得在保留区里（[PF-002 Slash Command](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)「官方提供的 ① ② 型也一样」），③ 型必须在保留区里；违反 ⇒ `invalidInput`（原 G-15 闭合）。**`capability` 的 name 不合它那一类正文契约对名字的收窄**（[`data.asset-model/v1#S-27`](../../../data/asset-model/v1/contract.md#s-27-表示层拒绝值) 第三种情形；例如 `mcp` 接入点的 name 要拼得出条目名，[`data.mcp-endpoint/v1#S-26`](../../../data/mcp-endpoint/v1/contract.md#s-26-接入点-name-登记时收窄)，诊断值 `name_not_projectable`） ⇒ `invalidInput`，拒绝值作诊断附带（[S-18](#s-18-失败值闭合)）——官方件同样要拼得出条目名 |
 | ④ | **单次提交**。该能力标识**尚无** official 记录 ⇒ 建一份（`origin = official`；所有者与作者按 `data.asset-model` v1 对官方件的表示——平台，不是租户，[`data.identity-values/v1#CS-2`](../../../data/identity-values/v1/contract.md#cs-2-作者与所有者分记)；没有草稿；v1 = `content`）**并**建出厂默认层的那份持有（[S-8](#s-8-official-记录与出厂默认层的持有)），`immutable = meta`。**已有** ⇒ `content` 与最新版本内容相等（[S-26](#s-26-publish-发布) ⑦的相等）则不写版本，否则追加下一个版本；出厂层那份持有的 `immutable` 与 `meta` 不同则改写成 `meta`——部署清单是它唯一的依据 |
 | ⑤ | （`AssetRecordId`, 版本号）：新建或追加的那一个，或不写时的最新那一个 |
 | ⑥ | `invalidInput` · `unavailable` |

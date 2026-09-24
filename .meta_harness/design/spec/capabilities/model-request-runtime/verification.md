@@ -3,7 +3,7 @@
 `capability.model-request-runtime` v1（candidate）的证据义务与执行状态。本文件可更新，位于规范版本目录之外；
 结果始终绑定实际规范、模型与实现修订。
 
-**当前状态**：第一轮独立评审之后的修复稿，行为模型在 2026-09-24 整组重跑（下文「实际执行」，输入、哈希与日志在主检出 `tmp/formal-runs/model-request-runtime-v1-2026-09-24d/`）；**没有实现，没有执行过任何规范场景或测试**。
+**当前状态**：第一轮独立评审之后的修复稿（另经 2026-09-25 修复波 1b 原地改，未改模型），行为模型在 2026-09-24 整组重跑（下文「实际执行」，输入、哈希与日志在主检出 `tmp/formal-runs/model-request-runtime-v1-2026-09-24d/`）；**没有实现，没有执行过任何规范场景或测试**。
 模型检查的结论只对所列常量成立，**不是无条件证明**，也不代表任何实现符合本契约。
 
 ## 证据义务
@@ -19,14 +19,14 @@
 | 续接、换家两条路可达 | 两份 `Invocation_Reach_*.cfg` | 同上 | **跑过，均按预期报出见证**（退出 12，2026-09-24）；不登记 |
 | [S-22](v1/contract.md#s-22-同一次调用的发出序列) 第 2、3、5 条（首次第一家、续接同一家、只发给允许的家）、[S-30](v1/contract.md#s-30-dispatchagain) 守卫 3、[S-28](v1/contract.md#s-28-opencall) 出门前检查不过即无发出 | `ProviderAllowed`、`FirstDispatchFirstProvider`、`ResumeSameProvider`、`UndispatchedHasNoDispatch` | —— | **按构造，不作证据**：模型的动作前置把它们写死，条款被违反时模型不会失败。证据在下表场景 S-41、实例第 4、8、11 节 |
 
-**模型没有覆盖、不得写成「已由模型覆盖」的**：追加口的原子性与按 `ResponseId` 幂等、回复消息与响应体同一提交、`reply_pending` 与 `settleReply`、绑定落在「已出门」上、`released{cause}`、`session` 归属、对账由谁触发、只读守卫 `canDispatchAgain`、成因分类表的内容、脱敏、凭据取值、合法目标与展示列表、投影、拓展件与 loop 的行为（见 [formal 入口「模型吸收了什么」](v1/formal/README.md#模型吸收了什么不写成已由模型覆盖)）。它们的证据在下两表。
+**模型没有覆盖、不得写成「已由模型覆盖」的**：追加口的原子性与按 `ResponseId` 幂等、回复消息与响应体同一提交、`reply_pending` 与 `settleReply`、绑定落在「已出门」上（含追补体参数三项的来源）、模型侧到达装配的宿主前提（[S-51](v1/contract.md#s-51-模型侧到达装配前提的承诺)）、`released{cause}`、`session` 归属、对账由谁触发、只读守卫 `canDispatchAgain`、成因分类表的内容、脱敏、凭据取值、合法目标与展示列表、投影、拓展件与 loop 的行为（见 [formal 入口「模型吸收了什么」](v1/formal/README.md#模型吸收了什么不写成已由模型覆盖)）。它们的证据在下两表。
 
 ### 规范场景与测试
 
 | 条款与性质 | 场景／测试 | 证据形式与前提 | 状态 |
 |---|---|---|---|
 | [S-22](v1/contract.md#s-22-同一次调用的发出序列)、[S-17](v1/contract.md#s-17-结算一处按序幂等先到者赢) 发出序列与一次发出一条响应体；[S-29](v1/contract.md#s-29-dispatch) ⑧、[S-30](v1/contract.md#s-30-dispatchagain) ⑧ 再发时取不到凭据写 `released{cause}`；[S-49](v1/contract.md#s-49-settlereply) 被否决的那一条由本能力写 | [S-41](v1/contract.md#s-41-两家发出第一家-429-未开口第二家完成)（含凭据一支、否决一支） | 脚本化传输 → 真实会话日志；核两条响应体、两份账；凭据一支核调用终结是 `released{cause: credential_unavailable}` 而非 `undispatched`；否决一支核 `replyDisposition = vetoed`、日志里没有回复消息 | 未开始 |
-| [S-15](v1/contract.md#s-15-两个锚点先写后行)、[S-33](v1/contract.md#s-33-reconcile) 停机前后；[S-7](v1/contract.md#s-7-一次调用绑定了什么) 绑定从「已出门」读 | [S-42](v1/contract.md#s-42-开口之后断流不重发)（含路由留痕一支）、[S-47](v1/contract.md#s-47-用户叫停之后停机不再发出) | **故障注入**：在两个锚点前后各杀一次进程，新进程对账；停机与对账之间改档案，核追补体与续接用的是「已出门」上的绑定；参数三项的核法待 G-18 | 未开始 |
+| [S-15](v1/contract.md#s-15-两个锚点先写后行)、[S-33](v1/contract.md#s-33-reconcile) 停机前后；[S-7](v1/contract.md#s-7-一次调用绑定了什么) 绑定从「已出门」读 | [S-42](v1/contract.md#s-42-开口之后断流不重发)（含路由留痕一支）、[S-47](v1/contract.md#s-47-用户叫停之后停机不再发出) | **故障注入**：在两个锚点前后各杀一次进程，新进程对账；停机与对账之间改档案，核追补体与续接用的是「已出门」上的绑定；参数一支核追补体上的 `parameterAdjustments`、`droppedParameters` 与「已出门」逐字相同、`route.parameters` 是由它还原的实际送出那一组（[S-33](v1/contract.md#s-33-reconcile) ④） | 未开始 |
 | [S-27](v1/contract.md#s-27-selectmodel)、[S-7](v1/contract.md#s-7-一次调用绑定了什么) 切换先落后生效、不作用于在途；[S-28](v1/contract.md#s-28-opencall) ①④ 用交来的 `target`、不重算 | [S-43](v1/contract.md#s-43-切换先落事实后生效)（含交接一支） | 集成；另一支让模型切换的记录写不进；交接一支在 `effectiveModel` 与 `openCall` 之间插入一次切换 | 未开始 |
 | [S-11](v1/contract.md#s-11-合法目标集合)、[S-12](v1/contract.md#s-12-展示列表)、[S-9](v1/contract.md#s-9-选中模型) 已下架、恢复在册后自然接上、模态挡在这一刻 | [S-44](v1/contract.md#s-44-已下架的档案)（含恢复一支）、[S-45](v1/contract.md#s-45-模态不兼容挡在算合法目标那一刻) | 纯计算的表驱动测试 ＋ 集成 | 未开始 |
 | [S-10](v1/contract.md#s-10-有效模型四步每步来源可查) 第 2′ 步把路由名解析为一行（先滤已撤回与范围不允许、再取最具体；模态与缺凭据不滤；作用在锁之上；`selectedBy` 不变）；[S-11](v1/contract.md#s-11-合法目标集合)、[S-12](v1/contract.md#s-12-展示列表) 以路由名为元素、每个名字一条、主标取胜出行的来源、被盖住的行列在下面带 `overridden_by{scope}`；[S-19](v1/contract.md#s-19-凭据每次发出现取取值只交给传输适配) 按覆盖之后那条的来源取凭据、自建档案不用出厂格那一把 | [S-48](v1/contract.md#s-48-同路由名按层覆盖一个名字一条落到胜出行)；[examples §9](v1/examples.md#9-同路由名按层覆盖一个名字一条落到胜出行场景-s-48) ；[examples §10](v1/examples.md#10-三层同名锁与已撤回的行) | 集成：目录替身配两种部署（有无出厂格那一把）、租户配与不配两种、同名一至三层与锁、已撤回的行（被覆盖方与选中方各一次）；核 `route.profile`、`selectedBy` 与 `route.credentialScope` | 未开始 |
@@ -35,7 +35,8 @@
 | [S-35](v1/contract.md#s-35-默认重试件可替换) 默认件逐家一遍、不允许回退时同家至多再试一次 | 表驱动测试（它是一个纯函数） | —— | 未开始 |
 | [S-14](v1/contract.md#s-14-缺席时的默认答案与失败集合) 失败值闭合与判定次序（含 `callId` 属于别的会话、`reply_pending` 上的 `alreadyEnded`） | [examples §8](v1/examples.md#8-每个失败值一个反例) 与次序回归例 | —— | 未开始 |
 | [S-49](v1/contract.md#s-49-settlereply) 交回之后的收口、[S-50](v1/contract.md#s-50-candispatchagain) 只读守卫与 `dispatchAgain` 同一张表 | [examples §11](v1/examples.md#11-交回之后的收口与只读守卫) | 表驱动：对同一组调用状态与计划，`canDispatchAgain` 的答案与 `dispatchAgain` 的判定逐条相同；`settleReply` 幂等与 `alreadyEnded` | 未开始 |
-| [S-38](v1/contract.md#s-38-装配给的保证-vs-协议须给的保证) 传输适配九条 | 适配层的契约测试（脚本化上游）：单家、禁止回退、一次发出之内不自行重试、状态码、首 token 映射、只用交来的那一把凭据、不送会话标识、不换占位文本、固定 base URL | 前提：G-10 的 basis 条目 | 未开始 |
+| [S-38](v1/contract.md#s-38-装配给的保证-vs-协议须给的保证) 传输适配十一条 | 适配层的契约测试（脚本化上游）：单家、禁止回退、一次发出之内不自行重试、状态码、首 token 映射、只用交来的那一把凭据、不送会话标识、不换占位文本、固定 base URL、改值与丢项在出网之前定下并与实际送出的一致、模型侧工具名不做逆转写 | 前提：G-10 的 basis 条目 | 未开始 |
+| [S-51](v1/contract.md#s-51-模型侧到达装配前提的承诺) 模型侧到达装配的七条宿主前提（`capability.stream-assembly/v1#S-28` 第 1、2、4、6、7、8、9 条）与不做逆转写 | [S-52](v1/contract.md#s-52-模型侧的装配宿主被拒的增量报一次收场之后的事件不进)（一次发出一支、两次发出一支） | 脚本化传输：核被拒的增量只报一次、观察者刷新之后读到的是装配结果、收场之后同一次发出的迟到事件不进、上一次发出的迟到事件不进下一次、工具调用块保留模型侧名字 | 未开始 |
 | [S-11](v1/contract.md#s-11-合法目标集合) 末段、[S-28](v1/contract.md#s-28-opencall) 出门前检查第 3 行：传输承载是可发出的另一条前置 | [S-45](v1/contract.md#s-45-模态不兼容挡在算合法目标那一刻)（传输一支）、[examples §6](v1/examples.md#6-模态不兼容挡在算合法目标那一刻场景-s-45) 语音那一行 | 集成：据点传输配成送不出某一模态；核合法目标不变、出门前以 `modality_mismatch` 挡下 | 未开始 |
 
 ### 由别处承担、本契约只写明要求的
@@ -178,6 +179,12 @@
   - **catalog**：本契约对 `data.model-profile` 补 `S-2`（`RouteName`）。**covers**：PF-013 §4「档案的身份」一条补 S-9、S-24、S-27。
   - **对证据的影响**：行为模型不含选中模型的形状与这些求值，**不需重跑，本轮未运行 TLC**；场景全部未开始，S-48 首次执行按新内容。
 - **（2026-09-24 同日续，主线裁定，不改语义）**：`data.loop-extension` v1 S-15 的 `target` 与 S-24 的 `profile` 改为 `RouteName`，[S-28](v1/contract.md#s-28-opencall) ① 与 ④ 随之改为直接取这个名字、经 S-10 第 2′ 步解析；上一条里「只取其中的路由名，形状仍是 `ModelProfileRef`」的过渡读法作废。**对证据的影响**：无既有证据；本轮未运行 TLC。
+- **2026-09-25 修复波 1b（候选，未冻结，原地改）**：裁定出处 [D-040 §六](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)（L4、L6、N-9）。
+  - **L4，G-18 闭合**：「已出门」另带传输适配为这一次定下的 `parameterAdjustments` 与 `droppedParameters`（形状归 `data.messages/v1#S-49`，与 `data.model-response/v1#S-11` 同名成员同义）；[S-7](v1/contract.md#s-7-一次调用绑定了什么) 写明由它还原实际送出的一组，[S-8](v1/contract.md#s-8-调用在会话日志里留下的六种记录) 已出门一行、[S-29](v1/contract.md#s-29-dispatch) ④ 的次序（改值与丢项先定、再写已出门、再出网）、[S-33](v1/contract.md#s-33-reconcile) ④ 追补体参数三项从「已出门」读；[S-38](v1/contract.md#s-38-装配给的保证-vs-协议须给的保证) 传输适配九条 → 十一条（第 10 条改值与丢项在出网之前定下，第 11 条不做逆转写）；实例第 3 节首行改写；场景 [S-42](v1/contract.md#s-42-开口之后断流不重发) 加参数一支。
+  - **L6**：新条款 [S-51](v1/contract.md#s-51-模型侧到达装配前提的承诺)——对 `capability.stream-assembly/v1#S-28` 第 1、2、4、6、7、8、9 条逐条承诺，并写明模型侧名字不做逆转写（逆转写只在 `capability.tool-execution-runtime`，K10）；新场景 [S-52](v1/contract.md#s-52-模型侧的装配宿主被拒的增量报一次收场之后的事件不进)。`capability.stream-assembly` v1 G-2 随之闭合（那份契约同轮改）。S-1 加第 12 行、S-4 stream-assembly 一行改列 S-14、S-18～S-22、S-26、S-28，被消费者表加 stream-assembly 一行，安全性质加两行。
+  - **N-9，G-13 闭合**：`settleReply` 与输入成员 `basis` 由主线接受；S-23、S-49 与依据表随改。
+  - **registry**：catalog 本契约对 `capability.stream-assembly` 由 `S-16` 改为 `S-14`、`S-16`、`S-18`～`S-22`、`S-26`、`S-28`（与 S-4 表逐项相同）；对 `data.messages` 已消费 S-49，不变。covers、formal-tasks、id-namespaces 不变（S-51 是宿主前提的承诺、S-52 是场景，不对应新的产品条款）。
+  - **对证据的影响**：行为模型不含参数、到达事件与装配状态（[formal 入口](v1/formal/README.md#模型吸收了什么不写成已由模型覆盖)已补两句），**十份配置不需重跑，本轮未运行 TLC**；场景全部未开始，S-42 参数一支与 S-52 首次执行按新内容。
 - **2026-09-24 第一轮独立评审修复（候选，未冻结，原地改）**：逐条处置见上文[独立评审](#独立评审)；裁定出处 [D-040 §五](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)（K10、K13、K16、K19～K22、K36、K40、K42），正文里对这些 K 的依据都链到那里。
   - **产品 rev 复核**：PF-012 rev 10 → 14——rev 11 补的对账两行与本契约 S-33 一致；否决三路的模型回复一行（照常结束、记下被谁否决、不交给重试挂件）落为 S-49；「系统自带的几件，不可用时各有定法」落为 S-35「它挂了」；I-11「已发起的账迟到了照样落、标明迟到」落为 S-17 的 `late`（只在属于某个运行的调用上）；rev 12 的拓展件不可用处置由 `capability.loop-extension-runner` 执行、本契约只引；rev 13、14 只动转换件，不涉本契约。PF-009 rev 7 → 8——「已经开口是账」与本契约「已开口」记录一致，`SystemMessage` 不落日志与本契约无关，不改条款。PF-004 rev 10 → 12、PF-001 rev 16 → 17——本契约引的 §6.6、§6.4 含义未变，不改条款。
   - **新增的服务面**：`settleReply`（[S-49](v1/contract.md#s-49-settlereply)）、`canDispatchAgain`（[S-50](v1/contract.md#s-50-candispatchagain)）；新增状态 `reply_pending`。`settleReply` 与 `openCall` 的输入成员 `basis` 是规格层给的候选名，待主线定名（[G-13](v1/contract.md#十二已知缺口)）。

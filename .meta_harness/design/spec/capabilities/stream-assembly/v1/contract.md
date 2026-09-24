@@ -17,7 +17,7 @@
 
   **不依赖任何 capability 或 composition 契约。**`data.messages` v1 **不是依赖**：本能力不产出消息（[S-3](#s-3-本契约不拥有什么)），
   正文提到它的四个名字 `AssistantMessage`、`ToolInternalMessage`、`AssistantEnding`、`ToolInternalEnding` 与 `data.messages/v1#S-14` 那张收尾对应表，只为指明**宿主把结果包到哪里、结局怎样对**。
-  `capability.tool-execution-runtime` v1 同样只被指路（工具侧的宿主在那里逐条承诺 [S-28](#s-28-宿主要兑现的前提)，解析不了的调用在那里收场），不是依赖：依赖方向是它 → 本契约。
+  `capability.tool-execution-runtime` v1 同样只被指路（工具侧的宿主在那里逐条承诺 [S-28](#s-28-宿主要兑现的前提)，解析不了的调用在那里收场），不是依赖：依赖方向是它 → 本契约。`capability.model-request-runtime` v1 同理（模型侧的宿主在 `capability.model-request-runtime/v1#S-51` 逐条承诺）。
   `data.loop-extension` v1 的 `FailureCause` 也不是依赖：本能力把收尾里的 `error` 原样交出，不读它。
 - **本能力不发布 Schema**：线上形状归组合契约（[`spec/README.md`](../../../README.md)）。操作的输入输出以散文定含义，值类型引三份 data 契约的 `$defs` 名。
 - **条款编号**：`S-n`，**只在本契约本版本内有效**；外部引用须写全坐标，如 `capability.stream-assembly/v1#S-10`。
@@ -58,6 +58,7 @@
 | [S-14](#s-14-砍的汇总) 的去重规则：每一帧至多计一次「未原样送达」，归本能力 | 主线裁定，见 [D-040 §S4 S4-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s4arrival-events--stream-assembly报回的)（每帧至多计一次）与 [§五 K28](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)（归本能力）；`data.call-accounts/v1#S-15` 把它指派给本能力 |
 | [S-2](#s-2-消费者)、[S-28](#s-28-宿主要兑现的前提) 第 7 条：`ToolInternalMessage` 只在交出的 `blocks` 非空时有，结局按 `data.messages/v1#S-14` 的对应表 | 主线裁定，见 [D-040 §五 K2](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) |
 | [S-11](#s-11-参数收齐却解析不了只标记)、[S-28](#s-28-宿主要兑现的前提) 第 5 条：解析不了的调用由工具执行运行时收场；工具侧宿主逐条承诺前提 | 主线裁定，见 [D-040 §五 K24、K23](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) |
+| [S-28](#s-28-宿主要兑现的前提)：模型侧宿主逐条承诺第 1、2、4、6、7、8、9 条（原 G-2 闭合） | 主线裁定，见 [D-040 §六 L6](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)；承诺落在 `capability.model-request-runtime/v1#S-51` |
 
 ## 一、含义与使用范围
 
@@ -85,7 +86,7 @@
 | `capability.tool-execution-runtime` v1（candidate） | 工具侧：每次执行至多一份状态；收尾交出的 `blocks` **非空**时由它包成一条 `ToolInternalMessage`，结局按 `data.messages/v1#S-14` 那张对应表由收尾原因取；`blocks` 为空（一帧没发，或发过的块都没交出内容）就不落这条消息；`frames` 落进那次执行的 `ToolCallAccount` |
 | 会话出站流与中途重进的观察者（经宿主；出站流的契约未建立） | [S-20](#s-20-snapshot读快照) 的快照与位置：先拿快照，再从那个位置之后接着收事件 |
 
-**这三方都是调用方，没有一方是本能力的提供者**；两个宿主要兑现的前提列在 [S-28](#s-28-宿主要兑现的前提)——工具侧已在 `capability.tool-execution-runtime` v1 逐条承诺，模型侧见 [G-2](#十已知缺口)。
+**这三方都是调用方，没有一方是本能力的提供者**；两个宿主要兑现的前提列在 [S-28](#s-28-宿主要兑现的前提)——工具侧已在 `capability.tool-execution-runtime/v1#S-62` 逐条承诺，模型侧已在 `capability.model-request-runtime/v1#S-51` 逐条承诺（原 G-2 闭合）。
 
 ### S-3 本契约不拥有什么
 
@@ -497,7 +498,7 @@ omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged
 ### S-28 宿主要兑现的前提
 
 **本能力的每一条保证，都建立在持有状态的宿主兑现下面这几条之上**；宿主是 `capability.model-request-runtime` v1 与 `capability.tool-execution-runtime` v1（都是 candidate）。
-**工具侧的宿主已逐条承诺**第 1～4、6、7、9 条（`capability.tool-execution-runtime/v1#S-62`；第 8 条只对模型侧）；**模型侧的宿主还没有逐条承诺**（[G-2](#十已知缺口)）——在它写出之前，这些对模型侧是本契约**登记的前提**，不是已被谁承诺的保证。
+**工具侧的宿主已逐条承诺**第 1～4、6、7、9 条（`capability.tool-execution-runtime/v1#S-62`；第 8 条只对模型侧）；**模型侧的宿主已逐条承诺**第 1、2、4、6、7、8、9 条（`capability.model-request-runtime/v1#S-51`；第 3 条只对工具侧；原 G-2 闭合，[D-040 §六 L6](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）。
 下面的编号是外部引用的坐标，**只追加、不重排**。
 
 1. **路由**：一个目标恰一份状态；事件按目标交给那一份；**已收尾的目标不再开新状态**，它的迟到事件丢弃，不交给同一次调用的下一次发出（`data.arrival-events/v1#S-5`）。
@@ -670,7 +671,7 @@ omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged
 | # | 缺口 | 阻断谁 | owner |
 |---|---|---|---|
 | **G-1** | **已闭合**：解析不了的调用块的形状在 `data.content-blocks/v1#S-12`（`complete: true`、`rawArguments`、`unparseable: true`），[S-11](#s-11-参数收齐却解析不了只标记) 按它交出 | — | — |
-| **G-2** | **模型侧宿主没有逐条承诺 [S-28](#s-28-宿主要兑现的前提)**：工具侧已闭合（`capability.tool-execution-runtime/v1#S-62` 承诺第 1～4、6、7、9 条）；`capability.model-request-runtime` v1 还没有对应条款——路由与迟到事件丢弃、串行接受、截短与拒收的两处「紧挨」、`abandon` 的调用时机、首个内容先记后推、快照与增量衔接 | 本能力的保证在模型侧的真实组合里是否成立；模型侧汇总的去重（[S-14](#s-14-砍的汇总)）认不认得出配对 | **`capability.model-request-runtime` 的起草者**；闭合条件：那份契约逐条写出第 1、2、4、6、7、8、9 条的承诺 |
+| **G-2** | **已闭合（修复波 1b，[D-040 §六 L6](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）**：模型侧宿主在 `capability.model-request-runtime/v1#S-51` 逐条承诺 [S-28](#s-28-宿主要兑现的前提) 第 1、2、4、6、7、8、9 条（工具侧早已由 `capability.tool-execution-runtime/v1#S-62` 承诺第 1～4、6、7、9 条）；证据义务归那两份宿主契约 | — | — |
 | **G-3** | **已闭合**：模型侧 `TrimSummary` 的家是 `data.model-response` 的 `trims`（它的 S-19 第 5 条） | — | — |
 | **G-4** | **已闭合（2026-09-24，PF-009 rev 8）**：快照的内容与 [PF-009 §9.2](../../../../product/PF-009-context-message-types/design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息) 及[在途状态词条](../../../../ubiquitous_language/terms/record-and-context.md#ul-in-flight-arrival--在途状态--in-flight-arrival)一致，都含开着的追加块已到的片段 | — | — |
 | **G-5** | **已闭合（2026-09-24，PF-009 rev 8）**：快照**不带**此前砍过什么，那份交代收尾时才有（[S-7](#s-7-快照交出什么)）；语义与本契约原写法相同，不出新版 | — | — |
@@ -699,4 +700,4 @@ omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged
 [`formal/README.md`](formal/README.md) 拥有条款到模型的映射；三份有效性核对配置（[`formal/Assembly_OrderByClose.cfg`](formal/Assembly_OrderByClose.cfg)、[`formal/Assembly_ReplaceAsAppend.cfg`](formal/Assembly_ReplaceAsAppend.cfg)、[`formal/Assembly_OneShotCloseFirst.cfg`](formal/Assembly_OneShotCloseFirst.cfg)）**预期出反例、不登记为 formal task**。
 
 **发布后**：本目录下的规范正文、实例与模型不可原地覆盖；修改发布新版本。
-[已知缺口](#十已知缺口)里还开着的只有 G-2（模型侧宿主写出承诺），它闭合**不改本契约语义**。冻结之前在本候选里原地改，每次改在[验证入口「变化的影响」](../verification.md#变化的影响)记一笔。
+[已知缺口](#十已知缺口)已全部闭合（最后一项 G-2 于修复波 1b 闭合，**不改本契约语义**）。冻结之前在本候选里原地改，每次改在[验证入口「变化的影响」](../verification.md#变化的影响)记一笔。

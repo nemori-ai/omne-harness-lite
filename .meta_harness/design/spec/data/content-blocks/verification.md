@@ -105,6 +105,13 @@ V-2～V-10 **一条执行记录也没有**。起草时的手核只保证 `exampl
   - **词条**：`origin` 改称来路标记并链 [UL-origin-tag](../../../ubiquitous_language/terms/record-and-context.md#ul-origin-tag--来路标记--origin-tag)（词条第四轮新立）；`MediaType`、`PlaceholderReason` 移进词条对照表。**S-8 的标题「文本块与来源标记」没改**：`data.connector`、`data.slash-command`、`data.skill-package`、`capability.mcp-bridge` 以这个锚点引用它，改名要同轮改那几处链接，已报主线。
   - **措辞**：S-20 括注改为 asset-model S-2 的真实词法（允许冒号、不含 `/`）；S-12 与 CS-2「由宿主接一条 `failed` 结果」改为由工具执行一侧即刻以失败收场（与 `capability.tool-execution-runtime` 那一侧一致）；P-5、S-16 的依据改为规格层推导。
   - **证据**：V-1 本地自检重跑，158 行 0 处不符（[本地自检](#本地自检)）。其余义务状态不变。
+- **2026-09-24 修复波 1b（主线裁定 [D-040 §六](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) L1、L12；候选未冻结，原地改）**：
+  - **L1**：S-8 标题由「文本块与来源标记」改为「文本块与来路标记」，锚点随之变为 `#s-8-文本块与来路标记`；S-8 里那句「标题是旧称」删去。本包内（契约、实例第 5 节九处、包入口、本页）同轮改；
+    包外指向旧锚点的有 `data.slash-command`、`data.connector`、`data.skill-package`、`data.messages`（本轮同一位起草者改）与 `capability.mcp-bridge`（另一位起草者改）——已全树 grep（含 URL 编码形式）核过，没有别处。原先那条「S-8 标题改名」的对齐义务已兑现，删去。
+  - **L12**：登 [G-9](v1/contract.md#八已知缺口)「工具调用块的 `tool` 是否 `$ref` `ModelToolName`」（owner 主线，第二轮评审后定），S-12 的 `tool` 一行指向它；对齐义务补一条。
+  - G-6 的「遗留一处对不上」改指 D-040 §四 已登的「以词条为准」。
+  - **语义与表示都不变**：Schema 与实例的 JSON 未改，V-1 不重跑。
+
 - **[G-4](v1/contract.md#八已知缺口) 被裁决**（词法）：Schema 收紧 ⇒ **出 v2**，V-1 按新形状重跑，旧实例中依赖宽松形状的要重新判。
 - **[G-1](v1/contract.md#八已知缺口) 被裁决**（存储）：`AttachmentRef` 的形状多半不变；V-9 的「引用可解引用」一行与 S-23 的落点由那个 topic 给出，届时补进 V-8 走查。
 - **跨进程演化启动**：V-9 从「无法演练」转为**必须演练**；[第四节](v1/contract.md#四装配给与协议给)右列八行从「待兑现」转为「须由协议兑现」。
@@ -127,5 +134,5 @@ V-2～V-10 **一条执行记录也没有**。起草时的手核只保证 `exampl
 
 ## 对齐义务
 
-- **来路标记的两个取值与 `data.slash-command` v1 的 S-21、S-25 对齐**（定义性引用，不登 catalog）：那两条改了展开物或留痕的所指，[S-8](v1/contract.md#s-8-文本块与来源标记) 的 `slash_command_expansion`、`slash_command_record` 同轮复核。
-- **S-8 标题改名**：标题里的「来源标记」是旧称（所指是 [来路标记](../../../ubiquitous_language/terms/record-and-context.md#ul-origin-tag--来路标记--origin-tag)）；改名要与 `data.connector`、`data.slash-command`、`data.skill-package`、`capability.mcp-bridge` 里指向 `#s-8-文本块与来源标记` 的链接同轮改（主线）。
+- **来路标记的两个取值与 `data.slash-command` v1 的 S-21、S-25 对齐**（定义性引用，不登 catalog）：那两条改了展开物或留痕的所指，[S-8](v1/contract.md#s-8-文本块与来路标记) 的 `slash_command_expansion`、`slash_command_record` 同轮复核。
+- **`ToolCallBlock.tool` 与 `data.tool-definition` 的 `ModelToolName`**：本版只约束到非空（[G-9](v1/contract.md#八已知缺口)）；那份契约改 `ModelToolName` 的字符集时，本契约 G-9 的裁定同轮复核。

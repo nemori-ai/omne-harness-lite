@@ -21,10 +21,6 @@
 - **示例里的名字只是占位**：工具名 `read_file`、`run_tests`，依赖名 `github-api`，设施名 `python` 都不来自任何清单。
 - **除[第 8 节](#8-几处违例同时出现时取哪个拒绝值)外，每个非法实例只违反一条规则**，拒绝值因此不需要优先级就能定；第 8 节专门演示优先级。
 
-下文反复出现的目标环境引用，一律原样写全：
-`TE` = `https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v1/tool-definition.schema.json#/$defs/TargetEnvironment`。
-**实例里写 `"$ref": "TE"` 的地方，机检时替换成上面那个完整的串**（表格装不下它）。
-
 ## 1. 技能名
 
 **校验对象**：`$defs/SkillName`。「拒绝值」一列按**不知道所属能力标识**填；知道时，这些名字作为 `manifest.name` 一律是 `name_mismatch`（它们必然不等于一个合法的能力标识名，[S-24](contract.md#s-24-表示层拒绝值与判定次序)）。
@@ -100,7 +96,7 @@
 | `{"format": 1}` | 通过 | — | [S-12](contract.md#s-12-定义记录) 第 4 条：与缺席同义 |
 | `{"format": 1, "tools": [{"category": "tool", "name": "read_file"}, {"category": "tool", "name": "run_tests"}]}` | 通过 | — | [S-13](contract.md#s-13-组合的工具清单) |
 | `{"format": 1, "dependencies": ["github-api"]}` | 通过 | — | [S-14](contract.md#s-14-外部服务依赖) |
-| `{"format": 1, "tools": [], "dependencies": [], "settings": []}` | 通过 | — | [S-13](contract.md#s-13-组合的工具清单)～[S-15](contract.md#s-15-设置项声明与目标环境)：空数组与缺席同义 |
+| `{"format": 1, "tools": [], "dependencies": [], "settings": []}` | 通过 | — | [S-13](contract.md#s-13-组合的工具清单)～[S-15](contract.md#s-15-设置项声明)：空数组与缺席同义 |
 | `{"format": 2}` | 拒绝 | `definition_format_unsupported` | [S-12](contract.md#s-12-定义记录) 第 1 条 |
 | `{"format": "1"}` | 拒绝 | `definition_format_unsupported` | 同上：在，却不是数 `1` |
 | `{}` | 拒绝 | `malformed`（M15） | [S-12](contract.md#s-12-定义记录) 第 1 条：`format` 缺席 |
@@ -115,24 +111,26 @@
 | `{"format": 1, "dependencies": ["github-api", "github-api"]}` | 拒绝 | `malformed`（M11） | 同上：不重复 |
 | `{"format": 1, "resident": true}` | 拒绝 | `malformed`（M3） | [S-18](contract.md#s-18-常驻不在包里)：**常驻不在包里**（[S-31](contract.md#s-31-常驻与预批准不从内容生效) 反例） |
 | `{"format": 1, "permissions": []}` | 拒绝 | `malformed`（M3） | [S-12](contract.md#s-12-定义记录) 第 5 条：本版不收权限项，**空的也不收**——这一位不存在 |
+| `{"format": 1, "environmentRequirement": {"bindingLayer": "stateless_sandbox", "facilities": ["python"]}}` | 通过 | — | [S-32](contract.md#s-32-执行环境要求)：执行环境要求是定义记录里的固定成员；**放进一份包时这份包必须有脚本**（第 5 节 5.3） |
+| `{"format": 1, "environmentRequirement": {"bindingLayer": "host_machine", "facilities": []}}` | 通过 | — | [S-32](contract.md#s-32-执行环境要求) 第 1 条：`facilities` 可以为空——对设施没有要求 |
+| `{"format": 1, "environmentRequirement": {"bindingLayer": "cloud_vm", "facilities": []}}` | 拒绝 | `binding_layer_unknown` | [S-24](contract.md#s-24-表示层拒绝值与判定次序)：绑定层四值之外——`data.tool-definition` 的值，原名携带；同一违例两处同名 |
+| `{"format": 1, "environmentRequirement": {"bindingLayer": "stateless_sandbox"}}` | 拒绝 | `malformed`（M13） | [S-32](contract.md#s-32-执行环境要求) 第 1 条：`facilities` 必有——「对设施没有要求」写空数组 |
+| `{"format": 1, "environmentRequirement": {"bindingLayer": "stateless_sandbox", "facilities": ["python", "python"]}}` | 拒绝 | `malformed`（M13） | 同上：设施不重复 |
+| `{"format": 1, "environmentRequirement": {"bindingLayer": "stateless_sandbox", "facilities": [], "default": {"bindingLayer": "host_machine", "facilities": []}}}` | 拒绝 | `malformed`（M13） | [S-32](contract.md#s-32-执行环境要求) 第 2 条：它不是设置项，没有「默认值」这一说——多出成员即拒 |
 
 **设置项声明**：以下几行都是 `{"format": 1, "settings": [<这一格>]}`。
 
 | 实例（`settings` 的那一项） | Schema | 拒绝值 | 依据 |
 |---|---|---|---|
-| `{"item": "checklist", "kind": "setting", "category": "binding", "domain": {"kind": "open", "schema": {"type": "string", "enum": ["references/strict.md", "references/lenient.md"]}}, "default": "references/strict.md"}` | 通过 | — | [S-15](contract.md#s-15-设置项声明与目标环境)：一项绑定类设置——指向包里的一个位置 |
+| `{"item": "checklist", "kind": "setting", "category": "binding", "domain": {"kind": "open", "schema": {"type": "string", "enum": ["references/strict.md", "references/lenient.md"]}}, "default": "references/strict.md"}` | 通过 | — | [S-15](contract.md#s-15-设置项声明)：一项绑定类设置——指向包里的一个位置 |
 | `{"item": "tone", "kind": "setting", "category": "preference", "domain": {"kind": "open", "schema": {"type": "string"}}, "default": "concise"}` | 通过 | — | 同上：偏好类 |
-| `{"item": "targetEnvironment", "kind": "setting", "category": "placement_identity", "domain": {"kind": "open", "schema": {"$ref": "TE"}}, "default": {"bindingLayer": "stateless_sandbox", "facilities": ["python"]}}` | 通过 | — | [S-15](contract.md#s-15-设置项声明与目标环境)：保留项；**放进一份包时这份包必须有脚本**（第 5 节 5.3） |
-| `{"item": "reviewers", "kind": "permission", "domain": {"kind": "enum", "values": ["a", "b"]}, "default": "a"}` | 拒绝 | `malformed`（M12） | [S-15](contract.md#s-15-设置项声明与目标环境) 第 1 条：设置项清单里没有权限 |
+| `{"item": "targetEnvironment", "kind": "setting", "category": "preference", "domain": {"kind": "open", "schema": {"type": "string"}}, "default": "sandbox"}` | 通过 | — | [S-15](contract.md#s-15-设置项声明)：**本版没有保留项名**——一项叫这个名字的作者设置只是普通设置，类别由作者标，**不决定脚本落在哪**、不进依赖声明；执行环境要求走定义记录的 `environmentRequirement`（[S-32](contract.md#s-32-执行环境要求)，D-040 §六 L3） |
+| `{"item": "reviewers", "kind": "permission", "domain": {"kind": "enum", "values": ["a", "b"]}, "default": "a"}` | 拒绝 | `malformed`（M12） | [S-15](contract.md#s-15-设置项声明) 第 1 条：设置项清单里没有权限 |
 | `{"item": "lockdown", "kind": "setting", "category": "governance", "domain": {"kind": "open", "schema": {"type": "boolean"}}, "default": false}` | 拒绝 | `malformed`（M12） | 同上第 2 条：正文契约不产出治理类的项 |
 | `{"item": "disabled", "kind": "setting", "category": "governance", "domain": {"kind": "open", "schema": {"type": "boolean"}}, "default": false}` | 拒绝 | `malformed`（M12） | 同上第 3 条：`disabled` 由 `data.asset-model` 保留，**照抄那一份声明也不行**（同时违反第 2 条；两条都归 M12，拒绝值不变） |
-| `{"item": "tone", "kind": "setting", "domain": {"kind": "open", "schema": {"type": "string"}}, "default": "concise"}` | 拒绝 | `malformed`（M2） | [S-15](contract.md#s-15-设置项声明与目标环境)：资产声明每一项设置时必须标类别 |
-| `{"item": "targetEnvironment", "kind": "setting", "category": "preference", "domain": {"kind": "open", "schema": {"$ref": "TE"}}, "default": {"bindingLayer": "host_machine", "facilities": []}}` | 拒绝 | `malformed`（M13） | [S-15](contract.md#s-15-设置项声明与目标环境)：类别恒为落点与身份，**作者改不了** |
-| `{"item": "targetEnvironment", "kind": "setting", "category": "placement_identity", "domain": {"kind": "open", "schema": {"type": "object"}}, "default": {"bindingLayer": "host_machine", "facilities": []}}` | 拒绝 | `malformed`（M13） | 同上：取值域定死 |
-| `{"item": "targetEnvironment", "kind": "setting", "category": "placement_identity", "domain": {"kind": "open", "schema": {"$ref": "TE"}}, "default": {"bindingLayer": "cloud_vm", "facilities": []}}` | 拒绝 | `binding_layer_unknown` | [S-24](contract.md#s-24-表示层拒绝值与判定次序)：绑定层四值之外——`data.tool-definition` 的值，原名携带；同一违例两处同名 |
-| `{"item": "usableBy", "kind": "setting", "category": "preference", "domain": {"kind": "open", "schema": {"type": "string"}}, "default": "self"}` | 拒绝 | `malformed`（M12） | [S-15](contract.md#s-15-设置项声明与目标环境) 第 3 条：`usableBy` 由 `data.asset-model` 保留 |
+| `{"item": "tone", "kind": "setting", "domain": {"kind": "open", "schema": {"type": "string"}}, "default": "concise"}` | 拒绝 | `malformed`（M2） | [S-15](contract.md#s-15-设置项声明)：资产声明每一项设置时必须标类别 |
+| `{"item": "usableBy", "kind": "setting", "category": "preference", "domain": {"kind": "open", "schema": {"type": "string"}}, "default": "self"}` | 拒绝 | `malformed`（M12） | [S-15](contract.md#s-15-设置项声明) 第 3 条：`usableBy` 由 `data.asset-model` 保留 |
 | `{"item": "tone", "kind": "setting", "category": "security", "domain": {"kind": "open", "schema": {"type": "string"}}, "default": "concise"}` | 拒绝 | `setting_category_unknown` | [S-24](contract.md#s-24-表示层拒绝值与判定次序)：设置项类别四值之外——与 `data.tool-definition` 同名同义 |
-| `{"item": "targetEnvironment", "kind": "setting", "category": "placement_identity", "domain": {"kind": "open", "schema": {"$ref": "TE"}}}` | 通过 | — | [S-15](contract.md#s-15-设置项声明与目标环境)：作者可以不给默认；各层也没配时 [S-16](contract.md#s-16-由包得出的依赖声明) 按没声明处理 |
 
 ## 5. 技能包
 
@@ -162,7 +160,7 @@
 | 5.1 作为能力标识 `{"category": "skill", "name": "code-review"}` 那份记录的草稿 | 通过 | — | [S-6](contract.md#s-6-名字与所属能力标识一致)（[S-26](contract.md#s-26-名字对不上即拒) 正例） |
 | 5.1 作为能力标识 `{"category": "skill", "name": "Code-Review"}` 那份记录的草稿 | 通过 | `name_mismatch` | [S-6](contract.md#s-6-名字与所属能力标识一致)（[S-26](contract.md#s-26-名字对不上即拒) 反例）：**Schema 看不到上下文**，由知道能力标识的接收边界拒；不被折成相等，也不被改名后收下 |
 
-**5.2 带定义记录：组合两个工具，声明一项绑定类设置**——Schema：通过 · 拒绝值：— · 依据：[S-12](contract.md#s-12-定义记录)、[S-13](contract.md#s-13-组合的工具清单)、[S-15](contract.md#s-15-设置项声明与目标环境)
+**5.2 带定义记录：组合两个工具，声明一项绑定类设置**——Schema：通过 · 拒绝值：— · 依据：[S-12](contract.md#s-12-定义记录)、[S-13](contract.md#s-13-组合的工具清单)、[S-15](contract.md#s-15-设置项声明)
 
 ```json
 {
@@ -204,9 +202,9 @@
 | 在 5.2 上往 `tools` 加 `{"category": "skill", "name": "style-guide"}` | 拒绝 | `tool_ref_invalid` | [S-13](contract.md#s-13-组合的工具清单)（[S-29](contract.md#s-29-组合清单只收工具) 反例） |
 | 在 5.2 上往 `resources` 加 `{"path": "../shared/strict.md"}` | 拒绝 | `resource_escapes` | [S-9](contract.md#s-9-资源条目与包内路径)（[S-28](contract.md#s-28-资源路径不出包) 反例） |
 | 在 5.2 上往 `definition` 加 `"permissions": []` | 拒绝 | `malformed`（M3） | [S-12](contract.md#s-12-定义记录) 第 5 条 |
-| 在 5.2 上把 `checklist` 的 `default` 改成 `"references/other.md"` | 通过 | `malformed`（M12） | [S-15](contract.md#s-15-设置项声明与目标环境) 第 5 条：**Schema 管不到**——`default` 不合它自己的取值域 |
+| 在 5.2 上把 `checklist` 的 `default` 改成 `"references/other.md"` | 通过 | `malformed`（M12） | [S-15](contract.md#s-15-设置项声明) 第 5 条：**Schema 管不到**——`default` 不合它自己的取值域 |
 
-**5.3 带脚本与目标环境、依赖一项外部服务**——Schema：通过 · 拒绝值：— · 依据：[S-11](contract.md#s-11-脚本集合)、[S-14](contract.md#s-14-外部服务依赖)、[S-15](contract.md#s-15-设置项声明与目标环境)
+**5.3 带脚本与执行环境要求、依赖一项外部服务**——Schema：通过 · 拒绝值：— · 依据：[S-11](contract.md#s-11-脚本集合)、[S-14](contract.md#s-14-外部服务依赖)、[S-32](contract.md#s-32-执行环境要求)
 
 ```json
 {
@@ -219,15 +217,7 @@
   "definition": {
     "format": 1,
     "dependencies": ["github-api"],
-    "settings": [
-      {
-        "item": "targetEnvironment",
-        "kind": "setting",
-        "category": "placement_identity",
-        "domain": { "kind": "open", "schema": { "$ref": "TE" } },
-        "default": { "bindingLayer": "stateless_sandbox", "facilities": ["python"] }
-      }
-    ]
+    "environmentRequirement": { "bindingLayer": "stateless_sandbox", "facilities": ["python"] }
   },
   "resources": [
     { "path": "scripts/triage.py", "mediaType": "text/x-python" },
@@ -237,13 +227,15 @@
 ```
 
 脚本集合恰为 `scripts/triage.py` 一份；`references/labels.md` 不能经 `exec_script` 运行。
-依赖声明恰两项：外部服务 `github-api`、求值后的目标环境。**`compatibility` 那句话不进依赖声明**（[S-16](contract.md#s-16-由包得出的依赖声明)）。
+依赖声明恰两项：外部服务 `github-api`、声明的执行环境要求（`stateless_sandbox` × `python`，原样，不经求值）。**`compatibility` 那句话不进依赖声明**（[S-16](contract.md#s-16-由包得出的依赖声明)）。
+这份要求是内容：任何一层都不能为它配值；要改它就发一版新内容（[S-32](contract.md#s-32-执行环境要求)）。
 
 | 变体 | Schema | 拒绝值 | 依据 |
 |---|---|---|---|
-| 在 5.3 上删去 `scripts/triage.py` 那条资源 | 拒绝 | `malformed`（M14） | [S-15](contract.md#s-15-设置项声明与目标环境)：没有脚本就不得声明目标环境 |
+| 在 5.3 上删去 `scripts/triage.py` 那条资源 | 拒绝 | `malformed`（M14） | [S-32](contract.md#s-32-执行环境要求) 第 4 条：没有脚本就不得声明执行环境要求 |
 | 在 5.3 上把 `scripts/triage.py` 改成 `bin/triage.py` | 拒绝 | `malformed`（M14） | [S-11](contract.md#s-11-脚本集合)：只有 `scripts/` 下的算脚本 |
-| 在 5.3 上删去 `targetEnvironment` 那一项 | 通过 | — | [S-15](contract.md#s-15-设置项声明与目标环境)：脚本对执行环境没有特殊要求 |
+| 在 5.3 上删去 `environmentRequirement` | 通过 | — | [S-32](contract.md#s-32-执行环境要求) 第 3 条：脚本对执行环境没有特殊要求；依赖声明只剩 `github-api` |
+| 在 5.3 上往 `definition` 加 `"settings": [{"item": "targetEnvironment", "kind": "setting", "category": "placement_identity", "domain": {"kind": "open", "schema": {"type": "object"}}}]` | 通过 | — | [S-15](contract.md#s-15-设置项声明)：一项普通的作者设置；**依赖声明与脚本的落点要求仍只看 `environmentRequirement`**（[P-7](contract.md#性质)） |
 | 在 5.3 上往 `definition` 加 `"tools": [{"category": "mcp", "name": "github"}]` | 拒绝 | `tool_ref_invalid` | [S-13](contract.md#s-13-组合的工具清单) 第 3 条：要那个对端在场，声明的是外部服务（本例已有 `github-api`） |
 
 ## 6. SKILL.md 的文本形式
@@ -279,7 +271,7 @@
 | `definition_format_unsupported` | 5.2，`definition.format` 为 `2` | —— | [S-12](contract.md#s-12-定义记录) |
 | `resource_escapes` | 5.1，`resources` 为 `[{"path": "/etc/passwd"}]` | —— | [S-9](contract.md#s-9-资源条目与包内路径) |
 | `tool_ref_invalid` | 5.1 加 `"definition": {"format": 1, "tools": [{"category": "skill", "name": "style-guide"}]}` | —— | [S-13](contract.md#s-13-组合的工具清单) |
-| `binding_layer_unknown` | 5.3，`targetEnvironment` 的 `default.bindingLayer` 为 `"cloud_vm"` | —— | [S-24](contract.md#s-24-表示层拒绝值与判定次序)：`data.tool-definition` 的值，原名携带 |
+| `binding_layer_unknown` | 5.3，`environmentRequirement.bindingLayer` 为 `"cloud_vm"` | —— | [S-24](contract.md#s-24-表示层拒绝值与判定次序)：`data.tool-definition` 的值，原名携带 |
 | `setting_category_unknown` | 5.2，`checklist` 的 `category` 为 `"security"` | —— | [S-24](contract.md#s-24-表示层拒绝值与判定次序)：与 `data.tool-definition` 同名同义 |
 | `malformed` | 5.1，`body` 为 `null` | —— | [S-3](contract.md#s-3-技能包的四个部分)（M4） |
 
@@ -295,8 +287,9 @@
 | 5.2 把 `definition.format` 改成 `2`、`tools` 加一个 `skill` | 格式不认得；工具引用不合法 | `definition_format_unsupported`——**格式不认得，其余成员不再判**（[S-30](contract.md#s-30-定义记录的格式不认得即拒且先于其余)） |
 | 5.2 往 `resources` 加 `{"path": "C:/x"}`、`tools` 加一个 `mcp` | 资源逃逸；工具引用不合法 | `resource_escapes` |
 | 5.2 往 `tools` 加一个 `skill`、往 `definition` 加 `"dependencies": ["a", "a"]` | 工具引用不合法；依赖名重复 | `tool_ref_invalid` |
-| 5.3 把 `targetEnvironment` 的 `default.bindingLayer` 改成 `"cloud_vm"`、往 `definition` 加 `"tools": [{"category": "mcp", "name": "github"}]` | 绑定层不认得；工具引用不合法 | `tool_ref_invalid` |
-| 5.3 把 `targetEnvironment` 的 `default.bindingLayer` 改成 `"cloud_vm"`、往 `definition` 加 `"dependencies": [""]` | 绑定层不认得；依赖名为空 | `binding_layer_unknown` |
+| 5.2 往 `tools` 加一个 `mcp`、把 `checklist` 的 `category` 改成 `"security"` | 工具引用不合法；类别不认得 | `tool_ref_invalid` |
+| 5.3 把 `environmentRequirement.bindingLayer` 改成 `"cloud_vm"`、往 `definition` 加 `"tools": [{"category": "mcp", "name": "github"}]` | 绑定层不认得；工具引用不合法 | `tool_ref_invalid` |
+| 5.3 把 `environmentRequirement.bindingLayer` 改成 `"cloud_vm"`、往 `definition` 加 `"dependencies": [""]` | 绑定层不认得；依赖名为空 | `binding_layer_unknown` |
 | 5.2 把 `checklist` 的 `category` 改成 `"security"`、再加一项同名的 `checklist` | 类别不认得；项名重复 | `setting_category_unknown` |
 | 5.1 把 `manifest.name` 改成 `"code/review"`，所属能力标识 name 为 `code-review` | 名字词法；名字对不上 | `name_mismatch` |
 | 同上，不知道所属能力标识 | 名字词法 | `malformed`（M6） |
@@ -309,8 +302,8 @@
 |---|---|---|---|
 | 5.1，`resources` 为 `[{"path": "a.md"}, {"path": "a.md", "mediaType": "text/markdown"}]` | `malformed`（M8） | 两项不全等，`uniqueItems` 看不出它们指同一个路径 | [S-9](contract.md#s-9-资源条目与包内路径) 第 4 条 |
 | 5.1，`resources` 为 `[{"path": "scripts"}, {"path": "scripts/a.py"}]` | `malformed`（M8） | 前缀关系要跨两项比 | 同上：一个路径不能既是文件又是目录 |
-| 5.2，`settings` 里两项都叫 `checklist` | `malformed`（M12） | `item` 相同、其余成员不同，`uniqueItems` 看不出 | [S-15](contract.md#s-15-设置项声明与目标环境) 第 4 条 |
-| 5.2，`checklist` 的 `default` 为 `"references/other.md"` | `malformed`（M12） | 要拿 `default` 去过它自己的那份 schema | [S-15](contract.md#s-15-设置项声明与目标环境) 第 5 条 |
+| 5.2，`settings` 里两项都叫 `checklist` | `malformed`（M12） | `item` 相同、其余成员不同，`uniqueItems` 看不出 | [S-15](contract.md#s-15-设置项声明) 第 4 条 |
+| 5.2，`checklist` 的 `default` 为 `"references/other.md"` | `malformed`（M12） | 要拿 `default` 去过它自己的那份 schema | [S-15](contract.md#s-15-设置项声明) 第 5 条 |
 | 5.1 作为能力标识 name 为 `Code-Review` 的记录的内容 | `name_mismatch` | 包里没有所属能力标识 | [S-6](contract.md#s-6-名字与所属能力标识一致) |
 
 ## 10. 包的目录形式
@@ -330,9 +323,8 @@
 
 ## 11. 起草者逐条自核
 
-- **Schema 列跑过一次本地自检**（整批对齐，2026-09-24，结果在[验证入口](../verification.md#结果与反例)）；「拒绝值」一列仍是手核，**手核不是证据**。
+- **Schema 列跑过本地自检**（整批对齐 2026-09-24 一次；修复波 1b 把执行环境要求改为定义记录的固定成员后重跑一次，结果都在[验证入口](../verification.md#结果与反例)）；「拒绝值」一列仍是手核，**手核不是证据**。
 - 手核时特别看过的几处：`SkillName` 与 `ResourceEntry.path` 两条 pattern 的首尾（`(?![\s\S])` 收尾、`..` 段在中间与末尾都被挡、以点开头的普通段不被挡）；
-  `targetEnvironment` 的 `domain` 是 `const` 比较——`"$ref": "TE"` 必须替换成完整的串才会通过；
-  5.3 的 `if`／`then` 只在定义记录的 `settings` 含 `targetEnvironment` 时要求 `scripts/` 资源。
+  5.3 的 `if`／`then` 只在定义记录带 `environmentRequirement` 时要求 `scripts/` 资源。
 - **跨契约的 `$ref`**（`content-blocks` 的 `MediaType`，`asset-model` 的 `CapabilityName`、`CapabilityId`、`AttributeDeclaration`，`tool-definition` 的 `DependencyName`、`TargetEnvironment`）按它们此刻的候选文本校验；
   那几份契约在评审或对齐中改了这些定义，本节须同轮重核。

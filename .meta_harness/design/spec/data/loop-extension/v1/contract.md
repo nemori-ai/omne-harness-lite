@@ -350,7 +350,7 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 
 | `kind` | 成员 | 是什么 |
 |---|---|---|
-| `builtin` | `capability` | 实现**随部署装配进来、在进程内执行**；`capability` 是装配清单里这份实现的名字（不透明，逐码点相等）——**它不是能力标识**，与资产记录上的 `AssetDefinition.capability`（`data.asset-model/v1#S-10`）同名不同义：后者是这件拓展件的身份，前者只指认装配清单里的一份实现；名字怎么取、怎么在装配清单里解析，不归本契约。系统自带的五件都是这一种 |
+| `builtin` | `builtinName` | 实现**随部署装配进来、在进程内执行**；`builtinName` 是装配清单里那件系统自带实现的名字（不透明，逐码点相等）——**它不是能力标识**：这件拓展件的身份是资产记录上的 `AssetDefinition.capability`（`data.asset-model/v1#S-10`），`builtinName` 只指认装配清单里的一份实现（成员名见 [D-040 §六 L2](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）；名字怎么取、怎么在装配清单里解析，不归本契约。系统自带的五件都是这一种 |
 | `command` | `host`、`dialect`、`event`、`command`；可选 `matcher`、`timeout` | 实现是**一条外部命令**——兼容件，即 Claude Code / Codex 的一条 command hook：`host ∈ { claude_code, codex }`；`dialect` 是钉住的那一家方言版本；`event` 是宿主那一侧的事件名（如 `PreToolUse`）；`command` 是宿主 handler 条目里的命令原样；`matcher` 原样，缺席即全匹配；`timeout` 是 `data.tool-definition/v1` 的 `Duration`，缺席即那一家那一事件的默认 |
 
 - **运行时只认本契约的统一输入与结论。**`command` 件是一件**在两边翻译**的拓展件：把 `ExtensionInput` 译成宿主那一事件的原生输入，

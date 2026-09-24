@@ -269,7 +269,7 @@
 | `{"category": "mcp", "body": {"transport": {"kind": "websocket", "url": "wss://x.example"}, "timeouts": {"connect": "PT15S", "call": "PT2M"}, "permissions": {"execute": {"default": "ask"}}}}` | 拒绝 | `transport_unknown` | [S-27](contract.md#s-27-表示层拒绝值)：MCP 接入点的拒绝值原名携带 |
 | `{"category": "slash_command", "body": {"description": "x", "binding": {"kind": "macro"}}}` | 拒绝 | `binding_unknown` | [S-27](contract.md#s-27-表示层拒绝值)：斜杠命令的拒绝值原名携带 |
 | `{"category": "agent_definition", "body": {"model": "x"}}` | 通过 | — | [S-10](contract.md#s-10-八类正文的外壳)：**`body` 里的 `model` 谁也不读**（[G-6](contract.md#八已知缺口)） |
-| `{"category": "loop_extension", "extension": {"name": "prod-db-guard", "position": "before_action", "power": "veto", "implementation": {"kind": "builtin", "capability": "prod-db-guard"}}}` | 通过 | — | [S-10](contract.md#s-10-八类正文的外壳)：按 `data.loop-extension` v1 |
+| `{"category": "loop_extension", "extension": {"name": "prod-db-guard", "position": "before_action", "power": "veto", "implementation": {"kind": "builtin", "builtinName": "prod-db-guard"}}}` | 通过 | — | [S-10](contract.md#s-10-八类正文的外壳)：按 `data.loop-extension` v1 |
 | `{"category": "loop_extension", "extension": {"position": "before_model_call"}}` | 拒绝 | `malformed` | [S-10](contract.md#s-10-八类正文的外壳)：拓展件的声明缺必有成员——那份契约的 `malformed` 就是本契约的 `malformed` |
 | `{"category": "tool", "definition": "read_file"}` | 拒绝 | `malformed` | [S-10](contract.md#s-10-八类正文的外壳)：工具定义是对象 |
 | `{"category": "tool", "body": {}}` | 拒绝 | `malformed` | [S-10](contract.md#s-10-八类正文的外壳)：tool 的成员叫 `definition` |
@@ -570,8 +570,8 @@
 | 在 12.1 上：`assignments` 的第一条再抄一份，第一项 `source` 改为 `"/etc/x"` | `assignment_item_duplicate`、`manifest_source_escapes` | `assignment_item_duplicate` |
 | 在 12.1 上：第一项 `source` 改为 `"/etc/x"`，加 `"include": []` | `manifest_source_escapes`、`malformed` | `manifest_source_escapes` |
 | 下一节的记录 M，`capability.name` 改为 `"gh/__x"` | `name_invalid`、名字的 `name_not_projectable` | `name_invalid`——本契约的 `name_invalid` 排在携带的值之前（S-27 第三种情形） |
-| 记录 M，草稿正文的 `transport.kind` 改为 `"websocket"` | 正文的 `transport_unknown`、名字的 `name_not_projectable` | `transport_unknown`——名字连同那一份正文交给 `data.mcp-endpoint` 判，按那边的次序（第 2 行先于第 7 行） |
-| 记录 M，草稿正文的 `transport.command` 改为 `""` | 正文的 `command_empty`、名字的 `name_not_projectable` | `command_empty`——同上（第 4 行先于第 7 行） |
+| 记录 M，草稿正文的 `transport.kind` 改为 `"websocket"` | 正文的 `transport_unknown`、名字的 `name_not_projectable` | `transport_unknown`——名字连同那一份正文交给 `data.mcp-endpoint` 判，按那边的次序（第 2 行先于第 6 行） |
+| 记录 M，草稿正文的 `transport.command` 改为 `""` | 正文的 `command_empty`、名字的 `name_not_projectable` | `command_empty`——同上（第 3 行先于第 6 行） |
 
 ## 14. Schema 挡不住，但同样非法的
 

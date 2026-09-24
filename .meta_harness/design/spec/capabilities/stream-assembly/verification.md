@@ -3,7 +3,7 @@
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
 > **当前状态：形式检查已跑（有界；作证据的只有 P-1、P-7，P-2～P-6 在模型里按构造成立、不作证据）；其余一律未开始。**`capability.stream-assembly` v1 是 `candidate`，未接受、未冻结；
-> 尚无提供者设计、尚无源码、尚无装配。工具侧宿主已逐条承诺 [S-28](v1/contract.md#s-28-宿主要兑现的前提)（`capability.tool-execution-runtime/v1#S-62`，candidate），模型侧还没有（[G-2](v1/contract.md#十已知缺口)）。
+> 尚无提供者设计、尚无源码、尚无装配。工具侧宿主已逐条承诺 [S-28](v1/contract.md#s-28-宿主要兑现的前提)（`capability.tool-execution-runtime/v1#S-62`，candidate），模型侧也已逐条承诺（`capability.model-request-runtime/v1#S-51`，candidate；原 G-2 闭合）。
 > 下表登记的是**已经触发的证据义务**，不是已完成的检查。
 
 ## 证据义务
@@ -15,7 +15,7 @@
 | V-3 | **性质测试**：随机切分、随机合并同一段内容（含 `rate_merged` 的 `trim`），结算的块相等；随机的砍，汇总满足 `data.call-accounts/v1#S-15` 三式与 `merged + cut + frame_too_long ≤ emitted` | 生成式测试 | [S-13](v1/contract.md#s-13-账)、[S-14](v1/contract.md#s-14-砍的汇总)、[S-27](v1/contract.md#s-27-一次到达装配等于一次性到达) | **未开始**。它补的是模型抽象掉的那一半：真实载荷、真实块形状、砍的汇总 |
 | V-4 | **规范场景** [S-31](v1/contract.md#s-31-并开两块一次砍一次整体替换)～[S-39](v1/contract.md#s-39-先截短后拒收只计一次) | 规范场景演练：真实的到达装配实现 | 见各场景；S-34、S-35、S-38 同时是 P-2～P-6 的证据 | **未执行**。S-32 的后一半（不执行、回 `failed` 结果）归工具执行运行时，证据是它的场景 `capability.tool-execution-runtime/v1#S-64` |
 | V-5 | **消费者路径走查**（[CS-1～CS-4](v1/contract.md#消费者核对场景)） | 结构化走查；宿主契约建立之后升级为真实演练 | [S-8](v1/contract.md#s-8-收尾结算交出什么)、[S-9](v1/contract.md#s-9-一块怎样落)、[S-13](v1/contract.md#s-13-账)、[S-16](v1/contract.md#s-16-首个内容的位置)、[S-20](v1/contract.md#s-20-snapshot读快照)、[S-22](v1/contract.md#s-22-abandon放弃) | **未开始**。走查不需要提供者，现在就做得了 |
-| V-6 | **宿主前提**：[S-28](v1/contract.md#s-28-宿主要兑现的前提) 各条在两个宿主的契约里各有承诺与证据 | 宿主契约的条款与场景 | [S-28](v1/contract.md#s-28-宿主要兑现的前提) | **工具侧**：承诺已写（`capability.tool-execution-runtime/v1#S-62`，第 1～4、6、7、9 条），证据义务归那份契约，**未开始**。**模型侧：阻断**——`capability.model-request-runtime` v1 还没有对应条款（[G-2](v1/contract.md#十已知缺口)）。**这不是免除** |
+| V-6 | **宿主前提**：[S-28](v1/contract.md#s-28-宿主要兑现的前提) 各条在两个宿主的契约里各有承诺与证据 | 宿主契约的条款与场景 | [S-28](v1/contract.md#s-28-宿主要兑现的前提) | **工具侧**：承诺已写（`capability.tool-execution-runtime/v1#S-62`，第 1～4、6、7、9 条），证据义务归那份契约，**未开始**。**模型侧**：承诺已写（`capability.model-request-runtime/v1#S-51`，第 1、2、4、6、7、8、9 条），证据义务归那份契约（它的场景 S-52），**未开始**。**这不是免除** |
 | V-7 | **跨进程**：[S-29](v1/contract.md#s-29-部署装配给与协议给) 右列七行逐行演练 | 规范场景演练 | [S-29](v1/contract.md#s-29-部署装配给与协议给) | **未开始，且本版的部署装配下无法演练**——单机同进程传值不构成接收边界 |
 
 ### 静态检查义务
@@ -91,7 +91,7 @@
   - **登记**：catalog 依赖补 `data.arrival-events` S-4 与新配置；covers 相关 note 按现行内容改（`reviewed` 保持 false）。
   - **`head_modality_mismatch` 改为原名引用**（与 `data.arrival-events` 同轮修订对齐：它在那份契约 S-28 成了表示层拒绝值）：[S-23](v1/contract.md#s-23-本能力自己的失败值) 删去这一行，判定失败由九个变为八个；[S-24](v1/contract.md#s-24-表示层拒绝值原名引用) 本身的拒绝值由八个变为九个；[S-25](v1/contract.md#s-25-判定次序) 按那份契约的次序把它排在 `presentation_invalid` 之后，`open` 那一行只剩两个；examples 第 5 节第 6 行依据改指 S-24。**可观察的值不变**，只是先后：同一个 `open` 既重开索引又模态不符，此前得 `index_reused`，现在得 `head_modality_mismatch`。
   - **依据**：本轮主线裁定链 [D-040 §五](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)（K2、K23、K24、K28），见契约[设计依据](v1/contract.md#设计依据)下的表。
-- **[G-2](v1/contract.md#十已知缺口) 闭合**（模型侧宿主写出承诺）：V-6 的模型侧可以开始；本契约语义不变。
+- **2026-09-25 修复波 1b（候选，未冻结，原地改）**：[G-2](v1/contract.md#十已知缺口) 闭合——模型侧宿主在 `capability.model-request-runtime/v1#S-51` 逐条承诺 [S-28](v1/contract.md#s-28-宿主要兑现的前提) 第 1、2、4、6、7、8、9 条（[D-040 §六 L6](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）。改动只在指路与状态：契约 S-2、S-28 引语、头部依赖说明、设计依据表加一行、G-2 行、第十二节末句；V-6 的模型侧由「阻断」改为「未开始」。**本契约语义不变**；模型不变，**本轮未运行 TLC**；catalog 本契约条目不变（`capability.model-request-runtime` 对本契约的消费 clauses 由那份契约登记）。
 - **跨进程演化启动**：V-7 从「无法演练」转为**必须演练**；本版的全部证据只保留其单机范围。
 
 结果不改写规范。发现语义问题回到来源设计（PF-009／PF-013／PF-006），不在这里改契约。

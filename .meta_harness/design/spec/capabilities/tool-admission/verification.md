@@ -2,7 +2,7 @@
 
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
-> **当前状态（2026-09-24）：没有任何证据。**
+> **当前状态（2026-09-24；2026-09-25 修复波 1b 原地改）：没有任何证据。**
 > `capability.tool-admission` v1 是 `candidate`，经第一轮独立评审后修订，**未接受**；尚无提供者设计、尚无源码——**本程不交付它的实现**。
 > 本版不建形式工件（[契约 S-37](v1/contract.md#s-37-本版不建形式工件)），**所以下面没有「无反例」这类结论可报**；
 > 已触发的证据义务全部是规范场景与跨契约演练，**状态一律「未开始」**。
@@ -21,9 +21,9 @@
 | [S-41 一批里一条 ask，整批不执行](v1/contract.md#s-41-一批里一条-ask整批不执行) | **跨契约**演练（本契约 ＋ runner ＋ 执行运行时） | **未开始** | 「卡片答完之前执行运行时没收到任何提交」由 runner 兑现，只跑本契约这一半证明不了 |
 | [S-42 答复收成结论，禁止翻案](v1/contract.md#s-42-答复收成结论禁止翻案) | 演练；**卡片挂着期间改权限**两次 | **未开始** | 答复的记录形状受阻于 [G-4](v1/contract.md#十一已知缺口)；答复落成授权的那两次写入受阻于 [G-2](v1/contract.md#十一已知缺口)，本场景只检查「这一次」的结论 |
 | [S-43 放行之后参数变了，令牌作废](v1/contract.md#s-43-放行之后参数变了令牌作废) | 演练；往日志里人为落一次排错位置的改写 | **未开始** | 受阻：生效参数的记录形状（[G-8](v1/contract.md#十一已知缺口)） |
-| [S-44 判不出来不放行](v1/contract.md#s-44-判不出来不放行) | **故障注入**（求值读不到、日志读不到） | **未开始** | **最容易被「读不到就当算不出」抹掉的一条，必须真跑**；`bypass-permissions` 下那一格是关键 |
+| [S-44 判不出来不放行](v1/contract.md#s-44-判不出来不放行) | **故障注入**（求值读不到、日志读不到）＋ 演练「结论不是判不出」一支（`not_in_composition` 与 `auto` 同批） | **未开始** | **最容易被「读不到就当算不出」抹掉的一条，必须真跑**；`bypass-permissions` 下那一格是关键 |
 | [S-45 工作区来的工具不提权](v1/contract.md#s-45-工作区来的工具不提权) | 演练 | **未开始** | 上游求值也有一道（PF-002 §5.7 的读入过滤），本场景只检查本能力这一道 |
-| [S-46 第四档写不进去就不出现](v1/contract.md#s-46-第四档写不进去就不出现) | 演练 | **未开始** | 受阻：`tenantAutoWritable` 的来处（[G-14](v1/contract.md#十一已知缺口)）；本能力这一侧可用桩值先跑 |
+| [S-46 第四档写不进去就不出现](v1/contract.md#s-46-第四档写不进去就不出现) | 演练 | **未开始** | `tenantAutoWritable` 的来处已定（`capability.asset-evaluation/v1#S-42`，原 G-14 闭合）；本能力这一侧可用桩值先跑，跨契约那一支由 runner 的场景 S-48「放行输入的组装」核 |
 | [S-47 模型面名字逐码点比，解析不了的调用不进来](v1/contract.md#s-47-模型面名字逐码点比解析不了的调用不进来) | 演练 | **未开始** | 解析不了的调用的收场一半归执行运行时，证据在它那边 |
 | [S-48 本能力不可用时由全拒件顶上](v1/contract.md#s-48-本能力不可用时由全拒件顶上) | **跨契约故障注入**（本契约 ＋ runner） | **未开始** | 效果由 runner 的 S-17 表兑现，只跑本契约证明不了 |
 
@@ -38,7 +38,7 @@
 | `veto.reason` 原样带拒绝原因 token | [S-29](v1/contract.md#s-29-位置干预力与结论投影) | runner | runner 的场景；agent 侧可观察 |
 | 求值：失败不折成 `undecidable`；确定 | [S-9](v1/contract.md#s-9-授权上下文与求值) | 求值的实现（[G-1](v1/contract.md#十一已知缺口)） | 实现的单元测试：**停掉授权上下文存储，求值必须报失败而不是 `undecidable`** |
 | 求值给的集合按 [S-8](v1/contract.md#s-8-有效执行权限) 的表收成一个档位（空集 → `forbid`）；MCP 动作的那一份取自可用性报告 | [S-8](v1/contract.md#s-8-有效执行权限) | 组装输入的 runner；值由 `capability.asset-evaluation` 与 `capability.asset-registry` 给 | 那几份的场景 |
-| `tenantAutoWritable` 的来处 | [S-7](v1/contract.md#s-7-admissioninput) | [G-14](v1/contract.md#十一已知缺口) 的 owner | 待定 |
+| `tenantAutoWritable` 的来处 | [S-7](v1/contract.md#s-7-admissioninput) | `capability.asset-evaluation`（S-42 给值）＋ 组装输入的 runner（S-29 第 5 条带上） | 那两份的场景：求值的 E-1／E-4 与 runner 的 S-48 |
 | 参数解析不了的调用不进 `admit`、即刻收场「失败」 | [S-7](v1/contract.md#s-7-admissioninput) | `capability.tool-execution-runtime` | 它的规范场景 |
 | 第四档按人的资格隐藏；四档选项在别处出的卡上不带授权 | [S-15](v1/contract.md#s-15-定死的四档选项与卡片草稿)、[S-28](v1/contract.md#s-28-四档选项只在本能力出的卡上带授权含义) | PF-008 卡片契约 ＋ runner | 那两份契约的场景 |
 | 这一件不可替换、不可禁用、不可收窄；核对只认 `omne-official:admission-judgment` | [S-32](v1/contract.md#s-32-这一件不得被替换禁用或收窄)、[S-26](v1/contract.md#s-26-令牌有效的条件) | 装配（runner 的装配清单）＋ `capability.asset-evaluation`／`capability.asset-governance`（PF-012 §5.8） | 资产领域与 runner 的场景 |
@@ -83,6 +83,14 @@
   - **新规范场景** [S-46](v1/contract.md#s-46-第四档写不进去就不出现)～[S-48](v1/contract.md#s-48-本能力不可用时由全拒件顶上)，examples 第 8 节。
   - **依据落持久记录**：账本编号与施工标签删去，依据改链 D-040 与产品小节；本轮的主线裁定链 [D-040 §五](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)（K10、K24、K26、K27、K29、K30、K48），`tenantAutoWritable` 这个名字由本契约取。
   - **对证据的影响**：没有既有证据；义务表新增三行场景、改三行承担方。
+- **2026-09-25 修复波 1b（候选，未冻结，原地改）**：裁定出处 [D-040 §六](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)（L7、N-8）。
+  - **G-14 闭合**：`tenantAutoWritable` 的来处是 `capability.asset-evaluation/v1#S-42`（执行权限项上的一位），由 `capability.loop-extension-runner/v1#S-29` 第 5 条组装进输入、与 `effectivePermission` 取自同一条；[S-7](v1/contract.md#s-7-admissioninput) 那一行与设计依据表那一行改写（名字由 N-8 接受）；第十三节「出 v2」的列举去掉 G-14。**本契约语义不变**：成员、缺席即 `invalidInput`、只决定第四档出不出现，都照旧。
+  - 上两表各改一行（S-46 的受阻说明、对齐义务里来处那一行）。
+  - **同轮追加（主线回裁 [D-040 §六 L14](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）**：[G-2](v1/contract.md#十一已知缺口) 的描述补一句——含租户格无该资产持有时，第四档先加持有再配值、还是要求已有持有（`tenantAutoWritable` 只答界与锁）。owner 与闭合条件不变。
+  - **L13**：`tenantAutoWritable` 与 `effectivePermission` 经会话资产注册表每次尝试的可用性报告交到 runner（`capability.asset-registry/v1#S-11` 同轮扩到全部工具条目）；[S-8](v1/contract.md#s-8-有效执行权限)「MCP 动作的那一份」之后补一句：作者写的与官方的工具也从同一份报告取，缺席收场同样成立；S-7 不改。
+  - **同轮追加：L15**（[D-040 §六 L15](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）：`effectivePermission` 多一种写法——显式值 `not_in_composition`（这个租户此刻不再持有这个工具条目，可用性报告里那一项写着它）；[S-22](v1/contract.md#s-22-判定次序) 加第 ⓪ 步，单独判 `deny{not_held}`，不算缺依据、不使整次 `admit` 失败，有答复也照判；[S-14](v1/contract.md#s-14-拒绝原因) 拒绝原因五个 → **六个**（`not_held`，名字由主线给）；[S-7](v1/contract.md#s-7-admissioninput) 这一项不带 `tenantAutoWritable`、带了即 `invalidInput`；[S-11](v1/contract.md#s-11-父会话摘要与宽的次序) 这一项执行权限那一半不比宽；[S-17](v1/contract.md#s-17-缺席时的默认答案) 两行改写、加一行；S-12、S-13、S-24、S-34、设计依据表、第七节不变量、消费者核对 agent 一行随之改；**S-24 的失败值与次序不变**。场景 [S-44](v1/contract.md#s-44-判不出来不放行) 加「结论不是判不出」一支；examples 共用局面加 `itemN`，第 7 节加一行，第 8 节加「不在组合里的工具条目」一表。**对消费者**：runner 把 `not_in_composition` 的项照常交进 `admit`（`capability.loop-extension-runner/v1#S-29` 第 5 条，同轮改）；读拒绝原因穷举的一方多一个值。
+  - **registry**：catalog 本契约的依赖不变（来处只指路，本契约不读那两份的面，第 4 节「不依赖」一句照旧）；covers 里 PF-008「第三档和第四档各有约束」那一条的注补来处，另登一条指向 `capability.asset-evaluation` S-42；formal-tasks、id-namespaces 不变。
+  - **对证据的影响**：没有既有证据；场景全部仍「未开始」。
 - **四份 candidate 依赖**（`data.content-blocks`、`data.tool-definition`、`data.loop-extension`、`data.asset-model`）改号或改义时，逐条核对 [契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面) 的表并同步 catalog 的 clauses。
 - **消费者与上游输入的产出方**（`capability.loop-extension-runner`、`capability.tool-execution-runtime`、`capability.asset-evaluation`、`capability.asset-registry`、`capability.hooks-import`，均 candidate）：本契约只以名字提到它们、不登依赖；它们改动时核对 [第六节](v1/contract.md#六在拓展点协议里)、[S-8](v1/contract.md#s-8-有效执行权限) 与 [S-25](v1/contract.md#s-25-verifytoken) 的义务在它们那一侧是否有对应条款。
 

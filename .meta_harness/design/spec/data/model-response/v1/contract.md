@@ -286,6 +286,8 @@
 3. **缺席即断言**：`parameterAdjustments` 缺席即一项值也没改，`droppedParameters` 缺席即一项也没丢。一个改了值或丢了项却不写的传输适配违反本条。**空数组都不是合法写法**——「一项也没有」只有一种表示。
 4. **要求的那一组还原得出**：取 `parameters`，把 `parameterAdjustments` 列的那几项换回 `requested`，再加上 `droppedParameters` 列的那几项——那几项要求的值不在响应体上，由档案快照 `route.profileSnapshot.parameters` 与「调模型之前」的改写结论还原。
 5. **实际发出的值要在统一词表里表示得出**：`parameters` 取 `ModelRequestParameters` 的形状，所以一项统一项改了值再发出时，发出的必须是那一项取值域内的值；一个改过之后在统一词表里表示不出来的值，传输适配**不得把它发出去而在这里记别的值**——那一项要么改成表示得出的值，要么不发、记进 `droppedParameters`。`extra` 项的值是任意 JSON，不受这一条限制。
+6. **与「已出门」逐项相同**：传输适配对每一项的处置在请求离开本进程之前就已定下，同一次发出的「已出门」记录（[`data.messages/v1#S-49`](../../messages/v1/contract.md#s-49-模型请求运行时写的五种记录不是消息)）上记着同样的 `parameterAdjustments` 与 `droppedParameters`，那条的 `parameters` 就是要求的那一组；
+   这一条的三个成员与那条算出的、写下的**逐项相同**。停机之后替这一次发出补写响应体的一方从那条读它们（`capability.model-request-runtime` v1 S-33；主线裁定，见 [D-040 §六 L4](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）。形状由那份契约逐字自定义（它不反向 `$ref` 本契约），本契约改这两项的形状，那边同轮改。
 
 ### S-12 收场
 
@@ -545,7 +547,7 @@
 [S-13](#s-13-收场与其余成员的条件关系) 那张表的每一格。
 
 **它不能约束的**：`id` 是不是「已出门」上定下的那一个（[S-6](#s-6-responseid)）；`reply.response` 等于 `id`（[S-14](#s-14-回复与已交付部分)）；三个时刻的先后与同源、`firstTokenAt` 与「已开口」记录一致（[S-17](#s-17-首-token-与时序)）；
-`firstTokenAt` 缺席是否确知（[S-18](#s-18-首-token-缺席是一条断言)）；`droppedParameters` 的名字都不在 `parameters` 里、`parameterAdjustments` 的名字都在 `parameters` 里且 `sent` 等于那一项、一个项名只出现一次、有没有漏报（[S-11](#s-11-实际发出的参数改过的值与没发出去的项)）；
+`firstTokenAt` 缺席是否确知（[S-18](#s-18-首-token-缺席是一条断言)）；`droppedParameters` 的名字都不在 `parameters` 里、`parameterAdjustments` 的名字都在 `parameters` 里且 `sent` 等于那一项、一个项名只出现一次、有没有漏报、与同一次发出的「已出门」逐项相同（[S-11](#s-11-实际发出的参数改过的值与没发出去的项)）；
 `provider` 是否是档案允许的一家、第一次发出是不是第一家、不许回退时是不是第一家（[S-9](#s-9-路由留痕)）；`upstreamModel` 有没有被冒填（[S-9](#s-9-路由留痕)）；
 三个「发不出去」成因不上响应体（[S-16](#s-16-发出了的才有响应体)）；`unrecognized` 带的痕迹是不是真的那样东西（[S-15](#s-15-故障的成因与原样状态码)）；`delivered` 在写入者手里还有已交付的块时有没有漏带（[S-13](#s-13-收场与其余成员的条件关系)）；`credentialScope` 是不是真用的那一格（[S-9](#s-9-路由留痕)）；`late` 判得对不对（[S-35](#s-35-晚到的那一条)）；
 同一次调用的序列性质（[S-23](#s-23-同一次调用的响应体序列)）；脱敏（[S-21](#s-21-写入之前脱敏)）；无隐藏重试（[S-24](#s-24-一条响应体对应上游的一次请求)）；写下即不变（[S-22](#s-22-写下即不变)）。

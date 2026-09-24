@@ -259,7 +259,8 @@ modelName(d)   ≝  d.name 里每一个 ":" 换成 "__"     （S-18 保证它可
   **逆转写只在一处做：工具执行运行时起执行者之前**（`capability.tool-execution-runtime` v1；同一裁定）。模型请求运行时的传输适配**不做**逆转写，调用块原样带模型面名字进日志；
   在逆转写之前比较两个名字，一律比模型面名字（`modelName` 是单射，比模型面名字与比定义名结论相同）。对齐义务见[验证入口](../verification.md#对齐义务)。
 - **[替换件](../../../../ubiquitous_language/terms/reach-and-availability.md#ul-stand-in--替换件--stand-in)与原件同形**：
-  `modelName` 与 `modelInput` 与原件相同，**只换 `description`**（[PF-006 §6.3](../../../../product/PF-006-tools-and-skills/design.md#63-不可用时装的是同名替换件不是不装)）。替换件怎么造归执行运行时。
+  `modelName` 与 `modelInput` 与原件相同，**只换 `description`**（[PF-006 §6.3](../../../../product/PF-006-tools-and-skills/design.md#63-不可用时装的是同名替换件不是不装)）。
+  本契约只定它的形状：**这一条目此刻是不是替换件、为什么是，由会话资产注册表判**（[`capability.asset-registry/v1` S-8](../../../capabilities/asset-registry/v1/contract.md#s-8-当下可用性的三个取值)、[S-10](../../../capabilities/asset-registry/v1/contract.md#s-10-替换件同形只换说明)）；**替换件怎么造归执行运行时**（主线裁定，见 [D-040 §六 L10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）。两处都是指路，不是本契约的依赖。
 
 ### S-7 多命令 input 的生成规则
 

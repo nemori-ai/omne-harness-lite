@@ -101,6 +101,9 @@
 | `mcp:github` | `execute:push` | `{问一下}` | factory | — | — |
 | `mcp:github` | `usableBy` | `{self}` | factory | — | — |
 
+**执行权限三条另带 `tenantAutoWritable`**（[S-42](contract.md#s-42-执行权限项另带租户那一层写得进自动吗)）：`tool:shell / execution` 为**真**——组织那一格的 `h5` 对它没有配值、租户那一格的 `h6` 那条不带锁；`mcp:github / execute:search`、`execute:push` 为**假**——生效的是工作区提供的那一份（第 2 条），尽管 `h9` 是租户那一格的持有、也没锁。其余十条不是执行权限，不带这一成员。
+**若 `h6` 那条 `execution = {自动}` 带锁**，`tool:shell / execution` 的 `tenantAutoWritable` 为**假**（第 4 条：租户那一格把这一项锁住了），值仍是 `{自动}`、`from = tenant`，`lockedAt` 变为 tenant（[S-23](contract.md#s-23-第四步权限) 合成第 3、4 条）。
+
 **`filteredOut`**（四条）：
 
 | capability | from | reason |
@@ -270,6 +273,7 @@ definitions：`ast_off_helper3`（`agent_definition:helper3`，official，引用
 | E | `ast_off_shell` · from organization · replaced 空 | `60` · factory · — | **`{问一下}` · organization · organization** | `{禁止}` · factory · — | 空 |
 
 值的写法是 `value · from · lockedAt`。
+五支 `execution` 的 `tenantAutoWritable` 都为**假**：A、B、C 支组织锁住 `{问一下}`，D 支组织配了不锁的 `{禁止}`，E 支组织锁住 `{问一下, 禁止}`——组织那一格给的界都不含「自动」（[S-42](contract.md#s-42-执行权限项另带租户那一层写得进自动吗) 第 3 条）。`network` 不是执行权限，不带它。
 
 **五支合起来说的是**：
 

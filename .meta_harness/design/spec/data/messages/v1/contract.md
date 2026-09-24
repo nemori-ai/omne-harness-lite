@@ -12,15 +12,15 @@
 
   | 坐标 | 消费 clauses | 取它的什么 | Schema 里怎么用 |
   |---|---|---|---|
-  | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1` | [`S-1`](../../content-blocks/v1/contract.md#s-1-七类块)、[`S-3`](../../content-blocks/v1/contract.md#s-3-blockid)、[`S-4`](../../content-blocks/v1/contract.md#s-4-两个标注)、[`S-5`](../../content-blocks/v1/contract.md#s-5-嵌套的块按合取取用)、[`S-8`](../../content-blocks/v1/contract.md#s-8-文本块与来源标记)、[`S-12`](../../content-blocks/v1/contract.md#s-12-完整的工具调用)、[`S-13`](../../content-blocks/v1/contract.md#s-13-半截的工具调用)、[`S-14`](../../content-blocks/v1/contract.md#s-14-callid)、[`S-15`](../../content-blocks/v1/contract.md#s-15-工具结果块)、[`S-16`](../../content-blocks/v1/contract.md#s-16-结果里不发起调用)、[`S-17`](../../content-blocks/v1/contract.md#s-17-六种收场)、[`S-18`](../../content-blocks/v1/contract.md#s-18-占位原因与它落在哪一格)、[`S-20`](../../content-blocks/v1/contract.md#s-20-派生表示的产出者与能力标识)、[`S-22`](../../content-blocks/v1/contract.md#s-22-落盘之后整块不变)、[`S-26`](../../content-blocks/v1/contract.md#s-26-表示层拒绝值)、[`S-27`](../../content-blocks/v1/contract.md#s-27-表示层拒绝不是判定也不修补) | 块的全部定义、块的指认与嵌套、两个标注与合取取用、工具调用与结果、收场与占位原因、能力标识的 `name`（拓展件的名字）、落盘不变、拒绝值 | `$ref` 它的 `$defs/ContentBlock`、`ToolResultBlock`、`BlockId`、`CallId`、`ExecutionOutcome`、`CapabilityId/properties/name`（`LoopExtensionName`，[S-26](#s-26-拓展件追加的提醒)） |
+  | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1` | [`S-1`](../../content-blocks/v1/contract.md#s-1-七类块)、[`S-3`](../../content-blocks/v1/contract.md#s-3-blockid)、[`S-4`](../../content-blocks/v1/contract.md#s-4-两个标注)、[`S-5`](../../content-blocks/v1/contract.md#s-5-嵌套的块按合取取用)、[`S-8`](../../content-blocks/v1/contract.md#s-8-文本块与来路标记)、[`S-12`](../../content-blocks/v1/contract.md#s-12-完整的工具调用)、[`S-13`](../../content-blocks/v1/contract.md#s-13-半截的工具调用)、[`S-14`](../../content-blocks/v1/contract.md#s-14-callid)、[`S-15`](../../content-blocks/v1/contract.md#s-15-工具结果块)、[`S-16`](../../content-blocks/v1/contract.md#s-16-结果里不发起调用)、[`S-17`](../../content-blocks/v1/contract.md#s-17-六种收场)、[`S-18`](../../content-blocks/v1/contract.md#s-18-占位原因与它落在哪一格)、[`S-20`](../../content-blocks/v1/contract.md#s-20-派生表示的产出者与能力标识)、[`S-22`](../../content-blocks/v1/contract.md#s-22-落盘之后整块不变)、[`S-26`](../../content-blocks/v1/contract.md#s-26-表示层拒绝值)、[`S-27`](../../content-blocks/v1/contract.md#s-27-表示层拒绝不是判定也不修补) | 块的全部定义、块的指认与嵌套、两个标注与合取取用、工具调用与结果、收场与占位原因、能力标识的 `name`（拓展件的名字）、落盘不变、拒绝值 | `$ref` 它的 `$defs/ContentBlock`、`ToolResultBlock`、`BlockId`、`CallId`、`ExecutionOutcome`、`CapabilityId/properties/name`（`LoopExtensionName`，[S-26](#s-26-拓展件追加的提醒)） |
   | `omne-harness-lite-design-2026-09-15 · data.offer-expiry · v1` | [`S-22`](../../offer-expiry/v1/contract.md#s-22-schema-的范围) | 时刻的规范形式 | `$ref` 它的 `$defs/Instant`：`createdAt`、尝试开始的 `at`、到点的 `dueAt`、答复的 `at` |
   | `omne-harness-lite-design-2026-09-15 · data.identity-values · v1` | [`S-11`](../../identity-values/v1/contract.md#s-11-scopelayeridentity)、[`S-31`](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示) | 作用域层身份；不透明标识的交换表示 | `$ref` 它的 `$defs/ScopeLayerIdentity`（「已出门」的 `credentialScope` 的租户那一支，[S-49](#s-49-模型请求运行时写的五种记录不是消息)）；`MessageId` 与其余不透明标识按 S-31 散文定形、**不 `$ref`**（[S-3](#s-3-messageid)） |
   | `omne-harness-lite-design-2026-09-15 · data.call-accounts · v1` | [`S-37`](../../call-accounts/v1/contract.md#s-37-三个归属标识的家runidattemptidmodelcallid) | `ModelCallId`、`AttemptId` 的家 | `$ref` 它的 `$defs/ModelCallId`（中断提醒的 `about`、五种运行时记录的 `call`）、`$defs/AttemptId`（尝试开始的 `attempt`） |
-  | `omne-harness-lite-design-2026-09-15 · data.model-profile · v1` | [`S-2`](../../model-profile/v1/contract.md#s-2-routename)、[`S-5`](../../model-profile/v1/contract.md#s-5-providername-与允许的供应商)、[`S-13`](../../model-profile/v1/contract.md#s-13-modelprofileref)、[`S-15`](../../model-profile/v1/contract.md#s-15-modelrequestparameters-是一份词表)、[`S-27`](../../model-profile/v1/contract.md#s-27-modelprofilesnapshot档案在某一刻的副本) | 路由名、供应商标识、档案的引用、请求参数词表、档案快照 | `$ref` 它的 `$defs/RouteName`（切换事实的 `routeName`：PF-013 rev 12 起设置与切换记路由名，落到哪一行由按层覆盖定）、`$defs/ProviderName`、`$defs/ModelProfileRef`、`$defs/ModelRequestParameters`、`$defs/ModelProfileSnapshot`（后四个都在「已出门」上，[S-49](#s-49-模型请求运行时写的五种记录不是消息)） |
+  | `omne-harness-lite-design-2026-09-15 · data.model-profile · v1` | [`S-2`](../../model-profile/v1/contract.md#s-2-routename)、[`S-5`](../../model-profile/v1/contract.md#s-5-providername-与允许的供应商)、[`S-13`](../../model-profile/v1/contract.md#s-13-modelprofileref)、[`S-15`](../../model-profile/v1/contract.md#s-15-modelrequestparameters-是一份词表)、[`S-20`](../../model-profile/v1/contract.md#s-20-项与项名)、[`S-27`](../../model-profile/v1/contract.md#s-27-modelprofilesnapshot档案在某一刻的副本) | 路由名、供应商标识、档案的引用、请求参数词表、项与项名（「已出门」上两份清单的项名）、档案快照 | `$ref` 它的 `$defs/RouteName`（模型切换落下的那条记录的 `routeName`：PF-013 rev 12 起设置与切换记路由名，落到哪一行由按层覆盖定）、`$defs/ProviderName`、`$defs/ModelProfileRef`、`$defs/ModelRequestParameters`、`$defs/ModelProfileSnapshot`（后四个都在「已出门」上，[S-49](#s-49-模型请求运行时写的五种记录不是消息)） |
 
   **`data.model-response` 是 `ResponseId` 的家，但不登为本契约的依赖**：它以 `$ref` 取本契约的 `AssistantMessage` 作回复，
   本契约再引用回去两份契约就互为依赖；`ResponseId` 在这里按 `data.identity-values/v1#S-31` 的散文自定义同一形状（[S-37](#s-37-规范表示)）。
-  **同一理由，「已出门」上的 `selectedBy` 与 `credentialScope` 也按那份契约的 S-10、S-9 自定义同一形状、不 `$ref`**（`SelectedBy`、`CredentialScope`）；两处逐字对齐的义务登在[验证入口](../verification.md#对齐义务)。
+  **同一理由，「已出门」上的 `selectedBy`、`credentialScope`、`parameterAdjustments`、`droppedParameters` 也按那份契约的 S-10、S-9、S-11 自定义同一形状、不 `$ref`**（`SelectedBy`、`CredentialScope`、`ParameterAdjustment`；`droppedParameters` 就地定形）；两处逐字对齐的义务登在[验证入口](../verification.md#对齐义务)。
   正文里出现的 `data.arrival-events`、`data.loop-extension`、`capability.stream-assembly`、`capability.model-request-runtime`、
   会话日志与记录条目壳、卡片契约、runtime context 契约，**都是消费者或未来的家**：只写坐标或所指，不登依赖。
 - **条款编号**：`S-n`，**只在本契约本版本内有效**；外部引用须写全坐标，如 `data.messages/v1#S-28`。
@@ -106,7 +106,7 @@
 提醒的来源是一张怎样的闭合表、说状态的要带什么；压缩名单长什么样、什么样的名单合法；
 「此刻哪些块模型可读」怎样从日志里算出来；一次工具执行的真实结果落哪一种消息；
 以及一条消息不合形状时的**表示层拒绝值**。
-**另拥有模型请求运行时写进会话日志的五种记录**（已出门、已开口、中断意图、调用终结、切换事实，[S-49](#s-49-模型请求运行时写的五种记录不是消息)、[S-50](#s-50-调用终结的三支)）：
+**另拥有模型请求运行时写进会话日志的五种记录**（已出门、已开口、中断意图、调用终结，以及[模型切换](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-switch--模型切换--model-switch)落下的那条记录，[S-49](#s-49-模型请求运行时写的五种记录不是消息)、[S-50](#s-50-调用终结的三支)）：
 它们**不是消息**，与消息同处一份日志、同为记录条目的载荷（家放在这里、不另立契约——主线裁定，见 [D-040 §一 S16-d](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s16model-profile-directory--model-request-runtime报回的)）。
 
 它是一份**数据契约**：没有操作、没有提交点、没有状态转移，**因此不需要插件**。
@@ -176,7 +176,7 @@
 
 **下列是规格层的名字或无词条的概念**，本契约与 Schema 里**不给它们「中文 · English」那种词条式标题**：
 `MessageId`、`ResponseId`、`CardId`、`SessionRef`、`AgentRef`、`ScheduleRef`、`RuntimeContextBlockId`、`CardAnswer`、`SilencedBlockRef`、`LoopExtensionName`、`ModelInvocationRecord` 与它的五种；
-**已出门、已开口、中断意图、调用终结、切换事实**（五种运行时记录，无词条）；
+**已出门、已开口、中断意图、调用终结**（四种运行时记录，无词条；第五种是模型切换这个动作落下的那条记录，词条不为它另立概念名）；
 **悬着的占位**（无词条）；**「此刻模型可读」**（无词条，[S-28](#s-28-此刻模型可读是算出来的) 的派生谓词）；
 **循环守卫**（无词条）；**传输适配 / adapter**（无词条）。
 
@@ -293,7 +293,7 @@
 - **工具调用只在模型的回复里**：调用只由模型在它的回复里发起——这正是 [`data.content-blocks/v1#S-16`](../../content-blocks/v1/contract.md#s-16-结果里不发起调用) 不许结果里出现调用的那条理由，放到消息这一层同样成立：
   出现在别处的调用块，会被读成「模型发起过的调用」。
 - **工具结果只在两处**：它是一次调用的结果，**一次调用的结果只有两个去处**——还没有占位时的工具消息、已有占位时的后台收场提醒（[S-12](#s-12-真实结果落哪种消息只看有没有占位)）。
-- **来路标记只在用户消息的顶层文本块上**：它的四个取值都出自人敲的斜杠命令（[`data.content-blocks/v1#S-8`](../../content-blocks/v1/contract.md#s-8-文本块与来源标记)），
+- **来路标记只在用户消息的顶层文本块上**：它的四个取值都出自人敲的斜杠命令（[`data.content-blocks/v1#S-8`](../../content-blocks/v1/contract.md#s-8-文本块与来路标记)），
   而那一条展开之后落成用户消息（[PF-014 §5.7](../../../../product/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空)）。
 
 嵌套层（工具结果块的 `blocks`、派生表示的 `blocks`）照 `data.content-blocks` v1 自己的规则，本表不再加限制。
@@ -314,7 +314,7 @@
 ### S-8 UserMessage
 
 **人说的话。**以下几样都落成这一种（[PF-014 §5.7](../../../../product/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空)）：
-用户说的一句话；绑定目标是提示词或 skill 的斜杠命令**展开之后**的那一条（带来路标记的文本块，[`data.content-blocks/v1#S-8`](../../content-blocks/v1/contract.md#s-8-文本块与来源标记)）；经连接件送达的一条外部消息。
+用户说的一句话；绑定目标是提示词或 skill 的斜杠命令**展开之后**的那一条（带来路标记的文本块，[`data.content-blocks/v1#S-8`](../../content-blocks/v1/contract.md#s-8-文本块与来路标记)）；经连接件送达的一条外部消息。
 
 - **系统的话不落成这一种**，哪怕它在某一家那里最后会被译成一条用户消息——那是出门时的事（[S-35](#s-35-我们自己那两种必须在发出前译掉)），**日志里它仍是提醒**（[PF-009 §5.1](../../../../product/PF-009-context-message-types/design.md#51-systemremindermessage-凭什么独立而不是一条带标记的用户消息)）。
 - **卡片的答复不落成这一种**：答复只在卡片上做，消息永远是消息（[PF-008 §4](../../../../product/PF-008-human-in-the-loop/design.md#决策卡片)）；
@@ -748,24 +748,30 @@ readable(b, L)      ≝ b 所在的消息在日志前缀 L 里
 
 **`capability.model-request-runtime` 往会话日志里写五种记录；它们的形状归本契约**（与 `attempt_started` 同在会话日志这一族，不另立契约——主线裁定，见 [D-040 §一 S16-d](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s16model-profile-directory--model-request-runtime报回的)）。
 **它们不是消息**：不在七种之内、不进组装、不供任何视图呈现，**只供对账读**；与消息一样是[记录条目](../../../../ubiquitous_language/terms/record-and-context.md#ul-record-entry--记录条目--record-entry)的载荷、只增不改。
-按 `kind` 判别，闭合（`ModelInvocationRecord`）；五种名称都无词条：
+按 `kind` 判别，闭合（`ModelInvocationRecord`）；前四种名称无词条，第五种是[模型切换](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-switch--模型切换--model-switch)落下的那条记录（词条不为这条记录另立概念名）：
 
 | `kind` | 记录 | 成员 | 何时写（那份能力的义务） |
 |---|---|---|---|
-| `model_call_dispatched` | 已出门 | `call`（`ModelCallId`）、`dispatch`（第几次发出，≥ 1）、`provider`（`data.model-profile/v1#S-5` 的 `ProviderName`）、`response`（这次发出的 `ResponseId`）；**这次调用的绑定**：`profile`（有效模型，`data.model-profile/v1#S-13` 的 `ModelProfileRef`）、`profileSnapshot`（打开调用那一刻的档案快照，`#S-27` 的 `ModelProfileSnapshot`）、`parameters`（合并之后的请求参数，`#S-15` 的 `ModelRequestParameters`）、`selectedBy`（有效模型怎么来的）、`credentialScope`（这一次发出用的凭据在哪一格） | 这一次请求离开本进程之前 |
+| `model_call_dispatched` | 已出门 | `call`（`ModelCallId`）、`dispatch`（第几次发出，≥ 1）、`provider`（`data.model-profile/v1#S-5` 的 `ProviderName`）、`response`（这次发出的 `ResponseId`）；**这次调用的绑定**：`profile`（有效模型，`data.model-profile/v1#S-13` 的 `ModelProfileRef`）、`profileSnapshot`（打开调用那一刻的档案快照，`#S-27` 的 `ModelProfileSnapshot`）、`parameters`（合并之后的请求参数，`#S-15` 的 `ModelRequestParameters`）、`selectedBy`（有效模型怎么来的）、`credentialScope`（这一次发出用的凭据在哪一格）；**传输适配为这一次发出定下的处置**：`parameterAdjustments?`（改了值再发出的那些项）、`droppedParameters?`（没发出去的那些项的名字） | 这一次请求离开本进程之前 |
 | `model_call_opened` | 已开口 | `call`、`dispatch`、`firstTokenAt`（观察到首 token 的时刻） | 首个内容交给任何观察者之前 |
 | `model_call_interrupt_intent` | 中断意图 | `call`、`initiator`：`user` · `run_cancelled` | 发出中止信号之前 |
 | `model_call_ended` | 调用终结 | `call`、`ending` 三支（[S-50](#s-50-调用终结的三支)） | 调用不经响应体进入终态时 |
-| `model_selection_changed` | 切换事实 | `routeName`（`data.model-profile/v1#S-2` 的 `RouteName`：切到的是一个名字，不是某一行，PF-013 rev 12）、`at` | 切换生效之前 |
+| `model_selection_changed` | 模型切换落下的那条记录 | `routeName`（`data.model-profile/v1#S-2` 的 `RouteName`：切到的是一个名字，不是某一行，PF-013 rev 12）、`at` | 切换生效之前 |
 
 - **会话、Run、尝试、租户都在承载它的条目上**，不在记录里——与消息同一条规矩（[S-33](#s-33-消息不携带租户身份)）。
-  「已出门落在哪一次尝试」「切换事实是谁发的」都从条目读；切换只由交付面的切换命令写，发命令的租户身份就是会话持有的那一个。
+  「已出门落在哪一次尝试」「那次模型切换是谁发起的」都从条目读；切换只由交付面的切换命令写，发命令的租户身份就是会话持有的那一个。
 - **`ResponseId` 在「已出门」那一刻定下**：由模型请求运行时在写这条记录时铸，此后这次发出的任何结算都用它（`data.model-response/v1#S-6`；主线裁定，见 [D-040 §五 K15](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）。
 - **「已出门」带着这次调用的绑定**（主线裁定，见 [D-040 §五 K20](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）：[一次调用的各次发出用同一份档案快照与参数](../../../../product/PF-013-model-profiles-and-invocation/design.md#67-生效点收到那条事实之后下一次模型请求之前)，
   而停机之后续接这次调用时，唯一留在日志里、又先于任何结算写下的就是「已出门」——响应体此时可能还不存在。绑定只放在响应体上，续接就只能从内存里找它，而内存已经没了。
   - `profile`、`profileSnapshot`、`parameters`、`selectedBy` 在**一次调用的各次发出上逐字相同**（那份能力绑定一次、此后不改）；`credentialScope` 按那一次发出取到的凭据写，同一调用的两次发出可以不同。
-  - `parameters` 是**合并之后、交给传输适配之前**的那一组；传输适配改值或丢项之后实际发出的那一组记在响应体的 `route.parameters` 上（`data.model-response/v1#S-11`），两者不是同一个值。
-  - **`selectedBy` 与 `credentialScope` 的形状与 `data.model-response/v1` 的 S-10、S-9 逐字相同**，本契约自定义、不 `$ref`（理由见头部）；同一次发出，两处写的值必须相同。
+  - `parameters` 是**合并之后、交给传输适配之前**的那一组（`data.model-response/v1#S-11` 说的「要求的那一组」）；传输适配改值或丢项之后实际发出的那一组记在响应体的 `route.parameters` 上，两者不是同一个值。
+  - **改了哪些值、丢了哪些项，也记在这一条上**（主线裁定，见 [D-040 §六 L4](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）：传输适配对每一项的处置（按原值发出、改了值再发出、没发出）**在请求离开本进程之前就已定下**，
+    所以写「已出门」时它们已知；停机之后替这一次发出补写响应体的一方，**从这一条读出实际发出的那一组**，不必等一份也许永远不来的响应体。
+    - `parameterAdjustments`：每项 `{ name, requested, sent }`，`name` 在 `parameters` 里、`requested` **等于** `parameters` 里那一项的值、`sent` 是实际发出的值且与 `requested` 不同；`droppedParameters`：要求了却没发出的那些项的名字，每个都在 `parameters` 里。项名按 `data.model-profile/v1#S-20`（`extra` 项以它的键为名），一个项名至多出现在两份清单之一里，且在那一份里至多一次。
+    - **缺席即断言**：`parameterAdjustments` 缺席即一项值也没改，`droppedParameters` 缺席即一项也没丢；**空数组不是合法写法**——与响应体那两个成员的读法相同。
+    - **实际发出的那一组 = `parameters` 把 `parameterAdjustments` 列的那几项换成 `sent`、去掉 `droppedParameters` 列的那几项**；同一次发出若有响应体，它的 `route.parameters`、`route.parameterAdjustments`、`route.droppedParameters` 与这里算出的、写下的**逐项相同**（`data.model-response/v1#S-11`）。
+    - 这两项**按这一次发出写**：同一次调用的两次发出，`parameters` 逐字相同，这两项可以不同（换了一家，处置就可能不同）。
+  - **`selectedBy`、`credentialScope`、`parameterAdjustments` 的每一项（`ParameterAdjustment`）与 `droppedParameters` 的形状与 `data.model-response/v1` 的 S-10、S-9、S-11 逐字相同**，本契约自定义、不 `$ref`（理由见头部：那份契约 `$ref` 本契约，反向引用会让依赖成环）；同一次发出，两处写的值必须相同。
   - 凭据本身、凭据的引用都**不在**这里：`credentialScope` 只说是哪一格。
 - **中断意图没有 `runtime_lost`**：失联时没有谁来得及写意图，那种收场由恢复对账直接落在响应体上。
 - **表示层**：一条记录不合形状（含未知的 `kind`）即 `malformed`；[S-40](#s-40-表示层拒绝不是判定也不修补) 同样适用。
@@ -847,9 +853,9 @@ readable(b, L)      ≝ b 所在的消息在日志前缀 L 里
 
 - **规范表示**：[`messages.schema.json`](messages.schema.json)，JSON Schema **Draft 2020-12**。
   `$id` = `https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/messages/v1/messages.schema.json`
-- **定义项（42 项）**：`Message`、`MessageBase`、`SystemMessage`、`UserMessage`、`AssistantMessage`、`ToolMessage`、`ToolInternalMessage`、`SystemReminderMessage`、`CompactionMessage`；
+- **定义项（43 项）**：`Message`、`MessageBase`、`SystemMessage`、`UserMessage`、`AssistantMessage`、`ToolMessage`、`ToolInternalMessage`、`SystemReminderMessage`、`CompactionMessage`；
   `AssistantEnding`、`ToolInternalEnding`、`ReminderNature`；`ReminderSource` 与它的十一种来源（`BackgroundExecutionFinishedSource`、`BackgroundExecutionInterruptedSource`、`AttemptStartedSource`、`InterruptedSource`、`SystemWaitAnsweredSource`、`LoopGuardSource`、`PeerSessionNoteSource`、`ScheduledTriggerSource`、`RuntimeContextChangedSource`、`RuntimeContextSnapshotSource`、`ExtensionSource`）；
-  `SilencedBlockRef`、`CardAnswer`、`LoopExtensionName`；`ModelInvocationRecord` 与它的五种（`ModelCallDispatchedRecord`、`ModelCallOpenedRecord`、`ModelCallInterruptIntentRecord`、`ModelCallEndedRecord`、`ModelSelectionChangedRecord`）与「已出门」上的 `SelectedBy`、`CredentialScope`；
+  `SilencedBlockRef`、`CardAnswer`、`LoopExtensionName`；`ModelInvocationRecord` 与它的五种（`ModelCallDispatchedRecord`、`ModelCallOpenedRecord`、`ModelCallInterruptIntentRecord`、`ModelCallEndedRecord`、`ModelSelectionChangedRecord`）与「已出门」上的 `SelectedBy`、`CredentialScope`、`ParameterAdjustment`；
   不透明标识 `MessageId`、`ResponseId`、`CardId`、`SessionRef`、`AgentRef`、`ScheduleRef`、`RuntimeContextBlockId`。
   消费者 `$ref` 这些定义，**不复制一份同义类型**。**根模式不约束任何文档**：本文件是共享定义的登记处。
 - **成员名一律 camelCase**，枚举值一律 snake_case 字符串；消息的判别成员叫 `type`，来源与运行时记录的叫 `kind`，`about` 里嵌着的另一个 `kind` 与它们不相干。
@@ -859,7 +865,7 @@ readable(b, L)      ≝ b 所在的消息在日志前缀 L 里
   不透明标识按 `data.identity-values/v1#S-31` 的散文各自写出 pattern，**不跨契约 `$ref` 它的 `OpaqueIdentifier`**。
   **`ResponseId` 的家是 `data.model-response/v1#S-6`，本契约按同一散文自定义、不 `$ref`**：那份契约以 `$ref` 取本契约的 `AssistantMessage` 作回复，
   反向 `$ref` 会让两份契约互为依赖（与 `data.call-accounts/v1#S-16` 同法）。两处形状逐字相同；S-31 改集合时两处一起出新版本。
-  **`SelectedBy`、`CredentialScope` 同一理由自定义**，形状与 `data.model-response/v1` 的 S-10、S-9 逐字相同；那边改形状，本契约同轮改（[验证入口「对齐义务」](../verification.md#对齐义务)）。
+  **`SelectedBy`、`CredentialScope`、`ParameterAdjustment`（连同「已出门」上 `droppedParameters` 的就地形状）同一理由自定义**，形状与 `data.model-response/v1` 的 S-10、S-9、S-11 逐字相同；那边改形状，本契约同轮改（[验证入口「对齐义务」](../verification.md#对齐义务)）。
 - **正反实例**：[`examples.md`](examples.md)。它是本版的规范工件，不是说明材料。
 
 ### S-38 判别式与枚举闭合

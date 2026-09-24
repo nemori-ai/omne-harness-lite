@@ -22,7 +22,7 @@
 | V-8 | **消费者路径走查**（[CS-1～CS-7](v1/contract.md#消费者核对场景)） | 结构化走查（评审对象）；有提供者之后升级为真实演练 | 见各场景 | **未开始。**走查**不需要提供者**，现在就做得了；**CS-2 停在 G-2／G-5**（对齐波之后 CS-4、CS-6 不再停在缺口） |
 | V-9 | **跨进程**：[第五节](v1/contract.md#五装配给与协议给)右列七行逐行演练 | 规范场景演练 | [S-3](v1/contract.md#s-3-messageid)、[S-29](v1/contract.md#s-29-合法名单的判定)、[S-32](v1/contract.md#s-32-会话日志里的配对与唯一)～[S-36](v1/contract.md#s-36-toolinternalmessage-不进请求)、[S-39](v1/contract.md#s-39-表示层拒绝值) | **未开始，且本版装配下无法演练**——单机同进程不构成接收边界。**这不是免除**：跨进程演化启动时必须补做，登记在[变化的影响](#变化的影响) |
 | V-10 | **静态检查**（[SC-1～SC-6](#静态检查义务)） | 实现语言的静态检查（具体形式归 realization） | 见下表 | **未开始；检查器尚不存在** |
-| V-12 | **与别处逐字相同的四份定义**：`model_call_ended.cause` 的四个值与 `data.loop-extension` v1 `FailureCause` 里出门前的四个逐字相同；`ResponseId` 的散文形状与 `data.model-response/v1#S-6` 逐字相同；`SelectedBy`、`CredentialScope` 与 `data.model-response/v1` 的同名定义（S-10、S-9）逐字相同 | 静态检查（两份 Schema 的对应片段做字面比较） | [S-37](v1/contract.md#s-37-规范表示)、[S-49](v1/contract.md#s-49-模型请求运行时写的五种记录不是消息)、[S-50](v1/contract.md#s-50-调用终结的三支) | **未开始。**这几处为避开互为依赖而没有 `$ref`，**任何一边改了而另一边没跟，不会报任何错** |
+| V-12 | **与别处逐字相同的六份定义**：`model_call_ended.cause` 的四个值与 `data.loop-extension` v1 `FailureCause` 里出门前的四个逐字相同；`ResponseId` 的散文形状与 `data.model-response/v1#S-6` 逐字相同；`SelectedBy`、`CredentialScope`、`ParameterAdjustment` 与 `data.model-response/v1` 的同名定义（S-10、S-9、S-11）逐字相同；「已出门」的 `droppedParameters` 与那份契约 `Route.droppedParameters` 的就地形状逐字相同 | 静态检查（两份 Schema 的对应片段做字面比较） | [S-37](v1/contract.md#s-37-规范表示)、[S-49](v1/contract.md#s-49-模型请求运行时写的五种记录不是消息)、[S-50](v1/contract.md#s-50-调用终结的三支) | **未开始。**这几处为避开互为依赖而没有 `$ref`，**任何一边改了而另一边没跟，不会报任何错** |
 | V-11 | **结构模型**：[`formal/Readable.als`](v1/formal/README.md) 的两条 `run` 找到实例、四条 `check` 找不到反例；五个变异各自找到反例 | Alloy 6.2.0 | [S-28](v1/contract.md#s-28-此刻模型可读是算出来的) 的派生规则与嵌套合取（A4）、单调（A3，**最弱**：无变异核对，前提「块不变」按构造）；[S-29](v1/contract.md#s-29-合法名单的判定) ① ② **只经它们的推论 A1**（① ② 本身是事实）、⑤ 经 A2；[S-30](v1/contract.md#s-30-悬着的占位) 第 1 类。**不覆盖**：S-29 ③（按构造）、⑥（未建模）、S-32 ⑦（按构造） | **2026-09-24 模型改后重跑，结论与预期一致**，见[形式化工件](#形式化工件)；**未登记为 formal task，原始输出未入 `record/evidence/`** |
 
 ### 静态检查义务
@@ -162,6 +162,14 @@ V-2～V-10、V-12 **一条执行记录也没有**。起草时的手核只保证 
   - **形式覆盖声明收窄**：第七节、V-11、`Readable.als` 文件头与 formal 入口改成逐条写证据强度；S-29 ③、S-32 ⑦、A3 的前提标「按构造，不作证据」。
   - 本地自检重跑（131/131 ＋ 第 11 节 5/5）；实例第 13 节的计数改为实际数（136 行）。
 
+- **2026-09-24 修复波 1b（主线裁定 [D-040 §六](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) L1、L4、L5；候选未冻结，原地改）**：
+  - **L4**：S-49「已出门」加可选的 `parameterAdjustments`、`droppedParameters`——传输适配在出门之前为这一次发出定下的处置；约束（名字在 `parameters` 里、`requested` 等于那一项、缺席即断言、空数组不合法）与「实际发出的那一组」的算法写进 S-49；Schema 新增 `$defs/ParameterAdjustment`（43 项）、`ModelCallDispatchedRecord` 加两个成员。**形状按 `data.model-response/v1#S-11` 逐字自定义、不 `$ref`**：简报写「形状 `$ref` model-response」，但那份契约以 `$ref` 取本契约的 `AssistantMessage`，反向引用会让依赖图成环（与 `SelectedBy`、`CredentialScope` 同法，已报主线）。项名的含义取 `data.model-profile/v1#S-20`，catalog 对 `data.model-profile` 的依赖补 `S-20`（头部依赖表与包入口同改）。
+    **表示改变**（放宽）：带这两项的「已出门」旧 Schema 拒、新 Schema 收；不带的照旧通过。**消费者影响**：`capability.model-request-runtime` S-33 的追补体从这一条读这两项（它的 G-18 关，归那份契约改）。
+    实例第 14 节加四行（两条通过、其中一条是跨成员违约；两条空数组反例）；第 13 节计数改为 140 行（通过 56、拒绝 84）。**证据**：只重跑第 14 节——`jsonschema` 4.26.0（`Draft202012Validator` ＋ `referencing`，锁定 uv 环境，设计根下全部 Schema 按 `$id` 登表，脚本在会话暂存区、未入库），**27/27** 与「Schema」列一致；其余各节 Schema 未改、未重跑。
+  - **L5**：「切换事实」不再作概念名（[UL-model-switch](../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-switch--模型切换--model-switch) 的「弃用」）：第一节、第二节非词条清单、S-49 表与其后一条、头部依赖表、包入口、Schema 两处描述与实例第 14 节一行改称「模型切换落下的那条记录」并链词条。**语义与表示不变**。
+  - **L1**：依赖表与 S-6、S-8 里指向 `data.content-blocks` S-8 的锚点随那边的新标题改为 `#s-8-文本块与来路标记`；原先那条对齐义务已兑现，删去。
+  - 形式工件未改（Alloy 模型不涉「已出门」的成员），不重跑。
+
 结果不改写规范。发现语义问题回到来源设计（PF-009／PF-010／PF-012／PF-014／PF-015／PF-006／PF-004／PF-008），不在这里改契约。
 
 ## 独立评审
@@ -187,4 +195,4 @@ V-2～V-10、V-12 **一条执行记录也没有**。起草时的手核只保证 
 - **`SelectedBy`、`CredentialScope`、`ResponseId` 与 `data.model-response` v1 逐字相同**（V-12）：那边改形状，本契约同轮改；「已出门」上写的值与同一次发出的响应体 `route` 必须相同。
 - **`model_call_ended.cause` 与 `data.loop-extension` v1 `FailureCause` 出门前四值逐字相同**（V-12）。
 - **`capability.model-request-runtime`**：写「已出门」时带上绑定（S-49）；续接或再发时凭据取不到写 `released{cause: credential_unavailable}`，不写 `undispatched`（S-50）。
-- **`data.content-blocks` 的 S-8 标题**若改名（来源标记 → 来路标记），本契约依赖表里的 `#s-8-文本块与来源标记` 锚点同轮改。
+- **「已出门」上的 `parameterAdjustments`、`droppedParameters` 与同一次发出的响应体 `route` 上的同名两项逐项相同**（S-49）：`capability.model-request-runtime` 写「已出门」时带上传输适配定下的处置，停机之后补写响应体时从这一条读（它的 S-33）；`data.model-response` 改这两项的形状，本契约同轮改（V-12）。

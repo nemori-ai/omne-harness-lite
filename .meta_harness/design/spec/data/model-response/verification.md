@@ -171,6 +171,9 @@
   covers：各条 note 的 rev 改到当前、过时的说法（G-7 登记、G-12 未定、重试挂件读响应体、参数留痕、有效模型「怎么来的」）改写；按设计依据表补登几条缺的条款（§5.5 补 S-8、S-23，flows §3.2 补 S-16，「选中模型与有效模型」补 S-9，「它看得到什么」补 S-5、S-23，§5.13 补 S-12、S-35）；新增一条 PF-012 §6.17 → S-35。全部 `reviewed: false`。
   **对证据的影响**：V-1 按新 Schema 重跑（上节，42 块 0 处不符）；V-6、V-9 的判据扩大；新增 V-14。
 
+- **2026-09-24 修复波 1b（主线裁定 [D-040 §六 L4](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)；候选未冻结，原地改）**：`data.messages` S-49「已出门」加 `parameterAdjustments`、`droppedParameters`，形状按本契约 S-11 逐字自定义（它不反向 `$ref` 本契约，否则依赖成环）；本契约 [S-11](v1/contract.md#s-11-实际发出的参数改过的值与没发出去的项) 加第 6 条「与『已出门』逐项相同」，停机补写的一方从那条读。
+  **本契约的 Schema 与实例不变**（`$defs/ParameterAdjustment` 早已暴露，`data.messages` 不引用它），V-1 不重跑；catalog 依赖不变（`data.messages` 的 S-49 早已登记）。
+
 结果不改写规范。发现语义问题回到来源设计（PF-013／PF-009／PF-012），不在这里改契约。
 
 ## 独立评审
@@ -205,3 +208,4 @@
 
 - **词条链接已补**（第一轮评审修复）：「一次发出」链 [UL-upstream-send](../../../ubiquitous_language/terms/execution-and-outcome.md#ul-upstream-send--一次发出--upstream-send)，「首 token」链 [UL-first-token](../../../ubiquitous_language/terms/execution-and-outcome.md#ul-first-token--首-token--first-token)，「响应体」是 [UL-model-response](../../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-response--模型响应体--model-response)（模型响应体）在本契约内的简称；「上游原始响应留存」按那条词条的注意 ② 不立词条，是它身上的一项属性。
 - **跨契约同一件事的另一半**（本包不改对方的文件，由主线核对两边）：`capability.model-request-runtime` 的「已出门」铸 `ResponseId`、`route.parameters` 记实际发出的值、`vetoed`／`consumed` 的响应体由它写、`late` 的判定；`data.call-accounts` S-39 与本包 S-35 同一个标记；`data.loop-extension` S-23「它实际发出的参数留痕在响应体」与 S-2 对 `consumed` 的触发（本包 G-14）；`data.messages` S-10／S-21 的中断提醒对 `truncated` 同样补。
+- **`ParameterAdjustment` 与 `droppedParameters` 的形状在 `data.messages` 里有一份逐字副本**（「已出门」，那份契约的 V-12）：本契约改 S-11 这两项的形状，那边同轮改；同一次发出两处的值逐项相同（S-11 第 6 条），由写两处的 `capability.model-request-runtime` 兑现。

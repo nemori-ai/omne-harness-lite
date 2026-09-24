@@ -42,31 +42,32 @@
 | 实例 | Schema | 拒绝值 | 依据 |
 |---|---|---|---|
 | `{"name": "prod-db-guard", "position": "before_action", "power": "veto", "implementation": {"kind": "command", "host": "claude_code", "dialect": "2.1.280", "event": "PreToolUse", "command": "./hooks/prod-db-guard.sh", "matcher": "Bash"}}` | 通过 | — | [S-6](contract.md#s-6-声明的成员与类别)：`onError` 缺席 → 按求得的干预力取默认 |
-| `{"name": "default-retry", "position": "after_model_call", "dimension": {"ending": "failure"}, "power": "rewrite", "implementation": {"kind": "builtin", "capability": "capability.model-request-runtime"}}` | 通过 | — | [S-2](contract.md#s-2-两个维度)、[S-27](contract.md#s-27-retry)、[S-8](contract.md#s-8-装配进来的实现与外部命令)：系统自带件是装配进来的 |
-| `{"name": "result-offloader", "position": "after_action", "dimension": {"scope": "each"}, "power": "rewrite", "onError": "record", "implementation": {"kind": "builtin", "capability": "result-offloader"}}` | 通过 | — | [S-5](contract.md#s-5-报错处置策略) |
+| `{"name": "default-retry", "position": "after_model_call", "dimension": {"ending": "failure"}, "power": "rewrite", "implementation": {"kind": "builtin", "builtinName": "capability.model-request-runtime"}}` | 通过 | — | [S-2](contract.md#s-2-两个维度)、[S-27](contract.md#s-27-retry)、[S-8](contract.md#s-8-装配进来的实现与外部命令)：系统自带件是装配进来的 |
+| `{"name": "result-offloader", "position": "after_action", "dimension": {"scope": "each"}, "power": "rewrite", "onError": "record", "implementation": {"kind": "builtin", "builtinName": "result-offloader"}}` | 通过 | — | [S-5](contract.md#s-5-报错处置策略) |
 | `{"name": "cc-pretooluse-audit", "position": "before_action", "power": "observe", "implementation": {"kind": "command", "host": "claude_code", "dialect": "2.1.280", "event": "PreToolUse", "command": "audit-log"}}` | 通过 | — | [S-8](contract.md#s-8-装配进来的实现与外部命令)：`matcher`、`timeout` 缺席即全匹配、那一家那一事件的默认 |
 | `{"name": "codex-prompt-gate", "position": "before_persist_message", "power": "veto", "implementation": {"kind": "command", "host": "codex", "dialect": "5c5308fc", "event": "UserPromptSubmit", "command": "python3 gate.py", "timeout": "PT30S"}}` | 通过 | — | [S-8](contract.md#s-8-装配进来的实现与外部命令) |
-| `{"name": "pii-scrubber", "position": "before_persist_message", "power": "rewrite", "needs": ["pii-detector"], "implementation": {"kind": "builtin", "capability": "pii-scrubber"}}` | 通过 | — | [S-9](contract.md#s-9-依赖声明与不可用) |
+| `{"name": "pii-scrubber", "position": "before_persist_message", "power": "rewrite", "needs": ["pii-detector"], "implementation": {"kind": "builtin", "builtinName": "pii-scrubber"}}` | 通过 | — | [S-9](contract.md#s-9-依赖声明与不可用) |
 | `{"name": "prod-db-guard", "position": "before_action", "power": "veto", "order": 10, "implementation": {"kind": "command", "host": "claude_code", "dialect": "2.1.280", "event": "PreToolUse", "command": "./hooks/prod-db-guard.sh", "matcher": "Bash"}}` | 拒绝 | `malformed` | [S-10](contract.md#s-10-本版没有-order)：本版没有次序成员 |
 | `{"name": "prod-db-guard", "position": "before_action", "power": "veto", "implementation": {"kind": "command", "host": "claude_code", "dialect": "2.1.280", "event": "PreToolUse", "command": "./hooks/prod-db-guard.sh", "matcher": "Bash"}, "matcher": "Bash"}` | 拒绝 | `malformed` | [S-3](contract.md#s-3-管哪些情形本版只有维度)：「情形」本版只有维度；`matcher` 只在外部命令的实现里（[S-8](contract.md#s-8-装配进来的实现与外部命令)） |
 | `{"position": "before_action", "power": "veto", "implementation": {"kind": "command", "host": "claude_code", "dialect": "2.1.280", "event": "PreToolUse", "command": "./hooks/prod-db-guard.sh", "matcher": "Bash"}}` | 拒绝 | `malformed` | [S-7](contract.md#s-7-name-是身份)：没有身份就不是一件拓展件 |
 | `{"name": "g", "position": "before_action", "power": "veto"}` | 拒绝 | `malformed` | [S-6](contract.md#s-6-声明的成员与类别)：`implementation` 必有 |
-| `{"name": "g", "position": "before_action", "power": "observe", "onError": "treat_as_veto", "implementation": {"kind": "builtin", "capability": "ext-g"}}` | 拒绝 | `malformed` | [S-5](contract.md#s-5-报错处置策略)：拦不住东西的件不能在报错时拦下东西 |
-| `{"name": "g", "position": "after_persist_message", "power": "observe", "onError": "record", "implementation": {"kind": "builtin", "capability": "ext-g"}}` | 拒绝 | `malformed` | [S-5](contract.md#s-5-报错处置策略)：只观察的件不能在报错时往日志里注入提醒 |
-| `{"name": "g", "position": "after_persist_message", "power": "rewrite", "onError": "treat_as_veto", "implementation": {"kind": "builtin", "capability": "ext-g"}}` | 拒绝 | `malformed` | [S-5](contract.md#s-5-报错处置策略)：策略不高于干预力 |
-| `{"name": "g", "position": "before_action", "power": "veto", "needs": [], "implementation": {"kind": "builtin", "capability": "ext-g"}}` | 拒绝 | `malformed` | [S-9](contract.md#s-9-依赖声明与不可用)：「不需要」只有缺席这一种写法 |
+| `{"name": "g", "position": "before_action", "power": "observe", "onError": "treat_as_veto", "implementation": {"kind": "builtin", "builtinName": "ext-g"}}` | 拒绝 | `malformed` | [S-5](contract.md#s-5-报错处置策略)：拦不住东西的件不能在报错时拦下东西 |
+| `{"name": "g", "position": "after_persist_message", "power": "observe", "onError": "record", "implementation": {"kind": "builtin", "builtinName": "ext-g"}}` | 拒绝 | `malformed` | [S-5](contract.md#s-5-报错处置策略)：只观察的件不能在报错时往日志里注入提醒 |
+| `{"name": "g", "position": "after_persist_message", "power": "rewrite", "onError": "treat_as_veto", "implementation": {"kind": "builtin", "builtinName": "ext-g"}}` | 拒绝 | `malformed` | [S-5](contract.md#s-5-报错处置策略)：策略不高于干预力 |
+| `{"name": "g", "position": "before_action", "power": "veto", "needs": [], "implementation": {"kind": "builtin", "builtinName": "ext-g"}}` | 拒绝 | `malformed` | [S-9](contract.md#s-9-依赖声明与不可用)：「不需要」只有缺席这一种写法 |
 | `{"name": "g", "position": "before_action", "power": "veto", "implementation": {"kind": "command", "host": "cursor", "dialect": "1.6", "event": "beforeShellExecution", "command": "a.sh"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-装配进来的实现与外部命令)：宿主闭合 |
 | `{"name": "g", "position": "before_action", "power": "veto", "implementation": {"kind": "command", "host": "codex", "dialect": "5c5308fc", "event": "PreToolUse"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-装配进来的实现与外部命令)：外部命令必带宿主条目里的命令原样 |
 | `{"name": "g", "position": "before_action", "power": "veto", "implementation": {"kind": "command", "host": "codex", "command": "a.sh"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-装配进来的实现与外部命令)：必须说是哪一家方言的哪一个事件 |
 | `{"name": "g", "position": "before_action", "power": "veto", "implementation": {"kind": "native"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-装配进来的实现与外部命令)：旧写法 `native` 作废 |
+| `{"name": "g", "position": "before_action", "power": "veto", "implementation": {"kind": "builtin", "capability": "ext-g"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-装配进来的实现与外部命令)：装配进来的实现那一格叫 `builtinName`，旧成员名 `capability` 不收（它不是能力标识，改名免得与 `AssetDefinition.capability` 同名） |
 | `{"name": "g", "position": "before_action", "power": "veto", "implementation": {"kind": "builtin"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-装配进来的实现与外部命令)：装配进来的实现必带名字 |
-| `{"name": "g", "position": "before_action", "power": "veto", "implementation": {"kind": "builtin", "capability": "ext-g", "host": "codex"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-装配进来的实现与外部命令)：两种实现的成员不混用 |
-| `{"name": "injection-scan", "position": "before_persist_message", "power": "veto", "unavailability": "veto", "needs": ["injection-detector"], "implementation": {"kind": "builtin", "capability": "injection-scan"}}` | 通过 | — | [S-6](contract.md#s-6-声明的成员与类别)：把关件要「不在就不许跑」，注册时声明否决 |
-| `{"name": "pii-scrubber", "position": "before_persist_message", "power": "rewrite", "unavailability": "skip", "needs": ["pii-detector"], "implementation": {"kind": "builtin", "capability": "pii-scrubber"}}` | 通过 | — | [S-6](contract.md#s-6-声明的成员与类别)：显式写 `skip` 与缺席同义 |
-| `{"name": "g", "position": "before_action", "power": "rewrite", "unavailability": "veto", "implementation": {"kind": "builtin", "capability": "ext-g"}}` | 拒绝 | `malformed` | [S-6](contract.md#s-6-声明的成员与类别)：拦不住东西的件，不在时不得比在时权力更大 |
-| `{"name": "g", "position": "after_action", "dimension": {"scope": "each"}, "power": "veto", "unavailability": "veto", "implementation": {"kind": "builtin", "capability": "ext-g"}}` | 拒绝 | `malformed` | [S-6](contract.md#s-6-声明的成员与类别)：「之后」的位置本来就没有可拦的，不收这个声明 |
-| `{"name": "g", "position": "before_action", "power": "veto", "unavailability": "fallback", "implementation": {"kind": "builtin", "capability": "ext-g"}}` | 拒绝 | `malformed` | [S-6](contract.md#s-6-声明的成员与类别)：指定挂件只给系统自带的五件、不经声明 |
-| `{"name": "g", "position": "before_action", "power": "veto", "unavailability": "deny", "implementation": {"kind": "builtin", "capability": "ext-g"}}` | 拒绝 | `malformed` | [S-39](contract.md#s-39-判别式与枚举闭合)：不可用处置闭合 |
+| `{"name": "g", "position": "before_action", "power": "veto", "implementation": {"kind": "builtin", "builtinName": "ext-g", "host": "codex"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-装配进来的实现与外部命令)：两种实现的成员不混用 |
+| `{"name": "injection-scan", "position": "before_persist_message", "power": "veto", "unavailability": "veto", "needs": ["injection-detector"], "implementation": {"kind": "builtin", "builtinName": "injection-scan"}}` | 通过 | — | [S-6](contract.md#s-6-声明的成员与类别)：把关件要「不在就不许跑」，注册时声明否决 |
+| `{"name": "pii-scrubber", "position": "before_persist_message", "power": "rewrite", "unavailability": "skip", "needs": ["pii-detector"], "implementation": {"kind": "builtin", "builtinName": "pii-scrubber"}}` | 通过 | — | [S-6](contract.md#s-6-声明的成员与类别)：显式写 `skip` 与缺席同义 |
+| `{"name": "g", "position": "before_action", "power": "rewrite", "unavailability": "veto", "implementation": {"kind": "builtin", "builtinName": "ext-g"}}` | 拒绝 | `malformed` | [S-6](contract.md#s-6-声明的成员与类别)：拦不住东西的件，不在时不得比在时权力更大 |
+| `{"name": "g", "position": "after_action", "dimension": {"scope": "each"}, "power": "veto", "unavailability": "veto", "implementation": {"kind": "builtin", "builtinName": "ext-g"}}` | 拒绝 | `malformed` | [S-6](contract.md#s-6-声明的成员与类别)：「之后」的位置本来就没有可拦的，不收这个声明 |
+| `{"name": "g", "position": "before_action", "power": "veto", "unavailability": "fallback", "implementation": {"kind": "builtin", "builtinName": "ext-g"}}` | 拒绝 | `malformed` | [S-6](contract.md#s-6-声明的成员与类别)：指定挂件只给系统自带的五件、不经声明 |
+| `{"name": "g", "position": "before_action", "power": "veto", "unavailability": "deny", "implementation": {"kind": "builtin", "builtinName": "ext-g"}}` | 拒绝 | `malformed` | [S-39](contract.md#s-39-判别式与枚举闭合)：不可用处置闭合 |
 
 ## 3. 输入
 
@@ -122,7 +123,7 @@
 |---|---|---|---|
 | `{"extension": "pii-scrubber", "position": "before_persist_message", "power": "rewrite", "skipped": "unavailable", "unavailability": "skip", "at": "2026-09-23T10:00:00Z"}` | 通过 | — | [S-31](contract.md#s-31-三种记录形状)：不可用，不带 `output`，写明按跳过处置 |
 | `{"extension": "injection-scan", "position": "before_persist_message", "power": "veto", "skipped": "unavailable", "unavailability": "veto", "at": "2026-09-23T10:00:00Z"}` | 通过 | — | [S-31](contract.md#s-31-三种记录形状)、[S-33](contract.md#s-33-不可用与报错两分)：此刻不在、按否决处置——这条消息不落盘，之后按 `producer` 走 |
-| `{"extension": "omne-official:tool-admission", "position": "before_action", "power": "veto", "callId": "call_01", "skipped": "unavailable", "unavailability": "fallback", "at": "2026-09-23T10:00:00Z"}` | 通过 | — | [S-33](contract.md#s-33-不可用与报错两分)：系统自带件由指定挂件顶上，效果照 runner 的表（放行判断是全拒件）；「是不是系统自带件」Schema 管不到（第 8 节） |
+| `{"extension": "omne-official:admission-judgment", "position": "before_action", "power": "veto", "callId": "call_01", "skipped": "unavailable", "unavailability": "fallback", "at": "2026-09-23T10:00:00Z"}` | 通过 | — | [S-33](contract.md#s-33-不可用与报错两分)：系统自带件由指定挂件顶上，效果照 runner 的表（放行判断是全拒件）；「是不是系统自带件」Schema 管不到（第 8 节） |
 | `{"extension": "pii-scrubber", "position": "before_persist_message", "power": "rewrite", "skipped": "unavailable", "at": "2026-09-23T10:00:00Z"}` | 拒绝 | `malformed` | [S-31](contract.md#s-31-三种记录形状)：「此刻不在、按 X 处置」的 X 必须写出来 |
 | `{"extension": "g", "position": "before_action", "power": "rewrite", "callId": "call_01", "skipped": "unavailable", "unavailability": "veto", "at": "2026-09-23T10:00:00Z"}` | 拒绝 | `malformed` | [S-31](contract.md#s-31-三种记录形状)：求得的干预力不是 `veto`，这一次只能照跳过办 |
 | `{"extension": "g", "position": "after_persist_message", "power": "veto", "skipped": "unavailable", "unavailability": "veto", "at": "2026-09-23T10:00:00Z"}` | 拒绝 | `malformed` | [S-31](contract.md#s-31-三种记录形状)：「之后」的位置没有可拦的 |
@@ -303,7 +304,7 @@ hook 进程超时、崩溃：按 [S-33](contract.md#s-33-不可用与报错两�
   "name": "cheap-router",
   "position": "before_model_call",
   "power": "rewrite",
-  "implementation": { "kind": "builtin", "capability": "cheap-router" }
+  "implementation": { "kind": "builtin", "builtinName": "cheap-router" }
 }
 ```
 
@@ -338,7 +339,7 @@ hook 进程超时、崩溃：按 [S-33](contract.md#s-33-不可用与报错两�
   "position": "after_model_call",
   "dimension": { "ending": "failure" },
   "power": "rewrite",
-  "implementation": { "kind": "builtin", "capability": "capability.model-request-runtime" }
+  "implementation": { "kind": "builtin", "builtinName": "capability.model-request-runtime" }
 }
 ```
 
@@ -366,11 +367,11 @@ hook 进程超时、崩溃：按 [S-33](contract.md#s-33-不可用与报错两�
 
 | # | 拒绝值 | 校验对象 | 实例 | Schema | 为什么是这个值而不是更靠前的 |
 |---|---|---|---|---|---|
-| 1 | `malformed` | `LoopExtensionDefinition` | `{"name": "g", "position": "before_action", "power": "veto", "order": 1, "implementation": {"kind": "builtin", "capability": "ext-g"}}` | 拒绝 | 多了成员，第一行就命中 |
-| 2 | `position_unknown` | `LoopExtensionDefinition` | `{"name": "g", "position": "before_assembly", "power": "veto", "implementation": {"kind": "builtin", "capability": "ext-g"}}` | 拒绝 | 形状完整，只是位置不在十一个里 |
-| 3 | `power_unknown` | `LoopExtensionDefinition` | `{"name": "g", "position": "before_action", "power": "relax", "implementation": {"kind": "builtin", "capability": "ext-g"}}` | 拒绝 | 没有「放宽」这一档（[S-4](contract.md#s-4-干预力三档)） |
-| 4 | `dimension_missing` | `LoopExtensionDefinition` | `{"name": "g", "position": "after_action", "power": "rewrite", "implementation": {"kind": "builtin", "capability": "ext-g"}}` | 拒绝 | 缺席不读作「两种都管」（[S-2](contract.md#s-2-两个维度)） |
-| 5 | `dimension_not_allowed` | `LoopExtensionDefinition` | `{"name": "g", "position": "before_action", "dimension": {"scope": "each"}, "power": "veto", "implementation": {"kind": "builtin", "capability": "ext-g"}}` | 拒绝 | 执行动作之前不带维度 |
+| 1 | `malformed` | `LoopExtensionDefinition` | `{"name": "g", "position": "before_action", "power": "veto", "order": 1, "implementation": {"kind": "builtin", "builtinName": "ext-g"}}` | 拒绝 | 多了成员，第一行就命中 |
+| 2 | `position_unknown` | `LoopExtensionDefinition` | `{"name": "g", "position": "before_assembly", "power": "veto", "implementation": {"kind": "builtin", "builtinName": "ext-g"}}` | 拒绝 | 形状完整，只是位置不在十一个里 |
+| 3 | `power_unknown` | `LoopExtensionDefinition` | `{"name": "g", "position": "before_action", "power": "relax", "implementation": {"kind": "builtin", "builtinName": "ext-g"}}` | 拒绝 | 没有「放宽」这一档（[S-4](contract.md#s-4-干预力三档)） |
+| 4 | `dimension_missing` | `LoopExtensionDefinition` | `{"name": "g", "position": "after_action", "power": "rewrite", "implementation": {"kind": "builtin", "builtinName": "ext-g"}}` | 拒绝 | 缺席不读作「两种都管」（[S-2](contract.md#s-2-两个维度)） |
+| 5 | `dimension_not_allowed` | `LoopExtensionDefinition` | `{"name": "g", "position": "before_action", "dimension": {"scope": "each"}, "power": "veto", "implementation": {"kind": "builtin", "builtinName": "ext-g"}}` | 拒绝 | 执行动作之前不带维度 |
 | 6 | `output_not_allowed_for_power` | `Conclusion` | `{"extension": "g", "position": "before_action", "power": "rewrite", "callId": "call_01", "output": {"kind": "veto", "reason": "x"}, "at": "2026-09-23T10:00:00Z"}` | 拒绝 | 位置允许 `veto`，档不允许（[S-20](contract.md#s-20-档与结论的合法组合)） |
 | 7 | `ask_at_forbidden_position` | `Conclusion` | `{"extension": "g", "position": "before_persist_message", "power": "veto", "output": {"kind": "ask", "card": {"explanation": "要不要收下这条？", "options": [{"id": "y", "label": "收"}], "about": {"position": "before_persist_message"}}}, "at": "2026-09-23T10:00:00Z"}` | 拒绝 | 档允许 `ask`；这个位置等不了——比第 8 行更具体，先给它 |
 | 8 | `output_not_allowed_at_position` | `Conclusion` | `{"extension": "g", "position": "after_action", "dimension": {"scope": "each"}, "power": "veto", "callId": "call_01", "output": {"kind": "veto", "reason": "x"}, "at": "2026-09-23T10:00:00Z"}` | 拒绝 | 档允许 `veto`；执行动作之后那一批动作已经对外发生了（[S-21](contract.md#s-21-位置与结论的合法组合)） |

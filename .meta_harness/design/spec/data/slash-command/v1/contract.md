@@ -12,7 +12,7 @@
   | 坐标 | 消费的条款 | 取它的什么 | 本契约怎么用 |
   |---|---|---|---|
   | `omne-harness-lite-design-2026-09-15 · data.asset-model · v1` | [S-2](../../asset-model/v1/contract.md#s-2-能力标识名的词法)、[S-3](../../asset-model/v1/contract.md#s-3-能力标识与它的规范串)、[S-5](../../asset-model/v1/contract.md#s-5-资产来源)、[S-10](../../asset-model/v1/contract.md#s-10-八类正文的外壳)、[S-12](../../asset-model/v1/contract.md#s-12-属性声明由正文推出)、[S-15](../../asset-model/v1/contract.md#s-15-disabled-是保留项名)、[S-27](../../asset-model/v1/contract.md#s-27-表示层拒绝值)、[S-36](../../asset-model/v1/contract.md#s-36-usableby-是保留项名) | 能力标识名的词法（「正文契约可再收窄、不得放宽」）、能力标识的形状、资产来源、`slash_command` 类正文的外壳与「身份只在 `capability`」、属性项推出规则的义务、保留项 `disabled` 与 `usableBy`（八类共用）、表示层拒绝值里同名的值同义（`name_invalid` 等原名携带） | `$ref` 它的 `$defs/CapabilityName`（`CommandName` 在其上加保留区）与 `$defs/CapabilityId`（skill 型的绑定目标）；本契约就是 S-10 里 `slash_command` 那一行 `$ref` 的正文契约 |
-  | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1` | [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来源标记) | 文本块与它的四种来源标记 `slash_command_args`、`skill_body`、`slash_command_expansion`、`slash_command_record` | ① ② 的展开物与留痕就是这四种来路的文本块（[S-21](#s-21-提示词型的展开)、[S-22](#s-22-技能型的引用与两块展开物)、[S-25](#s-25-留痕)）；不 `$ref` 它的 Schema |
+  | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1` | [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来路标记) | 文本块与它的四种[来路标记](../../../../ubiquitous_language/terms/record-and-context.md#ul-origin-tag--来路标记--origin-tag) `slash_command_args`、`skill_body`、`slash_command_expansion`、`slash_command_record` | ① ② 的展开物与留痕就是这四种来路的文本块（[S-21](#s-21-提示词型的展开)、[S-22](#s-22-技能型的引用与两块展开物)、[S-25](#s-25-留痕)）；不 `$ref` 它的 Schema |
   | `omne-harness-lite-design-2026-09-15 · data.identity-values · v1` | [S-31](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示) | 显式空白码点集合与不透明标识的交换表示 | 识别文法与参数切分的「空白」一律是那个集合；`ServiceName` 按它的散文自定义，**不 `$ref` 它的 `OpaqueIdentifier`** |
   | `omne-harness-lite-design-2026-09-15 · data.skill-package · v1` | [S-8](../../skill-package/v1/contract.md#s-8-正文逐字不展开不执行) | 技能的「正文」是哪一段，逐字、不展开 | skill 型展开时第一块的文字（[S-22](#s-22-技能型的引用与两块展开物)） |
 
@@ -47,7 +47,7 @@
 > |---|---|
 > | [S-2](#s-2-命令名的词法) 名字许冒号、禁斜杠 | **主线裁定**，见 [D-040 §S20 S20-e](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s20slash-command报回的)；词法的家在 `data.asset-model` v1 的 [S-2](../../asset-model/v1/contract.md#s-2-能力标识名的词法) |
 > | [S-3](#s-3-保留区与它唯一的拼法) 保留区按 ASCII 不区分大小写判定、`omne-official:` 以冒号作分隔符 | 分隔符为冒号是主线起草时给定的（与 [D-040 §块 A A9](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#块-a-形状shapes-draft-assets-v0md-a1a10) 的 `omne-official:reload-<category>` 同一拼法）；**按 ASCII 不区分大小写判保留区是本契约的推导**，理由在条款正文 |
-> | [S-11](#s-11-属性项的推出规则) 「谁可以用」是 `data.asset-model` 的 `usableBy`；[S-1](#s-1-斜杠命令定义是资产的正文) 正文不带名字；[S-8](#s-8-参数声明) 的参数提示 `hint`；[S-17](#s-17-参数文字的切分) 的 `unterminated_quote`；[S-13](#s-13-识别的三种结果)、[S-14](#s-14-commandinvocation-与位置) 的 `Recognition`、`Span`；[S-25](#s-25-留痕) 留痕是一种来源标记 | **主线裁定**，见 [D-040 §S20 S20-b～S20-e](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s20slash-command报回的)、[§S18 S18-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s18skill-package报回的)；「参数声明、参数提示、绑定目标是正文、不是设置」已落进产品正文 [PF-002 §4 Slash Command](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)（rev 17） |
+> | [S-11](#s-11-属性项的推出规则) 「谁可以用」是 `data.asset-model` 的 `usableBy`；[S-1](#s-1-斜杠命令定义是资产的正文) 正文不带名字；[S-8](#s-8-参数声明) 的参数提示 `hint`；[S-17](#s-17-参数文字的切分) 的 `unterminated_quote`；[S-13](#s-13-识别的三种结果)、[S-14](#s-14-commandinvocation-与位置) 的 `Recognition`、`Span`；[S-25](#s-25-留痕) 留痕是一种来路标记 | **主线裁定**，见 [D-040 §S20 S20-b～S20-e](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s20slash-command报回的)、[§S18 S18-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s18skill-package报回的)；「参数声明、参数提示、绑定目标是正文、不是设置」已落进产品正文 [PF-002 §4 Slash Command](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)（rev 17） |
 > | [S-8](#s-8-参数声明)～[S-10](#s-10-提示词模板与占位符)、[S-17](#s-17-参数文字的切分)～[S-19](#s-19-解析失败取第一处) 的具体文法 | 产品只说「像命令行程序那样按声明解析」、「语法长什么样归规格」；**切分、绑定、取值与判定次序是本契约的推导**，借用来源逐条写在正文 |
 > | [S-26](#s-26-规范表示)～[S-29](#s-29-表示层拒绝与解析失败分开都不修补) | **SYS-SPEC**：规范表示、闭合枚举、表示层拒绝值与「表示层不等于判定」是规格形式的要求 |
 > | [第六节](#六装配给与协议给) | **SYS-DEPLOY** |
@@ -478,13 +478,13 @@ recognize(T) ≝
 **它保证人附带的文字不会被一条没写占位符的模板悄悄吞掉**；有参数声明的命令不需要它——[S-10](#s-10-提示词模板与占位符) 第 2 条已在发布时保证每个参数都有去处。
 
 - `text` 可以是空串以外的任何文字，也可以恰是空串（例如模板只有 `$ARGUMENTS`、人又什么都没附带）。
-- 这段文字在受理时成为那条用户消息的内容（[PF-014 §5.10](../../../../product/PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走)）：一个文本块，来源标记 `{ kind: "slash_command_expansion", command: <命令名> }`（`data.content-blocks` v1 [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来源标记)）；块的标注归受理。
+- 这段文字在受理时成为那条用户消息的内容（[PF-014 §5.10](../../../../product/PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走)）：一个文本块，来路标记 `{ kind: "slash_command_expansion", command: <命令名> }`（`data.content-blocks` v1 [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来路标记)）；块的标注归受理。
 
 ### S-22 技能型的引用与两块展开物
 
-**`skill` 型解析通过时，结果是 `{ kind: "skill", skill }`：只是一个引用。**展开发生在受理时，由受理面做，展开物恰是 `data.content-blocks` v1 [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来源标记) 的两种来路块：
+**`skill` 型解析通过时，结果是 `{ kind: "skill", skill }`：只是一个引用。**展开发生在受理时，由受理面做，展开物恰是 `data.content-blocks` v1 [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来路标记) 的两种来路块：
 
-| 次序 | 块 | 文字 | 来源标记 |
+| 次序 | 块 | 文字 | 来路标记 |
 |---|---|---|---|
 | 1 | 文本块 | 那个技能此刻生效的那份实现的**正文，逐字**——`data.skill-package` v1 [S-8](../../skill-package/v1/contract.md#s-8-正文逐字不展开不执行) 的 `body` | `{ kind: "skill_body", command: <命令名>, skill: <技能名> }` |
 | 2 | 文本块，**仅当 `argumentText` 非空** | `argumentText`，原样 | `{ kind: "slash_command_args", command: <命令名> }` |
@@ -516,9 +516,9 @@ recognize(T) ≝
 
 ### S-25 留痕
 
-**① ② 型：受理面产出的那条用户消息里，除展开物之外另有一块留痕块——一个来源标记为 `{ kind: "slash_command_record", command: <命令名> }` 的文本块，`text` 是这次的 `raw`，逐字**
-（`data.content-blocks` v1 [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来源标记)；主线裁定，见 [D-040 §S20 S20-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s20slash-command报回的)：**留痕不是第八类块，是一种来源标记**）。
-它与同一条消息里 `command` 相同、来源标记为 `slash_command_expansion`、`skill_body`、`slash_command_args` 的那几块一起，
+**① ② 型：受理面产出的那条用户消息里，除展开物之外另有一块留痕块——一个来路标记为 `{ kind: "slash_command_record", command: <命令名> }` 的文本块，`text` 是这次的 `raw`，逐字**
+（`data.content-blocks` v1 [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来路标记)；主线裁定，见 [D-040 §S20 S20-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s20slash-command报回的)：**留痕不是第八类块，是一种来路标记**）。
+它与同一条消息里 `command` 相同、来路标记为 `slash_command_expansion`、`skill_body`、`slash_command_args` 的那几块一起，
 兑现「原命令与展开后的全文都留」「消息落盘之前看得到原命令的标注」（[PF-014 §5.10](../../../../product/PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走)、[§5.6](../../../../product/PF-014-inbound-intake-and-queueing/design.md#56-消息落盘之前那一刻看得到什么)）。留痕的形状借 Claude Code 「原命令一份、展开全文一份」（[CC-7](../../../../../research/slash-command-parsing-sources/notes/claude-code.md#cc-7)）。
 
 - **`ParseResult` 不另存**：成功的解析结果就是那几块展开物本身；要重看「当时解析成什么」，读展开物，**不按此刻的命令集重新解析**（命令集会变）。
@@ -717,13 +717,13 @@ binding_unknown  >  name_invalid  >  name_reserved  >  parameter_duplicate  >  p
 | **G-1** | **已闭合（2026-09-24 整批对齐）**：`data.asset-model` v1 已改为禁斜杠、许冒号；`CommandName` 改为 `$ref` 那边的 `CapabilityName` 再加保留区（[S-2](#s-2-命令名的词法)） | — | — |
 | **G-2** | **已闭合（2026-09-24 整批对齐）**：对 `data.skill-package` v1 的依赖已登（它的 S-8），[S-22](#s-22-技能型的引用与两块展开物) 的第一块指它的 `body` | — | — |
 | **G-3** | **已闭合（2026-09-24 整批对齐）**：引号没闭合的 `reason` 是 `unterminated_quote`——主线裁定，见 [D-040 §S20 S20-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s20slash-command报回的)；见 [S-17](#s-17-参数文字的切分)、[S-19](#s-19-解析失败取第一处)、[S-20](#s-20-parseresult-四支) | — | — |
-| **G-4** | **已闭合（2026-09-24 整批对齐）**：留痕不是第八类块，是 `data.content-blocks` v1 S-8 的来源标记 `slash_command_record`（① 型展开物另用 `slash_command_expansion`）——主线裁定，见 [D-040 §S20 S20-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s20slash-command报回的)；见 [S-25](#s-25-留痕) | — | — |
+| **G-4** | **已闭合（2026-09-24 整批对齐）**：留痕不是第八类块，是 `data.content-blocks` v1 S-8 的来路标记 `slash_command_record`（① 型展开物另用 `slash_command_expansion`）——主线裁定，见 [D-040 §S20 S20-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s20slash-command报回的)；见 [S-25](#s-25-留痕) | — | — |
 | **G-5** | **已闭合（2026-09-24 整批对齐）**：「谁可以用」是 `data.asset-model` v1 保留的 `usableBy`（项名、取值域、默认 `self`，八类共用）——主线裁定，见 [D-040 §S18 S18-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s18skill-package报回的)；见 [S-11](#s-11-属性项的推出规则) | — | — |
 | **G-6** | **已闭合**：参数声明、参数提示、绑定目标是正文成员，不随持有配值；参数提示是 `ParameterDeclaration.hint`——产品正文 [PF-002 §4 Slash Command](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)（rev 17）已改为「这是这份命令本身，不是设置」「设置：本版没有」 | — | — |
 | **G-7** | **系统业务流程的登记处**：`ServiceName` 解到哪个服务的哪个动作、此刻办不办得了、结果摘要什么形状，没有契约 | [S-7](#s-7-servicename)、[S-23](#s-23-命令型的参数) 交出去之后的那一段；③ 型条目里的「结果摘要」 | **主线**（登记处落在哪份契约）；每条流程的语义归定义它的 topic |
 | **G-8** | **③ 型那条「记它发生过的条目」与受理面具名拒绝条目的形状** | [S-24](#s-24-解析失败即什么都不发)、[S-25](#s-25-留痕)：条目要装 `CommandInvocation` 与 `ParseResult`，装在哪、叫什么没有定 | **受理契约**（PF-014 的规格化，未立）与 PF-000 记录条目 |
 | **G-9** | **同一次提交里人还带了附件时，命令与附件怎样一起走**：① ② 型展开出的那条用户消息带不带那些附件，③ 型遇到附件怎么办 | 交付面允许在一次提交里带附件时的受理 | **受理契约**（PF-014 的规格化，未立） |
-| **G-10** | **已闭合（2026-09-24 第一轮评审处置）**：原先无处可链的几条主线裁定（能力标识名禁 `/` 许 `:`；「谁可以用」= `usableBy`；`unterminated_quote`、`Span`、`Recognition`；留痕是来源标记；正文不带名字）已记进 [D-040 §S20](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s20slash-command报回的) 与 [§S18 S18-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s18skill-package报回的)；参数提示在正文已落进 PF-002 rev 17 | — | — |
+| **G-10** | **已闭合（2026-09-24 第一轮评审处置）**：原先无处可链的几条主线裁定（能力标识名禁 `/` 许 `:`；「谁可以用」= `usableBy`；`unterminated_quote`、`Span`、`Recognition`；留痕是来路标记；正文不带名字）已记进 [D-040 §S20](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s20slash-command报回的) 与 [§S18 S18-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s18skill-package报回的)；参数提示在正文已落进 PF-002 rev 17 | — | — |
 
 **一件曾经像缺口、现已不是的事**：「交付面自己的动作与斜杠命令撞名听谁的」——产品正文已由保留名规则闭合，**没有优先级要定**（[S-5](#s-5-保留名在系统内唯一没有优先级)）。
 

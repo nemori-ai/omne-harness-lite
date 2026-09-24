@@ -22,6 +22,7 @@
 | `P(v, f)` | `effectivePermission = { value: v, from: f }` |
 | `G0` | `S` 此刻的授权上下文；**除非某行另说，`evaluate(call, G0) = undecidable`** |
 | `item(c, P, mode)` | `{ call: c, definition: def(c.tool), effectivePermission: P, grants: G0, runMode: mode, tenantAutoWritable: true }`；`item⁻` 同它，只是 `tenantAutoWritable: false` |
+| `itemN(c, mode)` | `{ call: c, definition: def(c.tool), effectivePermission: "not_in_composition", grants: G0, runMode: mode }`——这个工具条目此刻不在这个租户的组合里（可用性报告里那一项写着 `not_in_composition`），**不带 `tenantAutoWritable`**（[契约 S-8](contract.md#s-8-有效执行权限) 末条） |
 | `CARD(c)` | 一张 `DecisionCardDraft`：`options` 恰为下面四个、按此顺序；`about = { position: "before_action", callId: c.callId }`；`explanation` 说清五样（[契约 S-15](contract.md#s-15-定死的四档选项与卡片草稿)）；`CARD3(c)` 同它，只是没有第四档 |
 
 ```json
@@ -147,6 +148,7 @@
 | `item(c_rm, P(ask, factory), bypass-permissions)`，**求值读不到授权上下文**（故障注入） | **`unavailable`**——**不是 `allow`**（那是把读失败当成算不出，再被 `bypass-permissions` 放行），**也不是 `deny`** | [S-9](contract.md#s-9-授权上下文与求值)、[S-18](contract.md#s-18-判不出来不是拒绝也不是算不出)、[S-44](contract.md#s-44-判不出来不放行) |
 | 同上，但同一批还有一项 `item(c_read, P(auto, tenant), bypass-permissions)` | **整次 `unavailable`**，`c_read` 也没有结论；runner 这一侧两项的那次经过都记 `skipped: errored` ＋ `error`，效果 `vetoed` | [S-24](contract.md#s-24-失败值与它们的次序)：失败是整次的 |
 | `item(c_read, P(auto, tenant), never)`，求值读不到 | `[allow{tok_1}]`：**不走第 ③ 步的项不会引出 `unavailable`** | 同上，第 4 行 |
+| `[itemN(c_mail, bypass-permissions), item(c_read, P(auto, tenant), bypass-permissions)]`，求值读不到 | `[deny{not_held}, allow{tok_1}]`：**`not_in_composition` 是第 ⓪ 步的结论，不是失败**；两项都不走第 ③ 步，整次不失败 | [S-24](contract.md#s-24-失败值与它们的次序)、[S-22](contract.md#s-22-判定次序) 第 ⓪ 步 |
 | `verifyToken(tok_2, c_rm, —)`，没带会话 | `invalidInput`——**不取「当前会话」** | [S-25](contract.md#s-25-verifytoken) ⑧ |
 
 **失败的次序**（一次只给一个值，第一个命中的那一行）：
@@ -173,6 +175,15 @@
 |---|---|---|
 | `admit([item(c_gh, P(ask, tenant), auto_permission)])`，`definition = { name: "github__search_issues" }` | 照常判：`[ask{CARD(c_gh)}]` | [S-7](contract.md#s-7-admissioninput) |
 | 同上，但 `definition = { name: "github:search_issues" }`（定义名，带冒号） | **整次 `invalidInput`**——本能力不做逆转写，定义名与调用块里的模型面名字逐码点不等 | 同上；[S-47](contract.md#s-47-模型面名字逐码点比解析不了的调用不进来) |
+
+**不在组合里的工具条目单独判拒、不牵连同批**（[D-040 §六 L15](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）——会话里的 `send_mail` 此刻已被组织禁用（没有 reload，它还在会话的工具表里），可用性报告里它那一项是 `not_in_composition`：
+
+| 输入 | 预期 | 依据 |
+|---|---|---|
+| `admit([itemN(c_mail, auto_permission), item(c_read, P(auto, tenant), auto_permission)])` | `[deny{not_held}, allow{tok_1}]`：`c_mail` **不出卡**、不调 `evaluate`；**`c_read` 照常放行**——不是整批全拒 | [S-8](contract.md#s-8-有效执行权限) 末条、[S-22](contract.md#s-22-判定次序) 第 ⓪ 步、[S-14](contract.md#s-14-拒绝原因) |
+| `itemN(c_mail, auto_permission)` 带 `answer: "allow_once"`（卡片挂着期间它被禁用） | `[deny{not_held}]`：**人点了允许也做不成** | [S-22](contract.md#s-22-判定次序) 第 ⓪ 步「有答复也照判」 |
+| `itemN(c_mail, auto_permission)` 另带 `tenantAutoWritable: true` | **整次 `invalidInput`**——这一项不带这一位 | [S-7](contract.md#s-7-admissioninput)、[S-17](contract.md#s-17-缺席时的默认答案) |
+| 同一批，但报告里 `c_mail` 那一项是 `unavailable`（第二次求值本身失败） | runner 不调 `admit`：本能力这一次**不可用**，两项都由全拒件顶上——**只有判不出来才整批全拒** | [S-8](contract.md#s-8-有效执行权限)、[S-34](contract.md#s-34-本能力缺席报错或判不出来) |
 
 **参数解析不了的调用不进来**：
 

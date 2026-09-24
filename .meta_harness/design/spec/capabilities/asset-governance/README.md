@@ -24,8 +24,8 @@
   - `data.identity-values · v1`：`S-3`、`S-5`、`S-6`、`S-8`、`S-10`、`S-11`、`S-12`、`S-16`～`S-21`、`S-23`、`S-26`、`S-27`、`S-29`～`S-34`（S-4 表里的 `CS-1`、`CS-2`、`CS-5` 是那份契约的消费者核对场景，不是条款，不登 clauses）；
   - `data.offer-expiry · v1`：`S-6`、`S-19`；
   - `capability.organization-governance · v1`：`S-22`、`S-26`、`S-38`；
-  - `data.asset-model · v1`：`S-1`～`S-16`、`S-18`～`S-23`、`S-25`、`S-36`（2026-09-24 整批对齐补登）；
-  - 各类正文契约的两条规则与斜杠命令保留区（同日补登）：`data.tool-definition · v1` `S-16`、`S-31`；`data.skill-package · v1` `S-13`、`S-17`；`data.slash-command · v1` `S-3`、`S-4`、`S-6`、`S-11`；`data.mcp-endpoint · v1` `S-13`、`S-14`、`S-15`；`data.connector · v1` `S-11`、`S-12`（两处 `S-13`／`S-12` 是凭据类项，2026-09-24 修订补登）；
+  - `data.asset-model · v1`：`S-1`～`S-16`、`S-18`～`S-23`、`S-25`、`S-27`、`S-36`（2026-09-24 整批对齐补登；`S-27` 于 2026-09-25 修复波 1b 补登）；
+  - 各类正文契约的两条规则与斜杠命令保留区（同日补登）：`data.tool-definition · v1` `S-16`、`S-31`；`data.skill-package · v1` `S-13`、`S-17`；`data.slash-command · v1` `S-3`、`S-4`、`S-6`、`S-11`；`data.mcp-endpoint · v1` `S-13`、`S-14`、`S-15`、`S-26`（`S-26` 修复波 1b 补登）；`data.connector · v1` `S-11`、`S-12`（两处 `S-13`／`S-12` 是凭据类项，2026-09-24 修订补登）；
   - `capability.asset-evaluation · v1`：`S-23`（界、挑选与分档，[S-38](v1/contract.md#s-38-assign-配值) 的写时守卫据它；2026-09-24 修订第二轮新增）。
   **不登** `capability.asset-transfer`：组合入口是它调本契约，同一次提交的约定、分享结束、`byAgent` 的来处引它的条款都只作指路（[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面) 末段）。
   - `data.loop-extension · v1`：`S-40`（属性项的推出规则；2026-09-24 独立评审第一轮新增，原 [G-5](v1/contract.md#十二已知缺口) 的那一格随之闭合）。

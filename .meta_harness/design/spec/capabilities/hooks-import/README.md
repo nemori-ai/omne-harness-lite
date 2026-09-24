@@ -8,7 +8,7 @@
 导入结果落成资产（写哪一层、新资产还是新版本、禁用落在哪一格）归资产治理。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.hooks-import, 1)`
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订），**未接受、未冻结**
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订，2026-09-25 修复波 1b 闭合 G-14），**未接受、未冻结**
 - **catalog 映射**：已登记为 `candidate`；`family=capabilities`、`topic=hooks-import`、
   `contract_path=spec/capabilities/hooks-import/v1/contract.md`；`resources` 含契约与 `examples.md`；
   依赖七项（`capability.loop-extension-runner`、`capability.tool-admission`、`data.loop-extension`、`data.asset-model`、`data.messages`、`data.content-blocks`、`data.identity-values`，均为 v1），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)

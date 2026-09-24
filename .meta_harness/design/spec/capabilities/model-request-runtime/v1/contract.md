@@ -5,7 +5,7 @@
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.model-request-runtime, 1)`——
   `family = capabilities`、`topic = model-request-runtime`、规范路径 `spec/capabilities/model-request-runtime/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：`candidate`（2026-09-23 起草；2026-09-24 经第一轮独立评审并按处置修订，处置见[验证入口](../verification.md#独立评审)）——未接受、未冻结
+- **状态**：`candidate`（2026-09-23 起草；2026-09-24 经第一轮独立评审并按处置修订，处置见[验证入口](../verification.md#独立评审)；修复波 1b 补模型侧到达装配前提的承诺与追补体参数三项的来源，见[验证入口「变化的影响」](../verification.md#变化的影响)）——未接受、未冻结
 - **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-013 rev 12** 为准（rev 11 只动转换件呈现的落点，不影响本契约条款；rev 12 的同名按层覆盖、设置记路由名已落进本契约），另引 PF-012 rev 14、PF-009 rev 8、PF-004 rev 12、PF-001 rev 17、PF-015 rev 11（逐 rev 复核结论在[验证入口「变化的影响」](../verification.md#变化的影响)）
 - **精确语义依赖**（消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)，catalog 按它登记）：
   - `omne-harness-lite-design-2026-09-15 · capability.model-profile-directory · v1`（candidate）
@@ -77,7 +77,8 @@
 > | [S-8](#s-8-调用在会话日志里留下的六种记录) `ResponseId` 在「已出门」时铸、[S-30](#s-30-dispatchagain) 已终结只用 `alreadyEnded`、[S-32](#s-32-releasecall) 放手、[S-35](#s-35-默认重试件可替换) 默认件的次序与同家至多一次 | 主线裁定，见 [D-040 §S16 S16-a、S16-b、S16-g](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s16model-profile-directory--model-request-runtime报回的) |
 > | [S-28](#s-28-opencall) 调用请求的成员名与 `ModelRequest` 逐字相同 | 主线裁定，见 [D-040 §S16 S16-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s16model-profile-directory--model-request-runtime报回的) |
 > | 工具清单是模型面名字（[S-28](#s-28-opencall) ①）、`session` 进指认调用的操作（[S-5](#s-5-一次调用一次发出)）、绑定落在「已出门」（[S-7](#s-7-一次调用绑定了什么)）、再发时取不到凭据写 `released{cause}`（[S-29](#s-29-dispatch) ⑧）、只读守卫（[S-50](#s-50-candispatchagain)）、回复被否决或被系统使用的响应体由本能力写（[S-17](#s-17-结算一处按序幂等先到者赢)、[S-49](#s-49-settlereply)）、传输承载是另一条前置（[S-11](#s-11-合法目标集合)）、允许集合元素是路由名 | 主线裁定，见 [D-040 §五 K10、K19、K20、K21、K22、K36、K40、K42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) |
-> | `settleReply` 这个服务面名、`openCall` 的 `basis` 成员、`reply_pending` 状态、会话重新承载时的对账时机、`canDispatchAgain` 收 `plan` | **规格层推导**（理由写在各条正文）；两个名字待主线定名——[G-13](#十二已知缺口) |
+> | `settleReply` 这个服务面名、`openCall` 的 `basis` 成员、`reply_pending` 状态、会话重新承载时的对账时机、`canDispatchAgain` 收 `plan` | 规格层推导（理由写在各条正文），主线接受，见 [D-040 §六 N-9](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)（原 G-13 闭合） |
+> | 「已出门」带传输适配定下的改值与丢项、追补体的参数三项从它读（[S-7](#s-7-一次调用绑定了什么)、[S-29](#s-29-dispatch) ④、[S-33](#s-33-reconcile) ④）；本能力逐条承诺到达装配的宿主前提、传输适配不做逆转写（[S-51](#s-51-模型侧到达装配前提的承诺)） | 主线裁定，见 [D-040 §六 L4、L6](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)（原 G-18 闭合；`capability.stream-assembly` 的 G-2 随之闭合）；不做逆转写同 [§五 K10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) |
 
 ---
 
@@ -103,6 +104,7 @@
 | 9 | **停机之后的对账**：按锚点与响应体决定追补什么、能不能再发 | [S-33](#s-33-reconcile) |
 | 10 | **成因分类、凭据现取、脱敏** | [S-18](#s-18-成因按来源分类三类事实由守卫兑现)～[S-20](#s-20-写入之前脱敏) |
 | 11 | **系统自带的默认重试件**的行为（可替换） | [S-35](#s-35-默认重试件可替换) |
+| 12 | **模型侧的[到达装配](../../../../ubiquitous_language/terms/record-and-context.md#ul-arrival-assembly--到达装配--arrival-assembly)宿主**：持有每一次发出的那份装配状态，逐条兑现 `capability.stream-assembly` 要宿主兑现的前提 | [S-51](#s-51-模型侧到达装配前提的承诺) |
 
 ### S-2 本契约不拥有什么
 
@@ -181,7 +183,7 @@
 | `data.content-blocks` `#S-21` AttachmentRef | [S-20](#s-20-写入之前脱敏) |
 | `data.messages` `#S-9`、`#S-10` AssistantMessage 与它的三种收尾 | [S-29](#s-29-dispatch) |
 | `data.messages` `#S-35`、`#S-36` 我们自己那两种在发出前译掉、ToolInternalMessage 不进请求 | [S-38](#s-38-装配给的保证-vs-协议须给的保证) |
-| `data.tool-definition` `#S-6` 模型面只有一个条目；模型面名字 `ModelToolName`，逆转写只在工具执行那一侧 | [S-28](#s-28-opencall) ① 的 `tools` |
+| `data.tool-definition` `#S-6` 模型面只有一个条目；模型面名字 `ModelToolName`，逆转写只在工具执行那一侧 | [S-28](#s-28-opencall) ① 的 `tools`；[S-51](#s-51-模型侧到达装配前提的承诺) 末条、[S-38](#s-38-装配给的保证-vs-协议须给的保证) 传输适配第 11 条：不做逆转写 |
 | `data.tool-definition` `#S-14` 时长的表示 | [S-21](#s-21-两个时限是运行时设置项)、[S-30](#s-30-dispatchagain) |
 | `data.identity-values` `#S-5` TenantId | [S-7](#s-7-一次调用绑定了什么)、[S-19](#s-19-凭据每次发出现取取值只交给传输适配) |
 | `data.identity-values` `#S-17`～`#S-19` 身份参数没有默认值、缺席即拒绝、不可用即明确失败 | [S-14](#s-14-缺席时的默认答案与失败集合) |
@@ -193,9 +195,10 @@
 | `data.model-response` `#S-9` 路由留痕（`profileSnapshot`、`credentialScope`）、`#S-12`、`#S-13` 收场三方发起者与条件表 | [S-7](#s-7-一次调用绑定了什么)、[S-19](#s-19-凭据每次发出现取取值只交给传输适配)、[S-31](#s-31-interrupt)、[S-33](#s-33-reconcile) |
 | `data.model-profile` `#S-27` 档案快照 `ModelProfileSnapshot` | [S-7](#s-7-一次调用绑定了什么) |
 | `data.call-accounts` `#S-38` 两种归属（用量归凭据那一格、成本归发起者）、`#S-39` 晚到的账 | [S-17](#s-17-结算一处按序幂等先到者赢)、[S-19](#s-19-凭据每次发出现取取值只交给传输适配) |
-| `data.messages` `#S-49`、`#S-50` 本能力写的五种记录的形状（`ModelInvocationRecord`；「已出门」带着这次调用的绑定）与调用终结的三支（`released` 可带 `cause`） | [S-8](#s-8-调用在会话日志里留下的六种记录)、[S-28](#s-28-opencall)、[S-33](#s-33-reconcile) |
+| `data.messages` `#S-49`、`#S-50` 本能力写的五种记录的形状（`ModelInvocationRecord`；「已出门」带着这次调用的绑定，与传输适配为这一次定下的 `parameterAdjustments`、`droppedParameters`）与调用终结的三支（`released` 可带 `cause`） | [S-7](#s-7-一次调用绑定了什么)、[S-8](#s-8-调用在会话日志里留下的六种记录)、[S-28](#s-28-opencall)、[S-29](#s-29-dispatch)、[S-33](#s-33-reconcile) |
 | `data.content-blocks` `#S-20` `CapabilityId`（`targetChangedBy`） | [S-28](#s-28-opencall) |
 | `capability.stream-assembly` `#S-16` 首个内容的位置 | [S-16](#s-16-首-token-判据) |
+| `capability.stream-assembly` `#S-28` 宿主要兑现的前提（第 1、2、4、6、7、8、9 条）；`#S-18` `start`、`#S-19` `accept`、`#S-20` `snapshot`、`#S-21` `closeOut`、`#S-22` `abandon`——承诺里用到的五个操作；`#S-26` 收尾之后被拒的记在宿主自己的观测里；`#S-14` 先截短后拒收只计一次 | [S-51](#s-51-模型侧到达装配前提的承诺)；[S-52](#s-52-模型侧的装配宿主被拒的增量报一次收场之后的事件不进) 的期望 |
 | `capability.modality-projection` `#S-6` 可分解律与对读方的两条义务（存着的答案等于重算、判合法目标用的答案覆盖到日志尾）、`#S-15` 读投影、`#S-16` 兼容判定 | [S-11](#s-11-合法目标集合)、[S-13](#s-13-模态投影读到的必须追到日志尾) |
 | `capability.asset-evaluation` `#S-8` 求值结果、`#S-22` 设置、`#S-23` 权限 | [S-9](#s-9-选中模型)、[S-10](#s-10-有效模型四步每步来源可查)、[S-11](#s-11-合法目标集合) |
 
@@ -254,7 +257,8 @@
 - **传输适配改值与丢项的规矩归 `data.model-response/v1#S-11`**：改了值再发出的项，**发出的值必须在统一词表里表示得出**，否则那一项要么改成表示得出的值、要么不发并记进 `droppedParameters`；`extra` 项以它的键为名。
   **上游把输出上限降到档案参数之下时档案不改**（`data.model-profile/v1#S-18`）：合并之后的 `maxOutputTokens` 照档案走，传输适配发出时改成上游收得下的值，并记进 `parameterAdjustments`——**不静默改、也不因此拒发**。
 - **档案快照照原样复制那一刻的档案**（`data.model-profile/v1#S-27`），不挑、不改写成员。
-- **绑定的耐久来源是每一次发出的「已出门」记录**（`data.messages/v1#S-49`；主线裁定，见 [D-040 §五 K20](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）：它带着有效模型引用、档案快照、**合并之后、交给传输适配之前**的请求参数、`selectedBy` 与这一次的 `credentialScope`。传输适配改值、丢项之后实际发出的那一组只记在响应体上（`data.model-response/v1#S-11`），不在这条记录里——停机之后追补的那一条响应体因此缺一个耐久来源（[G-18](#十二已知缺口)）。
+- **绑定的耐久来源是每一次发出的「已出门」记录**（`data.messages/v1#S-49`；主线裁定，见 [D-040 §五 K20](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）：它带着有效模型引用、档案快照、**合并之后、交给传输适配之前**的请求参数、`selectedBy` 与这一次的 `credentialScope`；
+  **另带传输适配为这一次定下的 `parameterAdjustments` 与 `droppedParameters`**（形状取 `data.model-response/v1#S-11`；主线裁定，见 [D-040 §六 L4](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）——它们在出门之前就定下了（[S-29](#s-29-dispatch) ④），于是实际发出的那一组由这条记录还原得出：合并之后的那一组，把 `parameterAdjustments` 列的项换成 `sent`、去掉 `droppedParameters` 列的项（`data.model-response/v1#S-11` 第 4 条的逆运算）。停机之后追补的那一条响应体，参数三项就从这里读（[S-33](#s-33-reconcile) ④；原 G-18 闭合）。
   **停机之后续接、对账追补响应体，都从那条记录读绑定，不从内存、也不重读档案**——重读档案会让在途调用受档案后来的改动影响。一次还没出门的调用没有这条记录，停机之后也就没有要恢复的绑定（[S-28](#s-28-opencall) ④）。
 - **凭据不绑**：每一次发出现取（[S-19](#s-19-凭据每次发出现取取值只交给传输适配)）；这一次用的是哪一格，随「已出门」记下。
 
@@ -266,7 +270,7 @@
 
 | 记录 | 必须能回答 | 何时写 | 谁写 |
 |---|---|---|---|
-| **已出门** | 哪次调用的第几次发出、落在哪次尝试、发给哪一家、这次发出的 `ResponseId`；**这次调用的绑定**：有效模型引用、档案快照、合并之后的请求参数、`selectedBy`、这一次的 `credentialScope`（[S-7](#s-7-一次调用绑定了什么)） | 这一次请求**离开本进程之前**（[S-15](#s-15-两个锚点先写后行)） | 本能力 |
+| **已出门** | 哪次调用的第几次发出、落在哪次尝试、发给哪一家、这次发出的 `ResponseId`；**这次调用的绑定**：有效模型引用、档案快照、合并之后的请求参数、`selectedBy`、这一次的 `credentialScope`（[S-7](#s-7-一次调用绑定了什么)）；**传输适配为这一次定下的改值与丢项**（`parameterAdjustments`、`droppedParameters`，缺席即没改、没丢） | 这一次请求**离开本进程之前**（[S-15](#s-15-两个锚点先写后行)） | 本能力 |
 | **已开口** | 哪次调用的第几次发出、观察到首 token 的时刻 | 首个内容**交给任何观察者之前**（[S-15](#s-15-两个锚点先写后行)） | 本能力 |
 | **中断意图** | 哪次调用、谁发起（`user` ／ `run_cancelled`） | 发出中止信号**之前**（[S-31](#s-31-interrupt)） | 本能力 |
 | **[模型响应体](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-response--模型响应体--model-response)**（`data.model-response`） | 见那份契约 | 一次发出收场时 | **回复落盘成了消息的那一条（`persisted`）由调用方与回复消息同一提交写；其余——含回复被否决、被系统使用的那一条——由本能力写**（[S-17](#s-17-结算一处按序幂等先到者赢)、[S-49](#s-49-settlereply)；`data.model-response/v1#S-3`） |
@@ -526,6 +530,23 @@ DisplayList(会话)  ≝  { r ∈ LegalTargetSet(会话) ∪ { 选中模型 } } 
 
 > **与 `data.model-response/v1#S-23` 第 2 条一致**：那一条允许「故障、策略类、没开口」与「首 token 之前失联、被追补为 `interrupted{runtime_lost}`」两种之后再发（续接同一次调用是主线裁定，见 [D-040 §S16 S16-g](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s16model-profile-directory--model-request-runtime报回的)）。
 
+### S-51 模型侧到达装配前提的承诺
+
+**本能力是模型一侧的到达装配宿主**：[`capability.stream-assembly/v1#S-28`](../../stream-assembly/v1/contract.md#s-28-宿主要兑现的前提) 要宿主兑现的前提，本能力逐条承诺如下（编号与那边相同；第 3 条只对工具侧，第 5 条已不是宿主前提；主线裁定，见 [D-040 §六 L6](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）。**生产者是传输适配**：它交来的到达事件是「增量」。
+
+1. **路由**：一次发出恰一份装配状态，目标 `{ kind: model_call, callId, dispatch }`（`data.arrival-events/v1#S-5`），在这次发出出网时以 [`start`](../../stream-assembly/v1/contract.md#s-18-start开一份状态) 开；传输适配交来的事件按它所属的那次发出交给那一份。**这次发出收场之后不再开新状态**：此后到达的事件丢弃，**不交给同一次调用的下一次发出**——续接、再发各是新的一次发出、新的一份状态（[S-22](#s-22-同一次调用的发出序列)）。
+2. **串行**：同一份状态按传输适配交出事件的次序逐个 [`accept`](../../stream-assembly/v1/contract.md#s-19-accept接一个事件)，每次用上一次交出的新状态，**一份状态不分叉**。
+4. **砍了要说**：传输适配若合并、截短或限额，每一次都以 `trim` 交给同一份状态，截短的那个 `trim` 紧挨在被截短的那个增量之前交；**`accept` 拒掉的每个增量，本能力紧接着（交下一个事件之前）以一个 `reason: rejected` 的 `trim` 说出来，只说一次**；本能力自己发的 `trim`、`finish` 被拒不补 `rejected`（那是本能力的缺陷）；这两种与收场之后到达的事件（第 1 条）都不进状态，**在本能力的观测里看得见**（`capability.stream-assembly/v1#S-26` 末条）——响应体写下即不变，不往上补。传输适配节不节流、阈值多少是部署政策，本契约不定。
+6. **结束一条流**：上游正常收尾、写到上限，交 `finish`（`end`／`max_tokens`）；被有意停下——用户叫停、宿主停止（[S-31](#s-31-interrupt)、[S-36](#s-36-宿主停止与撤除)）——交 `finish { reason: interrupted }`；上游出错、断流、超时（[S-18](#s-18-成因按来源分类三类事实由守卫兑现)、[S-21](#s-21-两个时限是运行时设置项)），交 `finish { reason: lost, error }`；传输适配失去连续性而没给 `finish`，调 [`abandon`](../../stream-assembly/v1/contract.md#s-22-abandon放弃)（说得出成因就带上）。**不让一份状态永远不收尾**；进程没了时状态随之没了，不经本能力，由下一次对账追补（[S-33](#s-33-reconcile)）。
+7. **包消息与记账**：收场时对那份状态 [`closeOut`](../../stream-assembly/v1/contract.md#s-21-closeout收尾结算)，交出的块按 `data.messages/v1#S-10` 包成一条 `AssistantMessage`（交回调用方，[S-17](#s-17-结算一处按序幂等先到者赢)），或不成消息、已交付的块进响应体的 `delivered`（`data.model-response/v1#S-13`）；交出的账（`usage`、`cost`、`trims`）进这次发出的那一条响应体，**恰一次**——响应体按 `ResponseId` 判重（[S-17](#s-17-结算一处按序幂等先到者赢)）。
+8. **首个内容的时刻**：在 `accept` 交出的状态里第一次看到 `firstContentAt` 时，**先写「已开口」、再把那个内容推给任何观察者**（[S-15](#s-15-两个锚点先写后行)、[S-16](#s-16-首-token-判据)）；「已开口」写不进，内容不交出（[S-15](#s-15-两个锚点先写后行) 末条）。
+9. **快照与增量衔接**：给观察者（交付面、会话出站流）的快照取自 [`snapshot`](../../stream-assembly/v1/contract.md#s-20-snapshot读快照)、带位置；此后推给它的只有被接受的事件，与快照数的是同一串；**被拒的事件不推给观察者**。
+
+**不做逆转写**：`ModelRequest.tools` 与传输适配交来的工具调用块里的 `tool`，都是**模型面名字**（`data.tool-definition/v1#S-6` 的 `ModelToolName`，`:` 转写成 `__`）；本能力与传输适配**原样进、原样出**，不把它转回工具定义的名字——逆转写只在工具执行运行时起执行者之前做（主线裁定，见 [D-040 §五 K10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)、§六 L6）。传输适配须兑现的那一半在 [S-38](#s-38-装配给的保证-vs-协议须给的保证) 第 11 条。
+
+- **做不到会怎样**写在那边（`capability.stream-assembly/v1#S-29`）：状态分叉，一支的片段静默丢失；被拒的增量不说，「砍了要说」落空、同一个增量被计两次；一次发出的迟到片段拼进下一次发出的回复；内容先被看见、「已开口」后写，停机之后重发出两份回复。
+- 证据：规范场景 [S-52](#s-52-模型侧的装配宿主被拒的增量报一次收场之后的事件不进)。
+
 ---
 
 ## 四、操作
@@ -549,7 +570,7 @@ DisplayList(会话)  ≝  { r ∈ LegalTargetSet(会话) ∪ { 选中模型 } } 
 本契约**不重做会话层的授权**，只保证每个操作都**以会话持有的租户身份**为锚取档案与凭据。
 
 **十三个操作**：读三个（`legalTargets`、`displayList`、`effectiveModel`）、切换一个（`selectModel`）、调用七个（`openCall`、`dispatch`、`dispatchAgain`、`interrupt`、`releaseCall`、`settleReply`、`reconcile`）、读两个（`readAttempts`、`canDispatchAgain`）。
-`releaseCall` 是主线裁定的名字（见 [D-040 §S16 S16-a](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s16model-profile-directory--model-request-runtime报回的)）；`canDispatchAgain` 是主线裁定的名字（见 [D-040 §五 K22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）；**`settleReply` 是本轮规格层给的候选名**，待主线定名（[G-13](#十二已知缺口)）。
+`releaseCall` 是主线裁定的名字（见 [D-040 §S16 S16-a](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s16model-profile-directory--model-request-runtime报回的)）；`canDispatchAgain` 是主线裁定的名字（见 [D-040 §五 K22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）；`settleReply` 由规格层给出、主线接受（见 [D-040 §六 N-9](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）。
 **指认一次调用的操作一律同时收 `session`**（[S-5](#s-5-一次调用一次发出)）：身份参数，没有默认值；⑥ 里 `callNotFound` 先于其余判定值判——这个 `callId` 不是这个会话的，就不再往下判它处在什么状态。
 
 ### S-24 legalTargets
@@ -653,7 +674,7 @@ DisplayList(会话)  ≝  { r ∈ LegalTargetSet(会话) ∪ { 选中模型 } } 
 | ① | `session`；`callId`；这次发出落在哪一次尝试（调用属于某个 Run 时必给） |
 | ② | 调用处于 `open` 或 `resumable`；宿主不在停止中 |
 | ③ | **有**：调用里任何一次发出开过口 ⇒ 不发（`retryRefused{already_spoke}`）——跨尝试同样成立 |
-| ④ | **提交点是「已出门」**：取凭据 → 写「已出门」（带 `ResponseId`、那一家与这次调用的绑定，[S-8](#s-8-调用在会话日志里留下的六种记录)）→ 请求出网。首次发出取档案快照里的第一家；续接取失联那次的那一家。**开口时**写「已开口」再交出内容（[S-15](#s-15-两个锚点先写后行)）。**收场时**按 [S-17](#s-17-结算一处按序幂等先到者赢) 结算 |
+| ④ | **提交点是「已出门」**：取凭据 → 传输适配为这一次定下改值与丢项 → 写「已出门」（带 `ResponseId`、那一家、这次调用的绑定与那两项，[S-8](#s-8-调用在会话日志里留下的六种记录)）→ 请求出网，**发出的就是「已出门」还原得出的那一组**（[S-7](#s-7-一次调用绑定了什么)），出网之后不再改。首次发出取档案快照里的第一家；续接取失联那次的那一家。**开口时**写「已开口」再交出内容（[S-15](#s-15-两个锚点先写后行)）。**收场时**按 [S-17](#s-17-结算一处按序幂等先到者赢) 结算 |
 | ⑤ | **等到这次发出收场才返回**，返回这次发出的[模型响应体](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-response--模型响应体--model-response)（`data.model-response` 形状），并说明它**由谁写**：<br>• `outcome ∈ { complete, truncated }`，或 `interrupted` 且有回复 ⇒ **交回，未写**：调用进入 `reply_pending`，由调用方收口（[S-17](#s-17-结算一处按序幂等先到者赢)）；`reply` 是一条 `AssistantMessage`，`ending` 与收场一一对应（`data.messages/v1#S-10`）<br>• `failed`，或 `interrupted` 且没有内容 ⇒ **已写**：本能力在返回之前写下。`failed` 时调用进入 `awaiting_decision`，返回里带「调模型之后」失败那一维的主体所需的事实（`data.loop-extension/v1#S-14`：档案快照、这次调用已有的「已出门」、成因、原样状态码）——**重试件只凭那份主体下结论**，不读响应体序列（`data.model-response/v1#S-23` 是那份主体背后的事实） |
 | ⑥ | `invalidInput` · `callNotFound` · `alreadyEnded` · `retryRefused{already_spoke}` · `wrongPhase` · `runtimeStopped` · `unavailable` |
 | ⑦ | **不幂等**：每一次成功调用都是一次新的发出。重复调用由状态挡住：第一次调用让调用离开 `open`／`resumable`，第二次得 `wrongPhase` |
@@ -739,7 +760,7 @@ DisplayList(会话)  ≝  { r ∈ LegalTargetSet(会话) ∪ { 选中模型 } } 
 | ① | `session`；`attempt?`：新的这一次尝试——由会话重新承载触发时缺席（见 ②） |
 | ② | **两个调用时机，都由调用方保证**：① 这个会话的**新尝试开始之后、loop 推进之前**（带 `attempt`）；② 会话在据点上**重新承载之后**（停机重启、迁到别的宿主）、**会话级的任何调用打开之前**（不带 `attempt`）——**不属于任何 Run 的调用**没有「新的一次尝试」来触发对账，由这一时机收口（**规格层推导**；谁在什么时候调它归会话生命周期那一侧，[G-11](#十二已知缺口)；[PF-015 会话睡一觉醒来](../../../../product/PF-015-session-lifecycle-and-ownership/design.md#第一件会话睡一觉醒来还得是原来那个)）。两个时机对账的是同一张表、同一批调用，先到的那一次做完，后到的按 ⑦ 是空操作。同一会话同一时刻只有一副协程在推它（PF-012） |
 | ③ | **有**：对账**从不发出**——它只追补结算、给出状态；再发由 loop 调 `dispatch` |
-| ④ | 对每一次没收场的调用，按它**最后一次发出**在日志里的样子（下表）追补；**每一行各自一次提交**，按 `ResponseId` 幂等（[S-17](#s-17-结算一处按序幂等先到者赢)）。**追补的响应体的路由留痕取自那次发出的「已出门」记录**（有效模型引用、档案快照、`selectedBy`、`credentialScope`，[S-7](#s-7-一次调用绑定了什么)）——不重读档案、不自造；**`route.parameters`、`parameterAdjustments`、`droppedParameters` 三项那条记录答不全**（它只带合并之后的那一组），怎样如实写归 [G-18](#十二已知缺口)，**在它闭合之前不得拿合并之后的那一组冒充实际发出的、再以缺席断言「没改没丢」**；那次发出属于某个运行、所在的尝试已被栅栏关掉的，带 `late: true`（`data.model-response/v1#S-35`：**只写在带 `runId` 的调用上**，不属于任何运行的调用的那一条不带） |
+| ④ | 对每一次没收场的调用，按它**最后一次发出**在日志里的样子（下表）追补；**每一行各自一次提交**，按 `ResponseId` 幂等（[S-17](#s-17-结算一处按序幂等先到者赢)）。**追补的响应体的路由留痕取自那次发出的「已出门」记录**（有效模型引用、档案快照、`selectedBy`、`credentialScope`，[S-7](#s-7-一次调用绑定了什么)）——不重读档案、不自造；**参数三项同样从它读**（主线裁定，见 [D-040 §六 L4](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)；原 G-18 闭合）：`parameterAdjustments`、`droppedParameters` 原样取那条记录上的（缺席照缺席，缺席即断言没改、没丢，`data.model-response/v1#S-11` 第 3 条），`route.parameters` 取那条记录还原得出的实际发出的那一组（[S-7](#s-7-一次调用绑定了什么)）——**不拿合并之后的那一组冒充实际发出的**；那次发出属于某个运行、所在的尝试已被栅栏关掉的，带 `late: true`（`data.model-response/v1#S-35`：**只写在带 `runId` 的调用上**，不属于任何运行的调用的那一条不带） |
 | ⑤ | 每一次被对账的调用一条 `{ callId, state }`，`state ∈ { resumable, awaiting_decision, interrupted, complete, handed_up }` |
 | ⑥ | `invalidInput` · `unavailable` |
 | ⑦ | **幂等**：再对一次，已追补的不再追补，返回同样的结果 |
@@ -779,7 +800,7 @@ DisplayList(会话)  ≝  { r ∈ LegalTargetSet(会话) ∪ { 选中模型 } } 
 
 ### S-49 settleReply
 
-**调用方交回一份回复的处置：它被否决了，或本来就被系统拿去用了——本能力以这个处置写下那条响应体。**（服务面候选名是规格层给的，待主线定名，[G-13](#十二已知缺口)；「被否决、被系统使用的那一条由本能力写」是主线裁定，见 [D-040 §五 K36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)。）
+**调用方交回一份回复的处置：它被否决了，或本来就被系统拿去用了——本能力以这个处置写下那条响应体。**（服务面名由规格层给出、主线接受，见 [D-040 §六 N-9](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)；「被否决、被系统使用的那一条由本能力写」是主线裁定，见 [D-040 §五 K36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)。）
 
 | # | 内容 |
 |---|---|
@@ -901,6 +922,8 @@ DisplayList(会话)  ≝  { r ∈ LegalTargetSet(会话) ∪ { 选中模型 } } 
 | **一条响应体对应上游多次请求** | [S-29](#s-29-dispatch) 末条；[S-38](#s-38-装配给的保证-vs-协议须给的保证) 传输适配义务 | 传输适配关掉了所用传输库的隐藏重试与回退（依赖研究假设，[G-10](#十二已知缺口)） | `data.model-response/v1#S-24` |
 | **已有发出的调用被记成「一次也没发出」** | [S-29](#s-29-dispatch) ⑧：续接或再发时取不到凭据写 `released{cause}` | —— | `data.messages/v1#S-50`：`undispatched` 只指一次也没发出 |
 | **指认一次调用时串到别的会话** | [S-5](#s-5-一次调用一次发出)：指认调用的操作都收 `session`，先判归属 | `callId` 会话内唯一（`data.call-accounts/v1#S-37`） | [SYS-TENANT](../../../../foundation/cross-system-constraints/requirements.md#sys-tenant) |
+| **一次发出的迟到片段拼进同一调用下一次发出的回复**；**被拒的增量不说、或说两次** | [S-51](#s-51-模型侧到达装配前提的承诺) 第 1、4 条 | —— | `capability.stream-assembly/v1#S-28` 第 1、4 条 |
+| **追补的响应体拿合并之后的参数冒充实际发出的** | [S-33](#s-33-reconcile) ④：参数三项从「已出门」读 | 传输适配在出网之前定下改值与丢项（[S-38](#s-38-装配给的保证-vs-协议须给的保证) 传输适配第 10 条） | `data.model-response/v1#S-11` |
 
 ### 进展性质（全部有界）
 
@@ -936,7 +959,7 @@ DisplayList(会话)  ≝  { r ∈ LegalTargetSet(会话) ∪ { 选中模型 } } 
 | **调用方身份已核实**（会话；`settleReply` 的调用方是收到交回的那一方） | **装配给**：入口层核身份、会话打开时核归属 | 在接收边界重新验证（`data.identity-values/v1#S-30`） | 任何够得着接口的一方都能以别人的会话发调用、花别人的钱 |
 | **结算写入不被尝试栅栏拒收** | 追加口对结算类记录不设栅栏 | 同 | 被关掉的尝试花掉的钱从明细里消失 |
 
-**传输适配须兑现的九条**（传输的选型见 D-019，实现归提供者设计；下面只写性质）。它们**单机也不是自动成立的**——每一条都要适配层主动做到：
+**传输适配须兑现的十一条**（传输的选型见 D-019，实现归提供者设计；下面只写性质；第 10、11 条是修复波 1b 按 [D-040 §六 L4、L6](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) 补的）。它们**单机也不是自动成立的**——每一条都要适配层主动做到：
 
 | # | 义务 | 做不到会怎样 |
 |---|---|---|
@@ -949,6 +972,8 @@ DisplayList(会话)  ≝  { r ∈ LegalTargetSet(会话) ∪ { 选中模型 } } 
 | 7 | **不把收不下的模态静默换成占位文本**：按档案的模态声明送，或绕过那一步 | 模型「看了」一张它其实没收到的图 |
 | 8 | **交回实际执行方、实际费用与费用来源** | 费用记不准；实际执行方与指定的不一致时查不出（`data.model-response` G-8） |
 | 9 | **固定 base URL，拒绝重定向** | 请求连同凭据被引到别处 |
+| 10 | **改值与丢项在出网之前定下**：交给本能力写进「已出门」（[S-29](#s-29-dispatch) ④），出网时照「已出门」还原得出的那一组发，出网之后不再改 | 停机之后追补的那一条响应体写不出如实的参数三项；或记下的与实际发出的对不上 |
+| 11 | **不做逆转写**：请求里带的工具条目名、交回的工具调用块里的 `tool`，都是模型面名字，原样进出（[S-51](#s-51-模型侧到达装配前提的承诺) 末段） | 调用块里的名字与 `ModelRequest.tools` 对不上，放行判断逐码点比较失败；或逆转写在两处各做一次、结果不同 |
 
 另外两条来自 `data.messages`：**我们自己那两种消息在发出前译掉、不落空不丢**（`data.messages/v1#S-35`）；**`ToolInternalMessage` 不进请求**（`data.messages/v1#S-36`）。翻译的位置在传输适配之内还是之前，归提供者设计。
 
@@ -976,6 +1001,7 @@ DisplayList(会话)  ≝  { r ∈ LegalTargetSet(会话) ∪ { 选中模型 } } 
 | 成因按来源分类、脱敏 | **规范场景**（[S-46](#s-46-成因按来源分类与脱敏)） | 分类表逐行演练；脱敏只能对真实输出核对 |
 | 投影追到日志尾 | **性质测试**：任意日志前缀上，追补之后的读 = 对全日志重算；**伸缩测量**：读的代价与历史长度无关 | 「等于重算」是一条可随机化的等式 |
 | 形状 | **不建 Schema**：值形状归 data 契约；本契约写的几种记录（[S-8](#s-8-调用在会话日志里留下的六种记录)）形状归 `data.messages/v1#S-49`、`#S-50`；线上形状归组合契约 | [规格入口](../../../README.md#准入门槛与停止条件) |
+| 模型侧到达装配前提的承诺（[S-51](#s-51-模型侧到达装配前提的承诺)）、传输适配第 10、11 条 | **规范场景**（[S-52](#s-52-模型侧的装配宿主被拒的增量报一次收场之后的事件不进)、[S-42](#s-42-开口之后断流不重发) 参数一支） | 到达装配的交错已在 `capability.stream-assembly` 的模型里；这里要核的是本能力按次序交事件、记账、推给观察者，是对真实宿主的集成断言 |
 
 **模型吸收了什么，不写成「已由模型覆盖」**：模型里「写下一条响应体」是一个原子动作、追加口不会部分成功、上游只以四种方式收场（完成、策略类故障、事实类故障、开口后故障）——
 **追加口的原子性与幂等、成因分类表的内容、脱敏、凭据取值**都不在模型里，它们的证据在场景与测试。模型也**不含拓展件与 loop**：`dispatchAgain` 的调用被建成一个非确定的选择，守卫是唯一的约束。
@@ -1001,7 +1027,7 @@ DisplayList(会话)  ≝  { r ∈ LegalTargetSet(会话) ∪ { 选中模型 } } 
 随后任何 `dispatchAgain` 得 `retryRefused{already_spoke}`，**哪怕 `plan` 是一家从没试过的**。
 **停机一支**：在「已开口」写下之后、响应体写下之前杀掉进程；新尝试的对账追补 `interrupted{runtime_lost}`、有首 token，调用终结，**不再发出**；`dispatch` 得 `alreadyEnded`——调用已在终态，按 [S-29](#s-29-dispatch) ⑥ 的次序先于 `retryRefused{already_spoke}` 判。
 **另一支（首 token 之前停机）**：在「已出门」之后、首 token 之前杀掉进程；对账追补 `interrupted{runtime_lost}`、没有首 token、账全未知；调用 `resumable`；续接之后第 2 次发出给**同一家**、序号 2、所在尝试是新的那一次。
-**两个停机支都要核路由留痕**：停机与对账之间把那条档案改掉（换供应商次序、改参数）——追补的响应体上 `route.profile`、`route.profileSnapshot`、`route.selectedBy`、`route.credentialScope` **与「已出门」记录上的一致**，不是改过之后的档案；续接的第 2 次发出同样用原绑定（参数取「已出门」上合并之后的那一组）。追补体上参数那三项按 [G-18](#十二已知缺口) 闭合之后的规则核。
+**两个停机支都要核路由留痕**：停机与对账之间把那条档案改掉（换供应商次序、改参数）——追补的响应体上 `route.profile`、`route.profileSnapshot`、`route.selectedBy`、`route.credentialScope` **与「已出门」记录上的一致**，不是改过之后的档案；续接的第 2 次发出同样用原绑定（参数取「已出门」上合并之后的那一组）。**参数一支**：让传输适配在第 1 次发出时把一项的值改掉、丢掉另一项——追补体上的 `parameterAdjustments`、`droppedParameters` 与「已出门」上的逐字相同，`route.parameters` 等于出门那一刻实际发出的那一组（[S-33](#s-33-reconcile) ④）；**绝不能观察到**追补体拿合并之后的那一组当 `route.parameters`、又不带那两项。
 
 #### S-43 切换先落事实后生效
 
@@ -1056,6 +1082,17 @@ M1 若是选中模型，`displayList` 上它带 `modality_mismatch`。
 
 **绝不能观察到**：r 在列表上作为两个可选项出现；被盖住的官方那一行经出厂格那一把发出；任何一条自建档案的发出用上出厂格那一把；解析改写了选中模型或写了模型切换的记录。
 
+#### S-52 模型侧的装配宿主：被拒的增量报一次，收场之后的事件不进
+
+（[S-51](#s-51-模型侧到达装配前提的承诺)；与 `capability.tool-execution-runtime` v1 在工具侧的那一条同形。）两支同跑。
+
+- **一次发出**：传输适配交来一个文本块的开块与两段填，第二段先被截短（交来一个 `frame_too_long` 的 `trim`，紧接着截短后的那一段），那一段随即被 `accept` 拒掉；随后一个工具调用块开块、封口（`tool` 是一个模型面名字），正常收尾。一个观察者在第一段之后刷新页面。
+  **必须观察到**：被拒的那一段之后、下一个事件之前，本能力恰交了一个 `rejected` 的 `trim`，那条响应体的 `trims` 里它**只按拒收计一次**（`capability.stream-assembly/v1#S-14`）；第一段内容交给观察者之前「已开口」已写下；刷新之后观察者拿到的快照带位置，此后收到的事件与快照数的是同一串，**被拒的那一段没有推给它**；回复里那个调用块的 `tool` 与 `ModelRequest.tools` 里的那一项逐码点相同（没有逆转写）；账恰记一次。
+- **两次发出**：第 1 次发出在首 token 之前以策略类故障收场（`upstream_unavailable`），`dispatchAgain` 发出第 2 次；第 1 次发出迟到的一个开块这时才到。
+  **必须观察到**：那个迟到的开块**没有**进第 2 次发出的状态、也没有进它的回复，在本能力的观测里看得见；两次发出各一份状态、各一条响应体、各一份账。
+
+**绝不能观察到**：同一个增量在 `trims` 里既算截短又算拒收；一份状态接了另一次发出的事件；第 2 次发出的回复里出现第 1 次的片段。
+
 ---
 
 ## 十二、已知缺口
@@ -1076,12 +1113,12 @@ M1 若是选中模型，`displayList` 上它带 `modality_mismatch`。
 | G-10 | **传输适配九条中依赖研究假设的几条**（1、2、4、5、7）：所选传输库（D-019）的缺省行为只有研究里的假设，未升 basis | 提供者设计 | basis 条目带 probe 立起来 |
 | G-11 | **本契约对 loop 与会话生命周期的三项义务尚无对方条款**：① 宿主先 `interrupt(run_cancelled)`、让调用方收口，再停（没做到时本能力写的那一条没有回复，[S-36](#s-36-宿主停止与撤除)）；② 交回的回复在调用方结束这一步之前收口——落盘成消息或调 [S-49](#s-49-settlereply)（[S-17](#s-17-结算一处按序幂等先到者赢)）；③ 会话重新承载之后、会话级的调用打开之前调 [S-33](#s-33-reconcile)（不属于任何 Run 的调用由它收口） | loop 那一程与会话生命周期（主线） | loop 契约与会话生命周期契约写明这三项 |
 | G-12 | **中心 ↔ 据点的线上形状与协议义务**：[S-38](#s-38-装配给的保证-vs-协议须给的保证) 右两列里跨中心与据点的几行 | 架构（组合契约起草） | 那份组合契约成立并逐行兑现 |
-| G-13 | **两个规格层给的名字待主线定名**：服务面名 `settleReply`（[S-49](#s-49-settlereply)）与 `openCall` 的输入成员 `basis`（[S-28](#s-28-opencall) ①）——已有的裁定里没有这两个名字，本契约按需要给了候选名。第一轮评审处置的裁定已在 D-040 §五 | 主线 | 主线定名（或改名），本契约随之改；定下之前实现不得据候选名对外发布接口 |
+| G-13 | **已闭合（修复波 1b）**：`settleReply`（[S-49](#s-49-settlereply)）、`openCall` 的 `basis`（[S-28](#s-28-opencall) ①）、`reply_pending`、会话重新承载时的对账时机、`canDispatchAgain` 收 `plan`，主线接受，见 [D-040 §六 N-9](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) | — | — |
 | G-14 | **已闭合**：`capability.stream-assembly`、`capability.modality-projection`、`capability.asset-evaluation` 登进 catalog，S-4 表补齐；`data.arrival-events` 与 `capability.loop-extension-runner` 只是指路、不登（后者消费本契约，反向登记会成环） | — | — |
 | G-15 | **已闭合（主线裁定，见 D-040 §二 S-U24-5a～b）**：同标识覆盖挑胜者时**先滤掉已撤回的行、再滤掉这个范围不允许的行，然后取最具体一格**（类推 PF-002 §5.6 三小步「禁用滤 → 谁可以使用它滤 → 取最具体」）；模态不兼容与缺凭据不滤、胜者站住，出门前才挡。落为 [S-10](#s-10-有效模型四步每步来源可查) 第 2′ 步与代价一段、[S-11](#s-11-合法目标集合) 的胜出行、[S-9](#s-9-选中模型) 名字不变落点会变一条（PF-013 rev 12 起设置记路由名，「覆盖」改称「把路由名解析为一行」）；`capability.model-profile-directory` v1 S-17 末段同改 | — | — |
 | G-16 | **已闭合（主线裁定，见 D-040 §二 S-U24-5c）**：被盖住的同名行照列、每行带自己的来源，并带注记 `overridden_by{scope}`（被那一格的同名档案覆盖）；PF-013 rev 12 起列表每个名字一条，被盖住的行列在那一条之下；怎样呈现归 PF-016。落为 [S-12](#s-12-展示列表) | — | — |
 | G-17 | **从 `resumable` 放手时上交带什么**：最近一次发出是失联补写的 `interrupted{runtime_lost}`，不是故障、没有成因；本契约只写 `released`、不带 `cause`（[S-32](#s-32-releasecall) ④）。上交条目在这种情形下带什么成因（或不带），产品正文与上交条目的形状都没有说 | loop 那一程（上交条目的形状归 PF-011）；产品语义有疑问报 PF-013 owner | 上交条目的规则写明这种情形；若要一个成因，`data.messages/v1#S-50` 与本契约随之改 |
-| G-18 | **停机之后追补的响应体，参数那三项没有耐久来源**：`data.model-response/v1#S-11` 要 `route.parameters` 记**实际发出**的那一组、`parameterAdjustments`／`droppedParameters` 缺席即断言「没改没丢」；而「已出门」（`data.messages/v1#S-49`）只带合并之后、交给传输适配之前的那一组。传输适配改过值或丢过项的那一次发出失联之后，对账写不出如实的三项 | 主线，与 `data.messages`、`data.model-response` 的 owner 一起定 | 二选一落定：「已出门」另带传输适配定下的改值与丢项（它们在出网之前已定）；或 `data.model-response` 为对账补写的那一条允许这三项标为「不知道」。本契约 [S-33](#s-33-reconcile) ④ 随之写明 |
+| G-18 | **已闭合（修复波 1b，主线裁定，见 [D-040 §六 L4](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）**：「已出门」（`data.messages/v1#S-49`）另带传输适配在出网之前定下的 `parameterAdjustments` 与 `droppedParameters`，`data.model-response` 不放宽；追补体的参数三项从它读（[S-7](#s-7-一次调用绑定了什么)、[S-29](#s-29-dispatch) ④、[S-33](#s-33-reconcile) ④、[S-38](#s-38-装配给的保证-vs-协议须给的保证) 传输适配第 10 条） | — | — |
 
 ---
 
@@ -1100,6 +1137,7 @@ M1 若是选中模型，`displayList` 上它带 `modality_mismatch`。
 | **交付面：停止按钮** | 中断这一次 | [S-31](#s-31-interrupt) | **够** |
 | **成本明细与排查** | 每次发出一条响应体、真实费用、原始响应；账归谁 | [S-17](#s-17-结算一处按序幂等先到者赢)、[S-19](#s-19-凭据每次发出现取取值只交给传输适配)、[S-20](#s-20-写入之前脱敏) | **够**；归属由条目壳给（`data.call-accounts/v1#S-25`） |
 | **应用装配（据点）** | 传输能承载的模态、传输适配 | [S-11](#s-11-合法目标集合)、[S-38](#s-38-装配给的保证-vs-协议须给的保证) | **够**，前提 G-10 |
+| **到达装配**（`capability.stream-assembly`）：模型侧的宿主 | 它 S-28 的第 1、2、4、6、7、8、9 条由宿主兑现 | [S-51](#s-51-模型侧到达装配前提的承诺) 逐条 | **够**（那份契约的 G-2 随之闭合） |
 
 ---
 
@@ -1109,7 +1147,7 @@ M1 若是选中模型，`displayList` 上它带 `modality_mismatch`。
 
 **来历**：起草之初档案登记、撤回、凭据绑定与调用放在一份契约里，操作是 `invoke`（内部循环重试）；主线后来把它拆成中心侧 `capability.model-profile-directory` v1 与据点侧本契约（[D-040 §块 C 拆分提案](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#块-c-拆分提案报回的推荐-aaa目录独立插件中心运行时选择与调用同在据点模态转换独立登记表据点)），
 并把调用拆成 `openCall`／`dispatch`／`dispatchAgain`／`interrupt`／`reconcile`（重试不在调用内部循环，经拓展件与发出守卫）。拆分前的草稿从未成稿，不构成前身。
-**第一轮独立评审处置**（2026-09-24，未冻结，原地改）：指认调用的操作加 `session`；绑定落在「已出门」；加 `reply_pending` 状态与 [`settleReply`](#s-49-settlereply)、只读守卫 [`canDispatchAgain`](#s-50-candispatchagain)；再发时取不到凭据写 `released{cause}`；合法目标回到三项、传输承载是可发出的另一条前置；`openCall` 的 `target` 恒在、加 `basis`。影响记在[验证入口](../verification.md#变化的影响)。
+**第一轮独立评审处置**（2026-09-24，未冻结，原地改）：指认调用的操作加 `session`；绑定落在「已出门」；加 `reply_pending` 状态与 [`settleReply`](#s-49-settlereply)、只读守卫 [`canDispatchAgain`](#s-50-candispatchagain)；再发时取不到凭据写 `released{cause}`；合法目标回到三项、传输承载是可发出的另一条前置；`openCall` 的 `target` 恒在、加 `basis`。**修复波 1b**（同样原地改）：「已出门」带传输适配的改值与丢项、追补体参数三项从它读；新增 [S-51](#s-51-模型侧到达装配前提的承诺) 与场景 [S-52](#s-52-模型侧的装配宿主被拒的增量报一次收场之后的事件不进)；传输适配由九条增为十一条。影响记在[验证入口](../verification.md#变化的影响)。
 
 **本版的规范工件**：本文件、[`examples.md`](examples.md)、[`formal/Invocation.tla`](formal/Invocation.tla) 与它的配置、[formal 入口](formal/README.md)。执行结果在[验证入口](../verification.md)，不写进本版本目录。
 

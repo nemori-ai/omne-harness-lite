@@ -146,4 +146,9 @@ V-2～V-7 **一条执行记录也没有**。手核只保证 `examples.md` 的实
 - **跨进程演化启动**：V-6 从「无法演练」转为**必须演练**；[第四节](v1/contract.md#四装配给与协议给)右列九行从「待兑现」转为「须由协议兑现」，其中工作区键缺宿主分量那一行**多半要出新版**。
   **本版的全部证据只保留其单机范围，不得外推。**
 
+- **2026-09-24 修复波 1b（主线裁定 [D-040 §六](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) L2、L11；候选未冻结，原地改）**：
+  - **L2**：`data.loop-extension` 把装配进来的实现那一格由 `implementation.capability` 改名 `implementation.builtinName`；本契约 loop_extension 那一支的壳 `$ref` 它的 `LoopExtensionDefinition`，**形状随之生效、本 Schema 不改**；实例第 5 节那一行（第 272 行）的成员名同改。
+  - **L11**：实例里「按 `data.mcp-endpoint` 的次序」那两行的行号对到那份契约 S-20 现在的表——`transport_unknown`（第 2 行）、`command_empty`（第 3 行）都先于 `name_not_projectable`（第 6 行）；原写「第 7 行」「第 4 行」是 mcp-endpoint S-20 重排之前的号。报出的拒绝值不变。
+  - **证据**：实例第 5 节 **20 行**（含第 272 行，经壳 `$ref` 到 `data.loop-extension`）按 `$defs/AssetContent` 重跑 `jsonschema` 4.26.0（锁定 uv 环境，全部 Schema 按 `$id` 登表，脚本在会话暂存区），**0 处不符**；其余各节未改、未重跑（L11 那两行在第 13 节，是拒绝值优先级的文字说明，不过 Schema）。
+
 结果不改写规范。发现语义问题回到来源设计（PF-002／PF-001／PF-003／PF-015），不在这里改契约。
