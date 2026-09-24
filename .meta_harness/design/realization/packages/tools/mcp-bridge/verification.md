@@ -35,7 +35,7 @@
 | N-12 | 配置错误同一政策：八项任一缺席或非法 ⇒ 装配启动失败 | 单元测试 | 未开始 | 本节点 |
 | N-13 | 假设 A-1（与执行运行时节点同一条）与 `provide-is-effect-managed` 升格 | `core/kernel-basis` 的 probe | 未开始（**待核对主张**） | `core/kernel-basis` owner |
 | N-14 | 静态检查：两个插件都不 `emit`、不监听；桥本体不 inject 执行运行时、执行运行时包不 inject 桥；`write(fn)` 内不调用保管方（P-13）；JSON 列只经 `readJsonStrict`／`writeJsonLossless` 读写（R-B9） | 结构检查，带「故意违反就失败」的自测 | 未开始 | 本节点 ＋ ts-checks owner |
-| N-15 | **`schema_unsupported` 的替换件口子**（M37）：对端动作的参数 schema 过了前十二道、只是编不出来（或 `pattern` 超出 `core/tool-definition` 登记的上限）⇒ 不进 `excluded`，投影成同形的一项、标「只能以替换件出现」、原因 `schema_unsupported`；过不了前十二道的仍进 `excluded{input_rejected}`；同一副本投影两次逐字相同 | 单元测试（纯函数） | 未开始 | 本节点 ＋ `core/tool-definition`（上限的值） |
+| N-15 | **`schema_unsupported` 的替换件口子**（M37）：对端动作的参数 schema 过了前十二道、只是编不出来（或 `pattern` 超出 `core/tool-definition` 登记的上限）⇒ 不进 `excluded`，投影成同形的一项、标「只能以替换件出现」、原因 `schema_unsupported`；过不了前十二道的仍进 `excluded{input_rejected}`；同一副本投影两次逐字相同；**两种原因同时成立**（`taskSupport = required` 且参数 schema 判不了）⇒ 原因是 `schema_unsupported`、不是「执行方式本版不支持」（N-24） | 单元测试（纯函数） | 未开始 | 本节点 ＋ `core/tool-definition`（上限的值） |
 | N-16 | **JSON 每一跳无损**（M36）：对端 `inputSchema` 里有超出 ±2^53 的数，副本落盘回读逐字不变；调用参数里的大数送到对端逐字不变；对端应答里有重复键 ⇒ `protocolError`，不挑一个 | 单元测试 ＋ 可控对端 | 未开始；线上那两跳受阻于 B-1（SDK 的编解码能否换） | 本节点 |
 
 ### SDK 能力的来源核对（B-1）
