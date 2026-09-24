@@ -3,24 +3,22 @@
   "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/connector/v1/connector.schema.json",
   "title": "data.connector v1",
   "description": "连接件（UL-connector）的静态数据形状：一份连接件资产的正文、来源标识、投递目标，以及连接件把一条外部消息交给受理时的入站信封。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.connector/v1 内有效。",
-  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状；拒绝值叫什么（target_unknown、channel_empty、envelope_empty、malformed）与它们的优先级由 contract.md S-18 定，Schema 校验失败只说明「拒绝」。外部引用：SessionRef 取自 data.messages v1（S-24；它的家见 contract.md G-8）；AttachmentRef 取自 data.content-blocks v1（S-21）；Instant 取自 data.offer-expiry v1（S-22）。channel、externalAccount、externalId 三个外部标识按 data.identity-values v1 S-31 的散文写出 pattern，不跨契约 $ref 它的 OpaqueIdentifier。正文推出的属性声明（S-11）是一条规则，不是本文件里的定义项。正反实例在同目录 examples.md。",
+  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状；拒绝值叫什么（target_unknown、channel_empty、envelope_empty、malformed）与它们的优先级由 contract.md S-18 定，Schema 校验失败只说明「拒绝」。外部引用：SessionRef 取自 data.messages v1（S-24；全树指认会话只用这一个名字）；AttachmentRef 取自 data.content-blocks v1（S-21）；Instant 取自 data.offer-expiry v1（S-22）。channel、externalAccount、externalId 三个外部标识按 data.identity-values v1 S-31 的散文写出 pattern，不跨契约 $ref 它的 OpaqueIdentifier。正文推出的属性声明（S-11）是一条规则，不是本文件里的定义项。正反实例在同目录 examples.md。",
   "$defs": {
     "ConnectorDefinition": {
       "title": "连接件正文",
-      "description": "S-1：一份连接件资产的正文——data.asset-model v1 S-10 里 connector 那一行的 body。source 与 target 都必填，是作者给的默认值：由正文推出的 source、target 两项落点与身份类设置的 default（S-11）。成员集合闭合：正文里没有名字字段（身份只在 AssetDefinition.capability），没有鉴权绑定（S-2：凭据引用只作为持有上的配值存在），没有权限项的值。",
-      "$comment": "credential 成员不在这里（S-2，偏离起草账本，见 contract.md G-1）；带了即 malformed。",
+      "description": "S-1：一份连接件资产的正文——data.asset-model v1 S-10 里 connector 那一行 body 的值（那边 $ref 本定义）。只有一个可选成员 source：作者给的默认来源标识，即由正文推出的 source 那一项落点与身份类设置的 default（S-11）；不给，那一项就不带默认。成员集合闭合：正文里没有名字字段（身份只在 AssetDefinition.capability），没有投递目标与鉴权绑定（S-2：两者只作为持有上的配值存在，没有作者默认），没有权限项的值。",
+      "$comment": "target 与 credential 成员不在这里（S-2；主线裁定 2026-09-23，账本 S21-a、S21-b）；带了即 malformed。空对象合法：作者不给任何默认。",
       "type": "object",
       "properties": {
-        "source": { "$ref": "#/$defs/SourceIdentity" },
-        "target": { "$ref": "#/$defs/DeliveryTarget" }
+        "source": { "$ref": "#/$defs/SourceIdentity" }
       },
-      "required": ["source", "target"],
       "additionalProperties": false,
       "examples": [
         {
-          "source": { "channel": "slack:T024BE7LD/C0ALERTS", "externalAccount": "U07BOT9QX" },
-          "target": { "kind": "session", "session": "ses_4c1e" }
-        }
+          "source": { "channel": "slack:T024BE7LD/C0ALERTS", "externalAccount": "U07BOT9QX" }
+        },
+        {}
       ]
     },
 
@@ -50,7 +48,7 @@
 
     "DeliveryTarget": {
       "title": "投递目标",
-      "description": "S-4：送进来的消息投进哪一个会话。按 kind 判别，本版恰一支 session：session 是一个 SessionRef。它只是指认，不是资格——能不能往那个会话里送由受理按处理身份能不能访问那个会话判定，跨租户默认拒绝；指的会话不存在、已归档或进不去，都不是表示层的事。",
+      "description": "S-4：送进来的消息投进哪一个会话——持有上 target 那一项配值的取值域（S-11），没有作者默认，各格都没配即缺席。按 kind 判别，本版恰一支 session：session 是一个 SessionRef（data.messages v1）。它只是指认，不是资格——能不能往那个会话里送由受理按处理身份能不能访问那个会话判定，跨租户默认拒绝；指的会话不存在、已归档或进不去，都不是表示层的事。",
       "$comment": "kind 出现了但不是 session（含大小写不同、非字符串）的拒绝值是 target_unknown；kind 缺席是 malformed（S-18）。新建会话、按外部线程分会话等规则正文未述（contract.md G-3），不在这里预留分支。",
       "type": "object",
       "properties": {

@@ -7,8 +7,8 @@
 **怎么读这些表**：每节开头的「校验对象」给出该节全部实例要拿去求值的 `$defs`。
 每张表第一列是实例（JSON 内联代码）；第二列是 **Schema 这一关**的预期（`通过`／`拒绝`）；
 第三列是按 [S-18](contract.md#s-18-表示层拒绝值) 定出的**拒绝值**（合法的写 `—`）；第四列是依据条款。
-**这个格式也是机检格式**——第 1～5 节逐节按「校验对象」把第一列喂给 Draft 2020-12 校验器、拿第二列比对，不另抄一份清单。
-**第三列不参与 Schema 机检**：Schema 只说通过与否，拒绝值的名字与优先级是契约的规则。**第 6～9 节不参与机检**。
+**这个格式也是机检格式**——第 1～5 节逐节按「校验对象」把第一列喂给 Draft 2020-12 校验器、拿第二列比对，不另抄一份清单；第 7、8 节的代码块按各自注明的 `data.asset-model` 定义项校验。
+**第三列不参与 Schema 机检**：Schema 只说通过与否，拒绝值的名字与优先级是契约的规则。**第 6、9 节不参与机检**。
 
 **三条读法上的边界：**
 
@@ -62,13 +62,14 @@
 
 | 实例 | Schema | 拒绝值 | 依据 |
 |---|---|---|---|
-| `{"source": {"channel": "slack:T024BE7LD/C0ALERTS", "externalAccount": "U07BOT9QX"}, "target": {"kind": "session", "session": "ses_4c1e"}}` | 通过 | — | [S-1](contract.md#s-1-连接件正文)：**本版的那一个连接件定义**——一个告警频道的连接件，默认投进 `ses_4c1e` |
-| `{"source": {"channel": "slack:T024BE7LD/C0ALERTS", "externalAccount": "U07BOT9QX"}, "target": {"kind": "session", "session": "ses_4c1e"}, "credential": "cred_5a0e"}` | 拒绝 | `malformed` | [S-2](contract.md#s-2-鉴权绑定不在正文里)：**正文不带凭据引用**；不被丢掉那个成员后收下（规范场景 [S-23](contract.md#s-23-正文里写了凭据)） |
-| `{"source": {"channel": "slack:T024BE7LD/C0ALERTS", "externalAccount": "U07BOT9QX"}, "target": {"kind": "thread", "session": "ses_4c1e"}}` | 拒绝 | `target_unknown` | [S-4](contract.md#s-4-投递目标) |
-| `{"source": {"channel": "", "externalAccount": "U07BOT9QX"}, "target": {"kind": "session", "session": "ses_4c1e"}}` | 拒绝 | `channel_empty` | [S-3](contract.md#s-3-来源标识) |
-| `{"source": {"channel": "slack:T024BE7LD/C0ALERTS", "externalAccount": "U07BOT9QX"}}` | 拒绝 | `malformed` | [S-1](contract.md#s-1-连接件正文)：`target` 必填，**不补成任何默认目标** |
-| `{"source": {"channel": "slack:T024BE7LD/C0ALERTS", "externalAccount": "U07BOT9QX"}, "target": {"kind": "session", "session": "ses_4c1e"}, "name": "ops-alerts"}` | 拒绝 | `malformed` | [S-1](contract.md#s-1-连接件正文)：正文里没有名字字段——身份只在 `AssetDefinition.capability` |
-| `{"source": {"channel": "slack:T024BE7LD/C0ALERTS", "externalAccount": "U07BOT9QX"}, "target": {"kind": "session", "session": "ses_4c1e"}, "processAs": {"organization": "org_7fd2", "account": "acc_31"}}` | 拒绝 | `malformed` | [S-1](contract.md#s-1-连接件正文)、[S-13](contract.md#s-13-两项权限)：权限的值在配值上，不在正文里 |
+| `{"source": {"channel": "slack:T024BE7LD/C0ALERTS", "externalAccount": "U07BOT9QX"}}` | 通过 | — | [S-1](contract.md#s-1-连接件正文)：**本版的那一个连接件定义**——一个告警频道的连接件，作者给了默认来源标识 |
+| `{}` | 通过 | — | [S-1](contract.md#s-1-连接件正文)：作者不给任何默认——来源标识、投递目标、鉴权绑定都由持有它的格去配 |
+| `{"source": {"channel": "slack:T024BE7LD/C0ALERTS", "externalAccount": "U07BOT9QX"}, "target": {"kind": "session", "session": "ses_4c1e"}}` | 拒绝 | `malformed` | [S-2](contract.md#s-2-鉴权绑定与投递目标不在正文里)：**投递目标不在正文里**——它是持有上的配值；多出的成员不按投递目标去判 `kind` |
+| `{"source": {"channel": "slack:T024BE7LD/C0ALERTS", "externalAccount": "U07BOT9QX"}, "credential": "cred_5a0e"}` | 拒绝 | `malformed` | [S-2](contract.md#s-2-鉴权绑定与投递目标不在正文里)：**正文不带凭据引用**；不被丢掉那个成员后收下（规范场景 [S-23](contract.md#s-23-正文里写了凭据)） |
+| `{"source": {"channel": "", "externalAccount": "U07BOT9QX"}}` | 拒绝 | `channel_empty` | [S-3](contract.md#s-3-来源标识) |
+| `{"source": null}` | 拒绝 | `malformed` | [S-1](contract.md#s-1-连接件正文)：**`null` 不是缺席**——不给默认就是不写这个成员 |
+| `{"source": {"channel": "slack:T024BE7LD/C0ALERTS", "externalAccount": "U07BOT9QX"}, "name": "ops-alerts"}` | 拒绝 | `malformed` | [S-1](contract.md#s-1-连接件正文)：正文里没有名字字段——身份只在 `AssetDefinition.capability` |
+| `{"source": {"channel": "slack:T024BE7LD/C0ALERTS", "externalAccount": "U07BOT9QX"}, "processingIdentity": {"organization": "org_7fd2", "account": "acc_31"}}` | 拒绝 | `malformed` | [S-1](contract.md#s-1-连接件正文)、[S-13](contract.md#s-13-两项权限)：权限的值在配值上，不在正文里 |
 
 ## 4. InboundEnvelope
 
@@ -105,7 +106,7 @@
 
 | 实例 | Schema | 拒绝值 | 依据 |
 |---|---|---|---|
-| `{"source": {"channel": "", "externalAccount": "U07BOT9QX"}, "target": {"kind": "thread"}, "credential": "cred_5a0e"}` | 拒绝 | `target_unknown` | `$defs/ConnectorDefinition`：三处违例（目标认不出、渠道为空、多出成员），取最高的那个 |
+| `{"source": {"channel": "", "externalAccount": "U07BOT9QX"}, "target": {"kind": "thread"}, "credential": "cred_5a0e"}` | 拒绝 | `channel_empty` | `$defs/ConnectorDefinition`：渠道为空、两处多出成员——**`target` 在正文里是多出的成员，它的 `kind` 不被当作投递目标去判**，所以不是 `target_unknown` |
 | `{"kind": 7}` | 拒绝 | `target_unknown` | `$defs/DeliveryTarget`：`kind` 不是字符串也算「出现了但不是 `session`」，高于 `session` 缺席的 `malformed` |
 | `{"externalId": "1727081642.001900", "receivedAt": "2026-09-23T09:14:02.318Z", "source": {"channel": "", "externalAccount": "U07BOT9QX"}}` | 拒绝 | `channel_empty` | `$defs/InboundEnvelope`：说不出从哪来，高于没有内容 |
 | `{"externalId": "1727081642.001900", "receivedAt": "2026-09-23T09:14:02.318Z", "source": {"channel": "slack:T024BE7LD/C0ALERTS", "externalAccount": "U07BOT9QX"}, "tenant": {"organization": "org_7fd2", "account": "acc_31"}}` | 拒绝 | `envelope_empty` | `$defs/InboundEnvelope`：没有内容，高于多出成员 |
@@ -122,6 +123,7 @@
 | 同上，`ses_4c1e` 已被归档 | 通过 | 受理；归档那一刻队列怎么办，PF-014 §9.2 仍未决 |
 | 同上，处理身份访问不了 `ses_4c1e`（它属于另一个租户） | 通过 | 受理：与「能不能访问这个会话」是同一个判断，**跨租户默认拒绝** |
 | 处理身份判不出来（[G-4](contract.md#十已知缺口)） | 通过 | 受理：**不放行、不补身份**（[S-13](contract.md#s-13-两项权限)） |
+| 一份持有上各格都没配 `target`（例如工作区自己带来的连接件） | 正文通过 | 求值得到缺席——**判不出往哪送，不放行**；送不进任何会话的具名拒绝归受理（[S-4](contract.md#s-4-投递目标)） |
 | 第 4 节第一条信封，一分钟后同一个 `(source, externalId)` 又交来一次 | 两次都通过 | 受理：去重（[S-6](contract.md#s-6-externalid-是同一件事的说法)；PF-014 §6.3） |
 | 第 4 节第二条信封，`text` 以 `/compact` 开头 | 通过 | 受理：原样当内容，**不识别、不触发**（[S-10](contract.md#s-10-信封里的文本不是命令)） |
 | 附件引用指向的字节读不到 | 通过 | 存储的 owner（`data.content-blocks` v1 的 G-1）；**不得据此删掉这个引用** |
@@ -130,25 +132,24 @@
 
 ## 7. 放进资产记录之后
 
-**不参与机检**：`data.asset-model` v1 的 connector 那一支本版仍是不透明壳，它的 Schema 收任何 `body`；
-把 `body` 换成对 [`ConnectorDefinition`](#3-connectordefinition) 的 `$ref` 是[一项对齐](../verification.md#对齐义务)。对齐之后，第 3 节的那一个连接件定义在资产记录里的正文长这样：
+**校验对象**：`data.asset-model` v1 的 `$defs/AssetContent`——Schema：通过；拒绝值：—。那边的壳 `$ref` [`ConnectorDefinition`](#3-connectordefinition)，第 3 节的那一个连接件定义在资产记录里的正文长这样：
 
 ```json
 {
   "category": "connector",
   "body": {
-    "source": { "channel": "slack:T024BE7LD/C0ALERTS", "externalAccount": "U07BOT9QX" },
-    "target": { "kind": "session", "session": "ses_4c1e" }
+    "source": { "channel": "slack:T024BE7LD/C0ALERTS", "externalAccount": "U07BOT9QX" }
   }
 }
 ```
 
 它的身份在记录的 `capability` 上，例如 `{"category": "connector", "name": "ops-alerts"}`；**要同时接同一服务的另一个账号，就另立一份 name 不同的记录**（[S-12](contract.md#s-12-鉴权绑定那一项)）。
+投递目标与鉴权绑定在持有它的那一格的配值上，例如一份租户格持有的 `assignments` 里 `{"item": "target", "value": {"kind": "session", "session": "ses_4c1e"}, "immutable": false}` 与 `{"item": "credential", "value": "cred_5a0e", "immutable": false}`。
 
 ## 8. 推出的属性声明
 
-**不参与机检**：[S-11](contract.md#s-11-推出规则) 是一条规则，不是本 Schema 的定义项；产出的形状归 `data.asset-model` v1 的 `AttributeDeclaration`。
-从第 3 节那一个连接件定义，**本版推得出的只有下面两项**：
+**校验对象**：`data.asset-model` v1 的 `$defs/AttributeDeclaration`，逐条——Schema：通过。[S-11](contract.md#s-11-推出规则) 是一条规则，不是本 Schema 的定义项。
+从第 3 节那一个连接件定义，**本版推得出的是下面三项设置**：
 
 ```json
 [
@@ -163,14 +164,25 @@
     "item": "target",
     "kind": "setting",
     "category": "placement_identity",
-    "domain": { "kind": "open", "schema": { "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/connector/v1/connector.schema.json#/$defs/DeliveryTarget" } },
-    "default": { "kind": "session", "session": "ses_4c1e" }
+    "domain": { "kind": "open", "schema": { "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/connector/v1/connector.schema.json#/$defs/DeliveryTarget" } }
+  },
+  {
+    "item": "credential",
+    "kind": "setting",
+    "category": "placement_identity",
+    "domain": { "kind": "open", "schema": { "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/asset-model/v1/asset-model.schema.json#/$defs/CredentialRef" } }
   }
 ]
 ```
 
-**这不是这份连接件的全部属性项**：`credential` 的「未绑」取值（G-2）与两项权限（G-4）都没有表示，**整组声明本版判不出来**；
-消费者读到这两项之后**停在缺口**，不得把它们当成全部，也不得替另外三项补值。`disabled` 由 `data.asset-model` 保留，不在推出的这一组里。
+从 `{}` 那一份正文推出的，`source` 一项同样**不带 `default`**。
+**这不是这份连接件的全部属性项**：`install`、`processingIdentity` 两项权限的取值域与默认未定（[G-4](contract.md#十已知缺口)），**整组声明本版判不出来**；
+消费者读到这三项之后**停在缺口**，不得把它们当成全部，也不得替两项权限补值。`disabled` 由 `data.asset-model` 保留，不在推出的这一组里；连接件没有 `usableBy`。
+
+| 实例 | 结论 | 依据 |
+|---|---|---|
+| 某个实现把 `target` 的 `default` 推成 `{"kind": "session", "session": ""}` 或 `null` | **推出规则违约**——`target` 不带默认，没配就是缺席 | [S-11](contract.md#s-11-推出规则) |
+| 某个实现推出了 `{"item": "usableBy", …}` 或 `{"item": "enabled", …}` | **推出规则违约**——连接件的权限只有 `install`、`processingIdentity`；启用与否是保留的 `disabled` | [S-11](contract.md#s-11-推出规则)、[S-13](contract.md#s-13-两项权限) |
 
 ## 9. 一份信封落成的那一条消息
 
@@ -181,5 +193,11 @@
 { "id": "b_1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "/compact 把上午的讨论压一下" }
 ```
 
-那张图落成哪一类块，本版没有答案（[G-6](contract.md#十已知缺口)）；**无论哪一类，里面的引用都是 `{"storage": "attachments", "key": "obj_5f2c", …}` 原样那一个**。
+那张图（`image/png`）按 `data.content-blocks/v1#S-34` 落成**图块**，取引用形状——引用原样、`mediaType` 两处逐字相同：
+
+```json
+{ "id": "b_2", "kind": "image", "visibility": { "toHuman": true, "toModel": true }, "mediaType": "image/png", "data": { "storage": "attachments", "key": "obj_5f2c", "mediaType": "image/png", "bytes": 20480, "name": "5xx.png" } }
+```
+
+第 4 节第三条信封里的 `application/pdf` 附件落成**文件块**（[S-9](contract.md#s-9-信封落成一条用户消息) 第 2 条）。
 `externalId`、`receivedAt`、`source` 都不在这条消息上。

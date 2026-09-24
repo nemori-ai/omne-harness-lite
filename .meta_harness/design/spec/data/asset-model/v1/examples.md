@@ -263,6 +263,8 @@
 |---|---|---|---|
 | `{"category": "skill", "body": {"manifest": {"name": "code-review", "description": "Review a code change."}, "body": "", "resources": []}}` | 通过 | — | [S-10](contract.md#s-10-八类正文的外壳)：按 `data.skill-package` v1 |
 | `{"category": "skill", "body": {"note": "opaque"}}` | 拒绝 | `manifest_missing` | [S-27](contract.md#s-27-表示层拒绝值)：正文不合 `data.skill-package` v1，拒绝值是那份契约的值、**原名携带** |
+| `{"category": "connector", "body": {}}` | 通过 | — | [S-10](contract.md#s-10-八类正文的外壳)：按 `data.connector` v1，正文只有可选的默认来源标识 |
+| `{"category": "connector", "body": {"target": {"kind": "session", "session": "ses_4c1e"}}}` | 拒绝 | `malformed` | [S-10](contract.md#s-10-八类正文的外壳)：投递目标是持有配值、不在正文里（`data.connector` v1 的 S-2）；**它的 `kind` 不被当作投递目标去判** |
 | `{"category": "connector", "body": {"source": {"channel": "", "externalAccount": "U07BOT9QX"}}}` | 拒绝 | `channel_empty` | [S-27](contract.md#s-27-表示层拒绝值)：连接件的拒绝值原名携带 |
 | `{"category": "mcp", "body": {"transport": {"kind": "websocket", "url": "wss://x.example"}, "timeouts": {"connect": "PT15S", "call": "PT2M"}, "permissions": {"execute": {"default": "ask"}}}}` | 拒绝 | `transport_unknown` | [S-27](contract.md#s-27-表示层拒绝值)：MCP 接入点的拒绝值原名携带 |
 | `{"category": "slash_command", "body": {"description": "x", "binding": {"kind": "macro"}}}` | 拒绝 | `binding_unknown` | [S-27](contract.md#s-27-表示层拒绝值)：斜杠命令的拒绝值原名携带 |

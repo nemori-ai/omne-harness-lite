@@ -4,18 +4,18 @@
 
 > **当前状态：未开始。**`data.connector` v1 是 `candidate`，未接受、未冻结；尚无提供者设计、尚无源码、尚无装配。
 > 下表登记的是**已经触发的证据义务**，不是已完成的检查。
-> **Schema 正反实例校验未运行**：起草时没有跑过任何校验器，[`examples.md`](v1/examples.md) 的「Schema」一列只是起草者的预期；
+> 起草时没有跑过任何校验器；**整批对齐（2026-09-24）跑过一次 V-1 的本地自检**（只判 Schema 通过与否，见[结果与反例](#结果与反例)）。
 > 四条规范场景、五条消费者核对场景、四条静态检查**一条都未执行**——文件存在不代替结果。
-> 唯一跑过的是 `make design-check`：它解析 Schema 的 JSON、核对 `$id` 与全部 `$ref`／JSON Pointer 指得到、核对 Markdown 链接与锚点——**它不校验任何实例**。
+> 唯一跑过的检查器是 `make design-check`：它解析 Schema 的 JSON、核对 `$id` 与全部 `$ref`／JSON Pointer 指得到、核对 Markdown 链接与锚点——**它不校验任何实例**。
 
 ## 证据义务
 
 | # | 义务 | 证据形式 | 覆盖哪些条款 | 实际状态 |
 |---|---|---|---|---|
-| V-1 | **形状校验**：[`examples.md`](v1/examples.md) 第 1～5 节逐行过 Schema，比对「Schema」一列。第 6～9 节不参与 | Draft 2020-12 校验器（能按 `$id` 解析到 `data.messages/v1`、`data.content-blocks/v1`、`data.offer-expiry/v1`、`data.identity-values/v1` 的 Schema）＋ 按节绑定的 `$defs` | [S-1](v1/contract.md#s-1-连接件正文)～[S-8](v1/contract.md#s-8-信封不带归属)、[S-15](v1/contract.md#s-15-送进来的就要被处理)～[S-17](v1/contract.md#s-17-判别式闭合) 的**形状那一面** | **未运行** |
+| V-1 | **形状校验**：[`examples.md`](v1/examples.md) 第 1～5 节逐行过 Schema，比对「Schema」一列；第 7 节按 `data.asset-model` 的 `AssetContent`、第 8 节逐条按它的 `AttributeDeclaration`。第 6、9 节不参与 | Draft 2020-12 校验器（能按 `$id` 解析到 `data.asset-model/v1`、`data.messages/v1`、`data.content-blocks/v1`、`data.offer-expiry/v1` 及它们各自引用的 Schema）＋ 按节绑定的 `$defs` | [S-1](v1/contract.md#s-1-连接件正文)～[S-8](v1/contract.md#s-8-信封不带归属)、[S-15](v1/contract.md#s-15-送进来的就要被处理)～[S-17](v1/contract.md#s-17-判别式闭合) 的**形状那一面** | **本地自检已跑一次**（整批对齐，2026-09-24）：52 处 0 不符；拒绝值是哪一个未机检 |
 | V-2 | **拒绝值的具名与优先级**：对每个拒绝行，接收边界给出的拒绝值等于「拒绝值」一列；第 5 节五行专验优先级 | 接收边界的一致性用例（同一份输入跨实现比对） | [S-18](v1/contract.md#s-18-表示层拒绝值)、[S-19](v1/contract.md#s-19-表示层拒绝不是判定也不修补) | **未开始。**需要一个实现了接收边界校验的提供者。**只验 Schema 通过与否不够**——两个实现可以都拒绝、却报不同的名字；`"  "` 报成 `channel_empty`、`text: ""` 报成 `envelope_empty` 正是要抓的两种修补 |
-| V-3 | **规范场景** [S-20](v1/contract.md#s-20-空的渠道与空的信封)～[S-23](v1/contract.md#s-23-正文里写了凭据)：每条正例与反例 | 规范场景演练：S-20、S-21 的表示层部分与 S-23 用真实接收边界；**S-21 的反例二与 S-22 要真实受理与会话日志** | [S-3](v1/contract.md#s-3-来源标识)～[S-5](v1/contract.md#s-5-入站信封)、[S-9](v1/contract.md#s-9-信封落成一条用户消息)、[S-10](v1/contract.md#s-10-信封里的文本不是命令)、[S-2](v1/contract.md#s-2-鉴权绑定不在正文里) | **未执行。**S-20 的两组反例**必须同跑**；S-22 **必须观察会话日志**，只看受理返回成功会漏掉「顺手触发了一条流程」。S-21 的反例二与 S-22 阻断在受理缺席 |
-| V-4 | **消费者路径走查**（[CS-1～CS-5](v1/contract.md#消费者核对场景)） | 结构化走查（评审对象）；有提供者之后升级为真实演练 | [S-1](v1/contract.md#s-1-连接件正文)～[S-13](v1/contract.md#s-13-两项权限) | **未开始。**走查**不需要提供者**，现在就做得了；**CS-1 停在 G-2 与 G-4、CS-2 停在 G-4～G-6、CS-3 停在 G-2**——停在缺口不算走不通，如实记为「本版到此为止」 |
+| V-3 | **规范场景** [S-20](v1/contract.md#s-20-空的渠道与空的信封)～[S-23](v1/contract.md#s-23-正文里写了凭据)：每条正例与反例 | 规范场景演练：S-20、S-21 的表示层部分与 S-23 用真实接收边界；**S-21 的反例二与 S-22 要真实受理与会话日志** | [S-3](v1/contract.md#s-3-来源标识)～[S-5](v1/contract.md#s-5-入站信封)、[S-9](v1/contract.md#s-9-信封落成一条用户消息)、[S-10](v1/contract.md#s-10-信封里的文本不是命令)、[S-2](v1/contract.md#s-2-鉴权绑定与投递目标不在正文里) | **未执行。**S-20 的两组反例**必须同跑**；S-22 **必须观察会话日志**，只看受理返回成功会漏掉「顺手触发了一条流程」。S-21 的反例二与 S-22 阻断在受理缺席 |
+| V-4 | **消费者路径走查**（[CS-1～CS-5](v1/contract.md#消费者核对场景)） | 结构化走查（评审对象）；有提供者之后升级为真实演练 | [S-1](v1/contract.md#s-1-连接件正文)～[S-13](v1/contract.md#s-13-两项权限) | **未开始。**走查**不需要提供者**，现在就做得了；**CS-1 停在 G-4、CS-2 停在 G-4 与 G-5**；CS-3、CS-4、CS-5 走得通——停在缺口不算走不通，如实记为「本版到此为止」 |
 | V-5 | **跨进程**：[第六节](v1/contract.md#六装配给与协议给)右列五行逐行演练 | 规范场景演练 | [S-4](v1/contract.md#s-4-投递目标)～[S-8](v1/contract.md#s-8-信封不带归属)、[S-13](v1/contract.md#s-13-两项权限)、[S-14](v1/contract.md#s-14-没有读取面也没有管理面)、[S-18](v1/contract.md#s-18-表示层拒绝值) | **未开始，且本版装配下无法演练**——单机同进程不构成接收边界，接入端的交接也还没有契约（G-5）。**这不是免除**：跨进程演化启动时必须补做 |
 | V-6 | **静态检查**（[SC-1～SC-4](#静态检查义务)） | 实现语言的静态检查（具体形式归 realization） | 见下表 | **未开始；检查器尚不存在** |
 
@@ -28,7 +28,7 @@
 | SC-1 | 受理处理入站信封的路径上，不存在对 `text` 的斜杠命令识别调用；斜杠命令识别只从交付面的输入路径可达 | [S-10](v1/contract.md#s-10-信封里的文本不是命令) | 未开始 |
 | SC-2 | 不存在从 `SourceIdentity`、`externalId` 或附件引用的键求出持有、租户、会话或处理身份的代码路径 | [S-3](v1/contract.md#s-3-来源标识)、[S-8](v1/contract.md#s-8-信封不带归属) | 未开始 |
 | SC-3 | 连接件接入端对本系统可调用的面恰有一个动作（交一份信封）；没有读取、管理或控制指令的入口 | [S-14](v1/contract.md#s-14-没有读取面也没有管理面) | 未开始（那一个动作的契约未立，G-5） |
-| SC-4 | 资产正文的写路径不接受连接件正文里的凭据引用；`credential` 的配值只经持有的配值写面写入 | [S-2](v1/contract.md#s-2-鉴权绑定不在正文里)、[S-12](v1/contract.md#s-12-鉴权绑定那一项) | 未开始 |
+| SC-4 | 资产正文的写路径不接受连接件正文里的凭据引用与投递目标；`credential`、`target` 的配值只经持有的配值写面写入；不存在把「未配」写成一个值的路径 | [S-2](v1/contract.md#s-2-鉴权绑定与投递目标不在正文里)、[S-12](v1/contract.md#s-12-鉴权绑定那一项) | 未开始 |
 
 ## 对齐义务
 
@@ -38,18 +38,30 @@
 
 | 对齐什么 | 涉及 | 现状 |
 |---|---|---|
-| connector 那一支的 `body` 换成 `$ref` 本契约的 `ConnectorDefinition` | `data.asset-model` v1（[S-10](../asset-model/v1/contract.md#s-10-八类正文的外壳)、它的 G-7） | 那边仍是不透明壳；**本契约不改那份契约**。对齐之后那边的 G-7 闭合 |
-| 本契约的三个具名拒绝值（`target_unknown`、`channel_empty`、`envelope_empty`）怎样落进资产模型的闭合拒绝集合 | `data.asset-model` v1 [S-27](../asset-model/v1/contract.md#s-27-表示层拒绝值) | 那边的集合是十个、闭合；一份连接件正文嵌在资产记录里违例时，那边须决定原名收进来（像 `data.messages` 收块的六个那样）还是一律 `malformed` |
-| 会话标识的正式名与家 | `data.messages` v1 的 `SessionRef`（它的 G-7）；账本写的 `SessionId` | 本契约 `$ref` 了 `SessionRef`——全树唯一现有的会话指认定义；账本的 `SessionId` 在全树没有定义（[G-8](v1/contract.md#十已知缺口)） |
-| 正文是否带凭据引用 | 起草账本；`data.asset-model` v1 [S-23](../asset-model/v1/contract.md#s-23-凭据引用) | 本版不收（[S-2](v1/contract.md#s-2-鉴权绑定不在正文里)），与那边第 4 条一致；**待主线确认**（[G-1](v1/contract.md#十已知缺口)） |
-| 「未配」取值的写法 | `data.asset-model` v1 [S-23](../asset-model/v1/contract.md#s-23-凭据引用) 第 2 条（MCP 凭据同样需要） | 两份正文契约（MCP 接入点与本契约）都要一个「还没取／还没配」的显式取值；**宜只有一个名字**（[G-2](v1/contract.md#十已知缺口)） |
+| connector 那一支的 `body` 换成 `$ref` 本契约的 `ConnectorDefinition` | `data.asset-model` v1（[S-10](../asset-model/v1/contract.md#s-10-八类正文的外壳)） | **已落**（2026-09-24 整批对齐）：那边的壳 `$ref` 本契约；那边的 G-7 闭合 |
+| 本契约的三个具名拒绝值怎样落进资产模型的闭合拒绝集合 | `data.asset-model` v1 [S-27](../asset-model/v1/contract.md#s-27-表示层拒绝值) | **已落**：原名携带——`channel_empty` 从正文来，`target_unknown` 从 `target` 配值来，`envelope_empty` 不会出现在那边的值里 |
+| 会话标识的正式名与家 | `data.messages` v1 的 `SessionRef`（[S-24](../messages/v1/contract.md#s-24-别的会话捎话与到点了)） | **已落**：家在 `data.messages`，全树不再出现 `SessionId`（主线裁定 S21-d；原 G-8） |
+| 正文是否带凭据引用、投递目标 | 起草账本；`data.asset-model` v1 [S-23](../asset-model/v1/contract.md#s-23-凭据引用) | **主线裁定 2026-09-23 采纳，待产品负责人确认**（S21-a、S21-b）：两者都不在正文（[S-2](v1/contract.md#s-2-鉴权绑定与投递目标不在正文里)）；原 G-1、G-2 闭合 |
+| 「未配」的写法 | `data.asset-model` v1 [S-23](../asset-model/v1/contract.md#s-23-凭据引用) 第 2 条；`data.mcp-endpoint` v1 的凭据 | **已统一**：只有缺席一种写法（S21-b），两份正文契约与资产模型同一口径 |
+| 附件落成哪一类块 | `data.content-blocks` v1 [S-34](../content-blocks/v1/contract.md#s-34-只给了引用的附件落成哪一类块) | **已落**：按媒体类型定死（S21-e；原 G-6） |
 | `AttachmentRef` 的 `storage`／`key` 是否 `$ref` `OpaqueIdentifier` | `data.content-blocks` v1 | 那边 `$ref` 了，本契约与 `data.messages` 按散文自写；与本契约无直接冲突，但整批口径不一 |
 
 ## 结果与反例
 
+### 本地自检：Schema 正反实例（整批对齐，2026-09-24）
+
+**工具**：Draft 2020-12 校验器（`jsonschema`，按仓库 `uv.lock`），以对齐后整棵设计树的全部 Schema 建 registry；脚本在任务暂存区，不入库。
+**输入**：[`examples.md`](v1/examples.md) 第 1～5 节表格里的内联实例（第 5 节按各行第四列的 `$defs`）；第 7 节的块按 `data.asset-model` 的 `AssetContent`、它提到的两条配值的值各按 `DeliveryTarget` 与 `CredentialRef`；第 8 节三条声明逐条按 `AttributeDeclaration`；另构造 `AssetContent` 的两份（`body` 为 `{}` 应通过、正文带 `target` 应拒）。
+
+| 预期通过 | 预期拒绝 | 不符 |
+|---|---|---|
+| 15 | 37 | **0** |
+
+**只判通过与拒绝**：给出的是不是「拒绝值」一列那个值，校验器不回答。第 1、4 节的相等用例与第 6、9 节不是 Schema 实例，不计入（第 9 节的两块另按 `data.content-blocks` 的块定义核过，形状合法）。**这不是 V-2 以后任何一条义务的证据。**
+
 ### 尚无的记录
 
-V-1～V-6 **一条执行记录也没有**。首次执行时在此记录工具与版本、环境、配置、输入范围、可复现步骤与原始结果位置；
+V-2～V-6 **一条执行记录也没有**。首次执行时在此记录工具与版本、环境、配置、输入范围、可复现步骤与原始结果位置；
 原始产物归 [record/evidence/](../../../record/evidence/README.md)。
 记录时分开陈述：Schema 校验的结果、接收边界的拒绝值、规范场景演练的结果、真实组合的符合性。
 
@@ -65,11 +77,15 @@ V-1～V-6 **一条执行记录也没有**。首次执行时在此记录工具与
   **依赖 `data.identity-values` v1 与 `data.offer-expiry` v1**（已接受、已冻结）——引用的目标不会漂移；它们若出 v2，本契约不自动跟随。
   **依赖 `data.asset-model`、`data.messages`、`data.content-blocks` 三份 v1**（`candidate`，未冻结）：那边若在评审中改 `SessionRef`、`AttachmentRef` 的形状，
   或改 S-12／S-23 的推出规则义务与凭据引用，本契约的 Schema 与 [S-11](v1/contract.md#s-11-推出规则)～[S-13](v1/contract.md#s-13-两项权限) 随之变，须同轮复核 V-1。
-- **[G-1](v1/contract.md#十已知缺口) 被裁决**：主线确认，则删去 G-1、S-2 末句；主线维持账本，则正文加可选 `credential` ⇒ **表示改变**，且须同时回答那一条列的两个问题。接受前原地改并重跑 V-1、V-3，接受后出 v2。
-- **[G-2](v1/contract.md#十已知缺口)／[G-4](v1/contract.md#十已知缺口) 被裁决**：推出规则补全，整组声明从「判不出来」变为定得出 ⇒ 语义改变；若 `target` 改为可写「未配」，正文的形状也变。同上。
+- **2026-09-24 整批对齐（候选，未冻结，原地改）**：依据行写「主线裁定 2026-09-23，待产品负责人确认」的，出处在主线的裁定清单（账本 S21-a～S21-f）。
+  - **正文收窄为 `{ source? }`**（S21-a、S21-b）：[S-1](v1/contract.md#s-1-连接件正文)、[S-2](v1/contract.md#s-2-鉴权绑定与投递目标不在正文里)（标题随之改为「鉴权绑定与投递目标不在正文里」）；`target` 与 `credential` 改为持有配值、无作者默认，「未配」即缺席；`DeliveryTarget` 留作 `target` 配值的取值域。**表示改变**：旧的 `{ source, target }` 正文不再合法（`malformed`：多出成员），`{}` 与只带 `source` 的从拒到收；第 3、5、7、8 节已改写。
+  - **两项权限项名定为 `install`、`processingIdentity`**（S21-c）：[S-11](v1/contract.md#s-11-推出规则)、[S-13](v1/contract.md#s-13-两项权限)；取值域与默认仍在 G-4。推出规则明写不产出 `usableBy`（`data.asset-model` S-36 只给三类）。
+  - **G-1、G-2、G-6、G-8 闭合**：`SessionRef` 家在 `data.messages`（S21-d）；附件按 `data.content-blocks` S-34 落块（S21-e）；G-5 的 owner 改为 PF-014 入站那一程（S21-f）。
+  - **规格层推导，已报主线**：工作区自己带来的连接件，投递目标与鉴权绑定恒缺席，送不进任何会话（[S-1](v1/contract.md#s-1-连接件正文)）。
+  - **对证据的影响**：V-1 首次有了本地自检；CS-1 只停在 G-4，CS-3、CS-5 走通。
+- **[G-4](v1/contract.md#十已知缺口) 被裁决**：两项权限的取值域与默认补全，整组声明从「判不出来」变为定得出 ⇒ 语义改变；接受前原地改并重跑 V-1、V-4，接受后出 v2。
 - **[G-3](v1/contract.md#十已知缺口) 被裁决**：投递目标加支 ⇒ 表示改变，`target_unknown` 的范围随之缩小。同上。
-- **[G-5](v1/contract.md#十已知缺口)／[G-6](v1/contract.md#十已知缺口) 被裁决**（交接与受理的契约落地）：本契约多半不变，[S-8](v1/contract.md#s-8-信封不带归属)、[S-9](v1/contract.md#s-9-信封落成一条用户消息) 的落点从「未立」改为坐标；V-3、V-5 从阻断变为可做。
-- **[G-8](v1/contract.md#十已知缺口) 被裁决**：会话标识换家 ⇒ `$ref` 换坐标，形状若不变则语义不变。
+- **[G-5](v1/contract.md#十已知缺口) 被裁决**（交接与受理的契约落地）：本契约多半不变，[S-8](v1/contract.md#s-8-信封不带归属) 的落点从「未立」改为坐标；V-3、V-5 从阻断变为可做。
 - **[G-9](v1/contract.md#十已知缺口) 闭合**：只改[设计依据](v1/contract.md#设计依据)表的链接。
 - **跨进程演化启动**：V-5 从「无法演练」转为**必须演练**。**本版的全部证据只保留其单机范围，不得外推。**
 
