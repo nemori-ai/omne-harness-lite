@@ -3894,13 +3894,14 @@
         "version": 1,
         "clauses": [
           "S-1",
+          "S-2",
           "S-3",
           "S-13",
           "S-14"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-24 规格修订批按设计依据表登记，未经独立复核。PF-013 rev 10 新增小节（裁决 35）；「组织层与租户层各建一条同名的都成立」由产品负责人 2026-09-24 裁定（契约 G-13 闭合，原话：允许并存，它就像资产一样，路由名就是能力，从下往上（租户 -> 组织 -> official）在运行时覆盖）。同名按层覆盖将由 PF-013 rev 12 补进本节（产品批 4b，锚点不变）；本契约只保证同一格不重名，覆盖本身归目录 S-17 与运行时 S-10。PF-013 rev 11"
+      "note": "2026-09-24 规格修订批按设计依据表登记，未经独立复核。PF-013 rev 10 新增小节（裁决 35）；「组织层与租户层各建一条同名的都成立」由产品负责人 2026-09-24 裁定（契约 G-13 闭合，原话：允许并存，它就像资产一样，路由名就是能力，从下往上（租户 -> 组织 -> official）在运行时覆盖）。PF-013 rev 12 本节写明设置记路由名、按层覆盖：同日补 S-2（设置与切换事实记 RouteName），S-13/S-14 改为引用只在目录内部指认一行；覆盖本身归目录 S-17 与运行时 S-10。PF-013 rev 12"
     },
     {
       "requirement": {
@@ -6439,11 +6440,13 @@
           "S-5",
           "S-11",
           "S-20",
-          "S-23"
+          "S-22",
+          "S-23",
+          "S-49"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
     },
     {
       "requirement": {
@@ -6454,11 +6457,14 @@
         "contract_id": "capability.asset-transfer",
         "version": 1,
         "clauses": [
-          "S-6"
+          "S-6",
+          "S-8",
+          "S-24",
+          "S-49"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
     },
     {
       "requirement": {
@@ -6474,7 +6480,38 @@
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "design.md#承接-pf-001-与-pf-002"
+      },
+      "target": {
+        "contract_id": "capability.asset-transfer",
+        "version": 1,
+        "clauses": [
+          "S-10",
+          "S-11"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核。只覆盖「在组织级／在租户级指它归谁」一句：血缘按落进的那一层找、所有者是那一层的所有者"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "design.md#51-两种需要两个动作"
+      },
+      "target": {
+        "contract_id": "capability.asset-transfer",
+        "version": 1,
+        "clauses": [
+          "S-1"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
     },
     {
       "requirement": {
@@ -6489,7 +6526,7 @@
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
     },
     {
       "requirement": {
@@ -6505,7 +6542,7 @@
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
     },
     {
       "requirement": {
@@ -6517,11 +6554,13 @@
         "version": 1,
         "clauses": [
           "S-12",
-          "S-13"
+          "S-13",
+          "S-19",
+          "S-49"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
     },
     {
       "requirement": {
@@ -6533,12 +6572,12 @@
         "version": 1,
         "clauses": [
           "S-13",
-          "S-24",
-          "S-30"
+          "S-20",
+          "S-49"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核。标题沿用旧措辞、锚点不变，内容是两条通则"
     },
     {
       "requirement": {
@@ -6553,7 +6592,7 @@
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
     },
     {
       "requirement": {
@@ -6564,11 +6603,13 @@
         "contract_id": "capability.asset-transfer",
         "version": 1,
         "clauses": [
-          "S-10"
+          "S-10",
+          "S-11",
+          "S-22"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
     },
     {
       "requirement": {
@@ -6579,11 +6620,12 @@
         "contract_id": "capability.asset-transfer",
         "version": 1,
         "clauses": [
+          "S-10",
           "S-11"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
     },
     {
       "requirement": {
@@ -6598,7 +6640,7 @@
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
     },
     {
       "requirement": {
@@ -6614,7 +6656,7 @@
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
     },
     {
       "requirement": {
@@ -6629,7 +6671,7 @@
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
     },
     {
       "requirement": {
@@ -6648,7 +6690,7 @@
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
     },
     {
       "requirement": {
@@ -6663,7 +6705,7 @@
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
     },
     {
       "requirement": {
@@ -6674,13 +6716,14 @@
         "contract_id": "capability.asset-transfer",
         "version": 1,
         "clauses": [
+          "S-9",
           "S-17",
           "S-31",
           "S-32"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核。「不复活」由 S-9 第三个合取项兑现，实现侧受阻于该契约 G-11（组织治理 v1 没有隶属建立时刻与成员关系生效时刻的读面）"
     },
     {
       "requirement": {
@@ -6695,7 +6738,7 @@
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
     },
     {
       "requirement": {
@@ -6706,11 +6749,29 @@
         "contract_id": "capability.asset-transfer",
         "version": 1,
         "clauses": [
+          "S-5",
+          "S-6",
           "S-7"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "flows.md#11-把个人组织里的东西复制给团队"
+      },
+      "target": {
+        "contract_id": "capability.asset-transfer",
+        "version": 1,
+        "clauses": [
+          "S-20",
+          "S-49"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
     },
     {
       "requirement": {
@@ -6721,11 +6782,126 @@
         "contract_id": "capability.asset-transfer",
         "version": 1,
         "clauses": [
+          "S-11",
           "S-22"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "flows.md#13-把自己在-a-公司的私人工具带到-b-公司"
+      },
+      "target": {
+        "contract_id": "capability.asset-transfer",
+        "version": 1,
+        "clauses": [
+          "S-20",
+          "S-49"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "flows.md#14-集团给子公司分享标准组件"
+      },
+      "target": {
+        "contract_id": "capability.asset-transfer",
+        "version": 1,
+        "clauses": [
+          "S-24",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "flows.md#15-两个人之间分享"
+      },
+      "target": {
+        "contract_id": "capability.asset-transfer",
+        "version": 1,
+        "clauses": [
+          "S-24",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "flows.md#17-结束一段分享"
+      },
+      "target": {
+        "contract_id": "capability.asset-transfer",
+        "version": 1,
+        "clauses": [
+          "S-28",
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "flows.md#18-隶属关系解除之后"
+      },
+      "target": {
+        "contract_id": "capability.asset-transfer",
+        "version": 1,
+        "clauses": [
+          "S-31"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "flows.md#19-集团把模板复制给子公司"
+      },
+      "target": {
+        "contract_id": "capability.asset-transfer",
+        "version": 1,
+        "clauses": [
+          "S-20",
+          "S-22",
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "flows.md#110-把我租户级的工具分享给同事"
+      },
+      "target": {
+        "contract_id": "capability.asset-transfer",
+        "version": 1,
+        "clauses": [
+          "S-24",
+          "S-26",
+          "S-32",
+          "S-49"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核。租户格的 shared 持有受阻于该契约 G-14（data.asset-model 限在组织格）"
     },
     {
       "requirement": {
@@ -6740,7 +6916,7 @@
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
     },
     {
       "requirement": {
@@ -6751,12 +6927,13 @@
         "contract_id": "capability.asset-transfer",
         "version": 1,
         "clauses": [
+          "S-9",
           "S-28",
           "S-31"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
     },
     {
       "requirement": {
@@ -6768,11 +6945,12 @@
         "version": 1,
         "clauses": [
           "S-3",
-          "S-19"
+          "S-19",
+          "S-48"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。部分为让缺口可见而登：该节「接收方那边可见」在本契约里没有发现面，S-3 点名为缺口 G-1——那一部分不表示已覆盖"
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核。「接收方那边可见」由 S-48 给（原缺口登记型，G-1 已闭合）"
     },
     {
       "requirement": {
@@ -6783,13 +6961,15 @@
         "contract_id": "capability.asset-transfer",
         "version": 1,
         "clauses": [
+          "S-13",
           "S-14",
           "S-15",
-          "S-36"
+          "S-36",
+          "S-49"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
     },
     {
       "requirement": {
@@ -6801,11 +6981,30 @@
         "version": 1,
         "clauses": [
           "S-13",
-          "S-19"
+          "S-19",
+          "S-49"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。「确认复制进来的资产：普通成员有条件，按被授予的权限」一格本版无授予机制，S-19 点名为缺口 G-2——那一格为让缺口可见而登"
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核。原「普通成员按被授予的权限确认」一格随 rev 5 消失（G-2 闭合），不再是缺口登记型"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "acceptance.md#二绝不能发生的事"
+      },
+      "target": {
+        "contract_id": "capability.asset-transfer",
+        "version": 1,
+        "clauses": [
+          "S-9",
+          "S-12",
+          "S-22",
+          "S-49"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
     },
     {
       "requirement": {
@@ -6816,11 +7015,13 @@
         "contract_id": "capability.asset-transfer",
         "version": 1,
         "clauses": [
+          "S-9",
+          "S-10",
           "S-41"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核"
     },
     {
       "requirement": {
@@ -6927,6 +7128,22 @@
       },
       "reviewed": false,
       "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#退出之后再加入回来的是同一个租户"
+      },
+      "target": {
+        "contract_id": "capability.asset-transfer",
+        "version": 1,
+        "clauses": [
+          "S-9",
+          "S-32"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-24 按 PF-003 rev 5 原地修订时重登，未经独立复核。重新加入回来的是同一个租户，但成员关系生效时刻是新的——不复活的依据"
     },
     {
       "requirement": {
@@ -8514,11 +8731,12 @@
         "contract_id": "capability.asset-governance",
         "version": 1,
         "clauses": [
-          "S-30"
+          "S-30",
+          "S-38"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。2026-09-24 加 S-38：鉴权绑定只在租户那一层配（PF-002 rev 18）"
     },
     {
       "requirement": {
@@ -8533,7 +8751,7 @@
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。2026-09-24 随 PF-002 rev 18 改为规则：组织层的凭据类项一律拒（原 G-10 闭合）"
     },
     {
       "requirement": {
@@ -8581,21 +8799,6 @@
       },
       "reviewed": false,
       "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
-    },
-    {
-      "requirement": {
-        "topic": "PF-002-assets-settings-and-permissions",
-        "clause": "design.md#九未决项"
-      },
-      "target": {
-        "contract_id": "capability.asset-governance",
-        "version": 1,
-        "clauses": [
-          "S-38"
-        ]
-      },
-      "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。缺口登记型：S-38 对组织层的 MCP 凭据配值一律 notPermitted，指 G-10，不是覆盖"
     },
     {
       "requirement": {
@@ -8916,11 +9119,12 @@
           "S-7",
           "S-13",
           "S-16",
+          "S-38",
           "S-40"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核"
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。2026-09-24 加 S-38：「配置组织级的设置与权限——MCP 凭据与连接件的鉴权绑定除外」（PF-002 rev 18）"
     },
     {
       "requirement": {
@@ -9062,11 +9266,60 @@
         "version": 1,
         "clauses": [
           "S-9",
-          "S-27"
+          "S-27",
+          "S-46"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。部分为缺口登记型：S-9 据末行（目标侧成员在自己租户级配被分享资产）指 G-2；S-27 据「分享自己租户级的资产」一行定提升时有分享出去的持有即拒"
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。2026-09-24 按 PF-003 rev 5 改：S-46 据本人型复制、组织型复制、组织内分享与本人型分享的确认各行（资格照直接入口判）；S-9 据「配值：被分享资产在本层」一行（租户格的 shared 受阻于 G-23，原 G-2 已闭合，不再是缺口登记型）；S-27 据「分享自己租户级的资产」定提升时有分享出去的持有即拒"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "design.md#资产复制"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-46"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-24 按 PF-003 rev 5 与 PF-002 rev 18 原地修订时登记，未经独立复核。两条通则：本人型的落地在发起那一次提交、组织型在确认那一次，caller 都是作者"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "design.md#分享"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-9",
+          "S-13",
+          "S-46"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-24 按 PF-003 rev 5 与 PF-002 rev 18 原地修订时登记，未经独立复核。被分享方可以是一个租户（组织内分享、本人型分享）：S-9 的 shared 落租户格（受阻于 G-23），S-13 所有者一侧列出租户格的被分享方"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "flows.md#110-把我租户级的工具分享给同事"
+      },
+      "target": {
+        "contract_id": "capability.asset-governance",
+        "version": 1,
+        "clauses": [
+          "S-9",
+          "S-46"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-24 按 PF-003 rev 5 与 PF-002 rev 18 原地修订时登记，未经独立复核。租户格的 shared 受阻于 G-23"
     },
     {
       "requirement": {
@@ -13943,7 +14196,7 @@
         ]
       },
       "reviewed": false,
-      "note": "2026-09-24 规格修订批按设计依据表登记，未经独立复核。PF-013 rev 10 新增小节；组织层与租户层同名并存由产品负责人 2026-09-24 裁定（契约 G-11 闭合，原话：允许并存，它就像资产一样，路由名就是能力，从下往上（租户 -> 组织 -> official）在运行时覆盖）；同日补 S-6、S-17（链的先后就是同名覆盖的先后）。同名按层覆盖将由 PF-013 rev 12 补进本节（锚点不变）。PF-013 rev 11"
+      "note": "2026-09-24 规格修订批按设计依据表登记，未经独立复核。PF-013 rev 10 新增小节；组织层与租户层同名并存由产品负责人 2026-09-24 裁定（契约 G-11 闭合，原话：允许并存，它就像资产一样，路由名就是能力，从下往上（租户 -> 组织 -> official）在运行时覆盖）；同日补 S-6、S-17（链的先后就是同名覆盖的先后）。PF-013 rev 12 已写进本节（设置记路由名）；S-17 末段是从路由名到一行的唯一规则。PF-013 rev 12"
     },
     {
       "requirement": {
@@ -14369,16 +14622,19 @@
         "contract_id": "capability.model-request-runtime",
         "version": 1,
         "clauses": [
+          "S-9",
           "S-10",
           "S-11",
           "S-12",
+          "S-24",
           "S-25",
           "S-26",
+          "S-27",
           "S-28"
         ]
       },
       "reviewed": false,
-      "note": "2026-09-24 规格修订批按设计依据表登记，未经独立复核。原只覆盖「同一个路由名在列表里出现不止一次、靠来源分得开」；同日按产品负责人裁定（原话：允许并存，它就像资产一样，路由名就是能力，从下往上（租户 -> 组织 -> official）在运行时覆盖）补 S-10（第 2′ 步同标识覆盖）、S-11（判覆盖之后那条）、S-26、S-28。同名按层覆盖将由 PF-013 rev 12 补进本节（锚点不变）。契约 G-15、G-16 同日由主线裁定闭合：挑胜者先滤已撤回再取最具体、缺凭据不滤；被覆盖的条目照列并带 overridden_by{scope}。PF-013 rev 11"
+      "note": "2026-09-24 规格修订批按设计依据表登记，未经独立复核。原只覆盖「同一个路由名在列表里出现不止一次、靠来源分得开」；同日按产品负责人裁定（原话：允许并存，它就像资产一样，路由名就是能力，从下往上（租户 -> 组织 -> official）在运行时覆盖）补 S-10（第 2′ 步同标识覆盖）、S-11（判覆盖之后那条）、S-26、S-28。PF-013 rev 12 已写进本节：设置记路由名，同日按名字重写 S-9～S-12、S-24～S-28（合法目标以路由名为元素、每个名字一条），补 S-9、S-24、S-27。契约 G-15、G-16 同日由主线裁定闭合：挑胜者先滤已撤回再取最具体、缺凭据不滤；被覆盖的条目照列并带 overridden_by{scope}。PF-013 rev 12"
     },
     {
       "requirement": {
@@ -16002,5 +16258,5 @@
       "note": "2026-09-24 整批对齐补登：该条款本轮新增或改写时带上了这个小节链接，未经独立复核。PF-016 rev 5"
     }
   ],
-  "note": "全部 reviewed=false——这是「声称覆盖、尚未逐条复核」的诚实初值，不是复核通过。每条的 clauses 取自该契约三种来源之一或其并：条款正文里带那个产品小节链接的条款段落、契约「设计依据」表的「小节 → 条款」行（同一依据行链到多个小节的每个小节各登一条、条款相同）、「性质」表以那个小节为来源的那一行的保护条款；各契约用了哪一种列在下面。一律不登：规范场景条款与形式工件条款；只在消费者表、缺口表、「明确不承诺」、导航表里出现，或只作指路、否定式（「不归本契约」）提及的小节；主线裁定与决定记录（D-0xx）等不是产品小节的依据；foundation 的 SYS-* 全局约束（那一侧的覆盖在本清单里没有家）。「缺口登记型」条目为让某个缺口可见而登、不表示已覆盖，各见其行 note。已知不完整三处：（1）PF-007 被 data.identity-values 与 capability.organization-governance 引为来源（§4 一笔授权表达有三个维度），首批登记范围只含 PF-001/002/003/015，未登；（2）SYS-* 同上；（3）正文以散文引用产品要求、没有给出小节链接的地方抓不到。data.identity-values/v1#S-35「交接凭证」没有产品出处（规格层构造），有意不登。各契约的条目数与来源口径（2026-09-24 整批对齐后）：租户领域五份（2026-09-22 首登，评审轮一修订后补登 18 处）——data.identity-values 24、data.offer-expiry 10、capability.account-identity v1 19、capability.organization-governance 32、composition.account-registration 12，正文链接与性质表「来源」列合并；capability.account-identity v2 23；composition.governance-center-entry 42（首登后正文逐条补齐链接，每条的小节都在所列每个条款里有链接，唯一例外是 acceptance §二那一条）；composition.governance-center-entry-https-json 12（正文链接）；data.content-blocks 26、data.messages 74、data.arrival-events 25、capability.stream-assembly 17、data.connector 17、data.skill-package 21、data.slash-command 15、data.mcp-endpoint 10、data.loop-extension 46、capability.modality-projection 14、capability.model-profile-directory 19、capability.loop-extension-runner 35、capability.hooks-import 14、capability.tool-execution-runtime 59、data.model-profile 21、capability.tool-admission 38、data.asset-model 52、capability.asset-transfer 32——以设计依据表为主（按各自简报口径），部分并入正文链接或性质表来源列，未逐条核对每个所列条款的正文都链接了那个小节；data.call-accounts 12、data.model-response 26、data.tool-definition 34、capability.asset-governance 61、capability.asset-evaluation 33、capability.asset-registry 36、capability.mcp-bridge 18、capability.model-request-runtime 46——正文链接（逐条机械抽取；asset-governance 与 asset-evaluation 另并性质表来源列）。PF-013 rev 5–8、PF-009 rev 5–7 全文待产品负责人确认。2026-09-24 整批对齐补登 6 条、给 10 条追加条款：凡本轮新增或改写的条款正文带上了产品小节链接而原先未登的（call-accounts S-38／S-39、tool-definition S-7、asset-model S-8／S-19／S-20／S-36、messages S-22、asset-governance S-3／S-29／S-48、asset-evaluation S-38／S-39、mcp-bridge S-8），note 写明「整批对齐补」；起草时有意不登的条款链接（多为指路与否定式）未重判。2026-09-24 修订批第五节（PF-006 rev 18/19）补登 5 条——data.tool-definition 2 条（说明必填、前台上限与并发上限）、capability.tool-execution-runtime 2 条（多命令带多少、前台上限与并发上限）、capability.mcp-bridge 1 条（说明必填）——并给 2 条追加条款（mcp-bridge 的 PF-006 §6.13 加 S-12、mcp-endpoint 的 PF-006 §6.13 加 S-15），改 2 条「产品修订待落」的注。各条的来源细节见各行 note。2026-09-24 主线对修订批报回项的裁定：data.content-blocks 补登 1 条（PF-006 §6.6 前台上限与并发上限 → S-18，foreground_timeout）；删 2 条「缺口登记型」（PF-002 §九 → mcp-endpoint S-12、mcp-bridge S-22——组织那一层能否持有 MCP 凭据已由 PF-002 rev 18 定下、移出 §九，G-3／G-13 关闭）；mcp-bridge 的 PF-002 §4 MCP 凭据那一条加 S-5、S-9；改 4 条注。同日第二轮：data.content-blocks 再补登 1 条（PF-006 rev 18 §5.5「参数说完了却解析不了」→ S-12），§6.7 那一条改注。同日第三轮：删 1 条「缺口登记型」（PF-002 §九 → data.asset-model S-23，G-10 已随 rev 18 关闭）。"
+  "note": "全部 reviewed=false——这是「声称覆盖、尚未逐条复核」的诚实初值，不是复核通过。每条的 clauses 取自该契约三种来源之一或其并：条款正文里带那个产品小节链接的条款段落、契约「设计依据」表的「小节 → 条款」行（同一依据行链到多个小节的每个小节各登一条、条款相同）、「性质」表以那个小节为来源的那一行的保护条款；各契约用了哪一种列在下面。一律不登：规范场景条款与形式工件条款；只在消费者表、缺口表、「明确不承诺」、导航表里出现，或只作指路、否定式（「不归本契约」）提及的小节；主线裁定与决定记录（D-0xx）等不是产品小节的依据；foundation 的 SYS-* 全局约束（那一侧的覆盖在本清单里没有家）。「缺口登记型」条目为让某个缺口可见而登、不表示已覆盖，各见其行 note。已知不完整三处：（1）PF-007 被 data.identity-values 与 capability.organization-governance 引为来源（§4 一笔授权表达有三个维度），首批登记范围只含 PF-001/002/003/015，未登；（2）SYS-* 同上；（3）正文以散文引用产品要求、没有给出小节链接的地方抓不到。data.identity-values/v1#S-35「交接凭证」没有产品出处（规格层构造），有意不登。各契约的条目数与来源口径（2026-09-24 整批对齐后）：租户领域五份（2026-09-22 首登，评审轮一修订后补登 18 处）——data.identity-values 24、data.offer-expiry 10、capability.account-identity v1 19、capability.organization-governance 32、composition.account-registration 12，正文链接与性质表「来源」列合并；capability.account-identity v2 23；composition.governance-center-entry 42（首登后正文逐条补齐链接，每条的小节都在所列每个条款里有链接，唯一例外是 acceptance §二那一条）；composition.governance-center-entry-https-json 12（正文链接）；data.content-blocks 26、data.messages 74、data.arrival-events 25、capability.stream-assembly 17、data.connector 17、data.skill-package 21、data.slash-command 15、data.mcp-endpoint 10、data.loop-extension 46、capability.modality-projection 14、capability.model-profile-directory 19、capability.loop-extension-runner 35、capability.hooks-import 14、capability.tool-execution-runtime 59、data.model-profile 21、capability.tool-admission 38、data.asset-model 52、capability.asset-transfer 44——以设计依据表为主（按各自简报口径），部分并入正文链接或性质表来源列，未逐条核对每个所列条款的正文都链接了那个小节；data.call-accounts 12、data.model-response 26、data.tool-definition 34、capability.asset-governance 63、capability.asset-evaluation 33、capability.asset-registry 36、capability.mcp-bridge 18、capability.model-request-runtime 46——正文链接（逐条机械抽取；asset-governance 与 asset-evaluation 另并性质表来源列）。PF-013 rev 5–8、PF-009 rev 5–7 全文待产品负责人确认。2026-09-24 整批对齐补登 6 条、给 10 条追加条款：凡本轮新增或改写的条款正文带上了产品小节链接而原先未登的（call-accounts S-38／S-39、tool-definition S-7、asset-model S-8／S-19／S-20／S-36、messages S-22、asset-governance S-3／S-29／S-48、asset-evaluation S-38／S-39、mcp-bridge S-8），note 写明「整批对齐补」；起草时有意不登的条款链接（多为指路与否定式）未重判。2026-09-24 修订批第五节（PF-006 rev 18/19）补登 5 条——data.tool-definition 2 条（说明必填、前台上限与并发上限）、capability.tool-execution-runtime 2 条（多命令带多少、前台上限与并发上限）、capability.mcp-bridge 1 条（说明必填）——并给 2 条追加条款（mcp-bridge 的 PF-006 §6.13 加 S-12、mcp-endpoint 的 PF-006 §6.13 加 S-15），改 2 条「产品修订待落」的注。各条的来源细节见各行 note。2026-09-24 主线对修订批报回项的裁定：data.content-blocks 补登 1 条（PF-006 §6.6 前台上限与并发上限 → S-18，foreground_timeout）；删 2 条「缺口登记型」（PF-002 §九 → mcp-endpoint S-12、mcp-bridge S-22——组织那一层能否持有 MCP 凭据已由 PF-002 rev 18 定下、移出 §九，G-3／G-13 关闭）；mcp-bridge 的 PF-002 §4 MCP 凭据那一条加 S-5、S-9；改 4 条注。同日第二轮：data.content-blocks 再补登 1 条（PF-006 rev 18 §5.5「参数说完了却解析不了」→ S-12），§6.7 那一条改注。同日第三轮：删 1 条「缺口登记型」（PF-002 §九 → data.asset-model S-23，G-10 已随 rev 18 关闭）。。2026-09-24 按 PF-003 rev 5（与 PF-002 rev 18 的凭据一条）原地修订 capability.asset-transfer 与 capability.asset-governance：asset-transfer 的 PF-003 条目按修订后的正文链接重登（新增 flows §1.1／§1.3／§1.4／§1.5／§1.7／§1.8／§1.9／§1.10、design §4 承接、§5.1、acceptance §二，另加 PF-001「退出之后再加入」一条，共 44 条）；asset-governance 删 1 条「缺口登记型」（PF-002 §九 → S-38，G-10 随 rev 18 关闭）、补登 3 条（PF-003 §4 资产复制、§4 分享、flows §1.10）、给 3 条追加条款（PF-002 §4 Connector 与 flows §四加 S-38、PF-003 flows §四加 S-46），共 63 条"
 }

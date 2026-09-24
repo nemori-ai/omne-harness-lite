@@ -1,7 +1,7 @@
 # 规范实例：走通的路径与每个失败值的反例
 
 属于 `capability.model-request-runtime` v1 的规范工件。本契约**不附 Schema**，这里的实例不是形状校验用例，
-而是**操作层面的输入 → 预期结果 → 依据条款**：前七节各走通一条路径，第八节给每个失败值一个反例，第九、十节（2026-09-24 追加，同日按「同名按层覆盖」改写）走同路由名的几条：选哪条都用在册里最具体的那条。
+而是**操作层面的输入 → 预期结果 → 依据条款**：前七节各走通一条路径，第八节给每个失败值一个反例，第九、十节（2026-09-24 追加，同日按「同名按层覆盖」改写）走同路由名的几行：一个名字一条，落到胜出行（PF-013 rev 12）。
 
 **两条读法上的边界：**
 
@@ -17,7 +17,7 @@
 | 档案 `M2` | 官方档案，在册；允许的供应商 `[A]`、不允许回退；输入模态 `text`、`image` |
 | 凭据 | `T` 的租户层配了一把 |
 | 本据点传输能承载的模态 | `text`、`image`、`file`（没有 `audio`） |
-| 选中模型 | `M1`（最后一条切换事实） |
+| 选中模型 | `M1`（最后一条切换事实记的名字）。**`M1`、`M2` 既指那一行档案，也指它的路由名**——除第 9、10 节外链上没有同名的别的行，名字与行一一对应 |
 
 ## 1. 两家发出：第一家 429 未开口，第二家完成（场景 [S-41](contract.md#s-41-两家发出第一家-429-未开口第二家完成)）
 
@@ -105,7 +105,7 @@
 | `invalidInput{parameter_out_of_range}` | `openCall` 的 `parameters` 把 `temperature` 给成域外值 | 合并之后过不了参数校验；**不是一次上交** | [S-28](contract.md#s-28-opencall) 出门前检查第 5 行 |
 | `unavailable` | `legalTargets(s1)`，作用域求值读不到 | 判不出来，**不返回空集** | [S-24](contract.md#s-24-legaltargets) ⑧ |
 | `unavailable` | `interrupt(c1, user)`，中断意图写不进 | **不发中止信号** | [S-31](contract.md#s-31-interrupt) ⑧ |
-| `profileNotFound` | `selectModel(s1, { origin: official, routeName: "vendor/never" }, T)` | 引用解析到零行 | [S-27](contract.md#s-27-selectmodel) |
+| `profileNotFound` | `selectModel(s1, "vendor/never", T)` | 这个名字在链上没有任何一行 | [S-27](contract.md#s-27-selectmodel) |
 | `notLegalTarget{because: [modality_mismatch]}` | 第 6 节的局面里 `selectModel(s1, M1, T)` | `M1` 不收图 | [S-27](contract.md#s-27-selectmodel) |
 | `callNotFound` | `interrupt(c_other_session, user)` | 这个 `callId` 不在这个会话里 | [S-14](contract.md#s-14-缺席时的默认答案与失败集合) |
 | `alreadyEnded` | 第 1 节之后 `interrupt(c1, user)` | `c1` 已在终态 | [S-31](contract.md#s-31-interrupt) |
@@ -118,28 +118,29 @@
 
 **判定次序的一条回归例**：一次开过口、此刻在 `awaiting_decision` 的调用上 `dispatch(c2)` ⇒ **`retryRefused{already_spoke}`**，不是 `wrongPhase`（[S-30](contract.md#s-30-dispatchagain) 末条、[S-29](contract.md#s-29-dispatch) ⑥ 的次序）。
 
-## 9. 同路由名按层覆盖：选哪条都用最具体那条（场景 [S-48](contract.md#s-48-同路由名按层覆盖选哪条都用最具体那条)）
+## 9. 同路由名按层覆盖：一个名字一条，落到胜出行（场景 [S-48](contract.md#s-48-同路由名按层覆盖一个名字一条落到胜出行)）
 
-另一个会话 `s2` 属于租户 `U = (O, B)`；**`U` 没配自己那一把**，部署给出厂格配了 `K_F`。除 `M1`、`M2` 外，`O` 的组织层建了一条自建档案 `M1c`，**路由名与 `M1` 相同**、在册、输入模态 `text`。`s2` 的选中模型是 `M1`。
+另一个会话 `s2` 属于租户 `U = (O, B)`；**`U` 没配自己那一把**，部署给出厂格配了 `K_F`。除 `M1`、`M2` 外，`O` 的组织层建了一条自建档案 `M1c`，**路由名与 `M1` 相同（记作 `r`）**、在册、输入模态 `text`。`s2` 的选中模型是 `r`。
 
 | 调用 | 预期 | 依据 |
 |---|---|---|
-| `displayList(s2)` | `M1` 与 `M1c` 各一条，各带自己的 `ref`：`M1` 的注记 `{ legal, credential_missing, overridden_by{organization(O)} }`，`M1c` 的注记 `{ legal, credential_missing }`——`M1` 被 `M1c` 覆盖，按 `M1c` 的来源问凭据 | [S-11](contract.md#s-11-合法目标集合)、[S-12](contract.md#s-12-展示列表) |
-| `effectiveModel(s2)` | `{ profile: M1c, selectedBy: session, selected: M1 }`——路由名相同、引用不同：被覆盖 | [S-10](contract.md#s-10-有效模型四步每步来源可查) 第 2′ 步、[S-26](contract.md#s-26-effectivemodel) |
+| `legalTargets(s2)` | `{ r, M2 的名字 }`——**`r` 一个元素**，胜出行是 `M1c` | [S-11](contract.md#s-11-合法目标集合) |
+| `displayList(s2)` | `r` 一条：`ref = M1c`（主标：自建 · 组织层），注记 `{ legal, credential_missing }`（按 `M1c` 的来源问）；`covered = [{ ref: M1, 注记 { overridden_by{organization(O)} } }]`——官方那一行只作标注、选不了 | [S-12](contract.md#s-12-展示列表)、[S-25](contract.md#s-25-displaylist) |
+| `effectiveModel(s2)` | `{ routeName: r, profile: M1c, selectedBy: session, selected: r }` | [S-10](contract.md#s-10-有效模型四步每步来源可查) 第 2′ 步、[S-26](contract.md#s-26-effectivemodel) |
 | 随后 `openCall(…)` | `{ state: handed_up, undispatched: credential_unavailable }`——**缺凭据不滤，不落到 `M1` 去用 `K_F`**；这是裁决写明的代价 | [S-10](contract.md#s-10-有效模型四步每步来源可查) 代价一段、[S-28](contract.md#s-28-opencall) 出门前检查第 4 行 |
-| `U` 配上自己那一把之后，分别选 `M1`、`M1c` 各发一次 | 两条都不带 `credential_missing`（`M1` 仍带 `overridden_by{organization(O)}`）；两次发出的 `route.profile` 都是 `M1c`、`route.credentialScope` 都是 `U` 的租户层——组织层建的档案，成员调它用成员自己那一把 | [S-10](contract.md#s-10-有效模型四步每步来源可查)、[S-19](contract.md#s-19-凭据每次发出现取取值只交给传输适配) |
+| `U` 配上自己那一把之后再发一次 | `r` 不再带 `credential_missing`；发出的 `route.profile` 是 `M1c`、`route.credentialScope` 是 `U` 的租户层——组织层建的档案，成员调它用成员自己那一把 | [S-10](contract.md#s-10-有效模型四步每步来源可查)、[S-19](contract.md#s-19-凭据每次发出现取取值只交给传输适配) |
 
 ## 10. 三层同名、锁与已撤回的行
 
-接第 9 节，`U` 已配自己那一把 `K_U`；`U` 又在自己那层建了一条 `M1t`，**路由名与 `M1` 相同**、在册、输入模态 `text`。`s2` 的选中模型仍是 `M1`。
+接第 9 节，`U` 已配自己那一把 `K_U`；`U` 又在自己那层建了一条 `M1t`，**路由名也是 `r`**、在册、输入模态 `text`。`s2` 的选中模型仍是 `r`。
 
 | 调用 | 预期 | 依据 |
 |---|---|---|
-| `effectiveModel(s2)` | `{ profile: M1t, selectedBy: session, selected: M1 }`——租户层最具体；发出时 `route.profile = M1t`、`route.credentialScope` 是 `U` 的租户层 | [S-10](contract.md#s-10-有效模型四步每步来源可查) 第 2′ 步 |
-| `displayList(s2)` | `M1`、`M1c`、`M1t` 各一条、各带自己的 `ref`：`M1`、`M1c` 的注记 `{ legal, overridden_by{tenant(U)} }`，`M1t` 的注记 `{ legal }` | [S-11](contract.md#s-11-合法目标集合)、[S-12](contract.md#s-12-展示列表) |
-| `O` 把「用哪个模型」锁成 `M1`，`s2` 另选了 `M2` | `{ profile: M1t, selectedBy: layer_lock, selected: M2 }`——锁定的是路由名，供应商、参数、凭据取胜出的 `M1t` | [S-10](contract.md#s-10-有效模型四步每步来源可查) 第 2、2′ 步 |
-| 锁撤掉、选回 `M1`；`U` 撤回 `M1t` 之后 `effectiveModel(s2)` | `{ profile: M1c, selectedBy: session, selected: M1 }`——**已撤回的 `M1t` 不参与覆盖**，组织层的 `M1c` 胜出；`openCall` 照常 | [S-10](contract.md#s-10-有效模型四步每步来源可查) 第 2′ 步 |
-| 同一时刻 `displayList(s2)` | `M1` 的注记 `{ legal, overridden_by{organization(O)} }`，`M1c` 的注记 `{ legal }`；`M1t` 已撤回、不是选中，不在列表上 | [S-11](contract.md#s-11-合法目标集合)、[S-12](contract.md#s-12-展示列表) |
-| 另一个会话 `s3`（也属于 `U`）的选中模型正是 `M1t`，此刻 `effectiveModel(s3)` 与 `displayList(s3)` | `{ profile: M1c, selectedBy: session, selected: M1t }`，`openCall` 照常；列表上 `M1t` 那一条的注记 `{ withdrawn, overridden_by{organization(O)} }`——这一条已下架，这一次用的是组织层那条 | [S-9](contract.md#s-9-选中模型)、[S-12](contract.md#s-12-展示列表) |
-| `O` 也撤回 `M1c` | `s2`、`s3` 下一次都落到官方 `M1`；`s3` 列表上 `M1t` 的注记变为 `{ withdrawn, overridden_by{factory} }` | [S-10](contract.md#s-10-有效模型四步每步来源可查) |
-| `U` 把 `M1t` 恢复在册 | 下一次两个会话的 `effectiveModel` 都给 `M1t` | [S-10](contract.md#s-10-有效模型四步每步来源可查)；`capability.model-profile-directory/v1#S-33` |
+| `effectiveModel(s2)` | `{ routeName: r, profile: M1t, selectedBy: session, selected: r }`——租户层最具体；发出时 `route.profile = M1t`、`route.credentialScope` 是 `U` 的租户层 | [S-10](contract.md#s-10-有效模型四步每步来源可查) 第 2′ 步 |
+| `displayList(s2)` | `r` 一条：`ref = M1t`，注记 `{ legal }`；`covered` 是 `M1c`、`M1`，各带 `overridden_by{tenant(U)}` | [S-12](contract.md#s-12-展示列表) |
+| `O` 把「用哪个模型」锁成 `r`，`s2` 另选了 `M2` 的名字 | `{ routeName: r, profile: M1t, selectedBy: layer_lock, selected: M2 的名字 }`——锁的是名字，供应商、参数、凭据取胜出的 `M1t` | [S-10](contract.md#s-10-有效模型四步每步来源可查) 第 2、2′ 步 |
+| 锁撤掉、选回 `r`；`U` 撤回 `M1t` 之后 `effectiveModel(s2)` | `{ routeName: r, profile: M1c, selectedBy: session, selected: r }`——**已撤回的 `M1t` 不参与**，组织层的 `M1c` 胜出；`openCall` 照常，**不是改选**（选中的仍是 `r`） | [S-9](contract.md#s-9-选中模型)、[S-10](contract.md#s-10-有效模型四步每步来源可查) 第 2′ 步 |
+| 同一时刻 `displayList(s2)` | `r` 一条：`ref = M1c`，注记 `{ legal }`；`covered` 是 `M1t`（注记 `{ withdrawn, overridden_by{organization(O)} }`）与 `M1`（注记 `{ overridden_by{organization(O)} }`） | [S-12](contract.md#s-12-展示列表) |
+| `O` 也撤回 `M1c` | 下一次 `r` 落到官方 `M1`；`covered` 里 `M1t`、`M1c` 各带 `{ withdrawn, overridden_by{factory} }` | [S-10](contract.md#s-10-有效模型四步每步来源可查) |
+| 官方清单也撤掉 `M1`（链上三行都撤回了） | `effectiveModel` 给出 `profile = M1t`（落点：链上同名都撤回时取最具体的那一行）；`openCall` 以 `undispatched{withdrawn}` 结束——**「已下架」说的是 `r` 这个名字**；列表上 `r` 一条、注记 `{ withdrawn }`，没有 `covered`（没有胜出行） | [S-10](contract.md#s-10-有效模型四步每步来源可查)、[S-12](contract.md#s-12-展示列表)；`capability.model-profile-directory/v1#S-17` 末段 |
+| `U` 把 `M1t` 恢复在册 | 下一次 `effectiveModel` 给 `M1t`，`openCall` 照常 | [S-10](contract.md#s-10-有效模型四步每步来源可查)；`capability.model-profile-directory/v1#S-33` |

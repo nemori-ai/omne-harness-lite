@@ -1027,7 +1027,14 @@
         "spec/capabilities/asset-transfer/v1/formal/Transfer_NoSameCommit_Sharing.cfg",
         "spec/capabilities/asset-transfer/v1/formal/Transfer_NoConfirmRecheck.cfg",
         "spec/capabilities/asset-transfer/v1/formal/Transfer_NoUseTimeCheck.cfg",
-        "spec/capabilities/asset-transfer/v1/formal/Transfer_Revival.cfg"
+        "spec/capabilities/asset-transfer/v1/formal/Transfer_Revival.cfg",
+        "spec/capabilities/asset-transfer/v1/formal/Transfer_Share.cfg",
+        "spec/capabilities/asset-transfer/v1/formal/Transfer_NoUseTimeCheck_Member.cfg",
+        "spec/capabilities/asset-transfer/v1/formal/Transfer_NoSinceCheck.cfg",
+        "spec/capabilities/asset-transfer/v1/formal/Transfer_NoSinceCheck_Use.cfg",
+        "spec/capabilities/asset-transfer/v1/formal/Transfer_NoLayerCheck.cfg",
+        "spec/capabilities/asset-transfer/v1/formal/Transfer_NoLayerCheck_Share.cfg",
+        "spec/capabilities/asset-transfer/v1/formal/Transfer_NoConfirmerCheck.cfg"
       ],
       "acceptance": null,
       "dependencies": [
@@ -1059,6 +1066,7 @@
             "S-3",
             "S-4",
             "S-5",
+            "S-11",
             "S-13",
             "S-14",
             "S-15",
@@ -1228,8 +1236,8 @@
             "version": 1
           },
           "clauses": [
-            "S-5",
-            "S-13"
+            "S-2",
+            "S-5"
           ],
           "rebase_relation": null
         }
@@ -1349,7 +1357,8 @@
             "version": 1
           },
           "clauses": [
-            "S-11"
+            "S-11",
+            "S-12"
           ],
           "rebase_relation": null
         },
@@ -1360,6 +1369,7 @@
             "version": 1
           },
           "clauses": [
+            "S-13",
             "S-14",
             "S-15"
           ],
@@ -2931,6 +2941,7 @@
             "version": 1
           },
           "clauses": [
+            "S-2",
             "S-4",
             "S-5",
             "S-6",

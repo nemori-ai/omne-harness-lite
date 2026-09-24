@@ -15,7 +15,7 @@
   | `omne-harness-lite-design-2026-09-15 · data.offer-expiry · v1` | [`S-22`](../../offer-expiry/v1/contract.md#s-22-schema-的范围) | 时刻的规范形式 | `$ref` 它的 `$defs/Instant`：`createdAt`、尝试开始的 `at`、到点的 `dueAt`、答复的 `at` |
   | `omne-harness-lite-design-2026-09-15 · data.identity-values · v1` | [`S-31`](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示) | 不透明标识的交换表示 | **不 `$ref`**；`MessageId` 与其余不透明标识按该条散文定形（[S-3](#s-3-messageid)） |
   | `omne-harness-lite-design-2026-09-15 · data.call-accounts · v1` | [`S-37`](../../call-accounts/v1/contract.md#s-37-三个归属标识的家runidattemptidmodelcallid) | `ModelCallId`、`AttemptId` 的家 | `$ref` 它的 `$defs/ModelCallId`（中断提醒的 `about`、五种运行时记录的 `call`）、`$defs/AttemptId`（尝试开始的 `attempt`） |
-  | `omne-harness-lite-design-2026-09-15 · data.model-profile · v1` | [`S-5`](../../model-profile/v1/contract.md#s-5-providername-与允许的供应商)、[`S-13`](../../model-profile/v1/contract.md#s-13-modelprofileref) | 供应商标识、指向档案的引用 | `$ref` 它的 `$defs/ProviderName`（已出门的 `provider`）、`$defs/ModelProfileRef`（切换事实的 `profile`） |
+  | `omne-harness-lite-design-2026-09-15 · data.model-profile · v1` | [`S-5`](../../model-profile/v1/contract.md#s-5-providername-与允许的供应商)、[`S-2`](../../model-profile/v1/contract.md#s-2-routename) | 供应商标识、路由名 | `$ref` 它的 `$defs/ProviderName`（已出门的 `provider`）、`$defs/RouteName`（切换事实的 `routeName`：PF-013 rev 12 起设置与切换记路由名，落到哪一行由按层覆盖定） |
 
   **`data.model-response` 是 `ResponseId` 的家，但不登为本契约的依赖**：它以 `$ref` 取本契约的 `AssistantMessage` 作回复，
   本契约再引用回去两份契约就互为依赖；`ResponseId` 在这里按 `data.identity-values/v1#S-31` 的散文自定义同一形状（[S-37](#s-37-规范表示)）。
@@ -710,7 +710,7 @@ readable(b, L)      ≝ b 所在的消息在日志前缀 L 里
 | `model_call_opened` | 已开口 | `call`、`dispatch`、`firstTokenAt`（观察到首 token 的时刻） | 首个内容交给任何观察者之前 |
 | `model_call_interrupt_intent` | 中断意图 | `call`、`initiator`：`user` · `run_cancelled` | 发出中止信号之前 |
 | `model_call_ended` | 调用终结 | `call`、`ending` 三支（[S-50](#s-50-调用终结的三支)） | 调用不经响应体进入终态时 |
-| `model_selection_changed` | 切换事实 | `profile`（`data.model-profile/v1#S-13` 的 `ModelProfileRef`）、`at` | 切换生效之前 |
+| `model_selection_changed` | 切换事实 | `routeName`（`data.model-profile/v1#S-2` 的 `RouteName`：切到的是一个名字，不是某一行，PF-013 rev 12）、`at` | 切换生效之前 |
 
 - **会话、Run、尝试、租户都在承载它的条目上**，不在记录里——与消息同一条规矩（[S-33](#s-33-消息不携带租户身份)）。
   「已出门落在哪一次尝试」「切换事实是谁发的」都从条目读；切换只由交付面的切换命令写，发命令的租户身份就是会话持有的那一个。

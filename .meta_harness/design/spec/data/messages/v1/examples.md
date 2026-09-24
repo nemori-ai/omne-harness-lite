@@ -310,7 +310,7 @@
 | `{"kind": "model_call_ended", "call": "mc_02", "ending": "undispatched", "cause": "credential_unavailable"}` | 通过 | — | [S-50](contract.md#s-50-调用终结的三支)：出门前检查不过 |
 | `{"kind": "model_call_ended", "call": "mc_03", "ending": "released"}` | 通过 | — | [S-50](contract.md#s-50-调用终结的三支)：故障之后放手 |
 | `{"kind": "model_call_ended", "call": "mc_04", "ending": "interrupted", "initiator": "user"}` | 通过 | — | [S-50](contract.md#s-50-调用终结的三支)：两次发出之间被中断 |
-| `{"kind": "model_selection_changed", "profile": {"origin": "official", "routeName": "vendor-a/chat-large"}, "at": "2026-09-23T08:00:00Z"}` | 通过 | — | 切换事实；`profile` 取 `data.model-profile` 的引用 |
+| `{"kind": "model_selection_changed", "routeName": "vendor-a/chat-large", "at": "2026-09-23T08:00:00Z"}` | 通过 | — | 切换事实；`routeName` 取 `data.model-profile` 的 `RouteName`（切到的是名字） |
 | `{"kind": "model_call_dispatched", "call": "mc_01", "dispatch": 1, "provider": "provider-x"}` | 拒绝 | `malformed` | 已出门必带 `response`：它在这一刻定下 |
 | `{"kind": "model_call_dispatched", "call": "mc_01", "dispatch": 0, "provider": "provider-x", "response": "rsp_01"}` | 拒绝 | `malformed` | 发出序号 ≥ 1 |
 | `{"kind": "model_call_dispatched", "call": "mc_01", "dispatch": 1, "provider": "provider-x", "response": "rsp_01", "attempt": 2}` | 拒绝 | `malformed` | 尝试在条目上，不在记录里（[S-33](contract.md#s-33-消息不携带租户身份)） |
@@ -320,5 +320,5 @@
 | `{"kind": "model_call_ended", "call": "mc_03", "ending": "released", "cause": "withdrawn"}` | 拒绝 | `malformed` | 放手那一支不带 `cause` |
 | `{"kind": "model_call_ended", "call": "mc_04", "ending": "interrupted"}` | 拒绝 | `malformed` | 被中断那一支必带 `initiator` |
 | `{"kind": "model_call_ended", "call": "mc_05", "ending": "complete"}` | 拒绝 | `malformed` | 经响应体进入终态的调用没有这条记录 |
-| `{"kind": "model_selection_changed", "profile": "vendor-a/chat-large", "at": "2026-09-23T08:00:00Z"}` | 拒绝 | `malformed` | 切到的是一个引用，不是一个裸名字 |
+| `{"kind": "model_selection_changed", "profile": {"origin": "official", "routeName": "vendor-a/chat-large"}, "at": "2026-09-23T08:00:00Z"}` | 拒绝 | `malformed` | 切到的是一个路由名，不是某一行的引用（成员名也不是 `profile`） |
 | `{"kind": "model_call_retried", "call": "mc_01"}` | 拒绝 | `malformed` | 五种闭合 |

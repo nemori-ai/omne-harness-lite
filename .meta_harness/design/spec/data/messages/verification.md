@@ -118,6 +118,7 @@ V-2～V-10、V-12 **一条执行记录也没有**。起草时的手核只保证 
 - **[G-13](v1/contract.md#九已知缺口) 闭合**（裁决落进决定）：只改[设计依据](v1/contract.md#设计依据)表的链接，语义与表示不变。
 - **跨进程演化启动**：V-9 从「无法演练」转为**必须演练**；[第五节](v1/contract.md#五装配给与协议给)右列七行从「待兑现」转为「须由协议兑现」。
   **本版的全部证据只保留其单机范围，不得外推。**
+- **2026-09-24 切换事实记路由名（PF-013 rev 12；候选，未冻结，原地改）**：[S-49](v1/contract.md#s-49-模型请求运行时写的五种记录不是消息) 表里 `model_selection_changed` 的成员由 `profile`（`ModelProfileRef`）改为 `routeName`（`data.model-profile/v1#S-2` 的 `RouteName`）——产品正文定「用哪个模型」记路由名、落到哪一行由按层覆盖定，切换就是改这一格的值。Schema `ModelSelectionChangedRecord` 同改；实例第 313 行（通过）改为带 `routeName`，第 323 行（拒绝）改为带旧的 `profile` 引用。依赖表那一行改为 `S-2`、`S-5`；catalog 同步。**表示变更**：带 `profile` 的旧记录按新 Schema 被拒（`malformed`）。对证据：没有既有执行记录。
 
 结果不改写规范。发现语义问题回到来源设计（PF-009／PF-010／PF-012／PF-014／PF-015／PF-006／PF-004／PF-008），不在这里改契约。
 

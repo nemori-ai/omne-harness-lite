@@ -689,14 +689,14 @@
 
     "ModelSelectionChangedRecord": {
       "title": "切换事实（contract.md S-49）",
-      "description": "会话的选中模型切到了另一条档案，在切换生效之前写下（无词条）。profile 是切到的那一条（data.model-profile v1 的 ModelProfileRef）；at 是切换的时刻。哪个会话、谁发出的命令由承载它的记录条目给出（S-33）——只有交付面的切换命令写它，发命令的租户身份就是会话持有的那一个。不是消息。",
+      "description": "会话的选中模型切到了另一个名字，在切换生效之前写下（无词条）。routeName 是切到的那个路由名（data.model-profile v1 的 RouteName）——记的是名字，不是某一行；这个名字落到哪一行由按层覆盖定（PF-013 rev 12）。at 是切换的时刻。哪个会话、谁发出的命令由承载它的记录条目给出（S-33）——只有交付面的切换命令写它，发命令的租户身份就是会话持有的那一个。不是消息。",
       "type": "object",
       "properties": {
         "kind": { "const": "model_selection_changed" },
-        "profile": { "$ref": "../../model-profile/v1/model-profile.schema.json#/$defs/ModelProfileRef" },
+        "routeName": { "$ref": "../../model-profile/v1/model-profile.schema.json#/$defs/RouteName" },
         "at": { "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant" }
       },
-      "required": ["kind", "profile", "at"],
+      "required": ["kind", "routeName", "at"],
       "additionalProperties": false
     },
 

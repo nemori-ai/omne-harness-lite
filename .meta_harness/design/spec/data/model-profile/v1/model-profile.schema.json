@@ -81,8 +81,8 @@
 
     "ModelProfileRef": {
       "title": "ModelProfileRef",
-      "description": "S-13、S-14：对一条模型档案的引用，「用哪个模型」那项设置、会话的选中模型与一次请求的有效模型都取这个值。按 origin 判别，恰两支：指向官方档案的是 {origin: official, routeName}；指向自建档案的是 {origin: custom, scope, routeName}，scope 是档案所在那一格的作用域层身份（data.identity-values/v1 的 ScopeLayerIdentity，该契约 S-11），没有默认值、不从环境推断（该契约 S-12、S-17）。解析只按给出的分量精确匹配，不跨层搜索、不回退到别层的同名档案。它是规格层的引用值名，不是统一语言词条，因此不给「中文 · English」那种词条式标题。",
-      "$comment": "官方那一支不带 scope：出厂默认层没有身份对象（data.identity-values/v1 S-11），本契约不为它铸一个。它能只凭 routeName 指认一条官方档案，前提是 S-3：官方名对所有层保留（含已撤回），任何一条别的档案都不与它同名——这个前提不成立，官方引用就指不清。自建名只在登记那一刻、在所在隶属树内唯一（S-3），不同的树里可以同名，所以自建那一支必须带 scope；它存成带判别式的 ScopeLayerIdentity，不得压平成两个可空字段（data.identity-values/v1 S-16）。",
+      "description": "S-13、S-14：对一条模型档案的引用，只在目录内部与治理面上指认一行；一次请求的有效模型（这一次落到的那一行）与它的留痕也取这个值。「用哪个模型」那项设置与会话的选中模型记的是 RouteName，不是它；名字落到哪一行由按层覆盖定（capability.model-profile-directory v1 S-17）。按 origin 判别，恰两支：指向官方档案的是 {origin: official, routeName}；指向自建档案的是 {origin: custom, scope, routeName}，scope 是档案所在那一格的作用域层身份（data.identity-values/v1 的 ScopeLayerIdentity，该契约 S-11），没有默认值、不从环境推断（该契约 S-12、S-17）。解析只按给出的分量精确匹配，不跨层搜索、不回退到别层的同名档案。它是规格层的引用值名，不是统一语言词条，因此不给「中文 · English」那种词条式标题。",
+      "$comment": "官方那一支不带 scope：出厂默认层没有身份对象（data.identity-values/v1 S-11），本契约不为它铸一个。它能只凭 routeName 指认一条官方档案，前提是 S-3 与 S-4：官方档案全在出厂默认层这一格，同一格里路由名不重复（含已撤回）——这个前提不成立，官方引用就指不清。自建名只在所在那一格里唯一（S-3），别的格里可以同名，所以自建那一支必须带 scope；它存成带判别式的 ScopeLayerIdentity，不得压平成两个可空字段（data.identity-values/v1 S-16）。",
       "type": "object",
       "oneOf": [
         {
