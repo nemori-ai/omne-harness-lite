@@ -7,12 +7,10 @@
 > **「注册表」没有词条**：产品正文与[会话斜杠命令集](../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set)的定义里把它当名词用，本契约不给它下定义，只给出记录形状；已报主线。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.asset-registry, 1)`
-- **状态**：`candidate`（2026-09-23 起草），**未经独立评审、未接受、未冻结**
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐），**未经独立评审、未接受、未冻结**
 - **catalog 映射**：已登记为 `candidate`；`family=capabilities`、`topic=asset-registry`、
   `contract_path=spec/capabilities/asset-registry/v1/contract.md`；`resources` 含契约与 `examples.md`；
-  依赖六项（`data.asset-model`、`data.tool-definition`、`data.loop-extension`、`data.messages`、`data.offer-expiry`、`data.identity-values`，均 v1），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)。
-  **另七项依赖尚未登记**：`capability.asset-evaluation`、`capability.asset-governance`、`data.skill-package`、`data.slash-command`、`data.mcp-endpoint`、`capability.mcp-bridge`、`capability.tool-admission` 与本契约并行起草，
-  本分支的 catalog 里还没有它们的坐标（检查器拒绝未知坐标）——**合流对齐时补登**，消费面见 S-4 末表
+  依赖十五项：`data.asset-model`、`data.tool-definition`、`data.loop-extension`、`data.messages`、`data.offer-expiry`、`data.identity-values`、`capability.asset-evaluation`、`capability.asset-governance`、`data.skill-package`、`data.slash-command`、`data.mcp-endpoint`、`capability.mcp-bridge`、`capability.tool-admission`、`capability.modality-projection`、`data.model-profile`（均 v1），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)（2026-09-24 整批对齐补齐）
 - **formal-tasks 映射**：无（本版不建形式工件，[S-35](v1/contract.md#s-35-本版选用哪些形式工件)）
 - **提供者/装配映射**：尚无
 
@@ -46,7 +44,7 @@
 ## 版本包
 
 `v1/` 含 `contract.md` 与 `examples.md`。**不建 Schema**：线上形状归把这些操作送过进程边界的那份 composition，
-值类型引用 `data.asset-model`、`data.tool-definition`、`data.loop-extension`、`data.identity-values`、`data.offer-expiry` 与并行起草的各类正文契约。
+值类型引用 `data.asset-model`、`data.tool-definition`、`data.loop-extension`、`data.identity-values`、`data.offer-expiry` 与 `data.skill-package`、`data.slash-command`、`data.mcp-endpoint` 等各类正文契约。
 **不建 `formal/`**：单写者、一次提交，被建模方式吸收；理由与触发条件见[验证入口](verification.md#形式工件)。
 
 本入口不代替唯一 catalog；推荐版本不会自动升级消费者。返回[能力契约](../README.md)。
