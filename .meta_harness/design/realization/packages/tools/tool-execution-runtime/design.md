@@ -65,7 +65,7 @@ D-032 允许的**函数级借鉴**只登两项，都是「避坑」，不搬代�
 
 **三、送达用发件箱（选），不把会话日志的追加并进本能力的事务。**契约 S-19／S-46 把二选一交给提供者设计。
 
-| | 会话日志的追加口加入本能力的存储事务 | **发件箱：本能力在事务内写执行记录与出站项；排空器把出站项交给会话日志追加，按 (会话, `CallId`, 段) 幂等（选）** |
+| | 会话日志的追加口加入本能力的存储事务 | **发件箱：本能力在事务内写执行记录与出站项；排空器把出站项交给会话日志追加，按 [L-1](#对会话日志提供者的要求) 的键幂等（选）** |
 |---|---|---|
 | 落选方的最强论证 | 消息与记录真正同一次提交，没有「已交付、待追加」这个中间态；`awaitForeground` 不用等排空 | —— |
 | 本方弱点 | —— | 多一个中间态与一张表；`awaitForeground` 要等排空器；会话日志一侧必须提供幂等追加（[L-1](#对会话日志提供者的要求)），否则一次重排就是两条消息 |
@@ -77,7 +77,7 @@ D-032 允许的**函数级借鉴**只登两项，都是「避坑」，不搬代�
 | | 插件体 `await` 恢复扫描，扫完才 provide；扫描抛出即 `FAILED` | **插件体立即 provide，核心在后台扫描，扫完才把服务状态置 `serving`（选）** |
 |---|---|---|
 | 落选方的最强论证 | 消费者永远看不到一个「在但没准备好」的服务；扫描出错在启动时就暴露为装配失败（basis `plugin-throw-fails-fiber`） | —— |
-| 本方弱点 | —— | 每个方法都要先过服务状态闸；消费者要处理 `runtimeNotReady` 并稍后重试 |
+| 本方弱点 | —— | 每个方法都要先过服务状态闸（执行者登记与撤下除外，M71）；消费者要处理 `runtimeNotReady` 并稍后重试 |
 | 为什么选它 | 契约 S-15、S-20 把「扫描之前」定义成一个具名返回值 `runtimeNotReady`（与 `runtimeStopped` 分开），这是契约给消费者的形状；存储在启动时一时不可用是抖动，不是配置错误——落 `FAILED` 要整个装配重启 | 扫描遇 `StorageUnavailable` 按 `deliveryRetryInterval` 重试、状态留在 `recovering` |
 | 置信度 | 中高 | |
 
@@ -95,7 +95,7 @@ D-032 允许的**函数级借鉴**只登两项，都是「避坑」，不搬代�
 | 记录（候选表名） | 键与列（候选） | 对应条款 |
 |---|---|---|
 | 执行记录 `tool_execution` | 主键 `(session, call_id)`；`tenant`、`run`、`attempt`、`call`（原样调用块）、`definition_ref`、**`definition_name`**（逆转写得到）、**`origin`**（登记时注册表条目给的来源，MCP 调 `invoke` 要 `remoteName`）、`admission_token`、`environment`、`endpoint_holding`、`batch_id`＋`batch_position`、`posture`＋转后台原因、`phase`、`wait_index`＋`wait`、`call_outcome`、`outcome`（收场、原因、失败种类、发起者）、`reported_cost`、`account`、`stop_physical`、`external_effect`、`stopped_at`、`submitted_at`、`started_at`；**本节点加的内部列**：`submit_disposition`（首次提交时的 disposition，重放照它答）、`reclaim_handle`（执行者起来后登记的回收句柄，如进程组）、`submit_seq`（同会话单调，排队的先后） | S-5、S-6、S-8、S-13、S-14、S-23 ⑦、S-43、S-20 第 2 步 |
-| 出站项 `tool_execution_outbox` | 主键 `(session, seq)`；唯一 `(session, call_id, segment, kind)`；`segment ∈ call · background`；`kind ∈ messages · entry · card_close`；`payload`（这一段的消息序列：`ToolInternalMessage` 在前、结果消息在后；或一条记录条目；或一个关卡请求）；`state ∈ pending · appended` | S-19、S-20 第 3、4 步、S-22 |
+| 出站项 `tool_execution_outbox` | 主键 `(session, seq)`；唯一 `(session, call_id, segment, kind, dedupe_slot)`——`dedupe_slot` 在 `messages`／`card_close` 恒为 0、在 `entry` 取这一项自己的 `seq`：**同一段的消息、关卡请求各至多一项，记录条目一段可有多条**（提交、起执行者、进等待、收场……各一条；[D-040 §八 M70](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。不用只约束部分种类的条件唯一索引：存储协议与它的符合性套件只登普通命名唯一索引（P-11）；`segment ∈ call · background`；`kind ∈ messages · entry · card_close`；`payload`（这一段的消息序列：`ToolInternalMessage` 在前、结果消息在后；或一条记录条目；或一个关卡请求）；`state ∈ pending · appended` | S-19、S-20 第 3、4 步、S-22 |
 | 会话标记 `tool_execution_session` | 主键 `session`；`tenant`、`archived_at?` | S-29 ④「记下这个会话已归档」 |
 | 已取消的运行 `tool_execution_cancelled_run` | 主键 `(session, run)`；`level`、`cancelled_at` | S-28 ④「记下这个运行已取消」 |
 | 原始结果 `tool_execution_raw` | 主键 `attachment_id`；`tenant`、`session`、`call_id`、`media_type`、`bytes`、`stored_at` | S-36；存在哪、留多久是契约 G-7，本节点只给「写得进、换得回引用」 |
@@ -108,32 +108,32 @@ D-032 允许的**函数级借鉴**只登两项，都是「避坑」，不搬代�
 |---|---|---|---|
 | [S-5](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-5-一次执行以会话里的-callid-指认) 身份 `(租户, 会话, CallId)` | 执行记录主键 `(session, call_id)`，`tenant` 列逐次核对；活体表按同一键 | 尚未建包 | 不另立执行标识；进程、句柄、实例都不进键（DSH「同 id 换实例不串台」，K-2） |
 | [S-6](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-6-执行记录) 执行记录、唯一写入者 | `tool_execution` 表；只有本插件的方法写它 | 尚未建包 | 内部列（上表加粗）不进契约形状；`stop` 三件与 `reclaim_handle` 可在收场之后补写，不改收场 |
-| [S-7](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-7-活体与找得到) 活体与找得到 | 核心的活体表；服务状态闸：扫描提交之前一切方法 `runtimeNotReady`（表示层校验在闸之前，`submit` 的报告核对也在闸之前） | 尚未建包 | 「在服务中每条未收场的记录都有活体」：扫描先于服务 ＋ 上交即 `stopped`（S-47）；**前提**：同一存储只有一个据点进程里的一份本能力在写（R-T8，归装配） |
+| [S-7](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-7-活体与找得到) 活体与找得到 | 核心的活体表；服务状态闸：扫描提交之前一切方法 `runtimeNotReady`（表示层校验在闸之前，`submit` 的报告核对也在闸之前；**执行者登记与撤下不过闸**，见 S-37 行） | 尚未建包 | 「在服务中每条未收场的记录都有活体」：扫描先于服务 ＋ 上交即 `stopped`（S-47）；**前提**：同一存储只有一个据点进程里的一份本能力在写（R-T8，归装配） |
 | [S-8](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-8-姿态与阶段两个维度) 姿态 × 阶段 | 两列；转移在会话锁下判前置 | 尚未建包 | 姿态只从 `foreground` 写到 `background`；等待原语与转后台各自核对前台 |
 | [S-9](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-9-两个收场)～[S-11](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-11-失败的种类) 两个收场、占位原因、失败种类 | 一张纯函数的对照表：触发源 → (收场, `reason.code`, 失败种类, 块由谁写)；只有停机追补、有序撤下、桥换代三路带 `abnormal_interruption`；失败种类九种、闭合，含 `schema_unsupported`（参数判不了：编不出、超上限、判定超时，块上带说明、**不附用法**） | 尚未建包；块文案归实现 | `arguments_invalid` 的用法由 `core/tool-definition` 从同一份定义生成——与 `Tools().inspect` 一致性要等 PF-007 的契约（受阻，见 verification S-61） |
 | [S-12](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-12-等待) 等待原语 | 执行者调 `wait(shape, deadline?, card?)`：会话锁下 `phase = waiting`、`wait_index + 1`、记形状 ＋ 一条出站条目；提交后挂一个解除者；有到点就挂一个计时器 | 尚未建包 | 解除者在 `answerWait` 提交后以 `answered` 交回，或在这次执行收场时以 `ended{outcome}` 交回；写不进 ⇒ `dependencyUnavailable{storage}`、不进入等待；等待期间前台阈值与上限暂停计时（S-44） |
-| [S-13](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-13-账) 账 | 收场那一次事务里按记录算出 `ToolCallAccount` 写进 `account` 列 | 尚未建包 | `frames`：`closeOut`／`abandon` 交出的那份，停机追补写 `"unknown"`，执行者没起过写零；**`late` 兑现不了**：要知道「尝试已被取代或运行已终结」，没有读面（契约 G-18）；`credentialScope` 缺席（契约 G-15）；`model_call` 镜像与 `usage`、`service_reported` 的来路没有接口（契约 G-19）。这几格**不写过渡值**（[D-040 §八 N-20](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）——照写缺席就是替判不出的事写了结论；实现到这里须停在缺口上，不猜 |
+| [S-13](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-13-账) 账 | 收场那一次事务里按记录算出 `ToolCallAccount` 写进 `account` 列 | 尚未建包 | `frames`：`closeOut`／`abandon` 交出的那份，停机追补写 `"unknown"`，执行者没起过写零；**`late`**：每条收场路径在写事务**之前**经据点读面 `runAttemptFacts`（候选名，[D-040 §八 M74](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)；调用时现取，真承接者是会话日志与 loop 那一程）读「提交它的尝试是否已被取代、这个运行是否已终结」，任一为是 ⇒ `late: true`，否则缺席；读不到按失败映射、**不给过渡值、不改 `data.call-accounts`**；读在事务外，与落账提交之间有一个漏标窗口（[下节](#跨-owner-的现读落账时的-late)，契约 G-18 仍开着）；`credentialScope` 缺席（契约 G-15）；`model_call` 镜像与 `usage`、`service_reported` 的来路没有接口（契约 G-19）。这几格**不写过渡值**（[D-040 §八 N-20](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）——照写缺席就是替判不出的事写了结论；实现到这里须停在缺口上，不猜 |
 | [S-14](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-14-停止与外部效果分开说) 停止与外部效果分开说 | `stop_physical`、`external_effect`、`stopped_at` 三列；桥交回的失败带「请求是否已发出」 | 尚未建包 | 执行者没跑过 ⇒ 已确定未发生；跑过而被停、停机、收场后又有交回 ⇒ 不可确定；正常收场不判 |
 | [S-15](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-15-缺席时的默认答案) 缺席默认 | 见[状态、并发与失败映射](#状态并发与失败映射)的失败映射表 | 尚未建包 | 没有 catch-all；`StorageDefect` 是缺陷、不折成契约失败值 |
 | [S-16](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-16-首胜收场只写一次) 首胜 | 会话锁下读 `outcome`，为空才写；不为空 ⇒ 这一路丢弃（交回得 `discarded`、中断得 `alreadyEnded`），留一条出站条目 | 尚未建包 | 「同一存储里同一行上的条件写」由 R-T3 的锁定读兑现；**不加进程内锁**。判「已有收场」看记录不看活体（K-2） |
 | [S-17](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-17-持久意图先于外部效果) 意图先于外部效果 | `submit` 的事务写 `queued`；起执行者先在会话锁下写 `running`（占并发位），提交之后才调执行者的 `start`；执行者起来后交回回收句柄，另一次事务写 `reclaim_handle` | 尚未建包 | 至多起一次：`running` 只从 `queued` 写一次；恢复与重放都不重起。**`running` 写下到回收句柄写下之间有一个窗口**：此刻被强杀，恢复扫描找得到记录、找不到句柄，回收不了那棵进程树（X-5，缺口 T-13） |
 | [S-18](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-18-收场先落停止后发) 收场先落停止后发 | 每次执行一个停止例程（一个 async 函数，不拆成多个 effect）：收场事务提交 → 给执行者发停止 → 等 `executionStopGrace`（config）→ 强制停止 → 回收句柄 → 补写 `stop_physical`／`stopped_at` | 尚未建包 | 并发位在收场那次事务里释放（计数只数 `running`／`waiting`）；收口任一步出错写进出站条目、不改收场；`forced` 不等宽限 |
-| [S-19](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-19-送达) 送达 | 发件箱：收场（或转后台）与这一段的出站项同一次事务；排空器按会话、按 `seq` 调会话日志追加（幂等键 `(会话, CallId, 段)`），成功后把出站项置 `appended` | 尚未建包；会话日志追加面**不存在**（契约 G-1，缺口 T-7） | 共同存储对象与两条交错的反证见[下节](#跨-owner-的同一提交执行记录与会话日志)；`ToolInternalMessage` 只在 `closeOut` 交出的 `blocks` 非空时有，排在结果消息前、同一出站项；工具执行被中断不另补提醒 |
+| [S-19](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-19-送达) 送达 | 发件箱：收场（或转后台）与这一段的出站项同一次事务；排空器按会话、按 `seq` 调会话日志追加（幂等键见 L-1：消息 `(会话, CallId, 段)`、条目 `(会话, CallId, 段, seq)`），成功后把出站项置 `appended` | 尚未建包；会话日志追加面**不存在**（契约 G-1，缺口 T-7） | 共同存储对象与两条交错的反证见[下节](#跨-owner-的同一提交执行记录与会话日志)；`ToolInternalMessage` 只在 `closeOut` 交出的 `blocks` 非空时有，排在结果消息前、同一出站项；工具执行被中断不另补提醒 |
 | [S-20](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-20-恢复扫描与停机不重来) 恢复扫描 | 核心起来后：按会话分页读全部未收场记录；每个会话一次事务——先按 `reclaim_handle` 回收（核对进程身份再杀），再首胜写 `failed{abnormal_interruption}`、外部效果与 `stop` 按契约、`frames = "unknown"`（`queued` 的写零）、`reported_cost` 入账、出站项（前台 `ToolMessage`、后台 `background_execution_interrupted` 提醒、关卡请求）；全部扫完 ⇒ `serving` | 尚未建包 | 不论会话、不论姿态、不论有没有协程要恢复；**没有例外地不重起**；已交付未追加的出站项由排空器照常追加、按幂等键不重复。关卡请求没有接收方（契约 G-5，缺口 T-9） |
 | [S-21](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-21-租户与会话范围) 租户与会话 | 每个方法先表示层校验，再比记录上的 `tenant`，不等 ⇒ `executionNotFound`；`submit` 要读**会话持有的那一个**租户 | 尚未建包 | 会话持有租户的读面归会话那一程、**没有提供者**（契约 G-12，缺口 T-8）：读不到 ⇒ `dependencyUnavailable{storage}`——在它出现之前每次 `submit` 都是这个值。**不按租户、会话、运行开实例**（basis [`isolate-hides-instances-not-data`](../../../../basis/cordis/isolate-hides-instances-not-data.md)） |
-| [S-22](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-22-关键转换留记录) 关键转换留条目 | 每次转换在同一事务里加一个 `kind = entry` 的出站项 | 尚未建包 | 收场那一条与收场同一次事务；条目壳归会话日志 owner（契约 G-1） |
+| [S-22](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-22-关键转换留记录) 关键转换留条目 | 每次转换在同一事务里加一个 `kind = entry` 的出站项；同一段有几次转换就有几条，各以自己的 `seq` 区分（M70） | 尚未建包 | 收场那一条与收场同一次事务；条目壳归会话日志 owner（契约 G-1） |
 | [S-23](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-23-提交一批) 提交一批 | `submit(tenant, session, run, attempt, report, batch)`：① 表示层——含 `report` 缺席、或它带的会话／运行／尝试任一不是本次的 ⇒ 整批 `invalidInput`，**只比对交来的值、不读任何东西，排在服务闸之前**（M33、M46）→ ② 服务闸 → ③ 读会话持有租户、比对 → ④ 一次读事务判重（已有且同块的记下首次 disposition、异块 ⇒ 整批 `callIdConflict`）并读归档／取消标记 → ⑤ 只对新项：逐项 `verifyToken`、按契约 ⑥ 的次序合成整批结论 → ⑥ 逐项以 `lookup(tool, call.tool, within = run{report})` 查会话资产注册表，**`report` 就是交来的那一份**；MCP 动作的接入点持有取 `report.endpointHoldings` 里那一项 → ⑥′ 对每个 `AdmittedCall` 判参数（契约 S-23 ④ 第 ② 条）：判定交给**判定工作线程**、按 `core/tool-definition` 登记的判定时限跑——**判不了**（编不出、`pattern` 超上限、判定超时 ⇒ 终止那只线程）⇒ 这一项 `failed{schema_unsupported}`；**判得了而不合** ⇒ `failed{arguments_invalid}`；判不了先于判不合，只落这一项、不牵连同批 → ⑦ 进事务前再看一次服务状态（撤下已开始 ⇒ 整批 `runtimeStopped`、不写）→ 写事务：会话锁下**重判** ④（并发的另一次 `submit`、归档、取消可能插进来过），再写记录（MCP 动作原样记下那份接入点持有）、即刻收场的收场与出站项、发起即后台的占位；提交 → 唤醒调度 | 尚未建包 | 判重在凭据与注册表之前（K50、N-8）、租户在判重之前（R-29）；并发的同批两次提交撞主键 ⇒ 同事务重读按幂等返回（R-T4）。**报告不现算、不另取、不落盘**：本能力不向注册表要「最近一次」的那份（契约 ⑧）；只把 MCP 动作用到的那份接入点持有记进执行记录（S-6）。报告对那个接入点写「没有」生效的持有 ⇒ 整批 `dependencyUnavailable{registry}`；注册表缺席或答 `unavailable` 同。原节点缺口 T-1 随 M33 闭合 |
 | [S-24](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-24-等前台那一次调用落定) 等前台落定 | `awaitForeground`：先读记录与这一段出站项；`callOutcome` 已落且出站项 `appended` ⇒ 立即返回；否则挂一个等待者，排空器置 `appended` 时解除 | 尚未建包 | 任何协程、任何次数等同一结果；本任 `stopped` ⇒ 等待者一律 `runtimeStopped`；会话日志缺席时出站项不会 `appended`，等待不返回（缺口 T-7） |
 | [S-25](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-25-中断一次执行)、[S-26](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-26-成批中断) 中断 | 会话锁下首胜写 `interrupted` ＋ 账 ＋ 出站项；提交后对每条跑停止例程 | 尚未建包 | 成批：一次事务里逐条判、已收场的跳过；`agent` 中断只落后台收场提醒的块（M23） |
 | [S-27](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-27-转后台) 手动转后台 | 会话锁下：前台那一次还没落定、允许后台、阶段是 `queued`／`running` ⇒ 姿态后台 ＋ `backgrounded_by_user` ＋ 占位出站项 | 尚未建包 | 提交后唤醒调度（同批下一项可以起）；前台阈值与上限计时器撤掉 |
 | [S-28](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-28-取消一次运行) 取消一次运行 | 会话锁下：这个运行名下前台未收场的全部 ⇒ `interrupted{run_cancelled}`；写 `tool_execution_cancelled_run` | 尚未建包 | 此后同运行的提交在 ⑥ 的重判里读到标记 ⇒ `alreadyEnded`；`forced` 不等宽限，从 `graceful` 升 `forced` 时对仍在 `stopping` 的立即强制 |
 | [S-29](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-29-会话归档) 会话归档 | 会话锁下：全部未收场 ⇒ `interrupted{session_archived}`；写 `archived_at` | 尚未建包 | 归档之后晚到的交回在首胜处丢弃；**归档提交里交付的出站项要在归档之后仍被会话日志接收**（[L-4](#对会话日志提供者的要求)），否则那几条占位永远落不下 |
-| [S-30](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-30-答复等待) 答复等待 | 会话锁下核对 `phase = waiting` 且 `wait_index` 相等 ⇒ `running` ＋ 条目；提交后才把答复交给等待中的执行者 | 尚未建包 | `value` 按那次等待声明的形状校验（与参数判定同一个 JSON Schema 校验器，`core/tool-definition`；同一只判定工作线程、同一时限）——**校验超时怎样答，契约没有值**（T-16 残留）；`value` 经严格无损读写（M36）；答复者形状是契约 G-10 |
+| [S-30](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-30-答复等待) 答复等待 | 会话锁下核对 `phase = waiting` 且 `wait_index` 相等 ⇒ `running` ＋ 条目；提交后才把答复交给等待中的执行者 | 尚未建包 | `value` 按那次等待声明的形状校验（与参数判定同一个 JSON Schema 校验器，`core/tool-definition`；同一只判定工作线程、同一时限，在写事务之前）：**判得出「不合」** ⇒ `invalidInput`、什么都不写；**判不了**（编不出、超上限、校验超时）⇒ 答复照 ④ 受理，**同一次提交**里解除等待、首胜写这次执行 `failed{schema_unsupported}`（说明写「答复形状校验超时」或「编不出」）、账与出站项，`answerWait` 答 `{ resumed: waitIndex }`，执行者从等待原语拿到 `ended{outcome}`、**拿不到那个没判过的答复值**，随后跑停止例程（契约 S-30 表下，[D-040 §八 M75](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)；受理、解除与收场并进一次提交是本节点的读法）；`value` 经严格无损读写（M36）；答复者形状是契约 G-10 |
 | [S-31](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-31-插队处置) 插队 | 会话锁下读每条的 `allowBackground`、`phase`、`wait.card`，按 PF-014 §5.4 的表一次写完 | 尚未建包 | 「等的是不是卡片」读 `wait.card` 有没有；卡片契约不在（G-5），判据只到「挂没挂卡」 |
 | [S-32](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-32-对账) 对账 | 读这个会话未收场、活体表里没有的记录，按 S-20 第 2～4 步处置 | 尚未建包 | 扫描之后这一类本应为空，只作兜底 |
 | [S-33](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-33-读一次执行)～[S-35](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-35-列出活体) 读面 | 一次只读事务（R-T5）；`readExecution` 另附装配状态的 `snapshot`；`listLive` 只读活体表 | 尚未建包 | 读不到 ⇒ `dependencyUnavailable{storage}`，不返回空表、不返回 `executionNotFound` |
 | [S-36](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-36-存一份原始结果) 存原始结果 | 会话锁下核对「结果还没落进日志」（那一段的出站项不存在或未交付）⇒ 写 `tool_execution_raw`，交回 `AttachmentRef` | 尚未建包 | 声明卸载的原始结果在交回检查通过后由本能力先调它存下（S13-b）；存不下 ⇒ 与收场写不下同一处置（上交）。引用怎样解引用、留多久是契约 G-7（缺口 T-10） |
-| [S-37](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-37-执行者登记与撤下) 执行者登记与撤下 | `registerExecutor(key, executor) → unregister`（候选）：`key` 是定义名，或「MCP 来源」那一格；同键重复登记即抛出（登记方启动失败，看得见）。贡献者把 `unregister` 包进**它自己的** `ctx.effect` | 尚未建包；执行者接口是本节点定的候选形状（缺口 T-14） | 撤下只影响此后的起执行者：活体表项握着执行者引用，在途照跑；MCP 例外由桥交回 `bridgeWithdrawn` 兑现（桥节点）。本插件**不 inject 任何执行者**（basis [`inject-has-no-optional-form`](../../../../basis/cordis/inject-has-no-optional-form.md)：写进 inject 等于「没有它我不跑」） |
+| [S-37](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-37-执行者登记与撤下) 执行者登记与撤下 | `registerExecutor(key, executor) → unregister`（候选）：`key` 是定义名，或「MCP 来源」那一格；同键重复登记即抛出（登记方启动失败，看得见）。贡献者把 `unregister` 包进**它自己的** `ctx.effect`。**登记与撤下不经服务状态闸**（[D-040 §八 M71](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：它们只改进程内的执行者表，与恢复扫描无关——`recovering` 期间照常受理，不抛 `runtimeNotReady`、也不静默不登；贡献者因此不需要重试。`stopped` 之后照收、不再起作用（此后不起执行者），贡献者随新任重跑重登 | 尚未建包；执行者接口是本节点定的候选形状（缺口 T-14） | 撤下只影响此后的起执行者：活体表项握着执行者引用，在途照跑；MCP 例外由桥交回 `bridgeWithdrawn` 兑现（桥节点）。本插件**不 inject 任何执行者**（basis [`inject-has-no-optional-form`](../../../../basis/cordis/inject-has-no-optional-form.md)：写进 inject 等于「没有它我不跑」） |
 | [S-38](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-38-起执行者) 起执行者 | 调度在会话锁下判第 1 步（同批前面的前台已落定、同工具在跑与在等的少于上限）并写 `running`；第 3 步按 `definition_name` 或 `origin.kind = mcp` 找执行者；第 4 步开装配状态 | 尚未建包 | **第 2 步兑现不了**：落点求值归 PF-005、没有契约（G-4，缺口 T-6）。找不到执行者或 `start` 抛出 ⇒ `failed{start_failed}`，不是被中断（K-3） |
 | [S-39](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-39-发帧)、[S-62](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-62-工具侧到达装配前提的承诺) 发帧与到达装配宿主 | 每条活体一份装配状态（`core/stream-assembly` 纯计算），信封由本能力给；帧入口按执行者交出的次序逐个 `accept`；被拒的紧跟一个 `rejected` 的 `trim`；收场时 `finish` 或 `abandon` | 尚未建包 | 路由键是（会话, 目标）（M16）；本版帧入口**不合并、不截短、不限额**（部署政策未给，不自造）；**推给观察者没有操作面**（第 9 条，契约 G-17；原节点缺口 T-3 已并入）——在它有之前只有 `readExecution` 的快照 |
 | [S-40](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-40-报账) 报账 | 会话锁下把校验通过的几笔追加进 `reported_cost` ＋ 条目；被拒的只进条目 | 尚未建包 | 停机不丢：恢复追补的账带着它们；写不下 ⇒ `dependencyUnavailable{storage}`，不在内存里假装记下 |
@@ -149,16 +149,28 @@ D-032 允许的**函数级借鉴**只登两项，都是「避坑」，不搬代�
 契约 S-19 要求「消息的追加与执行记录的那次写不得只成一半，停机也不能把它们拆开」；执行记录归本能力，会话日志归 loop 与会话那一程（未起草，契约 G-1）。**两个写入者共同触碰的存储对象有两处**：
 
 1. **执行记录行与出站项行在本能力的同一次写事务里**（同一 owner、R-T1）：收场（或转后台）写下 ⇔ 那一段的出站项存在。这把「有占位」读成契约 S-19 的第二支——「已经与执行记录一起交付、等待追加」。
-2. **会话日志里以 `(会话, CallId, 段)` 为键的唯一约束**（[L-1](#对会话日志提供者的要求)，会话日志提供者那一侧的一条）：本能力的每一路排空（同一任的重试、旧任与新任、停机前后）都经它追加，**第二次追加撞同一个键，答「已在」、不产生第二条**。
+2. **会话日志里 L-1 的幂等键**（[L-1](#对会话日志提供者的要求)，会话日志提供者那一侧的一条）：消息按 `(会话, CallId, 段)`、记录条目按 `(会话, CallId, 段, seq)`（`seq` 是出站项自己的序号，M70）；「已在」按日志的**耐久状态**判。本能力的每一路排空（同一任的重试、旧任与新任、停机前后）都经它追加，**第二次追加撞同一个键，答「已在」、不产生第二条**。
 
 **反证两条交错**：
 
-- **排空追加成功、置 `appended` 之前停机**：出站项仍是 `pending`；下一任恢复后排空器再追加一次，撞 L-1 的键 ⇒「已在」⇒ 置 `appended`。日志里恰一条。若会话日志**没有**这条唯一约束，这条交错就是两条 `ToolMessage`——所以 L-1 不是优化，是正确性前提。
-- **同一段先后两项（占位 `seq = 1`、后台收场提醒 `seq = 2`），第一项追加失败**：排空器按会话、按 `seq` 走，**遇到第一个失败就停在这个会话**，不跳过去追加 `seq = 2`——否则提醒会排在占位之前（`data.messages/v1#S-32` ②④）。旧任与新任同时排空：两边都从最小的 `pending` 起，`seq = 1` 先被其中一路写下，另一路撞键「已在」，之后才轮到 `seq = 2`——次序不变。
+- **排空追加成功、置 `appended` 之前停机**：出站项仍是 `pending`；下一任恢复后排空器再追加一次，撞 L-1 的键 ⇒「已在」⇒ 置 `appended`。日志里恰一条。若会话日志**没有**这份幂等（或只在内存里记得「已在」、日志提供者也跟着重启），这条交错就是两条 `ToolMessage`——所以 L-1 不是优化，是正确性前提。
+- **同一 `CallId` 先后多项，某一项追加失败**（例：提交条目、起执行者条目、`call` 段的占位、`background` 段的收场条目与后台收场提醒，`seq` 依次递增）：排空器按会话、按 `seq` 走，**遇到第一个失败就停在这个会话**，不跳过去追加后面的——否则提醒会排在占位之前（`data.messages/v1#S-32` ②④）。旧任与新任同时排空：两边都从最小的 `pending` 起，每一项先被其中一路写下、另一路撞它自己的键「已在」，之后才轮到下一项——**同一段内条目与消息、跨段的占位与提醒都保持 `seq` 次序**。条目若也按段去重，同一段的第二条条目会被当成「已在」丢掉，收场那一条就缺了（M70 改键的理由）。
 
 **反证不了、要真并发演练的**：两个本能力实例（旧任在撤除、新任在扫描）同时排空同一会话——见 [verification 的本节点义务](verification.md#证据义务) N-1。
 
-**这不是进程内锁、不是时间谓词、不是没落盘的单调事实**：两处都是存储里的行与约束。它比「同一次提交」弱的地方：日志追加晚于收场提交，中间有一段「已交付、未追加」；契约把这段算作「有占位」，`awaitForeground` 等到 `appended` 才返回，所以 agent 读日志时不会读到半截。
+**这不是进程内锁、不是时间谓词、不是没落盘的单调事实**：第 1 处是存储里的行，第 2 处是会话日志落盘的内容本身（会话日志按 [D-026](../../../../record/decisions/infrastructure-persistence-choices/decision.md) 落文件系统 JSONL，没有数据库意义的唯一约束——所以 L-1 写的是「按耐久状态判」，不是「一条唯一约束」）。它比「同一次提交」弱的地方：日志追加晚于收场提交，中间有一段「已交付、未追加」；契约把这段算作「有占位」，`awaitForeground` 等到 `appended` 才返回，所以 agent 读日志时不会读到半截。
+
+### 跨 owner 的现读：落账时的 `late`
+
+`data.call-accounts/v1#S-39` 要「**落下时**」它归属的尝试已被取代或运行已终结 ⇒ `late: true`，缺席的意思是确定的「不晚」。「尝试被取代」「运行终结」由 loop 与会话那一侧写，收场与账由本能力写；本节点按 M74 在写事务**之前**经 `runAttemptFacts` 现读（存储协议 P-13：`write(fn)` 内不调别的服务）。**本批找不到两个写入者共同触碰的存储对象**——读面的承接者还不存在（`apps/cli` 的 C-16），验收装配里是只答测试种子的替身。
+
+**反证两条交错**：
+
+- **先取代、后读**：loop 提交「尝试 2 取代尝试 1」→ 本能力读得「已取代」→ 收场与账带 `late` 提交。成立。
+- **先读、后取代**：本能力读得「仍是当前」→ loop 提交取代 → 本能力提交收场与账、`late` 缺席。**账落下时尝试已被取代，却写成了「不晚」**——违反 S-39 缺席的确定意思。**反证不了**。
+
+两件事实单调（取代了不复原、终结了不复活），所以错只会是**漏标**、不会误标。不拿替身顶：读完之后比时间不算数（`now` 不参与冲突检测），进程内锁挡不住另一个 owner 的提交。
+**闭合要有共同对象**，形状归读面的承接者与主线（契约 G-18 的家未定）：例如「尝试开始」「运行终结」经本能力已有的入口落成本能力表里的一行（会话哨兵下写），落账事务在同一把哨兵下读它；或读面的承接者与执行记录同一存储，落账事务里对它的行做锁定读。两者都改公开面，本节点不替它选。在那之前这是一个已登记的窗口（T-4、verification N-17）。
 
 ### 事件与过滤器
 
@@ -182,6 +194,7 @@ D-032 允许的**函数级借鉴**只登两项，都是「避坑」，不搬代�
 | `capability.stream-assembly` v1（[`packages/core/stream-assembly`](../../core/stream-assembly/README.md)） | 纯模块 import | —— | 节点同批 |
 | 会话日志提供者 | 排空器现取它的幂等追加（L-1～L-5） | 出站项留 `pending`，按 `deliveryRetryInterval` 重试 | **无契约、无节点**（G-1，T-7） |
 | 会话那一程 | 会话持有的租户 | `submit` 整批 `dependencyUnavailable{storage}` | **无**（G-12，T-8） |
+| 会话日志与 loop 那一程 | 尝试与运行的事实 `runAttemptFacts`：落账时算 `late`（M74） | 按失败映射「`runAttemptFacts` 读不到」一行 | **无**（G-18，T-4）；验收装配以只答测试种子的替身顶上（`apps/cli` 的 C-16） |
 | 落点求值（PF-005） | 起执行者第 2 步 | S-38 第 2 步受阻 | **无**（G-4，T-6） |
 | 执行者（本地工具、技能脚本、样例工具） | 向本服务登记；本节点不 inject 它们 | `failed{start_failed}` | 除桥之外本批无节点 |
 | 装配 [`apps/cli`](../../../apps/cli/README.md) | 在根 Context 装本插件（不在 agent runtime 之下）、合成迁移、给 config、选存储属主 | —— | 节点修订中（本批） |
@@ -195,8 +208,9 @@ D-032 允许的**函数级借鉴**只登两项，都是「避坑」，不搬代�
 | `capability.tool-admission` v1 [S-25](../../../../spec/capabilities/tool-admission/v1/contract.md#s-25-verifytoken) `verifyToken` | **可选**：`submit` 时 `resolveOptional` 现取（basis `inject-has-no-optional-form`），不登记依赖、换代不重跑 | 每次 `submit` 现取 | 缺席或答 `unavailable` ⇒ 整批 `admissionUnavailable` |
 | `capability.asset-registry` v1 [S-25](../../../../spec/capabilities/asset-registry/v1/contract.md#s-25-lookup查一条) `lookup`、[S-11](../../../../spec/capabilities/asset-registry/v1/contract.md#s-11-一次执行尝试的可用性报告) 报告 | `lookup` **可选**，同上；**报告不是依赖**——它是 `submit` 的输入，由调用方交来（M33） | 同上 | 缺席或答 `unavailable` ⇒ 整批 `dependencyUnavailable{registry}`；报告缺席或与本次不符 ⇒ 整批 `invalidInput` |
 | 会话日志追加（无契约，G-1） | **可选**：排空器每次现取 | 每次排空现取 | 缺席 ⇒ 出站项留 `pending`、定时重试 |
-| 会话持有租户读面（无契约，G-12） | **可选**：`submit` 现取 | —— | 缺席 ⇒ `dependencyUnavailable{storage}` |
-| 落点求值（无契约，G-4） | **可选** | —— | S-38 第 2 步受阻（T-6） |
+| 会话持有租户读面（无契约，G-12；候选服务键 `sessionTenancy`，与 `apps/cli` 同名） | **可选**：`submit` 现取 | —— | 缺席 ⇒ `dependencyUnavailable{storage}` |
+| 尝试与运行的事实（无契约，G-18；候选服务键 `runAttemptFacts`，M74） | **可选**：每条收场路径在写事务之前现取，不登记依赖、换代不重跑 | 每次落账现取 | 缺席、不可用、答不出 ⇒ 失败映射「`runAttemptFacts` 读不到」一行；**不答「未取代、未终结」** |
+| 落点求值（无契约，G-4；候选服务键 `executionEnvironments`，M48） | **可选** | —— | S-38 第 2 步受阻（T-6） |
 | 执行者 | **登记**，不 inject；键是定义名或「MCP 来源」 | 登记即可用；撤下只影响此后 | 找不到 ⇒ `failed{start_failed}` |
 | config（候选名） | `executionStopGrace`（正时长）、`deliveryRetryInterval`（正时长）；**缺一或非正 ⇒ 启动失败** | 启动时 | 同一配置错误政策 |
 
@@ -205,14 +219,14 @@ D-032 允许的**函数级借鉴**只登两项，都是「避坑」，不搬代�
 | # | 要求 | 对应条款 | 协议兑现点 |
 |---|---|---|---|
 | R-T1 | 单次提交原子：执行行、出站项、会话标记、取消标记、原始结果行多表同成同败 | S-19、S-20 ③、S-23 ④、S-25～S-29 ④、S-36 | `core/storage` P-1 |
-| R-T2 | 唯一约束：`tool_execution (session, call_id)`；出站项 `(session, seq)` 与 `(session, call_id, segment, kind)`；会话标记 `session`；取消标记 `(session, run)`；原始结果 `attachment_id`。约束名在迁移片段里起 | S-5、S-23 ⑦、S-19（一段一项）、S-28、S-29 | P-11 |
+| R-T2 | 唯一约束：`tool_execution (session, call_id)`；出站项 `(session, seq)` 与 `(session, call_id, segment, kind, dedupe_slot)`（消息与关卡请求一段一项、记录条目按 `seq` 区分，M70）；会话标记 `session`；取消标记 `(session, run)`；原始结果 `attachment_id`。约束名在迁移片段里起 | S-5、S-23 ⑦、S-19（消息一段一项）、S-22（条目一段多条）、S-28、S-29 | P-11 |
 | R-T3 | **同会话写序列化**：每个写事务开头取 `lockSentinel('tool-execution-runtime/session/<会话>')`（候选名），锁下现读已提交的最新值再写；首胜、判重、归档／取消与提交的互斥、批内次序、并发上限都在锁下判。**本节点不加进程内锁** | S-16、S-23 ②③⑥、S-25～S-31、S-43；契约 S-46 第 3 行 | P-5、P-3 |
 | R-T4 | 语句级唯一冲突不废事务：并发的同一 `CallId` 插入撞主键之后，同一事务重读按幂等返回 | S-23 ⑦ | P-2 |
 | R-T5 | 只读事务快照一致 | S-33、S-34 | P-6 |
 | R-T6 | 持久：提交成立后跨进程重启仍在。**边界**：sqlite `synchronous = NORMAL` 下 OS 崩溃或断电可能丢最后一段已提交事务（[D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/decision.md)）——那时 S-17「停机时凡是可能已在外面做了事的执行，存储里都有记录」对**断电**不成立（机器掉电本地子进程随之没了，远端效果可能已发生） | S-17、S-20、S-40 ④ | P-7 |
 | R-T7 | 不可用可识别：不返回空结果、不返回旧快照；缺陷不折成不可用 | S-15、S-33 ⑧、S-34 ⑧ | P-8 |
 | R-T8 | 单库单属主：同一份库同一时刻只被一个据点进程写，且那个进程里只装一份本能力——「找得到／找不到」只在同一进程的活体表里成立 | S-7；契约 S-46 第 2 行 | `infra/storage-sql` 的属主排他（[属主实例](../../infra/storage-sql/design.md#属主实例排他迁移前只读核对升级快照与确认)）；**装一份本能力归装配** |
-| R-T9 | **JSON 列按文本存、严格无损读写**：`call`（含参数）、出站项 `payload`、`reported_cost`、`wait` 的形状与答复值、`account` 以文本落盘，写走 `core/content-blocks` 的 `writeJsonLossless`、读走 `readJsonStrict`；**不交给存储驱动或方言的 JSON 类型去解析**（那一跳会把超出 ±2^53 的整数与金额折成 double）。回读遇重复键即缺陷 | `data.content-blocks/v1#S-12`、`#S-24`、`data.messages/v1#S-37`（[D-040 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)：每一跳严格、数无损） | 存储协议只见文本列；无损由本节点在列的两端兑现（`core/content-blocks` 节点的交接 CB-2） |
+| R-T9 | **JSON 列按文本存、严格无损读写**：`call`（含参数）、出站项 `payload`、`reported_cost`、`wait` 的形状与答复值、`account` 以文本落盘，写走 `core/content-blocks` 的 `writeJsonLossless`、读走 `readJsonStrict`；**不交给存储驱动或方言的 JSON 类型去解析**（那一跳会把超出 ±2^53 的整数与金额折成 double）。回读遇重复键即缺陷 | `data.content-blocks/v1#S-12`、`#S-24`、`data.messages/v1#S-37`（[D-040 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)：每一跳严格、数无损） | 存储协议只见文本列；无损由本节点在列的两端兑现（`core/content-blocks` 节点的交接 CB-2）。「JSON 列以 `text` 存取、驱动与查询层不得自动解析或序列化」是**全库口径**（[D-040 §八 M53](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），由 `infra/storage-sql` 承接、登在它的[实施缺口](../../infra/storage-sql/design.md#实施缺口与消费者影响)；本行只是那条口径在本节点各列上的落点 |
 
 ### 对会话日志提供者的要求
 
@@ -220,7 +234,7 @@ D-032 允许的**函数级借鉴**只登两项，都是「避坑」，不搬代�
 
 | # | 要求 | 为什么 |
 |---|---|---|
-| L-1 | 追加面按 `(会话, CallId, 段)` 幂等：同键再追加答「已在」、不产生第二条；「已在」与「不可用」可区分 | [跨 owner 的同一提交](#跨-owner-的同一提交执行记录与会话日志)第 2 处共同对象；`data.messages/v1#S-32` 配对唯一 |
+| L-1 | 追加面幂等：**消息**按 `(会话, CallId, 段)`、**记录条目**按 `(会话, CallId, 段, seq)`（`seq` 是本能力出站项自己的序号，M70）；同键再追加答「已在」、不产生第二条；**「已在」按耐久状态判**——日志提供者自己重启之后仍认得（会话日志是 JSONL，没有数据库唯一约束；只记在内存里的去重集合不算）；对同一会话，判「已在」与追加是一步（否则两路并发排空各判一次「不在」）；「已在」与「不可用」可区分 | [跨 owner 的同一提交](#跨-owner-的同一提交执行记录与会话日志)第 2 处共同对象；`data.messages/v1#S-32` 配对唯一；契约 S-22 每次关键转换各一条 |
 | L-2 | 一次追加可带同一段的多条（`ToolInternalMessage` 在前、结果消息在后、同段的记录条目），整体成败 | S-19 第 4 行的次序 |
 | L-3 | 追加成功即持久、此后读得到 | `awaitForeground` 返回时消息已在日志里（S-24 ⑤） |
 | L-4 | 会话归档之后，仍接收本能力在归档提交之前或之时交付的出站项；**或**会话一侧在封存日志之前等本能力排空——二选一，归会话那一程 | S-29：归档提交里交付的占位要落得下 |
@@ -234,13 +248,14 @@ D-032 允许的**函数级借鉴**只登两项，都是「避坑」，不搬代�
 | agent loop | 在这一次尝试里留着那份报告，`submit` 与 runner `dispatch` 带同一份（契约 S-46 新行，M33） | —— |
 | runner 与 agent loop | 定下 `after_action` 由谁驱动、结论怎样交回本能力 | 契约 G-6（M43 下一程） |
 | 交付面与会话那一程 | 帧推送面：按（租户, 会话）显式订阅 | 契约 G-17（M43 下一程） |
+| 会话日志与 loop 那一程（`runAttemptFacts` 的真承接者） | 答两件事：`(会话, 运行, 尝试)` 那次尝试是否已被取代、那个运行是否已终结；答不出就失败，**不答「未取代、未终结」**；并与本能力的落账有一个共同存储对象（[上文](#跨-owner-的现读落账时的-late)），否则漏标窗口不闭合。那个节点立起来时写一条对应要求、两边互指 | T-4（契约 G-18） |
 | `core/tool-definition` | 登记参数判定的全部上限——`pattern` 长度、静态筛查清单（它的 TD-2）与**判一次调用的判定时限**（`data.tool-definition` G-16 第三样，N-24）；本节点只执行它们、不另定值 | T-16 |
 
 ## 状态、并发与失败映射
 
 **写权**全在本插件的方法与核心里；**提交点**：每个写操作一次事务。**执行的抽象状态**（姿态、阶段、两个收场）全在执行记录行上，活体表只是「此刻找得到」的进程内答案，不是状态的第二份权威——换代或停机后以行为准。
 
-**服务状态**（核心持有，单调）：`recovering`（插件体跑完即进入；一切方法 `runtimeNotReady`）→ `serving`（恢复扫描全部提交）→ `stopped`（撤除开始、或上交之后；一切方法 `runtimeStopped`，挂着的 `awaitForeground` 一并以它返回）。**没有从 `stopped` 回来的路**：上交之后不等存储恢复补写（M13），下一任由装配重装。
+**服务状态**（核心持有，单调）：`recovering`（插件体跑完即进入；一切方法 `runtimeNotReady`）→ `serving`（恢复扫描全部提交）→ `stopped`（撤除开始、或上交之后；一切方法 `runtimeStopped`，挂着的 `awaitForeground` 一并以它返回）。**执行者登记与撤下不在「一切方法」里**：三个状态下都照常改执行者表（M71，S-37 行）。**没有从 `stopped` 回来的路**：上交之后不等存储恢复补写（M13），下一任由装配重装。
 
 **失败映射**（没有 catch-all）：
 
@@ -252,11 +267,14 @@ D-032 允许的**函数级借鉴**只登两项，都是「避坑」，不搬代�
 | `verifyToken` 答 `invalid{reason}` ／ `unavailable` ／ `invalidInput`；提供者缺席 | `notAdmitted{why = reason}` ／ `admissionUnavailable` ／ `invalidInput`；缺席同 `admissionUnavailable` |
 | 会话资产注册表答「没有」／读不到或缺席 | 那一项 `unavailable{no_such_entry}` ／ 整批 `dependencyUnavailable{registry}` |
 | 会话持有租户读不到或读面缺席 | `dependencyUnavailable{storage}` |
+| `runAttemptFacts` 缺席、答不可用或答不出（例：替身对没播种的运行） | 落账要的事实读不到，**不给过渡值**（M74、N-20）；与同一位置上存储读不到同一处置：有调用方的操作（`submit` 即刻收场的项、中断、取消运行、归档、插队、答复、对账）⇒ `dependencyUnavailable{storage}`、什么都不写；交回与计时器到点 ⇒ 上交（交回得 `escalated`）；恢复扫描 ⇒ 留 `recovering` 重试；有序撤下第 2 步 ⇒ 不重试、留给下一任。`storage` 这一格是本节点照会话持有租户读面的借法——契约只写「读写存储不成」，没有为这份读面开值（报主线） |
 | `submit` 的 `report` 缺席，或它带的会话／运行／尝试不是本次的 | 整批 `invalidInput`，什么都不写（排在一切之前） |
 | 交来的报告对某个 MCP 动作的接入点写「没有」生效的持有 | 整批 `dependencyUnavailable{registry}`（契约 S-23 ② 第 6 条：按读不到处理） |
 | JSON 列回读遇重复键或不合 RFC 8259 | 缺陷：原样上抛、error 日志（那是本节点自己写下的文本，不会合法地出现） |
 | 会话日志追加答「已在」／不可用或缺席 | 置 `appended` ／ 出站项留 `pending`，这个会话的排空停在这一项，按 `deliveryRetryInterval` 重试 |
 | `clock.now()` 答不可用 | 计时器醒来不判到点；需要时刻的收场写不下 ⇒ 上交 |
+| 参数判不了（编不出、`pattern` 超上限、判定超时） | 那一项 `failed{schema_unsupported}`，块上带说明、不附用法（S-23 ⑥′ 步） |
+| 答复值的形状校验判不了（同上三种） | 这次执行 `failed{schema_unsupported}`、`answerWait` 答 `{ resumed }`，**不以 `invalidInput` 回给答复者**（M75，S-30 行） |
 | 执行者没登记、`start` 抛出 | `failed{start_failed}` |
 | 执行者交回形状不合、违反声明、缺席 | `failed{result_rejected}` |
 | 桥交回 `bridgeWithdrawn` ／ 其余失败值 | `failed{abnormal_interruption}` ／ `failed{implementation_error}`（契约 S-11 的对照） |
@@ -272,7 +290,7 @@ D-032 允许的**函数级借鉴**只登两项，都是「避坑」，不搬代�
 | 核心 effect：服务状态、活体表、执行者表、调度、排空器、等待者、全部计时器 | 本 fiber；插件体里登记，登记即开始恢复扫描 | 扫描遇 `StorageUnavailable` ⇒ 留在 `recovering`、定时重试；遇缺陷 ⇒ `stopped` ＋ 上交 | **有序撤下序列**（下文），全在这一个 effect 的 disposer 里；disposer 内部捕获一切错误并记日志（basis `effect-disposal-concurrent-not-ordered`：卸载时异常只记日志、不上抛）。**保留**：全部执行记录、出站项、标记、原始结果——没有只活在实例里的事实 |
 | 判定工作线程（参数判定与 S-30 答复值校验；T-16） | 核心 effect 持有，插件体里起一只；进 `serving` 之前起好 | 起不来 ⇒ 核心留在 `recovering`、定时重试（判不了参数就不收 `submit`）；**一次判定超时** ⇒ 终止这只、换一只新的，那一项 `failed{schema_unsupported}`；**换不起来** ⇒ 按缺陷走 `stopped` ＋ 上交（同扫描遇缺陷那一路）——不把「线程没了」冒充成那一项判不了，也不退成不判照跑（本节点的选择） | 有序撤下第 1 步之后终止。**内核不取消在途调用**，本节点的机制是：线程终止使挂着的那次判定以「线程已终止」结束，`submit` 判完参数、进写事务之前再看一次服务状态，已是 `stopped` ⇒ 整批 `runtimeStopped`、什么也不写。线程里没有持久状态 |
 | 每次执行的活体：执行者句柄、停止例程、装配状态、前台计时器、等待解除者 | 核心的活体表；`running` 那次事务提交之后才调执行者 | 执行者 `start` 抛出 ⇒ `failed{start_failed}`、表项删除；回收句柄写不下 ⇒ 记日志、照跑（窗口见 S-17 行） | 收场事务提交 → 停止例程（发停止 → 宽限 → 强制 → 回收）→ 删表项。外部效果不回滚、不补偿 |
-| 执行者登记（贡献） | 贡献者的 fiber；`unregister` 包进**贡献者自己的** `ctx.effect`——登记的寿命等于贡献者的寿命 | 贡献者 `FAILED` ⇒ 没有登记 ⇒ 此后起不来的 `failed{start_failed}` | 撤下：在途的照跑（活体握着引用）；本插件撤除时 `unregister` 成为空操作；贡献者 inject 本服务，本服务换代 ⇒ 贡献者重跑、重新登记 |
+| 执行者登记（贡献） | 贡献者的 fiber；`unregister` 包进**贡献者自己的** `ctx.effect`——登记的寿命等于贡献者的寿命；**不过服务状态闸**：本插件还在 `recovering`（扫描可能很长）时贡献者的插件体就会跑到登记，照常收下（M71） | 同键重复登记 ⇒ 抛出、贡献者 `FAILED` ⇒ 没有登记 ⇒ 此后起不来的 `failed{start_failed}`；这是唯一的抛出 | 撤下：在途的照跑（活体握着引用）；本插件撤除时 `unregister` 成为空操作；贡献者 inject 本服务，本服务换代 ⇒ 贡献者重跑、重新登记——**「本服务的提供者 fiber 因它自己的依赖重跑 ⇒ 下游 inject 它的贡献者也重跑」没有 probe**，列进 T-13 |
 | 迁移片段 | 装配合成、存储提供者在 `provide('storage')` 之前跑 | 迁移失败 ⇒ 存储提供者启动失败，本插件 `PENDING` | 不随本插件撤除 |
 
 **有序撤下序列**（契约 [S-48](../../../../spec/capabilities/tool-execution-runtime/v1/contract.md#s-48-本能力自己的撤除与换代)；一个 effect 内按次序 `await`，因为跨 effect 的次序不存在）：
@@ -282,7 +300,7 @@ D-032 允许的**函数级借鉴**只登两项，都是「避坑」，不搬代�
 3. **然后才发停止**：对每条执行跑停止例程（宽限 → 强制 → 回收）；全部结束或宽限加强制的时限到了才返回。次序照 S-18，不照恢复扫描的「先回收、再写」。
 4. 执行者表清空；记一条 info 级日志说收了几条。
 
-**提供者换代时收掉什么**（F 第二问，对齐契约 S-48、S-37、S-20）：本插件只 inject `storage`、`clock`。任一换提供者 ⇒ 上面的序列跑完、插件体重跑 ⇒ 新任 `recovering` → 扫描把旧任没写下的收掉 → `serving`；**全部在途执行都落 `failed{abnormal_interruption}`，没有一条被重起**；已交付的出站项由新任排空；执行者的贡献者（inject 了本服务）随之重跑、重新登记。契约把「本版不换代」写成装配前提（S-46 倒数第三行）。
+**提供者换代时收掉什么**（F 第二问，对齐契约 S-48、S-37、S-20）：本插件只 inject `storage`、`clock`。任一换提供者 ⇒ 上面的序列跑完、插件体重跑 ⇒ 新任 `recovering` → 扫描把旧任没写下的收掉 → `serving`；**全部在途执行都落 `failed{abnormal_interruption}`，没有一条被重起**；已交付的出站项由新任排空；执行者的贡献者（inject 了本服务）随之重跑、重新登记——**这一半依赖一条没有 probe 的内核行为**：basis `plugin-body-reruns-on-provider-change` 证的是「换了提供者插件」或「提供者离开 `ACTIVE`」，没有证「同一个提供者 fiber 因它自己的依赖换代而重跑插件体 ⇒ inject 它的下游也重跑」；不成立时新任的执行者表是空的、贡献者不重登，此后 MCP 条目一律 `failed{start_failed}`（T-13）。契约把「本版不换代」写成装配前提（S-46 倒数第三行），后果因此有界。
 **假设 A-1（待补 probe）**：Cordis 在必需服务换提供者时，**等旧插件体的 effect 撤除（含 async disposer）完成之后**才重跑新插件体。basis 条目 `plugin-body-reruns-on-provider-change` 只证了「先卸载再重跑」，没有证「等 async disposer 结算完」。若不成立，新任的恢复扫描可能抢在旧任第 2 步之前写下同一收场——**收场不变（首胜）**，但 `frames` 成了 `"unknown"`、那条 `ToolInternalMessage` 丢了（S-13、S-48 那一半失守）。
 
 ## 装配给与协议给：本节点单机怎样兑现左列
@@ -303,7 +321,7 @@ D-032 允许的**函数级借鉴**只登两项，都是「避坑」，不搬代�
 | `submit` 用的可用性报告就是这一次尝试的那一份、与放行判断同一份（M33、M46） | 表示层核报告带的会话、运行、尝试三者；只用交来的那份查注册表与取接入点持有，不现算、不向注册表要「最近一次」 | 本节点 ＋ **agent loop（无节点）**：留着那份报告、两处带同一份 |
 | 送达通知只在本进程内、只带标识与收场（M42） | 进程内 `emit`、不带 `thisArg`，载荷只有 S-45 列的几项；不接跨进程转发 | 本节点 ＋ 进程内监听者（按载荷自筛） |
 
-**归装配的事项**（点名给 `apps/cli`）：装一份、装在根上；存储属主排他（带升级守卫的 `storage-sql`）；运行期不换存储与时钟；**撤除次序**——先撤本插件（与桥），再撤存储与时钟，否则第 2 步的写全部落空、只能等下一任扫描；合成迁移片段；给 `executionStopGrace`、`deliveryRetryInterval` 的值；上交条目的落处（T-12）；验收装配的放行件（PB-1）。
+**归装配的事项**（点名给 `apps/cli`）：装一份、装在根上；存储属主排他（带升级守卫的 `storage-sql`）；运行期不换存储与时钟；**撤除次序**——装配须**显式**先撤本插件与桥，再撤存储与时钟；**依赖驱动的卸载不满足此次序**：只撤存储、让本插件因依赖离开 `ACTIVE` 而卸载时，本插件的 disposer 与存储自己的关闭并发（basis `effect-disposal-concurrent-not-ordered`），第 2 步的写全部落空、只能等下一任扫描（正确性不丢，`frames` 成 `"unknown"`、`ToolInternalMessage` 丢）。`apps/cli` 已按 [D-040 §八 M48](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) A-1 承接（P-2 → 本插件 → 桥本体 → 派发器依次 `await`，存储与时钟随根最后走；M71）；合成迁移片段；给 `executionStopGrace`、`deliveryRetryInterval` 的值；上交条目的落处（T-12）；验收装配的放行件（PB-1）与 `runAttemptFacts` 的替身（只答测试种子，`apps/cli` 登为 C-16，M74）。
 
 ## 实施缺口与消费者影响
 
@@ -314,7 +332,7 @@ D-032 允许的**函数级借鉴**只登两项，都是「避坑」，不搬代�
 | T-1 | **已闭合（修复波 3，M33、M46）**：`submit` 现带 `report`，接收时核会话、运行、尝试三者（S-23 ①⑥⑧） | —— | —— | —— |
 | T-2 | **已并入契约 G-6**（M43，本程不补）：`after_action` 的驱动方与交回面。本节点的后果：一律按「那一关不可用」落（S-42 行） | —— | 见契约 G-6 | —— |
 | T-3 | **已并入契约 G-17**（M43）：观察者订阅面。本节点的后果：帧的增量不推给任何观察者 | —— | 见契约 G-17 | —— |
-| T-4 | **已并入契约 G-18**（M43）：`late` 读面。本节点的后果：账的这一格兑现不了、不写过渡值（N-20） | —— | 见契约 G-18 | —— |
+| T-4 | **契约 G-18 的本程出路（M74）**：落账前经据点读面 `runAttemptFacts` 现读两件事实算 `late`，不给过渡值、不改 `data.call-accounts`；G-18 仍开着（读面的家未定）。**本节点的残留**：① 读面没有契约、没有提供者，产品装配里读不到——按失败映射收场，依赖它的收场条款（S-16、S-19、S-25～S-29、S-41）都是「有前提：该读面」；② 读在事务外，与落账提交之间有漏标窗口，本批没有共同存储对象（[上文](#跨-owner-的现读落账时的-late)） | S-13 的 `late`；经它传到每一条收场路径 | 主线（G-18 的家）；真承接者会话日志与 loop 那一程（`apps/cli` C-1／C-8、C-16）；验收替身由 `apps/cli` 登 | ① 那一程的契约写出读面、提供者立节点并写一条对应要求与本节点互指；② 共同存储对象落定、N-17 真并发演练通过 |
 | T-5 | **已并入契约 G-19**（M43）：模型调用成本的来路。本节点的后果：`usage`、`service_reported`、`model_response` 几项兑现不了、不写过渡值 | —— | 见契约 G-19 | —— |
 | T-6 | 落点求值（契约 G-4） | S-38 第 2 步 | PF-005 owner | 契约与提供者出现 |
 | T-7 | 会话日志追加面（契约 G-1）；本节点给出了要求 L-1～L-5 | 全部送达；`awaitForeground` | loop 与会话那一程 | 提供者节点写出对应要求并互指 |
@@ -323,9 +341,9 @@ D-032 允许的**函数级借鉴**只登两项，都是「避坑」，不搬代�
 | T-10 | 原始结果的解引用与保留（契约 G-7）：本节点把字节存进自己的表，谁能读、留多久未定 | S-36 的消费者 | PF-006 owner 与存储那一程 | 附件存储有家；本节点改指它 |
 | T-11 | **卸载判定这一件（S-63）本批不建实现**：判据没有产品输入，驱动方未定（契约 G-6）；按 S-63 由指定挂件顶上 | 大结果的摘要 | 主线 | G-6 闭合且判据有输入；届时写明它是本包的第二个贡献者插件还是另立节点 |
 | T-12 | 上交条目的落处（契约 R-37） | PF-011 §6.3 | 装配与观测那一程 | 装配写明 |
-| T-13 | **两条待补 probe／实验**：A-1（换代时等旧任 async disposer 结算完再重跑）；X-5（据点被强杀后子进程树是否仍在、按登记的进程组能否回收整棵）。本节点**不依赖**草图的 H-1～H-4（执行不是子 fiber） | S-48 的 `frames`；S-17 窗口、S-20 第 2 步、进展性质 `StopsTakeEffect` | A-1：`core/kernel-basis`；X-5：实现者（提案 [X-5](../../../../record/proposals/tool-execution-runtime-baseline/alternatives.md#仍待区分的实验)） | probe 写进 kernel-basis、basis 升格或登待核对主张 |
+| T-13 | **三条待补 probe／实验**：A-1（换代时等旧任 async disposer 结算完再重跑）；**同一提供者 fiber 因自身依赖重跑 ⇒ inject 它的下游消费者也重跑**（本服务换代后执行者贡献者重登记的前提，M71；与 A-1 同列 kernel-basis 待补）；X-5（据点被强杀后子进程树是否仍在、按登记的进程组能否回收整棵）。本节点**不依赖**草图的 H-1～H-4（执行不是子 fiber） | S-48 的 `frames`；换代后的执行者表（S-37）；S-17 窗口、S-20 第 2 步、进展性质 `StopsTakeEffect` | A-1 与下游重跑：`core/kernel-basis`；X-5：实现者（提案 [X-5](../../../../record/proposals/tool-execution-runtime-baseline/alternatives.md#仍待区分的实验)） | probe 写进 kernel-basis、basis 升格或登待核对主张 |
 | T-14 | **执行者接口没有契约**（契约说「不拆成独立契约」）：登记键、`start` 的入参、四个原语、回收句柄的形状由本节点定候选 | 桥的执行者贡献、样例工具、技能脚本的执行者 | 本节点（实施时）＋ 契约 owner 确认 | 形状写进本包公开入口并由消费者节点引用 |
 | T-15 | 帧入口不节流：部署政策未给阈值，本版不合并、不截短、不限额 | —— | 主线（若要节流） | 给出政策 |
-| T-16 | **已闭合（[D-040 §八 N-22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) T-16、N-24），只剩值与一处残留**：契约 S-11 九种失败、S-23 ④ 第 ② 条两支；`data.tool-definition` G-15 关、G-16 加判定时限）：判不了——编不出、`pattern` 超上限、判定超时——一律 `failed{schema_unsupported}`，作者写的工具与 MCP 动作同此。**本节点的兑现**：参数判定放进核心持有的一只**判定工作线程**（可终止），按登记的判定时限等它；到点即终止那只线程、换一只新的，那一项落 `schema_unsupported`（块上写明是「判定超时」、不附用法），同批别的项照常判——**事件循环不被卡住**，这正是必须用工作线程而不是进程内计时器的理由。**仍缺的只剩值**：判定时限与 `pattern` 上限的值由 `core/tool-definition` 登记（G-16 未填）。**残留一处**：S-30 答复值按那次等待声明的形状校验，走同一只线程、同一时限；**答复值校验超时怎样答，契约没写**（`answerWait` 的失败集合里没有这一支）——本节点不替它选 | S-23 ④、S-30、S-61 | 值：`core/tool-definition`（G-16）；S-30 那一支：主线 | 上限与时限的值登记；S-30 写明校验超时的答复 |
+| T-16 | **已闭合（[D-040 §八 N-22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) T-16、N-24、M75），只剩值**：契约 S-11 九种失败、S-23 ④ 第 ② 条两支、S-30 表下答复形状校验判不了；`data.tool-definition` G-15 关、G-16 加判定时限：判不了——编不出、`pattern` 超上限、判定超时——一律 `failed{schema_unsupported}`，作者写的工具与 MCP 动作同此；等待的答复值判不了同样收这次执行、不以 `invalidInput` 回给答复者（M75 覆盖 N-25 的后半）。**本节点的兑现**：参数判定放进核心持有的一只**判定工作线程**（可终止），按登记的判定时限等它；到点即终止那只线程、换一只新的，那一项落 `schema_unsupported`（块上写明是「判定超时」、不附用法），同批别的项照常判——**事件循环不被卡住**，这正是必须用工作线程而不是进程内计时器的理由。S-30 答复值的校验走同一只线程、同一时限（S-30 行）。**仍缺的只剩值**：判定时限与 `pattern` 上限的值由 `core/tool-definition` 登记（G-16 未填） | S-23 ④、S-30、S-61 | `core/tool-definition`（G-16） | 上限与时限的值登记 |
 
-**报给主线**（不在本节点改）：T-16 残留的一处——S-30 答复值校验超时怎样答，契约没写；R-T6 的断电边界与 S-17 的字面。T-16 的主干已由 N-22、N-24 落进契约（判定超时 ⇒ `failed{schema_unsupported}`）。T-1 已随 M33、M46 闭合，T-2～T-5 已并入契约 G-6、G-17～G-19，送达通知的跨进程一行已进 S-46（M42）。
+**报给主线**（不在本节点改）：`late` 的漏标窗口——`data.call-accounts/v1#S-39`「落下时」与 M74 的事务外现读之间没有共同存储对象（[上文](#跨-owner-的现读落账时的-late)，T-4）；`runAttemptFacts` 读不到时借 `dependencyUnavailable{storage}`，契约没有这一格；R-T6 的断电边界与 S-17 的字面。T-16 已由 N-22、N-24、M75 落进契约（参数与答复形状判不了 ⇒ `failed{schema_unsupported}`）。T-1 已随 M33、M46 闭合，T-2～T-5 已并入契约 G-6、G-17～G-19，送达通知的跨进程一行已进 S-46（M42）。

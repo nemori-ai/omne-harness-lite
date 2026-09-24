@@ -32,11 +32,11 @@
 | N-2 | **两个写入者撞条件追加**：同一会话 `fill` 与 `reload(plugin)` 并发（两个实例、同一份清单），以及同一实例两次 `reload(skill)` 并发（队列关掉）。断言清单里一条接一条、没有半截、多表那一次整批成立、后到者按清单重做而不是覆盖 | **真并发**演练 | 未开始；受阻于装配清单提供者 | 本节点 ＋ 装配清单提供者（互指 R-M1） |
 | N-3 | 条件追加连续两次冲突 ⇒ `unavailable`，缓存与清单都不留这一次 | 故障注入 | 未开始 | 本节点 |
 | N-4 | `fill` 回执丢了的重试：同一个 `EvaluationRef` 再 `fill` ⇒ 原样返回、清单不多一条（R-M2）；此后有过 `markFailed`（只改 `slash_command` 一张、`basedOn` 沿用）再拿旧的 `EvaluationRef` `fill` ⇒ `invalidInput{evaluationSuperseded}`——判据取「六份任一 `filledBy ≠ assembly` 或 `basedOn` 已变」的最严一读（N-21） | 演练 | 未开始 | 本节点 |
-| N-9 | **被顶替快照的留存**（[关键选择四](design.md#关键选择)）：一次尝试里接连两次 reload（内存只留上一份）⇒ 那一次尝试的读仍按它的报告所依的那一份，按装配清单记录现建；装配清单删了那条历史记录 ⇒ `unavailable`（R-M9 的反例） | 演练（清单替身） | 未开始 | 本节点 ＋ 装配清单提供者（互指 R-M9） |
 | N-5 | 同一毫秒里连续两次换表，`filledAt` 严格递增（A-4） | 单元测试，可控时间替身 | 未开始 | 本节点 |
 | N-6 | 撤除之后到达的调用答 `unavailable`；在途调用跑完、按它那一次追加收场 | 演练 | 未开始 | 本节点 |
-| N-7 | 静态检查：本包不 `emit`、不监听事件；不 inject `storage`；求值只经 `core/asset-evaluation` 的公开入口 import，本包内没有第二份求值 | 结构检查（`tools/ts-checks` 的规则，候选），带「故意违反就失败」的自测 | 未开始 | 本节点 ＋ ts-checks owner |
+| N-7 | 静态检查：本包不 `emit`、不监听事件；不 inject `storage`；求值只经 `core/asset-evaluation` 的公开入口 import，本包内没有第二份求值；**本包不自组 `BodyContracts`**，asset-model 判定对象只用 `core/asset-evaluation` 导出的 `defaultBodyContracts` 构造（M51） | 结构检查（`tools/ts-checks` 的规则，候选），带「故意违反就失败」的自测 | 未开始 | 本节点 ＋ ts-checks owner |
 | N-8 | `provide` 由 effect 纳管（kernel-basis probe `provide-is-effect-managed`）升格为 basis 条目 | basis 升格 | 未开始（**待核对主张**） | `core/kernel-basis` owner |
+| N-9 | **被顶替快照的留存**（[关键选择四](design.md#关键选择)）：一次尝试里接连两次 reload（内存只留上一份）⇒ 那一次尝试的读仍按它的报告所依的那一份，按装配清单记录现建；装配清单删了那条历史记录 ⇒ `unavailable`（R-M9 的反例） | 演练（清单替身） | 未开始 | 本节点 ＋ 装配清单提供者（互指 R-M9） |
 
 ## 实际执行
 
@@ -50,3 +50,14 @@
 - **契约 G-6 在本批的后果**：凡声明了外部服务、设施、存储或模态项的工具与技能一律是替换件——S-40 只能用替身演练，真实装配里可用的工具只有「没有这些项」的那几件。
 - **不绑形式结论**：契约没有形式工件；[bindings](bindings.yaml) 为空。
 - **契约 S-31 右列（协议须给）**本节点一条都不兑现；跨进程逐行重开（契约 G-11）。
+
+## 独立评审
+
+2026-09-25 本节点随 N3 批（`tools` 三节点）经一次独立的架构评审（只读结构核对，无运行）：本节点建议 1、观察 1，无阻断、无应修；另有 N1 批（`core` 纯模块）的一条建议落到本节点。主线据此裁定 [D-040 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M51 并处置 AR-1（批的结论见同节 N-28）。**处置不等于评审闭合**——是否闭合由复审判断。
+
+| 编号 | 发现 | 处置 | 落点 |
+| --- | --- | --- | --- |
+| AR-1（建议） | `slash_command` 的 `lookup`／`list` 每次现跑一次完整求值，交付面命令识别的频率乘以这份代价；节点已按契约 S-25 ⑦ 不加无测量的缓存并登 A-8 | 不改设计；A-8 加「G5 放行后第一轮测量排入」 | design.md 缺口 A-8 |
+| AR-2（观察） | `refreshAvailability` 逐接入点串行调桥，尝试开始的时长上界是接入点数 × `connectTimeout` | 不作发现；design 已写「接入点多了再议」 | —— |
+| N1 建议 3（落到本节点） | `BodyContracts` 有三处组合根（资产治理插件体、本注册表插件体、`core/asset-evaluation` 加载时），S-27「同一值在每个接收边界得同一个拒绝值」要三处组合逐一相同，而没有检查 | 按 M51：只 import `core/asset-evaluation` 导出的 `defaultBodyContracts`，不自组 | design.md 实现路径表「正文端口的组合根」行；README；本页 N-7 |
+| 转 spec-reviewer（表达） | 本页义务表 N-9 排在 N-4 与 N-5 之间 | 顺手移到 N-8 之后，内容不变 | 本页证据义务表 |

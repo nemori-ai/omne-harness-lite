@@ -15,7 +15,8 @@
 - 语义接受范围：**未接受（候选，待 D-041）**。契约仍是 `candidate`；[D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md) 是待产品负责人签字的草案，契约里的主线裁定长期落点 [D-040](../../../../record/decisions/mainline-self-rulings-2026-09/README.md) 尚未逐条追认。本节点的设计同样未被接受
 - 可实施范围：本节点声称兑现的条款逐条对在 [design.md 的投影表](design.md#契约责任到插件服务与操作)：S-5～S-30 的全部操作、义务与装配给一列。**尚未建包、没有一行源码**。
   **受阻**：凭据保管方没有节点（契约 G-7；本节点给出要求清单 C-1～C-6）——在它出现之前，凡交来凭据引用的接入点一律 `dependencyUnavailable`，OAuth 整条路走不通；「引用还配没配着」要读据点上的配值副本，**没有 provider 节点**（缺口 B-3，归装配）；SDK 的进程组、环境合并、按请求取消、进度路由与 OAuth 钩子**全部待取证**（契约 G-6，缺口 B-1）。
-  2026-09-25 随契约修复波 3 对齐（[D-040 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：远端参数 schema 形状合法、只是编不出来的动作不再排除，以同形替换件出现、原因 `schema_unsupported`（M37）；执行运行时的 `submit` 带报告，交给本节点的接入点持有有了来路（M33，原缺口 B-6 闭合）；副本与线上消息按严格无损 JSON 读写（M36，线上那两跳待取证）。保管方与配值副本读面按 M43 本程不补——在 [verification](verification.md#覆盖缺口) 登记
+  2026-09-25 随契约修复波 3 对齐（[D-040 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：远端参数 schema 形状合法、只是编不出来的动作不再排除，以同形替换件出现、原因 `schema_unsupported`（M37）；执行运行时的 `submit` 带报告，交给本节点的接入点持有有了来路（M33，原缺口 B-6 闭合）；副本与线上消息按严格无损 JSON 读写（M36，线上那两跳待取证）。保管方与配值副本读面按 M43 本程不补——在 [verification](verification.md#覆盖缺口) 登记。
+  同日独立评审（N3）之后：保管方清扫只清三种、待生效行不清（M72，C-3 与第三条反证）；交给执行运行时的执行者包装不依赖贡献插件存活（M73）；保管方服务键定为 `credentialCustodian`（M69）；撤除次序由装配显式驱动（M71）；SDK 钉版在实施开工前出决定（B-1）。处置逐条见 [verification 的独立评审](verification.md#独立评审)
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) **为空**。契约本版不建形式工件（[S-31](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-31-本版选用哪些形式工件)），没有可绑的 formal task；七条规范场景与本节点自己的交错演练**一条都没有**
 - 实际验证：**尚无**。没有源码、没有测试、没有集成运行
 

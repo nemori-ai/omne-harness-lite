@@ -10,6 +10,7 @@
 |---|---|---|
 | 求值 `evaluate(EvaluationInput) → EffectiveAssembly`（纯计算；失败集合 `invalidInput`、`compositionCycle{cycle}`、`categoryUnsupported{category}`，M32、M45） | [`core/asset-evaluation`](../../core/asset-evaluation/README.md)（D-039 assets 候选 B：进 `core` 作纯模块） | `reload` 一次、`refreshAvailability` 两次、读时的「谁可以用」现读——**本节点只调用、不重算**（契约 S-16）；两个判定类失败原样转交 |
 | 资产形状、能力标识、版本线 | [`core/asset-model`](../../core/asset-model/README.md) | 条目的 `capability`／`asset`／`content`、类别取值 |
+| 正文端口的组合根 `defaultBodyContracts`（候选名） | [`core/asset-evaluation`](../../core/asset-evaluation/README.md) 导出的那一份（[D-040 §八 M51](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） | 本插件要 asset-model 判定对象之处（按 (资产, 版本) 取回正文建快照、重建）用它构造，插件体里构造一次、不可变；**不自己组 `BodyContracts`**——同一值在每个接收边界得同一个拒绝值由这一个来源保证 |
 | 工具定义形状、`ModelToolName`、由定义得出的依赖声明 | [`core/tool-definition`](../../core/tool-definition/README.md) | `tool` 表的查找键、名字冲突、依赖解析 |
 | 技能包、斜杠命令、拓展件、MCP 接入点的形状与依赖声明 | [`core/skill-package`](../../core/skill-package/README.md)、[`core/slash-command`](../../core/slash-command/README.md)、[`core/loop-extension`](../../core/loop-extension/README.md)、[`core/mcp-endpoint`](../../core/mcp-endpoint/README.md)（[D-040 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)：一契约一包） | 依赖解析与门控 |
 | 运行与尝试标识 `RunId`、`AttemptId` | [`core/call-accounts`](../../core/call-accounts/README.md) | 报告带的运行与尝试（M46） |
@@ -212,6 +213,6 @@
 | A-5 | **已闭合（修复波 3，M34）**：同一 `EvaluationRef` 再 `fill` 而六张已不是它填出的 ⇒ `invalidInput{evaluationSuperseded}` | —— | —— | —— |
 | A-6 | **已闭合（修复波 3，M35）**：`within = run{report}` 只在报告所依的快照里找；带来的留存义务由[关键选择四](#关键选择)与 R-M9 承接 | —— | —— | —— |
 | A-7 | **已闭合（修复波 3，M33）**：执行运行时的 `submit` 带报告 | —— | —— | —— |
-| A-8 | **两处没有测量的取舍**：读时门控每次现求值（代价随读频率与命令数增长）；内存只留每类上一份被顶替的快照（更早的现建，慢） | `lookup`／`list` 的延迟 | 实现者 | 有测量再决定：门控缓存按 `data.identity-values/v1#S-27` 写失效条件；留存代数按真实的尝试内 reload 频率定 |
+| A-8 | **两处没有测量的取舍**：读时门控每次现求值（代价随读频率与命令数增长）；内存只留每类上一份被顶替的快照（更早的现建，慢） | `lookup`／`list` 的延迟 | 实现者 | 有测量再决定：门控缓存按 `data.identity-values/v1#S-27` 写失效条件；留存代数按真实的尝试内 reload 频率定。**G5 放行后的第一轮测量把这两项排进去**（独立评审 AR-1）：`slash_command` 的 `lookup`／`list` 每次现跑一次完整求值，交付面的命令识别频率乘以它 |
 
 **报给主线**（不在本节点改）：A-2（据点读面没有节点——与 `apps/cli` 登记的同一缺口，M43 C-3）；M35 带来的留存义务本节点读作「装配清单那条记录就是留存」，要求清单在会话存续期不删历史换表记录（R-M9），对清单提供者（下一程）是一条新要求。A-5、A-6、A-7 已随修复波 3 闭合；草图「注册表 inject 资产求值」一格已被 D-039 assets 候选 B 取代，本节点按纯 import 写。
