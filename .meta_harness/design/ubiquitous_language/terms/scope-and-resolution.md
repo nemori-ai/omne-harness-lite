@@ -282,6 +282,81 @@ specific.
 - **出处**：[PF-001 §4 设置、权限、资产](../../product/PF-001-identity-scope-and-agent-constraints/design.md#设置权限资产)（rev 17） · [PF-002 §5.2](../../product/PF-002-assets-settings-and-permissions/design.md#组织的设置是视图不是对象)（rev 17）
 - **注意**：**没有「组织的设置」这个对象。**把它当对象实现，就会出现一份**独立于资产的字段表**，两者各自演化，最终对不上
 
+### UL-permission-bound · 权限界 · Permission Bound
+
+> **中**：**一层在一项[权限](capabilities-and-composition.md#ul-permission--权限--permission)上锁下的允许集合**——带[不可覆盖标记](#ul-immutable-marker--不可覆盖标记--immutable-marker)的那一条[配值](#ul-attribute-assignment--属性配值--attribute-assignment)，锁成一个值是它的特例；
+> **执行权限配成「禁止」的，锁不锁都算界**。各层的界**取交集**：更具体的一层只能在外层的界里再收，突破不了；
+> 界锁成空集，每一次调用都被拒。
+>
+> **EN**: **The set of allowed values a layer locks down on one permission** — an assignment carrying the
+> immutable marker, locking to a single value being the special case; **an execution permission set to
+> "deny" counts as a bound whether locked or not**. The bounds of all layers **intersect**: a more specific
+> layer can only narrow within the outer bound, never break out of it; a bound locked to the empty set
+> rejects every call.
+
+- **形态**：属性
+- **出处**：[PF-002 §5.3 两个例子，两种合成](../../product/PF-002-assets-settings-and-permissions/design.md#53-两个例子两种合成) ·
+  [§5.5 替换是一条路径](../../product/PF-002-assets-settings-and-permissions/design.md#替换是一条路径不是一扇后门)（rev 17） ·
+  [PF-001 §6.2 三种合成语义](../../product/PF-001-identity-scope-and-agent-constraints/design.md#62-三种合成语义)（rev 17）
+- **别混**：**不锁的配值不是界**——那是[权限挑选](#ul-permission-pick--权限挑选--permission-pick)；组织说「默认问一下」而不锁，是在说「没人另挑就用它」，不是「只许问一下」
+- **注意**：**界跟着[能力标识](#ul-capability-identifier--能力标识--capability-identifier)走**——同标识替换之后，外层为这个标识锁下的界照样管着替换它的那一份；替换件的声明里少了被锁的那一项，那一项按最严算
+- **注意 ②**：**裸写「界」不作数**——单字，到处都是
+
+### UL-permission-pick · 权限挑选 · Permission Pick
+
+> **中**：**一层在一项[权限](capabilities-and-composition.md#ul-permission--权限--permission)上配下、但没有锁的那个值**：它不划范围，只在[界](#ul-permission-bound--权限界--permission-bound)里挑一个。
+> 求值时**从最具体的一层往外，取第一个落在界内的挑选**；作者声明的默认值是最外面那一个挑选；挑到界外的不生效。
+> **谁都没挑到界内的，取界内离最具体的那个挑选最近的一档，一样近取严的。**
+>
+> **EN**: **A value a layer sets on a permission without locking it**: it draws no boundary, it only
+> picks within the bound. Evaluation takes, **from the most specific layer outward, the first pick that
+> falls inside the bound**; the author's declared default is the outermost pick; a pick outside the bound
+> has no effect. **If no pick falls inside, the result is the level within the bound closest to the most
+> specific pick, the stricter one on a tie.**
+
+- **形态**：属性
+- **出处**：[PF-002 §5.3 两个例子，两种合成](../../product/PF-002-assets-settings-and-permissions/design.md#53-两个例子两种合成)（rev 17） ·
+  [PF-001 §6.2 三种合成语义](../../product/PF-001-identity-scope-and-agent-constraints/design.md#62-三种合成语义)（rev 17）
+- **别混**：**「设成自动」看着像放宽，其实是在界内挑一个**——界不空，分档的权限（执行权限、干预力）求出来就恰好是一档
+- **注意**：**执行权限配成「禁止」的不是挑选，是界**——任何一层的「禁止」都不能被更具体的一层挑掉
+
+### UL-legal-target-set · 合法目标集合 · Legal Target Set
+
+> **中**：**此刻这个[会话](agent-runtime-loop.md#ul-session--会话--session)能切换到的那些[模型档案](capabilities-and-composition.md#ul-model-profile--模型档案--model-profile)**：
+> 在册 ∩ 这个范围允许 ∩ 兼容这个会话的[模态投影](record-and-context.md#ul-modality-projection--模态投影--modality-projection)。
+> [切换](capabilities-and-composition.md#ul-model-switch--模型切换--model-switch)到它里面的任何一条都不得拒绝；不在它里面的，选不到，也就谈不上被拒绝。
+> **它只会越收越紧**——模态投影只增不减。
+>
+> **EN**: **The model profiles this session can switch to right now**: listed ∩ allowed in this scope ∩
+> compatible with the session's modality projection. A switch to any member may not be refused; a profile
+> outside it cannot be chosen, so there is nothing to refuse. **It only ever narrows**, because the modality
+> projection only grows.
+
+- **形态**：视图
+- **出处**：[PF-013 §5.10 合法目标集合与展示列表，是两件事](../../product/PF-013-model-profiles-and-invocation/design.md#510-合法目标集合与展示列表是两件事) ·
+  [§5.11](../../product/PF-013-model-profiles-and-invocation/design.md#511-有-transcript-的块不再把任何模型挡在外面) ·
+  [§6.5](../../product/PF-013-model-profiles-and-invocation/design.md#65-切换是用户的直接命令合法目标不得拒绝)（rev 9）
+- **别混**：**不是[模型展示列表](#ul-model-display-list--模型展示列表--model-display-list)**——展示列表多出当前选中的那一条，哪怕它已不是合法目标
+- **注意 ①**：**出门之前核的是[有效模型](capabilities-and-composition.md#ul-effective-model--有效模型--effective-model)是不是它的成员**——不是选中模型
+- **注意 ②**：**模态兼容挡在算它的那一刻，不挡在出门那一刻**——收不下会话里已有模态的，从一开始就不在候选里
+
+### UL-model-display-list · 模型展示列表 · Model Display List
+
+> **中**：**用户挑模型时看见的那一份：[合法目标集合](#ul-legal-target-set--合法目标集合--legal-target-set) ∪ 当前的[选中模型](capabilities-and-composition.md#ul-selected-model--选中模型--selected-model)，一条不多、一条不少。**
+> 当前选中的那条即使已下架、这个范围不再允许、或读不了这个会话里的内容，**也留着，并标明是哪一种**；
+> 合法目标里所在范围没配凭据的，可选，但标明现在用不了、缺什么；其余不是合法目标的，不在列表里。官方与自建在同一份列表里。
+>
+> **EN**: **What the user sees when choosing a model: the legal target set ∪ the current selected model —
+> nothing more, nothing less.** The selected one stays even when withdrawn, no longer allowed in this scope,
+> or unable to read this session's content, **marked with which of these it is**; a legal target whose scope
+> has no credential is selectable but marked as unusable for now, saying what is missing; nothing else that
+> is not a legal target appears. Official and custom profiles share this one list.
+
+- **形态**：视图
+- **出处**：[PF-013 §5.10 合法目标集合与展示列表，是两件事](../../product/PF-013-model-profiles-and-invocation/design.md#510-合法目标集合与展示列表是两件事) ·
+  [§6.3](../../product/PF-013-model-profiles-and-invocation/design.md#63-官方与自建在同一份列表里)（rev 9）
+- **别混**：**选中的那条在列表里，不等于它是合法目标**——它选不了、也切不过去，留着只为让用户看见自己此刻停在哪一条上
+
 ## agent 感知到的处境
 
 ### UL-runtime-context · 运行时 context · Runtime Context
