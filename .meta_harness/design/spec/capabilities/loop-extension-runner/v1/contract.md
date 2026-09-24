@@ -63,10 +63,10 @@
 > 本契约照写并标明「待产品负责人确认」；长期落点由主线落进 `record/decisions/`（[G-13](#十三已知缺口)）。
 
 **正文用到、词表里没有的概念（无词条）**——本契约**不给它们下正式定义**，只说清它在本契约里指什么：
-**一次经过**（沿用数据半边的描述性说法，[S-5](#s-5-一次经过)）、**拓展件链**（一个位置上按次序排好的那几件，[S-6](#s-6-拓展件链从装配清单来)）、
+**拓展件链**（一个位置上按次序排好的那几件，[S-6](#s-6-拓展件链从装配清单来)）、
 **生效参数**（[PF-012](../../../../product/PF-012-agent-loop-and-run/design.md#改参数先落一条生效参数)）、**循环守卫**（[PF-012 §5.9](../../../../product/PF-012-agent-loop-and-run/design.md#59-循环守卫四级阶梯)）、
 **兼容件**（D-033 的描述性说法，归 [`capability.hooks-import` v1](../../hooks-import/v1/contract.md)）、
-**放行凭据**（`capability.tool-admission` v1 的 `AdmissionToken`，那份契约同样标为无词条）。
+**放行凭据**（`capability.tool-admission` v1 的 `AdmissionToken`，那份契约同样标为无词条）。**一次经过**已由词条批立为词条（正式名即此，链接待合流后补；本契约的用法见 [S-5](#s-5-一次经过)）。
 [派生表示](../../../../ubiquitous_language/terms/record-and-context.md#ul-derived-rendering--派生表示--derived-rendering)与 [transcript](../../../../ubiquitous_language/terms/record-and-context.md#ul-transcript--transcript--transcript) 有词条，照用。
 
 ---
@@ -166,7 +166,7 @@ agent loop、系统自带五件、兼容件、`apps/runtime-host` 依赖本契�
 
 ### S-5 一次经过
 
-**一次经过**（无词条）：**运行时在一个位置的一次到达上，把拓展件链逐件求值一遍。**
+**一次经过**：**运行时在一个位置的一次到达上，把拓展件链逐件求值一遍。**
 它由 **(会话, 位置, 维度, 锚)** 指认；会话由装配清单给出（[S-6](#s-6-拓展件链从装配清单来)），锚按位置定：
 
 | 位置（维度） | 锚：这一次经过为谁而来 | 锚从哪来 |

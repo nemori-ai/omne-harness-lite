@@ -12,8 +12,8 @@
   | 坐标 | 消费的条款 | 取它的什么 | 本契约怎么用 |
   |---|---|---|---|
   | `omne-harness-lite-design-2026-09-15 · data.asset-model · v1` | [S-10](../../asset-model/v1/contract.md#s-10-八类正文的外壳)、[S-12](../../asset-model/v1/contract.md#s-12-属性声明由正文推出)、[S-13](../../asset-model/v1/contract.md#s-13-设置项类别)、[S-15](../../asset-model/v1/contract.md#s-15-disabled-是保留项名)、[S-18](../../asset-model/v1/contract.md#s-18-资产持有)、[S-20](../../asset-model/v1/contract.md#s-20-出厂格与工作区格的持有)、[S-23](../../asset-model/v1/contract.md#s-23-凭据引用) | connector 那一支的正文外壳、推出规则的四条义务、设置项类别、保留项 `disabled`、一格一个能力标识一份持有、工作区格不配落点与身份类、凭据引用 | [S-1](#s-1-连接件正文) 填那一支的 `body`；[S-2](#s-2-鉴权绑定不在正文里)、[S-11](#s-11-推出规则)～[S-13](#s-13-两项权限) 按它写；**Schema 不 `$ref` 它**——凭据引用只出现在推出的声明里，那是一条规则，不是本 Schema 的定义项 |
-  | `omne-harness-lite-design-2026-09-15 · data.messages · v1` | [S-2](../../messages/v1/contract.md#s-2-消息底座)、[S-6](../../messages/v1/contract.md#s-6-每种消息能装哪几类块)、[S-8](../../messages/v1/contract.md#s-8-usermessage)、[S-24](../../messages/v1/contract.md#s-24-别的会话捎话与到点了) | 消息成员闭合、来路标记只在哪、经连接件送达的落成 `UserMessage`、会话的不透明指认 | `$ref` 它的 `$defs/SessionRef`：`DeliveryTarget.session`；[S-9](#s-9-信封落成一条用户消息) 按它写 |
-  | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1` | [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来路标记)、[S-21](../../content-blocks/v1/contract.md#s-21-attachmentref)、[S-23](../../content-blocks/v1/contract.md#s-23-块不携带租户身份)、[S-26](../../content-blocks/v1/contract.md#s-26-表示层拒绝值) | 来路标记的两个取值与它的出处、附件引用的形状与相等、引用不带来读的资格、附件引用违例时的拒绝值 | `$ref` 它的 `$defs/AttachmentRef`：`InboundEnvelope.attachments` |
+  | `omne-harness-lite-design-2026-09-15 · data.messages · v1` | [S-2](../../messages/v1/contract.md#s-2-消息底座)、[S-6](../../messages/v1/contract.md#s-6-每种消息能装哪几类块)、[S-8](../../messages/v1/contract.md#s-8-usermessage)、[S-24](../../messages/v1/contract.md#s-24-别的会话捎话与到点了) | 消息成员闭合、来源标记只在哪、经连接件送达的落成 `UserMessage`、会话的不透明指认 | `$ref` 它的 `$defs/SessionRef`：`DeliveryTarget.session`；[S-9](#s-9-信封落成一条用户消息) 按它写 |
+  | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1` | [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来源标记)、[S-21](../../content-blocks/v1/contract.md#s-21-attachmentref)、[S-23](../../content-blocks/v1/contract.md#s-23-块不携带租户身份)、[S-26](../../content-blocks/v1/contract.md#s-26-表示层拒绝值) | 来源标记的两个取值与它的出处、附件引用的形状与相等、引用不带来读的资格、附件引用违例时的拒绝值 | `$ref` 它的 `$defs/AttachmentRef`：`InboundEnvelope.attachments` |
   | `omne-harness-lite-design-2026-09-15 · data.offer-expiry · v1` | [S-22](../../offer-expiry/v1/contract.md#s-22-schema-的范围) | 时刻的规范形式 | `$ref` 它的 `$defs/Instant`：`receivedAt` |
   | `omne-harness-lite-design-2026-09-15 · data.identity-values · v1` | [S-16](../../identity-values/v1/contract.md#s-16-按归属层显式携带身份值)、[S-17](../../identity-values/v1/contract.md#s-17-身份参数没有默认值)、[S-31](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示)、[S-34](../../identity-values/v1/contract.md#s-34-语义身份与实现地址分开) | 身份按归属层显式携带、身份参数没有默认值、不透明标识的交换表示、地址不是身份 | 三个外部标识按 S-31 的散文写 pattern，**不 `$ref` 它的 `OpaqueIdentifier`**；[S-3](#s-3-来源标识)、[S-8](#s-8-信封不带归属) 按 S-16／S-17／S-34 写 |
 
@@ -110,7 +110,7 @@
 
 **下列是规格层的名字或无词条的概念**，本契约与 Schema 里**不给它们「中文 · English」那种词条式标题**：
 `ConnectorDefinition`（连接件正文）、`SourceIdentity`（来源标识）、`DeliveryTarget`（投递目标）、`InboundEnvelope`（**入站信封，无词条**）、
-`channel`、`externalAccount`、`externalId`、`receivedAt`。「来源标识」「投递目标」「鉴权绑定」是 PF-002 给连接件列的三项设置的名字，**不是词条**。
+`channel`、`externalAccount`、`externalId`、`receivedAt`。「来源标识」「鉴权绑定」是 PF-002 给连接件列的设置的名字，**不是词条**；「投递目标」已由词条批立为词条（正式名即此，链接待合流后补）。
 
 ### 与相近概念的差异
 
@@ -247,7 +247,7 @@
 **一份被受理、进了队列的信封，落成恰好一条 `UserMessage`**（`data.messages/v1#S-8`；[PF-014 §5.7](../../../../product/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空)）。
 **落成它的是受理那一方**；本条是那一方必须守的四条：
 
-1. **文本原样成为一块文本块，不带来路标记**：来路标记的两个取值都出自人敲的斜杠命令（`data.content-blocks/v1#S-8`），外部送来的文本不是。
+1. **文本原样成为一块文本块，不带来源标记**：来源标记的两个取值都出自人敲的斜杠命令（`data.content-blocks/v1#S-8`），外部送来的文本不是。
 2. **每一个附件引用原样出现在这条消息里**：引用不变、次序不变、不丢一个。**落成哪一类块**（文件块，还是按媒体类型落成图块、语音块的引用形状）归受理那一方——[G-6](#十已知缺口)。
 3. **`externalId`、`receivedAt`、`source` 不进消息**：消息的成员集合是闭合的（`data.messages/v1#S-2`）。它们是这条入站到达的[来源](../../../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival)，那条记录的形状未立（[G-5](#十已知缺口)）。
 4. **一份信封一条消息**：不拆成两条，也不与别的信封并成一条（规格层推导：[S-6](#s-6-externalid-是同一件事的说法) 的「同一件事」要能对到恰好一条）。
@@ -466,7 +466,7 @@ target_unknown  >  channel_empty  >  envelope_empty  >  malformed
 
 #### S-22 外面送来的斜杠开头的话
 
-正例：一份 `text` 为 `"/compact 把上午的讨论压一下"` 的信封被受理，落成一条 `UserMessage`，那一块文本逐字相同、**不带来路标记**。
+正例：一份 `text` 为 `"/compact 把上午的讨论压一下"` 的信封被受理，落成一条 `UserMessage`，那一块文本逐字相同、**不带来源标记**。
 反例：同一份信封触发了压缩流程、被展开成某条提示词、或落成的文本块带了 `origin`——**违反 [S-10](#s-10-信封里的文本不是命令)、[S-9](#s-9-信封落成一条用户消息)**。
 **必须观察会话日志**：只看受理返回成功，看不出它有没有顺手触发一条流程。
 

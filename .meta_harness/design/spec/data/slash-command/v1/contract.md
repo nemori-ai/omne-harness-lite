@@ -12,7 +12,7 @@
   | 坐标 | 消费的条款 | 取它的什么 | 本契约怎么用 |
   |---|---|---|---|
   | `omne-harness-lite-design-2026-09-15 · data.asset-model · v1` | [S-2](../../asset-model/v1/contract.md#s-2-能力标识名的词法)、[S-3](../../asset-model/v1/contract.md#s-3-能力标识与它的规范串)、[S-5](../../asset-model/v1/contract.md#s-5-资产来源)、[S-10](../../asset-model/v1/contract.md#s-10-八类正文的外壳)、[S-12](../../asset-model/v1/contract.md#s-12-属性声明由正文推出)、[S-15](../../asset-model/v1/contract.md#s-15-disabled-是保留项名) | 能力标识名的词法（「正文契约可再收窄、不得放宽」）、能力标识的形状、资产来源、`slash_command` 类正文的外壳、属性项推出规则的义务、`disabled` 保留项 | `$ref` 它的 `$defs/CapabilityId`（skill 型的绑定目标）；**`CommandName` 按主线裁定自写 pattern、暂不 `$ref` 它的 `CapabilityName`**（[G-1](#十已知缺口)）；本契约的 `SlashCommandDefinition` 就是那个外壳里 `body` 的形状 |
-  | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1` | [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来路标记) | 文本块与它的两种来路标记 `slash_command_args`、`skill_body` | skill 型展开成的那两块就是这两种来路的文本块（[S-22](#s-22-技能型的引用与两块展开物)）；不 `$ref` 它的 Schema |
+  | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1` | [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来源标记) | 文本块与它的两种来源标记 `slash_command_args`、`skill_body` | skill 型展开成的那两块就是这两种来路的文本块（[S-22](#s-22-技能型的引用与两块展开物)）；不 `$ref` 它的 Schema |
   | `omne-harness-lite-design-2026-09-15 · data.identity-values · v1` | [S-8](../../identity-values/v1/contract.md#s-8-tenantrole)、[S-31](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示) | 租户角色的两个取值；显式空白码点集合与不透明标识的交换表示 | 「谁可以用」的取值域（[S-11](#s-11-属性项的推出规则)）；命令名、参数文字、系统业务流程名的「空白」一律是那个集合；`ServiceName` 按它的散文自定义，**不 `$ref` 它的 `OpaqueIdentifier`** |
   | `data.skill-package` v1（同批并行起草） | **未登**（[G-2](#十已知缺口)） | 技能「正文」是哪一段 | skill 型展开时「正文逐字」的那段文字 |
 
@@ -117,7 +117,7 @@
 | 「经交付面的输入」「人读／机读」 | [交付面 · Delivery Surface](../../../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-delivery-surface--交付面--delivery-surface) · [呈现形式 · Presentation Form](../../../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-presentation-form--呈现形式--presentation-form) |
 
 **下列是规格层的名字，不是统一语言词条**，因此本契约与 Schema 里**不给它们「中文 · English」那种词条式标题**：
-`ServiceName`（系统业务流程名——「系统业务流程」只在斜杠命令词条的定义里出现，**自己无词条**）、`ParameterDeclaration`（参数声明，**无词条**）、
+`ServiceName`（系统业务流程名——「系统业务流程」只在斜杠命令词条的定义里出现，**自己无词条**）、`ParameterDeclaration`（命令参数声明）、
 `CommandInvocation`（一次命令尝试，**无词条**）、`ParseResult`（解析结果，**无词条**）、保留区（**无词条**）、
 字面发送（**无词条**）、占位符（**无词条**）、留痕块（**无词条**）。它们在本契约里各有精确定义，**不是产品概念**。
 
@@ -497,13 +497,13 @@ recognize(T) ≝
 
 - `text` 可以是空串以外的任何文字，也可以恰是空串（例如模板只有 `$ARGUMENTS`、人又什么都没附带）。
 - 这段文字在受理时成为那条用户消息的内容（[PF-014 §5.10](../../../../product/PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走)）；落成一个文本块，块怎样标注归受理与 `data.content-blocks`。
-  `data.content-blocks` v1 的来路标记里**没有**「这是 ① 型展开的正文」这一值，这块因此不带来路标记——它的出处由留痕块陈述（[S-25](#s-25-留痕)）。
+  `data.content-blocks` v1 的来源标记里**没有**「这是 ① 型展开的正文」这一值，这块因此不带来源标记——它的出处由留痕块陈述（[S-25](#s-25-留痕)）。
 
 ### S-22 技能型的引用与两块展开物
 
-**`skill` 型解析通过时，结果是 `{ kind: "skill", skill }`：只是一个引用。**展开发生在受理时，由受理面做，展开物恰是 `data.content-blocks` v1 [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来路标记) 的两种来路块：
+**`skill` 型解析通过时，结果是 `{ kind: "skill", skill }`：只是一个引用。**展开发生在受理时，由受理面做，展开物恰是 `data.content-blocks` v1 [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来源标记) 的两种来路块：
 
-| 次序 | 块 | 文字 | 来路标记 |
+| 次序 | 块 | 文字 | 来源标记 |
 |---|---|---|---|
 | 1 | 文本块 | 那个技能此刻生效的那份实现的**正文，逐字**（「正文」是哪一段归技能包的契约，[G-2](#十已知缺口)） | `{ kind: "skill_body", command: <命令名>, skill: <技能名> }` |
 | 2 | 文本块，**仅当 `argumentText` 非空** | `argumentText`，原样 | `{ kind: "slash_command_args", command: <命令名> }` |

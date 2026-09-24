@@ -46,7 +46,7 @@
 - **条款编号**：`S-n`，**只在本契约本版本内有效**；外部引用写全坐标，如 `capability.asset-registry/v1#S-15`。缺口编号 `G-n`，见[十](#十已知缺口)
 - **用到但没有词条的概念**，本文标「（无词条）」、**不在这里下定义**，只给它们在本契约里的记录形状：
   **注册表**（产品散文与 [UL-session-slash-command-set](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set) 的定义里当名词用）、
-  **注册表快照**、**可用性报告**、**动作清单持久副本**（`data.mcp-endpoint` 的 `ActionSnapshot`）、**资产的「谁可以用」**（一项[权限](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-permission--权限--permission)，项名归各类正文契约）。
+  **注册表快照**、**可用性报告**、**动作清单持久副本**（`data.mcp-endpoint` 的 `ActionSnapshot`）。**会话资产注册表**与**谁可以使用它**已由词条批立为词条（正式名即此，链接待合流后补）；后者是一项[权限](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-permission--权限--permission)，项名是 `data.asset-model` 保留的 `usableBy`。
   类型名 `RegistrySnapshot`／`RegistryEntry`／`AvailabilityReport`／`EvaluationRef` 取自施工账本
 
 ---
@@ -60,7 +60,7 @@
 
 | # | 拥有的事实与判定 | 正文 |
 |---|---|---|
-| 1 | 每个会话、每个登记类别一份**注册表快照**（无词条）：它由谁填、何时换、换成什么 | [S-5](#s-5-八类里登记六张表)～[S-7](#s-7-注册表条目)、[S-15](#s-15-快照只在这几个时刻换) |
+| 1 | 每个会话、每个登记类别一份**注册表快照**（会话资产注册表此刻的那张表）：它由谁填、何时换、换成什么 | [S-5](#s-5-八类里登记六张表)～[S-7](#s-7-注册表条目)、[S-15](#s-15-快照只在这几个时刻换) |
 | 2 | **reload 一族**有哪几条、各刷哪张表、plugin 那张怎么连带（产品把这件事[明文交给规格](../../../../product/PF-002-assets-settings-and-permissions/design.md#非目标)） | [S-23](#s-23-reload按类别重填) |
 | 3 | [会话斜杠命令集](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set)的兑现：装配时只装有权用的、收回此刻起不存在、③ 型失败后自动去掉 | [S-14](#s-14-会话斜杠命令集是-slash_command-那张表的视图)、[S-20](#s-20-谁可以用门控哪两类按哪个租户身份什么时候判)、[S-27](#s-27-markfailed命令型服务报错之后去掉那一条)、[S-28](#s-28-onassetchange权限收回之后收窄) |
 | 4 | [当下可用性](../../../../ubiquitous_language/terms/reach-and-availability.md#ul-current-availability--当下可用性--current-availability)——依赖解析的「只有且，只有必需」、替换件的判定、按命令的可用性——以及**一次执行尝试内它不变** | [S-8](#s-8-当下可用性的三个取值)～[S-12](#s-12-mcp-动作条目在一次尝试内钉住)、[S-24](#s-24-refreshavailability每次执行尝试开始时现算) |
@@ -189,7 +189,7 @@
 
 ### S-6 注册表快照
 
-**`RegistrySnapshot`（注册表快照，无词条）是一个会话、一个类别此刻的那张表**：`{ category, entries, filledAt, filledBy, basedOn }`。
+**`RegistrySnapshot`（注册表快照）是一个会话、一个类别此刻的那张表**——会话资产注册表此刻的样子：`{ category, entries, filledAt, filledBy, basedOn }`。
 
 | 成员 | 含义 |
 |---|---|
@@ -371,7 +371,7 @@
 
 ### S-20 「谁可以用」门控：哪两类、按哪个租户身份、什么时候判
 
-**资产的「谁可以用」（无词条）这项权限，本契约只在两类上把它当成「进不进表」的门**：
+**资产的「谁可以使用它」这项权限，本契约只在两类上把它当成「进不进表」的门**：
 
 | 类别 | 依据 |
 |---|---|

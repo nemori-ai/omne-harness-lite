@@ -113,7 +113,7 @@
 
 **下列是规格层的名字，不是统一语言词条**，本契约不给它们「中文 · English」那种词条式标题：
 `ArrivalEnvelope`、`ArrivalTarget`、`ArrivalEvent` 及六种事件的名字、`BlockKind`、`FillMode`、`BlockHead`、`PresentationHint`（呈现提示，**无词条**）、`FinishReason`、
-块索引（`index`，**无词条**）、一次发出（`dispatch`，**无词条**，同 `data.call-accounts/v1` 第二节的说法）。
+块索引（`index`，**无词条**）、一次发出（`dispatch`，同 `data.call-accounts/v1` 第二节的说法）。
 
 ### S-4 到达事件不是记录条目
 

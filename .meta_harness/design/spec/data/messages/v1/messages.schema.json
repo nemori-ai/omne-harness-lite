@@ -91,7 +91,7 @@
 
     "SystemMessage": {
       "title": "SystemMessage（contract.md S-7）",
-      "description": "系统在开头说的设定：你是谁、你有什么能用（UL-system-prompt）。成分在实例存续期内恒定。块里不许有思考、工具调用、工具结果，也不许有带来路标记的文本（S-6）。它的块不许被压缩名单点名（S-29）。",
+      "description": "系统在开头说的设定：你是谁、你有什么能用（UL-system-prompt）。成分在实例存续期内恒定。块里不许有思考、工具调用、工具结果，也不许有带来源标记的文本（S-6）。它的块不许被压缩名单点名（S-29）。",
       "type": "object",
       "allOf": [{ "$ref": "#/$defs/MessageBase" }],
       "properties": {
@@ -110,7 +110,7 @@
 
     "UserMessage": {
       "title": "UserMessage（contract.md S-8）",
-      "description": "人说的话；斜杠命令展开之后的那一条、经连接件送达的外部消息也落成这一种。块里不许有思考、工具调用、工具结果（S-6）；文本块可以带来路标记 origin（data.content-blocks v1 S-8），且只有这一种消息的顶层文本块可以带。",
+      "description": "人说的话；斜杠命令展开之后的那一条、经连接件送达的外部消息也落成这一种。块里不许有思考、工具调用、工具结果（S-6）；文本块可以带来源标记 origin（data.content-blocks v1 S-8），且只有这一种消息的顶层文本块可以带。",
       "type": "object",
       "allOf": [{ "$ref": "#/$defs/MessageBase" }],
       "properties": {
@@ -133,7 +133,7 @@
 
     "AssistantMessage": {
       "title": "AssistantMessage（contract.md S-9、S-10）",
-      "description": "模型的回复：一次模型调用成为消息的那一份，只有这一份权威内容。response 指认产出它的那份响应（ResponseId，家在 data.model-response，G-3）；ending 说它怎么收的尾，缺席不当作 complete。块里不许有工具结果、不许有带来路标记的文本（S-6）。ending 为 complete 时不许有没长完的工具调用；ending 不是 complete 时至少一块——什么都还没出来的那种不成为消息。",
+      "description": "模型的回复：一次模型调用成为消息的那一份，只有这一份权威内容。response 指认产出它的那份响应（ResponseId，家在 data.model-response，G-3）；ending 说它怎么收的尾，缺席不当作 complete。块里不许有工具结果、不许有带来源标记的文本（S-6）。ending 为 complete 时不许有没长完的工具调用；ending 不是 complete 时至少一块——什么都还没出来的那种不成为消息。",
       "type": "object",
       "allOf": [
         { "$ref": "#/$defs/MessageBase" },
@@ -198,7 +198,7 @@
 
     "ToolInternalMessage": {
       "title": "ToolInternalMessage（contract.md S-13、S-14）",
-      "description": "工具说过程：一次工具执行至多一条，块是它发的帧封口之后的那些块，至少一块。顶层每一块 visibility.toModel 都必须为 false，否则表示层拒绝 tool_internal_block_visible_to_model（S-39）。块里不许有思考、工具调用、工具结果、带来路标记的文本（S-6）。只有收尾之后的那一条进日志；收尾之前拼到一半的是在途状态，不是消息。",
+      "description": "工具说过程：一次工具执行至多一条，块是它发的帧封口之后的那些块，至少一块。顶层每一块 visibility.toModel 都必须为 false，否则表示层拒绝 tool_internal_block_visible_to_model（S-39）。块里不许有思考、工具调用、工具结果、带来源标记的文本（S-6）。只有收尾之后的那一条进日志；收尾之前拼到一半的是在途状态，不是消息。",
       "type": "object",
       "allOf": [{ "$ref": "#/$defs/MessageBase" }],
       "properties": {
@@ -229,7 +229,7 @@
 
     "SystemReminderMessage": {
       "title": "SystemReminderMessage（contract.md S-15～S-26）",
-      "description": "系统在中途说的话：外面有信息进来了。blocks 是给模型读的话（人也看得到）；source 是结构化的来源，给系统认——对账、呈现、压缩、循环阶梯都读它，不解析正文。nature 与 source.kind 的对应定死（S-16）。块里不许有思考、工具调用、带来路标记的文本；顶层工具结果块只在后台执行的两种收场提醒里出现，且恰好一块（S-19）。",
+      "description": "系统在中途说的话：外面有信息进来了。blocks 是给模型读的话（人也看得到）；source 是结构化的来源，给系统认——对账、呈现、压缩、循环阶梯都读它，不解析正文。nature 与 source.kind 的对应定死（S-16）。块里不许有思考、工具调用、带来源标记的文本；顶层工具结果块只在后台执行的两种收场提醒里出现，且恰好一块（S-19）。",
       "type": "object",
       "allOf": [
         { "$ref": "#/$defs/MessageBase" },
@@ -583,7 +583,7 @@
 
     "CompactionMessage": {
       "title": "CompactionMessage（contract.md S-27～S-30）",
-      "description": "压缩记录（UL-compaction-record）：blocks 是摘要，silenced 是这次让哪些块从此对模型不可读的名单（覆盖可见性的记录）。名单只覆盖 toModel 一侧、只往不可读翻，不回头改块上的标注。silenced 必填（可以是空数组，缺席不当作空），同一项不重复；摘要与名单不能都是空的。名单不点自己（compaction_self_reference）、只点本消息之前的消息（compaction_forward_reference），其余合法性见 S-29——都是 Schema 管不到的。块里不许有思考、工具调用、工具结果、带来路标记的文本（S-6）。",
+      "description": "压缩记录（UL-compaction-record）：blocks 是摘要，silenced 是这次让哪些块从此对模型不可读的名单（覆盖可见性的记录）。名单只覆盖 toModel 一侧、只往不可读翻，不回头改块上的标注。silenced 必填（可以是空数组，缺席不当作空），同一项不重复；摘要与名单不能都是空的。名单不点自己（compaction_self_reference）、只点本消息之前的消息（compaction_forward_reference），其余合法性见 S-29——都是 Schema 管不到的。块里不许有思考、工具调用、工具结果、带来源标记的文本（S-6）。",
       "type": "object",
       "allOf": [{ "$ref": "#/$defs/MessageBase" }],
       "properties": {

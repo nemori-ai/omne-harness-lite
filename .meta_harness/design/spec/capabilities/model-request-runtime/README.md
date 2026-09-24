@@ -5,6 +5,7 @@
 
 **它不拥有**档案与凭据（`capability.model-profile-directory` v1，中心侧）、响应体与账的形状（`data.model-response`、`data.call-accounts`）、拓展件的执行（`capability.loop-extension-runner`）、模态投影的判定函数（`capability.modality-projection`）、上下文组装与会话日志本身。
 **上交条目、中断提醒、回复消息的写入归 loop**——本契约把带回复的响应体交回，由调用方与消息同一提交写下。
+**本能力的提供者是一条 fiber，即宿主协程——名字里的「运行时」指它**（统一语言冲突 C-31：叫 runtime 的必须是协程）。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.model-request-runtime, 1)`
 - **状态**：`candidate`（2026-09-23 起草）——未经独立评审、未接受、未冻结

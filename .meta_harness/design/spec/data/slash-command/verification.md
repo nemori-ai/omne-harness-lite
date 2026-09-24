@@ -35,6 +35,8 @@
 
 ## 对齐义务
 
+- **词条链接待合流后补**（2026-09-24 整批对齐）：正文里「命令参数声明」原标「无词条」，词条批已立为词条，本包已改用正式名、去掉标记；那几条词条在 HUB 上、本分支看不到，**链接待合流后补**（主线）。
+
 **这些是本契约与同批或上游契约之间要在整批对齐时处理的事**，不是本契约自己的证据义务；列在这里，免得散在各处被漏掉。
 
 | 对齐什么 | 涉及 | 现状 |
@@ -43,7 +45,7 @@
 | `slash_command` 类正文的形状 | `data.asset-model` v1 的 S-10 与它的 G-5 | 那边的 `body` 不透明；形状是本契约的 `SlashCommandDefinition`。**注意依赖方向**：本契约已依赖那边（`CapabilityId`、S-2、S-12），那边若 `$ref` 本契约的定义，catalog 上会成一个环——对齐时选一个方向（例如那边只在散文里指路、不 `$ref`），不要两边互引 |
 | 正文里另立的名字字段 | `data.asset-model` v1 的 S-10（「正文契约最好不另立名字字段」） | 起草账本给 `SlashCommandDefinition` 定了 `name`；本契约写明它必须等于记录的 `capability.name`（[S-1](v1/contract.md#s-1-斜杠命令定义是资产的正文)） |
 | `origin.command` 的词法 | `data.content-blocks` v1 的 S-8 与它的 G-5 | 那边只到「非空」；应采用本契约的 `CommandName` |
-| ① 型展开的正文没有来路标记值 | `data.content-blocks` v1 的 S-8 | 只有 `slash_command_args` 与 `skill_body` 两种；本契约让 ① 的展开块不带来路标记、出处由留痕块陈述（[S-21](v1/contract.md#s-21-提示词型的展开)）。要不要补一个值归那边 |
+| ① 型展开的正文没有来源标记值 | `data.content-blocks` v1 的 S-8 | 只有 `slash_command_args` 与 `skill_body` 两种；本契约让 ① 的展开块不带来源标记、出处由留痕块陈述（[S-21](v1/contract.md#s-21-提示词型的展开)）。要不要补一个值归那边 |
 | 留痕块 | `data.content-blocks` 下一版；`data.messages` v1 的 S-6（用户消息能装哪几类块） | 判别值 `slash_command_invocation` 已定，形状未定（[G-4](v1/contract.md#十已知缺口)）；若成第八类块，内容块词条与 PF-009 的「七类」要先改，`data.messages` 那张表要加一列 |
 | 技能「正文」是哪一段 | `data.skill-package` v1（同批并行） | catalog 依赖未登（[G-2](v1/contract.md#十已知缺口)） |
 | 「谁可以用」这一项的项名 | `data.skill-package`、`data.mcp-endpoint`、连接件的形状条款（同批并行） | 全批共用一个项名；账本未给（[G-5](v1/contract.md#十已知缺口)） |
@@ -72,7 +74,7 @@ V-1～V-6 **一条执行记录也没有**。起草时的手核与一次性演算
   **依赖 `data.identity-values` v1**（已接受、已冻结）的 `S-8`、`S-31`——那一版不可原地改，**这些引用的目标不会漂移**；它若出 v2，本契约不自动跟随。
   **依赖 `data.asset-model` v1**（`candidate`，未冻结）的六条：那边在对齐波里按主线裁定改 S-2、S-3、S-29（[G-1](v1/contract.md#十已知缺口)），本契约的 `CommandName` 与 V-1 须同轮复核；
   那边若改 `CapabilityId` 或 S-12 的推出义务，[S-6](v1/contract.md#s-6-三种绑定目标)、[S-11](v1/contract.md#s-11-属性项的推出规则) 随之复核。
-  **依赖 `data.content-blocks` v1**（`candidate`，未冻结）的 `S-8`：那边若改来路标记的取值或成员名，[S-22](v1/contract.md#s-22-技能型的引用与两块展开物) 随之改。
+  **依赖 `data.content-blocks` v1**（`candidate`，未冻结）的 `S-8`：那边若改来源标记的取值或成员名，[S-22](v1/contract.md#s-22-技能型的引用与两块展开物) 随之改。
 - **[G-3](v1/contract.md#十已知缺口) 闭合**（引号没闭合的失败原因有了名字）：Schema 的 `reason` 枚举加一个值、[S-17](v1/contract.md#s-17-参数文字的切分)、[S-19](v1/contract.md#s-19-解析失败取第一处)、[S-20](v1/contract.md#s-20-parseresult-四支) 与判定用例 D-26 改写 ⇒ **表示改变**；接受前闭合则原地改并重跑 V-1、V-2，接受后闭合则**出 v2**。
 - **[G-4](v1/contract.md#十已知缺口) 闭合**（留痕块形状）：本契约只把 [S-25](v1/contract.md#s-25-留痕) 的指路换成那边的坐标；判别值若被那边改名，本契约随之改。
 - **[G-5](v1/contract.md#十已知缺口) 闭合**（「谁可以用」的项名与默认值）：[S-11](v1/contract.md#s-11-属性项的推出规则) 补全；若默认值要由正文承载，`SlashCommandDefinition` 加一个成员 ⇒ 表示改变，同上。

@@ -57,3 +57,7 @@
   账本名 `ExecutionPermission` 不立（[S-8](v1/contract.md#s-8-有效执行权限) 末段）。
 - **四份 candidate 依赖**（`data.content-blocks`、`data.tool-definition`、`data.loop-extension`、`data.asset-model`）改号或改义时，逐条核对 [契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面) 的表并同步 catalog 的 clauses。
 - **并行起草的 `capability.loop-extension-runner`、`capability.tool-execution-runtime`、`capability.asset-evaluation`、`capability.hooks-import`** 定型后：本契约只以名字提到它们、不登依赖（它们是消费者，或是上游输入值的产出方）；对齐时核对 [第六节](v1/contract.md#六在拓展点协议里) 与 [S-25](v1/contract.md#s-25-verifytoken) 的义务在它们那一侧是否有对应条款。
+
+## 对齐义务
+
+- **词条链接待合流后补**（2026-09-24 整批对齐）：正文里「干预力」原标「无词条」，词条批已立为词条，本包已改用正式名、去掉标记；那几条词条在 HUB 上、本分支看不到，**链接待合流后补**（主线）。

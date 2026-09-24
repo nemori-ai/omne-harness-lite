@@ -73,7 +73,7 @@
 5. **一条判定**：路由名撞名拒建（`route_name_taken`）的规则与失败值名；执行它的建档操作不在这里。
 
 **不拥有**：[模型凭据](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential)（挂在范围上，家在租户与资产那一侧）；
-合法目标集合（无词条）与展示列表（无词条）的求值；选中模型的切换与有效模型的求值；
+合法目标集合与模型展示列表的求值；选中模型的切换与有效模型的求值；
 一次模型调用的请求与响应体（归 `data.model-response`）；重试策略；谁能建、改、撤回档案（归 `capability.model-profile-directory`）。
 
 它是一份**数据契约**：**没有自己的操作、没有状态机、没有提交点**。
@@ -86,7 +86,7 @@
 | **`capability.model-request-runtime` v1**（[PF-013 §5.12](../../../../product/PF-013-model-profiles-and-invocation/design.md#512-重试站在一个已经存在的位置上)） | 有效模型那一条档案的 `providers`／`allowFallback`（[S-5](#s-5-providername-与允许的供应商)、[S-6](#s-6-允不允许回退)）、两个上限、参数（[S-15](#s-15-modelrequestparameters-是一份词表)～[S-21](#s-21-不静默丢也不静默改)）；**「不静默丢、不静默改」是它的 adapter 的义务** |
 | **Agent 定义「用哪个模型」那项设置**（[PF-004 §6.6](../../../../product/PF-004-agent-definition-and-assembly/design.md#66-模型在每次请求时确定)；契约未立） | 取值 = `ModelProfileRef`（[S-13](#s-13-modelprofileref)、[S-14](#s-14-引用只精确解析不跨层)），官方与自建两支都指得到 |
 | **会话的选中模型**（[PF-013 §4](../../../../product/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型)；会话契约未立） | 取值 = `ModelProfileRef` |
-| **合法目标集合的求值与展示列表**（无词条；`capability.model-request-runtime` v1） | `registration`（[S-10](#s-10-registration)）、`inputModalities`（[S-7](#s-7-modality-与两组模态)）、档案与引用成对交出（[S-1](#s-1-档案的身份所在范围与路由名)）；**官方与自建同一份**（[PF-013 §6.3](../../../../product/PF-013-model-profiles-and-invocation/design.md#63-官方与自建在同一份列表里)） |
+| **合法目标集合的求值与模型展示列表**（`capability.model-request-runtime` v1） | `registration`（[S-10](#s-10-registration)）、`inputModalities`（[S-7](#s-7-modality-与两组模态)）、档案与引用成对交出（[S-1](#s-1-档案的身份所在范围与路由名)）；**官方与自建同一份**（[PF-013 §6.3](../../../../product/PF-013-model-profiles-and-invocation/design.md#63-官方与自建在同一份列表里)） |
 | **组装**（[PF-010 要求五](../../../../product/PF-010-context-management-and-assembly/design.md#要求五组装的输入里必须有当下生效的那份模型档案)） | 窗口 `maxInputTokens`（[S-8](#s-8-两个上限)）、收得下的模态（[S-7](#s-7-modality-与两组模态)）、送进去之前的限制（[S-9](#s-9-inputconstraints)）——**同一份档案里的三个事实** |
 | **模态投影与模态转换件**（[PF-013 §4](../../../../product/PF-013-model-profiles-and-invocation/design.md#模态)） | `Modality` 四个取值（[S-7](#s-7-modality-与两组模态)） |
 | **`data.loop-extension` v1** | 「调模型之前」可改的请求里 `target` 取 `ModelProfileRef`、`parameters` 取 `ModelRequestParameters` |
@@ -105,7 +105,7 @@
 | **上游那个模型本身** | 档案是**我们对它的记载**；记载会过期（[S-11](#s-11-updatedat) 就是为此），模型不因我们改档案而变 |
 | **[一次模型调用](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call)** | 那是有头有尾的计算资源；档案是长期的数据 |
 | **「这次实际用了哪条」的留痕** | 那是[一次请求的可追溯组成](../../../../product/PF-004-agent-definition-and-assembly/design.md#66-模型在每次请求时确定)，是历史；它**引用**档案（用 `ModelProfileRef`），不在档案上（[S-22](#s-22-凭据价格与实际用了哪条都不在档案上)） |
-| **[官方件](../../../../ubiquitous_language/terms/circulation-and-entitlement.md#ul-official-asset--官方件--official-asset) / 自定义件** | 那一对说的是**资产**的来源；档案不是资产。本契约的 `origin` 取 `official`／`custom`，对应的是**官方档案 / 自建档案**（无词条，PF-013 §4 定义），两套词不互相套用 |
+| **[官方件](../../../../ubiquitous_language/terms/circulation-and-entitlement.md#ul-official-asset--官方件--official-asset) / 自定义件** | 那一对说的是**资产**的来源；档案不是资产。本契约的 `origin` 取 `official`／`custom`，对应的是**官方档案 / 自建档案**（PF-013 §4 定义），两套词不互相套用 |
 | **「这个范围不允许它」** | 那是[作用域求值](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-scope-evaluation--作用域求值--scope-evaluation)的结果，档案照样在册；它**不是** `registration` 的一个取值（[S-10](#s-10-registration)） |
 | **块的类型** | 七类块是载体，模态是内容的形态；文件块的模态看媒体类型（[S-7](#s-7-modality-与两组模态)） |
 | **有效模型 ≠ 选中模型** | 两者**都是** `ModelProfileRef` 这个形状的值，但一个是被记下的取值、一个是每次现算的结果；**形状相同不表示可以互相替代**，谁存哪一个归各自的契约 |

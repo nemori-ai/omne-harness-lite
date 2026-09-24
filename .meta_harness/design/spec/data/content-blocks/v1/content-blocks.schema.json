@@ -46,7 +46,7 @@
 
     "MediaType": {
       "title": "MediaType",
-      "description": "S-7：媒体类型（无词条）的规范形式——小写的 type/subtype，type 与 subtype 各按 RFC 6838 的 restricted-name 字符集；其后可带若干参数，每个写成紧挨着的 ;name=value，name 小写、value 是 token，不带空白、不带引号。相等只在需要时按整串逐字比较。块的模态只读 type 那一段（S-6），参数原样携带、本契约不解释。",
+      "description": "S-7：媒体类型的规范形式——小写的 type/subtype，type 与 subtype 各按 RFC 6838 的 restricted-name 字符集；其后可带若干参数，每个写成紧挨着的 ;name=value，name 小写、value 是 token，不带空白、不带引号。相等只在需要时按整串逐字比较。块的模态只读 type 那一段（S-6），参数原样携带、本契约不解释。",
       "$comment": "要求小写是为了让 S-6 的判定在任何实现上结果相同：大小写不敏感的比较交给各实现，就会出现 TEXT/plain 在一处算文本、在另一处算无模态。产生者写入前自己规范化；接收方不替它改写（S-27）。结尾用 (?![\\s\\S]) 而不是 $，理由同 data.identity-values/v1#S-31：Python 的 $ 会匹配到末尾换行之前。",
       "type": "string",
       "pattern": "^[a-z0-9][a-z0-9!#$&^_.+-]{0,126}/[a-z0-9][a-z0-9!#$&^_.+-]{0,126}(?:;[a-z0-9!#$%&'*+.^_`|~-]+=[A-Za-z0-9!#$%&'*+.^_`|~-]+)*(?![\\s\\S])",
@@ -154,7 +154,7 @@
 
     "TextBlock": {
       "title": "文本块",
-      "description": "S-8：给人和模型看的一段话。text 可以是空串。origin 是可选的来路标记（无词条），恰四种：slash_command_args 表示这块是人敲斜杠命令时附带的参数；skill_body 表示这块是 ② 型（技能型）斜杠命令逐字展开的那个 skill 的正文；slash_command_expansion 表示这块是 ① 型（提示词型）斜杠命令展开模板得到的文字；slash_command_record 表示这块是一次 ①／② 型斜杠命令的留痕——text 是人敲下的那段原文，逐字。command 与 skill 是相应的命令名与 skill 名。来路标记只陈述出处，不授予任何资格，也不改变这块的标注。不带派生表示与 transcript。",
+      "description": "S-8：给人和模型看的一段话。text 可以是空串。origin 是可选的来源标记，恰四种：slash_command_args 表示这块是人敲斜杠命令时附带的参数；skill_body 表示这块是 ② 型（技能型）斜杠命令逐字展开的那个 skill 的正文；slash_command_expansion 表示这块是 ① 型（提示词型）斜杠命令展开模板得到的文字；slash_command_record 表示这块是一次 ①／② 型斜杠命令的留痕——text 是人敲下的那段原文，逐字。command 与 skill 是相应的命令名与 skill 名。来源标记只陈述出处，不授予任何资格，也不改变这块的标注。不带派生表示与 transcript。",
       "type": "object",
       "allOf": [{ "$ref": "#/$defs/BlockBase" }],
       "properties": {

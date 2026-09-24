@@ -11,7 +11,7 @@
 
   | 坐标 | 消费 clauses | 取它的什么 | Schema 里怎么用 |
   |---|---|---|---|
-  | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1` | [`S-1`](../../content-blocks/v1/contract.md#s-1-七类块)、[`S-3`](../../content-blocks/v1/contract.md#s-3-blockid)、[`S-4`](../../content-blocks/v1/contract.md#s-4-两个标注)、[`S-5`](../../content-blocks/v1/contract.md#s-5-嵌套的块按合取取用)、[`S-8`](../../content-blocks/v1/contract.md#s-8-文本块与来路标记)、[`S-12`](../../content-blocks/v1/contract.md#s-12-完整的工具调用)、[`S-13`](../../content-blocks/v1/contract.md#s-13-半截的工具调用)、[`S-14`](../../content-blocks/v1/contract.md#s-14-callid)、[`S-15`](../../content-blocks/v1/contract.md#s-15-工具结果块)、[`S-16`](../../content-blocks/v1/contract.md#s-16-结果里不发起调用)、[`S-17`](../../content-blocks/v1/contract.md#s-17-六种收场)、[`S-18`](../../content-blocks/v1/contract.md#s-18-占位原因与它落在哪一格)、[`S-22`](../../content-blocks/v1/contract.md#s-22-落盘之后整块不变)、[`S-26`](../../content-blocks/v1/contract.md#s-26-表示层拒绝值)、[`S-27`](../../content-blocks/v1/contract.md#s-27-表示层拒绝不是判定也不修补) | 块的全部定义、块的指认与嵌套、两个标注与合取取用、工具调用与结果、收场与占位原因、落盘不变、拒绝值 | `$ref` 它的 `$defs/ContentBlock`、`ToolResultBlock`、`BlockId`、`CallId`、`ExecutionOutcome` |
+  | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1` | [`S-1`](../../content-blocks/v1/contract.md#s-1-七类块)、[`S-3`](../../content-blocks/v1/contract.md#s-3-blockid)、[`S-4`](../../content-blocks/v1/contract.md#s-4-两个标注)、[`S-5`](../../content-blocks/v1/contract.md#s-5-嵌套的块按合取取用)、[`S-8`](../../content-blocks/v1/contract.md#s-8-文本块与来源标记)、[`S-12`](../../content-blocks/v1/contract.md#s-12-完整的工具调用)、[`S-13`](../../content-blocks/v1/contract.md#s-13-半截的工具调用)、[`S-14`](../../content-blocks/v1/contract.md#s-14-callid)、[`S-15`](../../content-blocks/v1/contract.md#s-15-工具结果块)、[`S-16`](../../content-blocks/v1/contract.md#s-16-结果里不发起调用)、[`S-17`](../../content-blocks/v1/contract.md#s-17-六种收场)、[`S-18`](../../content-blocks/v1/contract.md#s-18-占位原因与它落在哪一格)、[`S-22`](../../content-blocks/v1/contract.md#s-22-落盘之后整块不变)、[`S-26`](../../content-blocks/v1/contract.md#s-26-表示层拒绝值)、[`S-27`](../../content-blocks/v1/contract.md#s-27-表示层拒绝不是判定也不修补) | 块的全部定义、块的指认与嵌套、两个标注与合取取用、工具调用与结果、收场与占位原因、落盘不变、拒绝值 | `$ref` 它的 `$defs/ContentBlock`、`ToolResultBlock`、`BlockId`、`CallId`、`ExecutionOutcome` |
   | `omne-harness-lite-design-2026-09-15 · data.offer-expiry · v1` | [`S-22`](../../offer-expiry/v1/contract.md#s-22-schema-的范围) | 时刻的规范形式 | `$ref` 它的 `$defs/Instant`：`createdAt`、尝试开始的 `at`、到点的 `dueAt`、答复的 `at` |
   | `omne-harness-lite-design-2026-09-15 · data.identity-values · v1` | [`S-31`](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示) | 不透明标识的交换表示 | **不 `$ref`**；`MessageId` 与其余不透明标识按该条散文定形（[S-3](#s-3-messageid)） |
   | `omne-harness-lite-design-2026-09-15 · data.call-accounts · v1` | [`S-37`](../../call-accounts/v1/contract.md#s-37-三个归属标识的家runidattemptidmodelcallid) | `ModelCallId`、`AttemptId` 的家 | `$ref` 它的 `$defs/ModelCallId`（中断提醒的 `about`、五种运行时记录的 `call`）、`$defs/AttemptId`（尝试开始的 `attempt`） |
@@ -158,7 +158,7 @@
 **下列是规格层的名字或无词条的概念**，本契约与 Schema 里**不给它们「中文 · English」那种词条式标题**：
 `MessageId`、`ResponseId`、`CardId`、`SessionRef`、`AgentRef`、`ScheduleRef`、`RuntimeContextBlockId`、`CardAnswer`、`SilencedBlockRef`、`LoopExtensionName`、`ModelInvocationRecord` 与它的五种；
 **已出门、已开口、中断意图、调用终结、切换事实**（五种运行时记录，无词条）；
-**提醒的来源**（`ReminderSource`，无词条）；**占位**（工具消息里那条「位置先占着」的返回，无词条）；
+**提醒的来源**（`ReminderSource`，无词条）；**占位消息**（工具消息里那条「位置先占着」的返回）；
 **悬着的占位**（无词条）；**「此刻模型可读」**（无词条，[S-28](#s-28-此刻模型可读是算出来的) 的派生谓词）；
 **循环守卫**（无词条）；**模型响应** `ModelResponse`（无词条，家在 `data.model-response`）；**传输适配 / adapter**（无词条）。
 
@@ -263,7 +263,7 @@
 | 思考 | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ | ✗ |
 | 工具调用（两种形状） | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ | ✗ |
 | 工具结果 | ✗ | ✗ | ✗ | **恰好一块**（[S-11](#s-11-toolmessage)） | ✗ | **只在后台执行的两种收场提醒里，恰好一块**（[S-19](#s-19-后台执行的两种收场提醒)） | ✗ |
-| 带来路标记 `origin` 的文本 | ✗ | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| 带来源标记 `origin` 的文本 | ✗ | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
 
 三处排除的依据：
 
@@ -271,7 +271,7 @@
 - **工具调用只在模型的回复里**：调用只由模型在它的回复里发起——这正是 [`data.content-blocks/v1#S-16`](../../content-blocks/v1/contract.md#s-16-结果里不发起调用) 不许结果里出现调用的那条理由，放到消息这一层同样成立：
   出现在别处的调用块，会被读成「模型发起过的调用」。
 - **工具结果只在两处**：它是一次调用的结果，**一次调用的结果只有两个去处**——还没有占位时的工具消息、已有占位时的后台收场提醒（[S-12](#s-12-真实结果落哪种消息只看有没有占位)）。
-- **来路标记只在用户消息的顶层文本块上**：它的四个取值都出自人敲的斜杠命令（[`data.content-blocks/v1#S-8`](../../content-blocks/v1/contract.md#s-8-文本块与来路标记)），
+- **来源标记只在用户消息的顶层文本块上**：它的四个取值都出自人敲的斜杠命令（[`data.content-blocks/v1#S-8`](../../content-blocks/v1/contract.md#s-8-文本块与来源标记)），
   而那一条展开之后落成用户消息（[PF-014 §5.7](../../../../product/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空)）。
 
 嵌套层（工具结果块的 `blocks`、派生表示的 `blocks`）照 `data.content-blocks` v1 自己的规则，本表不再加限制。
@@ -290,7 +290,7 @@
 ### S-8 UserMessage
 
 **人说的话。**以下几样都落成这一种（[PF-014 §5.7](../../../../product/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空)）：
-用户说的一句话；绑定目标是提示词或 skill 的斜杠命令**展开之后**的那一条（带来路标记的文本块，[`data.content-blocks/v1#S-8`](../../content-blocks/v1/contract.md#s-8-文本块与来路标记)）；经连接件送达的一条外部消息。
+用户说的一句话；绑定目标是提示词或 skill 的斜杠命令**展开之后**的那一条（带来源标记的文本块，[`data.content-blocks/v1#S-8`](../../content-blocks/v1/contract.md#s-8-文本块与来源标记)）；经连接件送达的一条外部消息。
 
 - **系统的话不落成这一种**，哪怕它在某一家那里最后会被译成一条用户消息——那是出门时的事（[S-35](#s-35-我们自己那两种必须在发出前译掉)），**日志里它仍是提醒**（[PF-009 §5.1](../../../../product/PF-009-context-message-types/design.md#51-systemremindermessage-凭什么独立而不是一条带标记的用户消息)）。
 - **卡片的答复不落成这一种**：答复只在卡片上做，消息永远是消息（[PF-008 §4](../../../../product/PF-008-human-in-the-loop/design.md#决策卡片)）；

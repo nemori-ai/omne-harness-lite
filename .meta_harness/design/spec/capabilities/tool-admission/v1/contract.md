@@ -25,7 +25,6 @@
 - **本文用到、词表里没有的概念（无词条）**，一律只指到出处，**不在这里下定义**：
   **放行凭据**（本契约的 `AdmissionToken`，[S-16](#s-16-admissiontoken-与参数相等)）、
   **生效参数**（[PF-012 §5.8 改参数先落一条生效参数](../../../../product/PF-012-agent-loop-and-run/design.md#改参数先落一条生效参数)）、
-  **干预力**（[PF-000 §4](../../../../product/PF-000-occurrences-and-record-entries/design.md#干预力--intervention-power)）、
   **一批动作**（[PF-012 §5.8 一批动作先全部判完](../../../../product/PF-012-agent-loop-and-run/design.md#一批动作先全部判完再执行任何一个)；词表只有[一批卡片](../../../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-card-batch--一批卡片--card-batch)），
   **执行权限**（[权限](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-permission--权限--permission)的一项，[PF-002 §4 Tool](../../../../product/PF-002-assets-settings-and-permissions/design.md#tool)；无独立词条）
 

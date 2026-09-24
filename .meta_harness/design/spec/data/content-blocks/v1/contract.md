@@ -33,8 +33,8 @@
 | 资产身份是「类别 ＋ name」；八类 | [PF-002 §4 身份是类别＋name](../../../../product/PF-002-assets-settings-and-permissions/design.md#身份是类别--name其余归实现) · [PF-001 §4 范围化对象](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#范围化对象) | S-20 |
 | 会话日志只增不改，是唯一真相来源 | [PF-012 §4 会话日志](../../../../product/PF-012-agent-loop-and-run/design.md#会话日志) · [§5.2](../../../../product/PF-012-agent-loop-and-run/design.md#52-会话日志是唯一的真相来源) | S-14、S-22 |
 | 数据契约自研；块身份与嵌套寻址、供应商回放数据的位置留给数据契约起草 | [D-035](../../../../record/decisions/message-and-stream-baseline/decision.md) | S-3、S-9 |
-| 文本块带来路标记（Q1）；思考块带上游原样的不透明数据（Q2） | [D-038 十九处分岔](../../../../record/decisions/message-and-shape-rulings/decision.md#十九处分岔) | S-8、S-9 |
-| **主线裁定 2026-09-23，待产品负责人确认**：占位原因补 `backgrounded_at_start`、`run_cancelled`、`terminated_by_agent` 三行；参数收齐却解析不了的调用保留原文、标 `unparseable`、不执行、结果记 `failed` 回给模型；来路标记补 `slash_command_expansion`、`slash_command_record`（斜杠命令留痕不是第八类块）；派生表示本版恒由系统产出；只给了引用的附件按媒体类型落块；执行帧块由帧入口编号；桥换代时在途的调用落 `abnormal_interruption` | 主线在任务区账本里的推导（D-038 明言不含这些），**设计链里尚无决定记录**——见 [G-8](#八已知缺口) | S-3、S-8、S-12、S-18、S-20、S-34 |
+| 文本块带来源标记（Q1）；思考块带上游原样的不透明数据（Q2） | [D-038 十九处分岔](../../../../record/decisions/message-and-shape-rulings/decision.md#十九处分岔) | S-8、S-9 |
+| **主线裁定 2026-09-23，待产品负责人确认**：占位原因补 `backgrounded_at_start`、`run_cancelled`、`terminated_by_agent` 三行；参数收齐却解析不了的调用保留原文、标 `unparseable`、不执行、结果记 `failed` 回给模型；来源标记补 `slash_command_expansion`、`slash_command_record`（斜杠命令留痕不是第八类块）；派生表示本版恒由系统产出；只给了引用的附件按媒体类型落块；执行帧块由帧入口编号；桥换代时在途的调用落 `abnormal_interruption` | 主线在任务区账本里的推导（D-038 明言不含这些），**设计链里尚无决定记录**——见 [G-8](#八已知缺口) | S-3、S-8、S-12、S-18、S-20、S-34 |
 | 规格形式；部署边界；租户隔离 | [SYS-SPEC](../../../../foundation/cross-system-constraints/requirements.md#sys-spec) · [SYS-DEPLOY](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy) · [SYS-TENANT](../../../../foundation/cross-system-constraints/requirements.md#sys-tenant) | 见下方引文 |
 | 统一语言正式名 | [记录与上下文](../../../../ubiquitous_language/terms/record-and-context.md) · [执行与收场](../../../../ubiquitous_language/terms/execution-and-outcome.md) · [能力标识](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier) | 全部英文名 |
 | 内容块在消息内可被单独指到；存储未定义 | [domain_objects 内容块](../../../../domain_objects/objects.md#ul-content-block--内容块) · [待裁：存储](../../../../domain_objects/pending.md#存储) | S-3、G-1 |
@@ -45,9 +45,9 @@
 > |---|---|
 > | [S-7](#s-7-媒体类型的规范形式)、[S-24](#s-24-规范表示)～[S-27](#s-27-表示层拒绝不是判定也不修补) | **SYS-SPEC**：规范表示、闭合枚举、表示层拒绝值与「表示层不等于判定」是规格形式的要求，产品正文不承诺这一层 |
 > | [S-3](#s-3-blockid) 的唯一范围、[S-5](#s-5-嵌套的块按合取取用)、[S-14](#s-14-callid) 的唯一范围 | **规格层推导**：D-035 把「块身份与嵌套寻址」留给数据契约；依据分别写在各条正文里 |
-> | [S-8](#s-8-文本块与来路标记) 的 `origin`、[S-9](#s-9-思考块与不透明数据) 的 `opaque` | 产品负责人 2026-09-23 对内容块形状的两项裁决，落在 [D-038 Q1、Q2](../../../../record/decisions/message-and-shape-rulings/decision.md#十九处分岔)。**`origin` 的取值集合不来自 D-038**：那里的「含义」列写的是「模型 / 用户 / 工具 / 系统」，本契约的四个取值都是斜杠命令相关的来路（前两个随起草简报、后两个随主线裁定），两处对不上，已报主线 |
+> | [S-8](#s-8-文本块与来源标记) 的 `origin`、[S-9](#s-9-思考块与不透明数据) 的 `opaque` | 产品负责人 2026-09-23 对内容块形状的两项裁决，落在 [D-038 Q1、Q2](../../../../record/decisions/message-and-shape-rulings/decision.md#十九处分岔)。**`origin` 的取值集合不来自 D-038**：那里的「含义」列写的是「模型 / 用户 / 工具 / 系统」，本契约的四个取值都是斜杠命令相关的来路（前两个随起草简报、后两个随主线裁定），两处对不上，已报主线 |
 > | [S-16](#s-16-结果里不发起调用) | **无产品出处**：起草简报里的裁定（结果里不发起调用），理由写在条款正文。产品正文只说工具结果「自己又是一串块」，没说里面不许有什么 |
-> | [S-12](#s-12-完整的工具调用) 的 `unparseable` 一种、[S-18](#s-18-占位原因与它落在哪一格) 的后三个取值、[S-8](#s-8-文本块与来路标记) 的后两个来路、[S-20](#s-20-派生表示的产出者与能力标识) 的「恒为 `system`」、[S-34](#s-34-只给了引用的附件落成哪一类块) | **主线裁定 2026-09-23，待产品负责人确认**（设计依据表倒数第一行）；各条的产品前提写在条款正文里 |
+> | [S-12](#s-12-完整的工具调用) 的 `unparseable` 一种、[S-18](#s-18-占位原因与它落在哪一格) 的后三个取值、[S-8](#s-8-文本块与来源标记) 的后两个来路、[S-20](#s-20-派生表示的产出者与能力标识) 的「恒为 `system`」、[S-34](#s-34-只给了引用的附件落成哪一类块) | **主线裁定 2026-09-23，待产品负责人确认**（设计依据表倒数第一行）；各条的产品前提写在条款正文里 |
 > | [S-23](#s-23-块不携带租户身份) | **SYS-TENANT** 加 `data.identity-values/v1#S-34` |
 > | [第四节](#四装配给与协议给) | **SYS-DEPLOY** |
 
@@ -78,7 +78,7 @@
 | [`data.call-accounts`](../../call-accounts/README.md) v1 | `$defs/CallId`（[S-14](#s-14-callid)） |
 | [`data.model-response`](../../model-response/README.md) v1 | `ContentBlock`（已交付而不成消息的部分）、`AttachmentRef`（原始响应留存） |
 | [`data.tool-definition`](../../tool-definition/README.md) v1、[`data.model-profile`](../../model-profile/README.md) v1 | `Modality`、`MediaType`、`CapabilityId`、`InlineBytes`、`AttachmentRef`、`ContentBlock`（工具的模态声明与结果形状、档案的输入输出模态） |
-| [`data.asset-model`](../../asset-model/README.md) v1 及各类正文契约（`data.skill-package`、`data.slash-command`、`data.connector`、`data.mcp-endpoint`、`data.loop-extension`） | `CapabilityId`（[S-20](#s-20-派生表示的产出者与能力标识)）、`MediaType`、`AttachmentRef`；来路标记（[S-8](#s-8-文本块与来路标记)）与附件落块（[S-34](#s-34-只给了引用的附件落成哪一类块)） |
+| [`data.asset-model`](../../asset-model/README.md) v1 及各类正文契约（`data.skill-package`、`data.slash-command`、`data.connector`、`data.mcp-endpoint`、`data.loop-extension`） | `CapabilityId`（[S-20](#s-20-派生表示的产出者与能力标识)）、`MediaType`、`AttachmentRef`；来源标记（[S-8](#s-8-文本块与来源标记)）与附件落块（[S-34](#s-34-只给了引用的附件落成哪一类块)） |
 | [`capability.tool-execution-runtime`](../../../capabilities/tool-execution-runtime/README.md) v1 | 工具返回的内容落成 [S-15](#s-15-工具结果块) 的 `blocks`；[S-16](#s-16-结果里不发起调用)～[S-18](#s-18-占位原因与它落在哪一格)；`offloaded`（[S-21](#s-21-attachmentref)）；执行帧里的块 |
 | [`capability.model-request-runtime`](../../../capabilities/model-request-runtime/README.md) v1 与传输适配 | 回复里的块；[S-9](#s-9-思考块与不透明数据) 的 `opaque`；[S-6](#s-6-模态由媒体类型判定) 与 [S-10](#s-10-语音块与图块) |
 | [`capability.modality-projection`](../../../capabilities/modality-projection/README.md) v1 | [S-6](#s-6-模态由媒体类型判定)、[S-19](#s-19-派生表示与-transcript)、[S-20](#s-20-派生表示的产出者与能力标识) |
@@ -110,8 +110,8 @@
 | `FileBlock.attachment` 指向的那一份 | [附件 · Attachment](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-attachment--附件--attachment)（工具产出的附件；也可以是别处存进存储、以文件块引用的一份，见下） |
 
 **下列是规格层的名字，不是统一语言词条**，因此本契约与 Schema 里**不给它们「中文 · English」那种词条式标题**：
-`BlockId`、`CallId`、`BlockBase`、`MediaType`（媒体类型，**无词条**）、`AttachmentRef`（**无词条**）、`InlineBytes`（内联字节的 base64 串）、
-`PlaceholderReason`（占位的原因，取值对应 PF-006 §6.7 那张表的行）、`origin`（来路标记，**无词条**）、
+`BlockId`、`CallId`、`BlockBase`、`MediaType`（媒体类型）、`AttachmentRef`（**无词条**）、`InlineBytes`（内联字节的 base64 串）、
+`PlaceholderReason`（占位原因，取值对应 PF-006 §6.7 那张表的行）、`origin`（来源标记）、
 `IncompleteToolCallBlock`（没长完的工具调用，[增量到达词条](../../../../ubiquitous_language/terms/record-and-context.md#ul-incremental-arrival--增量到达--incremental-arrival)的注意 ① 说的就是它，本身无词条）。
 
 > **`AttachmentRef` 的所指比「附件」宽。**它指向存储里的一份字节——可以是工具产出的[附件](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-attachment--附件--attachment)，
@@ -138,7 +138,7 @@
 | `BlockId` | 块在一条消息里的标识 | [S-3](#s-3-blockid) |
 | `Visibility` | 两个标注 | [S-4](#s-4-两个标注)、[S-5](#s-5-嵌套的块按合取取用) |
 | `Modality`、`MediaType` | 模态与媒体类型 | [S-6](#s-6-模态由媒体类型判定)、[S-7](#s-7-媒体类型的规范形式) |
-| `TextBlock` … `ToolResultBlock` | 各类块 | [S-8](#s-8-文本块与来路标记)～[S-16](#s-16-结果里不发起调用) |
+| `TextBlock` … `ToolResultBlock` | 各类块 | [S-8](#s-8-文本块与来源标记)～[S-16](#s-16-结果里不发起调用) |
 | `CallId` | 一次工具调用的标识 | [S-14](#s-14-callid) |
 | `ExecutionOutcome`、`PlaceholderReason` | 收场与占位原因 | [S-17](#s-17-六种收场)、[S-18](#s-18-占位原因与它落在哪一格) |
 | `DerivedRendering`、`CapabilityId` | 派生表示与它的产出者 | [S-19](#s-19-派生表示与-transcript)、[S-20](#s-20-派生表示的产出者与能力标识) |
@@ -250,7 +250,7 @@ modalityOf(mediaType) ≝   按 mediaType 在第一个 "/" 之前的那一段 t�
 
 ### S-7 媒体类型的规范形式
 
-**`MediaType` 是媒体类型（无词条）的规范写法：小写的 `type/subtype`，其后可带若干 `;name=value` 参数。**
+**`MediaType` 是媒体类型的规范写法：小写的 `type/subtype`，其后可带若干 `;name=value` 参数。**
 
 - `type` 与 `subtype` 各取 [RFC 6838](https://www.rfc-editor.org/rfc/rfc6838#section-4.2) restricted-name 的字符集，**只许小写**；
 - 参数写成紧挨着的 `;name=value`：`name` 小写、`value` 是一个 token（RFC 9110 的 tchar 字符集，大小写保留），**不带空白、不带引号串**；
@@ -262,11 +262,11 @@ modalityOf(mediaType) ≝   按 mediaType 在第一个 "/" 之前的那一段 t�
 所以规范化由**产生者**在写入之前做，接收方见到非规范写法按 `malformed` 拒绝、**不替它改写**（[S-27](#s-27-表示层拒绝不是判定也不修补)）。
 带引号串与空白同理：它们让同一个值有多种写法。
 
-### S-8 文本块与来路标记
+### S-8 文本块与来源标记
 
 **文本块：`text` 是给人和模型看的一段话，可以是空串。**
 
-`origin` 是可选的**来路标记**（无词条），陈述这块文本从哪条路来。本版恰四种：
+`origin` 是可选的**来源标记**，陈述这块文本从哪条路来。本版恰四种：
 
 | `origin.kind` | 这块是什么 |
 |---|---|
@@ -277,7 +277,7 @@ modalityOf(mediaType) ≝   按 mediaType 在第一个 "/" 之前的那一段 t�
 
 `command` 是那条斜杠命令的名字，`skill` 是那个 skill 的名字；**两个都可选，给不给、给哪个不随 `origin.kind` 限定**。
 
-- **来路是一个属性，不是另一类块。**本版不为它另立第八类——斜杠命令的留痕也是一块带来路标记的文本块（主线裁定 2026-09-23，待产品负责人确认）。
+- **来路是一个属性，不是另一类块。**本版不为它另立第八类——斜杠命令的留痕也是一块带来源标记的文本块（主线裁定 2026-09-23，待产品负责人确认）。
 - 留痕块与展开物的**标注**由写下它们的受理一方定，本契约只要求两位都在（[S-4](#s-4-两个标注)）。
 - **它只陈述出处，不授予任何资格**：带着 `skill_body` 不代表那份 skill 的使用权限已判过（那一道判定归 PF-002 的「谁可以使用它」），
   也**不改变这块的标注**。
@@ -575,7 +575,7 @@ PF-010 [明说块上那两位落了就不动](../../../../product/PF-010-context
   `ToolCallBlock`、`IncompleteToolCallBlock`、`ToolResultBlock`、`Visibility`、`DerivedRendering`、`AttachmentRef`、`InlineBytes`、
   `MediaType`、`Modality`、`ExecutionOutcome`、`PlaceholderReason`、`BlockId`、`CallId`、`CapabilityId`。
   消费者 `$ref` 这些定义，**不复制一份同义类型**——`CapabilityId`、`CallId`、`BlockId`、`Modality`、`MediaType`、`AttachmentRef`、`InlineBytes`、`ExecutionOutcome`、`PlaceholderReason` **在全批契约里只有这一个家**。**根模式不约束任何文档**：本文件是共享定义的登记处，不是某个消息的形状。
-- **成员名一律 camelCase**，枚举值一律 snake_case 字符串，块的判别成员叫 `kind`；`origin.kind` 是嵌在来路标记里的另一个判别成员，与块的 `kind` 不相干。
+- **成员名一律 camelCase**，枚举值一律 snake_case 字符串，块的判别成员叫 `kind`；`origin.kind` 是嵌在来源标记里的另一个判别成员，与块的 `kind` 不相干。
 - `BlockId`、`CallId` 与 `AttachmentRef.storage`／`key` 按 `data.identity-values/v1` S-31 的**散文**在本文件写出形状（非空、首尾不属于那个显式空白码点集合、以绝对结尾断言收尾），**不跨契约 `$ref`** 那份已冻结契约的 `OpaqueIdentifier`（它自述不单独被引用；主线裁定 2026-09-23）。
 - **正反实例**：[`examples.md`](examples.md)。它是本版的规范工件，不是说明材料。
 
@@ -772,7 +772,7 @@ PF-013 在**算一个会话的模态投影**时，依赖 [S-6](#s-6-模态由媒
 | `transcript` 与 `renderings` 都缺 | **合法**：那个键上没登记转换件。块照原样挡住收不下它的模型 | [S-19](#s-19-派生表示与-transcript) |
 | 两样只缺其一 | **拒绝**（`malformed`）——不是任何一次合法转换的产物 | [S-19](#s-19-派生表示与-transcript) |
 | `opaque` | **合法**，且与 `opaque: null` 是两件事，各自原样保留 | [S-9](#s-9-思考块与不透明数据) |
-| `origin` | **合法**，不作任何断言 | [S-8](#s-8-文本块与来路标记) |
+| `origin` | **合法**，不作任何断言 | [S-8](#s-8-文本块与来源标记) |
 | 引用指向的那份字节读不到 | **不是本契约的收场**：形状合法、引用照旧；读不到怎么收归存储 owner（[G-1](#八已知缺口)），**不得据此改写或删除这个块** | [S-21](#s-21-attachmentref)、[S-22](#s-22-落盘之后整块不变) |
 
 **本契约不定义任何恢复动作，也不承诺任何外部效果可逆。**
@@ -788,7 +788,7 @@ PF-013 在**算一个会话的模态投影**时，依赖 [S-6](#s-6-模态由媒
 | ~~G-3~~ | **已闭合（2026-09-23 对齐波，主线裁定，待产品负责人确认）**：参数收齐却解析不了的调用落成 `complete: true`、带 `rawArguments` 与 `unparseable: true` 的块，不执行，由宿主接一条 `failed` 结果回给模型（[S-12](#s-12-完整的工具调用)）。产品侧补 PF-009／PF-006 一句归产品修订批 | — | — |
 | **G-4** | **`BlockId`、`CallId` 的词法形式**：字符集、长度上界、生成方式 | Schema 只到 `data.identity-values/v1#S-31` 那一层；任何需要排序、分片或字面量拼接的实现 | **realization** |
 | ~~G-5~~ | **已闭合（指路）**：`CapabilityId.name` 的词法归 `data.asset-model/v1` S-2，`origin.command` 的词法归 `data.slash-command/v1` 的命令名；**本契约只约束到非空、不据它们写判定**——那两份契约都引用本契约，反向引用会成环 | — | — |
-| ~~G-6~~ | **已闭合**：[S-8](#s-8-文本块与来路标记) 的 `origin`、[S-9](#s-9-思考块与不透明数据) 的 `opaque` 落在 [D-038](../../../../record/decisions/message-and-shape-rulings/decision.md#十九处分岔) Q1、Q2。**遗留一处对不上**：D-038 Q1 的「含义」列写 `origin` 取「模型 / 用户 / 工具 / 系统」，本契约取的是四个斜杠命令来路——已报主线 | — | — |
+| ~~G-6~~ | **已闭合**：[S-8](#s-8-文本块与来源标记) 的 `origin`、[S-9](#s-9-思考块与不透明数据) 的 `opaque` 落在 [D-038](../../../../record/decisions/message-and-shape-rulings/decision.md#十九处分岔) Q1、Q2。**遗留一处对不上**：D-038 Q1 的「含义」列写 `origin` 取「模型 / 用户 / 工具 / 系统」，本契约取的是四个斜杠命令来路——已报主线 | — | — |
 | **G-7** | **「前台上限到点而工具不许转后台」落 `interrupted` 时没有占位原因取值**（`capability.tool-execution-runtime` 的 S-44 与它的 G-3） | 写这种收场的工具运行时——本版**没有合法表示**，须停下报缺口（[CS-4](#cs-4-工具运行时写收场)） | **PF-006 的 owner**：补一行原因（本契约随之加一个取值），或明说超时对不许后台的工具不适用 |
 | **G-8** | **主线裁定没有落成决定记录**：[设计依据](#设计依据)最后一行那几项（占位原因三值、`unparseable`、两个新来路、`producedBy` 恒为 `system`、附件落块、帧入口、桥换代）只在任务区账本里 | 本契约接受时这些依据的可追溯性 | **主线**：随产品负责人确认落一份决定（D-038 明言不含这些） |
 

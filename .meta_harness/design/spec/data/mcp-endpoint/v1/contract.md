@@ -103,7 +103,7 @@
 | 规格层 token | 词条 / 产品正文的说法 |
 |---|---|
 | `McpEndpoint` | [MCP · MCP](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-mcp--mcp--mcp) 这一类资产的一份正文（「接入点正文」**无词条**） |
-| `McpTransport` | PF-002 §4 MCP 的「**连接目标**」（**无词条**）的取值 |
+| `McpTransport` | PF-002 §4 MCP 的「**连接目标**」的取值 |
 | `ActionSnapshot` | PF-006 §6.13 的「**最近一次拿到的那份动作清单**」（「动作清单持久副本」**无词条**） |
 | `McpToolDescriptor` | 对端动作——PF-002「它提供的动作」的一项（**无词条**；它不是[工具定义](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition)，工具定义是投影的产物） |
 | `McpActionName` | 那个动作在[动作空间](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-action-space--动作空间--action-space)里的工具条目的名字（**无词条**） |

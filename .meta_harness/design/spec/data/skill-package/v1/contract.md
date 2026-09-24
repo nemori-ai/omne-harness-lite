@@ -89,7 +89,7 @@
 | `capability.asset-registry`（第四波并行） | 技能那张注册表收的值（[S-3](#s-3-技能包的四个部分)）；名字与说明（[S-6](#s-6-名字与所属能力标识一致)、[S-7](#s-7-说明)）；依赖声明（[S-16](#s-16-由包得出的依赖声明)） |
 | `Skills()`（PF-007 §6.2 的契约，尚未建立） | `read` 读的正文与资源（[S-8](#s-8-正文逐字不展开不执行)、[S-9](#s-9-资源条目与包内路径)）；`exec_script` 能跑的脚本集合（[S-11](#s-11-脚本集合)）；`search` 按的说明（[S-7](#s-7-说明)） |
 | 斜杠命令的数据契约（第四波并行） | ② 型绑定：能力标识指向一份技能；展开的就是 [S-8](#s-8-正文逐字不展开不执行) 的正文 |
-| `data.content-blocks` | 它的 [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来路标记) `skill_body` 来路标记的那段文本，就是本契约的正文（**方向是它引用本契约**） |
+| `data.content-blocks` | 它的 [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来源标记) `skill_body` 来源标记的那段文本，就是本契约的正文（**方向是它引用本契约**） |
 | `capability.asset-evaluation`（同程并行） | 属性项投影（[S-17](#s-17-属性项投影规则)）；工作区承载清单里 `source` 指向的技能包目录怎样读（[S-21](#s-21-包的目录形式)） |
 | `capability.asset-transfer` | 复制覆盖的「内容」就是整份包（[S-19](#s-19-包是版本内容的一个整体)） |
 | 导入器（提供者设计，尚未起草） | 键的四类（[S-5](#s-5-键的四类处置)）、文本形式与目录形式（[S-20](#s-20-skillmd-的文本形式与定界)、[S-21](#s-21-包的目录形式)） |
@@ -122,7 +122,7 @@
 `SkillPackage`（技能包——一份技能资产版本的全部内容，**无词条**）、`SkillManifest`（清单头——`SKILL.md` 的 frontmatter，**无词条**）、
 `body`（正文——PF-002 说的「可读的指引正文」，**无词条**）、说明（PF-006 的「技能的说明」，**无独立词条**，[UL-skill](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-skill--技能--skill) 的「注意」提到它）、
 `ResourceEntry`（资源条目——PF-002 说的「资源文件」，**无词条**）、脚本集合（**无词条**）、`SkillDefinitionRecord`（定义记录——D-034 的「包内定义记录」，**无词条**）、
-目标环境（`data.tool-definition` 的说法，**无词条**）、外部服务（[依赖声明词条](../../../../ubiquitous_language/terms/reach-and-availability.md#ul-dependency-declaration--依赖声明--dependency-declaration)的「别混」提到它，**无独立词条**）、
+目标环境（`data.tool-definition` 的说法）、外部服务（[依赖声明词条](../../../../ubiquitous_language/terms/reach-and-availability.md#ul-dependency-declaration--依赖声明--dependency-declaration)的「别混」提到它，**无独立词条**）、
 开放格式（Agent Skills 开放格式，一个外部规格的名字）。
 
 ### 与相近概念的差异
@@ -252,7 +252,7 @@
 
 **`body` 是 `SKILL.md` 闭合定界行之后的全部文本，逐字**（[S-20](#s-20-skillmd-的文本形式与定界)）。可以为空串。
 
-1. **同一份正文，两条路到 agent 眼前是同一段文字**：经 `Skills().read` 读到的，与 [② 型斜杠命令](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)展开成用户消息里那一个内容块的（`data.content-blocks` v1 [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来路标记) 的 `skill_body`），**都是这一个成员的值，逐码点相等**。
+1. **同一份正文，两条路到 agent 眼前是同一段文字**：经 `Skills().read` 读到的，与 [② 型斜杠命令](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)展开成用户消息里那一个内容块的（`data.content-blocks` v1 [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来源标记) 的 `skill_body`），**都是这一个成员的值，逐码点相等**。
    两条路进日志的形状不同（一次工具执行的返回 / 用户消息里的一块），文字相同。
 2. **不经任何展开**：正文里看起来像占位符的（`$ARGUMENTS`、`${CLAUDE_SKILL_DIR}`）或像内嵌命令的（`` !`cmd` ``）**一律是文本**。本契约不定义任何展开；
    **读正文、送正文的任何一方都不得替换其中的占位、不得执行其中的命令**。
@@ -685,7 +685,7 @@ manifest_missing  >  name_mismatch  >  definition_format_unsupported  >  resourc
 #### CS-5 ② 型斜杠命令展开一份技能
 
 斜杠命令的契约在**人敲一条绑定了某份技能的命令并附几句话**时，依赖 [S-8](#s-8-正文逐字不展开不执行)，得到：
-用户消息里一个文本块，`text` 就是那一版的 `body`，逐字、不展开，来路标记 `skill_body`（`data.content-blocks` v1 S-8）；附言另成一块。那份技能自己的「谁可以使用它」照样要过——**同样停在 G-2**。
+用户消息里一个文本块，`text` 就是那一版的 `body`，逐字、不展开，来源标记 `skill_body`（`data.content-blocks` v1 S-8）；附言另成一块。那份技能自己的「谁可以使用它」照样要过——**同样停在 G-2**。
 
 #### CS-6 工作区读入目录里的一份技能
 

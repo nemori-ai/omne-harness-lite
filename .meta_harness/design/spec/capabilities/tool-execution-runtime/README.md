@@ -3,6 +3,7 @@
 **承载[工具执行](../../../ubiquitous_language/terms/execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution)的那一项能力**：
 接一批已放行的调用、依次起执行者、收场、落账、把结果落成对的那种消息；前台／后台与等待是两个维度，中断不是失败；
 绑会话不绑 agent runtime；停机不重来——恢复时找不到的执行一律落「失败·异常中断」。
+**本能力的提供者是一条 fiber，即宿主协程——名字里的「运行时」指它**（统一语言冲突 C-31：叫 runtime 的必须是协程）。
 
 > **「工具执行运行时」没有词条**：词表把单次执行自己的运行时并进了[工具执行](../../../ubiquitous_language/terms/execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution)，
 > 承载全部执行、产品正文里「在工具执行运行时里找得到／找不到」的这一项能力本身没有词条。目录名是施工账本定的契约身份。

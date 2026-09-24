@@ -73,7 +73,7 @@
 不持有任何一条流、不按目标查表、不计时、不写日志、不发请求、不执行工具、不通知任何人。
 同样的输入永远得到同样的输出。
 
-**装配器（无词条）**、装配状态（无词条）是规格层的名字，不是统一语言词条；它们装着的，是[在途状态](../../../../ubiquitous_language/terms/record-and-context.md#ul-in-flight-arrival--在途状态--in-flight-arrival)那份「拼到一半的」。
+**装配器**（做到达装配那件事的纯函数；「到达装配」已立词条，链接待合流后补）、装配状态（无词条）是规格层的名字，不是统一语言词条；它们装着的，是[在途状态](../../../../ubiquitous_language/terms/record-and-context.md#ul-in-flight-arrival--在途状态--in-flight-arrival)那份「拼到一半的」。
 
 ### S-2 消费者
 

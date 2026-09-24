@@ -157,7 +157,7 @@
 | **一次经过的往返** | 运行时在某个位置上**这一次**交给它什么、它交回什么：`ExtensionInput`、`ExtensionOutput` | 按位置判别的形状与合法组合 |
 | **留下来的** | 这一次经过**落进日志**的那一条：`Conclusion` | 记录形状；三种记录 |
 
-> **「一次经过」（无词条）**：运行时在一个位置的一次到达上，按瀑布依次把输入交给挂在那儿的每一件。
+> **「一次经过」**：运行时在一个位置的一次到达上，按瀑布依次把输入交给挂在那儿的每一件。
 > 产品正文说的是「同一个位置，同一次经过只跑一轮」（[PF-012 §5.8](../../../../product/PF-012-agent-loop-and-run/design.md#改了日志就重新组装同一位置同一次经过只跑一轮)），本契约沿用这个描述性说法，**不把它定为正式名**。
 
 ### 规格层 token 与词条的对应
@@ -166,7 +166,7 @@
 |---|---|
 | `LoopPosition` 的十一个值 | [Loop 拓展点](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)的十一个位置，逐个见 [S-1](#s-1-十一个位置) |
 | `LoopExtensionDefinition` | [拓展件 · Loop Extension](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension)的声明 |
-| `Power` 的 `observe` / `rewrite` / `veto` | 干预力的只观察 / 可改写 / 可否决（**干预力无词条**，定义在 [PF-000 §4](../../../../product/PF-000-occurrences-and-record-entries/design.md#干预力--intervention-power)） |
+| `Power` 的 `observe` / `rewrite` / `veto` | 干预力的只观察 / 可改写 / 可否决（**干预力**，定义在 [PF-000 §4](../../../../product/PF-000-occurrences-and-record-entries/design.md#干预力--intervention-power)） |
 | `TerminalFact.state` 的 `completed` / `failed` / `cancelled`；`stop.terminal` 的 `failed` / `cancelled` | [运行终态](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run-terminal-state--运行终态--run-terminal-state)的完成 / 失败 / 被取消 |
 | `AskOutput`、`DecisionCardDraft` | 落一张[决策卡片](../../../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-decision-card--决策卡片--decision-card)等人，用的是[等待原语](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-wait-primitive--等待原语--wait-primitive) |
 | `SelectModelOutput` | 改这一次请求的[有效模型](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-effective-model--有效模型--effective-model) |
@@ -175,15 +175,12 @@
 **`Dimension`、`ErrorPolicy`、`Subject`、`ExtensionInput`、`ExtensionOutput`、`Conclusion`、`LogHandle`、`TerminalFact`、`RetryPlan`、`CardOption` 是规格层的形状名，不是词条**，Schema 里因此不给它们「中文 · English」式标题。
 
 **正文用到、词表里没有的概念（无词条）**——本契约**不给它们下定义**，只指到产品正文：
-干预力（[PF-000 §4](../../../../product/PF-000-occurrences-and-record-entries/design.md#干预力--intervention-power)）、
 状态点（[PF-012 §5.3](../../../../product/PF-012-agent-loop-and-run/design.md#53-改日志的动作与纯派生的动作)）、
 结论（[PF-012 §6.10](../../../../product/PF-012-agent-loop-and-run/design.md#610-能干预的拓展件必须留下结论)）、
 报错处置策略与瀑布（[PF-012 §5.8](../../../../product/PF-012-agent-loop-and-run/design.md#三种形态两种装得进一种拆两半)）、
 生效参数（[PF-012 §5.8](../../../../product/PF-012-agent-loop-and-run/design.md#改参数先落一条生效参数)）、
-合法目标集合（[PF-013 §5.10](../../../../product/PF-013-model-profiles-and-invocation/design.md#510-合法目标集合与展示列表是两件事)）、
-试尽（[PF-013 §4](../../../../product/PF-013-model-profiles-and-invocation/design.md#什么时候算试尽)）、
-上交成因（[PF-013 §5.7](../../../../product/PF-013-model-profiles-and-invocation/design.md#57-上交带什么原样带着状态码不翻译它)）、
-一次经过（见上）。
+上交成因（[PF-013 §5.7](../../../../product/PF-013-model-profiles-and-invocation/design.md#57-上交带什么原样带着状态码不翻译它)）。
+**干预力、一次经过、合法目标集合、试尽**已由词条批立为词条（正式名即此），链接待合流后补。
 
 ### 与相近概念的差异
 

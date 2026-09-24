@@ -70,7 +70,7 @@ V-2～V-10 **一条执行记录也没有**。起草时的手核只保证 `exampl
   - **不透明标识改按 S-31 散文自写**：`BlockId`、`CallId`、`AttachmentRef.storage`／`key` 不再跨契约 `$ref` `data.identity-values/v1` 的 `OpaqueIdentifier`，pattern 与那边逐字相同——**形状不变**；catalog 依赖仍是 `S-31`、`S-34`。
   - **G-2 闭合**：`PlaceholderReason` 八值 → 十一值（`backgrounded_at_start`、`run_cancelled`、`terminated_by_agent`），落格表与 Schema 的条件分支随之扩；`b99` 由拒绝翻为通过。**消费者影响**：`capability.tool-execution-runtime` 的 S-10 那三行「没有」转为「有」。
   - **G-3 闭合**：完整调用块多一种形状（`rawArguments` ＋ `unparseable: true`）；原来「完整调用带 `rawArguments` 即 `malformed`」收窄为「不与 `unparseable` 同现即 `malformed`」。**消费者影响**：`capability.stream-assembly` 的 S-11 与它的 G-1。
-  - **来路标记二值 → 四值**（`slash_command_expansion`、`slash_command_record`）。**消费者影响**：`data.slash-command` 的 S-21、S-25 与它的 G-4。
+  - **来源标记二值 → 四值**（`slash_command_expansion`、`slash_command_record`）。**消费者影响**：`data.slash-command` 的 S-21、S-25 与它的 G-4。
   - **`producedBy` 收为常量 `system`**：原先的能力标识一支删去（本版没有合法的产出者走它）；**表示收紧**，写能力标识的实例由通过变为拒绝。
   - **新增**：`$defs/InlineBytes`（内联那一串 base64 的编码规则抽成共用定义，语音块与图块的 `inline` 改 `$ref` 它，**形状不变**；工具定义卸载的内联原始结果随之引用它）；S-19「派生块模态不同于原块」一条（Schema 管不到，V-3 多一项）；S-34 附件落块规则。
   - **措辞**：S-3 执行帧块由「帧入口」编号（与 `data.arrival-events` S-8 统一）；S-18 `abnormal_interruption` 的触发加「桥换代」；G-5（指路）、G-6（D-038）闭合；新增 G-7（前台上限的中断原因）、G-8（主线裁定无决定记录）。
@@ -82,3 +82,7 @@ V-2～V-10 **一条执行记录也没有**。起草时的手核只保证 `exampl
   **本版的全部证据只保留其单机范围，不得外推。**
 
 结果不改写规范。发现语义问题回到来源设计（PF-009／PF-010／PF-013／PF-006／PF-002），不在这里改契约。
+
+## 对齐义务
+
+- **词条链接待合流后补**（2026-09-24 整批对齐）：正文里「来源标记（原「来路标记」，全文改名）、媒体类型、占位原因」原标「无词条」，词条批已立为词条，本包已改用正式名、去掉标记；那几条词条在 HUB 上、本分支看不到，**链接待合流后补**（主线）。
