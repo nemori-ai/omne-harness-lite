@@ -11,8 +11,8 @@
 - **状态**：`candidate`——未接受、未冻结，不得据此发布或声称消费者已采用
 - **catalog 映射**：已登记为 `candidate`（`acceptance` 为 `null`）。`family=data`、`topic=asset-model`、
   `contract_path=spec/data/asset-model/v1/contract.md`，`resources` 另含 `v1/asset-model.schema.json` 与 `v1/examples.md`；
-  依赖三项：`data.identity-values` v1（`S-3`、`S-5`、`S-6`、`S-11`、`S-12`、`S-16`、`S-22`、`S-31`、`S-34`）、`data.offer-expiry` v1（`S-22`）、`data.content-blocks` v1（`S-20`）。
-  **`data.tool-definition` v1 与 `data.loop-extension` v1 两项依赖暂未登记**——它们同批并行起草、不在本工作树（[G-8](v1/contract.md#八已知缺口)）。
+  依赖三项：`data.identity-values` v1（`S-3`、`S-5`、`S-6`、`S-8`、`S-11`、`S-12`、`S-16`、`S-22`、`S-31`、`S-34`）、`data.offer-expiry` v1（`S-22`）、`data.content-blocks` v1（`S-20`）。
+  **六份正文契约不登为依赖**：壳 `$ref` 它们是结构上的前提，它们反过来消费本契约（catalog 须无环）。
   **登记在 [registry](../../../registry/README.md)，本行只作索引**
 - **提供者/装配映射**：尚无
 
@@ -36,8 +36,8 @@
 | 交换与存储表示 | [v1 Schema](v1/asset-model.schema.json) |
 | 一个值长什么样、什么会被拒、拒绝值叫什么 | [v1 正反实例](v1/examples.md) |
 | 一个值有好几处不对，报哪个拒绝值 | [S-27 表示层拒绝值](v1/contract.md#s-27-表示层拒绝值)与[实例第 13 节](v1/examples.md#13-几处违例同时出现时取哪个拒绝值) |
-| 我是正文契约，推出属性项要守什么 | [S-12](v1/contract.md#s-12-属性声明由正文推出)、[S-13](v1/contract.md#s-13-设置项类别)、[S-15](v1/contract.md#s-15-disabled-是保留项名)、[S-23](v1/contract.md#s-23-凭据引用) |
-| 哪里在等裁决 | [已知缺口](v1/contract.md#八已知缺口)——**G-2（版本选用）与 G-3（三种持有的资格来路）挡住求值第 3 步与工作区读入** |
+| 我是正文契约，推出属性项要守什么 | [S-12](v1/contract.md#s-12-属性声明由正文推出)、[S-13](v1/contract.md#s-13-设置项类别)、[S-15](v1/contract.md#s-15-disabled-是保留项名)、[S-36](v1/contract.md#s-36-usableby-是保留项名)、[S-23](v1/contract.md#s-23-凭据引用) |
+| 哪里在等裁决 | [已知缺口](v1/contract.md#八已知缺口)——**G-6（Agent Definition 的正文）与 G-9（plugin 的正文）**；2026-09-23 那批主线裁定待产品负责人确认（G-13） |
 | 哪些条款有怎样的证据义务，现在到哪一步 | [验证与覆盖](verification.md) |
 
 ## 版本包
@@ -48,6 +48,6 @@
 **本包不建 `formal/`。**本契约没有状态转移；它的结构约束 Schema 与条款即可表达，
 求值链上的结构性质（团队资产不出那棵树、锁截断、禁用析取、工作区滤权）归 `capability.asset-evaluation` 的 Alloy 模型。
 [规格模板对此的要求](../../README.md#按需展开形式化工件)是「已触发的义务不因 optional 而消失」——
-本契约触发的义务是 Schema 正反实例校验、接收边界校验、规范场景与静态检查，在[验证入口](verification.md)登记，状态**一律为「未开始」**。
+本契约触发的义务是 Schema 正反实例校验、接收边界校验、规范场景与静态检查，在[验证入口](verification.md)登记；除 V-1 跑过一次本地自检外，状态**一律为「未开始」**。
 
 本入口不代替唯一 catalog；推荐版本不会自动升级消费者。返回[数据契约](../README.md)。

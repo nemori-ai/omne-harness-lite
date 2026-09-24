@@ -63,7 +63,7 @@
     "CapabilityId": {
       "title": "能力标识 · Capability Identifier",
       "description": "S-20：资产的身份——类别加 name（UL-capability-identifier）。category 恰八类，闭合。相等按两个分量逐码点比较。它是能力标识形状与相等的唯一定义，其他契约一律 $ref 它（本契约自己的块上本版不出现它：DerivedRendering.producedBy 本版恒为 system，S-20）。",
-      "$comment": "name 的词法（不含空白与 ':'、保留前缀）归 data.asset-model v1 的 S-2（它以 allOf 在本定义之上收紧 name）；本定义只约束到非空字符串——本契约不反向引用那份契约，以免成环（S-20）。",
+      "$comment": "name 的词法（不含空白与 '/'，冒号允许）归 data.asset-model v1 的 S-2（它以 allOf 在本定义之上收紧 name）；本定义只约束到非空字符串——本契约不反向引用那份契约，以免成环（S-20）。",
       "type": "object",
       "properties": {
         "category": {

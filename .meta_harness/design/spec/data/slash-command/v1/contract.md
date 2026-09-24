@@ -176,7 +176,7 @@
 **它恰好保证每一个合法的命令名都敲得出、认得回**：对任何合法命令名 `n`，输入 `"/" + n` 在[识别文法](#s-13-识别的三种结果)下必定得出一次名字为 `n` 的命令尝试——
 名字里没有空白，所以不会被截断；没有 `/`，所以不会落进「名字里有斜杠即普通文字」那一支，也不会以 `//` 开头。
 
-- **与 `data.asset-model` v1 当前文本相反**：那边的 [S-2](../../asset-model/v1/contract.md#s-2-能力标识名的词法) 仍是「禁冒号、许斜杠」，它的 [S-29](../../asset-model/v1/contract.md#s-29-名字里的冒号) 甚至把 `omne-official:reload-skills` 列为 `name_invalid` 的反例。
+- **与 `data.asset-model` v1 一致**：那边的 [S-2](../../asset-model/v1/contract.md#s-2-能力标识名的词法) 已改为禁斜杠、许冒号（2026-09-24 整批对齐），它的 [S-29](../../asset-model/v1/contract.md#s-29-名字里的斜杠) 把 `omne-official:reload-skills` 列为正例。
   主线裁定已把那边改判，对齐波改过来之前，**同一个名字在两份契约里一收一拒**——[G-1](#十已知缺口)。本契约的 Schema 因此**暂不 `$ref`** 那边的 `CapabilityName`。
 - 违反四条之一的拒绝值是 **`name_invalid`**（[S-28](#s-28-表示层拒绝值)）。
 
