@@ -165,12 +165,12 @@ governance-center-entry 的设计由 [D-028](../record/decisions/governance-cent
 
 | 节点 | 兑现的契约 | 形态 |
 | --- | --- | --- |
-| [`packages/core/content-blocks`](packages/core/content-blocks/README.md) | `data.content-blocks` v1 | 纯模块：块的形状与表示层校验、此刻模型可读；严格无损 JSON 读写（M36，全批共用） |
+| [`packages/core/content-blocks`](packages/core/content-blocks/README.md) | `data.content-blocks` v1 | 纯模块：块的形状与表示层校验、此刻模型可读；严格无损 JSON 读写（M36，全批共用；运行时前提 Node ≥ 24.18.0 已取证，M49） |
 | [`packages/core/messages`](packages/core/messages/README.md) | `data.messages` v1 | 纯模块：消息的形状与校验、合法名单；`MessageId` 的铸号方未定（下一程） |
 | [`packages/core/call-accounts`](packages/core/call-accounts/README.md) | `data.call-accounts` v1 | 纯模块：账的形状、有效费用与汇总；金额精确十进制 |
 | [`packages/core/arrival-events`](packages/core/arrival-events/README.md) | `data.arrival-events` v1 | 纯模块：到达事件的形状与表示层校验（借开块查询）、填的归约 |
-| [`packages/core/asset-model`](packages/core/asset-model/README.md) | `data.asset-model` v1 | 纯模块：资产形状、名字词法与规范串、表示层校验（正文判定经端口注入，不 import 正文包）、工作区提供的资产的记录号导法 |
-| [`packages/core/tool-definition`](packages/core/tool-definition/README.md) | `data.tool-definition` v1 | 纯模块：工具定义与返回值、模型面条目与名字转写、参数判定（ajv；`format` 只作注解、`schema_unsupported`，M37）；为契约 G-16 登记上限候选值（`u` 方言、`pattern` ≤ 1024 码点、三种回溯形态） |
+| [`packages/core/asset-model`](packages/core/asset-model/README.md) | `data.asset-model` v1 | 纯模块：资产形状、名字词法与规范串、表示层校验（正文判定经按类别判别的端口注入，不 import 正文包）、工作区提供的资产的记录号导法 |
+| [`packages/core/tool-definition`](packages/core/tool-definition/README.md) | `data.tool-definition` v1 | 纯模块：工具定义与返回值、模型面条目与名字转写、参数判定（ajv；`format` 只作注解、`schema_unsupported`，M37）；为契约 G-16 登记上限候选值（`pattern` 先不带 `u` 再带 `u` 试编 M56、`pattern` ≤ 1024 码点、三种回溯形态、判定时限 500 ms）；编译产物归消费者持有的判定对象，不设模块级缓存（M50） |
 | [`packages/core/loop-extension`](packages/core/loop-extension/README.md) | `data.loop-extension` v1 | 纯模块：位置、干预力、结论的形状与两张合法组合表、推出规则；执行环境句柄只定形状（M38，解析归 runner） |
 | [`packages/core/skill-package`](packages/core/skill-package/README.md) | `data.skill-package` v1 | 纯模块：技能包形状、`SKILL.md` 读法（YAML 1.2）、目录形式读法的纯半 |
 | [`packages/core/slash-command`](packages/core/slash-command/README.md) | `data.slash-command` v1 | 纯模块：命令定义、识别与解析（按码点）、两种展开 |
@@ -178,8 +178,8 @@ governance-center-entry 的设计由 [D-028](../record/decisions/governance-cent
 | [`packages/core/connector`](packages/core/connector/README.md) | `data.connector` v1 | 纯模块：连接件正文与入站信封（不带归属）；推出规则本版返回「推不出」（契约 G-4） |
 | [`packages/core/model-profile`](packages/core/model-profile/README.md) | `data.model-profile` v1 | 纯模块：档案、引用的精确匹配、参数词表与表示层校验 |
 | [`packages/core/model-response`](packages/core/model-response/README.md) | `data.model-response` v1 | 纯模块：响应体的形状与表示层校验；`ResponseId` 等副本定义的对齐测试（依赖方一侧） |
-| [`packages/core/asset-evaluation`](packages/core/asset-evaluation/README.md) | `capability.asset-evaluation` v1 | 纯计算：四步求值（组合根引用集 M31；三个失败值 `invalidInput` → `compositionCycle` → `categoryUnsupported`，M32、M45）与清单读入；另导出 S-23 界与挑选供资产治理写时守卫 |
-| [`packages/core/stream-assembly`](packages/core/stream-assembly/README.md) | `capability.stream-assembly` v1 | 纯计算的装配状态机（状态是持久结构的值），模型请求运行时与工具执行运行时两个宿主 import；绑定 2 条（formal task，证的是模型） |
+| [`packages/core/asset-evaluation`](packages/core/asset-evaluation/README.md) | `capability.asset-evaluation` v1 | 纯计算：四步求值（组合根引用集 M31；三个失败值 `invalidInput` → `compositionCycle` → `categoryUnsupported`，M32、M45）与清单读入；另导出 S-23 界与挑选供资产治理写时守卫，与 `BodyContracts` 的唯一组合根 `defaultBodyContracts`（M51） |
+| [`packages/core/stream-assembly`](packages/core/stream-assembly/README.md) | `capability.stream-assembly` v1 | 纯计算的装配状态机（状态是持久结构的值），模型请求运行时与工具执行运行时两个宿主 import；绑定 2 条（formal task，证的是模型；有效性前提的三份变异配置反例已入证据库，M54） |
 
 **2026-09-25 模型领域（`model`，[D-039](../record/decisions/assets-runtimes-split-and-rulings/README.md) 拍板，取 P1-A／P2-A／P3-A）**——节点状态 `candidate`，所兑现的契约 `candidate`、待 D-041，**尚未建包**。会话日志、装配清单读面、凭据保管方三处上游没有提供者：
 
@@ -187,7 +187,7 @@ governance-center-entry 的设计由 [D-028](../record/decisions/governance-cent
 | --- | --- | --- |
 | [`packages/model/model-profile-directory`](packages/model/model-profile-directory/README.md) | `capability.model-profile-directory` v1 | 中心插件 P-1（三个服务键，取值问法单列），inject 存储、时钟、成员关系；另有只读副本插件 P-1r，待入口 v2 |
 | [`packages/model/model-request-runtime`](packages/model/model-request-runtime/README.md) | `capability.model-request-runtime` v1 | 插件 P-2（inject 目录读面、凭据问法、会话日志、存储、时钟；在途表与连接池一个 effect）＋ 自带重试挂件 P-5；传输按 D-019 fork；绑定 6 条（formal task） |
-| [`packages/model/modality-projection`](packages/model/modality-projection/README.md) | `capability.modality-projection` v1 | 纯计算＋转换器登记插件 P-3、声明插件、各转换器插件 P-4*；不 inject 存储；模态转换这一件经执行环境句柄取 `tenant`，来路待 runner 契约 G-20 |
+| [`packages/model/modality-projection`](packages/model/modality-projection/README.md) | `capability.modality-projection` v1 | 纯计算＋转换器登记插件 P-3（不 inject 任何服务）、声明插件、各转换器插件 P-4*、系统自带转换件的零状态贡献者插件；不 inject 存储；模态转换这一件经执行环境句柄取 `tenant`，来路待 runner 契约 G-20 |
 
 **2026-09-25 loop 侧（`agent-loop`，D-039 拍板）**——节点状态 `candidate`，所兑现的契约 `candidate`、待 D-041，**尚未建包**；runner 的行为模型未建（契约 G-14），两个节点都没有绑定：
 

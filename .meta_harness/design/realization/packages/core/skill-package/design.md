@@ -6,7 +6,7 @@
 ## 实现路径与来源
 
 **自建一个 TypeScript 纯模块**，写法与 [content-blocks](../content-blocks/design.md#实现路径与来源) 相同：`ajv` 8.20.0 的 Draft 2020-12 入口、Schema 原样复制并逐字节核对、拒绝值[按契约次序逐条判](../content-blocks/design.md#拒绝值按契约的次序逐条判不从-schema-错误里反推)。
-S-20 第 5、6 条要一个 YAML 1.2 解析器：采用第三方包 `yaml`（[下文](#skillmd-的-yaml-读法)；[D-040 §八 M44](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 作为实现期事项登记，不另出决定）。
+S-20 第 5、6 条要一个 YAML 1.2 解析器：第三方包 `yaml`（[下文](#skillmd-的-yaml-读法)）是**候选依赖，版本钉定与许可核对在实施程**（[D-040 §八 M55](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)，同 M44 的实现期事项口径，不另出决定）。
 **Cordis 版本**：采用 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；本模块不依赖 Cordis。
 
 ## 契约到 Cordis 的投影
@@ -53,7 +53,7 @@ S-20 第 5、6 条要一个 YAML 1.2 解析器：采用第三方包 `yaml`（[�
 | 消费的精确契约 | 实际提供者／解析方式与范围 | 工作中绑定与变更生效点 | 缺席、撤回和旧引用政策 |
 |---|---|---|---|
 | `data.asset-model` v1、`data.content-blocks` v1、`data.tool-definition` v1 | [asset-model](../asset-model/README.md)、[content-blocks](../content-blocks/README.md)、[tool-definition](../tool-definition/README.md) | 随包版本 | 静态 import |
-| YAML 1.2 解析 | 第三方 `yaml`（进 pnpm catalog，实现期事项） | 随锁定版本 | 静态 import |
+| YAML 1.2 解析 | 第三方 `yaml`（候选依赖，版本钉定与许可核对在实施程，M55） | 随锁定版本 | 静态 import |
 | 被消费 | slash-command、asset-evaluation、资产治理、注册表、执行运行时、工作区读入方 | 普通包依赖；契约出 v2 另开入口 | 不改 v1 导出 |
 
 包依赖与 catalog 的契约依赖同构（[D-040 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），无环。**没有配置项**。
@@ -74,5 +74,5 @@ S-20 第 5、6 条要一个 YAML 1.2 解析器：采用第三方包 `yaml`（[�
 
 契约的已知缺口（第九节）不重抄。本节点自己的：
 
-- **SP-1 `yaml` 进 catalog**：实现期事项（D-040 §八 M44）；三条行为以包内测试核，核不过就换 `js-yaml`。owner：本节点落包时。
+- **SP-1 `yaml` 进 catalog**：候选依赖，版本钉定与许可核对在实施程（D-040 §八 M44、M55）；三条行为以包内测试核，核不过就换 `js-yaml`。owner：本节点落包时。
 - **SP-2 读目录的一方**：`readSkillPackage` 只收已解析过链接的条目；读目录、判符号链接是否落在包根之外，归持有目录的那台宿主上的读入方（工作区读入、导入器）。跨节点交接，owner：主线指派。

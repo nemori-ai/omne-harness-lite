@@ -9,7 +9,7 @@
 
 - 语义接受范围：**未接受**（候选，待 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）。契约与本节点都是 `candidate`
 - 可实施范围：本节点声称兑现 S-4～S-27（装配状态与位置、一块在状态里是什么、快照、收尾结算、一块怎样落、封口那一下的唯一解析、解析不了只标记、被砍过的调用落成半截、账与砍的汇总、首个内容的位置、五个操作、八个判定失败值、表示层拒绝值原名引用、判定次序、被拒不改状态、一次到达装配等于一次性到达），逐条见 [design.md 投影表](design.md#契约到-cordis-的投影)。**S-28、S-29 不在本节点兑现**：它们是宿主前提与部署表，本节点只写清单机时它提供了什么让宿主兑现得了。源码不存在，以上**全部未实现**
-- 绑定与证据：[`bindings.yaml`](bindings.yaml) **2 条**，都指向 formal task `stream-assembly-v1-assembly`（run [`2026-09-25-formal-assets-runtimes`](../../../../record/evidence/2026-09-25-formal-assets-runtimes/README.md)，退出 0、无反例）：P-1 块次序（S-6）与 P-7 一次到达装配等于一次性到达（S-27）。**它们证的是模型，不是实现**；实现侧的一致性用例、性质测试、规范场景与静态检查一条也没有，缺口见 [verification.md「覆盖缺口」](verification.md#覆盖缺口)
+- 绑定与证据：[`bindings.yaml`](bindings.yaml) **2 条**，都指向 formal task `stream-assembly-v1-assembly`（run [`2026-09-25-formal-assets-runtimes`](../../../../record/evidence/2026-09-25-formal-assets-runtimes/README.md)，退出 0、无反例）：P-1 块次序（S-6）与 P-7 一次到达装配等于一次性到达（S-27）；两条的有效性前提（三份变异配置给得出反例）由 run [`2026-09-25-validity-stream-assembly`](../../../../record/evidence/2026-09-25-validity-stream-assembly/README.md) 支撑（全部退出 12，D-040 §八 M54）。**它们证的是模型，不是实现**；实现侧的一致性用例、性质测试、规范场景与静态检查一条也没有，缺口见 [verification.md「覆盖缺口」](verification.md#覆盖缺口)
 - 实际验证：**无**（源码不存在）
 
 ## 按当前问题展开

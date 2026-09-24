@@ -20,6 +20,7 @@
 | V-11 读不了正文的一类即拒（S-44，E-8 四支） | sub-agent 那支得 `categoryUnsupported{agent_definition}`、plugin 那支得 `{plugin}`，都没有结果；plugin 被禁用那支成功、进 `unresolved`；环与 sub-agent 同时出现那支得 `compositionCycle`（判定次序） | 未开始 | 本节点 |
 | SC-1～SC-3 | 见 [design「静态检查义务怎么承载」](design.md#静态检查义务怎么承载)；SC-3 随 M32、M45 扩到三个失败值 | 未开始。SC-1 的时钟那一半由现有 `no-wall-clock` 规则在包落地后覆盖；其余规则不存在 | 本节点提出形式；SC-2 扫的是消费者包 |
 | S-23 界与挑选的三个导出函数 | S-23 产品原话表七行各一条单元检查；同一组用例经 `evaluate` 第 4 步得同一结论（共用实现的回归） | 未开始 | 本节点；资产治理的写时守卫用例另在 asset-governance 节点 |
+| `defaultBodyContracts`（M51，唯一组合根） | 六类的键齐全，每个键上的值就是对应正文包导出的那一份（同一引用）；用它构造 asset-model 判定对象不抛出；错类由 asset-model 节点的类型测试覆盖 | 未开始 | 本节点 |
 | `evaluationInputFingerprint`（本节点给的缓存键） | 改输入里任何一项（含 `standing`、`workspace`、会话配值、选用版本、动作集、`root.references`）指纹都变；成员次序不同的同一输入指纹相同 | 未开始 | 本节点 |
 
 ## 实际执行
@@ -31,3 +32,14 @@
 - **契约的每一条都没有实现侧证据**：没有源码，空绑定表与此一致。owner：本节点。
 - **Alloy 模型不可绑定**：结构性质只有模型侧结论，而且 2026-09-25 那次重跑的原始输出**未登记进 record/evidence**——契约侧的依据目前只由契约验证入口的文字记录支撑。实现侧须另写性质测试（V-1 行）。owner：本节点（性质测试）；主线（把那次运行登记成 evidence run）。
 - **两个诊断的内容不可比对**：`cycle`、`category` 的具体内容契约豁免了确定性（S-11 的两处例外），有几个环、几类读不了时，V-10、V-11 只能核「有没有、首尾相接、类别在不在读不了的那两类里」，不能逐字核（E-7 A 支只有一个一元环，逐字核得了）。这是契约的选择，不是缺证据。
+
+## 独立评审
+
+2026-09-25 本节点随 N1 批（`core` 十五个纯模块）经一次独立的架构评审（只读结构核对，无运行）：本节点建议 1、范围外 1，另有 asset-model 那条建议落到本节点，无阻断、无应修；主线据此裁定 [D-040 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M51、M52（批的结论见同节 N-28）。**处置不等于评审闭合**——是否闭合由复审判断。
+
+| 编号 | 发现 | 处置 | 落点 |
+| --- | --- | --- | --- |
+| 建议 5 | 包依赖比 catalog 多四条边（skill-package、slash-command、connector 三条规则来源边与 content-blocks 一条工具边），已隐含在文字里但没有单列 | 按 M52：依赖表逐行单列，并写明哪三条已登进 catalog、哪一条是工具依赖不进 catalog | design.md「实现路径」包内依赖一条、依赖表与其下「不在 catalog 原有登记里的四条边」一段 |
+| 范围外 | 规则来源的三份契约不登 catalog，规格演进的消费者影响分析会漏本节点 | 按 M52：主线把 `data.skill-package#S-13、S-17`、`data.slash-command#S-6、S-11`、`data.connector#S-11` 登进 catalog（本节点不改 registry） | 同上 |
+| 建议 3（asset-model 节点提出，后半落本节点） | `BodyContracts` 三处组合根，分叉时没有检查失败 | 按 M51：本模块成为唯一组合根，导出 `defaultBodyContracts`；资产治理与注册表 import 它 | design.md「实现路径」第二条、依赖表「被消费」一行、状态一节、AE-7；本页新加一行 |
+| 按节点备注 | 公开面五个函数多于契约的两个操作；AE-6 签名对齐是与资产治理的开放交接 | 三个 S-23 函数是契约规则的投影、与第 4 步共用一份实现，不改；AE-6 已由 N-22 推导接受为已对齐 | design.md AE-6 |

@@ -59,14 +59,15 @@
 S-27 要求：一份记录的正文不合它那份正文契约、或名字不合那一类的收窄时，那份契约给的拒绝值 v **原名进本契约的次序**。所以本模块的判定必须看得见六份正文契约的判定。
 而六份正文契约（[tool-definition](../tool-definition/README.md)、[loop-extension](../loop-extension/README.md)、[skill-package](../skill-package/README.md)、[slash-command](../slash-command/README.md)、[mcp-endpoint](../mcp-endpoint/README.md)、[connector](../connector/README.md) 六个包）反过来依赖本契约的名字词法与属性声明——**本模块直接 import 它们就成环**（契约自己也写明壳的 `$ref`「不登为依赖、是结构前提」）。这一选择已由 [D-040 §八 M44](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 接受。
 
-| | 本模块直接 import 正文包的判定 | 本模块只判外壳，正文由消费者另调 | **端口注入（本节点选）**：`createAssetModelJudge(bodies)` 收一个按类别给出「判正文与名字 → 拒绝值或通过」「推属性声明（或推不出）」「列引用」三样的端口 `BodyContracts`（候选名）；六个正文包**各导出本类那一份**（`toolBodyContract`、`loopExtensionBodyContract`、`skillBodyContract`、`slashCommandBodyContract`、`mcpBodyContract`、`connectorBodyContract`，候选名），由消费者组合 |
+| | 本模块直接 import 正文包的判定 | 本模块只判外壳，正文由消费者另调 | **端口注入（本节点选）**：`createAssetModelJudge(bodies)` 收一个按类别给出「判正文与名字 → 拒绝值或通过」「推属性声明（或推不出）」「列引用」三样的端口 `BodyContracts`（候选名）；六个正文包**各导出本类那一份**（`toolBodyContract`、`loopExtensionBodyContract`、`skillBodyContract`、`slashCommandBodyContract`、`mcpBodyContract`、`connectorBodyContract`，候选名），由 asset-evaluation 一处组合（M51） |
 |---|---|---|---|
 | 包级依赖 | asset-model → tool-definition 等 → asset-model，**成环** | 无环 | 无环：本模块只依赖端口的类型 |
 | S-27 一次恰一个、次序固定 | 成立 | **不成立**：两次调用各给一个值，合并次序落到每个消费者手里，各写各的 | 成立：次序在本模块里排 |
 | 缺一类的实现 | — | — | 构造时就发现：`bodies` 缺六类中任何一类 ⇒ **构造抛出**，宿主插件启动失败——与本批节点「配置错误启动失败」同一政策。`agent_definition` 与 plugin 自己的项不在端口里，按契约是「推不出」，不是缺实现 |
+| 错类的实现 | — | — | **编译期就发现**（[D-040 §八 M51](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：`BodyContracts` 的类型**按类别判别**——每个键的正文类型不同（候选形状：以类别为键的映射类型，键 `C` 的值是「判 `C` 类正文」的那一份），把 `toolBodyContract` 交到 `skill` 键下编译不过 |
 
 **落选方（只判外壳）的最强论证**：最简单，本模块完全不知道正文契约存在。**它输给 S-27 的次序**：把次序交给消费者，资产治理的写面、流转、清单读入、注册表四处会各排一遍。
-**本方弱点**：多一个端口形状要与六个正文包对齐；组合根（谁把六份实现组合起来交给本模块）落在每个消费者的装配里——候选是资产治理插件与据点侧的注册表各自在插件体里构造一次（[AM-5](#实施缺口与消费者影响)）。置信度：**高**。
+**本方弱点**：多一个端口形状要与六个正文包对齐。组合根（谁把六份实现组合起来）只留一处：[asset-evaluation](../asset-evaluation/design.md#实现路径与来源) 导出组好的 `defaultBodyContracts`（候选名），资产治理插件体与据点注册表 import 它、不各自再组（M51，[AM-5](#实施缺口与消费者影响)）——S-27「同一值在每个接收边界得同一个拒绝值」由这一个来源保证。置信度：**高**。
 
 ### 工作区提供的资产的记录号：用单射编码，不用摘要
 
@@ -87,7 +88,7 @@ S-4 把 `(WorkspaceKey, capability)` → 记录号的导法交给实现，要求
 |---|---|---|---|
 | `data.identity-values` v1、`data.offer-expiry` v1 | 已实现的两个 core 包 | 随包版本 | 静态 import |
 | `data.content-blocks` v1（`CapabilityId`、严格无损 JSON） | [content-blocks](../content-blocks/README.md) | 随包版本 | 静态 import |
-| 六份正文契约的判定与推出规则 | 端口 `BodyContracts`，六份实现由六个正文包各自导出、由消费者组合后在构造时交进来 | 构造时绑定，此后不变；换一套实现就是构造一个新的判定对象 | 缺一类 ⇒ 构造抛出（启动失败）；**不在运行期具名拒绝** |
+| 六份正文契约的判定与推出规则 | 端口 `BodyContracts`（按类别判别的类型），六份实现由六个正文包各自导出，由 asset-evaluation 组成 `defaultBodyContracts` 一处导出；消费者 import 它、在构造时交进来 | 构造时绑定，此后不变；换一套实现就是构造一个新的判定对象 | 错类 ⇒ 编译期失败；缺一类 ⇒ 构造抛出（启动失败）；**不在运行期具名拒绝** |
 | 被消费 | 六个正文包、call-accounts、asset-evaluation、资产治理、资产流转（经治理插件）、注册表、MCP 桥、拓展件派发、兼容层、模型档案目录 | 普通包依赖；契约出 v2 另开入口 | 不改 v1 导出 |
 
 包依赖与 catalog 的契约依赖同构（[D-040 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），无环。**没有配置项**。
@@ -119,5 +120,5 @@ S-4 把 `(WorkspaceKey, capability)` → 记录号的导法交给实现，要求
 - **AM-2 已关闭**：原「包级依赖成环」由 [D-040 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)（一契约一包）解开；正文契约那一条仍由端口解开。
 - **AM-3 目录规范化不解析符号链接**：`normalizeWorkspaceDirectory` 只做字面规范化，同一目录经符号链接的两条路径会成为两份工作区。契约把规范化交给实现；本节点选字面、不碰文件系统（纯）。若要解析链接，须由写下键的一方在读文件系统之后交来规范路径。owner：会话创建一侧（PF-015，无契约）；在那之前如实记为「本版字面规范化」。
 - **AM-4 清单文本的读入方**：`parseWorkspaceManifestText` 要由**读 `.omne/workspace.json` 的那一方**调用（`capability.asset-evaluation/v1#S-2`：读文件、解析 JSON 归提供者）；读方若绕过它、用普通 `JSON.parse` 读，就看不见重复成员名。owner：据点侧读工作区的节点（注册表或据点装配，由主线指派）。
-- **AM-5 端口的组合根**：`BodyContracts` 由谁组合六个正文包的导出、交给谁——候选：资产治理插件与据点侧注册表各自在插件体里构造一次。跨节点交接：asset-governance 与 asset-registry 节点的设计各写一行。
+- **AM-5 端口的组合根（按 [D-040 §八 M51](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 收成一处）**：`BodyContracts` 只在 `core/asset-evaluation` 组合一次、导出为 `defaultBodyContracts`（候选名）；资产治理插件体与据点注册表 import 它、不各自再组。S-27「同一值在每个接收边界得同一个拒绝值」由单一来源保证，不另写多处一致性测试。跨节点交接：asset-governance 与 asset-registry 节点的设计各改那一行（归各自节点）。
 - **AM-6 凭据引用解到哪（下一程）**：本模块只定义 `CredentialRef` 的形状（S-23）；它由凭据保管方解引用，那个提供者（`infra/secrets`）**本程不补**，[D-040 §八 M43](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) C-5 登记为下一程缺口。owner：主线。本模块不受阻；受阻的是出示凭据的消费者（MCP 桥、连接件接入端）。
