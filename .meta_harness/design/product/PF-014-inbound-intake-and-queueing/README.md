@@ -2,7 +2,7 @@
 id: PF-014
 title: 输入的受理与排队
 status: active
-revision: 5
+revision: 6
 relations:
   supersedes: []
   depends-on:
@@ -23,7 +23,7 @@ relations:
     - id: PF-012
       for: 待处理消息队列、Run 的边界由 loop 进出划定、状态转移表与两层循环的出口、拓展点
     - id: PF-013
-      for: 一次模型调用被中断是它的一种收场，且不带故障成因
+      for: 一次模型调用被中断是它的一种收场，且不带故障成因；用户可以单独中断一次模型调用；转换失败即不落盘
   extends: []
 ---
 
@@ -81,7 +81,7 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 5**，**已定稿**（2026-09-22 由产品负责人定） · [演进过程见变更历史](changelog.md)
+- 产品设计：**rev 6**。rev 5 **已定稿**（2026-09-22 由产品负责人定）；**rev 6 待产品负责人确认** · [演进过程见变更历史](changelog.md)
 - 待裁决：**0**，去向见 [decisions.md 第三节](decisions.md#三待裁决)
 - **本 topic 引入的三个概念已经落进词表**：
   [入站到达](../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival) ·
