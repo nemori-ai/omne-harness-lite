@@ -168,6 +168,89 @@
 - **注意 ③**：`SystemReminderMessage` **不是「一条带标记的用户消息」**——
   它得是一种类型，**记录里才分得开，adapter 才认得出**
 
+### UL-interruption-reminder · 中断提醒 · Interruption Reminder
+
+> **中**：**一次模型调用的回复流断在半路之后，系统补给 agent 的那条 `SystemReminderMessage`，告诉它「刚才发生了一次中断」。**
+> 不分情形都补——用户叫停的、出错断的、写到上限截断的，**哪怕什么内容都没留下**；它说清刚才是怎么断的。
+> 首 token 之后因故障断流时，**它本身就充当那一跳交给 agent 的上交条目**，不另立一条。
+>
+> **EN**: **The `SystemReminderMessage` the system adds for the agent after a model call's reply
+> stream breaks off, telling it "an interruption just happened".** It is added in every case —
+> stopped by the user, broken by an error, truncated at the output limit — **even when no content
+> was left behind**, and says how the stream ended. When a fault breaks the stream after the first
+> token, **it serves as the escalation entry for that hop to the agent**; no separate entry is made.
+
+- **形态**：变体（父：[消息](#ul-message--消息--message)）
+- **出处**：[PF-009 §5.6 中断这件事本身，要让 agent 知道](../../product/PF-009-context-message-types/design.md#中断这件事本身要让-agent-知道) ·
+  [§6.13](../../product/PF-009-context-message-types/design.md#613-只要发生了中断就补一条提醒)（rev 8） ·
+  [PF-013 §5.5](../../product/PF-013-model-profiles-and-invocation/design.md#55-上交交给谁看模型说没说出话)（rev 9）
+- **注意 ①**：**它不算一次[触发](agent-runtime-loop.md#ul-trigger--触发--trigger)**——系统为已经发生的中断追补的这一条，[不让待处理消息队列从空变非空](../../product/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空)（PF-014 rev 6），用户叫停之后它不会把 agent 重新叫起来
+- **注意 ②**：**它管的是模型回复那一路。**工具执行没走完就收场的，交代原因的是那次调用位置上的[占位消息](#ul-placeholder-message--占位消息--placeholder-message)，不是它
+
+### UL-placeholder-message · 占位消息 · Placeholder Message
+
+> **中**：**一次工具调用此刻交不出真实结果时，系统放在那次调用位置上的一条 `ToolMessage`。**
+> 它是一条正常的工具返回，意思是「这里现在没有结果，因为……」，**必须写明[占位原因](#ul-placeholder-reason--占位原因--placeholder-reason)**：
+> 执行被中断、转了后台、发起时就在后台、会话被归档、停机之后找不到它，都落这样一条。
+> 转了后台的，真实结果日后以 `SystemReminderMessage` 到达——**占位那一条不动，也不被换掉**。
+>
+> **EN**: **The `ToolMessage` the system places at a tool call's position when that call cannot
+> hand back a real result now.** It is an ordinary tool return meaning "there is no result here now,
+> because…", and **must state its placeholder reason**: an interrupted execution, one moved to the
+> background or started there, one caught by session archival, one that cannot be found after a
+> crash — each leaves one. For a backgrounded execution the real result later arrives as a
+> `SystemReminderMessage`; **the placeholder itself stays as it is and is never replaced**.
+
+- **形态**：变体（父：[消息](#ul-message--消息--message)）
+- **出处**：[PF-006 §6.7 用户可以中断，而中断不是失败](../../product/PF-006-tools-and-skills/design.md#67-用户可以中断而中断不是失败) ·
+  [占位消息一律要说清原因](../../product/PF-006-tools-and-skills/design.md#占位消息一律要说清原因) ·
+  [§6.6](../../product/PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)（rev 18） ·
+  [PF-009 §4 SystemReminderMessage](../../product/PF-009-context-message-types/design.md#systemremindermessage)（rev 8）
+- **别混**：**不是[结果卸载](execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)留下的那条**——正文也管它叫「占位」，但那一条装着真实结果的摘要与取全文的办法，**它就是那次调用的结果**；占位消息里没有结果
+- **注意**：**它不是失败。**agent 按原因读它——**失败是「这事没成」，中断是「这事不做了」**，把两者读混，agent 会去重试用户刚叫停的事
+- **注意 ②**：**一次执行的真实结果落成哪种消息，只看那个位置上有没有占位**：没有，结果填成 `ToolMessage`；已经有，结果以提醒到达
+
+### UL-placeholder-reason · 占位原因 · Placeholder Reason
+
+> **中**：**[占位消息](#ul-placeholder-message--占位消息--placeholder-message)上必须写明的「为什么此刻没有结果」。**
+> 取值：用户手动中断 · 转后台 · 发起时就在后台 · 因插队转后台 · 因插队被中断 · 人拒绝回复 ·
+> 运行被取消 · 前台超时 · 会话被归档 · 工具执行异常中断。
+> **它是原因，不是收场**——这些取值都落在[六种收场](execution-and-outcome.md#ul-execution-outcome--执行收场--execution-outcome)里的转后台、被中断、失败三格上。
+>
+> **EN**: **The "why there is no result now" a placeholder message must state.** Its values: user
+> interrupt, moved to background, started in background, moved to background by a queue jump,
+> interrupted by a queue jump, person declined to reply, run cancelled, foreground timeout, session
+> archived, tool execution lost. **It is a reason, not an outcome** — every value falls on one of three
+> of the six outcomes: moved to background, interrupted, or failed.
+
+- **形态**：属性
+- **出处**：[PF-006 §6.7 占位消息一律要说清原因](../../product/PF-006-tools-and-skills/design.md#占位消息一律要说清原因)（rev 18）
+- **注意 ①**：**「工具执行异常中断」落在失败，不在被中断**——没有任何人叫停它，agent 该自己判断要不要再调
+- **注意 ②**：**「被 agent 停掉」不是它的取值**——后台那一段被 agent 自己掐掉时，原因写在那段执行收场的提醒里；那次调用的占位早在转后台时就放下了
+- **注意 ③**：**「运行被取消」不借「用户手动中断」**——取消的可能不是用户，而且停的是这一步，不是这一次执行
+
+### UL-source-tag · 来源标记 · Source Tag
+
+> **中**：**一条[入站到达](interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival)、以及系统据以落下的那条 `SystemReminderMessage` 身上记着的「这是谁捎来的」**——
+> 用户敲的、连接件送的、定时到点的、另一个会话里的 agent、自己派出去的 subagent、一次后台工具执行、环境、系统自己。
+> **来源是一个属性，不是另一种消息、也不是另一类到达**：同一套受理与处理规矩对所有来源成立，差别只在这个取值。
+> agent 主要靠正文读懂是什么事；它是额外的一份确凿信息，给排查的人用，也给要回话给捎信那一方的 agent 用。
+>
+> **EN**: **The "who brought this in" recorded on an inbound arrival, and on the
+> `SystemReminderMessage` the system writes from it** — typed by the user, sent through a connector,
+> fired by a schedule, an agent in another session, a subagent this one dispatched, a background tool
+> execution, the environment, the system itself. **The source is an attribute, not another kind of
+> message or another class of arrival**: one set of intake and handling rules holds for every source,
+> differing only in this value. The agent understands what happened mainly from the body; this is an
+> extra piece of hard fact, for whoever investigates and for an agent that wants to reply to the sender.
+
+- **形态**：属性
+- **出处**：[PF-009 §6.5 来源是一个属性，不是另一种消息](../../product/PF-009-context-message-types/design.md#65-来源是一个属性不是另一种消息) ·
+  [§4 SystemReminderMessage](../../product/PF-009-context-message-types/design.md#systemremindermessage)（rev 8） ·
+  [PF-014 §4 入站到达](../../product/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 6）
+- **别混**：**不是[资产来源](circulation-and-entitlement.md#ul-asset-origin--资产来源--asset-origin)**（official / customized）——那个词条已写明裸写「来源」不作数；**这里的正式名是「来源标记」**
+- **弃用**：~~「来源属性」~~（正文的叙述说法，指的就是它）
+
 ### UL-content-block · 内容块 · Content Block
 
 > **中**：**一条消息装的是若干个块，不是一段文本。**块分几类：
@@ -245,6 +328,26 @@
 - **出处**：[PF-013 §4 模态](../../product/PF-013-model-profiles-and-invocation/design.md#模态)（rev 9）
 - **⚠️ 别混**：**七类块 ≠ 四种模态**——块的类型归 [PF-009](../../product/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)，模态归 PF-013
 - **注意**：两处对不上时**挡在算合法目标那一刻**，不是挡在出门那一刻
+
+### UL-media-type · 媒体类型 · Media Type
+
+> **中**：**一个[内容块](#ul-content-block--内容块--content-block)所装内容的具体格式**——一段视频、一张 PNG 图、一份 PDF 各是一种。
+> **块是哪种[模态](#ul-modality--模态--modality)，看它的媒体类型**：文件块的媒体类型落在四种模态之一，它就是那一种；
+> 落在四种之外（一份文档、一个压缩包），它就**不属于任何一种模态**，装的只是[一个附件](execution-and-outcome.md#ul-attachment--附件--attachment)的引用，任何模型都读得了。
+> 它也是[模态转换件](capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)登记用的两种键之一。
+>
+> **EN**: **The specific format of what a content block holds** — a video, a PNG image, a PDF
+> are each one. **A block's modality follows from its media type**: a file block whose media type
+> falls within one of the four modalities is that modality; one that falls outside them (a document,
+> an archive) **belongs to no modality** and holds only a reference to an attachment, which any model
+> can read. It is also one of the two kinds of key a modality converter registers under.
+
+- **形态**：属性
+- **出处**：[PF-009 §4 消息的内容是一串块](../../product/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 8） ·
+  [PF-013 §4 模态](../../product/PF-013-model-profiles-and-invocation/design.md#模态) ·
+  [§4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件)（rev 9）
+- **别混**：**不是块的类型**——块的类型是载体（七类），媒体类型是载体里那样东西的格式；**视频没有自己的块类型，靠媒体类型认出来**
+- **注意**：一个文件块**同时命中「模态」键与「媒体类型」键时，媒体类型那个键上的转换件来转**——更具体的压过更一般的
 
 ### UL-modality-projection · 模态投影 · Modality Projection
 
@@ -342,6 +445,61 @@
 - **别混 ②**：**「这次模型调用已经开口了」不在这里**——那是[调用账目](execution-and-outcome.md#ul-call-account--调用账目--call-account)里的一笔，落日志；**在途的只是内容**
 - **注意 ①**：它丢了不靠恢复：那正是「停了就不重来」的情形，收场另行追补
 - **注意 ②**：**它只带内容，不带此前被砍过什么**——砍了多少、为什么砍，收尾时一并交代
+
+### UL-arrival-grammar · 到达语法 · Arrival Grammar
+
+> **中**：**一条消息分次到达时必须守的那套先后**：开一个块，同时说明这块怎么填（追加片段 / 整体替换）→ 往里填 →
+> 封上这个块，交出完整的一块 → ……→ 记一次账 → 收尾。
+> 三条硬性质：**封口时交出的是完整的那一块**；**一条流必须有结局**；**账只记一次**。
+> 模型的回复与工具的[执行帧](execution-and-outcome.md#ul-execution-frame--执行帧--execution-frame)走的是同一套。
+>
+> **EN**: **The order a message arriving in instalments must keep**: open a block, stating how it
+> will be filled (append fragments / replace whole) → fill it → close it, handing over the complete
+> block → … → record the account once → close out. Three hard properties: **closing a block hands over
+> the whole block**; **every stream must have an ending**; **the account is recorded exactly once**. A
+> model reply and a tool's execution frames follow the same grammar.
+
+- **形态**：规则
+- **出处**：[PF-009 §5.5 到达的过程有它自己的语法](../../product/PF-009-context-message-types/design.md#到达的过程有它自己的语法) ·
+  [「填」有两种模式](../../product/PF-009-context-message-types/design.md#填有两种模式开块的时候说明是哪一种)（rev 8） ·
+  [PF-006 §4 发帧](../../product/PF-006-tools-and-skills/design.md#发帧)（rev 18）
+- **别混**：与[增量到达](#ul-incremental-arrival--增量到达--incremental-arrival)——那一条说「一条消息是分次到达的」这件事，**这一条说那件事必须按什么先后走**
+- **注意**：**两种填法只管「填」这一步**，开块、封口、记账、收尾一样不少；取代只发生在一个块里，不跨块
+
+### UL-arrival-assembly · 到达装配 · Arrival Assembly
+
+> **中**：**把一条正在分次到达的消息的增量，照[到达语法](#ul-arrival-grammar--到达语法--arrival-grammar)拼起来的那件事**——
+> 每封一个块拼成完整的一块，收尾时拼成完整的一条消息落盘。拼到一半的那份就是[在途状态](#ul-in-flight-arrival--在途状态--in-flight-arrival)，由运行时持有。
+> **拼出来的必须与一次性拿到的一模一样**；消费的一方可以自己再拼，但不必——封口交出的已经是完整的一块。
+>
+> **EN**: **Putting together the increments of a message that is arriving in instalments, following
+> the arrival grammar** — into a complete block each time one is closed, and into one complete message,
+> written once, at close-out. The half-assembled state is the in-flight arrival, held by the runtime.
+> **The result must be identical to what would have arrived in one piece**; a consumer may assemble
+> again for itself but need not, since each closed block is already handed over whole.
+
+- **形态**：过程
+- **出处**：[PF-009 §5.5 到达的过程有它自己的语法](../../product/PF-009-context-message-types/design.md#到达的过程有它自己的语法) ·
+  [组装出来的，必须与一次性拿到的一模一样](../../product/PF-009-context-message-types/design.md#组装出来的必须与一次性拿到的一模一样) ·
+  [§9.2 收尾之前，拼到一半的那份是在途状态](../../product/PF-009-context-message-types/design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息)（rev 8）
+- **⚠️ 别混**：**不是 [Agent 装配](agent-runtime-loop.md#ul-agent-assembly--agent-装配--agent-assembly)**（把定义求值成一份清单），**也不是[上下文组装](#ul-context-assembly--上下文组装--context-assembly)**（从日志拼出给某一方看的那份）。
+  **PF-009 §5.5 那一节标题里的「组装」指的是它**，不是上下文组装（[C-29](../conflicts.md#现有冲突)）
+- **弃用**：~~「流装配器」~~、~~「装配器」~~——指做这件事的那一方，与 Agent 装配字面相撞；这里只立这件事本身
+
+### UL-increment-throttling · 增量节流 · Increment Throttling
+
+> **中**：**对分次到达的增量的节制**：可以把相邻的增量合并，**不许默默丢弃**；砍了多少、为什么砍，都要让人看得出来。
+> 对模型的回复与对工具的执行帧是同一条。
+>
+> **EN**: **Restraint on increments arriving in instalments**: adjacent increments may be merged,
+> **never silently dropped**; how much was cut and why must be visible. The same rule covers model
+> replies and tool execution frames.
+
+- **形态**：规则
+- **出处**：[PF-009 §6.16 砍了要说，不许默默丢](../../product/PF-009-context-message-types/design.md#616-砍了要说不许默默丢) ·
+  [§5.8 帧多了要节流](../../product/PF-009-context-message-types/design.md#帧多了要节流规则就是-616-那一条)（rev 8）
+- **注意**：[在途状态](#ul-in-flight-arrival--在途状态--in-flight-arrival)**只带内容，不带此前被砍过什么**——砍了多少、为什么砍，收尾时一并交代
+- **别混**：**裸写「节流」不作数**——上游的限流、网络的流控都叫这个词，与这里无关
 
 ### UL-todo-item · 待办条目 · Todo Item
 
