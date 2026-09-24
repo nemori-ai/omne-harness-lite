@@ -204,7 +204,7 @@
 ## 5. 定义的反例：每个拒绝值至少一个
 
 **校验对象**：`$defs/ToolDefinition`。**预期：表示层一律拒绝。**第二列是 Schema 这一关：标「Schema 通过」的两行由 Schema 之外那一步拒（[S-4](contract.md#s-4-单函数工具)）。
-第三列是按 [S-26](contract.md#s-26-表示层拒绝值与判定次序) 的次序应报的值；`malformed` 注明是 `M1`～`M15` 的哪一条。
+第三列是按 [S-26](contract.md#s-26-表示层拒绝值与判定次序) 的次序应报的值；`malformed` 注明是 `M1`～`M15`、`M24` 的哪一条。
 
 | 实例 | 预期 | 拒绝值 · 依据 |
 |---|---|---|
@@ -241,6 +241,8 @@
 | B 加 `"settings": {"backgroundThreshold": {"category": "preference", "default": "PT30S"}}` | 拒绝 | `malformed`（M15）：有阈值没有许可——声明一个永远用不上的值只会误导（[S-12](contract.md#s-12-后台许可与转后台阈值)） |
 | 上一行再加 `"allowBackground": false` | 拒绝 | `malformed`（M15）：许可必须恰为 `true` |
 | 第 2 节的例子加 `"settings": {"backgroundThreshold": {"category": "preference", "default": "PT30S"}}` | 拒绝 | `malformed`（M15）：多命令工具同样适用 |
+| 第 2 节的例子，`list.input` 换成 `{"type": "object", "properties": {"q": {"$ref": "#/$defs/query"}}, "$defs": {"query": {"type": "string"}}}` | **Schema 通过** · 表示层拒绝 | `malformed`（M24）：命令 `input` 里的根相对 `$ref` 嵌进生成出的对象之后会按新的根解析（[S-7](contract.md#s-7-多命令-input-的生成规则)） |
+| 第 2 节的例子，`list.input` 换成 `{"$id": "urn:example:list", "type": "object"}` | **Schema 通过** · 表示层拒绝 | `malformed`（M24）：`$id` 会改变嵌入处的基准 |
 
 ## 6. 小值的正反实例
 
@@ -273,7 +275,7 @@
 | `"session"` | 拒绝 | 不做「最接近」映射（[S-28](contract.md#s-28-判别式与枚举闭合)） |
 | `"sandbox"` | 拒绝 | 沙箱不是一种绑定层，是隔离的那三种的统称 |
 
-**`$defs/SettingCategory`**（[S-10](contract.md#s-10-设置项声明)）
+**`data.asset-model` 的 `$defs/SettingCategory`**（本契约 `$ref` 它，[S-10](contract.md#s-10-设置项声明)）
 
 | 实例 | 预期 | 依据 |
 |---|---|---|

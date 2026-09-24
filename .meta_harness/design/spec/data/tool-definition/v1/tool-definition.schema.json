@@ -42,7 +42,7 @@
           "properties": { "skills": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true } },
           "additionalProperties": false
         },
-        "origin": { "$ref": "#/$defs/ToolOrigin" }
+        "origin": { "$ref": "#/$defs/ToolSource" }
       },
       "required": ["name", "description", "paradigm", "input", "permissions", "origin"],
       "additionalProperties": false,
@@ -97,7 +97,7 @@
         "origin": {
           "description": "S-17：多命令工具只能是作者写的。",
           "allOf": [
-            { "$ref": "#/$defs/ToolOrigin" },
+            { "$ref": "#/$defs/ToolSource" },
             { "properties": { "kind": { "const": "authored" } } }
           ]
         }
@@ -188,21 +188,14 @@
 
     "SettingDeclaration": {
       "title": "一项设置的声明",
-      "description": "S-10：{ category, default }——资产声明一项设置时必须标的类别（UL-setting-category），以及作者给的默认值。两者都必填。各层配值与运行时求值不在本契约。",
+      "description": "S-10、S-31：{ category, default }——资产属性声明（data.asset-model 的 AttributeDeclaration）在工具定义里的写法：项名由 settings 的键给、种类恒为设置、取值域由本契约按项定死，作者只写类别与默认值；S-31 的推出规则由它得出 AttributeDeclaration。不是第二种声明。两者都必填。各层配值与运行时求值不在本契约。",
       "type": "object",
       "properties": {
-        "category": { "$ref": "#/$defs/SettingCategory" },
+        "category": { "$ref": "../../asset-model/v1/asset-model.schema.json#/$defs/SettingCategory" },
         "default": true
       },
       "required": ["category", "default"],
       "additionalProperties": false
-    },
-
-    "SettingCategory": {
-      "title": "设置项类别 · Setting Category",
-      "description": "S-10：恰四值，取自 PF-002 §5.2 与 UL-setting-category：preference 偏好 · binding 绑定 · placement_identity 落点与身份 · governance 治理。闭合枚举，未知取值即 category_unknown（S-28）。",
-      "type": "string",
-      "enum": ["preference", "binding", "placement_identity", "governance"]
     },
 
     "TargetEnvironment": {
@@ -250,7 +243,7 @@
       "additionalProperties": false
     },
 
-    "ToolOrigin": {
+    "ToolSource": {
       "title": "来源",
       "description": "S-17：判别成员 kind，恰两种。authored：作者写的定义。mcp：由某个 MCP 接入点的列举结果生成，对端的一个动作一份定义；endpoint 是那个接入点的能力标识（类别必须是 mcp），remoteName 是那个动作在对端的名字、原样保留。未知 kind 即 origin_unknown（S-28）。",
       "oneOf": [
@@ -325,7 +318,7 @@
               "title": "内联",
               "type": "object",
               "properties": {
-                "inline": { "type": "string", "minLength": 1, "contentEncoding": "base64", "pattern": "^[A-Za-z0-9+/]*={0,2}(?![\\s\\S])" },
+                "inline": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/InlineBytes" },
                 "mediaType": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/MediaType" }
               },
               "required": ["inline", "mediaType"],
@@ -346,7 +339,7 @@
       },
       "required": ["raw"],
       "additionalProperties": false,
-      "$comment": "内联形式的成员名 inline 与 base64 表示照 data.content-blocks 给语音、图块定的内联写法；那边的账本没有一个可 $ref 的内联字节定义名，这里因此内联写出一份，已作为「同一概念一份权威」的对齐项报主线。"
+      "$comment": "内联形式的 inline 取 data.content-blocks 的 InlineBytes（该契约 S-10），编码规则只在那里写一份。"
     }
   }
 }
