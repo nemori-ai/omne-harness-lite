@@ -534,3 +534,24 @@ product-design-drafter 把约 57 处裁定落进 PF-001/002/006/008/009/010/012/
 | M30 | content-blocks G-10（模型交回不合模型面字符集的调用名）：本版在到达装配处拒该增量（`malformed`，MRR S-51 第 4 条只报一次），这次调用不落任何记录；模型侧怎样被告知归 agent loop 契约（PF-012 那一程），G-10 的 owner 改为它、本版保持开着 | 甲报回 |
 | N-17 | 甲（修复波 2）推导接受：messages S-10 回复流对应表补「流还没开始就失败或停机 → 不写消息」；中断提醒按一次模型调用算、重发不另补；S-11／S-19 补「有意撤下」；S-7 `createdAt` 由组装方给、不作先后比较；arrival-events 宿主放弃不带 `error`；model-response S-13「`run_cancelled` 配回复」只在用户发起时成立、写入方义务；catalog 两处对 model-profile 加 `S-19`；`ModelToolName` 为具名 `$def`。**有意的不对称**：模型侧系统取消 → 回复 `lost`＋响应体 `interrupted{run_cancelled}`，工具侧系统取消 → TER `interrupted`——回复的 `ending` 只有 PF-009 给的三值，没有「系统中断」一值；已列账本 ⑥ 请产品负责人过目 | 甲报回 3 |
 | N-18 | 契约正文里其余标「已报主线」的规格层名字（标「无词条」的）与规格层推导，主线通读修复波 2 交付后一并接受为契约自己的名字与推导；各处措辞统一为「已报主线并接受」。要不要立词条归统一语言维护者按 `ubiquitous-language` 五条准入判，不在本决定 | 主线定点核 |
+
+## 八、实现映射起草反推出的契约修订（M31～M44，2026-09-25 追加）
+
+五位 realization-drafter 起草 18 个节点时报回的契约层缺陷（`tmp/assets-runtimes/nodes/draft-*.md`），主线裁定如下，修复波 3 据此落条款；节点随之对齐。
+
+| 编号 | 裁定 | 来源 |
+|---|---|---|
+| M31 | **asset-evaluation 的 `root` 改为「组合根引用集」**：输入 `root` 不再是一个 `agent_definition` 能力标识，而是 `{ definition: CapabilityId, references: AssetReference[] }`——`definition` 只作组合根的身份（记进 `EffectiveAssembly`），`references` 是调用方（装配清单的读方）从 agent definition 正文读出的引用列表，第 2 步从它们起步；Agent Definition 的「规则一」因此由输入给出，不再依赖 PF-004 正文契约（G-3 收窄为「引用列表怎样从 agent definition 正文读出」，owner PF-004） | 戊 AE-1 |
+| M32 | `evaluate` 失败集合加 **`compositionCycle`**（第 2 步判出的成环，带环上的能力标识序列作诊断）；G-1 关 | 戊 AE-2 |
+| M33 | TER `submit` ① 加 **`report`**：这一次尝试的可用性报告（与 runner `dispatch.admission.report` 同一份，M9），S-23 ② 第 6 条据它查注册表（`within = run{report}`）；跨进程随请求传递、接收边界核会话与 `runId`，不得现算 | 庚 T-1、A-7、B-6 |
+| M34 | asset-registry S-22 ⑦ 以 S-13 为准：同一 `EvaluationRef` 再 `fill` 而六张表已不是它填出的 ⇒ `invalidInput{evaluationSuperseded}`，不当作新装配 | 庚 A-5 |
+| M35 | asset-registry `within = run{report}` 的读只在报告所依快照里找：reload 之后新条目对仍在跑的那次尝试答「没有」，下一次尝试起可见（S-11 第 1 条「一次尝试以它为准」的直接推论）；S-25 ⑤、S-8 末段、S-34、G-2 同口径 | 庚 A-6 |
+| M36 | JSON 解析口径（content-blocks S-12、stream-assembly S-10、messages）：按 RFC 8259 严格解析；**重复键 ⇒ 解析失败**（`malformed`）；超出 2^53 的整数与金额一律**无损保留原文**（不折成 double），落盘与回读走无损读写 | 戊 SA-1、MSG-3 |
+| M37 | 参数判定：`format` 只作注解不作断言；作者或远端 schema 编译不了、或 `pattern` 超出实现上限（长度／回溯保护）⇒ 新拒绝值 **`schema_unsupported`**（tool-definition S-4 收；MCP 动作条目据此 `stand_in{for: schema_unsupported}`，mcp-endpoint 同步） | 戊 TM-2、TM-3 |
+| M38 | 统一输入加一个按会话作用域的不透明 **`environment` 句柄**（data.loop-extension S-11）：不暴露会话标识（L9 不变），能取到调用方租户身份与这一会话的执行环境（PF-005 的接口输入）；modality-projection S-18／S-20、hooks-import S-18 改从它取；runner S-7 系统自带件同样拿到它 | 辛 MP-N1／RUN-N3／HI-N2 |
+| M39 | runner `dispatch` ⑥ 加 **`cancelled`**：运行被取消时这一次 `dispatch` 以它收场，已落的经过保留，在途的件收到中止信号（辛的 abort 投影）；S-34 与之对齐 | 辛 RUN-N4／HI-N6 |
+| M40 | 契约里残留的 `apps/runtime-host` 一律改 `apps/cli`（runner S-4／§十四、hooks-import S-4／§十二、asset-registry S-31 第 3、6 行）——D-039 已裁 | 壬 C-10、辛 |
+| M41 | **数据契约节点一契约一包**（戊 R1）：`core/message-model`→`core/{content-blocks,messages,call-accounts,arrival-events}`，`core/tool-model`→`core/{tool-definition,loop-extension,skill-package,slash-command,mcp-endpoint,connector}`，`core/model-model`→`core/{model-profile,model-response}`；与 catalog 无环的依赖图同构，包级不再成环；主线原分组撤回 | 戊 MSG-1 |
+| M42 | TER S-46 加一行「`execution.delivered` 只在进程内通知、**不得跨进程广播**；载荷只带标识与收场」；据点进程内不按租户 isolate，监听者按载荷自筛（壬 F③ 读法接受） | 庚 F③、壬 |
+| M43 | 下列缺口**本程不补、留给下一程**并在各节点显式登记（owner 主线）：会话日志契约与提供者（C-1）、装配清单契约（PF-004，C-2）、据点上的中心事实副本读面（C-3；随入口组合 v2 一并起草）、入口组合 v2（C-4）、凭据保管方 `infra/secrets`（C-5）、附件存储（C-6）、执行环境（PF-005，C-7）、agent loop（C-8）、传输 fork 包节点（MRR-N4）、TER 的 `after_action` 驱动与观察者订阅（T-2、T-3）、`late` 读面与模型调用成本路由（T-4、T-5） | 壬、庚、辛 |
+| M44 | 接受的推导与命名：戊——正文判定走端口注入（`BodyContracts`）、carrier 记录号单射编码 `wsc1.`＋base64url、标识沿用 `generateOpaqueIdentifier()`、ajv 编译作者 schema、副本对齐测试放依赖方；庚——TER 单 fiber（D 的两 fiber 不采用、改选条件已写）、无子 fiber、出站项 `tool_execution_outbox`、存储哨兵、注册表必需 inject 装配清单并每次读表头、条件追加定序、桥的独立执行器插件、OAuth「同一提交」读作两次提交一个可见提交点；辛——MRR inject 会话日志／存储／时钟、`credentialLookup` 独立键、声明器插件与 P-4\* 由装配加载、runner 经 `toolAdmission`、`manifestNotNewer` 记日志继续、P-1r 不持久凭据；壬——运行期不换代走排空重启、SQL＋JSONL 两处只走出站项、据点不放出厂格模型凭据。`identity-values` 包补导出空白码点集合（AM-1／TM-6）、`yaml` 库采用（TM-5）作为实现期事项登记在各节点，不另出决定 | 戊、庚、辛、壬 |
