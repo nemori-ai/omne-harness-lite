@@ -17,7 +17,7 @@
 | V-4 | **规范场景** [S-32](v1/contract.md#s-32-连不上时照上一份清单装替换件)～[S-38](v1/contract.md#s-38-桥换代时在途调用落异常中断)：每条一个正例、一个反例 | 规范场景演练；**反例要能让一个故意写错的实现失败** | [S-7](v1/contract.md#s-7-动作清单持久副本)、[S-9](v1/contract.md#s-9-凭据的出示与取用)、[S-19](v1/contract.md#s-19-invoke)、[S-23](v1/contract.md#s-23-completeoauth)、[S-24](v1/contract.md#s-24-续期清值与作废)、[S-27](v1/contract.md#s-27-桥被替换或卸载) | **未执行。**S-35 与 S-38 **必须在对端观察请求次数**：只看收场会漏掉重发；S-36 **必须观察配值的写入记录**：只看凭据可用会漏掉「续期被写成了改值」 |
 | V-5 | **进程与环境**：P-8（环境白名单）与 P-12（进程组收口） | 在真实操作系统上拉起一个会再拉子进程、会打印环境的测试服务端；收口后查进程表 | [S-6](v1/contract.md#s-6-连接归桥不上签名不跨租户)、[S-26](v1/contract.md#s-26-连接的收口次序)、[S-28](v1/contract.md#s-28-据点停机与重启) | **未开始。**这两条**只能**由真实进程观察，模型检查给不出更强的证据（[S-31](v1/contract.md#s-31-本版选用哪些形式工件)） |
 | V-6 | **秘密不进呈现**：P-3 | 以已知秘密串驱动全部操作与失败路径，扫描返回值、失败值 `raw`、日志、帧、结果、stderr 留存 | [S-13](v1/contract.md#s-13-凭据与引用不进任何呈现) | **未开始**；扫描**不证明**对端变形过的秘密也被遮掉（S-13 已声明不承诺） |
-| V-7 | **消费者路径走查**（[CS-1～CS-4](v1/contract.md#十一消费者核对)） | 结构化走查；有提供者之后升级为真实演练 | [S-12](v1/contract.md#s-12-每次执行尝试重新列举尝试内不变)、[S-14](v1/contract.md#s-14-桥不做放行判断)、[S-16](v1/contract.md#s-16-refreshactions)、[S-19](v1/contract.md#s-19-invoke)、[S-22](v1/contract.md#s-22-beginoauth)、[S-23](v1/contract.md#s-23-completeoauth) | **未开始。**走查**不需要提供者**；CS-1 停在注册表、CS-3 停在资产治理，二者不在本工作树——停在别的契约不算走不通 |
+| V-7 | **消费者路径走查**（[CS-1～CS-4](v1/contract.md#十一消费者核对)） | 结构化走查；有提供者之后升级为真实演练 | [S-12](v1/contract.md#s-12-每次执行尝试重新列举尝试内不变)、[S-14](v1/contract.md#s-14-桥不做放行判断)、[S-16](v1/contract.md#s-16-refreshactions)、[S-19](v1/contract.md#s-19-invoke)、[S-22](v1/contract.md#s-22-beginoauth)、[S-23](v1/contract.md#s-23-completeoauth) | **未开始。**走查**不需要提供者**；CS-1 接到 `capability.asset-registry/v1#S-12`、CS-3 接到 `capability.asset-governance` v1 的 `assign`——停在别的契约不算走不通 |
 | V-8 | **静态检查**（[SC-1～SC-6](#静态检查义务)） | 实现语言的静态检查（具体形式归 realization） | 见下表 | **未开始；检查器尚不存在** |
 
 ### 静态检查义务
@@ -39,13 +39,13 @@
 
 | 对齐什么 | 涉及 | 现状 |
 |---|---|---|
-| 副本、凭据、OAuth 绑定的住处 | 起草简报账本、主线 A-M11；`data.mcp-endpoint` 同一处 | 本契约与 `data.mcp-endpoint` 按持有存、不在正文，**已报主线改判**（[G-1](v1/contract.md#十已知缺口)） |
-| 失败值多出四个（`callTimedOut`、`oauthNotApplicable`、`dependencyUnavailable`、`bridgeWithdrawn`）；`oauthDenied` 收四种来由 | 起草简报账本 | 已报主线确认（[S-15](v1/contract.md#s-15-这一节每个操作写全九件事)） |
-| `abnormal_interruption` 多了「桥被替换或卸载」这条来路 | `data.content-blocks` v1 的 S-18 那一行；`capability.tool-execution-runtime`「实现被撤下不影响在途」 | 两边都未改（[G-16](v1/contract.md#十已知缺口)） |
-| MCP 条目的结果端模态 | `data.tool-definition` v1 的 S-24 | 按现行规则带图片的 MCP 结果「违反声明」（[G-3](v1/contract.md#十已知缺口)） |
-| 投影规则就是 `data.tool-definition` 那边 G-8 的答案 | `data.tool-definition` v1 的 G-8 | 那边待把 G-8 改成指向本契约 [S-17](v1/contract.md#s-17-projectactions) |
-| 求值交出 `provenance` | `capability.asset-evaluation` | 那边未建立；在它交出之前本契约不出示凭据（[G-9](v1/contract.md#十已知缺口)） |
-| 注册表、工具执行运行时、交付面对本契约操作的消费登记 | 同批三份 | 依赖方向是它们 → 本契约，由它们各自登记 |
+| 副本、凭据、OAuth 绑定的住处 | 起草简报账本、主线 A-M11；`data.mcp-endpoint` 同一处 | **已对齐（2026-09-24）**：主线裁定采纳按持有存放（账本 S19-a），G-1 闭合 |
+| 失败值多出四个（`callTimedOut`、`oauthNotApplicable`、`dependencyUnavailable`、`bridgeWithdrawn`）；`oauthDenied` 收四种来由 | 起草简报账本；`capability.tool-execution-runtime` 的收场映射 | **已对齐（2026-09-24）**：主线裁定采纳（账本 S19-b）；工具执行运行时 S-11 对 `invoke` 能交回的全部失败值都有映射（`bridgeWithdrawn` → `abnormal_interruption`，其余 → `implementation_error`） |
+| `abnormal_interruption` 多了「桥被替换或卸载」这条来路 | `data.content-blocks` v1 的 S-18 那一行；`capability.tool-execution-runtime`「实现被撤下不影响在途」 | **已对齐（2026-09-24）**：两边都已改（G-16 闭合） |
+| MCP 条目的结果端模态 | `data.tool-definition` v1 的 S-24 | **已对齐（2026-09-24）**：那边第 3 条按本契约的投影判，投不出即「任意」（账本 S19-e），G-3 闭合 |
+| 投影规则就是 `data.tool-definition` 那边 G-8 的答案 | `data.tool-definition` v1 的 G-8 | **已对齐（2026-09-24）**：那边 G-8 已关闭并指向本契约 [S-17](v1/contract.md#s-17-projectactions) |
+| 求值交出 `provenance` | `capability.asset-evaluation` | **已对齐（2026-09-24）**：那边 S-40 交出（`Layer` 值），本契约 S-5 的 `provenance` 改为照它，G-9 闭合 |
+| 注册表、工具执行运行时、交付面对本契约操作的消费登记 | `capability.asset-registry`、`capability.tool-execution-runtime`；交付面尚无契约 | 依赖方向是它们 → 本契约，由它们各自登记（2026-09-24 两份已登 catalog） |
 
 ## 结果与反例
 
@@ -70,8 +70,13 @@ V-1～V-8 **一条执行记录也没有**。起草时的手核只保证 `example
   本契约的 [S-4](v1/contract.md#s-4-依赖方向与被消费的面) 依赖表、[S-17](v1/contract.md#s-17-projectactions) 投影表、[S-20](v1/contract.md#s-20-对端结果怎样成为-toolresult) 映射表与实例第 4、5 节须同轮复核。
 - **同轮追加：桥被替换或卸载**（主线据块 B 拆分提案 PB-4 追加）：新增 [S-27](v1/contract.md#s-27-桥被替换或卸载) 与失败值 `bridgeWithdrawn`；原 S-27～S-36 顺延为 S-28～S-37，新增规范场景 S-38；
   [S-21](v1/contract.md#s-21-失败值与收场的对应) 对照表、[S-26](v1/contract.md#s-26-连接的收口次序) 的在途规则、[S-30](v1/contract.md#s-30-装配给与协议给) 表各加一处。**候选未冻结，原地改**；尚无外部引用本契约的条款号。
-- **主线改判副本与凭据的住处**（[G-1](v1/contract.md#十已知缺口)）：若维持「在正文」，[S-7](v1/contract.md#s-7-动作清单持久副本)、[S-8](v1/contract.md#s-8-oauth-绑定状态与迁移)、[S-16](v1/contract.md#s-16-refreshactions) 的写入对象改变 ⇒ 语义改变；接受前改则原地改并重做 V-3、V-4，接受后改则出 v2。
-- **[G-2](v1/contract.md#十已知缺口) 被裁决**（stdio 拉起要不要单列确认）：若加一道确认，[S-6](v1/contract.md#s-6-连接归桥不上签名不跨租户) 第 3 条与 [S-16](v1/contract.md#s-16-refreshactions) ② 加一个前置与一个失败值 ⇒ 语义改变。
+- **副本与凭据的住处**：主线已裁定按持有存放（账本 S19-a）；产品负责人若不确认而改回「在正文」，[S-7](v1/contract.md#s-7-动作清单持久副本)、[S-8](v1/contract.md#s-8-oauth-绑定状态与迁移)、[S-16](v1/contract.md#s-16-refreshactions) 的写入对象改变 ⇒ 语义改变；接受前改则原地改并重做 V-3、V-4，接受后改则出 v2。
+- **2026-09-24 整批对齐（简报 S23；主线裁定 2026-09-23，待产品负责人确认，账本 S19-a～g）：原地改了候选。**
+  - 凭据「还没取」由 `{ "kind": "not_fetched" }` 改为**缺席**（[S-5](v1/contract.md#s-5-接入点持有的寻址)、[S-9](v1/contract.md#s-9-凭据的出示与取用) 第 1 条、[S-24](v1/contract.md#s-24-续期清值与作废) 第 3 条；与 `data.mcp-endpoint/v1#S-13`、连接件同一种拼法）。
+  - `provenance` 改为 `capability.asset-evaluation/v1#S-40` 交出的 `Layer` 值，不合形状即 `invalidInput`；来处比较改按设置层序；`provenance.credential` 不是组织或租户那一格即不出示（[S-9](v1/contract.md#s-9-凭据的出示与取用) 第 2、3 条）。新增依赖 `capability.asset-evaluation` v1（S-5、S-17、S-40）。
+  - 工作区提供的 stdio 接入点由求值禁用（[S-6](v1/contract.md#s-6-连接归桥不上签名不跨租户) 第 3 条）；两端模态的投影写进 [S-17](v1/contract.md#s-17-projectactions)、[S-20](v1/contract.md#s-20-对端结果怎样成为-toolresult)；保管方作装配给（[S-2](v1/contract.md#s-2-本契约不拥有什么)、[S-30](v1/contract.md#s-30-装配给与协议给)）；OAuth 凭据跟机器（[S-8](v1/contract.md#s-8-oauth-绑定状态与迁移)）；[S-21](v1/contract.md#s-21-失败值与收场的对应) 注明失败种类由运行时定。
+  - G-1、G-2、G-3、G-8、G-9、G-16 闭合；G-7、G-14、G-15 改写；新缺口 G-17。实例第 1、5、7 节随之改（`provenance` 写成 `Layer` 值、凭据缺席、第二台机器一行）。
+  - **操作、失败值集合与条款编号都没有变**；消费者（注册表、工具执行运行时）引的条款号不受影响。
 - **[G-5](v1/contract.md#十已知缺口) 就位**（elicitation）：出 v2，[S-25](v1/contract.md#s-25-对端来的通知与请求) 那一行与 [S-21](v1/contract.md#s-21-失败值与收场的对应) 的 `no_answer` 一起改。
 - **跨进程演化启动**：[S-30](v1/contract.md#s-30-装配给与协议给) 右列从「待兑现」转为「须由协议兑现」；本版的全部证据只保留其单机范围，不得外推。
 
