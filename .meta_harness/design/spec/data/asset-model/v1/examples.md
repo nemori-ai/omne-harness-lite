@@ -33,7 +33,7 @@
 | `{"category": "mcp", "name": "github"}` | 通过 | — | [S-3](contract.md#s-3-能力标识与它的规范串)：规范串是 `mcp/github`，拆回来是同一个能力标识（[S-29](contract.md#s-29-名字里的斜杠) 正例） |
 | `{"category": "skill", "name": "Code-Review"}` | 通过 | — | [S-2](contract.md#s-2-能力标识名的词法) 第 4 条：区分大小写——它与 `code-review` **不是**同一个能力标识 |
 | `{"category": "skill", "name": "代码审查"}` | 通过 | — | [S-2](contract.md#s-2-能力标识名的词法)：本版不限字符集 |
-| `{"category": "slash_command", "name": "omne-official:reload-skills"}` | 通过 | — | [S-2](contract.md#s-2-能力标识名的词法)：冒号允许；规范串是 `slash_command/omne-official:reload-skills`（[S-29](contract.md#s-29-名字里的斜杠) 正例） |
+| `{"category": "slash_command", "name": "omne-official:reload-skill"}` | 通过 | — | [S-2](contract.md#s-2-能力标识名的词法)：冒号允许；规范串是 `slash_command/omne-official:reload-skill`（[S-29](contract.md#s-29-名字里的斜杠) 正例） |
 | `{"category": "mcp", "name": "gh/issues"}` | 拒绝 | `name_invalid` | [S-2](contract.md#s-2-能力标识名的词法) 第 3 条：含斜杠。**规范串单射的回归用例**（[S-29](contract.md#s-29-名字里的斜杠) 反例）；**不被改写成别的分隔符后接受** |
 | `{"category": "tool", "name": "read file"}` | 拒绝 | `name_invalid` | [S-2](contract.md#s-2-能力标识名的词法) 第 2 条：中间的空白也不行 |
 | `{"category": "tool", "name": "read_file\n"}` | 拒绝 | `name_invalid` | [S-2](contract.md#s-2-能力标识名的词法)：**这一条是 `$` 的回归用例**——pattern 以 `(?![\s\S])` 收尾，理由同 `data.identity-values/v1#S-31` |

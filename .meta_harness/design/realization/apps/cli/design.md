@@ -7,7 +7,7 @@
 应用的形状（进程、边、分层、技术栈、分发）在 [architecture.md](architecture.md)，本页不重复。
 
 **贯穿全页的一个事实：源码不存在。**`apps/cli` 与 `packages/frontend/*` 尚未建包；
-2026-09-25 起据点一侧多了三个领域（`model`、`tools`、`agent-loop`）与 `core` 纯模块的**候选**契约与 provider 节点（节点已起草、candidate、未评审，**包都尚未建**；`core` 的数据契约一契约一包，[D-040 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M41），
+2026-09-25 起据点一侧多了三个领域（`model`、`tools`、`agent-loop`）与 `core` 纯模块的**候选**契约与 provider 节点（节点已起草并过五批独立评审 N1～N5、candidate、未评审，**包都尚未建**；`core` 的数据契约一契约一包，[D-040 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M41），
 harness 其余能力族——会话日志、装配清单、agent loop 与 agent runtime、受理与队列、决策池——**契约尚未起草**。下面每一处「提供者」都是**设计名与责任声明**，
 **不是已经存在的东西**——[不从文件名、接口形状或替身推断已兑现](../../AGENTS.md#红线)。
 
@@ -494,7 +494,7 @@ provider 节点只能写「归装配」的事，在本节点逐条落处；承�
 | **C-8** agent loop 与 agent runtime **没有契约**（受理与队列同在） | 执行宿主、P-2、派发器、注册表的调用方全都不在；RUN S-32 第 5 行、REG S-31 第 5 行转交不出去；修复波 3 新加给调用方的两样归它：同一份带 `attempt` 的报告交给派发器与执行宿主（A-19：TER S-46 第 7 行、RUN S-32 第 6 行）、给 `dispatch` 的叫停通道（A-20：RUN S-32 第 8 行、HI S-26 第 2 行）；执行环境句柄的来路（A-21）按 M48 改归 C-13 与 C-7。P-2 `openCall` 的宿主句柄（effect 登记函数、中止信号、「停止中」读面）的形状也归它（M67 M-4）；`runAttemptFacts` 的真承接者之一也在这里（C-16）。**排空重启的第一步「关闭新运行的准入」也没有承接者**（[architecture 分发与升级](architecture.md#分发与升级)）——只影响升级流程，不影响正确性 | **主线**（M43，下一程）；闭合条件：loop 契约写出这两样的交付方与失败收场，叫停的交换格式进组合契约，受理一侧给出「停止接受新运行」的操作 |
 | **C-9** 具名参数的部署取值未定（A-16） | 产品据点清单缺值即启动失败 | 各契约 G 的 owner（TER、BR G-12、MRR G-5／G-6） |
 | **C-10** ~~三份契约正文仍写已被 D-039 取代的 `apps/runtime-host`~~ | —— | **已闭合**：修复波 3 已改为 `apps/cli`（D-040 §八 M40） |
-| **C-11** 假设待补 probe：`ctx.effect` 的撤除函数可提前调用（H-2，P-2 依赖它，MRR 节点 MRR-N5）、没有 inject 时插件体不重跑（H-4）、不带 `thisArg` 的派发不过滤（H-7）；**`await` 一条 fiber 的撤除会等到它的 async disposer 结算完**（本装配显式驱动撤除次序时依赖它，与执行宿主节点的 A-1「换代时等旧任 async disposer 结算完再重跑」同类）；子 fiber 随父卸载（H-1）**本装配已不依赖**（执行宿主无子 fiber、P-4\* 不是 P-3 的子） | 「事件与过滤」按不过滤处理；P-2 的「一次调用是宿主上的 effect」按 H-2 写；[撤除次序](#据点装载清单与顺序)与排空演练（verification 据点义务第 5 条）以最后一条为前提——不成立时正确性由下一任恢复扫描兜住，演练预期不成立 | `packages/core/kernel-basis`，按 source-check 补 probe、登 basis |
+| **C-11** 假设待补 probe：`ctx.effect` 的撤除函数可提前调用（本节点编号 H-2，MRR 节点叫 H-1，同一条假设；P-2 依赖它，MRR 节点 MRR-N5）、没有 inject 时插件体不重跑（H-4）、不带 `thisArg` 的派发不过滤（H-7）；**`await` 一条 fiber 的撤除会等到它的 async disposer 结算完**（本装配显式驱动撤除次序时依赖它，与执行宿主节点的 A-1「换代时等旧任 async disposer 结算完再重跑」同类）；子 fiber 随父卸载（H-1）**本装配已不依赖**（执行宿主无子 fiber、P-4\* 不是 P-3 的子） | 「事件与过滤」按不过滤处理；P-2 的「一次调用是宿主上的 effect」按 H-2 写；[撤除次序](#据点装载清单与顺序)与排空演练（verification 据点义务第 5 条）以最后一条为前提——不成立时正确性由下一任恢复扫描兜住，演练预期不成立 | `packages/core/kernel-basis`，按 source-check 补 probe、登 basis |
 | **C-12** 本程留给下一程、会牵动本装配的 provider 缺口（M43）：传输 fork 的包节点（MRR-N4）、执行宿主落盘前那一关的驱动方与按（租户，会话）订阅的观察者推送面（T-2、T-3）、`late` 读面与模型调用的成本路由（T-4、T-5） | 技术栈表里的 pi-ai 定向 fork 没有包可装；门面拿不到工具帧的推送面，只能读日志 | **主线**（M43，下一程） |
 | **C-13** **会话持有租户读面 `sessionTenancy` 没有契约、没有提供者**：执行宿主 `submit` 读会话持有的那一个租户（TER G-12、执行宿主节点 T-8）、派发器解析执行环境句柄里的租户（RUN S-50）、注册表 `evaluationInputs` 里的「会话事实」——同一读面的三个消费者（M48，与 C-3 分开登记） | 产品装配里 `submit` 恒为整批 `dependencyUnavailable{storage}`；执行环境句柄解析不出租户，要用它的拓展件（模态转换、兼容件）「起不来」或报错；REG S-31 第 6 行受阻 | **主线**（M48）；真承接者会话那一程（PF-015）；闭合条件：会话契约写出这份读面，提供者立节点；验收装配的替身随之删掉 |
 | **C-14** **依赖在场判定面 `dependencyPresence` 没有契约**（派发器节点 RUN-N5；RUN S-12 ①） | 声明了 `needs` 的拓展件判不出 ⇒ 那一次 `unavailable`；不带 `needs` 的件不受影响。验收装配的固定清单里没有一件声明 `needs` | **主线**（M48 照评审建议登记）；派发器契约的 owner 定这份判定面的来路 |

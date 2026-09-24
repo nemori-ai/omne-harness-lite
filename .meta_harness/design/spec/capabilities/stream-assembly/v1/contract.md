@@ -201,8 +201,8 @@
 
 **接受一个工具调用块的 `close` 的那一下，是这次调用参数唯一的解析点**（[D-035](../../../../record/decisions/message-and-stream-baseline/decision.md) 保留前提 1、`data.content-blocks/v1#S-12`）：
 
-1. 参数原文 ≝ 这块全部填按填法的归约（`data.arrival-events/v1#S-19`）；没收到过填就是空串。
-2. 这块若在开着时被改过内容（[S-12](#s-12-被砍过内容的调用落成半截)），**不解析**，落成半截的调用。
+1. 参数原文 ≝ 这块全部填按填法的归约（`data.arrival-events/v1#S-19`）；没收到过填就是空串。**空串按 `{}` 解析**（无参调用的上游习惯不成为模型侧失败，[D-040 §S4-d](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#二2026-09-24-用户在场期间主线随用户裁决所作的自定账本-二-原文标主线自定的行)）。
+2. 这块若在开着时被改过内容（[S-12](#s-12-被砍过内容的调用落成半截)），**不解析**，落成半截的调用。块头的 `tool` 不合 `data.content-blocks/v1` 的 `ModelToolName` 字符集时同样不解析，落成解析不了的那一种调用块（[S-11](#s-11-参数收齐却解析不了只标记)；接住 `data.content-blocks/v1` G-10，[D-040 §八 N-32](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。
 3. 否则按 JSON **严格**解析一次（[RFC 8259](https://www.rfc-editor.org/rfc/rfc8259)；主线裁定，见 [D-040 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：
    - **成功** ⇒ 完整的调用块（`data.content-blocks/v1#S-12`）：`complete: true`，`callId` 与 `tool` 取块头，`arguments` 是解析得到的值，`id` 与 `visibility` 取开块时说的；
    - **失败** ⇒ 解析不了的那一种调用块（[S-11](#s-11-参数收齐却解析不了只标记)，`data.content-blocks/v1#S-12`）。

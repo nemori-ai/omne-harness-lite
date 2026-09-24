@@ -25,7 +25,7 @@
 ### 装配给 vs 协议给
 
 [第五节](../../../../spec/data/mcp-endpoint/v1/contract.md#五装配给与协议给)三行里，本节点只在「表示层校验在每个接收边界重做」一行出力（`judgeMcpEndpoint` 这一个纯入口）；
-「OAuth 绑定号部署内唯一、不可猜」归单一生成点（资产治理），「stdio 在据点机上拉起」归 MCP 桥。
+「OAuth 绑定号部署内唯一、不可猜」归单一生成点（MCP 桥，`capability.mcp-bridge/v1#S-22`；N-32 改正），「stdio 在据点机上拉起」归 MCP 桥。
 
 ### 契约责任 → 模块公开入口 → 实现 → 符合性依据或缺口
 

@@ -15,7 +15,7 @@
   技术栈的采用一律指向[提案](../../../record/proposals/cli-tui/alternatives.md)或[决定](../../../record/decisions/README.md)。
   **本节点里出现第二份能力语义就是错。**
   **据点一侧本程新装的**：十份能力契约 `capability.{tool-execution-runtime, asset-registry, mcp-bridge, tool-admission, loop-extension-runner, hooks-import, model-profile-directory, model-request-runtime, modality-projection, stream-assembly}/v1` 与工具侧六份数据契约，**全部 `candidate`**（接受待 [D-041](../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）；
-  提供者节点（已起草、candidate、未评审；包都尚未建）是 `packages/core/{tool-definition, loop-extension, skill-package, slash-command, mcp-endpoint, connector}`（一契约一包，D-040 §八 M41）、`packages/core/stream-assembly`、`packages/model/model-profile-directory`（本装配只装据点读提供者 P-1r）、`packages/model/model-request-runtime`、`packages/model/modality-projection`、
+  提供者节点（已起草、过五批独立评审 N1～N5、candidate；包都尚未建）是 `packages/core/{tool-definition, loop-extension, skill-package, slash-command, mcp-endpoint, connector}`（一契约一包，D-040 §八 M41）、`packages/core/stream-assembly`、`packages/model/model-profile-directory`（本装配只装据点读提供者 P-1r）、`packages/model/model-request-runtime`、`packages/model/modality-projection`、
   `packages/tools/tool-execution-runtime`、`packages/tools/asset-registry`、`packages/tools/mcp-bridge`、`packages/agent-loop/loop-extension-runner`、`packages/agent-loop/hooks-import`；插件边界与服务键以各 provider 节点为准（它们照三份被 D-039 接受的拆分提案起草），**本节点不重新设计**。
   放行判断（`capability.tool-admission/v1`）本程**没有提供者**。中心一侧的资产治理与模型档案目录由 [`apps/tenancy-host`](../tenancy-host/README.md) 装配，**据点的依赖图里不得出现 `packages/assets/asset-governance`**。
 

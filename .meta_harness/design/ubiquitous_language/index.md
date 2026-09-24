@@ -104,7 +104,7 @@
 | [UL-profile-listing-status](terms/capabilities-and-composition.md#ul-profile-listing-status--档案在册状态--profile-listing-status) | 档案在册状态 | Profile Listing Status | 在册 ⇄ 已撤回，**来回都走得通、没有终态、行还在**；「已下架」说的是一个名字（链上同名的都撤回了）；「范围不允许」不是它的取值 |
 | [UL-allowed-providers](terms/capabilities-and-composition.md#ul-allowed-providers--允许的供应商--allowed-providers) | 允许的供应商 | Allowed Providers | 档案上有序非空的一串供应商，**顺序即重试逐家去试的顺序** |
 | [UL-provider-fallback](terms/capabilities-and-composition.md#ul-provider-fallback--供应商回退--provider-fallback) | 供应商回退 | Provider Fallback | 档案上的是 / 否：允不允许换下一家；**不许的是换家，不是再试** |
-| [UL-model-credential](terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential) | 模型凭据 | Model Credential | 组织或租户身上的一项属性，**一范围一把**；身份即范围、轮换是改值、用量归范围；**范围可以自带** |
+| [UL-model-credential](terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential) | 模型凭据 | Model Credential | 租户身上的一项属性（组织层不持有，U-1），**一范围一把**；身份即范围、轮换是改值、用量归范围；**范围可以自带** |
 | [UL-model-request-parameters](terms/capabilities-and-composition.md#ul-model-request-parameters--模型请求参数--model-request-parameters) | 模型请求参数 | Model Request Parameters | 档案身上随请求带上的一组常用参数，**系统统一命名、adapter 各自解析**，不认的项留痕不静默丢 |
 | [UL-mcp-credential](terms/capabilities-and-composition.md#ul-mcp-credential--mcp-凭据--mcp-credential) | MCP 凭据 | MCP Credential | MCP 接入点持有上的一项落点与身份类设置，**一份持有一份**；静态的或经 OAuth 取得的；**不是模型凭据** |
 | [UL-selected-model](terms/capabilities-and-composition.md#ul-selected-model--选中模型--selected-model) | 选中模型 | Selected Model | 会话当前指向的那个档案路由名，**只因切换而变的取值**，落到哪一行按层覆盖现算；没切换过时取「用哪个模型」沿层级求值的那个名字 |
