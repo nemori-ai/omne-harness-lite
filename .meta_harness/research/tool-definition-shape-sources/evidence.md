@@ -222,3 +222,16 @@
 2. 参数 schema 顶层必须 `type: "object"`（OpenAI 明文；Anthropic 示例与系统提示一致）。
 3. 每个参数的 `description` 两家一个「推荐」一个「最重要的因素」——把它写成本项目的**必填**代价为零、收益直接。
 4. 名字：Anthropic 的正则不含 `:`，而本项目能力标识 name 允许 `:`（MCP 条目「接入点:动作」、`omne-official:` 前缀）——**模型面名字必须经固定转写**，且转写要可逆，否则回来的 `tool_calls.name` 对不回定义。
+
+### V-5 实测：flat 形多命令工具在四家模型上的真实请求（2026-09-24，产品负责人授权）
+
+探针脚本与逐轮记录在主检出 `tmp/assets-runtimes/probes/`（`flat_multicommand_probe.py`、`results/*.json`；密钥只进请求头）。工具 `fs`（cat/grep/write）按契约 S-7 flat 形生成：`command` 为 enum 加一行一命令的表，`args` 为**无 `properties` 的 object**；另给一个模拟 `Tools().inspect` 的单函数工具。任务：不区分大小写找 TODO 行并把行数写入文件。经 OpenRouter `chat/completions`，`temperature 0`，`tool_choice auto`。
+
+| 模型（OpenRouter ID） | 有 inspect | 无 inspect（对照） |
+|---|---|---|
+| `openai/gpt-5.6-sol` | 先查 grep、write 两条用法，再调 `fs grep{path,pattern,ignoreCase}`、`fs write`，答 3 | 直接猜 `ignore_case`（未知键，被校验挡），**答错为 2** |
+| `anthropic/claude-opus-5.5` | 同上，两次 inspect 后两次 fs，答 3 | 改用 `cat` 全文自己数，答 3 |
+| `deepseek/deepseek-v4-pro` | 逐命令查用法再调用，答 3 | 用正则 `[Tt][Oo][Dd][Oo]` 绕开未知参数，答 3 |
+| `z-ai/glm-5.3` | 一次总览 inspect 后两次 fs，答 3 | 猜对 `ignoreCase`，答 3 |
+
+**结论**：① `args` 为无 `properties` 的 object 在四家都被接受（HTTP 200，`finish_reason: tool_calls`），没有一家因 schema 拒绝请求；② 有 inspect 时四家都先查用法再调用，参数键全部与命令 schema 一致；③ 没有 inspect 时模型会猜参数名——gpt-5.6-sol 猜错并给出错误答案，说明**判定层必须把「未知键／缺必填」明确拒回给模型并附该命令的用法**，不能静默忽略；④ 本结论只对这四个模型、这一份工具、该日 OpenRouter 路由成立。
