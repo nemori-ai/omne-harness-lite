@@ -44,8 +44,20 @@ rev 4 已于 2026-09-23 正式接受（[记录](decisions.md#2026-09-23--接受�
 **下游要复核什么**：
 - **规格**：[`data.model-profile` v1](../../spec/data/model-profile/v1/contract.md) 的引用与解析（[S-13](../../spec/data/model-profile/v1/contract.md#s-13-modelprofileref)、[S-14](../../spec/data/model-profile/v1/contract.md#s-14-引用只精确解析不跨层)：「那项设置的取值是一条精确引用」与「设置记的是路由名、按层取胜者」要对上）、[`capability.model-profile-directory` v1](../../spec/capabilities/model-profile-directory/v1/contract.md) 的列表、[`capability.model-request-runtime` v1](../../spec/capabilities/model-request-runtime/v1/contract.md) 的有效模型、合法目标与展示列表——按「名字按层覆盖、先滤已撤回与这个范围不允许的、被盖住的只作标注、链上同名都撤回才『已下架』」对一遍。
 - **[PF-016](../PF-016-cli-tui-delivery-surface/README.md)**：展示列表里被盖住的同名条目怎么呈现。
-- **[acceptance](acceptance.md)**：S5f、S5g 与一条「绝不能」还是旧说法，本批未改（decisions §四）。
-- **统一语言与领域对象**：出处标 PF-013 rev 11 的词条与对象条目逐条复核；档案相关词条与「模型档案」对象条目要写进按层覆盖。
+- **统一语言与领域对象**：出处标 PF-013 rev 11 的词条与对象条目逐条复核；档案相关词条与「模型档案」对象条目要写进按层覆盖；[选中模型](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-selected-model--选中模型--selected-model)、[模型切换](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-switch--模型切换--model-switch)的定义要写明设置值是名字。
+
+#### 同日补做（批 4b 提交之后，主线要求；不升 rev）
+
+**不升 rev 的理由**：下面几处都是把验收与措辞跟上本 rev 已定的含义（裁决 39、40 与 P41），没有新规则。
+
+| 位置 | 现在怎么说 |
+|---|---|
+| [§4 档案的身份](design.md#档案的身份所在范围加路由名) | 新增一段引文：**「用哪个模型」这项设置的值是一个路由名，不是某一层的某一行**；切换、锁、各格记下的都只是名字，落到哪一行每次按层序现算 |
+| [§5.10](design.md#510-合法目标集合与展示列表是两件事) | 开头新增一句：两者的单位都是路由名 |
+| [§6.1](design.md#61-档案是一个对象那项设置的取值是对它的引用) | 「不是一个裸名字」→「**设置记的是路由名，但这个名字背后必须是一条档案**」——与上两处对齐，立意不变；标题不改 |
+| [acceptance](acceptance.md) | S5f、S5g 改为按层覆盖（这个名字能选的只有胜出那一行，被盖住的照列、标「被某层同名档案覆盖」、选不了）；新增 S5j、S5k、S10e；S9 改为锁的是名字；S10 限定为链上同名都撤回，S10b 补被盖住的例外；「绝不能」同名那一行改写，新增「还用得上却说已下架」一行 |
+| [decisions](decisions.md) | §二新增 P47（设置值是路由名，裁决 39、40 的直接后果），P41 的 §6.1 那半句随之改写；§四「验收未跟上」闭合，「词条要跟上」一行补选中模型、模型切换与 §6.1 标题 |
+| README | 状态段来源问题一条 |
 
 ### rev 11 · 2026-09-24
 
