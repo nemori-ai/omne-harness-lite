@@ -147,7 +147,7 @@ Tool Definition ──装配──→ 动作空间里的条目 ──调用─�
 - 未决项：**无**
 - 待裁决：**无**
 - 来源问题：见 [decisions.md 第四节](decisions.md#四已知的来源问题)
-- 技术投影：**尚未开始**
+- 技术投影：[v1](projection/README.md)，对应 rev 19，`post-review`、来源未冻结——派生快照，不是权威
 
 技术投影按 `harness-design-handbook` skill 展开，
 产物按其步骤 G 落回本包的 `projection/v1/`。
