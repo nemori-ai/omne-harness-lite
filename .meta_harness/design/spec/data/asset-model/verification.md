@@ -48,6 +48,7 @@
 | reload 一族的命令名 | `data.slash-command` v1、注册表 | 冒号允许、斜杠禁止（[S-29](v1/contract.md#s-29-名字里的斜杠)）；保留前缀 `omne-official:` 合本契约词法 |
 | 「谁可以用」那一项 | `data.skill-package`、`data.mcp-endpoint`、`data.slash-command`（均 v1） | 本契约保留 `usableBy`（[S-36](v1/contract.md#s-36-usableby-是保留项名)）；那三份的推出规则不再各自声明它 |
 | 连接件的拒绝值 | `data.connector` v1 | 本契约 [S-27](v1/contract.md#s-27-表示层拒绝值) 原名携带正文契约的值；`envelope_empty` 不会出现在本契约的值里 |
+| 正文契约对能力标识 name 的收窄 | `data.mcp-endpoint` v1（S-26，`name_not_projectable`）、`data.slash-command` v1（命令名词法与保留区，`name_invalid`、`name_reserved`） | **已落**（主线裁定 2026-09-24）：[S-27](v1/contract.md#s-27-表示层拒绝值) 加第三种情形，名字连同那一份正文交给那份契约判、原名携带；**写面的失败集合**要引用这几个名字，归 `capability.asset-governance`（另有人在改） |
 | 词条链接待合流后补 | 统一语言 | 「谁可以使用它」已由词条批立为词条（在 HUB 上，本分支看不到），`usableBy` 的词条对应行暂写正式名、不带链接；**链接待合流后补**（主线） |
 
 ## 结果与反例
@@ -97,6 +98,10 @@ V-2～V-7 **一条执行记录也没有**。手核只保证 `examples.md` 的实
   - **（同日续，资产治理与流转对齐）配值加必填 `since`**（[S-14](v1/contract.md#s-14-属性配值)；账本 S11-G14：MCP 凭据要呈现「什么时候取的」）；**`organization` 支在租户格改为「记录归本组织所有，或本组织的组织格持有同一份」**（[S-19](v1/contract.md#s-19-使用权来路)；账本 S11-G2：被分享给本组织的那一份也覆盖）。**表示改变**：不带 `since` 的配值不再合法——本契约实例第 8、10、14 节与 `data.mcp-endpoint`、`data.connector`、`capability.asset-evaluation` 实例里的配值已同轮补上；本地自检 200 处 0 不符。消费者：`capability.asset-governance`（写入时填它）、`data.mcp-endpoint`（G-9 随之闭合）。
   - **（同日续，资产治理对齐）出厂格的 `immutable` 改为「当且仅当 meta 能力为真」**（[S-20](v1/contract.md#s-20-出厂格与工作区格的持有)）：原先恒为 `false`，与 `capability.asset-evaluation` 的前提 PRE-4「meta 能力的出厂持有带锁」相抵——那一版里 meta 能力的锁没有任何合法写法。Schema 出厂分支去掉 `immutable` 的 `const: false`（是不是 meta 它判不出，归写它的官方件登记按部署清单写）；实例第 10 节变体行一行由拒转收；P-10、V-3 的分工行随之改。**表示改变**：出厂格带锁的持有从拒到收。消费者：`capability.asset-governance`（S-29 按清单写它）、`capability.asset-evaluation`（S-18 读它）。本地自检 200 处 0 不符。顺手把消费者表里「同批并行起草」「块 B」「此刻不在本工作树」的旧说法换成候选坐标。
   - **（同日续，随 `data.tool-definition` 的供应商 payload 要求）实例第 4 节两版 `read_file` 的 `input` 补成顶层带 `properties`、每个参数带说明的写法**：`data.tool-definition/v1#S-4` 的三条硬要求让原来的 `{"type": "object"}` 从收到拒。本契约的条款与 Schema 不变；本地自检重跑，200 处 0 不符。
+- **2026-09-24 主线裁定：S-27 加第三种情形（候选，未冻结，原地改）**：一份记录的能力标识 `name` 不合它那一类正文契约对名字的收窄——`data.mcp-endpoint/v1#S-26` 的 `name_not_projectable`、`data.slash-command/v1` 的命令名收窄同路——拒绝值原名携带，与前两种情形同一位置（`name_invalid` 之后）；名字随草稿与每一版、连同那一份正文交给那份契约判（斜杠命令的保留区要看绑定种类），与正文的违例按那份契约的次序一起排。[S-2](v1/contract.md#s-2-能力标识名的词法) 那一条补一句指过来。
+  `examples.md` 第 13 节加三行（`name_invalid` 先于携带值；`transport_unknown`、`command_empty` 按 `data.mcp-endpoint` 的次序先于 `name_not_projectable`），第 14 节加四行（记录 M 的三个名字、一份名字在保留区里的提示词命令）；[对齐义务](#对齐义务)加一行。
+  **表示**：Schema 不变（这几条都在 Schema 之外那一步）；拒绝值集合的构成不变（仍是上表十个值并上六份正文契约各自的非 `malformed` 值），只是明写了名字这一条来路。**对消费者**：没有已采用的消费者，无迁移；`data.mcp-endpoint` 的对齐义务那一行由此闭合。
+  **证据**：暂存区脚本核了新加各行的「Schema」一列（记录 M 与三个名字变体、斜杠命令那一份按 `AssetDefinition` 判；`gh/__x` 被 `CapabilityName` 拒）与名字合不合 `data.mcp-endpoint` 的 `McpEndpointName`，**0 处不符**；拒绝值是哪一个仍未机检（V-2）。
 - **[G-6](v1/contract.md#八已知缺口)、[G-9](v1/contract.md#八已知缺口) 被裁决**（Agent Definition 的正文、plugin 的正文）：`AssetContent` 相应的变体换成引用或加成员 ⇒ 表示改变；接受前闭合则原地改并重跑 V-1、V-3、V-5，接受后闭合则**出 v2**。
 - **[G-13](v1/contract.md#八已知缺口) 闭合**（自决与裁定落进设计链）：只改[设计依据](v1/contract.md#设计依据)表的链接，语义与表示不变。
 - **跨进程演化启动**：V-6 从「无法演练」转为**必须演练**；[第四节](v1/contract.md#四装配给与协议给)右列九行从「待兑现」转为「须由协议兑现」，其中工作区键缺宿主分量那一行**多半要出新版**。

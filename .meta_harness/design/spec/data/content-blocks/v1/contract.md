@@ -6,7 +6,7 @@
   `family = data`、`topic = content-blocks`、规范路径 `spec/data/content-blocks/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
 - **状态**：`candidate`——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
-- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-009 rev 7、PF-010 rev 5、PF-013 rev 8、PF-006 rev 17、PF-002 rev 16、PF-001 rev 16、PF-012 rev 10** 为准；S-18 的 `foreground_timeout` 一行按 **PF-006 rev 18**（2026-09-24 补，其余条款未按 rev 18/19 复核）
+- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-009 rev 7、PF-010 rev 5、PF-013 rev 8、PF-006 rev 19、PF-002 rev 16、PF-001 rev 16、PF-012 rev 10** 为准（PF-006 由 rev 17 对到 rev 19：2026-09-24 按它 changelog 的 rev 18、rev 19 两节逐条核过本契约条款，**语义无影响**；rev 18 补的产品正文让几处原先只有主线裁定的依据有了产品行，已在设计依据表对上；PF-006 rev 18–19 本身待产品负责人确认）
 - **精确语义依赖**：`omne-harness-lite-design-2026-09-15 · data.identity-values · v1` 的两条——
   [`#S-31` 不透明标识的交换表示](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示)（`BlockId`、`CallId` 与 `AttachmentRef` 的 `storage`／`key` 按它的散文表示；Schema **不** `$ref` 它的 `OpaqueIdentifier`——那一项自述不单独被引用，主线 2026-09-23 裁定各契约按散文自写形状）、
   [`#S-34` 语义身份与实现地址分开](../../identity-values/v1/contract.md#s-34-语义身份与实现地址分开)（[S-21](#s-21-attachmentref)、[S-23](#s-23-块不携带租户身份) 据它写出「引用是地址不是资格」）。
@@ -36,6 +36,8 @@
 | 文本块带来源标记（Q1）；思考块带上游原样的不透明数据（Q2） | [D-038 十九处分岔](../../../../record/decisions/message-and-shape-rulings/decision.md#十九处分岔) | S-8、S-9 |
 | **主线裁定 2026-09-23，待产品负责人确认**：占位原因补 `backgrounded_at_start`、`run_cancelled`、`terminated_by_agent` 三行；参数收齐却解析不了的调用保留原文、标 `unparseable`、不执行、结果记 `failed` 回给模型；来源标记补 `slash_command_expansion`、`slash_command_record`（斜杠命令留痕不是第八类块）；派生表示本版恒由系统产出；只给了引用的附件按媒体类型落块；执行帧块由帧入口编号；桥换代时在途的调用落 `abnormal_interruption` | 主线在任务区账本里的推导（D-038 明言不含这些），**设计链里尚无决定记录**——见 [G-8](#八已知缺口) | S-3、S-8、S-12、S-18、S-20、S-34 |
 | 占位原因「前台超时」：前台上限到点而工具不许转后台，被中断；**取值名 `foreground_timeout` 由主线 2026-09-24 定** | [PF-006 rev 18 §6.7 占位消息一律要说清原因](../../../../product/PF-006-tools-and-skills/design.md#占位消息一律要说清原因)「前台超时」一行 · [§6.6 前台上限与并发上限](../../../../product/PF-006-tools-and-skills/design.md#前台上限与并发上限) | S-18 |
+| 参数说完了却解析不了的调用：不执行，结果记失败、原因写明解析不了，回给 agent；与流断在半路的半截调用分开 | [PF-006 rev 18 §5.5「参数说完了却解析不了的调用」](../../../../product/PF-006-tools-and-skills/design.md#参数说完了却解析不了的调用不执行以失败回给-agent) | S-12 |
+| 占位原因补齐：「发起时就在后台」「运行被取消」进 §6.7 的表；「被 agent 停掉」写在后台收场的提醒里、不在占位上 | [PF-006 rev 18 §6.7](../../../../product/PF-006-tools-and-skills/design.md#占位消息一律要说清原因) | S-18 |
 | 规格形式；部署边界；租户隔离 | [SYS-SPEC](../../../../foundation/cross-system-constraints/requirements.md#sys-spec) · [SYS-DEPLOY](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy) · [SYS-TENANT](../../../../foundation/cross-system-constraints/requirements.md#sys-tenant) | 见下方引文 |
 | 统一语言正式名 | [记录与上下文](../../../../ubiquitous_language/terms/record-and-context.md) · [执行与收场](../../../../ubiquitous_language/terms/execution-and-outcome.md) · [能力标识](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier) | 全部英文名 |
 | 内容块在消息内可被单独指到；存储未定义 | [domain_objects 内容块](../../../../domain_objects/objects.md#ul-content-block--内容块) · [待裁：存储](../../../../domain_objects/pending.md#存储) | S-3、G-1 |
@@ -48,7 +50,7 @@
 > | [S-3](#s-3-blockid) 的唯一范围、[S-5](#s-5-嵌套的块按合取取用)、[S-14](#s-14-callid) 的唯一范围 | **规格层推导**：D-035 把「块身份与嵌套寻址」留给数据契约；依据分别写在各条正文里 |
 > | [S-8](#s-8-文本块与来源标记) 的 `origin`、[S-9](#s-9-思考块与不透明数据) 的 `opaque` | 产品负责人 2026-09-23 对内容块形状的两项裁决，落在 [D-038 Q1、Q2](../../../../record/decisions/message-and-shape-rulings/decision.md#十九处分岔)。**`origin` 的取值集合不来自 D-038**：那里的「含义」列写的是「模型 / 用户 / 工具 / 系统」，本契约的四个取值都是斜杠命令相关的来路（前两个随起草简报、后两个随主线裁定），两处对不上，已报主线 |
 > | [S-16](#s-16-结果里不发起调用) | **无产品出处**：起草简报里的裁定（结果里不发起调用），理由写在条款正文。产品正文只说工具结果「自己又是一串块」，没说里面不许有什么 |
-> | [S-12](#s-12-完整的工具调用) 的 `unparseable` 一种、[S-18](#s-18-占位原因与它落在哪一格) 的后三个取值、[S-8](#s-8-文本块与来源标记) 的后两个来路、[S-20](#s-20-派生表示的产出者与能力标识) 的「恒为 `system`」、[S-34](#s-34-只给了引用的附件落成哪一类块) | **主线裁定 2026-09-23，待产品负责人确认**（设计依据表倒数第一行）；各条的产品前提写在条款正文里 |
+> | [S-12](#s-12-完整的工具调用) 的 `unparseable` 一种、[S-18](#s-18-占位原因与它落在哪一格) 的 `backgrounded_at_start`、`run_cancelled`、`terminated_by_agent` 三个取值、[S-8](#s-8-文本块与来源标记) 的后两个来路、[S-20](#s-20-派生表示的产出者与能力标识) 的「恒为 `system`」、[S-34](#s-34-只给了引用的附件落成哪一类块) | **主线裁定 2026-09-23，待产品负责人确认**（设计依据表里「主线裁定 2026-09-23」那一行）；各条的产品前提写在条款正文里。**其中 S-12 的 `unparseable` 与 S-18 的三个取值，PF-006 rev 18 已补了产品正文**（设计依据表「参数说完了却解析不了」「占位原因补齐」两行）——形状与取值名仍是主线裁定 |
 > | [S-23](#s-23-块不携带租户身份) | **SYS-TENANT** 加 `data.identity-values/v1#S-34` |
 > | [第四节](#四装配给与协议给) | **SYS-DEPLOY** |
 
@@ -420,7 +422,7 @@ modalityOf(mediaType) ≝   按 mediaType 在第一个 "/" 之前的那一段 t�
 
 **`reason.code` 取 `PlaceholderReason` 的十二个值之一，每个值只能配它那一格收场。**
 前八个对应 [PF-006 §6.7「占位消息一律要说清原因」](../../../../product/PF-006-tools-and-skills/design.md#占位消息一律要说清原因)那张表的行，落格照那一节的写法；
-接着三个是 **主线裁定 2026-09-23（待产品负责人确认）** 补的三行——[§6.12](../../../../product/PF-006-tools-and-skills/design.md#它的宿主是谁决定了什么会带走它) 与[执行收场词条](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-execution-outcome--执行收场--execution-outcome)列了它们的触发源，§6.7 的原因表当时漏了，随 PF-006 修订补进那张表；
+接着三个是 **主线裁定 2026-09-23（待产品负责人确认）** 补的三行——[§6.12](../../../../product/PF-006-tools-and-skills/design.md#它的宿主是谁决定了什么会带走它) 与[执行收场词条](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-execution-outcome--执行收场--execution-outcome)列了它们的触发源；PF-006 rev 18 已把「发起时就在后台」「运行被取消」补进 §6.7 那张表，「被 agent 停掉」写在表下（落在收场提醒里，见该行）；取值名仍是主线的；
 最后一个 `foreground_timeout` 对应 PF-006 rev 18 §6.7 那张表新加的「**前台超时**」一行（触发见 [§6.6「前台上限与并发上限」](../../../../product/PF-006-tools-and-skills/design.md#前台上限与并发上限)），**取值名由主线 2026-09-24 定**：
 
 | `code` | 那张表的哪一行 | 收场 |
@@ -435,14 +437,14 @@ modalityOf(mediaType) ≝   按 mediaType 在第一个 "/" 之前的那一段 t�
 | `abnormal_interruption` | 工具执行异常中断：据点停过机、恢复时追补；或 MCP 桥换代时这次调用还在途（`capability.mcp-bridge` 的连接随桥走） | `failed`——**不是 `interrupted`**：没有人叫停它 |
 | `backgrounded_at_start` | **（补）**发起时就在后台 | `backgrounded` |
 | `run_cancelled` | **（补）**这一次运行被取消而它还在前台（叫停的是运行，不是这一次执行——所以不借 `user_interrupted`） | `interrupted` |
-| `terminated_by_agent` | **（补）**agent 掐掉了自己发起、已转后台的那段执行 | `interrupted` |
+| `terminated_by_agent` | **（补）**agent 经 `BkgJobs()` 掐掉了自己发起、已转后台的那段执行。**只落后台执行收场提醒的结果块，不落占位**（主线裁定 2026-09-24，以 PF-006 §6.7 为准：「被 agent 停掉」写在那段执行收场的提醒里）——agent 只能掐后台执行，那次调用的占位早在转后台时就写下了（原因是 `backgrounded_*` 之一） | `interrupted` |
 | `foreground_timeout` | 前台超时：前台上限到点，而这个工具**不允许**转后台（允许的转后台，原因是 `backgrounded_auto`） | `interrupted` |
 
 **`reason` 什么时候必带**：
 
 | 收场 | `reason` |
 |---|---|
-| `backgrounded`、`interrupted` | **必带**——这两种收场的块都是占位，而[占位不说原因，agent 只能按失败去读它](../../../../product/PF-006-tools-and-skills/design.md#占位消息一律要说清原因) |
+| `backgrounded`、`interrupted` | **必带**——前台那次调用以这两种收场的块是占位，而[占位不说原因，agent 只能按失败去读它](../../../../product/PF-006-tools-and-skills/design.md#占位消息一律要说清原因)；后台那段执行以 `interrupted` 收场时，收场提醒里的结果块同样带原因（同一节「后台那一段的收场以提醒到达，原因同样要写清」） |
 | `failed` | **可带，且只能是 `abnormal_interruption`**；普通的失败把原因写在 `blocks` 里 |
 | `completed`、`unavailable`、`no_answer` | **不带** |
 

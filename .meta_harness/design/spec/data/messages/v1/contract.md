@@ -347,12 +347,13 @@
   | 占位 | 块上写什么 | 依据 |
   |---|---|---|
   | 转后台（自动、用户手动、因插队、发起时就在后台） | `outcome: backgrounded`，原因取 [`data.content-blocks/v1#S-18`](../../content-blocks/v1/contract.md#s-18-占位原因与它落在哪一格) 里配这一格的那几个 | [PF-012 §5.11](../../../../product/PF-012-agent-loop-and-run/design.md#511-外面进来的事怎么到-agent-眼前) |
-  | 被中断（用户、插队、人拒绝回复、会话归档、运行被取消） | `outcome: interrupted`，原因同上取配这一格的 | [PF-006 §6.7](../../../../product/PF-006-tools-and-skills/design.md#占位消息一律要说清原因) |
+  | 被中断（用户、插队、人拒绝回复、会话归档、运行被取消、前台超时） | `outcome: interrupted`，原因同上取配这一格的 | [PF-006 §6.7](../../../../product/PF-006-tools-and-skills/design.md#占位消息一律要说清原因) |
   | 恢复对账追补：那次执行没了 | `outcome: failed`、`reason.code: abnormal_interruption` | [PF-012 §5.7](../../../../product/PF-012-agent-loop-and-run/design.md#先对账再进方程) |
   | 卸载后的带摘要占位 | 那次调用真实的收场，`offloaded` 指向原始结果 | [PF-010 §5.5](../../../../product/PF-010-context-management-and-assembly/design.md#55-几样东西各自落成哪一种消息) |
 
   **这张表只是常见的占位**；原因取值与它落哪一格只归 `data.content-blocks`（它的 S-18），本契约不另列。
-  「前台上限到点、而这个工具不许转后台」那一种被中断，那边**还没有原因取值**（[它的 G-7](../../content-blocks/v1/contract.md#八已知缺口)）；本契约不替它补。
+  「前台上限到点、而这个工具不许转后台」那一种被中断，原因取值是 `foreground_timeout`（那边的 S-18；主线 2026-09-24 定名，它的 G-7 已闭合）。
+  `terminated_by_agent` **不在占位里出现**：它只落后台那段执行收场提醒的结果块（同一条 S-18，主线裁定 2026-09-24）。
 - **工具等待态的答复不另落消息**：答复是那次执行的输入，它拿到之后接着跑，结果仍落这一种（[PF-010 §5.5](../../../../product/PF-010-context-management-and-assembly/design.md#55-几样东西各自落成哪一种消息)）。
   agent 取回全文是它自己发起的一次新调用：一条新的 `AssistantMessage` 加一条新的 `ToolMessage`。
 - **一次调用在一份会话日志里至多一条工具消息，且它指回排在前面的一个完整工具调用块**（[S-32](#s-32-会话日志里的配对与唯一)）。

@@ -211,7 +211,7 @@
 | `{"id": "b98", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_01", "outcome": "completed", "reason": {"code": "user_interrupted", "text": "……"}, "blocks": []}` | 拒绝 | `malformed` | [S-18](contract.md#s-18-占位原因与它落在哪一格)：完成不带原因 |
 | `{"id": "b99", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_05", "outcome": "interrupted", "reason": {"code": "run_cancelled", "text": "运行被取消"}, "blocks": []}` | 通过 | — | [S-18](contract.md#s-18-占位原因与它落在哪一格)：运行被取消而它还在前台——**不借** `user_interrupted` |
 | `{"id": "b99a", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_19", "outcome": "backgrounded", "reason": {"code": "backgrounded_at_start", "text": "发起时就在后台，跑完会通知"}, "blocks": []}` | 通过 | — | [S-18](contract.md#s-18-占位原因与它落在哪一格) |
-| `{"id": "b99b", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_20", "outcome": "interrupted", "reason": {"code": "terminated_by_agent", "text": "已被 agent 掐掉"}, "blocks": []}` | 通过 | — | [S-18](contract.md#s-18-占位原因与它落在哪一格) |
+| `{"id": "b99b", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_20", "outcome": "interrupted", "reason": {"code": "terminated_by_agent", "text": "已被 agent 停掉"}, "blocks": []}` | 通过 | — | [S-18](contract.md#s-18-占位原因与它落在哪一格)：**这是后台那段执行收场提醒里的结果块，不是占位**——`call_20` 的占位早在转后台时写下（原因 `backgrounded_*`）；`terminated_by_agent` 只落在这里 |
 | `{"id": "b99e", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_21", "outcome": "interrupted", "reason": {"code": "foreground_timeout", "text": "前台跑到上限，这个工具不许转后台"}, "blocks": []}` | 通过 | — | [S-18](contract.md#s-18-占位原因与它落在哪一格)：前台超时——**不借** `user_interrupted` |
 | `{"id": "b99f", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_21", "outcome": "backgrounded", "reason": {"code": "foreground_timeout", "text": "……"}, "blocks": []}` | 拒绝 | `malformed` | [S-18](contract.md#s-18-占位原因与它落在哪一格)：`foreground_timeout` 只配被中断；允许后台的到点转后台，原因是 `backgrounded_auto` |
 | `{"id": "b99c", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_05", "outcome": "backgrounded", "reason": {"code": "run_cancelled", "text": "运行被取消"}, "blocks": []}` | 拒绝 | `malformed` | [S-18](contract.md#s-18-占位原因与它落在哪一格)：`run_cancelled` 只配被中断 |
@@ -295,6 +295,7 @@
 | 日志层为了「展示签名」把 `opaque` 解出来改写 | [S-9](contract.md#s-9-思考块与不透明数据) | 每一层的实现 |
 | 从工具结果的文字里读到 `Error:` 就当它是 `failed` | [S-15](contract.md#s-15-工具结果块) | 读者的实现 |
 | 用 `user_interrupted` 表示「这一次运行被取消而它还在前台」 | [S-18](contract.md#s-18-占位原因与它落在哪一格)：该用 `run_cancelled` | 写入方 |
+| 前台那次调用的占位（`ToolMessage` 里的结果块）写 `outcome: "interrupted"`、`reason.code: "terminated_by_agent"` | [S-18](contract.md#s-18-占位原因与它落在哪一格)：这个原因只落后台执行收场提醒的结果块——agent 只能掐已转后台的执行，占位早已写下；**块自己看不出是哪一段**，Schema 放行 | 写入方（工具执行运行时；哪条消息装哪一段归 `data.messages`） |
 | 图块的派生表示里放了一张图（原块与派生块都是 `image` 模态） | [S-19](contract.md#s-19-派生表示与-transcript)——`malformed` | 接收边界 |
 | 为了「再试一次」去解析一个标了 `unparseable` 的调用的 `rawArguments`，或执行它 | [S-12](contract.md#s-12-完整的工具调用) | 流装配、宿主与执行运行时的实现 |
 | 受理连接件送来的信封时，把一个 `image/png` 的附件引用落成文件块 | [S-34](contract.md#s-34-只给了引用的附件落成哪一类块) | 落块那一方的规范场景 |

@@ -100,6 +100,9 @@ V-2～V-10、V-12 **一条执行记录也没有**。起草时的手核只保证 
 
   下面「起草」一条里预告的 G-3、G-4、G-8、G-12、G-13 那几行，已由本条兑现。
 
+- **2026-09-24 随 `data.content-blocks` S-18 的两处裁定（主线裁定 2026-09-24；候选，未冻结，原地改）**：[S-11](v1/contract.md#s-11-toolmessage) 占位表「被中断」一行加「前台超时」，表下那一句由「那边还没有原因取值（它的 G-7）」改为取值是 `foreground_timeout`；另补一句 `terminated_by_agent` 不在占位里出现、只落后台执行收场提醒的结果块。
+  **本契约的缺口表里没有对应项**（那一处指的是 `data.content-blocks` 的 G-7，已在那边闭合）；Schema、实例与拒绝值都不变，本契约的证据不受影响。
+
 - **起草（2026-09-23）**：首版候选，建在 PF-009 rev 7、PF-010 rev 5、PF-012 rev 10、PF-014 rev 5、PF-015 rev 11、PF-006 rev 17、PF-004 rev 10、PF-008 rev 5 上。
   **依赖 `data.content-blocks` v1（candidate，未冻结）**：它若在评审或对齐中改 `ContentBlock`、`ToolResultBlock`、`BlockId`、`CallId`、`ExecutionOutcome` 的定义或拒绝值，本契约的 Schema 引用、[S-6](v1/contract.md#s-6-每种消息能装哪几类块) 的表与 [S-39](v1/contract.md#s-39-表示层拒绝值) 的六个借来的名字须同轮复核，V-1 重跑。
   `data.offer-expiry` v1 与 `data.identity-values` v1 已接受、已冻结，**这两条引用的目标不会漂移**；它们若出 v2，本契约不自动跟随。

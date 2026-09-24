@@ -566,6 +566,9 @@
 | 在 4.5 上：第 1 版 `members` 加 `{"category": "plugin", "name": "base-kit"}`，再在末尾追加一版（内容、时刻、发布者同第 1 版，`number` 为 `3`） | `plugin_member_is_plugin`、`version_sequence_broken` | `plugin_member_is_plugin` |
 | 在 12.1 上：`assignments` 的第一条再抄一份，第一项 `source` 改为 `"/etc/x"` | `assignment_item_duplicate`、`manifest_source_escapes` | `assignment_item_duplicate` |
 | 在 12.1 上：第一项 `source` 改为 `"/etc/x"`，加 `"include": []` | `manifest_source_escapes`、`malformed` | `manifest_source_escapes` |
+| 下一节的记录 M，`capability.name` 改为 `"gh/__x"` | `name_invalid`、名字的 `name_not_projectable` | `name_invalid`——本契约的 `name_invalid` 排在携带的值之前（S-27 第三种情形） |
+| 记录 M，草稿正文的 `transport.kind` 改为 `"websocket"` | 正文的 `transport_unknown`、名字的 `name_not_projectable` | `transport_unknown`——名字连同那一份正文交给 `data.mcp-endpoint` 判，按那边的次序（第 2 行先于第 7 行） |
+| 记录 M，草稿正文的 `transport.command` 改为 `""` | 正文的 `command_empty`、名字的 `name_not_projectable` | `command_empty`——同上（第 4 行先于第 7 行） |
 
 ## 14. Schema 挡不住，但同样非法的
 
@@ -597,6 +600,10 @@
 | 同一组织格写入第二份 `capability` 相同、`asset` 不同的持有 | 各自通过 | **存储拒绝** | [S-18](contract.md#s-18-资产持有) 第 1 条（[S-33](contract.md#s-33-一格一个能力标识一份持有) 反例） |
 | 两份现存记录的 `lineage.lineage` 都是 `"lin_40e9"` | 各自通过 | **写入方拒绝** | [S-21](contract.md#s-21-复制血缘) 第 5 条 |
 | `"lineage": "ast_7c11"`——血缘号的值就是源记录号 | 通过 | **发号方违约** | [S-22](contract.md#s-22-血缘号与分享号)：不是源记录号或它的可逆编码 |
+| **记录 M**：在 4.2 上把 `capability` 改为 `{"category": "mcp", "name": "gh__issues"}`、`draft` 改为 `{"category": "mcp", "body": <data.mcp-endpoint 实例 1.1 的正文>}`、`versions` 改为 `[]` | 通过 | `name_not_projectable` | [S-27](contract.md#s-27-表示层拒绝值) 第三种情形（主线裁定 2026-09-24）：名字合本契约 [S-2](contract.md#s-2-能力标识名的词法)，却不合 `data.mcp-endpoint/v1#S-26`（含 `__`）——那份契约的值，**原名携带** |
+| 记录 M，`capability.name` 改为 `"gh.issues"` | 通过 | `name_not_projectable` | 同上：`.` 拼不出工具条目名 |
+| 记录 M，`capability.name` 改为 `"github"` | 通过 | — | 合 `data.mcp-endpoint/v1#S-26` |
+| 在 4.2 上把 `capability` 改为 `{"category": "slash_command", "name": "omne-official:summarize"}`、`draft` 改为 `{"category": "slash_command", "body": {"description": "总结", "binding": {"kind": "prompt", "template": "Summarize $ARGUMENTS"}}}`、`versions` 改为 `[]` | 通过 | `name_reserved` | [S-27](contract.md#s-27-表示层拒绝值) 第三种情形：`data.slash-command/v1` 的 S-4——提示词命令的名字在保留区里；**这一条要连同正文判**（看绑定种类），所以名字随正文交给那份契约 |
 | 一条 MCP 凭据配值的 `value` 是 `"ghp_16C7e42F292c6912E7710c838347Ae178B4a"`（一枚明文令牌） | 通过 | **写入方违约** | [S-23](contract.md#s-23-凭据引用) 第 1 条：形状判不出它是不是明文；守在写入方——只接受凭据保管方发出的引用 |
 | 一条设置配值在**写入时**不合当时的取值域 | 通过 | **写入方拒绝**（它自己的失败值） | [S-14](contract.md#s-14-属性配值) |
 | 同一条配值写入时合法，资产出了新版本之后那一项的取值域变了、它不再合 | 通过 | **合法留存；怎么求值见 [G-12](contract.md#八已知缺口)** | [S-14](contract.md#s-14-属性配值)：**不得被读者删掉或「修好」** |

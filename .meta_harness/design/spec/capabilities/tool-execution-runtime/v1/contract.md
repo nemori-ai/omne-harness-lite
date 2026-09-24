@@ -285,7 +285,7 @@
 | 用户直接叫停这一次执行（[S-25](#s-25-中断一次执行)、[S-26](#s-26-成批中断)） | `interrupted` | `user_interrupted` | 有 |
 | 插队，工具不允许转后台，或在等但等的不是卡片（[S-31](#s-31-插队处置)） | `interrupted` | `interrupted_by_preemption` | 有 |
 | 插队时这次执行停在一张卡片上等人（[S-31](#s-31-插队处置)） | `interrupted` | `human_declined` | 有 |
-| agent 经 `BkgJobs()` 掐掉（[S-25](#s-25-中断一次执行)） | `interrupted` | `terminated_by_agent` | 有（补） |
+| agent 经 `BkgJobs()` 掐掉（[S-25](#s-25-中断一次执行)）——**只落后台执行收场提醒的结果块，不作占位**：agent 只能掐已转后台的执行，那次调用的占位早在转后台时写下（主线裁定 2026-09-24，以 PF-006 §6.7 为准） | `interrupted` | `terminated_by_agent` | 有（补） |
 | 这一次运行被取消而它还在前台（[S-28](#s-28-取消一次运行)） | `interrupted` | `run_cancelled` | 有（补） |
 | 会话被归档（[S-29](#s-29-会话归档)） | `interrupted` | `session_archived` | 有 |
 | 前台上限到点且不许转后台（[S-44](#s-44-前台上限与转后台阈值)） | `interrupted` | `foreground_timeout`（产品正文的「前台超时」，[PF-006 §6.6](../../../../product/PF-006-tools-and-skills/design.md#前台上限与并发上限)；取值名主线 2026-09-24 定） | 有（补，原 [G-3](#十二已知缺口)） |
@@ -601,7 +601,7 @@
 
 - **中断不是失败**（PF-006 §6.7）：收场是 `interrupted`，不是 `failed`，哪怕执行者因停止而以错误退出（那次退出按 [S-16](#s-16-首胜收场只写一次) 丢弃）。
 - 前台的执行被中断，落 `ToolMessage`；后台的执行被中断，落 `background_execution_finished{outcome: interrupted}` 提醒（[S-19](#s-19-送达)）。
-- `terminated_by_agent` 是 `data.content-blocks` v1 候选补上的取值（[S-10](#s-10-占位原因)；原 G-2 闭合）：`initiator = agent` 的中断照常落占位。
+- `terminated_by_agent` 是 `data.content-blocks` v1 候选补上的取值（[S-10](#s-10-占位原因)；原 G-2 闭合）：`initiator = agent` 的中断**只落在后台那段执行收场的提醒里**（`background_execution_finished{outcome: interrupted}` 的结果块），**不落占位**——那次调用的占位早在转后台时写下（主线裁定 2026-09-24，以 PF-006 §6.7 为准）。
 
 ### S-26 成批中断
 

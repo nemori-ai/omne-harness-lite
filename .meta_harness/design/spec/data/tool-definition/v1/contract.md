@@ -215,6 +215,7 @@ MCP 列举怎样生成定义（`capability.mcp-bridge` v1 的 S-17）；技能�
   作者在 `input` 顶层**显式**写了 `"additionalProperties": true` 才收下这些键，写的是一份 schema 就按那份 schema 判。这是本契约对 `input` 的读法，**不是 Draft 2020-12 的原义**（原义下没写即收）；判由执行运行时做（`capability.tool-execution-runtime/v1` 的 S-11，失败种类 `arguments_invalid`）。
   依据：[研究 V-5](../../../../../research/tool-definition-shape-sources/evidence.md) 结论 ③——没有 `Tools().inspect` 时模型会臆造参数名（`openai/gpt-5.6-sol` 猜了 `ignore_case`），静默收下那个键，它就据错误的结果作答。
   这与上一条「对不对由工具自己判」不冲突：这一条就是判的规则，作者想自己判，就显式写 `true`。
+  **模型面不因此改写**（主线裁定 2026-09-24）：单函数工具的 `parameters` 仍是作者的 `input` 原样（[S-6](#s-6-模型面只有一个条目)），不自动补 `additionalProperties: false`；**模型面允许而运行时拒的键，会以用法文本告知**——那一次调用收场 `failed{arguments_invalid}`，块上写明哪个键不收，并带这个工具（命令）的一行说明与参数表（`capability.tool-execution-runtime/v1` 的 S-11）。
   **只管顶层**：`properties` 成员里的对象 schema、`items` 里的对象 schema 按原义读（本契约的推导：裁定说的是 `input`，参数表也只列顶层）。
 
 ### S-6 模型面只有一个条目
