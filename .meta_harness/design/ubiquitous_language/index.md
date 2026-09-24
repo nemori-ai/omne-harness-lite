@@ -156,6 +156,7 @@
 | [UL-current-conditions](terms/agent-runtime-loop.md#ul-current-conditions--当下条件--current-conditions) | 当下条件 | Current Conditions | 日志之外、此刻才成立的那些，**不落日志** |
 | [UL-loop-extension-point](terms/agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point) | Loop 拓展点 | Loop Extension Point | 一个状态点的紧前或紧后，**按位置命名不按功能**；可挂多个。**当前十一个** |
 | [UL-intervention-power](terms/agent-runtime-loop.md#ul-intervention-power--干预力--intervention-power) | 干预力 | Intervention Power | 只观察 / 可改写 / 可否决，**恰三档、没有放宽**；在拓展件上是权限 |
+| [UL-extension-unavailability-policy](terms/agent-runtime-loop.md#ul-extension-unavailability-policy--拓展件不可用处置--extension-unavailability-policy) | 拓展件不可用处置 | Extension Unavailability Policy | 拓展件此刻不在时那个位置怎么办：跳过 / 否决 / 替换为指定挂件；租户件默认跳过、可声明前两种，替换件只有系统自带的能用 |
 | [UL-extension-point-pass](terms/agent-runtime-loop.md#ul-extension-point-pass--一次经过--extension-point-pass) | 一次经过 | Extension-Point Pass | loop 走到一个拓展点的一次；**同一位置同一次经过只跑一轮** |
 | [UL-wait-primitive](terms/agent-runtime-loop.md#ul-wait-primitive--等待原语--wait-primitive) | 等待原语 | Wait Primitive | 协程「停下来等外面应答」的那一种办法，主流程与拓展件共用；协程没了靠卡片与答复活着 |
 | [UL-replay](terms/agent-runtime-loop.md#ul-replay--回放--replay) | 回放 | Replay | 新尝试把挂起中的拓展件按日志重跑到挂起点；不花第二遍钱、不出第二张卡 |

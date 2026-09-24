@@ -550,6 +550,27 @@
 - **注意 ②**：**三档挂了的后果相反**——只观察那一档不影响正在发生的事；可改写那一档不影响，但留一笔「它没跑成」；可否决那一档报错默认当作否决。**「不可用」不是报错**，另有定法
 - **注意 ③**：**否决只在「之前」的位置上有意义**；可否决那一档站在「之后」，多出来的只有等人
 
+### UL-extension-unavailability-policy · 拓展件不可用处置 · Extension Unavailability Policy
+
+> **中**：**一件[拓展件](capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension)此刻不在（依赖的服务用不了、它自己起不来）时，它站的那个位置这一次怎么办。**
+> 恰三种：**跳过**（视作已卸载，瀑布里没有它）· **否决**（拦住它站的那个状态点）· **替换为指定挂件**（另一件预先声明的拓展件顶上；正文叫「指定挂件」，不与 UL-stand-in 的「替换件」混用）。
+> **租户挂上的拓展件默认跳过，注册时可以从前两种里声明一种；替换为指定挂件只有系统自带的拓展件能用**，
+> 且指定挂件在系统层面预先声明。**它不是[报错时的处置](#ul-intervention-power--干预力--intervention-power)**：不可用是「没跑」，报错是「跑了出错」。
+>
+> **EN**: **What happens, this one time, at the position an extension occupies when that extension is
+> absent** — its dependencies are down or it failed to start. Exactly three: **skip** (treated as unloaded,
+> the waterfall runs without it), **veto** (block the state point it stands at), or **replace with a
+> declared fallback extension** (another extension, declared in advance, takes its place). **Tenant-installed
+> extensions default to skip and may declare either of the first two at registration; the fallback form is
+> reserved for system-provided extensions**, whose fallback is declared at the system level. **It is not the
+> error policy**: unavailable means it never ran; an error means it ran and failed.
+
+- **形态**：属性（一件拓展件登记上的一项；系统自带的那几件由系统预先给定）
+- **出处**：[PF-012 §5.8 拓展件是可插拔的服务](../../product/PF-012-agent-loop-and-run/design.md#拓展件是可插拔的服务不可用即卸载报错按策略) · [系统自带的几件](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件不可用时各有定法)（rev 12）
+- **⚠️ 别混**：与[干预力](#ul-intervention-power--干预力--intervention-power)里「报错默认当作否决」那条是两回事——那条管跑了出错，这条管根本没跑
+- **注意 ①**：**「此刻不在」无论按哪种处置，都必须看得见**——日志里有一笔「这一件此刻不在、按 X 处置」
+- **注意 ②**：系统自带的[放行判断](../../product/PF-008-human-in-the-loop/design.md#52-那个判断函数)的替换件是**全拒件**——它不在时，需要判断的动作一律拒绝，不放行
+
 ### UL-extension-point-pass · 一次经过 · Extension-Point Pass
 
 > **中**：**loop 走到某个 [Loop 拓展点](#ul-loop-extension-point--loop-拓展点--loop-extension-point)的一次**——从到了那个状态点，到越过它。
