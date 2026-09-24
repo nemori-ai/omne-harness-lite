@@ -8,7 +8,7 @@
 ## 实现路径与来源
 
 **自建一个 Cordis 插件。**两份契约拥有的是资产记录、版本线、持有、配值、两类待确认件、分享、血缘对应、两类幂等键登记八组持久事实与它们的提交语义；DSH 没有对应上层包，没有可 fork 的对象。
-可复用的部分全是别的节点：数据形状、校验与属性声明（[`packages/core/asset-model`](../../core/asset-model/design.md)，`data.asset-model` v1；「组织的设置」视图的表单由它推出）、求值契约 S-23 的界、挑选与分档（[`packages/core/asset-evaluation`](../../core/asset-evaluation/design.md#s-23-的界与挑选单独导出) 单独导出的三个函数，写时守卫用它们；**本插件不调 `evaluate`**）、六类正文的规则与判定（六个正文数据契约节点 [`tool-definition`](../../core/tool-definition/design.md)、[`loop-extension`](../../core/loop-extension/design.md)、[`skill-package`](../../core/skill-package/design.md)、[`slash-command`](../../core/slash-command/design.md)、[`mcp-endpoint`](../../core/mcp-endpoint/design.md)、[`connector`](../../core/connector/design.md)，D-040 §八 M41 一契约一包；各自导出本类那一份，经 asset-model 的端口进来）——都是本批候选、尚未建包——
+可复用的部分全是别的节点：数据形状、校验与属性声明（[`packages/core/asset-model`](../../core/asset-model/design.md)，`data.asset-model` v1；「组织的设置」视图的表单由它推出）、求值契约 S-23 的界、挑选与分档（[`packages/core/asset-evaluation`](../../core/asset-evaluation/design.md#s-23-的界与挑选单独导出) 单独导出的三个函数，写时守卫用它们；**本插件不调 `evaluate`**）、六类正文的规则与判定（六个正文数据契约节点 [`tool-definition`](../../core/tool-definition/design.md)、[`loop-extension`](../../core/loop-extension/design.md)、[`skill-package`](../../core/skill-package/design.md)、[`slash-command`](../../core/slash-command/design.md)、[`mcp-endpoint`](../../core/mcp-endpoint/design.md)、[`connector`](../../core/connector/design.md)，D-040 §八 M41 一契约一包；各自导出本类那一份，由 `core/asset-evaluation` 组成 `defaultBodyContracts`（候选名，D-040 §八 M51：组合根只此一处）经 asset-model 的端口进来）——都是本批候选、尚未建包——
 以及已存在的 [identity-values](../../core/identity-values/design.md)、[offer-expiry](../../core/offer-expiry/design.md)、[core/storage](../../core/storage/design.md) 与[组织治理](../../tenancy/organization-governance/design.md)导出的事务内读函数（本批随 OG v2 修订新增，[下文](#跨-owner-的同一提交组织治理的隶属哨兵组织行与事务内读)）。
 
 **一个插件、一条 fiber、四个服务面。**形状照被接受的候选 B（[D-039](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#拆分领域名与装配g3)、[提案「资产提供者内部」](../../../../record/proposals/capability-split-assets/design.md#资产提供者内部一个插件四个服务面)），与[组织治理节点](../../tenancy/organization-governance/design.md#实现路径与来源)同一先例：四个面是**同一实例的四个入口**，不是四个变化原因。
@@ -34,7 +34,7 @@
 | 流转面 `asset-transfer` | AT [S-20](../../../../spec/capabilities/asset-transfer/v1/contract.md#s-20-发起复制)～[S-30](../../../../spec/capabilities/asset-transfer/v1/contract.md#s-30-列出组织的分享)、[S-48](../../../../spec/capabilities/asset-transfer/v1/contract.md#s-48-列出组织收到的待确认件) | AT |
 | 快照面 `asset-snapshot` | 某个租户此刻的出厂、组织、租户三层持有与被选版本的正文，外加每份 `shared` 持有此刻是否生效（[下文](#快照面两份契约读面的一次读事务投影)） | **无契约条款**（N-4） |
 
-**emit** AG 的五个通知事件，提交返回之后、包一层（[事件](#事件提交之后包一层没有进程内订阅者)）。**import**：`packages/core/asset-model`、`packages/core/asset-evaluation`（只取 S-23 的三个函数）与六个正文数据契约包（只取各自导出的那一份正文端口实现）这些本批节点，与 `core/offer-expiry`、`core/identity-values`、`core/storage`、组织治理包的事务内读入口。
+**emit** AG 的五个通知事件，提交返回之后、包一层（[事件](#事件提交之后包一层没有进程内订阅者)）。**import**：`packages/core/asset-model`、`packages/core/asset-evaluation`（只取 S-23 的三个函数与组好的 `defaultBodyContracts`）这些本批节点——六个正文数据契约包**不直接 import**，经 `defaultBodyContracts` 间接依赖——与 `core/offer-expiry`、`core/identity-values`、`core/storage`、组织治理包的事务内读入口。
 **AG S-29 不在任何面上**：官方件由插件体按 `officialManifest` 登记（[下文](#官方件登记插件体按装配给的清单登记)）。**组合入口（AG S-46）也不在任何面上**：它是插件内部的写函数，公开方法的签名里没有 `lineage`、`sharing` 两个输入（[下文](#组合入口插件内部的写函数不在任何面上)）。
 
 **每个写操作恰一次 `storage.write`，事件在提交返回之后 `emit`**；写事务开头先按[锁次序](#锁次序与插件内的同一提交)取全部锁，再读、再判、再写。下表不再逐行重复。
@@ -66,7 +66,7 @@
 | AG [S-14](../../../../spec/capabilities/asset-governance/v1/contract.md#s-14-可见与不泄漏存在性)～[S-20](../../../../spec/capabilities/asset-governance/v1/contract.md#s-20-每道准入现读) 贯穿规矩 | 资产面、持有面全部方法 | 判定次序按 [S-19](../../../../spec/capabilities/asset-governance/v1/contract.md#s-19-判定次序) 写成一条固定流水：表示层 → 调用方此刻有效（OG v1 `memberships.standing`，事务之外现读）→ 记录可见 → `officialImmutable` → `notOwner` → 角色 → 依赖记录的 `invalidInput` → 状态前置；四种资格（[S-16](../../../../spec/capabilities/asset-governance/v1/contract.md#s-16-谁能做角色矩阵落成的四种资格)）是一个纯函数，输入是 `MembershipStandingResult` 与角色 | 成员资格在事务之外现读，窗口按 AG [S-50](../../../../spec/capabilities/asset-governance/v1/contract.md#s-50-装配给的保证-vs-协议须给的保证)「成员资格与角色的新鲜度」一行（写后即可被下一次读看到）读成可接受，与[提案](../../../../record/proposals/capability-split-assets/design.md#同一提交与共同存储对象)末行、OG 节点对自己 S-36 的读法相同。S-62「两组逐字相同」由同一个 `assetNotFound` 常量与「失效身份先于记录可见」的次序兑现 |
 | AG [S-21](../../../../spec/capabilities/asset-governance/v1/contract.md#s-21-读到的依据与写入落在同一次可串行化的提交里) 七行依据 | 每个写方法 | 逐行的共同存储对象见[锁次序与插件内的同一提交](#锁次序与插件内的同一提交) | 谓词读那一行（引用方集合）由 L-3 组织级持有哨兵兑现，**不是**「只锁已存在的行」 |
 | AG [S-22](../../../../spec/capabilities/asset-governance/v1/contract.md#s-22-先告知再移除或删除) 先告知 | `asset-holdings.listReferrers` ＋ `unhold`／`assets.delete` 的 `acknowledged` | 提交内现求引用方（持 L-3、L-4），`此刻 ⊆ acknowledged` 才写；份数一项按「不大于确认过的份数」比 | 组合引用经判定对象按类别调「列引用」（六个正文包各给本类那一份）；plugin 的引用就是它的成员（`data.asset-model` S-11）；组合引用缺席的那一类（本版 `agent_definition`）⇒ `unavailable`，不当成「没有」（AG G-5） |
-| AG [S-24](../../../../spec/capabilities/asset-governance/v1/contract.md#s-24-createdraft-创建草稿)～[S-26](../../../../spec/capabilities/asset-governance/v1/contract.md#s-26-publish-发布) 创作与发布 | `assets.createDraft`／`updateDraft`／`publish` | 带键创建取 L-5 键哨兵（调用方, 键）再查登记；`basedOn`／`expected` 与版本线末尾在 L-4 记录行锁下比对；`publish` 追加版本、不碰持有 | 正文校验、斜杠命令保留区与名字收窄经 `packages/core/asset-model` 节点的判定对象（它收一个 `BodyContracts` 端口，由六个正文数据契约包各自导出的那一份拼成；**组合根就是本插件**，见装卸表）；**不判组合图成环**（AG S-26、G-6：环只在求值那一侧以 `compositionCycle` 发现）；「内容相等」按 JSON 值相等（S-26 ⑦），实现归 `packages/core/asset-model` 节点 |
+| AG [S-24](../../../../spec/capabilities/asset-governance/v1/contract.md#s-24-createdraft-创建草稿)～[S-26](../../../../spec/capabilities/asset-governance/v1/contract.md#s-26-publish-发布) 创作与发布 | `assets.createDraft`／`updateDraft`／`publish` | 带键创建取 L-5 键哨兵（调用方, 键）再查登记；`basedOn`／`expected` 与版本线末尾在 L-4 记录行锁下比对；`publish` 追加版本、不碰持有 | 正文校验、斜杠命令保留区与名字收窄经 `packages/core/asset-model` 节点的判定对象（它收一个 `BodyContracts` 端口；本插件交进去的是 `core/asset-evaluation` 导出的 `defaultBodyContracts`，见装卸表）；**不判组合图成环**（AG S-26、G-6：环只在求值那一侧以 `compositionCycle` 发现）；「内容相等」按 JSON 值相等（S-26 ⑦），实现归 `packages/core/asset-model` 节点 |
 | AG [S-27](../../../../spec/capabilities/asset-governance/v1/contract.md#s-27-promotetoorganization-提升到组织) 提升 | `assets.promoteToOrganization` | 同一提交：改所有者、重算调用方那一份持有的依据、**把以它为资产的 `active` 分享写 `revoked`／`ownerChanged`**（AT S-52，同一插件的流转模块）；分享那一步写不下去 ⇒ 整次 `unavailable` | 写所有者的路径只此一条（AG S-60 的静态核对）；S-52 的故障注入见 verification F-2 |
 | AG [S-28](../../../../spec/capabilities/asset-governance/v1/contract.md#s-28-delete-删除一份资产记录) 删除 | `assets.delete` | 同一提交：落 `deleted_at`、清草稿与血缘、**分享写 `revoked`／`sourceDeleted`**；持有、引用方一概不动；引用方现求持 L-3（所有者所在组织）与 L-4 | 已发布版本行保留，任何读面不再返回正文（S-64、S-65 读到「已删除」）。指向它的待确认件由 AT S-7 存在性派生为过期，不写 |
 | AG [S-29](../../../../spec/capabilities/asset-governance/v1/contract.md#s-29-registerofficial-登记官方件) 官方件登记 | **无服务面**；插件体按 `officialManifest` 逐条登记 | 见[官方件登记](#官方件登记插件体按装配给的清单登记) | 「只有装配够得着」是结构性的：没有任何方法能被调到 |
@@ -114,7 +114,7 @@
 
 **这三项都是装配给**（同一存储、同一约束域，[tenancy-host「三件事」](../../../apps/tenancy-host/design.md#同一存储同一约束域本节点要保证的三件事)）：跨进程之后由协议重新兑现（AT S-34 右列、AT G-8）。
 
-**AT S-34 代行那一行**：契约写的读法是经 OG v2 的 S-22、S-59 读两个时刻，调用主体由运行时代行。本节点在中心进程里改为经事务内读函数在同一事务里取齐——**读到的是同一份事实**（OG v2 S-7、S-8），契约明写「单机下在一次可串行化的读里取齐 ① 与 ② 即满足」；代行主体因此不出现。**据点那一侧**（跨进程、读不了中心的存储）仍须按契约走读面与代行，那一半归据点装配与入口契约 v2（N-5）。
+**AT S-34 代行那一行**：契约写的单机读法是运行时代行、经 OG v2 的 S-22、S-59 读两个时刻，并写明「同一存储内一次可串行化读（含事务内直读）即满足，不要求经服务面代行」（OG v2 S-42 同名行同一半句，D-040 §八 M59）。本节点在中心进程里走的就是事务内直读——**读到的是同一份事实**（OG v2 S-7、S-8），代行主体因此不出现。**据点那一侧**（跨进程、读不了中心的存储）仍须按契约走读面与代行，那一半归据点装配与入口契约 v2（N-5）。
 
 ### 锁次序与插件内的同一提交
 
@@ -169,18 +169,18 @@ AT [S-34](../../../../spec/capabilities/asset-transfer/v1/contract.md#s-34-装�
 - **严格不相等**：[`infra/clock`](../../infra/clock/design.md#能力到-cordis-的投影) 的 `now()` 是整数毫秒、只保证不后退；同一毫秒里先确认、再解除重加入，两个时刻相等，「≤」判定把断过的关系读成没断过——**分享复活**。手段由主线定为时钟（[D-040 §八 M58](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：同一进程内后一次 `now()` ≥ 上一次＋1 ms，其余情形仍等于墙钟读数，登为 [`infra/clock` 的缺口 C-15](../../infra/clock/design.md#实施缺口与消费者影响)（下一程实施，N-1）。**C-15 闭合之前**，AT S-34 这一行与 OG v2 S-42 末行在本节点兑现不了，依赖它的 AT S-9、S-31、S-32 在 README 标「有前提：C-15」。
 - **持有的 `since` 也吃这一条**：AT S-7 存在性第三个合取项用 `since` 区分「发起时那一份」与「移除后再持有的那一份」，同样要求严格递增。
 
-|          | 持久化一行「时刻高水位」，两个 owner 的写事务都锁它、取 `max(now, 高水位 + 1)`（落选） | **`clock` 同一实例内逐次严格递增（选，交接 `infra/clock`）** | 用存储的提交序号代替时刻（落选） |
+|          | 持久化一行「时刻高水位」，两个 owner 的写事务都锁它、取 `max(now, 高水位 + 1)`（落选） | **`clock` 同一进程内逐次严格递增（选；主线 M58，`infra/clock` C-15）** | 用存储的提交序号代替时刻（落选） |
 | -------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------- | ----------------------------- |
 | 最强论证 | 不依赖进程内状态，跨进程也成立 | 一处改动覆盖全部消费者；冲突的事务已在锁上排序，进程内严格递增就足够；不新增共同存储对象 | 语义最干净：先后就是提交序 |
 | 本方弱点 | 又一个跨 owner 的共同存储对象（谁拥有那一行？）；全部盖时刻的写事务在一行上串行 | 一毫秒内调用超过一次时返回值略超前墙钟；两个进程各起一个 `clock` 时不成立（本版单机，跨进程归 AT G-8、OG G-7）；改的是另一个节点 | `core/storage` 协议没有提交序号；契约要的是「时刻」，要换成序号须两份契约写明 |
-| 置信度   | — | **中**：须 `infra/clock` 节点接受 | — |
+| 置信度   | — | **中高**：手段已由 M58 选定；实施在 `infra/clock`（C-15，下一程） | — |
 
 ### 事件：提交之后、包一层、没有进程内订阅者
 
 - **派发**：`ctx.emit(事件名, 载荷)`，同步、丢弃返回值（basis [`async-control-not-bail`](../../../../basis/cordis/async-control-not-bail.md) 的 emit 行）；不用 `serial`／`bail`／`waterfall`，不设 `thisArg` 过滤、不用 `global`——它们只是通知，没有谁凭返回值放行。
 - **包一层**：监听者同步抛出会穿回发出方、截断本轮派发（basis [`emit-listener-throw-propagates`](../../../../basis/cordis/emit-listener-throw-propagates.md)）；本插件的 `notify` 捕获后记 error 级日志（basis [`logger-level-order-error-lowest`](../../../../basis/cordis/logger-level-order-error-lowest.md)：error 是最低的数值级、总被导出），已提交的事实不变、调用照常返回。
 - **只在提交返回之后发**：AG S-50「事件在提交之后才派发」由「先 `await storage.write`、再 `emit`」兑现；提交失败不发。审计条目不靠事件：它在写事务里写进 `asset_audit_entry`（AG S-3）。
-- **有没有一条事件越过租户边界**：**有**。Cordis 的 `emit` 把事件交给同一进程里这个事件名的**全部**监听者，没有按租户的过滤；`asset.holding-changed` 与 `asset.assignment-changed` 带 `holder`（某个租户的层身份）与能力标识。AG S-48 末条要求「租户层的事件只能给那个租户的订阅者，订阅走与读同一套资格判定」——**这一条 `emit` 兑现不了**。本版的处置：**本插件的事件没有任何进程内订阅者**（中心进程里没有注册表，据点在另一个进程；Cordis 事件不跨进程是**假设 H-2，须按 source-check 取证**），所以此刻没有一条事件被交给不该收到的一方；**将来加任何订阅者**（例如给据点推「该刷了」的提示），按订阅资格过滤必须落在那条推送边上，不能靠 `emit`（N-7）。事件不携带会话标识，不涉会话边界。
+- **有没有一条事件越过租户边界**：**有**。Cordis 的 `emit` 把事件交给同一进程里这个事件名的**全部**监听者，没有按租户的过滤；`asset.holding-changed` 与 `asset.assignment-changed` 带 `holder`（某个租户的层身份）与能力标识。AG S-48 末条要求「租户层的事件只能给那个租户的订阅者，订阅走与读同一套资格判定」——**这一条 `emit` 兑现不了**。本版的处置：**本插件的事件没有任何进程内订阅者**（中心进程里没有注册表，据点在另一个进程；Cordis 事件不跨进程是**假设 H-2，须按 source-check 取证**），所以此刻没有一条事件被交给不该收到的一方。**「没有订阅者」写成两条会失败的检查**（[D-040 §八 M60](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)，义务落 [tenancy-host verification](../../../apps/tenancy-host/verification.md)）：`tools/ts-checks` 规则——`packages/`（除本包）与 `apps/tenancy-host` 内不得订阅 `asset.*`；tenancy-host 启动期断言中心进程内这些事件的监听者集合为空。所以 S-48 末条在本版是**结构给**的，不是 `emit` 给的；**将来加任何订阅者**（例如给据点推「该刷了」的提示），按订阅资格过滤必须落在那条推送边上，不能靠 `emit`（N-7）。事件不携带会话标识，不涉会话边界。
 
 ### 官方件登记：插件体按装配给的清单登记
 
@@ -192,7 +192,8 @@ AG [S-29](../../../../spec/capabilities/asset-governance/v1/contract.md#s-29-reg
 | 本方弱点 | tenancy-host 的 `boot()` 至今不解析任何服务面，要为它破例；要再写一条调用点结构检查 | **插件体重跑会重登**：S-29 ⑦ 幂等到内容与标记，重跑不多出版本；但若重跑发生在运行期（`storage`、`clock`、OG 换代）而那一次登记读不到存储，fiber 会 `FAILED`、四个面一起消失，而不是答 `unavailable`——本版这些提供者都不换代（tenancy-host 依赖表），这一支记为 N-2 |
 | 置信度   | — | **中高** |
 
-登记是一次持久写，**不是 effect**：撤除时什么都不做，登记的事实留在存储里。清单的内容（哪些官方件、哪些是 meta 能力）是随程序发布的数据，由 tenancy-host 从发布物读出后交进 config；**官方件清单本身还没有产品上的内容**（N-10）。
+登记是一次持久写，**不是 effect**：撤除时什么都不做，登记的事实留在存储里。
+**整体成或整体不成（PF-017 §6.6、§6.9）分两支兑现**：有待跑迁移的启动，登记发生在迁移之后、确认之前，失败随 tenancy-host 的升级快照一并撤回；**非首次、无迁移、只改了清单**的升级没有快照——新增条目中途登记失败时，启动失败，已登记的几条官方记录与出厂层持有留在库里（官方件只加不删）——运维者若回到旧版本，旧版本会把它们当出厂层的持有读出，这是这一支的可观察后果；下一次带同一份清单启动，逐条重登不多出版本（S-29 ⑦），整体性由**幂等＋重登**兑现，不靠快照（[D-040 §八 M62](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。清单的内容（哪些官方件、哪些是 meta 能力）是随程序发布的数据，由 tenancy-host 从发布物读出后交进 config；**官方件清单本身还没有产品上的内容**（N-10）。
 
 ### 组合入口：插件内部的写函数，不在任何面上
 
@@ -213,11 +214,11 @@ AG S-46 的三种写入（首次复制 = 建草稿 ＋ 发布 ＋ 持有；重�
 | `capability.organization-governance/v2` 的 S-7、S-8、S-12、S-26、S-34 的事实（AT 钉 v2） | **包依赖**：OG 包的事务内读入口（候选 `./tx-reads`），在本插件自己的事务里调；限定只有本包可以 import（N-3） | 随 OG 包版本；OG 改列、改锁对象 ⇒ 须同步改本包（OG 节点外部依赖登记 X-1～X-3） | 读不到（存储不可用）⇒ `unavailable`；v1 写路径写下的存量记录没有时刻 ⇒ S-9 判不可用（OG v2 §十三，N-11） |
 | `data.identity-values/v1` | 包依赖 `core/identity-values`：身份值类型与解析、`shareAncestor`、`ancestorChain` | 随包版本 | — |
 | `data.offer-expiry/v1` | 包依赖 `core/offer-expiry`：`timingFrom`、`deriveState`、`acceptable`、`parseOfferTtl`、`Instant` | 随包版本 | — |
-| `data.asset-model/v1` | 包依赖 `packages/core/asset-model` 节点：形状、表示层校验、属性声明推出（S-44 的表单）；它的正文判定经端口注入，**本插件在插件体里把六个正文数据契约包各自导出的那一份拼成 `BodyContracts`、构造一次判定对象**（该节点 AM-5 点名的组合根） | 构造时绑定，此后不变 | 端口缺任何一类 ⇒ 构造抛出 ⇒ 插件体 `FAILED` ⇒ 启动失败（同一政策） |
+| `data.asset-model/v1` | 包依赖 `packages/core/asset-model` 节点：形状、表示层校验、属性声明推出（S-44 的表单）；它的正文判定经端口注入，**本插件在插件体里用 `core/asset-evaluation` 导出的 `defaultBodyContracts`（候选名）构造一次判定对象**，不自组端口（D-040 §八 M51 把 asset-model 节点 AM-5 的组合根收成那一处；S-27「同一值在每个接收边界得同一个拒绝值」由单一来源保证） | 构造时绑定，此后不变 | 端口按类别判别，缺一类在编译期失败；构造仍抛出 ⇒ 插件体 `FAILED` ⇒ 启动失败（同一政策） |
 | `capability.asset-evaluation/v1` 的 S-23 | 包依赖 `packages/core/asset-evaluation` 节点单独导出的 `classifyPermissionAssignment`、`boundOf`、`pickWithinBound`（候选名；S-38～S-41 写时守卫）。**不调 `evaluate`**：写一条配值时手上没有、也不组整份求值输入；S-44 的表单只要推出的声明 | 随包版本 | 纯函数，无缺席；签名一改，本插件与求值第 4 步一起改（该节点 AE-6）。`evaluate` 的四种收场（`ok`、`invalidInput`、`compositionCycle`、`categoryUnsupported`）**在本插件没有入口**，不需处置 |
-| 六份正文数据契约的两条规则与斜杠命令保留区 | 包依赖六个正文数据契约节点（`packages/core/{tool-definition,loop-extension,skill-package,slash-command,mcp-endpoint,connector}`，D-040 §八 M41），只经上一行的端口进来，本插件不另调 | 同上 | `agent_definition` 与 plugin 自己的项是「推不出」，依赖它的操作按 AG G-5 `unavailable`；不是缺实现 |
+| 六份正文数据契约的两条规则与斜杠命令保留区 | 六个正文数据契约节点（`packages/core/{tool-definition,loop-extension,skill-package,slash-command,mcp-endpoint,connector}`，D-040 §八 M41）经 `defaultBodyContracts` 间接进来，只经上一行的端口用，本插件不直接 import、不另调 | 同上 | `agent_definition` 与 plugin 自己的项是「推不出」，依赖它的操作按 AG G-5 `unavailable`；不是缺实现 |
 | 存储（无契约，`storage`；[`core/storage` 协议](../../core/storage/design.md#协议)） | 必需 inject；要求清单见下；`StorageUnavailable` 经 `mapStorageError` 映射为 `unavailable`，其余存储异常原样上抛 | 换代 ⇒ 重跑 | 缺席 ⇒ `PENDING` |
-| 时间源（`clock`，offer-expiry S-16 形状） | 必需 inject；`'unavailable'` ⇒ 涉时刻或过期判定的操作 `unavailable` | 装配启动 provide 一份 | 缺席 ⇒ `PENDING`；**严格递增是交接事项**（N-1） |
+| 时间源（`clock`，offer-expiry S-16 形状） | 必需 inject；`'unavailable'` ⇒ 涉时刻或过期判定的操作 `unavailable` | 装配启动 provide 一份 | 缺席 ⇒ `PENDING`；**严格递增待 `infra/clock` C-15**（N-1） |
 | 政策参数与官方件清单 | 插件私有 config（五项），由 [tenancy-host](../../../apps/tenancy-host/design.md#本程追加资产治理与模型档案目录的中心侧候选尚未实现) 下发 | 启动（加载时校验） | 任一不合法 ⇒ **启动失败**，与租户批同一政策；不做成运行期 `unavailable` |
 
 **上游语义的依据**：basis 条目（4.0.4）——`plugin-body-reruns-on-provider-change`、`inject-has-no-optional-form`、`plugin-throw-fails-fiber`、`emit-listener-throw-propagates`、`async-control-not-bail`、`effect-disposal-concurrent-not-ordered`（本插件不建 effect，撤除时无并发释放要排）、`isolate-hides-instances-not-data`（**不用 isolate**：租户、组织之间的差别全是数据）、`logger-level-order-error-lowest`。
@@ -240,7 +241,7 @@ AG S-46 的三种写入（首次复制 = 建草稿 ＋ 发布 ＋ 持有；重�
 
 ## 状态、并发与失败映射
 
-**写权**全在本插件的写方法与插件体的官方件登记里；**提交点**每写操作一次。**不加进程内锁**：全部序列化落在 L-1～L-5 这些存储锁上——进程内锁随插件实例生灭，插件体重跑后新旧实例互不相知（basis `plugin-body-reruns-on-provider-change`），且管不到 OG 那一侧的写入者。
+**写权**全在本插件的写方法与插件体的官方件登记里；**提交点**每写操作一次。**不加进程内锁**：全部序列化落在 L-1～L-6 这些存储锁上——进程内锁随插件实例生灭，插件体重跑后新旧实例互不相知（basis `plugin-body-reruns-on-provider-change`），且管不到 OG 那一侧的写入者。
 **没有「时间谓词」替身**：`now` 不参与冲突检测，时刻只在锁下取、只用于写下与比较（[时刻一节](#时刻确认时刻与组织治理的两个时刻可比)）。
 
 **失败映射**：`storage` 不可用 ⇒ `unavailable`；OG 服务面答 `unavailable` ⇒ `unavailable`（不得收成 `notPermitted`，AG S-61 (a)）；`clock` 答 `'unavailable'` ⇒ 涉时刻的写与涉过期判定的读 `unavailable`；
@@ -262,7 +263,7 @@ AG S-46 的三种写入（首次复制 = 建草稿 ＋ 发布 ＋ 持有；重�
 | AG S-50「事件在提交之后才派发」 | 先 `await` 提交、再 `emit` | 本节点 |
 | AT S-34「同一落点的落地序列化」 | L-5 三个键哨兵 ＋ R-2 | 本节点 ＋ 存储 |
 | AT S-34「边界读一致性」、「边界判定与隶属变更的先后」 | L-1 下事务内读上级链（X-1，PA-4） | 本节点 ＋ OG 节点外部依赖 |
-| AT S-34「三个时刻可比」 | 同一 `clock` 实例、锁下取时刻；**严格递增待 `infra/clock` 交接**（N-1） | 本节点 ＋ `infra/clock`（未落） |
+| AT S-34「三个时刻可比」 | 同一 `clock` 实例、锁下取时刻；**严格递增待 `infra/clock` C-15**（N-1） | 本节点 ＋ `infra/clock`（C-15，下一程） |
 | AT S-34「两读先后」 | 一次事务里取齐 ① 与 ② | 本节点 |
 | AT S-34「读两个时刻的调用主体」 | 中心进程内不经读面、没有代行主体；据点那一侧归入口契约 v2 | 本节点（中心）；N-5（据点） |
 | AT S-34「尝试键的登记与这一次写入同提交」 | 同一写事务 ＋ L-5 尝试键哨兵 | 本节点 |
@@ -274,8 +275,8 @@ AG S-46 的三种写入（首次复制 = 建草稿 ＋ 发布 ＋ 持有；重�
 | 取得的资源／注册贡献 | 实例拥有者与对外可用时点 | 部分初始化失败 | 撤除、静止／交接与保留范围 |
 | --- | --- | --- | --- |
 | config 校验：两个时长默认值、两个保留期为正；`officialManifest` 外层形状 | `definePlugin` 的 `Config` 在插件体之前校验，不过即 fiber `FAILED`、一个面都不 provide（basis `plugin-throw-fails-fiber`） | 无部分状态 | — |
-| 正文判定对象（插件体第一步：以六个正文数据契约节点各自导出的那一份 `BodyContracts` 拼成整份、构造 `packages/core/asset-model` 的判定对象；清单条目的表示层校验用它） | 插件体局部值，随实例生灭；**不是 effect**，没有外部资源 | 端口缺一类 ⇒ 构造抛出 ⇒ `FAILED`、不 provide | 撤除时随实例丢弃；重跑时重建，同一实现、同一结果 |
-| 官方件登记（插件体里、provide 之前，逐条一次写事务；**持久写，不是 effect**） | 插件体；登记完才 provide，所以面可见时出厂层已齐 | 任一条读不到存储或不合法 ⇒ 插件体抛出 ⇒ `FAILED`；**已登记的那几条留在存储里**——它们幂等，下一次启动重登不多出版本；启动期由 tenancy-host 的升级快照一并撤回（首次登记发生在迁移之后、确认之前） | 撤除时不做任何事；**保留**：官方记录与出厂层持有（官方件只加不删，AG S-29） |
+| 正文判定对象（插件体第一步：以 `core/asset-evaluation` 导出的 `defaultBodyContracts` 构造 `packages/core/asset-model` 的判定对象；清单条目的表示层校验用它） | 插件体局部值，随实例生灭；**不是 effect**，没有外部资源 | 端口缺一类 ⇒ 构造抛出 ⇒ `FAILED`、不 provide | 撤除时随实例丢弃；重跑时重建，同一实现、同一结果 |
+| 官方件登记（插件体里、provide 之前，逐条一次写事务；**持久写，不是 effect**） | 插件体；登记完才 provide，所以面可见时出厂层已齐 | 任一条读不到存储或不合法 ⇒ 插件体抛出 ⇒ `FAILED`；**已登记的那几条留在存储里**——它们幂等，下一次启动重登不多出版本；有迁移的启动由 tenancy-host 的升级快照一并撤回（首次登记发生在迁移之后、确认之前）；无迁移、只改清单的启动靠幂等＋重登（[官方件登记](#官方件登记插件体按装配给的清单登记)末段） | 撤除时不做任何事；**保留**：官方记录与出厂层持有（官方件只加不删，AG S-29） |
 | 四个 `ctx.provide`：`assets`、`asset-holdings`、`asset-transfer`、`asset-snapshot` | 本 fiber；`ACTIVE` 后可解析 | 任一 provide 失败 ⇒ 抛出，已 provide 的随 fiber 撤（待核对主张 H-1） | 服务消失，消费者重跑或 `PENDING`。**在途调用跑完**——内核不取消在途调用，每个调用的收场由它那一次 `storage` 提交决定（已提交的就成立；撤除开始后新发起的存储调用得 `StorageUnavailable` ⇒ `unavailable`）；本插件无锁要放、无排空、无补偿。**保留**：全部记录（AG S-51、AT S-37） |
 | 迁移片段（表、唯一索引；由 tenancy-host 合成） | 装配期，`provide('storage')` 之前 | 迁移失败 ⇒ 整体启动失败、快照恢复（tenancy-host 升级的整体性） | 表与数据不随插件撤除 |
 | 五个事件的派发 | 本 fiber 的 `notify`；只在提交之后 | — | 本插件不登记任何监听者；撤除之后不再发 |
@@ -285,18 +286,18 @@ AG S-46 的三种写入（首次复制 = 建草稿 ＋ 发布 ＋ 持有；重�
 
 | # | 缺口 | 挡住什么 | owner 与闭合条件 |
 | --- | --- | --- | --- |
-| N-1 | **时刻严格递增**：`infra/clock` 的 `now()` 只保证不后退；同一毫秒里的「确认—解除—重加入」写下相等的时刻 | AT S-34「三个时刻可比」、OG v2 S-42 末行、AT S-7 存在性第三个合取项（`since`）在本节点兑现不了；**受阻**：AT「不复活」在同一毫秒内的那一支 | `infra/clock` 节点：接受「同一实例内逐次严格递增」并改回拨判定；闭合后本节点加演练 D-8 |
+| N-1 | **时刻严格递增**：`infra/clock` 的 `now()` 只保证不后退；同一毫秒里的「确认—解除—重加入」写下相等的时刻 | AT S-34「三个时刻可比」、OG v2 S-42 末行、AT S-7 存在性第三个合取项（`since`）在本节点兑现不了；**受阻**：AT「不复活」在同一毫秒内的那一支 | [`infra/clock` 的 C-15](../../infra/clock/design.md#实施缺口与消费者影响)（D-040 §八 M58 已选手段，下一程实施）；闭合前 README 把 AT S-9、S-31、S-32 标「有前提：C-15」，D-8 同一毫秒那一支按原样记失败 |
 | N-2 | 运行期换代时插件体重登官方件读不到存储 ⇒ fiber `FAILED`、面消失（不是 `unavailable`） | 本版无（`storage`、`clock`、OG 不换代） | 本节点：若将来运行期换代成为需要，改为「登记失败只在启动期抛出」或转装配调用 |
 | N-3 | **OG 事务内读入口的导入限定**：须一条 `tools/ts-checks` 规则只许本包（与 OG 自己的测试）import `./tx-reads`，带「故意违反即失败」的自测 | 未写之前，任何包都能绕过 OG 服务面读它的表 | `tools/ts-checks` ＋ OG 节点；未开始 |
 | N-4 | **快照面没有契约条款**：D-040 §八 N-19 接受它是两份读面在一次读事务里的投影、不另立条款；余下的是跨进程的形状 | 据点求值的组输入（PRE-1、PRE-2 的中心那一半）经入口契约 v2 投影时要有线上形状 | 主线：随入口契约 v2 定（PA-5、PC-3；D-040 M43 C-4 留给下一程）；在那之前不对外 |
 | N-5 | **资产四个面对外不可达**：入口契约 v1 路由表封闭（D-040 PA-5、PC-3）；据点那一侧读 S-9 须经读面与代行 | **受阻消费者**：治理中心与 CLI/TUI 的全部资产流程、据点的求值组输入 | 主线：入口契约出 v2 追加路由、入口层 inject 追加四个面 |
 | N-6 | **`byAgent` 与调用上下文没有来路**：AG S-24、AT S-11 要它由入口层按来路定 | 本版没有调用者，不阻断；入口 v2 投影写面时必须带上 | 入口契约 v2 |
-| N-7 | **事件越过租户边界**：`emit` 无按租户过滤，AG S-48 末条（订阅走资格判定）`emit` 兑现不了 | 本版无订阅者，不阻断；**任何新增订阅者**都会收到全部租户的持有变化 | 主线／入口契约 v2：推送边上按订阅资格过滤；进程内订阅者加一条结构检查（候选） |
+| N-7 | **事件越过租户边界**：`emit` 无按租户过滤，AG S-48 末条（订阅走资格判定）`emit` 兑现不了 | 本版无订阅者，不阻断；**任何新增订阅者**都会收到全部租户的持有变化 | 本版保护点：tenancy-host verification 的两条义务（`tools/ts-checks` 不得订阅 `asset.*` 的规则、启动期监听者集合为空的断言，M60）；将来的推送：主线／入口契约 v2 在推送边上按订阅资格过滤 |
 | N-8 | **审计条目的形状与读面无契约**：AG S-3 只说「事件落成的记录条目」，记录条目在中心没有数据契约 | 审计读不出来 | 主线：记录条目的数据契约（PF-000）定稿后本节点改写 `asset_audit_entry` |
 | N-9 | **血缘对应的私有性只有模块边界**：X-3 的结构检查（资产面、持有面的查询模块不引用 `lineage_correspondence`）能不能写成未定 | AT S-34 末行在本节点是测试保护（D-039 已接受这一降级） | 实现者 ＋ `tools/ts-checks`：试写规则；写不成则 INV-4 读面反例测试（verification） |
 | N-10 | **官方件清单没有产品内容**；中心与据点程序版本不一致时出厂格取哪一份未定（提案交接缺口 11） | 出厂层为空时求值「出厂那一格齐全」的前提空真 | 产品负责人（哪些官方件）；主线（版本不一致的收场，求值契约「装配给」表） |
-| N-11 | **OG v1 写路径写下的存量成员关系与隶属没有时刻**：S-9 对它们判不可用（OG v2 §十三「不补一个时刻」） | **受阻**：v2 采用之前建立的成员与隶属上的分享一律不可用，直到那段关系重新建立 | **收场已接受**（D-040 §八 N-19：存量记录不补时刻）；受阻是接受的代价，无动作 |
+| N-11 | **OG v1 写路径写下的存量成员关系与隶属没有时刻**：S-9 对它们判不可用（OG v2 §十三「不补一个时刻」） | **受阻**：v2 采用之前建立的成员与隶属上的分享一律不可用。**半径是被分享方的整个组织**：快照面「任何一步读不到 ⇒ 整份 `unavailable`」，被分享方组织只要有一份这样的分享，该组织全部成员的快照整份不可用、求值组输入随之不可用。**出路**：被分享方按 AT S-29 移除那份分享，或那段成员关系、隶属重新建立（新时刻落下） | **收场已接受**（D-040 §八 N-19；半径按 M61 写明，未上线、库可重建，不重新标价）；上线前若出现须迁移的存量库，报产品负责人按这个半径重新标价 |
 | N-12 | **据点不 import 本包**：结构检查未写 | 候选 B 的代价之一（D-039） | `tools/ts-checks` ＋ `apps/cli` 节点：一条规则 ＋ 自测；未开始 |
 | N-13 | **已关闭**：asset-evaluation 节点已单独导出 S-23 的三个函数（`classifyPermissionAssignment`、`boundOf`、`pickWithinBound`），写时守卫改用它们（上文 S-38～S-41 一行）；余下的签名对齐归该节点 AE-6 | — | — |
 
-**受阻消费**：资产的全部用户流程挡在 N-5（入口契约 v2）上；「不复活」在同一毫秒内的那一支挡在 N-1（`infra/clock`）上；存量组织上的分享挡在 N-11 上。本节点不挡别的节点：OG v2 修订与 tenancy-host 修订只需要本页的外部依赖清单与迁移片段名。
+**受阻消费**：资产的全部用户流程挡在 N-5（入口契约 v2）上；「不复活」在同一毫秒内的那一支挡在 N-1（`infra/clock` C-15）上；存量组织上的分享挡在 N-11 上。本节点不挡别的节点：OG v2 修订与 tenancy-host 修订只需要本页的外部依赖清单与迁移片段名。

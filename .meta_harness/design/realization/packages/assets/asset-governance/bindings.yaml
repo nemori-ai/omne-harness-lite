@@ -3,8 +3,8 @@
 # asset-transfer-v1-revival（Transfer_Revival.cfg），运行 record/evidence/2026-09-25-formal-assets-runtimes（HUB 1667ea4c，三个任务退出 0、无反例）。
 # 每条只绑到「去掉那一处保护会被反驳」的那个性质所在的任务（契约 formal/README 的映射表），不绑「相关的」任务。
 # 这些证据检查的是契约模型，不是本节点的实现（尚未建包）；共同前提（除非条目另写）：
-#   - 模型把确认、本人型发起、删除与提升写成不可分割的动作，即假设本节点的存储锁（design 的 L-1～L-5）真的兑现了序列化——
-#     sqlite 上由写事务库级串行给，pg 上由锁给；这条由本节点与存储提供者承担，模型不检查（verification D-1～D-9）；
+#   - 模型把确认、本人型发起、撤回、撤销、移除、删除与提升写成不可分割的动作，即假设本节点的存储锁（design 的 L-1～L-6）真的兑现了序列化——
+#     sqlite 上由写事务库级串行给，pg 上由锁给；这条由本节点与存储提供者承担，模型不检查（verification D-1～D-12）；
 #   - 规模：三个团队组织、两个账号的四个租户身份、两份资产、每类两份同源同落点的待确认件；更大规模是另一次检查；
 #   - 不带公平性假设，不检查进展；死锁检查关闭。
 # 不绑（被建模方式吸收，证据形式在 verification）：TypeOK；EffectsOnlyFromConfirmation；EndedStable；
@@ -19,7 +19,8 @@ bindings:
     evidence: "formal:asset-transfer-v1-transfer"
     assumptions:
       - "性质 NoLateOrDoubleSettle 与 SettledStable（复制通知）：过期、已撤回、已确认的通知被确认之后不产生效果，终结记录不改写；去掉 SameCommit 由 Transfer_NoSameCommit_Settle.cfg 反驳"
-      - "src[a] 离开 held 之后不回来：即假设 AT G-3（持有实例身份）已兑现；本节点靠 since 严格递增兑现它，依赖 N-1（infra/clock 交接）"
+      - "模型里撤回与确认是互斥的原子动作：本节点由 L-1～L-6 兑现这一前提——撤回与确认在同一通知行上 lockRow（L-6），存在性在 L-3、L-4 下读（design「每个写操作的锁集」）；pg 上的实证是 verification D-10"
+      - "src[a] 离开 held 之后不回来：即假设 AT G-3（持有实例身份）已兑现；本节点靠 since 严格递增兑现它，依赖 N-1（infra/clock 的 C-15）"
       - "失败值字面（offerNoLongerValid 三路同值）不在模型里，证据形式是场景 AT S-39"
       - "run：record/evidence/2026-09-25-formal-assets-runtimes；共同前提见文件头"
     alignment_checked: 2026-09-25
@@ -28,6 +29,7 @@ bindings:
     evidence: "formal:asset-transfer-v1-share"
     assumptions:
       - "性质 NoLateOrDoubleSettle 与 SettledStable（分享邀请，含组织内分享邀请 s3）"
+      - "同上：撤回与确认互斥由 L-1～L-6 兑现（邀请行 lockRow，L-6）；pg 上的实证是 verification D-10"
       - "同上：G-3 按已兑现建模；失败值字面归场景 AT S-39"
       - "run：record/evidence/2026-09-25-formal-assets-runtimes；共同前提见文件头"
     alignment_checked: 2026-09-25
@@ -60,6 +62,7 @@ bindings:
     evidence: "formal:asset-transfer-v1-share"
     assumptions:
       - "性质 AtMostOneLiveSharingPerPair：同一 (资产, 被分享方) 至多一份此刻生效的分享"
+      - "模型里确认（含认回）、撤销、移除、删除与提升各是一个原子动作：本节点由 L-1～L-6 兑现——同对确认在 L-5 同对哨兵上排序，确认认回与撤销、移除、删除在那条分享行上 lockRow（L-6），确认的锁集恒含被分享方所在组织的 L-3；pg 上的实证是 verification D-5、D-11、D-12"
       - "「认回那一份」返回的是哪个 SharingId 不在模型里，证据形式是场景 AT S-43"
       - "run：record/evidence/2026-09-25-formal-assets-runtimes；共同前提见文件头"
     alignment_checked: 2026-09-25
@@ -116,7 +119,7 @@ bindings:
     evidence: "formal:asset-transfer-v1-share"
     assumptions:
       - "性质 UseInsideBoundary、UseOnlyWhileMembersEffective、NoRevivedUse：使用时的三个合取项；去掉 UseTimeCheck、SinceCheck 各有去保护配置反驳"
-      - "两个时刻可读、与确认时刻同源且在串行提交之间严格递增是前提：模型用只在建立隶属与重新加入时前进的逻辑时钟兑现它；本节点靠同一 clock 实例且锁下取时刻，严格递增待 N-1（infra/clock 交接）"
+      - "两个时刻可读、与确认时刻同源且在串行提交之间严格递增是前提：模型用只在建立隶属与重新加入时前进的逻辑时钟兑现它；本节点靠同一 clock 实例且锁下取时刻，严格递增待 N-1（infra/clock 的 C-15）"
       - "S-9 的两读先后被 Use 一步原子读吸收，不是证据；本节点在一次事务里取齐 ① 与 ②"
       - "run：record/evidence/2026-09-25-formal-assets-runtimes；共同前提见文件头"
     alignment_checked: 2026-09-25
