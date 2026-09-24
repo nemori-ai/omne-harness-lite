@@ -12,8 +12,8 @@
 **它不拥有数据形状**（`data.asset-model` v1）、复制与分享（`capability.asset-transfer` v1）、工作区那一级的持有（由承载目录读入）。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.asset-governance, 1)`
-- **状态**：`candidate`，2026-09-23 起草，2026-09-24 整批对齐；**未评审、未接受、未冻结**。候选期间语义改动直接落在 v1，每次改动记进[验证入口的「变化的影响」](verification.md#变化的影响)
-- **需求 rev**：PF-001 rev 16、PF-002 rev 16、PF-003 rev 4（后者本批账本未列，取工作区当前值）
+- **状态**：`candidate`，2026-09-23 起草，2026-09-24 整批对齐，同日按 PF-003 rev 5 与 PF-002 rev 18 原地修订；**未评审、未接受、未冻结**。候选期间语义改动直接落在 v1，每次改动记进[验证入口的「变化的影响」](verification.md#变化的影响)
+- **需求 rev**：PF-001 rev 16、PF-002 rev 16（凭据「归谁」按 rev 18）、PF-003 rev 5（2026-09-24 修订）
 - **提供者／装配映射**：尚无
 
 ## catalog 映射
@@ -25,7 +25,7 @@
   - `data.offer-expiry · v1`：`S-6`、`S-19`；
   - `capability.organization-governance · v1`：`S-22`、`S-26`、`S-38`；
   - `data.asset-model · v1`：`S-1`～`S-16`、`S-18`～`S-23`、`S-25`、`S-36`（2026-09-24 整批对齐补登）；
-  - 各类正文契约的两条规则与斜杠命令保留区（同日补登）：`data.tool-definition · v1` `S-16`、`S-31`；`data.skill-package · v1` `S-13`、`S-17`；`data.slash-command · v1` `S-3`、`S-4`、`S-6`、`S-11`；`data.mcp-endpoint · v1` `S-14`、`S-15`；`data.connector · v1` `S-11`。
+  - 各类正文契约的两条规则与斜杠命令保留区（同日补登）：`data.tool-definition · v1` `S-16`、`S-31`；`data.skill-package · v1` `S-13`、`S-17`；`data.slash-command · v1` `S-3`、`S-4`、`S-6`、`S-11`；`data.mcp-endpoint · v1` `S-13`、`S-14`、`S-15`；`data.connector · v1` `S-11`、`S-12`（两处 `S-13`／`S-12` 是凭据类项，2026-09-24 修订补登）。
   **不登** `capability.asset-transfer`：组合入口是它调本契约，同一次提交的约定引它的 S-18 只作指路。
 - **covers**：PF-001／PF-002／PF-003 → 本契约，全部 `reviewed: false`（2026-09-23 起草时按设计依据登记，未经独立复核）。
 - **formal-tasks**：不登记——本版不建形式工件（[契约 S-53](v1/contract.md#s-53-本版选用哪些形式工件)）。

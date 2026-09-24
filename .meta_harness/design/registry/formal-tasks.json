@@ -147,6 +147,54 @@
       "timeout_seconds": 180
     },
     {
+      "id": "asset-transfer-v1-share",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/asset-transfer/v1/formal/Transfer.tla",
+        "spec/capabilities/asset-transfer/v1/formal/Transfer_Share.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/asset-transfer-v1-share",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/asset-transfer/v1/formal/Transfer_Share.cfg",
+        "spec/capabilities/asset-transfer/v1/formal/Transfer.tla"
+      ],
+      "timeout_seconds": 300
+    },
+    {
+      "id": "asset-transfer-v1-revival",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/asset-transfer/v1/formal/Transfer.tla",
+        "spec/capabilities/asset-transfer/v1/formal/Transfer_Revival.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/asset-transfer-v1-revival",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "4",
+        "-config",
+        "spec/capabilities/asset-transfer/v1/formal/Transfer_Revival.cfg",
+        "spec/capabilities/asset-transfer/v1/formal/Transfer.tla"
+      ],
+      "timeout_seconds": 600
+    },
+    {
       "id": "stream-assembly-v1-assembly",
       "kind": "tla",
       "artifacts": [

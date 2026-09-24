@@ -158,7 +158,7 @@
 | `lockedAbove` | 2.3 第 2 步 | 上层锁的，自己解不开——不是 `lockedHere` |
 | `lockedHere` | 组织层已对 `timeout` 加了项锁，`S` 再 [S-38](contract.md#s-38-assign-配值) `assign(... item: "timeout", value: 60)` | 自己这一层锁着，先 [S-41](contract.md#s-41-unlockassignment-解除该项的锁) 解锁 |
 | `officialImmutable` | [S-32](contract.md#s-32-disable-禁用) `disable(caller: S, scope: 组织层 O, capability: {tool, read_file})`，组织层那份持有指向 `T_off` | 官方件任何一层都不能禁用——超管也不行（[PF-001 §4 来源](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#来源official-与-customized)） |
-| `notOwner` | `P` 把它拥有的 `ar_std` 分享给了 `O`（`O` 组织层经组合入口以 `shared` 依据持有它）；`S` 调 [S-25](contract.md#s-25-updatedraft-修订草稿) `updateDraft(caller: S, asset: "ar_std", ...)` | `S` 看得见它（组织层持有着），所以不是 `assetNotFound`；它不归 `O`——被分享方不能改（[PF-003 §6.10](../../../../product/PF-003-asset-transfer-and-sharing/design.md#610-分享给的是获权不是拥有)） |
+| `notOwner` | `P` 把它拥有的 `ar_std` 分享给了同树的 `O`（组织—组织；`O` 组织层经组合入口以 `shared` 依据持有它）；`S` 调 [S-25](contract.md#s-25-updatedraft-修订草稿) `updateDraft(caller: S, asset: "ar_std", ...)` | `S` 看得见它（组织层持有着），所以不是 `assetNotFound`；它不归 `O`——被分享方不能改（[PF-003 §6.10](../../../../product/PF-003-asset-transfer-and-sharing/design.md#610-分享给的是获权不是拥有)） |
 | `hasReferrers` | 组织层持有 plugin `ar_pack`（成员含 `{skill, code_review}`）与 `ar_cr_O`；[S-31](contract.md#s-31-unhold-移除持有) `unhold(caller: S, scope: 组织层 O, capability: {skill, code_review})` 不带 `acknowledged` | 返回 `{ 组合引用方: [组织层 O · ar_pack] }`，不写；带上它再调 ⇒ `ok`，**`ar_pack` 原样在**（不级联） |
 | `versionSequenceBroken` | `ar_notes` 已有 v2；[S-26](contract.md#s-26-publish-发布) `publish(caller: M, asset: "ar_notes", expected: 2)`，且 v2 不是 `M` 以同一内容发的 | 说的号不是末尾 ＋ 1，也不是认回 |
 | `versionNotPublished` | [S-30](contract.md#s-30-hold-加入持有) 把 2.5 第 1 步刚建、还没发布的 `ar_notes` 加进 `M` 的租户层 | 草稿不进求值，没有可选用的版本 |
@@ -195,7 +195,8 @@
 | [S-34](contract.md#s-34-lockreplacement-加替换锁)／[S-35](contract.md#s-35-unlockreplacement-解除替换锁) 替换锁，自己的租户层 | 可 | 可 | — | **推导**：PF-002 §5.5「租户在自己那层把某份 official 的持有标了 immutable ⇒ 工作区替换不了」给了租户这一格，资格取「租户层是本人」 |
 | [S-36](contract.md#s-36-pinversion-钉住一个版本)／[S-37](contract.md#s-37-unpinversion-回到追随当前版本) 版本选用，组织层 | 可（分享来的钉不住：`notOwner`） | 不可 | 不可 | **推导**：PF-002 flows §3.3「选用哪个版本是消费方的决定」＋ flows §3.1「该范围的管理者——组织层是超级管理员」；分享来的那一格是 **原话**：PF-003 §6.11「不提供钉在某个版本上」 |
 | [S-36](contract.md#s-36-pinversion-钉住一个版本)／[S-37](contract.md#s-37-unpinversion-回到追随当前版本) 版本选用，自己的租户层 | 可 | 可；**组织加了替换锁的不可钉**（`lockedAbove`） | — | **推导**：同上，「租户层是本人」；替换锁那一格取 [S-36](contract.md#s-36-pinversion-钉住一个版本) 的理由 |
-| [S-38](contract.md#s-38-assign-配值)／[S-39](contract.md#s-39-clearassignment-清除配值) 配值、清除，组织层 | 可 | 不可 | 不可 | **原话**：PF-002 flows §四「配置组织级的设置与权限」 |
+| [S-38](contract.md#s-38-assign-配值)／[S-39](contract.md#s-39-clearassignment-清除配值) 配值、清除，组织层 | 可（**凭据类项除外**，下一行） | 不可 | 不可 | **原话**：PF-002 flows §四「配置组织级的设置与权限」 |
+| [S-38](contract.md#s-38-assign-配值) 配值，组织层的**凭据类项**（MCP 凭据、连接件的鉴权绑定） | **不可**（`notPermitted`） | 不可 | 不可 | **原话**：PF-002 rev 18 flows §四「配置组织级的设置与权限：可——MCP 凭据与连接件的鉴权绑定除外」、flows §二「拒绝，说明这两项只在租户那一层配、每个成员自己取」（原 G-10 闭合）。超管也不可：这一格与角色无关 |
 | [S-38](contract.md#s-38-assign-配值)／[S-39](contract.md#s-39-clearassignment-清除配值) 配值、清除，自己的租户层 | 可 | 可；**组织加了项锁的那一项不可**（`lockedAbove`） | — | **原话**：PF-002 flows §四「配置自己租户级的设置与权限：可／可」「覆盖组织级的值：普通成员看组织有没有加锁」。**超管那一格同样受组织层项锁约束**：锁是组织层的一个值，不认人 |
 | [S-40](contract.md#s-40-lockassignment-锁住该项)／[S-41](contract.md#s-41-unlockassignment-解除该项的锁) 项锁，组织层 | 可 | 不可 | 不可 | **原话**：PF-002 flows §四「把组织级的值标为 immutable」 |
 | [S-40](contract.md#s-40-lockassignment-锁住该项)／[S-41](contract.md#s-41-unlockassignment-解除该项的锁) 项锁，自己的租户层 | 可 | 可 | — | **推导**：PF-002 §5.4「每一层对一个东西可以做两件事：给一个值；声明它不可再被下层覆盖」 |
@@ -206,6 +207,12 @@
 | [S-44](contract.md#s-44-organizationsettingsview-组织的设置视图) 组织的设置视图 | 可 | 可 | 不可 | **推导**：同「读组织层」 |
 | [S-64](contract.md#s-64-readasset-读一份资产记录)／[S-65](contract.md#s-65-readversion-读一个已发布版本) 读一份记录与它的已发布版本 | 可（看得见的：官方件、组织的、他自己的、他那一层持有的）；草稿只给有创作权的 | 可（同左）；组织记录的草稿不给（显式「不向你展示」） | 不可（看不见 ⇒ `assetNotFound`） | **推导**：看得见即读得到（[S-14](contract.md#s-14-可见与不泄漏存在性)）；草稿与修订同一道资格（[S-25](contract.md#s-25-updatedraft-修订草稿) ②）；读面补上是账本 S11-G9 |
 | [S-45](contract.md#s-45-listreferrers-列出一份记录的引用方) 引用方 | 可（所有者一侧，或持有它的范围的管理者） | 可（只对他自己的记录与他自己那一层） | 不可 | **推导**：PF-002 flows §二「先告知受影响的引用」——谁要移除或删除，谁就要先看得见引用方 |
+| [S-46](contract.md#s-46-组合入口资产流转的确认步骤) 本人型复制落地，落**自己的租户层** | 可 | 可——**不需要超管确认** | 不可（`crossTenant`） | **原话**：PF-003 rev 5 flows §四「本人型复制」一行；decisions §一 2026-09-24「普通成员……不需要超管确认」。资格就是租户范围创作权，不另开一条 |
+| [S-46](contract.md#s-46-组合入口资产流转的确认步骤) 本人型复制落地，落**本组织的组织层**（从他个人组织来的） | 可——**超管选层** | 不可（资产流转那一侧先收 `notPermitted`；到这里也过不了组织范围创作权） | 不可 | **原话**：PF-003 rev 5 flows §四「我是那个团队的超管时，也可落它的组织级」 |
+| [S-46](contract.md#s-46-组合入口资产流转的确认步骤) 组织型复制落地（确认那一次） | 可 | 不可 | 不可 | **原话**：PF-003 rev 5 flows §四「确认收到的组织型复制通知：超管可；普通成员不可」；作者就是确认的那位超管（PF-003 §6.5） |
+| [S-46](contract.md#s-46-组合入口资产流转的确认步骤) 分享成立取持有，**组织层**（组织—组织、个人—个人） | 可 | 不可 | 不可 | **原话**：PF-003 rev 5 flows §四「确认……组织—组织的分享邀请：超管可；普通成员不可」 |
+| [S-46](contract.md#s-46-组合入口资产流转的确认步骤) 分享成立取持有，**自己的租户层**（组织内分享、本人型分享） | 可 | 可 | — | **原话**：PF-003 rev 5 flows §四「确认收到的组织内分享邀请：可——发给我的那份」「本人型分享」；依据是 `shared`，[S-9](contract.md#s-9-持有本契约写得到的两层与写不到的两层)（租户格待 `data.asset-model` 对齐，[G-23](contract.md#十二已知缺口)） |
+| [S-31](contract.md#s-31-unhold-移除持有) 移除收到的分享（`shared` 持有），自己的租户层 | 可 | 可 | — | **原话**：PF-003 rev 5 flows §四「移除收到的分享：分享给我租户级的：可」；经资产流转的 `removeShared` 组合，或直接移除持有 |
 
 **「在自己个人组织里做上述一切：可」**（PF-002 flows §四末行，**原话**）不另占一行：个人组织唯一的成员就是它的超级管理员，上表「超级管理员」那一列就是他。
 
