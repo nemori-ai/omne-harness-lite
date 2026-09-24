@@ -120,7 +120,10 @@
       "description": "List issues in a GitHub repository.",
       "inputSchema": {
         "type": "object",
-        "properties": { "owner": { "type": "string" }, "repo": { "type": "string" } },
+        "properties": {
+          "owner": { "type": "string", "description": "Repository owner." },
+          "repo": { "type": "string", "description": "Repository name." }
+        },
         "required": ["owner", "repo"]
       }
     },
@@ -130,10 +133,10 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "owner": { "type": "string" },
-          "repo": { "type": "string" },
-          "title": { "type": "string" },
-          "body": { "type": "string" }
+          "owner": { "type": "string", "description": "Repository owner." },
+          "repo": { "type": "string", "description": "Repository name." },
+          "title": { "type": "string", "description": "Issue title." },
+          "body": { "type": "string", "description": "Issue body." }
         },
         "required": ["owner", "repo", "title"]
       },
@@ -189,10 +192,12 @@
 | 实例 | Schema | 拒绝值 | 依据 |
 |---|---|---|---|
 | `"github:create_issue"` | 通过 | — | [S-11](contract.md#s-11-动作条目名)：接入点 `mcp:github` ＋ 对端 `create_issue` |
-| `"github:issues.list"` | 通过 | — | [S-11](contract.md#s-11-动作条目名)：`.` 合法 |
+| `"github:issues.list"` | 拒绝 | `malformed`（M13） | [S-11](contract.md#s-11-动作条目名) 第 1 条：`.` 不在 `data.tool-definition/v1#S-18` 的字符集里——MCP 协议建议里有 `.`，**这个对端动作拼不出条目名** |
+| `"github:_private"` | 拒绝 | `malformed`（M13） | [S-11](contract.md#s-11-动作条目名) 第 1 条：拼接处成 `:_`，转写后与别的名字对不回唯一一个 |
+| `"github:list__all"` | 拒绝 | `malformed`（M13） | [S-11](contract.md#s-11-动作条目名) 第 1 条：含 `__` |
 | `"a:b:c"` | 通过 | — | [S-11](contract.md#s-11-动作条目名)：**拼法不可拆**——它可能是 `a`＋`b:c`，也可能是 `a:b`＋`c`，这就是 [G-2](contract.md#八已知缺口) 的撞名 |
-| `"github:repo/admin"` | 拒绝 | `malformed`（M13） | [S-11](contract.md#s-11-动作条目名) 第 3 条：含 `/`——**这个对端动作拼不出条目名，本契约不改写它** |
-| `"github:create issue"` | 拒绝 | `malformed`（M13） | [S-11](contract.md#s-11-动作条目名) 第 2 条 |
+| `"github:repo/admin"` | 拒绝 | `malformed`（M13） | [S-11](contract.md#s-11-动作条目名) 第 1 条：含 `/`——**这个对端动作拼不出条目名，本契约不改写它** |
+| `"github:create issue"` | 拒绝 | `malformed`（M13） | [S-11](contract.md#s-11-动作条目名) 第 1 条：含空白 |
 | `"create_issue"` | 拒绝 | `malformed`（M13） | [S-11](contract.md#s-11-动作条目名)：少了接入点那一段 |
 | `"mcp:github/create_issue"` | 拒绝 | `malformed`（M13） | [S-11](contract.md#s-11-动作条目名)：**不是能力标识规范串**，也不嵌一个 |
 

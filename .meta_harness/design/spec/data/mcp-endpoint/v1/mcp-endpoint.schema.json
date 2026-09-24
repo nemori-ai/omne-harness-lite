@@ -199,10 +199,10 @@
     },
     "McpActionName": {
       "title": "动作条目名",
-      "description": "S-11：对端一个动作在动作空间里那个工具条目的名字，恰是「接入点能力标识的 name」＋「:」＋「对端动作名」。与 data.asset-model v1 S-2 的能力标识名词法同一套：非空、任何位置都不含 data.identity-values v1 S-31 的空白码点、不含「/」，允许「:」。它不可拆：消费者不得从中读出接入点或对端动作名——那两样在工具定义的 origin 里。",
-      "type": "string",
+      "description": "S-11：对端一个动作在动作空间里那个工具条目的名字，恰是「接入点能力标识的 name」＋「:」＋「对端动作名」。它就是那份工具定义的 name：词法取 data.tool-definition v1 S-18 的收窄（$ref 它的 ToolName），另要求含「:」。它不可拆：消费者不得从中读出接入点或对端动作名——那两样在工具定义的 origin 里。",
+      "$ref": "../../tool-definition/v1/tool-definition.schema.json#/$defs/ToolName",
       "minLength": 3,
-      "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF/]*:[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF/]*(?![\\s\\S])",
+      "pattern": ":",
       "examples": [
         "github:create_issue"
       ]
