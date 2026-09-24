@@ -211,8 +211,9 @@ runner 把 `modality-converter` 移到末位——链是 `pii-scrubber` → `mod
 | `replay` 一次从没开始过的经过 | **空列表** | 与「读不到」（`unavailable`）是两个值 | [S-22](contract.md#s-22-replay从日志重建一次经过) ⑤ |
 | 一批 `[c1, c2]` 只带 `[c1]` 调 `dispatch`（拆批；`c2` 解析成功） | **`invalidInput`**，没有记录 | `batch` 里的 `c2` 不在 `actions` 里、又不是解析不了的调用；接受子集会让这一轮的 `admit` 看不到整批 | [S-21](contract.md#s-21-dispatch一次经过) ⑥ |
 | 一批 `[c1, c2]`，`c2` 参数收齐却解析不了；只带 `[c1]`、`batch = [c1, c2]` 调 `dispatch` | **正常受理**：`c1` 一次经过，`c2` 不过这一关 | 解析不了的调用不进 `actions`、仍列在 `batch` 里，收场归执行运行时 | [S-21](contract.md#s-21-dispatch一次经过) ①、[S-29](contract.md#s-29-一批动作每个动作一次经过) 第 1 条 |
-| `before_action` 上不带 `admission`，或带了另一个运行的报告 | **`invalidInput`**，没有记录 | runner 不替这一次尝试现算一份报告，也不认别的运行的那一份 | [S-21](contract.md#s-21-dispatch一次经过) ①、[S-16](contract.md#s-16-缺席时的默认答案) |
+| `before_action` 上不带 `admission`，或带了另一个运行的报告，或带了同一运行上一次尝试（`attempt = 1`，这一次是 `2`）的报告 | **`invalidInput`**，没有记录 | runner 不替这一次尝试现算一份报告，也不认别的运行、别的尝试的那一份——核会话、运行、尝试三者（[D-040 §八 M46](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） | [S-21](contract.md#s-21-dispatch一次经过) ①、[S-16](contract.md#s-16-缺席时的默认答案) |
 | 连续否决上限这项运行时设置此刻读不到 | **`unavailable`** | 读不到不是「没有上限」 | [S-30](contract.md#s-30-连续被否决的回复) 第 3 条 |
+| `before_action` 链 `budget-guard` → 兼容件 `hooks.claude_code.…PreToolUse.1.1` → `admission`；`budget-guard` 已落 `observed`，兼容件的子进程还在跑时用户取消这个运行，取消请求落日志后调用方叫停这一次 `dispatch` | **`cancelled`**：`budget-guard` 那条结论在；兼容件收到停止信号、子进程被停下，**它没有记录**；`admission` 没被求值、没有 `admit`；没有提醒、没有效果 | 不是报错（叫停不是那一件出了错，不按策略落 `veto`）；不是不可用（它已经开始了，也不跳过接着求 `admission`）；不是 `unavailable`（不是判不出来，运行已被取消，没有下一次尝试接着它） | [S-21](contract.md#s-21-dispatch一次经过) ②⑥、[S-34](contract.md#s-34-撤下回收与取消时在途的经过)；[D-040 §八 M39](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) |
 
 ## 6. 不可用处置：租户件按声明，放行判断整批失败按报错
 

@@ -2,7 +2,7 @@
 
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
-> **当前状态（2026-09-24 第一轮独立评审处置后；2026-09-25 修复波 1b 原地改，同日修复波 2 按第二轮复评原地改）：没有任何证据。**
+> **当前状态（2026-09-24 第一轮独立评审处置后；2026-09-25 修复波 1b 原地改，同日修复波 2 按第二轮复评原地改，同日修复波 3 按实现映射反推原地改——[处置](#实现映射反推2026-09-25)）：没有任何证据。**
 > `capability.asset-registry` v1 是 `candidate`，经过两轮独立评审（处置见[独立评审](#独立评审)），**未接受**；尚无提供者设计、尚无源码。
 > **本版不建形式工件**（理由在[契约 S-35](v1/contract.md#s-35-本版选用哪些形式工件)），因此也没有 formal task；
 > 下表登记的是**已经触发的证据义务**，规范场景**一条都没演练**。
@@ -17,10 +17,10 @@
 |---|---|---|
 | 快照只在四个时刻换；同一会话换表串行、多表一次成立 | 每个 (会话, 类别) 单写者、换表一次提交：行为模型里「别的动作不改快照」只能写成 `UNCHANGED`，**被建模方式吸收**，模型里没有一条会在条款被违反时失败的断言——建了也不构成证据 | [S-36](v1/contract.md#s-36-创建时填六张)、[S-37](v1/contract.md#s-37-reload-plugin-连带)、[S-39](v1/contract.md#s-39-命令型服务报错之后命令不再可见)、[S-42](v1/contract.md#s-42-没人发-reload增删禁用不进来) 与故障注入 |
 | 可用性是当下条件的纯函数 | 没有状态可交错 | [S-40](v1/contract.md#s-40-依赖缺失与恢复) 枚举 |
-| 进行中的运行看不看得见 reload | **产品未决**（[G-2](v1/contract.md#十已知缺口)） | G-2 闭合后重判是否需要行为模型 |
+| 进行中的尝试看不看得见 reload | **主线已裁**（D-040 §八 M35，原 G-2 闭合）：尝试之内看不见、下一次尝试起看得见。一次读在哪一份快照里找是固定的取值规则，行为模型只会把它写成一条赋值，**按构造成立**，不构成证据 | [S-37](v1/contract.md#s-37-reload-plugin-连带)「尝试中途 reload 一支」、examples §2 第 7、8 行 |
 | 尝试开始时两次求值、接入点持有与全部工具条目的执行权限钉进报告、拿不到不补档；`continue` 核对运行标识 | 一次调用里的固定次序，不写状态；「拿不到不补档」是取值规则，没有交错——模型只会把它写成一条赋值，**按构造成立**，不构成证据 | [S-46](v1/contract.md#s-46-逐动作执行权限与接入点持有钉进报告)、[S-47](v1/contract.md#s-47-别的运行的报告不能拿来-continue) 与故障注入 |
 
-**触发条件**：G-2 裁成「进行中的运行在下一次经会话资产注册表取时就看到新表」，且同一会话允许多次执行尝试并发读表——那时「一次尝试内不变」与换表之间有了真实交错，应重判。
+**触发条件**：同一会话允许多次执行尝试并发读表，或报告所依的旧快照要跨实例保留（M35 之后 `within = run` 读的可能是已被顶替的那一份）——那时「一次尝试内不变」与换表之间有了真实交错，应重判。（原先的前一半「G-2 裁成下一次取就看到新表」已由 M35 以「下一次**尝试**」答掉，尝试之内不交错。）
 
 ### 规范场景
 
@@ -49,7 +49,8 @@
 | 换表与装配清单追加同一次提交 | [S-17](v1/contract.md#s-17-换表同一会话串行多表一次成败同一)、[S-18](v1/contract.md#s-18-快照不持久装配清单是唯一权威) | PF-004 装配清单的契约 ＋ 装配 | 提供者设计须指出事务覆盖的存储对象；[G-1](v1/contract.md#十已知缺口) |
 | 替换件、关掉的命令被调用时落收场 `unavailable` | [S-9](v1/contract.md#s-9-按命令的可用性)、[S-10](v1/contract.md#s-10-替换件同形只换说明) | `capability.tool-execution-runtime`（S-23 ④） | 那份契约的场景 |
 | 工具结果那一端：转换件登记的查询 | [S-8](v1/contract.md#s-8-当下可用性的三个取值) 第 8 条 | `capability.modality-projection`（S-19） | 那份契约的场景；尝试开始时按哪份档案算见 [G-6](v1/contract.md#十已知缺口) |
-| 每次执行尝试开始时调 `refreshAvailability`，尝试内只用那一份；如实带运行标识 | [S-24](v1/contract.md#s-24-refreshavailability每次执行尝试开始时现算) | agent loop | agent loop 契约的场景 |
+| 每次执行尝试开始时调 `refreshAvailability`，尝试内只用那一份；如实带运行标识与尝试标识（M46） | [S-24](v1/contract.md#s-24-refreshavailability每次执行尝试开始时现算) | agent loop | agent loop 契约的场景 |
+| 报告在接收边界核会话、`runId`、`attempt` 三者，对不上 ⇒ `invalidInput`（M46） | [S-11](v1/contract.md#s-11-一次执行尝试的可用性报告)、[S-31](v1/contract.md#s-31-装配给的保证-vs-协议须给的保证) | `capability.loop-extension-runner`（`dispatch.admission.report`）、`capability.tool-execution-runtime`（`submit.report`）——子那一侧落 | 那两份契约的场景 |
 | 两次求值的输入收齐（配方同装配、持有与配值取此刻；第二次加 `mcpActionSets`） | [S-24](v1/contract.md#s-24-refreshavailability每次执行尝试开始时现算) ② | 装配 ＋ `capability.asset-evaluation`（S-6、S-21） | 提供者设计须指出据点副本与工作区读入结果的来处 |
 | 放行判断的调用方从报告取逐动作执行权限、`unavailable` 即全拒 | [S-11](v1/contract.md#s-11-一次执行尝试的可用性报告) | `capability.tool-admission`（S-8） | 那份契约的场景 |
 | MCP 调用按报告钉住的接入点持有寻址 | [S-11](v1/contract.md#s-11-一次执行尝试的可用性报告) | `capability.tool-execution-runtime`（S-23、S-38）＋ `capability.mcp-bridge`（S-19） | 那两份契约的场景 |
@@ -105,6 +106,7 @@
 
 ## 变化的影响
 
+- **2026-09-25 修复波 3（实现映射反推；候选，未冻结，原地改）**：逐条见下节[实现映射反推](#实现映射反推2026-09-25)。**语义改变**：`within = run` 的读改在报告所依的快照里找（M35）；`fill` 旧 `EvaluationRef` 的第三种情形改为拒绝（M34）；求值的两个新失败值转交。**表示改变**：`refreshAvailability` 多一个必填输入 `attempt`，报告多一个成员（M46）——没有已采用的消费者，无迁移。
 - **2026-09-25 修复波 2（候选，未冻结，原地改）**：裁定出处 [D-040 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加) M8、M10、M21；评审发现处置见[第二轮](#第二轮)。
   - **表示改变**：报告的 `effectivePermissions` 从「每条条目恰一项」写明为**以 `ModelToolName` 为键**的一张表；`tool` 类 `lookup` 的查找键写明为 `ModelToolName`。两处此前都只说「模型面的名字」，现改成那份 data 契约的正式名，没有改变已写的取值；没有已采用的消费者，无迁移。
   - **语义改变**：meta 门那一项不再取求值，恒为 `{auto}`（M21）；它在第二次求值拿不到时也不变成 `unavailable`（S-24 ⑧ 改为「除 meta 门外」）。`not_in_composition` 的适用面收窄，MCP 动作条目明确不适用。
@@ -147,7 +149,26 @@
   - `examples.md`：全部调用补上 `run`／`within`；第 3 节尝试二改为同一运行的 `continue`；第 7 节第 2、6 步改写，加第 7、8 步（运行中途收回照样用、下一次运行起不在）；第 8 节加两行（缺 `run` ⇒ `invalidInput`；`start` 时门控读不到 ⇒ `unavailable`）。
   - **证据**：本契约没有已执行的证据，没有要作废的；[S-41](v1/contract.md#s-41-无权即不存在收回此刻起不存在再授予要等-reload) 与第 7 节首次执行时按本轮的期望。
   - **（同轮追加）** 参数名 `run`／`within` 由主线接受，头部注记随之写明；语义不变。
-- 此后 G-2、G-3 任一改判，**[S-41](v1/contract.md#s-41-无权即不存在收回此刻起不存在再授予要等-reload)、[S-42](v1/contract.md#s-42-没人发-reload增删禁用不进来) 的预期要跟着重写**，并按上文「触发条件」重判形式工件。
+- 此后 G-3 改判（G-2 已由 M35 闭合），**[S-41](v1/contract.md#s-41-无权即不存在收回此刻起不存在再授予要等-reload)、[S-42](v1/contract.md#s-42-没人发-reload增删禁用不进来) 的预期要跟着重写**，并按上文「触发条件」重判形式工件。
+
+## 实现映射反推（2026-09-25）
+
+起因：realization-drafter 庚报回 A-5、A-6，壬、辛报回 C-10，spec-drafter 子报回尝试号缺失（N-20）；戊报回 AE-1、AE-2 引出求值的 M31、M32、M45。主线裁定见 [D-040 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)。**裁定不代替接受**，本契约仍是 candidate。
+
+| 裁定 | 落点 | 本契约推导的部分（已报主线） |
+|---|---|---|
+| **M34** 同一 `EvaluationRef` 再 `fill` 而六张表已不是它填出的 ⇒ `invalidInput{evaluationSuperseded}`，不当作新装配 | [S-22](v1/contract.md#s-22-fill装配时填六张) ⑥⑦（⑦ 按 S-13 分三种：没落下／正是它填的／已被取代）；[S-19](v1/contract.md#s-19-缺席时的默认答案) 第三行；[S-21](v1/contract.md#s-21-这一节每个操作写全九件事) 总表 `invalidInput` 一行；S-36「再跑一支」；examples §1 第 10 行、§8 一行 | 「已不是它填出的」读作六份里任一份的 `filledBy ≠ assembly` 或 `basedOn` 不是它——`markFailed`、`onAssetChange` 虽沿用 `basedOn`，也算取代 |
+| **M35** `within = run{report}` 只在报告所依的快照里找；reload 之后新条目对仍在跑的尝试答「没有」，下一次尝试起可见；S-25 ⑤、S-8 末段、S-34、G-2 同口径 | [S-25](v1/contract.md#s-25-lookup查一条) ④⑤⑧、[S-26](v1/contract.md#s-26-list列一类) ④、[S-8](v1/contract.md#s-8-当下可用性的三个取值) 末段、[S-11](v1/contract.md#s-11-一次执行尝试的可用性报告) 表与第 1 条、[S-6](v1/contract.md#s-6-注册表快照) 第 2 条、[S-23](v1/contract.md#s-23-reload按类别重填) 末条、[S-34](v1/contract.md#s-34-进行中的运行与撤销)、S-2 表、S-3、不变量一行、S-35 一行；**[G-2](v1/contract.md#十已知缺口) 闭合**；S-37「尝试中途 reload 一支」；examples §2 第 7、8 行 | ① 被顶替的快照在仍有报告依它时照样读得到（构成在装配清单里）；② 它此刻取不回 ⇒ `unavailable`，**不改读当前那一份**；③ 单位是尝试不是运行，与技能门控按运行钉分开写 |
+| **M40** `apps/runtime-host` → `apps/cli`（D-039） | [S-31](v1/contract.md#s-31-装配给的保证-vs-协议须给的保证) 第 3、6 行 | — |
+| **M46** 报告加 `attempt`（`AttemptId`）；S-24 产出时填；runner／TER 接收边界核三者 | [S-11](v1/contract.md#s-11-一次执行尝试的可用性报告) 首行；[S-24](v1/contract.md#s-24-refreshavailability每次执行尝试开始时现算) ①⑤⑥（`attempt` 必填、调用方给）；[S-19](v1/contract.md#s-19-缺席时的默认答案) 身份参数一条；[S-31](v1/contract.md#s-31-装配给的保证-vs-协议须给的保证) 第 5 行；S-4 `data.call-accounts` 一行；S-47「尝试标识一支」；消费者核对 agent loop 一行；examples 读法一条、§3 第 1 行、§8 一行；上文「由别处承担」加一行 | `attempt` 由调用方给、本契约不铸（它的家是 `data.call-accounts/v1#S-37`，尝试开始记录派生）；本契约自己的 `continue` 不核尝试号（M46 只要求接收方核） |
+| **随求值 M31** 组合根引用集 | [S-24](v1/contract.md#s-24-refreshavailability每次执行尝试开始时现算) ② 配方加「同一个组合根」；[S-23](v1/contract.md#s-23-reload按类别重填) ④；S-4 表；消费者核对末行 | 组合根随定义版本不变——定义版本不随 reload 与尝试变，`root` 也就不变 |
+| **随求值 M32、M45** `compositionCycle`、`categoryUnsupported` | [S-21](v1/contract.md#s-21-这一节每个操作写全九件事) 总表加两行；[S-19](v1/contract.md#s-19-缺席时的默认答案) 第一行；[S-23](v1/contract.md#s-23-reload按类别重填) ⑥、[S-24](v1/contract.md#s-24-refreshavailability每次执行尝试开始时现算) ⑥⑧；[S-22](v1/contract.md#s-22-fill装配时填六张) ⑥ 注明 `fill` 不会被调到；S-44 ③；examples §8 两行 | **整条是推导**：本契约的失败集合闭合，`reload`、`refreshAvailability` 自己请求求值，求值多了两个失败，就得说它们变成什么。**原样转交、类属「结论」**，不收成 `unavailable`（那是「重试可能不同」）；本版装配成功的会话到不了这两个值，场景用故障注入 |
+
+**registry**：catalog 本契约对 `capability.asset-evaluation` 的 clauses 补 `S-15`（失败集合，转交所据）；`data.call-accounts` 的 `S-37` 已在（`AttemptId` 同一条）；covers、formal-tasks、id-namespaces 不变。
+
+**对证据的影响**：没有既有证据；S-36、S-37、S-44、S-47 各多一支，仍「未开始」。
+
+**对消费者**：agent loop 调 `refreshAvailability` 要带 `attempt`；runner 与工具执行运行时在接收报告处核三者（子那一侧落，[对齐义务](#对齐义务)）；装配只给 `fill` 当前那一次的 `EvaluationRef`，重试回执丢失时照旧可以重发。
 
 ## 对齐义务
 
@@ -163,4 +184,5 @@
 | D-040 §S22 S22-a | 括注「被移除/被禁用的条目」与本契约 S-28（只去掉此刻用不了的）对齐 | **已对齐**：D-040 §四 已登「括注写宽了，契约为准」 |
 | `capability.loop-extension-runner` v1 S-29 第 5 条 | 报告每一项以 `ModelToolName` 为键、`call.tool` 原样去查；查不到键的调用不进放行判断；meta 门那一项恒 `{auto}`（D-040 §七 M8、M10、M21） | 同为丁所写，已对齐（2026-09-25） |
 | `capability.tool-execution-runtime` v1 S-23 ② 第 6 条、④ | 以 `call.tool` 原样查本契约 S-25（`within = run`）；「没有」即刻收场 `unavailable{no_such_entry}`（D-040 §七 M8、M10） | 对方正文已写（2026-09-25 读到，丙批） |
+| `capability.loop-extension-runner` v1（`dispatch.admission.report`）、`capability.tool-execution-runtime` v1（`submit.report`） | 接收报告时核会话、`runId`、`attempt` 三者，对不上 ⇒ `invalidInput`（D-040 §八 M46、M33） | 同批修复波 3 由子落，本契约未读到落稿（2026-09-25） |
 | `capability.tool-admission` v1 S-8 | `not_in_composition` 只指「条目仍在快照、能力标识不在此刻组合里」（D-040 §七 M10） | 对方正文已写（2026-09-25 读到，丙批 S-8 末条与设计依据表）；它另留的「条目在 `tool` 表里、报告却缺那一项」一支按本契约 S-11 不会出现（键集合恰是 `tool` 表的名字），已报主线 |

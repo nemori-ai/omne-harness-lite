@@ -166,4 +166,22 @@ V-2～V-6 **一条执行记录也没有**。起草时的手核只保证 `example
 
 - **2026-09-25 第二轮独立评审的处置（修复波 2；候选未冻结，原地改）**：只把设计依据注表三行改链 D-040 §六 N-3（[第二轮](#第二轮)）。**语义与表示都不变**，Schema 与实例未改，不重跑。
 
+- **2026-09-25 修复波 3（候选未冻结，原地改）**：见下节[实现映射反推](#实现映射反推2026-09-25)。
+
 结果不改写规范。发现语义问题回到来源设计（PF-002／PF-006），不在这里改契约。
+
+## 实现映射反推（2026-09-25）
+
+起因：realization-drafter 戊报回 TM-2、TM-3；主线裁定 [D-040 §八 M37](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)（「MCP 动作条目据此 `stand_in{for: schema_unsupported}`，mcp-endpoint 同步」）。**裁定不代替接受**，本契约仍是 candidate。
+
+| 裁定 | 落点 | 本契约推导的部分（已报主线） |
+|---|---|---|
+| **M37**（本契约这一半） | [S-10](v1/contract.md#s-10-对端动作描述) `inputSchema` 那一条后加一段：投影判出 `schema_unsupported` 的动作不被排除、以同形替换件出现、原因 `schema_unsupported`，同形照的是本契约原样存下的 `inputSchema`；设计依据表 `data.tool-definition` 一行补 `S-4`、`S-27`；examples §3 加一行 | 本契约不改自己的拒绝值与副本的形状——动作描述原样存下这一条本来就给替换件留着同形的依据；打标记的是桥，本契约只写结论 |
+
+**语义与表示**：本契约的形状、拒绝值与推出规则都不变；变的是「一项参数 schema 不合格」里多了一种**不被排除**的情形。
+
+**对证据的影响**：没有既有证据受影响；新加的 examples 行是一个 Schema 通过的正例，下一次本地自检一并跑。
+
+**对消费者**：`capability.mcp-bridge` S-17 `projectActions` 要把这一种与「被排除」分开、打「只能以替换件出现」的标记并带原因——**本轮没有 drafter 负责那份契约，已报主线**；`capability.asset-registry` S-12 第一行照用桥给的原因，不改。
+
+**registry**：catalog 本契约 → `data.tool-definition` 的 clauses 补 `S-4`、`S-27`（S-10 那一段据 S-4 末段与 S-27 末段写）；covers、formal-tasks、id-namespaces 不变。

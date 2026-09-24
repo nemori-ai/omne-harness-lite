@@ -9,7 +9,7 @@
 > 承载全部执行、产品正文里「在工具执行运行时里找得到／找不到」的这一项能力本身没有词条。目录名就是这份契约的身份。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.tool-execution-runtime, 1)`
-- **状态**：`candidate`（2026-09-23 起草；2026-09-24、2026-09-25 经两轮独立评审后原地修订，处置见[验证入口](verification.md#独立评审)），**未接受、未冻结**
+- **状态**：`candidate`（2026-09-23 起草；2026-09-24、2026-09-25 经两轮独立评审后原地修订，处置见[验证入口](verification.md#独立评审)；同日按实现映射反推原地修订，见[验证入口](verification.md#实现映射反推2026-09-25)），**未接受、未冻结**
 - **catalog 映射**：已登记为 `candidate`；`family=capabilities`、`topic=tool-execution-runtime`、
   `contract_path=spec/capabilities/tool-execution-runtime/v1/contract.md`；`resources` 含契约、`examples.md`、`formal/` 下的模型、八个配置与入口页；
   依赖十三项（`data.content-blocks`、`data.call-accounts`、`data.messages`、`data.tool-definition`、`data.loop-extension`、`data.offer-expiry`、`data.identity-values`、

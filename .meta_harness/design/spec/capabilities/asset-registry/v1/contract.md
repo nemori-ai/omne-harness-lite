@@ -1,7 +1,7 @@
 # capability.asset-registry v1
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.asset-registry, 1)`
-- **状态**：`candidate`——2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订，2026-09-25 修复波 1b 把报告的执行权限扩到全部工具条目（L13），同日修复波 2 按第二轮复评定下报告各项的键、meta 门的执行权限项（M8、M21），**未接受、未冻结**；接受与采用只从 [catalog](../../../../registry/README.md) 读
+- **状态**：`candidate`——2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订，2026-09-25 修复波 1b 把报告的执行权限扩到全部工具条目（L13），同日修复波 2 按第二轮复评定下报告各项的键、meta 门的执行权限项（M8、M21），同日修复波 3 按实现映射反推落 M34、M35、M40、M46 并随求值的 M31、M32、M45 对齐（处置在[验证入口「实现映射反推」](../verification.md#实现映射反推2026-09-25)），**未接受、未冻结**；接受与采用只从 [catalog](../../../../registry/README.md) 读
 - **设计依据**（PF-002 rev 20、PF-006 rev 19、PF-004 rev 12；2026-09-24 逐版复核到当前 rev，变化与落点记在[验证入口](../verification.md#变化的影响)）：
   PF-002 [§4 Slash Command](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)、
   [§4「会话认得哪些命令，什么时候变」](../../../../product/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变)、
@@ -39,6 +39,7 @@
 - **主线裁定（第一轮独立评审的修复波）**——[D-040 §五](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)：执行尝试开始时钉住动作集之后**再求一次值**，逐动作执行权限与每个接入点的持有一起钉进报告，拿不到即 `unavailable`（K30，[S-11](#s-11-一次执行尝试的可用性报告)、[S-24](#s-24-refreshavailability每次执行尝试开始时现算)）；被引用的能力无人可用且无下一层时装配失败、由装配收口（K33，[S-20](#s-20-谁可以用门控哪两类按哪个租户身份什么时候判)）。
 - **主线裁定（修复波 1b）**——[D-040 §六 L13、L15](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)：条目不在此刻组合里时那一项写 `not_in_composition`，`unavailable` 只留给求值本身失败（L15）；报告的 `effectivePermissions` 由「每条钉住的 MCP 动作条目恰一项」扩为「`tool` 表里每条条目恰一项」，作者写的与官方的工具取第二次求值里它 `execute` 那一项的 `EffectiveValue`（含 `tenantAutoWritable`），一次尝试内不变（[S-11](#s-11-一次执行尝试的可用性报告)、[S-24](#s-24-refreshavailability每次执行尝试开始时现算)）。
 - **主线裁定（修复波 2）**——[D-040 §七 M8、M10、M21](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)：`tool` 表条目的查找键与 `effectivePermissions` 每一项的键都是模型面名字 `ModelToolName`，由定义名确定性推出（M8，[S-7](#s-7-注册表条目)、[S-11](#s-11-一次执行尝试的可用性报告)、[S-25](#s-25-lookup查一条)）；报告里查不到条目的调用不进放行判断，本契约 S-12 不变，`not_in_composition` 只指「条目仍在快照、能力标识不在此刻组合里」（M10）；meta 门条目的执行权限项恒为 `{auto}`、不读求值（M21，[S-11](#s-11-一次执行尝试的可用性报告)）。
+- **主线裁定（修复波 3，实现映射反推）**——[D-040 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)：同一 `EvaluationRef` 再 `fill` 而六张表已不是它填出的 ⇒ `invalidInput{evaluationSuperseded}`（M34，[S-22](#s-22-fill装配时填六张) ⑦）；`within = run{report}` 的读只在报告所依的快照里找，reload 之后的新条目下一次尝试起可见（M35，[S-25](#s-25-lookup查一条)、[S-8](#s-8-当下可用性的三个取值) 末段、[S-34](#s-34-进行中的运行与撤销)，原 [G-2](#十已知缺口) 闭合）；`apps/runtime-host` 改 `apps/cli`（M40，[S-31](#s-31-装配给的保证-vs-协议须给的保证)）；报告带这一次尝试的 `attempt`（M46，[S-11](#s-11-一次执行尝试的可用性报告)、[S-24](#s-24-refreshavailability每次执行尝试开始时现算)）。随 `capability.asset-evaluation` 的 M31（组合根引用集）、M32（`compositionCycle`）、M45（`categoryUnsupported`）：两次求值的配方带上同一个组合根，两个新失败值原样转交（[S-21](#s-21-这一节每个操作写全九件事) 总表、[S-23](#s-23-reload按类别重填) ⑥、[S-24](#s-24-refreshavailability每次执行尝试开始时现算) ②⑥；**转交是本契约推导，已报主线**）
 - **主线裁定**（见 [D-040 §六 N-10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)，原 G-16 闭合）：`onAssetChange` 作为权限收回的触发操作、可用性到命令粒度（`commandAvailability`）两条补充裁定（2026-09-23）；`slotConflict` 改名 `toolNameConflict`（整批对齐）
 - **精确语义依赖**（十六项，消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)，catalog 按它登记）：
   - `omne-harness-lite-design-2026-09-15 · data.asset-model · v1`
@@ -85,7 +86,7 @@
 | 一次工具执行（含**替换件与关掉的命令被调用时落收场 `unavailable`**） | `capability.tool-execution-runtime` v1（它的 S-23 ④）；收场取值见 `data.content-blocks/v1#S-17` |
 | 放行判断 | `capability.tool-admission` v1 |
 | 系统提示词怎么组装；提醒怎么落进会话日志 | agent loop 一侧（PF-010、PF-012） |
-| 热更新对**进行中运行**怎么呈现 | PF-004（产品未决，[G-2](#十已知缺口)） |
+| 热更新对**进行中运行**在产品上怎么呈现（要不要、怎样让人或 agent 知道换了） | PF-004。**一次读在哪一份快照里找**本契约已定：尝试之内看不见、下一次尝试起看得见（M35，[S-34](#s-34-进行中的运行与撤销)；原 G-2） |
 | 依赖项各类提供者的在场与自报：外部服务、执行环境设施、存储、有效模型的模态能力 | 各自的 owner（[G-6](#十已知缺口)） |
 | connector 与 agent_definition 两类的读法 | 各自的消费者：connector 本程无运行时消费者；agent_definition 是装配的根，由装配读（PF-004）。**本契约不为它们建表**（[S-5](#s-5-八类里登记六张表)） |
 
@@ -94,7 +95,7 @@
 - **不求值、不写持有与配值、不改任何资产。**
 - **不推送。**表换了不通知任何消费者；消费者在自己的时机来读（[S-29](#s-29-本版不发本契约自己的事件)）。
 - **不持久快照**（[S-18](#s-18-快照不持久装配清单是唯一权威)）。「会话装了什么」只有一个权威：装配清单。
-- **不决定进行中的运行是否看得见一次 reload**——[G-2](#十已知缺口)；本契约只保证两种答案下形状都不用改。
+- **不承诺一次运行从头到尾看不见 reload**：看不见只在一次尝试之内，同一运行的下一次尝试起看得见（M35，[S-34](#s-34-进行中的运行与撤销)）；技能门控按运行钉是另一回事（[S-11](#s-11-一次执行尝试的可用性报告) 第 4 条）。
 - **不出可用性变化的提醒**（[S-30](#s-30-可用性变化不出提醒)；主线裁定 S22-d）。
 - **不附 Schema。**操作的输入与返回用散文写含义，值类型引用 data 契约；线上形状归把这些操作送过进程边界的那份 composition（[规格容器的规矩](../../../README.md#准入门槛与停止条件)）。
 - **不排除资产的云端存储与双向同步**（[PF-002 §2 非目标](../../../../product/PF-002-assets-settings-and-permissions/design.md#非目标)要求留口子）：表的内容全部由求值结果与不可变版本派生，不在本契约里存任何只有据点才有的资产事实。
@@ -163,8 +164,8 @@
 
 | 坐标 | 被消费的条款 | 用在哪 |
 |---|---|---|
-| `data.call-accounts` v1 | [`#S-37`](../../../data/call-accounts/v1/contract.md#s-37-三个归属标识的家runidattemptidmodelcallid) `RunId` | [S-11](#s-11-一次执行尝试的可用性报告) 报告带的运行标识、[S-24](#s-24-refreshavailability每次执行尝试开始时现算) `run` 的核对 |
-| `capability.asset-evaluation` v1 | [`#S-6`](../../asset-evaluation/v1/contract.md#s-6-求值输入-evaluationinput) `EvaluationInput`，含可选 `mcpActionSets`（`McpActionSet`）；[`#S-12`](../../asset-evaluation/v1/contract.md#s-12-缺席时的默认答案) 没有动作集就没有逐动作项；[`#S-21`](../../asset-evaluation/v1/contract.md#s-21-第三步投影) 逐动作项 `execute:<动作名>` 取生效那份持有的动作集推出；[`#S-5`](../../asset-evaluation/v1/contract.md#s-5-层与三条层序) `Layer`；[`#S-8`](../../asset-evaluation/v1/contract.md#s-8-求值结果-effectiveassembly) `EffectiveAssembly`（`assets` 的 `capability`／`asset`／`version`／`from`／`resident`，`composition` 的次序，`values`，`unresolved`，`filteredOut` 里的 `not_usable`；`values` 里工具条目的执行权限项整条交进报告）；[`#S-11`](../../asset-evaluation/v1/contract.md#s-11-纯计算) 同输入同结果（[S-24](#s-24-refreshavailability每次执行尝试开始时现算) ④ 第 5 步没有动作集时直接取第一次的结果，修复波 1b 补登）；[`#S-31`](../../asset-evaluation/v1/contract.md#s-31-unresolved-交到装配手上怎么收场) `unresolved` 交到装配手上；[`#S-38`](../../asset-evaluation/v1/contract.md#s-38-常驻值) 常驻值；[`#S-39`](../../asset-evaluation/v1/contract.md#s-39-谁可以使用它值与判定) 「谁可以使用它」在第一步判掉：用不了的不进 `assets`、以 `not_usable` 留痕 | [S-7](#s-7-注册表条目)、[S-16](#s-16-会话资产注册表不求值只消费求值结果)、[S-20](#s-20-谁可以用门控哪两类按哪个租户身份什么时候判)、[S-22](#s-22-fill装配时填六张)、[S-23](#s-23-reload按类别重填)、[S-24](#s-24-refreshavailability每次执行尝试开始时现算) 的两次求值 |
+| `data.call-accounts` v1 | [`#S-37`](../../../data/call-accounts/v1/contract.md#s-37-三个归属标识的家runidattemptidmodelcallid) `RunId`、`AttemptId` | [S-11](#s-11-一次执行尝试的可用性报告) 报告带的运行与尝试标识、[S-24](#s-24-refreshavailability每次执行尝试开始时现算) `run` 的核对与 `attempt`（M46） |
+| `capability.asset-evaluation` v1 | [`#S-6`](../../asset-evaluation/v1/contract.md#s-6-求值输入-evaluationinput) `EvaluationInput`，含组合根引用集 `root`（M31）与可选 `mcpActionSets`（`McpActionSet`）；[`#S-15`](../../asset-evaluation/v1/contract.md#s-15-evaluate) `evaluate` 的失败集合（`invalidInput`、`compositionCycle`、`categoryUnsupported`，[S-23](#s-23-reload按类别重填) ⑥、[S-24](#s-24-refreshavailability每次执行尝试开始时现算) ⑥ 据它转交，修复波 3 补登）；[`#S-12`](../../asset-evaluation/v1/contract.md#s-12-缺席时的默认答案) 没有动作集就没有逐动作项；[`#S-21`](../../asset-evaluation/v1/contract.md#s-21-第三步投影) 逐动作项 `execute:<动作名>` 取生效那份持有的动作集推出；[`#S-5`](../../asset-evaluation/v1/contract.md#s-5-层与三条层序) `Layer`；[`#S-8`](../../asset-evaluation/v1/contract.md#s-8-求值结果-effectiveassembly) `EffectiveAssembly`（`assets` 的 `capability`／`asset`／`version`／`from`／`resident`，`composition` 的次序，`values`，`unresolved`，`filteredOut` 里的 `not_usable`；`values` 里工具条目的执行权限项整条交进报告）；[`#S-11`](../../asset-evaluation/v1/contract.md#s-11-纯计算) 同输入同结果（[S-24](#s-24-refreshavailability每次执行尝试开始时现算) ④ 第 5 步没有动作集时直接取第一次的结果，修复波 1b 补登）；[`#S-31`](../../asset-evaluation/v1/contract.md#s-31-unresolved-交到装配手上怎么收场) `unresolved` 交到装配手上；[`#S-38`](../../asset-evaluation/v1/contract.md#s-38-常驻值) 常驻值；[`#S-39`](../../asset-evaluation/v1/contract.md#s-39-谁可以使用它值与判定) 「谁可以使用它」在第一步判掉：用不了的不进 `assets`、以 `not_usable` 留痕 | [S-7](#s-7-注册表条目)、[S-16](#s-16-会话资产注册表不求值只消费求值结果)、[S-20](#s-20-谁可以用门控哪两类按哪个租户身份什么时候判)、[S-22](#s-22-fill装配时填六张)、[S-23](#s-23-reload按类别重填)、[S-24](#s-24-refreshavailability每次执行尝试开始时现算) 的两次求值 |
 | `capability.asset-governance` v1 | [`#S-48`](../../asset-governance/v1/contract.md#s-48-事件都是通知) `HoldingChanged`、`AssignmentChanged`，都是通知 | [S-28](#s-28-onassetchange权限收回之后收窄) 的输入 |
 | `data.skill-package` v1 | [`#S-16`](../../../data/skill-package/v1/contract.md#s-16-由包得出的依赖声明) 由包得出的依赖声明 | [S-8](#s-8-当下可用性的三个取值) 技能条目的依赖解析 |
 | `data.slash-command` v1 | [`#S-2`](../../../data/slash-command/v1/contract.md#s-2-命令名的词法) 命令名、[`#S-3`](../../../data/slash-command/v1/contract.md#s-3-保留区与它唯一的拼法) 保留区、[`#S-6`](../../../data/slash-command/v1/contract.md#s-6-三种绑定目标) 三种绑定目标（`command` 支即 ③ 型）、[`#S-16`](../../../data/slash-command/v1/contract.md#s-16-名字只按会话斜杠命令集认) 会话斜杠命令集的元素是「命令名 ＋ 正文」一对 | [S-14](#s-14-会话斜杠命令集是-slash_command-那张表的视图)、[S-23](#s-23-reload按类别重填) reload 一族的名字、[S-27](#s-27-markfailed命令型服务报错之后去掉那一条) |
@@ -211,7 +212,7 @@
 | `basedOn` | 它所依的那次求值（[S-13](#s-13-evaluationref)）；`auto_refresh_after_failure` 与 `asset_change` 只删不增，**沿用被收窄那份的 `basedOn`** |
 
 1. **每个 (会话, 类别) 至多一份当前快照**；按 (会话, 类别) 键控，**一个会话的条目不会出现在另一个会话的读里**。
-2. **快照一经成立不改写**：换表是产生一份新快照顶替它，不在原来那份上增删（[S-17](#s-17-换表同一会话串行多表一次成败同一)）。
+2. **快照一经成立不改写**：换表是产生一份新快照顶替它，不在原来那份上增删（[S-17](#s-17-换表同一会话串行多表一次成败同一)）。**被顶替的那份不再是当前的，却仍是一份报告所依的快照时照样读得到**：`within = run{那份报告}` 的读按它读（M35，[S-25](#s-25-lookup查一条) ④）；它的构成就在装配清单里那一条换表记录上（[S-18](#s-18-快照不持久装配清单是唯一权威) 第 1 条）。
 3. **快照的构成**是它的条目各自的 (`capability`、`asset`、`from`、`content`、`resident`) 与次序；**可用性不是构成**（[S-8](#s-8-当下可用性的三个取值)），重算可用性不产生新快照。
 4. **快照不持久**（[S-18](#s-18-快照不持久装配清单是唯一权威)）。
 
@@ -254,7 +255,7 @@
 7. **与禁用分得开**：被[禁用](../../../../ubiquitous_language/terms/circulation-and-entitlement.md#ul-asset-disable--资产禁用--asset-disable)的资产在求值时就被滤掉，**根本不进表**；进了表的，最多是不可用、原位可见。
 8. **工具两端的模态那两项**（`data.tool-definition/v1#S-19` 由 `needs` 得出）：**调用那一端**，`needs.inputModalities` 的每一种都在有效模型档案的输出模态里（[`data.model-profile/v1#S-7`](../../../data/model-profile/v1/contract.md#s-7-modality-与两组模态)），会话资产注册表自己比；**结果那一端**，声明的每一种结果模态 `m`：在有效模型档案的输入模态里，或 [`capability.modality-projection/v1#S-19`](../../modality-projection/v1/contract.md#s-19-查登记-lookupconverter) `lookupConverter({ modality: m })` 答 `{ registered }`——答 `{ unregistered }` 即这一项不满足，答 `{ unavailable }` 按第 3 条写「读不到」。MCP 动作条目的结果端是「任意」（`capability.mcp-bridge/v1#S-17`；`data.tool-definition/v1#S-24` 第 3 条），不产生结果那一端的项。**一次执行尝试开始时「有效模型」指哪一份档案，本版没有答案**——有效模型要到每次调模型之前才定（`data.model-response/v1#S-10`），[G-6](#十已知缺口)；在它有答案之前，这两项按第 3 条判为不满足。
 
-一条条目读出来时带的 `availability`：**一次运行里的读**（`within = run{report}`）取那份报告里的——一次尝试以它为准（[S-11](#s-11-一次执行尝试的可用性报告) 第 1 条）；**不在运行里的读**（`within = session`）取**这个会话最近一次算出的那一份**：填表、重填或重建时算一次（PF-006 §6.4「装配与每次 run 前」；[S-33](#s-33-本能力重启与重建) 第 5 条），每次执行尝试开始时再算一次（[S-24](#s-24-refreshavailability每次执行尝试开始时现算)）。**每一份快照成立时都算过一次**，所以「最近一次算出的」总是有，不会读到一份没算过可用性的条目。
+一条条目读出来时带的 `availability`：**一次运行里的读**（`within = run{report}`）取那份报告里的——一次尝试以它为准（[S-11](#s-11-一次执行尝试的可用性报告) 第 1 条）；**条目本身也只在那份报告所依的快照里找**（主线裁定，见 [D-040 §八 M35](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)；[S-25](#s-25-lookup查一条) ④）：报告之后换上的快照里的新条目，对这一次尝试是「没有」、没有可用性可带，下一次尝试起可见；**不在运行里的读**（`within = session`）取**这个会话最近一次算出的那一份**：填表、重填或重建时算一次（PF-006 §6.4「装配与每次 run 前」；[S-33](#s-33-本能力重启与重建) 第 5 条），每次执行尝试开始时再算一次（[S-24](#s-24-refreshavailability每次执行尝试开始时现算)）。**每一份快照成立时都算过一次**，所以「最近一次算出的」总是有，不会读到一份没算过可用性的条目。
 
 ### S-9 按命令的可用性
 
@@ -280,8 +281,8 @@
 
 | 带什么 | 含义 |
 |---|---|
-| 会话、运行、`computedAt` | 为谁、为哪一次[运行](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run--运行--run)、何时算的：运行是 `data.call-accounts/v1#S-37` 的 `RunId`，时刻是 `Instant`。**运行标识是 `continue` 核对的依据**（[S-24](#s-24-refreshavailability每次执行尝试开始时现算) ②） |
-| 每个登记类别所依的那份快照 | 按 (类别, `filledAt`) 指认；**报告只对这几份快照成立** |
+| 会话、运行、尝试、`computedAt` | 为谁、为哪一次[运行](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run--运行--run)的哪一次[执行尝试](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)、何时算的：运行是 `data.call-accounts/v1#S-37` 的 `RunId`，**尝试 `attempt` 是同一条的 `AttemptId`**（主线裁定，见 [D-040 §八 M46](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)；[S-24](#s-24-refreshavailability每次执行尝试开始时现算) 产出时照调用方给的填），时刻是 `Instant`。**运行标识是 `continue` 核对的依据**（[S-24](#s-24-refreshavailability每次执行尝试开始时现算) ②）；**三者一起是接收方核对「这份报告是不是这一次尝试的」的依据**——同一运行里上一次尝试的报告，会话与运行都对得上、尝试对不上（`capability.loop-extension-runner` 的 `dispatch.admission.report` 与 `capability.tool-execution-runtime` 的 `submit.report` 在接收边界核这三者，对不上 ⇒ `invalidInput`，M46；那两份契约自己落） |
+| 每个登记类别所依的那份快照 | 按 (类别, `filledAt`) 指认；**报告只对这几份快照成立**：`within = run{这份报告}` 的读**只在这几份里找**（M35，[S-25](#s-25-lookup查一条) ④），此后换上的快照对这一次尝试不可见 |
 | 每条条目的 `availability` 与 `commandAvailability` | [S-8](#s-8-当下可用性的三个取值)、[S-9](#s-9-按命令的可用性) |
 | 这一次钉住的 MCP 动作条目 | 按接入点分组，每组带「这份动作清单是何时取得的」（[S-12](#s-12-mcp-动作条目在一次尝试内钉住)） |
 | **`endpointHoldings`**：这一次钉住的接入点持有 | `mcp` 表里每个接入点恰一项：这一次调 `refreshActions` 用的那份接入点持有（`capability.mcp-bridge/v1#S-5` 的 `endpointHolding`），出自这一次的第一次求值（[S-24](#s-24-refreshavailability每次执行尝试开始时现算) ④）；那次求值里这个接入点**没有生效的持有**，这一项写明「没有」，**不拿装配那一次或上一次尝试的那份补上**。**这一次尝试里的 MCP 调用由它寻址**（`capability.mcp-bridge/v1#S-19`） |
@@ -291,7 +292,7 @@
 `endpointHoldings` 与 `effectivePermissions` 两格与「再求一次值」是 [D-040 §五](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) K30 的裁定：MCP 逐动作执行权限要由钉住的那份动作集推出，而动作集要到尝试开始时才钉（[S-12](#s-12-mcp-动作条目在一次尝试内钉住)）。
 `effectivePermissions` 覆盖全部工具条目是 [D-040 §六 L13](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)：作者写的工具与 MCP 动作在放行判断面前没有区别，两处取值就要有两套新鲜度口径——现在一处取、同一个口径（下面第 1 条）。
 
-1. **一次尝试内它不变**：那一次尝试里 agent 面前能不能用什么、MCP 动作有哪些、MCP 调用用哪份持有、每条工具条目的执行权限是什么，**以这份报告为准**，会话资产注册表不在尝试中途重算——凭据被撤、对端增删动作、执行权限改值（作者写的工具与 MCP 动作一样）也不例外，都在下一次尝试开始时生效（[PF-002 §4 MCP](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp)「一次尝试之内不变」；[PF-006 §6.2](../../../../product/PF-006-tools-and-skills/design.md#62-可用性在每次-run-开始前重算) 把每次尝试也算作一次开始）。
+1. **一次尝试内它不变**：那一次尝试里 agent 面前**有哪些条目**、能不能用什么、MCP 动作有哪些、MCP 调用用哪份持有、每条工具条目的执行权限是什么，**以这份报告为准**，会话资产注册表不在尝试中途重算——凭据被撤、对端增删动作、执行权限改值（作者写的工具与 MCP 动作一样）也不例外，都在下一次尝试开始时生效；**尝试中途的一次 reload 也一样**：换上的快照对这一次尝试的读不可见，新条目答「没有」，下一次尝试起可见（M35 是本条的直接推论）（[PF-002 §4 MCP](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp)「一次尝试之内不变」；[PF-006 §6.2](../../../../product/PF-006-tools-and-skills/design.md#62-可用性在每次-run-开始前重算) 把每次尝试也算作一次开始）。
 2. **它不改任何快照**，不写装配清单，不持久、不重放。
 3. **一次尝试一份**：同一会话后一份报告成立，前一份对**此后**不在运行里的读就不再是「最近一次」（[S-8](#s-8-当下可用性的三个取值) 末段）；已经拿着前一份的那次尝试照它跑完。
 4. **两种钉法、两个单位**：可用性、MCP 动作集、接入点持有与全部工具条目的执行权限**按尝试**重算（第 1 条）；技能门控**按运行**钉——同一运行的每一份报告带着同一份，**不随尝试重判**（R2-13：[产品说的是运行](../../../../product/PF-002-assets-settings-and-permissions/design.md#谁可以使用它是各类资产共用的一项权限)「已经开始的运行不变，自下一次运行起不再装入」）。
@@ -386,13 +387,13 @@
 
 | 情形 | 结果 | 为什么不合并 |
 |---|---|---|
-| 判定得出「不行」 | 具名值：`categoryNotRegistered`、`dependencyUnresolved{missing}`、`toolNameConflict`、`sessionNotFound` | 成立的结论，原样重试不会变 |
+| 判定得出「不行」 | 具名值：`categoryNotRegistered`、`dependencyUnresolved{missing}`、`toolNameConflict`、`sessionNotFound`；求值以 `compositionCycle{cycle}` 或 `categoryUnsupported{category}` 失败时**原样转交**（[S-21](#s-21-这一节每个操作写全九件事) 总表） | 成立的结论，原样重试不会变 |
 | 判定**做不出来**：会话事实、求值、「谁可以用」的现读、装配清单（读或追加）、重建所需的正文任一取不到 | **`unavailable`** | 没有结论；按当时实际状态重试可能不同（`data.identity-values/v1#S-19`） |
-| 输入**根本不构成这个请求**：成员缺席、类型不对、类别不在八类之内、名字不合 `data.asset-model/v1#S-3` 的形状、`EvaluationRef` 不合 `data.identity-values/v1#S-31` 的词法、求值结果不合它自己契约的形状 | **`invalidInput`**，在任何判定之前 | 表示层校验不是判定结果（`data.identity-values/v1#S-33`） |
+| 输入**根本不构成这个请求**：成员缺席、类型不对、类别不在八类之内、名字不合 `data.asset-model/v1#S-3` 的形状、`EvaluationRef` 不合 `data.identity-values/v1#S-31` 的词法、求值结果不合它自己契约的形状；`fill` 带的 `EvaluationRef` 已被此后的换表取代（`invalidInput{evaluationSuperseded}`，[S-22](#s-22-fill装配时填六张) ⑦，M34） | **`invalidInput`**，在任何判定之前 | 表示层校验不是判定结果（`data.identity-values/v1#S-33`） |
 
 - **`unavailable` 这个名字取自 `capability.organization-governance` v1 的同一收场**（[D-040 §S22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s22asset-registry报回的) S22-c）。没有它，「判不出来」就只能折进某个拒绝值——那正是本条要禁的。
 - **读时判不出来不等于「没有」**：`lookup` 现读「谁可以用」读不到时收 `unavailable`，**不回答「没有这个命令」**——那会把一次读失败说成这个人没有权限。
-- **任何身份参数都没有默认值**：会话、类别、能力标识、名字、通知，缺席即 `invalidInput`，不得由当前租户身份、进程上下文或「上一次那个会话」补齐（`data.identity-values/v1#S-17`、`#S-18`）。
+- **任何身份参数都没有默认值**：会话、类别、能力标识、名字、通知、`refreshAvailability` 的 `attempt`，缺席即 `invalidInput`，不得由当前租户身份、进程上下文或「上一次那个会话」补齐（`data.identity-values/v1#S-17`、`#S-18`）。
 - **本契约的操作没有带默认值的非身份参数。**`refreshAvailability` 的 `run` 与 `lookup`／`list` 的 `within` 是**必填的判别式**（[S-24](#s-24-refreshavailability每次执行尝试开始时现算)～[S-26](#s-26-list列一类)）：缺席即 `invalidInput`，**不补成「一次新运行」或「会话级的读」**——补哪一个都会让一次已开始的运行在中途被收窄。
 
 ### S-20 「谁可以用」门控：哪两类、按哪个租户身份、什么时候判
@@ -448,11 +449,13 @@
 
 | 值 | 含义 | 类 |
 |---|---|---|
-| `invalidInput` | 输入不构成这个请求（[S-19](#s-19-缺席时的默认答案) 第三行） | 表示层 |
+| `invalidInput` | 输入不构成这个请求（[S-19](#s-19-缺席时的默认答案) 第三行）。`fill` 另有一支 **`invalidInput{evaluationSuperseded}`**：带来的 `EvaluationRef` 那一条记录已经落下、六张表却已不是它填出的（[S-22](#s-22-fill装配时填六张) ⑦；主线裁定，见 [D-040 §八 M34](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） | 表示层 |
 | `sessionNotFound` | 装配清单里没有这个会话的装配记录——会话资产注册表从没为它成功填过表。**会话资产注册表分不出「会话不存在」与「会话在、但从没装配成功」**，两者同一个值 | 定位 |
 | `categoryNotRegistered` | 类别是 `connector` 或 `agent_definition`（[S-5](#s-5-八类里登记六张表)） | 结构 |
 | `dependencyUnresolved{missing}` | 所依的求值结果里**有引用无人提供**（`EffectiveAssembly.unresolved` 非空）；`missing` 列出那些能力标识与引用它们的是谁。**依赖声明不满足从来不是这个值**——那是可用性（[S-8](#s-8-当下可用性的三个取值)）；这个值说的是「装配缺了必需的东西」（[PF-004 I-9](../../../../product/PF-004-agent-definition-and-assembly/design.md#61-不变式)） | 结论 |
 | `toolNameConflict` | `tool` 表里两条条目在 agent 面前同名（[S-7](#s-7-注册表条目) 末条） | 结论 |
+| `compositionCycle{cycle}` | 这一次此刻的求值以 `compositionCycle` 失败（[`capability.asset-evaluation/v1#S-15`](../../asset-evaluation/v1/contract.md#s-15-evaluate) ⑥）——组合成环、没有结果可填；`cycle` 原样取那份诊断。**名字与诊断都是求值那一侧的，本契约只转交**（本契约推导：转交而不收成 `unavailable`，因为它是判出来的、原样重试不会变） | 结论 |
+| `categoryUnsupported{category}` | 这一次此刻的求值以 `categoryUnsupported` 失败（同上）——组合里走到了本版读不了正文的一类（plugin、sub-agent），没有结果可填；`category` 原样取。同样只转交（同上的推导）；那份契约的 G-3、G-21 闭合时随它删去 | 结论 |
 | `unavailable` | 判定做不出来（[S-19](#s-19-缺席时的默认答案) 第二行） | 失败 |
 
 > **`dependencyUnresolved` 这个名字比它的含义窄**：它说的是组合引用无人提供，而产品把[组合与依赖分成两件事](../../../../product/PF-002-assets-settings-and-permissions/design.md#63-组合的引用指向能力标识)。主线要求改宽，**还没有新名字**——本版照旧，已报主线并接受（D-040 §七 N-18）。
@@ -480,8 +483,8 @@
 | ③ | 无 |
 | ④ | 对六类各建一份快照：条目 = 求值结果里**生效、且在组合里**的这一类资产，按求值结果的次序；`skill`、`slash_command` 两类照求值结果放——用不了的不在结果里（[S-20](#s-20-谁可以用门控哪两类按哪个租户身份什么时候判)）；每条带填表这一刻算出的 `availability`（MCP 动作条目要等第一次尝试开始才钉）。**六份快照与这次装配在装配清单里的那一条记录一次成立**：这次求值与六张表的构成在**同一条**记录里，不是两条（[S-18](#s-18-快照不持久装配清单是唯一权威) 第 1 条）；它落下就是提交点，`EvaluationRef` 指认的就是它（[S-17](#s-17-换表同一会话串行多表一次成败同一)）。这个会话已有表时，这就是一次完整重新装配，**六张整批顶替** |
 | ⑤ | 六份 `RegistrySnapshot`，一类一份，`filledBy = assembly` |
-| ⑥ | `invalidInput`（含 `EvaluationRef` 不属于这个会话、求值结果不合形状）→ `sessionNotFound` → `dependencyUnresolved{missing}` → `toolNameConflict`；**任一步读不到 ⇒ `unavailable`**（含求值结果里 `resident` 缺席） |
-| ⑦ | **同一个 `EvaluationRef` 再 `fill` 一次**：那条记录已经落下、当前六张正是它填出来的 ⇒ 原样返回这六份，**不再记一条**——回执丢了的重试认回同一次；否则按一次新的装配处理 |
+| ⑥ | `invalidInput`（含 `EvaluationRef` 不属于这个会话、求值结果不合形状、`invalidInput{evaluationSuperseded}`——见 ⑦）→ `sessionNotFound` → `dependencyUnresolved{missing}` → `toolNameConflict`；**任一步读不到 ⇒ `unavailable`**（含求值结果里 `resident` 缺席）。求值以 `compositionCycle`、`categoryUnsupported` 失败时没有 `EffectiveAssembly` 可交，`fill` 不会被调到——收口归装配（[`capability.asset-evaluation/v1#S-31`](../../asset-evaluation/v1/contract.md#s-31-unresolved-交到装配手上怎么收场)） |
+| ⑦ | **同一个 `EvaluationRef` 再 `fill` 一次**，按 [S-13](#s-13-evaluationref) 分三种（主线裁定，见 [D-040 §八 M34](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：① 那条记录**还没落下** ⇒ 这就是那一次装配，照 ④ 做；② 已经落下、**当前六张正是它填出来的**（六份的 `filledBy = assembly`、`basedOn` 都是它）⇒ 原样返回这六份，**不再记一条**——回执丢了的重试认回同一次；③ 已经落下、**六张里有一张已不是它填出的**（此后有过 `reload`、`markFailed`、`onAssetChange` 或另一次装配）⇒ **`invalidInput{evaluationSuperseded}`**，表不换、装配清单不多一条——**不当作一次新的装配**：一个旧的 `EvaluationRef` 指认的是一次已经被取代的求值，拿它重填就是把会话退回过去 |
 | ⑧ | 装配清单读不到、写不进，「谁可以用」读不到 ⇒ `unavailable`，**不留一张半张**（[PF-004 I-9](../../../../product/PF-004-agent-definition-and-assembly/design.md#61-不变式) 的同形：不产生残缺的构成）；**不得把门控读不到的命令当作可以用装进去，也不得当作不可以用漏掉** |
 | ⑨ | 不发（[S-29](#s-29-本版不发本契约自己的事件)） |
 
@@ -502,15 +505,15 @@
 | ① | 会话、类别 |
 | ② | 类别是六类之一；这个会话有表（或能按 [S-33](#s-33-本能力重启与重建) 重建） |
 | ③ | `connector`、`agent_definition` ⇒ `categoryNotRegistered` |
-| ④ | **按此刻的求值结果重填**：请求一次此刻的求值——此刻的持有与配值，**连同工作区承载目录此刻的内容**（[PF-002 §4](../../../../product/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变)「工作区承载目录里对应文件的改动都在这一次进来」），**定义版本仍是这个会话装配清单所依的那一个**；按 `fill` 的同一套规则建**目标表**（判 `dependencyUnresolved`、`toolNameConflict`）；**全部通过之后**，把「这次求值 ＋ 每张目标表的完整构成」作为**一条** reload 记录追加进装配清单——**追加成功是唯一的提交点**，新的 `EvaluationRef` 由这条记录给出。**被拒或追加不成，装配清单里什么都不留**：这次求值不单独记一条，表不换。**目标表**：就是那一类；**类别是 `plugin` 时另加连带**——旧 plugin 表与新 plugin 表里全部 plugin 的成员所属的那几类（去掉不建表的类别），**重填的依据是同一次求值** |
+| ④ | **按此刻的求值结果重填**：请求一次此刻的求值——此刻的持有与配值，**连同工作区承载目录此刻的内容**（[PF-002 §4](../../../../product/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变)「工作区承载目录里对应文件的改动都在这一次进来」），**定义版本仍是这个会话装配清单所依的那一个**，组合根（`root`：`definition` 与从那一版定义正文读出的 `references`，`capability.asset-evaluation/v1#S-6`）也就是那一次的；按 `fill` 的同一套规则建**目标表**（判 `dependencyUnresolved`、`toolNameConflict`）；**全部通过之后**，把「这次求值 ＋ 每张目标表的完整构成」作为**一条** reload 记录追加进装配清单——**追加成功是唯一的提交点**，新的 `EvaluationRef` 由这条记录给出。**被拒或追加不成，装配清单里什么都不留**：这次求值不单独记一条，表不换。**目标表**：就是那一类；**类别是 `plugin` 时另加连带**——旧 plugin 表与新 plugin 表里全部 plugin 的成员所属的那几类（去掉不建表的类别），**重填的依据是同一次求值** |
 | ⑤ | 每张目标表一份 `RegistrySnapshot`，`filledBy = reload{command}`，`command` 是那条命令的名字（连带的几张记 `omne-official:reload-plugin`）。**后置**：装配清单里**恰多了一条 reload 记录**——这次求值、每张目标表的完整构成、`filledBy`、`filledAt`（[S-18](#s-18-快照不持久装配清单是唯一权威) 第 1 条）；**记录形状 `data.messages` v1 与 PF-004 都没有**，[G-1](#十已知缺口) |
-| ⑥ | `invalidInput` → `categoryNotRegistered` → `sessionNotFound` → `dependencyUnresolved{missing}` → `toolNameConflict`；读不到 ⇒ `unavailable` |
+| ⑥ | `invalidInput` → `categoryNotRegistered` → `sessionNotFound` → **`compositionCycle{cycle}` → `categoryUnsupported{category}`**（此刻的求值以它失败，原样转交；表不换、装配清单里什么都不留）→ `dependencyUnresolved{missing}` → `toolNameConflict`；读不到 ⇒ `unavailable` |
 | ⑦ | **每调一次重填一次**：没变化也产生新快照（新的 `filledAt`），条目与前一份相同。**不去重**——人敲两次 reload 就是两次 |
 | ⑧ | 工作区承载目录此刻读不到或解析不了 ⇒ `unavailable`，**表不换**（不当作「工作区是空的」）；求值、「谁可以用」、装配清单任一读不到或写不进 ⇒ `unavailable`，**表不换** |
 | ⑨ | 不发 |
 
 - **它不是一次完整的重新装配**（[PF-002 decisions 2026-09-23](../../../../product/PF-002-assets-settings-and-permissions/decisions.md#2026-09-23--reload-是注册表的动态热更新不是完整重新装配)）：不动目标表以外的表，不换定义版本。**定义版本不随 reload 变是推导**：[改了 Agent Definition 走的是下一次 run 的重新装配](../../../../product/PF-004-agent-definition-and-assembly/design.md#53-三个时刻)，reload 若顺手换了定义版本，就成了一次没有经过装配的装配。
-- **不改写正在跑的运行已经捕获的构成**（[PF-004 §6.3](../../../../product/PF-004-agent-definition-and-assembly/design.md#63-三类变化三种传播)）：那次运行下一次经会话资产注册表取时看到新的，还是下一次运行才看到——[G-2](#十已知缺口)。
+- **不改写正在跑的尝试已经拿到的构成**（[PF-004 §6.3](../../../../product/PF-004-agent-definition-and-assembly/design.md#63-三类变化三种传播)）：正在跑的那一次尝试照它报告所依的快照读，新条目对它是「没有」；**同一运行的下一次尝试起看到新的**（主线裁定，见 [D-040 §八 M35](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)；原 [G-2](#十已知缺口) 闭合，[S-34](#s-34-进行中的运行与撤销)）。
 - **reload 之后新得到权限的命令与技能进来了**：这正是「放宽要等 reload」的那个时刻（[S-20](#s-20-谁可以用门控哪两类按哪个租户身份什么时候判) 第 4 条）。
 
 ### S-24 refreshAvailability：每次执行尝试开始时现算
@@ -519,14 +522,14 @@
 
 | # | 内容 |
 |---|---|
-| ① | 会话、`run`：**`start{runId}`**（这一次尝试是这次运行的第一次）或 **`continue{runId, report}`**（同一次运行里后面的一次，带这次运行此前任一次尝试的报告）；`runId` 是 `data.call-accounts/v1#S-37` 的 `RunId`。`run` 必填（[S-19](#s-19-缺席时的默认答案)） |
-| ② | 这个会话有表（或能重建）；**调用方是这一次执行尝试的开头**，在 agent loop 读取常驻条目之前；`continue` 带的报告**是这个会话、这个 `runId` 的**（报告带着二者，[S-11](#s-11-一次执行尝试的可用性报告)）。**两次求值的输入由装配收齐**（[S-31](#s-31-装配给的保证-vs-协议须给的保证)）：配方与这个会话最近一次装配或 reload 的那次求值相同——同一个会话创建时捕获的租户身份与成员资格、同一份工作区（承载目录用最近一次装配或 reload 读入的那一份，不在这里重读）、这个会话装配清单所依的定义版本、会话格的配值——**持有与配值取此刻的** |
+| ① | 会话、`run`：**`start{runId}`**（这一次尝试是这次运行的第一次）或 **`continue{runId, report}`**（同一次运行里后面的一次，带这次运行此前任一次尝试的报告）；`runId` 是 `data.call-accounts/v1#S-37` 的 `RunId`。**`attempt`**：这一次尝试的 `AttemptId`（同一条，M46），调用方从这一次尝试开始的那一刻取得，本契约不铸、不推。`run` 与 `attempt` 都必填（[S-19](#s-19-缺席时的默认答案)） |
+| ② | 这个会话有表（或能重建）；**调用方是这一次执行尝试的开头**，在 agent loop 读取常驻条目之前；`continue` 带的报告**是这个会话、这个 `runId` 的**（报告带着二者，[S-11](#s-11-一次执行尝试的可用性报告)）。**两次求值的输入由装配收齐**（[S-31](#s-31-装配给的保证-vs-协议须给的保证)）：配方与这个会话最近一次装配或 reload 的那次求值相同——同一个会话创建时捕获的租户身份与成员资格、同一份工作区（承载目录用最近一次装配或 reload 读入的那一份，不在这里重读）、这个会话装配清单所依的定义版本、**同一个组合根**（`root`：`definition` 与从那一版定义正文读出的 `references`，[`capability.asset-evaluation/v1#S-6`](../../asset-evaluation/v1/contract.md#s-6-求值输入-evaluationinput)，M31——定义版本不变，它就不变）、会话格的配值——**持有与配值取此刻的** |
 | ③ | 无 |
 | ④ | **只读快照、不换快照、不写装配清单**。依次：<br>**1. 第一次求值**：按 ② 的输入请求一次此刻的求值（`capability.asset-evaluation`，不带 `mcpActionSets`）。<br>**2. 技能门控**（[S-20](#s-20-谁可以用门控哪两类按哪个租户身份什么时候判) 第 3 条）：`start` ⇒ 对当前 `skill` 表每一条，看第一次求值有没有把它那份持有以 `not_usable` 滤掉，滤掉的写进这份报告——这次运行钉住的那一份；`continue` ⇒ 原样带上那份报告里钉住的，**不重判**。<br>**3. 可用性**：对当前六张表的每一条算 `availability`（[S-8](#s-8-当下可用性的三个取值)）：工具按 `data.tool-definition/v1#S-19` 得出的依赖声明（目标环境那一项用求值后的值），技能按 `data.skill-package` 的依赖声明，拓展件按 `data.loop-extension/v1#S-9`；**先工具、后技能**。<br>**4. MCP**：对 `mcp` 表里每个接入点，从第一次求值得出它生效的那份持有、记进报告的 `endpointHoldings`，按 [S-12](#s-12-mcp-动作条目在一次尝试内钉住) 调桥、钉住这一次的动作条目与接入点那一行的可用性。<br>**5. 第二次求值**：第一次求值的输入加上 `mcpActionSets`——每个钉住了一份 `fetched` 副本的接入点一份，`scope` 取它生效的那份持有所在的格（[`capability.asset-evaluation/v1#S-6`](../../asset-evaluation/v1/contract.md#s-6-求值输入-evaluationinput)）——再求一次；从它取 `tool` 表**每条条目**的执行权限项、以条目的模型面名字为键记进报告的 `effectivePermissions`（[S-11](#s-11-一次执行尝试的可用性报告)）：作者写的与官方的工具取它能力标识的 `execute`，钉住的动作条目取它接入点的 `execute:<对端动作名>`；**meta 门条目不取，恒写 `{auto}`**（[D-040 §七 M21](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）。**没有钉住任何动作条目时**，第二次求值的输入就是第一次的，结果相同（[`capability.asset-evaluation/v1#S-11`](../../asset-evaluation/v1/contract.md#s-11-纯计算)），直接从第一次求值的结果取，不另求。<br>**6.** 对多命令工具算 `commandAvailability`（[S-9](#s-9-按命令的可用性)）；查 `tool` 表加上动作条目之后的名字冲突 |
-| ⑤ | 一份 `AvailabilityReport`（[S-11](#s-11-一次执行尝试的可用性报告)），带会话与 `runId` |
-| ⑥ | `invalidInput`（含 `run` 缺席、`continue` 带的报告不是这个会话或这个 `runId` 的）→ `sessionNotFound` → `toolNameConflict`；快照读不到、重建不了、第一次求值拿不到 ⇒ `unavailable` |
+| ⑤ | 一份 `AvailabilityReport`（[S-11](#s-11-一次执行尝试的可用性报告)），带会话、`runId` 与 ① 给的 `attempt` |
+| ⑥ | `invalidInput`（含 `run` 或 `attempt` 缺席、`continue` 带的报告不是这个会话或这个 `runId` 的）→ `sessionNotFound` → **`compositionCycle{cycle}` → `categoryUnsupported{category}`**（第一次求值以它失败，原样转交，不交报告）→ `toolNameConflict`；快照读不到、重建不了、第一次求值拿不到 ⇒ `unavailable` |
 | ⑦ | **无状态副作用**，可以重复调；同一次尝试里以它拿到的那一份为准（[S-11](#s-11-一次执行尝试的可用性报告) 第 1、3 条）。**调用方只在一次运行的第一次尝试用 `start`**；**唯一的具名例外是崩溃恢复**：恢复之后的尝试拿不回那份报告时，以**同一个 `runId`** 再 `start`，门控按此刻重判（[S-11](#s-11-一次执行尝试的可用性报告) 第 4 条、[G-15](#十已知缺口)）。同一次运行以 `start` 调了两次，钉住的是后一次判的 |
-| ⑧ | **第一次求值拿不到（含其中「谁可以用」的判定读不到）⇒ 整个 `unavailable`**：技能门控与接入点持有都没有依据——**不当作都用得了、也不当作都用不了，也不拿装配那一次的持有去连**（[S-20](#s-20-谁可以用门控哪两类按哪个租户身份什么时候判) 第 5 条、[S-12](#s-12-mcp-动作条目在一次尝试内钉住)）。**第二次求值拿不到 ⇒ 报告照常交出，`effectivePermissions` 里除 meta 门外的项一律 `unavailable`**——不补作者默认或任何一档，放行判断据此同批全拒（[S-11](#s-11-一次执行尝试的可用性报告)）。**某一项依赖的提供者读不到，只让那一条不满足**（[S-8](#s-8-当下可用性的三个取值) 第 3 条）、不让整个操作失败；有效运行模式读不到，只让 `request_approval` 那一条命令关（[S-9](#s-9-按命令的可用性) 第 3 条）；MCP 桥连不上或读不到，按 [S-12](#s-12-mcp-动作条目在一次尝试内钉住) 表中各行——**没有一种情形把读不到当成「可用」或「放行」** |
+| ⑧ | **第一次求值以 `compositionCycle` 或 `categoryUnsupported` 失败不是「拿不到」**：它是判出来的，原样转交（⑥）；同理没有报告——技能门控与接入点持有同样没有依据。第二次求值只比第一次多了动作集，第 2 步相同（`capability.asset-evaluation/v1#S-11`），不会单独以这两个值失败。**第一次求值拿不到（含其中「谁可以用」的判定读不到）⇒ 整个 `unavailable`**：技能门控与接入点持有都没有依据——**不当作都用得了、也不当作都用不了，也不拿装配那一次的持有去连**（[S-20](#s-20-谁可以用门控哪两类按哪个租户身份什么时候判) 第 5 条、[S-12](#s-12-mcp-动作条目在一次尝试内钉住)）。**第二次求值拿不到 ⇒ 报告照常交出，`effectivePermissions` 里除 meta 门外的项一律 `unavailable`**——不补作者默认或任何一档，放行判断据此同批全拒（[S-11](#s-11-一次执行尝试的可用性报告)）。**某一项依赖的提供者读不到，只让那一条不满足**（[S-8](#s-8-当下可用性的三个取值) 第 3 条）、不让整个操作失败；有效运行模式读不到，只让 `request_approval` 那一条命令关（[S-9](#s-9-按命令的可用性) 第 3 条）；MCP 桥连不上或读不到，按 [S-12](#s-12-mcp-动作条目在一次尝试内钉住) 表中各行——**没有一种情形把读不到当成「可用」或「放行」** |
 | ⑨ | 不发；可用性变化也不出提醒（[S-30](#s-30-可用性变化不出提醒)） |
 
 **为什么是两次求值**（[D-040 §五](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) K30）：MCP 的逐动作执行权限由正文与**这一次钉住的动作集**推出（`data.mcp-endpoint/v1#S-15`），而动作集要先拿到接入点持有、调过桥才钉得住——第一次求值给出持有，第二次求值给出逐动作权限。**两次都取此刻的持有与配值**（对「装配那一次的输入」的读法：沿用它的配方，不沿用它的持有——主线接受，[D-040 §六 L8、N-10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)），于是凭据改值、清值与任一工具条目的执行权限改值都在**下一次尝试开始时**生效（`capability.mcp-bridge` 的 P-9；[PF-004 §6.5](../../../../product/PF-004-agent-definition-and-assembly/design.md#65-权限变化动作空间不变) 权限从来按新值判）；沿用装配那一次的持有，它们就要等 reload 才生效，而一次被收成 `forbid` 的动作会在那之前照旧放行。作者写的与官方的工具不需要动作集，它们的执行权限第一次求值就有；**仍从第二次求值取**（没有动作集时两次相同），是为了报告里全部工具条目的执行权限出自同一次求值、同一个新鲜度口径（[D-040 §六 L13](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）。
@@ -542,11 +545,11 @@
 | ① | 会话、类别、名字、`within`：**`session`**（不在任何一次运行里的读：斜杠命令识别、② 型命令展开）或 **`run{report}`**（一次运行里的读：agent loop、`Tools()`／`Skills()`、放行判断、工具执行运行时——带这一次尝试的报告）。`within` 必填（[S-19](#s-19-缺席时的默认答案)） |
 | ② | 这个会话有表（或能重建）；`run` 带的报告是这个会话的，且是调用方所在那一次尝试的 |
 | ③ | `connector`、`agent_definition` ⇒ `categoryNotRegistered` |
-| ④ | 只读。在那一类的当前快照里按名字找（逐码点相等，`data.asset-model/v1#S-3`）；**`tool` 类的查找键是模型面名字 `ModelToolName`**（[S-7](#s-7-注册表条目)；[D-040 §七 M8](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）——调用方拿调用块里的 `tool` **原样**来查，本契约不做逆转写、不按定义名另找；`within = run` 时**含**那份报告钉住的 MCP 动作条目，`within = session` 时**不含**——动作条目只属于一次尝试（[S-12](#s-12-mcp-动作条目在一次尝试内钉住)），不在任何一次尝试里的读没有可指的那一份，**也不去取「最近一份报告」**（报告不持久，重启之后、第一次尝试之前都没有它）。找到的在 `slash_command` 表里：**现读**它此刻可不可以用；在 `skill` 表里：`session` ⇒ 现读，`run` ⇒ **按报告钉住的技能门控**，钉住的「用不了」当作不在，**不现读**（[S-20](#s-20-谁可以用门控哪两类按哪个租户身份什么时候判) 第 3 条） |
-| ⑤ | **找到**：那条 `RegistryEntry`，带的 `availability`：`run` ⇒ 那份报告里的，`session` ⇒ 最近一次算出的（[S-8](#s-8-当下可用性的三个取值) 末段）；**没有**：一个明确的「没有」——不在快照里，或在门控的两类里此刻不可以用，**两种原因同一个回答** |
+| ④ | 只读。**在哪一份快照里找**：`within = session` ⇒ 那一类的**当前**快照；`within = run{report}` ⇒ **那份报告所依的那一份**（[S-11](#s-11-一次执行尝试的可用性报告)），不论此后有没有换表——此后 reload 进来的条目对这一次尝试是「没有」，被换掉的照样在（主线裁定，见 [D-040 §八 M35](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。在那一份里按名字找（逐码点相等，`data.asset-model/v1#S-3`）；**`tool` 类的查找键是模型面名字 `ModelToolName`**（[S-7](#s-7-注册表条目)；[D-040 §七 M8](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）——调用方拿调用块里的 `tool` **原样**来查，本契约不做逆转写、不按定义名另找；`within = run` 时**含**那份报告钉住的 MCP 动作条目，`within = session` 时**不含**——动作条目只属于一次尝试（[S-12](#s-12-mcp-动作条目在一次尝试内钉住)），不在任何一次尝试里的读没有可指的那一份，**也不去取「最近一份报告」**（报告不持久，重启之后、第一次尝试之前都没有它）。找到的在 `slash_command` 表里：**现读**它此刻可不可以用；在 `skill` 表里：`session` ⇒ 现读，`run` ⇒ **按报告钉住的技能门控**，钉住的「用不了」当作不在，**不现读**（[S-20](#s-20-谁可以用门控哪两类按哪个租户身份什么时候判) 第 3 条） |
+| ⑤ | **找到**：那条 `RegistryEntry`，带的 `availability`：`run` ⇒ 那份报告里的，`session` ⇒ 最近一次算出的（[S-8](#s-8-当下可用性的三个取值) 末段）；**没有**：一个明确的「没有」——不在 ④ 那一份快照里（`run` 的读里含「报告之后才 reload 进来」，M35），或在门控的两类里此刻不可以用，**几种原因同一个回答** |
 | ⑥ | `invalidInput`（含 `within` 缺席、报告不是这个会话的）→ `categoryNotRegistered` → `sessionNotFound`；读不到 ⇒ `unavailable` |
 | ⑦ | 只读；门控的现读结果**不跨调用缓存**，除非提供者设计按 `data.identity-values/v1#S-27` 写明失效条件与最大陈旧窗口 |
-| ⑧ | 要现读时「谁可以用」读不到 ⇒ `unavailable`——**不回答「没有」，也不回答那一条**（`run` 读 `skill` 表不现读，不会走到这一行）；快照读不到、重建不了 ⇒ `unavailable` |
+| ⑧ | 要现读时「谁可以用」读不到 ⇒ `unavailable`——**不回答「没有」，也不回答那一条**（`run` 读 `skill` 表不现读，不会走到这一行）；快照读不到、重建不了 ⇒ `unavailable`——`run` 的读里**含报告所依的那一份已被顶替、此刻取不回**（例如实例重启过、那一版正文无法原样取回，[S-33](#s-33-本能力重启与重建) 第 3 条），**不改读当前那一份**（本契约推导，M35 的直接后果） |
 | ⑨ | 不发 |
 
 **「没有」是一个结论，不是失败**：斜杠命令识别拿到它，就当场明说「没有这个命令」、不发送（[PF-016 §5.7](../../../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)）；拿到 `unavailable`，说的是「现在判断不了」，**不得说成「没有这个命令」**。
@@ -561,7 +564,7 @@
 | ① | 会话、类别、`within`（同 [S-25](#s-25-lookup查一条)） |
 | ② | 同 [S-25](#s-25-lookup查一条) |
 | ③ | 同 [S-25](#s-25-lookup查一条) |
-| ④ | 只读；那一类当前快照的全部条目，**按快照次序**；`tool` 类在 `within = run` 时后面接上那份报告钉住的 MCP 动作条目，按接入点在 `mcp` 表里的次序分组，`within = session` 时不接（同 [S-25](#s-25-lookup查一条) ④）；`slash_command` 逐条现读、此刻不可以用的不列；`skill` 按 `within` 现读或按报告钉住的门控（同 [S-25](#s-25-lookup查一条) ④） |
+| ④ | 只读；那一类**在 [S-25](#s-25-lookup查一条) ④ 那一份快照**（`session` ⇒ 当前的，`run` ⇒ 报告所依的，M35）里的全部条目，**按快照次序**；`tool` 类在 `within = run` 时后面接上那份报告钉住的 MCP 动作条目，按接入点在 `mcp` 表里的次序分组，`within = session` 时不接（同 [S-25](#s-25-lookup查一条) ④）；`slash_command` 逐条现读、此刻不可以用的不列；`skill` 按 `within` 现读或按报告钉住的门控（同 [S-25](#s-25-lookup查一条) ④） |
 | ⑤ | `RegistryEntry` 的序列，可以为空——**空表是一个结论**（这一类这个会话什么都没装） |
 | ⑥ | 同 [S-25](#s-25-lookup查一条) |
 | ⑦ | 只读，不缓存门控结果（同 [S-25](#s-25-lookup查一条) ⑦） |
@@ -650,7 +653,7 @@
 | **会话斜杠命令集 ⊆ 这个会话的租户身份此刻有权用的**，外加只收窄不放宽 | [S-20](#s-20-谁可以用门控哪两类按哪个租户身份什么时候判) 三处门控 | 据点副本读到新值（[PF-016 §6.17](../../../../product/PF-016-cli-tui-delivery-surface/design.md#617-治理中心不可达已经开着的会话照常干活)） | 同上；[UL-session-slash-command-set](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set) |
 | **可用性只由依赖解析算出**：没有第三态、没有写入口 | [S-8](#s-8-当下可用性的三个取值) 第 1、5 条 | 提供者的自报与作者的声明是真的 | [PF-006 §4 可用性](../../../../product/PF-006-tools-and-skills/design.md#可用性)、[§6.4](../../../../product/PF-006-tools-and-skills/design.md#64-依赖声明与解析) |
 | **不可用不改条目集合与次序**；替换件沿用原条目的身份、同形只换说明 | [S-8](#s-8-当下可用性的三个取值) 第 6 条、[S-10](#s-10-替换件同形只换说明) | — | [PF-006 §6.3](../../../../product/PF-006-tools-and-skills/design.md#63-不可用时装的是同名替换件不是不装) |
-| **一次执行尝试内，可用性、MCP 动作集、接入点持有与全部工具条目的执行权限不变** | [S-11](#s-11-一次执行尝试的可用性报告)、[S-12](#s-12-mcp-动作条目在一次尝试内钉住) | 调用方在一次尝试里只用它开始时拿到的报告 | [PF-002 §4 MCP](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp)「一次尝试之内不变」；[PF-006 §6.13](../../../../product/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)；K30；L13 |
+| **一次执行尝试内，条目集合、可用性、MCP 动作集、接入点持有与全部工具条目的执行权限不变**（条目集合含尝试中途的 reload：M35） | [S-11](#s-11-一次执行尝试的可用性报告)、[S-12](#s-12-mcp-动作条目在一次尝试内钉住)、[S-25](#s-25-lookup查一条) ④ | 调用方在一次尝试里只用它开始时拿到的报告，读一律带 `within = run{它}` | [PF-002 §4 MCP](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp)「一次尝试之内不变」；[PF-006 §6.13](../../../../product/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)；K30；L13 |
 | **一次运行内，技能门控不变**：运行开始时判下来用不了的，这次运行里一直不在；用得了的，收回也不在这次运行中途去掉 | [S-24](#s-24-refreshavailability每次执行尝试开始时现算) 的 `start` 钉、`continue` 沿用；[S-25](#s-25-lookup查一条)／[S-26](#s-26-list列一类) 的 `within = run` 按它读；[S-28](#s-28-onassetchange权限收回之后收窄) 不动 `skill` 表 | 调用方只在第一次尝试用 `start`（崩溃恢复是具名例外）、同一运行后面的尝试带报告、运行里的读带 `within = run`；`continue` 的 `runId` 与报告相符由 [S-24](#s-24-refreshavailability每次执行尝试开始时现算) ② 核对；报告跨崩溃恢复保得住（[G-15](#十已知缺口)） | [PF-002 §5.2](../../../../product/PF-002-assets-settings-and-permissions/design.md#谁可以使用它是各类资产共用的一项权限)「已经开始的运行不变，自下一次运行起不再装入」；R2-13 |
 | **常驻只来自求值结果**；meta 门条目会话资产注册表从不去掉、从不标非常驻；多命令工具一个槽位 | [S-7](#s-7-注册表条目) | 求值给出常驻值（`capability.asset-evaluation/v1#S-38`；缺席时填表 `unavailable`） | [PF-006 §6.1](../../../../product/PF-006-tools-and-skills/design.md#61-常驻标记挂在引用条目上agent-definition-压-plugin)、[槽位](../../../../product/PF-006-tools-and-skills/design.md#槽位) |
 | **「会话装了什么」只有装配清单一个权威**；每一次换表都在清单里 | [S-18](#s-18-快照不持久装配清单是唯一权威) | 装配清单有追加面（[G-1](#十已知缺口)） | [PF-004 §4 装配清单](../../../../product/PF-004-agent-definition-and-assembly/design.md#装配清单) |
@@ -697,10 +700,10 @@
 |---|---|---|---|
 | **同一会话的换表串行、多表一次成立**（[S-17](#s-17-换表同一会话串行多表一次成败同一)） | **装配给**：据点进程里一个会话资产注册表服务，按 (会话, 类别) 键控；换表与装配清单追加落在同一存储的同一事务 | **协议给**：按会话的单写者，或以装配清单的条件追加兑现先后 | plugin 表说有某个 plugin、它的成员表却还是旧的；两次 reload 交错，后一次被前一次盖掉 |
 | **换表先记进装配清单再生效**（[S-18](#s-18-快照不持久装配清单是唯一权威)） | **装配给**：同上 | **协议给**：清单追加成功才是提交点；「调用返回了」不构成 | 重启之后重建出来的与重启之前不同——命令集在人不知情时变了 |
-| **「谁可以用」现读的新鲜度**（[S-20](#s-20-谁可以用门控哪两类按哪个租户身份什么时候判)） | **装配给**：据点上的中心事实副本（`apps/runtime-host` 装配），读面即副本；新鲜度无上界是 [PF-016 §6.17](../../../../product/PF-016-cli-tui-delivery-surface/design.md#617-治理中心不可达已经开着的会话照常干活) 写明的取舍 | **协议给**：副本的陈旧窗口写进契约；**陈旧读不得放宽**（只收窄的方向可以晚，不可以错） | 收回的命令在离线期间仍敲得出（已接受的代价）；若副本把收回读丢了，则一直敲得出 |
+| **「谁可以用」现读的新鲜度**（[S-20](#s-20-谁可以用门控哪两类按哪个租户身份什么时候判)） | **装配给**：据点上的中心事实副本（`apps/cli` 装配；M40，[D-039](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#拆分领域名与装配g3)），读面即副本；新鲜度无上界是 [PF-016 §6.17](../../../../product/PF-016-cli-tui-delivery-surface/design.md#617-治理中心不可达已经开着的会话照常干活) 写明的取舍 | **协议给**：副本的陈旧窗口写进契约；**陈旧读不得放宽**（只收窄的方向可以晚，不可以错） | 收回的命令在离线期间仍敲得出（已接受的代价）；若副本把收回读丢了，则一直敲得出 |
 | **资产变化通知转到据点、分发到会话**（[S-28](#s-28-onassetchange权限收回之后收窄)） | **装配给**：据点副本更新时由装配调本契约；**正确性不依赖它** | **协议给**：不需要可靠投递——读时现读兜底 | 「重新授予要等 reload」在通知丢失时不成立（[G-3](#十已知缺口)） |
-| **一次尝试内可用性、MCP 动作集、接入点持有与全部工具条目的执行权限不变；技能门控一次运行内不变**（[S-11](#s-11-一次执行尝试的可用性报告)） | **装配给**：报告作为一个值交给那一次尝试的调用方；调用方如实带上它所在运行的 `runId` | **协议给**：报告随尝试传递、带会话与运行标识；远端不得替那一次尝试现算一份新的，也不得把别的运行的报告当作这一次的 | 尝试中途 agent 手上的清单变形；MCP 调用用了与放行判断看到的不同的持有；一次新运行沿用了上一次运行的门控，收回的技能在新运行里照样可用 |
-| **求值的输入被收齐**（[S-16](#s-16-会话资产注册表不求值只消费求值结果)；`reload` 一次、`refreshAvailability` 两次） | **装配给**：据点副本 ＋ 工作区承载目录（`refreshAvailability` 用最近一次读入的那一份）＋ 会话事实，由 `apps/runtime-host` 装配收齐 | **协议给**：输入的来源与版本随求值一起记进装配清单 | reload 用了一份旧的持有，却记成此刻的 |
+| **一次尝试内可用性、MCP 动作集、接入点持有与全部工具条目的执行权限不变；技能门控一次运行内不变**（[S-11](#s-11-一次执行尝试的可用性报告)） | **装配给**：报告作为一个值交给那一次尝试的调用方；调用方如实带上它所在运行的 `runId` 与这一次尝试的 `attempt` | **协议给**：报告随尝试传递、带会话、运行与尝试标识（M46），接收边界核这三者；远端不得替那一次尝试现算一份新的，也不得把别的运行或同一运行上一次尝试的报告当作这一次的 | 尝试中途 agent 手上的清单变形；MCP 调用用了与放行判断看到的不同的持有；一次新运行沿用了上一次运行的门控，收回的技能在新运行里照样可用；一次尝试拿着上一次尝试的报告放行，此刻已收紧的执行权限没有生效 |
+| **求值的输入被收齐**（[S-16](#s-16-会话资产注册表不求值只消费求值结果)；`reload` 一次、`refreshAvailability` 两次） | **装配给**：据点副本 ＋ 工作区承载目录（`refreshAvailability` 用最近一次读入的那一份）＋ 会话事实，由 `apps/cli` 装配收齐（M40） | **协议给**：输入的来源与版本随求值一起记进装配清单 | reload 用了一份旧的持有，却记成此刻的 |
 | **调用方身份已经核实**（全部操作） | **装配给**：本契约的面是据点进程内的能力间面；调用方手上本来就是它服务的那个会话 | **协议给**：跨进程时携带会话与它创建时的租户身份，**在接收边界重新验证**（`data.identity-values/v1#S-30`） | 拿到一个会话标识，就能读别人的命令集、技能与工具定义；**本契约的面因此不得直接暴露成终端 API** |
 | **提供者的自报**（[S-8](#s-8-当下可用性的三个取值) 第 3 条） | **装配给**：同一进程里的读面 | **协议给**：自报带新鲜度；读不到按「读不到」判 | 替换件时灵时不灵——agent 再也判断不了自己手上有什么 |
 
@@ -729,7 +732,7 @@
 
 ### S-34 进行中的运行与撤销
 
-- **会话资产注册表不改写正在跑的运行已经捕获的构成**（[PF-004 §6.3](../../../../product/PF-004-agent-definition-and-assembly/design.md#63-三类变化三种传播)、[SYS-COMPOSITION.C4](../../../../foundation/definition-and-runtime-composition/requirements.md#sys-compositionc4变化作用于下一次装配)）：换表之后，那次运行是下一次经会话资产注册表取时看到新的、还是下一次运行才看到——[G-2](#十已知缺口)。**两种答案下本契约的形状都不用改**：快照一经成立不改写，报告指认它所依的那几份快照（[S-11](#s-11-一次执行尝试的可用性报告)）；若答案是「下一次运行」，`within = run{report}` 的读要改为按报告所依的快照读——**那是语义改变，出新版本**。
+- **会话资产注册表不改写正在跑的尝试已经拿到的构成**（[PF-004 §6.3](../../../../product/PF-004-agent-definition-and-assembly/design.md#63-三类变化三种传播)、[SYS-COMPOSITION.C4](../../../../foundation/definition-and-runtime-composition/requirements.md#sys-compositionc4变化作用于下一次装配)）：换表之后，正在跑的那一次尝试的读（`within = run{report}`）**只在它报告所依的快照里找**，新条目对它是「没有」；**同一运行的下一次尝试起**，报告依的是换过的快照，看到新的（主线裁定，见 [D-040 §八 M35](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)：[S-11](#s-11-一次执行尝试的可用性报告) 第 1 条「一次尝试以它为准」的直接推论；原 [G-2](#十已知缺口) 闭合）。单位是**尝试**，不是运行：一次运行的动作空间在尝试与尝试之间可以因 reload 变——这与技能门控按运行钉（下一条）是两件事。
 - **「谁可以用」收回对已开始的运行不起作用**：运行开始时钉住的技能门控整次运行不变（[S-11](#s-11-一次执行尝试的可用性报告) 第 4 条、[S-20](#s-20-谁可以用门控哪两类按哪个租户身份什么时候判) 第 3 条；R2-13）；斜杠命令集是会话的，此刻起收窄。
 - **本契约不发出任何停止、中断或取消信号**：权限收回、reload、③ 型失败都只影响此后的读。
 
@@ -746,7 +749,7 @@
 | 快照只在四个时刻换、换表串行且多表一次成立 | 每个 (会话, 类别) 只有一个写入者，换表是一次提交；行为模型里「别的动作不改快照」只能写成 `UNCHANGED`——**被建模方式吸收，没有一条会在条款被违反时失败的断言** | 规范场景 [S-36](#s-36-创建时填六张)～[S-39](#s-39-命令型服务报错之后命令不再可见)、[S-42](#s-42-没人发-reload增删禁用不进来)；故障注入（记不进清单时表不换） |
 | 可用性是当下条件的纯函数 | 没有状态可交错 | 枚举场景 [S-40](#s-40-依赖缺失与恢复) |
 | 尝试开始时两次求值、接入点持有与全部工具条目的执行权限钉进报告、拿不到不补档；`continue` 核对运行标识 | 一次调用里的固定次序，不写任何状态；「拿不到不补档」是一个取值规则，没有并发可交错 | 规范场景 [S-46](#s-46-逐动作执行权限与接入点持有钉进报告)、[S-47](#s-47-别的运行的报告不能拿来-continue)；故障注入（两次求值分别不可用） |
-| 进行中的运行看不看得见 reload | **产品未决**（[G-2](#十已知缺口)）；那一格定了再判要不要建模 | — |
+| 进行中的尝试看不看得见 reload | 主线已裁（M35）：看不见，下一次尝试起看得见——一次读在哪一份快照里找，是一个固定的取值规则，没有并发可交错 | 规范场景 [S-37](#s-37-reload-plugin-连带) 的「尝试中途 reload」一支 |
 
 数据形状全部归 data 契约；本契约的类型用散文定义，线上形状归 composition。执行状态在[验证入口](../verification.md)，**不写进本版本目录**。
 
@@ -757,11 +760,13 @@
 一个会话创建时装配：求值结果里有 official 的 meta 门与一个组织的工具、一个租户的技能、三条斜杠命令（其中一条 ② 型、这个人无权用）、两件拓展件、一个 MCP 接入点、一个 plugin。
 **必须观察到**：恰六份快照、`filledBy = assembly`、`basedOn` 相同；无权的那条命令不在 `slash_command` 表里；拓展件的次序与装配清单一致；meta 门在 `tool` 表里且 `resident = true`；`tool` 表此时**没有** MCP 动作条目；**装配清单里有且只有一条这次的构成记录**。
 **另跑一支**：把装配清单的追加注入失败 ⇒ `unavailable`，**六张一张都没有**。
+**再跑一支**（M34）：同一个 `EvaluationRef` 在回执丢了之后再 `fill` ⇒ 原样返回那六份、装配清单不多一条；此后发一次 reload，再拿**那个旧的** `EvaluationRef` `fill` ⇒ **`invalidInput{evaluationSuperseded}`**，表不换、装配清单不多一条——**不是**一次把会话退回装配那一刻的新装配。
 
 #### S-37 reload-plugin 连带
 
 接 S-36。组织在 plugin 里加一个技能、删一条斜杠命令；另给这个会话的租户直接加一个工具。人发 `omne-official:reload-plugin`。
 **必须观察到**：`plugin`、`skill`、`slash_command` 三张换了、一次成立、`filledBy = reload{omne-official:reload-plugin}`、`basedOn` 相同；**`tool` 表没换**（直接加的那个工具要等 `omne-official:reload-tool`）；plugin 的成员表里没有「plugin 已更新、成员还是旧的」这一刻。
+**尝试中途 reload 一支**（M35）：reload 发生在一次运行的某次尝试进行中 ⇒ 那一次尝试里 `within = run{它的报告}` 的 `lookup(skill, 新技能)` 是「没有」、`list(skill)` 仍是旧的那几条（含 reload 删掉的）；**同一运行的下一次尝试**（`continue`）起，报告依的是新快照，新技能查得到、删掉的查不到；`within = session` 的读在 reload 返回之后就是新的。
 
 #### S-38 MCP 接入点连不上，动作原位顶替
 
@@ -805,6 +810,8 @@
 ① 求值结果里有一个引用无人提供 ⇒ `fill` 与 `reload` 都收 `dependencyUnresolved{missing}`，`missing` 指出缺哪个、谁引用的，**表不换**，装配清单里没有这一次。
    **收回引起的那一种**（K33）：定义直接引用的一个技能只有租户自建的那一份、没有 official；运行 `R` 进行中收回这个人对它的「谁可以使用它」 ⇒ `R` 照旧；下一次运行 `start` 把它记为用不了；此后人发任何一条 reload 都收 `dependencyUnresolved{missing}`、交付面看得见；装配为下一次运行重新装配时失败（装配的收口，本契约不被调到）。**不得观察到**：那一条被悄悄从表里抹掉、reload 报成功。
 ② 一个接入点的某个动作被桥起的名字恰好等于一个工具的名字 ⇒ `refreshAvailability` 收 `toolNameConflict`，**不静默丢掉任何一条**。
+③ **求值的两个失败原样转交**（修复波 3，本契约推导）：**故障注入**——让求值对 `reload` 与 `refreshAvailability` 的那一次请求分别以 `compositionCycle{cycle}`、`categoryUnsupported{category}` 失败 ⇒ 两个操作**原样收那个值**（诊断原样），表不换、装配清单里没有这一次、不交报告。**不得观察到**：收成 `unavailable`（那是「判不出来、重试可能不同」）、`dependencyUnresolved`，或一份去掉了那一部分的重填。
+   **为什么是注入而不是真实局面**：本版装配成功的会话走不到这两个值——组合根的引用列表随定义版本不变，plugin 与 sub-agent 只能从根走到，装配时走到了就已失败（`capability.asset-evaluation/v1#S-15`）；那份契约的 G-3、G-21 闭合（sub-agent 展开、plugin 可读）之后，真实局面才有。
 
 #### S-45 不可用时明确失败
 
@@ -825,6 +832,7 @@
 
 运行 `R1` 的报告 `P1`；`R1` 结束后运行 `R2` 开始。
 **必须观察到**：`refreshAvailability(run = continue{R2, P1})` ⇒ `invalidInput`；`continue{R1, P1}` 在 `R2` 已开始之后调用，本契约照 `R1` 答——**「这是不是调用方所在的那次运行」由调用方如实带 `runId` 兑现**（[S-31](#s-31-装配给的保证-vs-协议须给的保证)）。**崩溃恢复一支**：`R2` 的第二次尝试开始前据点重启、`P2` 丢失 ⇒ 调用方以 `start{R2}` 重判，报告里的门控按此刻。
+**尝试标识一支**（M46）：`R2` 的尝试一与尝试二各调一次 `refreshAvailability`，分别带 `attempt = T1`、`T2` ⇒ 两份报告的会话与运行相同、**`attempt` 分别是 `T1`、`T2`**；缺 `attempt` ⇒ `invalidInput`。拿 `T1` 的报告去尝试二里放行、提交调用，由接收方（runner、工具执行运行时）按三者核出不符、收 `invalidInput`——那一半的场景在那两份契约里。
 
 ---
 
@@ -835,7 +843,7 @@
 | # | 缺口 | owner | 闭合条件 |
 |---|---|---|---|
 | G-1 | **装配清单的追加面与记录形状**：本契约每一次换表都要在装配清单里落一条（[S-18](#s-18-快照不持久装配清单是唯一权威)），重建要能按它重放（[S-33](#s-33-本能力重启与重建)）。PF-004 的清单只写到「实际构成，只可追加」，**没有契约、没有追加面，也没说 reload 一族与 ③ 型失败之后的换表记在哪**；`data.messages` v1 里也没有这种记录的形状（[PF-004 decisions §四](../../../../product/PF-004-agent-definition-and-assembly/decisions.md#四已知的来源问题)第四行已登记：§6.7 没有列出这两个发起者） | PF-004 的契约（后续程，[D-040 §S22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s22asset-registry报回的) S22-g）；产品面问 PF-004 owner | 那份契约给出「追加一次换表」的面与记录形状，能表达 [S-18](#s-18-快照不持久装配清单是唯一权威) 第 1 条列的各项；本契约的换表提交点改指它 |
-| G-2 | **热更新对进行中运行的呈现时机**：reload 之后，正在跑的那次运行下一次经会话资产注册表取就是新的，还是下一次运行才是（[D-040 §块 A](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#块-a-形状shapes-draft-assets-v0md-a1a10) A10：产品未决；[PF-004 decisions §四](../../../../product/PF-004-agent-definition-and-assembly/decisions.md#四已知的来源问题)第四行同一问） | 产品负责人（PF-004） | 产品裁定；裁「下一次运行」则 `lookup`／`list` 出新版本加一个按报告所依快照读的参数（[S-34](#s-34-进行中的运行与撤销)） |
+| G-2 | **已闭合（2026-09-25，主线裁定 [D-040 §八 M35](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)；产品负责人尚未追认）**：热更新对进行中运行的呈现时机——正在跑的那一次尝试照它报告所依的快照读、看不见，**同一运行的下一次尝试起**看得见（[S-25](#s-25-lookup查一条) ④、[S-8](#s-8-当下可用性的三个取值) 末段、[S-11](#s-11-一次执行尝试的可用性报告) 第 1 条、[S-34](#s-34-进行中的运行与撤销)）。原问（[D-040 §块 A](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#块-a-形状shapes-draft-assets-v0md-a1a10) A10）在 [PF-004 decisions §四](../../../../product/PF-004-agent-definition-and-assembly/decisions.md#四已知的来源问题)第四行仍登为产品未决，那一行怎样收归 PF-004 的 owner（已报主线） | — | — |
 | G-3 | **收窄**：「只收窄」已由主线裁定（[D-040 §S22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s22asset-registry报回的) S22-a），[S-28](#s-28-onassetchange权限收回之后收窄)。**仍在**：收回的通知丢失、随后又重新授予时，那条命令不经 reload 重新可见——本版的已知边界，正确性由读时现读兜住 | 主线（确认接受为已知边界）；产品负责人（PF-002 §4「新得到权限要等 reload」的适用范围） | 接受为边界并写进 PF-002 的取舍，或给出不依赖通知送达的兑现点 |
 | G-4 | **已闭合（2026-09-24 整批对齐）**：`asset_change` 由主线裁定补名（[D-040 §S22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s22asset-registry报回的) S22-c） | — | — |
 | G-5 | **已闭合（2026-09-24 整批对齐）**：求值交出 `EffectiveAsset.version`、`resident`（`capability.asset-evaluation/v1#S-8`、`#S-38`）。**`resident` 缺席（判不出）时本契约收 `unavailable`**（[S-7](#s-7-注册表条目)）——那份契约的 G-3、G-18 因此直接挡住填表。「谁可以使用它」由求值在第一步判掉（`#S-39`，2026-09-24 随 PF-002 rev 19；原先读的 `usable` 已删，那份契约的 G-15 已关闭） | — | — |
@@ -860,7 +868,7 @@
 
 | 消费者 | 它要什么 | 本契约给什么 | 够不够 |
 |---|---|---|---|
-| **agent loop：一次执行尝试开始** | 此刻能用什么、常驻哪些、MCP 动作有哪些；尝试内不变；技能门控运行内不变 | [S-24](#s-24-refreshavailability每次执行尝试开始时现算) 的报告 | **够**。它必须在每次尝试开始时调、在读常驻条目之前调，并在这一次尝试里只用这一份；**运行的第一次尝试用 `start{runId}`，后面的带此前的报告用 `continue{runId, report}`**，运行里的读一律 `within = run`。崩溃恢复之后拿不回报告是 [G-15](#十已知缺口) |
+| **agent loop：一次执行尝试开始** | 此刻能用什么、常驻哪些、MCP 动作有哪些；尝试内不变；技能门控运行内不变 | [S-24](#s-24-refreshavailability每次执行尝试开始时现算) 的报告 | **够**。它必须在每次尝试开始时调、在读常驻条目之前调，并在这一次尝试里只用这一份；**运行的第一次尝试用 `start{runId}`，后面的带此前的报告用 `continue{runId, report}`**，每次都带这一次尝试的 `attempt`（M46），运行里的读一律 `within = run`。崩溃恢复之后拿不回报告是 [G-15](#十已知缺口) |
 | **`Tools()`：search／inspect／execute** | 搜得到的范围 = 当前装配；不可用的照样搜得到、说明缺什么；常驻的标出来 | [S-26](#s-26-list列一类) 的 `tool` 表（含动作条目、`availability`、`resident`） | **够** |
 | **`Skills()`：search／read** | 同上；依赖不满足的搜得到、说明缺什么 | [S-26](#s-26-list列一类) 的 `skill` 表 | **够**；带 `within = run`，技能「谁可以用」按这次运行钉住的门控（[S-20](#s-20-谁可以用门控哪两类按哪个租户身份什么时候判)） |
 | **斜杠命令识别（交付面／受理）** | 这个名字在不在这个会话的命令集里；无权与不存在同一个回答；判断不了时说判断不了 | [S-25](#s-25-lookup查一条) 的「没有」与 `unavailable` | **够**，带 `within = session`。它拿到 `unavailable` 不得说成「没有这个命令」 |
@@ -871,7 +879,7 @@
 | **装配（PF-004）** | 创建时与完整重新装配时填表；清单与会话资产注册表不重复拥有；`unresolved` 非空时的收口；两次求值的输入 | [S-22](#s-22-fill装配时填六张)、[S-18](#s-18-快照不持久装配清单是唯一权威)、[S-20](#s-20-谁可以用门控哪两类按哪个租户身份什么时候判) 末段、[S-24](#s-24-refreshavailability每次执行尝试开始时现算) ② | **不够**：清单的追加面缺（[G-1](#十已知缺口)）；构成变小时谁发起下一次运行前的装配缺（[G-14](#十已知缺口) ①） |
 | **拓展件派发器** | 这个会话某个位置上的那几件、次序、此刻在不在 | [S-26](#s-26-list列一类) 的 `loop_extension` 表 + 报告 | **够**；位置过滤由它按正文做 |
 | **会话日志写入方（提醒）** | 可用性变了什么 | —— | **本版不需要**：可用性变化不出提醒（[S-30](#s-30-可用性变化不出提醒)，主线裁定 S22-d） |
-| **`capability.asset-evaluation`** | —（它不读本契约） | — | 反方向：它交出的 `version`、`resident` 与「进了 `assets` 的就是用得了的」就是本契约要的三样（原 G-5 闭合；`usable` 2026-09-24 删去）；`resident` 缺席时本契约收 `unavailable`；**尝试开始时的两次求值**用它的 `EvaluationInput`（第二次带 `mcpActionSets`）与 `values` 里的 `execute:*` |
+| **`capability.asset-evaluation`** | —（它不读本契约） | — | 反方向：它交出的 `version`、`resident` 与「进了 `assets` 的就是用得了的」就是本契约要的三样（原 G-5 闭合；`usable` 2026-09-24 删去）；`resident` 缺席时本契约收 `unavailable`；**尝试开始时的两次求值**用它的 `EvaluationInput`（组合根引用集 `root` 沿用最近一次装配或 reload 的，M31；第二次带 `mcpActionSets`）与 `values` 里的 `execute:*`；它的 `compositionCycle`、`categoryUnsupported` 在 `reload`、`refreshAvailability` 里原样转交（本契约推导） |
 
 ---
 

@@ -1,7 +1,7 @@
 # 资产求值
 
 **给定一个租户此刻在四格上的[资产持有](../../../ubiquitous_language/terms/circulation-and-entitlement.md#ul-asset-holding--资产持有--asset-holding)、
-可选的会话格配值与一个根 Agent Definition，算出这次装配实际用了哪些资产、每一项设置与权限取什么值、各来自哪一格、谁被滤掉以及为什么**；
+可选的会话格配值与一个组合根（一个 Agent Definition 的身份，加调用方从它正文读出的引用列表），算出这次装配实际用了哪些资产、每一项设置与权限取什么值、各来自哪一格、谁被滤掉以及为什么**；
 另加一件：把工作区承载清单读成[工作区](../../../ubiquitous_language/terms/scope-and-resolution.md#ul-workspace--工作区--workspace)那一格的持有。
 
 它是[作用域求值](../../../ubiquitous_language/terms/scope-and-resolution.md#ul-scope-evaluation--作用域求值--scope-evaluation)的四步——
@@ -11,7 +11,7 @@
 把结果装进会话归 PF-004 的契约（尚无）。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.asset-evaluation, 1)`
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按独立评审第一轮原地修订——[处置表](verification.md#独立评审)；2026-09-25 修复波 1b 补 S-42），**未接受，未冻结**
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按独立评审第一轮原地修订——[处置表](verification.md#独立评审)；2026-09-25 修复波 1b 补 S-42；同日修复波 3 按实现映射反推改 `root`、加两个失败值——[处置表](verification.md#实现映射反推2026-09-25)），**未接受，未冻结**
 - **catalog 映射**：已登记为 `candidate`。`family=capabilities`、`topic=asset-evaluation`、
   `contract_path=spec/capabilities/asset-evaluation/v1/contract.md`，
   `resources` 另含 `v1/examples.md`、`v1/formal/Evaluation.als`、`v1/formal/README.md`；
@@ -29,7 +29,7 @@
 | 语义拥有者 | 本契约。四步的次序、禁用与锁怎么合成、设置按资产覆盖与权限的界与挑选、工作区那一格在哪里不参与——这些规则只有一处定义，装配、注册表重填、设置页、准入判断都消费同一个结果；分散到各消费者就是四份各自漂移的求值 |
 | 稳定身份 | `capability.asset-evaluation`，版本 1 |
 | 适用范围 | 一个租户、一次求值的输入到结果；工作区承载清单到那一格持有的读入。**写入、存储、注册表、装配清单不在范围内** |
-| 为什么是 capability 而不是 data | 它有两个操作，各有失败集合（`invalidInput`）与闭合的判定结果（`filteredOut`、`unresolved`）；输入输出的值类型归 data 契约 |
+| 为什么是 capability 而不是 data | 它有两个操作，各有失败集合（`invalidInput`；求值另有 `compositionCycle`、`categoryUnsupported`）与闭合的判定结果（`filteredOut`、`unresolved`）；输入输出的值类型归 data 契约 |
 | 精确依赖 | `data.identity-values` v1（身份值、成员资格、缺席即拒绝）；`data.asset-model` v1（持有、定义、属性声明与配值的形状，candidate）；`data.mcp-endpoint` v1（连接目标是不是 stdio、动作集与逐动作执行权限，candidate）；`data.tool-definition` v1、`data.loop-extension` v1（两种分档权限的档，candidate） |
 | 接受状态 | 未接受 |
 

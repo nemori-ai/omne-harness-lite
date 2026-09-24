@@ -201,6 +201,13 @@
 | `{"id": "m_x4", "type": "compaction", "blocks": [{"id": "b1", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "前面：……"}], "silenced": [{"messageId": "m_x4", "blockId": "b1"}], "createdAt": "2026-09-23T08:00:00Z"}` | 通过 | `compaction_self_reference` | [S-29](contract.md#s-29-合法名单的判定) ① |
 | `{"id": "m_x5", "type": "user", "blocks": [{"id": "b1", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "甲"}, {"id": "b1", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "乙"}], "createdAt": "2026-09-23T08:00:00Z"}` | 通过 | `block_id_duplicate` | [S-2](contract.md#s-2-消息底座)：一条消息里块标识重复——名单点 `(m_x5, b1)` 会指到两块 |
 
+**读 JSON 文本这一步的两例**（[S-37](contract.md#s-37-规范表示)，M36；**不参与机检**——它们写不成一个 JSON 值，解析器读成什么，Schema 就看到什么）：
+
+| 文本 | 预期 | 依据 |
+|---|---|---|
+| `{"id": "m_x6", "type": "user", "type": "system_reminder", "blocks": […]}`（顶层 `type` 出现两次） | `malformed`——在读文本这一步就拒；**不得**取前一个当用户消息、或取后一个当系统提醒 | [S-37](contract.md#s-37-规范表示)、[S-39](contract.md#s-39-表示层拒绝值) |
+| 一条运行时记录里有一个整数 `12345678901234567890`，写进会话日志、回读 | 回读出来逐字是 `12345678901234567890`，不是 `12345678901234567000` | [S-37](contract.md#s-37-规范表示)「数无损」 |
+
 ### 10.2 会话日志层的判定
 
 **要看得见这条消息之前的日志才判得出**；下表不是 Schema 实例，是情形。第一、二、四行有拒绝值，其余是**判定为不合法**，它们在操作失败集合里的名字归各自的能力契约（[S-29](contract.md#s-29-合法名单的判定)）。

@@ -5,14 +5,14 @@
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.mcp-endpoint, 1)`——
   `family = data`、`topic = mcp-endpoint`、规范路径 `spec/data/mcp-endpoint/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日修订批，再按第一轮独立评审处置修订）——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日修订批，再按第一轮独立评审处置修订；2026-09-25 修复波 3 随 `data.tool-definition` 的 `schema_unsupported` 同步 S-10——[处置](../verification.md#实现映射反推2026-09-25)）——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
 - **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-002 rev 20、PF-006 rev 19** 为准；PF-016 rev 6、PF-005 rev 5、PF-012 rev 14 只引
 - **精确语义依赖**：
 
   | 坐标 | 消费的条款 | 取它的什么 | 本契约怎么用 |
   |---|---|---|---|
   | `omne-harness-lite-design-2026-09-15 · data.asset-model · v1`（**candidate**） | [S-2](../../asset-model/v1/contract.md#s-2-能力标识名的词法)、[S-10](../../asset-model/v1/contract.md#s-10-八类正文的外壳)、[S-12](../../asset-model/v1/contract.md#s-12-属性声明由正文推出)、[S-13](../../asset-model/v1/contract.md#s-13-设置项类别)、[S-14](../../asset-model/v1/contract.md#s-14-属性配值)、[S-15](../../asset-model/v1/contract.md#s-15-disabled-是保留项名)、[S-18](../../asset-model/v1/contract.md#s-18-资产持有)、[S-20](../../asset-model/v1/contract.md#s-20-出厂格与工作区格的持有)、[S-23](../../asset-model/v1/contract.md#s-23-凭据引用)、[S-27](../../asset-model/v1/contract.md#s-27-表示层拒绝值)、[S-36](../../asset-model/v1/contract.md#s-36-usableby-是保留项名) | 能力标识名的词法、mcp 那一支正文外壳、属性声明的形状与推出义务、设置项类别、属性配值与留存、保留项 `disabled` 与 `usableBy`、持有的键、工作区格的限制、凭据引用与「未配即缺席」、名字收窄的拒绝值原名携带（S-27 第三种情形） | 本契约的 `McpEndpoint` 就是 S-10 里 mcp 那一支 `$ref` 的值；[S-14](#s-14-推出规则五类项) 按 S-12 的形状给推出规则；凭据取值域引用它的 `$defs/CredentialRef`（写在推出的声明里，不在本契约 Schema 里） |
-  | `omne-harness-lite-design-2026-09-15 · data.tool-definition · v1`（**candidate**） | [S-14](../../tool-definition/v1/contract.md#s-14-时长的表示)、[S-15](../../tool-definition/v1/contract.md#s-15-执行权限)、[S-18](../../tool-definition/v1/contract.md#s-18-名字的表示与相等)、[S-26](../../tool-definition/v1/contract.md#s-26-表示层拒绝值与判定次序) | 时长的表示；执行权限三档；工具定义 `name` 的收窄（字符集、三种相邻、转写后长度）；三种相邻的拒绝值 `name_reserved_sequence` | `$ref` 它的 `$defs/Duration`（两项超时）与 `$defs/ExecutePermission`（逐动作执行权限的作者默认）；动作条目名 `$ref` 它的 `$defs/ToolName`（[S-11](#s-11-动作条目名)）；接入点 name 的收窄由它推出（[S-26](#s-26-接入点-name-登记时收窄)）；条目名含三种相邻时原名携带它的 `name_reserved_sequence`（[S-20](#s-20-表示层拒绝值与判定次序) 第 7 行） |
+  | `omne-harness-lite-design-2026-09-15 · data.tool-definition · v1`（**candidate**） | [S-4](../../tool-definition/v1/contract.md#s-4-单函数工具)、[S-14](../../tool-definition/v1/contract.md#s-14-时长的表示)、[S-15](../../tool-definition/v1/contract.md#s-15-执行权限)、[S-18](../../tool-definition/v1/contract.md#s-18-名字的表示与相等)、[S-26](../../tool-definition/v1/contract.md#s-26-表示层拒绝值与判定次序)、[S-27](../../tool-definition/v1/contract.md#s-27-表示层拒绝不是判定) | 参数 schema 的要求、`schema_unsupported` 与它在 MCP 来源上以同形替换件出现（S-4、S-26 第 13 行、S-27 末段；2026-09-25 补登，M37）；时长的表示；执行权限三档；工具定义 `name` 的收窄（字符集、三种相邻、转写后长度）；三种相邻的拒绝值 `name_reserved_sequence` | `$ref` 它的 `$defs/Duration`（两项超时）与 `$defs/ExecutePermission`（逐动作执行权限的作者默认）；动作条目名 `$ref` 它的 `$defs/ToolName`（[S-11](#s-11-动作条目名)）；接入点 name 的收窄由它推出（[S-26](#s-26-接入点-name-登记时收窄)）；条目名含三种相邻时原名携带它的 `name_reserved_sequence`（[S-20](#s-20-表示层拒绝值与判定次序) 第 7 行） |
   | `omne-harness-lite-design-2026-09-15 · data.identity-values · v1` | [S-31](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示)、[S-33](../../identity-values/v1/contract.md#s-33-表示层校验与判定分开) | 不透明标识的交换表示与空白码点集合；表示层校验与判定分开 | OAuth 绑定号与各处「空白」按 S-31 的散文自定义，**不 `$ref` 它的 `OpaqueIdentifier`**（主线裁定，见 [D-040 §S1 S1-a](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s1content-blocks报回的)） |
   | `omne-harness-lite-design-2026-09-15 · data.offer-expiry · v1` | [S-22](../../offer-expiry/v1/contract.md#s-22-schema-的范围) | 时刻的规范形式 | `$ref` 它的 `$defs/Instant`：`fetchedAt`、`since` |
 
@@ -289,6 +289,7 @@
 
 - **必填的两项就是 MCP 协议里工具项的必填项**；对端给的一项缺了它们，是对端违反协议——整次列举不成立（`capability.mcp-bridge` 按协议错误收），**不是**本契约替它补一个。
 - **`inputSchema` 在这里只要求是对象**：它能不能成为一份工具定义的参数（`data.tool-definition/v1` 的 [S-4](../../tool-definition/v1/contract.md#s-4-单函数工具)），在投影时判——一项不合格不让整份副本不合格（`capability.mcp-bridge`）。
+  **投影时判出 `schema_unsupported` 的那一项不同**（主线裁定，见 [D-040 §八 M37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：它的参数 schema 过了那份契约表示层的前十二道、只是这个实现编不出来（或某个 `pattern` 超出实现的上限，[`data.tool-definition/v1#S-26`](../../tool-definition/v1/contract.md#s-26-表示层拒绝值与判定次序) 第 13 行）——**形状合法**，所以这个动作**不被排除**，以**同形替换件**出现，原因写 `schema_unsupported`（会话资产注册表的 `stand_in{for: schema_unsupported}`；[`data.tool-definition/v1#S-27`](../../tool-definition/v1/contract.md#s-27-表示层拒绝不是判定) 末段）。打这个标记的是桥的投影（`capability.mcp-bridge` S-17）；同形的依据仍是本条原样存下的 `inputSchema`。过不了前十二道的照旧被桥排除。
 - **原样保存的理由**：副本是替换件同形的唯一依据（[S-9](#s-9-动作清单副本)），改写一个字节，替换件就与对端原件不同形；
   **其余成员留着**，是因为投影规则可能按协议版本读其中几项（例如声明必须以任务方式执行的那一项，`capability.mcp-bridge`），丢了就无从读。
 - **对端给的说明与参数 schema 是不受信任的内容**：它们会原样进模型面（经投影），本契约不对它们作任何承诺。

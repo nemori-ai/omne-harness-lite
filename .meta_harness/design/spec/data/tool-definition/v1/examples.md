@@ -242,6 +242,11 @@
 | B 的 `input` 换成 `{"type": "object"}` | 拒绝 | `malformed`（M26）：顶层没带 `properties`——空对象也要写出来 |
 | B 的 `input` 换成 `{"type": "object", "properties": {"q": {"type": "string", "description": "查询词", "title": "Query"}}}` | **Schema 通过** · 表示层拒绝 | `malformed`（M27）：`title` 不在可呈现子集里（[S-4](contract.md#s-4-单函数工具) 第 3 条） |
 | B 的 `input` 换成 `{"type": "object", "properties": {}, "$schema": "http://json-schema.org/draft-07/schema#"}` | **Schema 通过** · 表示层拒绝 | `malformed`（M27）：`$schema` 同样不在——本契约对任何来源都这样判；不少 MCP 服务端的参数 schema 带着它，**桥在投影时先剥掉**（`capability.mcp-bridge/v1#S-17` 的最小规范化），交到这里的 MCP 来源定义里已经没有它 |
+| B 的 `input` 换成 `{"type": "object", "properties": {"q": {"type": "string", "description": "查询词", "pattern": "^(a+)+$"}}}`，**在一个回溯保护登记为「不收嵌套无界量词」的实现上** | **Schema 通过** · 表示层拒绝 | **`schema_unsupported`**（第 13 行）：前十二行都过了——合法、在子集里、参数有说明；可这个 `pattern` 在回溯型引擎上对 `"aaaa…b"` 要指数时间，这个实现判不了它（[S-4](contract.md#s-4-单函数工具) 末段；上限由提供者设计登记，[G-16](contract.md#十已知缺口)）。**在一个能线性判它的实现上，同一份输入是合法的**——这正是第 13 行那一句例外 |
+| 上一行的 `pattern` 换成一个超出实现登记的长度上限的字符串 | **Schema 通过** · 表示层拒绝 | `schema_unsupported`：同上，长度那一样上限 |
+| 上一行的 `pattern` 换成 `"^("`（不是合法的 ECMA-262 正则），**同时**去掉 `q` 的说明 | **Schema 通过** · 表示层拒绝 | **`input_not_schema`**：`pattern` 须是合法正则，这份 schema 不合 Draft 2020-12——第 5 行先于第 6 行，也先于第 13 行；不是 `schema_unsupported`（那一个只给合法的 schema） |
+
+**`format` 不在本节**：`{"type": "string", "description": "邮箱", "format": "email"}` 合法、在子集里、编得出来，**这份定义收下**；判参数时它只作注解（[S-4](contract.md#s-4-单函数工具) 末段）——调用里这个参数给 `"not-an-email"`，**不因 `format` 被拒**。要约束形状，作者写 `pattern`。
 
 ## 6. 小值的正反实例
 
@@ -436,7 +441,8 @@
 | 运行时对一个没写 `summary` 的卸载生成了一段「内容概要」放进占位 | [S-23](contract.md#s-23-卸载)：系统不替作者写摘要 |
 | 会话日志里出现了 `offload.raw` | [S-23](contract.md#s-23-卸载) |
 | 运行时把一个看起来像 JSON 的裸字符串解析成 `ToolResult` | [S-20](contract.md#s-20-两种写法与等价规则) |
-| 一份被表示层拒绝的定义被装成替换件，或从动作空间里静默消失 | [S-27](contract.md#s-27-表示层拒绝不是判定) |
+| 一份被表示层拒绝的定义被装成替换件，或从动作空间里静默消失 | [S-27](contract.md#s-27-表示层拒绝不是判定)（唯一的口子：MCP 来源的 `schema_unsupported` 以同形替换件出现，S-27 末段） |
+| 判参数的一方据 `format` 拒绝一次调用，或因为编不出参数 schema 就不判参数、整个放行 | [S-4](contract.md#s-4-单函数工具) 末段：`format` 只作注解；编不出来是 `schema_unsupported`，不是「不判」 |
 | 运行时为了决定解不解析帧，先去查定义里有没有「会发帧」一格 | [S-29](contract.md#s-29-不在定义里的三样) |
 | 从 `issue-tracker:search_issues`（或模型交回的 `issue-tracker__search_issues`）里拆出「来自哪个接入点」 | [S-18](contract.md#s-18-名字的表示与相等)：来源在 `origin`，不在名字里；逆转写只把 `__` 换回 `:`，不拆 |
 | 传输适配为某一家挪动、删改参数 schema 里的关键字或说明（例如给某一家去掉 `enum`、改写命令表） | [S-6](contract.md#s-6-模型面只有一个条目)：投影是纯键名映射，不改写 schema |

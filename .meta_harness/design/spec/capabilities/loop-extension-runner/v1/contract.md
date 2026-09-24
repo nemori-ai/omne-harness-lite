@@ -5,13 +5,13 @@
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.loop-extension-runner, 1)`——
   `family = capabilities`、`topic = loop-extension-runner`、规范路径 `spec/capabilities/loop-extension-runner/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订，2026-09-25 修复波 1b 原地补放行输入的组装、闭合 G-13 与 G-18，同日修复波 2 按第二轮独立复评补放行输入的来路、查不到条目的调用与解析不了的调用）——**未接受、未冻结**，不得据此发布或声称消费者已采用
-- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-012 rev 14**、**PF-008 rev 7**、**PF-002 rev 20**、**PF-013 rev 12**、**PF-014 rev 7**、**PF-004 rev 12**、**PF-000 rev 1** 为准（2026-09-24 逐版复核到当前 rev，复核到的变化与落点记在[验证入口](../verification.md#变化的影响)）
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订，2026-09-25 修复波 1b 原地补放行输入的组装、闭合 G-13 与 G-18，同日修复波 2 按第二轮独立复评补放行输入的来路、查不到条目的调用与解析不了的调用，同日修复波 3 按实现映射反推补执行环境句柄的读面 [S-50](#s-50-执行环境句柄的读面)、`dispatch` 的收场 `cancelled` 与装配名 `apps/cli`）——**未接受、未冻结**，不得据此发布或声称消费者已采用
+- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-012 rev 14**、**PF-008 rev 7**、**PF-002 rev 20**、**PF-013 rev 12**、**PF-014 rev 7**、**PF-004 rev 12**、**PF-000 rev 1**、**PF-005 rev 5**、**PF-015 rev 11**（两者只取 §6.3 会话级沙箱与 §6.12 会话持有的租户身份，[S-50](#s-50-执行环境句柄的读面)；2026-09-25 修复波 3 加，都是当前 rev）为准（2026-09-24 逐版复核到当前 rev，复核到的变化与落点记在[验证入口](../verification.md#变化的影响)）
 - **精确语义依赖**（消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)；全部在 catalog 登记的都是**候选**，定型后复核）：
 
   | 坐标 | 取它的什么 | 状态 |
   |---|---|---|
-  | `omne-harness-lite-design-2026-09-15 · data.loop-extension · v1` | **本契约交换与记下的一切形状**：位置、维度、干预力、报错策略、声明、输入、结论、结论记录、卡片草稿、表示层拒绝值 | 候选 |
+  | `omne-harness-lite-design-2026-09-15 · data.loop-extension · v1` | **本契约交换与记下的一切形状**：位置、维度、干预力、报错策略、声明、输入（含执行环境句柄）、结论、结论记录、卡片草稿、表示层拒绝值 | 候选 |
   | `omne-harness-lite-design-2026-09-15 · data.messages · v1` | runner 追加的提醒（`SystemReminderMessage`、`source.kind = extension`）、`MessageId`、等待答复回来的那条提醒 | 候选 |
   | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1` | `CallId`（一次经过的锚）、完整的工具调用（生效参数） | 候选 |
   | `omne-harness-lite-design-2026-09-15 · data.call-accounts · v1` | `RunId`、`AttemptId`（运行与执行尝试的标识） | 候选 |
@@ -45,7 +45,7 @@
 | 新的一次尝试里已有结论的件不重跑 | [PF-012 第二条是硬的](../../../../product/PF-012-agent-loop-and-run/design.md#第二条是硬的因为它护着-f-的纯性) | [S-28](#s-28-回放) |
 | 循环守卫四级；检测状态从日志数出 | [PF-012 §5.9](../../../../product/PF-012-agent-loop-and-run/design.md#59-循环守卫四级阶梯) · [§6.7](../../../../product/PF-012-agent-loop-and-run/design.md#67-检测状态从日志派生不另存) | [S-30](#s-30-连续被否决的回复)（计数从日志数；`before_terminal` 上反复的否决只靠循环守卫） |
 | 拓展件只能靠改日志起作用；能干预的必须留下结论 | [PF-012 §6.9](../../../../product/PF-012-agent-loop-and-run/design.md#69-拓展件只能靠改日志起作用) · [§6.10](../../../../product/PF-012-agent-loop-and-run/design.md#610-能干预的拓展件必须留下结论) | [S-11](#s-11-每件恰一条最终结论落进会话日志)、[S-28](#s-28-回放) |
-| 取消跟着宿主走；取消先落日志再发信号 | [PF-012 §6.13](../../../../product/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走) · [§6.15](../../../../product/PF-012-agent-loop-and-run/design.md#615-取消先落日志再发信号) | [S-23](#s-23-效果之后的事由谁做)、[S-34](#s-34-撤下回收与取消时在途的经过) |
+| 取消跟着宿主走；取消先落日志再发信号 | [PF-012 §6.13](../../../../product/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走) · [§6.15](../../../../product/PF-012-agent-loop-and-run/design.md#615-取消先落日志再发信号) | [S-21](#s-21-dispatch一次经过) ②⑥（叫停与 `cancelled`）、[S-23](#s-23-效果之后的事由谁做)、[S-34](#s-34-撤下回收与取消时在途的经过) |
 | 同一个 Run 同一时刻只有一副协程在推它：尝试序号当栅栏 | [PF-012 §5.7](../../../../product/PF-012-agent-loop-and-run/design.md#同一个-run-同一时刻只有一副协程在推它) | [S-21](#s-21-dispatch一次经过) ⑥ |
 | 挂件自己花的钱，算它插手的那个 Run | [PF-012 §5.8](../../../../product/PF-012-agent-loop-and-run/design.md#挂件自己花的钱算它插手的那个-run) | [G-9](#十三已知缺口) |
 | 放行判断：系统自带件、选项定死、不可用时全拒不出卡；一批卡片答完才解除；三种来源的卡片同形、记录分得出是哪一件 | [PF-008 §5.2](../../../../product/PF-008-human-in-the-loop/design.md#52-那个判断函数) · [§5.3](../../../../product/PF-008-human-in-the-loop/design.md#53-一批卡片与答完是什么意思) · [§6.8](../../../../product/PF-008-human-in-the-loop/design.md#68-三种来源的卡片同一个形状选项与记录不同) | [S-6](#s-6-拓展件链从装配清单来)、[S-27](#s-27-ask交出卡片并停在这一位置)、[S-29](#s-29-一批动作每个动作一次经过) |
@@ -64,6 +64,8 @@
 | **主线裁定**：`before_model_call` 的否决 ≡ 这次不发、运行落「失败」、原因是否决理由；模型回复落盘前被否决时 runner 追加一条提醒（原 G-13 闭合） | [D-040 §六 N-10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) | [S-23](#s-23-效果之后的事由谁做)、[S-30](#s-30-连续被否决的回复) |
 | **主线裁定**（修复波 1b）：放行输入的 `tenantAutoWritable` 取自资产求值的输出、每个工具条目一位，runner 组装 `AdmissionInput` 时带上；全部工具条目的执行权限统一从可用性报告取（原 G-18 闭合）；报告里写着 `not_in_composition` 的项照常进 `admit`、单独判拒、不牵连同批 | [D-040 §六 L7、L13、L15](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) | [S-29](#s-29-一批动作每个动作一次经过) 第 5 条 |
 | **主线裁定**（修复波 2）：报告里每一项以模型面名字 `ModelToolName` 为键、`call.tool` 原样去查（M8）；`before_action` 上的 `dispatch` 另带 `admission: { report, grants, runMode, parent }`，由 agent loop 交来，runner 核报告的会话与运行，跨进程随请求传递、不得现算（M9）；报告里查不到条目的调用不进 `admit`、记 `observed`、原因 `no_such_entry`，收场归执行运行时（M10）；解析不了的调用不进 `actions`、不过 `before_action`，`batch` 仍列这一批的全部 `CallId`（M11） | [D-040 §七 M8～M11](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加) | [S-21](#s-21-dispatch一次经过) ①⑥、[S-29](#s-29-一批动作每个动作一次经过) 第 1、5 条、[S-32](#s-32-装配给的保证-vs-协议须给的保证)、[S-48](#s-48-放行判断一轮汇合凭据扣住答复只认自己的卡) |
+| **主线裁定**（修复波 3，实现映射反推）：统一输入带一只按会话作用域的执行环境句柄，不交出会话标识，经它取得调用方租户身份与这一会话的执行环境，系统自带件同样拿到它（M38）；运行被取消时这一次 `dispatch` 以 `cancelled` 收场、已落的保留、在途的那一件收到停止信号（M39）；装配是 `apps/cli`（M40，[D-039](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#拆分领域名与装配g3) 已裁） | [D-040 §八 M38～M40](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)；执行环境是 [PF-005 §6.3](../../../../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 5）那一个，租户身份是 [PF-015 §6.12](../../../../product/PF-015-session-lifecycle-and-ownership/design.md#612-会话持有创建那一刻的租户身份)（rev 11）会话持有的那一个 | [S-4](#s-4-依赖方向与被消费的面)、[S-7](#s-7-系统自带件怎样挂上)、[S-10](#s-10-逐件顺序求值先落后算)、[S-21](#s-21-dispatch一次经过) ⑥、[S-32](#s-32-装配给的保证-vs-协议须给的保证)、[S-34](#s-34-撤下回收与取消时在途的经过)、[S-50](#s-50-执行环境句柄的读面)、[第十四节](#十四消费者核对) |
+| **主线裁定**（修复波 3 追加）：`admission.report` 核会话、`runId`、`attempt` 三者，任一对不上即 `invalidInput`（报告带 `AttemptId`） | [D-040 §八 M46](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)；本契约的几处推导经 [N-20](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 接受 | [S-21](#s-21-dispatch一次经过) ①②⑥、[S-32](#s-32-装配给的保证-vs-协议须给的保证) 一行 |
 | 再发守卫：`retry` 合不合法按模型请求运行时的只读判定 | [`capability.model-request-runtime/v1`](../../model-request-runtime/v1/contract.md) 的 S-50（与 S-30 同一张守卫表） | [S-14](#s-14-结论合不合法两类判断)、[S-26](#s-26-retry-与它被拒) |
 | 统一语言 | [UL-loop-extension](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension) · [UL-loop-extension-point](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point) · [UL-wait-primitive](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-wait-primitive--等待原语--wait-primitive) · [UL-replay](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-replay--回放--replay) · [UL-decision-card](../../../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-decision-card--决策卡片--decision-card) · [UL-assembly-manifest](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest) · [UL-run-attempt](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt) · [UL-admission-decision](../../../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-admission-decision--放行判断--admission-decision) · [UL-run](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run--运行--run) · [UL-session-log](../../../../ubiquitous_language/terms/record-and-context.md#ul-session-log--会话日志--session-log) · [UL-modality-converter](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter) · [UL-extension-point-pass](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-extension-point-pass--一次经过--extension-point-pass) · [UL-extension-unavailability-policy](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-extension-unavailability-policy--拓展件不可用处置--extension-unavailability-policy) · [UL-consecutive-veto-limit](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-consecutive-veto-limit--连续否决上限--consecutive-veto-limit)；只引：[UL-record-entry](../../../../ubiquitous_language/terms/record-and-context.md#ul-record-entry--记录条目--record-entry) · [UL-agent-runtime](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-agent-runtime--agent-runtime--agent-runtime) · [UL-pending-message-queue](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-pending-message-queue--待处理消息队列--pending-message-queue) | 全部正式名 |
 
@@ -129,7 +131,7 @@
 ### S-4 依赖方向与被消费的面
 
 **依赖方向单向：runner → 数据半边、消息、块、账的归属标识、响应体、身份值。**它们都不得反向依赖本契约。
-agent loop、系统自带五件、兼容件、`apps/runtime-host` 依赖本契约；**本契约不依赖任何一件拓展件的实现**——实现缺席即那一件不可用（[S-12](#s-12-不可用与报错runner-怎么分)），不是 runner 不可用。
+agent loop、系统自带五件、兼容件、`apps/cli`（装配；[D-039](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#拆分领域名与装配g3) 不立 `apps/runtime-host`，[D-040 §八 M40](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）依赖本契约；**本契约不依赖任何一件拓展件的实现**——实现缺席即那一件不可用（[S-12](#s-12-不可用与报错runner-怎么分)），不是 runner 不可用。
 
 #### 数据半边（`data.loop-extension` v1）
 
@@ -140,7 +142,7 @@ agent loop、系统自带五件、兼容件、`apps/runtime-host` 依赖本契�
 | `#S-1` 十一个位置、`#S-2` 两个维度 | [S-5](#s-5-一次经过) 一次经过的指认、[S-21](#s-21-dispatch一次经过) ① 的配对校验 |
 | `#S-4` 干预力三档、`#S-5` 报错处置策略 | [S-13](#s-13-报错处置策略的执行)：runner 按求得的干预力与策略执行，各档各位置落什么照 `#S-5` |
 | `#S-6` 声明（含不可用处置声明 `unavailability`）、`#S-7` name 是身份、`#S-8` 原生件与兼容件、`#S-9` 依赖声明与不可用、`#S-10` 没有 order | [S-6](#s-6-拓展件链从装配清单来)、[S-7](#s-7-系统自带件怎样挂上)、[S-12](#s-12-不可用与报错runner-怎么分) |
-| `#S-11` 输入的成员、`#S-12` 三个引用、`#S-13` 瀑布里的 subject 与 earlier、`#S-14` 按位置的 subject | [S-10](#s-10-逐件顺序求值先落后算)：runner 为每件造输入的方式；[S-9](#s-9-日志只读句柄的读面) 关闭 `#S-12` 留下的读面 |
+| `#S-11` 输入的成员、`#S-12` 三个引用、`#S-13` 瀑布里的 subject 与 earlier、`#S-14` 按位置的 subject、`#S-41` 执行环境句柄 | [S-10](#s-10-逐件顺序求值先落后算)：runner 为每件造输入的方式；[S-9](#s-9-日志只读句柄的读面) 关闭 `#S-12` 留下的读面，[S-50](#s-50-执行环境句柄的读面) 给出 `#S-41` 留下的读面 |
 | `#S-19` 结论封闭八种、`#S-20` 档 × 结论、`#S-21` 位置 × 结论、`#S-22` inject、`#S-23` rewrite、`#S-24` select_model、`#S-25` veto、`#S-26` stop、`#S-27` retry、`#S-28` ask、`#S-29` 没有放宽 | [S-14](#s-14-结论合不合法两类判断)、[S-15](#s-15-效果怎么合成)、[S-23](#s-23-效果之后的事由谁做)～[S-27](#s-27-ask交出卡片并停在这一位置) |
 | `#S-30` 每件的结论必留、`#S-31` 三种记录形状（不可用那一条带实际采用的 `unavailability`）、`#S-32` 结论即走向 | [S-11](#s-11-每件恰一条最终结论落进会话日志)、[S-12](#s-12-不可用与报错runner-怎么分)、[S-28](#s-28-回放) |
 | `#S-33` 不可用与报错两分（租户件按声明、系统自带件由指定挂件顶上）、`#S-34` 不合法的结论按报错处置 | [S-12](#s-12-不可用与报错runner-怎么分)、[S-14](#s-14-结论合不合法两类判断)、[S-17](#s-17-系统自带件不可用时一律关门) |
@@ -165,7 +167,7 @@ agent loop、系统自带五件、兼容件、`apps/runtime-host` 依赖本契�
 | `capability.tool-admission` v1 | `#S-26` **放行判断件的能力标识** `omne-official:admission-judgment`；`#S-7` 每一项 `AdmissionInput` 的成员（runner 组装）、`#S-8` 求值结果收成一档的表；`#S-12` 答复（四个选项 id 或 `declined`，自由作答不是答复）、`#S-14` 拒绝原因 token、`#S-21`／`#S-23` 整批一次与一轮的含义、`#S-28` 四档选项只在它出的卡上带授权、`#S-29` 位置与干预力、结论投影、`admit` 失败的记录形状（`skipped: errored` ＋ `error`）、`#S-31` 一批里还有一条在等谁都不执行、`#S-32` 这一件不得被替换禁用或收窄、`#S-34` 缺席与报错时消费者这一侧 | [S-6](#s-6-拓展件链从装配清单来) 钉末位、[S-7](#s-7-系统自带件怎样挂上) 认法、[S-17](#s-17-系统自带件不可用时一律关门) 不可用即全拒件、[S-28](#s-28-回放)、[S-29](#s-29-一批动作每个动作一次经过) 第 5～9 条、[S-48](#s-48-放行判断一轮汇合凭据扣住答复只认自己的卡) |
 | `capability.model-request-runtime` v1 | `#S-24` `legalTargets`（`select_model` 的合法目标判定）；`#S-50` 只读守卫判定 `canDispatchAgain(session, callId, plan) → {allowed} \| {refused{why}}`，另有操作失败（`alreadyEnded` 等）；`#S-30` 的守卫表——`why` 与 `dispatchAgain` 的拒绝同一张表 | [S-14](#s-14-结论合不合法两类判断)、[S-26](#s-26-retry-与它被拒) |
 | `capability.asset-evaluation` v1 | `#S-8` 求值结果：各件求得的位置、维度、干预力、报错策略（经装配清单）；工具条目执行权限项的 `EffectiveValue`；`#S-42` 执行权限项上的 `tenantAutoWritable` | [S-6](#s-6-拓展件链从装配清单来)；[S-29](#s-29-一批动作每个动作一次经过) 第 5 条组装放行输入 |
-| `capability.asset-registry` v1 | `#S-11` 一次执行尝试的可用性报告：它带的会话与运行（核对 `admission.report`），与 `effectivePermissions`——`tool` 表每条条目恰一项、**以条目的模型面名字 `ModelToolName` 为键**，这一次钉住的执行权限项（整条 `EffectiveValue`，含 `tenantAutoWritable`；作者写的与官方的工具、MCP 动作一样）；**查不到键即这一次尝试没有这条条目**；`not_in_composition` 是「条目在快照里、能力标识不在此刻组合里」的结论，`unavailable` 即缺依据 | [S-21](#s-21-dispatch一次经过) ① 的核对；[S-29](#s-29-一批动作每个动作一次经过) 第 5 条组装放行输入 |
+| `capability.asset-registry` v1 | `#S-11` 一次执行尝试的可用性报告：它带的会话、运行与尝试（核对 `admission.report` 的三者，[D-040 §八 M46](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），与 `effectivePermissions`——`tool` 表每条条目恰一项、**以条目的模型面名字 `ModelToolName` 为键**，这一次钉住的执行权限项（整条 `EffectiveValue`，含 `tenantAutoWritable`；作者写的与官方的工具、MCP 动作一样）；**查不到键即这一次尝试没有这条条目**；`not_in_composition` 是「条目在快照里、能力标识不在此刻组合里」的结论，`unavailable` 即缺依据 | [S-21](#s-21-dispatch一次经过) ① 的核对；[S-29](#s-29-一批动作每个动作一次经过) 第 5 条组装放行输入 |
 | `capability.modality-projection` v1 | `#S-20` 转换件对一条消息的产出（挂派生表示或否决）、`#S-22` 没有转换件输入的消息不依赖转换这一侧、`#S-23` 转换之后不再动块 | [S-6](#s-6-拓展件链从装配清单来) 转换件的位置、[S-14](#s-14-结论合不合法两类判断) 挂派生表示的出口、[S-17](#s-17-系统自带件不可用时一律关门) 转换件那一行 |
 | `capability.tool-execution-runtime` v1 | `#S-63` **卸载判定件的能力标识** `omne-official:offload-judgment`（卸载判定归它）——**定义性引用，不登 catalog 依赖**：执行运行时反向依赖本契约的 S-17、S-21，登了会成环（口径见 registry README「互引成环的登记口径」，D-040 §七 M2）；那个标识一改，本契约的对齐义务由 verification 兜住 | [S-7](#s-7-系统自带件怎样挂上) 认法、[S-17](#s-17-系统自带件不可用时一律关门) 卸载判定那一行 |
 
@@ -242,6 +244,7 @@ agent loop、系统自带五件、兼容件、`apps/runtime-host` 依赖本契�
 | 认出来之后多了什么 | **四样**：不可用时由[指定挂件](#s-17-系统自带件不可用时一律关门)顶上、不按声明处置；放行判断与模态转换的末位（[S-6](#s-6-拓展件链从装配清单来)）；放行判断不得被替换、禁用或收窄（[S-17](#s-17-系统自带件不可用时一律关门) 末条）；**模态转换独有的「挂派生表示」出口**（[S-14](#s-14-结论合不合法两类判断) ②） | 本契约 |
 
 **除这四样之外它们没有任何特权**：同一套输入、同一套结论、同一套合法组合、同一套报错策略、同一套回放。前三样都只往严里走（[PF-012 系统自带的几件](../../../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件各站在哪)）。
+**「同一套输入」含执行环境句柄**（`data.loop-extension/v1#S-41`，读面 [S-50](#s-50-执行环境句柄的读面)；主线裁定，见 [D-040 §八 M38](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：系统自带件要以这个会话的身份做事——模态转换件以调用方租户身份读写附件字节——**也只经这只句柄**，runner 不另给它们一份调用上下文、不交出会话标识，这同样不是特权。
 模态转换件本版不是资产（[UL-modality-converter](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)），但它**照样以一件拓展件的身份出现在链上**。
 
 ### S-8 本契约不持有运行实例里的状态
@@ -271,6 +274,17 @@ agent loop、系统自带五件、兼容件、`apps/runtime-host` 依赖本契�
 4. **读不到即失败，不返回空**：存储此刻读不到，那一次读取失败；那一件把它当成一次报错交回，按 [S-13](#s-13-报错处置策略的执行) 处置。**「读不到」不得被读成「日志里没有」。**
 5. 读的接口（按什么查、一次读多少）**不在本契约**；跨进程之后这条下界由协议兑现（[S-32](#s-32-装配给的保证-vs-协议须给的保证)）。
 
+### S-50 执行环境句柄的读面
+
+**交给拓展件的 `environment`（`data.loop-extension/v1#S-41` 的 `EnvironmentHandle`）解析得到什么，由本条定**（主线裁定，见 [D-040 §八 M38](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）；与 [S-9](#s-9-日志只读句柄的读面) 给 `LogHandle` 读面同一个分法。
+
+1. **按会话造，只及这个会话**：runner 为这一次经过所在的会话造它——`manifest` 指认的那个会话（[S-21](#s-21-dispatch一次经过) ①），与 `log` 是同一个会话。经它解析得到**恰两样**：**这个会话持有的租户身份**（`TenantId`，[PF-015 §6.12](../../../../product/PF-015-session-lifecycle-and-ownership/design.md#612-会话持有创建那一刻的租户身份)），与**这一会话的会话级执行环境**（[PF-005 §6.3](../../../../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)；作为执行环境那一侧的接口输入，那一侧本版没有契约，[G-20](#十三已知缺口)）。**经它解析不到别的会话、别的租户的任何东西**。
+2. **不交出会话标识**：解析结果里没有会话标识，句柄的串也不承载它（[D-040 §六 L9](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) 不变）；**也不交出有没有运行在跑**——`before_persist_message` 上它照样在，`run`、`attempt` 照样不交给拓展件（[S-10](#s-10-逐件顺序求值先落后算) 第 1 条）。
+3. **只在这一次调用里有效**：句柄绑定在「这一件、这一次经过、这一次调用」上；那一次调用返回之后再解析，**解析失败**，不返回上一次的值——与 [S-9](#s-9-日志只读句柄的读面) 第 2 条同一理由：跨过等待，旧句柄带不过去（`data.loop-extension/v1#S-35`）。**这一条是本契约的推导**：M38 只说「按会话作用域」，不绑到调用，句柄就成了一件拓展件跨等待的记忆。
+4. **解析不出即失败，不给默认**：租户身份或执行环境此刻取不到（会话持有的租户读不到、执行环境那一侧不可用），那一次解析失败——**不得读成「没有租户」、不得回退宿主机（[PF-005 §6.9](../../../../product/PF-005-execution-environments-and-sandboxes/design.md#69-落点不可用就是拒绝不降级)）、不得拿别的会话或别的进程的那一份顶上**。
+   那一件把它归进 [S-12](#s-12-不可用与报错runner-怎么分) 表的恰一行：**还没开始就取不到的，是「起不来」**（不可用，按它的不可用处置办）；**开始之后才取不到的，是报错**——与 [S-9](#s-9-日志只读句柄的读面) 第 4 条读日志失败同一口径，分界照 S-12「起不来只能在开始之前说」。
+5. 解析的接口（怎样取、取回的执行环境是什么形状）**不在本契约**；跨进程之后「只及本会话」由协议兑现（[S-32](#s-32-装配给的保证-vs-协议须给的保证)）。
+
 ---
 
 ## 三、贯穿全部操作的规矩
@@ -282,7 +296,7 @@ agent loop、系统自带五件、兼容件、`apps/runtime-host` 依赖本契�
 
 一次经过里，链上各件**一件接一件**地求值：
 
-1. **第 k 件的输入**按 `data.loop-extension/v1#S-11`～`#S-14` 造：`subject` 是前 k−1 件合成之后的那一份（[S-15](#s-15-效果怎么合成)），`earlier` 是前 k−1 件已落的最终结论记录、按链的次序，`log` 是一只新句柄（[S-9](#s-9-日志只读句柄的读面)）。
+1. **第 k 件的输入**按 `data.loop-extension/v1#S-11`～`#S-14`、`#S-41` 造：`subject` 是前 k−1 件合成之后的那一份（[S-15](#s-15-效果怎么合成)），`earlier` 是前 k−1 件已落的最终结论记录、按链的次序，`log` 是一只新句柄（[S-9](#s-9-日志只读句柄的读面)），`environment` 是一只新的执行环境句柄（[S-50](#s-50-执行环境句柄的读面)）——**每一件都拿到、十一个位置都带**，系统自带件也不例外（[S-7](#s-7-系统自带件怎样挂上)）。
    `run` 与 `attempt` 在 `before_persist_message` 上**不交给拓展件**（`data.loop-extension/v1#S-11`），哪怕 runner 自己知道。
 2. **等第 k 件交回、并把它的最终结论落进日志之后，才开始第 k+1 件。**结论没落成记录，就不存在；后一件看不见它，效果里也没有它（`data.loop-extension/v1#S-32`）。
 3. **遇到终止的那一条就停**：`veto`、`stop`、`ask`、`retry`，以及按否决处置的不可用、指定挂件顶上得出否决（[S-12](#s-12-不可用与报错runner-怎么分)、[S-17](#s-17-系统自带件不可用时一律关门)、[S-15](#s-15-效果怎么合成)）。后面的件**这一次不被求值**，也不留结论记录——它们没有被轮到，不是「不可用」。
@@ -475,6 +489,7 @@ agent loop、系统自带五件、兼容件、`apps/runtime-host` 依赖本契�
 **本节共两个操作。**失败值是具名的封闭枚举；**每个操作的⑥都含 `invalidInput`**。
 
 > **两个失败值 `unavailable`**（与已接受的组织治理契约同名同义：判不出来，按当时状态重试）**与 `attemptSuperseded`**（尝试栅栏拒收）是这两个操作必须能表达的收场，名字依 [D-040 §S15 S15-a](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s15loop-extension-runner--hooks-import报回的)。
+> **`dispatch` 另有 `cancelled`**（运行被取消、调用方叫停了这一次 `dispatch`），名字依 [D-040 §八 M39](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)；只读的 `replay` 没有在途的件可停，不带它。
 
 ### S-21 dispatch：一次经过
 
@@ -482,12 +497,12 @@ agent loop、系统自带五件、兼容件、`apps/runtime-host` 依赖本契�
 
 | # | 内容 |
 |---|---|
-| ① | `position`、`dimension`（按 `data.loop-extension/v1#S-2` 配对）；**`subject` 与 `actions` 恰带其一**：`before_action` 上带 **`actions`**——**这一批要过这一关的全部动作**，非空、每项是一个 `before_action` 主体（`data.loop-extension/v1#S-14`），**各项的 `batch` 逐值相同，各项 `call` 的 `CallId` 两两不同、都在这个 `batch` 里**。`batch` 列这一批的**全部** `CallId`：**参数收齐却解析不了的那几个调用**（`data.content-blocks/v1#S-12` 解析不了的那一种）**也在里面，但它们不进 `actions`、不过这一关**，收场归执行运行时（`data.loop-extension/v1#S-14`：`batch` 可含不在本次 `actions` 的 `CallId`；主线裁定，见 [D-040 §七 M11](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）。所以 **`batch` 里不在 `actions` 的，只能是这一批里解析不了的调用**：runner 按会话日志里产出这一批的那条回复核对（**本契约推导**：不核对，就分不出「解析不了」与「被拆掉的一项」）。其余位置带 `subject`（按 `#S-14` 与位置对应）。**`admission`：恰在 `before_action` 上带、且必带**——`{ report, grants, runMode, parent? }`：这一次尝试的可用性报告（`capability.asset-registry/v1#S-11`）、这个会话此刻的授权上下文、运行模式、是子会话时父会话此刻的摘要；后三样就是 `capability.tool-admission/v1#S-7` 同名成员的值，放行判断的每一项原样带上。它由 agent loop 交来（主线裁定，见 [D-040 §七 M9](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）；**runner 核对 `report` 带的会话就是 `manifest` 指认的那个会话、带的运行就是 `run`**，对不上即 `invalidInput`；别的位置带了同样 `invalidInput`。`manifest`：**这个会话当前的装配清单的指认**——它同时指认会话，从而指认这一次经过读写的那本会话日志；`run`、`attempt`：**除 `before_persist_message` 外必带**；在 `before_persist_message` 上，**仅当 `subject.producer ∈ { model, tool }` 时必带**（那条消息属于一个运行，[S-23](#s-23-效果之后的事由谁做) 与 [S-30](#s-30-连续被否决的回复) 要它），其余不带。**runner 带着它们，但不把它们交给这个位置上的拓展件**（`data.loop-extension/v1#S-11`） |
-| ② | 调用方是这个会话的 agent loop（或入站那一侧落一条外面进来的消息时的受理方）；**本契约不核实调用方身份**，这一条由装配给（[S-32](#s-32-装配给的保证-vs-协议须给的保证)）。**`before_action` 上对同一批每次都带同一组 `actions`**，不拆批、不逐个调——拆了由 ① 的核对拒收（[S-29](#s-29-一批动作每个动作一次经过)、[S-32](#s-32-装配给的保证-vs-协议须给的保证)）；**`admission.report` 是它在这一次尝试开始时拿到的那一份**（`capability.asset-registry/v1#S-24`），同一次尝试里对同一批再调，带的是同一份（[S-32](#s-32-装配给的保证-vs-协议须给的保证)）。`attempt` 必须是这个运行此刻序号最大的那次尝试——**由尝试栅栏兑现**：本操作的每一次写入都受栅栏约束，被拒即 ⑥ 的 `attemptSuperseded`。**不带 `run` 的经过**（入站那一侧 `producer ∈ { user, system }` 的，及它们引出的嵌套经过）没有栅栏可依：它的每一条结论**以 (这一次经过, 那一件的 name) 为键条件写入**——日志里已有这一件在这一次经过的最终结论就不写，runner 改读那一条接着走；每条提醒同样以 `MessageId` 为键（[S-19](#s-19-注入的提醒怎样追加) 第 2 条）。所以两副协程同时推同一次无运行的经过，日志里每件仍只有一条结论 |
+| ① | `position`、`dimension`（按 `data.loop-extension/v1#S-2` 配对）；**`subject` 与 `actions` 恰带其一**：`before_action` 上带 **`actions`**——**这一批要过这一关的全部动作**，非空、每项是一个 `before_action` 主体（`data.loop-extension/v1#S-14`），**各项的 `batch` 逐值相同，各项 `call` 的 `CallId` 两两不同、都在这个 `batch` 里**。`batch` 列这一批的**全部** `CallId`：**参数收齐却解析不了的那几个调用**（`data.content-blocks/v1#S-12` 解析不了的那一种）**也在里面，但它们不进 `actions`、不过这一关**，收场归执行运行时（`data.loop-extension/v1#S-14`：`batch` 可含不在本次 `actions` 的 `CallId`；主线裁定，见 [D-040 §七 M11](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）。所以 **`batch` 里不在 `actions` 的，只能是这一批里解析不了的调用**：runner 按会话日志里产出这一批的那条回复核对（**本契约推导**：不核对，就分不出「解析不了」与「被拆掉的一项」）。其余位置带 `subject`（按 `#S-14` 与位置对应）。**`admission`：恰在 `before_action` 上带、且必带**——`{ report, grants, runMode, parent? }`：这一次尝试的可用性报告（`capability.asset-registry/v1#S-11`）、这个会话此刻的授权上下文、运行模式、是子会话时父会话此刻的摘要；后三样就是 `capability.tool-admission/v1#S-7` 同名成员的值，放行判断的每一项原样带上。它由 agent loop 交来（主线裁定，见 [D-040 §七 M9](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）；**runner 核对 `report` 带的会话就是 `manifest` 指认的那个会话、带的运行就是 `run`、带的尝试就是 `attempt`**（三者；报告带 `AttemptId`，[D-040 §八 M46](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），任一对不上即 `invalidInput`——同一运行上一次尝试的报告同样对不上；别的位置带了同样 `invalidInput`。`manifest`：**这个会话当前的装配清单的指认**——它同时指认会话，从而指认这一次经过读写的那本会话日志；`run`、`attempt`：**除 `before_persist_message` 外必带**；在 `before_persist_message` 上，**仅当 `subject.producer ∈ { model, tool }` 时必带**（那条消息属于一个运行，[S-23](#s-23-效果之后的事由谁做) 与 [S-30](#s-30-连续被否决的回复) 要它），其余不带。**runner 带着它们，但不把它们交给这个位置上的拓展件**（`data.loop-extension/v1#S-11`） |
+| ② | 调用方是这个会话的 agent loop（或入站那一侧落一条外面进来的消息时的受理方）；**本契约不核实调用方身份**，这一条由装配给（[S-32](#s-32-装配给的保证-vs-协议须给的保证)）。**`before_action` 上对同一批每次都带同一组 `actions`**，不拆批、不逐个调——拆了由 ① 的核对拒收（[S-29](#s-29-一批动作每个动作一次经过)、[S-32](#s-32-装配给的保证-vs-协议须给的保证)）；**`admission.report` 是它在这一次尝试开始时拿到的那一份**（`capability.asset-registry/v1#S-24`），同一次尝试里对同一批再调，带的是同一份（[S-32](#s-32-装配给的保证-vs-协议须给的保证)）；**它随后交给执行运行时 `submit` 的 `report` 也是这同一份值**，那一侧同样核会话、运行与尝试三者、不现算（`capability.tool-execution-runtime` v1 的 S-23 ①；[D-040 §八 M33](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。**运行被取消时调用方叫停这一次 `dispatch`**：取消请求已先落进日志（[PF-012 §6.15](../../../../product/PF-012-agent-loop-and-run/design.md#615-取消先落日志再发信号)），叫停随后到；runner 收到叫停即不再开始下一件，并把停止转给正在求值的那一件（[S-34](#s-34-撤下回收与取消时在途的经过)），这一次 `dispatch` 以 ⑥ 的 `cancelled` 收场（[D-040 §八 M39](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。叫停经什么交到 runner 手上不在本契约（交换格式归组合契约，[S-3](#s-3-本契约明确不承诺什么)）。`attempt` 必须是这个运行此刻序号最大的那次尝试——**由尝试栅栏兑现**：本操作的每一次写入都受栅栏约束，被拒即 ⑥ 的 `attemptSuperseded`。**不带 `run` 的经过**（入站那一侧 `producer ∈ { user, system }` 的，及它们引出的嵌套经过）没有栅栏可依：它的每一条结论**以 (这一次经过, 那一件的 name) 为键条件写入**——日志里已有这一件在这一次经过的最终结论就不写，runner 改读那一条接着走；每条提醒同样以 `MessageId` 为键（[S-19](#s-19-注入的提醒怎样追加) 第 2 条）。所以两副协程同时推同一次无运行的经过，日志里每件仍只有一条结论 |
 | ③ | 无 |
 | ④ | **不是一次原子提交**：每件的最终结论各自是一次提交，按链的次序、一件落完才开始下一件（[S-10](#s-10-逐件顺序求值先落后算)）；经过走完之后追加提醒（[S-19](#s-19-注入的提醒怎样追加)）。**任何一点停下，已提交的留在日志里、未提交的不存在**；下一次对同一次经过的 `dispatch` 从那里接着走（[S-28](#s-28-回放)）。**效果本身不是一条记录**，它是已落结论的函数（[S-15](#s-15-效果怎么合成)）。`before_action` 上各动作的经过各自如此，放行判断那一格对这一轮**发起一次** `admit`（[S-29](#s-29-一批动作每个动作一次经过) 第 5 条） |
 | ⑤ | `DispatchResult = { conclusions, effect }`：`conclusions` 是这一次经过**已落的全部结论记录**，按链的次序（含不可用与报错的；停在 `ask` 时含那条 `ask`）；`effect` 是 [S-15](#s-15-效果怎么合成) 的五种之一。**`before_action` 上返回 `DispatchResult[]`**，与 `actions` 同序、逐项对应；**返回时每一项都已有效果**（含停在等人的 `asked`），这一批的这一轮就判完了 |
-| ⑥ | `invalidInput` · `positionUnknown` · `manifestMissing` · `replayInconsistent` · `unavailable` · `attemptSuperseded`。`before_action` 上**任一项**的经过得出其中一个，整次 `dispatch` 以它收场、不交出任何一项的效果；各项已落的都在，下一次对这一批的 `dispatch` 接着走 |
+| ⑥ | `invalidInput` · `positionUnknown` · `manifestMissing` · `replayInconsistent` · `unavailable` · `attemptSuperseded` · `cancelled`。`before_action` 上**任一项**的经过得出其中一个，整次 `dispatch` 以它收场、不交出任何一项的效果；各项已落的都在，下一次对这一批的 `dispatch` 接着走（`cancelled` 除外：运行已被取消，这一批不再有下一次） |
 | ⑦ | **对同一次经过幂等**（[S-18](#s-18-同一位置同一次经过只跑一轮)）：已有最终结论的件不再求值；链已走完或终止的，原样重建同一个结果；缺的提醒补上、有的不重复。`before_action` 上对同一批再调一次，已判完的项原样重建，**放行判断那一格已有最终结论的项不再进下一次 `admit`** |
 | ⑧ | 装配清单、日志、判定来源读不到 ⇒ `unavailable`，**不当成空链、不当成无意见、不跳过**；找不到清单 ⇒ `manifestMissing`；不合形状 ⇒ `invalidInput` |
 | ⑨ | 不发 |
@@ -496,12 +511,13 @@ agent loop、系统自带五件、兼容件、`apps/runtime-host` 依赖本契�
 
 | 失败值 | 什么时候 | 这一次经过怎样 |
 |---|---|---|
-| `invalidInput` | 输入不合形状：`subject` 与位置对不上、维度配对不对（`data.loop-extension/v1#S-37` 的 `dimension_missing`、`dimension_not_allowed`、`malformed` 落在输入上时）、`run`/`attempt` 该带不带或不该带带了、`manifest` 不是一个合法的指认；`subject` 与 `actions` 都带、都不带或带错了位置；`actions` 为空、各项的 `batch` 不同、某项的 `CallId` 不在 `batch` 里或重复、或 `batch` 里有一个不在 `actions` 的**解析成功的**调用（**拆批即落在这里**）；`admission` 在 `before_action` 上缺席、在别的位置出现、成员不合形状，或它的 `report` 不是这个会话、这个运行的 | 没开始 |
+| `invalidInput` | 输入不合形状：`subject` 与位置对不上、维度配对不对（`data.loop-extension/v1#S-37` 的 `dimension_missing`、`dimension_not_allowed`、`malformed` 落在输入上时）、`run`/`attempt` 该带不带或不该带带了、`manifest` 不是一个合法的指认；`subject` 与 `actions` 都带、都不带或带错了位置；`actions` 为空、各项的 `batch` 不同、某项的 `CallId` 不在 `batch` 里或重复、或 `batch` 里有一个不在 `actions` 的**解析成功的**调用（**拆批即落在这里**）；`admission` 在 `before_action` 上缺席、在别的位置出现、成员不合形状，或它的 `report` 不是这个会话、这个运行、这一次尝试的（[D-040 §八 M46](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） | 没开始 |
 | `positionUnknown` | `position` 不在十一个里（`data.loop-extension/v1#S-37` 的 `position_unknown`） | 没开始 |
 | `manifestMissing` | 指认的装配清单不存在，或它不属于这一次经过所在的会话 | 没开始 |
 | `replayInconsistent` | 这一次经过**已有**结论，而它们与此刻的链对不上；或回放中的那一件偏离了它记下的等（[S-28](#s-28-回放) 第 1、4 条） | 停在原处，**不补、不改、不重排**；已落的都在 |
 | `unavailable` | 存储、装配清单、或 [S-14](#s-14-结论合不合法两类判断) ② 的判定来源此刻读不到或写不进 | 停在出事的那一件之前；它没有记录 |
 | `attemptSuperseded` | 一次写入被尝试栅栏拒收：这个运行已经有序号更大的尝试 | 这一副协程不再推这个运行；已落的都在，新的那次尝试会接着这一次经过 |
+| `cancelled` | 这一次 `dispatch` 返回之前，**这个运行被取消、调用方叫停了它**（② 末句；[D-040 §八 M39](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） | 停在原处：**已提交的结论都在**；正在求值的那一件收到停止信号，**它这一次求值不留记录**（此后交回什么都不落）；排在它后面的件不被求值、也不留记录；**这一次经过不再继续**——不补提醒、不产出效果，没有下一次尝试接着它（[S-34](#s-34-撤下回收与取消时在途的经过)）。一次叫停可能落在两件之间，那时没有在途的件，只是不开始下一件 |
 
 **返回 `asked` 时 loop 该做什么**见 [S-27](#s-27-ask交出卡片并停在这一位置)；其余效果见 [S-23](#s-23-效果之后的事由谁做)。
 
@@ -745,7 +761,9 @@ agent loop、系统自带五件、兼容件、`apps/runtime-host` 依赖本契�
 | **尝试栅栏**（[S-21](#s-21-dispatch一次经过) ②） | 同一存储里按尝试序号拒收过期写入 | 栅栏必须在**日志的写入边界**上判，不能在 runner 一侧判 | 两副协程往同一次经过里各写一条结论，P-1 破 |
 | **无运行的经过按 (经过, name) 条件写入**（[S-21](#s-21-dispatch一次经过) ②） | 同一存储里「没有才写」是一次原子判断 | 条件写入在**日志的写入边界**上判；回执丢失时 runner 重读、按已有的那一条接着走 | 入站那一侧两副协程各落一条结论，P-1 破 |
 | **一批一次会合**（[S-21](#s-21-dispatch一次经过) ①②、[S-29](#s-29-一批动作每个动作一次经过) 第 2、5 条） | agent loop 对同一批每次带齐同一组 `actions`、调一次 `dispatch`；runner 在同一进程里核对 `actions` 与 `batch`（`batch` 里不在 `actions` 的只能是解析不了的调用，按日志核） | 这一批的成员（`batch`）随请求一起传；**runner 所在一侧核对 `actions` 与 `batch`**，不信调用方拆出来的子集 | `batch` 本身由调用方组成，它若漏了一个动作，那个动作不在这一批里、也不受「一批判完之前一个都不执行」约束；逐个调会被拒（`invalidInput`），不会死锁 |
-| **放行输入的来路**（[S-21](#s-21-dispatch一次经过) ① 的 `admission`、[S-29](#s-29-一批动作每个动作一次经过) 第 5 条；[D-040 §七 M9](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)） | agent loop 把这一次尝试开始时拿到的可用性报告、此刻读到的授权上下文与运行模式作为值交给 `dispatch`；runner 核报告的会话与运行 | **报告与 `grants` 随请求传递**，在接收边界核对它们属于这个会话、这个运行；**接收一侧不得替那一次尝试现算一份报告，也不得另读一份授权上下文** | 放行判断看到的执行权限与 agent 面前的条目、执行运行时寻址用的接入点持有出自两份报告（一次尝试内两套新鲜度口径）；或拿别的运行的报告判这一次，已收回的权限照样放行 |
+| **放行输入的来路**（[S-21](#s-21-dispatch一次经过) ① 的 `admission`、[S-29](#s-29-一批动作每个动作一次经过) 第 5 条；[D-040 §七 M9](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)） | agent loop 把这一次尝试开始时拿到的可用性报告、此刻读到的授权上下文与运行模式作为值交给 `dispatch`；runner 核报告的会话、运行与尝试 | **报告与 `grants` 随请求传递**，在接收边界核对它们属于这个会话、这个运行（报告还要属于这一次尝试，[D-040 §八 M46](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）；**接收一侧不得替那一次尝试现算一份报告，也不得另读一份授权上下文**；交给执行运行时 `submit` 的 `report` 是同一份值、那一侧同样核对（`capability.tool-execution-runtime` v1 的 S-23、S-46；[D-040 §八 M33](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） | 放行判断看到的执行权限与 agent 面前的条目、执行运行时寻址用的接入点持有出自两份报告（一次尝试内两套新鲜度口径）；或拿别的运行、同一运行上一次尝试的报告判这一次，此后收回的权限照样放行 |
+| **执行环境句柄只及本会话、只在这一次调用里有效**（[S-50](#s-50-执行环境句柄的读面)） | runner 与会话同在一个进程：按 `manifest` 指认的会话造，随调用返回失效 | 解析请求携带会话与租户身份，**在接收边界重新验证**（`data.identity-values/v1#S-30`）；句柄的串不承载会话标识；失效后解析失败，不返回缓存 | 一件拓展件以别的租户身份读到附件字节，或兼容件的子进程落进别的会话的执行环境；或一只过期的句柄在等待之后仍解析得出 |
+| **叫停**（[S-21](#s-21-dispatch一次经过) ② 末句、⑥ `cancelled`；[S-34](#s-34-撤下回收与取消时在途的经过)） | 调用方与 runner、正在求值的那一件同在一个进程：叫停当场送到，runner 转给在途的那一件 | 叫停须跨进程送到 runner 所在一侧、再转给在途的那一件；**叫停丢了不改变「运行已被取消」这个事实**——取消请求已先落日志（PF-012 §6.15），权威在日志，不在叫停本身；叫停丢了之后那一件还能写进什么，归尝试栅栏与 loop 那一程（[G-8](#十三已知缺口)） | 运行已被取消，在途的那一件只受它自己的时限约束接着跑（兼容件的子进程接着写文件），它的结论还可能落进日志 |
 | **调用方身份**（[S-21](#s-21-dispatch一次经过) ②） | 本契约的面是能力间内部面；只有这个会话的 agent loop 与受理方够得着 | 调用须携带会话与租户身份，**在接收边界重新验证**（`data.identity-values/v1#S-30`） | 谁拿到一个装配清单的指认，就能以那个会话的名义往它的日志里写结论 |
 | **句柄只及本会话、只在这一次调用里有效**（[S-9](#s-9-日志只读句柄的读面)） | 进程内的只读视图，随调用返回失效 | 读面协议要说清下界（[S-9](#s-9-日志只读句柄的读面) 第 3 条）、会话边界与失效；**失效后读取失败，不返回缓存** | 拓展件据一份陈旧的日志下结论，回放时读到的与第一次不同；或读到别的会话 |
 | **判定来源在场**（[S-14](#s-14-结论合不合法两类判断) ②） | 模型请求运行时与 runner 同进程 | 判定调用（`legalTargets`、`canDispatchAgain`）读不到时**一律 `unavailable`**，不当成「合法」；`canDispatchAgain` 以 `alreadyEnded`（调用已终结）失败是一个结论，按「不合法」处置（[S-26](#s-26-retry-与它被拒) 第 2 条），不在此列 | 一条不在合法目标里的 `select_model` 被放过；一条不该再发的 `retry` 被当成合法落下 |
@@ -778,7 +796,7 @@ agent loop、系统自带五件、兼容件、`apps/runtime-host` 依赖本契�
 |---|---|---|---|
 | **agent runtime 被回收**（停在等人时交还协程） | 正在求值的那一件（若有）没了、不留记录 | **都留着** | 下一次尝试 `dispatch` 同一次经过：回放（[S-28](#s-28-回放)） |
 | **停机、崩溃** | 同上 | 已提交的都留着 | 同上；**未提交的结论不存在**，那一件重新求值 |
-| **这个运行被取消** | 停 | 已落的留着；**悬着的卡片作废** | 这一次经过不再继续，不产出效果；取消的记法归 loop |
+| **这个运行被取消** | 收到停止信号（随叫停转给它，[S-21](#s-21-dispatch一次经过) ②）、停；**它这一次求值不留记录** | 已落的留着；**悬着的卡片作废** | 在途的那一次 `dispatch` 以 **`cancelled`** 收场（[S-21](#s-21-dispatch一次经过) ⑥；[D-040 §八 M39](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）；这一次经过不再继续，不产出效果、不补提醒；取消的记法归 loop |
 | **一件拓展件的实现在它求值中途被撤下** | 那一次求值失败 | —— | **记成报错**（它已开始），按策略处置；**不是不可用**。下一次经过它若仍不在，记不可用 |
 | **装配清单在两次尝试之间变了** | —— | 已落的留着 | 下一次 `dispatch` 核对前缀，对不上即 `replayInconsistent`（[S-28](#s-28-回放)） |
 
@@ -807,7 +825,7 @@ agent loop、系统自带五件、兼容件、`apps/runtime-host` 依赖本契�
 | `StaleAttemptCannotWrite` | P-13：栅栏关掉的尝试写不进；无运行的经过两副协程各跑也只一条 | 不变量 | 栅栏与条件写入在日志写入边界原子判（序列化开关打开） |
 | `AnsweredPassCompletes` | P-18：卡片答完之后，下一次尝试里那一件交回最终结论或得 `replayInconsistent` | 进展 | 弱公平：答完之后 agent loop 终会再调一次 `dispatch`；每件实现终会交回 |
 
-**被建模方式吸收、不作证据的**：效果合成与三张表（上表第一行）、`reason` 与 `error` 的措辞、答复的三种表示——它们在模型里是抽象值，**按构造成立，证据形式是场景**。模型也不含放行判断的一轮 `admit` 语义，那一段的证据是 [S-48](#s-48-放行判断一轮汇合凭据扣住答复只认自己的卡)。
+**被建模方式吸收、不作证据的**：效果合成与三张表（上表第一行）、`reason` 与 `error` 的措辞、答复的三种表示——它们在模型里是抽象值，**按构造成立，证据形式是场景**。模型也不含放行判断的一轮 `admit` 语义，那一段的证据是 [S-48](#s-48-放行判断一轮汇合凭据扣住答复只认自己的卡)；不含叫停（`cancelled`）与执行环境句柄，证据是 [S-51](#s-51-运行被取消这一次-dispatch-以-cancelled-收场)、[S-52](#s-52-执行环境句柄只及本会话调用返回即失效)。
 
 **本版不附 JSON Schema**：本契约交换与记下的形状全部属 `data.loop-extension` v1 与 `data.messages` v1；`DispatchResult` 与五种效果是本操作的返回，线上形状归将来投影它的那份组合契约。
 
@@ -882,12 +900,24 @@ loop 走到了下一个状态点。**为什么是一层**：零层会让「注�
 `c3` 在那句话落成授权表达**之后**才被不带答复重判，算不出就出第二轮卡。最后一项有了终局效果，三项的凭据才交出。**再跑一支**：让 `admit` 对这一轮整批失败——必须观察到这一轮每一项各一条 `skipped: errored` ＋ `error` 的记录（`error` 写明「放行判断没有给出结论」及失败值），`output` 是按 `treat_as_veto` 落下的 `veto`、其 `reason` 不是任何一个拒绝原因 token，效果 `vetoed`（与 `capability.tool-admission/v1#S-29`、`#S-34` 同一形状）。**再跑一支**：agent loop 只带 `[c2]` 调 `dispatch`（拆批）——观察到 `invalidInput`，日志里没有任何新记录。
 **再跑一支（解析不了的调用）**：这一批另有 `c4`，参数收齐却解析不了；agent loop 以 `actions = [c1, c2, c3]`、各项 `batch = [c1, c2, c3, c4]` 调 `dispatch`——必须观察到这次调用被接受（不是拆批）、`c4` 没有 `before_action` 经过、不进 `admit`；再让 `actions` 少带一个解析成功的 `c3`——观察到 `invalidInput`（[S-21](#s-21-dispatch一次经过) ①；[D-040 §七 M11](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）。
 **再跑一支（放行输入的组装）**：`c2` 是作者写的工具、`c3` 是 MCP 动作；`dispatch` 带的 `admission.report` 是这次尝试的报告，它的 `effectivePermissions` 里以 `c2`、`c3` 调用块的 `tool`（模型面名字）为键的两项：`c2` 那一项（它的 `execute`）`tenantAutoWritable` 为真、`c3` 那一项为假——必须观察到 `admit` 收到的两项各带自己那一位、`effectivePermission` 与那一项收成的档位相同、`grants` 与 `runMode` 是 `admission` 带来的那一份；把 `c3` 那一项改成 `unavailable`（或拿掉它的 `tenantAutoWritable`）——这一轮**没有** `admit`，两项都按放行判断不可用由全拒件顶上（`skipped: unavailable`，效果 `vetoed`），**不是**交一个缺项的输入换回 `invalidInput`（[S-29](#s-29-一批动作每个动作一次经过) 第 5 条）。**再让组织在这次尝试开始前禁用 `c3` 所属的接入点**（这次尝试的报告里就没有 `c3` 的动作条目，`capability.asset-registry/v1#S-12` 末行）——必须观察到 `c3` **不进** `admit`、它那次经过在放行判断那一格落 `observed`（原因 `no_such_entry`）、效果 `proceed`、没有放行凭据；这一轮的 `admit` 输入恰是 `c2`，**`c2` 照常判、照常放行**，没有全拒件顶上；`c3` 在执行运行时那一侧收场 `unavailable{no_such_entry}`（跨契约那一半；[D-040 §七 M10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）。
-**再让组织在这次尝试开始前禁用 `c2` 那份工具资产、不发 reload**（条目仍在 `tool` 快照里）——`c2` 那一项是 **`not_in_composition`**：**这一轮照常有一次 `admit`**，`c2` 交成 `effectivePermission = not_in_composition`、不带 `tenantAutoWritable`；必须观察到 `c2` 那次经过的结论是 `veto`、`reason` 原样是 `not_held`，同批别的项照常判，没有全拒件顶上（[D-040 §六 L15](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）。**再跑一支**：`admission.report` 换成另一个运行的报告——观察到 `invalidInput`，日志里没有任何新记录（[S-21](#s-21-dispatch一次经过) ①）。
+**再让组织在这次尝试开始前禁用 `c2` 那份工具资产、不发 reload**（条目仍在 `tool` 快照里）——`c2` 那一项是 **`not_in_composition`**：**这一轮照常有一次 `admit`**，`c2` 交成 `effectivePermission = not_in_composition`、不带 `tenantAutoWritable`；必须观察到 `c2` 那次经过的结论是 `veto`、`reason` 原样是 `not_held`，同批别的项照常判，没有全拒件顶上（[D-040 §六 L15](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）。**再跑一支**：`admission.report` 换成另一个运行的报告，或同一运行上一次尝试的报告——观察到 `invalidInput`，日志里没有任何新记录（[S-21](#s-21-dispatch一次经过) ①）。
 
 #### S-49 声明了「不可用即否决」的租户件
 
 一件租户挂上的把关件，声明 `unavailability = veto`、求得 `veto` 档，站在 `before_action`；让它的依赖不在场。**必须观察到**：记录 `skipped: unavailable`、不带 `output`、`unavailability: veto`；效果 `vetoed{by: 它}`，后面的件（含放行判断）不被求值，动作没有执行。
 **再跑三支**：① 同一件被某一层收窄成 `rewrite` 档——观察到按跳过处置、链继续；② 同一件挂在 `after_action{each}`——观察到按跳过处置；③ 让装配清单里这一件的声明读不到——观察到 `unavailable`，**没有按跳过继续**。**这条最容易被「不在就跳过」一刀切掉，必须真跑。**
+
+#### S-51 运行被取消，这一次 `dispatch` 以 `cancelled` 收场
+
+`before_action` 链：一件租户件（先）→ 一件兼容件（它的子进程跑得很久）→ 放行判断。第一件落下 `observed` 之后、兼容件的子进程还在跑时，用户取消这个运行：取消请求先落日志，调用方随后叫停这一次 `dispatch`。
+**必须观察到**：`dispatch` 以 `cancelled` 收场、不交出效果；第一件那条结论在日志里；**兼容件收到停止信号、子进程被停下，它没有任何记录**；放行判断没有被求值、没有 `admit`、没有记录；没有追加任何提醒；动作没有执行。
+**再跑一支**：叫停落在第一件结论提交之后、第二件开始之前——观察到第二件根本没被调到。**反例**：把叫停当成那一件「报错」按策略落一条 `veto`，或当成「不可用」按跳过接着求下一件（[S-21](#s-21-dispatch一次经过) ⑥；[D-040 §八 M39](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。
+
+#### S-52 执行环境句柄只及本会话、调用返回即失效
+
+同一租户下两个会话 A、B 各有一次 `before_persist_message` 经过；系统模态转换件与一件兼容件各拿到输入里的 `environment`。
+**必须观察到**：A 那一次解析得到的租户身份是 A 持有的那一个、执行环境是 A 的会话级执行环境，B 同理，**两者不串**；解析结果里没有会话标识；兼容件在 A 那一次调用返回之后留着 A 的句柄、到 B 的调用里再解析——**解析失败**，不返回 A 的执行环境。
+**再跑一支**：让会话持有的租户此刻读不到——观察到解析失败，**转换件不以「没有租户」去转、兼容件不回退宿主机**；那一件按 [S-12](#s-12-不可用与报错runner-怎么分) 归进不可用或报错之一，记录看得见（[S-50](#s-50-执行环境句柄的读面)）。
 
 ---
 
@@ -916,6 +946,7 @@ loop 走到了下一个状态点。**为什么是一层**：零层会让「注�
 | **G-17** | **答复的三种表示分不开**（[S-29](#s-29-一批动作每个动作一次经过) 第 8 条）：`data.messages/v1#S-22` 的答复只有选项 id，「明确不答」与自由作答怎样表示是那份契约的 G-5 | 放行判断回放分支的实现：闭合前认不出的答复收 `unavailable`，那一项停住 | PF-008 的 owner（卡片契约）→ `data.messages` 下一版 | 答复形状分得出选项 id、明确不答、自由作答三种 |
 | **G-18** | **已闭合（修复波 1b，[D-040 §六 L13](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）**：可用性报告的 `effectivePermissions` 扩为 `tool` 表每条条目恰一项（`capability.asset-registry/v1#S-11`），作者写的与官方的工具取第二次求值里它 `execute` 那一项；[S-29](#s-29-一批动作每个动作一次经过) 第 5 条统一从报告取 | — | — | — |
 | **G-19** | **`no_such_entry` 这个原因在结论记录上没有落处**（[S-29](#s-29-一批动作每个动作一次经过) 第 5 条）：主线裁定报告里查不到条目的那一项在放行判断那一格记 `observed`、原因 `no_such_entry`（[D-040 §七 M10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)），而 `data.loop-extension` v1 的 `observed` 结论只有 `kind` 一个成员、结论记录的 `error` 只随 `skipped: errored`——本契约不自造成员。**闭合之前**：那一项照记 `observed`（没有原因成员），读日志的人分不出「放行判断放行了它」与「它不在这次尝试的 `tool` 表里」，要看执行运行时那一侧的收场 `unavailable{no_such_entry}` 才分得出 | 放行判断那一格记录的可读性；状态转移表分辨「放行」与「查无此工具」 | `data.loop-extension` 的 owner ＋ 主线 | 结论记录有一个说得出 `no_such_entry` 的位置（例如 `observed` 带原因，或另一种记法），本条 S-29 第 5 条与 S-48 那一支改指它 |
+| **G-20** | **执行环境句柄解析出的两样没有来路契约**（[S-50](#s-50-执行环境句柄的读面) 第 1 条）：会话持有的租户身份由谁给读面（会话那一程，PF-015，未起草）；「这一会话的会话级执行环境」是什么形状、由谁给（PF-005，没有契约）。本程不补，留给下一程（[D-040 §八 M43](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) C-7） | 模态转换件取租户身份、兼容件起子进程；闭合前按 S-50 第 4 条一律解析失败——兼容件全部「起不来」、含要转的块的消息被否决 | 主线 → 会话那一程 ＋ PF-005 的 owner | 两侧契约各给出读面，本条 S-50 第 1 条改指它们 |
 ---
 
 ## 十四、消费者核对
@@ -924,17 +955,17 @@ loop 走到了下一个状态点。**为什么是一层**：零层会让「注�
 
 | 消费者 | 它要什么 | 本契约给什么 | 够不够 |
 |---|---|---|---|
-| **agent loop**（每个位置） | 调一次经过、拿到一个说得清下一步的效果；停机后接着同一次经过；一批动作一次调齐、不死锁 | [S-21](#s-21-dispatch一次经过) ＋ [S-15](#s-15-效果怎么合成) ＋ [S-23](#s-23-效果之后的事由谁做) ＋ [S-28](#s-28-回放) ＋ [S-29](#s-29-一批动作每个动作一次经过) | **够，有两处悬空**：锚的表示（G-1）；`replayInconsistent` 之后运行怎么收（G-8）。它在 `before_action` 上要交 `admission`（这一次尝试的报告、授权上下文、运行模式、父会话摘要），解析不了的调用不放进 `actions` 而列在 `batch` 里 |
+| **agent loop**（每个位置） | 调一次经过、拿到一个说得清下一步的效果；停机后接着同一次经过；一批动作一次调齐、不死锁 | [S-21](#s-21-dispatch一次经过) ＋ [S-15](#s-15-效果怎么合成) ＋ [S-23](#s-23-效果之后的事由谁做) ＋ [S-28](#s-28-回放) ＋ [S-29](#s-29-一批动作每个动作一次经过) | **够，有两处悬空**：锚的表示（G-1）；`replayInconsistent` 之后运行怎么收（G-8）。它在 `before_action` 上要交 `admission`（这一次尝试的报告、授权上下文、运行模式、父会话摘要），解析不了的调用不放进 `actions` 而列在 `batch` 里；交给执行运行时 `submit` 的 `report` 与 `admission.report` 是同一份；运行被取消时先落取消请求、再叫停在途的 `dispatch`，拿到 `cancelled` |
 | **状态转移表** | 只读日志就知道一次经过走到哪、效果是什么 | [S-22](#s-22-replay从日志重建一次经过) ＋ [S-15](#s-15-效果怎么合成) ＋ 不可用记录写明的处置（[S-12](#s-12-不可用与报错runner-怎么分)） | 够（同 G-1） |
 | **放行判断**（系统自带） | 看到最后那一份参数；一轮一次被调；不可用时这一关不消失；每一项带齐它要的输入（含 `tenantAutoWritable`） | [S-6](#s-6-拓展件链从装配清单来) 末位、[S-29](#s-29-一批动作每个动作一次经过) 第 5 条、[S-17](#s-17-系统自带件不可用时一律关门) 全拒件、[S-24](#s-24-before_action-上的改写与生效参数) | 够；答复三种表示分不开时那一支停住（G-17）；全部工具条目的执行权限从这次尝试的可用性报告取（原 G-18 闭合），报告与 `grants`、`runMode`、`parent` 由 `dispatch` 的 `admission` 交来（M9）；报告里查不到条目的调用不交给它（M10，记法见 G-19） |
 | **租户挂上的把关件** | 注册时声明「不在就不许跑」，不在时那一关不被跳过 | [S-12](#s-12-不可用与报错runner-怎么分) 不可用处置表 | 够 |
-| **模态转换件**（`capability.modality-projection`） | 排在同一位置所有动块的件之后；对模型回复也能挂派生表示；转不成、不可用都不落盘，纯文本不受牵连 | [S-6](#s-6-拓展件链从装配清单来) 末位、[S-14](#s-14-结论合不合法两类判断) ② 挂派生表示的出口、[S-13](#s-13-报错处置策略的执行) `treat_as_veto`、[S-17](#s-17-系统自带件不可用时一律关门) | 够 |
+| **模态转换件**（`capability.modality-projection`） | 排在同一位置所有动块的件之后；对模型回复也能挂派生表示；转不成、不可用都不落盘，纯文本不受牵连；以这条消息所属会话的租户身份读写附件字节 | [S-6](#s-6-拓展件链从装配清单来) 末位、[S-14](#s-14-结论合不合法两类判断) ② 挂派生表示的出口、[S-13](#s-13-报错处置策略的执行) `treat_as_veto`、[S-17](#s-17-系统自带件不可用时一律关门)、[S-50](#s-50-执行环境句柄的读面)（租户身份经执行环境句柄取） | 够；句柄解析出的租户身份的来路是 G-20 |
 | **重试件** | 自己的 `retry` 被拒时有记法、不卡住 | [S-26](#s-26-retry-与它被拒) | 够 |
 | **循环探测** | 阶梯从日志数；「回复一再被否决」有人管 | [S-30](#s-30-连续被否决的回复)（按连续否决上限收住，与 L2 分开） | 够；L2 的阈值归它，连续否决上限是另一项运行时设置 |
 | **卸载判定** | 在 `after_action{each}` 上把大结果换成占位 | 通用的逐件求值与 [S-14](#s-14-结论合不合法两类判断) | 够 |
-| **兼容件**（`capability.hooks-import`） | 被当成一件普通拓展件；它的「起不来」与报错被分开记；不可用时按跳过（导入件的声明）；回放时不重跑来源产品的 hook | [S-12](#s-12-不可用与报错runner-怎么分)、[S-9](#s-9-日志只读句柄的读面)、[S-28](#s-28-回放) | 够：回放时它读得到自己的 `ask` 与答复，据此不再起子进程 |
+| **兼容件**（`capability.hooks-import`） | 被当成一件普通拓展件；它的「起不来」与报错被分开记；不可用时按跳过（导入件的声明）；回放时不重跑来源产品的 hook；子进程落在这一会话的执行环境里；运行被取消时子进程被停下 | [S-12](#s-12-不可用与报错runner-怎么分)、[S-9](#s-9-日志只读句柄的读面)、[S-28](#s-28-回放)、[S-50](#s-50-执行环境句柄的读面)、[S-21](#s-21-dispatch一次经过) ⑥ `cancelled` 与 [S-34](#s-34-撤下回收与取消时在途的经过) | 够：回放时它读得到自己的 `ask` 与答复，据此不再起子进程；执行环境句柄解析出的执行环境的来路是 G-20 |
 | **模型请求运行时** | 知道回复被否决（记 `replyDisposition`）、谁换的模型（记 `selectedBy`）、要不要再发；它的只读守卫被 runner 调 | [S-23](#s-23-效果之后的事由谁做)、[S-25](#s-25-before_model_call-上的换模型与重新组装)、[S-26](#s-26-retry-与它被拒) | 够 |
-| **`apps/runtime-host`**（装配） | 知道要给 runner 什么：存储（含条件写入）、装配清单（含声明）、实现在场、判定来源、尝试栅栏 | [S-32](#s-32-装配给的保证-vs-协议须给的保证) 左列 | 够；它就是左列的承接者 |
+| **`apps/cli`**（装配；[D-039](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#拆分领域名与装配g3) 不立 `apps/runtime-host`，[D-040 §八 M40](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） | 知道要给 runner 什么：存储（含条件写入）、装配清单（含声明）、实现在场、判定来源、尝试栅栏、执行环境句柄要的两样的来路、叫停的来路 | [S-32](#s-32-装配给的保证-vs-协议须给的保证) 左列 | 够；它就是左列的承接者；两样来路本身是 G-20 |
 
 ---
 

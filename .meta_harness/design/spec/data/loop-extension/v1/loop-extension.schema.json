@@ -167,6 +167,16 @@
       "examples": ["log_77a0"]
     },
 
+    "EnvironmentHandle": {
+      "title": "EnvironmentHandle",
+      "description": "S-41：这一次经过所在会话的执行环境句柄，不透明，按会话作用域。经它恰取得两样：调用方租户身份（这个会话持有的 TenantId）与这一会话的会话级执行环境（PF-005 §6.3）；经它取不到会话标识、别的会话或租户的东西、有没有运行在跑。表示照 data.identity-values/v1#S-31 的规则：非空字符串，首尾不得是那张表里的空白码点，相等是逐码点精确相等，不解析——拓展件不得从串里读出会话或租户。解析得到什么、何时有效、解析不出时怎样，由 capability.loop-extension-runner v1 S-50 定。",
+      "$comment": "与 LogHandle 同一种写法：按 S-31 的散文在本契约内定义，不 $ref data.identity-values 的 OpaqueIdentifier（D-040 §S1 S1-a 的口径）。成员与句柄本身是主线裁定，见 D-040 §八 M38；不交出会话标识沿用 D-040 §六 L9。",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])",
+      "examples": ["env_31d2"]
+    },
+
     "FailureCause": {
       "title": "FailureCause",
       "description": "S-17：一次模型调用故障的成因，恰八个，顺序照 PF-013 §5.7：withdrawn 已下架 · scope_disallowed 这个范围不再允许 · modality_mismatch 和会话里的模态对不上 · credential_unavailable 凭据不可用 · request_rejected 这次请求本身上游不接受 · upstream_unavailable 上游这会儿给不出回复 · interrupted_mid_reply 说到一半断了 · unrecognized 没认出来（兜底）。取值只按「谁能让它不再发生」分。被用户中断不是故障，不在这里。名字由本契约定，data.model-response、data.arrival-events 以 $ref 取它。",
@@ -417,7 +427,7 @@
 
     "ExtensionInput": {
       "title": "ExtensionInput",
-      "description": "S-11～S-13：运行时交给一件拓展件的那一份。position / dimension 是这一次挂的位置（求得的值）；run / attempt 指这一次经过所在的运行与尝试——消息落盘之前那个位置看不到有没有运行在跑，所以那里两者都不带；subject 是瀑布里排在前面的件改写之后的那一份；earlier 是同一次经过里排在前面的件已经落下的结论；log 是只读句柄。",
+      "description": "S-11～S-13：运行时交给一件拓展件的那一份。position / dimension 是这一次挂的位置（求得的值）；run / attempt 指这一次经过所在的运行与尝试——消息落盘之前那个位置看不到有没有运行在跑，所以那里两者都不带；subject 是瀑布里排在前面的件改写之后的那一份；earlier 是同一次经过里排在前面的件已经落下的结论；log 是只读句柄；environment 是这一次经过所在会话的执行环境句柄（S-41），十一个位置都带。",
       "$comment": "位置与 subject 变体的对应、位置与维度的配对、run/attempt 的有无，都在下面的条件约束里；对不上即 malformed / dimension_*（S-37）。earlier 里每条的 position、dimension 必须与本输入相同，Schema 管不到。",
       "type": "object",
       "properties": {
@@ -427,9 +437,10 @@
         "attempt": { "$ref": "../../call-accounts/v1/call-accounts.schema.json#/$defs/AttemptId" },
         "subject": { "$ref": "#/$defs/Subject" },
         "earlier": { "type": "array", "items": { "$ref": "#/$defs/Conclusion" } },
-        "log": { "$ref": "#/$defs/LogHandle" }
+        "log": { "$ref": "#/$defs/LogHandle" },
+        "environment": { "$ref": "#/$defs/EnvironmentHandle" }
       },
-      "required": ["position", "subject", "earlier", "log"],
+      "required": ["position", "subject", "earlier", "log", "environment"],
       "additionalProperties": false,
       "allOf": [
         {

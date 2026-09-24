@@ -7,7 +7,7 @@
 > **契约身份 `modality-projection` 沿用起草时的名字，它拥有两件事：投影判定 ＋ 转换件**——[模态投影](../../../ubiquitous_language/terms/record-and-context.md#ul-modality-projection--模态投影--modality-projection)与兼容判定，以及[模态转换件](../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)的键、登记表（整份声明 `declareConverters`、查登记 `lookupConverter`）与一次转换（主线裁定，见 [D-040 §S17 S17-h](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s17modality-projection报回的)：改名收益不够）。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.modality-projection, 1)`
-- **状态**：`candidate`（2026-09-23 起草；2026-09-24 经第一轮独立评审并按处置修订；2026-09-25 修复波 2 按第二轮独立复评原地改，处置见[验证入口](verification.md#独立评审)），**未接受、未冻结**
+- **状态**：`candidate`（2026-09-23 起草；2026-09-24 经第一轮独立评审并按处置修订；2026-09-25 修复波 2 按第二轮独立复评原地改，处置见[验证入口](verification.md#独立评审)；同日修复波 3 按实现映射反推原地改，见[验证入口](verification.md#实现映射反推2026-09-25)），**未接受、未冻结**
 - **catalog 映射**：已登记为 `candidate`；`family=capabilities`、`topic=modality-projection`、
   `contract_path=spec/capabilities/modality-projection/v1/contract.md`；`resources` 含契约与 `examples.md`；
   依赖五项（`data.content-blocks` v1、`data.messages` v1、`data.model-profile` v1、`data.loop-extension` v1、`data.identity-values` v1），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)

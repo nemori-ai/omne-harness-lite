@@ -302,6 +302,9 @@
 | 前台那次调用的占位（`ToolMessage` 里的结果块）写 `outcome: "interrupted"`、`reason.code: "terminated_by_agent"` | [S-18](contract.md#s-18-占位原因与它落在哪一格)：这个原因只落后台执行收场提醒的结果块——agent 只能掐已转后台的执行，占位早已写下；**块自己看不出是哪一段**，本契约的 Schema 放行 | 写入方（工具执行运行时）；装进 `ToolMessage` 时由 `data.messages` 那一层拒（它的 S-39，`malformed`） |
 | 图块的派生表示里放了一张图（原块与派生块都是 `image` 模态） | [S-19](contract.md#s-19-派生表示与-transcript)——`malformed` | 接收边界 |
 | 为了「再试一次」去解析一个标了 `unparseable` 的调用的 `rawArguments`，或执行它 | [S-12](contract.md#s-12-完整的工具调用) | 流装配、宿主与执行运行时的实现 |
+| 参数串 `{"path": "a.md", "path": "/etc/passwd"}` 收齐之后被解析成 `arguments: {"path": "/etc/passwd"}`（取后一个）或 `{"path": "a.md"}`（取前一个） | [S-12](contract.md#s-12-完整的工具调用)（M36）：重复成员名即**解析不了**——应落 `rawArguments` 原样 ＋ `unparseable: true`，不执行 | 流装配那一次解析的实现 |
+| 参数串 `{"id": 12345678901234567890}` 解析、落盘、回读之后 `arguments.id` 成了 `12345678901234567000` | [S-12](contract.md#s-12-完整的工具调用)、[S-24](contract.md#s-24-规范表示)（M36）：超出 ±2^53 的整数保留原文、读写无损 | 解析、落盘与回读的每一跳 |
+| 接收边界读到一段块的 JSON 文本 `{"id": "b1", "kind": "text", "kind": "tool_call", …}`，取了其中一个 `kind` 再按 Schema 判 | [S-24](contract.md#s-24-规范表示)（M36）——`malformed`：重复成员名在读文本这一步就拒，不挑一个 | 读 JSON 文本的接收边界 |
 | 受理连接件送来的信封时，把一个 `image/png` 的附件引用落成文件块 | [S-34](contract.md#s-34-只给了引用的附件落成哪一类块) | 落块那一方的规范场景 |
 | 为了「猜」调用意图去解析半截调用的 `rawArguments` | [S-13](contract.md#s-13-半截的工具调用) | 流装配与组装的实现 |
 | 一份会话日志里两个完整的工具调用块 `callId` 相同 | [S-14](contract.md#s-14-callid) | 登记调用的一方 |

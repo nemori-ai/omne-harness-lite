@@ -7,7 +7,7 @@
 **瀑布怎么走、回放怎么跑**变了，只动 runner。操作那一半是 `capability.loop-extension-runner`。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.loop-extension, 1)`
-- **状态**：`candidate`，2026-09-23 起草、同日按主线裁定原地修订一次，2026-09-24 整批对齐再原地改一次，同日按第一轮独立评审处置再改一次（[变化的影响](verification.md#变化的影响)、[独立评审](verification.md#独立评审)）；**未接受、未冻结**，不得据此发布或声称消费者已采用
+- **状态**：`candidate`，2026-09-23 起草、同日按主线裁定原地修订一次，2026-09-24 整批对齐再原地改一次，同日按第一轮独立评审处置再改一次，2026-09-25 修复波 3 按实现映射反推加执行环境句柄（[变化的影响](verification.md#变化的影响)、[独立评审](verification.md#独立评审)、[实现映射反推](verification.md#实现映射反推2026-09-25)）；**未接受、未冻结**，不得据此发布或声称消费者已采用
 - **catalog 映射**：已登记为 `candidate`（`acceptance` 为 null）。`family=data`、`topic=loop-extension`、
   `contract_path=spec/data/loop-extension/v1/contract.md`，`resources` 另含同目录的 `loop-extension.schema.json` 与 `examples.md`；
   `dependencies` 列八项——两项已接受（`data.identity-values`、`data.offer-expiry`），六项是候选
@@ -36,6 +36,7 @@
 | 一个声明、一条结论长什么样，什么会被拒 | [v1 正反实例](v1/examples.md)，含四个完整走查 |
 | 一件拓展件此刻不在时怎么办 | [S-6 不可用处置的声明](v1/contract.md#s-6-声明的成员与类别)、[S-33](v1/contract.md#s-33-不可用与报错两分) |
 | 一件拓展件推出哪几项设置与权限 | [S-40 属性项的推出规则](v1/contract.md#s-40-属性项的推出规则) |
+| 一件拓展件以谁的租户身份做事、子进程落在哪个执行环境里 | [S-41 执行环境句柄](v1/contract.md#s-41-执行环境句柄)（读面在 `capability.loop-extension-runner` v1 S-50） |
 | 某个位置能交回哪几种结论 | [档 × 结论](v1/contract.md#s-20-档与结论的合法组合)、[位置 × 结论](v1/contract.md#s-21-位置与结论的合法组合) |
 | 我在写拓展件，要额外守什么 | [S-35 跨过一次等待只能带已落日志的东西](v1/contract.md#s-35-跨过一次等待只能带已落日志的东西) |
 | 哪里在等裁决 | [已知缺口](v1/contract.md#十四已知缺口)：开着的是 G-1、G-4～G-6、G-15、G-16、G-18；其余已关闭，答案所在条款写在各行 |

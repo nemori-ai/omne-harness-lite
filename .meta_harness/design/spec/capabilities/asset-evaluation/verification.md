@@ -2,26 +2,28 @@
 
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
-> **当前状态：规范场景与静态检查未开始；Alloy 模型随吸收 PF-002 rev 17～20（「禁止」是界、界不同时是挑选、治理类项）改过之后 2026-09-24 重跑一次（十八条命令、十三个变异体），原始输出在主检出 `tmp/formal-runs/asset-evaluation-v1-2026-09-24b/-c/`，未登记为 formal task。**
+> **当前状态：规范场景与静态检查未开始；Alloy 模型随 D-040 §八 M31（组合根只作身份）改过之后 2026-09-25 重跑一次（十八条命令、十三个变异体，全部与预期一致），原始输出在主检出 `tmp/formal-runs/asset-evaluation-v1-2026-09-25/`，未登记为 formal task。**
 > `capability.asset-evaluation` v1 是 `candidate`，未接受、未冻结；尚无提供者设计、尚无源码、尚无装配。
 > 下表登记的是**已经触发的证据义务**，不是已完成的检查。
-> **六条规范场景（S-33～S-37、S-41）一条都未执行**——文件存在不代替结果。
+> **八条规范场景（S-33～S-37、S-41、S-43、S-44）一条都未执行**——文件存在不代替结果。
 > Alloy 那一次的判读、范围与局限见[下节](#结果与反例)；它只支持[契约第七节](v1/contract.md#七性质与前提)标了 Alloy 的那几行，**且只在所列规模内**；(i) 那一行 2026-09-24 起标「按构造，不作证据」。
-> **2026-09-24 独立评审第一轮原地修订**（[处置表](#独立评审)）：`Evaluation.als` 一个字节未改（SHA-256 仍是 `4a79c2f9…126a`），2026-09-24c 那次运行继续对应它，**本轮不重跑**（理由见[变化的影响](#变化的影响)末条）。
+> **2026-09-24 独立评审第一轮原地修订**（[处置表](#独立评审)）：`Evaluation.als` 一个字节未改，**当时不重跑**（理由见[变化的影响](#变化的影响)）。**2026-09-25 实现映射反推（[处置表](#实现映射反推2026-09-25)）改了第 2 步的三个定义**，SHA-256 由 `4a79c2f9…126a` 变为 `6935da22…505f`，2026-09-24c 那次作废，[新一次运行](#已执行组合根只作身份之后的-alloy-运行2026-09-25)对应现在的文件。
 
 ## 证据义务
 
 | # | 义务 | 证据形式 | 覆盖哪些条款 | 实际状态 |
 |---|---|---|---|---|
-| V-1 | **结构性质 (i)～(x)**：团队资产不出那棵树、锁截断、禁用析取、工作区滤权（权限、落点类、治理类）、官方件下界、换了实现逃不出外层对这个能力标识锁下的界、与界不交的挑选不给出值、判为用不了的不生效、用不了的那份不带走外层的界、不锁的「禁止」也是界 | Alloy：[`Evaluation.als`](v1/formal/Evaluation.als) 的十八条命令 ＋ 十三个变异体 | [S-17](v1/contract.md#s-17-第一步之一先按禁用滤)～[S-19](v1/contract.md#s-19-官方件是下界)、[S-39](v1/contract.md#s-39-谁可以使用它值与判定) 的结构后果、[S-22](v1/contract.md#s-22-第四步设置)～[S-25](v1/contract.md#s-25-工作区提供的资产的权限项一律取最严值) 的「来自哪一格」那一面 | **2026-09-24 执行一次，未登记**（[下节](#已执行吸收-pf-002-rev-17-到-rev-20-之后的-alloy-运行2026-09-24c)）。**(i) 按构造，不作证据**：`effective` 由持有构造、前提那一半由 fact 给出，M5 只说明它依赖 PRE-2；「只来自持有」的证据改由 V-2 的「多带一份定义」那一支给 |
-| V-2 | **四格齐全的一次求值**（[S-33](v1/contract.md#s-33-四格齐全的一次求值)）：五个集合与 [E-1](v1/examples.md#e-1-四格齐全的一次求值) 逐项相等；同一输入重放；改一项权限只动那一项的值 | 规范场景演练，**同一次演练比对全部五个集合** | [S-8](v1/contract.md#s-8-求值结果-effectiveassembly)、[S-11](v1/contract.md#s-11-纯计算)、[S-17](v1/contract.md#s-17-第一步之一先按禁用滤)～[S-26](v1/contract.md#s-26-每份持有都有去处) | **未开始。**需要一个实现；且第 2 步要 Agent Definition 的两条规则（[G-3](v1/contract.md#十一已知缺口)），闭合前只能以 examples 里「给定的正文」替身跑。**凭据那一条（E-1 第 1 件事）必须真核**：它失败的形态是外泄，不是报错。2026-09-24 起五个集合里的 `assets` 多了 `version`、`resident` 两列（`usable` 同日加上、又随第一步三小步删去）、`values` 多了落点设置的 `provenance`，同一次演练一并比对。2026-09-24 独立评审第一轮起输入带 `mcpActionSets`、`values` 的逐动作项按真名 `execute:<名>`，附加支由两支加到四支（多带一份定义；拿掉动作集） |
+| V-1 | **结构性质 (i)～(x)**：团队资产不出那棵树、锁截断、禁用析取、工作区滤权（权限、落点类、治理类）、官方件下界、换了实现逃不出外层对这个能力标识锁下的界、与界不交的挑选不给出值、判为用不了的不生效、用不了的那份不带走外层的界、不锁的「禁止」也是界 | Alloy：[`Evaluation.als`](v1/formal/Evaluation.als) 的十八条命令 ＋ 十三个变异体 | [S-17](v1/contract.md#s-17-第一步之一先按禁用滤)～[S-19](v1/contract.md#s-19-官方件是下界)、[S-39](v1/contract.md#s-39-谁可以使用它值与判定) 的结构后果、[S-22](v1/contract.md#s-22-第四步设置)～[S-25](v1/contract.md#s-25-工作区提供的资产的权限项一律取最严值) 的「来自哪一格」那一面 | **2026-09-25 执行一次，未登记**（[下节](#已执行组合根只作身份之后的-alloy-运行2026-09-25)）。**(i) 按构造，不作证据**：`effective` 由持有构造、前提那一半由 fact 给出，M5 只说明它依赖 PRE-2；「只来自持有」的证据改由 V-2 的「多带一份定义」那一支给 |
+| V-2 | **四格齐全的一次求值**（[S-33](v1/contract.md#s-33-四格齐全的一次求值)）：五个集合与 [E-1](v1/examples.md#e-1-四格齐全的一次求值) 逐项相等；同一输入重放；改一项权限只动那一项的值 | 规范场景演练，**同一次演练比对全部五个集合** | [S-8](v1/contract.md#s-8-求值结果-effectiveassembly)、[S-11](v1/contract.md#s-11-纯计算)、[S-17](v1/contract.md#s-17-第一步之一先按禁用滤)～[S-26](v1/contract.md#s-26-每份持有都有去处) | **未开始。**需要一个实现；且第 2 步要 Agent Definition 的两条规则（[G-3](v1/contract.md#十一已知缺口)），闭合前只能以 examples 里「给定的正文」替身跑。**凭据那一条（E-1 第 1 件事）必须真核**：它失败的形态是外泄，不是报错。2026-09-24 起五个集合里的 `assets` 多了 `version`、`resident` 两列（`usable` 同日加上、又随第一步三小步删去）、`values` 多了落点设置的 `provenance`，同一次演练一并比对。2026-09-24 独立评审第一轮起输入带 `mcpActionSets`、`values` 的逐动作项按真名 `execute:<名>`，附加支由两支加到四支（多带一份定义；拿掉动作集）。**2026-09-25（M31）起**：输入的 `root` 是组合根引用集、结果多一个 `root`；`composition` 不含组合根（四个 → 三个），`values` 十三条 → 十条（根的三项不求），会话格那条改由 `skill:audit / variant` 演示；「必须同时观察到」加第 5 件事——根的项一条也没有、各格对它的配值不进 `filteredOut`。第 2 步不再挡在根的规则上（G-3 收窄），替身只剩「给定的正文」那几份被引用者 |
 | V-3 | **先禁用后替换**（[S-34](v1/contract.md#s-34-先禁用后替换)）：[E-2a、E-2b](v1/examples.md#e-2-先禁用后替换) | 规范场景演练 | [S-17](v1/contract.md#s-17-第一步之一先按禁用滤)、[S-18](v1/contract.md#s-18-第一步之三最后取最具体的一份锁在最外那一把处截断) | **未开始** |
 | V-4 | **清单读入的留痕**（[S-35](v1/contract.md#s-35-清单读入的留痕)）：[E-3](v1/examples.md#e-3-一次清单读入)，并与 E-1 连起来看 | 规范场景演练 | [S-16](v1/contract.md#s-16-readworkspacecarrier)、[S-27](v1/contract.md#s-27-清单列的资产变成工作区那一格的持有)、[S-28](v1/contract.md#s-28-配值与禁用只对工作区提供的资产生效丢掉的留痕) | **未开始。**记录号怎么铸未定（[G-6](v1/contract.md#十一已知缺口)），演练比对的是结构。2026-09-24 起另核：清单缺 `assignments` 或 `disabled` 即 `invalidInput`（不当作空列表）；持有与每条配值的 `since` 都留给调用方以读入时刻补 |
 | V-5 | **设置不跟过去、权限的约束跟过去**（[S-36](v1/contract.md#s-36-换了实现设置不跟过去权限的约束跟过去)）：[E-4](v1/examples.md#e-4-换了实现设置不跟过去权限的约束跟过去) 五支同跑 | 规范场景演练 | [S-22](v1/contract.md#s-22-第四步设置)、[S-23](v1/contract.md#s-23-第四步权限) | **未开始。**G-16、G-17 已闭合（D-040 §一 S10-a、S10-b），E-4 按「界与挑选」「『禁止』是界」「界不同时是挑选」「没挑到界内取最近一档」的期望跑；A、B、C 三支执行权限的 `from` 2026-09-24 由 organization 改为 factory（界不再同时是挑选） |
-| V-6 | **输入不合法时整体拒绝**（[S-37](v1/contract.md#s-37-输入不合法时整体拒绝)）：[E-5](v1/examples.md#e-5-不合法的输入) 八份 | 规范场景演练，**核返回里没有任何 `EffectiveAssembly`** | [S-7](v1/contract.md#s-7-输入的一致性条件)、[S-13](v1/contract.md#s-13-invalidinput-是没开始判filteredout-与-unresolved-是判出来的结果) | **未开始** |
+| V-6 | **输入不合法时整体拒绝**（[S-37](v1/contract.md#s-37-输入不合法时整体拒绝)）：[E-5](v1/examples.md#e-5-不合法的输入) 十份 | 规范场景演练，**核返回里没有任何 `EffectiveAssembly`** | [S-7](v1/contract.md#s-7-输入的一致性条件)、[S-13](v1/contract.md#s-13-invalidinput-是没开始判filteredout-与-unresolved-是判出来的结果) | **未开始。**2026-09-25 加两份（`root.references` 缺席 ⇒ C1；非 tool、skill 的引用带常驻标记 ⇒ C14），第 4 份改为换 `root.definition` |
 | V-7 | **装配给的保证**（[S-29](v1/contract.md#s-29-装配给的保证-vs-协议须给的保证) 左列）：一致读、分享此刻成立、调用方已核实、清单就是目录里那份 | 装配设计的选型声明 ＋ 架构评审 | [第七节前提](v1/contract.md#前提由别人兑现本契约不检查) PRE-1～PRE-3、PRE-7、PRE-8（动作集就是这次尝试钉住的那一份，由会话资产注册表兑现） | **未开始。**不是可跑的义务；它们失效的形态都是**静默算错**（锁截断被绕过、团队资产出树），上面的场景测不出 |
 | V-8 | **判下来用不了的退回下一层**（[S-41](v1/contract.md#s-41-判下来用不了的退回下一层)）：[E-6](v1/examples.md#e-6-判下来用不了的退回下一层) 六支同跑 | 规范场景演练 | [S-39](v1/contract.md#s-39-谁可以使用它值与判定)、[S-18](v1/contract.md#s-18-第一步之三最后取最具体的一份锁在最外那一把处截断)、[S-19](v1/contract.md#s-19-官方件是下界)、[S-26](v1/contract.md#s-26-每份持有都有去处) | **未开始。**E 支的期望（锁随被滤掉的那份不起作用）是本契约推导，已报主线；主线改判则 E、F 两支随之改。**PF-002 acceptance §一「成员乙写了一个 tool，组织持有了它」那一行说的是组织直接持有**（不经 plugin），按主线读法（2026-09-24）与 [S-31](v1/contract.md#s-31-unresolved-交到装配手上怎么收场) 不冲突：没有同名 official 时，E-6 C 支的求值结果是这个标识进 `unresolved`，装配据它怎么收场归 S-31 |
 | V-9 | **执行权限项的 `tenantAutoWritable`**（[S-42](v1/contract.md#s-42-执行权限项另带租户那一层写得进自动吗)）：[E-1](v1/examples.md#e-1-四格齐全的一次求值) 的真、假两种（假的那两条同时演示 `mcp` 逐动作项恒为假）、「`h6` 带锁」与「`h6` 被禁用」两支，[E-4](v1/examples.md#e-4-换了实现设置不跟过去权限的约束跟过去) 五支皆假 | 规范场景演练，随 V-2、V-5 同一次演练比对 | [S-42](v1/contract.md#s-42-执行权限项另带租户那一层写得进自动吗)、[S-8](v1/contract.md#s-8-求值结果-effectiveassembly) | **未开始** |
+| V-10 | **成环即拒并指出环在哪；根不可见即不往下走**（[S-43](v1/contract.md#s-43-成环即拒并指出环在哪)）：[E-7](v1/examples.md#e-7-成环即拒并指出环在哪) 三支同跑 | 规范场景演练，**A 支核返回里没有任何 `EffectiveAssembly`、失败值是 `compositionCycle` 而不是 `invalidInput`、诊断 `cycle` 列出环上的标识** | [S-15](v1/contract.md#s-15-evaluate) ⑥ 与其后一段、[S-13](v1/contract.md#s-13-invalidinput-是没开始判filteredout-与-unresolved-是判出来的结果) 末段、[S-20](v1/contract.md#s-20-第二步组装) | **未开始**（2026-09-25 新加，D-040 §八 M31、M32）。诊断的写法（从哪一处起、几个环报哪个）不承载含义，比对时只核它是一个环、环上每一步是直接引用。本版到得了的环只有根指回自己那一种（[G-3](v1/contract.md#十一已知缺口)），sub-agent 之间的环等 G-3 闭合再加支 |
+| V-11 | **读不了正文的一类即拒**（[S-44](v1/contract.md#s-44-读不了正文的一类即拒)）：[E-8](v1/examples.md#e-8-读不了正文的一类即拒) 四支同跑 | 规范场景演练，**A、B 两支核返回里没有任何 `EffectiveAssembly`、失败值是 `categoryUnsupported` 且 `category` 对得上**；C 支核被禁用的不触发；D 支核判定次序 | [S-15](v1/contract.md#s-15-evaluate) ⑥ 与其后 `categoryUnsupported` 一段、[S-12](v1/contract.md#s-12-缺席时的默认答案) 那一行、[S-13](v1/contract.md#s-13-invalidinput-是没开始判filteredout-与-unresolved-是判出来的结果) 末段、[S-20](v1/contract.md#s-20-第二步组装) | **未开始**（2026-09-25 新加，D-040 §八 M45）。它守的是「判不出来不当作判出来了」：实现把读不了的那一类当作空引用或全部启用时，A、B 两支会得到一份看似完整的结果。**G-3、G-21 闭合时这一条随值一起删去**，改由那两类的正文规则场景取代 |
 
 ### 静态检查义务
 
@@ -30,12 +32,52 @@
 | # | 检查什么 | 对应条款 | 状态 |
 |---|---|---|---|
 | SC-1 | 两个操作的实现不读存储、时钟、文件与进程状态，不写任何东西 | [S-11](v1/contract.md#s-11-纯计算)、[S-30](v1/contract.md#s-30-本能力没有在途工作) | 未开始 |
-| SC-2 | 消费者缓存求值结果时，键覆盖整份输入（含 `standing`、`workspace`、会话配值、选用版本与 `mcpActionSets`），不只以 `(tenant, root)` 为键 | [S-15](v1/contract.md#s-15-evaluate) ⑦ | 未开始 |
-| SC-3 | 不存在把 `invalidInput` 转成空 `EffectiveAssembly`、或把 `unresolved` 升级成 `invalidInput` 的路径 | [S-13](v1/contract.md#s-13-invalidinput-是没开始判filteredout-与-unresolved-是判出来的结果) | 未开始 |
+| SC-2 | 消费者缓存求值结果时，键覆盖整份输入（含 `standing`、`workspace`、会话配值、选用版本、`root.references` 与 `mcpActionSets`），不只以 `(tenant, root.definition)` 为键 | [S-15](v1/contract.md#s-15-evaluate) ⑦ | 未开始 |
+| SC-3 | 不存在把 `invalidInput`、`compositionCycle`、`categoryUnsupported` 转成空 `EffectiveAssembly`（或去掉一部分的结果）、或把 `unresolved` 升级成失败的路径 | [S-13](v1/contract.md#s-13-invalidinput-是没开始判filteredout-与-unresolved-是判出来的结果) | 未开始（2026-09-25 随 M32、M45 扩到三个失败值） |
 
 ## 结果与反例
 
-### 已执行：吸收 PF-002 rev 17 到 rev 20 之后的 Alloy 运行（2026-09-24c）
+### 已执行：组合根只作身份之后的 Alloy 运行（2026-09-25）
+
+| 项 | 值 |
+|---|---|
+| 对象 | [`v1/formal/Evaluation.als`](v1/formal/Evaluation.als)，随 [D-040 §八 M31](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 改第 2 步之后的内容（未冻结）：`Root` 加 `rootRefs`；`reached` 在根有生效资产时从 `rootRefs` 起、否则为空；`composition` 减去 `rootCap`；`unresolvedCaps` 加上没有生效资产的 `rootCap`；头注释的 S-20 一行与「成环的收场」一句改写。断言、fact、`run`／`check` 命令与范围一字未动。SHA-256 `6935da2259130aafea0e770dad7c94578152fd517e3ef5d2f7bd006a8bba505f` |
+| 工具 | 本机 `/usr/local/bin/alloy` 6.2.0（`/opt/alloy/alloy.jar`，JRE 21），`alloy exec -f -o out Evaluation.als` |
+| 怎么跑的 | 复制到主检出 `tmp/formal-runs/asset-evaluation-v1-2026-09-25/` 再跑：`run.log`、`out/`、`sha256.txt`；变异体 `mutants/M1.als`～`M13.als` 由 2026-09-24c 那十三个变异体对旧模型的差异原样打到新模型上得到（`mutants/M*.patch`，逐个只改一处，与新模型的差异在 `mutants-summary.txt`），各自的输出在 `mutants/M*.out`；**未入库** |
+| 判读 | `check` 行 `UNSAT` 读作**本范围内无反例**、`SAT` 读作找到反例；`run` 行 `SAT` 读作前件可满足（账本 S10-c） |
+| 结果 | 全部十八条与预期一致，墙钟约 12.5 秒；退出码 0： |
+
+```text
+00. run   fourLayerInstance                    SAT
+01. run   replacementConstrained               SAT
+02. run   pickSkipped                          SAT
+03. run   usableByFallback                     SAT
+04. run   unusableConstrains                   SAT
+05. run   unlockedForbid                       SAT
+06. check TeamAssetsStayInTree                 UNSAT
+07. check LockTruncates                        UNSAT
+08. check DisableIsDisjunction                 UNSAT
+09. check WorkspaceNeverSourcesPermission      UNSAT
+10. check WorkspaceNeverSourcesPlacement       UNSAT
+11. check WorkspaceNeverSourcesGovernance      UNSAT
+12. check OfficialLowerBound                   UNSAT
+13. check ReplacementCannotEscapePermission    UNSAT
+14. check NonFittingPickNeverSources           UNSAT
+15. check UnusableNeverEffective               UNSAT
+16. check UnusableKeepsBounds                  UNSAT
+17. check ForbidIsBound                        UNSAT
+```
+
+**变异体**：M1～M13 全部退出 0，找到反例的断言与 2026-09-24c 那张表**逐行相同**（M1：`LockTruncates`、`ReplacementCannotEscapePermission`；M8：`NonFittingPickNeverSources` 且 `run pickSkipped` 变 `UNSAT`；M7：`ReplacementCannotEscapePermission`、`UnusableKeepsBounds`；其余各一条），与预期一致。
+
+**范围与局限**（下一节那几条仍然成立，另加两条）：
+
+- **M31 的三处改动按定义构造，不作证据**：没有断言守「`composition` 不含根」「根不可见即不往下走」，也没有变异体——它们由规范场景 V-2（E-1 第 5 件事）与 V-10（E-7 C 支）兜。这次重跑说明的是：**第 2 步换了起点之后，十条结构性质与各自的非平凡核对照旧成立**，`run fourLayerInstance` 的「有一个引用求不出」仍可满足。
+- **成环不建**：`compositionCycle` 是失败值，模型不建失败；含环的实例里 `composition` 照定义算出，**不对应任何一份结果**（[formal 入口](v1/formal/README.md)「没有进模型的」）。PRE-9 不建，`rootRefs` 任取。
+
+### 已作废：吸收 PF-002 rev 17 到 rev 20 之后的 Alloy 运行（2026-09-24c）
+
+**这一次对应 M31 之前的模型**（`reached` 从 `rootCap` 起、`composition` 含根），被上一节取代；原始输出仍在主检出 `tmp/formal-runs/asset-evaluation-v1-2026-09-24b/-c/`，只作历史。下面照原样保留。
 
 | 项 | 值 |
 |---|---|
@@ -194,7 +236,7 @@
 
 ### 尚无的记录
 
-规范场景 S-33～S-37、S-41，静态检查 SC-1～SC-3 尚无执行记录。首次执行时在此记录工具与版本、环境、输入范围、
+规范场景 S-33～S-37、S-41、S-43、S-44，静态检查 SC-1～SC-3 尚无执行记录。首次执行时在此记录工具与版本、环境、输入范围、
 可复现步骤与原始结果位置；原始产物归 [record/evidence/](../../../record/evidence/README.md)。
 
 ## 形式化工件
@@ -289,7 +331,7 @@
   - [S-20](v1/contract.md#s-20-第二步组装)：plugin「启用哪些成员」在第 2 步就地求值、没启用的成员不进可达集合也不进 `unresolved`；斜杠命令的绑定目标是命令本身；G-13 关，G-3 注明这一项仍等 plugin 的属性项。
   - S-32、[S-36](v1/contract.md#s-36-换了实现设置不跟过去权限的约束跟过去)（三支 → 五支）、第七节加三行安全性质、消费者核对「准入判断」一行改为大半够。
   - `examples.md`：E-1「改一项权限」那一支加 `lockedAt = tenant`（`{禁止}` 是界）；**E-4 A、B、C 执行权限的 `from` 由 organization 改为 factory**（界不再同时是挑选，作者默认落在界内），加 D（不锁的「禁止」）、E（界内没人挑到取最近一档）两支；E-6 F 支的说法；附表记号。
-  - `Evaluation.als`：见[上节](#已执行吸收-pf-002-rev-17-到-rev-20-之后的-alloy-运行2026-09-24c)；2026-09-24b 那次作废。
+  - `Evaluation.als`：见[上节](#已作废吸收-pf-002-rev-17-到-rev-20-之后的-alloy-运行2026-09-24c)（2026-09-25 起它也作废，见其上一节）；2026-09-24b 那次作废。
   - **消费者**：`capability.asset-governance` 写入面「拒绝写界外的值」要认不锁的 `{forbid}` 也是界；`data.connector` 的推出规则要产出治理类的触发会话默认运行模式、且不带 `default`（`data.asset-model` S-12、S-13 同轮改）；`capability.asset-registry` 同轮改读 `assets` 而不是 `usable`。都已报主线或同轮落。
 
 - **2026-09-24 修订第二轮（主线裁定 R2-8、R2-11、R2-12、R2-15；候选未冻结，原地改）**：
@@ -328,4 +370,22 @@
   **对消费者**：`capability.tool-admission` 读这一位出卡，照旧；`capability.asset-registry` 的 S-24 ② 从此是配方的唯一家（丁同轮）；`capability.asset-governance` 的 G-5 闭合时本条那一段随之改。
   **registry**：catalog 依赖不变（指向注册表的是指路，不登）；covers 的 PF-008 → S-42 那条 note 改写（M5）。
 
+- **2026-09-25 修复波 3（实现映射反推；候选未冻结，原地改）**：逐条见下节[实现映射反推](#实现映射反推2026-09-25)。**语义改变**：输入 `root` 的形状、`composition` 不再含根、`evaluate` 的失败集合由一个值变为三个；**`Evaluation.als` 改了、重跑了**（[上节](#已执行组合根只作身份之后的-alloy-运行2026-09-25)）。
+
 结果不改写规范。发现语义问题回到来源设计（PF-002／PF-001／PF-003／PF-004），不在这里改契约。
+
+## 实现映射反推（2026-09-25）
+
+起因：realization-drafter 戊起草 `packages/core/asset-evaluation` 节点时报回的 AE-1、AE-2 与其后第二次报回；主线裁定见 [D-040 §八 M31、M32、M45](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)。**裁定不代替接受**，本契约仍是 candidate。
+
+| 裁定 | 落点 | 本契约推导的部分（已报主线） |
+|---|---|---|
+| **M31** `root` 改为组合根引用集 `{ definition, references }`，`definition` 只作身份、记进结果；第 2 步从 `references` 起；G-3 收窄 | [S-6](v1/contract.md#s-6-求值输入-evaluationinput) `root` 一行（`AssetReference { capability, resident? }`，`references` 必需、可为空）；C2 改认 `root.definition`、**新 C14**；[S-8](v1/contract.md#s-8-求值结果-effectiveassembly) 加成员 `root`、`composition` 不含根；[S-10](v1/contract.md#s-10-各类正文契约须供的两条规则) 末段；[S-12](v1/contract.md#s-12-缺席时的默认答案) 两行（`root.references` 缺席、根自己的属性项）；[S-15](v1/contract.md#s-15-evaluate) ②⑦⑧（PRE-9、缓存键）；[S-20](v1/contract.md#s-20-第二步组装) 首段与结果表；[S-38](v1/contract.md#s-38-常驻值) 第 1 条改读输入；第七节 PRE-9；S-29、S-32、S-33、S-37；[G-3](v1/contract.md#十一已知缺口) 收窄；**新 [G-21](v1/contract.md#十一已知缺口)**；第十二节两行；examples E-1～E-6 的 `root` 与期望、E-5 加两份；`Evaluation.als` 第 2 步 | ① 结果里记根的成员名取 `root`（裁定只说「记进 `EffectiveAssembly`」）；② **根不进 `composition`，它的属性项因此不投影**——PF-002 §5.2「某个 Agent Definition 的『默认模型』」这类设置本版没有值（G-21 ①）；③ 根没有生效资产（被禁用、用不了、没人持有）时它自己进 `unresolved`、`referencedBy` 缺席、不往下走；④ C14（引用列表里同一标识至多一条、常驻标记只在 tool、skill 上）；⑤ `AssetReference`、「组合根引用集」都**无词条**，按裁定原文用 |
+| **M32** 失败集合加 `compositionCycle`，带环上的能力标识序列；G-1 关 | [S-15](v1/contract.md#s-15-evaluate) ⑥ 与其后一段（哪些环算、判在第 1 步之后、诊断 `cycle`、本版判得到的环只有根指回自己）；[S-13](v1/contract.md#s-13-invalidinput-是没开始判filteredout-与-unresolved-是判出来的结果) 末段；[S-11](v1/contract.md#s-11-纯计算) 诊断的例外；S-20、S-31 各一条；第七节一行；**新 [S-43](v1/contract.md#s-43-成环即拒并指出环在哪)／E-7／V-10**（戊报回「S-43 缺证据义务」即此） | ① Skill⇄Tool 互引不算环照 PF-002「谁能组合谁」规则 2 原话，引用列表出现根自己算环；② 有几个环时报哪一个不承载含义（S-11 的例外）；③ 与 `invalidInput` 同时成立报 `invalidInput` |
+| **M45** 失败集合再加 `categoryUnsupported{category}`；G-3／G-21 保持开着，闭合时删此值 | [S-15](v1/contract.md#s-15-evaluate) ⑥⑧ 与其后一段；[S-13](v1/contract.md#s-13-invalidinput-是没开始判filteredout-与-unresolved-是判出来的结果) 末段与判定次序；[S-12](v1/contract.md#s-12-缺席时的默认答案) 那一行改指它；S-10、S-11、S-20 两条、S-31、S-38 末段、第七节一行、S-32、G-3、G-21、第十二节两行；**新 [S-44](v1/contract.md#s-44-读不了正文的一类即拒)／E-8／V-11**；SC-3 扩到三个失败值 | ① **与 `compositionCycle` 同时成立报 `compositionCycle`**（判出来的先于判不出来的；E-7 A、E-8 D）；② `category` 走到几类时报哪一类不承载含义（S-11 的第二处例外）；③ 只在**走到有生效资产的**那一类时触发——被禁用、求不出、只被持有不在组合图上的不触发（E-8 C）；④ 本版 S-38 第 2 条与 G-18 因此到不了 |
+
+**对证据的影响**：`Evaluation.als` 第 2 步三个定义改了（M31），断言、fact、命令未动；V-1 按新文件重跑一次，十八条与十三个变异体与预期一致（[上节](#已执行组合根只作身份之后的-alloy-运行2026-09-25)），2026-09-24c 那次作废。M31 的三处改动**按构造，不作证据**；M32、M45 的失败值不建模，证据是新的 V-10、V-11（未开始）。
+
+**对消费者**：`capability.asset-registry`（fill 与 `refreshAvailability` 组输入要带 `root.references`，配方 S-24 ②；求值失败时多了两个值要透传）——同批由癸落；`capability.asset-governance` G-6 ③ 说的就是 `compositionCycle`，那份契约改引归它（已报主线）；装配（PF-004 的契约，尚无）读 `root`、拿到两个新失败值即明确失败；`packages/core/asset-evaluation` 节点由戊对齐，不在本轮写权限内。
+
+**registry**：catalog 本契约的依赖不变（`root.references` 是调用方给的输入，没有新消费的条款）；covers 加一条 PF-002 flows §二「成环」→ S-15、S-20、S-31（规范场景 S-43 按口径不登）；PF-002「谁能组合谁」加 S-13、S-15、S-20（G-1 关）、§5.1 改注；PF-004 §6.1 不变式加 S-12、S-15（M45 性质表新行以 I-9 为来源）；PF-006 §6.1 加 S-7（C14）；PF-002 plugin 那一条改注（G-3 → G-21，展开到 plugin 即 `categoryUnsupported`）；本契约条目由 40 到 41；formal-tasks、id-namespaces 不变（Alloy 仍不登记）。

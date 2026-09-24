@@ -9,7 +9,8 @@
  *         被滤掉的退出替换次序（它的锁也不起作用），但仍按 S-23 的「在效」给权限的界与挑选
  *   S-18  第 1 步③：最后取最具体的一份，锁在最外那一把处截断
  *   S-19  官方件是下界
- *   S-20  第 2 步：组装（沿生效资产正文里的引用求可达集合）
+ *   S-20  第 2 步：组装（根可见时从组合根引用集 root.references 起，沿生效资产正文里的引用求可达集合；
+ *         组合根 root.definition 只作身份，不进 composition；根没有生效资产时它自己进 unresolved——D-040 §八 M31）
  *   S-22  第 4 步：设置——按资产：只有指向生效资产的持有给值；锁截断的覆盖链（本模型只算 from，不算值）
  *   S-23  第 4 步：权限——按能力标识：组织、租户两格的在效持有（不论指向哪份资产）与会话格给值；
  *         带锁的配值与执行权限上配成恰 {forbid} 的配值是界（PF-002 rev 17 §5.3），其余配值与声明默认值是挑选，
@@ -36,7 +37,8 @@
  * 那是值域上的计算，不是结构关系，证据形式是契约 S-33～S-36 的规范场景；
  * 替换件没声明、外层却约束过的权限项（S-23 最后一段：本模型只对生效资产声明的项下断言）；
  * 权限的 lockedAt；「没有挑选落在界内」时分档权限落到哪一档（S-23 合成第 3 条，值域上的事）；plugin「启用哪些成员」在第 2 步就地求值（S-20：可达集合依赖一项设置的值）；
- * 工作区自带的 stdio 接入点与命令型拓展件默认禁用（S-17 第三条：模型的 Disabled 是给定的，默认禁用只是它的又一个来源）；组合图成环的收场（契约缺口 G-1）；版本选用（G-2）——本模型把「生效资产的引用与属性项」
+ * 工作区自带的 stdio 接入点与命令型拓展件默认禁用（S-17 第三条：模型的 Disabled 是给定的，默认禁用只是它的又一个来源）；组合图成环的收场（S-15 的失败值 compositionCycle：失败不建模，
+ * 成环的实例里 composition 照定义算出，不对应任何一份结果）；PRE-9（rootRefs 任取，不约束成根那份正文的引用）；版本选用（G-2）——本模型把「生效资产的引用与属性项」
  * 当作资产的固定属性，等于假定选用的那一版已经定了；「谁可以使用它」怎么判（S-39 的值与 self，模型只取判定结果 Unusable）；
  * 模型里的 PermissionItem 不含 usableBy 这一项本身（它的参与者按 S-39 第 1 条不看锁截断，与别的权限项不同）；读入面（S-27、S-28）。
  *
@@ -135,7 +137,8 @@ sig LockedAssign in Assign {}   // 配值上的 immutable
 sig ForbidAssign in Assign {}   // 执行权限上配成恰 {forbid} 的配值（值域上的事实，模型只取这个子集）
 fact ForbidOnlyOnPermission { ForbidAssign.item in PermissionItem }
 
-one sig Root { rootCap: one Cap }
+// 输入的 root（契约 S-6）：rootCap = root.definition，rootRefs = root.references 的能力标识（常驻标记不建模）。
+one sig Root { rootCap: one Cap, rootRefs: set Cap }
 
 // —— S-7 的一致性条件里本模型用到的那几条 ——
 
@@ -241,11 +244,14 @@ fun inEffect[c: Cap] : set Holding {
 
 fun refStep : Cap -> Cap { { c1, c2: Cap | c2 in effective[c1].refs } }
 
-fun reached : set Cap { Root.rootCap.*refStep }
+// 根可见时从 root.references 起走；根没有生效资产时它的引用无从生效，什么也不走（S-20 首段）。
+fun reached : set Cap { (some effective[Root.rootCap]) => Root.rootRefs.*refStep else none }
 
-fun composition : set Cap { reached & effective.Asset }
+// 组合根只作身份，不进 composition（S-8、S-20）。
+fun composition : set Cap { (reached & effective.Asset) - Root.rootCap }
 
-fun unresolvedCaps : set Cap { reached - effective.Asset }
+// 求不出的被引用者，加上没有生效资产的组合根自己（后者 referencedBy 缺席，模型不建 referencedBy）。
+fun unresolvedCaps : set Cap { (reached - effective.Asset) + (Root.rootCap - effective.Asset) }
 
 // ---------------------------------------------------------------------------
 // 第 4 步的 from（契约 S-22～S-25）。只算「值来自哪一格」，不算值。

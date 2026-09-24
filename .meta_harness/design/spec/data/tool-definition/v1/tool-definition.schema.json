@@ -132,7 +132,7 @@
     },
     "JsonSchema": {
       "title": "JSON Schema（Draft 2020-12）",
-      "description": "S-4、S-5：参数 schema。取值必须是 JSON Schema Draft 2020-12 的合法 schema，由实现校验，不由本 Schema 表达；本 Schema 只要求它是一个 JSON 对象（布尔 schema 不收），且顶层 type 恰为 \"object\"、带一个对象 properties（可以为空对象）——S-4 三条硬要求的第 1 条（M26）。另两条——任何一处 properties 的每个成员带非空 description（parameter_description_missing）、只用可呈现子集的十七个关键字（M27）——与 Draft 2020-12 的合法性一样在 Schema 之外那一步校验。不是对象、或是对象却不合 Draft 2020-12，都是 input_not_schema（S-26 第 5 行）。",
+      "description": "S-4、S-5：参数 schema。取值必须是 JSON Schema Draft 2020-12 的合法 schema，由实现校验，不由本 Schema 表达；本 Schema 只要求它是一个 JSON 对象（布尔 schema 不收），且顶层 type 恰为 \"object\"、带一个对象 properties（可以为空对象）——S-4 三条硬要求的第 1 条（M26）。另两条——任何一处 properties 的每个成员带非空 description（parameter_description_missing）、只用可呈现子集的十七个关键字（M27）——与 Draft 2020-12 的合法性一样在 Schema 之外那一步校验。不是对象、或是对象却不合 Draft 2020-12，都是 input_not_schema（S-26 第 5 行）；前面都过了、这个实现却编不出来它或某个 pattern 超出实现登记的上限，是 schema_unsupported（S-26 第 13 行）。判参数时 format 只作注解、不作断言（S-4 末段）。",
       "type": "object",
       "properties": {
         "type": { "const": "object" },

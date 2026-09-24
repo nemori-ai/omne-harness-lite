@@ -180,6 +180,7 @@
 | `{"name": "search", "description": "", "inputSchema": {"type": "object"}}` | 通过 | — | [S-10](contract.md#s-10-对端动作描述)：可以为空串 |
 | `{"name": "repo/admin", "inputSchema": {"type": "object"}}` | 通过 | — | [S-10](contract.md#s-10-对端动作描述)：**原样存得下**；它拼不出条目名（[S-11](contract.md#s-11-动作条目名)），那是投影的事 |
 | `{"name": "run", "inputSchema": {"type": "string"}}` | 通过 | — | [S-10](contract.md#s-10-对端动作描述)：这里只要求是对象；能不能成为工具参数在投影时判 |
+| `{"name": "grep", "description": "按正则搜", "inputSchema": {"type": "object", "properties": {"q": {"type": "string", "description": "正则", "pattern": "^(a+)+$"}}}}` | 通过 | — | [S-10](contract.md#s-10-对端动作描述)：**原样存下**。投影时它过了 `data.tool-definition` 表示层的前十二道，在一个回溯保护不收嵌套无界量词的实现上是 `schema_unsupported`——**不被排除**，以同形替换件出现、原因 `schema_unsupported`（M37）；同形照的就是这里存下的 `inputSchema` |
 | `{"name": "run", "inputSchema": {"type": "object"}, "execution": {"taskSupport": "required"}}` | 通过 | — | [S-10](contract.md#s-10-对端动作描述)：**其余成员原样保留**，投影可能要读它 |
 | `{"name": "", "inputSchema": {"type": "object"}}` | 拒绝 | `malformed`（M11） | [S-10](contract.md#s-10-对端动作描述) |
 | `{"name": "search"}` | 拒绝 | `malformed`（M3） | [S-10](contract.md#s-10-对端动作描述)：协议里的必填项；**不补一个 `{}`** |

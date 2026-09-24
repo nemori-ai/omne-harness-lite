@@ -5,7 +5,7 @@
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.messages, 1)`——
   `family = data`、`topic = messages`、规范路径 `spec/data/messages/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：`candidate`——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
+- **状态**：`candidate`——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用。2026-09-25 修复波 3 按实现映射反推写明读写消息 JSON 文本的口径（M36，[S-37](#s-37-规范表示)、[S-39](#s-39-表示层拒绝值)；处置在[验证入口「实现映射反推」](../verification.md#实现映射反推2026-09-25)）
 - **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-009 rev 8、PF-010 rev 6、PF-012 rev 14、PF-013 rev 12、PF-014 rev 7、PF-015 rev 11、PF-006 rev 19、PF-004 rev 12、PF-008 rev 7** 为准。
   2026-09-24 按各 topic 的 changelog 从起草时的 rev 逐版核到当前 rev：PF-009 rev 8 与 PF-010 rev 6 改了 `SystemMessage`（不落会话日志、每次组装现算、本版只含文本，[S-7](#s-7-systemmessage)、[S-6](#s-6-每种消息能装哪几类块)、[S-29](#s-29-合法名单的判定)、[S-32](#s-32-会话日志里的配对与唯一)）与工具帧的收尾（出错照常收尾，[S-13](#s-13-toolinternalmessage)、[S-14](#s-14-toolinternalmessage-怎么收的尾)）；PF-014 rev 6 的「被中断的回复不交出动作」进 [S-10](#s-10-assistantmessage-怎么收的尾)；其余不改本契约条款。逐 topic 的记录见[验证入口「变化的影响」](../verification.md#变化的影响)
 - **精确语义依赖**：
@@ -867,6 +867,7 @@ readable(b, L)      ≝ b 所在的消息在日志前缀 L 里
 | **配对与唯一**（[S-32](#s-32-会话日志里的配对与唯一)） | 同一进程里查一次再写 | 追加**按 `(callId, 消息种类)`、`ResponseId` 幂等**——至少一次的投递会把同一个结果落两遍 | 一次调用两条工具消息：模型看到两个回答，或那一家因一问两答拒收整个请求 |
 | **出门的三条义务**（[S-34](#s-34-四种直接对应)～[S-36](#s-36-toolinternalmessage-不进请求)） | 进程内的一处翻译 | 远端的翻译方照同样三条兑现；**没有任何一跳可以「认不出就丢掉」** | 换一个部署形态，同一个 agent 在同一家模型上的行为变了 |
 | **表示层校验在每个接收边界重做**（[S-39](#s-39-表示层拒绝值)） | 落盘前一次校验 | **每个接收边界各自重验**，不信任上游「已校验过」 | 一条非法消息进了日志，而日志只增不改，它**永远留在那里** |
+| **严格读、数无损**（[S-37](#s-37-规范表示)；M36） | 同一进程里一处无损的读写 | 每一跳（日志副本、跨节点传输、回放）的读写都是 RFC 8259 严格、数无损；重复成员名在每一跳都被拒 | 大整数或金额在某一跳被舍入，回放出来的日志与写下的不是同一份；或同一段文本在两个节点上读出两条不同的消息 |
 | **租户、会话、尝试的绑定在条目上**（[S-33](#s-33-消息不携带租户身份)） | 同一进程里条目与载荷一起写 | 条目壳与载荷**一起过边界**，不单独传消息再在对端补归属 | 一条消息在对端被挂到另一个会话或另一个租户名下 |
 
 ## 六、表示与边界校验
@@ -881,6 +882,8 @@ readable(b, L)      ≝ b 所在的消息在日志前缀 L 里
   不透明标识 `MessageId`、`ResponseId`、`CardId`、`SessionRef`、`AgentRef`、`ScheduleRef`、`RuntimeContextBlockId`。
   消费者 `$ref` 这些定义，**不复制一份同义类型**。**根模式不约束任何文档**：本文件是共享定义的登记处。
 - **成员名一律 camelCase**，枚举值一律 snake_case 字符串；消息的判别成员叫 `type`，来源与运行时记录的叫 `kind`，`about` 里嵌着的另一个 `kind` 与它们不相干。
+- **读写消息（与运行时记录）的 JSON 文本，口径同 [`data.content-blocks/v1#S-24`](../../content-blocks/v1/contract.md#s-24-规范表示)**（主线裁定，见 [D-040 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：按 **RFC 8259 严格**读；**任何一层对象里有重复的成员名即 `malformed`**（[S-39](#s-39-表示层拒绝值)），不在 Schema 求值之前挑一个——一条消息的 `type` 或 `visibility` 被读成两种，就是两份不同的日志；
+  **数无损**：消息与记录里的任何一个 JSON 数读进来、存下（会话日志）、再读出来是同一个十进制数，超出 ±2^53 的整数与金额保留原文、不折成二进制浮点，落盘与回读都走无损读写。**只说一次**：块内的那一半就是 `data.content-blocks` S-24 那一条，这里把同一口径扩到块外的成员与整条消息的文本，不另起一套。
 - 块、块标识、调用标识、执行收场、能力标识的 `name` 经 `$ref` 取 `data.content-blocks/v1`；时刻经 `$ref` 取 `data.offer-expiry/v1` 的 `Instant`；
   `ModelCallId`、`AttemptId` 经 `$ref` 取 `data.call-accounts/v1`；`RouteName`、`ProviderName`、`ModelProfileRef`、`ModelRequestParameters`、`ModelProfileSnapshot` 经 `$ref` 取 `data.model-profile/v1`（S-2、S-5、S-13、S-15、S-27）；
   `CredentialScope` 的租户那一支经 `$ref` 取 `data.identity-values/v1` 的 `ScopeLayerIdentity`（S-11）。
@@ -912,7 +915,7 @@ readable(b, L)      ≝ b 所在的消息在日志前缀 L 里
 | `reminder_nature_mismatch` | `type: system_reminder`，`source.kind` 是十一种之一、`nature` 是两种之一，但两者不是定死的那一对 | [S-16](#s-16-性质与来源定死对应) |
 | `reminder_state_without_previous` | `source.kind: runtime_context_changed`，没有 `previous` 成员 | [S-17](#s-17-说状态的带前值与现值) |
 | `compaction_self_reference` | `type: compaction`，名单里某一项的 `messageId` 是这条消息自己的 `id` | [S-29](#s-29-合法名单的判定) ① |
-| `malformed` | 其余一切不合形状：缺必填成员（含 `type`、`ending`、`silenced` 缺席）、多出成员、类型不对、未知的其他枚举值（含未知的 `source.kind`）、违反 [S-6](#s-6-每种消息能装哪几类块) 的任一格、违反 [S-10](#s-10-assistantmessage-怎么收的尾) 的两条组合约束、`ToolMessage` 的结果块 `reason.code` 是 `terminated_by_agent`（[S-11](#s-11-toolmessage)）、`ToolInternalMessage` 没有块、后台收场提醒里工具结果块的数目或 `callId`／`outcome` 与 `source` 对不上、`about` 与 `what` 对不上、名单重复或摘要与名单都空。**判据只有一条**：不合 Schema，或违反本表之外那几条 Schema 管不到的单条消息内的跨成员约束；上面只是举例 | 各条 |
+| `malformed` | 其余一切不合形状：缺必填成员（含 `type`、`ending`、`silenced` 缺席）、多出成员、类型不对、未知的其他枚举值（含未知的 `source.kind`）、违反 [S-6](#s-6-每种消息能装哪几类块) 的任一格、违反 [S-10](#s-10-assistantmessage-怎么收的尾) 的两条组合约束、`ToolMessage` 的结果块 `reason.code` 是 `terminated_by_agent`（[S-11](#s-11-toolmessage)）、`ToolInternalMessage` 没有块、后台收场提醒里工具结果块的数目或 `callId`／`outcome` 与 `source` 对不上、`about` 与 `what` 对不上、名单重复或摘要与名单都空、读 JSON 文本时某一层对象里有重复的成员名（[S-37](#s-37-规范表示)，M36；块里的那一层按 `data.content-blocks` 同样是 `malformed`）。**判据只有一条**：不合 Schema，或违反本表之外那几条 Schema 管不到的单条消息内的跨成员约束；上面只是举例 | 各条 |
 | `compaction_forward_reference` | `type: compaction`，名单里某一项的 `messageId` 不是这条消息之前的日志里的一条消息 | [S-29](#s-29-合法名单的判定) ② |
 
 **判定分两段，次序固定：**
@@ -961,6 +964,7 @@ readable(b, L)      ≝ b 所在的消息在日志前缀 L 里
 | [S-32](#s-32-会话日志里的配对与唯一) | **管不到** | 写入方 |
 | [S-49](#s-49-模型请求运行时写的五种记录不是消息)、[S-50](#s-50-调用终结的三支) | **管得到**：五种闭合、成员闭合、调用终结三支各带什么（含 `released` 的 `cause` 只取 `credential_unavailable`） | 何时写、谁写——`capability.model-request-runtime`；「已出门」的绑定在一次调用的各次发出上逐字相同、与同一次发出的响应体 `route` 写的值相同——跨记录，写入方 |
 | [S-34](#s-34-四种直接对应)～[S-36](#s-36-toolinternalmessage-不进请求) | **管不到**：都是翻译一方的行为 | 模型请求运行时与传输适配 |
+| [S-37](#s-37-规范表示) 读写 JSON 文本的口径（M36） | **管不到**：重复成员名与数的精度在 Schema 求值之前就定了 | 读消息文本的接收边界（会话日志的读写、跨节点传输）：严格、无损地读，重复键报 `malformed` |
 
 **非法输入的含义**：Schema 校验失败 ⇒ 该输入**不是**一条消息 ⇒ 按 [S-39](#s-39-表示层拒绝值) 取拒绝值、按 [S-40](#s-40-表示层拒绝不是判定也不修补) 收场。
 **Schema 通过也可能仍然非法**——上表「管不到」那一列里属于单条消息的几条（`callId` 相等、`outcome` 相等、自指、块标识唯一）由接收边界兑现。

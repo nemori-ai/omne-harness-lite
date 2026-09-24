@@ -5,13 +5,13 @@
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.loop-extension, 1)`——
   `family = data`、`topic = loop-extension`、规范路径 `spec/data/loop-extension/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审处置修订）——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
-- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-012 rev 14**、**PF-013 rev 12**、**PF-008 rev 7**、**PF-002 rev 20**、**PF-014 rev 7**、**PF-006 rev 19**、**PF-000 rev 1** 为准
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审处置修订，2026-09-25 修复波 3 按实现映射反推加执行环境句柄 [S-41](#s-41-执行环境句柄)）——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
+- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-012 rev 14**、**PF-013 rev 12**、**PF-008 rev 7**、**PF-002 rev 20**、**PF-014 rev 7**、**PF-006 rev 19**、**PF-000 rev 1**、**PF-005 rev 5**、**PF-015 rev 11**（两者只取执行环境句柄指向的会话级沙箱与会话持有的租户身份，[S-41](#s-41-执行环境句柄)）为准
 - **精确语义依赖**（逐项在 catalog 登记）：
 
   | 坐标 | 取它的什么 | 状态 |
   |---|---|---|
-  | `omne-harness-lite-design-2026-09-15 · data.identity-values · v1` | [S-31](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示) 不透明标识的交换表示——`LogHandle` 照它的规则在本契约内定义（不跨契约 `$ref` 那一个 `$def`） | 已接受、已冻结 |
+  | `omne-harness-lite-design-2026-09-15 · data.identity-values · v1` | [S-31](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示) 不透明标识的交换表示——`LogHandle`、`EnvironmentHandle` 照它的规则在本契约内定义（不跨契约 `$ref` 那一个 `$def`） | 已接受、已冻结 |
   | `omne-harness-lite-design-2026-09-15 · data.offer-expiry · v1` | [S-22](../../offer-expiry/v1/contract.md#s-22-schema-的范围) 的 `$defs/Instant`——结论落下的时刻 | 已接受、已冻结 |
   | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1` | `$defs/ToolCallBlock`（含它的 `arguments` 成员：[S-28](#s-28-ask) 改写提议的形状）、`ToolResultBlock`、`CallId`、`ExecutionOutcome`；[S-19](../../content-blocks/v1/contract.md#s-19-派生表示与-transcript) 的派生表示——[S-23](#s-23-rewrite) 模型产出的消息落盘之前只许挂的那一种改动 | 候选 |
   | `omne-harness-lite-design-2026-09-15 · data.asset-model · v1` | [S-2](../../asset-model/v1/contract.md#s-2-能力标识名的词法) 的 `$defs/CapabilityName`——拓展件名（声明里的与结论记录里的）的词法；[S-10](../../asset-model/v1/contract.md#s-10-八类正文的外壳)——身份只在资产记录的 `capability` 上，声明里的 `name` 是它的镜像，不等即 `malformed`；[S-12](../../asset-model/v1/contract.md#s-12-属性声明由正文推出)、[S-13](../../asset-model/v1/contract.md#s-13-设置项类别)、[S-15](../../asset-model/v1/contract.md#s-15-disabled-是保留项名)、[S-36](../../asset-model/v1/contract.md#s-36-usableby-是保留项名)——推出规则的四项义务、`binding` 类别与两个保留项名（[S-40](#s-40-属性项的推出规则)） | 候选 |
@@ -22,7 +22,7 @@
 
   **只引名字，不复述定义。**各条款号登记在 catalog 的 `clauses` 里；正文以坐标与 `$defs` 名指认。
   正文里提到的 `capability.loop-extension-runner`、`capability.tool-admission`、`capability.model-request-runtime`、`capability.hooks-import` 是**消费者**，方向是它们 → 本契约，不登依赖；
-  正文在 S-10、S-14、S-23、S-28、S-33 与第十四节指向它们（以及 `data.model-response`）的条款，是**指路**（那条性质由那一侧兑现、本契约不据以写出任何形状），同样不登；
+  正文在 S-10、S-14、S-23、S-28、S-33、S-41 与第十四节指向它们（以及 `data.model-response`）的条款，是**指路**（那条性质由那一侧兑现、本契约不据以写出任何形状），同样不登；
   S-6、S-40 指向 `capability.asset-governance`（写面的 `valueOutOfDomain`）与 `capability.asset-evaluation`（输入一致性 C10）同理——它们都消费本契约，反向登记会成环
 - **条款编号**：`S-n`，**只在本契约本版本内有效**；外部引用须写全坐标，如 `data.loop-extension/v1#S-21`。
   缺口 `G-n`、性质 `P-n` 同此
@@ -82,6 +82,7 @@
 | 工具的指认用模型面名字：`ModelRequest.tools` 是 `ModelToolName[]`，`ToolDefinitionRef.name` 是模型面名字 | 主线裁定，见 [D-040 §五 K10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) | [S-14](#s-14-按位置的-subject)、[S-15](#s-15-modelrequest) |
 | 属性项的推出规则：`position`、`dimension` 是绑定类设置项，`power` 是权限项；`onError`、`needs`、`implementation`、`unavailability` 不出项 | 规则的义务在 [`data.asset-model/v1#S-12`](../../asset-model/v1/contract.md#s-12-属性声明由正文推出)，「从正文推出」见 [D-040 §块 A A3](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#块-a-形状shapes-draft-assets-v0md-a1a10)；逐项取法是主线裁定，见 [D-040 §五 K9](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) | [S-40](#s-40-属性项的推出规则) |
 | 调模型之前改写参数：响应体记实际发出的值，适配器改动逐项留痕 | 主线裁定，见 [D-040 §五 K13](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)；落在 `data.model-response` | [S-23](#s-23-rewrite) |
+| 输入带一只按会话作用域的执行环境句柄：不交出会话标识，经它取得调用方租户身份与这一会话的执行环境 | 主线裁定，见 [D-040 §八 M38](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)；执行环境是 [PF-005 §6.3 会话级沙箱](../../../../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 5）的那一个，租户身份是 [PF-015 §6.12](../../../../product/PF-015-session-lifecycle-and-ownership/design.md#612-会话持有创建那一刻的租户身份)（rev 11）会话持有的那一个；不交出会话标识沿用 [D-040 §六 L9](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) | [S-11](#s-11-输入的成员)、[S-41](#s-41-执行环境句柄) |
 | 兼容件在 `ask` 时带的改写提议 | 主线裁定，见 [D-040 §五 K32](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)；兑现在 `capability.hooks-import` | [S-28](#s-28-ask) |
 | 从别家搬来的 hook 出的卡借放行判断那几档的样子，但不带授权含义 | [PF-008 §6.8](../../../../product/PF-008-human-in-the-loop/design.md#68-三种来源的卡片同一个形状选项与记录不同)（rev 6 起） | [S-28](#s-28-ask) |
 | 统一语言正式名与形态 | [UL-loop-extension](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension) · [UL-loop-extension-point](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point) · [UL-wait-primitive](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-wait-primitive--等待原语--wait-primitive) · [UL-replay](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-replay--回放--replay) · [UL-decision-card](../../../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-decision-card--决策卡片--decision-card) · [UL-admission-decision](../../../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-admission-decision--放行判断--admission-decision) · [UL-run](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run--运行--run) · [UL-run-attempt](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt) · [UL-run-terminal-state](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run-terminal-state--运行终态--run-terminal-state) · [UL-effective-model](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-effective-model--有效模型--effective-model) · [UL-setting-category](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category) · [UL-dependency-declaration](../../../../ubiquitous_language/terms/reach-and-availability.md#ul-dependency-declaration--依赖声明--dependency-declaration) · [UL-intervention-power](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-intervention-power--干预力--intervention-power) · [UL-extension-point-pass](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-extension-point-pass--一次经过--extension-point-pass) · [UL-extension-unavailability-policy](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-extension-unavailability-policy--拓展件不可用处置--extension-unavailability-policy) · [UL-legal-target-set](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-legal-target-set--合法目标集合--legal-target-set) · [UL-retry-exhaustion](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-retry-exhaustion--试尽--retry-exhaustion)；只引：[UL-agent-runtime](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-agent-runtime--agent-runtime--agent-runtime) · [UL-record-entry](../../../../ubiquitous_language/terms/record-and-context.md#ul-record-entry--记录条目--record-entry) · [UL-assembly-manifest](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest) | 全部正式名 |
@@ -105,7 +106,7 @@
 1. 十一个位置与两个维度的取值（[S-1](#s-1-十一个位置)～[S-3](#s-3-管哪些情形本版只有维度)）；
 2. 干预力三档与报错处置策略的取值（[S-4](#s-4-干预力三档)、[S-5](#s-5-报错处置策略)）；
 3. 一件拓展件的**声明**长什么样（[S-6](#s-6-声明的成员与类别)～[S-10](#s-10-本版没有-order)），以及由它推出的属性项（[S-40](#s-40-属性项的推出规则)）；
-4. 运行时交给拓展件的**输入**，按位置判别的主体（[S-11](#s-11-输入的成员)～[S-18](#s-18-terminalfact)）；
+4. 运行时交给拓展件的**输入**，按位置判别的主体（[S-11](#s-11-输入的成员)～[S-18](#s-18-terminalfact)），含执行环境句柄（[S-41](#s-41-执行环境句柄)）；
 5. 拓展件交回的**结论**——封闭八种，以及档、位置各自允许哪几种（[S-19](#s-19-结论封闭八种)～[S-29](#s-29-没有放宽)）；
 6. 结论**落日志的记录形状**（[S-30](#s-30-每件的结论必留)～[S-32](#s-32-结论即走向)）；
 7. 决策卡片**草稿**的形状（[S-28](#s-28-ask)）。
@@ -138,7 +139,8 @@
 | **系统自带的五件**（下表） | 与外来件同一套形状，**不享受特权** |
 | **资产领域**（PF-002 持有） | 声明推出的属性项：哪几项是设置、属哪一类，哪一项是权限（S-4、S-6、[S-40](#s-40-属性项的推出规则)） |
 | `data.model-response` v1、`data.arrival-events` v1 | `FailureCause` 八值——**名字由本契约定，它们 `$ref`**（S-17）；`select_model` 的留痕落在响应体的 `route.selectedBy`（S-24） |
-| `capability.hooks-import` v1 | `command` 件的载荷（S-8）；统一输入与结论是它两边翻译的这一头 |
+| `capability.hooks-import` v1 | `command` 件的载荷（S-8）；统一输入与结论是它两边翻译的这一头；子进程落在哪经执行环境句柄取（S-41） |
+| `capability.modality-projection` v1 | 系统自带的模态转换件以谁的租户身份转，经执行环境句柄取（S-41） |
 | `capability.tool-admission` v1、`capability.model-request-runtime` v1 | 放行判断与重试这两件系统自带件的输入、结论与卡片草稿（S-14、S-27、S-28）；`ModelRequest` 与 `ToolDefinitionRef` 里的工具名是模型面名字（S-14、S-15） |
 
 **系统自带的五件**，站在哪、用本契约的哪几种结论（位置与干预力取自 [PF-012 §5.8](../../../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件各站在哪)；「用哪几种结论」是本契约的对照）：
@@ -183,7 +185,7 @@
 | `SelectModelOutput` | 改这一次请求的[有效模型](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-effective-model--有效模型--effective-model) |
 | `needs` | [依赖声明](../../../../ubiquitous_language/terms/reach-and-availability.md#ul-dependency-declaration--依赖声明--dependency-declaration)（词条正文写的是「工具或技能」，本契约把同一概念用在拓展件上，见 [G-5](#十四已知缺口)） |
 
-**`Dimension`、`ErrorPolicy`、`Subject`、`ExtensionInput`、`ExtensionOutput`、`Conclusion`、`LogHandle`、`TerminalFact`、`RetryPlan`、`CardOption` 是规格层的形状名，不是词条**，Schema 里因此不给它们「中文 · English」式标题。
+**`Dimension`、`ErrorPolicy`、`Subject`、`ExtensionInput`、`ExtensionOutput`、`Conclusion`、`LogHandle`、`EnvironmentHandle`、`TerminalFact`、`RetryPlan`、`CardOption` 是规格层的形状名，不是词条**，Schema 里因此不给它们「中文 · English」式标题。
 
 **正文用到、词表里没有的概念（无词条）**——本契约**不给它们下定义**，只指到产品正文：
 状态点（[PF-012 §5.3](../../../../product/PF-012-agent-loop-and-run/design.md#53-改日志的动作与纯派生的动作)）、
@@ -420,7 +422,7 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 
 ### S-11 输入的成员
 
-**`ExtensionInput = { position, dimension?, run?, attempt?, subject, earlier, log }`**，不许有其他成员。
+**`ExtensionInput = { position, dimension?, run?, attempt?, subject, earlier, log, environment }`**，不许有其他成员。
 
 | 成员 | 含义 | 有无 |
 |---|---|---|
@@ -429,6 +431,7 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 | `subject` | 按位置判别的主体（[S-14](#s-14-按位置的-subject)） | 必有 |
 | `earlier` | 同一次经过里排在前面的件已经落下的结论（[S-13](#s-13-瀑布里的-subject-与-earlier)） | 必有；排第一的件拿到空数组 |
 | `log` | 会话日志的只读句柄 | 必有 |
+| `environment` | 这一次经过所在会话的**执行环境句柄**（[S-41](#s-41-执行环境句柄)） | **必有，十一个位置都带**：它不交出会话标识，也不交出有没有运行在跑 |
 
 **`before_persist_message` 不带 `run` 与 `attempt`，是因为那一刻看不到有没有运行在跑**
 （[PF-014 §5.6](../../../../product/PF-014-inbound-intake-and-queueing/design.md#56-消息落盘之前那一刻看得到什么)、
@@ -448,6 +451,21 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 - **`LogHandle` 只能读**：读面由 runner 能力给；拓展件改日志的**唯一**办法是交回结论。它**不是**一份日志快照，拓展件也不得把读到的东西当成「跨等待的记忆」（[S-35](#s-35-跨过一次等待只能带已落日志的东西)）。
 - **`LogHandle` 不跨契约引用 `data.identity-values` 的那一个 `$def`**：不透明标识按 S-31 的规则由各契约自己写出形状。
 - `LogHandle` 的读面本契约不定，由 `capability.loop-extension-runner` v1 S-9 定；**不得用运行实例的内存身份充当运行标识**。
+
+### S-41 执行环境句柄
+
+**`environment` 是这一次经过所在会话的执行环境句柄**（主线裁定，见 [D-040 §八 M38](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：一件拓展件要以这个会话的身份做事——系统自带的模态转换件以调用方租户身份读写附件字节，兼容件在这一会话的会话级执行环境里起子进程——就经它取，**不经别的通道**。
+
+| 项 | 内容 |
+|---|---|
+| **作用域** | **按会话**：它只指这一次经过所在的那个会话，与 `log`（[S-12](#s-12-三个引用)）同一个会话 |
+| **经它取得的恰两样** | ① **调用方租户身份**——这个会话持有的那个 `TenantId`（[PF-015 §6.12](../../../../product/PF-015-session-lifecycle-and-ownership/design.md#612-会话持有创建那一刻的租户身份)）；② **这一会话的执行环境**——[PF-005 §6.3](../../../../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存) 的会话级执行环境，作为执行环境那一侧的接口输入（那一侧本版没有契约） |
+| **经它取不到的** | **会话标识**（[D-040 §六 L9](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) 不变：统一输入里没有会话标识，这只句柄也不交出它）；别的会话、别的租户的任何东西；有没有运行在跑（[S-11](#s-11-输入的成员) 末段的理由对它同样成立，所以它在十一个位置上一样带） |
+| **表示** | `EnvironmentHandle`：照 [`data.identity-values/v1#S-31`](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示) 的规则在本契约内定义——非空、首尾不是空白、逐码点相等、**不解析**；两只句柄相等不说明任何事，拓展件不得从它的串里读出会话或租户 |
+
+- **它是句柄，不是一份值的快照**：租户身份与执行环境要经它**解析**才拿得到；解析得到什么、何时有效、解析不出时怎样，本契约不定，由 `capability.loop-extension-runner` v1 S-50 定——与 `LogHandle` 的读面归 runner S-9 同一个分法。
+- **解析不出不是「没有」**：取不到租户身份不得当成没有租户、取不到执行环境不得回退宿主机（[PF-005 §6.9](../../../../product/PF-005-execution-environments-and-sandboxes/design.md#69-落点不可用就是拒绝不降级)）；那一件怎样收，归它自己的契约与 runner S-50。
+- **它不是跨等待的记忆**（[S-35](#s-35-跨过一次等待只能带已落日志的东西)）：下一次调用拿到的是一只新句柄。
 
 ### S-13 瀑布里的 subject 与 earlier
 
@@ -852,7 +870,7 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 - 拓展件用的是 loop 共用的[等待原语](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-wait-primitive--等待原语--wait-primitive)——等模型、等人都是它；
   它自己调模型的那一次，结果与花费照样落日志，**回放时从日志交回**，不花第二遍钱、不再问第二遍模型、不出第二张卡。
 - 回放时走到的地方与上次不同，**停住并可见**——那说明拓展件没守住这一条（[UL-replay](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-replay--回放--replay) 注意 ①）。
-- **本契约的形状让它守得住**：`ExtensionInput` 里没有「上一次的内存」这一格，`LogHandle` 只读、不是快照，
+- **本契约的形状让它守得住**：`ExtensionInput` 里没有「上一次的内存」这一格，`LogHandle` 只读、不是快照，`EnvironmentHandle` 每次调用一只新的（[S-41](#s-41-执行环境句柄)），
   `earlier` 与日志是它唯一能看到的前情。
 
 ## 十、装配给与协议给
@@ -867,6 +885,7 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 | **不可用与报错两分**（[S-33](#s-33-不可用与报错两分)） | 进程内：依赖解析失败与抛出的错误本来就分得开 | 跨进程后「连不上」「超时」「反序列化失败」先是传输层的事，**协议须把它们一律映射到两者之一并可见**；映射到不可用时照这一件的不可用处置办 | 传输故障被读成否决（替没跑的东西编结论）或被读成无意见（把关的那一关静默没了） |
 | **表示层校验**（[S-37](#s-37-表示层拒绝值)） | runner 在同一进程里校验一次 | **每个接收边界各自重新校验**；上游已校验过不算数 | 一条冒名的 `inject`、一条越档的 `veto` 在某一跳没被拦下 |
 | **只读句柄**（[S-12](#s-12-三个引用)） | 进程内只读视图 | 读面协议要说清读到的日志至少包含本次经过之前的全部条目 | 拓展件据一份陈旧的日志下结论，回放时读到的与第一次不同 |
+| **执行环境句柄只及本会话**（[S-41](#s-41-执行环境句柄)） | runner 与会话同在一个进程：按这一次经过所在的会话造它 | 解析请求携带会话与租户身份，**在接收边界重新验证**（`data.identity-values/v1#S-30`）；句柄的串不承载会话标识 | 一件拓展件以别的租户身份读到附件字节，或在别的会话的执行环境里起了子进程 |
 | **`ask` 的卡片先于等待落盘**（[S-28](#s-28-ask)） | 同一存储：卡片与「运行在等」一起可见 | 卡片的提交必须先于运行进入等人对外可见 | 运行在等，却没有一张可答的卡片——永远等下去 |
 | **name 相等**（[S-7](#s-7-name-是身份)） | 值比较 | **不变**——纯值判定 | — |
 
@@ -876,8 +895,8 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 
 - **规范表示**：[`loop-extension.schema.json`](loop-extension.schema.json)，JSON Schema **Draft 2020-12**。
   `$id` = `https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/loop-extension/v1/loop-extension.schema.json`
-- **定义项**（41 项）：`LoopPosition` · `Dimension` · `Power` · `ErrorPolicy` · `UnavailabilityPolicy` · `LoopExtensionDefinition` · `ExtensionImplementation` ·
-  `LogHandle` · `FailureCause` · `TerminalFact` · `CompactionPlan` · `ModelRequest` · `ToolDefinitionRef` ·
+- **定义项**（42 项）：`LoopPosition` · `Dimension` · `Power` · `ErrorPolicy` · `UnavailabilityPolicy` · `LoopExtensionDefinition` · `ExtensionImplementation` ·
+  `LogHandle` · `EnvironmentHandle` · `FailureCause` · `TerminalFact` · `CompactionPlan` · `ModelRequest` · `ToolDefinitionRef` ·
   十三种 Subject（`AttemptStartedSubject` … `AfterTerminalSubject`）与 `Subject` · `ExtensionInput` ·
   八种结论（`ObservedOutput` … `AskOutput`）与 `ExtensionOutput` · `RetryPlan` · `CardOption` · `DecisionCardDraft` · `Conclusion`。
   消费者 `$ref` 这些定义，**不复制一份同义类型**。
@@ -971,6 +990,8 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 | `veto`、`stop` 缺 `reason` | 拒绝（`malformed`）——否决与停下运行**必须说原因** | 拓展件 |
 | `stop` 缺 `terminal` | 读作 `cancelled`（S-26）——**这是主线裁定给的缺省（[D-040 §S7 S7-a](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s7loop-extension报回的)），不是本契约填的** | runner |
 | 拓展件依赖的东西此刻不在 | 不可用，记 `skipped: unavailable` 与实际采用的处置；**只有按 `veto` 处置时才是否决**，`skip` 不是否决 | runner |
+| 输入缺 `environment` | 拒绝（`malformed`）；**不从运行实例、进程上下文或「当前会话」补** | runner |
+| 执行环境句柄此刻解析不出租户身份或执行环境 | **不是「没有租户」「没有执行环境」**，也不回退宿主机（[S-41](#s-41-执行环境句柄)）；怎样收归 runner S-50 与那一件自己的契约 | runner、那一件 |
 | 运行时协程被回收，一件拓展件停在 `ask` | 卡片与结论都在日志里；下一次尝试回放到出卡处，拿记下的答复 | runner（回放） |
 | 系统重启 | 一切前情只来自日志；已有最终结论的件不重跑 | runner |
 

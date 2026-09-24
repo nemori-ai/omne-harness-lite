@@ -14,6 +14,7 @@
 |---|---|
 | `T` | 会话 `ses_1` 持有的租户身份 |
 | `run_1` | `ses_1` 里一次未终结的运行；`attempt = 1` |
+| `rpt_1` | `ses_1`、`run_1` 这一次尝试（`attempt = 1`）开始时算出的可用性报告（`capability.asset-registry/v1#S-11`；它带的会话、运行、尝试就是这三者），loop 交给 runner `dispatch` 的 `admission.report` 就是它；本文件写作 `submit(..., [...])` 的调用都带它（[S-23](contract.md#s-23-提交一批) ①） |
 | `build` | 工具：`allowBackground: true`，`backgroundThreshold: PT5M`，`timeout: PT30M`，没有 `concurrency` |
 | `deploy` | 工具：没有 `allowBackground`（不能后台），没有 `timeout` |
 | `confirm_plan` | 工具：执行中会进一次等待，挂一张决策卡片，不给到点 |
@@ -27,7 +28,7 @@
 
 | 步 | 调用或发生 | 预期 | 依据 |
 |---|---|---|---|
-| 1 | `submit(T, ses_1, run_1, 1, [{ call: build(call_a), admission: tok_a, environment: env_1, definition: {name: build} }])` | 参数合 `build` 的 `input`；`[{ callId: call_a, disposition: accepted{foreground} }]`；执行记录 `queued`；一条提交条目 | [S-23](contract.md#s-23-提交一批) ④ |
+| 1 | `submit(T, ses_1, run_1, 1, rpt_1, [{ call: build(call_a), admission: tok_a, environment: env_1, definition: {name: build} }])` | 参数合 `build` 的 `input`；`[{ callId: call_a, disposition: accepted{foreground} }]`；执行记录 `queued`；一条提交条目 | [S-23](contract.md#s-23-提交一批) ④ |
 | 2 | 起执行者 | 落点到位、执行者起来 → `running`；一条起执行者条目 | [S-38](contract.md#s-38-起执行者) |
 | 3 | loop `awaitForeground(T, ses_1, call_a)` | 等着 | [S-24](contract.md#s-24-等前台那一次调用落定) |
 | 4 | 执行者 3 分钟后交回字符串 `"built 12 targets"` | 归一成只含一个文本块的 `ToolResult`；收场 `completed`；`subject.result` 带着它经过 `after_action`，卸载判定给「原样」 | [S-41](contract.md#s-41-交回)、[S-42](contract.md#s-42-结果落成消息之前的那一关) |
@@ -126,10 +127,11 @@
 | 失败值 | 局面 | 调用 | 结果 | 为什么不是别的值 |
 |---|---|---|---|---|
 | `invalidInput` | —— | `answerWait(T, ses_1, call_c, 缺, {value: {choice: "A"}, by: 人})` | `invalidInput` | `waitIndex` 缺席不替它猜成当前那一次（[S-30](contract.md#s-30-答复等待) ⑧）；**不是** `notWaiting`：表示层校验不是一次判定 |
+| `invalidInput`（报告不对） | `rpt_2` 是 `ses_1` 里另一次运行 `run_2` 的报告；`run_1` 已进到第 2 次尝试，`rpt_1` 是第 1 次尝试的那份 | `submit(T, ses_1, run_1, 1, rpt_2, [build(call_a)/tok_a])`；或 `submit(T, ses_1, run_1, 2, rpt_1, [build(call_a)/tok_a])`；或 `report` 缺席 | 三种都是整批 `invalidInput`，什么都不写，`call_a` 没有记录 | 报告带的会话、运行、尝试须与本次三者都相同：前一种运行不是 `run_1`，后一种尝试是 `1` 不是 `2`（[S-23](contract.md#s-23-提交一批) ⑥；[D-040 §八 M46](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）；缺席不替它现算一份、不取「最近一次」（⑧）；**不是** `dependencyUnavailable{registry}`：报告随请求交来，不是一个会读不到的依赖（[S-47](contract.md#s-47-依赖的提供者不可用)）；**不是** `crossTenant`：只比对交来的值，先于一切（[D-040 §八 M33](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） |
 | `notAdmitted{why}` | `tok_b` 绑定的是 `deploy` 的另一份参数 | `submit(..., [build(call_a)/tok_a, deploy(call_b)/tok_b])` | 整批 `notAdmitted`；**`call_a` 也没有记录** | 一条凭据不符整批拒（[S-23](contract.md#s-23-提交一批) ②） |
 | `admissionUnavailable` | 放行核对面此刻不可用 | 同上一行的 `submit`（凭据都正确） | 整批 `admissionUnavailable`，一项都不执行 | 「判不出来」不是「判为不符」，也不放行（[S-15](contract.md#s-15-缺席时的默认答案)） |
 | `backgroundNotAllowed` | `deploy(call_b)` 在前台跑 | `background(T, ses_1, call_b)` | `backgroundNotAllowed` | 定义没声明 `allowBackground`＝不能（[S-27](contract.md#s-27-转后台) ⑧）；发起即后台的同一种情形在 `submit` 里**不是失败值**，是那一项的收场 `failed{background_start_refused}`（见本节末） |
-| `crossTenant` | `ses_1` 持有 `T` | `submit(T', ses_1, run_1, 1, [build(call_z)/tok_z])`，`T' ≠ T` | 整批 `crossTenant`，什么都不写 | 提交时还没有记录，核对的是会话持有的租户（[S-21](contract.md#s-21-租户与会话范围)、[S-23](contract.md#s-23-提交一批) ②）；**不是** `executionNotFound`：那是对已有记录的读 |
+| `crossTenant` | `ses_1` 持有 `T` | `submit(T', ses_1, run_1, 1, rpt_1, [build(call_z)/tok_z])`，`T' ≠ T` | 整批 `crossTenant`，什么都不写 | 提交时还没有记录，核对的是会话持有的租户（[S-21](contract.md#s-21-租户与会话范围)、[S-23](contract.md#s-23-提交一批) ②）；**不是** `executionNotFound`：那是对已有记录的读 |
 | `notInForeground` | `build(call_a)` 已转后台，执行者要进一次等待 | 等待原语 | `notInForeground`，执行者自己决定怎么办 | 本版等待只在前台（[S-12](contract.md#s-12-等待) ③）；**不隐式转回前台** |
 | `notInBackground` | `deploy(call_b)` 在前台 | `interrupt(T, ses_1, call_b, agent)` | `notInBackground` | agent 掐掉的是已转后台的执行（[S-25](contract.md#s-25-中断一次执行) ③） |
 | `callIdConflict` | `call_a` 已登记，参数 `{target: x}` | `submit(..., [build(call_a, {target: y})/tok_a'])` | 整批 `callIdConflict` | 同一 `CallId` 不同参数，不是重复提交（[S-23](contract.md#s-23-提交一批) ⑦） |
@@ -163,7 +165,7 @@
 
 | 调用 | 结果 | 为什么 |
 |---|---|---|
-| `submit(T, ses_1, run_1, 1, [build(call_a)/tok_a, { call: grep_files(call_x) }])`——后一项是 `UnlistedCall` | 批成立：`[call_a: accepted{foreground}, call_x: ended{unavailable}]`；`call_x` 记录上的原因 `no_such_entry`，`ToolMessage` 的块写明这次尝试里没有这个工具、**不带 `reason`**；没有凭据、执行者不起、外部效果「已确定未发生」 | 本能力以 `call.tool` 原样（`grep_files`）查注册表，答「没有」——一个结论，只落这一项 |
+| `submit(T, ses_1, run_1, 1, rpt_1, [build(call_a)/tok_a, { call: grep_files(call_x) }])`——后一项是 `UnlistedCall` | 批成立：`[call_a: accepted{foreground}, call_x: ended{unavailable}]`；`call_x` 记录上的原因 `no_such_entry`，`ToolMessage` 的块写明这次尝试里没有这个工具、**不带 `reason`**；没有凭据、执行者不起、外部效果「已确定未发生」 | 本能力以 `call.tool` 原样（`grep_files`）查注册表，答「没有」——一个结论，只落这一项 |
 | 同上，但 `grep_files` 在这次尝试的 `tool` 表里**查得到** | 整批 `notAdmitted`，什么都不写 | 没经放行、却有可执行的条目：与缺凭据同一种，**不信交来一方说的「查不到」** |
 | 同上，但注册表此刻读不到 | 整批 `dependencyUnavailable{registry}` | 「读不到」不是「没有」：判不出来就不收 |
 | MCP 动作 `github:search_issues` 的一次调用，调用块里 `tool` 是模型面名字 `github__search_issues`，以 `AdmittedCall` 交来 | 查注册表用 `github__search_issues` 原样，查到条目；之后才逆转写成定义名 `github:search_issues`，找执行者（桥）用它 | [S-23](contract.md#s-23-提交一批) ② 第 6 条；逆转写只为找执行者（[S-37](contract.md#s-37-执行者登记与撤下)） |
@@ -174,13 +176,13 @@
 
 | 步 | 调用 | 预期 | 依据 |
 |---|---|---|---|
-| 1 | `submit(T, ses_1, run_1, 1, [build(call_a)/tok_a, fs(call_e, {command: "grep", args: {path: "src", pattern: "TODO", ignore_case: true}})/tok_e, { call: call_u }])` | 批成立：`[call_a: accepted{foreground}, call_e: ended{failed}, call_u: ended{failed}]`；`call_e` 种类 `arguments_invalid`（第 8 节末那张表第一行）；`call_u` 种类 `unparseable`，`ToolMessage` 的块写明参数解析不了——**没有凭据、不查注册表、执行者不起**，外部效果「已确定未发生」 | [S-23](contract.md#s-23-提交一批) ①④、[S-11](contract.md#s-11-失败的种类)、[S-64](contract.md#s-64-参数收齐却解析不了) |
+| 1 | `submit(T, ses_1, run_1, 1, rpt_1, [build(call_a)/tok_a, fs(call_e, {command: "grep", args: {path: "src", pattern: "TODO", ignore_case: true}})/tok_e, { call: call_u }])` | 批成立：`[call_a: accepted{foreground}, call_e: ended{failed}, call_u: ended{failed}]`；`call_e` 种类 `arguments_invalid`（第 8 节末那张表第一行）；`call_u` 种类 `unparseable`，`ToolMessage` 的块写明参数解析不了——**没有凭据、不查注册表、执行者不起**，外部效果「已确定未发生」 | [S-23](contract.md#s-23-提交一批) ①④、[S-11](contract.md#s-11-失败的种类)、[S-64](contract.md#s-64-参数收齐却解析不了) |
 | 2 | 第 1 步原样再提交一次 | 三行与第 1 步**逐字相同**；没有第二次执行者、没有多一条记录或消息 | [S-23](contract.md#s-23-提交一批) ⑦ |
 | 3 | 第 1 步的三项再加 `deploy(call_n)/tok_n` 一起提交 | 整批 `notAdmitted`；`call_n` 没有记录；**`call_a`、`call_e`、`call_u` 不受影响**（`call_a` 照跑） | [S-23](contract.md#s-23-提交一批) ②⑦ |
 | 4 | `cancelForRun(T, ses_1, run_1, graceful)`，之后第 1 步原样再提交一次 | `call_a` 收场 `interrupted{run_cancelled}`；重放**批成立**，三行仍是第 1 步那三行（`call_a: accepted{foreground}`）——**不是 `alreadyEnded`**：那一批已经收下了；`call_a` 此刻的收场从 `readExecution` 读 | [S-23](contract.md#s-23-提交一批) ⑤⑦、[S-33](contract.md#s-33-读一次执行) |
-| 5 | `submit(T, ses_1, run_1, 1, [build(call_a, {target: y})/tok_a'])`（`call_a` 原参数是 `{target: x}`） | 整批 `callIdConflict`，什么都不写 | [S-23](contract.md#s-23-提交一批) ⑦ |
-| 6 | `submit(T', ses_1, run_1, 1, [build(call_a)/tok_a, build(call_a, {target: y})/tok_a'])`，`T' ≠ T` | 整批 `crossTenant`：**不按幂等返回 `call_a` 的首次结果，也不报 `callIdConflict`**——租户核对在判重之前，别的租户据返回值读不到这个会话里有什么 | [S-23](contract.md#s-23-提交一批) ②、[S-67](contract.md#s-67-租户不符整批不收) |
-| 7 | 会话持有的租户此刻读不到；`submit(T, ses_1, run_1, 1, [build(call_k)/tok_k])` | 整批 `dependencyUnavailable{storage}`：不当作相符放行，也不当作不符拒 | [S-23](contract.md#s-23-提交一批) ⑧、[S-15](contract.md#s-15-缺席时的默认答案) |
+| 5 | `submit(T, ses_1, run_1, 1, rpt_1, [build(call_a, {target: y})/tok_a'])`（`call_a` 原参数是 `{target: x}`） | 整批 `callIdConflict`，什么都不写 | [S-23](contract.md#s-23-提交一批) ⑦ |
+| 6 | `submit(T', ses_1, run_1, 1, rpt_1, [build(call_a)/tok_a, build(call_a, {target: y})/tok_a'])`，`T' ≠ T` | 整批 `crossTenant`：**不按幂等返回 `call_a` 的首次结果，也不报 `callIdConflict`**——租户核对在判重之前，别的租户据返回值读不到这个会话里有什么 | [S-23](contract.md#s-23-提交一批) ②、[S-67](contract.md#s-67-租户不符整批不收) |
+| 7 | 会话持有的租户此刻读不到；`submit(T, ses_1, run_1, 1, rpt_1, [build(call_k)/tok_k])` | 整批 `dependencyUnavailable{storage}`：不当作相符放行，也不当作不符拒 | [S-23](contract.md#s-23-提交一批) ⑧、[S-15](contract.md#s-15-缺席时的默认答案) |
 
 **反例**：第 4 步答 `alreadyEnded`——调用方会以为那一批从没进来过，再补一条结果，同一次调用就有了两条结果；第 1 步把 `call_u` 交给 `fs` 的执行者去猜参数，或因为它没有凭据而整批 `notAdmitted`。
 

@@ -8,6 +8,7 @@
 - **标识串只是占位**：`ev_1`、`ast_k` 这类写法不承诺任何词法（`data.identity-values/v1#S-31`）；能力标识写成「类别:名字」只为好读，规范串归 `data.asset-model/v1#S-3`。
 - **「预期」是契约要求的可观察结果，不是某次执行的记录**；执行状态在[验证入口](../verification.md)。
 - **两个必填判别式照写**：`refreshAvailability` 的 `run`（`start{运行}`／`continue{运行, 报告}`，运行标识写成 `R1`、`R2`……），`lookup`／`list` 的 `within`（`session`／`run{报告}`）（[S-19](contract.md#s-19-缺席时的默认答案)）。
+- **`refreshAvailability` 另带必填的 `attempt`**（这一次尝试的 `AttemptId`，写成 `T1`、`T2`……；[S-24](contract.md#s-24-refreshavailability每次执行尝试开始时现算) ①，M46）：下文不逐次写出的，一律是调用所在那一次尝试自己的尝试标识；每份报告都带着会话、运行与它。
 
 **共用的局面**（除非某节另说）：
 
@@ -37,7 +38,8 @@
 | 6 | 观察 `connector`、`agent_definition` | 没有这两张表；`list(s1, connector, within: session)` ⇒ `categoryNotRegistered` | [S-5](contract.md#s-5-八类里登记六张表) |
 | 7 | 观察装配清单 | 这一次恰一条构成记录，列出每条条目的能力标识、资产记录、被选用的版本、来源格、常驻与次序；**没有可用性** | [S-18](contract.md#s-18-快照不持久装配清单是唯一权威) |
 | 8 | `lookup(s1, slash_command, "/secret", within: session)` 与 `lookup(s1, slash_command, "/nosuch", within: session)` | 两者都是「没有」，**逐字相同** | [S-14](contract.md#s-14-会话斜杠命令集是-slash_command-那张表的视图) |
-| 9 | 同一个 `ev_1` 再 `fill` 一次（回执丢了的重试） | 原样返回那六份，`filledAt` 不变，**装配清单不多一条** | [S-22](contract.md#s-22-fill装配时填六张) ⑦ |
+| 9 | 同一个 `ev_1` 再 `fill` 一次（回执丢了的重试） | 原样返回那六份，`filledAt` 不变，**装配清单不多一条** | [S-22](contract.md#s-22-fill装配时填六张) ⑦ ② |
+| 10 | 接第 2 节第 2 步之后（`plugin`、`skill`、`slash_command` 已由 reload 换过），再拿 **`ev_1`** `fill` 一次 | **`invalidInput{evaluationSuperseded}`**：`ev_1` 那条记录已落下、六张却已不全是它填出的；表不换、装配清单不多一条——**不当作一次新装配**，会话不退回第 1 节的样子 | [S-22](contract.md#s-22-fill装配时填六张) ⑦ ③；[D-040 §八 M34](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) |
 
 ## 2. reload-plugin 连带
 
@@ -51,6 +53,8 @@
 | 4 | 观察 `tool` 表 | **没换**（`filledAt` 不变）：`fetch` 不是 `kit` 的成员，要等 `omne-official:reload-tool` | [S-23](contract.md#s-23-reload按类别重填) |
 | 5 | 在第 2 步的提交之前任意时刻读 | 三张表都是旧的；**没有「`kit` 是新的、成员表还是旧的」那一刻** | [S-17](contract.md#s-17-换表同一会话串行多表一次成败同一) |
 | 6 | 人再敲一次 `omne-official:reload-plugin` | 又是三份新快照（新的 `filledAt`），条目与第 2 步相同——**不去重** | [S-23](contract.md#s-23-reload按类别重填) ⑦ |
+| 7 | 换一种时序：第 2 步的 reload 发生在运行 `R1` 的尝试 `T1` 进行中（`T1` 的报告在 reload 之前算出）；`T1` 里 `lookup(s1, skill, "lint", within: run{T1 的报告})`、`list(s1, slash_command, within: run{T1 的报告})` | `lint` 是「**没有**」；`/fmt` **还在**——`T1` 只在它报告所依的那几份快照里找，reload 换上的快照对它不可见；同一时刻 `within: session` 的读已是新的 | [S-25](contract.md#s-25-lookup查一条) ④、[S-11](contract.md#s-11-一次执行尝试的可用性报告) 第 1 条；[D-040 §八 M35](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) |
+| 8 | 接第 7 步；`R1` 的尝试 `T2` → `refreshAvailability(s1, run: continue{R1, T1 的报告}, attempt: T2)`，再同样读 | 报告依的是 reload 之后的快照：`lint` 查得到（带这份报告里的可用性），`/fmt` 是「没有」——**同一运行的下一次尝试起看得见** | 同上；[S-34](contract.md#s-34-进行中的运行与撤销) |
 
 ## 3. MCP 接入点连不上：动作不可用，同名替换件顶上
 
@@ -58,7 +62,7 @@
 
 | 步 | 调用 | 预期 | 依据 |
 |---|---|---|---|
-| 1 | 尝试一开始（运行 `R1` 的第一次尝试）→ `refreshAvailability(s1, run: start{R1})` | 第一次求值给出 `gh` 此刻生效的那份持有，记进报告的 `endpointHoldings`；报告里 `gh` 那一行 `available`；`tool` 表另有三条 `gh` 的动作条目，`available`、`resident = false`，名字由桥起（定义名如 `gh:create_issue`，模型面名字 `gh__create_issue`）；第二次求值带上这份动作集，报告的 `effectivePermissions` 对三条各有一项 `execute:<对端动作名>`，**另对 `Tools`、`Ask`、`grep` 各有一项**——**每一项以条目的模型面名字为键**（`gh__create_issue`、`grep`……）；`grep` 那一项是它能力标识的 `execute`，与动作的几项取自同一次（第二次）求值，每项带 `tenantAutoWritable`；**`Tools`、`Ask` 是 meta 门，那两项恒为 `{auto}`、`tenantAutoWritable` 为假，不读求值**（本例假定 [G-7](contract.md#十已知缺口) 已给出它们是门） | [S-12](contract.md#s-12-mcp-动作条目在一次尝试内钉住) 第一行、[S-24](contract.md#s-24-refreshavailability每次执行尝试开始时现算) ④、[S-11](contract.md#s-11-一次执行尝试的可用性报告)；[D-040 §七 M8、M21](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加) |
+| 1 | 尝试一开始（运行 `R1` 的第一次尝试，`attempt = T1`）→ `refreshAvailability(s1, run: start{R1}, attempt: T1)` | 报告带 `s1`、`R1` 与 `T1`；第一次求值给出 `gh` 此刻生效的那份持有，记进报告的 `endpointHoldings`；报告里 `gh` 那一行 `available`；`tool` 表另有三条 `gh` 的动作条目，`available`、`resident = false`，名字由桥起（定义名如 `gh:create_issue`，模型面名字 `gh__create_issue`）；第二次求值带上这份动作集，报告的 `effectivePermissions` 对三条各有一项 `execute:<对端动作名>`，**另对 `Tools`、`Ask`、`grep` 各有一项**——**每一项以条目的模型面名字为键**（`gh__create_issue`、`grep`……）；`grep` 那一项是它能力标识的 `execute`，与动作的几项取自同一次（第二次）求值，每项带 `tenantAutoWritable`；**`Tools`、`Ask` 是 meta 门，那两项恒为 `{auto}`、`tenantAutoWritable` 为假，不读求值**（本例假定 [G-7](contract.md#十已知缺口) 已给出它们是门） | [S-12](contract.md#s-12-mcp-动作条目在一次尝试内钉住) 第一行、[S-24](contract.md#s-24-refreshavailability每次执行尝试开始时现算) ④、[S-11](contract.md#s-11-一次执行尝试的可用性报告)；[D-040 §七 M8、M21](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加) |
 | 2 | 尝试一进行中，对端新增第四个动作；组织把其中一个动作的执行权限改成 `forbid` | 这一次尝试里**仍是三条**、那一项权限**仍是尝试一开始时的值**；`list(s1, tool, within: run{尝试一的报告})` 不变；`list(s1, tool, within: session)` **不含**任何 `gh` 的动作条目 | [S-11](contract.md#s-11-一次执行尝试的可用性报告) 第 1 条、[S-25](contract.md#s-25-lookup查一条) ④ |
 | 3 | 对端下线；同一运行的尝试二开始 → `refreshAvailability(s1, run: continue{R1, 尝试一的报告})` | `gh` 那一行 `unavailable{reason}`，原因原样取桥给的失败值 `endpointUnreachable`；**动作条目仍在**——按最近一次取到的那份清单（尝试一开始时取到的三个）投影，每条 **`stand_in{for}`**，名字与参数形状和那份清单一样，说明换成「现在用不了、连不上」 | [S-12](contract.md#s-12-mcp-动作条目在一次尝试内钉住) 第二行、[S-10](contract.md#s-10-替换件同形只换说明) |
 | 4 | agent 在尝试二里调其中一个动作 | 落「不可用」收场（`data.content-blocks/v1#S-17`）——**由工具执行运行时兑现**，本契约只给出「这是替换件」 | [S-10](contract.md#s-10-替换件同形只换说明) |
@@ -131,12 +135,16 @@
 | `invalidInput` | `refreshAvailability(s1)`（缺 `run`） | 必填的判别式没有默认值——**不补成一次新运行**，补了就会让已开始的运行中途被收窄 | [S-19](contract.md#s-19-缺席时的默认答案)、[S-24](contract.md#s-24-refreshavailability每次执行尝试开始时现算) ⑥ |
 | `invalidInput` | `refreshAvailability(s1, run: continue{R2, R1 的报告})` | 报告的运行标识与这次运行不符——上一次运行的门控不得带进新运行 | [S-24](contract.md#s-24-refreshavailability每次执行尝试开始时现算) ②⑥ |
 | `invalidInput` | `fill(s1, …, ev_x)`，`ev_x` 是别的会话的求值 | 那次求值不是为这个会话做的 | [S-22](contract.md#s-22-fill装配时填六张) ② |
+| `invalidInput{evaluationSuperseded}` | 第 1 节第 10 步：reload 之后拿 `ev_1` 再 `fill` | 那次求值已被此后的换表取代——**不是**回执丢了的重试（那是原样返回），**也不是**一次新装配 | [S-22](contract.md#s-22-fill装配时填六张) ⑦ ③ |
+| `invalidInput` | `refreshAvailability(s1, run: start{R1})`（缺 `attempt`） | 身份参数没有默认值——不从「上一次尝试」或进程上下文补 | [S-19](contract.md#s-19-缺席时的默认答案)、[S-24](contract.md#s-24-refreshavailability每次执行尝试开始时现算) ①⑥ |
 | `invalidInput` | `markFailed(s1, slash_command:/fmt)`（① 型）或 `markFailed(s1, slash_command:omne-official:reload-tool)` | 只收 ③ 型，且不收 reload 一族 | [S-27](contract.md#s-27-markfailed命令型服务报错之后去掉那一条) |
 | `categoryNotRegistered` | `reload(s1, agent_definition)` | 八类之一，但不建表 | [S-5](contract.md#s-5-八类里登记六张表) |
 | `sessionNotFound` | `list(s9, tool, within: session)`，装配清单里没有 `s9` 的装配记录 | 从没为它成功填过表；「会话不存在」与「没装配成功」同一个值 | [S-21](contract.md#s-21-这一节每个操作写全九件事) 总表 |
 | `dependencyUnresolved{missing}` | 组织把 `kit` 的成员改成引用一个谁都没有的技能 `ghost`，人发 `omne-official:reload-plugin` | 求值的 `unresolved` 非空；`missing` 列出 `ghost` 与引用它的 `kit`；**三张表都不换**。**不是**依赖声明不满足——那是第 5 节的替换件 | [S-23](contract.md#s-23-reload按类别重填) ⑥ |
 | `dependencyUnresolved{missing}` | 定义直接引用技能 `review`（只有租户那一份、没有 official）；A 对它的「谁可以用」被收回之后人发 `omne-official:reload-tool` | 此刻的求值里 `review` 无人可用、没有下一层，进 `unresolved`；**哪一类的 reload 都收这个值**，交付面看得见；装配为下一次运行重新装配时同样失败，收口归装配 | [S-20](contract.md#s-20-谁可以用门控哪两类按哪个租户身份什么时候判) 末段、[S-23](contract.md#s-23-reload按类别重填) ⑥ |
 | `toolNameConflict` | 桥给 `gh` 的某个动作起的名字恰好等于 `grep` → `refreshAvailability(s1, run: start{R1})` | `tool` 表在 agent 面前两条同名；**不静默丢一条** | [S-7](contract.md#s-7-注册表条目)、[S-24](contract.md#s-24-refreshavailability每次执行尝试开始时现算) |
+| `compositionCycle{cycle}` | **故障注入**：让 `reload(s1, skill)` 那一次此刻的求值以 `compositionCycle` 失败 | 求值判出的结论，原样转交（诊断原样）；**不是** `unavailable`（重试不会变）、也不是 `dependencyUnresolved`；表不换。本版装配成功的会话里到不了，只能注入（[S-44](contract.md#s-44-依赖未解析与同名冲突) ③） | [S-21](contract.md#s-21-这一节每个操作写全九件事) 总表、[S-23](contract.md#s-23-reload按类别重填) ⑥ |
+| `categoryUnsupported{category}` | **故障注入**：让 `refreshAvailability(s1, run: start{R1})` 的第一次求值以 `categoryUnsupported{plugin}` 失败 | 同上：原样转交、不交报告；**不是** `unavailable` | [S-21](contract.md#s-21-这一节每个操作写全九件事) 总表、[S-24](contract.md#s-24-refreshavailability每次执行尝试开始时现算) ⑥⑧ |
 | `unavailable` | 「谁可以用」的读面不可用时 `lookup(s1, slash_command, "/fmt", within: session)` | 判不出来——**不是**「没有」 | [S-25](contract.md#s-25-lookup查一条) ⑧ |
 | `unavailable` | 第一次求值拿不到（含「谁可以用」的读面不可用）时 `refreshAvailability(s1, run: start{R1})` | 钉不下一份判不出来的技能门控，也没有接入点持有可用——**不是**一份把技能都算作用得了（或都用不了）的报告，**也不拿装配那一次的持有去连** | [S-24](contract.md#s-24-refreshavailability每次执行尝试开始时现算) ⑧ |
 | `unavailable` | 工作区 `W` 的承载目录此刻读不到时 `reload(s1, skill)` | 不当作「工作区是空的」；表不换 | [S-23](contract.md#s-23-reload按类别重填) ⑧ |

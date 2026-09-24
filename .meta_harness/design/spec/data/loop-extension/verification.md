@@ -191,6 +191,24 @@
 **对消费者**：没有已采用的消费者，无迁移。`capability.asset-evaluation` 按推出的取值域求值，不改；`capability.asset-governance` 的写面按取值域判 `valueOutOfDomain`，不改判定、只补一行指路；runner「不高于声明的值」一句由丁同轮改为「由允许集合兑现」。
 **证据**：Schema 的 JSON 未改结构、第 1～9 节的实例只改了两处 `builtinName` 的字符串，V-1 不重跑那几节；新加的第 10 节是 `AttributeDeclaration` 实例，按 `data.asset-model` 的 `$defs/AttributeDeclaration` 求值：`jsonschema` 4.26.0（`Draft202012Validator` ＋ `referencing`，锁定 uv 环境，设计根下全部 Schema 按 `$id` 登表，脚本在会话暂存区、不入库），第 10 节 **6 个**完整写出的条目逐个求值，**0 处不符**；另核了 Schema 之外那一步——设置项的内联 `schema` 是合法的 Draft 2020-12 schema、`default` 合它，权限项的 `default` 在 `values` 里；位置项的九值清单等于 `$defs/LoopPosition` 去掉两个带维度的位置、维度项的内联 schema 与 `$defs/Dimension` 那一支逐字相同。**只判形状**；「写面以 `valueOutOfDomain` 拒」是资产治理的行为，不在此检内。
 
+### 2026-09-25 修复波 3：实现映射反推（候选，未冻结，原地改）
+
+依据 [D-040 §八 M38](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)，逐条见[实现映射反推（2026-09-25）](#实现映射反推2026-09-25)。
+**表示改变**：`ExtensionInput` 多一个**必有**成员 `environment`（新 `$defs/EnvironmentHandle`，照 `data.identity-values/v1#S-31` 在本契约内定义，与 `LogHandle` 同写法）；不带它的输入由合法变为 `malformed`。定义项 41 → 42。
+**语义改变**：新条款 [S-41](v1/contract.md#s-41-执行环境句柄)——一件拓展件经这只按会话作用域的句柄取得调用方租户身份与这一会话的执行环境，**不经别的通道**；句柄不交出会话标识（L9 不变）、不交出有没有运行在跑，所以在 `before_persist_message` 上照样带。句柄的读面（解析得到什么、何时有效、解析不出时怎样）归 `capability.loop-extension-runner` v1 S-50。S-11、S-35、第十节、第十三节、消费者表、S-36 同改；产品依据加 PF-005 rev 5、PF-015 rev 11（两处都是当前 rev，只取 §6.3 与 §6.12，未改任何已有条款）。
+**对消费者**：没有已采用的消费者，无迁移。runner 造输入时多造一只句柄（S-10、S-50，同一起草者同轮改）；`capability.modality-projection` 的 `tenant`、`capability.hooks-import` 的执行环境改从它取（同轮改）；原生拓展件作者多拿到一只句柄，不用可以不读。
+**证据**：V-1 只重跑受影响的第 3 节与第 6 节的输入块——`jsonschema` 4.26.0（`Draft202012Validator` ＋ `referencing`，锁定 uv 环境，设计根下全部 Schema 按 `$id` 登表，脚本在会话暂存区、不入库）：第 3 节 **19 行**（原 16 行各加 `environment`，另加 3 行：缺 `environment`、句柄首尾空白、`before_persist_message` 照带）按 `$defs/ExtensionInput`，**18 行相符、1 行不符**；第 6 节 EX-1 的输入块 0 处不符。**那一处不符不是本轮造成的**：第 3 节第一行（`after_model_call{failure}`，标「通过」）主体里的 `ModelCallDispatchedRecord` 缺 `profile`、`profileSnapshot`、`parameters`、`selectedBy`、`credentialScope`——`data.messages` S-49 按 [D-040 §五 K20](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) 加了这五个必有成员之后，本包实例没有跟上；拿掉 `environment` 重跑同样不过。本轮**未改**那几行（`data.messages` 正由另一位起草者同轮修订），已报主线交跨批对齐。**只判形状**。
+
+## 实现映射反推（2026-09-25）
+
+五位 realization-drafter 起草节点时报回的契约层缺陷，主线裁定见 [D-040 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)；本契约涉及一条。
+
+| 裁定 | 来源 | 处置 | 落在哪 |
+|---|---|---|---|
+| M38 统一输入加按会话作用域的不透明 `environment` 句柄：不暴露会话标识，能取到调用方租户身份与这一会话的执行环境 | 辛 MP-N1／RUN-N3／HI-N2（统一输入不带会话与租户，模态转换件要 `tenant`、兼容件要执行环境，两边对不上） | **接受**。成员名取裁定原文 `environment`；`$def` 名 `EnvironmentHandle` 是本契约取的（与 `LogHandle` 同构，规格层形状名、不是词条，已报主线）；新条款号 S-41（本版只追加、不重排）。**句柄在十一个位置都必带**是本契约的推导：它不交出有没有运行在跑，S-11 末段不带 `run`/`attempt` 的理由对它不成立，而入站消息落盘之前的模态转换同样要租户身份 | [S-11](v1/contract.md#s-11-输入的成员)、[S-41](v1/contract.md#s-41-执行环境句柄)、S-35、第十节、第十三节、S-36、消费者表；Schema `EnvironmentHandle`、`ExtensionInput`；examples 第 3 节与 EX-1 |
+
+表中写明「推导」的各项与 `EnvironmentHandle` 这个名字，已经 [D-040 §八 N-20](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 接受（2026-09-25）。
+
 ## 对齐义务
 
 **这些是本契约与别的契约之间要一起落的事**，不是本契约自己的证据义务。
@@ -206,3 +224,4 @@
 | **`implementation.builtinName`**（原 `implementation.capability`）：装配清单里那件系统自带实现的名字；JSON 路径 `LoopExtensionDefinition.implementation.builtinName`（`kind = builtin` 那一支，Schema `#/$defs/ExtensionImplementation/oneOf/0/properties/builtinName`） | `data.asset-model` v1（壳 `$ref` `LoopExtensionDefinition`，随之生效；它的实例第 272 行已同轮改） | 本契约已落（[S-8](v1/contract.md#s-8-装配进来的实现与外部命令)）；runner、hooks-import 无该字段引用（2026-09-25 核对） |
 | **干预力上限由允许集合兑现**（M3）；**位置项只含同一维度成员的位置、维度项只收那一成员的取值，跨类的配值在治理写面以 `valueOutOfDomain` 拒**（M4） | `capability.loop-extension-runner` v1（「干预力不高于声明的值」一句、S-6 按求得的位置与维度匹配）；`capability.asset-governance` v1 S-38（`valueOutOfDomain`）；`capability.asset-evaluation` v1 S-23（不改） | 本契约已落（[S-4](v1/contract.md#s-4-干预力三档)、[S-6](v1/contract.md#s-6-声明的成员与类别)、[S-40](v1/contract.md#s-40-属性项的推出规则)，[D-040 §七 M3、M4](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）；runner 那一句由丁同轮改；asset-governance S-38 一行指路（同一位起草者） |
 | **`batch` 含解析不了的调用**（M11） | `capability.loop-extension-runner` v1 S-21 ①、S-29；`capability.tool-execution-runtime` v1 S-23 | 本契约已落（[S-14](v1/contract.md#s-14-按位置的-subject)）；runner、TER 由丁、丙同轮改 |
+| **执行环境句柄**（[D-040 §八 M38](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：`ExtensionInput.environment`，读面（解析得到什么、何时有效、解析不出时怎样）在 runner；模态转换件的 `tenant`、兼容件的执行环境从它取 | `capability.loop-extension-runner` v1 S-7、S-10、S-50、S-32；`capability.modality-projection` v1 S-18、S-20；`capability.hooks-import` v1 S-17、S-18、S-19、S-26 | 本契约已落（[S-11](v1/contract.md#s-11-输入的成员)、[S-41](v1/contract.md#s-41-执行环境句柄)）；三份消费契约由同一起草者同轮改（修复波 3） |

@@ -8,7 +8,7 @@
 ## 实现路径与来源
 
 **自建一个 Cordis 插件。**两份契约拥有的是资产记录、版本线、持有、配值、两类待确认件、分享、血缘对应、两类幂等键登记八组持久事实与它们的提交语义；DSH 没有对应上层包，没有可 fork 的对象。
-可复用的部分全是别的节点：数据形状、校验与属性声明（[`packages/core/asset-model`](../../core/asset-model/design.md)，`data.asset-model` v1；「组织的设置」视图的表单由它推出）、求值契约 S-23 的界、挑选与分档（[`packages/core/asset-evaluation`](../../core/asset-evaluation/design.md)，写时守卫用它；单独导出尚缺，N-13）、各类正文的两条规则（[`packages/core/tool-model`](../../core/tool-model/design.md)，经 asset-model 的端口进来）——三者都是本批候选、尚未建包——
+可复用的部分全是别的节点：数据形状、校验与属性声明（[`packages/core/asset-model`](../../core/asset-model/design.md)，`data.asset-model` v1；「组织的设置」视图的表单由它推出）、求值契约 S-23 的界、挑选与分档（[`packages/core/asset-evaluation`](../../core/asset-evaluation/design.md)，写时守卫用它；单独导出尚缺，N-13）、各类正文的两条规则（[`packages/core/tool-model`](../../core/tool-definition/design.md)，经 asset-model 的端口进来）——三者都是本批候选、尚未建包——
 以及已存在的 [identity-values](../../core/identity-values/design.md)、[offer-expiry](../../core/offer-expiry/design.md)、[core/storage](../../core/storage/design.md) 与[组织治理](../../tenancy/organization-governance/design.md)导出的事务内读函数（本批随 OG v2 修订新增，[下文](#跨-owner-的同一提交组织治理的隶属哨兵组织行与事务内读)）。
 
 **一个插件、一条 fiber、四个服务面。**形状照被接受的候选 B（[D-039](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#拆分领域名与装配g3)、[提案「资产提供者内部」](../../../../record/proposals/capability-split-assets/design.md#资产提供者内部一个插件四个服务面)），与[组织治理节点](../../tenancy/organization-governance/design.md#实现路径与来源)同一先例：四个面是**同一实例的四个入口**，不是四个变化原因。
@@ -198,7 +198,7 @@ AG S-46 的三种写入（首次复制 = 建草稿 ＋ 发布 ＋ 持有；重�
 | `data.offer-expiry/v1` | 包依赖 `core/offer-expiry`：`timingFrom`、`deriveState`、`acceptable`、`parseOfferTtl`、`Instant` | 随包版本 | — |
 | `data.asset-model/v1` | 包依赖 `packages/core/asset-model` 节点：形状、表示层校验、属性声明推出（S-44 的表单）；它的正文判定经端口注入，**本插件在插件体里用 `packages/core/tool-model` 的实现构造一次判定对象**（该节点 AM-5 点名的组合根） | 构造时绑定，此后不变 | 端口缺任何一类 ⇒ 构造抛出 ⇒ 插件体 `FAILED` ⇒ 启动失败（同一政策） |
 | `capability.asset-evaluation/v1` 的 S-23 | 包依赖 `packages/core/asset-evaluation` 节点：界、挑选与分档（S-38 写时守卫） | 随包版本 | 该节点目前只导出 `evaluate`（受其 AE-1 所阻）；**S-23 单独导出是交接事项**（N-13） |
-| 六份正文数据契约的两条规则与斜杠命令保留区 | 包依赖 `packages/core/tool-model` 节点，只经上一行的端口进来，本插件不另调 | 同上 | `agent_definition` 与 plugin 自己的项是「推不出」，依赖它的操作按 AG G-5 `unavailable`；不是缺实现 |
+| 六份正文数据契约的两条规则与斜杠命令保留区 | 包依赖六个正文数据契约节点（`packages/core/{tool-definition,loop-extension,skill-package,slash-command,mcp-endpoint,connector}`，D-040 §八 M41），只经上一行的端口进来，本插件不另调 | 同上 | `agent_definition` 与 plugin 自己的项是「推不出」，依赖它的操作按 AG G-5 `unavailable`；不是缺实现 |
 | 存储（无契约，`storage`；[`core/storage` 协议](../../core/storage/design.md#协议)） | 必需 inject；要求清单见下；`StorageUnavailable` 经 `mapStorageError` 映射为 `unavailable`，其余存储异常原样上抛 | 换代 ⇒ 重跑 | 缺席 ⇒ `PENDING` |
 | 时间源（`clock`，offer-expiry S-16 形状） | 必需 inject；`'unavailable'` ⇒ 涉时刻或过期判定的操作 `unavailable` | 装配启动 provide 一份 | 缺席 ⇒ `PENDING`；**严格递增是交接事项**（N-1） |
 | 政策参数与官方件清单 | 插件私有 config（五项），由 [tenancy-host](../../../apps/tenancy-host/design.md#本程追加资产治理与模型档案目录的中心侧候选尚未实现) 下发 | 启动（加载时校验） | 任一不合法 ⇒ **启动失败**，与租户批同一政策；不做成运行期 `unavailable` |
@@ -257,7 +257,7 @@ AG S-46 的三种写入（首次复制 = 建草稿 ＋ 发布 ＋ 持有；重�
 | 取得的资源／注册贡献 | 实例拥有者与对外可用时点 | 部分初始化失败 | 撤除、静止／交接与保留范围 |
 | --- | --- | --- | --- |
 | config 校验：两个时长默认值、两个保留期为正；`officialManifest` 外层形状 | `definePlugin` 的 `Config` 在插件体之前校验，不过即 fiber `FAILED`、一个面都不 provide（basis `plugin-throw-fails-fiber`） | 无部分状态 | — |
-| 正文判定对象（插件体第一步：以 `packages/core/tool-model` 的 `BodyContracts` 实现构造 `packages/core/asset-model` 的判定对象；清单条目的表示层校验用它） | 插件体局部值，随实例生灭；**不是 effect**，没有外部资源 | 端口缺一类 ⇒ 构造抛出 ⇒ `FAILED`、不 provide | 撤除时随实例丢弃；重跑时重建，同一实现、同一结果 |
+| 正文判定对象（插件体第一步：以六个正文数据契约节点各自导出的那一份 `BodyContracts` 拼成整份、构造 `packages/core/asset-model` 的判定对象；清单条目的表示层校验用它） | 插件体局部值，随实例生灭；**不是 effect**，没有外部资源 | 端口缺一类 ⇒ 构造抛出 ⇒ `FAILED`、不 provide | 撤除时随实例丢弃；重跑时重建，同一实现、同一结果 |
 | 官方件登记（插件体里、provide 之前，逐条一次写事务；**持久写，不是 effect**） | 插件体；登记完才 provide，所以面可见时出厂层已齐 | 任一条读不到存储或不合法 ⇒ 插件体抛出 ⇒ `FAILED`；**已登记的那几条留在存储里**——它们幂等，下一次启动重登不多出版本；启动期由 tenancy-host 的升级快照一并撤回（首次登记发生在迁移之后、确认之前） | 撤除时不做任何事；**保留**：官方记录与出厂层持有（官方件只加不删，AG S-29） |
 | 四个 `ctx.provide`：`assets`、`asset-holdings`、`asset-transfer`、`asset-snapshot` | 本 fiber；`ACTIVE` 后可解析 | 任一 provide 失败 ⇒ 抛出，已 provide 的随 fiber 撤（待核对主张 H-1） | 服务消失，消费者重跑或 `PENDING`。**在途调用跑完**——内核不取消在途调用，每个调用的收场由它那一次 `storage` 提交决定（已提交的就成立；撤除开始后新发起的存储调用得 `StorageUnavailable` ⇒ `unavailable`）；本插件无锁要放、无排空、无补偿。**保留**：全部记录（AG S-51、AT S-37） |
 | 迁移片段（表、唯一索引；由 tenancy-host 合成） | 装配期，`provide('storage')` 之前 | 迁移失败 ⇒ 整体启动失败、快照恢复（tenancy-host 升级的整体性） | 表与数据不随插件撤除 |
