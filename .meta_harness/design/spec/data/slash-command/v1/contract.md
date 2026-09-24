@@ -72,9 +72,9 @@
 
 | 不拥有 | 归谁 |
 |---|---|
-| 一个会话认得哪些命令、什么时候换、reload 一族有哪几条与各刷哪张注册表 | `capability.asset-registry`（同批并行起草）＋ `capability.asset-evaluation`（同批） |
+| 一个会话认得哪些命令、什么时候换、reload 一族有哪几条与各刷哪张注册表 | [`capability.asset-registry`](../../../capabilities/asset-registry/v1/contract.md) v1（candidate）＋ [`capability.asset-evaluation`](../../../capabilities/asset-evaluation/v1/contract.md) v1（candidate） |
 | 「谁可以用」各层取哪个值、怎样求交 | `capability.asset-evaluation` |
-| 发布、登记官方件时的写面与拒绝值怎样落进写面的失败集合 | `capability.asset-governance`（同批） |
+| 发布、登记官方件时的写面与拒绝值怎样落进写面的失败集合 | [`capability.asset-governance`](../../../capabilities/asset-governance/v1/contract.md) v1（candidate） |
 | 受理：预判之后受理面以此刻为准再判、① ② 展开成消息、② 的 skill 权限、③ 交给流程、条目落账 | 受理契约（PF-014 的规格化，**未立**） |
 | 交付面怎样呈现失败、菜单与补全、交付面自己的动作表 | 交付面呈现与受理契约（**未立**） |
 | 任何一条系统业务流程的语义、时机与结果摘要 | 定义那条流程的一侧；登记处见 [G-7](#十已知缺口) |
@@ -87,9 +87,9 @@
 |---|---|
 | 交付面呈现与受理契约（PF-016，**未立**） | [S-12](#s-12-只识别经交付面的输入)～[S-15](#s-15-一条输入至多一条命令)（识别，两种呈现形式同一文法）、[S-16](#s-16-名字只按会话斜杠命令集认)～[S-20](#s-20-parseresult-四支)（预判：当场明说、不发送）、[S-24](#s-24-解析失败即什么都不发) |
 | 受理契约（PF-014，**未立**） | 同上的识别与解析（以受理那一刻的命令集再判）；[S-21](#s-21-提示词型的展开)～[S-23](#s-23-命令型的参数)（① ② 的展开物、③ 的参数）；[S-25](#s-25-留痕)（留痕块的判别值） |
-| `capability.asset-registry` v1（同批） | 命令名与 `SlashCommandDefinition` 这一对（会话斜杠命令集的元素）、[S-2](#s-2-命令名的词法)～[S-5](#s-5-保留名在系统内唯一没有优先级)（名字与保留区） |
-| `capability.asset-evaluation` v1（同批） | [S-11](#s-11-属性项的推出规则)（`slash_command` 类的属性项推出规则） |
-| `capability.asset-governance` v1（同批） | [S-26](#s-26-规范表示)～[S-29](#s-29-表示层拒绝与解析失败分开都不修补)（发布与登记官方件时的表示层拒绝值），[S-4](#s-4-保留区只归系统提供的命令型)（`customized` 记录不带 `command` 绑定） |
+| `capability.asset-registry` v1（candidate） | 命令名与 `SlashCommandDefinition` 这一对（会话斜杠命令集的元素）、[S-2](#s-2-命令名的词法)～[S-5](#s-5-保留名在系统内唯一没有优先级)（名字与保留区） |
+| `capability.asset-evaluation` v1（candidate） | [S-11](#s-11-属性项的推出规则)（`slash_command` 类的属性项推出规则） |
+| `capability.asset-governance` v1（candidate） | [S-26](#s-26-规范表示)～[S-29](#s-29-表示层拒绝与解析失败分开都不修补)（发布与登记官方件时的表示层拒绝值），[S-4](#s-4-保留区只归系统提供的命令型)（`customized` 记录不带 `command` 绑定） |
 | `data.asset-model` v1 | `SlashCommandDefinition` 作为 `AssetContent` 里 `slash_command` 外壳 `body` 的形状（它的 [S-10](../../asset-model/v1/contract.md#s-10-八类正文的外壳)，结构上的 `$ref`）；[S-28](#s-28-表示层拒绝值) 的拒绝值原名携带进它的 S-27 |
 | `data.content-blocks` v1 | `CommandName` 作为它 S-8 `origin.command` 的词法（它只约束到非空，不反向引用） |
 | 提供 ③ 型流程的一侧（本版只点名 reload 一族） | `ServiceName`（[S-7](#s-7-servicename)）、[S-23](#s-23-命令型的参数)（参数怎样交到手上） |
