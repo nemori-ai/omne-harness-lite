@@ -1,6 +1,6 @@
 # PF-012：Agent Loop 与 Run
 
-**rev 13**，2026-09-24 · [变更历史](changelog.md)
+**rev 14**，2026-09-24 · [变更历史](changelog.md)
 
 ---
 
@@ -515,6 +515,10 @@
 > **它是[第八类资产](../PF-002-assets-settings-and-permissions/design.md#loop-extension)。**
 > 怎么被持有、谁能装、组织配了租户能不能改，**走资产已有的那一套**，
 > 本 topic 不重复；**形状与组合归 [PF-002](../PF-002-assets-settings-and-permissions/README.md)，位置与约束归这里。**
+>
+> **例外：[模态转换件](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)本版不是资产。**
+> 它挂在「消息落盘之前」上、走同一套干预力，但[只随系统装配](../PF-013-model-profiles-and-invocation/design.md#转换件)——
+> 按模态或文件媒体类型换一件只发生在系统装配那一层，**组织与租户换不了**（[§5.8](#系统自带的几件各站在哪)）。
 
 **⚠️ 别混**：**拓展点是位置，拓展件是挂上去的东西。**
 
@@ -2215,13 +2219,13 @@ Run 的生命周期：  触发 ──→ 在跑 ──→ 失败（终态，到�
 |---|---|---|
 | [**PF-000**](../PF-000-occurrences-and-record-entries/README.md) | 发生的事、记录条目、效力、干预力、寿命宿主，**以及一条条目长什么样、挂哪些字段** | **依赖其定义**。方程的定义域判据、拓展件的干预力都取自它；[§6.16](#616-日志里至少要有这几种-run-相关的条目) 只说「Run 这一层要读得出哪几件事」，**条目的种类与字段归那边** |
 | [**PF-011**](../PF-011-off-nominal-handling/README.md)（**rev 4**） | 非常态的分层处置 | **依赖其定义**。[两条线怎么分](#512-run-的终态与非常态的终局是两条线)由本 topic 说，**分层本身不重定** |
-| [**PF-010**](../PF-010-context-management-and-assembly/README.md)（**rev 5**） | 组装与压缩各自怎么做，**含[压缩闭包的硬约束与动作边界](../PF-010-context-management-and-assembly/design.md#56-压缩是一个闭包它的调子是三个联合目标)、压缩输入区间的两个界** | **依赖其定义**。本 topic 只定它们**在方程里的位置**，**不复述区间、不过问闭包内部** |
-| [**PF-009**](../PF-009-context-message-types/README.md)（**rev 4**） | 七种消息、块上的两个标注 | **依赖其定义**。外面进来的事做成 `SystemReminderMessage` |
+| [**PF-010**](../PF-010-context-management-and-assembly/README.md)（**rev 6**） | 组装与压缩各自怎么做，**含[压缩闭包的硬约束与动作边界](../PF-010-context-management-and-assembly/design.md#56-压缩是一个闭包它的调子是三个联合目标)、压缩输入区间的两个界** | **依赖其定义**。本 topic 只定它们**在方程里的位置**，**不复述区间、不过问闭包内部** |
+| [**PF-009**](../PF-009-context-message-types/README.md)（**rev 8**） | 七种消息、块上的两个标注 | **依赖其定义**。外面进来的事做成 `SystemReminderMessage` |
 | [PF-008](../PF-008-human-in-the-loop/README.md)（**rev 7**） | 两个维度的等待态、判断函数、决策池、**卡片的三种来源** | **依赖其定义**。L4 与 T4 都复用它；**放行判断是它拥有的那件拓展件**，站在[执行动作之前](#十一个位置是推出来的不是挑出来的)。**拓展件出卡等人**，停的是 run 那一列、卡片进它的池子、守它的规矩；**「怎么停、怎么接着走」归本 topic（[那个原语](#等人是-loop-的原语)）** |
 | [PF-007](../PF-007-meta-capabilities/README.md)（**rev 18**） | 十三扇门、常驻预算、`Ask()` | **依赖其定义**。常驻部分压不动，是 T1′ 的前提 |
 | [PF-006](../PF-006-tools-and-skills/README.md)（**rev 19**） | 六种收场、可用性重算、替换件、卸载 | **依赖其定义**。**卸载判定是它拥有的那件拓展件**，站在[执行动作之后](#十一个位置是推出来的不是挑出来的)（范围＝这一个） |
-| [PF-004](../PF-004-agent-definition-and-assembly/README.md)（**rev 8**） | [装配清单](../PF-004-agent-definition-and-assembly/design.md#装配清单)、装配、注入、三个时刻 | **依赖其定义**。[agent runtime](#agent-runtime) 归本 topic，**它照一份装配清单起**；那个协程的生灭是一次尝试的边界来源之一 |
-| [**PF-002**](../PF-002-assets-settings-and-permissions/README.md)（**rev 19**） | **[拓展件](../PF-002-assets-settings-and-permissions/design.md#loop-extension)是第八类资产**：它自带哪些属性、能被谁打包、干预力怎么配 | **依赖其定义**。本 topic 定**位置**与[瀑布按声明的顺序走](#三种形态两种装得进一种拆两半)，它定**挂上来的那个东西**。**方向不能反**。**同一位置几件的先后就是[装配清单](../PF-004-agent-definition-and-assembly/design.md#装配清单)里的顺序**，由那边认领（[PF-002 Loop Extension](../PF-002-assets-settings-and-permissions/design.md#loop-extension)） |
+| [PF-004](../PF-004-agent-definition-and-assembly/README.md)（**rev 12**） | [装配清单](../PF-004-agent-definition-and-assembly/design.md#装配清单)、装配、注入、三个时刻 | **依赖其定义**。[agent runtime](#agent-runtime) 归本 topic，**它照一份装配清单起**；那个协程的生灭是一次尝试的边界来源之一 |
+| [**PF-002**](../PF-002-assets-settings-and-permissions/README.md)（**rev 20**） | **[拓展件](../PF-002-assets-settings-and-permissions/design.md#loop-extension)是第八类资产**：它自带哪些属性（含[不可用处置是这一件自己的声明](../PF-002-assets-settings-and-permissions/design.md#不可用处置是这一件自己的声明)）、能被谁打包、干预力怎么配 | **依赖其定义**。本 topic 定**位置**与[瀑布按声明的顺序走](#三种形态两种装得进一种拆两半)，它定**挂上来的那个东西**。**方向不能反**。**同一位置几件的先后就是[装配清单](../PF-004-agent-definition-and-assembly/design.md#装配清单)里的顺序**，由那边认领（[PF-002 Loop Extension](../PF-002-assets-settings-and-permissions/design.md#loop-extension)） |
 
 **明确不拥有、留给别处的**：
 
