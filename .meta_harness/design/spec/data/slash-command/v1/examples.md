@@ -12,7 +12,7 @@
 
 **三条读法上的边界：**
 
-- **`通过` 只说形状合规。**参数名不重复、位置参数的次序、模板占位符对得上声明、`CommandInvocation` 与 `raw` 一致、定义与所在记录一致，都不在 Schema 的能力范围内——见[第 5 节](#5-schema-挡不住但同样非法的)。
+- **`通过` 只说形状合规。**参数名不重复、位置参数的次序、模板占位符对得上声明、`CommandInvocation` 与 `raw` 一致、所在记录的命令名与保留区对得上，都不在 Schema 的能力范围内——见[第 5 节](#5-schema-挡不住但同样非法的)。
 - **示例里的名字只是示意。**`omne-official:reload-skill`、`omne-official:list-executions` 这两条 ③ 型命令与它们的 `ServiceName` 是为了演示形状编的；
   reload 一族有哪几条、各叫什么归 `capability.asset-registry`，系统业务流程本版只点名 reload 一族（[PF-002 §2 非目标](../../../../product/PF-002-assets-settings-and-permissions/design.md#非目标)）。
 - **除[第 6 节](#6-几处违例同时出现时取哪个拒绝值)外，每个非法实例只违反一条规则**，拒绝值因此不需要优先级就能定；第 6 节专门演示优先级。
@@ -23,38 +23,46 @@
 
 | 实例 | Schema | 拒绝值 | 依据 |
 |---|---|---|---|
-| `{"name": "review", "description": "审阅一段改动", "binding": {"kind": "prompt", "template": "Review this change: $ARGUMENTS"}}` | 通过 | — | [S-1](contract.md#s-1-斜杠命令定义是资产的正文)、[S-6](contract.md#s-6-三种绑定目标)：① 型，没有参数声明，整段文字作一个自由参数 |
-| `{"name": "code-review", "description": "照代码审查技能办", "binding": {"kind": "skill", "skill": {"category": "skill", "name": "code-review"}}}` | 通过 | — | [S-6](contract.md#s-6-三种绑定目标)：② 型指向一个技能的能力标识 |
-| `{"name": "omne-official:reload-skill", "description": "按此刻的求值结果重填本会话的技能注册表", "binding": {"kind": "command", "service": "registry.reload.skill"}, "parameters": []}` | 通过 | — | [S-4](contract.md#s-4-保留区只归系统提供的命令型)：③ 型在保留区里；`[]` 是「不收任何参数」（[S-1](contract.md#s-1-斜杠命令定义是资产的正文)） |
-| `{"name": "fix-issue", "description": "修一个 issue", "binding": {"kind": "prompt", "template": "Fix issue $0 on branch $1."}, "parameters": [{"name": "issue", "kind": "integer", "required": true, "positional": true}, {"name": "branch", "kind": "string", "required": false, "positional": true}]}` | 通过 | — | [S-8](contract.md#s-8-参数声明)～[S-10](contract.md#s-10-提示词模板与占位符)：两个位置参数都被 `$N` 引到 |
-| `{"name": "quote-price", "description": "报价", "binding": {"kind": "prompt", "template": "Quote \\$1.00 per unit for $ARGUMENTS"}}` | 通过 | — | [S-10](contract.md#s-10-提示词模板与占位符)：`\$1` 被转义，不算一个 `$N`，所以没有声明也合法 |
-| `{"name": "team:review", "description": "团队审阅", "binding": {"kind": "prompt", "template": "$ARGUMENTS"}}` | 通过 | — | [S-2](contract.md#s-2-命令名的词法)：冒号允许；不以保留前缀开头，就不在保留区 |
-| `{"name": "omne-official", "description": "一条恰叫这个名字的提示词", "binding": {"kind": "prompt", "template": "Hello"}}` | 通过 | — | [S-3](contract.md#s-3-保留区与它唯一的拼法)：保留区只认带冒号的 14 个码点，**只认前缀、不认清单** |
-| `{"name": "审查", "description": "审查", "binding": {"kind": "prompt", "template": "$ARGUMENTS"}}` | 通过 | — | [S-2](contract.md#s-2-命令名的词法)：本契约不收窄字符集 |
-| `{"name": "omne-official:summarize", "description": "摘要", "binding": {"kind": "prompt", "template": "$ARGUMENTS"}}` | 拒绝 | `name_reserved` | [S-4](contract.md#s-4-保留区只归系统提供的命令型)：① 型在保留区里。**不论记录是不是 `official`** |
-| `{"name": "omne-official:code-review", "description": "审查", "binding": {"kind": "skill", "skill": {"category": "skill", "name": "code-review"}}}` | 拒绝 | `name_reserved` | [S-4](contract.md#s-4-保留区只归系统提供的命令型)：② 型同理 |
-| `{"name": "reload-skill", "description": "重填", "binding": {"kind": "command", "service": "registry.reload.skill"}}` | 拒绝 | `name_reserved` | [S-4](contract.md#s-4-保留区只归系统提供的命令型)：③ 型必须在保留区里 |
-| `{"name": "OMNE-OFFICIAL:reload-skill", "description": "重填", "binding": {"kind": "command", "service": "registry.reload.skill"}}` | 拒绝 | `name_invalid` | [S-3](contract.md#s-3-保留区与它唯一的拼法) 第 2 条：在保留区里（按 ASCII 不区分大小写），但拼法不是小写的那一种。**不被改成小写后接受** |
-| `{"name": "Omne-Official:review", "description": "冒充", "binding": {"kind": "prompt", "template": "$ARGUMENTS"}}` | 拒绝 | `name_invalid` | [S-3](contract.md#s-3-保留区与它唯一的拼法)：**这一条是冒充系统名的回归用例**——只认小写前缀的实现会放它通过，人眼里它就是系统那条 |
-| `{"name": "omne-official:", "description": "空", "binding": {"kind": "command", "service": "registry.reload.skill"}}` | 拒绝 | `name_invalid` | [S-3](contract.md#s-3-保留区与它唯一的拼法) 第 2 条：前缀之后至少还要有一个码点 |
-| `{"name": "review/pr", "description": "审阅", "binding": {"kind": "prompt", "template": "$ARGUMENTS"}}` | 拒绝 | `name_invalid` | [S-2](contract.md#s-2-命令名的词法) 第 3 条：含 `/` 的名字敲不出来——识别文法把它当路径放行成普通文字 |
-| `{"name": "code review", "description": "审阅", "binding": {"kind": "prompt", "template": "$ARGUMENTS"}}` | 拒绝 | `name_invalid` | [S-2](contract.md#s-2-命令名的词法) 第 2 条：名字在第一个空白处就断了 |
-| `{"name": "", "description": "空名", "binding": {"kind": "prompt", "template": "$ARGUMENTS"}}` | 拒绝 | `name_invalid` | [S-2](contract.md#s-2-命令名的词法) 第 1 条 |
-| `{"name": 42, "description": "数字", "binding": {"kind": "prompt", "template": "$ARGUMENTS"}}` | 拒绝 | `malformed` | [S-28](contract.md#s-28-表示层拒绝值)：`name_invalid` 只在 `name` 是字符串时适用 |
-| `{"name": "review", "description": "审阅", "binding": {"kind": "macro", "template": "$ARGUMENTS"}}` | 拒绝 | `binding_unknown` | [S-6](contract.md#s-6-三种绑定目标)：三种之外，**不当作 `prompt` 兜底** |
-| `{"name": "review", "description": "审阅", "binding": {"template": "$ARGUMENTS"}}` | 拒绝 | `malformed` | [S-6](contract.md#s-6-三种绑定目标)：判别成员缺席——那不是「不认得」，是「没说」 |
-| `{"name": "deploy-guide", "description": "部署", "binding": {"kind": "skill", "skill": {"category": "tool", "name": "deploy-guide"}}}` | 拒绝 | `malformed` | [S-6](contract.md#s-6-三种绑定目标)：skill 型的目标类别必为 `skill` |
-| `{"name": "review", "description": "审阅", "binding": {"kind": "prompt", "template": ""}}` | 拒绝 | `malformed` | [S-6](contract.md#s-6-三种绑定目标)：模板非空 |
-| `{"name": "omne-official:reload-skill", "description": "重填", "binding": {"kind": "command", "service": " registry.reload.skill"}}` | 拒绝 | `malformed` | [S-7](contract.md#s-7-servicename)：首尾不得是空白 |
-| `{"name": "review", "binding": {"kind": "prompt", "template": "$ARGUMENTS"}}` | 拒绝 | `malformed` | [S-1](contract.md#s-1-斜杠命令定义是资产的正文)：`description` 必填 |
-| `{"name": "review", "description": "审阅", "binding": {"kind": "prompt", "template": "$ARGUMENTS"}, "aliases": ["rv"]}` | 拒绝 | `malformed` | [S-1](contract.md#s-1-斜杠命令定义是资产的正文)：恰四个成员，本版没有别名 |
-| `{"name": "fix-issue", "description": "修", "binding": {"kind": "prompt", "template": "Fix $0"}, "parameters": [{"name": "issue", "kind": "integer", "required": true, "positional": false}]}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-参数声明)：`positional` 只取 `true`；具名参数不写这个成员 |
-| `{"name": "deploy-guide", "description": "部署", "binding": {"kind": "skill", "skill": {"category": "skill", "name": "deploy-guide"}}, "parameters": [{"name": "env", "kind": "enum", "required": true, "positional": true}]}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-参数声明)：`enum` 必带 `values` |
-| `{"name": "greet", "description": "问候", "binding": {"kind": "prompt", "template": "Hi $0"}, "parameters": [{"name": "who", "kind": "string", "values": ["a"], "required": true, "positional": true}]}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-参数声明)：只有 `enum` 带 `values` |
-| `{"name": "deploy-guide", "description": "部署", "binding": {"kind": "skill", "skill": {"category": "skill", "name": "deploy-guide"}}, "parameters": [{"name": "env", "kind": "enum", "values": ["prod", "prod"], "required": true, "positional": true}]}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-参数声明)：`values` 各不相同 |
-| `{"name": "fix-issue", "description": "修", "binding": {"kind": "prompt", "template": "Fix $0"}, "parameters": [{"name": "Issue", "kind": "integer", "required": true, "positional": true}]}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-参数声明)：参数名只许小写 ASCII 起头 |
-| `{"name": "fix-issue", "description": "修", "binding": {"kind": "prompt", "template": "Fix $0"}, "parameters": [{"name": "issue", "kind": "number", "required": true, "positional": true}]}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-参数声明)、[S-27](contract.md#s-27-判别式与枚举闭合)：四种之外 |
-| `{"name": "fix-issue", "description": "修", "binding": {"kind": "prompt", "template": "Fix $0"}, "parameters": [{"name": "issue", "kind": "integer", "positional": true}]}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-参数声明)：`required` 必填，**不当作 `false`** |
+| `{"description": "审阅一段改动", "binding": {"kind": "prompt", "template": "Review this change: $ARGUMENTS"}}` | 通过 | — | [S-1](contract.md#s-1-斜杠命令定义是资产的正文)、[S-6](contract.md#s-6-三种绑定目标)：① 型，没有参数声明，整段文字作一个自由参数 |
+| `{"description": "照代码审查技能办", "binding": {"kind": "skill", "skill": {"category": "skill", "name": "code-review"}}}` | 通过 | — | [S-6](contract.md#s-6-三种绑定目标)：② 型指向一个技能的能力标识 |
+| `{"description": "按此刻的求值结果重填本会话的技能注册表", "binding": {"kind": "command", "service": "registry.reload.skill"}, "parameters": []}` | 通过 | — | [S-4](contract.md#s-4-保留区只归系统提供的命令型)：③ 型在保留区里；`[]` 是「不收任何参数」（[S-1](contract.md#s-1-斜杠命令定义是资产的正文)） |
+| `{"description": "修一个 issue", "binding": {"kind": "prompt", "template": "Fix issue $0 on branch $1."}, "parameters": [{"name": "issue", "kind": "integer", "required": true, "positional": true}, {"name": "branch", "kind": "string", "required": false, "positional": true}]}` | 通过 | — | [S-8](contract.md#s-8-参数声明)～[S-10](contract.md#s-10-提示词模板与占位符)：两个位置参数都被 `$N` 引到 |
+| `{"description": "报价", "binding": {"kind": "prompt", "template": "Quote \\$1.00 per unit for $ARGUMENTS"}}` | 通过 | — | [S-10](contract.md#s-10-提示词模板与占位符)：`\$1` 被转义，不算一个 `$N`，所以没有声明也合法 |
+| `{"description": "审阅", "binding": {"kind": "macro", "template": "$ARGUMENTS"}}` | 拒绝 | `binding_unknown` | [S-6](contract.md#s-6-三种绑定目标)：三种之外，**不当作 `prompt` 兜底** |
+| `{"description": "审阅", "binding": {"template": "$ARGUMENTS"}}` | 拒绝 | `malformed` | [S-6](contract.md#s-6-三种绑定目标)：判别成员缺席——那不是「不认得」，是「没说」 |
+| `{"description": "部署", "binding": {"kind": "skill", "skill": {"category": "tool", "name": "deploy-guide"}}}` | 拒绝 | `malformed` | [S-6](contract.md#s-6-三种绑定目标)：skill 型的目标类别必为 `skill` |
+| `{"description": "审阅", "binding": {"kind": "prompt", "template": ""}}` | 拒绝 | `malformed` | [S-6](contract.md#s-6-三种绑定目标)：模板非空 |
+| `{"description": "重填", "binding": {"kind": "command", "service": " registry.reload.skill"}}` | 拒绝 | `malformed` | [S-7](contract.md#s-7-servicename)：首尾不得是空白 |
+| `{"binding": {"kind": "prompt", "template": "$ARGUMENTS"}}` | 拒绝 | `malformed` | [S-1](contract.md#s-1-斜杠命令定义是资产的正文)：`description` 必填 |
+| `{"description": "审阅", "binding": {"kind": "prompt", "template": "$ARGUMENTS"}, "aliases": ["rv"]}` | 拒绝 | `malformed` | [S-1](contract.md#s-1-斜杠命令定义是资产的正文)：恰三个成员，本版没有别名 |
+| `{"description": "修", "binding": {"kind": "prompt", "template": "Fix $0"}, "parameters": [{"name": "issue", "kind": "integer", "required": true, "positional": false}]}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-参数声明)：`positional` 只取 `true`；具名参数不写这个成员 |
+| `{"description": "部署", "binding": {"kind": "skill", "skill": {"category": "skill", "name": "deploy-guide"}}, "parameters": [{"name": "env", "kind": "enum", "required": true, "positional": true}]}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-参数声明)：`enum` 必带 `values` |
+| `{"description": "问候", "binding": {"kind": "prompt", "template": "Hi $0"}, "parameters": [{"name": "who", "kind": "string", "values": ["a"], "required": true, "positional": true}]}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-参数声明)：只有 `enum` 带 `values` |
+| `{"description": "部署", "binding": {"kind": "skill", "skill": {"category": "skill", "name": "deploy-guide"}}, "parameters": [{"name": "env", "kind": "enum", "values": ["prod", "prod"], "required": true, "positional": true}]}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-参数声明)：`values` 各不相同 |
+| `{"description": "修", "binding": {"kind": "prompt", "template": "Fix $0"}, "parameters": [{"name": "Issue", "kind": "integer", "required": true, "positional": true}]}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-参数声明)：参数名只许小写 ASCII 起头 |
+| `{"description": "修", "binding": {"kind": "prompt", "template": "Fix $0"}, "parameters": [{"name": "issue", "kind": "number", "required": true, "positional": true}]}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-参数声明)、[S-27](contract.md#s-27-判别式与枚举闭合)：四种之外 |
+| `{"description": "修", "binding": {"kind": "prompt", "template": "Fix $0"}, "parameters": [{"name": "issue", "kind": "integer", "positional": true}]}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-参数声明)：`required` 必填，**不当作 `false`** |
+| `{"description": "修", "binding": {"kind": "prompt", "template": "Fix $0"}, "parameters": [{"name": "issue", "kind": "integer", "required": true, "positional": true, "hint": "issue 号，例如 42"}]}` | 通过 | — | [S-8](contract.md#s-8-参数声明)：参数提示在参数声明上 |
+| `{"description": "修", "binding": {"kind": "prompt", "template": "Fix $0"}, "parameters": [{"name": "issue", "kind": "integer", "required": true, "positional": true, "hint": ""}]}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-参数声明)：`hint` 给出时非空 |
+| `{"name": "review", "description": "审阅一段改动", "binding": {"kind": "prompt", "template": "Review this change: $ARGUMENTS"}}` | 拒绝 | `malformed` | [S-1](contract.md#s-1-斜杠命令定义是资产的正文)：**正文不带名字**——命令名是所在记录的 `capability.name` |
+
+**校验对象**：`$defs/CommandName`——命令名不在正文里，它是所在资产记录 `capability` 的 name（[S-1](contract.md#s-1-斜杠命令定义是资产的正文)、[S-2](contract.md#s-2-命令名的词法)）；这张表单独校验名字本身。
+
+| 实例 | Schema | 拒绝值 | 依据 |
+|---|---|---|---|
+| `"review"` | 通过 | — | [S-2](contract.md#s-2-命令名的词法) |
+| `"omne-official:reload-skill"` | 通过 | — | [S-3](contract.md#s-3-保留区与它唯一的拼法)：保留区里唯一的拼法 |
+| `"omne-official:summarize"` | 通过 | — | [S-3](contract.md#s-3-保留区与它唯一的拼法)：拼法合规；**它能不能用在一条 ① 型命令上是 [S-4](contract.md#s-4-保留区只归系统提供的命令型) 的事**，要看所在记录（第 5 节） |
+| `"team:review"` | 通过 | — | [S-2](contract.md#s-2-命令名的词法)：冒号允许；不以保留前缀开头，就不在保留区 |
+| `"omne-official"` | 通过 | — | [S-3](contract.md#s-3-保留区与它唯一的拼法)：保留区只认带冒号的 14 个码点，**只认前缀、不认清单** |
+| `"审查"` | 通过 | — | [S-2](contract.md#s-2-命令名的词法)：本契约不收窄字符集 |
+| `"OMNE-OFFICIAL:reload-skill"` | 拒绝 | `name_invalid` | [S-3](contract.md#s-3-保留区与它唯一的拼法) 第 2 条：在保留区里（按 ASCII 不区分大小写），但拼法不是小写的那一种。**不被改成小写后接受** |
+| `"Omne-Official:review"` | 拒绝 | `name_invalid` | [S-3](contract.md#s-3-保留区与它唯一的拼法)：**这一条是冒充系统名的回归用例**——只认小写前缀的实现会放它通过，人眼里它就是系统那条 |
+| `"omne-official:"` | 拒绝 | `name_invalid` | [S-3](contract.md#s-3-保留区与它唯一的拼法) 第 2 条：前缀之后至少还要有一个码点 |
+| `"review/pr"` | 拒绝 | `name_invalid` | [S-2](contract.md#s-2-命令名的词法) 第 3 条：含 `/` 的名字敲不出来——识别文法把它当路径放行成普通文字 |
+| `"code review"` | 拒绝 | `name_invalid` | [S-2](contract.md#s-2-命令名的词法) 第 2 条：名字在第一个空白处就断了 |
+| `""` | 拒绝 | `name_invalid` | [S-2](contract.md#s-2-命令名的词法) 第 1 条 |
+| `42` | 拒绝 | `malformed` | [S-28](contract.md#s-28-表示层拒绝值)：`name_invalid` 只在 `name` 是字符串时适用 |
 
 ## 2. CommandInvocation
 
@@ -101,25 +109,25 @@
 
 ### 固定的会话斜杠命令集
 
-下面每一行都以这一份 `S` 为会话斜杠命令集（八份定义，名字两两不同，每一份都合第 1 节的形状）：
+下面每一行都以这一份 `S` 为会话斜杠命令集：八对「命令名 → 正文」，命令名两两不同，每一份正文都合第 1 节的形状（命令名是各自记录的 `capability.name`，[S-1](contract.md#s-1-斜杠命令定义是资产的正文)）：
 
 ```json
-[
-  {"name": "review", "description": "审阅一段改动", "binding": {"kind": "prompt", "template": "Review this change: $ARGUMENTS"}},
-  {"name": "standup", "description": "写一段昨日小结", "binding": {"kind": "prompt", "template": "Summarize what I did yesterday."}},
-  {"name": "fix-issue", "description": "修一个 issue", "binding": {"kind": "prompt", "template": "Fix issue $0 on branch $1."},
-   "parameters": [{"name": "issue", "kind": "integer", "required": true, "positional": true},
-                  {"name": "branch", "kind": "string", "required": false, "positional": true}]},
-  {"name": "quote-price", "description": "报价", "binding": {"kind": "prompt", "template": "Quote \\$1.00 per unit for $ARGUMENTS"}},
-  {"name": "code-review", "description": "照代码审查技能办", "binding": {"kind": "skill", "skill": {"category": "skill", "name": "code-review"}}},
-  {"name": "deploy-guide", "description": "照部署指南办", "binding": {"kind": "skill", "skill": {"category": "skill", "name": "deploy-guide"}},
-   "parameters": [{"name": "env", "kind": "enum", "values": ["staging", "prod"], "required": true, "positional": true}]},
-  {"name": "omne-official:reload-skill", "description": "按此刻的求值结果重填本会话的技能注册表", "binding": {"kind": "command", "service": "registry.reload.skill"}, "parameters": []},
-  {"name": "omne-official:list-executions", "description": "列出后台在跑的执行（示意）", "binding": {"kind": "command", "service": "execution.list"},
-   "parameters": [{"name": "state", "kind": "enum", "values": ["running", "finished"], "required": true},
-                  {"name": "limit", "kind": "integer", "required": false},
-                  {"name": "verbose", "kind": "boolean", "required": false}]}
-]
+{
+  "review": {"description": "审阅一段改动", "binding": {"kind": "prompt", "template": "Review this change: $ARGUMENTS"}},
+  "standup": {"description": "写一段昨日小结", "binding": {"kind": "prompt", "template": "Summarize what I did yesterday."}},
+  "fix-issue": {"description": "修一个 issue", "binding": {"kind": "prompt", "template": "Fix issue $0 on branch $1."},
+    "parameters": [{"name": "issue", "kind": "integer", "required": true, "positional": true},
+                   {"name": "branch", "kind": "string", "required": false, "positional": true}]},
+  "quote-price": {"description": "报价", "binding": {"kind": "prompt", "template": "Quote \\$1.00 per unit for $ARGUMENTS"}},
+  "code-review": {"description": "照代码审查技能办", "binding": {"kind": "skill", "skill": {"category": "skill", "name": "code-review"}}},
+  "deploy-guide": {"description": "照部署指南办", "binding": {"kind": "skill", "skill": {"category": "skill", "name": "deploy-guide"}},
+    "parameters": [{"name": "env", "kind": "enum", "values": ["staging", "prod"], "required": true, "positional": true}]},
+  "omne-official:reload-skill": {"description": "按此刻的求值结果重填本会话的技能注册表", "binding": {"kind": "command", "service": "registry.reload.skill"}, "parameters": []},
+  "omne-official:list-executions": {"description": "列出后台在跑的执行（示意）", "binding": {"kind": "command", "service": "execution.list"},
+    "parameters": [{"name": "state", "kind": "enum", "values": ["running", "finished"], "required": true},
+                   {"name": "limit", "kind": "integer", "required": false},
+                   {"name": "verbose", "kind": "boolean", "required": false}]}
+}
 ```
 
 ### 机检格式
@@ -127,10 +135,9 @@
 每一行：
 
 - **「输入」**是一个 JSON 字符串字面量，解码后就是交付面收到的那段文字 `T`（`\n`、`﻿` 这类转义是为了让看不见的码点写得出来）。
-- **「识别」**恰是 `text`（普通文字）、`literal`（字面发送）、`invocation`（一次命令尝试）之一。
+- **「识别」**恰是 `Recognition` 的 `kind`：`text`（普通文字）、`literal`（字面发送）、`invocation`（一次命令尝试）之一。
 - **「交出的文字 / 命令尝试」**：`text` 与 `literal` 行是一个 JSON 字符串——**逐码点**等于识别交出去的那段文字；`invocation` 行是一个 `CommandInvocation`，逐成员相等。
 - **「解析结果」**：`invocation` 行是以上面那份 `S` 解析得到的 `ParseResult`，**不含 `explanation`**——比对时除 `explanation` 外逐成员相等，`explanation` 只查非空；其余行是 `—`。
-  写着 `[G-3]` 的那一处是[尚未命名的失败原因](contract.md#十已知缺口)：机检时**只比 `kind` 与 `at`**，`reason` 跳过，并把这一行记为「受阻于 G-3」，不记为通过。
 - 位置一律以码点计、左闭右开、相对输入（[S-14](contract.md#s-14-commandinvocation-与位置)）。
 
 **不在表里、但同样要守的一条**：不经交付面的来源（连接件、定时到点、别的会话捎话）送来的文字**根本不交给识别文法**，其中的 `/xxx` 原样是内容（[S-12](contract.md#s-12-只识别经交付面的输入)）——它是调用方的义务，不是这张表能验的，见[验证入口 SC-1](../verification.md#静态检查义务)。
@@ -169,7 +176,7 @@
 | D-23 | `"/fix-issue"` | `invocation` | `{"raw": "/fix-issue", "name": "fix-issue", "argumentText": "", "span": {"start": 0, "end": 10}}` | `{"kind": "failed", "reason": "missing_required"}` | [S-18](contract.md#s-18-参数的绑定与取值) 第 4 步：没有 `at` |
 | D-24 | `"/fix-issue 42 main extra"` | `invocation` | `{"raw": "/fix-issue 42 main extra", "name": "fix-issue", "argumentText": "42 main extra", "span": {"start": 0, "end": 10}}` | `{"kind": "failed", "reason": "unexpected_argument", "at": {"start": 19, "end": 24}}` | [S-18](contract.md#s-18-参数的绑定与取值) 第 2 步：位置参数已取满 |
 | D-25 | `"/fix-issue --issue 42"` | `invocation` | `{"raw": "/fix-issue --issue 42", "name": "fix-issue", "argumentText": "--issue 42", "span": {"start": 0, "end": 10}}` | `{"kind": "failed", "reason": "unexpected_argument", "at": {"start": 11, "end": 18}}` | [S-18](contract.md#s-18-参数的绑定与取值) 第 1 步：`issue` 是位置参数，不能写成具名 |
-| D-26 | `"/fix-issue 42 \"feature branch"` | `invocation` | `{"raw": "/fix-issue 42 \"feature branch", "name": "fix-issue", "argumentText": "42 \"feature branch", "span": {"start": 0, "end": 10}}` | `{"kind": "failed", "reason": [G-3], "at": {"start": 14, "end": 29}}` | [S-17](contract.md#s-17-参数文字的切分)：引号没闭合，从开引号到末尾。**受阻于 [G-3](contract.md#十已知缺口)** |
+| D-26 | `"/fix-issue 42 \"feature branch"` | `invocation` | `{"raw": "/fix-issue 42 \"feature branch", "name": "fix-issue", "argumentText": "42 \"feature branch", "span": {"start": 0, "end": 10}}` | `{"kind": "failed", "reason": "unterminated_quote", "at": {"start": 14, "end": 29}}` | [S-17](contract.md#s-17-参数文字的切分)：引号没闭合，从开引号到末尾 |
 
 ### 识别与解析：技能型
 
@@ -217,15 +224,17 @@
 
 | 实例 | 校验对象 | 拒绝值 | 依据 |
 |---|---|---|---|
-| `{"name": "fix-issue", "description": "修", "binding": {"kind": "prompt", "template": "Fix $0 as $1"}, "parameters": [{"name": "issue", "kind": "integer", "required": true, "positional": true}, {"name": "issue", "kind": "string", "required": true, "positional": true}]}` | `SlashCommandDefinition` | `parameter_duplicate` | [S-9](contract.md#s-9-参数声明的结构约束) |
-| `{"name": "deploy", "description": "部署", "binding": {"kind": "prompt", "template": "Deploy $0 $ARGUMENTS"}, "parameters": [{"name": "dry-run", "kind": "boolean", "required": false}, {"name": "target", "kind": "string", "required": true, "positional": true}]}` | `SlashCommandDefinition` | `positional_after_named` | [S-9](contract.md#s-9-参数声明的结构约束) |
-| `{"name": "fix-issue", "description": "修", "binding": {"kind": "prompt", "template": "Fix $1 on $0"}, "parameters": [{"name": "branch", "kind": "string", "required": false, "positional": true}, {"name": "issue", "kind": "integer", "required": true, "positional": true}]}` | `SlashCommandDefinition` | `malformed` | [S-9](contract.md#s-9-参数声明的结构约束) 第三条：必填位置参数排在可选的之后 |
-| `{"name": "fix-issue", "description": "修", "binding": {"kind": "prompt", "template": "Fix issue $0"}}` | `SlashCommandDefinition` | `malformed` | [S-10](contract.md#s-10-提示词模板与占位符) 第 1 条：没有声明，模板里就不得有没被转义的 `$N` |
-| `{"name": "fix-issue", "description": "修", "binding": {"kind": "prompt", "template": "Fix issue $2"}, "parameters": [{"name": "issue", "kind": "integer", "required": true, "positional": true}, {"name": "branch", "kind": "string", "required": false, "positional": true}]}` | `SlashCommandDefinition` | `malformed` | [S-10](contract.md#s-10-提示词模板与占位符) 第 1 条：只有两个位置参数，`$2` 指不到 |
-| `{"name": "deploy", "description": "部署", "binding": {"kind": "prompt", "template": "Deploy now."}, "parameters": [{"name": "target", "kind": "string", "required": true}]}` | `SlashCommandDefinition` | `malformed` | [S-10](contract.md#s-10-提示词模板与占位符) 第 2 条：声明了具名参数，模板里却没有 `$ARGUMENTS`——验过的参数会被悄悄丢掉 |
-| `{"name": "fix-issue", "description": "修", "binding": {"kind": "prompt", "template": "Fix issue $0."}, "parameters": [{"name": "issue", "kind": "integer", "required": true, "positional": true}, {"name": "branch", "kind": "string", "required": false, "positional": true}]}` | `SlashCommandDefinition` | `malformed` | [S-10](contract.md#s-10-提示词模板与占位符) 第 2 条：`branch` 没有去处 |
-| 上面第 1 节第三行那份 `omne-official:reload-skill` 定义，所在资产记录的 `origin` 是 `customized` | 资产记录（`data.asset-model` v1） | `name_reserved` | [S-4](contract.md#s-4-保留区只归系统提供的命令型) 第三行：③ 型本版只由系统提供 |
-| 第 1 节第一行那份 `review` 定义，所在资产记录的 `capability` 是 `{"category": "slash_command", "name": "review-pr"}` | 资产记录（`data.asset-model` v1） | `malformed` | [S-1](contract.md#s-1-斜杠命令定义是资产的正文)：`name` 必须等于记录的 `capability.name` |
+| `{"description": "修", "binding": {"kind": "prompt", "template": "Fix $0 as $1"}, "parameters": [{"name": "issue", "kind": "integer", "required": true, "positional": true}, {"name": "issue", "kind": "string", "required": true, "positional": true}]}` | `SlashCommandDefinition` | `parameter_duplicate` | [S-9](contract.md#s-9-参数声明的结构约束) |
+| `{"description": "部署", "binding": {"kind": "prompt", "template": "Deploy $0 $ARGUMENTS"}, "parameters": [{"name": "dry-run", "kind": "boolean", "required": false}, {"name": "target", "kind": "string", "required": true, "positional": true}]}` | `SlashCommandDefinition` | `positional_after_named` | [S-9](contract.md#s-9-参数声明的结构约束) |
+| `{"description": "修", "binding": {"kind": "prompt", "template": "Fix $1 on $0"}, "parameters": [{"name": "branch", "kind": "string", "required": false, "positional": true}, {"name": "issue", "kind": "integer", "required": true, "positional": true}]}` | `SlashCommandDefinition` | `malformed` | [S-9](contract.md#s-9-参数声明的结构约束) 第三条：必填位置参数排在可选的之后 |
+| `{"description": "修", "binding": {"kind": "prompt", "template": "Fix issue $0"}}` | `SlashCommandDefinition` | `malformed` | [S-10](contract.md#s-10-提示词模板与占位符) 第 1 条：没有声明，模板里就不得有没被转义的 `$N` |
+| `{"description": "修", "binding": {"kind": "prompt", "template": "Fix issue $2"}, "parameters": [{"name": "issue", "kind": "integer", "required": true, "positional": true}, {"name": "branch", "kind": "string", "required": false, "positional": true}]}` | `SlashCommandDefinition` | `malformed` | [S-10](contract.md#s-10-提示词模板与占位符) 第 1 条：只有两个位置参数，`$2` 指不到 |
+| `{"description": "部署", "binding": {"kind": "prompt", "template": "Deploy now."}, "parameters": [{"name": "target", "kind": "string", "required": true}]}` | `SlashCommandDefinition` | `malformed` | [S-10](contract.md#s-10-提示词模板与占位符) 第 2 条：声明了具名参数，模板里却没有 `$ARGUMENTS`——验过的参数会被悄悄丢掉 |
+| `{"description": "修", "binding": {"kind": "prompt", "template": "Fix issue $0."}, "parameters": [{"name": "issue", "kind": "integer", "required": true, "positional": true}, {"name": "branch", "kind": "string", "required": false, "positional": true}]}` | `SlashCommandDefinition` | `malformed` | [S-10](contract.md#s-10-提示词模板与占位符) 第 2 条：`branch` 没有去处 |
+| 上面第 1 节第三行那份定义，所在资产记录的能力标识是 `slash_command/omne-official:reload-skill`、`origin` 是 `customized` | 资产记录（`data.asset-model` v1） | `name_reserved` | [S-4](contract.md#s-4-保留区只归系统提供的命令型) 第三行：③ 型本版只由系统提供 |
+| 一份能力标识为 `{"category": "slash_command", "name": "omne-official:summarize"}` 的记录，正文 `{"description": "摘要", "binding": {"kind": "prompt", "template": "$ARGUMENTS"}}` | 资产记录（`data.asset-model` v1） | `name_reserved` | [S-4](contract.md#s-4-保留区只归系统提供的命令型)：① 型在保留区里。**不论记录是不是 `official`** |
+| 一份能力标识为 `{"category": "slash_command", "name": "omne-official:code-review"}` 的记录，正文 `{"description": "审查", "binding": {"kind": "skill", "skill": {"category": "skill", "name": "code-review"}}}` | 资产记录（`data.asset-model` v1） | `name_reserved` | [S-4](contract.md#s-4-保留区只归系统提供的命令型)：② 型同理 |
+| 一份能力标识为 `{"category": "slash_command", "name": "reload-skill"}` 的记录，正文 `{"description": "重填", "binding": {"kind": "command", "service": "registry.reload.skill"}}` | 资产记录（`data.asset-model` v1） | `name_reserved` | [S-4](contract.md#s-4-保留区只归系统提供的命令型)：③ 型必须在保留区里 |
 | `{"raw": "/review x", "name": "reviews", "argumentText": "x", "span": {"start": 0, "end": 8}}` | `CommandInvocation` | `malformed` | [S-14](contract.md#s-14-commandinvocation-与位置)：按 `raw` 重新识别，名字是 `review` |
 | `{"raw": "/review x", "name": "review", "argumentText": "x", "span": {"start": 0, "end": 6}}` | `CommandInvocation` | `malformed` | [S-14](contract.md#s-14-commandinvocation-与位置)：`span` 恒为 `{0, 1 + 名字的码点数}` |
 | `{"kind": "failed", "reason": "type_mismatch", "at": {"start": 14, "end": 11}, "explanation": "这里要一个整数"}` | `ParseResult` | `malformed` | [S-14](contract.md#s-14-commandinvocation-与位置)：`start > end` |
@@ -233,18 +242,19 @@
 
 ## 6. 几处违例同时出现时取哪个拒绝值
 
-**校验对象**：`$defs/SlashCommandDefinition`。每行都有不止一处违例，拒绝值按 [S-28](contract.md#s-28-表示层拒绝值) 的次序取最前的那个。
+每行是一份资产记录的命令名与正文，都有不止一处违例；拒绝值按 [S-28](contract.md#s-28-表示层拒绝值) 的次序取最前的那个。
+**校验对象**：`$defs/SlashCommandDefinition`——只对第二列的正文，结果写在第三列；命令名与保留区要看记录，由接收边界判。
 
-| 实例 | 同时违反 | 拒绝值 |
-|---|---|---|
-| `{"name": "omne-official:x", "description": "x", "binding": {"kind": "macro", "template": "$ARGUMENTS"}}` | 绑定种类不认得；保留区规则因此无从判起 | `binding_unknown` |
-| `{"name": "review/pr", "description": "x", "binding": {"kind": "prompt", "template": "$ARGUMENTS"}, "parameters": [{"name": "a", "kind": "string", "required": true}, {"name": "a", "kind": "string", "required": true}]}` | 名字含 `/`；参数同名 | `name_invalid` |
-| `{"name": "omne-official:x", "description": "x", "binding": {"kind": "prompt", "template": "$ARGUMENTS"}, "parameters": [{"name": "b", "kind": "string", "required": false}, {"name": "a", "kind": "string", "required": true, "positional": true}]}` | ① 型在保留区里；位置参数排在具名参数之后 | `name_reserved` |
-| `{"name": "x", "description": "x", "binding": {"kind": "prompt", "template": "$ARGUMENTS"}, "parameters": [{"name": "b", "kind": "string", "required": false}, {"name": "b", "kind": "string", "required": true, "positional": true}]}` | 参数同名；位置参数排在具名参数之后 | `parameter_duplicate` |
-| `{"name": "omne-official:x", "description": "x", "binding": {"template": "$ARGUMENTS"}}` | 绑定种类缺席；名字在保留区里 | `malformed`——**`kind` 缺席时保留区规则不判**（[S-4](contract.md#s-4-保留区只归系统提供的命令型)），不报 `name_reserved` |
+| 命令名 | 正文 | 正文过 Schema | 同时违反 | 拒绝值 |
+|---|---|---|---|---|
+| `omne-official:x` | `{"description": "x", "binding": {"kind": "macro", "template": "$ARGUMENTS"}}` | 拒绝 | 绑定种类不认得；保留区规则因此无从判起 | `binding_unknown` |
+| `review/pr` | `{"description": "x", "binding": {"kind": "prompt", "template": "$ARGUMENTS"}, "parameters": [{"name": "a", "kind": "string", "required": true}, {"name": "a", "kind": "string", "required": true}]}` | 通过 | 名字含 `/`；参数同名 | `name_invalid` |
+| `omne-official:x` | `{"description": "x", "binding": {"kind": "prompt", "template": "$ARGUMENTS"}, "parameters": [{"name": "b", "kind": "string", "required": false}, {"name": "a", "kind": "string", "required": true, "positional": true}]}` | 通过 | ① 型在保留区里；位置参数排在具名参数之后 | `name_reserved` |
+| `x` | `{"description": "x", "binding": {"kind": "prompt", "template": "$ARGUMENTS"}, "parameters": [{"name": "b", "kind": "string", "required": false}, {"name": "b", "kind": "string", "required": true, "positional": true}]}` | 通过 | 参数同名；位置参数排在具名参数之后 | `parameter_duplicate` |
+| `omne-official:x` | `{"description": "x", "binding": {"template": "$ARGUMENTS"}}` | 拒绝 | 绑定种类缺席；名字在保留区里 | `malformed`——**`kind` 缺席时保留区规则不判**（[S-4](contract.md#s-4-保留区只归系统提供的命令型)），不报 `name_reserved` |
 
 ## 7. 起草者的自核不是证据
 
 起草时，判定用例集第 4 节的「交出的文字 / 命令尝试」与「解析结果」两列，是起草者按条款手写、再用自己对文法的一份一次性演算核对过的——
 **那份演算与写条款的是同一个人、同一种读法**，它只能说明表里的值与起草者的读法不互相矛盾，**不能**说明条款无歧义，也**不是**任何实现的符合性证据。
-第 1～3、5、6 节**没有跑过任何 Schema 校验器**。实际状态见[验证入口](../verification.md)。
+第 1～3 节与第 5、6 节里的实例在 2026-09-24 整批对齐时用 Draft 2020-12 校验器跑过一遍（本地自检，只判 Schema 通过与否）；判定用例集仍只有起草者的演算。实际状态见[验证入口](../verification.md)。

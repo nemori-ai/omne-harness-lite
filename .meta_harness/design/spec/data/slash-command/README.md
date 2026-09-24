@@ -9,8 +9,7 @@
 - **状态**：`candidate`——未接受、未冻结，不得据此发布或声称消费者已采用
 - **catalog 映射**：已登记为 `candidate`（`acceptance` 为 `null`）。`family=data`、`topic=slash-command`、
   `contract_path=spec/data/slash-command/v1/contract.md`，`resources` 另含 `v1/slash-command.schema.json` 与 `v1/examples.md`；
-  依赖三项：`data.asset-model` v1（`S-2`、`S-3`、`S-5`、`S-10`、`S-12`、`S-15`）、`data.content-blocks` v1（`S-8`）、`data.identity-values` v1（`S-8`、`S-31`）。
-  **`data.skill-package` v1 这项依赖暂未登记**——它同批并行起草、不在本工作树（[G-2](v1/contract.md#十已知缺口)）。
+  依赖四项：`data.asset-model` v1（`S-2`、`S-3`、`S-5`、`S-10`、`S-12`、`S-15`、`S-36`）、`data.content-blocks` v1（`S-8`）、`data.identity-values` v1（`S-31`）、`data.skill-package` v1（`S-8`）。
   **登记在 [registry](../../../registry/README.md)，本行只作索引**
 - **起点方向**：[D-036](../../../record/decisions/slash-command-parsing-baseline/decision.md)（自研统一解析器，从 Codex 借识别边界、从 omne-next 借失败纪律与声明优先、从 Claude Code 借占位符与留痕形状）
 - **提供者/装配映射**：尚无
@@ -23,7 +22,7 @@
 | 稳定身份 | `data.slash-command`，版本 1 |
 | 适用范围 | 一个部署之内；交付面与受理面分成两个进程、两种语言之后要由协议重新兑现的，逐行列在[契约第六节](v1/contract.md#六装配给与协议给) |
 | 为什么是 data 而不是 capability | 它**没有操作**：没有提交点、没有状态转移、没有授权前提。识别与解析是纯计算；命令集怎样装与换、受理怎样展开与分派、流程怎样执行，归各自的能力契约 |
-| 精确依赖 | 见上面「catalog 映射」一行；`CommandName` 按主线裁定自写 pattern、暂不 `$ref` `data.asset-model` v1 的 `CapabilityName`（[G-1](v1/contract.md#十已知缺口)） |
+| 精确依赖 | 见上面「catalog 映射」一行；`CommandName` `$ref` `data.asset-model` v1 的 `CapabilityName` 再加保留区 |
 | 谁在等它 | 交付面呈现与受理契约、受理契约（都未立）；同批的 `capability.asset-registry`、`capability.asset-evaluation`、`capability.asset-governance`；`data.asset-model` 与 `data.content-blocks` 的下一次对齐。完整清单见[契约的消费者表](v1/contract.md#消费者)——**那里是唯一的一份** |
 | 接受状态 | 未接受 |
 
@@ -37,7 +36,7 @@
 | 一份命令定义什么会被拒、拒绝值叫什么 | [v1 正反实例](v1/examples.md)与 [S-28 表示层拒绝值](v1/contract.md#s-28-表示层拒绝值) |
 | 名字能不能用 `omne-official:` 开头 | [S-3](v1/contract.md#s-3-保留区与它唯一的拼法)、[S-4](v1/contract.md#s-4-保留区只归系统提供的命令型)、[S-5](v1/contract.md#s-5-保留名在系统内唯一没有优先级) |
 | 没权限的命令敲下去得到什么 | [S-16](v1/contract.md#s-16-名字只按会话斜杠命令集认)：与不存在的名字逐成员相同 |
-| 哪里在等裁决 | [已知缺口](v1/contract.md#十已知缺口)——**G-3（引号没闭合的失败原因值）挡住带参数声明的命令的一种失败；G-4（留痕块形状）与 G-5（「谁可以用」的项名与默认值）挡住受理与求值** |
+| 哪里在等裁决 | [已知缺口](v1/contract.md#十已知缺口)——**G-7（系统业务流程的登记处）、G-8（③ 型条目与具名拒绝条目的形状）、G-9（命令与附件一起走）**；G-10：2026-09-23 那批主线裁定待落决定记录与产品负责人确认 |
 | 哪些条款有怎样的证据义务，现在到哪一步 | [验证与覆盖](verification.md) |
 
 ## 版本包
