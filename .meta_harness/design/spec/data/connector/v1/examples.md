@@ -144,7 +144,7 @@
 ```
 
 它的身份在记录的 `capability` 上，例如 `{"category": "connector", "name": "ops-alerts"}`；**要同时接同一服务的另一个账号，就另立一份 name 不同的记录**（[S-12](contract.md#s-12-鉴权绑定那一项)）。
-投递目标与鉴权绑定在持有它的那一格的配值上，例如一份租户格持有的 `assignments` 里 `{"item": "target", "value": {"kind": "session", "session": "ses_4c1e"}, "immutable": false}` 与 `{"item": "credential", "value": "cred_5a0e", "immutable": false}`。
+投递目标与鉴权绑定在持有它的那一格的配值上，例如一份租户格持有的 `assignments` 里 `{"item": "target", "value": {"kind": "session", "session": "ses_4c1e"}, "immutable": false, "since": "2026-09-20T09:00:00Z"}` 与 `{"item": "credential", "value": "cred_5a0e", "immutable": false, "since": "2026-09-20T09:00:00Z"}`。
 
 ## 8. 推出的属性声明
 
