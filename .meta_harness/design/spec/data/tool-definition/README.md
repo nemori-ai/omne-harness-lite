@@ -11,7 +11,7 @@
 - **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐原地改一次）——未接受、未冻结；**不得据此发布或声称消费者已采用**
 - **catalog 映射**：已登记为 `candidate`，`family=data`、`topic=tool-definition`、`contract_path=spec/data/tool-definition/v1/contract.md`，
   `resources` 另含 `v1/tool-definition.schema.json` 与 `v1/examples.md`；`acceptance` 为 null；
-  `dependencies` 两项：`data.content-blocks` v1 与 `data.asset-model` v1（都是同批候选），消费 clauses 见[契约抬头](v1/contract.md)
+  `dependencies` 两项：`data.content-blocks` v1 与 `data.asset-model` v1（都是候选），消费 clauses 见[契约抬头](v1/contract.md)
 - **提供者/装配映射**：尚无
 
 ## 准入核对
