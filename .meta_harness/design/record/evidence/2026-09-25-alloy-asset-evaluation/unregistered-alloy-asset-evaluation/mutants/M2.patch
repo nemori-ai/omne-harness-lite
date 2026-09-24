@@ -1,0 +1,11 @@
+--- /data/qiwei/repos/omne-harness-lite/tmp/formal-runs/asset-evaluation-v1-2026-09-24b/-c/Evaluation.als	2026-09-24 07:59:41.990434136 +0000
++++ /data/qiwei/repos/omne-harness-lite/tmp/formal-runs/asset-evaluation-v1-2026-09-24b/-c/mutants/M2.als	2026-09-24 08:00:09.782183687 +0000
+@@ -188,7 +188,7 @@
+   { a: Asset | some h: Disabled | h.asset = a and (h.layer != Workspace or a in WsAsset) }
+ }
+ 
+-fun notDisabled : set Holding { { h: Holding | h.asset not in disabledAssets } }
++fun notDisabled : set Holding { Holding }
+ 
+ // ②再按「谁可以使用它」滤（S-39）。判定作给定：Unusable 是这次求值的租户判下来用不了的那些持有。
+ sig Unusable in Holding {}
