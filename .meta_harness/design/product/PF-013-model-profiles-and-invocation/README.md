@@ -95,6 +95,6 @@ PF-013-model-profiles-and-invocation/
 ├── acceptance.md     产品视角的验收标准
 ├── decisions.md      拍板记录 / PM 推导 / 待裁决       ← 必须
 ├── changelog.md      产品设计本身的演进                ← 必须
-└── interviews/       产品调研的来源与观察（不是依据）
+├── interviews/       产品调研的来源与观察（不是依据）
 └── projection/       技术投影（按版本固化的派生快照，不是权威）
 ```
