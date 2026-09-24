@@ -35,7 +35,7 @@
     "env": { "GITHUB_TOOLSETS": "issues,repos" }
   },
   "timeouts": { "connect": "PT10S", "call": "PT60S" },
-  "permissions": { "use": { "default": "member" }, "execute": { "default": "ask" } }
+  "permissions": { "execute": { "default": "ask" } }
 }
 ```
 
@@ -45,7 +45,7 @@
 {
   "transport": { "kind": "streamable_http", "url": "https://mcp.linear.app/mcp" },
   "timeouts": { "connect": "PT15S", "call": "PT2M" },
-  "permissions": { "use": { "default": "member" }, "execute": { "default": "ask" } }
+  "permissions": { "execute": { "default": "ask" } }
 }
 ```
 
@@ -53,8 +53,7 @@
 |---|---|---|---|
 | 在 1.1 上删掉 `env` | 通过 | — | [S-4](contract.md#s-4-stdio)：不声明＝作者不加任何变量 |
 | 在 1.1 上 `args` 改为 `[]` | 通过 | — | [S-4](contract.md#s-4-stdio)：可以为空数组 |
-| 在 1.2 上 `permissions.use.default` 改为 `"self"` | 通过 | — | [S-8](contract.md#s-8-两项权限的作者默认)：取值域是租户角色两值加 `self` |
-| 在 1.2 上 `permissions.execute.default` 改为 `"auto"` | 通过 | — | [S-8](contract.md#s-8-两项权限的作者默认)：作者可以声明自动；**被工作区提供时这个值不被认**（[S-17](contract.md#s-17-工作区格上的这些项)） |
+| 在 1.2 上 `permissions.execute.default` 改为 `"auto"` | 通过 | — | [S-8](contract.md#s-8-执行权限的作者默认)：作者可以声明自动；**被工作区提供时这个值不被认**（[S-17](contract.md#s-17-工作区格上的这些项)） |
 | 在 1.1 上加 `"credential": "ghp_16C7e42F292c6912E7710c838347Ae178B4a"` | 拒绝 | `credential_plaintext` | [S-6](contract.md#s-6-正文不收凭据)：**正文里没有凭据的位置**（[S-22](contract.md#s-22-正文里写凭据被拒) 正例的反面） |
 | 在 1.1 上加 `"credential": "cred_77f0"`（一个引用） | 拒绝 | `credential_plaintext` | [S-6](contract.md#s-6-正文不收凭据)：**引用也不行**——凭据只在持有上 |
 | 在 1.2 上加 `"oauth": {"id": "oab_3e1f", "state": "granted", "since": "2026-09-23T08:00:00Z"}` | 拒绝 | `malformed`（M4） | [S-6](contract.md#s-6-正文不收凭据)：OAuth 绑定按持有保存，不在正文 |
@@ -65,10 +64,10 @@
 | 在 1.1 上 `timeouts.call` 改为 `"PT0H0M"` | 拒绝 | `malformed`（M8） | [S-7](contract.md#s-7-两项超时的作者默认)：零的另一种写法 |
 | 在 1.1 上 `timeouts.call` 改为 `"P1D"` | 拒绝 | `malformed`（M8） | `data.tool-definition/v1#S-14`：不收日历单位 |
 | 在 1.1 上 `timeouts.call` 改为 `60` | 拒绝 | `malformed`（M8） | 同上：不是时长字符串 |
-| 在 1.2 上删掉 `permissions.execute` | 拒绝 | `malformed`（M3） | [S-8](contract.md#s-8-两项权限的作者默认)：**不补成任何一档** |
-| 在 1.2 上 `permissions.execute.default` 改为 `"yolo"` | 拒绝 | `malformed`（M6） | [S-8](contract.md#s-8-两项权限的作者默认) |
-| 在 1.2 上 `permissions.use.default` 改为 `"owner"` | 拒绝 | `malformed`（M6） | [S-8](contract.md#s-8-两项权限的作者默认)：取值域闭合 |
-| 在 1.2 上 `permissions.use` 改为 `{"default": ["member", "self"]}` | 拒绝 | `malformed`（M6） | [S-8](contract.md#s-8-两项权限的作者默认)：`default` 是一个取值，不是集合（[G-5](contract.md#八已知缺口)） |
+| 在 1.2 上删掉 `permissions.execute` | 拒绝 | `malformed`（M3） | [S-8](contract.md#s-8-执行权限的作者默认)：**不补成任何一档** |
+| 在 1.2 上 `permissions.execute.default` 改为 `"yolo"` | 拒绝 | `malformed`（M6） | [S-8](contract.md#s-8-执行权限的作者默认) |
+| 在 1.2 上 `permissions` 加 `"use": {"default": "member"}` | 拒绝 | `malformed`（M4） | [S-8](contract.md#s-8-执行权限的作者默认)：「能不能用」是 `data.asset-model` 保留的 `usableBy`，不在正文 |
+| 在 1.2 上 `permissions.execute` 改为 `{"default": ["ask", "forbid"]}` | 拒绝 | `malformed`（M6） | [S-8](contract.md#s-8-执行权限的作者默认)：`default` 是一个取值，不是集合 |
 | `[]` | 拒绝 | `malformed`（M1） | [S-1](contract.md#s-1-接入点正文) |
 
 ## 2. 连接目标
@@ -226,6 +225,7 @@
   "capability": { "category": "mcp", "name": "github" },
   "asset": "ast_4b20",
   "basis": { "kind": "owned" },
+  "versionSelection": { "kind": "current" },
   "immutable": false,
   "assignments": [
     { "item": "credential", "value": "cred_77f0", "immutable": false },
@@ -245,6 +245,7 @@
   "capability": { "category": "mcp", "name": "linear" },
   "asset": "ast_8c31",
   "basis": { "kind": "owned" },
+  "versionSelection": { "kind": "current" },
   "immutable": false,
   "assignments": [ { "item": "credential", "value": "cred_91c2", "immutable": false } ],
   "since": "2026-09-23T08:00:00Z"
@@ -257,13 +258,12 @@
 
 | 实例 | Schema | 拒绝值 | 依据 |
 |---|---|---|---|
-| `"cred_77f0"` | 通过 | — | [S-13](contract.md#s-13-凭据配值的取值域) 第 1 种 |
-| `{"kind": "not_fetched"}` | 通过 | — | [S-13](contract.md#s-13-凭据配值的取值域) 第 2 种：还没取；**也是「撤掉」写回去的那个值** |
+| `"cred_77f0"` | 通过 | — | [S-13](contract.md#s-13-凭据配值的取值域)：取值域恰是 `CredentialRef` |
+| `{"kind": "not_fetched"}` | 拒绝 | `credential_plaintext` | [S-13](contract.md#s-13-凭据配值的取值域)：**还没取是缺席**，不是一个值；撤掉是删掉那条配值 |
 | `{"token": "ghp_16C7e42F292c6912E7710c838347Ae178B4a"}` | 拒绝 | `credential_plaintext` | [S-13](contract.md#s-13-凭据配值的取值域) |
 | `{"kind": "static", "value": "ghp_16C7e42F"}` | 拒绝 | `credential_plaintext` | [S-13](contract.md#s-13-凭据配值的取值域)：**静态值不是另一种取值**，它经保管方成为一个引用 |
-| `{"kind": "fetched"}` | 拒绝 | `credential_plaintext` | [S-13](contract.md#s-13-凭据配值的取值域)：取值域里只有 `not_fetched` 一个对象 |
-| `{"kind": "not_fetched", "since": "2026-09-23T08:00:00Z"}` | 拒绝 | `credential_plaintext` | [S-13](contract.md#s-13-凭据配值的取值域)：恰是那个对象 |
-| `null` | 拒绝 | `credential_plaintext` | [S-13](contract.md#s-13-凭据配值的取值域)：**缺席不是「还没取」**，写回去要写那个显式取值 |
+| `{"kind": "fetched"}` | 拒绝 | `credential_plaintext` | [S-13](contract.md#s-13-凭据配值的取值域)：取值域里没有对象 |
+| `null` | 拒绝 | `credential_plaintext` | [S-13](contract.md#s-13-凭据配值的取值域)：**`null` 不是缺席**——还没取就是不写这条配值 |
 | `""` | 拒绝 | `credential_plaintext` | `data.asset-model/v1#S-23`：引用非空 |
 | `" cred_77f0"` | 拒绝 | `credential_plaintext` | `data.asset-model/v1#S-23`：首字符是空白 |
 | `{"kind": "revoked"}` | 拒绝 | `credential_plaintext` | [S-13](contract.md#s-13-凭据配值的取值域) 末条：**失效不写回配值** |
@@ -272,7 +272,7 @@
 
 **校验对象**：`data.asset-model` v1 的 `$defs/AttributeDeclaration`，逐条。
 
-**7.1 正文 1.2（`mcp:linear`）配上一份含 `list_issues`、`save_issue` 两个动作的动作集，推出的七条声明**（再加 `disabled` 那一条共八条）——依据 [S-14](contract.md#s-14-推出规则六类项)
+**7.1 正文 1.2（`mcp:linear`）配上一份含 `list_issues`、`save_issue` 两个动作的动作集，推出的六条声明**（再加 `disabled`、`usableBy` 两条共八条）——依据 [S-14](contract.md#s-14-推出规则五类项)
 
 ```json
 [
@@ -280,10 +280,7 @@
     "domain": { "kind": "open", "schema": { "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/mcp-endpoint/v1/mcp-endpoint.schema.json#/$defs/McpTransport" } },
     "default": { "kind": "streamable_http", "url": "https://mcp.linear.app/mcp" } },
   { "item": "credential", "kind": "setting", "category": "placement_identity",
-    "domain": { "kind": "open", "schema": { "oneOf": [
-      { "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/asset-model/v1/asset-model.schema.json#/$defs/CredentialRef" },
-      { "type": "object", "properties": { "kind": { "const": "not_fetched" } }, "required": ["kind"], "additionalProperties": false } ] } },
-    "default": { "kind": "not_fetched" } },
+    "domain": { "kind": "open", "schema": { "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/asset-model/v1/asset-model.schema.json#/$defs/CredentialRef" } } },
   { "item": "connectTimeout", "kind": "setting", "category": "preference",
     "domain": { "kind": "open", "schema": { "allOf": [
       { "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v1/tool-definition.schema.json#/$defs/Duration" },
@@ -294,9 +291,6 @@
       { "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v1/tool-definition.schema.json#/$defs/Duration" },
       { "not": { "pattern": "^PT(?:0+H)?(?:0+M)?(?:0+(?:[.]0+)?S)?(?![\\s\\S])" } } ] } },
     "default": "PT2M" },
-  { "item": "use", "kind": "permission",
-    "domain": { "kind": "enum", "values": ["superAdministrator", "member", "self"] },
-    "default": "member" },
   { "item": "execute:list_issues", "kind": "permission",
     "domain": { "kind": "enum", "values": ["forbid", "auto", "ask"] }, "default": "ask" },
   { "item": "execute:save_issue", "kind": "permission",
@@ -306,12 +300,13 @@
 
 | 实例 | 结论 | 依据 |
 |---|---|---|
-| 同一份正文配上 `{"kind": "not_fetched"}` | 只推出前五条（加 `disabled` 共六条）；**逐动作项推不出来，这是「不知道」，不是「没有」** | [S-15](contract.md#s-15-推出规则的输入正文与动作集) |
-| 同一份正文配上 3.3（空清单） | 只推出前五条；**这是「对端确实没有动作」** | [S-15](contract.md#s-15-推出规则的输入正文与动作集) |
-| 动作集里多了一项 `{"name": "delete_issue", …}` | 多一条 `execute:delete_issue`，其余七条逐字不变 | [S-14](contract.md#s-14-推出规则六类项) 第 1 条：确定 |
-| 某个实现推出了 `{"item": "credential", …, "category": "preference"}` | **推出规则违约**——类别由本契约定死 | [S-14](contract.md#s-14-推出规则六类项) |
-| 某个实现推出了 `{"item": "execute", …}`（一个接入点级的执行权限） | **推出规则违约**——执行权限是逐动作的 | [S-14](contract.md#s-14-推出规则六类项) |
-| 某个实现把 `credential` 的 `default` 推成 `""` | **推出规则违约**——还没取是 `{"kind": "not_fetched"}` | [S-13](contract.md#s-13-凭据配值的取值域) |
+| 同一份正文配上 `{"kind": "not_fetched"}` | 只推出前四条（加两条保留项共六条）；**逐动作项推不出来，这是「不知道」，不是「没有」** | [S-15](contract.md#s-15-推出规则的输入正文与动作集) |
+| 同一份正文配上 3.3（空清单） | 只推出前四条；**这是「对端确实没有动作」** | [S-15](contract.md#s-15-推出规则的输入正文与动作集) |
+| 动作集里多了一项 `{"name": "delete_issue", …}` | 多一条 `execute:delete_issue`，其余六条逐字不变 | [S-14](contract.md#s-14-推出规则五类项) 第 1 条：确定 |
+| 某个实现推出了 `{"item": "credential", …, "category": "preference"}` | **推出规则违约**——类别由本契约定死 | [S-14](contract.md#s-14-推出规则五类项) |
+| 某个实现推出了 `{"item": "execute", …}`（一个接入点级的执行权限） | **推出规则违约**——执行权限是逐动作的 | [S-14](contract.md#s-14-推出规则五类项) |
+| 某个实现把 `credential` 的 `default` 推成 `""` 或 `{"kind": "not_fetched"}` | **推出规则违约**——`credential` 不带默认，还没取是缺席 | [S-13](contract.md#s-13-凭据配值的取值域) |
+| 某个实现推出了 `{"item": "use", …}` 或 `{"item": "usableBy", …}` | **推出规则违约**——「能不能用」是 `data.asset-model` 保留的 `usableBy`，不由本规则产出 | [S-14](contract.md#s-14-推出规则五类项) 第 3 条 |
 
 ## 8. 几处违例同时出现时取哪个拒绝值
 
@@ -324,7 +319,7 @@
 | 在 1.2 上 `transport.url` 改为 `"HTTPS://u:p@x/"` | `credential_plaintext`（userinfo）、`url_invalid`（大写 scheme） | `credential_plaintext` |
 | 在 1.1 上 `transport.command` 改为 `" "`，`timeouts.call` 改为 `"PT0S"` | `command_empty`、`malformed`（M8） | `command_empty` |
 | `{"kind": "fetched", "tools": [{"name": "a"}]}`（缺时刻，唯一一项缺 `inputSchema`） | `snapshot_missing_time`、`malformed`（M3） | `snapshot_missing_time` |
-| `{"transport": {"command": "srv", "args": []}, "credential": "tok", "timeouts": {"connect": "PT1S", "call": "PT1S"}, "permissions": {"use": {"default": "member"}, "execute": {"default": "ask"}}}` | `malformed`（M2：连接目标缺 `kind`）、`credential_plaintext` | `malformed` |
+| `{"transport": {"command": "srv", "args": []}, "credential": "tok", "timeouts": {"connect": "PT1S", "call": "PT1S"}, "permissions": {"execute": {"default": "ask"}}}` | `malformed`（M2：连接目标缺 `kind`）、`credential_plaintext` | `malformed` |
 
 ## 9. Schema 挡不住，但同样非法的
 
@@ -341,8 +336,8 @@
 
 ## 10. 起草者逐条自核
 
-**没有跑过任何校验器。**起草时逐行手核了第 1～9 节每一行的「Schema」一列与「拒绝值」一列是否与 Schema 文本、[S-20](contract.md#s-20-表示层拒绝值与判定次序) 的次序自洽；
-**手核不是证据**，它只保证实例与标注在起草者眼里不互相矛盾。执行状态见[验证入口](../verification.md)。
+起草时逐行手核了第 1～9 节每一行的「Schema」一列与「拒绝值」一列是否与 Schema 文本、[S-20](contract.md#s-20-表示层拒绝值与判定次序) 的次序自洽；
+**手核不是证据**。整批对齐（2026-09-24）时「Schema」一列跑过一次本地自检，「拒绝值」一列未机检；执行状态见[验证入口](../verification.md#结果与反例)。
 
 已知的局限：
 

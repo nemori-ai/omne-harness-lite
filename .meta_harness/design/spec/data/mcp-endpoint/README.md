@@ -1,16 +1,16 @@
 # MCP 接入点
 
-**一个 [MCP](../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-mcp--mcp--mcp) 接入点资产的数据长什么样**：作者写下的正文（连接目标与三项属性的默认值）、两种传输、
-桥为每份持有存下的动作清单副本与其中每一项对端动作、动作条目名的拼法、OAuth 绑定的三个状态、凭据配值里「还没取」怎么写、
+**一个 [MCP](../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-mcp--mcp--mcp) 接入点资产的数据长什么样**：作者写下的正文（连接目标、两项超时与执行权限的默认值）、两种传输、
+桥为每份持有存下的动作清单副本与其中每一项对端动作、动作条目名的拼法、OAuth 绑定的三个状态、凭据配值的取值域（「还没取」是缺席）、
 一个接入点有哪些设置项与权限项——以及一个值不合这些形状时，拒绝值叫什么。
 
-它是 `data.asset-model` v1 里 mcp 那一支正文的家，也是 [`capability.mcp-bridge`](../../capabilities/mcp-bridge/README.md) 读写的全部形状。
+它是 `data.asset-model` v1 里 mcp 那一支正文的家（那边 `$ref` 本契约的 `McpEndpoint`），也是 [`capability.mcp-bridge`](../../capabilities/mcp-bridge/README.md) 读写的全部形状。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.mcp-endpoint, 1)`
 - **状态**：`candidate`（2026-09-23 起草）——未接受、未冻结，不得据此发布或声称消费者已采用
 - **catalog 映射**：已登记为 `candidate`（`acceptance` 为 `null`）。`family=data`、`topic=mcp-endpoint`、
   `contract_path=spec/data/mcp-endpoint/v1/contract.md`，`resources` 另含 `v1/mcp-endpoint.schema.json` 与 `v1/examples.md`；
-  依赖四项：`data.asset-model` v1、`data.tool-definition` v1（两者都是同批候选）、`data.identity-values` v1、`data.offer-expiry` v1——
+  依赖四项：`data.asset-model` v1、`data.tool-definition` v1（两者都是同批候选）、`data.identity-values` v1（不透明标识的交换表示）、`data.offer-expiry` v1——
   消费的条款见[契约头部的依赖表](v1/contract.md)。**登记在 [registry](../../../registry/README.md)，本行只作索引**
 - **提供者/装配映射**：尚无
 
@@ -23,7 +23,7 @@
 | 适用范围 | 一个部署之内；跨进程后要由协议重新兑现的，列在[契约第五节](v1/contract.md#五装配给与协议给) |
 | 为什么是 data 而不是 capability | 它**没有操作**：没有提交点、没有状态转移、没有自己的授权前提。连接、列举、投影、调用、OAuth 流程归 `capability.mcp-bridge` |
 | 精确依赖 | 见上面「catalog 映射」一行 |
-| 谁在等它 | `capability.mcp-bridge`（同批）；`data.asset-model` 的 mcp 一支（它的 G-5）；求值、治理写面、注册表（同批）。完整清单见[契约的消费者表](v1/contract.md#消费者)——**那里是唯一的一份** |
+| 谁在等它 | `capability.mcp-bridge`（同批）；`data.asset-model` 的 mcp 一支；求值、治理写面、注册表（同批）。完整清单见[契约的消费者表](v1/contract.md#消费者)——**那里是唯一的一份** |
 | 接受状态 | 未接受 |
 
 ## 按当前问题展开
@@ -33,8 +33,8 @@
 | 本候选版本精确承诺什么 | [v1 契约](v1/contract.md) |
 | 交换与存储表示 | [v1 Schema](v1/mcp-endpoint.schema.json) |
 | 一个值长什么样、什么会被拒、拒绝值叫什么 | [v1 正反实例](v1/examples.md) |
-| 一个接入点有哪些属性项、默认值从哪来 | [S-14 推出规则](v1/contract.md#s-14-推出规则六类项)与[实例第 7 节](v1/examples.md#7-推出的属性声明) |
-| 凭据为什么不在正文里、副本为什么不在正文里 | [S-6](v1/contract.md#s-6-正文不收凭据)、[S-9](v1/contract.md#s-9-动作清单副本)——**这两处与起草简报的账本不同，已报主线改判** |
+| 一个接入点有哪些属性项、默认值从哪来 | [S-14 推出规则](v1/contract.md#s-14-推出规则五类项)与[实例第 7 节](v1/examples.md#7-推出的属性声明) |
+| 凭据为什么不在正文里、副本为什么不在正文里 | [S-6](v1/contract.md#s-6-正文不收凭据)、[S-9](v1/contract.md#s-9-动作清单副本)——**这两处与起草简报的账本不同，主线裁定 2026-09-23 采纳，待产品负责人确认** |
 | 哪里在等裁决 | [已知缺口](v1/contract.md#八已知缺口) |
 | 哪些条款有怎样的证据义务，现在到哪一步 | [验证与覆盖](verification.md) |
 

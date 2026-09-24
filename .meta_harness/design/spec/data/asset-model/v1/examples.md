@@ -515,7 +515,7 @@
   "assignments": [
     { "capability": { "category": "agent_definition", "name": "code-assistant" }, "item": "default_model", "value": "b" },
     { "capability": { "category": "tool", "name": "shell" }, "item": "execute", "value": { "allowed": ["auto"] } },
-    { "capability": { "category": "mcp", "name": "repo-db" }, "item": "call_timeout", "value": "PT20S", "immutable": true }
+    { "capability": { "category": "mcp", "name": "repo-db" }, "item": "callTimeout", "value": "PT20S", "immutable": true }
   ],
   "disabled": [
     { "category": "skill", "name": "svc-conventions" }

@@ -92,6 +92,7 @@ V-2～V-7 **一条执行记录也没有**。手核只保证 `examples.md` 的实
   - G-2、G-3、G-4、G-11 闭合；[S-4](v1/contract.md#s-4-资产记录号)、[S-5](v1/contract.md#s-5-资产来源)、[S-11](v1/contract.md#s-11-plugin-的成员)、[S-25](v1/contract.md#s-25-规范表示) 补对账块 A 的几句（记录号不复用、工作区提供的算 customized、plugin 只有内含、值可序列化）。
   - **对证据的影响**：V-1 首次有了本地自检；V-5 的停点从五处缩到一处（G-6）；V-3 新增三行（`pinned` 的版本存在、`organization` 的外层持有在、`carrier` 双向）。
   - **（同日续）「未配」只有缺席一种写法**（账本 S21-b）：[S-12](v1/contract.md#s-12-属性声明由正文推出) 允许 `placement_identity` 类设置项不带 `default`，[S-23](v1/contract.md#s-23-凭据引用) 第 2 条改为「还没取 = 缺席」（原文要求「不是缺席」，与裁定相反）；Schema 的 `AttributeDeclaration` 随之把 `default` 改为条件必填。**表示放宽**：此前拒的「落点类项无默认」现在收。S-12 第 1 条为 `mcp` 写明第二个输入（动作清单副本）。消费者：`data.mcp-endpoint`、`data.connector`。
+  - **（同日续）实例 12.1 的项名 `call_timeout` 改为 `callTimeout`**：与 `data.mcp-endpoint` 推出的项名同一个（同一件事一个名字）；形状判定不变，本地自检重跑仍 0 不符。
 - **[G-6](v1/contract.md#八已知缺口)、[G-9](v1/contract.md#八已知缺口) 被裁决**（Agent Definition 的正文、plugin 的正文）：`AssetContent` 相应的变体换成引用或加成员 ⇒ 表示改变；接受前闭合则原地改并重跑 V-1、V-3、V-5，接受后闭合则**出 v2**。
 - **[G-13](v1/contract.md#八已知缺口) 闭合**（自决与裁定落进设计链）：只改[设计依据](v1/contract.md#设计依据)表的链接，语义与表示不变。
 - **跨进程演化启动**：V-6 从「无法演练」转为**必须演练**；[第四节](v1/contract.md#四装配给与协议给)右列九行从「待兑现」转为「须由协议兑现」，其中工作区键缺宿主分量那一行**多半要出新版**。
