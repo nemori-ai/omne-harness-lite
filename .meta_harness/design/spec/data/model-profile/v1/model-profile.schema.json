@@ -122,6 +122,25 @@
       ]
     },
 
+    "ModelProfileSnapshot": {
+      "title": "ModelProfileSnapshot",
+      "description": "S-27：一条档案在某一刻的、发出与重试要用到的那几项属性的副本——允许的供应商及次序、允不允许回退、两组模态、两个上限、请求参数，以及这份记载的 updatedAt。它是值，不是引用：档案后来被改或被撤回，快照不变；指认的是哪一条档案由与它成对交出的 ModelProfileRef 给出。不带路由名、来源、在册状态与送进去之前的限制。规格层值名，不是统一语言词条。",
+      "$comment": "各成员的取值域与 ModelProfile 同名成员逐字相同（以 $ref 取那一处）。成员集合闭合；parameters 缺席即那一刻档案不给任何一项（S-17）。",
+      "type": "object",
+      "properties": {
+        "providers": { "$ref": "#/$defs/ModelProfile/properties/providers" },
+        "allowFallback": { "$ref": "#/$defs/ModelProfile/properties/allowFallback" },
+        "inputModalities": { "$ref": "#/$defs/ModelProfile/properties/inputModalities" },
+        "outputModalities": { "$ref": "#/$defs/ModelProfile/properties/outputModalities" },
+        "maxInputTokens": { "$ref": "#/$defs/ModelProfile/properties/maxInputTokens" },
+        "maxOutputTokens": { "$ref": "#/$defs/ModelProfile/properties/maxOutputTokens" },
+        "parameters": { "$ref": "#/$defs/ModelProfile/properties/parameters" },
+        "updatedAt": { "$ref": "#/$defs/ModelProfile/properties/updatedAt" }
+      },
+      "required": ["providers", "allowFallback", "inputModalities", "outputModalities", "maxInputTokens", "maxOutputTokens", "updatedAt"],
+      "additionalProperties": false
+    },
+
     "RouteName": {
       "title": "RouteName",
       "description": "S-2：上游认的那个名字，档案身份的一个分量。非空字符串，首尾不得是空白；相等是逐码点精确相等，不做 Unicode 规范化、大小写折叠或首尾裁剪。本系统不解析它的内容（不从中读出厂商、系列或版本）。建档后不可改——改了就是另一条档案。",

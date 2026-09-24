@@ -122,6 +122,7 @@
 | `InputConstraints` | 送进去之前的限制 | S-9 |
 | `Registration` | 在册状态：在册 / 已撤回 | S-10 |
 | `ModelProfileRef` | 指向一条档案的引用 | S-13、S-14 |
+| `ModelProfileSnapshot` | 档案在某一刻、发出与重试要用到的属性的副本 | S-27 |
 | `ModelRequestParameters` | [模型请求参数](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-request-parameters--模型请求参数--model-request-parameters) | S-15～S-21 |
 | `ReasoningEffort` | 推理强度的五档 | S-16 |
 
@@ -415,6 +416,16 @@ PF-013 有几条规则建立在「每个模型都收得下文本」之上——[
 
   **失败值名归提供读面的能力**（`capability.model-profile-directory` v1）；本契约只要求三者**结果值不同**、都以返回值到达调用方。
 
+### S-27 ModelProfileSnapshot：档案在某一刻的副本
+
+**`ModelProfileSnapshot` 是一条档案在某一刻、发出与重试要用到的那几项属性的副本**：`providers`、`allowFallback`、`inputModalities`、`outputModalities`、
+`maxInputTokens`、`maxOutputTokens`、`parameters`（可缺席），以及这份记载的 `updatedAt`。各项的取值域与 `ModelProfile` 的同名成员逐字相同。
+
+- **它是值，不是引用**：档案后来被改、被撤回，快照一个字不变。指认它是哪一条档案，靠与它**成对交出**的 `ModelProfileRef`（[S-1](#s-1-档案的身份所在范围与路由名)）；快照自己不带路由名与来源。
+- **家在本契约，消费者 `$ref` 它**：一次调用绑定的那一份记在响应体的路由留痕上，「调模型之后 · 失败」位置的拓展件也拿到同一份（主线裁定 2026-09-23，待产品负责人确认：不给档案加修订身份，快照跟着发出记录走）。
+  放在这里而不放在那两份契约里，是因为两份都要用、而它们之间一份引用另一份——形状只能有一个两边都能引用的家。
+- **成员集合闭合**：它不带在册状态（发出那一刻是否在册由出门前检查判，不是快照的事）、也不带送进去之前的限制（那是组装的输入，不是发出与重试的输入）。
+
 ## 四、统一请求参数词表
 
 ### S-15 ModelRequestParameters 是一份词表
@@ -545,7 +556,7 @@ Schema 只管得到档案本身这一份，其余表示面归静态检查（[验
 
 - **规范表示**：[`model-profile.schema.json`](model-profile.schema.json)，JSON Schema **Draft 2020-12**。
   `$id` = `https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-profile/v1/model-profile.schema.json`
-- **定义项**（9 项）：`ModelProfile`、`ModelProfileRef`、`RouteName`、`ProfileOrigin`、`ProviderName`、
+- **定义项**（10 项）：`ModelProfile`、`ModelProfileSnapshot`、`ModelProfileRef`、`RouteName`、`ProfileOrigin`、`ProviderName`、
   `InputConstraints`、`Registration`、`ModelRequestParameters`、`ReasoningEffort`。消费者 `$ref` 这些定义，**不复制一份同义类型**。
   `Modality` 不在其中：两组模态 `$ref` `data.content-blocks` 的 `$defs/Modality`（[S-7](#s-7-modality-与两组模态)）。
 - **根模式不约束任何文档**：本文件是共享定义的登记处。

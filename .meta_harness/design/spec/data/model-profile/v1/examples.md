@@ -320,3 +320,16 @@
 它和一条在册的档案长得一样。违反的是**转移**，不是形状：[S-10](contract.md#s-10-registration) 说**没有 `withdrawn → listed` 这条边**，
 所以维护档案的能力**不提供**任何写出这次转移的操作，本契约也因此**没有**给它一个失败值。
 它的证据形式是静态检查（写路径里找不到这条边），登记在[验证入口](../verification.md#证据义务)。
+
+## 9. ModelProfileSnapshot
+
+**校验对象**：`$defs/ModelProfileSnapshot`（[S-27](contract.md#s-27-modelprofilesnapshot档案在某一刻的副本)）。它是值，不是一份档案文档：不参与 [S-25](contract.md#s-25-拒绝值闭合一次恰一个) 的拒绝值次序，这里只给形状上的通过与拒绝。
+
+| 实例 | 预期 | 依据 |
+|---|---|---|
+| `{"providers": ["provider-z"], "allowFallback": false, "inputModalities": ["text"], "outputModalities": ["text"], "maxInputTokens": 32000, "maxOutputTokens": 8192, "parameters": {"temperature": 0.2}, "updatedAt": "2026-09-20T02:30:00+08:00"}` | 通过 | 正例 B 在那一刻的副本 |
+| `{"providers": ["provider-x", "provider-y"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-23T08:00:00Z"}` | 通过 | `parameters` 缺席：那一刻档案一项都不给 |
+| `{"providers": ["provider-z"], "allowFallback": false, "inputModalities": ["text"], "outputModalities": ["text"], "maxInputTokens": 32000, "maxOutputTokens": 8192}` | 拒绝 | `updatedAt` 必带：快照要说得出记载是哪一刻的 |
+| `{"routeName": "vendor-b/coder-7b", "providers": ["provider-z"], "allowFallback": false, "inputModalities": ["text"], "outputModalities": ["text"], "maxInputTokens": 32000, "maxOutputTokens": 8192, "updatedAt": "2026-09-20T02:30:00+08:00"}` | 拒绝 | 不带路由名：指认哪一条档案靠成对交出的引用 |
+| `{"providers": ["provider-z"], "allowFallback": false, "inputModalities": ["text"], "outputModalities": ["text"], "maxInputTokens": 32000, "maxOutputTokens": 8192, "registration": "listed", "updatedAt": "2026-09-20T02:30:00+08:00"}` | 拒绝 | 不带在册状态 |
+| `{"providers": [], "allowFallback": false, "inputModalities": ["text"], "outputModalities": ["text"], "maxInputTokens": 32000, "maxOutputTokens": 8192, "updatedAt": "2026-09-20T02:30:00+08:00"}` | 拒绝 | 取值域与档案同名成员相同：`providers` 非空 |
