@@ -108,6 +108,7 @@ V-2～V-7 **一条执行记录也没有**。手核只保证 `examples.md` 的实
 - **G-14 主线裁定（2026-09-24，同日第四轮；候选未冻结，原地改）**：以 PF-002 rev 19 §5.2「每一类资产都有这一项，而且是同一项」为准——[S-36](v1/contract.md#s-36-usableby-是保留项名) 由三类改为**八类都有 `usableBy`**；第 2 条写明各处别名（Skill「谁可以使用它」、Slash Command「谁可以用这个入口」、**Connector「能不能安装」即 `data.connector` 的 `install`**、Loop Extension「谁能挂」）与 official 不受它管；[S-12](v1/contract.md#s-12-属性声明由正文推出) 的「全部属性项」一句、P-15、头部依据注记随之改；**G-14 关闭**。
   `examples.md` 第 14 节「tool 资产带 `usableBy`」由违约改为合法，另加一行（connector 推出 `install` 与保留的 `usableBy` 并存 → 推出规则违约，待那份契约收口）。
   **语义扩张**：tool、loop_extension、connector、agent_definition、plugin 五类的属性项多了 `usableBy` 一条（默认 `self`）。**对消费者**：`data.connector`（`install` 改名）、`capability.asset-evaluation`（第 1 步的滤与 `values` 恒有的那一条从三类扩到八类）要跟上——已报主线；Schema 不变（`usableBy` 那条声明的形状本来就不按类别判）。
+- **2026-09-24 随 `capability.asset-evaluation` 对齐 PF-002 rev 19 第一步三小步（候选未冻结，原地改；不改语义与表示）**：[S-36](v1/contract.md#s-36-usableby-是保留项名) 第 1 条原指向那份契约的 G-15（已关闭），改指它的 S-39 并写明 `self` 的两种所指；第十节「Schema 管不到」那一行残留的「`usableBy` 只在三类上」改为八类（G-14 那轮漏改）；[S-20](v1/contract.md#s-20-出厂格与工作区格的持有) 里指向那份契约 S-18 的链接随它的标题改名（「第一步之二」→「第一步之三」）改锚点。Schema、实例与 V-1～V-6 不受影响。
 - **[G-6](v1/contract.md#八已知缺口)、[G-9](v1/contract.md#八已知缺口) 被裁决**（Agent Definition 的正文、plugin 的正文）：`AssetContent` 相应的变体换成引用或加成员 ⇒ 表示改变；接受前闭合则原地改并重跑 V-1、V-3、V-5，接受后闭合则**出 v2**。
 - **[G-13](v1/contract.md#八已知缺口) 闭合**（自决与裁定落进设计链）：只改[设计依据](v1/contract.md#设计依据)表的链接，语义与表示不变。
 - **跨进程演化启动**：V-6 从「无法演练」转为**必须演练**；[第四节](v1/contract.md#四装配给与协议给)右列九行从「待兑现」转为「须由协议兑现」，其中工作区键缺宿主分量那一行**多半要出新版**。

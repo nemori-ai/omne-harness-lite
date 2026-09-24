@@ -1,7 +1,7 @@
 # 规范场景的输入与期望结果
 
 属于 `capability.asset-evaluation` v1，是**本版的规范工件之一**，不是说明材料：
-[契约 S-33～S-37](contract.md#规范场景) 的每一条场景，输入与**必须观察到的结果**逐字写在这里。
+[契约 S-33～S-37、S-41](contract.md#规范场景) 的每一条场景，输入与**必须观察到的结果**逐字写在这里。
 演练一条场景，就是把这里的输入交给实现，**拿结果的每个集合与这里逐项比对**（集合语义：元素不重复、顺序不计，[S-8](contract.md#s-8-求值结果-effectiveassembly)）。
 
 **三条读法上的边界：**
@@ -12,8 +12,9 @@
 - **「选用版本的正文」这一列是给定的。**每份资产这次用哪一版、那一版声明了哪些引用与属性项，
   在真实输入里由版本选用（[G-2](contract.md#十一已知缺口)）与各类正文契约的两条规则（[S-10](contract.md#s-10-各类正文契约须供的两条规则)）决定；
   这里直接列出结果，场景核对的是**求值**，不是那两条规则。
-- **「谁可以使用它」是八类资产共用的保留项 `usableBy`**（`data.asset-model/v1#S-36`；主线裁定 2026-09-24 由三类扩到八类），每份生效资产在 `values` 里都有它（[S-39](contract.md#s-39-谁可以使用它值与判定)）；示意输入里**没有一格配它**，所以它取保留声明的默认值 `{self}`（工作区自带的取最严值，也是 `{self}`）。
-  输入里的 `standing`（角色 `member`）只用来判 `usable`；official 的生效资产 `usable` 恒为 `true`（不受它管）；`self` 在非工作区资产上指谁未定（[G-15](contract.md#十一已知缺口)），其余那几条的 `usable` 缺席。
+- **「谁可以使用它」是八类资产共用的保留项 `usableBy`**（`data.asset-model/v1#S-36`），它在**第一步之二**就判（[S-39](contract.md#s-39-谁可以使用它值与判定)）：自定义件上 `self` 指作者本人，工作区自带的指挂上工作区的租户；official 不判；判下来用不了的持有以 `not_usable` 退出、标识退回下一层。
+  E-1～E-5 的示意输入里**没有一格配它**，所以它取保留声明的默认值 `{self}`（工作区自带的取最严值，也是 `{self}`）；那几份自定义件的**作者都是这次求值的租户**，所以都用得了、没有一份被这一滤挡下——这一滤的各支在 [E-6](#e-6-判下来用不了的退回下一层)。
+  每份生效资产在 `values` 里都有 `(c, usableBy)`，值就是放它进来的那个值。
 
 **记法**：能力标识写成 `类别:name`（如 `tool:shell`），JSON 里是 `{"category": "tool", "name": "shell"}`；
 权限的允许集合写成 `{问一下}`，JSON 里是 `{"allowed": ["ask"]}`（取值名示意，三档的词取自 [PF-007 §6.11](../../../../product/PF-007-meta-capabilities/design.md#611-ask通向人)）。
@@ -35,16 +36,16 @@
 
 **definitions**（每份只列本场景用得到的；「引用」「属性项」是选用那一版的正文按 [S-10](contract.md#s-10-各类正文契约须供的两条规则) 给出的；**每份定义都只有第 1 版已发布**，工作区自带的两份也是它们唯一的第 1 版）：
 
-| 记录号 | 能力标识 | 来源 | 所有者 | 引用 | 属性项：名 · 种类／类别 · 声明域 · 默认值 |
+| 记录号 | 能力标识 | 来源 | 所有者 · 作者 | 引用 | 属性项：名 · 种类／类别 · 声明域 · 默认值 |
 |---|---|---|---|---|---|
 | `ast_off_assistant` | `agent_definition:assistant` | official | — | `tool:shell`（**标常驻**）、`skill:audit`（未标）、`mcp:github`、`skill:release-notes` | `default_model` · 设置／偏好 · 字符串 · `"model-a"`；`tone` · 设置／偏好 · 字符串 · `"plain"` |
 | `ast_off_shell` | `tool:shell` | official | — | — | `timeout_s` · 设置／偏好 · 正整数 · `60`；`execution` · 权限 · {问一下, 自动, 禁止} · `{问一下}`；`network` · 权限 · {允许, 禁止} · `{禁止}`（本场景没人配它，[E-4](#e-4-换了实现设置不跟过去权限的约束跟过去) 用） |
-| `ast_t_shell` | `tool:shell` | customized | 租户 `org_acme`/`acc_alice` | — | `timeout_s` · 设置／偏好 · 正整数 · `45`；`execution` · 权限 · {问一下, 自动, 禁止} · `{问一下}` |
-| `ast_org_audit` | `skill:audit` | customized | 组织 `org_acme` | — | `variant` · 设置／偏好 · 字符串 · `"standard"` |
-| `ast_t_audit` | `skill:audit` | customized | 租户 `org_acme`/`acc_alice` | — | `variant` · 设置／偏好 · 字符串 · `"light"` |
-| `ast_t_github` | `mcp:github` | customized | 租户 `org_acme`/`acc_alice` | — | `endpoint` · 设置／落点与身份 · URL · `"https://mcp.github.invalid"`；`credential` · 设置／落点与身份 · 凭据引用 · **无默认值**；`call_timeout_s` · 设置／偏好 · 正整数 · `30`；`action.search.execution` · 权限 · {问一下, 自动, 禁止} · `{问一下}` |
-| `ast_ws_github` | `mcp:github` | customized（工作区自带） | [G-6](contract.md#十一已知缺口) | — | `endpoint` · 设置／落点与身份 · URL · `"https://mcp.repo-tools.invalid"`；`credential` · 设置／落点与身份 · 凭据引用 · **无默认值**；`call_timeout_s` · 设置／偏好 · 正整数 · `20`；`action.search.execution` · 权限 · {问一下, 自动, 禁止} · `{自动}`；`action.push.execution` · 权限 · {问一下, 自动, 禁止} · `{自动}` |
-| `ast_ws_audit` | `skill:audit` | customized（工作区自带） | [G-6](contract.md#十一已知缺口) | — | `variant` · 设置／偏好 · 字符串 · `"repo"` |
+| `ast_t_shell` | `tool:shell` | customized | 租户 `org_acme`/`acc_alice` · 作者同一个租户 | — | `timeout_s` · 设置／偏好 · 正整数 · `45`；`execution` · 权限 · {问一下, 自动, 禁止} · `{问一下}` |
+| `ast_org_audit` | `skill:audit` | customized | 组织 `org_acme` · 作者 `org_acme`/`acc_alice`（她在组织范围写的） | — | `variant` · 设置／偏好 · 字符串 · `"standard"` |
+| `ast_t_audit` | `skill:audit` | customized | 租户 `org_acme`/`acc_alice` · 作者同一个租户 | — | `variant` · 设置／偏好 · 字符串 · `"light"` |
+| `ast_t_github` | `mcp:github` | customized | 租户 `org_acme`/`acc_alice` · 作者同一个租户 | — | `endpoint` · 设置／落点与身份 · URL · `"https://mcp.github.invalid"`；`credential` · 设置／落点与身份 · 凭据引用 · **无默认值**；`call_timeout_s` · 设置／偏好 · 正整数 · `30`；`action.search.execution` · 权限 · {问一下, 自动, 禁止} · `{问一下}` |
+| `ast_ws_github` | `mcp:github` | customized（工作区自带） | 租户 `org_acme`/`acc_alice` · 作者同一个租户（`data.asset-model/v1#S-19` 的 `carrier` 支） | — | `endpoint` · 设置／落点与身份 · URL · `"https://mcp.repo-tools.invalid"`；`credential` · 设置／落点与身份 · 凭据引用 · **无默认值**；`call_timeout_s` · 设置／偏好 · 正整数 · `20`；`action.search.execution` · 权限 · {问一下, 自动, 禁止} · `{自动}`；`action.push.execution` · 权限 · {问一下, 自动, 禁止} · `{自动}` |
+| `ast_ws_audit` | `skill:audit` | customized（工作区自带） | 同上 | — | `variant` · 设置／偏好 · 字符串 · `"repo"` |
 
 **holdings**（`h10`、`h11` 就是 [E-3](#e-3-一次清单读入) 的读入结果；「锁」即持有上的 `immutable`；本场景没有一份持有的 `disabled` 为真；**每份持有的 `versionSelection` 都是 `current`**）：
 
@@ -66,12 +67,16 @@
 
 **`assets`**（四条）：
 
-| capability | asset | version | from | replaced | lockedAt | resident | usable |
-|---|---|---|---|---|---|---|---|
-| `agent_definition:assistant` | `ast_off_assistant` | 1 | tenant | （空） | — | —（不是 tool、skill） | `true`：official 那一份不受「谁可以使用它」管 |
-| `tool:shell` | `ast_t_shell` | 1 | tenant | factory、organization | — | `true`（根的引用标了常驻） | **缺席**：值是 `{self}`、没有 `member`，`self` 在租户那一格指谁未定（[G-15](contract.md#十一已知缺口)） |
-| `skill:audit` | `ast_org_audit` | 1 | organization | （空） | organization | `false`（两处都没标） | **缺席**：值是 `{self}`、没有 `member`，`self` 在组织那一格指谁未定（[G-15](contract.md#十一已知缺口)） |
-| `mcp:github` | `ast_ws_github` | 1 | workspace | tenant | — | — | `true`：工作区自带资产上 `self` 就是挂上工作区的这个租户 |
+| capability | asset | version | from | replaced | lockedAt | resident |
+|---|---|---|---|---|---|---|
+| `agent_definition:assistant` | `ast_off_assistant` | 1 | tenant | （空） | — | —（不是 tool、skill） |
+| `tool:shell` | `ast_t_shell` | 1 | tenant | factory、organization | — | `true`（根的引用标了常驻） |
+| `skill:audit` | `ast_org_audit` | 1 | organization | （空） | organization | `false`（两处都没标） |
+| `mcp:github` | `ast_ws_github` | 1 | workspace | tenant | — | — |
+
+**第一步之二没有挡下任何一份**（[S-39](contract.md#s-39-谁可以使用它值与判定)）：`ast_off_*` 是 official，不判；其余六份自定义件的 `(c, usableBy)` 都是 `{self}`，
+组织、租户持有的那四份作者都是 `org_acme`/`acc_alice`，就是这次求值的 `tenant`，工作区自带的两份 `self` 指挂上工作区的这个租户——都用得了，所以锁照常在 `h7` 那一格截断。
+**若 `ast_org_audit` 的作者换成别的成员**，`h7` 以 `not_usable` 退出、它的锁随之不起作用，`skill:audit` 落到工作区那一份（[E-6](#e-6-判下来用不了的退回下一层) E 支是同一个形状）。
 
 **`composition`**（四个）：`agent_definition:assistant`、`tool:shell`、`skill:audit`、`mcp:github`
 
@@ -131,7 +136,7 @@
 
 - `tenant`、`standing`、`workspace` 同 E-1；`root` = `agent_definition:helper`；无 `session`
 - definitions：`ast_off_helper`（`agent_definition:helper`，official，引用 `skill:review`，无属性项）；
-  `ast_t_review`（`skill:review`，租户所有，无属性项）；`ast_ws_review`（`skill:review`，工作区自带，无属性项）
+  `ast_t_review`（`skill:review`，租户所有、作者就是这个租户，无属性项）；`ast_ws_review`（`skill:review`，工作区自带，无属性项）
 - holdings：
 
 | # | 格 | 能力标识 | 资产 | disabled |
@@ -144,7 +149,7 @@
 
 - `assets`：`agent_definition:helper → ast_off_helper, from factory, replaced 空`；`skill:review → ast_t_review, from tenant, replaced 空`
 - `composition`：`agent_definition:helper`、`skill:review`
-- `unresolved`：空；`values`：只有两条保留项 `(agent_definition:helper, usableBy, {self}, factory)`、`(skill:review, usableBy, {self}, factory)`（示意资产没有别的属性项，[S-39](contract.md#s-39-谁可以使用它值与判定)）；`agent_definition:helper` 的 `usable` 为 `true`（official 不受它管）；`skill:review` 的 `resident` 为 `false`（根的引用没标）、`usable` 缺席（租户那一格上的 `self` 指谁未定，G-15）
+- `unresolved`：空；`values`：只有两条保留项 `(agent_definition:helper, usableBy, {self}, factory)`、`(skill:review, usableBy, {self}, factory)`（示意资产没有别的属性项，[S-39](contract.md#s-39-谁可以使用它值与判定)）；`skill:review` 的 `resident` 为 `false`（根的引用没标）。第一步之二：`ast_off_helper` 是 official、不判，`ast_t_review` 的作者就是这个租户、用得了；`ast_ws_review` 在之一就被禁用滤掉了，轮不到这一滤
 - `filteredOut`：`(skill:review, workspace, disabled)`
 
 **绝不能观察到** `skill:review` 从 `assets` 里消失、或进了 `unresolved`——那是「先替换再禁用」：工作区那份先替掉租户那份、再把自己禁掉，
@@ -289,6 +294,52 @@ definitions：`ast_off_helper3`（`agent_definition:helper3`，official，引用
 
 ---
 
+## E-6 判下来用不了的退回下一层
+
+对应 [S-41](contract.md#s-41-判下来用不了的退回下一层)。**六支同跑**；产品原话是 [PF-002 acceptance §一](../../../../product/PF-002-assets-settings-and-permissions/acceptance.md#一可观察场景)「成员乙写了一个 tool，组织持有了它」那三行。
+
+**共同输入**：`standing` = `effective`、角色 `member`；无 `workspace`、无 `session`；`root` = `agent_definition:helper6`；每份持有的 `versionSelection` 都是 `current`，每份定义都只有第 1 版；`disabled` 都不为真。
+`tenant` 按支给：**乙** = `{"organization": "org_acme", "account": "acc_bob"}`，**甲** = `{"organization": "org_acme", "account": "acc_alice"}`。
+
+| 记录号 | 能力标识 | 来源 | 所有者 · 作者 | 引用 | 属性项 |
+|---|---|---|---|---|---|
+| `ast_off_helper6` | `agent_definition:helper6` | official | — | `tool:fmt`（未标常驻） | 只有保留项 |
+| `ast_off_fmt` | `tool:fmt` | official | — | — | 只有保留项 |
+| `ast_org_fmt` | `tool:fmt` | customized | 组织 `org_acme` · 作者 `org_acme`/`acc_bob`（乙写的） | — | 只有保留项 |
+| `ast_t_fmt` | `tool:fmt` | customized | 租户 `org_acme`/`acc_alice` · 作者同一个租户 | — | 只有保留项 |
+
+| 支 | `tenant` | holdings（六支都另有 f：`agent_definition:helper6 → ast_off_helper6`） |
+|---|---|---|
+| **A 作者本人求** | 乙 | f：`tool:fmt → ast_off_fmt`；org：`tool:fmt → ast_org_fmt`，锁否，无配值 |
+| **B 别的成员求，有同名 official** | 甲 | 同 A |
+| **C 别的成员求，没有同名 official** | 甲 | 同 A，唯一的差别：没有 f：`tool:fmt` 那一份 |
+| **D 组织配上 `member`** | 甲 | 同 A，唯一的差别：org 那份持有配 `usableBy = {member}`（不锁） |
+| **E 组织锁了替换，租户有自己那份** | 甲 | 同 A，另加两处：org 那份持有的锁为 **是**；tenant：`tool:fmt → ast_t_fmt`，锁否，无配值 |
+| **F 同 E，「谁可以使用它」也锁上** | 甲 | 同 E，唯一的差别：org 那份持有配 `usableBy = {superAdministrator, member}` 🔒 |
+
+**期望结果**（`agent_definition:helper6` 那一条六支相同：`from` factory，`(c, usableBy)` = `{self}` · factory · —，略；`tool:fmt` 在 `assets` 里时 `version` 1、`resident` `false`）：
+
+| 支 | 第一步之二怎么判 | `tool:fmt` 的 assets 条目 | `(tool:fmt, usableBy)` 值 · from · lockedAt | filteredOut | unresolved |
+|---|---|---|---|---|---|
+| A | org 那份：`U = {self}`（声明默认值），`self` = 作者乙 = `tenant` ⇒ 用得了 | `ast_org_fmt` · from organization · replaced factory | `{self}` · factory · — | 空 | 空 |
+| B | org 那份：`U = {self}`，`self` 是乙、不是甲，`member` 不在值里 ⇒ **用不了**；f 那份是 official，不判 | `ast_off_fmt` · from factory · replaced 空 | `{self}` · factory · —（official 的声明默认值；没有拿它判） | `(tool:fmt, organization, not_usable)` | 空 |
+| C | 同 B | **不在 `assets` 里**；`composition` 只有 `agent_definition:helper6` | —（不在 `composition` 里） | `(tool:fmt, organization, not_usable)` | `{ tool:fmt, referencedBy: agent_definition:helper6 }` |
+| D | org 那份：最里一条挑选是组织配的 `{member}` ⇒ `U = {member}`，甲的角色在里面 ⇒ 用得了 | `ast_org_fmt` · from organization · replaced factory | `{member}` · organization · — | 空 | 空 |
+| E | org 那份：`U = {self}`，乙不是甲 ⇒ **用不了**；tenant 那份：`U = {self}`，作者就是甲 ⇒ 用得了 | `ast_t_fmt` · from tenant · replaced factory · **`lockedAt` 缺席** | `{self}` · factory · — | `(tool:fmt, organization, not_usable)` | 空 |
+| F | org 那份：界 `{superAdministrator, member}`，由里到外第一条落在界内的挑选是组织那条自己 ⇒ `U = {superAdministrator, member}`，甲是 `member` ⇒ 用得了；tenant 那份同样用得了 | `ast_org_fmt` · from organization · replaced factory · lockedAt organization | `{superAdministrator, member}` · organization · organization | `(tool:fmt, tenant, locked_below)` | 空 |
+
+**六支合起来说的是**：
+
+- **A、B——同一份持有，换一个人求**：「自己」按每一份的作者判；组织换上一份只给乙用的实现，**拿不走甲手里的 official**——B 的 `tool:fmt` 退回出厂那一份，不是消失。
+- **C——没有下一层可退**：这个标识一份都没剩下，进 `unresolved`；装配拿到它怎么收场归 [S-31](contract.md#s-31-unresolved-交到装配手上怎么收场)。
+- **D、B——收回是两份输入**：组织把 `member` 从这份的「谁可以使用它」里拿掉，就是从 D 变成 B。哪一次运行用哪一份结果（已开始的运行不变、下一次运行起按 B）归消费者（[S-39](contract.md#s-39-谁可以使用它值与判定) 末段）。
+- **E——锁随被滤掉的那份一起不起作用**：组织锁了替换，但甲用不了组织那份，它在替换次序上视为不存在，锁也就不在；剩下的里最具体的是甲自己那份（[S-39](contract.md#s-39-谁可以使用它值与判定) 末段的后果）。
+- **F——组织要挡 E，就把「谁可以使用它」也锁上**：锁住的 `{superAdministrator, member}` 是界，甲用得了组织那份，替换锁照常截断，甲那份以 `locked_below` 退出。
+
+**绝不能观察到**：B、C、E 的 `assets` 里出现 `ast_org_fmt`（「判下来用不了的，装进了他的会话」）；B 的 `tool:fmt` 不在 `assets` 里（组织因此拿走了 official）——[PF-002 acceptance §二](../../../../product/PF-002-assets-settings-and-permissions/acceptance.md#二绝不能发生的事)那两行。
+
+---
+
 ## 附：E-1 的 `values` 逐项手算 `from`
 
 **记号**：一格写出的值 = 这一格对这一项给出了参与合成的值（设置），或界与挑选（权限）；「—」= 不给，括号里写为什么。
@@ -303,7 +354,7 @@ definitions：`ast_off_helper3`（`agent_definition:helper3`，official，引用
 | 3 | `shell / timeout_s`（设置） | `45`（**生效资产 `ast_t_shell` 的**声明默认值，不是出厂那份的 `60`） | —（`h5` 指向 `ast_off_shell`，不是生效那份；它的 `120` 不参与） | —（`h6` 没配这一项） | — | — | `45` · factory · — |
 | 4 | `shell / execution`（权限） | 无界；挑选 `{问一下}`（声明默认值） | —（`h5` 在效，但没配这一项） | 挑选 `{自动}`（不带锁） | 不在权限层序 | — | `X` = 声明域；最里的挑选 `{自动}` 落在界内 ⇒ `{自动}` · tenant · — |
 | 5 | `audit / variant`（设置） | `"standard"` | `"strict"`（`h7` 就是生效那份；**持有**带锁，**配值**不带） | —（`h8` 已 `locked_below` 退出） | —（`h11` 已 `locked_below` 退出） | — | `"strict"` · organization · —（锁的是替换，不是这一项的值） |
-| 6 | `audit / usableBy`（权限，保留项） | 无界；挑选 `{self}`（保留声明的默认值） | —（`h7` 没配这一项） | —（`h8` 不在效） | 不在权限层序 | — | `{self}` · factory · — |
+| 6 | `audit / usableBy`（权限，保留项） | 无界；挑选 `{self}`（保留声明的默认值） | —（`h7` 没配这一项） | —（`h8` 没配这一项；这一项在第一步就求，**锁以里的 `h8` 照样参与**，[S-39](contract.md#s-39-谁可以使用它值与判定) 第 1 条） | 不在权限层序 | — | `{self}` · factory · — |
 | 7 | `github / endpoint`（设置·落点与身份） | `"https://mcp.repo-tools.invalid"`（**随资产一起来**的声明默认值） | —（没有持有） | —（`h9` 指向 `ast_t_github`） | `"https://evil.invalid"` ⇒ **滤掉**，`workspace_placement` | — | `"https://mcp.repo-tools.invalid"` · factory · —；`provenance` = workspace |
 | 8 | `github / credential`（设置·落点与身份） | —（**没有声明默认值**） | — | —（`h9` 的 `"cref_alice_github"` 挂在别的资产上） | —（清单没配） | — | **不进 `values`**：未配即缺席 |
 | 9 | `github / call_timeout_s`（设置） | `20` | — | —（`h9` 指向别的资产） | `10` | — | `10` · workspace · — |

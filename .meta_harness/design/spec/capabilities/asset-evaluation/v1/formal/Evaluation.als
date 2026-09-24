@@ -4,7 +4,10 @@
  * 对应契约：omne-harness-lite-design-2026-09-15 · capability.asset-evaluation · v1
  *   S-7   输入的一致性条件（本模型取其中四条作为 fact，见下）
  *   S-17  第 1 步①：先按禁用滤——资产级析取；工作区的禁用只管它自带的那批
- *   S-18  第 1 步②：再取最具体的一份，锁在最外那一把处截断
+ *   S-39  第 1 步②：再按「谁可以使用它」滤——判定本身（值、self 对作者、角色在不在值里）是值域上的事，
+ *         模型把它当作给定的持有子集 Unusable，只加两条 fact：official 不判；指向同一份资产的持有同判。
+ *         被滤掉的退出替换次序（它的锁也不起作用），但仍按 S-23 的「在效」给权限的界与挑选
+ *   S-18  第 1 步③：最后取最具体的一份，锁在最外那一把处截断
  *   S-19  官方件是下界
  *   S-20  第 2 步：组装（沿生效资产正文里的引用求可达集合）
  *   S-22  第 4 步：设置——按资产：只有指向生效资产的持有给值；锁截断的覆盖链（本模型只算 from，不算值）
@@ -15,7 +18,8 @@
  *   S-24  工作区那一级在第 4 步只贡献设置，且不贡献落点与身份类
  *   S-25  工作区自带资产的权限项以最严值为出厂那一格的约束（不改变 from 的求法）
  *
- * 七条断言（前四条即施工简报 A6 点名的四条，第五条是契约 S-19 的下界，第六、七条是主线裁定：按能力标识、界与挑选）：
+ * 九条断言（前四条即施工简报 A6 点名的四条，第五条是契约 S-19 的下界，第六、七条是主线裁定：按能力标识、界与挑选；
+ * 第八、九条是 PF-002 rev 19 第 1 步之二：用不了的不生效，且不带走外层的界）：
  *   (i)   TeamAssetsStayInTree              团队资产不出那棵树
  *   (ii)  LockTruncates                     锁截断
  *   (iii) DisableIsDisjunction              禁用析取
@@ -23,12 +27,15 @@
  *   (v)   OfficialLowerBound                官方件下界
  *   (vi)  ReplacementCannotEscapePermission 换了实现逃不出外层对这个能力标识锁下的界
  *   (vii) NonFittingPickNeverSources        与界不交的挑选不给出值（值来自最里一条落在界内的挑选）
+ *   (viii) UnusableNeverEffective           判为用不了的资产不生效
+ *   (ix)  UnusableKeepsBounds               用不了的那份持有上的锁下的权限，照样是这个能力标识的界
  *
  * 本模型**不**表达：配值的取值本身（覆盖得到哪个值、允许集合交出哪几档、作者建议取不取）——
  * 那是值域上的计算，不是结构关系，证据形式是契约 S-33～S-36 的规范场景；
  * 替换件没声明、外层却约束过的权限项（S-23 最后一段：本模型只对生效资产声明的项下断言）；
  * 权限的 lockedAt；组合图成环的收场（契约缺口 G-1）；版本选用（G-2）——本模型把「生效资产的引用与属性项」
- * 当作资产的固定属性，等于假定选用的那一版已经定了；「谁可以用」怎么用成员资格求（G-15）；读入面（S-27、S-28）。
+ * 当作资产的固定属性，等于假定选用的那一版已经定了；「谁可以使用它」怎么判（S-39 的值与 self，模型只取判定结果 Unusable）；
+ * 模型里的 PermissionItem 不含 usableBy 这一项本身（它的参与者按 S-39 第 1 条不看锁截断，与别的权限项不同）；读入面（S-27、S-28）。
  *
  * 用法：Alloy Analyzer 6 逐条 check / run 本文件末尾的命令。
  * **`alloy exec` 的退出码与断言结果无关**（找到反例照样退出 0），因此本文件不登记为 formal task；
@@ -172,7 +179,16 @@ fun disabledAssets : set Asset {
   { a: Asset | some h: Disabled | h.asset = a and (h.layer != Workspace or a in WsAsset) }
 }
 
-fun surviving : set Holding { { h: Holding | h.asset not in disabledAssets } }
+fun notDisabled : set Holding { { h: Holding | h.asset not in disabledAssets } }
+
+// ②再按「谁可以使用它」滤（S-39）。判定作给定：Unusable 是这次求值的租户判下来用不了的那些持有。
+sig Unusable in Holding {}
+// official 不参与这一滤（PF-002 §5.2：official 不需要授权）。
+fact OfficialNotJudged { no h: Unusable | h.asset.origin = Official }
+// 判定只看 (能力标识, 资产)：指向同一份资产的持有同进同退（持有的能力标识就是资产的能力标识）。
+fact JudgedPerAsset { all h1, h2: Holding | h1.asset = h2.asset implies (h1 in Unusable iff h2 in Unusable) }
+
+fun surviving : set Holding { notDisabled - Unusable }
 
 // 起作用的锁：未被禁用滤掉、且不在工作区那一格（工作区配的 immutable 不加载，S-24）。
 fun lockers[c: Cap] : set Holding {
@@ -184,7 +200,7 @@ fun lockHolding[c: Cap] : set Holding {
   { h: lockers[c] | no h2: lockers[c] | h2.layer -> h.layer in assetLt }
 }
 
-// ②候选：锁的那一格及更外层的持有，加上更具体层里**指向同一份资产**的持有（配值用的持有不是替换）。
+// ③候选：锁的那一格及更外层的持有，加上更具体层里**指向同一份资产**的持有（配值用的持有不是替换）。
 fun candidates[c: Cap] : set Holding {
   { h: surviving | h.hcap = c and
       (no lockHolding[c]
@@ -199,6 +215,15 @@ fun selected[c: Cap] : set Holding {
 
 fun effective : Cap -> Asset {
   { c: Cap, a: Asset | some h: selected[c] | h.asset = a }
+}
+
+// 在效（S-23）：没被禁用滤掉，且不在那把锁以里指向另一份资产。被「谁可以使用它」滤掉的持有照同一条判——
+// 它退出的是替换次序，不是这个能力标识的权限。对没被滤掉的持有，这就是 candidates。
+fun inEffect[c: Cap] : set Holding {
+  { h: notDisabled | h.hcap = c and
+      (no lockHolding[c]
+        or not (lockHolding[c].layer -> h.layer in assetLt)
+        or h.asset = lockHolding[c].asset) }
 }
 
 // ---------------------------------------------------------------------------
@@ -228,13 +253,13 @@ fun settingParticipating[c: Cap, i: Item] : set Assign {
 }
 
 // 权限（S-23）：按能力标识。
-//   - 组织、租户两格对 c 的持有**在效**（过了禁用、不在锁以里——即在 candidates 里）时，
+//   - 组织、租户两格对 c 的持有**在效**（过了禁用、不在锁以里指向另一份资产；被「谁可以使用它」滤掉的也照此判）时，
 //     那份持有上的配值参与，**不论它指向哪一份资产**；会话格的配值参与；
 //   - 工作区那一格不在权限层序上，一律不参与（S-24）；出厂那一格不带配值（C6）。
 fun permParticipating[c: Cap, i: Item] : set Assign {
   { x: Assign | x.acap = c and x.item = i
       and (x.at = Session
-           or (x.at in Organization + Tenant and some h: candidates[c] | h.layer = x.at)) }
+           or (x.at in Organization + Tenant and some h: inEffect[c] | h.layer = x.at)) }
 }
 
 // 界：参与的配值里带锁的那些（账本 S10-b）。工作区自带资产的最严值也是界，但它在出厂那一格、
@@ -347,6 +372,23 @@ assert NonFittingPickNeverSources {
     }
 }
 
+/* (viii) 判为用不了的不生效（契约 S-39；PF-002 §5.2「判下来不能用的，不装进他的会话」）。
+   Unusable 里任何一份持有指向的资产，都不出现在任何能力标识的生效结果里。 */
+assert UnusableNeverEffective {
+  all h: Unusable | h.asset not in Cap.effective
+}
+
+/* (ix) 用不了的那份不带走外层的界（契约 S-23 的「在效」；本契约推导）。
+   组合里的 c、生效资产声明的权限项 i：组织或租户那一格对 c 的持有被「谁可以使用它」滤掉、却仍在效，
+   且那一格对 i 配了**带锁**的值——这条值就在 i 的界里。
+   把 permParticipating 改回只看 candidates（被滤掉的连同它的界一起不算），本断言必须给出反例（formal/README 的非平凡核对）。 */
+assert UnusableKeepsBounds {
+  all c: composition, i: effective[c].items & PermissionItem, x: LockedAssign |
+    (x.acap = c and x.item = i and x.at in Organization + Tenant
+       and (some h: Unusable & inEffect[c] | h.layer = x.at))
+    implies x in permBounds[c, i]
+}
+
 // ---------------------------------------------------------------------------
 // 一致性核对：模型能产生契约 S-33 那种「四格齐全」的实例，
 // 断言不是靠 fact 互相矛盾空泛成立的。
@@ -381,9 +423,24 @@ pred pickSkipped {
     some (permParticipating[c, i] & Fits) and permFrom[c, i] -> x.at in permissionLt
 }
 
+// 「谁可以使用它」的两种退回都可以发生：一份被滤掉、标识退回出厂那一份；一把锁随被滤掉的那份不起作用，更具体的一份生效（契约 S-39 末段）。
+pred usableByFallback {
+  some c: Cap, h: Unusable | h.hcap = c and h.layer = Organization and selected[c].layer = Factory
+  some c: Cap, h: Unusable & Locked | h.hcap = c and h.layer = Organization and selected[c].layer = Tenant
+}
+
+// (ix) 的前件可以成立：被滤掉、仍在效的那份持有上，对生效资产声明的一项权限配了带锁的值。
+pred unusableConstrains {
+  some c: composition, i: effective[c].items & PermissionItem, x: LockedAssign |
+    x.acap = c and x.item = i and x.at in Organization + Tenant
+    and (some h: Unusable & inEffect[c] | h.layer = x.at)
+}
+
 run fourLayerInstance for 6 but 4 Cap, 7 Holding, 4 Assign, 4 Item, 3 Owner
 run replacementConstrained for 6 but 4 Cap, 4 Assign, 3 Item, 3 Owner
 run pickSkipped for 6 but 4 Cap, 4 Assign, 3 Item, 3 Owner
+run usableByFallback for 6 but 4 Cap, 7 Holding, 4 Assign, 3 Item, 3 Owner
+run unusableConstrains for 6 but 4 Cap, 4 Assign, 3 Item, 3 Owner
 
 check TeamAssetsStayInTree for 6 but 4 Cap, 4 Assign, 3 Item, 3 Owner
 check LockTruncates for 6 but 4 Cap, 4 Assign, 3 Item, 3 Owner
@@ -393,3 +450,5 @@ check WorkspaceNeverSourcesPlacement for 6 but 4 Cap, 5 Assign, 3 Item, 3 Owner
 check OfficialLowerBound for 6 but 4 Cap, 4 Assign, 3 Item, 3 Owner
 check ReplacementCannotEscapePermission for 6 but 4 Cap, 4 Assign, 3 Item, 3 Owner
 check NonFittingPickNeverSources for 6 but 4 Cap, 4 Assign, 3 Item, 3 Owner
+check UnusableNeverEffective for 6 but 4 Cap, 4 Assign, 3 Item, 3 Owner
+check UnusableKeepsBounds for 6 but 4 Cap, 4 Assign, 3 Item, 3 Owner

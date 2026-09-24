@@ -433,7 +433,7 @@
 { "item": "usableBy", "kind": "permission", "domain": { "kind": "enum", "values": ["superAdministrator", "member", "self"] }, "default": "self" }
 ```
 
-1. **取值域是 `data.identity-values/v1` 的 [`TenantRole`](../../identity-values/v1/contract.md#s-8-tenantrole) 的两个值再加 `self`**。`self` 在求值里指谁、怎样对上发起这次使用的那个租户身份，归 `capability.asset-evaluation`（它的 G-15）；本契约只定这个 token。
+1. **取值域是 `data.identity-values/v1` 的 [`TenantRole`](../../identity-values/v1/contract.md#s-8-tenantrole) 的两个值再加 `self`**。`self` 在求值里指谁、怎样对上发起这次使用的那个租户身份，归 `capability.asset-evaluation`（它的 S-39：自定义件上指作者本人，即 [S-6](#s-6-所有者与作者分记) 的 `author`；工作区自带资产上指挂上工作区的租户——PF-002 rev 19 §5.2）；本契约只定这个 token。
 2. **八类都有它**：每一份资产的属性项里都有这一条，不论类别。各处产品正文的别名说的都是这一项——Skill 的「谁可以使用它」、Slash Command 的「谁可以用这个入口」、**Connector 的「能不能安装」**（`data.connector` 推出规则里的 `install` 即此项，项名统一为 `usableBy`，那份契约由主线随后收口）、Loop Extension 的「谁能挂」。
    **official 那一份不受它管**（PF-002 §5.2：official 不需要授权），照旧；求值怎样对 official 跳过这一项归 `capability.asset-evaluation`。
 3. **各类正文契约不得声明名为 `usableBy` 的项**（[S-12](#s-12-属性声明由正文推出) 第 3 条）——同 `disabled` 的理由：一个意思只有一份声明，八类共用同一个项名与同一个取值域。
@@ -527,7 +527,7 @@
 **出厂格**（规格层推导，依据是 [PF-002 §5.2 推论二](../../../../product/PF-002-assets-settings-and-permissions/design.md#由此得到两个推论)与 [flows §1.4](../../../../product/PF-002-assets-settings-and-permissions/flows.md#14-组织锁死一个自定义资产)）：
 
 - `basis` 恒为 `official`；
-- **`immutable` 为真，当且仅当这个能力标识是 [meta 能力](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability)**：[meta 能力不可替换](../../../../product/PF-002-assets-settings-and-permissions/design.md#55-资产替换的层级)，落成的就是出厂格上那一把锁；哪些是 meta 由部署的官方件清单给出，写它的是 [`capability.asset-governance` 的官方件登记](../../../capabilities/asset-governance/v1/contract.md#s-29-registerofficial-登记官方件)，读它的是 [`capability.asset-evaluation` 的截断](../../../capabilities/asset-evaluation/v1/contract.md#s-18-第一步之二再取最具体的一份锁在最外那一把处截断)（2026-09-24 整批对齐；原先恒为 `false` 与求值的前提相抵）。**其余官方件的出厂格持有恒为 `false`**——没有谁在出厂格上锁一份非 meta 的官方件，[不存在「把 official 锁住」这回事](../../../../product/PF-002-assets-settings-and-permissions/flows.md#14-组织锁死一个自定义资产)；要锁，是组织或租户在自己那一格锁自己对它的持有。**是不是 meta，Schema 判不出**：它只管出厂格的另两条；
+- **`immutable` 为真，当且仅当这个能力标识是 [meta 能力](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability)**：[meta 能力不可替换](../../../../product/PF-002-assets-settings-and-permissions/design.md#55-资产替换的层级)，落成的就是出厂格上那一把锁；哪些是 meta 由部署的官方件清单给出，写它的是 [`capability.asset-governance` 的官方件登记](../../../capabilities/asset-governance/v1/contract.md#s-29-registerofficial-登记官方件)，读它的是 [`capability.asset-evaluation` 的截断](../../../capabilities/asset-evaluation/v1/contract.md#s-18-第一步之三最后取最具体的一份锁在最外那一把处截断)（2026-09-24 整批对齐；原先恒为 `false` 与求值的前提相抵）。**其余官方件的出厂格持有恒为 `false`**——没有谁在出厂格上锁一份非 meta 的官方件，[不存在「把 official 锁住」这回事](../../../../product/PF-002-assets-settings-and-permissions/flows.md#14-组织锁死一个自定义资产)；要锁，是组织或租户在自己那一格锁自己对它的持有。**是不是 meta，Schema 判不出**：它只管出厂格的另两条；
 - **`assignments` 恒为空**——出厂格的值就是声明里的 `default`（[S-12](#s-12-属性声明由正文推出)），不另配第二份。
 
 **工作区格**（[PF-002 §5.2 设置项分四类](../../../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)、[§5.7](../../../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算)）：
@@ -722,7 +722,7 @@ manifest_format_unsupported  >  category_unknown  >  origin_unknown  >  owner_ki
 | [S-8](#s-8-资产记录) | **管得到**：正文类别与能力标识一致、草稿或版本至少一样、`byAgent` 按来源有无 | `capability` 一生不变归写路径 |
 | [S-9](#s-9-版本线) | 管单个版本的形状、`publishedBy` 按来源有无 | **编号连续**管不到（`version_sequence_broken` 由接收边界判）；「已发布不变」归写路径 |
 | [S-10](#s-10-八类正文的外壳)、[S-11](#s-11-plugin-的成员) | **管得到**：八个形状、六类正文按各自的正文 Schema、plugin 成员不是 plugin 或 Agent Definition、不重复 | 各正文契约自己的 Schema 之外那一步；正文里另立的名字与 `capability.name` 一致 |
-| [S-12](#s-12-属性声明由正文推出)、[S-13](#s-13-设置项类别)、[S-36](#s-36-usableby-是保留项名) | 管声明的形状：设置必带类别且取值域开放、权限不带类别且取值域为枚举、`default` 只在落点与身份类设置上可缺、`disabled` 与 `usableBy` 的声明只能是那一份 | `default` 合取值域、同一资产内 `item` 唯一、推出规则确定、`usableBy` 只在三类上——管不到 |
+| [S-12](#s-12-属性声明由正文推出)、[S-13](#s-13-设置项类别)、[S-36](#s-36-usableby-是保留项名) | 管声明的形状：设置必带类别且取值域开放、权限不带类别且取值域为枚举、`default` 只在落点与身份类设置上可缺、`disabled` 与 `usableBy` 的声明只能是那一份 | `default` 合取值域、同一资产内 `item` 唯一、推出规则确定、`usableBy` 八类都有、各类正文不另声明——管不到 |
 | [S-14](#s-14-属性配值)、[S-15](#s-15-disabled-是保留项名) | 管三个成员必填、`disabled` 只能是布尔且不锁 | 值合那一项的取值域、权限值是 `values` 的子集——要看声明，管不到 |
 | [S-16](#s-16-持有范围)、[S-17](#s-17-工作区键) | **管得到**：四格闭合、判别式与载荷对得上 | 「绝对、规范形式」与平台相关，由写下这个键的一方兑现 |
 | [S-18](#s-18-资产持有)～[S-20](#s-20-出厂格与工作区格的持有) | 管出厂格只有 official、不配值；工作区格不锁、只有 official、organization、carrier 三支；`owned` 只在组织与租户格、`organization` 只在租户与工作区格、分享只在组织格、`carrier` 只在工作区格；`shared` 与 `carrier` 只选 `current`；official 持有上没有 `disabled` | **键唯一**、`asset` 与 `capability` 一致、`item` 不重复、`owned` 时所有者对得上、`organization` 时外层确有同一份持有、`carrier` 时记录是那份工作区提供的、`pinned` 的版本存在、工作区格没有权限与落点配值、出厂格的锁只在 meta 能力上——要看记录、整个存储或部署清单，管不到 |
