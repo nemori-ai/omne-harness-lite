@@ -21,7 +21,7 @@
 > **三层互不牵连。**一个工具可以「**在动作空间里 + 不占槽位 + 当下不可用**」——
 > **三个取值各说各的**。
 
-- **出处**：[PF-006 §4 三层](../../product/PF-006-tools-and-skills/design.md#三层能做什么--怎么够得着--现在做不做得了) · [§5.1](../../product/PF-006-tools-and-skills/design.md#51-三层正交)（rev 17）
+- **出处**：[PF-006 §4 三层](../../product/PF-006-tools-and-skills/design.md#三层能做什么--怎么够得着--现在做不做得了) · [§5.1](../../product/PF-006-tools-and-skills/design.md#51-三层正交)（rev 18）
 
 ## 怎么够得着
 
@@ -44,7 +44,7 @@
 > not occupying a slot** — it remains in the action space, reachable through the discovery entry.
 
 - **形态**：属性
-- **出处**：[PF-006 §4 常驻](../../product/PF-006-tools-and-skills/design.md#常驻)（rev 17）
+- **出处**：[PF-006 §4 常驻](../../product/PF-006-tools-and-skills/design.md#常驻)（rev 18）
 - **别混**：**它是那份 Agent Definition 或 Plugin 上的一项设置**（引用条目长在那里），
   归[偏好类](capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category)，由持有它的各层配值——**不是工具或技能自己的设置**
 - **注意**：**上下文预算是装配方的问题，工具作者根本不知道**——这就是标记挂在引用上而非资产上的理由
@@ -53,16 +53,16 @@
 
 > **中**：**一个工具或技能当下能不能真的用。**它是**[依赖声明](#ul-dependency-declaration--依赖声明--dependency-declaration)解析的结果，
 > 不是一个被谁配置的开关**：**声明里每一项都有在场且可用的提供者就可用，缺一项就不可用**。
-> **每次 run 开始前重算一遍**——**提供者换了或没了都要重算**。
+> **每次 run 开始前重算一遍**（一次 run 里的每一次[执行尝试](agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)都算一次开始）——**提供者换了或没了都要重算**。
 >
 > **EN**: **Whether a tool or skill can actually be used right now.** It is **the
 > result of resolving its dependency declaration, not a switch anyone sets**: available
 > when every item in the declaration has a present, usable provider, unavailable when any
-> one is missing. It is **recomputed before every run** — **a provider being replaced or
-> gone forces a recomputation**.
+> one is missing. It is **recomputed before every run** (each run attempt within a run counts
+> as a start) — **a provider being replaced or gone forces a recomputation**.
 
 - **形态**：视图
-- **出处**：[PF-006 §4 可用性](../../product/PF-006-tools-and-skills/design.md#可用性) · [§6.2](../../product/PF-006-tools-and-skills/design.md#62-可用性在每次-run-开始前重算)（rev 17）
+- **出处**：[PF-006 §4 可用性](../../product/PF-006-tools-and-skills/design.md#可用性) · [§6.2](../../product/PF-006-tools-and-skills/design.md#62-可用性在每次-run-开始前重算)（rev 18）
 - **别混**：**裸写「可用性」不作数**——那个词在别处指服务可用性、系统可用性，**与这里毫无关系**
 - **别混**：与[资产禁用](circulation-and-entitlement.md#ul-asset-disable--资产禁用--asset-disable)不同——
   **禁用是不可见**（装配时就被滤掉，agent 无从知道它存在），**不可用是可见但用了一定失败**（条目还在原位，调用必得「不可用」这一个收场）
@@ -86,7 +86,7 @@
 > remains that of the original entry in the action space.
 
 - **形态**：视图
-- **出处**：[PF-006 §4 替换件](../../product/PF-006-tools-and-skills/design.md#替换件) · [§6.3](../../product/PF-006-tools-and-skills/design.md#63-不可用时装的是同名替换件不是不装)（rev 17）
+- **出处**：[PF-006 §4 替换件](../../product/PF-006-tools-and-skills/design.md#替换件) · [§6.3](../../product/PF-006-tools-and-skills/design.md#63-不可用时装的是同名替换件不是不装)（rev 18）
 - **别混**：**它不是另一个条目**——动作空间里的条目一个没多、一个没少，变的只有那一条的说明与应答
 - **注意 ①**：**不可用时装的是它，不是「不装」**——**藏起来 agent 会以为自己没这个能力，而实际只是暂时用不了**
 - **注意 ②**：**说明不是闸**，agent 读到了照样可能调它——所以它的行为只有一种。
@@ -113,7 +113,7 @@
 > **anything a tool can do without stays out of the declaration and is probed at use**.
 
 - **形态**：属性
-- **出处**：[PF-006 §4 依赖](../../product/PF-006-tools-and-skills/design.md#依赖) · [§6.4](../../product/PF-006-tools-and-skills/design.md#64-依赖声明与解析)（rev 17）
+- **出处**：[PF-006 §4 依赖](../../product/PF-006-tools-and-skills/design.md#依赖) · [§6.4](../../product/PF-006-tools-and-skills/design.md#64-依赖声明与解析)（rev 18）
 - **别混**：这里的「**外部服务**」**不是 [PF-002 排除掉的那个 Service](capabilities-and-composition.md#ul-asset--资产--asset)**——
   那条排除的是 Cordis 的运行时概念。**指前者时必须写全 `Cordis service`**
 - **注意**：**声明不是免费的**——每多一项就多一个可能不被满足的前提，

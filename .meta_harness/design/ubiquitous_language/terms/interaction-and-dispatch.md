@@ -160,7 +160,7 @@
 > **indefinitely**, with **no upper bound**.
 
 - **形态**：总称
-- **出处**：[PF-008 §4 HITL](../../product/PF-008-human-in-the-loop/design.md#hitl)（rev 5）
+- **出处**：[PF-008 §4 HITL](../../product/PF-008-human-in-the-loop/design.md#hitl)（rev 6）
 - **⚠️ 注意**：**不设上限是硬的。**设了上限就必须规定「到点算什么」，
   **那就是系统替人作答**——而**「人没回答」与「人回答了随便」是两回事**
 - **注意**：它**不占资源**——问询发生在动手之前，**不花钱的等待没有理由设上限**
@@ -179,7 +179,7 @@
 > wait state**, hanging off a different lifecycle.
 
 - **形态**：状态
-- **出处**：[PF-008 §4 等待态的两个维度](../../product/PF-008-human-in-the-loop/design.md#等待态的两个维度)（rev 5）
+- **出处**：[PF-008 §4 等待态的两个维度](../../product/PF-008-human-in-the-loop/design.md#等待态的两个维度)（rev 6）
 - **⚠️ 别混**：**裸写「等待态」不作数**——它有两个所指，**必须说清是 run 的还是工具的**
 - **注意**：`Ask()` 属于**工具**那一列。run 之所以也停住，
   **是因为它恰好是前台调用**——**而不是因为这两个维度是同一件事**
@@ -187,7 +187,7 @@
   由当前这个 run 在下一步消费，**不会另起一个 run**。
   这与[会话内单活跃](agent-runtime-loop.md#ul-single-active-execution--会话内单活跃--single-active-execution)是同一条
 - **注意**：**同一个会话可以同时有别的东西在等**——那些转到后台的工具执行，
-  **各等各的，也不影响 run**
+  **各等各的，也不影响 run**。**本版要等应答的执行只在前台等**，这一格暂不出现；模型照样这么分，将来打开不必改
 
 ### UL-decision-card · 决策卡片 · Decision Card
 
@@ -203,7 +203,7 @@
 > tells which source, and which extension.
 
 - **形态**：对象
-- **出处**：[PF-008 §4 决策卡片](../../product/PF-008-human-in-the-loop/design.md#决策卡片) · [§6.3](../../product/PF-008-human-in-the-loop/design.md#63-卡片自包含但要留得住溯源的路)（rev 5）
+- **出处**：[PF-008 §4 决策卡片](../../product/PF-008-human-in-the-loop/design.md#决策卡片) · [§6.3](../../product/PF-008-human-in-the-loop/design.md#63-卡片自包含但要留得住溯源的路)（rev 6）
 - **注意 ①**：**一张卡片只能被答一次**，在会话里答还是在[池子](#ul-decision-pool--决策池--decision-pool)里答**都算数**，
   **答完两处一起消失**——**同一张卡片有两套状态，人就再也不信任这个池子了**
 - **注意 ②**：**「在会话里答」指的是在会话里那张卡片上答，不是发一条消息**。
@@ -230,7 +230,7 @@
 
 - **形态**：视图
 - **出处**：[PF-008 §5.3 一批卡片，与「答完」是什么意思](../../product/PF-008-human-in-the-loop/design.md#53-一批卡片与答完是什么意思) ·
-  [PF-008 flows §3.2 一批卡片](../../product/PF-008-human-in-the-loop/flows.md#32-一批卡片)（rev 5）
+  [PF-008 flows §3.2 一批卡片](../../product/PF-008-human-in-the-loop/flows.md#32-一批卡片)（rev 6）
 - **别混**：与[决策池](#ul-decision-pool--决策池--decision-pool)**分组的依据不同**——
   池子按**租户**把所有等着的卡片摆在一处**给人看**，这一批按**被它阻塞的那一个**收在一起**决定什么时候解除**
 - **⚠️ 注意 ①**：**答到一半，什么都不会发生**——已经拿到的那几个答案**不会先送出去**。
@@ -238,7 +238,9 @@
 - **注意 ②**：**被阻塞的可能是一次前台工具执行、一次后台工具执行，或一个
   [运行](agent-runtime-loop.md#ul-run--运行--run)**——三种情形在人这一侧一模一样，
   **差别只在解除了什么**
-- **注意 ③**：**「作废」只有两条来路**：那个运行被中断，或**会话被归档**
+- **注意 ③**：**「作废」只有两条来路**：那个运行被中断，或**会话被归档**。
+  它等的那次执行因停机没了时卡片怎么办，[尚待产品负责人裁决](../../product/PF-008-human-in-the-loop/design.md#91-待产品负责人裁决执行已经没了它的卡片怎么办)
+- **注意 ④**：被阻塞的是后台工具执行那一种，**本版不出现**——要等应答的执行只在前台等
 
 ### UL-decision-pool · 决策池 · Decision Pool
 
@@ -252,7 +254,7 @@
 > glance.
 
 - **形态**：视图
-- **出处**：[PF-008 §4 决策池](../../product/PF-008-human-in-the-loop/design.md#决策池)（rev 5）
+- **出处**：[PF-008 §4 决策池](../../product/PF-008-human-in-the-loop/design.md#决策池)（rev 6）
 - **⚠️ 注意**：**不存在「组织在等什么」这回事。组织不会等，等的永远是某个会话。**
   把池子当成主体，就会做出一个「组织待办中心」——**它会开始有自己的状态、自己的流转、
   自己的归属，而真正在等的那个 run 反倒被隔在一层之外**
@@ -266,23 +268,26 @@
 > **它既是判官也是撰稿人**。它的输入是三样合起来：
 > **权限设置 + [会话授权上下文](#ul-session-authorization-context--会话授权上下文--session-authorization-context) + 会话运行模式**。
 > **它是系统自带的一件[拓展件](capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension)**，
-> 站在「执行动作之前」、干预力可否决，出卡用的是 loop 的[等待原语](agent-runtime-loop.md#ul-wait-primitive--等待原语--wait-primitive)——**自带的不享受特权**。
+> 站在「执行动作之前」、干预力可否决，出卡用的是 loop 的[等待原语](agent-runtime-loop.md#ul-wait-primitive--等待原语--wait-primitive)——**自带的不享受特权**，
+> 只有往严里走的例外：**它不能被替换、禁用或收窄**。
 >
 > **EN**: **A function** run inside a run, **after each model response**: it decides
 > **whether to stop** and **writes the card the person will read** — **it is both judge
 > and drafter**. Its inputs are three things together: the permission settings, the
 > session authorization context, and the session's operating mode. **It is a built-in loop
 > extension**, sitting at "before an action executes" with veto power and raising its card
-> through the loop's wait primitive — **built-in confers no privilege**.
+> through the loop's wait primitive — **built-in confers no privilege**, the only exceptions
+> running towards strictness: **it cannot be replaced, disabled or narrowed**.
 
 - **形态**：过程
-- **出处**：[PF-008 §4 放行判断](../../product/PF-008-human-in-the-loop/design.md#放行判断) · [§5.2](../../product/PF-008-human-in-the-loop/design.md#52-那个判断函数)（rev 5） · [PF-012 §5.8 系统自带的几件](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件各站在哪)（rev 10）
+- **出处**：[PF-008 §4 放行判断](../../product/PF-008-human-in-the-loop/design.md#放行判断) · [§5.2](../../product/PF-008-human-in-the-loop/design.md#52-那个判断函数)（rev 6） · [PF-012 §5.8 系统自带的几件](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件各站在哪)（rev 11）
 - **注意 ①**：**没有任何一样单独说了算。**获批不等于自动放行，有权限设置也不等于请示没意义
 - **注意 ②**：**权限设置里明确禁止的，会话授权翻不了案**——
   否则任何禁止都能靠「让用户在会话里点个同意」绕过去，
   而**会话里坐着的那个人，未必是设权限的那个人**
 - **注意 ③**：**拿不准就再问一次**——两个方向的代价不对称：该放的没放只是多问一遍，
   **不该放的放了就是做了没有人批准过的事**
+- **注意 ④**：**它不可用时怎么办，[尚待产品负责人裁决](../../product/PF-012-agent-loop-and-run/design.md#92-待产品负责人裁决)**（全拒，或当卸载）；放行之后到执行之间不重判
 
 ### UL-inquiry · 问询 · Inquiry
 
@@ -405,7 +410,7 @@
 > and **both leave a trace**.
 
 - **形态**：对象
-- **出处**：[PF-014 §4 入站到达](../../product/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 5）
+- **出处**：[PF-014 §4 入站到达](../../product/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 6）
 - **别混 ①**：**它不是一条[消息](record-and-context.md#ul-message--消息--message)。**
   消息回答**谁在说话**；入站到达回答**外面送进来了一件什么事**。
   **有的到达会成为消息**（进[待处理消息队列](agent-runtime-loop.md#ul-pending-message-queue--待处理消息队列--pending-message-queue)），
@@ -456,7 +461,7 @@
 > defines that action**.
 
 - **形态**：变体（父：[入站到达](#ul-inbound-arrival--入站到达--inbound-arrival)）
-- **出处**：[PF-014 §4 控制指令](../../product/PF-014-inbound-intake-and-queueing/design.md#控制指令)（rev 5）
+- **出处**：[PF-014 §4 控制指令](../../product/PF-014-inbound-intake-and-queueing/design.md#控制指令)（rev 6）
 - **别混 ①**：**与[斜杠命令](capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command)不是一回事。**
   绑定提示词或 skill 的斜杠命令是**内容**——它要 agent 去做一件事，因此进队列；
   绑定系统业务流程的那种不进队列，但它触发的是一条业务流程、留一条记录，也不是处置；
@@ -482,7 +487,7 @@
 > why**.
 
 - **形态**：变体（父：[控制指令](#ul-control-command--控制指令--control-command)）
-- **出处**：[PF-014 §4 插队](../../product/PF-014-inbound-intake-and-queueing/design.md#插队)（rev 5）
+- **出处**：[PF-014 §4 插队](../../product/PF-014-inbound-intake-and-queueing/design.md#插队)（rev 6）
 - **别混 ①**：**它不终止[运行](agent-runtime-loop.md#ul-run--运行--run)。**
   这是它与**取消**最要紧的差别：取消让运行落终态，
   **插队只是把运行推到下一次取消息那一点**，运行一直活着
@@ -492,6 +497,8 @@
 - **注意 ①**：**它是系统唯一的加急通道**，[不设第二种优先级](../../product/PF-012-agent-loop-and-run/design.md#先到先处理只有一个例外)
 - **注意 ②**：**它会解除 loop 里各种等待态**，其中悬着的[决策卡片](#ul-decision-card--决策卡片--decision-card)
   按「**人明确拒绝回复**」处置——**取消视作拒绝是无副作用可逆的，反过来不是**
+- **注意 ③**：**被它中断的模型回复不交出动作**——参数已经收齐、还没执行的工具调用也不执行，
+  留在那条被中断的消息里，agent 读完新话自己决定要不要重新发起（[PF-014 §5.4](../../product/PF-014-inbound-intake-and-queueing/design.md#54-插队停在哪就怎么办)）
 
 ## 人从哪一面碰到它
 

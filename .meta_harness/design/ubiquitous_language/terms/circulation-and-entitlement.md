@@ -24,7 +24,7 @@
 > serves directly as the basis of entitlement** — no fabricated self-grant is needed.
 
 - **形态**：属性
-- **出处**：[PF-001 §4 拥有、获权、选用](../../product/PF-001-identity-scope-and-agent-constraints/design.md#拥有获权选用)（rev 16）
+- **出处**：[PF-001 §4 拥有、获权、选用](../../product/PF-001-identity-scope-and-agent-constraints/design.md#拥有获权选用)（rev 17）
 - **注意**：**实际作者与定义所有者分别记录**；作者用**租户身份**标识
 
 ### UL-usage-right · 使用权 · Usage Right
@@ -43,7 +43,7 @@
 > another.**
 
 - **形态**：属性
-- **出处**：[PF-001 §4 拥有、获权、选用](../../product/PF-001-identity-scope-and-agent-constraints/design.md#拥有获权选用) · [§6.4](../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)（rev 16） · [PF-003 §6.10](../../product/PF-003-asset-transfer-and-sharing/design.md#610-分享给的是获权不是拥有)（rev 4）
+- **出处**：[PF-001 §4 拥有、获权、选用](../../product/PF-001-identity-scope-and-agent-constraints/design.md#拥有获权选用) · [§6.4](../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)（rev 17） · [PF-003 §6.10](../../product/PF-003-asset-transfer-and-sharing/design.md#610-分享给的是获权不是拥有)（rev 4）
 - **别混**：**论域只有资产。**[模型档案](capabilities-and-composition.md#ul-model-profile--模型档案--model-profile)不是资产，一个范围允不允许某条档案由设置与权限的求值决定，不叫使用权
 - **注意**：**没有暂停，没有到期**——它只有「有」与「没有」（[C-15 的裁决](../conflicts.md#现有冲突)）
 
@@ -54,8 +54,9 @@
 > **EN**: **Which version of it a given scope currently has selected.**
 
 - **形态**：属性
-- **出处**：[PF-001 §4 拥有、获权、选用](../../product/PF-001-identity-scope-and-agent-constraints/design.md#拥有获权选用)（rev 16）
+- **出处**：[PF-001 §4 拥有、获权、选用](../../product/PF-001-identity-scope-and-agent-constraints/design.md#拥有获权选用)（rev 17）
 - **别混**：**裸写「选用 / selection」不作数**——它专指**选哪个版本**
+- **注意**：它记在[持有](#ul-asset-holding--资产持有--asset-holding)上，**有两种：钉在某一版，或追随当前版**；不另说时追随当前版，而那是持有上写明、看得见的选择——新版一发布就用上，不算静默替换（[PF-002 flows §3.3](../../product/PF-002-assets-settings-and-permissions/flows.md#33-一个资产定义的版本)）
 
 ### UL-revocation-is-not-stop · 撤销不等于强制停止 · Revocation Is Not a Stop
 
@@ -69,7 +70,7 @@
 > already under way is stopped is decided by run control, separately.**
 
 - **形态**：规则
-- **出处**：[PF-001 §6.6](../../product/PF-001-identity-scope-and-agent-constraints/design.md#66-撤销不等于强制停止)（rev 16）
+- **出处**：[PF-001 §6.6](../../product/PF-001-identity-scope-and-agent-constraints/design.md#66-撤销不等于强制停止)（rev 17）
 - **别混**：与[强制停止](agent-runtime-loop.md#ul-forced-stop--强制停止--forced-stop)**不是一件事**
 
 ## 一个范围手上有什么
@@ -95,7 +96,7 @@
 > **disabling does not end it.**
 
 - **形态**：属性
-- **出处**：[PF-002 §5.2 三方分工](../../product/PF-002-assets-settings-and-permissions/design.md#三方分工资产定形状各层配值运行时求值) · [PF-002 §6.4](../../product/PF-002-assets-settings-and-permissions/design.md#64-移除与禁用是两个动作) · [PF-002 flows §3.1 一个资产在某个范围里](../../product/PF-002-assets-settings-and-permissions/flows.md#31-一个资产在某个范围里)（rev 16） · [PF-001 §6.1 层次](../../product/PF-001-identity-scope-and-agent-constraints/design.md#61-层次)（rev 16）
+- **出处**：[PF-002 §5.2 三方分工](../../product/PF-002-assets-settings-and-permissions/design.md#三方分工资产定形状各层配值运行时求值) · [PF-002 §6.4](../../product/PF-002-assets-settings-and-permissions/design.md#64-移除与禁用是两个动作) · [PF-002 flows §3.1 一个资产在某个范围里](../../product/PF-002-assets-settings-and-permissions/flows.md#31-一个资产在某个范围里)（rev 17） · [PF-001 §6.1 层次](../../product/PF-001-identity-scope-and-agent-constraints/design.md#61-层次)（rev 17）
 - **别混**：与[定义所有权](#ul-definition-ownership--定义所有权--definition-ownership)不是一回事——**持有的不一定是自己的**，[被分享来的](#ul-asset-sharing--资产分享--asset-sharing)照样持有。**裸写「持有」不作数**：正文也用它说「持有使用权」「持有待处理消息队列」
 - **注意 ①**：正文**未述它靠什么标识**；工作区那一级持有的资产算不算[自定义件](#ul-customized-asset--自定义件--customized-asset)，正文没说。
   **工作区那一级照样配得了[禁用](#ul-asset-disable--资产禁用--asset-disable)**，
@@ -103,6 +104,10 @@
 - **注意 ②**：**配值跟着持有走。**移除，这份持有没了，挂在它上面的
   [属性配值](scope-and-resolution.md#ul-attribute-assignment--属性配值--attribute-assignment)**一起消失**；
   禁用，持有还在，**配的值一个不丢**
+- **注意 ③**：**一层对一个[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)至多持有一份**——同一层可以有好几份同标识的资产，替代发生在持有上；
+  持有上还记着[版本选用](#ul-version-selection--版本选用--version-selection)：钉在某一版，或追随当前版
+- **注意 ④**：**把资产从租户范围提升到组织范围，只换所有者，不动任何一份持有**
+  （[PF-001 §6.7](../../product/PF-001-identity-scope-and-agent-constraints/design.md#67-创作与归属)）
 
 ## 来源
 
@@ -118,7 +123,7 @@
 > asset composition — no separate rule set is needed.
 
 - **形态**：属性
-- **出处**：[PF-001 §4 来源](../../product/PF-001-identity-scope-and-agent-constraints/design.md#来源official-与-customized)（rev 16）
+- **出处**：[PF-001 §4 来源](../../product/PF-001-identity-scope-and-agent-constraints/design.md#来源official-与-customized)（rev 17）
 - **别混**：**裸写「来源」不作数**——它专指 official / customized 这个二分
 - **注意**：来源**不能靠任意请求自报来冒充**
 
@@ -137,7 +142,7 @@
 > not removal**.
 
 - **形态**：变体（父：[资产](capabilities-and-composition.md#ul-asset--资产--asset)）
-- **出处**：[PF-001 §4 来源](../../product/PF-001-identity-scope-and-agent-constraints/design.md#来源official-与-customized)（rev 16）
+- **出处**：[PF-001 §4 来源](../../product/PF-001-identity-scope-and-agent-constraints/design.md#来源official-与-customized)（rev 17）
 - **别混**：它**不是**「一批可以申请使用的官方资源」，**它是底座**——没有它，agent 组装不出来
 - **注意**：资产求值的**下界**：每个 official 能力标识下都必须有东西，**任何层都不能把它清空**
 
@@ -151,7 +156,7 @@
 > a capability identifier. It **requires authorization** and **can be disabled**.
 
 - **形态**：变体（父：[资产](capabilities-and-composition.md#ul-asset--资产--asset)）
-- **出处**：[PF-001 §4 来源](../../product/PF-001-identity-scope-and-agent-constraints/design.md#来源official-与-customized)（rev 16）
+- **出处**：[PF-001 §4 来源](../../product/PF-001-identity-scope-and-agent-constraints/design.md#来源official-与-customized)（rev 17）
 - **注意**：自定义来源**不会**因为被 agent 使用就给作者或该 agent 额外的行动权限——**资产决定组装，权限决定行动，两者不互相转化**
 
 ## 两个动作
@@ -240,7 +245,7 @@
 > asked about it, the agent can only say it cannot, **without being able to say why**.
 
 - **形态**：过程
-- **出处**：[PF-002 §6.4](../../product/PF-002-assets-settings-and-permissions/design.md#64-移除与禁用是两个动作)（rev 16）
+- **出处**：[PF-002 §6.4](../../product/PF-002-assets-settings-and-permissions/design.md#64-移除与禁用是两个动作)（rev 17）
 - **别混**：与[资产禁用](#ul-asset-disable--资产禁用--asset-disable)**在 agent 那一侧看不出差别**，差的是**配置还在不在、还能不能开回来**
 - **注意**：**这个范围往后不要这份资产了 → 用这个**
 
@@ -263,7 +268,7 @@
 > by any other layer.
 
 - **形态**：属性
-- **出处**：[PF-002 §6.4](../../product/PF-002-assets-settings-and-permissions/design.md#64-移除与禁用是两个动作) · [§6.4 禁用是逐层配的布尔设置](../../product/PF-002-assets-settings-and-permissions/design.md#禁用是逐层配的布尔设置任一层为真即不可见)（rev 16）
+- **出处**：[PF-002 §6.4](../../product/PF-002-assets-settings-and-permissions/design.md#64-移除与禁用是两个动作) · [§6.4 禁用是逐层配的布尔设置](../../product/PF-002-assets-settings-and-permissions/design.md#禁用是逐层配的布尔设置任一层为真即不可见)（rev 17）
 - **注意**：被禁的那份持有**在替换次序上视为不存在，同标识退回下一层**——
   工作区借「同名替换再禁用」藏不掉租户的资产
 - **别混**：与[当下可用性](reach-and-availability.md#ul-current-availability--当下可用性--current-availability)不是一回事——

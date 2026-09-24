@@ -2,7 +2,7 @@
 id: PF-008
 title: Human in the Loop
 status: active
-revision: 5
+revision: 6
 relations:
   supersedes: []
   depends-on:
@@ -48,7 +48,8 @@ relations:
 
 **`Ask()` 属于左边。**run 之所以也停住，是因为它恰好是**前台**调用——
 那是[前台/后台](../PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)在起作用，
-不是新机制。**一个转到后台的工具进了等待态，它照样需要人输入，但 run 不受影响。**
+不是新机制。**一个转到后台的工具进了等待态，它照样需要人输入，但 run 不受影响**——
+这一格说明了模型为什么这样分；[本版要等应答的执行只在前台等](../PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)，它暂不出现。
 
 ## 永远等着
 
@@ -81,9 +82,9 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 5**，**已正式接受**（rev 1 于 2026-09-17；各 rev 改了什么见[变更历史](changelog.md)）
-- 未决项：**无**
-- 待裁决：**无**
+- 产品设计：**rev 6**。rev 5 **已正式接受**（rev 1 于 2026-09-17）；**rev 6 待产品负责人确认**（各 rev 改了什么见[变更历史](changelog.md)）
+- 未决项：**一项待裁决**——[它等的那次执行因停机没了，卡片怎么办](design.md#91-待产品负责人裁决执行已经没了它的卡片怎么办)
+- 待裁决：**一项**，同上
 - **两个只引用、不拥有的对象现在各有其家**：**Run** 归
   [PF-012](../PF-012-agent-loop-and-run/README.md)，**会话**归
   [PF-015](../PF-015-session-lifecycle-and-ownership/README.md)。

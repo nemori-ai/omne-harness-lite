@@ -369,7 +369,7 @@
 
 **绑定系统业务流程的斜杠命令不在这一类里。**它是人从交付面用 `/` 触发一条系统业务流程的入口，
 [走受理面、成为一条入站到达](../PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走)，属于第一类；
-能触发的流程本版只点名一条——[reload](../PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变)，让这个会话重新装配一次。这一类的几条具名动作则**不经入站到达**，所以它们**不是斜杠命令**——
+能触发的流程本版只点名一族——[reload](../PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变)，每一条只重填这个会话对应的那一张注册表，不是一次完整的重新装配。这一类的几条具名动作则**不经入站到达**，所以它们**不是斜杠命令**——
 换模型、归档在交付面上怎么拼、拼不拼成 `/` 开头，[归技术设计](#57-人要做的事分三族)；**拼成 `/` 开头的，那个名字是[系统保留名](../PF-002-assets-settings-and-permissions/design.md#slash-command)、在 `omne-official` 前缀下，它仍是这一类的具名动作**。
 
 #### 两类之外的，根本不进任何会话
@@ -835,7 +835,7 @@
 
 | 界线 | 具体是什么 |
 |---|---|
-| **只认租户记下的** | [工作区由租户记下那条路径来指认](../PF-002-assets-settings-and-permissions/design.md#工作区不是目录)。**当前目录不是本租户记下的任何一份，那一级就是空**——不会因为 agent 在某个目录里起来就把那个目录当成工作区 |
+| **只认租户记下的** | 这台机器上记着这个租户身份用过哪些工作区——那是一份[拿来给人挑、给默认值的清单，不是治理对象](../PF-002-assets-settings-and-permissions/design.md#它是会话选用的不指定就是空)，工作区本身[由会话创建时给出的那条路径指认](../PF-002-assets-settings-and-permissions/design.md#工作区不是目录)。**当前目录不在这份清单里，那一级就是空**——不会因为 agent 在某个目录里起来就把那个目录当成工作区 |
 | **只认当前租户身份名下的** | [同一个目录被两个租户身份分别挂上是两份工作区](../PF-002-assets-settings-and-permissions/design.md#它挂在租户下)。别的租户记下的，**不算** |
 | **填的是默认值，不是替人定** | 挂了哪一份**在他说第一句话之前看得见**，可以换一份、也可以不挂。**会话创建时收到的仍然是一项显式指定** |
 
@@ -908,7 +908,7 @@
 | 相邻 topic | 它拥有什么 | 本 topic 与它的关系 |
 |---|---|---|
 | [PF-001](../PF-001-identity-scope-and-agent-constraints/design.md) | 账号、登录状态、组织、租户、当前租户身份、角色、隔离 | **全部动作都是它定义的**；本 topic 只提供发起处，并把「部署」在本形态下落到[治理中心](#治理中心)上 |
-| [PF-002](../PF-002-assets-settings-and-permissions/design.md)（rev 14） | 设置与权限的分层求值；[斜杠命令](../PF-002-assets-settings-and-permissions/design.md#slash-command)的三种绑定目标、只由交付面识别、系统保留名（`omne-official` 前缀）、参数声明、[会话认得哪些命令、什么时候变](../PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变) | 本 topic 只**呈现**「这一项此刻的值来自哪一层」，不参与求值；但它定了[这些层的值落在哪一侧](#56-哪些东西在中心一侧哪些在据点一侧)。斜杠命令在交付面上**怎么敲、敲错了怎么办**归本 topic（[§5.7](#57-人要做的事分三族)），**撞名的规则、一个会话认得哪些命令归那边** |
+| [PF-002](../PF-002-assets-settings-and-permissions/design.md)（rev 17） | 设置与权限的分层求值；[斜杠命令](../PF-002-assets-settings-and-permissions/design.md#slash-command)的三种绑定目标、只由交付面识别、系统保留名（`omne-official` 前缀）、参数声明、[会话认得哪些命令、什么时候变](../PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变) | 本 topic 只**呈现**「这一项此刻的值来自哪一层」，不参与求值；但它定了[这些层的值落在哪一侧](#56-哪些东西在中心一侧哪些在据点一侧)。斜杠命令在交付面上**怎么敲、敲错了怎么办**归本 topic（[§5.7](#57-人要做的事分三族)），**撞名的规则、一个会话认得哪些命令归那边** |
 | [PF-003](../PF-003-asset-transfer-and-sharing/design.md) | 资产的复制与分享、待确认的邀约会过期 | 本 topic 是**发起与点头的地方**；能不能给、给了之后怎样，一概归那边 |
 | [PF-005](../PF-005-execution-environments-and-sandboxes/design.md) | 落点、宿主机、执行环境权限 | 本形态下**宿主机就是用户自己的电脑**；[必须被显式允许](../PF-005-execution-environments-and-sandboxes/design.md#62-宿主机不提供租户隔离因此必须被显式允许)这条在这里第一次有了真实后果 |
 | [PF-008](../PF-008-human-in-the-loop/design.md) | 卡片、池子、永远等着、答复只在卡片上做 | 本 topic 是那个「人在哪里看到它」的**第一个实例**；[池子在这条形态下按据点各一份](#619-这里看到的池子是这一处的)，定义不改 |
