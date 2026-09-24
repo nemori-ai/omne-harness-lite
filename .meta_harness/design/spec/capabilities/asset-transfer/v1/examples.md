@@ -29,6 +29,7 @@ A 把个人组织里 skill `ast_x`（所有者 `P_A`，已发布 v1、v3）的 *
 | 2 | `readCopyNotice((C2,S), cn_1)` | 目标侧投影：送来的租户身份 `(C2, A)`、能力标识、源版本号 3、v3 的内容、`pending`、**此刻确认会是首次**；**没有 `ast_x`、没有 `P_A`** | [S-23](contract.md#s-23-读复制通知) |
 | 3 | `confirmCopy((C2,S), cn_1)` | `created{ asset=ast_y, 已取得持有 }` | [S-22](contract.md#s-22-确认复制)、[S-11](contract.md#s-11-复制的收场) |
 | 4 | 观察 `ast_y` | 所有者 `C2`；作者 `(C2, A)`；来源 `customized`；**v1**，内容整体等于 `ast_x` 的 v3；血缘 `{ lineage=ln_1, sourceVersion=3, importedBy=(C2,A), importedAt=…, imports=1 }`；`C2` 组织层持有它（basis `owned`）；v1 的发布者是 `(C2, S)` | [S-10](contract.md#s-10-复制血缘怎么判怎么记)、[S-11](contract.md#s-11-复制的收场) |
+| 1a | `listPendingForOrganization((C2,S), C2)`（第 1 步之后、第 3 步之前） | 一项：复制通知 `cn_1` 与它的 `OfferTiming`；**不带内容、不带源**——要看，按标识走第 2 步 | [S-48](contract.md#s-48-列出组织收到的待确认件) |
 | 5 | 观察 `ast_x` | **一字节不变**：所有者、作者、版本线 | [S-11](contract.md#s-11-复制的收场)「源侧什么都不动」 |
 
 ## 2. 重复复制：全量覆盖，配值不动
@@ -105,7 +106,7 @@ A 把个人组织里 skill `ast_x`（所有者 `P_A`，已发布 v1、v3）的 *
 | `noticeNotFound` | `C1` 的超管读或确认 `cn_1`（目标是 `C2`，不是他的组织）——与「这个号不存在」同值 | [S-22](contract.md#s-22-确认复制)、[S-23](contract.md#s-23-读复制通知) |
 | `invitationNotFound` | `X` 的超管读 `si_1` | [S-27](contract.md#s-27-读分享邀请) |
 | `sharingNotFound` | `C2` 的超管对 `sh_1` 调 `removeShared` | [S-29](contract.md#s-29-移除收到的分享) |
-| `expired`（确认路径） | 确认一份已过期的；**以及**确认一份已撤回的、再确认一份已确认的——**三者值逐字相同** | [S-19](contract.md#s-19-这一节每个操作写全九件事) 总表、`data.offer-expiry/v1#S-13` |
-| `expired`（撤回路径） | 撤回一份已过期的：**不写终结记录** | [S-21](contract.md#s-21-撤回复制通知) ⑦ |
-| `alreadyConfirmed` | 撤回第 1 节已确认的 `cn_1` | [S-21](contract.md#s-21-撤回复制通知) ⑦ |
+| `offerNoLongerValid` | 确认一份已过期的；**以及**确认一份已撤回的、再确认一份已确认的——**三者值逐字相同** | [S-19](contract.md#s-19-这一节每个操作写全九件事) 总表、`data.offer-expiry/v1#S-13` |
+| `alreadyConcluded` | 撤回第 1 节已确认的 `cn_1`；撤回一份已过期的——**两者值逐字相同，都不写终结记录** | [S-21](contract.md#s-21-撤回复制通知) ⑦ |
+| `notPermitted`（列表） | A 在 `C1` 只是普通成员，调 `listPendingForOrganization((C1,A), C1)`——按组织定位，不是 `noticeNotFound` | [S-48](contract.md#s-48-列出组织收到的待确认件) |
 | `unavailable` | 让 `C1`–`G` 的上级链读面不可用，再确认第 3 节那份通知——**不是 `outsideTree`** | [S-16](contract.md#s-16-缺席时的默认答案)、[S-12](contract.md#s-12-流转边界团队资产不出那棵树) |

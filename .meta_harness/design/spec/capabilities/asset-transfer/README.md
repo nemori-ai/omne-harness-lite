@@ -9,12 +9,10 @@
 > 这个动作的正式名是「资产复制」，**「转移」是弃用说法**，正文一律不用。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.asset-transfer, 1)`
-- **状态**：`candidate`（2026-09-23 起草），**未经独立评审、未接受、未冻结**
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐），**未经独立评审、未接受、未冻结**
 - **catalog 映射**：已登记为 `candidate`；`family=capabilities`、`topic=asset-transfer`、
   `contract_path=spec/capabilities/asset-transfer/v1/contract.md`；`resources` 含契约、`examples.md`、`formal/` 下的模型、七个配置与入口页；
-  依赖三项（`capability.organization-governance` v1、`data.identity-values` v1、`data.offer-expiry` v1），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)。
-  **另两项依赖尚未登记**：`data.asset-model` v1 与 `capability.asset-governance` v1 与本契约并行起草，
-  本分支的 catalog 里还没有它们的坐标（检查器拒绝未知坐标）——**合流对齐时补登**，消费面见 S-4 末两张表
+  依赖五项（`capability.organization-governance` v1、`data.identity-values` v1、`data.offer-expiry` v1、`data.asset-model` v1、`capability.asset-governance` v1），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)（后两项 2026-09-24 整批对齐补登）
 - **formal-tasks 映射**：一个任务 `asset-transfer-v1-transfer`（`Transfer.tla` ＋ `Transfer.cfg`）。
   **六个有效性核对配置不登记**：它们期望失败，与该清单的语义相反。执行结果在[验证入口](verification.md)
 - **提供者/装配映射**：尚无
