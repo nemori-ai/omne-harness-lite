@@ -468,7 +468,7 @@
 | 实例 | Schema | 拒绝值 | 依据 |
 |---|---|---|---|
 | 在 10.1 上把 `basis` 改为 `{"kind": "owned"}` | 拒绝 | `malformed` | [S-20](contract.md#s-20-出厂格与工作区格的持有)：出厂格只持有 official |
-| 在 10.1 上把 `immutable` 改为 `true` | 拒绝 | `malformed` | [S-20](contract.md#s-20-出厂格与工作区格的持有)：没有谁在出厂格上锁 |
+| 在 10.1 上把 `immutable` 改为 `true` | 通过 | —（`read_file` 不是 meta 能力时是 `malformed`，Schema 判不出） | [S-20](contract.md#s-20-出厂格与工作区格的持有)：出厂格只在 meta 能力上带锁；是不是 meta 由部署清单给出，写它的一方按清单写 |
 | 在 10.1 上把 `assignments` 改为 `[{"item": "timeout", "value": "PT5S", "immutable": false, "since": "2026-09-15T08:00:00Z"}]` | 拒绝 | `malformed` | [S-20](contract.md#s-20-出厂格与工作区格的持有)：出厂格的值就是声明里的 `default` |
 | 在 10.6 上把 `immutable` 改为 `true` | 拒绝 | `malformed` | [S-20](contract.md#s-20-出厂格与工作区格的持有)：`immutable` 不从工作区来 |
 | 在 10.6 上把 `basis` 改为 `{"kind": "owned"}` | 拒绝 | `malformed` | [S-19](contract.md#s-19-使用权来路)：`owned` 不在工作区格 |

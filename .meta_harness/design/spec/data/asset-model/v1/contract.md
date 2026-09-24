@@ -80,11 +80,11 @@
 
 | 不拥有 | 归谁 |
 |---|---|
-| 四步求值（资产求值、组装、投影、层级计算）与工作区清单的读入规则 | `capability.asset-evaluation`（同批并行起草） |
-| 创作、发布、提升、删除、持有与配值的写操作，角色矩阵，读面 | `capability.asset-governance`（同批并行起草） |
-| 复制通知、分享邀请、确认之后的分享；「团队资产不出那棵树」的守卫 | `capability.asset-transfer`（同批并行起草） |
+| 四步求值（资产求值、组装、投影、层级计算）与工作区清单的读入规则 | [`capability.asset-evaluation`](../../../capabilities/asset-evaluation/v1/contract.md)（候选） |
+| 创作、发布、提升、删除、持有与配值的写操作，角色矩阵，读面 | [`capability.asset-governance`](../../../capabilities/asset-governance/v1/contract.md)（候选） |
+| 复制通知、分享邀请、确认之后的分享；「团队资产不出那棵树」的守卫 | [`capability.asset-transfer`](../../../capabilities/asset-transfer/v1/contract.md)（候选） |
 | 八类正文的内部 | tool：`data.tool-definition`；loop_extension：`data.loop-extension`；skill：`data.skill-package`；mcp：`data.mcp-endpoint`；slash_command：`data.slash-command`；connector：`data.connector`；agent_definition：PF-004 的契约（见 [S-10](#s-10-八类正文的外壳)） |
-| 会话与运行时的注册表 | 块 B |
+| 会话与运行时的注册表 | [`capability.asset-registry`](../../../capabilities/asset-registry/v1/contract.md)（候选） |
 | 凭据本体的存储、加密与续期 | 提供者设计（[S-23](#s-23-凭据引用)） |
 | 「组织的设置」那种视图 | 不是对象，是[属性投影](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-attribute-projection--属性投影--attribute-projection)，由求值与读面算出 |
 
@@ -92,17 +92,16 @@
 
 | 消费者 | 消费什么 |
 |---|---|
-| `capability.asset-evaluation` v1（同批） | 求值的全部输入形状：`AssetHolding`、`AssetDefinition`、`AttributeAssignment`、`AttributeDeclaration`、`HoldingScope`、`WorkspaceKey`；读入的 `WorkspaceCarrierManifest`；[S-12](#s-12-属性声明由正文推出) 的投影义务、[S-15](#s-15-disabled-是保留项名) 的保留项、[S-20](#s-20-出厂格与工作区格的持有) 的层限制 |
-| `capability.asset-governance` v1（同批） | 写的就是这些记录：[S-6](#s-6-所有者与作者分记)～[S-9](#s-9-版本线)（记录、所有者、版本线）、[S-14](#s-14-属性配值)～[S-20](#s-20-出厂格与工作区格的持有)（配值与持有） |
-| `capability.asset-transfer` v1（同批） | `AssetRecordId`、`CapabilityId`、`CopyLineage`、`LineageId`、`SharingId`、`AssetHolding`、`HoldingBasis`；[S-21](#s-21-复制血缘)、[S-22](#s-22-血缘号与分享号) |
-| 各类正文契约（`data.tool-definition`、`data.loop-extension`，以及将起草的 skill 包、MCP 接入点、斜杠命令与 PF-004 的 Agent Definition） | [S-2](#s-2-能力标识名的词法)（可再收窄，不得放宽）、[S-12](#s-12-属性声明由正文推出) 的投影义务、[S-13](#s-13-设置项类别)、[S-15](#s-15-disabled-是保留项名)（不得声明 `disabled`）、[S-23](#s-23-凭据引用)（凭据类项的值用 `CredentialRef`） |
-| 注册表（块 B，契约未建立）、Agent 装配（PF-004，契约未建立） | `CapabilityId`、`AssetRecordId`、`AssetContent` |
+| `capability.asset-evaluation` v1（候选） | 求值的全部输入形状：`AssetHolding`、`AssetDefinition`、`AttributeAssignment`、`AttributeDeclaration`、`HoldingScope`、`WorkspaceKey`；读入的 `WorkspaceCarrierManifest`；[S-12](#s-12-属性声明由正文推出) 的投影义务、[S-15](#s-15-disabled-是保留项名) 的保留项、[S-20](#s-20-出厂格与工作区格的持有) 的层限制 |
+| `capability.asset-governance` v1（候选） | 写的就是这些记录：[S-6](#s-6-所有者与作者分记)～[S-9](#s-9-版本线)（记录、所有者、版本线）、[S-14](#s-14-属性配值)～[S-20](#s-20-出厂格与工作区格的持有)（配值与持有） |
+| `capability.asset-transfer` v1（候选） | `AssetRecordId`、`CapabilityId`、`CopyLineage`、`LineageId`、`SharingId`、`AssetHolding`、`HoldingBasis`；[S-21](#s-21-复制血缘)、[S-22](#s-22-血缘号与分享号) |
+| 各类正文契约（`data.tool-definition`、`data.loop-extension`、`data.skill-package`、`data.mcp-endpoint`、`data.slash-command`、`data.connector`，以及 PF-004 将起草的 Agent Definition） | [S-2](#s-2-能力标识名的词法)（可再收窄，不得放宽）、[S-12](#s-12-属性声明由正文推出) 的投影义务、[S-13](#s-13-设置项类别)、[S-15](#s-15-disabled-是保留项名)（不得声明 `disabled`）、[S-23](#s-23-凭据引用)（凭据类项的值用 `CredentialRef`） |
+| `capability.asset-registry` v1（候选）、Agent 装配（PF-004，契约未建立） | `CapabilityId`、`AssetRecordId`、`AssetContent` |
 | 租户领域：`data.identity-values` v1 | 反向的兑现：它的 [CS-1](../../identity-values/v1/contract.md#cs-1-资产持有的键与属性配值)、[CS-2](../../identity-values/v1/contract.md#cs-2-作者与所有者分记)、[CS-6](../../identity-values/v1/contract.md#cs-6-工作区宿主为租户) 点名「资产领域的 owner」为第一消费者，本契约是那几条走查落地的地方；它的 G-07「目录那一半」由 [S-17](#s-17-工作区键) 闭合 |
 | `data.call-accounts` v1 | [S-3](#s-3-能力标识与它的规范串) 的规范串：`CostItem.service` 写一个 MCP 接入点时用它（那边的采用是一处对齐，见[验证入口](../verification.md#对齐义务)） |
 | 设置页（PF-002 §6.1，无契约） | `AttributeDeclaration`（表单从哪长出来）、`AttributeAssignment`（这一格配了什么） |
 
 > 上表没有一行是本契约的依赖：方向一律是消费者 → 本契约，登记在各消费者自己的 catalog 条目里。
-> 三份同批能力契约此刻不在本工作树，本包里不链接它们。
 
 ## 二、含义与使用范围
 
@@ -527,7 +526,7 @@
 **出厂格**（规格层推导，依据是 [PF-002 §5.2 推论二](../../../../product/PF-002-assets-settings-and-permissions/design.md#由此得到两个推论)与 [flows §1.4](../../../../product/PF-002-assets-settings-and-permissions/flows.md#14-组织锁死一个自定义资产)）：
 
 - `basis` 恒为 `official`；
-- **`immutable` 恒为 `false`**——没有谁在出厂格上锁，[不存在「把 official 锁住」这回事](../../../../product/PF-002-assets-settings-and-permissions/flows.md#14-组织锁死一个自定义资产)；要锁，是组织或租户在自己那一格锁自己对它的持有；
+- **`immutable` 为真，当且仅当这个能力标识是 [meta 能力](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability)**：[meta 能力不可替换](../../../../product/PF-002-assets-settings-and-permissions/design.md#55-资产替换的层级)，落成的就是出厂格上那一把锁；哪些是 meta 由部署的官方件清单给出，写它的是 [`capability.asset-governance` 的官方件登记](../../../capabilities/asset-governance/v1/contract.md#s-29-registerofficial-登记官方件)，读它的是 [`capability.asset-evaluation` 的截断](../../../capabilities/asset-evaluation/v1/contract.md#s-18-第一步之二再取最具体的一份锁在最外那一把处截断)（2026-09-24 整批对齐；原先恒为 `false` 与求值的前提相抵）。**其余官方件的出厂格持有恒为 `false`**——没有谁在出厂格上锁一份非 meta 的官方件，[不存在「把 official 锁住」这回事](../../../../product/PF-002-assets-settings-and-permissions/flows.md#14-组织锁死一个自定义资产)；要锁，是组织或租户在自己那一格锁自己对它的持有。**是不是 meta，Schema 判不出**：它只管出厂格的另两条；
 - **`assignments` 恒为空**——出厂格的值就是声明里的 `default`（[S-12](#s-12-属性声明由正文推出)），不另配第二份。
 
 **工作区格**（[PF-002 §5.2 设置项分四类](../../../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)、[§5.7](../../../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算)）：
@@ -723,7 +722,7 @@ manifest_format_unsupported  >  category_unknown  >  origin_unknown  >  owner_ki
 | [S-12](#s-12-属性声明由正文推出)、[S-13](#s-13-设置项类别)、[S-36](#s-36-usableby-是保留项名) | 管声明的形状：设置必带类别且取值域开放、权限不带类别且取值域为枚举、`default` 只在落点与身份类设置上可缺、`disabled` 与 `usableBy` 的声明只能是那一份 | `default` 合取值域、同一资产内 `item` 唯一、推出规则确定、`usableBy` 只在三类上——管不到 |
 | [S-14](#s-14-属性配值)、[S-15](#s-15-disabled-是保留项名) | 管三个成员必填、`disabled` 只能是布尔且不锁 | 值合那一项的取值域、权限值是 `values` 的子集——要看声明，管不到 |
 | [S-16](#s-16-持有范围)、[S-17](#s-17-工作区键) | **管得到**：四格闭合、判别式与载荷对得上 | 「绝对、规范形式」与平台相关，由写下这个键的一方兑现 |
-| [S-18](#s-18-资产持有)～[S-20](#s-20-出厂格与工作区格的持有) | 管出厂格只有 official、不锁、不配值；工作区格不锁、只有 official、organization、carrier 三支；`owned` 只在组织与租户格、`organization` 只在租户与工作区格、分享只在组织格、`carrier` 只在工作区格；`shared` 与 `carrier` 只选 `current`；official 持有上没有 `disabled` | **键唯一**、`asset` 与 `capability` 一致、`item` 不重复、`owned` 时所有者对得上、`organization` 时外层确有同一份持有、`carrier` 时记录是那份工作区提供的、`pinned` 的版本存在、工作区格没有权限与落点配值——要看记录或整个存储，管不到 |
+| [S-18](#s-18-资产持有)～[S-20](#s-20-出厂格与工作区格的持有) | 管出厂格只有 official、不配值；工作区格不锁、只有 official、organization、carrier 三支；`owned` 只在组织与租户格、`organization` 只在租户与工作区格、分享只在组织格、`carrier` 只在工作区格；`shared` 与 `carrier` 只选 `current`；official 持有上没有 `disabled` | **键唯一**、`asset` 与 `capability` 一致、`item` 不重复、`owned` 时所有者对得上、`organization` 时外层确有同一份持有、`carrier` 时记录是那份工作区提供的、`pinned` 的版本存在、工作区格没有权限与落点配值、出厂格的锁只在 meta 能力上——要看记录、整个存储或部署清单，管不到 |
 | [S-21](#s-21-复制血缘) | 管成员形状、有血缘即 customized 且组织所有 | `lineage` 不变、`importedBy` 的组织等于所有者组织、一个血缘号只在一份记录上——管不到 |
 | [S-24](#s-24-工作区承载清单) | 管 `format`、三个列表必填、`source` 的写法、`disabled` 不重复 | `assets` 与 `assignments` 的按键不重复；符号链接逃逸 |
 
@@ -745,7 +744,7 @@ manifest_format_unsupported  >  category_unknown  >  origin_unknown  >  owner_ki
 | P-7 | 属性声明由正文确定地推出，不另存第二份 | 不变量 | [PF-002 §5.2 三方分工](../../../../product/PF-002-assets-settings-and-permissions/design.md#三方分工资产定形状各层配值运行时求值) · 主线自决 A3 | 各类正文契约的推出规则（[S-12](#s-12-属性声明由正文推出)） | 设置页长出来的表单与资产正文对不上 |
 | P-8 | 一格一个能力标识至多一份持有 | 不变量 | 起草简报裁定 · [PF-002 §5.5](../../../../product/PF-002-assets-settings-and-permissions/design.md#55-资产替换的层级) | 存储的唯一约束（[S-18](#s-18-资产持有)；[第四节](#四装配给与协议给)） | 同一输入两次装配出不同的 agent |
 | P-9 | official 的持有上没有禁用；禁用只是一个布尔、不加锁 | 安全 | [PF-001 §4 来源](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#来源official-与-customized) · [PF-002 §6.4](../../../../product/PF-002-assets-settings-and-permissions/design.md#禁用是逐层配的布尔设置任一层为真即不可见) | Schema（[S-15](#s-15-disabled-是保留项名)） | 某一格把底座关掉，agent 组装不出来 |
-| P-10 | 出厂格与工作区格都不加锁；工作区格没有权限与落点身份类配值 | 安全 | [PF-002 §5.7](../../../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算) | Schema（锁）＋ 读入方的过滤与接收边界（配值）（[S-20](#s-20-出厂格与工作区格的持有)） | 一个仓库给自己提权，或锁死了用户自己会话级的设置 |
+| P-10 | 工作区格不加锁、出厂格只在 meta 能力上加锁；工作区格没有权限与落点身份类配值 | 安全 | [PF-002 §5.7](../../../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算) | Schema（工作区格的锁）＋ 官方件登记按部署清单写（出厂格的锁）＋ 读入方的过滤与接收边界（配值）（[S-20](#s-20-出厂格与工作区格的持有)） | 一个仓库给自己提权，或锁死了用户自己会话级的设置 |
 | P-11 | 血缘产生后不变且只在一份记录上；目标组织推不出源 | 安全 | [PF-003 §4 复制血缘](../../../../product/PF-003-asset-transfer-and-sharing/design.md#复制血缘) | `capability.asset-transfer` ＋ 读面（[S-21](#s-21-复制血缘)、[S-22](#s-22-血缘号与分享号)） | 重复复制冲掉了对方自己做的同名组件；或目标组织看到了源组织 |
 | P-12 | 凭据不进配值；引用不跨持有、不呈现 | 安全 | [PF-002 §4 MCP 凭据](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的) | 写入方 ＋ 凭据保管方（[S-23](#s-23-凭据引用)） | 凭据出现在一份求值结果或一次呈现里 |
 | P-13 | 清单里的来路字面上不出承载目录 | 安全 | 主线自决 A8 · [PF-002 §4 工作区不是目录](../../../../product/PF-002-assets-settings-and-permissions/design.md#工作区不是目录) | 接收边界（[S-24](#s-24-工作区承载清单)）；解析后的逃逸归读入方 | 一个仓库把宿主机上别处的文件（可能是另一个租户的工作区）读成自己提供的资产 |
@@ -811,7 +810,7 @@ manifest_format_unsupported  >  category_unknown  >  origin_unknown  >  owner_ki
 #### CS-1 求值读一格的持有
 
 `capability.asset-evaluation` 在**第 1 步按禁用滤、按替换层序取最具体的一份**时，依赖 [S-16](#s-16-持有范围)、[S-18](#s-18-资产持有)、[S-15](#s-15-disabled-是保留项名)、[S-20](#s-20-出厂格与工作区格的持有)，得到：
-每一格每个能力标识恰一份持有；`disabled` 的值只在那一项上、只是布尔；锁替换只在组织与租户格出现。
+每一格每个能力标识恰一份持有；`disabled` 的值只在那一项上、只是布尔；锁替换在组织与租户格出现，出厂格只在 meta 能力上出现（[S-20](#s-20-出厂格与工作区格的持有)）。
 第 3 步按持有的 `versionSelection` 取那一版的正文（[S-18](#s-18-资产持有)），由六份正文契约的推出规则得声明；**只有 `agent_definition` 停在 [G-6](#八已知缺口)**。
 
 #### CS-2 创作、发布、提升

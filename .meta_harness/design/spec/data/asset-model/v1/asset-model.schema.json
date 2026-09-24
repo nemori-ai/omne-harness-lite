@@ -557,7 +557,6 @@
           "then": {
             "properties": {
               "basis": { "properties": { "kind": { "const": "official" } } },
-              "immutable": { "const": false },
               "assignments": { "maxItems": 0 }
             }
           }
