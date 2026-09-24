@@ -403,6 +403,11 @@ product-design-drafter 把约 57 处裁定落进 PF-001/002/006/008/009/010/012/
 | S18-a「目标环境作 settings 保留项 `targetEnvironment`」 | 修复波 1b L3：技能包删掉该保留项——PF-002 rev 19「系统不为技能另规定设置项」，PF-006 §6.8 的目标环境是工具的设置 | rev 19 之前的读法；K12 随之作废 |
 | D-038 Q1 关于文本块 `origin` 的措辞 | 词条 UL-origin-tag（来路标记）与 UL-source-tag（来源标记）分立后以词条为准 | 决定原话不改，用词以词表为准 |
 | L3「技能包删掉 `targetEnvironment` 保留项」 | L3′（2026-09-25）：技能包恢复「执行环境要求」为**定义记录里的固定声明成员**（作者声明需要哪几种设施、要求绑定在哪一层；各层不能配值、不参与设置求值）——PF-006 §6.4「工具，以及带脚本的技能，声明它需要什么样的执行环境」与 PF-007 §6.2 主线漏核；PF-002 rev 19 只说系统不为技能另规定**设置项**，固定声明成员不是设置项，三处同时成立 | 主线改判；skill-package G-8 关 |
+| L4「形状 `$ref` model-response」 | M2（2026-09-25）：messages S-49 的 `parameterAdjustments`／`droppedParameters` 与 model-response **逐字自定义 ＋ verification 对齐义务**，不 `$ref`——两份 data 契约互引会成环（registry 依赖图无环），与 S8-c 同法；口径写进 registry README | 主线改判；R2b R2-MR-1 关 |
+| K30「依据装配时那次求值的输入 ＋ 动作集」 | 字面被 L8／N-10 的读法取代：配方同装配、持有与配值取此刻；配方由 asset-registry S-24 ② 唯一拥有（M6） | R4b D-2、R3 |
+| K22 `canDispatchAgain(session, callId)` | 签名以 §六 N-9 `canDispatchAgain(session, callId, plan)` 为准 | R5 R2-MRR-10 ④ |
+| K14「所属尝试」 | 读作「发出**所在**的尝试」（`attemptId`），与 K16 的「所在／归属」之分一致；call-accounts S-39 对 `ModelResponse` 那一句随之改（M25） | R2b R2-MR-3 |
+| S16-c `CapabilityId[]` | 被 K10（`ModelToolName`）取代，登记补记 | R2a LE-6 |
 
 ## 五、S25 第一轮修复波的主线裁定（K1～K50，2026-09-24 夜，追加）
 
@@ -485,3 +490,42 @@ product-design-drafter 把约 57 处裁定落进 PF-001/002/006/008/009/010/012/
 | N-13 | skill-package（L3′ 落地）：成员名 `environmentRequirement`（值沿用 tool-definition `$defs/TargetEnvironment`，不叫 `targetEnvironment`——那是工具的落点与身份类设置词条，技能这里是固定声明）；M13 多收「多带 `default` 即拒」；「没有脚本不得声明」的理由补「平白让技能在满足不了那项要求的部署里不可用」；拒绝值仍八个，`binding_layer_unknown` 改落在该成员上 | 丙报回 |
 | L15 | **不在此刻组合里的工具条目不牵连同批**：asset-registry S-11 里，`tool` 表条目的能力标识不在第二次求值的组合里（被禁用、被移除、本租户用不了）时，那一项写显式值 `not_in_composition`，`unavailable` 只留给求值本身失败；tool-admission S-8 对 `not_in_composition` 的项单独判 `deny{reason: not_held}`（S-14 收该 token），不算缺依据、不使整次 `admit` 失败；runner S-29 第 5 条同口径。理由：租户此刻不再持有它是一个结论，不是没有结论；整批全拒只该留给判不出来。与 G-17（构成变小何时生效）的产品裁决方向一致偏严，用户裁定后若取「下一次运行起」再放宽 | 丁报回 1 |
 | N-14 | tool-admission（L15 落地）：`not_in_composition` 的项不带 `tenantAutoWritable`、带了即 `invalidInput`；判定次序加第 ⓪ 步；拒绝原因五个变六个（`not_held`），穷举它的消费者要跟着多认一个值 | 丁报回 |
+
+## 七、S25 第二轮独立复评之后的主线裁定（M1～M29，2026-09-25 追加）
+
+同一交付对象、同一接受基线的第二轮（基线 HUB `8ad37c50`，发现表 `tmp/assets-runtimes/reviews/r2-*.md`）。十条阻断逐条质疑后全部站得住：四条是文字或登记层，六条是语义。裁定如下，修复波 2 据此落条款。
+
+| 编号 | 裁定 | 来源 |
+|---|---|---|
+| M1 | messages §一、§十、消费者表改：`ToolInternalEnding`↔`FinishReason` 对应表归本契约 S-14（K2）；「回复流怎样收尾映射到 `ending`」也归本契约 S-10（见 M12）；stream-assembly、TER、MRR 列为对应表的消费者 | R1 MS2-1 |
+| M2 | 见 §四 L4 行。**登记口径**：两份 data 契约互引成环时，一侧 `$ref` 并登 catalog 依赖，另一侧逐字自定义、不登依赖、在 verification 登对齐义务；写进 registry README | R2b R2-MR-1、R1 CB2-3 |
+| M3 | 拓展件干预力的上限由**允许集合**兑现：loop-extension S-40 推出的干预力权限项 `values` 为「声明档及其以下」（`observe` < `rewrite` < `veto`），出厂格给出的整个 `values` 即上限，各层只能在其中挑；S-4、S-40 与 runner「不高于声明的值」的措辞改为「由允许集合兑现」；asset-evaluation S-23 不改 | R2a LE-1 |
+| M4 | 位置项的 `values` 只含与声明同「有维度／无维度」类的位置，dimension 项随之总是推出（声明无维度时 `values` 为空集不推）；跨类改位置在治理写面以 `valueOutOfDomain` 拒，runner 不会遇到不合法的一对 | R2a LE-2 |
+| M5 | asset-evaluation S-42 对 `mcp` 的 `execute:` 项**恒为假**，直到 asset-governance G-5（逐动作写面）闭合；「与写面同一口径」限定于 `tool` 的执行权限项 | R3 B2 |
+| M6 | 第二次求值的配方由 asset-registry S-24 ② 唯一拥有（含 `standing`、`definitions`、`session` 取哪一刻）；asset-evaluation S-6、S-8、§十二只引它，不另列 | R3 应修 1 |
+| M7 | S-42 第 4 条扩：租户格若有对 `c` 的持有，它须在效且指向 `A`，否则为假 | R3 应修 2 |
+| M8 | 「模型面名字」全链只指 `ModelToolName`（tool-definition S-6，`:`→`__`）。asset-registry `tool` 类条目的查找键（S-25 ④）与 `effectivePermissions` 每一项的键（S-11）都是 `ModelToolName`，由定义名确定性推出、S-7 改写；TER S-23 ② 第 6 条以 `call.tool` 原样查注册表，逆转写仍只在起执行者之前（K10 不变）；「没有」并入 S-23 ④ 即刻收场 `unavailable{no_such_entry}`；content-blocks G-9 关：`ToolCallBlock.tool` `$ref` `ModelToolName`（catalog 无环则 `$ref`，否则按 M2 口径） | R4a X2-1、R4b A-1、L12 |
+| M9 | runner `dispatch` 在 `before_action` 上另带 **`admission`**：`{ report, grants, runMode, parent }`（这一次尝试的可用性报告、授权上下文、运行模式、父会话约束），由 agent loop 交来；runner 核报告的会话与 `runId` 与 `manifest`／`run` 相符，不符 `invalidInput`；S-32：单机由 loop 交值，跨进程随请求传递、接收边界核对、不得现算 | R4b B1 |
+| M10 | 报告里**查不到条目**（名字不在这次尝试的 `tool` 表，含失去生效持有的接入点的动作、模型编造的名字）的动作**不进 `admit`**：这一次经过记 `observed`、`reason: no_such_entry`，由 TER S-23 ④ 收 `unavailable{no_such_entry}`；asset-registry S-12 不变；tool-admission S-8 与 L15 的 `not_in_composition` 只指「条目仍在快照、能力标识不在此刻组合里」；runner S-48、mcp-bridge CS-4 同改 | R4b B2 |
+| M11 | 解析不了的调用（K24）不进 `actions`、不过 `before_action`，但 `batch` 列这一批**全部** `CallId`（含它）；data.loop-extension S-14 写明 `batch` 可含不在本次 `actions` 的 `CallId` | R4b R-a |
+| M12 | 宿主被撤下（有序撤除、替换）时在途的流一律 `abandon` → `lost`（与桥换代同类，K2）：stream-assembly S-22 ⑦ 删「宿主把它带走」；MRR S-36 末条与 S-51 第 6 条：撤除时先对在途流 `abandon`（响应体 `ending: lost`），调用账仍 `interrupted{run_cancelled}`；TER S-48：有序撤下前对每个开着的装配状态调 `abandon`，账取 `abandon` 交出的 `frames`，停机（非有序）仍 `"unknown"`。messages S-10：运行被取消——发起者是用户 → `interrupted_by_user`（S-21 `by: user`）；发起者是系统（归档、宿主停止）→ 经 `abandon` 落 `lost`；不新增取值 | R4a X2-2、R5 R2-MRR-8、R1 MS2-4 |
+| M13 | TER 上交（PF-011）之后本任**撤下**、不再服务；S-47「存储回来后照常写」删；下一任恢复扫描按停机处置（S-41 ⑤ 为准） | R4a TE2-4 |
+| M14 | directory `updateProfile` 的 `invalidInput` 拆两处：只看输入形状的留最左；「改完整份过 S-24」排在 `profileNotFound` 之后；⑧ 与末段同改；examples 加回归例 | R5 R2-MPD-1 |
+| M15 | MRR S-51 第 6 条补「已开口写不进」一支：交 `finish{lost, error{cause: unrecognized}}`；closeOut 的块不进 `delivered`，响应体不带 `firstTokenAt`；S-52 加一支 | R5 R2-MRR-1 |
+| M16 | MRR S-51 第 4 条「观测」= 一条结构化日志事件（JSONL，不进会话日志），必带会话、`callId`、目标、被拒的值；S-52 断言改为「日志里有这条事件」；TER S-62 同形处照旧「记录条目」。S-51 第 1 条按（会话, 目标）路由、第 9 条只推给本会话观察者；TER S-62 同改 | R5 R2-MRR-3、R2-MRR-6 |
+| M17 | 「用哪个模型」设置的允许集合 A 的来源立为 MRR 新缺口（owner PF-002／PF-004 ＋ asset-evaluation；闭合条件：某份正文契约的推出规则产出这一项并写明类别、锁与 A 的关系）；G-4 只保留「取值域是路由名」；同一事项已在账本待用户裁（④） | R5 R2-MRR-4 |
+| M18 | D-040 §一 T-3 维持：MRR 与 TER README 各补一句「本能力的提供者是运行时协程」；UL `conflicts.md` C-31 以此闭合 | R5 R2-MRR-5 |
+| M19 | modality-projection S-9／S-17「任何时刻答得出『有』」限定单机、列进 S-26 装配给；跨进程只承诺不答「没登记」 | R5 R2-MP-2 |
+| M20 | `Skills()` 执行技能脚本时工具自身 `targetEnvironment` 与技能 `environmentRequirement` 怎样合并，立为 skill-package 新缺口（owner：`Skills()` 契约那一程／PF-007） | R2a 范围外 2 |
+| M21 | meta 门条目（PF-007 §5.7 关不掉一扇门）：asset-registry S-11 里它的执行权限项恒为 `{auto}`、不读求值、`tenantAutoWritable` 为假；放行判断照常判（永远自动档）。永久形式（声明层能否表达「不可收窄」）立为 tool-admission 缺口，owner 主线 ＋ PF-007 | R4b 范围外 2 |
+| M22 | 后台收场提醒一侧的原因取值域归 TER（`ToolInternalEnding` 的 reason）；content-blocks `$defs/PlaceholderReason` 只描述占位；不立新词条 | R1 CB2-2 |
+| M23 | `terminated_by_agent` 不落 `ToolMessage` 占位：messages S-39 单条消息约束，Schema `ToolMessage` 直接排除该值 | R1 MS2-3 |
+| M24 | 「已开口写不进」等 MRR 一侧、TER 一侧的记录形式与 R2-MRR-9：MRR S-51 第 7 条补 trims 换写（一次也没砍则缺席）；stream-assembly S-13 登进 S-4 与 catalog | R5 R2-MRR-9 |
+| M25 | 见 §四 K14 行 | R2b R2-MR-3 |
+| M26 | asset-governance：依赖记录的 `invalidInput` 排在「记录可见、`notOwner`」之后（S-19 次序改）；S-26 ③ 发布时**判**名字（asset-model S-27「随草稿与每一版」） | R3 应修 3 |
+| M27 | asset-transfer S-20 ⑧：组织型发起时调用上下文缺 `byAgent` ⇒ `unavailable`、不写通知；S-11 末段限本人型 | R3 应修 5 |
+| M28 | `droppedParameters` 去掉 `extra` 全部键后，实际发出的那一组**整个 `extra` 成员缺席**（model-profile S-17 不许空）；messages S-49 与 model-response S-11 的还原规则补这一步 | R5 未覆盖 5 |
+| M29 | TER：S-40 ⑥ 补 `invalidInput`；S-39 ⑧ 形状不合的事件一律交给 `accept`、按原名交回、照 S-62 第 4 条补 trim，`malformed` 只留事件缺席；S-23 ② 第 5 条多项凭据结果不同时按 ⑥ 次序取最左失败值、`why` 取那一项 | R4a TE2-2、TE2-3、TE2-5 |
+
+其余应修与建议按各批发现表原文由修复波 2 落，不另裁；反对某条时在 verification 处置表写理由。
+
