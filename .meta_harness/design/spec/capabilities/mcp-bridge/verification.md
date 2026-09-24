@@ -45,9 +45,16 @@
 | MCP 条目的结果端模态 | `data.tool-definition` v1 的 S-24 | **已对齐（2026-09-24）**：那边第 3 条按本契约的投影判，投不出即「任意」（账本 S19-e），G-3 闭合 |
 | 投影规则就是 `data.tool-definition` 那边 G-8 的答案 | `data.tool-definition` v1 的 G-8 | **已对齐（2026-09-24）**：那边 G-8 已关闭并指向本契约 [S-17](v1/contract.md#s-17-projectactions) |
 | 求值交出 `provenance` | `capability.asset-evaluation` | **已对齐（2026-09-24）**：那边 S-40 交出（`Layer` 值），本契约 S-5 的 `provenance` 改为照它，G-9 闭合 |
+| 投影出的定义要过 `data.tool-definition` 的名字收窄与参数 schema 三条硬要求（产品负责人 2026-09-24 要求） | `data.tool-definition` v1 的 S-4、S-18；`data.mcp-endpoint` v1 的 S-11 | **已对齐（2026-09-24）**：[S-17](v1/contract.md#s-17-projectactions) 两种排除原因改写；是否由桥规范化留作 [G-18](v1/contract.md#十已知缺口) |
 | 注册表、工具执行运行时、交付面对本契约操作的消费登记 | `capability.asset-registry`、`capability.tool-execution-runtime`；交付面尚无契约 | 依赖方向是它们 → 本契约，由它们各自登记（2026-09-24 两份已登 catalog） |
 
 ## 结果与反例
+
+### 本地自检：投影实例（整批对齐，2026-09-24）
+
+**工具**：暂存区脚本（不入库），复用 `data.tool-definition` 本地自检的表示层判定（Draft 2020-12 校验器按仓库 `uv.lock` ＋ Schema 之外那一步：合法 schema、三条硬要求、名字收窄）。
+**输入**：[`examples.md` 第 4 节](v1/examples.md#4-projectactions-的结局)——4.1 那一块与按 [S-17](v1/contract.md#s-17-projectactions) 由 `data.mcp-endpoint` 实例 3.1 重算的投影作 JSON 值比较；两份定义各过一次表示层校验；表里以对端动作描述开头的每一行，投影后判「成条目」还是「排除」、排除的原因是名字还是参数 schema。
+**结果**：16 处，0 处不符。**只判投影结局**：不判 `standInOnly` 标记、不判其余操作；**这不是 V-1～V-8 任何一条义务的证据**。
 
 ### 尚无的记录
 
@@ -77,6 +84,10 @@ V-1～V-8 **一条执行记录也没有**。起草时的手核只保证 `example
   - 工作区提供的 stdio 接入点由求值禁用（[S-6](v1/contract.md#s-6-连接归桥不上签名不跨租户) 第 3 条）；两端模态的投影写进 [S-17](v1/contract.md#s-17-projectactions)、[S-20](v1/contract.md#s-20-对端结果怎样成为-toolresult)；保管方作装配给（[S-2](v1/contract.md#s-2-本契约不拥有什么)、[S-30](v1/contract.md#s-30-装配给与协议给)）；OAuth 凭据跟机器（[S-8](v1/contract.md#s-8-oauth-绑定状态与迁移)）；[S-21](v1/contract.md#s-21-失败值与收场的对应) 注明失败种类由运行时定。
   - G-1、G-2、G-3、G-8、G-9、G-16 闭合；G-7、G-14、G-15 改写；新缺口 G-17。实例第 1、5、7 节随之改（`provenance` 写成 `Layer` 值、凭据缺席、第二台机器一行）。
   - **操作、失败值集合与条款编号都没有变**；消费者（注册表、工具执行运行时）引的条款号不受影响。
+- **2026-09-24 随 `data.tool-definition` 的供应商 payload 要求（产品负责人 2026-09-24 要求；候选，未冻结，原地改）**：
+  [S-17](v1/contract.md#s-17-projectactions) 的两种排除原因改写——条目名按 `data.mcp-endpoint/v1#S-11`（即 `data.tool-definition/v1#S-18` 的收窄）拼不出；参数 schema 过不了 `data.tool-definition` 的 S-4 与三条硬要求（`input_not_schema`、`parameter_description_missing`、M26、M27）。**不替对端补说明、不删关键字**；新缺口 G-18（要不要由桥规范化）。
+  实例第 4 节：4.1 两个动作的参数补上说明（随 `data.mcp-endpoint` 实例 3.1），表里各行的 `inputSchema` 补上空 `properties`，加五行（`.`、拼接处 `:_`、顶层无 `properties`、参数无说明、`$schema`）。
+  **语义改变**：常见 MCP 服务端的许多动作（参数无说明、带 `$schema`／`title`、名字带 `.`）从成条目变为被排除、对 agent 不可见——后果已报主线。操作、失败值集合与条款编号都没有变。
 - **[G-5](v1/contract.md#十已知缺口) 就位**（elicitation）：出 v2，[S-25](v1/contract.md#s-25-对端来的通知与请求) 那一行与 [S-21](v1/contract.md#s-21-失败值与收场的对应) 的 `no_answer` 一起改。
 - **跨进程演化启动**：[S-30](v1/contract.md#s-30-装配给与协议给) 右列从「待兑现」转为「须由协议兑现」；本版的全部证据只保留其单机范围，不得外推。
 

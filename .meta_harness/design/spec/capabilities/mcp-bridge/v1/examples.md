@@ -117,7 +117,10 @@
       "paradigm": "single",
       "input": {
         "type": "object",
-        "properties": { "owner": { "type": "string" }, "repo": { "type": "string" } },
+        "properties": {
+          "owner": { "type": "string", "description": "Repository owner." },
+          "repo": { "type": "string", "description": "Repository name." }
+        },
         "required": ["owner", "repo"]
       },
       "permissions": { "execute": { "default": "ask" } },
@@ -133,10 +136,10 @@
       "input": {
         "type": "object",
         "properties": {
-          "owner": { "type": "string" },
-          "repo": { "type": "string" },
-          "title": { "type": "string" },
-          "body": { "type": "string" }
+          "owner": { "type": "string", "description": "Repository owner." },
+          "repo": { "type": "string", "description": "Repository name." },
+          "title": { "type": "string", "description": "Issue title." },
+          "body": { "type": "string", "description": "Issue body." }
         },
         "required": ["owner", "repo", "title"]
       },
@@ -152,14 +155,19 @@
 
 | 副本里的一项（或副本本身） | 投影结局 | 依据 |
 |---|---|---|
-| `{"name": "search", "inputSchema": {"type": "object"}}`（没有 `description`） | 条目 `github:search`，`description` 为 `"search"` | [S-17](contract.md#s-17-projectactions)：不替对端编说明 |
-| `{"name": "search", "description": "", "inputSchema": {"type": "object"}}` | 同上 | 同上：空串不是非空说明 |
-| `{"name": "repos/list", "inputSchema": {"type": "object"}}` | 进 `excluded`，原因「条目名拼不出」 | `data.mcp-endpoint/v1#S-11`：禁 `/` |
-| `{"name": "list issues", "inputSchema": {"type": "object"}}` | 进 `excluded`，原因「条目名拼不出」 | 含空白 |
-| `{"name": "ns:tool", "inputSchema": {"type": "object"}}` | 条目 `github:ns:tool` | 条目名允许再有 `:` |
+| `{"name": "search", "inputSchema": {"type": "object", "properties": {}}}`（没有 `description`） | 条目 `github:search`，`description` 为 `"search"` | [S-17](contract.md#s-17-projectactions)：不替对端编说明 |
+| `{"name": "search", "description": "", "inputSchema": {"type": "object", "properties": {}}}` | 同上 | 同上：空串不是非空说明 |
+| `{"name": "repos/list", "inputSchema": {"type": "object", "properties": {}}}` | 进 `excluded`，原因「条目名拼不出」 | `data.mcp-endpoint/v1#S-11`：禁 `/` |
+| `{"name": "list issues", "inputSchema": {"type": "object", "properties": {}}}` | 进 `excluded`，原因「条目名拼不出」 | 含空白 |
+| `{"name": "issues.list", "inputSchema": {"type": "object", "properties": {}}}` | 进 `excluded`，原因「条目名拼不出」 | `.` 不在 `data.tool-definition/v1#S-18` 的字符集里——MCP 协议建议里有它 |
+| `{"name": "_internal", "inputSchema": {"type": "object", "properties": {}}}` | 进 `excluded`，原因「条目名拼不出」 | 拼出 `github:_internal`，拼接处成 `:_` |
+| `{"name": "ns:tool", "inputSchema": {"type": "object", "properties": {}}}` | 条目 `github:ns:tool` | 条目名允许再有 `:` |
 | `{"name": "bulk", "inputSchema": {"type": "object", "minProperties": -1}}` | 进 `excluded`，原因「参数 schema 不成立」 | `data.tool-definition/v1` 的 `input_not_schema` |
-| `{"name": "export", "inputSchema": {"type": "object"}, "execution": {"taskSupport": "required"}}` | 条目 `github:export`，形状照常，**标记只能以替换件出现**，原因「本版不支持这个动作的执行方式」 | [S-17](contract.md#s-17-projectactions)；D-037；识别依据未核（[G-6](contract.md#十已知缺口)） |
-| `{"name": "export", "inputSchema": {"type": "object"}, "execution": {"taskSupport": "optional"}}` | 普通条目 | 只有 `required` 才标记 |
+| `{"name": "search", "inputSchema": {"type": "object"}}` | 进 `excluded`，原因「参数 schema 不成立」 | 顶层没带 `properties`（`data.tool-definition/v1` 的 M26）——**不替对端补一个空的** |
+| `{"name": "search", "inputSchema": {"type": "object", "properties": {"q": {"type": "string"}}}}` | 进 `excluded`，原因「参数 schema 不成立」 | 参数 `q` 没带说明（`parameter_description_missing`）——**不替对端编一句**（[G-18](contract.md#十已知缺口)） |
+| `{"name": "search", "inputSchema": {"$schema": "http://json-schema.org/draft-07/schema#", "type": "object", "properties": {}}}` | 进 `excluded`，原因「参数 schema 不成立」 | `$schema` 不在可呈现子集里（M27）——**不替对端删掉** |
+| `{"name": "export", "inputSchema": {"type": "object", "properties": {}}, "execution": {"taskSupport": "required"}}` | 条目 `github:export`，形状照常，**标记只能以替换件出现**，原因「本版不支持这个动作的执行方式」 | [S-17](contract.md#s-17-projectactions)；D-037；识别依据未核（[G-6](contract.md#十已知缺口)） |
+| `{"name": "export", "inputSchema": {"type": "object", "properties": {}}, "execution": {"taskSupport": "optional"}}` | 普通条目 | 只有 `required` 才标记 |
 | 副本 `{"kind": "not_fetched"}` | `entries` 与 `excluded` 都为空；**副本那一支是 `not_fetched`** | [S-33](contract.md#s-33-从没连上过的接入点没有条目) |
 | 副本 `{"kind": "fetched", "fetchedAt": "…", "tools": []}` | `entries` 与 `excluded` 都为空；副本那一支是 `fetched` | 与上一行**必须分得开** |
 | 正文改为 `permissions.execute.default = "auto"` | 每个条目的 `permissions.execute.default` 都是 `"auto"` | 与 `data.mcp-endpoint` 推出的 `execute:<对端名>` 那一项的默认是同一个值 |

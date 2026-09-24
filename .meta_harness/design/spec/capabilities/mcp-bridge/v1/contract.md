@@ -334,8 +334,10 @@
 
 **`excluded` 的两种原因**，都**不改写对端动作名、不丢掉副本里的那一项**：
 
-1. **条目名拼不出**：`d.name` 含 `data.identity-values/v1#S-31` 的空白码点或 `/`（`data.mcp-endpoint/v1#S-11`）；
-2. **参数 schema 不成立**：`d.inputSchema` 按 `data.tool-definition/v1` 的 [S-4](../../../data/tool-definition/v1/contract.md#s-4-单函数工具) 会得 `input_not_schema`。
+1. **条目名拼不出**：`endpoint.name` ＋ `:` ＋ `d.name` 不合 `data.mcp-endpoint/v1#S-11`——那一条取 `data.tool-definition/v1` 的 [S-18](../../../data/tool-definition/v1/contract.md#s-18-名字的表示与相等) 对 `name` 的收窄：带 `.`、空白、`/` 或 `__`，拼接处成 `_:`／`:_`，或转写后过长，都拼不出；
+2. **参数 schema 不成立**：以 `d.inputSchema` 作 `input` 的那份定义，在 `data.tool-definition/v1` 的表示层校验里因参数 schema 被拒——不是合法 schema（`input_not_schema`）、有参数不带说明（`parameter_description_missing`）、顶层不是带 `properties` 的对象（M26）、用了可呈现子集之外的关键字（M27）；即它的 [S-4](../../../data/tool-definition/v1/contract.md#s-4-单函数工具) 与三条硬要求（产品负责人 2026-09-24 要求）。
+
+**第 2 种在实际的 MCP 服务端很常见**（参数不带说明、带 `$schema` 或 `title`、只写 `{"type": "object"}`）：本版照排除，**不替对端补说明、不删关键字**——改写会让桥交出的定义与对端对参数的说法各执一词，替换件与原件也不再同形。要不要由桥规范化，见 [G-18](#十已知缺口)。
 
 **被排除的动作对 agent 不可见**——没有名字可占位；它们必须作为可观测记录留下，并由注册表决定是否告诉 agent（**不静默丢**）。
 
@@ -649,6 +651,7 @@
 | **G-15** | **被排除与只能以替换件出现的动作要不要告诉 agent**：本契约交出了它们，告不告诉、怎样告诉归注册表 | agent 不知道对端还有一个它看不见的动作 | **注册表**（主线裁定 S22-d：可用性变化不出提醒、B-M04 作废；被排除的动作是否另告 agent 仍未定） |
 | **G-16** | **已闭合（2026-09-24 整批对齐）**：`data.content-blocks/v1#S-18` 那一行已加桥换代的来路；`capability.tool-execution-runtime/v1` 已为 MCP 条目开例外（它的 S-37） | — | — |
 | **G-17** | **OAuth 凭据跟机器，而一份持有上的 `credential` 只有一个值**：同一个租户在第二台机器上再取一次、配上之后，第一台机器上那个引用不再被配着，它的绑定按 [S-8](#s-8-oauth-绑定状态与迁移) 作废——**同一时刻只有一台机器连得上这个接入点** | 一个人在两台机器上交替用同一个要 OAuth 的接入点，每换一次机器取一次 | **PF-016 / PF-002 的 owner**（产品面：接受这个后果，还是凭据值按机器区分——后者改 `data.asset-model` 的配值形状） |
+| **G-18** | **对端参数 schema 不合 `data.tool-definition/v1` 三条硬要求的动作一律排除**（[S-17](#s-17-projectactions) 第 2 种原因）：常见服务端的写法（参数无说明、带 `$schema`／`title`、只写 `{"type": "object"}`）都在其中，要不要由桥做规范化（补占位说明、删子集外关键字、补空 `properties`）、规范化之后替换件同形与「不替对端编说明」怎样成立，本版未定 | 许多 MCP 动作对 agent 不可见；按常见服务端的写法，可能占多数 | **主线**（产品负责人 2026-09-24 要求与 MCP 可用面之间的取舍） |
 
 **它们都不是默认值**：消费者碰上时停在缺口，不挑一个看起来合理的答案。
 
