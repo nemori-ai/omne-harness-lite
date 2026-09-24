@@ -69,7 +69,8 @@ V-2～V-10、V-12 **一条执行记录也没有**。起草时的手核只保证 
 | 工具 | Alloy 6.2.0（`/opt/alloy/alloy.jar`，JRE 21），命令 `alloy exec -f -o <临时目录> Readable.als`，全部命令、各自带的作用域 |
 | 结果 | `run placeholderNamedOnlyAfterItEnded` **SAT**（1/1）；`run aNestedBlockSilencedAlone` **SAT**（1/1）；`check NewBlocksBornReadable`、`check OutstandingPlaceholderStaysReadable`、`check ReadabilityMonotone`、`check NestedReadableImpliesContainersReadable` 均 **UNSAT**（给定作用域内无反例）；退出 0 |
 | 变异核对 | 在副本上各改一处（改法见 [formal 入口](v1/formal/README.md#alloy)），只跑对应的 `check`：`legal` 允许自指 → A1 **SAT**；`legal` 允许前向 → A1 **SAT**；「悬着」按整份日志判 → A2 **SAT**；「悬着」只算顶层块 → A2 **SAT**；`path` 只含自己 → A4 **SAT**。**五个变异都找到反例，且每一次退出码仍是 0** |
-| 原始输出 | 只在起草者的临时目录；**未入 `record/evidence/`**（起草者对该区无写权限）。需要可复核的证据时，由主线按上面的命令对同一 SHA-256 的文件重跑并入档 |
+| 原始输出 | 首次只在起草者的临时目录；**未入 `record/evidence/`**（起草者对该区无写权限）。需要可复核的证据时，由主线按上面的命令对同一 SHA-256 的文件重跑并入档 |
+| 复跑（2026-09-24 整批对齐） | 同一 SHA-256 的文件复制到主检出 `tmp/formal-runs/messages-v1-readable-2026-09-24/` 再跑（`alloy exec -f -o out Readable.als`，本机 `/usr/local/bin/alloy` 6.2.0）：六条结果与上一行逐条相同，退出 0；**判读：`check` 行 `UNSAT` 读作「本作用域内无反例」，`run` 行 `SAT` 读作「有实例」**——退出码不参与判读。原始输出（`exec-stderr.txt` 是结果表、`out/` 是实例与回执）留在那里，未入库；变异核对未复跑 |
 
 **这次执行说明的，只是**：在各命令的作用域内（`Msg` 恰 5 或 6 条、其余 sig 至多 5 或 6 个），四条断言无反例，两条一致性 `run` 有实例，五个变异让断言失败——断言不是空的。
 **它不说明**：任意规模成立；块的形状合法（归 V-1）；⑥ 与 ③ 成立（模型没有表达）；任何实现满足这些性质（归 V-4、V-5）。
