@@ -68,7 +68,7 @@
 - **注意 ①**：**是哪次运行、哪个 agent runtime 发起的，都记得下来，但都不绑生命周期**；取消一次运行时前台的落「被中断」、原因「运行被取消」，是因为那一步不要了
 - **注意 ②**：**[会话被归档](../../product/PF-015-session-lifecycle-and-ownership/design.md#63-归档先停活儿再落状态)时仍未结束的，不论前后台，收场都是[被中断](#ul-execution-outcome--执行收场--execution-outcome)**——
   收件人都没了；**这一刀不可逆**，撤销归档不会把它接回来
-- **注意 ③**：**同一个会话里同一个工具同时在执行的次数有上限时，超出的排队、不被拒**——[并发上限](../../product/PF-006-tools-and-skills/design.md#前台上限与并发上限)按会话算，前台后台一起数
+- **注意 ③**：**同一个会话里同一个工具同时在执行的次数有上限时，超出的排队、不被拒**——[工具并发上限](#ul-tool-concurrency-limit--工具并发上限--tool-concurrency-limit)按会话算，前台后台一起数
 
 ### UL-background-execution · 后台执行 · Background Execution
 
@@ -93,6 +93,41 @@
 - **注意 ③**：**哪条路都不绕开声明**——工具没声明允许后台，插队或到了前台上限时它是[被中断](#ul-execution-outcome--执行收场--execution-outcome)，不是被转后台；发起时就要后台，也起不来
 - **注意 ④**：**本版要等应答的执行只在前台等**——[「后台 × 在等待」这一格关着](../../product/PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)；两个维度仍然正交，关着的是这一版的用法
 
+### UL-foreground-time-limit · 前台上限 · Foreground Time Limit
+
+> **中**：**工具的一项偏好类[设置](capabilities-and-composition.md#ul-setting--设置--setting)：一次执行在前台最多跑多久。**
+> 停在[等待态](#ul-tool-wait-state--工具等待态--tool-wait-state)上的时间不算，转了后台之后也不再算。
+> 到了上限，**允许后台的转后台；不允许的被中断**，[占位原因](record-and-context.md#ul-placeholder-reason--占位原因--placeholder-reason)写「前台超时」——**这不是失败**。
+> 定义给默认值，持有它的各层可以改；**不设就没有这一项限制**。
+>
+> **EN**: **A preference setting on a tool: how long one execution may run in the foreground.**
+> Time spent in a wait state does not count, nor does anything after the execution moves to the
+> background. At the limit, **a tool that permits background execution moves there; one that does not
+> is interrupted**, with the placeholder reason "foreground timeout" — **which is not a failure**. The
+> definition supplies the default and each holding layer may change it; **left unset, there is no such
+> limit**.
+
+- **形态**：属性
+- **出处**：[PF-006 §6.6 前台上限与并发上限](../../product/PF-006-tools-and-skills/design.md#前台上限与并发上限)（rev 18） ·
+  [PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 17）
+- **别混**：**不是「前台跑多久自动转后台」那一项**——那是允许后台的工具[另一项偏好设置](../../product/PF-006-tools-and-skills/design.md#其中两项声明的是设置项)；前台上限对不许后台的工具同样起作用，到点被中断
+- **注意**：**等人的时间不算，是有意的**——[`Ask()`](../../product/PF-007-meta-capabilities/design.md#611-ask通向人) 停在前台等人永不过期，把等人算进来，它就成了一个替人签字的到点
+
+### UL-tool-concurrency-limit · 工具并发上限 · Tool Concurrency Limit
+
+> **中**：**工具的一项偏好类[设置](capabilities-and-composition.md#ul-setting--设置--setting)：同一个会话里，同一个工具同时在执行的最多几次**，前台后台一起算。
+> **超出的排队，按发起的先后轮到，不拒绝。**定义给默认值，持有它的各层可以改；**不设就没有这一项限制**。
+>
+> **EN**: **A preference setting on a tool: at most how many executions of that same tool may run at
+> once within one session**, foreground and background counted together. **Executions beyond it queue
+> and proceed in order of launch; none is refused.** The definition supplies the default and each
+> holding layer may change it; **left unset, there is no such limit**.
+
+- **形态**：属性
+- **出处**：[PF-006 §6.6 前台上限与并发上限](../../product/PF-006-tools-and-skills/design.md#前台上限与并发上限)（rev 18） ·
+  [PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 17）
+- **别混**：**裸写「并发上限」不作数**——它只数同一个会话里的同一个工具，不是会话、租户或整个系统的并发
+
 ### UL-model-call · 一次模型调用 · Model Call
 
 > **中**：**把攒好的一次请求发给模型，到拿回完整的一份回复为止**的那一段。
@@ -115,13 +150,61 @@
   **也不是回复怎么流式拼起来**，那归 [PF-009](../../product/PF-009-context-message-types/README.md)
 - **注意**：**这一层归 [PF-013](../../product/PF-013-model-profiles-and-invocation/README.md)**——
   它的三个终态（**完整一份 · 上交 · 被中断**）、失败怎么分类、[什么时候算试尽](../../product/PF-013-model-profiles-and-invocation/design.md#什么时候算试尽)，都在那里
-- **注意 ②**：**「模型请求运行时」指执行这一次调用的那个协程，与它同生同灭**——
-  [正文当同一物用](../../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)，
-  [对象条目已并入](../../domain_objects/objects.md#ul-model-call--一次模型调用)，**不另立词条**（与「工具执行运行时」并入[工具执行](#ul-tool-execution--工具执行--tool-execution)同一分寸）；
-  它受 [`runtime` 那条写死的规矩](../conventions.md#runtime-这个词本系统写死了)约束：**宿主永远是 agent runtime，转不了后台**
+- **注意 ②**：**每一次调用各有一个执行它的协程，与这次调用同生同灭**——
+  [正文叫它「模型请求的运行时」，当同一物用](../../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)，
+  [对象条目已并入](../../domain_objects/objects.md#ul-model-call--一次模型调用)，**不另立词条**（与工具执行各自的运行时并入[工具执行](#ul-tool-execution--工具执行--tool-execution)同一分寸）；
+  它受 [`runtime` 那条写死的规矩](../conventions.md#runtime-这个词本系统写死了)约束：**宿主永远是 agent runtime，转不了后台**。
+  **这里说的是「这一次调用的那个协程」，不是承载所有这类协程的那项系统能力**——规格里以「模型请求运行时」为名的能力是另一层的东西，读到时按所在层分清（[C-31](../conflicts.md#现有冲突)）
 - **注意 ③**：**完整的一份在落盘之前被否决，这次调用仍停在「完整一份」**——
   [只记下被谁否决、没有成为消息](../../product/PF-013-model-profiles-and-invocation/flows.md#32-一次模型调用)，不是故障、不交给重试挂件；
-  loop 退避之后**另起一次新的模型调用**，不是这一次回到在途
+  loop 退避之后**另起一次新的模型调用**，不是这一次回到在途；同一步里连续被否决到[上限](#ul-consecutive-veto-limit--连续否决上限--consecutive-veto-limit)，这个 Run 失败
+
+### UL-upstream-send · 一次发出 · Upstream Send
+
+> **中**：**一次[模型调用](#ul-model-call--一次模型调用--model-call)里，把请求经一家供应商发给上游的那一次。**
+> 每一次发出**只走[允许的供应商](capabilities-and-composition.md#ul-allowed-providers--允许的供应商--allowed-providers)里的一家**；换一家、或退避之后再来，都是再发一次。
+> 试过又失败的每一次都**留一条留痕**——哪一家、什么时候、上游回了什么状态码——**不进方程，也不进模型的上下文**；
+> 重试挂件读它们，知道自己已经走到了第几家。**一次调用可以有好几次发出，却只有一份回复。**
+>
+> **EN**: **One dispatch of a model call's request to the upstream through a single provider.** Each
+> send goes through **exactly one of the profile's allowed providers**; switching provider, or trying
+> again after back-off, is another send. Every failed send **leaves a trace** — which provider, when,
+> what status the upstream returned — **that enters neither the transition function nor the model's
+> context**; the retry extension reads them to know how far down the list it has come. **A call may make
+> several sends but has only one reply.**
+
+- **形态**：过程
+- **出处**：[PF-013 §5.5 试过又失败的那几次，留痕，不进方程](../../product/PF-013-model-profiles-and-invocation/design.md#试过又失败的那几次留痕不进方程) ·
+  [§5.12 系统自带一件默认的](../../product/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试) ·
+  [§5.13 停机之后](../../product/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)（rev 9）
+- **别混 ①**：**不是一次模型调用**——调用有头有尾、有三个终态；发出是调用里的一次尝试
+- **别混 ②**：**不是[执行尝试](agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)**——那是一次运行里第几次起 agent runtime
+- **注意 ①**：**[首 token](#ul-first-token--首-token--first-token) 之后不再有第二次发出**——「说话中」不回「在途」
+- **注意 ②**：**首 token 之前停机、恢复后照常再发的那一次，也是一次新的发出**：上游可能两次都计了费，两笔都照实记成成本——保证的是回复只有一份，不是钱只花一次
+
+### UL-first-token · 首 token · First Token
+
+> **中**：**一次模型调用的回复交出的第一样内容，不论[模态](record-and-context.md#ul-modality--模态--modality)。**
+> 能一点点长的块（文本 · 思考 · 工具调用的参数 · 语音），**第一片到了**算；开口之后整个交出来的块（图 · 文件），**整块交出来了**才算。
+> 响应头到了、整交的块只开了口，**都不算**——判据是「交出了内容」，不是「流有了动静」。
+> **它是一次调用「已经开口说话了」的那条分界**：在它之前停了，可以照常再发；在它之后，一律不重发、不回在途。
+>
+> **EN**: **The first piece of content a model call's reply hands over, whatever its modality.** For a
+> block that grows piece by piece (text, thinking, tool-call arguments, voice) it is **the first
+> fragment's arrival**; for a block that opens and is then handed over whole (image, file) it is **the
+> moment the whole block is handed over**. Response headers arriving, or a whole-delivery block merely
+> opening, **do not count** — the test is content handed over, not the stream stirring. **It is the line
+> past which a call "has started speaking"**: stopped before it, the call may simply be sent again;
+> after it, never, and it does not return to in transit.
+
+- **形态**：规则
+- **出处**：[PF-013 §5.4「已经开口说话了」优先于其余各类](../../product/PF-013-model-profiles-and-invocation/design.md#已经开口说话了优先于其余各类) ·
+  [§5.13 停机之后](../../product/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)（rev 9） ·
+  [PF-009 §9.2](../../product/PF-009-context-message-types/design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息)（rev 8）
+- **注意 ①**：**「已经开口」是账，不是在途**——它在第一份内容交到任何人眼前之前，就作为那次调用[账目](#ul-call-account--调用账目--call-account)里的一笔落进日志、带着开口的时刻；停机之后靠它判断
+- **注意 ②**：**判据挂在到达方式上，不挂在模态清单上**——将来多一种内容块，它归哪种到达方式，首 token 就落在哪个时刻
+- **注意 ③**：**首 token 之后的任何故障一律不重试**，而且**优先于策略**——重试挂件也推翻不了；用户插队中断不是故障，不走这一条
+- **注意 ④**：调用状态机上「在途 → 说话中」那一步，就是首 token 到了；**「已开口」「已出门」不另立词条**——前者即首 token 之后，后者即过了出门前两道、进入在途
 
 ## 跑的过程中，跟外面说的两种话
 
@@ -362,7 +445,24 @@
 - **注意 ④**：**参数说完了却解析不了的调用，收场是失败**——[不执行，原因写参数解析不了，照常回给 agent](../../product/PF-006-tools-and-skills/design.md#参数说完了却解析不了的调用不执行以失败回给-agent)；
   与流断在半路时没长完的半截调用不是一回事
 - **注意 ⑤**：**「原因」是这几种收场上的取值，不是更多的收场**——
-  [占位与提醒的原因](../../product/PF-006-tools-and-skills/design.md#占位消息一律要说清原因)落在转后台、被中断、失败三格上，一格都没多
+  [占位与提醒的原因](record-and-context.md#ul-placeholder-reason--占位原因--placeholder-reason)落在转后台、被中断、失败三格上，一格都没多
+
+### UL-consecutive-veto-limit · 连续否决上限 · Consecutive Veto Limit
+
+> **中**：**同一步里，模型的回复在「消息落盘之前」被连续否决的次数上限**，一项运行时设置。
+> 每被否决一次，那次调用照常结束，loop 退避之后另起一次新的模型调用；**连续到了上限，这个 Run 落失败**，原因指向那件拓展件。
+>
+> **EN**: **A runtime setting: the maximum number of times in a row, within one agent step, that a
+> model reply may be vetoed at "before message persistence".** Each veto ends that call normally and
+> the loop starts a new model call after back-off; **on reaching the limit the run fails**, with the
+> cause pointing at the vetoing extension.
+
+- **形态**：属性
+- **出处**：[PF-012 §5.8 消息落盘之前的否决，按消息是谁产生的分三路](../../product/PF-012-agent-loop-and-run/design.md#消息落盘之前的否决按消息是谁产生的分三路)（rev 11） ·
+  [PF-013 §4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件) ·
+  [§5.4](../../product/PF-013-model-profiles-and-invocation/design.md#已经开口说话了优先于其余各类)（rev 9）
+- **别混**：**不是[试尽](#ul-retry-exhaustion--试尽--retry-exhaustion)**——试尽只管故障；被否决的回复不是故障，不交给重试挂件，也不算试过一家
+- **注意**：**它非有不可**——一件回回都否决的拓展件，否则会让 loop 永远另起新调用。它挂在哪一层、默认多少，正文只说是一项运行时设置
 
 ## 跑偏了谁接手
 
@@ -432,6 +532,47 @@
 - **注意 ③**：**起点可以是任何一层**（看缺的那样东西在谁手上），**但往上不许跳**
 - **注意 ④**：**问人不是上交**——它[横切所有层](../../product/PF-011-off-nominal-handling/design.md#59-问人横切所有层)，
   是每一层都能用的了结手段
+
+### UL-retry-exhaustion · 试尽 · Retry Exhaustion
+
+> **中**：**一次模型调用这一层已经不再有可试的手段**——换一家、退避之后再来，都不再做。到了这一刻，这件[非常态](#ul-off-nominal--非常态--off-nominal)就[上交](#ul-escalation--上交--escalation)。
+> **它是一个判断，不是一个公式**：做这个判断的是挂在「调模型之后 · 失败」位置上的那件[拓展件](capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension)（系统自带一件默认的，可替换）；
+> 档案上的[允许的供应商](capabilities-and-composition.md#ul-allowed-providers--允许的供应商--allowed-providers)与[供应商回退](capabilities-and-composition.md#ul-provider-fallback--供应商回退--provider-fallback)是它的输入，不是它的定义。
+>
+> **EN**: **The point at which the model-call layer has no means left to try** — neither another
+> provider nor another attempt after back-off. At that point the off-nominal is escalated. **It is a
+> judgement, not a formula**: it is made by the extension at the "after model call · failure" position
+> (a default one ships with the system and can be replaced); the profile's allowed providers and provider
+> fallback are inputs to it, not its definition.
+
+- **形态**：状态
+- **出处**：[PF-013 §4 什么时候算试尽](../../product/PF-013-model-profiles-and-invocation/design.md#什么时候算试尽) ·
+  [§5.12](../../product/PF-013-model-profiles-and-invocation/design.md#512-重试站在一个已经存在的位置上)（rev 9）
+- **别混 ①**：**不是「这一次失败了」**——失败之后还有手段可试，这一层就还没了结不了
+- **别混 ②**：**「所有模型都试过了」不是试尽**——换模型是用户的命令，不是这一层的手段
+- **注意 ①**：**只管故障这一维**——落盘前被否决的回复不算，那道上限是[连续否决上限](#ul-consecutive-veto-limit--连续否决上限--consecutive-veto-limit)
+- **注意 ②**：**有三类根本轮不到它**——「发不出去」「重试没用」「已经开口说话了」是事实，立即上交，任何策略都改不了
+
+### UL-model-call-escalation-cause · 模型调用上交成因 · Model-Call Escalation Cause
+
+> **中**：**一次[模型调用](#ul-model-call--一次模型调用--model-call)上交时带的那个分类，回答「谁能让它不再发生」。**恰八个取值：
+> 已下架 · 这个范围不再允许 · 和会话里的模态对不上 · 凭据不可用 · 这次请求本身上游不接受 · 上游这会儿给不出回复 · 说到一半断了 ·
+> 没认出来（兜底，只指「这次确实没认出来」）。**封闭枚举**；上游返回的状态码（有的话）另外原样带着，**两者不互相替代**。
+>
+> **EN**: **The classification a model call carries when it escalates, answering "who can stop this
+> from happening again".** Exactly eight values: withdrawn; no longer allowed in this scope; incompatible
+> with the session's modalities; credential unavailable; upstream refuses this request itself; upstream
+> cannot answer right now; cut off mid-speech; and unrecognized (a fallback meaning only "genuinely not
+> recognized this time"). **A closed enumeration**; the upstream's status code, where there is one,
+> travels alongside unchanged, and **neither stands in for the other**.
+
+- **形态**：属性
+- **出处**：[PF-013 §5.7 上交带什么](../../product/PF-013-model-profiles-and-invocation/design.md#57-上交带什么原样带着状态码不翻译它) ·
+  [§6.14](../../product/PF-013-model-profiles-and-invocation/design.md#614-上交带的成因是封闭枚举外加一个诚实的兜底状态码另外原样带着)（rev 9）
+- **别混**：**被中断不在这里**——用户中断不是非常态，不产出任何成因；落盘前被否决的回复同样不带成因
+- **注意 ①**：**只按「下一步不同」分取值**——「连不上」「超时」「5xx」「被限流」答案一律是「没人，等」，并成一个；差在哪由状态码说
+- **注意 ②**：**成因给分层处置用，状态码给排查的人与重试策略用**
+- **注意 ③**：**裸写「成因」不作数**——跨 topic 引用写全「模型调用上交成因」
 
 ### UL-terminal-disposition · 终局 · Terminal Disposition
 
