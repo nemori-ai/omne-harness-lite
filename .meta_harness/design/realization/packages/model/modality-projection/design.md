@@ -7,7 +7,7 @@
 
 **全部自建；判定是纯函数，转换是三类小插件。**
 
-- **纯函数**（包入口导出）：`projectEntry`（一条日志条目对投影的贡献——契约 S-6 的可分解律让读投影的一方把它逐条并进去）与 `project`（对一串条目的折叠，等于逐条并集）、`compatible`、`converterKeysOf`（一个块的候选键，契约 S-10）、`checkConversion`（一次产出合不合法，契约 S-11）、`parseConverterKey`／`parseDeclaration`（表示层校验，契约 S-8、S-17 ①）。块与消息的形状与模态判定式取同批纯模块 `packages/core/message-model`（`data.content-blocks`、`data.messages`），档案取 `packages/core/model-model`，**判定式引用不复制**。
+- **纯函数**（包入口导出）：`projectEntry`（一条日志条目对投影的贡献——契约 S-6 的可分解律让读投影的一方把它逐条并进去）与 `project`（对一串条目的折叠，等于逐条并集）、`compatible`、`converterKeysOf`（一个块的候选键，契约 S-10）、`checkConversion`（一次产出合不合法，契约 S-11）、`parseConverterKey`／`parseDeclaration`（表示层校验，契约 S-8、S-17 ①）。块与消息的形状与模态判定式取同批纯模块 [`packages/core/content-blocks`](../../core/content-blocks/README.md)、[`packages/core/messages`](../../core/messages/README.md)，档案取 [`packages/core/model-profile`](../../core/model-profile/README.md)，统一输入与结论取 [`packages/core/loop-extension`](../../core/loop-extension/README.md)（一契约一包，D-040 §八 M41），**判定式引用不复制**。
 - **插件**：见下节。共用件 `definePlugin`、`Outcome` 取 [kernel-basis](../../core/kernel-basis/README.md)。
 - **转换件实现**：本版不调模型（契约 S-24），只能是纯计算或本地识别库；**本版装哪几件、各登在哪几个键上没有人定**（缺口 MP-N3）。本节点只定它们接进来的形状。
 
@@ -54,7 +54,7 @@
 | S-15 `project` | 纯函数 | 同上 | — |
 | S-18 `convert` | `converterRegistry.convert(block, tenant)`：校验 → 读当前表的引用（一次）→ 落到的第一个有登记的键 → 取挂上的实现 → 调它 → `checkConversion` | 同上 | 判定次序照 S-18 表；**时间上界就是拓展件时限**（runner 契约 G-7，无值），本节点不另设计时器 |
 | S-19 `lookupConverter` | `converterRegistry.lookupConverter(key)` | 同上 | 答不出 ⇒ `{ unavailable }`，不收成 `{ unregistered }` |
-| S-20～S-23 落盘之前那一件 | P-3 向 runner 登记的系统自带实现（候选 `builtinName`：`modality-conversion`）：挑要转的块 → 逐块 `convert` → 全成交回 `rewrite`（或一块都没转成交回 `observed`）、任一失败交回 `veto`（`reason` 只带块标识、失败值与键） | 同上 | **受阻两处**：`tenant` 的来路（MP-N1）；runner 认它需要的能力标识未定型（runner 契约 G-3）。末位由 runner 强制，不靠本节点 |
+| S-20～S-23 落盘之前那一件 | P-3 向 runner 登记的系统自带实现（候选 `builtinName`：`modality-conversion`）：挑要转的块 → **挑出了才**经 runner 的受限面解析这一次输入的执行环境句柄取 `tenant`（候选 `loopExtensionImplementations.resolveTenant(environment)`，[runner 节点](../../agent-loop/loop-extension-runner/design.md#执行环境句柄每次调用一只按会话解析)；契约 S-20 ②）→ 逐块 `convert(block, tenant)` → 全成交回 `rewrite`（或一块都没转成交回 `observed`）、任一失败交回 `veto`（`reason` 只带块标识、失败值与键）。**解析不出租户 ⇒ 这一件报错**（已开始），runner 按 `treat_as_veto` 否决，不以缺席或别的租户去调 `convert` | 同上 | **受阻两处**：句柄解析出的租户身份没有来路（runner 契约 G-20：会话持有的租户读面未起草），闭合前每次解析失败 ⇒ 含要转的块的消息全被否决；runner 认它需要的能力标识未定型（runner 契约 G-3）。末位由 runner 强制，不靠本节点 |
 | S-24 转换件不调模型 | P-4\* 不 inject `modelRuntime`；静态检查候选：转换件包不得 import 或解析模型请求运行时 | 同上 | 运行时拦不住一个自己 `ctx.get` 的实现，所以兑现是结构检查（契约「由提供者与装配兑现」） |
 | S-25 不发事件 | 不 `emit`、不监听 | — | [事件](#事件) |
 | S-26 左列 | 见[装配给 vs 协议给](#装配给-vs-协议给) | — | 右列不在本版 |
@@ -75,7 +75,7 @@
 
 - **不发、也不监听任何 Cordis 事件**（契约 S-25）：投影从日志读，转换的成败在日志里，声明换代不通知任何人。
 - **F② 依赖消失时谁被卸载**：P-3 只依赖 runner 的登记面；runner 换代时 P-3 连带声明者与 P-4\* 重跑——范围只到转换这一侧，判定那一半是纯函数、不受影响。
-- **F③ 有没有事件能越过租户或会话边界**：没有事件。登记表是部署范围的（契约 S-9：不按租户分份），这是契约的有意设计；**越界风险在字节**：转换件以 `tenant` 读写引用所指的字节，由谁判能不能读写是契约 G-6（存储未定义），本版对引用形状的块一律转不成（`converterFailed`），不存在「不经判定就读」的路径。
+- **F③ 有没有事件能越过租户或会话边界**：没有事件。登记表是部署范围的（契约 S-9：不按租户分份），这是契约的有意设计；**越界风险在字节**：转换件以 `tenant` 读写引用所指的字节，由谁判能不能读写是契约 G-6（存储未定义），本版对引用形状的块一律转不成（`converterFailed`），不存在「不经判定就读」的路径。`tenant` 只来自这一次调用的执行环境句柄（runner 按这一次经过所在的会话造、调用返回即失效，runner S-50），那一件没有别的来源可以换成另一个租户。
 
 ### 存储要求：无
 
@@ -92,15 +92,17 @@
 | 声明换代时两份都有的键任何时刻答得出「有」 | 新表在一次引用赋值里替上；声明者重跑不碰 P-3 的表 |
 | 只有系统自带的转换那一件调转换 | `convert` 的调用点只许在那一件的实现模块（静态检查） |
 | 转换产出与原消息同一次落盘 | 那一件交回挂好派生属性的 `rewrite`；落盘归 runner 与 loop 的同一次追加 |
-| 读引用所指的字节以 `tenant` 进行 | **受阻**：存储未定义（契约 G-6），`tenant` 的来路未定（MP-N1） |
+| 读引用所指的字节以 `tenant` 进行 | **受阻**：存储未定义（契约 G-6） |
+| `tenant` 就是这条消息所属会话的租户 | runner 按经过所在的会话造句柄，那一件只经它解析；解析的来路归 runner 契约 G-20 |
 | 判合法目标的投影覆盖到日志尾 | 读的一方的义务（[model-request-runtime](../model-request-runtime/design.md#存储要求) 的 R-1～R-3） |
 
 ## 依赖、作用域与绑定
 
 | 消费的精确契约 | 实际提供者／解析方式与范围 | 工作中绑定与变更生效点 | 缺席、撤回和旧引用政策 |
 |---|---|---|---|
-| `data.content-blocks/v1`、`data.messages/v1`、`data.model-profile/v1` | 包依赖同批纯模块（`packages/core/message-model`、`packages/core/model-model`） | 随包版本 | — |
-| `data.loop-extension/v1` S-1、S-5、S-10、S-23、S-25、S-33 | 包依赖 `packages/core/tool-model`；系统自带那一件的结论形状 | 随包版本 | — |
+| `data.content-blocks/v1`、`data.messages/v1`、`data.model-profile/v1` | 包依赖同批纯模块 `packages/core/{content-blocks,messages,model-profile}` | 随包版本 | — |
+| `data.loop-extension/v1` S-1、S-5、S-10、S-11、S-23、S-25、S-33、S-41 | 包依赖 `packages/core/loop-extension`；系统自带那一件的输入（含执行环境句柄）与结论形状 | 随包版本 | — |
+| `capability.loop-extension-runner/v1` S-50 执行环境句柄的读面 | 经已 inject 的 `loopExtensionImplementations` 解析（不多一条 inject 边） | 每次调用一只新句柄，只在那一次调用里有效 | 解析不出 ⇒ 这一件报错（契约 S-20 ②） |
 | `data.identity-values/v1` | 包依赖 | 随包版本 | `tenant` 缺席 ⇒ `invalidInput` |
 | runner 的实现登记面（`capability.loop-extension-runner/v1` S-7） | 必需 inject `loopExtensionImplementations` | 换代 ⇒ 重跑、重新登记 | 缺席 ⇒ P-3 `PENDING`，登记表不存在，runner 由指定挂件顶上 |
 
@@ -127,7 +129,7 @@
 
 | # | 缺口 | owner | 受阻的消费者 | 闭合条件 |
 |---|---|---|---|---|
-| MP-N1 | **两份契约对不上：转换那一件拿不到 `tenant`**。本契约 S-20 ② 要「`tenant` 取那条消息所属会话的租户身份」、S-18 ① 把它列为必填；而拓展件的统一输入不带会话与租户（`data.loop-extension/v1#S-11` 的成员闭合；`capability.loop-extension-runner/v1#S-7` 说系统自带件「同一套输入」、除四样之外没有特权）。按现有条款，这一件每次调 `convert` 都只能以 `invalidInput` 收场 ⇒ 含要转的块的消息全被否决。候选解法（都超出现有条款，本节点不自选）：runner 在调用系统自带实现时另交一份调用上下文（会话、租户）；或经日志句柄读条目壳上的租户 | 主线 ＋ `data.loop-extension`、runner、本契约三份的 owner | 系统自带的模态转换那一件；契约 S-30、S-33、S-34 | 某份契约写明那一件从哪里拿到 `tenant` |
+| MP-N1 | **已闭合**（[D-040 §八 M38](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：统一输入加执行环境句柄（`data.loop-extension/v1#S-41`），`tenant` 经它取（契约 S-20 ②、runner S-50）。仍开着的是句柄解析的来路——runner 契约 G-20，不在此重抄 | — | — | — |
 | MP-N2 | **转换件的能力标识未定型**（runner 契约 G-3 的一项，owner 是本契约）：runner 认不出它，钉不了 `before_persist_message` 末位，缺席时的记录也写不出 `extension` | 本契约 owner | runner 的末位与指定挂件那一格 | 本契约定下标识 |
 | MP-N3 | **本版装哪几件转换件、声明写哪几个键没有人定**：空声明合法，但它意味着每个语音、图、文件块都原样落盘、永久进投影（契约 S-6 末段的产品后果） | 系统装配（[cli](../../../apps/cli/README.md)）＋ 产品（PF-013 §4 转换件） | 交付面、模型请求运行时的合法目标 | 装配写明声明与所装的 P-4\* |
 | MP-N4 | **静态检查规则未写**：`converterAssembly` 只给声明者与转换件包；`convert` 只许那一件的实现模块调；转换件包不得够到模型请求运行时 | 本节点 ＋ 承载仓库 `tools/ts-checks` | 契约 S-26 第 1、4 行、S-24 的装配给 | 规则写成并在 CI 里跑 |

@@ -7,7 +7,7 @@
 
 **自建两个插件，其余全部复用。**
 
-- **复用的纯模块**（同批 core 节点，由那边定接口；本页只写用法）：`packages/core/stream-assembly`（到达装配器——本节点就是契约 S-51 说的模型侧宿主）、`packages/core/model-model`（档案与响应体的形状与校验）、`packages/core/message-model`（五种记录、`AssistantMessage`、块）、`packages/core/tool-model`（`ModelToolName`、`Duration`）、`packages/core/asset-evaluation`（「用哪个模型」这一项与两个时限的求值——输入来路见[依赖表](#依赖作用域与绑定)）；已实现的 [`identity-values`](../../core/identity-values/README.md) 与 [`offer-expiry`](../../core/offer-expiry/README.md)（`Instant`）。
+- **复用的纯模块**（同批 core 节点，由那边定接口；本页只写用法）：`packages/core/stream-assembly`（到达装配器——本节点就是契约 S-51 说的模型侧宿主）、[`packages/core/model-profile`](../../core/model-profile/README.md) 与 [`packages/core/model-response`](../../core/model-response/README.md)（档案与响应体的形状与校验）、[`packages/core/messages`](../../core/messages/README.md) 与 [`packages/core/content-blocks`](../../core/content-blocks/README.md)（五种记录、`AssistantMessage`、块）、[`packages/core/tool-definition`](../../core/tool-definition/README.md)（`ModelToolName`、`Duration`）——一契约一包（D-040 §八 M41）、`packages/core/asset-evaluation`（「用哪个模型」这一项与两个时限的求值——输入来路见[依赖表](#依赖作用域与绑定)）；已实现的 [`identity-values`](../../core/identity-values/README.md) 与 [`offer-expiry`](../../core/offer-expiry/README.md)（`Instant`）。
 - **模态投影的两个纯函数** `project`、`compatible` 从 [`packages/model/modality-projection`](../modality-projection/README.md) 按包 import，**不 inject**（草图 Y-2）。
 - **插件层共用件**取 [kernel-basis](../../core/kernel-basis/README.md)：`definePlugin`（config 由内核在插件体之前校验）、`resolveOptional`（调用时取用可选依赖）、`Outcome`（闭合的失败字面联合）。存储走 [core/storage 协议](../../core/storage/design.md#协议)。
 - **传输**：pi-ai 定向 fork（D-019）。**fork 包本身没有节点**：上游精确版本、托管方式、许可、补丁对 0.86.x 的重生成都未定（[D-019 比较门现状补记](../../../../record/decisions/model-provider-pi-ai-fork/gate-status-2026-09-23.md)）。本节点只定它**进来的形状**：一个构造参数级的接口（候选 `TransportAdapter`），`send(请求, 凭据值, 中止信号) → 到达事件序列 ＋ 原样状态码 ＋ 用量与费用来源`，另在出网之前报两样事实——这一次的改值与丢项（契约 S-38 传输适配第 10 条）、本据点传输能承载的模态（契约 S-11 末段）。两个实现：fork 适配，脚本化传输（测试与验收装配用）。契约 S-38 的十一条由适配层逐条兑现；其中第 1、2、4、5、7 条依赖研究假设（契约 G-10），**本节点不据研究推导上游行为**，只把它们列成适配层的符合性测试义务（[verification](verification.md#证据义务)）。
@@ -33,7 +33,7 @@
 | S-5 `callId` 会话内唯一；调用跨尝试延续 | `modelRuntime.openCall` 铸 `callId`：128 位随机、交换表示按 `data.identity-values/v1#S-31` | 尚未实现 | 唯一性**不靠随机**：一次调用的首条耐久记录（「已出门」第 1 次，或调用终结）在会话日志上有唯一键（[L-6](#存储要求)），撞了即拒、那一边 `unavailable`；在途表按 (会话, `callId`) 为键 |
 | S-6 调用状态 | P-2 的在途表，只在进程内；终态与「已开口」从日志判 | 同上 | 状态不另存为权威；在途表随实例丢，由对账重建 |
 | S-7 绑定 | `openCall`：`modelCatalogRead.readProfile` 取快照、合并参数、出门前检查；`dispatch` 把绑定写进「已出门」；续接只从最近一条「已出门」读 | 同上 | 续接与追补**不读内存、不重读档案** |
-| S-8 六种记录 | 带栅栏的四种（已出门、已开口、中断意图、调用终结）经调用方随 `openCall` 交来的追加口写；不带栅栏的结算（响应体）与会话级写入（模型切换、对账追补）经 `sessionLog` 写 | 同上 | 形状归 `packages/core/message-model`（`data.messages/v1#S-49`、`#S-50`）；为什么同时要两条路见[与草图不同的三处](#与装配草图不同的三处) |
+| S-8 六种记录 | 带栅栏的四种（已出门、已开口、中断意图、调用终结）经调用方随 `openCall` 交来的追加口写；不带栅栏的结算（响应体）与会话级写入（模型切换、对账追补）经 `sessionLog` 写 | 同上 | 形状归 `packages/core/messages`（`data.messages/v1#S-49`、`#S-50`）；为什么同时要两条路见[与草图不同的三处](#与装配草图不同的三处) |
 | S-9～S-12 选中、有效、合法、展示 | `effectiveModel`、`legalTargets`、`displayList` 每次现算：日志尾的最后一条 `model_selection_changed` → 装配清单里的求值结果 → `modelCatalogRead.listProfiles(T)` → 本地按 `落点(T, r, A)` 求 → `compatible` | 同上 | **允许集合 `A` 的来源是契约 G-19**：闭合前求值结果里没有这一项，按契约 S-11 第一条恒 `unavailable`；胜出行不按 (T, r) 缓存 |
 | S-13 投影追到日志尾 | P-2 的投影缓存（[R-1](#存储要求)）；每次读先从水位追到日志尾，逐条套 `project` 的可分解一步 | 同上 | 缓存不是权威；缓存行读不到就从日志头重算（答案相同，代价随历史长度；记一条 info 日志）；性质测试与伸缩测量是证据义务 |
 | S-14 失败集合与判定次序 | 各方法返回闭合字面联合（`Outcome`），判定次序照各操作 ⑥ | 同上 | **没有 catch-all**：`StorageUnavailable`／日志不可用映射为 `unavailable`，其余异常上抛（缺陷） |
@@ -214,7 +214,7 @@
 
 ## 实施缺口与消费者影响
 
-契约自己的 G-n 不在此重抄；下面是本节点的缺口。
+契约自己的 G-n 不在此重抄；下面是本节点的缺口。其中「本程不补、留给下一程」（owner 主线，[D-040 §八 M43](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）的是：MRR-N1（C-1 会话日志）、MRR-N2（C-5 `infra/secrets`）、MRR-N3（C-2 装配清单）、MRR-N4（传输 fork 包节点）、MRR-N8（C-6 附件存储）。
 
 | # | 缺口 | owner | 受阻的消费者 | 闭合条件 |
 |---|---|---|---|---|

@@ -7,7 +7,7 @@
 
 **自建两个插件。**P-1 的全部写操作都是单次存储提交，没有跨提交的在途状态（契约 S-23），形状与 [organization-governance](../../tenancy/organization-governance/design.md) 同类：一个插件、一条 fiber、失败值是闭合字面联合、写后再 `emit` 通知。
 
-- **复用**：档案与建档内容的形状、表示层校验（`data.model-profile`）由同批纯模块 `packages/core/model-model` 给；`CredentialRef` 的形状（`data.asset-model/v1#S-23`）由 `packages/core/asset-model` 给；身份值与 `Instant` 由已实现的 [`identity-values`](../../core/identity-values/README.md)、[`offer-expiry`](../../core/offer-expiry/README.md) 给；插件层共用件 `definePlugin`、`resolveOptional`、`Outcome` 取 [kernel-basis](../../core/kernel-basis/README.md)；存储走 [core/storage 协议](../../core/storage/design.md#协议)。
+- **复用**：档案与建档内容的形状、表示层校验（`data.model-profile`）由同批纯模块 [`packages/core/model-profile`](../../core/model-profile/README.md) 给（一契约一包，D-040 §八 M41）；`CredentialRef` 的形状（`data.asset-model/v1#S-23`）由 `packages/core/asset-model` 给；身份值与 `Instant` 由已实现的 [`identity-values`](../../core/identity-values/README.md)、[`offer-expiry`](../../core/offer-expiry/README.md) 给；插件层共用件 `definePlugin`、`resolveOptional`、`Outcome` 取 [kernel-basis](../../core/kernel-basis/README.md)；存储走 [core/storage 协议](../../core/storage/design.md#协议)。
 - **成员资格判定**取已实现的 [organization-governance](../../tenancy/organization-governance/README.md) 的 `memberships.standing`（契约依赖钉 `capability.organization-governance` v1 的 S-26；那个节点按 v2 修订后，S-26 在两版同文，钉 v1 的调用拿 v1 的答复——同一提供者双版本服务的规则见 [OG v2 第十三节](../../../../spec/capabilities/organization-governance/v2/contract.md#十三版本差异与规范工件)，由装配绑定）。
 - **不在本节点**：凭据本体的保管（契约 S-2：保管方归提供者设计）——**全系统还没有保管方的契约与提供者**（缺口 MPD-N1）；中心 ↔ 据点的线上形状（契约 G-7）。
 
@@ -145,7 +145,7 @@ P-1r 的副本表（候选 `model_catalog_replica`）由[据点装配](../../../
 | 消费的精确契约 | 实际提供者／解析方式与范围 | 工作中绑定与变更生效点 | 缺席、撤回和旧引用政策 |
 |---|---|---|---|
 | `capability.organization-governance/v1` S-26 | 必需 inject `memberships`（[organization-governance](../../tenancy/organization-governance/design.md) 的 `standing`） | 每次写操作现读 | `unavailable` ⇒ `unavailable`，绝不折成 `notAuthorized` |
-| `data.model-profile/v1` | 包依赖 `packages/core/model-model` | 随包版本 | — |
+| `data.model-profile/v1` | 包依赖 `packages/core/model-profile` | 随包版本 | — |
 | `data.asset-model/v1` S-23（`CredentialRef`） | 包依赖 `packages/core/asset-model` | 随包版本 | — |
 | `data.identity-values/v1`、`data.offer-expiry/v1` S-22 | 包依赖 | 随包版本 | — |
 | 存储（`storage`） | 必需 inject；R-1～R-8 | 换代 ⇒ 重跑 | 缺席 ⇒ `PENDING` |
@@ -172,7 +172,7 @@ P-1r 的副本表（候选 `model_catalog_replica`）由[据点装配](../../../
 
 ## 实施缺口与消费者影响
 
-契约自己的 G-n 不在此重抄；下面是本节点的缺口。
+契约自己的 G-n 不在此重抄；下面是本节点的缺口。其中「本程不补、留给下一程」（owner 主线，[D-040 §八 M43](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）的是：MPD-N1（C-5 `infra/secrets`）、MPD-N2（C-3 据点上的中心事实副本读面、C-4 入口组合 v2）。
 
 | # | 缺口 | owner | 受阻的消费者 | 闭合条件 |
 |---|---|---|---|---|
