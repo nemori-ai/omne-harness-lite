@@ -73,17 +73,17 @@
 
 ### UL-workspace · 工作区 · Workspace
 
-> **中**：由[租户](subjects-and-ownership.md#ul-tenant--租户--tenant)拥有、带有自身身份、跨会话持续的完整资源聚合包。
+> **中**：带有自身身份和治理归属、跨会话持续的完整资源聚合包。它有一个治理所有者租户，也可以通过[租户—工作区关系](subjects-and-ownership.md#ul-tenant-workspace-relation--租户工作区关系--tenantworkspace-relation)授权其他租户参与。
 > 它可以聚合文件、代码、数据、知识和自定义资产，访问它的 agent 类型可以不同；它不绑定一个固定目标，
 > 也不是会话、agent、本地目录或执行环境边界。工作区可以有多个[工作区地址](#ul-workspace-address--工作区地址--workspace-address)，
 > 并在部署节点上被装载为多个[工作区实例](#ul-workspace-instance--工作区实例--workspace-instance)。
 > 工作区实例中的资产进入 PF-002 定义的工作区资产层：设置和资产可以按层求值，权限、落点与身份类及治理类例外
 > 不从工作区放宽。
 
-> **EN**: A tenant-owned, identity-bearing, persistent resource aggregate that spans sessions. It may contain files, code, data, knowledge, and custom assets; it has no fixed goal and is neither a session, agent, local directory, nor execution boundary. A workspace may have multiple addresses and multiple materialized instances. Assets from its instance enter the PF-002 workspace asset layer, while permissions and placement/identity governance cannot be widened from the workspace.
+> **EN**: An identity-bearing, governed, persistent resource aggregate that spans sessions. It has one tenant with governance ownership and may authorize other tenants to participate. It may contain files, code, data, knowledge, and custom assets; it has no fixed goal and is neither a session, agent, local directory, nor execution boundary. A workspace may have multiple addresses and multiple materialized instances. Assets from its instance enter the PF-002 workspace asset layer, while permissions and placement/identity governance cannot be widened from the workspace.
 
 - **形态**：对象
-- **出处**：[PF-020](../../product/PF-020-workspace/design.md)（rev 1） · [PF-002 工作区资产层](../../product/PF-002-assets-settings-and-permissions/design.md#工作区)（rev 21）
+- **出处**：[PF-020](../../product/PF-020-workspace/design.md)（rev 2） · [PF-002 工作区资产层](../../product/PF-002-assets-settings-and-permissions/design.md#工作区)（rev 21）
 - **别混**：地址和实例是它的访问与装载关系，不是另一个工作区；目录只是一个可能的地址/本地承载。
 - **资产层规则**：工作区提供的自定义资产仍遵循 PF-002 的设置覆盖、同标识替换、权限过滤和禁用规则。
 
@@ -95,19 +95,39 @@
 > **EN**: A materialized realization of a workspace on a deployment node through which a session and agent read and write resources. One workspace may have multiple instances; exact identity, state, and synchronization lifecycle remain open.
 
 - **形态**：对象
-- **出处**：[PF-020 工作区实例](../../product/PF-020-workspace/design.md)（rev 1）
+- **出处**：[PF-020 工作区实例](../../product/PF-020-workspace/design.md)（rev 2）
 - **未定**：实例的精确身份、并发和终止状态由 PF-020 后续修订决定。
 
 ### UL-workspace-address · 工作区地址 · Workspace Address
 
-> **中**：找到或访问工作区或工作区实例的地址，可以是本地文件系统路径、GitHub 地址、云端存储地址或其他未来地址。
-> 地址不是工作区身份，也不是访问凭据；同一工作区可以有多个地址，地址不可达不自动删除工作区。
+> **中**：找到或访问工作区或工作区实例的地址，可以是本地文件系统路径、GitHub 地址、Obsidian vault、Office 365 资源地址、云端存储地址或其他未来地址。
+> 地址带有提供者类型和可选作用（权威来源、镜像或导入/导出通道）；它不是工作区身份，也不是访问凭据。同一工作区可以有多个地址，地址不可达不自动删除工作区。
 
-> **EN**: A location or access address for a workspace or workspace instance, such as a local filesystem path, GitHub URL, or cloud storage address. It is neither the workspace identity nor a credential, and a workspace may have multiple addresses.
+> **EN**: A location or access address for a workspace or workspace instance, such as a local filesystem path, GitHub URL, Obsidian vault, Office 365 resource, or cloud storage address. It carries a provider type and optional role, is neither the workspace identity nor a credential, and a workspace may have multiple addresses.
 
 - **形态**：属性
-- **出处**：[PF-020 工作区地址](../../product/PF-020-workspace/design.md)（rev 1）
+- **出处**：[PF-020 工作区地址](../../product/PF-020-workspace/design.md)（rev 2）
 - **别混**：地址不是工作区实例本身；知道地址不能绕过租户授权。
+
+### UL-workspace-category · 工作区类别 · Workspace Category
+
+> **中**：描述工作区资源与治理语义的属性，不等于地址提供者类型。当前保留 Omne 原生、外部资源和未来组合三个可扩展类别。
+
+> **EN**: An attribute describing a workspace's resource and governance semantics, distinct from its address provider type. Current categories are Omne-native, external-resource, and a future composite category.
+
+- **形态**：属性
+- **出处**：[PF-020 工作区类别](../../product/PF-020-workspace/design.md)（rev 2）
+- **别混**：GitHub、Obsidian、Office 365 等是地址提供者类型，不直接决定工作区类别。
+
+### UL-workspace-address-provider · 工作区地址提供者 · Workspace Address Provider
+
+> **中**：提供一个工作区地址的外部系统或宿主类型，例如 `omne-host`、`github`、`obsidian`、`office365` 和本地文件系统。
+> 它描述地址的访问方式与可用能力，不是工作区身份、租户所有者或访问授权。
+
+> **EN**: The external system or host type that provides a workspace address, such as `omne-host`, `github`, `obsidian`, `office365`, or a local filesystem. It describes access and capabilities, not workspace identity, tenant ownership, or authorization.
+
+- **形态**：属性
+- **出处**：[PF-020 工作区地址](../../product/PF-020-workspace/design.md)（rev 2）
 
 ### UL-scoped-object · 范围化对象 · Scoped Object
 

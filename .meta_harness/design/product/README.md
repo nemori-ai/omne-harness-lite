@@ -37,7 +37,7 @@
 | [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md) | draft | 12 |
 | [PF-016 命令行交付面](PF-016-cli-tui-delivery-surface/README.md) | active | 7 |
 | [PF-017 治理中心作为一个可部署应用](PF-017-governance-center-as-deployable-application/README.md) | active | 2 |
-| [PF-020 工作区](PF-020-workspace/README.md) | draft | 1 |
+| [PF-020 工作区](PF-020-workspace/README.md) | draft | 2 |
 ## 已排定、尚未开题的编号
 
 这里只登记编号和主题，不提前创建空的 topic 包；正式开题时再按准入规则建包。

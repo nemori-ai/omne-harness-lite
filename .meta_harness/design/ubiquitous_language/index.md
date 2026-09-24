@@ -34,6 +34,7 @@
 | [UL-invitation](terms/subjects-and-ownership.md#ul-invitation--邀请--invitation) | 邀请 | Invitation | 发给某个账号的加入邀约，**接受即产生租户**；**会过期** |
 | [UL-affiliation-request](terms/subjects-and-ownership.md#ul-affiliation-request--隶属请求--affiliation-request) | 隶属请求 | Affiliation Request | 发给另一个组织的建立隶属邀约，**接受即填上上级组织属性、不产生租户**；**与邀请是两种对象，只是过期规则相同** |
 | [UL-tenant](terms/subjects-and-ownership.md#ul-tenant--租户--tenant) | 租户 | Tenant | (组织, 账号) 这一组合，归属与隔离的单位 |
+| [UL-tenant-workspace-relation](terms/subjects-and-ownership.md#ul-tenant-workspace-relation--租户工作区关系--tenantworkspace-relation) | 租户—工作区关系 | Tenant–Workspace Relation | 记录租户对工作区的治理所有权或参与授权，治理中心从有效关系列出工作区 |
 | [UL-membership-standing](terms/subjects-and-ownership.md#ul-membership-standing--成员资格效力--membership-standing) | 成员资格效力 | Membership Standing | 这个租户此刻算不算数，**只有有效/无效两个取值**；**「目标范围不可用」不是第三个取值，那是失败** |
 | [UL-current-tenant-identity](terms/subjects-and-ownership.md#ul-current-tenant-identity--当前租户身份--current-tenant-identity) | 当前租户身份 | Current Tenant Identity | 登录状态上的一项选择，**创建那一刻被捕获，之后切换不影响已创建的** |
 | [UL-tenant-role](terms/subjects-and-ownership.md#ul-tenant-role--租户角色--tenant-role) | 租户角色 | Tenant Role | 租户在其组织内当前能做什么 |
@@ -48,9 +49,11 @@
 |---|---|---|---|
 | [UL-scope-layer](terms/scope-and-resolution.md#ul-scope-layer--作用域层--scope-layer) | 作用域层 | Scope Layer | 身份带来的出厂默认 / 组织级 / 租户级 / 会话级这四层；**设置这一维还多一格工作区** |
 | [UL-scope-layer-identity](terms/scope-and-resolution.md#ul-scope-layer-identity--作用域层身份--scope-layer-identity) | 作用域层身份 | Scope Layer Identity | 一格由哪重身份充当：组织 / 租户 / 会话；**出厂默认那一格没有身份**，**工作区不在其列** |
-| [UL-workspace](terms/scope-and-resolution.md#ul-workspace--工作区--workspace) | 工作区 | Workspace | 租户拥有、带身份、跨会话持续的完整资源聚合包；不绑定固定目标，可有多个地址并装载为多个实例 |
+| [UL-workspace](terms/scope-and-resolution.md#ul-workspace--工作区--workspace) | 工作区 | Workspace | 带身份和治理归属、跨会话持续的完整资源聚合包；可由多个租户关系参与，有多个地址和实例 |
 | [UL-workspace-instance](terms/scope-and-resolution.md#ul-workspace-instance--工作区实例--workspace-instance) | 工作区实例 | Workspace Instance | 工作区在部署节点上的装载结果，供会话和 agent 工作；同一工作区可有多个 |
-| [UL-workspace-address](terms/scope-and-resolution.md#ul-workspace-address--工作区地址--workspace-address) | 工作区地址 | Workspace Address | 找到或访问工作区/实例的本地或远端地址，不是工作区身份或访问凭据 |
+| [UL-workspace-address](terms/scope-and-resolution.md#ul-workspace-address--工作区地址--workspace-address) | 工作区地址 | Workspace Address | 找到或访问工作区/实例的本地或远端地址；有提供者类型，不是工作区身份或访问凭据 |
+| [UL-workspace-category](terms/scope-and-resolution.md#ul-workspace-category--工作区类别--workspace-category) | 工作区类别 | Workspace Category | 工作区的资源与治理语义类别，不等于地址提供者 |
+| [UL-workspace-address-provider](terms/scope-and-resolution.md#ul-workspace-address-provider--工作区地址提供者--workspace-address-provider) | 工作区地址提供者 | Workspace Address Provider | 提供地址的 Omne Host、GitHub、Obsidian、Office 365 等外部系统或宿主类型 |
 | [UL-scoped-object](terms/scope-and-resolution.md#ul-scoped-object--范围化对象--scoped-object) | 范围化对象 | Scoped Object | 归属于某一层、参与求值的那类对象 |
 | [UL-capability-identifier](terms/scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier) | 能力标识 | Capability Identifier | 判定两个对象能否互相覆盖的那个标识，资产上是**类别 ＋ name**；模型档案以路由名充当 |
 | [UL-scope-evaluation](terms/scope-and-resolution.md#ul-scope-evaluation--作用域求值--scope-evaluation) | 作用域求值 | Scope Evaluation | 沿层算出这次实际生效的那一份 |

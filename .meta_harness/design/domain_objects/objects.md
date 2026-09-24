@@ -55,21 +55,28 @@
 - **依据**：[PF-001 §4 租户](../product/PF-001-identity-scope-and-agent-constraints/design.md#租户)（rev 18）；[PF-001 §4 退出之后再加入，回来的是同一个租户](../product/PF-001-identity-scope-and-agent-constraints/design.md#退出之后再加入回来的是同一个租户)（rev 18）；[PF-001 §4 未激活的账号记录不会永久占着那个名字](../product/PF-001-identity-scope-and-agent-constraints/design.md#未激活的账号记录不会永久占着那个名字)（rev 18）；[PF-001 flows §3.3](../product/PF-001-identity-scope-and-agent-constraints/flows.md#33-成员关系)（rev 18）
 - **并入**：「成员关系」——design 只定义租户，flows 却把「无 → 成员 → 无」的状态机挂在成员关系名下；二者同一身份，成员关系是租户「此刻有没有效」那一面。**分界：身份是值，有效性是记录**——(组织, 账号) 这一组合不生不灭、被显式携带；「此刻有没有效」才有状态、有写路径、有并发约束。**这不改变它是一个对象**，只是提醒不要把整体当成有状态的东西
 
+### UL-tenant-workspace-relation · 租户—工作区关系
+
+- **宿主**：一个租户与一个工作区之间的治理关系；关系任一端不存在或不可达时，关系不再有效
+- **身份**：（租户, 工作区）；同一租户与同一工作区只有一条当前关系
+- **生灭**：创建、邀请或登记 → 有效（带关系类型、能力、来源）→ 暂停或撤销；撤销关系不删除工作区，也不删除其他租户的关系。公开地址被发现但尚未登记时，不产生这条关系
+- **依据**：[PF-020 租户—工作区关系](../product/PF-020-workspace/design.md#租户工作区关系)（rev 2）
+
 ## 作用域与求值
 
 ### UL-workspace · 工作区
 
-- **宿主**：[租户](#ul-tenant--租户)——每个工作区由一个租户拥有，跨租户默认拒绝
+- **宿主**：[租户](#ul-tenant--租户)——工作区有一个治理所有者，也可通过租户—工作区关系授权其他租户参与
 - **身份**：工作区自身的持久逻辑身份；具体格式和命名尚未由正文确定。工作区地址不是身份，工作区实例是它在部署节点上的装载对象
 - **生灭**：跨会话和实例持续存在；删除、归档、恢复以及资源聚合何时终止，正文未述。一次实例卸载或地址不可达不等于工作区消失
-- **依据**：[PF-020 工作区](../product/PF-020-workspace/design.md)（rev 1）；[PF-020 工作区实例](../product/PF-020-workspace/design.md)（rev 1）；[PF-020 工作区地址](../product/PF-020-workspace/design.md)（rev 1）；[PF-002 工作区资产层](../product/PF-002-assets-settings-and-permissions/design.md#工作区)（rev 21）
+- **依据**：[PF-020 工作区](../product/PF-020-workspace/design.md)（rev 2）；[PF-020 工作区实例](../product/PF-020-workspace/design.md)（rev 2）；[PF-020 工作区地址](../product/PF-020-workspace/design.md)（rev 2）；[PF-002 工作区资产层](../product/PF-002-assets-settings-and-permissions/design.md#工作区)（rev 21）
 
 ### UL-workspace-instance · 工作区实例
 
 - **宿主**：部署节点上的一次工作区装载；它代表一个工作区，但不拥有工作区
 - **身份**：与工作区和部署节点关联的具体实例；精确身份形式正文未述
 - **生灭**：装载/物化 → 可供会话与 agent 使用 → 卸载、失效或待恢复；各状态的精确定义正文未述
-- **依据**：[PF-020 工作区实例](../product/PF-020-workspace/design.md)（rev 1）
+- **依据**：[PF-020 工作区实例](../product/PF-020-workspace/design.md)（rev 2）
 
 ## 能力与构成
 

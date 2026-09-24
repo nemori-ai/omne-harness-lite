@@ -7,7 +7,7 @@
 - 生成时间：2026-09-24
 - 生成：`python tooling/src/domain_objects.py --root design --write`
 
-对象 **42** 个，变体 **24** 个，形态未定的词条 **0** 个，待裁 **8** 项。
+对象 **43** 个，变体 **24** 个，形态未定的词条 **0** 个，待裁 **8** 项。
 
 **按统一语言的分卷排**——分卷「按它回答什么问题」，是全链里唯一不随对象重新分解而搬家的维度。这不是能力边界，也不是限界上下文；那是系统架构设计的事。
 
@@ -86,7 +86,7 @@
 
 | 对象 | 词条 | 宿主 | 变体 | 依据所在 | 还有谁在讲 |
 |---|---|---|---|---|---|
-| [工作区](../domain_objects/objects.md#ul-workspace--工作区) | [UL-workspace](../ubiquitous_language/terms/scope-and-resolution.md#ul-workspace--工作区--workspace) | [租户](../domain_objects/objects.md#ul-tenant--租户)——每个工作区由一个租户拥有，跨租户默认拒绝 | — | PF-020（草稿） | 002 016 |
+| [工作区](../domain_objects/objects.md#ul-workspace--工作区) | [UL-workspace](../ubiquitous_language/terms/scope-and-resolution.md#ul-workspace--工作区--workspace) | [租户](../domain_objects/objects.md#ul-tenant--租户)——工作区有一个治理所有者，也可通过租户—工作区关系授权其他租户参与 | — | PF-020（草稿） | 002 016 |
 | [工作区实例](../domain_objects/objects.md#ul-workspace-instance--工作区实例) | [UL-workspace-instance](../ubiquitous_language/terms/scope-and-resolution.md#ul-workspace-instance--工作区实例--workspace-instance) | 部署节点上的一次工作区装载；它代表一个工作区，但不拥有工作区 | — | PF-020（草稿） | — |
 
 ## 主体与归属
@@ -99,6 +99,7 @@
 | [邀请](../domain_objects/objects.md#ul-invitation--邀请) | [UL-invitation](../ubiquitous_language/terms/subjects-and-ownership.md#ul-invitation--邀请--invitation) | [组织](../domain_objects/objects.md#ul-organization--组织)——**发出它的那个组织**：它不存在了，这份邀请随即自动过期。它指向一个账号，但那个账号在接受之前对它没有任何持有；个人组织发不出邀请 | — | PF-001 | — |
 | [隶属请求](../domain_objects/objects.md#ul-affiliation-request--隶属请求) | [UL-affiliation-request](../ubiquitous_language/terms/subjects-and-ownership.md#ul-affiliation-request--隶属请求--affiliation-request) | 正文未述。由一个[组织](../domain_objects/objects.md#ul-organization--组织)的超级管理员发出、指向另一个组织；个人组织不参与隶属关系，既发不出也收不到 | — | PF-001 | — |
 | [租户](../domain_objects/objects.md#ul-tenant--租户) | [UL-tenant](../ubiquitous_language/terms/subjects-and-ownership.md#ul-tenant--租户--tenant) | —（身份由[组织](../domain_objects/objects.md#ul-organization--组织)与[账号](../domain_objects/objects.md#ul-account--账号)共同确定） | — | PF-001 | 011 013 |
+| [租户—工作区关系](../domain_objects/objects.md#ul-tenant-workspace-relation--租户工作区关系) | [UL-tenant-workspace-relation](../ubiquitous_language/terms/subjects-and-ownership.md#ul-tenant-workspace-relation--租户工作区关系--tenantworkspace-relation) | 一个租户与一个工作区之间的治理关系；关系任一端不存在或不可达时，关系不再有效 | — | PF-020（草稿） | — |
 
 ## 谁寄宿在谁身上
 
@@ -145,4 +146,4 @@
 
 产品正文提到它却没有链到词条，「还有谁在讲」那一列就是空的——这一列的空，多半是链接稀疏，不是没人讲。
 
-装配清单、资产、资产版本、模型档案、复制通知、分享邀请、分享关系、被卸载的原始结果、执行环境、沙箱实现、无状态沙箱、租户级沙箱、沙箱数据、派发报告、决策卡片、会话授权上下文、记录条目、待办条目、工作区实例、账号、登录状态、邀请、隶属请求。
+装配清单、资产、资产版本、模型档案、复制通知、分享邀请、分享关系、被卸载的原始结果、执行环境、沙箱实现、无状态沙箱、租户级沙箱、沙箱数据、派发报告、决策卡片、会话授权上下文、记录条目、待办条目、工作区实例、账号、登录状态、邀请、隶属请求、租户—工作区关系。

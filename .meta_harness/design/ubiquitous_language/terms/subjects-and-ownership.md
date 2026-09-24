@@ -237,6 +237,18 @@
 - **注意 ①**：跨租户访问**默认拒绝**；**使用成本按租户归属**，且**不随派发层级漂移**
 - **注意 ②**：**身份由那一组合确定，不因成员关系断续而变**——退出组织之后再被邀请加入，[回来的是同一个租户](../../product/PF-001-identity-scope-and-agent-constraints/design.md#租户)；解除期间它的租户级私有部分**不可达，但不销毁**
 
+### UL-tenant-workspace-relation · 租户—工作区关系 · Tenant–Workspace Relation
+
+> **中**：记录一个[租户](#ul-tenant--租户--tenant)与一个[工作区](scope-and-resolution.md#ul-workspace--工作区--workspace)之间当前关系的对象。
+> 它区分治理所有者与被授权参与者，另带有效能力、来源和状态；治理中心用有效关系列出该租户当前可感知的工作区。
+> 公开地址的发现不会自动产生这条关系。
+
+> **EN**: A durable object recording the current relationship between a tenant and a workspace. It distinguishes governance ownership from authorized participation and carries effective capabilities, origin, and status. A governance center lists a tenant's workspaces from its active relations; discovering a public address does not create one automatically.
+
+- **形态**：对象
+- **出处**：[PF-020 租户—工作区关系](../../product/PF-020-workspace/design.md#租户工作区关系)（rev 2）
+- **别混**：不是工作区实例，也不是一次会话的选择；实例是关系生效后在部署节点上的装载结果。
+
 ### UL-membership-standing · 成员资格效力 · Membership Standing
 
 > **中**：**一个[租户](#ul-tenant--租户--tenant)此刻算不算数。**恰有两个取值：
