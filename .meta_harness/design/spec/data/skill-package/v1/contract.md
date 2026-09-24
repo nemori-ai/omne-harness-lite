@@ -72,9 +72,9 @@
 
 | 不拥有 | 归谁 |
 |---|---|
-| 技能的加载、取用、可用性重算与替换件 | `capability.asset-registry`（第四波并行起草）与运行时 |
+| 技能的加载、取用、可用性重算与替换件 | [`capability.asset-registry`](../../../capabilities/asset-registry/v1/contract.md) v1（candidate）与运行时 |
 | `Skills()` 的 `search`／`read`／`exec_script` 三个命令，脚本在哪落地、谁放行 | PF-007 §6.2 的契约（尚未建立）、工具执行运行时、放行判断 |
-| 持有、配值与求值（谁持有这份技能、各层给它的设置配了什么、生效值是什么） | `capability.asset-governance`、`capability.asset-evaluation`（同程并行） |
+| 持有、配值与求值（谁持有这份技能、各层给它的设置配了什么、生效值是什么） | [`capability.asset-governance`](../../../capabilities/asset-governance/v1/contract.md) v1（candidate）、[`capability.asset-evaluation`](../../../capabilities/asset-evaluation/v1/contract.md) v1（candidate） |
 | 资产记录、版本线、复制血缘 | `data.asset-model` |
 | 常驻标记（挂在引用条目上） | Agent Definition 与 Plugin 的正文（[S-18](#s-18-常驻不在包里)） |
 | 把 Claude Code、Codex 等外部技能目录带进来的映射 | 导入器的提供者设计（尚未起草）；它产出的必须是本契约的一个合法值 |
@@ -84,17 +84,16 @@
 
 | 消费者 | 消费什么 |
 |---|---|
-| `data.asset-model`（下一版） | [S-3](#s-3-技能包的四个部分) 的 `SkillPackage`：它的 `AssetContent` 的 skill 变体由不透明壳换成对本契约的引用（[对齐义务](../verification.md#对齐义务)）；[S-6](#s-6-名字与所属能力标识一致) 的名字一致性 |
-| `capability.asset-registry`（第四波并行） | 技能那张注册表收的值（[S-3](#s-3-技能包的四个部分)）；名字与说明（[S-6](#s-6-名字与所属能力标识一致)、[S-7](#s-7-说明)）；依赖声明（[S-16](#s-16-由包得出的依赖声明)） |
+| `data.asset-model` v1（candidate） | [S-3](#s-3-技能包的四个部分) 的 `SkillPackage`：它的 `AssetContent` 的 skill 变体 `$ref` 本契约（2026-09-24 整批对齐已落，[对齐义务](../verification.md#对齐义务)）；[S-6](#s-6-名字与所属能力标识一致) 的名字一致性 |
+| [`capability.asset-registry`](../../../capabilities/asset-registry/v1/contract.md) v1（candidate） | 技能那张注册表收的值（[S-3](#s-3-技能包的四个部分)）；名字与说明（[S-6](#s-6-名字与所属能力标识一致)、[S-7](#s-7-说明)）；依赖声明（[S-16](#s-16-由包得出的依赖声明)） |
 | `Skills()`（PF-007 §6.2 的契约，尚未建立） | `read` 读的正文与资源（[S-8](#s-8-正文逐字不展开不执行)、[S-9](#s-9-资源条目与包内路径)）；`exec_script` 能跑的脚本集合（[S-11](#s-11-脚本集合)）；`search` 按的说明（[S-7](#s-7-说明)） |
-| 斜杠命令的数据契约（第四波并行） | ② 型绑定：能力标识指向一份技能；展开的就是 [S-8](#s-8-正文逐字不展开不执行) 的正文 |
+| [`data.slash-command`](../../slash-command/v1/contract.md) v1（candidate） | ② 型绑定：能力标识指向一份技能；展开的就是 [S-8](#s-8-正文逐字不展开不执行) 的正文 |
 | `data.content-blocks` | 它的 [S-8](../../content-blocks/v1/contract.md#s-8-文本块与来源标记) `skill_body` 来源标记的那段文本，就是本契约的正文（**方向是它引用本契约**） |
-| `capability.asset-evaluation`（同程并行） | 属性项投影（[S-17](#s-17-属性项投影规则)）；工作区承载清单里 `source` 指向的技能包目录怎样读（[S-21](#s-21-包的目录形式)） |
+| [`capability.asset-evaluation`](../../../capabilities/asset-evaluation/v1/contract.md) v1（candidate） | 属性项投影（[S-17](#s-17-属性项投影规则)）；工作区承载清单里 `source` 指向的技能包目录怎样读（[S-21](#s-21-包的目录形式)） |
 | `capability.asset-transfer` | 复制覆盖的「内容」就是整份包（[S-19](#s-19-包是版本内容的一个整体)） |
 | 导入器（提供者设计，尚未起草） | 键的四类（[S-5](#s-5-键的四类处置)）、文本形式与目录形式（[S-20](#s-20-skillmd-的文本形式与定界)、[S-21](#s-21-包的目录形式)） |
 
 > 上表没有一行是本契约的依赖：方向一律是消费者 → 本契约，登记在各消费者自己的 catalog 条目里。
-> 第四波并行起草的几份契约此刻不在本工作树，本包里不链接它们。
 
 ## 二、含义与使用范围
 
