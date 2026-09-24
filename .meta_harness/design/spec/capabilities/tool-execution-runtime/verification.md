@@ -125,7 +125,16 @@
   （`verifyToken(token, call, session)` 的三个结果、`availability` 的三支、`after_action` 的派发与「卸载判定不可用 = 只记可见」、桥换代时挂起调用的收场、`stream-assembly` 的五个操作与 `finish` 的四个 `reason`）是否与定稿一致，不一致按定稿改本契约。
 - **`data.content-blocks` 下一版补上 `run_cancelled`、`backgrounded_at_start`、`terminated_by_agent` 之后**：[G-2](v1/contract.md#十二已知缺口) 闭合，S-10 那三行的「没有」改为「有」，不改任何行为。
 - **起草途中主线三次转达**（均已并入本版）：核凭据的面与两个失败值（`notAdmitted{why}`、`admissionUnavailable`）；「同一提交」改写为装配给的一行、两种承接形状不在契约里选；
-  注册表判为不可用的条目落 `failed` 并带原因（`notAvailable{reason}`）；MCP 动作的撤下例外。
+  注册表判为不可用的条目落 `failed` 并带原因（`notAvailable{reason}`，已被 2026-09-24 整批对齐撤回，见下一条）；MCP 动作的撤下例外。
+- **2026-09-24 整批对齐**（主线裁定 2026-09-23，待产品负责人确认；账本 S13-a～h、S19-b/d）：
+  - **注册表判为不可用 → 收场 `unavailable`**（S13-a，改判 S22-f）：删失败种类 `not_available`（八 → 七）、失败值 `notAvailable{reason}`（十三 → 十二）；替换件、条目 `unavailable{reason}`、关掉的命令三支同归 `unavailable`。改了 S-9 收场表、S-11、S-23 ④⑤⑥ 与其后一条、S-37、第八节性质表一行、examples §8（删一行、补「不是失败值的那一支」）、formal/README 语义映射（常量 `StandIn` 的含义扩成三支，模型文件不改，行为相同）。R-17 闭合。
+  - **声明卸载的原始结果由本能力总是存下**（S13-b）：S-36 加两条（先存、存不下同「记录读写不了」上交），S-42 改「那一关不可用」一条（只落引用、摘要缺席）与停机那一条，S-15 一行，CS-5，examples §5。G-6 收窄为「由谁驱动」；R-11 闭合。
+  - **工具执行被中断不另补提醒**（S13-d）：S-19 加一条，S-4 `data.messages` 行加 S-21；G-14 闭合，R-15 闭合。
+  - **六份并行契约补登**：头部依赖列表与 S-4 表合一，引名逐字核定稿——`stream-assembly` 的操作名是 `start`、`closeOut`（原 `open_target`、`close_out` 作废）；`verifyToken` 的结果是 `valid | invalid{reason}`、失败 `invalidInput | unavailable`（原 `invalid{why} | unavailable` 三结果写法作废），`invalidInput` 收成整批 `invalidInput`（S-23 ⑧）。六份都不反向登记本契约，无环。
+  - **MCP 桥**（S19-b/d）：S-11 把桥的失败值按 `capability.mcp-bridge/v1#S-21` 对到 `implementation_error` / `abnormal_interruption`；S-14 按「请求是否已发出」定外部效果；S-37 与桥 S-27 互指；CS-6。
+  - **`data.call-accounts` 下一版**（S13-f）与**三个占位原因**（S13-h）：S-14、G-2、G-8 写明主线已裁的下一版形状；缺口在 v2 发布前不闭合。
+  - 不改的：S13-c 采纳的推导（姿态 × 阶段、`preempt` 原子、并发按会话计等）本来就在正文；S13-e 进展任务照登；S13-g 两种承接形状本来就不选。
+  - **对消费者**：agent loop 与 `BkgJobs()` 读到的判为不可用的项，从 `notAvailable{reason}` 逐条失败变成 `ended{unavailable}`——调用方不必另补结果这一点不变。
 
 ## 报给主线
 
@@ -135,20 +144,24 @@
 |---|---|---|---|
 | R-1 | **「工具执行运行时」这项能力没有词条**：词表把它并进了 UL-tool-execution（单次执行自己的运行时），承载全部执行的这一项能力本身无词可用；本契约只在入口处说明，正文用「本能力」 | 契约 S-1；[UL-tool-execution](../../../ubiquitous_language/terms/execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution) | 无词条 |
 | R-2 | **另三个无词条概念**：「活体」（S-7）、「执行者」（S-37）、「失败的种类」（S-11）；本契约各在一处给了用法说明，未立正式名 | S-7、S-11、S-37 | 无词条 |
-| R-3 | **账本外取的名字**：失败值 `notInBackground`、`callIdConflict`、`dependencyUnavailable{which}`、`runtimeNotReady`（对账产物给的）；操作 `preempt`、`awaitForeground`（对账产物给的）；`AdmittedCall.startInBackground`；`waitIndex`；事件 `execution.delivered`；失败种类的八个值 | S-23、S-24、S-31、S-45 | 账本缺名 |
-| R-4 | **账本的 `ExecutionState` 单枚举被拆成两个维度**（姿态 × 阶段）：`backgrounded` 是前台那一次调用的收场，不是执行的状态；单枚举装不下「后台且排队」「前台且在等」 | S-8 | 简报改判 |
+| R-3 | **账本外取的名字**：失败值 `notInBackground`、`callIdConflict`、`dependencyUnavailable{which}`、`runtimeNotReady`（对账产物给的）；操作 `preempt`、`awaitForeground`（对账产物给的）；`AdmittedCall.startInBackground`；`waitIndex`；事件 `execution.delivered`；失败种类的八个值 | S-23、S-24、S-31、S-45 | 账本缺名；**已裁（2026-09-23，S13-c 采纳 `callIdConflict`、`dependencyUnavailable{which}`、`notInBackground`）** |
+| R-4 | **账本的 `ExecutionState` 单枚举被拆成两个维度**（姿态 × 阶段）：`backgrounded` 是前台那一次调用的收场，不是执行的状态；单枚举装不下「后台且排队」「前台且在等」 | S-8 | 简报改判；**已裁（S13-c 采纳）** |
 | R-5 | **简报的 `environmentUnavailable` 失败值去掉了**：执行时才发现的落点拒绝按主线裁定是收场 `failed{environment_unavailable}`，不是操作失败 | S-11、S-38 | 简报改判 |
-| R-6 | **超时与阈值不计等待时间**：B-M08 说超时是「前台等待上限」，本契约读成「前台在跑的时间」，等待期间不走——否则一段不占资源的等待会被替人签字（PF-006 §6.6）。若主线本意是计入等待，S-44 与 S-12 要改 | S-44 | 推导待确认 |
-| R-7 | **并发上限的计数范围取会话**（同一会话、同一工具名，不论姿态）；B-M08 没说范围 | S-43 | 推导待确认 |
-| R-8 | **插队同样处置同一批里还排着的调用**（允许后台的转后台、不允许的中断）；PF-014 §5.4 只说「工具执行中」 | S-31 | 产品问题 |
-| R-9 | **用户单独中断一次执行之后，同一批后面的调用照样起**；要停这一步走取消运行或插队 | S-43 | 推导待确认 |
-| R-10 | **agent 只能掐掉后台执行**（`notInBackground`）：PF-006 flows §四「agent 不中断自己的执行」与 PF-007 §6.10 `terminate` 的调和，按「前台的那一次正阻塞着它自己」读 | S-25 | 推导待确认 |
-| R-11 | **卸载判定不可用时，作者声明的卸载无人兑现、原始结果丢失**：主线裁定「只记可见」的直接后果，与 PF-006 §6.10「存着，没丢」相抵 | S-42、G-6 | 与裁定的冲突 |
+| R-6 | **超时与阈值不计等待时间**：B-M08 说超时是「前台等待上限」，本契约读成「前台在跑的时间」，等待期间不走——否则一段不占资源的等待会被替人签字（PF-006 §6.6）。若主线本意是计入等待，S-44 与 S-12 要改 | S-44 | 推导待确认；**已裁（S13-c 采纳）** |
+| R-7 | **并发上限的计数范围取会话**（同一会话、同一工具名，不论姿态）；B-M08 没说范围 | S-43 | 推导待确认；**已裁（S13-c 采纳）** |
+| R-8 | **插队同样处置同一批里还排着的调用**（允许后台的转后台、不允许的中断）；PF-014 §5.4 只说「工具执行中」 | S-31 | 产品问题；**已裁（S13-c 采纳 `preempt` 原子且处置同批排队者）** |
+| R-9 | **用户单独中断一次执行之后，同一批后面的调用照样起**；要停这一步走取消运行或插队 | S-43 | 推导待确认；**已裁（S13-c 采纳）** |
+| R-10 | **agent 只能掐掉后台执行**（`notInBackground`）：PF-006 flows §四「agent 不中断自己的执行」与 PF-007 §6.10 `terminate` 的调和，按「前台的那一次正阻塞着它自己」读 | S-25 | 推导待确认；**已裁（S13-c 采纳 `notInBackground`）** |
+| R-11 | **卸载判定不可用时，作者声明的卸载无人兑现、原始结果丢失**：主线裁定「只记可见」的直接后果，与 PF-006 §6.10「存着，没丢」相抵 | S-42、G-6 | 与裁定的冲突；**已闭合（S13-b：原始结果由本能力总是存下）** |
 | R-12 | **`answerWait` 本版没有「明确拒绝回复」**：插队时的 `human_declined` 是中断，不是答复；卡片上人点「拒绝回复」怎样进来，要卡片契约给 | S-30、G-10 | 产品问题 |
-| R-13 | **报了但被拒的一笔费用**：本契约选「不进 `items`、留一条记录条目」，不变成一笔 `source: none` 的未知（替 call-accounts 的 G-5 落地） | S-40 | 推导待确认 |
+| R-13 | **报了但被拒的一笔费用**：本契约选「不进 `items`、留一条记录条目」，不变成一笔 `source: none` 的未知（替 call-accounts 的 G-5 落地） | S-40 | 推导待确认；**已裁（S13-c 采纳）** |
 | R-14 | **消费了 `data.identity-values` v1**（简报 catalog 依赖清单里没有它）：租户身份、身份参数无默认、缺席即拒、表示层校验与判定分开 | S-4 | 简报补项 |
-| R-15 | **执行结束不另补 `interrupted` 提醒**：`data.messages` S-21「只要中断就补」对工具执行是否适用未定，本版只落占位 | G-14 | 与其他契约的疑似冲突 |
+| R-15 | **执行结束不另补 `interrupted` 提醒**：`data.messages` S-21「只要中断就补」对工具执行是否适用未定，本版只落占位 | G-14 | 与其他契约的疑似冲突；**已闭合（S13-d）** |
 | R-16 | **归档流程里工具执行与模型请求「先停谁」**：PF-015 §6.3 列的次序本契约不管，只保证调用之后没有未收场的执行 | S-29 | 归会话那一程 |
-| R-17 | **注册表判为不可用的条目落 `failed` 与 PF-006 的「换替换件、落 `unavailable`」对不上**：主线转达把「关掉的命令、依赖未解析、MCP 连不上的原位顶替」列为落 `failed{…}` 带注册表原因；而 PF-006 [flows §二](../../../product/PF-006-tools-and-skills/flows.md#二异常分支)、[§6.3](../../../product/PF-006-tools-and-skills/design.md#63-不可用时装的是同名替换件不是不装)、[§6.13](../../../product/PF-006-tools-and-skills/design.md#接入点连不上它的动作就是不可用) 把依赖连不上、MCP 连不上都写成装替换件、调用得「不可用」（绕路、别重试）。`failed` 给 agent 的下一步是「重试、换招」，与「别重试」相反。本契约按注册表给的支走：`stand_in` → `unavailable`，`unavailable{reason}` → `failed{not_available}`；**请主线确认哪些情形该落哪一支**，并同步给 `capability.asset-registry` | S-23 ④、S-11 | 与产品正文的冲突 |
-| R-18 | **进展任务慢**：`tool-execution-runtime-v1-execution-progress` 本机约 16 分钟（超时登 2400 s），`make design-check FORMAL=run` 的总时长随之翻倍；安全任务约 75 秒。要不要把进展任务移出例行运行、或再缩场景，由主线定 | formal-tasks | 工具与流程 |
+| R-17 | **注册表判为不可用的条目落 `failed` 与 PF-006 的「换替换件、落 `unavailable`」对不上**：主线转达把「关掉的命令、依赖未解析、MCP 连不上的原位顶替」列为落 `failed{…}` 带注册表原因；而 PF-006 [flows §二](../../../product/PF-006-tools-and-skills/flows.md#二异常分支)、[§6.3](../../../product/PF-006-tools-and-skills/design.md#63-不可用时装的是同名替换件不是不装)、[§6.13](../../../product/PF-006-tools-and-skills/design.md#接入点连不上它的动作就是不可用) 把依赖连不上、MCP 连不上都写成装替换件、调用得「不可用」（绕路、别重试）。`failed` 给 agent 的下一步是「重试、换招」，与「别重试」相反。本契约按注册表给的支走：`stand_in` → `unavailable`，`unavailable{reason}` → `failed{not_available}`；**请主线确认哪些情形该落哪一支**，并同步给 `capability.asset-registry` | S-23 ④、S-11 | 与产品正文的冲突；**已闭合（S13-a：一律 `unavailable`）** |
+| R-18 | **进展任务慢**：`tool-execution-runtime-v1-execution-progress` 本机约 16 分钟（超时登 2400 s），`make design-check FORMAL=run` 的总时长随之翻倍；安全任务约 75 秒。要不要把进展任务移出例行运行、或再缩场景，由主线定 | formal-tasks | 工具与流程；**已裁（S13-e：保留登记，不加机制）** |
 | R-19 | **词条描述过时**：[UL-cancellation-follows-host](../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-cancellation-follows-host--取消跟着宿主走--cancellation-follows-host) 的索引描述仍写「转后台就是换宿主」，与 PF-006 rev 17、PF-012 §6.13「转后台不换宿主」相抵（主线已知，B-M06(ul)） | —— | 词条 |
+| R-20 | **「摘要缺席」读成作者的 `summary` 与运行时占位说明都不落**（账本 S13-b「它不可用时消息里只落引用、摘要缺席」）：把二者排进占位的是卸载判定那一关，它不在就没人排。若本意只是「系统不写摘要」、作者的 `summary` 照落，S-42 那一条改一句 | S-42、S-15 | 推导待确认（2026-09-24） |
+| R-21 | **声明卸载的原始结果存不下时上交**：S13-b 让本能力总是存，存储读写不了时按「执行记录读写不了」同一处置（收场照写、落盘写不下去就上交），不假装存下 | S-36 | 推导待确认（2026-09-24） |
+| R-22 | **失败种类由八个变七个**：S13-c 采纳的「失败种类八值」数的是 S13-a 之前的表；删去 `not_available` 之后是七个 | S-11 | 账本数字过时（2026-09-24） |
+| R-23 | **简报写「MCP 例外条款与 mcp-bridge S-27/S-38 互指」**：mcp-bridge v1 没有 S-38；按本契约 S-37（执行者登记与撤下）↔ 桥 S-27（桥被替换或卸载）互指，另引桥 S-21（失败值与收场的对应） | S-37 | 简报坐标（2026-09-24） |

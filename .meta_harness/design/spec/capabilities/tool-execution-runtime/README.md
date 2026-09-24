@@ -12,11 +12,9 @@
 - **状态**：`candidate`（2026-09-23 起草），**未经独立评审、未接受、未冻结**
 - **catalog 映射**：已登记为 `candidate`；`family=capabilities`、`topic=tool-execution-runtime`、
   `contract_path=spec/capabilities/tool-execution-runtime/v1/contract.md`；`resources` 含契约、`examples.md`、`formal/` 下的模型、八个配置与入口页；
-  依赖七项（`data.content-blocks`、`data.call-accounts`、`data.messages`、`data.tool-definition`、`data.loop-extension`、`data.offer-expiry`、`data.identity-values`，均 v1），
-  clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)。
-  **另六项依赖尚未登记**：`data.arrival-events`、`capability.stream-assembly`、`capability.tool-admission`、`capability.asset-registry`、
-  `capability.loop-extension-runner`、`capability.mcp-bridge` 与本契约并行起草，本分支的 catalog 里还没有它们的坐标（检查器拒绝未知坐标）——
-  **合流对齐时补登**，消费面见 S-4 第二张表
+  依赖十三项（`data.content-blocks`、`data.call-accounts`、`data.messages`、`data.tool-definition`、`data.loop-extension`、`data.offer-expiry`、`data.identity-values`、
+  `data.arrival-events`、`capability.stream-assembly`、`capability.tool-admission`、`capability.asset-registry`、`capability.loop-extension-runner`、`capability.mcp-bridge`，均 v1；
+  后六项在 2026-09-24 整批对齐补登），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)
 - **formal-tasks 映射**：两个任务——`tool-execution-runtime-v1-execution`（`Execution.tla` ＋ `Execution.cfg`，安全性质）与
   `tool-execution-runtime-v1-execution-progress`（同一模型 ＋ `ExecutionProgress.cfg`，进展性质）。
   **六个有效性核对配置不登记**：它们期望失败，与该清单的语义相反。执行结果在[验证入口](verification.md)
