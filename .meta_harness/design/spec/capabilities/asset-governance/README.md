@@ -21,7 +21,7 @@
 - **已登记**：`status = candidate`、`family = capabilities`、`topic = asset-governance`、
   `contract_path = spec/capabilities/asset-governance/v1/contract.md`、`resources` = `v1/contract.md`、`v1/examples.md`，`acceptance = null`。
 - **依赖九项已登记**，clauses 取自[契约 S-4 的被消费面表](v1/contract.md#s-4-依赖方向与被消费的面)：
-  - `data.identity-values · v1`：`S-3`、`S-5`、`S-6`、`S-8`、`S-10`、`S-11`、`S-12`、`S-16`～`S-21`、`S-23`、`S-26`、`S-27`、`S-29`～`S-34`、`CS-1`、`CS-2`、`CS-5`；
+  - `data.identity-values · v1`：`S-3`、`S-5`、`S-6`、`S-8`、`S-10`、`S-11`、`S-12`、`S-16`～`S-21`、`S-23`、`S-26`、`S-27`、`S-29`～`S-34`（S-4 表里的 `CS-1`、`CS-2`、`CS-5` 是那份契约的消费者核对场景，不是条款，不登 clauses）；
   - `data.offer-expiry · v1`：`S-6`、`S-19`；
   - `capability.organization-governance · v1`：`S-22`、`S-26`、`S-38`；
   - `data.asset-model · v1`：`S-1`～`S-16`、`S-18`～`S-23`、`S-25`、`S-36`（2026-09-24 整批对齐补登）；

@@ -10,9 +10,9 @@
 - **状态**：`candidate`，2026-09-23 起草、同日按主线裁定原地修订一次，2026-09-24 整批对齐再原地改一次（[变化的影响](verification.md#变化的影响)）；**未接受、未冻结**，不得据此发布或声称消费者已采用
 - **catalog 映射**：已登记为 `candidate`（`acceptance` 为 null）。`family=data`、`topic=loop-extension`、
   `contract_path=spec/data/loop-extension/v1/contract.md`，`resources` 另含同目录的 `loop-extension.schema.json` 与 `examples.md`；
-  `dependencies` 列七项——两项已接受（`data.identity-values`、`data.offer-expiry`），五项是并行起草中的候选
-  （`data.content-blocks`、`data.messages`、`data.model-profile`、`data.call-accounts`、`data.tool-definition`），
-  **这五项的消费 clauses 暂以 `$defs/<名>` 登记，待它们定型后换成条款号**；`data.call-accounts` 那一项另含运行与执行尝试的标识 `RunId`、`AttemptId`（[验证入口「变化的影响」](verification.md#变化的影响)）
+  `dependencies` 列八项——两项已接受（`data.identity-values`、`data.offer-expiry`），六项是候选
+  （`data.content-blocks`、`data.messages`、`data.model-profile`、`data.call-accounts`、`data.tool-definition`、`data.asset-model`），
+  消费 clauses 按[契约头部的依赖表](v1/contract.md)登为条款号（2026-09-24 整批对齐由 `$defs` 名换成条款号）；`data.call-accounts` 那一项另含运行与执行尝试的标识 `RunId`、`AttemptId`（[验证入口「变化的影响」](verification.md#变化的影响)）
 - **提供者/装配映射**：**尚无**。它是纯数据契约，提供者会是 core 下的一个纯模块（形状、Schema 校验、两张合法组合表的判定）；节点未立
 
 ## 准入核对

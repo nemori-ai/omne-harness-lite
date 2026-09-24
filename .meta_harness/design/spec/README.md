@@ -87,7 +87,7 @@ Alloy 可按结构关系建立模型，检查断言并探索合法实例；参�
 
 ## 当前状态
 
-**当前有六个 topic**，都属租户相关领域，**全部 `accepted`、资源已冻结**：
+**已接受的有七个 topic**，前六个列在下表（都属租户相关领域与治理中心入口），**全部 `accepted`、资源已冻结**：
 前五个 v1 依据 [D-023](../record/decisions/tenant-domain-design-acceptance/README.md)（产品负责人，2026-09-22）；
 `compositions/governance-center-entry` v1 与 `capabilities/account-identity` **v2** 依据 [D-028](../record/decisions/governance-center-design-acceptance/README.md)（产品负责人，2026-09-23；主责产品依据 PF-017 rev 2）。账号能力 v1 与 v2 并存：注册组合与治理契约仍钉 v1，入口契约钉 v2：
 
@@ -100,7 +100,9 @@ Alloy 可按结构关系建立模型，检查断言并探索合法实例；参�
 | [`compositions/account-registration`](compositions/account-registration/README.md) | 一次注册从入口走到稳定点的整体责任 |
 | [`compositions/governance-center-entry`](compositions/governance-center-entry/README.md) | 客户端 ↔ 治理中心这条边：判定次序、四种入口答复、身份推导与补授权、公开体检与运维面、治理中心标识 |
 
-**另有第七个 topic，是候选、不在上面「全部 accepted」之列**：[`compositions/governance-center-entry-https-json`](compositions/governance-center-entry-https-json/README.md) v1（`candidate`，2026-09-23 起草，接受待 D-029）——入口契约落在 HTTP/1.1 over TLS + JSON 上的全部字节事实（传输绑定 `https-json/1`，闭合入口契约 G-10 与 G-11 的中心一侧），已在 catalog 登记、未冻结。
+**第七个 topic 后来也接受了**：[`compositions/governance-center-entry-https-json`](compositions/governance-center-entry-https-json/README.md) v1（2026-09-23 起草，同日由 [D-029](../record/decisions/governance-center-transport-binding-acceptance/README.md) 接受并冻结）——入口契约落在 HTTP/1.1 over TLS + JSON 上的全部字节事实（传输绑定 `https-json/1`，闭合入口契约 G-10 与 G-11 的中心一侧）。
+
+**另有 26 份候选 v1（2026-09-23 起草，2026-09-24 整批对齐），都是 `candidate`、未接受、未冻结**：data 13 份（`content-blocks`、`call-accounts`、`model-profile`、`model-response`、`tool-definition`、`asset-model`、`loop-extension`、`messages`、`connector`、`arrival-events`、`skill-package`、`slash-command`、`mcp-endpoint`），capabilities 13 份（`asset-transfer`、`asset-governance`、`asset-evaluation`、`modality-projection`、`stream-assembly`、`tool-admission`、`asset-registry`、`mcp-bridge`、`loop-extension-runner`、`hooks-import`、`model-profile-directory`、`model-request-runtime`、`tool-execution-runtime`）。它们都已在 catalog 登记（`acceptance` 为 null），依赖 150 条、全部带条款号、依赖图无环；covers 按各包口径登记、全部 `reviewed: false`；带 TLA+ 的四份共 6 个 formal task，两份 Alloy 模型（`asset-evaluation`、`messages`）按「`check` 行 UNSAT 读作无反例」判读、不登记为任务。各包的实际状态以其 `verification.md` 为准。
 
 **上面六个 topic 的七个版本都在 [catalog](../registry/README.md) 登记并接受**（第七个 topic 的候选 v1 也已登记，`acceptance` 为 null）：五份 v1 的 `acceptance` 指向 D-023 的 `acceptance.json`，
 入口契约 v1 与账号能力 v2 指向 D-028 的；`frozen.json` 登记了五个 v1 目录的 18 项资源，加入口契约 v1 的 15 项与账号能力 v2 的 1 项。

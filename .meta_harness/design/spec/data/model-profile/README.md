@@ -12,8 +12,8 @@
 - **状态**：`candidate`（2026-09-23 起草）。未接受、未冻结；语义可被审阅，不得据此声称消费者已采用
 - **catalog 映射**：**已登记**，状态 `candidate`，`acceptance` 为 `null`。`family=data`、`topic=model-profile`、
   `contract_path=spec/data/model-profile/v1/contract.md`，`resources` 另含 `spec/data/model-profile/v1/model-profile.schema.json`
-  与 `spec/data/model-profile/v1/examples.md`；依赖两项：`data.identity-values` v1（`S-5`／`S-11`／`S-12`／`S-16`／`S-17`／`S-30`／`S-31`）、
-  `data.offer-expiry` v1（`S-22`）。登记在 [registry](../../../registry/README.md)，本行只作索引
+  与 `spec/data/model-profile/v1/examples.md`；依赖三项：`data.identity-values` v1（`S-5`／`S-11`／`S-12`／`S-15`／`S-16`／`S-17`／`S-30`／`S-31`）、
+  `data.offer-expiry` v1（`S-22`）、`data.content-blocks` v1（`S-6`，2026-09-24 整批对齐补登）。登记在 [registry](../../../registry/README.md)，本行只作索引
 - **提供者/装配映射**：**尚无。**维护档案的能力、模型请求运行时都还没有契约，也没有实现映射节点
 
 ## 准入核对

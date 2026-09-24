@@ -573,6 +573,8 @@
             "version": 1
           },
           "clauses": [
+            "S-5",
+            "S-11",
             "S-31"
           ],
           "rebase_relation": null
@@ -585,6 +587,17 @@
           },
           "clauses": [
             "S-22"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.content-blocks",
+            "version": 1
+          },
+          "clauses": [
+            "S-14"
           ],
           "rebase_relation": null
         }
@@ -617,6 +630,7 @@
             "S-5",
             "S-11",
             "S-12",
+            "S-15",
             "S-16",
             "S-17",
             "S-30",
@@ -632,6 +646,17 @@
           },
           "clauses": [
             "S-22"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.content-blocks",
+            "version": 1
+          },
+          "clauses": [
+            "S-6"
           ],
           "rebase_relation": null
         }
@@ -661,12 +686,13 @@
             "version": 1
           },
           "clauses": [
-            "$defs/Usage",
-            "$defs/Cost",
-            "$defs/CostCorrection",
-            "$defs/RunId",
-            "$defs/AttemptId",
-            "$defs/ModelCallId"
+            "S-6",
+            "S-8",
+            "S-15",
+            "S-17",
+            "S-25",
+            "S-37",
+            "S-38"
           ],
           "rebase_relation": null
         },
@@ -677,8 +703,8 @@
             "version": 1
           },
           "clauses": [
-            "$defs/ContentBlock",
-            "$defs/AttachmentRef"
+            "S-1",
+            "S-21"
           ],
           "rebase_relation": null
         },
@@ -689,8 +715,8 @@
             "version": 1
           },
           "clauses": [
-            "$defs/AssistantMessage",
-            "$defs/AssistantEnding"
+            "S-9",
+            "S-10"
           ],
           "rebase_relation": null
         },
@@ -701,9 +727,10 @@
             "version": 1
           },
           "clauses": [
-            "$defs/ModelProfileRef",
-            "$defs/ProviderName",
-            "$defs/ModelRequestParameters"
+            "S-5",
+            "S-13",
+            "S-15",
+            "S-27"
           ],
           "rebase_relation": null
         },
@@ -714,7 +741,7 @@
             "version": 1
           },
           "clauses": [
-            "$defs/FailureCause"
+            "S-17"
           ],
           "rebase_relation": null
         },
@@ -736,6 +763,7 @@
             "version": 1
           },
           "clauses": [
+            "S-11",
             "S-16",
             "S-31"
           ],
@@ -767,14 +795,30 @@
             "version": 1
           },
           "clauses": [
-            "$defs/ContentBlock",
-            "$defs/AttachmentRef",
-            "$defs/CapabilityId",
-            "$defs/Modality",
-            "$defs/MediaType",
-            "$defs/ExecutionOutcome",
-            "call_in_result",
-            "modalityOf"
+            "S-1",
+            "S-2",
+            "S-6",
+            "S-7",
+            "S-10",
+            "S-16",
+            "S-17",
+            "S-20",
+            "S-21",
+            "S-26"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.asset-model",
+            "version": 1
+          },
+          "clauses": [
+            "S-2",
+            "S-12",
+            "S-13",
+            "S-15"
           ],
           "rebase_relation": null
         }
@@ -807,6 +851,7 @@
             "S-3",
             "S-5",
             "S-6",
+            "S-8",
             "S-11",
             "S-12",
             "S-16",
@@ -901,10 +946,11 @@
             "version": 1
           },
           "clauses": [
-            "$defs/Message",
-            "$defs/SystemReminderMessage",
-            "$defs/AssistantMessage",
-            "$defs/CompactionMessage"
+            "S-1",
+            "S-9",
+            "S-15",
+            "S-27",
+            "S-37"
           ],
           "rebase_relation": null
         },
@@ -915,9 +961,10 @@
             "version": 1
           },
           "clauses": [
-            "$defs/ModelProfileRef",
-            "$defs/ModelRequestParameters",
-            "$defs/ProviderName"
+            "S-5",
+            "S-13",
+            "S-15",
+            "S-27"
           ],
           "rebase_relation": null
         },
@@ -928,10 +975,9 @@
             "version": 1
           },
           "clauses": [
-            "$defs/Usage",
-            "$defs/Cost",
-            "$defs/RunId",
-            "$defs/AttemptId"
+            "S-6",
+            "S-8",
+            "S-37"
           ],
           "rebase_relation": null
         },
@@ -942,8 +988,20 @@
             "version": 1
           },
           "clauses": [
-            "$defs/DependencyName",
-            "$defs/Duration"
+            "S-9",
+            "S-14"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.asset-model",
+            "version": 1
+          },
+          "clauses": [
+            "S-2",
+            "S-10"
           ],
           "rebase_relation": null
         }
@@ -1044,6 +1102,46 @@
             "S-20"
           ],
           "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "capability.asset-governance",
+            "version": 1
+          },
+          "clauses": [
+            "S-24",
+            "S-25",
+            "S-26",
+            "S-27",
+            "S-30",
+            "S-31",
+            "S-42",
+            "S-43",
+            "S-46",
+            "S-48"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.asset-model",
+            "version": 1
+          },
+          "clauses": [
+            "S-4",
+            "S-5",
+            "S-6",
+            "S-7",
+            "S-8",
+            "S-9",
+            "S-18",
+            "S-19",
+            "S-21",
+            "S-22"
+          ],
+          "rebase_relation": null
         }
       ]
     },
@@ -1112,6 +1210,29 @@
             "S-31"
           ],
           "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.call-accounts",
+            "version": 1
+          },
+          "clauses": [
+            "S-37"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.model-profile",
+            "version": 1
+          },
+          "clauses": [
+            "S-5",
+            "S-13"
+          ],
+          "rebase_relation": null
         }
       ]
     },
@@ -1159,10 +1280,7 @@
             "S-31",
             "S-32",
             "S-33",
-            "S-34",
-            "CS-1",
-            "CS-2",
-            "CS-5"
+            "S-34"
           ],
           "rebase_relation": null
         },
@@ -1188,6 +1306,101 @@
             "S-22",
             "S-26",
             "S-38"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.asset-model",
+            "version": 1
+          },
+          "clauses": [
+            "S-1",
+            "S-2",
+            "S-3",
+            "S-4",
+            "S-5",
+            "S-6",
+            "S-7",
+            "S-8",
+            "S-9",
+            "S-10",
+            "S-11",
+            "S-12",
+            "S-13",
+            "S-14",
+            "S-15",
+            "S-16",
+            "S-18",
+            "S-19",
+            "S-20",
+            "S-21",
+            "S-22",
+            "S-23",
+            "S-25",
+            "S-36"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.connector",
+            "version": 1
+          },
+          "clauses": [
+            "S-11"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.mcp-endpoint",
+            "version": 1
+          },
+          "clauses": [
+            "S-14",
+            "S-15"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.skill-package",
+            "version": 1
+          },
+          "clauses": [
+            "S-13",
+            "S-17"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.slash-command",
+            "version": 1
+          },
+          "clauses": [
+            "S-3",
+            "S-4",
+            "S-6",
+            "S-11"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.tool-definition",
+            "version": 1
+          },
+          "clauses": [
+            "S-16",
+            "S-31"
           ],
           "rebase_relation": null
         }
@@ -1229,6 +1442,47 @@
             "S-30",
             "S-32",
             "S-33"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.asset-model",
+            "version": 1
+          },
+          "clauses": [
+            "S-1",
+            "S-3",
+            "S-4",
+            "S-5",
+            "S-8",
+            "S-9",
+            "S-10",
+            "S-11",
+            "S-12",
+            "S-13",
+            "S-14",
+            "S-15",
+            "S-16",
+            "S-17",
+            "S-18",
+            "S-19",
+            "S-20",
+            "S-24",
+            "S-27",
+            "S-36"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.mcp-endpoint",
+            "version": 1
+          },
+          "clauses": [
+            "S-17"
           ],
           "rebase_relation": null
         }
@@ -1292,7 +1546,8 @@
             "S-8",
             "S-21",
             "S-23",
-            "S-26"
+            "S-26",
+            "S-34"
           ],
           "rebase_relation": null
         },
@@ -1399,8 +1654,10 @@
           "clauses": [
             "S-1",
             "S-5",
+            "S-10",
             "S-23",
-            "S-25"
+            "S-25",
+            "S-33"
           ],
           "rebase_relation": null
         },
@@ -1472,7 +1729,19 @@
             "S-15",
             "S-19",
             "S-20",
-            "S-27"
+            "S-27",
+            "S-37"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.loop-extension",
+            "version": 1
+          },
+          "clauses": [
+            "S-17"
           ],
           "rebase_relation": null
         }
@@ -1589,11 +1858,13 @@
           },
           "clauses": [
             "S-2",
+            "S-3",
             "S-9",
             "S-10",
             "S-12",
             "S-13",
-            "S-15"
+            "S-15",
+            "S-36"
           ],
           "rebase_relation": null
         },
@@ -1604,8 +1875,7 @@
             "version": 1
           },
           "clauses": [
-            "S-7",
-            "S-20"
+            "S-7"
           ],
           "rebase_relation": null
         },
@@ -1618,18 +1888,8 @@
           "clauses": [
             "S-9",
             "S-11",
-            "S-18"
-          ],
-          "rebase_relation": null
-        },
-        {
-          "coordinate": {
-            "baseline_id": "omne-harness-lite-design-2026-09-15",
-            "contract_id": "data.identity-values",
-            "version": 1
-          },
-          "clauses": [
-            "S-31"
+            "S-18",
+            "S-26"
           ],
           "rebase_relation": null
         }
@@ -1758,7 +2018,8 @@
             "S-5",
             "S-10",
             "S-12",
-            "S-15"
+            "S-15",
+            "S-36"
           ],
           "rebase_relation": null
         },
@@ -1780,8 +2041,18 @@
             "version": 1
           },
           "clauses": [
-            "S-8",
             "S-31"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.skill-package",
+            "version": 1
+          },
+          "clauses": [
+            "S-8"
           ],
           "rebase_relation": null
         }
@@ -1857,7 +2128,8 @@
           },
           "clauses": [
             "S-15",
-            "S-18"
+            "S-18",
+            "S-24"
           ],
           "rebase_relation": null
         },
@@ -1890,6 +2162,114 @@
             "S-33"
           ],
           "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "capability.asset-evaluation",
+            "version": 1
+          },
+          "clauses": [
+            "S-5",
+            "S-8",
+            "S-31",
+            "S-38",
+            "S-39"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "capability.asset-governance",
+            "version": 1
+          },
+          "clauses": [
+            "S-48"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "capability.mcp-bridge",
+            "version": 1
+          },
+          "clauses": [
+            "S-16",
+            "S-17"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "capability.modality-projection",
+            "version": 1
+          },
+          "clauses": [
+            "S-19"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "capability.tool-admission",
+            "version": 1
+          },
+          "clauses": [
+            "S-10"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.mcp-endpoint",
+            "version": 1
+          },
+          "clauses": [
+            "S-9",
+            "S-11"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.model-profile",
+            "version": 1
+          },
+          "clauses": [
+            "S-7"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.skill-package",
+            "version": 1
+          },
+          "clauses": [
+            "S-16"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.slash-command",
+            "version": 1
+          },
+          "clauses": [
+            "S-2",
+            "S-3",
+            "S-6",
+            "S-16"
+          ],
+          "rebase_relation": null
         }
       ]
     },
@@ -1917,6 +2297,7 @@
             "version": 1
           },
           "clauses": [
+            "S-2",
             "S-10",
             "S-12",
             "S-13",
@@ -1924,7 +2305,8 @@
             "S-15",
             "S-18",
             "S-20",
-            "S-23"
+            "S-23",
+            "S-36"
           ],
           "rebase_relation": null
         },
@@ -1947,7 +2329,6 @@
             "version": 1
           },
           "clauses": [
-            "S-8",
             "S-31",
             "S-33"
           ],
@@ -1991,16 +2372,6 @@
           "clauses": [
             "S-1",
             "S-3",
-            "S-4",
-            "S-5",
-            "S-6",
-            "S-7",
-            "S-8",
-            "S-9",
-            "S-10",
-            "S-11",
-            "S-12",
-            "S-13",
             "S-14",
             "S-17",
             "S-20",
@@ -2021,7 +2392,6 @@
             "S-8",
             "S-12",
             "S-15",
-            "S-16",
             "S-17",
             "S-20",
             "S-21",
@@ -2071,6 +2441,19 @@
             "S-30",
             "S-31",
             "S-33"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "capability.asset-evaluation",
+            "version": 1
+          },
+          "clauses": [
+            "S-5",
+            "S-17",
+            "S-40"
           ],
           "rebase_relation": null
         }
@@ -2201,6 +2584,59 @@
             "S-33"
           ],
           "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "capability.asset-evaluation",
+            "version": 1
+          },
+          "clauses": [
+            "S-8"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "capability.modality-projection",
+            "version": 1
+          },
+          "clauses": [
+            "S-20",
+            "S-22",
+            "S-23"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "capability.model-request-runtime",
+            "version": 1
+          },
+          "clauses": [
+            "S-24",
+            "S-30"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "capability.tool-admission",
+            "version": 1
+          },
+          "clauses": [
+            "S-12",
+            "S-14",
+            "S-21",
+            "S-23",
+            "S-28",
+            "S-29",
+            "S-31"
+          ],
+          "rebase_relation": null
         }
       ]
     },
@@ -2227,7 +2663,6 @@
             "version": 1
           },
           "clauses": [
-            "S-6",
             "S-9",
             "S-12",
             "S-13",
@@ -2319,6 +2754,18 @@
             "S-33"
           ],
           "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "capability.tool-admission",
+            "version": 1
+          },
+          "clauses": [
+            "S-15",
+            "S-28"
+          ],
+          "rebase_relation": null
         }
       ]
     },
@@ -2354,6 +2801,7 @@
             "S-12",
             "S-13",
             "S-14",
+            "S-18",
             "S-22",
             "S-24",
             "S-25",
@@ -2373,6 +2821,7 @@
             "S-10",
             "S-11",
             "S-12",
+            "S-15",
             "S-16",
             "S-17",
             "S-18",
@@ -2413,7 +2862,8 @@
             "version": 1
           },
           "clauses": [
-            "S-26"
+            "S-26",
+            "S-34"
           ],
           "rebase_relation": null
         }
@@ -2481,7 +2931,8 @@
             "S-18",
             "S-21",
             "S-24",
-            "S-25"
+            "S-25",
+            "S-27"
           ],
           "rebase_relation": null
         },
@@ -2539,7 +2990,9 @@
           "clauses": [
             "S-19",
             "S-20",
-            "S-37"
+            "S-37",
+            "S-38",
+            "S-39"
           ],
           "rebase_relation": null
         },
@@ -2552,6 +3005,7 @@
           "clauses": [
             "S-6",
             "S-13",
+            "S-20",
             "S-21"
           ],
           "rebase_relation": null
@@ -2566,7 +3020,9 @@
             "S-9",
             "S-10",
             "S-35",
-            "S-36"
+            "S-36",
+            "S-49",
+            "S-50"
           ],
           "rebase_relation": null
         },
@@ -2609,6 +3065,42 @@
           },
           "clauses": [
             "S-22"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "capability.asset-evaluation",
+            "version": 1
+          },
+          "clauses": [
+            "S-8",
+            "S-22",
+            "S-23"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "capability.modality-projection",
+            "version": 1
+          },
+          "clauses": [
+            "S-15",
+            "S-16"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "capability.stream-assembly",
+            "version": 1
+          },
+          "clauses": [
+            "S-16"
           ],
           "rebase_relation": null
         }
@@ -2673,7 +3165,9 @@
             "S-20",
             "S-21",
             "S-25",
-            "S-37"
+            "S-37",
+            "S-38",
+            "S-39"
           ],
           "rebase_relation": null
         },
@@ -2689,6 +3183,7 @@
             "S-13",
             "S-14",
             "S-19",
+            "S-21",
             "S-22",
             "S-30",
             "S-32"
@@ -2711,8 +3206,7 @@
             "S-22",
             "S-23",
             "S-24",
-            "S-25",
-            "CS-1"
+            "S-25"
           ],
           "rebase_relation": null
         },
@@ -2752,6 +3246,85 @@
             "S-30",
             "S-31",
             "S-33"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "capability.asset-registry",
+            "version": 1
+          },
+          "clauses": [
+            "S-8",
+            "S-9",
+            "S-10",
+            "S-11"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "capability.loop-extension-runner",
+            "version": 1
+          },
+          "clauses": [
+            "S-17",
+            "S-21"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "capability.mcp-bridge",
+            "version": 1
+          },
+          "clauses": [
+            "S-19",
+            "S-21",
+            "S-27"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "capability.stream-assembly",
+            "version": 1
+          },
+          "clauses": [
+            "S-18",
+            "S-19",
+            "S-20",
+            "S-21",
+            "S-22"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "capability.tool-admission",
+            "version": 1
+          },
+          "clauses": [
+            "S-16",
+            "S-25"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.arrival-events",
+            "version": 1
+          },
+          "clauses": [
+            "S-5",
+            "S-16",
+            "S-23"
           ],
           "rebase_relation": null
         }
