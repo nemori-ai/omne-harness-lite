@@ -67,7 +67,7 @@
 
     "LoopExtensionDefinition": {
       "title": "拓展件的声明 · Loop Extension",
-      "description": "S-6～S-10：一件拓展件（UL-loop-extension，第八类资产）的声明。name 是身份（能力标识 = 类别 loop_extension + name）；position 与 dimension 是绑定类设置的出厂值，power 是干预力这项权限的出厂值（定义给默认值，各层配值、运行时求值）；onError 缺席按求得的干预力取默认；needs 是依赖声明，缺席即不需要任何东西；implementation 说它是原生件还是兼容件。本版没有 order：同一位置的先后按装配清单的顺序。",
+      "description": "S-6～S-10：一件拓展件（UL-loop-extension，第八类资产）的声明。name 是身份（能力标识 = 类别 loop_extension + name）；position 与 dimension 是绑定类设置的出厂值，power 是干预力这项权限的出厂值（定义给默认值，各层配值、运行时求值）；onError 缺席按求得的干预力取默认；needs 是依赖声明，缺席即不需要任何东西；implementation 说它的实现是装配进来的（builtin）还是一条外部命令（command）。本版没有 order：同一位置的先后按装配清单的顺序。",
       "$comment": "additionalProperties: false 挡住 order、matcher 这类本版没有的成员（malformed）。策略不高于干预力：observe 只能声明 ignore，rewrite 不得声明 treat_as_veto——否则一件不能注入的件会在报错时注入、一件拦不住任何东西的件会在报错时拦下东西（malformed，S-5）。needs 用 minItems 1：「不需要任何东西」只有缺席这一种写法，不给空数组第二种写法。",
       "type": "object",
       "properties": {
@@ -112,25 +112,32 @@
 
     "ExtensionImplementation": {
       "title": "ExtensionImplementation",
-      "description": "S-8：原生件 { kind: native }，或兼容件 { kind: compat, host, event }。运行时只认本契约的统一输入与结论；兼容件是一件在两边翻译的拓展件——它把统一输入译成宿主（claude_code / codex）那一个事件的原生输入，把宿主的输出译回本契约的结论。事件映射表、定档依据与导入报告不在本契约（D-033 G1–G11）。",
-      "$comment": "event 是宿主那一侧的事件名（如 PreToolUse），本契约不解释它、不列清单。host 闭合，未知取值即 malformed。",
+      "description": "S-8：实现恰两种。builtin——实现随部署装配进来、在进程内执行，capability 是装配清单里这份实现的名字（系统自带的五件用提供它的那份能力契约的坐标，如 capability.tool-admission）；command——实现是一条外部命令（兼容件：Claude Code / Codex 的 command hook）：host 是那一家，dialect 是钉住的方言版本，event 是宿主那一侧的事件名，command 是宿主 handler 条目里的命令原样，matcher 原样、按那一家的方言求值（缺席即全匹配），timeout 缺席即那一家那一事件的默认。运行时只认本契约的统一输入与结论，command 件在两边翻译；事件映射表、定档依据、matcher 的求值与导入报告不在本契约（capability.hooks-import）。",
+      "$comment": "主线裁定 2026-09-23，待产品负责人确认（账本 S15-b：兼容件载荷的家）。event 不在账本列出的成员里，是对齐波保留的：导入一侧靠它从映射表取这一事件的情形筛选与原生输入的造法，缺了它一件 command 件译不出宿主的输入。旧的 native、compat 两个取值作废；host 与 kind 闭合，未知取值即 malformed。",
       "oneOf": [
         {
-          "title": "原生件",
+          "title": "装配进来的实现",
           "type": "object",
-          "properties": { "kind": { "const": "native" } },
-          "required": ["kind"],
+          "properties": {
+            "kind": { "const": "builtin" },
+            "capability": { "type": "string", "minLength": 1, "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])" }
+          },
+          "required": ["kind", "capability"],
           "additionalProperties": false
         },
         {
-          "title": "兼容件",
+          "title": "外部命令",
           "type": "object",
           "properties": {
-            "kind": { "const": "compat" },
+            "kind": { "const": "command" },
             "host": { "enum": ["claude_code", "codex"] },
-            "event": { "type": "string", "minLength": 1 }
+            "dialect": { "type": "string", "minLength": 1, "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])" },
+            "event": { "type": "string", "minLength": 1 },
+            "command": { "type": "string", "minLength": 1 },
+            "matcher": { "type": "string" },
+            "timeout": { "$ref": "../../tool-definition/v1/tool-definition.schema.json#/$defs/Duration" }
           },
-          "required": ["kind", "host", "event"],
+          "required": ["kind", "host", "dialect", "event", "command"],
           "additionalProperties": false
         }
       ]
@@ -148,7 +155,7 @@
 
     "FailureCause": {
       "title": "FailureCause",
-      "description": "S-17：一次模型调用故障的成因，恰八个，顺序照 PF-013 §5.7：withdrawn 已下架 · scope_disallowed 这个范围不再允许 · modality_mismatch 和会话里的模态对不上 · credential_unavailable 凭据不可用 · request_rejected 这次请求本身上游不接受 · upstream_unavailable 上游这会儿给不出回复 · interrupted_mid_reply 说到一半断了 · unrecognized 没认出来（兜底）。取值只按「谁能让它不再发生」分。被用户中断不是故障，不在这里。名字由本契约定，data.model-response 照抄。",
+      "description": "S-17：一次模型调用故障的成因，恰八个，顺序照 PF-013 §5.7：withdrawn 已下架 · scope_disallowed 这个范围不再允许 · modality_mismatch 和会话里的模态对不上 · credential_unavailable 凭据不可用 · request_rejected 这次请求本身上游不接受 · upstream_unavailable 上游这会儿给不出回复 · interrupted_mid_reply 说到一半断了 · unrecognized 没认出来（兜底）。取值只按「谁能让它不再发生」分。被用户中断不是故障，不在这里。名字由本契约定，data.model-response、data.arrival-events 以 $ref 取它。",
       "$comment": "上游状态码另外原样带着（AfterModelCallFailureSubject.statusCode），不翻译进成因。「upstream_unavailable 且试尽」是它作为上交成因时的附加条件；在 after_model_call{failure} 的输入里它只说这次失败是上游那边的事，是否试尽由那个位置上的拓展件判（S-17）。",
       "type": "string",
       "enum": [
@@ -192,7 +199,7 @@
 
     "ModelRequest": {
       "title": "ModelRequest",
-      "description": "S-15：调模型之前那个位置看得到的、已经攒好还没发出去的请求。本契约只定三个成员：target 这一次的有效模型（ModelProfileRef）、parameters 这一次要发出的请求参数、messages 组装出来的消息；其余成员不透明，形状的家在块 C（缺口 G-2）。可改的只有 parameters 与 messages（经 rewrite）；target 只经 select_model 改（S-23、S-24）。",
+      "description": "S-15：调模型之前那个位置看得到的、已经攒好还没发出去的请求，恰四个成员：target 这一次的有效模型（ModelProfileRef）、parameters 这一次要发出的请求参数（档案参数与此前改写合成的那一份）、messages 组装出来的消息、tools 这一次带给模型的工具条目（能力标识）。可改的只有 parameters 与 messages（经 rewrite）；target 只经 select_model 改；tools 不可改（S-23、S-24）。成员名与模型请求运行时收的调用请求逐字相同。",
       "type": "object",
       "properties": {
         "target": { "$ref": "../../model-profile/v1/model-profile.schema.json#/$defs/ModelProfileRef" },
@@ -200,9 +207,15 @@
         "messages": {
           "type": "array",
           "items": { "$ref": "../../messages/v1/messages.schema.json#/$defs/Message" }
+        },
+        "tools": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/CapabilityId" }
         }
       },
-      "required": ["target", "parameters", "messages"]
+      "required": ["target", "parameters", "messages", "tools"],
+      "additionalProperties": false
     },
 
     "ToolDefinitionRef": {
@@ -283,13 +296,19 @@
 
     "AfterModelCallFailureSubject": {
       "title": "调模型之后 · 失败",
-      "description": "failure 是这次故障的成因；statusCode 是上游返回的状态码，有才带、原样带，不翻译。",
+      "description": "failure 是这次故障的成因；statusCode 是上游返回的状态码，有才带、原样带，不翻译；profile 是这次调用绑定的档案快照（data.model-profile v1 的 ModelProfileSnapshot）；dispatches 是这次调用到此为止每一次发出的「已出门」记录（data.messages v1 的 ModelCallDispatchedRecord），按发出序号，含失败的这一次。重试件只凭这几样下结论，不现读目录。",
       "type": "object",
       "properties": {
         "failure": { "$ref": "#/$defs/FailureCause" },
-        "statusCode": { "type": "integer" }
+        "statusCode": { "type": "integer" },
+        "profile": { "$ref": "../../model-profile/v1/model-profile.schema.json#/$defs/ModelProfileSnapshot" },
+        "dispatches": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "../../messages/v1/messages.schema.json#/$defs/ModelCallDispatchedRecord" }
+        }
       },
-      "required": ["failure"],
+      "required": ["failure", "profile", "dispatches"],
       "additionalProperties": false
     },
 

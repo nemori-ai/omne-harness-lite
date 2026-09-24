@@ -42,21 +42,26 @@
 
 | 实例 | Schema | 拒绝值 | 依据 |
 |---|---|---|---|
-| `{"name": "prod-db-guard", "position": "before_action", "power": "veto", "implementation": {"kind": "native"}}` | 通过 | — | [S-6](contract.md#s-6-声明的成员与类别)：`onError` 缺席 → 按求得的干预力取默认 |
-| `{"name": "default-retry", "position": "after_model_call", "dimension": {"ending": "failure"}, "power": "rewrite", "implementation": {"kind": "native"}}` | 通过 | — | [S-2](contract.md#s-2-两个维度)、[S-27](contract.md#s-27-retry) |
-| `{"name": "result-offloader", "position": "after_action", "dimension": {"scope": "each"}, "power": "rewrite", "onError": "record", "implementation": {"kind": "native"}}` | 通过 | — | [S-5](contract.md#s-5-报错处置策略) |
-| `{"name": "cc-pretooluse-audit", "position": "before_action", "power": "observe", "implementation": {"kind": "compat", "host": "claude_code", "event": "PreToolUse"}}` | 通过 | — | [S-8](contract.md#s-8-原生件与兼容件) |
-| `{"name": "pii-scrubber", "position": "before_persist_message", "power": "rewrite", "needs": ["pii-detector"], "implementation": {"kind": "native"}}` | 通过 | — | [S-9](contract.md#s-9-依赖声明与不可用) |
-| `{"name": "prod-db-guard", "position": "before_action", "power": "veto", "order": 10, "implementation": {"kind": "native"}}` | 拒绝 | `malformed` | [S-10](contract.md#s-10-本版没有-order)：本版没有次序成员 |
-| `{"name": "prod-db-guard", "position": "before_action", "power": "veto", "implementation": {"kind": "native"}, "matcher": "shell"}` | 拒绝 | `malformed` | [S-3](contract.md#s-3-管哪些情形本版只有维度)：「情形」本版只有维度 |
-| `{"position": "before_action", "power": "veto", "implementation": {"kind": "native"}}` | 拒绝 | `malformed` | [S-7](contract.md#s-7-name-是身份)：没有身份就不是一件拓展件 |
+| `{"name": "prod-db-guard", "position": "before_action", "power": "veto", "implementation": {"kind": "command", "host": "claude_code", "dialect": "2.1.280", "event": "PreToolUse", "command": "./hooks/prod-db-guard.sh", "matcher": "Bash"}}` | 通过 | — | [S-6](contract.md#s-6-声明的成员与类别)：`onError` 缺席 → 按求得的干预力取默认 |
+| `{"name": "default-retry", "position": "after_model_call", "dimension": {"ending": "failure"}, "power": "rewrite", "implementation": {"kind": "builtin", "capability": "capability.model-request-runtime"}}` | 通过 | — | [S-2](contract.md#s-2-两个维度)、[S-27](contract.md#s-27-retry)、[S-8](contract.md#s-8-装配进来的实现与外部命令)：系统自带件是装配进来的 |
+| `{"name": "result-offloader", "position": "after_action", "dimension": {"scope": "each"}, "power": "rewrite", "onError": "record", "implementation": {"kind": "builtin", "capability": "result-offloader"}}` | 通过 | — | [S-5](contract.md#s-5-报错处置策略) |
+| `{"name": "cc-pretooluse-audit", "position": "before_action", "power": "observe", "implementation": {"kind": "command", "host": "claude_code", "dialect": "2.1.280", "event": "PreToolUse", "command": "audit-log"}}` | 通过 | — | [S-8](contract.md#s-8-装配进来的实现与外部命令)：`matcher`、`timeout` 缺席即全匹配、那一家那一事件的默认 |
+| `{"name": "codex-prompt-gate", "position": "before_persist_message", "power": "veto", "implementation": {"kind": "command", "host": "codex", "dialect": "5c5308fc", "event": "UserPromptSubmit", "command": "python3 gate.py", "timeout": "PT30S"}}` | 通过 | — | [S-8](contract.md#s-8-装配进来的实现与外部命令) |
+| `{"name": "pii-scrubber", "position": "before_persist_message", "power": "rewrite", "needs": ["pii-detector"], "implementation": {"kind": "builtin", "capability": "pii-scrubber"}}` | 通过 | — | [S-9](contract.md#s-9-依赖声明与不可用) |
+| `{"name": "prod-db-guard", "position": "before_action", "power": "veto", "order": 10, "implementation": {"kind": "command", "host": "claude_code", "dialect": "2.1.280", "event": "PreToolUse", "command": "./hooks/prod-db-guard.sh", "matcher": "Bash"}}` | 拒绝 | `malformed` | [S-10](contract.md#s-10-本版没有-order)：本版没有次序成员 |
+| `{"name": "prod-db-guard", "position": "before_action", "power": "veto", "implementation": {"kind": "command", "host": "claude_code", "dialect": "2.1.280", "event": "PreToolUse", "command": "./hooks/prod-db-guard.sh", "matcher": "Bash"}, "matcher": "Bash"}` | 拒绝 | `malformed` | [S-3](contract.md#s-3-管哪些情形本版只有维度)：「情形」本版只有维度；`matcher` 只在外部命令的实现里（[S-8](contract.md#s-8-装配进来的实现与外部命令)） |
+| `{"position": "before_action", "power": "veto", "implementation": {"kind": "command", "host": "claude_code", "dialect": "2.1.280", "event": "PreToolUse", "command": "./hooks/prod-db-guard.sh", "matcher": "Bash"}}` | 拒绝 | `malformed` | [S-7](contract.md#s-7-name-是身份)：没有身份就不是一件拓展件 |
 | `{"name": "g", "position": "before_action", "power": "veto"}` | 拒绝 | `malformed` | [S-6](contract.md#s-6-声明的成员与类别)：`implementation` 必有 |
-| `{"name": "g", "position": "before_action", "power": "observe", "onError": "treat_as_veto", "implementation": {"kind": "native"}}` | 拒绝 | `malformed` | [S-5](contract.md#s-5-报错处置策略)：拦不住东西的件不能在报错时拦下东西 |
-| `{"name": "g", "position": "after_persist_message", "power": "observe", "onError": "record", "implementation": {"kind": "native"}}` | 拒绝 | `malformed` | [S-5](contract.md#s-5-报错处置策略)：只观察的件不能在报错时往日志里注入提醒 |
-| `{"name": "g", "position": "after_persist_message", "power": "rewrite", "onError": "treat_as_veto", "implementation": {"kind": "native"}}` | 拒绝 | `malformed` | [S-5](contract.md#s-5-报错处置策略)：策略不高于干预力 |
-| `{"name": "g", "position": "before_action", "power": "veto", "needs": [], "implementation": {"kind": "native"}}` | 拒绝 | `malformed` | [S-9](contract.md#s-9-依赖声明与不可用)：「不需要」只有缺席这一种写法 |
-| `{"name": "g", "position": "before_action", "power": "veto", "implementation": {"kind": "compat", "host": "cursor", "event": "x"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-原生件与兼容件)：宿主闭合 |
-| `{"name": "g", "position": "before_action", "power": "veto", "implementation": {"kind": "compat", "host": "codex"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-原生件与兼容件)：兼容件必须说是宿主的哪一个事件 |
+| `{"name": "g", "position": "before_action", "power": "observe", "onError": "treat_as_veto", "implementation": {"kind": "builtin", "capability": "ext-g"}}` | 拒绝 | `malformed` | [S-5](contract.md#s-5-报错处置策略)：拦不住东西的件不能在报错时拦下东西 |
+| `{"name": "g", "position": "after_persist_message", "power": "observe", "onError": "record", "implementation": {"kind": "builtin", "capability": "ext-g"}}` | 拒绝 | `malformed` | [S-5](contract.md#s-5-报错处置策略)：只观察的件不能在报错时往日志里注入提醒 |
+| `{"name": "g", "position": "after_persist_message", "power": "rewrite", "onError": "treat_as_veto", "implementation": {"kind": "builtin", "capability": "ext-g"}}` | 拒绝 | `malformed` | [S-5](contract.md#s-5-报错处置策略)：策略不高于干预力 |
+| `{"name": "g", "position": "before_action", "power": "veto", "needs": [], "implementation": {"kind": "builtin", "capability": "ext-g"}}` | 拒绝 | `malformed` | [S-9](contract.md#s-9-依赖声明与不可用)：「不需要」只有缺席这一种写法 |
+| `{"name": "g", "position": "before_action", "power": "veto", "implementation": {"kind": "command", "host": "cursor", "dialect": "1.6", "event": "beforeShellExecution", "command": "a.sh"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-装配进来的实现与外部命令)：宿主闭合 |
+| `{"name": "g", "position": "before_action", "power": "veto", "implementation": {"kind": "command", "host": "codex", "dialect": "5c5308fc", "event": "PreToolUse"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-装配进来的实现与外部命令)：外部命令必带宿主条目里的命令原样 |
+| `{"name": "g", "position": "before_action", "power": "veto", "implementation": {"kind": "command", "host": "codex", "command": "a.sh"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-装配进来的实现与外部命令)：必须说是哪一家方言的哪一个事件 |
+| `{"name": "g", "position": "before_action", "power": "veto", "implementation": {"kind": "native"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-装配进来的实现与外部命令)：旧写法 `native` 作废 |
+| `{"name": "g", "position": "before_action", "power": "veto", "implementation": {"kind": "builtin"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-装配进来的实现与外部命令)：装配进来的实现必带名字 |
+| `{"name": "g", "position": "before_action", "power": "veto", "implementation": {"kind": "builtin", "capability": "ext-g", "host": "codex"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-装配进来的实现与外部命令)：两种实现的成员不混用 |
 
 ## 3. 输入
 
@@ -64,16 +69,18 @@
 
 | 实例 | Schema | 拒绝值 | 依据 |
 |---|---|---|---|
-| [EX-1 的输入](#ex-1-原生可否决件在执行动作之前出卡) | 通过 | — | [S-11](contract.md#s-11-输入的成员)、[S-14](contract.md#s-14-按位置的-subject) |
-| `{"position": "after_model_call", "dimension": {"ending": "failure"}, "run": "run_4c1e", "attempt": 2, "subject": {"failure": "upstream_unavailable", "statusCode": 503}, "earlier": [], "log": "log_77a0"}` | 通过 | — | [S-14](contract.md#s-14-按位置的-subject)、[S-17](contract.md#s-17-failurecause)：状态码原样带 |
+| [EX-1 的输入](#ex-1-可否决件在执行动作之前出卡) | 通过 | — | [S-11](contract.md#s-11-输入的成员)、[S-14](contract.md#s-14-按位置的-subject) |
+| `{"position": "after_model_call", "dimension": {"ending": "failure"}, "run": "run_4c1e", "attempt": 2, "subject": {"failure": "upstream_unavailable", "statusCode": 503, "profile": {"providers": ["provider-a", "provider-b"], "allowFallback": true, "inputModalities": ["text"], "outputModalities": ["text"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-23T08:00:00Z"}, "dispatches": [{"kind": "model_call_dispatched", "call": "mc_01", "dispatch": 1, "provider": "provider-a", "response": "rsp_01"}]}, "earlier": [], "log": "log_77a0"}` | 通过 | — | [S-14](contract.md#s-14-按位置的-subject)、[S-17](contract.md#s-17-failurecause)：状态码原样带；档案快照与已有的发出记录随主体给 |
+| `{"position": "after_model_call", "dimension": {"ending": "failure"}, "run": "run_4c1e", "attempt": 2, "subject": {"failure": "upstream_unavailable", "statusCode": 503, "dispatches": [{"kind": "model_call_dispatched", "call": "mc_01", "dispatch": 1, "provider": "provider-a", "response": "rsp_01"}]}, "earlier": [], "log": "log_77a0"}` | 拒绝 | `malformed` | [S-14](contract.md#s-14-按位置的-subject)：重试件只凭主体下结论，档案快照必带 |
+| `{"position": "after_model_call", "dimension": {"ending": "failure"}, "run": "run_4c1e", "attempt": 2, "subject": {"failure": "upstream_unavailable", "profile": {"providers": ["provider-a"], "allowFallback": false, "inputModalities": ["text"], "outputModalities": ["text"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-23T08:00:00Z"}, "dispatches": []}, "earlier": [], "log": "log_77a0"}` | 拒绝 | `malformed` | [S-14](contract.md#s-14-按位置的-subject)：失败了就至少发出过一次 |
 | `{"position": "before_terminal", "run": "run_4c1e", "attempt": 1, "subject": {"proposed": {"state": "completed"}}, "earlier": [], "log": "log_77a0"}` | 通过 | — | [S-18](contract.md#s-18-terminalfact) |
 | `{"position": "after_terminal", "run": "run_4c1e", "attempt": 1, "subject": {"terminal": {"state": "cancelled", "reason": "用户叫停", "initiator": "usr_a1"}}, "earlier": [], "log": "log_77a0"}` | 通过 | — | [S-18](contract.md#s-18-terminalfact)：被取消必带发起方（其表示是 [G-4](contract.md#十四已知缺口)） |
 | `{"position": "attempt_started", "run": "run_4c1e", "attempt": 3, "subject": {"attempt": 3}, "earlier": [], "log": "log_77a0"}` | 通过 | — | [S-12](contract.md#s-12-三个引用) |
 | `{"position": "before_persist_message", "run": "run_4c1e", "attempt": 1, "subject": {"message": {"id": "msg_1", "type": "user", "blocks": [], "createdAt": "2026-09-23T10:00:00Z"}, "producer": "user"}, "earlier": [], "log": "log_77a0"}` | 拒绝 | `malformed` | [S-11](contract.md#s-11-输入的成员)：消息落盘之前看不到有没有运行在跑，不带 `run`/`attempt` |
 | `{"position": "before_action", "subject": {"attempt": 1}, "earlier": [], "log": "log_77a0"}` | 拒绝 | `malformed` | [S-11](contract.md#s-11-输入的成员)：别的位置必带 `run`/`attempt`；[S-14](contract.md#s-14-按位置的-subject)：主体与位置对不上 |
-| `{"position": "after_model_call", "run": "run_4c1e", "attempt": 1, "subject": {"failure": "unrecognized"}, "earlier": [], "log": "log_77a0"}` | 拒绝 | `dimension_missing` | [S-2](contract.md#s-2-两个维度) |
-| `{"position": "after_model_call", "dimension": {"ending": "failure"}, "run": "run_4c1e", "attempt": 1, "subject": {"failure": "timeout"}, "earlier": [], "log": "log_77a0"}` | 拒绝 | `malformed` | [S-17](contract.md#s-17-failurecause)：成因只有八个，「超时」并进 `upstream_unavailable`，差在哪由状态码说 |
-| `{"position": "after_model_call", "dimension": {"ending": "failure"}, "run": "run_4c1e", "attempt": 1, "subject": {"failure": "interrupted_by_user"}, "earlier": [], "log": "log_77a0"}` | 拒绝 | `malformed` | [S-17](contract.md#s-17-failurecause)：被用户中断不是故障 |
+| `{"position": "after_model_call", "run": "run_4c1e", "attempt": 1, "subject": {"failure": "unrecognized", "profile": {"providers": ["provider-a", "provider-b"], "allowFallback": true, "inputModalities": ["text"], "outputModalities": ["text"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-23T08:00:00Z"}, "dispatches": [{"kind": "model_call_dispatched", "call": "mc_01", "dispatch": 1, "provider": "provider-a", "response": "rsp_01"}]}, "earlier": [], "log": "log_77a0"}` | 拒绝 | `dimension_missing` | [S-2](contract.md#s-2-两个维度) |
+| `{"position": "after_model_call", "dimension": {"ending": "failure"}, "run": "run_4c1e", "attempt": 1, "subject": {"failure": "timeout", "profile": {"providers": ["provider-a", "provider-b"], "allowFallback": true, "inputModalities": ["text"], "outputModalities": ["text"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-23T08:00:00Z"}, "dispatches": [{"kind": "model_call_dispatched", "call": "mc_01", "dispatch": 1, "provider": "provider-a", "response": "rsp_01"}]}, "earlier": [], "log": "log_77a0"}` | 拒绝 | `malformed` | [S-17](contract.md#s-17-failurecause)：成因只有八个，「超时」并进 `upstream_unavailable`，差在哪由状态码说 |
+| `{"position": "after_model_call", "dimension": {"ending": "failure"}, "run": "run_4c1e", "attempt": 1, "subject": {"failure": "interrupted_by_user", "profile": {"providers": ["provider-a", "provider-b"], "allowFallback": true, "inputModalities": ["text"], "outputModalities": ["text"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-23T08:00:00Z"}, "dispatches": [{"kind": "model_call_dispatched", "call": "mc_01", "dispatch": 1, "provider": "provider-a", "response": "rsp_01"}]}, "earlier": [], "log": "log_77a0"}` | 拒绝 | `malformed` | [S-17](contract.md#s-17-failurecause)：被用户中断不是故障 |
 | `{"position": "after_terminal", "run": "run_4c1e", "attempt": 1, "subject": {"terminal": {"state": "cancelled"}}, "earlier": [], "log": "log_77a0"}` | 拒绝 | `malformed` | [S-18](contract.md#s-18-terminalfact)：被取消之前必有一条取消请求，发起方是它的事实 |
 | `{"position": "after_terminal", "run": "run_4c1e", "attempt": 1, "subject": {"terminal": {"state": "waiting"}}, "earlier": [], "log": "log_77a0"}` | 拒绝 | `malformed` | [S-18](contract.md#s-18-terminalfact)：等人不是终态 |
 
@@ -108,7 +115,7 @@
 | `{"extension": "loop-guard-x", "position": "after_model_call", "dimension": {"ending": "complete_reply"}, "power": "veto", "skipped": "errored", "error": "detector crashed", "output": {"kind": "stop", "terminal": "failed", "reason": "拓展件报错，按 treat_as_veto 处置"}, "at": "2026-09-23T10:00:04Z"}` | 通过 | — | [S-5](contract.md#s-5-报错处置策略)：「之后」的位置没有可否决的状态点，fail-closed 就是运行落失败 |
 | `{"extension": "audit-tail", "position": "after_terminal", "power": "veto", "skipped": "errored", "error": "sink unreachable", "output": {"kind": "observed"}, "at": "2026-09-23T10:00:05Z"}` | 通过 | — | [S-5](contract.md#s-5-报错处置策略)：落终态之后三种策略都只落 `observed` |
 | `{"extension": "loop-guard-x", "position": "after_model_call", "dimension": {"ending": "complete_reply"}, "power": "veto", "skipped": "errored", "error": "detector crashed", "output": {"kind": "stop", "reason": "拓展件报错"}, "at": "2026-09-23T10:00:04Z"}` | 拒绝 | `malformed` | [S-5](contract.md#s-5-报错处置策略)：报错处置落的 `stop` 只能是 `failed`——不替运行编一条取消请求 |
-| `{"extension": "g", "position": "before_model_call", "power": "rewrite", "skipped": "errored", "error": "boom", "output": {"kind": "rewrite", "subject": {"request": {"target": {"origin": "official", "routeName": "m"}, "parameters": {}, "messages": []}}}, "at": "2026-09-23T10:00:00Z"}` | 拒绝 | `malformed` | [S-5](contract.md#s-5-报错处置策略)：处置策略落不下 `rewrite` |
+| `{"extension": "g", "position": "before_model_call", "power": "rewrite", "skipped": "errored", "error": "boom", "output": {"kind": "rewrite", "subject": {"request": {"target": {"origin": "official", "routeName": "m"}, "parameters": {}, "messages": [], "tools": []}}}, "at": "2026-09-23T10:00:00Z"}` | 拒绝 | `malformed` | [S-5](contract.md#s-5-报错处置策略)：处置策略落不下 `rewrite` |
 | `{"extension": "pii-scrubber", "position": "before_persist_message", "power": "rewrite", "skipped": "unavailable", "output": {"kind": "observed"}, "at": "2026-09-23T10:00:00Z"}` | 拒绝 | `malformed` | [S-31](contract.md#s-31-三种记录形状)：不替一件没跑的东西编结论 |
 | `{"extension": "g", "position": "before_action", "power": "veto", "callId": "call_01", "skipped": "errored", "output": {"kind": "veto", "reason": "x"}, "at": "2026-09-23T10:00:00Z"}` | 拒绝 | `malformed` | [S-31](contract.md#s-31-三种记录形状)：报错必带 `error` |
 | `{"extension": "g", "position": "before_action", "power": "veto", "output": {"kind": "observed"}, "at": "2026-09-23T10:00:00Z"}` | 拒绝 | `malformed` | [S-30](contract.md#s-30-每件的结论必留)：执行动作之前的结论要说是为哪个动作 |
@@ -117,9 +124,9 @@
 
 ## 6. 四个完整走查
 
-### EX-1 原生可否决件在执行动作之前出卡
+### EX-1 可否决件在执行动作之前出卡
 
-一件租户自己写的「生产库操作先问人」：原生件、可否决、挂在执行动作之前。这一批模型要做两个动作，`call_01` 撞上它。
+一件「生产库操作先问人」：从 Claude Code 导入的一条 `PreToolUse` command hook、可否决、挂在执行动作之前。这一批模型要做两个动作，`call_01` 撞上它。
 
 **声明**：
 
@@ -128,7 +135,10 @@
   "name": "prod-db-guard",
   "position": "before_action",
   "power": "veto",
-  "implementation": { "kind": "native" }
+  "implementation": {
+    "kind": "command", "host": "claude_code", "dialect": "2.1.280",
+    "event": "PreToolUse", "command": "./hooks/prod-db-guard.sh", "matcher": "Bash"
+  }
 }
 ```
 
@@ -226,10 +236,10 @@
 }
 ```
 
-> 这一支正是 [G-13](contract.md#十四已知缺口) 那条性质要守的：若放行判断排在它**之前**、已经据原参数判过，改写之后「判的」与「执行的」就不是同一份。
-> 本走查把它排在第一个，所以放行判断看到的是改写后的那一份——**这是装配清单给的次序，不是本契约保证的**。
+> 这一支正是放行判断钉在 `before_action` 末位要守的（[S-10](contract.md#s-10-本版没有-order)）：若放行判断排在它**之前**、已经据原参数判过，改写之后「判的」与「执行的」就不是同一份。
+> 放行判断在末位，所以它看到的一定是改写后的那一份。
 
-### EX-2 兼容件
+### EX-2 外部命令件只观察
 
 一件从 Claude Code 导入的 `PreToolUse` hook，只做审计，导入时定档为只观察：
 
@@ -238,7 +248,10 @@
   "name": "cc-pretooluse-audit",
   "position": "before_action",
   "power": "observe",
-  "implementation": { "kind": "compat", "host": "claude_code", "event": "PreToolUse" }
+  "implementation": {
+    "kind": "command", "host": "claude_code", "dialect": "2.1.280",
+    "event": "PreToolUse", "command": "audit-log"
+  }
 }
 ```
 
@@ -268,7 +281,7 @@ hook 进程超时、崩溃：按 [S-33](contract.md#s-33-不可用与报错两�
   "name": "cheap-router",
   "position": "before_model_call",
   "power": "rewrite",
-  "implementation": { "kind": "native" }
+  "implementation": { "kind": "builtin", "capability": "cheap-router" }
 }
 ```
 
@@ -303,11 +316,11 @@ hook 进程超时、崩溃：按 [S-33](contract.md#s-33-不可用与报错两�
   "position": "after_model_call",
   "dimension": { "ending": "failure" },
   "power": "rewrite",
-  "implementation": { "kind": "native" }
+  "implementation": { "kind": "builtin", "capability": "capability.model-request-runtime" }
 }
 ```
 
-输入的主体是 `{"failure": "upstream_unavailable", "statusCode": 503}`。它照档案「允许的供应商及次序」换下一家、退避两秒：
+输入的主体是 `{"failure": "upstream_unavailable", "statusCode": 503, "profile": …, "dispatches": [ …provider-a 那一次… ]}`（快照与发出记录的形状见 §3 第二行）。它照快照里的 `providers` 与已有的发出记录换下一家、退避两秒：
 
 ```json
 {
@@ -331,11 +344,11 @@ hook 进程超时、崩溃：按 [S-33](contract.md#s-33-不可用与报错两�
 
 | # | 拒绝值 | 校验对象 | 实例 | Schema | 为什么是这个值而不是更靠前的 |
 |---|---|---|---|---|---|
-| 1 | `malformed` | `LoopExtensionDefinition` | `{"name": "g", "position": "before_action", "power": "veto", "order": 1, "implementation": {"kind": "native"}}` | 拒绝 | 多了成员，第一行就命中 |
-| 2 | `position_unknown` | `LoopExtensionDefinition` | `{"name": "g", "position": "before_assembly", "power": "veto", "implementation": {"kind": "native"}}` | 拒绝 | 形状完整，只是位置不在十一个里 |
-| 3 | `power_unknown` | `LoopExtensionDefinition` | `{"name": "g", "position": "before_action", "power": "relax", "implementation": {"kind": "native"}}` | 拒绝 | 没有「放宽」这一档（[S-4](contract.md#s-4-干预力三档)） |
-| 4 | `dimension_missing` | `LoopExtensionDefinition` | `{"name": "g", "position": "after_action", "power": "rewrite", "implementation": {"kind": "native"}}` | 拒绝 | 缺席不读作「两种都管」（[S-2](contract.md#s-2-两个维度)） |
-| 5 | `dimension_not_allowed` | `LoopExtensionDefinition` | `{"name": "g", "position": "before_action", "dimension": {"scope": "each"}, "power": "veto", "implementation": {"kind": "native"}}` | 拒绝 | 执行动作之前不带维度 |
+| 1 | `malformed` | `LoopExtensionDefinition` | `{"name": "g", "position": "before_action", "power": "veto", "order": 1, "implementation": {"kind": "builtin", "capability": "ext-g"}}` | 拒绝 | 多了成员，第一行就命中 |
+| 2 | `position_unknown` | `LoopExtensionDefinition` | `{"name": "g", "position": "before_assembly", "power": "veto", "implementation": {"kind": "builtin", "capability": "ext-g"}}` | 拒绝 | 形状完整，只是位置不在十一个里 |
+| 3 | `power_unknown` | `LoopExtensionDefinition` | `{"name": "g", "position": "before_action", "power": "relax", "implementation": {"kind": "builtin", "capability": "ext-g"}}` | 拒绝 | 没有「放宽」这一档（[S-4](contract.md#s-4-干预力三档)） |
+| 4 | `dimension_missing` | `LoopExtensionDefinition` | `{"name": "g", "position": "after_action", "power": "rewrite", "implementation": {"kind": "builtin", "capability": "ext-g"}}` | 拒绝 | 缺席不读作「两种都管」（[S-2](contract.md#s-2-两个维度)） |
+| 5 | `dimension_not_allowed` | `LoopExtensionDefinition` | `{"name": "g", "position": "before_action", "dimension": {"scope": "each"}, "power": "veto", "implementation": {"kind": "builtin", "capability": "ext-g"}}` | 拒绝 | 执行动作之前不带维度 |
 | 6 | `output_not_allowed_for_power` | `Conclusion` | `{"extension": "g", "position": "before_action", "power": "rewrite", "callId": "call_01", "output": {"kind": "veto", "reason": "x"}, "at": "2026-09-23T10:00:00Z"}` | 拒绝 | 位置允许 `veto`，档不允许（[S-20](contract.md#s-20-档与结论的合法组合)） |
 | 7 | `ask_at_forbidden_position` | `Conclusion` | `{"extension": "g", "position": "before_persist_message", "power": "veto", "output": {"kind": "ask", "card": {"explanation": "要不要收下这条？", "options": [{"id": "y", "label": "收"}], "about": {"position": "before_persist_message"}}}, "at": "2026-09-23T10:00:00Z"}` | 拒绝 | 档允许 `ask`；这个位置等不了——比第 8 行更具体，先给它 |
 | 8 | `output_not_allowed_at_position` | `Conclusion` | `{"extension": "g", "position": "after_action", "dimension": {"scope": "each"}, "power": "veto", "callId": "call_01", "output": {"kind": "veto", "reason": "x"}, "at": "2026-09-23T10:00:00Z"}` | 拒绝 | 档允许 `veto`；执行动作之后那一批动作已经对外发生了（[S-21](contract.md#s-21-位置与结论的合法组合)） |

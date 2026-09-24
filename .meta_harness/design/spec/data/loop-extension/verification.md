@@ -3,15 +3,14 @@
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
 > **当前状态：未开始。**`data.loop-extension` v1 是 `candidate`（2026-09-23 起草），未接受、未冻结；尚无提供者设计、无源码、无装配。
-> 下表登记的是**已经触发的证据义务**，不是已完成的检查。**一条都没有执行过**——
-> 本轮连 Schema 形状自检都没有跑：五份被引用的同批契约还不在本分支上，`$ref` 解析不了，正反实例无从求值。
+> 下表登记的是**已经触发的证据义务**，不是已完成的检查。起草时一条都没有执行过；**整批对齐（2026-09-24）跑过一次 V-1 的本地自检**（见[本节末](#2026-09-24-整批对齐候选未冻结)），其余义务仍未开始。
 > **两张合法组合表与 Schema 的逐格对照是人工比对**（[`examples.md` 第 9 节](v1/examples.md#9-两张合法组合表与-schema-逐格对照)），**不是机检**。
 
 ## 证据义务
 
 | # | 义务 | 证据形式 | 覆盖哪些条款 | 实际状态 |
 |---|---|---|---|---|
-| V-1 | **形状校验**：[`examples.md`](v1/examples.md) 第 1～5、7 节的正反实例逐条过 Schema，「Schema」列逐条比对；第 6 节四个走查里的 JSON 同样过对应的 `$defs` | Draft 2020-12 校验器 ＋ 按节绑定的 `$defs`；**前提：五份同批契约 v1 已定型并在同一棵设计树里** | [S-1](v1/contract.md#s-1-十一个位置)、[S-2](v1/contract.md#s-2-两个维度)、[S-4](v1/contract.md#s-4-干预力三档)～[S-18](v1/contract.md#s-18-terminalfact)、[S-19](v1/contract.md#s-19-结论封闭八种)、[S-22](v1/contract.md#s-22-inject)～[S-28](v1/contract.md#s-28-ask)、[S-30](v1/contract.md#s-30-每件的结论必留)、[S-31](v1/contract.md#s-31-三种记录形状)、[S-36](v1/contract.md#s-36-规范表示与定义项)、[S-39](v1/contract.md#s-39-判别式与枚举闭合) 的**形状那一面** | **未开始**，被同批契约的缺席阻断 |
+| V-1 | **形状校验**：[`examples.md`](v1/examples.md) 第 1～5、7 节的正反实例逐条过 Schema，「Schema」列逐条比对；第 6 节四个走查里的 JSON 同样过对应的 `$defs` | Draft 2020-12 校验器 ＋ 按节绑定的 `$defs`；**前提：五份同批契约 v1 已定型并在同一棵设计树里** | [S-1](v1/contract.md#s-1-十一个位置)、[S-2](v1/contract.md#s-2-两个维度)、[S-4](v1/contract.md#s-4-干预力三档)～[S-18](v1/contract.md#s-18-terminalfact)、[S-19](v1/contract.md#s-19-结论封闭八种)、[S-22](v1/contract.md#s-22-inject)～[S-28](v1/contract.md#s-28-ask)、[S-30](v1/contract.md#s-30-每件的结论必留)、[S-31](v1/contract.md#s-31-三种记录形状)、[S-36](v1/contract.md#s-36-规范表示与定义项)、[S-39](v1/contract.md#s-39-判别式与枚举闭合) 的**形状那一面** | **本地自检已跑一次**（整批对齐，2026-09-24）：82 行 ＋ 第 6 节 11 个 JSON 块，0 处不符；**只判形状、不判拒绝值是哪一个**，也不是评审或接受 |
 | V-2 | **两张合法组合表机检**：对 13 个位置（含维度）× 8 种结论 × 3 档逐一构造 `Conclusion`，比对 Schema 结果与 [S-20](v1/contract.md#s-20-档与结论的合法组合)、[S-21](v1/contract.md#s-21-位置与结论的合法组合) 的 ✓/✗，并比对拒绝值次序（[S-37](v1/contract.md#s-37-表示层拒绝值)） | 生成式校验（312 格）＋ Draft 2020-12 校验器 | S-20、S-21、S-37 | **只做了人工逐格比对**（examples 第 9 节）；机检**未开始**，同样被 V-1 的前提阻断 |
 | V-3 | **回放一致**（[PF-012 §6.9](../../../product/PF-012-agent-loop-and-run/design.md#69-拓展件只能靠改日志起作用) 的验收办法）：把一件拓展件上次的结论留在日志里重算，下一步相同；停在 `ask` 的那一件回放到出卡处，**不出第二张卡、不再调模型** | 规范场景演练，**归 runner** | [S-32](v1/contract.md#s-32-结论即走向)、[S-35](v1/contract.md#s-35-跨过一次等待只能带已落日志的东西) | **未开始**；需要 runner 提供者。本契约只登记它已触发 |
 | V-4 | **不可用 ≠ 报错 ≠ 否决，三种策略各落其位**：让一件可否决件的依赖不在场，观察记的是 `skipped: unavailable`、瀑布跳过它、**这一关没有被当成否决**；再让它报错，观察在「之前」的位置落 `veto`、在「之后」的位置落 `stop{ terminal: failed }` 且运行落失败、在 `after_terminal` 落 `observed`，`error` 都可见；让一件可改写件报错，观察 `record` 落了一条以它名义的「没跑成」提醒、下一次组装看得到；`ignore` 对 agent 没有任何效果 | 规范场景 ＋ 故障注入 | [S-5](v1/contract.md#s-5-报错处置策略)、[S-9](v1/contract.md#s-9-依赖声明与不可用)、[S-26](v1/contract.md#s-26-stop)、[S-31](v1/contract.md#s-31-三种记录形状)、[S-33](v1/contract.md#s-33-不可用与报错两分) | **未开始**。这条最容易被一个 `catch { return observed }` 抹掉，**必须真跑** |
@@ -95,3 +94,28 @@
   **本版的一切证据只保留其单机范围，不得外推。**
 
 结果不改写规范。发现语义问题回到来源设计（PF-012／PF-013／PF-008／PF-002／PF-014），不在这里改契约。
+
+### 2026-09-24 整批对齐（候选，未冻结）
+
+整批对齐波（简报 S23）原地改 v1。依据行写「主线裁定 2026-09-23，待产品负责人确认」的，出处在主线的裁定清单（账本 S15-b、S15-e、S16-c、S17-c、C-7、C-9、C-R1、RP-33）。
+
+| 改了什么 | 条款 | Schema | 实例 |
+|---|---|---|---|
+| `implementation` 改为 `builtin{capability}` 与 `command{host, dialect, event, command, matcher?, timeout?}` 二选一，兼容件的载荷有了家；`native`、`compat` 作废；`event` 保留（账本 S15-b 未列，已报主线） | S-8（改名「装配进来的实现与外部命令」）、S-6、消费者表、S-37 第 1 行 | `ExtensionImplementation` | 第 2 节改 14 行、加 6 行；EX-1～EX-4 的声明 |
+| 两处末位：放行判断在 `before_action` 末位、模态转换件在 `before_persist_message` 末位；G-13 关闭 | S-10、S-23、第十四节 | — | EX-1 注 |
+| `ModelRequest` 恰四个成员，加 `tools`（`CapabilityId[]`，不可改），成员名与 `ModelCallRequest` 逐字相同；G-2 关闭 | S-15、S-23 | `ModelRequest` | 第 5 节一行补 `tools` |
+| `after_model_call{failure}` 的主体加 `profile`（`ModelProfileSnapshot`）与 `dispatches`（`ModelCallDispatchedRecord[]`，至少一条） | S-14 | `AfterModelCallFailureSubject` | 第 3 节四行补齐、加两行反例；EX-4 |
+| 模型产出的消息落盘之前只开放否决，另许系统模态转换件挂派生表示 | S-23、五件表 | —（Schema 管不到，判定在 runner S-14 ②） | — |
+| `before_model_call` 的否决 = 不发且运行落终态「失败」 | S-25 | — | — |
+| `retry` 只有 `provider`、`after`；不承诺自定义重试件会停 | S-27 | — | — |
+| 答复之后可以再出一轮 `ask`；放行判断四档选项由 tool-admission S-15 定 | S-28、G-6 收窄 | — | — |
+| 系统自带五件不可用不照「视作卸载」，指向 runner S-17 | S-33、五件表 | — | — |
+| 放行判断整批求值与放行凭据的交出不在本契约形状里（推导，已报主线） | S-14 逐行补充 | — | — |
+| G-3、G-17 由 runner S-9、S-30 关闭；G-16 注明 messages S-3 的写入方铸号 | 第十二、十四节 | — | — |
+| `FailureCause` 的下游改为 `$ref`（model-response、arrival-events） | S-17、消费者表 | 描述 | — |
+
+**本地自检**（Draft 2020-12，`jsonschema` 按仓库 `uv.lock`；脚本在任务暂存区、不入库）：以对齐后的整棵设计树的全部 Schema 建 registry，
+`examples.md` 第 1～5、7、8 节 82 行（预期通过 25、拒绝 57）逐行按所在节的 `$defs` 求值，**0 处不符**；第 6 节 11 个 JSON 块各自恰过一种 `$defs`（声明 4、输入 1、结论 6）。
+**只判 Schema 通过与否**：拒绝值是哪一个、「逐值相同」「来自系统转换件」这类对照输入的判定不在内。V-2（312 格机检）仍未开始。
+
+**对证据的影响**：没有既有证据失效；V-1 的前提（同批契约在同一棵树里）在对齐分支上成立。
