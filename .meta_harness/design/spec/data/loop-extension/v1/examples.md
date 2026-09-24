@@ -12,7 +12,7 @@
 
 - **`通过` 只说形状合规**，不说任何判定成立——一条合法的 `select_model` 仍要过合法目标集合（[S-24](contract.md#s-24-select_model)）。
 - **示例里的标识串只是占位**，不要从 `run_`、`call_` 这样的前缀推出任何规则。
-- **引到并行契约的部分**（块、消息、档案引用、账、依赖名、时长）按各自简报账本里的形状写，**那几份定型之前这些实例不能机检**；
+- **引到并行契约的部分**（块、消息、路由名、账、依赖名、时长）按各自简报账本里的形状写，**那几份定型之前这些实例不能机检**；
   定型之后要按它们的 `$defs` 复核一遍（[验证入口 V-1](../verification.md#证据义务)）。
 
 ## 1. 位置与维度
@@ -115,7 +115,7 @@
 | `{"extension": "loop-guard-x", "position": "after_model_call", "dimension": {"ending": "complete_reply"}, "power": "veto", "skipped": "errored", "error": "detector crashed", "output": {"kind": "stop", "terminal": "failed", "reason": "拓展件报错，按 treat_as_veto 处置"}, "at": "2026-09-23T10:00:04Z"}` | 通过 | — | [S-5](contract.md#s-5-报错处置策略)：「之后」的位置没有可否决的状态点，fail-closed 就是运行落失败 |
 | `{"extension": "audit-tail", "position": "after_terminal", "power": "veto", "skipped": "errored", "error": "sink unreachable", "output": {"kind": "observed"}, "at": "2026-09-23T10:00:05Z"}` | 通过 | — | [S-5](contract.md#s-5-报错处置策略)：落终态之后三种策略都只落 `observed` |
 | `{"extension": "loop-guard-x", "position": "after_model_call", "dimension": {"ending": "complete_reply"}, "power": "veto", "skipped": "errored", "error": "detector crashed", "output": {"kind": "stop", "reason": "拓展件报错"}, "at": "2026-09-23T10:00:04Z"}` | 拒绝 | `malformed` | [S-5](contract.md#s-5-报错处置策略)：报错处置落的 `stop` 只能是 `failed`——不替运行编一条取消请求 |
-| `{"extension": "g", "position": "before_model_call", "power": "rewrite", "skipped": "errored", "error": "boom", "output": {"kind": "rewrite", "subject": {"request": {"target": {"origin": "official", "routeName": "m"}, "parameters": {}, "messages": [], "tools": []}}}, "at": "2026-09-23T10:00:00Z"}` | 拒绝 | `malformed` | [S-5](contract.md#s-5-报错处置策略)：处置策略落不下 `rewrite` |
+| `{"extension": "g", "position": "before_model_call", "power": "rewrite", "skipped": "errored", "error": "boom", "output": {"kind": "rewrite", "subject": {"request": {"target": "m", "parameters": {}, "messages": [], "tools": []}}}, "at": "2026-09-23T10:00:00Z"}` | 拒绝 | `malformed` | [S-5](contract.md#s-5-报错处置策略)：处置策略落不下 `rewrite` |
 | `{"extension": "pii-scrubber", "position": "before_persist_message", "power": "rewrite", "skipped": "unavailable", "output": {"kind": "observed"}, "at": "2026-09-23T10:00:00Z"}` | 拒绝 | `malformed` | [S-31](contract.md#s-31-三种记录形状)：不替一件没跑的东西编结论 |
 | `{"extension": "g", "position": "before_action", "power": "veto", "callId": "call_01", "skipped": "errored", "output": {"kind": "veto", "reason": "x"}, "at": "2026-09-23T10:00:00Z"}` | 拒绝 | `malformed` | [S-31](contract.md#s-31-三种记录形状)：报错必带 `error` |
 | `{"extension": "g", "position": "before_action", "power": "veto", "output": {"kind": "observed"}, "at": "2026-09-23T10:00:00Z"}` | 拒绝 | `malformed` | [S-30](contract.md#s-30-每件的结论必留)：执行动作之前的结论要说是为哪个动作 |
@@ -294,7 +294,7 @@ hook 进程超时、崩溃：按 [S-33](contract.md#s-33-不可用与报错两�
   "power": "rewrite",
   "output": {
     "kind": "select_model",
-    "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "fast-small" },
+    "profile": "fast-small",
     "reason": "上一条用户消息少于 40 字且不含附件"
   },
   "at": "2026-09-23T10:00:00Z"
@@ -303,8 +303,8 @@ hook 进程超时、崩溃：按 [S-33](contract.md#s-33-不可用与报错两�
 
 - `profile` 要在这一次的合法目标集合里——**判定归能力**；不在，这一次按 [S-34](contract.md#s-34-不合法的结论按报错处置) 记成报错，处置按 `record`（本件是可改写档）：落一条以本件名义的「本件这一次没跑成」提醒（`output` 为 `inject`），请求照原有效模型发出——注入之后日志变了，请求要重新组装，但不再回到这个位置（[S-22](contract.md#s-22-inject)）。
 - 选中模型不变；这一次的响应体 `route.selectedBy` 记 `{ "extension": "cheap-router" }`。
-- 瀑布里排在它后面的件拿到的 `request.target` 是 `fast-small` 这一条（[S-13](contract.md#s-13-瀑布里的-subject-与-earlier)）。
-- `ModelProfileRef` 的形状按 `data.model-profile` v1 候选（HUB 上已合入的那一稿）写：自建档案那一支 `{ origin: custom, scope, routeName }`；它再改结构，这里跟着改。
+- 瀑布里排在它后面的件拿到的 `request.target` 是 `fast-small` 这个名字（[S-13](contract.md#s-13-瀑布里的-subject-与-earlier)）。
+- `profile` 是一个路由名（`data.model-profile` v1 的 `RouteName`，PF-013 rev 12），不是某一格某一行：这一次落到哪一行——比如组织层自建的那条 `fast-small`，或租户层把它盖住的同名那条——由模型请求运行时按层覆盖解析，那一行记在响应体的 `route.profile`。
 
 ### EX-4 retry
 
@@ -383,7 +383,7 @@ hook 进程超时、崩溃：按 [S-33](contract.md#s-33-不可用与报错两�
 | `rewrite` 在 `before_model_call` 改了 `request.target` | [S-15](contract.md#s-15-modelrequest)：`target` 只经 `select_model` |
 | 拓展件在等人之前把一个计数器放在内存里，回来接着用 | [S-35](contract.md#s-35-跨过一次等待只能带已落日志的东西) |
 | 交回的结论没落成记录就被状态转移表用了 | [S-32](contract.md#s-32-结论即走向) |
-| 一条 `select_model` 指向一条收不下会话里图块的档案，被照样发出 | [S-24](contract.md#s-24-select_model)：判定归能力，不在合法目标集合里即不生效 |
+| 一条 `select_model` 换上的名字落到一条收不下会话里图块的档案，被照样发出 | [S-24](contract.md#s-24-select_model)：判定归能力，不在合法目标集合里即不生效 |
 
 ## 9. 两张合法组合表与 Schema 逐格对照
 

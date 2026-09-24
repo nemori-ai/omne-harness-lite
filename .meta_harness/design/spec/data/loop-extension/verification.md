@@ -62,7 +62,7 @@
   |---|---|---|---|
   | `data.content-blocks` v1 | `ToolCallBlock`、`ToolResultBlock`、`CallId`、`ExecutionOutcome`、`CapabilityId/properties/name` | S-7、S-14、S-23、S-28、S-30 | 在它自己的分支上已有草稿（按其草稿 `204d078`：S-12 完整的工具调用、S-14 CallId、S-15 工具结果块、S-17 六种收场、S-20 能力标识，**catalog 按这五个条款号登记**，它评审改号时要跟着改）；`CapabilityId.name` 用 JSON 指针引到成员一级，它改结构即失效 |
   | `data.messages` v1 | `Message`、`SystemReminderMessage`、`AssistantMessage`、`CompactionMessage` | S-14、S-15、S-22 | 第二波起草中；`SystemReminderMessage.source` 的 `{ kind: extension, extension }` 形状按其简报账本假定。catalog 暂登 `$defs/<名>` |
-  | `data.model-profile` v1 | `ModelProfileRef`、`ModelRequestParameters`、`ProviderName` | S-15、S-24、S-27 | 并行起草中。catalog 暂登 `$defs/<名>` |
+  | `data.model-profile` v1 | `RouteName`（2026-09-24 起，原为 `ModelProfileRef`）、`ModelRequestParameters`、`ProviderName` | S-15、S-24、S-27 | 并行起草中。catalog 暂登 `$defs/<名>` |
   | `data.call-accounts` v1 | `Usage`、`Cost`、`RunId`、`AttemptId` | S-12、S-14 | 主线裁定 2026-09-23 把 `RunId`、`AttemptId`（整数序号）的家定在那里；HUB `3b99594a` 上合入的那一稿已有这两项（它的 S-37）。本分支的基线上那份契约整份缺席，所以本 Schema 的这三处 `$ref`（`ExtensionInput.run`、`ExtensionInput.attempt`、`AttemptStartedSubject.attempt`）在本分支解析不了。catalog 暂登 `$defs/<名>` |
   | `data.tool-definition` v1 | `DependencyName`、`Duration` | S-9、S-27 | 并行起草中；**起草简报的依赖清单没有这一项**，本契约为不另立同义定义而引它。catalog 暂登 `$defs/<名>` |
 
@@ -120,6 +120,14 @@
 **只判 Schema 通过与否**：拒绝值是哪一个、「逐值相同」「来自系统转换件」这类对照输入的判定不在内。V-2（312 格机检）仍未开始。
 
 **对证据的影响**：没有既有证据失效；V-1 的前提（同批契约在同一棵树里）在对齐分支上成立。
+
+### 2026-09-24 PF-013 rev 12「用哪个模型记路由名」（候选，未冻结，原地改；主线裁定）
+
+- [S-15](v1/contract.md#s-15-modelrequest) 的 `target` 与 [S-24](v1/contract.md#s-24-select_model) `select_model` 的 `profile` 由 `ModelProfileRef` 改为 `data.model-profile` v1 [S-2](../model-profile/v1/contract.md#s-2-routename) 的 `RouteName`；这一次的有效模型是这个名字按层覆盖落到的那一行，解析归 `capability.model-request-runtime`（它的 S-10 第 2′ 步，本契约只指路）。S-24 对合法目标集合的转述改为「元素是路由名」。成员名 `profile` 未改。
+- Schema：`ModelRequest.target`、`SelectModelOutput.profile` 两处 `$ref` 改指 `$defs/RouteName`，两条 description 同改；抬头依赖表 `data.model-profile` 一行改列 `RouteName`，头部产品依据注明 rev 12 这一处；上面「同批契约未定型」表的 `data.model-profile` 一行同改。
+- 实例：第 5 节那条 `rewrite` 结论记录里的 `target` 改成裸名字；EX-3 的 `profile` 改成 `"fast-small"`，说明改写；第 8 节一行与开头「读法的边界」一处措辞随之改。
+- catalog：`data.loop-extension → data.model-profile` 加 `S-2`；`S-13`（`ModelProfileRef`）随之撤下——本契约已不再据它写出任何形状。
+- **对证据的影响**：上一节的 V-1 本地自检跑在改动之前。改动的两处实例已按同样办法（Draft 2020-12，`jsonschema` 按仓库 `uv.lock`，整棵设计树的 Schema 建 registry，脚本在任务暂存区、不入库）单独复核：EX-3 的结论记录过 `Conclusion`；第 5 节那一行仍拒绝，去掉 `skipped`／`error` 的对照件通过——拒绝仍来自 S-5，不来自 `target`；EX-3 换回旧的引用形状被拒（对照：`$ref` 确实换了）。**只判形状**，其余 80 行未重跑。
 
 ## 对齐义务
 

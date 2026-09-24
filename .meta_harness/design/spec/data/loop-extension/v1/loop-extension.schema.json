@@ -199,10 +199,10 @@
 
     "ModelRequest": {
       "title": "ModelRequest",
-      "description": "S-15：调模型之前那个位置看得到的、已经攒好还没发出去的请求，恰四个成员：target 这一次的有效模型（ModelProfileRef）、parameters 这一次要发出的请求参数（档案参数与此前改写合成的那一份）、messages 组装出来的消息、tools 这一次带给模型的工具条目（能力标识）。可改的只有 parameters 与 messages（经 rewrite）；target 只经 select_model 改；tools 不可改（S-23、S-24）。成员名与模型请求运行时收的调用请求逐字相同。",
+      "description": "S-15：调模型之前那个位置看得到的、已经攒好还没发出去的请求，恰四个成员：target 这一次要用的模型——一个路由名（RouteName，PF-013 rev 12；落到哪一行即有效模型，由模型请求运行时按层覆盖解析）、parameters 这一次要发出的请求参数（档案参数与此前改写合成的那一份）、messages 组装出来的消息、tools 这一次带给模型的工具条目（能力标识）。可改的只有 parameters 与 messages（经 rewrite）；target 只经 select_model 改；tools 不可改（S-23、S-24）。成员名与模型请求运行时收的调用请求逐字相同。",
       "type": "object",
       "properties": {
-        "target": { "$ref": "../../model-profile/v1/model-profile.schema.json#/$defs/ModelProfileRef" },
+        "target": { "$ref": "../../model-profile/v1/model-profile.schema.json#/$defs/RouteName" },
         "parameters": { "$ref": "../../model-profile/v1/model-profile.schema.json#/$defs/ModelRequestParameters" },
         "messages": {
           "type": "array",
@@ -513,11 +513,11 @@
 
     "SelectModelOutput": {
       "title": "select_model",
-      "description": "S-24：只在 before_model_call：把这一次请求的有效模型换成 profile。取值必须在这一次的合法目标集合里（判定归能力）；只改这一次，不改选中模型；留痕在响应体的 route.selectedBy。",
+      "description": "S-24：只在 before_model_call：把这一次请求的 target 换成 profile——一个路由名（PF-013 rev 12）；有效模型是这个名字按层覆盖落到的那一行。取值必须在这一次的合法目标集合里（判定归能力）；只改这一次，不改选中模型；留痕在响应体的 route.selectedBy。",
       "type": "object",
       "properties": {
         "kind": { "const": "select_model" },
-        "profile": { "$ref": "../../model-profile/v1/model-profile.schema.json#/$defs/ModelProfileRef" },
+        "profile": { "$ref": "../../model-profile/v1/model-profile.schema.json#/$defs/RouteName" },
         "reason": { "type": "string", "minLength": 1 }
       },
       "required": ["kind", "profile"],

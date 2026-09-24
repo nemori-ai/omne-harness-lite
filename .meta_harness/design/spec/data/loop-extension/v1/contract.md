@@ -6,7 +6,7 @@
   `family = data`、`topic = loop-extension`、规范路径 `spec/data/loop-extension/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
 - **状态**：`candidate`——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
-- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-012 rev 10**、**PF-013 rev 8**、**PF-008 rev 5**、**PF-002 rev 16**、**PF-014 rev 5**、**PF-006 rev 17**、**PF-000 rev 1** 为准
+- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-012 rev 10**、**PF-013 rev 8**（另按 rev 12「用哪个模型记路由名」改了 [S-15](#s-15-modelrequest) 的 `target` 与 [S-24](#s-24-select_model) 的 `profile`）、**PF-008 rev 5**、**PF-002 rev 16**、**PF-014 rev 5**、**PF-006 rev 17**、**PF-000 rev 1** 为准
 - **精确语义依赖**（逐项在 catalog 登记）：
 
   | 坐标 | 取它的什么 | 状态 |
@@ -16,7 +16,7 @@
   | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1` | `$defs/ToolCallBlock`、`ToolResultBlock`、`CallId`、`ExecutionOutcome`、`CapabilityId`（整个值，与它的 `name` 成员：工具定义名的表示） | 候选 |
   | `omne-harness-lite-design-2026-09-15 · data.asset-model · v1` | [S-2](../../asset-model/v1/contract.md#s-2-能力标识名的词法) 的 `$defs/CapabilityName`——拓展件名的词法；[S-10](../../asset-model/v1/contract.md#s-10-八类正文的外壳)——身份只在资产记录的 `capability` 上，声明里的 `name` 是它的镜像 | 候选 |
   | `omne-harness-lite-design-2026-09-15 · data.messages · v1` | `$defs/Message`、`SystemReminderMessage`、`AssistantMessage`、`CompactionMessage`、`ModelCallDispatchedRecord` | 候选 |
-  | `omne-harness-lite-design-2026-09-15 · data.model-profile · v1` | `$defs/ModelProfileRef`、`ModelRequestParameters`、`ProviderName`、`ModelProfileSnapshot` | 候选 |
+  | `omne-harness-lite-design-2026-09-15 · data.model-profile · v1` | [S-2](../../model-profile/v1/contract.md#s-2-routename) 的 `$defs/RouteName`——`request.target` 与 `select_model` 的 `profile` 都是一个路由名；`ModelRequestParameters`、`ProviderName`、`ModelProfileSnapshot` | 候选 |
   | `omne-harness-lite-design-2026-09-15 · data.call-accounts · v1` | `$defs/Usage`、`Cost`；`$defs/RunId`、`AttemptId`——运行与执行尝试的标识，家在那份契约 | 候选 |
   | `omne-harness-lite-design-2026-09-15 · data.tool-definition · v1` | `$defs/DependencyName`、`Duration` | 候选 |
 
@@ -449,7 +449,7 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 
 | 成员 | 含义 | 谁能改 |
 |---|---|---|
-| `target` | 这一次的有效模型（`ModelProfileRef`） | **只经 `select_model`**（[S-24](#s-24-select_model)） |
+| `target` | 这一次要用的模型——一个路由名（`RouteName`）；它落到哪一行（这一次的有效模型）由 `capability.model-request-runtime` 按层覆盖解析 | **只经 `select_model`**（[S-24](#s-24-select_model)） |
 | `parameters` | 这一次要发出的请求参数（`ModelRequestParameters`）：档案参数与此前改写合成的那一份 | `rewrite`（[S-23](#s-23-rewrite)） |
 | `messages` | 组装出来、这一次要发的消息 | `rewrite` |
 | `tools` | 这一次带给模型的工具条目，每项一个能力标识（`data.content-blocks/v1` 的 `CapabilityId`） | **不可改** |
@@ -605,9 +605,9 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 
 ### S-24 select_model
 
-**`select_model { profile, reason? }`：只在 `before_model_call`；把这一次请求的[有效模型](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-effective-model--有效模型--effective-model)换成 `profile`。**
+**`select_model { profile, reason? }`：只在 `before_model_call`；把这一次请求的 `request.target` 换成 `profile`——一个路由名（`data.model-profile` v1 的 `RouteName`，PF-013 rev 12：用哪个模型记的是名字）；这一次的[有效模型](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-effective-model--有效模型--effective-model)就是这个名字按层覆盖落到的那一行，解析归 `capability.model-request-runtime`。**
 
-- **`profile` 必须在这一次的合法目标集合里**（在册 ∩ 这个范围允许 ∩ 兼容这个会话的模态投影，[PF-013 §5.10](../../../../product/PF-013-model-profiles-and-invocation/design.md#510-合法目标集合与展示列表是两件事)）。
+- **`profile` 必须在这一次的合法目标集合里**（集合的元素是路由名：这个名字在链上有在册且这个范围允许的胜出行，且胜出行兼容这个会话的模态投影，[PF-013 §5.10](../../../../product/PF-013-model-profiles-and-invocation/design.md#510-合法目标集合与展示列表是两件事)）。
   **判定归能力**（模型请求那一侧），本契约只写义务；不在集合里，这条结论不生效，按 [S-34](#s-34-不合法的结论按报错处置) 处置。
 - **只改这一次，不改选中模型**：选中模型只因用户的切换命令而变。
 - **留痕**：这一次的有效模型怎么来的，记在 `data.model-response` 的 `route.selectedBy`（`{ extension: <本件 name> }`）；结论记录本身也在日志里。
