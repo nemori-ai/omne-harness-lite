@@ -146,7 +146,7 @@
 `call_d` 的 `disposition` 是 `ended{unavailable}`，一条 `outcome: unavailable` 的 `ToolMessage` 已交付，块上写替换件的说明或注册表给的原因；执行者不起。
 **不是** `failed`：`failed` 让 agent 以为可以重试，而这个名字在这次尝试里就是用不了（[S-23](contract.md#s-23-提交一批) ④；[D-040 §S13 S13-a](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s13tool-execution-runtime报回的)）。
 
-**不是失败值的另一支：参数不合**（[S-23](contract.md#s-23-提交一批) ④ 第 ② 条、[S-11](contract.md#s-11-失败的种类)；场景 [S-61](contract.md#s-61-参数不合即刻失败并带用法)）：
+**不是失败值的另一支：参数不合，或参数判不了**（[S-23](contract.md#s-23-提交一批) ④ 第 ② 条、[S-11](contract.md#s-11-失败的种类)；场景 [S-61](contract.md#s-61-参数不合即刻失败并带用法)）：
 
 | 调用（都在同一批里、各带相符的凭据） | `disposition` | 那条 `ToolMessage` 的块上写什么 |
 |---|---|---|
@@ -155,6 +155,7 @@
 | `fs(call_g, {command: "find", args: {}})` | 同上 | `find` 不是 `fs` 的命令；带 `fs` 的命令清单（每个命令一行，同模型面前那一份） |
 | `fs(call_i, {command: "pwd", args: {path: "src"}})` | 同上 | `path` 这个键 `pwd` 不收；用法：`pwd — 给出当前目录`，这个命令没有声明参数 |
 | `fs(call_h, {command: "peek", args: {anything: 1}})` | `accepted{foreground}` | ——（`peek` 显式写了 `additionalProperties: true`，收任何一个对象，对不对由工具自己判） |
+| `grep_logs(call_k, {q: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!"})`——作者写的单函数工具，参数 `q` 的 schema 带 `"pattern": "^(a+)+$"`；这个实现把它编成了可判的形式，**这一次判定超出实现登记的判定时限** | `ended{failed}`，记录上种类 **`schema_unsupported`**，执行者不起、外部效果「已确定未发生」；**同批别的项照常判** | 这个工具的参数在这个实现上判不了（判定超时）；**不说「参数不合」、不附用法**，也**不照常执行**（[S-11](contract.md#s-11-失败的种类)；[D-040 §八 N-22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) T-16）。编不出、`pattern` 超出长度或回溯保护的上限，同此收场 |
 
 批里其余合格的项照常 `accepted`；**不是** `invalidInput`：那是本操作的输入不合形状，这里是对一次调用的判定。
 

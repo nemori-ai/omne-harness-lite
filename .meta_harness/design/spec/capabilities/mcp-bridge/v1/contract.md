@@ -5,7 +5,7 @@
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.mcp-bridge, 1)`——
   `family = capabilities`、`topic = mcp-bridge`、规范路径 `spec/capabilities/mcp-bridge/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订——处置表在[验证入口](../verification.md#独立评审)；2026-09-25 修复波 1b 闭合 G-14，同日修复波 2 按第二轮独立复评改 S-5、S-12、CS-4）——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订——处置表在[验证入口](../verification.md#独立评审)；2026-09-25 修复波 1b 闭合 G-14，同日修复波 2 按第二轮独立复评改 S-5、S-12、CS-4；同日修复波 3 跨批对齐按 M37 改 S-17，处置见[验证入口](../verification.md#实现映射反推2026-09-25)）——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
 - **设计依据**（PF-002 rev 20、PF-006 rev 19 为主责；PF-012 rev 14、PF-016 rev 6、PF-005 rev 5、PF-001 rev 17、PF-008 rev 7 只引；2026-09-24 逐版复核到当前 rev，变化与落点记在[验证入口](../verification.md#变化的影响)）：
   [PF-002 §4 MCP](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp)、
   [§4 MCP 凭据](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的)、
@@ -27,6 +27,7 @@
 - **主线裁定**（见 [D-040 §六 N-10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)，原 G-14 闭合）：`ConnectionHandle` 不上签名、`invoke` 按持有寻址、连接的收口次序是义务；OAuth 流程本版落在据点一侧、只写义务与状态、交互归 PF-016；由桥做最小规范化（下文）。机制读数的连接归属（桥下每条连接各自收口）作「装配给」一列的输入
 - **S19-a～g**：副本、OAuth 绑定、凭据都按持有存放（S19-a，原 G-1 闭合）；四个新失败值与 `oauthDenied` 四来由合一采纳（S19-b）；工作区提供的 stdio 接入点默认禁用、租户层显式启用（S19-c，原 G-2 闭合）；桥换代时在途调用落 `failed{abnormal_interruption}`（S19-d，原 G-16 闭合）；两端模态由桥投影、投不出即「任意」（S19-e，原 G-3 闭合）；凭据保管方作装配给、求值交出 `provenance`（S19-f，原 G-9 闭合、G-7 收窄）；多据点下 OAuth 凭据跟机器（S19-g，原 G-8 闭合，后果见 G-17）
 - **主线裁定（修复波 2）**——[D-040 §七 M8、M10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)：报告里逐动作执行权限以动作条目的模型面名字为键；报告里查不到条目的调用（含失去生效持有的接入点的动作）不进放行判断、由执行运行时收场 `unavailable{no_such_entry}`，`not_in_composition` 不适用于 MCP 动作（[CS-4](#cs-4-放行判断需要知道本契约做什么)）
+- **主线裁定（修复波 3）**——[D-040 §八 M37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)：参数 schema 过了 `data.tool-definition` 表示层前十二行、只是这个实现编不出（或 `pattern` 超出实现上限）的动作，**不排除**，标「只能以替换件出现」、原因 `schema_unsupported`（[S-17](#s-17-projectactions)）
 - **主线裁定 2026-09-24**（原 [G-18](#十已知缺口) 关闭；见 [D-040 §六 N-10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）：**由桥做最小规范化**——缺说明的动作与参数补占位说明「对端未提供说明」、在动作条目上标 `normalized: true`；剥掉 `$schema`／`title`；`{"type": "object"}` 视为无参数；规范化之后仍不合的才排除（[S-17](#s-17-projectactions)）。
   缘起是 [PF-006 decisions §四](../../../../product/PF-006-tools-and-skills/decisions.md#四已知的来源问题)「MCP 对端给的动作若不带说明……正文未述它算什么」——那一行记为交产品负责人、规格侧留缺口；**主线自定：不当它不可用**
 - **精确语义依赖**（消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)）：
@@ -85,7 +86,7 @@
 | 坐标 | 消费的条款 | 取它的什么 |
 |---|---|---|
 | `data.mcp-endpoint · v1` | [S-1](../../../data/mcp-endpoint/v1/contract.md#s-1-接入点正文)、[S-3](../../../data/mcp-endpoint/v1/contract.md#s-3-连接目标两种闭合)～[S-14](../../../data/mcp-endpoint/v1/contract.md#s-14-推出规则五类项)、[S-17](../../../data/mcp-endpoint/v1/contract.md#s-17-工作区格上的这些项)、[S-20](../../../data/mcp-endpoint/v1/contract.md#s-20-表示层拒绝值与判定次序)、[S-21](../../../data/mcp-endpoint/v1/contract.md#s-21-表示层拒绝不是判定也不修补)、[S-26](../../../data/mcp-endpoint/v1/contract.md#s-26-接入点-name-登记时收窄) | 全部形状；凭据不在正文、「还没取」即缺席；逐动作执行权限的默认；推出规则（投影出的执行权限默认与它一致）；工作区格上凭据恒缺席、工作区提供的 stdio 接入点默认禁用；表示层拒绝值与不修补；**登得上的接入点 name 都拼得出条目名的前缀**（拼不出只可能因为对端动作名） |
-| `data.tool-definition · v1` | [S-2](../../../data/tool-definition/v1/contract.md#s-2-身份是-name)、[S-4](../../../data/tool-definition/v1/contract.md#s-4-单函数工具)、[S-5](../../../data/tool-definition/v1/contract.md#s-5-多命令工具)（末条：判参数时未知键的读法）、[S-6](../../../data/tool-definition/v1/contract.md#s-6-模型面只有一个条目)、[S-8](../../../data/tool-definition/v1/contract.md#s-8-说明与用法)、[S-12](../../../data/tool-definition/v1/contract.md#s-12-后台许可与转后台阈值)、[S-15](../../../data/tool-definition/v1/contract.md#s-15-执行权限)～[S-17](../../../data/tool-definition/v1/contract.md#s-17-来源)、[S-18](../../../data/tool-definition/v1/contract.md#s-18-名字的表示与相等)、[S-20](../../../data/tool-definition/v1/contract.md#s-20-两种写法与等价规则)、[S-21](../../../data/tool-definition/v1/contract.md#s-21-toolresult-的三样)、[S-23](../../../data/tool-definition/v1/contract.md#s-23-卸载)、[S-24](../../../data/tool-definition/v1/contract.md#s-24-结果与声明对得上)、[S-26](../../../data/tool-definition/v1/contract.md#s-26-表示层拒绝值与判定次序) | 投影的目标形状（单函数、说明非空、来源 `mcp`、不组合、不声明后台）；执行权限三档；名字的字符集、保留序列与长度（条目名拼不拼得出）；返回值的形状与两个标注；卸载的第二条来路；MCP 条目的两端模态按本契约的投影判（S-24 第 3 条）；表示层拒绝值（`excluded` 的原因带它） |
+| `data.tool-definition · v1` | [S-2](../../../data/tool-definition/v1/contract.md#s-2-身份是-name)、[S-4](../../../data/tool-definition/v1/contract.md#s-4-单函数工具)、[S-5](../../../data/tool-definition/v1/contract.md#s-5-多命令工具)（末条：判参数时未知键的读法）、[S-6](../../../data/tool-definition/v1/contract.md#s-6-模型面只有一个条目)、[S-8](../../../data/tool-definition/v1/contract.md#s-8-说明与用法)、[S-12](../../../data/tool-definition/v1/contract.md#s-12-后台许可与转后台阈值)、[S-15](../../../data/tool-definition/v1/contract.md#s-15-执行权限)～[S-17](../../../data/tool-definition/v1/contract.md#s-17-来源)、[S-18](../../../data/tool-definition/v1/contract.md#s-18-名字的表示与相等)、[S-20](../../../data/tool-definition/v1/contract.md#s-20-两种写法与等价规则)、[S-21](../../../data/tool-definition/v1/contract.md#s-21-toolresult-的三样)、[S-23](../../../data/tool-definition/v1/contract.md#s-23-卸载)、[S-24](../../../data/tool-definition/v1/contract.md#s-24-结果与声明对得上)、[S-26](../../../data/tool-definition/v1/contract.md#s-26-表示层拒绝值与判定次序)、[S-27](../../../data/tool-definition/v1/contract.md#s-27-表示层拒绝不是判定)（末段） | 投影的目标形状（单函数、说明非空、来源 `mcp`、不组合、不声明后台）；执行权限三档；名字的字符集、保留序列与长度（条目名拼不拼得出）；返回值的形状与两个标注；卸载的第二条来路；MCP 条目的两端模态按本契约的投影判（S-24 第 3 条）；表示层拒绝值（`excluded` 的原因带它）；**只在第 13 行被拒的 `schema_unsupported` 不排除、只能以替换件出现**（S-27 末段给 MCP 来源开的口子，M37） |
 | `data.content-blocks · v1` | [S-7](../../../data/content-blocks/v1/contract.md#s-7-媒体类型的规范形式)、[S-8](../../../data/content-blocks/v1/contract.md#s-8-文本块与来路标记)、[S-10](../../../data/content-blocks/v1/contract.md#s-10-语音块与图块)、[S-17](../../../data/content-blocks/v1/contract.md#s-17-六种收场)、[S-18](../../../data/content-blocks/v1/contract.md#s-18-占位原因与它落在哪一格) | 对端结果映射成的三类块与媒体类型的规范写法；失败值对到的收场；`failed` 只在异常中断时带原因码，桥换代是异常中断的一条来路 |
 | `data.asset-model · v1` | [S-16](../../../data/asset-model/v1/contract.md#s-16-持有范围)、[S-18](../../../data/asset-model/v1/contract.md#s-18-资产持有)、[S-23](../../../data/asset-model/v1/contract.md#s-23-凭据引用) | 持有的格与键；凭据引用只在它被配上去的那份持有上有效、续期不算换值 |
 | `capability.asset-evaluation · v1` | [S-5](../../asset-evaluation/v1/contract.md#s-5-层与三条层序)、[S-17](../../asset-evaluation/v1/contract.md#s-17-第一步之一先按禁用滤)、[S-40](../../asset-evaluation/v1/contract.md#s-40-落点与身份类设置的来处) | `provenance` 的取值（`Layer`）与设置层序；工作区提供的 stdio 接入点在第一步被禁用、不会交到本契约；落点设置各出自哪一格 |
@@ -307,7 +308,7 @@
 | ④ | 只算，无提交、无外部效果 |
 | ⑤ | **三样**：`entries`——按副本里 `tools` 的次序，每个能投影的对端动作一项，每项是一份工具定义，外加「**只能以替换件出现**」的标记与原因、以及**是否经过最小规范化**的标记 `normalized`（布尔，恒在；见下）；`excluded`——投影不了的对端动作，每项是 (对端动作名, 原因)，原因恰两种、闭合（见下）；以及副本本身的那一支（`fetched` / `not_fetched`），**消费者据它分辨「没有条目」是哪一种** |
 | ⑥ | `invalidInput`（三个输入任一不合形状） |
-| ⑦ | 纯函数：同样的三个输入，逐字相同的输出 |
+| ⑦ | 纯函数：同样的三个输入，逐字相同的输出。**唯一依实现而变的一判**是参数 schema 编不编得出（`data.tool-definition/v1#S-26` 第 13 行，上限由实现登记，那份契约的 G-16）：同一实现、同一份登记的上限下，同样的三个输入逐字相同的输出；上限不同的两个实现，可以一个把某个动作投成普通条目、一个把它标成只能以替换件出现（见下） |
 | ⑧ | 输入缺席 ⇒ `invalidInput` |
 | ⑨ | 不发 |
 
@@ -346,16 +347,21 @@
 - **替换件同形照样成立**：规范化是 `projectActions` 这个纯函数的一部分，只读输入；原件与替换件都由同一份副本经同一次投影得出（`capability.asset-registry/v1#S-12`），改写一字不差。**副本仍存对端原话**（`data.mcp-endpoint/v1#S-10`），规范化不回写副本。
 - **只有这三样**：删别的关键字（`$ref`、`$defs`、`$id`、`allOf`……）、补 `required`、改 `type`、展开或合并子 schema，一概不做——那些会改变参数 schema 收哪些值，交出的定义就与对端对参数的说法各执一词。
 
-**只能以替换件出现**：对端声明某个动作**必须以任务方式执行**（MCP 协议 2025-11-25 版的 `execution.taskSupport` 为 `required`，从副本里原样保留的那一项读），本版不桥这类动作（D-037）——
-它照样投影成一份工具定义（形状照常），标记为只能以替换件出现，原因是「本版不支持这个动作的执行方式」。**能否在列举结果里可靠地识别它，D-037 记为未核**（[G-6](#十已知缺口)）；识别不出的，按普通动作投影，调用时对端报错落 `protocolError`。
+**只能以替换件出现**：一个动作照样投影成一份工具定义（形状照常、`normalized` 照常），但**标记为只能以替换件出现**并带原因——**原因恰两种，闭合**：
+
+1. **执行方式本版不支持**：对端声明这个动作**必须以任务方式执行**（MCP 协议 2025-11-25 版的 `execution.taskSupport` 为 `required`，从副本里原样保留的那一项读），本版不桥这类动作（D-037）；原因是「本版不支持这个动作的执行方式」。**能否在列举结果里可靠地识别它，D-037 记为未核**（[G-6](#十已知缺口)）；识别不出的，按普通动作投影，调用时对端报错落 `protocolError`。
+2. **`schema_unsupported`：参数 schema 这个实现判不了**（主线裁定，见 [D-040 §八 M37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：名字拼得出，以**规范化之后**的 `d.inputSchema` 作 `input` 的那份定义过了 `data.tool-definition/v1` 的 [S-26](../../../data/tool-definition/v1/contract.md#s-26-表示层拒绝值与判定次序) 前十二行，只在第 13 行被拒——这个实现编不出它，或其中某个 `pattern` 超出实现登记的上限。**形状合法，所以不进 `excluded`**（[`data.tool-definition/v1#S-27`](../../../data/tool-definition/v1/contract.md#s-27-表示层拒绝不是判定) 末段给 MCP 来源开的那个口子；[`data.mcp-endpoint/v1#S-10`](../../../data/mcp-endpoint/v1/contract.md#s-10-对端动作描述) 同句）：原因写 `schema_unsupported`，会话资产注册表据此装 `stand_in{for: schema_unsupported}`（`capability.asset-registry/v1#S-12`「原因取桥给的」）——**看得见、说得出原因、调了一定落「不可用」**，不会把一次判不了参数的调用送到对端。同形照的仍是这一次投影出的定义，规范化一字不差（最小规范化里「替换件同形照样成立」那一条）。
+
+**两种同时成立时报 `schema_unsupported`**（本契约推导，已报主线）：先判定义、后判执行方式，与「先判名字、再判参数 schema」同一个方向；两个实现（上限相同）对同一个对端动作因此给出同一个原因。
 
 **`excluded` 的原因恰两种，闭合**；每种都带 `data.tool-definition/v1` 的 [S-26](../../../data/tool-definition/v1/contract.md#s-26-表示层拒绝值与判定次序) 对那份投影出的定义报出的**那一个表示层拒绝值**——判法全在那份契约，本条不另列一份清单（下面的例子不是穷举）。两种都**不改写对端动作名、不丢掉副本里的那一项**：
 
 1. **`name_unformable{rejection}`：条目名拼不出**。`endpoint.name` ＋ `:` ＋ `d.name` 作 `name`，过不了 `data.tool-definition/v1` 的 [S-18](../../../data/tool-definition/v1/contract.md#s-18-名字的表示与相等)（`data.mcp-endpoint/v1#S-11` 取的就是它）：`rejection` 是 `name_reserved_sequence`（含 `__`、拼接处成 `_:`／`:_`），或 `malformed`（空串，或字符集之外的字符如 `.`、空白、`/`，或转写后过长）。
    **接入点的 name 在登记时已收窄**（`data.mcp-endpoint/v1#S-26`，主线裁定 2026-09-24），所以拼不出只可能因为对端动作名；名字不做规范化——改写名字会让两个对端动作撞到同一个条目上；
 2. **`input_rejected{rejection}`：参数 schema 不成立**。以**规范化之后**的 `d.inputSchema` 作 `input` 的那份定义，在 `data.tool-definition/v1` 的表示层校验里因参数 schema 被拒：`rejection` 是 `input_not_schema`（不是合法 schema）、`parameter_description_missing`（规范化之后只剩成员 schema 是布尔 schema 那一种），或 `malformed`（M26：顶层不是带 `properties` 的对象——恰 `{"type": "object"}` 的已由第 3 样补上；M27：用了可呈现子集之外的关键字——`$schema`、`title` 已剥掉，剩下的如 `$ref`、`$defs`、`$id`、`allOf`）；即它的 [S-4](../../../data/tool-definition/v1/contract.md#s-4-单函数工具) 与三条硬要求（产品负责人 2026-09-24 要求）。
+   **`rejection` 从不是 `schema_unsupported`**：只在 S-26 第 13 行被拒的那一种形状合法，不排除，按前文「只能以替换件出现」的第 2 种原因处理（M37）。
 
-**判定次序是本契约定的**：先判名字——拼不出即 `name_unformable`，`rejection` 是 S-26 只就这个名字判出的值；名字拼得出，再判参数 schema。一个动作两种都犯，报 `name_unformable`（没有名字就谈不上一份定义）；两个实现对同一个对端动作因此给出同一个原因。
+**判定次序是本契约定的**：先判名字——拼不出即 `name_unformable`，`rejection` 是 S-26 只就这个名字判出的值；名字拼得出，再判参数 schema 的前十二行——不过即 `input_rejected`；都过了，再判第 13 行——被拒即只能以替换件出现、原因 `schema_unsupported`。一个动作两种都犯，报 `name_unformable`（没有名字就谈不上一份定义）；两个实现对同一个对端动作因此给出同一个原因（第 13 行那一判另依实现登记的上限，⑦）。
 
 **规范化之后仍排除的，常见的是参数 schema 里用了引用**（`$ref` 加 `$defs`／`definitions`）或不合 Draft 2020-12 的写法：本版不展开引用、不改写——那会改变参数 schema 收哪些值。
 
@@ -661,7 +667,7 @@
 | **G-3** | **已闭合（2026-09-24 整批对齐）**：两端模态由本契约投影、结果端投不出即「任意」（[D-040 §S19](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的) S19-e；[S-17](#s-17-projectactions)、`data.tool-definition/v1#S-24` 第 3 条） | — | — |
 | **G-4** | **非图片、非音频的内嵌二进制资源无处存放**：附件存储未定义 | 这类资源本版只留一行说明，没有带回（[S-20](#s-20-对端结果怎样成为-toolresult)） | **PF-006 的 owner**（存储）；`data.content-blocks` 的 G-1 同一件事 |
 | **G-5** | **elicitation**：工具等待态与决策卡片的契约未就位，本版不向对端声明 | 需要中途问人的 MCP 服务端用不了那一段 | **工具执行运行时与 PF-008 的契约**；就位后本契约出新版 |
-| **G-6** | **SDK 与协议的来源核对**：官方 SDK 精确钉版未定（研究已核 1.29.0／1.30.0 最新协议 2025-11-25、v2 是新包名）；任务式动作能否在列举结果里识别、SDK 的鉴权提供者与自定义传输能力**未取证** | [S-17](#s-17-projectactions) 的「只能以替换件出现」可能识别不出；OAuth 一格的实现路径未定 | **提供者设计**（basis 条目：每项给 probe） |
+| **G-6** | **SDK 与协议的来源核对**：官方 SDK 精确钉版未定（研究已核 1.29.0／1.30.0 最新协议 2025-11-25、v2 是新包名）；任务式动作能否在列举结果里识别、SDK 的鉴权提供者与自定义传输能力**未取证** | [S-17](#s-17-projectactions) 的「只能以替换件出现」第 1 种原因（执行方式）可能识别不出；OAuth 一格的实现路径未定 | **提供者设计**（basis 条目：每项给 probe） |
 | **G-7** | **收窄**：凭据保管方由装配给（[D-040 §S19](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的) S19-f）。**仍缺**：它对本契约交出的面——发引用、按持有解引用、收下 OAuth 凭据、续期写回、丢弃未被配上的与被撤下的——以及**静态凭据本体里的名字**（哪个环境变量、哪个请求头）的形状 | [S-9](#s-9-凭据的出示与取用)、[S-23](#s-23-completeoauth)、[S-24](#s-24-续期清值与作废) 的另一半有承接者，没有写下的接口 | **实现映射**（保管方节点）；主线（若要立一份保管方契约） |
 | **G-8** | **已闭合（2026-09-24 整批对齐）**：OAuth 取得的凭据跟机器（[D-040 §S19](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的) S19-g；[S-8](#s-8-oauth-绑定状态与迁移)）；它与「一份持有一个凭据值」合起来的后果另记 G-17 | — | — |
 | **G-9** | **已闭合（2026-09-24 整批对齐）**：`provenance` 由 `capability.asset-evaluation/v1#S-40` 交出（[D-040 §S19](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的) S19-f） | — | — |

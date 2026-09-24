@@ -8,7 +8,7 @@
 - **标识串只是占位**：`ev_1`、`ast_k` 这类写法不承诺任何词法（`data.identity-values/v1#S-31`）；能力标识写成「类别:名字」只为好读，规范串归 `data.asset-model/v1#S-3`。
 - **「预期」是契约要求的可观察结果，不是某次执行的记录**；执行状态在[验证入口](../verification.md)。
 - **两个必填判别式照写**：`refreshAvailability` 的 `run`（`start{运行}`／`continue{运行, 报告}`，运行标识写成 `R1`、`R2`……），`lookup`／`list` 的 `within`（`session`／`run{报告}`）（[S-19](contract.md#s-19-缺席时的默认答案)）。
-- **`refreshAvailability` 另带必填的 `attempt`**（这一次尝试的 `AttemptId`，写成 `T1`、`T2`……；[S-24](contract.md#s-24-refreshavailability每次执行尝试开始时现算) ①，M46）：下文不逐次写出的，一律是调用所在那一次尝试自己的尝试标识；每份报告都带着会话、运行与它。
+- **`refreshAvailability` 另带必填的 `attempt`**（这一次尝试的 `AttemptId`：运行里的第几次，从 1 起的整数（`data.call-accounts/v1#S-37`），写成 `1`、`2`……；[S-24](contract.md#s-24-refreshavailability每次执行尝试开始时现算) ①，M46）：下文不逐次写出的，一律是调用所在那一次尝试自己的尝试标识；每份报告都带着会话、运行与它。
 
 **共用的局面**（除非某节另说）：
 
@@ -53,8 +53,8 @@
 | 4 | 观察 `tool` 表 | **没换**（`filledAt` 不变）：`fetch` 不是 `kit` 的成员，要等 `omne-official:reload-tool` | [S-23](contract.md#s-23-reload按类别重填) |
 | 5 | 在第 2 步的提交之前任意时刻读 | 三张表都是旧的；**没有「`kit` 是新的、成员表还是旧的」那一刻** | [S-17](contract.md#s-17-换表同一会话串行多表一次成败同一) |
 | 6 | 人再敲一次 `omne-official:reload-plugin` | 又是三份新快照（新的 `filledAt`），条目与第 2 步相同——**不去重** | [S-23](contract.md#s-23-reload按类别重填) ⑦ |
-| 7 | 换一种时序：第 2 步的 reload 发生在运行 `R1` 的尝试 `T1` 进行中（`T1` 的报告在 reload 之前算出）；`T1` 里 `lookup(s1, skill, "lint", within: run{T1 的报告})`、`list(s1, slash_command, within: run{T1 的报告})` | `lint` 是「**没有**」；`/fmt` **还在**——`T1` 只在它报告所依的那几份快照里找，reload 换上的快照对它不可见；同一时刻 `within: session` 的读已是新的 | [S-25](contract.md#s-25-lookup查一条) ④、[S-11](contract.md#s-11-一次执行尝试的可用性报告) 第 1 条；[D-040 §八 M35](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) |
-| 8 | 接第 7 步；`R1` 的尝试 `T2` → `refreshAvailability(s1, run: continue{R1, T1 的报告}, attempt: T2)`，再同样读 | 报告依的是 reload 之后的快照：`lint` 查得到（带这份报告里的可用性），`/fmt` 是「没有」——**同一运行的下一次尝试起看得见** | 同上；[S-34](contract.md#s-34-进行中的运行与撤销) |
+| 7 | 换一种时序：第 2 步的 reload 发生在运行 `R1` 的尝试 1 进行中（尝试 1 的报告在 reload 之前算出）；尝试 1 里 `lookup(s1, skill, "lint", within: run{尝试 1 的报告})`、`list(s1, slash_command, within: run{尝试 1 的报告})` | `lint` 是「**没有**」；`/fmt` **还在**——尝试 1 只在它报告所依的那几份快照里找，reload 换上的快照对它不可见；同一时刻 `within: session` 的读已是新的 | [S-25](contract.md#s-25-lookup查一条) ④、[S-11](contract.md#s-11-一次执行尝试的可用性报告) 第 1 条；[D-040 §八 M35](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) |
+| 8 | 接第 7 步；`R1` 的尝试 2 → `refreshAvailability(s1, run: continue{R1, 尝试 1 的报告}, attempt: 2)`，再同样读 | 报告依的是 reload 之后的快照：`lint` 查得到（带这份报告里的可用性），`/fmt` 是「没有」——**同一运行的下一次尝试起看得见** | 同上；[S-34](contract.md#s-34-进行中的运行与撤销) |
 
 ## 3. MCP 接入点连不上：动作不可用，同名替换件顶上
 
@@ -62,7 +62,7 @@
 
 | 步 | 调用 | 预期 | 依据 |
 |---|---|---|---|
-| 1 | 尝试一开始（运行 `R1` 的第一次尝试，`attempt = T1`）→ `refreshAvailability(s1, run: start{R1}, attempt: T1)` | 报告带 `s1`、`R1` 与 `T1`；第一次求值给出 `gh` 此刻生效的那份持有，记进报告的 `endpointHoldings`；报告里 `gh` 那一行 `available`；`tool` 表另有三条 `gh` 的动作条目，`available`、`resident = false`，名字由桥起（定义名如 `gh:create_issue`，模型面名字 `gh__create_issue`）；第二次求值带上这份动作集，报告的 `effectivePermissions` 对三条各有一项 `execute:<对端动作名>`，**另对 `Tools`、`Ask`、`grep` 各有一项**——**每一项以条目的模型面名字为键**（`gh__create_issue`、`grep`……）；`grep` 那一项是它能力标识的 `execute`，与动作的几项取自同一次（第二次）求值，每项带 `tenantAutoWritable`；**`Tools`、`Ask` 是 meta 门，那两项恒为 `{auto}`、`tenantAutoWritable` 为假，不读求值**（本例假定 [G-7](contract.md#十已知缺口) 已给出它们是门） | [S-12](contract.md#s-12-mcp-动作条目在一次尝试内钉住) 第一行、[S-24](contract.md#s-24-refreshavailability每次执行尝试开始时现算) ④、[S-11](contract.md#s-11-一次执行尝试的可用性报告)；[D-040 §七 M8、M21](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加) |
+| 1 | 尝试一开始（运行 `R1` 的第一次尝试，`attempt = 1`）→ `refreshAvailability(s1, run: start{R1}, attempt: 1)` | 报告带 `s1`、`R1` 与 `1`；第一次求值给出 `gh` 此刻生效的那份持有，记进报告的 `endpointHoldings`；报告里 `gh` 那一行 `available`；`tool` 表另有三条 `gh` 的动作条目，`available`、`resident = false`，名字由桥起（定义名如 `gh:create_issue`，模型面名字 `gh__create_issue`）；第二次求值带上这份动作集，报告的 `effectivePermissions` 对三条各有一项 `execute:<对端动作名>`，**另对 `Tools`、`Ask`、`grep` 各有一项**——**每一项以条目的模型面名字为键**（`gh__create_issue`、`grep`……）；`grep` 那一项是它能力标识的 `execute`，与动作的几项取自同一次（第二次）求值，每项带 `tenantAutoWritable`；**`Tools`、`Ask` 是 meta 门，那两项恒为 `{auto}`、`tenantAutoWritable` 为假，不读求值**（本例假定 [G-7](contract.md#十已知缺口) 已给出它们是门） | [S-12](contract.md#s-12-mcp-动作条目在一次尝试内钉住) 第一行、[S-24](contract.md#s-24-refreshavailability每次执行尝试开始时现算) ④、[S-11](contract.md#s-11-一次执行尝试的可用性报告)；[D-040 §七 M8、M21](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加) |
 | 2 | 尝试一进行中，对端新增第四个动作；组织把其中一个动作的执行权限改成 `forbid` | 这一次尝试里**仍是三条**、那一项权限**仍是尝试一开始时的值**；`list(s1, tool, within: run{尝试一的报告})` 不变；`list(s1, tool, within: session)` **不含**任何 `gh` 的动作条目 | [S-11](contract.md#s-11-一次执行尝试的可用性报告) 第 1 条、[S-25](contract.md#s-25-lookup查一条) ④ |
 | 3 | 对端下线；同一运行的尝试二开始 → `refreshAvailability(s1, run: continue{R1, 尝试一的报告})` | `gh` 那一行 `unavailable{reason}`，原因原样取桥给的失败值 `endpointUnreachable`；**动作条目仍在**——按最近一次取到的那份清单（尝试一开始时取到的三个）投影，每条 **`stand_in{for}`**，名字与参数形状和那份清单一样，说明换成「现在用不了、连不上」 | [S-12](contract.md#s-12-mcp-动作条目在一次尝试内钉住) 第二行、[S-10](contract.md#s-10-替换件同形只换说明) |
 | 4 | agent 在尝试二里调其中一个动作 | 落「不可用」收场（`data.content-blocks/v1#S-17`）——**由工具执行运行时兑现**，本契约只给出「这是替换件」 | [S-10](contract.md#s-10-替换件同形只换说明) |

@@ -195,3 +195,7 @@ spec-reviewer，2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/assets-runti
 | M40 `apps/runtime-host` 一律改 `apps/cli` | 壬 C-10、辛 | **接受**：两处改名并链 D-039 | [S-4](v1/contract.md#s-4-依赖方向与被消费的面)、[第十四节](v1/contract.md#十四消费者核对) |
 | M33（runner 这一半） | 庚 T-1 | **接受**：写明 `admission.report` 与执行运行时 `submit` 的 `report` 是同一份值、两边都核会话与运行、不现算；对方反向消费本契约，这里只指路、不登 catalog | [S-21](v1/contract.md#s-21-dispatch一次经过) ②、[S-32](v1/contract.md#s-32-装配给的保证-vs-协议须给的保证) 一行、第十四节 agent loop 一行 |
 | M46（追加）报告带 `attempt`；`admission.report` 核会话、`runId`、`attempt` 三者，对不上 ⇒ `invalidInput` | 子报回（TER R-38：报告不带尝试，同一运行上一次尝试的报告核得过） | **接受**：S-21 ① 写明三者、② 那一侧同样三者、⑥ `invalidInput` 那一行补「这一次尝试」；S-4 asset-registry 行、S-32 放行输入那一行、场景那一支、examples 失败值那一行同改。报告的 `attempt` 那一格由 asset-registry S-11 同轮加（另一位起草者） | [S-21](v1/contract.md#s-21-dispatch一次经过) ①②⑥、[S-32](v1/contract.md#s-32-装配给的保证-vs-协议须给的保证)、设计依据表 |
+
+**跨批对齐（2026-09-25，drafter 丑）**：
+- **examples 对 Schema 的机检**：暂存区脚本（不入库），`jsonschema` 4.26.0（`Draft202012Validator` ＋ `referencing`，锁定 uv 环境），设计根下全部 `*.schema.json` 按 `$id` 登表；第 1、2、6 节的六个代码块（结论记录）按 `data.loop-extension` 的 `Conclusion` 判：**6 处，0 不符**。其余是一次经过的步骤表，不是 Schema 实例。只核形状，不是 V- 义务的执行证据。
+- **名字与形状核对**：`admission.report` 核的「会话、运行、尝试」与 `capability.asset-registry` S-11、执行运行时 S-23 ①⑥ 逐字同一组，`attempt` 即 `data.call-accounts/v1#S-37` 的 `AttemptId`（整数序号，本契约实例写 `attempt = 1`、`2`）；`environment` 与 `data.loop-extension` S-41 的 `EnvironmentHandle`、hooks-import S-18、modality-projection S-20 ② 同名同义。无改动；catalog 的 runner → `data.loop-extension` S-41、→ asset-registry S-11、hooks-import → 本契约 S-50 都已在。

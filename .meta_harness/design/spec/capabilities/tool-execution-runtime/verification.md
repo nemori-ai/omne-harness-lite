@@ -39,7 +39,7 @@
 | [S-58 插队三行](v1/contract.md#s-58-插队三行) | 演练 | **未开始** | `human_declined` 的判据（等的是不是卡片）受阻于 [G-5](v1/contract.md#十二已知缺口) |
 | [S-59 停止与交回交错](v1/contract.md#s-59-停止与交回交错) | **故障注入**：在收场写下与实际停下之间注入一次交回 | **未开始** | local-execution「停止与 I/O 交错」那组反例的本项目版本 |
 | [S-60 凭据不符与核对不了都整批不执行](v1/contract.md#s-60-凭据不符与核对不了都整批不执行) | 演练；放行核对面可关 | **未开始** | 依赖 `capability.tool-admission` 的核对面（S-25） |
-| [S-61 参数不合即刻失败并带用法](v1/contract.md#s-61-参数不合即刻失败并带用法) | 演练：六支（未知键且 `input` 没写 `additionalProperties`、未知键且显式 `false`、缺必填、命令不在命令表、单函数工具带未知键、只带命令清单即显式 `true` 收任意对象）各一次；断言执行者没起、块上用法与 `Tools().inspect` 答的一致 | **未开始** | 「与 `inspect` 一致」受阻于 `Tools()` 没有契约（PF-007）；**模型里没有这一支**，TLC 的结果对它不作证 |
+| [S-61 参数不合即刻失败并带用法](v1/contract.md#s-61-参数不合即刻失败并带用法) | 演练：六支（未知键且 `input` 没写 `additionalProperties`、未知键且显式 `false`、缺必填、命令不在命令表、单函数工具带未知键、只带命令清单即显式 `true` 收任意对象）各一次；断言执行者没起、块上用法与 `Tools().inspect` 答的一致。**另加一支（2026-09-25，T-16）**：作者写的工具参数判定超出登记的判定时限（及编不出、`pattern` 超上限各一次）——断言那一项 `failed{schema_unsupported}`、块上说判不了而**不附用法、不说参数不合**、执行者没起、同批别的项照常 | **未开始** | 「与 `inspect` 一致」受阻于 `Tools()` 没有契约（PF-007）；**模型里没有这一支**，TLC 的结果对它不作证 |
 | [S-64 参数收齐却解析不了](v1/contract.md#s-64-参数收齐却解析不了) | 演练：一批里一项 `UnparseableCall`、一项合格；另让它的工具名在注册表里查不到 | **未开始** | 模型里没有这一支；上游标记归 `capability.stream-assembly` S-11 |
 | [S-65 重放同一批返回首次的结果](v1/contract.md#s-65-重放同一批返回首次的结果) | 演练：原样重放、夹一项凭据不符的新调用重放、运行取消之后重放、同 `CallId` 改参数 | **未开始** | 模型里每批只提交一次，对判重没有断言 |
 | [S-66 帧被拒报一次，收场之后的帧不进](v1/contract.md#s-66-帧被拒报一次收场之后的帧不进) | 演练：执行者发一串含重开索引、`trim`、收场之后的帧；再跑一帧不发、等待到点两支；断言 `rejected` 的 `trim` 紧跟被拒那一帧、恰一个 | **未开始** | 帧与装配状态不在模型里；`capability.stream-assembly` 的 TLA+ 只到装配本身 |
@@ -242,6 +242,12 @@
   - **登记**：catalog 本契约条目不变（新引的 `capability.asset-registry/v1#S-11` 第 3 条、`capability.loop-extension-runner/v1#S-21`、`data.call-accounts/v1#S-20`、`#S-39` 都已在已登记的 clauses 里）；covers 不变；formal-tasks 不变。
   - **对消费者**：没有已采用的消费者，无迁移。**语义改变**：`submit` 多一个必带的输入，缺它或带错运行的报告整批 `invalidInput`；此前「这次尝试的报告」没有来路（节点 T-1），现在由调用方交来。
   - **同轮追加 M46**（[D-040 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M46；本轮推导经 N-20 接受）：报告带 `attempt`，`submit` 核会话、运行、尝试三者，任一对不上即 `invalidInput`——S-23 ①⑥、S-4、S-15、S-46、CS-1、设计依据表同改；examples 第 8 节「报告不对」一行加「同一运行上一次尝试的报告」一支。R-38 已答。模型仍未改，未运行 TLC。
+- **2026-09-25 修复波 3 跨批对齐（drafter 丑；候选，未冻结，原地改）**：裁定出处 [D-040 §八 N-22](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) T-16；逐条见[实现映射反推](#实现映射反推2026-09-25)末行。
+  - **语义改变**：失败种类八个 → **九个**（`schema_unsupported`）；[S-23](v1/contract.md#s-23-提交一批) ④ 的参数判定分两支——判不了（编不出、超出实现登记的上限、判定超时）即刻 `failed{schema_unsupported}`、判得了而不合 `failed{arguments_invalid}`，都只落这一项；⑤ 的即刻收场种类随之多一个；S-38 与卸载那一关的两处列举同步。**`submit` 的失败值集合不变**（仍没有逐条失败值）。
+  - **登记**：catalog 本契约 → `data.tool-definition` 的 clauses 补 `S-26`（第 13 行：判不了的那一种由它定义）；covers、formal-tasks 不变。
+  - **形式**：`Execution.tla` 不区分参数判定的种类（即刻收场在模型里是一类），**未改、未运行 TLC**。
+  - **证据**：examples 第 8 节「参数不合」那张表加一行（判定超时）；新义务并进[规范场景](#规范场景) S-61 那一行（加一支），不另立——仍「未开始」。
+  - **对消费者**：`data.tool-definition` 的 G-15 据此关闭（同批由丑落）；runner、放行判断不受影响（参数判定只在本能力）。
 
 ## 独立评审
 
@@ -298,6 +304,9 @@ realization-drafter 起草本能力的节点（`realization/packages/tools/tool-
 | M42 S-46 加一行：`execution.delivered` 只在进程内通知、不得跨进程广播；载荷只带标识与收场；进程内不按租户分开，监听者按载荷自筛 | 庚 F③、壬 | **接受**：S-46 末行，左列写单机进程内的做法、右列写分布式不得广播与替代的来路（读日志，或 G-17 那份订阅面）、末列写做不到会怎样；S-45 加一条指路。**载荷不变**（S-45 列的 `tenant, session, callId, segment, outcome` 已只有标识与收场） | [S-46](v1/contract.md#s-46-装配给的保证-vs-协议须给的保证) 末行、[S-45](v1/contract.md#s-45-送达通知)、设计依据表 |
 | M43 TER 的 `after_action` 驱动与观察者订阅（T-2、T-3）、`late` 读面与模型调用成本路由（T-4、T-5）本程不补、登缺口（owner 主线） | 庚 | **接受**：T-2 并入 G-6（放宽到前台也没有交回面）；T-3、T-4、T-5 新登 G-17、G-18、G-19。**三处本契约的推导**：G-6 闭合之前只能按「那一关不可用」落（S-42 那一支，是降级不是兑现）；G-17 闭合之前帧的增量不推给任何观察者（没订阅、没验身份的一方不收）；G-18、G-19 写明缺席在那两格上各有确定含义（「不晚」「一次都没调」），闭合之前照写缺席就是替判不出的事写结论——这两格**兑现不了**，不给过渡值 | [第十二节](v1/contract.md#十二已知缺口) G-6、G-17～G-19；[S-13](v1/contract.md#s-13-账)、[S-40](v1/contract.md#s-40-报账)、[S-42](v1/contract.md#s-42-结果落成消息之前的那一关)、[S-62](v1/contract.md#s-62-工具侧到达装配前提的承诺) 第 9 条 |
 | M46（追加）报告加 `attempt`（asset-registry S-11 带这一次尝试的 `AttemptId`）；`submit.report` 接收时核会话、`runId`、`attempt` 三者，对不上 ⇒ `invalidInput` | 子报回（本文件 R-38） | **接受**：S-23 ① 写明三者须与本次相同、⑥ `invalidInput` 那一句改为三者；S-4 asset-registry 行、S-15、S-46 报告那一行、CS-1、设计依据表同改；examples 第 8 节加上一次尝试那一支。报告的 `attempt` 格由 asset-registry 同轮加（另一位起草者） | [S-23](v1/contract.md#s-23-提交一批) ①⑥、[S-15](v1/contract.md#s-15-缺席时的默认答案)、[S-46](v1/contract.md#s-46-装配给的保证-vs-协议须给的保证) |
+| N-22 T-16（跨批对齐追加）参数判定编不出或超出上限（含判定超时）⇒ 该项 `failed{schema_unsupported}`，带说明，不新增值、不牵连同批；作者写的工具碰上 `schema_unsupported` 同此收场 | 庚对齐报回、主线裁 | **接受**（drafter 丑落）。**推导两处**（R-40）：① **判不了先于判不合**——判定没走完即 `schema_unsupported`，不拿走完的那一部分报 `arguments_invalid`；② 块上**不说「参数不合」、不附用法**（判不出来与判为拒绝是两个值）。判定时限的值不在本契约，挂 `data.tool-definition` 的 G-16 | [S-11](v1/contract.md#s-11-失败的种类) 表与块上一条、[S-23](v1/contract.md#s-23-提交一批) ④⑤、S-38 与卸载那一关的两处列举、S-4 对 tool-definition 那一行、设计依据表；examples 第 8 节一行 |
+
+**examples 对 Schema 的机检（2026-09-25，跨批对齐，drafter 丑）**：本契约不附 Schema，examples 是操作层面的「输入 → 预期」，其中唯一完整的 data 契约之值是第 10 节那一帧 `{"t": "sparkle", "index": 0}`——按 `data.arrival-events` 的 `ArrivalEvent` 判为不过，与「认不出的种类」一致：**1 处，0 不符**（暂存区脚本，`jsonschema` 4.26.0，设计根下全部 Schema 按 `$id` 登表）。只核形状，不是 V- 义务的执行证据。**名字与形状核对**：`report` 带的「会话、运行、尝试」与 asset-registry S-11、runner S-21 ① 逐字同一组，`attempt` 是整数序号 `AttemptId`，本契约实例写 `attempt = 1`；无改动。
 
 ## 报给主线
 
@@ -344,3 +353,4 @@ realization-drafter 起草本能力的节点（`realization/packages/tools/tool-
 | R-37 | **上交之后的那条条目落在哪**：PF-011 §6.3「上交必须留下条目」，而本能力上交恰因为执行记录与会话日志写不下去——那条条目此刻进不了会话日志。本契约只写到「上交、撤下」，条目由接手那一层（部署装配）留在哪、以什么形式（结构化日志？），本版没有答案 | [S-47](v1/contract.md#s-47-依赖的提供者不可用)、[S-41](v1/contract.md#s-41-交回) ⑤ | 与其他契约的缺口（装配与观测那一程）；**不自决** |
 | R-38 | **修复波 3 的两处推导待确认**（[D-040 §八 M33](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：`report` 与本次会话、运行对不上收成 `invalidInput`、排在一切之前（与 runner 同一条）；`report` 恒必带，一批里全是 `UnparseableCall` 也不例外。另：报告只带会话与运行、不带尝试（`capability.asset-registry/v1#S-11`），**同一运行里上一次尝试的报告核对得过**——M33 只要求核会话与 `runId`，本契约照此，不另加一条 | [S-23](v1/contract.md#s-23-提交一批) ①⑥⑧ | **已答（2026-09-25）**：两处推导经 D-040 §八 N-20 接受；尝试那一半裁为 M46——报告带 `attempt`，核三者（本文件「实现映射反推」M46 行） |
 | R-39 | **M43 那几个缺口在闭合之前怎样落，本契约只写了方向**：G-6 按「那一关不可用」落（降级）；G-17 不推给任何观察者；G-18 的 `late`、G-19 的 `usage` 与模型调用成本**兑现不了**、不给过渡值。实现节点若要一个过渡写法（例如 `late` 判不出时写什么），须主线另裁——`data.call-accounts` 里这两格的缺席各有确定含义，没有「判不出」的写法 | [G-6](v1/contract.md#十二已知缺口)、G-17～G-19 | **已答（2026-09-25）**：D-040 §八 N-20 接受——G-6／G-17～G-19 闭合前 `late`、`usage` 不给过渡值 |
+| R-40 | **T-16 落地的两处推导**（[D-040 §八 N-22](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：① 判定没走完（超时）就以 `schema_unsupported` 收场，即使已判出某个键不合也不报 `arguments_invalid`——否则同一次调用在快慢两台机器上收场不同的机会更多；② `schema_unsupported` 的块只说「判不了、哪一种」，不附用法、不说参数不合。另：「判定时限」是实现登记的第三样上限，本契约不取名、不填值，挂 `data.tool-definition` 的 G-16 | [S-11](v1/contract.md#s-11-失败的种类)、[S-23](v1/contract.md#s-23-提交一批) ④ | 推导待确认（2026-09-25，丑） |

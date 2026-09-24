@@ -185,3 +185,5 @@ V-2～V-6 **一条执行记录也没有**。起草时的手核只保证 `example
 **对消费者**：`capability.mcp-bridge` S-17 `projectActions` 要把这一种与「被排除」分开、打「只能以替换件出现」的标记并带原因——**本轮没有 drafter 负责那份契约，已报主线**；`capability.asset-registry` S-12 第一行照用桥给的原因，不改。
 
 **registry**：catalog 本契约 → `data.tool-definition` 的 clauses 补 `S-4`、`S-27`（S-10 那一段据 S-4 末段与 S-27 末段写）；covers、formal-tasks、id-namespaces 不变。
+
+**examples 对 Schema 的机检（2026-09-25，跨批对齐，drafter 丑）**：暂存区脚本（不入库），`jsonschema` 4.26.0（`Draft202012Validator` ＋ `referencing`，锁定 uv 环境），设计根下全部 `*.schema.json` 按 `$id` 登表；逐节按「校验对象」取实例——表里的字面值，以及「在 1.1／1.2／3.1 上改一处」派生出的行（按那一句改写基准实例）——与 1.1～7.1 各代码块（7.1 逐条按 `data.asset-model` 的 `AttributeDeclaration`），拿「Schema」列比对；另补四处：第 4.1 节「126 个 `a`」、第 9 节「形状恰是一个引用的明文令牌」、第 3a 表「把第二项的 `inputSchema` 改为 `true`」、第 9 节「第二项改成与第一项同名」（Schema 通过）。**112 处，0 不符**。第 7 节结论表、第 8 节（次序）、第 9 节其余几行是契约判定，不参与。只核形状，不是 V- 义务的执行证据。

@@ -389,3 +389,8 @@
 **对消费者**：`capability.asset-registry`（fill 与 `refreshAvailability` 组输入要带 `root.references`，配方 S-24 ②；求值失败时多了两个值要透传）——同批由癸落；`capability.asset-governance` G-6 ③ 说的就是 `compositionCycle`，那份契约改引归它（已报主线）；装配（PF-004 的契约，尚无）读 `root`、拿到两个新失败值即明确失败；`packages/core/asset-evaluation` 节点由戊对齐，不在本轮写权限内。
 
 **registry**：catalog 本契约的依赖不变（`root.references` 是调用方给的输入，没有新消费的条款）；covers 加一条 PF-002 flows §二「成环」→ S-15、S-20、S-31（规范场景 S-43 按口径不登）；PF-002「谁能组合谁」加 S-13、S-15、S-20（G-1 关）、§5.1 改注；PF-004 §6.1 不变式加 S-12、S-15（M45 性质表新行以 I-9 为来源）；PF-006 §6.1 加 S-7（C14）；PF-002 plugin 那一条改注（G-3 → G-21，展开到 plugin 即 `categoryUnsupported`）；本契约条目由 40 到 41；formal-tasks、id-namespaces 不变（Alloy 仍不登记）。
+
+**跨批对齐（2026-09-25，drafter 丑）**：
+- **examples 对 Schema 的机检**：暂存区脚本（不入库），`jsonschema` 4.26.0（`Draft202012Validator` ＋ `referencing`，锁定 uv 环境），设计根下全部 `*.schema.json` 按 `$id` 登表。本契约不发布 Schema，examples 里是 data 契约之值的只有 E-3 的工作区承载清单（`data.asset-model` 的 `WorkspaceCarrierManifest`）：**1 处，0 不符**；E-1～E-8 的求值输入与结果是集合与表的记法，不是 Schema 实例，不判。只核形状，不是 V- 义务的执行证据。
+- **名字与形状核对**：组合根引用集 `root { definition, references }` 与 `AssetReference { capability, resident? }`（[S-6](v1/contract.md#s-6-求值输入-evaluationinput)）在 `capability.asset-registry` 的 S-4 表、S-23 ④、S-24 ②、消费者核对末行逐字一致（「`definition` 与从那一版定义正文读出的 `references`」）；Alloy 模型的 `rootCap`／`rootRefs` 对应写在 formal/README。无改动。
+- **G-1 的另一端**：`capability.asset-governance` 的 G-6 ③ 已改引 `compositionCycle`，那份契约的消费者核对补了 `categoryUnsupported`（丑落，见那边验证入口）；本契约 G-1 行「那份契约怎样改引归它（已报主线）」一句就此办完，不改本契约正文。

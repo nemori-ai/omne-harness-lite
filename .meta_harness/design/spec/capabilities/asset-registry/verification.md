@@ -170,6 +170,12 @@
 
 **对消费者**：agent loop 调 `refreshAvailability` 要带 `attempt`；runner 与工具执行运行时在接收报告处核三者（子那一侧落，[对齐义务](#对齐义务)）；装配只给 `fill` 当前那一次的 `EvaluationRef`，重试回执丢失时照旧可以重发。
 
+**跨批对齐（2026-09-25，drafter 丑；候选未冻结，原地改）**：
+- **尝试标识的写法与形状对齐**：`attempt` 是 `data.call-accounts/v1#S-37` 的 `AttemptId`——运行里的第几次，**从 1 起的整数**，不是不透明串；[examples](v1/examples.md) 读法一条与第 2 节第 7、8 步、第 3 节第 1 步原写 `T1`、`T2`，改为 `1`、`2`（「尝试 1」）；[S-47](v1/contract.md#s-47-别的运行的报告不能拿来-continue) 的尝试标识一支同改。与 runner（`attempt = 1`、`2`）、执行运行时（`attempt = 1`）的实例同一种写法。**语义不变**。
+- **消费者核对**：[第十一节](v1/contract.md#十一消费者核对)放行判断一行补「runner 按报告带的会话、运行、尝试三者核」、执行运行时一行补「`submit` 带同一份报告、按三者核、不现算」（M33、M46；两边正文已读到）；[对齐义务](#对齐义务)那一行改为已对齐。
+- **registry**：不变（runner → 本契约 S-11、执行运行时 → 本契约 S-11 早已登记；本契约引它们是指路，反向登记会成环）。**证据**：没有既有证据受影响。
+- **examples 对 Schema 的机检**：本契约不附 Schema，examples 是操作层面的「输入 → 预期」，没有 data 契约的完整值，**0 处可机检**——不是「过了」。组合根引用集的名字与形状同 `capability.asset-evaluation` S-6（`root { definition, references }`）逐字一致，核对无改动。
+
 ## 对齐义务
 
 本轮处置里要由别的契约写的一半（对方批次改，核对以合回后的正文为准）：
@@ -184,5 +190,5 @@
 | D-040 §S22 S22-a | 括注「被移除/被禁用的条目」与本契约 S-28（只去掉此刻用不了的）对齐 | **已对齐**：D-040 §四 已登「括注写宽了，契约为准」 |
 | `capability.loop-extension-runner` v1 S-29 第 5 条 | 报告每一项以 `ModelToolName` 为键、`call.tool` 原样去查；查不到键的调用不进放行判断；meta 门那一项恒 `{auto}`（D-040 §七 M8、M10、M21） | 同为丁所写，已对齐（2026-09-25） |
 | `capability.tool-execution-runtime` v1 S-23 ② 第 6 条、④ | 以 `call.tool` 原样查本契约 S-25（`within = run`）；「没有」即刻收场 `unavailable{no_such_entry}`（D-040 §七 M8、M10） | 对方正文已写（2026-09-25 读到，丙批） |
-| `capability.loop-extension-runner` v1（`dispatch.admission.report`）、`capability.tool-execution-runtime` v1（`submit.report`） | 接收报告时核会话、`runId`、`attempt` 三者，对不上 ⇒ `invalidInput`（D-040 §八 M46、M33） | 同批修复波 3 由子落，本契约未读到落稿（2026-09-25） |
+| `capability.loop-extension-runner` v1（`dispatch.admission.report`）、`capability.tool-execution-runtime` v1（`submit.report`） | 接收报告时核会话、`runId`、`attempt` 三者，对不上 ⇒ `invalidInput`（D-040 §八 M46、M33） | **已对齐（2026-09-25，丑跨批核对）**：runner S-21 ①② 与执行运行时 S-23 ①⑥⑧ 都按三者核、名字与形状一致（`attempt` 是 `data.call-accounts/v1#S-37` 的 `AttemptId`，整数序号）；本契约[第十一节](v1/contract.md#十一消费者核对)放行判断与执行运行时两行补了这一句 |
 | `capability.tool-admission` v1 S-8 | `not_in_composition` 只指「条目仍在快照、能力标识不在此刻组合里」（D-040 §七 M10） | 对方正文已写（2026-09-25 读到，丙批 S-8 末条与设计依据表）；它另留的「条目在 `tool` 表里、报告却缺那一项」一支按本契约 S-11 不会出现（键集合恰是 `tool` 表的名字），已报主线 |

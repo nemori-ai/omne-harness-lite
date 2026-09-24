@@ -2,7 +2,7 @@
 
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
-> **当前状态：未开始。**`capability.mcp-bridge` v1 是 `candidate`，经过两轮独立评审（处置见[独立评审](#独立评审)；2026-09-25 修复波 2 原地改），未接受、未冻结；尚无提供者设计、尚无源码、尚无装配。
+> **当前状态：未开始。**`capability.mcp-bridge` v1 是 `candidate`，经过两轮独立评审（处置见[独立评审](#独立评审)；2026-09-25 修复波 2 原地改，同日修复波 3 跨批对齐按 M37 改 S-17），未接受、未冻结；尚无提供者设计、尚无源码、尚无装配。
 > 下表登记的是**已经触发的证据义务**，不是已完成的检查。
 > 七条规范场景、四条消费者核对场景、六条静态检查**一条都未执行**；[`examples.md`](v1/examples.md) 里的值**没有过任何校验器**——文件存在不代替结果。
 > 起草时跑过的是 `make design-check`：它核对了 Markdown 链接与锚点、registry 登记——**它不校验任何实例、不执行任何场景**。
@@ -29,7 +29,7 @@
 | SC-1 | 任何操作的签名里没有连接句柄；连接的取用键恰是 (租户, 接入点, 持有, 连接目标值, 凭据引用)——引用本身，不是解引用出的秘密 | [S-6](v1/contract.md#s-6-连接归桥不上签名不跨租户) | 未开始 |
 | SC-2 | 副本的写入只有一处，且是按 `fetchedAt` 的条件写；`fetchedAt` 在发出第一页列举请求之前取；不存在把列举失败或 `not_fetched` 写成空清单的路径 | [S-7](v1/contract.md#s-7-动作清单持久副本)、[S-16](v1/contract.md#s-16-refreshactions) | 未开始 |
 | SC-3 | `invoke` 的发送路径上没有重试、没有重连后重发、没有把在途请求交给另一份桥的路径 | [S-19](v1/contract.md#s-19-invoke)、[S-26](v1/contract.md#s-26-连接的收口次序)、[S-27](v1/contract.md#s-27-桥被替换或卸载) | 未开始 |
-| SC-4 | 投影函数只读三个输入，不读时间、环境、持有方；产出的定义里不存在 `settings`、`allowBackground`、`needs`、`help`、`composes`；**规范化只有三样**（补占位说明、剥 `$schema`／`title`、恰 `{"type": "object"}` 补空 `properties`），没有别的改写 `inputSchema` 的路径，也没有回写副本的路径 | [S-17](v1/contract.md#s-17-projectactions) | 未开始 |
+| SC-4 | 投影函数只读三个输入与实现登记的参数 schema 上限（`data.tool-definition` 的 G-16），不读时间、环境、持有方；产出的定义里不存在 `settings`、`allowBackground`、`needs`、`help`、`composes`；**规范化只有三样**（补占位说明、剥 `$schema`／`title`、恰 `{"type": "object"}` 补空 `properties`），没有别的改写 `inputSchema` 的路径，也没有回写副本的路径；**`excluded` 的 `rejection` 取不到 `schema_unsupported`**——只在 S-26 第 13 行被拒的动作走「只能以替换件出现」那一支（M37） | [S-17](v1/contract.md#s-17-projectactions) | 未开始 |
 | SC-5 | stdio 拉起不经 shell；子进程环境由白名单、正文、凭据三部分显式拼出，不以据点进程环境为底 | [S-6](v1/contract.md#s-6-连接归桥不上签名不跨租户) | 未开始 |
 | SC-6 | 本契约的任何类型里，凭据本体与令牌只出现在「出示」那一处；凭据引用只出现在 `completeOAuth` 的返回 | [S-13](v1/contract.md#s-13-凭据与引用不进任何呈现) | 未开始 |
 
@@ -116,6 +116,7 @@ V-1～V-8 **一条执行记录也没有**。起草时的手核只保证 `example
 
 ## 变化的影响
 
+- **2026-09-25 修复波 3 跨批对齐（drafter 丑；候选，未冻结，原地改）**：见[实现映射反推](#实现映射反推2026-09-25)。**语义改变**：参数 schema 只在 `data.tool-definition` S-26 第 13 行被拒的对端动作，由「进 `excluded`、对 agent 不可见」改为「成条目、只能以替换件出现、原因 `schema_unsupported`」；「只能以替换件出现」的原因由一种变为闭合的两种。**操作、失败值集合与条款编号都没有变。**
 - **2026-09-25 修复波 2（候选，未冻结，原地改）**：裁定出处 [D-040 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加) M8、M10；评审发现处置见[第二轮](#第二轮)。
   - **语义改变**：没有——S-5 首句改正的是依据的读法（持有取此刻），S-12、S-19 ②、P-9 早已按此写；S-12 补的例外原本就在 S-16 ⑤；CS-4 只指路别的契约的收场。
   - **registry**：catalog、covers、formal-tasks、id-namespaces 不变（CS-4 引 runner、执行运行时只是指路，不登依赖；S-5 引 asset-registry S-11 也是指路——依赖方向是会话资产注册表 → 本契约，反向登记会成环）。
@@ -167,3 +168,15 @@ V-1～V-8 **一条执行记录也没有**。起草时的手核只保证 `example
 - **跨进程演化启动**：[S-30](v1/contract.md#s-30-装配给与协议给) 右列从「待兑现」转为「须由协议兑现」；本版的全部证据只保留其单机范围，不得外推。
 
 结果不改写规范。发现语义问题回到来源设计（PF-002／PF-006），不在这里改契约。
+
+## 实现映射反推（2026-09-25）
+
+起因：修复波 3 里 `data.tool-definition` 按 [D-040 §八 M37](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 加了拒绝值 `schema_unsupported`、给 MCP 来源开了「以同形替换件出现」的口子，`data.mcp-endpoint` S-10 同步；打标记的一方是本契约的投影，那一轮没有 drafter 负责本契约，主线在跨批对齐简报里交给丑。**裁定不代替接受**，本契约仍是 candidate。
+
+| 裁定 | 落点 | 本契约推导的部分（已报主线） |
+|---|---|---|
+| **M37** 远端参数 schema 编不出或 `pattern` 超出实现上限 ⇒ `schema_unsupported`；MCP 动作条目据此 `stand_in{for: schema_unsupported}` | [S-17](v1/contract.md#s-17-projectactions)：「只能以替换件出现」改写为闭合的两种原因（执行方式；`schema_unsupported`）；`excluded` 第 2 种原因注明 `rejection` 从不是 `schema_unsupported`；判定次序补第三步（名字 → 前十二行 → 第 13 行）；⑦ 写明第 13 行依实现登记的上限；头部补一行主线裁定；[S-4](v1/contract.md#s-4-依赖方向与被消费的面) 对 `data.tool-definition` 补 S-27；G-6 一行注明只涉第 1 种原因；SC-4；examples §4 加四行 | ① **两种原因同时成立报 `schema_unsupported`**：先判定义、后判执行方式，与「先名字、后参数」同向，同一份输入同一个原因；② **⑦ 的纯函数性对第 13 行只在同一份登记的上限下成立**——照 `data.tool-definition` S-26 那条具名例外写，不另立规矩 |
+
+**registry**：`registry/catalog.json` 本契约 → `data.tool-definition` 的 clauses 补 `S-27`（S-17 据它的末段写出「不排除、只能以替换件出现」）；covers、formal-tasks、id-namespaces 不变（没有新的产品小节链接）。
+**对证据的影响**：投影实例的本地自检（2026-09-24 两次）**不判 `standInOnly`**，新加的四行未进那两次；本轮以暂存区脚本（`jsonschema` 4.26.0，Draft 2020-12，设计根下全部 Schema 按 `$id` 登表）核了第 4 节的值的**形状**：4.1 两份定义过 `SingleFunctionTool`、表里 19 份对端动作描述过 `McpToolDescriptor`，**21 处 0 不符**；投影结局本身（成条目、排除、只能以替换件出现、原因）仍只经起草者对读——第 13 行依实现登记的上限，通用校验器给不出，V-2 仍「未开始」。
+**对消费者**：`capability.asset-registry` 照 S-12「原因取桥给的」装 `stand_in{for: schema_unsupported}`，不必改；`capability.tool-execution-runtime` 对替换件落「不可用」，不必改。

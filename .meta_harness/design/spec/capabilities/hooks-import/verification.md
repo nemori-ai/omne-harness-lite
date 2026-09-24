@@ -146,3 +146,5 @@ spec-reviewer，2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/assets-runti
 | M40 `apps/runtime-host` 改 `apps/cli` | 壬 C-10、辛 | **接受**：S-4 与第十二节两处改名并链 D-039 | [S-4](v1/contract.md#s-4-依赖方向与被消费的面)、[第十二节](v1/contract.md#十二消费者核对) |
 
 表中写明「推导」的各项，已经 [D-040 §八 N-20](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 接受（2026-09-25）。
+
+**examples 对 Schema 的机检（2026-09-25，跨批对齐，drafter 丑）**：暂存区脚本（不入库），`jsonschema` 4.26.0（`Draft202012Validator` ＋ `referencing`，锁定 uv 环境），设计根下全部 `*.schema.json` 按 `$id` 登表；第 3 节 `ask` 那条结论记录按 `data.loop-extension` 的 `Conclusion` 判：**1 处，0 不符**。第 1 节是 Claude Code 的配置文件（不是本系统的形状）、第 3 节第二块是一个成员片段，不判；导入报告按本契约的写法是表。只核形状，不是 V- 义务的执行证据。执行环境句柄的名字与形状同 `data.loop-extension` S-41、runner S-50（核对无改动）。

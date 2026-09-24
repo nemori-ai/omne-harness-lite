@@ -199,6 +199,12 @@
 **对消费者**：没有已采用的消费者，无迁移。runner 造输入时多造一只句柄（S-10、S-50，同一起草者同轮改）；`capability.modality-projection` 的 `tenant`、`capability.hooks-import` 的执行环境改从它取（同轮改）；原生拓展件作者多拿到一只句柄，不用可以不读。
 **证据**：V-1 只重跑受影响的第 3 节与第 6 节的输入块——`jsonschema` 4.26.0（`Draft202012Validator` ＋ `referencing`，锁定 uv 环境，设计根下全部 Schema 按 `$id` 登表，脚本在会话暂存区、不入库）：第 3 节 **19 行**（原 16 行各加 `environment`，另加 3 行：缺 `environment`、句柄首尾空白、`before_persist_message` 照带）按 `$defs/ExtensionInput`，**18 行相符、1 行不符**；第 6 节 EX-1 的输入块 0 处不符。**那一处不符不是本轮造成的**：第 3 节第一行（`after_model_call{failure}`，标「通过」）主体里的 `ModelCallDispatchedRecord` 缺 `profile`、`profileSnapshot`、`parameters`、`selectedBy`、`credentialScope`——`data.messages` S-49 按 [D-040 §五 K20](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) 加了这五个必有成员之后，本包实例没有跟上；拿掉 `environment` 重跑同样不过。本轮**未改**那几行（`data.messages` 正由另一位起草者同轮修订），已报主线交跨批对齐。**只判形状**。
 
+### 2026-09-25 修复波 3 跨批对齐（drafter 丑；候选，未冻结，原地改）
+
+**实例修正（上一条记下的那一处不符）**：第 3 节里 `after_model_call{failure}` 的五行（一行「通过」、四行「拒绝」）共用的那条 `ModelCallDispatchedRecord` 补齐 [D-040 §五 K20](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) 之后的必带五项——`profile`（`{"origin": "official", "routeName": "vendor-a/chat-large"}`）、`profileSnapshot`（与同一行主体的 `profile` 快照相同）、`parameters`（`{}`）、`selectedBy`（`"session"`）、`credentialScope`（`{"layer": "factory"}`，官方档案走出厂格那一把）——取值照 `data.messages` 实例第 14 节。**不只是那一行**：另四行「拒绝」原先也因这条发出记录不全而被拒，拒绝的来由与依据栏写的不是同一件事（Schema 这一关对得上、理由对不上）；补齐之后四行各只因依据栏那一条被拒（主体缺快照；`dimension` 缺席；成因 `timeout`、`interrupted_by_user` 不在八值里）。
+**语义与表示都不变**：只改实例，Schema 与条款不动。消费者表 runner 一行补「执行环境句柄由它造、读面在它的 S-50」（指路）。
+**证据**：本轮以暂存区脚本（`jsonschema` 4.26.0，`Draft202012Validator` ＋ `referencing`，设计根下全部 Schema 按 `$id` 登表，不入库）对**全部**实例重跑——第 1～5、7 节表行、第 6 节十一个代码块，共 **115 处，0 不符**；第 3 节「拒绝」各行另核了最先命中的错误就是依据栏那一条。第 8 节不参与机检（它自己写明）。
+
 ## 实现映射反推（2026-09-25）
 
 五位 realization-drafter 起草节点时报回的契约层缺陷，主线裁定见 [D-040 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)；本契约涉及一条。

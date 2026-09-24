@@ -5,7 +5,7 @@
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.tool-definition, 1)`——
   `family = data`、`topic = tool-definition`、规范路径 `spec/data/tool-definition/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按 PF-006 rev 19 修订，再按第一轮独立评审处置修订；2026-09-25 修复波 3 按实现映射反推加拒绝值 `schema_unsupported`、写明 `format` 只作注解——[处置](../verification.md#实现映射反推2026-09-25)）——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按 PF-006 rev 19 修订，再按第一轮独立评审处置修订；2026-09-25 修复波 3 按实现映射反推加拒绝值 `schema_unsupported`、写明 `format` 只作注解，同日跨批对齐落 N-22 T-16（判定超时同收场、G-15 关闭）——[处置](../verification.md#实现映射反推2026-09-25)）——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
 - **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-006 rev 19**、**PF-002 rev 20**、**PF-005 rev 5** 为准；
   只引而不据以立条款的：PF-007 rev 18、PF-009 rev 8、PF-012 rev 14
 - **精确语义依赖**（逐项在 catalog 登记）：
@@ -212,6 +212,7 @@ MCP 列举怎样生成定义（`capability.mcp-bridge` v1 的 S-17）；技能�
 - **这个实现编不出来这份 schema，或其中某个 `pattern` 超出实现的上限 ⇒ `schema_unsupported`**（[S-26](#s-26-表示层拒绝值与判定次序) 第 13 行）。上限有两样：`pattern` 的长度上限，与回溯保护（实现只收它能在有界时间里判完的 `pattern`）——**两样的值与「哪些构造算超出」不在本契约里定**，由提供者设计给出并登记（[G-16](#十已知缺口)）。
   它排在一切别的拒绝之后：只有前面每一步都过了的 schema 才去编。它与 `input_not_schema` 分得开——那是「不是合法的 Draft 2020-12」；这是「合法、只用可呈现子集，可这个实现判不了它」，**形状本身合法**（[S-27](#s-27-表示层拒绝不是判定) 末段据此给 MCP 来源开了一个口子）。
   **缺席即拒绝**：编不出来就不收，**不得**退成「不判参数、全放行」或「只判能判的那几个关键字」。
+- **判一次调用超出实现登记的判定时限，与编不出同一个收场**（主线裁定，见 [D-040 §八 N-22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) T-16）：判参数的一方把那一次调用收成 `failed{schema_unsupported}`，带说明、不牵连同批（`capability.tool-execution-runtime` v1 的 S-23 ④、S-11）；**同样不得退成照常执行**。时限的值与两样上限一起由提供者登记（[G-16](#十已知缺口)）。它是**判一次调用**时的事，不是定义本身的表示层拒绝：定义照样收下（[S-26](#s-26-表示层拒绝值与判定次序) 第 13 行只管编不编得出与上限）。
 
 ### S-5 多命令工具
 
@@ -623,7 +624,7 @@ s  ≡  { content: [ { kind: "text", text: s, id: <运行时给>, visibility: { 
    判据只看 `origin.kind`，数据层可判；理由：对端动作的结果能带什么模态，列举结果里通常没有可靠的声明，桥投不出时按「不声明＝只有文本」判会把每一个带图的 MCP 结果都判成「违反声明」。
    第 1 条对它照常成立（MCP 来源的定义不带 `needs.attachmentStorage`，结果就不得带 `attachments`）。
 
-对不上是**违反声明**；这次执行因此落什么收场（或上交），**归执行运行时，[G-15](#十已知缺口)**。
+对不上是**违反声明**；这次执行因此落什么收场（或上交），**归执行运行时**：它收 `failed{result_rejected}`，违反声明的东西不进日志（`capability.tool-execution-runtime` v1 的 S-41；原 [G-15](#十已知缺口) 的这一半）。
 
 ### S-25 ToolResult 不是收场
 
@@ -678,7 +679,7 @@ s  ≡  { content: [ { kind: "text", text: s, id: <运行时给>, visibility: { 
 | 10 | `tool_origin_unknown` | `origin.kind` 在，但不在两值里 |
 | 11 | `name_reserved_sequence` | `name` 是非空字符串，却含 `__`、`_:` 或 `:_`（[S-18](#s-18-名字的表示与相等) 第 2 条） |
 | 12 | `malformed` | 下列任一：**M3** 缺其余必填成员——`name`、`description`、`permissions`、`permissions.execute`、`permissions.execute.default`、`origin`、`origin.kind`、MCP 来源的 `endpoint` 或 `remoteName`、`single` 的 `input`、命令的 `description` 或 `input`、设置项的 `category` 或 `default`、目标环境默认值的 `bindingLayer` 或 `facilities`；**M4** 出现未登记的成员（M13 那一种除外）——定义本身、命令定义、`needs`、`settings`、设置项声明、目标环境默认值、`permissions`、`permissions.execute`、`composes`、`origin` 任一处；作者写的来源带了 `endpoint` 或 `remoteName`、声明等待态、发帧、卸载或实现的成员（[S-29](#s-29-不在定义里的三样)、[S-30](#s-30-实现不在定义里)）都在此；**M5** 成员或数组元素的 JSON 类型不对，含 `null`（`paradigm`、`input`、`bindingLayer`、`category`、`permissions.execute.default`、`origin.kind` 六处除外，它们归第 2、5、7～10 行）；**M6** 空串——`name`、`description`、`help`、命令名、命令的 `description` 与 `help`、依赖名、设施名、技能名、`remoteName`；**M7** `externalServices`、两组模态、`facilities`、`composes.skills` 有重复元素；**M8** 两组模态里有不是 `Modality` 的值（取值集归 `data.content-blocks`）；**M9** `origin.endpoint` 不是合法的能力标识，或它的类别不是 `mcp`（[S-17](#s-17-来源)）；**M10** 某项设置的 `category` 在四值之内，却不是该项定死的那一个（[S-10](#s-10-设置项声明)）；**M11** `backgroundThreshold` 或 `timeout` 的默认值不是合 [S-14](#s-14-时长的表示) 写法的字符串；**M12** `concurrency` 的默认值不是 ≥ 1 的整数（[S-13](#s-13-超时与并发)）；**M13** `multi` 带了 `input`（[S-5](#s-5-多命令工具)）；**M14** MCP 来源的定义是 `multi`（[S-17](#s-17-来源)），或带了 `composes`（[S-16](#s-16-组合)）；**M15** 声明了 `settings.backgroundThreshold`，`allowBackground` 却不为 `true`（[S-12](#s-12-后台许可与转后台阈值)）；**M24** 某个命令的 `input` 里（任意深处）有以 `#` 开头的 `$ref`，或有 `$id`（[S-7](#s-7-多命令-input-的生成规则)；Schema 之外那一步）；**M25** `name` 含 `A`～`Z`、`a`～`z`、`0`～`9`、`_`、`:`、`-` 以外的字符，或转写之后超过 128 个字符（[S-18](#s-18-名字的表示与相等) 第 1、3 条；`:` 算两个的那一半在 Schema 之外）；**M26** 参数 schema 的顶层不是 `"type": "object"`，或不带 `properties`，或 `properties` 不是对象（[S-4](#s-4-单函数工具) 第 1 条）；**M27** 参数 schema 在某个 schema 位置上用了可呈现子集以外的关键字（[S-4](#s-4-单函数工具) 第 3 条；Schema 之外那一步） |
-| 13 | `schema_unsupported` | 参数 schema（`single` 的 `input` 或任一命令的 `input`）过了上面每一行，**这个实现却编不出来它**，或其中某个 `pattern` 超出实现登记的上限（长度、回溯保护）（[S-4](#s-4-单函数工具) 末段；Schema 之外那一步，最后一步） |
+| 13 | `schema_unsupported` | 参数 schema（`single` 的 `input` 或任一命令的 `input`）过了上面每一行，**这个实现却编不出来它**，或其中某个 `pattern` 超出实现登记的上限（长度、回溯保护）（[S-4](#s-4-单函数工具) 末段；Schema 之外那一步，最后一步）。**判参数时碰上它**（作者写的工具；MCP 来源在投影时已成替换件，[S-27](#s-27-表示层拒绝不是判定) 末段），那一次调用即刻收场 `failed{schema_unsupported}`、带说明、不牵连同批——收场归 `capability.tool-execution-runtime` v1 的 S-23 ④（[D-040 §八 N-22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) T-16） |
 
 **返回值**（`$defs/ToolReturn`）：
 
@@ -701,11 +702,11 @@ s  ≡  { content: [ { kind: "text", text: s, id: <运行时给>, visibility: { 
 | 「没有这个工具」、从动作空间里静默略过 | 把「形状坏了」塌进「不可见」，正是 PF-006 §6.3 那条界线要挡的事：不可见的东西，连原因都查不出 |
 | 执行权限的 `forbid` | 把一个作者错误变成一次权限判定 |
 
-**被表示层拒绝的 `ToolReturn` 同理：它不是六种收场里的任何一种。**两种情形各自怎么收场，**归消费者，[G-15](#十已知缺口)**；本条只挡折叠。
+**被表示层拒绝的 `ToolReturn` 同理：它不是六种收场里的任何一种。**两种情形各自怎么收场**归消费者**，本条只挡折叠；消费者的答案（原 [G-15](#十已知缺口)，已关闭）：返回值被拒 ⇒ 那次执行 `failed{result_rejected}`（`capability.tool-execution-runtime` v1 的 S-41）；定义被拒见本条末段与 G-15 那一行。
 
 **`schema_unsupported` 是唯一形状合法的拒绝，MCP 来源因此有一个口子**（主线裁定，见 [D-040 §八 M37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：
 远端给的参数 schema 过了前十二行、只是这个实现编不出来，那个动作条目**以同形替换件出现**、原因写 `schema_unsupported`（会话资产注册表的 `stand_in{for: schema_unsupported}`；打标记的是 `capability.mcp-bridge` 的投影，[`data.mcp-endpoint`](../../mcp-endpoint/v1/contract.md#s-10-对端动作描述) S-10 同步）。
-这不与上表第一行相抵：那一行挡的是「没有合法的原件形状可同」，而这里原件形状合法、同得了形，只是参数判不了——**看得见、说得出原因、调了一定失败**，正是替换件的用处。**作者写的工具遇到它照本条前文**：不折成替换件，收场归消费者（G-15）。
+这不与上表第一行相抵：那一行挡的是「没有合法的原件形状可同」，而这里原件形状合法、同得了形，只是参数判不了——**看得见、说得出原因、调了一定失败**，正是替换件的用处。**作者写的工具遇到它照本条前文**：不折成替换件、不从动作空间略过；判那一次调用的参数时，收场是执行运行时的 `failed{schema_unsupported}`（`capability.tool-execution-runtime` v1 的 S-23 ④；主线裁定，见 [D-040 §八 N-22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) T-16）——**是一次执行的失败，不是「不可用」、不是「没有这个工具」、不是 `forbid`**，与上表三行都不相抵。
 
 **反过来：表示合法不表示任何资格或可用**——Schema 通过只说明形状合规。
 
@@ -899,8 +900,8 @@ Schema 的 `additionalProperties: false` 挡住这类成员。
 | **G-12** | **收窄（2026-09-24）**：本版保证的可呈现子集 = 非 strict 模式下 OpenAI Chat Completions 与 Anthropic 都直接接受的那一份——[S-4](#s-4-单函数工具) 的三条硬要求（顶层 object 带 `properties`、每个参数带说明、只用十七个关键字），任何 `$ref` 都不在其中（M27；根相对那一种原本就禁，M24）。**仍缺**：① `strict: true` 的附加要求（每个对象 `additionalProperties: false`、全部属性进 `required`、可空写成 `type` 数组）**本版不承诺**，留给传输适配作可选投影；② OpenRouter 是否按供应商转译工具定义、各家对关键字的其余限制，页面未写（研究 V-3） | 传输适配（`strict` 投影）；agent 装配 | **模型请求运行时一侧**与研究维护者 |
 | **G-13** | **附件存储名与 `AttachmentRef.storage` 的对应**（[S-24](#s-24-结果与声明对得上)）：「存储」本身尚无定义 | 附件那一支的核对 | **PF-006 的 owner**（存储待裁） |
 | **G-14** | **工具自定义的设置项与权限项**：PF-002 三方分工允许资产自定形状、Tool 行写「等」；本版 `settings` 与 `permissions` 闭合 | 需要自定义设置的工具作者 | **主线**；需要时出 v2 |
-| **G-15** | **被表示层拒绝的定义与返回值怎么收场**（[S-27](#s-27-表示层拒绝不是判定)）；结果与声明对不上时落什么（[S-24](#s-24-结果与声明对得上)） | 装配与执行运行时 | **agent 装配**（PF-004 的契约）与**执行运行时契约** |
-| **G-16** | **`schema_unsupported` 的上限**（[S-4](#s-4-单函数工具) 末段、[S-26](#s-26-表示层拒绝值与判定次序) 第 13 行；2026-09-25，M37）：`pattern` 的长度上限取多少、回溯保护收哪些构造、「编不出来」对哪一种正则方言而言——本契约只写有这两样上限，不填值。**闭合之前**，两个实现对同一份 schema 可以给出不同答案（S-26 那一句例外），跨进程两端按各自的上限判（第七节） | 判参数的执行运行时；MCP 动作的投影 | **提供者设计**（登记上限的值与判法；需要跨实现一致时由主线定一份共同的下限） |
+| **G-15** | **已关闭（2026-09-25，[D-040 §八 N-22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) T-16）**：原问「被表示层拒绝的定义与返回值怎么收场、结果与声明对不上时落什么」，三处都有了消费者的答案——① **返回值被拒**、② **结果与声明对不上**：那次执行 `failed{result_rejected}`（`capability.tool-execution-runtime` v1 的 S-41）；③ **定义被拒**：经资产治理写面进来的定义在写草稿时就被拒（`invalidInput`，`capability.asset-governance` v1 的 S-24／S-25 ③），收下之后还可能冒出来的只有依实现而变的 `schema_unsupported`（[S-26](#s-26-表示层拒绝值与判定次序) 第 13 行）——作者写的工具判那一次调用时即刻 `failed{schema_unsupported}`（执行运行时 S-23 ④），MCP 来源在投影时成替换件（[S-27](#s-27-表示层拒绝不是判定) 末段）。**工作区提供的定义**怎样从承载目录解析、在哪一步判表示层，归 `capability.asset-evaluation` v1 的 G-6（已有 owner，不在本条） | — | — |
+| **G-16** | **`schema_unsupported` 的上限**（[S-4](#s-4-单函数工具) 末段、[S-26](#s-26-表示层拒绝值与判定次序) 第 13 行；2026-09-25，M37）：`pattern` 的长度上限取多少、回溯保护收哪些构造、「编不出来」对哪一种正则方言而言、**判一次调用的判定时限**（2026-09-25 随 [D-040 §八 N-22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) T-16 加入，[S-4](#s-4-单函数工具) 末段）——本契约只写有这几样上限，不填值。**闭合之前**，两个实现对同一份 schema 可以给出不同答案（S-26 那一句例外），跨进程两端按各自的上限判（第七节） | 判参数的执行运行时；MCP 动作的投影 | **提供者设计**（登记上限的值与判法；需要跨实现一致时由主线定一份共同的下限） |
 
 ## 十一、明确不承诺
 

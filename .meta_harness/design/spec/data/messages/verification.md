@@ -245,6 +245,8 @@ reviewer：spec-reviewer，S25 第二轮批 R1（另含批 R2b 转给本契约�
 
 **registry**：catalog、covers、formal-tasks、id-namespaces 都不变（`data.content-blocks` 的依赖原已登，S-24 是说明「同一口径」的指路，不新增消费的承诺）。
 
+**examples 对 Schema 的机检（2026-09-25，跨批对齐，drafter 丑）**：暂存区脚本（不入库），`jsonschema` 4.26.0（`Draft202012Validator` ＋ `referencing`，锁定 uv 环境），设计根下全部 `*.schema.json` 按 `$id` 登表；逐节按「校验对象」把第一列喂给校验器、拿「Schema」列比对（含第 14 节五种记录——`model_call_dispatched` 那几行带着 K20 的绑定五项）：**137 处，0 不符**。第 10.1 节「读 JSON 文本」两例、第 10.2 节与第 11 节不参与（写不成一个 JSON 值，或是日志层判定）。只核形状，不是 V- 义务的执行证据。**跨契约**：`data.loop-extension` 实例第 3 节借用本契约 `ModelCallDispatchedRecord` 的那几行原先缺绑定五项，已由丑按本契约第 14 节补齐（见那份验证入口）。
+
 ## 对齐义务
 
 - **`ToolInternalEnding` 的对应表只在 [S-14](v1/contract.md#s-14-toolinternalmessage-怎么收的尾)**：`capability.stream-assembly`（S-2 等处）与 `capability.tool-execution-runtime`（S-19、S-39）引用它、不各写一份；`no_answer`、桥换代与宿主被撤下（M12，TER S-48 放弃在途状态）都落 `lost`。`data.arrival-events` 的 `FinishReason` 改值时本表同轮复核。

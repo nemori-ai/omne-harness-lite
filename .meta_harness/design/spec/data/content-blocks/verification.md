@@ -175,6 +175,8 @@ reviewer：spec-reviewer，S25 第二轮批 R1；基线 HUB `8ad37c50`。本批�
 
 **registry**：catalog、covers、formal-tasks、id-namespaces 都不变（没有新消费的条款，也没有新承诺要登 covers）。
 
+**examples 对 Schema 的机检（2026-09-25，跨批对齐，drafter 丑）**：暂存区脚本（不入库），`jsonschema` 4.26.0（`Draft202012Validator` ＋ `referencing`，锁定 uv 环境），设计根下全部 `*.schema.json` 按 `$id` 登表；逐节按「校验对象」（第 13 节按每行第一列）把第一列喂给校验器、拿「Schema」列比对，另把第 3 节「相等判定」三例的 A、B 两份各按 `AttachmentRef` 过一次：**168 处，0 不符**。第 14 节不参与机检（它自己写明）；M36 那几例（重复键、大整数）写不成一个 JSON 值、也不在 Schema 的能力范围内。只核形状，不是 V- 义务的执行证据。
+
 ## 对齐义务
 
 - **来路标记的两个取值与 `data.slash-command` v1 的 S-21、S-25 对齐**（定义性引用，不登 catalog）：那两条改了展开物或留痕的所指，[S-8](v1/contract.md#s-8-文本块与来路标记) 的 `slash_command_expansion`、`slash_command_record` 同轮复核。

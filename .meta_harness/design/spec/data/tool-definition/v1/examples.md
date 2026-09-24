@@ -443,6 +443,7 @@
 | 运行时把一个看起来像 JSON 的裸字符串解析成 `ToolResult` | [S-20](contract.md#s-20-两种写法与等价规则) |
 | 一份被表示层拒绝的定义被装成替换件，或从动作空间里静默消失 | [S-27](contract.md#s-27-表示层拒绝不是判定)（唯一的口子：MCP 来源的 `schema_unsupported` 以同形替换件出现，S-27 末段） |
 | 判参数的一方据 `format` 拒绝一次调用，或因为编不出参数 schema 就不判参数、整个放行 | [S-4](contract.md#s-4-单函数工具) 末段：`format` 只作注解；编不出来是 `schema_unsupported`，不是「不判」 |
+| 作者写的工具（第 5 节 `"^(a+)+$"` 那一行的 `pattern`，在一个收得下它的实现上定义照收）被调用，判这一次的参数超出实现登记的判定时限；运行时于是照常执行，或把它收成 `arguments_invalid`、`unavailable`，或连同同批别的调用一起拒 | [S-4](contract.md#s-4-单函数工具) 末段、[S-26](contract.md#s-26-表示层拒绝值与判定次序) 第 13 行：那一次调用即刻 `failed{schema_unsupported}`、带说明、**只落这一项**（`capability.tool-execution-runtime` v1 的 S-23 ④；D-040 §八 N-22 T-16） |
 | 运行时为了决定解不解析帧，先去查定义里有没有「会发帧」一格 | [S-29](contract.md#s-29-不在定义里的三样) |
 | 从 `issue-tracker:search_issues`（或模型交回的 `issue-tracker__search_issues`）里拆出「来自哪个接入点」 | [S-18](contract.md#s-18-名字的表示与相等)：来源在 `origin`，不在名字里；逆转写只把 `__` 换回 `:`，不拆 |
 | 传输适配为某一家挪动、删改参数 schema 里的关键字或说明（例如给某一家去掉 `enum`、改写命令表） | [S-6](contract.md#s-6-模型面只有一个条目)：投影是纯键名映射，不改写 schema |
