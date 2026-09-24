@@ -72,7 +72,7 @@
 | `{"path": ".hidden/..notes"}` | 通过 | — | [S-9](contract.md#s-9-资源条目与包内路径)：以点开头的段不是 `.` 或 `..` 段 |
 | `{"path": "skill.md"}` | 通过 | — | [S-9](contract.md#s-9-资源条目与包内路径)：逐码点比较，它不是 `SKILL.md`（大小写不敏感文件系统上的撞名归读入方，[契约第十节](contract.md#十明确不承诺)） |
 | `{"path": "scripts/extract.py", "executable": true}` | 拒绝 | `malformed`（M3） | [S-10](contract.md#s-10-资源只被读取不因读取而运行) 第 3 条：条目上没有执行位，**不被丢掉这一位后收下** |
-| `{"path": "scripts/extract.py", "executable": false}` | 拒绝 | `malformed`（M3） | 同上：写 `false` 也不行——原来那个恒为 `false` 的成员已删（账本 S18-d） |
+| `{"path": "scripts/extract.py", "executable": false}` | 拒绝 | `malformed`（M3） | 同上：写 `false` 也不行——原来那个恒为 `false` 的成员已删（[D-040 §S18 S18-d](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s18skill-package报回的)） |
 | `{"path": "a.md", "mediaType": "Text/Markdown"}` | 拒绝 | `malformed`（M9） | `data.content-blocks/v1#S-7`：媒体类型要小写 |
 | `{"path": "a.md", "sha256": "9f86"}` | 拒绝 | `malformed`（M3） | [S-9](contract.md#s-9-资源条目与包内路径)：本版表示里没有摘要（[G-6](contract.md#九已知缺口)） |
 | `{"path": "../other-skill/SKILL.md"}` | 拒绝 | `resource_escapes` | [S-9](contract.md#s-9-资源条目与包内路径) 第 2 条：`..` 段 |
@@ -124,7 +124,7 @@
 |---|---|---|---|
 | `{"item": "checklist", "kind": "setting", "category": "binding", "domain": {"kind": "open", "schema": {"type": "string", "enum": ["references/strict.md", "references/lenient.md"]}}, "default": "references/strict.md"}` | 通过 | — | [S-15](contract.md#s-15-设置项声明)：一项绑定类设置——指向包里的一个位置 |
 | `{"item": "tone", "kind": "setting", "category": "preference", "domain": {"kind": "open", "schema": {"type": "string"}}, "default": "concise"}` | 通过 | — | 同上：偏好类 |
-| `{"item": "targetEnvironment", "kind": "setting", "category": "preference", "domain": {"kind": "open", "schema": {"type": "string"}}, "default": "sandbox"}` | 通过 | — | [S-15](contract.md#s-15-设置项声明)：**本版没有保留项名**——一项叫这个名字的作者设置只是普通设置，类别由作者标，**不决定脚本落在哪**、不进依赖声明；执行环境要求走定义记录的 `environmentRequirement`（[S-32](contract.md#s-32-执行环境要求)，D-040 §六 L3） |
+| `{"item": "targetEnvironment", "kind": "setting", "category": "preference", "domain": {"kind": "open", "schema": {"type": "string"}}, "default": "sandbox"}` | 通过 | — | [S-15](contract.md#s-15-设置项声明)：**本版没有保留项名**——一项叫这个名字的作者设置只是普通设置，类别由作者标，**不决定脚本落在哪**、不进依赖声明；执行环境要求走定义记录的 `environmentRequirement`（[S-32](contract.md#s-32-执行环境要求)，D-040 §四 L3′、§六 N-13） |
 | `{"item": "reviewers", "kind": "permission", "domain": {"kind": "enum", "values": ["a", "b"]}, "default": "a"}` | 拒绝 | `malformed`（M12） | [S-15](contract.md#s-15-设置项声明) 第 1 条：设置项清单里没有权限 |
 | `{"item": "lockdown", "kind": "setting", "category": "governance", "domain": {"kind": "open", "schema": {"type": "boolean"}}, "default": false}` | 拒绝 | `malformed`（M12） | 同上第 2 条：正文契约不产出治理类的项 |
 | `{"item": "disabled", "kind": "setting", "category": "governance", "domain": {"kind": "open", "schema": {"type": "boolean"}}, "default": false}` | 拒绝 | `malformed`（M12） | 同上第 3 条：`disabled` 由 `data.asset-model` 保留，**照抄那一份声明也不行**（同时违反第 2 条；两条都归 M12，拒绝值不变） |
@@ -234,6 +234,7 @@
 |---|---|---|---|
 | 在 5.3 上删去 `scripts/triage.py` 那条资源 | 拒绝 | `malformed`（M14） | [S-32](contract.md#s-32-执行环境要求) 第 4 条：没有脚本就不得声明执行环境要求 |
 | 在 5.3 上把 `scripts/triage.py` 改成 `bin/triage.py` | 拒绝 | `malformed`（M14） | [S-11](contract.md#s-11-脚本集合)：只有 `scripts/` 下的算脚本 |
+| 在 5.3 上把 `scripts/triage.py` 改成 `scripts`（包根下一个就叫 `scripts` 的文件） | 拒绝 | `malformed`（M14） | [S-11](contract.md#s-11-脚本集合)：只有一段的 `scripts` 不是脚本——与 Schema 的 `^scripts/` 同一判据 |
 | 在 5.3 上删去 `environmentRequirement` | 通过 | — | [S-32](contract.md#s-32-执行环境要求) 第 3 条：脚本对执行环境没有特殊要求；依赖声明只剩 `github-api` |
 | 在 5.3 上往 `definition` 加 `"settings": [{"item": "targetEnvironment", "kind": "setting", "category": "placement_identity", "domain": {"kind": "open", "schema": {"type": "object"}}}]` | 通过 | — | [S-15](contract.md#s-15-设置项声明)：一项普通的作者设置；**依赖声明与脚本的落点要求仍只看 `environmentRequirement`**（[P-7](contract.md#性质)） |
 | 在 5.3 上往 `definition` 加 `"tools": [{"category": "mcp", "name": "github"}]` | 拒绝 | `tool_ref_invalid` | [S-13](contract.md#s-13-组合的工具清单) 第 3 条：要那个对端在场，声明的是外部服务（本例已有 `github-api`） |

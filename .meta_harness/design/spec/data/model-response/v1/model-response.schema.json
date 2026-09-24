@@ -294,7 +294,7 @@
         "outcome": { "$ref": "#/$defs/ResponseOutcome" },
         "initiator": {
           "enum": ["user", "run_cancelled", "runtime_lost"],
-          "description": "谁中断了这一次发出，只在 outcome 为 interrupted 时出现、且在那里必有（S-12）：user 用户中断了这次调用；run_cancelled 这次调用所在的运行被取消或它的宿主停下；runtime_lost 失去了连续性、由恢复时的对账补写。"
+          "description": "谁中断了这一次发出，只在 outcome 为 interrupted 时出现、且在那里必有（S-12）：user 用户中断了这次调用；run_cancelled 这次调用所在的运行被取消或它的宿主停下、被撤下——系统发起的这几种在途的流被放弃、不带 reply，只有用户取消运行时才可能带 reply（S-13，Schema 管不到）；runtime_lost 失去了连续性、由恢复时的对账补写。"
         },
         "stopReason": {
           "type": "string",

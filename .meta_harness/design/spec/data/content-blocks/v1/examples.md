@@ -184,6 +184,10 @@
 | `{"id": "b68", "kind": "tool_call", "visibility": {"toHuman": true, "toModel": true}, "complete": true, "tool": "read_file", "arguments": {}}` | 拒绝 | `malformed` | [S-12](contract.md#s-12-完整的工具调用)：`callId` 必填 |
 | `{"id": "b69", "kind": "tool_call", "visibility": {"toHuman": false, "toModel": false}, "complete": false, "rawArguments": "{\"pa", "arguments": {"pa": null}}` | 拒绝 | `malformed` | [S-13](contract.md#s-13-半截的工具调用)：半截的参数**不解析**，一个解析结果出现在这里就是违反 |
 | `{"id": "b70", "kind": "tool_call", "visibility": {"toHuman": true, "toModel": true}, "complete": "true", "callId": "call_01", "tool": "read_file", "arguments": {}}` | 拒绝 | `malformed` | [S-25](contract.md#s-25-判别式与枚举闭合)：`complete` 是布尔判别，不是字符串 |
+| `{"id": "b71", "kind": "tool_call", "visibility": {"toHuman": true, "toModel": true}, "complete": true, "callId": "call_22", "tool": "mcp__github__create_issue", "arguments": {"title": "x"}}` | 通过 | — | [S-12](contract.md#s-12-完整的工具调用)：模型面名字——定义名 `mcp:github:create_issue` 的 `:` 换成了 `__` |
+| `{"id": "b72", "kind": "tool_call", "visibility": {"toHuman": true, "toModel": true}, "complete": true, "callId": "call_22", "tool": "mcp:github:create_issue", "arguments": {"title": "x"}}` | 拒绝 | `malformed` | [S-12](contract.md#s-12-完整的工具调用)：块上是模型面名字，**不是定义名**；`:` 不在那套字符集里 |
+| `{"id": "b73", "kind": "tool_call", "visibility": {"toHuman": true, "toModel": true}, "complete": true, "callId": "call_23", "tool": "read file", "arguments": {}}` | 拒绝 | `malformed` | [S-12](contract.md#s-12-完整的工具调用)：模型交回的名字不合字符集（空格）——这一块不是合法的完整调用；它在装配里怎样落见 [G-10](contract.md#八已知缺口) |
+| `{"id": "b74", "kind": "tool_call", "visibility": {"toHuman": false, "toModel": false}, "complete": false, "callId": "call_24", "tool": "read file", "rawArguments": "{"}` | 通过 | — | [S-13](contract.md#s-13-半截的工具调用)：半截调用上的 `tool` 是收到的原值，**不按字符集判** |
 
 ## 10. 工具结果块
 
@@ -198,7 +202,7 @@
 | `{"id": "b85", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_07", "outcome": "failed", "blocks": [{"id": "b85a", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "ENOENT: README.md 不存在"}]}` | 通过 | — | [S-18](contract.md#s-18-占位原因与它落在哪一格)：普通失败不带 `reason` |
 | `{"id": "b86", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_08", "outcome": "unavailable", "blocks": [{"id": "b86a", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "这个工具现在用不了"}]}` | 通过 | — | [S-17](contract.md#s-17-六种收场) |
 | `{"id": "b87", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_10", "outcome": "no_answer", "blocks": []}` | 通过 | — | [S-17](contract.md#s-17-六种收场)：`blocks` 可以是空数组 |
-| `{"id": "b88", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_11", "outcome": "completed", "blocks": [{"id": "b88a", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "前 200 行……（共 18203 行，已卸载）"}], "offloaded": {"storage": "attachments", "key": "obj_off_1", "mediaType": "text/plain", "bytes": 912345}}` | 通过 | — | [S-15](contract.md#s-15-工具结果块)：`blocks` 是那条带摘要的占位 |
+| `{"id": "b88", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_11", "outcome": "completed", "blocks": [{"id": "b88a", "kind": "text", "visibility": {"toHuman": true, "toModel": true}, "text": "前 200 行……（共 18203 行，已卸载）"}], "offloaded": {"storage": "attachments", "key": "obj_off_1", "mediaType": "text/plain", "bytes": 912345}}` | 通过 | — | [S-15](contract.md#s-15-工具结果块)：卸载之后 `blocks` 装的是真实结果的摘要——**这一块就是那次调用的结果，不是占位**（`data.messages/v1#S-11`） |
 | `{"id": "b89", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_12", "outcome": "completed", "blocks": [{"id": "b89a", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_13", "outcome": "completed", "blocks": []}]}` | 通过 | — | [S-15](contract.md#s-15-工具结果块)：结果里可以再嵌结果 |
 | `{"id": "b90", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_01", "outcome": "completed", "blocks": [{"id": "b90a", "kind": "tool_call", "visibility": {"toHuman": true, "toModel": true}, "complete": true, "callId": "call_14", "tool": "rm", "arguments": {}}]}` | 拒绝 | `call_in_result` | [S-16](contract.md#s-16-结果里不发起调用) |
 | `{"id": "b91", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_01", "outcome": "completed", "blocks": [{"id": "b91a", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_13", "outcome": "completed", "blocks": [{"id": "b91b", "kind": "tool_call", "visibility": {"toHuman": false, "toModel": false}, "complete": false, "rawArguments": ""}]}]}` | 拒绝 | `call_in_result` | [S-16](contract.md#s-16-结果里不发起调用)：**深一层也拒**，半截的调用同样算 |
@@ -295,7 +299,7 @@
 | 日志层为了「展示签名」把 `opaque` 解出来改写 | [S-9](contract.md#s-9-思考块与不透明数据) | 每一层的实现 |
 | 从工具结果的文字里读到 `Error:` 就当它是 `failed` | [S-15](contract.md#s-15-工具结果块) | 读者的实现 |
 | 用 `user_interrupted` 表示「这一次运行被取消而它还在前台」 | [S-18](contract.md#s-18-占位原因与它落在哪一格)：该用 `run_cancelled` | 写入方 |
-| 前台那次调用的占位（`ToolMessage` 里的结果块）写 `outcome: "interrupted"`、`reason.code: "terminated_by_agent"` | [S-18](contract.md#s-18-占位原因与它落在哪一格)：这个原因只落后台执行收场提醒的结果块——agent 只能掐已转后台的执行，占位早已写下；**块自己看不出是哪一段**，Schema 放行 | 写入方（工具执行运行时；哪条消息装哪一段归 `data.messages`） |
+| 前台那次调用的占位（`ToolMessage` 里的结果块）写 `outcome: "interrupted"`、`reason.code: "terminated_by_agent"` | [S-18](contract.md#s-18-占位原因与它落在哪一格)：这个原因只落后台执行收场提醒的结果块——agent 只能掐已转后台的执行，占位早已写下；**块自己看不出是哪一段**，本契约的 Schema 放行 | 写入方（工具执行运行时）；装进 `ToolMessage` 时由 `data.messages` 那一层拒（它的 S-39，`malformed`） |
 | 图块的派生表示里放了一张图（原块与派生块都是 `image` 模态） | [S-19](contract.md#s-19-派生表示与-transcript)——`malformed` | 接收边界 |
 | 为了「再试一次」去解析一个标了 `unparseable` 的调用的 `rawArguments`，或执行它 | [S-12](contract.md#s-12-完整的工具调用) | 流装配、宿主与执行运行时的实现 |
 | 受理连接件送来的信封时，把一个 `image/png` 的附件引用落成文件块 | [S-34](contract.md#s-34-只给了引用的附件落成哪一类块) | 落块那一方的规范场景 |
@@ -319,12 +323,12 @@
 | 6 思考块 | 4 | 3 | `opaque` 缺席与 `null` 都通过且是两种状态 |
 | 7 语音块与图块 | 4 | 9 | base64 实例逐个数过：`UklGRiQAAABXQVZF` 16 字符、`iVBORw0KGgo=` 12 字符以 `=` 收尾，都是完整的四字组；`b34`／`b35` 的块与引用媒体类型逐字相同，**只**违反模态；`b37` 不判模态 |
 | 8 文件块 | 2 | 3 | 文件块无自己的 `mediaType` |
-| 9 工具调用块 | 5 | 10 | 半截调用的两个拒绝实例只动标注；`b67` 缺 `complete` 两个形状都不匹配；解析不了的那一种（`b66a`）与三个只动一处的反例 |
+| 9 工具调用块 | 7 | 12 | 半截调用的两个拒绝实例只动标注；`b67` 缺 `complete` 两个形状都不匹配；解析不了的那一种（`b66a`）与三个只动一处的反例；`tool` 取模型面名字（`b71`～`b73`），半截调用上不判字符集（`b74`） |
 | 10 工具结果块 | 13 | 14 | 每个通过实例的 `reason` 与收场对上 [S-18](contract.md#s-18-占位原因与它落在哪一格) 的落格表；拒绝实例每行只违反一格 |
 | 11 派生表示 | 3 | 9 | 通过实例的派生块都是文本或图、都不再带派生属性，且 transcript 与 renderings 同在 |
 | 12 优先级 | 0 | 6 | 每行写明同时违反的两条，拒绝值按 `kind_unknown > visibility_missing > incomplete_call_visible > call_in_result > modality_mismatch > malformed` 取 |
 | 13 枚举与内联字节 | 8 | 11 | 取值与契约的闭合集合逐字对过；`terminated_by_agent` 不在 `PlaceholderReason` 里；`InlineBytes` 三行 |
 
-**合计参与机检的 158 行：通过 58、拒绝 100**（2026-09-24 按实际行数重数；`terminated_by_agent` 移出 `PlaceholderReason` 让第 13 节一行由通过翻为拒绝）。第 3 节的相等用例表与第 14 节不在其内。
+**合计参与机检的 162 行：通过 60、拒绝 102**（2026-09-24 按实际行数重数；`terminated_by_agent` 移出 `PlaceholderReason` 让第 13 节一行由通过翻为拒绝；2026-09-25 修复波 2 第 9 节加 `b71`～`b74` 四行）。第 3 节的相等用例表与第 14 节不在其内。
 第 7 节的编号从 `b35` 跳到 `b37`：`b36` 这个位置的实例（图块写 `image/png`、引用写 `video/mp4`）同时违反两条，
 不合「每行只违反一条」，放在第 12 节作 `p5`。

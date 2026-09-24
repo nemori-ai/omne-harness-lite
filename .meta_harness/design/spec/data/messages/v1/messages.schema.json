@@ -3,7 +3,7 @@
   "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/messages/v1/messages.schema.json",
   "title": "data.messages v1",
   "description": "消息的规范形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.messages/v1 内有效。",
-  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状；表示层拒绝值（S-39）的具名与优先级、工具消息与后台收场提醒里 callId／outcome 的相等、压缩名单不点自己、消息内块标识唯一，以及全部会话日志层的判定（S-29、S-32）由契约条款定，Schema 管不到，逐条列在 contract.md「Schema 管得到什么」。外部引用：ContentBlock、ToolResultBlock、BlockId、CallId、ExecutionOutcome、CapabilityId 取自 data.content-blocks v1；Instant 取自 data.offer-expiry v1 S-22；ModelCallId、AttemptId 取自 data.call-accounts v1 S-37；RouteName、ProviderName、ModelProfileRef、ModelRequestParameters、ModelProfileSnapshot 取自 data.model-profile v1（S-2、S-5、S-13、S-15、S-27）；ScopeLayerIdentity 取自 data.identity-values v1 S-11。不透明标识按 data.identity-values v1 S-31 的散文自定义，不跨契约 $ref 它的 OpaqueIdentifier。ResponseId 的家在 data.model-response v1 S-6，本契约按同一散文自定义、不 $ref——那份契约 $ref 本契约的 AssistantMessage，反向 $ref 会让两份契约互为依赖（S-37）；SelectedBy、CredentialScope 同一理由按那份契约的 S-10、S-9 逐字自定义。正反实例在同目录 examples.md。",
+  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状；表示层拒绝值（S-39）的具名与优先级、工具消息与后台收场提醒里 callId／outcome 的相等、压缩名单不点自己、消息内块标识唯一，以及全部会话日志层的判定（S-29、S-32）由契约条款定，Schema 管不到，逐条列在 contract.md「Schema 管得到什么」。外部引用：ContentBlock、ToolResultBlock、BlockId、CallId、ExecutionOutcome、CapabilityId 取自 data.content-blocks v1；Instant 取自 data.offer-expiry v1 S-22；ModelCallId、AttemptId 取自 data.call-accounts v1 S-37；RouteName、ProviderName、ModelProfileRef、ModelRequestParameters、ModelProfileSnapshot 取自 data.model-profile v1（S-2、S-5、S-13、S-15、S-27）；ScopeLayerIdentity 取自 data.identity-values v1 S-11。不透明标识按 data.identity-values v1 S-31 的散文自定义，不跨契约 $ref 它的 OpaqueIdentifier。ResponseId 的家在 data.model-response v1 S-6，本契约按同一散文自定义、不 $ref——那份契约 $ref 本契约的 AssistantMessage，反向 $ref 会让两份契约互为依赖（S-37）；SelectedBy、CredentialScope、ParameterAdjustment 与「已出门」上 droppedParameters 的就地形状同一理由按那份契约的 S-10、S-9、S-11 逐字自定义（互引成环的登记口径：D-040 §七 M2，写在 registry README；对齐义务在 verification）。正反实例在同目录 examples.md。",
 
   "$defs": {
 
@@ -126,7 +126,7 @@
 
     "AssistantEnding": {
       "title": "AssistantMessage 怎么收的尾（contract.md S-10）",
-      "description": "恰三个取值，闭合：complete——正常收尾；interrupted_by_user——用户叫停，且已有内容到了他眼前；truncated_at_limit——写到上限被截断。流断在半路的另两种情形（用户叫停而什么都没出来、出错断的）不成为消息，所以没有取值。",
+      "description": "恰三个取值，闭合：complete——正常收尾；interrupted_by_user——用户发起的停下（直接叫停、插队顺带、用户取消了这次运行），且已有内容到了他眼前；truncated_at_limit——写到上限被截断。流断在半路的另两种情形（用户叫停而什么都没出来、出错断的）与系统发起的运行取消（会话归档、宿主停止或被撤下，在途的流被放弃）不成为消息，所以没有取值。回复流的 finish.reason 怎样对到这里，对应表只在 contract.md S-10。",
       "type": "string",
       "enum": ["complete", "interrupted_by_user", "truncated_at_limit"]
     },
@@ -173,7 +173,7 @@
 
     "ToolMessage": {
       "title": "ToolMessage（contract.md S-11）",
-      "description": "工具说结果：一次调用恰一条，blocks 恰好一个工具结果块，且它的 callId 与本消息的 callId 相同（后一半 Schema 管不到）；违反即表示层拒绝 tool_message_block_count（S-39）。占位也是这一种——转后台、被中断、异常中断、卸载后的带摘要占位，收场与原因都写在那个工具结果块上（data.content-blocks v1 S-15～S-18）。",
+      "description": "工具说结果：一次调用恰一条，blocks 恰好一个工具结果块，且它的 callId 与本消息的 callId 相同（后一半 Schema 管不到）；违反即表示层拒绝 tool_message_block_count（S-39）。占位也是这一种——转后台、被中断、异常中断——收场与原因都写在那个工具结果块上（data.content-blocks v1 S-15～S-18）；结果卸载之后带摘要的那一条也是这一种，但它是那次调用的结果、不是占位（S-11）。那一块的 reason.code 不得是 terminated_by_agent——那个原因只落后台执行收场的提醒，写在工具消息上即 malformed（S-11、S-39）。",
       "type": "object",
       "allOf": [{ "$ref": "#/$defs/MessageBase" }],
       "properties": {
@@ -182,7 +182,12 @@
         "blocks": {
           "minItems": 1,
           "maxItems": 1,
-          "items": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/ToolResultBlock" }
+          "items": {
+            "allOf": [
+              { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/ToolResultBlock" },
+              { "not": { "properties": { "reason": { "properties": { "code": { "const": "terminated_by_agent" } }, "required": ["code"] } }, "required": ["reason"] } }
+            ]
+          }
         }
       },
       "required": ["callId"],
@@ -191,7 +196,7 @@
 
     "ToolInternalEnding": {
       "title": "ToolInternalMessage 怎么收的尾（contract.md S-14）",
-      "description": "帧流怎么收的尾，恰三个取值，闭合：complete——产生者正常收尾；interrupted——执行被有意停下，帧流随之收尾；lost——产生者失去连续性（含等待到点没有回答、经 MCP 桥的执行随桥换代没了下文、帧流自己断了），帧流没有等到它的收尾。帧流的 finish.reason 怎样对到这三个值，对应表只在 contract.md S-14。它不是那次执行的收场——收场在工具消息或后台收场提醒里。",
+      "description": "帧流怎么收的尾，恰三个取值，闭合：complete——产生者正常收尾；interrupted——执行被有意停下，帧流随之收尾；lost——产生者失去连续性（含等待到点没有回答、经 MCP 桥的执行随桥换代没了下文、帧流自己断了、持有装配状态的宿主被撤下时放弃在途的帧流），帧流没有等到它的收尾。帧流的 finish.reason 怎样对到这三个值，对应表只在 contract.md S-14。它不是那次执行的收场——收场在工具消息或后台收场提醒里。",
       "type": "string",
       "enum": ["complete", "interrupted", "lost"]
     },
@@ -417,7 +422,7 @@
 
     "InterruptedSource": {
       "title": "刚才被中断了（contract.md S-21）",
-      "description": "模型调用或整个运行被中断就补一条，哪怕什么内容都没留下。what 是被中断的那一层（model_call、run）——工具执行被中断不另补这条，占位的工具消息就承载它（S-21）；by 是谁发起的（user——用户叫停；system——不是用户发起的：出错断、写到上限、系统侧停止）；hadContent 是中断之前有没有内容已经到了用户眼前。about 可选，只配 what: model_call：{ kind: model, call: ModelCallId, dispatch } 指一次模型调用的第几次发出——成员名 call 与五种运行时记录的 call 同义，不叫 callId：本契约里 callId 只指工具调用的 CallId（S-21）；what: run 不带 about。说事的。",
+      "description": "模型调用或整个运行被中断就补一条，哪怕什么内容都没留下。what 是被中断的那一层（model_call、run）——工具执行被中断不另补这条，占位的工具消息就承载它（S-21）；by 是谁发起的（user——用户发起的：叫停、插队顺带、用户取消了这次运行；system——不是用户发起的：出错断、写到上限、系统侧停止，含会话归档、宿主停止或被撤下）；hadContent 是中断之前有没有内容已经到了用户眼前。about 可选，只配 what: model_call：{ kind: model, call: ModelCallId, dispatch } 指一次模型调用的第几次发出——成员名 call 与五种运行时记录的 call 同义，不叫 callId：本契约里 callId 只指工具调用的 CallId（S-21）；what: run 不带 about。说事的。",
       "type": "object",
       "properties": {
         "kind": { "const": "interrupted" },

@@ -3,13 +3,13 @@
 **承载[工具执行](../../../ubiquitous_language/terms/execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution)的那一项能力**：
 接一批已放行的调用、依次起执行者、收场、落账、把结果落成对的那种消息；前台／后台与等待是两个维度，中断不是失败；
 绑会话不绑 agent runtime；停机不重来——恢复时找不到的执行一律落「失败·异常中断」。
-**本能力的提供者是一条 fiber，即宿主协程——名字里的「运行时」指它**（统一语言冲突 C-31：叫 runtime 的必须是协程）。
+**本能力的提供者是运行时协程**——名字里的「运行时」指它（统一语言冲突 C-31「叫 runtime 的必须是协程」以此闭合：[D-040 §七 M18](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)，维持 §一 T-3）。
 
 > **「工具执行运行时」没有词条**：词表把单次执行自己的运行时并进了[工具执行](../../../ubiquitous_language/terms/execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution)，
 > 承载全部执行、产品正文里「在工具执行运行时里找得到／找不到」的这一项能力本身没有词条。目录名就是这份契约的身份。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.tool-execution-runtime, 1)`
-- **状态**：`candidate`（2026-09-23 起草；2026-09-24 经第一轮独立评审后原地修订，处置见[验证入口](verification.md#独立评审)），**未接受、未冻结**
+- **状态**：`candidate`（2026-09-23 起草；2026-09-24、2026-09-25 经两轮独立评审后原地修订，处置见[验证入口](verification.md#独立评审)），**未接受、未冻结**
 - **catalog 映射**：已登记为 `candidate`；`family=capabilities`、`topic=tool-execution-runtime`、
   `contract_path=spec/capabilities/tool-execution-runtime/v1/contract.md`；`resources` 含契约、`examples.md`、`formal/` 下的模型、八个配置与入口页；
   依赖十三项（`data.content-blocks`、`data.call-accounts`、`data.messages`、`data.tool-definition`、`data.loop-extension`、`data.offer-expiry`、`data.identity-values`、

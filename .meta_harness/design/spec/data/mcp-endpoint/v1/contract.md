@@ -41,9 +41,9 @@
 >
 > | 条款 | 依据来自哪 |
 > |---|---|
-> | [S-9](#s-9-动作清单副本) 的 `not_fetched` 一支 | **主线裁定**：「还没取过」是显式取值，不是缺席（D-040 未收录，已报主线补登） |
-> | [S-11](#s-11-动作条目名) 动作条目名的拼法与词法 | 拼法「接入点:动作」：**主线裁定**（D-040 未收录，已报主线补登）；词法取 `data.tool-definition/v1#S-18` 的收窄（[D-040 TD-2](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#产品负责人-2026-09-24-追加要求工具定义须能构造供应商工具-payload已取证已发对齐波)），落在 `data.asset-model/v1#S-2` 之内 |
-> | [S-16](#s-16-逐动作项按动作名键) 逐动作项按动作名键、动作消失再出现原配值照旧 | **主线裁定**（D-040 未收录，已报主线补登） |
+> | [S-9](#s-9-动作清单副本) 的 `not_fetched` 一支 | **主线裁定**，见 [D-040 §六 N-3](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)：「还没取过」是显式取值，不是缺席 |
+> | [S-11](#s-11-动作条目名) 动作条目名的拼法与词法 | 拼法「接入点:动作」：**主线裁定**，见 [D-040 §六 N-3](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)；词法取 `data.tool-definition/v1#S-18` 的收窄（[D-040 TD-2](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#产品负责人-2026-09-24-追加要求工具定义须能构造供应商工具-payload已取证已发对齐波)），落在 `data.asset-model/v1#S-2` 之内 |
+> | [S-16](#s-16-逐动作项按动作名键) 逐动作项按动作名键、动作消失再出现原配值照旧 | **主线裁定**，见 [D-040 §六 N-3](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) |
 > | [S-7](#s-7-两项超时的作者默认)、[S-8](#s-8-执行权限的作者默认) 作者默认写在正文里 | **规格层推导**：`data.asset-model/v1#S-12` 要求这类项声明带作者给的 `default` |
 > | [S-13](#s-13-凭据配值的取值域) 凭据「还没取」即缺席、[S-14](#s-14-推出规则五类项) 不产出「能不能用」 | **主线裁定**，见 [D-040 §S21 S21-b](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s21connector报回的)（「未配」只有缺席一种写法）与 [D-040 §S18 S18-c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s18skill-package报回的)（「谁可以使用它」是 `data.asset-model` 保留的 `usableBy`） |
 > | [S-13](#s-13-凭据配值的取值域) 取值域之外的值不由本契约起拒绝值 | **主线裁定**，见 [D-040 §五 K7](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)：「凭据位写了非引用值」只有资产治理写面的 `valueOutOfDomain` 一个拒绝值 |

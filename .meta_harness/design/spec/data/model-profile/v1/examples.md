@@ -202,7 +202,7 @@
 | `{"origin": "custom", "scope": {"layer": "organization", "tenant": {"organization": "org_7fd2c1", "account": "acc_91ab40"}}, "routeName": "vendor-b/coder-7b"}` | 拒绝 | `malformed`（M9） | [S-13](contract.md#s-13-modelprofileref)：判别式与载荷对不上 |
 | `{"origin": "custom", "scope": {"organizationId": "org_7fd2c1", "tenantId": null}, "routeName": "vendor-c/vision-mini"}` | 拒绝 | `malformed`（M9） | [S-13](contract.md#s-13-modelprofileref)：两个可空字段那种压平形状 |
 | `{"origin": "custom", "scope": null, "routeName": "vendor-c/vision-mini"}` | 拒绝 | `malformed`（M9） | [S-13](contract.md#s-13-modelprofileref)：`null` 不是一个范围 |
-| `"vendor-b/coder-7b"` | 拒绝 | `malformed`（M1） | [S-13](contract.md#s-13-modelprofileref)：一个引用不是一个裸名字。**反过来，「用哪个模型」那项设置与切换事实记的正是这样一个 `RouteName`**，按 [S-2](contract.md#s-2-routename) 校验，不按本节的 `ModelProfileRef`（[S-14](contract.md#s-14-引用只精确解析不跨层)） |
+| `"vendor-b/coder-7b"` | 拒绝 | `malformed`（M1） | [S-13](contract.md#s-13-modelprofileref)：一个引用不是一个裸名字。**反过来，「用哪个模型」那项设置与模型切换落下的那条记录记的正是这样一个 `RouteName`**，按 [S-2](contract.md#s-2-routename) 校验，不按本节的 `ModelProfileRef`（[S-14](contract.md#s-14-引用只精确解析不跨层)） |
 
 **表示合法不等于解析得到**（[S-14](contract.md#s-14-引用只精确解析不跨层)）：`{"origin": "custom", "scope": {"layer": "organization", "organization": "org_7fd2c1"}, "routeName": "vendor-b/coder-7b"}`
 形状上完全合法，但 `vendor-b/coder-7b` 那一条在租户层，**所在范围对不上就是「查无此条」**，不会顺着名字解析到租户层那一条。

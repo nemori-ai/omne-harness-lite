@@ -22,8 +22,8 @@
 | 稳定身份 | `data.messages`，版本 1 |
 | 适用范围 | 一个部署之内的一份会话日志；跨进程后要由协议重新兑现的，逐行列在[契约第五节](v1/contract.md#五装配给与协议给) |
 | 为什么是 data 而不是 capability | 它**没有操作**：没有提交点、没有状态转移、没有自己的授权前提。消息怎样到达、怎样落盘、怎样被组装与压缩，归各自的契约；本契约定的是它们交换的那个值、以及「合法」与「此刻可读」这两个从日志算出来的判断 |
-| 精确依赖 | `data.content-blocks` v1（块的全部定义，含 `#S-20` 能力标识的 `name`——拓展件的名字）、`data.offer-expiry` v1 `#S-22`（时刻）、`data.identity-values` v1 `#S-11`（「已出门」上凭据那一格的租户支）与 `#S-31`（不透明标识的散文，不 `$ref`）、`data.call-accounts` v1 `#S-37`（`ModelCallId`、`AttemptId`）、`data.model-profile` v1 `#S-2`／`#S-5`／`#S-13`／`#S-15`／`#S-20`／`#S-27`（模型切换落下的那条记录的路由名；「已出门」的供应商、有效模型引用、请求参数、两份参数清单的项名、档案快照）。`data.model-response` 是 `ResponseId` 的家、也是 `SelectedBy`／`CredentialScope` 的原件，但它反向依赖本契约，**不登为依赖**：本契约按同一形状自定义，逐字对齐的义务登在[验证入口](verification.md#对齐义务) |
-| 谁在等它 | 会话日志与条目壳、PF-010 组装与压缩、`capability.stream-assembly`、`data.arrival-events`、`data.model-response`、`data.loop-extension`、`data.connector`、`capability.tool-execution-runtime`、`capability.model-request-runtime` 与传输适配、PF-014 受理、PF-012 对账与循环守卫、卡片、runtime context。完整清单见[契约的消费者表](v1/contract.md#消费者)——**那里是唯一的一份** |
+| 精确依赖 | `data.content-blocks` v1（块的全部定义，含 `#S-20` 能力标识的 `name`——拓展件的名字）、`data.offer-expiry` v1 `#S-22`（时刻）、`data.identity-values` v1 `#S-11`（「已出门」上凭据那一格的租户支）与 `#S-31`（不透明标识的散文，不 `$ref`）、`data.call-accounts` v1 `#S-37`（`ModelCallId`、`AttemptId`）、`data.model-profile` v1 `#S-2`／`#S-5`／`#S-13`／`#S-15`／`#S-19`／`#S-20`／`#S-27`（模型切换落下的那条记录的路由名；「已出门」的供应商、有效模型引用、请求参数、`extra` 不许空、两份参数清单的项名、档案快照）。`data.model-response` 是 `ResponseId` 的家、也是 `SelectedBy`／`CredentialScope`／`ParameterAdjustment`／`droppedParameters` 的原件，但它反向依赖本契约，**不登为依赖**：本契约按同一形状逐字自定义，对齐义务登在[验证入口](verification.md#对齐义务)——口径见 [registry「互引成环的登记口径」](../../../registry/README.md#covers) |
+| 谁在等它 | 会话日志与条目壳、PF-010 组装与压缩、`capability.stream-assembly`、`data.model-response`、`data.loop-extension`、`data.connector`、`capability.tool-execution-runtime`、`capability.model-request-runtime` 与传输适配、PF-014 受理、PF-012 对账与循环守卫、卡片、runtime context。完整清单见[契约的消费者表](v1/contract.md#消费者)——**那里是唯一的一份** |
 | 接受状态 | 未接受 |
 
 ## 按当前问题展开

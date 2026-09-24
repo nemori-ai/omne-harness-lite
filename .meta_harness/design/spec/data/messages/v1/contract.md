@@ -16,11 +16,12 @@
   | `omne-harness-lite-design-2026-09-15 · data.offer-expiry · v1` | [`S-22`](../../offer-expiry/v1/contract.md#s-22-schema-的范围) | 时刻的规范形式 | `$ref` 它的 `$defs/Instant`：`createdAt`、尝试开始的 `at`、到点的 `dueAt`、答复的 `at` |
   | `omne-harness-lite-design-2026-09-15 · data.identity-values · v1` | [`S-11`](../../identity-values/v1/contract.md#s-11-scopelayeridentity)、[`S-31`](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示) | 作用域层身份；不透明标识的交换表示 | `$ref` 它的 `$defs/ScopeLayerIdentity`（「已出门」的 `credentialScope` 的租户那一支，[S-49](#s-49-模型请求运行时写的五种记录不是消息)）；`MessageId` 与其余不透明标识按 S-31 散文定形、**不 `$ref`**（[S-3](#s-3-messageid)） |
   | `omne-harness-lite-design-2026-09-15 · data.call-accounts · v1` | [`S-37`](../../call-accounts/v1/contract.md#s-37-三个归属标识的家runidattemptidmodelcallid) | `ModelCallId`、`AttemptId` 的家 | `$ref` 它的 `$defs/ModelCallId`（中断提醒的 `about`、五种运行时记录的 `call`）、`$defs/AttemptId`（尝试开始的 `attempt`） |
-  | `omne-harness-lite-design-2026-09-15 · data.model-profile · v1` | [`S-2`](../../model-profile/v1/contract.md#s-2-routename)、[`S-5`](../../model-profile/v1/contract.md#s-5-providername-与允许的供应商)、[`S-13`](../../model-profile/v1/contract.md#s-13-modelprofileref)、[`S-15`](../../model-profile/v1/contract.md#s-15-modelrequestparameters-是一份词表)、[`S-20`](../../model-profile/v1/contract.md#s-20-项与项名)、[`S-27`](../../model-profile/v1/contract.md#s-27-modelprofilesnapshot档案在某一刻的副本) | 路由名、供应商标识、档案的引用、请求参数词表、项与项名（「已出门」上两份清单的项名）、档案快照 | `$ref` 它的 `$defs/RouteName`（模型切换落下的那条记录的 `routeName`：PF-013 rev 12 起设置与切换记路由名，落到哪一行由按层覆盖定）、`$defs/ProviderName`、`$defs/ModelProfileRef`、`$defs/ModelRequestParameters`、`$defs/ModelProfileSnapshot`（后四个都在「已出门」上，[S-49](#s-49-模型请求运行时写的五种记录不是消息)） |
+  | `omne-harness-lite-design-2026-09-15 · data.model-profile · v1` | [`S-2`](../../model-profile/v1/contract.md#s-2-routename)、[`S-5`](../../model-profile/v1/contract.md#s-5-providername-与允许的供应商)、[`S-13`](../../model-profile/v1/contract.md#s-13-modelprofileref)、[`S-15`](../../model-profile/v1/contract.md#s-15-modelrequestparameters-是一份词表)、[`S-19`](../../model-profile/v1/contract.md#s-19-extra)、[`S-20`](../../model-profile/v1/contract.md#s-20-项与项名)、[`S-27`](../../model-profile/v1/contract.md#s-27-modelprofilesnapshot档案在某一刻的副本) | 路由名、供应商标识、档案的引用、请求参数词表、`extra` 出现时至少一项（「已出门」还原实际发出的那一组时 `extra` 去空即缺席，S-49）、项与项名（「已出门」上两份清单的项名）、档案快照 | `$ref` 它的 `$defs/RouteName`（模型切换落下的那条记录的 `routeName`：PF-013 rev 12 起设置与切换记路由名，落到哪一行由按层覆盖定）、`$defs/ProviderName`、`$defs/ModelProfileRef`、`$defs/ModelRequestParameters`、`$defs/ModelProfileSnapshot`（后四个都在「已出门」上，[S-49](#s-49-模型请求运行时写的五种记录不是消息)） |
 
   **`data.model-response` 是 `ResponseId` 的家，但不登为本契约的依赖**：它以 `$ref` 取本契约的 `AssistantMessage` 作回复，
   本契约再引用回去两份契约就互为依赖；`ResponseId` 在这里按 `data.identity-values/v1#S-31` 的散文自定义同一形状（[S-37](#s-37-规范表示)）。
-  **同一理由，「已出门」上的 `selectedBy`、`credentialScope`、`parameterAdjustments`、`droppedParameters` 也按那份契约的 S-10、S-9、S-11 自定义同一形状、不 `$ref`**（`SelectedBy`、`CredentialScope`、`ParameterAdjustment`；`droppedParameters` 就地定形）；两处逐字对齐的义务登在[验证入口](../verification.md#对齐义务)。
+  **同一理由，「已出门」上的 `selectedBy`、`credentialScope`、`parameterAdjustments`、`droppedParameters` 也按那份契约的 S-10、S-9、S-11 逐字自定义同一形状、不 `$ref`**（`SelectedBy`、`CredentialScope`、`ParameterAdjustment`；`droppedParameters` 就地定形）；两处逐字对齐的义务登在[验证入口](../verification.md#对齐义务)。
+  这是两份 data 契约互引成环时的登记口径：一侧 `$ref` 并登依赖，另一侧逐字自定义、不登依赖、登对齐义务（主线裁定，见 [D-040 §七 M2](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加) 与 [§四](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#四被推翻或被覆盖的项追加登记)「L4」那一行；口径写在 [registry](../../../../registry/README.md#covers)）。
   正文里出现的 `data.arrival-events`、`data.loop-extension`、`capability.stream-assembly`、`capability.model-request-runtime`、
   会话日志与记录条目壳、卡片契约、runtime context 契约，**都是消费者或未来的家**：只写坐标或所指，不登依赖。
 - **条款编号**：`S-n`，**只在本契约本版本内有效**；外部引用须写全坐标，如 `data.messages/v1#S-28`。
@@ -92,7 +93,8 @@
 > | [S-24](#s-24-别的会话捎话与到点了) 的 `SessionRef` 归属 | **主线裁定**，见 [D-040 §一 S21-d](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s21connector报回的) |
 > | [S-49](#s-49-模型请求运行时写的五种记录不是消息)～[S-50](#s-50-调用终结的三支) 五种运行时记录的家；`ResponseId` 在「已出门」时定下 | **主线裁定**，见 [D-040 §一 S16-d、S16-a](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s16model-profile-directory--model-request-runtime报回的) |
 > | [S-31](#s-31-收齐却解析不了的调用) 的组合规则 | [PF-006 §5.5](../../../../product/PF-006-tools-and-skills/design.md#55-一次工具执行的收场有六种)（收齐却解析不了的调用由工具执行一侧收下、以一条 `failed` 的结果回给模型）；块的形状见 [D-040 §一 S1-e](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s1content-blocks报回的) |
-> | 各来源的结构化成员、[S-21](#s-21-中断之后必补一条) 的 `about`、[S-9](#s-9-assistantmessage一次回复只有一份) 的「一次回复只有一份权威内容」、[S-23](#s-23-循环守卫的干预) 的 `level_n` token、[S-26](#s-26-拓展件追加的提醒) 的名字空间、[S-39](#s-39-表示层拒绝值) 的 `block_id_duplicate`、[S-50](#s-50-调用终结的三支) 的 `released` 这个名字 | **规格层推导**：各条正文写明理由（同一件事一个名字、两份权威会分叉等） |
+> | 各来源的结构化成员、[S-21](#s-21-中断之后必补一条) 的 `about`、[S-9](#s-9-assistantmessage一次回复只有一份) 的「一次回复只有一份权威内容」、[S-23](#s-23-循环守卫的干预) 的 `level_n` token、[S-26](#s-26-拓展件追加的提醒) 的名字空间、[S-39](#s-39-表示层拒绝值) 的 `block_id_duplicate`、[S-50](#s-50-调用终结的三支) 的 `released` 这个名字 | **规格层推导**：各条正文写明理由（同一件事一个名字、两份权威会分叉等）；这些命名主线已接受，见 [D-040 §六 N-5](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) |
+> | [S-10](#s-10-assistantmessage-怎么收的尾) 回复流的结局怎样对到 `ending`（含运行被取消的两支）、[S-21](#s-21-中断之后必补一条) 那两支的 `by`；[S-14](#s-14-toolinternalmessage-怎么收的尾) 宿主被撤下时的帧流；[S-39](#s-39-表示层拒绝值) 工具消息的结果块不带 `terminated_by_agent`；[S-49](#s-49-模型请求运行时写的五种记录不是消息) `extra` 去空之后整个缺席 | **主线裁定**，见 [D-040 §七 M1、M12、M23、M28](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加) |
 > | [S-13](#s-13-toolinternalmessage)、[S-14](#s-14-toolinternalmessage-怎么收的尾) 的成立判据与对应表（只有有意停下才是 `interrupted`）；[S-7](#s-7-systemmessage)、[S-6](#s-6-每种消息能装哪几类块)、[S-29](#s-29-合法名单的判定)、[S-32](#s-32-会话日志里的配对与唯一) 随 PF-009 rev 8、PF-010 rev 6 的改写；[S-49](#s-49-模型请求运行时写的五种记录不是消息) 「已出门」时铸 `ResponseId` 并带上调用的绑定；[S-50](#s-50-调用终结的三支) `released` 可带 `cause` | **主线裁定**，见 [D-040 §五 K2、K3、K15、K20、K21](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)（K21 的成因名本契约取 `credential_unavailable`，见 S-50） |
 > | [S-4](#s-4-createdat-不是次序)、[S-6](#s-6-每种消息能装哪几类块)、[S-10](#s-10-assistantmessage-怎么收的尾) 的两条组合约束、[S-13](#s-13-toolinternalmessage) 的「至少一块」、[S-17](#s-17-说状态的带前值与现值) 的「现值不为 null」、[S-27](#s-27-compactionmessage-与它的名单) 的「摘要与名单不能都空」、[S-28](#s-28-此刻模型可读是算出来的) 的嵌套部分、[S-29](#s-29-合法名单的判定) 的 ③ | **规格层推导**：[`data.content-blocks/v1`](../../content-blocks/v1/contract.md#九明确不承诺) 把「哪种消息能装哪几类块」「能不能单独点名嵌套块」交给本契约；推导各写在条款正文里 |
 > | [S-33](#s-33-消息不携带租户身份) | **SYS-TENANT** |
@@ -115,7 +117,7 @@
 
 **它不拥有**：块本身（`data.content-blocks` v1）；会话日志与承载消息的记录条目壳（loop 与会话那一程，[G-2](#九已知缺口)）；
 组装与压缩这两个操作——什么时候压、压哪一段、摘要怎么写、组装取哪一份表示（PF-010 的能力）；
-块怎样一段段到达、怎样封口、帧流怎样收尾映射到本契约的取值（`data.arrival-events`、`capability.stream-assembly`）；
+块怎样一段段到达、怎样封口（`data.arrival-events`、`capability.stream-assembly`）——**但帧流与回复流的结局怎样对到本契约的 `ending`，归本契约**：帧流那张对应表在 [S-14](#s-14-toolinternalmessage-怎么收的尾)，回复流在 [S-10](#s-10-assistantmessage-怎么收的尾)（主线裁定，见 [D-040 §五 K2](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)、[§七 M1](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）；
 各家 adapter 的落点表本身（模型请求运行时与传输适配，本契约只写[「必须译掉」的义务](#四出门的三条义务)）。逐条见[第十节](#十明确不承诺)。
 
 ### 消费者
@@ -124,13 +126,13 @@
 |---|---|
 | 会话日志与记录条目壳（loop 与会话那一程，未起草） | 消息是条目的载荷：[S-2](#s-2-消息底座)、[S-3](#s-3-messageid)、[S-32](#s-32-会话日志里的配对与唯一)、[S-33](#s-33-消息不携带租户身份)；追加时的合法性判定 [S-29](#s-29-合法名单的判定) |
 | PF-010 上下文组装与压缩（无契约） | [S-5](#s-5-给谁看在块上)、[S-27](#s-27-compactionmessage-与它的名单)～[S-30](#s-30-悬着的占位)：按块标注与名单取，按合法名单写 |
-| `capability.stream-assembly` v1 | 收尾产出 `AssistantMessage` 与 `ToolInternalMessage`：[S-9](#s-9-assistantmessage一次回复只有一份)、[S-10](#s-10-assistantmessage-怎么收的尾)、[S-13](#s-13-toolinternalmessage)、[S-14](#s-14-toolinternalmessage-怎么收的尾)、[S-31](#s-31-收齐却解析不了的调用) |
-| `data.arrival-events` v1 | 帧流与回复流的收尾怎样对到 [S-10](#s-10-assistantmessage-怎么收的尾)、[S-14](#s-14-toolinternalmessage-怎么收的尾) 的取值 |
+| `capability.stream-assembly` v1 | 收尾产出 `AssistantMessage` 与 `ToolInternalMessage`：[S-9](#s-9-assistantmessage一次回复只有一份)、[S-10](#s-10-assistantmessage-怎么收的尾)、[S-13](#s-13-toolinternalmessage)、[S-14](#s-14-toolinternalmessage-怎么收的尾)、[S-31](#s-31-收齐却解析不了的调用)；**两张结局对应表的消费者**——帧流结局 → `ToolInternalEnding`（S-14）、回复流结局 → `ending`（S-10），引用、不另写 |
+| `data.arrival-events` v1 | **不消费本契约**：它的 `FinishReason` 是 S-10、S-14 两张对应表的输入，它只以坐标指到这两张表 |
 | `data.model-response` v1 | `$ref` 本契约的 `AssistantMessage` 作回复；[S-9](#s-9-assistantmessage一次回复只有一份)：`response` 指回它；一次回复只有一份权威内容 |
 | `data.loop-extension` v1 | 位置的 subject 里的消息取本契约的形状 |
 | `data.connector` v1 | `SessionRef`（[S-24](#s-24-别的会话捎话与到点了)） |
-| `capability.tool-execution-runtime` v1 | [S-11](#s-11-toolmessage)、[S-12](#s-12-真实结果落哪种消息只看有没有占位)、[S-13](#s-13-toolinternalmessage)、[S-19](#s-19-后台执行的两种收场提醒)：工具消息、占位、后台收场提醒、工具说过程 |
-| `capability.model-request-runtime` v1 与传输适配 | [第四节](#四出门的三条义务)的三条义务；[S-9](#s-9-assistantmessage一次回复只有一份)；它写的五种记录（[S-49](#s-49-模型请求运行时写的五种记录不是消息)、[S-50](#s-50-调用终结的三支)） |
+| `capability.tool-execution-runtime` v1 | [S-11](#s-11-toolmessage)、[S-12](#s-12-真实结果落哪种消息只看有没有占位)、[S-13](#s-13-toolinternalmessage)、[S-19](#s-19-后台执行的两种收场提醒)：工具消息、占位、后台收场提醒、工具说过程；[S-14](#s-14-toolinternalmessage-怎么收的尾) 帧流结局的对应表（引用、不另写） |
+| `capability.model-request-runtime` v1 与传输适配 | [第四节](#四出门的三条义务)的三条义务；[S-9](#s-9-assistantmessage一次回复只有一份)；[S-10](#s-10-assistantmessage-怎么收的尾) 回复流结局的对应（按它包消息，含运行被取消的两支）与 [S-21](#s-21-中断之后必补一条) 的 `by`；它写的五种记录（[S-49](#s-49-模型请求运行时写的五种记录不是消息)、[S-50](#s-50-调用终结的三支)） |
 | PF-014 入站受理与队列（无契约） | [S-1](#s-1-七种消息)、[S-8](#s-8-usermessage)、[S-15](#s-15-systemremindermessage正文给模型读来源给系统认)、[S-24](#s-24-别的会话捎话与到点了)：进来的是哪一种消息 |
 | PF-012 恢复对账与循环守卫（无契约） | [S-19](#s-19-后台执行的两种收场提醒)、[S-20](#s-20-尝试开始)、[S-23](#s-23-循环守卫的干预)、[S-32](#s-32-会话日志里的配对与唯一)：读 `source` 找「后台执行 X 结束了没」、数阶梯 |
 | 卡片（PF-008，契约未建立） | [S-22](#s-22-系统发起的等待答复回来) |
@@ -310,6 +312,7 @@
   - **压缩名单点不到它**：名单只能点日志里在前的消息（[S-29](#s-29-合法名单的判定) ②），它不在日志里——[系统提示词是给模型那一侧的第一块，只有第二块压得动](../../../../product/PF-010-context-management-and-assembly/design.md#给模型那一侧两块分别组装)，这一条由此成立，不另设判定。
 - **本版只含文本**（[PF-010 §4](../../../../product/PF-010-context-management-and-assembly/design.md#给模型那一侧两块分别组装)，rev 6 起）：它的块只能是文本块（[S-6](#s-6-每种消息能装哪几类块)），不经过落盘前的转换件。
 - **本条定的是它的形状**：组装出来的那一份里、交给传输适配的请求里，`SystemMessage` 都是这一种（[S-34](#s-34-四种直接对应)）。它**没有**日志里的身份：`id` 由组装出它的那一方给，[S-3](#s-3-messageid) 的「在会话日志之内唯一、由写日志的一方铸出」对它不适用，也没有谁拿它去指认日志里的东西。
+  **`createdAt` 同样由组装出它的那一方给**，记的是这一份被算出的时刻（[S-4](#s-4-createdat-不是次序) 的「写入方记下」在这里读作「组装方记下」）；它不落日志，没有谁拿它与日志里的消息比先后（S-4 本来就不许按它排序）。
 
 ### S-8 UserMessage
 
@@ -349,13 +352,27 @@
 - **用户叫停，什么都还没出来**——那次模型调用留一笔账，**不伪造一条空的**。
 - **出错断的**（不论已交付多少）——那次调用是一次故障、没有交出一份回复；**已交付的那部分记在那次模型调用的账里**（PF-009 rev 8 的说法；落在那一次发出的[模型响应体](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-response--模型响应体--model-response)上，`data.model-response`），**不冒充一条消息**（[PF-009 §6.9](../../../../product/PF-009-context-message-types/design.md#69-用户看见了的会话日志里必须有)）。
 
+**回复流的结局怎样对到本条——这张对应只在这里**（主线裁定，见 [D-040 §七 M1、M12](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)；输入是 `data.arrival-events/v1#S-16` 的 `FinishReason`；`capability.stream-assembly` 与 `capability.model-request-runtime` 按它包消息，不各写一份）：
+
+| 那一侧发生了什么 | 回复流的 `finish.reason` | 落成什么 |
+|---|---|---|
+| 正常收尾 | `end` | `ending: complete` |
+| 写到上限截断 | `max_tokens` | `ending: truncated_at_limit` |
+| **用户**叫停：直接叫停这次调用、插队顺带，或**用户取消了这次运行** | `interrupted` | 已有内容到了用户眼前 ⇒ `ending: interrupted_by_user`；什么都还没出来 ⇒ 不成为消息 |
+| 出错断的 | `lost` | 不成为消息；已交付的那部分在那一次发出的响应体上（故障） |
+| **系统**发起的运行取消——会话归档、宿主停止——以及宿主被撤下（有序撤除、替换）：在途的流被放弃 | `lost`（消费一侧的放弃动作补上的那一个） | **不成为消息**，不论已交付多少；已交付的那部分在那一次发出的响应体上——那里记的收场是被中断、发起方 `run_cancelled`，**不是故障**（`data.model-response`） |
+| 流还没开始就失败（连不上、上游直接回错误）；或停机、持有在途状态的一方也没了 | 没有 `finish` | 不成为消息：前者照出错断的收；后者这条消息写不出来，那一次发出由恢复对账补写响应体 |
+
+- **运行被取消不新增取值，按谁发起的分两路**：用户发起的与用户叫停同一行（`interrupted_by_user`，[S-21](#s-21-中断之后必补一条) `by: user`）；系统发起的经放弃落 `lost`、不成为消息（S-21 `by: system`）。
+  **`interrupted_by_user` 于是只出自用户发起的停下**——读到它的人找得到那个叫停的人；系统收走的半截回复若也落成它，就是冒称用户。
+
 两条组合约束（**规格层推导**）：
 
 - **`complete` 时不许有没长完的工具调用**（[`data.content-blocks/v1#S-13`](../../content-blocks/v1/contract.md#s-13-半截的工具调用)）：一次正常收尾的回复，它的每个调用都收齐了；两者同时出现，读者不知道该信哪一个。
 - **不是 `complete` 时至少一块**：什么都没到的那一种按上面不成为消息。
 
 - **`ending` 缺席是 `malformed`，从不当作 `complete`**——把缺席读成正常收尾，一条被叫停的回复就会被当成说完了。
-- **无论哪一行，都另外补一条中断提醒**（[S-21](#s-21-中断之后必补一条)）。那条提醒不是本消息的一部分。
+- **这次模型调用以上面那张对应表里除正常收尾之外的哪一行收尾，都另外补一条中断提醒**（[S-21](#s-21-中断之后必补一条)）——写到上限截断的也补。补是按一次调用算的：出错断之后又再发了一次的，断掉的那一次发出不另补。那条提醒不是本消息的一部分。
 - 读者**只读 `ending` 判断怎么收的尾**，不从最后一块长什么样去推。
 - **被中断的回复不交出动作**（[PF-014 §5.4](../../../../product/PF-014-inbound-intake-and-queueing/design.md#54-插队停在哪就怎么办)，rev 6 起）：`ending: interrupted_by_user` 的回复里，参数已经收齐的完整调用块**也不被执行**，留在这条消息里；
   它们于是没有工具消息——这与 [S-32](#s-32-会话日志里的配对与唯一) ② 的「至多一条」相容，不是日志不一致。执不执行归 loop 与工具运行时，本契约只写明日志上的这个样子是合法的。
@@ -374,11 +391,12 @@
   |---|---|---|
   | 转后台（自动、用户手动、因插队、发起时就在后台） | `outcome: backgrounded`，原因取 [`data.content-blocks/v1#S-18`](../../content-blocks/v1/contract.md#s-18-占位原因与它落在哪一格) 里配这一格的那几个 | [PF-012 §5.11](../../../../product/PF-012-agent-loop-and-run/design.md#511-外面进来的事怎么到-agent-眼前) |
   | 被中断（用户、插队、人拒绝回复、会话归档、运行被取消、前台超时） | `outcome: interrupted`，原因同上取配这一格的 | [PF-006 §6.7](../../../../product/PF-006-tools-and-skills/design.md#占位消息一律要说清原因) |
-  | 恢复对账追补：那次执行没了 | `outcome: failed`、`reason.code: abnormal_interruption` | [PF-012 §5.7](../../../../product/PF-012-agent-loop-and-run/design.md#先对账再进方程) |
+  | 恢复对账追补：那次执行没了；或工具执行运行时有序撤下时当场写下（`capability.tool-execution-runtime` v1 S-48，[D-040 §七 M12](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)） | `outcome: failed`、`reason.code: abnormal_interruption` | [PF-012 §5.7](../../../../product/PF-012-agent-loop-and-run/design.md#先对账再进方程) |
 
   上面这几条都是[占位消息](../../../../ubiquitous_language/terms/record-and-context.md#ul-placeholder-message--占位消息--placeholder-message)。**这张表只是常见的占位**；原因取值与它落哪一格只归 `data.content-blocks`（它的 [S-18](../../content-blocks/v1/contract.md#s-18-占位原因与它落在哪一格)），本契约不另列。
   「前台上限到点、而这个工具不许转后台」那一种被中断，原因取值是 `foreground_timeout`（同一条 S-18）。
   `terminated_by_agent` **不是占位原因**：它是[后台那段执行收场的提醒上写的原因](../../../../product/PF-006-tools-and-skills/design.md#占位消息一律要说清原因)，只落那种提醒的结果块（[S-19](#s-19-后台执行的两种收场提醒)；块上的取值域见同一条 S-18）。
+  **工具消息的结果块带 `reason.code: terminated_by_agent` 即表示层拒绝 `malformed`**（[S-39](#s-39-表示层拒绝值)；Schema `ToolMessage` 直接排除这个值；主线裁定，见 [D-040 §七 M23](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）：只看这一条消息就判得出，接收边界不收它，不留给写入方自觉。
 - **[结果卸载](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)之后带摘要的那条也是一条 `ToolMessage`，但它不是占位消息**：它装着真实结果的摘要与取全文的办法，**它就是那次调用的结果**——块上是那次调用真实的收场，`offloaded` 指向原始结果（[PF-010 §5.5](../../../../product/PF-010-context-management-and-assembly/design.md#55-几样东西各自落成哪一种消息)）。产品正文也管它叫「占位」，本契约按词条不这样叫。
 - **工具等待态的答复不另落消息**：答复是那次执行的输入，它拿到之后接着跑，结果仍落这一种（[PF-010 §5.5](../../../../product/PF-010-context-management-and-assembly/design.md#55-几样东西各自落成哪一种消息)）。
   agent 取回全文是它自己发起的一次新调用：一条新的 `AssistantMessage` 加一条新的 `ToolMessage`。
@@ -426,17 +444,18 @@
 | 执行那一侧发生了什么 | 帧流的 `finish.reason` | `ending` |
 |---|---|---|
 | 执行交回了：收场 `completed`，或执行者自己交回的 `failed` | `end` | `complete` |
-| 那次执行被**有意停下**：用户叫停、插队、人拒绝回复、会话归档、运行被取消、前台上限到点——收场 `interrupted` | `interrupted` | `interrupted` |
+| 那次执行被**有意停下**——收场为 `interrupted` 的全部情形：用户叫停、插队、人拒绝回复、会话归档、运行被取消、前台上限到点，以及 agent 掐掉已转后台的那段执行（原因 `terminated_by_agent`，那段的收场以提醒到达，[S-19](#s-19-后台执行的两种收场提醒)） | `interrupted` | `interrupted` |
 | **执行者没有回答**：等待到了它自己声明的到点（收场 `no_answer`） | `lost` | `lost` |
 | **执行者换了代**：经 MCP 桥的动作随桥换代或卸载而没了下文（收场 `failed`，原因 `abnormal_interruption`） | `lost` | `lost` |
 | 帧流自己断了、或消费一侧放弃等待（**不影响**那次执行的收场，[PF-009 §6.17](../../../../product/PF-009-context-message-types/design.md#617-发帧发不出去不影响这次工具执行)） | `lost` | `lost` |
+| **工具执行运行时有序撤下**（撤除、替换）：它先对每一份还开着的装配状态放弃（`abandon`），再当场写下那次执行的收场 `failed`、原因 `abnormal_interruption`（`capability.tool-execution-runtime` v1 S-48；主线裁定，见 [D-040 §七 M12](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)；与桥换代同类） | `lost` | `lost` |
 | 写到上限截断 | `max_tokens`——对帧流**不合法**（`data.arrival-events/v1#S-16`），不会走到这一步 | — |
 | **停机**：持有在途状态的一方也没了 | 没有 `finish` | **这条消息写不出来**（见下） |
 
 - **`interrupted` 只给「有意停下」**（主线裁定，见 [D-040 §五 K2](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）：它说的是有人或宿主**决定**让这次执行停下，帧流随之收尾。
   等待到点是执行者**没有回答**、桥换代是执行者**没了**——都不是谁决定停下，而是生产的一方失去了连续性，所以落 `lost`；
   把它们写成 `interrupted`，读的人会去找一个并不存在的叫停者。
-- 收场与本表不是一一对应：同一个收场 `failed` 按执行者是自己交回还是换了代落 `complete` 或 `lost`。**判断看执行那一侧发生了什么，不看 `outcome` 这个字。**
+- 收场与本表不是一一对应：同一个收场 `failed` 按执行者是自己交回、还是换了代或运行时有序撤下，落 `complete` 或 `lost`。**判断看执行那一侧发生了什么，不看 `outcome` 这个字。**
 - **持有在途状态的一方也没了**时，这条消息写不出来——那正是「运行时失去连续性它就没了」，收场另行追补，不靠它恢复（[PF-009 §9.2](../../../../product/PF-009-context-message-types/design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息)）。
 
 ### S-15 SystemReminderMessage：正文给模型读，来源给系统认
@@ -506,7 +525,7 @@
 | `kind` | 什么时候 | `blocks` 里那恰好一个工具结果块 |
 |---|---|---|
 | `background_execution_finished` | 那段执行跑到头，真实结果回来 | `callId` 与 `source.callId` 相同；`outcome` 与 `source.outcome` 相同，**只在 `completed`、`failed`、`interrupted`、`no_answer` 四种里出**；块的其余照 [`data.content-blocks/v1#S-15`](../../content-blocks/v1/contract.md#s-15-工具结果块)～[`S-18`](../../content-blocks/v1/contract.md#s-18-占位原因与它落在哪一格) |
-| `background_execution_interrupted` | **恢复对账时由系统代落**：占位在，工具执行运行时里找不到它，日志里也没有它结束时回来的那条提醒（[PF-012 §5.7](../../../../product/PF-012-agent-loop-and-run/design.md#先对账再进方程)） | `callId` 与 `source.callId` 相同；`outcome: failed`、`reason.code: abnormal_interruption`——**收场是失败，写给 agent 的原因是异常中断，不是被中断**（[PF-006 §6.7](../../../../product/PF-006-tools-and-skills/design.md#占位消息一律要说清原因)） |
+| `background_execution_interrupted` | **恢复对账时由系统代落**：占位在，工具执行运行时里找不到它，日志里也没有它结束时回来的那条提醒（[PF-012 §5.7](../../../../product/PF-012-agent-loop-and-run/design.md#先对账再进方程)）；**工具执行运行时有序撤下时当场代落的是同一种**（`capability.tool-execution-runtime` v1 S-48，[D-040 §七 M12](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)） | `callId` 与 `source.callId` 相同；`outcome: failed`、`reason.code: abnormal_interruption`——**收场是失败，写给 agent 的原因是异常中断，不是被中断**（[PF-006 §6.7](../../../../product/PF-006-tools-and-skills/design.md#占位消息一律要说清原因)） |
 
 - **结果就是 `blocks` 里那一个工具结果块**（规格层推导）：模型读的是 `blocks`，结果要让它读得到，就得在那里；
   它照样有标注、照样能被压缩点名，与工具消息里的那一块同形。**`source` 不另带一份结果**——两份结果会分叉，而没有人知道该信哪一份。
@@ -548,15 +567,15 @@ agent 读到的就是它；再补一条提醒是同一件事说两遍。已转�
 | 成员 | 含义 |
 |---|---|
 | `what` | 被中断的那一层：`model_call` · `run` |
-| `by` | `user`——用户叫停；`system`——不是用户发起的：出错断、写到上限、系统侧停止 |
+| `by` | `user`——用户发起的：用户叫停、插队顺带、用户取消了这次运行；`system`——不是用户发起的：出错断、写到上限、系统侧停止（会话归档、宿主停止或被撤下） |
 | `hadContent` | 中断之前有没有内容已经到了用户眼前 |
 | `about` | 可选，只配 `what: model_call`：`{ kind: "model", call, dispatch }`——一次模型调用（`call` 是 `data.call-accounts/v1#S-37` 的 `ModelCallId`）的第几次发出，`dispatch` ≥ 1 |
 
 - **成员名 `call` 与五种运行时记录的 `call` 同义**（[S-49](#s-49-模型请求运行时写的五种记录不是消息)）。**本契约里 `callId` 只指工具调用的 `CallId`**（[S-11](#s-11-toolmessage)、[S-13](#s-13-toolinternalmessage)、[S-19](#s-19-后台执行的两种收场提醒)）——按 `callId` 配对工具调用的消费者不会把一次模型调用当成工具调用。
 - **`about` 与 `what` 要对得上**（规格层推导）：`about` 只配 `model_call`，`run` 不带 `about`。对不上是 `malformed`。
   **`about` 可以不带**：一次中断可能同时停下了好几次执行，那时这条提醒说的是「这一层被中断了」。
-- **与 [S-10](#s-10-assistantmessage-怎么收的尾) 的对应**：模型那一层的五种流断，每一种都补一条。`hadContent` 为真、`by: user` 的那一种，日志里另有一条 `ending: interrupted_by_user` 的回复；
-  `by: system`、出错断的那一种，已交付的部分在那次模型调用的账里，**没有**那条回复——agent 靠这条提醒知道刚才断了。
+- **与 [S-10](#s-10-assistantmessage-怎么收的尾) 的对应**：一次模型调用以 S-10 那张回复流对应表里除正常收尾之外的哪一行收尾，都补一条。`hadContent` 为真、`by: user` 的那一种，日志里另有一条 `ending: interrupted_by_user` 的回复；
+  `by: system` 的出错断、以及系统发起的运行取消（会话归档、宿主停止或被撤下），已交付的部分在那次模型调用的账里，**没有**那条回复——agent 靠这条提醒知道刚才断了。
 - **agent 下一轮读到一段没头没尾的东西，靠的就是这一条**：不补，它会自己编一个解释，然后重说一遍、重调一次。
 
 ### S-22 系统发起的等待答复回来
@@ -769,7 +788,10 @@ readable(b, L)      ≝ b 所在的消息在日志前缀 L 里
     所以写「已出门」时它们已知；停机之后替这一次发出补写响应体的一方，**从这一条读出实际发出的那一组**，不必等一份也许永远不来的响应体。
     - `parameterAdjustments`：每项 `{ name, requested, sent }`，`name` 在 `parameters` 里、`requested` **等于** `parameters` 里那一项的值、`sent` 是实际发出的值且与 `requested` 不同；`droppedParameters`：要求了却没发出的那些项的名字，每个都在 `parameters` 里。项名按 `data.model-profile/v1#S-20`（`extra` 项以它的键为名），一个项名至多出现在两份清单之一里，且在那一份里至多一次。
     - **缺席即断言**：`parameterAdjustments` 缺席即一项值也没改，`droppedParameters` 缺席即一项也没丢；**空数组不是合法写法**——与响应体那两个成员的读法相同。
-    - **实际发出的那一组 = `parameters` 把 `parameterAdjustments` 列的那几项换成 `sent`、去掉 `droppedParameters` 列的那几项**；同一次发出若有响应体，它的 `route.parameters`、`route.parameterAdjustments`、`route.droppedParameters` 与这里算出的、写下的**逐项相同**（`data.model-response/v1#S-11`）。
+    - **实际发出的那一组 = `parameters` 把 `parameterAdjustments` 列的那几项换成 `sent`、去掉 `droppedParameters` 列的那几项**；
+      **去掉之后 `extra` 一个键都不剩时，整个 `extra` 成员缺席**——`extra` 出现时至少一项（`data.model-profile/v1#S-19`），空的 `extra` 不是合法写法（主线裁定，见 [D-040 §七 M28](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）。
+      算出的那一组**是一份合法的 `ModelRequestParameters`**：每个 `sent` 都在那一项的取值域内（`extra` 项的值是任意 JSON，不受此限）——与 `data.model-response/v1#S-11` 第 5 条同一个要求，表示不出来的值传输适配不得发出，只能改成表示得出的值或不发、记进 `droppedParameters`。
+      同一次发出若有响应体，它的 `route.parameters`、`route.parameterAdjustments`、`route.droppedParameters` 与这里算出的、写下的**逐项相同**（`data.model-response/v1#S-11`）。
     - 这两项**按这一次发出写**：同一次调用的两次发出，`parameters` 逐字相同，这两项可以不同（换了一家，处置就可能不同）。
   - **`selectedBy`、`credentialScope`、`parameterAdjustments` 的每一项（`ParameterAdjustment`）与 `droppedParameters` 的形状与 `data.model-response/v1` 的 S-10、S-9、S-11 逐字相同**，本契约自定义、不 `$ref`（理由见头部：那份契约 `$ref` 本契约，反向引用会让依赖成环）；同一次发出，两处写的值必须相同。
   - 凭据本身、凭据的引用都**不在**这里：`credentialScope` 只说是哪一格。
@@ -792,7 +814,7 @@ readable(b, L)      ≝ b 所在的消息在日志前缀 L 里
 - **`released` 是规格层给的名字**：那份能力的「loop 放手」操作没有给这条结局起名，本契约为它立一个取值，免得用 `cause` 缺席来表示它（缺席不是一个值）。
 - **`released` 的 `cause`**（主线裁定，见 [D-040 §五 K21](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）：**缺席** = 最近一次发出以故障收场、loop 决定不再发——那次故障的成因在那份响应体上，这里不再写一份；
   **`credential_unavailable`** = 续接或再发之前凭据取不到，这一次没有出门，因而没有响应体可以记成因，只能记在这里。
-  K21 原文把这个成因写作 `credential_missing`；**本契约取 `credential_unavailable`**：它说的与出门前那一支、`data.loop-extension` v1 `FailureCause` 里的 `credential_unavailable` 是同一件事（凭据取不到），同一件事只有一个名字——`credential_missing` 不是任何已有取值（已报主线）。
+  K21 原文把这个成因写作 `credential_missing`；**本契约取 `credential_unavailable`**：它说的与出门前那一支、`data.loop-extension` v1 `FailureCause` 里的 `credential_unavailable` 是同一件事（凭据取不到），同一件事只有一个名字——`credential_missing` 不是任何已有取值（这一取代登记在 [D-040 §四](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#四被推翻或被覆盖的项追加登记)「K21 的成因名」那一行）。
   其余三个出门前成因不会出现在这一支：档案快照与有效模型在打开调用时绑定、此后不改（`capability.model-request-runtime` 绑定的那一份），续接与再发不重核它们；**凭据是每次发出现取的**，唯一会在已发出过之后才不过的是它。
 - **`cause` 的四个取值与 `data.loop-extension` v1 的 `FailureCause` 里出门前那四个逐字相同**：同一件事同一个名字。
   本契约不 `$ref` 那一份——那份契约以 `$ref` 取本契约的消息，反向引用会让两份契约互为依赖；两处的对齐义务登记在[验证入口](../verification.md#对齐义务)。
@@ -890,7 +912,7 @@ readable(b, L)      ≝ b 所在的消息在日志前缀 L 里
 | `reminder_nature_mismatch` | `type: system_reminder`，`source.kind` 是十一种之一、`nature` 是两种之一，但两者不是定死的那一对 | [S-16](#s-16-性质与来源定死对应) |
 | `reminder_state_without_previous` | `source.kind: runtime_context_changed`，没有 `previous` 成员 | [S-17](#s-17-说状态的带前值与现值) |
 | `compaction_self_reference` | `type: compaction`，名单里某一项的 `messageId` 是这条消息自己的 `id` | [S-29](#s-29-合法名单的判定) ① |
-| `malformed` | 其余一切不合形状：缺必填成员（含 `type`、`ending`、`silenced` 缺席）、多出成员、类型不对、未知的其他枚举值（含未知的 `source.kind`）、违反 [S-6](#s-6-每种消息能装哪几类块) 的任一格、违反 [S-10](#s-10-assistantmessage-怎么收的尾) 的两条组合约束、`ToolInternalMessage` 没有块、后台收场提醒里工具结果块的数目或 `callId`／`outcome` 与 `source` 对不上、`about` 与 `what` 对不上、名单重复或摘要与名单都空。**判据只有一条**：不合 Schema，或违反本表之外那几条 Schema 管不到的单条消息内的跨成员约束；上面只是举例 | 各条 |
+| `malformed` | 其余一切不合形状：缺必填成员（含 `type`、`ending`、`silenced` 缺席）、多出成员、类型不对、未知的其他枚举值（含未知的 `source.kind`）、违反 [S-6](#s-6-每种消息能装哪几类块) 的任一格、违反 [S-10](#s-10-assistantmessage-怎么收的尾) 的两条组合约束、`ToolMessage` 的结果块 `reason.code` 是 `terminated_by_agent`（[S-11](#s-11-toolmessage)）、`ToolInternalMessage` 没有块、后台收场提醒里工具结果块的数目或 `callId`／`outcome` 与 `source` 对不上、`about` 与 `what` 对不上、名单重复或摘要与名单都空。**判据只有一条**：不合 Schema，或违反本表之外那几条 Schema 管不到的单条消息内的跨成员约束；上面只是举例 | 各条 |
 | `compaction_forward_reference` | `type: compaction`，名单里某一项的 `messageId` 不是这条消息之前的日志里的一条消息 | [S-29](#s-29-合法名单的判定) ② |
 
 **判定分两段，次序固定：**
@@ -929,7 +951,7 @@ readable(b, L)      ≝ b 所在的消息在日志前缀 L 里
 | [S-5](#s-5-给谁看在块上) | 只管 `tool_internal` 那一位 | 其余是常态，不是检查 |
 | [S-6](#s-6-每种消息能装哪几类块) | **管得到**：每一格 | — |
 | [S-9](#s-9-assistantmessage一次回复只有一份)、[S-10](#s-10-assistantmessage-怎么收的尾) | 管 `response`／`ending` 必填、两条组合约束 | 一份回复只一份权威内容、一个 `ResponseId` 至多一条——写入方与条目壳 |
-| [S-11](#s-11-toolmessage) | 管块数与块的类 | **两个 `callId` 相同**——跨成员比较，管不到 |
+| [S-11](#s-11-toolmessage) | 管块数与块的类；那一块的 `reason.code` 不是 `terminated_by_agent` | **两个 `callId` 相同**——跨成员比较，管不到 |
 | [S-13](#s-13-toolinternalmessage)、[S-14](#s-14-toolinternalmessage-怎么收的尾) | **管得到**：顶层 `toModel: false`、至少一块、`ending` 闭合 | 只留收尾之后那一条——写入方 |
 | [S-16](#s-16-性质与来源定死对应) | **管得到**：`if`／`then` 逐种定死 | — |
 | [S-17](#s-17-说状态的带前值与现值) | 管 `previous` 必填、`current` 不为 `null` | 前值真的是「最后感知到的那一份」、正文说清了变化——产生者 |
@@ -1026,8 +1048,10 @@ readable(b, L)      ≝ b 所在的消息在日志前缀 L 里
 
 #### S-48 中断必补
 
-对模型那一层的五种流断各跑一次。**必须观察到**：每一次日志里都有一条 `interrupted` 提醒；只有「用户叫停、已有内容」与「写到上限」两种另有一条回复，`ending` 分别是 `interrupted_by_user`、`truncated_at_limit`；
+对模型那一层的五种流断各跑一次，再加运行被取消的两支（都在模型已经开口之后）。**必须观察到**：每一次日志里都有一条 `interrupted` 提醒；只有「用户叫停、已有内容」与「写到上限」两种另有一条回复，`ending` 分别是 `interrupted_by_user`、`truncated_at_limit`；
 「用户叫停、什么都没出来」**没有**一条空回复；出错断的两种**没有**回复，已交付的部分在那次模型调用的账里。
+**运行被取消**：用户取消的那一支与「用户叫停、已有内容」相同（回复 `interrupted_by_user`，提醒 `by: user`）；系统取消的那一支（会话归档或宿主停止）**没有**回复，提醒 `by: system`、`hadContent: true`，已交付的部分在那一次发出的响应体上、收场被中断、发起方 `run_cancelled`。
+**绝不能观察到**：系统取消的那一支落成一条 `interrupted_by_user` 的回复。
 
 ### 消费者核对场景
 
@@ -1115,7 +1139,7 @@ PF-014 的受理在**自己派出去的子 agent 回来报告**时，依赖 [S-1
 
 | # | 原来缺什么 | 怎么关的 | 落在哪 |
 |---|---|---|---|
-| **G-3** | `ResponseId` 的家与本契约的占位定义 | 家是 `data.model-response/v1#S-6`；本契约按 S-31 散文自定义同一形状、**不 `$ref`**——那份契约 `$ref` 本契约的 `AssistantMessage`，反向会成环（简报要求 `$ref`，与「无环」相抵，已报主线） | [S-9](#s-9-assistantmessage一次回复只有一份)、[S-37](#s-37-规范表示) |
+| **G-3** | `ResponseId` 的家与本契约的占位定义 | 家是 `data.model-response/v1#S-6`；本契约按 S-31 散文自定义同一形状、**不 `$ref`**——那份契约 `$ref` 本契约的 `AssistantMessage`，反向会成环；这一登记口径见 [D-040 §七 M2](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加) 与 registry 的「互引成环的登记口径」 | [S-9](#s-9-assistantmessage一次回复只有一份)、[S-37](#s-37-规范表示) |
 | **G-4** | `ModelCallId` 的占位定义 | `$ref` `data.call-accounts/v1#S-37` | [S-21](#s-21-中断之后必补一条)、[S-49](#s-49-模型请求运行时写的五种记录不是消息) |
 | **G-8** | 尝试开始只有一个原因取值 | 三值 `first` · `resumed_after_interruption` · `resumed_after_wait`（主线裁定，见 [D-040 §一 S3-a](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s3messages报回的)） | [S-20](#s-20-尝试开始) |
 | **G-10** | 拓展件名字的名字空间 | = 类别为 `loop_extension` 的能力标识的 `name`（规格层推导：同一件东西只有一个名字，见 [S-26](#s-26-拓展件追加的提醒)） | [S-26](#s-26-拓展件追加的提醒)、[S-22](#s-22-系统发起的等待答复回来) |
@@ -1128,7 +1152,7 @@ PF-014 的受理在**自己派出去的子 agent 回来报告**时，依赖 [S-1
 **以下都不在本契约内，消费者不得从本契约推出它们：**
 
 - **块**：七类块、两个标注、收场与占位原因——归 `data.content-blocks` v1；本契约只定消息能装哪几类块（[S-6](#s-6-每种消息能装哪几类块)）。
-- **到达**：块怎样开、填、封口，追加与整体替换，节流与砍，帧流与回复流怎样收尾映射到 `ending`——归 `data.arrival-events` 与 `capability.stream-assembly`。
+- **到达**：块怎样开、填、封口，追加与整体替换，节流与砍——归 `data.arrival-events` 与 `capability.stream-assembly`。**帧流与回复流的结局怎样对到 `ending` 不在此列**：那两张对应表归本契约（[S-14](#s-14-toolinternalmessage-怎么收的尾)、[S-10](#s-10-assistantmessage-怎么收的尾)）。
 - **会话日志与条目壳**：日志的存储、全序、条目带什么、追加的权限与失败——归 loop 与会话那一程（[G-2](#九已知缺口)）。
 - **压缩的操作**：什么时候压、压哪一段、摘要怎么写、名单怎么选、压缩之后补哪几份全量——归 PF-010；本契约只定名单的形状、合法性与它的效果。
 - **组装**：取哪一份表示、窗口怎么截、**名单拆开了一对调用与结果之后怎样保持成对**——归 PF-010 与传输适配。

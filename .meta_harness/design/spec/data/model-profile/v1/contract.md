@@ -87,15 +87,15 @@
 
 | 消费者 | 消费什么 |
 |---|---|
-| **`capability.model-request-runtime` v1**（[PF-013 §5.12](../../../../product/PF-013-model-profiles-and-invocation/design.md#512-重试站在一个已经存在的位置上)） | 有效模型那一条档案的 `providers`／`allowFallback`（[S-5](#s-5-providername-与允许的供应商)、[S-6](#s-6-允不允许回退)）、两个上限、参数（[S-15](#s-15-modelrequestparameters-是一份词表)～[S-21](#s-21-不静默丢也不静默改)）；**「不静默丢、不静默改」是它的 adapter 的义务** |
+| **`capability.model-request-runtime` v1**（[PF-013 §5.12](../../../../product/PF-013-model-profiles-and-invocation/design.md#512-重试站在一个已经存在的位置上)） | 有效模型那一条档案的 `providers`／`allowFallback`（[S-5](#s-5-providername-与允许的供应商)、[S-6](#s-6-允不允许回退)）、两个上限、参数（[S-15](#s-15-modelrequestparameters-是一份词表)～[S-21](#s-21-不静默丢也不静默改)）；打开调用时照原样复制下档案快照（[S-27](#s-27-modelprofilesnapshot档案在某一刻的副本)）；**「不静默丢、不静默改」是它的 adapter 的义务** |
 | **Agent 定义「用哪个模型」那项设置**（[PF-004 §6.6](../../../../product/PF-004-agent-definition-and-assembly/design.md#66-模型在每次请求时确定)；契约未立） | 取值 = `RouteName`（[S-2](#s-2-routename)）；这个名字在一条范围链上落到哪一行，由按层覆盖定（[S-14](#s-14-引用只精确解析不跨层)） |
-| **会话的选中模型**（[PF-013 §4](../../../../product/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型)；会话契约未立） | 取值 = `RouteName`；切换事实记路由名（`data.messages` v1 S-49） |
+| **会话的选中模型**（[PF-013 §4](../../../../product/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型)；会话契约未立） | 取值 = `RouteName`；[模型切换](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-switch--模型切换--model-switch)落下的那条记录也记路由名（`data.messages` v1 S-49） |
 | **[合法目标集合](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-legal-target-set--合法目标集合--legal-target-set)的求值与[模型展示列表](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-model-display-list--模型展示列表--model-display-list)**（`capability.model-request-runtime` v1） | `registration`（[S-10](#s-10-registration)）、`inputModalities`（[S-7](#s-7-modality-与两组模态)）、档案与引用成对交出（[S-1](#s-1-档案的身份所在范围与路由名)）；**官方与自建同一份**（[PF-013 §6.3](../../../../product/PF-013-model-profiles-and-invocation/design.md#63-官方与自建在同一份列表里)） |
 | **组装**（[PF-010 要求五](../../../../product/PF-010-context-management-and-assembly/design.md#要求五组装的输入里必须有当下生效的那份模型档案)） | 窗口 `maxInputTokens`（[S-8](#s-8-两个上限)）、收得下的模态（[S-7](#s-7-modality-与两组模态)）、送进去之前的限制（[S-9](#s-9-inputconstraints)）——**同一份档案里的三个事实** |
 | **模态转换件**（[PF-013 §4](../../../../product/PF-013-model-profiles-and-invocation/design.md#模态)） | `Modality` 四个取值（[S-7](#s-7-modality-与两组模态)） |
 | **`capability.modality-projection` v1** | 兼容判定只读 `inputModalities`、文本从不被挡（[S-7](#s-7-modality-与两组模态)）；档案不合形状时 `invalidInput` 带的那个原名取 [S-25](#s-25-拒绝值闭合一次恰一个) |
 | **`capability.asset-registry` v1** | 工具两端的模态对照有效模型档案的两组模态（[S-7](#s-7-modality-与两组模态)） |
-| **`data.messages` v1** | 「已出门」记录的供应商取 `ProviderName`（[S-5](#s-5-providername-与允许的供应商)）；切换事实记 `RouteName`（[S-2](#s-2-routename)） |
+| **`data.messages` v1** | 「已出门」记录带着这次调用的绑定与传输适配的处置：供应商取 `ProviderName`（[S-5](#s-5-providername-与允许的供应商)）、有效模型的引用取 `ModelProfileRef`（[S-13](#s-13-modelprofileref)）、合并之后的请求参数取 `ModelRequestParameters`（[S-15](#s-15-modelrequestparameters-是一份词表)）、档案快照取 `ModelProfileSnapshot`（[S-27](#s-27-modelprofilesnapshot档案在某一刻的副本)）、两份处置清单的项名按 [S-20](#s-20-项与项名)；模型切换落下的那条记录记 `RouteName`（[S-2](#s-2-routename)） |
 | **`data.loop-extension` v1** | 「调模型之前」可改的请求里 `target` 与 `select_model` 的 `profile` 取 `RouteName`（[PF-013 §6.1](../../../../product/PF-013-model-profiles-and-invocation/design.md#61-档案是一个对象那项设置的取值是对它的引用)：用哪个模型记路由名）、`parameters` 取 `ModelRequestParameters`；重试的 `provider` 取 `ProviderName`（[S-5](#s-5-providername-与允许的供应商)）；「调模型之后 · 失败」主体的 `profile` 是那次调用绑定的档案快照（[S-27](#s-27-modelprofilesnapshot档案在某一刻的副本)） |
 | **`data.model-response` v1** | 路由留痕的 `profile`（`ModelProfileRef`，[S-13](#s-13-modelprofileref)）、档案快照（[S-27](#s-27-modelprofilesnapshot档案在某一刻的副本)）、`provider`（`ProviderName`，在快照的允许列表里、第一次发出走第一家，[S-5](#s-5-providername-与允许的供应商)、[S-6](#s-6-允不允许回退)）；**参数三处留痕兑现 [S-21](#s-21-不静默丢也不静默改)**：`parameters` 记实际发出的值（`ModelRequestParameters`）、`parameterAdjustments` 记改过值的那几项（项名、要求的值、发出的值）、`droppedParameters` 记没发出的项名（含 `extra` 项的键）——项名都按 [S-20](#s-20-项与项名) |
 | **`capability.model-profile-directory` v1**（建档、改、撤回、恢复在册、读、装入官方清单） | [S-3](#s-3-撞名判定同一范围内唯一) 的判定与 `route_name_taken`、[S-10](#s-10-registration) 的两条转移、[S-11](#s-11-updatedat) 何时动、[S-12](#s-12-各属性何时定能不能改) 的写路径约束、[S-28](#s-28-建档内容产生一条档案时给的那一份) 建档内容（建档与清单条目的输入）、[S-24](#s-24-表示层校验是一次纯计算)／[S-25](#s-25-拒绝值闭合一次恰一个) 的表示层校验与拒绝值 |
@@ -346,7 +346,7 @@ PF-013 有几条规则建立在「每个模型都收得下文本」之上——[
 **这一对取值只说档案自己的状态。**「已撤回的不能被新选中」「会话指着它时说『已下架』而不是『未知模型』」
 （[PF-013 §6.4](../../../../product/PF-013-model-profiles-and-invocation/design.md#64-撤回不删行会话指向被撤回的档案时说已下架)）
 **是读它的那些能力的义务**，本契约只保证它们读得到区分这两件事所需的值。
-「恢复在册之后，还指着它的会话不用换就接得上」同样不是本契约另加的规则：引用仍解析到同一条（[S-14](#s-14-引用只精确解析不跨层)），它又在册了，合法目标那次求值自然把它算回来。
+「恢复在册之后，还指着它的会话不用换就接得上」同样不是本契约另加的规则：会话记的是路由名（[S-2](#s-2-routename)），不是引用；这条档案又在册了，那个名字按层覆盖重新落回它（它是链上最具体的那一条时，[CS-1](#cs-1-会话指着一条被撤回的自建档案)），合法目标那次求值自然把它算回来。
 
 **[已撤回 ≠ 这个范围不允许它](../../../../product/PF-013-model-profiles-and-invocation/design.md#在册--已撤回)。**后者档案照样 `listed`，是作用域求值的结果变了；**它不写进 `registration`**。
 两者用户要做的事不同（换一个 / 去找管理员），所以不共用一个取值。
@@ -429,7 +429,7 @@ PF-013 有几条规则建立在「每个模型都收得下文本」之上——[
 - **每个给出的分量都要对上**：官方那一支按路由名在官方档案里至多找到一条，自建那一支按（所在范围, 路由名）至多找到一条（[S-1](#s-1-档案的身份所在范围与路由名)）；
   **找到的那一条的来源或所在范围与引用对不上，就是「查无此条」**——不是「差不多就是它」。
 - **不跨层搜索**：不在租户层找不到就去组织层、再去官方找；**不回退**到别层的档案、也不回退到任何「最接近」的一条。**引用一旦给出，解析就是精确的**。
-- **引用只在目录内部指认一行；设置与切换事实记路由名，落到哪一行由按层覆盖定。**「用哪个模型」那项设置与会话的切换事实记的是 `RouteName`（[S-2](#s-2-routename)），不是引用（PF-013 rev 12 [§4 档案的身份](../../../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名)）。
+- **引用只在目录内部指认一行；设置与模型切换落下的那条记录记路由名，落到哪一行由按层覆盖定。**「用哪个模型」那项设置与会话的[模型切换](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-switch--模型切换--model-switch)落下的那条记录记的是 `RouteName`（[S-2](#s-2-routename)），不是引用（PF-013 rev 12 [§4 档案的身份](../../../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名)）。
   从一个路由名到一行**只有一个入口**：`capability.model-profile-directory` v1 S-17 的按层覆盖——在一条范围链上**先滤掉已撤回的与这个范围不允许的，再取最具体一格**（租户 > 组织 > 出厂默认）。它产出的是一个引用，那个引用照样按本条精确解析。
   **两件事不混**：按层覆盖从名字出发、在链上挑一行；本条从引用出发、只认那一行。本条禁止的是一个引用解析不到时往别的格里找——**覆盖不放宽它**：引用解析不到仍是「查无此条」，解析到一条已撤回的仍是那一条。
 - **一次有效的引用永远解析到同一条**：行不删（[S-10](#s-10-registration)）、（所在范围, 路由名）不复用（同一格里再用一个已撤回的名字是把那一条恢复在册，不是另建，[S-3](#s-3-撞名判定同一范围内唯一)）、
@@ -549,7 +549,7 @@ PF-013 有几条规则建立在「每个模型都收得下文本」之上——[
 
 - **一份值里项名唯一**：八个成员名互不相同，`extra` 的键不得与它们相同（[S-19](#s-19-extra)），JSON 对象的键本身不重。
   **因此单看一个项名就知道它是哪一项**、是统一项还是 `extra` 项（不是八个名字之一的就是 `extra` 的键）。
-- **要指认某一项的地方用这个名字**——尤其是「哪几项没发出去」那份留痕（落点 `data.model-response`）。
+- **要指认某一项的地方用这个名字**——尤其是「改了哪几项的值、哪几项没发出去」那两份留痕：响应体的路由留痕（`data.model-response`），与同一次发出在出门之前就写下的「已出门」记录（`data.messages` v1 S-49）。
 
 ### S-21 不静默丢，也不静默改
 
@@ -599,7 +599,7 @@ Schema 只管得到档案本身这一份，其余表示面归静态检查（[验
 | **`updatedAt` 不后退**（[S-11](#s-11-updatedat)） | 单一时间源，不后退 | 多个写入者的时间源须可比，且写入须保证不早于此前的值 | 较新的记载带着较早的时刻，按它判新旧会判反 |
 | **在册状态的转移、已撤回仍读得到**（[S-10](#s-10-registration)） | 同一行，撤回与恢复在册都是对这一行的写，按提交先后排定 | 副本上的读须**按写入先后单调**：读到过某一次转移之后的状态的一方，此后不得再读到那次转移之前的状态 | 一条刚撤回的档案在某个节点上仍被当作在册、被新选中；或一条刚恢复的档案在某个节点上时而在册、时而「已下架」 |
 | **自建引用的范围分量随请求到达**（[S-13](#s-13-modelprofileref)） | 同一进程内传参 | 每一跳的传输格式**原样**承载 `origin` 判别式与带判别式的 `ScopeLayerIdentity`，不压平（[`data.identity-values/v1#S-16`](../../identity-values/v1/contract.md#s-16-按归属层显式携带身份值)）；接收边界**重验**持有者有没有资格用它（[`#S-30`](../../identity-values/v1/contract.md#s-30-跨边界须重新验证)） | 压平后丢了 `scope` 的自建引用被读成官方引用、或一个远端节点按引用直接用了另一个租户的自建档案 |
-| **不静默丢、不静默改**（[S-21](#s-21-不静默丢也不静默改)） | adapter 与留痕在同一进程 | adapter 若在另一个进程，**「实际发出的值」「改过的值（要求的与发出的）」与「没发出去的项」须随那次调用的结果一起回传**，不得只回一个「发出去了」 | 丢掉的项在跨进程那一跳上无痕，排查的人查不出这一次到底带了什么 |
+| **不静默丢、不静默改**（[S-21](#s-21-不静默丢也不静默改)） | adapter 与写「已出门」、写响应体的一方在同一进程，处置在出门之前当场可知 | adapter 若在另一个进程，**「改过的值（项名、要求的与发出的）」与「没发出去的项」须在出网之前交回写「已出门」的一方**、落进那条记录，出网时照它还原得出的那一组发、出网之后不再改（`capability.model-request-runtime` v1 S-38 传输适配第 10 条；`data.model-response` v1 S-25 同一行）；**只随那次调用的结果一起回传不够** | 请求出网之后、结果回来之前停机：「已出门」上没有这两项，补写的响应体按「缺席即断言」记成「没改、没丢」——**一条假留痕**；丢掉或改掉的项在跨进程那一跳上无痕 |
 | **引用解析**（[S-14](#s-14-引用只精确解析不跨层)） | 值比较 | **不变**——纯值相等；但「读不到」在跨进程后先表现为传输层故障，须映射成那一种失败，**不得折成「查无此条」** | —— |
 | **表示层校验**（[S-24](#s-24-表示层校验是一次纯计算)） | 纯计算 | **不变** | —— |
 
@@ -722,7 +722,7 @@ Schema 只管得到档案本身这一份，其余表示面归静态检查（[验
 
 **会话领域的 owner** 在**选中模型是路由名 `vendor-b/coder-7b`、它在租户 T 的链上落到 T 那层那一条，而这条档案随后被撤回**时，
 依赖 [S-2](#s-2-routename)、[S-10](#s-10-registration)、[S-13](#s-13-modelprofileref)、[S-14](#s-14-引用只精确解析不跨层)，得到：
-选中模型**仍是那个名字**（设置与切换事实记名字，不记那一行）；那一行的引用**仍解析到同一条**，读到 `registration = withdrawn`。
+选中模型**仍是那个名字**（设置与模型切换落下的那条记录记名字，不记那一行）；那一行的引用**仍解析到同一条**，读到 `registration = withdrawn`。
 这个名字此后落到哪一行由按层覆盖定（`capability.model-profile-directory` v1 S-17）：链上另有在册、范围允许的同名档案就落到那一条，调用照发；**链上同名的都撤回了，才说得出「已下架」**，不是「未知模型」。
 「不替用户改选、这次发不出去并上交」是那边的规则，本契约只保证它读得到依据。
 **这条档案后来恢复在册**：它又是最具体的那一条，这个名字落回它（[S-10](#s-10-registration)）。

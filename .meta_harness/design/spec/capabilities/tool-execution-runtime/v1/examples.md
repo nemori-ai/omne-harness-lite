@@ -108,6 +108,9 @@
 
 **agent 看到的是「失败，原因异常中断」**：要不要再调由它决定；系统不替它断定那一次做没做过。
 
+**上交之后撤下**（[S-41](contract.md#s-41-交回) ⑤、[S-47](contract.md#s-47-依赖的提供者不可用)；[D-040 §七 M13](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）：`deploy(call_b)` 交回时执行记录写不下去 ⇒ 交回得 `escalated`，本任撤下；loop 那副协程正在 `awaitForeground(T, ses_1, call_b)` ⇒ 返回 `runtimeStopped`，**不一直等**。
+存储随后恢复，**这一任也不补写**那次交回；下一任起来后照上表第 2～3 步把 `call_b` 落 `failed{abnormal_interruption}`、`frames` 写 `"unknown"`，loop 再等一次拿到的是它——**不会一任说 `completed`、另一任说 `failed`**。
+
 ## 7. 取消运行与插队
 
 | 步 | 局面 | 调用 | 预期 | 依据 |
@@ -134,8 +137,8 @@
 | `notWaiting` | `call_c` 在跑、没在等 | `answerWait(T, ses_1, call_c, 1, ...)` | `notWaiting` | 这次执行存在、没收场，只是不在等（[S-30](contract.md#s-30-答复等待)） |
 | `alreadyEnded` | `call_a` 已收场 `completed` | `interrupt(T, ses_1, call_a, user)` | `alreadyEnded`，**不改收场、不再送达** | [S-25](contract.md#s-25-中断一次执行) ⑦ |
 | `runtimeNotReady` | 本能力刚起来，恢复扫描没完成 | `listLive(T, ses_1)` | `runtimeNotReady`，**不返回空表** | 扫描前的空表会被读成「全都没了」（[S-35](contract.md#s-35-列出活体) ⑧） |
-| `runtimeStopped` | 本能力正在撤除 | `submit(...)` | `runtimeStopped` | 与 `runtimeNotReady` 分开：要换到下一任，不是稍后重试（[S-48](contract.md#s-48-本能力自己的撤除与换代)） |
-| `dependencyUnavailable{which}` | 存储读不到 | `listBackground(T, ses_1)` | `dependencyUnavailable{storage}`，**不返回空表** | 读不到不等于没有（[S-34](contract.md#s-34-列出后台执行) ⑧）；注册表读不到时 `submit` 是 `{registry}` |
+| `runtimeStopped` | 本能力正在撤除，或上一次交回写不下去、已上交而撤下 | `submit(...)` | `runtimeStopped` | 与 `runtimeNotReady` 分开：要换到下一任，不是稍后重试（[S-48](contract.md#s-48-本能力自己的撤除与换代)、[S-47](contract.md#s-47-依赖的提供者不可用)）；上交的那一任不等存储回来 |
+| `dependencyUnavailable{which}` | 存储读不到 | `listBackground(T, ses_1)` | `dependencyUnavailable{storage}`，**不返回空表** | 读不到不等于没有（[S-34](contract.md#s-34-列出后台执行) ⑧）；注册表读不到时 `submit` 是 `{registry}`——**注册表答「没有」不是它**（见本节末第四支） |
 
 **不是失败值的那一支**：注册表把 `lint` 判为不可用——它是替换件，或所选的那条命令在 `commandAvailability` 里被关掉——`submit(..., [lint(call_d)/tok_d])` 批成立，
 `call_d` 的 `disposition` 是 `ended{unavailable}`，一条 `outcome: unavailable` 的 `ToolMessage` 已交付，块上写替换件的说明或注册表给的原因；执行者不起。
@@ -155,6 +158,15 @@
 
 **不是失败值的第三支：发起即后台而工具不许后台**：`submit(..., [{ call: deploy(call_j), admission: tok_j, environment: env_1, definition: {name: deploy}, startInBackground: true }])` 批成立，
 `call_j` 的 `disposition` 是 `ended{failed}`，记录上种类 `background_start_refused`，一条 `outcome: failed` 的 `ToolMessage` 已交付；执行者不起、外部效果「已确定未发生」。**`submit` 没有逐条失败值**（[S-23](contract.md#s-23-提交一批) ⑤）。
+
+**不是失败值的第四支：这次尝试里没有这个名字**（[S-23](contract.md#s-23-提交一批) ②④；场景 [S-69](contract.md#s-69-查不到条目的调用即刻收场不可用)；[D-040 §七 M8、M10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）——模型调了一个编造的 `grep_files`，runner 在可用性报告里查不到它、不交进 `admit`，记 `observed{no_such_entry}`：
+
+| 调用 | 结果 | 为什么 |
+|---|---|---|
+| `submit(T, ses_1, run_1, 1, [build(call_a)/tok_a, { call: grep_files(call_x) }])`——后一项是 `UnlistedCall` | 批成立：`[call_a: accepted{foreground}, call_x: ended{unavailable}]`；`call_x` 记录上的原因 `no_such_entry`，`ToolMessage` 的块写明这次尝试里没有这个工具、**不带 `reason`**；没有凭据、执行者不起、外部效果「已确定未发生」 | 本能力以 `call.tool` 原样（`grep_files`）查注册表，答「没有」——一个结论，只落这一项 |
+| 同上，但 `grep_files` 在这次尝试的 `tool` 表里**查得到** | 整批 `notAdmitted`，什么都不写 | 没经放行、却有可执行的条目：与缺凭据同一种，**不信交来一方说的「查不到」** |
+| 同上，但注册表此刻读不到 | 整批 `dependencyUnavailable{registry}` | 「读不到」不是「没有」：判不出来就不收 |
+| MCP 动作 `github:search_issues` 的一次调用，调用块里 `tool` 是模型面名字 `github__search_issues`，以 `AdmittedCall` 交来 | 查注册表用 `github__search_issues` 原样，查到条目；之后才逆转写成定义名 `github:search_issues`，找执行者（桥）用它 | [S-23](contract.md#s-23-提交一批) ② 第 6 条；逆转写只为找执行者（[S-37](contract.md#s-37-执行者登记与撤下)） |
 
 ## 9. 提交：判重、解析不了与租户
 
@@ -187,3 +199,14 @@
 | 7 | 收场之后又发 `{"t": "fill", "index": 0, "payload": "x"}` | `dropped{ executionEnded }` | 不交给任何状态；留一条记录条目 | [S-62](contract.md#s-62-工具侧到达装配前提的承诺) 第 1 条 |
 
 **两个变体**：一帧不发就交回 ⇒ 没有 `ToolInternalMessage`，账上 `frames.emitted = 0`、各项砍为零；`confirm_plan` 声明了到点、到点时没人答 ⇒ 收场 `no_answer`，本能力对装配状态调 `abandon`，有块时 `ending: lost`——**不是 `interrupted`**：没有谁决定让它停下（[S-39](contract.md#s-39-发帧)、`data.messages/v1#S-14`）。
+
+**形状不合与缺席**（[S-39](contract.md#s-39-发帧) ⑤⑧；[D-040 §七 M29](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)），接在第 2 步之后：
+
+| 执行者发帧 | 发帧交回 | 装配状态 |
+|---|---|---|
+| `{"t": "sparkle", "index": 0}`（认不出的种类） | `dropped{ rejected{ event_unknown } }`——交给了 `accept`，**原名**交回，不收成 `malformed` | 状态不变；本能力紧接着交一个 `reason: rejected` 的 `trim`，只说一次；这一帧计进「未原样送达」 |
+| 调发帧而不带事件 | `dropped{ rejected{ malformed } }`——没有东西可交给 `accept` | 不交给装配、**不补 `trim`**：没交出任何一帧，`emitted` 不计 |
+
+**本能力有序撤下时帧流还开着**（[S-48](contract.md#s-48-本能力自己的撤除与换代)、[S-62](contract.md#s-62-工具侧到达装配前提的承诺) 第 6 条；场景 [S-68](contract.md#s-68-有序撤下收尾在途的帧流上交之后撤下)），接在第 2 步之后、`build` 还在跑：
+本能力先对那份装配状态调 `abandon`（帧流以 `lost` 收尾，交出块 0 的「compiling…」与 `frames.emitted = 2`），再首胜写 `failed{abnormal_interruption}`、外部效果「不可确定」，账的 `frames` 就是那一份（**不写 `"unknown"`**）；一条 `ending: lost` 的 `ToolInternalMessage` 与 `ToolMessage{ failed, reason: abnormal_interruption }` 同一次交付，之后才发停止。
+**若撤下时存储写不下去**：这一步不成，下一任扫描照第 6 节追补，那时装配状态已没了——`frames` 写 `"unknown"`，没有 `ToolInternalMessage`。**停机**（进程没了）同此。

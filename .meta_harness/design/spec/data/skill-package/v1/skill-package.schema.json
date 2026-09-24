@@ -3,7 +3,7 @@
   "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/skill-package/v1/skill-package.schema.json",
   "title": "data.skill-package v1",
   "description": "技能包的交换与存储表示：一份技能（UL-skill）资产版本的全部内容——SKILL.md 的清单头（Agent Skills 开放格式 69ef37e 的六个键）、SKILL.md 的正文、本项目的包内定义记录（组合的工具清单、外部服务依赖、设置项声明、执行环境要求）、包内资源条目。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.skill-package/v1 内有效。",
-  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状与一部分组合约束；Schema 表达不了的跨成员约束（资源路径互不相同且互不为前缀、设置项 item 互不相同、设置项 default 合它的取值域、清单头 name 等于所属能力标识的 name）由 contract.md S-24 归入具名拒绝值或 malformed，由接收边界在 Schema 之外兑现。Schema 校验失败只说明「拒绝」，是八个拒绝值里的哪一个按 S-24 的次序定。SKILL.md 的文本形式与包的目录形式（S-20、S-21）不是 JSON，不在本 Schema 的范围内。外部引用：MediaType 取自 data.content-blocks v1（S-7）；CapabilityName、CapabilityId、AttributeDeclaration 取自 data.asset-model v1（S-2、S-3、S-12）；DependencyName 与 TargetEnvironment 取自 data.tool-definition v1（S-9、S-11）。执行环境要求是定义记录里的固定成员 environmentRequirement，不是设置项；settings 没有保留项名（S-15、S-32，D-040 §六 L3）。正反实例在同目录 examples.md。",
+  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状与一部分组合约束；Schema 表达不了的跨成员约束（资源路径互不相同且互不为前缀、设置项 item 互不相同、设置项 default 合它的取值域、清单头 name 等于所属能力标识的 name）由 contract.md S-24 归入具名拒绝值或 malformed，由接收边界在 Schema 之外兑现。Schema 校验失败只说明「拒绝」，是八个拒绝值里的哪一个按 S-24 的次序定。SKILL.md 的文本形式与包的目录形式（S-20、S-21）不是 JSON，不在本 Schema 的范围内。外部引用：MediaType 取自 data.content-blocks v1（S-7）；CapabilityName、CapabilityId、AttributeDeclaration 取自 data.asset-model v1（S-2、S-3、S-12）；DependencyName 与 TargetEnvironment 取自 data.tool-definition v1（S-9、S-11）。执行环境要求是定义记录里的固定成员 environmentRequirement，不是设置项；settings 没有保留项名（S-15、S-32，D-040 §四 L3′、§六 N-13）。正反实例在同目录 examples.md。",
   "$defs": {
     "SkillName": {
       "title": "技能名",
@@ -100,7 +100,7 @@
 
     "SkillPackage": {
       "title": "技能包",
-      "description": "S-3：一份技能资产版本的全部内容。manifest 是 SKILL.md 的清单头（S-4）；body 是 SKILL.md 的正文——闭合定界行之后的全部文本，逐字，可以为空串，不经任何展开（S-8）；definition 是可选的定义记录，缺席即这份技能不组合工具、不声明外部服务依赖、不声明设置项（S-12）；resources 是包内资源条目，可以为空数组（S-9）。包作为一个整体属于一份资产版本，随版本发布定下、此后不变（S-19）。技能的身份不在包里——在它所属资产的能力标识；清单头的 name 只是必须与之相等的镜像（S-6）。",
+      "description": "S-3：一份技能资产版本的全部内容。manifest 是 SKILL.md 的清单头（S-4）；body 是 SKILL.md 的正文——闭合定界行之后的全部文本，逐字，可以为空串，不经任何展开（S-8）；definition 是可选的定义记录，缺席即这份技能不组合工具、不声明外部服务依赖、不声明设置项、对执行环境没有特殊要求（S-12、S-32）；resources 是包内资源条目，可以为空数组（S-9）。包作为一个整体属于一份资产版本，随版本发布定下、此后不变（S-19）。技能的身份不在包里——在它所属资产的能力标识；清单头的 name 只是必须与之相等的镜像（S-6）。",
       "$comment": "声明了 environmentRequirement 的包必须至少有一份脚本（path 以 scripts/ 开头的资源，S-11、S-32），否则 malformed（M14）。resources 的 path 互不相同、互不为前缀（S-9）Schema 表达不了。",
       "type": "object",
       "properties": {

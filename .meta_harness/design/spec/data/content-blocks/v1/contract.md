@@ -49,7 +49,7 @@
 > |---|---|
 > | [S-7](#s-7-媒体类型的规范形式)、[S-24](#s-24-规范表示)～[S-27](#s-27-表示层拒绝不是判定也不修补) | **SYS-SPEC**：规范表示、闭合枚举、表示层拒绝值与「表示层不等于判定」是规格形式的要求，产品正文不承诺这一层 |
 > | [S-3](#s-3-blockid) 的唯一范围、[S-5](#s-5-嵌套的块按合取取用)、[S-14](#s-14-callid) 的唯一范围 | **规格层推导**：D-035 把「块身份与嵌套寻址」留给数据契约；依据分别写在各条正文里 |
-> | [S-8](#s-8-文本块与来路标记) 的 `origin`、[S-9](#s-9-思考块与不透明数据) 的 `opaque` | 产品负责人 2026-09-23 对内容块形状的两项裁决，落在 [D-038 Q1、Q2](../../../../record/decisions/message-and-shape-rulings/decision.md#十九处分岔)。**`origin` 的取值集合不来自 D-038**：那里的「含义」列写的是「模型 / 用户 / 工具 / 系统」，本契约的四个取值都是斜杠命令相关的来路（前两个随起草，后两个见 D-040 §一 S20-c），两处对不上，已报主线 |
+> | [S-8](#s-8-文本块与来路标记) 的 `origin`、[S-9](#s-9-思考块与不透明数据) 的 `opaque` | 产品负责人 2026-09-23 对内容块形状的两项裁决，落在 [D-038 Q1、Q2](../../../../record/decisions/message-and-shape-rulings/decision.md#十九处分岔)。**`origin` 的取值集合不来自 D-038**：那里的「含义」列写的是「模型 / 用户 / 工具 / 系统」，本契约的四个取值都是斜杠命令相关的来路（前两个随起草，后两个见 D-040 §一 S20-c）——决定原话不改、用词以词条为准，登记在 [D-040 §四](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#四被推翻或被覆盖的项追加登记)「D-038 Q1」那一行；取值集以 [S-8](#s-8-文本块与来路标记) 为准 |
 > | [S-16](#s-16-结果里不发起调用) | **规格层推导**，理由写在条款正文。产品正文只说工具结果「自己又是一串块」，没说里面不许有什么 |
 > | [S-12](#s-12-完整的工具调用) 的 `unparseable` 一种、[S-18](#s-18-占位原因与它落在哪一格) 的 `backgrounded_at_start`、`run_cancelled`、`terminated_by_agent` 三个取值、[S-8](#s-8-文本块与来路标记) 的后两个来路、[S-34](#s-34-只给了引用的附件落成哪一类块) | 主线裁定，见 [D-040 §一](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#一2026-09-23-夜自驱期间的自决账本-二原文)（设计依据表那一行）；各条的产品前提写在条款正文里。**S-12 的 `unparseable` 与 S-18 的三个取值已有产品正文**（设计依据表「参数说完了却解析不了」「占位原因补齐」两行）——形状与取值名是规格层的 |
 > | [S-23](#s-23-块不携带租户身份) | **SYS-TENANT** 加 `data.identity-values/v1#S-34` |
@@ -82,7 +82,7 @@
 | [`data.call-accounts`](../../call-accounts/README.md) v1 | `$defs/CallId`（[S-14](#s-14-callid)） |
 | [`data.model-response`](../../model-response/README.md) v1 | `ContentBlock`（已交付而不成消息的部分）、`AttachmentRef`（原始响应留存） |
 | [`data.tool-definition`](../../tool-definition/README.md) v1、[`data.model-profile`](../../model-profile/README.md) v1 | `Modality`、`MediaType`、`CapabilityId`、`InlineBytes`、`AttachmentRef`、`ContentBlock`（工具的模态声明与结果形状、档案的输入输出模态） |
-| [`data.asset-model`](../../asset-model/README.md) v1 及各类正文契约（`data.skill-package`、`data.slash-command`、`data.connector`、`data.mcp-endpoint`、`data.loop-extension`） | `CapabilityId`（[S-20](#s-20-派生表示的产出者与能力标识)）、`MediaType`、`AttachmentRef`；来源标记（[S-8](#s-8-文本块与来路标记)）与附件落块（[S-34](#s-34-只给了引用的附件落成哪一类块)） |
+| [`data.asset-model`](../../asset-model/README.md) v1 及各类正文契约（`data.skill-package`、`data.slash-command`、`data.connector`、`data.mcp-endpoint`、`data.loop-extension`） | `CapabilityId`（[S-20](#s-20-派生表示的产出者与能力标识)）、`MediaType`、`AttachmentRef`；来路标记（[S-8](#s-8-文本块与来路标记)）与附件落块（[S-34](#s-34-只给了引用的附件落成哪一类块)） |
 | [`capability.tool-execution-runtime`](../../../capabilities/tool-execution-runtime/README.md) v1 | 工具返回的内容落成 [S-15](#s-15-工具结果块) 的 `blocks`；[S-16](#s-16-结果里不发起调用)～[S-18](#s-18-占位原因与它落在哪一格)；`offloaded`（[S-21](#s-21-attachmentref)）；执行帧里的块 |
 | [`capability.model-request-runtime`](../../../capabilities/model-request-runtime/README.md) v1 与传输适配 | 回复里的块；[S-9](#s-9-思考块与不透明数据) 的 `opaque`；[S-6](#s-6-模态由媒体类型判定) 与 [S-10](#s-10-语音块与图块) |
 | [`capability.modality-projection`](../../../capabilities/modality-projection/README.md) v1 | [S-6](#s-6-模态由媒体类型判定)、[S-19](#s-19-派生表示与-transcript)、[S-20](#s-20-派生表示的产出者与能力标识) |
@@ -113,8 +113,8 @@
 | `offloaded` 指向的那一份 | [被卸载的原始结果 · Offloaded Result](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-offloaded-result--被卸载的原始结果--offloaded-result) |
 | `FileBlock.attachment` 指向的那一份 | [附件 · Attachment](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-attachment--附件--attachment)（工具产出的附件；也可以是别处存进存储、以文件块引用的一份，见下） |
 | `MediaType` | [媒体类型 · Media Type](../../../../ubiquitous_language/terms/record-and-context.md#ul-media-type--媒体类型--media-type) |
-| `PlaceholderReason` | [占位原因 · Placeholder Reason](../../../../ubiquitous_language/terms/record-and-context.md#ul-placeholder-reason--占位原因--placeholder-reason)，十一个取值对应 PF-006 §6.7 那张表的行（[S-18](#s-18-占位原因与它落在哪一格)）。**`terminated_by_agent` 不在其中**：它是后台那段执行收场的提醒上写的原因（无词条），见 S-18 |
-| `origin` | [来路标记 · Origin Tag](../../../../ubiquitous_language/terms/record-and-context.md#ul-origin-tag--来路标记--origin-tag)。**不是[来源标记](../../../../ubiquitous_language/terms/record-and-context.md#ul-source-tag--来源标记--source-tag)**——那是入站到达与提醒上的「谁捎来的」（`data.messages` 的 `source`）；[S-8](#s-8-文本块与来路标记) 的标题沿用了旧称「来源标记」，所指是来路标记（标题改名要与引用它锚点的几份契约同轮，已报主线） |
+| `PlaceholderReason` | [占位原因 · Placeholder Reason](../../../../ubiquitous_language/terms/record-and-context.md#ul-placeholder-reason--占位原因--placeholder-reason)，十一个取值对应 PF-006 §6.7 那张表的行（[S-18](#s-18-占位原因与它落在哪一格)）。**它只描述占位那一侧**：同一组 token 写在后台那段执行收场的提醒的结果块上时，说的是那段执行为什么这样收场（无词条），不是占位原因；`terminated_by_agent` 只在那一侧出现。见 S-18 |
+| `origin` | [来路标记 · Origin Tag](../../../../ubiquitous_language/terms/record-and-context.md#ul-origin-tag--来路标记--origin-tag)。**不是[来源标记](../../../../ubiquitous_language/terms/record-and-context.md#ul-source-tag--来源标记--source-tag)**——那是入站到达与提醒上的「谁捎来的」（`data.messages` 的 `source`） |
 
 **下列是规格层的名字，不是统一语言词条**，因此本契约与 Schema 里**不给它们「中文 · English」那种词条式标题**：
 `BlockId`、`CallId`、`BlockBase`、`AttachmentRef`（**无词条**）、`InlineBytes`（内联字节的 base64 串）、
@@ -131,7 +131,7 @@
 - **块的类型 ≠ 模态。**七类块是载体，四种模态是内容的形态；思考与工具调用是文本的用途。
   块上**不存**模态——存一份就会与媒体类型对不上（[S-6](#s-6-模态由媒体类型判定)）。
 - **派生表示 ≠ 块序列里的块。**它挂在原块上，不另立对象，也不改变原块（[S-19](#s-19-派生表示与-transcript)）。
-- **派生表示 ≠ 卸载的占位。**占位替换了原件，原件离开了消息；派生表示与原件并存。
+- **派生表示 ≠ 卸载之后带摘要的那份结果。**[结果卸载](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)之后，工具结果块的 `blocks` 装的是真实结果的摘要与取全文的办法，原件离开了消息、存在外面（`offloaded`）；派生表示与原件并存。卸载之后的那一块**就是那次调用的结果，不是[占位消息](../../../../ubiquitous_language/terms/record-and-context.md#ul-placeholder-message--占位消息--placeholder-message)**（`data.messages/v1#S-11`）。
 - **半截的工具调用 ≠ 半条消息。**一条完整的消息可以装着一个没长完的块；「半条消息不是消息」归 `data.messages` 与到达语法。
 - **块 ≠ 在途状态。**拼到一半、还没封口的东西[不是块也不进日志](../../../../ubiquitous_language/terms/record-and-context.md#ul-in-flight-arrival--在途状态--in-flight-arrival)；本契约只说封口之后的块。
 
@@ -146,7 +146,7 @@
 | `Modality`、`MediaType` | 模态与媒体类型 | [S-6](#s-6-模态由媒体类型判定)、[S-7](#s-7-媒体类型的规范形式) |
 | `TextBlock` … `ToolResultBlock` | 各类块 | [S-8](#s-8-文本块与来路标记)～[S-16](#s-16-结果里不发起调用) |
 | `CallId` | 一次工具调用的标识 | [S-14](#s-14-callid) |
-| `ExecutionOutcome`、`PlaceholderReason` | 收场与占位原因（外加后台收场提醒上的 `terminated_by_agent`） | [S-17](#s-17-六种收场)、[S-18](#s-18-占位原因与它落在哪一格) |
+| `ExecutionOutcome`、`PlaceholderReason` | 收场与占位原因；后台收场提醒的结果块上的原因借同一组 token 外加 `terminated_by_agent`（那一侧的取值域归 `capability.tool-execution-runtime` v1 S-10） | [S-17](#s-17-六种收场)、[S-18](#s-18-占位原因与它落在哪一格) |
 | `DerivedRendering`、`CapabilityId` | 派生表示与它的产出者 | [S-19](#s-19-派生表示与-transcript)、[S-20](#s-20-派生表示的产出者与能力标识) |
 | `AttachmentRef` | 存储里一份字节的引用；只给了引用的附件落成哪类块 | [S-21](#s-21-attachmentref)、[S-34](#s-34-只给了引用的附件落成哪一类块) |
 | `InlineBytes` | 内联在值里的一份字节的 base64 串 | [S-10](#s-10-语音块与图块) |
@@ -343,10 +343,13 @@ modalityOf(mediaType) ≝   按 mediaType 在第一个 "/" 之前的那一段 t�
 | 成员 | 含义 |
 |---|---|
 | `callId` | 这次调用的标识（[S-14](#s-14-callid)） |
-| `tool` | 模型面那个工具条目的 name，非空；多命令工具的子命令在参数里，不在这里。本版不按模型面名字的字符集判（[G-9](#八已知缺口)） |
+| `tool` | **模型面名字**（`ModelToolName`）：模型面那个工具条目的 name——定义名里每个 `:` 换成 `__`，只含 `A`～`Z`、`a`～`z`、`0`～`9`、`_`、`-`，1～128 个字符；多命令工具的子命令在参数里，不在这里 |
 | **解析成功**：`arguments` | **参数收齐之后解析一次得到的 JSON 值**，任意类型（含 `null`）；不带 `rawArguments`、不带 `unparseable` |
 | **解析不了**：`rawArguments` ＋ `unparseable: true` | 收齐的那段原始参数串，原样；**两者同现**，不带 `arguments` |
 
+- **`tool` 取模型面名字，家在 `data.tool-definition` v1 的 S-6**（`ModelToolName`；主线裁定，见 [D-040 §七 M8](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）：系统里流转的工具指认用的都是它，逆转写回定义名只在工具执行一侧起执行者之前做一次，块上不存定义名。
+  **本契约不 `$ref` 那份契约**——它以 `$ref` 取本契约的块与附件引用，反向引用会让两份契约互为依赖；Schema 在本文件逐字写出同一个字符集（`$defs/ModelToolName`），按 [registry「互引成环的登记口径」](../../../../registry/README.md#covers)以那份契约为家、不登依赖，对齐义务登在[验证入口](../verification.md#对齐义务)。
+  **名字不合这套字符集，这一块就不是合法的完整工具调用块**（`malformed`，[S-26](#s-26-表示层拒绝值)）；模型交回这样一个名字时它在装配里怎样落、模型得到什么交代，本契约不定（[G-10](#八已知缺口)）。
 - **只解析一次，收齐之后、动手之前**；那个解析点归 `capability.stream-assembly`（它在封口那一下解析）。
   拿到解析成功那一种的一方**直接用 `arguments`**，不从任何文本重新解析。
 - **解析不了的那一种是一次已登记的调用**（[PF-006 §5.5「参数说完了却解析不了的调用」](../../../../product/PF-006-tools-and-skills/design.md#参数说完了却解析不了的调用不执行以失败回给-agent)；形状是主线裁定，见 [D-040 §一 S1-e](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s1content-blocks报回的)）：它收齐了，`callId` 进 [S-14](#s-14-callid) 的唯一范围；
@@ -362,7 +365,7 @@ modalityOf(mediaType) ≝   按 mediaType 在第一个 "/" 之前的那一段 t�
 
 - `rawArguments`：收到的那段原始参数串，**可以是空串**。**任何一方都不解析它**——
   残缺的 JSON 解析出来的东西比解析失败更危险，它可能恰好合法而少了一半字段。
-- `callId`、`tool`：收到的原值；**没到就缺席，不补**。
+- `callId`、`tool`：收到的原值；**没到就缺席，不补**。这里的 `tool` **不按模型面名字的字符集判**：它不是一次已登记的调用，也没有谁拿它去查工具。
 - **`visibility` 必须是 `{ toHuman: false, toModel: false }`**；任一位为真是表示层拒绝 `incomplete_call_visible`。
   给了模型，它会干等或者再发一次；给了人，人看到的是一次从未发生的调用。
 - **它不是一次已登记的调用**：它上面的 `callId` 不进 [S-14](#s-14-callid) 的唯一范围，**任何工具结果块都不指向它**。
@@ -390,9 +393,9 @@ modalityOf(mediaType) ≝   按 mediaType 在第一个 "/" 之前的那一段 t�
 |---|---|---|
 | `callId` | 是 | 指回那次调用（[S-14](#s-14-callid)） |
 | `outcome` | 是 | 这次收场，六种之一（[S-17](#s-17-六种收场)） |
-| `reason` | 视收场 | `{ code, text }`：占位上是[占位原因](../../../../ubiquitous_language/terms/record-and-context.md#ul-placeholder-reason--占位原因--placeholder-reason)；后台那段执行收场的提醒里，是那段执行为什么这样收场（[S-18](#s-18-占位原因与它落在哪一格)）；`text` 是写给读者的说明，非空 |
+| `reason` | 视收场 | `{ code, text }`：占位上是[占位原因](../../../../ubiquitous_language/terms/record-and-context.md#ul-placeholder-reason--占位原因--placeholder-reason)；后台那段执行收场的提醒里，是那段执行为什么这样收场（那一侧的取值域归 `capability.tool-execution-runtime` v1 S-10，[S-18](#s-18-占位原因与它落在哪一格)）；`text` 是写给读者的说明，非空 |
 | `blocks` | 是 | 进上下文的内容，**它自己又是一串块**；可以是空数组；**次序有意义，原样保留** |
-| `offloaded` | 否 | [被卸载的原始结果](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-offloaded-result--被卸载的原始结果--offloaded-result)在哪（[S-21](#s-21-attachmentref)）；此时 `blocks` 就是那条带摘要的占位 |
+| `offloaded` | 否 | [被卸载的原始结果](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-offloaded-result--被卸载的原始结果--offloaded-result)在哪（[S-21](#s-21-attachmentref)）；此时 `blocks` 装的是真实结果的摘要与取全文的办法——**这一块就是那次调用的结果，不是占位**（`data.messages/v1#S-11`） |
 
 - **`outcome` 是收场的唯一依据**：读者**不得从 `blocks` 的文字推收场**。
   **`outcome` 缺席是 `malformed`，从不当作 `completed`**——把缺席读成完成，一次被中断的执行就会被 agent 当成跑完了。
@@ -427,8 +430,14 @@ modalityOf(mediaType) ≝   按 mediaType 在第一个 "/" 之前的那一段 t�
 
 ### S-18 占位原因与它落在哪一格
 
-**`reason.code` 恰取下表十二个值之一，每个值只能配它那一格收场。**其中十一个是[占位原因](../../../../ubiquitous_language/terms/record-and-context.md#ul-placeholder-reason--占位原因--placeholder-reason)（`PlaceholderReason`）；
-**`terminated_by_agent` 不是占位原因**（那条词条注意 ②）：它是后台那段执行收场的提醒上写的原因（无词条），只落那种提醒里的结果块。
+**`reason.code` 恰取下表十二个值之一，每个值只能配它那一格收场。**这是块这一层判得出的全部，Schema 管得到。
+**这张表横跨两种位置**（主线裁定，见 [D-040 §七 M22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）：
+
+- **占位上**：`reason.code` 是[占位原因](../../../../ubiquitous_language/terms/record-and-context.md#ul-placeholder-reason--占位原因--placeholder-reason)，取 `terminated_by_agent` 之外的那十一个之一（`PlaceholderReason`）。**`$defs/PlaceholderReason` 只描述这一侧。**
+- **后台那段执行收场的提醒里的结果块上**：`reason.code` 说的是那段执行为什么这样收场（无词条，不另立词条），借同一组 token，外加只在这一侧出现的 `terminated_by_agent`（它不是占位原因，那条词条注意 ②）。
+  **这一侧哪几个值合法，归 `capability.tool-execution-runtime` v1 的 S-10**；本契约只保证每个值落在它那一格收场上，不另列这一侧的取值域。
+- **一个块自己看不出它在哪一侧**（同 [S-17](#s-17-六种收场) 末条）：由写入它的一方兑现，它落在哪种消息里归 `data.messages`（它的 S-11 占位、S-19 后台收场提醒）。
+
 前八个对应 [PF-006 §6.7「占位消息一律要说清原因」](../../../../product/PF-006-tools-and-skills/design.md#占位消息一律要说清原因)那张表的行，落格照那一节的写法；
 接着三个是主线裁定补的三行（见 [D-040 §一 S1-d、S13-h](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s13tool-execution-runtime报回的)）——[§6.12](../../../../product/PF-006-tools-and-skills/design.md#它的宿主是谁决定了什么会带走它) 与[执行收场词条](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-execution-outcome--执行收场--execution-outcome)列了它们的触发源；PF-006 §6.7 已把「发起时就在后台」「运行被取消」补进那张表，「被 agent 停掉」写在表下（落在收场提醒里，见该行）；取值名是规格层的；
 最后一个 `foreground_timeout` 对应 PF-006 §6.7 那张表的「**前台超时**」一行（触发见 [§6.6「前台上限与并发上限」](../../../../product/PF-006-tools-and-skills/design.md#前台上限与并发上限)），取值名同样是规格层的：
@@ -442,7 +451,7 @@ modalityOf(mediaType) ≝   按 mediaType 在第一个 "/" 之前的那一段 t�
 | `interrupted_by_preemption` | 因插队被中断 | `interrupted` |
 | `human_declined` | 人拒绝回复（插队时停在 `Ask()` 上，不可转后台，所以被中断） | `interrupted` |
 | `session_archived` | 会话被归档 | `interrupted` |
-| `abnormal_interruption` | 工具执行异常中断：据点停过机、恢复时追补；或 MCP 桥换代时这次调用还在途（`capability.mcp-bridge` 的连接随桥走） | `failed`——**不是 `interrupted`**：没有人叫停它 |
+| `abnormal_interruption` | 工具执行异常中断：据点停过机、恢复时追补；或 MCP 桥换代时这次调用还在途（`capability.mcp-bridge` 的连接随桥走）；或工具执行运行时有序撤下（撤除、替换）时这次执行还在途、当场写下（`capability.tool-execution-runtime` v1 S-48；主线裁定，见 [D-040 §七 M12](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）——取值不变 | `failed`——**不是 `interrupted`**：没有人叫停它 |
 | `backgrounded_at_start` | **（补）**发起时就在后台 | `backgrounded` |
 | `run_cancelled` | **（补）**这一次运行被取消而它还在前台（叫停的是运行，不是这一次执行——所以不借 `user_interrupted`） | `interrupted` |
 | `terminated_by_agent` | **（补；不是占位原因）**agent 经 `BkgJobs()` 掐掉了自己发起、已转后台的那段执行。**只落后台执行收场提醒的结果块，不落占位**（以 PF-006 §6.7 为准：「被 agent 停掉」写在那段执行收场的提醒里）——agent 只能掐后台执行，那次调用的占位早在转后台时就写下了（原因是 `backgrounded_*` 之一） | `interrupted` |
@@ -527,7 +536,7 @@ PF-010 [明说块上那两位落了就不动](../../../../product/PF-010-context
 
 - 压缩**不翻**块上的位，它另带一份名单（`data.messages`）；
 - 转换件**不回头补**已落盘的块：落盘时没有 transcript 的块永远没有（[模态投影因此单调](../../../../product/PF-013-model-profiles-and-invocation/design.md#模态投影)）；
-- 卸载**不在记录里替换**：日志里从头到尾只有那条占位。
+- 卸载**不在记录里替换**：日志里从头到尾只有那一条带摘要的结果（它不是占位，`data.messages/v1#S-11`）。
 
 ### S-34 只给了引用的附件落成哪一类块
 
@@ -584,10 +593,11 @@ PF-010 [明说块上那两位落了就不动](../../../../product/PF-010-context
 
 - **规范表示**：[`content-blocks.schema.json`](content-blocks.schema.json)，JSON Schema **Draft 2020-12**。
   `$id` = `https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/content-blocks/v1/content-blocks.schema.json`
-- **定义项（21 项）**：`ContentBlock`、`BlockBase`、`TextBlock`、`ThinkingBlock`、`VoiceBlock`、`ImageBlock`、`FileBlock`、
+- **定义项（22 项）**：`ContentBlock`、`BlockBase`、`TextBlock`、`ThinkingBlock`、`VoiceBlock`、`ImageBlock`、`FileBlock`、
   `ToolCallBlock`、`IncompleteToolCallBlock`、`ToolResultBlock`、`Visibility`、`DerivedRendering`、`AttachmentRef`、`InlineBytes`、
-  `MediaType`、`Modality`、`ExecutionOutcome`、`PlaceholderReason`、`BlockId`、`CallId`、`CapabilityId`。
-  消费者 `$ref` 这些定义，**不复制一份同义类型**——`CapabilityId`、`CallId`、`BlockId`、`Modality`、`MediaType`、`AttachmentRef`、`InlineBytes`、`ExecutionOutcome`、`PlaceholderReason` **在全批契约里只有这一个家**。**根模式不约束任何文档**：本文件是共享定义的登记处，不是某个消息的形状。
+  `MediaType`、`Modality`、`ExecutionOutcome`、`PlaceholderReason`、`BlockId`、`CallId`、`CapabilityId`、`ModelToolName`。
+  消费者 `$ref` 这些定义，**不复制一份同义类型**——`CapabilityId`、`CallId`、`BlockId`、`Modality`、`MediaType`、`AttachmentRef`、`InlineBytes`、`ExecutionOutcome`、`PlaceholderReason` **在全批契约里只有这一个家**。
+  **`ModelToolName` 例外**：它的家是 `data.tool-definition` v1 的 S-6，本文件那一份是逐字副本（理由见 [S-12](#s-12-完整的工具调用)），别的契约 `$ref` 那份契约的，不 `$ref` 这一份。**根模式不约束任何文档**：本文件是共享定义的登记处，不是某个消息的形状。
 - **成员名一律 camelCase**，枚举值一律 snake_case 字符串，块的判别成员叫 `kind`；`origin.kind` 是嵌在来路标记里的另一个判别成员，与块的 `kind` 不相干。
 - `BlockId`、`CallId` 与 `AttachmentRef.storage`／`key` 按 `data.identity-values/v1` S-31 的**散文**在本文件写出形状（非空、首尾不属于那个显式空白码点集合、以绝对结尾断言收尾），**不跨契约 `$ref`** 那份已冻结契约的 `OpaqueIdentifier`（它自述不单独被引用；主线裁定，见 [D-040 §一 S1-a](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s1content-blocks报回的)）。
 - **正反实例**：[`examples.md`](examples.md)。它是本版的规范工件，不是说明材料。
@@ -611,7 +621,7 @@ PF-010 [明说块上那两位落了就不动](../../../../product/PF-010-context
 | `incomplete_call_visible` | 某个半截的工具调用块（`kind: "tool_call"` 且 `complete: false`），`visibility` 有一位为 `true` | [S-13](#s-13-半截的工具调用) |
 | `call_in_result` | 某个工具结果块的 `blocks` 里（任意一层）有 `kind` 为 `tool_call` 的块 | [S-16](#s-16-结果里不发起调用) |
 | `modality_mismatch` | 某个语音块或图块上出现的一个**合乎 [S-7](#s-7-媒体类型的规范形式) 规范形式**的媒体类型，type 不是它该有的 `audio`／`image`（非规范写法不判模态，只算 `malformed`） | [S-10](#s-10-语音块与图块) |
-| `malformed` | 其余一切不合形状：缺必填成员（含 `kind` 缺席、`outcome` 缺席）、多出成员、类型不对、未知的其他枚举值、非规范的媒体类型、引用形状里两处媒体类型不逐字相同、占位原因缺了或配错了格、派生表示含不许的块、派生表示里的块与原块同一模态、`producedBy` 不是 `system`、派生表示与 transcript 只有其一、解析不了的调用缺 `rawArguments` 或 `unparseable` 之一或与 `arguments` 同现、一条消息里 `id` 重复。**判据只有一条**：不合 Schema，或违反 [S-3](#s-3-blockid)／[S-10](#s-10-语音块与图块)／[S-19](#s-19-派生表示与-transcript) 那三条 Schema 管不到的跨成员约束；上面只是举例 | 各条 |
+| `malformed` | 其余一切不合形状：缺必填成员（含 `kind` 缺席、`outcome` 缺席）、多出成员、类型不对、未知的其他枚举值、非规范的媒体类型、引用形状里两处媒体类型不逐字相同、占位原因缺了或配错了格、派生表示含不许的块、派生表示里的块与原块同一模态、`producedBy` 不是 `system`、派生表示与 transcript 只有其一、解析不了的调用缺 `rawArguments` 或 `unparseable` 之一或与 `arguments` 同现、完整工具调用的 `tool` 不合模型面名字的字符集、一条消息里 `id` 重复。**判据只有一条**：不合 Schema，或违反 [S-3](#s-3-blockid)／[S-10](#s-10-语音块与图块)／[S-19](#s-19-派生表示与-transcript) 那三条 Schema 管不到的跨成员约束；上面只是举例 | 各条 |
 
 **一份输入里有多处违例时，拒绝值取其中优先级最高的那个**，次序固定：
 
@@ -645,9 +655,9 @@ kind_unknown  >  visibility_missing  >  incomplete_call_visible  >  call_in_resu
 | [S-6](#s-6-模态由媒体类型判定)、[S-7](#s-7-媒体类型的规范形式) | 管媒体类型的规范形式；**块上不许有 `modality` 成员** | 判定式本身是计算，由消费者按 S-6 实现 |
 | [S-9](#s-9-思考块与不透明数据) `opaque` | 只管「可以是任意 JSON 值」 | 「不解释、原样回传」全是行为约束，归各层实现与[第四节](#四装配给与协议给) |
 | [S-10](#s-10-语音块与图块) | **管得到**：两处媒体类型的 type、两种 `data` 形状互斥、base64 形状 | **两处媒体类型逐字相同**——跨成员比较，管不到 |
-| [S-12](#s-12-完整的工具调用)、[S-13](#s-13-半截的工具调用) | **管得到**：`complete` 判别、半截的标注必为两个 `false`、完整的恰为「`arguments`」与「`rawArguments` ＋ `unparseable: true`」两种之一 | 「只解析一次」「不解析 `rawArguments`」「解析不了的不执行、即刻以一条 `failed` 结果收场」是行为，归 `capability.stream-assembly` 与工具执行一侧 |
+| [S-12](#s-12-完整的工具调用)、[S-13](#s-13-半截的工具调用) | **管得到**：`complete` 判别、半截的标注必为两个 `false`、完整的恰为「`arguments`」与「`rawArguments` ＋ `unparseable: true`」两种之一、完整的 `tool` 合模型面名字的字符集 | 「只解析一次」「不解析 `rawArguments`」「解析不了的不执行、即刻以一条 `failed` 结果收场」是行为，归 `capability.stream-assembly` 与工具执行一侧 |
 | [S-14](#s-14-callid) | 管形状 | 会话日志内唯一——归登记一方 |
-| [S-15](#s-15-工具结果块)～[S-18](#s-18-占位原因与它落在哪一格) | **管得到**：`outcome` 必填且闭合、`reason` 按收场必带／可带／不带、`code` 落格、任意层无工具调用块 | 「不从文字推收场」是读者的行为；「转后台只是前台那一次的收场」「`terminated_by_agent` 只落后台收场提醒、不落占位」归写入方 |
+| [S-15](#s-15-工具结果块)～[S-18](#s-18-占位原因与它落在哪一格) | **管得到**：`outcome` 必填且闭合、`reason` 按收场必带／可带／不带、`code` 落格、任意层无工具调用块 | 「不从文字推收场」是读者的行为；「转后台只是前台那一次的收场」「`terminated_by_agent` 只落后台收场提醒、不落占位」归写入方（装进 `ToolMessage` 时由 `data.messages` 那一层拒，它的 S-39）；后台收场提醒那一侧的取值域归 `capability.tool-execution-runtime` v1 S-10 |
 | [S-19](#s-19-派生表示与-transcript)、[S-20](#s-20-派生表示的产出者与能力标识) | **管得到**：只三类块可带、非空、派生块只三类且不再嵌套派生、派生表示与 transcript 同有同无、`producedBy` 恒为 `system` | **派生块与原块模态不同**——跨成员比较，管不到，归接收边界；「落盘前写好」归转换件与写入方 |
 | [S-21](#s-21-attachmentref) | 管形状 | 相等按 `(storage, key)`、「地址不是身份」、可解引用，都管不到 |
 | [S-34](#s-34-只给了引用的附件落成哪一类块) | **管不到**——两类块在形状上都合法 | 落块那一方的规范场景 |
@@ -804,7 +814,8 @@ PF-013 在**算一个会话的模态投影**时，依赖 [S-6](#s-6-模态由媒
 | ~~G-6~~ | **已闭合**：[S-8](#s-8-文本块与来路标记) 的 `origin`、[S-9](#s-9-思考块与不透明数据) 的 `opaque` 落在 [D-038](../../../../record/decisions/message-and-shape-rulings/decision.md#十九处分岔) Q1、Q2。D-038 Q1 的「含义」列写 `origin` 取「模型 / 用户 / 工具 / 系统」，本契约取的是四个斜杠命令来路——决定原话不改、用词以词条为准，见 [D-040 §四](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#四被推翻或被覆盖的项追加登记) | — | — |
 | ~~G-7~~ | **已闭合**：PF-006 §6.7 加了「前台超时」一行；取值名 `foreground_timeout`（规格层），落 `interrupted`（[S-18](#s-18-占位原因与它落在哪一格)） | — | — |
 | ~~G-8~~ | **已闭合**：[设计依据](#设计依据)里的主线裁定已落进 [D-040](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md)（各条链接到它的小节）；`producedBy` 恒为 `system` 改以产品正文为依据（PF-013 §4 转换件、PF-012 §4）。产品负责人对 D-040 的追认不另登缺口 | — | — |
-| **G-9** | **工具调用块的 `tool` 是否 `$ref` `data.tool-definition` v1 的 `ModelToolName`**（[S-12](#s-12-完整的工具调用)、[S-13](#s-13-半截的工具调用)）：本版 `tool` 只约束到非空串，它的所指是模型面名字（[`data.tool-definition/v1` S-6](../../tool-definition/v1/contract.md#s-6-模型面只有一个条目)）。收紧成 `$ref` 要一并回答两件事：那份契约依赖本契约（块、附件引用），反向引用会让依赖成环（同 [G-5](#八已知缺口) 的理由）；模型发来一个不合那套字符集的名字时，这次调用在表示层被拒还是照常登记、由执行一侧以失败回给模型 | 想在块这一层按模型面名字的字符集判 `tool` 的消费者；本版它们只能到 `data.tool-definition` 那一侧判（主线裁定，见 [D-040 §六 L12](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)） | **主线**；闭合条件：第二轮独立评审之后裁定要不要收紧；收紧则 S-12、S-13 与 Schema 同轮改（候选期内原地改） |
+| ~~G-9~~ | **已闭合（修复波 2）**：完整工具调用块的 `tool` 取模型面名字 `ModelToolName`，家在 [`data.tool-definition/v1` S-6](../../tool-definition/v1/contract.md#s-6-模型面只有一个条目)；那份契约依赖本契约，所以按互引成环的登记口径在本文件逐字写出同一个字符集、不登依赖、登对齐义务；不合字符集即表示层 `malformed`；半截调用块上的 `tool` 仍是收到的原值（[S-12](#s-12-完整的工具调用)、[S-13](#s-13-半截的工具调用)；主线裁定，见 [D-040 §七 M8](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)） | — | — |
+| **G-10** | **模型交回一个不合模型面名字字符集的调用名，这次调用怎样落**：G-9 闭合之后这样的调用封口出来的不是合法的完整工具调用块（[S-12](#s-12-完整的工具调用)）。它在装配里是被拒、落成别的形状，还是由工具执行一侧以一条收场回给模型——本契约不定；不合法的块不得进日志（[S-27](#s-27-表示层拒绝不是判定也不修补)），也**不得被悄悄改名或丢掉而不留痕** | 把模型回复装配成消息的一方；工具执行一侧对「没有这个名字」的收场（它对**合字符集**却查不到的名字已有收场，见 `capability.tool-execution-runtime` v1 S-23 ④） | **主线**，落点 `capability.stream-assembly`（与模型请求运行时）；闭合条件：那份契约写明这样一次调用在封口时怎样处置、模型得到什么交代 |
 
 ## 九、明确不承诺
 
@@ -816,7 +827,7 @@ PF-013 在**算一个会话的模态投影**时，依赖 [S-6](#s-6-模态由媒
 - **组装**：取原件、取哪一份派生表示还是取 transcript；两侧怎么呈现——归 PF-010 与呈现。
 - **模态投影与合法目标**——归 PF-013。
 - **转换件**：什么时候转、按什么键登记、转换失败怎么收——归 PF-013 与 PF-012；本契约只定它产出的东西长什么样。
-- **卸载**：什么时候卸、占位里写什么——归 PF-006 与 PF-012；本契约只给 `offloaded` 一个位置。
+- **卸载**：什么时候卸、卸载之后那一块的摘要写什么——归 PF-006 与 PF-012；本契约只给 `offloaded` 一个位置。
 - **存储本身与解引用的授权**（[G-1](#八已知缺口)）。
 - **租户、会话、运行、作者的归属**——在承载块的记录上（[S-23](#s-23-块不携带租户身份)）。
 - **占位原因写给 agent 的文字**——`reason.text` 由写它的一方写。

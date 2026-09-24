@@ -129,6 +129,7 @@
 - 一次开过口、此刻在 `awaiting_decision` 的调用上 `dispatch(s1, c2)` ⇒ **`retryRefused{already_spoke}`**，不是 `wrongPhase`（[S-30](contract.md#s-30-dispatchagain) 末条、[S-29](contract.md#s-29-dispatch) ⑥ 的次序）。
 - 一次**没开口**、此刻在 `open` 的调用上 `dispatchAgain(s1, c, { provider: B })`，且快照不许回退 ⇒ **`wrongPhase{phase: open}`**，不是 `retryRefused{provider_not_allowed}`——守卫 2、3 只在 `awaiting_decision` 时求值（[S-30](contract.md#s-30-dispatchagain) ⑥）。
 - 会话日志读不到时 `interrupt(s1, c1, user)` ⇒ **`unavailable`**，不先判出 `callNotFound`（[S-14](contract.md#s-14-缺席时的默认答案与失败集合) 末段）。
+- `c1` 在 `reply_pending` 时 `settleReply(s1, c1, { vetoed: … })` ⇒ **成功**，不是 `alreadyEnded`——`alreadyEnded` 的「收场已定」那一分句不适用于 `settleReply`；同一刻 `interrupt(s1, c1, user)` 才得 `alreadyEnded`（[S-14](contract.md#s-14-缺席时的默认答案与失败集合) 失败值表）。
 
 ## 9. 同路由名按层覆盖：一个名字一条，落到胜出行（场景 [S-48](contract.md#s-48-同路由名按层覆盖一个名字一条落到胜出行)）
 
@@ -168,6 +169,7 @@
 | 同上，再调一次 | `settleReply(s1, c1, { vetoed: … })`（同一个处置） | 返回同一个 ⑤，什么都不写 | [S-49](contract.md#s-49-settlereply) ⑦ |
 | 压缩闭包里的那次调用 | `settleReply(s1, c7, { consumed: { by: compaction } })` | 写下 `replyDisposition = { consumed }` 的那一条；账照记 | [S-49](contract.md#s-49-settlereply) |
 | 调用方没收口就停了宿主 | （宿主停止） | 撤除写 `r_2`：`interrupted{run_cancelled}`、没有 `reply`、回复的块进 `delivered` | [S-36](contract.md#s-36-宿主停止与撤除) |
+| 另一次调用 `c8` 开口了、还在说，宿主（系统发起）停止 | （宿主停止，没有先 `interrupt`） | 本能力对 `c8` 那一次发出的装配状态调 `abandon`、不带缘由——**不交 `finish { reason: interrupted }`**；写下的响应体 `interrupted{run_cancelled}`、没有 `reply`、不带成因，交付过的块进 `delivered`；**没有** `AssistantMessage`（不是 `interrupted_by_user`） | [S-36](contract.md#s-36-宿主停止与撤除)、[S-51](contract.md#s-51-模型侧到达装配前提的承诺) 第 6 条；[D-040 §七 M12](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加) |
 | 进程丢了 | 新尝试的 `reconcile(s1, 尝试 2)` | 日志里是「已开口、无响应体」⇒ 追补 `interrupted{runtime_lost}`、不再发出 | [S-33](contract.md#s-33-reconcile) 第四行 |
 
 **只读守卫**（`c5` 在 `awaiting_decision`，最近一次 `failed{upstream_unavailable}`，快照允许 `[A, B]`、允许回退）：

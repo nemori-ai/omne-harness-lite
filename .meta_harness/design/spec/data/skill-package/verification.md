@@ -51,7 +51,23 @@
 | X-5 CS-4 与 G-2 停在 asset-evaluation G-15（已关，答案在 S-39） | **改**：改指 `capability.asset-evaluation/v1#S-39`；CS-4 写成走得通 | CS-4、G-2 |
 | X-6 依据只在任务区账本 | **改**：S18-a～e 改链 D-040（S9-c 只在 S18-e 里出现，一并引 S18-e）；「起草简报的账本」一律改写为「主线起草时所给的形状」 | 设计依据注表、S-2、S-3、S-10、S-12、S-17、S-18、S-21、S-25、G-1、G-2、G-5、G-6 |
 | X-7 | 不适用：本契约没有「与哪几类共用」的说法 | — |
-| K-1 `targetEnvironment`「默认是一个 TargetEnvironment」与 Schema 不要求 `default` 不一致，S-16 无定义 | **改**（主线处置裁定）：`default` 明写可选；没有默认且各层没配时，S-16 按没声明处理；Schema 不加 `required` | S-15、S-16、第八节；examples 第 4 节一行 |
+| K-1 `targetEnvironment`「默认是一个 TargetEnvironment」与 Schema 不要求 `default` 不一致，S-16 无定义 | **改**（主线处置裁定）：`default` 明写可选；没有默认且各层没配时，S-16 按没声明处理；Schema 不加 `required`。**本行处置已作废**：K12 随 [D-040 §四](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#四被推翻或被覆盖的项追加登记) 的 L3′ 作废，执行环境要求改为定义记录的固定成员 `environmentRequirement`、不是设置项（见[变化的影响](#变化的影响)修复波 1b） | S-15、S-16、第八节；examples 第 4 节一行 |
+
+### 第二轮
+
+| 项 | 值 |
+|---|---|
+| reviewer | spec-reviewer（只读），发现表 `tmp/assets-runtimes/reviews/r2-R2a.md` |
+| 日期 | 2026-09-25 |
+| 基线 | HUB `8ad37c50` |
+| 处置 | 修复波 2，候选期内原地改；主线裁定见 [D-040 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)（M1～M29） |
+
+| 编号 | 发现 | 处置 | 落点 |
+|---|---|---|---|
+| SP-1 | 「固定声明成员」各处引 D-040 §六 L3，而那一行原文是「删掉该保留项」；真正生效的 §四 L3′、§六 N-13 一处未引；成员名仍写「已报主线」 | **改**：设计依据注表、S-15、S-32、P-7、G-8、Schema 根 `$comment`、examples 第 4 节一行一律改引 [D-040 §四 L3′](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#四被推翻或被覆盖的项追加登记) 与 [§六 N-13](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)；成员名注「N-13 接受」、删「已报主线」；本文件修复波 1b 那一段改称 L3′ 并注明 §六 L3 已被取代。covers 的 PF-002 `#skill`、PF-006 `#64` 两条 note 同改 | 设计依据注表；[S-15](v1/contract.md#s-15-设置项声明)、[S-32](v1/contract.md#s-32-执行环境要求)、P-7、G-8；Schema；examples；`registry/covers.json` |
+| SP-2 | S-11「第一段恰为 `scripts`」与 Schema `^scripts/` 对包根下一个叫 `scripts` 的文件给出不同答案 | **改**：S-11 写成「`path` 以 `scripts/` 开头（至少两段）」，明写只有一段的 `scripts` 不是脚本；examples 5.3 加一行变体 | [S-11](v1/contract.md#s-11-脚本集合)；examples 5.3 变体表 |
+| SP-3 | 定义记录内容的几处列举漏了 `environmentRequirement`；K-1 行未注作废；examples 残留「账本 S18-d」 | **改**：§一、README、Schema `SkillPackage.description`、第八节 `definition` 行补上；K-1 行注「已作废（K12 随 L3′ 作废）」；账本标签改链 D-040 §S18 S18-d | §一；README；Schema；[第八节](v1/contract.md#八缺席怎么收)；上表 K-1 行；examples 第 3 节 |
+| （M20，范围外 2） | `Skills()` 跑技能脚本时，工具自身 `targetEnvironment` 与技能 `environmentRequirement` 怎样合并 | **立缺口** [G-9](v1/contract.md#九已知缺口)（[D-040 §七 M20](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)，owner `Skills()` 契约那一程／PF-007）；CS-4 改为「技能这一侧走得通、落点的合成停在 G-9」；对齐义务那一行补指 | G-9；[CS-4](v1/contract.md#cs-4-skillsexec_script-跑一个脚本)；[对齐义务](#对齐义务) |
 
 ## 对齐义务
 
@@ -65,7 +81,7 @@
 | **作者自声明设置的生效值交给谁**（PF-007 §9.3） | `Skills()` 的契约（尚未建立） | 本契约已写规则（[S-15](v1/contract.md#s-15-设置项声明)）；兑现待那份契约建立 |
 | **同一违例两个名字**：正文里的名字与能力标识不一致 | `data.asset-model` v1 的 S-27 | **已统一**：那边原名携带本契约的 `name_mismatch` |
 | **同一违例两个名字**：绑定层不在四值里 | `data.tool-definition` v1 的 S-26 | **已统一**：本契约原名携带那边的 `binding_layer_unknown`（修复波 1b 起落在 `environmentRequirement` 上，[S-24](v1/contract.md#s-24-表示层拒绝值与判定次序)） |
-| **执行环境要求的形状与落地**：值取 `data.tool-definition` 的 `TargetEnvironment`；落地由跑它的那个工具按这份声明做 | `data.tool-definition` v1 S-11（形状）；`Skills()` 的契约（尚未建立）；工具执行运行时 | **已落**（[S-32](v1/contract.md#s-32-执行环境要求)，原 G-8 闭合）。那边改 `TargetEnvironment` 的形状，本契约同轮复核；`Skills()` 契约起草时，`exec_script` 的落点要求取这一版包的 `environmentRequirement` |
+| **执行环境要求的形状与落地**：值取 `data.tool-definition` 的 `TargetEnvironment`；落地由跑它的那个工具按这份声明做 | `data.tool-definition` v1 S-11（形状）；`Skills()` 的契约（尚未建立）；工具执行运行时 | **已落**（[S-32](v1/contract.md#s-32-执行环境要求)，原 G-8 闭合）。那边改 `TargetEnvironment` 的形状，本契约同轮复核。**`Skills()` 自己的 `targetEnvironment` 与技能的 `environmentRequirement` 怎样合成 `exec_script` 的落点**，立为 [G-9](v1/contract.md#九已知缺口)（[D-040 §七 M20](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)），`Skills()` 契约起草时回答 |
 | **「谁可以使用它」的共用定义** | `data.asset-model` v1 的 S-36；`data.mcp-endpoint`、`data.slash-command` | **已落**：八类共用 `usableBy`（主线裁定 2026-09-24，原为三类），本契约不再产出它；连接件的「能不能安装」即此项（`data.connector` 的 `install` 待主线收口改名） |
 | **② 型展开的正文** | 斜杠命令的数据契约（第四波并行）、`data.content-blocks` v1 的 S-8 | 展开的就是 [S-8](v1/contract.md#s-8-正文逐字不展开不执行) 的 `body`，逐字、不展开；那边若另定「展开时替换占位」之类的规则，与本契约第 2 条相抵 |
 | **工作区承载清单里指向技能包的 `source`** | `data.asset-model` v1 的 S-24、`capability.asset-evaluation` | 那个目录按本契约 [S-21](v1/contract.md#s-21-包的目录形式) 读；读入方留痕的形状归 asset-evaluation |
@@ -135,17 +151,23 @@ V-2～V-9 **一条执行记录也没有**。手核只保证 `examples.md` 的实
 - **（2026-09-24 整批对齐收尾，不改语义）**：「不拥有」与消费者表里「第四波并行」「同程并行」「下一版」的旧说法换成候选坐标（注册表、治理、求值、斜杠命令、资产模型），删去「此刻不在本工作树、不链接」那条注。
 - **2026-09-24 同日稍后（不改语义）**：K 裁定收进 [D-040 §五](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) 之后，正文里标「第一轮独立评审的处置」的几处改链 D-040 §五（K6、K12）。
 
-- **2026-09-24 修复波 1b（主线裁定 [D-040 §六](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) L1、L3；候选未冻结，原地改）**：
-  - **L3（主线同轮改判后的终态）：执行环境要求由设置保留项 `targetEnvironment` 改为定义记录里的固定声明成员 `environmentRequirement`**（S18-a「作设置保留项」那一处被覆盖、K12 作废）。
+- **2026-09-24 修复波 1b（主线裁定 [D-040 §六](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) L1，与 [§四](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#四被推翻或被覆盖的项追加登记) L3′、§六 N-13；候选未冻结，原地改）**：
+  - **L3′（主线对 §六 L3 的改判，即本轮终态；§六 L3 那一行原文是「删掉该保留项」，已被 L3′ 取代）：执行环境要求由设置保留项 `targetEnvironment` 改为定义记录里的固定声明成员 `environmentRequirement`**（S18-a「作设置保留项」那一处被覆盖、K12 作废）。
     这一轮先按简报原文把保留项整个删掉，报回「与 PF-006 §6.4、PF-007 §6.2 原话冲突」后，主线改判为「恢复执行环境要求，但作为定义记录的固定声明、不是 PF-002 意义上的设置项」；下面只记终态。
     - 新 [S-32](v1/contract.md#s-32-执行环境要求)（号排在 S-31 之后，不重排）：值 `$ref` `data.tool-definition` 的 `TargetEnvironment`；不是设置项、各层配不了、推出规则不产出它、随内容覆盖；缺席即没有特殊要求；没有脚本不得声明（M14）；原样进依赖声明；落地由跑它的那个工具按它做，「满足」的判定沿 tool-definition G-5。**G-8 闭合。**
     - [S-15](v1/contract.md#s-15-设置项声明) 改名「设置项声明」（锚点随之变，包外没有链接指向旧锚点——已全树核过），写明没有保留项名、一项叫 `targetEnvironment` 的作者设置只是普通设置；S-12 成员由四个变五个；S-16 的执行环境那一项改读 `environmentRequirement` 的声明值（不再求值），依赖声明成为包的确定函数；P-7、P-8、CS-2、CS-4、CS-7、第八节、第十节同步。
     - 拒绝值仍是八个，`binding_layer_unknown` 改落在 `environmentRequirement` 上；M13、M14 编号沿用、改指新成员（不新发号）。对 `data.tool-definition` 的依赖仍是 S-9、S-11、S-18、S-26。
     **表示改变**：设置项里带定死形状的 `targetEnvironment` 那一项不再有特殊约束（它成了普通设置：旧 Schema 拒的「类别不是落点与身份」等写法现在收）；定义记录多一个可选成员 `environmentRequirement`（旧 Schema 拒、新 Schema 收），没有脚本却带它即拒。**语义改变**：执行环境要求各层不再能配值——原先的 `placement_identity` 设置可以由组织、租户改，现在只能随内容改（发新版）；依赖声明读声明值而不是求值结果。
     **消费者影响**：`capability.asset-registry` 按本契约 S-16 算技能可用性，执行环境一项改读声明值（它的正文只写「技能按 `data.skill-package` 的依赖声明」，不用改）；`capability.asset-evaluation`／`capability.asset-governance` 没有引用技能的目标环境（全树核过）；技能推出的属性项里不再有这一项（原先它是一项落点与身份类设置），它们按推出规则的产出求值、不按项名特判，正文不用改；`Skills()` 的契约尚未建立。
-    **名字**：`environmentRequirement` 是规格层名字（无词条；[目标环境](../../../ubiquitous_language/terms/grounding-and-isolation.md#ul-target-environment--目标环境--target-environment)词条指工具的那项设置，不是它），已报主线。
+    **名字**：`environmentRequirement` 是规格层名字（无词条；[目标环境](../../../ubiquitous_language/terms/grounding-and-isolation.md#ul-target-environment--目标环境--target-environment)词条指工具的那项设置，不是它）；名字已由 [D-040 §六 N-13](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) 接受。
     实例：第 4 节加六行 `environmentRequirement`（两通过、四拒绝），设置项表的目标环境五行换成一行普通设置；5.3 带上 `environmentRequirement`，四行变体改写；第 7 节 `binding_layer_unknown` 一行改指新成员；第 8 节两行改指新成员、补一行；第 11 节改写。**证据**：V-1 重跑，见[上文](#本地自检schema-正反实例修复波-1b2026-09-24)。
   - **L1**：S-8 与消费者表里指向 `data.content-blocks` S-8 的锚点改为 `#s-8-文本块与来路标记`；「`skill_body` 来源标记」改称「来路标记」（UL-origin-tag）并链词条。
   - catalog 的 tool-definition 依赖 clauses 仍是 `S-9`、`S-11`、`S-18`、`S-26`（中间稿曾去掉 `S-11`，改判后恢复）；covers：PF-002 `#skill` 补 `S-15`，PF-006 `#64-依赖声明与解析`、`#六项可选声明` 与 PF-007 `#62-skills通向任意技能` 改指 `S-32`。
+
+- **2026-09-25 第二轮独立评审的处置（修复波 2；候选未冻结，原地改）**：逐条见[第二轮](#第二轮)。
+  **表示不变**：Schema 只改两处描述文字；S-11 的措辞收到与 Schema 同一判据——原措辞「第一段恰为 `scripts`」会把包根下一个叫 `scripts` 的文件算成脚本，Schema 从来不算，**两个实现从此给同一个答案**（语义收紧到 Schema 已有的那一种）。
+  **新缺口 G-9**（M20）：`Skills()` 跑脚本时两份执行环境声明的合成；CS-4 改为停在 G-9。**依据改链**：L3 → L3′、N-13（SP-1）。
+  **对消费者**：没有已采用的消费者，无迁移；`Skills()` 的契约起草时须回答 G-9。
+  **证据**：`jsonschema` 4.26.0（锁定 uv 环境，设计根下全部 Schema 按 `$id` 登表，脚本在会话暂存区、不入库）核了 5.3 与新加的一行变体——5.3 通过，把脚本换成包根下一个叫 `scripts` 的文件被拒（`contains` 那一条）；其余实例未改、未重跑。
 
 结果不改写规范。发现语义问题回到来源设计（PF-002／PF-006／PF-003／PF-007、D-034），不在这里改契约。

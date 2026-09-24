@@ -8,7 +8,7 @@
 **本程实现不交付**，可独立运行的装配里这一件的实现另行决定。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.tool-admission, 1)`
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 按第一轮独立评审修订，2026-09-25 修复波 1b 闭合 G-14），**未接受、未冻结**
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 按第一轮独立评审修订，2026-09-25 修复波 1b 闭合 G-14、修复波 2 按第二轮修订），**未接受、未冻结**
 - **catalog 映射**：已登记为 `candidate`；`family=capabilities`、`topic=tool-admission`、
   `contract_path=spec/capabilities/tool-admission/v1/contract.md`；`resources` 含契约与 `examples.md`；
   依赖五项（`data.identity-values`、`data.content-blocks`、`data.tool-definition`、`data.loop-extension`、`data.asset-model`，均 v1），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)

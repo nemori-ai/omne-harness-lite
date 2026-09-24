@@ -125,9 +125,16 @@
   - **K14**：S-39 写明 `ModelResponse` 的 `late` 与本条同一含义、同一写法（可选、只取 `true`、缺席 = 不晚），依据改引 PF-012 I-11 与 D-040 §一 S2-d。
   - **K50（本契约部分）**：`frames` 改为 `FrameAccount | "unknown"`，新定义项 `$defs/FrameAccount`；`"unknown"` 只在持有帧计数的在途状态丢了时写；S-15、S-27 的帧数一式只对 `FrameAccount` 核。**表示改变**：`frames: "unknown"` 旧 Schema 拒、新 Schema 收；其余旧实例不变。**消费者影响**：`capability.tool-execution-runtime`（丢失在途状态时写 `"unknown"`，由它判）；读帧数的读面须处理未知一支。
   - **依赖补登**：`data.identity-values` v1 加 `S-17`（`initiator` 不从当前租户补）；新依赖 `data.asset-model` v1 `S-3`（接入点的规范串）。`data.arrival-events` S-23 ① 是定义性引用、不登（那份契约依赖本契约，登了成环）；TER S-14、stream-assembly S-14 是落点、不登。头部与 catalog 一致。
-  - **依据链接化**：「主线裁定 2026-09-23，待产品负责人确认」一律改为 D-040 §一 对应小节的链接（S2-d、S2-e、S4-b、S8-c、S13-f、S16-f）；**两种归属分记**（原「C-12」）在 D-040 里没有原文，改以 PF-001 §6.4 与 UL-model-credential 两条产品事实加规格层推导为依据（S-38、P-12、设计依据倒数第二行）。**G-11 闭合**。本轮落的 K 各项，契约正文的依据链到 D-040 §五（K1～K50，2026-09-24 夜追加）。
+  - **依据链接化**：「主线裁定 2026-09-23，待产品负责人确认」一律改为 D-040 §一 对应小节的链接（S2-d、S2-e、S4-b、S8-c、S13-f、S16-f）；**两种归属分记**（原「C-12」）当时在 D-040 里没有原文，改以 PF-001 §6.4 与 UL-model-credential 两条产品事实加规格层推导为依据（S-38、P-12、设计依据倒数第二行）；此后主线已在 [D-040 §六 N-5](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) 接受它（修复波 2 补了链接）。**G-11 闭合**。本轮落的 K 各项，契约正文的依据链到 D-040 §五（K1～K50，2026-09-24 夜追加）。
   - 「一次发出」链到 UL-upstream-send；§十一 补上 `initiator` 这一处租户身份的例外；S-38 写明本契约的 `initiator`（成本归属租户）与 `data.messages`／`data.model-response` 的 `initiator`（中断发起方）同名不同义。
   - 本地自检重跑（上节，116/116）。
+
+- **2026-09-25 修复波 2（主线裁定 [D-040 §七 M25](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加) 与 [§四](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#四被推翻或被覆盖的项追加登记)「K14」那一行；候选未冻结，原地改）**——逐条处置见[独立评审「第二轮」](#第二轮2026-09-25)：
+  - **M25**：[S-39](v1/contract.md#s-39-晚到的账) 首句的「归属的那次尝试」改为「锚定的那次尝试」，并按账的种类写明锚点：`ToolCallAccount` 与 `CostCorrection` 看归属的尝试（条目给）；`ModelResponse` 看发出**所在**的尝试（它自己的 `attemptId`），不看条目把它归到哪一次。补一句对账补写的例子（在 n+1 次里补写 n 次出门的那一条仍是晚的）。`ModelResponse` 那一条的「所属尝试」同改。**表示不变**（Schema 与实例不动）；**语义**：`ModelResponse` 的 `late` 的触发锚与 `data.model-response/v1#S-35` 从此是同一句（原先两份各按「所在」「归属」读）。
+  - **CB2-3（M2）**：抬头两处「会成环所以不登」（`ResponseId`、`data.arrival-events` S-23 ①）改链 registry「互引成环的登记口径」与 D-040 §七 M2；登记不变。
+  - **CA2-1**：对齐义务第 3 条的 S2-e 改链 D-040 §四（已被 asset-model S-3 取代），删去「已报主线核对」。
+  - **CA2-2**：设计依据「两种归属分记」一行补链 D-040 §六 N-5；第一轮修复条目里「D-040 里没有原文」加注此后已接受。依据本身不变。
+  - **证据**：Schema 与实例未改，V-1 不重跑。
 
 结果不改写规范。发现语义问题回到来源设计（PF-006／PF-009／PF-012／PF-013），不在这里改契约。
 
@@ -145,8 +152,19 @@
 | 同上 | 同上 | 同上 | CA-8 `initiator` 跨契约同名不同义 | **改**（在两处写明区分的那一种）：S-38 加一条说明；**不登 conflicts**——两处各有精确定义，不是同一概念的两种说法；是否给一方改名（本契约 G-12 的「另起一个名字」）留主线 | S-38；G-12 |
 | 同上 | 同上 | 同上 | CA-9 V-1 仍说 `CallId` 解析不到 | **改** | 本页 V-1 |
 
+### 第二轮（2026-09-25）
+
+reviewer：spec-reviewer，S25 第二轮批 R1（另含批 R2b 转来的一条）；基线 HUB `8ad37c50`。本批对本契约的总判是「可进 F 反向核对」。依据一律是 [D-040 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)。
+
+| # | 发现（等级） | 处置 | 落点 |
+|---|---|---|---|
+| CA2-1 | 对齐义务第 3 条仍写 S2-e「已报主线核对」（建议） | **改**：改链 D-040 §四「S2-e」那一行；以 asset-model S-3 为准 | 本页对齐义务 |
+| CA2-2 | 第一轮修复条目写「C-12 在 D-040 里没有原文」，而 §六 N-5 已登记（建议） | **改**：设计依据那一行补链 N-5；修复条目加注。依据不变 | 设计依据倒数第二行；本页变化的影响 |
+| CB2-3（本契约那一半） | 抬头所列的 `data.arrival-events` S-23 ① 与 `ResponseId` 都是「会成环所以不登」，这条口径没有持久落点（应修） | **改**（M2）：口径已由主线写进 registry README；抬头改链它与 D-040 §七 M2。登记不变 | 抬头依赖说明 |
+| R2b R2-MR-3（本契约那一半） | S-39 首句按「归属」锚、`data.model-response` S-35 按「所在」锚，E-10 那种补写在两处判得不同（应修） | **改**（M25；D-040 §四 K14 读作「发出所在的尝试」）：S-39 首句写明按账的种类定锚，`ModelResponse` 看它自己的 `attemptId` | S-39 |
+
 ## 对齐义务
 
 - **定义性引用与落点的复核**（本契约引用、不登 catalog 依赖的三处）：`data.arrival-events/v1#S-23` 第 1 条改了「一帧」的单位，本契约 [S-11](v1/contract.md#s-11-toolcallaccount一次工具执行的账)、[S-15](v1/contract.md#s-15-trimreason-与-trimsummary砍了要说) 同轮复核；`capability.tool-execution-runtime/v1#S-14` 改了外部效果确定性的三值或投影，本契约 S-11 的两值含义同轮复核；`capability.stream-assembly/v1#S-14` 不再兑现「每帧至多计一次」，S-15 的不等式失去前提。
-- **`ModelResponse.late`**：`data.model-response` 的 `late` 须与 [S-39](v1/contract.md#s-39-晚到的账) 同一含义、同一写法（可选、只取 `true`、缺席 = 不晚）；那份契约改写法时本条同轮复核。
-- **接入点规范串的分隔符**：本契约与实例按 `data.asset-model/v1#S-3` 写 `<category>/<name>`；[D-040 §一 S2-e](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s2call-accounts报回的) 原文写的是 `"<category>:<name>"`，已报主线核对；在那之前以 asset-model S-3 为准。
+- **`ModelResponse.late`**：`data.model-response` 的 `late` 须与 [S-39](v1/contract.md#s-39-晚到的账) 同一含义、同一写法（可选、只取 `true`、缺席 = 不晚），**锚是发出所在的尝试**（`attemptId`，M25）；那份契约改写法或改锚时本条同轮复核。
+- **接入点规范串的分隔符**：本契约与实例按 `data.asset-model/v1#S-3` 写 `<category>/<name>`；[D-040 §一 S2-e](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s2call-accounts报回的) 原文的 `"<category>:<name>"` 已由 [D-040 §四](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#四被推翻或被覆盖的项追加登记)「S2-e」那一行登记为被 asset-model S-3 取代（早期笔误）。

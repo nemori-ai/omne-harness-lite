@@ -101,8 +101,9 @@
 | `mcp:github` | `execute:push` | `{问一下}` | factory | — | — |
 | `mcp:github` | `usableBy` | `{self}` | factory | — | — |
 
-**执行权限三条另带 `tenantAutoWritable`**（[S-42](contract.md#s-42-执行权限项另带租户那一层写得进自动吗)）：`tool:shell / execution` 为**真**——组织那一格的 `h5` 对它没有配值、租户那一格的 `h6` 那条不带锁；`mcp:github / execute:search`、`execute:push` 为**假**——生效的是工作区提供的那一份（第 2 条），尽管 `h9` 是租户那一格的持有、也没锁。其余十条不是执行权限，不带这一成员。
+**执行权限三条另带 `tenantAutoWritable`**（[S-42](contract.md#s-42-执行权限项另带租户那一层写得进自动吗)）：`tool:shell / execution` 为**真**——组织那一格的 `h5` 对它没有配值、租户那一格的 `h6` 那条不带锁；`mcp:github / execute:search`、`execute:push` 为**假**——`mcp` 的逐动作项在资产治理 G-5 闭合前恒为假（S-42 那一段，D-040 §七 M5）；即便那一条闭合，生效的是工作区提供的那一份（第 2 条）也为假，尽管 `h9` 是租户那一格的持有、也没锁。其余十条不是执行权限，不带这一成员。
 **若 `h6` 那条 `execution = {自动}` 带锁**，`tool:shell / execution` 的 `tenantAutoWritable` 为**假**（第 4 条：租户那一格把这一项锁住了），值仍是 `{自动}`、`from = tenant`，`lockedAt` 变为 tenant（[S-23](contract.md#s-23-第四步权限) 合成第 3、4 条）。
+**若 `h6` 被禁用**（租户那一格对 `tool:shell` 仍有持有，但它不在效），`tool:shell / execution` 的 `tenantAutoWritable` 为**假**（第 4 条后半：那一格有持有却不在效，写下的「自动」挂在一份不在效的持有上、对值没有效果；D-040 §七 M7）——生效资产与它的值照 [S-17](contract.md#s-17-第一步之一先按禁用滤)、[S-23](contract.md#s-23-第四步权限) 退回外层那一份重算，本支只断言这一位。
 
 **`filteredOut`**（四条）：
 

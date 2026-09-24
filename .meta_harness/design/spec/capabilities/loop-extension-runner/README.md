@@ -9,7 +9,7 @@
 **兼容件对本契约与任何一件原生件没有区别**。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.loop-extension-runner, 1)`
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订，2026-09-25 修复波 1b 原地补放行输入的组装、闭合 G-13；同轮新立的 G-18 已由 L13 闭合），**未接受、未冻结**
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订，2026-09-25 修复波 1b 原地补放行输入的组装、闭合 G-13；同轮新立的 G-18 已由 L13 闭合；同日修复波 2 按第二轮复评补 `dispatch` 的 `admission` 输入、查不到条目的调用与解析不了的调用，新立 G-19），**未接受、未冻结**
 - **catalog 映射**：已登记为 `candidate`；`family=capabilities`、`topic=loop-extension-runner`、
   `contract_path=spec/capabilities/loop-extension-runner/v1/contract.md`；`resources` 含契约与 `examples.md`；
   依赖十二项：六项数据契约（`data.loop-extension`、`data.messages`、`data.content-blocks`、`data.call-accounts`、`data.model-response`、`data.identity-values`，均为 v1），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)；

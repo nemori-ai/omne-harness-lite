@@ -22,10 +22,10 @@
 | [S-14](v1/contract.md#s-14-registerprofile) ⑦ 认回 | S-26 另一支 | 同一输入原样重发 | 未开始 |
 | [S-18](v1/contract.md#s-18-loadmanifest) 五种处置（含 `relisted`：同一行回到在册）、序号单调、整份不半装、不读自建行；原样重装交回记下的那一份处置（重启之后也是） | [S-27](v1/contract.md#s-27-清单的五种处置与旧清单被拒) | 逐支演练；含一份带坏条目的清单、一条与某自建档案同名的条目；**重启一支**须对真实存储跑（重启之后再原样重装） | 未开始 |
 | [S-20](v1/contract.md#s-20-resolvecredential) 取哪一把（租户那一把，否则只对官方档案取出厂格那一把）、读不到不落到出厂格、个人范围与组织层永不取；[S-32](v1/contract.md#s-32-unbindcredential) 解绑后按「没配」取；[S-19](v1/contract.md#s-19-bindcredential) 组织身份即 `invalidInput` | [S-28](v1/contract.md#s-28-取最具体的一把读不到不回落) | **故障注入**：让租户那一格的读失败；另跑有无出厂格那一把两种部署；官方与自建两种来源各问一次 | 未开始 |
-| [S-31](v1/contract.md#s-31-updateprofile) 只改可改项、改完整份过校验、`updatedAt` 只随上游五项动、身份分量不可改 | [examples §2](v1/examples.md#2-自建档案建认回撤回再读) 第 8～10 步 | 对真实存储的集成测试；并发两次修订按提交先后 | 未开始 |
+| [S-31](v1/contract.md#s-31-updateprofile) 只改可改项、改完整份过校验（排在解析之后）、`updatedAt` 只随上游五项动、身份分量不可改 | [examples §2](v1/examples.md#2-自建档案建认回撤回再读) 第 8～10 步；[examples §6](v1/examples.md#6-每个失败值一个反例) 次序回归例第 4、5 条 | 对真实存储的集成测试；并发两次修订按提交先后；无权者带会让整份非法的 `patch`，行在与不在两次答案逐字相同（`notAuthorized`） | 未开始 |
 | [S-12](v1/contract.md#s-12-秘密只在一个问法里出现) 秘密与引用不出本契约 | [S-29](v1/contract.md#s-29-秘密不出本契约) | 以已知原文扫全部返回、失败说明与事件；另加静态检查：读面返回类型里没有凭据与引用 | 未开始 |
 | [S-14](v1/contract.md#s-14-registerprofile) 末段、[S-16](v1/contract.md#s-16-readprofile) ② 授权先于解析；[S-13](v1/contract.md#s-13-这一节每个操作写全九件事) 授权依赖不可用时 `unavailable` 先于一切要读存储才判得出的值 | [S-30](v1/contract.md#s-30-无权者探不到名字) | 两次失败逐字比较；**故障注入**：成员资格判定以 `unavailable` 失败、名字已占，须得 `unavailable` 而不是 `routeNameTaken` | 未开始 |
-| [S-9](v1/contract.md#s-9-缺席时的默认答案) 失败值闭合与判定次序 | [examples §6](v1/examples.md#6-每个失败值一个反例) | 每个失败值一个反例 ＋ 三条次序回归例（含成员资格不可用那一条） | 未开始 |
+| [S-9](v1/contract.md#s-9-缺席时的默认答案) 失败值闭合与判定次序 | [examples §6](v1/examples.md#6-每个失败值一个反例) | 每个失败值一个反例 ＋ 五条次序回归例（含成员资格不可用、`updateProfile` 改完的文档那两条） | 未开始 |
 | [S-14](v1/contract.md#s-14-registerprofile) ⑧、[S-18](v1/contract.md#s-18-loadmanifest) ⑧ 建档内容带 `registration`／`updatedAt` 即 `invalidInput`（`malformed`） | [examples §6](v1/examples.md#6-每个失败值一个反例) 那一行 | 表示层校验的单元测试；前提：`data.model-profile` v1 的建档内容文档种类定稿 | 未开始 |
 | [S-17](v1/contract.md#s-17-listprofiles) 从路由名到一行的规则以允许集合为显式参数、不按 (租户, 路由名) 缓存 | [examples §5](v1/examples.md#5-同路由名不同的格各有一条都成立) 末三行 | 同一租户、同一路由名、两份不同的允许集合各求一次，胜出行随允许集合变；允许集合读不到时失败 | 未开始 |
 
@@ -51,6 +51,19 @@
 | MPD-5（PF-001、PF-002 rev 落后） | **改**：复核到 PF-001 rev 17、PF-002 rev 20（结论见[变化的影响](#变化的影响)本轮一条），不改条款 | 契约页首 |
 | MPD-6（examples §5 仍写「待产品负责人确认，G-11」；S-26「隶属树」一句已无判定意义） | **改**：两处删去或改写 | examples §5、[S-26](v1/contract.md#s-26-同名两条只有先成的一条成立) |
 | MPD-7（「保管方」「官方档案清单」「发布序号」无词条也未标；外部条款没按坐标写） | **改**：设计依据的词条表下列「（无词条）」四项（保管方、官方档案清单、发布序号、建档内容），报给主线；S-16、S-17 等处外部条款改为 `…/v1#S-n` 链接 | 契约「统一语言」一段、[S-16](v1/contract.md#s-16-readprofile)、[S-17](v1/contract.md#s-17-listprofiles) |
+
+
+### 第二轮
+
+spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/assets-runtimes/reviews/r2-R5.md` 第一节（批 R5）。裁定出处 [D-040 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)（下表简写「§七」）；**评审意见不代替接受**。
+
+| 编号 | 处置 | 落点 |
+|---|---|---|
+| R2-MPD-1（阻断：`updateProfile` 里要读行才判得出的 `invalidInput` 排在 `notAuthorized`、`unavailable` 之前） | **改**（§七 M14）：`invalidInput` 拆两处——只看输入本身（形状、定义域外的成员）的留最左；「改完的整份文档过 `data.model-profile/v1#S-24`」排在 `profileNotFound` 之后；⑧ 与末段「次序」同改，末段写明为什么；S-9 那一格注明这是「表示层校验在任何判定之前」唯一的例外；examples §6 加两条回归例（无权者 ＋ 会让整份非法的 `patch` ⇒ `notAuthorized`；定义域外成员仍 `invalidInput`） | [S-31](v1/contract.md#s-31-updateprofile) ⑥⑧ 与末段、[S-9](v1/contract.md#s-9-缺席时的默认答案)、examples §6 |
+| R2-MPD-2（G-8 仍开着，N-9 已登） | **改**：G-8 闭合、链 [D-040 §六 N-9](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)；设计依据末表那一行、S-9 里 `origin_not_custom`「值名是本轮与那份契约交接时定的」改为链接 | G-8、设计依据末表、[S-9](v1/contract.md#s-9-缺席时的默认答案) |
+| R2-MPD-3（处置表「按 S-12 改写」与 ⑦「对照在册官方行」在 `maxOutputTokens` 例外下相抵） | **改**，取评审的第一种改法：`updated`／`relisted` 的行内容整份取自条目（身份分量、`registration`、`updatedAt` 除外），`data.model-profile/v1#S-12` 的 `maxOutputTokens` 例外不适用于装入（条目已整份过 S-28）；⑦ 那句补上依据。**选第一种而不是另存清单摘要是本契约推导**：不多一份耐久事实，⑦ 的对照依据仍是在册的行 | [S-18](v1/contract.md#s-18-loadmanifest) 处置表、表下一条、⑦ |
+| R2-MPD-4（页首「未经独立评审」过期） | **改**：契约页首与 README 的状态改为与 MRR 同一口径 | 契约页首、[README](README.md) |
+| 范围外 3（G-7、G-9 仍开着） | 不变 | — |
 
 ## 实际执行
 
@@ -99,3 +112,8 @@
   - **catalog**：`data.model-profile` 的消费 clauses 加建档内容那一条；**covers** 本契约条目未增减，改注见各条。
   - **对证据的影响**：没有既有证据（全部未开始）；场景 S-27、S-30 内容变了，上表对应各行已改；examples §1、§5、§6 改写。
   - **对消费者**：`capability.model-request-runtime` 调 S-17 末段的规则时须带允许集合 `A`（按会话格取）；中心的管理页与系统发布按建档内容交输入。
+- **2026-09-25 修复波 2（候选，未冻结，原地改）**：裁定出处 [D-040 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加) M14、[§六 N-9](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)；逐条处置见上文[第二轮](#第二轮)。
+  - **语义改变**：`updateProfile` 的判定次序——改完的整份文档不合法，由原来的最先判改为解析之后判；无权者带这样的 `patch` 从 `invalidInput` 变为 `notAuthorized`。`loadManifest` 的 `updated`／`relisted` 由「可改属性按清单改写」改为整份取自条目；原先会按 `maxOutputTokens` 例外保留旧值的那种组合，现在取条目的值。
+  - **G-8 闭合**；没有新缺口。
+  - **registry**：catalog、covers、formal-tasks、id-namespaces 不变（S-31 与 S-18 引的 `data.model-profile` S-12、S-18、S-24、S-28 原已登记）。
+  - **对证据的影响**：没有既有证据；S-31 那一行场景的内容变了，examples §6 多两条回归例，仍「未开始」。

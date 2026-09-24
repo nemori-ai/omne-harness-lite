@@ -59,7 +59,7 @@
 | **工具定义必须能直接构造出各家模型供应商要求的工具 payload**：三家的模型面条目都是同一份三元组 `{name, description, 参数 schema}`、只差键名与外壳；参数 schema 顶层 `type: "object"`；每个参数带说明；Anthropic 的工具名正则不含 `:` | [研究 V-1～V-4](../../../../../research/tool-definition-shape-sources/evidence.md)，产品负责人 2026-09-24 要求（[D-039 U-24-1](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#凭据档案工具拓展件卡片-pf-013-rev-10pf-002-rev-1819pf-006-rev-19pf-012-rev-12pf-007-rev-17pf-008-rev-7pf-016-rev-6)；V 组取证钉在主检出 `tmp/sources/extracted/`，只对抓取当日的页面成立）；「说明必填」的产品正文是 [PF-006 §5.3](../../../../product/PF-006-tools-and-skills/design.md#工具说明与每个参数的说明必填)（rev 19） | S-4、S-6、S-7、S-18、S-26、[第七节](#七装配给与协议给)、G-1、G-12 |
 | **多命令工具的模型面只支持 flat 形**：`command` 枚举带命令表说明、`args` 只说「是一个对象」，不生成 `oneOf` 判别联合；判定仍按所选命令的 `input` | 产品负责人裁定 2026-09-24（[D-039 U-24-2](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#凭据档案工具拓展件卡片-pf-013-rev-10pf-002-rev-1819pf-006-rev-19pf-012-rev-12pf-007-rev-17pf-008-rev-7pf-016-rev-6)），落在 [PF-006 §5.3](../../../../product/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡)（rev 19：模型面前只有命令清单一种样子）；D-038 Q5「一份 schema 带判别字段」的 flat 读法；对照 omne-next `multi_command.py` 默认 `dispatch_mode="flat"`（[研究 O-2](../../../../../research/tool-definition-shape-sources/evidence.md#o-2-多命令范式-basemulticommandtool)） | S-5、S-7、S-8、CS-1、G-3、G-12 |
 | **MCP 来源定义的说明与参数 schema 由桥做最小规范化**（缺说明补占位、剥 `$schema`／`title`、`{"type": "object"}` 视为无参数） | 缺说明补占位是主线裁定，见 [D-040 §二「产品批二报回」⑥](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#二2026-09-24-用户在场期间主线随用户裁决所作的自定账本-二-原文标主线自定的行)，已记进 [PF-006 decisions §四「MCP 动作缺说明」](../../../../product/PF-006-tools-and-skills/decisions.md#四已知的来源问题)；规范化的其余两项由 `capability.mcp-bridge/v1#S-17` 定 | S-17 |
-| **判参数时未知键一律拒**：`input` 顶层没写 `additionalProperties` 按 `false` 读，作者显式写 `true` 或一份 schema 才收；模型面不因此改写 | 主线裁定 2026-09-24（D-040 未收录，已报主线补登）；依据 [研究 V-5](../../../../../research/tool-definition-shape-sources/evidence.md) 结论 ③（没有 inspect 时模型臆造参数名） | S-5、S-7 |
+| **判参数时未知键一律拒**：`input` 顶层没写 `additionalProperties` 按 `false` 读，作者显式写 `true` 或一份 schema 才收；模型面不因此改写 | 主线裁定，见 [D-040 §六 N-1](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)；依据 [研究 V-5](../../../../../research/tool-definition-shape-sources/evidence.md) 结论 ③（没有 inspect 时模型臆造参数名） | S-5、S-7 |
 | 规格形式 | [SYS-SPEC](../../../../foundation/cross-system-constraints/requirements.md#sys-spec) | S-14、S-18、S-26～S-28 |
 | 部署边界 | [SYS-DEPLOY](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy) | [第七节](#七装配给与协议给) |
 
@@ -254,7 +254,7 @@ modelName(d)   ≝  d.name 里每一个 ":" 换成 "__"     （S-18 保证它可
   因此投影是**纯键名映射**：三样原样放进那一家的键里，**不改写 schema、不再改名字**（名字已是 `modelName`）。映射本身由传输适配做；
   **本契约承诺的是「不需要改写 schema 就能映射」**——参数 schema 满足 [S-4](#s-4-单函数工具) 的三条硬要求，名字满足 [S-18](#s-18-名字的表示与相等)；这一句写进[第七节](#七装配给与协议给)。逐字投影见 [`examples.md` 第 11 节](examples.md#11-一份定义投成三家的线上形状)。
 - **模型面名字有自己的 `$def`：`ModelToolName`**（`ModelToolEntry.name` 引它）——字符集 `A`～`Z`、`a`～`z`、`0`～`9`、`_`、`-`，1～128 个字符。
-  **系统里流转的工具指认用的都是模型面名字**（主线裁定，见 [D-040 §五 K10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）：发给模型的工具清单、模型交回的调用块里的 `tool`（`data.content-blocks` 的完整工具调用）、放行判断拿来比较的定义名，都是 `modelName(d)`，消费者 `$ref` 本契约的 `ModelToolName`，**不另写一份字符集**。
+  **系统里流转的工具指认用的都是模型面名字**（主线裁定，见 [D-040 §五 K10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）：发给模型的工具清单、模型交回的调用块里的 `tool`（`data.content-blocks` 的完整工具调用）、放行判断拿来比较的定义名、会话资产注册表里 `tool` 类条目的查找键与 `effectivePermissions` 每一项的键、工具执行运行时查注册表用的名字（`call.tool` 原样），都是 `modelName(d)`（主线裁定，见 [D-040 §七 M8](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）。消费者 `$ref` 本契约的 `ModelToolName`，**不另写一份字符集**；与本契约互引会成环的 data 契约（`data.content-blocks` 的调用块 `tool`）按 [registry「互引成环的登记口径」](../../../../registry/README.md#covers) 逐字同写、以本契约为家。
 - **回来的调用按逆转写对回定义**：模型交回的调用名 `m`，所指的定义名是 `m` 里每一个 `"__"` 换回 `":"`——[S-18](#s-18-名字的表示与相等) 的名字限制使这一步**唯一**。
   **逆转写只在一处做：工具执行运行时起执行者之前**（`capability.tool-execution-runtime` v1；同一裁定）。模型请求运行时的传输适配**不做**逆转写，调用块原样带模型面名字进日志；
   在逆转写之前比较两个名字，一律比模型面名字（`modelName` 是单射，比模型面名字与比定义名结论相同）。对齐义务见[验证入口](../verification.md#对齐义务)。
@@ -295,7 +295,7 @@ modelName(d)   ≝  d.name 里每一个 ":" 换成 "__"     （S-18 保证它可
    行序与 `enum` 相同，行间以一个 U+000A 相连、末行之后不带换行。文案格式**定死**，是 `commands` 的纯函数；命令说明原样放进去，本契约不改写它。
    **次序是本契约的推导**（此次裁定沿用）：映射在多数语言里无序，不定次序，两个实现会对同一份定义生成两份不同的 schema，
    [第七节](#七装配给与协议给)的「任何节点算出同一个值」就不成立。
-3. **判定仍以 `commands[c].input` 为准**：作者写的完整参数 schema 用于判一次调用的参数、用于 `Tools().inspect` 与作者声明的 `help` 命令给出的用法，**不用于模型面**。
+3. **判定仍以 `commands[c].input` 为准**：作者写的完整参数 schema 用于判一次调用的参数、用于 `Tools().inspect` 与作者写的 `help` 文本给出的用法，**不用于模型面**。
    `modelInput` 只管得到「`command` 是一个命令名、`args` 是一个对象、没有别的成员」，**不替任何命令判参数**。
    判时 `commands[c].input` 顶层没写 `additionalProperties` 按 `false` 读（[S-5](#s-5-多命令工具) 末条）。
 4. **`args` 缺席等价于 `{}`**：`{"command": c}` 与 `{"command": c, "args": {}}` 是同一次调用，按 `commands[c].input` 判 `{}`。

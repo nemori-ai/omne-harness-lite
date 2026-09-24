@@ -91,6 +91,13 @@
   - **同轮追加：L15**（[D-040 §六 L15](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）：`effectivePermission` 多一种写法——显式值 `not_in_composition`（这个租户此刻不再持有这个工具条目，可用性报告里那一项写着它）；[S-22](v1/contract.md#s-22-判定次序) 加第 ⓪ 步，单独判 `deny{not_held}`，不算缺依据、不使整次 `admit` 失败，有答复也照判；[S-14](v1/contract.md#s-14-拒绝原因) 拒绝原因五个 → **六个**（`not_held`，名字由主线给）；[S-7](v1/contract.md#s-7-admissioninput) 这一项不带 `tenantAutoWritable`、带了即 `invalidInput`；[S-11](v1/contract.md#s-11-父会话摘要与宽的次序) 这一项执行权限那一半不比宽；[S-17](v1/contract.md#s-17-缺席时的默认答案) 两行改写、加一行；S-12、S-13、S-24、S-34、设计依据表、第七节不变量、消费者核对 agent 一行随之改；**S-24 的失败值与次序不变**。场景 [S-44](v1/contract.md#s-44-判不出来不放行) 加「结论不是判不出」一支；examples 共用局面加 `itemN`，第 7 节加一行，第 8 节加「不在组合里的工具条目」一表。**对消费者**：runner 把 `not_in_composition` 的项照常交进 `admit`（`capability.loop-extension-runner/v1#S-29` 第 5 条，同轮改）；读拒绝原因穷举的一方多一个值。
   - **registry**：catalog 本契约的依赖不变（来处只指路，本契约不读那两份的面，第 4 节「不依赖」一句照旧）；covers 里 PF-008「第三档和第四档各有约束」那一条的注补来处，另登一条指向 `capability.asset-evaluation` S-42；formal-tasks、id-namespaces 不变。
   - **对证据的影响**：没有既有证据；场景全部仍「未开始」。
+- **2026-09-25 修复波 2（第二轮独立评审之后；候选，未冻结，原地改；评审基线 `8ad37c50`，本轮起点 HUB `7c3ef6c2`）**：裁定出处 [D-040 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)（M10、M21），逐条处置见[独立评审 · 第二轮](#第二轮2026-09-25)。
+  - **M10**：[S-8](v1/contract.md#s-8-有效执行权限) 的 `not_in_composition` 括注收窄为「条目仍在快照里、能力标识不在此刻的组合里」；新增一条「报告里查不到条目的调用不进 `admit`」（runner 记 `observed{no_such_entry}`，工具执行运行时收 `unavailable{no_such_entry}`），并写明它既不是 `not_in_composition` 也不是「这一项缺席」；「这一项缺席」限定为条目在表里、项不在；[S-7](v1/contract.md#s-7-admissioninput) `call` 那一行补一句；消费者核对加一行；examples 第 8 节加一句。**本契约判定不变**：输入、结论、失败值、次序都没动，改的是哪些调用不会交来。
+  - **M21**：S-8 加 meta 门条目一条（报告里恒为「自动」、`tenantAutoWritable` 为假，本能力照常判）；新立 [G-15](v1/contract.md#十一已知缺口)（声明层怎样表达「不可收窄」，owner 主线 ＋ PF-007）。
+  - **TA2-1**：消费者核对 agent 那一行「五个原因」改「六个」。
+  - **产品依据 rev**：未变。设计依据表加一行 PF-007 §5.7「权限关不掉一扇门」→ S-8，第二张表加 M10、M21 两行。
+  - **登记**：covers 加一条（PF-007 §5.7 → S-8，`reviewed: false`，本契约条目 39 → 40）；catalog、formal-tasks、id-namespaces 不变（新引的 `capability.asset-registry` S-11 只是指路，依赖方向是它 → 本契约，照第 4 节「不依赖」一句）。
+  - **对消费者**：没有已采用的消费者，无迁移；runner 组装输入时不再把查不到条目的调用交来（`capability.loop-extension-runner` S-29／S-48，R4b 同轮）。
 - **四份 candidate 依赖**（`data.content-blocks`、`data.tool-definition`、`data.loop-extension`、`data.asset-model`）改号或改义时，逐条核对 [契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面) 的表并同步 catalog 的 clauses。
 - **消费者与上游输入的产出方**（`capability.loop-extension-runner`、`capability.tool-execution-runtime`、`capability.asset-evaluation`、`capability.asset-registry`、`capability.hooks-import`，均 candidate）：本契约只以名字提到它们、不登依赖；它们改动时核对 [第六节](v1/contract.md#六在拓展点协议里)、[S-8](v1/contract.md#s-8-有效执行权限) 与 [S-25](v1/contract.md#s-25-verifytoken) 的义务在它们那一侧是否有对应条款。
 
@@ -114,3 +121,13 @@
 | 同上 | 同上 | R-a 第四档由谁滤 | **按主线裁定**（K48）：本能力出草稿时滤 | [S-15](v1/contract.md#s-15-定死的四档选项与卡片草稿) |
 | 同上 | 同上 | R-b 全拒件落不落结论 | **按 `data.loop-extension` 现行写法**：不可用记录不带 `output`、`unavailability: fallback`，效果从 runner 的表算 | [S-29](v1/contract.md#s-29-位置干预力与结论投影) |
 | 同上 | 同上 | R-f G-10 是否闭合 | **闭合**（PF-012 rev 11；K48） | G-10 |
+
+### 第二轮（2026-09-25）
+
+spec-reviewer 第二轮复评，对象 v1 candidate，基线 HUB `8ad37c50`，发现表 `tmp/assets-runtimes/reviews/r2-R4a.md`（任务区）；处置依据 [D-040 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)。总判为「可进 F 反向核对」；L15、N-14、L7 的落点与第一轮 TA-1、TA-2 核为兑现。
+
+| # | 发现或裁定 | 处置 | 落在哪 |
+|---|---|---|---|
+| TA2-1 | 【建议】第十二节 agent 那一行仍写「五个原因」 | **接受**：改「六个」 | 契约第十二节 |
+| M10 | `not_in_composition` 只指「条目仍在快照、能力标识不在组合里」；报告里查不到条目的调用不进 `admit` | **接受** | [S-7](v1/contract.md#s-7-admissioninput) `call` 行、[S-8](v1/contract.md#s-8-有效执行权限) 两条、第十二节一行；examples 第 8 节 |
+| M21 | meta 门条目的执行权限恒为「自动」，永久形式立为本契约缺口 | **接受** | [S-8](v1/contract.md#s-8-有效执行权限) 一条；[G-15](v1/contract.md#十一已知缺口)；设计依据两张表各一行；covers 一条 |

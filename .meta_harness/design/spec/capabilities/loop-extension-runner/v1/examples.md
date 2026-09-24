@@ -6,7 +6,7 @@
 **三条读法上的边界：**
 
 - **标识串只是占位**：`run_9a`、`call_07`、`msg_r3` 这类写法不承诺任何词法（`data.identity-values/v1#S-31`）。
-- **系统自带件的名字**：放行判断的 name 是 `omne-official:admission-judgment`（`capability.tool-admission/v1#S-26`），JSON 里照写、表格与正文里简写为 `admission`；`modality-converter`、`default-retry` 是占位，正式能力标识归各自 owner（[G-3](contract.md#十三已知缺口)）。
+- **系统自带件的名字**：放行判断的 name 是 `omne-official:admission-judgment`（`capability.tool-admission/v1#S-26`），JSON 里照写、表格与正文里简写为 `admission`（**与 `dispatch` 的输入成员 `admission` 同词**：写成 `admission={…}` 的是输入，写成「`admission` 这一件」或效果里 `by: admission` 的是那一件）；`modality-converter`、`default-retry` 是占位，正式能力标识归各自 owner（[G-3](contract.md#十三已知缺口)）。
 - **「预期」是契约要求的可观察结果，不是某次执行的记录**；执行状态在[验证入口](../verification.md)。
 
 ## 1. `before_action`：租户的改写件在前，放行判断在末位出卡，答完回放
@@ -18,9 +18,9 @@
 
 | 步 | 发生了什么 | 落下的结论记录 | 依据 |
 |---|---|---|---|
-| 1 | `dispatch(before_action, —, actions=[{call: call_07 的完整调用, definition, batch: [call_07]}], manifest, run_9a, 1)`——这一批只有一个动作，`actions` 恰凑成 `batch` | —— | [S-21](contract.md#s-21-dispatch一次经过) ① |
+| 1 | `dispatch(before_action, —, actions=[{call: call_07 的完整调用, definition, batch: [call_07]}], manifest, run_9a, 1, admission={report: 尝试 1 开始时拿到的可用性报告, grants, runMode})`——这一批只有一个动作，`actions` 恰凑成 `batch`；报告带的会话与运行就是 `manifest` 指认的会话与 `run_9a`，runner 核过；不是子会话，不带 `parent` | —— | [S-21](contract.md#s-21-dispatch一次经过) ① |
 | 2 | `path-normalizer` 拿到原参数、`earlier = []`，交回 `rewrite` | 见下 ① | [S-10](contract.md#s-10-逐件顺序求值先落后算)、`data.loop-extension/v1#S-23` |
-| 3 | ① 落进日志之后，走到放行判断那一格的只有 `call_07`——这一轮就是它；runner 对这一轮发起**一次** `admit`，`admission` 拿到的 `subject.call.arguments` 是**改写后的**那一份，`earlier = [①]`；它判出「要问人」，交回 `ask` | 见下 ② | [S-24](contract.md#s-24-before_action-上的改写与生效参数)、[S-29](contract.md#s-29-一批动作每个动作一次经过) 第 5 条 |
+| 3 | ① 落进日志之后，走到放行判断那一格的只有 `call_07`；runner 以它调用块里的 `tool`（`shell`，模型面名字）在报告的 `effectivePermissions` 里查到那一项——这一轮就是它；runner 对这一轮发起**一次** `admit`（执行权限与 `tenantAutoWritable` 取那一项，`grants`、`runMode` 取 `admission` 带来的），`admission` 这一件拿到的 `subject.call.arguments` 是**改写后的**那一份，`earlier = [①]`；它判出「要问人」，交回 `ask` | 见下 ② | [S-24](contract.md#s-24-before_action-上的改写与生效参数)、[S-29](contract.md#s-29-一批动作每个动作一次经过) 第 5 条 |
 | 4 | `dispatch` 返回 `[{conclusions: [①, ②], effect: asked{card: ② 的草稿, by: admission}}]`（与 `actions` 同序）；loop 经等待原语把卡片落进池子，运行进等人；协程被回收 | —— | [S-15](contract.md#s-15-效果怎么合成)、[S-21](contract.md#s-21-dispatch一次经过) ⑤、[S-27](contract.md#s-27-ask交出卡片并停在这一位置) |
 
 ① `path-normalizer` 的最终结论（**这就是那一条「生效参数」**，模型回复里的原参数不动）：
@@ -76,7 +76,7 @@
 }
 ```
 
-**人在卡片上选了「这次允许」（`allow_once`），这一批答完。**执行尝试 2 在 `before_action` 上以同一组 `actions`（只有 `call_07`）再调一次 `dispatch`：
+**人在卡片上选了「这次允许」（`allow_once`），这一批答完。**执行尝试 2 在 `before_action` 上以同一组 `actions`（只有 `call_07`）再调一次 `dispatch`，`admission.report` 是尝试 2 开始时拿到的那一份：
 
 | 步 | 发生了什么 | 依据 |
 |---|---|---|
@@ -209,7 +209,9 @@ runner 把 `modality-converter` 移到末位——链是 `pii-scrubber` → `mod
 | `before_persist_message` 上 `producer = user`，却带了 `run` | **`invalidInput`** | 外面进来的消息不属于任何运行 | [S-21](contract.md#s-21-dispatch一次经过) ① |
 | `select_model` 的合法目标集合此刻算不出来 | **`unavailable`**，停在那一件之前，它没有记录 | 判不出来 ≠ 判为不合法 | [S-14](contract.md#s-14-结论合不合法两类判断) |
 | `replay` 一次从没开始过的经过 | **空列表** | 与「读不到」（`unavailable`）是两个值 | [S-22](contract.md#s-22-replay从日志重建一次经过) ⑤ |
-| 一批 `[c1, c2]` 只带 `[c1]` 调 `dispatch`（拆批） | **`invalidInput`**，没有记录 | `actions` 凑不成 `batch`；接受子集会让这一轮的 `admit` 看不到整批 | [S-21](contract.md#s-21-dispatch一次经过) ⑥ |
+| 一批 `[c1, c2]` 只带 `[c1]` 调 `dispatch`（拆批；`c2` 解析成功） | **`invalidInput`**，没有记录 | `batch` 里的 `c2` 不在 `actions` 里、又不是解析不了的调用；接受子集会让这一轮的 `admit` 看不到整批 | [S-21](contract.md#s-21-dispatch一次经过) ⑥ |
+| 一批 `[c1, c2]`，`c2` 参数收齐却解析不了；只带 `[c1]`、`batch = [c1, c2]` 调 `dispatch` | **正常受理**：`c1` 一次经过，`c2` 不过这一关 | 解析不了的调用不进 `actions`、仍列在 `batch` 里，收场归执行运行时 | [S-21](contract.md#s-21-dispatch一次经过) ①、[S-29](contract.md#s-29-一批动作每个动作一次经过) 第 1 条 |
+| `before_action` 上不带 `admission`，或带了另一个运行的报告 | **`invalidInput`**，没有记录 | runner 不替这一次尝试现算一份报告，也不认别的运行的那一份 | [S-21](contract.md#s-21-dispatch一次经过) ①、[S-16](contract.md#s-16-缺席时的默认答案) |
 | 连续否决上限这项运行时设置此刻读不到 | **`unavailable`** | 读不到不是「没有上限」 | [S-30](contract.md#s-30-连续被否决的回复) 第 3 条 |
 
 ## 6. 不可用处置：租户件按声明，放行判断整批失败按报错
@@ -247,3 +249,6 @@ runner 把 `modality-converter` 移到末位——链是 `pii-scrubber` → `mod
 ```
 
 `call_22` 同形。两项效果都是 `vetoed{by: admission}`；`reason` 不借用任何一个拒绝原因 token（[S-29](contract.md#s-29-一批动作每个动作一次经过) 第 6、7 条；记录形状与 `capability.tool-admission/v1#S-29`、`#S-34` 一致）。**放行判断不可用**（不是 `admit` 失败）时则是两条 `skipped: unavailable`、`unavailability: fallback`、不带 `output`，效果同为 `vetoed`（[S-17](contract.md#s-17-系统自带件不可用时一律关门)）。
+
+**6c. 报告里查不到条目。**一批 `[call_31, call_32]` 都走到末位：`call_31` 调的是作者写的工具 `grep`；`call_32` 的 `tool` 是 `gh__create_issue`，而组织在这次尝试开始前禁用了接入点 `gh`——这一次尝试的可用性报告里没有它的任何动作条目。
+runner 以 `grep` 在 `admission.report` 的 `effectivePermissions` 里查到那一项，以 `gh__create_issue` 查不到：这一轮的 `admit` 输入恰是 `call_31`；`call_32` **不进** `admit`，它那次经过在放行判断那一格落一条 `observed`（原因 `no_such_entry`，这个原因在记录上的落处是 [G-19](contract.md#十三已知缺口)），效果 `proceed`、**没有放行凭据**；执行运行时收到它时即刻收场 `unavailable{no_such_entry}`（那一侧的条款）。`call_31` 照常判——**不因 `call_32` 被牵连成全拒**（[S-29](contract.md#s-29-一批动作每个动作一次经过) 第 5 条；主线裁定，见 [D-040 §七 M10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）。

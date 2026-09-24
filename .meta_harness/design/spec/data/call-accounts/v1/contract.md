@@ -21,7 +21,7 @@
   `capability.tool-execution-runtime`（拥有工具执行记录的契约）、`data.arrival-events`、`capability.stream-assembly`、`capability.model-request-runtime`，**都是落点**：谁兑现、谁读。
   方向是消费者 → 本契约。`ResponseId` 的**含义**以 `data.model-response/v1` S-6 为准，本契约按同一条散文自写形状，**不引用、不登依赖**——那份契约引用本契约，反向引用会成环。
   **三处以坐标指到消费者、却不登依赖**，各有理由：外部效果确定性的判据指向 `capability.tool-execution-runtime/v1#S-14`、每帧至多计一次的去重指向 `capability.stream-assembly/v1#S-14`——都是**落点**（谁判、谁兑现），本契约只定值的含义；
-  「一帧」的单位取 `data.arrival-events/v1#S-23` ① ——**定义性引用**，那份契约依赖本契约，登记会让依赖图成环（[验证入口「对齐义务」](../verification.md#对齐义务)登了复核）
+  「一帧」的单位取 `data.arrival-events/v1#S-23` ① ——**定义性引用**，那份契约依赖本契约，登记会让依赖图成环（[验证入口「对齐义务」](../verification.md#对齐义务)登了复核）。这两处都照 [registry「互引成环的登记口径」](../../../../registry/README.md#covers)（主线裁定，见 [D-040 §七 M2](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）
 - **条款编号**：`S-n`，**只在本契约本版本内有效**；外部引用须写全坐标，如 `data.call-accounts/v1#S-12`
 
 ## 设计依据
@@ -46,7 +46,7 @@
 | **产品负责人 2026-09-23 的三句裁决**：「我们需要完整的响应体带着 input_tokens, output_tokens, cache_tokens 以及 cost_usd」；「ToolCallAccount 这个确实有用，因为工具内部很可能调用其他的服务从而产生费用」；缓存 token「拆两项」 | [D-038 8b、8c、Q13](../../../../record/decisions/message-and-shape-rulings/decision.md#裁决原话与含义) | S-6、S-7、S-8、S-9、S-11 |
 | 主线裁定：I-11 收窄与 `late`（S2-d，产品正文已跟上）；工具执行的账加外部效果的确定性、实际停止时刻与 `late`（S13-f）；`CostItem.service` 对接入点取能力标识规范串（S2-e）；帧砍汇总的「每帧至多计一次」是做砍一方的前提（S4-b）；三个归属标识的家在本契约（S8-c） | [D-040 §一](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#一2026-09-23-夜自驱期间的自决账本-二原文)的 [S2](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s2call-accounts报回的)、[S13](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s13tool-execution-runtime报回的)、[S4](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s4arrival-events--stream-assembly报回的)、[S8](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s8model-response报回的) 各节 | S-9、S-11、S-14、S-15、S-37、S-39 |
 | 主线裁定（S25 第一轮修复波）：外部效果的判据只在 `capability.tool-execution-runtime` S-14、本契约只定两值含义（K1）；工具执行的判重键与补账目标身份 = 会话日志归属 ＋ `callId`（K5）；`ModelResponse.late` 与晚到的账同一口径（K14）；在途状态丢了时 `frames` 写 `"unknown"`（K50） | [D-040 §五](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) | S-11、S-15、S-17、S-22、S-23、S-25、S-39 |
-| 两种归属分记：用量记在凭据所在的那一格、成本按租户归属；凭据只在租户层与出厂格，所以两者只在走出厂格那一把时分叉 | [UL-model-credential](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential) · [PF-001 §6.4](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离) · [PF-013 §5.6](../../../../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上)——**规格层推导**：两条产品行合起来，账上缺一项就会把其中一种归属算错 | S-38 |
+| 两种归属分记：用量记在凭据所在的那一格、成本按租户归属；凭据只在租户层与出厂格，所以两者只在走出厂格那一把时分叉 | [UL-model-credential](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential) · [PF-001 §6.4](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离) · [PF-013 §5.6](../../../../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上)——**规格层推导**：两条产品行合起来，账上缺一项就会把其中一种归属算错；主线已接受，见 [D-040 §六 N-5](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)「C-12 两种成本归属」 | S-38 |
 | 正式名 | [UL-call-account](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-call-account--调用账目--call-account) · [UL-upstream-send](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-upstream-send--一次发出--upstream-send) · [UL-model-call](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call) · [UL-tool-execution](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution) · [UL-execution-frame](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-execution-frame--执行帧--execution-frame) · [UL-incremental-arrival](../../../../ubiquitous_language/terms/record-and-context.md#ul-incremental-arrival--增量到达--incremental-arrival) · [UL-run-attempt](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt) | 全部 |
 
 > **没有产品行的条款**：[S-16](#s-16-responseid)（标识的表示）、[S-27](#s-27-表示层拒绝值闭合)～[S-29](#s-29-判别式与枚举闭合)（表示与校验）
@@ -819,12 +819,14 @@ unknownCount ≝ |{ r : current(r) = "unknown" }| + |{ t : currentOwn(t) = "unkn
 
 ### S-39 晚到的账
 
-**一份账或一条补账落下时，它归属的那次尝试已被新的尝试取代，或它归属的那次运行已经终结——它仍然落下、仍归那次运行（与那次尝试），并标 `late: true`。**
+**一份账或一条补账落下时，它锚定的那次尝试已被新的尝试取代，或它归属的那次运行已经终结——它仍然落下、仍归那次运行（与那次尝试），并标 `late: true`。**
+**锚定的尝试按账的种类定**：`ToolCallAccount` 与 `CostCorrection` 看它**归属**的那次尝试（承载它的条目给，[S-25](#s-25-按尝试记明细按-run-汇总)）；`ModelResponse` 看这一次发出**所在**的那次尝试——它自己带的 `attemptId`（[S-37](#s-37-三个归属标识的家runidattemptidmodelcallid) 的 `AttemptId`），**不看条目把它归到哪一次**（主线裁定，见 [D-040 §四](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#四被推翻或被覆盖的项追加登记)「K14」那一行与 [§七 M25](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)：「所属尝试」读作「发出所在的尝试」）。
+所以对账在第 n+1 次尝试里补写一次在第 n 次尝试里出门的发出时，条目可以把它归到 n+1，那一条仍是晚的——它出门所在的第 n 次已被取代。
 
 - **依据**：[PF-012 §6.17 I-11](../../../../product/PF-012-agent-loop-and-run/design.md#617-run-这一层的七条不变式)（rev 11 起）：终结之后「不再有新发起的效果与花钱的动作。终结之前已经发起的那些，账在终结之后才到的，照样落账、归这个 Run，并标明是迟到的」；收窄的来由见 [D-040 §一 S2-d](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s2call-accounts报回的)——原句「终结之后日志里不再出现属于它的成本条目」与「按 Run 汇总成本」直接相抵，后台工具在运行终结之后结束是产品明写的路径，那笔钱不能凭空消失。
 - **谁会晚到**：运行终结之后才收场的后台执行（`ToolCallAccount`）；尝试被栅栏关掉之后才结算的一次发出（它的 `ModelResponse`）；运行终结之后才拿到的补账（`CostCorrection`）。
 - **缺席的意思是确定的**：落下时它归属的尝试仍是当前的、运行尚未终结。**可选、只取 `true`**，`late: false` 不是合法写法——「不晚」只有一种表示。
-- **`ModelResponse` 上的 `late` 与本条同一含义、同一写法**：可选、只取 `true`，只在所属尝试被栅栏关掉之后才结算时写；缺席 = 不晚（主线裁定，见 [D-040 §五 K14](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）。形状归 `data.model-response`，那份契约引用本条（本契约不反向引用它，见头部）。
+- **`ModelResponse` 上的 `late` 与本条同一含义、同一写法**：可选、只取 `true`，只在发出所在的那次尝试被栅栏关掉之后才结算时写；缺席 = 不晚（主线裁定，见 [D-040 §五 K14](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)，锚点按上一段）。形状归 `data.model-response`，那份契约引用本条（本契约不反向引用它，见头部）。
 - **它不改变归属，也不改变汇总**：晚到的账照样按 [S-25](#s-25-按尝试记明细按-run-汇总) 归组、按 [S-23](#s-23-汇总已知之和与未知笔数) 计入；`late` 只让读的人看得出「这笔是终结之后才落的」，
   于是一个运行的汇总在终结之后**仍可能变**（[S-23](#s-23-汇总已知之和与未知笔数) 第 8 件）。
 - **由写下它的那一方判**：它知道那次尝试与运行此刻的状态；本契约不提供判定，只给标记与含义。

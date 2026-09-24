@@ -42,7 +42,7 @@
 | 实例 | Schema | 拒绝值 | 依据 |
 |---|---|---|---|
 | `{"name": "prod-db-guard", "position": "before_action", "power": "veto", "implementation": {"kind": "command", "host": "claude_code", "dialect": "2.1.280", "event": "PreToolUse", "command": "./hooks/prod-db-guard.sh", "matcher": "Bash"}}` | 通过 | — | [S-6](contract.md#s-6-声明的成员与类别)：`onError` 缺席 → 按求得的干预力取默认 |
-| `{"name": "default-retry", "position": "after_model_call", "dimension": {"ending": "failure"}, "power": "rewrite", "implementation": {"kind": "builtin", "builtinName": "capability.model-request-runtime"}}` | 通过 | — | [S-2](contract.md#s-2-两个维度)、[S-27](contract.md#s-27-retry)、[S-8](contract.md#s-8-装配进来的实现与外部命令)：系统自带件是装配进来的 |
+| `{"name": "default-retry", "position": "after_model_call", "dimension": {"ending": "failure"}, "power": "rewrite", "implementation": {"kind": "builtin", "builtinName": "default-retry"}}` | 通过 | — | [S-2](contract.md#s-2-两个维度)、[S-27](contract.md#s-27-retry)、[S-8](contract.md#s-8-装配进来的实现与外部命令)：系统自带件是装配进来的 |
 | `{"name": "result-offloader", "position": "after_action", "dimension": {"scope": "each"}, "power": "rewrite", "onError": "record", "implementation": {"kind": "builtin", "builtinName": "result-offloader"}}` | 通过 | — | [S-5](contract.md#s-5-报错处置策略) |
 | `{"name": "cc-pretooluse-audit", "position": "before_action", "power": "observe", "implementation": {"kind": "command", "host": "claude_code", "dialect": "2.1.280", "event": "PreToolUse", "command": "audit-log"}}` | 通过 | — | [S-8](contract.md#s-8-装配进来的实现与外部命令)：`matcher`、`timeout` 缺席即全匹配、那一家那一事件的默认 |
 | `{"name": "codex-prompt-gate", "position": "before_persist_message", "power": "veto", "implementation": {"kind": "command", "host": "codex", "dialect": "5c5308fc", "event": "UserPromptSubmit", "command": "python3 gate.py", "timeout": "PT30S"}}` | 通过 | — | [S-8](contract.md#s-8-装配进来的实现与外部命令) |
@@ -55,8 +55,8 @@
 | `{"name": "g", "position": "after_persist_message", "power": "observe", "onError": "record", "implementation": {"kind": "builtin", "builtinName": "ext-g"}}` | 拒绝 | `malformed` | [S-5](contract.md#s-5-报错处置策略)：只观察的件不能在报错时往日志里注入提醒 |
 | `{"name": "g", "position": "after_persist_message", "power": "rewrite", "onError": "treat_as_veto", "implementation": {"kind": "builtin", "builtinName": "ext-g"}}` | 拒绝 | `malformed` | [S-5](contract.md#s-5-报错处置策略)：策略不高于干预力 |
 | `{"name": "g", "position": "before_action", "power": "veto", "needs": [], "implementation": {"kind": "builtin", "builtinName": "ext-g"}}` | 拒绝 | `malformed` | [S-9](contract.md#s-9-依赖声明与不可用)：「不需要」只有缺席这一种写法 |
-| `{"name": "g", "position": "before_action", "power": "veto", "implementation": {"kind": "command", "host": "cursor", "dialect": "1.6", "event": "beforeShellExecution", "command": "a.sh"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-装配进来的实现与外部命令)：宿主闭合 |
-| `{"name": "g", "position": "before_action", "power": "veto", "implementation": {"kind": "command", "host": "codex", "dialect": "5c5308fc", "event": "PreToolUse"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-装配进来的实现与外部命令)：外部命令必带宿主条目里的命令原样 |
+| `{"name": "g", "position": "before_action", "power": "veto", "implementation": {"kind": "command", "host": "cursor", "dialect": "1.6", "event": "beforeShellExecution", "command": "a.sh"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-装配进来的实现与外部命令)：来源产品闭合 |
+| `{"name": "g", "position": "before_action", "power": "veto", "implementation": {"kind": "command", "host": "codex", "dialect": "5c5308fc", "event": "PreToolUse"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-装配进来的实现与外部命令)：外部命令必带来源产品 handler 条目里的命令原样 |
 | `{"name": "g", "position": "before_action", "power": "veto", "implementation": {"kind": "command", "host": "codex", "command": "a.sh"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-装配进来的实现与外部命令)：必须说是哪一家方言的哪一个事件 |
 | `{"name": "g", "position": "before_action", "power": "veto", "implementation": {"kind": "native"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-装配进来的实现与外部命令)：旧写法 `native` 作废 |
 | `{"name": "g", "position": "before_action", "power": "veto", "implementation": {"kind": "builtin", "capability": "ext-g"}}` | 拒绝 | `malformed` | [S-8](contract.md#s-8-装配进来的实现与外部命令)：装配进来的实现那一格叫 `builtinName`，旧成员名 `capability` 不收（它不是能力标识，改名免得与 `AssetDefinition.capability` 同名） |
@@ -278,8 +278,8 @@
 }
 ```
 
-它拿到的输入与 EX-1 同形（运行时只认统一输入）；它把输入译成宿主那一个事件的原生输入、跑 hook、把宿主输出译回。
-宿主输出里的 `"permissionDecision": "allow"` **只能译成**：
+它拿到的输入与 EX-1 同形（运行时只认统一输入）；它把输入译成来源产品那一个事件的原生输入、跑 hook、把来源产品的输出译回。
+来源产品输出里的 `"permissionDecision": "allow"` **只能译成**：
 
 ```json
 {
@@ -293,7 +293,7 @@
 ```
 
 没有放宽（[S-29](contract.md#s-29-没有放宽)）；导入时要明示给装它的人——那是兼容层的义务。
-hook 进程超时、崩溃：按 [S-33](contract.md#s-33-不可用与报错两分) 记成不可用或报错之一，**两家宿主「超时即放行」的方向不照搬**（两者的分界是 D-033 的 G4）。
+hook 进程超时、崩溃：按 [S-33](contract.md#s-33-不可用与报错两分) 记成不可用或报错之一，**两家来源产品「超时即放行」的方向不照搬**（两者的分界是 D-033 的 G4）。
 
 ### EX-3 select_model
 
@@ -339,7 +339,7 @@ hook 进程超时、崩溃：按 [S-33](contract.md#s-33-不可用与报错两�
   "position": "after_model_call",
   "dimension": { "ending": "failure" },
   "power": "rewrite",
-  "implementation": { "kind": "builtin", "builtinName": "capability.model-request-runtime" }
+  "implementation": { "kind": "builtin", "builtinName": "default-retry" }
 }
 ```
 
@@ -460,3 +460,19 @@ Schema 里每条约束以 `$comment` 标明它实现的是哪一行，下面按�
 
 - **⊘ 两格给哪个值**：Schema 只说「拒绝」；给 `ask_at_forbidden_position` 而不是 `output_not_allowed_at_position`，由 [S-37](contract.md#s-37-表示层拒绝值) 的次序定（第 7 行先于第 8 行）。
 - **两张表的前提**：Schema 按**结论记录上写的** `power`、`position`、`dimension` 判；这三个值是不是**这一次求得的**那三个，归 runner（第 8 节第 1 行）。
+
+## 10. 推出的属性项（[S-40](contract.md#s-40-属性项的推出规则)）
+
+每行左边是一份声明（只列相关成员），右边是推出规则产出的全部条目（`data.asset-model` 的 `AttributeDeclaration`，保留的 `disabled`、`usableBy` 不在内）。**干预力的 `values` 是声明档及其以下；位置只在同一维度成员里配**（D-040 §七 M3、M4）。
+
+| 声明 | 推出的条目 |
+|---|---|
+| `position: before_action`、`power: rewrite` | `{"item": "position", "kind": "setting", "category": "binding", "domain": {"kind": "open", "schema": {"enum": ["attempt_started", "before_persist_message", "after_persist_message", "before_compaction", "after_compaction", "before_model_call", "before_action", "before_terminal", "after_terminal"]}}, "default": "before_action"}`；`{"item": "power", "kind": "permission", "domain": {"kind": "enum", "values": ["observe", "rewrite"]}, "default": "rewrite"}` |
+| `position: after_model_call`、`dimension: {ending: failure}`、`power: veto` | `{"item": "position", "kind": "setting", "category": "binding", "domain": {"kind": "open", "schema": {"enum": ["after_model_call"]}}, "default": "after_model_call"}`；`{"item": "dimension", "kind": "setting", "category": "binding", "domain": {"kind": "open", "schema": {"type": "object", "properties": {"ending": {"enum": ["complete_reply", "failure"]}}, "required": ["ending"], "additionalProperties": false}}, "default": {"ending": "failure"}}`；`{"item": "power", "kind": "permission", "domain": {"kind": "enum", "values": ["observe", "rewrite", "veto"]}, "default": "veto"}` |
+| `position: after_action`、`dimension: {scope: each}`、`power: observe` | `position` 的 `schema` 为 `{"enum": ["after_action"]}`；`dimension` 的 `schema` 只收 `scope`（`each`、`batch`）；`{"item": "power", "kind": "permission", "domain": {"kind": "enum", "values": ["observe"]}, "default": "observe"}` |
+
+**由此得到的三个结论**（不是 Schema 判得出的，是取值域的直接后果）：
+
+- 声明 `power: rewrite` 的件，任何一层给它配 `veto` 都是配了 `values` 以外的值——治理写面以 `valueOutOfDomain` 拒；它在任何求值下都拿不到 `veto`，报错时的缺席策略因此到不了 `treat_as_veto`（[S-5](contract.md#s-5-报错处置策略)）。
+- 第一行的件被某一层配到 `after_action`：不在那份 `enum` 里，写面拒；它不会以一个缺维度的位置出现在 runner 面前。
+- 第二行的件被配到 `after_action`：同样不在 `enum` 里——若只按「有维度／无维度」两类放行，这里就会得出 `(after_action, {ending: failure})`，违反 [S-2](contract.md#s-2-两个维度)。

@@ -5,7 +5,7 @@
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.model-profile-directory, 1)`——
   `family = capabilities`、`topic = model-profile-directory`、规范路径 `spec/capabilities/model-profile-directory/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：`candidate`（2026-09-23 起草）——未经独立评审、未接受、未冻结
+- **状态**：`candidate`（2026-09-23 起草；2026-09-24 经第一轮独立评审并按处置修订，处置见[验证入口](../verification.md#独立评审)；2026-09-25 修复波 2 按第二轮独立复评改 [S-31](#s-31-updateprofile) 的判定次序与 [S-18](#s-18-loadmanifest) 的装入改写、G-8 闭合）——未接受、未冻结
 - **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-013 rev 12** 为准，另引 **PF-001 rev 17**、**PF-002 rev 20**、**PF-016 rev 6**；每次改 rev 之前逐版读 changelog 核过受影响的条款，结论记在[验证入口「变化的影响」](../verification.md#变化的影响)
 - **精确语义依赖**（消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)，catalog 按它登记）：
   - `omne-harness-lite-design-2026-09-15 · data.model-profile · v1`（candidate）
@@ -45,7 +45,7 @@
 > | [S-31](#s-31-updateprofile) 修订自建档案、[S-32](#s-32-unbindcredential) 解除凭据绑定 | 主线裁定，见 [D-040 §S16 S16-e](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s16model-profile-directory--model-request-runtime报回的)；项与前置按 `data.model-profile/v1#S-12`；[flows §4](../../../../product/PF-013-model-profiles-and-invocation/flows.md#四角色与操作) 已有这两行 |
 > | [S-20](#s-20-resolvecredential) 两种问法（有没有 ／ 取值）；[S-18](#s-18-loadmanifest) 官方清单装入（消失即标撤回、重现即恢复在册）；[S-14](#s-14-registerprofile) 失败值 `routeNameTaken`；读面不返回 `CredentialRef`；`notAuthorized` 不细分；同内容认回 | 主线裁定，见 [D-040 §S16 S16-a](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s16model-profile-directory--model-request-runtime报回的)；「重现即恢复」有产品行（[decisions P35](../../../../product/PF-013-model-profiles-and-invocation/decisions.md#rev-10-随裁决-3338-推出的2026-09-24)：官方档案的恢复只经清单） |
 > | [S-18](#s-18-loadmanifest) 的发布序号与 `manifestNotNewer` | **规格层推导**：旧清单被重放会把新档案撤掉、把已撤掉的恢复——撤回虽可恢复，在下一次正确装入之前指着它们的会话都受影响（[S-8](#s-8-官方档案清单与发布序号)）；失败值名见 D-040 §S16 S16-a |
-> | [S-15](#s-15-withdrawprofile)、[S-31](#s-31-updateprofile)、[S-33](#s-33-relistprofile) 的 `officialProfileReadOnly`；[S-33](#s-33-relistprofile) 服务面名 `relistProfile`、[S-18](#s-18-loadmanifest) 服务面名 `loadManifest` 与处置值 `relisted`、恢复在册不加通知；[S-31](#s-31-updateprofile) 已撤回的行也改得动 | **主线裁定（[G-8](#十已知缺口)：尚未落进 D-040）**。前一项的产品行是 [flows §4](../../../../product/PF-013-model-profiles-and-invocation/flows.md#四角色与操作)「撤回、恢复或修订官方档案：不可」（对全部四种身份，是结构性禁止，三处用同一个值）；末一项的产品行是 [flows §3.1](../../../../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)「恢复之后照常修订」——说的是恢复之后可以修订，**不是禁止修订已撤回的行** |
+> | [S-15](#s-15-withdrawprofile)、[S-31](#s-31-updateprofile)、[S-33](#s-33-relistprofile) 的 `officialProfileReadOnly`；[S-33](#s-33-relistprofile) 服务面名 `relistProfile`、[S-18](#s-18-loadmanifest) 服务面名 `loadManifest` 与处置值 `relisted`、恢复在册不加通知；[S-31](#s-31-updateprofile) 已撤回的行也改得动 | 规格层推导，主线接受，见 [D-040 §六 N-9](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)（原 [G-8](#十已知缺口) 闭合）。前一项的产品行是 [flows §4](../../../../product/PF-013-model-profiles-and-invocation/flows.md#四角色与操作)「撤回、恢复或修订官方档案：不可」（对全部四种身份，是结构性禁止，三处用同一个值）；末一项的产品行是 [flows §3.1](../../../../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)「恢复之后照常修订」——说的是恢复之后可以修订，**不是禁止修订已撤回的行** |
 > | [S-13](#s-13-这一节每个操作写全九件事) 判定次序：授权依赖不可用即 `unavailable`、先于一切要解析的值；[S-14](#s-14-registerprofile)、[S-18](#s-18-loadmanifest) 的输入是 `data.model-profile` 的建档内容；[S-17](#s-17-listprofiles) 末段的允许集合是显式参数、元素是路由名 | 主线裁定，见 [D-040 §五 K35、K17、K42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) |
 
 ---
@@ -194,7 +194,7 @@
 |---|---|---|
 | **判定得出「不该放行」** | 一个具名的拒绝值（`notAuthorized`、`routeNameTaken`、`officialProfileReadOnly`、`manifestNotNewer`、`profileNotFound`、`credentialUnavailable`） | 成立的结论；同样的状态下重试不会改变答案 |
 | **判定做不出来**（存储读不到、成员资格判定以 `unavailable` 失败、保管方够不着） | **`unavailable`** | 没有结论；按当时实际状态重试可能得出不同答案（`data.identity-values/v1#S-19`） |
-| **输入不合形状** | **`invalidInput`**，**恰带一个表示层拒绝值** `reason`：建档内容、档案内容与引用取 `data.model-profile/v1#S-25` 的拒绝值之一（建档内容带了 `registration`／`updatedAt` 即 `malformed`，`data.model-profile/v1#S-28`）；身份值取 `data.identity-values/v1#S-33` 的口径；本契约自己的输入（清单形状——含清单条目的 `origin` 不是 `official`、问法取值）不合形状取 `malformed`；**建档的 `origin` 不是 `custom` 取本契约自己的 `origin_not_custom`**（它不是那份文档的形状错，而是这个操作只收自建档案——`data.model-profile/v1#S-28`：「来源必须是哪一个」归本契约；值名是本轮与那份契约交接时定的） | 表示层校验在任何判定之前，不表示「不存在」或「无资格」，不记成判定结果（`data.model-profile/v1#S-26`） |
+| **输入不合形状** | **`invalidInput`**，**恰带一个表示层拒绝值** `reason`：建档内容、档案内容与引用取 `data.model-profile/v1#S-25` 的拒绝值之一（建档内容带了 `registration`／`updatedAt` 即 `malformed`，`data.model-profile/v1#S-28`）；身份值取 `data.identity-values/v1#S-33` 的口径；本契约自己的输入（清单形状——含清单条目的 `origin` 不是 `official`、问法取值）不合形状取 `malformed`；**建档的 `origin` 不是 `custom` 取本契约自己的 `origin_not_custom`**（它不是那份文档的形状错，而是这个操作只收自建档案——`data.model-profile/v1#S-28`：「来源必须是哪一个」归本契约；值名由主线接受，见 [D-040 §六 N-9](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)） | 表示层校验在任何判定之前，不表示「不存在」或「无资格」，不记成判定结果（`data.model-profile/v1#S-26`）。**唯一的例外**是 [S-31](#s-31-updateprofile) 的「改完的整份文档过 `data.model-profile/v1#S-24`」：要先读出那一行才校验得了，排在授权与解析之后（[D-040 §七 M14](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）；它仍是表示层拒绝值，不是判定结果 |
 
 - **任何身份参数都没有默认值**：`TenantId`、`ScopeLayerIdentity`、`ModelProfileRef` 的 `scope` 缺席即 `invalidInput`，**不得**由「当前租户」「当前组织」或环境值补齐（`data.identity-values/v1#S-17`、`#S-18`）。
 - **判别式闭合**：`ScopeLayerIdentity` 的变体、`ModelProfileRef` 的 `origin`、取凭据的问法与来源，集合外的取值一律 `invalidInput`（`data.identity-values/v1#S-32`）。
@@ -382,7 +382,7 @@ C₂(T, r, A)    ≝  C₁      若 r ∈ A
 | ④ | **单次提交**，覆盖**出厂默认层那一格的全部档案行**、「已装入的最高序号」与「那一次装入的处置」——`data.model-profile/v1#S-3` 只比同一格，官方装入不读、不写别的格。逐条处置见下表；**整份清单的处置、新的序号与这一份处置在一次提交里一起成立或一起不成立** |
 | ⑤ | `{ ordinal, dispositions }`：每条 `entries` 恰一个处置、每条**因本次装入而被撤回**的官方行恰一个处置（下表五种之一） |
 | ⑥ | `invalidInput` · `unavailable` · `manifestNotNewer` |
-| ⑦ | **同一份清单重装**（序号等于已装入的最高序号，**且内容逐条相等**）⇒ 返回**记下的那一份** `dispositions`（[S-8](#s-8-官方档案清单与发布序号)）、不写任何东西——回执丢失之后可以原样重发，重启之后同样如此。**「内容逐条相等」对照的是出厂默认层此刻在册的官方行**：官方行只经本操作变化，装入第 N 份之后在册的官方行恰是第 N 份的条目，所以这一比较不需要另存清单原文。**序号更小，或序号相等而内容不同** ⇒ `manifestNotNewer`，不写任何东西 |
+| ⑦ | **同一份清单重装**（序号等于已装入的最高序号，**且内容逐条相等**）⇒ 返回**记下的那一份** `dispositions`（[S-8](#s-8-官方档案清单与发布序号)）、不写任何东西——回执丢失之后可以原样重发，重启之后同样如此。**「内容逐条相等」对照的是出厂默认层此刻在册的官方行**：官方行只经本操作变化、每条在册的行整份取自条目（表下「装入是整份取条目」），装入第 N 份之后在册的官方行恰是第 N 份的条目，所以这一比较不需要另存清单原文。**序号更小，或序号相等而内容不同** ⇒ `manifestNotNewer`，不写任何东西 |
 | ⑧ | 出厂默认层的档案行、已装入序号或记下的处置读不到 ⇒ `unavailable`，**什么都不装**；清单形状不合、任一条目过不了 `data.model-profile/v1#S-28` 的表示层校验、条目里路由名重复 ⇒ `invalidInput`，**整份不装**（不做「装能装的那几条」——那会让一份坏清单留下半套官方档案） |
 | ⑨ | 每一条因本次装入而 `listed → withdrawn` 的官方行各发一次 `profile.withdrawn`（[S-21](#s-21-profilewithdrawn-是通知)）；**恢复在册（`relisted`）不发事件**，同 [S-33](#s-33-relistprofile) ⑨ |
 
@@ -391,14 +391,15 @@ C₂(T, r, A)    ≝  C₁      若 r ∈ A
 | 出厂默认层里已有 | 清单里 | 处置 | 结果 |
 |---|---|---|---|
 | 没有这个路由名的行 | 有 | `added` | 新官方行，`listed`，`updatedAt` = 提交时刻 |
-| 同名官方行，`listed` | 有 | `updated` 或 `unchanged` | 可改属性按清单改写（`data.model-profile/v1#S-12`）；**五项上游属性里至少一项变了才推动 `updatedAt`**（`data.model-profile/v1#S-11`）；什么都没变即 `unchanged` |
-| 同名官方行，`withdrawn` | 有 | `relisted` | **`withdrawn → listed`，恢复的是原来那一行**（`data.model-profile/v1#S-10`；PF-013 rev 10 裁决 37）；可改属性同时按清单改写，五项上游属性变了才推动 `updatedAt` |
+| 同名官方行，`listed` | 有 | `updated` 或 `unchanged` | **行的内容整份取自条目**（身份分量、`registration`、`updatedAt` 除外；见表下）；**五项上游属性里至少一项变了才推动 `updatedAt`**（`data.model-profile/v1#S-11`）；什么都没变即 `unchanged` |
+| 同名官方行，`withdrawn` | 有 | `relisted` | **`withdrawn → listed`，恢复的是原来那一行**（`data.model-profile/v1#S-10`；PF-013 rev 10 裁决 37）；行的内容同样整份取自条目，五项上游属性变了才推动 `updatedAt` |
 | 官方行，`listed` | **没有** | `withdrawn` | `listed → withdrawn`，行不删 |
 | 官方行，`withdrawn` | **没有** | （无处置） | 不变，也不报在返回里 |
 
 - **别的格里的同名自建档案不参与**：官方档案与自建档案同路由名并存（`data.model-profile/v1#S-3`；PF-013 rev 10 裁决 35、38），清单装入**不读自建行**，一条自建档案也就挡不住、也改不了任何官方条目。
 - **官方档案的撤回与恢复都只经这里**：谁撤得了它，谁就恢复得了它（[PF-013 decisions P35](../../../../product/PF-013-model-profiles-and-invocation/decisions.md#rev-10-随裁决-3338-推出的2026-09-24)）——撤它的只有发布，恢复它的也只有发布；[S-15](#s-15-withdrawprofile)、[S-31](#s-31-updateprofile)、[S-33](#s-33-relistprofile) 都够不着官方行。
 - 清单里一条条目的**身份分量**（路由名、来源、出厂默认层）与已有官方行相同即「同名官方行」；**身份分量不可改**，所以不存在「把一条官方档案改名」这种处置。
+- **装入是整份取条目，不是逐项改写**：`updated`、`relisted` 的行内容除身份分量、`registration`、`updatedAt` 外逐成员等于条目。`data.model-profile/v1#S-12` 对 `maxOutputTokens` 的那一个例外（上游把输出上限降到档案 `parameters.maxOutputTokens` 之下时这一项不跟着降）**不适用于装入**：条目已整份过了 `data.model-profile/v1#S-28` 的表示层校验（含 `#S-18` 输出上限与参数的关系），不会出现「降到参数值之下」；按例外保留旧值，行就与条目不相等，⑦ 的对照随之失效（第二轮评审 R2-MPD-3，取其第一种改法；本条是**本契约推导**）。
 
 ### S-19 bindCredential
 
@@ -449,12 +450,12 @@ C₂(T, r, A)    ≝  C₁      若 r ∈ A
 | ③ | **有**：身份分量（路由名、所在范围、来源）、`registration`、`updatedAt` **不在 `patch` 的定义域里**，出现即 `invalidInput`——改名就是用新名字 [registerProfile](#s-14-registerprofile) 再 [withdrawProfile](#s-15-withdrawprofile) 旧的，**不存在「把一条档案改名」**。`ref` 是 official 支 ⇒ `officialProfileReadOnly`：官方档案只经[清单装入](#s-18-loadmanifest)改，与 [withdrawProfile](#s-15-withdrawprofile) ③、[relistProfile](#s-33-relistprofile) ③ 同一个值 |
 | ④ | **单次提交**：读出那一行、应用 `patch`、**改完的整份文档过 `data.model-profile/v1#S-24`**（尤其输出上限与参数的关系，`data.model-profile/v1#S-18`）、写回。五项上游属性里至少一项的值变了 ⇒ `updatedAt` = 提交时刻；否则不动（`data.model-profile/v1#S-11`）。`registration` 不动：**已撤回的行也改得动，改了也不回到在册**——回到在册走[恢复在册](#s-33-relistprofile)。[flows §3.1](../../../../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)「恢复之后照常修订」说的是恢复之后可以修订，不是禁止修订已撤回的行 |
 | ⑤ | `{ ref, profile: 改完的那份 ModelProfile }` |
-| ⑥ | `invalidInput` · `officialProfileReadOnly` · `notAuthorized` · `unavailable` · `profileNotFound` |
+| ⑥ | `invalidInput`（**只看输入本身**：`ref`、`patch` 的形状，提到定义域以外的成员）· `officialProfileReadOnly` · `notAuthorized` · `unavailable` · `profileNotFound` · `invalidInput`（**改完的整份文档过不了 `data.model-profile/v1#S-24`**）——同一个值在两个位置，按判定次序各在各处（主线裁定，见 [D-040 §七 M14](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)） |
 | ⑦ | **改完与原样逐成员相等** ⇒ 不写、`updatedAt` 不动，返回 ⑤——回执丢失之后原样重发，得到同一份。**两次并发的修订按提交先后依次作用在那一行上**（每次都是同一提交里的读—改—写），各自返回自己提交之后的那一份；同一项被两次改，后提交者的值留下 |
-| ⑧ | 那一行读不到、成员资格判定失败 ⇒ `unavailable`，**不得返回 `profileNotFound`**；`patch` 不合形状、提到定义域以外的成员、改完的文档过不了 `data.model-profile/v1#S-24` ⇒ `invalidInput{reason}`（reason 取那份契约的十个之一或 `malformed`），**不写任何东西** |
+| ⑧ | 那一行读不到、成员资格判定失败 ⇒ `unavailable`，**不得返回 `profileNotFound`**；`patch` 不合形状、提到定义域以外的成员 ⇒ `invalidInput{reason}`，**在授权之前**；授权成立、那一行解析到了、**改完的文档过不了 `data.model-profile/v1#S-24`** ⇒ `invalidInput{reason}`，**在解析之后**（reason 取那份契约的十个之一或 `malformed`）。两处都**不写任何东西** |
 | ⑨ | 不发。**在途调用不受影响**：它们在打开时绑定了档案快照（`capability.model-request-runtime` v1）；下一次打开读到的是改完的那一份 |
 
-**次序：形状 → 结构性禁止 → 授权 → 解析**，同 [S-15](#s-15-withdrawprofile)：无权者得不到「这一格有没有这条档案」的答案。
+**次序：输入形状 → 结构性禁止 → 授权 → 解析 → 改完的整份文档**。前四步同 [S-15](#s-15-withdrawprofile)：无权者得不到「这一格有没有这条档案」的答案。**第五步要读出那一行才判得出**（例如 `patch` 只给了 `parameters.maxOutputTokens`，要拿行上的 `maxOutputTokens` 比，`data.model-profile/v1#S-18`），所以排在 `profileNotFound` 之后——排在授权之前，无权者就能拿一个会让整份文档非法的 `patch` 探出那一行在不在、甚至二分出它的输出上限（主线裁定，见 [D-040 §七 M14](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）。
 
 ### S-32 unbindCredential
 
@@ -666,7 +667,7 @@ C₂(T, r, A)    ≝  C₁      若 r ∈ A
 | G-5 | **已闭合**：加 [S-32](#s-32-unbindcredential) `unbindCredential`（D-040 §S16 S16-e） | — | — |
 | G-6 | **已闭合**：加 [S-31](#s-31-updateprofile) `updateProfile(ref, patch)`，只改 `data.model-profile/v1#S-12` 允许改的项；路由名不可改，改名 = 新登记 + 撤回旧的（D-040 §S16 S16-e） | — | — |
 | G-7 | **中心 ↔ 据点的线上形状与协议义务未定义**：[S-22](#s-22-装配给的保证-vs-协议须给的保证) 右两列全部；本契约是能力间内部面，线上形状归一份组合契约（尚未立） | 架构（组合契约起草） | 那份组合契约成立，逐行兑现 S-22 右两列，并命名线上成员 |
-| G-8 | **一部分主线裁定还没有持久记录**：拆分、出厂格那一把、两个写面、两种问法与清单装入、第一轮评审处置的三条（K17、K35、K42）已链到 D-040；[设计依据](#设计依据)末表标「尚未落进 D-040」的那一行——`officialProfileReadOnly` 三处同值、`relistProfile`／`loadManifest`／`relisted` 的名字、恢复在册不发通知、已撤回的行可修订——出处只在任务区的简报里 | 主线 | D-040 追加这几条（或另立决定），设计依据那一行改为链接 |
+| G-8 | **已闭合（2026-09-25 修复波 2）**：`origin_not_custom`、官方清单条目 `origin` 不是 `official` 取 `malformed`、`officialProfileReadOnly` 三处同值、`relistProfile`／`loadManifest`／`relisted` 的名字、恢复在册不发通知、已撤回的行可修订，主线接受，见 [D-040 §六 N-9](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)；[设计依据](#设计依据)末表那一行与 [S-9](#s-9-缺席时的默认答案) 改为链接 | — | — |
 | G-9 | **发布序号由谁、怎样给出**；发布动作的身份与鉴别 | 架构／运维（发布流程） | 提供者设计与发布流程写明序号的单一来源；跨进程时鉴别方式进 G-7 那份组合契约 |
 | G-10 | **已闭合（2026-09-24 规格修订批）**：出厂格那一把只供官方档案——PF-013 rev 10 decisions P33（自建档案要自己的 key，不落到出厂那一把上，裁决 3）、P34；[S-20](#s-20-resolvecredential) 的输入加这次要用的档案来源 `origin` | — | — |
 | G-11 | **已闭合（2026-09-24 产品负责人裁定）**：组织层与租户层的自建档案可同路由名并存（`data.model-profile` v1 G-13 同题）。原话：「允许并存，它就像资产一样，路由名就是能力，从下往上（租户 -> 组织 -> official）在运行时覆盖」。落为：[S-14](#s-14-registerprofile) ④ 仍只比同一格（不变）；[S-6](#s-6-范围链) 与 [S-17](#s-17-listprofiles) 末段写明链的先后就是同名覆盖的先后；[S-16](#s-16-readprofile) 写明按引用读不做覆盖。PF-013 rev 12 已写进 §4「档案的身份」 | — | — |

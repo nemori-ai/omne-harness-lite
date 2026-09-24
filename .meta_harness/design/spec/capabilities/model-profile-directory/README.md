@@ -10,7 +10,7 @@
 模型请求运行时消费本契约，本契约不消费它。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.model-profile-directory, 1)`
-- **状态**：`candidate`（2026-09-23 起草）——未经独立评审、未接受、未冻结
+- **状态**：`candidate`（2026-09-23 起草；2026-09-24 经第一轮独立评审并按处置修订；2026-09-25 修复波 2 按第二轮独立复评原地改，处置表在[验证入口](verification.md#独立评审)）——未接受、未冻结
 - **catalog 映射**：已登记为 candidate。`family=capabilities`、`topic=model-profile-directory`、
   `contract_path=spec/capabilities/model-profile-directory/v1/contract.md`，`resources` 另含 `v1/examples.md`；
   依赖五项，消费 clauses 取自[契约 S-4 的被消费面表](v1/contract.md#s-4-依赖方向与被消费的面)：

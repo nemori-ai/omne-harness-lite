@@ -263,7 +263,7 @@
 
     "FinishReason": {
       "title": "FinishReason（contract.md S-16）",
-      "description": "一条流的结局。end：生产者正常说完；max_tokens：写到上限被截断（只有 model_call）；interrupted：被有意停下（用户叫停，或宿主决定把它带走）——不是故障，不带成因；lost：生产的一方失去了连续性（模型侧是故障；工具侧是帧流断了、执行者没有回答、执行者换了代——都不影响那次执行的收场）。工具侧四值怎样对到 ToolInternalMessage 的 ending，对应表在 data.messages v1 S-14。",
+      "description": "一条流的结局。end：生产者正常说完；max_tokens：写到上限被截断（只有 model_call）；interrupted：被有意停下（模型侧只有用户发起的停下——直接叫停、插队顺带、用户取消了这次运行；工具侧是那次执行被有意停下）——不是故障，不带成因；lost：生产的一方失去了连续性，或宿主放弃了在途的流（模型侧是故障，或系统发起的运行取消与宿主被撤下——后者不是故障、不带 error；工具侧是帧流断了、执行者没有回答、执行者换了代、宿主被撤下——都不影响那次执行的收场）。四值怎样对到 ending：回复流的表在 data.messages v1 S-10，帧流的表在 S-14。",
       "enum": ["end", "max_tokens", "interrupted", "lost"]
     },
 

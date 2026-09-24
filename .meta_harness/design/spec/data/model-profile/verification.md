@@ -28,7 +28,7 @@
 
 ## 对齐义务
 
-**这一节登记本包与同批契约之间的对齐项。**整批对齐（2026-09-23）逐项核过，2026-09-24 第一轮评审修复后更新，状态写在末列：
+**这一节登记本包与同批契约之间的对齐项。**整批对齐（2026-09-23）逐项核过，2026-09-24 第一轮评审修复与 2026-09-25 修复波 2 后更新，状态写在末列：
 
 | 对齐什么 | 本包现状 | 另一边 | 状态 |
 |---|---|---|---|
@@ -36,8 +36,8 @@
 | **`ModelProfileRef` 的消费** | S-13 定形状：按 `origin` 判别两支，官方 `{origin, routeName}`、自建 `{origin, scope, routeName}` | `data.model-response` 的路由留痕取这个值（`data.loop-extension` 请求的 `target` 自 2026-09-24 起改取 `RouteName`） | 一律 `$ref` 本包 `$defs/ModelProfileRef`，**不各自复述两支、不各自加第三支**；核对结果记在那份的验证入口 |
 | **撞名范围与大小写规则** | S-3：同一范围（同一格）内唯一，含已撤回行；不同格可同名（官方与自建、组织层与租户层、不同组织）；逐码点比较，不做大小写折叠与相似字判定 | `capability.model-profile-directory` 的建档与装入官方清单；任何按路由名去重、索引或展示的消费者（展示列表、`data.model-response` 的 `upstreamModel` 对照） | 目录那边按「S-3 定的范围」判、不复述范围；消费者不得自行加大小写不敏感的比较，**也不得假设路由名在格与格之间唯一**——同一个路由名可以出现在几条档案上，指认一条要带来源与所在范围（引用本身就带）；2026-09-24 规格修订批目录与运行时同批改 |
 | **上游输出上限低于档案参数的收场** | S-18：`maxOutputTokens` 一项不跟着降（其余四项照常更新），义务归模型请求运行时 | `data.model-response` v1 S-11 的 `parameters` 与 `parameterAdjustments` | **已对齐**：`parameters` 记**实际发出的**（降过的）值，`parameterAdjustments` 记要求的与发出的两个值 |
-| **`ModelRequestParameters` 与项名** | S-15～S-21；项名规则在 S-20；S-21 三种处置 | `data.model-response` v1 S-11 的三个成员（`parameters`、`parameterAdjustments`、`droppedParameters`）；`data.loop-extension` 的「调模型之前」可改的参数 | **已对齐**：前者用本包 S-20 的项名、`droppedParameters` 含 `extra` 项的键；两者都不得另起一份参数词表；合成规则落在 `capability.model-request-runtime/v1#S-7`，剩余一问是 [G-8](v1/contract.md#十已知缺口) |
-| **建档内容** | S-28：`ModelProfile` 去掉 `registration`、`updatedAt`；带了即 `malformed`（M12） | `capability.model-profile-directory` v1 S-5、S-8、S-9、S-14 ①⑧、S-18 ①⑧ 引 `#S-28` | 那份契约已按本条写（`invalidInput{reason: malformed}`）；它的 catalog 依赖应补登 S-28（那份的登记，主线核） |
+| **`ModelRequestParameters` 与项名** | S-15～S-21；项名规则在 S-20；S-21 三种处置 | `data.model-response` v1 S-11 的三个成员（`parameters`、`parameterAdjustments`、`droppedParameters`）；`data.messages` v1 S-49「已出门」上的 `parameters`（要求的那一组）与同名两份处置清单；`data.loop-extension` 的「调模型之前」可改的参数 | **已对齐**：前两者用本包 S-20 的项名、`droppedParameters` 含 `extra` 项的键，`extra` 的键全没发出时实际发出的那一组里整个 `extra` 缺席（S-19 不许空，D-040 §七 M28）；三者都不得另起一份参数词表；合成规则落在 `capability.model-request-runtime/v1#S-7`，剩余一问是 [G-8](v1/contract.md#十已知缺口) |
+| **建档内容** | S-28：`ModelProfile` 去掉 `registration`、`updatedAt`；带了即 `malformed`（M12） | `capability.model-profile-directory` v1 S-5、S-8、S-9、S-14 ①⑧、S-18 ①⑧ 引 `#S-28` | **已对齐**：那份契约已按本条写（`invalidInput{reason: malformed}`），它的 catalog 依赖已含 S-28 |
 | **恢复与属性改写同提交** | S-10：转移本身只改 `registration`；清单装入的 `relisted` 可同时改属性；「其余不变」只对 `relistProfile` | `capability.model-profile-directory` v1 S-18 `relisted`、S-33 | **已对齐**：两边说法一致；本包 examples 第 7、8 节与上表 S-10 一行按此限定 |
 | **快照照原样复制** | S-27：S-18 的关系在快照上由写的一方保证，收的一方不重判 | `capability.model-request-runtime` v1（写）；`data.model-response` 的 `route.profileSnapshot`、`data.loop-extension` 的「调模型之后 · 失败」主体（收） | 收的两份都 `$ref` 本包 `$defs/ModelProfileSnapshot`，不重判；写的一方的证据在上表 S-27 一行 |
 | **`withdrawn` 两处同名** | `Registration` 的 `withdrawn` 是档案的在册状态 | `data.loop-extension` 的失败成因取值 `withdrawn`（已下架） | 两者含义一致（成因「已下架」的依据正是档案 `registration = withdrawn`）；那边的定义引用本包 S-10，不另下定义 |
@@ -92,6 +92,18 @@
 | MP-12 快照要不要做 S-18 那一步 | 建议 | **改**：写明 S-18 的关系在快照上成立、由写快照的一方照原样复制保证；快照不是表示层校验的一种文档，收的一方不重判、没有拒绝值 | S-27、S-24；Schema `ModelProfileSnapshot` 注释；examples 第 9 节；本页新增 S-27 一行 |
 | MP-13 「第 8 行」笔误 | 建议 | **改**：改为「S-25 第 8 行，先于第 9 行」 | examples 第 2 节 |
 | MP-14 `Instant` 不在 offer-expiry S-22 的表里 | 建议（两份共有） | **改说明，不改登记**：抬头依赖写明依据是 S-22 末句加上它 Schema 的 `$defs/Instant`；offer-expiry 已冻结 | 抬头；README |
+
+### 第二轮（2026-09-25）
+
+reviewer：spec-reviewer，S25 第二轮批 R2b（另含批 R1 转来的一条批外观察）；基线 HUB `8ad37c50`。本批对本契约的总判是「可进 F 反向核对」。依据一律是 [D-040 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)。
+
+| # | 发现（等级） | 处置 | 落点 |
+|---|---|---|---|
+| R2-MP-1 | 消费者表 `data.messages` 行只写 S-5、S-2，MRR 行漏 S-27；S-20 末条只点名 model-response；对齐义务那一行只列另两份（应修） | **改**：messages 行按 catalog 补全（S-13、S-15、S-20、S-27 都用在「已出门」上）；MRR 行补 S-27（照原样复制快照）；S-20 末条补「已出门」；对齐义务那一行加 messages S-49 | 消费者表；S-20；本页对齐义务 |
+| R2-MR-4（本契约那一半） | S-23「不静默丢、不静默改」一行的协议列只要求随结果回传，停机会留下假留痕（应修，两份共有） | **改**：协议列写「在出网之前交回写『已出门』的一方」，与 MRR S-38 传输适配第 10 条、`data.model-response` S-25 同一句；「做不到会怎样」写明假留痕 | S-23 |
+| R2-MP-2 | 「切换事实」仍作概念名（建议；R1 批外观察同指这一处） | **改**：一律改称「模型切换落下的那条记录」，首次出现链 UL-model-switch；covers 里那条 note 同改 | 消费者表两行；S-14；CS-1；实例第 3 节；registry `covers.json` |
+| R2-MP-3 | S-10 末段说「引用仍解析到同一条」，与 CS-1 按名字的说法两种机理（建议） | **改**：会话记的是路由名；恢复在册之后那个名字按层覆盖重新落回它，与 CS-1 一致 | S-10 |
+| R2-MP-4 | 对齐义务「建档内容」一行仍写「应补登 S-28」（建议） | **改**：状态改为已对齐 | 本页对齐义务 |
 
 ## 形式化工件
 
@@ -183,5 +195,6 @@
   - CS-1 按名字改写：选中的是名字，最具体那一行撤回、链上另有在册同名的就落到那一行；都撤回了才「已下架」。
   - Schema：`ModelProfileRef` 的 description 与 $comment 改写（后者去掉「官方名对所有层保留」「隶属树内唯一」两句旧前提），形状不变。实例第 3 节「裸名字」那一行补说明：设置与切换事实记的正是 `RouteName`。
   - 头部对到 PF-013 rev 12。`data.messages` 的切换事实同日改记 `routeName`（那份契约 S-49）。**对证据的影响**：没有既有证据；Schema 形状不变。
+- **2026-09-25 修复波 2（候选，未冻结，原地改）**——逐条处置见[独立评审「第二轮」](#第二轮2026-09-25)：R2-MP-1（消费者表 messages、MRR 两行与 S-20 末条补全）、R2-MR-4 的本契约一半（S-23 协议列：出网之前交回写「已出门」的一方，只随结果回传不够）、R2-MP-2（「切换事实」→「模型切换落下的那条记录」，链 UL-model-switch；实例第 3 节一行、covers 一条 note 同改）、R2-MP-3（S-10 末段按名字写）、R2-MP-4（对齐义务状态）。**语义与表示都不变**：Schema 与实例 JSON 未改，自检不重跑；catalog 不变。
 
 结果不改写规范。发现语义问题回到来源设计（PF-013），不在这里改契约。

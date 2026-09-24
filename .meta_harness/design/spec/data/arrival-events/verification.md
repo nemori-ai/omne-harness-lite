@@ -4,13 +4,13 @@
 
 > **当前状态：未开始。**`data.arrival-events` v1 是 `candidate`，未接受、未冻结；尚无提供者设计、尚无源码、尚无装配。
 > 下表登记的是**已经触发的证据义务**，不是已完成的检查。
-> 起草时只做了手核；**V-1 的本地自检跑过两次**（2026-09-24 整批对齐与第一轮评审修复，第 1～9 节，只判通过与拒绝，见[结果与反例](#结果与反例)），其余义务仍未开始。
+> 起草时只做了手核；**V-1 的本地自检跑过三次**（2026-09-24 整批对齐与第一轮评审修复、2026-09-25 修复波 2，第 1～9 节，只判通过与拒绝，见[结果与反例](#结果与反例)），其余义务仍未开始。
 
 ## 证据义务
 
 | # | 义务 | 证据形式 | 覆盖哪些条款 | 实际状态 |
 |---|---|---|---|---|
-| V-1 | **形状校验**：[`examples.md`](v1/examples.md) 第 1～9 节逐行过 Schema，比对「Schema」一列（第 11 节按行写了校验对象，本版只手核；第 10 节 Schema 本来就放行，不参与） | Draft 2020-12 校验器（须支持 `if`／`then`／`else` 与跨文件 `$ref`，并能按 `$id` 解析到 `data.content-blocks`、`data.call-accounts`、`data.loop-extension` 的 Schema） | [S-5](v1/contract.md#s-5-信封与目标)～[S-16](v1/contract.md#s-16-收尾)、[S-23](v1/contract.md#s-23-执行帧的另外四条) 的顶层部分、[S-27](v1/contract.md#s-27-判别式与枚举闭合) | **本地自检已跑一次**（整批对齐，2026-09-24）：第 1～9 节 77 行 0 处不符；第 11 节未机检 |
+| V-1 | **形状校验**：[`examples.md`](v1/examples.md) 第 1～9 节逐行过 Schema，比对「Schema」一列（第 11 节按行写了校验对象，本版只手核；第 10 节 Schema 本来就放行，不参与） | Draft 2020-12 校验器（须支持 `if`／`then`／`else` 与跨文件 `$ref`，并能按 `$id` 解析到 `data.content-blocks`、`data.call-accounts`、`data.loop-extension` 的 Schema） | [S-5](v1/contract.md#s-5-信封与目标)～[S-16](v1/contract.md#s-16-收尾)、[S-23](v1/contract.md#s-23-执行帧的另外四条) 的顶层部分、[S-27](v1/contract.md#s-27-判别式与枚举闭合) | **本地自检已跑三次**（最近一次 2026-09-25 修复波 2）：第 1～9 节 77 行 0 处不符；第 11 节未机检 |
 | V-2 | **拒绝值的具名与优先级**：每个拒绝行，接收边界给出的拒绝值等于「拒绝值」一列；第 11 节专验优先级；嵌着的块与账取那两份契约的名字 | 接收边界的一致性用例（同一份输入跨实现比对） | [S-28](v1/contract.md#s-28-表示层拒绝值)、[S-29](v1/contract.md#s-29-表示层拒绝不是判定也不修补) | **未开始**。只验 Schema 通过与否不够——两个实现可以都拒绝、却报不同的名字 |
 | V-3 | **Schema 管不到、本契约自己的拒绝值**：`presentation_invalid`（取值集为空）、`head_modality_mismatch`（块头模态与块的类型不符）、`frame_media_inline`（任意一层、语音填字节）、`replace_payload_shape`（要借开块） | 接收边界的校验 ＋ [`examples.md` 第 10 节](v1/examples.md#10-schema-通过但仍然非法的)「谁判」为「本契约」的各行 | [S-9](v1/contract.md#s-9-块头)、[S-10](v1/contract.md#s-10-呈现提示)、[S-12](v1/contract.md#s-12-填整体替换)、[S-23](v1/contract.md#s-23-执行帧的另外四条) | **未开始** |
 | V-4 | **序列规则**：第 10 节其余各行在消费一侧得到的失败值 | 由 `capability.stream-assembly` 的一致性用例承担 | [S-7](v1/contract.md#s-7-块索引)、[S-17](v1/contract.md#s-17-一条流的形状)、[S-18](v1/contract.md#s-18-块的一生)、[S-24](v1/contract.md#s-24-违反语法由消费一方判定并命名) | **未开始**；名字归那份契约，**演练也落在那份契约的验证入口** |
@@ -33,13 +33,14 @@
 
 ## 结果与反例
 
-### 已执行：V-1 本地自检（2026-09-24，两次）
+### 已执行：V-1 本地自检（2026-09-24 两次，2026-09-25 一次）
 
 | 项 | 值 |
 |---|---|
 | 工具 | `jsonschema` 4.26.0（`Draft202012Validator`）＋ `referencing`，锁定 uv 环境（`uv run --offline`）；设计根下全部 `*.schema.json` 按 `$id` 登进同一个解析表，跨契约 `$ref` 都解析到真身；脚本在任务暂存区，不入库 |
 | 第一次（整批对齐） | 见[变化的影响](#变化的影响)那一条：第 1～9 节 77 行，0 处不符 |
 | 第二次（第一轮评审修复之后） | 第 1～9 节 **77/77** 与「Schema」列一致（通过 29、拒绝 48）；第 3 节按每行的校验对象（`BlockHead`／`PresentationHint`）分别求值。本轮新增的三行在第 10、11 节，**不参与机核** |
+| 第三次（修复波 2，2026-09-25） | 本契约的 Schema 与实例本轮只改了 `FinishEvent` 的说明，但 `data.content-blocks` 收紧了完整工具调用块的 `tool`，所以照同一口径（`uv run --offline`）重跑：第 1～9 节 **77/77** 与「Schema」列一致（通过 29、拒绝 48） |
 | 范围与局限 | 只判 Schema 通过与否；「拒绝值」一列（V-2）、第 10 节的判定（V-3、V-4）、第 11 节的优先级都未机核；**不支持**任何规范场景 |
 
 ### 尚无的记录
@@ -97,6 +98,12 @@ V-2～V-9 **一条执行记录也没有**。起草时的手核只保证 `example
   - 「一次发出」链到 UL-upstream-send；Schema 两处「此刻解析不到」更正；实例第 13 节与 V-1 的证据陈述按实际更正。
   - 本地自检重跑（77/77，见[结果与反例](#结果与反例)）。
 
+- **2026-09-25 修复波 2（主线裁定 [D-040 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加) M1、M12；候选未冻结，原地改）**——逐条处置见[独立评审「第二轮」](#第二轮2026-09-25)：
+  - **M12**：[S-16](v1/contract.md#s-16-收尾) 的 `interrupted` 不再含「宿主决定把它带走」——模型侧只有用户发起的停下（直接叫停、插队顺带、用户取消了这次运行）；**宿主放弃在途的流一律 `lost`、不带 `error`**（系统发起的运行取消、宿主停止或被撤下；与桥换代同类，模型侧那一次发出的收场由 `data.model-response` 记成被中断、`run_cancelled`，不是故障）；工具那一列 `lost` 补「宿主被撤下」。`FinishReason` 不加值。Schema `FinishEvent` 说明同步。
+  - **M1**：回复流结局对到 `AssistantMessage` 的 `ending` 的表在 `data.messages/v1#S-10`（与 S-14 一样只以坐标指路、不登依赖）：头部、「没有产品行」表、S-16、「Schema 管得到什么」与包入口同改。
+  - **MS2-5**：工具那一列 `interrupted` 写成「收场为 `interrupted` 的全部情形」，补 agent 掐掉已转后台的那段执行。
+  - **AE2-1**：V-1 行与包入口状态行的次数更正。
+  - **语义**：`interrupted` 的所指收窄（宿主那一支移到 `lost`）；**表示不变**。**消费者影响**：`capability.stream-assembly` 的放弃动作与 `capability.model-request-runtime`、`capability.tool-execution-runtime` 的撤除走 `lost`（M12 那几处归各自的起草者）。**证据**：V-1 重跑，77/77。
 - **跨进程演化启动**：V-9 从「无法演练」转为**必须演练**；本版的全部证据只保留其单机范围。
 
 结果不改写规范。发现语义问题回到来源设计（PF-009／PF-006／PF-013），不在这里改契约。
@@ -113,8 +120,19 @@ V-2～V-9 **一条执行记录也没有**。起草时的手核只保证 `example
 | 同上 | 同上 | 同上 | AE-6 Schema 两处说「此刻解析不到」 | **改** | Schema 头部与 `FinishEvent` 的 `$comment` |
 | 同上 | 同上 | 同上 | AE-7 自核陈述与 V-1 前后矛盾 | **改**：两处都写「机核第 1～9 节」，第 11 节只手核 | 实例第 13 节；V-1 |
 
+### 第二轮（2026-09-25）
+
+reviewer：spec-reviewer，S25 第二轮批 R1；基线 HUB `8ad37c50`。本批对本契约的总判是「可进 F 反向核对」。依据一律是 [D-040 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)。
+
+| # | 发现（等级） | 处置 | 落点 |
+|---|---|---|---|
+| AE2-1 | V-1 行仍写「已跑一次」，包入口状态行写「原地改一次」（建议） | **改**：两处按实际更正 | V-1；包入口状态行 |
+| MS2-5（本契约那一半） | `interrupted` 工具那一列的列举漏了 agent 掐掉后台执行（建议） | **改**：写成「收场为 `interrupted` 的全部情形」并补上 | S-16 |
+| MS2-4 引出（本契约那一半） | S-16 的 `interrupted` 含「宿主决定把它带走」，与「只有用户叫停才是 `interrupted_by_user`」对不上（MS2-4 的一部分） | **改**（M12）：宿主放弃在途的流一律 `lost`、不带 `error`；`interrupted` 在模型侧只指用户发起的停下；回复流对到 `ending` 的表在 `data.messages` S-10（M1） | S-16；Schema `FinishEvent` |
+
 ## 对齐义务
 
 - **`capability.stream-assembly`**：块头模态不符的拒绝值是本契约 S-28 的 `head_modality_mismatch`（表示层），那份契约的失败集合里不再另有同名的判定失败；原名引用、排在它全部判定失败之前。
-- **`FinishReason` 对到 `ToolInternalEnding`**：表在 `data.messages/v1#S-14`；本契约改 S-16 的取值或意思时，那张表同轮复核。
+- **`FinishReason` 对到 `ToolInternalEnding` 与 `AssistantMessage` 的 `ending`**：两张表在 `data.messages/v1#S-14`、`#S-10`；本契约改 S-16 的取值或意思时，那两张表同轮复核。
+- **宿主放弃在途的流落 `lost`**（M12）：`capability.stream-assembly` S-22 ⑦ 删「宿主把它带走」、`capability.model-request-runtime` S-36／S-51、`capability.tool-execution-runtime` S-48 撤除时放弃在途状态——与本契约 S-16 同一句，归各自的起草者。
 - **`data.call-accounts/v1#S-11`**：它以坐标引本契约 S-23 第 1 条的「一帧」作定义性引用、不登依赖（会成环）；本契约改这个单位时，那份契约同轮复核。

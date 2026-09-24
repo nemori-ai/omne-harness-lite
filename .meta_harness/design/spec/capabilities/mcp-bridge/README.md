@@ -8,7 +8,7 @@
 本契约与它们之间的分工写在[契约 S-2](v1/contract.md#s-2-本契约不拥有什么)。它读写的全部形状归 [`data.mcp-endpoint`](../../data/mcp-endpoint/README.md)。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.mcp-bridge, 1)`
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订——处置表在[验证入口](verification.md#独立评审)；2026-09-25 修复波 1b 闭合 G-14）——未接受、未冻结，不得据此发布或声称消费者已采用
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订——处置表在[验证入口](verification.md#独立评审)；2026-09-25 修复波 1b 闭合 G-14，同日修复波 2 按第二轮独立复评改 S-5、S-12、CS-4）——未接受、未冻结，不得据此发布或声称消费者已采用
 - **catalog 映射**：已登记为 `candidate`（`acceptance` 为 `null`）。`family=capabilities`、`topic=mcp-bridge`、
   `contract_path=spec/capabilities/mcp-bridge/v1/contract.md`，`resources` 另含 `v1/examples.md`；
   依赖六项：`data.mcp-endpoint` v1、`data.tool-definition` v1、`data.content-blocks` v1、`data.asset-model` v1、`capability.asset-evaluation` v1（五者都是候选）、`data.identity-values` v1——

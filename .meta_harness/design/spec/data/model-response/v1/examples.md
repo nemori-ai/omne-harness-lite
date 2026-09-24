@@ -442,9 +442,9 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 }
 ```
 
-### E-11 运行被取消时已经开了口，宿主没先让调用方写下回复
+### E-11 系统取消运行时已经开了口：在途的流被放弃
 
-预期：`通过`。`initiator = run_cancelled`、有首 token、**没有回复**，写入者手里还有已交付的块，**就必带在 `delivered`**（[S-13](contract.md#s-13-收场与其余成员的条件关系)、[S-14](contract.md#s-14-回复与已交付部分)）。
+预期：`通过`。宿主停止（系统发起的运行取消）时这次发出已经开口，在途的流被放弃：`initiator = run_cancelled`、有首 token、**没有回复**，写入者手里还有已交付的块，**就必带在 `delivered`**（[S-13](contract.md#s-13-收场与其余成员的条件关系)、[S-14](contract.md#s-14-回复与已交付部分)；`data.messages/v1#S-10` 的回复流对应）。
 
 ```json
 {
@@ -1126,6 +1126,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 | 一条 `unrecognized` 的 `localError` 是写入者编的一句「未知错误」，真正认不出来的那段上游回应没留 | [S-15](contract.md#s-15-故障的成因与原样状态码)：兜底留的得是认不出来的那样东西本身 |
 | `route.credentialScope` 写出厂格，这一次实际用的是发起租户自己那一把 | [S-9](contract.md#s-9-路由留痕)：用量会记到错的那一格头上 |
 | 运行被取消时写入者手里还有已交付的块，却写了一条没有 `delivered` 的 `interrupted` | [S-13](contract.md#s-13-收场与其余成员的条件关系)：有才带，有就必带 |
+| 会话归档（系统发起的运行取消）时模型已经开口，写成一条 `initiator = run_cancelled`、带 `reply`（`ending = interrupted_by_user`）的响应体 | [S-13](contract.md#s-13-收场与其余成员的条件关系)：系统发起的取消在途的流被放弃、**没有回复**；`interrupted_by_user` 在这里是冒称用户（`data.messages/v1#S-10`） |
 | 同一次调用有 `dispatch` 1 与 3，没有 2 | [S-8](contract.md#s-8-第几次发出)、[S-23](contract.md#s-23-同一次调用的响应体序列) |
 | 同一次调用里第 1 条是 `failed`、成因 `request_rejected`，之后还有第 2 条 | [S-23](contract.md#s-23-同一次调用的响应体序列)：「重试没用」是事实，重试挂件推翻不了 |
 | 同一次调用里有两条带 `reply` | [S-14](contract.md#s-14-回复与已交付部分)、[S-23](contract.md#s-23-同一次调用的响应体序列) |

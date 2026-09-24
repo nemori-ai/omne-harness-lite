@@ -21,7 +21,7 @@
 | V-6 | **输入不合法时整体拒绝**（[S-37](v1/contract.md#s-37-输入不合法时整体拒绝)）：[E-5](v1/examples.md#e-5-不合法的输入) 八份 | 规范场景演练，**核返回里没有任何 `EffectiveAssembly`** | [S-7](v1/contract.md#s-7-输入的一致性条件)、[S-13](v1/contract.md#s-13-invalidinput-是没开始判filteredout-与-unresolved-是判出来的结果) | **未开始** |
 | V-7 | **装配给的保证**（[S-29](v1/contract.md#s-29-装配给的保证-vs-协议须给的保证) 左列）：一致读、分享此刻成立、调用方已核实、清单就是目录里那份 | 装配设计的选型声明 ＋ 架构评审 | [第七节前提](v1/contract.md#前提由别人兑现本契约不检查) PRE-1～PRE-3、PRE-7、PRE-8（动作集就是这次尝试钉住的那一份，由会话资产注册表兑现） | **未开始。**不是可跑的义务；它们失效的形态都是**静默算错**（锁截断被绕过、团队资产出树），上面的场景测不出 |
 | V-8 | **判下来用不了的退回下一层**（[S-41](v1/contract.md#s-41-判下来用不了的退回下一层)）：[E-6](v1/examples.md#e-6-判下来用不了的退回下一层) 六支同跑 | 规范场景演练 | [S-39](v1/contract.md#s-39-谁可以使用它值与判定)、[S-18](v1/contract.md#s-18-第一步之三最后取最具体的一份锁在最外那一把处截断)、[S-19](v1/contract.md#s-19-官方件是下界)、[S-26](v1/contract.md#s-26-每份持有都有去处) | **未开始。**E 支的期望（锁随被滤掉的那份不起作用）是本契约推导，已报主线；主线改判则 E、F 两支随之改。**PF-002 acceptance §一「成员乙写了一个 tool，组织持有了它」那一行说的是组织直接持有**（不经 plugin），按主线读法（2026-09-24）与 [S-31](v1/contract.md#s-31-unresolved-交到装配手上怎么收场) 不冲突：没有同名 official 时，E-6 C 支的求值结果是这个标识进 `unresolved`，装配据它怎么收场归 S-31 |
-| V-9 | **执行权限项的 `tenantAutoWritable`**（[S-42](v1/contract.md#s-42-执行权限项另带租户那一层写得进自动吗)）：[E-1](v1/examples.md#e-1-四格齐全的一次求值) 的真、假两种与「`h6` 带锁」一支，[E-4](v1/examples.md#e-4-换了实现设置不跟过去权限的约束跟过去) 五支皆假 | 规范场景演练，随 V-2、V-5 同一次演练比对 | [S-42](v1/contract.md#s-42-执行权限项另带租户那一层写得进自动吗)、[S-8](v1/contract.md#s-8-求值结果-effectiveassembly) | **未开始** |
+| V-9 | **执行权限项的 `tenantAutoWritable`**（[S-42](v1/contract.md#s-42-执行权限项另带租户那一层写得进自动吗)）：[E-1](v1/examples.md#e-1-四格齐全的一次求值) 的真、假两种（假的那两条同时演示 `mcp` 逐动作项恒为假）、「`h6` 带锁」与「`h6` 被禁用」两支，[E-4](v1/examples.md#e-4-换了实现设置不跟过去权限的约束跟过去) 五支皆假 | 规范场景演练，随 V-2、V-5 同一次演练比对 | [S-42](v1/contract.md#s-42-执行权限项另带租户那一层写得进自动吗)、[S-8](v1/contract.md#s-8-求值结果-effectiveassembly) | **未开始** |
 
 ### 静态检查义务
 
@@ -224,6 +224,20 @@
 
 **本轮另落的主线裁定**：钉住动作集之后再求一次——输入加可选 `mcpActionSets`，输出里逐动作执行权限 `execute:<名>`（[S-6](v1/contract.md#s-6-求值输入-evaluationinput)、C13、[S-21](v1/contract.md#s-21-第三步投影)、[S-12](v1/contract.md#s-12-缺席时的默认答案)、PRE-8）；工作区格条目的丢弃阶段按种类写定（[S-24](v1/contract.md#s-24-工作区那一格在第四步只贡献设置)）。依据全部改引 D-040（页首），D-040 未收录的几条已报主线。
 
+**第二轮**：spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`（批 R3，发现表 `tmp/assets-runtimes/reviews/r2-R3.md`）；修复波 2 处置，主线裁定见 [D-040 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)（M1～M29）。
+
+| 编号 | 发现 | 处置 | 落点 |
+|---|---|---|---|
+| B1（阻断，文字性） | S-8 末段、S-6 `mcpActionSets` 一行、第十二节注册表那一行把第二次求值写成只供逐动作执行权限、构成仍是装配那一次的，与 D-040 §六 L13、L15 及本契约 S-42 相抵 | **改**：三处写成「第二次求值供 `tool` 表每条条目的执行权限（含 `tenantAutoWritable`），以及判 `not_in_composition` 用的组合」，引 `capability.asset-registry/v1#S-11`、`#S-24` | [S-6](v1/contract.md#s-6-求值输入-evaluationinput)、[S-8](v1/contract.md#s-8-求值结果-effectiveassembly)、[第十二节](v1/contract.md#十二消费者核对) |
+| B2（阻断，语义） | S-42 对 MCP `execute:` 项可为真，写面却对这一类项一律 `unavailable`——摆出一个写不进去的第四档 | **改**（[M5](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）：`mcp` 逐动作项上 `tenantAutoWritable` 恒为假，直到资产治理 G-5 闭合；「与写面同一口径」限于 `tool` 的执行权限项；covers 那条 note 同改 | [S-42](v1/contract.md#s-42-执行权限项另带租户那一层写得进自动吗)；examples E-1；`registry/covers.json` |
+| 应修 1 | L8 的配方比注册表 S-24 ② 窄，`standing`、`definitions`、`session` 取哪一刻两份契约列得不一样 | **改**（[M6](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）：本契约不再列配方，S-6、S-8、第十二节只引 `capability.asset-registry/v1#S-24` ②（指路，不登依赖——那份契约消费本契约，反向登记会成环）。评审提到的 C9 风险（配方的定义版本与此刻的持有钉在更新的版本上）归那份契约的配方回答 | 同上三处；页首主线裁定一条 |
+| 应修 2 | 租户那一格有对 `c` 的持有却不在效或指向另一份资产时，S-42 仍可为真 | **改**（[M7](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）：第 4 条扩为「租户那一格若有对 `c` 的持有，它在效且指向 `A`，否则为假」；写面不判这一半，注明取更严 | [S-42](v1/contract.md#s-42-执行权限项另带租户那一层写得进自动吗) 第 4 条与「同一口径」一条；examples E-1 加一支；V-9 |
+| 建议（页首缺 PF-008） | S-42 以 PF-008 §5.2 为依据，页首相邻依据没列 PF-008 及其 rev | **改**：相邻依据补 PF-008 rev 7 §5.2 | 页首 |
+| （L7、L14 核对） | 评审核为已落 | 不改 | — |
+| （M3 跨批，起草者自查） | [M3](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加) 把拓展件干预力项的取值域收到声明档及其以下，并写「asset-evaluation S-23 不改」；但 S-23 认干预力的判据是「取值域**恰是**三档」，声明 `rewrite` 的件（取值域 `observe`、`rewrite`）会从此不被认作分档权限，落档与「挑选恰一档」都不再适用 | **改一句认法，不改求值规则**（推导，已报主线）：S-23 与 S-4 表改为「取值域是干预力三档里含 `observe` 的非空子集」即干预力；界、挑选、合成与档序一字不动。读 M3 的「S-23 不改」为求值规则不改 | [S-23](v1/contract.md#s-23-第四步权限) 分档那一段；[S-4](v1/contract.md#s-4-依赖方向与被消费的面) 表 `data.loop-extension/v1#S-4` 一行 |
+
+**对证据的影响**：Alloy 模型不含 `tenantAutoWritable`、也不含第二次求值的输入怎么组（[formal 入口](v1/formal/README.md)），本轮改的三处都不进模型，`Evaluation.als` 未改，**不重跑 Alloy**；V-9 的规范场景多两支（`mcp` 恒假、`h6` 被禁用），仍未开始。
+
 ## 变化的影响
 
 - **2026-09-23 本轮（起草中途）：施工简报追加第 7 条裁定，原地改了候选。**
@@ -306,5 +320,12 @@
   - **registry**：catalog 本契约的依赖不变（S-42 只读已消费的 `data.tool-definition` S-15、`data.mcp-endpoint` S-14、`data.asset-model` S-19）；covers 加一条 PF-008「第三档和第四档各有约束」→ S-42；formal-tasks、id-namespaces 不变。
   - **同轮追加（主线回裁）**：[D-040 §六](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) L13、L14、N-11、N-12。**L14**：S-42 的三条推导（第 1、2 条与第 3 条「不论在不在效」）主线接受——「推导」字样保留、补链 L14；「租户格无持有时第四档怎样落地」并入 `capability.tool-admission` 的 G-2，S-42 末段与消费者核对那一行改指。**L13**：S-42 写明这一位经会话资产注册表每次尝试的可用性报告交到 runner（`capability.asset-registry/v1#S-11` 同轮扩到全部工具条目）。**N-11**：PRE-2 里租户格以 `organization` 支持有被分享记录那一句由「D-040 尚未收录」改链 N-11。**N-12**：[G-6](v1/contract.md#十一已知缺口) 补一句——闭合时读入工作区承载清单那条路也要判 `name_not_projectable`。catalog、covers 不因此变。
   - **对证据的影响**：Alloy 模型不含 `tenantAutoWritable`，也不含二次求值的输入怎么组（[formal 入口](v1/formal/README.md)已补一条盖不到），`Evaluation.als` 未改，**本轮未运行 Alloy**；规范场景全部未开始，V-2、V-5、V-9 首次执行按新内容。
+
+- **2026-09-25 第二轮独立评审的处置（修复波 2；候选未冻结，原地改）**：逐条见[独立评审](#独立评审)第二轮。
+  **语义改变**：[S-42](v1/contract.md#s-42-执行权限项另带租户那一层写得进自动吗) 收紧两处——`mcp` 逐动作项上 `tenantAutoWritable` 恒为假（M5）；租户那一格有持有却不在效或指向另一份资产时为假（M7）。放行判断因此在这两种情形下不再摆出第四档。**表示不变**：成员与取值集合未动。
+  **认法放宽一处**（M3 的对齐，推导）：干预力按「取值域是三档里含 `observe` 的非空子集」认，声明低于 `veto` 的拓展件照样分档；求值规则不变。
+  **措辞改正、不改计算**：第二次求值的用途与配方的归属（B1、M6）——本契约是纯函数，第二次求值与第一次同一套规则，改的只是对注册表怎样用它的转述，现在只引注册表。
+  **对消费者**：`capability.tool-admission` 读这一位出卡，照旧；`capability.asset-registry` 的 S-24 ② 从此是配方的唯一家（丁同轮）；`capability.asset-governance` 的 G-5 闭合时本条那一段随之改。
+  **registry**：catalog 依赖不变（指向注册表的是指路，不登）；covers 的 PF-008 → S-42 那条 note 改写（M5）。
 
 结果不改写规范。发现语义问题回到来源设计（PF-002／PF-001／PF-003／PF-004），不在这里改契约。

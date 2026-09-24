@@ -99,6 +99,14 @@ V-2～V-7 **一条执行记录也没有**。手核只保证 `examples.md` 的实
 
 **另按全局规矩**：依据改引 D-040（块 A 形状、S18-c、S19-a、S21、§二 S-U24-7、§三 R2-10/R2-11），账本编号与施工标签删去；D-040 未收录的几条（词法、五支、`byAgent`、`versionSelection`、配值只挂本格持有、`carrier` 那份记录、配值带 `since`、租户格经分享持有）标「D-040 尚未收录」并报主线；**G-13 闭合**（依据已在 D-040，剩下的是决定记录的补录，不是本契约的语义缺口）。
 
+**第二轮**：spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`（批 R3，发现表 `tmp/assets-runtimes/reviews/r2-R3.md`）；修复波 2 处置，主线裁定见 [D-040 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)（M1～M29）。
+
+| 编号 | 发现 | 处置 | 落点 |
+|---|---|---|---|
+| B3（阻断，文字性） | CS-5 把 `immutable` 也列成「第 4 步以 `FilterReason` 滤」，与 S-20、S-24 第 5 条及 [D-040 §四](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#四被推翻或被覆盖的项追加登记)「K44『读入时丢弃』一句」一行相抵（第一轮 AM-2「三处同一句」漏掉的第四处） | **改**：CS-5 分成两句——`immutable` 与没列资产的条目读入时丢（`DropReason` `immutable_flag`），权限、落点与身份、治理类配值第 4 步滤（`FilterReason`）；注明与 S-20、S-24 第 5 条同一句 | [CS-5](v1/contract.md#cs-5-读入一份承载清单) |
+| 应修 6（本契约那一半） | 约 15 处仍写「D-040 尚未收录」，而 [D-040 §六 N-7](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) 已登词法、五支来路、`byAgent`、`versionSelection`、`carrier`（`since` 与「租户格经分享持有」在同一行的 asset-governance 段）；S-20「这一处的读法已报主线」已由 D-040 §四 取代 | **改**：一律改链 N-7；规范串另指 D-040 §四 S2-e 行；S-20 那一句改指 D-040 §四 K44 行；G-13 的补录说明改为「已由 N-7 补录」 | 页首依据注表两行；[S-2](v1/contract.md#s-2-能力标识名的词法)、[S-3](v1/contract.md#s-3-能力标识与它的规范串)、[S-5](v1/contract.md#s-5-资产来源)、[S-8](v1/contract.md#s-8-资产记录)、[S-14](v1/contract.md#s-14-属性配值)、[S-18](v1/contract.md#s-18-资产持有)、[S-19](v1/contract.md#s-19-使用权来路)（两处）、[S-20](v1/contract.md#s-20-出厂格与工作区格的持有)、P-16；G-2、G-3、G-4、G-11、G-13 |
+| （M3 跨批核对） | 拓展件干预力的上限改由允许集合兑现（`data.loop-extension` S-40） | **不改**：[S-12](v1/contract.md#s-12-属性声明由正文推出)「权限的 `default` 不是出厂那一格的允许集合、出厂格给出的就是整个 `values`」本来就是 M3 依赖的那一句；拓展件那一侧只把 `values` 收到声明档及其以下 | — |
+
 ## 变化的影响
 
 - **起草（2026-09-23）**：首版候选，建在 PF-002 rev 16、PF-001 rev 16、PF-003 rev 4、PF-015 rev 11 上（PF-004 rev 10 只作指路）。
@@ -150,5 +158,7 @@ V-2～V-7 **一条执行记录也没有**。手核只保证 `examples.md` 的实
   - **L2**：`data.loop-extension` 把装配进来的实现那一格由 `implementation.capability` 改名 `implementation.builtinName`；本契约 loop_extension 那一支的壳 `$ref` 它的 `LoopExtensionDefinition`，**形状随之生效、本 Schema 不改**；实例第 5 节那一行（第 272 行）的成员名同改。
   - **L11**：实例里「按 `data.mcp-endpoint` 的次序」那两行的行号对到那份契约 S-20 现在的表——`transport_unknown`（第 2 行）、`command_empty`（第 3 行）都先于 `name_not_projectable`（第 6 行）；原写「第 7 行」「第 4 行」是 mcp-endpoint S-20 重排之前的号。报出的拒绝值不变。
   - **证据**：实例第 5 节 **20 行**（含第 272 行，经壳 `$ref` 到 `data.loop-extension`）按 `$defs/AssetContent` 重跑 `jsonschema` 4.26.0（锁定 uv 环境，全部 Schema 按 `$id` 登表，脚本在会话暂存区），**0 处不符**；其余各节未改、未重跑（L11 那两行在第 13 节，是拒绝值优先级的文字说明，不过 Schema）。
+
+- **2026-09-25 第二轮独立评审的处置（修复波 2；候选未冻结，原地改）**：CS-5 一处措辞（B3）与依据改链（应修 6），见[独立评审](#独立评审)第二轮。**语义与表示都不变**——CS-5 是消费者走查，改的是它对 S-20、S-24 的转述，条款本身未动；Schema 与实例未改，不重跑。
 
 结果不改写规范。发现语义问题回到来源设计（PF-002／PF-001／PF-003／PF-015），不在这里改契约。

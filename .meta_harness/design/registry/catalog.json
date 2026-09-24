@@ -845,6 +845,7 @@
             "S-6",
             "S-13",
             "S-15",
+            "S-19",
             "S-20",
             "S-21",
             "S-27"
@@ -1187,6 +1188,7 @@
             "S-34",
             "S-38",
             "S-40",
+            "S-42",
             "S-59"
           ],
           "rebase_relation": null
@@ -1379,6 +1381,7 @@
             "S-5",
             "S-13",
             "S-15",
+            "S-19",
             "S-20",
             "S-27"
           ],
@@ -2773,7 +2776,8 @@
             "S-34",
             "S-35",
             "S-37",
-            "S-38"
+            "S-38",
+            "S-40"
           ],
           "rebase_relation": null
         },
@@ -2913,17 +2917,6 @@
             "S-31",
             "S-32",
             "S-34"
-          ],
-          "rebase_relation": null
-        },
-        {
-          "coordinate": {
-            "baseline_id": "omne-harness-lite-design-2026-09-15",
-            "contract_id": "capability.tool-execution-runtime",
-            "version": 1
-          },
-          "clauses": [
-            "S-63"
           ],
           "rebase_relation": null
         }
@@ -3239,6 +3232,7 @@
           "clauses": [
             "S-3",
             "S-4",
+            "S-5",
             "S-6",
             "S-7",
             "S-8",
@@ -3399,6 +3393,7 @@
             "version": 1
           },
           "clauses": [
+            "S-13",
             "S-14",
             "S-16",
             "S-18",
@@ -3406,8 +3401,23 @@
             "S-20",
             "S-21",
             "S-22",
+            "S-23",
             "S-26",
             "S-28"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.arrival-events",
+            "version": 1
+          },
+          "clauses": [
+            "S-5",
+            "S-14",
+            "S-16",
+            "S-21"
           ],
           "rebase_relation": null
         }
@@ -3573,7 +3583,8 @@
             "S-8",
             "S-9",
             "S-10",
-            "S-11"
+            "S-11",
+            "S-25"
           ],
           "rebase_relation": null
         },
@@ -3614,6 +3625,8 @@
             "S-20",
             "S-21",
             "S-22",
+            "S-23",
+            "S-24",
             "S-28"
           ],
           "rebase_relation": null

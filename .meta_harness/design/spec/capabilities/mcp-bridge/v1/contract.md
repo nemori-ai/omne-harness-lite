@@ -5,7 +5,7 @@
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.mcp-bridge, 1)`——
   `family = capabilities`、`topic = mcp-bridge`、规范路径 `spec/capabilities/mcp-bridge/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订——处置表在[验证入口](../verification.md#独立评审)；2026-09-25 修复波 1b 闭合 G-14）——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订——处置表在[验证入口](../verification.md#独立评审)；2026-09-25 修复波 1b 闭合 G-14，同日修复波 2 按第二轮独立复评改 S-5、S-12、CS-4）——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
 - **设计依据**（PF-002 rev 20、PF-006 rev 19 为主责；PF-012 rev 14、PF-016 rev 6、PF-005 rev 5、PF-001 rev 17、PF-008 rev 7 只引；2026-09-24 逐版复核到当前 rev，变化与落点记在[验证入口](../verification.md#变化的影响)）：
   [PF-002 §4 MCP](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp)、
   [§4 MCP 凭据](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的)、
@@ -26,6 +26,7 @@
   `fetchedAt` 取列举开始时刻（K34）、逐动作执行权限与执行时的接入点持有取自会话资产注册表钉住的报告（K30）——[D-040 §五](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)
 - **主线裁定**（见 [D-040 §六 N-10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)，原 G-14 闭合）：`ConnectionHandle` 不上签名、`invoke` 按持有寻址、连接的收口次序是义务；OAuth 流程本版落在据点一侧、只写义务与状态、交互归 PF-016；由桥做最小规范化（下文）。机制读数的连接归属（桥下每条连接各自收口）作「装配给」一列的输入
 - **S19-a～g**：副本、OAuth 绑定、凭据都按持有存放（S19-a，原 G-1 闭合）；四个新失败值与 `oauthDenied` 四来由合一采纳（S19-b）；工作区提供的 stdio 接入点默认禁用、租户层显式启用（S19-c，原 G-2 闭合）；桥换代时在途调用落 `failed{abnormal_interruption}`（S19-d，原 G-16 闭合）；两端模态由桥投影、投不出即「任意」（S19-e，原 G-3 闭合）；凭据保管方作装配给、求值交出 `provenance`（S19-f，原 G-9 闭合、G-7 收窄）；多据点下 OAuth 凭据跟机器（S19-g，原 G-8 闭合，后果见 G-17）
+- **主线裁定（修复波 2）**——[D-040 §七 M8、M10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)：报告里逐动作执行权限以动作条目的模型面名字为键；报告里查不到条目的调用（含失去生效持有的接入点的动作）不进放行判断、由执行运行时收场 `unavailable{no_such_entry}`，`not_in_composition` 不适用于 MCP 动作（[CS-4](#cs-4-放行判断需要知道本契约做什么)）
 - **主线裁定 2026-09-24**（原 [G-18](#十已知缺口) 关闭；见 [D-040 §六 N-10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）：**由桥做最小规范化**——缺说明的动作与参数补占位说明「对端未提供说明」、在动作条目上标 `normalized: true`；剥掉 `$schema`／`title`；`{"type": "object"}` 视为无参数；规范化之后仍不合的才排除（[S-17](#s-17-projectactions)）。
   缘起是 [PF-006 decisions §四](../../../../product/PF-006-tools-and-skills/decisions.md#四已知的来源问题)「MCP 对端给的动作若不带说明……正文未述它算什么」——那一行记为交产品负责人、规格侧留缺口；**主线自定：不当它不可用**
 - **精确语义依赖**（消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)）：
@@ -108,7 +109,7 @@
 
 ### S-5 接入点持有的寻址
 
-**本契约的操作按「接入点持有」寻址，不按任何活的对象寻址。**一个 `endpointHolding` 是下面这组值，**由求值的一方交来**（`capability.asset-evaluation` 为一个租户、一次装配算出的结果）：
+**本契约的操作按「接入点持有」寻址，不按任何活的对象寻址。**一个 `endpointHolding` 是下面这组值，**由求值的一方交来**：会话资产注册表在执行尝试开始时求值（配方同装配、持有与配值取此刻）得出、钉进那一次报告的那一份（[`capability.asset-registry/v1#S-11`](../../asset-registry/v1/contract.md#s-11-一次执行尝试的可用性报告) 的 `endpointHoldings`；求值本身归 `capability.asset-evaluation`；读法见 [D-040 §六 L8、N-10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）——**不是装配那一次的结果**：
 
 | 成员 | 含义 | 是不是身份参数 |
 |---|---|---|
@@ -217,7 +218,7 @@
 **动作集在每一次[执行尝试](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)开始前与可用性一起重算，一次尝试之内不变。**
 （[PF-002 §4 MCP](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp) rev 17 起；[PF-006 §6.13](../../../../product/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作) rev 18「每一次执行尝试开始前重取、一次尝试之内不变」，与 [PF-012](../../../../product/PF-012-agent-loop-and-run/design.md#每一次尝试开始都要做四件事)「每一次尝试也算作一次开始」一致。）
 
-- **本契约的那一半**：会话资产注册表在尝试开始时调 [S-16](#s-16-refreshactions)，本契约交出**在这一次调用里完整拿到**的清单，或一个失败值连同那份旧副本。
+- **本契约的那一半**：会话资产注册表在尝试开始时调 [S-16](#s-16-refreshactions)，本契约交出**在这一次调用里完整拿到**的清单，或一个失败值连同那份旧副本。**唯一的例外**是 [S-16](#s-16-refreshactions) ⑤：同一份持有上一次并发、开始得更晚的列举已写下更新的副本，这一次的条件写因 `fetchedAt` 不更晚而被丢弃——那时交出的是**存储里那份更新的**，而不是这一次拿到的（两份都是完整拿到的，交更新的那份不让钉住的动作集倒退）。
 - **会话资产注册表的那一半**：把交来的那份钉在这次尝试上，照它投影、照它装替换件；**钉住的那份此后不因副本被别的会话刷新而变**。它调 [S-16](#s-16-refreshactions) 用的 `endpointHolding` 出自那次尝试开始时以此刻的持有与配值做的求值，并与逐动作执行权限一起钉进那一次的报告（`capability.asset-registry/v1#S-11`、`#S-24`；K30）——所以凭据改值在下一次尝试生效（P-9），这一次尝试里的调用与列举用的是同一份持有。
 - **本契约不因对端的通知改动任何已钉住的东西**（[S-25](#s-25-对端来的通知与请求)）。
 
@@ -696,7 +697,14 @@
 
 #### CS-4 放行判断需要知道本契约做什么
 
-放行判断**不需要**调本契约的任何操作：逐动作执行权限是会话资产注册表钉住动作集之后再求一次值、钉进这次尝试报告的那一项（`capability.asset-registry/v1#S-11` 的 `effectivePermissions`，K30）——报告里是 `unavailable` 时放行判断同批全拒，不补档。它需要知道的只有一句——**到达 [S-19](#s-19-invoke) 的调用本契约不再判一次**（[S-14](#s-14-桥不做放行判断)），所以放行必须在调用之前完成。
+放行判断**不需要**调本契约的任何操作：逐动作执行权限是会话资产注册表钉住动作集之后再求一次值、钉进这次尝试报告的那一项（`capability.asset-registry/v1#S-11` 的 `effectivePermissions`，K30；以动作条目的模型面名字 `ModelToolName` 为键，调用块的 `tool` 原样去查，[D-040 §七 M8](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）。放行判断那一侧对一个 MCP 调用会遇到这几种情形，收场归它与 runner，本契约只指路：
+
+- 报告里那一项是一个值 ⇒ 照常判；
+- 报告里那一项是 **`unavailable`**（第二次求值拿不到）⇒ 放行判断同批全拒，不补档；
+- 报告里**查不到**那个名字——接入点在这次尝试没有生效的持有（被移除、被禁用、这个租户用不了），它就没有钉住的动作条目（`capability.asset-registry/v1#S-12` 末行），或钉住的动作集里没有这个动作 ⇒ 那个调用**不进放行判断**，那一次经过记 `observed{reason: no_such_entry}`，执行运行时收场 `unavailable{no_such_entry}`（[D-040 §七 M10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)；`capability.loop-extension-runner/v1#S-29` 第 5 条、`capability.tool-execution-runtime` v1 的 S-23 ④），同批别的调用照常判；
+- **`not_in_composition` 对 MCP 动作不会出现**：它只指「条目仍在快照、能力标识不在此刻组合里」，而没有生效持有的接入点根本没有动作条目（同上）。
+
+它需要知道的只有一句——**到达 [S-19](#s-19-invoke) 的调用本契约不再判一次**（[S-14](#s-14-桥不做放行判断)），所以放行必须在调用之前完成。
 
 ## 十二、版本差异与规范工件
 

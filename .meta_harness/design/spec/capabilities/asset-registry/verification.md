@@ -2,8 +2,8 @@
 
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
-> **当前状态（2026-09-24 第一轮独立评审处置后；2026-09-25 修复波 1b 原地改）：没有任何证据。**
-> `capability.asset-registry` v1 是 `candidate`，经过一轮独立评审（处置见[独立评审](#独立评审)），**未接受**；尚无提供者设计、尚无源码。
+> **当前状态（2026-09-24 第一轮独立评审处置后；2026-09-25 修复波 1b 原地改，同日修复波 2 按第二轮复评原地改）：没有任何证据。**
+> `capability.asset-registry` v1 是 `candidate`，经过两轮独立评审（处置见[独立评审](#独立评审)），**未接受**；尚无提供者设计、尚无源码。
 > **本版不建形式工件**（理由在[契约 S-35](v1/contract.md#s-35-本版选用哪些形式工件)），因此也没有 formal task；
 > 下表登记的是**已经触发的证据义务**，规范场景**一条都没演练**。
 
@@ -83,7 +83,34 @@
 | A10（造替换件的权威两种说法） | **改**：S-10 写明三样各归一处——是不是与为什么归本契约，同形归 `data.tool-definition/v1#S-6`，被调用时的收场与说明呈现归执行运行时；那边「替换件怎么造」读作后一样 | S-10、S-4 表 |
 | 范围外 1（无下一层时失败还是悄悄不装） | 按 D-040 §五 K33：失败，收口归装配 | S-20 末段 |
 
+### 第二轮
+
+| 评审者 | 日期 | 基线 | 范围 |
+|---|---|---|---|
+| spec-reviewer（第二轮，批 R4b，发现表 `tmp/assets-runtimes/reviews/r2-R4b.md`） | 2026-09-25 | HUB `8ad37c50` | 同上，另核第一轮处置与修复波 1b 的 L13、L15、G-16 |
+
+裁定出处：[D-040 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)（下表简写「§七」）。
+
+| 编号 | 处置 | 落点 |
+|---|---|---|
+| B2（接入点失去生效持有后，报告里没有它的动作项，与 runner S-48 相抵） | **按 §七 M10，本契约 S-12 不改**：此刻没有生效持有的接入点仍然没有动作条目；报告里查不到键的调用不进放行判断，收场归执行运行时 `unavailable{no_such_entry}`。`not_in_composition` 收窄为「条目仍在快照、能力标识不在此刻组合里」，写明 MCP 动作条目不会是它 | S-11 `effectivePermissions`、S-25 ⑤ 后段、安全性质一行、消费者核对「放行判断」、S-46「再跑一支」、examples §3 第 11 行 |
+| A-1（`effectivePermissions` 一项凭什么对应到条目） | **改**（§七 M8）：`tool` 表条目的查找键与报告里每一项的键都是模型面名字 `ModelToolName`，调用块的 `tool` 原样去查；键集合恰是 `within = run` 在 `tool` 类查得到的名字。S-7 改写名字那一条，S-25 ④ 改查找键，与 runner S-29 第 5 条同一句 | S-7、S-11、S-24 ④ 第 5 步、S-25 ④⑤、S-46、examples §3 第 1 行 |
+| A-2（资产被禁用、能力标识退回下一层时怎么读） | **改**：S-11 补「判据是能力标识，不是快照里那份资产」——退回下一层时仍在组合里，取退回那份的 `EffectiveValue`，条目 `content` 到 reload 才换 | S-11、S-46「退回下一层一支」 |
+| A-3（对齐义务表三行过期） | **改**：三行逐一核过对方现文后改为已对齐——asset-evaluation S-6、S-8（M6 之后改引本契约 S-24 ②）、data.tool-definition S-6（L10 已落）、D-040 §四 已登 S22-a 括注 | [对齐义务](#对齐义务) |
+| 范围外 2（meta 门的执行权限能被收窄，与 PF-007「关不掉一扇门」相抵） | **改**（§七 M21）：meta 门那一项恒为 `{auto}`、不读求值、`tenantAutoWritable` 为假；`from = factory`、不带 `lockedAt` 是**本契约推导**（已报主线）。识别 meta 门依赖 G-7，G-7 行补「闭合之前没有条目被当作门」。永久形式（声明层能否表达「不可收窄」）是 tool-admission 的新缺口，不在本契约 | S-7、S-11、S-24 ④⑧、安全性质一行、G-7、S-46「meta 门一支」、examples §3 第 1、8 行 |
+| B1、R-a、R-b、R-c | 不涉本契约（runner 一侧；报告的会话与 `runId` 由 runner 核对，本契约 S-11 的成员不变） | — |
+| H-a、H-b、M-a～M-c | 不涉本契约 | — |
+| D-1、D-2 | 归主线（D-040 自身），本契约不改；本契约只引 §六 L8、N-10 的读法，未引 K30 的原文措辞 | — |
+| 闭合核对（G-16、L13、L15） | 评审判成立，无改动；L15 的 MCP 例外见 B2 那一行 | — |
+
 ## 变化的影响
+
+- **2026-09-25 修复波 2（候选，未冻结，原地改）**：裁定出处 [D-040 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加) M8、M10、M21；评审发现处置见[第二轮](#第二轮)。
+  - **表示改变**：报告的 `effectivePermissions` 从「每条条目恰一项」写明为**以 `ModelToolName` 为键**的一张表；`tool` 类 `lookup` 的查找键写明为 `ModelToolName`。两处此前都只说「模型面的名字」，现改成那份 data 契约的正式名，没有改变已写的取值；没有已采用的消费者，无迁移。
+  - **语义改变**：meta 门那一项不再取求值，恒为 `{auto}`（M21）；它在第二次求值拿不到时也不变成 `unavailable`（S-24 ⑧ 改为「除 meta 门外」）。`not_in_composition` 的适用面收窄，MCP 动作条目明确不适用。
+  - **新增推导（已报主线）**：meta 门那一项 `from = factory`、不带 `lockedAt`；G-7 闭合之前没有条目被当作门。
+  - **registry**：catalog 本契约的依赖与 clauses 不变（`data.tool-definition` 的 `S-6` 已在；M8 不新增被消费条款）；covers、formal-tasks、id-namespaces 不变。
+  - **对证据的影响**：没有既有证据；S-46 多三支（接入点失去持有、meta 门、退回下一层），仍「未开始」。
 
 - **2026-09-25 修复波 1b（候选，未冻结，原地改；本包原属 R4b 批，由丁按主线授权改 L13 一条）**：裁定出处 [D-040 §六](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) L13。
   - **`effectivePermissions` 扩到 `tool` 表每条条目**（[S-11](v1/contract.md#s-11-一次执行尝试的可用性报告)）：作者写的与官方的工具（常驻与否、meta 门都算）取第二次求值里它能力标识 `execute` 那一项的 `EffectiveValue`（含 `tenantAutoWritable`），MCP 动作照旧；一次尝试内不变的口径覆盖全部工具条目（S-11 第 1、4 条）。**某条条目在第二次求值里没有那一项的值**（此刻已不在组合里）——起初推导为 `unavailable`（已报主线），同轮由主线改裁为显式值 `not_in_composition`（L15，见下一条）。
@@ -128,9 +155,12 @@
 
 | 对方 | 须写成什么 | 状态 |
 |---|---|---|
-| `capability.asset-evaluation` v1 S-6、S-8 | 「以装配那一次的输入加上它再求一次」读作**沿用配方、持有与配值取此刻的**（本契约 S-24 ②）；否则凭据与逐动作权限改值要等 reload 才生效，与 `capability.mcp-bridge` P-9 相抵 | 已报主线 |
+| `capability.asset-evaluation` v1 S-6、S-8 | 「以装配那一次的输入加上它再求一次」读作**沿用配方、持有与配值取此刻的**（本契约 S-24 ②）；否则凭据与逐动作权限改值要等 reload 才生效，与 `capability.mcp-bridge` P-9 相抵 | **已对齐**（2026-09-25 读到）：对方 S-6 `mcpActionSets` 一行与 S-8 末段改引本契约 S-24 ②、不另列配方（D-040 §七 M6） |
 | `capability.tool-admission` v1 S-8 | MCP 动作的 `effectivePermission` 从报告的 `effectivePermissions` 取，`unavailable` 即全拒 | 对方正文已写（2026-09-24 读到） |
 | `capability.tool-execution-runtime` v1 S-23、S-38 | MCP 调用的接入点持有取自报告的 `endpointHoldings` | 对方正文已写（2026-09-24 读到） |
 | `capability.mcp-bridge` v1 CS-2、CS-4 | 改引本契约的报告 | 同批（R4b）已改 |
-| `data.tool-definition` v1 S-6 | 「替换件怎么造归执行运行时」补一句「是不是替换件归会话资产注册表」 | 已报主线 |
-| D-040 §S22 S22-a | 括注「被移除/被禁用的条目」与本契约 S-28（只去掉此刻用不了的）对齐 | 已报主线（G-16） |
+| `data.tool-definition` v1 S-6 | 「替换件怎么造归执行运行时」补一句「是不是替换件归会话资产注册表」 | **已对齐**（2026-09-25 读到）：对方 S-6 已写「这一条目此刻是不是替换件、为什么是，由会话资产注册表判」（D-040 §六 L10） |
+| D-040 §S22 S22-a | 括注「被移除/被禁用的条目」与本契约 S-28（只去掉此刻用不了的）对齐 | **已对齐**：D-040 §四 已登「括注写宽了，契约为准」 |
+| `capability.loop-extension-runner` v1 S-29 第 5 条 | 报告每一项以 `ModelToolName` 为键、`call.tool` 原样去查；查不到键的调用不进放行判断；meta 门那一项恒 `{auto}`（D-040 §七 M8、M10、M21） | 同为丁所写，已对齐（2026-09-25） |
+| `capability.tool-execution-runtime` v1 S-23 ② 第 6 条、④ | 以 `call.tool` 原样查本契约 S-25（`within = run`）；「没有」即刻收场 `unavailable{no_such_entry}`（D-040 §七 M8、M10） | 对方正文已写（2026-09-25 读到，丙批） |
+| `capability.tool-admission` v1 S-8 | `not_in_composition` 只指「条目仍在快照、能力标识不在此刻组合里」（D-040 §七 M10） | 对方正文已写（2026-09-25 读到，丙批 S-8 末条与设计依据表）；它另留的「条目在 `tool` 表里、报告却缺那一项」一支按本契约 S-11 不会出现（键集合恰是 `tool` 表的名字），已报主线 |

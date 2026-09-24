@@ -11,7 +11,7 @@
 
 | # | 义务 | 证据形式 | 覆盖哪些条款 | 实际状态 |
 |---|---|---|---|---|
-| V-1 | **形状校验**：[`examples.md`](v1/examples.md) 第 1～8 节的正反实例逐条过**表示层校验**；反例还要核对**报出的拒绝值与 M 编号**与第三列一致 | Draft 2020-12 校验器（须能解析 `data.content-blocks` v1）＋ Schema 之外那一步（参数 schema 按官方元 schema 判合法，[S-4](v1/contract.md#s-4-单函数工具)）＋ 一段按 [S-26](v1/contract.md#s-26-表示层拒绝值与判定次序) 次序给出拒绝值的判定 | [S-3](v1/contract.md#s-3-两种范式)～[S-5](v1/contract.md#s-5-多命令工具)、[S-9](v1/contract.md#s-9-四项依赖名)～[S-18](v1/contract.md#s-18-名字的表示与相等)、[S-21](v1/contract.md#s-21-toolresult-的三样)～[S-23](v1/contract.md#s-23-卸载)、[S-26](v1/contract.md#s-26-表示层拒绝值与判定次序)、[S-28](v1/contract.md#s-28-判别式与枚举闭合)～[S-30](v1/contract.md#s-30-实现不在定义里) 的**形状那一面** | **本地自检已跑**（整批对齐，2026-09-24，最后一次在参数 schema 三条硬要求与名字转写落地之后）：第 1～8、11 节 116 处 0 不符，含定义反例的拒绝值与 Schema 之外那一步（[本地自检](#本地自检schema-正反实例整批对齐2026-09-24)）；M 编号本身未机检 |
+| V-1 | **形状校验**：[`examples.md`](v1/examples.md) 第 1～8 节的正反实例逐条过**表示层校验**；反例还要核对**报出的拒绝值与 M 编号**与第三列一致 | Draft 2020-12 校验器（须能解析 `data.content-blocks` v1）＋ Schema 之外那一步（参数 schema 按官方元 schema 判合法，[S-4](v1/contract.md#s-4-单函数工具)）＋ 一段按 [S-26](v1/contract.md#s-26-表示层拒绝值与判定次序) 次序给出拒绝值的判定 | [S-3](v1/contract.md#s-3-两种范式)～[S-5](v1/contract.md#s-5-多命令工具)、[S-9](v1/contract.md#s-9-四项依赖名)～[S-18](v1/contract.md#s-18-名字的表示与相等)、[S-21](v1/contract.md#s-21-toolresult-的三样)～[S-23](v1/contract.md#s-23-卸载)、[S-26](v1/contract.md#s-26-表示层拒绝值与判定次序)、[S-28](v1/contract.md#s-28-判别式与枚举闭合)～[S-30](v1/contract.md#s-30-实现不在定义里) 的**形状那一面** | **本地自检已跑**（整批对齐，2026-09-24，最后一次在 flat 形落地之后）：第 1～8、11 节 122 处 0 不符，含定义反例的拒绝值与 Schema 之外那一步（[本地自检](#本地自检schema-正反实例整批对齐2026-09-24)）；M 编号本身未机检 |
 | V-2 | **生成规则逐字核对**：[`examples.md` 第 9 节](v1/examples.md#9-生成规则的逐字核对)，三命令实例对 [S-7](v1/contract.md#s-7-多命令-input-的生成规则) 五条（flat 形），外加九条调用按模型面与所选命令各判一次、「只带命令清单」变体生成结果不变；[第 11 节](v1/examples.md#11-一份定义投成三家的线上形状)两个条目（单函数带转写、三命令）按 [S-6](v1/contract.md#s-6-模型面只有一个条目) 重算 | 人工对读 ＋ 暂存区机检：由定义算出 `modelInput` 与 `ModelToolEntry`，与实例作 JSON 值比较；**将来**入库为可复跑的检查，并把第 9 节的调用逐条过生成出的 schema、第 11 节三家形状与条目逐字比对 | [S-6](v1/contract.md#s-6-模型面只有一个条目)、[S-7](v1/contract.md#s-7-多命令-input-的生成规则)、[S-18](v1/contract.md#s-18-名字的表示与相等) | **起草者人工对读（2026-09-23；2026-09-24 按 flat 形重做），五条与三条硬要求都对得上，调用表的两列判定与规则一致；生成结果与两个条目的重算比对过了本地自检（[本地自检](#本地自检schema-正反实例整批对齐2026-09-24)）；调用表未机检；未登记为证据** |
 | V-3 | **`help` 与 `inspect` 一致**：对带 `help` 的单函数工具与多命令工具（工具一层、命令一层）各调一次 `Tools().inspect`，比对两处说法；并观察 `help` **不**作为可调命令出现在模型面 | 规范场景演练 | [S-8](v1/contract.md#s-8-说明与用法) | **未开始。**需要 `Tools()` 的提供者 |
 | V-4 | **声明与实际对得上**：两支——没声明附件存储却返回附件；没声明结果端 `image` 却返回图块 | 规范场景演练 | [S-19](v1/contract.md#s-19-由定义得出的依赖声明)、[S-24](v1/contract.md#s-24-结果与声明对得上) | **未开始。**需要执行运行时；「对不上时落什么」停在 [G-15](v1/contract.md#十已知缺口)，演练只能先断言「被识别为违反声明」 |
@@ -59,8 +59,8 @@ V-1、V-3～V-11 尚无执行记录。首次执行时在此记录工具与版本
 
 | 对齐什么 | 涉及 | 现状 |
 |---|---|---|
-| **模型交回的调用名按逆转写对回定义**（`__` 换回 `:`，[S-6](v1/contract.md#s-6-模型面只有一个条目)、[S-18](v1/contract.md#s-18-名字的表示与相等)）——**只在工具执行运行时起执行者之前做**；把条目按键名放进三家外壳 | `capability.tool-execution-runtime` v1（逆转写，登记消费本契约 S-6）；`capability.model-request-runtime` v1 的传输适配（只做键名映射，**不做**逆转写） | 本契约已定（2026-09-24 第一轮评审处置）；两份候选的条款由修复波 R4a／R5 落，**待它们落条款** |
-| **系统里流转的工具指认用模型面名字 `ModelToolName`**（[S-6](v1/contract.md#s-6-模型面只有一个条目)） | `data.loop-extension` v1 的 `ModelRequest.tools` 与 `ToolDefinitionRef.name`（本修复波同轮改）；`capability.model-request-runtime` v1 S-7 的 `tools`；`capability.tool-admission` v1 S-7 的 `definition`（比较在模型面名字上做、S-18 逐码点不变）；`data.content-blocks` v1 调用块的 `tool` | loop-extension 已改；其余由 R4a／R5 落，**待它们落条款** |
+| **模型交回的调用名按逆转写对回定义**（`__` 换回 `:`，[S-6](v1/contract.md#s-6-模型面只有一个条目)、[S-18](v1/contract.md#s-18-名字的表示与相等)）——**只在工具执行运行时起执行者之前做**；把条目按键名放进三家外壳 | `capability.tool-execution-runtime` v1（逆转写，登记消费本契约 S-6）；`capability.model-request-runtime` v1 的传输适配（只做键名映射，**不做**逆转写） | **已对齐**：`capability.tool-execution-runtime/v1#S-23` ② 第 6 条（逆转写在起执行者之前，登记消费本契约 S-6）；`capability.model-request-runtime/v1#S-51` 末段与 S-38 第 11 条（传输适配不做逆转写）。M8 之后工具执行运行时查注册表改用 `call.tool` 原样，逆转写的位置不变（丙在修复波 2 落） |
+| **系统里流转的工具指认用模型面名字 `ModelToolName`**（[S-6](v1/contract.md#s-6-模型面只有一个条目)） | `data.loop-extension` v1 的 `ModelRequest.tools` 与 `ToolDefinitionRef.name`；`capability.model-request-runtime` v1 S-7 的 `tools`；`capability.tool-admission` v1 S-7 的 `definition`（比较在模型面名字上做、S-18 逐码点不变）；`capability.asset-registry` v1 `tool` 类条目的查找键（S-25 ④）与 `effectivePermissions` 的键（S-11）；`data.content-blocks` v1 调用块的 `tool` | **已对齐**：loop-extension S-14／S-15、model-request-runtime S-7、tool-admission S-7。**修复波 2 同轮落**（[D-040 §七 M8](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）：asset-registry 的两个键（丁）；调用块的 `tool`——落点是 `data.content-blocks` 的 G-9（L12 登、M8 关），那份契约本就被本契约依赖，`$ref` 会成环，按 [registry「互引成环的登记口径」](../../../registry/README.md#covers) 逐字同写、以本契约 `$defs/ModelToolName` 为家（甲）。**本契约改 `ModelToolName` 时须回头同步那一份** |
 | **PF-006 §5.3「多命令工具的定义里带多少」那张表**：「带全部命令的完整参数 → 一次到位、不必多一趟」与产品负责人 2026-09-24 的 flat 裁定不再一致——模型面不展示任何命令的参数（[S-7](v1/contract.md#s-7-多命令-input-的生成规则) 第 1 条），两种写法的模型面相同 | 产品正文 PF-006（主线另做产品修订） | **已闭合（2026-09-24）**：PF-006 rev 19 §5.3 整节重写为「模型面前只有紧凑的命令清单一种样子」，「一次到位」那一端作废，与本契约一致 |
 | **MCP 条目名要合 `name` 的收窄**（字符集、三种相邻、转写后 ≤ 128），不合即拼不出；对端参数 schema 过不了三条硬要求的，先由桥最小规范化，仍不合才投不成条目 | `data.mcp-endpoint` v1 S-11、S-26（接入点 name 登记时收窄）、`capability.mcp-bridge` v1 S-17 | **已落（2026-09-24，主线裁定）**：桥的 G-18 与接入点的 G-11 关闭 |
 
@@ -77,7 +77,7 @@ V-1、V-3～V-11 尚无执行记录。首次执行时在此记录工具与版本
 |---|---|---|
 | X-1 产品依据 rev 落后（PF-002 16→20、PF-007 16→18、PF-009 7→8、PF-012 10→14） | **改**。逐 rev 复核：PF-002 rev 17「谁可以使用它」八类共用 ⇒ [S-31](v1/contract.md#s-31-属性项的推出规则) 第 3 条补「不产出 `usableBy`」并登记消费 `data.asset-model` S-36；rev 18（组织层不持凭据）、rev 19（Skill 两项设置删除）、rev 20（连接件、D-5）与本契约无关。PF-007 rev 17 §5.6 加「放行判断不可用时全拒件」——[S-15](v1/contract.md#s-15-执行权限) 只引三档，不变；§4 多命令措辞与 PF-006 rev 19 对齐，与 S-7/S-8 一致（T-5 同轮收紧）；rev 18（问询出口）无关。PF-009 rev 8（系统消息不落日志）、PF-012 rev 11～14（回复否决、不可用处置、转换件不是资产）与 S-20、S-23 所引无关 | 抬头 |
 | X-2 `category_unknown`／`origin_unknown` 与 `data.asset-model` 同名不同义 | **改**（主线处置裁定：改为 `setting_category_unknown`、`tool_origin_unknown`；技能包同一错误报同一值） | [S-10](v1/contract.md#s-10-设置项声明)、[S-17](v1/contract.md#s-17-来源)、[S-26](v1/contract.md#s-26-表示层拒绝值与判定次序)（加一段说明）；Schema 两处说明；`examples.md` 第 5 节两行 |
-| X-6 依据只在任务区账本 | **改**：S5-b～f、A3 改链 D-040；产品负责人的 U-24-1／U-24-2 链 D-039；「`ToolSource` 改名」D-040 无此项，改写为本契约的命名选择（理由在 S-17）；「未知键一律拒」「模型面不改写」D-040 未收录，保留「主线裁定 2026-09-24」并报主线补登 | 设计依据表、S-4、S-5、S-6、S-7、S-17、S-18、S-26、S-31、G-1、G-3、G-4、G-7 |
+| X-6 依据只在任务区账本 | **改**：S5-b～f、A3 改链 D-040；产品负责人的 U-24-1／U-24-2 链 D-039；「`ToolSource` 改名」D-040 无此项，改写为本契约的命名选择（理由在 S-17）；「未知键一律拒」「模型面不改写」D-040 未收录，保留「主线裁定 2026-09-24」并报主线补登。**第二轮改链**（XB-1）：D-040 §六 N-1 已登这几项，设计依据表改链 N-1 | 设计依据表、S-4、S-5、S-6、S-7、S-17、S-18、S-26、S-31、G-1、G-3、G-4、G-7 |
 | X-8(a) 正文 `name` 与 `capability.name` 相等由 asset-model S-10 定，却没登 | **改**：抬头依赖表与 catalog 补 `data.asset-model` S-10 | 抬头；`registry/catalog.json` |
 | T-1 Schema 说明与 S-5 冲突；`$comment` 写 M1～M23 | **改** | Schema `CommandDefinition.description`、根 `$comment` |
 | T-2 S-4 第 2、3 条的子 schema 位置集合不同；两条同时违反时报法不定 | **改**：「schema 的位置」写成一份封闭清单，第 2、3 条共用；清单外关键字下面不走（由 M27 报那个关键字）；同时违反报 `parameter_description_missing` | [S-4](v1/contract.md#s-4-单函数工具) |
@@ -85,6 +85,22 @@ V-1、V-3～V-11 尚无执行记录。首次执行时在此记录工具与版本
 | T-4 catalog 登 content-blocks 十条含 S-1，抬头写九条 | **改**：抬头补 S-1（`ToolResult` 的块取自那七类） | 抬头 |
 | T-5 `args` 固定说明提「本工具自带的 help 命令」，与 S-8「help 是文本字段」冲突 | **改**：固定说明只写 `Tools().inspect` | [S-7](v1/contract.md#s-7-多命令-input-的生成规则) 固定文本；`examples.md` 第 2、9、11 节六处 |
 | L-3（批内，loop-extension）MCP 来源没有能力标识，`tools` 表达不了 | **本契约一侧改**（主线处置裁定：流转的工具指认用模型面名字）：新 `$defs/ModelToolName`（21 项），`ModelToolEntry.name` 引它；S-6 写明逆转写只在工具执行运行时起执行者之前做、传输适配不做 | [S-6](v1/contract.md#s-6-模型面只有一个条目)、第七节、五（定义项）；Schema；[对齐义务](#对齐义务) |
+
+### 第二轮
+
+| 项 | 值 |
+|---|---|
+| reviewer | spec-reviewer（只读），发现表 `tmp/assets-runtimes/reviews/r2-R2a.md` |
+| 日期 | 2026-09-25 |
+| 基线 | HUB `8ad37c50`（批 R2a） |
+| 处置 | 修复波 2，候选期内原地改；主线裁定见 [D-040 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)（M1～M29） |
+
+| 编号 | 发现 | 处置 | 落点 |
+|---|---|---|---|
+| XB-1（本契约那一行） | 设计依据表「未知键一律拒」仍写「D-040 未收录」 | **改**：改链 [D-040 §六 N-1](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)；第一轮 X-6 那一行补注 | 设计依据表；上表 X-6 行 |
+| TD-a | S-7 第 3 条「作者声明的 `help` 命令」有两种读法 | **改**：写成「作者写的 `help` 文本」，与 S-8 一致 | [S-7](v1/contract.md#s-7-多命令-input-的生成规则) 第 3 条 |
+| TD-b | 对齐义务两行仍写「待 R4a／R5 落」；调用块 `tool` 的落点是 content-blocks G-9；V-1 写 116 处、本地自检写 122 处 | **改**：两行改为已对齐并指到落点条款；调用块那一项指 `data.content-blocks` G-9（M8 关，互引成环按 M2 口径逐字同写、以本契约为家）；V-1 改 122 处 | [对齐义务](#对齐义务)；V-1 |
+| （M8 跨批同一句） | 「模型面名字」全链只指 `ModelToolName` | **改**：S-6 流转清单补会话资产注册表的查找键与 `effectivePermissions` 的键、工具执行运行时以 `call.tool` 原样查注册表；消费者 `$ref` 一句补「互引成环的按 M2 口径逐字同写」 | [S-6](v1/contract.md#s-6-模型面只有一个条目) |
 
 ## 实际执行
 
@@ -189,5 +205,7 @@ V-1、V-3～V-11 尚无执行记录。首次执行时在此记录工具与版本
 
 - **2026-09-24 修复波 1b（主线裁定 [D-040 §六 L10](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)；候选未冻结，原地改）**：[S-6](v1/contract.md#s-6-模型面只有一个条目) 替换件那一条补一句——本契约只定替换件的形状；**一条目此刻是不是替换件、为什么是，由会话资产注册表判**（`capability.asset-registry` v1 S-8、S-10），**替换件怎么造归执行运行时**。两处是指路，不登 catalog 依赖（那份契约消费本契约 S-6，反向登记会成环）。
   L1 与本包无关：本契约不链接 `data.content-blocks` 的 S-8（已全树核过）。**语义与表示都不变**，Schema 与实例未改，V-1 不重跑。
+- **2026-09-25 第二轮独立评审的处置（修复波 2；候选未冻结，原地改）**：逐条见[第二轮](#第二轮)。
+  **语义与表示都不变**：S-7 一处措辞（`help` 文本）、S-6 把 M8 已裁的两个消费者列进「流转的工具指认」清单（本契约的承诺本来就覆盖它们）、依据改链、对齐现状更新。Schema 与实例未改，V-1 不重跑。**对消费者**：无迁移。
 
 结果不改写规范。发现语义问题回到来源设计（PF-006／PF-002／PF-005），不在这里改契约。

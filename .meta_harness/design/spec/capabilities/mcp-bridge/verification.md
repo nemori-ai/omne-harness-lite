@@ -2,7 +2,7 @@
 
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
-> **当前状态：未开始。**`capability.mcp-bridge` v1 是 `candidate`，经过一轮独立评审（处置见[独立评审](#独立评审)），未接受、未冻结；尚无提供者设计、尚无源码、尚无装配。
+> **当前状态：未开始。**`capability.mcp-bridge` v1 是 `candidate`，经过两轮独立评审（处置见[独立评审](#独立评审)；2026-09-25 修复波 2 原地改），未接受、未冻结；尚无提供者设计、尚无源码、尚无装配。
 > 下表登记的是**已经触发的证据义务**，不是已完成的检查。
 > 七条规范场景、四条消费者核对场景、六条静态检查**一条都未执行**；[`examples.md`](v1/examples.md) 里的值**没有过任何校验器**——文件存在不代替结果。
 > 起草时跑过的是 `make design-check`：它核对了 Markdown 链接与锚点、registry 登记——**它不校验任何实例、不执行任何场景**。
@@ -48,6 +48,7 @@
 | 投影出的定义要过 `data.tool-definition` 的名字收窄与参数 schema 三条硬要求（产品负责人 2026-09-24 要求） | `data.tool-definition` v1 的 S-4、S-18；`data.mcp-endpoint` v1 的 S-11 | **已对齐（2026-09-24）**：[S-17](v1/contract.md#s-17-projectactions) 两种排除原因改写；**同日主线裁定由桥做最小规范化**，[G-18](v1/contract.md#十已知缺口) 关闭；接入点 name 在登记时收窄（`data.mcp-endpoint/v1#S-26`），条目名拼不出只可能因为对端动作名 |
 | 会话资产注册表、工具执行运行时、交付面对本契约操作的消费登记 | `capability.asset-registry`、`capability.tool-execution-runtime`；交付面尚无契约 | 依赖方向是它们 → 本契约，由它们各自登记（2026-09-24 两份已登 catalog；会话资产注册表同日加登本契约 S-5） |
 | 逐动作执行权限与执行时的接入点持有从哪来（第一轮评审 X2、X3） | `capability.asset-registry` S-11、S-24；`capability.asset-evaluation` S-6；`capability.tool-admission` S-8；`capability.tool-execution-runtime` S-23 | **已对齐（2026-09-24，D-040 §五 K30）**：会话资产注册表以此刻的求值得出持有、钉住动作集后再求一次值，二者钉进报告；本契约 [S-14](v1/contract.md#s-14-桥不做放行判断)、[S-19](v1/contract.md#s-19-invoke) ②、P-9、CS-2、CS-4 改引报告 |
+| 报告里查不到条目的 MCP 调用怎样收场；`not_in_composition` 适用面（第二轮评审 B2、M-b） | `capability.loop-extension-runner` S-29 第 5 条、S-48；`capability.asset-registry` S-11、S-12；`capability.tool-admission` S-8；`capability.tool-execution-runtime` S-23 ④ | **已对齐（2026-09-25，[D-040 §七 M10](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）**：本契约 [CS-4](v1/contract.md#cs-4-放行判断需要知道本契约做什么) 只指路；runner、会话资产注册表同为丁所写已同句；执行运行时 S-23 ② 第 6 条、④ 已读到；tool-admission S-8 已读到（2026-09-25，丙批） |
 
 ## 结果与反例
 
@@ -95,8 +96,30 @@ V-1～V-8 **一条执行记录也没有**。起草时的手核只保证 `example
 | M5（依赖缺 data.tool-definition S-18） | **改**：S-4 表与 catalog 补登 | S-4、`registry/catalog.json` |
 | M6（covers 注记仍写 G-2 未决） | **改**：注记改为 G-2 已闭合、租户层显式启用的表示归求值的 G-19 | `registry/covers.json` |
 
+### 第二轮
+
+| 评审者 | 日期 | 基线 | 范围 |
+|---|---|---|---|
+| spec-reviewer（第二轮，批 R4b，发现表 `tmp/assets-runtimes/reviews/r2-R4b.md`） | 2026-09-25 | HUB `8ad37c50` | 同上，另核第一轮处置与修复波 1b 的 N-10、G-14 |
+
+裁定出处：[D-040 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)。
+
+| 编号 | 处置 | 落点 |
+|---|---|---|
+| M-a（S-5 首句仍说「一次装配算出的」） | **改**：`endpointHolding` 是会话资产注册表在执行尝试开始时求值（配方同装配、持有与配值取此刻）得出、钉进报告的那一份，链 `capability.asset-registry/v1#S-11` 的 `endpointHoldings`，写明不是装配那一次的结果；读法依 [D-040 §六 L8、N-10](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) | [S-5](v1/contract.md#s-5-接入点持有的寻址) 首句 |
+| M-b（CS-4 没提 `not_in_composition`） | **改**（§七 M10，并入 B2 的选边）：CS-4 列出放行判断对 MCP 调用会遇到的四种情形——值、`unavailable` 全拒、查不到键即不进放行判断（`observed{reason: no_such_entry}` → 执行运行时 `unavailable{no_such_entry}`）、`not_in_composition` 对 MCP 动作不会出现 | [CS-4](v1/contract.md#cs-4-放行判断需要知道本契约做什么)、头部主线裁定一行 |
+| M-c（S-12「完整拿到的清单」与 S-16 ⑤「返回存储里那份更新的」相抵） | **改**：S-12 第一条补 S-16 ⑤ 这一个例外——并发、开始得更晚的列举已写下更新的副本时，交出的是存储里那一份 | [S-12](v1/contract.md#s-12-每次执行尝试重新列举尝试内不变) 第一条 |
+| B2（runner／registry 两侧的选边） | 本契约只落 CS-4 那一句（见 M-b）；选边本身落在会话资产注册表与 runner | CS-4 |
+| B1、R-a～R-c、A-1～A-3、H-a、H-b、范围外 2 | 不涉本契约 | — |
+| D-1、D-2 | 归主线（D-040 自身）；本契约 S-5 已改引 §六 L8、N-10 的读法，不再依 K30 原文措辞（D-2 指出的残留即 M-a） | S-5 |
+| 闭合核对（K34、G-14） | 评审判成立，无改动 | — |
+
 ## 变化的影响
 
+- **2026-09-25 修复波 2（候选，未冻结，原地改）**：裁定出处 [D-040 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加) M8、M10；评审发现处置见[第二轮](#第二轮)。
+  - **语义改变**：没有——S-5 首句改正的是依据的读法（持有取此刻），S-12、S-19 ②、P-9 早已按此写；S-12 补的例外原本就在 S-16 ⑤；CS-4 只指路别的契约的收场。
+  - **registry**：catalog、covers、formal-tasks、id-namespaces 不变（CS-4 引 runner、执行运行时只是指路，不登依赖；S-5 引 asset-registry S-11 也是指路——依赖方向是会话资产注册表 → 本契约，反向登记会成环）。
+  - **对证据的影响**：没有既有证据；V-7 走查 CS-4 时多两支（查不到键、`not_in_composition` 不出现），仍「未开始」。
 - **2026-09-25 修复波 1b（候选，未冻结，原地改）**：裁定出处 [D-040 §六](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)（L1、N-10）。
   - **L1**：设计依据表 `data.content-blocks` 那一行 S-8 的锚点随那份契约的标题改为「文本块与来路标记」（`#s-8-文本块与来路标记`）；本契约引它的语义不变。
   - **N-10，G-14 闭合**：`ConnectionHandle` 不上签名、`invoke` 按持有寻址、连接的收口次序、OAuth 落据点、由桥做最小规范化五条已登 D-040 §六；页首两行与 [S-8](v1/contract.md#s-8-oauth-绑定状态与迁移) 的「尚未汇编」改链，G-14 行改为已闭合。

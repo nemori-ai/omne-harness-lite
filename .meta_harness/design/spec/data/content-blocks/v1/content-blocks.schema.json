@@ -27,6 +27,15 @@
       "examples": ["call_01"]
     },
 
+    "ModelToolName": {
+      "title": "模型面名字",
+      "description": "S-12：完整工具调用块 tool 的取值——模型面上的工具名，定义名里每一个 : 换成 __；只含 A–Z a–z 0–9 _ -，1～128 个字符。家在 data.tool-definition v1 S-6 的 ModelToolName；本定义是它的逐字副本。",
+      "$comment": "互引成环的登记口径（registry README；D-040 §七 M2、M8）：data.tool-definition v1 以 $ref 取本契约的块与附件引用，本契约不反向 $ref 它，在这里逐字写出同一个 type 与 pattern、不登 catalog 依赖；两处逐字对齐是 verification「对齐义务」里的一条。别的契约 $ref data.tool-definition 那一份，不 $ref 这一份。",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}(?![\\s\\S])",
+      "examples": ["read_file", "mcp__github__create_issue"]
+    },
+
     "Visibility": {
       "title": "块标注 · Block Annotation",
       "description": "S-4：每个内容块上的两个标注（UL-block-annotation）。toHuman：组装面向人的那一份时取不取它；toModel：组装面向 agent 的那一份时取不取它。两位都必填、互不决定，四种组合都合法。它只说取不取，不说长什么样。由产生这个块的一方在落盘那一刻写下，此后不改（S-22）。缺任一位即表示层拒绝 visibility_missing（S-26），不补默认值。",
@@ -154,7 +163,7 @@
 
     "TextBlock": {
       "title": "文本块",
-      "description": "S-8：给人和模型看的一段话。text 可以是空串。origin 是可选的来路标记（统一语言 UL-origin-tag；不是来源标记），恰四种：slash_command_args 表示这块是人敲斜杠命令时附带的参数；skill_body 表示这块是 ② 型（技能型）斜杠命令逐字展开的那个 skill 的正文；slash_command_expansion 表示这块是 ① 型（提示词型）斜杠命令展开模板得到的文字；slash_command_record 表示这块是一次 ①／② 型斜杠命令的留痕——text 是人敲下的那段原文，逐字。command 与 skill 是相应的命令名与 skill 名。来源标记只陈述出处，不授予任何资格，也不改变这块的标注。不带派生表示与 transcript。",
+      "description": "S-8：给人和模型看的一段话。text 可以是空串。origin 是可选的来路标记（统一语言 UL-origin-tag；不是来源标记），恰四种：slash_command_args 表示这块是人敲斜杠命令时附带的参数；skill_body 表示这块是 ② 型（技能型）斜杠命令逐字展开的那个 skill 的正文；slash_command_expansion 表示这块是 ① 型（提示词型）斜杠命令展开模板得到的文字；slash_command_record 表示这块是一次 ①／② 型斜杠命令的留痕——text 是人敲下的那段原文，逐字。command 与 skill 是相应的命令名与 skill 名。来路标记只陈述出处，不授予任何资格，也不改变这块的标注。不带派生表示与 transcript。",
       "type": "object",
       "allOf": [{ "$ref": "#/$defs/BlockBase" }],
       "properties": {
@@ -267,7 +276,7 @@
 
     "ToolCallBlock": {
       "title": "工具调用块（完整）",
-      "description": "S-12：模型要调哪个工具、传什么参数，参数已经收齐、在封口那一下解析过一次。complete 恒为 true。callId（S-14）、tool（模型面那个工具条目的 name；多命令工具的子命令在参数里）必填；参数恰为两种之一：解析成功——arguments（解析得到的 JSON 值，任意类型），不带原始参数串；解析不了——rawArguments（收齐的原文）与 unparseable: true 两者同现，不带 arguments。标了 unparseable 的调用同样是一次已登记的调用（callId 进 S-14 的唯一范围），它不被执行，由宿主紧接一条收场为 failed 的结果回给模型；任何一方都不再解析它的 rawArguments。四种标注组合都合法。不带派生表示与 transcript。",
+      "description": "S-12：模型要调哪个工具、传什么参数，参数已经收齐、在封口那一下解析过一次。complete 恒为 true。callId（S-14）、tool（模型面名字 ModelToolName——模型面那个工具条目的 name；多命令工具的子命令在参数里）必填；参数恰为两种之一：解析成功——arguments（解析得到的 JSON 值，任意类型），不带原始参数串；解析不了——rawArguments（收齐的原文）与 unparseable: true 两者同现，不带 arguments。标了 unparseable 的调用同样是一次已登记的调用（callId 进 S-14 的唯一范围），它不被执行，由宿主紧接一条收场为 failed 的结果回给模型；任何一方都不再解析它的 rawArguments。四种标注组合都合法。不带派生表示与 transcript。",
       "$comment": "unparseable 这一种：参数收齐却解析不了的调用保留原文、不执行、结果记 failed 并回给模型（PF-006 §5.5；形状见 D-040 §一 S1-e）。rawArguments 与 unparseable 缺一，或与 arguments 同现，都是 malformed（S-26）。",
       "type": "object",
       "allOf": [
@@ -291,7 +300,7 @@
         "kind": { "const": "tool_call" },
         "complete": { "const": true },
         "callId": { "$ref": "#/$defs/CallId" },
-        "tool": { "type": "string", "minLength": 1 },
+        "tool": { "$ref": "#/$defs/ModelToolName" },
         "arguments": {},
         "rawArguments": { "type": "string" },
         "unparseable": { "const": true }
@@ -333,7 +342,7 @@
 
     "PlaceholderReason": {
       "title": "PlaceholderReason",
-      "description": "S-18：占位原因（统一语言 UL-placeholder-reason），恰十一个；各自落在哪一种收场是写死的：backgrounded_auto、backgrounded_by_user、backgrounded_by_preemption、backgrounded_at_start → backgrounded；user_interrupted、interrupted_by_preemption、human_declined、session_archived、run_cancelled、foreground_timeout → interrupted；abnormal_interruption → failed。取值名是规格层的；它们对应 PF-006 §6.7「占位消息一律要说清原因」表里的行。工具结果块 reason.code 的取值是这十一个外加 terminated_by_agent——后者不是占位原因，是后台那段执行收场的提醒上写的原因（S-18）。",
+      "description": "S-18：占位原因（统一语言 UL-placeholder-reason），恰十一个；各自落在哪一种收场是写死的：backgrounded_auto、backgrounded_by_user、backgrounded_by_preemption、backgrounded_at_start → backgrounded；user_interrupted、interrupted_by_preemption、human_declined、session_archived、run_cancelled、foreground_timeout → interrupted；abnormal_interruption → failed。取值名是规格层的；它们对应 PF-006 §6.7「占位消息一律要说清原因」表里的行。本定义只描述占位那一侧（D-040 §七 M22）：工具结果块 reason.code 的 Schema 取值是这十一个外加 terminated_by_agent；同一组 token 写在后台那段执行收场的提醒的结果块上时，说的是那段执行为什么这样收场、不是占位原因，那一侧哪几个值合法归 capability.tool-execution-runtime v1 S-10；terminated_by_agent 只在那一侧出现（S-18）。",
       "type": "string",
       "enum": [
         "user_interrupted",
@@ -352,7 +361,7 @@
 
     "ToolResultBlock": {
       "title": "工具结果块",
-      "description": "S-15～S-18：一次工具调用的结果，收场带在块上。callId 指回那次调用（S-14）；outcome 是这次收场的唯一依据（S-17），缺席即表示层拒绝，从不当作 completed；reason 在占位上是占位原因、在后台收场提醒的结果块上是那段执行的收场原因——backgrounded 与 interrupted 必带、failed 可带且只能是 abnormal_interruption、其余三种不带，code 必须落在它那一格（S-18）；blocks 是进上下文的内容，它自己又是一串块（可以是空数组，次序有意义），任意一层都不得含工具调用块（S-16）；offloaded 可选，指向被卸载的原始结果。不带派生表示与 transcript——它里面的块各自可以带。",
+      "description": "S-15～S-18：一次工具调用的结果，收场带在块上。callId 指回那次调用（S-14）；outcome 是这次收场的唯一依据（S-17），缺席即表示层拒绝，从不当作 completed；reason 在占位上是占位原因、在后台收场提醒的结果块上是那段执行的收场原因（那一侧哪几个值合法归 capability.tool-execution-runtime v1 S-10）——backgrounded 与 interrupted 必带、failed 可带且只能是 abnormal_interruption、其余三种不带，code 必须落在它那一格（S-18）；blocks 是进上下文的内容，它自己又是一串块（可以是空数组，次序有意义），任意一层都不得含工具调用块（S-16）；offloaded 可选，指向被卸载的原始结果——此时 blocks 装的是摘要与取全文的办法，这一块就是那次调用的结果，不是占位（data.messages v1 S-11）。不带派生表示与 transcript——它里面的块各自可以带。",
       "type": "object",
       "allOf": [
         { "$ref": "#/$defs/BlockBase" },
@@ -389,7 +398,7 @@
           "type": "object",
           "properties": {
             "code": {
-              "$comment": "S-18：十一个占位原因，外加只落后台收场提醒结果块的 terminated_by_agent（不是占位原因；它只落那种提醒，块自己看不出，由写入方兑现）。",
+              "$comment": "S-18：十一个 token（写在占位上时是占位原因），外加只落后台收场提醒结果块的 terminated_by_agent（不是占位原因）。块自己看不出它在哪一侧，由写入方兑现；后台收场提醒那一侧的取值域归 capability.tool-execution-runtime v1 S-10。",
               "anyOf": [ { "$ref": "#/$defs/PlaceholderReason" }, { "const": "terminated_by_agent" } ]
             },
             "text": { "type": "string", "minLength": 1 }

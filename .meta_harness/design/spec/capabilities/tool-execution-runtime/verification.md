@@ -2,8 +2,9 @@
 
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
-> **当前状态（2026-09-24，第一轮独立评审修复之后）：形式工件已在修复者本机重跑；规范场景与故障注入一条都没演练。**
-> `capability.tool-execution-runtime` v1 是 `candidate`，经第一轮独立评审（处置见[独立评审](#独立评审)）后原地修订，**未接受**；尚无提供者设计、尚无源码。
+> **当前状态（2026-09-25，第二轮独立评审修复之后）：形式工件在第一轮修复后由修复者本机重跑过，第二轮没有改模型与配置、未重跑；规范场景与故障注入一条都没演练。**
+> `capability.tool-execution-runtime` v1 是 `candidate`，经两轮独立评审（处置见[独立评审](#独立评审)）后原地修订，**未接受**；尚无提供者设计、尚无源码。
+> **第二轮新增的承诺**（以模型面名字查注册表与 `UnlistedCall`、有序撤下收尾帧流、上交之后撤下、发帧形状不合按原名交回）**都不在模型里**，证据只能是规范场景 [S-68](v1/contract.md#s-68-有序撤下收尾在途的帧流上交之后撤下)、[S-69](v1/contract.md#s-69-查不到条目的调用即刻收场不可用) 等，全部未开始。
 > 模型那几条「无反例」**之所以有内容**，是因为同一次执行里六个去保护配置、三份补充否定配置都按预期给出了反例，七个可达性探针都按预期被反驳；
 > 按构造成立的几条（`SequentialBatch`、`ConcurrencyCap`、`WaitOnlyForeground`、`ReminderAfterPlaceholder`、`ArchiveSettlesAll` 等）**不作为证据**，理由在 [formal 入口](v1/formal/README.md#本版选用什么)。
 > **本轮新增的条款**（提交的判重与租户核对、参数解析不了的调用、执行者一侧四个原语、工具侧到达装配前提、丢失在途状态时的账）**都不在模型里**，证据只能是规范场景，全部未开始。
@@ -23,7 +24,7 @@
 
 ### 规范场景
 
-**十六条全部未开始**——它们要的是真实实现，而实现不存在。
+**十八条全部未开始**——它们要的是真实实现，而实现不存在。
 
 | 场景 | 证据形式 | 状态 | 说明、责任与受阻 |
 |---|---|---|---|
@@ -43,6 +44,8 @@
 | [S-65 重放同一批返回首次的结果](v1/contract.md#s-65-重放同一批返回首次的结果) | 演练：原样重放、夹一项凭据不符的新调用重放、运行取消之后重放、同 `CallId` 改参数 | **未开始** | 模型里每批只提交一次，对判重没有断言 |
 | [S-66 帧被拒报一次，收场之后的帧不进](v1/contract.md#s-66-帧被拒报一次收场之后的帧不进) | 演练：执行者发一串含重开索引、`trim`、收场之后的帧；再跑一帧不发、等待到点两支；断言 `rejected` 的 `trim` 紧跟被拒那一帧、恰一个 | **未开始** | 帧与装配状态不在模型里；`capability.stream-assembly` 的 TLA+ 只到装配本身 |
 | [S-67 租户不符整批不收](v1/contract.md#s-67-租户不符整批不收) | 演练：错租户提交（批里有已登记与冲突的 `CallId`）；会话租户读不到 | **未开始** | 会话持有的租户从哪读受阻于 [G-12](v1/contract.md#十二已知缺口) |
+| [S-68 有序撤下收尾在途的帧流，上交之后撤下](v1/contract.md#s-68-有序撤下收尾在途的帧流上交之后撤下) | 演练：发过帧的执行在跑时有序替换本能力；**故障注入**：交回时注入执行记录写失败，再恢复存储 | **未开始** | 断言 `frames` 不是 `"unknown"`、`ToolInternalMessage` 的 `ending: lost`；上交后一切操作 `runtimeStopped`、存储恢复后不补写；**模型里没有撤下与上交** |
+| [S-69 查不到条目的调用即刻收场不可用](v1/contract.md#s-69-查不到条目的调用即刻收场不可用) | 演练：`UnlistedCall`（编造的名字）与合格项同批；`UnlistedCall` 却查得到条目；注册表读不到 | **未开始** | 上游：runner 不把它交进 `admit`、记 `observed{no_such_entry}`（D-040 §七 M10，那一侧的场景）；查找键 `ModelToolName` 归 `capability.asset-registry` S-25 |
 
 ### 故障注入：「找得到／找不到」的两个方向
 
@@ -62,7 +65,7 @@
 
 | # | 已知失败情形（来源） | 本契约的哪条义务挡住它 | 测试义务（证据形式） | 状态 |
 |---|---|---|---|---|
-| K-1 | **撤除时停止抛错，要强制结算**（DSH `jobs`） | [S-18](v1/contract.md#s-18-收场先落停止后发)：收场先落、收口出错记账不改收场；[S-48](v1/contract.md#s-48-本能力自己的撤除与换代)：撤除不写收场、正确性不依赖撤除 | 注入一个停止时抛错的执行者，分别在中断与本能力撤除时触发；断言收场不变、错误进条目、下一任扫描不重复写 | **未开始** |
+| K-1 | **撤除时停止抛错，要强制结算**（DSH `jobs`） | [S-18](v1/contract.md#s-18-收场先落停止后发)：收场先落、收口出错记账不改收场；[S-48](v1/contract.md#s-48-本能力自己的撤除与换代)：有序撤下先收尾帧流、再写首胜收场，之后才发停止；**正确性不依赖撤下这一步写成**（写不下去的由下一任扫描） | 注入一个停止时抛错的执行者，分别在中断与本能力有序撤下时触发；断言收场不变、错误进条目、下一任扫描不重复写 | **未开始** |
 | K-2 | **同 id 换实例不串台**（DSH `jobs`） | [S-5](v1/contract.md#s-5-一次执行以会话里的-callid-指认)：身份是 `(租户, 会话, CallId)`，不是实例；[S-16](v1/contract.md#s-16-首胜收场只写一次)：晚到的交回按「记录已收场」丢弃 | 执行者重新登记（新实例）时旧实例仍在跑；旧实例在收场之后交回；断言被丢弃、之后的提交走新实例 | **未开始** |
 | K-3 | **起进程失败被记成被中断**（DSH bash producer） | [S-38](v1/contract.md#s-38-起执行者)、[S-11](v1/contract.md#s-11-失败的种类)：起不来 = `failed{start_failed}` | 让起进程失败；断言收场 `failed`、种类 `start_failed`、外部效果「已确定未发生」 | **未开始** |
 | K-4 | **停止不结算就卡住撤除、占着并发位置**（DSH `jobs` 已知限制） | [S-18](v1/contract.md#s-18-收场先落停止后发)：宽限后强制；[S-43](v1/contract.md#s-43-一批依次与同一工具的并发上限)：并发位置在收场那一刻释放 | 执行者忽略停止；断言收场即刻写下、同一工具的下一次执行立刻能起、宽限到点强制停止、停不掉时记 `unconfirmed` | **未开始** |
@@ -80,6 +83,8 @@
 |---|---|---|---|
 | 凭据本身不含会话，核对按 `(会话, CallId, 生效参数)`；核对面区分 `invalid` 与 `unavailable` | [S-23](v1/contract.md#s-23-提交一批) ② | `capability.tool-admission` | 那份契约的场景；本契约 S-60 |
 | 替换件与不可用条目带原因 | [S-23](v1/contract.md#s-23-提交一批) ④ | `capability.asset-registry` | 那份契约的场景 |
+| `lookup` 在 `within = run{报告}` 下以模型面名字 `ModelToolName` 查 `tool` 类条目，答那一条、「没有」或 `unavailable` 三者分开 | [S-23](v1/contract.md#s-23-提交一批) ② 第 6 条 | `capability.asset-registry` S-25、S-7（[D-040 §七 M8](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)） | 那份契约的场景；本契约 S-69 |
+| 报告里查不到条目的调用不进 `admit`、那一次经过记 `observed{no_such_entry}`，以 `UnlistedCall` 交给本能力 | [S-23](v1/contract.md#s-23-提交一批) ① | `capability.loop-extension-runner`、`capability.tool-admission`（[D-040 §七 M10](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)） | 那两份契约的场景；本契约 S-69 |
 | 可用性报告里钉住每个接入点的接入点持有（`endpointHoldings`） | [S-23](v1/contract.md#s-23-提交一批) ②、[S-38](v1/contract.md#s-38-起执行者) | `capability.asset-registry`（[D-040 §五 K30](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)） | 那份契约的场景 |
 | 会话持有的租户读得到 | [S-21](v1/contract.md#s-21-租户与会话范围)、[S-23](v1/contract.md#s-23-提交一批) ② | 会话那一程（[G-12](v1/contract.md#十二已知缺口)） | 那一侧的契约 |
 | 桥换代时挂起调用落 `failed{abnormal_interruption}`、不重放 | [S-37](v1/contract.md#s-37-执行者登记与撤下) | `capability.mcp-bridge` | 那份契约的场景 |
@@ -217,6 +222,17 @@
   - **登记**：catalog 依赖补 `data.tool-definition` S-6、S-18，`data.messages` S-31，`data.arrival-events` S-14、S-29，`capability.stream-assembly` S-28，`data.loop-extension` S-7；covers 相关 note 按现行内容改（`reviewed` 保持 false）；formal-tasks 未改。
   - **依据落持久记录**：设计依据下的第二张表逐行链 D-040 与产品小节；账本编号与施工标签删去；几条 2026-09-23／24 的主线裁定尚无决定记录，写「决定记录待补」并归 G-13。
   - **对消费者**：没有已采用的消费者，无迁移。**语义改变**：agent loop 把解析不了的调用也交给 `submit`，不再自己落结果；重放一批不再因运行已取消而被拒；租户不符不再以错误租户落记录；执行者对四个原语拿得到确定的交回值。
+- **2026-09-25 第二轮独立评审修复（修复波 2；候选，未冻结，原地改；评审基线 `8ad37c50`，本轮起点 HUB `7c3ef6c2`）**。本轮主线裁定链 [D-040 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)（M8、M10、M12、M13、M16、M18、M23、M29）与 [§六 N-8](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)，逐条处置见[独立评审 · 第二轮](#第二轮2026-09-25)：
+  - **查注册表的名字**（M8、M10）：[S-23](v1/contract.md#s-23-提交一批) ② 第 6 条以 `call.tool` 原样（`ModelToolName`）按 `capability.asset-registry` S-25 查，逆转写只为找执行者；注册表答「没有」→ ④ 即刻收场 `unavailable{no_such_entry}`，与「读不到」（整批 `dependencyUnavailable{registry}`）分开；批项多一种 `UnlistedCall = { call }`（报告里查不到条目、没进放行判断的调用），查得到条目即整批 `notAdmitted`。S-1、S-2、S-4、S-6、S-9、S-15、CS-1 同改；新场景 [S-69](v1/contract.md#s-69-查不到条目的调用即刻收场不可用)，examples 第 8 节加「第四支」。
+  - **撤下与上交**（M12、M13）：[S-48](v1/contract.md#s-48-本能力自己的撤除与换代) 改写——有序撤下先对开着的装配状态 `abandon`（帧流 `lost`）、再写同一个首胜收场 `failed{abnormal_interruption}`，账取 `abandon` 的 `frames`；停机仍 `"unknown"`；正确性不依赖撤下这一步写成。[S-47](v1/contract.md#s-47-依赖的提供者不可用) 删「存储回来后照常写」，改为上交之后本任撤下；[S-41](v1/contract.md#s-41-交回) ⑤ 写明交回的结果随本任丢弃。S-9、S-10、S-11、S-13、S-15、S-39、[S-62](v1/contract.md#s-62-工具侧到达装配前提的承诺) 第 6 条、S-46 同改；新场景 [S-68](v1/contract.md#s-68-有序撤下收尾在途的帧流上交之后撤下)，examples 第 6、10 节各加一段。
+  - **路由与观察者**（M16）：S-62 第 1 条路由键是（会话，目标），第 9 条只推给本会话观察者；被拒而无处可说的照旧留记录条目。
+  - **原语**（M29）：[S-39](v1/contract.md#s-39-发帧) ⑧ 形状不合的事件交给 `accept`、按原名交回并补 `trim`，`malformed` 只留事件缺席；[S-40](v1/contract.md#s-40-报账) ⑥ 补 `invalidInput`；[S-23](v1/contract.md#s-23-提交一批) ② 第 5 条多项凭据结果不同时取 ⑥ 最左失败值，⑥ 写明 `verifyToken` 的 `invalidInput` 出在第 5 步。
+  - **依据落持久记录**（TE2-1）：七处「决定记录待补」改链 D-040 §六 N-8，G-13 闭合；设计依据表加六行（N-8 命名、M8/M10、M12、M13、M16、M29）；S-25 那句改链 D-040 §七 M23；产品依据加 PF-009 §6.9（→ S-39、S-48、S-62）与 PF-011 §6.2（→ S-41、S-47、S-48），PF-006 §6.12 那一行加 S-48。
+  - **README**（M18）：补「本能力的提供者是运行时协程」。
+  - **产品依据 rev**：未变（PF-006 19、PF-012 14、PF-009 8、PF-007 18、PF-008 7、PF-014 7、PF-015 11、PF-005 5、PF-000 1、PF-011 4 仍是当前 rev）。
+  - **形式**：`Execution.tla` 与八个配置**未改**，**本轮未运行 TLC**；formal/README 语义映射写明有序撤下、上交、`UnlistedCall` 不在模型里、不作证据。
+  - **登记**：catalog 本契约依赖 `capability.asset-registry` 加 S-25、`capability.stream-assembly` 加 S-23、S-24（TE2-7）；covers 加 PF-009 §6.9、PF-011 §6.2 两条（本契约条目 62 → 64），PF-006 §6.12 那一行的三条补 S-48（`reviewed` 保持 false）；formal-tasks 未改。
+  - **对消费者**：没有已采用的消费者，无迁移。**语义改变**：注册表答「没有」从整批 `dependencyUnavailable{registry}` 变为那一项 `ended{unavailable}`；loop 多交一种批项 `UnlistedCall`；有序撤下时在途执行当场落收场（此前留给下一任）；上交之后本任不再服务；发帧的执行者对形状不合的帧拿到的是原名而不是 `malformed`；报账空批明确失败 `invalidInput`。
 
 ## 独立评审
 
@@ -241,6 +257,27 @@
 | 同上 | 同上 | X-10 产品 rev 过期 | **接受**：逐版复核，见「变化的影响」 | 契约头部；S-12、S-19、S-20、S-39、S-42 |
 | 同上 | 同上 | X-11 规格层名字无词条 | **接受**（按主线：产品正文没定义的规格层名字不立词条）：活体、执行者、失败的种类仍标「（无词条）」，已有词条的（到达装配、在途状态、发帧、执行帧、拓展件不可用处置）逐处链接 | S-1、S-7、S-11、S-37、S-39、S-63 |
 | 同上 | 同上 | X-12 账本编号与施工标签 | **接受**：改链 D-040 与产品小节；尚无决定记录的归 G-13 | 设计依据、G 表、S-42、S-43、examples、formal/README、README |
+
+### 第二轮（2026-09-25）
+
+spec-reviewer 第二轮复评，对象 v1 candidate，基线 HUB `8ad37c50`，发现表 `tmp/assets-runtimes/reviews/r2-R4a.md`（任务区）；处置依据 [D-040 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)（下称 M 编号）与 [§六 N-8](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)。
+
+| # | 发现 | 处置 | 落在哪 |
+|---|---|---|---|
+| X2-1 | 【阻断】查注册表用定义名，与注册表按模型面名字建键对不上；没登 asset-registry S-25；注册表的「没有」没有收法 | **接受**（M8、M10）：以 `call.tool` 原样（`ModelToolName`）查，逆转写只为找执行者；登记消费 S-25；「没有」→ 那一项即刻 `unavailable{no_such_entry}`，与「读不到」分开；报告里查不到条目的调用以新批项 `UnlistedCall` 交来（名字本契约取，R-34），查得到条目即整批 `notAdmitted`。注册表一侧（S-7、S-25）归 asset-registry 起草者 | [S-23](v1/contract.md#s-23-提交一批) ①②④⑤⑥⑧ 与表后两条；S-1、S-2、[S-4](v1/contract.md#s-4-依赖方向与被消费的面)、S-6、S-9、S-15、CS-1；[S-69](v1/contract.md#s-69-查不到条目的调用即刻收场不可用)；examples 第 8 节；catalog |
+| X2-2 | 【应修】宿主撤下时在途的流：三份契约三种说法；TER「撤除时不写收场」与 call-accounts S-11「计数的一方还在却丢了是违约」相抵 | **接受**（M12）：有序撤下前对每个开着的装配状态 `abandon`（`lost`），账取 `abandon` 的 `frames`，当场写首胜收场；停机仍 `"unknown"`。stream-assembly 那一半（SA2-1）由本批同一起草者在那份契约落；MRR 一侧归 R5 起草者 | [S-48](v1/contract.md#s-48-本能力自己的撤除与换代)、[S-62](v1/contract.md#s-62-工具侧到达装配前提的承诺) 第 6 条、[S-39](v1/contract.md#s-39-发帧)、S-9、S-10、S-11、S-13、S-46；[S-68](v1/contract.md#s-68-有序撤下收尾在途的帧流上交之后撤下)；examples 第 10 节 |
+| TE2-1 | 【应修】D-040 §六 N-8 没落进本契约：七处「决定记录待补」、G-13 开着、第 134 行「名字由本契约取」、verification R 行未标已裁 | **接受**：七处改链 N-8；G-13 闭合；那一行改链 N-8；R-28～R-31、R-33 标已裁 | 设计依据第二张表、[S-11](v1/contract.md#s-11-失败的种类) 两条、[S-23](v1/contract.md#s-23-提交一批) 表后、[S-37](v1/contract.md#s-37-执行者登记与撤下)、[S-43](v1/contract.md#s-43-一批依次与同一工具的并发上限)、[G-13](v1/contract.md#十二已知缺口)；本文件「报给主线」 |
+| TE2-2 | 【应修】S-40 ⑥ 没收 ⑧ 用到的 `invalidInput` | **接受**（M29）：⑥ 补 `invalidInput`，写明集合闭合、单笔不合形状走 ⑤ | [S-40](v1/contract.md#s-40-报账) ⑥⑧ |
+| TE2-3 | 【应修】S-39 ⑧ 把形状问题一律收成 `malformed` | **接受**（M29）：形状不合的事件交给 `accept`、按原名交回、照 S-62 第 4 条补 `trim`；本能力自己只在事件缺席时给 `malformed`、不补 `trim`（「不补」是本契约的推导：没交出任何一帧） | [S-39](v1/contract.md#s-39-发帧) ⑤⑧；examples 第 10 节 |
+| TE2-4 | 【应修】S-41 ⑤ 的 `escalated` 与 S-47「存储回来后照常写」给出不同收场 | **接受**（M13）：上交之后本任撤下、不再服务，删「存储回来后照常写」；交回的结果随本任丢弃，下一任扫描落 `failed{abnormal_interruption}`；等着的 `awaitForeground` 得 `runtimeStopped`、不一直等 | [S-47](v1/contract.md#s-47-依赖的提供者不可用)、[S-41](v1/contract.md#s-41-交回) ⑤、[S-48](v1/contract.md#s-48-本能力自己的撤除与换代)、S-15、第八节不变量；S-68；examples 第 6 节 |
+| TE2-5 | 【建议】同一批多项凭据核对结果不同时给哪个失败值；`verifyToken` 的 `invalidInput` 与 ⑥「先于一切」不一致 | **接受**（M29）：取 ⑥ 最左（`invalidInput` > `notAdmitted` > `admissionUnavailable`），`why` 取批内最前那个不符项的 `reason`（「批内最前」是本契约的推导）；⑥ 写明 `verifyToken` 的 `invalidInput` 出在第 5 步 | [S-23](v1/contract.md#s-23-提交一批) ② 第 5 条、⑥ |
+| TE2-6 | 【建议】S-39「有意停下」的列举漏了 agent 掐掉 | **接受**：改为「收场为 `interrupted` 的全部」并指 S-10 那几行，列举补 agent 经 `BkgJobs()` 掐掉 | [S-39](v1/contract.md#s-39-发帧) 帧流收尾那一条 |
+| TE2-7 | 【建议】S-4 与 catalog 漏登 stream-assembly S-23、S-24 | **接受**：它们是发帧原语原样交回的拒绝值出处，实质消费，补登 | [S-4](v1/contract.md#s-4-依赖方向与被消费的面)；catalog |
+| M16 | S-62 路由键与观察者范围（R5 R2-MRR-6 在本能力的同形处） | **接受**：第 1 条按（会话，目标）路由，第 9 条只推给本会话观察者；无处可说的拒绝照旧留记录条目 | [S-62](v1/contract.md#s-62-工具侧到达装配前提的承诺) 第 1、9 条 |
+| M18 | README 那句「提供者是运行时协程」 | **接受**：改为这句原文并链 M18 | [README](README.md) |
+| M23 | S-25 表下「主线裁定 2026-09-24」没有持久出处 | **顺带改链**：以 PF-006 §6.7 为准、D-040 §七 M23 | [S-25](v1/contract.md#s-25-中断一次执行) |
+
+**核对**：评审表里 TE-5、X-1、X-2 三项「兑现有误」随上面几行一并处置；X-12 的残留即 TE2-1。
 
 ## 报给主线
 
@@ -275,9 +312,13 @@
 | R-25 | **「前台超时」没有 token**：PF-006 rev 18 §6.6／§6.7 定了占位原因「前台超时」，`data.content-blocks` v1 的 S-18 没有对应的 `reason.code`，账本也没给名字；本契约不自造。前台上限到点而不许后台时，记录照写、那条消息落不下去（S-10 那一行「停下并上交」） | S-10、S-44、G-3 | 账本缺名（2026-09-24）；**已裁（主线 2026-09-24：定名 `foreground_timeout`，进 `data.content-blocks` v1 S-18）** |
 | R-26 | **参数判定的两个次序是推导**：同一项既被注册表判为不可用又参数不合时报 `unavailable`；参数不合又发起即后台被拒时报 `arguments_invalid`。简报只说「按所选命令的 `input` 校验」，没说与另两种即刻收场谁先 | S-23 ④ | 推导待确认（2026-09-24）；**已裁（主线 2026-09-24 确认）** |
 | R-27 | **单函数工具同样判参数**：简报写「按所选命令的 `input`」；本契约把单函数工具（按它的 `input`）一并纳入同一种类——否则 MCP 条目与单函数工具的坏参数会原样交给执行者，与多命令工具两套规矩 | S-11、S-23 ④ | 推导待确认（2026-09-24）；**已裁（主线 2026-09-24 确认）** |
-| R-28 | **本轮由本契约取的名字**（D-040 §五只给了语义）：失败值 `notInForeground`；批项 `AdmittedCall`／`UnparseableCall`；执行记录的 `reportedCost`；四个原语的交回值——等待 `answered{value, by}`／`ended{outcome}`，发帧 `accepted`／`dropped{rejected{value}｜notAFrame｜executionEnded}`，报账逐笔 `recorded`／`rejected{value}`（含 `notToolReported`）／`executionEnded`，交回 `settled{outcome}`／`discarded`／`escalated` | [S-6](v1/contract.md#s-6-执行记录)、[S-12](v1/contract.md#s-12-等待)、[S-23](v1/contract.md#s-23-提交一批)、[S-39](v1/contract.md#s-39-发帧)～[S-41](v1/contract.md#s-41-交回) | 名字待过目（2026-09-24） |
-| R-29 | **租户核对排在判重之前**：K50 只说判重在凭据核对之前；本契约把会话租户的核对再往前放一步，否则别的租户的调用方能据幂等返回读到这个会话里登记过哪些调用 | [S-23](v1/contract.md#s-23-提交一批) ② | 推导待确认（2026-09-24） |
-| R-30 | **交回写不下去时 `escalated`**：收场写不下去就上交（PF-011），这次执行此刻没有收场，由下一任恢复扫描按停机处置；执行者不重交 | [S-41](v1/contract.md#s-41-交回) ⑤⑥ | 推导待确认（2026-09-24） |
-| R-31 | **几条主线裁定尚无决定记录**：一批依次、本地实现撤下不影响在途、落点执行时不到位落 `failed{environment_unavailable}`（2026-09-23）；参数不合即刻失败并带用法、未知键一律拒、单函数工具同一规则、即刻收场的次序（2026-09-24） | [G-13](v1/contract.md#十二已知缺口) | 决定记录待补 |
+| R-28 | **本轮由本契约取的名字**（D-040 §五只给了语义）：失败值 `notInForeground`；批项 `AdmittedCall`／`UnparseableCall`；执行记录的 `reportedCost`；四个原语的交回值——等待 `answered{value, by}`／`ended{outcome}`，发帧 `accepted`／`dropped{rejected{value}｜notAFrame｜executionEnded}`，报账逐笔 `recorded`／`rejected{value}`（含 `notToolReported`）／`executionEnded`，交回 `settled{outcome}`／`discarded`／`escalated` | [S-6](v1/contract.md#s-6-执行记录)、[S-12](v1/contract.md#s-12-等待)、[S-23](v1/contract.md#s-23-提交一批)、[S-39](v1/contract.md#s-39-发帧)～[S-41](v1/contract.md#s-41-交回) | 名字待过目（2026-09-24）；**已裁（[D-040 §六 N-8](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) 接受）** |
+| R-29 | **租户核对排在判重之前**：K50 只说判重在凭据核对之前；本契约把会话租户的核对再往前放一步，否则别的租户的调用方能据幂等返回读到这个会话里登记过哪些调用 | [S-23](v1/contract.md#s-23-提交一批) ② | 推导待确认（2026-09-24）；**已裁（D-040 §六 N-8「租户核对先于判重」）** |
+| R-30 | **交回写不下去时 `escalated`**：收场写不下去就上交（PF-011），这次执行此刻没有收场，由下一任恢复扫描按停机处置；执行者不重交 | [S-41](v1/contract.md#s-41-交回) ⑤⑥ | 推导待确认（2026-09-24）；**已裁（D-040 §六 N-8；上交之后本任撤下见 §七 M13）** |
+| R-31 | **几条主线裁定尚无决定记录**：一批依次、本地实现撤下不影响在途、落点执行时不到位落 `failed{environment_unavailable}`（2026-09-23）；参数不合即刻失败并带用法、未知键一律拒、单函数工具同一规则、即刻收场的次序（2026-09-24） | [G-13](v1/contract.md#十二已知缺口) | 决定记录待补；**已闭合（D-040 §六 N-8 登了这七条，G-13 关）** |
 | R-32 | **会话持有的租户由谁给读面**：提交时要读它，会话那一侧还没有契约 | [G-12](v1/contract.md#十二已知缺口) | 与其他契约的缺口 |
-| R-33 | **报告写着某个接入点「没有」生效的持有、而那个接入点的动作仍被提交时，按读不到处理**（整批 `dependencyUnavailable{registry}`）：这只会是上游不一致（没有持有就钉不出动作集）；本契约取明确失败，不替它补一份持有、也不落 `unavailable` | [S-23](v1/contract.md#s-23-提交一批) ② | 推导待确认（2026-09-24） |
+| R-33 | **报告写着某个接入点「没有」生效的持有、而那个接入点的动作仍被提交时，按读不到处理**（整批 `dependencyUnavailable{registry}`）：这只会是上游不一致（没有持有就钉不出动作集）；本契约取明确失败，不替它补一份持有、也不落 `unavailable` | [S-23](v1/contract.md#s-23-提交一批) ② | 推导待确认（2026-09-24）；**已裁（D-040 §六 N-8）**。M10 之后这种调用多半在查条目那一步就得「没有」（失去生效持有的接入点，动作条目不在表里），本条只剩「条目在、持有却写没有」的上游不一致 |
+| R-34 | **本轮由本契约取的名字：批项 `UnlistedCall = { call }`**——D-040 §七 M8、M10 给了语义（报告里查不到条目的调用不进 `admit`、由本能力收 `unavailable{no_such_entry}`），没有给批项的名字；没有它，loop 无从把一个没凭据的调用交进 `submit`。另有两处推导：`UnlistedCall` 查得到条目 → 整批 `notAdmitted`（宁拒不执行、不信交来一方说的「查不到」）；`{no_such_entry}` 是执行记录上的原因、不是块上的 `reason.code`（`data.content-blocks` S-18 规定 `unavailable` 不带） | [S-23](v1/contract.md#s-23-提交一批) ①②④ | 名字待过目；推导待确认（2026-09-25） |
+| R-35 | **`data.messages` S-14 的对应表没有「工具执行运行时有序撤下」这一行**：M12 之后本能力有序撤下时对开着的帧流调 `abandon`，`ending` 落 `lost`；那张表现有「执行者换了代」一行只写 MCP 桥。建议甲在那张表补一行（或把「执行者换了代」写宽到「执行那一侧的承载者撤下」），本契约 S-39 已按 `lost` 写 | `data.messages/v1#S-14`；本契约 [S-39](v1/contract.md#s-39-发帧)、[S-48](v1/contract.md#s-48-本能力自己的撤除与换代) | 与其他契约的措辞对齐（甲那一侧） |
+| R-36 | **`data.content-blocks` S-18 `abnormal_interruption` 那一行只写「据点停过机、恢复时追补；或 MCP 桥换代」**：M12 之后本能力有序撤下时也当场写这个值；取值与收场不变，只是那一行的说明窄了一路 | `data.content-blocks/v1#S-18`；本契约 [S-10](v1/contract.md#s-10-占位原因) | 描述对齐（甲那一侧） |
+| R-37 | **上交之后的那条条目落在哪**：PF-011 §6.3「上交必须留下条目」，而本能力上交恰因为执行记录与会话日志写不下去——那条条目此刻进不了会话日志。本契约只写到「上交、撤下」，条目由接手那一层（部署装配）留在哪、以什么形式（结构化日志？），本版没有答案 | [S-47](v1/contract.md#s-47-依赖的提供者不可用)、[S-41](v1/contract.md#s-41-交回) ⑤ | 与其他契约的缺口（装配与观测那一程）；**不自决** |

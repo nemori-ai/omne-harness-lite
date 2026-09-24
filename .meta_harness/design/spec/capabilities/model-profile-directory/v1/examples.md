@@ -114,10 +114,12 @@ B 给自己的租户层配了 `K_B`；B 在个人组织 `P` 里给 `T_P` 配了 
 | `credentialUnavailable` | 见第 4 节第 5 步 | 自建档案、这个租户没配自己那一把——出厂格那一把配没配都不取 | [S-20](contract.md#s-20-resolvecredential) ⑤⑧ |
 | `unavailable` | `registerProfile(T_A, …)`，成员资格判定以 `unavailable` 失败 | 读不到 ≠ 无权，**不折成 `notAuthorized`** | [S-10](contract.md#s-10-配置资格谁能在哪一格写) |
 
-**判定次序的三条回归例：**
+**判定次序的五条回归例：**
 
 | 调用 | 预期 | 为什么不是另一个 |
 |---|---|---|
 | `registerProfile(T_B, organization(O), {routeName: "acme/finetune-7b", …})` | `notAuthorized` | `O` 的组织层里确有这个名字，但授权先于名字判定——无权者拿不到 `routeNameTaken`（[S-14](contract.md#s-14-registerprofile) 末段） |
 | 同上，**成员资格判定以 `unavailable` 失败**（故障注入） | **`unavailable`** | 授权判不出来，名字不再判：`unavailable` 排在 `routeNameTaken` 之前（[S-13](contract.md#s-13-这一节每个操作写全九件事)）。**得到 `routeNameTaken` 即违约**——那是把名字交给了一个没判出有权的调用方 |
 | `withdrawProfile(T_C, {origin: official, routeName: "openai/gpt-5"})` | `officialProfileReadOnly` | 结构性禁止先于授权（[S-15](contract.md#s-15-withdrawprofile) 末段）；`updateProfile`、`relistProfile` 同样先于授权 |
+| `updateProfile(T_C, {origin: custom, scope: organization(O), routeName: "acme/finetune-7b"}, {parameters: {maxOutputTokens: 1000000}})`——`O` 不在 `T_C` 的链上，这个 `patch` 会让那一行改完之后过不了 `data.model-profile/v1#S-18` | **`notAuthorized`** | 「改完的整份文档过 S-24」要读出那一行才判得出，排在授权与解析之后；**得到 `invalidInput{max_output_exceeds_profile}` 即违约**——那等于告诉无权者那一行在、且输出上限小于 10⁶，二分几次就测出上限（[S-31](contract.md#s-31-updateprofile) ⑥ 与末段；[D-040 §七 M14](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）。那一行不存在时同样 `notAuthorized`，两种答案分不开 |
+| 同上，但 `patch` 提到定义域以外的成员 `routeName` | `invalidInput{malformed}` | 只看输入本身的形状，仍在最左——它不泄露那一行的任何事（[S-31](contract.md#s-31-updateprofile) ③⑥） |
