@@ -75,7 +75,10 @@ V-2～V-10 **一条执行记录也没有**。起草时的手核只保证 `exampl
   - **新增**：`$defs/InlineBytes`（内联那一串 base64 的编码规则抽成共用定义，语音块与图块的 `inline` 改 `$ref` 它，**形状不变**；工具定义卸载的内联原始结果随之引用它）；S-19「派生块模态不同于原块」一条（Schema 管不到，V-3 多一项）；S-34 附件落块规则。
   - **措辞**：S-3 执行帧块由「帧入口」编号（与 `data.arrival-events` S-8 统一）；S-18 `abnormal_interruption` 的触发加「桥换代」；G-5（指路）、G-6（D-038）闭合；新增 G-7（前台上限的中断原因）、G-8（主线裁定无决定记录）。
   - V-1 已按新形状本地自检一次（[上文](#本地自检)）；V-4 的 S-32 那条场景的原因集合以 S-18 新表为准。
-- **[G-7](v1/contract.md#八已知缺口) 被裁决**（前台上限的中断原因）：若补一行，`PlaceholderReason` 多一个取值 ⇒ **表示改变**（冻结后出 v2），V-1 与 V-4 的 S-32 重跑。
+- **G-7 已裁决（主线 2026-09-24，候选未冻结，原地改）**：PF-006 rev 18 §6.7 加了「前台超时」一行，主线定名 `foreground_timeout`、落 `interrupted`。
+  `PlaceholderReason` 十一值 → 十二值；[S-18](v1/contract.md#s-18-占位原因与它落在哪一格) 表加一行、那段缺口引文改写，CS-4、设计依据表与抬头各一处，G-7 划掉；Schema 的 `PlaceholderReason` 枚举与 `ToolResultBlock` 里 `interrupted` 那一支各加一个值；`examples.md` 加 `b99e`（通过）、`b99f`（配错格，拒绝）与 `$defs/PlaceholderReason` 的 `"foreground_timeout"`（通过）三行，`"interrupted_by_timeout"` 那一行仍拒、理由改写。
+  **表示改变**：v1 是 candidate、未冻结，所以原地改，不出 v2。**消费者影响**：`capability.tool-execution-runtime` 的 S-10 那一行由「本版没有取值」转为 `foreground_timeout`、它的 G-3 闭合；`data.messages` v1 那一处「还没有原因取值（它的 G-7）」的说法过时，**待那份契约的 owner 改**（已报主线）。
+  **证据**：本地自检只重跑了本节涉及的实例——工具结果块与 `PlaceholderReason` 两类共 25 处（Draft 2020-12，`jsonschema` 按仓库 `uv.lock`，脚本在任务暂存区），**0 处不符**；V-1 其余实例与 V-4 的 S-32 未重跑。
 - **[G-4](v1/contract.md#八已知缺口) 被裁决**（词法）：Schema 收紧 ⇒ **出 v2**，V-1 按新形状重跑，旧实例中依赖宽松形状的要重新判。
 - **[G-1](v1/contract.md#八已知缺口) 被裁决**（存储）：`AttachmentRef` 的形状多半不变；V-9 的「引用可解引用」一行与 S-23 的落点由那个 topic 给出，届时补进 V-8 走查。
 - **跨进程演化启动**：V-9 从「无法演练」转为**必须演练**；[第四节](v1/contract.md#四装配给与协议给)右列八行从「待兑现」转为「须由协议兑现」。

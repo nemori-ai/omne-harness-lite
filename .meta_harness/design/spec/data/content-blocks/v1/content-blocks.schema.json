@@ -333,8 +333,7 @@
 
     "PlaceholderReason": {
       "title": "PlaceholderReason",
-      "description": "S-18：占位的原因，工具结果块 reason.code 的闭合取值，恰十一个；各自落在哪一种收场是写死的：backgrounded_auto、backgrounded_by_user、backgrounded_by_preemption、backgrounded_at_start → backgrounded；user_interrupted、interrupted_by_preemption、human_declined、session_archived、run_cancelled、terminated_by_agent → interrupted；abnormal_interruption → failed。它是规格层的取值名，不是统一语言词条；前八个对应 PF-006 §6.7「占位消息一律要说清原因」表里的行，后三个（backgrounded_at_start、run_cancelled、terminated_by_agent）是主线 2026-09-23 裁定补的三行（待产品负责人确认、随 PF-006 修订补进那张表）。",
-      "$comment": "「前台上限到点而工具不许转后台」落成 interrupted，本版仍没有对应取值——缺口 G-7，owner PF-006；不借用相近的值。",
+      "description": "S-18：占位的原因，工具结果块 reason.code 的闭合取值，恰十二个；各自落在哪一种收场是写死的：backgrounded_auto、backgrounded_by_user、backgrounded_by_preemption、backgrounded_at_start → backgrounded；user_interrupted、interrupted_by_preemption、human_declined、session_archived、run_cancelled、terminated_by_agent、foreground_timeout → interrupted；abnormal_interruption → failed。它是规格层的取值名，不是统一语言词条；前八个对应 PF-006 §6.7「占位消息一律要说清原因」表里的行，接着三个（backgrounded_at_start、run_cancelled、terminated_by_agent）是主线 2026-09-23 裁定补的三行（待产品负责人确认、随 PF-006 修订补进那张表），最后一个 foreground_timeout 对应 PF-006 rev 18 §6.7「前台超时」一行（前台上限到点而工具不许转后台），取值名由主线 2026-09-24 定。",
       "type": "string",
       "enum": [
         "user_interrupted",
@@ -347,7 +346,8 @@
         "abnormal_interruption",
         "backgrounded_at_start",
         "run_cancelled",
-        "terminated_by_agent"
+        "terminated_by_agent",
+        "foreground_timeout"
       ]
     },
 
@@ -368,7 +368,7 @@
           "if": { "properties": { "outcome": { "const": "interrupted" } }, "required": ["outcome"] },
           "then": {
             "required": ["reason"],
-            "properties": { "reason": { "properties": { "code": { "enum": ["user_interrupted", "interrupted_by_preemption", "human_declined", "session_archived", "run_cancelled", "terminated_by_agent"] } } } }
+            "properties": { "reason": { "properties": { "code": { "enum": ["user_interrupted", "interrupted_by_preemption", "human_declined", "session_archived", "run_cancelled", "terminated_by_agent", "foreground_timeout"] } } } }
           }
         },
         {

@@ -53,6 +53,7 @@
 | 1.1，但 `provenance` 整个缺席 | 任一操作 | `invalidInput` | [S-5](contract.md#s-5-接入点持有的寻址)：`provenance` 不合形状不当它是「来处未知、照常出示」 |
 | 1.1，但 `settings.credential` 缺席而 `provenance.credential` 是 `"tenant"` | 任一操作 | `invalidInput` | 同上：两者一在一缺 |
 | 1.1，`provenance.credential` 是 `"session"`（会话创建参数把一个引用配在了会话格） | 任一需要出示凭据的操作 | `credentialUnavailable`，不出示 | [S-9](contract.md#s-9-凭据的出示与取用) 第 2 条：会话格不持有资产，没有可解引用的持有 |
+| 1.1，`provenance.credential` 是 `"organization"`（求值错把一个引用算成来自组织格） | 任一需要出示凭据的操作 | `credentialUnavailable`，不出示，引用不交给保管方 | [S-9](contract.md#s-9-凭据的出示与取用) 第 2 条：组织那一层不持有 MCP 凭据（PF-002 rev 18） |
 | 1.1，`provenance.connectionTarget` 是 `"session"`、`provenance.credential` 是 `"tenant"` | 任一需要出示凭据的操作 | `credentialUnavailable`，不出示 | [S-9](contract.md#s-9-凭据的出示与取用) 第 3 条：会话格在设置层序上比租户格更具体 |
 | 1.1 去掉 `tenant` | 任一操作 | `invalidInput` | [S-5](contract.md#s-5-接入点持有的寻址)：身份参数没有默认值 |
 | 1.1 的 `endpoint` 改为 `{"category": "tool", "name": "github"}` | 任一操作 | `invalidInput` | [S-5](contract.md#s-5-接入点持有的寻址)：类别必须是 `mcp` |
@@ -253,7 +254,7 @@
 | 换来凭据后保管方此刻不可用 | `dependencyUnavailable`；换来的凭据丢弃；绑定留 `pending`、到 08:15 作废 | [S-23](contract.md#s-23-completeoauth) ⑧ |
 | `beginOAuth` 对 `mcp:github`（stdio） | `oauthNotApplicable` | [S-22](contract.md#s-22-beginoauth) ③ |
 | `beginOAuth` 的 `scope` 是工作区格 | `oauthNotApplicable` | 同上：工作区那一级取不了 |
-| `beginOAuth` 的 `scope` 是组织格 `{"layer": "organization", "organization": "org_t1"}` | 照常发起 | 能否配上由资产治理写面按 U-1 判（[G-13](contract.md#十已知缺口)） |
+| `beginOAuth` 的 `scope` 是组织格 `{"layer": "organization", "organization": "org_t1"}` | `oauthNotApplicable`；不写绑定 | 同上：组织那一层不持有 MCP 凭据（PF-002 rev 18；原 G-13 关闭） |
 | 08:10 拿到 `cred_91c2`，但写配值时治理中心不可达；人没再试 | 09:10 保管方丢弃那份凭据，`oab_3e1f` 转 `revoked` | [S-37](contract.md#s-37-oauth-取到的引用配不上就作废) |
 
 **7.2 续期与作废**（接 7.1，配值已是 `cred_91c2`）：

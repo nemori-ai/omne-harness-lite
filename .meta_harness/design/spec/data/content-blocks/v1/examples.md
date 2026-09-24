@@ -212,6 +212,8 @@
 | `{"id": "b99", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_05", "outcome": "interrupted", "reason": {"code": "run_cancelled", "text": "运行被取消"}, "blocks": []}` | 通过 | — | [S-18](contract.md#s-18-占位原因与它落在哪一格)：运行被取消而它还在前台——**不借** `user_interrupted` |
 | `{"id": "b99a", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_19", "outcome": "backgrounded", "reason": {"code": "backgrounded_at_start", "text": "发起时就在后台，跑完会通知"}, "blocks": []}` | 通过 | — | [S-18](contract.md#s-18-占位原因与它落在哪一格) |
 | `{"id": "b99b", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_20", "outcome": "interrupted", "reason": {"code": "terminated_by_agent", "text": "已被 agent 掐掉"}, "blocks": []}` | 通过 | — | [S-18](contract.md#s-18-占位原因与它落在哪一格) |
+| `{"id": "b99e", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_21", "outcome": "interrupted", "reason": {"code": "foreground_timeout", "text": "前台跑到上限，这个工具不许转后台"}, "blocks": []}` | 通过 | — | [S-18](contract.md#s-18-占位原因与它落在哪一格)：前台超时——**不借** `user_interrupted` |
+| `{"id": "b99f", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_21", "outcome": "backgrounded", "reason": {"code": "foreground_timeout", "text": "……"}, "blocks": []}` | 拒绝 | `malformed` | [S-18](contract.md#s-18-占位原因与它落在哪一格)：`foreground_timeout` 只配被中断；允许后台的到点转后台，原因是 `backgrounded_auto` |
 | `{"id": "b99c", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_05", "outcome": "backgrounded", "reason": {"code": "run_cancelled", "text": "运行被取消"}, "blocks": []}` | 拒绝 | `malformed` | [S-18](contract.md#s-18-占位原因与它落在哪一格)：`run_cancelled` 只配被中断 |
 | `{"id": "b99d", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_19", "outcome": "interrupted", "reason": {"code": "backgrounded_at_start", "text": "……"}, "blocks": []}` | 拒绝 | `malformed` | [S-18](contract.md#s-18-占位原因与它落在哪一格)：配错格 |
 | `{"id": "b9a", "kind": "tool_result", "visibility": {"toHuman": true, "toModel": true}, "callId": "call_05", "outcome": "interrupted", "reason": {"code": "user_interrupted", "text": ""}, "blocks": []}` | 拒绝 | `malformed` | [S-15](contract.md#s-15-工具结果块)：原因要说清，`text` 非空 |
@@ -265,7 +267,8 @@
 | `$defs/PlaceholderReason` | `"backgrounded"` | 拒绝 | `malformed` | [S-18](contract.md#s-18-占位原因与它落在哪一格)：原因不是收场，转后台细分为三个原因 |
 | `$defs/PlaceholderReason` | `"run_cancelled"` | 通过 | — | [S-18](contract.md#s-18-占位原因与它落在哪一格)：主线裁定补的三行之一 |
 | `$defs/PlaceholderReason` | `"terminated_by_agent"` | 通过 | — | [S-18](contract.md#s-18-占位原因与它落在哪一格) |
-| `$defs/PlaceholderReason` | `"interrupted_by_timeout"` | 拒绝 | `malformed` | [S-18](contract.md#s-18-占位原因与它落在哪一格)、[G-7](contract.md#八已知缺口)：前台上限到点而不许转后台**没有取值**——停下报缺口，不自造取值 |
+| `$defs/PlaceholderReason` | `"foreground_timeout"` | 通过 | — | [S-18](contract.md#s-18-占位原因与它落在哪一格)：前台超时（主线 2026-09-24 定名；原 G-7 闭合） |
+| `$defs/PlaceholderReason` | `"interrupted_by_timeout"` | 拒绝 | `malformed` | [S-18](contract.md#s-18-占位原因与它落在哪一格)：前台超时的取值名是 `foreground_timeout`，**不收近义的另一个名字** |
 | `$defs/Modality` | `"audio"` | 通过 | — | [S-6](contract.md#s-6-模态由媒体类型判定)：对应词条的「语音 Voice」 |
 | `$defs/Modality` | `"voice"` | 拒绝 | `malformed` | [S-6](contract.md#s-6-模态由媒体类型判定)：`voice` 是块的类型，模态的 token 是 `audio` |
 | `$defs/Modality` | `"file"` | 拒绝 | `malformed` | [S-6](contract.md#s-6-模态由媒体类型判定)：文件不是一种模态 |

@@ -404,8 +404,18 @@
 
 第二、三、五条调用**过了模型面、判定不过**——这正是 [S-7](contract.md#s-7-多命令-input-的生成规则) 第 3 条的义务：过模型面不等于参数合格，参数只由 `commands[c].input` 判。
 
-**只带命令清单的写法**：把三个命令的 `input` 都换成 `{"type": "object", "properties": {}}`（[S-5](contract.md#s-5-多命令工具)），生成结果**逐字不变**——`enum` 与命令表只来自命令名与命令说明；这正是 PF-006 §5.3「两种写法在模型面前一模一样」。
+**只带命令清单的写法**：把三个命令的 `input` 都换成 `{"type": "object", "properties": {}, "additionalProperties": true}`（[S-5](contract.md#s-5-多命令工具)），生成结果**逐字不变**——`enum` 与命令表只来自命令名与命令说明；这正是 PF-006 §5.3「两种写法在模型面前一模一样」。
 变的只是判定：第二、三、五条调用此时判定也过——**参数对不对由工具自己判**（PF-006 §5.3 那张表第一行）；`{"command": "read", "args": 5}` 仍在模型面就不过，`{"command": "delete", "args": {}}` 仍不过。
+
+**`additionalProperties` 没写时按 `false` 判**（[S-5](contract.md#s-5-多命令工具) 末条，主线裁定 2026-09-24）——换成 `{"type": "object", "properties": {}}`（不写 `additionalProperties`）时，生成结果同样逐字不变，判定却与上一段不同：
+
+| 调用 | 按所选命令的 `input` 判 |
+|---|---|
+| `{"command": "read", "args": {}}`、`{"command": "read"}` | 过：没有键 |
+| `{"command": "list", "args": {"id": "n1"}}` | **不过**：`id` 不在 `properties` 里，而 `input` 没显式收 |
+| `{"command": "read", "args": {"id": "n1"}}` | **不过**：同上——这样写的三个命令都是「不收任何参数键」 |
+
+第 2 节 `read` 的 `input` 若去掉 `"additionalProperties": false`，判定**不变**：`{"id": "n1", "ignore_case": true}` 照样不过（`ignore_case` 不在 `properties` 里）。
 
 ## 10. Schema 挡不住、但同样非法的
 

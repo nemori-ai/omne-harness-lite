@@ -18,7 +18,7 @@
 | `deploy` | 工具：没有 `allowBackground`（不能后台），没有 `timeout` |
 | `confirm_plan` | 工具：执行中会进一次等待，挂一张决策卡片，不给到点 |
 | `search_web` | 这次尝试里注册表放在原位上的**替换件**（对端连不上） |
-| `fs` | 多命令工具；命令 `grep` 的说明是「按正则在文件里找行」，`input` 是 `{ path: string（必填，要找的路径）, pattern: string（必填，正则）, ignoreCase: boolean（可选，是否忽略大小写） }`、`additionalProperties: false`；命令 `peek` 只带命令清单（`input` 为 `{"type": "object", "properties": {}}`） |
+| `fs` | 多命令工具；命令 `grep` 的说明是「按正则在文件里找行」，`input` 是 `{ path: string（必填，要找的路径）, pattern: string（必填，正则）, ignoreCase: boolean（可选，是否忽略大小写） }`、**没写** `additionalProperties`（判时按 `false` 读，`data.tool-definition/v1#S-5` 末条）；命令 `pwd` 的说明是「给出当前目录」，`input` 为 `{"type": "object", "properties": {}}`（不收任何参数键）；命令 `peek` 只带命令清单（`input` 为 `{"type": "object", "properties": {}, "additionalProperties": true}`） |
 | `tok_*` | 放行凭据，各自绑定 `(ses_1, CallId, 生效参数)` |
 
 「交付」指消息与执行记录在同一次写里定下、耐久地等着追加；「送达」指追加进会话日志成功（[S-19](contract.md#s-19-送达)）。
@@ -146,6 +146,7 @@
 | `fs(call_e, {command: "grep", args: {path: "src", pattern: "TODO", ignore_case: true}})` | `ended{failed}`，记录上种类 `arguments_invalid`，执行者不起、外部效果「已确定未发生」 | `ignore_case` 这个键 `grep` 不收；用法：`grep — 按正则在文件里找行`，参数表 `path`（string，必填，要找的路径）· `pattern`（string，必填，正则）· `ignoreCase`（boolean，可选，是否忽略大小写） |
 | `fs(call_f, {command: "grep", args: {path: "src"}})` | 同上 | 缺必填键 `pattern`；用法同上 |
 | `fs(call_g, {command: "find", args: {}})` | 同上 | `find` 不是 `fs` 的命令；带 `fs` 的命令清单（每个命令一行，同模型面前那一份） |
-| `fs(call_h, {command: "peek", args: {anything: 1}})` | `accepted{foreground}` | ——（`peek` 只带命令清单，收任何一个对象，对不对由工具自己判） |
+| `fs(call_i, {command: "pwd", args: {path: "src"}})` | 同上 | `path` 这个键 `pwd` 不收；用法：`pwd — 给出当前目录`，这个命令没有声明参数 |
+| `fs(call_h, {command: "peek", args: {anything: 1}})` | `accepted{foreground}` | ——（`peek` 显式写了 `additionalProperties: true`，收任何一个对象，对不对由工具自己判） |
 
 批里其余合格的项照常 `accepted`；**不是** `invalidInput`：那是本操作的输入不合形状，这里是对一次调用的判定。

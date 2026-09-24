@@ -56,6 +56,7 @@
 | **工具定义必须能直接构造出各家模型供应商要求的工具 payload**：三家的模型面条目都是同一份三元组 `{name, description, 参数 schema}`、只差键名与外壳；参数 schema 顶层 `type: "object"`；每个参数带说明；Anthropic 的工具名正则不含 `:` | [研究 V-1～V-4](../../../../../research/tool-definition-shape-sources/evidence.md)，产品负责人 2026-09-24 要求（V 组取证钉在主检出 `tmp/sources/extracted/`，只对抓取当日的页面成立）；「说明必填」的产品正文是 [PF-006 §5.3](../../../../product/PF-006-tools-and-skills/design.md#工具说明与每个参数的说明必填)（rev 19） | S-4、S-6、S-7、S-18、S-26、[第七节](#七装配给与协议给)、G-1、G-12 |
 | **多命令工具的模型面只支持 flat 形**：`command` 枚举带命令表说明、`args` 只说「是一个对象」，不生成 `oneOf` 判别联合；判定仍按所选命令的 `input` | 产品负责人裁定 2026-09-24，落在 [PF-006 §5.3](../../../../product/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡)（rev 19：模型面前只有命令清单一种样子）；D-038 Q5「一份 schema 带判别字段」的 flat 读法；对照 omne-next `multi_command.py` 默认 `dispatch_mode="flat"`（[研究 O-2](../../../../../research/tool-definition-shape-sources/evidence.md#o-2-多命令范式-basemulticommandtool)） | S-5、S-7、S-8、CS-1、G-3、G-12 |
 | **MCP 来源定义的说明与参数 schema 由桥做最小规范化**（缺说明补占位、剥 `$schema`／`title`、`{"type": "object"}` 视为无参数） | 主线裁定 2026-09-24（`capability.mcp-bridge/v1#S-17`；缘起 [PF-006 decisions §四「MCP 动作缺说明」](../../../../product/PF-006-tools-and-skills/decisions.md#四已知的来源问题)） | S-17 |
+| **判参数时未知键一律拒**：`input` 顶层没写 `additionalProperties` 按 `false` 读，作者显式写 `true` 或一份 schema 才收 | 主线裁定 2026-09-24；依据 [研究 V-5](../../../../../research/tool-definition-shape-sources/evidence.md) 结论 ③（没有 inspect 时模型臆造参数名） | S-5、S-7 |
 | 规格形式 | [SYS-SPEC](../../../../foundation/cross-system-constraints/requirements.md#sys-spec) | S-14、S-18、S-26～S-28 |
 | 部署边界 | [SYS-DEPLOY](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy) | [第七节](#七装配给与协议给) |
 
@@ -208,7 +209,13 @@ MCP 列举怎样生成定义（`capability.mcp-bridge` v1 的 S-17）；技能�
   命令没有自己的能力标识、持有、设置或权限，随工具一起被持有、配置与授权；命令名只在这个工具之内有意义。
 - **定义里带多少，是作者的权衡**（[PF-006 §5.3](../../../../product/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡)）：
   只带命令清单、每个一句话，或带全部命令的完整参数，系统不替他选。**两种写法的模型面相同**（[S-7](#s-7-多命令-input-的生成规则)：模型面不展示任何命令的参数 schema；PF-006 rev 19「模型面前只有紧凑的命令清单一种样子」）；带多少只改变判定有多严、`Tools().inspect` 与 `help` 答得多细。
-  **只带命令清单的写法**：各命令的 `input` 写 `{"type": "object", "properties": {}}`（收任何一个对象作参数——[S-4](#s-4-单函数工具) 第 1 条要它顶层是对象）：交上来的参数系统据以判的只有「是一个对象」，**对不对由工具自己判**；`Tools().inspect` 答得出的只有命令清单（作者带了 `help` 的，还有那段文本）（PF-006 §5.3 那张表第一行）。
+  **只带命令清单的写法**：各命令的 `input` 写 `{"type": "object", "properties": {}, "additionalProperties": true}`（收任何一个对象作参数——[S-4](#s-4-单函数工具) 第 1 条要它顶层是对象，`additionalProperties: true` 按下一条必须显式写）：交上来的参数系统据以判的只有「是一个对象」，**对不对由工具自己判**；`Tools().inspect` 答得出的只有命令清单（作者带了 `help` 的，还有那段文本）（PF-006 §5.3 那张表第一行）。
+  只写 `{"type": "object", "properties": {}}` 的命令是**不收任何参数键**的命令，不是「只带命令清单」。
+- **判参数时，`input` 顶层没写 `additionalProperties` 就按 `false` 读**（主线裁定 2026-09-24）：一次调用的参数按 `input` 判——单函数工具是它的 `input`（[S-4](#s-4-单函数工具)），多命令工具是所选命令的 `commands[c].input`（[S-7](#s-7-多命令-input-的生成规则) 第 3 条）——时，顶层 `properties` 以外的键**一律不收**；
+  作者在 `input` 顶层**显式**写了 `"additionalProperties": true` 才收下这些键，写的是一份 schema 就按那份 schema 判。这是本契约对 `input` 的读法，**不是 Draft 2020-12 的原义**（原义下没写即收）；判由执行运行时做（`capability.tool-execution-runtime/v1` 的 S-11，失败种类 `arguments_invalid`）。
+  依据：[研究 V-5](../../../../../research/tool-definition-shape-sources/evidence.md) 结论 ③——没有 `Tools().inspect` 时模型会臆造参数名（`openai/gpt-5.6-sol` 猜了 `ignore_case`），静默收下那个键，它就据错误的结果作答。
+  这与上一条「对不对由工具自己判」不冲突：这一条就是判的规则，作者想自己判，就显式写 `true`。
+  **只管顶层**：`properties` 成员里的对象 schema、`items` 里的对象 schema 按原义读（本契约的推导：裁定说的是 `input`，参数表也只列顶层）。
 
 ### S-6 模型面只有一个条目
 
@@ -276,6 +283,7 @@ modelName(d)   ≝  d.name 里每一个 ":" 换成 "__"     （S-18 保证它可
    [第七节](#七装配给与协议给)的「任何节点算出同一个值」就不成立。
 3. **判定仍以 `commands[c].input` 为准**：作者写的完整参数 schema 用于判一次调用的参数、用于 `Tools().inspect` 与作者声明的 `help` 命令给出的用法，**不用于模型面**。
    `modelInput` 只管得到「`command` 是一个命令名、`args` 是一个对象、没有别的成员」，**不替任何命令判参数**。
+   判时 `commands[c].input` 顶层没写 `additionalProperties` 按 `false` 读（[S-5](#s-5-多命令工具) 末条，主线裁定 2026-09-24）。
 4. **`args` 缺席等价于 `{}`**：`{"command": c}` 与 `{"command": c, "args": {}}` 是同一次调用，按 `commands[c].input` 判 `{}`。
 5. **命令 `input` 里不许有根相对的 `$ref`（以 `#` 开头）与 `$id`**（主线裁定 2026-09-23，待产品负责人确认；账本 S5-f），违反即 `malformed`（M24）。
    flat 形不再把命令 `input` 嵌进 `modelInput`，**判定时的嵌入问题仍在**：命令 `input` 存在一份更大的定义里，按它自己作根解析还是按所在文档解析，

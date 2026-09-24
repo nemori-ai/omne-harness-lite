@@ -100,7 +100,14 @@ V-1～V-8 **一条执行记录也没有**。起草时的手核只保证 `example
   实例第 4 节：4.1 两项加 `normalized: false`；表里六行由「排除」或 `d.name` 兜底改为规范化后成条目，另加四行（`title` 剥掉而同名参数留着、`$ref`／`$defs` 仍排除、布尔成员 schema 仍排除、`additionalProperties` 而无 `properties` 仍排除）。
   **语义改变**：参数无说明、带 `$schema`／`title`、只写 `{"type": "object"}` 的常见 MCP 动作从「被排除、对 agent 不可见」变为成条目；缺说明的动作在 agent 面前的说明由它的名字变为「对端未提供说明」。**操作、失败值集合与条款编号都没有变**；注册表不因 `normalized` 改变行为（`capability.asset-registry/v1#S-12` 未消费它）。
   **证据**：投影实例的本地自检重跑，18 处 0 不符（见[结果与反例](#本地自检最小规范化之后的投影实例修订批2026-09-24)）。
-  **不写进本契约、已报主线**：修订批简报同一条里「反向转写由桥拥有」与 `data.tool-definition/v1#S-6` 的「逆转写由收到调用的一方做」相左，且桥的 `invoke` 拿到的是 `origin.remoteName`、从不见模型面前的名字——等主线改判。
+  **已按 `data.tool-definition/v1#S-6` 维持**（主线 2026-09-24 裁定：简报那句「反向转写由桥拥有」作废）：逆转写由收到调用的一方做，桥的 `invoke` 拿到的是 `origin.remoteName`、从不见模型面前的名字；本契约不动。
+- **2026-09-24 主线对修订批报回项的裁定（候选，未冻结，原地改）**：
+  - **G-13 关闭**（PF-002 rev 18「组织那一层不持有 MCP 凭据」，主线 2026-09-24 落）：[S-9](v1/contract.md#s-9-凭据的出示与取用) 第 2 条只按租户格解引用、`provenance.credential` 不是 `tenant` 即 `credentialUnavailable`；[S-5](v1/contract.md#s-5-接入点持有的寻址) 那一句同步；[S-22](v1/contract.md#s-22-beginoauth) ① 只收租户格、③ 对 `organization` 也给 `oauthNotApplicable`，表下「组织格」一段改写；抬头注明 PF-002 这一行按 rev 18。
+    实例第 7.1 节组织格那一行由「照常发起」改为 `oauthNotApplicable`；第 1 节的表加一行（`provenance.credential` 是 `"organization"` → `credentialUnavailable`）。**语义收紧**：原先对组织格照常发起 OAuth、按组织格解引用凭据，现在两处都拒。失败值集合不变（都是已有的值）。
+  - **`normalized` 的判据**（三样里做了任一样即真）主线确认，[S-17](v1/contract.md#s-17-projectactions) 那一条标注。
+  - **未知键一律拒**（`data.tool-definition/v1#S-5` 末条，主线裁定）：S-17「三样都不改变参数 schema 收哪些值」补一句按那条读法同样成立，另写明它对 MCP 条目的后果（对端不写 `additionalProperties` 的动作，未知键由执行运行时拒回、不送对端；桥不补不删）。S-4 与 catalog 对 `data.tool-definition` 的依赖加 S-5。
+  - **反向转写**：已按 `data.tool-definition/v1#S-6` 维持（上一条末项）。
+  - **证据**：第 4 节投影实例未改，18 处本地自检结果仍适用；第 1、7 节改的两行未机检（行为条款，只对读）。
 - **[G-5](v1/contract.md#十已知缺口) 就位**（elicitation）：出 v2，[S-25](v1/contract.md#s-25-对端来的通知与请求) 那一行与 [S-21](v1/contract.md#s-21-失败值与收场的对应) 的 `no_answer` 一起改。
 - **跨进程演化启动**：[S-30](v1/contract.md#s-30-装配给与协议给) 右列从「待兑现」转为「须由协议兑现」；本版的全部证据只保留其单机范围，不得外推。
 

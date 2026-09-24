@@ -288,12 +288,11 @@
 | agent 经 `BkgJobs()` 掐掉（[S-25](#s-25-中断一次执行)） | `interrupted` | `terminated_by_agent` | 有（补） |
 | 这一次运行被取消而它还在前台（[S-28](#s-28-取消一次运行)） | `interrupted` | `run_cancelled` | 有（补） |
 | 会话被归档（[S-29](#s-29-会话归档)） | `interrupted` | `session_archived` | 有 |
-| 前台上限到点且不许转后台（[S-44](#s-44-前台上限与转后台阈值)） | `interrupted` | **本版没有取值**（[G-3](#十二已知缺口)）：产品正文的原因是「前台超时」（[PF-006 §6.6](../../../../product/PF-006-tools-and-skills/design.md#前台上限与并发上限)），`data.content-blocks` v1 还没有对应的 token | —— |
+| 前台上限到点且不许转后台（[S-44](#s-44-前台上限与转后台阈值)） | `interrupted` | `foreground_timeout`（产品正文的「前台超时」，[PF-006 §6.6](../../../../product/PF-006-tools-and-skills/design.md#前台上限与并发上限)；取值名主线 2026-09-24 定） | 有（补，原 [G-3](#十二已知缺口)） |
 | 停机，恢复时追补；MCP 桥换代 | `failed` | `abnormal_interruption` | 有 |
 
 **三个补上的取值**（`backgrounded_at_start`、`terminated_by_agent`、`run_cancelled`）已进 `data.content-blocks` v1 候选的 [S-18](../../../data/content-blocks/v1/contract.md#s-18-占位原因与它落在哪一格)（主线裁定 2026-09-23，待产品负责人确认；账本 S13-h；原 G-2 闭合）。
-**表里标「本版没有取值」的那一行**，没有合法的消息表示：写到这里的一方**停下并上交**，不借用相近的值（`user_interrupted` 说的是用户叫停这一次执行，不是超时）。
-执行记录上的收场与原因照写——记录不受块的取值集约束——**只是那条消息落不下去**，直到 [G-3](#十二已知缺口) 有答案。
+**`foreground_timeout`** 同样已进那一条（主线 2026-09-24 定名；原 G-3 闭合）：前台超时**不借** `user_interrupted`——那个值说的是用户叫停这一次执行，不是声明的上限到了。
 
 ### S-11 失败的种类
 
@@ -320,8 +319,11 @@
   3. `command` 缺席或不在命令表里时没有「所选命令」：以**这个工具的命令清单**（每个命令一行，同模型面前那一份）代替第 2 样。
 
   **这份用法与 `Tools().inspect` 对同一个命令（工具）答出的用法出自同一份定义、内容一致**——同一个命令的用法有两处说法，对不上 agent 就分不出该信哪个（[PF-006 §5.3](../../../../product/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡)对 `help` 的同一条理由）。
-- **「`input` 不收的键」按定义的原义读**：`input` 以 `additionalProperties: false`（或一份附加成员的 schema）关住了 `properties` 之外的键，那些键不合；**`input` 没关的，照 Draft 2020-12 收下**——判定以定义为准（`data.tool-definition/v1#S-7` 第 3 条），本能力不替作者收紧。
-  所以「只带命令清单」的写法（`{"type": "object", "properties": {}}`）收任何一个对象，参数对不对由工具自己判（PF-006 §5.3 那张表第一行）。**这一读法是本契约的推导**（[报给主线](../verification.md#报给主线) R-24）。
+- **未知键一律拒**（主线裁定 2026-09-24，原 R-24）：判参数时 `input` 顶层**没写** `additionalProperties` 按 `false` 读——顶层 `properties` 以外的键都是「`input` 不收的键」；作者在 `input` 顶层显式写了 `"additionalProperties": true` 才收下，写的是一份 schema 就按那份 schema 判。
+  这是 [`data.tool-definition/v1#S-5`](../../../data/tool-definition/v1/contract.md#s-5-多命令工具) 末条定的读法（不是 Draft 2020-12 的原义），本能力照它判、不另立规矩；只管顶层，嵌套的对象 schema 按原义读（同那一条）。
+  依据：[研究 V-5](../../../../../research/tool-definition-shape-sources/evidence.md) 结论 ③——没有 `Tools().inspect` 时 `openai/gpt-5.6-sol` 臆造了 `ignore_case` 并据错误结果作答，静默收下未知键就是这个后果。
+  所以「只带命令清单」的写法是 `{"type": "object", "properties": {}, "additionalProperties": true}`：收任何一个对象，参数对不对由工具自己判（PF-006 §5.3 那张表第一行）；只写 `{"type": "object", "properties": {}}` 的命令不收任何参数键。
+- **单函数工具与多命令工具同一种类、同一规则**（主线裁定 2026-09-24，原 R-27）：单函数工具按它的 `input` 判，块上同样带用法（一行说明是工具的 `description`）——否则 MCP 条目与单函数工具的坏参数会原样交给执行者，与多命令工具成两套规矩。
 - 「执行者跑过吗」决定[外部效果的确定性](#s-14-停止与外部效果分开说)：没跑过的是「已确定未发生」。
 
 ### S-12 等待
@@ -559,7 +561,7 @@
   参数合不合 `input` 是对这一次调用的判定（`data.identity-values/v1#S-33`：表示层校验与判定分开）。
   它也**不是**「参数说完了却解析不了」：那种调用没有解析得出的参数，不进本能力（[S-2](#s-2-本契约不拥有什么) 末行）；到这里的都是解析成功的 JSON 值（`data.content-blocks/v1#S-12`），**不是对象的**同样按参数不合判。
   **在提交时判**（修订批简报第五节）：参数在放行时已定、此后不变，定义随调用带来，判定不依赖轮没轮到它；拖到起执行者时才判，一次注定失败的调用要白排在前一项与并发上限后面。
-  **次序 ① 先于 ②**：条目此刻用不了，告诉 agent「绕路」比告诉它「改参数」有用；**② 先于 ③**：参数不合是 agent 改得了的错。这两个次序是本契约的推导。
+  **次序 ① 先于 ②**：条目此刻用不了，告诉 agent「绕路」比告诉它「改参数」有用；**② 先于 ③**：参数不合是 agent 改得了的错。这两个次序是主线裁定 2026-09-24（原为本契约的推导，R-26）。
 
 ### S-24 等前台那一次调用落定
 
@@ -915,7 +917,7 @@
 | 设置 | 到点时 |
 |---|---|
 | `settings.backgroundThreshold` | 前台那一次调用还没落定 → 转后台 `backgrounded_auto`（阈值只在 `allowBackground: true` 时存在，`data.tool-definition/v1#S-12`） |
-| `settings.timeout`（产品正文的**前台上限**，主线裁定 B-M08） | 允许转后台 → 转后台 `backgrounded_auto`；**不允许 → 中断**，产品正文的原因是「前台超时」——`data.content-blocks` 还没有对应取值（[G-3](#十二已知缺口)）；超时被中断不是失败（PF-006 §6.6） |
+| `settings.timeout`（产品正文的**前台上限**，主线裁定 B-M08） | 允许转后台 → 转后台 `backgrounded_auto`；**不允许 → 中断 `foreground_timeout`**（产品正文的「前台超时」，[S-10](#s-10-占位原因)）；超时被中断不是失败（PF-006 §6.6） |
 
 - **转后台之后两项都不再计**：后台的执行没有「让 run 等太久」的问题；它自己的上限只有等待的到点。
 - **`PT0S`**：到点即刻发生——`backgroundThreshold: PT0S` 等于一开跑就转后台，`timeout: PT0S` 等于一开跑就到点。本契约不禁止，也不另作解释。
@@ -1084,8 +1086,8 @@
 
 #### S-61 参数不合即刻失败并带用法
 
-一批两项：多命令工具的一次调用 `args` 多带了一个所选命令的 `input` 不收的键（`input` 带 `additionalProperties: false`），另一次合格 → 批成立；前一项在提交那一次写里收场 `failed`、种类 `arguments_invalid`，`ToolMessage` 的块写明那个键不收，并带该命令的一行说明与参数表，与 `Tools().inspect` 对同一命令答的一致；**它的执行者从没起过**，外部效果「已确定未发生」；后一项照常排队、起执行者。
-再各跑一次：缺 `required` 里的键；`command` 不在命令表里（块上带命令清单）；「只带命令清单」写法的命令收到任意对象 → **不拒**，照常起执行者。
+一批两项：多命令工具的一次调用 `args` 多带了一个所选命令 `properties` 里没有的键，**所选命令的 `input` 顶层没写 `additionalProperties`**，另一次合格 → 批成立；前一项在提交那一次写里收场 `failed`、种类 `arguments_invalid`，`ToolMessage` 的块写明那个键不收，并带该命令的一行说明与参数表，与 `Tools().inspect` 对同一命令答的一致；**它的执行者从没起过**，外部效果「已确定未发生」；后一项照常排队、起执行者。
+再各跑一次：同一个未知键、`input` 显式写 `additionalProperties: false` → 同样拒；缺 `required` 里的键；`command` 不在命令表里（块上带命令清单）；单函数工具带未知键（块上的一行说明是工具的 `description`）→ 同样拒；「只带命令清单」写法（`additionalProperties: true`）的命令收到任意对象 → **不拒**，照常起执行者。
 **反例**：实现静默丢掉那个未知键照常执行（研究 V-5 里模型因此答错）；或把它报成整批 `invalidInput`；或块上只写「参数错误」不带用法。
 
 ---
@@ -1098,7 +1100,7 @@
 |---|---|---|---|
 | **G-1** | **会话日志的追加口与记录条目的壳未定义**：追加是否能加入本能力的事务、按 `(CallId, 段)` 幂等的追加口、记录条目带什么——执行记录与会话日志之间**当前没有共同的存储对象** | [S-19](#s-19-送达) 两种承接形状选哪一种；[S-22](#s-22-关键转换留记录) 条目的形状 | **主线／loop 与会话那一程**（会话日志的 owner）；形状选择随后归本能力的提供者设计 |
 | **G-2** | **已闭合（2026-09-24 整批对齐）**：`run_cancelled`、`backgrounded_at_start`、`terminated_by_agent` 已进 `data.content-blocks` v1 候选的 S-18（主线裁定 2026-09-23，账本 S13-h）；PF-006 §6.7／§6.12 的产品修订仍待产品修订批 | — | — |
-| **G-3** | **收窄（2026-09-24）**：产品一半已答——[PF-006 rev 18 §6.6「前台上限与并发上限」](../../../../product/PF-006-tools-and-skills/design.md#前台上限与并发上限)与 §6.7 定了占位原因「**前台超时**」、收场是被中断。**仍缺**：`data.content-blocks` v1 的 S-18 没有对应的 `reason.code` 取值；它的名字不在施工账本里，本契约不自造 | [S-44](#s-44-前台上限与转后台阈值) 那一行：记录照写、消息落不下去 | **`data.content-blocks` 的 owner**（补一个取值），名字由主线定（[报给主线](../verification.md#报给主线) R-25） |
+| **G-3** | **已闭合（主线 2026-09-24）**：[PF-006 rev 18 §6.6「前台上限与并发上限」](../../../../product/PF-006-tools-and-skills/design.md#前台上限与并发上限)与 §6.7 定了占位原因「前台超时」、收场是被中断；主线定名 `foreground_timeout`，已进 `data.content-blocks` v1 的 [S-18](../../../data/content-blocks/v1/contract.md#s-18-占位原因与它落在哪一格)（[S-10](#s-10-占位原因) 那一行） | — | — |
 | **G-4** | **执行环境引用的家与落点求值**：PF-005 没有契约；引用的形状、「到不了位」由谁判 | [S-38](#s-38-起执行者) 第 2 步、`AdmittedCall.environment` | **PF-005 的 owner**（后续一程） |
 | **G-5** | **决策卡片没有契约**：卡片标识的形状、`superseded` 这个关闭状态（主线裁定 C-B-M5 **待产品负责人确认**）、谁能答卡 | [S-12](#s-12-等待) 的卡片成员、[S-20](#s-20-恢复扫描与停机不重来) 第 4 步、[S-31](#s-31-插队处置) `human_declined` 的判据 | **PF-008 的 owner**（产品补一句）；卡片契约归后续一程 |
 | **G-6** | **落盘前那一关由谁驱动**：后台执行收场时、运行已终结时、协程已回收时，`after_action`（`each`）由哪一方派发、在谁的宿主里跑。**原「那一关不可用时原始结果丢失」一半已闭合**（2026-09-24 整批对齐：原始结果由本能力先存下，账本 S13-b） | [S-42](#s-42-结果落成消息之前的那一关)：后台结果与停机后的送达 | **主线**（PF-012 与 `capability.loop-extension-runner`） |
