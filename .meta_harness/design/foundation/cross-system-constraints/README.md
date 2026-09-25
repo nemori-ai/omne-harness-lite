@@ -1,6 +1,6 @@
 # 已确认的跨系统约束
 
-本信息包拥有 **SYS-IDENTITY、SYS-KERNEL、SYS-SPEC、SYS-DEPLOY、SYS-TENANT、SYS-LLM、SYS-EXPERIMENT** 的当前确认范围；它保存需要兑现的结果与
+本信息包拥有 **SYS-IDENTITY、SYS-KERNEL、SYS-SPEC、SYS-DEPLOY、SYS-TENANT、SYS-LLM、SYS-EXPERIMENT、SYS-OPEN** 的当前确认范围；它保存需要兑现的结果与
 明确未决项，不选择能力边界、Cordis 插件或提供者。
 
 - 目标基线：`omne-harness-lite-design-2026-09-15`
@@ -26,6 +26,7 @@ spec、目标 provider 或已接受机制决定，都不能单独证明当前基
 | `SYS-TENANT` | `正在设计（直接候选机制）` | **Tenant Governance candidate**、**Action Authorization candidate**、**Core Work Coordination candidate** | 真实组合和端到端隔离证据仍未闭合。 |
 | `SYS-LLM` | `正在设计（直接候选机制）` | **Model Execution candidate**、**model-execution provider** | 实际 OpenRouter 网络出口、attempt 状态权威和真实验证尚缺。 |
 | `SYS-EXPERIMENT` | `阶段约束` | **requirements-foundation decision** 记录需求作为当前设计基础。 | 当前“设计、规格建模与实验性演进”限制适用范围；它不是等待专项设计或实现的产品能力。 |
+| `SYS-OPEN` | `已确认（2026-09-25），正在落到节点` | 本程 provider 节点的「公开面」一节；实施边界稿 | 函数层与运行时层的分界写进每个节点；节点模板加栏；已实现的租户领域节点是否也补公开面 |
 
 除 `SYS-EXPERIMENT` 外，所有条款仍待能力覆盖分析。后续消费者必须在**全局覆盖输入**
 逐条记录结论、组合前提和证据，不能以此表代替。
