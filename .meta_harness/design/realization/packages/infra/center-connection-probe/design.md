@@ -24,7 +24,7 @@
 
 | 导出（候选） | 做什么 | 输入与输出的契约坐标 |
 |---|---|---|
-| `observe(state, outcome, now)` | 纯归约：`{ state, since, reachCount }` 加一次有结果的往来（`reply`／`noReply`）与它的时刻 → 新的可达性。非可达 → 可达时 `reachCount` 加一、`since = now`；状态不变时原样交回（`since` 不动） | [S-5](../../../../spec/capabilities/center-connection/v1/contract.md#s-5-可达性三态) |
+| `observe(state, outcome, now)` | 纯归约：`{ state, since?, reachCount }`（`since` 只在 `undetermined` 且起始时刻未定时缺席）加一次有结果的往来（`reply`／`noReply`）与它的时刻 → 新的可达性。非可达 → 可达时 `reachCount` 加一、`since = now`；状态不变时原样交回（`since` 不动） | [S-5](../../../../spec/capabilities/center-connection/v1/contract.md#s-5-可达性三态) |
 | `classifyProbeReply(status, body)` | 纯判定：一份读完的公开体检答复 → `reply` 或 `notAReply`，按传输绑定 S-17 第 2～4 步 | S-5 可达与不可达的分界 |
 | `nextProbeAt(lastSettledAt, timing)` | 纯计算：上一次探**落定**的本地计时时刻（有结果——算数或因钟读不出而丢弃——或缺陷，都算落定；与 `since` 分开）→ 下一次开始探的本地计时时刻（`lastSettledAt + probeInterval − probeTimeout`） | [S-6](../../../../spec/capabilities/center-connection/v1/contract.md#s-6-自己探自己重连) 第 1 条 |
 | `probeOnce(target, limits, signal)` | 一次公开体检往来：`reply` 或 `noReply`（带原因：超时、TLS、连接、非答复、超上限） | S-6 第 1、2 条；传输绑定 S-4、S-17 |
@@ -98,16 +98,16 @@
 | 为什么选它 | **与契约相抵**：S-5 定义 `unreachable` 为「最近一次有结果的往来落在问不到」、S-6 第 1 条「到点没有读成一份答复即问不到（`unreachable`）」——阈值大于 1 时，最近一次问不到而状态仍是 `reachable`，违反 S-5 与第四节「绝不能把问不到答成 `reachable`」一行 | 照契约兑现；要去抖须出契约新版本（CNP-1），**不在节点里写「实际按 X 做」** |
 | 置信度 | 高（这是契约的字面） | |
 
-**五、插件体不读钟、不因钟启动失败；起始时刻由 effect 在第一次读得到钟时记下（选；主线裁定 [D-040 §八 N-42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ③ D-3）。**
+**五、插件体不读钟、不因钟启动失败；起始时刻由 effect 在第一次读得到钟时记下，此前 `since` 缺席（选；主线裁定 [D-040 §八 N-42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ③ D-3，CNP-12 裁 ①）。**
 
 | | 插件体里读一次，`'unavailable'` 即抛出、装配启动失败（前一稿） | 服务延到读得到钟才 `provide` | **插件体只 `provide` 与登记 effect；effect 登记时读一次钟，读不到就在节拍的本地定时器点（循环开始、每一次探落定）再读（选）** |
 |---|---|---|---|
 | 落选方的最强论证 | 最简单；`since` 从第一刻起就是真实时刻；与治理中心「启动成功以钟可读为条件」同形 | 服务在的每一刻都答得出真实的 `since` | —— |
-| 本方弱点 | —— | —— | 崩溃后快速重启落在时钟旧租约窗口里（至多一个租约宽度）时，服务已在而起始时刻还没读到：那一段 `undetermined` 的 `since` 本节点给不出（[CNP-12](#实施缺口与消费者影响)，待裁） |
+| 本方弱点 | —— | —— | 崩溃后快速重启落在时钟旧租约窗口里（至多一个租约宽度）时，服务已在而起始时刻还没读到：那一段 `undetermined` 的 `since` **缺席**（契约 S-5 按 [CNP-12](#实施缺口与消费者影响) ① 改写），读 `since` 的一方要处理缺席 |
 | 为什么不选／选它 | 那个窗口里据点起不来，其余节点都是运行期降级（D-3） | `apps/cli` 装载时 `ctx.plugin()` 返回即同步读 fiber 状态、`PENDING` 即清单错误——必需 inject 本服务的 P-1r 在窗口里 `PENDING`，据点照样起不来，等于没有兑现 D-3 | 据点在窗口里起得来；窗口之外（绝大多数启动）effect 登记那一刻就读到起始时刻，与前一稿无差别 |
-| 置信度 | | | 中（窗口那一段待裁） |
+| 置信度 | | | 中高 |
 
-**运行中**一次往来有了结果、而 `clock.now()` 答 `'unavailable'`（契约 S-6 第 1 条前提「时间源可读」）：这一次**不算有结果**，观察不变（`state`、`since`、`reachCount` 照旧），记 warn——编一个时刻会让 `since` 失真；**节拍照走**：这一次仍算落定，`lastSettledAt` 取本地计时（[关键选择三](#关键选择)末段），下一次不早于 `probeInterval − probeTimeout` 之后。起始时刻还没读到时同样如此；一次有结果的往来遇上钟读得到，先把同一个读数记为起始时刻，再用它归约。
+**运行中**一次往来有了结果、而 `clock.now()` 答 `'unavailable'`（契约 S-6 第 1 条前提「时间源可读」）：这一次**不算有结果**，观察不变（`state`、`since`、`reachCount` 照旧），记 warn——编一个时刻会让 `since` 失真；**节拍照走**：这一次仍算落定，`lastSettledAt` 取本地计时（[关键选择三](#关键选择)末段），下一次不早于 `probeInterval − probeTimeout` 之后。起始时刻还没读到时同样如此：`undetermined` 的 `since` 保持缺席，不填任何时刻。**读到即定**：effect 登记那一刻、之后每个节拍点（循环开始、每一次探落定）各试一次，第一次读到的值就是 `undetermined` 的 `since`，此后只随状态迁移改；一次有结果的往来遇上钟读得到而起始时刻还没定，先把同一个读数记为起始时刻，再用它归约。
 
 ### 契约责任到插件、服务与操作
 
@@ -122,7 +122,7 @@
 | S-6 第 3 条 断线重连就是照常再探 | `unreachable` 期间节拍不变 | 尚未建包 | 没有「叫它重连」的口 |
 | S-6 第 4 条 其他往来也更新 | **本版没有**（契约 G-1） | —— | 入口 v2 的据点客户端到来时，由它把往来结果交给 `observe`（CNP-4） |
 | [S-7](../../../../spec/capabilities/center-connection/v1/contract.md#s-7-在场不随可达性变) 在场不随可达性变 | 探测的一切失败都在循环里收成 `noReply`；循环里的缺陷记 error、下一拍照常；插件体从不因可达性抛出或撤除 | 尚未建包 | 装配一侧：据点不因可达性换提供者（S-10 第 1 行，cli）；**时钟换代**会让本插件重跑、连带 P-1r 那一整条链——那是装配事件，cli「运行期不换代」挡住 |
-| [S-9](../../../../spec/capabilities/center-connection/v1/contract.md#s-9-reachability) `reachability` | 同步读 effect 里那一份观察，交回副本 | 尚未建包 | 失败集合为空；撤除之后经旧引用调用 ⇒ 抛出（候选 `CenterConnectionWithdrawn`）——那是「不在场」，**不是 `unreachable`**（S-7 第 2 条） |
+| [S-9](../../../../spec/capabilities/center-connection/v1/contract.md#s-9-reachability) `reachability` | 同步读 effect 里那一份观察，交回副本；`undetermined` 且起始时刻还没读到时 `since` 缺席（S-5 按 CNP-12 ① 改写）、不填编出来的时刻 | 尚未建包 | 失败集合为空；撤除之后经旧引用调用 ⇒ 抛出（候选 `CenterConnectionWithdrawn`）——那是「不在场」，**不是 `unreachable`**（S-7 第 2 条） |
 | [S-10](../../../../spec/capabilities/center-connection/v1/contract.md#s-10-装配给的保证-vs-协议须给的保证) 装配给 vs 协议给 | 见[下节](#装配给与协议给本节点单机怎样兑现左列) | —— | —— |
 | [S-11](../../../../spec/capabilities/center-connection/v1/contract.md#s-11-撤除重启与在途) 撤除、重启与在途 | 撤除序列在一个 effect 里（[装卸](#成对的装载与撤除)） | 尚未建包 | 再装上从 `undetermined`、`reachCount = 0` 起 |
 
@@ -186,13 +186,13 @@
 | CNP-2 | **已裁：本版信任方式是 CA 链加主机名，钉公钥留新版本**（D-040 §八 N-42 ③ D-4；cli A-34 承接）——`trust.caPem` 作信任锚、按 `entryUrl` 里的主机名核证书（Node 的标准核验）；传输绑定 [G-2](../../../../spec/compositions/governance-center-entry-https-json/v1/contract.md#十一已知缺口) 的另两件（确认不了时怎样不交出登录状态、怎样呈现）不在本节点——本节点不交出任何登录状态（S-6 第 2 条），呈现归 PF-016。改钉公钥时加一种信任材料、S-15 的证据重跑 | 产品装法（本版不装） | —— | —— |
 | CNP-3 | **不核「连到的是不是这个据点所属的中心」**（契约 G-2）：公开体检答复里有 `centerId`，本节点不比——「可达」只说配置的地址后面、证书核得过的那个对端在应答 | S-3 第 4 条 | PF-016 owner ＋ 入口 v2 据点客户端 | 产品定下怎样确认 |
 | CNP-4 | **其他往来不更新观察**（契约 S-6 第 4 条、G-1）：本版据点到中心没有别的往来 | —— | 入口 v2 的据点客户端（cli C-4） | 那一程把往来结果交给 `observe` |
-| CNP-5 | **已裁：插件体不读钟、不因钟启动失败**（D-040 §八 N-42 ③ D-3）；起始时刻由 effect 在第一次读得到钟时记下，读不到的结果按本地定时器节拍丢弃重试（[关键选择五](#关键选择)）。窗口那一段 `since` 的缺口见 CNP-12 | —— | —— | —— |
+| CNP-5 | **已裁：插件体不读钟、不因钟启动失败**（D-040 §八 N-42 ③ D-3）；起始时刻由 effect 在第一次读得到钟时记下，此前 `since` 缺席（CNP-12 ①）；读不到的结果按本地定时器节拍丢弃重试（[关键选择五](#关键选择)） | —— | —— | —— |
 | CNP-6 | **产品清单本版不装**（cli 关键选择 5）：P-1r 必需 inject 本服务，产品据点清单里 P-1r 停在 `PENDING`；装上也只是观察，P-1r 读到 `reachable` 仍问不了中心（契约 G-1，MPD-N2） | P-1r、模型链 | 主线 ＋ `apps/cli` | 入口 v2 到来，或主线改判产品清单装最小提供者 |
 | CNP-7 | **入口契约 Schema 的逐字节副本**要一条漂移测试；入口 v2 的据点客户端到来时，客户端一侧的答复读法该只有一份（本节点的 `classifyProbeReply` 是候选） | S-5 分界 | 本节点 → 入口 v2 那一程 | 漂移测试入库；那一程复用或取代本函数 |
 | CNP-8 | **Node TLS 与 HTTP 客户端的语义待取证**（[实现路径](#实现路径与来源)的五条假设） | S-5、S-6、S-15 | 本节点 | 每条一个会失败的测试；需要时登 basis |
 | CNP-9 | 可达性变化不推送（契约 G-4）：交付面要标明「此刻连不上中心」只能轮询读 | 交付面 | 交付面呈现契约（未立） | 那份契约定下 |
 | CNP-10 | **已裁**：路径维持 `infra/`——主线把[两层布局](../../../README.md#packages-的两层布局)里 `infra/` 的定义扩为「兑现 `core/` 协议级构造，或据点／中心的窄口基础设施契约（密钥保管、进程起停、连接探测）」（D-040 §八 N-40 ①） | —— | —— | —— |
 | CNP-11 | `provide` 由 effect 纳管：kernel-basis 有 probe、没有 basis 条目——**待核对主张** | 装卸表 | `core/kernel-basis` owner | 升格为 basis 条目 |
-| **CNP-12** | **起始时刻读到之前，`undetermined` 的 `since` 给不出**：D-3 要插件体不读钟、据点不因钟起不来；`apps/cli` 装载时 `PENDING` 即清单错误，所以服务必须在插件体里就出现；而契约 [S-5](../../../../spec/capabilities/center-connection/v1/contract.md#s-5-可达性三态) 写「`undetermined` 的 `since` 是这一次在场开始的时刻」、[S-9](../../../../spec/capabilities/center-connection/v1/contract.md#s-9-reachability) ⑤⑥ 要 `reachability` 在场即答出 `{ state, since, reachCount }`、S-6 第 1 条前提段不许编时刻。崩溃后快速重启落在时钟旧租约窗口里（至多一个租约宽度，`infra/clock` 的 `LEASE_WIDTH_MS`）时，这几条同时兑现不了——**本节点不自选一个时刻填进去**。候选（待裁）：① 契约 S-5 把 `undetermined` 的 `since` 改为「这一次在场里第一次读得到时间源的时刻」、此前缺席（形状改动，读 `since` 的一方要能处理缺席）；② `apps/cli` 在装本插件之前等钟（上界一个租约宽度，与治理中心入口层同形），本节点不变；③ 服务延到读得到钟才出现——与 cli 装载规矩相抵，窗口里据点仍起不来，等于没有兑现 D-3，不推荐 | S-5、S-9 ⑤⑥；当前消费者 P-1r 只读 `state` 与 `reachCount`，不读 `since`——实际受阻的是契约字面与将来读 `since` 的交付面 | 主线 ＋ 规格侧（①）或 `apps/cli`（②） | 主线在 ①② 之间裁定、相应一方落字 |
+| CNP-12 | **已裁：按 ① 实施**（主线 2026-09-25；契约 [S-5](../../../../spec/capabilities/center-connection/v1/contract.md#s-5-可达性三态) 改为「`since` 是这一次在场里第一次读得到时间源的时刻，此前缺席」，规格侧落字）——effect 登记时读钟，读不到则 `since` 缺席、在节拍点再读，读到即定（[关键选择五](#关键选择)）。来由：D-3 要插件体不读钟、据点不因钟起不来，`apps/cli` 装载时 `PENDING` 即清单错误，服务必须在插件体里就出现；原 S-5 与 S-9 ⑤⑥ 在时钟旧租约窗口里要一个真实的起始时刻，给不出。落选：② cli 装本插件之前等钟；③ 服务延到钟可读才出现（与 cli 装载规矩相抵） | 读 `since` 的一方要处理缺席；当前消费者 P-1r 只读 `state` 与 `reachCount` | —— | —— |
 
-**报给主线**（不在本节点改）：CNP-12（D-3 与 S-5／S-9 在时钟租约窗口里对不上，需在 ①② 之间裁）。**产品装配里装不装**：本版不装（cli 关键选择 5）；装上之后如实探测，观察可读，但没有消费者能据它向中心发请求——如实失败，不填默认值。
+**报给主线**：无待裁项（CNP-12 已按 ① 裁）。**产品装配里装不装**：本版不装（cli 关键选择 5）；装上之后如实探测，观察可读，但没有消费者能据它向中心发请求——如实失败，不填默认值。
