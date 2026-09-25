@@ -3576,6 +3576,18 @@
             "S-19"
           ],
           "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "capability.asset-registry",
+            "version": 1
+          },
+          "clauses": [
+            "S-11",
+            "S-25"
+          ],
+          "rebase_relation": null
         }
       ]
     },

@@ -203,3 +203,4 @@ V-1～V-8 **一条执行记录也没有**。起草时的手核只保证 `example
 |---|---|---|---|
 | **`stdioEnvAllowlist` 是一份 `EnvAllowlist`**：形状与取法定在 `capability.execution-environments/v1#S-13` 一次，与兼容件的 `hookEnvAllowlist` 两个策略点、同一个形状，各自配值 | 主线裁定（2026-09-25；候选名 `EnvAllowlist` 由主线给，无词条） | [S-6](v1/contract.md#s-6-连接归桥不上签名不跨租户) 第 3 条、[S-4](v1/contract.md#s-4-依赖方向与被消费的面) 首句与新一行 | **不改语义**：白名单原本就只取名字在上面、且环境里有的那几个；本契约**不经执行环境起进程**，只借形状。registry：本契约 → `capability.execution-environments` [S-13] 新登一条（那边不以坐标依赖本契约，无环） |
 | **S-36 第一段标「受阻 custodian G-4／G-2」** | 同上裁定 | [V-4](#证据义务) 状态栏 | 证据义务不撤；本版不能通过的如实写出 |
+| **绑定过期的谓词写死**：过期 ⇔ `now > since + oauthPendingTtl`（严格大于、恰等于不算，`now` 取完成那一次锁到绑定之后读的时刻），与保管方清扫同一个谓词、两边共用同一份实现（装配给，那份契约 S-19 第 2 行） | 主线裁定（D-040 §八 N-42，N7 评审） | [S-8](v1/contract.md#s-8-oauth-绑定状态与迁移) 迁移表 `pending → revoked` 一行 | **收紧表述**：原「过了」不说开闭；不改绑定的状态与迁移。对齐义务（与 `capability.credential-custodian` v1）：那边 S-18 第 2 条同一式，谁改谁点名另一边 |

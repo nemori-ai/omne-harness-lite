@@ -65,8 +65,9 @@
 | 桥的完成 | 没过 | `b2` 迁 `granted` 记下 `r3`；清扫随后排到，不丢 `r3` |
 | 清扫 | 没过 | 不丢；桥随后完成，同上 |
 | 清扫 | 已过 | 丢 `r3`；桥随后排到，读到的时刻不早于清扫那一刻 ⇒ 同样判过期 ⇒ **不迁 `granted`**（`oauthDenied`） |
+| 任一方 | **恰在边界**：`now = since + oauthPendingTtl` | **不算过期**（`now > since + oauthPendingTtl` 才过期）：清扫不丢；桥迁 `granted` 记下 `r3`——两边同一个谓词，所以不会一边判过期、一边判未过期 |
 
-**任何一行都不出现「`b2` 为 `granted` 而 `resolve(r3, h1)` 得 `notResolvable`」。**
+**任何一行都不出现「`b2` 为 `granted` 而 `resolve(r3, h1)` 得 `notResolvable`」**——前提是记下的条目可开封（契约第七节）。**打不开的那一种不在这张表里**：密钥换了之后 `resolve(r2, h1)` 得 `notResolvable`，`r2` 不属于三种可丢、`b1` 仍 `granted`——**本版留下**，人重新授权之前交不出（[S-7](contract.md#s-7-加密落地) 第三条、[G-10](contract.md#十一已知缺口)）。
 
 ## 4. 每个失败值一个反例
 

@@ -166,7 +166,7 @@
 |---|---|---|
 | （无） | `pending` | [S-22 beginOAuth](#s-22-beginoauth) |
 | `pending` | `granted` | [S-23 completeOAuth](#s-23-completeoauth) 成功 |
-| `pending` | `revoked` | 人拒绝了或授权服务器报错（S-23）；同一份持有上又发起了一次（S-22，旧的在同一提交内作废）；**过期**：`since` 起过了具名参数 `oauthPendingTtl` 还没完成（读时判定，不靠定时器） |
+| `pending` | `revoked` | 人拒绝了或授权服务器报错（S-23）；同一份持有上又发起了一次（S-22，旧的在同一提交内作废）；**过期**：`since` 起过了具名参数 `oauthPendingTtl` 还没完成（读时判定，不靠定时器）——**过期 ⇔ `now > since + oauthPendingTtl`**，严格大于、恰等于不算；`now` 取完成那一次锁到绑定之后读的时刻（主线裁定，[D-040 §八 N-42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)；与 `capability.credential-custodian/v1#S-18` 第 2 条的清扫**同一个谓词**，两边共用同一份实现是装配给的保证，那份契约 S-19 第 2 行） |
 | `granted` | `revoked` | 续期被授权服务器明确拒绝（[S-24](#s-24-续期清值与作废)）；它取得的那个引用**不再被配在那份持有上**——被清掉、被换成别的值、持有被移除；取得之后过了具名参数 `unassignedCredentialRetention` 仍没被配上 |
 
 - **`revoked` 是终态**；要再取，是一次新的发起、一个新的绑定号。
