@@ -119,8 +119,9 @@
 | 公开面 | SYS-OPEN；D-043 R-2 | 新开「公开面」一节：公开函数面 `invokeTool` ＋ 执行者接口、收场对照表、落成消息的次序；Cordis 服务面复用它（关键选择表）；只在运行时层成立的不变量逐条列出、写明函数层不承诺 | design.md「公开面」；README 公开面一条；本页 N-18、N-19；bindings 文件头一句 |
 | 函数层没有契约条款 | 起草时推导 | 登缺口 T-17，报主线 | design.md T-17 与「报给主线」 |
 | 会话日志接线 | N-37；`capability.session-log` v1 | S-19 行、跨 owner 同一提交第 2 处、L-1～L-5 加「接口契约兑现条款」一列、依赖表、消费者表、失败映射（`alreadyRecorded`／`unavailable`／`tenantMismatch`）；排空一律 `unfenced`；判重键带写入方前缀（session-log G-5） | design.md 对应各处；T-7；bindings 文件头与 S-19 条 |
-| 会话持有租户接线 | `capability.session-tenancy` v1 S-8 | S-21 行、依赖表、消费者表、失败映射；最小提供者产品里无写面 ⇒ 仍恒 `dependencyUnavailable{storage}` | design.md；T-8 |
-| 尝试与运行的事实接线 | `capability.run-attempt-facts` v1 S-9；N-37 ④ | S-13 行、跨 owner 的现读、依赖表、消费者表、失败映射（`attemptNotFound` 不当「仍是当前」）；漏标窗口与那份契约的 G-2 同一闭合条件；读不到改指契约新开的 `dependencyUnavailable{runAttemptFacts}`（S-47 那一行）；会话持有租户读不到在 `{sessionTenancy}` 开出之前仍借 `storage`；送达按契约 S-46 只剩发件箱一种形状，关键选择三改为留存理由 | design.md；T-4；README；本页 N-17、覆盖缺口 |
+| 会话持有租户接线 | `capability.session-tenancy` v1 S-8 | S-21 行、依赖表、消费者表、失败映射；读不到改指契约开出的 `dependencyUnavailable{sessionTenancy}`（S-21）；最小提供者产品里无写面 ⇒ 产品装配里恒为这个值 | design.md；T-8 |
+| 尝试与运行的事实接线 | `capability.run-attempt-facts` v1 S-9；N-37 ④ | S-13 行、跨 owner 的现读、依赖表、消费者表、失败映射（`attemptNotFound` 不当「仍是当前」）；漏标窗口与那份契约的 G-2 同一闭合条件；读不到改指契约新开的 `dependencyUnavailable{runAttemptFacts}`（S-47 那一行）；会话持有租户读不到改指 `{sessionTenancy}`（见上一行）；送达按契约 S-46 只剩发件箱一种形状，关键选择三改为留存理由 | design.md；T-4；README；本页 N-17、覆盖缺口 |
 | 执行环境接线（T-6／G-4／S-38 第 2 步） | N-37 ⑨；`capability.execution-environments` v1 S-11、S-12 | S-38 第 2 步宿主机那一半落到 `placeExecution`，不答 `host` 一律 `failed{environment_unavailable}`；沙箱那一半与权限来路仍缺 | design.md S-38 行、依赖表、消费者表、失败映射；T-6 |
 | 验收装配里的「替身」改称最小提供者 | D-043 R-1 | 「归装配」段与场景受阻说明改写；最小提供者节点尚无、由主线另立 | design.md「归装配的事项」；本页规范场景表首行、S-52 行、N-1 |
 | 判定时限由常量改为本节点的策略配置（主线追加裁定，2026-09-25） | 研发品味「策略类的东西不写死」；`core/tool-definition` U-8 同日改为指回本节点 | 计时的 owner 是本节点的判定工作线程；时限是配置项 `judgeTimeoutMs`（初值 500 ms，测试配置自带、产品装配由据点给，缺席或非正 ⇒ 启动失败）；函数层 `invokeTool` 的判定经 `parts.judge`，不给时没有时限（列入「函数层不承诺」）；T-16 与互指表改写 | design.md 依赖表的 config 行与「判定时限是策略配置」、公开面、S-23 行、T-16、对其余 owner 的要求；本页 N-9、N-15、N-20 |
+| 对齐契约第二轮（`47e36d14`）：`{sessionTenancy}` | 契约 S-15 失败值那一行、S-21、S-23 ⑧、S-47 | 会话持有租户读不到（`sessionNotFound`、`unavailable`、缺席）改为 `dependencyUnavailable{sessionTenancy}`，不再借 `{storage}`；「报给主线」撤掉这一项 | design.md S-21 行、依赖表、消费者表、失败映射、T-8、报给主线；本页会话持有租户一行 |

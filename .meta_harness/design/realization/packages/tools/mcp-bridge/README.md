@@ -19,7 +19,7 @@
   2026-09-25 随契约修复波 3 对齐（[D-040 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：远端参数 schema 形状合法、只是编不出来的动作不再排除，以同形替换件出现、原因 `schema_unsupported`（M37）；执行运行时的 `submit` 带报告，交给本节点的接入点持有有了来路（M33，原缺口 B-6 闭合）；副本与线上消息按严格无损 JSON 读写（M36，线上那两跳待取证）。保管方与配值副本读面按 M43 本程不补——在 [verification](verification.md#覆盖缺口) 登记。
   2026-09-25 修订波（公开面，[D-043](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）：新开「公开面」一节；保管方改指接口契约条款，C-4～C-6 标本版不收，最小提供者的落处按 N-37 ⑤（密文进绑定所在的存储）；处置见 [verification](verification.md#修订波2026-09-25-公开面)。
   同日独立评审（N3）之后：保管方清扫只清三种、待生效行不清（M72，C-3 与第三条反证）；交给执行运行时的执行者包装不依赖贡献插件存活（M73）；保管方服务键定为 `credentialCustodian`（M69）；撤除次序由装配显式驱动（M71）；SDK 钉版在实施开工前出决定（B-1）。处置逐条见 [verification 的独立评审](verification.md#独立评审)
-- 绑定与证据：[`bindings.yaml`](bindings.yaml) **一条**，借来的：本契约不建形式工件（[S-31](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-31-本版选用哪些形式工件)），S-23 的完成与保管方清扫的交错绑保管方契约的 formal task `credential-custodian-v1-sweep`（本节点的「过期按锁到之后的时刻判」是它的前提 `CompleteFreshTime`，去掉即反例）；它证的是模型，不是本节点的代码与存储。七条规范场景与本节点自己的交错演练**一条都没有**
+- 绑定与证据：[`bindings.yaml`](bindings.yaml) **空表**：本契约不建形式工件（[S-31](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-31-本版选用哪些形式工件)）；保管方契约的 `credential-custodian-v1-sweep` 证的是契约模型，「在绑定行上排序」是它的前提、不是它检查的东西，**不借来绑定**。S-23 的证据登记为场景：保管方 S-28 的真并发交错（verification N-2）与 S-23 ④ 两次提交之间强杀（N-18）。七条规范场景与本节点自己的交错演练**一条都没有**
 - 实际验证：**尚无**。没有源码、没有测试、没有集成运行
 
 ## 按当前问题展开
@@ -27,7 +27,7 @@
 | 当前问题 | 阅读入口 |
 | --- | --- |
 | 两个插件各管什么、连接表为什么在一个 effect 里、OAuth 的「同一提交」落在哪个存储对象上、撤除次序、装卸配对 | [实现设计](design.md) |
-| 哪条承诺由哪份证据支持 | [绑定表](bindings.yaml)（一条，借保管方契约的模型） |
+| 哪条承诺由哪份证据支持 | [绑定表](bindings.yaml)（空，理由在文件头）与 [verification](verification.md) |
 | 证据义务、要取证的 SDK 能力、还缺什么 | [验证与证据](verification.md) |
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；

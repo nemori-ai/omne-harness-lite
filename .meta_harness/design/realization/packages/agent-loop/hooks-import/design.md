@@ -32,7 +32,7 @@
 | `dialects`（两张映射表，静态数据） | 契约 S-23、S-24 逐行 | 同 S-23、S-24 |
 | `toHostInput(dialect, event, input, facts)` | 统一输入 → 那一家那一事件的原生输入；`facts` 是调用方数好的 `stop_hook_active` 等日志事实 | S-17；统一输入 `data.loop-extension/v1` |
 | `buildLaunch(dialect, handler, environment)` | 一条 handler → 一次起进程的参数：**解释器写成 `program`、那一行命令作它的参数**，环境变量恰是交来的那一份 | 形状对 `capability.execution-environments/v1` [S-13](../../../../spec/capabilities/execution-environments/v1/contract.md#s-13-startprocess) ① 的 `launch`（不经解释器、不继承环境变量） |
-| `fromHostOutput(dialect, event, ended, stdout, stderr)` | 退出与输出 → 一条结论或「报错」（S-19 后三行、S-20 的优先级、S-22 越档不自降）；解码用 fork 的 `codec`、`merge` | S-19、S-20、S-22；结论 `data.loop-extension/v1` |
+| `fromHostOutput(dialect, event, ended, stdout, stderr)` | 退出与输出 → 一条结论、非阻断错误或「报错」（按契约 S-19 各行归类、S-20 的优先级、S-22 越档不自降）；解码用 fork 的 `codec`、`merge` | S-19、S-20、S-22；结论 `data.loop-extension/v1` |
 | `runHostHook(handler, dialect, input, facts, launcher, signal)` | 跑一次：`buildLaunch` → `launcher.start` → 等 `launcher.outcome`、handler 时限或中止信号 → 到点或中止即 `launcher.stop` → 拿到结果后也 `launcher.stop`（清掉留下的子孙）→ `fromHostOutput`。`launcher` 是调用方交的三个函数，答复分法照 execution-environments S-13～S-15（不带租户与引用：那两样由调用方闭包进去） | 同上各条；起不来与报错的分界照 S-19 |
 
 **Cordis 服务面**：兼容插件 `hooks-compat`（[下节](#纯函数插件与服务键)）向 runner 登记一个外部命令执行器；执行器就是 `runHostHook` 加一个绑好的 `launcher`——经 runner 的句柄解析取租户与执行环境引用，`launcher` 调 `executionEnvironments` 的 `startProcess`／`processOutcome`／`stopProcessGroup`（S-13～S-15）；另做回放检查（先读 `ask` 记录）与在途子进程集合。
@@ -54,14 +54,14 @@
 
 - **导入为什么不是服务**：契约 S-11 ④ 它是纯函数，不读存储、不写任何东西；做成服务只会多一条 inject 边。谁调它、怎样把报告交给资产治理落地，归装配与资产治理（缺口 HI-N5）。
 - **执行器为什么一个**：runner 对 `command` 件只认「有没有一个命令执行器」（runner 节点登记面）；两家来源产品的差别在方言数据与编解码里，不在执行器的数目里。
-- **配置错误政策**：`hookEnvAllowlist`（形状类型待 execution-environments 定，HI-N11）缺席或不是名字列表 ⇒ `Config` 校验不过 ⇒ 本插件 `FAILED`、装配启动失败；runner 已有一个命令执行器时再登记 ⇒ 登记抛出 ⇒ 同一收场（与同批各节点同一条）。
+- **配置错误政策**：`hookEnvAllowlist`（一份 [`EnvAllowlist`](../../../../spec/capabilities/execution-environments/v1/contract.md#s-13-startprocess)）缺席或不合那一条的形状 ⇒ `Config` 校验不过 ⇒ 本插件 `FAILED`、装配启动失败；runner 已有一个命令执行器时再登记 ⇒ 登记抛出 ⇒ 同一收场（与同批各节点同一条）。
 
 | 选择 | 落选方的最强论证 | 本方的弱点 | 置信度 |
 |---|---|---|---|
 | **导入是包导出的纯函数，不是服务** | 做成服务，导入的调用方经 inject 拿到它，将来导入挪到另一个进程时换提供者即可，不必改包依赖 | 调用方直接依赖本包；导入要跨进程时（例如治理中心侧导入）得另起一个服务面 | 高：契约 S-11 ④、S-26 末行「导入是纯翻译，跨进程之后不变」 |
 | **一个包、两样东西**（纯函数与兼容插件同包） | 拆成两个包：导入只依赖纯模块，执行器才依赖 runner 与执行环境，谁只要导入就不背运行时依赖 | 只要导入的调用方也装上了执行器的依赖 | 中：两者共用方言映射表与 fork 的 `codec`，拆开要么第三个包、要么复制；D-039 定的节点只有一个 |
 | **注销与停进程同一个 effect** | 分两个 effect 各管各的，撤除函数更短、更好测 | 一个撤除函数里有先后两步，一步抛错时后一步靠 `finally` 保住 | 高：basis `effect-disposal-concurrent-not-ordered` 的读数，两个 effect 的完成次序不受控 |
-| **环境变量按允许清单从据点环境取值**（选；`hookEnvAllowlist` 必填、可空） | 落选一「把据点进程的环境整份交下去」：来源产品就是这么做的，hook 脚本依赖的变量一个不少。**它输在** execution-environments S-13 ③ 为了秘密明写不继承；整份交下去等于把据点进程里的凭据交给一段来源产品的脚本。落选二「只给方言规定的那几个变量」：最小。**它输在**解释器要程序搜索路径才找得到，几乎所有脚本还要 home 一类的基础变量，只给方言变量等于每一件都 `startFailed{programNotFound}` | 允许清单要装配给，给漏了 hook 就因缺变量而失败（按契约 S-19 收场，退出码那一格见 HI-N10）；给多了就多交出去——**哪些变量安全归装配判**，本节点只保证清单之外一个都不给 | 中：与 MCP 桥 `stdioEnvAllowlist` 是**两个配置项、同一形状类型**（主线裁定：类型由 execution-environments 定一次），一个据点里两处起外部进程不各写一套；那份契约尚未定这一类型（HI-N11）；本版 fail-closed，这一选择到 G-3 闭合才生效 |
+| **环境变量按允许清单从据点环境取值**（选；`hookEnvAllowlist` 必填、可空） | 落选一「把据点进程的环境整份交下去」：来源产品就是这么做的，hook 脚本依赖的变量一个不少。**它输在** execution-environments S-13 ③ 为了秘密明写不继承；整份交下去等于把据点进程里的凭据交给一段来源产品的脚本。落选二「只给方言规定的那几个变量」：最小。**它输在**解释器要程序搜索路径才找得到，几乎所有脚本还要 home 一类的基础变量，只给方言变量等于每一件都 `startFailed{programNotFound}` | 允许清单要装配给，给漏了 hook 就因缺变量而失败（按契约 S-19 的退出码归类收场）；给多了就多交出去——**哪些变量安全归装配判**，本节点只保证清单之外一个都不给 | 中：与 MCP 桥 `stdioEnvAllowlist` 是**两个配置项、同一形状类型**（形状与取法定在 execution-environments S-13 的 `EnvAllowlist`），一个据点里两处起外部进程不各写一套；本版 fail-closed，这一选择到 G-3 闭合才生效 |
 
 ### 操作落点
 
@@ -70,11 +70,11 @@
 | S-5 来源、方言、配置来源 | `importHostHooks` 的输入校验；方言版本常量 | 尚未实现 | 来源由导入者声明、不核实（契约写明的边界） |
 | S-6、S-7 一条 command 一件；name 导出 | 纯函数：逐 handler 产出一件，`name` 按契约 S-7 的式子（路径串的 SHA-256） | 同上 | 场景 S-35 |
 | S-8～S-10 干预力、工作区来源、兼容件载荷 | 纯函数：`power` 取映射表的上限；工作区来源的每件带 `requires_tenant_enablement`；声明显式写 `unavailability: skip` | 同上 | 落地时的拒收与禁用落格归资产治理（契约 G-7、G-8） |
-| S-11～S-15 导入与报告 | `importHostHooks`：先按方言解析整份、**任何一个 matcher 不合法即整份 `invalidInput`**，再逐条产出 `imported`／`degraded`／`skipped` | 同上 | 场景 S-29、S-30、S-34 |
+| S-11～S-15 导入与报告 | `importHostHooks`：先按方言解析整份、**任何一个 matcher 不合法即整份 `invalidInput`**，再逐条产出 `imported`／`degraded`／`skipped`；带 `args` 或 `shell` 字段的 CC handler 一律 `skipped{no_mapping}`（契约 S-14 ⑦，G-16 闭合之前） | 同上 | 场景 S-29、S-30、S-34 |
 | S-16 情形筛选 | 执行器第一步：情形不满足或 matcher 不匹配 ⇒ `observed`、不起子进程；matcher 求值用 fork 的 `matcher`（按方言） | 同上 | 比对值取不到 ⇒ 按报错（不当匹配也不当不匹配） |
 | S-17 原生输入 | `toHostInput`：不给 `transcript_path`、`permission_mode`、`session_id` 与租户标识；`stop_hook_active` 从日志数。执行器**要调 `resolveTenant`**——起、等、停子进程都要带租户（execution-environments S-13～S-15 ①；[D-040 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ⑩）——但租户身份**只进那三次调用，不进原生输入** | 同上 | 场景 S-36（断言原生输入里没有租户标识） |
 | S-18 子进程在哪跑 | 起子进程之前经 `resolveTenant`、`resolveExecutionEnvironment(input.environment)` 取租户与这一会话的执行环境引用，工作目录交不出即起不来（契约 G-15，HI-N7），`startProcess(tenant, ref, buildLaunch(…))`；**不回退宿主机**、不拿别的会话的；时限取 handler 的 `timeout` 或方言默认 | 同上 | **接口已定、真承接者未到**（execution-environments v1；runner 契约 G-20）。**本版 fail-closed**：拓展件子进程的宿主机允许产品没给（execution-environments [G-3](../../../../spec/capabilities/execution-environments/v1/contract.md#十已知缺口)，账本 ⑭），`startProcess` 答 `noLanding{hostNotAllowed}` ⇒ 每一件「起不来」（HI-N1） |
-| S-19 起不来与报错 | 句柄解析不出、交不出工作目录、`startProcess` 答 `noLanding`／`unavailable`／`referenceNotValid`／`environmentsWithdrawn`／`startFailed{programNotFound \| launchRefused}`，都在**开始之前**判出 ⇒ 报「起不来」；开始之后的一切失败 ⇒ 报错；判不出是哪一种 ⇒ 按报错（[失败映射](#状态并发与失败映射)） | 同上；**退出码非 0 非 2 那一格受阻**（契约与主线裁定相左，HI-N10） | 场景 S-32（含句柄解析不出、`noLanding` 两支） |
+| S-19 起不来与报错 | 句柄解析不出、交不出工作目录、`startProcess` 答 `noLanding`／`unavailable`／`referenceNotValid`／`environmentsWithdrawn`／`startFailed{programNotFound \| launchRefused}`，都在**开始之前**判出 ⇒ 报「起不来」；开始之后按契约 [S-19](../../../../spec/capabilities/hooks-import/v1/contract.md#s-19-起不来与报错) 的各行归类，非阻断错误的收场按 S-19 与 [`capability.loop-extension-runner/v1#S-13`](../../../../spec/capabilities/loop-extension-runner/v1/contract.md#s-13-报错处置策略的执行)；判不出开始之前还是之后 ⇒ 按报错（[失败映射](#状态并发与失败映射)） | 同上 | 场景 S-32（含句柄解析不出、`noLanding` 两支） |
 | S-20、S-22 输出译回、越档 | fork 的 `codec`（按方言）→ 契约 S-20 的优先级取一样；越档不自降，交 runner 按报错处置 | 同上 | 场景 S-31 |
 | S-21 `ask` 与回放 | 执行器在起子进程**之前**先经日志句柄找这一件在这一次经过里的 `ask` 记录与答复：有答复即按契约 S-21 第 3 条直接交回最终结论，**不起子进程** | 同上 | 场景 S-33（以子进程被调用的次数为准） |
 | S-23、S-24 映射表 | 静态数据模块，逐行对契约 | 同上 | 每行一条测试 |
@@ -94,7 +94,7 @@
 
 - **起**：先经 runner 解析执行环境句柄，取租户与执行环境引用（任一解析不出即「起不来」，不起），再 `startProcess(tenant, ref, launch)`（[S-13](../../../../spec/capabilities/execution-environments/v1/contract.md#s-13-startprocess)），每次落在**新的进程组**里；以 (租户, 执行环境引用, 进程组) 登记进本插件实例的在途集合，挂上三个「停」的来源：handler 时限到、本插件撤除、运行被取消。**本版在这一步 fail-closed**：拓展件子进程的宿主机允许没有（execution-environments G-3）⇒ `noLanding{hostNotAllowed}` ⇒ 起不来。
 - **解释器写成 `program`**：来源产品的 hook `command` 是交给命令解释器的一行；`startProcess` 不经解释器、不做插值（S-13 ③），所以 `buildLaunch` 把**那一家的解释器**写成 `program`、那一行命令原样作它的参数——解释器是哪一个、参数怎样摆，是方言数据里的一格，随方言版本钉死（契约 S-5）。契约 [S-18](../../../../spec/capabilities/hooks-import/v1/contract.md#s-18-子进程在哪跑钱记在哪) 第 3 条第 2 项写 Claude Code 在 macOS 与 Linux 上是 `sh -c`（引研究原文）、Codex 按与 CC 同构读（契约 G-5）；**basis 没有条目，本节点按待核对主张用**（HI-N8）。解释器按 `launch.environment` 里的程序搜索路径找（S-13 ③），允许清单里没有程序搜索路径那一项就 `startFailed{programNotFound}` ⇒ 起不来。
-- **交全环境变量**：子进程的环境恰是 `launch.environment`、不继承据点进程的任何变量（S-13 ③；那里可能有秘密）。`buildLaunch` 给的**恰是** `hookEnvAllowlist` 点名的变量，从据点进程环境里原样取值（名字不在据点环境里就不给，不造值；白名单的值未定，契约 [G-15](../../../../spec/capabilities/hooks-import/v1/contract.md#十一已知缺口)）。**来源产品给 hook 导出的变量，本项目给不出的不造**（契约 S-18 第 3 条第 3 项：CC 的 `CLAUDE_PROJECT_DIR` 一类），用到它们的 command 按 S-19 收场。**允许清单之外的一个都不给**——与 MCP 桥的 `stdioEnvAllowlist` 两个配置项、同一形状类型（HI-N11）。
+- **交全环境变量**：子进程的环境恰是 `launch.environment`、不继承据点进程的任何变量（S-13 ③；那里可能有秘密）。`buildLaunch` 给的**恰是**按 `hookEnvAllowlist` 这份 [`EnvAllowlist`](../../../../spec/capabilities/execution-environments/v1/contract.md#s-13-startprocess) 从据点进程环境里取出的变量（取法以那一条为准：名字不在据点环境里就不给，不补空值；白名单的值未定，契约 [G-15](../../../../spec/capabilities/hooks-import/v1/contract.md#十一已知缺口)）。**来源产品给 hook 导出的变量，本项目给不出的不造**（契约 S-18 第 3 条第 3 项：CC 的 `CLAUDE_PROJECT_DIR` 一类），用到它们的 command 按 S-19 收场。**允许清单之外的一个都不给**——与 MCP 桥的 `stdioEnvAllowlist` 两个配置项、同一形状（execution-environments S-13 的 `EnvAllowlist`）。
 - **工作目录**：`startProcess` 的 `workingDirectory` 必带、没有默认（S-13 ①）；来源产品在会话的当前目录里跑 hook，而统一输入与句柄解析都不交出这一项——**没有来路**（契约 [G-15](../../../../spec/capabilities/hooks-import/v1/contract.md#十一已知缺口)，HI-N7）。契约写明闭合之前交不出工作目录的就不起、是「起不来」，**不拿据点进程的当前目录顶上**。本版在它之前已经 fail-closed，不影响本版行为；G-3 闭合时它就挡在前面。
 - **拿到结果之后停组**：`processOutcome` 交回的只是起的那一个进程的结果，组里别的子孙可能还在（S-14）；执行器拿到结果、译出结论之后**照样 `stopProcessGroup`**，确认退出即出在途集合。答 `notConfirmed` 时**结论照交**（那是 hook 自己的退出与输出，S-19 没有「子孙没停完」这一行），记 error 级结构化日志，那个组留在在途集合里，撤除时再停；执行环境那一侧自己也继续停它（S-15 末段）。
 - **停**：`stopProcessGroup(tenant, ref, processGroup)`（[S-15](../../../../spec/capabilities/execution-environments/v1/contract.md#s-15-stopprocessgroup)；契约 S-26 第 2 行「同一台机器上按进程组停」、S-27 末行），等它在 `stopReplyBound` 之内答 `confirmedGone` 或 `notConfirmed`。确认退出 ⇒ 这一次按报错交回（超时）或由 runner 按中途撤下记（撤除）。**答未确认、答不了或执行环境那一侧缺席 ⇒ 执行器当场按报错交回，`error` 写明「已请求停止、未确认退出」，不挂起**；子进程留给执行环境按进程组善后（execution-environments S-15 末段：`notConfirmed` 之后它继续停）——「没确认就不算停下」落成「如实报错、不假装停下」，而不是让这一次经过无限等下去（D-040 §八 M64）。执行器自己不设确认计时器（不自造政策值）：「有界地答复」已由 execution-environments S-15 ④ 承诺（`stopReplyBound`，值归装配，那份契约 G-6）。停用的是起的时候解析出的那个引用，不再解析句柄——调用返回或 runner 换代之后句柄已失效，引用仍有效（runner 节点的装卸表）。
@@ -118,7 +118,7 @@
 | 契约 S-26 的保证 | 本节点单机的兑现 |
 |---|---|
 | 子进程落在会话级执行环境里 | 执行器只经 runner 解析的句柄取租户与执行环境；装配（[cli](../../../apps/cli/README.md)）要装 `sessionTenancy`、`executionEnvironments` 的最小提供者（接口已定，runner 契约 G-20）——**本版 fail-closed**：本版没有会话级沙箱，子进程只能落宿主机且要一项产品没给的允许（execution-environments G-3），一律「起不来」（HI-N1） |
-| 超时后子进程确实停下 | `stopProcessGroup` 按进程组停；`confirmedGone` ⇒ 按报错（超时）交回，`notConfirmed` ⇒ 按报错交回「已请求停止、未确认退出」、不挂起（M64），子进程归执行环境善后（它继续停，S-15 末段）；拿到结果之后同样停组 |
+| 超时后子进程确实停下 | `stopProcessGroup` 按进程组停；`confirmedGone` ⇒ 按契约 S-19 超时那一种情形交回，`notConfirmed` ⇒ 按报错交回「已请求停止、未确认退出」、不挂起（M64），子进程归执行环境善后（它继续停，S-15 末段）；拿到结果之后同样停组 |
 | 运行被取消时子进程确实停下 | 中止信号随 runner 的叫停在同一进程里送到执行器，按进程组停；那一次不留记录 |
 | 回放不重跑 | 执行器起子进程之前先读 `ask` 记录与答复，有即直接交回 |
 | 导入是纯翻译 | 纯函数，不读不写 |
@@ -139,17 +139,16 @@
 
 **本插件的状态**只有在途子进程集合（(租户, 执行环境引用, 进程组) 与它属于哪一次调用），只在实例里；**没有耐久事实**。一次调用的步骤：情形与 matcher → 回放检查 → 造原生输入 → 解析执行环境句柄（租户与引用）→ `startProcess` → 等 `processOutcome`、时限或中止信号 → `stopProcessGroup`（到点、中止，或拿到结果之后清子孙）→ 按方言解码 → 按优先级译成一条结论交回 runner（中止时不交结论）。
 **并发**：同一批动作各自的经过并行时，几件兼容件可能各起一个子进程，互不共享状态。
-**失败映射**（契约 S-19 的四行落到 execution-environments 的答复上；没有 catch-all）：
+**失败映射**（契约 S-19 各行落到 execution-environments 的答复上；没有 catch-all）：
 
 | 情形 | 归哪一类 |
 |---|---|
 | `resolveTenant` 或 `resolveExecutionEnvironment` 解析不出；交不出工作目录（本版恒如此，G-15）；`startProcess` 答 `noLanding{hostNotAllowed}`（本版恒如此，G-3）、`unavailable`、`referenceNotValid`、`environmentsWithdrawn`、`startFailed{programNotFound}`、`startFailed{launchRefused}`；`executionEnvironments` 缺席 | **起不来**（开始之前；进程从没跑过，S-13 末段） |
-| `processOutcome` 答 `exited{code}` | 按 S-19 后三行与 S-20 译；**退出码非 0 非 2 那一格受阻（HI-N10）**，见表下 |
-| `processOutcome` 答 `terminated`（本执行器停的：时限到）；等结果时答 `referenceNotValid`／`environmentsWithdrawn`；`stopProcessGroup` 答 `notConfirmed` 或停不了（超时、撤除那一支） | **报错**（开始之后） |
+| `processOutcome` 答 `exited{code}` | 按契约 [S-19](../../../../spec/capabilities/hooks-import/v1/contract.md#s-19-起不来与报错) 的退出码各行归类、退出码 0 按 S-20 译；非阻断错误怎样交回、runner 怎样记，按 S-19 与 [`capability.loop-extension-runner/v1#S-13`](../../../../spec/capabilities/loop-extension-runner/v1/contract.md#s-13-报错处置策略的执行)，本节点不另定 |
+| `processOutcome` 答 `terminated`（本执行器停的：时限到）；等结果时答 `referenceNotValid`／`environmentsWithdrawn` | 开始之后：按契约 S-19 超时、执行环境被撤下那两种情形的归类收场 |
+| `stopProcessGroup` 答 `notConfirmed` 或停不了（撤除那一支） | **报错**（「已请求停止、未确认退出」，M64） |
 | `startProcess`／`processOutcome`／`stopProcessGroup` 答 `invalidInput` | 缺陷（参数是本执行器造的）：上抛，runner 记成报错 |
 | 映射表查不到一个已导入的事件（导入与映射表不同版） | 缺陷：上抛，runner 记成报错 |
-
-**退出码非 0 非 2（含解释器已起、command 指向的东西不在时的 127 一类）归哪一类，契约与主线裁定相左**（HI-N10）：契约 [S-19](../../../../spec/capabilities/hooks-import/v1/contract.md#s-19-起不来与报错) 现行文本把它归「报错」、按报错处置策略收（可否决档默认当否决，提案 P4 的有意反向）；主线 2026-09-25 裁定兼容件按来源产品的退出码映射收场——0 放行、2 否决、其余为非阻断错误：记录、不否决、继续。本节点不在这里二选一：`fromHostOutput` 的这一格与 `fails_closed_on_error` 的导入标注（契约 S-19 第 1 条）等契约随裁定改定后落；在那之前这一格**不实现**，本版因 G-3 fail-closed 不会走到它。
 
 ## 成对的装载与撤除
 
@@ -175,7 +174,7 @@
 | HI-N5 | **谁调 `importHostHooks`、报告怎样交给资产治理落地**：配置文件在用户本机，落地在治理中心 | [cli](../../../apps/cli/README.md)（壬）＋ `packages/assets/asset-governance`（己）＋ 入口组合 v2（下一程，M43 C-4） | 导入者（组织超管或租户） | 装配与资产治理写明这一条动作链 |
 | HI-N7 | **子进程的工作目录与白名单变量没有来路**（契约 [G-15](../../../../spec/capabilities/hooks-import/v1/contract.md#十一已知缺口)）：`startProcess` 的 `workingDirectory` 必带（execution-environments S-13 ①），来源产品在会话的当前目录里跑 hook；统一输入（`data.loop-extension/v1`）与句柄解析都不交出这一项；`hookEnvAllowlist` 的值未定。契约定了闭合前的收场：交不出工作目录即「起不来」、不拿据点当前目录顶上 | 主线（与 PF-005、PF-015 那一程：工作目录经哪个读面给出、是否随执行环境引用给；白名单定值） | 全部兼容件（HI-N1 ① 闭合之后才显出来） | 契约 G-15 闭合：有一个读面按会话给出工作目录，本节点经它取、不给默认；白名单有值 |
 | HI-N8 | **两家来源产品各用什么解释器跑 hook `command`、参数怎样摆**：契约 [S-18](../../../../spec/capabilities/hooks-import/v1/contract.md#s-18-子进程在哪跑钱记在哪) 第 3 条第 2 项写 Claude Code 在 macOS 与 Linux 上是 `sh -c`（引研究原文）、Codex 按与 CC 同构读（契约 G-5）；basis 没有条目——**待核对主张**（钉在 Claude Code `2.1.280`、Codex `5c5308fc`），Codex 一侧是契约自己登的缺口 | 本节点（取证）→ basis；Codex 一侧随契约 G-5 | `buildLaunch` 的解释器那一格 | 两条 basis 条目（带会失败的 probe） |
-| HI-N10 | **退出码非 0 非 2（含 127）的收场：契约与主线裁定相左**。契约 [S-19](../../../../spec/capabilities/hooks-import/v1/contract.md#s-19-起不来与报错) 第 4 行与表下第 1、2 条（提案 P4 的有意反向，`fails_closed_on_error` 导入标注）归「报错」、可否决档默认当否决；主线 2026-09-25 裁定按来源产品的退出码映射（CC：0 放行、2 否决、其余为非阻断错误——记录、不否决、继续）。本节点不改契约、不在正文写「实际按哪一边做」 | 主线 → 契约 owner（按裁定改 S-19，连带 examples 里同一情形的那一例与导入标注；或撤回裁定） | `fromHostOutput` 的那一格、`importHostHooks` 的 `fails_closed_on_error` 标注、verification 场景 S-32 的对应支 | 契约 S-19 与裁定一致 |
-| HI-N11 | **`hookEnvAllowlist` 与桥的 `stdioEnvAllowlist` 同一形状类型，类型未定**：主线裁定两者是两个配置项、同一形状类型，由 `capability.execution-environments` 定一次；那份契约（[S-13](../../../../spec/capabilities/execution-environments/v1/contract.md#s-13-startprocess) 只要 `launch.environment` 交全）还没有这一类型。本节点在那之前按「变量名的列表、可空、不可缺席」校验，与桥节点同一校验（它的 B-9） | 主线 → execution-environments 契约 owner | 本插件的 `Config`；桥节点的同名校验 | 那份契约定下类型，两节点改指它 |
+| HI-N10 | **已闭合**（2026-09-25 修订波第二轮）：契约 [S-19](../../../../spec/capabilities/hooks-import/v1/contract.md#s-19-起不来与报错) 已按主线裁定改为兼容件的收场照来源产品的退出码语义（非 0 非 2、含 127，为非阻断错误）；非阻断错误在 runner 记录里怎样落归 S-19 与 [`capability.loop-extension-runner/v1#S-13`](../../../../spec/capabilities/loop-extension-runner/v1/contract.md#s-13-报错处置策略的执行)。本节点只引这两处，不复述归类 | — | — | — |
+| HI-N11 | **已闭合**（2026-09-25 修订波第二轮）：`EnvAllowlist` 的形状与取法定在 [`capability.execution-environments/v1#S-13`](../../../../spec/capabilities/execution-environments/v1/contract.md#s-13-startprocess) 表下一条（有限的变量名集合，可空、每个名非空；取的恰是名字在集合里且据点进程环境此刻有的，原名原值，不补空值）；`hookEnvAllowlist` 与桥的 `stdioEnvAllowlist` 是它的两份配值。本节点的 `Config` 校验与取法都改指那一条（桥节点 B-9 同） | — | — | — |
 | HI-N9 | **函数层的行为没有契约条款**：`runHostHook`、`launcher` 端口、`buildLaunch` 是本节点定的候选；本契约写的是被调到时的服务面语义 | 主线（与 TER T-17、runner RUN-N7 同题） | 外部包装 `runHostHook` 的人 | 契约为函数面给出条款，或明写「函数面不受契约约束」 |
 | HI-N6 | **已闭合**（D-040 §八 M39）：runner `dispatch` ⑥ 加 `cancelled`，契约 S-27 写明在途的兼容件收到停止信号、那一次不留记录；本节点的落法见[起、限时、停](#一次被调到的子进程起限时停) | — | — | — |

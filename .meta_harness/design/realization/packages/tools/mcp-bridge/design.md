@@ -45,7 +45,7 @@
 | `mcp-bridge-executor`（执行者贡献） | `mcpBridge`、`toolExecution`（必需） | **无状态** | 在自己的 effect 里向执行运行时登记「MCP 来源」那一格执行者，拿回注销函数包进同一个 effect。**交出去的执行者包装不依赖本插件 fiber 的存活**（[D-040 §八 M73](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：它只闭包桥本体的服务引用，每次执行的结算走执行运行时随那一次执行交来的交回原语；不在本插件的 `ctx` 上建 effect、不读本插件的状态 |
 
 **config**（桥本体；契约 G-12 的具名参数加本节点一项，**全部必填、无默认**，缺一或非法 ⇒ 启动失败）：
-`stdioEnvAllowlist`（变量名列表，可以为空列表、不可以缺席；与 hooks-import 的 `hookEnvAllowlist` 是两个配置项、同一形状类型，类型由 `capability.execution-environments` 定一次——主线 2026-09-25 裁定，那份契约尚未定，缺口 B-9）、`maxListPages`（正整数）、`oauthPendingTtl`、`unassignedCredentialRetention`、`stdioTerminateGrace`、`renewalRetryInterval`（正时长）、`stderrBound`（正字节数）；本节点加 `idleConnectionTimeout`（正时长：S-6 ⑤「何时关」归提供者设计）。值由装配给，契约不填。
+`stdioEnvAllowlist`（一份 [`EnvAllowlist`](../../../../spec/capabilities/execution-environments/v1/contract.md#s-13-startprocess)：可空、不可缺席；与 hooks-import 的 `hookEnvAllowlist` 同一形状、各自配值）、`maxListPages`（正整数）、`oauthPendingTtl`、`unassignedCredentialRetention`、`stdioTerminateGrace`、`renewalRetryInterval`（正时长）、`stderrBound`（正字节数）；本节点加 `idleConnectionTimeout`（正时长：S-6 ⑤「何时关」归提供者设计）。值由装配给，契约不填。
 
 **迁移**：包导出迁移片段（候选名 `mcpBridgeMigrations`），由 `apps/cli` 经 `composeMigrations` 合成。
 
@@ -139,7 +139,7 @@
 
 - **新的一次发起与旧的完成交错**：旧流程的完成已让保管方收下凭据（「待生效」，指着旧绑定），此时新发起的写事务把旧绑定迁 `revoked`、插入新的 `pending`；旧流程的写事务随后锁旧绑定行，读到 `revoked` ⇒ `oauthDenied`。那份凭据一直指着一个 `revoked` 的绑定，**任何一次解引用都交不出它**，清扫时删掉（C-3）。两个写事务在旧绑定那一行上排出次序（新发起的迁移与完成的锁定读撞同一行），不靠时间、不靠进程内锁。
 - **同一个绑定完成两次**：两次各自换取（按协议授权码只能用一次，第二次多半在授权服务器那里就失败 ⇒ `oauthDenied`）；即便两次都换到了、都让保管方收成「待生效」，两个写事务锁同一绑定行，先到的迁 `granted` 并记下自己的引用，后到的读到 `granted` ⇒ `oauthDenied`（⑦）。后到那份凭据行的引用不等于绑定行上记的那个，**解引用交不出**，清扫时删掉。
-- **保管方清扫与完成交错**（独立评审 MB-1 构造的那一条）：凭据已收成「待生效」、绑定仍 `pending`，此时清扫跑过。按 M72，清扫与完成**锁同一绑定行**、各自在锁到之后取时刻：完成先到 ⇒ 迁 `granted` 记下引用，清扫随后读到 `granted` 且引用相符 ⇒ 不删；清扫先到而未过期 ⇒ 不删，完成照常；清扫先到而已过期 ⇒ 删掉凭据行，完成随后锁到同一行、取到的时刻不早于清扫那一次 ⇒ 同样判过期 ⇒ 不迁、`oauthDenied`。**不会出现「`granted` 却解引用不出」**。前提：两边取的是同一个时间源、读数不回退（`infra/clock` 的进程内保证）——时刻只用来判状态，次序由绑定行上的锁给，不由时刻给。这一条交错已有会失败的形式证据：保管方契约的 `Sweep.tla`（formal task `credential-custodian-v1-sweep`）把本插件的完成建成 `Complete`，本节点「过期按锁到之后的时刻判」就是它的前提 `CompleteFreshTime`，去掉即出反例（[bindings](bindings.yaml) 唯一一条）。
+- **保管方清扫与完成交错**（独立评审 MB-1 构造的那一条）：凭据已收成「待生效」、绑定仍 `pending`，此时清扫跑过。按 M72，清扫与完成**锁同一绑定行**、各自在锁到之后取时刻：完成先到 ⇒ 迁 `granted` 记下引用，清扫随后读到 `granted` 且引用相符 ⇒ 不删；清扫先到而未过期 ⇒ 不删，完成照常；清扫先到而已过期 ⇒ 删掉凭据行，完成随后锁到同一行、取到的时刻不早于清扫那一次 ⇒ 同样判过期 ⇒ 不迁、`oauthDenied`。**不会出现「`granted` 却解引用不出」**。前提：两边取的是同一个时间源、读数不回退（`infra/clock` 的进程内保证）——时刻只用来判状态，次序由绑定行上的锁给，不由时刻给。保管方契约的 `Sweep.tla` 在模型层检查了这条交错，但「在绑定行上排序」是那份模型的前提、不是它检查的东西，所以不借来当本节点的证据；本节点的证据是在自己的绑定表与保管方最小提供者上跑保管方规范场景 [S-28](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-28-清扫与完成交错)（verification N-2）。
 
 **反证不了、要真并发演练的**：保管方的解引用读与本插件迁 `revoked`（续期被拒）交错——解引用读到 `granted` 的那一次仍交出本体；契约 S-24 ③「在途的照常完成、撤销管下一道准入」允许，但要演练确认没有第三种结果（verification N-3）。
 **它比字面的「同一提交」弱的地方**：两次提交之间有一段「凭据已收下、绑定未迁」；那一段里凭据对任何读者都不可用，崩溃留下的是一行永不生效的凭据，不是一个半成的可用凭据。
@@ -264,6 +264,6 @@
 | B-6 | **已闭合（修复波 3，M33）**：执行运行时的 `submit` 带这一次尝试的报告，MCP 动作的接入点持有取自它、原样记进执行记录，再交给本节点的 `invoke` | —— | —— | —— |
 | B-7 | 拉起到写下进程登记行之间的窗口（同执行运行时的 X-5） | S-28 孤儿回收 | 实现者 | 实验定下窗口大小；必要时改为先写意图行 |
 | B-8 | 闲置关闭 `idleConnectionTimeout` 是本节点加的一项 config，契约 G-12 没列 | S-6 ⑤ | 主线（给值） | 装配给值 |
-| B-9 | **`stdioEnvAllowlist` 与 `hookEnvAllowlist` 同一形状类型，类型未定**：主线 2026-09-25 裁定两者是两个配置项、同一形状类型，由 `capability.execution-environments` 定一次；那份契约还没有这一类型。本节点在那之前按「变量名的列表、可空、不可缺席」校验，与 hooks-import（它的 HI-N11）同一校验 | 本插件 `Config`（S-6 的 stdio 环境） | 主线 → execution-environments 契约 owner | 那份契约定下类型，两节点改指它 |
+| B-9 | **已闭合**（2026-09-25 修订波第二轮）：`stdioEnvAllowlist` 是一份 [`EnvAllowlist`](../../../../spec/capabilities/execution-environments/v1/contract.md#s-13-startprocess)——形状与取法定在 execution-environments S-13 表下一条（有限的变量名集合，可空、每个名非空；只取名字在集合里且据点进程环境此刻有的，原名原值，不补空值），与 hooks-import 的 `hookEnvAllowlist` 同一形状、各自配值；本插件的 `Config` 校验与取法改指那一条 | — | — | — |
 
 **报给主线**（不在本节点改）：B-2（最小提供者节点待立；C-4～C-6 本版不收，要静态凭据的 MCP 接入点本版连不上——这是否可接受归产品负责人看验收场景）、B-3（缺节点，M43 下一程）；关键选择四（续期者唯一只到 A-1 为止）；M36 在桥上多出两跳（参数送出、应答读入），SDK 能否换编解码待取证（B-1）。关键选择一（连接表不用子 fiber）与三（OAuth 的「同一提交」读作两次提交一个可见提交点）已由 [D-040 §八 M44](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 接受为推导；B-6 已随 M33 闭合；M37 的替换件口子已进 S-17 行。独立评审 N3 之后：保管方清扫条件（M72，C-3）、执行者包装不依赖贡献者存活（M73）、保管方服务键 `credentialCustodian`（M69）已落字；SDK 钉版的决定排在实施开工前（B-1）。
