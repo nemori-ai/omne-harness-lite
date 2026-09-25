@@ -12,6 +12,8 @@
 | 公开函数面 `invokeModel`（[design 的公开面](design.md#公开面)） | 单元测试：不装 Cordis、不给存储与会话，只给档案快照、消息、凭据值与脚本化传输即跑通一次发出；首个内容出现前 `beforeFirstContent` 被 await、它未完成时快照里没有内容；`abort()` ⇒ 收场与账如实；**反证**：同一请求两次 `invokeModel` 就是两次发出（函数层不判「开口之后不再发」、不写锚点）；传输答失败时 `invokeModel` 不自己回退到下一家 | 未开始 | 本节点；有实现即可跑（不受阻） |
 | 服务面复用同一个 `invokeModel` | 结构检查：P-2 的发出只经 `invokeModel`；演练：「已出门」确认之后才调它、「已开口」确认之后内容才推给观察者（与绑 S-15 的模型互为两层证据） | 未开始 | 本节点 ＋ `tools/ts-checks` |
 | `#S-46` 成因分类与脱敏 | 哨兵串场景：七种失败源、全部记录里找不到凭据原文与其片段 | 未开始；受阻于契约 G-5、G-6（没有值就没有可测的配置） | 本节点；G-5、G-6 定值后 |
+| `#S-18`、`#S-21`、`#S-36`：传输交回的事实怎样分成因（[design](design.md#传输交回的事实怎样分成因)） | 场景测试（真实 P-2 ＋ 脚本化传输）：① `first_token_wait_limit` 到点、传输交回 `local{queued}` ⇒ `unrecognized`、`localError` 带排队时长，**不是** `upstream_unavailable`；② 同一时限到点、传输交回 `aborted` ⇒ `upstream_unavailable`；③ 撤除中止、传输交回 `aborted` 或 `local{queued}` ⇒ `interrupted{run_cancelled}`、不进成因分类；④ 带内错误带整数 `code` 而 `httpStatus` 是 200 ⇒ `failure.statusCode` 是那个 `code`、`inBand: true`，结构化日志里有 `httpStatus`、`failure` 里没有；⑤ 带内错误没有整数 `code`（首 token 之前）⇒ `unrecognized`、不带状态码、留 `upstreamError` | 未开始；①的判据有契约张力（MRR-N15），按本节点读法写，契约另定时改 | 本节点；有实现即可跑 |
+| `#S-28` ①③④⑧ 工具条目经注册表取、`report` 同在同缺 | 场景测试（测试注册表件按 `capability.asset-registry/v1#S-25` 的答复分法写，或注册表节点的实现）：带 `run` 与 `report` ⇒ 以 `within = run{report}` 取、取到的条目进 `plan`；不带 `run` ⇒ `within = session`；带 `run` 缺 `report`、或带 `report` 不带 `run`、或报告的会话／运行／尝试任一对不上 ⇒ `invalidInput`、不写记录；名字取到「没有」⇒ `invalidInput{unknownTool}`；注册表缺席或答 `unavailable` ⇒ `unavailable`、不写记录、不打开调用；续接按这一次交来的 `tools` 与 `report` 重取；**反证**：尝试中途 reload 之后，同一 `report` 取到的仍是报告所依快照里的那一条定义 | 未开始 | 本节点；有实现即可跑（真实注册表受阻于它自己的节点建包） |
 | `#S-13` 投影追到日志尾 | 性质测试：任意日志前缀上，追补后的读 = 对整份日志重算；伸缩测量：读的代价与历史长度无关 | 未开始 | 本节点；有实现即可跑（只依赖测试日志端口的不算——须对 `capability.session-log` v1 的真实提供者，最小提供者即可） |
 | 被建模方式吸收的四条（`#S-22` 第 2、5 条，续接同一家，`#S-28` ④） | 场景 `#S-41`、`#S-42`，examples 第 4、8、11 节 | 未开始；同上受阻 | 本节点 |
 | 跨 owner 的三条交错（[design 表 X-1～X-3](design.md#跨-owner-的共同存储对象与三条交错)） | 真并发演练 C-1（宿主停止 ‖ loop 写回复）、C-2（旧尝试写「已出门」‖ 新尝试推进并对账）、C-3（不属于运行的调用，旧实例 ‖ 新实例续接）：两副协程、同一日志、插桩让它们在提交前交叠 | 未开始；**受阻**：共同对象 L-2、L-4、L-6 所在的会话日志提供者不存在 | 本节点 ＋ 块 D；日志提供者到位后 |
@@ -38,6 +40,7 @@
 - **契约里没有形式证据的条款**：S-9～S-13、S-16、S-18～S-21、S-24～S-29、S-32、S-34～S-37、S-49～S-51——证据形式是规范场景与性质测试，全部未开始，受阻原因见上表。
 - **S-39** 只有第四条（在途发出不假装没发生）落在 `QuiescentSettled` 上，整条不绑；其余三条靠场景。
 - **跨 owner 的三条交错**被模型吸收（一次调用、原子的「写下」），只能真并发演练，演练受阻于会话日志提供者。
+- **契约两条读法相左的一格**（MRR-N15）：排队中被首 token 时限中止，S-21 一列读作 `upstream_unavailable`、S-18「传输本地」行读作 `unrecognized`；本节点按后者写场景判据，契约写明之前这一支的证据只对本节点的读法成立。受阻消费者：默认重试件对本机排队的反应。
 - **已开口的耐久写延迟**（MRR-N7）没有测量；与会话日志最小提供者 `session-log-jsonl` 的每批 `datasync`（它的 SLJ-2、verification V-13）同一次测量。
 
 ## 独立评审
@@ -70,4 +73,6 @@
 | 对齐契约第二轮（`47e36d14`）：G-20 口径 | 契约 S-9 末句、S-10 第 2 步、G-20 ①②；`capability.asset-evaluation/v1#S-12` | 措辞核对：求值读不到（求值失败）⇒ `unavailable`，求值成功而 `values` 无此项 ⇒ 没有锁，直接引 S-10 第 2 步；MRR-N13 删去「不当没有锁」，只留初值那一半；验收装配改为以种子写一条模型切换记录 | design.md S-9～S-12 行、MRR-N13；本页场景行 |
 | 传输 fork 节点立起（主线 2026-09-25，按 `pi-ai-transport` 的 PAT-N14 ①） | `packages/model/pi-ai-transport`（candidate） | P-2 必需 inject `modelTransport`（关键差异之四，取舍表）、「有意不设的边」删去不 inject 传输；`TransportAdapter` 改 `plan`／`send`／`read` 三段，输入带 `target` 与 `ModelToolEntry[]`，名字到条目的来路登 MRR-N14；`data.messages` S-35 的翻译落在 `plan` 之内；插件表配置列删传输选择，`statusCauseTable` 初值用 `openRouterStatusCauseTable`；关键差异三改为连接池不在 P-2；装卸表与依赖表随之改；MRR-N4 改「节点已立、尚未建包、比较门未过」；S-38 十一条的证据改指那个节点的 T-1～T-11 | design.md 实现路径、公开面、插件表、inject 表、关键差异三与四、装配给表、依赖表、装卸表、MRR-N4、MRR-N14；README；本页 S-38 行 |
 | 最小提供者节点互指（主线 2026-09-25） | `session-log-jsonl`、`assembly-manifest-store`、`session-tenancy-table`、`credential-custodian-local` | L-1～L-8 引导段、MRR-N1、MRR-N2、MRR-N3、MRR-N7（与 session-log-jsonl 的 SLJ-2／V-13 同一次测量）、MRR-N10 改为「真承接者未到，最小提供者节点 X 已立（candidate）」 | design.md 存储要求与缺口表；README |
-
+| 第四轮：MRR-N4 规划拒绝 | 契约 S-28 末条、S-29 ④、G-21（它们已闭合 PAT-N9） | MRR-N4 那一句「规划拒绝没有落点」改为已由契约闭合，写明三种拒绝的收场 | design.md MRR-N4 |
+| 第四轮：P-2 对传输两种事实的分类（`pi-ai-transport` 的 PAT-N18 ①） | 契约 S-18、S-21、S-36、S-38 第 2 条；带内无整数 `code` 一行是 [D-040 §八 N-42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)、N-43 | 新开「传输交回的事实怎样分成因」：`local{queued}` 按传输本地行收 `unrecognized`、`aborted` 按两个时限分、撤除一律按撤除收场；`httpStatus` 只进诊断、不进 `failure.statusCode`；带内无整数 `code` ⇒ `unrecognized`。S-21 一列与这一格读法相左，登 MRR-N15 报主线 | design.md S-18 行、新一节、MRR-N15；本页一条场景义务 |
+| 第四轮：`openCall` 带 `report`、工具条目经注册表取（契约 28a97642） | 契约 S-28 ①③④⑧、G-24 闭合（D-040 §八 N-43）；[D-040 §八 N-42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ④ | 依赖表加 `assetRegistry.lookup`（调用时取用，取舍表：inject 会让注册表每次换代连带 P-2 与全部 agent runtime 重跑）；S-7 行写取条目、`report` 核三者、续接重取；`report` 只进服务面 `openCall`，`invokeModel` 收已解析的条目、不收它；MRR-N14 改已闭合 | design.md 公开面 `TransportAdapter` 行、插件与配置表 P-2 行、S-7 行、十三个操作行、依赖表与「有意不设的边」、MRR-N14；README；本页一条场景义务 |

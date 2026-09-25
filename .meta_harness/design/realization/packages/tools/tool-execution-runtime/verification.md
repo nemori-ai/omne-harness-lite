@@ -92,6 +92,7 @@
 - **不绑的形式结论**（与 [bindings](bindings.yaml) 文件头一致）：进展任务；十条按构造的性质与 `TypeOK`；`BackgroundHasPlaceholder`（反例停在 `EndedIsLanded`，没有单独被反驳）；`CallOutcomeStable`、`AtMostOneReminder`（没有否定配置）。
 - **契约 S-46 右列（协议须给）**本节点一条都不兑现；跨进程逐行重开。
 - **断电边界**：sqlite `synchronous = NORMAL` 下 S-17 对断电不成立（R-T6）；没有证据形式，报主线。
+- **L-3a（日志一侧的持久不晚于 SQL 一侧的「已送达」）契约不兑现**：`capability.session-log` v1 S-13 只到进程崩溃、断电边界 G-3 留给提供者；本页没有能让它失败的证据形式（断电任何演练都测不出），只能对提供者设计核「追加返回成功在确认落盘之后」——最小提供者 `session-log-jsonl` 的关键选择二如此写。受阻消费者：会话日志的真承接者（换刷盘政策时无契约条款会响）。
 
 ## 独立评审
 
@@ -107,7 +108,7 @@
 | TER-6（观察） | 发件箱在会话日志缺席时无界增长；帧入口不限额 | 不作发现（需求未给政策）；帧入口已登 T-15 | —— |
 | 范围外 1 | G-18 让本批没有一个收场事务能被如实提交，README 的可实施范围与之相抵 | 按 M74：落账前经据点读面 `runAttemptFacts` 现读，不给过渡值、不改 `data.call-accounts`；可实施范围对 S-16、S-19、S-25～S-29、S-41 标「有前提：该读面」。**起草时另见**：读在事务外，与「落下时」之间有漏标窗口、本批没有共同存储对象——登 T-4 与 N-17，报主线 | design.md S-13 行、新节「跨 owner 的现读」、依赖表、消费者表、失败映射、对其余 owner 的要求、T-4、报给主线；README；bindings S-13 条；本页 N-17 |
 | 范围外 2 | N-25 把答复形状校验超时收成 `invalidInput`，人会被要求反复重答 | 按 M75（覆盖 N-25 后半，契约 S-30 已小修）：这次执行 `failed{schema_unsupported}`、`answerWait` 答 `{ resumed }` | design.md S-30 行、失败映射、T-16、报给主线；README；本页 N-15 ⑥ |
-| 范围外 3 | `apps/cli` 是否承接显式撤除次序 | N5 批已核：`apps/cli` 按 M48 A-1 显式驱动（P-2 → 本插件 → 桥本体 → 派发器） | 同 TER-3 |
+| 范围外 3 | `apps/cli` 是否承接显式撤除次序 | N5 批已核：`apps/cli` 按 M48 A-1 显式驱动（P-2 → 本插件 → 桥本体 → hooks-compat → 派发器；2026-09-25 独立评审 N7 F-6 之后加入兼容件，验收装配再接执行环境与保管方） | 同 TER-3 |
 | 自报（M54） | 否定配置的原始输出不在 `record/evidence/` | 按 M54：待下一次证据 run 一并跑并入库 | bindings 文件头；README；本页「实际执行」 |
 
 ## 修订波（2026-09-25 公开面）
@@ -126,3 +127,4 @@
 | 判定时限由常量改为本节点的策略配置（主线追加裁定，2026-09-25） | 研发品味「策略类的东西不写死」；`core/tool-definition` U-8 同日改为指回本节点 | 计时的 owner 是本节点的判定工作线程；时限是配置项 `judgeTimeoutMs`（初值 500 ms，测试配置自带、产品装配由据点给，缺席或非正 ⇒ 启动失败）；函数层 `invokeTool` 的判定经 `parts.judge`，不给时没有时限（列入「函数层不承诺」）；T-16 与互指表改写 | design.md 依赖表的 config 行与「判定时限是策略配置」、公开面、S-23 行、T-16、对其余 owner 的要求；本页 N-9、N-15、N-20 |
 | 对齐契约第二轮（`47e36d14`）：`{sessionTenancy}` | 契约 S-15 失败值那一行、S-21、S-23 ⑧、S-47 | 会话持有租户读不到（`sessionNotFound`、`unavailable`、缺席）改为 `dependencyUnavailable{sessionTenancy}`，不再借 `{storage}`；「报给主线」撤掉这一项 | design.md S-21 行、依赖表、消费者表、失败映射、T-8、报给主线；本页会话持有租户一行 |
 | 最小提供者节点互指（主线 2026-09-25） | `packages/session/{session-log-jsonl, session-tenancy-table, run-attempt-facts-derived}`、`packages/infra/execution-environments-host` 四个 candidate 节点 | L-1～L-5 引导段、T-4、T-6、T-7、T-8、依赖表与消费者表、S-38 行改为「真承接者未到，最小提供者节点 X 已立（candidate）」并链到那边的承接或缺口表；落点读数来自 `execution-environments-host` 的可选读面 `executionPlacementReadings`；T-4 ③ 随契约开出 `{runAttemptFacts}` 闭合 | design.md 各处；README 可实施范围；本页场景表、N-17、覆盖缺口 |
+| 独立评审 N6 B-1：跨存储持久次序只活在会话日志节点 | [D-040 §八 N-42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ①（登执行宿主 L-3 子项） | L-3 下加 L-3a「日志一侧的持久不晚于依它写下的 SQL 一侧（出站项『已送达』）」，写成对任何会话日志提供者的要求，引 `session-log-jsonl` 关键选择二；契约不兑现这一项，T-7 与覆盖缺口各记一笔 | design.md 对会话日志提供者的要求（引导段、L-3a）、T-7；本页覆盖缺口 |
