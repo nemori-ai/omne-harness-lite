@@ -297,7 +297,7 @@
 
 ### S-9 选中模型
 
-**选中模型是一个路由名：这个会话日志里最后一条模型切换的记录（`model_selection_changed`，[S-8](#s-8-调用在会话日志里留下的六种记录)）记的那个名字；一条都没有时，= 「用哪个模型」这项设置在会话格上的层级求值结果**（[PF-013 §4 选中模型与有效模型](../../../../product/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型)「会话从没切换过时……取这项设置沿层级求值出来的那一条」；那项求值归 `capability.asset-evaluation` v1 的 [S-22](../../asset-evaluation/v1/contract.md#s-22-第四步设置)；**这一项由哪份正文契约产出未定**，[G-20](#十二已知缺口)）。**求值结果里没有这一项**（那份契约 [S-12](../../asset-evaluation/v1/contract.md#s-12-缺席时的默认答案)：组合根自己的设置本版不进 `values`）**时，从没切换过的会话选中模型判不出**，依赖它的操作以 `unavailable` 失败——**不拿链上某个名字当初值**；本程验收装配以种子写一条模型切换的记录（主线裁定，2026-09-25）。
+**选中模型是一个路由名：这个会话日志里最后一条模型切换的记录（`model_selection_changed`，[S-8](#s-8-调用在会话日志里留下的六种记录)）记的那个名字；一条都没有时，= 「用哪个模型」这项设置在会话格上的层级求值结果**（[PF-013 §4 选中模型与有效模型](../../../../product/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型)「会话从没切换过时……取这项设置沿层级求值出来的那一条」；那项求值归 `capability.asset-evaluation` v1 的 [S-22](../../asset-evaluation/v1/contract.md#s-22-第四步设置)；**这一项由哪份正文契约产出未定**，[G-20](#十二已知缺口)）。**求值结果里没有这一项**（那份契约 [S-12](../../asset-evaluation/v1/contract.md#s-12-缺席时的默认答案)：组合根自己的设置本版不进 `values`）**时，从没切换过的会话选中模型判不出**，依赖它的操作以 `unavailable` 失败——**不拿链上某个名字当初值**；本程验收装配以种子写一条模型切换的记录（主线裁定 [D-040 §八 N-39](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。
 **记的是名字，不是某一行**（PF-013 rev 12 [§4 档案的身份](../../../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名)；`data.model-profile/v1#S-14`）；这个名字这一次落到哪一行，是 [S-10](#s-10-有效模型四步每步来源可查) 第 2′ 步的事。
 
 - **只因[模型切换](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-switch--模型切换--model-switch)而变**（[PF-013 flows §3.3](../../../../product/PF-013-model-profiles-and-invocation/flows.md#33-一个会话的选中模型)）：拓展件的 `select_model` 只改那一次的有效模型，**不写模型切换的记录**（`data.loop-extension/v1#S-24`）；agent 自己换不了。
@@ -313,7 +313,7 @@
 | 步 | 做什么 | 结果从哪来 | 留在哪 |
 |---|---|---|---|
 | 1 | 取**选中模型**（一个路由名） | [S-9](#s-9-选中模型) | 模型切换的记录（或设置求值） |
-| 2 | **层级求值**「用哪个模型」这项设置：会话格之上若有一格带[不可覆盖标记](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-immutable-marker--不可覆盖标记--immutable-marker)，**取那一格的名字，压过选中模型**。**「读不到」与「没有这一项」分开**：求值读不到（求值失败）⇒ `unavailable`；求值成功而 `values` 里没有这一项（`capability.asset-evaluation/v1#S-12`：未声明的设置项不进 `values`）⇒ **没有锁**，取第 1 步的名字——不存在的项上不可能有锁，这是事实，不是默认值（主线裁定，2026-09-25） | `capability.asset-evaluation` v1 的设置求值（[PF-013 §4 选中模型与有效模型](../../../../product/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型)「上层锁死」；这一项的产出方未定，[G-20](#十二已知缺口)） | 响应体 `selectedBy = layer_lock`；否则 `session` |
+| 2 | **层级求值**「用哪个模型」这项设置：会话格之上若有一格带[不可覆盖标记](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-immutable-marker--不可覆盖标记--immutable-marker)，**取那一格的名字，压过选中模型**。**「读不到」与「没有这一项」分开**：求值读不到（求值失败）⇒ `unavailable`；求值成功而 `values` 里没有这一项（`capability.asset-evaluation/v1#S-12`：未声明的设置项不进 `values`）⇒ **没有锁**，取第 1 步的名字——不存在的项上不可能有锁，这是事实，不是默认值（主线裁定 [D-040 §八 N-39](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） | `capability.asset-evaluation` v1 的设置求值（[PF-013 §4 选中模型与有效模型](../../../../product/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型)「上层锁死」；这一项的产出方未定，[G-20](#十二已知缺口)） | 响应体 `selectedBy = layer_lock`；否则 `session` |
 | 2′ | **把路由名解析为一行**：以前一步的名字为[能力标识](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)，取它在会话范围链上的**落点**——**先滤掉已撤回的、再滤掉这个范围不允许的，然后取最具体一格**（租户层 > 组织层 > 出厂默认层）。**锁锁的也是名字**：供应商、参数、凭据取落到的那一行（主线裁定，见 [D-040 §二 S-U24-5a～c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#二2026-09-24-用户在场期间主线随用户裁决所作的自定账本-二-原文标主线自定的行)）。第 3 步拓展件给出的目标同样取它的路由名、经这一步 | `capability.model-profile-directory/v1#S-17` 末段的 `落点(T, r, A)`：`T` 是会话持有的租户，`A` 是 [S-11](#s-11-合法目标集合) 输入表里的允许集合 | **`selectedBy` 不变**；`effectiveModel` 的 `profile` 是落到的那一行，响应体 `route.profile` 是它 |
 | 3 | **「调模型之前」的拓展件**可能给出 `select_model`，只改这一次 | `capability.loop-extension-runner`（它先按 [S-24](#s-24-legaltargets) 核合法，`data.loop-extension/v1#S-24`） | 拓展件的结论条目；响应体 `selectedBy = { extension: <name> }` |
 | 4 | **出门前检查**：对落到的那一行核在册、范围允许、模态兼容、凭据有无 | [S-28](#s-28-opencall) | 不过 ⇒ 调用终结记录 `undispatched{cause}`；过 ⇒ 响应体 `route.profile` |
@@ -526,7 +526,7 @@ DisplayList(会话)  ≝  { r ∈ LegalTargetSet(会话) ∪ { 选中模型 } } 
 
 | 具名参数 | 含义 | 超了算什么 |
 |---|---|---|
-| **`first_token_wait_limit`** | 一次发出出门之后，等首 token 的上限 | 首 token 之前的故障，`upstream_unavailable` |
+| **`first_token_wait_limit`** | 一次发出出门之后，等首 token 的上限 | 首 token 之前的故障，`upstream_unavailable`——**只在请求已到达上游（传输已发出）时成立**；传输交回 `local{queued}`（排队没拿到连接、对上游零请求）时按 [S-18](#s-18-成因按来源分类三类事实由守卫兑现)「传输本地」那一行收 `unrecognized`，留本地错误（主线裁定 [D-040 §八 N-43](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） |
 | **`post_first_token_stall_limit`** | 首 token 之后，两次内容之间最长的停滞 | `interrupted_mid_reply` |
 
 - **它们是运行时设置项**，挂在 Agent 定义上、按设置那一套求值（[PF-013 §6.17](../../../../product/PF-013-model-profiles-and-invocation/design.md#617-本-topic-不出现任何时限数值)）；**不是档案属性，也不在重试件的配置里**。时长的表示取 `data.tool-definition/v1#S-14`。
@@ -675,7 +675,7 @@ DisplayList(会话)  ≝  { r ∈ LegalTargetSet(会话) ∪ { 选中模型 } } 
 | ⑤ | `{ callId, state: open | resumable }`，或 `{ callId, state: handed_up, undispatched: cause }` |
 | ⑥ | `invalidInput` · `callNotFound` · `runtimeStopped` · `wrongPhase` · `unavailable` · `profileNotFound` |
 | ⑦ | **新调用不幂等**：同一份请求打开两次是两次调用、两个 `callId`——**防重归调用方**（loop 在同一步只打开一次）。**续接可重复**：已在 `resumable` 且已重新绑定到同一宿主 ⇒ 返回同样的 ⑤ |
-| ⑧ | 目录、会话日志、允许集合、投影、保管方、会话资产注册表任一读不到 ⇒ `unavailable`，**不写任何记录**、不打开调用（**不列层级求值**：④ 用交来的 `target`、不重算，层级求值已在 `basis` 那一次 `effectiveModel` 里做过；主线裁定，2026-09-25）——「判不出来」不记成 `undispatched`。`target` 那个名字在链上没有任何一行 ⇒ `profileNotFound`（接口错误：调用方交来一个这条链上从未有过的名字） |
+| ⑧ | 目录、会话日志、允许集合、投影、保管方、会话资产注册表任一读不到 ⇒ `unavailable`，**不写任何记录**、不打开调用（**不列层级求值**：④ 用交来的 `target`、不重算，层级求值已在 `basis` 那一次 `effectiveModel` 里做过；主线裁定 [D-040 §八 N-39](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）——「判不出来」不记成 `undispatched`。`target` 那个名字在链上没有任何一行 ⇒ `profileNotFound`（接口错误：调用方交来一个这条链上从未有过的名字） |
 | ⑨ | 不发 |
 
 **出门前检查**（核的是**有效模型**——名字这一次落到的那一行，[PF-013 §6.9](../../../../product/PF-013-model-profiles-and-invocation/design.md#69-合法目标算不出来时不替用户改选)「出门之前核的是有效模型」；依次核，第一个不过的即成因。前两行只在没有胜出行时不过，那时落点就是已撤回或这个范围不允许的那一行，[S-10](#s-10-有效模型四步每步来源可查)）：
