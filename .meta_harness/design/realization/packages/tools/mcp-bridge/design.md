@@ -25,6 +25,8 @@
 | `toToolResult(response)` | 对端应答 → `ToolResult` ＋ `isError` | [S-20](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-20-对端结果怎样成为-toolresult) |
 | `createMcpExecutor(invoke)` | 按执行运行时的执行者接口（它的 T-14）包一个调用函数：停止请求转成取消通知、进度转成帧、失败带「是否已发出」 | 执行运行时节点的 `ToolExecutor`（候选形状，无契约） |
 
+**存储级子入口 `./tx-reads`**（包的子路径导出，**不属函数面**，同 organization-governance 的 `./tx-reads` 体例）：`readOAuthBinding(tx, bindingId)`、`lockOAuthBinding(tx, bindingId)`（候选）——在**调用方交来的事务句柄**里读、或锁定读 `mcp_oauth_binding` 的一行，交回 `{ state, since, credentialRef? }` 或「没有这一行」；只读、不自己开事务、不经桥的服务面（存储协议 P-13：事务里不调别的插件的服务）。唯一的消费者是凭据保管方最小提供者 [`credential-custodian-local`](../../infra/credential-custodian-local/design.md#跨-owner-的同一提交桥的绑定行与引用约束)：`resolve` 的读事务用前者（它的 K-5），清扫的写事务用后者（它的 K-4）。四列登记见[给凭据保管方的外部依赖](#给凭据保管方的外部依赖登记)。
+
 **Cordis 服务面**：桥本体 `mcp-bridge`（服务 `mcpBridge`，六个操作；必需 inject `storage`、`clock`）与执行者贡献 `mcp-bridge-executor`（[下节](#插件边界与服务面)）。桥本体的每条连接都由 `connectEndpoint` 建、每次投影都调 `projectActions`、每次结果都经 `toToolResult`；贡献插件交给执行运行时的就是 `createMcpExecutor(桥本体.invoke)`。
 
 **只在运行时层成立、函数层不承诺**：连接按 (租户, 接入点, 持有格, 连接目标, 凭据引用) 区分、不跨租户复用（S-6，连接表的键）；凭据按持有解引用（S-9）；副本单调整份替换（S-7）；OAuth 的「同一提交」与续期、续期者唯一（S-23、S-24）；桥换代时在途调用落 `bridgeWithdrawn`（S-27）；据点重启后回收 stdio 孤儿（S-28）；每次执行尝试重新列举、尝试内钉住（S-12，钉住归注册表）。
@@ -76,7 +78,7 @@
 | 落选方的最强论证 | 字面上的同一提交 | 简单 | —— |
 | 本方弱点 | —— | —— | 两次提交；留下「待生效」的孤儿行要清扫；保管方必须与绑定表在同一存储、同一约束域 |
 | 为什么选它 | 改两份公开面、跨进程即作废（与执行运行时节点不用跨插件事务句柄同一理由） | 绑定 `granted` 而凭据没收下：此刻崩溃，绑定指着一个解引用不出的引用、却不再 `pending`，人不知道要重取 | **可见效果只在一次提交里发生**：凭据可用 ⇔ 绑定行 `granted` 且记着这个引用——那是被读的那一行上的一列；保管方的「待生效」行在那之前对任何读者都不可用 |
-| 置信度 | 中高；**C-1～C-3 已由保管方接口接住**（`capability.credential-custodian` v1 [S-16](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-16-depositoauth)～[S-18](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-18-清扫)，candidate；清扫与完成的交错有那份契约的形式模型，[跨 owner 一节](#跨-owner-的同一提交oauth-绑定行与保管方的凭据行)），最小提供者节点尚无、真承接者 `infra/secrets` 未到 | | |
+| 置信度 | 中高；**C-1～C-3 已由保管方接口接住**（`capability.credential-custodian` v1 [S-16](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-16-depositoauth)～[S-18](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-18-清扫)，candidate；清扫与完成的交错有那份契约的形式模型，[跨 owner 一节](#跨-owner-的同一提交oauth-绑定行与保管方的凭据行)），真承接者 `infra/secrets` 未到，最小提供者节点 `credential-custodian-local` 已立（经本包 `./tx-reads` 读与锁绑定行） | | |
 
 **四、续期者唯一：宿主 effect 里的一个调度器，撤除时等在途续期结束（选）。**
 
@@ -108,7 +110,7 @@
 | [S-6](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-6-连接归桥不上签名不跨租户) 连接 | 连接表：键 = (租户, 接入点, `scope_key`, 连接目标的规范值, 凭据引用或「缺席」)；惰性建立，同键的并发建立共用一次；`connectTimeout` 封顶建立加第一份清单。stdio：据点机上拉起，**不经 shell**，环境恰是「白名单变量 ∪ 正文 env ∪ 凭据 env」、后者压前者 | 尚未建包；SDK 的 stdio 传输是否另并默认变量**待取证**（B-1）——若并，本节点自己拉起进程、只借 SDK 的消息分帧 | 同键之外一律不复用（P-1）；设置换值、凭据换引用 ⇒ 新键新连接，同一 (租户, 接入点, 持有格) 的旧连接转入「排空」：不接新调用，在途归零即按 S-26 关；闲置 `idleConnectionTimeout` 即关 |
 | [S-7](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-7-动作清单持久副本) 副本 | `mcp_action_snapshot`；条件写见 R-B1；`tools` 列是对端原话，严格无损读写（R-B9） | 尚未建包 | 持有移除后不再读到；删行是整理，**本批不做**（没有「持有已移除」的读面，B-3） |
 | [S-8](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-8-oauth-绑定状态与迁移) OAuth 绑定 | `mcp_oauth_binding`；过期是读时判定（`since + oauthPendingTtl` 对 `clock.now()`），不靠定时器 | 尚未建包 | 「引用不再被配着」「取得之后迟迟没配上」两条迁移要读据点上的配值副本——**没有读面**（B-3），本批这两条不触发 |
-| [S-9](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-9-凭据的出示与取用) 凭据出示 | 建连前：缺席 ⇒ 不出示；有引用 ⇒ 先判来处规则（第 3 条），再现取保管方（服务键 `credentialCustodian`，[D-040 §八 M69](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）`resolve(ref, holding)`（[`capability.credential-custodian/v1#S-17`](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-17-resolve)）按租户格解引用；stdio 作环境变量、HTTP 作请求头、OAuth 取得的作持有者令牌 | 尚未建包；**保管方接口已定**（`capability.credential-custodian` v1），最小提供者节点尚无，真承接者 `infra/secrets` 未到（契约 G-7，B-2）；**本版只有 OAuth 条目交得出**——静态凭据的引用一律 `notResolvable`（那份契约的 G-2），出示名（C-6）也不在本版 | 保管方缺席、`unavailable`、`custodianWithdrawn` ⇒ `dependencyUnavailable`，**不改成不带凭据去连**；`notResolvable`（不在那份持有上、已作废、绑定不是 `granted`、记下的不是它、本版的静态引用）⇒ `credentialUnavailable` |
+| [S-9](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-9-凭据的出示与取用) 凭据出示 | 建连前：缺席 ⇒ 不出示；有引用 ⇒ 先判来处规则（第 3 条），再现取保管方（服务键 `credentialCustodian`，[D-040 §八 M69](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）`resolve(ref, holding)`（[`capability.credential-custodian/v1#S-17`](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-17-resolve)）按租户格解引用；stdio 作环境变量、HTTP 作请求头、OAuth 取得的作持有者令牌 | 尚未建包；**保管方接口已定**（`capability.credential-custodian` v1），真承接者 `infra/secrets` 未到，最小提供者节点 `credential-custodian-local` 已立（契约 G-7，B-2）；**本版只有 OAuth 条目交得出**——静态凭据的引用一律 `notResolvable`（那份契约的 G-2），出示名（C-6）也不在本版 | 保管方缺席、`unavailable`、`custodianWithdrawn` ⇒ `dependencyUnavailable`，**不改成不带凭据去连**；`notResolvable`（不在那份持有上、已作废、绑定不是 `granted`、记下的不是它、本版的静态引用）⇒ `credentialUnavailable` |
 | [S-10](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-10-对端可用性不由本系统掌握)、[S-11](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-11-缺席时的默认答案) 不可用不是故障、缺席默认 | 失败映射表 | 尚未建包 | 见[状态、并发与失败映射](#状态并发与失败映射) |
 | [S-12](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-12-每次执行尝试重新列举尝试内不变) 每次尝试重新列举 | `refreshActions` 每次真列举；不缓存 | 尚未建包 | 钉住归注册表 |
 | [S-13](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-13-凭据与引用不进任何呈现) 凭据不进呈现 | 每条连接记下它出示过的凭据文字；stderr、日志通知、协议错误原文留存之前逐段替换成固定遮罩；结构化日志只写接入点、持有格、失败值名，不写 `settings.credential` | 尚未建包 | 引用只在 `completeOAuth` 的返回里出现一次；**不承诺遮得掉对端变形过的秘密**（契约原话） |
@@ -119,7 +121,7 @@
 | [S-19](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-19-invoke) `invoke` | 取用或建立连接 → 在途登记 → 发出（此刻起「已发出」）→ 等应答，`callTimeout` 到点 ⇒ 发取消通知、`callTimedOut`；进度通知经执行运行时交来的发帧原语发帧；日志通知遮掉后记日志 | 尚未建包；按请求取消与进度路由**待取证**（B-1）；**参数送出与应答读入是两跳**（M36）：交来的参数是无损值（大数保留原文），SDK 若以普通 `JSON.stringify`／`JSON.parse` 读写线上消息，送出时须经无损写、读入对端应答时严格无损读、重复键即 `protocolError`——SDK 能不能换掉这一层**待取证**（B-1） | **中断**：执行运行时的停止请求到达 ⇒ 发取消通知、在途登记撤掉，这次调用以一个内部的「无结局」值结算，执行者贡献把它丢弃、不向执行运行时交回（执行运行时那时已写下 `interrupted`，契约 S-18「先落后发」）。任何失败都带「是否已发出」 |
 | [S-20](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-20-对端结果怎样成为-toolresult)、[S-21](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-21-失败值与收场的对应) 结果映射、收场对应 | 纯函数：应答 → `ToolResult` ＋ `isError`；执行者贡献把 `bridgeWithdrawn` 交回为「异常中断」、其余失败交回为执行者失败，带「是否已发出」 | 尚未建包；执行者接口是执行运行时节点定的候选形状（执行运行时节点缺口 T-14） | 非图、非音的内嵌二进制只留一行说明（契约 G-4）。**桥换代时交回仍到得了**（M73）：撤桥让贡献插件先回 `PENDING`、它的注销 effect 已跑，但在途那一次的包装不靠它——桥撤除序列第 3 步结算出的 `bridgeWithdrawn` 经执行运行时交来的交回原语送到，执行运行时收成 `failed{abnormal_interruption}`；否则那次调用挂在一份已不存在的桥上、永不收场（契约 S-30 第 6 行） |
 | [S-22](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-22-beginoauth) `beginOAuth` | ③ 判 → 取授权服务器元数据（事务外）→ 生成 PKCE 与状态参数 → 一次写事务：取持有哨兵（R-B3）、把这份持有上的 `pending` 迁 `revoked`、插入新的 `pending` | 尚未建包；SDK 的 OAuth 钩子**待取证**（B-1） | 不幂等（⑦）；同意地址只含协议的一次性参数 |
-| [S-23](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-23-completeoauth) `completeOAuth` | 读事务：绑定 `pending`、未过期、状态参数一致 → 事务外用授权码换凭据 → 保管方 `depositOAuth(holding, binding, body)` 收成「待生效」、交回新引用（[`capability.credential-custodian/v1#S-16`](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-16-depositoauth)）→ 一次写事务：锁绑定行、仍 `pending` 且未过期（**过期按锁到之后取的 `clock.now()` 判**，与保管方清扫同一口径，C-3）⇒ 迁 `granted`、记下引用、`since = now` | 尚未建包；**保管方接口已定**，最小提供者节点尚无（B-2） | [关键选择三](#关键选择)；交错反证见[下节](#跨-owner-的同一提交oauth-绑定行与保管方的凭据行) |
+| [S-23](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-23-completeoauth) `completeOAuth` | 读事务：绑定 `pending`、未过期、状态参数一致 → 事务外用授权码换凭据 → 保管方 `depositOAuth(holding, binding, body)` 收成「待生效」、交回新引用（[`capability.credential-custodian/v1#S-16`](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-16-depositoauth)）→ 一次写事务：锁绑定行、仍 `pending` 且未过期（**过期按锁到之后取的 `clock.now()` 判**，与保管方清扫同一口径，C-3）⇒ 迁 `granted`、记下引用、`since = now` | 尚未建包；**保管方接口已定**，最小提供者节点 `credential-custodian-local` 已立（B-2） | [关键选择三](#关键选择)；交错反证见[下节](#跨-owner-的同一提交oauth-绑定行与保管方的凭据行) |
 | [S-24](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-24-续期清值与作废) 续期、清值与作废 | 续期调度器（宿主 effect）：对 `granted` 绑定，按保管方给的到期时刻提前一个 `renewalRetryInterval` 续；对端以鉴权失效拒绝时当场续；授权服务器明确拒绝 ⇒ 锁绑定行迁 `revoked`、请保管方丢弃；够不着 ⇒ 按间隔重试、期间 `credentialUnavailable` | 尚未建包；**续期写回与到期时刻本版不收**（保管方契约 [G-4](../../../../spec/capabilities/credential-custodian/v1/contract.md#十一已知缺口)，C-5）——调度器无从得知到期时刻，也无处写回新本体：**本版不续期**，令牌到期后对端以鉴权失效拒绝 ⇒ 那一次 `credentialUnavailable`，人要重新取；授权服务器明确拒绝一支照常（锁绑定行迁 `revoked`，保管方的清扫随后丢那一条，S-18）；续期者唯一依赖 A-1（[关键选择四](#关键选择)），在续期写回进来之前不触发 | 续期不改引用、不改绑定、不改 `since`；「换值、清值、持有移除」三条要读配值副本（B-3），本批不触发 |
 | [S-25](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-25-对端来的通知与请求) 对端通知与请求 | `tools/list_changed` 合并记一条日志；elicitation、sampling、roots 不声明、来了按协议回不支持 | 尚未建包 | 不改任何钉住的东西 |
 | [S-26](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-26-连接的收口次序) 收口次序 | 每条连接一个关闭例程（一个 async 函数）：关传输 → 对进程组先请求退出、`stdioTerminateGrace` 后强制 → 排空 stderr（遮掉、`stderrBound` 封顶）→ 删进程登记行。stderr 在连接活着时持续排空 | 尚未建包；进程组与 stderr 接管**待取证**（B-1） | 在途调用：换值、闲置 ⇒ 等它们结束再关；对端断开 ⇒ 各自 `endpointUnreachable`（已发出） |
@@ -130,7 +132,7 @@
 
 ### 跨 owner 的「同一提交」：OAuth 绑定行与保管方的凭据行
 
-两个写入者：本插件（绑定行）与凭据保管方（OAuth 条目，另一个 owner；**接口已定**——`capability.credential-custodian` v1，最小提供者节点尚无，真承接者未到）。那份契约把本节规矩写成了它的装配给保证（[S-19](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-19-装配给的保证-vs-协议须给的保证) 第 2 行：OAuth 条目与绑定同一存储、同一约束域，读绑定与迁绑定排得出先后）。**共同触碰的存储对象**：
+两个写入者：本插件（绑定行）与凭据保管方（OAuth 条目，另一个 owner；**接口已定**——`capability.credential-custodian` v1，真承接者未到，最小提供者节点 [`credential-custodian-local`](../../infra/credential-custodian-local/design.md#跨-owner-的同一提交桥的绑定行与引用约束) 已立（candidate），它那一侧的同一节与本节互指）。那份契约把本节规矩写成了它的装配给保证（[S-19](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-19-装配给的保证-vs-协议须给的保证) 第 2 行：OAuth 条目与绑定同一存储、同一约束域，读绑定与迁绑定排得出先后）。**共同触碰的存储对象**：
 
 1. **绑定行上的 `state` 与 `credential_ref` 两列**：「这份凭据可用」的判定就落在这一行上——保管方解引用时，在它自己的读事务里读这一行，只有 `state = granted` 且 `credential_ref` 等于被解引用的那个引用才交出本体（C-2；保管方 [S-17](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-17-resolve) ④ 的「一次一致的读」与 ⑥ 的后两种 `notResolvable`）。
 2. **保管方凭据行对绑定行的引用约束**（C-1）：凭据行指着一个存在的 `binding_id`；绑定行不能在凭据行还指着它时被删（保管方 [S-16](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-16-depositoauth) ④、S-19 第 2 行；交来的绑定号不存在 ⇒ `bindingUnknown`）。**最小提供者上它成立的前提**：条目以密文落在与 `mcp_oauth_binding` 同一存储、本机只放密钥（[D-040 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ⑤，保管方 G-9）——分在两份存储就没有这条约束，也没有下面三条反证所靠的那一行锁。
@@ -143,6 +145,17 @@
 
 **反证不了、要真并发演练的**：保管方的解引用读与本插件迁 `revoked`（续期被拒）交错——解引用读到 `granted` 的那一次仍交出本体；契约 S-24 ③「在途的照常完成、撤销管下一道准入」允许，但要演练确认没有第三种结果（verification N-3）。
 **它比字面的「同一提交」弱的地方**：两次提交之间有一段「凭据已收下、绑定未迁」；那一段里凭据对任何读者都不可用，崩溃留下的是一行永不生效的凭据，不是一个半成的可用凭据。
+
+### 给凭据保管方的外部依赖（登记）
+
+保管方的清扫与解引用要与本插件的绑定迁移在同一存储对象上排次序（[上节](#跨-owner-的同一提交oauth-绑定行与保管方的凭据行)）。本节点据此把下列两项登记为**有外部消费者的实现细节**：改动须先告知 [`credential-custodian-local`](../../infra/credential-custodian-local/design.md#实施缺口与消费者影响)（它的 CCL-1 由本节闭合）。
+
+| # | 依赖对象 | 本节点里它是什么 | 依据 |
+| --- | --- | --- | --- |
+| X-1 | `mcp_oauth_binding` 的四列 `binding_id`、`state`、`since`、`credential_ref` | 主键；S-8 的三状态；过期判定的起点；`granted` 时记下的那一个引用 | 保管方 S-17 ④、S-18 第 1～3 条；那个节点的 K-3、K-5 |
+| X-2 | 绑定行锁（`lockOAuthBinding`，与 R-B4 锁的是同一行） | 完成、续期被拒、作废与清扫的共同排序点 | 保管方 S-18 第 2 条、S-19 第 2 行；那个节点的 K-4 |
+
+两项都只经 `./tx-reads` 暴露，列名不出本包；引用约束的方向是保管方的条目表指向本表（它的 K-3），所以本表的迁移片段要先于它的合成（它的 CCL-2）。
 
 ### 事件与过滤器
 
@@ -159,7 +172,7 @@
 |---|---|---|---|
 | 存储（`storage`） | 桥本体**必需 inject**；实例 `infra/storage-sql` | 提供者换代 ⇒ 桥重跑（basis [`plugin-body-reruns-on-provider-change`](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)）⇒ 按 S-27 撤下全部连接、在途调用全落 `bridgeWithdrawn` | 缺席 ⇒ `PENDING`。契约把「本版不换代」留给装配（S-30 第 6 行） |
 | 时间源（`clock`） | 桥本体**必需 inject**。**草图只写了存储**：契约 [S-29](../../../../spec/capabilities/mcp-bridge/v1/contract.md#s-29-依赖的提供者不可用) 把时间源列为依赖——`fetchedAt`（K34）、`since`、待定绑定的过期、续期时刻都要同一时间源 | 同上 | `'unavailable'` ⇒ 要时刻的操作 `dependencyUnavailable` |
-| `capability.credential-custodian/v1` [S-16](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-16-depositoauth) `depositOAuth`、[S-17](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-17-resolve) `resolve`（服务键 `credentialCustodian`，M69 定、与 `apps/cli` 及模型档案目录节点同名） | **可选**：每次要出示凭据、完成 OAuth 时 `resolveOptional` 现取（basis [`inject-has-no-optional-form`](../../../../basis/cordis/inject-has-no-optional-form.md)）；续期写回本版不收（G-4） | 现取；保管方换代不让桥重跑，已建立连接上出示过的凭据照用到连接关闭 | 缺席、`unavailable`、`custodianWithdrawn` ⇒ 要凭据的操作 `dependencyUnavailable`；`notResolvable` ⇒ `credentialUnavailable`；`bindingUnknown` 与 `invalidInput` ⇒ 缺陷（本插件交来的绑定号与持有不该错）；不带凭据的接入点照常。**接口已定、真承接者未到**：最小提供者节点尚无（B-2） |
+| `capability.credential-custodian/v1` [S-16](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-16-depositoauth) `depositOAuth`、[S-17](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-17-resolve) `resolve`（服务键 `credentialCustodian`，M69 定、与 `apps/cli` 及模型档案目录节点同名） | **可选**：每次要出示凭据、完成 OAuth 时 `resolveOptional` 现取（basis [`inject-has-no-optional-form`](../../../../basis/cordis/inject-has-no-optional-form.md)）；续期写回本版不收（G-4） | 现取；保管方换代不让桥重跑，已建立连接上出示过的凭据照用到连接关闭 | 缺席、`unavailable`、`custodianWithdrawn` ⇒ 要凭据的操作 `dependencyUnavailable`；`notResolvable` ⇒ `credentialUnavailable`；`bindingUnknown` 与 `invalidInput` ⇒ 缺陷（本插件交来的绑定号与持有不该错）；不带凭据的接入点照常。**接口已定、真承接者未到，最小提供者节点 `credential-custodian-local` 已立**（B-2） |
 | 执行运行时的执行者登记（`capability.tool-execution-runtime/v1#S-37`；[`packages/tools/tool-execution-runtime`](../tool-execution-runtime/README.md)） | 执行者贡献插件**必需 inject** `toolExecution` 与 `mcpBridge` | 任一换代 ⇒ 只有贡献插件重跑、重新登记 | 执行运行时缺席 ⇒ 贡献插件 `PENDING`，MCP 那一格没有执行者（执行运行时收成 `failed{start_failed}`） |
 | 据点上的配值副本（「引用还配没配着」；无契约） | **可选**；**没有读面**（B-3） | —— | 本批不触发依赖它的两条迁移 |
 | 调用方（会话资产注册表、执行运行时、交付面） | 不依赖它们；它们现取本服务 | —— | —— |
@@ -171,8 +184,8 @@
 | R-B1 | **副本条件写**：一次写事务里对键锁定读；行在 ⇒ 新 `fetchedAt` 更晚才整份替换；行不在 ⇒ 插入，两次并发首插撞主键之后在同一事务里重读、按同一规则判（撞键不废事务） | S-7 ③④、S-16 ⑤⑦ | P-3、P-4（行不在则锁不住，靠主键兜）、P-2、P-11 |
 | R-B2 | 单次提交原子：`beginOAuth` 的「旧 `pending` 作废 ＋ 新 `pending` 插入」；`completeOAuth` 的「迁 `granted` ＋ 记引用」 | S-22 ④、S-23 ④ | P-1 |
 | R-B3 | **同一持有的发起串行**：`beginOAuth` 的写事务开头取 `lockSentinel('mcp-bridge/oauth/<租户>/<接入点>/<scope_key>')`（候选名）；条件唯一「同一持有至多一行 `pending`」作兜底，撞了是缺陷 | S-8「至多一个 `pending`」 | P-5、P-11 |
-| R-B4 | 绑定行的锁定读：完成、续期被拒、作废都在一个写事务里锁这一行再判再写 | S-23 ②⑦、S-24 | P-4 |
-| R-B5 | **引用约束与保管方同域**：保管方的凭据行对 `mcp_oauth_binding.binding_id` 的引用约束，要求两张表在同一存储、同一约束域（与保管方契约 [S-19](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-19-装配给的保证-vs-协议须给的保证) 第 2 行、它的最小提供者节点的对应要求互指；最小提供者的落处按 N-37 ⑤：密文进绑定所在的存储） | S-23 ④、S-30 第 4 行 | P-10（`ReferenceViolation` 两向） |
+| R-B4 | 绑定行的锁定读：完成、续期被拒、作废都在一个写事务里锁这一行再判再写 | S-23 ②⑦、S-24 | P-4；保管方清扫锁的是同一行（[`credential-custodian-local`](../../infra/credential-custodian-local/design.md#对存储提供者的要求清单) K-4，经 `./tx-reads` 的 `lockOAuthBinding`） |
+| R-B5 | **引用约束与保管方同域**：保管方的凭据行对 `mcp_oauth_binding.binding_id` 的引用约束，要求两张表在同一存储、同一约束域（与保管方契约 [S-19](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-19-装配给的保证-vs-协议须给的保证) 第 2 行、最小提供者节点 [`credential-custodian-local`](../../infra/credential-custodian-local/design.md#对存储提供者的要求清单) 的 **K-3**（引用约束 `ON DELETE RESTRICT`、不延迟）与 K-9（同一 `storage` 实例）互指；落处按 N-37 ⑤：密文进绑定所在的存储） | S-23 ④、S-30 第 4 行 | P-10（`ReferenceViolation` 两向） |
 | R-B6 | 只读事务快照一致 | S-16 ⑥、S-23 ② | P-6 |
 | R-B7 | 持久：副本、绑定、进程登记跨重启仍在。**边界**：sqlite `synchronous = NORMAL` 下操作系统崩溃或断电可能丢最后一段已提交事务（[D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/README.md)）——丢的若是进程登记行，那个进程成了回收不了的孤儿；丢的若是 `granted` 迁移，人要重取一次 | S-7 ⑤、S-28 | P-7 |
 | R-B8 | 不可用可识别：读失败不当 `not_fetched`、不当空清单 | S-11、S-16 ⑧ | P-8 |
@@ -180,13 +193,13 @@
 
 ### 对凭据保管方的要求清单
 
-保管方的窄口接口 2026-09-25 起**已定**：`capability.credential-custodian` v1（candidate；那份契约的[消费者核对](../../../../spec/capabilities/credential-custodian/v1/contract.md#十二消费者核对)已逐条对过下表）。最小提供者节点由主线另立、尚无；真承接者 `infra/secrets` 那一程未到（那份契约 G-1；本契约 G-7，[D-040 S19-f](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的)）。最小提供者的节点立起来时须写一条对应本节的要求，**两边互指**。**最小提供者的落处**（[D-040 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ⑤）：OAuth 条目以密文落在 `mcp_oauth_binding` 所在的同一存储，本机只放密钥——C-1～C-3 的共同对象由此成立。
+保管方的窄口接口 2026-09-25 起**已定**：`capability.credential-custodian` v1（candidate；那份契约的[消费者核对](../../../../spec/capabilities/credential-custodian/v1/contract.md#十二消费者核对)已逐条对过下表）。真承接者 `infra/secrets` 那一程未到（那份契约 G-1；本契约 G-7，[D-040 S19-f](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的)），**最小提供者节点 [`credential-custodian-local`](../../infra/credential-custodian-local/design.md#对存储提供者的要求清单) 已立（candidate）**：C-1～C-3 与它的 K-3（引用约束）、K-4（锁定读）、K-5（一致快照读）逐条互指。**最小提供者的落处**（[D-040 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ⑤）：OAuth 条目以密文落在 `mcp_oauth_binding` 所在的同一存储，本机只放密钥——C-1～C-3 的共同对象由此成立。
 
 | # | 要求 | 为什么 | 接口契约兑现条款 |
 |---|---|---|---|
-| C-1 | 收下一份 OAuth 凭据时写一行「待生效」，以引用约束指着 `mcp_oauth_binding.binding_id`，交回一个新的 `CredentialRef`；与绑定表同一存储（R-B5） | [关键选择三](#关键选择)的共同对象 | [S-16](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-16-depositoauth) ④⑤⑦（不看绑定状态、不幂等，多出的由清扫丢）；[S-19](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-19-装配给的保证-vs-协议须给的保证) 第 2 行 |
-| C-2 | 解引用 OAuth 取得的引用时，在同一个读事务里读绑定行：`state = granted` 且 `credential_ref` 等于它才交出本体 | 可见效果只在绑定迁 `granted` 那一次提交里发生 | [S-17](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-17-resolve) ④⑥⑧（五种 `notResolvable` 不分；读不到是 `unavailable`） |
-| C-3 | **清扫只删三种「待生效」行**（[D-040 §八 M72](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：指着的绑定已 `revoked`；指着的绑定仍 `pending` 但已过 `oauthPendingTtl`；指着的绑定已 `granted` 而记的引用不是它。**绑定仍 `pending` 且未过期的不删**——它正等着本插件迁 `granted`。判定在清扫自己的写事务里对绑定行做锁定读（与本插件完成时锁的是同一行，R-B4），过期按锁到之后取的 `clock.now()` 判；不另立反向引用约束 | 崩溃与交错留下的孤儿；与完成交错时不留下「`granted` 却解引用不出」（[跨 owner 一节](#跨-owner-的同一提交oauth-绑定行与保管方的凭据行)第三条反证） | [S-18](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-18-清扫) 第 1～3 条；`oauthPendingTtl` 取本插件的同一个值（保管方 G-8） |
+| C-1 | 收下一份 OAuth 凭据时写一行「待生效」，以引用约束指着 `mcp_oauth_binding.binding_id`，交回一个新的 `CredentialRef`；与绑定表同一存储（R-B5） | [关键选择三](#关键选择)的共同对象 | [S-16](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-16-depositoauth) ④⑤⑦（不看绑定状态、不幂等，多出的由清扫丢）；[S-19](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-19-装配给的保证-vs-协议须给的保证) 第 2 行；最小提供者：K-3 |
+| C-2 | 解引用 OAuth 取得的引用时，在同一个读事务里读绑定行：`state = granted` 且 `credential_ref` 等于它才交出本体 | 可见效果只在绑定迁 `granted` 那一次提交里发生 | [S-17](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-17-resolve) ④⑥⑧（五种 `notResolvable` 不分；读不到是 `unavailable`）；最小提供者：K-5（条目行与绑定行同一快照，经 `readOAuthBinding`） |
+| C-3 | **清扫只删三种「待生效」行**（[D-040 §八 M72](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：指着的绑定已 `revoked`；指着的绑定仍 `pending` 但已过 `oauthPendingTtl`；指着的绑定已 `granted` 而记的引用不是它。**绑定仍 `pending` 且未过期的不删**——它正等着本插件迁 `granted`。判定在清扫自己的写事务里对绑定行做锁定读（与本插件完成时锁的是同一行，R-B4），过期按锁到之后取的 `clock.now()` 判；不另立反向引用约束 | 崩溃与交错留下的孤儿；与完成交错时不留下「`granted` 却解引用不出」（[跨 owner 一节](#跨-owner-的同一提交oauth-绑定行与保管方的凭据行)第三条反证） | [S-18](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-18-清扫) 第 1～3 条；`oauthPendingTtl` 取本插件的同一个值（保管方 G-8）；最小提供者：K-4（清扫的写事务里经 `lockOAuthBinding` 锁同一行） |
 | C-4 | 按持有解引用静态凭据：引用只在它被配上去的那份持有上有效（`data.asset-model/v1#S-23`）；「不在那份持有上／已作废」与「此刻够不着」两种答复分得开 | S-9 第 2 条 | **本版不收**（保管方 [G-2](../../../../spec/capabilities/credential-custodian/v1/contract.md#十一已知缺口)）：交出的条件与失败值已有（S-17 的持有相等、`notResolvable`／`unavailable`），**条目没有**——静态凭据的引用一律 `notResolvable`，要静态凭据的接入点本版连不上 |
 | C-5 | 续期写回：同一个引用、本体换新；给出到期时刻供调度器用 | S-24 ①、[关键选择四](#关键选择) | **本版不收**（保管方 [G-4](../../../../spec/capabilities/credential-custodian/v1/contract.md#十一已知缺口)）：令牌到期即 `credentialUnavailable`，人要重取 |
 | C-6 | 静态凭据本体里带出示的名字（哪个环境变量、哪个请求头） | S-9 第 4 条（契约 G-7 仍缺的形状） | **本版不收**（保管方 [G-3](../../../../spec/capabilities/credential-custodian/v1/contract.md#十一已知缺口)，形状归本契约 G-7） |
@@ -241,14 +254,14 @@
 |---|---|---|
 | 连接不跨租户、按五元组区分 | 连接表的键 | 本节点 ＋ **装配**：一个进程只装一份桥 |
 | 副本单调整份替换 | R-B1 | 本节点 ＋ 存储提供者 |
-| 凭据引用按持有解引用 | 就地现取保管方 `resolve`（[S-17](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-17-resolve)）；本版只有 OAuth 条目，静态引用 `notResolvable`（C-4 本版不收） | **保管方**（接口已定，最小提供者节点尚无） |
+| 凭据引用按持有解引用 | 就地现取保管方 `resolve`（[S-17](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-17-resolve)）；本版只有 OAuth 条目，静态引用 `notResolvable`（C-4 本版不收） | **保管方**（接口已定；最小提供者节点 `credential-custodian-local` 已立） |
 | OAuth 绑定与令牌在据点一侧、绑定与保管方记录同一提交 | 绑定行状态列 ＋ 引用约束（[跨 owner 一节](#跨-owner-的同一提交oauth-绑定行与保管方的凭据行)） | 本节点 ＋ 保管方 ＋ **装配**：两张表同一存储（最小提供者按 N-37 ⑤ 落在绑定所在的存储） |
 | 已发出不重放 | 在途登记里「已发出」一位；断线不重发 | 本节点 |
 | 桥换代时在途调用落异常中断 | 撤除序列第 3 步 | 本节点 ＋ **装配**：何时换代（本版不在运行期换） |
 | 中断送得到对端 | 执行者贡献把停止转成取消通知 | 本节点 ＋ 执行运行时 |
 | stdio 服务端在据点机上 | 桥在据点进程里拉起 | **装配**（`apps/cli` 装本插件） |
 
-**归装配的事项**（点名给 `apps/cli`）：装一份桥、一份执行者贡献；config 八项的值；存储属主排他；运行期不换存储与时钟；撤除次序——装配须**显式**先撤执行运行时与桥，再撤存储与时钟；依赖驱动的卸载不满足此次序（桥的撤除序列与存储自己的关闭并发，第 2 步等提交段会落空）；`apps/cli` 已按 [D-040 §八 M48](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) A-1 承接（M71）；保管方的最小提供者（`capability.credential-custodian` v1，服务键 `credentialCustodian`；OAuth 条目以密文落在与 `mcp_oauth_binding` 同一存储、本机只放密钥，[D-040 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ⑤；它的 `sweepInterval` 值与本插件同一个 `oauthPendingTtl`，保管方 G-8）；配值副本读面（不存在，B-3）；OAuth 的交互面（交付面，PF-016）。
+**归装配的事项**（点名给 `apps/cli`）：装一份桥、一份执行者贡献；config 八项的值；存储属主排他；运行期不换存储与时钟；撤除次序——装配须**显式**先撤执行运行时与桥，再撤存储与时钟；依赖驱动的卸载不满足此次序（桥的撤除序列与存储自己的关闭并发，第 2 步等提交段会落空）；`apps/cli` 已按 [D-040 §八 M48](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) A-1 承接（M71）；保管方的最小提供者（`capability.credential-custodian` v1，服务键 `credentialCustodian`；OAuth 条目以密文落在与 `mcp_oauth_binding` 同一存储、本机只放密钥，[D-040 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ⑤；它的 `oauthPendingTtl` 与本插件同一个值、从同一配置源交给两边，保管方 G-8、它的 CCL-3；它的迁移片段排在本插件的片段之后、**没装本插件的装配也要合成本插件的片段**，它的 CCL-2）；配值副本读面（不存在，B-3）；OAuth 的交互面（交付面，PF-016）。
 
 ## 实施缺口与消费者影响
 
@@ -257,7 +270,7 @@
 | # | 缺口 | 受阻的消费或条款 | owner | 闭合条件 |
 |---|---|---|---|---|
 | **B-1** | **SDK 能力待取证**（契约 G-6 在本节点上的展开）：精确钉版；stdio 子进程标识、独立进程组、环境是否另并默认变量、stderr 接管；按请求取消与进度回调；OAuth 钩子（令牌读写、PKCE、401 续期）；分页游标；`execution.taskSupport` 是否保留；**线上 JSON 的读写能否换成严格无损的那一对**（M36：参数里的大数不被舍入、对端应答的重复键被拒）。**任一项不成立，那一格改为自写**（如自己拉起进程、只借 SDK 的消息分帧，或自写传输层的编解码），不改契约 | S-6、S-17、S-19、S-20、S-22～S-26、S-28 | 实现者（按来源核对取证，结果进 basis 或登待核对主张）；钉版归主线 | 每项一条 probe；**精确钉版在实施开工前出一份决定**（D-037 保留前提；[D-040 §八 M73](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 的 MB-4），不用 `^` 宽范围 |
-| **B-2** | **凭据保管方：接口已定、真承接者未到**。C-1～C-3 由 `capability.credential-custodian` v1 S-16～S-18 接住；最小提供者节点由主线另立、尚无；**C-4～C-6 本版不收**（保管方 G-2、G-4、G-3） | 最小提供者装上之前：一切带凭据引用的接入点（`dependencyUnavailable`）、OAuth 全路；装上之后仍受阻：要静态凭据的接入点（`credentialUnavailable`）、续期（令牌到期人要重取）、出示名 | 主线（最小提供者节点）；`infra/secrets` 那一程（C-4～C-6，M43 C-5：下一程） | 最小提供者节点写出对应要求并互指；C-4～C-6 随保管方契约新版本 |
+| **B-2** | **凭据保管方：接口已定、真承接者未到，最小提供者节点 `credential-custodian-local` 已立（candidate）**。C-1～C-3 由 `capability.credential-custodian` v1 S-16～S-18 接住、由那个节点的 K-3～K-5 兑现（经本包 `./tx-reads` 读与锁绑定行）；它本版只进验收装配；**C-4～C-6 本版不收**（保管方 G-2、G-4、G-3） | 产品装配里：一切带凭据引用的接入点（`dependencyUnavailable`）、OAuth 全路；装上之后（验收装配）仍受阻：要静态凭据的接入点（`credentialUnavailable`）、续期（令牌到期人要重取）、出示名 | `infra/secrets` 那一程（真承接者；C-4～C-6，M43 C-5：下一程） | 真承接者收下或取代保管方 v1；C-4～C-6 随保管方契约新版本 |
 | **B-3** | **据点上的配值副本读面没有节点**：「引用还配没配着」「持有是否已移除」 | S-8 两条迁移、S-24 ③④、S-37 场景；副本整理 | 主线（[D-040 §八 M43](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) C-3：随入口组合 v2，下一程）＋ `apps/cli`（与注册表节点缺口 A-2 同一个读面） | 读面落定 |
 | B-4 | 续期者唯一依赖 A-1（[关键选择四](#关键选择)）；独立评审 MB-3 同意这一选择、条件是 A-1 成立。**A-1 与 `provide-is-effect-managed` 的升格一起列 kernel-basis 待补 probe**（M73） | S-24、S-30 第 4 行；撤桥时贡献插件先回 `PENDING`（`provide-is-effect-managed`） | `core/kernel-basis` | probe 成立并升格 basis 条目，或改用存储认领 |
 | B-5 | 执行者接口的形状由执行运行时节点定候选（它的 T-14）；本节点依赖其中「停止请求」「发帧原语」「交回失败带是否已发出」「交回异常中断」四样 | S-19、S-21 | 执行运行时节点 | 形状进执行运行时包的公开入口 |
@@ -265,5 +278,6 @@
 | B-7 | 拉起到写下进程登记行之间的窗口（同执行运行时的 X-5） | S-28 孤儿回收 | 实现者 | 实验定下窗口大小；必要时改为先写意图行 |
 | B-8 | 闲置关闭 `idleConnectionTimeout` 是本节点加的一项 config，契约 G-12 没列 | S-6 ⑤ | 主线（给值） | 装配给值 |
 | B-9 | **已闭合**（2026-09-25 修订波第二轮）：`stdioEnvAllowlist` 是一份 [`EnvAllowlist`](../../../../spec/capabilities/execution-environments/v1/contract.md#s-13-startprocess)——形状与取法定在 execution-environments S-13 表下一条（有限的变量名集合，可空、每个名非空；只取名字在集合里且据点进程环境此刻有的，原名原值，不补空值），与 hooks-import 的 `hookEnvAllowlist` 同一形状、各自配值；本插件的 `Config` 校验与取法改指那一条 | — | — | — |
+| B-10 | **`./tx-reads` 的导入限定没有规则**：须一条 `tools/ts-checks` 规则只许 `packages/infra/credential-custodian-local`（与本包自己的测试）import `./tx-reads`，带「故意违反即失败」的自测（同 OG 的 V2-4） | 未写之前，任何包都能绕过桥的服务面读或锁绑定行 | 本节点 ＋ `tools/ts-checks` owner | 规则写成、在 CI 里跑 |
 
-**报给主线**（不在本节点改）：B-2（最小提供者节点待立；C-4～C-6 本版不收，要静态凭据的 MCP 接入点本版连不上——这是否可接受归产品负责人看验收场景）、B-3（缺节点，M43 下一程）；关键选择四（续期者唯一只到 A-1 为止）；M36 在桥上多出两跳（参数送出、应答读入），SDK 能否换编解码待取证（B-1）。关键选择一（连接表不用子 fiber）与三（OAuth 的「同一提交」读作两次提交一个可见提交点）已由 [D-040 §八 M44](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 接受为推导；B-6 已随 M33 闭合；M37 的替换件口子已进 S-17 行。独立评审 N3 之后：保管方清扫条件（M72，C-3）、执行者包装不依赖贡献者存活（M73）、保管方服务键 `credentialCustodian`（M69）已落字；SDK 钉版的决定排在实施开工前（B-1）。
+**报给主线**（不在本节点改）：B-2（最小提供者节点已立、本版只进验收装配；C-4～C-6 本版不收，要静态凭据的 MCP 接入点本版连不上——这是否可接受归产品负责人看验收场景）、B-3（缺节点，M43 下一程）；关键选择四（续期者唯一只到 A-1 为止）；M36 在桥上多出两跳（参数送出、应答读入），SDK 能否换编解码待取证（B-1）。关键选择一（连接表不用子 fiber）与三（OAuth 的「同一提交」读作两次提交一个可见提交点）已由 [D-040 §八 M44](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 接受为推导；B-6 已随 M33 闭合；M37 的替换件口子已进 S-17 行。独立评审 N3 之后：保管方清扫条件（M72，C-3）、执行者包装不依赖贡献者存活（M73）、保管方服务键 `credentialCustodian`（M69）已落字；SDK 钉版的决定排在实施开工前（B-1）。

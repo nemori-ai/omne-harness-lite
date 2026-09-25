@@ -9,7 +9,7 @@
 ## 分层状态
 
 - 语义接受范围：未接受（候选，待 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）
-- 可实施范围：P-1 声称兑现 S-5～S-12（存储事实与贯穿规矩）、S-14～S-20 与 S-31～S-33（十个操作）、S-21（通知）、S-22 左列、S-23，逐条落点见 [design.md](design.md#操作落点)。**尚未建包，没有任何实现。**阻断两处（[缺口](design.md#实施缺口与消费者影响)）：凭据保管方**据点一侧接口已定、真承接者未到**（最小提供者节点尚无；装上之前据点离线如实收成 `credentialUnavailable`，P-2 记 `undispatched{credential_unavailable}`，M47），**中心一侧本版不收**（保管方 G-7），取值问法在中心恒 `unavailable`（MPD-N1）；P-1r 依赖的入口 v2（向中心发请求，center-connection G-1）与据点副本的新鲜度上界都未定义（契约 G-7；MPD-N2），据点侧读面整体受阻。静态检查加「`readReplica` 只许 P-1r 调」（MPD-N4）。G-19 按 D-043 R-4 闭合：`A` 由本节点读面直接给，不加操作。2026-09-25 修订波处置见 [verification](verification.md#修订波2026-09-25-公开面)
+- 可实施范围：P-1 声称兑现 S-5～S-12（存储事实与贯穿规矩）、S-14～S-20 与 S-31～S-33（十个操作）、S-21（通知）、S-22 左列、S-23，逐条落点见 [design.md](design.md#操作落点)。**尚未建包，没有任何实现。**阻断两处（[缺口](design.md#实施缺口与消费者影响)）：凭据保管方**据点一侧接口已定、真承接者未到**（最小提供者节点 `credential-custodian-local` 已立、本版只进验收装配；产品装配里据点离线如实收成 `credentialUnavailable`，P-2 记 `undispatched{credential_unavailable}`，M47），**中心一侧本版不收**（保管方 G-7），取值问法在中心恒 `unavailable`（MPD-N1）；P-1r 依赖的入口 v2（向中心发请求，center-connection G-1）与据点副本的新鲜度上界都未定义（契约 G-7；MPD-N2），据点侧读面整体受阻。静态检查加「`readReplica` 只许 P-1r 调」（MPD-N4）。G-19 按 D-043 R-4 闭合：`A` 由本节点读面直接给，不加操作。2026-09-25 修订波处置见 [verification](verification.md#修订波2026-09-25-公开面)
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) **空表**——契约 S-24 不选用形式工件，没有登记的 formal task 可绑；证据形式是规范场景 S-25～S-30 与一条静态检查，都没有实现可跑，登记在 [verification.md](verification.md#证据义务)
 - 实际验证：无
 

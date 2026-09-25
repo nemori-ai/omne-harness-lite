@@ -65,7 +65,7 @@
 | | 装配清单作可选依赖：服务总在，清单缺席时每个操作答 `unavailable` | **必需 inject：清单不在，本插件 `PENDING`、服务不出现（选）** |
 |---|---|---|
 | 落选方的最强论证 | 消费者拿到的是契约里的具名值 `unavailable`，而不是「服务不在」；本批装配清单只有接口、没有装得上的提供者，可选依赖让注册表至少「在」 | —— |
-| 本方弱点 | —— | 装配清单的接口已定（`capability.assembly-manifest` v1），但最小提供者节点尚无、真承接者 PF-004 未到（契约 G-1）——**在最小提供者装上之前本插件整批 `PENDING`**；消费者只能按「注册表缺席」收场 |
+| 本方弱点 | —— | 装配清单的接口已定（`capability.assembly-manifest` v1），真承接者 PF-004 未到（契约 G-1），最小提供者节点 `assembly-manifest-store` 已立（candidate、尚未建包、本版只进验收装配）——**在它装上之前本插件整批 `PENDING`**；消费者只能按「注册表缺席」收场 |
 | 为什么选它 | 装配清单是本节点的**唯一权威与唯一提交点**（S-17 ③、S-18）：没有它，七个操作没有一个答得出实质内容（`lookup` 要「这个会话有表或能重建」，重建只能按清单）。「没有它我不跑」是如实的（basis [`inject-has-no-optional-form`](../../../../basis/cordis/inject-has-no-optional-form.md)）；清单提供者换代时插件重跑、缓存丢弃，正是要的——缓存的「头」若对着新提供者碰巧同值，可选依赖下会把旧缓存误认成新的 | 已知消费者对两种形态收场相同：执行运行时把注册表缺席与答 `unavailable` 都收成 `dependencyUnavailable{registry}`（`capability.tool-execution-runtime/v1#S-47`） |
 | 置信度 | 中高 | |
 
@@ -161,7 +161,7 @@
 
 ### 对装配清单提供者的要求清单
 
-本节点**不建表**；它的全部持久要求落在装配清单的提供者上。接口已由 [`capability.assembly-manifest` v1](../../../../spec/capabilities/assembly-manifest/v1/contract.md)（candidate）接住——那份契约的[消费者核对](../../../../spec/capabilities/assembly-manifest/v1/contract.md#十二消费者核对)逐条对过 R-M1～R-M9，右列即对上的条款；最小提供者（本机 sqlite 表经 `core/storage`，那份契约第十一节）的节点由主线另立、尚无，真承接者 PF-004 未到。节点立起来时写一条对应本节的要求，**两边互指**。
+本节点**不建表**；它的全部持久要求落在装配清单的提供者上。接口已由 [`capability.assembly-manifest` v1](../../../../spec/capabilities/assembly-manifest/v1/contract.md)（candidate）接住——那份契约的[消费者核对](../../../../spec/capabilities/assembly-manifest/v1/contract.md#十二消费者核对)逐条对过 R-M1～R-M9，右列即对上的条款；真承接者 PF-004 未到，**最小提供者节点 [`assembly-manifest-store`](../../assets/assembly-manifest-store/design.md#会话资产注册表的要求r-m1r-m9的承接互指) 已立（candidate）**（本机 sqlite 表经 `core/storage`，那份契约第十一节）：R-M1～R-M9 由它逐条接住（按会话哨兵 ＋ 主键、`owned_ref` 唯一、一次只读事务两条语句、不删），**两边互指**。
 
 | # | 要求 | 对应条款 | 为什么 | 接口契约兑现条款 |
 |---|---|---|---|---|
@@ -213,7 +213,7 @@
 
 | 保证 | 本节点单机怎样给 | 归谁 |
 |---|---|---|
-| 同一会话换表串行、多表一次 | 进程内队列 ＋ 清单条件追加（R-M1）；一次操作一条记录（R-M5） | 本节点 ＋ 装配清单提供者（接口已定，最小提供者节点尚无） |
+| 同一会话换表串行、多表一次 | 进程内队列 ＋ 清单条件追加（R-M1）；一次操作一条记录（R-M5） | 本节点 ＋ 装配清单提供者（接口已定；最小提供者节点 `assembly-manifest-store` 已立） |
 | 换表先记进清单再生效 | 追加成功之后才换缓存；每个操作先对头 | 本节点 ＋ 装配清单提供者 |
 | 「谁可以用」现读的新鲜度 | 每次读现求值；新鲜度是据点读面给的副本的新鲜度 | **装配**（据点读面，A-2） |
 | 资产变化通知转到据点 | 不监听；`onAssetChange` 等转发者调 | **装配**（`apps/cli`；本批没有，A-3） |
@@ -222,7 +222,7 @@
 | 调用方身份已核实 | 进程内能力间面；不暴露给终端 | **装配**（`apps/cli` 不把本服务接到任何入口） |
 | 提供者的自报 | 同一进程里的读面，现取 | 各项 owner（契约 G-6） |
 
-**归装配的事项**（点名给 `apps/cli`）：装配清单提供者（接口 `capability.assembly-manifest` v1 已定；验收装配装它的最小提供者，节点由主线另立、尚无；[D-043](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1）；据点读面（不存在，A-2）；资产变化转发者（不存在，A-3）；不把本服务暴露成入口；撤除次序——本插件先于装配清单与时钟撤（依赖关系保证，不另安排）。
+**归装配的事项**（点名给 `apps/cli`）：装配清单提供者（接口 `capability.assembly-manifest` v1 已定；验收装配装它的最小提供者 [`assembly-manifest-store`](../../assets/assembly-manifest-store/design.md#实施缺口与消费者影响)，本版只进验收装配、迁移片段只在验收装配合成；[D-043](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1）；据点读面（不存在，A-2）；资产变化转发者（不存在，A-3）；不把本服务暴露成入口；撤除次序——本插件先于装配清单与时钟撤（依赖关系保证，不另安排）。
 
 ## 实施缺口与消费者影响
 
@@ -230,7 +230,7 @@
 
 | # | 缺口 | 受阻的消费或条款 | owner | 闭合条件 |
 |---|---|---|---|---|
-| A-1 | **装配清单：接口已定、真承接者未到**。R-M1～R-M9 已逐条对到 `capability.assembly-manifest` v1 的条款（[上文](#对装配清单提供者的要求清单)）；最小提供者节点由主线另立、尚无，产品装配里没有它，真承接者 PF-004 未到（契约 G-1） | 最小提供者装上之前本插件整批 `PENDING`；执行运行时的 `submit`（它的 `report` 从本节点来）、agent loop 的尝试开始、`Tools()`／`Skills()`、斜杠命令识别 | 主线（最小提供者节点）；PF-004 那一程（M43 C-2，真承接者） | 最小提供者节点写出对应要求并与本节点互指；PF-004 那一程的契约收下或取代 assembly-manifest v1 |
+| A-1 | **装配清单：接口已定、真承接者未到**。R-M1～R-M9 已逐条对到 `capability.assembly-manifest` v1 的条款（[上文](#对装配清单提供者的要求清单)）；**真承接者 PF-004 未到（契约 G-1），最小提供者节点 [`assembly-manifest-store`](../../assets/assembly-manifest-store/design.md#会话资产注册表的要求r-m1r-m9的承接互指) 已立（candidate）**，已逐条接住 R-M1～R-M9、两边互指；它本版不进产品装配（它的 AMS-7） | 产品装配里本插件整批 `PENDING`；执行运行时的 `submit`（它的 `report` 从本节点来）、agent loop 的尝试开始、`Tools()`／`Skills()`、斜杠命令识别 | PF-004 那一程（M43 C-2，真承接者） | PF-004 那一程的契约收下或取代 assembly-manifest v1 |
 | **A-2** | **据点读面没有 provider 节点**：此刻的求值输入（副本 ＋ 工作区读入 ＋ 会话值）、按 (资产, 版本) 取正文、工作区资产正文能否原样取回、会话事实。assets 提案把它归「据点装配、不另立契约」（[MR-3](../../../../record/proposals/capability-split-assets/design.md#本包依赖的主线裁定尚无决定记录)），`apps/cli` 的设计也登记了它没有承接者 | `fill`、`reload`、`refreshAvailability`、门控现读、重建、被顶替快照的现建 | 主线（M43 C-3：随入口组合 v2 一并起草，下一程） | 读面落定；本节点改指它 |
 | A-3 | **资产变化没有转发者**：资产治理在治理中心进程发通知；据点上谁转、转给哪些会话（本节点不提供会话枚举）未定 | S-28；「再授予要等 reload」（契约 G-3 的边界在本批恒成立） | `apps/cli` | 装配写明转发者与会话扇出 |
 | A-4 | 同一 (会话, 类别) 的 `filledAt` 严格递增靠「上一份 + 1 毫秒」兜底——本节点推导；`Instant` 是毫秒整数（`core/offer-expiry`） | S-6 | 本节点 | 实现时按此；若 `Instant` 刻度改变回来改 |

@@ -17,7 +17,7 @@
 | `#S-36` Stop 的续跑状态从日志数（两次之间停机重启） | 场景测试 | 未开始；**受阻**同上 | 本节点 |
 | `#S-23`、`#S-24` 两张映射表 | 逐行测试：每个事件的位置、维度、情形、上限、退出码 2、阻断与停止的译法与契约表一致 | 未开始 | 本节点；有实现即可跑 |
 | `#S-26` 第 2 行、P-11 前提：请停未确认不挂起（D-040 §八 M64） | 单元测试：launcher 端口对停进程组答 `notConfirmed`、答 `environmentsWithdrawn`、缺席三支；断言执行器当场按报错交回、`error` 为「已请求停止、未确认退出」，没有挂起的 Promise | 未开始 | 本节点；有实现即可跑 |
-| `#S-26` 第 2 行（超时后确实停下） | 集成测试：起一个忽略 SIGTERM 的子进程组，超时后整组退出、结论按报错 | 未开始 | 本节点；有实现即可跑（`runHostHook` ＋ 本机进程组 launcher；经 `executionEnvironments` 最小提供者的同一条另受 HI-N1） |
+| `#S-26` 第 2 行（超时后确实停下） | 集成测试：起一个忽略 SIGTERM 的子进程组，超时后整组退出、结论按契约 S-19 超时那一种情形归类 | 未开始 | 本节点；有实现即可跑（`runHostHook` ＋ 本机进程组 launcher；经 `executionEnvironments` 最小提供者的同一条另受 HI-N1） |
 | N-37 ⑩ 四处（[design 起、限时、停](design.md#一次被调到的子进程起限时停)） | ① **带租户**：单元测试断言 `startProcess`／`processOutcome`／`stopProcessGroup` 三次都带 `resolveTenant` 解析出的那个租户，原生输入里没有租户标识；② **解释器写成 `program`**：`buildLaunch` 对两家各一条带管道与引号的命令，断言 `program` 是那一家的解释器、那一行命令原样作一个参数（不被拆、不被插值）；③ **交全环境变量**：据点环境里放一个清单外的变量与一个清单内的变量，断言子进程只看得到后者、看不到来源产品导出而本项目给不出的变量（契约 S-18 第 3 条第 3 项）；清单里没有程序搜索路径时起不来（`programNotFound`）而不是报错；④ **结果之后停组**：hook 起一个后台孙进程后正常退出，断言拿到结果之后组被停、孙进程不在；停组答 `notConfirmed` 时结论照交、记 error 日志、组留在在途集合、撤除时再停 | 单元测试（①②）＋ 本机进程组的集成测试（③④） | 未开始；②的解释器那一格等 HI-N8 取证 | 本节点 |
 | fail-closed（execution-environments G-3，账本 ⑭） | 单元测试：`startProcess` 答 `noLanding{hostNotAllowed}` ⇒ 每一件兼容件「起不来」、按声明 `skip`、记录看得见，**没有任何分支回退宿主机或直接 `spawn`**；结构检查：执行器包内不 import 起进程的宿主 API（起进程只经 launcher） | 单元测试 ＋ 结构检查 | 未开始 | 本节点 ＋ `tools/ts-checks` |
 | 公开函数面（[design 的公开面](design.md#公开面)） | 单元测试：不装 Cordis、不给 runner，`toHostInput`、`buildLaunch`、`fromHostOutput` 逐格对映射表；`runHostHook` 以一个脚本化 launcher 跑通超时、中止、退出码 0／2／1／127 各一次，归类按契约 S-19 | 未开始 | 本节点；有实现即可跑 |
@@ -32,7 +32,7 @@
 
 - **没有任何证据**：全部义务未开始。导入那一半、映射表与互译是纯函数，有实现即可测；兼容件被调到的全部场景**本版 fail-closed**（HI-N1 ①，产品问题，账本 ⑭），另挡在工作目录来路（HI-N7）与解释器取证（HI-N8）之后；「起不来」各支、中止即停、未确认不挂起可经 `runHostHook` 与本机进程组 launcher 先跑。
 - `bindings.yaml` 为空，与本页一致。
-- **经执行环境最小提供者的停与确认退出**（超时、撤除、取消三种来源）要等那个节点立起、且 G-3 闭合；本机进程组 launcher 只证执行器这一侧的次序。「停进程组的请求有界答复」由 `capability.execution-environments` v1 S-15 ④ 承诺，本节点没有证据覆盖它（归那份契约的场景 S-22）。
+- **经执行环境最小提供者的停与确认退出**（超时、撤除、取消三种来源）要等那个节点（`execution-environments-host`，已立）建包，且在验收装配里由种子件给出宿主机允许（产品装配里 G-3 未闭合）；本机进程组 launcher 只证执行器这一侧的次序。「停进程组的请求有界答复」由 `capability.execution-environments` v1 S-15 ④ 承诺，本节点没有证据覆盖它（归那份契约的场景 S-22）。
 
 ## 独立评审
 
@@ -60,4 +60,5 @@
 | 对齐契约第二轮（`47e36d14`）：退出码 | 契约 S-19（非 0 非 2、含 127 为非阻断错误）；`capability.loop-extension-runner/v1#S-13` | HI-N10 闭合；失败映射、S-19 行、`fromHostOutput` 行改为引 S-19 与 runner S-13、不复述归类；超时的归类同样只引 S-19；S-32 与函数面两行不再挂期望值受阻 | design.md 公开面、S-19 行、失败映射、起限时停表、HI-N10；本页 S-32 行、函数面行 |
 | 对齐契约第二轮：`EnvAllowlist` | `capability.execution-environments/v1#S-13` 表下 `EnvAllowlist` 一条 | HI-N11 闭合；`hookEnvAllowlist` 的校验与取法改指那一条（可空、每个名非空、不补空值） | design.md 配置政策、关键选择、交全环境变量、HI-N11；本页配置一行 |
 | 对齐契约第二轮：`args`／`shell` | 契约 S-14 ⑦、G-16 | 带这两个字段的 CC handler 导入即 `skipped{no_mapping}` | design.md S-11～S-15 行 |
+| 最小提供者节点互指（主线 2026-09-25） | `packages/infra/execution-environments-host`、`packages/session/session-tenancy-table`（candidate） | 起子进程四件事落在 `execution-environments-host` 的 S-13～S-15 上；拓展件子进程的宿主机允许来自它的可选读面 `executionPlacementReadings`，缺席即 `noLanding{hostNotAllowed}`、验收由种子件给；HI-N1 ③ 删去、改为「真承接者未到，最小提供者节点已立」；依赖表、装配给表同步 | design.md 起限时停段首、起、依赖表、装配给表、HI-N1；README |
 

@@ -7,9 +7,9 @@
 | 来源条款 | 需要什么证据 | 当前状态 | owner 与闭合条件 |
 |---|---|---|---|
 | `capability.loop-extension-runner/v1#S-35` 七条义务（`OneFinalConclusionPerPiece`、`CommitBeforeNext`、`ReplayReproducesEffect`、`RemindersExactlyOnce`、`OneCardPerAsk`、`StaleAttemptCannotWrite`、`AnsweredPassCompletes`） | 行为模型 `Runner.tla` 与配置、登记为 formal task；每条不变量配一份拧反开关的否定配置 | **受阻**：模型未建（契约 G-14） | 主线（派建模任务）；建成并跑过后本节点才可绑 |
-| `#S-36`～`#S-49` 规范场景 | 两层各跑一遍：**函数面**——`runPass` ＋ 测试给的链与锚键 ＋ 一个按 `capability.session-log` v1 S-8、S-10、S-14 写的日志端口（判定与写入同一步、按耐久内容判）＋ 脚本化实现；**服务面**——真实 runner ＋ 会话日志与装配清单的最小提供者 ＋ 脚本化实现 | 未开始。**函数面可跑（键与链由测试给）**，锚不再受阻（[D-043 R-12](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）；**服务面受阻**：会话日志与装配清单的最小提供者节点尚无（RUN-N1），读链未约定（assembly-manifest G-4，RUN-N2）；`#S-42` 的模态转换一支另受阻于它的能力标识（契约 G-3）。按 D-040 §八 N-35 ①：只在测试端口上跑通的记「有前提：测试日志端口」，不计入实际验证完成数 | 本节点 |
+| `#S-36`～`#S-49` 规范场景 | 两层各跑一遍：**函数面**——`runPass` ＋ 测试给的链与锚键 ＋ 一个按 `capability.session-log` v1 S-8、S-10、S-14 写的日志端口（判定与写入同一步、按耐久内容判）＋ 脚本化实现；**服务面**——真实 runner ＋ 会话日志与装配清单的最小提供者 ＋ 脚本化实现 | 未开始。**函数面可跑（键与链由测试给）**，锚不再受阻（[D-043 R-12](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）；**服务面受阻**：会话日志与装配清单的最小提供者尚未建包（节点 `session-log-jsonl`、`assembly-manifest-store` 已立，RUN-N1），读链未约定（assembly-manifest G-4，RUN-N2）；`#S-42` 的模态转换一支另受阻于它的能力标识（契约 G-3）。按 D-040 §八 N-35 ①：只在测试端口上跑通的记「有前提：测试日志端口」，不计入实际验证完成数 | 本节点 |
 | `#S-51` 运行被取消，`dispatch` 以 `cancelled` 收场（含叫停落在两件之间一支） | 场景测试：脚本化的慢实现 ＋ 中止信号；断言在途那一件没有记录、后面的件没被调到、没有提醒 | 未开始；函数面可跑（中止信号与脚本化慢件）；服务面受阻同上（RUN-N1）；兼容件那一支另受阻于宿主机允许（execution-environments G-3，hooks-import 节点 fail-closed） | 本节点。**叫停 ‖ 结论追加**（[design 取消](design.md#状态并发与失败映射)）用按 `capability.session-log` v1 S-17 写的测试日志端口在单元级先跑：两种次序下都是整条落下或不落 |
-| `#S-52` 执行环境句柄只及本会话、调用返回即失效 | 场景测试：两个会话各一次经过；返回后再解析即失败；来源缺席时解析失败、不给默认；**执行环境先取租户**：`holdingTenant` 答 `sessionNotFound`／`unavailable` 时 `resolveSessionEnvironment` 一次都没被调到，解析失败 | 未开始；句柄表与失效那一半有实现即可单元级跑；**解析出真值那一半**在验收装配里由 `sessionTenancy`、`executionEnvironments` 的最小提供者答测试种子即可跑（契约 G-20：接口已定、真承接者未到），最小提供者节点尚无 | 本节点 |
+| `#S-52` 执行环境句柄只及本会话、调用返回即失效 | 场景测试：两个会话各一次经过；返回后再解析即失败；来源缺席时解析失败、不给默认；**执行环境先取租户**：`holdingTenant` 答 `sessionNotFound`／`unavailable` 时 `resolveSessionEnvironment` 一次都没被调到，解析失败 | 未开始；句柄表与失效那一半有实现即可单元级跑；**解析出真值那一半**在验收装配里由 `sessionTenancy`、`executionEnvironments` 的最小提供者答测试种子即可跑（契约 G-20：接口已定、真承接者未到），最小提供者节点 `session-tenancy-table`（经 `./seed` 代写）、`execution-environments-host`（读数种子件）已立、尚未建包 | 本节点 |
 | `#S-21` ① `admission.report` 三者核对（D-040 §八 M46） | 单元测试：会话、`runId`、`attempt` 各错一个 ⇒ `invalidInput`，一件都不求值；同一运行上一次尝试的报告同样被拒 | 未开始 | 本节点；有实现即可跑 |
 | 公开函数面 `runPass`（[design 的公开面](design.md#公开面)） | 单元测试：不装 Cordis、不给存储，测试给链、锚键与四个端口即跑通一次经过；`ports.record` 答 `alreadyRecorded` ⇒ 改读已落的那一条接着走、答 `superseded` ⇒ `attemptSuperseded`、答 `unavailable` ⇒ 停在那一件之前；**反证**：接一个不判重的数组端口时同一次经过跑两遍就有两条结论——函数层不承诺「恰一条」，这条测试断言的是「重复来自端口」而不是 runner 自己补了去重 | 未开始 | 本节点；有实现即可跑（不受阻） |
 | 服务面复用同一个 `runPass` | 结构检查：`dispatch` 不另持一套逐件循环 | 未开始 | 本节点 ＋ `tools/ts-checks` |
@@ -26,9 +26,9 @@
 
 ## 覆盖缺口
 
-- **没有任何证据**：全部义务未开始；行为模型未建（G-14）。函数面场景可跑（键与链由测试给）；服务面场景受阻于会话日志与装配清单的最小提供者节点尚无、读链未约定（assembly-manifest G-4）。
+- **没有任何证据**：全部义务未开始；行为模型未建（G-14）。函数面场景可跑（键与链由测试给）；服务面场景受阻于会话日志与装配清单的最小提供者尚未建包（节点 `session-log-jsonl`、`assembly-manifest-store` 已立）、读链未约定（assembly-manifest G-4，那个节点的 AMS-3）。
 - `bindings.yaml` 为空，与本页一致。
-- **执行环境句柄解析出真值**：验收装配里等两份接口契约的最小提供者（契约 G-20：接口已定、真承接者未到）；产品装配里会话持有租户没有写入方，只能证「解析失败时不给默认」那一半。
+- **执行环境句柄解析出真值**：验收装配里等两份接口契约的最小提供者建包（契约 G-20：接口已定、真承接者未到；节点 `session-tenancy-table`、`execution-environments-host` 已立）；产品装配里会话持有租户没有写入方，只能证「解析失败时不给默认」那一半。
 - **函数层没有契约条款**（RUN-N7）：`runPass` 的场景断言借服务面的条款，契约改了它不跟着有条款。
 
 ## 独立评审
@@ -55,4 +55,5 @@
 | 会话日志接线 | `capability.session-log` v1 S-8～S-10、S-13、S-14、S-17、S-18 | RL-1～RL-6 加「接口契约兑现条款」一列；RL-2 改为「在日志条目壳上判、不另存尝试行」；X-1、X-2 的共同对象改写为日志的提交点与判重键；失败值映射 | design.md 存储要求、跨 owner 一节、依赖表；RUN-N1 |
 | 装配清单接线 | `capability.assembly-manifest` v1 S-5、S-16、S-19、G-2、G-4 | 读链经 `readHead`、头 `0` ⇒ `manifestMissing`；**读链仍受阻于 G-4**（服务面）；`dependencyPresence` 并入 `assemblyManifest`、删独立 inject 边 | design.md 投影表、操作落点 S-6／S-12／S-16 行、inject 边表、依赖表；RUN-N2、RUN-N5 |
 | 执行环境引用先经 `sessionTenancy` | N-37 ⑩；`capability.execution-environments` v1 S-11；`capability.session-tenancy` v1 S-8 | `resolveExecutionEnvironment` 先 `holdingTenant` 再 `resolveSessionEnvironment(tenant, session)`；两样分开解析的取舍表改写；G-20 改「真承接者未到、接口已定」 | design.md 执行环境句柄一节、S-50 行、inject 边表、依赖表；本页 S-52 行 |
+| 最小提供者节点互指（主线 2026-09-25） | `session-log-jsonl`、`session-tenancy-table`、`assembly-manifest-store`、`execution-environments-host` 四个 candidate 节点 | RL-1～RL-6 引导段、RUN-N1、RUN-N2、RUN-N5、S-50 行、只 inject 日志一条、承接 S-32 的装配段改为「真承接者未到，最小提供者节点 X 已立（candidate）」；在场事实经 `presenceSource`、会话持有租户经 `./seed` | design.md 各处；README；本页覆盖缺口 |
 
