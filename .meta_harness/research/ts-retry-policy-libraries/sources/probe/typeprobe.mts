@@ -1,0 +1,21 @@
+import { retry, handleWhen, ExponentialBackoff, DelegateBackoff, type IRetryBackoffContext } from 'cockatiel';
+import pRetry from 'p-retry';
+import retryLib from 'retry';
+import { backOff } from 'exponential-backoff';
+import asyncRetry from 'async-retry';
+import { retry as tsRetry } from 'ts-retry-promise';
+import { retry as attemptRetry, defaultCalculateDelay } from '@lifeomic/attempt';
+import promiseRetry from 'promise-retry';
+
+const b = new DelegateBackoff<IRetryBackoffContext<unknown>>((ctx) => ('error' in ctx.result ? 10 : 20));
+const p = retry(handleWhen((e) => e instanceof Error), { maxAttempts: 2, backoff: new ExponentialBackoff({ initialDelay: 1 }) });
+p.onRetry((r) => { const d: number = r.delay; void d; });
+void retry(handleWhen(() => true), { maxAttempts: 1, backoff: b });
+void pRetry(async (n: number) => n, { retries: 1, signal: AbortSignal.timeout(10), shouldRetry: ({ error }) => error.name !== 'X' });
+const ts: number[] = retryLib.timeouts({ retries: 2 }); void ts;
+void backOff(async () => 1, { numOfAttempts: 2, jitter: 'full' });
+void asyncRetry(async (bail, n) => { if (n > 3) bail(new Error('x')); return n; }, { retries: 1 });
+void tsRetry(async () => 1, { retries: 1, backoff: 'EXPONENTIAL' });
+void attemptRetry(async (ctx) => ctx.attemptNum, { maxAttempts: 2 });
+void defaultCalculateDelay;
+void promiseRetry(async (r, n) => (n > 1 ? n : r(new Error('x'))), { retries: 1 });
