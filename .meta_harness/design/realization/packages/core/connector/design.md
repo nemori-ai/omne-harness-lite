@@ -9,6 +9,18 @@
 信封与附件的块形状取自 [content-blocks](../content-blocks/README.md)，`SessionRef` 取自 [messages](../messages/README.md)。
 **Cordis 版本**：采用 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；本模块不依赖 Cordis。
 
+## 公开面
+
+**全部即公开函数面**（[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)）：不依赖 Cordis、会话、租户或存储，单独 `import` 即用；**没有 Cordis 服务面**（[下表](#cordis-原语本节点一样也不用)）。核对：[依赖表](#依赖作用域与绑定)只有本批纯模块、已实现的 identity-values 与 offer-expiry、`ajv`，不 import `@deepseek-ai/cordis`、`kernel-basis`、`storage`，不解析任何服务键。主要导出（候选名）：
+
+| 导出 | 契约坐标 |
+|---|---|
+| 类型 `ConnectorDefinition`、`SourceIdentity`、`DeliveryTarget`、`InboundEnvelope`（不带任何归属成员） | [S-1](../../../../spec/data/connector/v1/contract.md#s-1-连接件正文)～[S-10](../../../../spec/data/connector/v1/contract.md#s-10-信封里的文本不是命令) |
+| `connectorBodyContract`（asset-model 端口的那一份；推属性本版交回 `underivable`） | [S-11](../../../../spec/data/connector/v1/contract.md#s-11-推出规则)～[S-13](../../../../spec/data/connector/v1/contract.md#s-13-两项权限) |
+| `judgeConnector(value)`、`judgeEnvelope(value)` | [S-16](../../../../spec/data/connector/v1/contract.md#s-16-规范表示)～[S-19](../../../../spec/data/connector/v1/contract.md#s-19-表示层拒绝不是判定也不修补) |
+
+**函数层不承诺**：信封与归属的绑定、`externalId` 取自外部、附件解引用——归接入端、交接协议与受理（[装配给 vs 协议给](#装配给-vs-协议给)）。
+
 ## 契约到 Cordis 的投影
 
 ### Cordis 原语：本节点一样也不用

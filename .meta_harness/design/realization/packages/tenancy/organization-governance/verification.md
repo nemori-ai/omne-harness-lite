@@ -31,6 +31,8 @@
 | **v2** 外部依赖 X-1～X-3 | 资产提供者的交错演练（它的 verification D-4、D-8、D-9）；`./tx-reads` 的导入限定规则 ＋ 自测（V2-4） | 未开始 | 本节点 ＋ asset-governance ＋ `tools/ts-checks` |
 | 「同一提交」的跨 owner 解释（[design.md](design.md#跨-owner-的同一提交账号行上的过期事实加组织行对账号行的引用约束)） | 与 account-identity S-43 第 2 支同一次真并发演练，**含两条交错**（激活 vs 清除、创建个人组织 vs 清除）；另一条 R-6 的注入测试：直接构造「组织行指着账号行」时 S-38 被拒、重扫后收敛 | **部分**（同 run）：真并发两条交错 `packages/tenancy/account-registration/tests/interleavings.spec.ts` › `ai#S-43 第 2 支 × ar 同一次演练…`（4 条，sqlite），pg 一侧 `apps/tenancy-host/tests/pg.spec.ts` › `pg 首跑 · 交错 I-12（…）`（3 条）；R-6 注入的插入方向 `organizations.spec.ts` › `S-20 创建个人组织` › `R-6：读账号之后、写入之前账号行被删 ⇒ 引用约束拒绝插入…`。义务点名的「直接构造『组织行指着账号行』时 S-38 被拒、重扫后收敛」没有逐字同名的用例——`account-registration/tests/purge.spec.ts` › `S-34 清除链…` 里有相关的几条 | 本节点 + account-identity + account-registration |
 
+**修订波（2026-09-25 公开面）**：design v2 段新增「[公开面](design.md#公开面)」一节（[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)），写明装配不变、本包没有能力判定函数、`./tx-reads` 属存储级入口不属函数面；上表证据义务与下面的运行都不变，不新增义务。
+
 ## 实际执行
 
 | 运行 | 输入与配置范围 | 结果 | 证据位置 |

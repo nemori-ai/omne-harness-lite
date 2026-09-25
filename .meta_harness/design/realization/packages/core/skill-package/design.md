@@ -9,6 +9,19 @@
 S-20 第 5、6 条要一个 YAML 1.2 解析器：第三方包 `yaml`（[下文](#skillmd-的-yaml-读法)）是**候选依赖，版本钉定与许可核对在实施程**（[D-040 §八 M55](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)，同 M44 的实现期事项口径，不另出决定）。
 **Cordis 版本**：采用 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；本模块不依赖 Cordis。
 
+## 公开面
+
+**全部即公开函数面**（[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)）：不依赖 Cordis、会话、租户或存储，单独 `import` 即用；**没有 Cordis 服务面**（[下表](#cordis-原语本节点一样也不用)）。核对：[依赖表](#依赖作用域与绑定)只有本批纯模块、`ajv` 与候选的 `yaml`，不 import `@deepseek-ai/cordis`、`kernel-basis`、`storage`，不解析任何服务键；读目录、解析链接不在本模块（SP-2）。主要导出（候选名）：
+
+| 导出 | 契约坐标 |
+|---|---|
+| 类型 `SkillPackage`；`skillDependencies(pkg)`；`skillBodyContract`（asset-model 端口的那一份） | [S-1](../../../../spec/data/skill-package/v1/contract.md#s-1-技能包是什么)～[S-19](../../../../spec/data/skill-package/v1/contract.md#s-19-包是版本内容的一个整体)、[S-32](../../../../spec/data/skill-package/v1/contract.md#s-32-执行环境要求) |
+| `readSkillMd(text) → { ok: { manifest, body, unknownKeys } } \| { rejected }` | [S-20](../../../../spec/data/skill-package/v1/contract.md#s-20-skillmd-的文本形式与定界) |
+| `readSkillPackage(entries)`（条目由调用方读好、链接已解析） | [S-21](../../../../spec/data/skill-package/v1/contract.md#s-21-包的目录形式) |
+| `judgeSkillPackage(value) → { ok } \| { rejected }` | [S-22](../../../../spec/data/skill-package/v1/contract.md#s-22-规范表示)～[S-25](../../../../spec/data/skill-package/v1/contract.md#s-25-表示层拒绝不是判定也不修补) |
+
+**函数层不承诺**：包与资源字节同一版本整体不变、正文两条路读到同一段文字、目录形式的符号链接不逃出包根——归存储、读正文的两条路与持有目录的那台宿主（[装配给 vs 协议给](#装配给-vs-协议给)）。
+
 ## 契约到 Cordis 的投影
 
 ### Cordis 原语：本节点一样也不用

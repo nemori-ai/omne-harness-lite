@@ -8,6 +8,19 @@
 **自建一个 TypeScript 纯模块**，写法与 [content-blocks](../content-blocks/design.md#实现路径与来源) 相同：`ajv` 8.20.0 的 Draft 2020-12 入口、Schema 原样复制并逐字节核对、拒绝值[按契约次序逐条判](../content-blocks/design.md#拒绝值按契约的次序逐条判不从-schema-错误里反推)。
 金额从 JSON 文本读入一律经 content-blocks 的[严格无损读写](../content-blocks/design.md#严格的无损-json-读写)（[D-040 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)「金额一律无损保留原文」）。**Cordis 版本**：采用 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；本模块不依赖 Cordis。
 
+## 公开面
+
+**全部即公开函数面**（[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)）：不依赖 Cordis、会话、租户或存储，单独 `import` 即用；**没有 Cordis 服务面**（[下表](#cordis-原语本节点一样也不用)）。核对：[依赖表](#依赖作用域与绑定)只有本批纯模块、已实现的 identity-values 与 offer-expiry、`ajv`，不 import `@deepseek-ai/cordis`、`kernel-basis`、`storage`，不解析任何服务键。主要导出（候选名）：
+
+| 导出 | 契约坐标 |
+|---|---|
+| 类型 `Usage`、`Cost`、`CostItem`、`ToolCallAccount`、`FrameAccount`、`TrimSummary`、`CostCorrection`；三个归属标识 `RunId`、`AttemptId`、`ModelCallId` | [S-4](../../../../spec/data/call-accounts/v1/contract.md#s-4-未知是一个值不是零也不是缺席)～[S-18](../../../../spec/data/call-accounts/v1/contract.md#s-18-原账不改)、[S-37](../../../../spec/data/call-accounts/v1/contract.md#s-37-三个归属标识的家runidattemptidmodelcallid) |
+| `ExactDecimal.from(JsonNumber)`、`add`、`compare` | [S-5](../../../../spec/data/call-accounts/v1/contract.md#s-5-金额美元十进制不截断) |
+| `effectiveCost(target, corrections)`、`summarize(group) → { knownSum, unknownCount } \| { failed }` | [S-22](../../../../spec/data/call-accounts/v1/contract.md#s-22-有效费用)～[S-24](../../../../spec/data/call-accounts/v1/contract.md#s-24-汇总不重复计) |
+| `judgeAccountValue(kind, value) → { ok } \| { rejected }` | [S-27](../../../../spec/data/call-accounts/v1/contract.md#s-27-表示层拒绝值闭合)～[S-29](../../../../spec/data/call-accounts/v1/contract.md#s-29-判别式与枚举闭合) |
+
+**函数层不承诺**：一份账只落一次、补账找得到目标、镜像与权威同组、金额在每一跳都不丢位——它们只在承载记录的一侧、运行时与读面成立（[装配给 vs 协议给](#装配给-vs-协议给单机时本节点提供了什么)右列）；`summarize` 只对交进来的这一组给出结论。
+
 ## 契约到 Cordis 的投影
 
 ### Cordis 原语：本节点一样也不用

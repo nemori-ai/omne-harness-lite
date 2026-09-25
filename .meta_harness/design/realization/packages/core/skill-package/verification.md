@@ -17,6 +17,8 @@
 
 **不在本节点**：V-6（规范场景，要真实接收边界、读入方与放行判断）、V-8（跨进程，本版装配下无法演练）；SC-2、SC-3。
 
+**修订波（2026-09-25 公开面）**：design 新增「[公开面](design.md#公开面)」一节（[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)），只把既有入口归为公开函数面，不新增语义，上表证据义务不变；这一面成立的静态前提「本包源码不 import `@deepseek-ai/cordis`、`@omne-harness-lite/kernel-basis`、`@omne-harness-lite/storage` 与任何插件包」**规则尚无**（候选，本批十五个 `core` 纯模块共用一条，owner `tools/ts-checks`）。
+
 ## 实际执行
 
 尚无。源码不存在。

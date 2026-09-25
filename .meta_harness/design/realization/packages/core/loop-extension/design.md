@@ -8,6 +8,20 @@
 **自建一个 TypeScript 纯模块**，写法与 [content-blocks](../content-blocks/design.md#实现路径与来源) 相同：`ajv` 8.20.0 的 Draft 2020-12 入口、Schema 原样复制并逐字节核对、拒绝值[按契约次序逐条判](../content-blocks/design.md#拒绝值按契约的次序逐条判不从-schema-错误里反推)。
 **Cordis 版本**：采用 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；本模块不依赖 Cordis。
 
+## 公开面
+
+**全部即公开函数面**（[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)）：不依赖 Cordis、会话、租户或存储，单独 `import` 即用；**没有 Cordis 服务面**（[下表](#cordis-原语本节点一样也不用)）——「位置」是 agent loop 的一个时点，结论是一个值，都不是 Cordis 事件。核对：[依赖表](#依赖作用域与绑定)只有本批纯模块、已实现的 identity-values 与 offer-expiry、`ajv`，不 import `@deepseek-ai/cordis`、`kernel-basis`、`storage`，不解析任何服务键。主要导出（候选名）：
+
+| 导出 | 契约坐标 |
+|---|---|
+| 类型 `Position`、`Dimension`、`Power`、`LoopExtensionDefinition` | [S-1](../../../../spec/data/loop-extension/v1/contract.md#s-1-十一个位置)～[S-10](../../../../spec/data/loop-extension/v1/contract.md#s-10-本版没有-order) |
+| 类型 `ExtensionInput`、`FailureCause`、`TerminalFact`；不透明的 `EnvironmentHandle`（本包不导出任何解析它的函数） | [S-11](../../../../spec/data/loop-extension/v1/contract.md#s-11-输入的成员)～[S-18](../../../../spec/data/loop-extension/v1/contract.md#s-18-terminalfact)、[S-41](../../../../spec/data/loop-extension/v1/contract.md#s-41-执行环境句柄) |
+| 类型 `Conclusion`；常量表 `POWER_CONCLUSIONS`、`POSITION_CONCLUSIONS` | [S-19](../../../../spec/data/loop-extension/v1/contract.md#s-19-结论封闭八种)～[S-29](../../../../spec/data/loop-extension/v1/contract.md#s-29-没有放宽) |
+| `judgeConclusion(value, inputs) → { ok } \| { rejected }` | [S-36](../../../../spec/data/loop-extension/v1/contract.md#s-36-规范表示与定义项)～[S-39](../../../../spec/data/loop-extension/v1/contract.md#s-39-判别式与枚举闭合) |
+| `loopExtensionBodyContract`（asset-model 端口的那一份） | [S-40](../../../../spec/data/loop-extension/v1/contract.md#s-40-属性项的推出规则) |
+
+**函数层不承诺**：结论先落后算、瀑布次序与 `earlier` 可见、不可用与报错两分、`ask` 的卡片先于等待落盘——它们归派发器与日志（[装配给 vs 协议给](#装配给-vs-协议给)其余五行）。
+
 ## 契约到 Cordis 的投影
 
 ### Cordis 原语：本节点一样也不用
@@ -35,7 +49,7 @@
 | [S-1](../../../../spec/data/loop-extension/v1/contract.md#s-1-十一个位置)～[S-10](../../../../spec/data/loop-extension/v1/contract.md#s-10-本版没有-order) 位置、维度、干预力、报错处置、声明、身份 | 类型 `Position`、`Dimension`、`Power`、`LoopExtensionDefinition` | — | V-1 |
 | [S-11](../../../../spec/data/loop-extension/v1/contract.md#s-11-输入的成员)～[S-18](../../../../spec/data/loop-extension/v1/contract.md#s-18-terminalfact) 统一输入、三个引用、瀑布、按位置的 Subject、`FailureCause` 等 | 类型 `ExtensionInput` 等；[S-41](../../../../spec/data/loop-extension/v1/contract.md#s-41-执行环境句柄) 的 `EnvironmentHandle` 是不透明串类型（照 `data.identity-values/v1#S-31`：非空、首尾不是空白、逐码点相等），本包**不导出任何解析它的函数**——它经什么取得租户身份与执行环境归 runner（契约 S-41 指到 `capability.loop-extension-runner/v1` S-50） | 输入缺 `environment` ⇒ `malformed`，**不补** | V-1（`$defs` 由 41 项变 42 项，含 `EnvironmentHandle`） |
 | [S-19](../../../../spec/data/loop-extension/v1/contract.md#s-19-结论封闭八种)～[S-29](../../../../spec/data/loop-extension/v1/contract.md#s-29-没有放宽) 八种结论、档与位置的合法组合 | 类型 `Conclusion`；常量表 `POWER_CONCLUSIONS`（S-20）、`POSITION_CONCLUSIONS`（S-21） | 两张表写成数据，Schema 之外的判定由同一张表驱动 | V-2（13 位置 × 8 结论 × 3 档机检） |
-| [S-36](../../../../spec/data/loop-extension/v1/contract.md#s-36-规范表示与定义项)～[S-39](../../../../spec/data/loop-extension/v1/contract.md#s-39-判别式与枚举闭合) 十个拒绝值与次序 | `judgeConclusion(value, ctx)` | 第 9、10 行（改了不可改的成员、冒名的 `inject`）要对照输入与本件 name，经 `ctx` 交进来 | V-2；「不合法的结论按报错处置」（S-34）归派发器 |
+| [S-36](../../../../spec/data/loop-extension/v1/contract.md#s-36-规范表示与定义项)～[S-39](../../../../spec/data/loop-extension/v1/contract.md#s-39-判别式与枚举闭合) 十个拒绝值与次序 | `judgeConclusion(value, inputs)` | 第 9、10 行（改了不可改的成员、冒名的 `inject`）要对照输入与本件 name，经 `inputs` 交进来（参数不叫 `ctx`，免得读成 Cordis 的 Context） | V-2；「不合法的结论按报错处置」（S-34）归派发器 |
 | [S-40](../../../../spec/data/loop-extension/v1/contract.md#s-40-属性项的推出规则) 推出规则 | `loopExtensionBodyContract`：推属性（`position`、`dimension`、`power`）；规则一恒为空集 | 只读声明本身 | asset-model SC-6 |
 
 ## 依赖、作用域与绑定

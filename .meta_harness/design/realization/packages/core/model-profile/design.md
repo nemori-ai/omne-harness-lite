@@ -10,6 +10,20 @@
 `Modality` 取 [content-blocks](../content-blocks/README.md) 的那一份（`data.content-blocks/v1#S-6`，**只有一份定义**）。
 **Cordis 版本**：采用 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；本模块不依赖 Cordis。
 
+## 公开面
+
+**全部即公开函数面**（[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)）：不依赖 Cordis、会话、租户或存储，单独 `import` 即用；**没有 Cordis 服务面**（[下表](#cordis-原语本节点一样也不用)）。核对：[依赖表](#依赖作用域与绑定)只有本批 content-blocks、已实现的 identity-values 与 offer-expiry、`ajv`，不 import `@deepseek-ai/cordis`、`kernel-basis`、`storage`，不解析任何服务键。主要导出（候选名）：
+
+| 导出 | 契约坐标 |
+|---|---|
+| 类型 `ModelProfile`、`RouteName`、`ProfileOrigin`、`ProviderName`、`InputConstraints` | [S-1](../../../../spec/data/model-profile/v1/contract.md#s-1-档案的身份所在范围与路由名)、[S-2](../../../../spec/data/model-profile/v1/contract.md#s-2-routename)、[S-4](../../../../spec/data/model-profile/v1/contract.md#s-4-profileorigin)～[S-9](../../../../spec/data/model-profile/v1/contract.md#s-9-inputconstraints)、[S-12](../../../../spec/data/model-profile/v1/contract.md#s-12-各属性何时定能不能改) |
+| 类型 `ModelProfileRef`；`refMatches(ref, profile)` | [S-13](../../../../spec/data/model-profile/v1/contract.md#s-13-modelprofileref)、[S-14](../../../../spec/data/model-profile/v1/contract.md#s-14-引用只精确解析不跨层) |
+| 类型 `ModelRequestParameters`、`ReasoningEffort`；`parameterNames(params)` | [S-15](../../../../spec/data/model-profile/v1/contract.md#s-15-modelrequestparameters-是一份词表)～[S-20](../../../../spec/data/model-profile/v1/contract.md#s-20-项与项名) |
+| 类型 `ModelProfileSnapshot`、`ModelProfileContent` | [S-27](../../../../spec/data/model-profile/v1/contract.md#s-27-modelprofilesnapshot档案在某一刻的副本)、[S-28](../../../../spec/data/model-profile/v1/contract.md#s-28-建档内容产生一条档案时给的那一份) |
+| `judgeModelProfileDocument(kind, value) → { ok } \| { rejected }` | [S-24](../../../../spec/data/model-profile/v1/contract.md#s-24-表示层校验是一次纯计算)～[S-26](../../../../spec/data/model-profile/v1/contract.md#s-26-表示层拒绝与判定分开) |
+
+**函数层不承诺**：撞名、`updatedAt`、在册状态的转移、不静默丢改，以及「查无此条」与「读不到」的区分——归模型档案目录与模型请求运行时（[装配给 vs 协议给](#装配给-vs-协议给)末句）；`refMatches` 只答「这一行是不是它」。
+
 ## 契约到 Cordis 的投影
 
 ### Cordis 原语：本节点一样也不用

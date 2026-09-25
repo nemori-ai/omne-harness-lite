@@ -8,6 +8,18 @@
 **自建一个 TypeScript 纯模块**，写法与 [content-blocks](../content-blocks/design.md#实现路径与来源) 相同：`ajv` 8.20.0 的 Draft 2020-12 入口、Schema 原样复制并逐字节核对、拒绝值[按契约次序逐条判](../content-blocks/design.md#拒绝值按契约的次序逐条判不从-schema-错误里反推)；`account` 事件里的金额经 content-blocks 的[严格无损读写](../content-blocks/design.md#严格的无损-json-读写)。
 **Cordis 版本**：采用 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；本模块不依赖 Cordis。
 
+## 公开面
+
+**全部即公开函数面**（[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)）：不依赖 Cordis、会话、租户或存储，单独 `import` 即用；**没有 Cordis 服务面**（[下表](#cordis-原语本节点一样也不用)）——到达事件是值，不是 Cordis 事件。核对：[依赖表](#依赖作用域与绑定)只有本批纯模块、已实现的 identity-values、`ajv`，不 import `@deepseek-ai/cordis`、`kernel-basis`、`storage`，不解析任何服务键。主要导出（候选名）：
+
+| 导出 | 契约坐标 |
+|---|---|
+| 类型 `ArrivalEnvelope`、`ArrivalTarget`、`ArrivalEvent` 与六种事件 | [S-5](../../../../spec/data/arrival-events/v1/contract.md#s-5-信封与目标)～[S-16](../../../../spec/data/arrival-events/v1/contract.md#s-16-收尾) |
+| `reduceFills(mode, fills)`（一块此刻是什么的唯一归约） | [S-19](../../../../spec/data/arrival-events/v1/contract.md#s-19-归约一块此刻是什么) |
+| `judgeArrivalEnvelope(envelope, openBlock?) → { ok } \| { rejected }` | [S-26](../../../../spec/data/arrival-events/v1/contract.md#s-26-规范表示)～[S-29](../../../../spec/data/arrival-events/v1/contract.md#s-29-表示层拒绝不是判定也不修补) |
+
+**函数层不承诺**：按次序不重不漏、目标只在所属会话里有意义、封口块等于归约——它们是生产者与宿主的义务（[S-25](../../../../spec/data/arrival-events/v1/contract.md#s-25-装配给与协议给) 其余五行）；序列语法由 [stream-assembly](../stream-assembly/design.md#公开面) 判。
+
 ## 契约到 Cordis 的投影
 
 ### Cordis 原语：本节点一样也不用

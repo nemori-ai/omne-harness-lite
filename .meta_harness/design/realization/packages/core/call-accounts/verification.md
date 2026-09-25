@@ -15,6 +15,8 @@
 
 **不在本节点**：V-3、V-4、V-7、V-8（要运行时、节流方、组装的真实演练）、V-9 其余各行（装配选型声明）；SC-1、SC-4。
 
+**修订波（2026-09-25 公开面）**：design 新增「[公开面](design.md#公开面)」一节（[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)），只把既有入口归为公开函数面，不新增语义，上表证据义务不变；这一面成立的静态前提「本包源码不 import `@deepseek-ai/cordis`、`@omne-harness-lite/kernel-basis`、`@omne-harness-lite/storage` 与任何插件包」**规则尚无**（候选，本批十五个 `core` 纯模块共用一条，owner `tools/ts-checks`）。
+
 ## 实际执行
 
 尚无。源码不存在。

@@ -21,6 +21,40 @@
 
 **Cordis 版本**：采用 `@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/decision.md)）；机制语义逐条引 basis，basis 没有的标「待核对主张」或「假设」（[依赖表](#依赖作用域与绑定)末段）。
 
+## 公开面
+
+[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open) 要求分清公开函数面与 Cordis 服务面、前者不被后者吞没。本节点把**判定**——求值（asset-evaluation 的 S-23 三函数）、正文契约（`defaultBodyContracts`）与锁次序之外、本能力自己的纯判断——与**写面**分开：判定从包的候选子入口 `./judgments` 导出；写面、读面、事件与装卸留在服务面。**服务面的方法在自己的事务里（写事务在锁下）读齐事实之后，调的就是这些函数**，不另写一份。
+
+|      | 公开函数面（候选子入口 `@omne-harness-lite/asset-governance/judgments`） | Cordis 服务面（包主入口） |
+| ---- | --- | --- |
+| 形态 | 纯函数：输入是调用方已经读好的值，输出是判定结果或契约失败值；不读存储、不取时刻、不发事件 | 插件 `assetGovernancePlugin`：inject `storage`、`clock`、`memberships`、`organizations`；provide `assets`、`asset-holdings`、`asset-transfer`、`asset-snapshot`；emit 五个通知事件；插件体登记官方件；迁移片段 `assetGovernanceMigrations`（[下节](#能力到-cordis-的投影)） |
+| 依赖 | 只 import 纯模块 `core/asset-model`、`core/asset-evaluation`、`core/identity-values`、`core/offer-expiry`；**不 import** Cordis、`kernel-basis`、`core/storage`、组织治理的 `./tx-reads` | 另加 Cordis、`kernel-basis`、`core/storage`、组织治理的 `./tx-reads` |
+| 承诺 | 对交进来的值给出契约规定的那一个结论，同输入同输出 | 下文「只在运行时层成立」的全部 |
+
+函数面导出（候选名；契约的九件事不复述）：
+
+| 函数 | 输入 → 输出 | 契约坐标 | 服务面里谁调 |
+| --- | --- | --- | --- |
+| `qualificationsOf(standing, role, scope)` | 调用方的成员资格效力与角色、目标范围 → 四种资格各成立与否 | AG [S-16](../../../../spec/capabilities/asset-governance/v1/contract.md#s-16-谁能做角色矩阵落成的四种资格) | 资产面、持有面全部方法（[S-19](../../../../spec/capabilities/asset-governance/v1/contract.md#s-19-判定次序) 的角色那一步）；流转确认时输入改由事务内读给 |
+| `holdingBasisFor(scope, record, organizationLayerHolds)` | 这一格、记录的来源与所有者、所在组织的组织层此刻是否持有同一份 → `official`／`owned`／`organization`，或 `notOwner` | AG [S-9](../../../../spec/capabilities/asset-governance/v1/contract.md#s-9-持有本契约写得到的两层与写不到的两层)（`shared` 只经组合入口带进来，不在此判） | `hold`；提升时重算调用方那一份的依据 |
+| `guardAssignment(declaration, write, here, above)` | 推出的声明、要写的值与锁、这一层该项、组织层同项的配值 → 通过，或按 ⑥ 次序的第一个失败值（`lockedHere`、`valueOutOfDomain`、`selectionNotSingleTier`、`lockedAbove` 之一） | AG [S-38](../../../../spec/capabilities/asset-governance/v1/contract.md#s-38-assign-配值)～[S-41](../../../../spec/capabilities/asset-governance/v1/contract.md#s-41-unlockassignment-解除该项的锁) ⑥；权限项上调 asset-evaluation 的 S-23 三函数 | 配值四个 |
+| `referrersAcknowledged(current, acknowledged)` | 提交内现求的引用方集合与份数、调用方确认过的 → 通过，或 `hasReferrers` 连同此刻的集合 | AG [S-22](../../../../spec/capabilities/asset-governance/v1/contract.md#s-22-先告知再移除或删除) | `unhold`、`assets.delete` |
+| `offerTargetExists(record, ownerLayerHolding, pointedHoldingSince)` | 资产记录、所有者那一层此刻那份持有、发起时记下的 `since` → 存在与否；派生状态再交 offer-expiry 的 `deriveState` | AT [S-7](../../../../spec/capabilities/asset-transfer/v1/contract.md#s-7-两类待确认件共用的过期语义) | 确认、撤回、读待确认件 |
+| `transferAllowed(direction, source, target, parents)` | 方向、源与落点（组织与层）、事务内读出的上级链快照 → 通过，或结构性拒绝值（如 `outsideTree`）；边界用 identity-values 的 `shareAncestor` | AT [S-12](../../../../spec/capabilities/asset-transfer/v1/contract.md#s-12-流转边界团队资产不出那棵树)、[S-49](../../../../spec/capabilities/asset-transfer/v1/contract.md#s-49-方向与落点矩阵逐格) | 发起与确认 |
+| `sharingEffective(sharing, facts)` | 分享记录，上级链、隶属建立时刻、成员资格与成员关系生效时刻 → 生效、不生效，或任一时刻缺席时判不出 | AT [S-9](../../../../spec/capabilities/asset-transfer/v1/contract.md#s-9-分享此刻是否生效) | 确认分享（含认回）、`listSharings`、快照面 |
+
+**只在运行时层成立、函数层不承诺的**，全在服务面（[跨 owner 一节](#跨-owner-的同一提交组织治理的隶属哨兵组织行与事务内读)、[锁次序](#锁次序与插件内的同一提交)、[时刻](#时刻确认时刻与组织治理的两个时刻可比)）：读到的依据与写入同一提交（AG S-21，L-1～L-6）；AT S-18 同提交与三个序列化键；`sharingEffective` 的 ① 与 ② 在一次事务里取齐——**函数只对交进来的值判，不知道它们是不是同一时刻读的**；三个时刻可比且严格递增（AT S-34，C-15）；持有键唯一、版本号连续、所有者至多变一次（写函数统一守）；AG S-29 只有装配够得着；组合入口只由流转的落地调用（AG S-46）；事件在提交之后才发、不越租户（AG S-48）。
+
+**写函数不进公开面**：
+
+|          | 写函数（收写事务句柄）也作公开面导出（落选） | **只导出纯判定，写路径留在服务面（选）** | 不设函数面，全部经服务面（落选） |
+| -------- | --- | --- | --- |
+| 最强论证 | SYS-OPEN「内部构件同样可单独取用」：别人可以在自己的事务里复用同一条写路径 | 判定可单独取用、可单测，服务面与函数面是同一份实现；写路径的保证只在服务面成立，写明函数层不承诺 | 导出面最小，判定签名改了不牵动外部 |
+| 弱点     | 写函数收 `lineage`、`sharing` 两个参数——公开出去，「组合入口只由资产流转的落地调用」（AG S-46、S-50）就不再由公开方法的签名兑现（verification C-4 失效）；写函数依赖 `core/storage` 的事务句柄与本插件的表，本来就不是「不依赖存储」 | 要换一种存储或一种运行时的使用方得自己重写写路径与锁次序——判定可复用，提交语义不可复用；多一个子入口要守它的 import 白名单 | 违反 SYS-OPEN：写时守卫与分享判据只有经插件才能取用 |
+| 置信度   | — | **中高** | — |
+
+**装配不变**：插件边界、四个服务面、inject 边、事件与装卸都不因本节改动；[tenancy-host](../../../apps/tenancy-host/design.md#公开面) 照旧只装包主入口。
+
 ## 能力到 Cordis 的投影
 
 插件 `assetGovernancePlugin`（候选；插件名 `asset-governance`；经 [`core/kernel-basis` 的 `definePlugin`](../../core/kernel-basis/design.md#能力到-cordis-的投影) 定义）：
@@ -76,7 +110,7 @@
 | AG [S-46](../../../../spec/capabilities/asset-governance/v1/contract.md#s-46-组合入口资产流转的确认步骤) 组合入口 | 插件内部写函数，由流转模块在落地那一次提交里调 | 见[组合入口](#组合入口插件内部的写函数不在任何面上) | 「直接入口够不着 `lineage`、`sharing`」由公开方法签名兑现（类型测试 C-4） |
 | AG [S-47](../../../../spec/capabilities/asset-governance/v1/contract.md#s-47-解除成员不动任何持有) | 无写路径 | 本插件不订阅任何成员关系事件、没有以成员关系变化为触发的写 | 静态可查：插件里没有监听者（装卸表） |
 | AG [S-48](../../../../spec/capabilities/asset-governance/v1/contract.md#s-48-事件都是通知)／[S-49](../../../../spec/capabilities/asset-governance/v1/contract.md#s-49-本版不开控制类事件) 与 AT [S-33](../../../../spec/capabilities/asset-transfer/v1/contract.md#s-33-本版不发本契约自己的事件) | `ctx.emit` 五个事件（候选事件名 `asset.published`、`asset.promoted`、`asset.deleted`、`asset.holding-changed`、`asset.assignment-changed`）；流转模块不发自己的事件 | 见[事件](#事件提交之后包一层没有进程内订阅者)；审计条目在同一提交里写 `asset_audit_entry`，不靠任何监听者 | 不开控制事件、不开扩展点；将来开须 `serial`（红线） |
-| AT [S-7](../../../../spec/capabilities/asset-transfer/v1/contract.md#s-7-两类待确认件共用的过期语义) 过期与存在性 | 流转模块的存在性判定（非公开） | 派生状态由 `core/offer-expiry` 的 `deriveState` 求；存在性 = 记录行无 `deleted_at` ∧ 所有者那一层此刻持有它 ∧ **那份持有的 `since` 等于发起时记下的 `pointed_holding_since`**；确认时持 L-3、L-4 在提交内读（PA-1） | 第三个合取项靠「同一键上先后两份持有的 `since` 严格递增」——这正是 AT [G-3](../../../../spec/capabilities/asset-transfer/v1/contract.md#十一已知缺口) 的闭合条件之一，本节点在实现层兑现、契约的形状缺口仍开着；它依赖 N-1 的严格时刻 |
+| AT [S-7](../../../../spec/capabilities/asset-transfer/v1/contract.md#s-7-两类待确认件共用的过期语义) 过期与存在性 | 存在性判定：判定是函数面的 `offerTargetExists`（[公开面](#公开面)），读在流转模块的事务里、不在任何服务面上 | 派生状态由 `core/offer-expiry` 的 `deriveState` 求；存在性 = 记录行无 `deleted_at` ∧ 所有者那一层此刻持有它 ∧ **那份持有的 `since` 等于发起时记下的 `pointed_holding_since`**；确认时持 L-3、L-4 在提交内读（PA-1） | 第三个合取项靠「同一键上先后两份持有的 `since` 严格递增」——这正是 AT [G-3](../../../../spec/capabilities/asset-transfer/v1/contract.md#十一已知缺口) 的闭合条件之一，本节点在实现层兑现、契约的形状缺口仍开着；它依赖 N-1 的严格时刻 |
 | AT [S-9](../../../../spec/capabilities/asset-transfer/v1/contract.md#s-9-分享此刻是否生效) 判据 | 一个纯函数（候选 `sharingEffective`），输入是分享记录与**同一事务里**经组织治理事务内读函数取得的上级链、隶属建立时刻、成员资格与成员关系生效时刻 | 流转面的 S-30、快照面、S-26 确认时判「同对已有生效的一份」都调它；**① 与 ② 在一次读（或写）事务里取齐**——契约写明这即满足先后 | **不经 OG v2 的 S-22、S-59 两个读面，也就没有「运行时代行」这一调用主体**（AT S-34 代行行在单机下以「不经读面」兑现，[下文](#跨-owner-的同一提交组织治理的隶属哨兵组织行与事务内读)）；任一时刻读不到（含 v1 存量记录没有时刻）⇒ 不可用 |
 | AT [S-12](../../../../spec/capabilities/asset-transfer/v1/contract.md#s-12-流转边界团队资产不出那棵树) 边界、[S-49](../../../../spec/capabilities/asset-transfer/v1/contract.md#s-49-方向与落点矩阵逐格) 矩阵 | 流转面发起与确认 | 纯值判定（落点在自己组织、别人的租户级）先于任何读；边界用 `core/identity-values` 的 `shareAncestor` 纯函数，输入是 L-1 下事务内读出的两条上级链 | 矩阵逐格是发起时一次性的纯判定 |
 | AT [S-15](../../../../spec/capabilities/asset-transfer/v1/contract.md#s-15-结构性禁止不是权限判定)～[S-17](../../../../spec/capabilities/asset-transfer/v1/contract.md#s-17-每道准入现读确认时再判一遍) | 流转面全部写方法 | 确认时的再判全部在确认那一次写事务里，成员资格、角色与上级链经事务内读函数在 L-1、L-2 下读 | 与 AG 直接入口不同：流转的再判**不走** OG 服务面，理由见跨 owner 一节 |
@@ -299,5 +333,6 @@ AG S-46 的三种写入（首次复制 = 建草稿 ＋ 发布 ＋ 持有；重�
 | N-11 | **OG v1 写路径写下的存量成员关系与隶属没有时刻**：S-9 对它们判不可用（OG v2 §十三「不补一个时刻」） | **受阻**：v2 采用之前建立的成员与隶属上的分享一律不可用。**半径是被分享方的整个组织**：快照面「任何一步读不到 ⇒ 整份 `unavailable`」，被分享方组织只要有一份这样的分享，该组织全部成员的快照整份不可用、求值组输入随之不可用。**出路**：被分享方按 AT S-29 移除那份分享，或那段成员关系、隶属重新建立（新时刻落下） | **收场已接受**（D-040 §八 N-19；半径按 M61 写明，未上线、库可重建，不重新标价）；上线前若出现须迁移的存量库，报产品负责人按这个半径重新标价 |
 | N-12 | **据点不 import 本包**：结构检查未写 | 候选 B 的代价之一（D-039） | `tools/ts-checks` ＋ `apps/cli` 节点：一条规则 ＋ 自测；未开始 |
 | N-13 | **已关闭**：asset-evaluation 节点已单独导出 S-23 的三个函数（`classifyPermissionAssignment`、`boundOf`、`pickWithinBound`），写时守卫改用它们（上文 S-38～S-41 一行）；余下的签名对齐归该节点 AE-6 | — | — |
+| N-14 | **函数面与「据点不 import 本包」（N-12）的边界未定**：`./judgments` 不装插件、只依赖纯模块，而 N-12 的规则按「本包」整体禁；SYS-OPEN 要函数面可单独取用，候选 B（D-039）要据点够不着治理实现 | 本版不阻断：据点不需要这些判定（它经读面拿结论，N-5）；将来据点要在本地判 `sharingEffective` 时撞上 | 主线：N-12 的规则是禁「本包任何入口」还是只禁主入口；定之前规则按整包写 |
 
 **受阻消费**：资产的全部用户流程挡在 N-5（入口契约 v2）上；「不复活」在同一毫秒内的那一支挡在 N-1（`infra/clock` C-15）上；存量组织上的分享挡在 N-11 上。本节点不挡别的节点：OG v2 修订与 tenancy-host 修订只需要本页的外部依赖清单与迁移片段名。

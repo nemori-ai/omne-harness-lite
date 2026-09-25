@@ -10,6 +10,17 @@ Schema 以 `allOf` 的 `if/then` 表达收场的条件关系（S-26），ajv 的
 用量与费用的金额经 [call-accounts](../call-accounts/design.md) 的 `ExactDecimal`，读写经 content-blocks 的[严格无损 JSON](../content-blocks/design.md#严格的无损-json-读写)，不经浮点（[D-040 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。
 **Cordis 版本**：采用 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；本模块不依赖 Cordis。
 
+## 公开面
+
+**全部即公开函数面**（[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)）：不依赖 Cordis、会话、租户或存储，单独 `import` 即用；**没有 Cordis 服务面**（[下表](#cordis-原语本节点一样也不用)）。核对：[依赖表](#依赖作用域与绑定)只有本批纯模块、已实现的 identity-values 与 offer-expiry、`ajv`，不 import `@deepseek-ai/cordis`、`kernel-basis`、`storage`，不解析任何服务键。主要导出（候选名）：
+
+| 导出 | 契约坐标 |
+|---|---|
+| 类型 `ModelResponse`、`ResponseId`（家在本包）、`Route`、`SelectedBy`、`CredentialScope`、`ParameterAdjustment`、`ResponseOutcome`、`Failure`、`Timing`、`RawResponse` | [S-4](../../../../spec/data/model-response/v1/contract.md#s-4-一次调用一次发出一条响应体)～[S-15](../../../../spec/data/model-response/v1/contract.md#s-15-故障的成因与原样状态码)、[S-17](../../../../spec/data/model-response/v1/contract.md#s-17-首-token-与时序)～[S-19](../../../../spec/data/model-response/v1/contract.md#s-19-用量与费用)、[S-35](../../../../spec/data/model-response/v1/contract.md#s-35-晚到的那一条) |
+| `judgeModelResponse(value) → { ok } \| { rejected }` | [S-26](../../../../spec/data/model-response/v1/contract.md#s-26-schema-的范围)～[S-28](../../../../spec/data/model-response/v1/contract.md#s-28-表示层拒绝与判定分开) |
+
+**函数层不承诺**：[S-25](../../../../spec/data/model-response/v1/contract.md#s-25-装配给的保证与协议须给的保证) 八行（一次请求一条、三个时刻同源、首 token、发号、`ResponseId` 唯一、`late`、参数留痕、凭据不进响应体）与 S-26「它不能约束的」那一串——全在模型请求运行时的写路径上（[装配给 vs 协议给](#装配给-vs-协议给)）。
+
 ## 契约到 Cordis 的投影
 
 ### Cordis 原语：本节点一样也不用

@@ -16,6 +16,8 @@
 
 义务从契约条款与本节点声称兑现的范围产生，不从已有测试反推。**受阻项**：V-2 受阻于机读用例集（SA-3）；SC-1、SC-2 的白名单那一半受阻于规则不存在。
 
+**修订波（2026-09-25 公开面）**：design 新增「[公开面](design.md#公开面)」一节（[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)），只把既有入口归为公开函数面，不新增语义，上表证据义务不变；这一面成立的静态前提即 SC-2 那条 import 白名单（候选；`@deepseek-ai/cordis`、`@omne-harness-lite/kernel-basis`、`@omne-harness-lite/storage` 与任何插件包都在白名单之外），**规则尚无**（owner `tools/ts-checks`）。
+
 ## 实际执行
 
 | 运行 | 输入与配置范围 | 结果 | 证据位置 |

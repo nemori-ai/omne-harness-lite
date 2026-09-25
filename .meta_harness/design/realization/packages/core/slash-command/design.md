@@ -9,6 +9,20 @@
 识别与切分**手写**：契约明写切分规则（S-17 六条），不用 shell 词法库——那些库的引号与转义规则与 S-17 不同。
 **Cordis 版本**：采用 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；本模块不依赖 Cordis。
 
+## 公开面
+
+**全部即公开函数面**（[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)）：不依赖 Cordis、会话、租户或存储，单独 `import` 即用；**没有 Cordis 服务面**（[下表](#cordis-原语本节点一样也不用)）。核对：[依赖表](#依赖作用域与绑定)只有本批纯模块、已实现的 identity-values、`ajv`，不 import `@deepseek-ai/cordis`、`kernel-basis`、`storage`，不解析任何服务键；解析只读交进来的命令集。主要导出（候选名）：
+
+| 导出 | 契约坐标 |
+|---|---|
+| 类型 `SlashCommandDefinition`；`slashCommandBodyContract`（asset-model 端口的那一份） | [S-1](../../../../spec/data/slash-command/v1/contract.md#s-1-斜杠命令定义是资产的正文)～[S-11](../../../../spec/data/slash-command/v1/contract.md#s-11-属性项的推出规则) |
+| `recognize(text) → Recognition` | [S-12](../../../../spec/data/slash-command/v1/contract.md#s-12-只识别经交付面的输入)～[S-15](../../../../spec/data/slash-command/v1/contract.md#s-15-一条输入至多一条命令) |
+| `parseInvocation(invocation, commandSet) → ParseResult`（四支） | [S-16](../../../../spec/data/slash-command/v1/contract.md#s-16-名字只按会话斜杠命令集认)～[S-20](../../../../spec/data/slash-command/v1/contract.md#s-20-parseresult-四支) |
+| `expandPrompt`、`expandSkill` | [S-21](../../../../spec/data/slash-command/v1/contract.md#s-21-提示词型的展开)～[S-23](../../../../spec/data/slash-command/v1/contract.md#s-23-命令型的参数) |
+| `judgeSlashCommand(value)`、`judgeInvocation(invocation)` | [S-26](../../../../spec/data/slash-command/v1/contract.md#s-26-规范表示)～[S-29](../../../../spec/data/slash-command/v1/contract.md#s-29-表示层拒绝与解析失败分开都不修补) |
+
+**函数层不承诺**：解析失败什么都不发与留痕（[S-24](../../../../spec/data/slash-command/v1/contract.md#s-24-解析失败即什么都不发)、[S-25](../../../../spec/data/slash-command/v1/contract.md#s-25-留痕)）、受理面收到时重新识别、保留名在系统内唯一——归交付面、受理面与发布流程（[装配给 vs 协议给](#装配给-vs-协议给)右列）。
+
 ## 契约到 Cordis 的投影
 
 ### Cordis 原语：本节点一样也不用

@@ -9,6 +9,21 @@
 拒绝值[按契约次序逐条判](../content-blocks/design.md#拒绝值按契约的次序逐条判不从-schema-错误里反推)；从 JSON 文本读消息（与运行时记录）一律经 content-blocks 的[严格无损读写](../content-blocks/design.md#严格的无损-json-读写)：契约 [S-37](../../../../spec/data/messages/v1/contract.md#s-37-规范表示) 的读写口径与 `data.content-blocks/v1#S-24` 同一条（[D-040 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）——任何一层对象里重复的成员名 ⇒ `malformed`（读不出即拒，不挑一个再交给第一段判定），数无损、落盘与回读同一个十进制数。
 `MessageId` 的词法候选与 `BlockId` 同一个（[那里的选择](../content-blocks/design.md#标识的词法沿用-identity-values-的生成器)）。**Cordis 版本**：采用 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；本模块不依赖 Cordis。
 
+## 公开面
+
+**全部即公开函数面**（[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)）：不依赖 Cordis、会话、租户或存储，单独 `import` 即用；**没有 Cordis 服务面**（[下表](#cordis-原语本节点一样也不用)）。核对：[依赖表](#依赖作用域与绑定)只有本批纯模块、已实现的 identity-values 与 offer-expiry、`ajv`，不 import `@deepseek-ai/cordis`、`kernel-basis`、`storage`，不解析任何服务键。主要导出（候选名）：
+
+| 导出 | 契约坐标 |
+|---|---|
+| 判别联合 `Message`、五种运行时记录的类型；出门类型 `OutboundMessage` | [S-1](../../../../spec/data/messages/v1/contract.md#s-1-七种消息)～[S-27](../../../../spec/data/messages/v1/contract.md#s-27-compactionmessage-与它的名单)、[S-49](../../../../spec/data/messages/v1/contract.md#s-49-模型请求运行时写的五种记录不是消息)、[S-50](../../../../spec/data/messages/v1/contract.md#s-50-调用终结的三支)；[S-34](../../../../spec/data/messages/v1/contract.md#s-34-四种直接对应)～[S-36](../../../../spec/data/messages/v1/contract.md#s-36-toolinternalmessage-不进请求) |
+| `isReadable(ref, prefix)` | [S-28](../../../../spec/data/messages/v1/contract.md#s-28-此刻模型可读是算出来的) |
+| `judgeCompactionList(c, prefix, inputs)` | [S-29](../../../../spec/data/messages/v1/contract.md#s-29-合法名单的判定) |
+| `judgePairing(message, prefix)` | [S-32](../../../../spec/data/messages/v1/contract.md#s-32-会话日志里的配对与唯一) |
+| `judgeMessage(value)`、`judgeMessageInLog(value, prefix)` | [S-37](../../../../spec/data/messages/v1/contract.md#s-37-规范表示)～[S-40](../../../../spec/data/messages/v1/contract.md#s-40-表示层拒绝不是判定也不修补) |
+
+`prefix`（`LogPrefixView`）与 `inputs` 都是调用方交来的只读值，本模块不读日志：视图可以由会话日志的两种读（[`capability.session-log/v1`](../../../../spec/capabilities/session-log/v1/contract.md) [S-18](../../../../spec/capabilities/session-log/v1/contract.md#s-18-readbykey按读取键读)、[S-19](../../../../spec/capabilities/session-log/v1/contract.md#s-19-readsince从某个位置往后读)）拼成，也可以来自别的来源。
+**函数层不承诺**：「本消息之前」唯一、名单合法性在追加点线性化、配对与唯一在日志里成立、`MessageId` 在会话日志内唯一——它们只在日志写入方成立（[装配给 vs 协议给](#装配给-vs-协议给单机时本节点提供了什么)右列，MSG-1）。
+
 ## 契约到 Cordis 的投影
 
 ### Cordis 原语：本节点一样也不用
@@ -41,7 +56,7 @@
 | [S-1](../../../../spec/data/messages/v1/contract.md#s-1-七种消息)～[S-27](../../../../spec/data/messages/v1/contract.md#s-27-compactionmessage-与它的名单)、[S-49](../../../../spec/data/messages/v1/contract.md#s-49-模型请求运行时写的五种记录不是消息)、[S-50](../../../../spec/data/messages/v1/contract.md#s-50-调用终结的三支) 七种消息、底座、提醒的性质与来源、压缩名单、五种运行时记录 | 判别联合 `Message`、`ModelInvocationRecord` 等 43 个 `$defs` 的类型 | 值一律冻结 | V-1、V-3 |
 | 逐字副本 `ResponseId`、`SelectedBy`、`CredentialScope`、`ParameterAdjustment` | 类型（按本契约 Schema 里的副本写） | — | **家在 `data.model-response`**；对齐测试放在 [model-response](../model-response/design.md#副本定义的对齐放在依赖方)（它依赖本包，本包不依赖它） |
 | [S-28](../../../../spec/data/messages/v1/contract.md#s-28-此刻模型可读是算出来的) 此刻模型可读 | `isReadable(ref, prefix: LogPrefixView)`；`LogPrefixView`（候选）是调用方给的只读视图：按标识找消息、找块、列出前缀里的压缩名单 | 纯函数：`path(b)` 上每块 `toModel` 为真，且没有任何名单点过 `path(b)` 里的块；**不缓存、不写下「当前可读集合」** | V-5（examples 第 11 节）；`Readable.als` 不是 formal task，不可绑定 |
-| [S-29](../../../../spec/data/messages/v1/contract.md#s-29-合法名单的判定) 合法名单 | `judgeCompactionList(c, prefix, ctx)` → 合法，或 ③⑤⑥ 之一，或「判不了」 | ① ② 走表示层；③ 查前缀；⑤ 要「悬着的占位」与卡片 owner 的答复、⑥ 要「最近一次模型请求落在日志哪一处」，**都由调用方经 `ctx` 给**；缺输入时**不给「合法」**，交回「判不了」，由调用方按不合法处理 | V-4；⑤⑥ 的输入卡在契约 G-5、G-2 上（MSG-2） |
+| [S-29](../../../../spec/data/messages/v1/contract.md#s-29-合法名单的判定) 合法名单 | `judgeCompactionList(c, prefix, inputs)` → 合法，或 ③⑤⑥ 之一，或「判不了」 | ① ② 走表示层；③ 查前缀；⑤ 要「悬着的占位」与卡片 owner 的答复、⑥ 要「最近一次模型请求落在日志哪一处」，**都由调用方经 `inputs` 给**（参数不叫 `ctx`，免得读成 Cordis 的 Context）；缺输入时**不给「合法」**，交回「判不了」，由调用方按不合法处理 | V-4；⑤⑥ 的输入卡在契约 G-5、G-2 上（MSG-2） |
 | [S-32](../../../../spec/data/messages/v1/contract.md#s-32-会话日志里的配对与唯一) 配对与唯一 | `judgePairing(message, prefix)` 只给判定 | 纯判定；**追加、幂等、去重不在本模块** | V-4 |
 | [S-37](../../../../spec/data/messages/v1/contract.md#s-37-规范表示)～[S-40](../../../../spec/data/messages/v1/contract.md#s-40-表示层拒绝不是判定也不修补) 两段式拒绝值 | `judgeMessage(value)`（第一段，只看这一条）；`judgeMessageInLog(value, prefix)`（第一段通过后判 `compaction_forward_reference`）；从文本读的边界先 `readJsonStrict`，读不出即 `{ rejected: "malformed" }`（S-37，M36） | 第一段嵌入 content-blocks 的六个值、原名；`block_id_duplicate` 在整棵块树（含嵌套与派生表示）上查 | V-2；两个边界对同一坏输入给同一个值；examples 新加的重复成员名那几行 |
 | [S-34](../../../../spec/data/messages/v1/contract.md#s-34-四种直接对应)～[S-36](../../../../spec/data/messages/v1/contract.md#s-36-toolinternalmessage-不进请求) 出门的三条义务 | 类型：`OutboundMessage`（候选）= `Message` 去掉 `ToolInternalMessage`；判别联合配穷尽检查（`never`） | 翻译本身在传输适配 | SC-5 的类型面：漏一种编译不过 |
@@ -81,5 +96,5 @@
 
 契约的已知缺口（G-1、G-2、G-5～G-7、G-11）不重抄。本节点自己的缺口：
 
-- **MSG-1 `MessageId` 的铸号方**：词法候选已给，铸号与唯一归会话唯一的日志写入方；会话日志的契约与提供者属 [D-040 §八 M43](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 的 C-1，**本程不补、留给下一程**，owner 主线。
-- **MSG-2 名单判定的两项输入无家**：S-29 ⑤ 要卡片 owner 的答复（契约 G-5）、⑥ 要「最近一次模型请求落在日志哪一处」（契约 G-2，条目壳随 C-1）。本模块只能收这两样作参数、缺则「判不了」。受阻：PF-010 的压缩一侧（无契约）。owner：主线（下一程）。
+- **MSG-1 `MessageId` 的铸号方**：词法候选已给；铸号与会话内唯一归写入方。**接口已定、真承接者未到**：[`capability.session-log/v1`](../../../../spec/capabilities/session-log/v1/contract.md) [S-3](../../../../spec/capabilities/session-log/v1/contract.md#s-3-本契约明确不承诺什么) 写明日志不铸 `MessageId`，写入方把它拼进判重键、由 [S-8](../../../../spec/capabilities/session-log/v1/contract.md#s-8-判重键) 按日志的耐久内容守「至多一条」；完整的会话日志契约与真提供者归 loop 与会话那一程（该契约 [G-1](../../../../spec/capabilities/session-log/v1/contract.md#十已知缺口)，即 [D-040 §八 M43](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 的 C-1）。owner 主线。
+- **MSG-2 名单判定的两项输入无家**：S-29 ⑤ 要卡片 owner 的答复（契约 G-5）、⑥ 要「最近一次模型请求落在日志哪一处」（契约 G-2：条目壳）。条目壳的最小成员与日志位置已由 `capability.session-log/v1` [S-6](../../../../spec/capabilities/session-log/v1/contract.md#s-6-条目与它的壳)、[S-7](../../../../spec/capabilities/session-log/v1/contract.md#s-7-日志位置与尾位置) 定（接口已定），壳的其余字段该契约本版不收（[S-2](../../../../spec/capabilities/session-log/v1/contract.md#s-2-本契约不拥有什么)，与本契约 G-2 同一件事），真承接者未到。本模块只能收这两样作参数、缺则「判不了」。受阻：PF-010 的压缩一侧（无契约）。owner：主线（下一程）。

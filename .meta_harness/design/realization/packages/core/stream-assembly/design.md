@@ -11,6 +11,20 @@
 - **包内依赖**：[arrival-events](../arrival-events/README.md)（到达事件的类型、表示层校验与填的归约）、[content-blocks](../content-blocks/README.md)（块的类型与[严格无损 JSON 读入](../content-blocks/design.md#严格的无损-json-读写)）、[call-accounts](../call-accounts/README.md)（账与砍的汇总的类型）——与 catalog 的契约依赖同构（[D-040 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），无环；运行时另用 Node 内置的 base64 编解码。
 - **Cordis 版本**：采用 `@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）。本模块不依赖 Cordis，此项只为与同批节点对齐。
 
+## 公开面
+
+**全部即公开函数面**（[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)）：这份 capability 契约的五个操作都是对一个值的折叠（[S-4](../../../../spec/capabilities/stream-assembly/v1/contract.md#s-4-装配状态是调用方持有的一个值)），不依赖 Cordis、会话、租户或存储，单独 `import` 即用；**没有 Cordis 服务面**（[下表](#cordis-原语本节点一样也不用)）。核对：[依赖表](#依赖作用域与绑定)只有本批 arrival-events、content-blocks、call-accounts 与 `node:buffer`，不 import `@deepseek-ai/cordis`、`kernel-basis`、`storage`，不解析任何服务键（SC-2 的 import 白名单同一条）。主要导出（候选名）：
+
+| 导出 | 契约坐标 |
+|---|---|
+| 不透明类型 `AssemblyState`；`start(target)` | [S-4](../../../../spec/capabilities/stream-assembly/v1/contract.md#s-4-装配状态是调用方持有的一个值)、[S-5](../../../../spec/capabilities/stream-assembly/v1/contract.md#s-5-位置)、[S-18](../../../../spec/capabilities/stream-assembly/v1/contract.md#s-18-start开一份状态) |
+| `accept(state, event) → 新状态 \| { rejected }` | [S-19](../../../../spec/capabilities/stream-assembly/v1/contract.md#s-19-accept接一个事件)、[S-23](../../../../spec/capabilities/stream-assembly/v1/contract.md#s-23-本能力自己的失败值)～[S-26](../../../../spec/capabilities/stream-assembly/v1/contract.md#s-26-被拒不改状态后果归宿主) |
+| `snapshot(state)` | [S-7](../../../../spec/capabilities/stream-assembly/v1/contract.md#s-7-快照交出什么)、[S-20](../../../../spec/capabilities/stream-assembly/v1/contract.md#s-20-snapshot读快照) |
+| `closeOut(state) → { ok: Settlement } \| { rejected }` | [S-8](../../../../spec/capabilities/stream-assembly/v1/contract.md#s-8-收尾结算交出什么)、[S-9](../../../../spec/capabilities/stream-assembly/v1/contract.md#s-9-一块怎样落)、[S-21](../../../../spec/capabilities/stream-assembly/v1/contract.md#s-21-closeout收尾结算) |
+| `abandon(state, reason?)` | [S-22](../../../../spec/capabilities/stream-assembly/v1/contract.md#s-22-abandon放弃) |
+
+**函数层不承诺**：事件逐个按次序不重不漏、状态随宿主存续、只在所属会话里有意义、首个内容先被宿主记下、一个结果只记一次、宿主撤除时在途的流一律 `abandon`——[S-28](../../../../spec/capabilities/stream-assembly/v1/contract.md#s-28-宿主要兑现的前提) 与 [S-29](../../../../spec/capabilities/stream-assembly/v1/contract.md#s-29-部署装配给与协议给) 左列全归宿主（[装配给 vs 协议给](#装配给-vs-协议给单机时本节点提供了什么)右列）。
+
 ## 契约到 Cordis 的投影
 
 ### Cordis 原语：本节点一样也不用

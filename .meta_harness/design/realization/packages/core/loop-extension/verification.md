@@ -14,6 +14,8 @@
 
 **不在本节点**：V-3～V-11（回放一致、不可用与报错两分、每件必留、不合法结论按报错处置、没有放宽、`select_model` 与 `retry` 的判定、被拦的内容不进日志、跨进程、落终态之后不复活——派发器、兼容层与模型请求运行时）。
 
+**修订波（2026-09-25 公开面）**：design 新增「[公开面](design.md#公开面)」一节（[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)），只把既有入口归为公开函数面，不新增语义，上表证据义务不变；`judgeConclusion` 的第二个参数由 `ctx` 改名 `inputs`（候选名，免与 Cordis Context 混读）。这一面成立的静态前提「本包源码不 import `@deepseek-ai/cordis`、`@omne-harness-lite/kernel-basis`、`@omne-harness-lite/storage` 与任何插件包」**规则尚无**（候选，本批十五个 `core` 纯模块共用一条，owner `tools/ts-checks`）。
+
 ## 实际执行
 
 尚无。源码不存在。

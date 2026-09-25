@@ -148,6 +148,17 @@ v1 写路径写下的成员关系与隶属没有时刻。§十三 写明钉 v2 �
 
 多两个 `ctx.provide`（`organizations-v2`、`memberships-v2`），与其余四个同一 fiber、同一时点可解析、随 fiber 撤（待核对主张 `provide-is-effect-managed`）；多一个迁移片段（由装配合成，不随插件撤除）。**没有新的 effect、定时器或监听者**；在途调用照 v1 跑完、按各自那一次提交收场。
 
+### 公开面
+
+[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open) 对本节点**不改装配**：插件边界、服务名、inject 边、五个事件与装卸都照上文（v1 已实现、v2 候选），[tenancy-host](../../../apps/tenancy-host/design.md#公开面) 的装载清单与 config 不因此动。两面各是什么：
+
+|      | 公开函数面 | Cordis 服务面 |
+| ---- | --- | --- |
+| 本包导出 | **没有能力判定函数**。这一能力可单独取用的纯判定在它依赖的两个 core 纯模块里：identity-values 的 `ancestorChain`、`shareAncestor`（[`data.identity-values/v1#S-14`](../../../../spec/data/identity-values/v1/contract.md#s-14-上级组织与上级链)、[`#S-15`](../../../../spec/data/identity-values/v1/contract.md#s-15-shareancestor)）与身份值解析，offer-expiry 的 `timingFrom`、`deriveState`、`acceptable`、`parseOfferTtl`（[`data.offer-expiry/v1#S-4`](../../../../spec/data/offer-expiry/v1/contract.md#s-4-offertiming)～[`#S-14`](../../../../spec/data/offer-expiry/v1/contract.md#s-14-offer_ttl)）。本包另导出给装配的 `organizationGovernanceMigrations`、`OG_TABLES`——迁移片段工厂，依赖 `core/storage` 的类型，不是能力函数 | 插件 `organizationGovernancePlugin`；服务 `organizations`、`memberships`、`offers`、`organization-purge`（v1）与 `organizations-v2`、`memberships-v2`（v2 候选）；inject `storage`、`clock`、`accounts`、`logins`；五个通知事件。v2 的 `./tx-reads` 是**存储级**入口——收调用方的事务句柄、依赖存储，不属函数面，只给资产提供者（V2-4） |
+| 只在运行时层成立、函数层不承诺 | — | S-17 同组织成员写序列化（R-3a）；S-32 判环读与写同提交（R-3b）；S-42 九行装配给（含「S-53 只由清除链调用」）；v2 两个时刻随写入同提交、锁下取（R-7） |
+
+**本包自己的判定没有抽成纯函数**：结构性禁止先于授权（S-15，S-28／S-29 的次序）、「之后仍有效的超管 ≥ 1」、S-32 判环的前置条件，都与提交内的读写在同一段代码里（`src/memberships.ts`、`src/offers.ts`、`src/organizations.ts`）。SYS-OPEN 下要不要把它们抽成函数面，报主线；抽出只多一个子入口，不改服务面与装配。
+
 ## 依赖、作用域与绑定
 
 | 消费的精确契约 | 实际提供者／解析方式与范围 | 工作中绑定与变更生效点 | 缺席、撤回和旧引用政策 |

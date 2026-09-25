@@ -23,6 +23,8 @@
 | `defaultBodyContracts`（M51，唯一组合根） | 六类的键齐全，每个键上的值就是对应正文包导出的那一份（同一引用）；用它构造 asset-model 判定对象不抛出；错类由 asset-model 节点的类型测试覆盖 | 未开始 | 本节点 |
 | `evaluationInputFingerprint`（本节点给的缓存键） | 改输入里任何一项（含 `standing`、`workspace`、会话配值、选用版本、动作集、`root.references`）指纹都变；成员次序不同的同一输入指纹相同 | 未开始 | 本节点 |
 
+**修订波（2026-09-25 公开面）**：design 新增「[公开面](design.md#公开面)」一节（[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)），只把既有入口归为公开函数面，不新增语义，上表证据义务不变；AE-5 的装配清单一半改指接口契约 `capability.assembly-manifest/v1`（`root.references` 的读法不在该接口里，仍受阻）。这一面成立的静态前提即 SC-1 那条 import 白名单（候选；`@deepseek-ai/cordis`、`@omne-harness-lite/kernel-basis`、`@omne-harness-lite/storage` 与任何插件包都在白名单之外），**规则尚无**（owner `tools/ts-checks`）。
+
 ## 实际执行
 
 尚无。源码不存在。契约侧 Alloy 运行的结论只在契约验证入口有记录，不是本节点的证据。

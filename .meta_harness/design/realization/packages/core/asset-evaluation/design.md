@@ -11,6 +11,21 @@
 - asset-model 的判定要一套正文端口（[那里的选择](../asset-model/design.md#正文契约的判定经端口注入不-import-正文包)）；**本模块是它唯一的组合根**（[D-040 §八 M51](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：把六个正文包各自导出的那一份组合成 `BodyContracts`（按类别判别的类型，错类编译不过），**导出为 `defaultBodyContracts`**（候选名，不可变常量）；本模块自己用它构造一次 asset-model 的判定对象，资产治理插件体与据点注册表 import 它、不各自再组。S-27「同一值在每个接收边界得同一个拒绝值」由这一个来源保证。
 - **Cordis 版本**：采用 `@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；本模块不依赖 Cordis。
 
+## 公开面
+
+**全部即公开函数面**（[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)）：这份 capability 契约的两个操作本来就是纯计算（[S-11](../../../../spec/capabilities/asset-evaluation/v1/contract.md#s-11-纯计算)），不依赖 Cordis、会话、租户或存储，单独 `import` 即用；**没有 Cordis 服务面**（[下表](#cordis-原语本节点一样也不用)）。核对：[依赖表](#依赖作用域与绑定)只有本批纯模块、已实现的 identity-values 与 `node:crypto`，不 import `@deepseek-ai/cordis`、`kernel-basis`、`storage`，不解析任何服务键（SC-1 的 import 白名单同一条）。主要导出（候选名）：
+
+| 导出 | 契约坐标 |
+|---|---|
+| 类型 `EvaluationInput`、`CompositionRoot`、`AssetReference`、`EffectiveAssembly`、`Layer`、`FilterReason`、`SessionAssignment`、`McpActionSet` | [S-5](../../../../spec/capabilities/asset-evaluation/v1/contract.md#s-5-层与三条层序)～[S-8](../../../../spec/capabilities/asset-evaluation/v1/contract.md#s-8-求值结果-effectiveassembly) |
+| `evaluate(input) → { ok } \| { invalidInput } \| { compositionCycle } \| { categoryUnsupported }` | [S-15](../../../../spec/capabilities/asset-evaluation/v1/contract.md#s-15-evaluate)、[S-17](../../../../spec/capabilities/asset-evaluation/v1/contract.md#s-17-第一步之一先按禁用滤)～[S-26](../../../../spec/capabilities/asset-evaluation/v1/contract.md#s-26-每份持有都有去处)、[S-38](../../../../spec/capabilities/asset-evaluation/v1/contract.md#s-38-常驻值)～[S-42](../../../../spec/capabilities/asset-evaluation/v1/contract.md#s-42-执行权限项另带租户那一层写得进自动吗) |
+| `readWorkspaceCarrier(manifest, workspace) → { ok } \| { invalidInput }` | [S-16](../../../../spec/capabilities/asset-evaluation/v1/contract.md#s-16-readworkspacecarrier)、[S-27](../../../../spec/capabilities/asset-evaluation/v1/contract.md#s-27-清单列的资产变成工作区那一格的持有)、[S-28](../../../../spec/capabilities/asset-evaluation/v1/contract.md#s-28-配值与禁用只对工作区提供的资产生效丢掉的留痕) |
+| `classifyPermissionAssignment`、`boundOf`、`pickWithinBound`（第 4 步的构件，单独取用） | [S-23](../../../../spec/capabilities/asset-evaluation/v1/contract.md#s-23-第四步权限) |
+| `evaluationInputFingerprint(input)` | [S-15](../../../../spec/capabilities/asset-evaluation/v1/contract.md#s-15-evaluate) ⑦ |
+| `defaultBodyContracts`（asset-model 端口的唯一默认组合，不可变常量） | [S-10](../../../../spec/capabilities/asset-evaluation/v1/contract.md#s-10-各类正文契约须供的两条规则)；`data.asset-model/v1#S-27`（M51） |
+
+**函数层不承诺**：输入是同一时刻的一致读、交进来的分享此刻成立、调用方已核实、清单就是目录里那份、出厂持有齐全——[S-29](../../../../spec/capabilities/asset-evaluation/v1/contract.md#s-29-装配给的保证-vs-协议须给的保证) 其余五行由组输入的一方与装配给（[装配给 vs 协议给](#装配给-vs-协议给单机时本节点提供了什么)）；`unresolved` 非空即装配失败归装配（[S-31](../../../../spec/capabilities/asset-evaluation/v1/contract.md#s-31-unresolved-交到装配手上怎么收场)）。本模块只保证同输入同输出。
+
 ## 契约到 Cordis 的投影
 
 ### Cordis 原语：本节点一样也不用
@@ -120,6 +135,6 @@ S-15 ⑦ 与 SC-2 要求消费者的缓存键覆盖整份输入（含 `standing`
 - **AE-2 已关闭**：成环的收场值由 [D-040 §八 M32](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 定为 `compositionCycle`，契约 S-15 ⑥、S-43 已落；已落进上表。
 - **AE-3 已关闭**：包级依赖成环由 D-040 §八 M41 解开。
 - **AE-4 清单读入的上一步**：本模块收的是已解析的清单值；读文件、防符号链接逃逸、用 asset-model 的 `parseWorkspaceManifestText`（看得见重复成员名）解析，归读文件的一方（PRE-7、[AM-4](../asset-model/design.md#实施缺口与消费者影响)）。跨节点交接：据点侧读工作区的节点。
-- **AE-5 组输入的两份上游（下一程）**：`root.references` 由装配清单的读方从 Agent Definition 正文读出（PRE-9）——装配清单契约（PF-004）**本程不补**，D-040 §八 M43 C-2；据点上组输入要的「四格同一时刻的一致读」（PRE-1）经中心事实副本的读面——**本程不补**，M43 C-3（随入口组合 v2）。owner：主线。本模块不受阻（它只收值）；受阻的是据点侧组输入的一方（注册表、据点装配）。
+- **AE-5 组输入的两份上游（下一程）**：`root.references` 由装配清单的读方从 Agent Definition 正文读出（PRE-9）——装配清单的接口契约 [`capability.assembly-manifest/v1`](../../../../spec/capabilities/assembly-manifest/v1/contract.md) 已定，但它**不收记录内容的形状**（[S-2](../../../../spec/capabilities/assembly-manifest/v1/contract.md#s-2-本契约不拥有什么) 前两行），`root.references` 怎样从正文读出不在接口里，仍归 PF-004 那一程、真承接者未到（该契约 [G-1](../../../../spec/capabilities/assembly-manifest/v1/contract.md#十已知缺口)，即 D-040 §八 M43 C-2）；据点上组输入要的「四格同一时刻的一致读」（PRE-1）经中心事实副本的读面——**本程不补**，M43 C-3（随入口组合 v2）。owner：主线。本模块不受阻（它只收值）；受阻的是据点侧组输入的一方（注册表、据点装配）。
 - **AE-6 已对齐**：三个导出函数的签名与 asset-governance 节点的写时守卫已对齐，[D-040 §八 N-22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 推导接受。资产治理把「界写在界外」也交给 `pickWithinBound` 判，是那边对 S-23 第 2 条「落在界内」的读法；本模块的函数语义（`P ∩ X` 非空或 `P` 是空集）不因此变，两处用法共用这一份实现。
 - **AE-7 组合根的消费方**：`defaultBodyContracts` 由资产治理插件体与据点注册表 import（M51）。资产治理节点已按此改写；注册表那一侧的改写归 asset-registry 节点。owner：各自节点。

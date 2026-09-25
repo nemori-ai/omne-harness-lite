@@ -10,6 +10,21 @@
 **候选依赖**：`@eslint-community/regexpp`（[U-7](#schema_unsupported-的上限登记g-16) 的正则语法树）——[D-040 §八 M55](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 登记为候选依赖，**版本钉定与许可核对在实施程**，不另出决定。
 **Cordis 版本**：采用 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；本模块不依赖 Cordis。
 
+## 公开面
+
+**全部即公开函数面**（[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)）：不依赖 Cordis、会话、租户或存储，单独 `import` 即用；**没有 Cordis 服务面**（[下表](#cordis-原语本节点一样也不用)）。核对：[依赖表](#依赖作用域与绑定)只有本批纯模块、`ajv` 与候选的正则解析器，不 import `@deepseek-ai/cordis`、`kernel-basis`、`storage`，不解析任何服务键。主要导出（候选名）：
+
+| 导出 | 契约坐标 |
+|---|---|
+| 类型 `ToolDefinition`、`ToolCommand`；`ModelToolName`（家在本包） | [S-1](../../../../spec/data/tool-definition/v1/contract.md#s-1-工具定义是什么)～[S-5](../../../../spec/data/tool-definition/v1/contract.md#s-5-多命令工具)、[S-8](../../../../spec/data/tool-definition/v1/contract.md#s-8-说明与用法)～[S-18](../../../../spec/data/tool-definition/v1/contract.md#s-18-名字的表示与相等) |
+| `modelEntry(d)`、`modelInput(d)`、`modelName(name)`、`definitionNameOf(modelName)` | [S-6](../../../../spec/data/tool-definition/v1/contract.md#s-6-模型面只有一个条目)、[S-7](../../../../spec/data/tool-definition/v1/contract.md#s-7-多命令-input-的生成规则)、[S-18](../../../../spec/data/tool-definition/v1/contract.md#s-18-名字的表示与相等) |
+| `createParameterJudge()` → `judgeCallArguments(d, call) → { ok } \| { invalid } \| { unsupported }` | [S-4](../../../../spec/data/tool-definition/v1/contract.md#s-4-单函数工具)、[S-5](../../../../spec/data/tool-definition/v1/contract.md#s-5-多命令工具)、[S-7](../../../../spec/data/tool-definition/v1/contract.md#s-7-多命令-input-的生成规则) |
+| `toolDependencies(d)`；`toolBodyContract`（asset-model 端口的 `tool` 那一份） | [S-19](../../../../spec/data/tool-definition/v1/contract.md#s-19-由定义得出的依赖声明)、[S-31](../../../../spec/data/tool-definition/v1/contract.md#s-31-属性项的推出规则) |
+| 类型 `ToolReturn`、`ToolResult`；`toolResultOf(returned)` | [S-20](../../../../spec/data/tool-definition/v1/contract.md#s-20-两种写法与等价规则)～[S-25](../../../../spec/data/tool-definition/v1/contract.md#s-25-toolresult-不是收场) |
+| `judgeToolDefinition(value, judge?)`、`judgeToolReturn(value)` | [S-26](../../../../spec/data/tool-definition/v1/contract.md#s-26-表示层拒绝值与判定次序)～[S-28](../../../../spec/data/tool-definition/v1/contract.md#s-28-判别式与枚举闭合) |
+
+**函数层不承诺**：判一次调用的判定时限（U-8）——`judgeCallArguments` 是同步纯计算、停不下来，计时与终止归执行运行时的判定工作线程；模型看到的条目与据以校验的定义是同一份、裸字符串只兑现一次——归注册表与执行运行时（[装配给 vs 协议给](#装配给-vs-协议给单机时本节点提供了什么)右列）。
+
 ## 契约到 Cordis 的投影
 
 ### Cordis 原语：本节点一样也不用

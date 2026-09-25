@@ -13,6 +13,22 @@
 - 拒绝值的判法沿用 [content-blocks 的写法](../content-blocks/design.md#拒绝值按契约的次序逐条判不从-schema-错误里反推)：按 S-27 的次序逐条判，Schema 只判剩余项。
 - **Cordis 版本**：采用 `@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；本模块不依赖 Cordis。
 
+## 公开面
+
+**全部即公开函数面**（[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)）：不依赖 Cordis、会话、租户或存储，单独 `import` 即用；**没有 Cordis 服务面**（[下表](#cordis-原语本节点一样也不用)）。核对：[依赖表](#依赖作用域与绑定)只有已实现的 identity-values、offer-expiry、本批 content-blocks 与 `ajv`，不 import `@deepseek-ai/cordis`、`kernel-basis`、`storage`，不解析任何服务键；唯一的外部能力（正文契约的判定）经构造参数进来，不是服务。主要导出（候选名）：
+
+| 导出 | 契约坐标 |
+|---|---|
+| 类型 `AssetDefinition`、`AssetOwner`、`AssetVersion`、`AssetContent`、`AttributeAssignment`、`HoldingScope`、`WorkspaceKey`、`AssetHolding`、`CopyLineage`、`LineageId`、`SharingId`、`CredentialRef` | [S-5](../../../../spec/data/asset-model/v1/contract.md#s-5-资产来源)～[S-11](../../../../spec/data/asset-model/v1/contract.md#s-11-plugin-的成员)、[S-14](../../../../spec/data/asset-model/v1/contract.md#s-14-属性配值)、[S-16](../../../../spec/data/asset-model/v1/contract.md#s-16-持有范围)～[S-23](../../../../spec/data/asset-model/v1/contract.md#s-23-凭据引用) |
+| `isCapabilityName(s)`、`capabilityCanonicalString(id)`、`parseCapabilityCanonicalString(s)` | [S-2](../../../../spec/data/asset-model/v1/contract.md#s-2-能力标识名的词法)、[S-3](../../../../spec/data/asset-model/v1/contract.md#s-3-能力标识与它的规范串) |
+| `carrierRecordId(workspace, capability)`、`contentFingerprint(content)`、`normalizeWorkspaceDirectory(path)` | [S-4](../../../../spec/data/asset-model/v1/contract.md#s-4-资产记录号)、[S-19](../../../../spec/data/asset-model/v1/contract.md#s-19-使用权来路)、[S-17](../../../../spec/data/asset-model/v1/contract.md#s-17-工作区键) |
+| `attributeDeclarationsOf(content, actionSnapshot?) → { declarations } \| { underivable }` | [S-12](../../../../spec/data/asset-model/v1/contract.md#s-12-属性声明由正文推出)、[S-13](../../../../spec/data/asset-model/v1/contract.md#s-13-设置项类别)、[S-15](../../../../spec/data/asset-model/v1/contract.md#s-15-disabled-是保留项名)、[S-36](../../../../spec/data/asset-model/v1/contract.md#s-36-usableby-是保留项名) |
+| `parseWorkspaceManifestText(text) → { ok } \| { rejected }` | [S-24](../../../../spec/data/asset-model/v1/contract.md#s-24-工作区承载清单) |
+| 端口类型 `BodyContracts`；`createAssetModelJudge(bodies)` → `judgeAssetValue(defName, value)` | [S-25](../../../../spec/data/asset-model/v1/contract.md#s-25-规范表示)～[S-28](../../../../spec/data/asset-model/v1/contract.md#s-28-表示层拒绝不是判定也不修补) |
+
+**端口本身就是可替换构件**：调用方可以交别的一套 `BodyContracts`（测试替身或另一套正文实现）；本项目的默认组合只在 [asset-evaluation](../asset-evaluation/design.md#公开面) 的 `defaultBodyContracts`（AM-5）。
+**函数层不承诺**：记录号、血缘号、分享号、凭据引用部署内唯一，一格一份持有、版本线、所有者至多变一次、血缘不变——它们在资产治理的写路径与存储上成立（[装配给 vs 协议给](#装配给-vs-协议给单机时本节点提供了什么)末段）；`carrierRecordId` 这一支由构造成立，不在此列。
+
 ## 契约到 Cordis 的投影
 
 ### Cordis 原语：本节点一样也不用
@@ -121,4 +137,4 @@ S-4 把 `(WorkspaceKey, capability)` → 记录号的导法交给实现，要求
 - **AM-3 目录规范化不解析符号链接**：`normalizeWorkspaceDirectory` 只做字面规范化，同一目录经符号链接的两条路径会成为两份工作区。契约把规范化交给实现；本节点选字面、不碰文件系统（纯）。若要解析链接，须由写下键的一方在读文件系统之后交来规范路径。owner：会话创建一侧（PF-015，无契约）；在那之前如实记为「本版字面规范化」。
 - **AM-4 清单文本的读入方**：`parseWorkspaceManifestText` 要由**读 `.omne/workspace.json` 的那一方**调用（`capability.asset-evaluation/v1#S-2`：读文件、解析 JSON 归提供者）；读方若绕过它、用普通 `JSON.parse` 读，就看不见重复成员名。owner：据点侧读工作区的节点（注册表或据点装配，由主线指派）。
 - **AM-5 端口的组合根（按 [D-040 §八 M51](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 收成一处）**：`BodyContracts` 只在 `core/asset-evaluation` 组合一次、导出为 `defaultBodyContracts`（候选名）；资产治理插件体与据点注册表 import 它、不各自再组。S-27「同一值在每个接收边界得同一个拒绝值」由单一来源保证，不另写多处一致性测试。跨节点交接：asset-governance 与 asset-registry 节点的设计各改那一行（归各自节点）。
-- **AM-6 凭据引用解到哪（下一程）**：本模块只定义 `CredentialRef` 的形状（S-23）；它由凭据保管方解引用，那个提供者（`infra/secrets`）**本程不补**，[D-040 §八 M43](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) C-5 登记为下一程缺口。owner：主线。本模块不受阻；受阻的是出示凭据的消费者（MCP 桥、连接件接入端）。
+- **AM-6 凭据引用解到哪**：本模块只定义 `CredentialRef` 的形状（S-23）。**接口已定、真承接者未到**：据点一侧的解引用是 [`capability.credential-custodian/v1`](../../../../spec/capabilities/credential-custodian/v1/contract.md) [S-17](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-17-resolve) `resolve`（本版只有 OAuth 条目交得出，静态凭据的引用一律 `notResolvable`，该契约 [G-2](../../../../spec/capabilities/credential-custodian/v1/contract.md#十一已知缺口)）；中心一侧把引用换成值本版不收（该契约 G-7）；真提供者 `infra/secrets` 那一程未到（该契约 G-1，即 [D-040 §八 M43](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 的 C-5）。owner：主线。本模块不受阻；受阻的是出示凭据的消费者（MCP 桥的静态凭据一支、连接件接入端）。

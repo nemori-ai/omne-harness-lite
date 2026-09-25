@@ -30,6 +30,7 @@
 | C-2 血缘对应只在流转模块（X-3） | `tools/ts-checks` 规则，或每个资产面、持有面读面一条「推不出源」的反例测试 | 未开始（N-9） | 实现者 |
 | C-3 OG 事务内读入口只被本包 import | `tools/ts-checks` 规则 ＋ 自测 | 未开始（N-3） | `tools/ts-checks` ＋ OG 节点 |
 | C-4 直接入口够不着 `lineage`、`sharing`；S-29 不在任何面上 | 类型测试（`@ts-expect-error`，去掉即红）与服务面方法清单的静态核对 | 未开始 | 本节点 |
+| C-5 **修订波（2026-09-25 公开面）**：公开函数面只依赖纯模块（[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)，design「[公开面](design.md#公开面)」） | `tools/ts-checks` 规则：`./judgments` 子入口的源码只许 import `core/asset-model`、`core/asset-evaluation`、`core/identity-values`、`core/offer-expiry` 与本子入口目录内文件，带「故意违反即失败」自测；七个函数各一组单元测试，正反例取自两份契约的 examples 与规范场景（服务面场景走的是同一份实现） | 未开始；规则不存在 | `tools/ts-checks` ＋ 本节点 |
 | P-1 插件可重跑、无内存事实 | 换一次 `storage` 提供者，插件体重跑，事实不丢、官方件不多出版本 | 未开始 | 本节点 |
 | P-2 配置错误即启动失败 | 非正时长、非正保留期、不合法清单条目各一支 ⇒ fiber `FAILED`，一个面都不 provide | 未开始 | 本节点 ＋ tenancy-host |
 | P-3 监听者抛出不改变已提交的事实 | 登记一个抛出的监听者，写操作照常返回、事实已提交、error 日志一条 | 未开始 | 本节点 |

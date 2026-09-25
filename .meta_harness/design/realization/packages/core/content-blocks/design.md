@@ -13,6 +13,20 @@
 
 本包是本批包依赖图的底，下面三种写法在这里定一次，其余本批节点引用这里：[拒绝值怎样判](#拒绝值按契约的次序逐条判不从-schema-错误里反推)、[不透明标识的词法](#标识的词法沿用-identity-values-的生成器)、[严格的无损 JSON 读写](#严格的无损-json-读写)。
 
+## 公开面
+
+**全部即公开函数面**（[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)）：不依赖 Cordis、会话、租户或存储，单独 `import` 即用；**没有 Cordis 服务面**（[下表](#cordis-原语本节点一样也不用)）。核对：[依赖表](#依赖作用域与绑定)只有已实现的纯模块 identity-values 与 `ajv`，不 import `@deepseek-ai/cordis`、`kernel-basis`、`storage`，不解析任何服务键。主要导出（候选名）：
+
+| 导出 | 契约坐标 |
+|---|---|
+| 判别联合 `ContentBlock` 与七类变体；`modalityOf(mediaType)`、`isCanonicalMediaType(s)` | [S-1](../../../../spec/data/content-blocks/v1/contract.md#s-1-七类块)～[S-21](../../../../spec/data/content-blocks/v1/contract.md#s-21-attachmentref)、[S-34](../../../../spec/data/content-blocks/v1/contract.md#s-34-只给了引用的附件落成哪一类块)；[S-6](../../../../spec/data/content-blocks/v1/contract.md#s-6-模态由媒体类型判定)、[S-7](../../../../spec/data/content-blocks/v1/contract.md#s-7-媒体类型的规范形式) |
+| `CapabilityId`、`capabilityIdEquals(a, b)`（形状与相等的家） | [S-20](../../../../spec/data/content-blocks/v1/contract.md#s-20-派生表示的产出者与能力标识) |
+| `readJsonStrict(text) → { ok } \| { failed }`、`writeJsonLossless(value)`、`JsonNumber` | [S-12](../../../../spec/data/content-blocks/v1/contract.md#s-12-完整的工具调用)、[S-24](../../../../spec/data/content-blocks/v1/contract.md#s-24-规范表示)（M36） |
+| `judgeContentBlock(value) → { ok } \| { rejected }` | [S-24](../../../../spec/data/content-blocks/v1/contract.md#s-24-规范表示)～[S-27](../../../../spec/data/content-blocks/v1/contract.md#s-27-表示层拒绝不是判定也不修补) |
+| 类型 `BlockId`、`CallId`（生成器即 identity-values 的 `generateOpaqueIdentifier()`，本包不另写） | [S-3](../../../../spec/data/content-blocks/v1/contract.md#s-3-blockid)、[S-14](../../../../spec/data/content-blocks/v1/contract.md#s-14-callid) |
+
+**函数层不承诺**：块标识在一条消息内唯一、`CallId` 在会话日志内唯一、落盘之后整块不变、每一跳都走严格无损读写——它们只在铸号方、日志写入方与各读写边界成立（[装配给 vs 协议给](#装配给-vs-协议给单机时本节点提供了什么)右列，CB-1、CB-2）。
+
 ## 契约到 Cordis 的投影
 
 ### Cordis 原语：本节点一样也不用

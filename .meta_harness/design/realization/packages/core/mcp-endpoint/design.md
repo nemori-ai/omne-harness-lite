@@ -9,6 +9,19 @@
 条目名合不合 `data.tool-definition/v1#S-18` 用 [tool-definition](../tool-definition/README.md) 那一份 `ToolName` 判，**不另写**。
 **Cordis 版本**：采用 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；本模块不依赖 Cordis。
 
+## 公开面
+
+**全部即公开函数面**（[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)）：不依赖 Cordis、会话、租户或存储，单独 `import` 即用；**没有 Cordis 服务面**（[下表](#cordis-原语本节点一样也不用)）。核对：[依赖表](#依赖作用域与绑定)只有本批纯模块、已实现的 identity-values 与 offer-expiry、`ajv`，不 import `@deepseek-ai/cordis`、`kernel-basis`、`storage`，不解析任何服务键；不连对端、不拉进程。主要导出（候选名）：
+
+| 导出 | 契约坐标 |
+|---|---|
+| 类型 `McpEndpoint`、`ActionSnapshot`（`fetched`／`not_fetched` 两支）、`McpToolDescriptor` | [S-1](../../../../spec/data/mcp-endpoint/v1/contract.md#s-1-接入点正文)～[S-10](../../../../spec/data/mcp-endpoint/v1/contract.md#s-10-对端动作描述)、[S-12](../../../../spec/data/mcp-endpoint/v1/contract.md#s-12-oauth-绑定)、[S-13](../../../../spec/data/mcp-endpoint/v1/contract.md#s-13-凭据配值的取值域) |
+| `actionEntryName(endpointName, remoteName) → { ok } \| { notProjectable }` | [S-11](../../../../spec/data/mcp-endpoint/v1/contract.md#s-11-动作条目名) |
+| `mcpBodyContract`（asset-model 端口的那一份：名字收窄、推属性） | [S-26](../../../../spec/data/mcp-endpoint/v1/contract.md#s-26-接入点-name-登记时收窄)、[S-14](../../../../spec/data/mcp-endpoint/v1/contract.md#s-14-推出规则五类项)～[S-17](../../../../spec/data/mcp-endpoint/v1/contract.md#s-17-工作区格上的这些项) |
+| `judgeMcpEndpoint(value) → { ok } \| { rejected, m? }` | [S-18](../../../../spec/data/mcp-endpoint/v1/contract.md#s-18-规范表示)～[S-21](../../../../spec/data/mcp-endpoint/v1/contract.md#s-21-表示层拒绝不是判定也不修补) |
+
+**函数层不承诺**：OAuth 绑定号部署内唯一且不可猜、stdio 在据点机上拉起——归 MCP 桥（[装配给 vs 协议给](#装配给-vs-协议给)）。
+
 ## 契约到 Cordis 的投影
 
 ### Cordis 原语：本节点一样也不用
