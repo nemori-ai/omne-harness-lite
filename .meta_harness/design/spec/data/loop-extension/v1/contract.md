@@ -300,7 +300,7 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 - **无论哪一种，处置本身都在那条结论记录里、可见**（[S-31](#s-31-三种记录形状)）。
 - `veto`、`stop` 的 `reason` 由 runner 写，指明是本件报错按 `treat_as_veto` 处置；**不转述报错详情**，理由同上。
 - `ErrorPolicy` 是规格层的策略 token。**`onError` 是这一件自己的声明，不是设置也不是权限**：推出规则不为它出项（[S-40](#s-40-属性项的推出规则)），各层不给它配值；「这一次按哪一档处置」只随求得的干预力收窄（上一条）。
-- **唯一的例外：兼容件的非阻断错误**（主线裁定，2026-09-25）：一件 `command` 件（[S-8](#s-8-装配进来的实现与外部命令)）以来源产品语义下的非阻断错误收场（非零退出、超时、输出不合形状）时，这一次固定按 `ignore`、不看 `onError`；**记录形状不变**，仍是 [S-31](#s-31-三种记录形状)「可用却报错」那一种（`skipped: errored` ＋ `error` ＋ `observed`）。规则与三种成因的归属在 `capability.loop-extension-runner` v1 的 S-13 与 `capability.hooks-import` v1 的 S-19，本契约不另立形状。
+- **唯一的例外：兼容件的非阻断错误**（主线裁定 [D-040 §八 N-39](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：一件 `command` 件（[S-8](#s-8-装配进来的实现与外部命令)）以来源产品语义下的非阻断错误收场（非零退出、超时、输出不合形状）时，这一次固定按 `ignore`、不看 `onError`；**记录形状不变**，仍是 [S-31](#s-31-三种记录形状)「可用却报错」那一种（`skipped: errored` ＋ `error` ＋ `observed`）。规则与三种成因的归属在 `capability.loop-extension-runner` v1 的 S-13 与 `capability.hooks-import` v1 的 S-19，本契约不另立形状。
 
 ## 四、声明
 
