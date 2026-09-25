@@ -1,4 +1,4 @@
-# D-042：接受资产／工具运行时／模型请求运行时一程的 24 个新立节点与 3 处修订（**待产品负责人签字，G5**）
+# D-042：接受资产／工具运行时／模型请求运行时一程的 32 个新立节点与 3 处修订（**待产品负责人签字，G5**）
 
 - **当前状态：草案，未接受。**主线（自驱授权下，2026-09-25）把本程实现映射阶段的产物整理成可签字的接受材料。签字前各节点 README「语义接受范围」一律「未接受（候选，待 D-041）」；签字后改为指向本决定，`realization/README.md` 各表的状态列同步。**本决定以 [D-041](../assets-runtimes-contract-acceptance/README.md) 先签或同签为前提**：节点是契约的实现路径，契约未接受则节点无所兑现。
 - **来源**：节点起草简报（18 个节点，core 按 [D-040 §八 M41](../mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 拆成 15 个纯模块）；起草反推出的契约修订 M31～M46；五批 architecture-reviewer 独立评审（N1～N5，`tmp/assets-runtimes/nodes/review-N*.md`）与主线裁定 M47～M75、N-19～N-31；各节点 verification「独立评审」表。
@@ -25,9 +25,13 @@
 | tools | `packages/tools/{tool-execution-runtime, asset-registry, mcp-bridge}` | 新立，插件 ×3 | `capability.tool-execution-runtime`、`capability.asset-registry`、`capability.mcp-bridge` v1 |
 | agent-loop | `packages/agent-loop/{loop-extension-runner, hooks-import}` | 新立，插件 ×2 | `capability.loop-extension-runner`、`capability.hooks-import` v1 |
 | model | `packages/model/{model-profile-directory, model-request-runtime, modality-projection}` | 新立，插件 ×3 | `capability.model-profile-directory`、`capability.model-request-runtime`、`capability.modality-projection` v1 |
+| session（候选领域名，账本 ⑱） | `packages/session/{session-log-jsonl, session-tenancy-table, run-attempt-facts-derived}` | 新立，最小提供者插件 ×3（[D-043 R-1](../assets-runtimes-rulings-2026-09-25/README.md)） | `capability.session-log`、`capability.session-tenancy`、`capability.run-attempt-facts` v1（接口契约） |
+| assets | `packages/assets/assembly-manifest-store` | 新立，最小提供者插件 | `capability.assembly-manifest` v1（接口契约） |
+| infra | `packages/infra/{credential-custodian-local, execution-environments-host, center-connection-probe}` | 新立，最小提供者插件 ×3（center-connection 一包两插件） | `capability.credential-custodian`、`capability.execution-environments`、`capability.center-connection` v1（接口契约） |
+| model | `packages/model/pi-ai-transport` | 新立，定向 fork 包（[D-043 R-5](../assets-runtimes-rulings-2026-09-25/README.md)） | `capability.model-request-runtime` v1 传输适配一层（S-38） |
 | tenancy | `packages/tenancy/organization-governance` | 修订（v2 段） | `capability.organization-governance` v2 |
 | apps | `apps/tenancy-host` | 修订（本程追加段） | 装配资产提供者与 P-1，OG 按 v2 采用 |
-| apps | `apps/cli` | 修订 | 据点装配 core／tools／agent-loop／model 各节点，十个验收替身，缺口 C-1～C-16 |
+| apps | `apps/cli` | 修订 | 据点装配 core／tools／agent-loop／model 各节点与八个最小提供者／传输节点，验收装配替身缩为五件（桥、转换器、放行件、求值输入、执行环境读数种子件），缺口 C-1～C-16 |
 
 `capability.tool-admission` v1 本程无提供者节点（tools C 子选择二），runner 以全拒件顶上——不在接受对象里，写在 `packages/tools/tool-execution-runtime` 的消费者表。
 
