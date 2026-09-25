@@ -37,7 +37,7 @@
 | 情形 | 预期 | 依据 |
 |---|---|---|
 | `P_A` 上 `storeReplica(L2, T1, 值丙)`；`P_B` 上 `readReplica(T1)` | `P_B` 答 **`{ absent }`** | [S-6](contract.md#s-6-据点隔离与按登录状态归属) 第 1 条、[S-23](contract.md#s-23-另一个账号的据点读不到) |
-| 把 `P_A` 落地的全部内容拷到 `P_B` 下，`P_B` 上 `readReplica(T1)` | 仍是 **`{ absent }`**；拷出的内容里扫不到 `值丙` 的明文 | [S-7](contract.md#s-7-加密落地)、[S-26](contract.md#s-26-加密落地) |
+| 把 `P_A` 落地的**条目**拷到 `P_B` 下（`P_B` 的密钥不变），`P_B` 上 `readReplica(T1)` | 仍是 **`{ absent }`**：`P_B` 用自己的密钥打不开；拷出的内容里扫不到 `值丙` 的明文。连 `P_A` 的密钥一起拷是 [S-3](contract.md#s-3-本契约明确不承诺什么) 不挡的情形，不在这一行 | [S-7](contract.md#s-7-加密落地)、[S-26](contract.md#s-26-加密落地) |
 | `P_A` 的密钥此刻取不到，`readReplica(T1)` | **`unavailable`**——不答 `absent` | [S-7](contract.md#s-7-加密落地)、[S-13](contract.md#s-13-readreplica) ⑧ |
 | `P_A` 的密钥取不到，`storeReplica(L2, T1, 值丁)` | **`unavailable`**，什么都没写——**不以明文落地** | [S-12](contract.md#s-12-storereplica) ⑧ |
 | `T1` 那一条被损坏（用密钥也打不开），`readReplica(T1)` | **`{ absent }`**，并留一条工程记录（不含本体与引用）；中心可达时调用方重取、重写即替换它 | [S-7](contract.md#s-7-加密落地) 末条 |

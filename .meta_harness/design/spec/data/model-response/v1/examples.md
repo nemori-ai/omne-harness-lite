@@ -176,10 +176,10 @@
 }
 ```
 
-### E-5 首 token 之后的故障，上游最后回 429
+### E-5 首 token 之后的故障，上游最后在流里回带内错误 429
 
 预期：`通过`。依据 [S-13](contract.md#s-13-收场与其余成员的条件关系)「`failed`，首 token 之后」那一行：**没有 `reply`、有 `delivered`、成因 `interrupted_mid_reply`、有 `firstTokenAt`**。
-**上游最后回的是 429，状态码原样带着，但成因不因此变成 `upstream_unavailable`**——首 token 已经出来，[无论上游最后返回什么，都归「说到一半断了」](../../../../product/PF-013-model-profiles-and-invocation/design.md#已经开口说话了优先于其余各类)。
+**上游最后在流里回的是带内错误 `code: 429`（HTTP 状态早已是 200），状态码取它、原样带着并标 `inBand: true`（[S-15](contract.md#s-15-故障的成因与原样状态码)），但成因不因此变成 `upstream_unavailable`**——首 token 已经出来，[无论上游最后返回什么，都归「说到一半断了」](../../../../product/PF-013-model-profiles-and-invocation/design.md#已经开口说话了优先于其余各类)。
 `upstreamError.message` 是**脱敏之后的原样**（[S-21](contract.md#s-21-写入之前脱敏)）。这次调用**不会再有下一次发出**（[S-23](contract.md#s-23-同一次调用的响应体序列)）。
 
 ```json
@@ -205,6 +205,7 @@
   "failure": {
     "cause": "interrupted_mid_reply",
     "statusCode": 429,
+    "inBand": true,
     "upstreamError": { "code": "429", "message": "Rate limit exceeded for this provider. Please retry later." }
   },
   "timing": { "sentAt": "2026-09-23T10:04:00Z", "firstTokenAt": "2026-09-23T10:04:01.5Z", "endedAt": "2026-09-23T10:04:06Z" },
@@ -654,7 +655,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
   "outcome": "failed",
   "reply": { "id": "msg_61", "type": "assistant", "createdAt": "2026-09-23T10:04:06Z", "response": "resp_r7", "ending": "complete", "blocks": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "我先检查一下测试为什么失败，看起来是" } ] },
-  "failure": { "cause": "interrupted_mid_reply", "statusCode": 429 },
+  "failure": { "cause": "interrupted_mid_reply", "statusCode": 429, "inBand": true },
   "timing": { "sentAt": "2026-09-23T10:04:00Z", "firstTokenAt": "2026-09-23T10:04:01.5Z", "endedAt": "2026-09-23T10:04:06Z" },
   "usage": { "input_tokens": "unknown", "output_tokens": "unknown", "cache_read_tokens": "unknown", "cache_write_tokens": "unknown", "source": "none" },
   "cost": { "cost_usd": "unknown", "source": "none" }
@@ -757,7 +758,7 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "route": { "profile": { "origin": "custom", "scope": { "layer": "organization", "organization": "org_7fd2c1" }, "routeName": "anthropic/claude-sonnet-4.5" }, "profileSnapshot": { "providers": ["anthropic", "amazon-bedrock", "google-vertex", "openai"], "allowFallback": true, "inputModalities": ["text", "image"], "outputModalities": ["text", "image"], "maxInputTokens": 200000, "maxOutputTokens": 64000, "updatedAt": "2026-09-20T08:00:00Z" }, "selectedBy": "session", "provider": "anthropic", "credentialScope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }, "parameters": {} },
   "outcome": "failed",
   "delivered": [ { "id": "b1", "kind": "text", "visibility": { "toHuman": true, "toModel": true }, "text": "我先检查一下测试为什么失败，看起来是" } ],
-  "failure": { "cause": "upstream_unavailable", "statusCode": 429 },
+  "failure": { "cause": "upstream_unavailable", "statusCode": 429, "inBand": true },
   "timing": { "sentAt": "2026-09-23T10:04:00Z", "firstTokenAt": "2026-09-23T10:04:01.5Z", "endedAt": "2026-09-23T10:04:06Z" },
   "usage": { "input_tokens": "unknown", "output_tokens": "unknown", "cache_read_tokens": "unknown", "cache_write_tokens": "unknown", "source": "none" },
   "cost": { "cost_usd": "unknown", "source": "none" }
@@ -1101,6 +1102,18 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
   "timing": { "sentAt": "2026-09-23T10:20:00Z", "firstTokenAt": "2026-09-23T10:20:03Z", "endedAt": "2026-09-23T10:20:09Z" },
   "usage": { "input_tokens": 5200, "output_tokens": 610, "cache_read_tokens": 4096, "cache_write_tokens": 0, "source": "upstream" },
   "cost": { "cost_usd": 0.0087, "source": "upstream_usage" }
+}
+```
+
+### R-30 `malformed`：标了「带内」，却没有状态码
+
+在 E-5 的 `failure` 上删掉 `statusCode`、留下 `inBand: true`。**`inBand` 说的是「这个状态码从哪来」，没有状态码它就没有所指**（[S-15](contract.md#s-15-故障的成因与原样状态码)；Schema `Failure.dependentRequired`）。预期：`拒绝：malformed`。只列 `failure` 一段，其余成员照 E-5：
+
+```json
+"failure": {
+  "cause": "interrupted_mid_reply",
+  "inBand": true,
+  "upstreamError": { "code": "429", "message": "Rate limit exceeded for this provider. Please retry later." }
 }
 ```
 

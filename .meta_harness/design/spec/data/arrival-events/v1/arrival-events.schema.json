@@ -269,7 +269,7 @@
 
     "FinishEvent": {
       "title": "收尾（contract.md S-16）",
-      "description": "一条流的结局，每条流恰一次、且是最后一个事件。error 只在 model_call 且 reason 为 lost 时可带：cause 是 data.loop-extension v1 的 FailureCause，statusCode 是上游状态码、原样不翻译。lost 不带 error 合法，不表示没有故障。",
+      "description": "一条流的结局，每条流恰一次、且是最后一个事件。error 只在 model_call 且 reason 为 lost 时可带：cause 是 data.loop-extension v1 的 FailureCause，statusCode 是上游状态码、原样不翻译；inBand 只取 true、只能与 statusCode 同在，在即那个状态码是流已开始之后带内错误的 code、不是 HTTP 状态。lost 不带 error 合法，不表示没有故障。",
       "$comment": "error 的 cause 引 data.loop-extension v1 S-17 的 FailureCause（contract.md G-2 已闭合）。「只有 model_call」一半在 ArrivalEnvelope 的条件里。",
       "type": "object",
       "additionalProperties": false,
@@ -283,8 +283,10 @@
           "required": ["cause"],
           "properties": {
             "cause": { "$ref": "../../loop-extension/v1/loop-extension.schema.json#/$defs/FailureCause" },
-            "statusCode": { "type": "integer" }
-          }
+            "statusCode": { "type": "integer" },
+            "inBand": { "const": true }
+          },
+          "dependentRequired": { "inBand": ["statusCode"] }
         }
       },
       "allOf": [

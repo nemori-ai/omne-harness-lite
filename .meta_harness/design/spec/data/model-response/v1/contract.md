@@ -375,7 +375,7 @@
 
 ### S-15 故障的成因与原样状态码
 
-`failure = { cause, statusCode?, upstreamError?, localError? }`，**只在 `outcome = failed` 上出现，且在那里必有**（[S-13](#s-13-收场与其余成员的条件关系)）。
+`failure = { cause, statusCode?, inBand?, upstreamError?, localError? }`，**只在 `outcome = failed` 上出现，且在那里必有**（[S-13](#s-13-收场与其余成员的条件关系)）。
 
 - **`cause`**：八个成因之一。**名字与定义归 `data.loop-extension` 的 `FailureCause`，本契约 `$ref` 它、不复述**；
   八个取值按 [PF-013 §5.7](../../../../product/PF-013-model-profiles-and-invocation/design.md#57-上交带什么原样带着状态码不翻译它) 的顺序是
@@ -385,6 +385,8 @@
   一条带 `upstream_unavailable` 的响应体只说「这一次上游给不出回复」，**不表示这次调用已经试尽**。试没试尽由重试挂件判，结论落在它自己的结论条目里。
 - **`statusCode`**：上游返回的状态码，**原样带着，不翻译**。[成因回答「谁能了结」，状态码回答「上游到底怎么了」，两者不互相替代](../../../../product/PF-013-model-profiles-and-invocation/design.md#614-上交带的成因是封闭枚举外加一个诚实的兜底状态码另外原样带着)。
   **上游没有返回状态码时缺席**（连不上、超时、没到上游）——**缺席不是 0，也不得补一个「看起来合理」的值**。
+  **状态码有两种来处**（主线裁定，[D-040 §八 N-40](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ④）：HTTP 层失败时是实际 HTTP 响应的状态码；**流已开始之后的带内错误**（HTTP 已是成功、错误在流里给出）是带内错误的 `code`——这时**带 `inBand: true`**。
+- **`inBand`**：只取 `true`，**只能与 `statusCode` 同在**；在即「这个状态码是流里带内错误的 `code`，不是 HTTP 状态」，缺席即「这个状态码是 HTTP 状态」。**不许把流开始时的 HTTP 成功状态当成那次故障的状态码**，也不许把带内 `code` 不加标记地写进 `statusCode`——两者读起来是同一个数，意思不同。
 - **`upstreamError`**：上游在错误里给出的 `code`、`message` 与原样错误体 `raw`，**脱敏之后原样**（[S-21](#s-21-写入之前脱敏)）；三样都没有就不写这个成员。
 - **`localError`**：本层自己出的错——传输适配报错、解不开上游的回应——的原文，**脱敏之后原样**；没有就不写。它与 `upstreamError` 分开：一个是上游说的，一个是本层遇到的。
 - **兜底值不许用来偷懒**（[§6.14](../../../../product/PF-013-model-profiles-and-invocation/design.md#614-上交带的成因是封闭枚举外加一个诚实的兜底状态码另外原样带着)）：
@@ -567,7 +569,7 @@
 
 | 拒绝值 | 什么时候给 | Schema 里在哪 |
 |---|---|---|
-| `malformed` | 形状不合，且不属于下面任何一个具名情形：缺必需成员、类型不对、有多余成员、引用的外部形状不合、「空」写成了空数组或空对象、`trims` 全零、`late` 不是 `true`；**另含几种无专名的跨成员情形**：`replyDisposition` 与 `reply` 不同在同缺；`initiator` 在 `interrupted` 上缺席或出现在别处；`runtime_lost` 带了 `reply`；`attemptId` 与 `call.runId` 不同在同缺；`late` 出现在不属于任何运行的那一条上；凭据记在出厂格而有效模型不是官方档案；`unrecognized` 一样痕迹都没带 | 各成员定义；`ModelResponse.allOf` 标 `malformed` 的八支 |
+| `malformed` | 形状不合，且不属于下面任何一个具名情形：缺必需成员、类型不对、有多余成员、引用的外部形状不合、「空」写成了空数组或空对象、`trims` 全零、`late` 不是 `true`、`inBand` 不是 `true`；**另含几种无专名的跨成员情形**：`failure.inBand` 在而 `failure.statusCode` 缺席；`replyDisposition` 与 `reply` 不同在同缺；`initiator` 在 `interrupted` 上缺席或出现在别处；`runtime_lost` 带了 `reply`；`attemptId` 与 `call.runId` 不同在同缺；`late` 出现在不属于任何运行的那一条上；凭据记在出厂格而有效模型不是官方档案；`unrecognized` 一样痕迹都没带 | 各成员定义；`ModelResponse.allOf` 标 `malformed` 的八支 |
 | `outcome_unknown` | `outcome` 是字符串但不在四值之内 | `ResponseOutcome` |
 | `dispatch_zero` | `dispatch` 是整数但小于 1 | `ModelResponse.properties.dispatch` |
 | `cause_unknown` | `failure.cause` 是字符串但不在八个成因之内 | `Failure.properties.cause` |
@@ -636,8 +638,8 @@
 
 #### S-30 首 token 之后的故障
 
-让上游在吐出第一段文本之后断开，最后回一个 429。
-**必须观察到**：一条 `failed`，成因 `interrupted_mid_reply`，`statusCode = 429` 原样，`firstTokenAt` 在，`delivered` 含已交付的那段文本，**没有 `reply`**；
+让上游在吐出第一段文本之后，在流里回一个带内错误 `code: 429` 再断开。
+**必须观察到**：一条 `failed`，成因 `interrupted_mid_reply`，`statusCode = 429` 原样且带 `inBand: true`（不是那次响应的 HTTP 200），`firstTokenAt` 在，`delivered` 含已交付的那段文本，**没有 `reply`**；
 **这次调用不再有第二次发出**，哪怕重试挂件被换成一件「见 429 就重试」的拓展件。
 
 #### S-31 用户中断的两支

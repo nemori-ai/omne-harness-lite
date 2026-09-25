@@ -189,7 +189,7 @@
 | `data.content-blocks` `#S-13` 半截的工具调用 | [S-29](#s-29-dispatch) |
 | `data.content-blocks` `#S-21` AttachmentRef | [S-20](#s-20-写入之前脱敏) |
 | `data.messages` `#S-9`、`#S-10` AssistantMessage 与它的三种收尾 | [S-29](#s-29-dispatch) |
-| `data.messages` `#S-35`、`#S-36` 我们自己那两种在发出前译掉、ToolInternalMessage 不进请求 | [S-38](#s-38-装配给的保证-vs-协议须给的保证) |
+| `data.messages` `#S-35`、`#S-36` 我们自己那两种在发出前译掉、ToolInternalMessage 不进请求；`#S-32` 一问一答（2026-09-25 修订波） | [S-38](#s-38-装配给的保证-vs-协议须给的保证)、[S-28](#s-28-opencall) 出门前检查第 6 行 |
 | `data.tool-definition` `#S-6` 模型面只有一个条目；模型面名字 `ModelToolName`，逆转写只在工具执行那一侧 | [S-28](#s-28-opencall) ① 的 `tools`；[S-51](#s-51-模型侧到达装配前提的承诺) 末条、[S-38](#s-38-装配给的保证-vs-协议须给的保证) 传输适配第 11 条：不做逆转写 |
 | `data.tool-definition` `#S-14` 时长的表示 | [S-21](#s-21-两个时限是运行时设置项)、[S-30](#s-30-dispatchagain) |
 | `data.identity-values` `#S-5` TenantId | [S-7](#s-7-一次调用绑定了什么)、[S-19](#s-19-凭据每次发出现取取值只交给传输适配) |
@@ -481,16 +481,17 @@ DisplayList(会话)  ≝  { r ∈ LegalTargetSet(会话) ∪ { 选中模型 } } 
 
 | 来源 | 成因 | 进不进响应体 |
 |---|---|---|
-| **出门前检查**（[S-28](#s-28-opencall)、[S-29](#s-29-dispatch)） | `withdrawn` · `scope_disallowed` · `modality_mismatch` · `credential_unavailable`（没配，或保管方判解不出值） | **不进**：没有发出（`data.model-response/v1#S-16`）；记调用终结 `undispatched{cause}` |
-| **传输本地**：请求还没到上游，本进程这一侧就失败了（适配层自身错误、请求序列化失败、本地资源耗尽） | **`unrecognized`**，并把本地错误留痕 | 进（这次发出已出门） |
+| **出门前检查**（[S-28](#s-28-opencall)、[S-29](#s-29-dispatch)），**含传输适配在「已出门」之前的规划拒绝**（S-29 ④：模态送不出即 `modality_mismatch`） | `withdrawn` · `scope_disallowed` · `modality_mismatch` · `credential_unavailable`（没配，或保管方判解不出值） | **不进**：没有发出（`data.model-response/v1#S-16`）；记调用终结 `undispatched{cause}` |
+| **传输本地**：请求**已出门**、还没到上游，本进程这一侧就失败了（适配层自身错误、请求序列化失败、本地资源耗尽）。**规划拒绝不在这一行**：它在「已出门」之前，这次发出没有出门（S-29 ④） | **`unrecognized`**，并把本地错误留痕 | 进（这次发出已出门） |
 | **连不上、超时、上游在首 token 之前断流** | `upstream_unavailable` | 进 |
-| **上游返回的状态码** | 按具名参数 **`status_cause_table`**：一张状态码 → 成因的表，只映射到 `credential_unavailable`（配了而上游拒绝）、`request_rejected`、`upstream_unavailable` 三者之一；**表里没有的状态码 ⇒ `unrecognized`** | 进；状态码原样带着 |
-| **首 token 之后的任何故障**（断流、超时、上游最后回了错误状态） | **`interrupted_mid_reply`**，优先于上面各行 | 进；状态码仍原样带着 |
+| **上游返回的状态码**：HTTP 层失败的状态码；或首 token 之前、流已开始之后的带内错误的 `code`（`inBand: true`） | 按具名参数 **`status_cause_table`**：一张状态码 → 成因的表，只映射到 `credential_unavailable`（配了而上游拒绝）、`request_rejected`、`upstream_unavailable` 三者之一；**表里没有的状态码 ⇒ `unrecognized`**。带内 `code` 查同一张表——**有前提**：上游带内错误的 `code` 与 HTTP 状态是同一套码（未取证，[G-5](#十二已知缺口)） | 进；状态码原样带着，带内的另带 `inBand: true` |
+| **首 token 之后的任何故障**（断流、超时、上游在流里回了带内错误） | **`interrupted_mid_reply`**，优先于上面各行 | 进；有带内错误时它的 `code` 作状态码、标 `inBand: true`；断流、超时没有状态码 |
 | **上游正常收尾、却一样内容都没有** | `upstream_unavailable`（空回复归策略那一类，[判据例一](../../../../product/PF-013-model-profiles-and-invocation/design.md#判据怎么用三个例子)） | 进 |
 
 - **本地故障不报成「上游给不出」**：传输本地那一行归 `unrecognized`——报成 `upstream_unavailable`，重试件会拿一个本地 bug 去换家、退避，一遍遍试尽。
 - **`unrecognized` 必带留痕**：状态码、上游错误原文或本地错误三者至少其一（`data.model-response/v1#S-15`）。
-- **`status_cause_table` 的具体内容不在本契约**（[G-5](#十二已知缺口)）；本契约只约束它：每个状态码至多映射一个成因、只映射到上面三者、不得映射到出门前那四个。
+- **`status_cause_table` 的具体内容不在本契约**（[G-5](#十二已知缺口)）；本契约只约束它：每个状态码至多映射一个成因、只映射到上面三者、不得映射到只在出门前判出的 `withdrawn`、`scope_disallowed`、`modality_mismatch`（`credential_unavailable` 两处都有：出门前是「没配、解不出」，这里是「配了而上游拒绝」）。
+- **有两行按成因的定义定下**（主线裁定，[D-040 §八 N-40](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ④，pi-ai 传输节点 PAT-N3；`data.loop-extension/v1#S-17` 按「谁能让它不再发生」分）：**`402`（余额不足）⇒ `credential_unavailable`**——配了，而上游不收这把凭据背后的账户，能让它不再发生的是管理员；**`403`（输入被内容审核拦下）⇒ `request_rejected`**——这次请求本身上游不接受，agent 改写内容再来。两行的前提是 OpenRouter 对这两个码的含义如括号所写（未取证，[G-5](#十二已知缺口)）。
 
 **三类事实由发出守卫兑现，不由重试件的策略兑现**（[S-30](#s-30-dispatchagain)）：成因属于「发不出去」「重试没用」「已经开口」的，任何 `retry` 结论都不生效。**默认重试件怎样写都改不了这一条**，换成自定义件也一样。
 
@@ -683,7 +684,9 @@ DisplayList(会话)  ≝  { r ∈ LegalTargetSet(会话) ∪ { 选中模型 } } 
 | 3 | `compatible(档案, 投影)`；**另核可发出的前置**：投影 ⊆ 本据点传输能承载的模态（[S-11](#s-11-合法目标集合) 末段） | `modality_mismatch`（两样不过都归它：都是「会话里的模态这一次送不到这个模型」） |
 | 4 | 凭据：以发起租户与有效模型的来源问「有没有」 | `credential_unavailable` |
 | 5 | 合并后的参数过 `data.model-profile/v1#S-24`（含输出上限） | **不是成因**：`invalidInput{reason}`——覆盖不合法是调用方交来的输入错，不是一次上交 |
+| 6 | `messages` 交得给传输：不含 `ToolInternalMessage`（`data.messages/v1#S-36`）；每一个工具调用块都有它那一条工具消息（一问一答，`data.messages/v1#S-32`） | **不是成因**：`invalidInput{reason}`——与第 5 行同理，是调用方交来的请求组错了（[G-21](#十二已知缺口)） |
 
+- **传输适配的规划拒绝也归这张表**（主线裁定，[D-040 §八 N-40](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ④，pi-ai 传输节点 PAT-N9）：[S-29](#s-29-dispatch) ④ 在写「已出门」之前请传输适配把线上请求组好，它能拒绝的恰三种——**模态送不出、有调用没结果、`ToolInternalMessage` 混进请求**——就是第 3、6 行在传输那一侧的同一判定。三种都只看这次调用绑定的消息与档案快照、不看那一家，所以正常情况下在这里已经挡下；规划仍拒时怎样收场见 S-29 ④。
 - **检查的是这一刻**：拓展件改过的 `target` 若在它核完之后变得不合法，这里照样挡下。
 - **`undispatched` 的调用没有响应体**（`data.model-response/v1#S-16`）；上交条目由 loop 写（[S-3](#s-3-本契约明确不承诺什么)）。
 
@@ -696,8 +699,8 @@ DisplayList(会话)  ≝  { r ∈ LegalTargetSet(会话) ∪ { 选中模型 } } 
 | ① | `session`；`callId`；这次发出落在哪一次尝试（调用属于某个 Run 时必给） |
 | ② | 调用处于 `open` 或 `resumable`；宿主不在停止中 |
 | ③ | **有**：调用里任何一次发出开过口 ⇒ 不发（`retryRefused{already_spoke}`）——跨尝试同样成立 |
-| ④ | **提交点是「已出门」**：取凭据 → 传输适配为这一次定下改值与丢项 → 写「已出门」（带 `ResponseId`、那一家、这次调用的绑定与那两项，[S-8](#s-8-调用在会话日志里留下的六种记录)）→ 请求出网，**发出的就是「已出门」还原得出的那一组**（[S-7](#s-7-一次调用绑定了什么)），出网之后不再改。首次发出取档案快照里的第一家；续接取失联那次的那一家。**开口时**写「已开口」再交出内容（[S-15](#s-15-两个锚点先写后行)）。**收场时**按 [S-17](#s-17-结算一处按序幂等先到者赢) 结算 |
-| ⑤ | **等到这次发出收场才返回**，返回这次发出的[模型响应体](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-response--模型响应体--model-response)（`data.model-response` 形状），并说明它**由谁写**：<br>• `outcome ∈ { complete, truncated }`，或 `interrupted` 且有回复 ⇒ **交回，未写**：调用进入 `reply_pending`，由调用方收口（[S-17](#s-17-结算一处按序幂等先到者赢)）；`reply` 是一条 `AssistantMessage`，`ending` 与收场一一对应（`data.messages/v1#S-10`）<br>• `failed`，或 `interrupted` 且没有内容 ⇒ **已写**：本能力在返回之前写下。`failed` 时调用进入 `awaiting_decision`，返回里带「调模型之后」失败那一维的主体所需的事实（`data.loop-extension/v1#S-14`：档案快照、这次调用已有的「已出门」、成因、原样状态码）——**重试件只凭那份主体下结论**，不读响应体序列（`data.model-response/v1#S-23` 是那份主体背后的事实） |
+| ④ | **提交点是「已出门」**：取凭据 → 传输适配为这一次**组好线上请求**、定下改值与丢项（规划）→ 写「已出门」（带 `ResponseId`、那一家、这次调用的绑定与那两项，[S-8](#s-8-调用在会话日志里留下的六种记录)）→ 请求出网，**发出的就是「已出门」还原得出的那一组**（[S-7](#s-7-一次调用绑定了什么)），出网之后不再改。首次发出取档案快照里的第一家；续接取失联那次的那一家。**开口时**写「已开口」再交出内容（[S-15](#s-15-两个锚点先写后行)）。**收场时**按 [S-17](#s-17-结算一处按序幂等先到者赢) 结算。<br>**规划拒绝 ⇒ 不出门**（主线裁定，D-040 §八 N-40 ④）：不写「已出门」、不出网，这次发出**不算已出门**，没有响应体；它与 [S-28](#s-28-opencall) 出门前检查第 3、6 行是同一判定：**模态送不出** ⇒ 写调用终结 `undispatched{modality_mismatch}`、返回 `{ undispatched }`；**有调用没结果、`ToolInternalMessage` 混进请求** ⇒ `invalidInput{reason}`，不写记录、调用停在原状态（[G-21](#十二已知缺口)）。三种都只看绑定的消息与档案快照、不看那一家，所以只可能出现在首次发出：首次规划过了，续接的再发与 `dispatchAgain` 用同一份输入，规划结果相同 |
+| ⑤ | **等到这次发出收场才返回**，返回这次发出的[模型响应体](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-response--模型响应体--model-response)（`data.model-response` 形状），并说明它**由谁写**：<br>• `outcome ∈ { complete, truncated }`，或 `interrupted` 且有回复 ⇒ **交回，未写**：调用进入 `reply_pending`，由调用方收口（[S-17](#s-17-结算一处按序幂等先到者赢)）；`reply` 是一条 `AssistantMessage`，`ending` 与收场一一对应（`data.messages/v1#S-10`）<br>• `failed`，或 `interrupted` 且没有内容 ⇒ **已写**：本能力在返回之前写下。`failed` 时调用进入 `awaiting_decision`，返回里带「调模型之后」失败那一维的主体所需的事实（`data.loop-extension/v1#S-14`：档案快照、这次调用已有的「已出门」、成因、原样状态码与它的 `inBand` 标记）——**重试件只凭那份主体下结论**，不读响应体序列（`data.model-response/v1#S-23` 是那份主体背后的事实） |
 | ⑥ | `invalidInput` · `callNotFound` · `alreadyEnded` · `retryRefused{already_spoke}` · `wrongPhase` · `runtimeStopped` · `unavailable` |
 | ⑦ | **不幂等**：每一次成功调用都是一次新的发出。重复调用由状态挡住：第一次调用让调用离开 `open`／`resumable`，第二次得 `wrongPhase` |
 | ⑧ | 凭据取不到（按 [S-19](#s-19-凭据每次发出现取取值只交给传输适配) 没有可用的那一把）⇒ **首次发出**：不写「已出门」，写调用终结 `undispatched{credential_unavailable}`（这次调用一次也没发出），返回 `{ undispatched }`；**续接的再发**：同样不出门，写调用终结 **`released{cause: credential_unavailable}`**——这次调用此前已有发出，不是 `undispatched`（`data.messages/v1#S-50`；主线裁定，见 [D-040 §五 K21](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)），调用进入 `handed_up`、上交照常。保管方、追加口够不着 ⇒ `unavailable`，**不出门**、调用停在原状态。取不到时限设置 ⇒ `unavailable`（[S-21](#s-21-两个时限是运行时设置项)） |
@@ -986,7 +989,7 @@ DisplayList(会话)  ≝  { r ∈ LegalTargetSet(会话) ∪ { 选中模型 } } 
 | # | 义务 | 做不到会怎样 |
 |---|---|---|
 | 1 | **每一次发出只指定一家，并禁止上游回退**；一次发出之内不自行重试 | 一次发出之内换了家，留痕丢失，**两笔钱只记一笔** |
-| 2 | **状态码从实际的 HTTP 响应取**，原样交回 | 成因分类与重试件看不到状态码 |
+| 2 | **状态码按来处分两种，原样交回**：HTTP 层失败（响应头里就不是成功）⇒ 取实际 HTTP 响应的状态码；**流已开始之后的带内错误**（HTTP 已是成功、错误在流里）⇒ 取带内错误的 `code`，并标 `inBand: true`（`data.model-response/v1#S-15`；主线裁定，[D-040 §八 N-40](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ④，pi-ai 传输节点 PAT-N4） | 成因分类与重试件看不到状态码；或把流里的 `code` 当成 HTTP 状态读、把 HTTP 的成功当成那次故障的状态码 |
 | 3 | **不在中途解析工具参数**；唯一的解析点在流装配 | 同一份参数两处解析出两个结果 |
 | 4 | **首 token 按 [S-16](#s-16-首-token-判据) 的判据映射**；库的「开始」事件不算 | 把没开口判成开口（关掉可以重发的窗口）或反之（重发） |
 | 5 | **只用本能力交来的那一把凭据**；不回落到进程环境或任何缺省配置里的凭据 | 用错范围的凭据，账记到错的头上 |
@@ -1078,9 +1081,9 @@ M1 若是选中模型，`displayList` 上它带 `modality_mismatch`。
 
 #### S-46 成因按来源分类与脱敏
 
-用一段已知的凭据原文 V，对下列各源各造一次失败：本地适配层抛错；连不上；上游 401；上游 400；上游 503；上游在首 token 之后回 500；上游返回一个表里没有的状态码。
+用一段已知的凭据原文 V，对下列各源各造一次失败：本地适配层抛错；连不上；上游 401；上游 400；上游 503；上游在首 token 之后在流里回带内错误 `code: 500`（HTTP 状态早已是 200）；上游返回一个表里没有的状态码。
 
-**必须观察到**：依次是 `unrecognized`（带本地错误留痕）、`upstream_unavailable`、`credential_unavailable`、`request_rejected`、`upstream_unavailable`、`interrupted_mid_reply`（状态码 500 原样）、`unrecognized`（状态码原样）——**状态码到成因的具体映射按 `status_cause_table` 取值，本场景只核分类来源与优先级**；
+**必须观察到**：依次是 `unrecognized`（带本地错误留痕）、`upstream_unavailable`、`credential_unavailable`、`request_rejected`、`upstream_unavailable`、`interrupted_mid_reply`（状态码 500、`inBand: true`——**不是 200**，也不是没有状态码）、`unrecognized`（状态码原样）——**状态码到成因的具体映射按 `status_cause_table` 取值，本场景只核分类来源与优先级**；
 全部响应体、原始响应留存与本地错误留痕里**找不到 V**，也找不到 V 的任何不短于 `credential_fragment_min_length` 的片段。
 
 #### S-47 用户叫停之后停机，不再发出
@@ -1133,12 +1136,12 @@ M1 若是选中模型，`displayList` 上它带 `modality_mismatch`。
 | G-2 | **已闭合**：五种记录的形状归 `data.messages/v1#S-49`、`#S-50`（D-040 §S16 S16-d） | — | — |
 | G-3 | **已闭合**：`ModelCallRequest` 定形（D-040 §S16 S16-c）；第一轮评审处置改为 `target` 恒在、加 `basis`、`tools` 是模型面名字（[S-28](#s-28-opencall) ①） | — | — |
 | G-4 | **已闭合（主线裁定，见 [D-040 §五 K42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）**：「用哪个模型」那项设置的允许集合**取值域是路由名**，与「设置记路由名」一致；它作为显式参数进 `capability.model-profile-directory/v1#S-17` 末段的规则（[S-11](#s-11-合法目标集合)）。**本行只闭合取值域**；这一项从哪来、是设置还是权限、锁与 `A` 的关系另立 [G-19](#十二已知缺口)（2026-09-25 按 [D-043 R-4](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) 闭合）（[D-040 §七 M17](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)） | — | — |
-| G-5 | **`status_cause_table` 的内容**：OpenRouter 各状态码（含 402 余额不足、403 内容审核）归哪个成因 | 提供者设计（据 OpenRouter 文档取证）；有产品含义的几条报主线 | 表定下并随传输钉版本一起取证 |
+| G-5 | **`status_cause_table` 的内容**：OpenRouter 各状态码归哪个成因。**`402`、`403` 两行已按成因定义定下**（[S-18](#s-18-成因按来源分类三类事实由守卫兑现) 末条：`402` ⇒ `credential_unavailable`、`403` ⇒ `request_rejected`；主线 2026-09-25 裁定，报产品负责人知悉），前提是这两个码的含义取证属实；其余各行的取证仍开着（pi-ai 传输节点 PAT-N3 的候选表每一行都是待核对主张）。**另一项前提**：首 token 之前的带内错误的 `code` 查同一张表，要上游带内 `code` 与 HTTP 状态是同一套码（S-18 表第四行） | 提供者设计（据 OpenRouter 文档取证） | OpenRouter 错误页入研究，表逐行对上；带内 `code` 的码空间核实 |
 | G-6 | **脱敏三个具名参数的取值**：`credential_fragment_min_length`、`credential_header_names`、`credential_patterns` | 提供者设计 ＋ 安全评审 | 取值定下，并以哨兵串场景（S-46）验证 |
 | G-7 | **已闭合**：首 token 之后停机 = `interrupted{runtime_lost}`（D-040 §S16 S16-g） | — | — |
 | G-8 | **已闭合（2026-09-25 修订波，[D-043 R-6](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)、[D-040 §八 N-36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）**：原「退避值取多少」改为**策略配置项与默认初值**——`default_retry_backoff` 是一个可配置策略对象（`kind`、`base`、`factor`、`max`、`jitter`，[S-35](#s-35-默认重试件可替换) 第 4 条），次数不是独立参数、由允许的供应商个数与回退声明推出；默认初值放配置层（N-36 记下的那一组），本契约不填值。同家要不要再试已裁（不允许回退时同家至多一次，D-040 §S16 S16-g） | — | — |
 | G-9 | **两个时限设置项的声明与默认值**：项名 `first_token_wait_limit`、`post_first_token_stall_limit` 是规格层给的名字，它们在哪类资产的推出规则里声明、默认值由谁给未定 | PF-002 owner；那一类资产的正文契约 | 设置项在 PF-002 清单里立起来、所在正文契约的推出规则产出它们 |
-| G-10 | **传输适配十一条中依赖研究假设的几条**（1、2、4、5、7）：所选传输库（D-019）的缺省行为只有研究里的假设，未升 basis | 提供者设计 | basis 条目带 probe 立起来 |
+| G-10 | **传输适配十一条中依赖研究假设的几条**（1、2、4、5、7）：所选传输库（D-019）的缺省行为只有研究里的假设，未升 basis | 提供者设计（`realization/packages/model/pi-ai-transport` 节点） | **pi-ai 传输节点的符合性测试 T-1～T-11 通过**：fork 之后十一条都由本项目的传输适配主动做到、不再依赖上游库的缺省行为，所以证据是对本包的测试，不是 basis 条目（主线裁定，D-040 §八 N-40 ④） |
 | G-11 | **本契约对 loop 与会话生命周期的三项义务尚无对方条款**：① **用户取消运行时**，宿主先 `interrupt(run_cancelled)`、让调用方收口，再停（没做到时本能力写的那一条没有回复；系统发起的停止本来就不产出回复，[S-36](#s-36-宿主停止与撤除)）；② 交回的回复在调用方结束这一步之前收口——落盘成消息或调 [S-49](#s-49-settlereply)（[S-17](#s-17-结算一处按序幂等先到者赢)）；③ 会话重新承载之后、会话级的调用打开之前调 [S-33](#s-33-reconcile)（不属于任何 Run 的调用由它收口） | loop 那一程与会话生命周期（主线） | loop 契约与会话生命周期契约写明这三项 |
 | G-12 | **中心 ↔ 据点的线上形状与协议义务**：[S-38](#s-38-装配给的保证-vs-协议须给的保证) 右两列里跨中心与据点的几行 | 架构（组合契约起草） | 那份组合契约成立并逐行兑现 |
 | G-13 | **已闭合（修复波 1b）**：`settleReply`（[S-49](#s-49-settlereply)）、`openCall` 的 `basis`（[S-28](#s-28-opencall) ①）、`reply_pending`、会话重新承载时的对账时机、`canDispatchAgain` 收 `plan`，主线接受，见 [D-040 §六 N-9](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加) | — | — |
@@ -1149,6 +1152,9 @@ M1 若是选中模型，`displayList` 上它带 `modality_mismatch`。
 | G-18 | **已闭合（修复波 1b，主线裁定，见 [D-040 §六 L4](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）**：「已出门」（`data.messages/v1#S-49`）另带传输适配在出网之前定下的 `parameterAdjustments` 与 `droppedParameters`，`data.model-response` 不放宽；追补体的参数三项从它读（[S-7](#s-7-一次调用绑定了什么)、[S-29](#s-29-dispatch) ④、[S-33](#s-33-reconcile) ④、[S-38](#s-38-装配给的保证-vs-协议须给的保证) 传输适配第 10 条） | — | — |
 | G-19 | **已闭合（2026-09-25 修订波，[D-043 R-4](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）**：允许集合 `A` 的来源——**本版不收窄**，范围允许 = 这个范围里登记的全部档案，凭据可用即可用；`A` 由目录读面直接给（[S-11](#s-11-合法目标集合) 那一行），不从求值结果里取。将来要收窄作为设置走资产求值（PF-002），那时出新版本。**原缺口里的另一半——「用哪个模型」这项设置本身由谁产出、锁怎么判——不随它闭合**，另立 [G-20](#十二已知缺口) | — | — |
 | G-20 | **「用哪个模型」这项设置由哪份正文契约产出**（2026-09-25 修订波从原 G-19 拆出）：[S-9](#s-9-选中模型) 会话从没切换过时的选中模型、[S-10](#s-10-有效模型四步每步来源可查) 第 2 步的上层锁都读这一项在会话格上的层级求值；它挂在 Agent 定义上，而 Agent 定义的属性项没有正文契约（`capability.asset-evaluation` v1 的 G-21），[D-043 R-4](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) 的落点又写明资产求值不出「用哪个模型」项。**闭合之前（主线 2026-09-25 裁定，缺口保持开放）**：① **锁**：求值成功而 `values` 里没有这一项 ⇒ 第 2 步答「没有锁」（不存在的项上不可能有锁，是事实不是默认值）；求值读不到才 `unavailable`——所以 [`effectiveModel`](#s-26-effectivemodel) **不因这一项缺席而 `unavailable`**，写过模型切换记录的会话照常求得有效模型；② **初值**：从没切换过的会话选中模型仍判不出 ⇒ `effectiveModel`、[`displayList`](#s-25-displaylist) 对它 `unavailable`——**不拿链上某个名字当初值**；本程验收装配以种子写一条 `model_selection_changed`。[`legalTargets`](#s-24-legaltargets)、[`selectModel`](#s-27-selectmodel) 不依赖这一项，照常 | 主线 → PF-004（Agent 定义的属性项）＋ `capability.asset-evaluation`（G-21） | 某份正文契约的推出规则产出这一项、写明锁怎么判，并给出从没切换过的会话的初值从哪来 |
+| G-21 | **有调用没结果、`ToolInternalMessage` 混进请求这两种规划拒绝怎样记**（2026-09-25 修订波）：主线裁定（D-040 §八 N-40 ④）要传输适配的规划拒绝归出门前检查、以 `undispatched{cause}` 收场；模态送不出落得下（`modality_mismatch`），**另两种在出门前的四个成因里没有一个说得上**（`data.loop-extension/v1#S-17` 按「谁能让它不再发生」分，这两种是请求组错了），而 `undispatched` 的成因只许是那四个（`data.messages/v1#S-50`）。**本版按调用方输入错收**：[S-28](#s-28-opencall) 出门前检查第 6 行 `invalidInput{reason}`；规划仍拒时 [S-29](#s-29-dispatch) ④ 同样 `invalidInput`、不写记录、调用停在原状态（本契约推导，与第 5 行同理） | 主线 | 维持 `invalidInput` 即关闭；或放宽 `data.messages/v1#S-50` 的 `undispatched.cause`（例如允许 `unrecognized`），本契约两处随之改写 |
+| G-22 | **上游此刻的输出上限没有来源**（2026-09-25 修订波，pi-ai 传输节点 PAT-N11）：`data.model-profile/v1#S-18` 要传输适配在上游此刻的输出上限低于参数时改值再发、记下实际发出的值；本程传输不取上游模型目录（那个节点的 fork 边界，依据 D-019「目录估价不得冒充」与 [D-043](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-5 的 fork 基线），手里没有这一事实。**闭合之前（主线裁定，D-040 §八 N-40 ④）：不改值、按参数原样发**（那份契约 S-18 已标「有前提」）；上游因此拒收时照 [S-18](#s-18-成因按来源分类三类事实由守卫兑现) 归成因，不另造一种收场 | 主线 → `data.model-profile` 的新版本 | 这一事实有家并交进传输适配的规划——候选：将来 `data.model-profile` 新版本的档案属性 |
+| G-23 | **逐路由的线上差别（wire hints）的长期归属**（2026-09-25 修订波，pi-ai 传输节点 PAT-N17）：打不打 Anthropic 式缓存断点、提醒落 `developer` 还是 `user`，取决于路由背后是哪一家；档案上没有这一项，路由名又不许解析（`data.model-profile/v1#S-2`：不按前缀分组）。**本版（主线裁定，D-040 §八 N-40 ④）**：由装配按路由名**逐码点精确**给一份逐路由配置（节点候选名 `routeWireHints`），初值为空；**代价**：初值下 `anthropic/*` 路由不打缓存断点，缓存成本高于上游库按前缀判的缺省。传输适配不得按路由名前缀自行判 | 主线 → `data.model-profile` 的新版本 | wire hints 成为档案属性（新版本），装配的那份逐路由配置随之撤掉 |
 
 ---
 

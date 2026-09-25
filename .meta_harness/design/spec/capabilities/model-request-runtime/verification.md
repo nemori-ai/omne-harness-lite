@@ -46,6 +46,7 @@
 | 回复消息与响应体同一提交、追加按 `ResponseId` 幂等、结算不受栅栏拒收 | 会话日志追加口：`capability.session-log` v1（S-8、S-10 第 3 条、S-17；2026-09-25 修订波改指）；整本日志的真承接者是 loop 那一程 | [S-17](v1/contract.md#s-17-结算一处按序幂等先到者赢)、[S-38](v1/contract.md#s-38-装配给的保证-vs-协议须给的保证) |
 | 上交条目、中断提醒、用户取消运行时宿主停止前先中断 | loop | [S-3](v1/contract.md#s-3-本契约明确不承诺什么)、[S-36](v1/contract.md#s-36-宿主停止与撤除) |
 | 跨进程的新鲜度、秘密送达、转发链不越过锚点 | 组合契约（尚未立） | [S-38](v1/contract.md#s-38-装配给的保证-vs-协议须给的保证)、[G-12](v1/contract.md#十二已知缺口) |
+| 传输适配须兑现的十一条 | pi-ai 传输节点的符合性测试 T-1～T-11（[`realization/packages/model/pi-ai-transport`](../../../realization/packages/model/pi-ai-transport/verification.md)；fork 之后不再依赖上游库的缺省行为；2026-09-25 修订波，主线裁定 D-040 §八 N-40 ④）。本契约**不以坐标依赖**那个包：它不是契约，catalog 不登 | [S-38](v1/contract.md#s-38-装配给的保证-vs-协议须给的保证) 传输适配十一条、[G-10](v1/contract.md#十二已知缺口) |
 
 ## 独立评审
 
@@ -247,3 +248,21 @@ spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/
 - **`openCall` ⑧ 列了「层级求值」读不到 ⇒ `unavailable`**，而 ④ 只用交来的 `target` 经第 2′ 步解析、从不做第 2 步；这一项在 ⑧ 里是多余的还是 ④ 漏写了「此刻再核一次锁」，本波不自改。
 - **两项已裁（主线，2026-09-25）**，落法见上表后三行：G-20 保持开放，但第 2 步区分「读不到」与「没有这一项」；`openCall` ⑧ 删「层级求值」。
 - **「哪几种写带栅栏」的分法主线已接受**（2026-09-25 第二轮补裁）：[S-8](v1/contract.md#s-8-调用在会话日志里留下的六种记录) 首段与上表会话日志那一行已标明。
+
+## 修订波（2026-09-25，pi-ai 传输节点反推）
+
+依据链：[D-040 §八 N-40](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ④（pi-ai-transport 节点 PAT-N3、N4、N9、N11、N16、N17 与 PAT-N14 ③ 的裁定）。候选未冻结，原地改。
+
+| 变化 | 依据 | 落在哪 | 语义变不变、对消费者 |
+|---|---|---|---|
+| **状态码两种来处**：HTTP 层失败取 HTTP 状态；流已开始之后的带内错误取带内 `code` 并标 `inBand: true`；场景 S-46 第 6 支改为「首 token 之后的带内 500」 | PAT-N4 | [S-38](v1/contract.md#s-38-装配给的保证-vs-协议须给的保证) 传输适配第 2 条、[S-18](v1/contract.md#s-18-成因按来源分类三类事实由守卫兑现) 表第四、五行、[S-29](v1/contract.md#s-29-dispatch) ⑤、[S-46](v1/contract.md#s-46-成因按来源分类与脱敏) | **改语义**：原第 2 条「状态码从实际的 HTTP 响应取」与 S-46 相抵，流开始之后的 500 只能是带内 `code`。形状加一个成员 `inBand`（只取 `true`、只能与 `statusCode` 同在）：`data.model-response` S-15、`data.loop-extension` 失败主体、`data.arrival-events` 收尾的 `error` 三处同步（`data.call-accounts` 没有状态码成员，不动）。**本契约推导**：首 token 之前的带内 `code` 查同一张 `status_cause_table`，前提是带内 `code` 与 HTTP 状态同一套码（未取证，记进 G-5） |
+| **规划拒绝归出门前检查**：传输适配在「已出门」之前组请求时的三种拒绝不算已出门；模态送不出 ⇒ `undispatched{modality_mismatch}`；S-18「传输本地」一行写明只管已出门之后；S-29 ④ 的次序补这一支 | PAT-N9 | [S-28](v1/contract.md#s-28-opencall) 出门前检查新第 6 行与表下一条、[S-29](v1/contract.md#s-29-dispatch) ④、S-18 前两行、新 [G-21](v1/contract.md#十二已知缺口) | **改语义**（原先「传输本地」一行写「这次发出已出门」，与规划在出门之前对不上）。**有调用没结果、`ToolInternalMessage` 混进请求两种没按裁定落 `undispatched`**：出门前的四个成因没有一个说得上它们，`undispatched` 的成因又只许是那四个（`data.messages/v1#S-50`）；本版按调用方输入错收 `invalidInput{reason}`（与第 5 行同理，**本契约推导**），G-21 等主线改判 |
+| **上游输出上限事实本版无来源**：`data.model-profile` S-18 标有前提；本契约记 G-22，闭合之前不改值、按参数原样发 | PAT-N11 | [G-22](v1/contract.md#十二已知缺口)；`data.model-profile/v1#S-18` | 不改本契约条款；传输适配少做一件做不到的事 |
+| **wire hints 的长期归属记缺口**：本版由装配按路由名逐码点精确给，初值空；`anthropic/*` 初值下不打缓存断点的代价写明；传输适配不得按前缀判 | PAT-N17 | [G-23](v1/contract.md#十二已知缺口) | 不改语义（`data.model-profile/v1#S-2` 不解析路由名原样成立） |
+| **`402` ⇒ `credential_unavailable`、`403` ⇒ `request_rejected`** 按成因定义定下（两行都选得出，没有进 G-5 的「选不出」）；S-18 末条顺带写清「出门前那四个」里 `credential_unavailable` 两处都有 | PAT-N3 | S-18 末两条、[G-5](v1/contract.md#十二已知缺口) | **约束 `status_cause_table` 的两行**：402 与 403 都成为事实类成因，重试件不再对它们换家（S-30 守卫 2）。前提是两个码的含义取证属实；**报产品负责人知悉** |
+| **G-10 的闭合条件**改为 pi-ai 传输节点的符合性测试 T-1～T-11；本文件「由别处承担」加一行 | PAT-N14 ③ | [G-10](v1/contract.md#十二已知缺口)、[由别处承担](#由别处承担本契约只写明要求的) | 不改语义；catalog 不登（那个包不是契约） |
+| 抬头与 S-4：MRR → `data.messages` 的 clauses 补 S-32（出门前检查第 6 行据它写出「一问一答」） | 引用即消费 | `registry/catalog.json` | 无环：`data.messages` 不以坐标依赖本契约 |
+
+**传输落在哪几条（戌指出简报把 S-13、S-14 列为传输相关有误，核对结果）**：S-13 是模态投影的读法、S-14 是缺席默认与失败集合，都不是传输义务；传输落在 [S-11](v1/contract.md#s-11-合法目标集合) 末段（本据点传输能承载的模态）、[S-15](v1/contract.md#s-15-两个锚点先写后行)、[S-16](v1/contract.md#s-16-首-token-判据)、[S-18](v1/contract.md#s-18-成因按来源分类三类事实由守卫兑现)～[S-22](v1/contract.md#s-22-同一次调用的发出序列)、[S-29](v1/contract.md#s-29-dispatch) ④、[S-38](v1/contract.md#s-38-装配给的保证-vs-协议须给的保证)、[S-51](v1/contract.md#s-51-模型侧到达装配前提的承诺)。契约不因此改。
+
+**没有证据因此作废**——本契约此前没有执行证据。场景 S-46 第 6 支的观察项变了，仍「未开始」。

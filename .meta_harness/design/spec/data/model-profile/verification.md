@@ -113,6 +113,9 @@ reviewer：spec-reviewer，S25 第二轮批 R2b（另含批 R1 转来的一条�
 
 ## 变化的影响
 
+- **2026-09-25 修订波：pi-ai 传输节点反推**（仍是 `candidate`，未冻结，原地改；主线裁定 [D-040 §八 N-40](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ④，节点 PAT-N11、PAT-N17）。
+  [S-18](v1/contract.md#s-18-档案参数的输出上限) 那条「上游上限低于参数时改值再发」**标为有前提：上游此刻的上限这一事实有来源**——本版没有（档案不跟着降，传输不取上游模型目录），闭合之前不改值、按参数原样发；缺口记在 `capability.model-request-runtime` v1 的 G-22，来源候选是本契约新版本的档案属性。逐路由的线上差别（wire hints）同样候选为本契约新版本的档案属性，缺口记在那份契约的 G-23；[S-2](v1/contract.md#s-2-routename)「本系统不解析路由名」不变——本版由装配按路由名逐码点精确给。**表示与 Schema 不变**，没有证据因此作废。
+
 - **2026-09-24 第一轮独立评审修复**（仍是 `candidate`，未冻结，改在 v1 原地）。依据：第一轮评审发现 MP-1～MP-14（处置表在[独立评审](#独立评审)）与主线对跨契约几处的裁定：
   参数留痕三处（`data.model-response` 的 `parameters` 记实际发出的值、新增 `parameterAdjustments`、`droppedParameters` 含 `extra` 项）、本契约立「建档内容」这一种文档、恢复在册可与属性改写同提交。
 

@@ -224,7 +224,7 @@
 
     "Failure": {
       "title": "故障（contract.md S-15）",
-      "description": "cause 取八个成因之一，定义与名字归 data.loop-extension 的 FailureCause，本契约只引用；statusCode 是上游返回的状态码，原样、不翻译，没有就缺席（缺席不是 0）；upstreamError 见其定义；localError 是本层自己出的错（传输适配报错、解不开上游的回应），脱敏之后原样，没有就缺席。cause 为 unrecognized 时，statusCode、upstreamError、localError 与响应体的 raw 至少有其一（S-15）。",
+      "description": "cause 取八个成因之一，定义与名字归 data.loop-extension 的 FailureCause，本契约只引用；statusCode 是上游返回的状态码，原样、不翻译，没有就缺席（缺席不是 0）：HTTP 层失败时是 HTTP 状态，流已开始之后的带内错误是带内错误的 code、此时带 inBand: true（inBand 只取 true、只能与 statusCode 同在，缺席即 statusCode 是 HTTP 状态）；upstreamError 见其定义；localError 是本层自己出的错（传输适配报错、解不开上游的回应），脱敏之后原样，没有就缺席。cause 为 unrecognized 时，statusCode、upstreamError、localError 与响应体的 raw 至少有其一（S-15）。",
       "type": "object",
       "additionalProperties": false,
       "required": ["cause"],
@@ -234,9 +234,11 @@
           "$comment": "取值不在八个之内：cause_unknown（S-27）。withdrawn / scope_disallowed / modality_mismatch 三个值形状上放过，但按 S-16 不出现在任何一条响应体上——那是判定层的约束，Schema 不管。"
         },
         "statusCode": { "type": "integer" },
+        "inBand": { "const": true },
         "upstreamError": { "$ref": "#/$defs/UpstreamError" },
         "localError": { "type": "string", "minLength": 1 }
-      }
+      },
+      "dependentRequired": { "inBand": ["statusCode"] }
     },
 
     "Timing": {

@@ -30,7 +30,7 @@
 
 - **pi 传输层不读 OpenRouter 的真实费用。**pi 钉 `3390bd9` 的传输层（`packages/ai/src/api/openai-completions.ts` 的 `parseChunkUsage` 与 `anthropic-messages.ts`）
   **只从上游读四类 token，费用按本地价目表算（`calculateCost`）**，不读 OpenRouter 回的 `usage.cost`。
-  所以 [D-019](../../../record/decisions/model-provider-pi-ai-fork/decision.md)「实际费用不能被目录估算冒充」在 fork 时要**自己加**：请求带 `usage: { include: true }`，响应读 `usage.cost` 与 `cost_details`。
+  所以 [D-019](../../../record/decisions/model-provider-pi-ai-fork/decision.md)「实际费用不能被目录估算冒充」在 fork 时要**自己加读取**：响应读 `usage.cost` 与 `cost_details`。**请求不必带任何参数**——现行文档写明用量总在流的最后一个 SSE 块里，`usage: { include: true }` 与 `stream_options: { include_usage: true }` 已弃用、不起作用（研究 [E11](../../../../research/model-request-transport-sources/evidence.md#e11-openrouter-官方文档usage-accounting2026-09-23-抓取)；本节原写「请求带 `usage: { include: true }`」出自 E2 的旧观察，2026-09-25 按 E11 改写，主线裁定 D-040 N-40，pi-ai 传输节点 PAT-N16）。`cost` 的单位是 credits，换算归提供者设计（同一条研究）。
 - **这两个字段名出自 OpenRouter 的用量核算文档，未钉存取证。**owner：模型请求运行时的提供者设计；闭合条件：钉 SDK 版本时一并取证，结果回填本节。
 - **在这之前，任何实现写出来的 `cost_usd` 若来自本地价目表，都违反 [S-19](v1/contract.md#s-19-用量与费用) 第 2 条**——它必须是 `unknown`，而不是一个估算值。
 
@@ -189,6 +189,10 @@
   - **证据**：Schema 只改了一处说明、实例只改了说明文字，V-1 照同一口径重跑：42 块 **0 处不符**（通过 13、拒绝 29；`data.content-blocks` 本轮收紧了完整工具调用块的 `tool`，所以一并重跑）。**catalog**：对 `data.model-profile` 的依赖补 `S-19`（S-11 据它写出「`extra` 去空即缺席」；抬头依赖表同改）；`data.messages` 的 S-10、S-49 与 `data.loop-extension` 的 S-2 早已登记。
 
 结果不改写规范。发现语义问题回到来源设计（PF-013／PF-009／PF-012），不在这里改契约。
+- **2026-09-25 修订波：pi-ai 传输节点反推**（仍是 `candidate`，未冻结，原地改；主线裁定 [D-040 §八 N-40](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ④）：
+  - **`failure` 加成员 `inBand`**（PAT-N4）：状态码有两种来处——HTTP 层失败取 HTTP 状态，流已开始之后的带内错误取带内 `code` 并带 `inBand: true`；`inBand` 只取 `true`、只能与 `statusCode` 同在（[S-15](v1/contract.md#s-15-故障的成因与原样状态码)；Schema `Failure` 加 `inBand` 与 `dependentRequired`；[S-27](v1/contract.md#s-27-表示层拒绝值) `malformed` 那一行补两种情形）。场景 S-30 改为「首 token 之后在流里回带内错误 429」。实例：E-5 改为带内 429、带 `inBand: true`，由它派生的 R-7、R-12 同步；新增 R-30（有 `inBand` 没有 `statusCode` ⇒ `malformed`）。**表示变了**：原先流开始后的状态码不加标记；已有的消费者（`capability.model-request-runtime` S-18、S-29 ⑤）同波改写。`data.loop-extension` 的失败主体、`data.arrival-events` 收尾的 `error` 同一个成员、同一个意思，同波加上。
+  - **第 33 行那条说明按研究 E11 改写**（PAT-N16）：`usage: { include: true }` 已弃用、不起作用，请求不必带参数，只需读响应里的 `usage.cost` 与 `cost_details`。
+  - **证据（只核形状）**：暂存区脚本（不入库），`jsonschema`（锁定 uv 环境，`Draft202012Validator` ＋ `referencing`），设计根下全部 `*.schema.json` 先过元 Schema、再按 `$id` 登表：E-5 **通过**；R-7、R-12 **拒绝**（与改前同）；R-30 的 `failure` 段按 `Failure` 判**拒绝**（`dependentRequired`）；`inBand: false` 拒绝。另核了 `data.loop-extension` 失败主体与 `data.arrival-events` 收尾两处的 `dependentRequired` 生效。**只核这 4 个实例与 3 处约束**，不是整批重跑，也不是 V- 义务的执行证据；**没有既有执行证据因此作废**。
 
 ## 独立评审
 

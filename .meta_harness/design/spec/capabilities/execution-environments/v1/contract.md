@@ -236,7 +236,7 @@
 | ② | `processGroup` 须是经这个 `ref` 起的、仍有效的（[S-7](#s-7-进程组)） |
 | ③ | 无 |
 | ④ | 只读。**在起的那个进程结束时返回**；它已经结束的，立即返回 |
-| ⑤ | `{ ended, stdout, stderr, truncated }`——`ended` 恰一种：`exited{ code }`（它自己退出，带退出码）或 `terminated`（被停下，含被 [`stopProcessGroup`](#s-15-stopprocessgroup) 停下）；`stdout`、`stderr` 是它写出的字节，各以具名参数 `outputBound` 封顶，超出的丢弃；`truncated = { stdout: 布尔, stderr: 布尔 }` 说哪一路被截了 |
+| ⑤ | `{ ended, stdout, stderr, truncated }`——`ended` 恰一种：`exited{ code }`（它自己退出，带退出码）或 `terminated`（被停下，含被 [`stopProcessGroup`](#s-15-stopprocessgroup) 停下）；`stdout`、`stderr` 是**起的进程所在管道上的字节**——起的进程与它的子孙共用这两条管道，分不开谁写的，所以子孙写的也在里面（主线裁定，D-040 §八 N-40 ③，执行环境节点 EEH-4）——各以具名参数 `outputBound` 封顶，超出的丢弃；`truncated = { stdout: 布尔, stderr: 布尔 }` 说哪一路被截了 |
 | ⑥ | `invalidInput` · `environmentsWithdrawn` · `referenceNotValid` |
 | ⑦ | 只读；同一个组重复取，得同一份结果 |
 | ⑧ | 身份参数缺席 ⇒ `invalidInput` |

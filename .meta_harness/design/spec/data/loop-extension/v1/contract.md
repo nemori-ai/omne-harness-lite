@@ -494,7 +494,7 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 | `after_compaction` | `AfterCompactionSubject` | `compaction: CompactionMessage` | 无 |
 | `before_model_call` | `BeforeModelCallSubject` | `request: ModelRequest`（[S-15](#s-15-modelrequest)） | **`request` 的 `parameters` 与 `messages`** |
 | `after_model_call`（`complete_reply`） | `AfterModelCallCompleteReplySubject` | `reply: AssistantMessage`、`usage: Usage`、`cost: Cost` | 无（回复已落盘） |
-| `after_model_call`（`failure`） | `AfterModelCallFailureSubject` | `failure: FailureCause`（[S-17](#s-17-failurecause)）、`statusCode?: integer`、`profile: ModelProfileSnapshot`、`dispatches: ModelCallDispatchedRecord[]` | 无 |
+| `after_model_call`（`failure`） | `AfterModelCallFailureSubject` | `failure: FailureCause`（[S-17](#s-17-failurecause)）、`statusCode?: integer`、`inBand?: true`、`profile: ModelProfileSnapshot`、`dispatches: ModelCallDispatchedRecord[]` | 无 |
 | `before_action` | `BeforeActionSubject` | `call: ToolCallBlock`、`definition: ToolDefinitionRef`、`batch: CallId[]` | **`call` 的参数** |
 | `after_action`（`each`） | `AfterActionEachSubject` | `callId`、`outcome: ExecutionOutcome`、`result?: ToolResultBlock` | **`result`**（结果落成消息之前的那一关） |
 | `after_action`（`batch`） | `AfterActionBatchSubject` | `outcomes: { callId, outcome }[]` | 无 |
@@ -506,6 +506,7 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 - **`producer`**：`user` 人经交付面说的；`model` 模型调用产出的回复；`tool` 工具执行交回的；`system` 其余——系统自己追加的与外部来源捎来的。
   它决定否决之后走哪一路（[S-25](#s-25-veto)）。
 - **`statusCode`** 是上游返回的状态码，**有才带、原样带，不翻译**；成因与状态码不互相替代。
+  **`inBand: true`** 与它同在时，那个状态码是流已开始之后带内错误的 `code`、不是 HTTP 状态；与 `data.model-response/v1#S-15` 同一个成员、同一个意思（主线裁定，D-040 §八 N-40 ④）。
 - **`profile`** 是这次调用打开时绑定的档案快照（`data.model-profile/v1` 的 `ModelProfileSnapshot`）；**`dispatches`** 是这次调用到此为止每一次发出的「已出门」记录（`data.messages/v1` 的 `ModelCallDispatchedRecord`），按发出序号、含失败的这一次，至少一条。
   **这份失败主体是重试件下结论的唯一依据**：重试件只凭这几样下结论，**不现读档案目录**——现读会让回放时的结论与当时不同（主线裁定，见 [D-040 §块 C 对账 C-R1](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#块-c-对账d-reconciliation-c需主线看八项)）；**也不另读 `data.model-response` 的响应体**——那一串响应体是这份主体背后的事实，不是第二个入口（主线裁定，见 [D-040 §五 K36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）。
 - **`batch`** 是这一批动作的全部 `CallId`，**含本次这一个**、无重复；顺序在本契约里无含义。**参数收齐却解析不了的调用也在 `batch` 里**，但它不是一个动作：不进这一批的动作、不过 `before_action`（收场归工具执行运行时），所以 `batch` 可以含**没有对应一次经过**的 `CallId`（主线裁定，见 [D-040 §七 M11](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）。

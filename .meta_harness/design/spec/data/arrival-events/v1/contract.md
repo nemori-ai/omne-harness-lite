@@ -354,8 +354,9 @@
 | `interrupted` | 被**有意**停下：有人决定让它停 | [用户发起的停下——不是故障、不带成因](../../../../product/PF-013-model-profiles-and-invocation/design.md#还有一种没走完它不在这张表里)：直接叫停、插队顺带、用户取消了这次运行 | 那次执行被有意停下——收场为 `interrupted` 的全部情形（用户、插队、人拒绝回复、会话归档、运行被取消、前台上限到点、agent 掐掉已转后台的那段执行），帧流跟着收尾 |
 | `lost` | **生产的一方失去了连续性**，或消费一侧不再等它 | [故障](../../../../product/PF-013-model-profiles-and-invocation/design.md#54-三类事实归本层定死其余照状态码)：流断了、上游出错了；**或宿主放弃了在途的流**——系统发起的运行取消（会话归档、宿主停止）、宿主被撤下（有序撤除、替换）。后一种**不是故障**：那一次发出的收场由模型调用一侧记（被中断、发起方 `run_cancelled`，`data.model-response`） | **帧流**断了；**执行者没有回答**（等待到了它自己声明的到点）；**执行者换了代**（经 MCP 桥的动作随桥换代或卸载没了下文）；**持有装配状态的宿主被撤下**、放弃在途的帧流——都**不影响那次执行的收场**，那一次怎么收场另走 `ToolMessage`（[§6.17](../../../../product/PF-009-context-message-types/design.md#617-发帧发不出去不影响这次工具执行)） |
 
-- **`error` 只在 `model_call` 且 `reason = lost` 时可带**，是 `{ cause, statusCode? }` 那一类的故障描述：
-  `$ref` [`data.loop-extension/v1#S-17`](../../loop-extension/v1/contract.md#s-17-failurecause) 的 `FailureCause`，[状态码原样带着、不翻译](../../../../product/PF-013-model-profiles-and-invocation/design.md#57-上交带什么原样带着状态码不翻译它)。
+- **`error` 只在 `model_call` 且 `reason = lost` 时可带**，是 `{ cause, statusCode?, inBand? }` 那一类的故障描述：
+  `$ref` [`data.loop-extension/v1#S-17`](../../loop-extension/v1/contract.md#s-17-failurecause) 的 `FailureCause`，[状态码原样带着、不翻译](../../../../product/PF-013-model-profiles-and-invocation/design.md#57-上交带什么原样带着状态码不翻译它)；
+  `inBand: true` 只能与 `statusCode` 同在，在即那个状态码是流已开始之后带内错误的 `code`、不是 HTTP 状态（与 `data.model-response/v1#S-15` 同一个成员、同一个意思；主线裁定，D-040 §八 N-40 ④）。
   **别的组合带了是 `malformed`**：被中断不是故障，不带成因；帧流断了不是一次模型调用的故障。
 - **`lost` 不带 `error` 是合法的**：生产者知道断了、却说不出为什么。**缺席不等于「没有故障」**，成因怎样定归模型调用一侧（`data.model-response` v1），本契约不替它补。
 - **只有有意停下才是 `interrupted`**（主线裁定，见 [D-040 §五 K2](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）：等待到点是执行者没有回答、桥换代是执行者没了——都不是谁决定让它停，写成 `interrupted`，读的人会去找一个并不存在的叫停者。

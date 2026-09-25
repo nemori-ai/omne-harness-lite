@@ -320,11 +320,12 @@
 
     "AfterModelCallFailureSubject": {
       "title": "调模型之后 · 失败",
-      "description": "failure 是这次故障的成因；statusCode 是上游返回的状态码，有才带、原样带，不翻译；profile 是这次调用绑定的档案快照（data.model-profile v1 的 ModelProfileSnapshot）；dispatches 是这次调用到此为止每一次发出的「已出门」记录（data.messages v1 的 ModelCallDispatchedRecord），按发出序号，含失败的这一次。重试件只凭这几样下结论，不现读目录。",
+      "description": "failure 是这次故障的成因；statusCode 是上游返回的状态码，有才带、原样带，不翻译；inBand 只取 true、只能与 statusCode 同在，在即那个状态码是流已开始之后带内错误的 code、不是 HTTP 状态（与 data.model-response 的 Failure.inBand 同义）；profile 是这次调用绑定的档案快照（data.model-profile v1 的 ModelProfileSnapshot）；dispatches 是这次调用到此为止每一次发出的「已出门」记录（data.messages v1 的 ModelCallDispatchedRecord），按发出序号，含失败的这一次。重试件只凭这几样下结论，不现读目录。",
       "type": "object",
       "properties": {
         "failure": { "$ref": "#/$defs/FailureCause" },
         "statusCode": { "type": "integer" },
+        "inBand": { "const": true },
         "profile": { "$ref": "../../model-profile/v1/model-profile.schema.json#/$defs/ModelProfileSnapshot" },
         "dispatches": {
           "type": "array",
@@ -333,6 +334,7 @@
         }
       },
       "required": ["failure", "profile", "dispatches"],
+      "dependentRequired": { "inBand": ["statusCode"] },
       "additionalProperties": false
     },
 
