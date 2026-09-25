@@ -1,0 +1,10 @@
+# 条款到证据的绑定表。
+# 空：capability.run-attempt-facts v1 本版不建形式工件（契约 S-13：「只从假变真」继承自会话日志的
+# 只增不改与栅栏，真正的跨 owner 交错本版明确不闭合，没有可供模型反证的承诺），registry 里没有它的
+# formal task。会话日志契约的 formal task session-log-v1-appends 证的是那份契约的模型，也不是本节点的证据。
+# 本节点尚未建包，没有测试；证据形式（契约场景 S-14～S-18 与本节点自己的 V-1～V-9）逐条记在 verification.md。
+version: 1
+node: "run-attempt-facts-derived"
+kind: "provider"
+
+bindings: []
