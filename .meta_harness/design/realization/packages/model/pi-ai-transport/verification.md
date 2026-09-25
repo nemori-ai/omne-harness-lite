@@ -26,11 +26,11 @@
 | `data.content-blocks/v1` S-9 | **T-16**：`reasoning_details` 进 `opaque`，经严格无损读写回来、同一路由名再请求时 `reasoning_details` 与上游原样**逐值相等**（含一个超过 2^53 的整数）；换一个路由名时不带 `reasoning_details` | 未开始 | 本节点；回放在真实上游上是否被接受归 G 系列 |
 | `data.messages/v1` S-35、S-36 | **T-17**：`SystemReminderMessage`、`CompactionMessage` 各落成一条带系统标识的 `user`（`routeWireHints` 写了 `developer` 的路由落 `developer`）、不丢；`ToolInternalMessage` ⇒ 规划拒绝；有调用无结果 ⇒ 规划拒绝，**请求里没有凭空造出的结果** | 未开始 | 本节点 |
 | `data.call-accounts/v1` S-4～S-8；那份契约 G-9 | **T-18**：`cost` 为 `0.000000123456789012345678`（超过 17 位有效数字）⇒ `cost_usd` 精确相同；`cost` 缺席、为字符串、为负 ⇒ `cost_usd: "unknown"`、`source: none`；`prompt_tokens` 小于缓存读加缓存写 ⇒ 三项输入都 `"unknown"`；缺席的 token 数不记 0 | 未开始 | 本节点；换算规则本身的真伪归 G-9 |
-| S-18 的来源分支（本包交的事实） | **T-19**：DNS 失败、拒绝连接 ⇒ `connect`；正文中途断开且无 `finish_reason` ⇒ `stream_broken`（不封口）；`finish_reason` 之后又来内容、单事件超过 `maxSseEventBytes`、一帧 JSON 有重复成员、名字始终没到的工具调用、本传输不承载的 `delta` 成员 ⇒ `protocol`；帧里带 `error` ⇒ `in_band`，同时带实际 HTTP 状态与带内 `code`（`statusCode` 填哪个等 PAT-N4）；调用方中止 ⇒ `aborted`、此后不再交任何增量 | 未开始 | 本节点 |
+| S-18 的来源分支（本包交的事实） | **T-19**：DNS 失败、拒绝连接 ⇒ `connect`；正文中途断开且无 `finish_reason` ⇒ `stream_broken`（不封口）；`finish_reason` 之后又来内容、单事件超过 `maxSseEventBytes`、一帧 JSON 有重复成员、名字始终没到的工具调用、`delta.images`／`delta.audio`／`delta.refusal` 非空 ⇒ `protocol`；首帧带 `role`、`refusal: null`、`annotations: []`、`content: ""` ⇒ **不交任何事件、不以 `protocol` 收场**；HTTP 200 之后帧里带 `error: { code: 500 }` ⇒ `in_band`，**`statusCode = 500`、`inBand: true`、`httpStatus = 200`**（断言 `statusCode` 不是 200、不缺席；契约 S-38 第 2 条）；帧里 `error` 没有整数 `code`、或只有异常的 `finish_reason` ⇒ `in_band`、`statusCode` 与 `inBand` 都缺席、`upstreamError` 原样；`maxConnections = 1`、一条流占着连接时第二次 `sendRequest` 在排队中收到中止 ⇒ `local`、带 `queued` 留痕、脚本端对第二次**零请求**；拿到连接之后调用方中止 ⇒ `aborted`、此后不再交任何增量 | 未开始 | 本节点 |
 | 装卸（[design](design.md#成对的装载与撤除)） | **T-20**：用 kernel-basis 的测试装配起本插件：配置缺席 ⇒ 取初值；配置不合形状 ⇒ 插件 `FAILED`、`modelTransport` 不可见；一条流在途时撤除本插件 ⇒ 那条流**不断**、继续交增量直到调用方中止或自然收尾；撤除之后再 `sendRequest` ⇒ `local`、零请求；最后一条在途结束后连接池被销毁 | 未开始 | 本节点 ＋ kernel-basis |
 | SC-3 | 静态检查：网络 API 只在 `sendRequest` 所在模块里出现；`planRequest` 与 `createPiAiTransport` 不开连接 | 未开始（规则未写） | 本节点 ＋ `tools/ts-checks` |
 | **G 系列：D-019 比较门**（十五项）与请求差异四项（最大生成长度字段、`store`、`reasoning`、`strict`） | 对每条目标路由用同一份输入实测，逐项记结果：请求路由四项、原始工具参数与结果回传 ID、流终态与无尾随事件、实际执行方与响应 ID、`usage.cost` 质量（按 generation id 查 `/generation` 对账）、私有 replay、重定向、错误、断流（首 token 前后各一）、abort（首 token 前后各一，含是否仍计费）、无隐藏重试 | 未开始；受阻于授权与预算（真实请求要花钱） | 主线 → 实施程；产品负责人授权。**任何费用或身份丢失先报反例**（D-019） |
-| G 系列：本页新增的比较项 | `max_tokens` 与 `max_completion_tokens` 是否等价；`store: false` 与上游缺省；`require_parameters: true` 在单家路由下的实际效果；`transforms` 的缺省；`anthropic/*` 走 chat-completions 时的思考回放、缓存断点与中途 system；`reasoningEffort` 的取值集；`402`／`403`／`404`／`413` 是否出现、含义；带内错误的形状；`cost` 的单位；`prompt_tokens` 是否含缓存读写；`is_byok` 下 `cost` 的含义；`CallId` 在上游的词法上限 | 未开始；同上 | 同上；结果回填 design 的 PAT-N3、N5～N7、N10、N12、N13 |
+| G 系列：本页新增的比较项 | `max_tokens` 与 `max_completion_tokens` 是否等价；`store: false` 与上游缺省；`require_parameters: true` 在单家路由下的实际效果；`transforms` 的缺省；`anthropic/*` 走 chat-completions 时的思考回放、缓存断点与中途 system；`reasoningEffort` 的取值集；`402`／`403`／`404`／`413` 是否出现、含义；带内错误的形状，带内 `code` 与 HTTP 状态是否同一套码（契约 G-5）；`delta` 内容成员闭集是否完备、各家首帧实际带哪些非内容字段、`refusal` 何时非空；`cost` 的单位；`prompt_tokens` 是否含缓存读写；`is_byok` 下 `cost` 的含义；`CallId` 在上游的词法上限 | 未开始；同上 | 同上；结果回填 design 的 PAT-N3、N5～N7、N10、N12、N13 |
 
 ## 实际执行
 
@@ -46,10 +46,19 @@
 - **比较门一项都没过**（PAT-N2）：在它过之前，产品装配里的真实发出没有证据支撑。
 - **`CallId` 的会话内唯一**只能登前提（SHA-256 抗碰撞、`ModelCallId` 会话内唯一），给不出会失败的测试；若评审认为这不够，退路是让 P-2 把 `CallId` 的登记落在会话日志的判重键上——那是 model-request-runtime 一侧的改动，报主线。
 - **状态码表、费用单位、用量换算**都是待核对主张（PAT-N3、N5、N6）；T 系列只核本包照表与照规则做，不核规则本身对不对。
-- **契约两处对「状态码」的说法对不上**（PAT-N4：`capability.model-request-runtime/v1#S-38` 传输适配第 2 条 vs `#S-46` 第 6 支）：T-19 的带内错误一支只能核「两样都交出来」，`statusCode` 该填哪一个没有判据；受阻的是 P-2 对带内错误的分类与场景 S-46。
-- **规划拒绝在契约 S-29 ④ 的次序里没有落点**（PAT-N9）：T-7、T-17 只核本包拒绝且零出站，拒绝之后这次发出怎样收场归 model-request-runtime 一侧，没有证据形式可登。
-- **跨 fiber 的撤除次序**未核实；本设计不依赖它，T-20 只覆盖同一装配里先撤本插件的那一种。
+- **PAT-N4、PAT-N9 已由契约闭合**（D-040 §八 N-40 ④、N-41）：T-19 的带内一支从「两样都交出来」改为断言 `statusCode` = 带内 `code` 且带 `inBand`；T-7、T-17 仍只核本包拒绝且零出站——拒绝值到 `undispatched{modality_mismatch}`／`invalidInput{reason}` 的收场在 P-2，证据归 model-request-runtime 一侧。
+- **P-2 对 `local{queued}` 与无码带内错误的分类**（PAT-N18）：T-19 只核本包交出的事实；P-2 按哪一行收场没有判据，受阻的是场景 S-46 的对应支。
+- **跨 fiber 的撤除次序与等待**未核实；本设计的结局不依赖它，T-20 只覆盖同一装配里先撤本插件的那一种。**kernel-basis 的 probe 候选**（候选名 `dispose-order-across-inject`，owner kernel-basis 节点，尚未登记）：提供者 fiber 撤除时，inject 它的依赖方是在提供者的异步撤除函数完成之前还是之后被卸载；它决定本插件撤除的等待是否要等到在途流自然收尾（[design 的撤除等待上界](design.md#成对的装载与撤除)）。
 
 ## 独立评审
 
-（空）
+2026-09-25 本节点首稿随 N7 批（infra 三节点与本节点）经一次独立的架构评审（只读结构核对，无运行）：本节点无阻断，应修 1、建议 2、观察 2。契约侧据此改写（D-040 §八 N-40 ④、N-41），本页与 design 按下表对齐。**处置不等于评审闭合**——是否闭合由复审判断。
+
+| 编号 | 发现 | 处置 | 落点 |
+| --- | --- | --- | --- |
+| F-5（应修） | 节点落后于契约已裁的两处：`in_band` 的状态码仍标开放，规划拒绝仍写「没有落点」 | PAT-N4、PAT-N9 改「已由契约闭合」；`in_band` 失败事实定为 `statusCode` = 带内 `code` ＋ `inBand: true` ＋ `httpStatus` 另带，`inBand` 由 P-2 原样落；三种拒绝值映射到 S-28 表第 3 行（`modality_mismatch`）与第 6 行（`invalidInput{reason}`）；「`openCall` 已过而 `planRequest` 仍拒」定为两处判定不一致的缺陷，收场照契约 S-29 ④ | design 投影表 S-38 第 2、7 条行、新节「规划拒绝的三种值与收场」、流翻译表带内一行与 `StreamEnd`、失败映射表、成因表与表下两条、PAT-N4、N9；本页 T-19 |
+| S-2（建议） | 连接池排队会把本机饱和折成 `upstream_unavailable` | 排队中被中止 ⇒ `local`、带 `queued` 留痕，不交 `aborted`；`maxConnections` 初值标「无测量依据、实施程测」；P-2 一侧的分类登 PAT-N18 ① | design 策略配置项 `maxConnections` 行、失败映射表、成因表 `unrecognized` 行、PAT-N18；本页 T-19 |
+| S-3（建议） | `readStream` 未列内容成员闭集，非内容字段可能被当成认不出来 | 写明闭集 `content`／`reasoning*`／`reasoning_details`／`tool_calls`／`images`／`audio`，**另加 `refusal`**（非空即拒答文本，忽略就是静默丢）；闭集之外的成员一律忽略；闭集列入比较门 | design 流翻译表两行与表下「内容成员闭集」一条；本页 T-19、G 系列新增比较项 |
+| 观察（`connectTimeoutMs`） | 它是 S-21 两个设置项之外的第三处时限来源 | 已在策略配置项表标价，不改 | — |
+| 观察（撤除等待上界） | 若内核先完整撤除本插件再卸 P-2，撤除等待要等在途流自然收尾 | 写明上界「等于流的自然收尾，受 P-2 的时限约束」；撤除函数等最后一条在途收场、池销毁后才返回；内核次序登 kernel-basis probe 候选 | design 装卸表与「撤除的等待上界」一条；本页覆盖缺口 |
+| 契约对齐（主线） | 同一批契约改写还承接了 PAT-N3 的 402／403 两行、PAT-N11（G-22）、PAT-N16、PAT-N17（G-23）、PAT-N14 的 ②③ | 各行改指契约坐标；PAT-N14 只剩「工具条目的来路」，改「待契约（与 MRR-N14 同一件事）」 | design 参数处置表 `maxOutputTokens` 行、策略配置项 `routeWireHints` 行、inject 边与依赖表、PAT-N3、N11、N14、N16、N17；README 分层状态 |

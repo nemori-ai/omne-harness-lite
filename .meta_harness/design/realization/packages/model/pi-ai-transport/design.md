@@ -56,7 +56,7 @@
 | `planRequest(input) → { planned } \| { rejected }` | **纯函数**：把一次发出要发的东西组成冻结的线上请求体，同时定下 `parameterAdjustments` 与 `droppedParameters`；不开连接、不读环境。输入：`target`（`{ callId: ModelCallId, dispatch }`，只用来登记 `CallId`）、`routeName`、`provider`（这一次的那一家）、`snapshot`、合并后的 `parameters`、`messages`、`tools`（`ModelToolEntry[]`） | 线上形状见[线上请求怎样组](#线上请求怎样组)；改值与丢项的形状 `data.model-response/v1` [S-11](../../../../spec/data/model-response/v1/contract.md#s-11-实际发出的参数改过的值与没发出去的项)，处置规则 `data.model-profile/v1` [S-21](../../../../spec/data/model-profile/v1/contract.md#s-21-不静默丢也不静默改)；契约 S-38 第 10 条 |
 | `sendRequest(planned, credential, signal, deps) → Promise<{ response } \| { failed }>` | **发一次**：`POST <base>/chat/completions`，`Authorization` 只放交进来的那一把；不重试、不回退、不跟随重定向、不读环境变量；非 2xx 读回响应体（有上界）并交回原样状态码与响应头 | 契约 S-38 第 1、2、5、6、9 条 |
 | `readStream(response, signal, deps) → AsyncGenerator<ArrivalEvent, StreamEnd>` | 把 SSE 逐帧译成到达增量（`open`／`fill`／`close`／`account`），生成器的返回值是收尾事实 `StreamEnd`（[下节](#上游的流怎样译成到达事件)）；**不发 `finish`**——`finish` 由宿主按收尾事实交（契约 S-51 第 6 条） | `data.arrival-events/v1` S-7～S-16、S-20；契约 S-38 第 3、4、8、11 条 |
-| `createPiAiTransport(options) → TransportAdapter` | 把上面三件与一个本实例拥有的连接池组成 model-request-runtime 要的传输接口；`options` 就是[策略配置项](#策略配置项)加 `baseUrl` 与可选的 `onDiagnostic` | 端口形状归 [model-request-runtime 的公开面](../model-request-runtime/design.md#公开面)（本节点对它的改动报主线，PAT-N14） |
+| `createPiAiTransport(options) → TransportAdapter` | 把上面三件与一个本实例拥有的连接池组成 model-request-runtime 要的传输接口；`options` 就是[策略配置项](#策略配置项)加 `baseUrl` 与可选的 `onDiagnostic` | 端口形状归 [model-request-runtime 的公开面](../model-request-runtime/design.md#公开面)（那边的 `TransportAdapter` 行已按三段对齐；模型面名字到工具条目的来路待契约，PAT-N14） |
 | `OPENROUTER_BASE_URL`、`PI_AI_CARRIABLE_MODALITIES`（`{ text, image }`） | 常量：固定的 base URL；本传输能送出的输入模态 | SYS-LLM；契约 [S-11](../../../../spec/capabilities/model-request-runtime/v1/contract.md#s-11-合法目标集合) 末段「本据点传输能承载的模态」 |
 | `openRouterStatusCauseTable` | 候选的 `status_cause_table` 取值（[状态码与八个上交成因](#状态码与八个上交成因)）；**只是数据**，分类仍由 model-request-runtime 的 `classifyCause` 做 | 契约 S-18、[G-5](../../../../spec/capabilities/model-request-runtime/v1/contract.md#十二已知缺口) |
 
@@ -73,19 +73,19 @@
 | 契约责任 | 插件、服务或公开操作 | 实现与采用版本 | 符合性依据或缺口 |
 | --- | --- | --- | --- |
 | S-38 第 1 条：每一次只指定一家、禁止上游回退、一次发出之内不重试 | `planRequest` 写 `provider: { order: [provider], allow_fallbacks: false, require_parameters: true }`；`sendRequest` 恰一次出站；`extra` 里能改路由的键（`models`、`route`、`provider`）一律不发 | 尚未实现；不取 pi 的 `retryProviderRequest` | T-1（出站计数恒为 1）；`require_parameters` 的效果属比较门（PAT-N2） |
-| S-38 第 2 条：状态码从实际的 HTTP 响应取、原样交回 | `sendRequest` 非 2xx ⇒ `{ failed: { source: "http_status", statusCode, headers, upstreamError? } }` | 同上 | T-2；**带内错误的 code 算不算「状态码」契约两处说法不一**（PAT-N4） |
+| S-38 第 2 条：状态码按来处分两种、原样交回——HTTP 层失败取 HTTP 状态；流开始之后的带内错误取带内 `code`、标 `inBand` | `sendRequest` 非 2xx ⇒ `{ failed: { source: "http_status", statusCode, headers, upstreamError? } }`；`readStream` 遇带内错误 ⇒ `{ failed: { source: "in_band", statusCode: 带内 code, inBand: true, httpStatus, upstreamError } }`（[下节](#上游的流怎样译成到达事件)） | 同上 | T-2、T-19；`inBand` 由本包交出，P-2 原样落进 `failure`（`data.model-response/v1` [S-15](../../../../spec/data/model-response/v1/contract.md#s-15-故障的成因与原样状态码)）与收尾的 `error`（`data.arrival-events/v1` [S-16](../../../../spec/data/arrival-events/v1/contract.md#s-16-收尾)） |
 | S-38 第 3 条：不在中途解析工具参数 | 流循环只拼原串，`fill` 交原样片段；工具调用块封口不带块 | 同上；`parseStreamingJson` 不取 | T-3（片段相接逐字节等于上游原文）；静态检查 SC-1 |
 | S-38 第 4 条：首 token 按 S-16，库的「开始」事件不算 | 响应首部到达不产出任何到达事件；第一个事件就是 `open` | 同上 | T-4；首 token 的判定本身在 P-2（装配状态的 `firstContentAt`） |
 | S-38 第 5 条：只用交来的那一把凭据 | `sendRequest` 只读参数；凭据为空或全空白 ⇒ 本地失败、不开连接；包内不读 `process.env` | 同上 | T-5（环境里放一把 `OPENROUTER_API_KEY`、交空凭据 ⇒ 零出站）；静态检查 SC-2 |
 | S-38 第 6 条：不向上游送本系统的会话标识 | 不发 `x-session-id`、`session_id`、`user`、`prompt_cache_key`；`planRequest` 的输入里没有会话 | 同上 | T-6（抓请求断言这几项都不在） |
-| S-38 第 7 条：收不下的模态不静默换成占位 | `planRequest`：消息里有图而快照 `inputModalities` 不含 `image`，或出现本传输送不出的模态（语音、视频） ⇒ `{ rejected: "modality_not_carried" }` | 同上 | T-7；这一条正常时挡在出门前检查（契约 S-28 第 3 行），这里只是兜底；规划拒绝在 S-29 ④ 次序里的落点是 PAT-N9 |
+| S-38 第 7 条：收不下的模态不静默换成占位 | `planRequest`：消息里有图而快照 `inputModalities` 不含 `image`，或出现本传输送不出的模态（语音、视频） ⇒ `{ rejected: "modality_not_carried" }` | 同上 | T-7；与出门前检查第 3 行是同一判定，收场见本表下的[规划拒绝](#规划拒绝的三种值与收场) |
 | S-38 第 8 条：交回实际执行方、实际费用与费用来源 | `StreamEnd.serving`（`upstreamRequestId`、`upstreamModel`、`servingProvider`）；`account` 增量（[落点表](#费用与用量的落点)） | 同上 | T-8；执行方与指定的一家不一致时没有成员可记（`data.model-response/v1` G-8，PAT-N8） |
 | S-38 第 9 条：固定 base URL，拒绝重定向 | 插件恒用 `OPENROUTER_BASE_URL`；3xx ⇒ `http_status` 失败、不跟 `Location` | 同上；`node:https` 本来不跟随（假设，须按 source-check 取证） | T-9 |
 | S-38 第 10 条：改值与丢项在出网之前定下 | `planRequest` 纯、先于 `sendRequest`；`planned` 冻结，`sendRequest` 原样序列化它 | 同上 | T-10a（计划的参数三项 = 实际发出的） |
 | S-38 第 11 条：不做逆转写 | 工具条目名原样进 `function.name`；回来的 `tool_calls[].function.name` 原样进块头 `tool` | 同上 | T-11 |
 | S-11 末段：本据点传输能承载的模态 | 常量 `PI_AI_CARRIABLE_MODALITIES = { text, image }` | 同上 | pi 的内容类型只有文本、思考、图、工具调用（研究 E2，待核对主张） |
 | S-15：「已出门」先于出网 | 请求的字节只在 `sendRequest` 里离开进程；`planRequest`、`createPiAiTransport` 不开连接、不预热 | 同上 | 次序本身归 P-2；本包的义务由 SC-3（只有 `sendRequest` 调网络 API）承担 |
-| S-18：成因按来源分类；`status_cause_table` 的内容（G-5） | 本包交**来源事实**（`StreamEnd` 与 `sendRequest` 的失败），分类在 P-2；另导出候选表 | 同上 | 表的行全是待核对主张（PAT-N3）；402、403 有产品含义报主线 |
+| S-18：成因按来源分类；`status_cause_table` 的内容（G-5） | 本包交**来源事实**（`StreamEnd` 与 `sendRequest` 的失败），分类在 P-2；另导出候选表 | 同上 | 表的行全是待核对主张（PAT-N3）；402、403 两行已由契约 S-18 末条按成因定义定下 |
 | S-19：凭据取值只交给传输适配 | 值只进这一次请求的 `Authorization` 首部；不进 `StreamEnd`、失败值、诊断事件 | 同上 | T-5b（哨兵凭据串不出现在本包交出的任何值里） |
 | S-21：两个时限是运行时设置项 | **本包不自设任何在途时限**：界由调用方的中止信号给；只有建连上界是可选配置（初值不设） | 同上 | 选择见[策略配置项](#策略配置项) |
 | S-22、`data.model-response/v1` [S-24](../../../../spec/data/model-response/v1/contract.md#s-24-一条响应体对应上游的一次请求)：一次发出 = 上游一次请求 | 同 S-38 第 1 条 | 同上 | T-1 |
@@ -95,9 +95,20 @@
 | `data.arrival-events/v1` [S-15](../../../../spec/data/arrival-events/v1/contract.md#s-15-记账)：账至多一次、在收尾之前 | 流里见过 `usage` 就在交回收尾事实之前交恰一个 `account`；没见过就不交 | 同上 | T-15 |
 | `data.content-blocks/v1` [S-9](../../../../spec/data/content-blocks/v1/contract.md#s-9-思考块与不透明数据)：`opaque` 只由传输适配写读、原样回传 | 写：思考块封口时 `opaque = { format: "openrouter.reasoning_details/1", routeName, details }`（候选形状）；读：[回放规则](#线上请求怎样组) | 同上 | T-16；回放规则是比较门的「私有 replay」项（PAT-N13） |
 | `data.content-blocks/v1` [S-14](../../../../spec/data/content-blocks/v1/contract.md#s-14-callid)：`CallId` 在一份会话日志里两两不同，由登记的一方保证 | `CallId = "call_" ＋ base64url(SHA-256(ModelCallId ∥ dispatch ∥ index))` 的前 32 位字符 | 同上 | T-13；选择见[下节](#上游的流怎样译成到达事件) |
-| `data.messages/v1` [S-35](../../../../spec/data/messages/v1/contract.md#s-35-我们自己那两种必须在发出前译掉)、[S-36](../../../../spec/data/messages/v1/contract.md#s-36-toolinternalmessage-不进请求)：我们自己那两种在发出前译掉；`ToolInternalMessage` 不进请求 | `planRequest` 的落点表；遇到 `ToolInternalMessage` ⇒ `{ rejected: "tool_internal_in_request" }` | 同上 | T-17；契约留给提供者设计的「翻译在适配之内还是之前」本节点答**之内**（落点随线上形式变，PF-009 把映射表归 adapter 那一层）——报主线改 model-request-runtime 节点（PAT-N14） |
+| `data.messages/v1` [S-35](../../../../spec/data/messages/v1/contract.md#s-35-我们自己那两种必须在发出前译掉)、[S-36](../../../../spec/data/messages/v1/contract.md#s-36-toolinternalmessage-不进请求)：我们自己那两种在发出前译掉；`ToolInternalMessage` 不进请求 | `planRequest` 的落点表；遇到 `ToolInternalMessage` ⇒ `{ rejected: "tool_internal_in_request" }` | 同上 | T-17；契约留给提供者设计的「翻译在适配之内还是之前」本节点答**之内**（落点随线上形式变，PF-009 把映射表归 adapter 那一层）；model-request-runtime 节点已按此对齐（它的 `TransportAdapter` 行） |
 | `data.model-profile/v1` [S-17](../../../../spec/data/model-profile/v1/contract.md#s-17-缺席即不带没有人补值)、[S-21](../../../../spec/data/model-profile/v1/contract.md#s-21-不静默丢也不静默改)：缺席不补、不静默丢也不静默改 | [参数处置表](#线上请求怎样组) | 同上 | T-10b；pi 对推理模型在没给努力度时补发 `reasoning.effort`（研究 E2），本包不取 |
 | `data.call-accounts/v1` [S-4](../../../../spec/data/call-accounts/v1/contract.md#s-4-未知是一个值不是零也不是缺席)～[S-8](../../../../spec/data/call-accounts/v1/contract.md#s-8-cost一次发出的费用)：未知不是零、金额精确十进制、`cost_usd` 绝不是估算 | [落点表](#费用与用量的落点) | 同上 | T-18（一个超过 17 位有效数字的 `cost` 原样回来）；单位与换算是待核对主张（PAT-N5、N6） |
+
+### 规划拒绝的三种值与收场
+
+`planRequest` 在「已出门」之前运行，只交拒绝值、不开连接；**收场在 P-2**，按契约 [S-28](../../../../spec/capabilities/model-request-runtime/v1/contract.md#s-28-opencall) 末条与 [S-29](../../../../spec/capabilities/model-request-runtime/v1/contract.md#s-29-dispatch) ④（[D-040 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-40 ④、N-41 ①）。这次发出**不算已出门**，没有响应体。
+
+| 拒绝值（候选名） | 与出门前检查的哪一行是同一判定 | P-2 的收场（契约 S-29 ④） |
+| --- | --- | --- |
+| `modality_not_carried` | S-28 表第 3 行 | `undispatched{modality_mismatch}` |
+| `orphan_tool_call`、`tool_internal_in_request` | S-28 表第 6 行 | `invalidInput{reason}`，不写记录、调用停在原状态（契约 G-21 已闭合） |
+
+三种都只看这次调用绑定的消息与档案快照、不看那一家，P-2 在 `openCall` 已经判过同一件事。**`openCall` 已过而 `planRequest` 仍拒，是两处判定不一致的缺陷**（本包与 P-2 的出门前检查对同一份输入答得不同），不是一种正常的运行情形；收场仍照上表，不另造一种。
 
 ## 上游的流怎样译成到达事件
 
@@ -113,10 +124,11 @@
 | `delta.reasoning`／`reasoning_content`／`reasoning_text`（取第一个非空的，同 pi） | 思考块：同上 |
 | `delta.reasoning_details[]` | 并入当前思考块待写的 `opaque`（没有思考块就先开一个，文本为空）；**不产出 `fill`**——那是回放数据，不是内容，也就不会被当成开口（`data.arrival-events/v1` S-21） |
 | `delta.tool_calls[]`（function 分支） | 按上游的流内序号认块：**名字到了才 `open { kind: tool_call, fill: append, head: { callId, tool } }`**（块头必带这两样，S-9）；名字到之前的参数片段先缓在本块，开块后按原次序交 `fill`；此后每个非空 `function.arguments` 原样一个 `fill`；空片段不交（S-11） |
-| `delta.tool_calls[]` 的 custom 分支、`delta` 里别的非空内容成员（例如图） | 本传输不承载 ⇒ 这次发出以 `protocol` 收场（认不出来），**不静默丢** |
+| `delta.tool_calls[]` 的 custom 分支；`delta.images`、`delta.audio`、`delta.refusal` 非空 | 本传输不承载 ⇒ 这次发出以 `protocol` 收场（认不出来），**不静默丢** |
+| `delta` 里内容成员闭集之外的成员（`role`、`annotations` 等）；闭集内成员为 `null`、空串或空数组（首帧常见的 `content: ""`、`refusal: null`） | **忽略**，不交任何增量、不算认不出来（闭集见表下） |
 | `finish_reason ∈ { stop, tool_calls }` | 流读完时对每个开着的块交 `close`：文本、思考带封口块（内容 = 片段相接，思考块另带 `opaque`），工具调用不带块（S-13）；收尾事实 `{ ended: "end" }` |
 | `finish_reason = length` | **不封口**；`{ ended: "max_tokens" }` |
-| `finish_reason` 其余取值（`content_filter`、`error` 等）或帧里带 `error: { code, message, metadata }` | 不封口；`{ failed: { source: "in_band", statusCode?, upstreamError: { code, message, raw } } }`——`statusCode` 取带内 `code` 还是实际 HTTP 状态见 PAT-N4 |
+| `finish_reason` 其余取值（`content_filter`、`error` 等）或帧里带 `error: { code, message, metadata }` | 不封口；`{ failed: { source: "in_band", statusCode, inBand: true, httpStatus, upstreamError: { code, message, raw } } }`：**`statusCode` 取带内 `code`、标 `inBand: true`**，流开始时的实际 HTTP 状态另放 `httpStatus`（契约 S-38 第 2 条）。带内错误没有整数 `code`（只有异常的 `finish_reason`，或 `code` 不是整数）⇒ `statusCode` 与 `inBand` 都缺席（`inBand` 只能与 `statusCode` 同在），`upstreamError` 原样带着 |
 | `usage`（OpenRouter 只在最后一帧给一次） | 暂存（`cost` 按精确十进制读）；在交回收尾事实之前交恰一个 `account`（[落点表](#费用与用量的落点)）。收到第二个 ⇒ 取后一个、记诊断 `model_transport.usage_repeated`（info 级）——不合并 |
 | `finish_reason` 之后又来内容增量 | `{ failed: { source: "protocol" } }`；D-019 比较门「流终态与无尾随事件」一项 |
 | `[DONE]` 之前连接断了、没有 `finish_reason` | 不封口；`{ failed: { source: "stream_broken", localError } }` |
@@ -125,7 +137,8 @@
 
 - **`BlockId`**：`"b" ＋ 块索引`。索引就是开块的次序号，从 0 起严格递增、终身只开一次（S-7）；`BlockId` 只须在这条流装出的那条消息里唯一（S-8）。
 - **`visibility`**：本传输开的块一律 `{ toHuman: true, toModel: true }`（`data.messages` 对助手消息「多数两位皆真」的那一格；`data.content-blocks/v1` [S-4](../../../../spec/data/content-blocks/v1/contract.md#s-4-两个标注)）。
-- **`StreamEnd`**（候选形状）= 收尾事实（`ended` ／ `aborted` ／ `failed{ source ∈ local · connect · http_status · in_band · stream_broken · protocol, statusCode?, upstreamError?, localError? }`）＋ `serving` ＋ `headers`。**本包不判首 token、不判成因**；P-2 拿它加上装配状态里的 `firstContentAt`，按契约 S-18 定成因并交 `finish`。
+- **`delta` 的内容成员是闭集**：`content`、`reasoning`／`reasoning_content`／`reasoning_text`、`reasoning_details`、`tool_calls`、`images`、`audio`、`refusal`。前四样本传输承载（上表各行）；后三样与 `tool_calls` 的 custom 分支不承载，非空即 `protocol`——`refusal` 是上游替模型给的拒答文本，忽略它就是静默丢掉一段回复。**闭集之外一律是非内容字段、忽略**（原样留在原始响应里，PAT-N15），所以一家供应商在首帧多带几个字段不会被当成认不出来。闭集本身与各家首帧的实际形状列入比较门（[verification](verification.md#证据义务) G 系列）。
+- **`StreamEnd`**（候选形状）= 收尾事实（`ended` ／ `aborted` ／ `failed{ source ∈ local · connect · http_status · in_band · stream_broken · protocol, statusCode?, inBand?, httpStatus?, upstreamError?, localError? }`）＋ `serving` ＋ `headers`。**本包不判首 token、不判成因**；P-2 拿它加上装配状态里的 `firstContentAt`，按契约 S-18 定成因并交 `finish`。`statusCode` 与 `inBand` 由 P-2 原样落进 `failure` 与收尾的 `error`；`httpStatus` **不是契约成员**，P-2 不把它写进 `failure.statusCode`（那正是 S-38 第 2 条右列点名的误读），用不用它（例如进诊断）归 model-request-runtime 节点。
 
 | 选择 | 落选方的最强论证 | 本方弱点 | 置信度 |
 | --- | --- | --- | --- |
@@ -155,7 +168,7 @@
 | 本系统的项 | 线上字段 | 处置 |
 | --- | --- | --- |
 | `temperature`、`topP`、`seed`、`stopSequences`、`frequencyPenalty`、`presencePenalty` | `temperature`、`top_p`、`seed`、`stop`、`frequency_penalty`、`presence_penalty` | 按原值发出 |
-| `maxOutputTokens` | `max_tokens`（OpenRouter API 参考页列的是它；pi 发 `max_completion_tokens`——D-019 点名的请求差异，假设，须按 source-check 取证） | 按原值发出；**上游此刻的输出上限低于它时要改值再发**（`data.model-profile/v1` [S-18](../../../../spec/data/model-profile/v1/contract.md#s-18-档案参数的输出上限)），但本传输没有「上游此刻的上限」这一事实来源（PAT-N11） |
+| `maxOutputTokens` | `max_tokens`（OpenRouter API 参考页列的是它；pi 发 `max_completion_tokens`——D-019 点名的请求差异，假设，须按 source-check 取证） | 按原值发出。`data.model-profile/v1` [S-18](../../../../spec/data/model-profile/v1/contract.md#s-18-档案参数的输出上限) 的「上游此刻的上限更低时改值再发」**有前提**（那一事实有来源）；本程没有来源，契约 G-22 闭合之前**不改值、按参数原样发**，上游因此拒收时照状态码收场（PAT-N11） |
 | `reasoningEffort` | `reasoning: { effort }` | `none`／`low`／`medium`／`high` 按原值（取值集待核对）；`max` 在 OpenRouter 的取值集核实之前 **不发出、记进 `droppedParameters`**（PAT-N10）；**缺席即不发**——不取 pi 的「推理模型不给就补 `none`」 |
 | `extra.<键>` | 原样放进请求体顶层 | 键落在本包握着的字段（`model`、`messages`、`stream`、`stream_options`、`provider`、`models`、`route`、`tools`、`tool_choice`、`user`、`session_id`、`transforms`）或是统一项的上游拼法（`max_tokens`、`max_completion_tokens`、`top_p`、`reasoning`、`reasoning_effort` 等） ⇒ **不发出、记进 `droppedParameters`**（S-21 的第三种处置；这类键该拒还是该丢是 `data.model-profile` [G-9](../../../../spec/data/model-profile/v1/contract.md#十已知缺口)，闭合前取不发） |
 
@@ -186,14 +199,15 @@
 | --- | --- | --- |
 | `withdrawn` | 出门前检查第 1 行（P-2） | — |
 | `scope_disallowed` | 出门前检查第 2 行（P-2；本版不出现） | — |
-| `modality_mismatch` | 出门前检查第 3 行，含「本据点传输能承载」：P-2 拿 `PI_AI_CARRIABLE_MODALITIES` 判 | 规划拒绝 `modality_not_carried` 只作兜底（PAT-N9） |
-| `credential_unavailable` | 出门前（没配、保管方解不出，P-2）；**表**：`401`（配了而上游拒绝）；`402` 余额不足（候选，**产品含义报主线**） | `{ failed: { source: "http_status", statusCode } }` |
-| `request_rejected` | **表**：`400`；`403` 输入被审核标记（候选，**报主线**）；`404`、`413`（候选，是否出现待核对） | 同上 |
-| `upstream_unavailable` | 连不上（`connect`）；首 token 之前断流（`stream_broken`）；上游正常收尾却一样内容都没有（P-2 从装配状态判）；**表**：`408`、`429`、`500`、`502`、`503`、`504` | `connect` ／ `stream_broken` ／ `http_status` |
+| `modality_mismatch` | 出门前检查第 3 行，含「本据点传输能承载」：P-2 拿 `PI_AI_CARRIABLE_MODALITIES` 判 | 规划拒绝 `modality_not_carried` 与它是同一判定（[规划拒绝](#规划拒绝的三种值与收场)） |
+| `credential_unavailable` | 出门前（没配、保管方解不出，P-2）；**表**：`401`（配了而上游拒绝）；`402` 余额不足（契约 S-18 末条已定，码的含义待取证） | `{ failed: { source: "http_status", statusCode } }`；或 `in_band` 的带内 `code` |
+| `request_rejected` | **表**：`400`；`403` 输入被审核拦下（契约 S-18 末条已定，码的含义待取证）；`404`、`413`（候选，是否出现待核对） | 同上 |
+| `upstream_unavailable` | 连不上（`connect`）；首 token 之前断流（`stream_broken`）；上游正常收尾却一样内容都没有（P-2 从装配状态判）；**表**：`408`、`429`、`500`、`502`、`503`、`504` | `connect` ／ `stream_broken` ／ `http_status` ／ `in_band` |
 | `interrupted_mid_reply` | 首 token 之后的任何故障，优先于上面各行（P-2 按 `firstContentAt` 判） | 与首 token 之前同样的失败事实；本包不判首 token |
-| `unrecognized` | 传输本地（`local`：本包自身错误、序列化失败）；认不出来的上游行为（`protocol`）；**表外的状态码**，含被拒的 `3xx` | `local` ／ `protocol` ／ 表外 `http_status`；`localError` 或状态码至少其一（`data.model-response` S-15「必带留痕」） |
+| `unrecognized` | 传输本地（`local`：本包自身错误、序列化失败、**连接池排队中被中止**）；认不出来的上游行为（`protocol`）；**表外的状态码**，含被拒的 `3xx` | `local` ／ `protocol` ／ 表外 `http_status`；`localError` 或状态码至少其一（`data.model-response` S-15「必带留痕」） |
 
-- **表的每一行都是待核对主张**：OpenRouter 的错误页不在研究 `model-request-transport-sources` 里，状态码的含义出自上游文档的通行说法，**未取证**（PAT-N3）。表只映射到契约允许的三个成因、不映射出门前那四个（S-18 末条）。
+- **表的每一行都是待核对主张**：OpenRouter 的错误页不在研究 `model-request-transport-sources` 里，状态码的含义出自上游文档的通行说法，**未取证**（PAT-N3）。表只映射到契约允许的三个成因、不映射只在出门前判出的那三个（S-18 末条）。
+- **带内错误查同一张表**：`in_band` 的 `statusCode` 是带内 `code`（标 `inBand`），首 token 之前 P-2 拿它查这张表（契约 S-18 表第四行）；**前提**是上游带内 `code` 与 HTTP 状态是同一套码（未取证，契约 G-5）。没有整数 `code` 的带内错误不带状态码，P-2 那一侧只凭 `upstreamError` 留痕。
 - **本包与 P-2 的配置之间的关系**：P-2 的 `statusCauseTable` 没有值就不启动（[model-request-runtime 的配置政策](../model-request-runtime/design.md#插件服务键与配置)）；产品装配可以把本包导出的这张表交给它——那是装配的选择，本节点不替它填。
 
 ## 策略配置项
@@ -203,11 +217,11 @@
 | 项（候选名） | 管什么 | 初值 | 为什么是配置而不是常量 |
 | --- | --- | --- | --- |
 | `connectTimeoutMs` | 建连（TCP＋TLS）的上界；超了即「连不上」 | `null`：不设，由调用方的中止信号定界 | 时限的权威是契约 S-21 的两个设置项；给了值就是一个比首 token 等待更早的判定，由装配按需要开 |
-| `maxConnections` | 本实例同时打开的上游连接数上界；超出的请求在本机排队，排队时间计入调用方的等首 token 时限 | `32` | 并发须有边界；初值**无测量依据**，验收装配测一次再定 |
+| `maxConnections` | 本实例同时打开的上游连接数上界；超出的请求在本机排队，排队时间计入调用方的等首 token 时限。**排队超界**——还没拿到连接、一个字节都没发出就收到调用方的中止——以 **`local`** 失败交回、带 `queued` 留痕（`localError` 里记排队时长），**不交 `aborted`**：上游从未被触达，不能让 P-2 把本机饱和读成「超时」折成 `upstream_unavailable`、让重试件换家再排（契约 S-18「本地故障不报成上游给不出」；那一行点名的「本地资源耗尽」） | `32` | 并发须有边界；初值**无测量依据，实施程测** |
 | `idleConnectionTimeoutMs` | 空闲连接保留多久再关 | `30000` | 同上 |
 | `maxErrorBodyBytes` | 非 2xx 响应体读进内存的上界；超了停读、只交状态码与首部，记诊断 | `1048576` | 缓冲须有边界；完整字节的留存另走原始响应留存（PAT-N15） |
 | `maxSseEventBytes` | 单个 SSE 事件的缓冲上界；超了这次发出以 `protocol` 收场 | `8388608` | 同上；它不截短内容，只拒绝 |
-| `routeWireHints` | 逐路由的线上差别，**按路由名逐码点精确匹配**：`{ [路由名]: { cacheControl?: "anthropic", reminderRole?: "developer" } }` | `{}`：不打缓存断点，提醒一律落 `user` | 各家线上形状不同（PF-009 §5.2），而档案上没有「哪一家」这一项、路由名又不许解析（`data.model-profile` S-2）——这一事实只能由装配给；闭合方式见 PAT-N17 |
+| `routeWireHints` | 逐路由的线上差别，**按路由名逐码点精确匹配**：`{ [路由名]: { cacheControl?: "anthropic", reminderRole?: "developer" } }` | `{}`：不打缓存断点，提醒一律落 `user` | 各家线上形状不同（PF-009 §5.2），而档案上没有「哪一家」这一项、路由名又不许解析（`data.model-profile` S-2）——本版由装配给（D-040 §八 N-40 ④）；长期归属是契约 G-23（PAT-N17） |
 | `promptCacheRetention` | 上一项标了 `cacheControl` 的路由上断点保留多长：`none` ／ `short` ／ `long`（`long` 带 1 小时 TTL） | `short` | 同 pi 的缺省；它影响成本，不影响内容 |
 
 **不是配置项的**（都是契约义务，改了就违约）：一次发出之内的重试次数（恒 0，S-38 第 1 条）；上游回退（恒关）；跟不跟随重定向（恒不跟，第 9 条）；插件的 base URL（恒 `OPENROUTER_BASE_URL`，SYS-LLM；[apps/cli](../../../apps/cli/design.md) 把它写成构建内常量）。**重连**：OpenRouter 的流式响应没有续传，一条流断了就是这次发出以 `stream_broken` 收场；「再来一次」是下一次发出，由重试件与守卫决定（契约 S-30、S-35），不在本包。
@@ -223,7 +237,7 @@
 | 插件 `pi-ai-transport`（子入口 `./plugin`） | provide `modelTransport`，值是 `createPiAiTransport(config)` 造出的对象 | **无** | 无；诊断事件经 `ctx.logger` | [策略配置项](#策略配置项)；**不含** base URL |
 
 - **一个插件、一条 fiber、一个 effect**：effect 里依次建连接池（`https.Agent`）→ 造传输对象（持有池与「接纳中」标记）→ `ctx.provide('modelTransport', …)`（provide 由 effect 纳管：kernel-basis 的 probe `provide-is-effect-managed`，**未升格为 basis 条目**，待核对主张）。撤除见[下节](#成对的装载与撤除)。
-- **inject 边**：本插件不 inject 任何服务。**被谁 inject**：model-request-runtime 的 P-2 必需 inject `modelTransport`（本节点的选择，[公开面](#公开面)表；model-request-runtime 节点要改，PAT-N14）。inject 的含义是「提供者换代或不可用，我就卸载重跑」（basis [`plugin-body-reruns-on-provider-change`](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)；没有可选形式，basis [`inject-has-no-optional-form`](../../../../basis/cordis/inject-has-no-optional-form.md)）：本插件换代（含改配置）⇒ P-2 重跑 ⇒ 在途调用按契约 S-36 末条结算。**验收装配**以脚本化传输（model-request-runtime 的函数面导出）登记同一个 `modelTransport` 键，两者不同时装。
+- **inject 边**：本插件不 inject 任何服务。**被谁 inject**：model-request-runtime 的 P-2 必需 inject `modelTransport`（本节点的选择，[公开面](#公开面)表；D-040 §八 N-40 ④ 采纳，model-request-runtime 节点已对齐：它的[关键差异之四](../model-request-runtime/design.md#与装配草图不同的四处)）。inject 的含义是「提供者换代或不可用，我就卸载重跑」（basis [`plugin-body-reruns-on-provider-change`](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)；没有可选形式，basis [`inject-has-no-optional-form`](../../../../basis/cordis/inject-has-no-optional-form.md)）：本插件换代（含改配置）⇒ P-2 重跑 ⇒ 在途调用按契约 S-36 末条结算。**验收装配**以脚本化传输（model-request-runtime 的函数面导出）登记同一个 `modelTransport` 键，两者不同时装。
 - **事件**：不发、不听任何 Cordis 事件。**没有一条外送通道能越过租户或会话边界**：本包不持有会话与租户；诊断事件进 JSONL 运行日志，只带 `target`（`callId`、`dispatch`）与事件名、计数，**不带内容、不带凭据**，级别只用 error 与 info（basis [`logger-level-order-error-lowest`](../../../../basis/cordis/logger-level-order-error-lowest.md)：缺省导出不到 warn）。
 
 ## 依赖、作用域与绑定
@@ -231,7 +245,7 @@
 | 消费的精确契约 | 实际提供者／解析方式与范围 | 工作中绑定与变更生效点 | 缺席、撤回和旧引用政策 |
 | --- | --- | --- | --- |
 | `data.arrival-events/v1`、`data.content-blocks/v1`、`data.call-accounts/v1`、`data.messages/v1`、`data.model-profile/v1`、`data.model-response/v1`、`data.tool-definition/v1`、`data.loop-extension/v1`（均 candidate） | 包依赖同批 core 纯模块（尚未建包） | 随包版本 | — |
-| `capability.model-request-runtime/v1` 的传输端口 | 类型依赖 model-request-runtime 的函数面（尚未建包） | 随包版本 | 端口形状要改，PAT-N14 |
+| `capability.model-request-runtime/v1` 的传输端口 | 类型依赖 model-request-runtime 的函数面（尚未建包） | 随包版本 | 端口形状已对齐；工具条目的来路待契约（PAT-N14） |
 | 上游 OpenRouter chat-completions | `node:https` 直连 `OPENROUTER_BASE_URL` | 每次发出一次请求 | 连不上 ⇒ `connect` 失败事实 |
 | Cordis 4.0.4、kernel-basis | 仅插件子入口 | 装配启动时 | 配置不合形状 ⇒ 装配启动失败 |
 
@@ -247,22 +261,24 @@
 | 发生了什么 | 交出的来源 | 备注 |
 | --- | --- | --- |
 | 凭据为空、请求体序列化失败、本包内部错误 | `local` | 不开连接 |
+| 在连接池里排队、还没拿到连接就被调用方中止 | `local`，带 `queued` 留痕 | 零字节出网；不交 `aborted`（[策略配置项](#策略配置项) `maxConnections` 行） |
 | DNS 失败、拒绝连接、TLS 握手失败、建连超过 `connectTimeoutMs` | `connect` | 契约 S-18「连不上」 |
 | 非 2xx（含 3xx） | `http_status` | 读回的响应体截在 `maxErrorBodyBytes` |
 | 2xx 之后连接断了、没有 `finish_reason` | `stream_broken` | — |
-| 带内错误、异常的 `finish_reason` | `in_band` | PAT-N4 |
+| 带内错误、异常的 `finish_reason` | `in_band` | `statusCode` = 带内 `code`、`inBand: true`、`httpStatus` 另带；没有整数 `code` 时前两者缺席 |
 | 帧读不出、事件超界、终态后又来内容、本传输不承载的内容成员、名字没到的工具调用 | `protocol` | 认不出来，不静默丢 |
-| 调用方中止 | `aborted`（不是失败） | 收场由 P-2 按中断定 |
+| 调用方中止（已拿到连接之后） | `aborted`（不是失败） | 收场由 P-2 按中断定 |
 
 ## 成对的装载与撤除
 
 | 取得的资源／注册贡献 | 实例拥有者与对外可用时点 | 部分初始化失败 | 撤除、静止／交接与保留范围 |
 | --- | --- | --- | --- |
 | config 校验 | 内核在插件体之前校验（kernel-basis `definePlugin`） | 不过 ⇒ `FAILED`、不 provide、装配启动失败 | — |
-| 连接池（`https.Agent`）与传输对象 | 本插件 fiber；effect 里建成之后才 `provide` | 池或对象构造抛出 ⇒ 插件体抛出 ⇒ `FAILED`，没有半个服务 | 撤除函数：**先关接纳**（此后 `sendRequest` 立即以 `local` 收场、不开连接）→ 空闲连接立即关 → **在途的请求不打断**：它们的连接在各自那一次发出收场时释放，最后一个收场时销毁池。**内核不取消在途调用，本包也不替调用方取消**：在途请求跑完，或由它们的调用方（P-2 按契约 S-36 撤除时先中止）停下，各自按那一次的收尾事实收场。**不把「关池」当成停下在途请求的手段**——那会让在途的流以传输错误断掉，P-2 把它读成一次上游故障，而契约 S-36 要的撤除收场是 `interrupted{run_cancelled}` |
+| 连接池（`https.Agent`）与传输对象 | 本插件 fiber；effect 里建成之后才 `provide` | 池或对象构造抛出 ⇒ 插件体抛出 ⇒ `FAILED`，没有半个服务 | 撤除函数：**先关接纳**（此后 `sendRequest` 立即以 `local` 收场、不开连接）→ 空闲连接立即关 → **在途的请求不打断**：它们的连接在各自那一次发出收场时释放，最后一个收场时销毁池，撤除函数到这时才返回（池的生命期不越出拥有它的 fiber）。**内核不取消在途调用，本包也不替调用方取消**：在途请求跑完，或由它们的调用方（P-2 按契约 S-36 撤除时先中止）停下，各自按那一次的收尾事实收场。**不把「关池」当成停下在途请求的手段**——那会让在途的流以传输错误断掉，P-2 把它读成一次上游故障，而契约 S-36 要的撤除收场是 `interrupted{run_cancelled}` |
 | `ctx.provide('modelTransport')` | 本插件 fiber；`ACTIVE` 后可解析 | provide 由 effect 纳管（待核对主张，见上） | 服务消失，inject 它的 P-2 重跑；已拿到旧对象的在途发出照上一行跑完 |
 
 - **与 P-2 的撤除之间不依赖次序**：两条 fiber 的撤除谁先谁后、内核会不会等旧 fiber 的异步撤除完成，都未核实（同 fiber 内各 effect 并发驱动、不保证次序，basis [`effect-disposal-concurrent-not-ordered`](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)）。本设计在两种次序下结果相同：在途的流只会因 P-2 的中止信号或自然收尾而结束。
+- **撤除的等待上界**：若内核先等本插件的撤除函数完成、再卸 inject 它的 P-2（未核实），这段等待里 P-2 的中止不会到来，**上界等于在途流的自然收尾，受 P-2 的时限约束**（契约 S-21：首 token 之前是 `first_token_wait_limit`，之后是 `post_first_token_stall_limit`——后者只限两次内容之间的空档，一条持续出字的流要跑到自然收尾）。结局不变，只是撤除可能耗时。内核在跨 fiber 撤除时的次序与等待登为 kernel-basis 的 probe 候选（[verification](verification.md#覆盖缺口)）。
 - **撤除之后仍为真**：已经出网的请求是外部效应，**不可回滚**，上游可能已经计费；本包不留任何记录，账与收场全在 P-2 写下的那些记录里。
 
 ## 装配给 vs 协议给
@@ -282,20 +298,21 @@
 | --- | --- | --- | --- | --- |
 | PAT-N1 | **尚未建包**，没有任何实现与测试 | 实施程 | 全部真实发出 | 包按本页建起，[verification](verification.md#证据义务) 的 T 系列跑通 |
 | PAT-N2 | **D-019 比较门一项都没有在真实 OpenRouter 上过**：十五项（请求路由、原始工具参数与结果回传 ID、流终态与无尾随事件、实际执行方与响应 ID、`usage.cost` 质量、私有 replay、重定向、错误、断流、abort、无隐藏重试……）与四项请求差异（最大生成长度字段、`store`、`reasoning`、`strict`），外加本页新增的几项（`transforms` 缺省、`require_parameters`、`anthropic/*` 走 chat-completions、我们自己那两种消息的落点、中途 system）。2026-09-23 的现状表（D-019 追加）是另一条实施线的样本，**不是本节点的证据** | 主线 → 实施程；真实请求要产品负责人授权与预算 | 产品装配的每一次真实发出 | 每一项有测试或实测记录，结果登在 record/evidence 并回填 verification；任何费用或身份丢失先报反例 |
-| PAT-N3 | **候选状态码表的每一行未取证**；`402`（余额不足）、`403`（输入被审核标记）归哪个成因有产品含义 | 本节点（取证）；主线 → 产品负责人（两行的归属） | P-2 的 `statusCauseTable`（契约 G-5）；场景 S-46 | OpenRouter 错误页入研究并逐行对上；两行裁定 |
-| PAT-N4 | **契约两处对「状态码」的说法对不上**：[S-38](../../../../spec/capabilities/model-request-runtime/v1/contract.md#s-38-装配给的保证-vs-协议须给的保证) 传输适配第 2 条「状态码从实际的 HTTP 响应取」，而场景 [S-46](../../../../spec/capabilities/model-request-runtime/v1/contract.md#s-46-成因按来源分类与脱敏) 写「上游在首 token 之后回 500 ⇒ `interrupted_mid_reply`（状态码 500 原样）」——流开始之后 HTTP 状态已是 200，那个 500 只能是带内错误的 `code`。本节点**不选**：`in_band` 失败同时交实际 HTTP 状态与带内 `code`，`statusCode` 填哪一个等契约写明 | 主线（规格演进） | P-2 对带内错误的分类；场景 S-46 第 6 支 | 契约写明带内错误的 `code` 是否作为状态码、进不进 `status_cause_table` |
+| PAT-N3 | **候选状态码表的每一行未取证**。`402`（余额不足）⇒ `credential_unavailable`、`403`（输入被审核拦下）⇒ `request_rejected` 两行的归属**已由契约定下**（S-18 末条，D-040 §八 N-41 ③），前提——两个码的含义如此——同样待取证；带内 `code` 与 HTTP 状态是同一套码也待取证（契约 G-5） | 本节点（取证） | P-2 的 `statusCauseTable`（契约 G-5）；场景 S-46 | OpenRouter 错误页入研究并逐行对上；带内 `code` 的码空间核实 |
+| PAT-N4 | **已由契约闭合**：契约 [S-38](../../../../spec/capabilities/model-request-runtime/v1/contract.md#s-38-装配给的保证-vs-协议须给的保证) 传输适配第 2 条改为「HTTP 层失败取 HTTP 状态；流开始之后的带内错误取带内 `code` 并标 `inBand`」，`data.model-response/v1` [S-15](../../../../spec/data/model-response/v1/contract.md#s-15-故障的成因与原样状态码) 加 `inBand`，场景 S-46 第 6 支同步（[D-040 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-40 ④、N-41 ②）。本节点的落点：`in_band` 失败事实 = `statusCode` 取带内 `code` ＋ `inBand: true` ＋ `httpStatus` 另带，由 P-2 原样落（[流翻译表](#上游的流怎样译成到达事件)）；T-19 带内一支改为断言 | — | — | — |
 | PAT-N5 | **`cost` 的单位是 credits**（研究 E11）；本包按 1 credit = 1 USD 记进 `cost_usd`，未核实 | 本节点（取证） | 成本明细（`data.call-accounts` S-8） | 官方文档或按 generation id 查账对上；不成立时改记 `"unknown"` 或给出换算来源 |
 | PAT-N6 | **三项输入 token 的换算**依赖「`prompt_tokens` 含缓存读与缓存写」这一待核对主张 | 本节点 ＋ `data.call-accounts` [G-6](../../../../spec/data/call-accounts/v1/contract.md#十已知缺口) | 用量明细、`total_tokens` 派生 | 实测对上，映射写进模型调用一侧的契约 |
 | PAT-N7 | **`is_byok` 无处可放、语义未核实**（`cost` 在它为真时指什么） | `data.call-accounts` G-6 的 owner | 成本口径 | 核实后决定要不要一个成员 |
 | PAT-N8 | **实际执行方与指定的那一家不一致时没有成员可记**；本包交 `servingProvider`，P-2 怎么用未定 | `data.model-response` [G-8](../../../../spec/data/model-response/v1/contract.md#七已知缺口) 的 owner ＋ model-request-runtime 节点 | 路由留痕 | 查清「只指定一家、禁回退」时上游是否仍会换家 |
-| PAT-N9 | **规划拒绝在契约 S-29 ④ 的次序里没有落点**：`planRequest` 在「已出门」之前运行，它拒绝时这次发出还没出门，契约 S-18「传输本地」那一行却写「这次发出已出门」 | 主线 → model-request-runtime 节点（必要时契约） | `modality_not_carried`、`orphan_tool_call`、`tool_internal_in_request` 三种兜底 | 写明规划拒绝的收场（例如按本地缺陷先写「已出门」再以 `unrecognized` 结算，或另给一个不出门的收场） |
+| PAT-N9 | **已由契约闭合**：规划拒绝归出门前检查、不算已出门——契约 [S-28](../../../../spec/capabilities/model-request-runtime/v1/contract.md#s-28-opencall) 末条与表第 3、6 行、[S-29](../../../../spec/capabilities/model-request-runtime/v1/contract.md#s-29-dispatch) ④、S-18 表前两行（D-040 §八 N-40 ④、N-41 ①；G-21 已闭合）。三种拒绝值的映射与「`openCall` 已过而仍拒」的定性见[规划拒绝](#规划拒绝的三种值与收场) | — | — | — |
 | PAT-N10 | **`reasoningEffort` 的上游取值集未核实**；`max` 本版不发、记丢项 | 本节点（取证） | 带 `max` 的档案 | OpenRouter `reasoning.effort` 的取值集入研究，`max` 的译法定下 |
-| PAT-N11 | **「上游此刻的输出上限」没有来源**：`data.model-profile` S-18 要 adapter 在上游上限低于参数时改值再发，本包不取模型目录，手里没有这一事实 | 主线（谁给这一事实：档案目录同步时另记，或调用时由 P-2 交进来） | `maxOutputTokens` 的改值一支 | 这一事实有家并交进 `planRequest` |
+| PAT-N11 | **「上游此刻的输出上限」没有来源**：本包不取模型目录，手里没有这一事实。契约已承接为 G-22、`data.model-profile` S-18 标「有前提」；闭合之前不改值、按参数原样发（D-040 §八 N-40 ④） | 主线 → `data.model-profile` 新版本（契约 G-22） | `maxOutputTokens` 的改值一支 | 这一事实有家并交进 `planRequest` |
 | PAT-N12 | **我们自己那两种消息的系统标识怎样防冒充未定**（PF-009 §5.3：工具返回里带一个闭合标签就能冒充）；中途 system 在 `anthropic/*` 上的落点未核实 | 本节点 ＋ PF-009 owner | agent 分辨系统在说话 | 标识方案定下（含对其余消息里同形文本的处置），比较门核落点 |
 | PAT-N13 | **私有 replay 规则未验证**（同一路由名才带回 `reasoning_details`，跨路由只给思考文本） | 本节点 | 推理模型的多轮与工具调用 | 比较门「私有 replay」项有实测 |
-| PAT-N14 | **要主线改的别处**：① model-request-runtime 节点——P-2 必需 inject `modelTransport`（原「不 inject 传输」、构造参数级）；`TransportAdapter` 形状改为 `planRequest`／`sendRequest`／`readStream` 三段，输入带 `target` 与 `ModelToolEntry[]`（P-2 的 `openCall` 手里只有模型面名字，从名字到条目谁给未定），收尾事实由 P-2 分类并交 `finish`；`data.messages` S-35 的翻译落在传输适配之内；MRR-N4 改为「节点已立、尚未建包」。② apps/cli——据点装载清单加本插件、验收装配的脚本化传输改为登记 `modelTransport` 的一件、「P-2 不 inject 传输」一句改掉。③ 契约 G-10 的闭合条件可改为本包的符合性测试（fork 之后不再依赖上游缺省行为） | 主线 | P-2 接上本传输；cli 装配 | 两个节点与契约按上面改，或主线给出别的裁定 |
+| PAT-N14 | **待契约（与 model-request-runtime 的 [MRR-N14](../model-request-runtime/design.md#实施缺口与消费者影响) 同一件事）**：契约 [S-28](../../../../spec/capabilities/model-request-runtime/v1/contract.md#s-28-opencall) ① 的 `tools` 交的是模型面名字（`ModelToolName[]`），本包的 `planRequest` 要的是条目 `ModelToolEntry[]`（名字、说明、参数形状，`data.tool-definition/v1` S-6），P-2 手里没有从名字取条目的面。原先登在这里的其余几件已由主线落下：model-request-runtime 节点 P-2 必需 inject `modelTransport`、`TransportAdapter` 三段、S-35 翻译在适配之内、MRR-N4 改写；apps/cli 装载清单与验收装配的脚本化传输；契约 G-10 闭合条件改为本包的 T-1～T-11 | 契约 owner（经主线） | 每一次带工具的发出（`tools` 非空） | 契约写明条目的来路（S-28 ① 改交条目，或写明 P-2 从哪取），本包输入随之定形 |
 | PAT-N15 | **原始响应留存**（`data.model-response` [S-20](../../../../spec/data/model-response/v1/contract.md#s-20-上游原始响应留存)）：本包只交响应首部，正文字节的旁路留存没有做——附件存储未定义（model-request-runtime 的 MRR-N8） | 附件存储的 owner；本节点届时加旁路 | 排查 | 附件存储有定义 |
-| PAT-N16 | **`data.model-response` 验证入口「已知缺口」一节写「请求带 `usage: { include: true }`」**，与研究 E11 现行文档（该参数已弃用、无效）不符 | `data.model-response` 的 owner | 照那一节实施的人 | 那一节按 E11 改写 |
-| PAT-N17 | **逐路由的线上差别没有契约来源**：打不打 Anthropic 式缓存断点、提醒落 `developer` 还是 `user`，取决于路由背后是哪一家；档案上没有这一项，路由名又不许解析（`data.model-profile` S-2）。本版由装配经 `routeWireHints` 按路由名精确给出，初值为空——**初值下 `anthropic/*` 路由没有缓存断点，成本高于 pi 的缺省** | 主线（要不要在档案或别处立这一事实）；apps/cli（装配时给不给） | 缓存成本；提醒的落点 | 这一事实有家（档案属性、目录同步时的上游元数据或装配配置三选一）并写明 |
+| PAT-N16 | **已闭合**：`data.model-response` 验证入口已登按研究 E11 改写（`usage: { include: true }` 已弃用、请求不必带参数，D-040 §八 N-40 ④） | — | — | — |
+| PAT-N17 | **逐路由的线上差别没有契约来源**：打不打 Anthropic 式缓存断点、提醒落 `developer` 还是 `user`，取决于路由背后是哪一家；档案上没有这一项，路由名又不许解析（`data.model-profile` S-2）。契约已承接为 G-23：本版由装配经 `routeWireHints` 按路由名逐码点精确给出，初值为空（D-040 §八 N-40 ④）——**初值下 `anthropic/*` 路由没有缓存断点，成本高于 pi 的缺省** | 主线 → `data.model-profile` 新版本（契约 G-23）；apps/cli（装配时给不给） | 缓存成本；提醒的落点 | wire hints 成为档案属性，装配的那份逐路由配置随之撤掉 |
+| PAT-N18 | **P-2 对本包两种来源事实的分类未写明**：① P-2 因首 token 时限中止、而本包交回的是 `local{queued}`（排队中被中止，上游从未被触达）——P-2 须按传输本地一行（`unrecognized`）收，不按「超时」折成 `upstream_unavailable`；为撤除（契约 S-36）而中止的仍按撤除收场。② 首 token 之前、没有整数 `code` 的带内错误：契约 S-18 表没有对应的一行（候选 `unrecognized`，以 `upstreamError` 作留痕） | ① model-request-runtime 节点；② 主线（契约 S-18） | P-2 的收场分类；场景 S-46 | ① 那个节点的分类写明两种中止原因与 `local{queued}` 的先后；② 契约 S-18 写明或确认归表外 |
 
-**不改契约**：以上凡涉及契约的（PAT-N4、N9、N14 ③）都只登缺口、报主线；本页没有一处「实际按 X 做」替契约下结论。
+**不改契约**：以上凡涉及契约的都只登缺口、报主线；PAT-N4、N9、N11、N16、N17 与 N14 的大半由契约与别的节点改写承接（D-040 §八 N-40 ④、N-41），本页据此对齐，没有一处「实际按 X 做」替契约下结论。
