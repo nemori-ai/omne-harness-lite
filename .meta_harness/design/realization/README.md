@@ -40,7 +40,7 @@ realization/
 | --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `core/`                                                                                                               | **核心、共享、契约或底层协议相关**：`data.*` 数据契约的纯模块、跨领域复用的构造（身份值、交接凭证、过期判定、时间源形状）、内核层复用件 | 它没有自己的领域事实，**被两个以上领域消费**，或它兑现的是一份 `data.*` 契约                                                                                                         |
 | `<domain>/`                                                                                                           | **按领域或限界上下文聚合**的能力与组合提供者                                                                                            | 它拥有该领域的事实或动作链；一个节点只属于一个领域。领域名由产品负责人拍板——租户领域是 `tenancy`（[D-024](../record/decisions/tenancy-domain-name/README.md)），新领域在拍板前标候选 |
-| `infra/`（组名由 [D-027](../record/decisions/infrastructure-names-and-sqlite-durability/README.md) 拍板，2026-09-23） | **基础设施提供者**：兑现 `core/` 里某个协议级构造的具体实现（SQL 存储、时钟），被装配层选用                                             | 它没有领域事实，也不定义协议，只兑现一个协议；选型受 [D-026](../record/decisions/infrastructure-persistence-choices/README.md) 约束（不提供 in-memory 实现）。协议本身留在 `core/`   |
+| `infra/`（组名由 [D-027](../record/decisions/infrastructure-names-and-sqlite-durability/README.md) 拍板，2026-09-23） | **基础设施提供者**：兑现 `core/` 里某个协议级构造的具体实现（SQL 存储、时钟），或据点／中心的**窄口基础设施契约**（密钥保管、进程起停、连接探测）的最小提供者，被装配层选用                                             | 它没有领域事实，也不定义协议，只兑现一个协议；选型受 [D-026](../record/decisions/infrastructure-persistence-choices/README.md) 约束（不提供 in-memory 实现）。协议本身留在 `core/`   |
 
 **怎么判一个节点归 `core` 还是某个领域**：问它兑现的契约是 `data.*` 还是 `capability.*`／`composition.*`——前者几乎总在 `core`；
 后者按契约拥有的事实归领域。拿不准的先按领域放，**被第二个领域消费的那天再搬进 `core`**，搬动是「实现换方案」，记 changelog 即可，不改契约。
@@ -152,6 +152,7 @@ governance-center-entry 的设计由 [D-028](../record/decisions/governance-cent
 | 节点 | 兑现的契约 | 形态 |
 | --- | --- | --- |
 | [`packages/assets/asset-governance`](packages/assets/asset-governance/README.md) | `capability.asset-governance` v1、`capability.asset-transfer` v1 | 中心一个插件、一条 fiber、四个服务面（资产、持有、流转、快照；快照面无契约条款）；由 `apps/tenancy-host` 装配、据点不 import；跨 owner「同一提交」落在组织治理的隶属哨兵、组织行与它导出的事务内读函数上 |
+| [`packages/assets/assembly-manifest-store`](packages/assets/assembly-manifest-store/README.md) | `capability.assembly-manifest` v1（接口契约，最小提供者） | 一个插件，inject `storage`；两张表；条件追加在一次写事务里完成（按会话哨兵加 (session, seq) 主键）；`dependencyPresence` 的事实经配置 `presenceSource` 交进（产品装配无来源，G-2） |
 
 **2026-09-25 工具领域（`tools`，[D-039](../record/decisions/assets-runtimes-split-and-rulings/README.md) 拍板，取候选 C）**——节点状态 `candidate`，所兑现的契约 `candidate`、待 D-041，**尚未建包**。`capability.tool-admission` v1 本批无提供者（runner 以全拒件顶上）：
 
@@ -188,6 +189,23 @@ governance-center-entry 的设计由 [D-028](../record/decisions/governance-cent
 | [`packages/model/model-profile-directory`](packages/model/model-profile-directory/README.md) | `capability.model-profile-directory` v1 | 中心插件 P-1（三个服务键，取值问法单列），inject 存储、时钟、成员关系；另有只读副本插件 P-1r（租户那一把的据点副本经凭据保管方落地，M47），待入口 v2 与保管方 |
 | [`packages/model/model-request-runtime`](packages/model/model-request-runtime/README.md) | `capability.model-request-runtime` v1 | 插件 P-2（inject 目录读面、凭据问法、会话日志、存储、时钟；在途表与连接池一个 effect；发起租户经会话持有租户读面）＋ 自带重试挂件 P-5（候选默认退避，M67）；传输按 D-019 fork；绑定 6 条（formal task） |
 | [`packages/model/modality-projection`](packages/model/modality-projection/README.md) | `capability.modality-projection` v1 | 纯计算＋转换器登记插件 P-3（不 inject 任何服务）、声明插件、各转换器插件 P-4*、系统自带转换件的零状态贡献者插件；不 inject 存储；模态转换这一件经执行环境句柄取 `tenant`，来路待 runner 契约 G-20 |
+| [`packages/model/pi-ai-transport`](packages/model/pi-ai-transport/README.md) | `capability.model-request-runtime` v1 的传输适配一层（S-38 十一条；[D-043 R-5](../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)） | pi 0.86.1（`3390bd9`）传输一层的定向 fork，`node:https` 直发；公开函数面 `planRequest`／`sendRequest`／`readStream`／`createPiAiTransport`；插件登记 `modelTransport`（P-2 必需 inject，验收装配以脚本化传输登记同键）；无存储、不 inject；绑定 0 条；D-019 比较门未过 |
+
+**2026-09-25 会话领域（`session`，候选领域名，待产品负责人拍板——账本 ⑱）**——最小提供者节点（[D-043 R-1](../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)：验收装配的替身改「接口契约 + 最小提供者」），节点状态 `candidate`，所兑现的接口契约 `candidate`，**尚未建包**；真提供者归 loop／会话那一程，出契约新版本时在此接续。
+
+| 节点 | 兑现的契约 | 形态 |
+| --- | --- | --- |
+| [`packages/session/session-log-jsonl`](packages/session/session-log-jsonl/README.md) | `capability.session-log` v1 | 一个插件，不 inject 任何服务；文件系统 JSONL，一行一批，每批 `fdatasync`；属主文件锁、每本日志一条队列、由盘上折叠的判定态、可重建的派生索引 |
+| [`packages/session/session-tenancy-table`](packages/session/session-tenancy-table/README.md) | `capability.session-tenancy` v1 | 一个插件，inject `storage`；一张表、一个读；种子在 `./seed`，只供验收 |
+| [`packages/session/run-attempt-facts-derived`](packages/session/run-attempt-facts-derived/README.md) | `capability.run-attempt-facts` v1 | 一个插件，inject `sessionLog`；不存表，按水位追读、折叠缓存；「已终结」要靠验收装配交进的认法 `runEndRecognizer`，产品装配恒 `unavailable`（G-3） |
+
+**2026-09-25 最小提供者（`infra`，同一批）**——同上状态。
+
+| 节点 | 兑现的契约 | 形态 |
+| --- | --- | --- |
+| [`packages/infra/credential-custodian-local`](packages/infra/credential-custodian-local/README.md) | `capability.credential-custodian` v1 | 一个插件，必需 inject `storage`、`clock`；副本条目与 OAuth 条目以密文落在绑定所在的同一 `storage`（两张表），本机只放一个密钥文件；OAuth 条目对桥的绑定行立引用约束，清扫锁同一行；读绑定行待桥导出事务内读函数（CCL-1） |
+| [`packages/infra/execution-environments-host`](packages/infra/execution-environments-host/README.md) | `capability.execution-environments` v1 | 一个插件，不 inject；本机 POSIX 进程组起停、有界答复；落点读数调用时现取可选读面（无契约，验收装配由种子件给）；拓展件子进程 fail-closed；进程表只在内存，撤除即按组停 |
+| [`packages/infra/center-connection-probe`](packages/infra/center-connection-probe/README.md) | `capability.center-connection` v1 | 一个包两个插件：probe 是产品装法（对入口发公开体检），replay 是验收装法（回放对端行为）；同一服务键、同一归约，必需 inject `clock`；不设判定阈值（CNP-1） |
 
 **2026-09-25 loop 侧（`agent-loop`，D-039 拍板）**——节点状态 `candidate`，所兑现的契约 `candidate`、待 D-041，**尚未建包**；runner 的行为模型未建（契约 G-14），两个节点都没有绑定：
 
