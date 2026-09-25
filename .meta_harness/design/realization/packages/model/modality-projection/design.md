@@ -11,6 +11,29 @@
 - **插件**：见下节。共用件 `definePlugin`、`Outcome` 取 [kernel-basis](../../core/kernel-basis/README.md)。
 - **转换件实现**：本版不调模型（契约 S-24），只能是纯计算或本地识别库；**本版装哪几件、各登在哪几个键上没有人定**（缺口 MP-N3）。本节点只定它们接进来的形状。
 
+## 公开面
+
+[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)：判定那一半本来就是纯函数；转换那一半的「按一份声明找到转换件、调它、校验产出」同样可以单独取用。都不依赖 Cordis、会话、租户或存储。名字全部**候选**，**全部尚未实现**。
+
+**公开函数面**（包入口导出）：
+
+| 导出（候选） | 做什么 | 输入与输出的契约坐标 |
+|---|---|---|
+| `projectEntry`、`project` | 一条条目对投影的贡献；一串条目的折叠 | [S-5](../../../../spec/capabilities/modality-projection/v1/contract.md#s-5-模态投影是对会话日志的一次折叠)、S-6；`data.messages/v1`、`data.content-blocks/v1` |
+| `compatible` | 投影 ⊆ 档案的输入模态 | S-7、[S-16](../../../../spec/capabilities/modality-projection/v1/contract.md#s-16-兼容判定-compatible)；`data.model-profile/v1` |
+| `parseConverterKey`、`converterKeysOf`、`parseDeclaration` | 键与声明的表示层校验；一个块的候选键 | S-8、S-10、S-17 ① |
+| `checkConversion` | 一次产出合不合法 | S-11 |
+| `convertWith(table, implementations, block, tenant)` | 按调用方交的一份「键 → 引用」表与「引用 → 实现」查找，找到第一个有登记的键、调实现、`checkConversion`；失败值同 `convert` | S-18 的判定次序与失败值；**表从哪来、谁能写、换表时键的连续性不在函数层** |
+| `convertMessageBlocks(subject, tenant, convert)` | 落盘之前那一件的核心：挑要转的块 → 逐块 `convert` → 全成 `rewrite`、一块都没转成 `observed`、任一失败 `veto`（`reason` 只带块标识、失败值与键） | S-20～S-23；结论 `data.loop-extension/v1` |
+
+**Cordis 服务面**：P-3（`converterRegistry`、受限的 `converterAssembly`）、贡献者（向 runner 登记系统自带那一件）、声明者、P-4\*（[下节](#插件服务键与配置)）。P-3 的 `convert` 就是对当前那一份不可变表调 `convertWith`；贡献者登记的实现就是「挑出要转的块才经 runner 解析租户」再调 `convertMessageBlocks`。
+
+**只在运行时层成立、函数层不承诺**：登记表只由系统装配层写（S-26 第 1 行，受限面）；声明换代时两份都有的键任何时刻答得出「有」（S-9 第 3 条，一次引用赋值）；只有系统自带那一件调转换（S-26 第 4 行）；`tenant` 就是这条消息所属会话的租户（S-20 ②，经 runner 的执行环境句柄）；转换产出与原消息同一次落盘（S-20 ④，调用方的义务，MP-N6）；转换件不调模型（S-24，结构检查）。
+
+| 选择 | 落选方的最强论证 | 本方弱点 | 置信度 |
+|---|---|---|---|
+| **把「按表转换」与「落盘之前那一件的核心」也公开**（选）；落选：只公开判定纯函数，转换留在插件里 | 转换涉及租户与字节读写，公开出去等于让外部绕过「只有系统自带那一件调转换」 | 两个函数的形状是本节点定的候选（缺口 MP-N7） | 中：函数层不读字节（引用形状的块本版一律 `converterFailed`，契约 G-6），租户由调用方交——外部拿去用，越界的风险在它自己给的 `tenant` 与实现上，与服务面的受限面无关；服务面复用同一份函数，两份转换逻辑不会分叉 |
+
 ## 契约到 Cordis 的投影
 
 ### 插件、服务键与配置
@@ -65,7 +88,7 @@
 | S-15 `project` | 纯函数 | 同上 | — |
 | S-18 `convert` | `converterRegistry.convert(block, tenant)`：校验 → 读当前表的引用（一次）→ 落到的第一个有登记的键 → 取挂上的实现 → 调它 → `checkConversion` | 同上 | 判定次序照 S-18 表；**时间上界就是拓展件时限**（runner 契约 G-7，无值），本节点不另设计时器 |
 | S-19 `lookupConverter` | `converterRegistry.lookupConverter(key)` | 同上 | 答不出 ⇒ `{ unavailable }`，不收成 `{ unregistered }` |
-| S-20～S-23 落盘之前那一件 | 贡献者插件向 runner 登记的系统自带实现（候选 `builtinName`：`modality-conversion`）：挑要转的块 → **挑出了才**经 runner 的受限面解析这一次输入的执行环境句柄取 `tenant`（候选 `loopExtensionImplementations.resolveTenant(environment)`，[runner 节点](../../agent-loop/loop-extension-runner/design.md#执行环境句柄每次调用一只按会话解析)；契约 S-20 ②）→ 逐块 `convert(block, tenant)` → 全成交回 `rewrite`（或一块都没转成交回 `observed`）、任一失败交回 `veto`（`reason` 只带块标识、失败值与键）。**解析不出租户 ⇒ 这一件报错**（已开始），runner 按 `treat_as_veto` 否决，不以缺席或别的租户去调 `convert` | 同上 | **受阻两处**：句柄解析出的租户身份没有来路（runner 契约 G-20：会话持有的租户读面未起草），闭合前每次解析失败 ⇒ 含要转的块的消息全被否决；runner 认它需要的能力标识未定型（runner 契约 G-3）。末位由 runner 强制，不靠本节点 |
+| S-20～S-23 落盘之前那一件 | 贡献者插件向 runner 登记的系统自带实现（候选 `builtinName`：`modality-conversion`）：挑要转的块 → **挑出了才**经 runner 的受限面解析这一次输入的执行环境句柄取 `tenant`（候选 `loopExtensionImplementations.resolveTenant(environment)`，[runner 节点](../../agent-loop/loop-extension-runner/design.md#执行环境句柄每次调用一只按会话解析)；契约 S-20 ②）→ 逐块 `convert(block, tenant)` → 全成交回 `rewrite`（或一块都没转成交回 `observed`）、任一失败交回 `veto`（`reason` 只带块标识、失败值与键）。**解析不出租户 ⇒ 这一件报错**（已开始），runner 按 `treat_as_veto` 否决，不以缺席或别的租户去调 `convert` | 同上 | **受阻两处**：句柄解析出的租户身份**接口已定、真承接者未到**（runner 经 `capability.session-tenancy/v1` [S-8](../../../../spec/capabilities/session-tenancy/v1/contract.md#s-8-holdingtenant读会话持有的租户身份) 解析，runner 契约 G-20）——验收装配里最小提供者答测试种子即可跑；**产品装配里会话持有租户没有写入方**（session-tenancy G-2）⇒ 每次解析失败 ⇒ 含要转的块的消息全被否决；runner 认它需要的能力标识未定型（runner 契约 G-3）。末位由 runner 强制，不靠本节点 |
 | S-24 转换件不调模型 | P-4\* 不 inject `modelRuntime`；静态检查候选：转换件包不得 import 或解析模型请求运行时 | 同上 | 运行时拦不住一个自己 `ctx.get` 的实现，所以兑现是结构检查（契约「由提供者与装配兑现」） |
 | S-25 不发事件 | 不 `emit`、不监听 | — | [事件](#事件) |
 | S-26 左列 | 见[装配给 vs 协议给](#装配给-vs-协议给) | — | 右列不在本版 |
@@ -105,7 +128,7 @@
 | 只有系统自带的转换那一件调转换 | `convert` 的调用点只许在那一件的实现模块（静态检查） |
 | 转换产出与原消息同一次落盘 | 那一件交回挂好派生属性的 `rewrite`；**调用方按 runner S-23 以合成后的 `subject` 落盘**（owner：loop 那一程 C-8／入站受理方，都无契约，MP-N6）——runner 只写结论与提醒，从不写那条消息 |
 | 读引用所指的字节以 `tenant` 进行 | **受阻**：存储未定义（契约 G-6） |
-| `tenant` 就是这条消息所属会话的租户 | runner 按经过所在的会话造句柄，那一件只经它解析；解析的来路归 runner 契约 G-20 |
+| `tenant` 就是这条消息所属会话的租户 | runner 按经过所在的会话造句柄，那一件只经它解析；runner 经 `sessionTenancy.holdingTenant` 取（`capability.session-tenancy` v1 S-8；真承接者未到，runner 契约 G-20） |
 | 判合法目标的投影覆盖到日志尾 | 读的一方的义务（[model-request-runtime](../model-request-runtime/design.md#存储要求) 的 R-1～R-3） |
 
 ## 依赖、作用域与绑定
@@ -141,9 +164,10 @@
 
 | # | 缺口 | owner | 受阻的消费者 | 闭合条件 |
 |---|---|---|---|---|
-| MP-N1 | **已闭合**（[D-040 §八 M38](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：统一输入加执行环境句柄（`data.loop-extension/v1#S-41`），`tenant` 经它取（契约 S-20 ②、runner S-50）。仍开着的是句柄解析的来路——runner 契约 G-20，不在此重抄 | — | — | — |
+| MP-N1 | **已闭合**（[D-040 §八 M38](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：统一输入加执行环境句柄（`data.loop-extension/v1#S-41`），`tenant` 经它取（契约 S-20 ②、runner S-50）。句柄解析的来路 2026-09-25 起**接口已定**（`capability.session-tenancy` v1 S-8），真承接者未到、产品装配里没有写入方——runner 契约 G-20，不在此重抄 | — | — | — |
 | MP-N2 | **转换件的能力标识未定型**（runner 契约 G-3 的一项，owner 是本契约）：runner 认不出它，钉不了 `before_persist_message` 末位，缺席时的记录也写不出 `extension` | 本契约 owner | runner 的末位与指定挂件那一格 | 本契约定下标识 |
 | MP-N3 | **本版装哪几件转换件、声明写哪几个键没有人定**：空声明合法，但它意味着每个语音、图、文件块都原样落盘、永久进投影（契约 S-6 末段的产品后果） | 系统装配（[cli](../../../apps/cli/README.md)）＋ 产品（PF-013 §4 转换件） | 交付面、模型请求运行时的合法目标 | 装配写明声明与所装的 P-4\* |
 | MP-N4 | **静态检查规则未写**：`converterAssembly` 只给声明者与转换件包；`convert` 只许那一件的实现模块调；转换件包不得够到模型请求运行时 | 本节点 ＋ 承载仓库 `tools/ts-checks` | 契约 S-26 第 1、4 行、S-24 的装配给 | 规则写成并在 CI 里跑 |
 | MP-N5 | **资产注册表对 `lookupConverter` 取用 inject 还是调用时取用**，由那个节点定；本节点仍建议调用时取用：P-3 不再随 loop 侧换代重跑（M68），inject 的代价只剩 P-3 被显式重载时连带注册表重跑，但注册表在 P-3 缺席时本来就要按 `{ unavailable }` 收场（契约 S-19 ⑧），调用时取用与这条收场同形 | `packages/tools/asset-registry`（庚） | 资产注册表 | 那个节点写明 |
 | MP-N6 | **「转换产出与原消息同一次落盘」的兑现者没有契约**：消息由调用方按 runner S-23 以合成后的 `subject` 落盘（D-040 §八 M68），那个调用方是 loop（`producer ∈ { model, tool }`）或入站受理方（外面进来的消息），两者都没有契约；本契约的安全性质「一条消息部分转换之后落盘」的前提由它兑现 | 主线，下一程（D-040 §八 M43 C-8）＋ 入站受理方 | 契约 S-20 ④、S-26 第 5 行 | loop 契约与入站受理的契约写明按 `proceed.subject` 一次落盘 |
+| MP-N7 | **函数层的行为没有契约条款**：`convertWith`、`convertMessageBlocks` 借本契约 S-18、S-20～S-23 的判定与失败值，契约写的是服务面（与 TER T-17 同题） | 主线 | 外部取用这两个函数的人 | 契约为函数面给出条款，或明写「函数面不受契约约束」 |

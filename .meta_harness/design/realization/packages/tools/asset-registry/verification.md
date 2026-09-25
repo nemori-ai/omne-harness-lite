@@ -7,11 +7,11 @@
 
 ### 规范场景（十二条，全部未开始）
 
-契约 verification 列每条的证据形式；本表只写**在本节点上**额外受阻于什么。**共同受阻**：装配清单没有提供者（本插件整批 `PENDING`）、据点读面没有节点（design 缺口 A-2）——可做的最小形态是在验收装配里用标明「非产品行为」的替身顶上这两者，那是本节点的测试，不是契约场景的通过。
+契约 verification 列每条的证据形式；本表只写**在本节点上**额外受阻于什么。**共同受阻**：装配清单接口已定（`capability.assembly-manifest` v1）、最小提供者节点尚无（本插件整批 `PENDING`）；据点读面没有接口契约也没有节点（design 缺口 A-2）——可做的最小形态是在验收装配里装清单的最小提供者、用标明「非产品行为」的替身顶上据点读面，那是「有前提：最小提供者、读面替身」的本节点测试，不是契约场景在产品装配里的通过。
 
 | 场景 | 本节点上另外受阻于 | 状态 |
 |---|---|---|
-| [S-36](../../../../spec/capabilities/asset-registry/v1/contract.md#s-36-创建时填六张) 创建时填六张 | meta 门清单无家（契约 G-7）：「meta 门在 `tool` 表里且 `resident = true`」只能按求值给的常驻值断言；M34 那一支（过时的 `EvaluationRef` ⇒ `invalidInput{evaluationSuperseded}`）要两份六张表都来自同一份清单替身 | 未开始 |
+| [S-36](../../../../spec/capabilities/asset-registry/v1/contract.md#s-36-创建时填六张) 创建时填六张 | meta 门清单无家（契约 G-7）：「meta 门在 `tool` 表里且 `resident = true`」只能按求值给的常驻值断言；M34 那一支（过时的 `EvaluationRef` ⇒ `invalidInput{evaluationSuperseded}`）要两份六张表都来自同一个清单最小提供者（`given` 撞 `alreadyRecorded{record}`，assembly-manifest S-17 ⑦） | 未开始 |
 | [S-37](../../../../spec/capabilities/asset-registry/v1/contract.md#s-37-reload-plugin-连带) reload-plugin 连带 | 「尝试中途 reload」一支（M35）：被顶替的那一份在内存里；另加一支——实例重启之后再读同一份报告，按装配清单那条记录现建（design 关键选择四），工作区提供的资产目录已改 ⇒ `unavailable` 而不是当前那一份 | 未开始 |
 | [S-38](../../../../spec/capabilities/asset-registry/v1/contract.md#s-38-mcp-接入点连不上动作原位顶替) MCP 连不上，原位顶替 | MCP 桥（`packages/tools/mcp-bridge`，未建包）；另加一支 M37：桥把一个动作标成 `schema_unsupported` ⇒ 条目 `stand_in{for: schema_unsupported}`、同形 | 未开始 |
 | [S-39](../../../../spec/capabilities/asset-registry/v1/contract.md#s-39-命令型服务报错之后命令不再可见) 命令型服务报错之后不再可见 | —— | 未开始 |
@@ -29,14 +29,15 @@
 | # | 义务 | 证据形式 | 状态 | owner 与闭合条件 |
 |---|---|---|---|---|
 | N-1 | **实例交替时读得到旧实例在途的换表**（[关键选择二](design.md#关键选择)）：旧实例的 `reload` 在新实例建好缓存之后才追加成功；断言新实例的下一次 `lookup` 读到的是 reload 之后的表 | 演练：可控的清单替身让旧实例的追加挂住，期间让插件重跑，再放行 | 未开始 | 本节点 |
-| N-2 | **两个写入者撞条件追加**：同一会话 `fill` 与 `reload(plugin)` 并发（两个实例、同一份清单），以及同一实例两次 `reload(skill)` 并发（队列关掉）。断言清单里一条接一条、没有半截、多表那一次整批成立、后到者按清单重做而不是覆盖 | **真并发**演练 | 未开始；受阻于装配清单提供者 | 本节点 ＋ 装配清单提供者（互指 R-M1） |
+| N-2 | **两个写入者撞条件追加**：同一会话 `fill` 与 `reload(plugin)` 并发（两个实例、同一份清单），以及同一实例两次 `reload(skill)` 并发（队列关掉）。断言清单里一条接一条、没有半截、多表那一次整批成立、后到者按清单重做而不是覆盖 | **真并发**演练 | 未开始；受阻于装配清单最小提供者节点尚无（接口 `capability.assembly-manifest/v1#S-12` 已定） | 本节点 ＋ 装配清单提供者（互指 R-M1） |
 | N-3 | 条件追加连续两次冲突 ⇒ `unavailable`，缓存与清单都不留这一次 | 故障注入 | 未开始 | 本节点 |
 | N-4 | `fill` 回执丢了的重试：同一个 `EvaluationRef` 再 `fill` ⇒ 原样返回、清单不多一条（R-M2）；此后有过 `markFailed`（只改 `slash_command` 一张、`basedOn` 沿用）再拿旧的 `EvaluationRef` `fill` ⇒ `invalidInput{evaluationSuperseded}`——判据取「六份任一 `filledBy ≠ assembly` 或 `basedOn` 已变」的最严一读（N-21） | 演练 | 未开始 | 本节点 |
 | N-5 | 同一毫秒里连续两次换表，`filledAt` 严格递增（A-4） | 单元测试，可控时间替身 | 未开始 | 本节点 |
 | N-6 | 撤除之后到达的调用答 `unavailable`；在途调用跑完、按它那一次追加收场 | 演练 | 未开始 | 本节点 |
 | N-7 | 静态检查：本包不 `emit`、不监听事件；不 inject `storage`；求值只经 `core/asset-evaluation` 的公开入口 import，本包内没有第二份求值；**本包不自组 `BodyContracts`**，asset-model 判定对象只用 `core/asset-evaluation` 导出的 `defaultBodyContracts` 构造（M51） | 结构检查（`tools/ts-checks` 的规则，候选），带「故意违反就失败」的自测 | 未开始 | 本节点 ＋ ts-checks owner |
 | N-8 | `provide` 由 effect 纳管（kernel-basis probe `provide-is-effect-managed`）升格为 basis 条目 | basis 升格 | 未开始（**待核对主张**） | `core/kernel-basis` owner |
-| N-9 | **被顶替快照的留存**（[关键选择四](design.md#关键选择)）：一次尝试里接连两次 reload（内存只留上一份）⇒ 那一次尝试的读仍按它的报告所依的那一份，按装配清单记录现建；装配清单删了那条历史记录 ⇒ `unavailable`（R-M9 的反例） | 演练（清单替身） | 未开始 | 本节点 ＋ 装配清单提供者（互指 R-M9） |
+| N-9 | **被顶替快照的留存**（[关键选择四](design.md#关键选择)）：一次尝试里接连两次 reload（内存只留上一份）⇒ 那一次尝试的读仍按它的报告所依的那一份，按装配清单记录现建；装配清单删了那条历史记录 ⇒ `unavailable`（R-M9 的反例） | 演练（前一支用清单最小提供者；「删了」那一支用按 `capability.assembly-manifest` v1 行为、另开删除口的测试替身——最小提供者本版不删，S-24） | 未开始 | 本节点 ＋ 装配清单提供者（互指 R-M9） |
+| N-10 | **公开函数面**（[design 的公开面](design.md#公开面)）：四个函数不装 Cordis、不给清单与时钟即可调；`buildSnapshots` 撞名得 `toolNameConflict`；`computeAvailability` 读数缺一项即那一项「读不到」；`findInSnapshot` 只在给定那一份里找——**反证**：函数层不判「这一份是不是报告所依那一份」，那是服务面的事 | 单元测试 | 未开始 | 本节点；有实现即可跑 |
 
 ## 实际执行
 
@@ -45,7 +46,7 @@
 ## 覆盖缺口
 
 - **全部条款没有任何实现证据**：源码、测试、集成运行都不存在。
-- **整批受阻**：装配清单（A-1，对应契约 G-1）与据点读面（A-2）都没有提供者——本插件在它们出现之前不会进入 `ACTIVE`。受阻消费者：执行运行时的 `submit`、agent loop 的尝试开始（无节点）、`Tools()`／`Skills()`、斜杠命令识别、MCP 桥的接入点持有来源。
+- **整批受阻**：装配清单（A-1，对应契约 G-1；接口已定、最小提供者节点尚无）与据点读面（A-2，接口未立）都没有提供者——本插件在清单的提供者装上之前不会进入 `ACTIVE`。受阻消费者：执行运行时的 `submit`、agent loop 的尝试开始（无节点）、`Tools()`／`Skills()`、斜杠命令识别、MCP 桥的接入点持有来源。
 - **原先契约内部对不上的两处**（A-5、A-6）已随修复波 3 定下（M34、M35），证据义务落在 S-36、S-37 的新支与 N-4、N-9。装配清单与据点读面按 M43 本程不补。
 - **契约 G-6 在本批的后果**：凡声明了外部服务、设施、存储或模态项的工具与技能一律是替换件——S-40 只能用替身演练，真实装配里可用的工具只有「没有这些项」的那几件。
 - **不绑形式结论**：契约没有形式工件；[bindings](bindings.yaml) 为空。
@@ -61,3 +62,15 @@
 | AR-2（观察） | `refreshAvailability` 逐接入点串行调桥，尝试开始的时长上界是接入点数 × `connectTimeout` | 不作发现；design 已写「接入点多了再议」 | —— |
 | N1 建议 3（落到本节点） | `BodyContracts` 有三处组合根（资产治理插件体、本注册表插件体、`core/asset-evaluation` 加载时），S-27「同一值在每个接收边界得同一个拒绝值」要三处组合逐一相同，而没有检查 | 按 M51：只 import `core/asset-evaluation` 导出的 `defaultBodyContracts`，不自组 | design.md 实现路径表「正文端口的组合根」行；README；本页 N-7 |
 | 转 spec-reviewer（表达） | 本页义务表 N-9 排在 N-4 与 N-5 之间 | 顺手移到 N-8 之后，内容不变 | 本页证据义务表 |
+
+## 修订波（2026-09-25 公开面）
+
+依据：[D-043](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1、R-2，[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)，[D-040 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-37 ③。契约侧（本契约 S-13 改 `$ref`、G-1／A-1 改指 manifest）由规格侧并行落，本节点只引条款号。**处置不等于接受或评审闭合。**
+
+| 事项 | 依据 | 处置 | 落点 |
+| --- | --- | --- | --- |
+| 公开面 | SYS-OPEN；D-043 R-2 | 新开「公开面」一节：四个纯函数公开，服务面组合；函数层不承诺的运行时不变量逐条列出 | design.md「公开面」；README 公开面一条；本页 N-10 |
+| 装配清单接线 | D-043 R-1；`capability.assembly-manifest` v1 | 必需 inject 的服务键 `assemblyManifest` 不变、改指接口契约；R-M1～R-M9 加「接口契约兑现条款」一列；清单失败值逐一映射；A-1 改写为「接口已定、真承接者未到」 | design.md 插件边界、关键选择一与三、S-18 行、依赖表、要求清单、失败值对应、A-1、归装配；README；本页共同受阻、N-2、N-9、S-36 行 |
+| `EvaluationRef` 权威 | N-37 ③ | S-13 行改为引用 `capability.assembly-manifest/v1#S-8`；`fill`／`reload`／收窄三种追加分别用 `given`／`mint`／`reuse` | design.md S-13 行 |
+| 会话事实的租户那一片 | M48；`capability.session-tenancy` v1 S-8 | S-16 行与依赖表写明它与 `sessionTenancy` 同一读面，其余几片仍归 A-2 | design.md S-16 行、依赖表 |
+| 写入方记下的 `content` 形状 | 起草时推导；assembly-manifest G-4 | 报主线：派发器与模型请求运行时从本节点写下的记录里取值，读法未约定 | design.md「报给主线」 |

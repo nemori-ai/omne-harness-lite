@@ -8,17 +8,19 @@
 |---|---|---|---|
 | `capability.model-request-runtime/v1#S-15`、`#S-17`、`#S-22`、`#S-30`、`#S-31`、`#S-33` | 形式任务 `model-request-runtime-v1-invocation`：六条有否定配置的不变量 | **已执行**（契约层；run `2026-09-25-formal-assets-runtimes`，退出 0）；绑在 [`bindings.yaml`](bindings.yaml) | 主线；模型改动后重跑 |
 | 同上（不允许回退的常量） | 形式任务 `model-request-runtime-v1-invocation-no-fallback` | **已执行**（同一 run，退出 0）；**不绑**：否定配置只在允许回退的常量下演示过 | 主线；要绑须在不允许回退的常量下补否定配置 |
-| `#S-41`～`#S-48`、`#S-52` 规范场景 | 包内场景测试：真实 P-2 ＋ 脚本化传输 ＋ 真实会话日志提供者 ＋ 真实存储（sqlite 临时文件库） | 未开始；**受阻**：会话日志提供者（MRR-N1）、保管方（MRR-N2）、装配清单读面（MRR-N3）；**`#S-41`～`#S-48`、`#S-52` 全部另受契约 G-19 阻断**（允许集合 `A` 读不到 ⇒ `openCall` 恒 `unavailable`，D-040 §八 N-33）——G-19 闭合前只能跑不经 `openCall` 的子集：`sessionTenancy` 单元、离线凭据收场、P-5 退避与覆盖、S-35 表驱动、S-13／S-14／S-49／S-50 表驱动 | 本节点；四处阻断闭合后 |
+| `#S-41`～`#S-48`、`#S-52` 规范场景 | 包内场景测试：真实 P-2 ＋ 脚本化传输 ＋ 真实会话日志提供者 ＋ 真实存储（sqlite 临时文件库） | 未开始。**G-19 已按 [D-043 R-4](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) 闭合**（`A` = 范围里登记的全部档案，由目录读面直接给）：`legalTargets`、`displayList` 与经它们的场景**解阻**（`sessionTenancy`、目录、会话日志用最小提供者 ＋ 测试种子）。**仍受阻**：从没切换过的会话一律 `unavailable`（契约 G-20，MRR-N13），场景须先经 `selectModel` 写一条切换记录；写过切换的会话，`effectiveModel` 的锁判与 `dispatch` 的两个时限要读求值结果，挡在 **assembly-manifest G-4**（读法未约定，MRR-N3）——验收装配由最小提供者 ＋ 测试种子给出一份不含「用哪个模型」项的求值（⇒ 没有锁）与时限值；`openCall` 本身不读求值（S-28 ④）；会话日志、保管方、装配清单的最小提供者节点尚无（MRR-N1～N3）。**函数面**：`invokeModel` ＋ 脚本化传输跑发出、收场、成因、脱敏、装配各支，不受上述任何一处挡。按 D-040 §八 N-35 ①：只在最小提供者 ＋ 测试种子上跑通的记「有前提」，不计入实际验证完成数 | 本节点；各阻断闭合后 |
+| 公开函数面 `invokeModel`（[design 的公开面](design.md#公开面)） | 单元测试：不装 Cordis、不给存储与会话，只给档案快照、消息、凭据值与脚本化传输即跑通一次发出；首个内容出现前 `beforeFirstContent` 被 await、它未完成时快照里没有内容；`abort()` ⇒ 收场与账如实；**反证**：同一请求两次 `invokeModel` 就是两次发出（函数层不判「开口之后不再发」、不写锚点）；传输答失败时 `invokeModel` 不自己回退到下一家 | 未开始 | 本节点；有实现即可跑（不受阻） |
+| 服务面复用同一个 `invokeModel` | 结构检查：P-2 的发出只经 `invokeModel`；演练：「已出门」确认之后才调它、「已开口」确认之后内容才推给观察者（与绑 S-15 的模型互为两层证据） | 未开始 | 本节点 ＋ `tools/ts-checks` |
 | `#S-46` 成因分类与脱敏 | 哨兵串场景：七种失败源、全部记录里找不到凭据原文与其片段 | 未开始；受阻于契约 G-5、G-6（没有值就没有可测的配置） | 本节点；G-5、G-6 定值后 |
-| `#S-13` 投影追到日志尾 | 性质测试：任意日志前缀上，追补后的读 = 对整份日志重算；伸缩测量：读的代价与历史长度无关 | 未开始 | 本节点；有实现即可跑（只依赖日志读面的替身不算——须对真实日志提供者） |
+| `#S-13` 投影追到日志尾 | 性质测试：任意日志前缀上，追补后的读 = 对整份日志重算；伸缩测量：读的代价与历史长度无关 | 未开始 | 本节点；有实现即可跑（只依赖测试日志端口的不算——须对 `capability.session-log` v1 的真实提供者，最小提供者即可） |
 | 被建模方式吸收的四条（`#S-22` 第 2、5 条，续接同一家，`#S-28` ④） | 场景 `#S-41`、`#S-42`，examples 第 4、8、11 节 | 未开始；同上受阻 | 本节点 |
 | 跨 owner 的三条交错（[design 表 X-1～X-3](design.md#跨-owner-的共同存储对象与三条交错)） | 真并发演练 C-1（宿主停止 ‖ loop 写回复）、C-2（旧尝试写「已出门」‖ 新尝试推进并对账）、C-3（不属于运行的调用，旧实例 ‖ 新实例续接）：两副协程、同一日志、插桩让它们在提交前交叠 | 未开始；**受阻**：共同对象 L-2、L-4、L-6 所在的会话日志提供者不存在 | 本节点 ＋ 块 D；日志提供者到位后 |
 | 契约 `#S-38` 传输适配十一条 | 适配层符合性测试：脚本化 HTTP 下逐条断言（单家、禁回退、无隐藏重试、状态码取自实际响应、不回落环境凭据、不送会话标识、固定 base URL 拒重定向、改值与丢项出网前定下、不逆转写……） | 未开始；受阻于 fork 包无节点（MRR-N4）；第 1、2、4、5、7 条依赖的上游事实在研究层（契约 G-10），须先按来源核对升 basis | 主线 → fork 节点 |
 | 假设 H-1（effect 提前撤除） | kernel-basis probe | 未开始 | `packages/core/kernel-basis` |
 | 静态检查 | `credentialLookup` 的调用点只在「发出」模块；锚点写只经调用方交来的口 | 未开始（规则未写） | 本节点 ＋ 承载仓库 `tools/ts-checks` |
-| `#S-7`、`#S-19` 发起租户的来路（D-040 §八 M66） | 单元测试：`sessionTenancy` 替身答租户 A ⇒ 取值问法收到 A；读面缺席或答不出 ⇒ 那一次操作 `unavailable`，取值问法**一次都没被调**；`openCall` 输入里没有租户这一项 | 未开始 | 本节点；有实现即可跑 |
-| `#S-19` 离线凭据收场（D-040 §八 M47） | 场景测试：`credentialLookup` 替身答 `credentialUnavailable`（据点离线、没有副本）⇒ 首次发出 `undispatched{credential_unavailable}`、续接 `released{cause: credential_unavailable}` | 未开始 | 本节点；有实现即可跑 |
-| `#S-35` P-5 的默认退避（D-040 §八 M67） | 单元测试：`Config` 不给 `defaultRetryBackoff` ⇒ 用 `[1000, 2000, 4000]` ms、第四次不再给 `retry`；给出别的值即覆盖；不合形状 ⇒ 启动失败 | 未开始 | 本节点；有实现即可跑。数值确认归产品负责人（G-8） |
+| `#S-7`、`#S-19` 发起租户的来路（D-040 §八 M66） | 单元测试：`sessionTenancy`（按 `capability.session-tenancy/v1#S-8` 的答复分法写的测试件，或它的最小提供者 ＋ 测试种子）答租户 A ⇒ 取值问法收到 A；读面缺席或答 `sessionNotFound`／`unavailable` ⇒ 那一次操作 `unavailable`，取值问法**一次都没被调**；`openCall` 输入里没有租户这一项 | 未开始 | 本节点；有实现即可跑 |
+| `#S-19` 离线凭据收场（D-040 §八 M47） | 场景测试：`credentialLookup`（P-1r 或按 `capability.model-profile-directory/v1#S-20` 写的测试件）答 `credentialUnavailable`（据点离线、保管方 `readReplica` 答 `absent`）⇒ 首次发出 `undispatched{credential_unavailable}`、续接 `released{cause: credential_unavailable}` | 未开始 | 本节点；有实现即可跑 |
+| `#S-35` P-5 的策略对象（[D-040 §八 N-36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)；[design](design.md#p-5重试策略是一个可配置对象)） | **性质测试**（`retryDelay`）：结果 ∈ `[0, max]`；`jitter: none` 时 `linear`／`exponential` 对 n 单调不减；`full` ∈ `[0, d]`、`half` ∈ `[d/2, d]`、`decorrelated` ∈ `[base, max]`；同一 (策略, n, 种子) 同一结果；默认初值下 n = 1～4 依次 1000、2000、4000、4000。**单元测试**（`decideRetry`）：S-35 五条逐条，含「允许回退时每家至多一次」「不允许回退时同家一次」「没有下一家即试尽」——次数不来自配置；`Config` 不给 `retryPolicy` ⇒ 取默认初值；`kind` 不在枚举、`max < base`、`factor < 1` ⇒ 启动失败 | 未开始 | 本节点；有实现即可跑 |
 
 ## 实际执行
 
@@ -50,3 +52,19 @@
 | M-4（建议） | `openCall` 的宿主句柄形状只在正文里作候选，loop 契约起草者看不到这项义务 | 按 M67：登缺口 MRR-N11，owner C-8 | design.md「一次调用是宿主上的一个 effect」第一条、MRR-N11 |
 | N5 B-2（cli 批反推） | 离线调模型的凭据来源 | 按 M47：据点上 `credentialLookup` 由 P-1r 先读保管方里的本地副本；保管方缺席的本版离线如实 `undispatched{credential_unavailable}` | design.md 操作落点 S-19 行、装配给表凭据一行、MRR-N2；README；本页证据义务新增一行 |
 | 反证清单 1～5 | loop 把会话级写入也做成调用方交口；H-1 不成立且子作用域代价更高；出现第二条不经 P-2 的发出通道；会话日志契约给不出 L-2／L-4；出现只要选择不要调用的消费者 | 照录为改选条件，本版都未触发（第 1 条已写在 design.md 末段） | 本表 |
+
+## 修订波（2026-09-25 公开面）
+
+依据：[D-043](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1、R-2、R-4、R-5，[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)，[D-040 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-36、N-37。本波只改节点；契约侧（G-19、G-8、S-11）由规格侧并行落，本节点只引裁决与条款号。**处置不等于接受或评审闭合。**
+
+| 事项 | 依据 | 处置 | 落点 |
+| --- | --- | --- | --- |
+| 公开面 | SYS-OPEN；D-043 R-2、R-5 | 新开「公开面」：`invokeModel`（一次发出）、`TransportAdapter` 与 pi-ai 传输 fork 作公开构件、`classifyCause`、`redact`、S-10～S-12 纯判定、`dispatchGuard`、`decideRetry`、`retryDelay`；P-2 复用 `invokeModel`；跨发出守卫、锚点、结算、SYS-LLM 列为函数层不承诺；登 MRR-N12 | design.md「公开面」、MRR-N12；README；本页函数面两行 |
+| P-5 策略对象 | N-36 | `defaultRetryBackoff` 列表改为 `retryPolicy { kind, base, factor, max, jitter }`，默认初值在配置层、与原列表逐次相同；次数由 S-35 推出；自写算术配性质测试，不引库；`decorrelated` 以 (`callId`, n) 为种子（取舍表） | design.md「P-5：重试策略是一个可配置对象」、插件表 P-5 行、S-35 行、配置错误段、装卸表；本页 `#S-35` 一行 |
+| G-19 闭合 | D-043 R-4；契约 G-19（`f0998468` 起已闭合） | `A` 由目录读面直接给；`legalTargets`、`selectModel`、写过切换记录的会话的 `displayList` 解阻；`openCall` 按 S-28 ④ 不读求值；`effectiveModel` 的锁判与 `dispatch` 的时限仍挡在 assembly-manifest G-4（报主线） | design.md S-9～S-12 行、inject 表、依赖表、MRR-N3；本页场景行 |
+| 会话日志接线 | `capability.session-log` v1 S-6～S-10、S-13～S-19 | L-1～L-8 加「接口契约兑现条款」一列；L-4 改为「在日志条目壳上判、不另存尝试行」；共同对象第 2 条与 X-2、X-3 改写；失败值映射 | design.md 存储要求、跨 owner 一节、依赖表；MRR-N1；bindings 文件头与 S-17 条 |
+| 装配清单、会话持有租户、保管方接线 | `capability.assembly-manifest` v1 S-16、G-4；`capability.session-tenancy` v1 S-8、G-2；`capability.credential-custodian` v1 | 服务键不变，改指条款；缺口改写为「接口已定、真承接者未到」；产品装配里会话持有租户恒 `sessionNotFound` 如实写出 | design.md 插件表、S-7 行、inject 表、依赖表；MRR-N2、MRR-N3、MRR-N10 |
+| 传输 fork | D-043 R-5 | 基线与托管已定，MRR-N4 改为「只缺节点本身」 | design.md 实现路径、公开面、MRR-N4 |
+| G-20 与「没有锁」（对齐契约侧提交 `f0998468` 与主线 2026-09-25 裁定） | 契约 S-9、S-10 第 2 步、S-26、G-20；`capability.asset-evaluation/v1#S-12` | 求值成功而没有「用哪个模型」这一项 ⇒ 没有锁、取第 1 步的名字；读不到才 `unavailable`；从没切换过的会话仍 `unavailable`（新立 MRR-N13：新会话在第一次切换之前发不出请求）；MRR-N3 收窄为锁判与时限 | design.md S-9～S-12 行、inject 表、依赖表、MRR-N3、MRR-N13；本页场景行 |
+| G-8 闭合 | 契约 G-8、S-35 | 「值不在本节点」一条改为引契约已闭合的策略对象 `default_retry_backoff`（`kind`／`base`／`factor`／`max`／`jitter`）；上面独立评审 M-3 一行的「G-8 保持开着」是当时的处置，已被本行取代 | design.md「值不在本节点」 |
+

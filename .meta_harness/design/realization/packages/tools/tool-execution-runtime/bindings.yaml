@@ -15,7 +15,9 @@
 #   与 R-T1（执行记录、出站项同一次提交）。这两条由存储提供者与本节点代码承担，模型不检查。
 # - 模型里送达是「交付 + 追加」两步，本节点选的发件箱是其中一种形状；按 (会话, CallId, 段) 幂等在模型里由
 #   「追加即清掉交付物」兑现——真实的幂等靠会话日志一侧按耐久状态判「已在」（design.md L-1：消息按段、
-#   记录条目按出站项自己的 seq，M70），那个提供者尚不存在。
+#   记录条目按出站项自己的 seq，M70）；那一侧的接口是 capability.session-log v1 S-8、S-14（2026-09-25 起草，candidate），
+#   最小提供者节点尚无——接口已定不等于有提供者兑现它。
+# - 模型只覆盖运行时层：本节点的公开函数面 invokeTool（design.md「公开面」）不在模型里，函数层也不承诺这几条性质。
 # - 无公平性、不检查进展；CHECK_DEADLOCK 关闭。
 #
 # 不绑：
@@ -45,7 +47,7 @@ bindings:
     assumptions:
       - "性质 EndedIsLanded；去保护配置 Execution_VolatileHandoff.cfg（DurableHandoff = FALSE）按预期反驳：交付物只在进程内存里，停机即丢"
       - "性质 AtMostOneToolMessage；补充否定配置 Execution_NoFirstWins_ToolMessage.cfg 按预期反驳：晚到的完成再落一条工具消息"
-      - "模型的「交付」对应本节点出站项与执行记录同一次提交（R-T1），「追加」对应排空器；「按 (CallId, 段) 幂等」在模型里由追加即清掉交付物兑现，真实系统里靠会话日志提供者按耐久状态判「已在」（design.md L-1，消息按段、记录条目按 seq；提供者尚不存在）"
+      - "模型的「交付」对应本节点出站项与执行记录同一次提交（R-T1），「追加」对应排空器；「按 (CallId, 段) 幂等」在模型里由追加即清掉交付物兑现，真实系统里靠会话日志提供者按耐久内容判「已在」（design.md L-1，消息按段、记录条目按 seq；接口 capability.session-log/v1#S-8、#S-14，最小提供者节点尚无）"
       - "Drain 一步追加全部待追加消息：两条消息分两次追加时的先后（占位在提醒之前）不在模型里，证据形式是场景 S-52（未开始）；消息的内容不在模型里"
       - "run：record/evidence/2026-09-25-formal-assets-runtimes，退出 0"
     alignment_checked: 2026-09-25
@@ -105,6 +107,6 @@ bindings:
     evidence: "formal:tool-execution-runtime-v1-execution"
     assumptions:
       - "只证「一次执行恰一份账、只在收场时落」：性质 OneAccountPerEnded；补充否定配置 Execution_NoFirstWins_Account.cfg 按预期反驳"
-      - "账的内容（费用、起止时刻、被拒的一笔、frames 与 reportedCost、late）不在模型里；late 经据点读面 runAttemptFacts 在落账事务之前现读（M74，契约 G-18 仍开着），与「落下时」之间的漏标窗口模型不检查（design.md「跨 owner 的现读」、verification N-17）"
+      - "账的内容（费用、起止时刻、被拒的一笔、frames 与 reportedCost、late）不在模型里；late 经 runAttemptFacts（接口 capability.run-attempt-facts/v1#S-9）在落账事务之前现读（M74，契约 G-18 仍开着），与「落下时」之间的漏标窗口模型不检查（design.md「跨 owner 的现读」、verification N-17）"
       - "run：record/evidence/2026-09-25-formal-assets-runtimes，退出 0"
     alignment_checked: 2026-09-25

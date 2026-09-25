@@ -1,9 +1,31 @@
 # 条款到证据的绑定表。
-# 空：capability.mcp-bridge v1 本版不建形式工件（契约 S-31：OAuth 绑定是三状态表、副本是一次条件写、收口是进程内三步次序，
-# 都改写成规范场景与静态检查），registry 里没有它的 formal task；本节点尚未建包，没有测试。
-# 证据形式（规范场景 S-32～S-38、本节点的真并发演练、SDK 能力的来源核对）逐条记在 verification.md，全部未开始。
+# capability.mcp-bridge v1 本版不建形式工件（契约 S-31：OAuth 绑定是三状态表、副本是一次条件写、收口是进程内三步次序，
+# 都改写成规范场景与静态检查），registry 里没有它自己的 formal task；本节点尚未建包，没有测试。
+# 唯一一条借保管方契约的 formal task credential-custodian-v1-sweep（capability.credential-custodian v1 S-21 的 Sweep.tla）：
+# 那份模型把本契约 S-23 ④ 的完成建成动作 Complete，本节点「过期按锁到之后取的时刻判」就是它的前提 CompleteFreshTime，
+# 去保护配置 Sweep_Validity_StaleCompletionTime.cfg 按预期推翻 GrantedResolvable——这是一条会失败的证据。
+# run：record/evidence/2026-09-25-formal-credential-custodian（正配置 -workers 4 退出 0、无反例；五份核对全按预期）。
+#
+# 共同前提：
+# - 证的是契约模型，不是本节点的代码：本节点尚未建包；保管方最小提供者节点尚无。
+# - 模型把每个动作对它所碰的绑定建成原子一步，即假设 R-B4（绑定行锁定读）与 R-B5（保管方条目与绑定同一存储、同一约束域，
+#   D-040 §八 N-37 ⑤ 的落处）真的兑现；这两条由存储提供者、保管方最小提供者与装配承担，模型不检查，证据是 verification N-2 的真并发。
+# - 公开函数面（design.md「公开面」）不在模型里；函数层不承诺 S-23。
+#
+# 不绑：
+# - 规范场景 S-32～S-38、本节点的真并发演练、SDK 能力的来源核对：全部未开始，逐条记在 verification.md。
+# - 清扫只丢三种（保管方 S-18 第 1 条后半）：在模型里按构造成立（ThreeKinds 守卫），不作证据。
 version: 1
 node: "mcp-bridge"
 kind: "provider"
 
-bindings: []
+bindings:
+  - clause: "capability.mcp-bridge/v1#S-23"
+    evidence: "formal:credential-custodian-v1-sweep"
+    assumptions:
+      - "只覆盖 S-23 与保管方清扫交错时「绑定 granted 却交不出」不发生（性质 GrantedResolvable）；本节点那一半是 Complete 的前提 CompleteFreshTime（过期按排到绑定之后读的时刻判），去掉即出反例（Sweep_Validity_StaleCompletionTime.cfg）"
+      - "不覆盖：用授权码换取凭据（外部效果）、⑦ 同一绑定第二次完成 ⇒ oauthDenied 的返回值、⑧ 保管方或存储不可用 ⇒ dependencyUnavailable、配值入口的交付——它们各有规范场景或单元测试（verification）"
+      - "「在绑定上排序」是模型的前提（每个动作对它的绑定原子），不是结论；本节点靠 R-B4 的锁定读兑现，保管方靠同一存储里同一行的锁定读兑现"
+      - "固定规模：一份持有、两个绑定、三个引用、TTL = 1、时钟到 3；更大的规模没有检查"
+      - "run：record/evidence/2026-09-25-formal-credential-custodian，正配置第二次（-workers 4）退出 0；第一次按旧登记超时未得结论，不计"
+    alignment_checked: 2026-09-25

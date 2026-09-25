@@ -13,7 +13,9 @@
 # 共同前提（除非条目另写）：常量 NumProviders = 2、AllowFallback = TRUE、MaxDispatch = 3、MaxCrashes = 2；
 # 模型只有一次调用、不含 loop 与拓展件（DispatchAgain 与计划是非确定选择）；
 # 「写下一条响应体」「写下一个锚点」是原子动作——追加口的原子性、按 ResponseId 的幂等、确认即落盘
-# 由会话日志提供者承担（节点存储要求 L-1、L-2、L-6），那个提供者尚无契约、无节点，模型不检查。
+# 由会话日志提供者承担（节点存储要求 L-1、L-2、L-6；接口 capability.session-log/v1 S-8、S-13、S-17 已定，candidate），
+# 最小提供者节点尚无——接口已定不等于有提供者兑现它；模型不检查。
+# 模型只覆盖运行时层：公开函数面 invokeModel（design.md「公开面」）不在模型里，函数层也不承诺这几条性质。
 version: 1
 node: "model-request-runtime"
 kind: "provider"
@@ -31,7 +33,7 @@ bindings:
     evidence: "formal:model-request-runtime-v1-invocation"
     assumptions:
       - "AtMostOneBodyPerDispatch：先到者赢、同一次发出至多一条响应体；否定配置 NonIdempotentSettle 出反例（宿主停止时正常收场与撤除结算各写一条）"
-      - "模型里「先看有没有、再写」是一个原子动作；实现里由会话日志上 (会话, ResponseId) 的唯一键兑现（L-2），跨 owner 的那一半（loop 的回复与响应体一次写下）不在模型里，证据是真并发演练 C-1"
+      - "模型里「先看有没有、再写」是一个原子动作；实现里由会话日志上以 ResponseId 拼的判重键兑现（L-2；capability.session-log/v1#S-8，判定与写入同一步 #S-14），跨 owner 的那一半（loop 的回复与响应体一次写下）不在模型里，证据是真并发演练 C-1"
       - "reply_pending、settleReply、结算不受栅栏拒收都不在模型里"
       - "run 2026-09-25-formal-assets-runtimes：退出 0"
     alignment_checked: 2026-09-25
