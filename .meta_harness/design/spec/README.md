@@ -87,6 +87,8 @@ Alloy 可按结构关系建立模型，检查断言并探索合法实例；参�
 
 ## 当前状态
 
+**2026-09-25 新增七份接口契约（candidate）**：`capabilities/{session-log, assembly-manifest, session-tenancy, run-attempt-facts, credential-custodian, execution-environments, center-connection}` v1——两块运行时 inject 依赖的窄口，按消费者需要定，真提供者随各自那一程到来时出新版本（[D-043 R-1](../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）。连同本程此前的 27 份，候选共 34 份，接受归 D-041（待签）。
+
 **已接受的有七个 topic**，前六个列在下表（都属租户相关领域与治理中心入口），**全部 `accepted`、资源已冻结**：
 前五个 v1 依据 [D-023](../record/decisions/tenant-domain-design-acceptance/README.md)（产品负责人，2026-09-22）；
 `compositions/governance-center-entry` v1 与 `capabilities/account-identity` **v2** 依据 [D-028](../record/decisions/governance-center-design-acceptance/README.md)（产品负责人，2026-09-23；主责产品依据 PF-017 rev 2）。账号能力 v1 与 v2 并存：注册组合与治理契约仍钉 v1，入口契约钉 v2：

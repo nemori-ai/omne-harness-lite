@@ -313,6 +313,54 @@
         "spec/capabilities/tool-execution-runtime/v1/formal/Execution.tla"
       ],
       "timeout_seconds": 2400
+    },
+    {
+      "id": "session-log-v1-appends",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/session-log/v1/formal/SessionLog.tla",
+        "spec/capabilities/session-log/v1/formal/SessionLog.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/session-log-v1-appends",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/session-log/v1/formal/SessionLog.cfg",
+        "spec/capabilities/session-log/v1/formal/SessionLog.tla"
+      ],
+      "timeout_seconds": 300
+    },
+    {
+      "id": "credential-custodian-v1-sweep",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/credential-custodian/v1/formal/Sweep.tla",
+        "spec/capabilities/credential-custodian/v1/formal/Sweep.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/credential-custodian-v1-sweep",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/credential-custodian/v1/formal/Sweep.cfg",
+        "spec/capabilities/credential-custodian/v1/formal/Sweep.tla"
+      ],
+      "timeout_seconds": 300
     }
   ]
 }
