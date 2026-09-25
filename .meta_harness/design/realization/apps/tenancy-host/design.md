@@ -533,7 +533,7 @@ OG v2 片段对已有数据只加两列、不补值：存量记录的时刻留�
 | 官方档案清单装入由谁发起、`manifestNotNewer` 怎么收场 | model-profile-directory | **已定**（该节点）：P-1 插件体、`provide` 之前；记 error 照常服务——本节点沿用 |
 | 装载清单与迁移合成列入 P-1（该节点 MPD-N3） | 本节点 | 本节（候选） |
 | 发布清单的来源与序号（该节点 MPD-N5） | 本节点 ＋ 发布流程 | 本节点给单一来源「随本应用发布、启动时交入」；序号跨发布单调归发布流程（U-8） |
-| 凭据保管方与它的部署秘密（该节点 MPD-N1） | 主线 | 保管方有契约与提供者后，本节点按部署密钥规矩下发它要的秘密（U-9） |
+| 凭据保管方与它的部署秘密（该节点 MPD-N1） | 主线 | 据点一侧已有窄口 [`capability.credential-custodian` v1](../../../spec/capabilities/credential-custodian/v1/contract.md)（只在据点，最小提供者随据点装配）；**中心一侧**该契约本版不收（它的 [G-7](../../../spec/capabilities/credential-custodian/v1/contract.md#十一已知缺口)），本节点仍无保管方可装（U-9）；真承接者 `infra/secrets` 那一程到了再按部署密钥规矩下发它要的秘密 |
 | `assembly.manifest-shape` 纳入两条新 fiber | 本节点测试 | 实现时补 |
 
 ## 依赖、作用域与绑定
@@ -704,7 +704,7 @@ OG v2 片段对已有数据只加两列、不补值：存量记录的时刻留�
 | **U-6 本程追加的中心各面对外不可达**（候选）：入口契约 v1 路由表封闭，入口层不 inject 资产四个面与 `modelCatalog`；`byAgent` 与凭据跨进程送达都没有来路 | **受阻消费者**：治理中心与 CLI/TUI 的全部资产流程、据点的求值组输入与目录副本、据点取凭据 | 主线：入口契约出 v2（D-040 PA-5、PC-3）；之后本节点的入口层装配与承接表随之修订 |
 | **U-7 时刻严格递增**（候选）：本节点只装一份 `clock`，它的 `now()` 只保证不后退 | AT S-34、OG v2 S-42 末行在本装配上兑现不了；「不复活」在同一毫秒内的那一支 | [`infra/clock` 的 C-15](../../packages/infra/clock/design.md#实施缺口与消费者影响)（D-040 §八 M58 已选手段，下一程实施） |
 | **U-8 官方档案清单的序号跨发布单调**（候选）：本节点只给单一来源（随本应用发布），序号由谁给、怎样保证每次发布更大，发布流程还没有 | 一次发布若带了不更新的序号，P-1 照常服务但不装新清单——新官方档案不生效，只以一条 error 事件暴露 | 发布流程（model-profile-directory MPD-N5 同一事项）；本节点无动作 |
-| **U-9 凭据保管方没有契约与提供者**（候选）：出厂格引用与租户绑定都换不成值 | 取值恒 `unavailable`（本版中心不 provide 取值面，受阻的是据点与单进程装配的模型请求）；保管方若要部署秘密，本节点届时按部署密钥规矩下发 | 主线（model-profile-directory MPD-N1）；D-040 §八 M43 定为本程不补、下一程立 `infra/secrets`（C-5） |
+| **U-9 中心一侧没有凭据保管方**（候选）：出厂格引用与租户绑定在中心换不成值——据点一侧的窄口 [`capability.credential-custodian` v1](../../../spec/capabilities/credential-custodian/v1/contract.md) 只收据点（它的 [G-7](../../../spec/capabilities/credential-custodian/v1/contract.md#十一已知缺口) 把中心一侧留给 `infra/secrets` 那一程） | 中心取值恒 `unavailable`（本版中心不 provide 取值面；据点与单进程装配的模型请求经据点的最小提供者，不受本条阻）；保管方若要部署秘密，本节点届时按部署密钥规矩下发 | 主线（model-profile-directory MPD-N1）；D-040 §八 M43 定为本程不补、下一程立 `infra/secrets`（C-5） |
 | **U-10 官方件清单没有产品内容**；中心与据点程序版本不一致时出厂格取哪一份未定 | 出厂层为空时「出厂那一格齐全」空真；资产提案交接缺口 11 | 产品负责人（清单内容）；主线（求值契约「装配给」表写版本不一致的收场） |
 | **U-11 OG v1 存量记录没有时刻**（候选）：迁移不补 | 带 v1 数据的库上，钉 v2 的判定对那些成员关系与隶属一律 `unavailable` | **收场已接受**（D-040 §八 N-19；[OG 节点 V2-3](../../packages/tenancy/organization-governance/design.md#实施缺口与消费者影响)）；受阻是接受的代价，无动作 |
 
