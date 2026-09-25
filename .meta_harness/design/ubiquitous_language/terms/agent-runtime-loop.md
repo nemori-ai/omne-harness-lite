@@ -377,6 +377,34 @@
 - **注意 ③**：**这一条是「治理性质」的直接后果**——一次网络抖动重试若算成两次运行，**账和失败都算错**。
   **成本明细按它记，汇总按运行算**
 
+### UL-attempt-fence · 尝试栅栏 · Attempt Fence
+
+> **中**：**同一次[运行](#ul-run--运行--run)里，只有序号最大的那次[执行尝试](#ul-run-attempt--执行尝试--run-attempt)的写入被接受**，
+> 序号更小的尝试写什么都被拒。一次尝试**被取代**，是指[会话日志](record-and-context.md#ul-session-log--会话日志--session-log)里
+> 已经有了同一次运行、序号更大的尝试——从那一刻起栅栏对它关上，**此后不再打开**。
+> 拿来比较的就是日志里已经写下的尝试序号：**不另设一把锁，也不在日志之外另存一份「谁是当前那次」**。
+>
+> **EN**: **Within one run, only writes from the run attempt with the highest ordinal are accepted**;
+> an attempt with a lower ordinal has every write refused. An attempt is **superseded** once the
+> session log holds an attempt of the same run with a higher ordinal — from that moment the fence is
+> closed to it and **never reopens**. What it compares is the attempt ordinal already written in the
+> log: **no separate lock, and no second record of "which attempt is current" kept outside the log**.
+
+- **形态**：规则
+- **出处**：[PF-012 §5.7 同一个 Run 同一时刻只有一副协程在推它](../../product/PF-012-agent-loop-and-run/design.md#同一个-run-同一时刻只有一副协程在推它) ·
+  [§6.17 I-15](../../product/PF-012-agent-loop-and-run/design.md#617-run-这一层的七条不变式)（rev 14）
+- **⚠️ 别混 ①**：**不是锁，也不是租约**——它不挡一副旧协程接着跑，只让它写不进；它只比序号，不看谁先到、谁超时
+- **别混 ②**：**不是[会话内单活跃](#ul-single-active-execution--会话内单活跃--single-active-execution)**——
+  那条是要守住的不变式（一个会话同一时刻至多一个活跃运行、一副活跃 agent runtime）；
+  这一条兑现的是它下面的一个前提：**同一个运行不被两副协程同时推进**——恢复逻辑起了新的一副、旧的那副又活过来时，靠它让旧的写不进
+- **注意 ①**：**它靠序号显式写在日志里成立**：每次尝试先落那条带序号的尝试开始记录，再以这次尝试写别的
+  （[PF-012 §6.16](../../product/PF-012-agent-loop-and-run/design.md#616-日志里至少要有这几种-run-相关的条目)；I-15 序号严格递增）——**序号不是数出来的**
+- **注意 ②**：**裸写「已被取代」不指它**——那几个字在别处也说被新决定取代的旧决定、被新求值取代的旧求值。
+  说尝试时写「这次尝试已被取代」；「运行已终结」是另一件事，说的是运行落了[运行终态](#ul-run-terminal-state--运行终态--run-terminal-state)
+- **待裁决**：「写什么都被拒」**包不包括账**——被取代的那次尝试里已经发出去的动作，钱迟到了落不落。
+  这一节字面是全拒；[I-11](../../product/PF-012-agent-loop-and-run/design.md#617-run-这一层的七条不变式) 只给「运行终结之后才到的账」开了口；
+  规格照 I-11 的理由把「尝试已被取代」也算进去（照样落、标迟到）。见 [C-34](../conflicts.md#现有冲突)
+
 ### UL-run-terminal-state · 运行终态 · Run Terminal State
 
 > **中**：一次[运行](#ul-run--运行--run)的结局，**恰有三种：完成 · 失败 · 被取消**。

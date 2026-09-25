@@ -404,4 +404,33 @@
 - **⚠️ 别混**：不是范围化对象，也不是[设置](capabilities-and-composition.md#ul-asset--资产--asset)——设置挂在层上、按范围求值，它对全中心一律生效
 - **注意**：「统称」不是一张表——每一项各自有值、各归自己的 topic；本 topic 只说谁给、何时生效、改了怎么算
 
+### UL-credential-custodian · 凭据保管方 · Credential Custodian
+
+> **中**：**拿着凭据本体——那个秘密的值——的那一方。**凭据在别处只以引用或「配没配」出现，
+> 要值只能向它取；**它只按条件交出**：值只交给凭着这把凭据所属的那个[租户](subjects-and-ownership.md#ul-tenant--租户--tenant)
+> 或那份[持有](circulation-and-entitlement.md#ul-asset-holding--资产持有--asset-holding)来取的一方，
+> **条件不成立就不交，不拿别的租户、别的范围那一把顶上**。本体落在它之外的任何持久介质上，**只以加密形式存在**。
+> **它只保管，不决定配哪一把**：配上、换一把、解绑，都不经它判。
+>
+> **EN**: **The party that holds a credential's body — the secret value itself.** Everywhere else a
+> credential appears only as a reference or as whether one is configured; the value can be obtained
+> from the custodian alone, and **it hands the value over only on conditions**: only to a caller asking
+> on behalf of the tenant or the holding the credential belongs to — **when the conditions fail it hands
+> nothing over, never substituting another tenant's or another scope's credential**. Wherever the value
+> rests on durable storage outside the custodian, **it rests encrypted**. **It keeps credentials; it does
+> not decide which one is configured** — setting, replacing or unbinding one is not its call.
+
+- **形态**：属性
+- **出处**：[UL-D-5](../decisions.md#ul-d-5--凭据保管方--2026-09-25)（依据 D-043 R-1，定义由 PM 起草）
+- **⚠️ 别混**：**不是[模型凭据](capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential)，
+  也不是 [MCP 凭据](capabilities-and-composition.md#ul-mcp-credential--mcp-凭据--mcp-credential)**——
+  那两样说的是「配的是哪一把」，是租户或持有上的一项值；这一条说的是**那一把的值放在谁手里、谁取得到**
+- **注意 ①**：**本版只有[会话据点](#ul-session-base--会话据点--session-base)这一侧有它**：每个据点一份，
+  保管这个据点上各租户那一把模型凭据的副本——[离线时用的就是手上这份](../../product/PF-016-cli-tui-delivery-surface/design.md#620-每台机器上只有自己那一把凭据)——
+  和经 OAuth 取得的 MCP 凭据；中心那一侧的保管不在本版（`capability.credential-custodian` v1）
+- **注意 ②**：**它不判这把凭据在上游还算不算数**——据点上的副本是写下时的那一把，
+  中心上换过、撤过，要等这台机器再连上中心、重写副本才知道
+- **注意 ③**：**加密挡的是没有密钥的拷贝与备份，以及另一个据点**；同一台机器上以同一个操作系统身份跑、
+  密钥与密文都够得着的进程，它不挡——[宿主机那一层不隔离](../../product/PF-016-cli-tui-delivery-surface/design.md#64-一台机器上账号之间互不可见但宿主机那一层不隔离)
+
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

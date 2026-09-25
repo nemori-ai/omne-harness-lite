@@ -153,6 +153,7 @@
 | [UL-pending-message-queue](terms/agent-runtime-loop.md#ul-pending-message-queue--待处理消息队列--pending-message-queue) | 待处理消息队列 | Pending Message Queue | 日志里还没被 loop 取走的那些消息，**是投影不是另一份存储** |
 | [UL-input-claim](terms/agent-runtime-loop.md#ul-input-claim--承接--input-claim) | 承接 | Input Claim | loop 把队列里一批消息取走交给某次运行，**每一次都落一条记录**；**不是入站到达** |
 | [UL-run-attempt](terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt) | 执行尝试 | Run Attempt | 同一次运行内第几次起协程，**身份 (运行, 序号) 从日志派生、不另存**；**重试不是新的 Run** |
+| [UL-attempt-fence](terms/agent-runtime-loop.md#ul-attempt-fence--尝试栅栏--attempt-fence) | 尝试栅栏 | Attempt Fence | 同一次运行里**只有序号最大的尝试写得进**，被取代的那次写什么都被拒、**只关不开**；比的是日志里的序号，**不是锁** |
 | [UL-run-terminal-state](terms/agent-runtime-loop.md#ul-run-terminal-state--运行终态--run-terminal-state) | 运行终态 | Run Terminal State | **恰有三种**，只从一个出口落账；**等人不是终态** |
 | [UL-agent-loop](terms/agent-runtime-loop.md#ul-agent-loop--agent-loop--agent-loop) | Agent Loop | Agent Loop | 推进一次运行的那个**纯函数**；**被求值的那个，不是求值它的那个** |
 | [UL-agent-runtime](terms/agent-runtime-loop.md#ul-agent-runtime--agent-runtime--agent-runtime) | agent runtime | Agent Runtime | **求值 loop 的那个协程**；全系统**唯一的 event loop**，不持有状态 |
@@ -196,6 +197,7 @@
 | [UL-deployment-key](terms/grounding-and-isolation.md#ul-deployment-key--部署密钥--deployment-key) | 部署密钥 | Deployment Key | 这一次部署独有的一套秘密，让「只有中心自己能说的话」不可伪造；**不加密任何东西，换了什么都不丢** |
 | [UL-governance-center-identifier](terms/grounding-and-isolation.md#ul-governance-center-identifier--治理中心标识--governance-center-identifier) | 治理中心标识 | Governance Center Identifier | 中心指认自己的名字，首次启动定下、不变、跟着数据走；**不是地址、不是秘密**，搬家还是另一个中心比它 |
 | [UL-deployment-parameter](terms/grounding-and-isolation.md#ul-deployment-parameter--部署参数--deployment-parameter) | 部署参数 | Deployment Parameter | 「按部署配置」那些值的统称，运维者给值、缺一不可、改了只影响此后；**不是范围化对象** |
+| [UL-credential-custodian](terms/grounding-and-isolation.md#ul-credential-custodian--凭据保管方--credential-custodian) | 凭据保管方 | Credential Custodian | 拿着凭据本体的那一方，**只按条件交出、不拿别的顶上**，落地只以密文；**只保管，不决定配哪一把**；本版只在据点 |
 
 ## [取用与可用性](terms/reach-and-availability.md)
 
@@ -209,6 +211,7 @@
 | [UL-dependency-declaration](terms/reach-and-availability.md#ul-dependency-declaration--依赖声明--dependency-declaration) | 依赖声明 | Dependency Declaration | **一串必需项的抽象名字**，种类不限；**只有且，只有必需** |
 | [UL-session-asset-registry](terms/reach-and-availability.md#ul-session-asset-registry--会话资产注册表--session-asset-registry) | 会话资产注册表 | Session Asset Registry | 会话里一类资产此刻认得的那一批，**经它取**；reload 只重填对应那一张；权限收回不等 reload——**命令即时去掉，装进运行的资产自下一次运行起** |
 | [UL-governance-center-health-check](terms/reach-and-availability.md#ul-governance-center-health-check--治理中心体检--governance-center-health-check) | 治理中心体检 | Governance Center Health Check | 中心「我在不在、能不能答」的自述；公开部分恰三样、登录前可读，**不含治理事实与秘密** |
+| [UL-governance-center-reachability](terms/reach-and-availability.md#ul-governance-center-reachability--治理中心可达性--governance-center-reachability) | 治理中心可达性 | Governance Center Reachability | 据点对所属中心**此刻在不在应答**的观察，答复说什么不影响它；**不作任何准入依据**，不可达时开着的会话照常干活 |
 
 ## [执行与收场](terms/execution-and-outcome.md)
 
