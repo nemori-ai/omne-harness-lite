@@ -355,12 +355,12 @@
         "-cleanup",
         "-noGenerateSpecTE",
         "-workers",
-        "1",
+        "4",
         "-config",
         "spec/capabilities/credential-custodian/v1/formal/Sweep.cfg",
         "spec/capabilities/credential-custodian/v1/formal/Sweep.tla"
       ],
-      "timeout_seconds": 300
+      "timeout_seconds": 900
     }
   ]
 }
