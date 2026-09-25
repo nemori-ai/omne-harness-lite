@@ -101,7 +101,7 @@
 - **闭合**：恰这三个值，没有「其他」，也没有「部分可达」。
 - **「在应答」不看答复说了什么**：`unavailable`、`login-state-rejected`、`version-mismatch`、`invalid-input` 都是中心给出的答复（`composition.governance-center-entry/v1#S-6`），**都算可达**；同 [PF-017 §4](../../../../product/PF-017-governance-center-as-deployable-application/design.md#中心体检) 公开体检的「在不在」、`composition.governance-center-entry/v1#S-18` 的 `reachable` 同一个含义。
 - **可达性与登录状态无关**：出示物被拒（`login-state-rejected`）照样是可达——那是登录状态的事，不是连接的事。
-- **`since`**：进入当前 `state` 的时刻（`data.offer-expiry/v1#S-22` 的 `Instant`，据点的同一时间源）。`undetermined` 的 `since` 是这一次在场开始的时刻。
+- **`since`**：进入当前 `state` 的时刻（`data.offer-expiry/v1#S-22` 的 `Instant`，据点的同一时间源）。`undetermined` 的 `since` 是这一次在场里**第一次读得到时间源**的时刻；**在那之前 `since` 缺席**，`state`（`undetermined`）与 `reachCount`（0）照答——不拿在场开始的某个编出来的时刻顶上（[S-6](#s-6-自己探自己重连) 第 1 条的前提段；主线裁定，[D-040 §八 N-44](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。缺席只出现在这一次在场开头、时间源一直读不出的那一段；时间源读得到之后 `since` 恒在。
 - **`reachCount`**：这一次在场里**由不是 `reachable` 变为 `reachable`** 的次数，从 0 起；只在这种转移上加一，别处不动。**读的一方据它看得出「其间再连上过」**：两次读之间它变大了，其间至少有一次再连上。
 - **只属于这一次在场**：本能力撤除又装上（含进程重启），从 `undetermined`、`reachCount = 0` 重新开始；**跨在场比较 `reachCount` 没有意义**。
 
@@ -151,8 +151,8 @@
 | ② | **无授权前置**：返回里没有秘密、没有治理事实、没有任何租户的东西；据点进程里够得着本能力的消费者都可以读 |
 | ③ | 无 |
 | ④ | 只读，无提交；交出此刻的观察（[S-5](#s-5-可达性三态)） |
-| ⑤ | `{ state, since, reachCount }` |
-| ⑥ | **失败集合为空**：本能力在场就答得出（[S-7](#s-7-在场不随可达性变)）。本能力不在场不是本操作的一个返回值，见 S-7 第二条 |
+| ⑤ | `{ state, since?, reachCount }`——`since` 缺席**只**出现在这一次在场开头、时间源还一次都没读出来的那一段，那时 `state` 必是 `undetermined`（[S-5](#s-5-可达性三态)）；此后恒在 |
+| ⑥ | **失败集合为空**：本能力在场就答得出（[S-7](#s-7-在场不随可达性变)），**时间源读不出也照答**——`since` 缺席、不以失败代替。本能力不在场不是本操作的一个返回值，见 S-7 第二条 |
 | ⑦ | 只读，任意重复。两次读之间 `reachCount` 变大 ⇔ 其间至少有一次由不可达（或未定）进入可达 |
 | ⑧ | **还没有一次往来有结果 ⇒ `undetermined`**——**不填 `unreachable`，也不填 `reachable`** |
 | ⑨ | 不发。**本版没有可达性变化的通知**：读的一方自己读；要不要推送归交付面呈现契约（[G-4](#八已知缺口)） |
@@ -167,7 +167,7 @@
 
 | 性质 | 谁在何处保护 | 前提 | 来源 |
 |---|---|---|---|
-| `state` 恰三值之一；`since` 不减；`reachCount` 不减，**恰在由非可达进入可达时加一** | [S-5](#s-5-可达性三态) | 同一时间源（[S-10](#s-10-装配给的保证-vs-协议须给的保证) 第 3 行） | 规格层推导 |
+| `state` 恰三值之一；`since` 在时不减、一旦在了就不再缺席（缺席只在开头时间源读不出的那一段，[S-5](#s-5-可达性三态)）；`reachCount` 不减，**恰在由非可达进入可达时加一** | [S-5](#s-5-可达性三态) | 同一时间源（[S-10](#s-10-装配给的保证-vs-协议须给的保证) 第 3 行） | 规格层推导 |
 | `reachable` ⇒ 最近一次有结果的往来读成了一份答复，且对端经过确认 | [S-5](#s-5-可达性三态) | 传输绑定的服务端认证（`composition.governance-center-entry-https-json/v1#S-4`） | [PF-017 §4](../../../../product/PF-017-governance-center-as-deployable-application/design.md#中心体检) |
 
 ### 安全性质（绝不能发生）
