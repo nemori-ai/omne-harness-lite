@@ -300,6 +300,7 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 - **无论哪一种，处置本身都在那条结论记录里、可见**（[S-31](#s-31-三种记录形状)）。
 - `veto`、`stop` 的 `reason` 由 runner 写，指明是本件报错按 `treat_as_veto` 处置；**不转述报错详情**，理由同上。
 - `ErrorPolicy` 是规格层的策略 token。**`onError` 是这一件自己的声明，不是设置也不是权限**：推出规则不为它出项（[S-40](#s-40-属性项的推出规则)），各层不给它配值；「这一次按哪一档处置」只随求得的干预力收窄（上一条）。
+- **唯一的例外：兼容件的非阻断错误**（主线裁定，2026-09-25）：一件 `command` 件（[S-8](#s-8-装配进来的实现与外部命令)）以来源产品语义下的非阻断错误收场（非零退出、超时、输出不合形状）时，这一次固定按 `ignore`、不看 `onError`；**记录形状不变**，仍是 [S-31](#s-31-三种记录形状)「可用却报错」那一种（`skipped: errored` ＋ `error` ＋ `observed`）。规则与三种成因的归属在 `capability.loop-extension-runner` v1 的 S-13 与 `capability.hooks-import` v1 的 S-19，本契约不另立形状。
 
 ## 四、声明
 
@@ -357,7 +358,7 @@ PF-002 说一件拓展件声明「挂在哪个位置、管哪些情形」。**�
 | `command` | `host`、`dialect`、`event`、`command`；可选 `matcher`、`timeout` | 实现是**一条外部命令**——兼容件，即 Claude Code / Codex 的一条 command hook：`host ∈ { claude_code, codex }` 是它的**来源产品**（成员名 `host` 沿用，指来源产品，不是 runner 与 [UL-cancellation-follows-host](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-cancellation-follows-host--取消跟着宿主走--cancellation-follows-host) 里的「宿主」）；`dialect` 是钉住的那一家方言版本；`event` 是来源产品那一侧的事件名（如 `PreToolUse`）；`command` 是来源产品 handler 条目里的命令原样；`matcher` 原样，缺席即全匹配；`timeout` 是 `data.tool-definition/v1` 的 `Duration`，缺席即那一家那一事件的默认 |
 
 - **运行时只认本契约的统一输入与结论。**`command` 件是一件**在两边翻译**的拓展件：把 `ExtensionInput` 译成来源产品那一事件的原生输入，
-  把来源产品的输出译回 `ExtensionOutput`。对 runner 与状态转移表来说，两种实现**没有任何区别**。
+  把来源产品的输出译回 `ExtensionOutput`。对状态转移表来说，两种实现**没有任何区别**；对 runner 只有一处：`command` 件的非阻断错误固定按 `ignore` 处置（[S-5](#s-5-报错处置策略) 末条），记录形状照旧。
 - **本契约不解释 `event`、`matcher`、`dialect`**：事件映射表、情形筛选、matcher 的求值、定档依据、导入报告、`ask`／`defer` 怎么译，都归 `capability.hooks-import`（[D-033](../../../../record/decisions/hooks-compat-baseline/decision.md) G1–G11 的落点）。
   `event` 是本契约在 D-040 S15-b 所列成员之外保留的：导入一侧靠它从映射表取这一事件的情形筛选与原生输入的造法。
 - **`command` 件照样受本契约全部约束**：它交回的结论不合法，按 [S-34](#s-34-不合法的结论按报错处置) 处置；

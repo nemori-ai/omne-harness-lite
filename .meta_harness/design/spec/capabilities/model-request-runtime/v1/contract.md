@@ -277,7 +277,7 @@
 ### S-8 调用在会话日志里留下的六种记录
 
 **本能力经宿主给出的追加入口，往会话日志里写下列记录；每一种都在它要保护的那件事发生之前写下。**
-追加入口就是窄口接口契约 `capability.session-log` v1 的 `append`（[S-17](../../session-log/v1/contract.md#s-17-append追加一批条目)）：「写下」即它成功返回（[S-13](../../session-log/v1/contract.md#s-13-提交与持久)：返回即已持久）；**两个锚点、中断意图与调用终结带栅栏 `fenced{run, attempt}`，结算类（响应体、账）不带**（[S-10](../../session-log/v1/contract.md#s-10-尝试栅栏) 第 3 条）；响应体以 `ResponseId` 拼出判重键（[S-8](../../session-log/v1/contract.md#s-8-判重键)）；对账与读发出记录经 `readSince`（[S-19](../../session-log/v1/contract.md#s-19-readsince从某个位置往后读)）。
+追加入口就是窄口接口契约 `capability.session-log` v1 的 `append`（[S-17](../../session-log/v1/contract.md#s-17-append追加一批条目)）：「写下」即它成功返回（[S-13](../../session-log/v1/contract.md#s-13-提交与持久)：返回即已持久）；**两个锚点、中断意图与调用终结带栅栏 `fenced{run, attempt}`，结算类（响应体、账）不带**（[S-10](../../session-log/v1/contract.md#s-10-尝试栅栏) 第 3 条；这一分法起草时是本契约的推导，**主线已接受**，2026-09-25）；响应体以 `ResponseId` 拼出判重键（[S-8](../../session-log/v1/contract.md#s-8-判重键)）；对账与读发出记录经 `readSince`（[S-19](../../session-log/v1/contract.md#s-19-readsince从某个位置往后读)）。
 响应体之外的五种记录，**形状归 `data.messages/v1` 的 [S-49](../../../data/messages/v1/contract.md#s-49-模型请求运行时写的五种记录不是消息)、[S-50](../../../data/messages/v1/contract.md#s-50-调用终结的三支)**（`ModelInvocationRecord`：不是消息，只供对账读；主线裁定，见 [D-040 §S16 S16-d](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s16model-profile-directory--model-request-runtime报回的)）；本条定义它们**各自必须能回答什么、何时写、谁写**。
 **会话、Run、尝试、租户都在承载记录的条目壳上**，不在记录里（`data.messages/v1#S-49`、`data.call-accounts/v1#S-25`）；下表「落在哪次尝试」「谁」都从条目读。
 

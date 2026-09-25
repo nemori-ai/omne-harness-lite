@@ -253,3 +253,29 @@ runner 把 `modality-converter` 移到末位——链是 `pii-scrubber` → `mod
 
 **6c. 报告里查不到条目。**一批 `[call_31, call_32]` 都走到末位：`call_31` 调的是作者写的工具 `grep`；`call_32` 的 `tool` 是 `gh__create_issue`，而组织在这次尝试开始前禁用了接入点 `gh`——这一次尝试的可用性报告里没有它的任何动作条目。
 runner 以 `grep` 在 `admission.report` 的 `effectivePermissions` 里查到那一项，以 `gh__create_issue` 查不到：这一轮的 `admit` 输入恰是 `call_31`；`call_32` **不进** `admit`，它那次经过在放行判断那一格落一条 `observed`（原因 `no_such_entry`，这个原因在记录上的落处是 [G-19](contract.md#十三已知缺口)），效果 `proceed`、**没有放行凭据**；执行运行时收到它时即刻收场 `unavailable{no_such_entry}`（那一侧的条款）。`call_31` 照常判——**不因 `call_32` 被牵连成全拒**（[S-29](contract.md#s-29-一批动作每个动作一次经过) 第 5 条；主线裁定，见 [D-040 §七 M10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）。
+
+## 7. 兼容件的非阻断错误：固定按 `ignore`，记录与越档同形
+
+**局面**：`before_action` 链是一件兼容件 `hooks.claude_code.‹D›.PreToolUse.1.1`（求得 `veto` 档，`onError` 缺席 ⇒ 有效策略本是 `treat_as_veto`）→ `admission`。这一批只有 `call_41`。兼容件的子进程起来之后以退出码 1 结束（`‹D›` 是占位，实际是那 64 位十六进制）。
+
+| 兼容件报来的收场 | runner 怎样处置 | 落下的记录 | 效果 |
+|---|---|---|---|
+| **非阻断错误**，成因「非零退出」，退出码 1 | **固定按 `ignore`**，不取有效策略 `treat_as_veto`（[S-13](contract.md#s-13-报错处置策略的执行) 兼容件非阻断错误那一条） | 见下 | 链往下走，`admission` 照常判 |
+| 同上，成因「超时」或「输出不合形状」 | 同上 | 同形，`error` 换成那一种成因 | 同上 |
+| **起来之后执行环境被撤下**（不是非阻断错误） | 按有效策略 `treat_as_veto` | `skipped: errored`，`output` 为 `veto`（`reason` 由 runner 写：本件报错，按 treat_as_veto 处置） | `vetoed`，`admission` 不被求值 |
+| 一件**原生件**报了错，自称「非阻断」 | **不采用**：按它自己的有效策略 | 按那一档 | 按那一档 |
+
+```json
+{
+  "extension": "hooks.claude_code.‹D›.PreToolUse.1.1",
+  "position": "before_action",
+  "power": "veto",
+  "callId": "call_41",
+  "skipped": "errored",
+  "error": "非阻断错误：非零退出，退出码 1",
+  "output": { "kind": "observed" },
+  "at": "2026-09-25T10:00:00Z"
+}
+```
+
+**与越档那一条同形**（`skipped: errored` ＋ `error` ＋ `output: observed`，`data.loop-extension/v1#S-31`「可用却报错」那一种）；区别只在 `error`：越档恰为拒绝值 `output_not_allowed_for_power`，这里是一段说明（`data.loop-extension/v1#S-38`）。**反例**：落成一条不带 `skipped`、`error` 的 `observed`——读日志的人看不出这一关出过错，就是静默吞错。

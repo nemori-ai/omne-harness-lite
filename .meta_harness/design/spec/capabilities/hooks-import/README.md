@@ -32,7 +32,7 @@
 | 本候选版本精确承诺什么 | [v1 契约](v1/contract.md) |
 | 某个来源产品事件会挂在哪、能做什么 | [Claude Code 映射表](v1/contract.md#s-23-claude-code-映射表) · [Codex 映射表](v1/contract.md#s-24-codex-映射表) |
 | 导入报告里有什么、为什么有一条没导入 | [契约 S-12～S-14](v1/contract.md#s-12-导入报告) |
-| 为什么挂了会拦、不在时跳过、允许不放行 | [契约 S-10](v1/contract.md#s-10-兼容件要带的东西)、[S-19](v1/contract.md#s-19-起不来与报错)、[S-20](v1/contract.md#s-20-输出怎样译回) |
+| 为什么挂了看得见却不拦（照来源产品）、不在时跳过、允许不放行 | [契约 S-10](v1/contract.md#s-10-兼容件要带的东西)、[S-19](v1/contract.md#s-19-起不来与报错)、[S-20](v1/contract.md#s-20-输出怎样译回) |
 | 来源产品的 `ask` 落成什么卡、答了之后怎样 | [契约 S-21](v1/contract.md#s-21-ask-与回放) |
 | 一份配置导进来是什么样 | [examples](v1/examples.md) |
 | 哪些证据义务已触发、现在到哪一步 | [验证与覆盖](verification.md) |
