@@ -1,0 +1,69 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Warning: Please run the Java VM, which executes TLC with a throughput optimized garbage collector, by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 14 and seed 6148847205579082171 with 1 worker on 8 cores with 7824MB heap and 64MB offheap memory [pid: 17129] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/assets-runtimes/.meta_harness/design/spec/capabilities/session-log/v1/formal/SessionLog.tla
+Parsing file /tmp/tlc-12848580778247633025/Naturals.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-12848580778247633025/Sequences.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file /tmp/tlc-12848580778247633025/FiniteSets.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module SessionLog
+Linting of module SessionLog
+Starting... (2026-09-25 06:42:32)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-25 06:42:32.
+Error: Invariant NeverDuplicateRejected is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ pending = << [ busy |-> FALSE,
+     req |-> [att |-> 1, fenced |-> FALSE, key |-> 0],
+     ok |-> FALSE ],
+   [ busy |-> FALSE,
+     req |-> [att |-> 1, fenced |-> FALSE, key |-> 0],
+     ok |-> FALSE ] >>
+/\ lock = 0
+/\ mem = {}
+/\ crashes = 0
+/\ log = <<>>
+
+State 2: <Judge(1,[att |-> 1, fenced |-> FALSE, key |-> 1]) line 77, col 3 to line 83, col 36 of module SessionLog>
+/\ pending = << [ busy |-> TRUE,
+     req |-> [att |-> 1, fenced |-> FALSE, key |-> 1],
+     ok |-> TRUE ],
+   [ busy |-> FALSE,
+     req |-> [att |-> 1, fenced |-> FALSE, key |-> 0],
+     ok |-> FALSE ] >>
+/\ lock = 1
+/\ mem = {}
+/\ crashes = 0
+/\ log = <<>>
+
+State 3: <Write(1) line 87, col 3 to line 94, col 22 of module SessionLog>
+/\ pending = << [ busy |-> FALSE,
+     req |-> [att |-> 1, fenced |-> FALSE, key |-> 0],
+     ok |-> FALSE ],
+   [ busy |-> FALSE,
+     req |-> [att |-> 1, fenced |-> FALSE, key |-> 0],
+     ok |-> FALSE ] >>
+/\ lock = 0
+/\ mem = {1}
+/\ crashes = 0
+/\ log = <<[att |-> 1, fenced |-> FALSE, key |-> 1]>>
+
+State 4: <Judge(1,[att |-> 1, fenced |-> FALSE, key |-> 1]) line 77, col 3 to line 83, col 36 of module SessionLog>
+/\ pending = << [ busy |-> TRUE,
+     req |-> [att |-> 1, fenced |-> FALSE, key |-> 1],
+     ok |-> FALSE ],
+   [ busy |-> FALSE,
+     req |-> [att |-> 1, fenced |-> FALSE, key |-> 0],
+     ok |-> FALSE ] >>
+/\ lock = 1
+/\ mem = {1}
+/\ crashes = 0
+/\ log = <<[att |-> 1, fenced |-> FALSE, key |-> 1]>>
+
+86 states generated, 62 distinct states found, 41 states left on queue.
+The depth of the complete state graph search is 4.
+Finished in 00s at (2026-09-25 06:42:32)
