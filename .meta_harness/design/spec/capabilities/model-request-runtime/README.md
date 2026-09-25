@@ -9,7 +9,7 @@
 **本能力的提供者是运行时协程**——名字里的「运行时」指它（统一语言冲突 C-31「叫 runtime 的必须是协程」以此闭合：[D-040 §七 M18](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)，维持 §一 T-3）。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.model-request-runtime, 1)`
-- **状态**：`candidate`（2026-09-23 起草；2026-09-24 第一轮独立评审之后原地修复，处置表在[验证入口](verification.md#独立评审)；修复波 1b 补 S-51 模型侧到达装配前提的承诺与追补体参数三项的来源；2026-09-25 第二轮独立复评之后修复波 2 原地改：撤除走放弃、「已开口」写不进那一支、被拒事件的日志事件、允许集合来源立 G-19）——未接受、未冻结；修复波 2 尚未复审
+- **状态**：`candidate`（2026-09-23 起草；2026-09-24 第一轮独立评审之后原地修复，处置表在[验证入口](verification.md#独立评审)；修复波 1b 补 S-51 模型侧到达装配前提的承诺与追补体参数三项的来源；2026-09-25 第二轮独立复评之后修复波 2 原地改：撤除走放弃、「已开口」写不进那一支、被拒事件的日志事件、允许集合来源立 G-19；同日「公开面」修订波按 D-043 R-4 闭合 G-19（`A` 由目录读面直接给）、按 R-6 闭合 G-8（退避是可配置策略）、另立 G-20——[修订波](verification.md#修订波2026-09-25-公开面)）——未接受、未冻结；修复波 2 尚未复审
 - **操作**：十三个（S-24～S-34、S-49、S-50；S-35 默认重试件是一件拓展件，不是服务面操作）；服务面名 `settleReply` 与输入成员 `basis` 已由主线接受（D-040 §六 N-9，原 G-13 闭合）
 - **catalog 映射**：已登记为 candidate。`family=capabilities`、`topic=model-request-runtime`、
   `contract_path=spec/capabilities/model-request-runtime/v1/contract.md`；`resources` 另含 `v1/examples.md`、`v1/formal/README.md`、`v1/formal/Invocation.tla` 与十份配置；

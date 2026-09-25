@@ -46,3 +46,14 @@
 | 日期 | 变化 | 影响 |
 |---|---|---|
 | 2026-09-25 | 起草 v1（candidate） | 新登 catalog、covers 条目；消费者的契约与节点（`capability.tool-execution-runtime` G-12、`capability.loop-extension-runner` G-20、`capability.model-request-runtime` 节点 MRR-N10、据点装配 C-13）**正文尚未改指本契约**，改指与否由主线裁 |
+
+## 修订波（2026-09-25 公开面）
+
+依据链：[D-043](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1（替身改为接口契约 ＋ 最小提供者）；[D-040 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-33～N-37。候选未冻结，原地改。
+
+| 变化 | 依据 | 落在哪 | 语义变不变、对消费者 |
+|---|---|---|---|
+| 「尚无决定记录」改链 D-043 R-1 | R-1 | 首段、[README](README.md) | 不改语义 |
+| 消费者正文改指本契约：`capability.tool-execution-runtime` v1（S-21、S-23 ⑧、S-47、G-12）、`capability.loop-extension-runner` v1（S-50 第 1、4 条、G-20）、`capability.execution-environments` v1（S-11 ②）已在本波改指；消费者核对「工具执行运行时」一行随之改 | R-1；N-37 ⑩ | 第十二节消费者核对那一行 | 不改语义。**工具执行运行时把两种读不到仍映射成借来的 `dependencyUnavailable{storage}`**（它的「报给主线」R-41），不是本契约的要求 |
+
+**没有证据因此作废**——本契约此前没有执行证据。

@@ -225,3 +225,20 @@ spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/
   - **新缺口 G-19**（允许集合 `A` 的来源）；G-4 收窄、G-10、G-11、G-14 措辞改。
   - **registry**：catalog 本契约新增依赖 `data.arrival-events` `["S-5","S-14","S-16","S-21"]`；对 `capability.stream-assembly` 补 `S-13`、`S-23`；对 `data.model-response` 补 `S-5`（撤除时的映射例外）。已核：这三条都不成环（catalog 全图只余 runner ↔ 执行运行时一处既有的环，已报主线）。covers、formal-tasks、id-namespaces 不变。
   - **对证据的影响**：行为模型不含到达事件、回复与日志事件——`TeardownWrite` 写的 `int_cancel` 本来就没有「带不带回复」这一维，追加口失败（含「已开口」写不进）也不在模型里；[formal 入口](v1/formal/README.md#模型吸收了什么不写成已由模型覆盖)「模型吸收了什么」补一条写明这两处，证据归 S-52 的对应两支；**模型不改，十份配置不需重跑，本轮未运行 TLC**。S-52 由两支扩为五支，仍「未开始」。
+
+## 修订波（2026-09-25 公开面）
+
+依据链：[D-043](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-4（允许集合 `A` 本版不收窄）、R-6（重试是可配置策略、不写死）；[D-040 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-33（默认退避逐次取值、停止只由 S-35 决定）、N-36（策略对象的五个成员、次数由供应商个数与回退声明推出、默认初值放配置层、不引入执行器库）。候选未冻结，原地改。
+
+| 变化 | 依据 | 落在哪 | 语义变不变、对消费者 |
+|---|---|---|---|
+| **G-19 闭合**：`A` 本版就是链上档案里出现的全部路由名，由目录读面直接给、与链上档案同一次读；`scope_disallowed` 本版不出现；式子仍以 `A` 为显式参数 | R-4 | [S-11](v1/contract.md#s-11-合法目标集合) 允许集合那一行与第一条、[S-10](v1/contract.md#s-10-有效模型四步每步来源可查) 末段一条、[S-12](v1/contract.md#s-12-展示列表) `scope_disallowed` 一行、S-2、S-4 两行、页首依赖说明、设计依据新两行、[G-4](v1/contract.md#十二已知缺口) 注、[G-19](v1/contract.md#十二已知缺口) | **收窄成一个确定答案**：原先 `A` 读不到 ⇒ `legalTargets`、`displayList`、`effectiveModel`、`openCall` 一律 `unavailable`；现在 `legalTargets`、`selectModel` 与写过模型切换记录的会话的 `displayList` 照常。`capability.model-profile-directory` v1 的 S-17 同波写明同一来路 |
+| **另立 G-20**：原 G-19 里「用哪个模型」这项设置本身由谁产出、锁怎么判的一半**不随 R-4 闭合**——S-9 未切换过时的初值与 S-10 第 2 步的锁都读它，而它挂在 Agent 定义上、属性项没有正文契约（asset-evaluation G-21），R-4 的落点又写「资产求值不出『用哪个模型』项」。闭合之前 `effectiveModel` 一律 `unavailable` | R-4 的范围；本契约推导 | [S-9](v1/contract.md#s-9-选中模型)、[S-10](v1/contract.md#s-10-有效模型四步每步来源可查) 第 2 步、[G-20](v1/contract.md#十二已知缺口) | **本契约的推导**：与简报「MRR 解阻」只部分一致，见下「报主线」 |
+| **S-4 撤下 `capability.asset-evaluation` `#S-23` 权限**：它只为「`A` 是设置还是权限」而消费，`A` 不再从求值结果里取；`#S-8`、`#S-22` 仍消费（G-20） | 引用即消费 | [S-4](v1/contract.md#s-4-依赖方向与被消费的面) 那一行；catalog 那条边的 clauses 同步 | 不改语义 |
+| **G-8 闭合、S-35 第 4 条改写**：`default_retry_backoff` 是一个可配置策略对象（`kind`、`base`、`factor`、`max`、`jitter`），次数与失败谓词不是它的成员（由第 1～3 条定）；默认初值放配置层，本契约不填 | R-6；N-36 | [S-35](v1/contract.md#s-35-默认重试件可替换) 第 4 条与末尾引文、[G-8](v1/contract.md#十二已知缺口)、设计依据新一行 | **不改默认件的行为规则**（第 1～3、5 条原样）；只把「一个退避值」改成「一个退避策略」。成员名沿 N-36（对齐 cockatiel 的退避词汇），**`kind` 各取值怎样长只写到性质**（封顶 `max`、`none` 不取随机），算式归提供者设计与它的性质测试 |
+
+**没有证据因此作废**——本契约此前没有执行证据。
+
+**报主线**：
+- **「MRR 解阻」只部分成立**：R-4 闭合的是 `A`；`effectiveModel` 仍因「用哪个模型」这项设置没有产出方而 `unavailable`（新 G-20），`openCall` 要的 `basis` 就是 `effectiveModel` 的输出，所以经 loop 的整条模型链在产品装配里仍走不通。需要主线定：本版是不是「没有这一项」（那样第 2 步答「没有锁」、S-9 的初值另要一个来路），还是等 PF-004 立 Agent 定义的属性项。
+- **`openCall` ⑧ 列了「层级求值」读不到 ⇒ `unavailable`**，而 ④ 只用交来的 `target` 经第 2′ 步解析、从不做第 2 步；这一项在 ⑧ 里是多余的还是 ④ 漏写了「此刻再核一次锁」，本波不自改。

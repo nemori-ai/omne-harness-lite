@@ -47,3 +47,15 @@
 | 日期 | 变化 | 影响 |
 |---|---|---|
 | 2026-09-25 | 起草 v1（candidate） | 新登 catalog、covers 条目；`capability.tool-execution-runtime` 的 G-18 与它的节点 T-4、据点装配 C-16 **正文尚未改指本契约**，改指与否由主线裁；**G-18 不因本版闭合**（本版不给共同存储对象，契约 G-2） |
+
+## 修订波（2026-09-25 公开面）
+
+依据链：[D-043](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1（替身改为接口契约 ＋ 最小提供者）；[D-040 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-33～N-37。候选未冻结，原地改。
+
+| 变化 | 依据 | 落在哪 | 语义变不变、对消费者 |
+|---|---|---|---|
+| **最小提供者不另存表**：「已被取代」从会话日志条目壳算出；「已终结」在 G-3 闭合之前于产品装配恒 `unavailable`、验收装配由种子答 | N-37 ④ | [第十一节](v1/contract.md#十一提供者映射) | 不改接口；**产品装配里 `attemptFacts` 整次 `unavailable`** |
+| 「尚无决定记录」改链 D-043 R-1；账本外名字 `attemptNotFound`、`superseded`、`runEnded` 标「主线已接受」 | R-1；N-37 ① | 首段、失败值表下注 | 不改语义 |
+| 消费者正文改指本契约：`capability.tool-execution-runtime` v1 的 S-13、S-15、S-47、G-18 已改，读不到收 `dependencyUnavailable{runAttemptFacts}`（N-29）；本契约「提供者缺席」一条与消费者核对那一行随之改 | R-1；N-29 | [S-12](v1/contract.md#s-12-提供者撤除换代与重启) 那一条、第十二节那一行 | 本契约不变。**连起来的后果**：产品装配里工具执行运行时凡要落账的收场都写不下去——已由那份契约报主线（它的 R-42） |
+
+**没有证据因此作废**——本契约此前没有执行证据。

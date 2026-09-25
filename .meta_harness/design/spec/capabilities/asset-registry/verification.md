@@ -192,3 +192,16 @@
 | `capability.tool-execution-runtime` v1 S-23 ② 第 6 条、④ | 以 `call.tool` 原样查本契约 S-25（`within = run`）；「没有」即刻收场 `unavailable{no_such_entry}`（D-040 §七 M8、M10） | 对方正文已写（2026-09-25 读到，丙批） |
 | `capability.loop-extension-runner` v1（`dispatch.admission.report`）、`capability.tool-execution-runtime` v1（`submit.report`） | 接收报告时核会话、`runId`、`attempt` 三者，对不上 ⇒ `invalidInput`（D-040 §八 M46、M33） | **已对齐（2026-09-25，丑跨批核对）**：runner S-21 ①② 与执行运行时 S-23 ①⑥⑧ 都按三者核、名字与形状一致（`attempt` 是 `data.call-accounts/v1#S-37` 的 `AttemptId`，整数序号）；本契约[第十一节](v1/contract.md#十一消费者核对)放行判断与执行运行时两行补了这一句 |
 | `capability.tool-admission` v1 S-8 | `not_in_composition` 只指「条目仍在快照、能力标识不在此刻组合里」（D-040 §七 M10） | 对方正文已写（2026-09-25 读到，丙批 S-8 末条与设计依据表）；它另留的「条目在 `tool` 表里、报告却缺那一项」一支按本契约 S-11 不会出现（键集合恰是 `tool` 表的名字），已报主线 |
+
+## 修订波（2026-09-25 公开面）
+
+依据链：[D-043](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1（替身改为接口契约 ＋ 最小提供者）；[D-040 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-33～N-37。候选未冻结，原地改。
+
+| 变化 | 依据 | 落在哪 | 语义变不变、对消费者 |
+|---|---|---|---|
+| **`EvaluationRef` 改为以坐标引用 `capability.assembly-manifest/v1#S-8`**（fill → `given`、reload → `mint`、`markFailed`／`onAssetChange` → `reuse`），不再自带一份定义 | N-37 ③ | [S-13](v1/contract.md#s-13-evaluationref) | 不改形状；原两处定义的对齐义务撤销 |
+| **换表的提交点改指装配清单窄口**：「写进装配清单」即 `capability.assembly-manifest` v1 的条件追加成功（S-6、S-16～S-18） | R-1 | [S-18](v1/contract.md#s-18-快照不持久装配清单是唯一权威) 第 4 条 | 不改语义 |
+| **G-1 改写为「真承接者未到，接口已定」**；G-9 的会话租户切片指 `capability.session-tenancy/v1#S-8` | R-1 | [G-1](v1/contract.md#十已知缺口)、[G-9](v1/contract.md#十已知缺口) | 不改语义 |
+| catalog：本契约新增依赖 `capability.assembly-manifest` v1（S-6、S-8、S-16、S-17、S-18） | 引用即消费 | [S-4](v1/contract.md#s-4-依赖方向与被消费的面) 新一行、页首依赖、[README](README.md) | 装配清单不以坐标依赖本契约，无环 |
+
+**没有证据因此作废**——本契约此前没有执行证据。

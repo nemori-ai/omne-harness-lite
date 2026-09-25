@@ -5,7 +5,7 @@
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.hooks-import, 1)`——
   `family = capabilities`、`topic = hooks-import`、规范路径 `spec/capabilities/hooks-import/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订，2026-09-25 修复波 1b 闭合 G-14，同日修复波 2 按第二轮独立复评改 S-19、S-27 两处措辞，同日修复波 3 按实现映射反推改 S-4、S-17、S-18、S-19、S-26、S-27 与第十二节）——**未接受、未冻结**，不得据此发布或声称消费者已采用
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订，2026-09-25 修复波 1b 闭合 G-14，同日修复波 2 按第二轮独立复评改 S-19、S-27 两处措辞，同日修复波 3 按实现映射反推改 S-4、S-17、S-18、S-19、S-26、S-27 与第十二节；同日「公开面」修订波把执行环境改指 `capability.execution-environments` v1 并写进起子进程的四件事，见[验证入口](../verification.md#修订波2026-09-25-公开面)）——**未接受、未冻结**，不得据此发布或声称消费者已采用
 - **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-012 rev 14**、**PF-002 rev 20**、**PF-008 rev 7**、**PF-005 rev 5** 为准（2026-09-24 逐版复核到当前 rev，变化与落点记在[验证入口](../verification.md#变化的影响)）；来源产品事实以研究包 [loop-extension-hooks-compat](../../../../../research/loop-extension-hooks-compat/research.md)（首轮 2026-09-23，映射按 PF-012 rev 7 作出；本契约 2026-09-24 按 rev 14 复核了映射用到的位置、维度与否决含义）为准
 - **精确语义依赖**（消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)；全部是**候选**，定型后复核）：
 
@@ -18,6 +18,7 @@
   | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v1` | 完整的工具调用、工具结果块 | 候选 |
   | `omne-harness-lite-design-2026-09-15 · data.identity-values · v1` | 身份参数无默认值、缺席即拒绝、表示层校验与判定分开 | 已接受、已冻结 |
   | `omne-harness-lite-design-2026-09-15 · capability.tool-admission · v1` | 放行判断定死的四档选项、四档只在它出的卡上带授权 | 候选 |
+  | `omne-harness-lite-design-2026-09-15 · capability.execution-environments · v1` | 执行环境引用；拓展件子进程的落点判断；进程组；起子进程、取结果、按组停（2026-09-25 修订波登记，[D-043](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1） | 候选（窄口接口契约） |
 - **条款编号**：`S-n`，**只在本契约本版本内有效**；外部引用须写全坐标，如 `capability.hooks-import/v1#S-11`。缺口 `G-n`、性质 `P-n` 同此
 
 ## 设计依据
@@ -42,6 +43,7 @@
 | 兼容件复用四档选项的卡，答复不带授权、不交给放行判断 | `capability.tool-admission` v1 S-15、S-28 | [S-21](#s-21-ask-与回放) |
 | **主线裁定**（第一轮独立评审的修复波）：导入的兼容件不可用处置取 `skip`、「宿主」改称来源产品（K47）；`ask` 带改写时改写放进卡片草稿的 `proposedRewrite`、答复允许之后生效（K32）——见 [D-040 §五](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) | D-040 | [S-10](#s-10-兼容件要带的东西)、[S-20](#s-20-输出怎样译回)、[S-21](#s-21-ask-与回放) |
 | **主线裁定**（修复波 3，实现映射反推）：子进程要落的执行环境经统一输入的执行环境句柄取（M38）；运行被取消时在途的兼容件收到停止信号、那一次求值不留记录（M39）；装配是 `apps/cli`（M40，[D-039](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#拆分领域名与装配g3) 已裁）——见 [D-040 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) | D-040 | [S-4](#s-4-依赖方向与被消费的面)、[S-17](#s-17-输入怎样译成来源产品的原生输入)、[S-18](#s-18-子进程在哪跑钱记在哪)、[S-19](#s-19-起不来与报错)、[S-26](#s-26-装配给的保证-vs-协议须给的保证)、[S-27](#s-27-缺席撤下与重新导入)、[第十二节](#十二消费者核对) |
+| **主线裁定**（2026-09-25「公开面」修订波）：执行环境改指窄口接口契约 `capability.execution-environments` v1（[D-043](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1）；起子进程的四件事——带租户、解释器写成 `program`、交全环境变量、拿到结果之后停组（[D-040 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ⑩）；拓展件子进程要一项产品允许、闭合之前兼容件 fail-closed（N-37 ⑧，账本 ⑭） | D-043、D-040 | [S-2](#s-2-本契约不拥有什么)、[S-4](#s-4-依赖方向与被消费的面)、[S-18](#s-18-子进程在哪跑钱记在哪)、[S-19](#s-19-起不来与报错)、[S-26](#s-26-装配给的保证-vs-协议须给的保证)、[S-27](#s-27-缺席撤下与重新导入) |
 | 统一语言 | [UL-loop-extension](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension) · [UL-loop-extension-point](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point) · [UL-capability-identifier](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier) · [UL-decision-card](../../../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-decision-card--决策卡片--decision-card) · [UL-replay](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-replay--回放--replay) · [UL-execution-environment](../../../../ubiquitous_language/terms/grounding-and-isolation.md#ul-execution-environment--执行环境--execution-environment) · [UL-assembly-manifest](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest) · [UL-extension-unavailability-policy](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-extension-unavailability-policy--拓展件不可用处置--extension-unavailability-policy) · [UL-extension-point-pass](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-extension-point-pass--一次经过--extension-point-pass) | 全部正式名 |
 
 > **依据行里的「主线裁定」**：D-033 明写「G1–G11 推迟到协议起草时一并讨论裁决」，那一组裁定的长期落点是 [D-040](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md)（产品负责人尚未逐条追认；追认或推翻由后续决定取代对应编号）。
@@ -79,7 +81,7 @@
 | 装配清单里各件的次序 | 装配（PF-004）；本契约只给出一份配置内部的相对次序（[S-15](#s-15-报告里的次序)） |
 | 放行判断的四档选项与各档含义 | `capability.tool-admission` v1 |
 | 卡片落池、陈列、答复形状 | PF-008 的卡片契约（未起草） |
-| 子进程所在的执行环境、它的生灭与权限 | PF-005 的执行环境那一套（`capability.tool-execution-runtime` 等） |
+| 子进程所在的执行环境、它的生灭与权限 | 本版的窄口：`capability.execution-environments` v1（落点判断、起停进程组）；沙箱、会话执行环境的存活与其余：PF-005 那一程（那份契约 G-1） |
 | 非 loop 事件（会话生灭、子代理、环境与设置变化、呈现、模型切换、工具私有、MCP 表单） | 各自的 PF（[S-14](#s-14-不导入的理由)） |
 
 ### S-3 本契约明确不承诺什么
@@ -93,7 +95,7 @@
 
 ### S-4 依赖方向与被消费的面
 
-**依赖方向单向：本契约 → runner、数据半边、资产模型、消息、块、身份值。**它们都不得反向依赖本契约。
+**依赖方向单向：本契约 → runner、数据半边、资产模型、消息、块、身份值、执行环境。**它们都不得反向依赖本契约。
 资产治理（落地导入结果）、装配、`apps/cli`（让兼容件的实现在场；[D-039](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#拆分领域名与装配g3) 不立 `apps/runtime-host`，[D-040 §八 M40](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）依赖本契约。
 
 **下表每个 `#S-n` 的完整坐标是 `omne-harness-lite-design-2026-09-15 · <契约> · v1 · S-n`**；catalog 的 `clauses` 以它为准。
@@ -107,6 +109,7 @@
 | `data.content-blocks` | `#S-12` 完整的工具调用、`#S-15` 工具结果块 | [S-17](#s-17-输入怎样译成来源产品的原生输入)、[S-20](#s-20-输出怎样译回) |
 | `data.identity-values` | `#S-17` 身份参数没有默认值、`#S-18` 缺席即拒绝、`#S-33` 表示层校验与判定分开 | [S-11](#s-11-importhosthooks) |
 | `capability.tool-admission` | `#S-15` 定死的四档选项、`#S-28` 四档选项只在它出的卡上带授权含义 | [S-21](#s-21-ask-与回放) |
+| `capability.execution-environments` | `#S-5` 执行环境引用、`#S-6` 落点判断（末段：拓展件子进程只凭那一项允许落宿主机）、`#S-7` 进程组、`#S-9` 失败值、`#S-13` startProcess（③ 不经解释器、不继承环境变量）、`#S-14` processOutcome、`#S-15` stopProcessGroup（`notConfirmed` 不算停下） | [S-18](#s-18-子进程在哪跑钱记在哪)、[S-19](#s-19-起不来与报错)、[S-26](#s-26-装配给的保证-vs-协议须给的保证)、[S-27](#s-27-缺席撤下与重新导入) |
 
 ---
 
@@ -302,14 +305,20 @@ name = "hooks." + host + "." + pathDigest + "." + event + "." + g + "." + h
 
 1. **按那一家那一事件的原生输入造**：公共字段与事件字段，逐项从这一次的输入与日志取（工具名、`tool_input`＝`subject.call.arguments`、`tool_use_id`＝`CallId`、`prompt` 取 `subject.message` 的文本……）。
 2. **取不到的字段不造**：本项目没有来源产品的 transcript 文件，`transcript_path` 不给；没有「权限模式」这个值，`permission_mode` 不给；
-   **统一输入里没有会话标识**（`data.loop-extension/v1#S-11` 的成员里没有它，日志句柄与执行环境句柄都不交出它），`session_id` 不给；租户标识同样不给——执行环境句柄解析得出的租户身份只用来找执行环境（[S-18](#s-18-子进程在哪跑钱记在哪)），**不造成来源产品输入里的字段**（主线裁定：统一输入不加会话标识，见 [D-040 §六 L9](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)；原 G-14 闭合）。**宁可让 hook 因为缺字段报错，也不给它一个编出来的值**——也不经一条没有声明的通道去取。
+   **统一输入里没有会话标识**（`data.loop-extension/v1#S-11` 的成员里没有它，日志句柄与执行环境句柄都不交出它），`session_id` 不给；租户标识同样不给——执行环境句柄解析得出的租户身份只用来取执行环境、起子进程（[S-18](#s-18-子进程在哪跑钱记在哪)），**不造成来源产品输入里的字段**（主线裁定：统一输入不加会话标识，见 [D-040 §六 L9](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)；原 G-14 闭合）。**宁可让 hook 因为缺字段报错，也不给它一个编出来的值**——也不经一条没有声明的通道去取。
 3. **`stop_hook_active` 从日志数**（提案 P10、[PF-012 §6.7](../../../../product/PF-012-agent-loop-and-run/design.md#67-检测状态从日志派生不另存)）：这一运行里**上一次 `before_terminal` 经过以否决收场**时为真，否则为假。**不另存计数**，崩溃后重算得到同一个值。
 
 ### S-18 子进程在哪跑，钱记在哪
 
-- **子进程在这一次会话的会话级执行环境里跑**（主线裁定 G6，[PF-005 §6.3](../../../../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)）；**不回退宿主机**（提案 P8）。执行环境落不了位，就是「起不来」（[S-19](#s-19-起不来与报错)），[不降级](../../../../product/PF-005-execution-environments-and-sandboxes/design.md#69-落点不可用就是拒绝不降级)。
-- **那个执行环境从这一次统一输入的执行环境句柄取**（`environment`，`data.loop-extension/v1#S-41`；读面 `capability.loop-extension-runner/v1#S-50`；主线裁定，见 [D-040 §八 M38](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），**不经别的通道**——兼容件拿不到会话标识，也不需要它。
+- **子进程在这一次会话的执行环境里跑，经 `capability.execution-environments/v1#S-13` 的 `startProcess` 起**。主线裁定 G6 要的是会话级沙箱（[PF-005 §6.3](../../../../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)）；**本版那份接口契约只有宿主机一种落点**，拓展件子进程只在「拓展件子进程的宿主机允许」（无词条）在场时落宿主机（那份契约 [S-6](../../execution-environments/v1/contract.md#s-6-落点判断本版只有宿主机) 末段）。**那一项产品还没给**（那份契约 G-3，产品问题账本 ⑭，[D-040 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ⑧）——**闭合之前每一件兼容件都「起不来」**（fail-closed，与 N-26 一致）。
+  **不回退**（提案 P8）：落不了位不换别的落点，没有那一项允许不落宿主机；落不了位就是「起不来」（[S-19](#s-19-起不来与报错)），[不降级](../../../../product/PF-005-execution-environments-and-sandboxes/design.md#69-落点不可用就是拒绝不降级)。
+- **那个执行环境从这一次统一输入的执行环境句柄取**（`environment`，`data.loop-extension/v1#S-41`；读面 `capability.loop-extension-runner/v1#S-50`；主线裁定，见 [D-040 §八 M38](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：解析得到恰两样——会话持有的租户与执行环境引用（runner S-50 第 1 条）；**不经别的通道**——兼容件拿不到会话标识，也不需要它。
   **句柄在起子进程之前就解析不出执行环境，与落不了位同一处置：起不来**（S-19 第一行；runner S-50 第 4 条「还没开始就取不到的是起不来」）；不拿别的会话的执行环境、不回退宿主机。
+- **起子进程的四件事**（主线已接受，[D-040 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ⑩）：
+  1. **带租户**：`startProcess`、`processOutcome`、`stopProcessGroup` 都带句柄解析出的那个租户与执行环境引用（那份契约 S-13～S-15 ①）；这个租户不造成来源产品输入里的字段（[S-17](#s-17-输入怎样译成来源产品的原生输入) 第 2 条）。
+  2. **把解释器写成 `program`**：来源产品把一条 command 交给命令解释器执行（Claude Code 在 macOS 与 Linux 上是 `sh -c`，[CC 文档 doc:472](../../../../../research/loop-extension-hooks-compat/sources/claude-code-hooks-2026-09-23.txt)；Codex 按与 CC 同构读，[G-5](#十一已知缺口)）；那份接口契约不经解释器、不做插值（S-13 ③），所以 **`program` 是那个解释器，`arguments` 恰是它「执行下一个参数」的开关加 command 原文这一个参数**——原文不拆、不改、不预先展开变量，展开留给解释器，与来源产品一致。
+  3. **交全环境变量**：子进程只看得到交去的 `launch.environment`，不继承据点进程的任何变量（那份契约 S-13 ③）。交去的恰是：据点进程环境里**名字在白名单上**的那几个变量（具名参数 `hookEnvAllowlist`，值未定，[G-15](#十一已知缺口)；解释器要靠其中的程序搜索路径找到）。**来源产品给 hook 导出的变量，本项目给不出的不造**（CC 的 `CLAUDE_PROJECT_DIR`、`CLAUDE_PLUGIN_ROOT`、`CLAUDE_PLUGIN_DATA`，CC 文档 doc:497），与 [S-17](#s-17-输入怎样译成来源产品的原生输入) 第 2 条同一口径；用到它们的 command 因展开成空而失败，按 [S-19](#s-19-起不来与报错) 处置。`launch.workingDirectory` 那份契约要求必带，**本版没有来路**（[G-15](#十一已知缺口)）——交不出它就不起，是「起不来」。
+  4. **拿到结果之后停组**：`processOutcome` 交回之后，对这个进程组调 `stopProcessGroup`——起的那个进程已经结束，停的是它留下的子孙。**停组的答复不改这一次的结论**：结论只从起的那个进程的结果译出（[S-19](#s-19-起不来与报错)、[S-20](#s-20-输出怎样译回)）；答 `notConfirmed` 的组由执行环境接着停（那份契约 [S-15](../../execution-environments/v1/contract.md#s-15-stopprocessgroup) 末条）。**到 `timeout` 那一支不同**：先停组，按报错收场（P-11）；`notConfirmed` 时说明写「已请求停止、未确认退出」，不当成停下了。
 - **时间上界**取 handler 的 `timeout`；缺席即那一家那一事件的默认（CC：`command` 600 秒，`UserPromptSubmit` 30 秒，doc:430；Codex：600 秒，doc:182-184）。**这是来源产品的出厂值，照搬以保语义；不是本契约另定的政策值。**
 - **资源算进它插手的那个运行**（[PF-012 挂件自己花的钱](../../../../product/PF-012-agent-loop-and-run/design.md#挂件自己花的钱算它插手的那个-run)）；`before_persist_message` 上没有运行可记——那一处记在哪、账上怎样有「拓展件」这一种条目，本版没有答案（[G-2](#十一已知缺口)）。
 
@@ -319,13 +328,13 @@ name = "hooks." + host + "." + pathDigest + "." + event + "." + g + "." + h
 
 | 情形 | 归哪一类 |
 |---|---|
-| 要执行的程序在执行环境里不存在；执行环境落不了位；执行环境句柄在起子进程之前解析不出执行环境（[S-18](#s-18-子进程在哪跑钱记在哪)） | **不可用**：按它声明的不可用处置——**导入产出的声明恒为 `skip`**（[S-10](#s-10-兼容件要带的东西)；运行时读的是落地时的声明，不是导入那一刻的），这一次这个位置没有它，记录带 `unavailability: skip`，**看得见**（`capability.loop-extension-runner/v1#S-12`）；安装者在落地前改成 `veto` 的，按否决处置 |
+| **起子进程在开始之前就被拒**：`startProcess` 答 `noLanding`（没有那一项允许）、`unavailable`（那一项读不到）、`startFailed{ programNotFound }`（解释器找不到）、`startFailed{ launchRefused }`、`referenceNotValid` 或 `environmentsWithdrawn`（`capability.execution-environments/v1#S-13` ⑥）；执行环境句柄在起子进程之前解析不出执行环境；交不出工作目录（[S-18](#s-18-子进程在哪跑钱记在哪)） | **不可用**：按它声明的不可用处置——**导入产出的声明恒为 `skip`**（[S-10](#s-10-兼容件要带的东西)；运行时读的是落地时的声明，不是导入那一刻的），这一次这个位置没有它，记录带 `unavailability: skip`，**看得见**（`capability.loop-extension-runner/v1#S-12`）；安装者在落地前改成 `veto` 的，按否决处置 |
 | 退出码 0，输出合这一家这一事件的形状 | 按 [S-20](#s-20-输出怎样译回) 译出结论 |
 | 退出码 2 | 按映射表「退出码 2」列译（Claude Code 按它的逐事件表，doc:876-914；Codex 要求 stderr 非空） |
-| 退出码非 0 非 2；超时；输出不合形状（坏 JSON、这一事件不认的决定值、Codex 的保留字段） | **报错**：按报错处置策略（可否决档默认当否决） |
+| 退出码非 0 非 2（**含 command 指向的脚本不存在**：解释器已经起来，以 127 一类的码退出，CC 文档 doc:861）；超时；输出不合形状（坏 JSON、这一事件不认的决定值、Codex 的保留字段）；起来之后执行环境被撤下（`processOutcome` 答 `environmentsWithdrawn`） | **报错**：按报错处置策略（可否决档默认当否决） |
 
 - **与来源产品方向相反，而且是有意的**：两家对多数事件是「挂了就放行」；这里可否决档挂了就拦（提案 P4）。每一条这样的件都带 `fails_closed_on_error`，导入时明示。
-- **「程序不存在」要在它开始之前判出**：一条 command 跑到一半才因找不到某个子程序退出，那是它开始之后的失败，**是报错**。判不出是哪一种时，**按报错**——那是不让一道闸静默消失的一边。
+- **「程序不存在」要在它开始之前判出**，本版它只指**解释器**（[S-18](#s-18-子进程在哪跑钱记在哪) 第 3 条第 2 项）：解释器起来之后才发现 command 里的脚本或子程序找不到，那是它开始之后的失败，**是报错**（2026-09-25 修订波随「解释器写成 `program`」收窄）。判不出是哪一种时，**按报错**——那是不让一道闸静默消失的一边。
 
 ### S-20 输出怎样译回
 
@@ -479,9 +488,9 @@ name = "hooks." + host + "." + pathDigest + "." + event + "." + g + "." + h
 
 | 保证 | 单机由谁给（装配给） | 跨进程之后协议须兑现什么 | 做不到会怎样 |
 |---|---|---|---|
-| **子进程落在会话级执行环境里**（[S-18](#s-18-子进程在哪跑钱记在哪)） | 兼容件经执行环境句柄取得这一会话的执行环境：runner 按这一次经过所在的会话造句柄，装配把句柄解析的来路接好（`capability.loop-extension-runner/v1#S-50`） | 执行环境在远端时，**句柄的解析与起子进程的请求都必须携带会话与租户身份并在接收边界重新验证**；落不了位或解析不出即「起不来」 | 一个租户的 hook 在另一个租户的执行环境里跑，或回退到宿主机 |
-| **运行被取消时子进程确实停下**（[S-27](#s-27-缺席撤下与重新导入)） | 停止信号随 runner 的叫停在同一进程里送到兼容件，按进程组停 | 停止信号跨进程送到执行环境；**没确认停下就不算停下**，但那一次求值照样不留记录（运行已被取消） | 运行已被取消而 hook 还在跑、继续写文件；或把停下当成一次报错落了一条 `veto` |
-| **超时后子进程确实停下**（P-11） | 同一台机器上按进程组停 | 远端停止要有确认；**没确认就不算停下**，结果按报错记 | 超时之后 hook 还在跑，继续写文件，而结论已经按报错处置了 |
+| **子进程落在这一会话的执行环境里，没有显式允许不落宿主机**（[S-18](#s-18-子进程在哪跑钱记在哪)） | 兼容件经执行环境句柄取得这一会话的执行环境：runner 按这一次经过所在的会话造句柄，装配把句柄解析的来路接好（`capability.loop-extension-runner/v1#S-50`）；起子进程与落点判断在 `capability.execution-environments` v1 的同一次在场里（S-6 末段、S-13） | 执行环境在远端时，**句柄的解析与起子进程的请求都必须携带会话与租户身份并在接收边界重新验证**；落不了位或解析不出即「起不来」 | 一个租户的 hook 在另一个租户的执行环境里跑，或没有那一项允许就落到宿主机 |
+| **运行被取消时子进程确实停下**（[S-27](#s-27-缺席撤下与重新导入)） | 停止信号随 runner 的叫停在同一进程里送到兼容件，兼容件经 `capability.execution-environments/v1#S-15` 按进程组停、有界答复 | 停止信号跨进程送到执行环境；**没确认停下就不算停下**，但那一次求值照样不留记录（运行已被取消） | 运行已被取消而 hook 还在跑、继续写文件；或把停下当成一次报错落了一条 `veto` |
+| **超时后子进程确实停下**（P-11） | 同一台机器上经 `capability.execution-environments/v1#S-15` 按进程组停、有界答复 | 远端停止要有确认；**没确认就不算停下**，结果按报错记 | 超时之后 hook 还在跑，继续写文件，而结论已经按报错处置了 |
 | **回放不重跑**（P-8） | 同一本日志 | 兼容件的实现换了进程，照样只读日志 | 一次人答完之后来源产品脚本又跑一遍，副作用发生两次 |
 | **导入是纯翻译**（[S-11](#s-11-importhosthooks)） | 纯计算 | **不变** | —— |
 
@@ -497,8 +506,8 @@ name = "hooks." + host + "." + pathDigest + "." + event + "." + g + "." + h
 | **执行环境落不了位** | 同上，那一件不可用（[S-19](#s-19-起不来与报错)） |
 | **来源产品配置变了，重新导入** | 同 name 的是同一件资产的新版本（[S-7](#s-7-能力标识怎样导出)）；新旧版本怎样切换、在途的那一次经过用哪一版，归资产与装配 |
 | **钉住的方言版本升级** | 本契约出新版本；已导入的兼容件照旧按导入时的方言版本求值（它的留痕里有），**直到重新导入** |
-| **一件兼容件在求值中途被撤下** | 那一次按报错记（`capability.loop-extension-runner/v1#S-34`）；已起的子进程由执行环境停下 |
-| **这个运行被取消，一件兼容件正在求值** | 它收到停止信号（随 runner 的叫停转来），已起的子进程由执行环境停下；**那一次求值不留记录、兼容件不自造结论**——不译成 `veto`、也不按报错处置；那一次 `dispatch` 以 `cancelled` 收场（`capability.loop-extension-runner/v1#S-21` ⑥、`#S-34`；主线裁定，见 [D-040 §八 M39](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。它与上一行不同：撤下是这一件的实现没了，取消是整个运行不再继续 |
+| **一件兼容件在求值中途被撤下** | 那一次按报错记（`capability.loop-extension-runner/v1#S-34`）；已起的进程组由它撤下时停下（`capability.execution-environments/v1#S-15`），答 `notConfirmed` 的由执行环境接着停；执行环境自己撤除时，它起过的组由它停（那份契约 S-17） |
+| **这个运行被取消，一件兼容件正在求值** | 它收到停止信号（随 runner 的叫停转来），对已起的进程组调 `stopProcessGroup`，答 `notConfirmed` 的由执行环境接着停；**那一次求值不留记录、兼容件不自造结论**——不译成 `veto`、也不按报错处置；那一次 `dispatch` 以 `cancelled` 收场（`capability.loop-extension-runner/v1#S-21` ⑥、`#S-34`；主线裁定，见 [D-040 §八 M39](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。它与上一行不同：撤下是这一件的实现没了，取消是整个运行不再继续 |
 
 ---
 
@@ -529,8 +538,9 @@ name = "hooks." + host + "." + pathDigest + "." + event + "." + g + "." + h
 
 #### S-32 挂了就拦，看得见
 
-一条可否决的 `PreToolUse` 兼容件：① 让它超时；② 让它退出码 1；③ 让它要执行的程序不存在。**必须观察到**：①② 记报错、落 `veto`、动作不执行；③ 记不可用、`unavailability: skip`、**动作照常走到放行判断**，不可用记录看得见。**再跑一支**：同一件在落地前把 `unavailability` 改为 `veto`，③ 那一支观察到按否决处置、动作不执行。
-**再跑一支**：让执行环境句柄在起子进程之前解析不出执行环境（[S-18](#s-18-子进程在哪跑钱记在哪)）——观察到与 ③ 相同：记不可用、`unavailability: skip`，**子进程没有起，也没有落到宿主机或别的会话的执行环境里**。
+一条可否决的 `PreToolUse` 兼容件（验收装配给出「拓展件子进程的宿主机允许」与白名单、工作目录）：① 让它超时；② 让它退出码 1；③ 让解释器不存在（程序搜索路径里找不到）。**必须观察到**：①② 记报错、落 `veto`、动作不执行；③ 记不可用、`unavailability: skip`、**动作照常走到放行判断**，不可用记录看得见。**再跑一支**：同一件在落地前把 `unavailability` 改为 `veto`，③ 那一支观察到按否决处置、动作不执行。
+**再跑一支**：让执行环境句柄在起子进程之前解析不出执行环境（[S-18](#s-18-子进程在哪跑钱记在哪)）；另一次让「拓展件子进程的宿主机允许」不在——两次都观察到与 ③ 相同：记不可用、`unavailability: skip`，**子进程没有起，也没有落到宿主机或别的会话的执行环境里**。
+**再跑一支**（2026-09-25 修订波）：解释器在、command 指向的脚本不存在——观察到**记报错**、落 `veto`（与 ① ② 同一处置），不是不可用：解释器已经起来了（[S-19](#s-19-起不来与报错)）。
 
 #### S-33 来源产品的 ask，四档卡不带授权，回放不重跑
 
@@ -561,7 +571,7 @@ name = "hooks." + host + "." + pathDigest + "." + event + "." + g + "." + h
 | **G-2** | **拓展件的资源记在哪**：`data.call-accounts` 没有拓展件条目；`before_persist_message` 上没有运行可记（主线裁定 G6 的账形状缺口） | 账 | PF-012 ／ `data.call-accounts` 下一版 | 账上有拓展件条目，且写明没有运行时记在哪 |
 | **G-3** | **已闭合**：四档卡与放行判断的卡同名——[PF-008 §6.8](../../../../product/PF-008-human-in-the-loop/design.md#68-三种来源的卡片同一个形状选项与记录不同)（rev 6 起）写明搬来的 hook 出的卡借四档样子、不带授权含义、样式上分得开 | — | — | — |
 | **G-4** | **已闭合**：导入来源由导入者声明、资产治理不核实（本版；D-040 S15-f）——写成已知边界 | — | — | — |
-| **G-5** | **Codex 两种配置文件里 hooks 那一段的逐字结构**研究包没有记下；本契约按与 CC 同构读 | Codex 导入的解析 | 研究包下一轮（Codex 文档副本 doc:1-200 一带） | 研究记下结构；不同构则本契约出新版本 |
+| **G-5** | **Codex 两种配置文件里 hooks 那一段的逐字结构**研究包没有记下；本契约按与 CC 同构读。**Codex 执行 command 用哪一个解释器**同样没有记下，[S-18](#s-18-子进程在哪跑钱记在哪) 第 3 条第 2 项按与 CC 同构读（macOS 与 Linux 上 `sh -c`；2026-09-25 修订波加） | Codex 导入的解析；Codex 兼容件起子进程 | 研究包下一轮（Codex 文档副本 doc:1-200 一带） | 研究记下结构；不同构则本契约出新版本 |
 | **G-6** | **配置路径怎样规范化**（[S-7](#s-7-能力标识怎样导出)）：同一份配置用两种路径写法导入会成为两件资产 | 重新导入的身份稳定 | 主线（与资产治理） | 规定导入者给出的路径串形式（例如相对仓库根、或只取来源种类加文件名） |
 | **G-7** | **落地一侧拒收越限声明**：兼容件声明的 `power` 高于事件上限时由谁拒 | P-5 | 资产治理 | 落地写面按本契约映射表核对上限 |
 | **G-8** | **工作区来源的「禁用」落在租户层那一格**，由落地兑现 | P-6 | 资产治理 ＋ PF-002 owner | 落地写面写明；若导入者不在租户层有资格，给出收场 |
@@ -571,6 +581,7 @@ name = "hooks." + host + "." + pathDigest + "." + event + "." + g + "." + h
 | **G-12** | **已闭合（2026-09-24）**：G1–G11 的长期落点是 D-040 §D-033 推迟的 G1–G11；导入件不可用处置取 `skip`（[S-10](#s-10-兼容件要带的东西)）与 `ask` 带改写放进 `proposedRewrite`（[S-20](#s-20-输出怎样译回)、[S-21](#s-21-ask-与回放)）两条已汇编为 D-040 §五 K47、K32 | — | — | — |
 | **G-13** | **已闭合**：映射按 PF-012 rev 7 作出，本契约 2026-09-24 按 rev 14 复核——rev 8～14 位置、维度、终态、转移表均未变（各版 changelog「十一个位置一个都没变」）；rev 8 起「否决只在『之前』有意义、执行动作之后不给否决」「消息落盘之前只能否决」与映射表各格一致 | — | — | — |
 | **G-14** | **已闭合（修复波 1b，[D-040 §六 L9](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）**：确认不给 `session_id`——统一输入不加会话标识，`data.loop-extension` 不加成员；[S-17](#s-17-输入怎样译成来源产品的原生输入) 第 2 条照「取不到的字段不造」。与 `transcript_path`、`permission_mode` 同样处理，**不另加降级说明**（[S-13](#s-13-降级说明) 的一组不变；主线确认，见 [D-040 §六 N-12](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）；用到它的 hook 因缺字段报错，按 [S-19](#s-19-起不来与报错) 处置 | — | — | — |
+| **G-15** | **子进程的工作目录与白名单变量没有来路**（2026-09-25 修订波，随 [S-18](#s-18-子进程在哪跑钱记在哪) 第 3 条第 3 项）：`capability.execution-environments/v1#S-13` 要 `launch.workingDirectory` 必带、`launch.environment` 交全；统一输入与执行环境句柄都不给工作目录（来源产品在会话的当前目录里跑 hook，本项目的会话没有交出这一项），白名单 `hookEnvAllowlist` 的值未定。**闭合之前交不出工作目录的就不起——「起不来」**，不拿据点进程的当前目录顶上 | 每一件兼容件起子进程（叠在执行环境 G-3 之上的第二道阻断） | 主线（与 PF-005、PF-015 那一程；白名单与 `capability.mcp-bridge` 的 `stdioEnvAllowlist` 是否同一份也由主线定） | 写明工作目录从哪来（例如随执行环境引用给出），并给白名单定值 |
 
 ---
 
@@ -583,7 +594,7 @@ name = "hooks." + host + "." + pathDigest + "." + event + "." + g + "." + h
 | **装配** | 同一位置几件的相对次序 | [S-15](#s-15-报告里的次序) | 够，义务在它（G-10） |
 | **runner** | 兼容件与原生件一样：一次交回一条结论；起不来与报错分开；不可用时按声明处置；回放不重跑、改写从草稿重建 | [S-16](#s-16-情形筛选)～[S-22](#s-22-越档的输出) | 够（`session_id` 不给，主线已确认，原 G-14 闭合） |
 | **放行判断** | 兼容件的卡的答复不交给它 | [S-21](#s-21-ask-与回放) 第 2 条 | 够 |
-| **`apps/cli`**（[D-039](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#拆分领域名与装配g3) 不立 `apps/runtime-host`，[D-040 §八 M40](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） | 让兼容件的实现在场、接好执行环境句柄的解析来路 | [S-18](#s-18-子进程在哪跑钱记在哪)、[S-26](#s-26-装配给的保证-vs-协议须给的保证) 左列 | 够；执行环境本身没有提供者、来路没有契约（`capability.loop-extension-runner` v1 的 G-20），闭合前每一件兼容件都「起不来」 |
+| **`apps/cli`**（[D-039](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#拆分领域名与装配g3) 不立 `apps/runtime-host`，[D-040 §八 M40](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） | 让兼容件的实现在场、接好执行环境句柄的解析来路 | [S-18](#s-18-子进程在哪跑钱记在哪)、[S-26](#s-26-装配给的保证-vs-协议须给的保证) 左列 | 够；执行环境由 `capability.execution-environments` v1 给（接口已定、真承接者未到：`capability.loop-extension-runner` v1 的 G-20、那份契约 G-1）。**「拓展件子进程的宿主机允许」产品还没给**（那份契约 G-3，账本 ⑭），工作目录没有来路（[G-15](#十一已知缺口)）——两件闭合之前每一件兼容件都「起不来」 |
 
 ---
 

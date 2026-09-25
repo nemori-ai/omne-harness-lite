@@ -4,7 +4,7 @@
 这是按工具执行运行时算 `late` 已列出的要求定的**窄口接口**，不是运行与尝试的完整读面——那一份归会话日志与 loop 那一程。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.run-attempt-facts, 1)`
-- **状态**：`candidate`（2026-09-25 起草），**未接受、未冻结**
+- **状态**：`candidate`（2026-09-25 起草；同日「公开面」修订波原地改，见[修订波](verification.md#修订波2026-09-25-公开面)），**未接受、未冻结**
 - **catalog 映射**：已登记为 `candidate`；`family=capabilities`、`topic=run-attempt-facts`、
   `contract_path=spec/capabilities/run-attempt-facts/v1/contract.md`；`resources` 含契约与 `examples.md`；
   依赖四项：`data.identity-values`、`data.messages`、`data.call-accounts`、`capability.session-log`（均 v1），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)
@@ -17,7 +17,7 @@
 |---|---|
 | 语义拥有者 | 本契约拥有这个**读**与两件事实的判定形式；事实本身（尝试开始、运行终结）是会话日志里的条目，归 loop 写 |
 | 为什么是 capability 而不是 data | 一个有前置、失败集合与缺席默认的操作 |
-| 为什么现在立、而且这么窄 | 产品负责人 2026-09-25 同意把验收替身换成「接口契约 ＋ 最小提供者」、接口按消费者需要定窄口（主线施工简报；尚无决定记录）；工具执行运行时每条收场都要落账、每笔账都要 `late`（[D-040 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M74，据点装配 C-16） |
+| 为什么现在立、而且这么窄 | 产品负责人 2026-09-25 同意把验收替身换成「接口契约 ＋ 最小提供者」、接口按消费者需要定窄口（[D-043 R-1](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）；工具执行运行时每条收场都要落账、每笔账都要 `late`（[D-040 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M74，据点装配 C-16） |
 | 为什么不并进会话日志契约 | 会话日志把载荷当不透明、不认终结记录；这两件事实是对日志内容的一种**解释**，解释归 loop 那一程——本版先以窄口把「怎样判」固定下来，与会话日志的栅栏同一条件 |
 | 精确依赖 | 见上；依赖方向单向 |
 | 接受状态 | 未接受 |

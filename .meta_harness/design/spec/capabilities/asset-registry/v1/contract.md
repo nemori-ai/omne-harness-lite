@@ -1,7 +1,7 @@
 # capability.asset-registry v1
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.asset-registry, 1)`
-- **状态**：`candidate`——2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订，2026-09-25 修复波 1b 把报告的执行权限扩到全部工具条目（L13），同日修复波 2 按第二轮复评定下报告各项的键、meta 门的执行权限项（M8、M21），同日修复波 3 按实现映射反推落 M34、M35、M40、M46 并随求值的 M31、M32、M45 对齐（处置在[验证入口「实现映射反推」](../verification.md#实现映射反推2026-09-25)），**未接受、未冻结**；接受与采用只从 [catalog](../../../../registry/README.md) 读
+- **状态**：`candidate`——2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订，2026-09-25 修复波 1b 把报告的执行权限扩到全部工具条目（L13），同日修复波 2 按第二轮复评定下报告各项的键、meta 门的执行权限项（M8、M21），同日修复波 3 按实现映射反推落 M34、M35、M40、M46 并随求值的 M31、M32、M45 对齐（处置在[验证入口「实现映射反推」](../verification.md#实现映射反推2026-09-25)）；同日「公开面」修订波把 [S-13](#s-13-evaluationref) 改为引用装配清单窄口的定义、换表提交点与 G-1 改指那份接口契约（[验证入口「修订波」](../verification.md#修订波2026-09-25-公开面)），**未接受、未冻结**；接受与采用只从 [catalog](../../../../registry/README.md) 读
 - **设计依据**（PF-002 rev 20、PF-006 rev 19、PF-004 rev 12；2026-09-24 逐版复核到当前 rev，变化与落点记在[验证入口](../verification.md#变化的影响)）：
   PF-002 [§4 Slash Command](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)、
   [§4「会话认得哪些命令，什么时候变」](../../../../product/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变)、
@@ -41,7 +41,7 @@
 - **主线裁定（修复波 2）**——[D-040 §七 M8、M10、M21](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)：`tool` 表条目的查找键与 `effectivePermissions` 每一项的键都是模型面名字 `ModelToolName`，由定义名确定性推出（M8，[S-7](#s-7-注册表条目)、[S-11](#s-11-一次执行尝试的可用性报告)、[S-25](#s-25-lookup查一条)）；报告里查不到条目的调用不进放行判断，本契约 S-12 不变，`not_in_composition` 只指「条目仍在快照、能力标识不在此刻组合里」（M10）；meta 门条目的执行权限项恒为 `{auto}`、不读求值（M21，[S-11](#s-11-一次执行尝试的可用性报告)）。
 - **主线裁定（修复波 3，实现映射反推）**——[D-040 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)：同一 `EvaluationRef` 再 `fill` 而六张表已不是它填出的 ⇒ `invalidInput{evaluationSuperseded}`（M34，[S-22](#s-22-fill装配时填六张) ⑦）；`within = run{report}` 的读只在报告所依的快照里找，reload 之后的新条目下一次尝试起可见（M35，[S-25](#s-25-lookup查一条)、[S-8](#s-8-当下可用性的三个取值) 末段、[S-34](#s-34-进行中的运行与撤销)，原 [G-2](#十已知缺口) 闭合）；`apps/runtime-host` 改 `apps/cli`（M40，[S-31](#s-31-装配给的保证-vs-协议须给的保证)）；报告带这一次尝试的 `attempt`（M46，[S-11](#s-11-一次执行尝试的可用性报告)、[S-24](#s-24-refreshavailability每次执行尝试开始时现算)）。随 `capability.asset-evaluation` 的 M31（组合根引用集）、M32（`compositionCycle`）、M45（`categoryUnsupported`）：两次求值的配方带上同一个组合根，两个新失败值原样转交（[S-21](#s-21-这一节每个操作写全九件事) 总表、[S-23](#s-23-reload按类别重填) ⑥、[S-24](#s-24-refreshavailability每次执行尝试开始时现算) ②⑥；**转交是本契约推导，已报主线**）
 - **主线裁定**（见 [D-040 §六 N-10](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)，原 G-16 闭合）：`onAssetChange` 作为权限收回的触发操作、可用性到命令粒度（`commandAvailability`）两条补充裁定（2026-09-23）；`slotConflict` 改名 `toolNameConflict`（整批对齐）
-- **精确语义依赖**（十六项，消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)，catalog 按它登记）：
+- **精确语义依赖**（十七项，消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)，catalog 按它登记）：
   - `omne-harness-lite-design-2026-09-15 · data.asset-model · v1`
   - `omne-harness-lite-design-2026-09-15 · data.tool-definition · v1`
   - `omne-harness-lite-design-2026-09-15 · data.loop-extension · v1`
@@ -51,6 +51,7 @@
   - `omne-harness-lite-design-2026-09-15 · data.call-accounts · v1`（2026-09-24 第一轮评审修订新增：报告带的运行标识 `RunId`）
   - `capability.asset-evaluation`、`capability.asset-governance`、`data.skill-package`、`data.slash-command`、`data.mcp-endpoint`、`capability.mcp-bridge`、`capability.tool-admission` 七份 v1（起草时并行、未登记；2026-09-24 整批对齐按条款号登记）
   - `capability.modality-projection` v1 与 `data.model-profile` v1（2026-09-24 整批对齐新增：工具两端模态的判法，[S-8](#s-8-当下可用性的三个取值) 第 8 条）
+  - `omne-harness-lite-design-2026-09-15 · capability.assembly-manifest · v1`（2026-09-25「公开面」修订波新增，第十七项：换表的追加面与 `EvaluationRef` 的权威，[S-13](#s-13-evaluationref)、[S-18](#s-18-快照不持久装配清单是唯一权威)；那份契约不以坐标依赖本契约，无环）
 - **条款编号**：`S-n`，**只在本契约本版本内有效**；外部引用写全坐标，如 `capability.asset-registry/v1#S-15`。缺口编号 `G-n`，见[十](#十已知缺口)
 - **词条与无词条的名字**：本契约兑现的就是[会话资产注册表](../../../../ubiquitous_language/terms/reach-and-availability.md#ul-session-asset-registry--会话资产注册表--session-asset-registry)，**正文一律写这个全名，不裸写「注册表」**（引产品原话处照原话）；
   [谁可以使用它](../../../../ubiquitous_language/terms/circulation-and-entitlement.md#ul-usable-by--谁可以使用它--usable-by)是一项[权限](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-permission--权限--permission)，项名是 `data.asset-model` 保留的 `usableBy`。
@@ -81,7 +82,7 @@
 | 持有与配值的写面；资产变化的事件 | `capability.asset-governance` v1 |
 | 各类正文的形状、校验与属性推出 | `data.tool-definition` v1、`data.loop-extension` v1、`data.skill-package` v1、`data.slash-command` v1、`data.mcp-endpoint` v1 |
 | MCP 的连接、列举、动作投影成工具定义、接入点可用性的判定本身、凭据 | `capability.mcp-bridge` v1 |
-| **装配清单**本身：形状、只追加、定义版本、失效 | PF-004 的契约（**未建立**，[G-1](#十已知缺口)） |
+| **装配清单**本身：形状、只追加、定义版本、失效 | 换表记录的追加与读、`EvaluationRef`：窄口接口契约 `capability.assembly-manifest` v1；其余（定义版本、失效、完整形状）：PF-004 的契约（**未建立**，[G-1](#十已知缺口)） |
 | 斜杠命令的识别与参数解析；③ 型流程的派发与执行结果落日志 | `data.slash-command` v1；受理与交付面（PF-014、PF-016） |
 | 一次工具执行（含**替换件与关掉的命令被调用时落收场 `unavailable`**） | `capability.tool-execution-runtime` v1（它的 S-23 ④）；收场取值见 `data.content-blocks/v1#S-17` |
 | 放行判断 | `capability.tool-admission` v1 |
@@ -174,6 +175,7 @@
 | `capability.tool-admission` v1 | [`#S-10`](../../tool-admission/v1/contract.md#s-10-会话运行模式) `SessionRunMode`（`never`） | [S-9](#s-9-按命令的可用性) |
 | `capability.modality-projection` v1 | [`#S-19`](../../modality-projection/v1/contract.md#s-19-查登记-lookupconverter) `lookupConverter` | [S-8](#s-8-当下可用性的三个取值) 第 8 条：工具结果那一端 |
 | `data.model-profile` v1 | [`#S-7`](../../../data/model-profile/v1/contract.md#s-7-modality-与两组模态) 两组模态 | [S-8](#s-8-当下可用性的三个取值) 第 8 条：工具两端 |
+| `capability.assembly-manifest` v1（窄口接口契约，2026-09-25 修订波登记） | [`#S-6`](../../assembly-manifest/v1/contract.md#s-6-记录与它的壳) 换表记录与它的壳、[`#S-8`](../../assembly-manifest/v1/contract.md#s-8-求值引用-evaluationref) `EvaluationRef`（**定义的权威在那里**，D-040 §八 N-37 ③）、[`#S-16`](../../assembly-manifest/v1/contract.md#s-16-readhead读头与每一类最后一条) 读头、[`#S-17`](../../assembly-manifest/v1/contract.md#s-17-append条件追加一条换表记录) 条件追加、[`#S-18`](../../assembly-manifest/v1/contract.md#s-18-readhistory按表时刻读回一条) 按表时刻读回 | [S-13](#s-13-evaluationref)、[S-18](#s-18-快照不持久装配清单是唯一权威) 第 4 条：换表的提交点就是那一次条件追加成功 |
 
 ---
 
@@ -322,9 +324,9 @@
 
 ### S-13 EvaluationRef
 
-**`EvaluationRef` 指认一次求值——就是装配清单里记下的那一次。**不透明，交换表示与相等按 `data.identity-values/v1#S-31`；**消费者不得解析它**。
+**`EvaluationRef` 的定义归 `capability.assembly-manifest` v1 的 [S-8](../../assembly-manifest/v1/contract.md#s-8-求值引用-evaluationref)**（主线裁定，见 [D-040 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ③）：它指认装配清单里记下了一次求值的那一条记录；不透明、全局唯一、永不复用，交换表示与相等按 `data.identity-values/v1#S-31`；**消费者不得解析它**。本条不另下定义，只写本契约怎样用它：
 
-- 装配把求值结果交给 `fill` 时连同它一起交；`reload` 求一次新的值，把它**记进装配清单**，得到一个新的 `EvaluationRef`（[S-18](#s-18-快照不持久装配清单是唯一权威)）。
+- 装配把求值结果交给 `fill` 时连同它一起交，`fill` 以它 `given` 追加那条记录（那份契约 S-8 第 2 条）；`reload` 求一次新的值，以 `mint` 追加、由装配清单铸出一个新的 `EvaluationRef`；`markFailed`、`onAssetChange` 以 `reuse` 沿用被收窄那份的引用、不铸新的（那份契约 S-8 第 3、4 条；[S-18](#s-18-快照不持久装配清单是唯一权威)）。
 - 两份快照的 `basedOn` 相同，说明它们出自同一次求值。
 - **会话资产注册表不从它反推任何东西**——不从中读租户、版本或时刻；要那些，读装配清单里的那一条记录。
 
@@ -379,7 +381,7 @@
 1. **每一次换表都记进装配清单**：记下的是换出来的那几份快照的**构成**——每条条目的 (`capability`、`asset`、被选用的版本、`from`、`resident`) 与次序——连同 `filledBy`、`basedOn`、`filledAt`。**一条记录带齐它换掉的每一张表的完整构成**（不是只记增删），所以任何一类的当前快照都能从这一类最后一条记录单独读出。**`fill` 的记录就是那一次装配的构成本身**，不是在它之外另记一份；`reload`、`markFailed`、`onAssetChange` 各追加一条，**作为会话装了什么的一条可见事实**——否则一次重启会在人不知情时改掉会话的命令集。
 2. **换表的提交点就是这一条记录落下**。落不下 ⇒ 这一次换表失败、快照不换、操作收 `unavailable`（[S-17](#s-17-换表同一会话串行多表一次成败同一) 第 4 条）。
 3. **可用性、按命令的可用性、MCP 动作条目都不记**——它们每次尝试现算（[S-8](#s-8-当下可用性的三个取值) 第 6 条、[S-12](#s-12-mcp-动作条目在一次尝试内钉住)）。
-4. **装配清单那一侧给出的追加面与记录形状，本版没有契约**——[G-1](#十已知缺口)。**在它闭合之前，本契约每一个换表操作的提交点都没有落处**。
+4. **装配清单那一侧给出的追加面与记录形状，由窄口接口契约 `capability.assembly-manifest` v1 给出**（2026-09-25 修订波，[D-043 R-1](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）：换表记录与它的壳（[S-6](../../assembly-manifest/v1/contract.md#s-6-记录与它的壳)）、条件追加（[S-17](../../assembly-manifest/v1/contract.md#s-17-append条件追加一条换表记录)）、读头与每一类最后一条（[S-16](../../assembly-manifest/v1/contract.md#s-16-readhead读头与每一类最后一条)）、按表时刻读回（[S-18](../../assembly-manifest/v1/contract.md#s-18-readhistory按表时刻读回一条)）。**本契约每一个换表操作的提交点，就是那一次条件追加成功**；第 1 条列的各项是写入方放进那条记录的内容（那份契约原样存）。**真承接者未到**：完整的装配清单契约归 PF-004 那一程，本版由最小提供者承接（[G-1](#十已知缺口)）。
 
 ### S-19 缺席时的默认答案
 
@@ -842,7 +844,7 @@
 
 | # | 缺口 | owner | 闭合条件 |
 |---|---|---|---|
-| G-1 | **装配清单的追加面与记录形状**：本契约每一次换表都要在装配清单里落一条（[S-18](#s-18-快照不持久装配清单是唯一权威)），重建要能按它重放（[S-33](#s-33-本能力重启与重建)）。PF-004 的清单只写到「实际构成，只可追加」，**没有契约、没有追加面，也没说 reload 一族与 ③ 型失败之后的换表记在哪**；`data.messages` v1 里也没有这种记录的形状（[PF-004 decisions §四](../../../../product/PF-004-agent-definition-and-assembly/decisions.md#四已知的来源问题)第四行已登记：§6.7 没有列出这两个发起者） | PF-004 的契约（后续程，[D-040 §S22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s22asset-registry报回的) S22-g）；产品面问 PF-004 owner | 那份契约给出「追加一次换表」的面与记录形状，能表达 [S-18](#s-18-快照不持久装配清单是唯一权威) 第 1 条列的各项；本契约的换表提交点改指它 |
+| G-1 | **真承接者未到，接口已定**（2026-09-25 修订波，[D-043 R-1](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）：换表的追加面与记录形状已由窄口接口契约 `capability.assembly-manifest` v1 给出（S-6、S-16～S-18；`EvaluationRef` 的权威在它的 S-8），本契约的换表提交点已改指它（[S-18](#s-18-快照不持久装配清单是唯一权威) 第 4 条），本版由它的最小提供者承接。**仍缺**：装配清单的完整契约与真提供者——PF-004 的清单只写到「实际构成，只可追加」，reload 一族与 ③ 型失败之后的换表记在哪、依据的定义版本、清单的复用与失效都在那一程（[PF-004 decisions §四](../../../../product/PF-004-agent-definition-and-assembly/decisions.md#四已知的来源问题)第四行已登记：§6.7 没有列出这两个发起者）；那份窄口的 G-1 同题 | PF-004 的契约（后续程，[D-040 §S22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s22asset-registry报回的) S22-g）；产品面问 PF-004 owner | PF-004 那一程的装配清单契约发布，原样收进窄口的条款或写明差异；本契约改钉它 |
 | G-2 | **已闭合（2026-09-25，主线裁定 [D-040 §八 M35](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)；产品负责人尚未追认）**：热更新对进行中运行的呈现时机——正在跑的那一次尝试照它报告所依的快照读、看不见，**同一运行的下一次尝试起**看得见（[S-25](#s-25-lookup查一条) ④、[S-8](#s-8-当下可用性的三个取值) 末段、[S-11](#s-11-一次执行尝试的可用性报告) 第 1 条、[S-34](#s-34-进行中的运行与撤销)）。原问（[D-040 §块 A](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#块-a-形状shapes-draft-assets-v0md-a1a10) A10）在 [PF-004 decisions §四](../../../../product/PF-004-agent-definition-and-assembly/decisions.md#四已知的来源问题)第四行仍登为产品未决，那一行怎样收归 PF-004 的 owner（已报主线） | — | — |
 | G-3 | **收窄**：「只收窄」已由主线裁定（[D-040 §S22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s22asset-registry报回的) S22-a），[S-28](#s-28-onassetchange权限收回之后收窄)。**仍在**：收回的通知丢失、随后又重新授予时，那条命令不经 reload 重新可见——本版的已知边界，正确性由读时现读兜住 | 主线（确认接受为已知边界）；产品负责人（PF-002 §4「新得到权限要等 reload」的适用范围） | 接受为边界并写进 PF-002 的取舍，或给出不依赖通知送达的兑现点 |
 | G-4 | **已闭合（2026-09-24 整批对齐）**：`asset_change` 由主线裁定补名（[D-040 §S22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s22asset-registry报回的) S22-c） | — | — |
@@ -850,7 +852,7 @@
 | G-6 | **依赖项提供者的读面**：外部服务由谁提供、谁自报；执行环境设施（PF-005 无契约）；存储（pending「存储」，且**「哪个工具能读回哪个存储」没有任何声明**）；有效模型的模态能力——两端的判法已定（[S-8](#s-8-当下可用性的三个取值) 第 8 条），**仍缺**一次执行尝试开始时「有效模型」指哪一份档案。**在它们有家之前，声明了这些项的工具与技能按 [S-8](#s-8-当下可用性的三个取值) 第 3、4 条一律判为不满足**——这是缺席默认拒绝的直接后果，不是可用性规则本身 | 各自 owner：PF-005、PF-006（存储）；尝试开始时按哪一份档案算，问 PF-006 / PF-013 的 owner；「外部服务的提供者」无 owner，交主线 | 各读面有契约；本契约 [S-4](#s-4-依赖方向与被消费的面) 补登 |
 | G-7 | **meta 门的能力标识清单无契约家**：「会话资产注册表不去掉 meta 门」（[S-7](#s-7-注册表条目)）与「`Ask()` 的 `request_approval`」（[S-9](#s-9-按命令的可用性)）都要能指认它们；报告里 meta 门的执行权限项恒为 `{auto}`（[S-11](#s-11-一次执行尝试的可用性报告)，D-040 §七 M21）也要先认出哪条条目是门——**闭合之前**，没有一条条目被当作 meta 门，这三处都不生效（门照常走依赖解析与求值：M21 那一项取求值给的值），不猜一份清单；PF-007 列了十三扇门，但没有一份契约给出它们的能力标识与命令名 | PF-007 / 块 B 对齐 | 有一份契约列出 meta 门的能力标识与 `Ask()` 的命令名 |
 | G-8 | **已闭合（2026-09-24 整批对齐）**：可用性变化不出提醒（[D-040 §S22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s22asset-registry报回的) S22-d），[S-30](#s-30-可用性变化不出提醒) | — | — |
-| G-9 | **会话事实的读面**：会话创建时捕获的租户身份、挂的工作区、此刻有效的运行模式——PF-015 没有契约；有效运行模式怎么求归 `capability.tool-admission` 与会话 | PF-015 的契约（未建立）；`capability.tool-admission` | 会话契约给出这三项的读面 |
+| G-9 | **会话事实的读面**：会话创建时捕获的租户身份、挂的工作区、此刻有效的运行模式——PF-015 没有契约；有效运行模式怎么求归 `capability.tool-admission` 与会话。**租户身份那一片接口已定**（`capability.session-tenancy/v1#S-8`，2026-09-25 修订波；真承接者未到）；挂的工作区与有效运行模式仍没有读面 | PF-015 的契约（未建立）；`capability.tool-admission` | 会话契约给出这三项的读面 |
 | G-10 | **已闭合（2026-09-24 整批对齐）**：`data.asset-model/v1#S-2` 允许冒号，`data.slash-command/v1#S-3` 给出保留区拼法；[S-23](#s-23-reload按类别重填) 的六个名字合二者 | — | — |
 | G-11 | **跨进程**：[S-31](#s-31-装配给的保证-vs-协议须给的保证) 右列 | 架构设计（本版单机不阻断） | 分布式演化启动时给出，**作为本契约的新版本发布** |
 | G-12 | **MCP 动作的命名应当让 `toolNameConflict` 碰不上**：动作条目名是「接入点名:动作名」（`capability.mcp-bridge/v1#S-17`、`data.mcp-endpoint/v1#S-11`），而作者写的工具名也允许冒号，两者可能相撞 | `capability.mcp-bridge`；`data.asset-model`（名词法） | 命名规则写出「与作者写的工具名不相交」，[S-7](#s-7-注册表条目) 的冲突检查成为兜底 |

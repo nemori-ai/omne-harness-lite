@@ -2,7 +2,7 @@
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.assembly-manifest, 1)`
 - **状态**：`candidate`（2026-09-25 起草），**未接受、未冻结**；接受与采用只从 [catalog](../../../../registry/README.md) 读
-- **这一版是什么**：**窄口的接口契约**。产品负责人 2026-09-25 同意把验收装配里的替身换成「接口契约 ＋ 最小提供者」，接口按消费者已列出的需要定窄口，将来真提供者要更多走新版本（主线施工简报的裁定；**尚无决定记录**，已报主线）。
+- **这一版是什么**：**窄口的接口契约**。产品负责人 2026-09-25 同意把验收装配里的替身换成「接口契约 ＋ 最小提供者」，接口按消费者已列出的需要定窄口，将来真提供者要更多走新版本（[D-043 R-1](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）。
   它只收四个操作：**读表头、条件追加、按表时刻读回历史换表记录**——会话资产注册表节点对装配清单提供者的要求 [R-M1～R-M9](../../../../realization/packages/tools/asset-registry/design.md#对装配清单提供者的要求清单)；**以及依赖在场判定 `dependencyPresence`**——简报裁定并入本契约作一个查询，消费者是拓展点派发（`capability.loop-extension-runner/v1#S-12` ①；[节点](../../../../realization/packages/agent-loop/loop-extension-runner/design.md) RUN-N5；据点装配 C-14）。
   另核对[据点装配验收替身表](../../../../realization/apps/cli/design.md#验收装配)「装配清单」一行的「只许做什么」。**不替 PF-004 那一程设计装配清单**（[G-1](#十已知缺口)）
 - **设计依据**（PF-004 rev 12、PF-006 rev 19、PF-015 rev 11）：
@@ -20,7 +20,7 @@
   - **不依赖 `capability.asset-registry`**：它是本契约的消费者；记录里注册表那一半的形状归它，本契约原样存（[S-6](#s-6-记录与它的壳)）
 - **条款编号**：`S-n`，**只在本契约本版本内有效**；外部引用写全坐标，如 `capability.assembly-manifest/v1#S-17`。缺口编号 `G-n`，见[十](#十已知缺口)
 - **词条与无词条的名字**：本契约兑现的是词条[装配清单](../../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest)的一个窄口；[依赖声明](../../../../ubiquitous_language/terms/reach-and-availability.md#ul-dependency-declaration--依赖声明--dependency-declaration)。
-  **换表记录、序号、头、表时刻、在场事实无词条**：本文只给它们在本契约里的记录形状与规则。`EvaluationRef` 沿用 `capability.asset-registry` v1 已用的类型名（[S-8](#s-8-求值引用-evaluationref)）。服务键沿用节点候选名 `assemblyManifest`
+  **换表记录、序号、头、表时刻、在场事实无词条**：本文只给它们在本契约里的记录形状与规则。`EvaluationRef` 沿用 `capability.asset-registry` v1 起先用的类型名，**定义的权威在本契约**（[S-8](#s-8-求值引用-evaluationref)；D-040 §八 N-37 ③）。服务键沿用节点候选名 `assemblyManifest`
 
 ---
 
@@ -122,7 +122,7 @@
 2. **`given`**：写入方带来的引用（会话资产注册表把装配交来的那个带来，`capability.asset-registry/v1#S-13`、`#S-22` ②）。同一个会话里**再以同一个引用 `given` 追加**，得 `alreadyRecorded{record}` 并交回已有的那一条——回执丢了的重试认回同一次（[S-17](#s-17-append条件追加一条换表记录) ⑦）；这个引用已经指认了**别的**记录（别的会话的，或本能力铸的），得 `evaluationRefConflict`。
 3. **`mint`**：本能力在提交时铸一个新的，与已有的任何一个都不相等。
 4. **`reuse{ref}`**：`ref` 必须指认**这个会话里**一条 `given` 或 `mint` 记录；否则 `recordNotFound`。`reuse` 记录不指认任何求值——它们没有自己的求值，只沿用。
-5. **名字与会话资产注册表同**：`capability.asset-registry` v1 [S-13](../../asset-registry/v1/contract.md#s-13-evaluationref) 叫它 `EvaluationRef`、说「由装配清单的记录给出」；本条给出这个值怎样产生、指认哪一条。**两处说的是同一个值**，对齐义务记在[验证入口](../verification.md#对齐义务)（本契约不以坐标依赖那份契约——它是消费者，[G-6](#十已知缺口)）。
+5. **`EvaluationRef` 的权威在本条**（主线裁定 [D-040 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ③；原 [G-6](#十已知缺口) 闭合）：`capability.asset-registry` v1 [S-13](../../asset-registry/v1/contract.md#s-13-evaluationref) 以坐标引用本条、不另下定义，catalog 登那一侧 → 本契约的依赖；本契约不以坐标依赖那份契约——它是消费者。
 
 ### S-9 表时刻：同一类别上严格递增
 
@@ -200,7 +200,7 @@
 | `filledAtNotIncreasing{categories}` | 记录里这些类别的 `filledAt` 不大于这个会话这一类上一条的（[S-9](#s-9-表时刻同一类别上严格递增)） | 结论 |
 | `unavailable` | 判定或写入做不出来（[S-14](#s-14-缺席时的默认答案) 第二行）。**与已接受的 `capability.organization-governance` v1 同名同义** | 失败 |
 
-> **账本外的名字**：除 `invalidInput`、`unavailable` 外，上表的值与操作名 `readHead`、`readHistory` 都是本契约起草时给的**候选名**（施工简报的账本只给了四个操作的描述与 `dependencyPresence` 一个名字），已报主线；`headMismatch` 就是会话资产注册表节点 R-M1 说的「冲突」，`alreadyRecorded` 就是 R-M2 说的「已在」。
+> **账本外的名字**：除 `invalidInput`、`unavailable` 外，上表的值与操作名 `readHead`、`readHistory` 都是本契约起草时给的**候选名**（施工简报的账本只给了四个操作的描述与 `dependencyPresence` 一个名字），**主线已接受**（[D-040 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ①）；`headMismatch` 就是会话资产注册表节点 R-M1 说的「冲突」，`alreadyRecorded` 就是 R-M2 说的「已在」。
 
 **谁调用**（本契约的面是据点进程内的能力间面，**不直接暴露给人或 agent**；调用方身份怎么核实见 [S-21](#s-21-装配给的保证-vs-协议须给的保证)）：
 
@@ -411,7 +411,7 @@
 | G-3 | **断电的边界**：成功返回之后操作系统崩溃或断电，最后一条是否仍在。最小提供者若是 sqlite `synchronous = NORMAL`，最后一段已提交事务可能丢（[D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/decision.md)；会话资产注册表节点 R-M7） | 提供者设计 ＋ 主线 | 提供者节点写明刷盘政策与断电边界；若产品要求断电不丢，本契约出新版把 S-13 第 5 条改为承诺 |
 | G-4 | **派发器读链与模型请求运行时读求值结果不在本版**（[S-2](#s-2-本契约不拥有什么)）：`readHead` 交回的记录带着写入方记下的全部内容，但「链」「选中模型初值、层锁、两个时限」要从中怎样取、写入方是否记下了它们，都没有约定 | PF-004 那一程（C-2）；派发器节点、模型请求运行时节点 MRR-N3 | 那一程定下记录里求值那一部分的形状与这两个读，或给出专门的读 |
 | G-5 | **跨进程**：[S-21](#s-21-装配给的保证-vs-协议须给的保证) 右列 | 架构设计（本版单机不阻断） | 分布式演化启动时给出，**作为本契约的新版本发布** |
-| G-6 | **`EvaluationRef` 两处定义**：会话资产注册表 [S-13](../../asset-registry/v1/contract.md#s-13-evaluationref) 命名并描述了它，本契约 [S-8](#s-8-求值引用-evaluationref) 给出它怎样产生、指认哪条。两处说同一个值，**权威应只在一处**——按「提供者拥有它铸的值」应在本契约，那份契约改为引用 | 主线（整批对齐时定） | 一处成为权威，另一处改为引用；对齐义务撤销 |
+| G-6 | **已闭合（2026-09-25 修订波，[D-040 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ③）**：`EvaluationRef` 的权威在本契约 [S-8](#s-8-求值引用-evaluationref)；会话资产注册表 [S-13](../../asset-registry/v1/contract.md#s-13-evaluationref) 改为引用它，对齐义务撤销 | — | — |
 | G-7 | **`mint`／`reuse` 追加没有认回键**：回执丢了只能读回最后一条比对（[S-22](#s-22-回执丢失与结果未知) 第 2 条）；单机单写入者时比对得出，跨进程或多写入者时不够 | 主线；PF-004 那一程 | 给这两种追加一个写入方铸的请求键（与 `given` 同一种认回），出新版 |
 
 ---
@@ -419,7 +419,7 @@
 ## 十一、提供者映射
 
 **本版的最小提供者**（候选；节点由主线另立，本契约不设计它）：**本机 JSON 文件或 sqlite 表（经 `core/storage`）**，据点根作用域一份，服务键候选 `assemblyManifest`。它要兑现本契约的全部条款；**本契约对它的每一条要求都写成性质**——条件追加的判定与写入同一步（[S-12](#s-12-条件追加判定与写入是同一步)）、求值引用全局唯一（[S-8](#s-8-求值引用-evaluationref)）、表时刻不回退（[S-9](#s-9-表时刻同一类别上严格递增)）、确认落盘才返回且不留半截（[S-13](#s-13-提交与持久)）、头与各类最后一条一次一致读（[S-16](#s-16-readhead读头与每一类最后一条)）、单写者（[S-21](#s-21-装配给的保证-vs-协议须给的保证) 第二行）。**表怎样分、索引放在哪、怎样铸引用**归那个节点。
-**在场事实**由装配交给它（验收装配：测试种子；产品装配今天没有给出方，[G-2](#十已知缺口)）。**节点里的独立服务键 `dependencyPresence`** 在本契约里是 `assemblyManifest` 的一个查询；节点与装配是否还保留那个键指向同一个提供者，由主线定（已报主线）。
+**在场事实**由装配交给它（验收装配：测试种子；产品装配今天没有给出方，[G-2](#十已知缺口)）。**`dependencyPresence` 在本契约里是 `assemblyManifest` 的一个查询，不另设服务键**：主线已定（[D-040 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ②）——据点装载清单删掉那个独立键，派发器的依赖边改指 `assemblyManifest`；语义归属存疑仍登 [G-2](#十已知缺口)。
 它**取代**验收装配里「装配清单」那个替身（[据点装配验收替身表](../../../../realization/apps/cli/design.md#验收装配)）；**真提供者**归 PF-004 那一程（[G-1](#十已知缺口)）。
 
 ---
@@ -439,7 +439,7 @@
 | **R-M7**：追加答成功即持久；断电边界 | [S-13](#s-13-提交与持久)、[G-3](#十已知缺口) | **够**，断电边界如实登 G-3 |
 | **R-M8**：不可用可识别：不返回空、不返回旧快照 | [S-14](#s-14-缺席时的默认答案)、各读操作 ⑧ | **够** |
 | **R-M9**：历史换表记录可按 (会话, 类别, `filledAt`) 读回，会话存续期内不删 | [S-9](#s-9-表时刻同一类别上严格递增)、[S-18](#s-18-readhistory按表时刻读回一条)、[S-24](#s-24-留存本版不删) | **够**（本版不删，强于要求） |
-| **拓展点派发**（`capability.loop-extension-runner/v1#S-12` ①；节点依赖表「缺席 ⇒ 带 `needs` 的件判不出 ⇒ `unavailable`；不带 `needs` 的件不受影响」；RUN-N5「有一个读面给出在场与自报」） | [S-19](#s-19-dependencypresence依赖名此刻在不在场)：在场、不在场、判不出三种分开 | **接口够**；**事实没有来源**（[G-2](#十已知缺口)），产品装配里恒判不出 |
+| **拓展点派发**（`capability.loop-extension-runner/v1#S-12` ①；节点依赖表「缺席 ⇒ 带 `needs` 的件判不出 ⇒ `unavailable`；不带 `needs` 的件不受影响」；RUN-N5「有一个读面给出在场与自报」） | [S-19](#s-19-dependencypresence依赖名此刻在不在场)：在场、不在场、判不出三种分开 | **接口够**（那份契约的 S-12 与 S-33 已改指本条并写明「判不出 ⇒ 那一次经过 `unavailable`」，2026-09-25 修订波）；**事实没有来源**（[G-2](#十已知缺口)），产品装配里恒判不出 |
 | **据点装配替身表**「只许做什么」：给一份固定清单（各件次序、求得的位置与干预力），追加照记；清单里没有一件声明 `needs` | 固定清单 = 验收装配预先追加的记录；追加照记 = [S-17](#s-17-append条件追加一条换表记录)；`needs` 不出现 ⇒ `dependencyPresence` 不被调用 | **追加与读头够**；「各件次序、求得的位置与干预力」给派发器读链那一半**不在本版**（[G-4](#十已知缺口)）——替身今天回答的这一半，最小提供者只能原样交回记录内容 |
 | **派发器读链**（`capability.loop-extension-runner/v1#S-6`）、**模型请求运行时读求值结果**（MRR-N3） | **不给**（[S-2](#s-2-本契约不拥有什么)） | **不够**，如实登 G-4；简报未把它们列进本版 |
 

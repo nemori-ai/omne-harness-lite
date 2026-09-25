@@ -2,9 +2,10 @@
 
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
-> **当前状态（2026-09-25 起草）：没有任何证据。**
+> **当前状态（2026-09-25）：形式工件有证据，规范场景仍无。**
 > `capability.session-log` v1 是 `candidate`，**未接受、未经独立评审**；尚无提供者节点、尚无源码。
-> 行为模型与六个配置**已写、未运行**；规范场景**一条都没演练**。
+> 行为模型与六个配置已执行一次（run [`2026-09-25-formal-session-log`](../../../record/evidence/2026-09-25-formal-session-log/README.md)，六份全按预期）；规范场景**一条都没演练**。
+> 通过不提升状态；有限检查不是证明，范围与前提见下表与那次 run 的「边界」。
 
 ## 证据义务
 
@@ -12,14 +13,15 @@
 
 | 配置 | 检查哪条条款的哪条性质 | 前提（写进配置） | 预期 | 登记 | 状态 |
 |---|---|---|---|---|---|
-| [`SessionLog.cfg`](v1/formal/SessionLog.cfg) | [S-8](v1/contract.md#s-8-判重键) `UniqueDedupeKey`：一个判重键至多一条；[S-10](v1/contract.md#s-10-尝试栅栏) `FenceHolds`：带栅栏的条目之前没有更大序号；`TypeOK` | `Serialized = TRUE`（S-14 判定与写入同一步）、`DurableDedupe = TRUE`（S-8 第 2 条判重读耐久内容）；两个尝试、一个键、两个写入方槽位、日志至多三条、停机至多一次 | 无反例 | formal task `session-log-v1-appends` | **未运行** |
-| [`SessionLog_NoSerialization_Key.cfg`](v1/formal/SessionLog_NoSerialization_Key.cfg) | `UniqueDedupeKey` | `Serialized = FALSE` | **反例** | 有效性核对，不登记 | **未运行** |
-| [`SessionLog_NoSerialization_Fence.cfg`](v1/formal/SessionLog_NoSerialization_Fence.cfg) | `FenceHolds` | `Serialized = FALSE` | **反例** | 有效性核对，不登记 | **未运行** |
-| [`SessionLog_VolatileDedupe.cfg`](v1/formal/SessionLog_VolatileDedupe.cfg) | `UniqueDedupeKey` | `DurableDedupe = FALSE` | **反例**（停机后重交） | 有效性核对，不登记 | **未运行** |
-| [`SessionLog_Reach_StaleRejected.cfg`](v1/formal/SessionLog_Reach_StaleRejected.cfg) | `NeverStaleRejected`：栅栏从不拒收 | 同正配置 | **反例**（栅栏确实会拒收） | 可达性核对，不登记 | **未运行** |
-| [`SessionLog_Reach_DuplicateRejected.cfg`](v1/formal/SessionLog_Reach_DuplicateRejected.cfg) | `NeverDuplicateRejected`：判重从不拒收 | 同正配置 | **反例**（判重确实会拒收） | 可达性核对，不登记 | **未运行** |
+| [`SessionLog.cfg`](v1/formal/SessionLog.cfg) | [S-8](v1/contract.md#s-8-判重键) `UniqueDedupeKey`：一个判重键至多一条；[S-10](v1/contract.md#s-10-尝试栅栏) `FenceHolds`：带栅栏的条目之前没有更大序号；`TypeOK` | `Serialized = TRUE`（S-14 判定与写入同一步）、`DurableDedupe = TRUE`（S-8 第 2 条判重读耐久内容）；两个尝试、一个键、两个写入方槽位、日志至多三条、停机至多一次 | 无反例 | formal task `session-log-v1-appends` | **已运行：退出 0，无反例**（5846 generated · 2784 distinct） |
+| [`SessionLog_NoSerialization_Key.cfg`](v1/formal/SessionLog_NoSerialization_Key.cfg) | `UniqueDedupeKey` | `Serialized = FALSE` | **反例** | 有效性核对，不登记 | **已运行：退出 12，按预期出反例** |
+| [`SessionLog_NoSerialization_Fence.cfg`](v1/formal/SessionLog_NoSerialization_Fence.cfg) | `FenceHolds` | `Serialized = FALSE` | **反例** | 有效性核对，不登记 | **已运行：退出 12，按预期出反例** |
+| [`SessionLog_VolatileDedupe.cfg`](v1/formal/SessionLog_VolatileDedupe.cfg) | `UniqueDedupeKey` | `DurableDedupe = FALSE` | **反例**（停机后重交） | 有效性核对，不登记 | **已运行：退出 12，按预期出反例** |
+| [`SessionLog_Reach_StaleRejected.cfg`](v1/formal/SessionLog_Reach_StaleRejected.cfg) | `NeverStaleRejected`：栅栏从不拒收 | 同正配置 | **反例**（栅栏确实会拒收） | 可达性核对，不登记 | **已运行：退出 12，可达** |
+| [`SessionLog_Reach_DuplicateRejected.cfg`](v1/formal/SessionLog_Reach_DuplicateRejected.cfg) | `NeverDuplicateRejected`：判重从不拒收 | 同正配置 | **反例**（判重确实会拒收） | 可达性核对，不登记 | **已运行：退出 12，可达** |
 
-**为什么未运行**：起草这一版的任务没有给出 TLC 工具链。**在正配置跑出无反例、五个核对都按预期出反例之前，不得把 S-8、S-10 当作有模型证据**；闭合条件：一次实际运行，配置、命令与原始输出入 `record/evidence/`，本表改填结果。
+**证据**：run [`2026-09-25-formal-session-log`](../../../record/evidence/2026-09-25-formal-session-log/README.md)（提交 `85e71ba4` 上跑，命令与登记逐项相同，输入快照带 `SHA256SUMS`、TLC 原始日志入库）。六份全按预期：两条不变量各有一份否定配置把它推翻，两个拒绝状态各有一份可达性配置证明到得了，所以正配置的无反例不是空真。
+**边界**（照那次 run）：常量与关闭的路径见 [formal 入口](v1/formal/README.md)，**有限检查不是无条件证明**；模型只覆盖 S-8（判重）与 S-10（栅栏）；锚的算法不在模型里（它归调用方，`capability.loop-extension-runner/v1#S-5`）。**通过不提升本契约的状态**，它仍是 candidate。
 
 **被建模方式吸收的**（整批原子、位置稠密、读自己写的、载荷原样、租户不混）不写成「已由模型覆盖」，证据是下表的场景与故障注入。
 
@@ -54,7 +56,8 @@
 
 ## 实际执行
 
-**无。**模型未运行，规范场景一条都没演练。
+- **形式工件**：一次，run [`2026-09-25-formal-session-log`](../../../record/evidence/2026-09-25-formal-session-log/README.md)，结果在上面[形式工件](#形式工件)表。
+- **规范场景**：一条都没演练。
 
 ## 独立评审
 
@@ -65,3 +68,16 @@
 | 日期 | 变化 | 影响 |
 |---|---|---|
 | 2026-09-25 | 起草 v1（candidate） | 新登 catalog、covers、formal-tasks 各条目；消费者的契约（`capability.tool-execution-runtime`、`capability.model-request-runtime`、`capability.loop-extension-runner`）**正文尚未改指本契约**——它们的 G-1／会话日志缺口原样开着，改指与否由主线裁 |
+
+## 修订波（2026-09-25 公开面）
+
+依据链：[D-043](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1（替身改为接口契约 ＋ 最小提供者）、R-12（锚改为调用方传入的不透明键）；[D-040 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-33～N-37。候选未冻结，原地改。
+
+| 变化 | 依据 | 落在哪 | 语义变不变、对消费者 |
+|---|---|---|---|
+| 「尚无决定记录」改链 D-043 R-1；账本外名字 `tenantMismatch`、`alreadyRecorded` 标「主线已接受」（N-37 ①） | R-1；N-37 ① | [契约](v1/contract.md) 首段、S-16 失败值表下注、[README](README.md) 提供者映射 | 不改语义 |
+| **G-2 闭合**：锚由调用方随 `dispatch` 传入的不透明键给出，派发器把它拼进判重键与读取键；锚的算法归 loop 那一程；S-2「锚怎样算」一行、第十二节 RL-3／RL-5／派发 S-5 三行随之改 | R-12 | [S-2](v1/contract.md#s-2-本契约不拥有什么)、[G-2](v1/contract.md#十已知缺口)、消费者核对三行 | 不改语义；派发器那一侧的场景从「受阻」翻「可跑（键由测试给）」 |
+| **形式工件的运行结果填进**（主线另派，本波一并落）：六份配置的状态由「未运行」改为实际结果，证据指 [run 2026-09-25-formal-session-log](../../../record/evidence/2026-09-25-formal-session-log/README.md) | N-37 ⑪ | 本文件顶部与[形式工件](#形式工件)、[实际执行](#实际执行)；契约 S-25 那一格；[formal 入口](v1/formal/README.md) | **状态不因通过而提升**：仍 candidate；有限常量下的模型检查不是证明 |
+| 消费者正文改指本契约：`capability.tool-execution-runtime` v1（S-19、S-22、S-46、G-1）、`capability.loop-extension-runner` v1（S-21 ②、S-32、G-8 注）已在本波改指；`capability.model-request-runtime` v1 **本波未改指**（它的 S-2、S-8 仍写「会话日志的拥有者」，已报主线） | R-1 | 那几份契约 | 本契约不变 |
+
+**没有证据因此作废**：本波对正文的改动不触及形式模型建模的性质（判重键至多一条、栅栏）。

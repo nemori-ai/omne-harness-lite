@@ -9,12 +9,13 @@
 > 承载全部执行、产品正文里「在工具执行运行时里找得到／找不到」的这一项能力本身没有词条。目录名就是这份契约的身份。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.tool-execution-runtime, 1)`
-- **状态**：`candidate`（2026-09-23 起草；2026-09-24、2026-09-25 经两轮独立评审后原地修订，处置见[验证入口](verification.md#独立评审)；同日按实现映射反推原地修订，见[验证入口](verification.md#实现映射反推2026-09-25)），**未接受、未冻结**
+- **状态**：`candidate`（2026-09-23 起草；2026-09-24、2026-09-25 经两轮独立评审后原地修订，处置见[验证入口](verification.md#独立评审)；同日按实现映射反推原地修订，见[验证入口](verification.md#实现映射反推2026-09-25)；同日「公开面」修订波把会话日志、会话租户、尝试事实、执行环境四处改指窄口接口契约、失败值全集加 `dependencyUnavailable{runAttemptFacts}`——[修订波](verification.md#修订波2026-09-25-公开面)），**未接受、未冻结**
 - **catalog 映射**：已登记为 `candidate`；`family=capabilities`、`topic=tool-execution-runtime`、
   `contract_path=spec/capabilities/tool-execution-runtime/v1/contract.md`；`resources` 含契约、`examples.md`、`formal/` 下的模型、八个配置与入口页；
-  依赖十三项（`data.content-blocks`、`data.call-accounts`、`data.messages`、`data.tool-definition`、`data.loop-extension`、`data.offer-expiry`、`data.identity-values`、
-  `data.arrival-events`、`capability.stream-assembly`、`capability.tool-admission`、`capability.asset-registry`、`capability.loop-extension-runner`、`capability.mcp-bridge`，均 v1；
-  后六项在起草之后补登），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)
+  依赖十七项（`data.content-blocks`、`data.call-accounts`、`data.messages`、`data.tool-definition`、`data.loop-extension`、`data.offer-expiry`、`data.identity-values`、
+  `data.arrival-events`、`capability.stream-assembly`、`capability.tool-admission`、`capability.asset-registry`、`capability.loop-extension-runner`、`capability.mcp-bridge`、
+  `capability.session-log`、`capability.session-tenancy`、`capability.run-attempt-facts`、`capability.execution-environments`，均 v1；
+  第八至十三项在起草之后补登，最后四项 2026-09-25 修订波登记），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)
 - **formal-tasks 映射**：两个任务——`tool-execution-runtime-v1-execution`（`Execution.tla` ＋ `Execution.cfg`，安全性质）与
   `tool-execution-runtime-v1-execution-progress`（同一模型 ＋ `ExecutionProgress.cfg`，进展性质）。
   **六个有效性核对配置不登记**：它们期望失败，与该清单的语义相反；验证入口证据里另有三份补充否定配置与七个可达性探针，同样不登记。执行结果在[验证入口](verification.md)

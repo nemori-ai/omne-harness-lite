@@ -89,7 +89,8 @@
 | 它 stdout `{"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "allow"}}`，退出码 0 | `observed` | 跑出了结论；放行判断照常判 | [S-20](contract.md#s-20-输出怎样译回) 第 7 行 |
 | 它退出码 1（stdout 里有一段合法 JSON 说 `deny`） | **报错**：`skipped: errored`，`error` 写「退出码 1」；处置 `treat_as_veto` 落 `veto` | CC 会读那段 JSON；这里不读（`nonzero_exit_json_not_read`） | [S-19](contract.md#s-19-起不来与报错) |
 | 它超过 600 秒没返回 | 同上，报错 → `veto` | CC 会放行；这里拦（`fails_closed_on_error`） | 同上 |
-| `./hooks/deny-prod-db.sh` 在会话的执行环境里不存在 | **不可用**：`skipped: unavailable`，不带 `output`，`unavailability: skip`；链往下走 | 看得见；这一次这道闸没了（安装者若在落地前把它改为 `veto`，这里按否决处置、动作不做） | [S-10](contract.md#s-10-兼容件要带的东西)、[S-19](contract.md#s-19-起不来与报错)、`capability.loop-extension-runner/v1#S-12` |
+| `./hooks/deny-prod-db.sh` 在会话的执行环境里不存在（解释器 `sh` 在，起来之后以 127 退出） | **报错**：`skipped: errored`，`error` 写「退出码 127」；处置 `treat_as_veto` 落 `veto` | 解释器已经起来，是开始之后的失败（2026-09-25 修订波：解释器写成 `program`，「程序不存在」只指解释器） | [S-18](contract.md#s-18-子进程在哪跑钱记在哪)、[S-19](contract.md#s-19-起不来与报错) |
+| 起子进程在开始之前被拒：「拓展件子进程的宿主机允许」不在（`noLanding`），或解释器找不到（`startFailed{ programNotFound }`） | **不可用**：`skipped: unavailable`，不带 `output`，`unavailability: skip`；链往下走 | 看得见；这一次这道闸没了（安装者若在落地前把它改为 `veto`，这里按否决处置、动作不做）。**本版产品装配里那一项允许还没给，每一件都走这一行**（`capability.execution-environments` v1 的 G-3） | [S-10](contract.md#s-10-兼容件要带的东西)、[S-19](contract.md#s-19-起不来与报错)、`capability.loop-extension-runner/v1#S-12` |
 | `audit.sh` 被收窄成只观察，却退出码 2 | 译出 `veto` → **越档**：`skipped: errored`，`error` 为 `output_not_allowed_for_power`，处置 `ignore` 落 `observed` | 看得见 | [S-22](contract.md#s-22-越档的输出) |
 | 它交回 `permissionDecision: defer` | 报错 → `veto` | 主线裁定 G2 | [S-20](contract.md#s-20-输出怎样译回) 第 4 行 |
 

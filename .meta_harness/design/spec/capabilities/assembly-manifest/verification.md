@@ -33,7 +33,7 @@
 
 ## 对齐义务
 
-- **`EvaluationRef`**：本契约 [S-8](v1/contract.md#s-8-求值引用-evaluationref) 与 `capability.asset-registry/v1#S-13` 说的是同一个值（契约 G-6）。一边改它的产生或指认，另一边同轮核。
+- ~~**`EvaluationRef`**：两处定义、同轮核~~ **撤销（2026-09-25 修订波）**：权威只在本契约 [S-8](v1/contract.md#s-8-求值引用-evaluationref)，`capability.asset-registry/v1#S-13` 改为以坐标引用它（catalog 登那一侧 → 本契约，D-040 §八 N-37 ③；契约 G-6 闭合）。本契约改 S-8，按消费者影响分析通知那一侧，不再是双向的对齐义务。
 - **`alreadyRecorded`** 与 `capability.session-log/v1` 的同名值说同一件事（这个键已有一条已提交的记录，这一次什么都没写）；载荷不同（这里交回那条记录，那里交回撞上的键）。两边改一边，另一边同轮核。
 - **`headMismatch`、`alreadyRecorded`** 就是会话资产注册表节点 R-M1、R-M2 说的「冲突」「已在」；节点改用这两个名字与否由主线定。
 
@@ -50,3 +50,16 @@
 | 日期 | 变化 | 影响 |
 |---|---|---|
 | 2026-09-25 | 起草 v1（candidate） | 新登 catalog、covers 条目；`capability.asset-registry` 的 G-1 与 S-18 第 4 条、会话资产注册表节点 A-1、派发器节点 RUN-N5、据点装配 C-2／C-14 **正文尚未改指本契约**，改指与否由主线裁 |
+
+## 修订波（2026-09-25 公开面）
+
+依据链：[D-043](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1（替身改为接口契约 ＋ 最小提供者）；[D-040 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-33～N-37。候选未冻结，原地改。
+
+| 变化 | 依据 | 落在哪 | 语义变不变、对消费者 |
+|---|---|---|---|
+| **`EvaluationRef` 的权威定在本契约 S-8**，`capability.asset-registry/v1#S-13` 改为以坐标引用它；原双向对齐义务撤销；G-6 闭合 | N-37 ③ | [S-8](v1/contract.md#s-8-求值引用-evaluationref) 第 5 条、首段词条说明、[G-6](v1/contract.md#十已知缺口)、本文件[对齐义务](#对齐义务) | 不改形状；消费者改为单向依赖（catalog：asset-registry → 本契约） |
+| **`dependencyPresence` 是 `assemblyManifest` 的一个查询、不另设服务键**；派发器按它判 `needs`，整次 `unavailable` 不是「缺席」 | N-37 ② | 第十一节提供者映射、消费者核对「拓展点派发」一行 | 不改语义；派发器 S-12、S-16、S-33 同波写明 |
+| 「尚无决定记录」改链 D-043 R-1；账本外名字标「主线已接受」 | R-1；N-37 ① | 首段、失败值表下注 | 不改语义 |
+| 消费者正文改指本契约：`capability.asset-registry` v1（S-13、S-18 第 4 条、G-1）、`capability.loop-extension-runner` v1（S-12）已在本波改指 | R-1 | 那两份契约 | 本契约不变 |
+
+**没有证据因此作废**——本契约此前没有执行证据。

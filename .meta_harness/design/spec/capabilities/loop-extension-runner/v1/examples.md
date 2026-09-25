@@ -18,7 +18,7 @@
 
 | 步 | 发生了什么 | 落下的结论记录 | 依据 |
 |---|---|---|---|
-| 1 | `dispatch(before_action, —, actions=[{call: call_07 的完整调用, definition, batch: [call_07]}], manifest, run_9a, 1, admission={report: 尝试 1 开始时拿到的可用性报告, grants, runMode})`——这一批只有一个动作，`actions` 恰凑成 `batch`；报告带的会话与运行就是 `manifest` 指认的会话与 `run_9a`，runner 核过；不是子会话，不带 `parent` | —— | [S-21](contract.md#s-21-dispatch一次经过) ① |
+| 1 | `dispatch(before_action, —, actions=[{call: call_07 的完整调用, definition, batch: [call_07]}], anchors=[anc_call_07], manifest, run_9a, 1, admission={report: 尝试 1 开始时拿到的可用性报告, grants, runMode})`——这一批只有一个动作，`actions` 恰凑成 `batch`；`anc_call_07` 是 loop 为这一次经过算出、交来的锚（[S-5](contract.md#s-5-一次经过)；占位写法，runner 不解析它），答完回放时它交同一把；报告带的会话与运行就是 `manifest` 指认的会话与 `run_9a`，runner 核过；不是子会话，不带 `parent` | —— | [S-21](contract.md#s-21-dispatch一次经过) ① |
 | 2 | `path-normalizer` 拿到原参数、`earlier = []`，交回 `rewrite` | 见下 ① | [S-10](contract.md#s-10-逐件顺序求值先落后算)、`data.loop-extension/v1#S-23` |
 | 3 | ① 落进日志之后，走到放行判断那一格的只有 `call_07`；runner 以它调用块里的 `tool`（`shell`，模型面名字）在报告的 `effectivePermissions` 里查到那一项——这一轮就是它；runner 对这一轮发起**一次** `admit`（执行权限与 `tenantAutoWritable` 取那一项，`grants`、`runMode` 取 `admission` 带来的），`admission` 这一件拿到的 `subject.call.arguments` 是**改写后的**那一份，`earlier = [①]`；它判出「要问人」，交回 `ask` | 见下 ② | [S-24](contract.md#s-24-before_action-上的改写与生效参数)、[S-29](contract.md#s-29-一批动作每个动作一次经过) 第 5 条 |
 | 4 | `dispatch` 返回 `[{conclusions: [①, ②], effect: asked{card: ② 的草稿, by: admission}}]`（与 `actions` 同序）；loop 经等待原语把卡片落进池子，运行进等人；协程被回收 | —— | [S-15](contract.md#s-15-效果怎么合成)、[S-21](contract.md#s-21-dispatch一次经过) ⑤、[S-27](contract.md#s-27-ask交出卡片并停在这一位置) |

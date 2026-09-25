@@ -4,7 +4,7 @@
 这是按四个消费者（工具执行运行时、拓展点派发、会话资产注册表的求值输入、模型请求运行时）已列出的要求定的**窄口接口**，不是会话契约——那一份归会话那一程（PF-015）。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.session-tenancy, 1)`
-- **状态**：`candidate`（2026-09-25 起草），**未接受、未冻结**
+- **状态**：`candidate`（2026-09-25 起草；同日「公开面」修订波原地改，见[修订波](verification.md#修订波2026-09-25-公开面)），**未接受、未冻结**
 - **catalog 映射**：已登记为 `candidate`；`family=capabilities`、`topic=session-tenancy`、
   `contract_path=spec/capabilities/session-tenancy/v1/contract.md`；`resources` 含契约与 `examples.md`；
   依赖两项：`data.identity-values`、`data.messages`（均 v1），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)
@@ -17,7 +17,7 @@
 |---|---|
 | 语义拥有者 | 本契约拥有这个**读**与它的两条性质（答不出不编、答案不变）；「会话持有哪个租户」这件事本身的写与会话的生灭归会话那一程 |
 | 为什么是 capability 而不是 data | 它是一个有前置、失败集合与缺席默认的操作；`TenantId`、`SessionRef` 这些值已经有 data 家 |
-| 为什么现在立、而且这么窄 | 产品负责人 2026-09-25 同意把验收替身换成「接口契约 ＋ 最小提供者」、接口按消费者需要定窄口（主线施工简报；尚无决定记录）。四个消费者都卡在这一个读上（据点装配 C-13） |
+| 为什么现在立、而且这么窄 | 产品负责人 2026-09-25 同意把验收替身换成「接口契约 ＋ 最小提供者」、接口按消费者需要定窄口（[D-043 R-1](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）。四个消费者都卡在这一个读上（据点装配 C-13） |
 | 为什么不并进某个消费者 | 四个消费者同一读面（[D-040 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M48、M66）；归哪一方都让其余三方读它的内部 |
 | 精确依赖 | 见上；依赖方向单向 |
 | 接受状态 | 未接受 |

@@ -4,7 +4,7 @@
 这是按会话资产注册表对装配清单提供者的要求（R-M1～R-M9）与施工简报「`dependencyPresence` 并入作一个查询」定的**窄口接口**，不是装配清单的契约——那一份归 PF-004 那一程。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.assembly-manifest, 1)`
-- **状态**：`candidate`（2026-09-25 起草），**未接受、未冻结**
+- **状态**：`candidate`（2026-09-25 起草；同日「公开面」修订波原地改，见[修订波](verification.md#修订波2026-09-25-公开面)），**未接受、未冻结**
 - **catalog 映射**：已登记为 `candidate`；`family=capabilities`、`topic=assembly-manifest`、
   `contract_path=spec/capabilities/assembly-manifest/v1/contract.md`；`resources` 含契约与 `examples.md`；
   依赖五项：`data.identity-values`、`data.offer-expiry`、`data.messages`、`data.asset-model`、`data.tool-definition`（均 v1），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)；**不依赖 `capability.asset-registry`**（它是消费者）
@@ -17,7 +17,7 @@
 |---|---|
 | 语义拥有者 | 本契约拥有换表记录的全序、条件追加、求值引用的产生与唯一、表时刻不回退、留存；**记录的内容**归写入方（会话资产注册表），**装配清单的其余属性**归 PF-004 那一程 |
 | 为什么是 capability 而不是 data | 每个操作有前置、提交点、失败集合与缺席默认；有状态（一列只增的记录）和它的判定 |
-| 为什么现在立、而且这么窄 | 产品负责人 2026-09-25 同意把验收替身换成「接口契约 ＋ 最小提供者」、接口按消费者需要定窄口（主线施工简报；尚无决定记录）。会话资产注册表的每一个换表操作的提交点就落在这里（据点装配 C-2） |
+| 为什么现在立、而且这么窄 | 产品负责人 2026-09-25 同意把验收替身换成「接口契约 ＋ 最小提供者」、接口按消费者需要定窄口（[D-043 R-1](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）。会话资产注册表的每一个换表操作的提交点就落在这里（据点装配 C-2） |
 | 为什么把 `dependencyPresence` 放在这里 | **简报裁定**。本契约按它收下接口，同时把「它的事实不是装配清单记下的构成、没有来源」登为 [G-2](v1/contract.md#十已知缺口) 并报主线 |
 | 精确依赖 | 见上；依赖方向单向 |
 | 接受状态 | 未接受 |

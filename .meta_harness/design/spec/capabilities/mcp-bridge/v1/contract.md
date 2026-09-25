@@ -5,7 +5,7 @@
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.mcp-bridge, 1)`——
   `family = capabilities`、`topic = mcp-bridge`、规范路径 `spec/capabilities/mcp-bridge/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订——处置表在[验证入口](../verification.md#独立评审)；2026-09-25 修复波 1b 闭合 G-14，同日修复波 2 按第二轮独立复评改 S-5、S-12、CS-4；同日修复波 3 跨批对齐按 M37 改 S-17，处置见[验证入口](../verification.md#实现映射反推2026-09-25)）——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订——处置表在[验证入口](../verification.md#独立评审)；2026-09-25 修复波 1b 闭合 G-14，同日修复波 2 按第二轮独立复评改 S-5、S-12、CS-4；同日修复波 3 跨批对齐按 M37 改 S-17，处置见[验证入口](../verification.md#实现映射反推2026-09-25)；同日「公开面」修订波把凭据保管方改指 `capability.credential-custodian` v1、写明本版不收的三项，见[验证入口](../verification.md#修订波2026-09-25-公开面)）——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
 - **设计依据**（PF-002 rev 20、PF-006 rev 19 为主责；PF-012 rev 14、PF-016 rev 6、PF-005 rev 5、PF-001 rev 17、PF-008 rev 7 只引；2026-09-24 逐版复核到当前 rev，变化与落点记在[验证入口](../verification.md#变化的影响)）：
   [PF-002 §4 MCP](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp)、
   [§4 MCP 凭据](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的)、
@@ -65,7 +65,7 @@
 | **一次尝试里 agent 面前有哪些条目、按尝试钉住、装替换件；这一次尝试用哪份接入点持有、逐动作执行权限是什么** | [会话资产注册表](../../../../ubiquitous_language/terms/reach-and-availability.md#ul-session-asset-registry--会话资产注册表--session-asset-registry)（`capability.asset-registry` v1，[S-12](../../asset-registry/v1/contract.md#s-12-mcp-动作条目在一次尝试内钉住)） |
 | **工具执行**的派发、收场判定、前后台、账、送达 | 工具执行运行时（`capability.tool-execution-runtime` v1）。本契约只是它的一个自带实现（[S-19](#s-19-invoke)） |
 | **凭据配值的写入**（含 OAuth 取得之后把引用配上去） | 资产治理的写面（`capability.asset-governance` v1 的 `assign`／`clearAssignment`）——**取值就是配值**，那一次写由有配值资格的人在配值处经它完成（[S-23](#s-23-completeoauth)） |
-| **凭据本体的存储、加密与解引用** | 凭据保管方（`data.asset-model/v1#S-23` 第 7 条）——**装配给**（[D-040 §S19](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的) S19-f：实现映射阶段的候选节点）；本契约只写对它的要求（[S-9](#s-9-凭据的出示与取用)、[S-30](#s-30-装配给与协议给)、[G-7](#十已知缺口)） |
+| **凭据本体的存储、加密与解引用** | 凭据保管方（`data.asset-model/v1#S-23` 第 7 条）——**装配给**（[D-040 §S19](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的) S19-f）。**据点上那一份的面**：窄口接口契约 `capability.credential-custodian` v1（收下 OAuth 凭据 S-16、按持有交出 S-17、清扫 S-18；2026-09-25 修订波）——那份契约以坐标依赖本契约，本契约作定义引用、**不反向登记**；本契约只写对它的要求（[S-9](#s-9-凭据的出示与取用)、[S-30](#s-30-装配给与协议给)、[G-7](#十已知缺口)） |
 | **OAuth 的人机交互**（在哪里给人看同意地址、怎样接住回来的应答） | 交付面（PF-016） |
 | **MCP 协议本身**（握手、JSON-RPC、分页、通知的线上形状） | 官方 SDK（D-037）；本契约不复述协议，只在需要时引协议版本（[G-6](#十已知缺口)） |
 | **本操作面在进程之间的线上形状** | 把它送过进程边界的那份组合契约（本版无：桥与它的调用方都在据点进程里） |
@@ -180,12 +180,13 @@
 1. **缺席**（还没取；`data.mcp-endpoint/v1#S-13`）：什么也不出示，照连。对端要鉴权，它会拒绝——那是 `oauthRequired` 或 `credentialUnavailable`（[S-16](#s-16-refreshactions)），不是桥替它补一个。
 2. **一个 `CredentialRef`**：交给凭据保管方，**按租户格上这个租户自己的那份持有解引用**（`provenance.credential` 必须是 `tenant`；`data.asset-model/v1#S-23` 第 4 条：只在它被配上去的那一份持有上有效）。那一格不是租户格 ⇒ 不出示，`credentialUnavailable`——**组织格不持有 MCP 凭据**（[PF-002 rev 18 §4 MCP 凭据「归谁」](../../../../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的)：组织接入的接入点由每个成员在自己的租户层取；原 G-13 闭合），工作区格与出厂格配不了凭据，会话格不持有资产、没有可解引用的持有。
    解引用得出凭据本体 ⇒ 出示；**保管方说这个引用不在那份持有上、已作废、续不上** ⇒ `credentialUnavailable`；**保管方此刻够不着** ⇒ `dependencyUnavailable`——两者不合并（[S-11](#s-11-缺席时的默认答案)）。
+   本版据点上的保管方是 `capability.credential-custodian` v1：解引用即它的 `resolve`（S-17），`{ body }` 即得出、`notResolvable` 即上面的前一种、`unavailable` 与 `custodianWithdrawn` 即后一种。**本版只有 OAuth 取得的凭据交得出**：静态凭据的引用一律 `notResolvable`（那份契约 G-2）——**要静态凭据的接入点本版以 `credentialUnavailable` 连不上**（[G-7](#十已知缺口)）。
 3. **来处规则：凭据只出示给来处不比它更具体的连接目标。**`provenance.connectionTarget` 那一格必须与 `provenance.credential` 那一格相同、或在设置层序上更靠外（`capability.asset-evaluation/v1#S-5`：`factory` < `organization` < `tenant` < `workspace` < `session`）；**否则不出示，以 `credentialUnavailable` 收场**。
    这一条是本契约的推导，挡的是一个具体的泄漏：租户在自己那一格给 `mcp:linear` 配了凭据；一个仓库经工作区提供一份**同名**的 `mcp:linear`，正文里的连接目标指向别处——
    按能力标识逐层覆盖，生效的连接目标来自工作区、凭据来自租户格，**不加这一条，租户的凭据就被出示给了仓库指定的地址**。
    依据是 [PF-002 §5.7](../../../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算)「落点与身份类不从工作区来、一个仓库不能给自己提权」与「凭据一份持有一份」的合取；**已报主线并接受（D-040 §七 N-18）**。
 4. **怎样出示**：stdio 作为子进程的环境变量，streamable_http 作为请求头；OAuth 取得的作为 MCP 授权规范的持有者令牌请求头。
-   **静态凭据本体里是哪几个名字（哪个环境变量、哪个请求头）**，是保管方交出的凭据本体的一部分，**不在接入点正文里**（`data.mcp-endpoint/v1#S-6`）；它的形状随装配给的保管方给出（[G-7](#十已知缺口)）。
+   **静态凭据本体里是哪几个名字（哪个环境变量、哪个请求头）**，是保管方交出的凭据本体的一部分，**不在接入点正文里**（`data.mcp-endpoint/v1#S-6`）；它的形状**本版不收**（保管方那一侧的 G-3，本契约 [G-7](#十已知缺口)）。
 5. **出示之后本体只留在那条连接里**：不写日志、不进帧、不进结果、不进错误（[S-13](#s-13-凭据与引用不进任何呈现)）。
 
 ### S-10 对端可用性不由本系统掌握
@@ -471,11 +472,11 @@
 | ① | 绑定号；回来的授权应答（成功时是授权码与状态参数，失败时是对端给的错误） |
 | ② | 那个绑定此刻是 `pending`、未过 `oauthPendingTtl`；应答里的状态参数与这次流程一致。调用方同 [S-22](#s-22-beginoauth) |
 | ③ | 无 |
-| ④ | 用授权码向授权服务器换取凭据（外部效果：授权码被用掉）；然后**一次提交**：凭据保管方收下这份凭据、发出一个 `CredentialRef`，并把它与这份持有绑在一起；绑定迁到 `granted`、`since` 取此刻。**两件落在同一提交里**（装配给：同一存储，[S-30](#s-30-装配给与协议给)）。**本操作不写配值** |
+| ④ | 用授权码向授权服务器换取凭据（外部效果：授权码被用掉）；然后凭据保管方收下这份凭据、发出一个 `CredentialRef`，并把它与这份持有绑在一起；绑定迁到 `granted`、`since` 取此刻。**对外两件同成同败**（装配给：同一存储，[S-30](#s-30-装配给与协议给)）：本版落成保管方的两次提交——先收成「待生效」（`capability.credential-custodian/v1#S-16`），绑定迁 `granted` 并记下这个引用之前它交不出（那份契约 S-17），迁不成的那一条由它的清扫丢弃（S-18）——所以不存在「绑定 `granted` 却交不出」或「交得出而绑定不是 `granted`」（2026-09-25 修订波）。**本操作不写配值** |
 | ⑤ | `granted` 的绑定，与那个 `CredentialRef`——**交给配值入口，由它经资产治理写面以这个人的身份写成那份持有上 `credential` 那一项的值**（取值就是配值）。在它被配上之前，这个引用解引用不出任何东西（[S-9](#s-9-凭据的出示与取用) 第 2 条） |
 | ⑥ | `invalidInput` · `oauthDenied` · `endpointUnreachable` · `protocolError{raw}` · `dependencyUnavailable` · `bridgeWithdrawn` |
 | ⑦ | **同一个绑定第二次完成 ⇒ `oauthDenied`**（流程已不在 `pending`），不产生第二份凭据；授权码按协议只能用一次，本契约**不重放换取** |
-| ⑧ | 身份参数缺席 ⇒ `invalidInput`；换取成功而保管方或存储此刻不可用 ⇒ `dependencyUnavailable`，那份换来的凭据丢弃、绑定留在 `pending` 直到过期作废——**人要重新发起一次**；不把凭据暂存在别处等下次补提交 |
+| ⑧ | 身份参数缺席 ⇒ `invalidInput`；换取成功而保管方或存储此刻不可用 ⇒ `dependencyUnavailable`，那份换来的凭据丢弃（已收成「待生效」而绑定没迁成的，由保管方的清扫丢弃）、绑定留在 `pending` 直到过期作废——**人要重新发起一次**；不把凭据暂存在别处等下次补提交 |
 | ⑨ | 不发 |
 
 **配值写面没写成**（治理中心不可达——[PF-016 §6.17](../../../../product/PF-016-cli-tui-delivery-surface/design.md#617-治理中心不可达已经开着的会话照常干活) 离线时治理写入明确失败；或那个人没有配值资格）：引用始终没被配上，
@@ -487,6 +488,7 @@
 
 1. **续期不要人**：`granted` 的绑定、它的引用仍被配在那份持有上，本契约在凭据到期前、或对端以鉴权失效拒绝时，向授权服务器续期，**不打扰任何人、不产生一次「设置被改」**（[PF-002 acceptance §一](../../../../product/PF-002-assets-settings-and-permissions/acceptance.md#一可观察场景)）。
    续出来的仍归同一份持有、**引用不变、配值不变、绑定不变**（`data.asset-model/v1#S-23` 第 6 条）。
+   **本版兑现不了这一条**：续出来的新本体没有地方写回——`capability.credential-custodian` v1 本版不收续期写回（它的 G-4，桥节点 C-5）。令牌到期之后这一格 `credentialUnavailable`、**人要重新取**；这不是「续不上即失效」（第 2 条），绑定不因此作废（[G-7](#十已知缺口)）。
 2. **续不上即失效**：授权服务器**明确拒绝**续期 ⇒ 绑定迁到 `revoked`，此后解引用得 `credentialUnavailable`，下一次尝试开始时这个接入点的动作不可用（「续不上，就是失效」）。
    **授权服务器暂时够不着**不作废绑定：在续上之前凭据用不了（`credentialUnavailable`），续期按具名参数的间隔重试；**不把「暂时够不着」说成「已经失效」，也不在失效后继续出示旧凭据**。
 3. **换、撤就是改值、清值**：那份持有上的 `credential` 被改成别的引用，或那条配值被清掉（回到缺席）⇒ 原来那个引用不再解引用得出、它的绑定迁到 `revoked`、保管方丢弃本体。**下一次尝试开始前生效**；正在用这份凭据的连接不再用于新调用，在途的照常完成（[PF-001 §6.6](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#66-撤销不等于强制停止)：撤销管的是下一道准入）。
@@ -668,7 +670,7 @@
 | **G-4** | **非图片、非音频的内嵌二进制资源无处存放**：附件存储未定义 | 这类资源本版只留一行说明，没有带回（[S-20](#s-20-对端结果怎样成为-toolresult)） | **PF-006 的 owner**（存储）；`data.content-blocks` 的 G-1 同一件事 |
 | **G-5** | **elicitation**：工具等待态与决策卡片的契约未就位，本版不向对端声明 | 需要中途问人的 MCP 服务端用不了那一段 | **工具执行运行时与 PF-008 的契约**；就位后本契约出新版 |
 | **G-6** | **SDK 与协议的来源核对**：官方 SDK 精确钉版未定（研究已核 1.29.0／1.30.0 最新协议 2025-11-25、v2 是新包名）；任务式动作能否在列举结果里识别、SDK 的鉴权提供者与自定义传输能力**未取证** | [S-17](#s-17-projectactions) 的「只能以替换件出现」第 1 种原因（执行方式）可能识别不出；OAuth 一格的实现路径未定 | **提供者设计**（basis 条目：每项给 probe） |
-| **G-7** | **收窄**：凭据保管方由装配给（[D-040 §S19](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的) S19-f）。**仍缺**：它对本契约交出的面——发引用、按持有解引用、收下 OAuth 凭据、续期写回、丢弃未被配上的与被撤下的——以及**静态凭据本体里的名字**（哪个环境变量、哪个请求头）的形状 | [S-9](#s-9-凭据的出示与取用)、[S-23](#s-23-completeoauth)、[S-24](#s-24-续期清值与作废) 的另一半有承接者，没有写下的接口 | **实现映射**（保管方节点）；主线（若要立一份保管方契约） |
+| **G-7** | **再收窄——接口已定，三项本版不收**（2026-09-25 修订波，[D-043](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1）：保管方对本契约交出的面已由窄口接口契约 `capability.credential-custodian` v1 给出——收下 OAuth 凭据并发引用（S-16）、按持有交出（S-17）、丢弃未被配上的与被撤下的（S-18 清扫三种）。**本版不收**（那份契约 G-2～G-4，与桥节点 C-4～C-6 同口径，[D-040 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ⑩）：**静态凭据按持有交出**（C-4：静态凭据的引用一律 `notResolvable`，要静态凭据的接入点以 `credentialUnavailable` 连不上）；**续期写回**（C-5：令牌到期续不上，[S-24](#s-24-续期清值与作废) 第 1 条本版兑现不了，人要重新取）；**静态凭据本体里的名字**（C-6：哪个环境变量、哪个请求头的形状） | [S-9](#s-9-凭据的出示与取用) 第 2、4 条的静态凭据一支；[S-24](#s-24-续期清值与作废) 第 1 条 | 主线 → `infra/secrets` 那一程（保管方的真承接者）；出示名的形状归本契约新版本 |
 | **G-8** | **已闭合（2026-09-24 整批对齐）**：OAuth 取得的凭据跟机器（[D-040 §S19](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的) S19-g；[S-8](#s-8-oauth-绑定状态与迁移)）；它与「一份持有一个凭据值」合起来的后果另记 G-17 | — | — |
 | **G-9** | **已闭合（2026-09-24 整批对齐）**：`provenance` 由 `capability.asset-evaluation/v1#S-40` 交出（[D-040 §S19](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的) S19-f） | — | — |
 | **G-10** | **条目名撞名与供应商呈现**：同 `data.mcp-endpoint/v1` 的 G-2 | 同那边 | **会话资产注册表**；**模型请求运行时的传输适配** |

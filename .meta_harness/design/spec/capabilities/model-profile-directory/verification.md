@@ -35,7 +35,8 @@
 |---|---|---|
 | 跨进程的新鲜度上界、单调读、秘密送达与轮换传播、调用方鉴别 | 中心 ↔ 据点的组合契约（尚未立） | [S-22](v1/contract.md#s-22-装配给的保证-vs-协议须给的保证)、[G-7](v1/contract.md#十已知缺口) |
 | 取值只交传输适配、锚是发起调用的租户、来源取自那次调用绑定的有效模型 | `capability.model-request-runtime` v1 | [S-12](v1/contract.md#s-12-秘密只在一个问法里出现)、[S-20](v1/contract.md#s-20-resolvecredential) ① |
-| 「范围允许」的求值 | `capability.asset-evaluation` v1 | [S-3](v1/contract.md#s-3-本契约明确不承诺什么) |
+| 「范围允许」的求值——**本版不收窄**（[D-043 R-4](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)），`A` 由读的一方从同一次列表读取；将来收窄时归资产求值 | 本版：`capability.model-request-runtime` v1（读的一方）；将来：`capability.asset-evaluation` v1 | [S-3](v1/contract.md#s-3-本契约明确不承诺什么)、[S-17](v1/contract.md#s-17-listprofiles) 末段 |
+| 据点上凭据副本的加密落地、按登录状态丢、`absent` 与 `unavailable` 分开 | `capability.credential-custodian` v1（S-5～S-8、S-12～S-15） | [S-2](v1/contract.md#s-2-本契约不拥有什么)、[S-7](v1/contract.md#s-7-凭据绑定)、[S-20](v1/contract.md#s-20-resolvecredential) ⑧ |
 
 ## 独立评审
 
@@ -117,3 +118,16 @@ spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/
   - **G-8 闭合**；没有新缺口。
   - **registry**：catalog、covers、formal-tasks、id-namespaces 不变（S-31 与 S-18 引的 `data.model-profile` S-12、S-18、S-24、S-28 原已登记）。
   - **对证据的影响**：没有既有证据；S-31 那一行场景的内容变了，examples §6 多两条回归例，仍「未开始」。
+
+## 修订波（2026-09-25 公开面）
+
+依据链：[D-043](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1（替身改为接口契约 ＋ 最小提供者）、R-4（范围允许本版不收窄）；[D-040 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-37 ⑤（保管方最小提供者：条目以密文落在绑定所在的同一存储，本机只放密钥）、⑩（MPD-N4 静态检查加「`readReplica` 只许 P-1r 调」——节点那一侧的事，本契约不改）。候选未冻结，原地改。
+
+| 变化 | 依据 | 落在哪 | 语义变不变、对消费者 |
+|---|---|---|---|
+| **本版 `A` 的来路写定**：`A` 就是本列表里出现的全部路由名，读的一方从同一次列表读取；「这个名字这个范围不允许」本版不出现；式子仍以 `A` 为显式参数（将来收窄时改由资产求值给，出新版本） | R-4 | [S-17](v1/contract.md#s-17-listprofiles) 末段两处、[S-2](v1/contract.md#s-2-本契约不拥有什么) 那一行、[S-3](v1/contract.md#s-3-本契约明确不承诺什么) 那一条、设计依据新一行、[examples §5](v1/examples.md#5-同路由名不同的格各有一条都成立) 表下注 | **规则不变**（三参数、三种收场不折叠），只是本版的 `A` 有了确定来路；`capability.model-request-runtime` v1 的 S-11 同波改为「`A` 由目录读面直接给」 |
+| **凭据本体的保管改指 `capability.credential-custodian` v1**（据点上那一份）；中心一侧仍是那份契约的 G-7 | R-1；N-37 ⑤ | [S-2](v1/contract.md#s-2-本契约不拥有什么) 那一行、[S-7](v1/contract.md#s-7-凭据绑定) 第一条、「由别处承担」新一行 | 不改语义。**互引**：那份契约以坐标依赖本契约（S-7、S-12），本契约只作定义引用、**不登 catalog 依赖**（登了成环）；对齐义务见下 |
+
+**对齐义务（与 `capability.credential-custodian` v1）**：本契约 [S-7](v1/contract.md#s-7-凭据绑定)「一个租户至多一把、替换即轮换」与 [S-12](v1/contract.md#s-12-秘密只在一个问法里出现)「秘密只在取值问法里出现」一改，那份契约的 S-5、S-8 要跟着改（它的 catalog 边指着这两条）；那份契约的副本条目、`absent`／`unavailable` 两分一改，本契约 S-20 ⑧ 的「租户那一格读不到 ⇒ `unavailable`」要复核。两边都是 candidate，谁先改谁在自己的「变化的影响」里点名另一边。
+
+**没有证据因此作废**——本契约此前没有执行证据。

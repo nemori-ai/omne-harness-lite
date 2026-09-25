@@ -180,3 +180,19 @@ V-1～V-8 **一条执行记录也没有**。起草时的手核只保证 `example
 **registry**：`registry/catalog.json` 本契约 → `data.tool-definition` 的 clauses 补 `S-27`（S-17 据它的末段写出「不排除、只能以替换件出现」）；covers、formal-tasks、id-namespaces 不变（没有新的产品小节链接）。
 **对证据的影响**：投影实例的本地自检（2026-09-24 两次）**不判 `standInOnly`**，新加的四行未进那两次；本轮以暂存区脚本（`jsonschema` 4.26.0，Draft 2020-12，设计根下全部 Schema 按 `$id` 登表）核了第 4 节的值的**形状**：4.1 两份定义过 `SingleFunctionTool`、表里 19 份对端动作描述过 `McpToolDescriptor`，**21 处 0 不符**；投影结局本身（成条目、排除、只能以替换件出现、原因）仍只经起草者对读——第 13 行依实现登记的上限，通用校验器给不出，V-2 仍「未开始」。
 **对消费者**：`capability.asset-registry` 照 S-12「原因取桥给的」装 `stand_in{for: schema_unsupported}`，不必改；`capability.tool-execution-runtime` 对替换件落「不可用」，不必改。
+
+## 修订波（2026-09-25 公开面）
+
+依据链：[D-043](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1（替身改为接口契约 ＋ 最小提供者）；[D-040 §八 N-37](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ⑤（保管方最小提供者：条目以密文落在绑定所在的同一存储，与桥 R-B5、C-1～C-3 同一约束域）、⑦（退出登录不丢 OAuth 令牌，寿命跟绑定走）、⑩（桥 C-4～C-6 本版不收）。候选未冻结，原地改。
+
+| 变化 | 依据 | 落在哪 | 语义变不变、对消费者 |
+|---|---|---|---|
+| **凭据保管方改指 `capability.credential-custodian` v1**：解引用即它的 `resolve`，`notResolvable` ⇒ `credentialUnavailable`、`unavailable`／`custodianWithdrawn` ⇒ `dependencyUnavailable` | R-1 | [S-2](v1/contract.md#s-2-本契约不拥有什么) 那一行、[S-9](v1/contract.md#s-9-凭据的出示与取用) 第 2 条 | 不改语义，只把「保管方说……」的两种答复对上那份契约的值 |
+| **S-23 ④ 的「同一提交」落成保管方的两次提交**：先收成「待生效」、绑定迁 `granted` 并记下之前交不出、迁不成的由清扫丢——对外仍「同成同败」 | 那份契约 S-16～S-18（桥节点 C-1～C-3）；N-37 ⑤ | [S-23](v1/contract.md#s-23-completeoauth) ④ ⑧ | **性质不变、表述改**：原文「两件落在同一提交里」在那份接口契约之下不再字面成立，保证改由「交不出」的判据与清扫兑现（那份契约的形式模型 `GrantedResolvable`、`OrphanEventuallySwept` 已按有限常量跑过，见它的验证入口）。**本契约的推导**，报主线确认 |
+| **三项本版不收**（C-4～C-6 ↔ 那份契约 G-2～G-4）：静态凭据按持有交出（要静态凭据的接入点以 `credentialUnavailable` 连不上）、续期写回（S-24 第 1 条本版兑现不了，令牌到期人要重新取）、静态凭据出示名 | N-37 ⑩ | [G-7](v1/contract.md#十已知缺口) 再收窄、[S-9](v1/contract.md#s-9-凭据的出示与取用) 第 2、4 条、[S-24](v1/contract.md#s-24-续期清值与作废) 第 1 条下注 | **如实写出本版兑现不了的两处**；不给过渡值 |
+
+**对齐义务（与 `capability.credential-custodian` v1）**：那份契约以坐标依赖本契约（S-5、S-8、S-9、S-23、S-30），本契约只作定义引用、**不登 catalog 依赖**（登了成环）。本契约 S-5 持有的成员、S-8 绑定的状态与迁移、`oauthPendingTtl` 一改，那份契约的 S-16～S-18 要跟着改；那份契约的交出判据或清扫三种一改，本契约 S-23 ④ 的「对外同成同败」要复核。谁先改谁在自己的「变化的影响」里点名另一边。
+
+**没有证据因此作废**——本契约此前没有执行证据。
+
+**报主线**：① S-23 ④ 由「同一提交」改写为「两次提交 ＋ 交不出 ＋ 清扫」（上表第二行，推导）；② S-24 第 1 条「续期不要人」本版兑现不了，**OAuth 接入点每到令牌到期都要人重新取一次**，这是产品可见的退化（PF-002 acceptance §一「续期不打扰任何人」），请主线确认本版接受；③ 要静态凭据的 MCP 接入点本版一律连不上。

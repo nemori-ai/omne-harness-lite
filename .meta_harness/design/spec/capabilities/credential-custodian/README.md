@@ -9,15 +9,15 @@
 **依赖方向是单向的：本契约 → 身份值、持有与引用、OAuth 绑定、桥的绑定语义、模型档案目录的凭据绑定。**
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.credential-custodian, 1)`
-- **状态**：`candidate`（2026-09-25 起草，未经独立评审）——未接受、未冻结
+- **状态**：`candidate`（2026-09-25 起草，未经独立评审；同日「公开面」修订波原地改，见[修订波](verification.md#修订波2026-09-25-公开面)）——未接受、未冻结
 - **catalog 映射**：已登记为 candidate。`family=capabilities`、`topic=credential-custodian`、
   `contract_path=spec/capabilities/credential-custodian/v1/contract.md`，`resources` 另含 `v1/examples.md` 与 `v1/formal/` 下的模型、配置与映射页；
   依赖五项，消费 clauses 取自[契约 S-4 的被消费面表](v1/contract.md#s-4-依赖方向与被消费的面)：
   `data.identity-values` v1、`data.asset-model` v1、`data.mcp-endpoint` v1、`capability.mcp-bridge` v1、`capability.model-profile-directory` v1
 - **formal-tasks 映射**：`credential-custodian-v1-sweep`（[`v1/formal/Sweep.cfg`](v1/formal/Sweep.cfg)）；去保护配置与探针不登记，映射见[形式工件页](v1/formal/README.md)
 - **提供者／装配映射**：尚无节点（主线另立）。服务键候选名 `credentialCustodian`（[D-040 §八 M69](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。
-  **最小提供者的形态**（本程施工简报定）：**本机加密文件**。**与 OAuth 条目的要求有张力**：[契约 S-19](v1/contract.md#s-19-装配给的保证-vs-协议须给的保证) 第 2 行要求 OAuth 条目与桥的绑定共有一个排序点（桥节点 R-B5：同一存储、同一约束域）；本机文件做不到这一条时，最小提供者只承接副本条目，OAuth 条目要落在绑定所在的那份存储里（密文）——已报主线。
-  真承接者是 `infra/secrets` 那一程（[G-1](v1/contract.md#十一已知缺口)）
+  **最小提供者的形态**（[D-040 §八 N-37](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ⑤ 定，取代本程施工简报原写的「本机加密文件」）：**副本条目与 OAuth 条目都以密文落在绑定所在的同一存储**（`core/storage`，与桥 R-B5、C-1～C-3 同一约束域），**本机只放密钥**——「本机加密文件」只指密钥，不指条目。这样 [契约 S-19](v1/contract.md#s-19-装配给的保证-vs-协议须给的保证) 第 2 行「OAuth 条目与桥的绑定共有一个排序点」由同一存储兑现；密钥怎样保管、换钥怎样重加密仍是 [G-9](v1/contract.md#十一已知缺口)。
+  真承接者是 `infra/secrets` 那一程（[G-1](v1/contract.md#十一已知缺口)）；接口契约 ＋ 最小提供者取代验收装配里的替身（[D-043 R-1](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）
 
 ## 准入核对
 

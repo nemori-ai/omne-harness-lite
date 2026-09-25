@@ -8,14 +8,14 @@
 **依赖方向是单向的：本契约 → 身份值、会话引用、拓展点统一输入、工具定义的目标环境。**
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.execution-environments, 1)`
-- **状态**：`candidate`（2026-09-25 起草，未经独立评审）——未接受、未冻结
+- **状态**：`candidate`（2026-09-25 起草，未经独立评审；同日「公开面」修订波原地改，见[修订波](verification.md#修订波2026-09-25-公开面)）——未接受、未冻结
 - **catalog 映射**：已登记为 candidate。`family=capabilities`、`topic=execution-environments`、
   `contract_path=spec/capabilities/execution-environments/v1/contract.md`，`resources` 另含 `v1/examples.md`；
   依赖四项，消费 clauses 取自[契约 S-4 的被消费面表](v1/contract.md#s-4-依赖方向与被消费的面)：
   `data.identity-values` v1、`data.messages` v1、`data.loop-extension` v1、`data.tool-definition` v1
 - **formal-tasks 映射**：无——本版不建 TLA+／Alloy，理由见[契约 S-18](v1/contract.md#s-18-本版选用哪些形式工件)
 - **提供者／装配映射**：尚无节点（主线另立）。服务键候选名 `executionEnvironments`（执行宿主、派发器、兼容件三个消费者共用）。
-  **最小提供者的形态**（本程施工简报定）：**直接起本机进程**——落点判断从测试种子读执行环境权限与拓展件子进程的允许（顶替[契约 G-2](v1/contract.md#十已知缺口)、[G-3](v1/contract.md#十已知缺口) 的来路，只供验收装配），起停用本机操作系统的进程组。
+  **最小提供者的形态**（本程施工简报定；接口契约 ＋ 最小提供者取代验收替身见 [D-043 R-1](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）：**直接起本机进程**——落点判断从测试种子读执行环境权限与拓展件子进程的允许（顶替[契约 G-2](v1/contract.md#十已知缺口)、[G-3](v1/contract.md#十已知缺口) 的来路，只供验收装配），起停用本机操作系统的进程组。
   真承接者是 PF-005 那一程（[G-1](v1/contract.md#十已知缺口)）
 
 ## 准入核对

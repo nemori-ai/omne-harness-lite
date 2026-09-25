@@ -141,6 +141,7 @@
 | `runtimeNotReady` | 本能力刚起来，恢复扫描没完成 | `listLive(T, ses_1)` | `runtimeNotReady`，**不返回空表** | 扫描前的空表会被读成「全都没了」（[S-35](contract.md#s-35-列出活体) ⑧） |
 | `runtimeStopped` | 本能力正在撤除，或上一次交回写不下去、已上交而撤下 | `submit(...)` | `runtimeStopped` | 与 `runtimeNotReady` 分开：要换到下一任，不是稍后重试（[S-48](contract.md#s-48-本能力自己的撤除与换代)、[S-47](contract.md#s-47-依赖的提供者不可用)）；上交的那一任不等存储回来 |
 | `dependencyUnavailable{which}` | 存储读不到 | `listBackground(T, ses_1)` | `dependencyUnavailable{storage}`，**不返回空表** | 读不到不等于没有（[S-34](contract.md#s-34-列出后台执行) ⑧）；注册表读不到时 `submit` 是 `{registry}`——**注册表答「没有」不是它**（见本节末第四支） |
+| `dependencyUnavailable{runAttemptFacts}` | `deploy(call_b)` 在后台跑；尝试与运行的两件事实此刻读不到（`attemptFacts` 答 `unavailable`） | `interrupt(T, ses_1, call_b, agent)` | `dependencyUnavailable{runAttemptFacts}`，**什么都不写**：`call_b` 没收场、照跑 | 落账要知道 `late`；读不到就不写一个缺席的 `late`——缺席是「不晚」这个结论（[S-13](contract.md#s-13-账)、[S-15](contract.md#s-15-缺席时的默认答案)）；**不是** `{storage}`：存储是好的，判不出的是那两件事实 |
 
 **不是失败值的那一支**：注册表把 `lint` 判为不可用——它是替换件，或所选的那条命令在 `commandAvailability` 里被关掉——`submit(..., [lint(call_d)/tok_d])` 批成立，
 `call_d` 的 `disposition` 是 `ended{unavailable}`，一条 `outcome: unavailable` 的 `ToolMessage` 已交付，块上写替换件的说明或注册表给的原因；执行者不起。

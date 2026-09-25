@@ -7,10 +7,10 @@
 > 本契约兑现的是词条[会话资产注册表](../../../ubiquitous_language/terms/reach-and-availability.md#ul-session-asset-registry--会话资产注册表--session-asset-registry)；快照、条目、报告这些记录形状无词条，定义只在契约里。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.asset-registry, 1)`
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订——处置表在[验证入口](verification.md#独立评审)；2026-09-25 修复波 1b 把报告的执行权限扩到全部工具条目；同日修复波 2、修复波 3 各按主线裁定原地改——[实现映射反推](verification.md#实现映射反推2026-09-25)），**未接受、未冻结**
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订——处置表在[验证入口](verification.md#独立评审)；2026-09-25 修复波 1b 把报告的执行权限扩到全部工具条目；同日修复波 2、修复波 3 各按主线裁定原地改——[实现映射反推](verification.md#实现映射反推2026-09-25)；同日「公开面」修订波把 `EvaluationRef` 改为引用装配清单窄口的 S-8、换表提交点与 G-1 改指那份接口契约——[修订波](verification.md#修订波2026-09-25-公开面)），**未接受、未冻结**
 - **catalog 映射**：已登记为 `candidate`；`family=capabilities`、`topic=asset-registry`、
   `contract_path=spec/capabilities/asset-registry/v1/contract.md`；`resources` 含契约与 `examples.md`；
-  依赖十六项：`data.asset-model`、`data.tool-definition`、`data.loop-extension`、`data.messages`、`data.offer-expiry`、`data.identity-values`、`data.call-accounts`、`capability.asset-evaluation`、`capability.asset-governance`、`data.skill-package`、`data.slash-command`、`data.mcp-endpoint`、`capability.mcp-bridge`、`capability.tool-admission`、`capability.modality-projection`、`data.model-profile`（均 v1），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)（2026-09-24 整批对齐补齐，同日第一轮评审修订再补）
+  依赖十七项：`data.asset-model`、`data.tool-definition`、`data.loop-extension`、`data.messages`、`data.offer-expiry`、`data.identity-values`、`data.call-accounts`、`capability.asset-evaluation`、`capability.asset-governance`、`data.skill-package`、`data.slash-command`、`data.mcp-endpoint`、`capability.mcp-bridge`、`capability.tool-admission`、`capability.modality-projection`、`data.model-profile`、`capability.assembly-manifest`（均 v1；最后一项 2026-09-25 修订波登记），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)（2026-09-24 整批对齐补齐，同日第一轮评审修订再补）
 - **formal-tasks 映射**：无（本版不建形式工件，[S-35](v1/contract.md#s-35-本版选用哪些形式工件)）
 - **提供者/装配映射**：尚无
 

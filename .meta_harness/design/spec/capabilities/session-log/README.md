@@ -6,12 +6,12 @@
 > 本契约兑现的是词条[会话日志](../../../ubiquitous_language/terms/record-and-context.md#ul-session-log--会话日志--session-log)的一个窄口；条目壳、判重键、读取键、日志位置无词条，定义只在契约里。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.session-log, 1)`
-- **状态**：`candidate`（2026-09-25 起草），**未接受、未冻结**
+- **状态**：`candidate`（2026-09-25 起草；同日「公开面」修订波原地改，见[修订波](verification.md#修订波2026-09-25-公开面)），**未接受、未冻结**
 - **catalog 映射**：已登记为 `candidate`；`family=capabilities`、`topic=session-log`、
   `contract_path=spec/capabilities/session-log/v1/contract.md`；`resources` 含契约、`examples.md` 与 `formal/` 下八个文件（入口 README、模型、六个配置）；
   依赖五项：`data.identity-values`、`data.messages`、`data.call-accounts`、`data.content-blocks`、`capability.session-tenancy`（均 v1），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)
-- **formal-tasks 映射**：`session-log-v1-appends`（正配置）；五个有效性与可达性配置不登记。**未运行**
-- **提供者/装配映射**：最小提供者是文件系统 JSONL 追加器（[契约第十一节](v1/contract.md#十一提供者映射)），**节点由主线另立，尚无**；它取代验收装配里的会话日志替身
+- **formal-tasks 映射**：`session-log-v1-appends`（正配置）；五个有效性与可达性配置不登记。已执行一次，结果在[验证入口](verification.md#形式工件)
+- **提供者/装配映射**：最小提供者是文件系统 JSONL 追加器（[契约第十一节](v1/contract.md#十一提供者映射)），**节点由主线另立，尚无**；它取代验收装配里的会话日志替身（[D-043 R-1](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）
 
 ## 准入核对
 
@@ -19,7 +19,7 @@
 |---|---|
 | 语义拥有者 | 本契约。条目的全序与位置、判重、尝试栅栏、一本日志一个租户身份、提交即持久——**它们被「多个写入方对同一本日志的并发写只能在这一处排出次序」绑在一起** |
 | 为什么是 capability 而不是 data | 每个操作有前置、提交点、失败集合与缺席默认；有状态（一本只增的日志）和它的判定 |
-| 为什么现在立、而且这么窄 | 产品负责人 2026-09-25 同意把验收装配里的替身换成「接口契约 ＋ 最小提供者」、接口按消费者需要定窄口（主线施工简报；尚无决定记录）。三个运行时的正确性（「恰一条」「旧尝试写不进」）都落在会话日志上，**没有这一份，它们的跨 owner 交错没有共同存储对象可指** |
+| 为什么现在立、而且这么窄 | 产品负责人 2026-09-25 同意把验收装配里的替身换成「接口契约 ＋ 最小提供者」、接口按消费者需要定窄口（[D-043 R-1](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）。三个运行时的正确性（「恰一条」「旧尝试写不进」）都落在会话日志上，**没有这一份，它们的跨 owner 交错没有共同存储对象可指** |
 | 为什么不并进某个消费者 | 三个写入方共用同一本日志、同一道栅栏；归哪一方都让另外两方去读它的内部 |
 | 精确依赖 | 见上；**依赖方向单向**：本契约 → 身份值、消息、账、块、会话持有租户读面；写入方与读方消费本契约 |
 | 接受状态 | 未接受 |

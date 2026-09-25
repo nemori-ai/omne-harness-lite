@@ -9,11 +9,11 @@
 **兼容件对本契约与任何一件原生件没有区别**。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.loop-extension-runner, 1)`
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订，2026-09-25 修复波 1b 原地补放行输入的组装、闭合 G-13；同轮新立的 G-18 已由 L13 闭合；同日修复波 2 按第二轮复评补 `dispatch` 的 `admission` 输入、查不到条目的调用与解析不了的调用，新立 G-19；同日修复波 3 按实现映射反推补执行环境句柄的读面 S-50、`dispatch` 的收场 `cancelled`、装配名 `apps/cli`，新立 G-20），**未接受、未冻结**
+- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订，2026-09-25 修复波 1b 原地补放行输入的组装、闭合 G-13；同轮新立的 G-18 已由 L13 闭合；同日修复波 2 按第二轮复评补 `dispatch` 的 `admission` 输入、查不到条目的调用与解析不了的调用，新立 G-19；同日修复波 3 按实现映射反推补执行环境句柄的读面 S-50、`dispatch` 的收场 `cancelled`、装配名 `apps/cli`，新立 G-20；同日「公开面」修订波把锚改为调用方交来的不透明键、G-1 收窄为「锚的算法」，G-20 改写为「真承接者未到，接口已定」，见[修订波](verification.md#修订波2026-09-25-公开面)），**未接受、未冻结**
 - **catalog 映射**：已登记为 `candidate`；`family=capabilities`、`topic=loop-extension-runner`、
   `contract_path=spec/capabilities/loop-extension-runner/v1/contract.md`；`resources` 含契约与 `examples.md`；
-  依赖十二项：六项数据契约（`data.loop-extension`、`data.messages`、`data.content-blocks`、`data.call-accounts`、`data.model-response`、`data.identity-values`，均为 v1），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)；
-  另六项能力契约（`capability.tool-admission`、`capability.model-request-runtime`、`capability.asset-evaluation`、`capability.asset-registry`、`capability.modality-projection`、`capability.tool-execution-runtime`），消费面见 S-4 末表（`capability.asset-registry` 与 `capability.asset-evaluation` 的 `S-42` 是 2026-09-25 修复波 1b 补登：组装放行输入）
+  依赖十五项：六项数据契约（`data.loop-extension`、`data.messages`、`data.content-blocks`、`data.call-accounts`、`data.model-response`、`data.identity-values`，均为 v1），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)；
+  另九项能力契约（`capability.tool-admission`、`capability.model-request-runtime`、`capability.asset-evaluation`、`capability.asset-registry`、`capability.modality-projection`，与 2026-09-25 修订波登记的四份窄口接口契约 `capability.session-log`、`capability.session-tenancy`、`capability.execution-environments`、`capability.assembly-manifest`），消费面见 S-4 末表（`capability.asset-registry` 与 `capability.asset-evaluation` 的 `S-42` 是 2026-09-25 修复波 1b 补登：组装放行输入）；`capability.tool-execution-runtime` 只是定义性引用、不登（会成环）
 - **formal-tasks 映射**：无——回放的行为模型**已触发、尚未建**，要检查的七条义务与前提见[契约 S-35](v1/contract.md#s-35-形式工件回放的行为模型已触发尚未闭合)（[G-14](v1/contract.md#十三已知缺口)）
 - **提供者/装配映射**：尚无
 

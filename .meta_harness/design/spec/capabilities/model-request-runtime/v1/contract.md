@@ -5,7 +5,7 @@
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.model-request-runtime, 1)`——
   `family = capabilities`、`topic = model-request-runtime`、规范路径 `spec/capabilities/model-request-runtime/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：`candidate`（2026-09-23 起草；2026-09-24 经第一轮独立评审并按处置修订，处置见[验证入口](../verification.md#独立评审)；修复波 1b 补模型侧到达装配前提的承诺与追补体参数三项的来源；2026-09-25 修复波 2 按第二轮独立复评补撤除走放弃、「已开口」写不进那一支、被拒事件的日志事件、按（会话，目标）路由与允许集合来源的缺口，见[验证入口「变化的影响」](../verification.md#变化的影响)）——未接受、未冻结
+- **状态**：`candidate`（2026-09-23 起草；2026-09-24 经第一轮独立评审并按处置修订，处置见[验证入口](../verification.md#独立评审)；修复波 1b 补模型侧到达装配前提的承诺与追补体参数三项的来源；2026-09-25 修复波 2 按第二轮独立复评补撤除走放弃、「已开口」写不进那一支、被拒事件的日志事件、按（会话，目标）路由与允许集合来源的缺口，见[验证入口「变化的影响」](../verification.md#变化的影响)；2026-09-25「公开面」修订波按 [D-043 R-4](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)、R-6 闭合 G-19 与 G-8、另立 G-20，见[验证入口](../verification.md#修订波2026-09-25-公开面)）——未接受、未冻结
 - **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-013 rev 12** 为准（rev 11 只动转换件呈现的落点，不影响本契约条款；rev 12 的同名按层覆盖、设置记路由名已落进本契约），另引 PF-012 rev 14、PF-009 rev 8、PF-004 rev 12、PF-001 rev 17、PF-015 rev 11（逐 rev 复核结论在[验证入口「变化的影响」](../verification.md#变化的影响)）
 - **精确语义依赖**（消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)，catalog 按它登记）：
   - `omne-harness-lite-design-2026-09-15 · capability.model-profile-directory · v1`（candidate）
@@ -20,7 +20,7 @@
   - `omne-harness-lite-design-2026-09-15 · data.offer-expiry · v1`（accepted，只取时间点 `Instant`）
   - `omne-harness-lite-design-2026-09-15 · capability.stream-assembly · v1`（candidate）
   - `omne-harness-lite-design-2026-09-15 · capability.modality-projection · v1`（candidate）
-  - `omne-harness-lite-design-2026-09-15 · capability.asset-evaluation · v1`（candidate）——「用哪个模型」这项设置与「这个范围允许哪几条档案」的求值
+  - `omne-harness-lite-design-2026-09-15 · capability.asset-evaluation · v1`（candidate）——「用哪个模型」这项设置的求值（「这个范围允许哪几条档案」本版不收窄、不由它求，[D-043 R-4](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）
   - `omne-harness-lite-design-2026-09-15 · data.arrival-events · v1`（candidate）——到达事件的目标、砍、收尾与第一个内容步骤（[S-16](#s-16-首-token-判据)、[S-51](#s-51-模型侧到达装配前提的承诺) 据以写出承诺；2026-09-25 修复波 2 登记，第二轮评审 R2-MRR-2；它不依赖本契约，无环）
   - 以上三份（流装配、模态投影、求值）在 2026-09-24 整批对齐登记进 catalog（原 G-14）。`capability.loop-extension-runner` v1 只是指路（被拒的 `retry` 怎样记下、系统自带重试件不可用怎样关门归它），本契约不据以写出任何承诺，不登依赖——**runner 反过来消费本契约的合法目标与再发守卫**，登这一条会成环
 - **条款编号**：`S-n`，**只在本契约本版本内有效**；外部引用须写全坐标，如
@@ -45,6 +45,8 @@
 | 单独控制；停机看首 token；只有一个宿主 | [PF-013 §5.13](../../../../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token) · [停机之后](../../../../product/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token) · [它只有一个宿主](../../../../product/PF-013-model-profiles-and-invocation/design.md#它只有一个宿主所以只有一种结局) | S-15、S-31、S-33、S-36 |
 | 脱敏 | [PF-013 §6.16](../../../../product/PF-013-model-profiles-and-invocation/design.md#616-错误信息外泄之前要脱敏) | S-20 |
 | 本 topic 不出现任何时限数值；超时是运行时设置项、退避是重试件的配置 | [PF-013 §6.17](../../../../product/PF-013-model-profiles-and-invocation/design.md#617-本-topic-不出现任何时限数值) | S-21、S-35 |
+| **本版「范围允许」不收窄**：范围允许 = 这个范围里登记的全部档案，凭据可用即可用；将来要收窄作为设置走资产求值 | [D-043 R-4](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)（产品负责人，2026-09-25） | S-11 允许集合那一行、S-10、S-12 |
+| **重试是可配置策略，不写死**：次数、退避种类、基数、倍率、上限、抖动；默认值只是配置初值 | [D-043 R-6](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)；落法 [D-040 §八 N-36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) | S-35 第 4 条 |
 | 模态投影要答得快、增量维护 | [PF-013 §6.18](../../../../product/PF-013-model-profiles-and-invocation/design.md#618-模态投影要答得快而且是增量维护出来的) · [flows §3.4](../../../../product/PF-013-model-profiles-and-invocation/flows.md#34-一个会话的模态投影) | S-13 |
 | 「等模型」是 loop 的等待；先对账再进方程（出门了没开口就没了 → 照常再发；开口了没说完就没了 → 绝不再发、追补中断提醒） | [PF-012 等人是 loop 的原语](../../../../product/PF-012-agent-loop-and-run/design.md#等人是-loop-的原语) · [先对账，再进方程](../../../../product/PF-012-agent-loop-and-run/design.md#先对账再进方程) | S-15、S-33 |
 | 每一次模型调用都适用：挂件、压缩闭包、不属于任何 Run 的旁路提问；宿主恒为 agent runtime；不属于任何 Run 的花费归会话 | [PF-013 它只有一个宿主](../../../../product/PF-013-model-profiles-and-invocation/design.md#它只有一个宿主所以只有一种结局) · [PF-012 agent runtime](../../../../product/PF-012-agent-loop-and-run/design.md#agent-runtime) | S-5、S-33 |
@@ -120,7 +122,7 @@
 | 到达事件的语法、流装配、首个内容何时算「交出」的装配器侧判据 | `data.arrival-events` v1、`capability.stream-assembly` v1（并行） |
 | 模态投影的判定函数、模态兼容判定、转换件 | `capability.modality-projection` v1（本契约调它的 `project` 与 `compatible`） |
 | 拓展件的执行、结论落日志、报错处置 | `capability.loop-extension-runner` v1 |
-| 「用哪个模型」这项设置的层级求值、「这个范围允许哪几条档案」 | `capability.asset-evaluation` v1 |
+| 「用哪个模型」这项设置的层级求值；「这个范围允许哪几条档案」（**本版不收窄**，[D-043 R-4](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)；将来收窄时同归它） | `capability.asset-evaluation` v1 |
 | 上下文组装、请求里装了什么 | PF-010 组装 |
 | 会话日志本身、追加口的栅栏与多条目原子追加 | 会话日志的拥有者（loop 那一程） |
 | 传输实现（pi-ai 定向 fork 与适配） | 提供者设计；本契约只在 [S-38](#s-38-装配给的保证-vs-协议须给的保证) 写它须兑现的义务 |
@@ -152,7 +154,7 @@
 |---|---|
 | `capability.model-profile-directory` `#S-6` 范围链 | [S-11](#s-11-合法目标集合) |
 | `capability.model-profile-directory` `#S-16` readProfile（含已撤回行，三收场不折叠） | [S-10](#s-10-有效模型四步每步来源可查)、[S-12](#s-12-展示列表)、[S-28](#s-28-opencall) |
-| `capability.model-profile-directory` `#S-17` listProfiles（每项带引用，同一个路由名可出现几次）；末段从路由名到一行的规则 `胜出行(T, r, A)`／`落点(T, r, A)`，允许集合 `A` 是显式参数 | [S-10](#s-10-有效模型四步每步来源可查)、[S-11](#s-11-合法目标集合)、[S-12](#s-12-展示列表) |
+| `capability.model-profile-directory` `#S-17` listProfiles（每项带引用，同一个路由名可出现几次）；末段从路由名到一行的规则 `胜出行(T, r, A)`／`落点(T, r, A)`，允许集合 `A` 是显式参数——**本版 `A` 取自同一次列表读**（那一段，[D-043 R-4](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)） | [S-10](#s-10-有效模型四步每步来源可查)、[S-11](#s-11-合法目标集合)、[S-12](#s-12-展示列表) |
 | `capability.model-profile-directory` `#S-20` resolveCredential：以发起租户与档案来源取用、两种问法 | [S-12](#s-12-展示列表)、[S-19](#s-19-凭据每次发出现取取值只交给传输适配)、[S-28](#s-28-opencall) 出门前检查第 4 行 |
 | `data.model-profile` `#S-2` 路由名 `RouteName` | [S-9](#s-9-选中模型)、[S-24](#s-24-legaltargets) ⑤、[S-27](#s-27-selectmodel) ①、[S-28](#s-28-opencall) ① |
 | `data.model-profile` `#S-5`、`#S-6` 允许的供应商及次序、允不允许回退 | [S-30](#s-30-dispatchagain)、[S-35](#s-35-默认重试件可替换) |
@@ -208,7 +210,7 @@
 | `data.arrival-events` `#S-21` 第一个内容步骤：零次填充就封口、封口块非空也算开口 | [S-16](#s-16-首-token-判据) |
 | `data.model-response` `#S-5` 到达事件流的映射与它的例外（宿主放弃在途的流：流结局 `lost`、收场 `interrupted{run_cancelled}`） | [S-36](#s-36-宿主停止与撤除)、[S-51](#s-51-模型侧到达装配前提的承诺) 第 6 条 |
 | `capability.modality-projection` `#S-6` 可分解律与对读方的两条义务（存着的答案等于重算、判合法目标用的答案覆盖到日志尾）、`#S-15` 读投影、`#S-16` 兼容判定 | [S-11](#s-11-合法目标集合)、[S-13](#s-13-模态投影读到的必须追到日志尾) |
-| `capability.asset-evaluation` `#S-8` 求值结果、`#S-22` 设置、`#S-23` 权限 | [S-9](#s-9-选中模型)、[S-10](#s-10-有效模型四步每步来源可查)、[S-11](#s-11-合法目标集合) |
+| `capability.asset-evaluation` `#S-8` 求值结果、`#S-22` 设置 | [S-9](#s-9-选中模型)、[S-10](#s-10-有效模型四步每步来源可查)（「用哪个模型」这项设置；它的产出方未定，[G-20](#十二已知缺口)。**本版不再为允许集合读它**，原消费的 `#S-23` 权限随 G-19 闭合撤下） |
 
 ---
 
@@ -290,7 +292,7 @@
 
 ### S-9 选中模型
 
-**选中模型是一个路由名：这个会话日志里最后一条模型切换的记录（`model_selection_changed`，[S-8](#s-8-调用在会话日志里留下的六种记录)）记的那个名字；一条都没有时，= 「用哪个模型」这项设置在会话格上的层级求值结果**（[PF-013 §4 选中模型与有效模型](../../../../product/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型)「会话从没切换过时……取这项设置沿层级求值出来的那一条」；那项求值归 `capability.asset-evaluation` v1 的 [S-22](../../asset-evaluation/v1/contract.md#s-22-第四步设置)）。
+**选中模型是一个路由名：这个会话日志里最后一条模型切换的记录（`model_selection_changed`，[S-8](#s-8-调用在会话日志里留下的六种记录)）记的那个名字；一条都没有时，= 「用哪个模型」这项设置在会话格上的层级求值结果**（[PF-013 §4 选中模型与有效模型](../../../../product/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型)「会话从没切换过时……取这项设置沿层级求值出来的那一条」；那项求值归 `capability.asset-evaluation` v1 的 [S-22](../../asset-evaluation/v1/contract.md#s-22-第四步设置)；**这一项由哪份正文契约产出未定**，[G-20](#十二已知缺口)）。
 **记的是名字，不是某一行**（PF-013 rev 12 [§4 档案的身份](../../../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名)；`data.model-profile/v1#S-14`）；这个名字这一次落到哪一行，是 [S-10](#s-10-有效模型四步每步来源可查) 第 2′ 步的事。
 
 - **只因[模型切换](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-switch--模型切换--model-switch)而变**（[PF-013 flows §3.3](../../../../product/PF-013-model-profiles-and-invocation/flows.md#33-一个会话的选中模型)）：拓展件的 `select_model` 只改那一次的有效模型，**不写模型切换的记录**（`data.loop-extension/v1#S-24`）；agent 自己换不了。
@@ -306,14 +308,14 @@
 | 步 | 做什么 | 结果从哪来 | 留在哪 |
 |---|---|---|---|
 | 1 | 取**选中模型**（一个路由名） | [S-9](#s-9-选中模型) | 模型切换的记录（或设置求值） |
-| 2 | **层级求值**「用哪个模型」这项设置：会话格之上若有一格带[不可覆盖标记](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-immutable-marker--不可覆盖标记--immutable-marker)，**取那一格的名字，压过选中模型** | `capability.asset-evaluation` v1 的设置求值（[PF-013 §4 选中模型与有效模型](../../../../product/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型)「上层锁死」） | 响应体 `selectedBy = layer_lock`；否则 `session` |
+| 2 | **层级求值**「用哪个模型」这项设置：会话格之上若有一格带[不可覆盖标记](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-immutable-marker--不可覆盖标记--immutable-marker)，**取那一格的名字，压过选中模型** | `capability.asset-evaluation` v1 的设置求值（[PF-013 §4 选中模型与有效模型](../../../../product/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型)「上层锁死」；这一项的产出方未定，[G-20](#十二已知缺口)） | 响应体 `selectedBy = layer_lock`；否则 `session` |
 | 2′ | **把路由名解析为一行**：以前一步的名字为[能力标识](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)，取它在会话范围链上的**落点**——**先滤掉已撤回的、再滤掉这个范围不允许的，然后取最具体一格**（租户层 > 组织层 > 出厂默认层）。**锁锁的也是名字**：供应商、参数、凭据取落到的那一行（主线裁定，见 [D-040 §二 S-U24-5a～c](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#二2026-09-24-用户在场期间主线随用户裁决所作的自定账本-二-原文标主线自定的行)）。第 3 步拓展件给出的目标同样取它的路由名、经这一步 | `capability.model-profile-directory/v1#S-17` 末段的 `落点(T, r, A)`：`T` 是会话持有的租户，`A` 是 [S-11](#s-11-合法目标集合) 输入表里的允许集合 | **`selectedBy` 不变**；`effectiveModel` 的 `profile` 是落到的那一行，响应体 `route.profile` 是它 |
 | 3 | **「调模型之前」的拓展件**可能给出 `select_model`，只改这一次 | `capability.loop-extension-runner`（它先按 [S-24](#s-24-legaltargets) 核合法，`data.loop-extension/v1#S-24`） | 拓展件的结论条目；响应体 `selectedBy = { extension: <name> }` |
 | 4 | **出门前检查**：对落到的那一行核在册、范围允许、模态兼容、凭据有无 | [S-28](#s-28-opencall) | 不过 ⇒ 调用终结记录 `undispatched{cause}`；过 ⇒ 响应体 `route.profile` |
 
 - **第 1、2、2′ 步由 [`effectiveModel`](#s-26-effectivemodel) 给出**；第 3 步在 loop 里发生，它给出的目标在打开调用时经 2′；第 4 步在打开调用时发生。
 - **只滤已撤回与范围不允许**（主线裁定，见 D-040 §二 S-U24-5a）：胜出行模态对不上或缺凭据，**它照样是胜出行**，第 4 步以相应成因挡下，**不落到更一般一格的同名行**——这两样是这一次运行时的事实，不是那一行能不能被这个范围用。缺凭据尤其不滤——缺凭据的名字仍是合法目标，出门前才挡（[S-11](#s-11-合法目标集合)）。
-- **没有胜出行时，落点那一行由第 4 步挡下**（`capability.model-profile-directory/v1#S-17` 末段的三种收场）：链上同名的都撤回了 ⇒ `withdrawn`（「已下架」）；有在册的、却都这个范围不允许 ⇒ `scope_disallowed`；**链上没有这个名字的任何一行** ⇒ `profileNotFound`（[S-28](#s-28-opencall) ⑧）。
+- **没有胜出行时，落点那一行由第 4 步挡下**（`capability.model-profile-directory/v1#S-17` 末段的三种收场）：链上同名的都撤回了 ⇒ `withdrawn`（「已下架」）；有在册的、却都这个范围不允许 ⇒ `scope_disallowed`（**本版不出现**：`A` 恒含链上全部名字，[D-043 R-4](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）；**链上没有这个名字的任何一行** ⇒ `profileNotFound`（[S-28](#s-28-opencall) ⑧）。
 - **这条裁决的代价，写明**：
   - **组织层建了一条与官方同名的自建档案，成员没配自己那一把之前，这个名字对他用不上**——名字落到组织层那一行，以 `credential_unavailable` 挡下；部署给出厂格配的那一把救不了它（出厂格那一把只供官方档案，`capability.model-profile-directory/v1#S-20`）。成员配上自己那一把就好。
   - **组织锁得住名字，锁不住这个名字落到哪一行**：成员在自己那层建一条同名的，供应商与参数就是他的了（PF-013 §4 代价第二条）。
@@ -338,11 +340,11 @@ LegalTargetSet(会话)  ≝  { r |  r 是链上档案里出现的一个路由名
 | 输入 | 从哪来 |
 |---|---|
 | **链上档案** | `capability.model-profile-directory/v1#S-17`，以会话持有的 `TenantId` 为锚 |
-| **允许集合 `A`** | `capability.asset-evaluation` v1 求值结果（[S-8](../../asset-evaluation/v1/contract.md#s-8-求值结果-effectiveassembly)）里「用哪个模型」那一项在**这个会话格**上的允许集合（主线裁定，见 [D-040 §S16 S16-i](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s16model-profile-directory--model-request-runtime报回的)）。**取值域是路由名**：一个名字在集合里即这个范围允许它（主线裁定，见 [D-040 §五 K42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)：与「设置记路由名」一致；原 G-4 闭合）。**这一项由哪份正文契约的推出规则产出、是设置还是权限、锁与 `A` 什么关系，还没有答案**——[G-19](#十二已知缺口)；闭合之前求值结果里没有这一项，按下面第一条即 `unavailable`，不当空集、不当全集。**它是胜出行的第二道滤**（[S-10](#s-10-有效模型四步每步来源可查) 第 2′ 步）；同一租户的两个会话格可以有不同的 `A`，所以按 `(T, r)` 缓存胜出行是错的 |
+| **允许集合 `A`** | **本版就是上一行「链上档案」里出现的全部路由名，由目录读面直接给**——与链上档案出自同一次 `listProfiles` 读（`capability.model-profile-directory/v1#S-17` 末段；[D-043 R-4](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)：本版不收窄，范围允许 = 这个范围里登记的全部档案，凭据可用即可用；原 G-19 闭合）。**取值域是路由名**（主线裁定，见 [D-040 §五 K42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)；原 G-4 闭合）。**它是胜出行的第二道滤**（[S-10](#s-10-有效模型四步每步来源可查) 第 2′ 步），本版恒过；式子仍以它为显式参数——将来要收窄，作为设置走资产求值（PF-002），那时本行改指那一项、出新版本，同一租户的两个会话格也才会有不同的 `A`（按 `(T, r)` 缓存胜出行那时就是错的） |
 | **投影** | [S-13](#s-13-模态投影读到的必须追到日志尾) |
 | **`compatible`** | `capability.modality-projection` v1 的 [S-16](../../modality-projection/v1/contract.md#s-16-兼容判定-compatible)：投影 ⊆ 档案的输入模态（`data.model-profile/v1#S-7`） |
 
-- **任何一个输入读不到 ⇒ `unavailable`**，**不返回空集**——空集会被读成「现在没有任何模型能用」，据此替用户改选或弹错（[§6.9](../../../../product/PF-013-model-profiles-and-invocation/design.md#69-合法目标算不出来时不替用户改选)）。允许集合读不到，不当成空集（全拒），也不当成全集（全放）。
+- **任何一个输入读不到 ⇒ `unavailable`**，**不返回空集**——空集会被读成「现在没有任何模型能用」，据此替用户改选或弹错（[§6.9](../../../../product/PF-013-model-profiles-and-invocation/design.md#69-合法目标算不出来时不替用户改选)）。允许集合读不到（本版即链上档案读不到），不当成空集（全拒），也不当成全集（全放）。
 - **凭据有无不在这里**：缺凭据的名字仍是合法目标，出门前检查才以 `credential_unavailable` 挡下；展示列表把它标出来（[S-12](#s-12-展示列表)）。
 - **模态按胜出行判**（主线裁定，见 D-040 §二 S-U24-5a～c）：选一个名字，这一次用的是胜出行，所以兼容与否按它算——否则一个判为合法的名字会在出门前检查被挡下。**被盖住的同名行不是候选**，只在展示列表上作标注（[S-12](#s-12-展示列表)）。
 
@@ -371,7 +373,7 @@ DisplayList(会话)  ≝  { r ∈ LegalTargetSet(会话) ∪ { 选中模型 } } 
 |---|---|---|---|
 | `legal` | 名字 | 是合法目标 | [S-11](#s-11-合法目标集合) |
 | `withdrawn` | 名字；被盖住的行 | 名字上：选中的这个名字，**链上同名的都撤回了**——「已下架」；行上：这一行自己已撤回 | 名字上：落点那一行 `registration = withdrawn`（没有在册的同名行）；行上：这一行 `registration = withdrawn` |
-| `scope_disallowed` | 名字；被盖住的行 | 名字上：这个名字链上在册的同名行，这个范围一条都不允许；行上：这一行这个范围不允许 | 名字上：没有胜出行而有在册的同名行；行上：范围允许对这一行不成立 |
+| `scope_disallowed` | 名字；被盖住的行 | 名字上：这个名字链上在册的同名行，这个范围一条都不允许；行上：这一行这个范围不允许 | 名字上：没有胜出行而有在册的同名行；行上：范围允许对这一行不成立。**本版不出现**（`A` 恒含链上全部名字，[S-11](#s-11-合法目标集合)） |
 | `modality_mismatch` | 名字 | 和会话里的模态对不上 | 胜出行的兼容那一项不成立。**本据点传输送不出不在这里**——它与名字无关，是可发出的另一条前置（[S-11](#s-11-合法目标集合) 末段） |
 | `credential_missing` | 名字 | **调它时没有凭据可用**（**附加注记**，可与 `legal` 并存）：胜出行是自建档案——这个租户没配自己那一把；是官方档案——这个租户没配、部署也没给出厂格配一把 | 以会话持有的租户与**胜出行的来源**问 `capability.model-profile-directory/v1#S-20` 的有没有，答 `{ present: false }` |
 | `overridden_by{scope}` | 被盖住的行 | **被 `scope` 那一格的同名档案覆盖**：这个名字此刻用的是那一格的那一行；`scope` 是胜出行所在的一格——出厂默认层为 `factory`，否则胜出行 `ref` 里的 `scope`（主线裁定，见 D-040 §二 S-U24-5c） | 这一行不是胜出行，而这个名字有胜出行 |
@@ -864,14 +866,14 @@ DisplayList(会话)  ≝  { r ∈ LegalTargetSet(会话) ∪ { 选中模型 } } 
 1. **只对策略那一类出手**：最近一次发出的成因是 `upstream_unavailable` 或 `unrecognized` 时才考虑再试；其余一律不给 `retry`（给了也会被守卫拒——它不去试）。
 2. **逐家一遍**：按档案快照「允许的供应商」的次序，**下一家**是最近一次发出那一家之后的那一家；**每一家至多一次**。
 3. **不允许回退时同家至多再试一次**：档案快照说不允许回退 ⇒ 给一次 `retry { provider: 第一家 }`，此后不再给（主线裁定，见 [D-040 §S16 S16-g](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s16model-profile-directory--model-request-runtime报回的)：保住「开箱就有重试」）。
-4. **退避**：`after` 取具名参数 **`default_retry_backoff`**——它是这件重试件的配置（[PF-013 §6.17](../../../../product/PF-013-model-profiles-and-invocation/design.md#617-本-topic-不出现任何时限数值)「退避等多久」一行），本契约不填值（[G-8](#十二已知缺口)）。
+4. **退避**：`after` 由具名参数 **`default_retry_backoff`** 算出——它是这件重试件的**可配置策略**（[PF-013 §6.17](../../../../product/PF-013-model-profiles-and-invocation/design.md#617-本-topic-不出现任何时限数值)「退避等多久」一行；[D-043 R-6](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)：不写死），成员恰五个：`kind`（`constant`／`linear`／`exponential`）、`base`、`factor`、`max`、`jitter`（`none`／`full`／`half`／`decorrelated`）。`kind` 定无抖动的等待随「这是本次调用里它给出的第几个 `retry`」怎样长（`constant` 恒为 `base`，`linear` 每次加 `base`，`exponential` 每次乘 `factor`），**封顶 `max`**；`jitter` 定在那个值上怎样取随机，`none` 即取那个值。**次数不是它的成员**：由第 2、3 条（允许的供应商个数与回退声明）推出；**哪些失败才再试**也不是——第 1 条定死。默认初值归配置层（[D-040 §八 N-36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 记下的那一组），本契约不填（原 G-8 闭合）。
 5. **没有下一家 ⇒ 不再试**（试尽），交回，loop 上交。
 
 - **试尽的判定**：默认件在有限步内必判「不再试」——允许回退时每家至多一次、家数有限；不允许回退时同家至多一次再试。**自定义件不承诺这一点**（[S-3](#s-3-本契约明确不承诺什么)）。
 - **续接不经过它**：首 token 之前失联之后的续接是 [S-33](#s-33-reconcile) 与 [S-29](#s-29-dispatch) 的事，不是一次重试，不占「每家至多一次」的名额。
 - **它挂了**：按 `capability.loop-extension-runner` 的系统自带件不可用处置——由装配预先声明的指定挂件顶上，效果是一律不重试、这一层试尽上交（[S-17](../../loop-extension-runner/v1/contract.md#s-17-系统自带件不可用时一律关门)；[PF-012 系统自带的几件，不可用时各有定法](../../../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件不可用时各有定法)）；本契约只写：**它不在时，调用不会被自动再发**。
 
-> **不允许回退的档案也有一次重试**：[PF-013 §5.12](../../../../product/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试) 担心的「一次网络抖动就打断一轮对话」在这类档案上由同家那一次再试兜住；退避取值仍在 [G-8](#十二已知缺口)。
+> **不允许回退的档案也有一次重试**：[PF-013 §5.12](../../../../product/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试) 担心的「一次网络抖动就打断一轮对话」在这类档案上由同家那一次再试兜住；退避按第 4 条的策略算（原 G-8 已闭合）。
 
 ---
 
@@ -1127,11 +1129,11 @@ M1 若是选中模型，`displayList` 上它带 `modality_mismatch`。
 | G-1 | **已闭合**：`data.model-response` 已有 `interrupted.initiator` 三值与那几行、`attemptId` 在每一次发出上、`route.profileSnapshot` 与 `route.credentialScope`、`late`；本契约各处引用那里的条款号 | — | — |
 | G-2 | **已闭合**：五种记录的形状归 `data.messages/v1#S-49`、`#S-50`（D-040 §S16 S16-d） | — | — |
 | G-3 | **已闭合**：`ModelCallRequest` 定形（D-040 §S16 S16-c）；第一轮评审处置改为 `target` 恒在、加 `basis`、`tools` 是模型面名字（[S-28](#s-28-opencall) ①） | — | — |
-| G-4 | **已闭合（主线裁定，见 [D-040 §五 K42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）**：「用哪个模型」那项设置的允许集合**取值域是路由名**，与「设置记路由名」一致；它作为显式参数进 `capability.model-profile-directory/v1#S-17` 末段的规则（[S-11](#s-11-合法目标集合)）。**本行只闭合取值域**；这一项从哪来、是设置还是权限、锁与 `A` 的关系另立 [G-19](#十二已知缺口)（[D-040 §七 M17](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)） | — | — |
+| G-4 | **已闭合（主线裁定，见 [D-040 §五 K42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）**：「用哪个模型」那项设置的允许集合**取值域是路由名**，与「设置记路由名」一致；它作为显式参数进 `capability.model-profile-directory/v1#S-17` 末段的规则（[S-11](#s-11-合法目标集合)）。**本行只闭合取值域**；这一项从哪来、是设置还是权限、锁与 `A` 的关系另立 [G-19](#十二已知缺口)（2026-09-25 按 [D-043 R-4](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) 闭合）（[D-040 §七 M17](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)） | — | — |
 | G-5 | **`status_cause_table` 的内容**：OpenRouter 各状态码（含 402 余额不足、403 内容审核）归哪个成因 | 提供者设计（据 OpenRouter 文档取证）；有产品含义的几条报主线 | 表定下并随传输钉版本一起取证 |
 | G-6 | **脱敏三个具名参数的取值**：`credential_fragment_min_length`、`credential_header_names`、`credential_patterns` | 提供者设计 ＋ 安全评审 | 取值定下，并以哨兵串场景（S-46）验证 |
 | G-7 | **已闭合**：首 token 之后停机 = `interrupted{runtime_lost}`（D-040 §S16 S16-g） | — | — |
-| G-8 | **默认重试件的退避值**：`default_retry_backoff` 是这件重试件的配置（PF-013 §6.17），取多少、默认值由谁给未定（同家要不要再试已裁：不允许回退时同家至多一次，D-040 §S16 S16-g） | 产品负责人（PF-013 §5.12、§6.17）；那一类资产（拓展件）的正文契约 | 默认件的配置项立起来、默认值定下 |
+| G-8 | **已闭合（2026-09-25 修订波，[D-043 R-6](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)、[D-040 §八 N-36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）**：原「退避值取多少」改为**策略配置项与默认初值**——`default_retry_backoff` 是一个可配置策略对象（`kind`、`base`、`factor`、`max`、`jitter`，[S-35](#s-35-默认重试件可替换) 第 4 条），次数不是独立参数、由允许的供应商个数与回退声明推出；默认初值放配置层（N-36 记下的那一组），本契约不填值。同家要不要再试已裁（不允许回退时同家至多一次，D-040 §S16 S16-g） | — | — |
 | G-9 | **两个时限设置项的声明与默认值**：项名 `first_token_wait_limit`、`post_first_token_stall_limit` 是规格层给的名字，它们在哪类资产的推出规则里声明、默认值由谁给未定 | PF-002 owner；那一类资产的正文契约 | 设置项在 PF-002 清单里立起来、所在正文契约的推出规则产出它们 |
 | G-10 | **传输适配十一条中依赖研究假设的几条**（1、2、4、5、7）：所选传输库（D-019）的缺省行为只有研究里的假设，未升 basis | 提供者设计 | basis 条目带 probe 立起来 |
 | G-11 | **本契约对 loop 与会话生命周期的三项义务尚无对方条款**：① **用户取消运行时**，宿主先 `interrupt(run_cancelled)`、让调用方收口，再停（没做到时本能力写的那一条没有回复；系统发起的停止本来就不产出回复，[S-36](#s-36-宿主停止与撤除)）；② 交回的回复在调用方结束这一步之前收口——落盘成消息或调 [S-49](#s-49-settlereply)（[S-17](#s-17-结算一处按序幂等先到者赢)）；③ 会话重新承载之后、会话级的调用打开之前调 [S-33](#s-33-reconcile)（不属于任何 Run 的调用由它收口） | loop 那一程与会话生命周期（主线） | loop 契约与会话生命周期契约写明这三项 |
@@ -1142,7 +1144,8 @@ M1 若是选中模型，`displayList` 上它带 `modality_mismatch`。
 | G-16 | **已闭合（主线裁定，见 D-040 §二 S-U24-5c）**：被盖住的同名行照列、每行带自己的来源，并带注记 `overridden_by{scope}`（被那一格的同名档案覆盖）；PF-013 rev 12 起列表每个名字一条，被盖住的行列在那一条之下；怎样呈现归 PF-016。落为 [S-12](#s-12-展示列表) | — | — |
 | G-17 | **从 `resumable` 放手时上交带什么**：最近一次发出是失联补写的 `interrupted{runtime_lost}`，不是故障、没有成因；本契约只写 `released`、不带 `cause`（[S-32](#s-32-releasecall) ④）。上交条目在这种情形下带什么成因（或不带），产品正文与上交条目的形状都没有说 | loop 那一程（上交条目的形状归 PF-011）；产品语义有疑问报 PF-013 owner | 上交条目的规则写明这种情形；若要一个成因，`data.messages/v1#S-50` 与本契约随之改 |
 | G-18 | **已闭合（修复波 1b，主线裁定，见 [D-040 §六 L4](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）**：「已出门」（`data.messages/v1#S-49`）另带传输适配在出网之前定下的 `parameterAdjustments` 与 `droppedParameters`，`data.model-response` 不放宽；追补体的参数三项从它读（[S-7](#s-7-一次调用绑定了什么)、[S-29](#s-29-dispatch) ④、[S-33](#s-33-reconcile) ④、[S-38](#s-38-装配给的保证-vs-协议须给的保证) 传输适配第 10 条） | — | — |
-| G-19 | **「用哪个模型」这项的来源**：[S-11](#s-11-合法目标集合) 的允许集合 `A` 要从求值结果里「用哪个模型」那一项在会话格上取，但**没有任何一份正文契约的推出规则产出这一项**——它挂在哪类资产上、是设置（`capability.asset-evaluation/v1#S-22`）还是权限（`#S-23`）、[S-10](#s-10-有效模型四步每步来源可查) 第 2 步的锁与 `A` 是什么关系，都没有写。**闭合之前**：求值结果里没有这一项，`A` 读不到，`legalTargets`、`displayList`、`effectiveModel`、`openCall` 按 S-11 第一条一律 `unavailable`——**不当空集、不当全集、不以链上全部路由名代替**（[D-040 §七 M17](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)；同一事项已列入主线待产品负责人裁的清单） | PF-002／PF-004 owner ＋ `capability.asset-evaluation` | 某份正文契约的推出规则产出这一项，并写明它的类别（设置或权限）以及锁与 `A` 的关系；本契约 S-9、S-10、S-11 改指那一条 |
+| G-19 | **已闭合（2026-09-25 修订波，[D-043 R-4](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）**：允许集合 `A` 的来源——**本版不收窄**，范围允许 = 这个范围里登记的全部档案，凭据可用即可用；`A` 由目录读面直接给（[S-11](#s-11-合法目标集合) 那一行），不从求值结果里取。将来要收窄作为设置走资产求值（PF-002），那时出新版本。**原缺口里的另一半——「用哪个模型」这项设置本身由谁产出、锁怎么判——不随它闭合**，另立 [G-20](#十二已知缺口) | — | — |
+| G-20 | **「用哪个模型」这项设置由哪份正文契约产出**（2026-09-25 修订波从原 G-19 拆出）：[S-9](#s-9-选中模型) 会话从没切换过时的选中模型、[S-10](#s-10-有效模型四步每步来源可查) 第 2 步的上层锁都读这一项在会话格上的层级求值；它挂在 Agent 定义上，而 Agent 定义的属性项没有正文契约（`capability.asset-evaluation` v1 的 G-21），[D-043 R-4](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) 的落点又写明资产求值不出「用哪个模型」项。**闭合之前**：锁判不出 ⇒ [`effectiveModel`](#s-26-effectivemodel) 一律 `unavailable`；从没切换过的会话选中模型判不出 ⇒ [`displayList`](#s-25-displaylist) 对它 `unavailable`——**不当作「没有锁」、不拿链上某个名字当初值**。不依赖这一项的 [`legalTargets`](#s-24-legaltargets)、[`selectModel`](#s-27-selectmodel) 与写过模型切换记录的会话的展示列表照常 | 主线 → PF-004（Agent 定义的属性项）＋ `capability.asset-evaluation`（G-21） | 某份正文契约的推出规则产出这一项、写明锁怎么判；或主线裁定本版没有这一项时，S-9 的初值从哪来、第 2 步答「没有锁」 |
 
 ---
 
