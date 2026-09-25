@@ -11,7 +11,7 @@
 - **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订——处置表在[验证入口](verification.md#独立评审)；2026-09-25 修复波 1b 闭合 G-14，同日修复波 2 按第二轮独立复评改 S-5、S-12、CS-4；同日「公开面」修订波把凭据保管方改指 `capability.credential-custodian` v1、静态凭据与续期写回本版不收——[修订波](verification.md#修订波2026-09-25-公开面)）——未接受、未冻结，不得据此发布或声称消费者已采用
 - **catalog 映射**：已登记为 `candidate`（`acceptance` 为 `null`）。`family=capabilities`、`topic=mcp-bridge`、
   `contract_path=spec/capabilities/mcp-bridge/v1/contract.md`，`resources` 另含 `v1/examples.md`；
-  依赖六项：`data.mcp-endpoint` v1、`data.tool-definition` v1、`data.content-blocks` v1、`data.asset-model` v1、`capability.asset-evaluation` v1（五者都是候选）、`data.identity-values` v1——
+  依赖七项：`data.mcp-endpoint` v1、`data.tool-definition` v1、`data.content-blocks` v1、`data.asset-model` v1、`capability.asset-evaluation` v1、`capability.execution-environments` v1（只取 `EnvAllowlist` 的形状，2026-09-25 修订波；六者都是候选）、`data.identity-values` v1——
   消费的条款见[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)。**登记在 [registry](../../../registry/README.md)，本行只作索引**
 - **提供者/装配映射**：尚无。D-037 已选官方 SDK 上自写薄桥；精确钉版与几项上游能力未取证（[G-6](v1/contract.md#十已知缺口)）
 

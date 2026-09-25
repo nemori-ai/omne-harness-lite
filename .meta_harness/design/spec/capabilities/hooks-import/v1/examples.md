@@ -87,9 +87,10 @@
 |---|---|---|---|
 | `deny-prod-db.sh` 退出码 2，stderr「不许动生产库」 | `veto { reason: "不许动生产库" }` | 跑出了结论 | [S-19](contract.md#s-19-起不来与报错)、[S-20](contract.md#s-20-输出怎样译回) 第 2 行 |
 | 它 stdout `{"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "allow"}}`，退出码 0 | `observed` | 跑出了结论；放行判断照常判 | [S-20](contract.md#s-20-输出怎样译回) 第 7 行 |
-| 它退出码 1（stdout 里有一段合法 JSON 说 `deny`） | **报错**：`skipped: errored`，`error` 写「退出码 1」；处置 `treat_as_veto` 落 `veto` | CC 会读那段 JSON；这里不读（`nonzero_exit_json_not_read`） | [S-19](contract.md#s-19-起不来与报错) |
-| 它超过 600 秒没返回 | 同上，报错 → `veto` | CC 会放行；这里拦（`fails_closed_on_error`） | 同上 |
-| `./hooks/deny-prod-db.sh` 在会话的执行环境里不存在（解释器 `sh` 在，起来之后以 127 退出） | **报错**：`skipped: errored`，`error` 写「退出码 127」；处置 `treat_as_veto` 落 `veto` | 解释器已经起来，是开始之后的失败（2026-09-25 修订波：解释器写成 `program`，「程序不存在」只指解释器） | [S-18](contract.md#s-18-子进程在哪跑钱记在哪)、[S-19](contract.md#s-19-起不来与报错) |
+| 它退出码 1（stdout 里有一段合法 JSON 说 `deny`） | **非阻断错误**：不否决，链往下走，放行判断照常判；退出码 1 记下（本版经工程日志，[G-17](contract.md#十一已知缺口)） | 与 CC 一样不拦；CC 会读那段 JSON，这里不读（`nonzero_exit_json_not_read`） | [S-19](contract.md#s-19-起不来与报错) 第四行 |
+| 它超过 600 秒没返回 | **报错**：`skipped: errored`，`error` 写「超时」；处置 `treat_as_veto` 落 `veto` | CC 会放行；这里拦（`fails_closed_on_error`） | [S-19](contract.md#s-19-起不来与报错) 第五行 |
+| `./hooks/deny-prod-db.sh` 在会话的执行环境里不存在（解释器 `sh` 在，起来之后以 127 退出） | 同退出码 1 那一行：**非阻断错误**，不否决、链往下走，退出码 127 记下 | 解释器已经起来，是开始之后的退出，按退出码归类（主线 2026-09-25 撤回「脚本不存在即报错拦下」；CC 也把它当非阻断错误，doc:861） | [S-18](contract.md#s-18-子进程在哪跑钱记在哪)、[S-19](contract.md#s-19-起不来与报错) |
+| 这一条 hook 带 `args`（exec form） | **不导入**：报告 `skipped`，`no_mapping` ⑦ | 字段语义未核（[G-16](contract.md#十一已知缺口)），不静默按 `sh -c` 跑 | [S-14](contract.md#s-14-不导入的理由) |
 | 起子进程在开始之前被拒：「拓展件子进程的宿主机允许」不在（`noLanding`），或解释器找不到（`startFailed{ programNotFound }`） | **不可用**：`skipped: unavailable`，不带 `output`，`unavailability: skip`；链往下走 | 看得见；这一次这道闸没了（安装者若在落地前把它改为 `veto`，这里按否决处置、动作不做）。**本版产品装配里那一项允许还没给，每一件都走这一行**（`capability.execution-environments` v1 的 G-3） | [S-10](contract.md#s-10-兼容件要带的东西)、[S-19](contract.md#s-19-起不来与报错)、`capability.loop-extension-runner/v1#S-12` |
 | `audit.sh` 被收窄成只观察，却退出码 2 | 译出 `veto` → **越档**：`skipped: errored`，`error` 为 `output_not_allowed_for_power`，处置 `ignore` 落 `observed` | 看得见 | [S-22](contract.md#s-22-越档的输出) |
 | 它交回 `permissionDecision: defer` | 报错 → `veto` | 主线裁定 G2 | [S-20](contract.md#s-20-输出怎样译回) 第 4 行 |

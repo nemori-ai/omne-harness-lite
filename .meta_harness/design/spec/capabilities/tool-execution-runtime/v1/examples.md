@@ -184,7 +184,7 @@
 | 4 | `cancelForRun(T, ses_1, run_1, graceful)`，之后第 1 步原样再提交一次 | `call_a` 收场 `interrupted{run_cancelled}`；重放**批成立**，三行仍是第 1 步那三行（`call_a: accepted{foreground}`）——**不是 `alreadyEnded`**：那一批已经收下了；`call_a` 此刻的收场从 `readExecution` 读 | [S-23](contract.md#s-23-提交一批) ⑤⑦、[S-33](contract.md#s-33-读一次执行) |
 | 5 | `submit(T, ses_1, run_1, 1, rpt_1, [build(call_a, {target: y})/tok_a'])`（`call_a` 原参数是 `{target: x}`） | 整批 `callIdConflict`，什么都不写 | [S-23](contract.md#s-23-提交一批) ⑦ |
 | 6 | `submit(T', ses_1, run_1, 1, rpt_1, [build(call_a)/tok_a, build(call_a, {target: y})/tok_a'])`，`T' ≠ T` | 整批 `crossTenant`：**不按幂等返回 `call_a` 的首次结果，也不报 `callIdConflict`**——租户核对在判重之前，别的租户据返回值读不到这个会话里有什么 | [S-23](contract.md#s-23-提交一批) ②、[S-67](contract.md#s-67-租户不符整批不收) |
-| 7 | 会话持有的租户此刻读不到；`submit(T, ses_1, run_1, 1, rpt_1, [build(call_k)/tok_k])` | 整批 `dependencyUnavailable{storage}`：不当作相符放行，也不当作不符拒 | [S-23](contract.md#s-23-提交一批) ⑧、[S-15](contract.md#s-15-缺席时的默认答案) |
+| 7 | 会话持有的租户此刻读不到；`submit(T, ses_1, run_1, 1, rpt_1, [build(call_k)/tok_k])` | 整批 `dependencyUnavailable{sessionTenancy}`：不当作相符放行，也不当作不符拒；**不是** `{storage}`——存储是好的，判不出的是会话持有的租户 | [S-23](contract.md#s-23-提交一批) ⑧、[S-15](contract.md#s-15-缺席时的默认答案) |
 
 **反例**：第 4 步答 `alreadyEnded`——调用方会以为那一批从没进来过，再补一条结果，同一次调用就有了两条结果；第 1 步把 `call_u` 交给 `fs` 的执行者去猜参数，或因为它没有凭据而整批 `notAdmitted`。
 

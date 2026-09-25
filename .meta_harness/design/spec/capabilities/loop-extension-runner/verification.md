@@ -213,5 +213,7 @@ spec-reviewer，2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/assets-runti
 | **栅栏与条件写入改指会话日志窄口**：`capability.session-log/v1#S-10`（栅栏在写入边界判）、`#S-8`（判重键） | R-1 | [S-21](v1/contract.md#s-21-dispatch一次经过) ②、[S-32](v1/contract.md#s-32-装配给的保证-vs-协议须给的保证) 两行、[G-8](v1/contract.md#十三已知缺口) 注 | 不改语义；G-8 其余三件仍开着 |
 | **依赖在场判定改指装配清单的在场查询** `capability.assembly-manifest/v1#S-19`：`absent` 即 S-12 ①；整次 `unavailable` 不是 ①——这一次经过 `unavailable`、那一件不留记录 | N-37 ②；那份契约 S-19 ⑧ 与它的消费者核对原已这样读（本契约此前没写来源） | [S-12](v1/contract.md#s-12-不可用与报错runner-怎么分) 表下一条、[S-16](v1/contract.md#s-16-缺席时的默认答案)、[S-33](v1/contract.md#s-33-依赖的提供者不可用) 新一行 | **把一处未写明的判定写明**（本契约推导，与节点依赖表「缺席 ⇒ 判不出 ⇒ `unavailable`」同口径）。产品装配里在场事实没有给出方（那份契约 G-2），声明了 `needs` 的件所在的那一次经过恒 `unavailable` |
 | catalog：本契约新增四条依赖（`capability.session-log` S-8、S-9、S-10；`capability.session-tenancy` S-5、S-8；`capability.execution-environments` S-5、S-11；`capability.assembly-manifest` S-10、S-19），`data.identity-values` 加 S-31 | 引用即消费 | S-4、页首依赖表、README | 四份接口契约都不以坐标依赖本契约，无环 |
+| **参数名 `anchor`／`anchors`、`replay` 保留 `subject`**：起草时的推导，**主线已接受** | 主线裁定（2026-09-25） | [S-22](v1/contract.md#s-22-replay从日志重建一次经过) 表下那一条 | 不改语义 |
+| **运行时面接进产品装配的前提是 loop／会话那一程立起真提供者**（`capability.run-attempt-facts` 的 G-3、会话持有租户的写入方、在场事实）：本程产品装配没有 loop 与会话，装配清单的在场查询、会话持有租户的读面在那里**没有调用者**；声明了 `needs` 的件「整次 `unavailable`」在产品装配里无从发生，验收装配以种子答（[D-040 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-37 ④） | 主线裁定（2026-09-25，与工具执行运行时 R-42 同一事实） | 本行 | 不改条款 |
 
 **没有证据因此作废**——本契约此前没有任何执行证据。

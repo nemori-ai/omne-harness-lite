@@ -223,6 +223,7 @@
 | ⑧ | 拓展件子进程的宿主机允许没有 ⇒ `noLanding{ hostNotAllowed }`；读不到 ⇒ `unavailable`。**不回退、不换落点** |
 | ⑨ | 不发 |
 
+- **`EnvAllowlist`（候选名，主线给，无词条）——从据点进程环境里挑变量只许按它挑**：一个有限的环境变量**名**集合（可空，每个名非空）。按它从据点进程环境取出的**恰是**：名字在集合里、且据点进程环境里此刻有的那几个，原名原值；集合外的一个都不取；集合里有、环境里没有的名字**不取、不补空值**。本能力不持有、不读任何一份——`launch.environment` 由调用方交全（③），调用方要带据点进程环境里的变量时，就按它自己的那一份 `EnvAllowlist` 取出再并进去。**形状只定在这里一次**：兼容件的 `hookEnvAllowlist`（`capability.hooks-import/v1#S-18`）与 MCP 桥的 `stdioEnvAllowlist`（`capability.mcp-bridge/v1#S-6`）是两个策略点、同一个形状，各自配值（主线裁定，2026-09-25）。
 - **`startFailed` 的进程从没跑过**：那是「开始之前」的失败（`capability.loop-extension-runner/v1#S-12` 的分界，兼容件据此报「起不来」）。**起来之后才因找不到某个子程序退出的，是那个进程自己的退出**，归 [`processOutcome`](#s-14-processoutcome)。
 
 ### S-14 processOutcome
@@ -412,6 +413,7 @@
 | **执行宿主**（`capability.tool-execution-runtime` v1 的 S-38 第 2 步、`AdmittedCall.environment`） | 这一次执行的执行环境到不到位；到不了位即 `failed{environment_unavailable}`、不降级 | [S-12](#s-12-placeexecution)：`host` 即到位；`noLanding`、`unavailable`、`referenceNotValid`、`environmentsWithdrawn` 都是到不了位 | **够**（宿主机那一半）。**`AdmittedCall.environment` 由调用方交来**——就是 [S-11](#s-11-resolvesessionenvironment) 发的引用，谁去取归 agent loop（C-8）。它的 S-38 第 2 步、G-4 已改指本契约；沙箱那一半仍在它的 G-4 |
 | **派发器**（`capability.loop-extension-runner` v1 的 S-50：执行环境句柄解析出「这一会话的执行环境」） | 按会话解析，只及这个会话；取不到即失败、不回退宿主机 | [S-11](#s-11-resolvesessionenvironment)：(租户, 会话) → 引用 | **够，但多要一样**：取引用要带租户——派发器解析执行环境时也要先经会话持有租户的读面（`capability.session-tenancy/v1#S-8`；节点原写「两样分开解析」，那一分法不变，只是执行环境那一样也要先有租户）。主线已接受（[D-040 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ⑩），派发器契约 S-50 第 1 条已改指本契约与那份读面 |
 | **兼容件**（`capability.hooks-import` v1 的 S-18、S-19、S-26、S-27） | 在这一会话的执行环境里起子进程、新进程组；程序不存在在开始之前判出；按组停、有界答「确认退出／未确认」；未确认的由执行环境善后；撤除时停下起过的 | [S-13](#s-13-startprocess)～[S-15](#s-15-stopprocessgroup)、[S-17](#s-17-撤除重启与在途) | **起停够**。三处要兼容件补：**起子进程要带租户**（节点原写「执行器从不调 `resolveTenant`」）；**来源产品的 hook 命令是给命令解释器的一行**，本契约不经解释器，由兼容件自己把解释器写成 `program`；**环境变量不继承**，兼容件要交全它要的变量——另加一处：**拿到结果之后停组**。四处主线已接受（[D-040 §八 N-37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ⑩），`capability.hooks-import` v1 的 S-18 已写进。**落点那一半**：本版没有会话级沙箱，兼容件子进程只能落宿主机、且要一项产品没给的允许（[G-3](#十已知缺口)，闭合前 fail-closed） |
+| **MCP 桥**（`capability.mcp-bridge` v1 的 S-6 第 3 条：stdio 服务端的环境里白名单那一部分） | 从据点进程环境里按名挑变量的规则 | [S-13](#s-13-startprocess) 表下 `EnvAllowlist` 一条 | **够**：桥只借形状与取法、配自己的 `stdioEnvAllowlist`；它**不经本能力起进程**，本契约的其余操作与它无关（主线裁定，2026-09-25） |
 | **据点验收装配的替身**（「只答宿主机、已被显式允许；按进程组起停并确认退出；不判租户、不选落点」） | 回放契约允许的答复 | [S-6](#s-6-落点判断本版只有宿主机) 的 `host` 分支、[S-13](#s-13-startprocess)～[S-15](#s-15-stopprocessgroup) | **够**：替身的「已被显式允许」就是测试种子给出的权限值与拓展件子进程的允许；它答 `host` 走的是 S-6 第 4 条与末段，**没有做契约未定义的判断**。「不判租户」与本契约不冲突：引用跨租户即 `referenceNotValid` 是本契约的判定，替身照做即可 |
 
 ---

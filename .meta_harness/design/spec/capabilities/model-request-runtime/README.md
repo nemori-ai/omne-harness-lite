@@ -13,7 +13,7 @@
 - **操作**：十三个（S-24～S-34、S-49、S-50；S-35 默认重试件是一件拓展件，不是服务面操作）；服务面名 `settleReply` 与输入成员 `basis` 已由主线接受（D-040 §六 N-9，原 G-13 闭合）
 - **catalog 映射**：已登记为 candidate。`family=capabilities`、`topic=model-request-runtime`、
   `contract_path=spec/capabilities/model-request-runtime/v1/contract.md`；`resources` 另含 `v1/examples.md`、`v1/formal/README.md`、`v1/formal/Invocation.tla` 与十份配置；
-  依赖十四项（2026-09-24 整批对齐补登 `capability.stream-assembly`、`capability.modality-projection`、`capability.asset-evaluation`；2026-09-25 修复波 2 补登 `data.arrival-events`；`capability.loop-extension-runner` 只指路，它反过来消费本契约），消费 clauses 取自[契约 S-4 的被消费面表](v1/contract.md#s-4-依赖方向与被消费的面)，与它逐项相同
+  依赖十五项（2026-09-24 整批对齐补登 `capability.stream-assembly`、`capability.modality-projection`、`capability.asset-evaluation`；2026-09-25 修复波 2 补登 `data.arrival-events`，同日「公开面」修订波补登 `capability.session-log`；`capability.loop-extension-runner` 只指路，它反过来消费本契约），消费 clauses 取自[契约 S-4 的被消费面表](v1/contract.md#s-4-依赖方向与被消费的面)，与它逐项相同
 - **formal-tasks 映射**：两个任务——`model-request-runtime-v1-invocation`（`Invocation.cfg`）与 `model-request-runtime-v1-invocation-no-fallback`（`Invocation_NoFallback.cfg`），2026-09-24 修复稿本机 TLC 退出 0、无反例；
   八份否定与可达性配置**按设计不登记**（它们预期出反例），执行结果在[验证入口](verification.md#实际执行)；哪些断言被证明能失败、哪些被建模方式吸收，见 [formal 入口](v1/formal/README.md)
 - **提供者／装配映射**：尚无

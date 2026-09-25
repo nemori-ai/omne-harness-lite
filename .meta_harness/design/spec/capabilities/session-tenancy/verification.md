@@ -54,6 +54,7 @@
 | 变化 | 依据 | 落在哪 | 语义变不变、对消费者 |
 |---|---|---|---|
 | 「尚无决定记录」改链 D-043 R-1 | R-1 | 首段、[README](README.md) | 不改语义 |
-| 消费者正文改指本契约：`capability.tool-execution-runtime` v1（S-21、S-23 ⑧、S-47、G-12）、`capability.loop-extension-runner` v1（S-50 第 1、4 条、G-20）、`capability.execution-environments` v1（S-11 ②）已在本波改指；消费者核对「工具执行运行时」一行随之改 | R-1；N-37 ⑩ | 第十二节消费者核对那一行 | 不改语义。**工具执行运行时把两种读不到仍映射成借来的 `dependencyUnavailable{storage}`**（它的「报给主线」R-41），不是本契约的要求 |
+| 消费者正文改指本契约：`capability.tool-execution-runtime` v1（S-21、S-23 ⑧、S-47、G-12）、`capability.loop-extension-runner` v1（S-50 第 1、4 条、G-20）、`capability.execution-environments` v1（S-11 ②）已在本波改指；消费者核对「工具执行运行时」一行随之改 | R-1；N-37 ⑩ | 第十二节消费者核对那一行 | 不改语义。**工具执行运行时把两种读不到映射成它新加的 `dependencyUnavailable{sessionTenancy}`**（它的 R-41，主线同日裁定），不是本契约的要求 |
+| **运行时面接进产品装配的前提**（主线裁定）：本契约在产品装配里没有写入方（[G-2](v1/contract.md#十已知缺口)），它的读面也没有调用者——本程产品装配没有 loop 与会话；验收装配以种子答。前提是会话那一程立起真提供者 | 主线裁定（TER R-42 同一事实） | 本行 | 不改语义 |
 
 **没有证据因此作废**——本契约此前没有执行证据。

@@ -80,7 +80,7 @@
 
 ### S-4 依赖方向与被消费的面
 
-**依赖方向单向：桥 → 下列契约。**能力契约里本契约**只依赖求值**，取它交来的两条（落点设置的来处、工作区 stdio 默认禁用）；放行、会话资产注册表、工具执行运行时、资产治理都是它的调用方或它结果的接收方，
+**依赖方向单向：桥 → 下列契约。**能力契约里本契约**只依赖求值与执行环境**：求值取它交来的两条（落点设置的来处、工作区 stdio 默认禁用）；执行环境只取 `EnvAllowlist` 的形状与取法（2026-09-25 修订波，主线裁定）；放行、会话资产注册表、工具执行运行时、资产治理都是它的调用方或它结果的接收方，
 它们与本契约之间的操作面由它们各自的契约引用本契约——本契约提到它们只为指路，**不登依赖**。
 
 | 坐标 | 消费的条款 | 取它的什么 |
@@ -89,6 +89,7 @@
 | `data.tool-definition · v1` | [S-2](../../../data/tool-definition/v1/contract.md#s-2-身份是-name)、[S-4](../../../data/tool-definition/v1/contract.md#s-4-单函数工具)、[S-5](../../../data/tool-definition/v1/contract.md#s-5-多命令工具)（末条：判参数时未知键的读法）、[S-6](../../../data/tool-definition/v1/contract.md#s-6-模型面只有一个条目)、[S-8](../../../data/tool-definition/v1/contract.md#s-8-说明与用法)、[S-12](../../../data/tool-definition/v1/contract.md#s-12-后台许可与转后台阈值)、[S-15](../../../data/tool-definition/v1/contract.md#s-15-执行权限)～[S-17](../../../data/tool-definition/v1/contract.md#s-17-来源)、[S-18](../../../data/tool-definition/v1/contract.md#s-18-名字的表示与相等)、[S-20](../../../data/tool-definition/v1/contract.md#s-20-两种写法与等价规则)、[S-21](../../../data/tool-definition/v1/contract.md#s-21-toolresult-的三样)、[S-23](../../../data/tool-definition/v1/contract.md#s-23-卸载)、[S-24](../../../data/tool-definition/v1/contract.md#s-24-结果与声明对得上)、[S-26](../../../data/tool-definition/v1/contract.md#s-26-表示层拒绝值与判定次序)、[S-27](../../../data/tool-definition/v1/contract.md#s-27-表示层拒绝不是判定)（末段） | 投影的目标形状（单函数、说明非空、来源 `mcp`、不组合、不声明后台）；执行权限三档；名字的字符集、保留序列与长度（条目名拼不拼得出）；返回值的形状与两个标注；卸载的第二条来路；MCP 条目的两端模态按本契约的投影判（S-24 第 3 条）；表示层拒绝值（`excluded` 的原因带它）；**只在第 13 行被拒的 `schema_unsupported` 不排除、只能以替换件出现**（S-27 末段给 MCP 来源开的口子，M37） |
 | `data.content-blocks · v1` | [S-7](../../../data/content-blocks/v1/contract.md#s-7-媒体类型的规范形式)、[S-8](../../../data/content-blocks/v1/contract.md#s-8-文本块与来路标记)、[S-10](../../../data/content-blocks/v1/contract.md#s-10-语音块与图块)、[S-17](../../../data/content-blocks/v1/contract.md#s-17-六种收场)、[S-18](../../../data/content-blocks/v1/contract.md#s-18-占位原因与它落在哪一格) | 对端结果映射成的三类块与媒体类型的规范写法；失败值对到的收场；`failed` 只在异常中断时带原因码，桥换代是异常中断的一条来路 |
 | `data.asset-model · v1` | [S-16](../../../data/asset-model/v1/contract.md#s-16-持有范围)、[S-18](../../../data/asset-model/v1/contract.md#s-18-资产持有)、[S-23](../../../data/asset-model/v1/contract.md#s-23-凭据引用) | 持有的格与键；凭据引用只在它被配上去的那份持有上有效、续期不算换值 |
+| `capability.execution-environments · v1`（窄口接口契约） | [S-13](../../execution-environments/v1/contract.md#s-13-startprocess) 表下 `EnvAllowlist` 一条 | `stdioEnvAllowlist` 的形状与取法：从据点进程环境里只取名字在集合里、且此刻有的那几个（[S-6](#s-6-连接归桥不上签名不跨租户) 第 3 条）。**本契约不经它起进程**：stdio 服务端仍由据点进程拉起 |
 | `capability.asset-evaluation · v1` | [S-5](../../asset-evaluation/v1/contract.md#s-5-层与三条层序)、[S-17](../../asset-evaluation/v1/contract.md#s-17-第一步之一先按禁用滤)、[S-40](../../asset-evaluation/v1/contract.md#s-40-落点与身份类设置的来处) | `provenance` 的取值（`Layer`）与设置层序；工作区提供的 stdio 接入点在第一步被禁用、不会交到本契约；落点设置各出自哪一格 |
 | `data.identity-values · v1` | [S-5](../../../data/identity-values/v1/contract.md#s-5-tenantid-的构成与相等)、[S-17](../../../data/identity-values/v1/contract.md#s-17-身份参数没有默认值)、[S-30](../../../data/identity-values/v1/contract.md#s-30-跨边界须重新验证)、[S-31](../../../data/identity-values/v1/contract.md#s-31-不透明标识的交换表示)、[S-33](../../../data/identity-values/v1/contract.md#s-33-表示层校验与判定分开) | 租户身份；身份参数没有默认值；跨边界重验；空白码点（条目名拼不出）；表示层校验与判定分开 |
 
@@ -135,7 +136,7 @@
 2. **惰性建立**：某个操作需要、而对应的连接不在时才建；**建立到拿齐第一份清单为止以连接超时封顶**（`settings.connectTimeout`，[S-16](#s-16-refreshactions)）。
 3. **stdio 连接目标**：由据点进程在据点机上拉起那个程序（[D-037](../../../../record/decisions/mcp-client-adoption/decision.md)；`data.mcp-endpoint/v1#S-4`）。
    据点机是宿主机，[PF-005 §6.2](../../../../product/PF-005-execution-environments-and-sandboxes/design.md#62-宿主机不提供租户隔离因此必须被显式允许) 要求它**必须被显式允许**；本契约把「这份持有被求值判为这个租户能用、且没有被禁用」读作那一次允许。**工作区提供的 stdio 接入点在求值第一步就被禁用**（`capability.asset-evaluation/v1#S-17` 第三条；`data.mcp-endpoint/v1#S-17`；[D-040 §S19](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s19mcp-endpoint--mcp-bridge报回的) S19-c：权力不从项目来），不会交到本契约——克隆一个仓库、开一次尝试，不会在宿主机上跑仓库写的命令；租户层怎样显式启用它，那份契约尚无表示（它的 G-19）。本契约不再判一次（[S-5](#s-5-接入点持有的寻址)：求值错了是求值的错）。它的完整环境**恰是**三部分的并：
-   据点进程环境里**名字在白名单上**的那几个变量（具名参数 `stdioEnvAllowlist`，值未定，[G-12](#十已知缺口)）；正文 `transport.env`；凭据作为环境变量出示的那一部分（[S-9](#s-9-凭据的出示与取用)）。
+   据点进程环境里**名字在白名单上**的那几个变量（具名参数 `stdioEnvAllowlist`，值未定，[G-12](#十已知缺口)；它是一份 `EnvAllowlist`，形状与取法定在 `capability.execution-environments/v1#S-13`，与兼容件的 `hookEnvAllowlist` 是两个策略点、同一个形状）；正文 `transport.env`；凭据作为环境变量出示的那一部分（[S-9](#s-9-凭据的出示与取用)）。
    **同名时后者压前者**。**据点进程环境里的其余变量一个也不传下去**——那里可能有别的租户、别的接入点的秘密。
    程序**不经 shell 启动、不做变量插值**（`data.mcp-endpoint/v1#S-4`）。
 4. **streamable_http 连接目标**：连到那个地址；凭据作为请求头出示（[S-9](#s-9-凭据的出示与取用)）。

@@ -261,7 +261,7 @@
 
 | 消费者的要求 | 本契约给什么 | 够不够 |
 |---|---|---|
-| **工具执行运行时** `submit` 读会话持有的那一个租户（[`#S-23`](../../tool-execution-runtime/v1/contract.md#s-23-提交一批) ② 第 2 条、G-12；节点 T-8）；读不到 ⇒ 整批失败 | [S-8](#s-8-holdingtenant读会话持有的租户身份)；`sessionNotFound` 与 `unavailable` 都是「读不到租户」 | **够**。它的 S-21、S-23 ⑧ 与 G-12 已改指本契约的 S-8（2026-09-25 修订波）；它把两者都映射成 `dependencyUnavailable{storage}`——那一格是它借的（它的节点已报主线；本波未改），不是本契约的要求 |
+| **工具执行运行时** `submit` 读会话持有的那一个租户（[`#S-23`](../../tool-execution-runtime/v1/contract.md#s-23-提交一批) ② 第 2 条、G-12；节点 T-8）；读不到 ⇒ 整批失败 | [S-8](#s-8-holdingtenant读会话持有的租户身份)；`sessionNotFound` 与 `unavailable` 都是「读不到租户」 | **够**。它的 S-21、S-23 ⑧ 与 G-12 已改指本契约的 S-8（2026-09-25 修订波）；它把两者都映射成自己的专值 `dependencyUnavailable{sessionTenancy}`（主线 2026-09-25 裁定，不再借用 `{storage}`）——那是它的失败值，不是本契约的要求 |
 | **拓展点派发** 句柄解析：「这个会话持有的租户身份」；解析不出即失败，不读成「没有租户」（[`#S-50`](../../loop-extension-runner/v1/contract.md#s-50-执行环境句柄的读面) 第 1、4 条） | [S-8](#s-8-holdingtenant读会话持有的租户身份)、[S-7](#s-7-缺席时的默认答案与失败值) | **够** |
 | **会话资产注册表** 求值输入里的「会话事实」（[`#S-31`](../../asset-registry/v1/contract.md#s-31-装配给的保证-vs-协议须给的保证)「求值的输入被收齐」） | 只给租户身份那一样 | **只够租户那一样**；会话事实的其余几片不在本契约（[S-2](#s-2-本契约不拥有什么)，据点装配 C-3） |
 | **模型请求运行时** 发起租户：会话在创建那一刻持有的租户身份，不进 `openCall` 输入（[`#S-7`](../../model-request-runtime/v1/contract.md#s-7-一次调用绑定了什么)；M66）；读不到 ⇒ `unavailable`、取值问法一次都不调 | [S-5](#s-5-会话持有的租户身份)、[S-8](#s-8-holdingtenant读会话持有的租户身份) | **够** |
