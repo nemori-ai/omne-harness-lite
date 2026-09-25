@@ -4,7 +4,7 @@
 - 对象与设计修订：状态 `candidate`，2026-09-25 首稿，尚无实现修订。兑现 `omne-harness-lite-design-2026-09-15 · capability.center-connection · v1`（[契约](../../../../spec/capabilities/center-connection/v1/contract.md)，状态 `candidate`，未接受、未冻结；设计依据 PF-016 rev 6、PF-017 rev 2）。它是那份窄口契约的**最小提供者**，取代 `apps/cli` 验收装配里原先的「中心连接」替身（[D-043](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1）；**真承接者是入口组合 v2 的据点客户端**（契约 [G-1](../../../../spec/capabilities/center-connection/v1/contract.md#八已知缺口)，cli 缺口 C-4），本节点只兑现窄口（观察面），不扩展契约
 - 源码位置：`packages/infra/center-connection-probe`——**尚未建包**。路径与第一层 `infra` 是主线给的候选，尚无决定记录；布局规则见[两层布局](../../../README.md#packages-的两层布局)
 - 公开面：**公开函数面**是可达性的归约（`observe`）、公开体检答复的分类（`classifyProbeReply`）、下一次探的时刻（`nextProbeAt`）与一次独立的探测（`probeOnce`），候选名，不依赖 Cordis；**Cordis 服务面** `centerConnection` 加上「这一次在场」的计数、自己探自己重连的节拍、可达性怎么变都不撤除——这几条函数层不承诺（[design 的公开面](design.md#公开面)，[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)）
-- 契约采用与边界依据：**一个包、两个 Cordis 插件，同一个服务键、同一个归约**——`center-connection-probe`（产品据点装法：对治理中心入口发公开体检）与 `center-connection-replay`（验收装法：按测试脚本回放对端行为，不连中心）；两者都必需 inject `clock`、都不 inject 存储。探测间隔、超时与答复上限全是策略配置项。**契约没有「判定阈值」**：可达性由最近一次有结果的往来定（S-5、S-6 ①），「判定阈值作策略配置项」与契约相抵，本节点不设（[缺口 CNP-1](design.md#实施缺口与消费者影响)）。Cordis 采用版本 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）
+- 契约采用与边界依据：**一个包、两个 Cordis 插件，同一个服务键、同一个归约**——`center-connection-probe`（产品据点装法：对治理中心入口发公开体检）与 `center-connection-replay`（验收装法：按测试脚本回放对端行为，不连中心）；两者都必需 inject `clock`、都不 inject 存储。探测间隔、超时与答复上限全是策略配置项。**契约没有「判定阈值」**：可达性由最近一次有结果的往来定（S-5、S-6 ①），本节点不设阈值，去抖须契约新版本（主线已裁，[缺口 CNP-1](design.md#实施缺口与消费者影响)）。Cordis 采用版本 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）
 
 ## 分层状态
 
