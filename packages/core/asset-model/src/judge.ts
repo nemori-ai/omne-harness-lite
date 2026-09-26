@@ -1,4 +1,3 @@
-import { Ajv2020, type ValidateFunction } from 'ajv/dist/2020.js'
 import schema from '@omne-harness-lite/asset-model/schema' with { type: 'json' }
 import identitySchema from '@omne-harness-lite/identity-values/schema' with { type: 'json' }
 import offerSchema from '@omne-harness-lite/offer-expiry/schema' with { type: 'json' }
@@ -16,12 +15,14 @@ import {
 import type {
   AssetJudgeContext,
   AssetJudgment,
+  BodyContract,
+  BodyCategory,
   BodyContracts,
   BodyJudgeContext,
   JsonSchema,
 } from './types.ts'
 import { isAssetCategory, isCapabilityName } from './values.ts'
-import { exactSchema, installExactKeywords } from './exact-schema.ts'
+import { createSchemaRuntime, type SchemaValidator } from './schema-runtime.ts'
 
 export const schemaId = schema.$id
 export const SCHEMA_DEF_NAMES = [
@@ -93,45 +94,14 @@ function jsonCopy(value: unknown): JsonValue | undefined {
     throw error
   }
 }
-function projection(value: JsonValue): JsonValue {
-  if (LosslessNumber.is(value)) {
-    const numeric = Number(value.source)
-    return Number.isFinite(numeric)
-      ? numeric
-      : value.source.startsWith('-')
-        ? -Number.MAX_VALUE
-        : Number.MAX_VALUE
-  }
-  if (Array.isArray(value)) return value.map(projection)
-  if (isObject(value))
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, projection(item)]))
-  return value
-}
-function createAjv(bodies: BodyContracts): Ajv2020 {
-  const ajv = new Ajv2020({
-    strict: false,
-    allErrors: false,
-    ownProperties: true,
-    validateFormats: false,
-    passContext: true,
-  })
-  installExactKeywords(ajv)
-  for (const resource of [identitySchema, offerSchema, contentSchema, schema]) {
-    const transformed = exactSchema(resource)
-    if (!isObject(transformed)) throw new Error('fixed Schema is not an object')
-    ajv.addSchema(transformed)
-  }
-  for (const category of bodyCategories) {
-    const resource = jsonCopy(bodies[category].schema)
-    if (!isObject(resource) || typeof resource.$id !== 'string')
-      throw new TypeError(`body Schema needs an id: ${category}`)
-    const transformed = exactSchema(resource)
-    if (!isObject(transformed)) throw new Error('body Schema is not an object')
-    const projected = projection(transformed)
-    if (!isObject(projected)) throw new Error('body Schema projection is not an object')
-    ajv.addSchema(projected)
-  }
-  return ajv
+function resources(bodies: BodyContracts): readonly JsonSchema[] {
+  return [
+    identitySchema,
+    offerSchema,
+    contentSchema,
+    schema,
+    ...bodyCategories.map(category => bodies[category].schema),
+  ]
 }
 /** Validate configuration and capture the three responsibility closures at construction. */
 export function bindBodyContracts(bodies: BodyContracts): BodyContracts {
@@ -146,13 +116,19 @@ export function bindBodyContracts(bodies: BodyContracts): BodyContracts {
     )
       throw new TypeError(`missing or mismatched body contract: ${category}`)
   }
+  function pin<C extends BodyCategory>(port: BodyContract<C>): BodyContract<C> {
+    const resource = jsonCopy(port.schema)
+    if (!isObject(resource) || typeof resource.$id !== 'string')
+      throw new TypeError(`body Schema needs an id: ${port.category}`)
+    return Object.freeze({ ...port, schema: resource })
+  }
   return Object.freeze({
-    tool: Object.freeze({ ...bodies.tool }),
-    loop_extension: Object.freeze({ ...bodies.loop_extension }),
-    skill: Object.freeze({ ...bodies.skill }),
-    mcp: Object.freeze({ ...bodies.mcp }),
-    slash_command: Object.freeze({ ...bodies.slash_command }),
-    connector: Object.freeze({ ...bodies.connector }),
+    tool: pin(bodies.tool),
+    loop_extension: pin(bodies.loop_extension),
+    skill: pin(bodies.skill),
+    mcp: pin(bodies.mcp),
+    slash_command: pin(bodies.slash_command),
+    connector: pin(bodies.connector),
   })
 }
 interface Positions {
@@ -265,11 +241,10 @@ export interface AssetModelJudge {
 }
 export function createAssetModelJudge(bodyContracts: BodyContracts): AssetModelJudge {
   const bodies = bindBodyContracts(bodyContracts)
-  const ajv = createAjv(bodies)
-  const validators = new Map<SchemaDefName, ValidateFunction>()
+  const runtime = createSchemaRuntime(resources(bodies))
+  const validators = new Map<SchemaDefName, SchemaValidator>()
   for (const name of SCHEMA_DEF_NAMES) {
-    const validator = ajv.getSchema(`${schemaId}#/$defs/${name}`)
-    if (validator === undefined) throw new Error(`missing Schema definition: ${name}`)
+    const validator = runtime.compile({ $ref: `${schemaId}#/$defs/${name}` })
     validators.set(name, validator)
   }
   function validate(defName: SchemaDefName, input: unknown): { readonly valid: boolean } {
@@ -280,7 +255,7 @@ export function createAssetModelJudge(bodyContracts: BodyContracts): AssetModelJ
       valid:
         value !== undefined &&
         exactIntegers(defName, positions(defName, value)) &&
-        validator.call({ root: value }, projection(value)) === true,
+        validator.validate(value),
     })
   }
   function judgeAssetValue(
@@ -476,21 +451,14 @@ function validDomain(root: JsonObject, bodies: BodyContracts): boolean {
   const raw = domain.schema
   if (typeof raw !== 'boolean' && !isObject(raw)) return false
   // Caller schemas have no module-level cache. The local compiler dies with this invocation.
-  const ajv = createAjv(bodies)
-  const projected = projection(raw)
-  if (typeof projected !== 'boolean' && !isObject(projected)) return false
-  if (ajv.validateSchema(projected) !== true) return false
-  let validator: ValidateFunction
+  const runtime = createSchemaRuntime(resources(bodies))
+  if (!runtime.metaValidate(raw)) return false
+  let validator: SchemaValidator
   try {
-    const transformed = exactSchema(raw)
-    if (typeof transformed !== 'boolean' && !isObject(transformed)) return false
-    validator = ajv.compile(transformed)
+    validator = runtime.compile(raw)
   } catch (error) {
     if (error instanceof Error) return false
     throw error
   }
-  return (
-    !Object.hasOwn(root, 'default') ||
-    validator.call({ root: root.default ?? null }, projection(root.default ?? null)) === true
-  )
+  return !Object.hasOwn(root, 'default') || validator.validate(root.default ?? null)
 }
