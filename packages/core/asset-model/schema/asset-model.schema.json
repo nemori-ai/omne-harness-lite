@@ -1,15 +1,15 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/asset-model/v2/asset-model.schema.json",
-  "title": "data.asset-model v2",
-  "description": "资产领域的静态数据形状：能力标识的词法、资产记录与版本线、八类正文的外壳、属性声明与属性配值、持有范围与工作区键、资产持有、复制血缘、工作区承载清单。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.asset-model/v2 内有效。",
-  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状与一部分组合约束；Schema 表达不了的跨成员与跨对象约束（版本编号连续、同一持有上 item 不重复、作者与所有者同属一个组织、持有与记录的能力标识一致、同一范围同一能力标识至多一份持有、血缘号只挂在一份记录上等）由 contract.md S-27 归入具名拒绝值或 malformed，由接收边界在 Schema 之外兑现。Schema 校验失败只说明「拒绝」，是十个拒绝值里的哪一个按 S-27 的次序定。外部引用：CapabilityId 与类别取值集取自 data.content-blocks v2（S-20）；TenantId、OrganizationId、ScopeLayerIdentity 取自 data.identity-values v1（S-5、S-3、S-11）；Instant 取自 data.offer-expiry v1（S-22）。六类正文 $ref 各自的正文契约（data.tool-definition、data.loop-extension、data.skill-package、data.mcp-endpoint、data.slash-command、data.connector，均 v1，S-10）；那几份契约反过来引用本文件的定义，Schema 之间成环是 $ref 的正常用法，catalog 只登那几份 → 本契约的方向。正反实例在同目录 examples.md。",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/asset-model/v3/asset-model.schema.json",
+  "title": "data.asset-model v3",
+  "description": "资产领域的静态数据形状：能力标识的词法、资产记录与版本线、八类正文的外壳、属性声明与属性配值、持有范围与工作区键、资产持有、复制血缘、工作区承载清单。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.asset-model/v3 内有效。",
+  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状与一部分组合约束；Schema 表达不了的跨成员与跨对象约束（版本编号连续、同一持有上 item 不重复、作者与所有者同属一个组织、持有与记录的能力标识一致、同一范围同一能力标识至多一份持有、血缘号只挂在一份记录上等）由 contract.md S-27 归入具名拒绝值或 malformed，由接收边界在 Schema 之外兑现。Schema 校验失败只说明「拒绝」，是十个拒绝值里的哪一个按 S-27 的次序定。外部引用：CapabilityId 与类别取值集取自 data.content-blocks v3（S-20）；TenantId、OrganizationId、ScopeLayerIdentity 取自 data.identity-values v1（S-5、S-3、S-11）；Instant 取自 data.offer-expiry v1（S-22）。六类正文 $ref 各自的正文契约（data.tool-definition v3、data.loop-extension v3、data.skill-package v2、data.mcp-endpoint v2、data.slash-command v2、data.connector v2，S-10）；那几份契约反过来引用本文件的定义，Schema 之间成环是 $ref 的正常用法，catalog 只登那几份 → 本契约的方向。正反实例在同目录 examples.md。",
   "$defs": {
     "AssetCategory": {
       "title": "资产类别",
-      "description": "S-1：资产恰八类，闭合——skill、tool、mcp、connector、loop_extension、slash_command、plugin、agent_definition（UL-asset「恰有八类，这八类是穷尽的」）。取值集就是 data.content-blocks v2 的 CapabilityId.category，本定义直接引用它，不另抄一份枚举。",
+      "description": "S-1：资产恰八类，闭合——skill、tool、mcp、connector、loop_extension、slash_command、plugin、agent_definition（UL-asset「恰有八类，这八类是穷尽的」）。取值集就是 data.content-blocks v3 的 CapabilityId.category，本定义直接引用它，不另抄一份枚举。",
       "$comment": "未知取值（含大小写不同）在本契约的上下文里拒绝值是 category_unknown（S-27）。",
-      "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/CapabilityId/properties/category"
+      "$ref": "../../content-blocks/v3/content-blocks.schema.json#/$defs/CapabilityId/properties/category"
     },
 
     "CapabilityName": {
@@ -24,10 +24,10 @@
 
     "CapabilityId": {
       "title": "能力标识 · Capability Identifier",
-      "description": "S-3：资产的身份——类别加 name（UL-capability-identifier）。形状与相等规则是 data.content-blocks v2 的 CapabilityId（S-20：两个分量、逐码点相等、类别恰八个），本契约在它之上只加 name 的词法（S-2）。它回答「是不是同一个东西」；「哪一份实现」由 AssetRecordId 回答（S-4）。",
+      "description": "S-3：资产的身份——类别加 name（UL-capability-identifier）。形状与相等规则是 data.content-blocks v3 的 CapabilityId（S-20：两个分量、逐码点相等、类别恰八个），本契约在它之上只加 name 的词法（S-2）。它回答「是不是同一个东西」；「哪一份实现」由 AssetRecordId 回答（S-4）。",
       "$comment": "content-blocks S-20 把 name 的词法留给资产领域的契约（它的缺口 G-5）；本定义用 allOf 收紧 name，不复制那边的形状。<category>/<name> 规范串不是 CapabilityId 的交换表示，交换表示恒为两分量对象。",
       "allOf": [
-        { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/CapabilityId" },
+        { "$ref": "../../content-blocks/v3/content-blocks.schema.json#/$defs/CapabilityId" },
         { "properties": { "name": { "$ref": "#/$defs/CapabilityName" } } }
       ],
       "examples": [{ "category": "tool", "name": "read_file" }]
@@ -88,7 +88,7 @@
           "title": "tool",
           "properties": {
             "category": { "const": "tool" },
-            "definition": { "$ref": "../../tool-definition/v2/tool-definition.schema.json#/$defs/ToolDefinition" }
+            "definition": { "$ref": "../../tool-definition/v3/tool-definition.schema.json#/$defs/ToolDefinition" }
           },
           "required": ["category", "definition"],
           "additionalProperties": false
@@ -97,7 +97,7 @@
           "title": "loop_extension",
           "properties": {
             "category": { "const": "loop_extension" },
-            "extension": { "$ref": "../../loop-extension/v2/loop-extension.schema.json#/$defs/LoopExtensionDefinition" }
+            "extension": { "$ref": "../../loop-extension/v3/loop-extension.schema.json#/$defs/LoopExtensionDefinition" }
           },
           "required": ["category", "extension"],
           "additionalProperties": false

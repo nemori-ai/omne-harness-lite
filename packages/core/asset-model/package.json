@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "data.asset-model v2: pure values and explicitly supplied body contracts",
+  "description": "data.asset-model v3: pure values and explicitly supplied body contracts",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -12,7 +12,8 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./schema": "./schema/asset-model.schema.json"
+    "./schema": "./schema/asset-model.schema.json",
+    "./schema/v2": "./schema/asset-model.v2.schema.json"
   },
   "files": [
     "dist",

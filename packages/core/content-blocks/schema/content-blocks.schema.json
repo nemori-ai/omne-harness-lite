@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/content-blocks/v2/content-blocks.schema.json",
-  "title": "data.content-blocks v2",
-  "description": "内容块的规范形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.content-blocks/v2 内有效。",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/content-blocks/v3/content-blocks.schema.json",
+  "title": "data.content-blocks v3",
+  "description": "内容块的规范形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.content-blocks/v3 内有效。",
   "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状；表示层拒绝值（S-26）的具名与优先级、块标识在一条消息内唯一（S-3）、引用形状下两处媒体类型逐字相同（S-10）、落盘后不变（S-22）等由契约条款定，Schema 管不到，逐条列在 contract.md「Schema 管得到什么」。正反实例在同目录 examples.md。不透明标识（BlockId、CallId、AttachmentRef 的 storage 与 key）的交换表示按 data.identity-values/v1#S-31 的散文在本文件写出形状（不跨契约 $ref 那份已冻结契约的 OpaqueIdentifier，它自述不单独被引用；主线裁定，见 D-060 §一 S1-a）；pattern 照 S-31 逐个列出的空白码点写否定字符类，以 (?![\\s\\S]) 判绝对结尾，不用 \\s 与 $——理由与回归用例见 data.identity-values/v1#S-31。",
 
   "$defs": {
@@ -72,7 +72,7 @@
     "CapabilityId": {
       "title": "能力标识 · Capability Identifier",
       "description": "S-20：资产的身份——类别加 name（UL-capability-identifier）。category 恰八类，闭合。相等按两个分量逐码点比较。它是能力标识形状与相等的唯一定义，其他契约一律 $ref 它（本契约自己的块上本版不出现它：DerivedRendering.producedBy 本版恒为 system，S-20）。",
-      "$comment": "name 的词法（不含空白与 '/'，冒号允许）归 data.asset-model v2 的 S-2（它以 allOf 在本定义之上收紧 name）；本定义只约束到非空字符串——本契约不反向引用那份契约，以免成环（S-20）。",
+      "$comment": "name 的词法（不含空白与 '/'，冒号允许）归 data.asset-model v3 的 S-2（它以 allOf 在本定义之上收紧 name）；本定义只约束到非空字符串——本契约不反向引用那份契约，以免成环（S-20）。",
       "type": "object",
       "properties": {
         "category": {
@@ -276,7 +276,7 @@
 
     "ToolCallBlock": {
       "title": "工具调用块（完整）",
-      "description": "S-12：模型要调哪个工具、传什么参数，参数已经收齐、在封口那一下解析过一次。complete 恒为 true。callId（S-14）、tool（模型面名字 ModelToolName——模型面那个工具条目的 name；多命令工具的子命令在参数里）必填；参数恰为两种之一：解析成功——arguments（解析得到的 JSON 值，任意类型），不带原始参数串；解析不了——rawArguments（收齐的原文）与 unparseable: true 两者同现，不带 arguments。标了 unparseable 的调用同样是一次已登记的调用（callId 进 S-14 的唯一范围），它不被执行，由宿主紧接一条收场为 failed 的结果回给模型；任何一方都不再解析它的 rawArguments。四种标注组合都合法。不带派生表示与 transcript。",
+      "description": "S-12：参数已收齐的调用，complete 恒为 true，callId（S-14）与非空字符串 tool 必填。解析成功：tool 必须是原 ModelToolName，arguments 为封口那一下唯一一次严格解析的 JSON 值，不带 rawArguments/unparseable。解析不了：rawArguments 与 unparseable:true 同现、不带 arguments，tool 保留收到的任意非空字符串（含不合 ModelToolName 字符集或长度的名字）；坏名从不解析参数，不改名。两支的 callId 都进 S-14 唯一范围。未解析分支不执行，由宿主紧接 failed 结果；任何一方不得重解析。四种标注组合合法，不带派生表示与 transcript。",
       "$comment": "unparseable 这一种：参数收齐却解析不了的调用保留原文、不执行、结果记 failed 并回给模型（PF-006 §5.5；形状见 D-060 §一 S1-e）。rawArguments 与 unparseable 缺一，或与 arguments 同现，都是 malformed（S-26）。",
       "type": "object",
       "allOf": [
@@ -286,6 +286,7 @@
             {
               "title": "解析成功",
               "required": ["arguments"],
+              "properties": { "tool": { "$ref": "#/$defs/ModelToolName" } },
               "not": { "anyOf": [{ "required": ["rawArguments"] }, { "required": ["unparseable"] }] }
             },
             {
@@ -300,7 +301,7 @@
         "kind": { "const": "tool_call" },
         "complete": { "const": true },
         "callId": { "$ref": "#/$defs/CallId" },
-        "tool": { "$ref": "#/$defs/ModelToolName" },
+        "tool": { "type": "string", "minLength": 1 },
         "arguments": {},
         "rawArguments": { "type": "string" },
         "unparseable": { "const": true }
@@ -361,7 +362,7 @@
 
     "ToolResultBlock": {
       "title": "工具结果块",
-      "description": "S-15～S-18：一次工具调用的结果，收场带在块上。callId 指回那次调用（S-14）；outcome 是这次收场的唯一依据（S-17），缺席即表示层拒绝，从不当作 completed；reason 在占位上是占位原因、在后台收场提醒的结果块上是那段执行的收场原因（那一侧哪几个值合法归 capability.tool-execution-runtime v2 S-10）——backgrounded 与 interrupted 必带、failed 可带且只能是 abnormal_interruption、其余三种不带，code 必须落在它那一格（S-18）；blocks 是进上下文的内容，它自己又是一串块（可以是空数组，次序有意义），任意一层都不得含工具调用块（S-16）；offloaded 可选，指向被卸载的原始结果——此时 blocks 装的是摘要与取全文的办法，这一块就是那次调用的结果，不是占位（data.messages v2 S-11）。不带派生表示与 transcript——它里面的块各自可以带。",
+      "description": "S-15～S-18：一次工具调用的结果，收场带在块上。callId 指回那次调用（S-14）；outcome 是这次收场的唯一依据（S-17），缺席即表示层拒绝，从不当作 completed；reason 在占位上是占位原因、在后台收场提醒的结果块上是那段执行的收场原因（那一侧哪几个值合法归 capability.tool-execution-runtime v2 S-10）——backgrounded 与 interrupted 必带、failed 可带且只能是 abnormal_interruption、其余三种不带，code 必须落在它那一格（S-18）；blocks 是进上下文的内容，它自己又是一串块（可以是空数组，次序有意义），任意一层都不得含工具调用块（S-16）；offloaded 可选，指向被卸载的原始结果——此时 blocks 装的是摘要与取全文的办法，这一块就是那次调用的结果，不是占位（data.messages v3 S-11）。不带派生表示与 transcript——它里面的块各自可以带。",
       "type": "object",
       "allOf": [
         { "$ref": "#/$defs/BlockBase" },

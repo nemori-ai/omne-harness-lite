@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/loop-extension/v2/loop-extension.schema.json",
-  "title": "data.loop-extension v2",
-  "description": "拓展点协议的数据半边：十一个位置与两个维度、干预力三档、报错处置策略、拓展件的声明、运行时交给拓展件的输入、拓展件交回的结论（封闭八种）与结论落日志的记录形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.loop-extension/v2 内有效。",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/loop-extension/v3/loop-extension.schema.json",
+  "title": "data.loop-extension v3",
+  "description": "拓展点协议的数据半边：十一个位置与两个维度、干预力三档、报错处置策略、拓展件的声明、运行时交给拓展件的输入、拓展件交回的结论（封闭八种）与结论落日志的记录形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.loop-extension/v3 内有效。",
   "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状与两张合法组合表（档 × 结论、位置 × 结论），表在 Conclusion 的条件约束里；「rewrite 只改可改成员」「inject 的来源名等于本件名」「select_model 在合法目标集合里」「retry 不推翻事实三类」这些要么需要输入与输出两份实例对照，要么是判定，Schema 管不到，归 contract.md 的条款与 runner 能力。引用的 content-blocks、messages、model-profile、call-accounts、tool-definition、asset-model 都是同一棵设计树里的候选，$ref 目标以它们 v1 的 $defs 为准，见 verification.md「变化的影响」；运行与执行尝试的标识 RunId、AttemptId 的家在 data.call-accounts，本文件只引。正反实例在同目录 examples.md。",
 
   "$defs": {
@@ -75,11 +75,11 @@
 
     "LoopExtensionDefinition": {
       "title": "拓展件的声明 · Loop Extension",
-      "description": "S-6～S-10：一件拓展件（UL-loop-extension，第八类资产）的声明。name 是它的能力标识（类别 loop_extension + name）里的那个 name，不是第二个身份：作为资产被持有时，身份只在资产记录的 capability 上（data.asset-model v2 S-10），两者逐码点相等，词法按 data.asset-model v2 S-2；position 与 dimension 是绑定类设置的出厂值，power 是干预力这项权限的出厂值（定义给默认值，各层配值、运行时求值）；onError 缺席按求得的干预力取默认；unavailability 是这一件不可用时的处置，只收 skip 与 veto、缺席即 skip，veto 只许声明的 power 为 veto 且 position 是五个「之前」之一（S-6）；onError 与 unavailability 都是这一件自己的声明，不是设置也不是权限；needs 是依赖声明，缺席即不需要任何东西；implementation 说它的实现是装配进来的（builtin）还是一条外部命令（command）。本版没有 order：同一位置的先后按装配清单的顺序。",
+      "description": "S-6～S-10：一件拓展件（UL-loop-extension，第八类资产）的声明。name 是它的能力标识（类别 loop_extension + name）里的那个 name，不是第二个身份：作为资产被持有时，身份只在资产记录的 capability 上（data.asset-model v3 S-10），两者逐码点相等，词法按 data.asset-model v3 S-2；position 与 dimension 是绑定类设置的出厂值，power 是干预力这项权限的出厂值（定义给默认值，各层配值、运行时求值）；onError 缺席按求得的干预力取默认；unavailability 是这一件不可用时的处置，只收 skip 与 veto、缺席即 skip，veto 只许声明的 power 为 veto 且 position 是五个「之前」之一（S-6）；onError 与 unavailability 都是这一件自己的声明，不是设置也不是权限；needs 是依赖声明，缺席即不需要任何东西；implementation 说它的实现是装配进来的（builtin）还是一条外部命令（command）。本版没有 order：同一位置的先后按装配清单的顺序。",
       "$comment": "additionalProperties: false 挡住 order、matcher 这类本版没有的成员（malformed）。策略不高于干预力：observe 只能声明 ignore，rewrite 不得声明 treat_as_veto——否则一件不能注入的件会在报错时注入、一件拦不住任何东西的件会在报错时拦下东西（malformed，S-5）。needs 用 minItems 1：「不需要任何东西」只有缺席这一种写法，不给空数组第二种写法。",
       "type": "object",
       "properties": {
-        "name": { "$ref": "../../asset-model/v2/asset-model.schema.json#/$defs/CapabilityName" },
+        "name": { "$ref": "../../asset-model/v3/asset-model.schema.json#/$defs/CapabilityName" },
         "position": { "$ref": "#/$defs/LoopPosition" },
         "dimension": { "$ref": "#/$defs/Dimension" },
         "power": { "$ref": "#/$defs/Power" },
@@ -89,7 +89,7 @@
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "$ref": "../../tool-definition/v2/tool-definition.schema.json#/$defs/DependencyName" }
+          "items": { "$ref": "../../tool-definition/v3/tool-definition.schema.json#/$defs/DependencyName" }
         },
         "implementation": { "$ref": "#/$defs/ExtensionImplementation" }
       },
@@ -149,7 +149,7 @@
             "event": { "type": "string", "minLength": 1 },
             "command": { "type": "string", "minLength": 1 },
             "matcher": { "type": "string" },
-            "timeout": { "$ref": "../../tool-definition/v2/tool-definition.schema.json#/$defs/Duration" }
+            "timeout": { "$ref": "../../tool-definition/v3/tool-definition.schema.json#/$defs/Duration" }
           },
           "required": ["kind", "host", "dialect", "event", "command"],
           "additionalProperties": false
@@ -223,19 +223,19 @@
 
     "ModelRequest": {
       "title": "ModelRequest",
-      "description": "S-15：调模型之前那个位置看得到的、已经攒好还没发出去的请求，恰四个成员：target 这一次要用的模型——一个路由名（RouteName，PF-013 rev 12；落到哪一行即有效模型，由模型请求运行时按层覆盖解析）、parameters 这一次要发出的请求参数（档案参数与此前改写合成的那一份）、messages 组装出来的消息、tools 这一次带给模型的工具条目（每项是那个条目的模型面名字 ModelToolName，data.tool-definition v2 S-6；作者写的工具与 MCP 来源的动作都指认得到）。可改的只有 parameters 与 messages（经 rewrite）；target 只经 select_model 改；tools 不可改（S-23、S-24）。成员名与模型请求运行时收的调用请求逐字相同。",
+      "description": "S-15：调模型之前那个位置看得到的、已经攒好还没发出去的请求，恰四个成员：target 这一次要用的模型——一个路由名（RouteName，PF-013 rev 12；落到哪一行即有效模型，由模型请求运行时按层覆盖解析）、parameters 这一次要发出的请求参数（档案参数与此前改写合成的那一份）、messages 组装出来的消息、tools 这一次带给模型的工具条目（每项是那个条目的模型面名字 ModelToolName，data.tool-definition v3 S-6；作者写的工具与 MCP 来源的动作都指认得到）。可改的只有 parameters 与 messages（经 rewrite）；target 只经 select_model 改；tools 不可改（S-23、S-24）。成员名与模型请求运行时收的调用请求逐字相同。",
       "type": "object",
       "properties": {
         "target": { "$ref": "../../model-profile/v2/model-profile.schema.json#/$defs/RouteName" },
         "parameters": { "$ref": "../../model-profile/v2/model-profile.schema.json#/$defs/ModelRequestParameters" },
         "messages": {
           "type": "array",
-          "items": { "$ref": "../../messages/v2/messages.schema.json#/$defs/Message" }
+          "items": { "$ref": "../../messages/v3/messages.schema.json#/$defs/Message" }
         },
         "tools": {
           "type": "array",
           "uniqueItems": true,
-          "items": { "$ref": "../../tool-definition/v2/tool-definition.schema.json#/$defs/ModelToolName" }
+          "items": { "$ref": "../../tool-definition/v3/tool-definition.schema.json#/$defs/ModelToolName" }
         }
       },
       "required": ["target", "parameters", "messages", "tools"],
@@ -244,10 +244,10 @@
 
     "ToolDefinitionRef": {
       "title": "ToolDefinitionRef",
-      "description": "S-14：执行动作之前那个位置上，运行时为这次调用找到的那份工具定义的模型面名字（data.tool-definition v2 的 ModelToolName），与调用块里的工具名同一套。只是引用，不是定义本身。",
+      "description": "S-14：执行动作之前那个位置上，运行时为这次调用找到的那份工具定义的模型面名字（data.tool-definition v3 的 ModelToolName），与调用块里的工具名同一套。只是引用，不是定义本身。",
       "type": "object",
       "properties": {
-        "name": { "$ref": "../../tool-definition/v2/tool-definition.schema.json#/$defs/ModelToolName" }
+        "name": { "$ref": "../../tool-definition/v3/tool-definition.schema.json#/$defs/ModelToolName" }
       },
       "required": ["name"],
       "additionalProperties": false
@@ -266,7 +266,7 @@
       "description": "message 还没落盘；producer 是这条消息由谁产生：user 人经交付面说的 / model 模型调用产出的回复 / tool 工具执行交回的 / system 其余（系统或外部来源捎来的）。",
       "type": "object",
       "properties": {
-        "message": { "$ref": "../../messages/v2/messages.schema.json#/$defs/Message" },
+        "message": { "$ref": "../../messages/v3/messages.schema.json#/$defs/Message" },
         "producer": { "enum": ["user", "model", "tool", "system"] }
       },
       "required": ["message", "producer"],
@@ -276,7 +276,7 @@
     "AfterPersistMessageSubject": {
       "title": "消息落盘之后",
       "type": "object",
-      "properties": { "message": { "$ref": "../../messages/v2/messages.schema.json#/$defs/Message" } },
+      "properties": { "message": { "$ref": "../../messages/v3/messages.schema.json#/$defs/Message" } },
       "required": ["message"],
       "additionalProperties": false
     },
@@ -292,7 +292,7 @@
     "AfterCompactionSubject": {
       "title": "压缩之后",
       "type": "object",
-      "properties": { "compaction": { "$ref": "../../messages/v2/messages.schema.json#/$defs/CompactionMessage" } },
+      "properties": { "compaction": { "$ref": "../../messages/v3/messages.schema.json#/$defs/CompactionMessage" } },
       "required": ["compaction"],
       "additionalProperties": false
     },
@@ -310,7 +310,7 @@
       "description": "reply 是已经落盘的那条回复。回复在落盘之前被否决的那次调用、被用户中断的那次调用，都不触发 after_model_call（S-2）。",
       "type": "object",
       "properties": {
-        "reply": { "$ref": "../../messages/v2/messages.schema.json#/$defs/AssistantMessage" },
+        "reply": { "$ref": "../../messages/v3/messages.schema.json#/$defs/AssistantMessage" },
         "usage": { "$ref": "../../call-accounts/v2/call-accounts.schema.json#/$defs/Usage" },
         "cost": { "$ref": "../../call-accounts/v2/call-accounts.schema.json#/$defs/Cost" }
       },
@@ -320,7 +320,7 @@
 
     "AfterModelCallFailureSubject": {
       "title": "调模型之后 · 失败",
-      "description": "failure 是这次故障的成因；statusCode 是上游返回的状态码，有才带、原样带，不翻译；inBand 只取 true、只能与 statusCode 同在，在即那个状态码是流已开始之后带内错误的 code、不是 HTTP 状态（与 data.model-response 的 Failure.inBand 同义）；profile 是这次调用绑定的档案快照（data.model-profile v2 的 ModelProfileSnapshot）；dispatches 是这次调用到此为止每一次发出的「已出门」记录（data.messages v2 的 ModelCallDispatchedRecord），按发出序号，含失败的这一次。重试件只凭这几样下结论，不现读目录。",
+      "description": "failure 是这次故障的成因；statusCode 是上游返回的状态码，有才带、原样带，不翻译；inBand 只取 true、只能与 statusCode 同在，在即那个状态码是流已开始之后带内错误的 code、不是 HTTP 状态（与 data.model-response 的 Failure.inBand 同义）；profile 是这次调用绑定的档案快照（data.model-profile v2 的 ModelProfileSnapshot）；dispatches 是这次调用到此为止每一次发出的「已出门」记录（data.messages v3 的 ModelCallDispatchedRecord），按发出序号，含失败的这一次。重试件只凭这几样下结论，不现读目录。",
       "type": "object",
       "properties": {
         "failure": { "$ref": "#/$defs/FailureCause" },
@@ -330,7 +330,7 @@
         "dispatches": {
           "type": "array",
           "minItems": 1,
-          "items": { "$ref": "../../messages/v2/messages.schema.json#/$defs/ModelCallDispatchedRecord" }
+          "items": { "$ref": "../../messages/v3/messages.schema.json#/$defs/ModelCallDispatchedRecord" }
         }
       },
       "required": ["failure", "profile", "dispatches"],
@@ -343,13 +343,13 @@
       "description": "call 是这一个动作（完整的工具调用块）；definition 是运行时为它找到的那份定义；batch 是这一批动作的全部 CallId，含本次这一个，无重复，顺序在本契约里无含义。",
       "type": "object",
       "properties": {
-        "call": { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/ToolCallBlock" },
+        "call": { "$ref": "../../content-blocks/v3/content-blocks.schema.json#/$defs/ToolCallBlock" },
         "definition": { "$ref": "#/$defs/ToolDefinitionRef" },
         "batch": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/CallId" }
+          "items": { "$ref": "../../content-blocks/v3/content-blocks.schema.json#/$defs/CallId" }
         }
       },
       "required": ["call", "definition", "batch"],
@@ -361,9 +361,9 @@
       "description": "callId 与 outcome 说这一次执行怎么收场；result 是这一次经过里待落盘的那个结果块，有才带。带的时候它的 callId 与 outcome 必须与外面两个相同（S-14，Schema 管不到）。",
       "type": "object",
       "properties": {
-        "callId": { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/CallId" },
-        "outcome": { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/ExecutionOutcome" },
-        "result": { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/ToolResultBlock" }
+        "callId": { "$ref": "../../content-blocks/v3/content-blocks.schema.json#/$defs/CallId" },
+        "outcome": { "$ref": "../../content-blocks/v3/content-blocks.schema.json#/$defs/ExecutionOutcome" },
+        "result": { "$ref": "../../content-blocks/v3/content-blocks.schema.json#/$defs/ToolResultBlock" }
       },
       "required": ["callId", "outcome"],
       "additionalProperties": false
@@ -379,8 +379,8 @@
           "items": {
             "type": "object",
             "properties": {
-              "callId": { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/CallId" },
-              "outcome": { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/ExecutionOutcome" }
+              "callId": { "$ref": "../../content-blocks/v3/content-blocks.schema.json#/$defs/CallId" },
+              "outcome": { "$ref": "../../content-blocks/v3/content-blocks.schema.json#/$defs/ExecutionOutcome" }
             },
             "required": ["callId", "outcome"],
             "additionalProperties": false
@@ -507,7 +507,7 @@
         "kind": { "const": "inject" },
         "message": {
           "allOf": [
-            { "$ref": "../../messages/v2/messages.schema.json#/$defs/SystemReminderMessage" },
+            { "$ref": "../../messages/v3/messages.schema.json#/$defs/SystemReminderMessage" },
             {
               "type": "object",
               "properties": {
@@ -583,7 +583,7 @@
       "type": "object",
       "properties": {
         "provider": { "$ref": "../../model-profile/v2/model-profile.schema.json#/$defs/ProviderName" },
-        "after": { "$ref": "../../tool-definition/v2/tool-definition.schema.json#/$defs/Duration" }
+        "after": { "$ref": "../../tool-definition/v3/tool-definition.schema.json#/$defs/Duration" }
       },
       "required": ["provider"],
       "additionalProperties": false
@@ -625,7 +625,7 @@
         "proposedRewrite": {
           "type": "object",
           "properties": {
-            "arguments": { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/ToolCallBlock/properties/arguments" }
+            "arguments": { "$ref": "../../content-blocks/v3/content-blocks.schema.json#/$defs/ToolCallBlock/properties/arguments" }
           },
           "required": ["arguments"],
           "additionalProperties": false
@@ -634,7 +634,7 @@
           "type": "object",
           "properties": {
             "position": { "$ref": "#/$defs/LoopPosition" },
-            "callId": { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/CallId" }
+            "callId": { "$ref": "../../content-blocks/v3/content-blocks.schema.json#/$defs/CallId" }
           },
           "required": ["position"],
           "additionalProperties": false,
@@ -689,11 +689,11 @@
       "$comment": "两张合法组合表在这里：下面 allOf 里「档 × 结论」三条、「位置 × 结论」十三条、报错处置只落四种一条、不可用按否决处置的前提一条、rewrite 的 subject 与位置配对四条。output 缺席时（skipped: unavailable）这些约束空成立。error 在结论被表示层拒绝时恰为那个拒绝值 token（S-31），Schema 只约束到非空字符串。",
       "type": "object",
       "properties": {
-        "extension": { "$ref": "../../asset-model/v2/asset-model.schema.json#/$defs/CapabilityName" },
+        "extension": { "$ref": "../../asset-model/v3/asset-model.schema.json#/$defs/CapabilityName" },
         "position": { "$ref": "#/$defs/LoopPosition" },
         "dimension": { "$ref": "#/$defs/Dimension" },
         "power": { "$ref": "#/$defs/Power" },
-        "callId": { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/CallId" },
+        "callId": { "$ref": "../../content-blocks/v3/content-blocks.schema.json#/$defs/CallId" },
         "output": { "$ref": "#/$defs/ExtensionOutput" },
         "at": { "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant" },
         "skipped": { "enum": ["unavailable", "errored"] },

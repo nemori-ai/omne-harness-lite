@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "data.tool-definition v2 pure values and caller-owned parameter judgments",
+  "description": "data.tool-definition v3 pure values and caller-owned parameter judgments",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -12,7 +12,8 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./schema": "./schema/tool-definition.schema.json"
+    "./schema": "./schema/tool-definition.schema.json",
+    "./schema/v2": "./schema/tool-definition.v2.schema.json"
   },
   "files": [
     "dist",

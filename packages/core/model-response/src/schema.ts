@@ -1,5 +1,6 @@
 import schema from '@omne-harness-lite/model-response/schema' with { type: 'json' }
 import accountsSchema from '@omne-harness-lite/call-accounts/schema' with { type: 'json' }
+import retainedContentSchema from '@omne-harness-lite/content-blocks/schema/v2' with { type: 'json' }
 import contentSchema from '@omne-harness-lite/content-blocks/schema' with { type: 'json' }
 import identitySchema from '@omne-harness-lite/identity-values/schema' with { type: 'json' }
 import loopSchema from '@omne-harness-lite/loop-extension/schema' with { type: 'json' }
@@ -49,6 +50,7 @@ const runtime = createSchemaRuntime([
   identitySchema,
   expirySchema,
   contentSchema,
+  retainedContentSchema,
   accountsSchema,
   profileSchema,
   messagesSchema,

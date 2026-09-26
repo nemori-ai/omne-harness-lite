@@ -1,5 +1,8 @@
 # messages
 
+当前实现采用 `data.messages v3`（[规范](../../../.meta_harness/design/spec/data/messages/v3/contract.md)）。公开 `./schema` 为冻结 v3；`./schema/v2` 只保留完整冻结 v2 资源及原 `$id`，不提供 v2 领域行为兼容入口。
+
+
 `data.messages` v2 的纯函数包。采用依据、责任与限制见[实现节点](../../../.meta_harness/design/realization/packages/core/messages/README.md)及[契约](../../../.meta_harness/design/spec/data/messages/v2/contract.md)。
 
 通过包名导入已构建公开入口；`./schema` 提供冻结原字节 Schema。`validate` 只检查形状，`judgeMessage` 与 `judgeModelInvocationRecord` 另查契约中的单值跨成员约束；文本接收先严格无损读取。成功结果是复制后的冻结值，拒绝不修补输入。

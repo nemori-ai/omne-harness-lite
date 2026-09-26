@@ -1,7 +1,7 @@
 import schema from '@omne-harness-lite/skill-package/schema' with { type: 'json' }
-import contentSchema from '@omne-harness-lite/content-blocks/schema' with { type: 'json' }
-import assetSchema from '@omne-harness-lite/asset-model/schema' with { type: 'json' }
-import toolSchema from '@omne-harness-lite/tool-definition/schema' with { type: 'json' }
+import contentSchema from '@omne-harness-lite/content-blocks/schema/v2' with { type: 'json' }
+import assetSchema from '@omne-harness-lite/asset-model/schema/v2' with { type: 'json' }
+import toolSchema from '@omne-harness-lite/tool-definition/schema/v2' with { type: 'json' }
 import { createSchemaRuntime } from '@omne-harness-lite/content-blocks/schema-runtime'
 import type {
   SchemaDocument,

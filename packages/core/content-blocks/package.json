@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "data.content-blocks v2 \u7684\u7eaf\u6a21\u5757\uff1a\u5185\u5bb9\u5757\u3001\u8868\u793a\u6821\u9a8c\u4e0e\u4e25\u683c\u65e0\u635f JSON",
+  "description": "data.content-blocks v3 的纯模块：内容块、表示校验与严格无损 JSON",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -16,7 +16,8 @@
     "./schema-runtime": {
       "types": "./dist/schema-runtime.d.ts",
       "import": "./dist/schema-runtime.js"
-    }
+    },
+    "./schema/v2": "./schema/content-blocks.v2.schema.json"
   },
   "files": [
     "dist",

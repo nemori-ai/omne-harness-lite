@@ -1,4 +1,7 @@
 import schema from '@omne-harness-lite/asset-model/schema' with { type: 'json' }
+import retainedSchema from '@omne-harness-lite/asset-model/schema/v2' with { type: 'json' }
+import retainedContentSchema from '@omne-harness-lite/content-blocks/schema/v2' with { type: 'json' }
+import retainedToolSchema from '../schema/resources/tool-definition.v2.schema.json' with { type: 'json' }
 import identitySchema from '@omne-harness-lite/identity-values/schema' with { type: 'json' }
 import offerSchema from '@omne-harness-lite/offer-expiry/schema/v1' with { type: 'json' }
 import contentSchema from '@omne-harness-lite/content-blocks/schema' with { type: 'json' }
@@ -111,6 +114,9 @@ function resources(bodies: BodyContractSupply): readonly JsonSchema[] {
     identitySchema,
     offerSchema,
     contentSchema,
+    retainedContentSchema,
+    retainedToolSchema,
+    retainedSchema,
     schema,
     ...bodyCategories.map(category => bodySchema(bodies, category)),
   ]

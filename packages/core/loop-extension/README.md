@@ -1,5 +1,8 @@
 # @omne-harness-lite/loop-extension
 
+当前实现采用 `data.loop-extension v3`（[规范](../../../.meta_harness/design/spec/data/loop-extension/v3/contract.md)）。公开 `./schema` 为冻结 v3；`./schema/v2` 只保留完整冻结 v2 资源及原 `$id`，不提供 v2 领域行为兼容入口。
+
+
 Pure TypeScript values and boundary judgments for accepted `data.loop-extension` v2.
 Authority: [contract](../../../.meta_harness/design/spec/data/loop-extension/v2/contract.md),
 [realization](../../../.meta_harness/design/realization/packages/core/loop-extension/design.md),

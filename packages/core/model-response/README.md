@@ -1,5 +1,8 @@
 # model-response
 
+当前实现采用 `data.model-response v3`（[规范](../../../.meta_harness/design/spec/data/model-response/v3/contract.md)）。公开 `./schema` 为冻结 v3；`./schema/v2` 只保留完整冻结 v2 资源及原 `$id`，不提供 v2 领域行为兼容入口。
+
+
 Pure TypeScript implementation of the accepted
 [`data.model-response` v2](../../../.meta_harness/design/spec/data/model-response/v2/contract.md).
 The [provider mapping](../../../.meta_harness/design/realization/packages/core/model-response/design.md)

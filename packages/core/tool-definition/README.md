@@ -1,5 +1,8 @@
 # tool-definition
 
+当前实现采用 `data.tool-definition v3`（[规范](../../../.meta_harness/design/spec/data/tool-definition/v3/contract.md)）。公开 `./schema` 为冻结 v3；`./schema/v2` 只保留完整冻结 v2 资源及原 `$id`，不提供 v2 领域行为兼容入口。
+
+
 Pure values and judgments for the accepted `data.tool-definition` v2 contract.
 The maintained responsibility and verification map is the
 [realization node](../../../.meta_harness/design/realization/packages/core/tool-definition/README.md).

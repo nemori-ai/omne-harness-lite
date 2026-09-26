@@ -1,9 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/messages/v2/messages.schema.json",
-  "title": "data.messages v2",
-  "description": "消息的规范形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.messages/v2 内有效。",
-  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状；表示层拒绝值（S-39）的具名与优先级、工具消息与后台收场提醒里 callId／outcome 的相等、压缩名单不点自己、消息内块标识唯一，以及全部会话日志层的判定（S-29、S-32）由契约条款定，Schema 管不到，逐条列在 contract.md「Schema 管得到什么」。外部引用：ContentBlock、ToolResultBlock、BlockId、CallId、ExecutionOutcome、CapabilityId 取自 data.content-blocks v2；Instant 取自 data.offer-expiry v1 S-22；ModelCallId、AttemptId 取自 data.call-accounts v2 S-37；RouteName、ProviderName、ModelProfileRef、ModelRequestParameters、ModelProfileSnapshot 取自 data.model-profile v2（S-2、S-5、S-13、S-15、S-27）；ScopeLayerIdentity 取自 data.identity-values v1 S-11。不透明标识按 data.identity-values v1 S-31 的散文自定义，不跨契约 $ref 它的 OpaqueIdentifier。ResponseId 的家在 data.model-response v2 S-6，本契约按同一散文自定义、不 $ref——那份契约 $ref 本契约的 AssistantMessage，反向 $ref 会让两份契约互为依赖（S-37）；SelectedBy、CredentialScope、ParameterAdjustment 与「已出门」上 droppedParameters 的就地形状同一理由按那份契约的 S-10、S-9、S-11 逐字自定义（互引成环的登记口径：D-060 §七 M2，写在 registry README；对齐义务在 verification）。正反实例在同目录 examples.md。",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/messages/v3/messages.schema.json",
+  "title": "data.messages v3",
+  "description": "消息的规范形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.messages/v3 内有效。",
+  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状；表示层拒绝值（S-39）的具名与优先级、工具消息与后台收场提醒里 callId／outcome 的相等、压缩名单不点自己、消息内块标识唯一，以及全部会话日志层的判定（S-29、S-32）由契约条款定，Schema 管不到，逐条列在 contract.md「Schema 管得到什么」。外部引用：ContentBlock、ToolResultBlock、BlockId、CallId、ExecutionOutcome、CapabilityId 取自 data.content-blocks v3；Instant 取自 data.offer-expiry v1 S-22；ModelCallId、AttemptId 取自 data.call-accounts v2 S-37；RouteName、ProviderName、ModelProfileRef、ModelRequestParameters、ModelProfileSnapshot 取自 data.model-profile v2（S-2、S-5、S-13、S-15、S-27）；ScopeLayerIdentity 取自 data.identity-values v1 S-11。不透明标识按 data.identity-values v1 S-31 的散文自定义，不跨契约 $ref 它的 OpaqueIdentifier。ResponseId 的家在 data.model-response v3 S-6，本契约按同一散文自定义、不 $ref——那份契约 $ref 本契约的 AssistantMessage，反向 $ref 会让两份契约互为依赖（S-37）；SelectedBy、CredentialScope、ParameterAdjustment 与「已出门」上 droppedParameters 的就地形状同一理由按那份契约的 S-10、S-9、S-11 逐字自定义（互引成环的登记口径：D-060 §七 M2，写在 registry README；对齐义务在 verification）。正反实例在同目录 examples.md。",
 
   "$defs": {
 
@@ -19,7 +19,7 @@
 
     "ResponseId": {
       "title": "ResponseId（contract.md S-9）",
-      "description": "产出一条 AssistantMessage 的那份模型响应的标识。它的家是 data.model-response v2 S-6：唯一范围与由谁产生以那里为准。本定义只按 data.identity-values v1 S-31 的散文写出同一个不透明形状。",
+      "description": "产出一条 AssistantMessage 的那份模型响应的标识。它的家是 data.model-response v3 S-6：唯一范围与由谁产生以那里为准。本定义只按 data.identity-values v1 S-31 的散文写出同一个不透明形状。",
       "$comment": "不 $ref data.model-response 的 $defs/ResponseId：那份契约以 $ref 取本契约的 AssistantMessage 作回复，本契约再 $ref 回去，两份契约就互为依赖（对齐波裁定，与 data.call-accounts v2 S-16 同法）。形状与那里逐字相同，两处都照 S-31 的散文写；S-31 改集合时两处一起出新版本。",
       "type": "string",
       "minLength": 1,
@@ -75,14 +75,14 @@
     "MessageBase": {
       "title": "消息底座（contract.md S-2）",
       "description": "每一种消息共有的四个成员，都必填：id（S-3）、type（S-1）、blocks（一串内容块，次序有意义，可以是空数组——各种消息另有限制，S-6）、createdAt（S-4，不是次序）。消息不带「给谁看」——那在块上（S-5）。",
-      "$comment": "本定义不带 additionalProperties: false——各种消息以 allOf 引用它，并以 unevaluatedProperties: false 闭合自己的成员集合。块的形状整份取自 data.content-blocks v2。",
+      "$comment": "本定义不带 additionalProperties: false——各种消息以 allOf 引用它，并以 unevaluatedProperties: false 闭合自己的成员集合。块的形状整份取自 data.content-blocks v3。",
       "type": "object",
       "properties": {
         "id": { "$ref": "#/$defs/MessageId" },
         "type": { "type": "string" },
         "blocks": {
           "type": "array",
-          "items": { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/ContentBlock" }
+          "items": { "$ref": "../../content-blocks/v3/content-blocks.schema.json#/$defs/ContentBlock" }
         },
         "createdAt": { "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant" }
       },
@@ -110,7 +110,7 @@
 
     "UserMessage": {
       "title": "UserMessage（contract.md S-8）",
-      "description": "人说的话；斜杠命令展开之后的那一条、经连接件送达的外部消息也落成这一种。块里不许有思考、工具调用、工具结果（S-6）；文本块可以带来路标记 origin（UL-origin-tag，data.content-blocks v2 S-8），且只有这一种消息的顶层文本块可以带。",
+      "description": "人说的话；斜杠命令展开之后的那一条、经连接件送达的外部消息也落成这一种。块里不许有思考、工具调用、工具结果（S-6）；文本块可以带来路标记 origin（UL-origin-tag，data.content-blocks v3 S-8），且只有这一种消息的顶层文本块可以带。",
       "type": "object",
       "allOf": [{ "$ref": "#/$defs/MessageBase" }],
       "properties": {
@@ -173,18 +173,18 @@
 
     "ToolMessage": {
       "title": "ToolMessage（contract.md S-11）",
-      "description": "工具说结果：一次调用恰一条，blocks 恰好一个工具结果块，且它的 callId 与本消息的 callId 相同（后一半 Schema 管不到）；违反即表示层拒绝 tool_message_block_count（S-39）。占位也是这一种——转后台、被中断、异常中断——收场与原因都写在那个工具结果块上（data.content-blocks v2 S-15～S-18）；结果卸载之后带摘要的那一条也是这一种，但它是那次调用的结果、不是占位（S-11）。那一块的 reason.code 不得是 terminated_by_agent——那个原因只落后台执行收场的提醒，写在工具消息上即 malformed（S-11、S-39）。",
+      "description": "工具说结果：一次调用恰一条，blocks 恰好一个工具结果块，且它的 callId 与本消息的 callId 相同（后一半 Schema 管不到）；违反即表示层拒绝 tool_message_block_count（S-39）。占位也是这一种——转后台、被中断、异常中断——收场与原因都写在那个工具结果块上（data.content-blocks v3 S-15～S-18）；结果卸载之后带摘要的那一条也是这一种，但它是那次调用的结果、不是占位（S-11）。那一块的 reason.code 不得是 terminated_by_agent——那个原因只落后台执行收场的提醒，写在工具消息上即 malformed（S-11、S-39）。",
       "type": "object",
       "allOf": [{ "$ref": "#/$defs/MessageBase" }],
       "properties": {
         "type": { "const": "tool" },
-        "callId": { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/CallId" },
+        "callId": { "$ref": "../../content-blocks/v3/content-blocks.schema.json#/$defs/CallId" },
         "blocks": {
           "minItems": 1,
           "maxItems": 1,
           "items": {
             "allOf": [
-              { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/ToolResultBlock" },
+              { "$ref": "../../content-blocks/v3/content-blocks.schema.json#/$defs/ToolResultBlock" },
               { "not": { "properties": { "reason": { "properties": { "code": { "const": "terminated_by_agent" } }, "required": ["code"] } }, "required": ["reason"] } }
             ]
           }
@@ -208,7 +208,7 @@
       "allOf": [{ "$ref": "#/$defs/MessageBase" }],
       "properties": {
         "type": { "const": "tool_internal" },
-        "callId": { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/CallId" },
+        "callId": { "$ref": "../../content-blocks/v3/content-blocks.schema.json#/$defs/CallId" },
         "ending": { "$ref": "#/$defs/ToolInternalEnding" },
         "blocks": {
           "minItems": 1,
@@ -382,10 +382,10 @@
       "type": "object",
       "properties": {
         "kind": { "const": "background_execution_finished" },
-        "callId": { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/CallId" },
+        "callId": { "$ref": "../../content-blocks/v3/content-blocks.schema.json#/$defs/CallId" },
         "outcome": {
           "allOf": [
-            { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/ExecutionOutcome" },
+            { "$ref": "../../content-blocks/v3/content-blocks.schema.json#/$defs/ExecutionOutcome" },
             { "enum": ["completed", "failed", "interrupted", "no_answer"] }
           ]
         }
@@ -400,7 +400,7 @@
       "type": "object",
       "properties": {
         "kind": { "const": "background_execution_interrupted" },
-        "callId": { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/CallId" }
+        "callId": { "$ref": "../../content-blocks/v3/content-blocks.schema.json#/$defs/CallId" }
       },
       "required": ["kind", "callId"],
       "additionalProperties": false
@@ -569,18 +569,18 @@
 
     "LoopExtensionName": {
       "title": "拓展件的名字（contract.md S-26）",
-      "description": "一件拓展件在提醒来源里的名字：它的能力标识（data.content-blocks v2 的 CapabilityId，类别恒为 loop_extension）的 name 分量，逐码点相等。系统自带的放行判断、循环守卫也各有一个。名字本身的词法归能力标识名的家（data.asset-model v2），本定义只约束到非空——取的是同一个值，不另立命名空间（规格层推导：同一件东西只有一个名字，S-26）。",
+      "description": "一件拓展件在提醒来源里的名字：它的能力标识（data.content-blocks v3 的 CapabilityId，类别恒为 loop_extension）的 name 分量，逐码点相等。系统自带的放行判断、循环守卫也各有一个。名字本身的词法归能力标识名的家（data.asset-model v3），本定义只约束到非空——取的是同一个值，不另立命名空间（规格层推导：同一件东西只有一个名字，S-26）。",
       "$comment": "只存 name 不存整个 CapabilityId：来源的判别已经说明它是一件拓展件，类别恒为 loop_extension，写两遍会出现对不上的第二份。",
-      "allOf": [{ "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/CapabilityId/properties/name" }]
+      "allOf": [{ "$ref": "../../content-blocks/v3/content-blocks.schema.json#/$defs/CapabilityId/properties/name" }]
     },
 
     "SilencedBlockRef": {
       "title": "名单上的一项（contract.md S-27）",
-      "description": "压缩名单点名的一个块：messageId 是那条消息，blockId 是那条消息里的一个块（含任意嵌套层，data.content-blocks v2 S-3）。点一个容器块，它里面的块随之对模型不可读（S-28）。",
+      "description": "压缩名单点名的一个块：messageId 是那条消息，blockId 是那条消息里的一个块（含任意嵌套层，data.content-blocks v3 S-3）。点一个容器块，它里面的块随之对模型不可读（S-28）。",
       "type": "object",
       "properties": {
         "messageId": { "$ref": "#/$defs/MessageId" },
-        "blockId": { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/BlockId" }
+        "blockId": { "$ref": "../../content-blocks/v3/content-blocks.schema.json#/$defs/BlockId" }
       },
       "required": ["messageId", "blockId"],
       "additionalProperties": false
@@ -618,7 +618,7 @@
     "ModelCallDispatchedRecord": {
       "title": "已出门（contract.md S-49）",
       "description": "一次模型调用的一次发出，在这次请求离开本进程之前写下（无词条）。call 是那次调用，dispatch 是第几次发出（UL-upstream-send，≥ 1，属于调用、跨尝试连续），provider 是这次发给哪一家，response 是这次发出的响应体标识——它在这一刻定下，此后这次发出的任何结算都用它。另带这次调用的绑定，供停机之后续接时从日志恢复（S-49）：profile 是有效模型，profileSnapshot 是打开调用那一刻的档案快照，parameters 是合并之后、交给传输适配之前的请求参数（实际发出的那一组在响应体的 route.parameters），selectedBy 是有效模型怎么来的——这四项在一次调用的各次发出上逐字相同；credentialScope 是这一次发出用的凭据在哪一格，按这一次取到的凭据写。parameterAdjustments、droppedParameters 是传输适配在出门之前为这一次发出定下的处置（改了值再发出的项、没发出的项的名字），缺席即一项也没有、空数组不是合法写法；实际发出的那一组 = parameters 把改了值的项换成 sent、去掉没发出的项（主线裁定，D-060 §六 L4）。落在哪一次尝试由承载它的记录条目给出（S-33）。不是消息，不供任何视图呈现。",
-      "$comment": "绑定的四项在同一调用各次发出上相同、与同一次发出的响应体 route 写的值相同——跨记录，Schema 管不到。parameterAdjustments 的 name 在 parameters 里且 requested 等于那一项、droppedParameters 的名字在 parameters 里、一个项名只出现一次、两份清单与同一次发出的响应体 route 上的逐项相同——跨成员或跨记录，Schema 管不到（S-49）。selectedBy、credentialScope、ParameterAdjustment、droppedParameters 按 data.model-response v2 S-10、S-9、S-11 逐字自定义（见本文件的 SelectedBy、CredentialScope、ParameterAdjustment）。",
+      "$comment": "绑定的四项在同一调用各次发出上相同、与同一次发出的响应体 route 写的值相同——跨记录，Schema 管不到。parameterAdjustments 的 name 在 parameters 里且 requested 等于那一项、droppedParameters 的名字在 parameters 里、一个项名只出现一次、两份清单与同一次发出的响应体 route 上的逐项相同——跨成员或跨记录，Schema 管不到（S-49）。selectedBy、credentialScope、ParameterAdjustment、droppedParameters 按 data.model-response v3 S-10、S-9、S-11 逐字自定义（见本文件的 SelectedBy、CredentialScope、ParameterAdjustment）。",
       "type": "object",
       "properties": {
         "kind": { "const": "model_call_dispatched" },
@@ -635,14 +635,14 @@
           "type": "array",
           "minItems": 1,
           "items": { "$ref": "#/$defs/ParameterAdjustment" },
-          "description": "传输适配改了值再发出的那些项。缺席即一项值也没改；空数组不是合法写法。与 data.model-response v2 Route.parameterAdjustments 逐字同形。"
+          "description": "传输适配改了值再发出的那些项。缺席即一项值也没改；空数组不是合法写法。与 data.model-response v3 Route.parameterAdjustments 逐字同形。"
         },
         "droppedParameters": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
           "items": { "type": "string", "minLength": 1 },
-          "description": "要求了却没有发给上游的那些项的名字：统一项以成员名为名，extra 项以它的键为名（data.model-profile/v2#S-20）。缺席即一项也没丢；空数组不是合法写法。与 data.model-response v2 Route.droppedParameters 逐字同形。"
+          "description": "要求了却没有发给上游的那些项的名字：统一项以成员名为名，extra 项以它的键为名（data.model-profile/v2#S-20）。缺席即一项也没丢；空数组不是合法写法。与 data.model-response v3 Route.droppedParameters 逐字同形。"
         }
       },
       "required": ["kind", "call", "dispatch", "provider", "response", "profile", "profileSnapshot", "parameters", "selectedBy", "credentialScope"],
@@ -651,7 +651,7 @@
 
     "SelectedBy": {
       "title": "有效模型怎么来的（contract.md S-49）",
-      "description": "与 data.model-response v2 S-10 的 SelectedBy 逐字相同：session——取自会话的选中模型，会话格之上没有带不可覆盖标记的一格压过它；layer_lock——会话格之上有一格带不可覆盖标记，名字取自那一格；{extension}——调模型之前的拓展件以 select_model 定了这一次，extension 是那件拓展件的名字。取最后一个定下这一次那个名字的那一步。",
+      "description": "与 data.model-response v3 S-10 的 SelectedBy 逐字相同：session——取自会话的选中模型，会话格之上没有带不可覆盖标记的一格压过它；layer_lock——会话格之上有一格带不可覆盖标记，名字取自那一格；{extension}——调模型之前的拓展件以 select_model 定了这一次，extension 是那件拓展件的名字。取最后一个定下这一次那个名字的那一步。",
       "$comment": "不 $ref data.model-response：那份契约 $ref 本契约的 AssistantMessage，反向会让两份契约互为依赖（S-37）。那边改形状，本定义同轮改（verification.md「对齐义务」）。",
       "oneOf": [
         { "title": "会话选中的那条", "const": "session" },
@@ -668,7 +668,7 @@
 
     "ParameterAdjustment": {
       "title": "改了值再发出的一项（contract.md S-49）",
-      "description": "与 data.model-response v2 S-11 的 ParameterAdjustment 逐字同形：name 是项名（data.model-profile/v2#S-20：统一项以成员名为名，extra 项以它的键为名）；requested 是它在要求的那一组里的值——在「已出门」上就是 parameters 里那一项的值；sent 是实际发出的值，与 requested 不同。",
+      "description": "与 data.model-response v3 S-11 的 ParameterAdjustment 逐字同形：name 是项名（data.model-profile/v2#S-20：统一项以成员名为名，extra 项以它的键为名）；requested 是它在要求的那一组里的值——在「已出门」上就是 parameters 里那一项的值；sent 是实际发出的值，与 requested 不同。",
       "$comment": "不 $ref data.model-response，理由同 SelectedBy。那边改形状，本定义同轮改（verification.md「对齐义务」）。",
       "type": "object",
       "additionalProperties": false,
@@ -682,7 +682,7 @@
 
     "CredentialScope": {
       "title": "这一次发出用的凭据在哪一格（contract.md S-49）",
-      "description": "与 data.model-response v2 S-9 的 CredentialScope 逐字相同：{layer: factory}——出厂格那一把，由部署装配配置，只供官方档案；否则是租户格，取 data.identity-values 的 ScopeLayerIdentity 的租户那一支。模型凭据只在租户层与出厂格，没有组织那一支。它不是凭据本身，也不是凭据的引用。",
+      "description": "与 data.model-response v3 S-9 的 CredentialScope 逐字相同：{layer: factory}——出厂格那一把，由部署装配配置，只供官方档案；否则是租户格，取 data.identity-values 的 ScopeLayerIdentity 的租户那一支。模型凭据只在租户层与出厂格，没有组织那一支。它不是凭据本身，也不是凭据的引用。",
       "$comment": "不 $ref data.model-response，理由同 SelectedBy。租户那一支 $ref ScopeLayerIdentity 再把 layer 限为 tenant，形状仍归 identity-values。",
       "oneOf": [
         {
@@ -732,7 +732,7 @@
     "ModelCallEndedRecord": {
       "title": "调用终结（contract.md S-50）",
       "description": "一次模型调用不经响应体进入终态时写下（无词条），按 ending 判别恰三支：undispatched——出门前检查不过、一次也没发出，终态上交，cause 必带、是四个出门前成因之一；released——此前至少发出过一次、这次调用不再发出，终态上交：cause 缺席是最近一次发出以故障收场后 loop 放手（成因在那份响应体上），cause 为 credential_unavailable 是续接或再发之前凭据取不到；interrupted——在两次发出之间被中断，终态被中断，initiator 同中断意图。经响应体进入终态的调用没有这条记录。不是消息。cause 里的 modality_mismatch 与表示层拒绝值 modality_mismatch 是两个互不相干的值域（S-50）。",
-      "$comment": "cause 的四个取值与 data.loop-extension v2 FailureCause 里出门前的那四个逐字相同；本定义不 $ref 它——那份契约以 $ref 取本契约的消息，反向引用会让两份契约互为依赖（S-50）。released 只收 credential_unavailable：档案快照与有效模型在打开调用时绑定、续接与再发不重核，只有每次现取的凭据会在发出过之后才取不到。",
+      "$comment": "cause 的四个取值与 data.loop-extension v3 FailureCause 里出门前的那四个逐字相同；本定义不 $ref 它——那份契约以 $ref 取本契约的消息，反向引用会让两份契约互为依赖（S-50）。released 只收 credential_unavailable：档案快照与有效模型在打开调用时绑定、续接与再发不重核，只有每次现取的凭据会在发出过之后才取不到。",
       "type": "object",
       "properties": {
         "kind": { "const": "model_call_ended" },

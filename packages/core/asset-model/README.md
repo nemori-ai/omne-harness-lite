@@ -1,5 +1,8 @@
 # asset-model
 
+当前实现采用 `data.asset-model v3`（[规范](../../../.meta_harness/design/spec/data/asset-model/v3/contract.md)）。公开 `./schema` 为冻结 v3；`./schema/v2` 只保留完整冻结 v2 资源及原 `$id`，不提供 v2 领域行为兼容入口。
+
+
 `@omne-harness-lite/asset-model` implements the locally decidable value boundaries of
 [`data.asset-model` v2](../../../.meta_harness/design/spec/data/asset-model/v2/contract.md),
 adopted through the [asset-model realization](../../../.meta_harness/design/realization/packages/core/asset-model/design.md).
