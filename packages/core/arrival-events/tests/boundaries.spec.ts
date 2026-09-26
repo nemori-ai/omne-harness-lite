@@ -116,7 +116,7 @@ describe('V-3 optional opened view and per-kind replacement predicates', () => {
     const calls: JsonNumber[] = []
     const read: OpenBlock = index => {
       calls.push(index)
-      return opened('text', 'replace')
+      return Object.freeze({ ...opened('text', 'replace'), index })
     }
     const envelope = json(
       '{"target":{"kind":"model_call","callId":"m","dispatch":1},"event":{"t":"fill","index":9007199254740993,"payload":""}}',
