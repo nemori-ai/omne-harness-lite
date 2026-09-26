@@ -207,6 +207,16 @@ describe('M inventory fields and rejecting actual malformed inputs', () => {
   for (const value of ['session', 'sandbox'])
     it(`EX6 binding reject ${value}`, () =>
       expect(validate('BindingLayer', value).valid).toBe(false))
+  for (const [category, valid] of [
+    ['preference', true],
+    ['binding', true],
+    ['placement_identity', true],
+    ['governance', true],
+    ['placement', false],
+    ['Preference', false],
+  ] as const)
+    it(`EX6 shared SettingCategory ${category}`, () =>
+      expect(validate('SettingDeclaration', { category, default: 'explicit' }).valid).toBe(valid))
   for (const value of [{ default: 'forbid' }, { default: 'auto' }, { default: 'ask' }])
     it(`EX6 permission ${value.default}`, () =>
       expect(validate('ExecutePermission', value).valid).toBe(true))
