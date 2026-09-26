@@ -1,7 +1,7 @@
 import { Buffer } from 'node:buffer'
 import { describe, expect, it } from 'vitest'
 import { judgeAccountValue } from '@omne-harness-lite/call-accounts'
-import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
+import { judgeContentBlock, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { acceptWithSealer } from '../src/accept.ts'
 import { incompleteToolCall, parseCollectedToolCall, type ToolOpening } from '../src/close.ts'
 import { closeOut, snapshot, start } from '../src/operations.ts'
@@ -222,7 +222,7 @@ describe('V-3 fixed-seed independent partition, byte and trim oracles', () => {
         fill: 'append',
         id: 'call-block',
         visibility: { toHuman: true, toModel: true },
-        head: { callId: 'call-property', tool: 'ns::probe' },
+        head: { callId: 'call-property', tool: 'ns__probe' },
       }
       let split = accepted(initial(model), opened)
       for (const chunk of chunks) split = accepted(split, { t: 'fill', index: 0, payload: chunk })
@@ -239,6 +239,7 @@ describe('V-3 fixed-seed independent partition, byte and trim oracles', () => {
       const block = settled(split).blocks[0]
       if (block?.kind !== 'tool_call' || !block.complete || 'unparseable' in block)
         throw new Error('legal generated call not parsed')
+      expect('ok' in judgeContentBlock(block)).toBe(true)
       expect(writeJsonLossless(block.arguments)).toBe(raw)
     },
   )
