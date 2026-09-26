@@ -78,7 +78,7 @@ fixture 通过只证明检查器能检出指定反例，不证明尚未实现的
 
 | 规则 | 默认实际范围 | 不覆盖 |
 |---|---|---|
-| body-projection-inputs | 工具 declarations.ts/toolAttributeDeclarations；类型 import、登记正文参数、直接宿主全局/隐式 this；包存在而锚点消失必红 | 其余五正文模块待实现后登记；保留/治理项的完整动态返回由 asset-model 守卫及六真实端口组合测试证实；不证明任意跨文件状态读取不存在 |
+| body-projection-inputs | tool-definition、loop-extension、skill-package、mcp-endpoint 各自的 declarations.ts，共七个声明／引用函数；类型 import、登记正文参数、MCP 显式可选动作副本、直接宿主全局/隐式 this；每包独立触发，存在包丢失模块或函数必红 | Slash 尚无源码，Connector 本阶段延期；包缺席是覆盖缺口。保留/治理项的完整动态返回由 asset-model 守卫及真实端口组合测试证实；不证明任意跨文件状态读取不存在 |
 | parameter-judge-cache-owner | 工具 parameters.ts/createParameterJudge 中登记的编译器/动态 cache 分配点，必须在调用方工厂内；同文件标识符别名也查 | 不禁整个包/全仓 Map/Set；固定自有 Schema 编译不在此模块范围；不证明 GC 时点、内存上界、间接工厂或对象独立性 |
 
 这两条随实际工具包出现生效；源码尚不存在的包不产生符合性证据。

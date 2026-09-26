@@ -104,10 +104,12 @@ export function createBodyProjectionInputs(targets: readonly BodyProjectionTarge
   if (targets.length === 0) throw new TypeError('body-projection-inputs 需要非空实际范围')
   return {
     id: 'body-projection-inputs',
-    source: 'data.asset-model/v1 SC-6 · data.tool-definition/v1 S-31 · 各正文推出条款',
+    source:
+      'data.asset-model/v1 S-12/S-25/SC-6 · data.tool-definition/v1 S-31 · data.loop-extension/v1 S-40 · data.skill-package/v1 SC-4 · data.mcp-endpoint/v1 S-14～S-17/SC-2',
     description: '登记的正文推出模块只导入类型、接明确正文及批准动作副本，不读宿主全局',
     check(files) {
       const out: Violation[] = []
+      const inspectedModules = new Set<string>()
       for (const target of targets) {
         const { file, fn, missing } = targetFunction(this.id, files, target)
         out.push(...missing)
@@ -126,6 +128,8 @@ export function createBodyProjectionInputs(targets: readonly BodyProjectionTarge
               problem(this.id, file, parameter, '推出函数参数必须是登记的显式正文／动作类型'),
             )
         }
+        if (inspectedModules.has(file.path)) continue
+        inspectedModules.add(file.path)
         visitSyntax(syntaxOf(file), node => {
           if (ts.isImportDeclaration(node)) {
             const clause = node.importClause
@@ -420,12 +424,42 @@ export function createSingleToolArgumentParser(inputs: ToolArgumentParserInputs)
   }
 }
 
-/** 已由主调度点名的实际工具包模块；其它正文模块在接口释放后逐个登记。 */
+/** 已由主调度点名且源码存在的四类正文模块；没有源码的正文不登记占位锚点。 */
 export const CORE_BODY_PROJECTION_TARGETS: readonly BodyProjectionTarget[] = Object.freeze([
   Object.freeze({
     path: 'core/tool-definition/src/declarations.ts',
     functionName: 'toolAttributeDeclarations',
     parameterTypes: Object.freeze(['ToolDefinition']),
+  }),
+  Object.freeze({
+    path: 'core/tool-definition/src/declarations.ts',
+    functionName: 'toolReferences',
+    parameterTypes: Object.freeze(['ToolDefinition']),
+  }),
+  Object.freeze({
+    path: 'core/loop-extension/src/declarations.ts',
+    functionName: 'loopExtensionAttributeDeclarations',
+    parameterTypes: Object.freeze(['LoopExtensionDefinition']),
+  }),
+  Object.freeze({
+    path: 'core/loop-extension/src/declarations.ts',
+    functionName: 'loopExtensionReferences',
+    parameterTypes: Object.freeze(['LoopExtensionDefinition']),
+  }),
+  Object.freeze({
+    path: 'core/skill-package/src/declarations.ts',
+    functionName: 'skillAttributeDeclarations',
+    parameterTypes: Object.freeze(['SkillPackage']),
+  }),
+  Object.freeze({
+    path: 'core/skill-package/src/declarations.ts',
+    functionName: 'skillReferences',
+    parameterTypes: Object.freeze(['SkillPackage']),
+  }),
+  Object.freeze({
+    path: 'core/mcp-endpoint/src/declarations.ts',
+    functionName: 'deriveMcpDeclarations',
+    parameterTypes: Object.freeze(['McpEndpoint', 'ActionSnapshot']),
   }),
 ])
 
@@ -446,10 +480,20 @@ function whenPackageExists(prefix: string, rule: Rule): Rule {
   }
 }
 
-export const bodyProjectionInputs: Rule = whenPackageExists(
-  'core/tool-definition/src/',
-  createBodyProjectionInputs(CORE_BODY_PROJECTION_TARGETS),
-)
+const registeredBodyInputs = createBodyProjectionInputs(CORE_BODY_PROJECTION_TARGETS)
+
+export const bodyProjectionInputs: Rule = {
+  ...registeredBodyInputs,
+  check(files) {
+    const presentTargets = CORE_BODY_PROJECTION_TARGETS.filter(target => {
+      const sourcePrefix = target.path.slice(0, target.path.indexOf('/src/') + '/src/'.length)
+      return files.some(file => productSourceIn(file.path, sourcePrefix))
+    })
+    return presentTargets.length === 0
+      ? []
+      : createBodyProjectionInputs(presentTargets).check(files)
+  },
+}
 
 export const parameterJudgeCacheOwner: Rule = whenPackageExists(
   'core/tool-definition/src/',
