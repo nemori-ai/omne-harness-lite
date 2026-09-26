@@ -307,7 +307,7 @@ export interface DecisionCardDraft {
   readonly explanation: string
   readonly options: readonly [CardOption, ...CardOption[]]
   readonly about: { readonly position: Position; readonly callId?: CallId }
-  readonly proposedRewrite?: { readonly arguments: ToolCallBlock['arguments'] }
+  readonly proposedRewrite?: { readonly arguments: Exclude<ToolCallBlock['arguments'], undefined> }
 }
 export interface AskOutput {
   readonly kind: 'ask'

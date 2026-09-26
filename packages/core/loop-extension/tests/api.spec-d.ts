@@ -11,6 +11,7 @@ import type {
   Power,
   FailureCause,
   LogHandle,
+  DecisionCardDraft,
 } from '../src/index.ts'
 import {
   loopExtensionBodyContract,
@@ -99,6 +100,15 @@ it('LE-TYPE-API: emitted exports and real category literal', () => {
   // @ts-expect-error required explicit environment input
   const input: ExtensionInput = inputValue
   void input
+  const absentArguments = {
+    explanation: 'x',
+    options: [{ id: 'y', label: 'yes' }],
+    about: { position: 'before_action', callId: validCallId },
+    proposedRewrite: { arguments: undefined },
+  } as const
+  // @ts-expect-error required JSON argument data cannot be undefined
+  const invalidCard: DecisionCardDraft = absentArguments
+  void invalidCard
   expectTypeOf(judgeDefinition).parameter(0).toBeUnknown()
   expectTypeOf(judgeInput).parameter(0).toBeUnknown()
   expectTypeOf(judgeOutput).parameter(0).toBeUnknown()
