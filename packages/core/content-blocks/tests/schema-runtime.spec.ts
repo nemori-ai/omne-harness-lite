@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import validationMeta from 'ajv/dist/refs/json-schema-2020-12/meta/validation.json' with { type: 'json' }
 import { writeJsonLossless, readJsonStrict, type JsonValue } from '../src/json.ts'
 import {
   createSchemaRuntime,
@@ -21,6 +22,19 @@ function schema(text: string): SchemaDocument {
 }
 const runtime = createSchemaRuntime([])
 describe('protected schema-runtime original-value boundary', () => {
+  it('pins standard meta inputs independently of other consumers of Ajv JSON resources', () => {
+    const definition = validationMeta.$defs.nonNegativeInteger
+    const before = definition.type
+    try {
+      definition.type = 'string'
+      const fresh = createSchemaRuntime([])
+      expect(fresh.metaValidate({ minLength: 1 })).toBe(true)
+      expect(fresh.metaValidate({ minLength: -1 })).toBe(false)
+      expect(fresh.metaValidate({ minLength: '1' })).toBe(false)
+    } finally {
+      definition.type = before
+    }
+  })
   it.each([
     ['{"type":"integer"}', '1.0000000000000000000001', false],
     ['{"type":["integer","null"]}', '1e400', true],

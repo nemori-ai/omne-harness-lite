@@ -419,6 +419,25 @@ export function exactSchema(schema: JsonValue): JsonValue {
     }),
   )
 }
+// Only fixed dialect inputs live at module scope. Pin their own lossless copies;
+// another consumer of Ajv's mutable JSON imports cannot change this authority.
+const fixedMetaResources = Object.freeze(
+  [
+    metaSchema,
+    applicatorMeta,
+    unevaluatedMeta,
+    contentMeta,
+    coreMeta,
+    formatMeta,
+    metadataMeta,
+    validationMeta,
+  ].map(resource => {
+    const parsed = readJsonStrict(writeJsonLossless(resource))
+    if ('failed' in parsed) throw new Error('standard meta-Schema is not JSON')
+    return parsed.ok
+  }),
+)
+const fixedMetaId = metaSchema.$id
 /** Reuse the standard dialect resources, with the same exact original-value checks. */
 export function createExactMetaValidator(): (schema: JsonValue, projected: JsonValue) => boolean {
   const ajv = new Ajv2020({
@@ -430,21 +449,12 @@ export function createExactMetaValidator(): (schema: JsonValue, projected: JsonV
     passContext: true,
   })
   installExactKeywords(ajv)
-  for (const resource of [
-    metaSchema,
-    applicatorMeta,
-    unevaluatedMeta,
-    contentMeta,
-    coreMeta,
-    formatMeta,
-    metadataMeta,
-    validationMeta,
-  ]) {
+  for (const resource of fixedMetaResources) {
     const transformed = exactSchema(resource)
     if (!object(transformed)) throw new Error('standard meta-Schema is not an object')
     ajv.addMetaSchema(transformed)
   }
-  const validator = ajv.getSchema(metaSchema.$id)
+  const validator = ajv.getSchema(fixedMetaId)
   if (validator === undefined) throw new Error('standard meta-Schema is unavailable')
   return (schema, projected) => validator.call({ root: schema }, projected) === true
 }

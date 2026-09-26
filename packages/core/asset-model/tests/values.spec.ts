@@ -66,24 +66,30 @@ describe('S-4/S-17/S-19 deterministic literal algorithms', () => {
   })
   it('uses the exact injected tuple encoding, is injective for a fixed Cartesian corpus and disjoint from random ids', () => {
     const ids = new Set<string>()
-    for (const directory of ['/a', '/a:b', '/中文', '/😀'])
-      for (const category of ['tool', 'skill'] as const)
-        for (const name of ['x', 'X', 'x:y']) {
-          const workspace = { tenant, directory }
-          const capability = { category, name }
-          const result = carrierRecordId(workspace, capability)
-          const oracle =
-            'wsc1.' +
-            Buffer.from(
-              JSON.stringify(['org', 'account', directory, category, name]),
-              'utf8',
-            ).toString('base64url')
-          expect(result).toBe(oracle)
-          expect(carrierRecordId(workspace, capability)).toBe(result)
-          expect(ids.has(result)).toBe(false)
-          ids.add(result)
-          expect(generateOpaqueIdentifier()).not.toContain('.')
-        }
+    for (const organization of ['org', 'org:other'])
+      for (const account of ['account', 'account:other'])
+        for (const directory of ['/a', '/a:b', '/中文', '/😀'])
+          for (const category of ['tool', 'skill'] as const)
+            for (const name of ['x', 'X', 'x:y']) {
+              const workspace = {
+                tenant: unwrap(parseTenantId({ organization, account })),
+                directory,
+              }
+              const capability = { category, name }
+              const result = carrierRecordId(workspace, capability)
+              const oracle =
+                'wsc1.' +
+                Buffer.from(
+                  JSON.stringify([organization, account, directory, category, name]),
+                  'utf8',
+                ).toString('base64url')
+              expect(result).toBe(oracle)
+              expect(carrierRecordId(workspace, capability)).toBe(result)
+              expect(ids.has(result)).toBe(false)
+              ids.add(result)
+              expect(generateOpaqueIdentifier()).not.toContain('.')
+            }
+    expect(ids.size).toBe(96)
     expect(() =>
       carrierRecordId({ tenant, directory: '/a/' }, { category: 'tool', name: 'x' }),
     ).toThrow(TypeError)
