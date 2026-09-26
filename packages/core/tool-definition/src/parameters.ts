@@ -1,7 +1,7 @@
 import {
   createSchemaRuntime,
   type SchemaValidator,
-} from '@omne-harness-lite/asset-model/schema-runtime'
+} from '@omne-harness-lite/content-blocks/schema-runtime'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { copyJson, object } from './json.ts'
 import { patternFlags, unsupportedPattern } from './pattern.ts'

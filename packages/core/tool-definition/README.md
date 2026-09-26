@@ -8,7 +8,7 @@ Import the package public entry for definition/return types, ordered representat
 judgments, model entries and names, the `toolBodyContract`, and
 `createParameterJudge()`. The caller owns this object's compiler/cache lifetime;
 there is no author-schema cache shared between callers. Parameter schemas retain
-exact JSON numbers through the public asset-model Schema runtime.
+exact JSON numbers through the public content-blocks Schema runtime.
 
 `toolDependencies(definition, effectiveTargetEnvironment)` requires the caller's
 already evaluated environment, or explicit `undefined` when none is declared.
