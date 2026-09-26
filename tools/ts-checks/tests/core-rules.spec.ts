@@ -42,6 +42,46 @@ const purePackages = [
 ]
 
 describe('core-pure-imports', () => {
+  it('中性 Schema runtime 从批准的 content-blocks 依赖公开子入口消费', () => {
+    for (const pkg of ['asset-model', 'tool-definition', 'messages']) {
+      expect(
+        corePureImports.check([
+          file(
+            `core/${pkg}/src/schema.ts`,
+            `import { createSchemaRuntime } from '@omne-harness-lite/content-blocks/schema-runtime'`,
+          ),
+        ]),
+      ).toEqual([])
+      for (const specifier of [
+        '@omne-harness-lite/content-blocks/schema-runtime/private',
+        '@omne-harness-lite/content-blocks/schema-runtime.js',
+        '@omne-harness-lite/content-blocks/src/schema-runtime/index.ts',
+        '@omne-harness-lite/content-blocks/dist/schema-runtime/index.js',
+        '@omne-harness-lite/content-blocks/testing',
+        'node:fs',
+      ])
+        expect(
+          corePureImports.check([file(`core/${pkg}/src/schema.ts`, `import '${specifier}'`)]),
+        ).toHaveLength(1)
+    }
+    expect(
+      corePureImports.check([
+        file(
+          'core/mcp-endpoint/src/schema.ts',
+          `import '@omne-harness-lite/content-blocks/schema-runtime'`,
+        ),
+      ]),
+    ).toHaveLength(1)
+    expect(
+      corePureImports.check([
+        file(
+          'core/content-blocks/src/schema.ts',
+          `import '@omne-harness-lite/content-blocks/schema-runtime'`,
+        ),
+      ]),
+    ).toHaveLength(1)
+  })
+
   it('已批准 asset-model 依赖的消费者可用精确 schema-runtime 子入口', () => {
     for (const statement of [
       `import { createSchemaRuntime } from '@omne-harness-lite/asset-model/schema-runtime'`,
