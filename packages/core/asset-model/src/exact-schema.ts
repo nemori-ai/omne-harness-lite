@@ -30,15 +30,6 @@ interface Decimal {
   readonly digits: string
   readonly exponent: bigint
 }
-export class UnsupportedSchemaKeywordError extends Error {
-  constructor(
-    readonly keyword: 'minContains' | 'maxContains',
-    readonly numericSource: string,
-  ) {
-    super(`${keyword} cannot be compiled exactly outside the safe integer range: ${numericSource}`)
-    this.name = 'UnsupportedSchemaKeywordError'
-  }
-}
 function decimal(value: unknown): Decimal | undefined {
   if (!isJsonNumber(value)) return undefined
   const raw = jsonNumberSource(value)
@@ -360,13 +351,21 @@ const privateKeywords = new Set([
   'exact_minProperties',
   'exact_maxProperties',
 ])
+const nonDraftExtensions = new Set([
+  '$async',
+  'nullable',
+  'id',
+  '$recursiveAnchor',
+  '$recursiveRef',
+  'dependencies',
+])
 /** Transform only actual subschemas, never the objects inside enum/default/const. */
 export function exactSchema(schema: JsonValue): JsonValue {
   if (!object(schema)) return schema
   return Object.fromEntries(
     Object.entries(schema).flatMap(([key, value]) => {
       // Unknown author annotations cannot impersonate our private compiler keywords.
-      if (privateKeywords.has(key)) return []
+      if (privateKeywords.has(key) || nonDraftExtensions.has(key)) return []
       if (
         [
           'minLength',
@@ -384,7 +383,10 @@ export function exactSchema(schema: JsonValue): JsonValue {
         isJsonNumber(value) &&
         !Number.isSafeInteger(Number(jsonNumberSource(value)))
       )
-        throw new UnsupportedSchemaKeywordError(key, jsonNumberSource(value))
+        // Actual JS arrays have length < 2^32. Matching elements cannot exceed
+        // that length, so both comparisons retain their truth value at this
+        // boundary. Original/meta Schema values remain untouched.
+        return [[key, Number.MAX_SAFE_INTEGER]]
       if (
         ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf'].includes(
           key,
