@@ -1,0 +1,48 @@
+# 会话日志（窄口）
+
+**一个会话的[会话日志](../../../ubiquitous_language/terms/record-and-context.md#ul-session-log--会话日志--session-log)里，追加一批条目、按键读、从某个位置往后读；追加时判重、判尝试栅栏。**
+这是按三个运行时消费者（工具执行运行时、模型请求运行时、拓展点派发）已列出的要求定的**窄口接口**，不是整本会话日志的契约——那一份归 loop 与会话那一程。
+
+> 本契约兑现的是词条[会话日志](../../../ubiquitous_language/terms/record-and-context.md#ul-session-log--会话日志--session-log)的一个窄口；条目壳、判重键、读取键、日志位置无词条，定义只在契约里。
+
+- **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.session-log, 1)`
+- **状态**：`candidate`（2026-09-25 起草；同日「公开面」修订波原地改，见[修订波](verification.md#修订波2026-09-25-公开面)），**未接受、未冻结**
+- **catalog 映射**：已登记为 `candidate`；`family=capabilities`、`topic=session-log`、
+  `contract_path=spec/capabilities/session-log/v1/contract.md`；`resources` 含契约、`examples.md` 与 `formal/` 下八个文件（入口 README、模型、六个配置）；
+  依赖五项：`data.identity-values`、`data.messages`、`data.call-accounts`、`data.content-blocks`、`capability.session-tenancy`（均 v1），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)
+- **formal-tasks 映射**：`session-log-v1-appends`（正配置）；五个有效性与可达性配置不登记。已执行一次，结果在[验证入口](verification.md#形式工件)
+- **提供者/装配映射**：最小提供者是文件系统 JSONL 追加器（[契约第十一节](v1/contract.md#十一提供者映射)），**节点由主线另立，尚无**；它取代验收装配里的会话日志替身（[D-043 R-1](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）
+
+## 准入核对
+
+| 准入问题 | 答 |
+|---|---|
+| 语义拥有者 | 本契约。条目的全序与位置、判重、尝试栅栏、一本日志一个租户身份、提交即持久——**它们被「多个写入方对同一本日志的并发写只能在这一处排出次序」绑在一起** |
+| 为什么是 capability 而不是 data | 每个操作有前置、提交点、失败集合与缺席默认；有状态（一本只增的日志）和它的判定 |
+| 为什么现在立、而且这么窄 | 产品负责人 2026-09-25 同意把验收装配里的替身换成「接口契约 ＋ 最小提供者」、接口按消费者需要定窄口（[D-043 R-1](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）。三个运行时的正确性（「恰一条」「旧尝试写不进」）都落在会话日志上，**没有这一份，它们的跨 owner 交错没有共同存储对象可指** |
+| 为什么不并进某个消费者 | 三个写入方共用同一本日志、同一道栅栏；归哪一方都让另外两方去读它的内部 |
+| 精确依赖 | 见上；**依赖方向单向**：本契约 → 身份值、消息、账、块、会话持有租户读面；写入方与读方消费本契约 |
+| 接受状态 | 未接受 |
+
+## 按当前问题展开
+
+| 当前问题 | 阅读入口 |
+|---|---|
+| 本候选版本精确承诺什么、不收什么 | [v1 契约](v1/contract.md)第一节 |
+| 条目壳里有什么 | [契约 S-6](v1/contract.md#s-6-条目与它的壳) |
+| 判重键怎样防「两条」 | [契约 S-8](v1/contract.md#s-8-判重键) |
+| 尝试栅栏怎样判 | [契约 S-10](v1/contract.md#s-10-尝试栅栏) |
+| 三个操作的九件事 | [契约第四节](v1/contract.md#四操作) |
+| 回执丢了怎么办 | [契约 S-22](v1/contract.md#s-22-回执丢失与结果未知) |
+| 单机给的哪些保证，跨进程后要由协议重新兑现 | [契约 S-21](v1/contract.md#s-21-装配给的保证-vs-协议须给的保证) |
+| 消费者的每一条要求落在哪 | [契约第十二节](v1/contract.md#十二消费者核对) |
+| 走通的路径与每个失败值的反例 | [examples](v1/examples.md) |
+| 行为模型检查什么、前提是什么 | [formal 入口](v1/formal/README.md) |
+| 哪些证据义务已触发、现在到哪一步 | [验证与覆盖](verification.md) |
+| 哪些事还没人裁 | [契约第十节](v1/contract.md#十已知缺口) |
+
+## 版本包
+
+`v1/` 含 `contract.md`、`examples.md` 与 `formal/`（`SessionLog.tla`、一个正配置、五个有效性与可达性配置、入口 README）。**不建 Schema**：载荷形状归各自的 data 契约，条目壳与操作的线上形状归将来投影它的组合契约。
+
+本入口不代替唯一 catalog；推荐版本不会自动升级消费者。返回[能力契约](../README.md)。

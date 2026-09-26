@@ -1,0 +1,39 @@
+# 模型请求运行时
+
+**会话据点上，一个会话怎样选模型、每一次[模型调用](../../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call)怎样发出、怎样收场、停机之后怎样对账。**
+它拥有选中模型的切换、有效模型的四步求值、合法目标集合与展示列表、一次调用的状态与每一次发出、三类事实的发出守卫、两个耐久锚点、中断、恢复对账、成因分类、凭据现取与脱敏，以及系统自带的默认重试件。
+
+**它不拥有**档案与凭据（`capability.model-profile-directory` v1，中心侧）、响应体与账的形状（`data.model-response`、`data.call-accounts`）、拓展件的执行（`capability.loop-extension-runner`）、模态投影的判定函数（`capability.modality-projection`）、上下文组装与会话日志本身。
+**上交条目、中断提醒、回复消息的写入归 loop**——本契约把带回复的响应体交回，落盘成消息的那一条由调用方与消息同一提交写下；被否决、被系统拿去用的那一条由调用方交回处置、本能力写下（`settleReply`）。
+
+**本能力的提供者是运行时协程**——名字里的「运行时」指它（统一语言冲突 C-31「叫 runtime 的必须是协程」以此闭合：[D-040 §七 M18](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)，维持 §一 T-3）。
+
+- **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.model-request-runtime, 1)`
+- **状态**：`candidate`（2026-09-23 起草；2026-09-24 第一轮独立评审之后原地修复，处置表在[验证入口](verification.md#独立评审)；修复波 1b 补 S-51 模型侧到达装配前提的承诺与追补体参数三项的来源；2026-09-25 第二轮独立复评之后修复波 2 原地改：撤除走放弃、「已开口」写不进那一支、被拒事件的日志事件、允许集合来源立 G-19；同日「公开面」修订波按 D-043 R-4 闭合 G-19（`A` 由目录读面直接给）、按 R-6 闭合 G-8（退避是可配置策略）、另立 G-20——[修订波](verification.md#修订波2026-09-25-公开面)）——未接受、未冻结；修复波 2 尚未复审
+- **操作**：十三个（S-24～S-34、S-49、S-50；S-35 默认重试件是一件拓展件，不是服务面操作）；服务面名 `settleReply` 与输入成员 `basis` 已由主线接受（D-040 §六 N-9，原 G-13 闭合）
+- **catalog 映射**：已登记为 candidate。`family=capabilities`、`topic=model-request-runtime`、
+  `contract_path=spec/capabilities/model-request-runtime/v1/contract.md`；`resources` 另含 `v1/examples.md`、`v1/formal/README.md`、`v1/formal/Invocation.tla` 与十份配置；
+  依赖十六项（2026-09-24 整批对齐补登 `capability.stream-assembly`、`capability.modality-projection`、`capability.asset-evaluation`；2026-09-25 修复波 2 补登 `data.arrival-events`，同日「公开面」修订波补登 `capability.session-log`，N7 评审之后补登 `capability.asset-registry`；`capability.loop-extension-runner` 只指路，它反过来消费本契约），消费 clauses 取自[契约 S-4 的被消费面表](v1/contract.md#s-4-依赖方向与被消费的面)，与它逐项相同
+- **formal-tasks 映射**：两个任务——`model-request-runtime-v1-invocation`（`Invocation.cfg`）与 `model-request-runtime-v1-invocation-no-fallback`（`Invocation_NoFallback.cfg`），2026-09-24 修复稿本机 TLC 退出 0、无反例；
+  八份否定与可达性配置**按设计不登记**（它们预期出反例），执行结果在[验证入口](verification.md#实际执行)；哪些断言被证明能失败、哪些被建模方式吸收，见 [formal 入口](v1/formal/README.md)
+- **提供者／装配映射**：尚无
+
+## 准入核对
+
+- **独立责任**：一次调用的发出、收场与恢复住在据点、跟着 agent runtime 生灭；它的变化原因（上游行为、传输、首 token 与停机规则）与中心侧档案目录不同，消费者也不同（loop、拓展件、交付面的切换与停止）。
+- **稳定身份与版本**：首版 v1，候选。
+- **依赖**：两份已接受（`data.identity-values`、`data.offer-expiry`），其余候选——候选依赖改动时本契约须重核；原 G-1 列出的 `data.model-response` 与 `data.call-accounts` 对齐项已在 2026-09-24 整批对齐落地。
+
+## 按当前问题展开
+
+| 当前问题 | 阅读入口 |
+|---|---|
+| 本候选版本精确承诺什么 | [版本化契约](v1/contract.md) |
+| 各条路径走通是什么样、每个失败值的反例 | [规范实例](v1/examples.md) |
+| 行为模型表达了什么、每条断言对应哪条条款、吸收了什么 | [formal 入口](v1/formal/README.md) |
+| 哪些条款有怎样的证据，哪些仍缺 | [验证与覆盖](verification.md) |
+| 还有哪些没定、等谁裁 | [已知缺口](v1/contract.md#十二已知缺口) |
+
+## 版本包
+
+`v1/` 是候选版本目录。发布（接受并冻结）之后规范正文、实例与模型不可原地覆盖，修改发布新版本；执行记录留在版本目录外（[验证入口](verification.md)）。

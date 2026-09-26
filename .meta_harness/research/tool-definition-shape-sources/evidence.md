@@ -190,3 +190,48 @@
 ### M-5 依赖与耦合
 
 - 实际观察：`packages/tools/tools/package.json:32-43` 依赖 `@deepseek-ai/cordis` `4.0.2` 与八个 `@omne-harness-lite/*` workspace 包；`UPSTREAM.md:3-8`、`provenance.json:2-5` 记来源 DSH `c291e796`、MIT；`host.ts` 3619 行；应用装配里唯一的工具贡献是 `local_file`（`read`/`write` 两条命令，`environmentCapabilities: ['filesystem']`，`background: unsupported`）：`apps/local-harness/src/assembly.ts:1514-1561`
+
+## V：供应商工具格式——本项目工具定义须能投影成的线上形状（2026-09-24 补取证）
+
+取证条件：三份官方页面原样抓取，副本与 SHA-256 在主检出 `tmp/sources/extracted/{openai-docs,anthropic-docs,openrouter-docs}/`（`README.md` 有登记行）；下列断言只对抓取当日的页面成立。
+
+### V-1 OpenAI「Function calling」（`openai-docs/guides_function-calling.html`，SHA `92be5663…`）
+
+- 工具条目形状（Responses API 形式）：`{ "type": "function", "name", "description", "parameters", "strict" }`；**必填** `type` `name` `parameters`，`description` 与 `strict` 可选。Chat Completions 形式把 `name/description/parameters` 包在 `function` 成员里（OpenRouter 用的是这一形式，见 V-3）。
+- `parameters` **必须是 JSON Schema 且顶层 `type: "object"`**；每个参数的 `description` 页面写「推荐」（帮助模型正确使用每个字段）。
+- `strict: true` 时：每个对象 `additionalProperties: false`、全部属性列进 `required`、可选属性用 `type: ["string","null"]` 表达；不合规则请求被拒。
+- 限度：建议一轮开始时可用函数少于 20 个；名字与说明长度无明文。
+
+### V-2 Anthropic「Define tools」「Tool use overview」（`anthropic-docs/tool-use_define-tools.html` SHA `9d3bb7ae…`；`tool-use_overview.html` SHA `d6a6b687…`）
+
+- 工具条目形状：`{ "name", "description", "input_schema", "input_examples"? }`，另有 `strict`、`cache_control`、`defer_loading`、`allowed_callers` 可选。
+- `name` **必须匹配 `^[a-zA-Z0-9_-]{1,128}$`**——冒号、点、斜杠都不合法。
+- `input_schema` 是 JSON Schema 对象，示例顶层 `type: "object"` + `properties` + `required`。
+- 最佳实践原话：「Provide extremely detailed descriptions. This is by far the most important factor in tool performance」，要写清「What each parameter means and how it affects the tool's behavior」，每个工具说明至少 3～4 句；好例子里每个参数都带 `description`，坏例子正是参数无 `description`。
+- 请求里 `tools` 会被 API 组装进一段系统提示（「Here are the functions available in JSONSchema format」）。
+
+### V-3 OpenRouter「Tool calling」（`openrouter-docs/guides_features_tool-calling.html`，SHA `7df227bc…`）
+
+- 形状为 OpenAI Chat Completions 兼容：`{ "type": "function", "function": { "name", "description", "parameters" } }`；示例参数各带 `description`。
+- 流式：工具调用经 `choices[0].delta.tool_calls` 分片到达，`finish_reason: "tool_calls"`；回填用 `{ "role": "tool", "tool_call_id", "content" }`。
+- 页面**未写明**是否按供应商转译工具定义、也未写各家对 schema 关键字的限制——这一半仍是缺口（契约 G-12 的剩余部分）。
+
+### V-4 对本项目的含义（结论，选择归契约与主线）
+
+1. 三家的模型面条目都是同一份三元组 `{name, description, 参数 JSON Schema}`，只是包装与键名不同（`parameters` / `input_schema`；有无 `type: "function"` 外壳）——工具定义只要把这三样定死，投影就是纯键名映射，不需要改写 schema。
+2. 参数 schema 顶层必须 `type: "object"`（OpenAI 明文；Anthropic 示例与系统提示一致）。
+3. 每个参数的 `description` 两家一个「推荐」一个「最重要的因素」——把它写成本项目的**必填**代价为零、收益直接。
+4. 名字：Anthropic 的正则不含 `:`，而本项目能力标识 name 允许 `:`（MCP 条目「接入点:动作」、`omne-official:` 前缀）——**模型面名字必须经固定转写**，且转写要可逆，否则回来的 `tool_calls.name` 对不回定义。
+
+### V-5 实测：flat 形多命令工具在四家模型上的真实请求（2026-09-24，产品负责人授权）
+
+探针脚本与逐轮记录在主检出 `tmp/assets-runtimes/probes/`（`flat_multicommand_probe.py`、`results/*.json`；密钥只进请求头）。工具 `fs`（cat/grep/write）按契约 S-7 flat 形生成：`command` 为 enum 加一行一命令的表，`args` 为**无 `properties` 的 object**；另给一个模拟 `Tools().inspect` 的单函数工具。任务：不区分大小写找 TODO 行并把行数写入文件。经 OpenRouter `chat/completions`，`temperature 0`，`tool_choice auto`。
+
+| 模型（OpenRouter ID） | 有 inspect | 无 inspect（对照） |
+|---|---|---|
+| `openai/gpt-5.6-sol` | 先查 grep、write 两条用法，再调 `fs grep{path,pattern,ignoreCase}`、`fs write`，答 3 | 直接猜 `ignore_case`（未知键，被校验挡），**答错为 2** |
+| `anthropic/claude-opus-5.5` | 同上，两次 inspect 后两次 fs，答 3 | 改用 `cat` 全文自己数，答 3 |
+| `deepseek/deepseek-v4-pro` | 逐命令查用法再调用，答 3 | 用正则 `[Tt][Oo][Dd][Oo]` 绕开未知参数，答 3 |
+| `z-ai/glm-5.3` | 一次总览 inspect 后两次 fs，答 3 | 猜对 `ignoreCase`，答 3 |
+
+**结论**：① `args` 为无 `properties` 的 object 在四家都被接受（HTTP 200，`finish_reason: tool_calls`），没有一家因 schema 拒绝请求；② 有 inspect 时四家都先查用法再调用，参数键全部与命令 schema 一致；③ 没有 inspect 时模型会猜参数名——gpt-5.6-sol 猜错并给出错误答案，说明**判定层必须把「未知键／缺必填」明确拒回给模型并附该命令的用法**，不能静默忽略；④ 本结论只对这四个模型、这一份工具、该日 OpenRouter 路由成立。

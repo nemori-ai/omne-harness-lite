@@ -40,6 +40,13 @@
 | [D-036：斜杠命令识别与解析的起点](slash-command-parsing-baseline/README.md)                                                     | 一个**起点方向**：按产品正文自研统一解析器，借 Codex、omne-next、Claude Code 的部件（提案 D）                                                                                                                                                                                                                                               | 产品负责人，2026-09-23         | 任何契约或判定用例集；Q1–Q9 的技术选择；同日 Q3／Q7／Q8 与三项产品未决的作答（归 PF-002／PF-014／PF-016／PF-004 下一次 rev） |
 | [D-037：MCP 客户端的采用](mcp-client-adoption/README.md)                                                                        | **实现路径 + 本版桥接范围 + stdio 落点**：官方 `@modelcontextprotocol/sdk` 上自写薄桥（提案 C），同行封装只借鉴避坑；桥 tools／取消／日志／静态鉴权／两种传输、elicitation（契约就位前不声明）、进度→发帧、OAuth；不桥 resources 条目／prompts／sampling／roots／任务式动作／旧式 SSE；stdio 本版一律据点机拉起，「可换落点」记为将来拓展点 | 产品负责人，2026-09-23         | 任何契约或实现；SDK 精确钉版与能力已核实；OAuth 可开工（三件产品面事项未闭合）；连接与子进程的宿主已定                       |
 | [D-038：块 D 与两块运行时的数据形状](message-and-shape-rulings/README.md) | **十九处分岔与三条追加要求**的形状裁决（压缩可见性、完整响应体、账与 select_model 口子；Q1–Q19）；契约里「产品负责人裁定」依据的长期落点 | 产品负责人，2026-09-23 | 任何契约的接受；主线为起草补的推导（记任务区账本，未签字）；G1–G11 任何一项 |
+| [D-039：三块能力拆分接受、领域名与装配落点、2026-09-24 裁决汇编](assets-runtimes-split-and-rulings/README.md) | **拆分候选接受**（assets B / tools C / model A·A·A）、领域名 `assets` `tools` `model` `agent-loop`、两块运行时归 `apps/cli`、`tenancy-host` 不改名但记承载张力；同日 U-1～U-6、U-24-1～4、PF-002 D-2/D-3/D-4、PF-007 D-3 逐条原话；契约未接受 |
+| [D-040：主线在自驱授权下的自定裁决汇编](mainline-self-rulings-2026-09/README.md) | 2026-09-23 夜～24 主线在产品负责人自驱授权下作出的一百余条裁定**逐字**汇编（账本 §二、§二′ 主线自定行、第二轮修订 R2-1～R2-16、G-24/25），作为契约里「主线裁定，待产品负责人确认」依据的长期落点；**产品负责人尚未逐条追认**，被推翻的项在正文第四节追加登记 | 设计主线（授权：产品负责人，2026-09-23） | 逐条追认；任一条被推翻即由推翻它的决定取代；契约接受（G4） |
+| [D-041：接受资产／工具运行时／模型请求运行时一程的 34 份候选契约（草案，待签）](assets-runtimes-contract-acceptance/README.md) | 两轮独立评审收敛后的接受材料：27 份坐标与条款范围、准入核对、保留前提；**未签字，catalog 仍 candidate、不冻结** | 2026-09-25 起草 |
+| [D-042：接受资产／工具运行时／模型请求运行时一程的 32 个新立节点与 3 处修订（草案，待签，G5）](assets-runtimes-node-acceptance/README.md) | 五批 architecture-reviewer 独立评审（N1～N5）收口后的节点接受材料：27 处节点的设计为各契约的实现路径、下一程缺口 C-1～C-16 作显式缺口；**以 D-041 先签或同签为前提；未签字，节点仍 candidate** | 2026-09-25 起草 |
+| [D-043：2026-09-25 产品负责人裁决汇编（接口契约批、SYS-OPEN、七张卡片）](assets-runtimes-rulings-2026-09-25/README.md) | 替身改接口契约 + 最小提供者；核心能力是公开函数闭包（SYS-OPEN）；D-041／D-042 先抽查再签；G-19 本版不收窄；pi-ai fork 钉 0.86.1@3390bd9 入 monorepo；重试是可配置策略、复用成熟库；⑥⑦⑧⑫⑬ 接受主线建议 | 产品负责人，2026-09-25 |
+
+| [D-044：2026-09-26 收尾裁决与实施授权](assets-runtimes-rulings-2026-09-26/README.md) | hooks 可落宿主机；被取代尝试的迟到账照落；OAuth 重授权接受为已知缺口；session 定名；OpenRouter 少量真实请求授权 | 产品负责人，2026-09-26 | 凭据保管方定义尚未确认；G4／G5／G6 未签；比较门未验证 |
 
 **编号**：`D-` 是[决定的稳定编号](../../registry/README.md)。
 D-019 是**迁入时保留的原号**——同一次接受在旧谱系里就是这个号，

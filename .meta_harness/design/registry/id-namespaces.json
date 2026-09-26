@@ -43,6 +43,12 @@
       "kind": "contract-evidence-item",
       "owner": "spec",
       "description": "契约的消费者核对场景（CS-）、隔离义务规范场景（IS-）、静态检查（SC-）、证据义务（V-）、性质（P-）编号。作用域限于单个契约的单个版本；跨契约引用须带契约坐标；covers.json 的 target.clauses 只接 S- 条款，这几族不作为覆盖目标"
+    },
+    {
+      "prefix": "M",
+      "kind": "contract-malformed-cause",
+      "owner": "spec",
+      "description": "契约表示层拒绝值 `malformed` 的来由编号（M1、M2…），供同一份坏输入在不同实现里报出同一个值时对照。作用域限于单个契约的单个版本；不进 covers.json；跨契约引用须带契约坐标。2026-09-23 起由 data.model-profile 与 data.tool-definition 使用"
     }
   ]
 }

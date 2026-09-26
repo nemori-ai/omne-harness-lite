@@ -58,7 +58,7 @@ evidence/
 
 ## 当前状态
 
-**本区有四次运行**：2026-09-22 两次形式工件执行，2026-09-23 一次形式工件执行与一次实现测试运行。
+**本区的运行**：2026-09-22 两次形式工件执行；2026-09-23 一次形式工件执行、一次实现测试运行、一次 Alloy 重跑与两次端到端验收；2026-09-25 六次（见下表）。
 
 | run                                                                                                 | 跑了什么                                                                                                                                                                                                           | 结果                                                         |
 | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
@@ -84,6 +84,17 @@ evidence/
 迁入是整目录搬运。
 
 **2026-09-23 另有一次 Alloy 重跑**：[`2026-09-23-alloy-affiliation/`](2026-09-23-alloy-affiliation/README.md)——`Affiliation.als` 自 run `-2` 之后改过一行注释（冻结的是改后的文件），对当前文件重跑四条命令，结论与 run `-2` 逐条相同；同样不是 formal task。
+
+**2026-09-25 资产／工具运行时／模型请求运行时一程**（契约全部仍 `candidate`，接受归 [D-041](../decisions/assets-runtimes-contract-acceptance/README.md)，待签）：
+
+| run | 跑了什么 | 结果 |
+|---|---|---|
+| [`2026-09-25-formal-assets-runtimes/`](2026-09-25-formal-assets-runtimes/README.md) | 本程 8 个已登记 formal task（asset-transfer ×3、stream-assembly、model-request-runtime ×2、tool-execution-runtime ×2），修复波 2 之后的模型 | 全部退出 0、无反例；快照与当前 `spec/` 逐文件相同 |
+| [`2026-09-25-validity-stream-assembly/`](2026-09-25-validity-stream-assembly/README.md) | stream-assembly P-1、P-7 的三份有效性核对配置（预期出反例） | 三份全部按预期找到反例 |
+| [`2026-09-25-alloy-asset-evaluation/`](2026-09-25-alloy-asset-evaluation/README.md) | `Evaluation.als` 十八条命令 ＋ 十三个变异文件（不是 formal task） | 六条 `run` 全 SAT、十二条 `check` 全 UNSAT；变异各按预期被推翻 |
+| [`2026-09-25-node24-json-probe/`](2026-09-25-node24-json-probe/README.md) | `content-blocks` 节点「Node 24 无损 JSON 读写」的运行时前提探针 | 在 Node 24.18.0 上成立，手写解析器退路不需启用 |
+| [`2026-09-25-formal-session-log/`](2026-09-25-formal-session-log/README.md) | 接口契约 `session-log` v1：formal task `session-log-v1-appends` ＋ 五份核对配置 | 正配置无反例；五份核对全部按预期出反例 |
+| [`2026-09-25-formal-credential-custodian/`](2026-09-25-formal-credential-custodian/README.md) | 接口契约 `credential-custodian` v1：formal task `credential-custodian-v1-sweep`（单 worker 超时一次、4 worker 重跑一次）＋ 五份核对配置 | 重跑无反例（230 万 distinct、3 min 26 s）；五份核对全部按预期出反例；登记改为 `-workers 4`、900 s |
 
 **2026-09-23 黑盒端到端验收**：[`2026-09-23-e2e-governance-center/`](2026-09-23-e2e-governance-center/README.md)——照部署方式起 `serve` 进程，零产品包引用的测试客户端走 PF-001 flows §一／§二 与 PF-017 acceptance §一／§二；46 条场景全过，产品正文与冻结契约说法不一致三处只记观察（`output/anomalies.txt`）。**独立复跑与四态判定**：[`2026-09-23-e2e-governance-center-2/`](2026-09-23-e2e-governance-center-2/README.md)——干净检出从零构建复跑 46/46 同样通过，手动演练走完；对上一次 run 的 109 行场景逐行判：Pass 54、Pass with issues 20（断言比正文弱或前提有界，逐条列出）、Fail 2（就是那两处产品正文与契约不一致）、Unable to verify 33；遮蔽用独立采集的秘密清单与结构扫描复核，0 命中。
 

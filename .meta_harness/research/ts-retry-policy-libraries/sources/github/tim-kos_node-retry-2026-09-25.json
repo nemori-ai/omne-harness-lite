@@ -1,0 +1,191 @@
+{
+  "repo": {
+    "archived": false,
+    "default_branch": "master",
+    "full_name": "tim-kos/node-retry",
+    "license": "NOASSERTION",
+    "open_issues_count": 23,
+    "pushed_at": "2023-09-13T11:11:26Z",
+    "stargazers_count": 1258
+  },
+  "recent_commits": [
+    {
+      "date": "2022-01-20T06:00:10Z",
+      "sha": "11efd6e4e896e06b7873df4f6e187c1e6dd2cf1b",
+      "subject": "Adding \"keywords\" to package.json"
+    },
+    {
+      "date": "2022-01-18T21:20:30Z",
+      "sha": "c524c3e72ae3eecfba3275595a1240c859c05ee1",
+      "subject": "Remove unnecessary async from promise example"
+    },
+    {
+      "date": "2022-01-16T05:47:02Z",
+      "sha": "f26a59b717c0345aea7590ab39429f783d01ebd0",
+      "subject": "Add an example with promises to the README"
+    }
+  ],
+  "open_issues_and_prs": [
+    {
+      "created_at": "2026-09-02T15:19:22Z",
+      "kind": "PR",
+      "number": 96,
+      "title": "Keep default timeouts when an option is passed as undefined",
+      "url": "https://github.com/tim-kos/node-retry/pull/96"
+    },
+    {
+      "created_at": "2026-08-17T10:13:55Z",
+      "kind": "issue",
+      "number": 95,
+      "title": "discussion: esm-only",
+      "url": "https://github.com/tim-kos/node-retry/issues/95"
+    },
+    {
+      "created_at": "2026-05-10T18:04:36Z",
+      "kind": "PR",
+      "number": 94,
+      "title": "docs: fix typo \"occured\" → \"occurred\" in README",
+      "url": "https://github.com/tim-kos/node-retry/pull/94"
+    },
+    {
+      "created_at": "2026-03-16T17:18:18Z",
+      "kind": "issue",
+      "number": 93,
+      "title": "Ignore undefined options so that they don't override defaults",
+      "url": "https://github.com/tim-kos/node-retry/issues/93"
+    },
+    {
+      "created_at": "2023-12-14T06:04:35Z",
+      "kind": "issue",
+      "number": 92,
+      "title": "Ability to set timeout for each retry?",
+      "url": "https://github.com/tim-kos/node-retry/issues/92"
+    },
+    {
+      "created_at": "2023-09-13T11:11:25Z",
+      "kind": "PR",
+      "number": 91,
+      "title": "Clarify retryOperation.mainError() docs",
+      "url": "https://github.com/tim-kos/node-retry/pull/91"
+    },
+    {
+      "created_at": "2023-05-19T12:09:57Z",
+      "kind": "issue",
+      "number": 90,
+      "title": "Setting maxTimeout to undefined breaks minTimeout behavior",
+      "url": "https://github.com/tim-kos/node-retry/issues/90"
+    },
+    {
+      "created_at": "2022-08-10T05:25:50Z",
+      "kind": "PR",
+      "number": 87,
+      "title": "commonjs -> ecmascript modules",
+      "url": "https://github.com/tim-kos/node-retry/pull/87"
+    },
+    {
+      "created_at": "2022-04-24T12:02:48Z",
+      "kind": "issue",
+      "number": 86,
+      "title": "Is this the way ?",
+      "url": "https://github.com/tim-kos/node-retry/issues/86"
+    },
+    {
+      "created_at": "2022-03-06T14:20:06Z",
+      "kind": "PR",
+      "number": 85,
+      "title": "using proper scope for createTimeout",
+      "url": "https://github.com/tim-kos/node-retry/pull/85"
+    },
+    {
+      "created_at": "2022-01-25T11:38:01Z",
+      "kind": "issue",
+      "number": 84,
+      "title": "Check for infinity value in `retries`",
+      "url": "https://github.com/tim-kos/node-retry/issues/84"
+    },
+    {
+      "created_at": "2021-11-05T19:55:48Z",
+      "kind": "issue",
+      "number": 83,
+      "title": "Typescript 4.4 breaking change affect retry",
+      "url": "https://github.com/tim-kos/node-retry/issues/83"
+    },
+    {
+      "created_at": "2021-10-01T16:45:09Z",
+      "kind": "issue",
+      "number": 82,
+      "title": "Missing current attempt in callback",
+      "url": "https://github.com/tim-kos/node-retry/issues/82"
+    },
+    {
+      "created_at": "2021-09-17T08:05:58Z",
+      "kind": "issue",
+      "number": 81,
+      "title": "PR suggestion: withRetry wrapper",
+      "url": "https://github.com/tim-kos/node-retry/issues/81"
+    },
+    {
+      "created_at": "2021-01-11T19:30:47Z",
+      "kind": "PR",
+      "number": 77,
+      "title": "Support options.retries Infintiy",
+      "url": "https://github.com/tim-kos/node-retry/pull/77"
+    },
+    {
+      "created_at": "2020-06-05T23:21:00Z",
+      "kind": "issue",
+      "number": 73,
+      "title": "It would be useful if the retry function returned the timout number",
+      "url": "https://github.com/tim-kos/node-retry/issues/73"
+    },
+    {
+      "created_at": "2019-04-18T11:38:31Z",
+      "kind": "issue",
+      "number": 67,
+      "title": "Retry a http request",
+      "url": "https://github.com/tim-kos/node-retry/issues/67"
+    },
+    {
+      "created_at": "2019-02-09T04:20:10Z",
+      "kind": "PR",
+      "number": 66,
+      "title": "operation.reset() gives ability force retry",
+      "url": "https://github.com/tim-kos/node-retry/pull/66"
+    },
+    {
+      "created_at": "2019-02-09T04:19:42Z",
+      "kind": "issue",
+      "number": 65,
+      "title": "operation.reset() is somewhat unintuitive",
+      "url": "https://github.com/tim-kos/node-retry/issues/65"
+    },
+    {
+      "created_at": "2018-12-28T07:41:14Z",
+      "kind": "issue",
+      "number": 63,
+      "title": "Needs keywords section is package.json",
+      "url": "https://github.com/tim-kos/node-retry/issues/63"
+    },
+    {
+      "created_at": "2018-10-17T11:49:35Z",
+      "kind": "issue",
+      "number": 60,
+      "title": "[Bug] RetryOperation does not free errors correctly, causing \"forever\" operations to leak memory",
+      "url": "https://github.com/tim-kos/node-retry/issues/60"
+    },
+    {
+      "created_at": "2018-08-30T10:31:51Z",
+      "kind": "issue",
+      "number": 59,
+      "title": "[Docs] Question about factor",
+      "url": "https://github.com/tim-kos/node-retry/issues/59"
+    },
+    {
+      "created_at": "2018-03-16T02:05:10Z",
+      "kind": "issue",
+      "number": 56,
+      "title": "[Feature Request] CLI command support for shell users",
+      "url": "https://github.com/tim-kos/node-retry/issues/56"
+    }
+  ]
+}

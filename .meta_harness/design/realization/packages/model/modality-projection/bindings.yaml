@@ -1,0 +1,9 @@
+# 条款到证据的绑定表：空。
+# 契约 S-29 不建 formal/（投影是纯函数的代数定律，登记表的「不经过没登记」按构造成立，风险只在实现），
+# registry 里没有这份契约的 formal task；规范场景 S-30～S-36、性质测试 S-37 与静态检查都没有实现可跑。
+# 义务、状态与受阻原因登记在 verification.md，不在这里写空绑定占位。
+version: 1
+node: "modality-projection"
+kind: "provider"
+
+bindings: []

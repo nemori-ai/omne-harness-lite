@@ -1,0 +1,18 @@
+00. run   fourLayerInstance        0    1/1     SAT
+01. run   replacementConstrained     0    1/1     SAT
+02. run   pickSkipped              0    1/1     SAT
+03. run   usableByFallback         0    1/1     SAT
+04. run   unusableConstrains       0    1/1     SAT
+05. run   unlockedForbid           0    1/1     SAT
+06. check TeamAssetsStayInTree     0       UNSAT
+07. check LockTruncates            0       UNSAT
+08. check DisableIsDisjunction     0       UNSAT
+09. check WorkspaceNeverSourcesPermission     0       UNSAT
+10. check WorkspaceNeverSourcesPlacement     0       UNSAT
+11. check WorkspaceNeverSourcesGovernance     0       UNSAT
+12. check OfficialLowerBound       0       UNSAT
+13. check ReplacementCannotEscapePermission     0    1/1     SAT
+14. check NonFittingPickNeverSources     0       UNSAT
+15. check UnusableNeverEffective     0       UNSAT
+16. check UnusableKeepsBounds      0    1/1     SAT
+17. check ForbidIsBound            0       UNSAT

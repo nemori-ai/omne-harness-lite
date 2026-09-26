@@ -1,0 +1,32 @@
+# skill-package 验证与证据
+
+契约侧的证据义务权威在 [`spec/data/skill-package/verification.md`](../../../../spec/data/skill-package/verification.md#证据义务)（V-1～V-9、SC-1～SC-4）。
+本页只登记**落在本节点上的那一部分**。
+
+## 证据义务
+
+| 来源条款 | 需要什么证据 | 当前状态 | owner 与闭合条件 |
+|---|---|---|---|
+| V-1 形状校验 | `examples.md` 第 1～5、7～9 节逐行（含变体行）过包内校验；包内 Schema 副本与 spec 逐字节相同 | 未开始 | 本节点：包内测试，CI 跑过、结果登记进 record/evidence 即闭合 |
+| V-2 拒绝值的具名与次序 | 每个拒绝行逐字相同（含 M 编号）；第 7 节八行各验一个值，第 8 节专验次序 | 未开始 | 本节点 |
+| V-3 Schema 管不到的约束 | examples 第 9 节逐行 | 未开始 | 本节点 |
+| V-4 文本形式的读法 | examples 第 6 节十五行，比对读出的 `manifest`、`body` 与拒绝值本身；同时核 `yaml` 库的三条行为（SP-1） | 未开始 | 本节点 |
+| V-5 目录形式的读法 | examples 第 10 节八行：纯函数那一半用构造好的条目跑；「真实文件系统、执行位、成环链接」那一半归读目录的一方 | 未开始 | 本节点与读目录的节点 |
+| V-9 中的 SC-1、SC-4 | 见 [design](design.md#静态检查义务怎么承载) | 未开始；规则不存在 | 本节点提出形式，`tools/ts-checks` 落规则 |
+| V-7 消费者走查 | CS-1～CS-8 结构化走查 | 未开始 | 本节点与各消费者节点共同走查 |
+
+**不在本节点**：V-6（规范场景，要真实接收边界、读入方与放行判断）、V-8（跨进程，本版装配下无法演练）；SC-2、SC-3。
+
+**修订波（2026-09-25 公开面）**：design 新增「[公开面](design.md#公开面)」一节（[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)），只把既有入口归为公开函数面，不新增语义，上表证据义务不变；这一面成立的静态前提「本包源码不 import `@deepseek-ai/cordis`、`@omne-harness-lite/kernel-basis`、`@omne-harness-lite/storage` 与任何插件包」**规则尚无**（候选，本批十五个 `core` 纯模块共用一条，owner `tools/ts-checks`）。
+
+## 实际执行
+
+尚无。源码不存在。
+
+## 覆盖缺口
+
+- **契约的每一条都没有实现侧证据**：没有源码，空绑定表与此一致。owner：本节点。
+
+## 独立评审
+
+N1：无发现——2026-09-25 本节点随 N1 批（`core` 十五个纯模块）经一次独立的架构评审（只读结构核对，无运行），无阻断、无应修、无建议（批的结论见 [D-040 §八 N-28](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。本节点的 `yaml` 新依赖列在批的「范围外」一项，按 [D-040 §八 M55](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 标为候选依赖（design「实现路径」、依赖表、SP-1），不是对本节点的发现。

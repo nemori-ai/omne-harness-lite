@@ -1,0 +1,831 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/call-accounts/v1/call-accounts.schema.json",
+  "title": "data.call-accounts v1",
+  "description": "一次模型调用或一次工具执行的账：用量、费用、逐笔费用、砍了多少、事后补账。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.call-accounts/v1 内有效。",
+  "$comment": "状态 candidate，未接受、未冻结。Schema 管形状与一部分组合约束；另有几条组合约束 Schema 表达不了（reasoning_tokens ≤ output_tokens、总额恰等于各笔之和、同一 ResponseId 不镜像两次、endedAt ≥ startedAt、TrimSummary 的三式与帧数一式），contract.md S-27 把它们归入 malformed，由校验方在 Schema 之外兑现。Schema 校验失败只说明「拒绝」，是五个拒绝值里的哪一个按 S-27 的次序定。外部引用：Instant 取自 data.offer-expiry v1（S-22）；CallId 取自 data.content-blocks v1（S-14）；TenantId 与 ScopeLayerIdentity 取自 data.identity-values v1（S-5、S-11）。ResponseId 按 data.identity-values v1 S-31 的散文自写形状、不 $ref data.model-response（那份契约引用本契约，反向引用会成环），含义以 data.model-response/v1 S-6 为准。正反实例在同目录 examples.md。",
+  "$defs": {
+    "Unknown": {
+      "title": "未知（contract.md S-4）",
+      "description": "这一项存在，但数不出来。它是一个值：不是 0，不是成员缺席，也不是一次失败。拼写与大小写严格——\"Unknown\"、null、\"\" 都不是它（S-29）。",
+      "const": "unknown"
+    },
+    "ResponseId": {
+      "title": "ResponseId（contract.md S-16）",
+      "description": "一份 ModelResponse 的标识。不透明、部署内唯一、不回收不复用，由模型请求运行时在那一次发出出门时定下；它不是上游的请求号。交换表示按 data.identity-values v1 S-31 的散文：非空字符串；首字符与末字符都不属于该条逐个列出的空白码点集合；逐码点相等，不做任何规范化；消费者不解析其内容。",
+      "$comment": "pattern 照 S-31 的显式空白码点集合写否定字符类，末尾用 (?![\\s\\S]) 判绝对结尾，不用 $ 与 \\s——理由与回归用例见 data.identity-values v1 S-31。具体词法（长度、字符集）归实现。",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])",
+      "examples": [
+        "rsp_1a2b"
+      ]
+    },
+    "Usage": {
+      "title": "一次发出的 token 用量（contract.md S-6、S-7）",
+      "description": "四项必填，各为非负整数或 \"unknown\"。三项输入两两不相交、合起来是这次请求的全部输入：input_tokens 是既不从缓存读出、也不写入缓存的那部分。output_tokens 含推理。reasoning_tokens 是 output_tokens 的子集，上游报了才有，缺席不是零。source=none 时四项全为 \"unknown\" 且没有 reasoning_tokens；source=upstream 时至少一项是数。cache_tokens 与 total_tokens 是派生量，只在条款里定义，不是成员（S-7）。",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input_tokens",
+        "output_tokens",
+        "cache_read_tokens",
+        "cache_write_tokens",
+        "source"
+      ],
+      "properties": {
+        "input_tokens": {
+          "description": "输入里既不从缓存读出、也不写入缓存的那部分。",
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "$ref": "#/$defs/Unknown"
+            }
+          ]
+        },
+        "output_tokens": {
+          "description": "输出，含推理（若有）。",
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "$ref": "#/$defs/Unknown"
+            }
+          ]
+        },
+        "cache_read_tokens": {
+          "description": "输入里命中缓存、从缓存读出的那部分。",
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "$ref": "#/$defs/Unknown"
+            }
+          ]
+        },
+        "cache_write_tokens": {
+          "description": "输入里写入缓存的那部分。",
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "$ref": "#/$defs/Unknown"
+            }
+          ]
+        },
+        "reasoning_tokens": {
+          "description": "output_tokens 里属于推理的那部分；上游报了才有。它没有 \"unknown\" 这个取值：没报就不出现。reasoning_tokens ≤ output_tokens 是 Schema 表达不了的组合约束（S-6、S-27）。",
+          "type": "integer",
+          "minimum": 0
+        },
+        "source": {
+          "description": "这组数从哪来：upstream 上游随这次发出报回了用量；none 上游没有报回。",
+          "enum": [
+            "upstream",
+            "none"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "source"
+            ],
+            "properties": {
+              "source": {
+                "const": "none"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "input_tokens": {
+                "$ref": "#/$defs/Unknown"
+              },
+              "output_tokens": {
+                "$ref": "#/$defs/Unknown"
+              },
+              "cache_read_tokens": {
+                "$ref": "#/$defs/Unknown"
+              },
+              "cache_write_tokens": {
+                "$ref": "#/$defs/Unknown"
+              }
+            },
+            "not": {
+              "required": [
+                "reasoning_tokens"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "source"
+            ],
+            "properties": {
+              "source": {
+                "const": "upstream"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": [
+                "input_tokens",
+                "output_tokens",
+                "cache_read_tokens",
+                "cache_write_tokens"
+              ],
+              "properties": {
+                "input_tokens": {
+                  "$ref": "#/$defs/Unknown"
+                },
+                "output_tokens": {
+                  "$ref": "#/$defs/Unknown"
+                },
+                "cache_read_tokens": {
+                  "$ref": "#/$defs/Unknown"
+                },
+                "cache_write_tokens": {
+                  "$ref": "#/$defs/Unknown"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "examples": [
+        {
+          "input_tokens": 1520,
+          "output_tokens": 311,
+          "cache_read_tokens": 12288,
+          "cache_write_tokens": "unknown",
+          "reasoning_tokens": 128,
+          "source": "upstream"
+        }
+      ]
+    },
+    "Cost": {
+      "title": "一次发出的费用（contract.md S-8）",
+      "description": "cost_usd 是上游随这次发出报回的实际费用，美元，精确十进制、不截断（S-5）；拿不到记 \"unknown\"，绝不是目录估算。upstream_inference_cost_usd 是上游另报的供应商一侧推理实收，报了才有。source：upstream_usage 取自上游报回；later_correction 取自补账，只出现在有效费用里、原账里不会有（S-18、S-22）；none 拿不到——此时 cost_usd 为 \"unknown\" 且没有 upstream_inference_cost_usd。",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cost_usd",
+        "source"
+      ],
+      "properties": {
+        "cost_usd": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "$ref": "#/$defs/Unknown"
+            }
+          ]
+        },
+        "upstream_inference_cost_usd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "source": {
+          "enum": [
+            "upstream_usage",
+            "later_correction",
+            "none"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "source"
+            ],
+            "properties": {
+              "source": {
+                "const": "none"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "cost_usd": {
+                "$ref": "#/$defs/Unknown"
+              }
+            },
+            "not": {
+              "required": [
+                "upstream_inference_cost_usd"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "source"
+            ],
+            "properties": {
+              "source": {
+                "enum": [
+                  "upstream_usage",
+                  "later_correction"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "cost_usd": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      ],
+      "examples": [
+        {
+          "cost_usd": 0.004187,
+          "source": "upstream_usage"
+        },
+        {
+          "cost_usd": "unknown",
+          "source": "none"
+        }
+      ]
+    },
+    "CostItem": {
+      "title": "一次工具执行里的一笔费用（contract.md S-9、S-10）",
+      "description": "service 是谁收的这笔钱：依赖名、MCP 接入点能力标识的规范串（data.asset-model v1 S-3 的 <category>/<name>，例如 mcp/github），或保留字面量 model_call（这次执行经本系统发出的一次模型调用，它是那份 ModelResponse 的镜像，不是权威，S-10）。source 说的是 cost_usd 这个数的来路：none ⇔ cost_usd 为 \"unknown\"；model_response ⇒ service 为 model_call；model_call ⇒ source 为 model_response 或 none，且 reference 必带、形如 ResponseId。quantity 是报账方自报的计量，本契约不解释、不换算、不跨笔相加。",
+      "$comment": "接入点那一种写成规范串（恒含 '/'，因而永不等于 model_call）；依赖名与规范串、保留值不相交还要等 data.tool-definition 的依赖名字符集（contract.md G-4）；此处只约束到非空字符串。同一 ResponseId 在一份账里不镜像两次，是跨元素约束，Schema 表达不了（S-27 malformed）。",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "service",
+        "cost_usd",
+        "source"
+      ],
+      "properties": {
+        "service": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cost_usd": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "$ref": "#/$defs/Unknown"
+            }
+          ]
+        },
+        "quantity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "amount",
+            "unit"
+          ],
+          "properties": {
+            "amount": {
+              "type": "number",
+              "minimum": 0
+            },
+            "unit": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "reference": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "enum": [
+            "tool_reported",
+            "service_reported",
+            "model_response",
+            "none"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "source"
+            ],
+            "properties": {
+              "source": {
+                "const": "none"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "cost_usd": {
+                "$ref": "#/$defs/Unknown"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "source"
+            ],
+            "properties": {
+              "source": {
+                "enum": [
+                  "tool_reported",
+                  "service_reported",
+                  "model_response"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "cost_usd": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "source"
+            ],
+            "properties": {
+              "source": {
+                "const": "model_response"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "service": {
+                "const": "model_call"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "service"
+            ],
+            "properties": {
+              "service": {
+                "const": "model_call"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "reference"
+            ],
+            "properties": {
+              "source": {
+                "enum": [
+                  "model_response",
+                  "none"
+                ]
+              },
+              "reference": {
+                "$ref": "#/$defs/ResponseId"
+              }
+            }
+          }
+        }
+      ],
+      "examples": [
+        {
+          "service": "web_search",
+          "cost_usd": 0.005,
+          "quantity": {
+            "amount": 1,
+            "unit": "request"
+          },
+          "reference": "req-7Hq2",
+          "source": "tool_reported"
+        },
+        {
+          "service": "model_call",
+          "cost_usd": 0.0021,
+          "reference": "rsp_9c1e",
+          "source": "model_response"
+        }
+      ]
+    },
+    "TrimReason": {
+      "title": "一个增量为什么没有原样送达（contract.md S-15）",
+      "description": "闭合四值。rate_merged：因速率节流与相邻增量合并送达；frame_too_long：超过长度上限被截短后送达；quota_exhausted：额度用完，此后的增量整个没送达；rejected：被拒收、整个没送达。长度上限、额度与拒收规则不归本契约。data.arrival-events 照抄这四个值，不另列。",
+      "enum": [
+        "rate_merged",
+        "frame_too_long",
+        "quota_exhausted",
+        "rejected"
+      ]
+    },
+    "TrimSummary": {
+      "title": "一条消息的增量到达过程里合并与截掉的汇总（contract.md S-15）",
+      "description": "由做合并与截断的那一方计数，没有 \"unknown\"。merged：因合并而不再单独送达的增量个数（n 个合一记 n−1）；cut：整个没送达的增量个数；omittedBytes：被截掉或整个没送达的载荷字节数（文本按 UTF-8，二进制按原字节；合并不计）；byReason：四个 TrimReason 各一项、四项都必须出现。byReason.rate_merged = merged、byReason.quota_exhausted + byReason.rejected = cut、无截无丢则 omittedBytes = 0，这三式 Schema 表达不了（S-27 malformed）。",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "merged",
+        "cut",
+        "omittedBytes",
+        "byReason"
+      ],
+      "properties": {
+        "merged": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cut": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "omittedBytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "byReason": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/TrimReason"
+          },
+          "required": [
+            "rate_merged",
+            "frame_too_long",
+            "quota_exhausted",
+            "rejected"
+          ],
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "examples": [
+        {
+          "merged": 0,
+          "cut": 0,
+          "omittedBytes": 0,
+          "byReason": {
+            "rate_merged": 0,
+            "frame_too_long": 0,
+            "quota_exhausted": 0,
+            "rejected": 0
+          }
+        }
+      ]
+    },
+    "FrameAccount": {
+      "title": "一次工具执行发了几帧、砍了多少（contract.md S-11、S-15）",
+      "description": "emitted 是工具自己经发帧交出的帧数（一帧的单位见 data.arrival-events v1 S-23 第 1 条）；trims 是这些帧里被合并、被截掉的汇总。一帧都没发是正常形态：emitted = 0、trims 各项为零。",
+      "$comment": "merged + cut + byReason.frame_too_long ≤ emitted 只在「每帧至多计一次」的前提下成立（S-15），Schema 表达不了（S-27 malformed）。",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "emitted",
+        "trims"
+      ],
+      "properties": {
+        "emitted": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "trims": {
+          "$ref": "#/$defs/TrimSummary"
+        }
+      }
+    },
+    "ToolCallAccount": {
+      "title": "一次工具执行的账（contract.md S-11～S-14、S-38、S-39）",
+      "description": "一次工具执行恰一份，由工具执行记录携带，不进给模型看的上下文。initiator 是发起这次执行所属运行的租户身份——成本归它；credentialScope 是这次执行的自有费用经哪一格上的凭据产生（本版只有 MCP 凭据，只在租户那一格），没经范围上的凭据就缺席——用量归它（S-38）。externalEffect：confirmed 收场时它在外面的动作已经了结（或根本没开始），unknown 它在外面还可能做了事、花了钱——账上的费用可能不全；哪一次取哪一个值，判据只在 capability.tool-execution-runtime v1 S-14（S-11）。stoppedAt 是写账之前已观察到执行者停下的时刻，写账时还没观察到就缺席（S-14）。late 为 true 表示这份账落下时它归属的尝试已被取代或运行已经终结（S-39）。cost.total_usd：items 全为数时恰等于各笔之和（精确十进制），有一笔 \"unknown\" 就是 \"unknown\"，items 为空时是 0（含义是没记下任何一笔，不是没花钱）；total_usd 含 model_call 镜像，汇总不用它（S-24）。usage 出现当且仅当 items 里有 model_call，是那几份 ModelResponse 的 Usage 的逐项汇总。frames 是 FrameAccount（发了几帧、砍了多少），在途状态丢了时是 \"unknown\"（S-11）。wallClock.endedAt 缺席 ⇔ 写账时没有可记的结束时刻。",
+      "$comment": "total_usd 恰等于各笔之和、frames 是 FrameAccount 时 merged + cut + byReason.frame_too_long ≤ emitted（在「每帧至多计一次」的前提下，S-15）、endedAt ≥ startedAt、stoppedAt ≥ startedAt，Schema 表达不了（S-27 malformed）。callId 引用 data.content-blocks v1 的 $defs/CallId。",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "callId",
+        "initiator",
+        "externalEffect",
+        "cost",
+        "frames",
+        "wallClock"
+      ],
+      "properties": {
+        "callId": {
+          "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/CallId"
+        },
+        "initiator": {
+          "$ref": "../../identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+        },
+        "credentialScope": {
+          "description": "ScopeLayerIdentity 的租户那一支：本版只有 MCP 凭据，组织那一层不持有它（PF-002 rev 18 起，S-38）。",
+          "allOf": [
+            {
+              "$ref": "../../identity-values/v1/identity-values.schema.json#/$defs/ScopeLayerIdentity"
+            },
+            {
+              "properties": {
+                "layer": {
+                  "const": "tenant"
+                }
+              }
+            }
+          ]
+        },
+        "externalEffect": {
+          "enum": [
+            "confirmed",
+            "unknown"
+          ]
+        },
+        "stoppedAt": {
+          "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant"
+        },
+        "late": {
+          "const": true
+        },
+        "cost": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "total_usd",
+            "items"
+          ],
+          "properties": {
+            "total_usd": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "$ref": "#/$defs/Unknown"
+                }
+              ]
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/CostItem"
+              }
+            }
+          },
+          "if": {
+            "required": [
+              "items"
+            ],
+            "properties": {
+              "items": {
+                "contains": {
+                  "required": [
+                    "cost_usd"
+                  ],
+                  "properties": {
+                    "cost_usd": {
+                      "$ref": "#/$defs/Unknown"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "total_usd": {
+                "$ref": "#/$defs/Unknown"
+              }
+            }
+          }
+        },
+        "usage": {
+          "$ref": "#/$defs/Usage"
+        },
+        "frames": {
+          "description": "FrameAccount，或 \"unknown\"：持有帧计数的在途状态随持有者失去连续性而没了（停机后恢复时追补这份账），发了几帧、砍了多少数不出来——不写 0（S-11）。",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/FrameAccount"
+            },
+            {
+              "$ref": "#/$defs/Unknown"
+            }
+          ]
+        },
+        "wallClock": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "startedAt"
+          ],
+          "properties": {
+            "startedAt": {
+              "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant"
+            },
+            "endedAt": {
+              "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant"
+            }
+          }
+        }
+      },
+      "if": {
+        "required": [
+          "cost"
+        ],
+        "properties": {
+          "cost": {
+            "required": [
+              "items"
+            ],
+            "properties": {
+              "items": {
+                "contains": {
+                  "required": [
+                    "service"
+                  ],
+                  "properties": {
+                    "service": {
+                      "const": "model_call"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "usage"
+        ]
+      },
+      "else": {
+        "not": {
+          "required": [
+            "usage"
+          ]
+        }
+      }
+    },
+    "CostCorrection": {
+      "title": "事后补账（contract.md S-17、S-18）",
+      "description": "一条独立追加的值，不改原账。target 闭合两种：model_response（一次发出的费用，按 responseId）与 tool_execution（一次工具执行自有部分的费用，按 callId；不是 total_usd，S-17）。cost_usd 必须是数、非负，补账没有 \"unknown\"。obtainedVia：generation_endpoint（按请求号向上游查回，只配 model_response 目标）或 manual。at 是这条补账写下的时刻，在那一次写入里定死。同一目标可有多条，按 at 取最新（S-22）。late 为 true 表示它落下时目标所属的尝试已被取代或运行已经终结（S-39）。",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target",
+        "cost_usd",
+        "obtainedVia",
+        "at"
+      ],
+      "properties": {
+        "target": {
+          "oneOf": [
+            {
+              "title": "一次发出",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "responseId"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "model_response"
+                },
+                "responseId": {
+                  "$ref": "#/$defs/ResponseId"
+                }
+              }
+            },
+            {
+              "title": "一次工具执行的自有部分",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "callId"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "tool_execution"
+                },
+                "callId": {
+                  "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/CallId"
+                }
+              }
+            }
+          ]
+        },
+        "cost_usd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "obtainedVia": {
+          "enum": [
+            "generation_endpoint",
+            "manual"
+          ]
+        },
+        "at": {
+          "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant"
+        },
+        "late": {
+          "const": true
+        }
+      },
+      "if": {
+        "required": [
+          "obtainedVia"
+        ],
+        "properties": {
+          "obtainedVia": {
+            "const": "generation_endpoint"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "target": {
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "const": "model_response"
+              }
+            }
+          }
+        }
+      },
+      "examples": [
+        {
+          "target": {
+            "kind": "model_response",
+            "responseId": "rsp_2b7f"
+          },
+          "cost_usd": 0.0039,
+          "obtainedVia": "generation_endpoint",
+          "at": "2026-09-23T10:05:00Z"
+        }
+      ]
+    },
+    "RunId": {
+      "title": "RunId（contract.md S-37）",
+      "description": "一次运行（UL-run）的标识，供按 Run 汇总与按尝试记明细时指认归属。不透明、会话内唯一、不回收不复用，由 loop 在开始一次运行时产生。交换表示按 data.identity-values v1 S-31 的散文：非空字符串；首末字符不属于该条列出的空白码点集合；逐码点相等，不做规范化；消费者不解析其内容。本定义的家在本契约（主线 2026-09-23 裁定，供 model-response、messages、arrival-events、loop-extension 引用）。",
+      "$comment": "pattern 照 S-31 的显式空白码点集合写否定字符类，末尾用 (?![\\s\\S]) 判绝对结尾，不用 $ 与 \\s——理由与回归用例见 data.identity-values v1 S-31。具体词法（长度、字符集）归实现。",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])",
+      "examples": [
+        "run_7f3a"
+      ]
+    },
+    "AttemptId": {
+      "title": "AttemptId（contract.md S-37）",
+      "description": "一次运行的第几次尝试（UL-run-attempt：尝试的身份是 (运行, 第几次)，不另存），从 1 起的整数序号；与 RunId 合起来才是尝试的完整身份。本定义的家在本契约。",
+      "type": "integer",
+      "minimum": 1,
+      "examples": [
+        1,
+        2
+      ]
+    },
+    "ModelCallId": {
+      "title": "ModelCallId（contract.md S-37）",
+      "description": "一次模型调用（UL-model-call）的标识；一次调用可发出多次，各次发出以 (ModelCallId, dispatch) 指认。不透明、会话内唯一（不属于任何运行的调用也有它）、不回收不复用，由模型请求运行时在打开一次新调用时产生。交换表示同 RunId。本定义的家在本契约。",
+      "$comment": "pattern 照 S-31 的显式空白码点集合写否定字符类，末尾用 (?![\\s\\S]) 判绝对结尾，不用 $ 与 \\s——理由与回归用例见 data.identity-values v1 S-31。具体词法（长度、字符集）归实现。",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])",
+      "examples": [
+        "mc_3a01"
+      ]
+    }
+  }
+}

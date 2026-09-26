@@ -281,7 +281,7 @@
 > running towards strictness: **it cannot be replaced, disabled or narrowed**.
 
 - **形态**：过程
-- **出处**：[PF-008 §4 放行判断](../../product/PF-008-human-in-the-loop/design.md#放行判断) · [§5.2](../../product/PF-008-human-in-the-loop/design.md#52-那个判断函数)（rev 7） · [PF-012 §5.8 系统自带的几件](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件各站在哪) · [系统自带的几件，不可用时各有定法](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件不可用时各有定法)（rev 14）
+- **出处**：[PF-008 §4 放行判断](../../product/PF-008-human-in-the-loop/design.md#放行判断) · [§5.2](../../product/PF-008-human-in-the-loop/design.md#52-那个判断函数)（rev 7） · [PF-012 §5.8 系统自带的几件](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件各站在哪) · [系统自带的几件，不可用时各有定法](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件不可用时各有定法)（rev 15）
 - **注意 ①**：**没有任何一样单独说了算。**获批不等于自动放行，有权限设置也不等于请示没意义
 - **注意 ②**：**权限设置里明确禁止的，会话授权翻不了案**——
   否则任何禁止都能靠「让用户在会话里点个同意」绕过去，

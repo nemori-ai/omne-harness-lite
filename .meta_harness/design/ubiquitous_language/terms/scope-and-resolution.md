@@ -127,6 +127,7 @@
   据点上记着的「这个租户身份用过哪些目录」是[给人挑的清单，不是治理对象](../../product/PF-002-assets-settings-and-permissions/design.md#它是会话选用的不指定就是空)
 - **注意 ⑥**：**它带来的本地命令型 MCP 接入点与命令型 hook 默认不启用**，由持有它的租户在自己的设置里逐件打开——
   [开关不在仓库里](../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算)
+- **注意 ⑦**：**正文说的「工作区提供的资产」「工作区自带的资产」，是它这一级[持有](circulation-and-entitlement.md#ul-asset-holding--资产持有--asset-holding)的那一批**——由承载目录带来，[权限项一律取最严值](../../product/PF-002-assets-settings-and-permissions/design.md#57-工作区那一级不参与权限计算)；**不另立词条**，跨 topic 写「工作区提供的资产」并链本条
 
 ### UL-scoped-object · 范围化对象 · Scoped Object
 
@@ -162,7 +163,7 @@
 > a routing name, and among same-named profiles the most specific one on the scope chain wins.
 
 - **形态**：属性
-- **出处**：[PF-001 §4 范围化对象](../../product/PF-001-identity-scope-and-agent-constraints/design.md#范围化对象) · [§6.3](../../product/PF-001-identity-scope-and-agent-constraints/design.md#63-依赖与组合)（rev 17） · [PF-002 §4 身份是「类别 ＋ name」](../../product/PF-002-assets-settings-and-permissions/design.md#身份是类别--name其余归实现)（rev 20） · [PF-013 §4 档案的身份](../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名)（rev 12）
+- **出处**：[PF-001 §4 范围化对象](../../product/PF-001-identity-scope-and-agent-constraints/design.md#范围化对象) · [§6.3](../../product/PF-001-identity-scope-and-agent-constraints/design.md#63-依赖与组合)（rev 17） · [PF-002 §4 身份是「类别 ＋ name」](../../product/PF-002-assets-settings-and-permissions/design.md#身份是类别--name其余归实现)（rev 20） · [PF-013 §4 档案的身份](../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名)（rev 13）
 - **注意**：**同一层可以有好几份同标识的资产，但一层对一个能力标识至多持有一份**——替代发生在持有上，复制进来不自动顶掉原来持有的那份
 
 ## 怎么算
@@ -344,7 +345,7 @@ specific.
 - **出处**：[PF-013 §5.10 合法目标集合与展示列表，是两件事](../../product/PF-013-model-profiles-and-invocation/design.md#510-合法目标集合与展示列表是两件事) ·
   [§4 档案的身份](../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名) ·
   [§5.11](../../product/PF-013-model-profiles-and-invocation/design.md#511-有-transcript-的块不再把任何模型挡在外面) ·
-  [§6.5](../../product/PF-013-model-profiles-and-invocation/design.md#65-切换是用户的直接命令合法目标不得拒绝)（rev 12）
+  [§6.5](../../product/PF-013-model-profiles-and-invocation/design.md#65-切换是用户的直接命令合法目标不得拒绝)（rev 13）
 - **别混**：**不是[模型展示列表](#ul-model-display-list--模型展示列表--model-display-list)**——展示列表多出当前选中的那一条，哪怕它已不是合法目标
 - **注意 ①**：**出门之前核的是[有效模型](capabilities-and-composition.md#ul-effective-model--有效模型--effective-model)是不是它的成员**——不是选中模型
 - **注意 ②**：**模态兼容挡在算它的那一刻，不挡在出门那一刻**——收不下会话里已有模态的，从一开始就不在候选里
@@ -371,7 +372,7 @@ specific.
 
 - **形态**：视图
 - **出处**：[PF-013 §5.10 合法目标集合与展示列表，是两件事](../../product/PF-013-model-profiles-and-invocation/design.md#510-合法目标集合与展示列表是两件事) ·
-  [§6.3](../../product/PF-013-model-profiles-and-invocation/design.md#63-官方与自建在同一份列表里)（rev 12）
+  [§6.3](../../product/PF-013-model-profiles-and-invocation/design.md#63-官方与自建在同一份列表里)（rev 13）
 - **别混**：**选中的那条在列表里，不等于它是合法目标**——它选不了、也切不过去，留着只为让用户看见自己此刻停在哪一条上
 - **注意 ①**：**来源是每一条上的一个标注，不是把列表分成几块的依据**
 - **注意 ②**：被盖住的条目**怎么呈现**（排在胜出那条下面、折起来）归 PF-016

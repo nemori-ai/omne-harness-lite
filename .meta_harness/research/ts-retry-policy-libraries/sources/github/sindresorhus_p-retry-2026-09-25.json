@@ -1,0 +1,29 @@
+{
+  "repo": {
+    "archived": false,
+    "default_branch": "main",
+    "full_name": "sindresorhus/p-retry",
+    "license": "MIT",
+    "open_issues_count": 1,
+    "pushed_at": "2026-09-18T19:13:02Z",
+    "stargazers_count": 1034
+  },
+  "recent_commits": [
+    {
+      "date": "2026-09-18T19:12:59Z",
+      "sha": "1472907affe8d6107aba5884abc36d6361b3042e",
+      "subject": "Meta tweaks"
+    },
+    {
+      "date": "2026-09-01T13:10:09Z",
+      "sha": "81cd2f0e523faeeff685c5878224a0d7390ff0db",
+      "subject": "8.0.1"
+    },
+    {
+      "date": "2026-09-01T13:01:59Z",
+      "sha": "3c220355c7a60e563947049ea4f5fd38e113172f",
+      "subject": "Fix error for invalid fractional retry counts"
+    }
+  ],
+  "open_issues_and_prs": []
+}

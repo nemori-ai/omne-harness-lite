@@ -1,0 +1,5 @@
+node v24.18.0 v8 13.6.233.17-node.50
+context.source [["a",9007199254740992,"9007199254740993"],["b",1.1,"1.10"],["0",null,"1e400"],["1",0,"-0"],["2",0.1,"0.1"]]
+typeof JSON.rawJSON function typeof JSON.isRawJSON function
+rawJSON stringify {"x":9007199254740993,"y":1.10}
+exit 0

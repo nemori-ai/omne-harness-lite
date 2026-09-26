@@ -1,0 +1,1 @@
+/opt/java/jdk-21.0.12.1+1-jre/bin/java -cp /opt/tlaplus/tla2tools.jar tlc2.TLC -metadir tmp/tlc/validity-Assembly_ReplaceAsAppend -cleanup -noGenerateSpecTE -workers 1 -config spec/capabilities/stream-assembly/v1/formal/Assembly_ReplaceAsAppend.cfg spec/capabilities/stream-assembly/v1/formal/Assembly.tla

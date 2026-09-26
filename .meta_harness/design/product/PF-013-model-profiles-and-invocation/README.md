@@ -2,7 +2,7 @@
 id: PF-013
 title: 模型档案、调用与切换
 status: active
-revision: 12
+revision: 13
 relations:
   supersedes: []
   depends-on:
@@ -83,7 +83,7 @@ relations:
 - **本 topic 与 [PF-012](../PF-012-agent-loop-and-run/README.md)、
   [PF-014](../PF-014-inbound-intake-and-queueing/README.md) 出自同一次联合修订**；
   三份此后各自演进、各自接受，状态不互相牵连
-- 技术投影：尚未开始
+- 技术投影：[v1](projection/README.md)，对应 rev 12，`post-review`、来源未冻结——派生快照，不是权威
 
 ## 本包的文件
 
@@ -95,8 +95,6 @@ PF-013-model-profiles-and-invocation/
 ├── acceptance.md     产品视角的验收标准
 ├── decisions.md      拍板记录 / PM 推导 / 待裁决       ← 必须
 ├── changelog.md      产品设计本身的演进                ← 必须
-└── interviews/       产品调研的来源与观察（不是依据）
+├── interviews/       产品调研的来源与观察（不是依据）
+└── projection/       技术投影（按版本固化的派生快照，不是权威）
 ```
-
-> **没有 `projection/`**：技术投影尚未开始，**空目录不留**——
-> [占位符会被当成已有设计](../AGENTS.md)。

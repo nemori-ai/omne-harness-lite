@@ -1,0 +1,275 @@
+{
+  "format": 1,
+  "topic": "PF-003-asset-transfer-and-sharing",
+  "version": "v1",
+  "generated_at": "2026-09-25",
+  "review_state": "post-review",
+  "review_note": "Realization nodes passed five batches of independent architecture-reviewer review and were disposed per D-040 §八 M49-M75 (HUB 6babe6e1); worktree HEAD when this projection was drafted: 4a2e680f.",
+  "requirements_revision": "PF-003 rev 5 (README.md front-matter revision: 5); PF-001 rev 17 and PF-002 rev 20 as neighbouring sources only",
+  "frozen": "none",
+  "acceptance": null,
+  "acceptance_note": "Pending D-041 (contract acceptance, draft, unsigned: record/decisions/assets-runtimes-contract-acceptance/) and D-042 (node acceptance, draft, unsigned: record/decisions/assets-runtimes-node-acceptance/); mainline rulings in D-040 §三-§八 await ratification by the product owner.",
+  "drift_note": "全部来源未冻结，据它实施前须逐项核对坐标；D-041 签字后出 v2 登 frozen 哈希。Every sha256 below is null on purpose. data.offer-expiry v1 and data.identity-values v1 are accepted and frozen under D-023 (their hashes live in registry/frozen.json), but this projection does not claim them as frozen inputs. The PF-002 projection link points at a sibling projection drafted in parallel.",
+  "sources": [
+    {
+      "kind": "requirement",
+      "resource": "product/PF-003-asset-transfer-and-sharing/design.md",
+      "revision": 5,
+      "sha256": null
+    },
+    {
+      "kind": "requirement",
+      "resource": "product/PF-003-asset-transfer-and-sharing/flows.md",
+      "revision": 5,
+      "sha256": null
+    },
+    {
+      "kind": "requirement",
+      "resource": "product/PF-003-asset-transfer-and-sharing/acceptance.md",
+      "revision": 5,
+      "sha256": null
+    },
+    {
+      "kind": "requirement",
+      "resource": "product/PF-003-asset-transfer-and-sharing/decisions.md",
+      "revision": 5,
+      "sections": [
+        "二",
+        "三",
+        "四"
+      ],
+      "sha256": null
+    },
+    {
+      "kind": "requirement",
+      "resource": "product/PF-001-identity-scope-and-agent-constraints/design.md",
+      "revision": 17,
+      "sections": [
+        "4",
+        "6.6",
+        "6.7",
+        "6.8"
+      ],
+      "sha256": null
+    },
+    {
+      "kind": "contract",
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "capability.asset-transfer",
+        "version": 1
+      },
+      "status": "candidate",
+      "resource": "spec/capabilities/asset-transfer/v1/contract.md",
+      "sha256": null
+    },
+    {
+      "kind": "contract-artifacts",
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "capability.asset-transfer",
+        "version": 1
+      },
+      "resources": [
+        "spec/capabilities/asset-transfer/v1/examples.md",
+        "spec/capabilities/asset-transfer/v1/formal/README.md",
+        "spec/capabilities/asset-transfer/v1/formal/Transfer.tla",
+        "spec/capabilities/asset-transfer/verification.md"
+      ],
+      "sha256": null
+    },
+    {
+      "kind": "contract",
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "capability.organization-governance",
+        "version": 2
+      },
+      "status": "candidate",
+      "resource": "spec/capabilities/organization-governance/v2/contract.md",
+      "clauses_used": [
+        "S-7",
+        "S-8",
+        "S-22",
+        "S-34",
+        "S-42",
+        "S-59",
+        "S-61",
+        "G-3",
+        "G-7"
+      ],
+      "sha256": null
+    },
+    {
+      "kind": "contract",
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "data.offer-expiry",
+        "version": 1
+      },
+      "status": "accepted",
+      "resource": "spec/data/offer-expiry/v1/contract.md",
+      "sha256": null
+    },
+    {
+      "kind": "contract",
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "data.asset-model",
+        "version": 1
+      },
+      "status": "candidate",
+      "resource": "spec/data/asset-model/v1/contract.md",
+      "clauses_used": [
+        "S-18",
+        "S-19",
+        "S-21",
+        "S-22"
+      ],
+      "sha256": null
+    },
+    {
+      "kind": "contract",
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "capability.asset-governance",
+        "version": 1
+      },
+      "status": "candidate",
+      "resource": "spec/capabilities/asset-governance/v1/contract.md",
+      "clauses_used": [
+        "S-27",
+        "S-28",
+        "S-30",
+        "S-31",
+        "S-46",
+        "S-48",
+        "S-64"
+      ],
+      "sha256": null
+    },
+    {
+      "kind": "contract",
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "data.identity-values",
+        "version": 1
+      },
+      "status": "accepted",
+      "resource": "spec/data/identity-values/v1/contract.md",
+      "sha256": null
+    },
+    {
+      "kind": "realization",
+      "node": "realization/packages/assets/asset-governance",
+      "resources": [
+        "README.md",
+        "design.md",
+        "verification.md"
+      ],
+      "sha256": null
+    },
+    {
+      "kind": "bindings",
+      "node": "realization/packages/assets/asset-governance",
+      "resource": "bindings.yaml",
+      "sha256": null
+    },
+    {
+      "kind": "realization",
+      "node": "realization/packages/tenancy/organization-governance",
+      "resources": [
+        "README.md",
+        "design.md",
+        "bindings.yaml",
+        "verification.md"
+      ],
+      "sections": [
+        "v2 修订（候选，尚未实现）"
+      ],
+      "sha256": null
+    },
+    {
+      "kind": "realization",
+      "node": "realization/apps/tenancy-host",
+      "resources": [
+        "README.md",
+        "design.md",
+        "verification.md"
+      ],
+      "sections": [
+        "本程追加：资产治理与模型档案目录的中心侧（候选，尚未实现）",
+        "实施缺口与消费者影响"
+      ],
+      "sha256": null
+    },
+    {
+      "kind": "realization",
+      "node": "realization/packages/infra/clock",
+      "resources": [
+        "README.md",
+        "design.md"
+      ],
+      "sections": [
+        "实施缺口与消费者影响 (C-15)"
+      ],
+      "sha256": null
+    },
+    {
+      "kind": "formal-tasks",
+      "resource": "registry/formal-tasks.json",
+      "tasks": [
+        "asset-transfer-v1-transfer",
+        "asset-transfer-v1-share",
+        "asset-transfer-v1-revival"
+      ],
+      "evidence_run": "record/evidence/2026-09-25-formal-assets-runtimes",
+      "note": "All three exited 0 with no counterexample at HUB 1667ea4c; they check the contract model, not any node implementation. The 13 negative configurations are not formal tasks. Runs 2026-09-25-validity-stream-assembly and 2026-09-25-node24-json-probe do not bear on this topic."
+    },
+    {
+      "kind": "basis",
+      "entries": [
+        "plugin-body-reruns-on-provider-change",
+        "inject-has-no-optional-form",
+        "plugin-throw-fails-fiber",
+        "emit-listener-throw-propagates",
+        "async-control-not-bail",
+        "isolate-hides-instances-not-data"
+      ],
+      "probe": "as cited by the asset-governance node against Cordis 4.0.4 (D-025)"
+    },
+    {
+      "kind": "domain-objects",
+      "resource": "domain_objects/objects.md",
+      "entries": [
+        "UL-copy-notice",
+        "UL-sharing-invitation",
+        "UL-sharing-relationship",
+        "UL-asset",
+        "UL-asset-version",
+        "UL-organization",
+        "UL-tenant"
+      ],
+      "sha256": null
+    },
+    {
+      "kind": "covers",
+      "resource": "registry/covers.json",
+      "note": "71 entries for PF-003, all reviewed: false",
+      "sha256": null
+    },
+    {
+      "kind": "decision",
+      "resources": [
+        "record/decisions/assets-runtimes-split-and-rulings/decision.md",
+        "record/decisions/mainline-self-rulings-2026-09/decision.md",
+        "record/decisions/assets-runtimes-contract-acceptance/README.md",
+        "record/decisions/assets-runtimes-node-acceptance/README.md",
+        "record/decisions/cordis-adoption-version/decision.md"
+      ],
+      "note": "D-039 accepted; D-040 mainline rulings awaiting ratification; D-041 and D-042 are unsigned drafts"
+    }
+  ],
+  "supersedes": null,
+  "superseded_by": null
+}

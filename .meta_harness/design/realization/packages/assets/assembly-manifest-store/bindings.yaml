@@ -1,0 +1,10 @@
+# 条款到证据的绑定表。
+# 空：capability.assembly-manifest v1 本版不建形式工件（契约 S-25：条件追加的判定是一个整数相等，
+# 它的必要前提由场景 S-26 的真并发与故障注入给证据；「半截不可见」「读不到不是没有」被建模方式吸收），
+# registry 里没有它的 formal task；本节点尚未建包，没有测试。
+# 证据形式（契约场景 S-26～S-31 与本节点自己的 V-1～V-9）逐条记在 verification.md，全部未开始。
+version: 1
+node: "assembly-manifest-store"
+kind: "provider"
+
+bindings: []

@@ -1,0 +1,58 @@
+# execution-environments-host 验证与证据
+
+契约侧的证据义务权威在 [`spec/capabilities/execution-environments/verification.md`](../../../../spec/capabilities/execution-environments/verification.md)：本版**不建形式工件**（[S-18](../../../../spec/capabilities/execution-environments/v1/contract.md#s-18-本版选用哪些形式工件)），证据全部是对真实操作系统进程的场景与故障注入。
+本页按本节点的兑现点登记，再加**本节点自己的选择**带来的义务（自己解析程序路径、退出即定结果、共享的停止例程、发信号前核组长身份、读面缺席的两种收场、撤除序列）。**本节点尚未建包，一切未开始。**
+
+## 证据义务
+
+### 规范场景（六条加两节实例，全部未开始）
+
+| 场景 | 本节点上的形式与前提 | 另外受阻于 | 状态 |
+|---|---|---|---|
+| [S-19](../../../../spec/capabilities/execution-environments/v1/contract.md#s-19-落点的四种答案) 落点的四种答案 | 单元测试（`decidePlacement` 逐支）＋ 集成测试：种子件按 RD-1 给六个工具的读数；故障注入：种子件答「读不到」；把第一个改 `never-allow` 再问 | 读面没有契约（EEH-1）：**有前提：种子件** | 未开始 |
+| [S-20](../../../../spec/capabilities/execution-environments/v1/contract.md#s-20-拓展件子进程没有允许就不起) 拓展件子进程没有允许就不起 | 两支：种子件答「没有」、种子件**不装**（产品形态）⇒ 都是 `noLanding{hostNotAllowed}`；种子件答「读不到」⇒ `unavailable`；三支都断言一个进程都没起（进程表与操作系统两侧都核） | —— | 未开始 |
+| [S-21](../../../../spec/capabilities/execution-environments/v1/contract.md#s-21-孙进程随组停下) 孙进程随组停下 | 对真实进程：`/bin/sh -c 'echo hi; sleep 600 &'`；断言 `processOutcome` 在 `sh` 退出后返回（**不等孙进程**，关键选择四）、`stdout` 是 `hi\n`、`stopProcessGroup` 之后孙进程不在 | 上游语义取证（EEH-7） | 未开始 |
+| [S-22](../../../../spec/capabilities/execution-environments/v1/contract.md#s-22-停不下来有界答复之后继续停) 停不下来：有界答复之后继续停 | 故障注入经可替换的信号端口：一段时间内「组里还有」；断言 `stopReplyBound` 之内答 `notConfirmed`、故障解除后例程继续、再停答 `confirmedGone` | —— | 未开始 |
+| [S-23](../../../../spec/capabilities/execution-environments/v1/contract.md#s-23-环境变量不继承) 环境变量不继承 | 本进程环境里放哨兵；`launch.environment` 只给两项、其中**没有**程序搜索路径、`program` 给绝对路径；输出恰两项；另起一个参数里带 `$HOME`、`;` 的进程，核参数逐字相等 | 假设 ⑤（`env` 不合并）待取证 | 未开始 |
+| [S-24](../../../../spec/capabilities/execution-environments/v1/contract.md#s-24-别人的引用旧的引用) 别人的引用，旧的引用 | 集成测试；重启以撤除再装上本插件模拟；失败值与「从没发过的串」逐字比较 | —— | 未开始 |
+| [examples §3](../../../../spec/capabilities/execution-environments/v1/examples.md#3-停不下来与撤除) 停不下来与撤除 | 验收装配：撤除本插件时有一次 `processOutcome` 在等、一个组在跑 | —— | 未开始 |
+| [examples §4](../../../../spec/capabilities/execution-environments/v1/examples.md#4-每个失败值一个反例) 失败值与次序 | 每个失败值一个反例 ＋ 四条次序回归例 | —— | 未开始 |
+
+### 本节点自己的选择带来的义务
+
+| # | 义务 | 证据形式 | 状态 | owner 与闭合条件 |
+|---|---|---|---|---|
+| N-1 | **程序路径自己解析**（关键选择三）：`launch.environment` 没有程序搜索路径而 `program` 是裸名 ⇒ `programNotFound`（即使本进程的搜索路径里有它）；空项即工作目录；带 `/` 的相对路径按工作目录解析；工作目录不在 ⇒ `launchRefused`、不是 `programNotFound`；解析之后文件被挪走 ⇒ `programNotFound`。**变异**：把查找交回 `spawn` 时第一支要红 | 集成测试 | 未开始 | 本节点 |
+| N-2 | **退出即定结果**（关键选择四）：孙进程继承管道并持续写时，`processOutcome` 在 `outputDrainGrace` 之内返回；结果定下之后孙进程写满管道也不挂住（照读照丢）；超出 `outputBound` 的截断标记准确 | 集成测试 | 未开始 | 本节点 |
+| N-3 | **共享的停止例程**（关键选择六）：两次并发 `stopProcessGroup` 只有一轮 `SIGTERM`／`SIGKILL`；各自按自己到达的时刻加 `stopReplyBound` 答复 | 集成测试（信号端口计数） | 未开始 | 本节点 |
+| N-4 | **撤除序列**：撤除时在 `spawn` 途中的那一次答 `environmentsWithdrawn` 而它起的进程被停；**撤除恰在一次 `startProcess` 停在读面（或 `stat`、`resolveProgram`）的 `await` 里时发生** ⇒ 那一次答 `environmentsWithdrawn`、操作系统里没有它起的进程（在途计数在第一个 `await` 之前登记，[S-13 行](design.md#契约责任到插件服务与操作)）；在等的调用都得 `environmentsWithdrawn`；停不下来的组记 error 日志后不再有定时器（含看守）、不再发信号。**变异**：计数挪到第一个 `await` 之后时读面那一支要红 | 演练（信号端口故障注入；读面种子件可挂起） | 未开始 | 本节点 |
+| N-5 | **读面缺席的两种收场**（关键选择一）：不装种子件时，`placeExecution` 答 `unavailable`、`startProcess` 答 `noLanding{hostNotAllowed}`、`resolveSessionEnvironment` 照常 | 集成测试 | 未开始 | 本节点 |
+| N-6 | **配置错误一个政策**：五项任一缺席或非法、`stopGrace ≥ stopReplyBound`、`stopPollInterval ≥ stopReplyBound`、Windows 上装载 ⇒ 启动失败、诊断点名不含值 | 单元测试 ＋ `apps/cli` 装配测试 | 未开始 | 本节点 ＋ `apps/cli` |
+| N-7 | **日志不带参数与环境变量的值**：以哨兵值起进程、制造每一种失败，扫日志 | 集成测试 | 未开始 | 本节点 |
+| N-8 | **公开函数面**：`decidePlacement` 与 `decideExtensionLanding` 逐支穷举；`startGroup` 不装 Cordis、不给租户即可起停；函数层不判引用与租户（那是服务面的事） | 单元测试 | 未开始 | 本节点；有实现即可跑 |
+| N-9 | **上游语义取证**（EEH-7 的八条与 `execvp` 查找差别）；其中组长身份核对立在 ⑦⑧ 两条上，另加 **⑨ 号空间转一圈的最短时间**（EEH-5 剩下的前提）：在目标机上读号空间上限、在高起进程率下实测一个号再次被分配的最短间隔，与 `stopPollInterval` 加事件循环停顿的上界比较，结论写成可测的陈述（「在这台机器上至少 X，远大于 Y」），不写「极短」 | 每条一个会失败的测试，Linux 与 macOS 各跑；⑨ 是一次有记录的测量，换机器或改 `stopPollInterval` 时重做；需要时登 basis | 未开始 | 本节点 |
+| N-10 | **结构检查**：本包不 inject 任何服务、不 `emit`、不监听；种子件不在任何 `packages/*` 里、不在产品据点清单里 | `tools/ts-checks`（候选规则）＋ cli 结构检查，带「故意违反就失败」的自测 | 未开始 | 本节点 ＋ `apps/cli` ＋ ts-checks owner |
+| N-11 | **信号只到本组**（[关键选择七](design.md#关键选择)）：经可替换的信号端口逐问注入——组长未收回 ⇒ 发；组长已收回而 `kill(组号, 0)` 报有进程 ⇒ 一个信号都不对 `-组号` 发、例程停、答 `confirmedGone`、一条 error 记录；组长已收回、组号上无进程而看守已记「组空」⇒ 不发、答 `confirmedGone`；探测报意外错误码 ⇒ 不发、答 `notConfirmed`、下一拍再核。对真实进程另跑一支：`sh -c 'sleep 600 &'` 让组长先退，看守起来、停组时 `SIGKILL` 照样到达孙进程。**变异**：去掉第二问（组长已收回就不再看组号上有没有进程）时注入那一支要红 | 单元测试（信号端口）＋ 集成测试（真实进程） | 未开始 | 本节点 |
+
+## 实际执行
+
+**无。**本节点没有源码；契约本版没有形式任务。
+
+## 覆盖缺口
+
+- **全部条款没有任何实现证据**：源码、测试、集成运行都不存在；[bindings](bindings.yaml) 为空。
+- **只能在种子件上跑通的**（D-040 §八 N-35 ①）：S-19 的四种答案；S-21～S-23、examples §2／§3 的全部起停（`startProcess` 要种子件给出拓展件子进程的允许才起得来）——记「有前提：种子件」，不计入实际验证完成数。受阻消费者：执行宿主起执行者第 2 步（产品里恒 `failed{environment_unavailable}`）、全部兼容件（产品里恒「起不来」）。
+- **上游语义全部待取证**（EEH-7）：S-7、S-13～S-15 的每一条都立在六条假设上。
+- **「信号绝不到达组外进程」有一条前提只能量、不能证**（EEH-5）：看守相邻两拍之间号空间转不完一圈。N-11 证机制，N-9 第 ⑨ 条量前提；前提在别的机器上不成立时要重量。受阻消费者：兼容件与将来 MCP stdio 经此停组。
+- **契约 S-16 右列（协议须给）**本节点一条都不兑现。
+
+## 独立评审
+
+**独立评审 N7**（architecture-reviewer，2026-09-25；对象：本节点首稿与同批另三个节点；结论无阻断）。下表是本节点名下各项的处置，依据主线裁定 [D-040 §八 N-42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)。**处置不等于评审闭合**：本次修订尚未复评。
+
+| 评审项 | 处置 | 落在哪 |
+|---|---|---|
+| F-3 组号再分配：未确认之后按拍重复 `SIGKILL`，契约无「不停到组外」 | 改：每次发信号之前核组长身份（三问：组长收回没有、组号上另有没有进程、看守见没见过组空），核不上即不发、例程停、答 `confirmedGone`、记 error；判不出即不发、`notConfirmed`。起始时刻与 pidfd 两个候选落选（理由见关键选择七）。EEH-5 改为证据义务。契约安全性质与 S-15 ④ 由规格侧补 | design [关键选择七](design.md#关键选择)、六，S-7／S-15 行、失败映射、装卸；假设 ⑦⑧；N-9 第 ⑨ 条、新 N-11 |
+| F-6 撤除次序写成「装配已承接」 | 改为「要求 cli 加入显式次序；未加入时的收场已兜住」，对指 cli A-32（cli 已加：验收装配里执行环境 → 保管方，最后撤根） | design [归装配的事项](design.md#装配给与协议给本节点单机怎样兑现左列) |
+| S-4 在途起进程计数须在第一个 `await` 之前登记 | 写成实现约束：撤除标记核过的同一段同步代码里加一，`spawn` 之前同步再核撤除标记 | design S-13 行、撤除序列第 ② 步；N-4 读面一支 |
+| 顺带 | EEH-4 的契约措辞已落（D-040 §八 N-40 ③），改「已闭合」；路径裁定改引 N-40 ① | design 缺口表；README |

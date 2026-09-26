@@ -1,0 +1,11 @@
+--- /data/qiwei/repos/omne-harness-lite/tmp/formal-runs/asset-evaluation-v1-2026-09-24b/-c/Evaluation.als	2026-09-24 07:59:41.990434136 +0000
++++ /data/qiwei/repos/omne-harness-lite/tmp/formal-runs/asset-evaluation-v1-2026-09-24b/-c/mutants/M12.als	2026-09-24 08:00:09.782183687 +0000
+@@ -274,7 +274,7 @@
+ // 界：参与的配值里带锁的那些，以及执行权限上的 {forbid}（账本 S10-b；PF-002 rev 17 §5.3）。
+ // 工作区自带资产的最严值也是界，但它在出厂那一格、不是一条配值——它只在「没有挑选落在界内」时让 from 取 factory，
+ // 由 permFrom 最后一支兑现。
+-fun permBounds[c: Cap, i: Item] : set Assign { permParticipating[c, i] & (LockedAssign + ForbidAssign) }
++fun permBounds[c: Cap, i: Item] : set Assign { permParticipating[c, i] & LockedAssign }
+ 
+ // 挑选：参与的配值里不是界的那些（界不同时是挑选，2026-09-24 随 rev 17 §5.3 改）。
+ fun permPicks[c: Cap, i: Item] : set Assign { permParticipating[c, i] - permBounds[c, i] }

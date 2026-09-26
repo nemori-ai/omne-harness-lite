@@ -51,7 +51,7 @@ relations:
 | 关系 | 本 topic 的情况 |
 |---|---|
 | `supersedes` | 无 |
-| `depends-on` | [PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)（**rev 17**，本 topic 用它定义的[上级组织](../PF-001-identity-scope-and-agent-constraints/design.md#组织)、[角色](../PF-001-identity-scope-and-agent-constraints/design.md#角色)、租户范围的归属与[提升](../PF-001-identity-scope-and-agent-constraints/design.md#67-创作与归属)、[退出后租户不再有效](../PF-001-identity-scope-and-agent-constraints/design.md#退出之后再加入回来的是同一个租户)）与 [PF-002](../PF-002-assets-settings-and-permissions/README.md)（**rev 17**，本 topic 用它定义的[一层由谁管](../PF-002-assets-settings-and-permissions/flows.md#31-一个资产在某个范围里)与[「谁可以使用它」](../PF-002-assets-settings-and-permissions/design.md#谁可以使用它是各类资产共用的一项权限)）。两者定义的概念一律引用，不改写 |
+| `depends-on` | [PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)（**rev 17**，本 topic 用它定义的[上级组织](../PF-001-identity-scope-and-agent-constraints/design.md#组织)、[角色](../PF-001-identity-scope-and-agent-constraints/design.md#角色)、租户范围的归属与[提升](../PF-001-identity-scope-and-agent-constraints/design.md#67-创作与归属)、[退出后租户不再有效](../PF-001-identity-scope-and-agent-constraints/design.md#退出之后再加入回来的是同一个租户)）与 [PF-002](../PF-002-assets-settings-and-permissions/README.md)（**rev 20**，本 topic 用它定义的[一层由谁管](../PF-002-assets-settings-and-permissions/flows.md#31-一个资产在某个范围里)与[「谁可以使用它」](../PF-002-assets-settings-and-permissions/design.md#谁可以使用它是各类资产共用的一项权限)）。两者定义的概念一律引用，不改写 |
 | `extends` | 无 |
 
 **与 PF-001 的分界**：组织怎样隶属、关系怎么建立解除，归 PF-001——那是组织**属性**的事。
@@ -77,8 +77,8 @@ PF-002 因对象的种类或组合形状变，本 topic 因流动的方向或语
 
 - 产品设计：**rev 5**，已定稿
 - 未决项：**无**
-- 待裁决：**无**
-- 技术投影：**尚未开始**
+- 待裁决：**1**（提升时生效中的分享怎么收场，见 [decisions.md 第三节](decisions.md#三待裁决)；规格已按主线倾向先落）
+- 技术投影：[v1](projection/README.md)，对应 rev 5，`post-review`、来源未冻结——派生快照，不是权威
 
 技术投影按 `harness-design-handbook` skill 展开，
 产物按其步骤 G 落回本包的 `projection/v1/`。

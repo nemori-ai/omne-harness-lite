@@ -182,3 +182,30 @@ bindings:
       - "pg 一侧另由 apps/tenancy-host/tests/pg.spec.ts › pg 首跑 · 交错 I-12（…）承担（I-4 插入方向，PostgreSQL 16.14）"
       - "义务点名的「直接构造『组织行指着账号行』时 S-38 被拒、重扫后收敛」没有逐字同名的用例"
     alignment_checked: 2026-09-23
+
+  # ---- v2（candidate，待 D-041；源码未改）----
+  # v2 S-45 声明形式工件沿用 v1、formal task organization-governance-v1-membership 仍是 S-17 那一格、不新登任务；
+  # 下面三条与上面三条 v1 formal 绑定同一任务、同一次运行，只是坐标换成 v2。两个时刻的证据是场景 S-61（未开始），不绑。
+
+  - clause: "capability.organization-governance/v2#S-17"
+    evidence: "formal:organization-governance-v1-membership"
+    assumptions:
+      - "Serialized = TRUE：假设选中的存储兑现了 R-3a（写事务开头锁组织行）；这条前提由存储提供者承担，模型不检查"
+      - "模型不含 v2 的成员关系生效时刻：v2 只让加入与解除多写一项、不加动作、不改守卫（v2 S-45），所以 S-17 的结论照样成立；对时刻本身什么也没说"
+      - "Actors = {a1, a2}；无公平性假设，不检查进展；跨进程协调不在模型内（v2 S-42 第 1 行右列、G-7）"
+      - "run：record/evidence/2026-09-22-formal-tenant-domain-2（此后模型与 cfg 未改；2026-09-25-formal-assets-runtimes 未重跑租户领域的任务）"
+    alignment_checked: 2026-09-25
+
+  - clause: "capability.organization-governance/v2#S-28"
+    evidence: "formal:organization-governance-v1-membership"
+    assumptions:
+      - "模型只覆盖「之后仍 ≥1 有效超管」这条前置与写入同提交；v2 S-8 那张表写明调整角色不动生效时刻，这一项不在模型里"
+      - "同上：Serialized = TRUE、Actors = {a1, a2}、无公平性；run 同上"
+    alignment_checked: 2026-09-25
+
+  - clause: "capability.organization-governance/v2#S-29"
+    evidence: "formal:organization-governance-v1-membership"
+    assumptions:
+      - "模型里 remove 与 demote 共用同一条前置；v2 S-29 ④「生效时刻不清、不改」不在模型里，证据形式是场景 S-61 的成员关系那一段"
+      - "同上：Serialized = TRUE、Actors = {a1, a2}、无公平性；run 同上"
+    alignment_checked: 2026-09-25

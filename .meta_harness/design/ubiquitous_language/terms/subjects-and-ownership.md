@@ -169,7 +169,7 @@
   关系主体与接受后建立的东西各不相同。**这个词只用来归类，不给这四样一套共同的身份、存储或状态机**
 - **注意 ①**：**它自身不会有实例**——指得到的永远是那四样里的某一份
 - **注意 ②**：**过期那条规则是同一条裁决的两半**——[PF-001 这一半](../../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期)管邀请与隶属请求，[PF-003 那一半](../../product/PF-003-asset-transfer-and-sharing/design.md#614-待确认的复制通知与分享邀请会过期)管复制通知与分享邀请，**两处口径一致**
-- **注意 ③**：**「已经接受了的」不在这个词的论域里**——[确认之后的使用权没有到期](circulation-and-entitlement.md#ul-usage-right--使用权--usage-right)，[接受产生的租户](#ul-tenant--租户--tenant)也不会过期
+- **注意 ③**：**「已经接受了的」不在这个词的论域里**——接受之后立起来的东西各归各的词条：[租户](#ul-tenant--租户--tenant)、[上级组织](#ul-parent-organization--上级组织--parent-organization)属性的值、落下的那份资产、[分享关系](circulation-and-entitlement.md#ul-sharing-relationship--分享关系--sharing-relationship)；它们不会过期——[确认之后的使用权没有到期](circulation-and-entitlement.md#ul-usage-right--使用权--usage-right)，租户也不会
 - **注意 ④**：**本人型的[资产复制](circulation-and-entitlement.md#ul-asset-copy--资产复制--asset-copy)与[资产分享](circulation-and-entitlement.md#ul-asset-sharing--资产分享--asset-sharing)不产生邀约**——两侧都是同一个人，发起即生效，没有要等的另一方
 
 ### UL-invitation · 邀请 · Invitation

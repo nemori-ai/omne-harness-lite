@@ -217,3 +217,16 @@ SHA-256 `29b35ae69e9cc7696cfdd0992e157892dfedc857c50762f49d752584358e4163`，
 - 来源：`pi/packages/durable/package.json:2-3` `@earendil-works/pi-durable@0.86.1`；`src/` 只有 `index.ts`、`memory-storage.ts`、`types.ts`；`docs/pico-v5.md:1-3`「This document is normative」，`:194`「Pico5 is not implemented yet」。
 - 实际观察：`docs/pico-v5.md:1520-1532`：生成直接调 `models.streamSimple()`；进度按节流写入，崩溃可能丢未提交窗口；恢复把已提交的半截转成普通 interrupted/aborted 条目，再按任务阶段重试或终止。`:185-186` aborted/error/deferred 的 assistant 消息从后续请求中排除。
 - 支持范围：pi 侧对「模型请求耐久」只有规格与内存实现。
+
+## E11 OpenRouter 官方文档「Usage Accounting」（2026-09-23 抓取）
+
+- 来源：主检出 `tmp/sources/extracted/openrouter-docs/use-cases_usage-accounting.html`（`sha256 2f4d882c…8443d`，2026-09-23T19:39Z 抓取自 `https://openrouter.ai/docs/use-cases/usage-accounting`）。网页无版本号，只能按抓取时刻钉。
+- 原文（去标签后逐字）：「This information is included in the last SSE message for streaming responses, or in the complete response for non-streaming requests. No additional parameters are required.」「The `usage: { include: true }` and `stream_options: { include_usage: true }` parameters are deprecated and have no effect.」
+- 响应 `usage` 对象的示例字段：`completion_tokens`、`completion_tokens_details.reasoning_tokens`、`cost`、`cost_details.upstream_inference_cost`、`prompt_tokens`、`prompt_tokens_details.cached_tokens`、`prompt_tokens_details.cache_write_tokens`、`prompt_tokens_details.audio_tokens`、`total_tokens`。原文说明「cached_tokens is the number of tokens that were read from the cache. cache_write_tokens is the number of tokens that were written to the cache」。费用单位原文为「Cost in credits」。
+- 该页**未出现** `is_byok`，也**未提及**被取消/中断的流是否计费。
+
+由此更新的观察：
+- E2 里「fork 时要自己加 `usage.include`」不成立——现行文档说不需要参数、用量总在最后一个 SSE 块；fork 只需**读** `usage.cost` 与 `cost_details`。
+- 四类 token 的上游名：`prompt_tokens`（含缓存读写？原文未明说 `prompt_tokens` 是否包含 `cached_tokens`——**待核实**）、`prompt_tokens_details.cached_tokens`（缓存读）、`prompt_tokens_details.cache_write_tokens`（缓存写）、`completion_tokens`。`data.call-accounts` 的「三项输入两两不相交」要在传输适配处按上游定义换算，换算规则待实测核实。
+- `cost` 的单位是 credits，不是 USD；`cost_usd` 的换算（1 credit 是否恒等 1 USD）**待核实**，归提供者设计。
+- `is_byok` 与被中断请求是否计费仍待核实（此页无）。

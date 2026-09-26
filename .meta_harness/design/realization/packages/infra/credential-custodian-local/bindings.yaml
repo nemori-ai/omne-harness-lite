@@ -1,0 +1,11 @@
+# 条款到证据的绑定表。
+# 空：本节点尚未建包，没有任何会在条款被违反时失败的测试。
+# 契约的 formal task credential-custodian-v1-sweep 已运行（run 2026-09-25-formal-credential-custodian，正配置无反例），
+# 但它证的是契约模型：它把「清扫与完成在绑定上排序」建成每个动作的原子性、两侧共用一个 Expired（都被建模方式吸收），
+# 恰好盖不到本节点要兑现的那两件（锁同一绑定行、锁到之后取时刻；过期只经桥的 isPendingExpired 判）——不作本节点的绑定证据。
+# 真正的证据形式（契约场景 S-22～S-28、本节点的真并发演练与故障注入）逐条记在 verification.md，全部未开始。
+version: 1
+node: "credential-custodian-local"
+kind: "provider"
+
+bindings: []

@@ -71,7 +71,7 @@ relations:
   [拓展件不可用处置](design.md#不可用处置是这一件自己的声明)是**这一件自己的声明**，各层配不了；[Skill](design.md#skill) 本版**没有系统规定的设置项**
 - 未决项：**一项**（[§九](design.md#九未决项)）——同一份连接件送来的一条事件，走两种投递方式的哪一路；另有一处缺口**归会话那一块**（新会话以哪个 agent definition、哪个租户身份建），§九只指路
 - 待裁决：**一项**（D-6，同上），见 [decisions §三](decisions.md#三待裁决)；D-2～D-4 已于 2026-09-24 裁定，D-5 同日由主线裁定（待确认）
-- 技术投影：**尚未开始**
+- 技术投影：[v1](projection/README.md)，对应 rev 20，`post-review`、来源未冻结——派生快照，不是权威
 
 技术投影按 `harness-design-handbook` skill 展开，
 产物按其步骤 G 落回本包的 `projection/v1/`。

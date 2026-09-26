@@ -1,0 +1,1 @@
+/opt/java/jdk-21.0.12.1+1-jre/bin/java -cp /opt/tlaplus/tla2tools.jar tlc2.TLC -metadir tmp/tlc/cc-Sweep_Validity_SweepNotGranted -cleanup -noGenerateSpecTE -workers 1 -config spec/capabilities/credential-custodian/v1/formal/Sweep_Validity_SweepNotGranted.cfg spec/capabilities/credential-custodian/v1/formal/Sweep.tla

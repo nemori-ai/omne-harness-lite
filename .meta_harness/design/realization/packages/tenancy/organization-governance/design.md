@@ -13,6 +13,8 @@
 
 **Cordis 版本**：采用 `@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；依赖机制语义逐条引 basis。
 
+**本页到「S-53 单独一个服务名」为止写的是 v1 的已实现设计**；v2（候选、尚未实现）的增量——两个时刻、双版本服务、存量记录、事务内读入口与给资产提供者的三项外部依赖——集中在 [v2 修订](#v2-修订候选尚未实现)，不改插件边界。
+
 ## 能力到 Cordis 的投影
 
 插件 `organizationGovernancePlugin`（插件名 `organization-governance`，`src/plugin.ts`；inject `storage`、`clock`、`accounts`、`logins`；config `OrganizationGovernanceConfigSchema`）provide 四个服务面，服务名常量 `ORGANIZATIONS_SERVICE`＝`'organizations'`、`MEMBERSHIPS_SERVICE`＝`'memberships'`、`OFFERS_SERVICE`＝`'offers'`、`ORGANIZATION_PURGE_SERVICE`＝`'organization-purge'`，接口 `OrganizationsService`／`MembershipsService`／`OffersService`／`OrganizationPurgeService`（`src/types.ts`，各方法的失败联合逐字对契约 ⑥）；下表方法名是实名，已实现（HUB `c9b5850`）。操作落点：`organizations` 承 S-20／S-21／S-22／S-33／S-34／S-35（`src/organizations.ts`）；`memberships` 承 S-26／S-27／S-28／S-29／S-59／S-36／S-37（`src/memberships.ts`）；`offers` 承 S-23／S-24／S-25／S-30／S-31／S-32／S-55／S-56／S-57／S-58／S-60（`src/offers.ts`）；`organization-purge` 只承 S-53（`src/purge.ts`）。
@@ -82,6 +84,81 @@
 
 **这不是权限边界**，跨进程后失效（S-42 右列）；它只让「谁够得着」在源码层可见、可查。
 
+## v2 修订（候选，尚未实现）
+
+[v2](../../../../spec/capabilities/organization-governance/v2/contract.md) 是 v1 的加法版（`candidate`，待 D-041）；**本节只写增量**，v1 同文的条款沿用上文。下文方法名、服务名、列名、入口名一律**候选**；源码仍是 v1（HUB `c9b5850`）。
+
+### 投影增量
+
+| 契约责任 | 插件、服务／贡献或公开操作（候选） | 兑现点 | 符合性依据或缺口 |
+| --- | --- | --- | --- |
+| [v2 S-7](../../../../spec/capabilities/organization-governance/v2/contract.md#隶属建立时刻v2) 隶属建立时刻 | 组织行加一列 `parent_established_at`（可空，毫秒） | S-32 ④ 与上级值**同一提交**写下、S-33 ④ 与上级值一起清空；**写路径仍只此两条**（v1 的「写 `parent` 的语句只有两条」静态检查扩到这一列） | 时刻在写事务里、取完 R-3b 哨兵之后调 `clock.now()`（R-7） |
+| [v2 S-8](../../../../spec/capabilities/organization-governance/v2/contract.md#s-8-成员关系记录) 成员关系生效时刻 | 成员关系行加一列 `effective_since`（可空，毫秒） | S-20、S-21、S-25（此前无记录）首次建立写下；S-25 再加入改写；S-28、S-29 不动；S-53 随行删除 | 同上，取完 R-3a 组织行锁之后取时刻 |
+| [v2 S-22](../../../../spec/capabilities/organization-governance/v2/contract.md#s-22-读组织)、[S-36](../../../../spec/capabilities/organization-governance/v2/contract.md#s-36-当前租户身份查询)、[S-59](../../../../spec/capabilities/organization-governance/v2/contract.md#s-59-列出组织成员) ⑤⑧ | v2 服务名上的三个方法：`organizations-v2.read`、`memberships-v2.currentTenant`、`memberships-v2.list` | 返回多带时刻；时刻为空 ⇒ `unavailable`（S-59 任一项为空即整次）；有上级才有隶属建立时刻，无上级时**不给占位值** | 双版本见下 |
+| [v2 §十三](../../../../spec/capabilities/organization-governance/v2/contract.md#十三版本差异与规范工件) 同一提供者服务两版 | 写：全部写路径只有一份实现，按 v2 写；读：v1 服务名的方法**不读时刻列**，答 v1 形状与 v1 失败触发 | v1 与 v2 服务对象是同一实例的两组入口，只在那三个读方法上分叉 | 「钉哪一版由装配绑定」＝消费者 inject 哪个服务名 |
+| [v2 S-42](../../../../spec/capabilities/organization-governance/v2/contract.md#s-42-装配给的保证-vs-协议须给的保证)「代行读两个时刻」 | 无新方法 | 中心进程里唯一钉 v2 的消费者（资产提供者）经事务内读入口取两个时刻、**不经 S-22／S-59**，代行主体不出现——契约这一行写明「同一存储内一次可串行化读（含事务内直读）即满足，不要求经服务面代行」（D-040 §八 M59）；据点那一侧若经读面代行读 S-59，② 认的是那个租户自己的有效成员身份，本节点不另开授权 | 跨进程的服务身份归 G-7 |
+| v2 S-42「两个时刻可比」 | 同一 `clock` 实例；时刻在写事务里、锁下取 | 同一组织的成员写在 R-3a 上串行、隶属写在 R-3b 上串行，锁下取的时刻与提交同序 | **「先后两次串行提交的时刻不相等」待 `infra/clock` 的 C-15**（V2-2） |
+| v2 [S-45](../../../../spec/capabilities/organization-governance/v2/contract.md#s-45-本版选用哪些形式工件) | — | 形式工件沿用 v1；formal task `organization-governance-v1-membership` 仍是 S-17 那一格 | bindings 三条 v2 绑定 |
+| v2 [S-61](../../../../spec/capabilities/organization-governance/v2/contract.md#s-61-两个时刻随写入写下按规则改写由三个读面带出) | — | 两段演练，每步之后三个读面各读一次；故障注入「时刻读不到」 | 未开始（verification） |
+| 资产提供者的同一提交（AT S-17、S-18、S-34；[D-040 §一 PA-4](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#块-a-拆分提案报回的推荐-bcore-纯模块--治理与流转一个插件)） | 事务内读入口 `./tx-reads`（包的子路径导出）：取隶属哨兵；按标识排序锁组织行；读一个组织的变体、上级与隶属建立时刻；读一条成员关系的有效性、角色与生效时刻 | 函数接收调用方的事务句柄、只读、不自己开事务；**本节点自己的 S-22、S-26、S-34、S-59 也调同一组函数**——资产提供者读到的与本节点读面答的是同一段代码的结果 | 外部依赖登记见下；导入限定 V2-4 |
+
+**迁移**：v1 的六个片段一字不改；两列经**单独导出**的一个新片段（候选 `organizationGovernanceV2Migrations`，片段名候选 `organization_governance_v2_times`：两句 `ALTER TABLE … ADD COLUMN`，可空，幂等靠先查列是否已在）交给 [tenancy-host](../../../apps/tenancy-host/design.md#合成规则) 追加在合成序列末尾。**不塞进原工厂的返回值**：原工厂的片段在合成序列中间，往里加一个会让已发布的编号名移位，数据格式核对（登记序列是本次序列的前缀）把每个旧库都判成接不了（tenancy-host M-9）。
+
+### 双版本怎么服务
+
+|          | 同名服务上加 `…V2` 方法（落选） | **v2 读面另起两个服务名 `organizations-v2`、`memberships-v2`（选）** | 每个读方法收一个版本参数（落选） | 只服务 v2、让钉 v1 的消费者一起升（落选） |
+| -------- | ----------------------------- | ------------------------------------------------------------------- | ------------------------------ | --------------------------------------- |
+| 最强论证 | 不增服务名 | 「调用方钉哪一版由装配绑定」落成 inject 边：一条边就是一个版本，钉错了是可静态查的名字错；v1 消费者的源码与服务名都不动 | 最少的类型 | 最少的代码 |
+| 本方弱点 | 版本写进方法名，钉哪一版散在调用点里，装配看不见 | 多两个服务名；**v2 服务对象要带全部 v2 方法**（多数与 v1 同一实现），不是只带三个读方法——否则钉 v2 的消费者还得 inject v1 名字；「钉 v1 的包只 inject v1 名字」的静态核对要一条规则（V2-5） | 版本在运行期传，传错不报错 | **违反 §十三**「推荐版本不自动升级消费者」：入口契约 v1 把 S-22、S-36、S-59 投影给终端，v1 存量记录会让它们突然 `unavailable` |
+| 置信度   | — | **中高** | — | — |
+
+`offers`、`organization-purge` 两个服务 v1、v2 同文，不另起名字。
+**本版 `organizations-v2`、`memberships-v2` 没有消费者 inject**：中心进程里唯一钉 v2 的是资产提供者，它经 `./tx-reads` 在自己的事务里读，不经服务面；这两个名字的消费者随入口契约 v2（据点经读面）到来。所以 v2 三个读面（S-22、S-36、S-59 的 v2 形状）在本版唯一的证据是场景 S-61；**D-041 对 v2 读面条款的接受口径不因此改变**——接受的是语义（[D-040 §八 M59](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。
+
+### 存量记录：不补时刻
+
+v1 写路径写下的成员关系与隶属没有时刻。§十三 写明钉 v2 的读面对它们收 `unavailable`、**不补一个时刻——补哪一刻都是编造**，又把「升到 v2 时怎样给存量记录落时刻」留给实施侧的迁移。
+
+|          | **迁移不补，两列留空（选）** | 迁移时给存量落迁移那次提交的时刻 T_m（落选） | 创建者的生效时刻取 `organization.created_at`，其余留空（落选） |
+| -------- | -------------------------- | ------------------------------------------ | ---------------------------------------------------------- |
+| 最强论证 | 与 §十三 的字面一致：读面答的时刻永远是真的 | 对资产流转的判定**等价**：分享只可能在采用 v2 之后确认（资产流转与 v2 同批上线），所以每段分享的确认时刻都大于 T_m，而真实的建立时刻 ≤ T_m——「时刻 ≤ 确认时刻」在真实值与 T_m 下同真同假；读面也不再永久 `unavailable` | 创建者那一条是真的（v1 下创建者自建立起未必没断过——个人组织不能退出，团队组织的创建者可以） |
+| 本方弱点 | **受阻**：采用之前建立的成员关系与隶属上，资产流转 S-9 一律判不可用、S-59 v2 对这些组织整次 `unavailable`，直到那段关系重新建立（V2-3）；本版未上线、库可重建，代价只落在开发与测试库上 | 读面答出的 T_m 不是那段关系真实的起点；与 §十三「补哪一刻都是编造」相抵 | 团队组织的创建者退出又加入过的，`created_at` 是错的；其余仍留空，受阻面几乎不变 |
+| 置信度   | **中**；主线已接受「不补」（D-040 §八 N-19） | — | — |
+
+### 给资产提供者的三项外部依赖（登记）
+
+资产提供者的确认事务（与本人型发起）要与本节点的写入在同一存储对象上排次序（[asset-governance「跨 owner 的同一提交」](../../assets/asset-governance/design.md#跨-owner-的同一提交组织治理的隶属哨兵组织行与事务内读)）。本节点据此把下列三项登记为**有外部消费者的实现细节**：改动须先告知资产提供者节点。
+
+| # | 依赖对象 | 本节点里它是什么 | 依据 |
+| --- | --- | --- | --- |
+| X-1 | 隶属哨兵 `organization-governance/affiliation`（`lockSentinel`）与上级链的逐行读（`organization.parent`） | R-3b 的锁对象；S-34 的读 | **主线裁定 D-040 §一 PA-4** |
+| X-2 | `organization.parent_established_at` 一列，在 X-1 的哨兵下读 | v2 S-7 的持有处 | 推导（资产节点反证 (i)）；PA-4 由 D-040 §八 N-19 扩到此处 |
+| X-3 | 组织行锁（`lockRow('organization', …)`）与成员关系行的有效性、角色、`effective_since` | R-3a 的锁对象；S-8 的持有处 | 推导（资产节点反证 (ii)）；PA-4 由 D-040 §八 N-19 扩到此处 |
+
+三项都只经 `./tx-reads` 暴露，列名不出本包。**锁次序约定**（R-8）：本节点任何写事务都不在持有组织行之后再取隶属哨兵；资产提供者按「隶属哨兵 → 组织行（按标识排序）→ 它自己的锁」取——两边的全序相容，pg 上不成环。
+
+### 对存储提供者的要求（v2 增量）
+
+| # | 要求 | 对应条款 |
+| --- | --- | --- |
+| R-7 | 两列与所随的写入同一次提交；**时刻在写事务里、取完 R-3a／R-3b 锁之后取** | v2 S-7、S-8、S-42「两个时刻可比」；AT S-34 同一行 |
+| R-8 | 隶属哨兵、组织行锁与资产提供者的锁在**同一个存储实例**上，锁次序按上段约定；`lockSentinel` 在 pg 上对同名哨兵串行 | X-1～X-3；装配给（[tenancy-host「三件事」](../../../apps/tenancy-host/design.md#同一存储同一约束域本节点要保证的三件事)），与 [asset-governance R-8](../../assets/asset-governance/design.md#对存储提供者的要求清单) 互指 |
+
+### 装卸增量
+
+多两个 `ctx.provide`（`organizations-v2`、`memberships-v2`），与其余四个同一 fiber、同一时点可解析、随 fiber 撤（待核对主张 `provide-is-effect-managed`）；多一个迁移片段（由装配合成，不随插件撤除）。**没有新的 effect、定时器或监听者**；在途调用照 v1 跑完、按各自那一次提交收场。
+
+### 公开面
+
+[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open) 对本节点**不改装配**：插件边界、服务名、inject 边、五个事件与装卸都照上文（v1 已实现、v2 候选），[tenancy-host](../../../apps/tenancy-host/design.md#公开面) 的装载清单与 config 不因此动。两面各是什么：
+
+|      | 公开函数面 | Cordis 服务面 |
+| ---- | --- | --- |
+| 本包导出 | **没有能力判定函数**。这一能力可单独取用的纯判定在它依赖的两个 core 纯模块里：identity-values 的 `ancestorChain`、`shareAncestor`（[`data.identity-values/v1#S-14`](../../../../spec/data/identity-values/v1/contract.md#s-14-上级组织与上级链)、[`#S-15`](../../../../spec/data/identity-values/v1/contract.md#s-15-shareancestor)）与身份值解析，offer-expiry 的 `timingFrom`、`deriveState`、`acceptable`、`parseOfferTtl`（[`data.offer-expiry/v1#S-4`](../../../../spec/data/offer-expiry/v1/contract.md#s-4-offertiming)～[`#S-14`](../../../../spec/data/offer-expiry/v1/contract.md#s-14-offer_ttl)）。本包另导出给装配的 `organizationGovernanceMigrations`、`OG_TABLES`——迁移片段工厂，依赖 `core/storage` 的类型，不是能力函数 | 插件 `organizationGovernancePlugin`；服务 `organizations`、`memberships`、`offers`、`organization-purge`（v1）与 `organizations-v2`、`memberships-v2`（v2 候选）；inject `storage`、`clock`、`accounts`、`logins`；五个通知事件。v2 的 `./tx-reads` 是**存储级**入口——收调用方的事务句柄、依赖存储，不属函数面，只给资产提供者（V2-4） |
+| 只在运行时层成立、函数层不承诺 | — | S-17 同组织成员写序列化（R-3a）；S-32 判环读与写同提交（R-3b）；S-42 九行装配给（含「S-53 只由清除链调用」）；v2 两个时刻随写入同提交、锁下取（R-7） |
+
+**本包自己的判定没有抽成纯函数**：结构性禁止先于授权（S-15，S-28／S-29 的次序）、「之后仍有效的超管 ≥ 1」、S-32 判环的前置条件，都与提交内的读写在同一段代码里（`src/memberships.ts`、`src/offers.ts`、`src/organizations.ts`）。SYS-OPEN 下要不要把它们抽成函数面，报主线；抽出只多一个子入口，不改服务面与装配。
+
 ## 依赖、作用域与绑定
 
 | 消费的精确契约 | 实际提供者／解析方式与范围 | 工作中绑定与变更生效点 | 缺席、撤回和旧引用政策 |
@@ -135,3 +212,14 @@
 - **G-13 残留清扫**：本节点只给方法，触发归装配；[tenancy-host](../../../apps/tenancy-host/design.md) 本版不建这个定时器（节奏是政策，待产品负责人），仓库里 `sweepStaleSelections` 尚无调用点；`tools/ts-checks` 的 `restricted-call-sites` 现只许本包、account-registration 与测试调它，装配建定时器时须放行装配。
 - **G-05 标量键**：成员关系用复合键绕开；需要按 `TenantId` 建索引的消费者（计量 G-3）落包前要 G-04／G-05 裁定。
 - **Alloy 模型未登记为 formal task**（退出码归 tooling），S-7／S-12／S-32 的结构证据只能在 verification 里引 evidence run，不能进 bindings。
+
+**v2 修订的缺口**（编号 V2-n 只在本节点内有效）：
+
+- **V2-1 源码未改**：v2 的两列、两个服务名、新迁移片段与 `./tx-reads` 都只是设计。owner 本节点；闭合条件：实现并跑 S-61。
+- **V2-2 「先后两次串行提交的时刻不相等」**：`infra/clock` 的 `now()` 整数毫秒、只保证不后退；同一毫秒里的「退出—再加入」或「解除—重建」写下与前一次相等的时刻。**受阻**：资产流转「不复活」在同一毫秒内的那一支（[asset-governance N-1](../../assets/asset-governance/design.md#实施缺口与消费者影响)）。手段已由 [D-040 §八 M58](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 选定为时钟，登为 [`infra/clock` 的缺口 C-15](../../infra/clock/design.md#实施缺口与消费者影响)（下一程实施）；本节点无动作。。owner `infra/clock` 节点：接受同一实例内逐次严格递增；落地前 v2 S-42 末行在本节点兑现不了。
+- **V2-3 存量记录不补时刻**：采用 v2 之前建立的成员关系与隶属上，S-59 v2 整次 `unavailable`、资产流转判不可用，直到关系重新建立。**半径**（D-040 §八 M61）：资产提供者的快照面「整份或无」，被分享方组织只要有一份立在这种关系上的分享，**该组织全部成员的快照整份不可用**，不只那一份分享；**出路**：被分享方按 AT S-29 移除那份分享，或那段成员关系、隶属重新建立。**收场已接受**（D-040 §八 N-19；未上线、库可重建，M61 不重新标价，上线前若出现须迁移的存量库报产品负责人）；这是接受的代价，无后续动作（[等价性论证](#存量记录不补时刻)留作将来改为迁移落 T_m 时的依据）。
+- **V2-4 `./tx-reads` 的导入限定**：须一条 `tools/ts-checks` 规则只许 `packages/assets/asset-governance` 与本包测试 import，带「故意违反即失败」自测。未写之前任何包都能绕过本节点的服务面读表。owner `tools/ts-checks` ＋ 本节点。
+- **V2-5 钉版本的静态核对**：「catalog 里钉 v1 的包只 inject v1 服务名、钉 v2 的只 inject v2 服务名」没有规则。owner `tools/ts-checks`；受影响的是入口层（钉 v1）与将来的 v2 消费者。
+- **V2-6 已关闭**：X-2、X-3 由 D-040 §八 N-19 接受，PA-4 扩到这三处。
+- **V2-7 入口契约 v1 投影 S-22、S-36、S-59**：钉 v1、经 v1 服务名，不受 v2 影响；入口契约出 v2 时要决定时刻露不露、怎么露（v2 [§十三「对消费者的影响」](../../../../spec/capabilities/organization-governance/v2/contract.md#对消费者的影响)）。owner 入口契约 v2。
+- **V2-8 S-61 未开始**；「严格更晚」一支受阻于 V2-2，标「**有前提：C-15**」（实施程前置 W-0e，D-040 §八 N-34），不靠「等一会儿再做」变绿。
