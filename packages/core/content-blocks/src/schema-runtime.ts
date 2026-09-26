@@ -6,11 +6,10 @@ import {
   writeJsonLossless,
   type JsonValue,
   type JsonObject,
-} from '@omne-harness-lite/content-blocks'
-import type { JsonSchema } from './types.ts'
+} from './json.ts'
 import { createExactMetaValidator, exactSchema, installExactKeywords } from './exact-schema.ts'
 
-export type { JsonSchema } from './types.ts'
+export type SchemaDocument = boolean | JsonObject
 export interface SchemaRuntimeOptions {
   /** Deterministic, effect-free factory; only native, non-global, non-sticky expressions. */
   readonly patternFactory?: (source: string) => RegExp
@@ -19,8 +18,8 @@ export interface SchemaValidator {
   readonly validate: (value: JsonValue) => boolean
 }
 export interface SchemaRuntime {
-  readonly metaValidate: (schema: JsonSchema) => boolean
-  readonly compile: (schema: JsonSchema) => SchemaValidator
+  readonly metaValidate: (schema: SchemaDocument) => boolean
+  readonly compile: (schema: SchemaDocument) => SchemaValidator
 }
 function object(value: unknown): value is JsonObject {
   return (
@@ -35,7 +34,7 @@ function copy(value: JsonValue): JsonValue {
   if ('failed' in result) throw new Error('lossless writer produced invalid JSON')
   return result.ok
 }
-function copySchema(schema: JsonSchema): JsonSchema {
+function copySchema(schema: SchemaDocument): SchemaDocument {
   const result = copy(schema)
   if (typeof result !== 'boolean' && !object(result))
     throw new TypeError('Schema must be an object or boolean')
@@ -57,7 +56,7 @@ function projection(value: JsonValue): JsonValue {
 }
 /** One caller-owned compiler; no remote loading, async schemas or module-level author cache. */
 export function createSchemaRuntime(
-  resources: readonly JsonSchema[],
+  resources: readonly SchemaDocument[],
   options?: SchemaRuntimeOptions,
 ): SchemaRuntime {
   const metaValidator = createExactMetaValidator()
@@ -81,7 +80,7 @@ export function createSchemaRuntime(
     code: { regExp: engine },
   })
   installExactKeywords(ajv)
-  function metaValidate(schema: JsonSchema): boolean {
+  function metaValidate(schema: SchemaDocument): boolean {
     const original = copySchema(schema)
     return metaValidator(original, projection(original))
   }
@@ -95,7 +94,7 @@ export function createSchemaRuntime(
     if (!object(transformed)) throw new Error('Schema resource projection is not an object')
     ajv.addSchema(transformed)
   }
-  function compile(schema: JsonSchema): SchemaValidator {
+  function compile(schema: SchemaDocument): SchemaValidator {
     const originalSchema = copySchema(schema)
     if (!metaValidator(originalSchema, projection(originalSchema)))
       throw new TypeError('Schema fails Draft 2020-12 meta-validation')
