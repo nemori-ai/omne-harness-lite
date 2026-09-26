@@ -57,6 +57,11 @@ const BUILTINS: Readonly<Record<string, readonly string[]>> = {
   'asset-evaluation': ['node:crypto'],
 }
 
+/** 精确子入口登记不替代上面的包依赖批准，也不准许相邻私有路径。 */
+const PUBLIC_SUBPATHS: Readonly<Record<string, readonly string[]>> = {
+  'asset-model': ['schema-runtime'],
+}
+
 function allowedExternal(pkg: string, dependencies: readonly string[], specifier: string): boolean {
   if (
     pkg !== 'stream-assembly' &&
@@ -68,7 +73,10 @@ function allowedExternal(pkg: string, dependencies: readonly string[], specifier
     dependencies.some(
       name =>
         specifier === `@omne-harness-lite/${name}` ||
-        specifier === `@omne-harness-lite/${name}/schema`,
+        specifier === `@omne-harness-lite/${name}/schema` ||
+        PUBLIC_SUBPATHS[name]?.some(
+          subpath => specifier === `@omne-harness-lite/${name}/${subpath}`,
+        ),
     )
   )
     return true
