@@ -1,4 +1,4 @@
-# 本次结果与四节点证据义务的对应
+# 本次结果与五节点证据义务的对应
 
 采用各节点 design／verification 与冻结 v1；输入快照坐标见 [audit.json](audit.json)。
 表中「通过」只指该次实际运行与指定范围；旧 run 的义务不被抹去。
@@ -6,6 +6,7 @@
 checks 的 [98/98 原运行](raw/hub/w1-checks-hub.log) 与 [100/100 后续运行](raw/hub/w1-checks-path-hub.log) 分别保留；
 后续仅增加 asset-model 字面 `path.normalize` 所需导入许可及 CLI 正反例，四节点相关规则仍通过。
 它没有扩大 identity 消费者覆盖或墙钟别名检查的范围。
+content-blocks 集成后补齐本包公开 Schema 导入许可，最终 [101/101 自测](raw/hub/w1-own-schema-check.log) 与 [24-rule scan](raw/hub/w1-content-boundary-hub.log) 独立保留；先前的真实扫描失败也仍在原 log。
 
 ## packages/core/kernel-basis
 
@@ -85,3 +86,26 @@ S-5/S-10、S-16/S-17、S-19 与 S-23～S-26 的真实操作／装配责任保持
 
 负向 fixture 通过公共驱动边界关闭外键，连接、事务、查询、错误映射与句柄关闭仍由真实实现承担。
 它不新增产品行为，core 无 infra 反向依赖。本次不复跑 pg、真实账号／组织外键、跨 owner 动作链、断电或其它故障变异。
+
+## packages/core/content-blocks
+
+源码 `44b84525`，HUB `be07910a` 的 [完整原 log](raw/hub/w1-content-hub.log) 先记录包 build/typecheck/test 各退出0、**306/306**，
+再记录纯性scan误报并导致外层退出1。工具修正后才有 [101/101](raw/hub/w1-own-schema-check.log)、[build/scan/format通过](raw/hub/w1-content-boundary-hub.log)，不把首运行写成整体通过。
+spoke旧20规则扫描与最新HUB24规则分别标记，代码／规范／配置输入快照和6项hash见 [audit](audit.json)。
+
+| 义务／条款 | 实际检查与范围 | 状态 |
+|---|---|---|
+| V-1／S-1～S-21形状面、S-25闭合 | `schema.spec.ts` 消费冻结examples第1～13节162行（60合法／102拒绝）、22defs、副本相同；[原test log](raw/content-blocks/test.log) | 通过于模块；Shape不证明引用可访问或资格 |
+| V-2／S-26～S-27 | 同文件全部ContentBlock行具名判定、第12节六优先级行、反转兄弟顺序、原输入不改、忽略arguments/opaque中块状值 | 通过；真实接收／落盘归外部owner |
+| V-3模块部分／S-7/S-10/S-19 | `content.spec.ts` 媒体类型逐字不同、派生同模态含textfile、无模态file、非规范字符串不修补、自有冻结副本 | 通过；消息内重复id要看到整条消息，归messages |
+| V-6模块部分／S-9 | `json.spec.ts` 含9007199254740993、嵌套数组对象/null、缺席vsnull的opaque字面往返，声明品牌负例 | 通过；没有真实日志／传输／存储往返 |
+| V-11模块部分／S-12/S-24/M36 | `json.spec.ts` 12345678901234567890和精确小数；语法错误优先；解码后重复键、转义、嵌套、__proto__；中性failed与测试接收映射malformed | 通过于模块；参数单次解析与unparseable领域状态仍待stream |
+| M49前提与公开built入口 | `public-consumer.spec.ts` 真实Node子进程从public exports消费完整大参数调用、Schema和数字helpers；[原native/public探针源码](raw/content-blocks/node-probe.mjs)与[6字面结果](raw/content-blocks/node-probe.json) | 通过于Node24.18.0；原探针相对路径要求原tmp/content-blocks布局或等价重建 |
+| root独立公开函数重放 | [保存脚本](raw/hub/content-independent-probe.mjs)在本包cwd、public self exports下实际执行；6数/3重复名/完整tool_call/bytes=-0.1拒绝与1e400接受；[新结果](raw/hub/w1-content-independent-replay.json) | 主调度实际exit0、HEADa213f590，产品44b84525／config47c同字节；首heredoc[JSON](raw/hub/w1-content-independent.json)保留但单凭它不主张可重放 |
+| SC-2／SC-3模块公开面 | `content.spec.ts`观察不解析rawArguments；`types.spec-d.ts`经built exports阻止opaque字段／索引、原对象冒充opaque、品牌混用及可变写入 | 公开面通过；SC-2产品调用准入留W6及真实stream，SC-3外部消费者不由类型形状闭合 |
+| 纯模块import前提 | 47c工具修正把公开self Schema列入许可，继续拒Cordis/kernel/storage/plugin；101自测、content5源码真实24规则scan | 当前范围通过；十四未实现节点的fixture不代表产品实现 |
+
+数字实现保守保留所有非普通安全整数字面为LosslessNumber；私有Schema视图仅服务固定22defs，
+原AttachmentRef.bytes按原系数／指数核非负整数，不据double验证；不是通用数值Schema引擎。
+深度128、100000字符输入及6API字面是有限测试，没有据此增加产品大小上限或无界保证。
+CB-1铸号唯一性、CB-2每个JSON跳点、CB-3附件存储租户判定以及V-4/5/7/8/9、SC-1/4维持外部责任。

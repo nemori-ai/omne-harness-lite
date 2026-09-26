@@ -1,0 +1,39 @@
+Scope: 2 of 16 workspace projects
+packages/core/identity-values build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/identity-values build: Done
+packages/core/content-blocks build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/content-blocks build: Done
+
+> @omne-harness-lite/content-blocks@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/packages/core/content-blocks
+> tsc -p tsconfig.test.json
+
+
+> @omne-harness-lite/content-blocks@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/packages/core/content-blocks
+> vitest run
+
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/packages/core/content-blocks
+
+
+ Test Files  5 passed (5)
+      Tests  306 passed (306)
+Type Errors  no errors
+   Start at  04:56:27
+   Duration  2.40s (transform 577ms, setup 0ms, import 1.85s, tests 408ms, environment 1ms, typecheck 1.52s)
+
+
+> omne-harness-lite-workspace@ lint:rules /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery
+> pnpm --filter @omne-harness-lite/ts-checks run scan
+
+
+> @omne-harness-lite/ts-checks@0.0.0 scan /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/tools/ts-checks
+> node --experimental-strip-types src/cli.ts ../../packages ../../apps
+
+core/content-blocks/src/schema.ts:1 [core-pure-imports] content-blocks 导入了 @omne-harness-lite/content-blocks/schema；只允许节点登记的公开依赖、本包源码/Schema 与已采用的纯构件
+FAIL: ts-checks 发现 1 处违反。
+/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/tools/ts-checks:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @omne-harness-lite/ts-checks@0.0.0 scan: `node --experimental-strip-types src/cli.ts ../../packages ../../apps`
+Exit status 1
+ ELIFECYCLE  Command failed with exit code 1.

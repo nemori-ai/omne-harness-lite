@@ -1,0 +1,6 @@
+f9c022ed6dd5625db552a107e6300af8f9ac11325e1cee4f7b4f80f9282af0e0  .meta_harness/design/spec/data/content-blocks/v1/contract.md
+c3d6361a3e7a4fc64a66b98c75819172ca481bbde35230728552e687405177e5  .meta_harness/design/spec/data/content-blocks/v1/content-blocks.schema.json
+f11bf11f2f17cfa2ce7a8713209fbcdf7775e76b042313375faf8aba42338301  .meta_harness/design/spec/data/content-blocks/v1/examples.md
+0759d7ef6f3e7ec9ac31f1cdd4af8ee51930d19c3b939f2c24ed2ee0bbf56f38  .meta_harness/design/realization/packages/core/content-blocks/design.md
+e0bb7c7a142568ef526ddc7cab4ac0acbf4cc1826cc62650a84322c1b9b2612f  .meta_harness/design/realization/packages/core/content-blocks/verification.md
+c3d6361a3e7a4fc64a66b98c75819172ca481bbde35230728552e687405177e5  packages/core/content-blocks/schema/content-blocks.schema.json

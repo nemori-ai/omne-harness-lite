@@ -1,0 +1,19 @@
+
+> omne-harness-lite-workspace@ format:staged /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-content
+> ./scripts/format.sh staged
+
+Checking staged packages/core/content-blocks/package.json
+Checking staged packages/core/content-blocks/src/content.ts
+Checking staged packages/core/content-blocks/src/index.ts
+Checking staged packages/core/content-blocks/src/json.ts
+Checking staged packages/core/content-blocks/src/schema.ts
+Checking staged packages/core/content-blocks/src/types.ts
+Checking staged packages/core/content-blocks/tests/content.spec.ts
+Checking staged packages/core/content-blocks/tests/json.spec.ts
+Checking staged packages/core/content-blocks/tests/public-consumer.spec.ts
+Checking staged packages/core/content-blocks/tests/schema.spec.ts
+Checking staged packages/core/content-blocks/tests/spec-fixtures.ts
+Checking staged packages/core/content-blocks/tests/types.spec-d.ts
+Checking staged packages/core/content-blocks/tsconfig.build.json
+Checking staged packages/core/content-blocks/tsconfig.test.json
+Checking staged packages/core/content-blocks/vitest.config.ts
